@@ -1591,10 +1591,7 @@ var ScriptingApi::Engine::loadFromJSON(String fileName)
 	if (f.existsAsFile())
 		return JSON::parse(f);
 	else
-	{
-		reportScriptError("File not found");
-		RETURN_IF_NO_THROW(var())
-	}
+		return {};
 }
 
 
@@ -1862,6 +1859,7 @@ void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 	}
 
 	ModulatorSamplerSound::selectSoundsBasedOnRegex(regexWildcard, s, soundSelection);
+	
 }
 
 int ScriptingApi::Sampler::getNumSelectedSounds()
@@ -1892,18 +1890,22 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 	}
 
 	auto& sounds = soundSelection.getItemArray();
-
 	auto id = sampleIds[propertyId];
 
-	const int numSelected = sounds.size();
-
-	for (int i = 0; i < numSelected; i++)
+	auto f = [sounds, id, newValue](Processor* p)
 	{
-		if (sounds[i].get() != nullptr)
+		const int numSelected = sounds.size();
+
+		for (int i = 0; i < numSelected; i++)
 		{
-			sounds[i]->setSampleProperty(id, newValue, false);
+			if (sounds[i].get() != nullptr)
+				sounds[i]->setSampleProperty(id, newValue, false);
 		}
-	}
+
+		return SafeFunctionCall::OK;
+	};
+
+	s->callAsyncIfJobsPending(f);
 }
 
 void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var newValue)
@@ -1920,12 +1922,19 @@ void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var
 
 	auto id = sampleIds[propertyIndex];
 
-	ModulatorSampler::SoundIterator iter(s);
-
-	while (auto sound = iter.getNextSound())
+	auto f = [id, newValue](Processor* p)
 	{
-		sound->setSampleProperty(id, newValue, false);
-	}
+		auto s = static_cast<ModulatorSampler*>(p);
+		
+		ModulatorSampler::SoundIterator iter(s);
+
+		while (auto sound = iter.getNextSound())
+			sound->setSampleProperty(id, newValue, false);
+
+		return SafeFunctionCall::OK;
+	};
+
+	s->callAsyncIfJobsPending(f);
 }
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
@@ -2005,8 +2014,14 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 	{
 		if (micName == s->getChannelData(i).suffix)
 		{
-			s->setMicEnabled(i, !shouldBePurged);
+			auto f = [i, shouldBePurged](Processor* p)
+			{
+				auto s = static_cast<ModulatorSampler*>(p);
+				s->setMicEnabled(i, !shouldBePurged);
+				return SafeFunctionCall::OK;
+			};
 
+			s->callAsyncIfJobsPending(f);
 			return;
 		}
 	}

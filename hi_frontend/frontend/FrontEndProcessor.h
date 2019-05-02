@@ -140,12 +140,29 @@ public:
 
 		v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
 
+        auto mpeData = getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+        
+        v.addChild(mpeData, -1, nullptr);
+        
 		v.writeToStream(output);
+        
+        
+        
+        
 #endif
 	};
     
     void setStateInformation(const void *data,int sizeInBytes) override
 	{
+        bool suspendAfterLoad = false;
+        
+        if(updater.suspendState)
+        {
+            suspendAfterLoad = true;
+            updater.suspendState = false;
+            updateSuspendState();
+        }
+        
 #if USE_RAW_FRONTEND
 		MemoryInputStream in(data, sizeInBytes, false);
 		MemoryBlock mb;
@@ -156,8 +173,11 @@ public:
 
 		rawDataHolder->restoreFromValueTree(v);
 #else
+        
 		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
+        ScopedValueSetter<bool> svs(getKillStateHandler().getStateLoadFlag(), true);
+        
 		currentlyLoadedProgram = v.getProperty("Program");
 
 		getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
@@ -174,6 +194,19 @@ public:
 		}
 
 		synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
+        
+        auto mpeData = v.getChildWithName("MPEData");
+        
+        if (mpeData.isValid())
+            getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
+        else
+            getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+        
+        if(suspendAfterLoad)
+        {
+            updater.suspendState = true;
+            updater.updateDelayed();
+        }
 #endif
 	}
 
@@ -211,6 +244,8 @@ public:
 	void incActiveEditors();
 
 	void decActiveEditors();
+    
+    void updateSuspendState();
     
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
  
@@ -253,6 +288,34 @@ public:
     
 private:
 
+    struct SuspendUpdater: private Timer
+    {
+        SuspendUpdater(FrontendProcessor& parent_):
+          parent(parent_)
+        {}
+        
+        void updateDelayed()
+        {
+            startTimer(500);
+        }
+        
+        bool suspendState = false;
+        
+    private:
+        
+        void timerCallback() override
+        {
+            parent.updateSuspendState();
+            stopTimer();
+        }
+        
+        FrontendProcessor& parent;
+    };
+    
+    
+    
+    SuspendUpdater updater;
+    
 	friend class FrontendProcessorEditor;
 	friend class DefaultFrontendBar;
 

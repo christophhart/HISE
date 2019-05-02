@@ -598,7 +598,7 @@ public:
 		r(Result::ok())
 	{
 		
-		sampleMapFile = new FilenameComponent("SampleMap", GET_PROJECT_HANDLER(chain).getWorkDirectory(), true, false, true, "*.wtc", "", "Load Wavetable Conversion File");
+		sampleMapFile = new FilenameComponent("SampleMap", GET_PROJECT_HANDLER(chain).getWorkDirectory(), true, false, false, "*.xml", "", "Load Wavetable Conversion File");
 		sampleMapFile->addListener(this);
 		
 		fileHandling = new AdditionalRow(this);

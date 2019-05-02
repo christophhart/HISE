@@ -55,6 +55,8 @@ class ModulatorSampler: public ModulatorSynth,
 {
 public:
 
+
+
 	/** If you add or delete multiple samples at once (but not the entire sample set), it will
 	    fire an UI update for each sample drastically slowing down the UI responsiveness.
 		
@@ -538,7 +540,7 @@ public:
 
 	bool hasPendingSampleLoad() const { return samplePreloadPending; }
 
-	void killAllVoicesAndCall(const ProcessorFunction& f, bool restrictToSampleLoadingThread=true);
+	bool killAllVoicesAndCall(const ProcessorFunction& f, bool restrictToSampleLoadingThread=true);
 
 	void setUseStaticMatrix(bool shouldUseStaticMatrix)
 	{
@@ -548,6 +550,19 @@ public:
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
 
 	bool shouldDelayUpdate() const noexcept { return delayUpdate; }
+
+	/** Checks the global queue if there are any jobs that will be executed sometime in the future. 
+	
+		You can use this to query whether to defer the thing you need to do or run it synchronously.
+	*/
+	bool hasPendingAsyncJobs() const;
+
+	/** This checks whether there is a async function waiting to be executed in the global queue.
+	
+		If there is a function, it will defer the function and return false, otherwise it will 
+		call it asynchronously and return true. 
+	*/
+	bool callAsyncIfJobsPending(const ProcessorFunction& f);
 
 private:
 
@@ -586,8 +601,6 @@ private:
     /** Sets the streaming buffer and preload buffer sizes. */
     void setPreloadSize(int newPreloadSize);
     
-	bool sampleMapLoadingPending = false;
-
 	CriticalSection exportLock;
 
 	AsyncPurger asyncPurger;

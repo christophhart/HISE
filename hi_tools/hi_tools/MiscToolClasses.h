@@ -92,6 +92,11 @@ public:
 
 	virtual void timerCallback() = 0;
 
+    bool isSuspended()
+    {
+        return suspended;
+    }
+    
 private:
 
 	struct Internal : public Timer
@@ -107,11 +112,7 @@ private:
 
 	Internal internalTimer;
 
-#if USE_BACKEND
 	bool suspended = false;
-#else
-	bool suspended = true;
-#endif
 
 	int lastTimerInterval = -1;
 };
@@ -127,6 +128,7 @@ public:
 	PooledUIUpdater() :
 		pendingHandlers(8192)
 	{
+        suspendTimer(false);
 		startTimer(30);
 	}
 

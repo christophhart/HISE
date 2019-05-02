@@ -1341,7 +1341,18 @@ void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<Async
 		for (int i = 0; i < c.selection.size(); i++)
 		{
 			if (c.selection[i] != nullptr)
-				static_cast<ModulatorSamplerSound*>(c.selection[i].get())->updateAsyncInternalData(c.id, c.values[i]);
+			{
+				auto sound = static_cast<ModulatorSamplerSound*>(c.selection[i].get());
+
+				if (sound->isDeletePending())
+				{
+					jassertfalse;
+					continue;
+				}
+
+				sound->updateAsyncInternalData(c.id, c.values[i]);
+			}
+				
 		}
 	}
 }
