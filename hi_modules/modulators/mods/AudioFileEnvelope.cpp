@@ -460,7 +460,7 @@ void EnvelopeFollower::AttackRelease::setSampleRate(double sampleRate_)
 
 void EnvelopeFollower::AttackRelease::setRelease(float newRelease)
 {
-	release = (double)newRelease;
+	release = newRelease;
 	calculateCoefficients();
 }
 

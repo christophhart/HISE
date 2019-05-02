@@ -195,6 +195,8 @@ public:
 
 		bool shouldSkipPreloading() const { return skipPreloading; };
 
+		ModulatorSamplerSoundPool* getModulatorSamplerSoundPool();;
+
 		/** If you load multiple samplemaps at once (eg. at startup), call this and it will coallescate the preloading. */
 		void setShouldSkipPreloading(bool skip);
 

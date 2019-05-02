@@ -80,8 +80,6 @@ struct ModBufferExpansion
 				}
 			}
 
-			
-
 			return true;
 		}
 	}

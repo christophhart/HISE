@@ -292,7 +292,7 @@ protected:
 	/** If you want to do synchronous event processing, override this method and implement the logic there.
 		Be aware that this will be called on the audio thread, so if you are planning to do non-time critical
 		stuff, consider sub-classing AsyncHiseEventListener and defer the task to the UI thread instead. */
-	virtual void processSync(HiseEvent& e) {};
+	virtual void processSync(HiseEvent& /*e*/) {};
 
 private:
 

@@ -1036,8 +1036,8 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 		break;
 	}
 
-	Point<int> p(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
-	auto popup = getParentShell()->showComponentInRootPopup(c, button, p);
+	Point<int> point(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
+	auto popup = getParentShell()->showComponentInRootPopup(c, button, point);
 
 	if (popup != nullptr)
 		popup->setColour((int)FloatingTilePopup::ColourIds::backgroundColourId, JUCE_LIVE_CONSTANT_OFF(Colour(0xec000000)));

@@ -838,7 +838,7 @@ void SampleMapEditor::refreshRootNotes()
 	}
 }
 
-void SampleMapEditor::expansionPackLoaded(Expansion* currentExpansion)
+void SampleMapEditor::expansionPackLoaded(Expansion* /*currentExpansion*/)
 {
 	updateSampleMapSelector(true);
 }

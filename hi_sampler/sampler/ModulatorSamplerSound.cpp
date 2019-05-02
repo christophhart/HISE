@@ -759,6 +759,15 @@ StreamingSamplerSound* ModulatorSamplerSoundPool::getSampleFromPool(PoolReferenc
 	return nullptr;
 }
 
+
+hise::ModulatorSamplerSoundPool* MainController::SampleManager::getModulatorSamplerSoundPool()
+{
+	if (auto exp = mc->getExpansionHandler().getCurrentExpansion())
+		return exp->pool->getSamplePool();
+
+	return mc->getCurrentFileHandler().pool->getSamplePool();
+}
+
 void ModulatorSamplerSoundPool::clearUnreferencedSamplesInternal()
 {
 	Array<PoolEntry> currentList;

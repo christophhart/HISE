@@ -65,7 +65,7 @@ hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Midi
 }
 
 
-hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const AdditionalDataReference& emptyTree)
+hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const AdditionalDataReference& /*emptyTree*/)
 {
 	return ProjectHandler::SubDirectories::AdditionalSourceCode;
 }
@@ -184,7 +184,7 @@ void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream
 	fillMetadata(data, additionalData);
 }
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AdditionalDataReference& data, var* additionalData)
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AdditionalDataReference& data, var* additionalData)
 {
 	ScopedPointer<InputStream> inputStream = ownedStream;
 	data.getFile() = inputStream->readEntireStreamAsString();
@@ -236,7 +236,7 @@ void PoolHelpers::fillMetadata(MidiFileReference& data, var* additionalData)
 	*additionalData = var(meta);
 }
 
-void PoolHelpers::fillMetadata(AdditionalDataReference& data, var* additionalData)
+void PoolHelpers::fillMetadata(AdditionalDataReference& /*data*/, var* additionalData)
 {
 	DynamicObject::Ptr meta = new DynamicObject();
 
@@ -364,6 +364,7 @@ PoolHelpers::Reference PoolHelpers::Reference::withFileHandler(FileHandlerBase* 
 	}
 #endif
 
+	ignoreUnused(handler);
 	return Reference(*this);
 }
 
@@ -886,7 +887,7 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const MidiF
 	data.getFile().writeTo(output);
 }
 
-void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AdditionalDataReference& data, const File& originalFile) const
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AdditionalDataReference& data, const File& /*originalFile*/) const
 {
 	output.writeString(data.getFile());
 }
@@ -940,7 +941,10 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, MidiFile
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AdditionalDataReference* data) const
 {
 	ScopedPointer<MemoryInputStream> scopedInput = mis;
-	data->getFile().swapWith(mis->readEntireStreamAsString());
+
+	auto d = mis->readEntireStreamAsString();
+
+	data->getFile().swapWith(d);
 }
 
 PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :

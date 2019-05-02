@@ -94,7 +94,7 @@ public:
 
 		void setAttack(float newAttack)
 		{
-			attack = (double)newAttack;
+			attack = newAttack;
 
 			if (attack == 0.0f)
 				attackCoefficient = 1.0;

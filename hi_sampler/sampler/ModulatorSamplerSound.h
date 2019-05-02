@@ -512,7 +512,7 @@ public:
 	var getAdditionalData(PoolReference r) const override { return var(); }
 	StringArray getTextDataForId(int index) const override { return { pool[index].r.getReferenceString() }; };
 
-	void writeItemToOutput(OutputStream& output, PoolReference r)  override
+	void writeItemToOutput(OutputStream& /*output*/, PoolReference /*r*/)  override
 	{
 		jassertfalse;
 	}
@@ -564,6 +564,8 @@ public:
 	void clearUnreferencedSamples();
 
 	StreamingSamplerSound* getSampleFromPool(PoolReference r) const;
+
+	
 
 	void addSound(const PoolEntry& newPoolEntry);
 

@@ -355,13 +355,10 @@ public:
 
 	void paintOverChildren(Graphics& g) override;
 
-	void mouseDown(const MouseEvent& event)
+	void mouseDown(const MouseEvent& )
 	{
 		ComponentWithHelp::openHelp();
 	}
-
-	
-
 
 	void buttonClicked(Button* b) override;
 
