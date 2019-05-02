@@ -311,7 +311,11 @@ void PresetBrowserLookAndFeel::drawTag(Graphics& g, bool blinking, bool active, 
 	g.drawRoundedRectangle(ar, 2.0f, 1.0f);
 	g.setFont(font.withHeight(14.0f));
 	g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
-	g.drawText(name, ar, Justification::centred);
+    
+    // Wow, so professional, good bug fix.
+    auto nameToUse = (name == "Agressive" ? "Aggressive" : name);
+    
+	g.drawText(nameToUse, ar, Justification::centred);
 
 	if (selected)
 		g.drawRoundedRectangle(ar, 2.0f, 2.0f);

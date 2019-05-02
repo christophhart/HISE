@@ -117,38 +117,42 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 #else
 	getDelayedRenderer().processWrapped(buffer, midiMessages);
 #endif
-
-
-	
 };
 
 void FrontendProcessor::incActiveEditors()
 {
-	if (numActiveEditors <= 0)
-	{
-		Processor::Iterator<SuspendableTimer::Manager> iter(getMainSynthChain());
-
-		while (auto sm = iter.getNextProcessor())
-			sm->suspendStateChanged(false);
-
-		getGlobalUIUpdater()->suspendTimer(false);
-	}
-
-	numActiveEditors++;
+    if (numActiveEditors <= 0)
+    {
+        updater.suspendState = false;
+        updateSuspendState();
+    }
+    
+    numActiveEditors++;
 }
 
+void FrontendProcessor::updateSuspendState()
+{
+    if(updater.suspendState != getGlobalUIUpdater()->isSuspended())
+    {
+        Processor::Iterator<SuspendableTimer::Manager> iter(getMainSynthChain());
+        
+        while (auto sm = iter.getNextProcessor())
+            sm->suspendStateChanged(updater.suspendState);
+        
+        getGlobalUIUpdater()->suspendTimer(updater.suspendState);
+    }
+}
+    
 void FrontendProcessor::decActiveEditors()
 {
 	numActiveEditors = jmax<int>(0, numActiveEditors - 1);
 
+    
+    
 	if (numActiveEditors == 0)
 	{
-		Processor::Iterator<SuspendableTimer::Manager> iter(getMainSynthChain());
-
-		while (auto sm = iter.getNextProcessor())
-			sm->suspendStateChanged(true);
-
-		getGlobalUIUpdater()->suspendTimer(true);
+		updater.suspendState = true;
+        updater.updateDelayed();
 	}
 }
 
@@ -219,7 +223,8 @@ AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 keyFileCorrectlyLoaded(true),
 currentlyLoadedProgram(0),
-unlockCounter(0)
+unlockCounter(0),
+updater(*this)
 {
 	ignoreUnused(synthData);
 
@@ -284,6 +289,9 @@ unlockCounter(0)
 #if FRONTEND_IS_PLUGIN && HI_SUPPORT_MONO_CHANNEL_LAYOUT
 	stereoCopy.setSize(2, 0);
 #endif
+    
+    updater.suspendState = true;
+    updater.updateDelayed();
 }
 
 FrontendProcessor::~FrontendProcessor()

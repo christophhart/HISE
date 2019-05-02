@@ -121,6 +121,7 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 
 #endif
 
+	unisonoStates.clear();
 
 	auto mod = getFMModulator();
 
@@ -159,8 +160,17 @@ ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth*
 
 	for (auto s : childSynth->soundsToBeStarted)
 	{
+		//if (auto childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex)))
+
 		if (auto childVoice = childSynth->getFreeVoice(s, 1, midiNoteNumber))
 		{
+			jassert(!unisonoStates.isBitSet(childVoice->getVoiceIndex()));
+			jassert(childVoice->isInactive());
+
+			// Do not set the unisono state for the FM modulator
+			if (childSynth != getFMModulator())
+				unisonoStates.setBit(childVoice->getVoiceIndex());
+
 			childVoice->setStartUptime(childSynth->getMainController()->getUptime());
 			childVoice->setCurrentHiseEvent(getCurrentHiseEvent());
 
@@ -270,6 +280,19 @@ void ModulatorSynthGroupVoice::calculateNoFMBlock(int startSample, int numSample
 
 	bool isFirst = true;
 
+#if LOG_SYNTH_EVENTS
+	String s;
+
+	s << "V" << voiceIndex << ":\t\t";
+	s << (unisonoStates.isBitSet(0) ? "1 " : "0 ");
+	s << (unisonoStates.isBitSet(1) ? "1 " : "0 ");
+	s << (unisonoStates.isBitSet(2) ? "1 " : "0 ");
+	s << (unisonoStates.isBitSet(3) ? "1 " : "0 ");
+
+	LOG_SYNTH_EVENT(s);
+#endif
+
+
 	for (int i = 0; i < numUnisonoVoices; i++)
 	{
 		const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
@@ -279,6 +302,12 @@ void ModulatorSynthGroupVoice::calculateNoFMBlock(int startSample, int numSample
 		while (auto childSynth = iter.getNextActiveChildSynth())
 			calculateNoFMVoiceInternal(childSynth, unisonoVoiceIndex, startSample, numSamples, voicePitchValues, isFirst);
 	}
+
+	if (!unisonoStates.anyActive())
+	{
+		resetVoice();
+	}
+		
 }
 
 
@@ -304,8 +333,16 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth* childS
 	{
 		ModulatorSynthVoice *childVoice = childContainer.getVoice(i); //static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex));
 
+		// You have to remove them from the childvoice list
+		jassert(unisonoStates.isBitSet(childVoice->getVoiceIndex()));
+
 		if (childVoice->isInactive() || childVoice->getOwnerSynth() != childSynth)
+		{
+			LOG_SYNTH_EVENT("V" + String(voiceIndex) + ": Skipping inactive voice " + String(childVoice->getVoiceIndex()));
 			continue;
+		}
+
+		LOG_SYNTH_EVENT("V" + String(voiceIndex) + ": Rendering child voice " + String(childVoice->getVoiceIndex()));
 
 		calculatePitchValuesForChildVoice(childSynth, childVoice, startSample, numSamples, voicePitchValues);
 
@@ -354,11 +391,10 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth* childS
 
 		if (childVoice->getCurrentlyPlayingSound() == nullptr)
 		{
-			ModulatorSynthVoice::resetVoice();
-			resetInternal(childSynth, unisonoIndex);
-			return;
-		}
-			
+			LOG_SYNTH_EVENT("V" + String(voiceIndex) + ": Suspending unisono voice with index " + String(childVoice->getVoiceIndex()));
+			unisonoStates.clearBit(childVoice->getVoiceIndex());
+			childContainer.removeVoice(childVoice);
+		}			
 	}
 
 	childSynth->clearPendingRemoveVoices();
@@ -476,8 +512,8 @@ void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int
 		calculateFMCarrierInternal(group, unisonoVoiceIndex, startSample, numSamples, voicePitchValues, isFirst);
 	}
 
-	
-	
+	if (!unisonoStates.anyActive())
+		resetVoice();
 }
 
 
@@ -508,8 +544,13 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 	{
 		ModulatorSynthVoice *carrierVoice = childContainer.getVoice(i); // static_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(childVoiceIndex));
 
+		
+
 		if (carrierVoice->getOwnerSynth() == modSynth)
 			continue; // The modulator will be listed in the child voices but shouldn't be rendered here...
+
+		// You have to clear the unisono flag when resetting the voice;
+		jassert(unisonoStates.isBitSet(carrierVoice->getVoiceIndex()));
 
 		if (carrierVoice == nullptr)
 			return;
@@ -594,18 +635,17 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 			
 		}
 
-
-		
-
-
 #if ENABLE_ALL_PEAK_METERS
 		const float peak2 = FloatVectorOperations::findMaximum(carrierVoice->getVoiceValues(0, startSample), numSamples);
 		carrierSynth->setPeakValues(peak2, peak2);
 #endif
 
 		if (carrierVoice->getCurrentlyPlayingSound() == nullptr)
-			resetVoice();
-
+		{
+			LOG_SYNTH_EVENT("Suspending FM voice " + String(carrierVoice->getVoiceIndex()));
+			unisonoStates.clearBit(carrierVoice->getVoiceIndex());
+			childContainer.removeVoice(carrierVoice);
+		}
 	}
 
 	carrierSynth->clearPendingRemoveVoices();
@@ -752,6 +792,8 @@ void ModulatorSynthGroupVoice::resetVoice()
 		while (auto childSynth = iter.getNextActiveChildSynth())
 			resetInternal(childSynth, unisonoVoiceIndex);
 	}
+
+	unisonoStates.clear();
 }
 
 void ModulatorSynthGroupVoice::resetInternal(ModulatorSynth * childSynth, int childVoiceIndex)
@@ -766,6 +808,7 @@ void ModulatorSynthGroupVoice::resetInternal(ModulatorSynth * childSynth, int ch
 	{
 		ModulatorSynthVoice *childVoice =  childContainer.getVoice(i);
 
+		unisonoStates.clearBit(childVoice->getVoiceIndex());
 		childSynth->setPeakValues(0.0f, 0.0f);
 		childVoice->resetVoice();
 	}

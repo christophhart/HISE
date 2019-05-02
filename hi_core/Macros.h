@@ -101,7 +101,9 @@ namespace hise { using namespace juce;
 #define SET_CHANGED_FROM_PARENT_EDITOR()
 #endif
 
-#ifdef LOG_SYNTH_EVENTS
+#define LOG_SYNTH_EVENTS 0
+
+#if LOG_SYNTH_EVENTS
 #define LOG_SYNTH_EVENT(x) DBG(x)
 #else
 #define LOG_SYNTH_EVENT(x)
@@ -127,7 +129,7 @@ namespace hise { using namespace juce;
 #define jassert_message_thread jassert(export_ci() || MessageManager::getInstance()->currentThreadHasLockedMessageManager())
 #define jassert_locked_script_thread(mc) jassert(export_ci() ||LockHelpers::isLockedBySameThread(mc, LockHelpers::ScriptLock));
 #define jassert_dispatched_message_thread(mc) jassert_message_thread; jassert(export_ci() || mc->getLockFreeDispatcher().isInDispatchLoop());
-#define jassert_sample_loading_thread(mc) jassert(export_ci() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
+#define jassert_sample_loading_thread(mc) jassert(export_ci() || !mc->isInitialised() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
 #define jassert_sample_loading_or_global_lock(mc) jassert(export_ci() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread || mc->getKillStateHandler().globalLockIsActive());
 #define jassert_processor_idle jassert(export_ci() || !isOnAir() || !getMainController()->getKillStateHandler().isAudioRunning());
 #define jassert_global_lock(mc) jassert(export_ci() || mc->getKillStateHandler().globalLockIsActive());

@@ -584,6 +584,11 @@ void ModulatorSampler::deleteAllSounds()
 	{
 		LockHelpers::SafeLock sl(getMainController(), LockHelpers::SampleLock);
 
+		// The lifetime could exceed this function, so we need to flag it as pending for delete
+		// so that async tasks will not use this later.
+		for (int i = 0; i < getNumSounds(); i++)
+			static_cast<ModulatorSamplerSound*>(getSound(i))->setDeletePending();
+
 		if (getNumSounds() != 0)
 		{
 			clearSounds();
@@ -752,7 +757,7 @@ void ModulatorSampler::setVoiceAmountInternal()
 	refreshStreamingBuffers();
 }
 
-void ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool restrictToSampleLoadingThread/*=true*/)
+bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool restrictToSampleLoadingThread/*=true*/)
 {
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
@@ -760,9 +765,30 @@ void ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 						 (!restrictToSampleLoadingThread && currentThread == MainController::KillStateHandler::ScriptingThread);
 
 	if (!isOnAir() && correctThread)
+	{
 		f(this);
+		return true;
+	}
 	else
+	{
 		getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
+		return false;
+	}
+		
+}
+
+bool ModulatorSampler::hasPendingAsyncJobs() const
+{
+	return getMainController()->getSampleManager().hasPendingFunction(const_cast<ModulatorSampler*>(this));
+}
+
+bool ModulatorSampler::callAsyncIfJobsPending(const ProcessorFunction& f)
+{
+	if (hasPendingAsyncJobs())
+		return killAllVoicesAndCall(f);
+	
+	f(this);
+	return true;
 }
 
 void ModulatorSampler::AsyncPurger::timerCallback()

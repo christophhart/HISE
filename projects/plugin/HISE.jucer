@@ -107,76 +107,6 @@
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
-    <VS2015 targetFolder="Builds/VisualStudio2015" vstFolder="c:\SDKs\vstsdk2.4"
-            smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
-            IPPLibrary="Sequential" windowsTargetPlatformVersion="8.1">
-      <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="HISE x86 Debug" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0" defines="" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0"/>
-        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="HISE x86" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0" defines="" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0" linkTimeOptimisation="1"/>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="HISE x64 Debug" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0" defines="" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0"/>
-        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" optimisation="3" targetName="HISE x64" binaryPath=""
-                       alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0" libraryPath=""
-                       defines="" debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="1"
-                       linkTimeOptimisation="1" vstBinaryLocation=""/>
-        <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="x64" isDebug="1" optimisation="1" targetName="HISE x64 Debug 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=16&#10;"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"/>
-        <CONFIGURATION name="Release MultiChannel" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE x64 16 Out"
-                       binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"
-                       libraryPath="" defines="HISE_NUM_PLUGIN_CHANNELS=16" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0" linkTimeOptimisation="1"/>
-        <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="32-bit" isDebug="1" optimisation="1" targetName="HISE x86 Debug 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=16"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"/>
-        <CONFIGURATION name="Release MultiChannel" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="HISE x86 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=16&#10;"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_modules" path="../../"/>
-        <MODULEPATH id="hi_core" path="../../"/>
-        <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../"/>
-        <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../"/>
-        <MODULEPATH id="hi_sampler" path="../../"/>
-        <MODULEPATH id="hi_components" path="../../"/>
-        <MODULEPATH id="hi_dsp" path="../../"/>
-        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
-        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
-      </MODULEPATHS>
-    </VS2015>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
             smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
             IPPLibrary="Sequential" windowsTargetPlatformVersion="10.0.16299.0">
@@ -252,8 +182,7 @@
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="" linuxExtraPkgConfig="x11 xinerama xext">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE" defines="USE_IPP=0"
-                       binaryPath="~/.vst"/>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE" defines="USE_IPP=0"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE"
                        defines="USE_IPP=0"/>
       </CONFIGURATIONS>
