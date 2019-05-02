@@ -264,11 +264,8 @@ void MainController::loadPresetInternal(const ValueTree& v)
 			synthChain->setId(v.getProperty("ID", "MainSynthChain"));
 
 			skipCompilingAtPresetLoad = true;
-
 			getSampleManager().setCurrentPreloadMessage("Building modules...");
-
 			synthChain->restoreFromValueTree(v);
-
 			skipCompilingAtPresetLoad = false;
 
 			getSampleManager().setCurrentPreloadMessage("Compiling scripts...");
@@ -280,7 +277,6 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				LOG_START("Initialising audio callback");
 
 				getSampleManager().setCurrentPreloadMessage("Initialising audio...");
-
 				prepareToPlay(sampleRate, maxBufferSize.get());
 			}
 
@@ -297,9 +293,7 @@ void MainController::loadPresetInternal(const ValueTree& v)
 			Processor::Iterator<ModulatorSynth> iter(synthChain, false);
 
 			while (ModulatorSynth *synth = iter.getNextProcessor())
-			{
 				synth->setEditorState(Processor::EditorState::Folded, true);
-			}
 
 			changed = false;
 
@@ -308,11 +302,8 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				auto p = static_cast<Processor*>(obj);
 			
 				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Building UI...");
-
 				p->sendRebuildMessage(true);
-
 				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
-
 				p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
 
 #if USE_BACKEND
@@ -321,8 +312,6 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 				return Dispatchable::Status::OK;
 			};
-
-			
 
 			getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
 #endif
@@ -540,7 +529,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	if (!getKillStateHandler().handleKillState())
 	{
+#if !FRONTEND_IS_PLUGIN
 		buffer.clear();
+#endif
 
 		
 
