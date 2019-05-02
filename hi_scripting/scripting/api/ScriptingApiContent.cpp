@@ -4498,6 +4498,12 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 	Array<Identifier> newIds;
 	newIds.ensureStorageAllocated(selection.size());
 
+	Array<var> duplicationValues;
+	duplicationValues.ensureStorageAllocated(selection.size());
+
+	for (auto b : selection)
+		duplicationValues.add(b->getValue());
+
 	static const Identifier x("x");
 	static const Identifier y("y");
 
@@ -4559,7 +4565,7 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 
 	b->clearSelection(dontSendNotification);
 	
-	auto f = [newIds, c, b]()
+	auto f = [newIds, c, b, duplicationValues]()
 	{
 		ScriptComponentSelection newSelection;
 
@@ -4570,8 +4576,15 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 			newSelection.add(sc);
 		}
 
+		for (int i = 0; i < newSelection.size(); i++)
+			newSelection[i]->setValue(duplicationValues[i]);
+
 		b->setSelection(newSelection, sendNotification);
+
+		
 	};
+
+	
 
 	MessageManager::callAsync(f);
 }
@@ -4602,7 +4615,7 @@ String ScriptingApi::Content::Helpers::createScriptVariableDeclaration(Reference
 	String s;
 	NewLine nl;
 
-	String variableName = PresetHandler::getCustomName("Array", "Enter the name for the array variable or nothing for a list of single statements");
+	String variableName = selection.size() == 1 ? "" : PresetHandler::getCustomName("Array", "Enter the name for the array variable or nothing for a list of single statements");
 
 	if (selection.size() == 1 || variableName.isEmpty())
 	{
