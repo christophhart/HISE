@@ -38,10 +38,10 @@ tempBuffer(2, 0)
 {
 	finaliseModChains();
 
-	parameterNames.add("Rate");
-	parameterNames.add("Width");
-	parameterNames.add("Feedback");
-	parameterNames.add("Delay");
+	parameterNames.add("Rate");		parameterDescriptions.add("The rate of the chorus");
+	parameterNames.add("Width");	parameterDescriptions.add("The stereo width of the chorus");
+	parameterNames.add("Feedback");	parameterDescriptions.add("The feedback amount of the chorus");
+	parameterNames.add("Delay");	parameterDescriptions.add("The delay amount of the chorus");
 
 	bufpos = 0;
 	buffer = new float[BUFMAX];

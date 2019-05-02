@@ -181,7 +181,7 @@ public:
 
 	
 
-	SET_PROCESSOR_NAME("ShapeFX", "Shape FX")
+	SET_PROCESSOR_NAME("ShapeFX", "Shape FX", "A general purpose waveshaper effect. ");
 
 	ShapeFX(MainController *mc, const String &uid);;
 
@@ -380,7 +380,7 @@ public:
 	class PolytableShaper;
 	class PolytableAsymetricalShaper;
 
-	SET_PROCESSOR_NAME("PolyshapeFX", "Polyshape FX");
+	SET_PROCESSOR_NAME("PolyshapeFX", "Polyshape FX", "A polyphonic wave shaper.");
 
 	enum InternalChains
 	{

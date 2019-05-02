@@ -58,7 +58,7 @@ class SimpleEnvelope: public EnvelopeModulator
 {
 public:
 
-	SET_PROCESSOR_NAME("SimpleEnvelope", "Simple Envelope")
+	SET_PROCESSOR_NAME("SimpleEnvelope", "Simple Envelope", "The most simple envelope (only attack and release).")
 
 	/// @brief special parameters for SimpleEnvelope
 	enum SpecialParameters

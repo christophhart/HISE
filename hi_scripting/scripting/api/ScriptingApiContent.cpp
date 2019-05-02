@@ -121,6 +121,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
+	API_METHOD_WRAPPER_0(ScriptComponent, getAllProperties);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
@@ -193,7 +194,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::linkedTo, "");
 	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
-	setDefaultValue(Properties::processorId, "");
+	setDefaultValue(Properties::processorId, " ");
 	setDefaultValue(Properties::parameterId, "");
 
 	ADD_API_METHOD_2(set);
@@ -214,6 +215,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
 	ADD_API_METHOD_1(setControlCallback);
+	ADD_API_METHOD_0(getAllProperties);
 
 	//setName(name_.toString());
 
@@ -453,7 +455,12 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	{
 		auto pId = newValue.toString();
 
-		if (pId.isNotEmpty())
+		if (pId == " " || pId == "")
+		{
+			connectedProcessor = nullptr;
+			setScriptObjectPropertyWithChangeMessage(getIdFor(parameterId), "", sendNotification);
+		}
+		else if (pId.isNotEmpty())
 		{
 			connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), pId);
 		}
@@ -1012,6 +1019,23 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	vArray.add({ Properties::parameterId, "" });
 
 	return vArray;
+}
+
+var ScriptingApi::Content::ScriptComponent::getAllProperties()
+{
+	Array<var> list;
+
+	for (int i = 0; i < getNumIds(); i++)
+	{
+		auto id = getIdFor(i);
+
+		if (deactivatedProperties.contains(id))
+			continue;
+
+		list.add(id.toString());
+	}
+
+	return var(list);
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -1948,9 +1972,8 @@ void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessag
 
 void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &otherTableId, int index)
 {
-	
-
-	if (otherTableId.isEmpty()) return;
+	if (otherTableId.isEmpty() || otherTableId == " ")
+		return;
 
 	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
 	if (mp == nullptr) return;
@@ -2163,7 +2186,8 @@ int ScriptingApi::Content::ScriptSliderPack::getNumSliders() const
 
 void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const String &newPackId)
 {
-	if (newPackId.isEmpty()) return;
+	if (newPackId.isEmpty() || newPackId == " ")
+		return;
 
 	otherPackId = newPackId;
 
@@ -4575,18 +4599,47 @@ void ScriptingApi::Content::Helpers::createNewComponentData(Content* c, ValueTre
 
 String ScriptingApi::Content::Helpers::createScriptVariableDeclaration(ReferenceCountedArray<ScriptComponent> selection)
 {
-
 	String s;
 	NewLine nl;
 
-	for (int i = 0; i < selection.size(); i++)
+	String variableName = PresetHandler::getCustomName("Array", "Enter the name for the array variable or nothing for a list of single statements");
+
+	if (selection.size() == 1 || variableName.isEmpty())
 	{
-		auto c = selection[i];
+		for (int i = 0; i < selection.size(); i++)
+		{
+			auto c = selection[i];
 
-		s << "const var " << c->name.toString() << " = Content.getComponent(\"" << c->name.toString() << "\");" << nl;;
+			s << "const var " << c->name.toString() << " = Content.getComponent(\"" << c->name.toString() << "\");" << nl;;
+		}
+
+		s << nl;
+
+		
 	}
+	else
+	{
+		s << "const var " << variableName << " = [";
 
-	s << nl;
+		int length = s.length();
+
+		for (int i = 0; i < selection.size(); i++)
+		{
+			auto c = selection[i];
+
+			s << "Content.getComponent(\"" << c->name.toString() << "\")";
+
+			if (i != selection.size() - 1)
+			{
+				s << "," << nl;
+				
+				for (int j = 0; j < length; j++)
+					s << " ";
+			}
+		}
+
+		s << "];" << nl;
+	}
 
 	return s;
 }

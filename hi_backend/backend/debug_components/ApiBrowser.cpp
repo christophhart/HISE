@@ -58,7 +58,7 @@ className(className_)
 
 	if (extendedHelp.isNotEmpty())
 	{
-		parser = new MarkdownParser(extendedHelp);
+		parser = new MarkdownRenderer(extendedHelp);
 		parser->setTextColour(Colours::white);
 		parser->setDefaultTextSize(15.0f);
 		parser->parse();

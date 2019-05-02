@@ -43,6 +43,57 @@ const Identifier LoopStart("LoopStart");
 const Identifier LoopEnd("LoopEnd");
 }
 
+/** A wrapper around any arbitrary data type with the same properties as the 
+	other wrappers (shared instance, ref-counted, etc). */
+template <class DataType> class SharedFileReference
+{
+public:
+
+	SharedFileReference() :
+		data(new SharedObject())
+	{};
+
+	SharedFileReference(const SharedFileReference& other) :
+		data(other.data)
+	{};
+
+	bool isValid() const { return !getId().isNull(); };
+
+	SharedFileReference& operator=(const SharedFileReference& other)
+	{
+		data = other.data;
+		return *this;
+	}
+
+	DataType& getFile() const
+	{
+		return data->file;
+	}
+
+	Identifier getId() const
+	{
+		return data->id;
+	}
+
+	void setId(const Identifier& id)
+	{
+		data->id = id;
+	}
+
+private:
+
+	struct SharedObject : public ReferenceCountedObject
+	{
+		DataType file;
+		Identifier id;
+	};
+
+	ReferenceCountedObjectPtr<SharedObject> data;
+};
+
+using MidiFileReference = SharedFileReference<MidiFile>;
+using AdditionalDataReference = SharedFileReference<String>;
+
 class PoolBase;
 
 /** Helper functions for the file pools. 
@@ -59,6 +110,7 @@ struct PoolHelpers
 		SkipPoolSearchWeak, ///< skips the check if the file is already pooled.
 		SkipPoolSearchStrong, ///< skips the search in the pool and increases the reference count
 		DontCreateNewEntry, ///< this assumes the file is already in the pool and throws an assertion if it's not.
+		BypassAllCaches, ///< skips the entire caching and just returns the decoded data.
 		numLoadingTypes
 	};
 
@@ -87,13 +139,21 @@ struct PoolHelpers
 	static ProjectHandler::SubDirectories getSubDirectoryType(const AudioSampleBuffer& emptyData);
 	static ProjectHandler::SubDirectories getSubDirectoryType(const Image& emptyImage);
 	static ProjectHandler::SubDirectories getSubDirectoryType(const ValueTree& emptyTree);
-
+	static ProjectHandler::SubDirectories getSubDirectoryType(const MidiFileReference& emptyTree);
+	static ProjectHandler::SubDirectories getSubDirectoryType(const AdditionalDataReference& emptyTree);
+	
 	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var* additionalData);
 	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData);
 	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode,
+		MidiFileReference& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode,
+		AdditionalDataReference& data, var* additionalData);
 
 	/** @internal (used by the template instantiations. */
 	static void fillMetadata(AudioSampleBuffer& data, var* additionalData);
@@ -101,6 +161,10 @@ struct PoolHelpers
 	static void fillMetadata(Image& data, var* additionalData);
 	/** @internal (used by the template instantiations. */
 	static void fillMetadata(ValueTree& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void fillMetadata(MidiFileReference& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void fillMetadata(AdditionalDataReference& data, var* additionalData);
 
 	/** @internal (used by the template instantiations. */
 	static size_t getDataSize(const AudioSampleBuffer* buffer);
@@ -108,6 +172,10 @@ struct PoolHelpers
 	static size_t getDataSize(const Image* img);
 	/** @internal (used by the template instantiations. */
 	static size_t getDataSize(const ValueTree* img);
+	/** @internal (used by the template instantiations. */
+	static size_t getDataSize(const MidiFileReference* midiFile);
+	/** @internal (used by the template instantiations. */
+	static size_t getDataSize(const AdditionalDataReference* midiFile);
 
 	/** @internal (used by the template instantiations. */
 	static bool isValid(const AudioSampleBuffer* buffer);
@@ -115,6 +183,10 @@ struct PoolHelpers
 	static bool isValid(const Image* buffer);
 	/** @internal (used by the template instantiations. */
 	static bool isValid(const ValueTree* buffer);
+	/** @internal (used by the template instantiations. */
+	static bool isValid(const MidiFileReference* file);
+	/** @internal (used by the template instantiations. */
+	static bool isValid(const AdditionalDataReference* file);
 
 	/** @internal (used by the template instantiations. */
 	static Identifier getPrettyName(const AudioSampleBuffer* /*buffer*/) { RETURN_STATIC_IDENTIFIER("AudioFilePool"); }
@@ -122,6 +194,8 @@ struct PoolHelpers
 	static Identifier getPrettyName(const Image* /*img*/) { RETURN_STATIC_IDENTIFIER("ImagePool"); }
 	/** @internal (used by the template instantiations. */
 	static Identifier getPrettyName(const ValueTree* /*img*/) { RETURN_STATIC_IDENTIFIER("SampleMapPool"); }
+	static Identifier getPrettyName(const MidiFileReference* /*img*/) { RETURN_STATIC_IDENTIFIER("MidiFilePool"); }
+	static Identifier getPrettyName(const AdditionalDataReference* /*img*/) { RETURN_STATIC_IDENTIFIER("AdditionalDataPool"); }
 
 	static Image getEmptyImage(int width, int height);
 
@@ -169,6 +243,9 @@ struct PoolHelpers
 
 		/** Creates a reference from an embedded resource. */
 		Reference(PoolBase* pool, const String& embeddedReference, ProjectHandler::SubDirectories directoryType);
+
+		/** Returns a copy of the reference pointing to the given file handler. */
+		Reference withFileHandler(FileHandlerBase* handler);
 
 		/** This can be used to type shorter conditions. */
 		explicit operator bool() const
@@ -284,10 +361,14 @@ public:
 			virtual void write(OutputStream& output, const ValueTree& data, const File& originalFile) const;
 			virtual void write(OutputStream& output, const Image& data, const File& originalFile) const;
 			virtual void write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const;
+			virtual void write(OutputStream& output, const MidiFileReference& data, const File& originalFile) const;
+			virtual void write(OutputStream& output, const AdditionalDataReference& data, const File& originalFile) const;
 
 			virtual void create(MemoryInputStream* mis, ValueTree* data) const;
 			virtual void create(MemoryInputStream* mis, Image* data) const;
 			virtual void create(MemoryInputStream* mis, AudioSampleBuffer* data) const;
+			virtual void create(MemoryInputStream* mis, MidiFileReference* data) const;
+			virtual void create(MemoryInputStream* mis, AdditionalDataReference* data) const;
 		};
 
 		DataProvider(PoolBase* pool_) :
@@ -405,16 +486,18 @@ public:
 		useSharedCache = shouldUse;
 	}
 
+	FileHandlerBase* getFileHandler() const { return parentHandler; }
+
 protected:
 
 	virtual Identifier getFileTypeName() const = 0;
 
-	PoolBase(MainController* mc):
+	PoolBase(MainController* mc, FileHandlerBase* handler):
 	  ControlledObject(mc),
 	  notifier(*this),
       type(FileHandlerBase::SubDirectories::numSubDirectories),
-	  dataProvider(new DataProvider(this))
-
+	  dataProvider(new DataProvider(this)),
+	  parentHandler(handler)
 	{
 
 	}
@@ -422,6 +505,8 @@ protected:
 	FileHandlerBase::SubDirectories type;
 
 	bool useSharedCache = false;
+
+	FileHandlerBase* parentHandler = nullptr;
 
 private:
 
@@ -472,6 +557,7 @@ private:
 	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	ScopedPointer<DataProvider> dataProvider;
+	
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PoolBase)
@@ -566,6 +652,8 @@ public:
 	}
 
 private:
+
+	
 
 	ReferenceCountedArray<PoolEntry<DataType>> sharedItems;
 };
@@ -694,8 +782,8 @@ public:
 		WeakReference<PoolEntry<DataType>> weak;
 	};
 
-	SharedPoolBase(MainController* mc_) :
-      PoolBase(mc_)
+	SharedPoolBase(MainController* mc_, FileHandlerBase* handler) :
+      PoolBase(mc_, handler)
 	{
         type = PoolHelpers::getSubDirectoryType(empty);
         
@@ -834,7 +922,9 @@ public:
 	{
 		ScopedNotificationDelayer snd(*this, EventType::Added);
 
-		auto fileList = getMainController()->getCurrentFileHandler().getFileList(type, false, true);
+		auto fileList = parentHandler->getFileList(type, false, true);
+
+		ScopedValueSetter<bool> svs(useSharedCache, false);
 
 		for (auto f : fileList)
 		{
@@ -1002,17 +1092,20 @@ public:
 
 				ne->additionalData = getDataProvider()->createAdditionalData(r);
 
-				if (useSharedCache)
+
+				if (loadingType != PoolHelpers::BypassAllCaches)
 				{
-					sharedCache->store(ne);
-				}
-				else
-				{
-					weakPool.add(ManagedPtr(this, ne.getObject(), false));
-					refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+					if (useSharedCache)
+					{
+						sharedCache->store(ne);
+					}
+					else
+					{
+						weakPool.add(ManagedPtr(this, ne.getObject(), false));
+						refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+					}
 				}
 
-				
 				sendPoolChangeMessage(PoolBase::Added);
 
 				return ManagedPtr(this, ne.getObject(), true);
@@ -1033,7 +1126,7 @@ public:
 				PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, &ne->additionalData);
 
 
-				if (useSharedCache)
+				if (useSharedCache && loadingType != PoolHelpers::LoadAndCacheStrong)
 				{
 					sharedCache->store(ne);
 				}
@@ -1080,17 +1173,27 @@ private:
 
 using AudioSampleBufferPool = SharedPoolBase<AudioSampleBuffer>;
 using ImagePool = SharedPoolBase<Image>;
+
 using PooledAudioFile = AudioSampleBufferPool::ManagedPtr;
 using PooledImage = ImagePool::ManagedPtr;
 
 using SampleMapPool = SharedPoolBase<ValueTree>;
 using PooledSampleMap = SampleMapPool::ManagedPtr;
 
+using MidiFilePool = SharedPoolBase<MidiFileReference>;
+using PooledMidiFile = MidiFilePool::ManagedPtr;
+
+using AdditionalDataPool = SharedPoolBase<AdditionalDataReference>;
+using PooledAdditionalData = AdditionalDataPool::ManagedPtr;
+
+class FileHandlerBase;
+class ModulatorSamplerSoundPool;
+
 class PoolCollection: public ControlledObject
 {
 public:
 
-	PoolCollection(MainController* mc);;
+	PoolCollection(MainController* mc, FileHandlerBase* handler);;
 
 	~PoolCollection();
 
@@ -1116,14 +1219,30 @@ public:
 	const ImagePool& getImagePool() const;
 	ImagePool& getImagePool();
 
+	const AdditionalDataPool& getAdditionalDataPool() const;
+	AdditionalDataPool& getAdditionalDataPool();
+
 	const SampleMapPool& getSampleMapPool() const;
 	SampleMapPool& getSampleMapPool();
 
+	const MidiFilePool& getMidiFilePool() const;
+	MidiFilePool& getMidiFilePool();
+
+	const ModulatorSamplerSoundPool* getSamplePool() const;
+	ModulatorSamplerSoundPool* getSamplePool();
+
 	AudioFormatManager afm;
+
+	PoolBase* getPoolBase(FileHandlerBase::SubDirectories fileType)
+	{
+		return dataPools[(int)fileType];
+	}
 
 private:
 
 	PoolBase * dataPools[(int)ProjectHandler::SubDirectories::numSubDirectories];
+
+	FileHandlerBase* parentHandler = nullptr;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolCollection);
 };

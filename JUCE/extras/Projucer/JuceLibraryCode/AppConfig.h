@@ -152,6 +152,10 @@
  //#define JUCE_USE_XCURSOR 1
 #endif
 
+#ifndef    JUCE_HEADLESS_PLUGIN_CLIENT
+ //#define JUCE_HEADLESS_PLUGIN_CLIENT 1
+#endif
+
 //==============================================================================
 // juce_gui_extra flags:
 

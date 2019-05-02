@@ -42,7 +42,7 @@ class DynamicsEffect : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("Dynamics", "Dynamics")
+	SET_PROCESSOR_NAME("Dynamics", "Dynamics", "A general purpose dynamics processor based on chunkware's SimpleCompressor");
 
 		enum Parameters
 	{

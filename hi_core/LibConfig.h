@@ -50,6 +50,19 @@
 #define NUM_MIC_POSITIONS 8
 
 
+/** Allow the end user to right click on a knob to MIDI learn it. 
+	On compiled FX plugins, this is deactivated by default (because
+	the FX plugin won't get MIDI input anyway.)
+*/
+#if FRONTEND_IS_PLUGIN
+#ifndef HISE_ENABLE_MIDI_LEARN
+#define HISE_ENABLE_MIDI_LEARN 0
+#endif
+#else
+#ifndef HISE_ENABLE_MIDI_LEARN
+#define HISE_ENABLE_MIDI_LEARN 1
+#endif
+#endif
 
 #ifndef HISE_SMOOTH_FIRST_MOD_BUFFER
 #define HISE_SMOOTH_FIRST_MOD_BUFFER 0
@@ -68,6 +81,9 @@
 #define HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY 1
 #endif
 
+#ifndef HISE_USE_CUSTOM_EXPANSION_TYPE
+#define HISE_USE_CUSTOM_EXPANSION_TYPE 0
+#endif
 
 #ifndef HISE_AUV3_MAX_INSTANCE_COUNT
 #define HISE_AUV3_MAX_INSTANCE_COUNT 2

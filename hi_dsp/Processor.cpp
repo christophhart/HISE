@@ -313,9 +313,12 @@ void Processor::sendRebuildMessage(bool forceUpdate/*=false*/)
 
 const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth, bool assertIfFalse) const
 {
+	if (getMainController()->isFlakyThreadingAllowed())
+		assertIfFalse = false;
+
 	if (parentProcessor == nullptr)
 	{
-		jassert(!assertIfFalse || this == getMainController()->getMainSynthChain());
+		ASSERT_STRICT_PROCESSOR_STRUCTURE(!assertIfFalse || this == getMainController()->getMainSynthChain());
 		return nullptr;
 	}
 		
@@ -615,11 +618,17 @@ String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool c
 	else if (is<EffectProcessor>(p)) typeName = "Effect";
 	else return String();
 
+	return getTypedScriptVariableDeclaration(p, typeName, copyToClipboard);
+
+}
+
+juce::String ProcessorHelpers::getTypedScriptVariableDeclaration(const Processor* p, String typeName, bool copyToClipboard/*=true*/)
+{
 	String code;
 
 	String name = p->getId();
 	String id = name.removeCharacters(" \n\t\"\'!$%&/()");
-	
+
 	code << "const var " << id << " = Synth.get" << typeName << "(\"" << name << "\");";
 
 	if (copyToClipboard)
@@ -748,11 +757,11 @@ bool Processor::isValidAndInitialised(bool checkOnAir) const
 	const bool isMainSynthChain = getMainController()->getMainSynthChain() == this;
 	const bool hasParent = getParentProcessor(false) != nullptr;
 
-	const bool isValid = onAir_ && (isMainSynthChain || hasParent);
+	const bool isValid = onAir_ && (isMainSynthChain || hasParent) || getMainController()->isFlakyThreadingAllowed();
 
 	// Normally you expect this method to be true, so this assertion will fire here
 	// so that you can check the reason from the bools above...
-	jassert(isValid);
+	ASSERT_STRICT_PROCESSOR_STRUCTURE(isValid);
 	return isValid;
 }
 
@@ -763,8 +772,6 @@ StringArray ProcessorHelpers::getListOfAllConnectableProcessors(const Processor*
 	Processor::Iterator<Processor> boxIter(mainSynthChain, false);
 
 	Array<const Processor*> processorList;
-
-	processorList.add(mainSynthChain);
 
 	while (const Processor *p = boxIter.getNextProcessor())
 	{
@@ -777,6 +784,8 @@ StringArray ProcessorHelpers::getListOfAllConnectableProcessors(const Processor*
 	}
 
 	StringArray processorIdList;
+
+	processorIdList.add(" ");
 
 	for (int i = 0; i < processorList.size(); i++)
 	{
@@ -958,26 +967,100 @@ hise::MarkdownHelpButton* ProcessorDocumentation::createHelpButton()
 
 	t << "# " << name << "\n";
 	t << description << "\n";
-	t << "## Parameters \n";
-
-	t << "| `#` | ID | Description |\n";
-	t << "| - | --- | ----------- |\n";
-
-	for (auto& e : parameters)
-		t << e.getMarkdownLine(false) << "\n";
-
-	t << "## Chains \n";
-
-	t << "| `#` | Icon | ID | Description |\n";
-	t << "| - | - | --- | ----------- |\n";
-
-	for (auto& e : chains)
-		t << e.getMarkdownLine(true) << "\n";
+	
+	t << createHelpText();
 
 	auto b = new MarkdownHelpButton();
-	b->setHelpText<MarkdownParser::PathProvider<ChainBarPathFactory>>(t);
+	b->setHelpText<PathProvider<ChainBarPathFactory>>(t);
 
 	return b;
+}
+
+juce::String ProcessorDocumentation::createHelpText()
+{
+	String t;
+
+	
+
+	if (parameterOffset < parameters.size())
+	{
+		t << "## Parameters \n";
+
+		t << "| `#` | ID | Description |\n";
+		t << "| - | --- | ----------- |\n";
+
+		int p = 0;
+
+		for (auto& e : parameters)
+		{
+			if (p++ < parameterOffset)
+				continue;
+
+			t << e.getMarkdownLine(false) << "\n";
+		}
+			
+	}
+
+	if (chainOffset < chains.size())
+	{
+		t << "## Chains \n";
+
+		t << "| `#` | ID | Restriction | Description |\n";
+		t << "| - | --- | ----- | ----------- |\n";
+
+		int c = 0;
+
+		for (auto& e : chains)
+		{
+			if (c++ < chainOffset)
+				continue;
+
+			t << e.getMarkdownLine(true) << "\n";
+		}
+			
+	}
+
+	return t;
+}
+
+void ProcessorDocumentation::fillMissingParameters(Processor* p)
+{
+	for (int i = parameterOffset; i < p->getNumParameters(); i++)
+	{
+		auto id = p->getIdentifierForParameterIndex(i);
+
+		Entry e;
+		e.id = id;
+		e.helpText = p->getDescriptionForParameters(i);
+		e.index = i;
+		e.name = id.toString();
+
+		if (!parameters.contains(e))
+			parameters.add(e);
+	}
+
+	for (int i = chainOffset; i < p->getNumInternalChains(); i++)
+	{
+		Entry e;
+
+		e.name = p->getChildProcessor(i)->getId();
+		e.helpText = "-";
+		e.index = i;
+		
+		auto c = dynamic_cast<Chain*>(p->getChildProcessor(i));
+		auto constrainer = c->getFactoryType()->getConstrainer();
+
+		if (constrainer == nullptr)
+			e.constrainer = "All types";
+		else
+			e.constrainer = constrainer->getDescription();
+
+		if (!chains.contains(e))
+			chains.add(e);
+	}
+
+    Entry::Sorter s;
+	parameters.sort(s);
 }
 
 juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const
@@ -988,7 +1071,7 @@ juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const
 	
 	if (getChain)
 	{
-		s << "![" << name << "](" << name << ") | " << name;
+		s << name << " | " << constrainer << " |";
 	}
 	else
 	{

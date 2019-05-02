@@ -63,7 +63,7 @@ class AhdsrEnvelope: public EnvelopeModulator
 {
 public:
 
-	SET_PROCESSOR_NAME("AHDSR", "AHDSR Envelope")
+	SET_PROCESSOR_NAME("AHDSR", "AHDSR Envelope", "A envelope modulator with five states")
 
 	/// @brief special parameters for AhdsrEnvelope
 	enum SpecialParameters
@@ -273,6 +273,7 @@ private:
 	ModulatorChain::Collection internalChains;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AhdsrEnvelope)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AhdsrEnvelope);
 };
 
 class AhdsrGraph : public Component,
@@ -334,6 +335,8 @@ private:
 	Path holdPath;
 	Path decayPath;
 	Path releasePath;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AhdsrEnvelope);
 };
 
 } // namespace hise

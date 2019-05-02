@@ -48,7 +48,7 @@ class TableEnvelope: public EnvelopeModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("TableEnvelope", "Table Envelope")
+	SET_PROCESSOR_NAME("TableEnvelope", "Table Envelope", "A Envelope that uses two Tables for the attack and release time.")
 
 
 	/** SpecialParameters for the TableEnvelope */

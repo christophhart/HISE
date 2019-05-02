@@ -44,6 +44,9 @@
 #include "plugin_components/PanelTypes.cpp"
 #include "plugin_components/FrontendBar.cpp"
 
+#include "markdown_components/MarkdownComponents.cpp"
+#include "markdown_components/MarkdownPreview.cpp"
+
 #if USE_BACKEND
 #include "plugin_components/PluginPreviewWindow.cpp"
 #endif
@@ -53,8 +56,12 @@
 #include "eq_plot/FilterGraph.cpp"
 #include "eq_plot/EqComponent.cpp"
 
-
 #include "floating_layout/FloatingLayout.cpp"
 #include "hi_expansion/ExpansionFloatingTiles.cpp"
+
+#include "midi_overlays/SimpleMidiViewer.cpp"
+#include "midi_overlays/MidiDropper.cpp"
+#include "midi_overlays/MidiLooper.cpp"
+#include "midi_overlays/MidiOverlayFactory.cpp"
 
 #include "wave_components/SampleComponents.cpp"

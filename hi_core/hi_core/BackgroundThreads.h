@@ -70,6 +70,9 @@ public:
 
 	MainController* getMainController();
 
+	virtual const MainController* getMainControllerToUse() const { return nullptr; }
+	virtual MainController* getMainControllerToUse() { return nullptr; }
+
 	ScopedPointer<Component> modalComponent;
 	DropShadow s;
 	ScopedPointer<DropShadower> shadow;
@@ -77,7 +80,82 @@ public:
 
 
 
+class ComponentWithHelp
+{
+public:
 
+	struct GlobalHandler
+	{
+
+		virtual ~GlobalHandler() {};
+
+		bool isHelpEnabled() const { return helpEnabled; }
+
+		virtual void showHelp(ComponentWithHelp* h) = 0;
+		
+
+		void toggleHelp()
+		{
+			helpEnabled = !helpEnabled;
+
+			for (auto c : registeredHelpers)
+			{
+				if (auto asComponent = dynamic_cast<Component*>(c.get()))
+				{
+					asComponent->repaint();
+				}
+			}
+		}
+
+		void registerHelper(ComponentWithHelp* c)
+		{
+			registeredHelpers.addIfNotAlreadyThere(c);
+		}
+
+		void removeHelper(ComponentWithHelp* c)
+		{
+			registeredHelpers.removeAllInstancesOf(c);
+		}
+
+	private:
+
+
+		Array<WeakReference<ComponentWithHelp>> registeredHelpers;
+
+		bool helpEnabled = false;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalHandler);
+	};
+
+	ComponentWithHelp(GlobalHandler* handler_):
+		handler(handler_)
+	{
+		p.loadPathFromData(MainToolbarIcons::help, sizeof(MainToolbarIcons::help));
+
+		if (handler != nullptr)
+			handler->registerHelper(this);
+	}
+
+	~ComponentWithHelp()
+	{
+		if (handler != nullptr)
+			handler->removeHelper(this);
+	}
+
+	virtual String getMarkdownHelpUrl() const = 0;
+
+	void openHelp();
+
+	void paintHelp(Graphics& g);
+
+private:
+
+	Path p;
+
+	WeakReference<GlobalHandler> handler;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ComponentWithHelp);
+};
 
 
 /** A dialog window that performs an operation on a background thread.
@@ -149,13 +227,7 @@ public:
 
 		void addButton(const String& name, const KeyPress& k=KeyPress(), int width=0);
 
-		void setInfoTextForLastComponent(const String& infoToShow)
-		{
-			if (auto last = columns.getLast())
-			{
-				last->infoButton->setHelpText(infoToShow);
-			}
-		}
+		void setInfoTextForLastComponent(const String& infoToShow);
 
 		template <class ComponentType> ComponentType* getComponent(const String& name)
 		{
@@ -180,17 +252,7 @@ public:
 		{
 			
 
-			Column(Component* t, const String& name_, int width_):
-				name(name_),
-				width(width_)
-			{
-				addAndMakeVisible(component = t);
-				if (name.isNotEmpty())
-				{
-					addAndMakeVisible(infoButton = new MarkdownHelpButton());
-					
-				}
-			}
+			Column(Component* t, const String& name_, int width_);
 
 			void buttonClicked(Button* /*b*/) override
 			{
@@ -217,19 +279,7 @@ public:
 
 			
 
-			void resized() override
-			{
-				auto area = getLocalBounds();
-
-				if (name.isNotEmpty())
-				{
-					auto topBar = area.removeFromTop(16);
-
-					infoButton->setBounds(topBar.removeFromRight(16));
-				}
-
-				component->setBounds(area);
-			}
+			void resized() override;
 
 			ScopedPointer<Component> component;
 			ScopedPointer<MarkdownHelpButton> infoButton;
@@ -304,7 +354,10 @@ protected:
 	/** Call this method in your constructor after you created all custom methods. */
 	void addBasicComponents(bool addOkButton = true);
 	
-	
+	void setTimeoutMs(int newTimeout)
+	{
+		timeoutMs = newTimeout;
+	}
 
 	Thread* getCurrentThread()
 	{
@@ -344,6 +397,7 @@ private:
 
 	const bool synchronous;
 
+	int timeoutMs = 6000;
 	
 	bool isQuasiModal;
 	AlertWindowLookAndFeel laf;

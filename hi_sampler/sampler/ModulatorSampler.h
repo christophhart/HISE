@@ -125,7 +125,7 @@ public:
 		getSampleMap()->suspendInternalTimers(shouldBeSuspended);
 	}
 
-	SET_PROCESSOR_NAME("StreamingSampler", "Sampler")
+	SET_PROCESSOR_NAME("StreamingSampler", "Sampler", "The main sampler class of HISE.");
 
 	/** Special Parameters for the ModulatorSampler. */
 	enum Parameters
@@ -187,7 +187,7 @@ public:
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;
 	~ModulatorSampler();
 
-	SET_PROCESSOR_CONNECTOR_TYPE_ID("ModulatorSampler");
+	SET_PROCESSOR_CONNECTOR_TYPE_ID("StreamingSampler");
 
 	void restoreFromValueTree(const ValueTree &v) override;
 	ValueTree exportAsValueTree() const override;
@@ -358,7 +358,7 @@ public:
 	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
 #endif
 
-	struct SamplerDisplayValues : public Processor::DisplayValues
+	struct SamplerDisplayValues
 	{
 		SamplerDisplayValues() : currentSamplePos(0.0)
 		{
@@ -368,7 +368,8 @@ public:
 		double currentSamplePos;
 		double currentSampleStartPos;
 		float crossfadeTableValue;
-		int currentGroup;
+		int currentGroup = 1;
+		int currentlyDisplayedGroup = 0;
 
 		uint8 currentNotes[128];
 	};
@@ -511,6 +512,8 @@ public:
 	{
 		return preloadScaleFactor;
 	}
+
+	int getCurrentRRGroup() const noexcept { return currentRRGroupIndex; }
 
 	void setNumMicPositions(StringArray &micPositions);
 	

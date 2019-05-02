@@ -51,6 +51,7 @@ DECLARE_ID(AudioSettings);
 DECLARE_ID(MidiSettings);
 DECLARE_ID(ScriptingSettings);
 DECLARE_ID(OtherSettings);
+DECLARE_ID(DocSettings);
 
 Array<Identifier> getAllIds();
 
@@ -126,6 +127,14 @@ DECLARE_ID(AudioThreadGuardEnabled)
 Array<Identifier> getAllIds();
 
 } // Other
+
+namespace Documentation
+{
+DECLARE_ID(DocRepository);
+DECLARE_ID(RefreshOnStartup);
+
+Array<Identifier> getAllIds();
+}
 
 namespace Audio
 {
@@ -217,6 +226,9 @@ struct ConversionHelpers
 	static Array<int> getBufferSizesForDevice(AudioIODevice* currentDevice);
 	static Array<double> getSampleRates(AudioIODevice* currentDevice);
 
+	static String getUncamelcasedId(const Identifier& id);
+
+
 	static StringArray getChannelPairs(AudioIODevice* currentDevice);
 
 	static String getNameForChannelPair(const String& name1, const String& name2);
@@ -226,7 +238,13 @@ struct ConversionHelpers
 	static StringArray getChannelList();
 };
 
+struct SettingDescription
+{
+	static String getDescription(const Identifier& id);
+};
+
 } // SettingIds
+
 
 
 }

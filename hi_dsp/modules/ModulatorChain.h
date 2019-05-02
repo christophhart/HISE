@@ -314,7 +314,7 @@ public:
 	using ModulationType = ModChainWithBuffer::Type;
 	using Collection = PreallocatedHeapArray<ModChainWithBuffer, ModChainWithBuffer::ConstructionData>;
 	
-	SET_PROCESSOR_NAME("ModulatorChain", "Modulator Chain")
+	SET_PROCESSOR_NAME("ModulatorChain", "Modulator Chain", "chain")
 
 	class ModulatorChainHandler;
 

@@ -45,7 +45,7 @@ public:
 
 	NoMidiInputConstrainer();
 
-	
+	String getDescription() const override { return "No voice modulators"; }
 
 	bool allowType(const Identifier &typeName) override
 	{
@@ -67,6 +67,8 @@ class SynthGroupConstrainer : public FactoryType::Constrainer
 public:
 
 	SynthGroupConstrainer();
+
+	String getDescription() const override { return "No container modules"; }
 
 	bool allowType(const Identifier &typeName) override
 	{
@@ -106,7 +108,7 @@ class ModulatorSynthChain: public ModulatorSynth,
 {
 public:
 
-	SET_PROCESSOR_NAME("SynthChain", "Container");
+	SET_PROCESSOR_NAME("SynthChain", "Container", "A container for other Sound generators.");
 
 	enum EditorStates
 	{
@@ -240,6 +242,8 @@ private:
 	ScopedPointer<FactoryType> modulatorSynthFactory;
 	ScopedPointer<FactoryType::Constrainer> constrainer;
 	String packageName;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorSynthChain);
 };
 
 } // namespace hise

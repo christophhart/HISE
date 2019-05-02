@@ -64,6 +64,8 @@ class BaseConstrainer
 
 #define SET_DOCUMENTATION(className) className::Documentation::Documentation()
 
+class MarkdownHelpButton;
+
 /** A object that holds all the documentation available for a certain processor.
 *
 *	In order to use it, subclass it as a inner class of your processor called ProcessorType::Documentation
@@ -75,12 +77,30 @@ class BaseConstrainer
 */
 class ProcessorDocumentation
 {
+public:
+
 	struct Entry
 	{
+		struct Sorter
+		{
+			int compareElements(Entry& first, Entry& second)
+			{
+				if (first.index > second.index)
+					return 1;
+				else if (first.index < second.index)
+					return -1;
+				else
+					return 0;
+			}
+		};
+
+		bool operator==(const Entry& other) const { return id == other.id; };
+
 		int index;
 		Identifier id;
 		String name;
 		String helpText;
+		String constrainer;
 
 		String getMarkdownLine(bool usePrettyName) const;
 
@@ -103,7 +123,15 @@ public:
 
 	MarkdownHelpButton* createHelpButton();
 
-protected:
+	String createHelpText();
+
+	void fillMissingParameters(Processor* p);
+
+	void setOffset(int pOffset, int cOffset)
+	{
+		parameterOffset = pOffset;
+		chainOffset = cOffset;
+	}
 
 	ProcessorDocumentation()
 	{};
@@ -129,8 +157,8 @@ protected:
 	}
 
 	String description;
-
-private:
+	int parameterOffset = 0;
+	int chainOffset = 0;
 
 	String name;
 
@@ -143,16 +171,18 @@ private:
 
 #define loadAttribute(name, nameAsString) (setAttribute(name, (float)v.getProperty(nameAsString, false), dontSendNotification))
 #define saveAttribute(name, nameAsString) (v.setProperty(nameAsString, getAttribute(name), nullptr))
+#define saveID(name) v.setProperty(#name, getAttribute(name), nullptr);
+#define loadID(name) setAttribute(name, (float)v.getProperty(#name, false), dontSendNotification);
+#define addAttributeID(name) parameterNames.add(Identifier(#name));
 
 #define loadAttributeWithDefault(parameterId) setAttribute(parameterId, v.getProperty(getIdentifierForParameterIndex(parameterId), getDefaultValue(parameterId)), dontSendNotification);
 
 // Handy macro to set the name of the processor (type = Identifier, name = Displayed processor name)
-#define SET_PROCESSOR_NAME(type, name) static String getClassName() {return name;}; \
+#define SET_PROCESSOR_NAME(type, name, description) static String getClassName() {return name;}; \
 						  const String getName() const override {	return getClassName();}; \
 						  static Identifier getClassType() {return Identifier(type);} \
-						  const Identifier getType() const override {return getClassType();}
-
-
+						  const Identifier getType() const override {return getClassType();} \
+						  String getDescription() const override { return description; }
 
 /** The base class for all HISE modules in the signal path.
 *	@ingroup core
@@ -338,6 +368,9 @@ public:
 	*	If this Processor is a Chain, you can use it's getHandler()->getNumProcessor() method.
 	*/
 	virtual int getNumChildProcessors() const = 0;
+
+	/** Return a one-line description of the processor. */
+	virtual String getDescription() const = 0;
 
 	/** If your processor uses internal chains, you can return the number here. 
 	*
@@ -596,7 +629,7 @@ public:
 			jassert(root->isValidAndInitialised());
 			WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::IllegalOps::IteratorCreation);
 
-			LockHelpers::SafeLock sl(root->getMainController(), LockHelpers::Type::IteratorLock);
+			LockHelpers::SafeLock sl(root->getMainController(), LockHelpers::Type::IteratorLock, !root->getMainController()->isFlakyThreadingAllowed());
 
 			if (useHierarchy)
 			{
@@ -742,6 +775,14 @@ public:
 	*	for each parameter in your subtype constructor. */
 	virtual Identifier getIdentifierForParameterIndex(int parameterIndex) const;;
 
+	String getDescriptionForParameters(int parameterIndex)
+	{
+		if (parameterNames.size() == parameterDescriptions.size())
+			return parameterDescriptions[parameterIndex];
+
+		return "-";
+	}
+
 	/** This returns the number of (named) parameters. */
 	int getNumParameters() const;; 
 
@@ -877,6 +918,7 @@ protected:
 	bool consoleEnabled;
 
 	Array<Identifier> parameterNames;
+	StringArray parameterDescriptions;
 	Array<Identifier> editorStateIdentifiers;
 
 	
@@ -1023,6 +1065,8 @@ public:
 	*	- ModulatorSynths
 	*/
 	static String getScriptVariableDeclaration(const Processor *p, bool copyToClipboard=true);
+
+	static String getTypedScriptVariableDeclaration(const Processor* p, String typeName, bool copyToClipboard=true);
 
 	static String getBase64String(const Processor* p, bool copyToClipboard=true, bool exportContentOnly=false);
 

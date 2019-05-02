@@ -43,7 +43,7 @@ class MidiDelay: public MidiProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("MidiDelay", "MidiDelay")
+	SET_PROCESSOR_NAME("MidiDelay", "MidiDelay", "Delays all midi events by the specified amount.")
 
 	MidiDelay(MainController *m, const String &id):
 		MidiProcessor(m, id),

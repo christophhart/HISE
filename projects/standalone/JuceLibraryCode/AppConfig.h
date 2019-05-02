@@ -147,6 +147,10 @@
  //#define CRASH_ON_GLITCH 1
 #endif
 
+#ifndef    HISE_ENABLE_EXPANSIONS
+ //#define HISE_ENABLE_EXPANSIONS 1
+#endif
+
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS
  #define   ENABLE_SCRIPTING_BREAKPOINTS 1
 #endif

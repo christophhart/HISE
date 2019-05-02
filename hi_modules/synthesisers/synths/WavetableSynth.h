@@ -226,7 +226,7 @@ class WavetableSynth: public ModulatorSynth,
 {
 public:
 
-	SET_PROCESSOR_NAME("WavetableSynth", "Wavetable Synthesiser")
+	SET_PROCESSOR_NAME("WavetableSynth", "Wavetable Synthesiser", "A two-dimensional wavetable synthesiser.");
 
 	enum EditorStates
 	{

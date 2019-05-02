@@ -50,3 +50,13 @@ projects/standalone/JuceLibraryCode/
 extras/basic_expansion_project/Binaries/
 extras/mpe_demo/Binaries/
 extras/demo_project/PooledResources/
+tools/markdown_editor/Builds/
+tools/markdown_editor/JuceLibraryCode/
+tools/doc_builder/Builds/
+tools/doc_builder/JuceLibraryCode/
+tools/cpp_api_builder/xml/
+tools/cpp_api_builder/CppBuilder/Builds/
+tools/cpp_api_builder/CppBuilder/JuceLibraryCode/include_juce_audio_devices.mm
+tools/cpp_api_builder/CppBuilder/JuceLibraryCode/
+tools/cpp_api_builder/output/
+tools/cpp_api_builder/input/

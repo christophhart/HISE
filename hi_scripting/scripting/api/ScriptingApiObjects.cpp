@@ -1445,6 +1445,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getId);
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, asMidiPlayer);
 	
 };
 
@@ -1477,6 +1478,7 @@ mp(mp_)
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
+	ADD_API_METHOD_0(asMidiPlayer);
 }
 
 void ScriptingObjects::ScriptingMidiProcessor::rightClickCallback(const MouseEvent& e, Component* t)
@@ -1598,6 +1600,17 @@ void ScriptingObjects::ScriptingMidiProcessor::restoreScriptControls(String base
 	{
 		ProcessorHelpers::restoreFromBase64String(mp, base64Controls, true);
 	}
+}
+
+var ScriptingObjects::ScriptingMidiProcessor::asMidiPlayer()
+{
+	if (auto player = dynamic_cast<MidiPlayer*>(mp.get()))
+	{
+		return var(new ScriptedMidiPlayer(getScriptProcessor(), player));
+	}
+
+	reportScriptError("The module is not a MIDI player");
+	RETURN_IF_NO_THROW(var());
 }
 
 // ScriptingAudioSampleProcessor ==============================================================================================================
@@ -2584,6 +2597,10 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setGain);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getGain);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getTimestamp);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setTimestamp);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOn);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOff);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isController);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, dump);
 };
 
@@ -2611,6 +2628,10 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	ADD_API_METHOD_1(setFineDetune);
 	ADD_API_METHOD_0(getFineDetune);
 	ADD_API_METHOD_0(getTimestamp);
+	ADD_API_METHOD_1(setTimestamp);
+	ADD_API_METHOD_0(isNoteOn);
+	ADD_API_METHOD_0(isNoteOff);
+	ADD_API_METHOD_0(isController);
 	ADD_API_METHOD_0(dump);
 
 	addConstant("Empty", 0);
@@ -2651,14 +2672,17 @@ int ScriptingObjects::ScriptingMessageHolder::getGain() const { return (int)e.ge
 int ScriptingObjects::ScriptingMessageHolder::getTimestamp() const { return (int)e.getTimeStamp(); }
 void ScriptingObjects::ScriptingMessageHolder::setTimestamp(int timestampSamples) { e.setTimeStamp(timestampSamples);}
 void ScriptingObjects::ScriptingMessageHolder::addToTimestamp(int deltaSamples) { e.addToTimeStamp((int16)deltaSamples); }
+bool ScriptingObjects::ScriptingMessageHolder::isNoteOn() const { return e.isNoteOn(); }
+bool ScriptingObjects::ScriptingMessageHolder::isNoteOff() const { return e.isNoteOff(); }
+bool ScriptingObjects::ScriptingMessageHolder::isController() const { return e.isController(); }
 
 String ScriptingObjects::ScriptingMessageHolder::dump() const
 {
 	String x;
 	x << "Type: " << e.getTypeAsString() << ", ";
+	x << "Channel: " << String(e.getChannel()) << ", ";
 	x << "Number: " << String(e.getNoteNumber()) << ", ";
 	x << "Value: " << String(e.getVelocity()) << ", ";
-	x << "Channel: " << String(e.getChannel()) << ", ";
 	x << "EventId: " << String(e.getEventId()) << ", ";
 	x << "Timestamp: " << String(e.getTimeStamp()) << ", ";
 
@@ -2835,168 +2859,290 @@ hise::Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain
 		throw String("The modulator you passed in is not a global modulator. You must specify a modulator in a Global Modulator Container");
 }
 
-struct ScriptingObjects::ExpansionObject::Wrapper
+struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 {
-	API_METHOD_WRAPPER_0(ExpansionObject, getSampleMapList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getAudioFileList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getImageFilelist);
-	API_METHOD_WRAPPER_1(ExpansionObject, getReferenceString);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getPlaybackPosition);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setPlaybackPosition);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, getNoteRectangleList);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, connectToPanel);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setRepaintOnPositionChange);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, flushMessageList);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getEventList);
+	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, reset);
+	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, undo);
+	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, redo);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, play);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, stop);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, record);
+	API_METHOD_WRAPPER_3(ScriptedMidiPlayer, setFile);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTrack);
 };
 
-ScriptingObjects::ExpansionObject::ExpansionObject(ProcessorWithScriptingContent* p, Expansion* expansion) :
-	ConstScriptingObject(p, 5),
-	data(expansion)
+ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
+	MidiPlayerBaseType(player_),
+	ConstScriptingObject(p, 0)
 {
-	addConstant("Name", expansion->name.get());
-	addConstant("Version", expansion->version.get());
-	addConstant("ProjectName", expansion->projectName.get());
-	addConstant("ProjectVersion", expansion->projectVersion.get());
-	addConstant("Encrypted", expansion->isEncrypted);
-
-	ADD_API_METHOD_0(getSampleMapList);
-	ADD_API_METHOD_0(getAudioFileList);
-	ADD_API_METHOD_0(getImageFilelist);
-	ADD_API_METHOD_1(getReferenceString);
+	ADD_API_METHOD_0(getPlaybackPosition);
+	ADD_API_METHOD_1(setPlaybackPosition);
+	ADD_API_METHOD_1(getNoteRectangleList);
+	ADD_API_METHOD_1(connectToPanel);
+	ADD_API_METHOD_1(setRepaintOnPositionChange);
+	ADD_API_METHOD_0(getEventList);
+	ADD_API_METHOD_1(flushMessageList);
+	ADD_API_METHOD_0(reset);
+	ADD_API_METHOD_0(undo);
+	ADD_API_METHOD_0(redo);
+	ADD_API_METHOD_1(play);
+	ADD_API_METHOD_1(stop);
+	ADD_API_METHOD_1(record);
+	ADD_API_METHOD_3(setFile);
+	ADD_API_METHOD_1(setTrack);
 }
 
-var ScriptingObjects::ExpansionObject::getSampleMapList()
+ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
 {
-	if (objectExists())
+	connectedPanel = nullptr;
+}
+
+juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugValue() const
+{
+	if (!sequenceValid())
+		return {};
+
+	return String(getPlayer()->getPlaybackPosition(), 2);
+}
+
+juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugName() const
+{
+
+	if (!sequenceValid())
+		return {};
+
+	if (auto seq = getPlayer()->getCurrentSequence())
+		return seq->getId().toString();
+
+	return "No sequence loaded";
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::trackIndexChanged()
+{
+	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
-		return data->getSampleMapList();
+		panel->repaint();
 	}
-
-	return var();
 }
 
-
-var ScriptingObjects::ExpansionObject::getAudioFileList()
+void ScriptingObjects::ScriptedMidiPlayer::sequenceIndexChanged()
 {
-	if (objectExists())
+	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
-		return data->getAudioFileList();
+		panel->repaint();
 	}
-
-	return var();
 }
 
-var ScriptingObjects::ExpansionObject::getImageFilelist()
+void ScriptingObjects::ScriptedMidiPlayer::sequencesCleared()
 {
-	if (objectExists())
+	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
-		return data->getImageList();
+		panel->repaint();
 	}
-
-	return var();
 }
 
-var ScriptingObjects::ExpansionObject::getReferenceString(var relativeFilePath)
+void ScriptingObjects::ScriptedMidiPlayer::timerCallback()
 {
-	if (objectExists())
+	if (repaintOnPlaybackChange && ((double)getPlaybackPosition() != lastPlaybackChange))
 	{
-		String s;
+		lastPlaybackChange = getPlaybackPosition();
 
-		s << "{EXP::" << data->name << "}" << relativeFilePath.toString();
-
-		return var(s);
-	}
-
-	return var();
-}
-
-struct ScriptingObjects::ExpansionHandlerObject::Wrapper
-{
-	API_METHOD_WRAPPER_0(ExpansionHandlerObject, getExpansionList);
-	API_METHOD_WRAPPER_0(ExpansionHandlerObject, getCurrentExpansion);
-	API_VOID_METHOD_WRAPPER_1(ExpansionHandlerObject, setLoadingCallback);
-	API_METHOD_WRAPPER_1(ExpansionHandlerObject, loadExpansion);
-};
-
-ScriptingObjects::ExpansionHandlerObject::ExpansionHandlerObject(ProcessorWithScriptingContent* p) :
-	ConstScriptingObject(p, 0),
-	handler(p->getMainController_()->getExpansionHandler())
-{
-	handler.addListener(this);
-
-	ADD_API_METHOD_0(getExpansionList);
-	ADD_API_METHOD_0(getCurrentExpansion);
-	ADD_API_METHOD_1(setLoadingCallback);
-	ADD_API_METHOD_1(loadExpansion);
-}
-
-ScriptingObjects::ExpansionHandlerObject::~ExpansionHandlerObject()
-{
-	handler.removeListener(this);
-}
-
-void ScriptingObjects::ExpansionHandlerObject::expansionPackLoaded(Expansion* currentExpansion)
-{
-	if (HiseJavascriptEngine::isJavascriptFunction(loadingCallback))
-	{
-		var expansionArg;
-
-		if (currentExpansion != nullptr)
+		if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 		{
-			auto e = new ExpansionObject(getScriptProcessor(), currentExpansion);
-			expansionArg = var(e);
+			panel->repaint();
 		}
+	}
+}
+
+var ScriptingObjects::ScriptedMidiPlayer::getNoteRectangleList(var targetBounds)
+{
+	if (!sequenceValid())
+		return {};
+
+	Result r = Result::ok();
+
+	auto rect = ApiHelpers::getRectangleFromVar(targetBounds, &r);
+
+	auto list = getSequence()->getRectangleList(rect);
+
+	Array<var> returnArray;
+
+	for (auto re : list)
+		returnArray.add(ApiHelpers::getVarRectangle(re, &r));
+
+	return var(returnArray);
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setPlaybackPosition(var newPosition)
+{
+	if (!sequenceValid())
+		return;
+
+	getPlayer()->setAttribute(MidiPlayer::CurrentPosition, jlimit<float>(0.0f, 1.0f, (float)newPosition), sendNotification);
+
+}
+
+var ScriptingObjects::ScriptedMidiPlayer::getPlaybackPosition()
+{
+	if (!sequenceValid())
+		return 0.0;
+
+	return getPlayer()->getPlaybackPosition();
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setRepaintOnPositionChange(var shouldRepaintPanel)
+{
+	if ((bool)shouldRepaintPanel != repaintOnPlaybackChange)
+	{
+		repaintOnPlaybackChange = (bool)shouldRepaintPanel;
+
+		if (repaintOnPlaybackChange)
+			startTimer(50);
+		else
+			stopTimer();
+	}
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::connectToPanel(var panel)
+{
+	if (auto p = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(panel.getObject()))
+	{
+		connectedPanel = dynamic_cast<ConstScriptingObject*>(p);
+	}
+	else
+		reportScriptError("Invalid panel");
+}
+
+var ScriptingObjects::ScriptedMidiPlayer::getEventList()
+{
+	if (!sequenceValid())
+		return {};
+
+	auto list = getPlayer()->getCurrentSequence()->getEventList(getPlayer()->getSampleRate(), getPlayer()->getMainController()->getBpm());
+
+	Array<var> eventHolders;
+
+	for (const auto& e : list)
+	{
+		ScopedPointer<ScriptingMessageHolder> holder = new ScriptingMessageHolder(getScriptProcessor());
+		holder->setMessage(e);
+		eventHolders.add(holder.release());
+	}
+
+	return var(eventHolders);
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
+{
+	if (!sequenceValid())
+		return;
+
+	if (auto ar = messageList.getArray())
+	{
+		Array<HiseEvent> events;
+
+		for (auto e : *ar)
+		{
+			if (auto holder = dynamic_cast<ScriptingMessageHolder*>(e.getObject()))
+				events.add(holder->getMessageCopy());
+			else
+				reportScriptError("Illegal item in message list: " + e.toString());
+		}
+
+		getPlayer()->flushEdit(events);
+	}
+	else
+		reportScriptError("Input is not an array");
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::reset()
+{
+	if (!sequenceValid())
+		return;
+
+	getPlayer()->resetCurrentSequence();
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::undo()
+{
+	if (!sequenceValid())
+		return;
+
+	if (auto um = getPlayer()->getUndoManager())
+		um->undo();
+	else
+		reportScriptError("Undo is deactivated");
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::redo()
+{
+	if (!sequenceValid())
+		return;
+
+	if (auto um = getPlayer()->getUndoManager())
+		um->redo();
+	else
+		reportScriptError("Undo is deactivated");
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::play(int timestamp)
+{
+	if (auto pl = getPlayer())
+		return pl->play(timestamp);
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::stop(int timestamp)
+{
+	if (auto pl = getPlayer())
+		return pl->stop(timestamp);
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::record(int timestamp)
+{
+	if (auto pl = getPlayer())
+		return pl->record(timestamp);
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearExistingSequences, bool selectNewSequence)
+{
+	if (auto pl = getPlayer())
+	{
+		if (clearExistingSequences)
+			pl->clearSequences(dontSendNotification);
+
+		PoolReference r(pl->getMainController(), fileName, FileHandlerBase::MidiFiles);
+		pl->loadMidiFile(r);
+		if (selectNewSequence)
+			pl->setAttribute(MidiPlayer::CurrentSequence, (float)pl->getNumSequences(), sendNotification);
+
+		return r.isValid();
+	}
 		
-		var thisObject(this);
-		var::NativeFunctionArgs args(thisObject, &expansionArg, 1);
-
-		Result r = Result::ok();
-
-		auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
-
-		if (engine != nullptr)
-		{
-			engine->maximumExecutionTime = RelativeTime(2.0);
-			engine->callExternalFunction(loadingCallback, args, &r);
-
-			if (r.failed())
-				debugError(getProcessor(), r.getErrorMessage());
-		}
-	}
+	return false;
 }
 
-var ScriptingObjects::ExpansionHandlerObject::getExpansionList()
+void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
 {
-	Array<var> list;
-
-	for (int i = 0; i < handler.getNumExpansions(); i++)
-	{
-		auto newObject = new ExpansionObject(getScriptProcessor(), handler.getExpansion(i));
-
-		list.add(var(newObject));
-	}
-
-	return var(list);
+	if (auto pl = getPlayer())
+		pl->setAttribute(MidiPlayer::CurrentTrack, (float)trackIndex, sendNotification);
 }
 
-var ScriptingObjects::ExpansionHandlerObject::getCurrentExpansion()
+void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
 {
-	if (auto e = handler.getCurrentExpansion())
-	{
-		auto newObject = new ExpansionObject(getScriptProcessor(), e);
 
-		return var(newObject);
-	}
-
-	return var();
-}
-
-
-void ScriptingObjects::ExpansionHandlerObject::setLoadingCallback(var f)
-{
-	if (HiseJavascriptEngine::isJavascriptFunction(f))
-	{
-		loadingCallback = f;
-	}
-}
-
-bool ScriptingObjects::ExpansionHandlerObject::loadExpansion(const String expansionName)
-{
-	return handler.setCurrentExpansion(expansionName);
 }
 
 } // namespace hise

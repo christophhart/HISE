@@ -101,7 +101,16 @@ END_JUCE_MODULE_DECLARATION
 #include "floating_layout/FloatingLayout.h"
 #include "plugin_components/PanelTypes.h"
 
+#include "markdown_components/MarkdownPreview.h"
+#include "markdown_components/MarkdownComponents.h"
+
+
 #include "hi_expansion/ExpansionFloatingTiles.h"
+
+#include "midi_overlays/SimpleMidiViewer.h"
+#include "midi_overlays/MidiDropper.h"
+#include "midi_overlays/MidiLooper.h"
+#include "midi_overlays/MidiOverlayFactory.h"
 
 namespace hise {
 using namespace juce;

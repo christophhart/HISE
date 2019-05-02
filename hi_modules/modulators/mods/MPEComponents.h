@@ -83,6 +83,8 @@ public:
 	{
 	public:
 
+		String getId() const override { return "MPE Icons"; }
+
 		Path createPath(const String& id) const override;
 	};
 

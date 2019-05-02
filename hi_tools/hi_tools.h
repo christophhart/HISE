@@ -59,6 +59,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_audio_devices/juce_audio_devices.h"
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
+#include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_zstd/hi_zstd.h"
 #include "../hi_streaming/hi_streaming.h"
 
@@ -74,6 +75,32 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
+#ifndef HISE_HEADLESS
+#define HISE_HEADLESS 0
+#endif
+
+
+
+#if HISE_HEADLESS
+#ifndef ASSERT_STRICT_PROCESSOR_STRUCTURE
+#define ASSERT_STRICT_PROCESSOR_STRUCTURE(x) 
+#endif
+#define IF_NOT_HEADLESS(x) 
+#else
+#ifndef ASSERT_STRICT_PROCESSOR_STRUCTURE
+#define ASSERT_STRICT_PROCESSOR_STRUCTURE(x) jassert(x);
+#endif
+#define IF_NOT_HEADLESS(x) x
+#endif
+
+#ifndef HI_MARKDOWN_ENABLE_INTERACTIVE_CODE
+#if USE_BACKEND
+#define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 1
+#else
+#define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 0
+#endif
+#endif
+
 
 #include "hi_binary_data/hi_binary_data.h"
 
@@ -85,6 +112,7 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/UpdateMerger.h"
 #include "hi_tools/MiscToolClasses.h"
 
+#include "hi_tools/PathFactory.h"
 #include "hi_tools/HI_LookAndFeels.h"
 
 #include "hi_tools/VariantBuffer.h"
@@ -98,7 +126,16 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-#include "hi_tools/Markdown.h"
+#include "hi_markdown/MarkdownHeader.h"
+#include "hi_markdown/MarkdownLink.h"
+#include "hi_markdown/MarkdownDatabase.h"
+#include "hi_markdown/MarkdownLayout.h"
+#include "hi_markdown/Markdown.h"
+#include "hi_markdown/MarkdownDefaultProviders.h"
+#include "hi_markdown/MarkdownRenderer.h"
+#include "hi_markdown/MarkdownHtmlExporter.h"
+#include "hi_markdown/MarkdownDatabaseCrawler.h"
+
 
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"

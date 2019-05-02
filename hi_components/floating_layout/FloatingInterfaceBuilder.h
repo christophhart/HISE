@@ -57,7 +57,7 @@ public:
 
 	/** set the given panel to the content and returns true on success. */
 
-	template <typename ContentType> int setNewContentType(int index)
+	template <typename ContentType> bool setNewContentType(int index)
 	{
 		auto panelToUse = createdComponents[index].getComponent();
 
@@ -91,6 +91,8 @@ public:
 
 	void setCustomPanels(int toggleBarIndex, Array<int> panels);
 
+	int addChild(int index, const Identifier& panelId);
+
 	/** Adds a child with the given content to the container with the index.
 	*
 	*	If the panel is no container it will do nothing. It will return a index that can be used for further building
@@ -98,27 +100,7 @@ public:
 
 	template <typename ContentType> int addChild(int index)
 	{
-		auto c = createdComponents[index].getComponent();
-
-		if (c != nullptr)
-		{
-			if (auto container = dynamic_cast<FloatingTileContainer*>(c->getCurrentFloatingPanel()))
-			{
-				auto newPanel = new FloatingTile(container->getParentShell()->getMainController(), container);
-
-				container->addFloatingTile(newPanel);
-
-				createdComponents.add(newPanel);
-
-				newPanel->setNewContent(GET_PANEL_NAME(ContentType));
-
-				removeFirstChildOfNewContainer(newPanel);
-
-				return createdComponents.size() - 1;
-			}
-		}
-
-		return -1;
+		return addChild(index, GET_PANEL_NAME(ContentType));
 	}
 
 	FloatingTile* getPanel(int index);

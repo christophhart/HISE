@@ -27,7 +27,7 @@
 namespace juce
 {
 
-#if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && JUCE_USE_COREIMAGE_LOADER
+#if (JUCE_MAC || JUCE_IOS) && v && JUCE_USE_COREIMAGE_LOADER
  Image juce_loadWithCoreImage (InputStream& input);
 #else
 
@@ -435,7 +435,7 @@ bool GIFImageFormat::canUnderstand (InputStream& in)
 Image GIFImageFormat::decodeImage (InputStream& in)
 {
    #if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && JUCE_USE_COREIMAGE_LOADER
-    return juce_loadWithCoreImage (in);
+    return {};//xjuce_loadWithCoreImage (in);
    #else
     const ScopedPointer<GIFLoader> loader (new GIFLoader (in));
     return loader->image;

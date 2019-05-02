@@ -981,10 +981,18 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDrag(const MouseEvent
 	double scaleNext = nextNew / totalNextDownSize;
 
 	for (int i = 0; i < prevPanels.size(); i++)
-		prevPanels[i]->getLayoutData().setCurrentSize(scalePrev * prevDownSizes[i]);
+	{
+		auto s = jlimit<double>(-1.0, -0.001, scalePrev * prevDownSizes[i]);
+		jassert(s < 0.0);
+		prevPanels[i]->getLayoutData().setCurrentSize(s);
+	}
 
 	for (int i = 0; i < nextPanels.size(); i++)
-		nextPanels[i]->getLayoutData().setCurrentSize(scaleNext * nextDownSizes[i]);
+	{
+		auto s = jlimit<double>(-1.0, -0.001, scaleNext * nextDownSizes[i]);
+		jassert(s < 0.0);
+		nextPanels[i]->getLayoutData().setCurrentSize(s);
+	}
 
 	parent->resized();
 }

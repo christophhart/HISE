@@ -66,6 +66,7 @@ public:
 		SaveScriptClipboard,
 		LoadScriptClipboard,
 		JumpToDefinition,
+		ClearAllBreakpoints,
 		FindAllOccurences,
 		SearchReplace,
 		AddCodeBookmark,
@@ -136,6 +137,36 @@ public:
 
 	struct Helpers
 	{
+		static int getOffsetToFirstToken(const String& content)
+		{
+			auto p = content.getCharPointer();
+			auto start = p;
+
+			for (;;)
+			{
+				p = p.findEndOfWhitespace();
+
+				if (*p == '/')
+				{
+					const juce_wchar c2 = p[1];
+
+					if (c2 == '/') { p = CharacterFunctions::find(p, (juce_wchar) '\n'); continue; }
+
+					if (c2 == '*')
+					{
+						p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
+
+						if (p.isEmpty()) return 0;
+						p += 2; continue;
+					}
+				}
+
+				break;
+			}
+
+			return (int)(p - start);
+		}
+
 		static String getRegexForUIDefinition(ScriptComponent* sc)
 		{
 			const String regexMonster = "(Content\\.add\\w+\\s*\\(\\s*\\\"(" + sc->getName().toString() +
@@ -383,6 +414,7 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CodeEditorWrapper);
 };
+
 
 
 } // namespace hise

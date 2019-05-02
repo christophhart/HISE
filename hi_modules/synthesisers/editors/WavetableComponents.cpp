@@ -84,73 +84,47 @@ void WaveformComponent::paint(Graphics &g)
 		g.fillAll();
 
 		g.setColour(findColour(fillColour));
-		g.fillPath(p);
+		g.fillPath(path);
 
 		g.setColour(findColour(lineColour));
-		g.strokePath(p, PathStrokeType(2.0f));
+		g.strokePath(path, PathStrokeType(2.0f));
 	}
 	else
 	{
-		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, (int)w, (int)h);
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, path, (int)w, (int)h);
 	}
 }
 
+juce::Path WaveformComponent::WaveformFactory::createPath(const String& url) const
+{
+	Path p;
+
+	LOAD_PATH_IF_URL("sine", WaveformIcons::sine);
+	LOAD_PATH_IF_URL("triangle", WaveformIcons::triangle);
+	LOAD_PATH_IF_URL("saw", WaveformIcons::saw);
+	LOAD_PATH_IF_URL("square", WaveformIcons::square);
+	LOAD_PATH_IF_URL("noise", WaveformIcons::noise);
+
+	return p;
+}
+
+
+
 juce::Path WaveformComponent::getPathForBasicWaveform(WaveformType t)
 {
-	Path path;
+	WaveformFactory f;
 
 	switch (t)
 	{
-	case Sine:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 46, 171, 67, 98, 0, 0, 37, 67, 92, 46, 171, 67, 0, 0, 42, 67, 92, 174, 163, 67, 0, 0, 47, 67, 92, 174, 163, 67, 98, 0, 0, 52, 67, 92, 174, 163, 67, 0, 0, 57, 67, 92, 46, 171, 67, 0, 0, 57, 67, 92, 46, 171, 67, 98, 0, 0, 57, 67, 92, 46, 171, 67, 0, 0, 62, 67, 92, 174, 178, 67, 0, 0, 67, 67, 92, 174, 178, 67,
-			98, 0, 0, 72, 67, 92, 174, 178, 67, 0, 0, 77, 67, 92, 46, 171, 67, 0, 0, 77, 67, 92, 46, 171, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-
-		break;
-	}
-	case Triangle:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 32, 67, 92, 46, 186, 67, 108, 0, 0, 42, 67, 92, 174, 178, 67, 108, 0, 0, 52, 67, 92, 46, 186, 67, 108, 0, 0, 62, 67, 92, 174, 193, 67, 108, 0, 0, 72, 67, 92, 46, 186, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-
-		break;
-
-	}
-	case Saw:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 174, 203, 67, 108, 0, 0, 37, 67, 92, 46, 196, 67, 108, 0, 0, 57, 67, 92, 174, 203, 67, 108, 0, 0, 77, 67, 92, 46, 211, 67, 108, 0, 0, 77, 67, 92, 174, 203, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-
-		break;
-
-	}
-	case Square:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 174, 223, 67, 108, 0, 0, 37, 67, 92, 46, 216, 67, 108, 0, 0, 57, 67, 92, 46, 216, 67, 108, 0, 0, 57, 67, 92, 174, 223, 67, 108, 0, 0, 57, 67, 92, 46, 231, 67, 108, 0, 0, 77, 67, 92, 46, 231, 67, 108, 0, 0, 77, 67, 92, 174, 223, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-		break;
-
-	}
-	case Noise:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 92, 67, 92, 46, 211, 67, 108, 0, 0, 92, 67, 92, 174, 203, 67, 108, 0, 0, 97, 67, 92, 174, 203, 67, 108, 0, 0, 97, 67, 92, 46, 216, 67, 108, 0, 0, 102, 67, 92, 46, 216, 67, 108, 0, 0, 102, 67, 92, 174, 213, 67, 108, 0, 0, 107, 67, 92, 174, 213, 67, 108, 0, 0, 107, 67, 92, 46, 206, 67, 108, 0, 0, 112, 67, 92, 46, 206,
-			67, 108, 0, 0, 112, 67, 92, 46, 216, 67, 108, 0, 0, 117, 67, 92, 46, 216, 67, 108, 0, 0, 117, 67, 92, 174, 208, 67, 108, 0, 0, 122, 67, 92, 174, 208, 67, 108, 0, 0, 122, 67, 92, 46, 206, 67, 108, 0, 0, 127, 67, 92, 46, 206, 67, 108, 0, 0, 127, 67, 92, 174, 218, 67, 108, 0, 0, 130, 67, 92, 174, 218, 67, 108, 0, 0, 130, 67, 92, 46,
-			211, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-		break;
-
-	}
+	case Sine:		return f.createPath("sine");
+	case Triangle:	return f.createPath("triangle");
+	case Saw:		return f.createPath("saw");
+	case Square:	return f.createPath("square");
+	case Noise:		return f.createPath("noise");
     default: break;
-	
 	}
 
-	return path;
+	return {};
 }
 
 void WaveformComponent::setTableValues(const float* values, int numValues, float normalizeValue_)
@@ -164,14 +138,14 @@ void WaveformComponent::rebuildPath()
 {
 	if (bypassed)
 	{
-		p.clear();
+		path.clear();
 		repaint();
 		return;
 	}
 
 	auto broadcaster = dynamic_cast<Broadcaster*>(processor.get());
 
-	p.clear();
+	path.clear();
 
 	if (broadcaster == nullptr)
 		return;
@@ -186,7 +160,7 @@ void WaveformComponent::rebuildPath()
 	float w = (float)getWidth();
 	float h = (float)getHeight();
 
-	p.startNewSubPath(0.0, h / 2.0f);
+	path.startNewSubPath(0.0, h / 2.0f);
 
 	const float cycle = tableLength / w;
 
@@ -218,13 +192,13 @@ void WaveformComponent::rebuildPath()
 
 			jassert(tableIndex < tableLength);
 
-			p.lineTo((float)i, value * -(h - 2) / 2 + h / 2);
+			path.lineTo((float)i, value * -(h - 2) / 2 + h / 2);
 		}
 	}
 
-	p.lineTo(w, h / 2.0f);
+	path.lineTo(w, h / 2.0f);
 
-	p.closeSubPath();
+	path.closeSubPath();
 
 	repaint();
 }

@@ -46,7 +46,7 @@ class KeyModulator: public VoiceStartModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("KeyNumber", "Notenumber Modulator")
+	SET_PROCESSOR_NAME("KeyNumber", "Notenumber Modulator", "Creates a modulation value based on the note-number.")
 
 	/** Special Parameters for the Random Modulator */
 	enum Parameters

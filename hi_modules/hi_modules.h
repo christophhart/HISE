@@ -134,6 +134,7 @@ END_JUCE_MODULE_DECLARATION
 #if USE_BACKEND
 
 #include "midi_processor/editors/TransposerEditor.h"
+#include "midi_processor/editors/MidiPlayerEditor.h"
 
 #endif
 
@@ -228,6 +229,9 @@ END_JUCE_MODULE_DECLARATION
 #include "raw/raw_ids.h"
 #include "raw/raw_misc.h"
 #include "raw/raw_misc_impl.h"
+#include "raw/raw_main_processor.h"
+#include "raw/raw_main_processor_impl.h"
+#include "raw/raw_main_editor.h"
 #include "raw/raw_builder.h"
 #include "raw/raw_builder_impl.h"
 #include "raw/raw_positioner.h"

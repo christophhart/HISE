@@ -90,6 +90,8 @@ public:
 		return getSymbolPath();
 	};
 
+	virtual bool isProcessingWholeBuffer() const { return false; }
+
 	/** Normally a MidiProcessor has no child processors, but it is virtual for the MidiProcessorChain. */
 	virtual Processor *getChildProcessor(int /*processorIndex*/) override {return nullptr;};
 
@@ -108,7 +110,14 @@ public:
 	/** If this method is called within processMidiMessage(), the message will be ignored. */
 	void ignoreEvent() { processThisMessage = false; };
 
-
+	/** Overwrite this method if your processor wants to process the entire buffer at once in addition of single messages.
+	
+		By default this is deactivated, but if you override isProcessingWholeBuffer() and return true, it will use this
+		method. */
+	virtual void preprocessBuffer(HiseEventBuffer& buffer, int numSamples) 
+	{
+		ignoreUnused(buffer, numSamples);
+	}
 
 	bool isProcessed() const {return processThisMessage;};
 
@@ -150,7 +159,7 @@ class MidiProcessorChain: public MidiProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("MidiProcessorChain", "Midi Processor Chain");
+	SET_PROCESSOR_NAME("MidiProcessorChain", "Midi Processor Chain", "chain");
 
 	MidiProcessorChain(MainController *m, const String &id, Processor *ownerProcessor);
 
@@ -220,6 +229,35 @@ public:
 		}
 	};
 
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	{
+		Processor::prepareToPlay(sampleRate, samplesPerBlock);
+
+		for (auto p : processors)
+			p->prepareToPlay(sampleRate, samplesPerBlock);
+	}
+
+	void addWholeBufferProcessor(MidiProcessor* midiProcessor)
+	{
+		jassert(midiProcessor->isProcessingWholeBuffer());
+
+		int index = processors.indexOf(midiProcessor);
+
+		jassert(index != -1);
+		
+		// Bubble it up the chain so it will be before any non-whole processor
+		for (int i = index-1; i >= 0 ; i--)
+		{
+			if (!processors[i]->isProcessingWholeBuffer())
+			{
+				processors.swap(i, index);
+				index = i;
+			}
+		}
+
+		wholeBufferProcessors.addIfNotAlreadyThere(midiProcessor);
+	}
+
 	/** @internal Handles the creation of MidiProcessors within a MidiProcessorChain. */
 	class MidiProcessorChainHandler: public Chain::Handler
 	{
@@ -241,9 +279,13 @@ public:
 				LOCK_PROCESSING_CHAIN(chain);
 
 				processorToBeRemoved->setIsOnAir(false);
+
+				if (mp->isProcessingWholeBuffer())
+					chain->wholeBufferProcessors.removeAllInstancesOf(mp.get());
+
 				chain->processors.removeObject(mp.get(), false);
 			}
-			
+
 			if (deleteMp)
 				mp = nullptr;
 			else
@@ -290,6 +332,8 @@ private:
 
 	OwnedArray<MidiProcessor> processors;
 
+	Array<WeakReference<MidiProcessor>> wholeBufferProcessors;
+
 	HiseEventBuffer futureEventBuffer;
 	HiseEventBuffer artificialEvents;
 
@@ -307,6 +351,7 @@ public:
 	{
 		scriptProcessor = 0,
 		transposer,
+		midiFilePlayer,
 		numMidiProcessors
 	};
 

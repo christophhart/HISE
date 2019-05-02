@@ -62,7 +62,7 @@ class StereoEffect: public VoiceEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("StereoFX", "Stereo FX");
+	SET_PROCESSOR_NAME("StereoFX", "Stereo FX", "A polyphonic stereo panner.");
 
 	enum InternalChains
 	{

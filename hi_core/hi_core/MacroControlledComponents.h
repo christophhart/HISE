@@ -184,7 +184,11 @@ public:
 
 	bool canBeMidiLearned() const
 	{
+#if HISE_ENABLE_MIDI_LEARN
 		return midiLearnEnabled;
+#else
+		return false;
+#endif
 	}
 
 	bool isConnectedToModulator() const;

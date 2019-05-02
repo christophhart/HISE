@@ -35,9 +35,12 @@ namespace hise { using namespace juce;
 
 void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData, HlacMonolithInfo* hmaf)
 {
-	auto pool = getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+	auto pool = parentMap->getCurrentSamplePool();
 
 	PoolReference ref(getMainController(), sampleData.getProperty("FileName").toString(), ProjectHandler::SubDirectories::Samples);
+
+	ref = ref.withFileHandler(parentMap->getCurrentFileHandler());
+
 
 	auto existingSample = pool->getSampleFromPool(ref);
 
@@ -122,8 +125,9 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 }
 
 ModulatorSamplerSound::~ModulatorSamplerSound()
-{    
-	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedSamples();
+{   
+	if(parentMap != nullptr)
+		parentMap->getCurrentSamplePool()->clearUnreferencedSamples();
 
 	firstSound = nullptr;
 	soundArray.clear();
@@ -142,13 +146,21 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 	if (s == nullptr)
 		return {};
 
-	if( id == SampleIds::ID)				return Range<int>(0, INT_MAX);
-	else if( id == SampleIds::FileName)		return Range<int>();
-	else if( id == SampleIds::Root)		return Range<int>(0, 127);
-	else if( id == SampleIds::HiKey)		return Range<int>((int)getSampleProperty(SampleIds::LoKey), 127);
-	else if( id == SampleIds::LoKey)		return Range<int>(0, (int)getSampleProperty(SampleIds::HiKey));
-	else if( id == SampleIds::LoVel)		return Range<int>(0, (int)getSampleProperty(SampleIds::HiVel) - 1);
-	else if( id == SampleIds::HiVel)		return Range<int>((int)getSampleProperty(SampleIds::LoVel) + 1, 127);
+	if (id == SampleIds::ID)				return Range<int>(0, INT_MAX);
+	else if (id == SampleIds::FileName)		return Range<int>();
+	else if (id == SampleIds::Root)		return Range<int>(0, 127);
+	else if (id == SampleIds::HiKey)		return Range<int>((int)getSampleProperty(SampleIds::LoKey), 127);
+	else if (id == SampleIds::LoKey)		return Range<int>(0, (int)getSampleProperty(SampleIds::HiKey));
+	else if( id == SampleIds::LoVel)		
+		return Range<int>(0, (int)getSampleProperty(SampleIds::HiVel) -
+							 (int)getSampleProperty(SampleIds::LowerVelocityXFade) -
+							 (int)getSampleProperty(SampleIds::UpperVelocityXFade) - 
+							 1);
+	else if( id == SampleIds::HiVel)		
+		return Range<int>((int)getSampleProperty(SampleIds::LoVel) +
+						  (int)getSampleProperty(SampleIds::LowerVelocityXFade) +
+						  (int)getSampleProperty(SampleIds::UpperVelocityXFade) +
+						  1, 127);
 	else if( id == SampleIds::Volume)		return Range<int>(-100, 18);
 	else if( id == SampleIds::Pan)			return Range<int>(-100, 100);
 	else if( id == SampleIds::Normalized)	return Range<int>(0, 1);
@@ -196,7 +208,7 @@ juce::String ModulatorSamplerSound::getPropertyAsString(const Identifier& id) co
 	auto v = getSampleProperty(id);
 
 	if( id == SampleIds::Root)			return MidiMessage::getMidiNoteName((int)v, true, true, 3);
-	else if (id == SampleIds::FileName)		return firstSound->getFileName(false);
+	else if (id == SampleIds::FileName)		return firstSound->getFileName(true);
 	else if( id == SampleIds::HiKey)		return MidiMessage::getMidiNoteName((int)v, true, true, 3);
 	else if( id == SampleIds::LoKey)		return MidiMessage::getMidiNoteName((int)v, true, true, 3);
 	else if( id == SampleIds::Volume)		return String(Decibels::gainToDecibels(gain.load()), 1) + " dB";
@@ -535,11 +547,11 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 		}
 		else if (id == SampleIds::LowerVelocityXFade)
 		{
-			upperVeloXFadeValue = newValue;
+			lowerVeloXFadeValue = newValue;
 		}
 		else if (id == SampleIds::UpperVelocityXFade)
 		{
-			lowerVeloXFadeValue = newValue;
+			upperVeloXFadeValue = newValue;
 		}
 	}
 	else
@@ -644,7 +656,8 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 
 // ====================================================================================================================
 
-ModulatorSamplerSoundPool::ModulatorSamplerSoundPool(MainController *mc_) :
+ModulatorSamplerSoundPool::ModulatorSamplerSoundPool(MainController *mc_, FileHandlerBase* handler) :
+PoolBase(mc, handler),
 mc(mc_),
 debugProcessor(nullptr),
 mainAudioProcessor(nullptr),
@@ -744,6 +757,15 @@ StreamingSamplerSound* ModulatorSamplerSoundPool::getSampleFromPool(PoolReferenc
 	}
 
 	return nullptr;
+}
+
+
+hise::ModulatorSamplerSoundPool* MainController::SampleManager::getModulatorSamplerSoundPool()
+{
+	if (auto exp = mc->getExpansionHandler().getCurrentExpansion())
+		return exp->pool->getSamplePool();
+
+	return mc->getCurrentFileHandler().pool->getSamplePool();
 }
 
 void ModulatorSamplerSoundPool::clearUnreferencedSamplesInternal()

@@ -610,7 +610,8 @@ void PresetBrowser::ModalWindow::confirmReplacement(const File& oldFile, const F
 }
 
 PresetBrowser::PresetBrowser(MainController* mc, int width, int height) :
-ControlledObject(mc)
+ControlledObject(mc),
+pblaf(new PresetBrowserLookAndFeel())
 {
 	setName("Preset Browser");
 
@@ -692,7 +693,7 @@ ControlledObject(mc)
 	updateFavoriteButton();
     
     setOpaque(true);
-	setLookAndFeel(&pblaf);
+	setLookAndFeel(pblaf);
 }
 
 PresetBrowser::~PresetBrowser()
@@ -744,7 +745,7 @@ void PresetBrowser::presetListUpdated()
 
 void PresetBrowser::paint(Graphics& g)
 {
-	pblaf.drawPresetBrowserBackground(g, *this);
+	pblaf->drawPresetBrowserBackground(g, *this);
 }
 
 void PresetBrowser::rebuildAllPresets()
@@ -960,9 +961,9 @@ void PresetBrowser::setShowFavorites(bool shouldShowFavorites)
 
 void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 {
-	pblaf.backgroundColour = bgColour;
-	pblaf.font = f;
-	pblaf.highlightColour = c;
+	pblaf->backgroundColour = bgColour;
+	pblaf->font = f;
+	pblaf->highlightColour = c;
 
 	
 
@@ -1077,7 +1078,7 @@ void PresetBrowser::showLoadedPreset()
 void PresetBrowser::setOptions(const Options& newOptions)
 {
 	setHighlightColourAndFont(newOptions.highlightColour, newOptions.backgroundColour, newOptions.font);
-	pblaf.textColour = newOptions.textColour;
+	pblaf->textColour = newOptions.textColour;
 	setNumColumns(newOptions.numColumns);
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
@@ -1396,14 +1397,15 @@ void PresetBrowser::DataBaseHelpers::setFavorite(const var& database, const File
 	}
 }
 
-void PresetBrowser::DataBaseHelpers::cleanFileList(Array<File>& filesToClean)
+void PresetBrowser::DataBaseHelpers::cleanFileList(MainController* mc, Array<File>& filesToClean)
 {
 	for (int i = 0; i < filesToClean.size(); i++)
 	{
 		const bool isNoPresetFile = filesToClean[i].isHidden() || filesToClean[i].getFileName().startsWith(".") || filesToClean[i].getFileExtension() != ".preset";
 		const bool isNoDirectory = !filesToClean[i].isDirectory();
+		const bool requiresMissingExpansions = !matchesAvailableExpansions(mc, filesToClean[i]);
 
-		if (isNoPresetFile && isNoDirectory)
+		if ((isNoPresetFile && isNoDirectory) || requiresMissingExpansions)
 		{
 			filesToClean.remove(i--);
 			continue;
@@ -1496,6 +1498,49 @@ juce::String PresetBrowser::DataBaseHelpers::getNoteFromXml(const File& currentP
 
 	return String();
 }
+
+bool PresetBrowser::DataBaseHelpers::matchesAvailableExpansions(MainController* mc, const File& currentPreset)
+{
+#if HISE_ENABLE_EXPANSIONS
+	
+	if (mc == nullptr)
+		return true;
+
+	if (currentPreset.isDirectory())
+		return true;
+
+	auto s = currentPreset.loadFileAsString();
+
+	auto m = s.fromFirstOccurrenceOf("RequiredExpansions=\"", false, false).upToFirstOccurrenceOf("\"", false, false);
+
+	if (m.isNotEmpty())
+	{
+		auto sa = StringArray::fromTokens(m, ";", "");
+
+		sa.removeEmptyStrings(true);
+
+		bool allFound = true;
+
+		auto& handler = mc->getExpansionHandler();
+
+		for (int i = 0; i < handler.getNumExpansions(); i++)
+		{
+			int index = sa.indexOf(handler.getExpansion(i)->getProperty(ExpansionIds::Name));
+
+			if (index != -1)
+				sa.remove(index);
+		}
+
+		return sa.isEmpty();
+	}
+
+	return true;
+#else
+	ignoreUnused(mc, currentPreset);
+	return true;
+#endif
+}
+
 
 bool PresetBrowser::DataBaseHelpers::isFavorite(const var& database, const File& presetFile)
 {

@@ -68,6 +68,8 @@ public:
 
 	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
 
+	static var getVarRectangle(Rectangle<float> floatRectangle, Result* r = nullptr);
+
 	static Rectangle<float> getRectangleFromVar(const var &data, Result *r = nullptr);
 
 	static Rectangle<int> getIntRectangleFromVar(const var &data, Result* r = nullptr);
@@ -235,7 +237,7 @@ public:
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Message"); }
 
 		String getDebugName() const override { return "MessageHolder"; };
-		String getDebugValue() const override { return e.getTypeAsString() + "[" + String(e.getNoteNumber()) + "," + String(e.getVelocity()) + "," + String(e.getChannel()) + "]"; };
+		String getDebugValue() const override { return dump(); };
 		
 		// ============================================================================================================
 
@@ -311,6 +313,15 @@ public:
 
 		/** Adds the given sample amount to the current timestamp. */
 		void addToTimestamp(int deltaSamples);
+
+		/** Returns true if the event is a note-on event. */
+		bool isNoteOn() const;
+
+		/** Returns true if the event is a note-off event. */
+		bool isNoteOff() const;
+
+		/** Returns true if the event is a CC controller event. */
+		bool isController() const;
 
 		/** Creates a info string for debugging. */
 		String dump() const;
@@ -788,6 +799,9 @@ public:
 		/** Restores the control values for scripts (without recompiling). */
 		void restoreScriptControls(String base64Controls);
 
+		/** Returns a reference of type ScriptedMidiPlayer that can be used to control the playback. */
+		var asMidiPlayer();
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -959,6 +973,94 @@ public:
 	};
 
 
+	class ScriptedMidiPlayer : public MidiPlayerBaseType,
+								public ConstScriptingObject,
+							    public DebugableObject,
+								public SuspendableTimer
+	{
+	public:
+
+		ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_);
+		~ScriptedMidiPlayer();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MidiPlayer"); }
+
+		String getDebugValue() const override;
+
+		String getDebugName() const override;
+
+		void sequenceLoaded(HiseMidiSequence::Ptr newSequence) override;
+		void trackIndexChanged() override;
+		void sequenceIndexChanged() override;
+		void sequencesCleared() override;
+
+		void timerCallback() override;
+
+		// ============================================================================================================ API Methods
+
+		/** Returns an array containing all notes converted to the space supplied with the target bounds [x, y, w, h]. */
+		var getNoteRectangleList(var targetBounds);
+
+		/** Sets the playback position in the current loop. Input must be between 0.0 and 1.0. */
+		void setPlaybackPosition(var newPosition);
+
+		/** Returns the playback position in the current loop between 0.0 and 1.0. */
+		var getPlaybackPosition();
+
+		/** If true, the panel will get a repaint() call whenever the playback position changes. 
+		
+			Otherwise it will only be updated when the sequence changes. */
+		void setRepaintOnPositionChange(var shouldRepaintPanel);
+
+		/** Connect this to the panel and it will be automatically updated when something changes. */
+		void connectToPanel(var panel);
+
+		/** Creates an array containing all MIDI messages wrapped into MessageHolders for processing. */
+		var getEventList();
+
+		/** Writes the given array of MessageHolder objects into the current sequence. This is undoable. */
+		void flushMessageList(var messageList);
+
+		/** Resets the current sequence to the last loaded file. */
+		void reset();
+
+		/** Undo the last edit. */
+		void undo();
+
+		/** Redo the last edit. */
+		void redo();
+
+		/** Starts playing. Use the timestamp to delay the event or use the currents event timestamp for sample accurate playback. */
+		bool play(int timestamp);
+
+		/** Starts playing. Use the timestamp to delay the event or use the currents event timestamp for sample accurate playback. */
+		bool stop(int timestamp);
+
+		/** Starts recording (not yet implemented). Use the timestamp to delay the event or use the currents event timestamp for sample accurate playback. */
+		bool record(int timestamp);
+
+		/** Loads a MIDI file and switches to this sequence if specified. */
+		bool setFile(String fileName, bool clearExistingSequences, bool selectNewSequence);
+
+		/** Sets the track index (starting with one). */
+		void setTrack(int trackIndex);
+
+		// ============================================================================================================
+
+		struct Wrapper;
+
+	private:
+
+		bool repaintOnPlaybackChange = false;
+
+		double lastPlaybackChange = 0.0;
+
+		WeakReference<ConstScriptingObject> connectedPanel;
+
+		bool sequenceValid() const { return getPlayer() != nullptr && getSequence() != nullptr; }
+		HiseMidiSequence* getSequence() const { return getPlayer()->getCurrentSequence(); }
+	};
+
 	class PathObject : public ConstScriptingObject,
 					   public DebugableObject
 	{
@@ -1099,7 +1201,7 @@ public:
 		/** Draws the given path. */
 		void drawPath(var path, var area, var thickNess);
 
-		/** Rotates the canvas around center ([x, y]) by the given amount in radian. */
+		/** Rotates the canvas around center `[x, y]` by the given amount in radian. */
 		void rotate(var angleInRadian, var center);
 		
 		// ============================================================================================================
@@ -1125,81 +1227,6 @@ public:
 
 		// ============================================================================================================
 	};
-
-	class ExpansionObject : public ConstScriptingObject,
-							public DebugableObject
-	{
-	public:
-
-		ExpansionObject(ProcessorWithScriptingContent* p, Expansion* expansion);
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Expansion"); }
-
-		virtual bool objectDeleted() const { return data.get() == nullptr; }
-		virtual bool objectExists() const { return data.get() != nullptr; }
-
-		String getDebugName() const override { return data != nullptr ? data->name.get() : "Deleted"; }
-		String getDebugValue() const override { return data != nullptr ? data->name.get() : "Deleted"; }
-
-		/** Returns a list of all samplemaps in this expansion pack. */
-		var getSampleMapList();
-
-		/** Returns a list of all audio files in this expansion pack. */
-		var getAudioFileList();
-
-		/** Returns a list of all image files in this expansion pack. */
-		var getImageFilelist();
-
-		/** Returns a reference string that can be used to load expansion pack data. */
-		var getReferenceString(var relativeFilePath);
-
-	private:
-
-		struct Wrapper;
-
-		WeakReference<Expansion> data;
-	};
-
-	class ExpansionHandlerObject : public ConstScriptingObject,
-								   public ExpansionHandler::Listener
-	{
-	public:
-
-		ExpansionHandlerObject(ProcessorWithScriptingContent* p);
-
-		~ExpansionHandlerObject();
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ExpansionHandler"); }
-
-		void expansionPackLoaded(Expansion* currentExpansion) override;
-
-		void expansionPackCreated(Expansion* exp) { expansionPackLoaded(exp); };
-
-		/** Returns a list of expansion objects. */
-		var getExpansionList();
-
-		/** Returns a reference to the currently loaded expansion or undefined. */
-		var getCurrentExpansion();
-
-		/** Sets a function that will be executed when a new expansion will be loaded. */
-		void setLoadingCallback(var function);
-
-		/** Loads the expansion with the given name. Returns false, if expansion can't be loaded. */
-		bool loadExpansion(const String expansionName);
-
-
-	private:
-
-
-
-		var loadingCallback;
-
-		struct Wrapper;
-
-		ExpansionHandler& handler;
-
-	};
-
 };
 
 

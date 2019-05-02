@@ -279,7 +279,7 @@ private:
 		e.setEventId(eventId);
 		expectEquals<int>((int)e.getEventId(), (int)eventId, "Event ID");
 
-		const uint16 timestamp = (uint16)r.nextInt(UINT16_MAX);
+		const uint32 timestamp = (uint16)r.nextInt(1 << 30);
 
 		e.setTimeStamp(timestamp);
 		expectEquals<int>((int)e.getTimeStamp(), (int)timestamp, "Timestamp");
@@ -718,7 +718,7 @@ private:
 
 		HiseEventBuffer b;
 
-		MainController::EventIdHandler handler(b);
+		EventIdHandler handler(b);
 
 		b.addEvent(HiseEvent(HiseEvent::Type::NoteOn, 24, 24, 1));
 		b.addEvent(HiseEvent(HiseEvent::Type::NoteOn, 36, 24, 1));

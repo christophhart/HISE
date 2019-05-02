@@ -36,7 +36,8 @@ void QuasiModalComponent::setModalBaseWindowComponent(Component * childComponent
 {
 	ModalBaseWindow *editor = dynamic_cast<ModalBaseWindow*>(childComponentOfModalBaseWindow);
 
-	if (editor == nullptr) editor = childComponentOfModalBaseWindow->findParentComponentOfClass<ModalBaseWindow>();
+	if (editor == nullptr) 
+		editor = childComponentOfModalBaseWindow->findParentComponentOfClass<ModalBaseWindow>();
 
 	jassert(editor != nullptr);
 
@@ -109,7 +110,7 @@ DialogWindowWithBackgroundThread::~DialogWindowWithBackgroundThread()
 {
 	if (thread != nullptr)
 	{
-		thread->stopThread(6000);
+		thread->stopThread(timeoutMs);
 	}
 }
 
@@ -258,6 +259,14 @@ void DialogWindowWithBackgroundThread::AdditionalRow::addButton(const String& na
 	addCustomComponent(t, "", width);
 }
 
+void DialogWindowWithBackgroundThread::AdditionalRow::setInfoTextForLastComponent(const String& infoToShow)
+{
+	if (auto last = columns.getLast())
+	{
+		last->infoButton->setHelpText(infoToShow);
+	}
+}
+
 void DialogWindowWithBackgroundThread::AdditionalRow::resized()
 {
 	if (getWidth() == 0)
@@ -359,6 +368,9 @@ void ModalBaseWindow::clearModalComponent()
 
 const hise::MainController* ModalBaseWindow::getMainController() const
 {
+	if (auto mc = getMainControllerToUse())
+		return mc;
+
 #if USE_BACKEND
 	return dynamic_cast<const BackendRootWindow*>(this)->getBackendProcessor();
 	
@@ -370,6 +382,9 @@ const hise::MainController* ModalBaseWindow::getMainController() const
 
 hise::MainController* ModalBaseWindow::getMainController()
 {
+	if (auto mc = getMainControllerToUse())
+		return mc;
+
 #if USE_BACKEND
 	return dynamic_cast<BackendRootWindow*>(this)->getBackendProcessor();
 #else
@@ -899,6 +914,60 @@ String SampleDataImporter::getMetadata() const
 File SampleDataImporter::getSourceFile() const
 {
 	return targetFile->getCurrentFile();
+}
+
+DialogWindowWithBackgroundThread::AdditionalRow::Column::Column(Component* t, const String& name_, int width_) :
+	name(name_),
+	width(width_)
+{
+	addAndMakeVisible(component = t);
+	if (name.isNotEmpty())
+	{
+		addAndMakeVisible(infoButton = new MarkdownHelpButton());
+
+	}
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::Column::resized()
+{
+	auto area = getLocalBounds();
+
+	if (name.isNotEmpty())
+	{
+		auto topBar = area.removeFromTop(16);
+
+		infoButton->setBounds(topBar.removeFromRight(16));
+	}
+
+	component->setBounds(area);
+}
+
+void ComponentWithHelp::openHelp()
+{
+	if (handler != nullptr && handler->isHelpEnabled())
+	{
+		handler->showHelp(this);
+	}
+}
+
+void ComponentWithHelp::paintHelp(Graphics& g)
+{
+	if (handler != nullptr && handler->isHelpEnabled())
+	{
+		g.fillAll(Colours::black.withAlpha(0.5f));
+
+		auto c = dynamic_cast<Component*>(this);
+
+		auto pBounds = c->getLocalBounds().toFloat().withSizeKeepingCentre(30, 30);
+
+		p.scaleToFit(pBounds.getX(), pBounds.getY(), pBounds.getWidth(), pBounds.getHeight(), true);
+
+		g.setColour(c->isMouseOver(true) ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.5f));
+
+		g.fillPath(p);
+
+		
+	}
 }
 
 } // namespace hise

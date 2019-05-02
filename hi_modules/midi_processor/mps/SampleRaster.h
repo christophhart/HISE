@@ -45,7 +45,7 @@ class SampleRaster: public MidiProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("SampleRaster", "Sample Raster");
+	SET_PROCESSOR_NAME("SampleRaster", "Sample Raster", "deprecated");
 
 	/** Creates a SampleRaster. The initial step size is 4. */
 	SampleRaster(MainController *mc, const String &id):

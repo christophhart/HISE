@@ -38,27 +38,12 @@ namespace hise { using namespace juce;
 class BackendProcessorEditor;
 
 
-class MainToolbarFactory: public ToolbarItemFactory
+class MainToolbarFactory: public PathFactory
 {
 public:
 
-	MainToolbarFactory(BackendProcessorEditor *parentEditor):
-		editor(parentEditor)
-	{
-
-	};
-
-	
-	void getAllToolbarItemIds(Array<int> &ids) override;
-	
-	void getDefaultItemSet(Array<int> &ids) override { getAllToolbarItemIds(ids); };
-
-	ToolbarItemComponent * createItem(int itemId);
-	
-	struct MainToolbarPaths
-	{
-		static Drawable *createPath(int id, bool isOn);
-	};
+	Path createPath(const String& id) const override;
+	String getId() const override { return "Main Toolbar"; }
 
 private:
 

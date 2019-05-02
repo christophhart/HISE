@@ -40,14 +40,23 @@ Array<juce::Identifier> HiseSettings::SettingFiles::getAllIds()
 {
 	Array<Identifier> ids;
 
-#if USE_BACKEND
+#if USE_BACKEND 
+
+#if IS_MARKDOWN_EDITOR
+	ids.add(DocSettings);
+#else
 	ids.add(ProjectSettings);
 	ids.add(UserSettings);
 	ids.add(CompilerSettings);
 	ids.add(GeneralSettings);
 	ids.add(ScriptingSettings);
+	ids.add(DocSettings);
 #endif
+
+#endif
+
 	ids.add(OtherSettings);
+
 	ids.add(AudioSettings);
 	ids.add(MidiSettings);
 
@@ -130,6 +139,17 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 	return ids;
 }
 
+juce::Array<juce::Identifier> HiseSettings::Documentation::getAllIds()
+{
+	Array<Identifier> ids;
+
+	ids.add(DocRepository);
+	ids.add(RefreshOnStartup);
+
+	return ids;
+}
+
+
 Array<juce::Identifier> HiseSettings::Midi::getAllIds()
 {
 	Array<Identifier> ids;
@@ -153,36 +173,13 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 	return ids;
 }
 
-String getUncamelcasedId(const Identifier& id)
-{
-	auto n = id.toString();
-	String pretty;
-	auto ptr = n.getCharPointer();
-	bool lastWasUppercase = true;
-
-	while (!ptr.isEmpty())
-	{
-		if (ptr.isUpperCase() && !lastWasUppercase)
-			pretty << " ";
-
-		lastWasUppercase = ptr.isUpperCase();
-		pretty << ptr.getAddress()[0];
-		ptr++;
-	}
-
-	return pretty;
-}
 
 
-#define P(p) if (prop == p) { s << "### " << getUncamelcasedId(p) << "\n";
+#define P(p) if (prop == p) { s << "### " << ConversionHelpers::getUncamelcasedId(p) << "\n";
 #define D(x) s << x << "\n";
 #define P_() return s; } 
 
-struct SettingDescription
-{
-
-
-	static String getDescription(const Identifier& prop)
+	String HiseSettings::SettingDescription::getDescription(const Identifier& prop)
 	{
 		String s;
 
@@ -242,7 +239,7 @@ struct SettingDescription
 		D("```javascript");
 		D("ENABLE_ALL_PEAK_METERS=0");
 		D("NUM_POLYPHONIC_VOICES=100");
-		D("```");
+		D("```\n");
 		P_();
 
 		P(HiseSettings::Project::ExtraDefinitionsOSX);
@@ -251,7 +248,7 @@ struct SettingDescription
 		D("```javascript");
 		D("ENABLE_ALL_PEAK_METERS=0");
 		D("NUM_POLYPHONIC_VOICES=100");
-		D("```");
+		D("```\n");
 		P_();
 
 		P(HiseSettings::Project::ExtraDefinitionsIOS);
@@ -260,7 +257,7 @@ struct SettingDescription
 		D("```javascript");
 		D("ENABLE_ALL_PEAK_METERS=0");
 		D("NUM_POLYPHONIC_VOICES=100");
-		D("```");
+		D("```\n");
 		P_();
 
 		P(HiseSettings::Project::AppGroupID);
@@ -357,19 +354,19 @@ struct SettingDescription
 		D("Interface: Breakpoint 1 was hit ");
 		D(":  someFunction() - Line 5, column 18");
 		D(":  onNoteOn() - Line 3, column 2");
-		D("```");
+		D("```\n");
 		D("A breakpoint was set on the function `someFunction` You can see in the stacktrace that it was called in the `onNoteOn` callback.  ");
 		D("Double clicking on the line in the console jumps to each location.");
 		P_();
 
 		P(HiseSettings::Scripting::CompileTimeout);
 		D("Sets the timeout for the compilation of a script in **seconds**. Whenever the compilation takes longer, it will abort and show a error message.");
-		D("This prevents hanging if you accidentally create endless loops like this:");
+		D("This prevents hanging if you accidentally create endless loops like this:\n");
 		D("```javascript");
 		D("while(true)");
 		D(" x++;");
 		D("");
-		D("```");
+		D("```\n");
 		P_();
 
 		P(HiseSettings::Scripting::GlobalScriptPath);
@@ -379,7 +376,7 @@ struct SettingDescription
 		D("```javascript");
 		D("// Includes 'File.js'");
 		D("include(\"{GLOBAL_SCRIPT_FOLDER}File.js\");");
-		D("```");
+		D("```\n");
 		P_();
 
 		P(HiseSettings::Scripting::EnableDebugMode);
@@ -400,10 +397,19 @@ struct SettingDescription
 		D("Watches for illegal calls in the audio thread. Use this during script development to catch allocations etc.");
 		P_();
 
+		P(HiseSettings::Documentation::DocRepository);
+		D("The folder of the `hise_documentation` repository. If you want to contribute to the documentation you can setup this folder.");
+		D("Otherwise it will use the cached version that was downloaded from the HISE doc server");
+		P_();
+
+		P(HiseSettings::Documentation::RefreshOnStartup);
+		D("If enabled, HISE will download the latest documentation files from the server when you start HISE. It needs an internet connection for this");
+		D("It will download two files, `Content.dat` and `Images.dat`, which contain a compressed version of the HISE documentation");
+		P_();
+
 		return s;
 
 	};
-};
 
 #undef P
 #undef D
@@ -438,6 +444,7 @@ juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
 	else if (id == SettingFiles::ScriptingSettings)	return appDataFolder.getChildFile("ScriptSettings.xml");
 	else if (id == SettingFiles::OtherSettings)		return appDataFolder.getChildFile("OtherSettings.xml");
+	else if (id == SettingFiles::DocSettings)		return appDataFolder.getChildFile("DocSettings.xml");
 
 	jassertfalse;
 
@@ -520,7 +527,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::Support32BitMacOS ||
 		id == Project::SupportMonoFX ||
 		id == Project::UseRawFrontend ||
-		id == Project::SupportFullDynamicsHLAC)
+		id == Project::SupportFullDynamicsHLAC ||
+		id == Documentation::RefreshOnStartup)
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -545,10 +553,17 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 	else if (Audio::getAllIds().contains(id))
 	{
 		auto manager = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager;
+
+
+		if (manager == nullptr)
+			return {};
+
 		StringArray sa;
 
 		if (id == Audio::Driver)
 		{
+			
+
 			const auto& list = manager->getAvailableDeviceTypes();
 			for (auto l : list)
 				sa.add(l->getTypeName());
@@ -598,7 +613,10 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 
 bool HiseSettings::Data::isFileId(const Identifier& id)
 {
-	return id == Compiler::HisePath || id == Scripting::GlobalScriptPath || id == Project::RedirectSampleFolder;
+	return id == Compiler::HisePath || 
+		   id == Scripting::GlobalScriptPath || 
+		   id == Project::RedirectSampleFolder ||
+		   id == Documentation::DocRepository;
 }
 
 
@@ -616,6 +634,7 @@ void HiseSettings::Data::addMissingSettings(ValueTree& v, const Identifier &id)
 	else if (id == SettingFiles::CompilerSettings)	ids = Compiler::getAllIds();
 	else if (id == SettingFiles::ScriptingSettings) ids = Scripting::getAllIds();
 	else if (id == SettingFiles::OtherSettings)		ids = Other::getAllIds();
+	else if (id == SettingFiles::DocSettings)		ids = Documentation::getAllIds();
 
 	for (const auto& id_ : ids)
 		addSetting(v, id_);
@@ -676,6 +695,8 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
+	else if (id == Documentation::DocRepository)	return "";
+	else if (id == Documentation::RefreshOnStartup) return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;
 	else if (id == Scripting::EnableCallstack)		return "No";
 	else if (id == Scripting::CompileTimeout)		return 5.0;
@@ -929,6 +950,26 @@ bool HiseSettings::Data::TestFunctions::isValidNumberBetween(var value, Range<fl
 	number = FloatSanitizers::sanitizeFloatNumber(number);
 
 	return range.contains(number);
+}
+
+juce::String HiseSettings::ConversionHelpers::getUncamelcasedId(const Identifier& id)
+{
+	auto n = id.toString();
+	String pretty;
+	auto ptr = n.getCharPointer();
+	bool lastWasUppercase = true;
+
+	while (!ptr.isEmpty())
+	{
+		if (ptr.isUpperCase() && !lastWasUppercase)
+			pretty << " ";
+
+		lastWasUppercase = ptr.isUpperCase();
+		pretty << ptr.getAddress()[0];
+		ptr++;
+	}
+
+	return pretty;
 }
 
 juce::StringArray HiseSettings::ConversionHelpers::getChannelPairs(AudioIODevice* currentDevice)

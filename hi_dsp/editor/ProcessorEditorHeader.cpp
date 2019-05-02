@@ -257,6 +257,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		
 		deleteButton->setTooltip("Delete the Modulator.");
 		bypassButton->setTooltip("Bypass the Modulator.");
+		bipolarModButton->setTooltip("Use bipolar Modulation (0...1) -> (-1...1)");
 
 		bipolarModButton->setVisible(false);
 
@@ -1237,7 +1238,14 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			InsertBefore,
 			CloseAllChains,
 			CheckForDuplicate,
-			CreateScriptVariable,
+			CreateGenericScriptReference,
+			CreateTableProcessorScriptReference,
+			CreateAudioSampleProcessorScriptReference,
+			CreateSamplerScriptReference,
+			CreateMidiPlayerScriptReference,
+			CreateSliderPackProcessorReference,
+			CreateSlotFXReference,
+			CreateRoutingMatrixReference,
 			ReplaceWithClipboardContent,
 			SaveAllSamplesToGlobalFolder,
 			OpenAllScriptsInPopup,
@@ -1275,8 +1283,23 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			m.addItem(CloseAllChains, "Close All Chains");
 		}
 
-		m.addItem(CreateScriptVariable, "Create script variable declaration");
+		m.addSeparator();
 
+		m.addItem(CreateGenericScriptReference, "Create generic script reference");
+		
+		if (dynamic_cast<ModulatorSampler*>(getProcessor()) != nullptr)
+			m.addItem(CreateSamplerScriptReference, "Create typed Sampler script reference");
+		else if (dynamic_cast<MidiPlayer*>(getProcessor()) != nullptr)
+			m.addItem(CreateMidiPlayerScriptReference, "Create typed MIDI Player script reference");
+		else if (dynamic_cast<SlotFX*>(getProcessor()) != nullptr)
+			m.addItem(CreateSlotFXReference, "Create typed SlotFX script reference");
+
+		m.addItem(CreateTableProcessorScriptReference, "Create typed Table script reference", dynamic_cast<LookupTableProcessor*>(getProcessor()) != nullptr);
+		m.addItem(CreateAudioSampleProcessorScriptReference, "Create typed Audio sample script reference", dynamic_cast<AudioSampleProcessor*>(getProcessor()) != nullptr);
+		//m.addItem(CreateSliderPackProcessorReference, "Create typed Slider Pack script reference", dynamic_cast<SliderPackProcessor*>(getProcessor()) != nullptr);
+		m.addItem(CreateRoutingMatrixReference, "Create typed Routing matrix script reference", dynamic_cast<RoutableProcessor*>(getProcessor()) != nullptr);
+
+		m.addSeparator();
 
 		if (isMainSynthChain)
 		{
@@ -1319,10 +1342,22 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			PresetHandler::checkProcessorIdsForDuplicates(getEditor()->getProcessor(), false);
 
 		}
-		else if (result == CreateScriptVariable)
-		{
+		else if (result == CreateGenericScriptReference)
 			ProcessorHelpers::getScriptVariableDeclaration(getEditor()->getProcessor());
-		}
+		else if (result == CreateAudioSampleProcessorScriptReference)
+			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "AudioSampleProcessor");
+		else if (result == CreateMidiPlayerScriptReference)
+			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "MidiPlayer");
+		else if (result == CreateRoutingMatrixReference)
+			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "RoutingMatrix");
+		else if (result == CreateSamplerScriptReference)
+			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "Sampler");
+		else if (result == CreateSlotFXReference)
+			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "SlotFX");
+		else if (result == CreateTableProcessorScriptReference)
+			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "TableProcessor");
+		else if (result == CreateSliderPackProcessorReference)
+			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "SliderPackProcessor");
 		else if (result == OpenInterfaceInPopup)
 		{
 			dynamic_cast<ScriptingEditor*>(getEditor()->getBody())->openContentInPopup();

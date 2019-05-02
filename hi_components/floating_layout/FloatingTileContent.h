@@ -204,7 +204,9 @@ protected:
 };
 
 
-class JSONEditor : public Component
+class JSONEditor : public Component,
+				   public ButtonListener,
+				   public CodeDocument::Listener
 {
 public:
 
@@ -213,6 +215,8 @@ public:
 	JSONEditor(ObjectWithDefaultProperties* editedObject):
 		editedComponent(dynamic_cast<Component*>(editedObject))
 	{
+		constructionTime = Time::getApproximateMillisecondCounter();
+
 		setName("JSON Editor");
 
 		tokeniser = new JavascriptTokeniser();
@@ -220,6 +224,7 @@ public:
 		doc->replaceAllContent(JSON::toString(editedObject->toDynamicObject(), false, DOUBLE_TO_STRING_DIGITS));
 		doc->setSavePoint();
 		doc->clearUndoHistory();
+		doc->addListener(this);
 
 		addAndMakeVisible(editor = new CodeEditorComponent(*doc, tokeniser));
 
@@ -233,6 +238,8 @@ public:
 
 		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
 
+		addButtonAndLabel();
+
 		constrainer.setMinimumWidth(200);
 		constrainer.setMinimumHeight(300);
 
@@ -241,6 +248,8 @@ public:
 
 	JSONEditor(var object)
 	{
+		constructionTime = Time::getApproximateMillisecondCounter();
+
 		auto s = JSON::toString(object, false, DOUBLE_TO_STRING_DIGITS);
 
 		tokeniser = new JavascriptTokeniser();
@@ -248,6 +257,7 @@ public:
 		doc->replaceAllContent(s);
 		doc->setSavePoint();
 		doc->clearUndoHistory();
+		doc->addListener(this);
 
 		addAndMakeVisible(editor = new CodeEditorComponent(*doc, tokeniser));
 
@@ -260,6 +270,8 @@ public:
 		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
 		editor->setReadOnly(true);
 		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
+
+		addButtonAndLabel();
 
 		constrainer.setMinimumWidth(200);
 		constrainer.setMinimumHeight(300);
@@ -270,6 +282,8 @@ public:
 
 	JSONEditor(const File& f)
 	{
+		constructionTime = Time::getApproximateMillisecondCounter();
+
 		setName("External Script Preview");
 
 		tokeniser = new JavascriptTokeniser();
@@ -277,6 +291,7 @@ public:
 		doc->replaceAllContent(f.loadFileAsString());
 		doc->setSavePoint();
 		doc->clearUndoHistory();
+		doc->addListener(this);
 
 		addAndMakeVisible(editor = new CodeEditorComponent(*doc, tokeniser));
 
@@ -290,15 +305,38 @@ public:
 		editor->setReadOnly(true);
 		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
 
+		addButtonAndLabel();
+
+
 		constrainer.setMinimumWidth(200);
 		constrainer.setMinimumHeight(300);
 
 		addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
 	}
 
+	void addButtonAndLabel();
+
+	void buttonClicked(Button* /*b*/) override
+	{
+		executeCallback();
+	}
+
+	void codeDocumentTextInserted(const String& /*newText*/, int /*insertIndex*/)
+	{
+		setChanged();
+	}
+
+	void codeDocumentTextDeleted(int /*startIndex*/, int /*endIndex*/)
+	{
+		setChanged();
+	}
+
+	void setChanged();
+
 	~JSONEditor()
 	{
-		
+		editor = nullptr;
+		doc = nullptr;
 	}
 
 	bool keyPressed(const KeyPress& key)
@@ -348,12 +386,21 @@ public:
 
 	void resized() override
 	{
-		editor->setBounds(getLocalBounds());
+		auto b = getLocalBounds();
+
+		auto bottomRow = b.removeFromBottom(24);
+
+		applyButton->setBounds(bottomRow.removeFromRight(50));
+		changeLabel->setBounds(bottomRow);
+
+		editor->setBounds(b);
 		resizer->setBounds(getWidth() - 12, getHeight() - 12, 12, 12);
 	}
 
 
 private:
+
+	uint32 constructionTime;
 
 	F5Callback callback;
 
@@ -368,6 +415,9 @@ private:
 	ScopedPointer<CodeDocument> doc;
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 	ScopedPointer<CodeEditorComponent> editor;
+
+	ScopedPointer<Label> changeLabel;
+	ScopedPointer<TextButton> applyButton;
 };
 
 
@@ -535,6 +585,10 @@ public:
 	{
 	public:
 
+		
+
+		
+
 		enum class PopupMenuOptions
 		{
 			Cancel = 0,
@@ -550,6 +604,7 @@ public:
 			MacroTable,
 			MidiLearnPanel,
 			MidiKeyboard,
+			MidiPlayerOverlay,
 			PresetBrowser,
 			SampleConnector,
 			SampleEditor,
@@ -576,6 +631,7 @@ public:
 			AudioFileTable,
 			SamplePoolTable,
 			SampleMapPoolTable,
+			MidiFilePoolTable,
 			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,
@@ -589,6 +645,8 @@ public:
 			SampleMapBrowser,
 			WavetablePreview,
 			AHDSRGraph,
+			MarkdownEditor,
+			MarkdownPreviewPanel,
 			FilterGraphPanel,
 			MPEPanel,
 			Matrix2x2,
@@ -624,6 +682,8 @@ public:
 
 		void handlePopupMenu(PopupMenu& m, FloatingTile* parent);
 
+		void registerLayoutPanelTypes();
+
 		void registerAllPanelTypes();
 
 		void registerFrontendPanelTypes();
@@ -632,12 +692,13 @@ public:
 		void registerExternalPanelTypes();
 #endif
 
-
 		Drawable* getIcon(PopupMenuOptions type) const;
 
 		static Path getPath(PopupMenuOptions path);
 
 		void addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled=true, bool isTicked=false);
+
+		PopupMenuOptions getIndex(int i) const { return idIndexes[i]; }
 
 	private:
 
@@ -650,6 +711,24 @@ public:
 		Array<Identifier> ids;
 		Array<PopupMenuOptions> idIndexes;
 		Array <PCreateFunc> functions;;
+	};
+
+	struct FloatingTilePathFactory: public hise::PathFactory
+	{
+		FloatingTilePathFactory()
+		{
+			f.registerAllPanelTypes();
+
+			for (const auto& id : f.getIdList())
+				ids.add(MarkdownLink::Helpers::getSanitizedFilename(id.toString()));
+		}
+
+		String getId() const override { return "FloatingTile Icons"; };
+
+		Path createPath(const String& id) const override;
+
+		StringArray sa;
+		Factory f;
 	};
 
 	/** @internal */
@@ -677,6 +756,8 @@ public:
 			return defaultValue;
 	}
 
+	int getPreferredHeight() const;
+
 protected:
 
 	/** Overwrite this method if the component has a fixed width. */
@@ -684,6 +765,7 @@ protected:
 
 	/** Overwrite this method if the component has a fixed height. */
 	virtual int getFixedHeight() const { return 0; }
+	
 	
 	
 

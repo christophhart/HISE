@@ -60,10 +60,10 @@ namespace hise { using namespace juce;
 #endif
 
 
-#if USE_FRONTEND
-#define ENABLE_MARKDOWN false
-#else
+#if HI_ENABLE_EXPANSION_EDITING || USE_BACKEND
 #define ENABLE_MARKDOWN true
+#else
+#define ENABLE_MARKDOWN false
 #endif
 
 #if (defined (_WIN32) || defined (_WIN64))
@@ -91,9 +91,16 @@ static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceF
 
 #define GLOBAL_FONT() (Font(oxygenTypeFace).withHeight(13.0f))
 #define GLOBAL_BOLD_FONT() (Font(oxygenBoldTypeFace).withHeight(14.0f))
+    
+#if JUCE_IOS
+#define GLOBAL_MONOSPACE_FONT() Font(Font::getDefaultMonospacedFontName(), 14.0f, Font::plain)
+#else
 #define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
+#endif
 
 #else
+
+
 
 class LinuxFontHandler
 {
@@ -138,6 +145,55 @@ class LinuxFontHandler
 #define GLOBAL_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceFont())
 
 #endif
+
+struct FontHelpers
+{
+	static Font getFontBoldened(Font f)
+	{
+		if (f.isBold())
+			return f;
+
+		if (f.getTypefaceName().startsWith("Oxygen"))
+			return GLOBAL_BOLD_FONT().withHeight(f.getHeight());
+
+		if (f.getTypefaceName().startsWith("Source"))
+			return GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight());
+
+		return f.boldened();
+	}
+
+	static Font getFontNormalised(Font f)
+	{
+		if (f.getTypefaceName().startsWith("Oxygen"))
+			return GLOBAL_FONT().withHeight(f.getHeight());
+
+		if (f.getTypefaceName().startsWith("Source"))
+			return GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight());
+
+		if (f.isBold() || f.isItalic())
+		{
+			f.setBold(false);
+			f.setItalic(false);
+			return f;
+		}
+
+		return f;
+	}
+
+	static Font getFontItalicised(Font f)
+	{
+		if (f.isItalic())
+			return f;
+
+		if (f.getTypefaceName().startsWith("Oxygen"))
+			return GLOBAL_BOLD_FONT().withHeight(f.getHeight());
+
+		if (f.getTypefaceName().startsWith("Source"))
+			return GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight());
+
+		return f.italicised();
+	}
+};
 
 
 #if ENABLE_MARKDOWN

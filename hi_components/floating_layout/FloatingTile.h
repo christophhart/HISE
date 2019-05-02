@@ -111,6 +111,20 @@ public:
 
 };
 
+#if HISE_HEADLESS
+class DummyBackendComponent
+{
+public:
+
+	BackendRootWindow * getBackendRootWindow() { return nullptr; }
+
+	const BackendRootWindow* getBackendRootWindow() const { return nullptr; }
+
+	FloatingTile* getRootFloatingTile() { return nullptr; }
+
+};
+#endif
+
 class FloatingTileContainer;
 class FloatingTileContent;
 
@@ -607,7 +621,8 @@ private:
 #if USE_BACKEND
 
 class FloatingTileDocumentWindow : public DocumentWindow,
-								   public ComponentWithBackendConnection
+								   public ComponentWithBackendConnection,
+							       public ModalBaseWindow
 {
 public:
 
@@ -627,6 +642,9 @@ public:
 	const BackendRootWindow* getBackendRootWindow() const override { return parent; };
 
 	FloatingTile* getRootFloatingTile() override;;
+
+	virtual const MainController* getMainControllerToUse() const;
+	virtual MainController* getMainControllerToUse();
 
 private:
 

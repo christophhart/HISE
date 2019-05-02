@@ -473,13 +473,14 @@ typedef Array<ModulatorSamplerSound::Ptr> SampleSelection;
 *	by a ModulatorSamplerSound object.
 */
 class ModulatorSamplerSoundPool : public StreamingSamplerSoundPool,
-								  public SafeChangeBroadcaster
+	public SafeChangeBroadcaster,
+	public PoolBase
 {
 public:
 
 	// ================================================================================================================
 
-	ModulatorSamplerSoundPool(MainController *mc);
+	ModulatorSamplerSoundPool(MainController *mc, FileHandlerBase* handler);
 	~ModulatorSamplerSoundPool() {}
 
 	// ================================================================================================================
@@ -492,18 +493,17 @@ public:
 		StreamingSamplerSound* get() const { return sound.get(); }
 	};
 
-
 	/** call this with any processor to enable console output. */
 	void setDebugProcessor(Processor *p);;
 
-	
+
 	HlacMonolithInfo::Ptr loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles);
 
-    void setUpdatePool(bool shouldBeUpdated)
-    {
-        updatePool = shouldBeUpdated;
-    }
-    
+	void setUpdatePool(bool shouldBeUpdated)
+	{
+		updatePool = shouldBeUpdated;
+	}
+
 	void setDeactivatePoolSearch(bool shouldBeDeactivated)
 	{
 		searchPool = !shouldBeDeactivated;
@@ -513,6 +513,20 @@ public:
 	{
 		allowDuplicateSamples = shouldAllowDuplicateSamples;
 	}
+
+
+	int getNumLoadedFiles() const override { return getNumSoundsInPool(); }
+	PoolReference getReference(int index) const { return pool[index].r; }
+	void clearData() override { pool.clear(); }
+	var getAdditionalData(PoolReference r) const override { return var(); }
+	StringArray getTextDataForId(int index) const override { return { pool[index].r.getReferenceString() }; };
+
+	void writeItemToOutput(OutputStream& /*output*/, PoolReference /*r*/)  override
+	{
+		jassertfalse;
+	}
+
+	Identifier getFileTypeName() const { return "Samples"; };
 
 	// ================================================================================================================
 
@@ -560,6 +574,8 @@ public:
 
 	StreamingSamplerSound* getSampleFromPool(PoolReference r) const;
 
+	
+
 	void addSound(const PoolEntry& newPoolEntry);
 
 	void removeFromPool(const PoolReference& ref);
@@ -578,7 +594,7 @@ private:
 			parent(parent_)
 		{
 			flag = false;
-			startTimer(300);
+			IF_NOT_HEADLESS(startTimer(300));
 		};
 
 		void triggerAsyncUpdate()

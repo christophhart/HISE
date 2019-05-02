@@ -47,7 +47,7 @@ class PitchwheelModulator: public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("PitchWheel", "Pitch Wheel Modulator")
+	SET_PROCESSOR_NAME("PitchWheel", "Pitch Wheel Modulator", "Creates a monophonic modulation signal from the pitch-wheel");
 
 	PitchwheelModulator(MainController *mc, const String &id, Modulation::Mode m);
 

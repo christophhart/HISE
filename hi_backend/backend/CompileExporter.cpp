@@ -90,12 +90,12 @@ juce::ValueTree BaseExporter::exportEmbeddedFiles()
 {
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
+	ValueTree markdownDocs = chainToExport->getMainController()->exportAllMarkdownDocsAsValueTree();
 	
-	
-
 	ValueTree externalFiles("ExternalFiles");
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
+	externalFiles.addChild(markdownDocs, -1, nullptr);
 
 	return externalFiles;
 }
@@ -184,6 +184,7 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 	case CompileExporter::AAXSDKMissing: return "AAX SDK is missing";
 	case CompileExporter::ASIOSDKMissing: return "ASIO SDK is missing";
 	case CompileExporter::HISEPathNotSpecified: return "HISE path not set";
+	case CompileExporter::CorruptedPoolFiles:	return "Pooled binary resources are corrupt. Clean build folder and retry.";
 	case CompileExporter::numErrorCodes: return "OK";
 		
 	default:
@@ -497,14 +498,16 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		auto iof = handler.getTempFileForPool(FileHandlerBase::Images);
 		auto sof = handler.getTempFileForPool(FileHandlerBase::AudioFiles);
 		auto smof = handler.getTempFileForPool(FileHandlerBase::SampleMaps);
+		auto mof = handler.getTempFileForPool(FileHandlerBase::MidiFiles);
 
-		bool alreadyExported = iof.existsAsFile() || sof.existsAsFile() || smof.existsAsFile();
+		bool alreadyExported = iof.existsAsFile() || sof.existsAsFile() || smof.existsAsFile() || mof.existsAsFile();
 
 		if (rawMode || (alreadyExported && data.getSetting(HiseSettings::Compiler::RebuildPoolFiles)))
 		{
 			iof.deleteFile();
 			sof.deleteFile();
 			smof.deleteFile();
+			mof.deleteFile();
 
 			std::cout << "Exporting the pooled resources...";
 
@@ -521,7 +524,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 					std::cout << "Exported " << name << " resources: " << nl;
 
-					auto& handler = mc->getCurrentFileHandler(true);
+					auto& handler = mc->getCurrentFileHandler();
 
 					
 					auto folder = handler.getSubDirectory(d);
@@ -536,15 +539,18 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 				auto mc = chainToExport->getMainController();
 
-				auto audioPool = mc->getCurrentAudioSampleBufferPool(true);
-				auto imagePool = mc->getCurrentImagePool(true);
-				auto sampleMapPool = mc->getCurrentSampleMapPool(true);
+				auto audioPool = mc->getCurrentAudioSampleBufferPool();
+				auto imagePool = mc->getCurrentImagePool();
+				auto sampleMapPool = mc->getCurrentSampleMapPool();
+				auto midiPool = mc->getCurrentMidiFilePool();
 
 				printExportedFiles(mc, audioPool->getListOfAllReferences(false), ProjectHandler::AudioFiles);
 
 				printExportedFiles(mc, imagePool->getListOfAllReferences(false), ProjectHandler::Images);
 
 				printExportedFiles(mc, sampleMapPool->getListOfAllReferences(false), ProjectHandler::SampleMaps);
+
+				printExportedFiles(mc, midiPool->getListOfAllReferences(false), ProjectHandler::MidiFiles);
 			}
 
 			alreadyExported = true;
@@ -555,7 +561,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);
 		}
 
-		File imageOutputFile, sampleOutputFile, samplemapFile;
+		File imageOutputFile, sampleOutputFile, samplemapFile, midiFile;
 
 		if (embedFiles)
 		{
@@ -564,7 +570,14 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			if (smof.existsAsFile())
 				smof.copyFileTo(samplemapFile);
 			else
-				return ErrorCodes::CompileError;
+				return ErrorCodes::CorruptedPoolFiles;
+
+			midiFile = tempDirectory.getChildFile("midiFiles");
+			
+			if (mof.existsAsFile())
+				mof.copyFileTo(midiFile);
+			else
+				return ErrorCodes::CorruptedPoolFiles;
 
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
@@ -574,12 +587,12 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				if (iof.existsAsFile())
 					iof.copyFileTo(imageOutputFile);
 				else
-					return ErrorCodes::CompileError;
+					return ErrorCodes::CorruptedPoolFiles;
 
 				if (sof.existsAsFile())
 					sof.copyFileTo(sampleOutputFile);
 				else
-					return ErrorCodes::CompileError;
+					return ErrorCodes::CorruptedPoolFiles;
 			}
 		}
 		else if (BuildOptionHelpers::isIOS(option))
@@ -590,12 +603,14 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				samplemapFile = tempDirectory.getChildFile("samplemaps");
 				imageOutputFile = tempDirectory.getChildFile("images");
 				sampleOutputFile = tempDirectory.getChildFile("impulses");
+				midiFile = tempDirectory.getChildFile("midiFiles");
 
 				const String unused = "unused";
 
 				samplemapFile.replaceWithText(unused);
 				imageOutputFile.replaceWithText(unused);
 				sampleOutputFile.replaceWithText(unused);
+				midiFile.replaceWithText(unused);
 			}
 
 			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("EmbeddedResources");
@@ -606,6 +621,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			sampleOutputFile = resourceFolder.getChildFile("AudioResources.dat");
 			imageOutputFile = resourceFolder.getChildFile("ImageResources.dat");
 			samplemapFile = resourceFolder.getChildFile("SampleMapResources.dat");
+			midiFile = resourceFolder.getChildFile("MidiFilesResources.dat");
 
 			if (smof.existsAsFile())
 				smof.copyFileTo(samplemapFile);
@@ -615,6 +631,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 			if (sof.existsAsFile())
 				sof.copyFileTo(sampleOutputFile);
+
+			if (mof.existsAsFile())
+				mof.copyFileTo(midiFile);
 		}
 
 		String presetDataString("PresetData");
@@ -663,7 +682,7 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
 	{
 		PoolReference ref(chainToExport->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
 
-		maps.add(chainToExport->getMainController()->getCurrentSampleMapPool(true)->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
+		maps.add(chainToExport->getMainController()->getCurrentSampleMapPool()->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
 	}
 
 	for (auto d : maps)
@@ -1647,6 +1666,50 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const Hi
 	}
 }
 
+XmlElement* createXmlElementForFile(ModulatorSynthChain* chainToExport, String& templateProject, File f, bool allowCompilation)
+{
+	if (f.getFileName().startsWith("."))
+		return nullptr;
+
+	ScopedPointer<XmlElement> xml = new XmlElement(f.isDirectory() ? "GROUP" : "FILE");
+
+	auto fileId = FileHelpers::createAlphaNumericUID();
+
+	xml->setAttribute("id", fileId);
+	xml->setAttribute("name", f.getFileName());
+
+	if (f.isDirectory())
+	{
+		Array<File> children;
+
+		f.findChildFiles(children, File::findFilesAndDirectories, false);
+
+		for (auto c : children)
+		{
+			if (auto c_xml = createXmlElementForFile(chainToExport, templateProject, c, false))
+			{
+				xml->addChildElement(c_xml);
+			}
+		}
+	}
+	else
+	{
+		if (f.getFileName() == "Icon.png")
+			templateProject = templateProject.replace("%ICON_FILE%", "smallIcon=\"" + fileId + "\" bigIcon=\"" + fileId + "\"");
+
+		bool isSourceFile = allowCompilation && f.hasFileExtension(".cpp");
+		bool isSplashScreen = f.getFileName().contains("SplashScreen");
+
+		xml->setAttribute("compile", isSourceFile ? 1 : 0);
+		xml->setAttribute("resource", isSplashScreen ? 1 : 0);
+
+		const String relativePath = f.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
+
+		xml->setAttribute("file", relativePath);
+	}
+	
+	return xml.release();
+}
 
 
 void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption /*option*/)
@@ -1661,8 +1724,9 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 	File additionalSourceCodeDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode);
 
-	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.h");
-	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.cpp");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, false, "*.h");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, false, "*.cpp");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findDirectories, false);
 
 	for (int i = 0; i < additionalSourceFiles.size(); i++)
 	{
@@ -1745,23 +1809,21 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 		for (int i = 0; i < additionalSourceFiles.size(); i++)
 		{
-			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
-            bool isSplashScreen = additionalSourceFiles[i].getFileName().contains("SplashScreen");
+			ScopedPointer<XmlElement> fileEntry = createXmlElementForFile(chainToExport, templateProject, additionalSourceFiles[i], true);
 
-			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
-
-			String newAditionalSourceLine;
+			String newAditionalSourceLine = fileEntry->createDocument("", false, false);
             
+
+
+#if 0
             String fileId = FileHelpers::createAlphaNumericUID();
             
-            if(additionalSourceFiles[i].getFileName() == "Icon.png")
-            {
-                templateProject = templateProject.replace("%ICON_FILE%", "smallIcon=\"" + fileId + "\" bigIcon=\"" + fileId + "\"");
-            }
+            
             
 			newAditionalSourceLine << "      <FILE id=\"" << fileId << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" ";
 			newAditionalSourceLine << "resource=\"" << (isSplashScreen ? "1" : "0") << "\"\r\n";
 			newAditionalSourceLine << "            file=\"" << relativePath << "\"/>\r\n";
+#endif
 
 			additionalFileDefinitions.add(newAditionalSourceLine);
 		}
@@ -2302,6 +2364,7 @@ void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p, bool isIOS)
     {
         p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
         p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
+		p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::MidiFiles, PresetData::midiFiles, PresetData::midiFilesSize);";
         p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::SampleMaps, PresetData::samplemaps, PresetData::samplemapsSize);";
     }
 

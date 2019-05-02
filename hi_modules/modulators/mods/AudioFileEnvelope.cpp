@@ -445,9 +445,11 @@ float EnvelopeFollower::AttackRelease::calculateValue(float input)
 	jassert(attackCoefficient != -1);
 	jassert(releaseCoefficient != -1);
 
-	lastValue = ((input > lastValue) ? attackCoefficient : releaseCoefficient)* (lastValue - input) + input;
+	double inputDouble = (double)input;
 
-	return lastValue;
+	lastValue = ((inputDouble > lastValue) ? attackCoefficient : releaseCoefficient)* (lastValue - inputDouble) + inputDouble;
+
+	return (float)lastValue;
 }
 
 void EnvelopeFollower::AttackRelease::setSampleRate(double sampleRate_)
@@ -458,16 +460,16 @@ void EnvelopeFollower::AttackRelease::setSampleRate(double sampleRate_)
 
 void EnvelopeFollower::AttackRelease::setRelease(float newRelease)
 {
-	attack = newRelease;
+	release = newRelease;
 	calculateCoefficients();
 }
 
 void EnvelopeFollower::AttackRelease::calculateCoefficients()
 {
-	if (sampleRate != -1.0f)
+	if (sampleRate != -1.0)
 	{
-		attackCoefficient = expf(logf(0.01f) / (attack * (float)sampleRate * 0.001f));
-		releaseCoefficient = expf(logf(0.01f) / (release * (float)sampleRate * 0.001f));
+		attackCoefficient = exp(log(0.01) / (attack * sampleRate * 0.001));
+		releaseCoefficient = exp(log(0.01) / (release * sampleRate * 0.001));
 	}
 }
 } // namespace hise

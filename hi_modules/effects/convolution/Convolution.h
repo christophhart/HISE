@@ -289,7 +289,7 @@ class ConvolutionEffect: public MasterEffectProcessor,
 
 public:
 
-	SET_PROCESSOR_NAME("Convolution", "Convolution Reverb")
+	SET_PROCESSOR_NAME("Convolution", "Convolution Reverb", "A convolution reverb effect.");
 
 	// ============================================================================================= Constructor / Destructor / enums
 

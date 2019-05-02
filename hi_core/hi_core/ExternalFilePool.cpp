@@ -58,6 +58,18 @@ hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Valu
 	return ProjectHandler::SubDirectories::SampleMaps;
 }
 
+hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const MidiFileReference& emptyTree)
+{
+	ignoreUnused(emptyTree);
+	return ProjectHandler::SubDirectories::MidiFiles;
+}
+
+
+hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const AdditionalDataReference& /*emptyTree*/)
+{
+	return ProjectHandler::SubDirectories::AdditionalSourceCode;
+}
+
 void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AudioSampleBuffer& data, var* additionalData)
 {
 	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
@@ -165,6 +177,20 @@ void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream
 	fillMetadata(data, additionalData);
 }
 
+void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream, int64 /*hashCode*/, MidiFileReference& data, var* additionalData)
+{
+	ScopedPointer<InputStream> inputStream = ownedStream;
+	data.getFile().readFrom(*inputStream);
+	fillMetadata(data, additionalData);
+}
+
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AdditionalDataReference& data, var* additionalData)
+{
+	ScopedPointer<InputStream> inputStream = ownedStream;
+	data.getFile() = inputStream->readEntireStreamAsString();
+	fillMetadata(data, additionalData);
+}
+
 void PoolHelpers::fillMetadata(AudioSampleBuffer& /*data*/, var* /*additionalData*/)
 {
 
@@ -198,6 +224,25 @@ void PoolHelpers::fillMetadata(ValueTree& data, var* additionalData)
 	*additionalData = var(meta);
 }
 
+void PoolHelpers::fillMetadata(MidiFileReference& data, var* additionalData)
+{
+	DynamicObject::Ptr meta = new DynamicObject();
+
+	if (additionalData->isObject())
+		meta = additionalData->getDynamicObject();
+
+	meta->setProperty("ID", data.getId().toString());
+
+	*additionalData = var(meta);
+}
+
+void PoolHelpers::fillMetadata(AdditionalDataReference& /*data*/, var* additionalData)
+{
+	DynamicObject::Ptr meta = new DynamicObject();
+
+	*additionalData = var(meta);
+}
+
 size_t PoolHelpers::getDataSize(const Image* img)
 {
 	return img ? img->getWidth() * img->getHeight() * 4 : 0;
@@ -213,6 +258,18 @@ size_t PoolHelpers::getDataSize(const ValueTree* v)
 	return v->getNumChildren();
 }
 
+size_t PoolHelpers::getDataSize(const MidiFileReference* midiFile)
+{
+	auto f = midiFile->getFile();
+	auto ticksPerQuarter = f.getTimeFormat() > 0 ? (int)f.getTimeFormat() : 96;
+	return (size_t)(4 * (int)f.getLastTimestamp() / ticksPerQuarter);
+}
+
+size_t PoolHelpers::getDataSize(const AdditionalDataReference* stringContent)
+{
+	return stringContent->getFile().length();
+}
+
 bool PoolHelpers::isValid(const AudioSampleBuffer* buffer)
 {
 	return buffer ? buffer->getNumChannels() != 0 && buffer->getNumSamples() != 0 : false;
@@ -226,6 +283,16 @@ bool PoolHelpers::isValid(const Image* image)
 bool PoolHelpers::isValid(const ValueTree* v)
 {
 	return v ? v->isValid() : false;
+}
+
+bool PoolHelpers::isValid(const MidiFileReference* file)
+{
+	return file ? file->isValid() : false;
+}
+
+bool PoolHelpers::isValid(const AdditionalDataReference* file)
+{
+	return file->getFile().isNotEmpty();
 }
 
 juce::Image PoolHelpers::getEmptyImage(int width, int height)
@@ -282,6 +349,23 @@ PoolHelpers::Reference::Reference(PoolBase* pool_, const String& embeddedReferen
 	reference = embeddedReference;
 	hashCode = reference.hashCode64();
 	m = EmbeddedResource;
+}
+
+PoolHelpers::Reference PoolHelpers::Reference::withFileHandler(FileHandlerBase* handler)
+{
+	jassert(m == ProjectPath);
+
+#if HISE_ENABLE_EXPANSIONS
+	if (auto exp = dynamic_cast<Expansion*>(handler))
+	{
+		auto path = reference.fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
+
+		return exp->createReferenceForFile(path, directoryType);
+	}
+#endif
+
+	ignoreUnused(handler);
+	return Reference(*this);
 }
 
 juce::String PoolHelpers::Reference::getReferenceString() const
@@ -440,7 +524,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 
 		auto expansionFolder = mc->getExpansionHandler().getExpansionFolder();
 
-
+#if HISE_ENABLE_EXPANSIONS
 		if (f.isAChildOf(expansionFolder))
 		{
 			m = ExpansionPath;
@@ -452,23 +536,22 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			reference = "{EXP::" + expansionName + "}" + relativePath;
 			return;
 		}
+#endif
 
 #if USE_BACKEND
-		auto projectFolder = mc->getSampleManager().getProjectHandler().getWorkDirectory();
+		auto subFolder = mc->getCurrentFileHandler().getSubDirectory(directoryType);
 
-		if (f.isAChildOf(projectFolder))
+		if (f.isAChildOf(subFolder))
 		{
 			m = ProjectPath;
 
-			auto relativePath = f.getRelativePathFrom(projectFolder).replace("\\", "/");
-			auto subDirectoryName = ProjectHandler::getIdentifier(directoryType);
-			relativePath = relativePath.fromFirstOccurrenceOf(subDirectoryName, false, false);
+			auto relativePath = f.getRelativePathFrom(subFolder).replace("\\", "/");
 
 			if (directoryType == FileHandlerBase::SampleMaps)
 				reference = relativePath.upToLastOccurrenceOf(".xml", false, false);
 			else
 				reference = projectFolderWildcard + relativePath;
-			
+
 			return;
 		}
 #endif
@@ -479,6 +562,28 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		reference = input;
 		return;
 	}
+
+#if HISE_ENABLE_EXPANSIONS
+	if (auto e = mc->getExpansionHandler().getExpansionForWildcardReference(input))
+	{
+		if (e->getExpansionType() == Expansion::FileBased)
+		{
+			m = ExpansionPath;
+
+			reference = input;
+			f = e->getSubDirectory(directoryType).getChildFile(reference.fromFirstOccurrenceOf("}", false, false));
+			return;
+		}
+		else
+		{
+			m = EmbeddedResource;
+			reference = input;
+			f = {};
+			return;
+		}
+	}
+#endif
+	
 
 	if (input.startsWith(projectFolderWildcard) || directoryType == FileHandlerBase::SampleMaps)
 	{
@@ -522,13 +627,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		return;
 	}
 
-	if (auto e = mc->getExpansionHandler().getExpansionForWildcardReference(input))
-	{
-		m = ExpansionPath;
-
-		reference = input;
-		f = e->getSubDirectory(directoryType).getChildFile(reference.fromFirstOccurrenceOf("}", false, false));
-	}
+	
 }
 
 
@@ -597,6 +696,11 @@ juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String&
 				return new MemoryInputStream(mb, true);
 			}
 		}
+		else
+		{
+			for (auto i : metadata)
+				DBG(i.getProperty("ID").toString());
+		}
 
 		jassertfalse;
 		return nullptr;
@@ -661,7 +765,16 @@ juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream, 
 
 	zstd::ZDefaultCompressor mComp;
 
-	mComp.compress(metadata, compressedMetadata);
+	auto result = mComp.compress(metadata, compressedMetadata);
+
+	if (result.failed())
+	{
+		jassertfalse;
+		DBG(result.getErrorMessage());
+		return result;
+	}
+
+
 
 	MemoryOutputStream metadataOutputStream;
 
@@ -769,6 +882,16 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Audio
 	}
 }
 
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const MidiFileReference& data, const File& /*originalFile*/) const
+{
+	data.getFile().writeTo(output);
+}
+
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AdditionalDataReference& data, const File& /*originalFile*/) const
+{
+	output.writeString(data.getFile());
+}
+
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, ValueTree* data) const
 {
 	ScopedPointer<MemoryInputStream> scopedInput = mis;
@@ -809,22 +932,48 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AudioSam
 		
 }
 
-PoolCollection::PoolCollection(MainController* mc) :
-	ControlledObject(mc)
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, MidiFileReference* data) const
+{
+	ScopedPointer<MemoryInputStream> scopedInput = mis;
+	data->getFile().readFrom(*mis);
+}
+
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AdditionalDataReference* data) const
+{
+	ScopedPointer<MemoryInputStream> scopedInput = mis;
+
+	auto d = mis->readEntireStreamAsString();
+
+	data->getFile().swapWith(d);
+}
+
+PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
+	ControlledObject(mc),
+	parentHandler(handler)
 {
 	for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
 	{
 		switch ((ProjectHandler::SubDirectories)i)
 		{
+#if HISE_ENABLE_EXPANSIONS
+		case ProjectHandler::SubDirectories::AdditionalSourceCode:
+			dataPools[i] = new AdditionalDataPool(mc, parentHandler);
+			break;
+#endif
 		case ProjectHandler::SubDirectories::AudioFiles:
-			dataPools[i] = new AudioSampleBufferPool(mc);
+			dataPools[i] = new AudioSampleBufferPool(mc, parentHandler);
 			break;
 		case ProjectHandler::SubDirectories::Images:
-			dataPools[i] = new ImagePool(mc);
+			dataPools[i] = new ImagePool(mc, parentHandler);
+			break;
+		case ProjectHandler::SubDirectories::Samples:
+			dataPools[i] = new ModulatorSamplerSoundPool(mc, parentHandler);
 			break;
 		case ProjectHandler::SubDirectories::SampleMaps:
-			dataPools[i] = new SampleMapPool(mc);
-
+			dataPools[i] = new SampleMapPool(mc, parentHandler);
+			break;
+		case ProjectHandler::SubDirectories::MidiFiles:
+			dataPools[i] = new MidiFilePool(mc, parentHandler);
 			break;
 		default:
 			dataPools[i] = nullptr;
@@ -884,6 +1033,16 @@ hise::ImagePool& PoolCollection::getImagePool()
 	return *getPool<Image>();
 }
 
+hise::AdditionalDataPool& PoolCollection::getAdditionalDataPool()
+{
+	return *dynamic_cast<SharedPoolBase<AdditionalDataReference>*>(getPoolBase(FileHandlerBase::AdditionalSourceCode));
+}
+
+const hise::AdditionalDataPool& PoolCollection::getAdditionalDataPool() const
+{
+	return *dynamic_cast<const SharedPoolBase<AdditionalDataReference>*>(dataPools[FileHandlerBase::AdditionalSourceCode]);
+}
+
 const hise::SampleMapPool& PoolCollection::getSampleMapPool() const
 {
 	return *getPool<ValueTree>();
@@ -892,6 +1051,26 @@ const hise::SampleMapPool& PoolCollection::getSampleMapPool() const
 hise::SampleMapPool& PoolCollection::getSampleMapPool()
 {
 	return *getPool<ValueTree>();
+}
+
+const MidiFilePool& PoolCollection::getMidiFilePool() const
+{
+	return *getPool<MidiFileReference>();
+}
+
+MidiFilePool& PoolCollection::getMidiFilePool()
+{
+	return *getPool<MidiFileReference>();
+}
+
+const ModulatorSamplerSoundPool* PoolCollection::getSamplePool() const
+{
+	return static_cast<const ModulatorSamplerSoundPool*>(dataPools[FileHandlerBase::Samples]);
+}
+
+ModulatorSamplerSoundPool* PoolCollection::getSamplePool()
+{
+	return static_cast<ModulatorSamplerSoundPool*>(dataPools[FileHandlerBase::Samples]);
 }
 
 } // namespace hise

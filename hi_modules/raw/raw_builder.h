@@ -68,7 +68,7 @@ using AttributeCollection = std::vector<AttributeItem>;
 
 Create one of those, supply the MainController instance and call its methods to build up the architecture of your plugin. 
 
-\code
+\code{.cpp}
 // The main controller of this project
 auto mc = getMainController();
 
@@ -109,8 +109,10 @@ public:
 	/** Finds and creates a reference object to the module with the given ID. */
 	template <class T> Reference<T> find(const String& name);
 
+	template <class T> Reference<T> findWithIndex(const Identifier& id, int index);
+
 	/** Adds the given module to the parent processor. Specify the chainIndex for modulators / effects. */
-	template <class T> void add(T* processor, Processor* parent, int chainIndex = IDs::Chains::Direct);
+	template <class T> T* add(T* processor, Processor* parent, int chainIndex = IDs::Chains::Direct);
 
 	/** Creates a module of the given class and adds it to the parent with the specified
 	chainIndex. See ChainIndexes.
@@ -143,7 +145,83 @@ public:
 	*/
 	void setAttributes(Processor* p, const AttributeCollection& collection);
 
+	/** Sets the ID of the given processor using the supplied index. It will convert zero-based indexes to one-based index
+	    so calling setIdWithIndex(p, "MyProcessor", 0) will result in the ID "MyProcessor1". 
+
+		If renameChildProcessors is true, then it will recursively change the IDs of all children, appending their parent IDs.
+
+		\code{.cpp}
+		sine is a sine wave generator with a filter that is modulated by the velocity
+		builder.setIdWithIndex(sine, "mySine", 4);
+
+		// the velocity modulator will be named
+		// "mySine5_Filter_Velocity
+		\endcode
+	*/
+	void setIdWithIndex(Processor* p, const Identifier& prefix, int index, bool renameChildProcessors=false)
+	{
+		String s = prefix.toString();
+		s << String(index + 1);
+		
+		p->setId(s);
+
+		if (renameChildProcessors)
+			renameRecursive(p, s);
+	}
+
+	/** returns a string that can be used for debugging purposes. */
+	String getModuleTreeString(Processor* p=nullptr) const
+	{
+		if (p == nullptr)
+			p = mc->getMainSynthChain();
+
+		String s;
+		int level = 0;
+		
+		appendProcessorToDebugString(s, p, level);
+
+		return s;
+	}
+
 private:
+
+	static void appendProcessorToDebugString(String& s, Processor* p, int& level)
+	{
+		int thisLevel = level;
+
+		while (--thisLevel >= 0)
+			s << "\t";
+
+		s << p->getId() << "\n";
+
+		level++;
+
+		for (int i = 0; i < p->getNumChildProcessors(); i++)
+		{
+			appendProcessorToDebugString(s, p->getChildProcessor(i), level);
+		}
+
+		level--;
+	}
+
+	static void renameRecursive(Processor* p, const String& indexedPrefix)
+	{
+		p->setId(indexedPrefix);
+
+		for (int i = 0; i < p->getNumInternalChains(); i++)
+		{
+			auto c = dynamic_cast<hise::Chain*>(p->getChildProcessor(i));
+
+			for (int j = 0; j < c->getHandler()->getNumProcessors(); j++)
+			{
+				auto child = c->getHandler()->getProcessor(j);
+
+				String thisPrefix = indexedPrefix + "_" + child->getType().toString();
+
+				renameRecursive(child, thisPrefix);
+			}
+		}
+	}
 
 	template <class T> T* addInternal(Processor* p, Chain* c);
 

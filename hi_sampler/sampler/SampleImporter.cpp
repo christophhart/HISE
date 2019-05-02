@@ -190,7 +190,7 @@ bool SampleImporter::createSoundAndAddToSampler(ModulatorSampler *sampler, const
 	SET(SampleIds::HiVel, basicData.hiVelocity);
 	SET(SampleIds::RRGroup, basicData.group);
 
-	String allowedWildcards = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm.getWildcardForAllFormats();
+	String allowedWildcards = sampler->getSampleMap()->getCurrentSamplePool()->afm.getWildcardForAllFormats();
 
 	if (basicData.files.size() == 1)
 	{
@@ -235,6 +235,13 @@ bool SampleImporter::createSoundAndAddToSampler(ModulatorSampler *sampler, const
 
 void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger draggedRootNotes/*=0*/)
 {
+	if (sampler->getSampleMap()->isMonolith())
+	{
+		PresetHandler::showMessageWindow("Can't add samples to a monolith samplemap", "If you want to add samples to this samplemap, you have to convert it back to single files", PresetHandler::IconType::Error);
+
+		return;
+	}
+
 	AlertWindowLookAndFeel laf;
 
 	AlertWindow w("Wave File Import Settings", String(), AlertWindow::AlertIconType::NoIcon);
@@ -306,7 +313,6 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 
 void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes)
 {
-	
 	LockHelpers::freeToGo(sampler->getMainController());
 
 	const int startIndex = sampler->getNumSounds();
@@ -336,6 +342,11 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 		data.index = startIndex + i;
 		data.rootNote = noteNumber;
 		data.lowKey = noteNumber;
+		
+		auto currentGroup = sampler->getSamplerDisplayValues().currentlyDisplayedGroup;
+
+		if (currentGroup > 0)
+			data.group = currentGroup;
 		
 		if(mapToVelocity)
 		{
@@ -650,7 +661,7 @@ void FileImportDialogWindow::run()
 
 	SampleImporter::SampleCollection collection;
 
-	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+	auto pool = sampler->getSampleMap()->getCurrentSamplePool();
 	
 	if (getComboBoxComponent("poolSearch")->getSelectedItemIndex() == 1)
 	{
@@ -733,7 +744,7 @@ void FileImportDialogWindow::run()
 	pool->setUpdatePool(true);
 	pool->setDeactivatePoolSearch(false);
 
-	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+	sampler->getSampleMap()->getCurrentSamplePool()->sendChangeMessage();
 	sampler->sendChangeMessage();
 }
 

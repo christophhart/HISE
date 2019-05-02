@@ -54,8 +54,10 @@ public:
 	{
 		lastTimerInterval = milliseconds;
 
+#if !HISE_HEADLESS
 		if (!suspended)
 			internalTimer.startTimer(milliseconds);
+#endif
 	}
 
 	void stopTimer()
@@ -79,10 +81,12 @@ public:
 		{
 			suspended = shouldBeSuspended;
 
+#if !HISE_HEADLESS
 			if (suspended)
 				internalTimer.stopTimer();
 			else if (lastTimerInterval != -1)
 				internalTimer.startTimer(lastTimerInterval);
+#endif
 		}
 	}
 
@@ -484,6 +488,29 @@ protected:
 
 	static int instanceCount;
 };
+
+
+/** A fuzzy search algorithm that uses the Levenshtein distance algorithm to find approximate strings. */
+class FuzzySearcher
+{
+public:
+
+	/** Matches the string against the search term with the given fuzzyness (0.0 - 1.0). */
+	static bool fitsSearch(const String &searchTerm, const String &stringToMatch, double fuzzyness);
+
+	/** Returns a string array with the results. */
+	static StringArray searchForResults(const String &word, const StringArray &wordList, double fuzzyness);
+
+	/** Returns a index array with the results for the given wordlist. */
+	static Array<int> searchForIndexes(const String &word, const StringArray &wordList, double fuzzyness);
+
+private:
+
+	static void search(void *outputArray, bool useIndexes, const String &word, const StringArray &wordList, double fuzzyness);
+
+	static int getLevenshteinDistance(const String &src, const String &dest);
+};
+
 
 
 /** A Helper class that encapsulates the regex operations.

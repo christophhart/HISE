@@ -36,41 +36,6 @@ using namespace juce;
 namespace raw
 {
 
-
-#if 0
-UIConnection::Button::Button(juce::Button* b, MainController* mc, const String& processorID, int parameterIndex) :
-	Base(b, mc, processorID)
-{}
-
-void UIConnection::Button::updateUI(float newValue)
-{
-	getComponent().setToggleState(newValue > 0.5f, dontSendNotification);
-}
-
-void UIConnection::Button::buttonClicked(juce::Button*)
-{
-	auto value = getComponent().getToggleState();
-
-	getComponent().setToggleState(!value, dontSendNotification);
-	parameterChangedFromUI(!value ? 1.0f : 0.0f);
-}
-
-UIConnection::ComboBox::ComboBox(juce::ComboBox* b, MainController* mc, const String& processorID, int parameterIndex) :
-	Base(b, mc, processorID)
-{}
-
-void UIConnection::ComboBox::updateUI(float newValue)
-{
-	getComponent().setSelectedItemIndex((int)newValue, dontSendNotification);
-}
-
-void UIConnection::ComboBox::comboBoxChanged(juce::ComboBox*)
-{
-	int itemIndex = getComponent().getSelectedItemIndex();
-	parameterChangedFromUI((float)itemIndex);
-}
-#endif
-
 void Pool::allowLoadingOfUnusedResources()
 {
 	allowUnusedSources = true;
@@ -115,26 +80,93 @@ juce::Image Pool::loadImage(const String& id)
 	return {};
 }
 
-juce::StringArray Pool::getSampleMapList() const
-{
-	auto pool = getMainController()->getCurrentSampleMapPool();
-
-	StringArray sampleMapNames;
-	auto references = pool->getListOfAllReferences(true);
-	PoolReference::Comparator comparator;
-	references.sort(comparator);
-
-	sampleMapNames.ensureStorageAllocated(references.size());
-
-	for (auto r : references)
-		sampleMapNames.add(r.getReferenceString());
-
-	return sampleMapNames;
-}
-
 hise::PoolReference Pool::createSampleMapReference(const String& referenceString)
 {
 	return PoolReference(getMainController(), referenceString, FileHandlerBase::SampleMaps);
+}
+
+hise::PoolReference Pool::createMidiFileReference(const String& referenceString)
+{
+	return PoolReference(getMainController(), referenceString, FileHandlerBase::MidiFiles);
+}
+
+juce::StringArray Pool::getListOfEmbeddedResources(FileHandlerBase::SubDirectories directory, bool useExpansionPool)
+{
+	auto references = getListOfReferences(directory, &getMainController()->getCurrentFileHandler());
+
+	if (useExpansionPool)
+	{
+		auto& expHandler = getMainController()->getExpansionHandler();
+
+		for (int i = 0; i < expHandler.getNumExpansions(); i++)
+		{
+			auto expansion = expHandler.getExpansion(i);
+			references.addArray(getListOfReferences(directory, expansion));
+		}
+	}
+
+	StringArray sa;
+
+	for (auto r : references)
+		sa.add(r.getReferenceString());
+
+	return sa;
+}
+
+juce::Array<hise::PoolReference> Pool::getListOfReferences(FileHandlerBase::SubDirectories directory, FileHandlerBase* handler)
+{
+	Array<PoolReference> references;
+
+	switch (directory)
+	{
+	case hise::FileHandlerBase::AudioFiles:
+		references = handler->pool->getAudioSampleBufferPool().getListOfAllReferences(true);
+		break;
+	case hise::FileHandlerBase::Images:
+		references = handler->pool->getImagePool().getListOfAllReferences(true);
+		break;
+	case hise::FileHandlerBase::SampleMaps:
+		references = handler->pool->getSampleMapPool().getListOfAllReferences(true);
+		break;
+	case hise::FileHandlerBase::MidiFiles:
+		references = handler->pool->getMidiFilePool().getListOfAllReferences(true);
+		break;
+	case hise::FileHandlerBase::UserPresets:
+	case hise::FileHandlerBase::Samples:
+	case hise::FileHandlerBase::Scripts:
+	case hise::FileHandlerBase::Binaries:
+	case hise::FileHandlerBase::Presets:
+	case hise::FileHandlerBase::XMLPresetBackups:
+	case hise::FileHandlerBase::AdditionalSourceCode:
+	case hise::FileHandlerBase::numSubDirectories:
+	default:
+		jassertfalse;
+		break;
+	}
+
+	return references;
+}
+
+void FloatingTileProperties::set(FloatingTile& floatingTile, const std::initializer_list<Property>& list)
+{
+	auto content = floatingTile.getCurrentFloatingPanel();
+
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	for (const auto& p : list)
+	{
+		auto id = content->getDefaultablePropertyId(p.id);
+		obj->setProperty(id, p.value);
+	}
+
+	content->fromDynamicObject(var(obj));
+}
+
+FloatingTileProperties::Property::Property(int id_, const var& value_) :
+	id(id_),
+	value(value_)
+{
+
 }
 
 }

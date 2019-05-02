@@ -38,6 +38,37 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 
 	s->getUndoManager()->beginNewTransaction("Moving Samples");
 
+	int lowestValue = 127;
+	int highestValue = 0;
+
+	for (auto sound : selectedSamplerSounds)
+	{
+		switch (direction)
+		{
+		case SamplerSoundMap::Right:
+		case SamplerSoundMap::Left:
+		{
+			lowestValue = jmin<int>(lowestValue, sound->getSampleProperty(SampleIds::LoKey));
+			highestValue = jmax<int>(highestValue, sound->getSampleProperty(SampleIds::HiKey));
+			break;
+		}
+		case SamplerSoundMap::Up:
+		case SamplerSoundMap::Down:
+		{
+			lowestValue = jmin<int>(lowestValue, sound->getSampleProperty(SampleIds::LoVel));
+			highestValue = jmax<int>(highestValue, sound->getSampleProperty(SampleIds::HiVel));
+			break;
+		}
+		}
+
+	}
+
+	if (lowestValue == 0 && (direction == SamplerSoundMap::Left || direction == SamplerSoundMap::Down))
+		return;
+
+	if (highestValue == 127 && (direction == SamplerSoundMap::Right || direction == SamplerSoundMap::Up))
+		return;
+
 	switch (direction)
 	{
 	case SamplerSoundMap::Right:
@@ -139,12 +170,20 @@ void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, const Identifie
 {
 	const int v = s->getSampleProperty(p);
 
-	s->setSampleProperty(p, v + delta);
+	const int newValue = jlimit<int>(0, 127, v + delta);
+
+	if(v != newValue)
+		s->setSampleProperty(p, newValue);
 }
 
 juce::File SampleEditHandler::getCurrentSampleMapDirectory() const
 {
-	return sampler->getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+	auto handler = &sampler->getMainController()->getCurrentFileHandler();
+
+	if (auto exp = sampler->getMainController()->getExpansionHandler().getCurrentExpansion())
+		handler = exp;
+
+	return handler->getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
 }
 
 void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEditHandler* handler)

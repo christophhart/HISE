@@ -104,6 +104,11 @@ SampleMap::FileList SampleMap::createFileList()
 	return list;
 }
 
+SampleMap::~SampleMap()
+{
+	getCurrentSamplePool()->clearUnreferencedMonoliths();
+}
+
 void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 {
 	jassertfalse;
@@ -135,7 +140,7 @@ void SampleMap::clear(NotificationType n)
 	if (sampler != nullptr)
 	{
 		sampler->sendChangeMessage();
-		sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+		getCurrentSamplePool()->sendChangeMessage();
 	}
 
 	if (n != dontSendNotification)
@@ -147,11 +152,28 @@ juce::String SampleMap::getMonolithID() const
 	return data.getProperty("MonolithReference", sampleMapId.toString()).toString();
 }
 
+hise::FileHandlerBase* SampleMap::getCurrentFileHandler() const
+{
+	FileHandlerBase* handler = &GET_PROJECT_HANDLER(sampler);
+
+#if HISE_ENABLE_EXPANSIONS
+	if (currentPool != nullptr)
+		handler = currentPool->getFileHandler();
+#endif
+
+	return handler;
+}
+
+hise::ModulatorSamplerSoundPool* SampleMap::getCurrentSamplePool() const
+{
+	return getCurrentFileHandler()->pool->getSamplePool();
+}
+
 void SampleMap::setCurrentMonolith()
 {
 	if (isMonolith())
 	{
-		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+		ModulatorSamplerSoundPool* pool = getCurrentFileHandler()->pool->getSamplePool();
 
 		if (auto existingInfo = pool->getMonolith(getMonolithID()))
 		{
@@ -161,7 +183,7 @@ void SampleMap::setCurrentMonolith()
 		}
 		else
 		{
-			File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+			File monolithDirectory = getCurrentFileHandler()->getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
 			if (!monolithDirectory.isDirectory())
 			{
@@ -405,7 +427,7 @@ void SampleMap::sendSampleAddedMessage()
 
 		jassert_dispatched_message_thread(sampler->getMainController());
 
-		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+		ModulatorSamplerSoundPool* pool = sampler->getSampleMap()->getCurrentSamplePool();
 		pool->sendChangeMessage();
 		sampler->sendChangeMessage();
 
@@ -691,6 +713,13 @@ void SampleMap::load(const PoolReference& reference)
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
 
+#if HISE_ENABLE_EXPANSIONS
+	if (auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
+	{
+		currentPool = &expansion->pool->getSampleMapPool();
+	}
+#endif
+
 	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);
 
@@ -776,13 +805,14 @@ int RoundRobinMap::getRRGroupsForMessage(int noteNumber, int velocity)
 
 #if HI_ENABLE_EXPANSION_EDITING
 MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
-	DialogWindowWithBackgroundThread("Exporting samples as monolith"),
+	DialogWindowWithBackgroundThread("Convert SampleMap to HLAC monolith"),
 	AudioFormatWriter(nullptr, "", 0.0, 0, 1),
-	sampleMapDirectory(sampleMap_->getSampler()->getSampleEditHandler()->getCurrentSampleMapDirectory()),
-	monolithDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
+	sampleMapDirectory(sampleMap_->getSampler()->getSampleEditHandler()->getCurrentSampleMapDirectory())
 {
 	setSampleMap(sampleMap_);
 
+	monolithDirectory = sampleMap->getCurrentFileHandler()->getSubDirectory(FileHandlerBase::Samples);
+	
 	if (!monolithDirectory.isDirectory()) monolithDirectory.createDirectory();
 
 	File fileToUse;
@@ -853,7 +883,7 @@ void MonolithExporter::run()
 
 void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool exportSamples, bool exportSampleMap)
 {
-	sampleMap->getSampler()->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedMonoliths();
+	sampleMap->getCurrentSamplePool()->clearUnreferencedMonoliths();
 
 	jassert(sampleMap != nullptr);
 
@@ -920,7 +950,7 @@ void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 
 	xml->writeToFile(sampleMapFile, "");
 
-	auto pool = sampleMap->getSampler()->getMainController()->getCurrentSampleMapPool();
+	auto pool = &sampleMap->getCurrentFileHandler()->pool->getSampleMapPool();
 
 	PoolReference ref(sampleMap->getSampler()->getMainController(), sampleMapFile.getFullPathName(), FileHandlerBase::SampleMaps);
 
@@ -1092,11 +1122,18 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 {
 	StringArray sa2;
 
+
+	
+
 	sa2.add("No normalisation");
 	sa2.add("Normalise every sample");
 	sa2.add("Full Dynamics");
 
 	addComboBox("normalise", sa2, "Normalization");
+
+#if USE_FRONTEND && HI_SUPPORT_FULL_DYNAMICS_HLAC
+	getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
+#endif
 
 	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
@@ -1108,11 +1145,29 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 
 void BatchReencoder::run()
 {
-	auto pool = getMainController()->getCurrentSampleMapPool();
+#if USE_FRONTEND
 
-	auto list = pool->getListOfAllReferences(true);
+	auto exp = sampler->getMainController()->getExpansionHandler().getCurrentExpansion();
+
+	if (exp == nullptr)
+	{
+		setError("You need to select a expansion for the batch reencoding");
+		return;
+	}
+
+	monolithDirectory = exp->getSubDirectory(FileHandlerBase::Samples);
+
+	auto pool = &exp->pool->getSampleMapPool();
+
+#else
+
+	auto pool = sampler->getMainController()->getCurrentSampleMapPool();
+
+#endif
 
 	setSampleMap(sampler->getSampleMap());
+
+	auto list = pool->getListOfAllReferences(true);
 
 	for (int i = 0; i < list.size(); i++)
 	{

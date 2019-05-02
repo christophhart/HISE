@@ -63,7 +63,7 @@ public:
 
 	int getFixedHeight() const override { return 28; }
 
-	ScopedPointer<PathFactory> factory;
+	ScopedPointer<hise::PathFactory> factory;
 
 	OwnedArray<HiseShapeButton> buttons;
 

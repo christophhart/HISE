@@ -45,7 +45,7 @@ class RandomModulator: public VoiceStartModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("Random", "Random Modulator")
+	SET_PROCESSOR_NAME("Random", "Random Modulator", "Creates a random modulation value at voice start.");
 
 	/** Special Parameters for the Random Modulator */
 	enum Parameters

@@ -124,6 +124,7 @@ private:
 
 	ToggleButton projectSettings;
 	ToggleButton developmentSettings;
+	ToggleButton docSettings;
 	ToggleButton audioSettings;
 	ToggleButton allSettings;
 

@@ -130,6 +130,9 @@ bool LockHelpers::noMessageLockFromAnotherThread()
 
 const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* mc, Type lockType)
 {
+	if (mc->isFlakyThreadingAllowed())
+		return getLockUnchecked(mc, lockType);
+
 	if (isLockedBySameThread(mc, lockType))
 	{
 		// The reentrant case should be handled before acquiring the lock.

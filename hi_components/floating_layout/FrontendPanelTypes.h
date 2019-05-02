@@ -414,6 +414,8 @@ public:
 	PresetBrowserPanel(FloatingTile* parent);
 	~PresetBrowserPanel();
 
+	int getNumDefaultableProperties() const override { return (int)numSpecialProperties; };
+
 	var toDynamicObject() const override;
 	void fromDynamicObject(const var& object) override;
 	bool showTitleInPresentationMode() const override;
@@ -539,6 +541,7 @@ public:
 		text.clear();
 	}
 
+	int getNumDefaultableProperties() const override { return (int)numSpecialPanelIds; };
 	
 	var toDynamicObject() const override;
 

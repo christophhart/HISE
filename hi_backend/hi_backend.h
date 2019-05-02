@@ -82,7 +82,10 @@ END_JUCE_MODULE_DECLARATION
 #include "backend/debug_components/FileBrowser.h"
 #include "backend/debug_components/DebugArea.h"
 
-
+#include "backend/doc_generators/ApiMarkdownGenerator.h"
+#include "backend/doc_generators/ModuleDocGenerator.h"
+#include "backend/doc_generators/UiComponentDocGenerator.h"
+#include "backend/doc_generators/MenuReferenceGenerator.h"
 
 
 #endif   // HI_BACKEND_INCLUDED

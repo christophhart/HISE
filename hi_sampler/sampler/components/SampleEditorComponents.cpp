@@ -105,16 +105,8 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 	enabled(true),
 	visible(true)
 {
-
-	//setInterceptsMouseClicks(false, true);
-
-	//addMouseListener(map, true);
-    
-
 	if (sound->isMissing() || sound->isPurged())
-	{
 		enabled = false;
-	}
 };
 
 #pragma warning( push )
@@ -122,13 +114,13 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 
 #pragma warning( pop )
 
-void SampleComponent::timerCallback()
+
+bool SampleComponent::samplePathContains(Point<int> localPoint) const
 {
-	transparency *= 0.9f;
-	if(transparency <= 0.3f)
-	{
-		stopTimer();
-	}
+	if (outline.isEmpty())
+		return bounds.contains(localPoint);
+	else
+		return outline.contains(localPoint.toFloat(), 0.0f);
 }
 
 void SampleComponent::drawSampleRectangle(Graphics &g, Rectangle<int> areaInt)
@@ -226,8 +218,9 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 
 	updateSoundData();
 
-	setOpaque(true);
+	
 
+	setOpaque(true);
 };
 
 SamplerSoundMap::~SamplerSoundMap()
@@ -336,52 +329,68 @@ void SamplerSoundMap::selectNeighbourSample(Neighbour direction)
 
 void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 {
-    if(currentDragDeltaX == 0 && currentDragDeltaY == 0) return;
+	if (currentDragDeltaX == 0 && currentDragDeltaY == 0)
+	{
+		dragStartData.clear();
+		return;
+	}
     
-    if(copyDraggedSounds) SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler);
-
 	ownerSampler->getUndoManager()->beginNewTransaction("Dragging of " + String(dragStartData.size()) + " samples");
 
-	for(int i = 0; i <dragStartData.size(); i++)
+    if(copyDraggedSounds) 
+		SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler);
+
+	auto f = [this, copyDraggedSounds](Processor* )
 	{
-		DragData d = dragStartData[i];
-
-        if(currentDragDeltaX < 0)
-        {
-            d.sound->setSampleProperty(SampleIds::Root, d.root + currentDragDeltaX);
-            d.sound->setSampleProperty(SampleIds::LoKey, d.lowKey + currentDragDeltaX);
-            d.sound->setSampleProperty(SampleIds::HiKey, d.hiKey + currentDragDeltaX);
-        }
-		else if (currentDragDeltaX > 0)
-        {
-            d.sound->setSampleProperty(SampleIds::Root, d.root + currentDragDeltaX);
-            d.sound->setSampleProperty(SampleIds::HiKey, d.hiKey + currentDragDeltaX);
-            d.sound->setSampleProperty(SampleIds::LoKey, d.lowKey + currentDragDeltaX);
-        }
-
-		if (currentDragDeltaY < 0)
+		for (int i = 0; i < dragStartData.size(); i++)
 		{
-			
-			const int lowVelo = jmax<int>(0, d.loVel + currentDragDeltaY);
-			const int highVelo = jmin<int>(127, d.hiVel + currentDragDeltaY);
+			DragData d = dragStartData[i];
 
-			d.sound->setSampleProperty(SampleIds::LoVel, lowVelo);
-			d.sound->setSampleProperty(SampleIds::HiVel, highVelo);
+			if (currentDragDeltaX < 0)
+			{
+				d.sound->setSampleProperty(SampleIds::Root, d.root + currentDragDeltaX);
+				d.sound->setSampleProperty(SampleIds::LoKey, d.lowKey + currentDragDeltaX);
+				d.sound->setSampleProperty(SampleIds::HiKey, d.hiKey + currentDragDeltaX);
+			}
+			else if (currentDragDeltaX > 0)
+			{
+				d.sound->setSampleProperty(SampleIds::Root, d.root + currentDragDeltaX);
+				d.sound->setSampleProperty(SampleIds::HiKey, d.hiKey + currentDragDeltaX);
+				d.sound->setSampleProperty(SampleIds::LoKey, d.lowKey + currentDragDeltaX);
+			}
+
+			if (currentDragDeltaY < 0)
+			{
+
+				const int lowVelo = jmax<int>(0, d.loVel + currentDragDeltaY);
+				const int highVelo = jmin<int>(127, d.hiVel + currentDragDeltaY);
+
+				d.sound->setSampleProperty(SampleIds::LoVel, lowVelo);
+				d.sound->setSampleProperty(SampleIds::HiVel, highVelo);
+			}
+			else if (currentDragDeltaY > 0)
+			{
+				const int lowVelo = jmax<int>(0, d.loVel + currentDragDeltaY);
+				const int highVelo = jmin<int>(127, d.hiVel + currentDragDeltaY);
+
+				d.sound->setSampleProperty(SampleIds::HiVel, highVelo);
+				d.sound->setSampleProperty(SampleIds::LoVel, lowVelo);
+			}
+
 		}
-		else if (currentDragDeltaY > 0)
-		{
-			const int lowVelo = jmax<int>(0, d.loVel + currentDragDeltaY);
-			const int highVelo = jmin<int>(127, d.hiVel + currentDragDeltaY);
 
-			d.sound->setSampleProperty(SampleIds::HiVel, highVelo);
-			d.sound->setSampleProperty(SampleIds::LoVel, lowVelo);
-		}
-			
-	}
+		sampleDraggingEnabled = false;
+		refreshGraphics();
 
+		return SafeFunctionCall::OK;
+	};
 
-	sampleDraggingEnabled = false;
-	refreshGraphics();
+	// If we copy this we need to make sure that the order stays the same...
+	if (!copyDraggedSounds)
+		f(ownerSampler);
+	else
+		ownerSampler->killAllVoicesAndCall(f);
+	
 }
 
 void SamplerSoundMap::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/)
@@ -459,15 +468,20 @@ void SamplerSoundMap::drawSoundMap(Graphics &g)
     const float noteWidth = (float)getWidth() / 128.0f;
     //const float velocityHeight = (float)getHeight() / 128.0f;
     
-    if(notePosition != -1)
+    if(ownerSampler->getSampleMap()->isMonolith())
     {
-        g.setColour(Colours::black.withAlpha(0.3f));
-        g.fillRect(0, 0, 20, 20);
-        
-        String x = MidiMessage::getMidiNoteName(notePosition, true, true, 3);
-        g.setFont(GLOBAL_MONOSPACE_FONT());
-        g.setColour(Colours::white.withAlpha(0.6f));
-        g.drawText(x, 0, 0, 20, 20, Justification::centredLeft, false);
+		String mt = "Monolith";
+
+		Font f = GLOBAL_BOLD_FONT();
+
+		int width = f.getStringWidth(mt) + 20;
+
+        g.setColour(Colours::black.withAlpha(0.2f));
+        g.fillRect(0, 0, width, 20);
+		
+        g.setFont(f);
+        g.setColour(Colours::white.withAlpha(0.5f));
+        g.drawText(mt, 0, 0, width, 20, Justification::centred, false);
     }
     
     if(!draggedFileRootNotes.isZero())
@@ -520,11 +534,16 @@ void SamplerSoundMap::drawSoundMap(Graphics &g)
 
 void SamplerSoundMap::paint(Graphics &g)
 {
-    g.drawImageAt(currentSnapshot, 0, 0);
+	g.drawImageAt(currentSnapshot, 0, 0);
+
+	
 };
 
 void SamplerSoundMap::paintOverChildren(Graphics &g)
 {
+	
+	
+
 	if (isPreloading)
 	{
 		g.fillAll(Colour(0xAA222222));
@@ -722,12 +741,13 @@ void SamplerSoundMap::mouseDown(const MouseEvent &e)
 
 void SamplerSoundMap::mouseUp(const MouseEvent &e)
 {
+	refreshGraphics();
+
 	if(sampleDraggingEnabled)
 	{
-		endSampleDragging(e.mods.isCtrlDown());
+		endSampleDragging(e.mods.isAltDown());
 		setMouseCursor(MouseCursor::NormalCursor);
 	}
-
 	else
 	{
 		if(!e.mods.isRightButtonDown() &&
@@ -739,12 +759,21 @@ void SamplerSoundMap::mouseUp(const MouseEvent &e)
 
 		sampleLasso->endLasso();
 
-
 		if (!e.getOffsetFromDragStart().isOrigin())
 		{
+			auto modifiers = e.mods;
+
+			// Deselect the previous ones...
+			if (!modifiers.isShiftDown())
+				selectedSounds->deselectAll();
+
+			// We need to add the shift modifier to that it selects all samples in the list
+			if (!modifiers.isShiftDown() && !modifiers.isCommandDown())
+				modifiers = modifiers.withFlags(ModifierKeys::shiftModifier);
+
 			for (int i = 0; i < lassoSelectedComponents.size(); i++)
 			{
-				selectedSounds->addToSelectionBasedOnModifiers(lassoSelectedComponents[i], ModifierKeys::shiftModifier);
+				selectedSounds->addToSelectionBasedOnModifiers(lassoSelectedComponents[i], modifiers);
 			}
 		}
         else if (!e.mods.isRightButtonDown())
@@ -762,6 +791,8 @@ void SamplerSoundMap::mouseUp(const MouseEvent &e)
 		milliSecondsSinceLastLassoCheck = 0;
 	}
 
+	setMouseCursor(isDragOperation(e) ? MouseCursor::DraggingHandCursor : MouseCursor::NormalCursor);
+
     refreshGraphics();
 }
 
@@ -778,6 +809,37 @@ void SamplerSoundMap::mouseExit(const MouseEvent &)
 	repaint();
 }
 
+bool SamplerSoundMap::isDragOperation(const MouseEvent& e)
+{
+	bool selectModifiersActive = e.mods.isShiftDown() || e.mods.isCommandDown();
+
+	bool hoverOverSelection = false;
+
+	if (auto hoveredComponent = getSampleComponentAt(e.getPosition()))
+	{
+		if (auto s = hoveredComponent->getSound())
+		{
+			for (auto& s_ : *selectedSounds)
+			{
+				if (s_.get() == nullptr)
+					continue;
+
+				if (s == s_.get()->getSound())
+				{
+					hoverOverSelection = true;
+					break;
+				}
+			}
+		}
+	}
+
+	bool dragOperation = hoverOverSelection && selectedSounds->getNumSelected() != 0 && !selectModifiersActive;
+
+	return dragOperation;
+}
+
+
+
 void SamplerSoundMap::mouseMove(const MouseEvent &e)
 {
 	const float noteWidth = (float)getWidth() / 128.0f;
@@ -790,29 +852,17 @@ void SamplerSoundMap::mouseMove(const MouseEvent &e)
 	SampleComponent *c = getSampleComponentAt(e.getPosition());
 
 	if(c != nullptr && c->getSound() != nullptr)
-	{
 		setTooltip(c->getSound()->getPropertyAsString(SampleIds::FileName));
-	}
 	else
-	{
 		setTooltip(MidiMessage::getMidiNoteName(notePosition, true, true, 3));
-	}
+
+	setMouseCursor(isDragOperation(e) ? MouseCursor::DraggingHandCursor : MouseCursor::NormalCursor);
 };
 
 void SamplerSoundMap::mouseDrag(const MouseEvent &e)
 {
 	if(sampleDraggingEnabled)
 	{
-		if (e.mods.isShiftDown())
-		{
-			currentDragLimiter = DragLimiters::VelocityOnly;
-		}
-		else
-		{
-			currentDragLimiter = DragLimiters::NoLimit;
-		}
-
-
 		int lowestKey = INT_MAX;
 		int highestKey = 0;
 
@@ -830,6 +880,46 @@ void SamplerSoundMap::mouseDrag(const MouseEvent &e)
 		int thisDragDeltaX = (int)((float)e.getDistanceFromDragStartX() / (float)getWidth() * 128.0f);
 		int thisDragDeltaY = -(int)((float)e.getDistanceFromDragStartY() / (float)getHeight() * 128.0f);
 
+		if (e.mods.isShiftDown())
+		{
+			if (std::abs(e.getDistanceFromDragStartX()) > std::abs(e.getDistanceFromDragStartY()))
+				thisDragDeltaY = 0;
+			else
+				thisDragDeltaX = 0;
+		}
+		
+		if (e.mods.isCommandDown())
+		{
+			thisDragDeltaY -= thisDragDeltaY % 10;
+			thisDragDeltaX -= thisDragDeltaX % 12;
+		}
+
+		if (lowestKey + thisDragDeltaX >= 0 && highestKey + thisDragDeltaX < 128)
+			currentDragDeltaX = thisDragDeltaX;
+		else
+		{
+			if (thisDragDeltaX < 0)
+				currentDragDeltaX = -lowestKey;
+			else
+				currentDragDeltaX = 127 - highestKey;
+		}
+
+		if (lowestVelocity + thisDragDeltaY >= 0 && highestVelocity + thisDragDeltaY < 128)
+			currentDragDeltaY = thisDragDeltaY;
+		else
+		{
+			if (thisDragDeltaY < 0)
+				currentDragDeltaY = -lowestVelocity;
+			else
+				currentDragDeltaY = 127 - highestVelocity;
+		}
+		
+		if (e.mods.isAltDown())
+			setMouseCursor(MouseCursor::CopyingCursor);
+		else
+			setMouseCursor(MouseCursor::DraggingHandCursor);
+
+#if 0
 		if (currentDragLimiter != VelocityOnly)
 		{
 			if (lowestKey + thisDragDeltaX >= 0 && highestKey + thisDragDeltaX < 128)
@@ -848,6 +938,7 @@ void SamplerSoundMap::mouseDrag(const MouseEvent &e)
 				}
 			}
 		}
+
 		
 		if (currentDragLimiter != KeyOnly)
 		{
@@ -868,6 +959,10 @@ void SamplerSoundMap::mouseDrag(const MouseEvent &e)
 			}
 
 		}
+#endif
+
+
+
 	}
 	else
 	{
@@ -884,23 +979,22 @@ void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
 		const int number = i;
 		const int velocity = pressedKeyData[i];
 
-		const bool newNote = velocity != -1 && velocity != pressedKeys[i];
+		const bool change = velocity != pressedKeys[i];
 
-		if(newNote)
+		if(change)
 		{
-			for(int j = 0; j < sampleComponents.size(); j++)
+			for (int j = 0; j < sampleComponents.size(); j++)
 			{
-				if(sampleComponents[j]->isVisible() && sampleComponents[j]->getSound() != nullptr &&
+				if (sampleComponents[j]->isVisible() && sampleComponents[j]->getSound() != nullptr &&
 					sampleComponents[j]->getSound()->appliesToMessage(1, number, velocity) &&
 					sampleComponents[j]->getSound()->appliesToRRGroup(ownerSampler->getSamplerDisplayValues().currentGroup))
 				{
-					sampleComponents[j]->triggerNoteOnAnimation(velocity);
+					sampleComponents[j]->setSampleIsPlayed(velocity > 0);
 				}
 			}
 		}
 
-		pressedKeys[i] = pressedKeyData[i];
-
+		pressedKeys[i] = (uint8)velocity;
 	}
 
 	repaint();
@@ -917,9 +1011,11 @@ SampleComponent* SamplerSoundMap::getSampleComponentAt(Point<int> point)
 	return nullptr;
 };
 
+
+
 void SamplerSoundMap::checkEventForSampleDragging(const MouseEvent &e)
 {
-	sampleDraggingEnabled = e.mods.isAltDown() && e.mods.isLeftButtonDown() && selectedSounds->getNumSelected() != 0;
+	sampleDraggingEnabled = isDragOperation(e);
 
 	if(sampleDraggingEnabled)
 	{
@@ -942,10 +1038,8 @@ void SamplerSoundMap::checkEventForSampleDragging(const MouseEvent &e)
 				d.loVel = d.sound->getSampleProperty(SampleIds::LoVel);
 				d.hiVel = d.sound->getSampleProperty(SampleIds::HiVel);
 
-
 				dragStartData.add(d);
 			}
-
 		}
 	}
 }
@@ -1077,6 +1171,9 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 	const int velocity = (int)(127.0f * ((float)(e.getMouseDownY() - keyboardArea.getY()) / 20.0f));
 
 	HiseEvent m(HiseEvent::Type::NoteOn, (uint8)lastNoteNumber, (uint8)velocity, 1);
+	m.setArtificial();
+
+	sampler->getMainController()->getEventHandler().pushArtificialNoteOn(m);
 
     ScopedLock sl(sampler->getMainController()->getLock());
 	sampler->preHiseEventCallback(m);
@@ -1095,6 +1192,9 @@ void MapWithKeyboard::mouseUp(const MouseEvent &e)
 	}
 
 	HiseEvent m(HiseEvent::Type::NoteOff, (uint8)lastNoteNumber, 127, 1);
+	m.setArtificial();
+
+	m.setEventId(sampler->getMainController()->getEventHandler().getEventIdForNoteOff(m));
 
 	sampler->preHiseEventCallback(m);
     

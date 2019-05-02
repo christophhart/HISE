@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 
 void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, const SafeFunctionCall::Function& removeFunction)
 {
-	bool synchronous = p->getMainController()->isBeingDeleted();
+	bool synchronous = p->getMainController()->isBeingDeleted() || p->getMainController()->isFlakyThreadingAllowed();
 
 	if (removeFunction)
 	{

@@ -36,8 +36,7 @@ namespace hise { using namespace juce;
 
 WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
-	morphSmoothing(700),
-	tableIndexChain(new ModulatorChain(mc, "Table Index", numVoices, Modulation::GainMode, this))
+	morphSmoothing(700)
 {
 	modChains += {this, "Table Index"};
 
