@@ -759,6 +759,7 @@ private:
 	HiseEvent realNoteOnEvents[16][128];
 	uint16 currentEventId;
 
+	UnorderedStack<HiseEvent, 256> overlappingNoteOns;
 
 	// ===========================================================================================================
 
