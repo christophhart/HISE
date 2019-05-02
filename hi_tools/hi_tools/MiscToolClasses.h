@@ -35,6 +35,28 @@
 namespace hise {
 using namespace juce;
 
+
+/** Same as MessageManager::callAsync, but uses a Safe pointer for a component and cancels the async execution if the object is deleted. */
+struct LambdaWithComponent
+{
+	template <class T> static void callAsync(T* b_, const std::function<void(T*)>& f)
+	{
+		Component::SafePointer<T> b = b_;
+
+		auto f2 = [b, f]()
+		{
+			if (auto stillB = b.getComponent())
+			{
+				f(stillB);
+			}
+		};
+
+		MessageManager::callAsync(f2);
+	}
+};
+
+#define CALL_ASYNC_WITH_COMPONENT(ComponentClass, component) LambdaWithComponent::callAsync<ComponentClass>(closeButton, [](ComponentClass* component)
+
 class SuspendableTimer
 {
 public:

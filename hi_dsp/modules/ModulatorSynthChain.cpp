@@ -321,10 +321,13 @@ void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
 
 	ModulatorSynth::restoreFromValueTree(v);
 
-	ValueTree autoData = v.getChildWithName("MidiAutomation");
+	if (!getMainController()->shouldSkipCompiling())
+	{
+		ValueTree autoData = v.getChildWithName("MidiAutomation");
 
-	if (autoData.isValid())
-		getMainController()->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+		if (autoData.isValid())
+			getMainController()->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+	}
 
 	ValueTree mpeData = v.getChildWithName("MPEData");
 

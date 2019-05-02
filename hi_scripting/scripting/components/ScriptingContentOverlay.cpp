@@ -415,7 +415,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 		SystemClipboard::copyTextToClipboard(s);
 		return true;
 	}
-	else if (keyCode == KeyPress::deleteKey)
+	else if (keyCode == KeyPress::deleteKey || keyCode == KeyPress::backspaceKey)
 	{
 		auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(handler->getScriptEditHandlerProcessor());
 

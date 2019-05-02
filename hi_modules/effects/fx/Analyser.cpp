@@ -234,8 +234,6 @@ Colour AudioAnalyserComponent::getColourForAnalyser(ColourId id)
 	}
 	else
 	{
-		return findColour(id);
-
 		switch (id)
 		{
 		case hise::AudioAnalyserComponent::bgColour:   return findColour(AudioAnalyserComponent::ColourId::bgColour);

@@ -5,13 +5,6 @@
 
 // Load a background image
 const var bgImage = Content.addImage("bgImage", 0, 0);
-// [JSON bgImage]
-Content.setPropertiesFromJSON("bgImage", {
-  "width": 700,
-  "height": 450,
-  "fileName": "{PROJECT_FOLDER}bg.png"
-});
-// [/JSON bgImage]
 
 
 // Tell the engine to use this script as main interface
@@ -99,19 +92,19 @@ function onNoteOn()
 {
 	
 }
-function onNoteOff()
+ function onNoteOff()
 {
 	
 }
-function onController()
+ function onController()
 {
 	
 }
-function onTimer()
+ function onTimer()
 {
 	
 }
-function onControl(number, value)
+ function onControl(number, value)
 {
 	switch(number)
 	{

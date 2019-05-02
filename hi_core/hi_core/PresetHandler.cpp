@@ -373,8 +373,6 @@ void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t si
 
 	decompressor.expand(mb, presetTree);
 
-	DBG(presetTree.createXml()->createDocument(""));
-
 	extractDirectory(presetTree, userPresetDirectory);
 
 #else

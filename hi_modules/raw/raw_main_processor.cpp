@@ -172,12 +172,12 @@ void MainProcessor::ParameterBase::update(float newValue)
 	}
 }
 
-void MainProcessor::ParameterBase::registerCallback(Processor* p, const Callback& f, ExecutionType type)
+void MainProcessor::ParameterBase::registerCallback(Processor* pr, const Callback& f, ExecutionType type)
 {
 	if (type == ExecutionType::Asynchronously)
-		asynchronousCallbacks.add(new CallbackWithProcessor(p, f));
+		asynchronousCallbacks.add(new CallbackWithProcessor(pr, f));
 	else
-		synchronousCallbacks.add(new CallbackWithProcessor(p, f));
+		synchronousCallbacks.add(new CallbackWithProcessor(pr, f));
 }
 
 void MainProcessor::ParameterBase::handleAsyncUpdate()

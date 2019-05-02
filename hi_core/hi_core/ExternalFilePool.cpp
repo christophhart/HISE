@@ -184,7 +184,7 @@ void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream
 	fillMetadata(data, additionalData);
 }
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AdditionalDataReference& data, var* additionalData)
+void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream, int64 /*hashCode*/, AdditionalDataReference& data, var* additionalData)
 {
 	ScopedPointer<InputStream> inputStream = ownedStream;
 	data.getFile() = inputStream->readEntireStreamAsString();
@@ -916,8 +916,10 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, Image* d
 {
 	ScopedPointer<MemoryInputStream> scopedInput = mis;
 
-	PNGImageFormat format;
-	*data = format.decodeImage(*mis);
+	if (auto ff = ImageFileFormat::findImageFormatForStream(*mis))
+	{
+		*data = ff->decodeImage(*mis);
+	}
 }
 
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AudioSampleBuffer* data) const

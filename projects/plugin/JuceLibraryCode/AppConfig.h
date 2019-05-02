@@ -147,6 +147,10 @@
  //#define CRASH_ON_GLITCH 1
 #endif
 
+#ifndef    HISE_ENABLE_EXPANSIONS
+ //#define HISE_ENABLE_EXPANSIONS 1
+#endif
+
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS
  #define   ENABLE_SCRIPTING_BREAKPOINTS 1
 #endif
@@ -497,13 +501,13 @@
  #define JucePlugin_EditorRequiresKeyboardFocus  1
 #endif
 #ifndef  JucePlugin_Version
- #define JucePlugin_Version                2.0.0
+ #define JucePlugin_Version                2.1.0
 #endif
 #ifndef  JucePlugin_VersionCode
- #define JucePlugin_VersionCode            0x20000
+ #define JucePlugin_VersionCode            0x20100
 #endif
 #ifndef  JucePlugin_VersionString
- #define JucePlugin_VersionString          "2.0.0"
+ #define JucePlugin_VersionString          "2.1.0"
 #endif
 #ifndef  JucePlugin_VSTUniqueID
  #define JucePlugin_VSTUniqueID            JucePlugin_PluginCode
