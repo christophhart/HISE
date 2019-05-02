@@ -284,6 +284,13 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				prepareToPlay(sampleRate, maxBufferSize.get());
 			}
 
+			ValueTree autoData = v.getChildWithName("MidiAutomation");
+
+			// We need to postpone this until after compilation in order to resolve the 
+			// attribute indexes for the CC mappings
+			if (autoData.isValid())
+				getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+
 			synthChain->loadMacrosFromValueTree(v);
 
 #if USE_BACKEND
