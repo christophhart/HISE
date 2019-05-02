@@ -1080,8 +1080,8 @@ void MidiPlayer::prepareForRecording(bool copyExistingEvents/*=true*/)
 			if (copyExistingEvents)
             {
                 auto newList = seq->getEventList(p->getSampleRate(), p->getMainController()->getBpm());
-				newEvents.swapWith(newList);
-            }
+				newEvents.swapWith(newList);            
+      }
 		}
 
 		newEvents.ensureStorageAllocated(2048);
