@@ -9,26 +9,12 @@
         <Processor Type="ScriptProcessor" ID="MainInterface" Bypassed="0">
           <ChildProcessors/>
           <Content>
-            <Control type="ScriptSlider" id="volumeSlider" value="-12.100000381469726563"/>
-            <Control type="ScriptTable" id="velocityTable" value="0" data="24...............vO...f+....9C...vO"/>
-            <Control type="ScriptSlider" id="irSlider" value="0.27000001072883605957"/>
+            <Control type="ScriptSlider" id="volumeSlider" value="-12.1"/>
+            <Control type="ScriptTable" id="velocityTable" value="0" data=""/>
+            <Control type="ScriptSlider" id="irSlider" value="0.27000001"/>
             <Control type="ScriptComboBox" id="SampleMapSelector" value="1"/>
           </Content>
-          <UIData>
-            <ContentProperties DeviceType="Desktop">
-              <Component type="ScriptImage" id="bgImage" x="0" y="0" fileName="{PROJECT_FOLDER}bg.png"
-                         width="700" height="450"/>
-              <Component type="ScriptSlider" id="volumeSlider" x="164" y="111" middlePosition="-12"
-                         stepSize="0.10000000000000000555" min="-100" max="0" suffix=" dB"
-                         mode="Decibel" text="Volume"/>
-              <Component type="ScriptTable" id="velocityTable" x="115" y="196" width="470"
-                         height="189" processorId="SamplerVelocity"/>
-              <Component type="ScriptSlider" id="irSlider" x="361" y="112" stepSize="0.0099999997764825820923"
-                         text="Reverb Amount" width="144" macroControl="Macro 1"/>
-              <Component type="ScriptComboBox" id="SampleMapSelector" x="283" y="405"
-                         items="&#10;Down&#10;Normal" max="2"/>
-            </ContentProperties>
-          </UIData>
+          <UIData Source="DemoUIData"/>
         </Processor>
       </ChildProcessors>
     </Processor>
@@ -40,8 +26,8 @@
     </Processor>
     <Processor Type="EffectChain" ID="FX" Bypassed="0">
       <ChildProcessors>
-        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="-12.100000381469726563"
-                   Delay="0" Width="-2.4999973773956298828" Balance="0">
+        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="-12.1"
+                   Delay="0" Width="-2.4999974" Balance="0">
           <ChildProcessors>
             <Processor Type="ModulatorChain" ID="Gain Modulation" Bypassed="0" Intensity="1">
               <ChildProcessors/>
@@ -70,13 +56,11 @@
     </Processor>
     <Processor Type="StreamingSampler" ID="DemoSampler" Bypassed="0" Gain="1"
                Balance="0" VoiceLimit="128" KillFadeTime="20" IconColour="0"
-               PreloadSize="8192" BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="-2147483648"
+               PreloadSize="8192" BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="-2.1474836e+09"
                RRGroupAmount="1" PitchTracking="1" OneShot="0" CrossfadeGroups="0"
-               Purged="0" Reversed="0" NumChannels="1" UseStaticMatrix="0" Group0Table="24...............vO...f+....9C...vO"
-               Group1Table="24...............vO...f+....9C...vO" Group2Table="24...............vO...f+....9C...vO"
-               Group3Table="24...............vO...f+....9C...vO" Group4Table="24...............vO...f+....9C...vO"
-               Group5Table="24...............vO...f+....9C...vO" Group6Table="24...............vO...f+....9C...vO"
-               Group7Table="24...............vO...f+....9C...vO" SampleMapID="Down">
+               Purged="0" Reversed="0" NumChannels="1" UseStaticMatrix="0" Group0Table=""
+               Group1Table="" Group2Table="" Group3Table="" Group4Table="" Group5Table=""
+               Group6Table="" Group7Table="" SampleMapID="Down">
       <ChildProcessors>
         <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
           <ChildProcessors/>
@@ -93,7 +77,7 @@
               </ChildProcessors>
             </Processor>
             <Processor Type="Velocity" ID="SamplerVelocity" Bypassed="0" Intensity="1"
-                       UseTable="1" Inverted="0" DecibelMode="0" VelocityTableData="24...............vO...f+....9C...vO">
+                       UseTable="1" Inverted="0" DecibelMode="0" VelocityTableData="">
               <ChildProcessors/>
             </Processor>
           </ChildProcessors>
@@ -132,4 +116,5 @@
     <macro name="Macro 8" value="0" midi_cc="0"/>
   </macro_controls>
   <MidiAutomation/>
+  <MPEData Enabled="0"/>
 </Processor>

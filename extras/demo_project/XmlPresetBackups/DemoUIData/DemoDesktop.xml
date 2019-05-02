@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ContentProperties DeviceType="Desktop">
+  <Component type="ScriptImage" id="bgImage" x="0" y="0" fileName="{PROJECT_FOLDER}bg.jpg"
+             width="700" height="450"/>
+  <Component type="ScriptSlider" id="volumeSlider" x="164" y="111" middlePosition="-12"
+             stepSize="0.1" min="-100" max="0" suffix=" dB" mode="Decibel"
+             text="Volume"/>
+  <Component type="ScriptTable" id="velocityTable" x="115" y="196" width="470"
+             height="189" processorId="SamplerVelocity"/>
+  <Component type="ScriptSlider" id="irSlider" x="361" y="112" stepSize="0.0099999998"
+             text="Reverb Amount" width="144" macroControl="Macro 1"/>
+  <Component type="ScriptComboBox" id="SampleMapSelector" x="283" y="405"
+             items="&#10;Down&#10;Normal" max="2"/>
+</ContentProperties>
