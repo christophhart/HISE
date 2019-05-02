@@ -564,6 +564,11 @@ public:
 		cancelButton->setLookAndFeel(&alaf);
 
 		setSize(600, 500);
+
+		CALL_ASYNC_WITH_COMPONENT(TextButton, b)
+		{
+			b->grabKeyboardFocus();
+		});
 	}
 
 	void resized() override
@@ -610,13 +615,10 @@ public:
 				
 				root->sendRootContainerRebuildMessage(true);
 
-				if (PresetHandler::showYesNoWindow("Switch to Interface Designer", "Do you want to switch to the interface designer mode?"))
-				{
-					root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceScript, false);
-					
-					BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(root, jsp);
-                    BackendPanelHelpers::ScriptingWorkspace::showInterfaceDesigner(root, true);
-				}
+				root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceScript, false);
+
+				BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(root, jsp);
+				BackendPanelHelpers::ScriptingWorkspace::showInterfaceDesigner(root, true);
                 
                 auto rootContainer = root->getMainPanel()->getRootContainer();
                 
