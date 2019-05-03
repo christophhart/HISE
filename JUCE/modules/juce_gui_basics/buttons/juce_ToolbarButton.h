@@ -36,6 +36,8 @@ namespace juce
     toggle button.
 
     @see Toolbar, ToolbarItemFactory, ToolbarItemComponent, Drawable, Button
+
+    @tags{GUI}
 */
 class JUCE_API  ToolbarButton   : public ToolbarItemComponent
 {
@@ -64,7 +66,7 @@ public:
                    Drawable* toggledOnImage);
 
     /** Destructor. */
-    ~ToolbarButton();
+    ~ToolbarButton() override;
 
 
     //==============================================================================
@@ -84,7 +86,7 @@ public:
 
 private:
     //==============================================================================
-    ScopedPointer<Drawable> normalImage, toggledOnImage;
+    std::unique_ptr<Drawable> normalImage, toggledOnImage;
     Drawable* currentImage;
 
     void updateDrawable();

@@ -7,11 +7,15 @@
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
+
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
+
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
    JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
    EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
@@ -60,9 +64,9 @@ void ThreadedAnalyticsDestination::stopAnalyticsThread (int timeout)
         saveUnloggedEvents (dispatcher.eventQueue);
 }
 
-ThreadedAnalyticsDestination::EventDispatcher::EventDispatcher (const String& threadName,
+ThreadedAnalyticsDestination::EventDispatcher::EventDispatcher (const String& dispatcherThreadName,
                                                                 ThreadedAnalyticsDestination& destination)
-    : Thread (threadName),
+    : Thread (dispatcherThreadName),
       parent (destination)
 {}
 
@@ -85,20 +89,24 @@ void ThreadedAnalyticsDestination::EventDispatcher::run()
 
     while (! threadShouldExit())
     {
-        auto eventsToSendCapacity = maxBatchSize - eventsToSend.size();
-
-        if (eventsToSendCapacity > 0)
         {
-            const ScopedLock lock (queueAccess);
+            const auto numEventsInBatch = eventsToSend.size();
+            const auto freeBatchCapacity = maxBatchSize - numEventsInBatch;
 
-            const auto numEventsInQueue = (int) eventQueue.size();
-
-            if (numEventsInQueue > 0)
+            if (freeBatchCapacity > 0)
             {
-                const auto numEventsToAdd = jmin (eventsToSendCapacity, numEventsInQueue);
+                const auto numNewEvents = (int) eventQueue.size() - numEventsInBatch;
 
-                for (size_t i = 0; i < (size_t) numEventsToAdd; ++i)
-                    eventsToSend.add (eventQueue[i]);
+                if (numNewEvents > 0)
+                {
+                    const ScopedLock lock (queueAccess);
+
+                    const auto numEventsToAdd = jmin (numNewEvents, freeBatchCapacity);
+                    const auto newBatchSize = numEventsInBatch + numEventsToAdd;
+
+                    for (auto i = numEventsInBatch; i < newBatchSize; ++i)
+                        eventsToSend.add (eventQueue[(size_t) i]);
+                }
             }
         }
 
@@ -139,16 +147,21 @@ void ThreadedAnalyticsDestination::EventDispatcher::addToQueue (const AnalyticsE
 namespace DestinationTestHelpers
 {
     //==============================================================================
-    struct TestDestination   : public ThreadedAnalyticsDestination
+    struct BasicDestination   : public ThreadedAnalyticsDestination
     {
-        TestDestination (std::deque<AnalyticsEvent>& loggedEvents,
-                         std::deque<AnalyticsEvent>& unloggedEvents)
+        BasicDestination (std::deque<AnalyticsEvent>& loggedEvents,
+                          std::deque<AnalyticsEvent>& unloggedEvents)
             : ThreadedAnalyticsDestination ("ThreadedAnalyticsDestinationTest"),
               loggedEventQueue (loggedEvents),
               unloggedEventStore (unloggedEvents)
-        {}
+        {
+            startAnalyticsThread (20);
+        }
 
-        virtual ~TestDestination() {}
+        ~BasicDestination()
+        {
+            stopAnalyticsThread (1000);
+        }
 
         int getMaximumBatchSize() override
         {
@@ -165,110 +178,34 @@ namespace DestinationTestHelpers
             restoredEventQueue = unloggedEventStore;
         }
 
-        std::deque<AnalyticsEvent>& loggedEventQueue;
-        std::deque<AnalyticsEvent>& unloggedEventStore;
-    };
-
-    //==============================================================================
-    struct BasicDestination   : public TestDestination
-    {
-        BasicDestination (std::deque<AnalyticsEvent>& loggedEvents,
-                          std::deque<AnalyticsEvent>& unloggedEvents)
-            : TestDestination (loggedEvents, unloggedEvents)
-        {
-            startAnalyticsThread (100);
-        }
-
-        virtual ~BasicDestination()
-        {
-            stopAnalyticsThread (1000);
-        }
-
-
         bool logBatchedEvents (const Array<AnalyticsEvent>& events) override
         {
             jassert (events.size() <= getMaximumBatchSize());
 
-            for (auto& event : events)
-                loggedEventQueue.push_back (event);
+            if (loggingIsEnabled)
+            {
+                const ScopedLock lock (eventQueueChanging);
 
-            return true;
+                for (auto& event : events)
+                    loggedEventQueue.push_back (event);
+
+                return true;
+            }
+
+            return false;
         }
 
         void stopLoggingEvents() override {}
-    };
 
-    //==============================================================================
-    struct SlowWebDestination   : public TestDestination
-    {
-        SlowWebDestination (std::deque<AnalyticsEvent>& loggedEvents,
-                            std::deque<AnalyticsEvent>& unloggedEvents)
-            : TestDestination (loggedEvents, unloggedEvents)
+        void setLoggingEnabled (bool shouldLogEvents)
         {
-            startAnalyticsThread (initialPeriod);
+            loggingIsEnabled = shouldLogEvents;
         }
 
-        virtual ~SlowWebDestination()
-        {
-            stopAnalyticsThread (1000);
-        }
-
-        bool logBatchedEvents (const Array<AnalyticsEvent>& events) override
-        {
-            threadHasStarted.signal();
-
-            jassert (events.size() <= getMaximumBatchSize());
-
-            {
-                const ScopedLock lock (webStreamCreation);
-
-                if (shouldExit)
-                    return false;
-
-                // An attempt to connect to an unroutable IP address will hang
-                // indefinitely, which simulates a very slow server
-                webStream = new WebInputStream (URL ("http://1.192.0.0"), true);
-            }
-
-            String data;
-
-            for (auto& event : events)
-                data << event.name;
-
-            webStream->withExtraHeaders (data);
-
-            const auto success = webStream->connect (nullptr);
-
-            // Exponential backoff on failure
-            if (success)
-                period = initialPeriod;
-            else
-                period *= 2;
-
-            setBatchPeriod (period);
-
-            return success;
-        }
-
-        void stopLoggingEvents() override
-        {
-            const ScopedLock lock (webStreamCreation);
-
-            shouldExit = true;
-
-            if (webStream != nullptr)
-                webStream->cancel();
-        }
-
-        const int initialPeriod = 100;
-        int period = initialPeriod;
-
-        CriticalSection webStreamCreation;
-        bool shouldExit = false;
-
-        ScopedPointer<WebInputStream> webStream;
-
-        WaitableEvent threadHasStarted;
+        std::deque<AnalyticsEvent>& loggedEventQueue;
+        std::deque<AnalyticsEvent>& unloggedEventStore;
+        bool loggingIsEnabled = true;
+        CriticalSection eventQueueChanging;
     };
 }
 
@@ -283,7 +220,7 @@ struct ThreadedAnalyticsDestinationTests   : public UnitTest
                              const std::deque<AnalyticsDestination::AnalyticsEvent>& b)
     {
         const auto numEntries = a.size();
-        expectEquals (b.size(), numEntries);
+        expectEquals ((int) b.size(), (int) numEntries);
 
         for (size_t i = 0; i < numEntries; ++i)
         {
@@ -297,49 +234,52 @@ struct ThreadedAnalyticsDestinationTests   : public UnitTest
         std::deque<AnalyticsDestination::AnalyticsEvent> testEvents;
 
         for (int i = 0; i < 7; ++i)
-            testEvents.push_back ({ String (i), Time::getMillisecondCounter(), {}, "TestUser", {} });
+            testEvents.push_back ({ String (i), 0, Time::getMillisecondCounter(), {}, "TestUser", {} });
 
         std::deque<AnalyticsDestination::AnalyticsEvent> loggedEvents, unloggedEvents;
 
-        beginTest ("Basic");
+        beginTest ("New events");
+
         {
             DestinationTestHelpers::BasicDestination destination (loggedEvents, unloggedEvents);
 
             for (auto& event : testEvents)
                 destination.logEvent (event);
 
-            Thread::sleep (400);
+            size_t waitTime = 0, numLoggedEvents = 0;
 
-            compareEventQueues (loggedEvents, testEvents);
-            expect (unloggedEvents.size() == 0);
+            while (numLoggedEvents < testEvents.size())
+            {
+                if (waitTime > 4000)
+                {
+                    expect (waitTime < 4000);
+                    break;
+                }
 
-            loggedEvents.clear();
+                Thread::sleep (40);
+                waitTime += 40;
+
+                const ScopedLock lock (destination.eventQueueChanging);
+                numLoggedEvents = loggedEvents.size();
+            }
         }
 
-        beginTest ("Web");
+        compareEventQueues (loggedEvents, testEvents);
+        expect (unloggedEvents.size() == 0);
+
+        loggedEvents.clear();
+
+        beginTest ("Unlogged events");
         {
-            {
-                DestinationTestHelpers::SlowWebDestination destination (loggedEvents, unloggedEvents);
+            DestinationTestHelpers::BasicDestination destination (loggedEvents, unloggedEvents);
+            destination.setLoggingEnabled (false);
 
-                for (auto& event : testEvents)
-                    destination.logEvent (event);
-            }
-
-            expect (loggedEvents.size() == 0);
-            compareEventQueues (unloggedEvents, testEvents);
-
-            {
-                DestinationTestHelpers::SlowWebDestination destination (loggedEvents, unloggedEvents);
-
-                destination.threadHasStarted.wait();
-                unloggedEvents.clear();
-            }
-
-            expect (loggedEvents.size() == 0);
-            compareEventQueues (unloggedEvents, testEvents);
-
-            unloggedEvents.clear();
+            for (auto& event : testEvents)
+                destination.logEvent (event);
         }
+
+        compareEventQueues (unloggedEvents, testEvents);
+        expect (loggedEvents.size() == 0);
     }
 };
 

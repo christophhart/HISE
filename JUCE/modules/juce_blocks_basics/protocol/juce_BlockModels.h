@@ -25,9 +25,10 @@ namespace juce
 namespace BlocksProtocol
 {
 
+#ifndef DOXYGEN
+
 // This file isn't part of the public API, it's where we encode the knowledge base
 // of all the different types of block we know about..
-
 struct BlockDataSheet
 {
     BlockDataSheet (const BlocksProtocol::BlockSerialNumber& serial)  : serialNumber (serial)
@@ -69,14 +70,14 @@ struct BlockDataSheet
 
     struct StatusLEDInfo
     {
-        juce::String name;
+        String name;
         float x, y;
     };
 
-    juce::Array<ButtonInfo> buttons;
-    juce::Array<StatusLEDInfo> statusLEDs;
-    juce::Array<Block::ConnectionPort> ports;
-    juce::Array<const char*> dials;
+    Array<ButtonInfo> buttons;
+    Array<StatusLEDInfo> statusLEDs;
+    Array<Block::ConnectionPort> ports;
+    Array<const char*> dials;
 
 private:
     //==============================================================================
@@ -316,6 +317,8 @@ static const char* getButtonNameForFunction (ControlButton::ButtonFunction fn) n
     jassertfalse;
     return nullptr;
 }
+
+#endif
 
 } // namespace BlocksProtocol
 } // namespace juce

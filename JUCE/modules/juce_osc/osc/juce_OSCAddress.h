@@ -42,6 +42,8 @@ namespace juce
     matching OSC address patterns.
 
     @see OSCMessageListener, OSCAddressPattern, OSCMessage
+
+    @tags{OSC}
 */
 class JUCE_API  OSCAddress
 {
@@ -68,7 +70,7 @@ public:
     bool operator!= (const OSCAddress& other) const noexcept;
 
     /** Converts the OSCAddress to a String.
-        Note: trailing slashes are always removed automatically.
+        Note: Trailing slashes are always removed automatically.
 
         @returns a String object that represents the OSC address.
     */
@@ -92,6 +94,8 @@ private:
     of the message.
 
     @see OSCMessage, OSCAddress, OSCMessageListener
+
+    @tags{OSC}
 */
 class JUCE_API  OSCAddressPattern
 {
@@ -133,7 +137,7 @@ public:
     bool containsWildcards() const noexcept     { return wasInitialisedWithWildcards; }
 
     /** Converts the OSCAddressPattern to a String.
-        Note: trailing slashes are always removed automatically.
+        Note: Trailing slashes are always removed automatically.
 
         @returns a String object that represents the OSC address pattern.
     */

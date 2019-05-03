@@ -24,12 +24,7 @@
   ==============================================================================
 */
 
-// Note: for the Bluetooth Midi selector overlay, we need the class
-// UIViewComponent from the juce_gui_extra module. If this module is not
-// included in your app, BluetoothMidiDevicePairingDialogue::open() will fail
-// and return false.
-// It is also not available in the iPhone/iPad simulator.
-#if JUCE_MODULE_AVAILABLE_juce_gui_extra && ! TARGET_IPHONE_SIMULATOR
+#if ! TARGET_IPHONE_SIMULATOR
 
 #include <CoreAudioKit/CoreAudioKit.h>
 
@@ -44,7 +39,7 @@ public:
                                   const Rectangle<int>& boundsToUse)
         : bounds (boundsToUse)
     {
-        ScopedPointer<ModalComponentManager::Callback> exitCallback (exitCallbackToUse);
+        std::unique_ptr<ModalComponentManager::Callback> exitCallback (exitCallbackToUse);
 
         setAlwaysOnTop (true);
         setVisible (true);
@@ -117,7 +112,7 @@ private:
 bool BluetoothMidiDevicePairingDialogue::open (ModalComponentManager::Callback* exitCallback,
                                                Rectangle<int>* btBounds)
 {
-    ScopedPointer<ModalComponentManager::Callback> cb (exitCallback);
+    std::unique_ptr<ModalComponentManager::Callback> cb (exitCallback);
     auto boundsToUse = (btBounds != nullptr ? *btBounds : Rectangle<int> {});
 
     if (isAvailable())
@@ -144,7 +139,7 @@ namespace juce
     bool BluetoothMidiDevicePairingDialogue::open (ModalComponentManager::Callback* exitCallback,
                                                    Rectangle<int>*)
     {
-        ScopedPointer<ModalComponentManager::Callback> cb (exitCallback);
+        std::unique_ptr<ModalComponentManager::Callback> cb (exitCallback);
         return false;
     }
 

@@ -31,6 +31,8 @@ class WebInputStream;
 
     This class can be used to launch URLs in browsers, and also to create
     InputStreams that can read from remote http or ftp sources.
+
+    @tags{Core}
 */
 class JUCE_API  URL
 {
@@ -52,6 +54,9 @@ public:
     // VS2013 can't default move constructors and assignments
     URL (URL&&);
     URL& operator= (URL&&);
+
+    /** Creates URL referring to a local file on your disk using the file:// scheme. */
+    explicit URL (File);
 
     /** Destructor. */
     ~URL();
@@ -93,6 +98,29 @@ public:
         include the colon).
     */
     String getScheme() const;
+
+    /** Returns true if this URL refers to a local file. */
+    bool isLocalFile() const;
+
+    /** Returns the file path of the local file to which this URL refers to.
+        If the URL does not represent a local file URL (i.e. the URL's scheme is not 'file')
+        then this method will assert.
+
+        This method also supports converting Android's content:// URLs to
+        local file paths.
+
+        @see isLocalFile
+    */
+    File getLocalFile() const;
+
+    /** Returns the file name. For all but Android's content:// scheme, it will
+        simply return the last segment of the URL.
+        E.g. for "http://www.xyz.com/foo/bar.txt", this will return "bar.txt".
+
+        For Android's content:// scheme, it will attempt to resolve the filename
+        located under the URL.
+    */
+    String getFileName() const;
 
     /** Attempts to read a port number from the URL.
         @returns the port number, or 0 if none is explicitly specified.
@@ -256,19 +284,21 @@ public:
         It allows your app to receive progress updates during a lengthy POST operation. If you
         want to continue the operation, this should return true, or false to abort.
     */
-    typedef bool (OpenStreamProgressCallback) (void* context, int bytesSent, int totalBytes);
+    using OpenStreamProgressCallback = bool (void* context, int bytesSent, int totalBytes);
 
     /** Attempts to open a stream that can read from this URL.
-
-        This method is a convenience wrapper for creating a new WebInputStream and setting some
-        commonly used options. The returned WebInputStream will have already been connected and
-        reading can start instantly.
 
         Note that this method will block until the first byte of data has been received or an
         error has occurred.
 
         Note that on some platforms (Android, for example) it's not permitted to do any network
         action from the message thread, so you must only call it from a background thread.
+
+        Unless the URL represents a local file, this method returns an instance of a
+        WebInputStream. You can use dynamic_cast to cast the return value to a WebInputStream
+        which allows you more fine-grained control of the transfer process.
+
+        If the URL represents a local file, then this method simply returns a FileInputStream.
 
         @param doPostLikeRequest if true, the parameters added to this class will be transferred
                                  via the HTTP headers which is typical for POST requests. Otherwise
@@ -298,37 +328,44 @@ public:
         @returns    an input stream that the caller must delete, or a null pointer if there was an
                     error trying to open it.
      */
-    WebInputStream* createInputStream (bool doPostLikeRequest,
-                                       OpenStreamProgressCallback* progressCallback = nullptr,
-                                       void* progressCallbackContext = nullptr,
-                                       String extraHeaders = String(),
-                                       int connectionTimeOutMs = 0,
-                                       StringPairArray* responseHeaders = nullptr,
-                                       int* statusCode = nullptr,
-                                       int numRedirectsToFollow = 5,
-                                       String httpRequestCmd = String()) const;
+    InputStream* createInputStream (bool doPostLikeRequest,
+                                    OpenStreamProgressCallback* progressCallback = nullptr,
+                                    void* progressCallbackContext = nullptr,
+                                    String extraHeaders = String(),
+                                    int connectionTimeOutMs = 0,
+                                    StringPairArray* responseHeaders = nullptr,
+                                    int* statusCode = nullptr,
+                                    int numRedirectsToFollow = 5,
+                                    String httpRequestCmd = String()) const;
+
+    /** Attempts to open an output stream to a URL for writing
+
+        This method can only be used for certain scheme types such as local files
+        and content:// URIs on Android.
+    */
+    OutputStream* createOutputStream() const;
 
     //==============================================================================
     /** Represents a download task.
-        Returned by downloadToFile to allow querying and controling the download task.
+        Returned by downloadToFile to allow querying and controlling the download task.
     */
-    class DownloadTask
+    class JUCE_API  DownloadTask
     {
     public:
-        struct Listener
+        /** Used to receive callbacks for download progress */
+        struct JUCE_API  Listener
         {
             virtual ~Listener();
 
             /** Called when the download has finished. Be aware that this callback may
                 come on an arbitrary thread. */
-            virtual void finished (DownloadTask* task, bool success) = 0;
+            virtual void finished (URL::DownloadTask* task, bool success) = 0;
 
             /** Called periodically by the OS to indicate download progress.
                 Beware that this callback may come on an arbitrary thread.
             */
-            virtual void progress (DownloadTask* task, int64 bytesDownloaded, int64 totalLength);
+            virtual void progress (URL::DownloadTask* task, int64 bytesDownloaded, int64 totalLength);
         };
-
 
         /** Releases the resources of the download task, unregisters the listener
             and cancels the download if necessary. */
@@ -353,10 +390,14 @@ public:
         /** Returns true if there was an error. */
         inline bool hadError() const                      { return error; }
 
+        /** Returns the target file location that was provided in URL::downloadToFile. */
+        File getTargetLocation() const                    { return targetLocation; }
+
     protected:
         int64 contentLength = -1, downloaded = 0;
         bool finished = false, error = false;
         int httpCode = -1;
+        File targetLocation;
 
         DownloadTask();
 
@@ -426,7 +467,7 @@ public:
         If it fails, or if the text that it reads can't be parsed as XML, this will
         return nullptr.
 
-        When it returns a valid XmlElement object, the caller is responsibile for deleting
+        When it returns a valid XmlElement object, the caller is responsible for deleting
         this object when no longer needed.
 
         Note that on some platforms (Android, for example) it's not permitted to do any network
@@ -487,20 +528,40 @@ private:
     MemoryBlock postData;
     StringArray parameterNames, parameterValues;
 
+    static File fileFromFileSchemeURL (const URL&);
+    String getDomainInternal (bool) const;
+
     struct Upload  : public ReferenceCountedObject
     {
         Upload (const String&, const String&, const String&, const File&, MemoryBlock*);
         String parameterName, filename, mimeType;
         File file;
-        ScopedPointer<MemoryBlock> data;
+        std::unique_ptr<MemoryBlock> data;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Upload)
     };
 
-    friend struct ContainerDeletePolicy<Upload>;
     ReferenceCountedArray<Upload> filesToUpload;
 
+  #if JUCE_IOS
+    struct Bookmark : public ReferenceCountedObject
+    {
+        using Ptr = ReferenceCountedObjectPtr<Bookmark>;
+
+        Bookmark (void*);
+        ~Bookmark();
+
+        void* data;
+    };
+
+    Bookmark::Ptr bookmark;
+
+    friend void setURLBookmark (URL&, void*);
+    friend void* getURLBookmark (URL&);
+  #endif
+
     URL (const String&, int);
+    void init();
     void addParameter (const String&, const String&);
     void createHeadersAndPostData (String&, MemoryBlock&) const;
     URL withUpload (Upload*) const;

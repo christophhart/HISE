@@ -37,6 +37,8 @@ class VariantBuffer;
     using writeToStream()/readFromStream(), or as JSON by using the JSON class.
 
     @see JSON, DynamicObject
+
+    @tags{Core}
 */
 class JUCE_API  var
 {
@@ -65,11 +67,6 @@ public:
 
     /** Destructor. */
     ~var() noexcept;
-
-   #if JUCE_ALLOW_STATIC_NULL_VARIABLES
-    /** A static var object that can be used where you need an empty variant object. */
-    static const var null;
-   #endif
 
     var (const var& valueToCopy);
     var (int value) noexcept;
@@ -286,6 +283,16 @@ public:
     */
     static var readFromStream (InputStream& input);
 
+    /* This was a static empty var object, but is now deprecated as it's too easy to accidentally
+       use it indirectly during a static constructor, leading to hard-to-find order-of-initialisation
+       problems.
+       @deprecated If you need a default-constructed var, just use var() or {}.
+       The only time you might miss having var::null available might be if you need to return an
+       empty var from a function by reference, but if you need to do that, it's easy enough to use
+       a function-local static var and return that, avoiding any order-of-initialisation issues.
+    */
+    JUCE_DEPRECATED_STATIC (static const var null;)
+
 private:
     //==============================================================================
     class VariantType;            friend class VariantType;
@@ -302,6 +309,7 @@ private:
     class VariantType_Method;     friend class VariantType_Method;
 	class VariantType_Buffer;	  friend class VariantType_Buffer;
 
+
     union ValueUnion
     {
         int intValue;
@@ -314,24 +322,42 @@ private:
         NativeFunction* methodValue;
     };
 
+    friend bool canCompare (const var&, const var&);
+
     const VariantType* type;
     ValueUnion value;
 
     Array<var>* convertToArray();
     var (const VariantType&) noexcept;
+
+    // This is needed to prevent the wrong constructor/operator being called
+    var (const ReferenceCountedObject*) = delete;
+    var& operator= (const ReferenceCountedObject*) = delete;
 };
 
 /** Compares the values of two var objects, using the var::equals() comparison. */
-JUCE_API bool operator== (const var&, const var&) noexcept;
+JUCE_API bool operator== (const var&, const var&);
 /** Compares the values of two var objects, using the var::equals() comparison. */
-JUCE_API bool operator!= (const var&, const var&) noexcept;
+JUCE_API bool operator!= (const var&, const var&);
+/** Compares the values of two var objects, using the var::equals() comparison. */
+JUCE_API bool operator<  (const var&, const var&);
+/** Compares the values of two var objects, using the var::equals() comparison. */
+JUCE_API bool operator<= (const var&, const var&);
+/** Compares the values of two var objects, using the var::equals() comparison. */
+JUCE_API bool operator>  (const var&, const var&);
+/** Compares the values of two var objects, using the var::equals() comparison. */
+JUCE_API bool operator>= (const var&, const var&);
+
 JUCE_API bool operator== (const var&, const String&);
 JUCE_API bool operator!= (const var&, const String&);
 JUCE_API bool operator== (const var&, const char*);
 JUCE_API bool operator!= (const var&, const char*);
 
 //==============================================================================
-/** This template-overloaded class can be used to convert between var and custom types. */
+/** This template-overloaded class can be used to convert between var and custom types.
+
+    @tags{Core}
+*/
 template <typename Type>
 struct VariantConverter
 {
@@ -339,12 +365,13 @@ struct VariantConverter
     static var toVar (const Type& t)               { return t; }
 };
 
-/** This template-overloaded class can be used to convert between var and custom types. */
+#ifndef DOXYGEN
 template <>
 struct VariantConverter<String>
 {
     static String fromVar (const var& v)           { return v.toString(); }
     static var toVar (const String& s)             { return s; }
 };
+#endif
 
 } // namespace juce

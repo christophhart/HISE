@@ -27,6 +27,8 @@ namespace BlocksProtocol
 
 /**
     Helper class for constructing a packet for sending to a BLOCKS device
+
+    @tags{Blocks}
 */
 template <int maxPacketBytes>
 struct HostPacketBuilder
@@ -279,7 +281,7 @@ struct HostPacketBuilder
         if (! data.hasCapacity (MessageType::bits))
             return false;
 
-        writeMessageType(MessageFromHost::factoryReset);
+        writeMessageType (MessageFromHost::factoryReset);
         return true;
     }
 
@@ -288,11 +290,11 @@ struct HostPacketBuilder
         if (! data.hasCapacity (MessageType::bits))
             return false;
 
-        writeMessageType(MessageFromHost::blockReset);
+        writeMessageType (MessageFromHost::blockReset);
         return true;
     }
 
-    bool addSetBlockName (const juce::String& name)
+    bool addSetBlockName (const String& name)
     {
         if (name.length() > 32 || ! data.hasCapacity (MessageType::bits + 7 + (7 * name.length())))
             return false;

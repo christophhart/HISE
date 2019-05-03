@@ -35,9 +35,10 @@ namespace juce
     toggle on/off.
 
     @see PropertyComponent
+
+    @tags{GUI}
 */
-class JUCE_API  BooleanPropertyComponent  : public PropertyComponent,
-                                            private Button::Listener
+class JUCE_API  BooleanPropertyComponent  : public PropertyComponent
 {
 protected:
     //==============================================================================
@@ -70,7 +71,7 @@ public:
                               const String& buttonText);
 
     /** Destructor. */
-    ~BooleanPropertyComponent();
+    ~BooleanPropertyComponent() override;
 
     //==============================================================================
     /** Called to change the state of the boolean value. */
@@ -98,8 +99,6 @@ public:
     void paint (Graphics&) override;
     /** @internal */
     void refresh() override;
-    /** @internal */
-    void buttonClicked (Button*) override;
 
 private:
     ToggleButton button;

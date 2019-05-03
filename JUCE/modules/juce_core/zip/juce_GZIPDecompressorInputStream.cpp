@@ -36,6 +36,9 @@ namespace zlibNamespace
    #pragma clang diagnostic ignored "-Wconversion"
    #pragma clang diagnostic ignored "-Wshadow"
    #pragma clang diagnostic ignored "-Wdeprecated-register"
+   #if __has_warning("-Wzero-as-null-pointer-constant")
+    #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
+   #endif
    #if __has_warning("-Wcomma")
     #pragma clang diagnostic ignored "-Wcomma"
    #endif
@@ -191,10 +194,7 @@ GZIPDecompressorInputStream::GZIPDecompressorInputStream (InputStream* source, b
   : sourceStream (source, deleteSourceWhenDestroyed),
     uncompressedStreamLength (uncompressedLength),
     format (f),
-    isEof (false),
-    activeBufferSize (0),
     originalSourcePos (source->getPosition()),
-    currentPos (0),
     buffer ((size_t) GZIPDecompressHelper::gzipDecompBufferSize),
     helper (new GZIPDecompressHelper (f))
 {
@@ -204,10 +204,7 @@ GZIPDecompressorInputStream::GZIPDecompressorInputStream (InputStream& source)
   : sourceStream (&source, false),
     uncompressedStreamLength (-1),
     format (zlibFormat),
-    isEof (false),
-    activeBufferSize (0),
     originalSourcePos (source.getPosition()),
-    currentPos (0),
     buffer ((size_t) GZIPDecompressHelper::gzipDecompBufferSize),
     helper (new GZIPDecompressHelper (zlibFormat))
 {
@@ -229,11 +226,11 @@ int GZIPDecompressorInputStream::read (void* destBuffer, int howMany)
     if (howMany > 0 && ! isEof)
     {
         int numRead = 0;
-        uint8* d = static_cast<uint8*> (destBuffer);
+        auto d = static_cast<uint8*> (destBuffer);
 
         while (! helper->error)
         {
-            const int n = helper->doNextBlock (d, (unsigned int) howMany);
+            auto n = helper->doNextBlock (d, (unsigned int) howMany);
             currentPos += n;
 
             if (n == 0)
@@ -276,7 +273,7 @@ int GZIPDecompressorInputStream::read (void* destBuffer, int howMany)
 
 bool GZIPDecompressorInputStream::isExhausted()
 {
-    return helper->error || isEof;
+    return helper->error || helper->finished || isEof;
 }
 
 int64 GZIPDecompressorInputStream::getPosition()
@@ -292,7 +289,7 @@ bool GZIPDecompressorInputStream::setPosition (int64 newPos)
         isEof = false;
         activeBufferSize = 0;
         currentPos = 0;
-        helper = new GZIPDecompressHelper (format);
+        helper.reset (new GZIPDecompressHelper (format));
 
         sourceStream->setPosition (originalSourcePos);
     }
@@ -300,5 +297,83 @@ bool GZIPDecompressorInputStream::setPosition (int64 newPos)
     skipNextBytes (newPos - currentPos);
     return true;
 }
+
+//==============================================================================
+#if JUCE_UNIT_TESTS
+
+struct GZIPDecompressorInputStreamTests   : public UnitTest
+{
+    GZIPDecompressorInputStreamTests()
+        : UnitTest ("GZIPDecompressorInputStreamTests", "Streams")
+    {}
+
+    void runTest() override
+    {
+        const MemoryBlock data ("abcdefghijklmnopqrstuvwxyz", 26);
+
+        MemoryOutputStream mo;
+        GZIPCompressorOutputStream gzipOutputStream (mo);
+        gzipOutputStream.write (data.getData(), data.getSize());
+        gzipOutputStream.flush();
+
+        MemoryInputStream mi (mo.getData(), mo.getDataSize(), false);
+        GZIPDecompressorInputStream stream (&mi, false, GZIPDecompressorInputStream::zlibFormat, (int64) data.getSize());
+
+        beginTest ("Read");
+
+        expectEquals (stream.getPosition(), (int64) 0);
+        expectEquals (stream.getTotalLength(), (int64) data.getSize());
+        expectEquals (stream.getNumBytesRemaining(), stream.getTotalLength());
+        expect (! stream.isExhausted());
+
+        size_t numBytesRead = 0;
+        MemoryBlock readBuffer (data.getSize());
+
+        while (numBytesRead < data.getSize())
+        {
+            numBytesRead += (size_t) stream.read (&readBuffer[numBytesRead], 3);
+
+            expectEquals (stream.getPosition(), (int64) numBytesRead);
+            expectEquals (stream.getNumBytesRemaining(), (int64) (data.getSize() - numBytesRead));
+            expect (stream.isExhausted() == (numBytesRead == data.getSize()));
+        }
+
+        expectEquals (stream.getPosition(), (int64) data.getSize());
+        expectEquals (stream.getNumBytesRemaining(), (int64) 0);
+        expect (stream.isExhausted());
+
+        expect (readBuffer == data);
+
+        beginTest ("Skip");
+
+        stream.setPosition (0);
+        expectEquals (stream.getPosition(), (int64) 0);
+        expectEquals (stream.getTotalLength(), (int64) data.getSize());
+        expectEquals (stream.getNumBytesRemaining(), stream.getTotalLength());
+        expect (! stream.isExhausted());
+
+        numBytesRead = 0;
+        const int numBytesToSkip = 5;
+
+        while (numBytesRead < data.getSize())
+        {
+            stream.skipNextBytes (numBytesToSkip);
+            numBytesRead += numBytesToSkip;
+            numBytesRead = std::min (numBytesRead, data.getSize());
+
+            expectEquals (stream.getPosition(), (int64) numBytesRead);
+            expectEquals (stream.getNumBytesRemaining(), (int64) (data.getSize() - numBytesRead));
+            expect (stream.isExhausted() == (numBytesRead == data.getSize()));
+        }
+
+        expectEquals (stream.getPosition(), (int64) data.getSize());
+        expectEquals (stream.getNumBytesRemaining(), (int64) 0);
+        expect (stream.isExhausted());
+    }
+};
+
+static GZIPDecompressorInputStreamTests gzipDecompressorInputStreamTests;
+
+#endif
 
 } // namespace juce

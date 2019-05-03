@@ -35,7 +35,7 @@
 
   ID:               juce_audio_plugin_client
   vendor:           juce
-  version:          5.2.0
+  version:          5.4.3
   name:             JUCE audio plugin wrapper classes
   description:      Classes for building VST, VST3, AudioUnit, AAX and RTAS plugins.
   website:          http://www.juce.com/juce
@@ -53,6 +53,17 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+
+/** Config: JUCE_VST3_CAN_REPLACE_VST2
+
+    Enable this if you want your VST3 plug-in to load and save VST2 compatible
+    state. This allows hosts to replace VST2 plug-ins with VST3 plug-ins. If
+    you change this option then your VST3 plug-in will be incompatible with
+    previous versions.
+*/
+#ifndef JUCE_VST3_CAN_REPLACE_VST2
+ #define JUCE_VST3_CAN_REPLACE_VST2 1
+#endif
 
 /** Config: JUCE_FORCE_USE_LEGACY_PARAM_IDS
 
@@ -89,6 +100,16 @@
 */
 #ifndef JUCE_USE_STUDIO_ONE_COMPATIBLE_PARAMETERS
  #define JUCE_USE_STUDIO_ONE_COMPATIBLE_PARAMETERS 1
+#endif
+
+/** Config: JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE
+
+    Enable this if you want your standalone plugin window to use kiosk mode.
+    By default, kiosk mode is enabled on iOS and Android.
+*/
+
+#ifndef JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE
+ #define JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE (JUCE_IOS || JUCE_ANDROID)
 #endif
 
 #include "utility/juce_PluginHostType.h"

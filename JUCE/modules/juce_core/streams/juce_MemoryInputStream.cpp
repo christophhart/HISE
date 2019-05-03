@@ -23,24 +23,19 @@
 namespace juce
 {
 
-MemoryInputStream::MemoryInputStream (const void* const sourceData,
-                                      const size_t sourceDataSize,
-                                      const bool keepInternalCopy)
+MemoryInputStream::MemoryInputStream (const void* sourceData, size_t sourceDataSize, bool keepCopy)
     : data (sourceData),
-      dataSize (sourceDataSize),
-      position (0)
+      dataSize (sourceDataSize)
 {
-    if (keepInternalCopy)
+    if (keepCopy)
         createInternalCopy();
 }
 
-MemoryInputStream::MemoryInputStream (const MemoryBlock& sourceData,
-                                      const bool keepInternalCopy)
+MemoryInputStream::MemoryInputStream (const MemoryBlock& sourceData, bool keepCopy)
     : data (sourceData.getData()),
-      dataSize (sourceData.getSize()),
-      position (0)
+      dataSize (sourceData.getSize())
 {
-    if (keepInternalCopy)
+    if (keepCopy)
         createInternalCopy();
 }
 
@@ -60,14 +55,14 @@ int64 MemoryInputStream::getTotalLength()
     return (int64) dataSize;
 }
 
-int MemoryInputStream::read (void* const buffer, const int howMany)
+int MemoryInputStream::read (void* buffer, int howMany)
 {
     jassert (buffer != nullptr && howMany >= 0);
 
     if (howMany <= 0 || position >= dataSize)
         return 0;
 
-    const size_t num = jmin ((size_t) howMany, dataSize - position);
+    auto num = jmin ((size_t) howMany, dataSize - position);
 
     if (num > 0)
     {
@@ -94,6 +89,11 @@ int64 MemoryInputStream::getPosition()
     return (int64) position;
 }
 
+void MemoryInputStream::skipNextBytes (int64 numBytesToSkip)
+{
+    if (numBytesToSkip > 0)
+        setPosition (getPosition() + numBytesToSkip);
+}
 
 //==============================================================================
 #if JUCE_UNIT_TESTS
@@ -101,7 +101,9 @@ int64 MemoryInputStream::getPosition()
 class MemoryStreamTests  : public UnitTest
 {
 public:
-    MemoryStreamTests() : UnitTest ("MemoryInputStream & MemoryOutputStream", "Memory Streams") {}
+    MemoryStreamTests()
+        : UnitTest ("MemoryInputStream & MemoryOutputStream", "Streams")
+    {}
 
     void runTest() override
     {
@@ -132,6 +134,60 @@ public:
         expect (mi.readInt64BigEndian() == randomInt64);
         expect (mi.readDouble() == randomDouble);
         expect (mi.readDoubleBigEndian() == randomDouble);
+
+        const MemoryBlock data ("abcdefghijklmnopqrstuvwxyz", 26);
+        MemoryInputStream stream (data, true);
+
+        beginTest ("Read");
+
+        expectEquals (stream.getPosition(), (int64) 0);
+        expectEquals (stream.getTotalLength(), (int64) data.getSize());
+        expectEquals (stream.getNumBytesRemaining(), stream.getTotalLength());
+        expect (! stream.isExhausted());
+
+        size_t numBytesRead = 0;
+        MemoryBlock readBuffer (data.getSize());
+
+        while (numBytesRead < data.getSize())
+        {
+            numBytesRead += (size_t) stream.read (&readBuffer[numBytesRead], 3);
+
+            expectEquals (stream.getPosition(), (int64) numBytesRead);
+            expectEquals (stream.getNumBytesRemaining(), (int64) (data.getSize() - numBytesRead));
+            expect (stream.isExhausted() == (numBytesRead == data.getSize()));
+        }
+
+        expectEquals (stream.getPosition(), (int64) data.getSize());
+        expectEquals (stream.getNumBytesRemaining(), (int64) 0);
+        expect (stream.isExhausted());
+
+        expect (readBuffer == data);
+
+        beginTest ("Skip");
+
+        stream.setPosition (0);
+        expectEquals (stream.getPosition(), (int64) 0);
+        expectEquals (stream.getTotalLength(), (int64) data.getSize());
+        expectEquals (stream.getNumBytesRemaining(), stream.getTotalLength());
+        expect (! stream.isExhausted());
+
+        numBytesRead = 0;
+        const int numBytesToSkip = 5;
+
+        while (numBytesRead < data.getSize())
+        {
+            stream.skipNextBytes (numBytesToSkip);
+            numBytesRead += numBytesToSkip;
+            numBytesRead = std::min (numBytesRead, data.getSize());
+
+            expectEquals (stream.getPosition(), (int64) numBytesRead);
+            expectEquals (stream.getNumBytesRemaining(), (int64) (data.getSize() - numBytesRead));
+            expect (stream.isExhausted() == (numBytesRead == data.getSize()));
+        }
+
+        expectEquals (stream.getPosition(), (int64) data.getSize());
+        expectEquals (stream.getNumBytesRemaining(), (int64) 0);
+        expect (stream.isExhausted());
     }
 
     static String createRandomWideCharString (Random& r)

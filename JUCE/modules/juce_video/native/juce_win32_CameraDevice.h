@@ -49,16 +49,10 @@ static const CLSID CLSID_NullRenderer  = { 0xC1F400A4, 0x3F08, 0x11d3, { 0x9F, 0
 
 struct CameraDevice::Pimpl  : public ChangeBroadcaster
 {
-    Pimpl (const String&, int index,
-           int minWidth, int minHeight,
-           int maxWidth, int maxHeight, bool /*highQuality*/)
-       : isRecording (false),
-         openedSuccessfully (false),
-         imageNeedsFlipping (false),
-         width (0), height (0),
-         activeUsers (0),
-         recordNextFrameTime (false),
-         previewMaxFPS (60)
+    Pimpl (CameraDevice& ownerToUse, const String&, int index,
+           int minWidth, int minHeight, int maxWidth, int maxHeight,
+           bool /*highQuality*/)
+       : owner (ownerToUse)
     {
         HRESULT hr = captureGraphBuilder.CoCreateInstance (CLSID_CaptureGraphBuilder2);
         if (FAILED (hr))
@@ -191,6 +185,22 @@ struct CameraDevice::Pimpl  : public ChangeBroadcaster
 
     bool openedOk() const noexcept       { return openedSuccessfully; }
 
+    void takeStillPicture (std::function<void (const Image&)> pictureTakenCallbackToUse)
+    {
+        {
+            const ScopedLock sl (pictureTakenCallbackLock);
+
+            jassert (pictureTakenCallbackToUse != nullptr);
+
+            if (pictureTakenCallbackToUse == nullptr)
+                return;
+
+            pictureTakenCallback = std::move (pictureTakenCallbackToUse);
+        }
+
+        addUser();
+    }
+
     void startRecordingToFile (const File& file, int quality)
     {
         addUser();
@@ -219,13 +229,13 @@ struct CameraDevice::Pimpl  : public ChangeBroadcaster
         if (listeners.size() == 0)
             addUser();
 
-        listeners.addIfNotAlreadyThere (listenerToAdd);
+        listeners.add (listenerToAdd);
     }
 
     void removeListener (CameraDevice::Listener* listenerToRemove)
     {
         const ScopedLock sl (listenerLock);
-        listeners.removeAllInstancesOf (listenerToRemove);
+        listeners.remove (listenerToRemove);
 
         if (listeners.size() == 0)
             removeUser();
@@ -234,10 +244,29 @@ struct CameraDevice::Pimpl  : public ChangeBroadcaster
     void callListeners (const Image& image)
     {
         const ScopedLock sl (listenerLock);
+        listeners.call ([=] (Listener& l) { l.imageReceived (image); });
+    }
 
-        for (int i = listeners.size(); --i >= 0;)
-            if (CameraDevice::Listener* const l = listeners[i])
-                l->imageReceived (image);
+    void notifyPictureTakenIfNeeded (const Image& image)
+    {
+        {
+            const ScopedLock sl (pictureTakenCallbackLock);
+
+            if (pictureTakenCallback == nullptr)
+                return;
+        }
+
+        WeakReference<Pimpl> weakRef (this);
+        MessageManager::callAsync ([weakRef, image]() mutable
+                                   {
+                                       if (weakRef == nullptr)
+                                           return;
+
+                                       if (weakRef->pictureTakenCallback != nullptr)
+                                           weakRef->pictureTakenCallback (image);
+
+                                       weakRef->pictureTakenCallback = nullptr;
+                                   });
     }
 
     void addUser()
@@ -296,6 +325,8 @@ struct CameraDevice::Pimpl  : public ChangeBroadcaster
 
         if (listeners.size() > 0)
             callListeners (loadingImage);
+
+        notifyPictureTakenIfNeeded (loadingImage);
 
         sendChangeMessage();
     }
@@ -520,12 +551,18 @@ struct CameraDevice::Pimpl  : public ChangeBroadcaster
         JUCE_DECLARE_NON_COPYABLE (GrabberCallback)
     };
 
-    ComSmartPtr<GrabberCallback> callback;
-    Array<CameraDevice::Listener*> listeners;
-    CriticalSection listenerLock;
+    CameraDevice& owner;
 
-    bool isRecording, openedSuccessfully;
-    int width, height;
+    ComSmartPtr<GrabberCallback> callback;
+
+    CriticalSection listenerLock;
+    ListenerList<Listener> listeners;
+
+    CriticalSection pictureTakenCallbackLock;
+    std::function<void (const Image&)> pictureTakenCallback;
+
+    bool isRecording = false, openedSuccessfully = false;
+    int width = 0, height = 0;
     Time firstRecordedTime;
 
     Array<ViewerComponent*> viewerComps;
@@ -536,16 +573,18 @@ struct CameraDevice::Pimpl  : public ChangeBroadcaster
     ComSmartPtr<ISampleGrabber> sampleGrabber;
     ComSmartPtr<IMediaControl> mediaControl;
     ComSmartPtr<IPin> smartTeePreviewOutputPin, smartTeeCaptureOutputPin;
-    int activeUsers;
+    int activeUsers = 0;
     Array<int> widths, heights;
     DWORD graphRegistrationID;
 
     CriticalSection imageSwapLock;
-    bool imageNeedsFlipping;
+    bool imageNeedsFlipping = false;
     Image loadingImage, activeImage;
 
-    bool recordNextFrameTime;
-    int previewMaxFPS;
+    bool recordNextFrameTime = false;
+    int previewMaxFPS = 60;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE (Pimpl)
 
 private:
     void getVideoSizes (IAMStreamConfig* const streamConfig)
@@ -583,7 +622,6 @@ private:
 
                     if (! duplicate)
                     {
-                        DBG ("Camera capture size: " + String (w) + ", " + String (h));
                         widths.add (w);
                         heights.add (h);
                     }
@@ -725,7 +763,7 @@ struct CameraDevice::ViewerComponent  : public Component,
                                         public ChangeListener
 {
     ViewerComponent (CameraDevice& d)
-       : owner (d.pimpl), maxFPS (15), lastRepaintTime (0)
+       : owner (d.pimpl.get()), maxFPS (15), lastRepaintTime (0)
     {
         setOpaque (true);
         owner->addChangeListener (this);

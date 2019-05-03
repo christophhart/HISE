@@ -31,8 +31,10 @@ namespace juce
     available output devices, then use the openDevice() method to try to open one.
 
     @see MidiInput
+
+    @tags{Audio}
 */
-class JUCE_API  MidiOutput  : private Thread
+class JUCE_API  MidiOutput  final : private Thread
 {
 public:
     //==============================================================================
@@ -79,7 +81,7 @@ public:
 
     //==============================================================================
     /** Destructor. */
-    ~MidiOutput();
+    ~MidiOutput() override;
 
     /** Returns the name of this device. */
     const String& getName() const noexcept                      { return name; }
@@ -131,7 +133,7 @@ private:
     void* internal = nullptr;
     CriticalSection lock;
     struct PendingMessage;
-    PendingMessage* firstMessage;
+    PendingMessage* firstMessage = nullptr;
     String name;
 
     MidiOutput (const String& midiName); // These objects are created with the openDevice() method.

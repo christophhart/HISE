@@ -44,12 +44,12 @@ SamplerSound::SamplerSound (const String& soundName,
         length = jmin ((int) source.lengthInSamples,
                        (int) (maxSampleLengthSeconds * sourceSampleRate));
 
-        data = new AudioSampleBuffer (jmin (2, (int) source.numChannels), length + 4);
+        data.reset (new AudioBuffer<float> (jmin (2, (int) source.numChannels), length + 4));
 
-        source.read (data, 0, length + 4, 0, true, true);
+        source.read (data.get(), 0, length + 4, 0, true, true);
 
-        attackSamples  = roundToInt (attackTimeSecs  * sourceSampleRate);
-        releaseSamples = roundToInt (releaseTimeSecs * sourceSampleRate);
+        params.attack  = static_cast<float> (attackTimeSecs);
+        params.release = static_cast<float> (releaseTimeSecs);
     }
 }
 
@@ -87,24 +87,10 @@ void SamplerVoice::startNote (int midiNoteNumber, float velocity, SynthesiserSou
         lgain = velocity;
         rgain = velocity;
 
-        isInAttack = (sound->attackSamples > 0);
-        isInRelease = false;
+        adsr.setSampleRate (sound->sourceSampleRate);
+        adsr.setParameters (sound->params);
 
-        if (isInAttack)
-        {
-            attackReleaseLevel = 0.0f;
-            attackDelta = (float) (pitchRatio / sound->attackSamples);
-        }
-        else
-        {
-            attackReleaseLevel = 1.0f;
-            attackDelta = 0.0f;
-        }
-
-        if (sound->releaseSamples > 0)
-            releaseDelta = (float) (-pitchRatio / sound->releaseSamples);
-        else
-            releaseDelta = -1.0f;
+        adsr.noteOn();
     }
     else
     {
@@ -116,12 +102,12 @@ void SamplerVoice::stopNote (float /*velocity*/, bool allowTailOff)
 {
     if (allowTailOff)
     {
-        isInAttack = false;
-        isInRelease = true;
+        adsr.noteOff();
     }
     else
     {
         clearCurrentNote();
+        adsr.reset();
     }
 }
 
@@ -129,7 +115,7 @@ void SamplerVoice::pitchWheelMoved (int /*newValue*/) {}
 void SamplerVoice::controllerMoved (int /*controllerNumber*/, int /*newValue*/) {}
 
 //==============================================================================
-void SamplerVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples)
+void SamplerVoice::renderNextBlock (AudioBuffer<float>& outputBuffer, int startSample, int numSamples)
 {
     if (auto* playingSound = static_cast<SamplerSound*> (getCurrentlyPlayingSound().get()))
     {
@@ -151,35 +137,10 @@ void SamplerVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int startSa
             float r = (inR != nullptr) ? (inR[pos] * invAlpha + inR[pos + 1] * alpha)
                                        : l;
 
-            l *= lgain;
-            r *= rgain;
+            auto envelopeValue = adsr.getNextSample();
 
-            if (isInAttack)
-            {
-                l *= attackReleaseLevel;
-                r *= attackReleaseLevel;
-
-                attackReleaseLevel += attackDelta;
-
-                if (attackReleaseLevel >= 1.0f)
-                {
-                    attackReleaseLevel = 1.0f;
-                    isInAttack = false;
-                }
-            }
-            else if (isInRelease)
-            {
-                l *= attackReleaseLevel;
-                r *= attackReleaseLevel;
-
-                attackReleaseLevel += releaseDelta;
-
-                if (attackReleaseLevel <= 0.0f)
-                {
-                    stopNote (0.0f, false);
-                    break;
-                }
-            }
+            l *= lgain * envelopeValue;
+            r *= rgain * envelopeValue;
 
             if (outR != nullptr)
             {

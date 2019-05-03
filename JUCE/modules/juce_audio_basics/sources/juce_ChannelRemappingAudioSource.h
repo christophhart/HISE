@@ -37,6 +37,8 @@ namespace juce
     it'll produce silence.
 
     @see AudioSource
+
+    @tags{Audio}
 */
 class ChannelRemappingAudioSource  : public AudioSource
 {
@@ -54,7 +56,7 @@ public:
                                  bool deleteSourceWhenDeleted);
 
     /** Destructor. */
-    ~ChannelRemappingAudioSource();
+    ~ChannelRemappingAudioSource() override;
 
     //==============================================================================
     /** Specifies a number of channels that this audio source must produce from its
@@ -129,7 +131,7 @@ private:
     Array<int> remappedInputs, remappedOutputs;
     int requiredNumberOfChannels;
 
-    AudioSampleBuffer buffer;
+    AudioBuffer<float> buffer;
     AudioSourceChannelInfo remappedInfo;
     CriticalSection lock;
 

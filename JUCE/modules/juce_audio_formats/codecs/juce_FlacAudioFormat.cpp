@@ -117,6 +117,9 @@ namespace FlacNamespace
   #pragma clang diagnostic ignored "-Wconversion"
   #pragma clang diagnostic ignored "-Wshadow"
   #pragma clang diagnostic ignored "-Wdeprecated-register"
+  #if __has_warning("-Wzero-as-null-pointer-constant")
+   #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
+  #endif
  #endif
 
  #if JUCE_INTEL
@@ -201,7 +204,7 @@ public:
         }
     }
 
-    ~FlacReader()
+    ~FlacReader() override
     {
         FlacNamespace::FLAC__stream_decoder_delete (decoder);
     }
@@ -245,7 +248,7 @@ public:
             }
             else
             {
-                if (startSampleInFile >= (int) lengthInSamples)
+                if (startSampleInFile >= lengthInSamples)
                 {
                     samplesInReservoir = 0;
                 }
@@ -298,7 +301,7 @@ public:
                 auto* src = buffer[i];
                 int n = i;
 
-                while (src == 0 && n > 0)
+                while (src == nullptr && n > 0)
                     src = buffer [--n];
 
                 if (src != nullptr)
@@ -366,7 +369,7 @@ public:
 
 private:
     FlacNamespace::FLAC__StreamDecoder* decoder;
-    AudioSampleBuffer reservoir;
+    AudioBuffer<float> reservoir;
     int reservoirStart = 0, samplesInReservoir = 0;
     bool ok = false, scanningForLength = false;
 
@@ -401,7 +404,7 @@ public:
                                                this) == FlacNamespace::FLAC__STREAM_ENCODER_INIT_STATUS_OK;
     }
 
-    ~FlacWriter()
+    ~FlacWriter() override
     {
         if (ok)
         {
@@ -560,7 +563,7 @@ bool FlacAudioFormat::isCompressed()    { return true; }
 
 AudioFormatReader* FlacAudioFormat::createReaderFor (InputStream* in, const bool deleteStreamIfOpeningFails)
 {
-    ScopedPointer<FlacReader> r (new FlacReader (in));
+    std::unique_ptr<FlacReader> r (new FlacReader (in));
 
     if (r->sampleRate > 0)
         return r.release();
@@ -580,7 +583,7 @@ AudioFormatWriter* FlacAudioFormat::createWriterFor (OutputStream* out,
 {
     if (out != nullptr && getPossibleBitDepths().contains (bitsPerSample))
     {
-        ScopedPointer<FlacWriter> w (new FlacWriter (out, sampleRate, numberOfChannels,
+        std::unique_ptr<FlacWriter> w (new FlacWriter (out, sampleRate, numberOfChannels,
                                                      (uint32) bitsPerSample, qualityOptionIndex));
         if (w->ok)
             return w.release();

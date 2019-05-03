@@ -26,14 +26,17 @@ namespace juce
 //==============================================================================
 /**
     An InputStream which can be used to read from a given url.
+
+    @tags{Core}
 */
 class JUCE_API WebInputStream : public InputStream
 {
  public:
+    /** Used to receive callbacks for data send progress */
     class JUCE_API Listener
     {
     public:
-        virtual ~Listener() {}
+        virtual ~Listener() = default;
 
         virtual bool postDataSendProgress (WebInputStream& /*request*/, int /*bytesSent*/, int /*totalBytes*/)    { return true; }
     };
@@ -42,12 +45,12 @@ class JUCE_API WebInputStream : public InputStream
 
         @param url      The url that should be retrieved. This parameter may also contain
                         post data and/or parameters.
-        @param usePost  Specifies wheather a GET or a POST command should be used. This
+        @param usePost  Specifies whether a GET or a POST command should be used. This
                         parameter will also influence the way parameters are encoded.
     */
     WebInputStream (const URL& url, const bool usePost);
 
-    ~WebInputStream();
+    ~WebInputStream() override;
 
 
     /** Add extra headers to http request
@@ -98,7 +101,7 @@ class JUCE_API WebInputStream : public InputStream
 
         If getResponseHeaders is called without an established connection, then
         getResponseHeaders will call connect internally and block until connect
-        returns - either due to a succesful connection or a connection
+        returns - either due to a successful connection or a connection
         error.
 
         @see connect
@@ -109,7 +112,7 @@ class JUCE_API WebInputStream : public InputStream
 
         If getStatusCode is called without an established connection, then
         getStatusCode will call connect internally and block until connect
-        returns - either due to a succesful connection or a connection
+        returns - either due to a successful connection or a connection
         error.
 
         @see connect
@@ -150,7 +153,7 @@ class JUCE_API WebInputStream : public InputStream
 
         If getTotalLength is called without an established connection, then
         getTotalLength will call connect internally and block until connect
-        returns - either due to a succesful connection or a connection
+        returns - either due to a successful connection or a connection
         error.
 
         If the size of the stream isn't actually known, this will return -1.

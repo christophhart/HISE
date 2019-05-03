@@ -298,7 +298,12 @@ struct Grid::PlacementHelpers
                                     const std::map<juce::String, LineArea>& namedAreas)
     {
         if (item.area.isNotEmpty() && ! grid.templateAreas.isEmpty())
+        {
+            // Must be a named area!
+            jassert (namedAreas.count (item.area) != 0);
+
             return namedAreas.at (item.area);
+        }
 
         return { deduceLineRange (item.column, grid.templateColumns),
                  deduceLineRange (item.row,    grid.templateRows) };
@@ -313,8 +318,12 @@ struct Grid::PlacementHelpers
             strings.add (juce::StringArray::fromTokens (areaString, false));
 
         if (strings.size() > 0)
+        {
             for (auto s : strings)
+            {
                 jassert (s.size() == strings[0].size()); // all rows must have the same number of columns
+            }
+        }
 
         return strings;
     }
@@ -345,11 +354,7 @@ struct Grid::PlacementHelpers
                 }
                 else
                 {
-                    if (string == emptyAreaCharacter)
-                    {
-                        break;
-                    }
-                    else if (string == area.name)
+                    if (string == area.name)
                     {
                         area.lines.row.end = stringsArrays.indexOf (stringArray) + 2;
                         area.lines.column.end = stringArray.indexOf (string) + 2;
@@ -528,9 +533,9 @@ struct Grid::AutoPlacement
     {
         struct Cell { int column, row; };
 
-        OccupancyPlane (int highestColumnToUse, int highestRowToUse, bool isColoumnFirst)
-            : highestCrossDimension (isColoumnFirst ? highestRowToUse : highestColumnToUse),
-              columnFirst (isColoumnFirst)
+        OccupancyPlane (int highestColumnToUse, int highestRowToUse, bool isColumnFirst)
+            : highestCrossDimension (isColumnFirst ? highestRowToUse : highestColumnToUse),
+              columnFirst (isColumnFirst)
         {}
 
         Grid::PlacementHelpers::LineArea setCell (Cell cell, int columnSpan, int rowSpan)
@@ -737,7 +742,8 @@ struct Grid::AutoPlacement
         for (auto& item : grid.items)
             sortedItems.add (&item);
 
-        sortedItems.sort (*this, true);
+        std::stable_sort (sortedItems.begin(), sortedItems.end(),
+                          [] (const GridItem* i1, const GridItem* i2)  { return i1->order < i2->order; });
 
         // place fixed items first
         for (auto* item : sortedItems)
@@ -841,12 +847,6 @@ struct Grid::AutoPlacement
             implicitRowTracks.add (grid.autoRows);
 
         return { implicitColumnTracks, implicitRowTracks };
-    }
-
-    //==============================================================================
-    static int compareElements (const GridItem* i1, const GridItem* i2) noexcept
-    {
-        return i1->order < i2->order ? -1 : (i2->order < i1->order ? 1 : 0);
     }
 
     //==============================================================================
@@ -1022,7 +1022,7 @@ void Grid::performLayout (juce::Rectangle<int> targetArea)
                                 + targetArea.toFloat().getPosition();
 
         if (auto* c = item->associatedComponent)
-            c->setBounds (item->currentBounds.toNearestInt());
+            c->setBounds (item->currentBounds.toNearestIntEdges());
     }
 }
 

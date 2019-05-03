@@ -40,6 +40,8 @@ class CodeDocumentLine;
     quick to insert and delete.
 
     @see CodeEditorComponent
+
+    @tags{GUI}
 */
 class JUCE_API  CodeDocument
 {
@@ -253,13 +255,13 @@ public:
 
     //==============================================================================
     /** Returns the preferred new-line characters for the document.
-        This will be either "\n", "\r\n", or (rarely) "\r".
+        This will be either "\\n", "\\r\\n", or (rarely) "\\r".
         @see setNewLineCharacters
     */
     String getNewLineCharacters() const noexcept          { return newLineChars; }
 
     /** Sets the new-line characters that the document should use.
-        The string must be either "\n", "\r\n", or (rarely) "\r".
+        The string must be either "\\n", "\\r\\n", or (rarely) "\\r".
         @see getNewLineCharacters
     */
     void setNewLineCharacters (const String& newLineCharacters) noexcept;
@@ -327,8 +329,8 @@ public:
     class JUCE_API  Listener
     {
     public:
-        Listener() {}
-        virtual ~Listener() {}
+        Listener() = default;
+        virtual ~Listener() = default;
 
         /** Called by a CodeDocument when text is added. */
         virtual void codeDocumentTextInserted (const String& newText, int insertIndex) = 0;
@@ -341,12 +343,12 @@ public:
         If the listener is already registered, this method has no effect.
         @see removeListener
     */
-    void addListener (Listener* listener) noexcept;
+    void addListener (Listener* listener);
 
     /** Deregisters a listener.
         @see addListener
     */
-    void removeListener (Listener* listener) noexcept;
+    void removeListener (Listener* listener);
 
     //==============================================================================
     /** Iterates the text in a CodeDocument.

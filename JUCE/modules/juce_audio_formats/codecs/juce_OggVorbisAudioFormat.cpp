@@ -44,6 +44,9 @@ namespace OggVorbisNamespace
   #pragma clang diagnostic ignored "-Wconversion"
   #pragma clang diagnostic ignored "-Wshadow"
   #pragma clang diagnostic ignored "-Wdeprecated-register"
+  #if __has_warning("-Wzero-as-null-pointer-constant")
+   #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
+  #endif
  #elif JUCE_GCC
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wshadow"
@@ -121,7 +124,7 @@ public:
         callbacks.close_func = &oggCloseCallback;
         callbacks.tell_func  = &oggTellCallback;
 
-        auto err = ov_open_callbacks (input, &ovFile, 0, 0, callbacks);
+        auto err = ov_open_callbacks (input, &ovFile, nullptr, 0, callbacks);
 
         if (err == 0)
         {
@@ -146,7 +149,7 @@ public:
         }
     }
 
-    ~OggReader()
+    ~OggReader() override
     {
         ov_clear (&ovFile);
     }
@@ -263,7 +266,7 @@ public:
 private:
     OggVorbisNamespace::OggVorbis_File ovFile;
     OggVorbisNamespace::ov_callbacks callbacks;
-    AudioSampleBuffer reservoir;
+    AudioBuffer<float> reservoir;
     int reservoirStart = 0, samplesInReservoir = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OggReader)
@@ -319,7 +322,7 @@ public:
         }
     }
 
-    ~OggWriter()
+    ~OggWriter() override
     {
         if (ok)
         {
@@ -377,7 +380,7 @@ public:
 
         while (vorbis_analysis_blockout (&vd, &vb) == 1)
         {
-            vorbis_analysis (&vb, 0);
+            vorbis_analysis (&vb, nullptr);
             vorbis_bitrate_addblock (&vb);
 
             while (vorbis_bitrate_flushpacket (&vd, &op))
@@ -448,7 +451,7 @@ bool OggVorbisAudioFormat::isCompressed()   { return true; }
 
 AudioFormatReader* OggVorbisAudioFormat::createReaderFor (InputStream* in, bool deleteStreamIfOpeningFails)
 {
-    ScopedPointer<OggReader> r (new OggReader (in));
+    std::unique_ptr<OggReader> r (new OggReader (in));
 
     if (r->sampleRate > 0)
         return r.release();
@@ -469,9 +472,9 @@ AudioFormatWriter* OggVorbisAudioFormat::createWriterFor (OutputStream* out,
     if (out == nullptr)
         return nullptr;
 
-    ScopedPointer<OggWriter> w (new OggWriter (out, sampleRate, numChannels,
-                                               (unsigned int) bitsPerSample,
-                                               qualityOptionIndex, metadataValues));
+    std::unique_ptr<OggWriter> w (new OggWriter (out, sampleRate, numChannels,
+                                                 (unsigned int) bitsPerSample,
+                                                 qualityOptionIndex, metadataValues));
 
     return w->ok ? w.release() : nullptr;
 }
@@ -486,7 +489,7 @@ int OggVorbisAudioFormat::estimateOggFileQuality (const File& source)
 {
     if (auto* in = source.createInputStream())
     {
-        if (ScopedPointer<AudioFormatReader> r = createReaderFor (in, true))
+        if (auto r = std::unique_ptr<AudioFormatReader> (createReaderFor (in, true)))
         {
             auto lengthSecs = r->lengthInSamples / r->sampleRate;
             auto approxBitsPerSecond = (int) (source.getSize() * 8 / lengthSecs);

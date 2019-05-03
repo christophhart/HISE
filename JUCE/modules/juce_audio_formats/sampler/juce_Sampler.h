@@ -38,6 +38,8 @@ namespace juce
     give it some SampledSound objects to play.
 
     @see SamplerVoice, Synthesiser, SynthesiserSound
+
+    @tags{Audio}
 */
 class JUCE_API  SamplerSound    : public SynthesiserSound
 {
@@ -70,7 +72,7 @@ public:
                   double maxSampleLengthSeconds);
 
     /** Destructor. */
-    ~SamplerSound();
+    ~SamplerSound() override;
 
     //==============================================================================
     /** Returns the sample's name */
@@ -79,24 +81,27 @@ public:
     /** Returns the audio sample data.
         This could return nullptr if there was a problem loading the data.
     */
-    AudioSampleBuffer* getAudioData() const noexcept        { return data; }
+    AudioBuffer<float>* getAudioData() const noexcept       { return data.get(); }
 
+    //==============================================================================
+    /** Changes the parameters of the ADSR envelope which will be applied to the sample. */
+    void setEnvelopeParameters (ADSR::Parameters parametersToUse)    { params = parametersToUse; }
 
     //==============================================================================
     bool appliesToNote (int midiNoteNumber) override;
     bool appliesToChannel (int midiChannel) override;
-
 
 private:
     //==============================================================================
     friend class SamplerVoice;
 
     String name;
-    ScopedPointer<AudioSampleBuffer> data;
+    std::unique_ptr<AudioBuffer<float>> data;
     double sourceSampleRate;
     BigInteger midiNotes;
-    int length = 0, attackSamples = 0, releaseSamples = 0;
-    int midiRootNote = 0;
+    int length = 0, midiRootNote = 0;
+
+    ADSR::Parameters params;
 
     JUCE_LEAK_DETECTOR (SamplerSound)
 };
@@ -110,6 +115,8 @@ private:
     give it some SampledSound objects to play.
 
     @see SamplerSound, Synthesiser, SynthesiserVoice
+
+    @tags{Audio}
 */
 class JUCE_API  SamplerVoice    : public SynthesiserVoice
 {
@@ -119,7 +126,7 @@ public:
     SamplerVoice();
 
     /** Destructor. */
-    ~SamplerVoice();
+    ~SamplerVoice() override;
 
     //==============================================================================
     bool canPlaySound (SynthesiserSound*) override;
@@ -130,15 +137,15 @@ public:
     void pitchWheelMoved (int newValue) override;
     void controllerMoved (int controllerNumber, int newValue) override;
 
-    void renderNextBlock (AudioSampleBuffer&, int startSample, int numSamples) override;
-
+    void renderNextBlock (AudioBuffer<float>&, int startSample, int numSamples) override;
 
 private:
     //==============================================================================
     double pitchRatio = 0;
     double sourceSamplePosition = 0;
-    float lgain = 0, rgain = 0, attackReleaseLevel = 0, attackDelta = 0, releaseDelta = 0;
-    bool isInAttack = false, isInRelease = false;
+    float lgain = 0, rgain = 0;
+
+    ADSR adsr;
 
     JUCE_LEAK_DETECTOR (SamplerVoice)
 };

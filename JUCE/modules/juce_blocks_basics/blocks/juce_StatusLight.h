@@ -25,6 +25,8 @@ namespace juce
 
 /**
     Represents a status LED on a device.
+
+    @tags{Blocks}
 */
 class StatusLight
 {
@@ -36,7 +38,7 @@ public:
 
     //==============================================================================
     /** Returns a name to describe this light. */
-    virtual juce::String getName() const = 0;
+    virtual String getName() const = 0;
 
     /** Changes the light's colour. */
     virtual bool setColour (LEDColour newColour) = 0;

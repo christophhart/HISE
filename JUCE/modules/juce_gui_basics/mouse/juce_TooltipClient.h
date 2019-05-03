@@ -36,12 +36,14 @@ namespace juce
     the tooltip returned by its getTooltip() method.
 
     @see TooltipWindow, SettableTooltipClient
+
+    @tags{GUI}
 */
 class JUCE_API  TooltipClient
 {
 public:
     /** Destructor. */
-    virtual ~TooltipClient()  {}
+    virtual ~TooltipClient() = default;
 
     /** Returns the string that this object wants to show as its tooltip. */
     virtual String getTooltip() = 0;
@@ -56,17 +58,19 @@ public:
     This makes it easy to add a tooltip to a custom component, by simply adding this
     as a base class and calling setTooltip().
 
-    Many of the Juce widgets already use this as a base class to implement their
+    Many of the JUCE widgets already use this as a base class to implement their
     tooltips.
 
     @see TooltipClient, TooltipWindow
+
+    @tags{GUI}
 */
 class JUCE_API  SettableTooltipClient   : public TooltipClient
 {
 public:
     //==============================================================================
     /** Destructor. */
-    ~SettableTooltipClient() {}
+    ~SettableTooltipClient() override = default;
 
     //==============================================================================
     /** Assigns a new tooltip to this object. */
@@ -76,7 +80,7 @@ public:
     String getTooltip() override                                    { return tooltipString; }
 
 protected:
-    SettableTooltipClient() {}
+    SettableTooltipClient() = default;
 
 private:
     String tooltipString;

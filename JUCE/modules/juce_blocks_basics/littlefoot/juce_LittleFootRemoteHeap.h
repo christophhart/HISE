@@ -20,6 +20,8 @@
   ==============================================================================
 */
 
+#define JUCE_DUMP_LITTLEFOOT_HEAP_STATUS 0
+
 namespace littlefoot
 {
 
@@ -30,6 +32,8 @@ namespace littlefoot
 
     Data in the block can be changed by calling setByte, setBytes, setBits etc, and
     these changes will be flushed to the device when sendChanges is called.
+
+    @tags{Blocks}
 */
 template <typename ImplementationClass>
 struct LittleFootRemoteHeap
@@ -187,6 +191,7 @@ struct LittleFootRemoteHeap
                     for (uint32 j = 0; j < blockSize; ++j)
                         deviceState[j] = m.resultDataState[j];
 
+                    programStateKnown = false;
                     messagesSent.removeRange (0, i + 1);
                     dumpStatus();
                     sendChanges (bi, false);
@@ -261,7 +266,7 @@ private:
 
     void dumpStatus()
     {
-       #if DUMP_LITTLEFOOT_HEAP_STATUS
+       #if JUCE_DUMP_LITTLEFOOT_HEAP_STATUS
         int differences = 0;
         constexpr int diffLen = 50;
         char areas[diffLen + 1] = { 0 };
@@ -280,7 +285,7 @@ private:
 
         double proportionOK = ((int) blockSize - differences) / (double) blockSize;
 
-        juce::ignoreUnused (proportionOK);
+        ignoreUnused (proportionOK);
 
         DBG ("Heap: " << areas << "  " << String (roundToInt (100 * proportionOK)) << "%  "
                << (isProgramLoaded() ? "Ready" : "Loading"));

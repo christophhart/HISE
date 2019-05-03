@@ -81,6 +81,8 @@ namespace juce
     the object yourself.
 
     @see ApplicationCommandTarget, ApplicationCommandInfo
+
+    @tags{GUI}
 */
 class JUCE_API  ApplicationCommandManager   : private AsyncUpdater,
                                               private FocusChangeListener
@@ -100,7 +102,7 @@ public:
         Make sure that you don't delete this if pointers to it are still being used by
         objects such as PopupMenus or Buttons.
     */
-    virtual ~ApplicationCommandManager();
+    ~ApplicationCommandManager() override;
 
     //==============================================================================
     /** Clears the current list of all commands.
@@ -198,7 +200,7 @@ public:
 
         @see KeyPressMappingSet
     */
-    KeyPressMappingSet* getKeyMappings() const noexcept                         { return keyMappings; }
+    KeyPressMappingSet* getKeyMappings() const noexcept         { return keyMappings.get(); }
 
 
     //==============================================================================
@@ -303,8 +305,8 @@ private:
     //==============================================================================
     OwnedArray<ApplicationCommandInfo> commands;
     ListenerList<ApplicationCommandManagerListener> listeners;
-    ScopedPointer<KeyPressMappingSet> keyMappings;
-    ApplicationCommandTarget* firstTarget;
+    std::unique_ptr<KeyPressMappingSet> keyMappings;
+    ApplicationCommandTarget* firstTarget = nullptr;
 
     void sendListenerInvokeCallback (const ApplicationCommandTarget::InvocationInfo&);
     void handleAsyncUpdate() override;
@@ -328,13 +330,15 @@ private:
 
     @see ApplicationCommandManager::addListener, ApplicationCommandManager::removeListener
 
+
+    @tags{GUI}
 */
 class JUCE_API  ApplicationCommandManagerListener
 {
 public:
     //==============================================================================
     /** Destructor. */
-    virtual ~ApplicationCommandManagerListener()  {}
+    virtual ~ApplicationCommandManagerListener() = default;
 
     /** Called when an app command is about to be invoked. */
     virtual void applicationCommandInvoked (const ApplicationCommandTarget::InvocationInfo&) = 0;

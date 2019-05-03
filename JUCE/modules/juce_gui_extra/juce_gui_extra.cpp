@@ -55,6 +55,12 @@
  #import <IOKit/hid/IOHIDKeys.h>
  #import <IOKit/pwr_mgt/IOPMLib.h>
 
+ #if JUCE_PUSH_NOTIFICATIONS
+  #import <Foundation/NSUserNotification.h>
+
+  #include "native/juce_mac_PushNotifications.cpp"
+ #endif
+
 //==============================================================================
 #elif JUCE_IOS
  #if JUCE_PUSH_NOTIFICATIONS
@@ -94,7 +100,18 @@
   #include <unistd.h>
   #include <fcntl.h>
   #include <sys/wait.h>
+
+  #if JUCE_GCC && __GNUC__ > 7
+   #pragma GCC diagnostic push
+   #pragma GCC diagnostic ignored "-Wparentheses"
+  #endif
+
   #include <gtk/gtk.h>
+
+  #if JUCE_GCC && __GNUC__ > 7
+   #pragma GCC diagnostic pop
+  #endif
+
   #include <gtk/gtkx.h>
   #include <glib-unix.h>
   #include <webkit2/webkit2.h>
@@ -163,6 +180,8 @@
 
 //==============================================================================
 #elif JUCE_ANDROID
+ #include "native/juce_AndroidViewComponent.cpp"
+
  #if JUCE_WEB_BROWSER
   #include "native/juce_android_WebBrowserComponent.cpp"
  #endif

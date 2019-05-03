@@ -773,8 +773,8 @@ void CodeDocument::checkLastLineStatus()
 }
 
 //==============================================================================
-void CodeDocument::addListener    (CodeDocument::Listener* l) noexcept   { listeners.add (l); }
-void CodeDocument::removeListener (CodeDocument::Listener* l) noexcept   { listeners.remove (l); }
+void CodeDocument::addListener    (CodeDocument::Listener* l)   { listeners.add (l); }
+void CodeDocument::removeListener (CodeDocument::Listener* l)   { listeners.remove (l); }
 
 //==============================================================================
 struct CodeDocument::InsertAction   : public UndoableAction
@@ -859,7 +859,7 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
                 if (p->getPosition() >= insertPos)
                     p->setPosition (p->getPosition() + newTextLength);
 
-            listeners.call (&CodeDocument::Listener::codeDocumentTextInserted, text, insertPos);
+            listeners.call ([&] (Listener& l) { l.codeDocumentTextInserted (text, insertPos); });
         }
     }
 }
@@ -953,7 +953,7 @@ void CodeDocument::remove (const int startPos, const int endPos, const bool undo
                 p->setPosition (totalChars);
         }
 
-        listeners.call (&CodeDocument::Listener::codeDocumentTextDeleted, startPos, endPos);
+        listeners.call ([=] (Listener& l) { l.codeDocumentTextDeleted (startPos, endPos); });
     }
 }
 

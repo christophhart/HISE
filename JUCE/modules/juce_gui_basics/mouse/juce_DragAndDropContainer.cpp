@@ -45,7 +45,9 @@ public:
         : sourceDetails (desc, sourceComponent, Point<int>()),
           image (im), owner (ddc),
           mouseDragSource (draggingSource->getComponentUnderMouse()),
-          imageOffset (offset), originalMouseIndex (draggingSource->getIndex())
+          imageOffset (offset),
+          originalInputSourceIndex (draggingSource->getIndex()),
+          originalInputSourceType (draggingSource->getType())
     {
         updateSize();
 
@@ -60,7 +62,7 @@ public:
         setAlwaysOnTop (true);
     }
 
-    ~DragImageComponent()
+    ~DragImageComponent() override
     {
         owner.dragImageComponents.remove (owner.dragImageComponents.indexOf (this), false);
 
@@ -68,7 +70,7 @@ public:
         {
             mouseDragSource->removeMouseListener (this);
 
-            if (DragAndDropTarget* const current = getCurrentlyOver())
+            if (auto* current = getCurrentlyOver())
                 if (current->isInterestedInDragSource (sourceDetails))
                     current->itemDragExit (sourceDetails);
         }
@@ -87,14 +89,14 @@ public:
 
     void mouseUp (const MouseEvent& e) override
     {
-        if (e.originalComponent != this && e.source.getIndex() == originalMouseIndex)
+        if (e.originalComponent != this && isOriginalInputSource (e.source))
         {
             if (mouseDragSource != nullptr)
                 mouseDragSource->removeMouseListener (this);
 
             // (note: use a local copy of this in case the callback runs
             // a modal loop and deletes this object before the method completes)
-            DragAndDropTarget::SourceDetails details (sourceDetails);
+            auto details = sourceDetails;
             DragAndDropTarget* finalTarget = nullptr;
 
             auto wasVisible = isVisible();
@@ -105,7 +107,7 @@ public:
             if (wasVisible) // fade the component and remove it - it'll be deleted later by the timer callback
                 dismissWithAnimation (finalTarget == nullptr);
 
-            if (Component* parent = getParentComponent())
+            if (auto* parent = getParentComponent())
                 parent->removeChildComponent (this);
 
             if (finalTarget != nullptr)
@@ -120,7 +122,7 @@ public:
 
     void mouseDrag (const MouseEvent& e) override
     {
-        if (e.originalComponent != this && e.source.getIndex() == originalMouseIndex)
+        if (e.originalComponent != this && isOriginalInputSource (e.source))
             updateLocation (true, e.getScreenPosition());
     }
 
@@ -180,14 +182,15 @@ public:
         }
         else
         {
-            if (auto* ms = Desktop::getInstance().getMouseSource (originalMouseIndex))
+            for (auto& s : Desktop::getInstance().getMouseSources())
             {
-                if (! ms->isDragging())
+                if (isOriginalInputSource (s) && ! s.isDragging())
                 {
                     if (mouseDragSource != nullptr)
                         mouseDragSource->removeMouseListener (this);
 
                     deleteSelf();
+                    break;
                 }
             }
         }
@@ -222,7 +225,8 @@ private:
     const Point<int> imageOffset;
     bool hasCheckedForExternalDrag = false;
     Time lastTimeOverTarget;
-    int originalMouseIndex;
+    int originalInputSourceIndex;
+    MouseInputSource::InputSourceType originalInputSourceType;
 
     void updateSize()
     {
@@ -245,10 +249,16 @@ private:
 
         for (auto i = desktop.getNumComponents(); --i >= 0;)
         {
-            auto* c = desktop.getComponent(i);
+            auto* desktopComponent = desktop.getComponent (i);
+            auto dPoint = desktopComponent->getLocalPoint (nullptr, screenPos);
 
-            if (auto* hit = c->getComponentAt (c->getLocalPoint (nullptr, screenPos)))
-                return hit;
+            if (auto* c = desktopComponent->getComponentAt (dPoint))
+            {
+                auto cPoint = c->getLocalPoint (desktopComponent, dPoint);
+
+                if (c->hitTest (cPoint.getX(), cPoint.getY()))
+                    return c;
+            }
         }
 
         return nullptr;
@@ -312,14 +322,14 @@ private:
             {
                 hasCheckedForExternalDrag = true;
 
-                if (ModifierKeys::getCurrentModifiersRealtime().isAnyMouseButtonDown())
+                if (ComponentPeer::getCurrentModifiersRealtime().isAnyMouseButtonDown())
                 {
                     StringArray files;
                     auto canMoveFiles = false;
 
                     if (owner.shouldDropFilesWhenDraggedExternally (details, files, canMoveFiles) && ! files.isEmpty())
                     {
-                        MessageManager::callAsync ([=]()  { DragAndDropContainer::performExternalDragDropOfFiles (files, canMoveFiles); });
+                        MessageManager::callAsync ([=] { DragAndDropContainer::performExternalDragDropOfFiles (files, canMoveFiles); });
                         deleteSelf();
                         return;
                     }
@@ -328,7 +338,7 @@ private:
 
                     if (owner.shouldDropTextWhenDraggedExternally (details, text) && text.isNotEmpty())
                     {
-                        MessageManager::callAsync ([=]()  { DragAndDropContainer::performExternalDragDropOfText (text); });
+                        MessageManager::callAsync ([=] { DragAndDropContainer::performExternalDragDropOfText (text); });
                         deleteSelf();
                         return;
                     }
@@ -363,6 +373,12 @@ private:
         }
     }
 
+    bool isOriginalInputSource (const MouseInputSource& sourceToCheck)
+    {
+        return (sourceToCheck.getType() == originalInputSourceType
+                && sourceToCheck.getIndex() == originalInputSourceIndex);
+    }
+
     JUCE_DECLARE_NON_COPYABLE (DragImageComponent)
 };
 
@@ -383,7 +399,17 @@ void DragAndDropContainer::startDragging (const var& sourceDescription,
                                           const Point<int>* imageOffsetFromMouse,
                                           const MouseInputSource* inputSourceCausingDrag)
 {
+    if (isAlreadyDragging (sourceComponent))
+        return;
+
     auto* draggingSource = getMouseInputSourceForDrag (sourceComponent, inputSourceCausingDrag);
+
+    if (draggingSource == nullptr || ! draggingSource->isDragging())
+    {
+        jassertfalse;   // You must call startDragging() from within a mouseDown or mouseDrag callback!
+        return;
+    }
+
     auto lastMouseDown = draggingSource->getLastMouseDownPosition().roundToInt();
     Point<int> imageOffset;
 
@@ -559,6 +585,17 @@ const MouseInputSource* DragAndDropContainer::getMouseInputSourceForDrag (Compon
     jassert (inputSourceCausingDrag != nullptr && inputSourceCausingDrag->isDragging());
 
     return inputSourceCausingDrag;
+}
+
+bool DragAndDropContainer::isAlreadyDragging (Component* component) const noexcept
+{
+    for (auto* dragImageComp : dragImageComponents)
+    {
+        if (dragImageComp->sourceDetails.sourceComponent == component)
+            return true;
+    }
+
+    return false;
 }
 
 //==============================================================================

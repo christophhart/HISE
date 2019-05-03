@@ -31,7 +31,7 @@
 
   ID:               juce_blocks_basics
   vendor:           juce
-  version:          5.2.0
+  version:          5.4.3
   name:             Provides low-level control over ROLI BLOCKS devices
   description:      JUCE wrapper for low-level control over ROLI BLOCKS devices.
   website:          http://developer.roli.com
@@ -50,6 +50,12 @@
 #include <juce_events/juce_events.h>
 #include <juce_audio_devices/juce_audio_devices.h>
 
+#if ! JUCE_HAS_CONSTEXPR
+ #ifndef JUCE_DEMO_RUNNER
+  #error "The juce_blocks_basics module requires a compiler that supports constexpr"
+ #endif
+#else
+
 namespace juce
 {
     class TouchSurface;
@@ -67,7 +73,9 @@ namespace juce
 #include "blocks/juce_ControlButton.h"
 #include "blocks/juce_TouchList.h"
 #include "blocks/juce_StatusLight.h"
+#include "blocks/juce_BlocksVersion.h"
 #include "topology/juce_Topology.h"
+#include "topology/juce_BlockGraph.h"
 #include "topology/juce_TopologySource.h"
 #include "topology/juce_PhysicalTopologySource.h"
 #include "topology/juce_RuleBasedTopologySource.h"
@@ -78,5 +86,6 @@ namespace juce
 {
  #include "littlefoot/juce_LittleFootRunner.h"
  #include "littlefoot/juce_LittleFootCompiler.h"
- #include "littlefoot/juce_LittleFootRemoteHeap.h"
 }
+
+#endif

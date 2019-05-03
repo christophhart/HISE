@@ -61,9 +61,10 @@ namespace juce
     @endcode
 
     @see FileChooser
+
+    @tags{GUI}
 */
 class JUCE_API  FileChooserDialogBox : public ResizableWindow,
-                                       private Button::Listener,
                                        private FileBrowserListener
 {
 public:
@@ -80,6 +81,11 @@ public:
                                 if they try to select a file that already exists. (This
                                 flag is only used when saving files)
         @param backgroundColour the background colour for the top level window
+        @param parentComponent  an optional component which should be the parent
+                                for the file chooser. If this is a nullptr then the
+                                dialog box will be a top-level window. AUv3s on iOS
+                                must specify this parameter as opening a top-level window
+                                in an AUv3 is forbidden due to sandbox restrictions.
 
         @see FileBrowserComponent, FilePreviewComponent
     */
@@ -87,10 +93,11 @@ public:
                           const String& instructions,
                           FileBrowserComponent& browserComponent,
                           bool warnAboutOverwritingExistingFiles,
-                          Colour backgroundColour);
+                          Colour backgroundColour,
+                          Component* parentComponent = nullptr);
 
     /** Destructor. */
-    ~FileChooserDialogBox();
+    ~FileChooserDialogBox() override;
 
     //==============================================================================
    #if JUCE_MODAL_LOOPS_PERMITTED
@@ -136,7 +143,6 @@ private:
     ContentComponent* content;
     const bool warnAboutOverwritingExistingFiles;
 
-    void buttonClicked (Button*) override;
     void closeButtonPressed();
     void selectionChanged() override;
     void fileClicked (const File&, const MouseEvent&) override;

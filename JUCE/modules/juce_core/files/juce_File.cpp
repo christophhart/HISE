@@ -53,19 +53,17 @@ File& File::operator= (const File& other)
 }
 
 File::File (File&& other) noexcept
-    : fullPath (static_cast<String&&> (other.fullPath))
+    : fullPath (std::move (other.fullPath))
 {
 }
 
 File& File::operator= (File&& other) noexcept
 {
-    fullPath = static_cast<String&&> (other.fullPath);
+    fullPath = std::move (other.fullPath);
     return *this;
 }
 
-#if JUCE_ALLOW_STATIC_NULL_VARIABLES
-const File File::nonexistent;
-#endif
+JUCE_DECLARE_DEPRECATED_STATIC (const File File::nonexistent{};)
 
 //==============================================================================
 static String removeEllipsis (const String& path)
@@ -247,13 +245,8 @@ bool File::setReadOnly (const bool shouldBeReadOnly,
     bool worked = true;
 
     if (applyRecursively && isDirectory())
-    {
-        Array<File> subFiles;
-        findChildFiles (subFiles, File::findFilesAndDirectories, false);
-
-        for (auto& f : subFiles)
+        for (auto& f : findChildFiles (File::findFilesAndDirectories, false))
             worked = f.setReadOnly (shouldBeReadOnly, true) && worked;
-    }
 
     return setFileReadOnlyInternal (shouldBeReadOnly) && worked;
 }
@@ -263,18 +256,13 @@ bool File::setExecutePermission (bool shouldBeExecutable) const
     return setFileExecutableInternal (shouldBeExecutable);
 }
 
-bool File::deleteRecursively() const
+bool File::deleteRecursively (bool followSymlinks) const
 {
     bool worked = true;
 
-    if (isDirectory())
-    {
-        Array<File> subFiles;
-        findChildFiles (subFiles, File::findFilesAndDirectories, false);
-
-        for (auto& f : subFiles)
-            worked = f.deleteRecursively() && worked;
-    }
+    if (isDirectory() && (followSymlinks || ! isSymbolicLink()))
+        for (auto& f : findChildFiles (File::findFilesAndDirectories, false))
+            worked = f.deleteRecursively (followSymlinks) && worked;
 
     return deleteFile() && worked;
 }
@@ -321,17 +309,11 @@ bool File::copyDirectoryTo (const File& newDirectory) const
 {
     if (isDirectory() && newDirectory.createDirectory())
     {
-        Array<File> subFiles;
-        findChildFiles (subFiles, File::findFiles, false);
-
-        for (auto& f : subFiles)
+        for (auto& f : findChildFiles (File::findFiles, false))
             if (! f.copyFileTo (newDirectory.getChildFile (f.getFileName())))
                 return false;
 
-        subFiles.clear();
-        findChildFiles (subFiles, File::findDirectories, false);
-
-        for (auto& f : subFiles)
+        for (auto& f : findChildFiles (File::findDirectories, false))
             if (! f.copyDirectoryTo (newDirectory.getChildFile (f.getFileName())))
                 return false;
 
@@ -561,14 +543,18 @@ void File::readLines (StringArray& destLines) const
 }
 
 //==============================================================================
-int File::findChildFiles (Array<File>& results,
-                          const int whatToLookFor,
-                          const bool searchRecursively,
-                          const String& wildCardPattern) const
+Array<File> File::findChildFiles (int whatToLookFor, bool searchRecursively, const String& wildcard) const
+{
+    Array<File> results;
+    findChildFiles (results, whatToLookFor, searchRecursively, wildcard);
+    return results;
+}
+
+int File::findChildFiles (Array<File>& results, int whatToLookFor, bool searchRecursively, const String& wildcard) const
 {
     int total = 0;
 
-    for (DirectoryIterator di (*this, searchRecursively, wildCardPattern, whatToLookFor); di.next();)
+    for (DirectoryIterator di (*this, searchRecursively, wildcard, whatToLookFor); di.next();)
     {
         results.add (di.getFile());
         ++total;
@@ -722,7 +708,7 @@ bool File::startAsProcess (const String& parameters) const
 //==============================================================================
 FileInputStream* File::createInputStream() const
 {
-    ScopedPointer<FileInputStream> fin (new FileInputStream (*this));
+    std::unique_ptr<FileInputStream> fin (new FileInputStream (*this));
 
     if (fin->openedOk())
         return fin.release();
@@ -732,7 +718,7 @@ FileInputStream* File::createInputStream() const
 
 FileOutputStream* File::createOutputStream (size_t bufferSize) const
 {
-    ScopedPointer<FileOutputStream> out (new FileOutputStream (*this, bufferSize));
+    std::unique_ptr<FileOutputStream> out (new FileOutputStream (*this, bufferSize));
 
     return out->failedToOpen() ? nullptr
                                : out.release();
@@ -762,24 +748,20 @@ bool File::replaceWithData (const void* const dataToWrite,
     return tempFile.overwriteTargetFileWithTemporary();
 }
 
-bool File::appendText (const String& text,
-                       const bool asUnicode,
-                       const bool writeUnicodeHeaderBytes) const
+bool File::appendText (const String& text, bool asUnicode, bool writeHeaderBytes, const char* lineFeed) const
 {
     FileOutputStream out (*this);
 
     if (out.failedToOpen())
         return false;
 
-    return out.writeText (text, asUnicode, writeUnicodeHeaderBytes);
+    return out.writeText (text, asUnicode, writeHeaderBytes, lineFeed);
 }
 
-bool File::replaceWithText (const String& textToWrite,
-                            const bool asUnicode,
-                            const bool writeUnicodeHeaderBytes) const
+bool File::replaceWithText (const String& textToWrite, bool asUnicode, bool writeHeaderBytes, const char* lineFeed) const
 {
     TemporaryFile tempFile (*this, TemporaryFile::useHiddenFile);
-    tempFile.getFile().appendText (textToWrite, asUnicode, writeUnicodeHeaderBytes);
+    tempFile.getFile().appendText (textToWrite, asUnicode, writeHeaderBytes, lineFeed);
     return tempFile.overwriteTargetFileWithTemporary();
 }
 
@@ -953,7 +935,9 @@ File File::createTempFile (StringRef fileNameEnding)
     return tempFile;
 }
 
-bool File::createSymbolicLink (const File& linkFileToCreate, bool overwriteExisting) const
+bool File::createSymbolicLink (const File& linkFileToCreate,
+                               const String& nativePathOfTarget,
+                               bool overwriteExisting)
 {
     if (linkFileToCreate.exists())
     {
@@ -971,7 +955,7 @@ bool File::createSymbolicLink (const File& linkFileToCreate, bool overwriteExist
 
    #if JUCE_MAC || JUCE_LINUX
     // one common reason for getting an error here is that the file already exists
-    if (symlink (fullPath.toRawUTF8(), linkFileToCreate.getFullPathName().toRawUTF8()) == -1)
+    if (symlink (nativePathOfTarget.toRawUTF8(), linkFileToCreate.getFullPathName().toRawUTF8()) == -1)
     {
         jassertfalse;
         return false;
@@ -979,14 +963,32 @@ bool File::createSymbolicLink (const File& linkFileToCreate, bool overwriteExist
 
     return true;
    #elif JUCE_MSVC
+    File targetFile (linkFileToCreate.getSiblingFile (nativePathOfTarget));
+
     return CreateSymbolicLink (linkFileToCreate.getFullPathName().toWideCharPointer(),
-                               fullPath.toWideCharPointer(),
-                               isDirectory() ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0) != FALSE;
+                               nativePathOfTarget.toWideCharPointer(),
+                               targetFile.isDirectory() ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0) != FALSE;
    #else
+    ignoreUnused (nativePathOfTarget);
     jassertfalse; // symbolic links not supported on this platform!
     return false;
    #endif
 }
+
+bool File::createSymbolicLink (const File& linkFileToCreate, bool overwriteExisting) const
+{
+    return createSymbolicLink (linkFileToCreate, getFullPathName(), overwriteExisting);
+}
+
+#if ! JUCE_WINDOWS
+File File::getLinkedTarget() const
+{
+    if (isSymbolicLink())
+        return getSiblingFile (getNativeLinkedTarget());
+
+    return *this;
+}
+#endif
 
 //==============================================================================
 MemoryMappedFile::MemoryMappedFile (const File& file, MemoryMappedFile::AccessMode mode, bool exclusive)
@@ -1056,24 +1058,14 @@ public:
 
         beginTest ("Writing");
 
-        File demoFolder (temp.getChildFile ("Juce UnitTests Temp Folder.folder"));
+        File demoFolder (temp.getChildFile ("JUCE UnitTests Temp Folder.folder"));
         expect (demoFolder.deleteRecursively());
         expect (demoFolder.createDirectory());
         expect (demoFolder.isDirectory());
         expect (demoFolder.getParentDirectory() == temp);
         expect (temp.isDirectory());
-
-        {
-            Array<File> files;
-            temp.findChildFiles (files, File::findFilesAndDirectories, false, "*");
-            expect (files.contains (demoFolder));
-        }
-
-        {
-            Array<File> files;
-            temp.findChildFiles (files, File::findDirectories, true, "*.folder");
-            expect (files.contains (demoFolder));
-        }
+        expect (temp.findChildFiles (File::findFilesAndDirectories, false, "*").contains (demoFolder));
+        expect (temp.findChildFiles (File::findDirectories, true, "*.folder").contains (demoFolder));
 
         File tempFile (demoFolder.getNonexistentChildFile ("test", ".txt", false));
 

@@ -37,24 +37,45 @@ AudioFormatReader::~AudioFormatReader()
     delete input;
 }
 
-bool AudioFormatReader::read (int* const* destSamples,
+static void convertFixedToFloat (int* const* channels, int numChannels, int numSamples)
+{
+    for (int i = 0; i < numChannels; ++i)
+        if (auto d = channels[i])
+            FloatVectorOperations::convertFixedToFloat (reinterpret_cast<float*> (d), d, 1.0f / 0x7fffffff, numSamples);
+}
+
+bool AudioFormatReader::read (float* const* destChannels, int numDestChannels,
+                              int64 startSampleInSource, int numSamplesToRead)
+{
+    auto channelsAsInt = reinterpret_cast<int* const*> (destChannels);
+
+    if (! read (channelsAsInt, numDestChannels, startSampleInSource, numSamplesToRead, false))
+        return false;
+
+    if (! usesFloatingPointData)
+        convertFixedToFloat (channelsAsInt, numDestChannels, numSamplesToRead);
+
+    return true;
+}
+
+bool AudioFormatReader::read (int* const* destChannels,
                               int numDestChannels,
                               int64 startSampleInSource,
                               int numSamplesToRead,
-                              const bool fillLeftoverChannelsWithCopies)
+                              bool fillLeftoverChannelsWithCopies)
 {
     jassert (numDestChannels > 0); // you have to actually give this some channels to work with!
 
-    const size_t originalNumSamplesToRead = (size_t) numSamplesToRead;
+    auto originalNumSamplesToRead = (size_t) numSamplesToRead;
     int startOffsetInDestBuffer = 0;
 
     if (startSampleInSource < 0)
     {
-        const int silence = (int) jmin (-startSampleInSource, (int64) numSamplesToRead);
+        auto silence = (int) jmin (-startSampleInSource, (int64) numSamplesToRead);
 
         for (int i = numDestChannels; --i >= 0;)
-            if (destSamples[i] != nullptr)
-                zeromem (destSamples[i], sizeof (int) * (size_t) silence);
+            if (auto d = destChannels[i])
+                zeromem (d, sizeof (int) * (size_t) silence);
 
         startOffsetInDestBuffer += silence;
         numSamplesToRead -= silence;
@@ -64,7 +85,7 @@ bool AudioFormatReader::read (int* const* destSamples,
     if (numSamplesToRead <= 0)
         return true;
 
-    if (! readSamples (const_cast<int**> (destSamples),
+    if (! readSamples (const_cast<int**> (destChannels),
                        jmin ((int) numChannels, numDestChannels), startOffsetInDestBuffer,
                        startSampleInSource, numSamplesToRead))
         return false;
@@ -73,46 +94,48 @@ bool AudioFormatReader::read (int* const* destSamples,
     {
         if (fillLeftoverChannelsWithCopies)
         {
-            int* lastFullChannel = destSamples[0];
+            auto lastFullChannel = destChannels[0];
 
             for (int i = (int) numChannels; --i > 0;)
             {
-                if (destSamples[i] != nullptr)
+                if (destChannels[i] != nullptr)
                 {
-                    lastFullChannel = destSamples[i];
+                    lastFullChannel = destChannels[i];
                     break;
                 }
             }
 
             if (lastFullChannel != nullptr)
                 for (int i = (int) numChannels; i < numDestChannels; ++i)
-                    if (destSamples[i] != nullptr)
-                        memcpy (destSamples[i], lastFullChannel, sizeof (int) * originalNumSamplesToRead);
+                    if (auto d = destChannels[i])
+                        memcpy (d, lastFullChannel, sizeof (int) * originalNumSamplesToRead);
         }
         else
         {
             for (int i = (int) numChannels; i < numDestChannels; ++i)
-                if (destSamples[i] != nullptr)
-                    zeromem (destSamples[i], sizeof (int) * originalNumSamplesToRead);
+                if (auto d = destChannels[i])
+                    zeromem (d, sizeof (int) * originalNumSamplesToRead);
         }
     }
 
     return true;
 }
 
-static void readChannels (AudioFormatReader& reader,
-                          int** const chans, AudioSampleBuffer* const buffer,
-                          const int startSample, const int numSamples,
-                          const int64 readerStartSample, const int numTargetChannels)
+static void readChannels (AudioFormatReader& reader, int** chans, AudioBuffer<float>* buffer,
+                          int startSample, int numSamples, int64 readerStartSample, int numTargetChannels,
+                          bool convertToFloat)
 {
     for (int j = 0; j < numTargetChannels; ++j)
         chans[j] = reinterpret_cast<int*> (buffer->getWritePointer (j, startSample));
 
     chans[numTargetChannels] = nullptr;
     reader.read (chans, numTargetChannels, readerStartSample, numSamples, true);
+
+    if (convertToFloat)
+        convertFixedToFloat (chans, numTargetChannels, numSamples);
 }
 
-void AudioFormatReader::read (AudioSampleBuffer* buffer,
+void AudioFormatReader::read (AudioBuffer<float>* buffer,
                               int startSample,
                               int numSamples,
                               int64 readerStartSample,
@@ -124,52 +147,51 @@ void AudioFormatReader::read (AudioSampleBuffer* buffer,
 
     if (numSamples > 0)
     {
-        const int numTargetChannels = buffer->getNumChannels();
+        auto numTargetChannels = buffer->getNumChannels();
 
         if (numTargetChannels <= 2)
         {
-            int* const dest0 = reinterpret_cast<int*> (buffer->getWritePointer (0, startSample));
-            int* const dest1 = reinterpret_cast<int*> (numTargetChannels > 1 ? buffer->getWritePointer (1, startSample) : nullptr);
-            int* chans[3];
+            int* dests[2] = { reinterpret_cast<int*> (buffer->getWritePointer (0, startSample)),
+                              reinterpret_cast<int*> (numTargetChannels > 1 ? buffer->getWritePointer (1, startSample) : nullptr) };
+            int* chans[3] = {};
 
             if (useReaderLeftChan == useReaderRightChan)
             {
-                chans[0] = dest0;
-                chans[1] = numChannels > 1 ? dest1 : nullptr;
+                chans[0] = dests[0];
+
+                if (numChannels > 1)
+                    chans[1] = dests[1];
             }
             else if (useReaderLeftChan || (numChannels == 1))
             {
-                chans[0] = dest0;
-                chans[1] = nullptr;
+                chans[0] = dests[0];
             }
             else if (useReaderRightChan)
             {
-                chans[0] = nullptr;
-                chans[1] = dest0;
+                chans[1] = dests[0];
             }
 
-            chans[2] = nullptr;
             read (chans, 2, readerStartSample, numSamples, true);
 
             // if the target's stereo and the source is mono, dupe the first channel..
             if (numTargetChannels > 1 && (chans[0] == nullptr || chans[1] == nullptr))
-                memcpy (dest1, dest0, sizeof (float) * (size_t) numSamples);
+                memcpy (dests[1], dests[0], sizeof (float) * (size_t) numSamples);
+
+            if (! usesFloatingPointData)
+                convertFixedToFloat (dests, 2, numSamples);
         }
         else if (numTargetChannels <= 64)
         {
             int* chans[65];
-            readChannels (*this, chans, buffer, startSample, numSamples, readerStartSample, numTargetChannels);
+            readChannels (*this, chans, buffer, startSample, numSamples,
+                          readerStartSample, numTargetChannels, ! usesFloatingPointData);
         }
         else
         {
             HeapBlock<int*> chans (numTargetChannels + 1);
-            readChannels (*this, chans, buffer, startSample, numSamples, readerStartSample, numTargetChannels);
+            readChannels (*this, chans, buffer, startSample, numSamples,
+                          readerStartSample, numTargetChannels, ! usesFloatingPointData);
         }
-
-        if (! usesFloatingPointData)
-            for (int j = 0; j < numTargetChannels; ++j)
-                if (float* const d = buffer->getWritePointer (j, startSample))
-                    FloatVectorOperations::convertFixedToFloat (d, reinterpret_cast<const int*> (d), 1.0f / 0x7fffffff, numSamples);
     }
 }
 
@@ -186,16 +208,17 @@ void AudioFormatReader::readMaxLevels (int64 startSampleInFile, int64 numSamples
         return;
     }
 
-    const int bufferSize = (int) jmin (numSamples, (int64) 4096);
-    AudioSampleBuffer tempSampleBuffer ((int) channelsToRead, bufferSize);
+    auto bufferSize = (int) jmin (numSamples, (int64) 4096);
+    AudioBuffer<float> tempSampleBuffer ((int) channelsToRead, bufferSize);
 
-    float* const* const floatBuffer = tempSampleBuffer.getArrayOfWritePointers();
-    int* const* intBuffer = reinterpret_cast<int* const*> (floatBuffer);
+    auto floatBuffer = tempSampleBuffer.getArrayOfWritePointers();
+    auto intBuffer = reinterpret_cast<int* const*> (floatBuffer);
     bool isFirstBlock = true;
 
     while (numSamples > 0)
     {
-        const int numToDo = (int) jmin (numSamples, (int64) bufferSize);
+        auto numToDo = (int) jmin (numSamples, (int64) bufferSize);
+
         if (! read (intBuffer, channelsToRead, startSampleInFile, numToDo, false))
             break;
 
@@ -209,7 +232,7 @@ void AudioFormatReader::readMaxLevels (int64 startSampleInFile, int64 numSamples
             }
             else
             {
-                Range<int> intRange (Range<int>::findMinAndMax (intBuffer[i], numToDo));
+                auto intRange = Range<int>::findMinAndMax (intBuffer[i], numToDo);
 
                 r = Range<float> (intRange.getStart() / (float) std::numeric_limits<int>::max(),
                                   intRange.getEnd()   / (float) std::numeric_limits<int>::max());
@@ -248,9 +271,9 @@ void AudioFormatReader::readMaxLevels (int64 startSampleInFile, int64 numSamples
 
 int64 AudioFormatReader::searchForLevel (int64 startSample,
                                          int64 numSamplesToSearch,
-                                         const double magnitudeRangeMinimum,
-                                         const double magnitudeRangeMaximum,
-                                         const int minimumConsecutiveSamples)
+                                         double magnitudeRangeMinimum,
+                                         double magnitudeRangeMaximum,
+                                         int minimumConsecutiveSamples)
 {
     if (numSamplesToSearch == 0)
         return -1;
@@ -258,10 +281,9 @@ int64 AudioFormatReader::searchForLevel (int64 startSample,
     const int bufferSize = 4096;
     HeapBlock<int> tempSpace (bufferSize * 2 + 64);
 
-    int* tempBuffer[3];
-    tempBuffer[0] = tempSpace.get();
-    tempBuffer[1] = tempSpace.get() + bufferSize;
-    tempBuffer[2] = 0;
+    int* tempBuffer[3] = { tempSpace.get(),
+                           tempSpace.get() + bufferSize,
+                           nullptr };
 
     int consecutive = 0;
     int64 firstMatchPos = -1;
@@ -275,13 +297,13 @@ int64 AudioFormatReader::searchForLevel (int64 startSample,
 
     while (numSamplesToSearch != 0)
     {
-        auto numThisTime = (int) jmin (abs64 (numSamplesToSearch), (int64) bufferSize);
+        auto numThisTime = (int) jmin (std::abs (numSamplesToSearch), (int64) bufferSize);
         int64 bufferStart = startSample;
 
         if (numSamplesToSearch < 0)
             bufferStart -= numThisTime;
 
-        if (bufferStart >= (int) lengthInSamples)
+        if (bufferStart >= lengthInSamples)
             break;
 
         read (tempBuffer, 2, bufferStart, numThisTime, false);
@@ -390,15 +412,15 @@ bool MemoryMappedAudioFormatReader::mapSectionOfFile (Range<int64> samplesToMap)
 {
     if (map == nullptr || samplesToMap != mappedSection)
     {
-        map = nullptr;
+        map.reset();
 
         const Range<int64> fileRange (sampleToFilePos (samplesToMap.getStart()),
                                       sampleToFilePos (samplesToMap.getEnd()));
 
-        map = new MemoryMappedFile (file, fileRange, MemoryMappedFile::readOnly);
+        map.reset (new MemoryMappedFile (file, fileRange, MemoryMappedFile::readOnly));
 
         if (map->getData() == nullptr)
-            map = nullptr;
+            map.reset();
         else
             mappedSection = Range<int64> (jmax ((int64) 0, filePosToSample (map->getRange().getStart() + (bytesPerFrame - 1))),
                                           jmin (lengthInSamples, filePosToSample (map->getRange().getEnd())));

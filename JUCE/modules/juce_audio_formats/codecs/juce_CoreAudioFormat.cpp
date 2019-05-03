@@ -42,9 +42,9 @@ namespace
         CFArrayRef extensions = nullptr;
         UInt32 sizeOfArray = sizeof (extensions);
 
-        if (AudioFileGetGlobalInfo (kAudioFileGlobalInfo_AllExtensions, 0, 0, &sizeOfArray, &extensions) == noErr)
+        if (AudioFileGetGlobalInfo (kAudioFileGlobalInfo_AllExtensions, 0, nullptr, &sizeOfArray, &extensions) == noErr)
         {
-            const CFIndex numValues = CFArrayGetCount (extensions);
+            auto numValues = CFArrayGetCount (extensions);
 
             for (CFIndex i = 0; i < numValues; ++i)
                 extensionsArray.add ("." + String::fromCFString ((CFStringRef) CFArrayGetValueAtIndex (extensions, i)));
@@ -122,14 +122,14 @@ struct CoreAudioFormatMetatdata
     static StringPairArray parseUserDefinedChunk (InputStream& input, int64 size)
     {
         StringPairArray infoStrings;
-        const int64 originalPosition = input.getPosition();
+        auto originalPosition = input.getPosition();
 
         uint8 uuid[16];
         input.read (uuid, sizeof (uuid));
 
         if (memcmp (uuid, "\x29\x81\x92\x73\xB5\xBF\x4A\xEF\xB7\x8D\x62\xD1\xEF\x90\xBB\x2C", 16) == 0)
         {
-            const uint32 numEntries = (uint32) input.readIntBigEndian();
+            auto numEntries = (uint32) input.readIntBigEndian();
 
             for (uint32 i = 0; i < numEntries && input.getPosition() < originalPosition + size; ++i)
             {
@@ -314,7 +314,7 @@ struct CoreAudioFormatMetatdata
                     if (chunkHeader.chunkSize == -1)
                         break;
 
-                    input.skipNextBytes (chunkHeader.chunkSize);
+                    input.setPosition (input.getPosition() + chunkHeader.chunkSize);
                 }
                 else if (chunkHeader.chunkType == chunkName ("midi"))
                 {
@@ -327,7 +327,7 @@ struct CoreAudioFormatMetatdata
                 else
                 {
                     // we aren't decoding this chunk yet so just skip over it
-                    input.skipNextBytes (chunkHeader.chunkSize);
+                    input.setPosition (input.getPosition() + chunkHeader.chunkSize);
                 }
             }
         }
@@ -350,13 +350,13 @@ public:
         if (input != nullptr)
             CoreAudioFormatMetatdata::read (*input, metadataValues);
 
-        OSStatus status = AudioFileOpenWithCallbacks (this,
-                                                      &readCallback,
-                                                      nullptr,  // write needs to be null to avoid permisisions errors
-                                                      &getSizeCallback,
-                                                      nullptr,  // setSize needs to be null to avoid permisisions errors
-                                                      0,        // AudioFileTypeID inFileTypeHint
-                                                      &audioFileID);
+        auto status = AudioFileOpenWithCallbacks (this,
+                                                  &readCallback,
+                                                  nullptr,  // write needs to be null to avoid permisisions errors
+                                                  &getSizeCallback,
+                                                  nullptr,  // setSize needs to be null to avoid permisisions errors
+                                                  0,        // AudioFileTypeID inFileTypeHint
+                                                  &audioFileID);
         if (status == noErr)
         {
             status = ExtAudioFileWrapAudioFileID (audioFileID, false, &audioFileRef);
@@ -385,7 +385,7 @@ public:
 
                 status = AudioFileGetPropertyInfo (audioFileID, kAudioFilePropertyChannelLayout, &sizeOfLayout, &isWritable);
 
-                if (status == noErr)
+                if (status == noErr && sizeOfLayout >= (sizeof (AudioChannelLayout) - sizeof (AudioChannelDescription)))
                 {
                     caLayout.malloc (1, static_cast<size_t> (sizeOfLayout));
 
@@ -447,7 +447,7 @@ public:
         }
     }
 
-    ~CoreAudioReader()
+    ~CoreAudioReader() override
     {
         ExtAudioFileDispose (audioFileRef);
         AudioFileClose (audioFileID);
@@ -570,7 +570,7 @@ bool CoreAudioFormat::canDoMono()       { return true; }
 AudioFormatReader* CoreAudioFormat::createReaderFor (InputStream* sourceStream,
                                                      bool deleteStreamIfOpeningFails)
 {
-    ScopedPointer<CoreAudioReader> r (new CoreAudioReader (sourceStream));
+    std::unique_ptr<CoreAudioReader> r (new CoreAudioReader (sourceStream));
 
     if (r->ok)
         return r.release();
@@ -605,6 +605,17 @@ class CoreAudioLayoutsUnitTest  : public UnitTest
 public:
     CoreAudioLayoutsUnitTest() : UnitTest ("Core Audio Layout <-> JUCE channel layout conversion", "Audio") {}
 
+    // some ambisonic tags which are not explicitely defined
+    enum
+    {
+        kAudioChannelLayoutTag_HOA_ACN_SN3D_0Order = (190U<<16) | 1,
+        kAudioChannelLayoutTag_HOA_ACN_SN3D_1Order = (190U<<16) | 4,
+        kAudioChannelLayoutTag_HOA_ACN_SN3D_2Order = (190U<<16) | 9,
+        kAudioChannelLayoutTag_HOA_ACN_SN3D_3Order = (190U<<16) | 16,
+        kAudioChannelLayoutTag_HOA_ACN_SN3D_4Order = (190U<<16) | 25,
+        kAudioChannelLayoutTag_HOA_ACN_SN3D_5Order = (190U<<16) | 36
+    };
+
     void runTest() override
     {
         auto& knownTags = getAllKnownLayoutTags();
@@ -619,7 +630,7 @@ public:
             {
                 auto labels = CoreAudioLayouts::fromCoreAudio (tagEntry.tag);
 
-                expect (! labels.isDiscreteLayout(), String ("Tag \"") + String (tagEntry.name) + "\" is not handled by JUCE");
+                expect (! labels.isDiscreteLayout(), "Tag \"" + String (tagEntry.name) + "\" is not handled by JUCE");
             }
         }
 
@@ -630,7 +641,7 @@ public:
             {
                 auto labels = CoreAudioLayouts::getSpeakerLayoutForCoreAudioTag (tagEntry.tag);
 
-                expect (labels.size() == (tagEntry.tag & 0xffff), String ("Tag \"") + String (tagEntry.name) + "\" has incorrect channel count");
+                expect (labels.size() == (tagEntry.tag & 0xffff), "Tag \"" + String (tagEntry.name) + "\" has incorrect channel count");
             }
         }
 
@@ -644,7 +655,7 @@ public:
 
                 for (int i = 0; i < (labels.size() - 1); ++i)
                     expect (labels.getReference (i) != labels.getReference (i + 1),
-                            String ("Tag \"") + String (tagEntry.name) + "\" has the same speaker twice");
+                            "Tag \"" + String (tagEntry.name) + "\" has the same speaker twice");
             }
         }
 
@@ -654,7 +665,7 @@ public:
             for (auto tagEntry : knownTags)
                 expect (AudioChannelSet::channelSetWithChannels (CoreAudioLayouts::getSpeakerLayoutForCoreAudioTag (tagEntry.tag))
                             == CoreAudioLayouts::fromCoreAudio (tagEntry.tag),
-                        String ("Tag \"") + String (tagEntry.name) + "\" is not converted consistantly by JUCE");
+                        "Tag \"" + String (tagEntry.name) + "\" is not converted consistently by JUCE");
         }
 
         {
@@ -666,7 +677,7 @@ public:
                     continue;
 
                 expect (CoreAudioLayouts::fromCoreAudio (tagEntry.tag) == tagEntry.equivalentChannelSet,
-                        String ("Documentation for tag \"") + String (tagEntry.name) + "\" is incorrect");
+                        "Documentation for tag \"" + String (tagEntry.name) + "\" is incorrect");
             }
         }
 
@@ -679,7 +690,7 @@ public:
                     continue;
 
                 expect (CoreAudioLayouts::toCoreAudio (tagEntry.equivalentChannelSet) == tagEntry.tag,
-                        String ("Incorrect reverse conversion for tag \"") + String (tagEntry.name) + "\"");
+                        "Incorrect reverse conversion for tag \"" + String (tagEntry.name) + "\"");
             }
         }
     }
@@ -703,7 +714,7 @@ private:
             DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_MidSide),
             DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_XY),
             DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_Binaural),
-            DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_Ambisonic_B_Format, AudioChannelSet::ambisonic()),
+            DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_Ambisonic_B_Format),
             DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_Quadraphonic, AudioChannelSet::quadraphonic()),
             DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_Pentagonal, AudioChannelSet::pentagonal()),
             DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_Hexagonal, AudioChannelSet::hexagonal()),
@@ -818,7 +829,14 @@ private:
             DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_DTS_8_0_B),
             DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_DTS_8_1_A),
             DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_DTS_8_1_B),
-            DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_DTS_6_1_D)
+            DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_DTS_6_1_D),
+            DEFINE_CHANNEL_LAYOUT_DFL_ENTRY (kAudioChannelLayoutTag_DTS_6_1_D),
+            DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_HOA_ACN_SN3D_0Order,  AudioChannelSet::ambisonic (0)),
+            DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_HOA_ACN_SN3D_1Order,  AudioChannelSet::ambisonic (1)),
+            DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_HOA_ACN_SN3D_2Order,  AudioChannelSet::ambisonic (2)),
+            DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_HOA_ACN_SN3D_3Order, AudioChannelSet::ambisonic (3)),
+            DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_HOA_ACN_SN3D_4Order, AudioChannelSet::ambisonic (4)),
+            DEFINE_CHANNEL_LAYOUT_TAG_ENTRY (kAudioChannelLayoutTag_HOA_ACN_SN3D_5Order, AudioChannelSet::ambisonic (5))
         };
         static Array<CoreAudioChannelLayoutTag> knownTags (tags, sizeof (tags) / sizeof (CoreAudioChannelLayoutTag));
 

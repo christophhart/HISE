@@ -57,7 +57,7 @@ public:
 
         pfds[INTERNAL_QUEUE_FD].fd = getReadHandle();
         pfds[INTERNAL_QUEUE_FD].events = POLLIN;
-        readCallback[INTERNAL_QUEUE_FD] = new LinuxEventLoop::CallbackFunction<decltype(internalQueueCb)> (internalQueueCb);
+        readCallback[INTERNAL_QUEUE_FD].reset (new LinuxEventLoop::CallbackFunction<decltype(internalQueueCb)> (internalQueueCb));
     }
 
     ~InternalMessageQueue()
@@ -96,7 +96,7 @@ public:
         fdCount = 2;
         pfds[WINDOW_SYSTEM_FD].fd = _fd;
         pfds[WINDOW_SYSTEM_FD].events = POLLIN;
-        readCallback[WINDOW_SYSTEM_FD] = _readCallback;
+        readCallback[WINDOW_SYSTEM_FD].reset (_readCallback);
         readCallback[WINDOW_SYSTEM_FD]->active = true;
     }
 
@@ -132,14 +132,14 @@ public:
     }
 
     //==============================================================================
-    juce_DeclareSingleton_SingleThreaded_Minimal (InternalMessageQueue)
+    JUCE_DECLARE_SINGLETON_SINGLETHREADED_MINIMAL (InternalMessageQueue)
 
 private:
     CriticalSection lock;
     ReferenceCountedArray <MessageManager::MessageBase> queue;
     int fd[2];
     pollfd pfds[FD_COUNT];
-    ScopedPointer<LinuxEventLoop::CallbackFunctionBase> readCallback[FD_COUNT];
+    std::unique_ptr<LinuxEventLoop::CallbackFunctionBase> readCallback[FD_COUNT];
     int fdCount = 1;
     int loopCount = 0;
     int bytesInSocket = 0;
@@ -165,7 +165,7 @@ private:
     }
 };
 
-juce_ImplementSingleton_SingleThreaded (InternalMessageQueue)
+JUCE_IMPLEMENT_SINGLETON (InternalMessageQueue)
 
 
 //==============================================================================

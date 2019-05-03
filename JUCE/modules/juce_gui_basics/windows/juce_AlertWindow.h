@@ -39,9 +39,10 @@ namespace juce
     user pressed to dismiss the box.
 
     @see ThreadWithProgressWindow
+
+    @tags{GUI}
 */
-class JUCE_API  AlertWindow  : public TopLevelWindow,
-                               private Button::Listener
+class JUCE_API  AlertWindow  : public TopLevelWindow
 {
 public:
     //==============================================================================
@@ -75,7 +76,7 @@ public:
                  Component* associatedComponent = nullptr);
 
     /** Destroys the AlertWindow */
-    ~AlertWindow();
+    ~AlertWindow() override;
 
     //==============================================================================
     /** Returns the type of alert icon that was specified when the window
@@ -422,7 +423,7 @@ public:
     */
     struct JUCE_API  LookAndFeelMethods
     {
-        virtual ~LookAndFeelMethods() {}
+        virtual ~LookAndFeelMethods() = default;
 
         virtual AlertWindow* createAlertWindow (const String& title, const String& message,
                                                 const String& button1,
@@ -455,8 +456,6 @@ protected:
     /** @internal */
     bool keyPressed (const KeyPress&) override;
     /** @internal */
-    void buttonClicked (Button*) override;
-    /** @internal */
     void lookAndFeelChanged() override;
     /** @internal */
     void userTriedToCloseWindow() override;
@@ -482,6 +481,7 @@ private:
     Component* const associatedComponent;
     bool escapeKeyCancels = true;
 
+    void exitAlert (Button* button);
     void updateLayout (bool onlyIncreaseSize);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AlertWindow)

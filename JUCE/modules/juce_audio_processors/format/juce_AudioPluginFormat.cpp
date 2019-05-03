@@ -39,13 +39,13 @@ namespace AudioPluginFormatHelpers
                 : instance (inInstance), error (inError), compCallback (inCompletion), owner (invoker)
             {}
 
-            void messageCallback() override     { compCallback->completionCallback (instance, error); }
+            void messageCallback() override     { compCallback->completionCallback (instance.release(), error); }
 
             //==============================================================================
-            AudioPluginInstance* instance;
+            std::unique_ptr<AudioPluginInstance> instance;
             String error;
-            ScopedPointer<AudioPluginFormat::InstantiationCompletionCallback> compCallback;
-            ScopedPointer<CallbackInvoker> owner;
+            std::unique_ptr<AudioPluginFormat::InstantiationCompletionCallback> compCallback;
+            std::unique_ptr<CallbackInvoker> owner;
         };
 
         //==============================================================================
@@ -119,13 +119,13 @@ AudioPluginInstance* AudioPluginFormat::createInstanceFromDescription (const Plu
     WaitableEvent waitForCreation;
     AudioPluginInstance* instance = nullptr;
 
-    ScopedPointer<EventSignaler> eventSignaler (new EventSignaler (waitForCreation, instance, errorMessage));
+    std::unique_ptr<EventSignaler> eventSignaler (new EventSignaler (waitForCreation, instance, errorMessage));
 
     if (! MessageManager::getInstance()->isThisTheMessageThread())
         createPluginInstanceAsync (desc, initialSampleRate, initialBufferSize, eventSignaler.release());
     else
         createPluginInstance (desc, initialSampleRate, initialBufferSize,
-                              eventSignaler, EventSignaler::staticCompletionCallback);
+                              eventSignaler.get(), EventSignaler::staticCompletionCallback);
 
 
     waitForCreation.wait();
@@ -199,7 +199,7 @@ void AudioPluginFormat::createPluginInstanceOnMessageThread (const PluginDescrip
                                                              AudioPluginFormat::InstantiationCompletionCallback* callback)
 {
     jassert (callback != nullptr);
-    jassert (MessageManager::getInstance()->isThisTheMessageThread());
+    JUCE_ASSERT_MESSAGE_THREAD
 
     //==============================================================================
 

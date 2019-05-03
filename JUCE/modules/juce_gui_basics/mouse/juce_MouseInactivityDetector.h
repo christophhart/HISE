@@ -38,6 +38,8 @@ namespace juce
 
     After creating an instance of this, use addListener to get callbacks when
     the activity status changes.
+
+    @tags{GUI}
 */
 class JUCE_API  MouseInactivityDetector  : private Timer,
                                            private MouseListener
@@ -50,7 +52,7 @@ public:
     MouseInactivityDetector (Component& target);
 
     /** Destructor. */
-    ~MouseInactivityDetector();
+    ~MouseInactivityDetector() override;
 
     /** Sets the time for which the mouse must be still before the callback
         is triggered.
@@ -69,7 +71,7 @@ public:
     class Listener
     {
     public:
-        virtual ~Listener() {}
+        virtual ~Listener() = default;
 
         /** Called when the mouse is moved or clicked for the first time
             after a period of inactivity. */
@@ -90,8 +92,8 @@ private:
     Component& targetComp;
     ListenerList<Listener> listenerList;
     Point<int> lastMousePos;
-    int delayMs, toleranceDistance;
-    bool isActive;
+    int delayMs = 1500, toleranceDistance = 15;
+    bool isActive = true;
 
     void timerCallback() override;
     void wakeUp (const MouseEvent&, bool alwaysWake);

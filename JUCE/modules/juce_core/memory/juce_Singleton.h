@@ -37,7 +37,8 @@ namespace juce
 template <typename Type, typename MutexType, bool onlyCreateOncePerRun>
 struct SingletonHolder  : private MutexType // (inherited so we can use the empty-base-class optimisation)
 {
-    SingletonHolder() noexcept {}
+
+    SingletonHolder() = default;
 
     ~SingletonHolder()
     {
@@ -47,7 +48,7 @@ struct SingletonHolder  : private MutexType // (inherited so we can use the empt
            If you're having trouble cleaning up your singletons, perhaps consider using the
            SharedResourcePointer class instead.
         */
-        //jassert (instance == nullptr);
+        jassert (instance == nullptr);
     }
 
     /** Returns the current instance, or creates a new instance if there isn't one. */

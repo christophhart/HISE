@@ -76,16 +76,16 @@ public:
         : ThreadPoolJob ("OpenGL Rendering"),
           context (c), component (comp)
     {
-        nativeContext = new NativeContext (component, pixFormat, contextToShare,
-                                           c.useMultisampling, c.versionRequired);
+        nativeContext.reset (new NativeContext (component, pixFormat, contextToShare,
+                                                c.useMultisampling, c.versionRequired));
 
         if (nativeContext->createdOk())
-            context.nativeContext = nativeContext;
+            context.nativeContext = nativeContext.get();
         else
-            nativeContext = nullptr;
+            nativeContext.reset();
     }
 
-    ~CachedImage()
+    ~CachedImage() override
     {
         stop();
     }
@@ -95,7 +95,7 @@ public:
     {
         if (nativeContext != nullptr)
         {
-            renderThread = new ThreadPool (1);
+            renderThread.reset (new ThreadPool (1));
             resume();
         }
     }
@@ -117,7 +117,7 @@ public:
             }
 
             pause();
-            renderThread = nullptr;
+            renderThread.reset();
         }
 
         hasInitialised = false;
@@ -143,7 +143,10 @@ public:
     }
 
     //==============================================================================
-    void paint (Graphics&) override {}
+    void paint (Graphics&) override
+    {
+        updateViewportSize (false);
+    }
 
     bool invalidateAll() override
     {
@@ -154,7 +157,7 @@ public:
 
     bool invalidate (const Rectangle<int>& area) override
     {
-        validArea.subtract (area * scale);
+        validArea.subtract (area.toFloat().transformedBy (transform).getSmallestIntegerContainer());
         triggerRepaint();
         return false;
     }
@@ -223,14 +226,12 @@ public:
             {
                 doWorkWhileWaitingForLock (false);
 
-                if (mmLock.retryLock ())
+                if (mmLock.retryLock())
                     break;
             }
 
             if (shouldExit())
                 return false;
-
-            updateViewportSize (false);
         }
 
         if (! context.makeActive())
@@ -279,19 +280,21 @@ public:
     {
         if (auto* peer = component.getPeer())
         {
-            lastScreenBounds = component.getTopLevelComponent()->getScreenBounds();
+           #if JUCE_WINDOWS
+            auto newScale = nativeContext->getWindowScaleFactor (component.getTopLevelComponent()->getScreenBounds());
+           #else
+            auto newScale = Desktop::getInstance().getDisplays().findDisplayForRect (component.getTopLevelComponent()->getScreenBounds()).scale;
+           #endif
 
-            auto newScale = Desktop::getInstance().getDisplays()
-                              .getDisplayContaining (lastScreenBounds.getCentre()).scale;
-
-            auto newArea = peer->getComponent().getLocalArea (&component, component.getLocalBounds())
-                                               .withZeroOrigin()
-                             * newScale;
+            auto localBounds = component.getLocalBounds();
+            auto newArea = peer->getComponent().getLocalArea (&component, localBounds).withZeroOrigin() * newScale;
 
             if (scale != newScale || viewportArea != newArea)
             {
                 scale = newScale;
                 viewportArea = newArea;
+                transform = AffineTransform::scale ((float) newArea.getWidth()  / (float) localBounds.getWidth(),
+                                                    (float) newArea.getHeight() / (float) localBounds.getHeight());
 
                 if (canTriggerUpdate)
                     invalidateAll();
@@ -332,9 +335,9 @@ public:
             clearRegionInFrameBuffer (invalid);
 
             {
-                ScopedPointer<LowLevelGraphicsContext> g (createOpenGLGraphicsContext (context, cachedImageFrameBuffer));
+                std::unique_ptr<LowLevelGraphicsContext> g (createOpenGLGraphicsContext (context, cachedImageFrameBuffer));
                 g->clipToRectangleList (invalid);
-                g->addTransform (AffineTransform::scale ((float) scale));
+                g->addTransform (transform);
 
                 paintOwner (*g);
                 JUCE_CHECK_OPENGL_ERROR
@@ -434,10 +437,16 @@ public:
                 if (shouldExit())
                     return ThreadPoolJob::jobHasFinished;
 
-            } while (! mmLock.retryLock ());
+            } while (! mmLock.retryLock());
         }
 
-        initialiseOnThread();
+        if (! initialiseOnThread())
+        {
+            hasInitialised = false;
+
+            return ThreadPoolJob::jobHasFinished;
+        }
+
         hasInitialised = true;
 
         while (! shouldExit())
@@ -467,7 +476,7 @@ public:
         return ThreadPoolJob::jobHasFinished;
     }
 
-    void initialiseOnThread()
+    bool initialiseOnThread()
     {
         // On android, this can get called twice, so drop any previous state..
         associatedObjectNames.clear();
@@ -475,7 +484,9 @@ public:
         cachedImageFrameBuffer.release();
 
         context.makeActive();
-        nativeContext->initialiseOnRenderThread (context);
+
+        if (! nativeContext->initialiseOnRenderThread (context))
+            return false;
 
        #if JUCE_ANDROID
         // On android the context may be created in initialiseOnRenderThread
@@ -505,6 +516,8 @@ public:
 
         if (context.renderer != nullptr)
             context.renderer->newOpenGLContextCreated();
+
+        return true;
     }
 
     void shutdownOnThread()
@@ -527,7 +540,7 @@ public:
     struct BlockingWorker  : public OpenGLContext::AsyncWorker
     {
         BlockingWorker (OpenGLContext::AsyncWorker::Ptr && workerToUse)
-            : originalWorker (static_cast<OpenGLContext::AsyncWorker::Ptr&&> (workerToUse))
+            : originalWorker (std::move (workerToUse))
         {}
 
         void operator() (OpenGLContext& calleeContext)
@@ -575,15 +588,24 @@ public:
     {
         if (calledFromDestructor || destroying.get() == 0)
         {
-            BlockingWorker* blocker = (shouldBlock ? new BlockingWorker (static_cast<OpenGLContext::AsyncWorker::Ptr&&> (workerToUse)) : nullptr);
-            OpenGLContext::AsyncWorker::Ptr worker = (blocker != nullptr ? blocker : static_cast<OpenGLContext::AsyncWorker::Ptr&&> (workerToUse));
-            workQueue.add (worker);
+            if (shouldBlock)
+            {
+                auto blocker = new BlockingWorker (std::move (workerToUse));
+                OpenGLContext::AsyncWorker::Ptr worker (*blocker);
+                workQueue.add (worker);
 
-            messageManagerLock.abort();
-            context.triggerRepaint();
+                messageManagerLock.abort();
+                context.triggerRepaint();
 
-            if (blocker != nullptr)
                 blocker->block();
+            }
+            else
+            {
+                workQueue.add (std::move (workerToUse));
+
+                messageManagerLock.abort();
+                context.triggerRepaint();
+            }
         }
         else
         {
@@ -599,7 +621,7 @@ public:
 
     //==============================================================================
     friend class NativeContext;
-    ScopedPointer<NativeContext> nativeContext;
+    std::unique_ptr<NativeContext> nativeContext;
 
     OpenGLContext& context;
     Component& component;
@@ -608,6 +630,7 @@ public:
     RectangleList<int> validArea;
     Rectangle<int> viewportArea, lastScreenBounds;
     double scale = 1.0;
+    AffineTransform transform;
    #if JUCE_OPENGL3
     GLuint vertexArrayObject = 0;
    #endif
@@ -625,7 +648,7 @@ public:
     Atomic<int> needsUpdate { 1 }, destroying;
     uint32 lastMMLockReleaseTime = 0;
 
-    ScopedPointer<ThreadPool> renderThread;
+    std::unique_ptr<ThreadPool> renderThread;
     ReferenceCountedArray<OpenGLContext::AsyncWorker, CriticalSection> workQueue;
     MessageManager::Lock messageManagerLock;
 
@@ -648,7 +671,7 @@ public:
             attach();
     }
 
-    ~Attachment()
+    ~Attachment() override
     {
         detach();
     }
@@ -871,7 +894,7 @@ void OpenGLContext::attachTo (Component& component)
     if (getTargetComponent() != &component)
     {
         detach();
-        attachment = new Attachment (*this, component);
+        attachment.reset (new Attachment (*this, component));
     }
 }
 
@@ -880,7 +903,7 @@ void OpenGLContext::detach()
     if (auto* a = attachment.get())
     {
         a->detach(); // must detach before nulling our pointer
-        attachment = nullptr;
+        attachment.reset();
     }
 
     nativeContext = nullptr;
@@ -992,8 +1015,8 @@ ReferenceCountedObject* OpenGLContext::getAssociatedObject (const char* name) co
     jassert (c != nullptr && nativeContext != nullptr);
     jassert (getCurrentContext() != nullptr);
 
-    const int index = c->associatedObjectNames.indexOf (name);
-    return index >= 0 ? c->associatedObjects.getUnchecked (index) : nullptr;
+    auto index = c->associatedObjectNames.indexOf (name);
+    return index >= 0 ? c->associatedObjects.getUnchecked (index).get() : nullptr;
 }
 
 void OpenGLContext::setAssociatedObject (const char* name, ReferenceCountedObject* newObject)
@@ -1034,20 +1057,9 @@ size_t OpenGLContext::getImageCacheSize() const noexcept            { return ima
 void OpenGLContext::execute (OpenGLContext::AsyncWorker::Ptr workerToUse, bool shouldBlock)
 {
     if (auto* c = getCachedImage())
-        c->execute (static_cast<OpenGLContext::AsyncWorker::Ptr&&> (workerToUse), shouldBlock);
+        c->execute (std::move (workerToUse), shouldBlock);
     else
         jassertfalse; // You must have attached the context to a component
-}
-
-void OpenGLContext::overrideCanBeAttached (bool newCanAttach)
-{
-    if (overrideCanAttach != newCanAttach)
-    {
-        overrideCanAttach = newCanAttach;
-
-        if (auto* a = attachment.get())
-            a->update();
-    }
 }
 
 //==============================================================================
@@ -1183,7 +1195,7 @@ void OpenGLContext::copyTexture (const Rectangle<int>& targetClipArea,
         extensions.glBufferData (GL_ARRAY_BUFFER, sizeof (vertices), vertices, GL_STATIC_DRAW);
 
         auto index = (GLuint) program.params.positionAttribute.attributeID;
-        extensions.glVertexAttribPointer (index, 2, GL_SHORT, GL_FALSE, 4, 0);
+        extensions.glVertexAttribPointer (index, 2, GL_SHORT, GL_FALSE, 4, nullptr);
         extensions.glEnableVertexAttribArray (index);
         JUCE_CHECK_OPENGL_ERROR
 
@@ -1206,7 +1218,7 @@ void OpenGLContext::copyTexture (const Rectangle<int>& targetClipArea,
 EGLDisplay OpenGLContext::NativeContext::display = EGL_NO_DISPLAY;
 EGLDisplay OpenGLContext::NativeContext::config;
 
-void OpenGLContext::NativeContext::surfaceCreated (jobject holder)
+void OpenGLContext::NativeContext::surfaceCreated (LocalRef<jobject> holder)
 {
     ignoreUnused (holder);
 
@@ -1223,7 +1235,7 @@ void OpenGLContext::NativeContext::surfaceCreated (jobject holder)
     }
 }
 
-void OpenGLContext::NativeContext::surfaceDestroyed (jobject holder)
+void OpenGLContext::NativeContext::surfaceDestroyed (LocalRef<jobject> holder)
 {
     ignoreUnused (holder);
 

@@ -39,6 +39,8 @@ namespace juce
     that image.
 
     @see Component::paint
+
+    @tags{Graphics}
 */
 class JUCE_API  Graphics  final
 {
@@ -82,9 +84,11 @@ public:
     */
     void setOpacity (float newOpacity);
 
-    /** Sets the context to use a gradient for its fill pattern.
-    */
+    /** Sets the context to use a gradient for its fill pattern. */
     void setGradientFill (const ColourGradient& gradient);
+
+    /** Sets the context to use a gradient for its fill pattern. */
+    void setGradientFill (ColourGradient&& gradient);
 
     /** Sets the context to use a tiled image pattern for filling.
         Make sure that you don't delete this image while it's still being used by
@@ -141,7 +145,8 @@ public:
     */
     void drawMultiLineText (const String& text,
                             int startX, int baselineY,
-                            int maximumLineWidth) const;
+                            int maximumLineWidth,
+                            Justification justification = Justification::left) const;
 
     /** Draws a line of text within a specified rectangle.
 
@@ -298,8 +303,8 @@ public:
                                float cornerSize) const;
 
     /** Fills a rectangle with a checkerboard pattern, alternating between two colours. */
-    void fillCheckerBoard (Rectangle<int> area,
-                           int checkWidth, int checkHeight,
+    void fillCheckerBoard (Rectangle<float> area,
+                           float checkWidth, float checkHeight,
                            Colour colour1, Colour colour2) const;
 
     /** Draws a rectangular outline, using the current colour or brush.
@@ -735,7 +740,7 @@ public:
 private:
     //==============================================================================
     LowLevelGraphicsContext& context;
-    ScopedPointer<LowLevelGraphicsContext> contextToDelete;
+    std::unique_ptr<LowLevelGraphicsContext> contextToDelete;
 
     bool saveStatePending = false;
     void saveStateIfPending();

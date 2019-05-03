@@ -55,7 +55,37 @@ String TracktionMarketplaceStatus::readReplyFromWebserver (const String& email, 
 
     DBG ("Trying to unlock via URL: " << url.toString (true));
 
-    return url.readEntireTextStream();
+    {
+        ScopedLock lock (streamCreationLock);
+        stream.reset (new WebInputStream (url, true));
+    }
+
+    if (stream->connect (nullptr))
+    {
+        auto thread = Thread::getCurrentThread();
+        MemoryOutputStream result;
+
+        while (! (stream->isExhausted() || stream->isError()
+                    || (thread != nullptr && thread->threadShouldExit())))
+        {
+            auto bytesRead = result.writeFromInputStream (*stream, 8192);
+
+            if (bytesRead < 0)
+                break;
+        }
+
+        return result.toString();
+    }
+
+    return {};
+}
+
+void TracktionMarketplaceStatus::userCancelled()
+{
+    ScopedLock lock (streamCreationLock);
+
+    if (stream != nullptr)
+        stream->cancel();
 }
 
 } // namespace juce

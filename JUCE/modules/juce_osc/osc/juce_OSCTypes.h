@@ -28,21 +28,21 @@ namespace juce
 {
 
 //==============================================================================
-
 /** The type used for OSC type tags. */
-typedef char OSCType;
+using OSCType = char;
 
 
 /** The type used for OSC type tag strings. */
-typedef Array<OSCType> OSCTypeList;
+using OSCTypeList = Array<OSCType>;
 
 //==============================================================================
-
 /** The definitions of supported OSC types and their associated OSC type tags,
     as defined in the OpenSoundControl 1.0 specification.
 
-    Note: this implementation does not support any additional type tags that
+    Note: This implementation does not support any additional type tags that
     are not part of the specification.
+
+    @tags{OSC}
 */
 class JUCE_API  OSCTypes
 {
@@ -51,18 +51,38 @@ public:
     static const OSCType float32;
     static const OSCType string;
     static const OSCType blob;
+    static const OSCType colour;
 
     static bool isSupportedType (OSCType type) noexcept
     {
         return type == OSCTypes::int32
             || type == OSCTypes::float32
             || type == OSCTypes::string
-            || type == OSCTypes::blob;
+            || type == OSCTypes::blob
+            || type == OSCTypes::colour;
     }
 };
 
+
+//==============================================================================
+/**
+    Holds a 32-bit RGBA colour for passing to and from an OSCArgument.
+    @see OSCArgument, OSCTypes::colour
+    @tags{OSC}
+*/
+struct OSCColour
+{
+    uint8 red, green, blue, alpha;
+
+    uint32 toInt32() const;
+    static OSCColour fromInt32 (uint32);
+};
+
+
 //==============================================================================
 /** Base class for exceptions that can be thrown by methods in the OSC module.
+
+    @tags{OSC}
 */
 struct OSCException  : public std::exception
 {
@@ -80,6 +100,8 @@ struct OSCException  : public std::exception
 //==============================================================================
 /** Exception type thrown when the OSC module fails to parse something because
     of a data format not compatible with the OpenSoundControl 1.0 specification.
+
+    @tags{OSC}
 */
 struct OSCFormatError : public OSCException
 {
@@ -89,8 +111,10 @@ struct OSCFormatError : public OSCException
 //==============================================================================
 /** Exception type thrown in cases of unexpected errors in the OSC module.
 
-    Note: this should never happen, and all the places where this is thrown
+    Note: This should never happen, and all the places where this is thrown
     should have a preceding jassertfalse to facilitate debugging.
+
+    @tags{OSC}
 */
 struct OSCInternalError : public OSCException
 {

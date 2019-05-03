@@ -43,7 +43,7 @@ public:
 //==============================================================================
 AsyncUpdater::AsyncUpdater()
 {
-    activeMessage = new AsyncUpdaterMessage (*this);
+    activeMessage = *new AsyncUpdaterMessage (*this);
 }
 
 AsyncUpdater::~AsyncUpdater()
@@ -83,7 +83,7 @@ void AsyncUpdater::cancelPendingUpdate() noexcept
 void AsyncUpdater::handleUpdateNowIfNeeded()
 {
     // This can only be called by the event thread.
-    jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+    JUCE_ASSERT_MESSAGE_MANAGER_IS_LOCKED
 
     if (activeMessage->shouldDeliver.exchange (0) != 0)
         handleAsyncUpdate();
