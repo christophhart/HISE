@@ -1445,7 +1445,7 @@ private:
 		match(TokenTypes::closeParen);
 		match(TokenTypes::openBrace);
 
-		Array<ExpPtr> emptyCaseConditions;
+		OwnedArray<Expression> emptyCaseConditions;
 
 		while (currentType == TokenTypes::case_ || currentType == TokenTypes::default_)
 		{
@@ -1455,13 +1455,22 @@ private:
 			{
 				if (caseStatement->body == nullptr)
 				{
-					emptyCaseConditions.addArray(caseStatement->conditions);
+					for (auto& c : caseStatement->conditions)
+					{
+						emptyCaseConditions.add(c.release());
+					}
+
+					caseStatement->conditions.clear();
+
 					continue;
 				}
 				else
 				{
-					caseStatement->conditions.addArray(emptyCaseConditions);
-					emptyCaseConditions.clear();
+					while (!emptyCaseConditions.isEmpty())
+					{
+						auto c = emptyCaseConditions.removeAndReturn(0);
+						caseStatement->conditions.add(c);
+					}
 				}
 
 				if (caseStatement->isNotDefault)
