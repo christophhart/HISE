@@ -213,10 +213,10 @@ void Plotter::rebuildPath()
 
 	for (int i = 0; i < getWidth(); i += 2)
 	{
-		samplePos = roundDoubleToInt(i * samplesPerPixel);
+		samplePos = roundToInt(i * samplesPerPixel);
 		samplePos = (position + samplePos) % displayBuffer.getNumSamples();
 
-		int numToSearch = jmin<int>(roundFloatToInt(samplesPerPixel * 2), displayBuffer.getNumSamples() - samplePos);
+		int numToSearch = jmin<int>(roundToInt(samplesPerPixel * 2), displayBuffer.getNumSamples() - samplePos);
 
 		float thisValue = getAverage(displayBuffer.getReadPointer(0, samplePos), numToSearch, currentMode);
 

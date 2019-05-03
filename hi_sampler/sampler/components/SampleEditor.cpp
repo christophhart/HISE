@@ -231,7 +231,7 @@ void SampleEditor::resized()
     sampleEndSetter->setBounds (((getWidth() / 2) + 4 - proportionOfWidth (0.1400f)) + 0, 196, proportionOfWidth (0.1400f), 32);
     loopStartSetter->setBounds (proportionOfWidth (0.5188f), 163, proportionOfWidth (0.1400f), 32);
     loopEndSetter->setBounds (proportionOfWidth (0.5188f) + 0, 196, proportionOfWidth (0.1400f), 32);
-    loopCrossfadeSetter->setBounds (((getWidth() / 2) + 139) + roundFloatToInt (proportionOfWidth (0.1400f) * 0.0000f), 196, proportionOfWidth (0.1400f), 32);
+    loopCrossfadeSetter->setBounds (((getWidth() / 2) + 139) + roundToInt (proportionOfWidth (0.1400f) * 0.0000f), 196, proportionOfWidth (0.1400f), 32);
     startModulationSetter->setBounds ((getWidth() / 2) + 139, 160, proportionOfWidth (0.1400f), 32);
 	panSetter->setBounds(proportionOfWidth(0.2388f) - proportionOfWidth(0.1000f), 195, proportionOfWidth(0.1000f), 32);
 #endif

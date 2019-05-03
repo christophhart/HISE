@@ -45,7 +45,7 @@ NamedValueSet::NamedValueSet(const std::initializer_list<NamedValue>& items) noe
 {}
 #endif
 
-NamedValueSet& NamedValueSet::operator= (const NamedValueSet& other)
+
 
 NamedValueSet::NamedValue::NamedValue (Identifier&& n, var&& v) noexcept
    : name (std::move (n)),
@@ -70,11 +70,6 @@ NamedValueSet::NamedValueSet (const NamedValueSet& other)  : values (other.value
 
 NamedValueSet::NamedValueSet (NamedValueSet&& other) noexcept
    : values (std::move (other.values)) {}
-
-NamedValueSet::NamedValueSet (std::initializer_list<NamedValue> list)
-   : values (std::move (list))
-{
-}
 
 NamedValueSet& NamedValueSet::operator= (const NamedValueSet& other)
 {

@@ -491,7 +491,7 @@ void CodeEditorComponent::paint (Graphics& g)
 
 Component* CodeEditorComponent::getGutterComponent()
 {
-	return gutter;
+	return gutter.get();
 }
 
 void CodeEditorComponent::setScrollbarThickness (const int thickness)

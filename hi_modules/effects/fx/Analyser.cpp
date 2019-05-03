@@ -153,7 +153,7 @@ void Oscilloscope::paint(Graphics& g)
     
 void drawPath(const float* l_, int numSamples, int width, Path& p)
     {
-        int stride = roundFloatToInt((float)numSamples / width);
+        int stride = roundToInt((float)numSamples / width);
         stride = jmax<int>(1, stride * 2);
         
         if (numSamples != 0)
@@ -317,7 +317,7 @@ void FFTDisplay::paint(Graphics& g)
 	FloatVectorOperations::abs(data, b2.getReadPointer(0), size);
 	FloatVectorOperations::multiply(data, 1.0f / 95.0f, size);
 	
-	int stride = roundFloatToInt((float)size / getWidth());
+	int stride = roundToInt((float)size / getWidth());
 	stride *= 2;
 	
 	lPath.clear();

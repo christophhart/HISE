@@ -1270,6 +1270,7 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 
 SamplerSoundTable::~SamplerSoundTable()
 {
+	table.getHeader().setLookAndFeel(nullptr);
 }
 
 void SamplerSoundTable::refreshList()

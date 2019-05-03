@@ -191,7 +191,7 @@ void CurveEqEditor::resized()
 
     filterGraph->setBounds ((getWidth() / 2) + -60 - (504 / 2), 24, 504, 272);
     typeSelector->setBounds ((getWidth() / 2) + 209, 75, 118, 28);
-    dragOverlay->setBounds (((getWidth() / 2) + -60 - (504 / 2)) + 0, 24 + 0, roundFloatToInt (504 * 1.0000f), roundFloatToInt (272 * 1.0000f));
+    dragOverlay->setBounds (((getWidth() / 2) + -60 - (504 / 2)) + 0, 24 + 0, roundToInt (504 * 1.0000f), roundToInt (272 * 1.0000f));
     enableBandButton->setBounds ((getWidth() / 2) + 203, 111, 128, 32);
     freqSlider->setBounds ((getWidth() / 2) + 330 - 128, 147, 128, 48);
     gainSlider->setBounds ((getWidth() / 2) + 330 - 128, 201, 128, 48);

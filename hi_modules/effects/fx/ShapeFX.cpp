@@ -473,7 +473,7 @@ void ShapeFX::updateOversampling()
 {
     
 #if HI_ENABLE_SHAPE_FX_OVERSAMPLER
-	auto factor = roundDoubleToInt(log2((double)oversampleFactor));
+	auto factor = roundToInt(log2((double)oversampleFactor));
 #else
     auto factor = 0;
 #endif
@@ -483,7 +483,7 @@ void ShapeFX::updateOversampling()
 	if (getLargestBlockSize() > 0)
 		newOverSampler->initProcessing(getLargestBlockSize());
 
-	int latency = roundFloatToInt(newOverSampler->getLatencyInSamples());
+	int latency = roundToInt(newOverSampler->getLatencyInSamples());
 
 	lDelay.setDelayTimeSamples(latency);
 	rDelay.setDelayTimeSamples(latency);

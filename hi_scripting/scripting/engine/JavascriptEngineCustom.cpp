@@ -89,7 +89,9 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 	{
 		const bool allowIllegalCalls = apiClass->allowIllegalCallsOnAudioThread(functionIndex);
 
+#if JUCE_ENABLE_AUDIO_GUARD
 		AudioThreadGuard::Suspender suspender(allowIllegalCalls);
+#endif
 
 		var results[5];
 		for (int i = 0; i < expectedNumArguments; i++)

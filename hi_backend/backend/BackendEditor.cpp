@@ -62,6 +62,7 @@ isLoadingPreset(false)
 
 BackendProcessorEditor::~BackendProcessorEditor()
 {
+	setLookAndFeel(nullptr);
 	owner->removeScriptListener(this);
 	
 	// Remove the popup components

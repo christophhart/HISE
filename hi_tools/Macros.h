@@ -32,6 +32,15 @@
 
 #pragma once
 
+namespace juce
+{
+using ButtonListener = Button::Listener;
+using SliderListener = Slider::Listener;
+using ComboBoxListener = ComboBox::Listener;
+using TextEditorListener = TextEditor::Listener;
+using LabelListener = Label::Listener;
+}
+
 namespace hise { using namespace juce;
 
 #define NUM_MAX_CHANNELS 16
@@ -59,6 +68,12 @@ namespace hise { using namespace juce;
 #define HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR HISE_EVENT_RASTER
 #endif
 
+
+#if (HISE_EVENT_RASTER != 1)
+#define HISE_USE_CONTROLRATE_DOWNSAMPLING 1
+#else
+#define HISE_USE_CONTROLRATE_DOWNSAMPLING 0
+#endif
 
 #if HI_ENABLE_EXPANSION_EDITING || USE_BACKEND
 #define ENABLE_MARKDOWN true

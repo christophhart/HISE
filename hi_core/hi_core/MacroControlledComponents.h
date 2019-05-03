@@ -407,6 +407,8 @@ public:
         setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 	};
 
+	
+
 	void setup(Processor *p, int parameter, const String &name) override;
 
 	void updateValue(NotificationType sendAttributeChange = sendNotification) override;
@@ -562,7 +564,7 @@ public:
 		}
 		if (input < 1000.0f)
 		{
-			return String(roundFloatToInt(input)) + " Hz";
+			return String(roundToInt(input)) + " Hz";
 		}
 		else
 		{

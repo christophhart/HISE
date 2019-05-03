@@ -73,7 +73,7 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 		{
 			auto v = -1.0f * tmp->getAttribute(StereoEffect::Pan) * input;
 
-			return BalanceCalculator::getBalanceAsString(roundFloatToInt(v));
+			return BalanceCalculator::getBalanceAsString(roundToInt(v));
 		}
 
 		return Table::getDefaultTextValue(input);

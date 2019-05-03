@@ -175,7 +175,7 @@ public:
 	{
 		const int total = numAlignedCalls + numOddCalls;
 		auto p = total != 0 ? ((double)numAlignedCalls / (double)total) : 0.0;
-		return roundDoubleToInt(p * 100.0);
+		return roundToInt(p * 100.0);
 	}
 
 
@@ -496,7 +496,7 @@ public:
 	{
 		if (ramptimeMilliseconds > 0.0f)
 		{
-			auto rampLengthSamples = roundFloatToInt(ramptimeMilliseconds / 1000.0f * sampleRate);
+			auto rampLengthSamples = roundToInt(ramptimeMilliseconds / 1000.0f * sampleRate);
 
 			resetRamper.setTarget(currentValue, targetValue, rampLengthSamples);
 		}

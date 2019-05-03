@@ -336,7 +336,7 @@ public:
 
 	}
 
-	void scrolled(Rectangle<int> visibleArea)
+	void scrolled(Rectangle<int> /*visibleArea*/)
 	{
 		if (editor.hasKeyboardFocus(true))
 			return;

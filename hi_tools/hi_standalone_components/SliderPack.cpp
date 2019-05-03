@@ -304,7 +304,7 @@ void SliderPack::resized()
         {
             auto normalizedWidth = (double)sliderWidths[i+1] - (double)sliderWidths[i];
             
-            auto sliderWidth = jmax(5, roundDoubleToInt(normalizedWidth * totalWidth));
+            auto sliderWidth = jmax(5, roundToInt(normalizedWidth * totalWidth));
             
             sliders[i]->setBounds(x, 0, sliderWidth, getHeight());
             x += sliderWidth;
@@ -588,7 +588,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 	{
 		const double logFromStepSize = log10(data->getStepSize());
 
-		const int unit = -roundDoubleToInt(logFromStepSize);
+		const int unit = -roundToInt(logFromStepSize);
 
 		g.setColour(Colours::white.withAlpha(0.3f));
 

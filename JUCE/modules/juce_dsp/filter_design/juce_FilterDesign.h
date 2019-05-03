@@ -163,20 +163,7 @@ struct FilterDesign
                                                                                               FloatType passbandAmplitudedB,
                                                                                               FloatType stopbandAmplitudedB);
 
-    //==============================================================================
-    /** This method returns an array of IIR::Coefficients, made to be used in
-        cascaded IIRFilters, providing a minimum phase low-pass filter without any
-        ripple in the pass band and in the stop band.
-
-        @param frequency                    the cutoff frequency of the low-pass filter
-        @param sampleRate                   the sample rate being used in the filter design
-        @param order                        the order of the resulting IIR filter, providing
-                                            an attenuation of -6 dB times order / octave
-    */
-
-    static ReferenceCountedArray<IIRCoefficients> designIIRLowpassHighOrderButterworthMethod (FloatType frequency, double sampleRate,
-                                                                                              int order);
-
+    
     //==============================================================================
     /** This method returns an array of IIR::Coefficients, made to be used in
         cascaded IIRFilters, providing a minimum phase low-pass filter without any

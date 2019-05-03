@@ -1089,7 +1089,7 @@ String DebugLogger::getSystemSpecs() const
 	stats << "User name: **" << SystemStats::getFullUserName() << "**  " << nl;
 	stats << "CPU vendor: **" << SystemStats::getCpuVendor() << "**  " << nl;
 	stats << "CPU cores: **" << SystemStats::getNumCpus() << "**  " << nl;
-	stats << "CPU speed: **" << SystemStats::getCpuSpeedInMegaherz() << "**  " << nl;
+	stats << "CPU speed: **" << SystemStats::getCpuSpeedInMegahertz() << "**  " << nl;
 	stats << "Memory size: **" << SystemStats::getMemorySizeInMegabytes() << "**  " << nl;
 	stats << "Page size: **" << SystemStats::getPageSize() << "**  " << nl;
 	stats << "OS: **" << SystemStats::getOperatingSystemName() << (SystemStats::isOperatingSystem64Bit() ? " 64bit" : " 32bit") << "**  " << nl;

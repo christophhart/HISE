@@ -541,7 +541,7 @@ ReferenceCountedArray<IIR::Coefficients<FloatType>>
 }
 
 template <typename FloatType>
-ReferenceCountedArray<IIR::Coefficients<FloatType>>
+Array<IIR::Coefficients<FloatType>>
     FilterDesign<FloatType>::designIIRLowpassHighOrderButterworthMethod (FloatType frequency,
                                                                          double sampleRate, int order)
 {
@@ -549,7 +549,7 @@ ReferenceCountedArray<IIR::Coefficients<FloatType>>
     jassert (frequency > 0 && frequency <= sampleRate * 0.5);
     jassert (order > 0);
 
-    ReferenceCountedArray<IIR::Coefficients<FloatType>> arrayFilters;
+    Array<IIR::Coefficients<FloatType>> arrayFilters;
 
     if (order % 2 == 1)
     {
@@ -576,7 +576,7 @@ ReferenceCountedArray<IIR::Coefficients<FloatType>>
 }
 
 template <typename FloatType>
-ReferenceCountedArray<IIR::Coefficients<FloatType>>
+Array<IIR::Coefficients<FloatType>>
     FilterDesign<FloatType>::designIIRHighpassHighOrderButterworthMethod (FloatType frequency,
                                                                           double sampleRate, int order)
 {
@@ -584,7 +584,7 @@ ReferenceCountedArray<IIR::Coefficients<FloatType>>
     jassert (frequency > 0 && frequency <= sampleRate * 0.5);
     jassert (order > 0);
 
-    ReferenceCountedArray<IIR::Coefficients<FloatType>> arrayFilters;
+    Array<IIR::Coefficients<FloatType>> arrayFilters;
 
     if (order % 2 == 1)
     {

@@ -282,6 +282,51 @@ public:
         setStepSize();
     }
 
+	/** Set a new target value without ramping.
+	@param newValue New target value
+	*/
+	void setValueWithoutSmoothing(FloatType newValue) noexcept
+	{
+		target = newValue;
+		currentValue = target;
+		countdown = 0;
+	}
+
+	void setValueAndRampTime(FloatType newValue, double sampleRateToUse, double rampLengthInSeconds) noexcept
+	{
+		if (target != newValue)
+		{
+			target = newValue;
+
+			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
+			stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
+			countdown = stepsToTarget;
+
+			if (countdown <= 0)
+				currentValue = target;
+			else
+				step = (target - currentValue) / (FloatType)countdown;
+		}
+		else // might be possible that it still wants the same target but at a different speed
+		{
+			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
+			const auto thisStepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
+
+			if (stepsToTarget != thisStepsToTarget)
+			{
+				// Readjust the ramp speed
+				stepsToTarget = thisStepsToTarget;
+				countdown = stepsToTarget;
+
+				if (countdown <= 0)
+					currentValue = target;
+				else
+					step = (target - currentValue) / (FloatType)countdown;
+			}
+
+		}
+	}
+
     //==============================================================================
     /** Compute the next value.
         @returns Smoothed value
@@ -332,7 +377,7 @@ public:
         @param newValue     The new target value
         @param force        If true, the value will be set immediately, bypassing the ramp
     */
-    JUCE_DEPRECATED_WITH_BODY (void setValue (FloatType newValue, bool force = false) noexcept,
+    void setValue (FloatType newValue, bool force = false) noexcept
     {
         if (force)
         {
@@ -341,7 +386,7 @@ public:
         }
 
         setTargetValue (newValue);
-    })
+    }
 
 private:
     //==============================================================================
@@ -395,8 +440,10 @@ private:
     int stepsToTarget = 0;
 };
 
+
 template <typename FloatType>
 using LinearSmoothedValue = SmoothedValue <FloatType, ValueSmoothingTypes::Linear>;
+
 
 
 //==============================================================================

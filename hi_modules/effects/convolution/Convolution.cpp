@@ -631,7 +631,7 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 
 	auto resampleRatio = parent.getResampleFactor();
 
-	int resampledLength = roundDoubleToInt((double)irLength * resampleRatio);
+	int resampledLength = roundToInt((double)irLength * resampleRatio);
 
 	AudioSampleBuffer scratchBuffer(2, resampledLength);
 

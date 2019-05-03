@@ -193,7 +193,7 @@ void SamplerSoundWaveform::timerCallback()
 	{
 		ModulatorSamplerSound *s = dynamic_cast<ModulatorSamplerVoice*>(sampler->getLastStartedVoice())->getCurrentlyPlayingSamplerSound();
 
-		if (s == currentSound)
+		if (s == currentSound.get())
 		{
 			sampleStartPosition = sampler->getSamplerDisplayValues().currentSampleStartPos;
 			setPlaybackPosition(sampler->getSamplerDisplayValues().currentSamplePos);

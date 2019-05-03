@@ -3585,12 +3585,12 @@ private:
             case WM_MBUTTONDOWN:
 
             case WM_RBUTTONDOWN:        
-			case WM_XBUTTONDOWN:		 doMouseDown (getPointFromLParam (lParam), wParam); return 0;
+			case WM_XBUTTONDOWN:		 doMouseDown (getPointFromLocalLParam (lParam), wParam); return 0;
 
             case WM_LBUTTONUP:
             case WM_MBUTTONUP:
 			case WM_XBUTTONUP:
-            case WM_RBUTTONUP:          doMouseUp (getPointFromLParam (lParam), wParam); return 0;
+            case WM_RBUTTONUP:          doMouseUp (getPointFromLocalLParam(lParam), wParam); return 0;
 
 
             case WM_POINTERWHEEL:

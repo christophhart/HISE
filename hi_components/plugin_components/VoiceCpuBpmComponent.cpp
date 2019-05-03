@@ -249,7 +249,7 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 		else
 		{
 			const auto progress = mainControllers.getFirst()->getSampleManager().getPreloadProgress();
-			const auto percent = roundDoubleToInt(progress*100.0);
+			const auto percent = roundToInt(progress*100.0);
 
 			g.drawText("Preloading: " + String(percent) + "%", getLocalBounds(), Justification::centred);
 		}

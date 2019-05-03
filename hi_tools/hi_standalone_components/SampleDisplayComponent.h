@@ -308,6 +308,8 @@ public:
 		*/
 		SampleArea(int areaType, AudioDisplayComponent *parentWaveform_);
 
+		~SampleArea();
+
 		/** Returns the sample range (0 ... numSamples). */
 		Range<int> getSampleRange() const {	return range; }
 

@@ -72,7 +72,12 @@ SamplePoolTable::SamplePoolTable(BackendRootWindow* rootWindow) :
 
 SamplePoolTable::~SamplePoolTable()
 {
+	table.getHeader().setLookAndFeel(nullptr);
+
 	pool->removeChangeListener(this);
+
+	
+
 }
 
 

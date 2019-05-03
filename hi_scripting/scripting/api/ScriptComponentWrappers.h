@@ -310,7 +310,7 @@ protected:
 
 	void updatePopupPosition();
 
-	virtual Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const { return Point<int>(); }
+	virtual Point<int> getValuePopupPosition(Rectangle<int> /*componentBounds*/) const { return Point<int>(); }
 
 	virtual String getTextForValuePopup()
 	{
@@ -520,6 +520,8 @@ public:
 	public:
 
 		ButtonWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptButton *sb, int index);
+
+		~ButtonWrapper();
 
 		void updateFilmstrip(HiToggleButton* b, ScriptingApi::Content::ScriptButton* sb);
 

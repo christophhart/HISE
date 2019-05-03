@@ -716,6 +716,11 @@ PresetBrowser::~PresetBrowser()
 	bankColumn = nullptr;
 	categoryColumn = nullptr;
 	presetColumn = nullptr;
+
+	setLookAndFeel(nullptr);
+
+	pblaf = nullptr;
+
 }
 
 

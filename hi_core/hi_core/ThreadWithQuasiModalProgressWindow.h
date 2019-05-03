@@ -89,6 +89,7 @@ public:
 	public:
 
 		Overlay();
+		~Overlay();
 
 		void setDialog(AlertWindow *newWindow);
 		void resized();

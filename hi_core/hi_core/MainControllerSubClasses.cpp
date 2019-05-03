@@ -211,7 +211,7 @@ void MainController::CodeHandler::initialise()
 }
 
 
-void MainController::CodeHandler::writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c)
+void MainController::CodeHandler::writeToConsole(const String &t, int warningLevel, const Processor *p, Colour /*c*/)
 {
 	pendingMessages.push({ (WarningLevel)warningLevel, const_cast<Processor*>(p), t });
 	triggerAsyncUpdate();

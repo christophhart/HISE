@@ -259,8 +259,8 @@
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
   </MODULES>
-  <JUCEOPTIONS JUCE_ASIO="enabled" JUCE_DIRECTSOUND="enabled" JUCE_PLUGINHOST_VST="enabled"
-               JUCE_PLUGINHOST_VST3="disabled" JUCE_PLUGINHOST_AU="enabled"
+  <JUCEOPTIONS JUCE_ASIO="enabled" JUCE_DIRECTSOUND="enabled" JUCE_PLUGINHOST_VST="disabled"
+               JUCE_PLUGINHOST_VST3="disabled" JUCE_PLUGINHOST_AU="disabled"
                USE_BACKEND="enabled" JUCE_USE_DIRECTWRITE="enabled" IS_STANDALONE_APP="enabled"
                USE_IPP="enabled" USE_COPY_PROTECTION="disabled" USE_GLITCH_DETECTION="enabled"
                ENABLE_PLOTTER="enabled" ENABLE_SCRIPTING_SAFE_CHECKS="enabled"
@@ -269,7 +269,8 @@
                JUCE_ALSA="enabled" JUCE_JACK="enabled" USE_VDSP_FFT="disabled"
                ENABLE_SCRIPTING_BREAKPOINTS="enabled" HLAC_MEASURE_DECODING_PERFORMANCE="disabled"
                HLAC_DEBUG_LOG="disabled" HLAC_INCLUDE_TEST_SUITE="disabled"
-               STANDALONE_STREAMING="disabled" JUCE_ENABLE_AUDIO_GUARD="enabled"/>
+               STANDALONE_STREAMING="disabled" JUCE_ENABLE_AUDIO_GUARD="enabled"
+               JUCE_PLUGINHOST_LADSPA="disabled"/>
   <LIVE_SETTINGS>
     <OSX defines="USE_IPP=0"/>
   </LIVE_SETTINGS>

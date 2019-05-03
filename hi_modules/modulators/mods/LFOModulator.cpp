@@ -128,7 +128,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 				float freq = t->getAttribute(LfoModulator::Parameters::Frequency);
 				float time = 1.0f / freq;
 
-				return String(roundFloatToInt(input * time*1000.0f)) + " ms";
+				return String(roundToInt(input * time*1000.0f)) + " ms";
 			}
 		}
 

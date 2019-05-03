@@ -116,6 +116,7 @@
 */
 #ifndef JUCE_HEADLESS_PLUGIN_CLIENT
  #define JUCE_HEADLESS_PLUGIN_CLIENT 0
+#endif
 
 /** Config: JUCE_WIN_PER_MONITOR_DPI_AWARE
     Enables per-monitor DPI awareness on Windows 8.1 and above.

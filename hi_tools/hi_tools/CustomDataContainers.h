@@ -647,7 +647,7 @@ public:
 					numProducers++;
 			}
 
-			int numRequired = roundDoubleToInt((ceil((double)numElements / (double)blockSize) + (double)1) * (double)numProducers * (double)blockSize);
+			int numRequired = roundToInt((ceil((double)numElements / (double)blockSize) + (double)1) * (double)numProducers * (double)blockSize);
 			
 			queue = std::move(moodycamel::ConcurrentQueue<ElementType>(size_t(numRequired)));
 		}

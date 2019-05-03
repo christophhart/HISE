@@ -110,7 +110,7 @@ void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int mi
 		{
 			Rectangle<int> r(x, y, w, h);
 
-			float cornerSize = (float)roundFloatToInt((float)w * 0.05f);
+			float cornerSize = (float)roundToInt((float)w * 0.05f);
 
 			r.reduce(2, 1);
 			r.removeFromTop(4);
@@ -218,7 +218,7 @@ void CustomKeyboardLookAndFeel::drawBlackNote(CustomKeyboardState* state, int mi
 
 			Rectangle<int> r(x, y, w, h);
 
-			float cornerSize = (float)roundFloatToInt((float)w * 0.09f);
+			float cornerSize = (float)roundToInt((float)w * 0.09f);
 
 			r.reduce(1, 1);
 
@@ -368,6 +368,7 @@ CustomKeyboard::CustomKeyboard(MainController* mc_) :
 
 CustomKeyboard::~CustomKeyboard()
 {
+	setLookAndFeel(nullptr);
 	state->removeChangeListener(this);
 }
 
@@ -389,7 +390,7 @@ void CustomKeyboard::mouseDown(const MouseEvent& e)
 {
 	if (toggleMode)
 	{
-		auto number = getNoteAtPosition(e.getMouseDownPosition());
+		auto number = getNoteAtPosition(e.getMouseDownPosition().toFloat());
 
 		if (state->isNoteOnForChannels(getMidiChannelsToDisplay(), number))
 		{
@@ -471,8 +472,15 @@ void CustomKeyboard::setUseVectorGraphics(bool shouldUseVectorGraphics, bool use
 	setOpaque(!useFlatStyle);
 }
 
-void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour)
+void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, Rectangle<float> area, bool isDown, bool isOver, Colour lineColour, Colour textColour)
 {
+	auto areaInt = area.toNearestInt();
+
+	int x = areaInt.getX();
+	int y = areaInt.getY();
+	int w = areaInt.getWidth();
+	int h = areaInt.getHeight();
+
 	if (useCustomGraphics)
 	{
         SET_IMAGE_RESAMPLING_QUALITY();
@@ -508,8 +516,15 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
 	
 }
 
-void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour)
+void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, Rectangle<float> area, bool isDown, bool isOver, Colour noteFillColour)
 {
+	auto areaInt = area.toNearestInt();
+
+	int x = areaInt.getX();
+	int y = areaInt.getY();
+	int w = areaInt.getWidth();
+	int h = areaInt.getHeight();
+
 	if (useCustomGraphics)
 	{
 		g.setOpacity(1.0f);

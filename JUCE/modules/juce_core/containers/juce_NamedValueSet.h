@@ -66,7 +66,7 @@ public:
     NamedValueSet& operator= (NamedValueSet&&) noexcept;
 
     /** Creates a NamedValueSet from a list of names and properties. */
-    NamedValueSet (std::initializer_list<NamedValue>);
+    NamedValueSet (const std::initializer_list<NamedValue>& list) noexcept;
 
     /** Destructor. */
     ~NamedValueSet() noexcept;

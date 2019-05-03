@@ -1036,7 +1036,7 @@ void CompileExporter::convertTccScriptsToCppClasses()
 
 	FileOutputStream fos(outputFile);
 
-	fos.writeText(output, false, false);
+	fos.writeText(output, false, false, nullptr);
 }
 
 void CompileExporter::createCppFileFromTccScript(File& targetDirectory, const File &f, Array<File>& convertedList)
@@ -1094,7 +1094,7 @@ void CompileExporter::createCppFileFromTccScript(File& targetDirectory, const Fi
 
 	convertedList.add(outputFile);
 
-	fos.writeText(output, false, false);
+	fos.writeText(output, false, false, nullptr);
 }
 
 CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOption, TargetTypes types)

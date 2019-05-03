@@ -54,10 +54,10 @@ void ScriptComponentEditBroadcaster::addToSelection(ScriptComponent* componentTo
 
 	for (int i = 0; i < currentSelection.size(); i++)
 	{
-		if (currentSelection[i] == componentToAdd)
+		if (currentSelection[i].get() == componentToAdd)
 			return;
 
-		if (componentToAdd->getParentScriptComponent() == currentSelection[i])
+		if (componentToAdd->getParentScriptComponent() == currentSelection[i].get())
 			return;
 
 		if (currentSelection[i]->getParentScriptComponent() == componentToAdd)
@@ -80,7 +80,7 @@ void ScriptComponentEditBroadcaster::removeFromSelection(ScriptComponent* compon
 
 	for (int i = 0; i < currentSelection.size(); i++)
 	{
-		if (currentSelection[i] == componentToRemove)
+		if (currentSelection[i].get() == componentToRemove)
 		{
 			currentSelection.remove(i);
 			break;

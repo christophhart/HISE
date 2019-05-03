@@ -524,7 +524,7 @@ bool HiseJavascriptEngine::RootObject::Scope::findAndInvokeMethod(const Identifi
 {
 	DynamicObject* target = args.thisObject.getDynamicObject();
 
-	if (target == nullptr || target == scope)
+	if (target == nullptr || target == scope.get())
 	{
 		if (const var* m = getPropertyPointer(scope, function))
 		{

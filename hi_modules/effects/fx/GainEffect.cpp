@@ -75,7 +75,7 @@ smoothedGainR(1.0f)
 			auto normalized = (input - 0.5f) * 2.0f;
 			auto v = tmp->getAttribute(GainEffect::Parameters::Balance) * normalized;
 
-			return BalanceCalculator::getBalanceAsString(roundFloatToInt(v));
+			return BalanceCalculator::getBalanceAsString(roundToInt(v));
 		}
 
 		return Table::getDefaultTextValue(input);
@@ -89,7 +89,7 @@ smoothedGainR(1.0f)
 		{
 			auto v = tmp->getAttribute(GainEffect::Parameters::Width) / 100.0f;
 			const float thisWidth = (v - 1.0f) * input + 1.0f;
-			return String(roundFloatToInt(thisWidth*100.0f)) + "%";
+			return String(roundToInt(thisWidth*100.0f)) + "%";
 		}
 
 		return Table::getDefaultTextValue(input);
@@ -116,7 +116,7 @@ smoothedGainR(1.0f)
 		if (tmp)
 		{
 			auto v = Decibels::decibelsToGain(tmp->getAttribute(GainEffect::Parameters::Delay));
-			return String(roundFloatToInt(v)) + " ms";
+			return String(roundToInt(v)) + " ms";
 		}
 
 		return Table::getDefaultTextValue(input);

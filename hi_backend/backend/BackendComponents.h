@@ -305,6 +305,11 @@ public:
 		setWantsKeyboardFocus(true);
 	}
 
+	~MacroParameterTable()
+	{
+		table.getHeader().setLookAndFeel(nullptr);
+	}
+
 	SET_GENERIC_PANEL_ID("MacroTable");
 
 	int getNumRows() override

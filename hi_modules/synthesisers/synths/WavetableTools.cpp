@@ -249,7 +249,7 @@ struct ResynthesisHelpers
 			for (int i = 0; i < numHarmonics; i++)
 			{
 				auto hmFreq = pitch * double(i + 1);
-				auto index = roundDoubleToInt(hmFreq / (sampleRate / 2.0) * halfSize);
+				auto index = roundToInt(hmFreq / (sampleRate / 2.0) * halfSize);
 
 				index = jmax<int>(0, index);
 
@@ -511,7 +511,7 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
 	auto nyquist = sampleRate / 2.0;
 
-	int numHarmonics = roundDoubleToInt(nyquist / MidiMessage::getMidiNoteInHertz(m.index.noteNumber));
+	int numHarmonics = roundToInt(nyquist / MidiMessage::getMidiNoteInHertz(m.index.noteNumber));
 
 	m.clear(numHarmonics);
 
@@ -519,8 +519,6 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
 	int partIndex = 0;
 
-    int index = 0;
-    
 	for (const auto& p : parts)
 	{
 		AudioSampleBuffer harmonics(2, numHarmonics);
@@ -790,7 +788,7 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 			if (playbackRate != sampleRate)
 			{
 				double ratio = sampleRate / playbackRate;
-				int newNumSamples = roundDoubleToInt((double)b.getNumSamples() / ratio);
+				int newNumSamples = roundToInt((double)b.getNumSamples() / ratio);
 
 				LagrangeInterpolator interpolator;
 				AudioSampleBuffer resampled(2, newNumSamples);
@@ -936,7 +934,7 @@ juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer
 
 			auto pitchFactorRoot = StreamingSamplerSound::getPitchFactor(noteNumber, rootNote);
 			const auto pf = pitchFactorRoot * pitchFactorSampleRate;
-			const int numSamplesResampled = roundDoubleToInt((double)unresampled.getNumSamples() / pf);
+			const int numSamplesResampled = roundToInt((double)unresampled.getNumSamples() / pf);
 
 			LagrangeInterpolator interpolator;
 			buffer.setSize(2, numSamplesResampled);
@@ -986,7 +984,7 @@ Array<juce::AudioSampleBuffer> SampleMapToWavetableConverter::splitSample(const 
 		AudioSampleBuffer p;
 
 		auto offsetNormalized = (double)i / (double)numParts;
-		auto offsetSample = roundDoubleToInt(offsetNormalized * (double)totalLength);
+		auto offsetSample = roundToInt(offsetNormalized * (double)totalLength);
 
 		p.setSize(2, oversampledLength);
 		p.clear();

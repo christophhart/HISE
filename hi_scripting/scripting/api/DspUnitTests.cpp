@@ -198,7 +198,7 @@ public:
 
 
 		var sm = coreFactory->createModule("stereo");
-		DspInstance* stereoModule = dynamic_cast<DspInstance*>(sm.getObject());
+		DspInstance* stereoModule = dynamic_cast<DspInstance*>(sm.get());
 		expect(stereoModule != nullptr, "Stereo Module creation");
 
 		VariantBuffer::Ptr lData = new VariantBuffer(256);
@@ -613,8 +613,8 @@ private:
 		float pitchFactorRight = pf * sqrtf(2.0f); // 6 semitones down
 		float pitchFactorLeft = 0.5f * pitchFactorRight;
 
-		const int leftNextDirac = offset + roundDoubleToInt(ceil(256.0 / pitchFactorLeft));
-		const int rightNextDirac = offset + roundDoubleToInt(ceil(256.0 / pitchFactorRight));
+		const int leftNextDirac = offset + roundToInt(ceil(256.0 / pitchFactorLeft));
+		const int rightNextDirac = offset + roundToInt(ceil(256.0 / pitchFactorRight));
 
 		expect(testData.isWithinErrorRange(leftNextDirac - 1, 0.0f, 0), "leftNextDirac - 1");
 		expect(testData.isWithinErrorRange(rightNextDirac - 1, 0.0f, 1), "rightNextDirac - 1");
@@ -1355,7 +1355,7 @@ private:
 			d.midiBuffer.addEvent(MidiMessage::noteOn(1, 64, 1.0f), startOffset);
 
 			if (stopOffset == -1)
-				stopOffset = roundDoubleToInt(sampleRate*0.7);
+				stopOffset = roundToInt(sampleRate*0.7);
 
 			d.midiBuffer.addEvent(MidiMessage::noteOff(1, 64), stopOffset);
 

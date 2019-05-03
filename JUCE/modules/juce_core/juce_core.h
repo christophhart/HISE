@@ -187,6 +187,13 @@
  #define JUCE_STRING_UTF_TYPE 8
 #endif
 
+/** Config: JUCE_ENABLE_AUDIO_GUARD
+	If enabled, this will watch for calls considered evil in the audio thread and fire a warning
+*/
+#ifndef JUCE_ENABLE_AUDIO_GUARD
+#define JUCE_ENABLE_AUDIO_GUARD 0
+#endif
+
 //==============================================================================
 //==============================================================================
 
@@ -216,6 +223,17 @@ namespace juce
     extern JUCE_API void JUCE_CALLTYPE logAssertion (const char* file, int line) noexcept;
 }
 
+
+#if JUCE_ENABLE_AUDIO_GUARD
+/** This little macro just calls DBG() with suspended audio guard (otherwise the string creation would fire). */
+#define DBG_WITH_AUDIO_GUARD(x) { juce::AudioThreadGuard::Suspender s; DBG(x); }
+#define WARN_IF_AUDIO_THREAD(condition, operationType) juce::AudioThreadGuard::warnIf(condition, operationType)
+#else
+#define WARN_IF_AUDIO_THREAD(condition, operationType)
+#define DBG_WITH_AUDIO_GUARD(x)
+#endif
+
+
 #include "memory/juce_Memory.h"
 #include "maths/juce_MathsFunctions.h"
 #include "memory/juce_ByteOrder.h"
@@ -239,6 +257,7 @@ namespace juce
 #include "text/juce_String.h"
 #include "text/juce_StringRef.h"
 #include "logging/juce_Logger.h"
+#include "logging/juce_AudioThreadGuard.h"
 #include "memory/juce_LeakedObjectDetector.h"
 #include "memory/juce_ContainerDeletePolicy.h"
 #include "memory/juce_HeapBlock.h"

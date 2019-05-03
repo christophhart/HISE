@@ -266,6 +266,7 @@ AudioThreadGuard::ScopedTryLockType::~ScopedTryLockType()
 }
 
 
+
 #endif
 
 } // namespace juce

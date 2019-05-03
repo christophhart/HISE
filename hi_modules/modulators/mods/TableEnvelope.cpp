@@ -59,7 +59,7 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 		if (t != nullptr)
 		{
 			auto time = t->getAttribute(TableEnvelope::SpecialParameters::Attack);
-			return String(roundFloatToInt(input * time)) + " ms";
+			return String(roundToInt(input * time)) + " ms";
 		}
 
 		return String();
@@ -70,7 +70,7 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 		if (t != nullptr)
 		{
 			auto time = t->getAttribute(TableEnvelope::SpecialParameters::Release);
-			return String(roundFloatToInt(input * time)) + " ms";
+			return String(roundToInt(input * time)) + " ms";
 		}
 
 		return String();

@@ -46,7 +46,7 @@ class Table: public SafeChangeBroadcaster
 {
 public:
 
-	static String getDefaultTextValue(float input) { return String(roundFloatToInt(input * 100.0f)) + "%"; };
+	static String getDefaultTextValue(float input) { return String(roundToInt(input * 100.0f)) + "%"; };
 
 	using ValueTextConverter = std::function<String(float)>;
 

@@ -1017,10 +1017,10 @@ public:
 
 		PoolHelpers::fillMetadata(ne->data, &ne->additionalData);
 
-		refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
-		weakPool.add(ManagedPtr(this, ne.getObject(), false));
+		refCountedPool.add(ManagedPtr(this, ne.get(), true));
+		weakPool.add(ManagedPtr(this, ne.get(), false));
 
-		return ManagedPtr(this, ne.getObject(), true);
+		return ManagedPtr(this, ne.get(), true);
 	}
 
 	/** Loads a reference with the given LoadingType. Use this whenever you need to access data,
@@ -1101,14 +1101,14 @@ public:
 					}
 					else
 					{
-						weakPool.add(ManagedPtr(this, ne.getObject(), false));
-						refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+						weakPool.add(ManagedPtr(this, ne.get(), false));
+						refCountedPool.add(ManagedPtr(this, ne.get(), true));
 					}
 				}
 
 				sendPoolChangeMessage(PoolBase::Added);
 
-				return ManagedPtr(this, ne.getObject(), true);
+				return ManagedPtr(this, ne.get(), true);
 			}
 			else
 			{
@@ -1132,15 +1132,15 @@ public:
 				}
 				else
 				{
-					weakPool.add(ManagedPtr(this, ne.getObject(), false));
+					weakPool.add(ManagedPtr(this, ne.get(), false));
 
 					if (PoolHelpers::isStrong(loadingType))
-						refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+						refCountedPool.add(ManagedPtr(this, ne.get(), true));
 				}
 				
 				sendPoolChangeMessage(PoolBase::Added);
 
-				return ManagedPtr(this, ne.getObject(), true);
+				return ManagedPtr(this, ne.get(), true);
 			}
 			else
 			{

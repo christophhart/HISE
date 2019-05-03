@@ -55,6 +55,9 @@ Array<ScriptComponentPropertyTypeSelector::SliderRange> ScriptComponentPropertyT
 
 ScriptCreatedComponentWrapper::~ScriptCreatedComponentWrapper()
 {
+	if (auto c = getComponent())
+		c->setLookAndFeel(nullptr);
+
 	currentPopup = nullptr;
 }
 
@@ -710,10 +713,16 @@ ScriptCreatedComponentWrapper(content, index)
 }
 
 
+ScriptCreatedComponentWrappers::ButtonWrapper::~ButtonWrapper()
+{
+	
+}
+
 void ScriptCreatedComponentWrappers::ButtonWrapper::updateFilmstrip(HiToggleButton* b, ScriptingApi::Content::ScriptButton* sb)
 {
 	if (sb->getImage().isValid())
 	{
+		b->setLookAndFeel(nullptr);
 		FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
 
 		fslaf->setFilmstripImage(sb->getImage(),
@@ -1022,7 +1031,7 @@ void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> p
 {
 	localPopupPosition = position.withY(position.getY() - 20);;
 
-	popupText = String(pointIndex) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
+	popupText = String(pointIndex) + " | " + String(roundToInt(value*100.0f)) + "%";
 
 	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
@@ -1060,7 +1069,7 @@ void ScriptCreatedComponentWrappers::TableWrapper::curveChanged(Point<int> posit
 {
 	localPopupPosition = position;
 
-	popupText = String(roundFloatToInt(curveValue * 100.0f)) + "%";
+	popupText = String(roundToInt(curveValue * 100.0f)) + "%";
 
 	showValuePopup();
 	closeValuePopupAfterDelay();

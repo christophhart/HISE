@@ -252,7 +252,7 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 
 	SampleFunction c;
 
-	auto& pendingProcessors = mc->getSampleManager().pendingProcessors;
+	auto& pending = mc->getSampleManager().pendingProcessors;
 
 	while (pFunctions.pop(c))
 	{
@@ -267,7 +267,7 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 		auto result = c.getFunction().call();
 		
 		auto pToDelete = c.getFunction().p.get();
-		pendingProcessors.removeFirstMatchingValue(pToDelete);
+		pending.removeFirstMatchingValue(pToDelete);
 
 		if (shouldExit())
 		{
@@ -279,7 +279,7 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 	}
 
 	
-	jassert(pendingProcessors.isEmpty());
+	jassert(pending.isEmpty());
 	mc->getSampleManager().clearPreloadFlag();
 	mc->getSampleManager().initialiseQueue();
 

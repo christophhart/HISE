@@ -337,7 +337,7 @@ void MPEPanel::fromDynamicObject(const var& object)
 
 	laf.font = getFont();
 
-	listbox.setRowHeight(roundDoubleToInt(getFont().getHeight() * 2.2f));
+	listbox.setRowHeight(roundToInt(getFont().getHeight() * 2.2f));
 
 	updateTableColours();
 }
@@ -1134,6 +1134,7 @@ MPEKeyboard::MPEKeyboard(MainController* mc) :
 
 MPEKeyboard::~MPEKeyboard()
 {
+	setLookAndFeel(nullptr);
 	state.removeListener(this);
 }
 
@@ -1333,7 +1334,7 @@ void MPEKeyboard::Note::updateNote(const MPEKeyboard& p, const MouseEvent& e)
 	float pitchBendValue = (float)e.getDistanceFromDragStartX() / p.getWidthForNote();
 	slideValue = jlimit<int>(0, 8192 * 2, 8192 + (int)(pitchBendValue / 24.0f * 4096.0f));
 	float normalisedGlide = -0.5f * (float)e.getDistanceFromDragStartY() / (float)p.getHeight();
-	glideValue = jlimit<int>(0, 127, 64 + roundFloatToInt(normalisedGlide * 127.0f));
+	glideValue = jlimit<int>(0, 127, 64 + roundToInt(normalisedGlide * 127.0f));
 
     if(e.isPressureValid())
     {

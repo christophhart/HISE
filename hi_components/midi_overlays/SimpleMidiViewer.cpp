@@ -75,7 +75,7 @@ void SimpleMidiViewer::paint(Graphics& g)
 	if (posToUse == -1)
 		posToUse = getPlayer()->getPlaybackPosition();
 
-	int posX = roundDoubleToInt(posToUse * (double)getWidth());
+	int posX = roundToInt(posToUse * (double)getWidth());
 
 	g.setColour(findColour(HiseColourScheme::ComponentFillBottomColourId));
 	g.drawVerticalLine(posX, 0.0f, (float)getHeight());

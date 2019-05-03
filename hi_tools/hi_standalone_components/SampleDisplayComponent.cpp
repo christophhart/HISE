@@ -110,6 +110,12 @@ AudioDisplayComponent::SampleArea::SampleArea(int area_, AudioDisplayComponent *
 
 };
 
+AudioDisplayComponent::SampleArea::~SampleArea()
+{
+	leftEdge->setLookAndFeel(nullptr);
+	rightEdge->setLookAndFeel(nullptr);
+}
+
 void AudioDisplayComponent::SampleArea::mouseUp(const MouseEvent &e)
 {
 	checkBounds();
@@ -133,7 +139,7 @@ void AudioDisplayComponent::SampleArea::mouseUp(const MouseEvent &e)
 int AudioDisplayComponent::SampleArea::getXForSample(int sample, bool relativeToAudioDisplayComponent/*=false*/) const
 {
 	const double proportion = jmin<double>(1.0, (double)sample / (double)(parentWaveform->getTotalSampleAmount()-1));
-	int xInWaveform = roundDoubleToInt((double)parentWaveform->getWidth() * proportion);
+	int xInWaveform = roundToInt((double)parentWaveform->getWidth() * proportion);
 	
 
 
@@ -748,7 +754,7 @@ void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<f
 
 void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, const float* l_, int numSamples)
 {
-	int stride = roundFloatToInt((float)numSamples / width);
+	int stride = roundToInt((float)numSamples / width);
 	stride = jmax<int>(1, stride * 2);
 
 	if (numSamples != 0)

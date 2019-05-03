@@ -170,7 +170,8 @@ private:
 */
 class DialogWindowWithBackgroundThread : public AlertWindow,
 									  public QuasiModalComponent,
-									  public AsyncUpdater
+									  public AsyncUpdater,
+									  public ButtonListener
 {
 public:
 

@@ -316,6 +316,7 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 
 FloatingTabComponent::~FloatingTabComponent()
 {
+	getTabbedButtonBar().setLookAndFeel(nullptr);
 	clear();
 }
 

@@ -56,18 +56,18 @@ public:
 
 	static String getDomainAsMidiRange(float input)
 	{
-		return String(roundFloatToInt(input*127.0f));
+		return String(roundToInt(input*127.0f));
 	};
 
 	static String getDomainAsPitchBendRange(float input)
 	{
 		auto v = jmap<float>(input, -8192.0f, 8192.0f);
-		return String(roundFloatToInt(v));
+		return String(roundToInt(v));
 	};
 
 	static String getDomainAsMidiNote(float input)
 	{
-		return MidiMessage::getMidiNoteName(roundFloatToInt(input*127.0f), true, true, 3);
+		return MidiMessage::getMidiNoteName(roundToInt(input*127.0f), true, true, 3);
 	};
 
 	static String getValueAsDecibel(float input)

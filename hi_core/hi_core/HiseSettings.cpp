@@ -595,7 +595,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 			const auto& bs = ConversionHelpers::getSampleRates(currentDevice);
 
 			for (auto l : bs)
-				sa.add(String(roundDoubleToInt(l)));
+				sa.add(String(roundToInt(l)));
 		}
 		else if (id == Audio::Output)
 		{

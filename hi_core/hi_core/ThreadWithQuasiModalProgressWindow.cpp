@@ -126,6 +126,11 @@ ThreadWithQuasiModalProgressWindow::Overlay::Overlay() :
 	totalProgressBar->setOpaque(true);
 }
 
+ThreadWithQuasiModalProgressWindow::Overlay::~Overlay()
+{
+	totalProgressBar->setLookAndFeel(nullptr);
+}
+
 void ThreadWithQuasiModalProgressWindow::Overlay::setDialog(AlertWindow *newWindow)
 {
 	toFront(false);

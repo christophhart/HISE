@@ -59,26 +59,24 @@ struct ModBufferExpansion
 		}
 		else
 		{
+#if HISE_USE_CONTROLRATE_DOWNSAMPLING
+
 			float* temp = (float*)alloca(sizeof(float) * (numSamples_cr));
-
 			FloatVectorOperations::copy(temp, modulationData + startSample_cr, numSamples_cr);
-
 			float* d = const_cast<float*>(modulationData + startSample);
 
 			constexpr float ratio = 1.0f / (float)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
-			if (ratio != 1.0f)
+			for (int i = 0; i < numSamples_cr; i++)
 			{
-				for (int i = 0; i < numSamples_cr; i++)
-				{
-					AlignedSSERamper<HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR> ramper(d);
+				AlignedSSERamper<HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR> ramper(d);
 
-					const float delta1 = (temp[i] - rampStart) * ratio;
-					ramper.ramp(rampStart, delta1);
-					rampStart = temp[i];
-					d += HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-				}
+				const float delta1 = (temp[i] - rampStart) * ratio;
+				ramper.ramp(rampStart, delta1);
+				rampStart = temp[i];
+				d += HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 			}
+#endif
 
 			return true;
 		}

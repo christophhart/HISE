@@ -174,7 +174,7 @@ public:
 		baseFrequency = newBaseFrequency;
 		auto limit = (sampleRate * 0.4);
 
-		auto bandsUntilLimit = jlimit<int>(1, NUM_MAX_FILTER_BANDS, roundDoubleToInt(limit / baseFrequency));
+		auto bandsUntilLimit = jlimit<int>(1, NUM_MAX_FILTER_BANDS, roundToInt(limit / baseFrequency));
 
 		numBandsToUse = jmin<int>(numBands, bandsUntilLimit);
 

@@ -356,7 +356,7 @@ bool HiseJavascriptEngine::RootObject::JavascriptNamespace::updateCyclicReferenc
 
 	for (int i = 0; i < inlineFunctions.size(); i++)
 	{
-		auto f = dynamic_cast<InlineFunction::Object*>(inlineFunctions[i].getObject());
+		auto f = dynamic_cast<InlineFunction::Object*>(inlineFunctions[i].get());
 
 		if (!f->updateCyclicReferenceList(data, f->name))
 			return false;
