@@ -168,7 +168,7 @@ namespace AiffFileHelpers
 
             switch (key)
             {
-                case minor:     keyString = "major";        break;
+                case minor:     keyString = "minor";        break;
                 case major:     keyString = "major";        break;
                 case neither:   keyString = "neither";      break;
                 case both:      keyString = "both";         break;
@@ -651,7 +651,7 @@ public:
         writeHeader();
     }
 
-    ~AiffAudioFormatWriter()
+    ~AiffAudioFormatWriter() override
     {
         if ((bytesWritten & 1) != 0)
             output->writeByte (0);
@@ -960,7 +960,7 @@ bool AiffAudioFormat::canHandleFile (const File& f)
 
 AudioFormatReader* AiffAudioFormat::createReaderFor (InputStream* sourceStream, bool deleteStreamIfOpeningFails)
 {
-    ScopedPointer<AiffAudioFormatReader> w (new AiffAudioFormatReader (sourceStream));
+    std::unique_ptr<AiffAudioFormatReader> w (new AiffAudioFormatReader (sourceStream));
 
     if (w->sampleRate > 0 && w->numChannels > 0)
         return w.release();

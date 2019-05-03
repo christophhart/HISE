@@ -44,7 +44,7 @@ void AudioProcessorPlayer::setProcessor (AudioProcessor* const processorToPlay)
     {
         if (processorToPlay != nullptr && sampleRate > 0 && blockSize > 0)
         {
-            processorToPlay->setPlayConfigDetails(numInputChans, numOutputChans, sampleRate, blockSize);
+            processorToPlay->setPlayConfigDetails (numInputChans, numOutputChans, sampleRate, blockSize);
 
             bool supportsDouble = processorToPlay->supportsDoublePrecisionProcessing() && isDoublePrecision;
 
@@ -85,6 +85,15 @@ void AudioProcessorPlayer::setDoublePrecisionProcessing (bool doublePrecision)
         }
 
         isDoublePrecision = doublePrecision;
+    }
+}
+
+void AudioProcessorPlayer::setMidiOutput (MidiOutput* midiOutputToUse)
+{
+    if (midiOutput != midiOutputToUse)
+    {
+        const ScopedLock sl (lock);
+        midiOutput = midiOutputToUse;
     }
 }
 
@@ -141,7 +150,7 @@ void AudioProcessorPlayer::audioDeviceIOCallback (const float** const inputChann
         }
     }
 
-    AudioSampleBuffer buffer (channels, totalNumChans, numSamples);
+    AudioBuffer<float> buffer (channels, totalNumChans, numSamples);
 
     {
         const ScopedLock sl (lock);
@@ -162,6 +171,9 @@ void AudioProcessorPlayer::audioDeviceIOCallback (const float** const inputChann
                 {
                     processor->processBlock (buffer, incomingMidi);
                 }
+
+                if (midiOutput != nullptr)
+                    midiOutput->sendBlockOfMessagesNow (incomingMidi);
 
                 return;
             }

@@ -39,6 +39,8 @@ class MultiDocumentPanel;
     everything works nicely inside a MultiDocumentPanel.
 
     @see MultiDocumentPanel
+
+    @tags{GUI}
 */
 class JUCE_API  MultiDocumentPanelWindow  : public DocumentWindow
 {
@@ -49,7 +51,7 @@ public:
     MultiDocumentPanelWindow (Colour backgroundColour);
 
     /** Destructor. */
-    ~MultiDocumentPanelWindow();
+    ~MultiDocumentPanelWindow() override;
 
     //==============================================================================
     /** @internal */
@@ -81,6 +83,8 @@ private:
     Use addDocument() and closeDocument() to add or remove components from the
     panel - never use any of the Component methods to access the panel's child
     components directly, as these are managed internally.
+
+    @tags{GUI}
 */
 class JUCE_API  MultiDocumentPanel  : public Component,
                                       private ComponentListener
@@ -102,7 +106,7 @@ public:
         before closing, then you should call closeAllDocuments (true) and check that
         it returns true before deleting the panel.
     */
-    ~MultiDocumentPanel();
+    ~MultiDocumentPanel() override;
 
     //==============================================================================
     /** Tries to close all the documents.
@@ -242,7 +246,7 @@ public:
     Colour getBackgroundColour() const noexcept                         { return backgroundColour; }
 
     /** If the panel is being used in tabbed mode, this returns the TabbedComponent that's involved. */
-    TabbedComponent* getCurrentTabbedComponent() const noexcept         { return tabComponent; }
+    TabbedComponent* getCurrentTabbedComponent() const noexcept         { return tabComponent.get(); }
 
     //==============================================================================
     /** A subclass must override this to say whether its currently ok for a document
@@ -287,7 +291,7 @@ private:
     //==============================================================================
     LayoutMode mode = MaximisedWindowsWithTabs;
     Array<Component*> components;
-    ScopedPointer<TabbedComponent> tabComponent;
+    std::unique_ptr<TabbedComponent> tabComponent;
     Colour backgroundColour { Colours::lightblue };
     int maximumNumDocuments = 0, numDocsBeforeTabsUsed = 0;
 

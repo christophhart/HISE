@@ -31,6 +31,8 @@ namespace juce
     allows all directories through.
 
     @see FileFilter, DirectoryContentsList, FileListComponent, FileBrowserComponent
+
+    @tags{Core}
 */
 class JUCE_API  WildcardFileFilter  : public FileFilter
 {
@@ -55,7 +57,7 @@ public:
                         const String& description);
 
     /** Destructor. */
-    ~WildcardFileFilter();
+    ~WildcardFileFilter() override;
 
     //==============================================================================
     /** Returns true if the filename matches one of the patterns specified. */

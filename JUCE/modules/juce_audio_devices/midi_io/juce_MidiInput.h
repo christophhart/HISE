@@ -34,12 +34,14 @@ class MidiInput;
     class for more details.
 
     @see MidiInput
+
+    @tags{Audio}
 */
 class JUCE_API  MidiInputCallback
 {
 public:
     /** Destructor. */
-    virtual ~MidiInputCallback()  {}
+    virtual ~MidiInputCallback()  = default;
 
 
     /** Receives an incoming message.
@@ -84,8 +86,10 @@ public:
     available, and then use the openDevice() method to try to open one.
 
     @see MidiOutput
+
+    @tags{Audio}
 */
-class JUCE_API  MidiInput
+class JUCE_API  MidiInput  final
 {
 public:
     //==============================================================================

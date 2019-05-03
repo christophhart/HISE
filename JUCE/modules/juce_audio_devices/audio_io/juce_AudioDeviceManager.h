@@ -60,6 +60,8 @@ namespace juce
     listeners whenever one of its settings is changed.
 
     @see AudioDeviceSelectorComponent, AudioIODevice, AudioIODeviceType
+
+    @tags{Audio}
 */
 class JUCE_API  AudioDeviceManager  : public ChangeBroadcaster
 {
@@ -74,7 +76,7 @@ public:
     AudioDeviceManager();
 
     /** Destructor. */
-    ~AudioDeviceManager();
+    ~AudioDeviceManager() override;
 
     //==============================================================================
     /**
@@ -87,16 +89,6 @@ public:
     */
     struct JUCE_API  AudioDeviceSetup
     {
-        /** Creates an AudioDeviceSetup object.
-
-            The default constructor sets all the member variables to indicate default values.
-            You can then fill-in any values you want to before passing the object to
-            AudioDeviceManager::initialise().
-        */
-        AudioDeviceSetup();
-
-        bool operator== (const AudioDeviceSetup& other) const;
-
         /** The name of the audio device used for output.
             The name has to be one of the ones listed by the AudioDeviceManager's currently
             selected device type.
@@ -116,13 +108,13 @@ public:
             A value of 0 indicates that you don't care what rate is used, and the
             device will choose a sensible rate for you.
         */
-        double sampleRate;
+        double sampleRate = 0;
 
         /** The buffer size, in samples.
             This buffer size is used for both the input and output devices.
             A value of 0 indicates the default buffer size.
         */
-        int bufferSize;
+        int bufferSize = 0;
 
         /** The set of active input channels.
             The bits that are set in this array indicate the channels of the
@@ -135,7 +127,7 @@ public:
             should be ignored, and instead, the device's default channels
             should be used.
         */
-        bool useDefaultInputChannels;
+        bool useDefaultInputChannels = true;
 
         /** The set of active output channels.
             The bits that are set in this array indicate the channels of the
@@ -148,7 +140,10 @@ public:
             should be ignored, and instead, the device's default channels
             should be used.
         */
-        bool useDefaultOutputChannels;
+        bool useDefaultOutputChannels = true;
+
+        bool operator== (const AudioDeviceSetup&) const;
+        bool operator!= (const AudioDeviceSetup&) const;
     };
 
 
@@ -208,6 +203,13 @@ public:
     /** Returns the current device properties that are in use.
         @see setAudioDeviceSetup
     */
+    AudioDeviceSetup getAudioDeviceSetup() const;
+
+    /** Returns the current device properties that are in use.
+        This is an old method, kept around for compatibility, but you should prefer the new
+        version which returns the result rather than taking an out-parameter.
+        @see getAudioDeviceSetup()
+    */
     void getAudioDeviceSetup (AudioDeviceSetup& result) const;
 
     /** Changes the current device or its settings.
@@ -229,12 +231,11 @@ public:
 
         @see getAudioDeviceSetup
     */
-    String setAudioDeviceSetup (const AudioDeviceSetup& newSetup,
-                                bool treatAsChosenDevice);
+    String setAudioDeviceSetup (const AudioDeviceSetup& newSetup, bool treatAsChosenDevice);
 
 
     /** Returns the currently-active audio device. */
-    AudioIODevice* getCurrentAudioDevice() const noexcept               { return currentAudioDevice; }
+    AudioIODevice* getCurrentAudioDevice() const noexcept               { return currentAudioDevice.get(); }
 
     /** Returns the type of audio device currently in use.
         @see setCurrentAudioDeviceType
@@ -254,8 +255,7 @@ public:
 
         For a list of types, see getAvailableDeviceTypes().
     */
-    void setCurrentAudioDeviceType (const String& type,
-                                    bool treatAsChosenDevice);
+    void setCurrentAudioDeviceType (const String& type, bool treatAsChosenDevice);
 
     /** Closes the currently-open device.
         You can call restartLastAudioDevice() later to reopen it in the same state
@@ -372,7 +372,7 @@ public:
         If no device has been selected, or the device can't be opened, this will return nullptr.
         @see getDefaultMidiOutputName
     */
-    MidiOutput* getDefaultMidiOutput() const noexcept               { return defaultMidiOutput; }
+    MidiOutput* getDefaultMidiOutput() const noexcept               { return defaultMidiOutput.get(); }
 
     /** Returns a list of the types of device supported. */
     const OwnedArray<AudioIODeviceType>& getAvailableDeviceTypes();
@@ -402,28 +402,44 @@ public:
     void playTestSound();
 
     //==============================================================================
-    /** Turns on level-measuring for input channels.
-        @see getCurrentInputLevel()
-    */
-    void enableInputLevelMeasurement (bool enableMeasurement) noexcept;
+    /**
+        A simple reference-counted struct that holds a level-meter value that can be read
+        using getCurrentLevel().
 
-    /** Turns on level-measuring for output channels.
-        @see getCurrentOutputLevel()
-    */
-    void enableOutputLevelMeasurement (bool enableMeasurement) noexcept;
+        This is used to ensure that the level processing code is only executed when something
+        holds a reference to one of these objects and will be bypassed otherwise.
 
-    /** Returns the current input level.
-        To use this, you must first enable it by calling enableInputLevelMeasurement().
-        @see enableInputLevelMeasurement()
+        @see getInputLevelGetter, getOutputLevelGetter
     */
-    double getCurrentInputLevel() const noexcept;
+    struct LevelMeter    : public ReferenceCountedObject
+    {
+        LevelMeter() noexcept;
+        double getCurrentLevel() const noexcept;
 
-    /** Returns the current output level.
-        To use this, you must first enable it by calling enableOutputLevelMeasurement().
-        @see enableOutputLevelMeasurement()
+        using Ptr = ReferenceCountedObjectPtr<LevelMeter>;
+
+    private:
+        friend class AudioDeviceManager;
+
+        Atomic<float> level { 0 };
+        void updateLevel (const float* const*, int numChannels, int numSamples) noexcept;
+    };
+
+    /** Returns a reference-counted object that can be used to get the current input level.
+
+        You need to store this object locally to ensure that the reference count is incremented
+        and decremented properly. The current input level value can be read using getCurrentLevel().
     */
-    double getCurrentOutputLevel() const noexcept;
+    LevelMeter::Ptr getInputLevelGetter() noexcept          { return inputLevelGetter; }
 
+    /** Returns a reference-counted object that can be used to get the current output level.
+
+        You need to store this object locally to ensure that the reference count is incremented
+        and decremented properly. The current output level value can be read using getCurrentLevel().
+    */
+    LevelMeter::Ptr getOutputLevelGetter() noexcept         { return outputLevelGetter; }
+
+    //==============================================================================
     /** Returns the a lock that can be used to synchronise access to the audio callback.
         Obviously while this is locked, you're blocking the audio thread from running, so
         it must only be used for very brief periods when absolutely necessary.
@@ -451,14 +467,14 @@ private:
     OwnedArray<AudioDeviceSetup> lastDeviceTypeConfigs;
 
     AudioDeviceSetup currentSetup;
-    ScopedPointer<AudioIODevice> currentAudioDevice;
+    std::unique_ptr<AudioIODevice> currentAudioDevice;
     Array<AudioIODeviceCallback*> callbacks;
-    int numInputChansNeeded, numOutputChansNeeded;
-    String currentDeviceType;
+    int numInputChansNeeded = 0, numOutputChansNeeded = 2;
+    String preferredDeviceName, currentDeviceType;
     BigInteger inputChannels, outputChannels;
-    ScopedPointer<XmlElement> lastExplicitSettings;
-    mutable bool listNeedsScanning;
-    AudioSampleBuffer tempBuffer;
+    std::unique_ptr<XmlElement> lastExplicitSettings;
+    mutable bool listNeedsScanning = true;
+    AudioBuffer<float> tempBuffer;
 
     struct MidiCallbackInfo
     {
@@ -471,33 +487,20 @@ private:
     Array<MidiCallbackInfo> midiCallbacks;
 
     String defaultMidiOutputName;
-    ScopedPointer<MidiOutput> defaultMidiOutput;
+    std::unique_ptr<MidiOutput> defaultMidiOutput;
     CriticalSection audioCallbackLock, midiCallbackLock;
 
-    ScopedPointer<AudioSampleBuffer> testSound;
-    int testSoundPosition;
+    std::unique_ptr<AudioBuffer<float>> testSound;
+    int testSoundPosition = 0;
 
-    double cpuUsageMs, timeToCpuScale, msPerBlock;
-    int xruns;
+    AudioProcessLoadMeasurer loadMeasurer;
 
-    struct LevelMeter
-    {
-        LevelMeter() noexcept;
-        void updateLevel (const float* const*, int numChannels, int numSamples) noexcept;
-        void setEnabled (bool) noexcept;
-        double getCurrentLevel() const noexcept;
-
-        Atomic<int> enabled;
-        double level;
-    };
-
-    LevelMeter inputLevelMeter, outputLevelMeter;
+    LevelMeter::Ptr inputLevelGetter   { new LevelMeter() },
+                    outputLevelGetter  { new LevelMeter() };
 
     //==============================================================================
     class CallbackHandler;
-    friend class CallbackHandler;
-    friend struct ContainerDeletePolicy<CallbackHandler>;
-    ScopedPointer<CallbackHandler> callbackHandler;
+    std::unique_ptr<CallbackHandler> callbackHandler;
 
     void audioDeviceIOCallbackInt (const float** inputChannelData, int totalNumInputChannels,
                                    float** outputChannelData, int totalNumOutputChannels, int numSamples);

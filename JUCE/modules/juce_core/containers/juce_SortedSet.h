@@ -49,6 +49,8 @@ namespace juce
     TypeOfCriticalSectionToUse parameter, instead of the default DummyCriticalSection.
 
     @see Array, OwnedArray, ReferenceCountedArray, StringArray, CriticalSection
+
+    @tags{Core}
 */
 template <class ElementType, class TypeOfCriticalSectionToUse = DummyCriticalSection>
 class SortedSet
@@ -57,24 +59,24 @@ public:
     //==============================================================================
     /** Creates an empty set. */
     // VS2013 doesn't allow defaulted noexcept constructors.
-    SortedSet() noexcept {}
+    SortedSet() = default;
 
     /** Creates a copy of another set. */
     SortedSet (const SortedSet&) = default;
 
     /** Creates a copy of another set. */
     // VS2013 doesn't allow defaulted noexcept constructors.
-    SortedSet (SortedSet&& other) noexcept : data (static_cast<decltype(data)&&> (other.data)) {}
+    SortedSet (SortedSet&& other) noexcept : data (std::move (other.data)) {}
 
     /** Makes a copy of another set. */
     SortedSet& operator= (const SortedSet&) = default;
 
     /** Makes a copy of another set. */
     // VS2013 doesn't allow defaulted noexcept constructors.
-    SortedSet& operator= (SortedSet&& other) noexcept { data = static_cast<decltype(data)&&> (other.data); return *this; }
+    SortedSet& operator= (SortedSet&& other) noexcept { data = std::move (other.data); return *this; }
 
     /** Destructor. */
-    ~SortedSet() noexcept {}
+    ~SortedSet() = default;
 
     //==============================================================================
     /** Compares this set to another one.
@@ -471,7 +473,7 @@ public:
     inline const TypeOfCriticalSectionToUse& getLock() const noexcept      { return data.getLock(); }
 
     /** Returns the type of scoped lock to use for locking this array */
-    typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
+    using ScopedLockType = typename TypeOfCriticalSectionToUse::ScopedLockType;
 
 
 private:

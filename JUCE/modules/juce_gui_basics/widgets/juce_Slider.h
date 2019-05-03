@@ -47,6 +47,8 @@ namespace juce
     the value changes.
 
     @see Slider::Listener
+
+    @tags{GUI}
 */
 class JUCE_API  Slider  : public Component,
                           public SettableTooltipClient
@@ -62,7 +64,7 @@ public:
         LinearHorizontal,               /**< A traditional horizontal slider. */
         LinearVertical,                 /**< A traditional vertical slider. */
         LinearBar,                      /**< A horizontal bar slider with the text label drawn on top of it. */
-        LinearBarVertical,
+        LinearBarVertical,              /**< A vertical bar slider with the text label drawn on top of it. */
         Rotary,                         /**< A rotary control that you move by dragging the mouse in a circular motion, like a knob.
                                              @see setRotaryParameters */
         RotaryHorizontalDrag,           /**< A rotary control that you move by dragging the mouse left-to-right.
@@ -81,7 +83,7 @@ public:
         ThreeValueHorizontal,           /**< A horizontal slider that has three thumbs instead of one, so it can show a minimum and maximum
                                              value, with the current value being somewhere between them.
                                              @see setMinValue, setMaxValue */
-        ThreeValueVertical,             /**< A vertical slider that has three thumbs instead of one, so it can show a minimum and maximum
+        ThreeValueVertical              /**< A vertical slider that has three thumbs instead of one, so it can show a minimum and maximum
                                              value, with the current value being somewhere between them.
                                              @see setMinValue, setMaxValue */
     };
@@ -123,7 +125,7 @@ public:
     Slider (SliderStyle style, TextEntryBoxPosition textBoxPosition);
 
     /** Destructor. */
-    ~Slider();
+    ~Slider() override;
 
     //==============================================================================
     /** Changes the type of slider interface being used.
@@ -139,6 +141,7 @@ public:
     SliderStyle getSliderStyle() const noexcept;
 
     //==============================================================================
+    /** Structure defining rotary parameters for a slider */
     struct RotaryParameters
     {
         /** The angle (in radians, clockwise from the top) at which
@@ -211,11 +214,14 @@ public:
                                 the threshold is reached
         @param userCanPressKeyToSwapMode    if true, then the user can hold down the ctrl or command
                                 key to toggle velocity-sensitive mode
+        @param modifiersToSwapModes  this is a set of modifier flags which will be tested when determining
+                                whether to enable/disable velocity-sensitive mode
     */
     void setVelocityModeParameters (double sensitivity = 1.0,
                                     int threshold = 1,
                                     double offset = 0.0,
-                                    bool userCanPressKeyToSwapMode = true);
+                                    bool userCanPressKeyToSwapMode = true,
+                                    ModifierKeys::Flags modifiersToSwapModes = ModifierKeys::ctrlAltCommandModifiers);
 
     /** Returns the velocity sensitivity setting.
         @see setVelocityModeParameters
@@ -377,7 +383,8 @@ public:
                                 nearest interval if one has been set
         @param notification     can be one of the NotificationType values, to request
                                 a synchronous or asynchronous call to the valueChanged() method
-                                of any Slider::Listeners that are registered.
+                                of any Slider::Listeners that are registered. A notification will
+                                only be sent if the Slider's value has changed.
     */
     void setValue (double newValue, NotificationType notification = sendNotificationAsync);
 
@@ -411,6 +418,12 @@ public:
                             is not zero, the value will always be (newMinimum + (newInterval * an integer)).
     */
     void setRange (Range<double> newRange, double newInterval);
+
+    /** Sets a NormalisableRange to use for the Slider values.
+
+        @param newNormalisableRange     the NormalisableRange to use
+    */
+    void setNormalisableRange (NormalisableRange<double> newNormalisableRange);
 
     /** Returns the slider's range. */
     Range<double> getRange() const noexcept;
@@ -460,7 +473,8 @@ public:
                                 interval if one has been set.
         @param notification     can be one of the NotificationType values, to request
                                 a synchronous or asynchronous call to the valueChanged() method
-                                of any Slider::Listeners that are registered.
+                                of any Slider::Listeners that are registered. A notification will
+                                only be sent if this value has changed.
         @param allowNudgingOfOtherValues  if false, this value will be restricted to being below the
                                         max value (in a two-value slider) or the mid value (in a three-value
                                         slider). If true, then if this value goes beyond those values,
@@ -500,7 +514,8 @@ public:
                                 interval if one has been set.
         @param notification     can be one of the NotificationType values, to request
                                 a synchronous or asynchronous call to the valueChanged() method
-                                of any Slider::Listeners that are registered.
+                                of any Slider::Listeners that are registered. A notification will
+                                only be sent if this value has changed.
         @param allowNudgingOfOtherValues  if false, this value will be restricted to being above the
                                         min value (in a two-value slider) or the mid value (in a three-value
                                         slider). If true, then if this value goes beyond those values,
@@ -523,7 +538,8 @@ public:
                                 nearest interval if one has been set.
         @param notification     can be one of the NotificationType values, to request
                                 a synchronous or asynchronous call to the valueChanged() method
-                                of any Slider::Listeners that are registered.
+                                of any Slider::Listeners that are registered. A notification will
+                                only be sent if one or more of the values has changed.
         @see setMaxValue, setMinValue, setValue
     */
     void setMinAndMaxValues (double newMinValue, double newMaxValue,
@@ -542,7 +558,7 @@ public:
     public:
         //==============================================================================
         /** Destructor. */
-        virtual ~Listener() {}
+        virtual ~Listener() = default;
 
         //==============================================================================
         /** Called when the slider's value is changed.
@@ -580,16 +596,35 @@ public:
     void removeListener (Listener* listener);
 
     //==============================================================================
-    /** This lets you choose whether double-clicking moves the slider to a given position.
+    /** You can assign a lambda to this callback object to have it called when the slider value is changed. */
+    std::function<void()> onValueChange;
 
-        By default this is turned off, but it's handy if you want a double-click to act
-        as a quick way of resetting a slider. Just pass in the value you want it to
-        go to when double-clicked.
+    /** You can assign a lambda to this callback object to have it called when the slider's drag begins. */
+    std::function<void()> onDragStart;
+
+    /** You can assign a lambda to this callback object to have it called when the slider's drag ends. */
+    std::function<void()> onDragEnd;
+
+    /** You can assign a lambda that will be used to convert textual values to the slider's normalised position. */
+    std::function<double (const String&)> valueFromTextFunction;
+
+    /** You can assign a lambda that will be used to convert the slider's normalised position to a textual value. */
+    std::function<String (double)> textFromValueFunction;
+
+    //==============================================================================
+    /** This lets you choose whether double-clicking or single-clicking with a specified
+        key modifier moves the slider to a given position.
+
+        By default this is turned off, but it's handy if you want either of these actions
+        to act as a quick way of resetting a slider. Just pass in the value you want it to
+        go to when double-clicked. By default the key modifier is the alt key but you can
+        pass in another key modifier, or none to disable this behaviour.
 
         @see getDoubleClickReturnValue
     */
     void setDoubleClickReturnValue (bool shouldDoubleClickBeEnabled,
-                                    double valueToSetOnDoubleClick);
+                                    double valueToSetOnDoubleClick,
+                                    ModifierKeys singleClickModifiers = ModifierKeys::altModifier);
 
     /** Returns the values last set by setDoubleClickReturnValue() method.
         @see setDoubleClickReturnValue
@@ -729,8 +764,17 @@ public:
         slider's value.
         It calculates the fewest decimal places needed to represent numbers with
         the slider's interval setting.
+
+        @see setNumDecimalPlacesToDisplay
     */
     int getNumDecimalPlacesToDisplay() const noexcept;
+
+    /** Modifies the best number of decimal places to use when displaying this
+        slider's value.
+
+        @see getNumDecimalPlacesToDisplay
+    */
+    void setNumDecimalPlacesToDisplay (int decimalPlacesToDisplay);
 
     //==============================================================================
     /** Allows a user-defined mapping of distance along the slider to its value.
@@ -802,6 +846,10 @@ public:
     bool isRotary() const noexcept;
     /** True if the slider is in a linear bar mode. */
     bool isBar() const noexcept;
+    /** True if the slider has two thumbs. */
+    bool isTwoValue() const noexcept;
+    /** True if the slider has three thumbs. */
+    bool isThreeValue() const noexcept;
 
     //==============================================================================
     /** A set of colour IDs to use to change the colour of various aspects of the slider.
@@ -842,7 +890,7 @@ public:
     */
     struct JUCE_API  LookAndFeelMethods
     {
-        virtual ~LookAndFeelMethods() {}
+        virtual ~LookAndFeelMethods() = default;
 
         //==============================================================================
         virtual void drawLinearSlider (Graphics&,
@@ -932,9 +980,7 @@ public:
 private:
     //==============================================================================
     JUCE_PUBLIC_IN_DLL_BUILD (class Pimpl)
-    friend class Pimpl;
-    friend struct ContainerDeletePolicy<Pimpl>;
-    ScopedPointer<Pimpl> pimpl;
+    std::unique_ptr<Pimpl> pimpl;
 
     void init (SliderStyle, TextEntryBoxPosition);
 
@@ -956,7 +1002,5 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Slider)
 };
 
-/** This typedef is just for compatibility with old code - newer code should use the Slider::Listener class directly. */
-typedef Slider::Listener SliderListener;
 
 } // namespace juce

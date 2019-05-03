@@ -31,16 +31,18 @@ namespace dsp
 
 /**
     Applies a gain to audio samples as single samples or AudioBlocks.
+
+    @tags{DSP}
 */
 template <typename FloatType>
 class Gain
 {
 public:
-    Gain() noexcept {}
+    Gain() noexcept = default;
 
     //==============================================================================
     /** Applies a new gain as a linear value. */
-    void setGainLinear (FloatType newGain) noexcept             { gain.setValue (newGain); }
+    void setGainLinear (FloatType newGain) noexcept             { gain.setTargetValue (newGain); }
 
     /** Applies a new gain as a decibel value. */
     void setGainDecibels (FloatType newGainDecibels) noexcept   { setGainLinear (Decibels::decibelsToGain<FloatType> (newGainDecibels)); }
@@ -103,6 +105,16 @@ public:
         auto len         = inBlock.getNumSamples();
         auto numChannels = inBlock.getNumChannels();
 
+        if (context.isBypassed)
+        {
+            gain.skip (static_cast<int> (len));
+
+            if (context.usesSeparateInputAndOutputBlocks())
+                outBlock.copy (inBlock);
+
+            return;
+        }
+
         if (numChannels == 1)
         {
             auto* src = inBlock.getChannelPointer (0);
@@ -127,7 +139,7 @@ public:
 
 private:
     //==============================================================================
-    LinearSmoothedValue<FloatType> gain;
+    SmoothedValue<FloatType> gain;
     double sampleRate = 0, rampDurationSeconds = 0;
 };
 

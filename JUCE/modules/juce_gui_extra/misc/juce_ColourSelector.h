@@ -35,10 +35,11 @@ namespace juce
 
     This class is also a ChangeBroadcaster, so listeners can register to be told
     when the colour changes.
+
+    @tags{GUI}
 */
 class JUCE_API  ColourSelector  : public Component,
-                                  public ChangeBroadcaster,
-                                  protected Slider::Listener
+                                  public ChangeBroadcaster
 {
 public:
     //==============================================================================
@@ -68,7 +69,7 @@ public:
                     int gapAroundColourSpaceComponent = 7);
 
     /** Destructor. */
-    ~ColourSelector();
+    ~ColourSelector() override;
 
     //==============================================================================
     /** Returns the colour that the user has currently selected.
@@ -80,7 +81,12 @@ public:
     */
     Colour getCurrentColour() const;
 
-    /** Changes the colour that is currently being shown. */
+    /** Changes the colour that is currently being shown.
+
+        @param newColour           the new colour to show
+        @param notificationType    whether to send a notification of the change to listeners.
+                                   A notification will only be sent if the colour has changed.
+    */
     void setCurrentColour (Colour newColour, NotificationType notificationType = sendNotification);
 
     //==============================================================================
@@ -127,25 +133,20 @@ public:
         labelTextColourId               = 0x1007001     /**< the colour used for the labels next to the sliders. */
     };
 
+    //==============================================================================
+    // These need to be public otherwise the Projucer's live-build engine will complain
+    class ColourSpaceView;
+    class HueSelectorComp;
 
 private:
     //==============================================================================
-    class ColourSpaceView;
-    class HueSelectorComp;
     class SwatchComponent;
-    class ColourComponentSlider;
-    class ColourSpaceMarker;
-    class HueSelectorMarker;
-    friend class ColourSpaceView;
-    friend struct ContainerDeletePolicy<ColourSpaceView>;
-    friend class HueSelectorComp;
-    friend struct ContainerDeletePolicy<HueSelectorComp>;
 
     Colour colour;
     float h, s, v;
-    ScopedPointer<Slider> sliders[4];
-    ScopedPointer<ColourSpaceView> colourSpace;
-    ScopedPointer<HueSelectorComp> hueSelector;
+    std::unique_ptr<Slider> sliders[4];
+    std::unique_ptr<ColourSpaceView> colourSpace;
+    std::unique_ptr<HueSelectorComp> hueSelector;
     OwnedArray<SwatchComponent> swatchComponents;
     const int flags;
     int edgeGap;
@@ -155,7 +156,7 @@ private:
     void setSV (float newS, float newV);
     void updateHSV();
     void update (NotificationType);
-    void sliderValueChanged (Slider*) override;
+    void changeColour();
     void paint (Graphics&) override;
     void resized() override;
 

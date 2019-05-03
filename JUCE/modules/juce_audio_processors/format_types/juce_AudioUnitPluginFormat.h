@@ -32,13 +32,15 @@ namespace juce
 //==============================================================================
 /**
     Implements a plugin format manager for AudioUnits.
+
+    @tags{Audio}
 */
 class JUCE_API  AudioUnitPluginFormat   : public AudioPluginFormat
 {
 public:
     //==============================================================================
     AudioUnitPluginFormat();
-    ~AudioUnitPluginFormat();
+    ~AudioUnitPluginFormat() override;
 
     //==============================================================================
     String getName() const override                { return "AudioUnit"; }
@@ -54,10 +56,8 @@ public:
 private:
     //==============================================================================
     void createPluginInstance (const PluginDescription&,
-                               double initialSampleRate,
-                               int initialBufferSize,
-                               void* userData,
-                               void (*callback) (void*, AudioPluginInstance*, const String&)) override;
+                               double initialSampleRate, int initialBufferSize,
+                               void* userData, PluginCreationCallback) override;
 
     bool requiresUnblockedMessageThreadDuringCreation (const PluginDescription&) const noexcept override;
 

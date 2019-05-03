@@ -27,7 +27,7 @@
 namespace juce
 {
 
-#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
+#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD, CALLBACK) \
     METHOD (isBillingSupported,      "isBillingSupported",      "(ILjava/lang/String;Ljava/lang/String;)I") \
     METHOD (getSkuDetails,           "getSkuDetails",           "(ILjava/lang/String;Ljava/lang/String;Landroid/os/Bundle;)Landroid/os/Bundle;") \
     METHOD (getBuyIntent,            "getBuyIntent",            "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Landroid/os/Bundle;") \
@@ -36,56 +36,14 @@ namespace juce
     METHOD (consumePurchase,         "consumePurchase",         "(ILjava/lang/String;Ljava/lang/String;)I") \
     METHOD (getPurchaseHistory,      "getPurchaseHistory",      "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroid/os/Bundle;)Landroid/os/Bundle;")
 
-DECLARE_JNI_CLASS (IInAppBillingService, "com/android/vending/billing/IInAppBillingService");
+DECLARE_JNI_CLASS (IInAppBillingService, "com/android/vending/billing/IInAppBillingService")
 #undef JNI_CLASS_MEMBERS
 
-#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
+#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD, CALLBACK) \
     STATICMETHOD (asInterface,      "asInterface",      "(Landroid/os/IBinder;)Lcom/android/vending/billing/IInAppBillingService;") \
 
-DECLARE_JNI_CLASS (IInAppBillingServiceStub, "com/android/vending/billing/IInAppBillingService$Stub");
+DECLARE_JNI_CLASS (IInAppBillingServiceStub, "com/android/vending/billing/IInAppBillingService$Stub")
 #undef JNI_CLASS_MEMBERS
-
-#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
-  METHOD (constructor, "<init>",   "(I)V") \
-  METHOD (add,         "add",      "(Ljava/lang/Object;)Z") \
-  METHOD (iterator,    "iterator", "()Ljava/util/Iterator;") \
-  METHOD (get,         "get",      "(I)Ljava/lang/Object;") \
-  METHOD (size,        "size",     "()I")
-
-DECLARE_JNI_CLASS (ArrayList, "java/util/ArrayList");
-#undef JNI_CLASS_MEMBERS
-
-#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
-  METHOD (constructor,        "<init>",             "()V") \
-  METHOD (putBoolean,         "putBoolean",         "(Ljava/lang/String;Z)V") \
-  METHOD (putStringArrayList, "putStringArrayList", "(Ljava/lang/String;Ljava/util/ArrayList;)V") \
-  METHOD (getInt,             "getInt",             "(Ljava/lang/String;)I") \
-  METHOD (getStringArrayList, "getStringArrayList", "(Ljava/lang/String;)Ljava/util/ArrayList;") \
-  METHOD (getString,          "getString",          "(Ljava/lang/String;)Ljava/lang/String;") \
-  METHOD (getParcelable,      "getParcelable",      "(Ljava/lang/String;)Landroid/os/Parcelable;")
-
-DECLARE_JNI_CLASS (Bundle, "android/os/Bundle");
-#undef JNI_CLASS_MEMBERS
-
-#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
-    STATICMETHOD (valueOf, "valueOf", "(I)Ljava/lang/Integer;")
-
-DECLARE_JNI_CLASS (Integer, "java/lang/Integer");
-#undef JNI_CLASS_MEMBERS
-
-#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
-    METHOD (hasNext, "hasNext", "()Z") \
-    METHOD (next,    "next",    "()Ljava/lang/Object;")
-
-DECLARE_JNI_CLASS (Iterator, "java/util/Iterator");
-#undef JNI_CLASS_MEMBERS
-
-#define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
-    METHOD (getIntentSender, "getIntentSender", "()Landroid/content/IntentSender;")
-
-DECLARE_JNI_CLASS (PendingIntent, "android/app/PendingIntent");
-#undef JNI_CLASS_MEMBERS
-
 
 //==============================================================================
 struct ServiceConnection  : public AndroidInterfaceImplementer
@@ -96,7 +54,7 @@ struct ServiceConnection  : public AndroidInterfaceImplementer
     jobject invoke (jobject proxy, jobject method, jobjectArray args) override
     {
         auto* env = getEnv();
-        auto methodName = juceString ((jstring) env->CallObjectMethod (method, Method.getName));
+        auto methodName = juceString ((jstring) env->CallObjectMethod (method, JavaMethod.getName));
 
         if (methodName == "onServiceConnected")
         {
@@ -121,19 +79,18 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
 {
     Pimpl (InAppPurchases& parent)  : owner (parent)
     {
-        getInAppPurchaseInstances().add (this);
-
         auto* env = getEnv();
-        auto intent = env->NewObject (Intent, Intent.constructWithString,
+        auto intent = env->NewObject (AndroidIntent, AndroidIntent.constructWithString,
                                       javaString ("com.android.vending.billing.InAppBillingService.BIND").get());
-        env->CallObjectMethod (intent, Intent.setPackage, javaString ("com.android.vending").get());
+        env->CallObjectMethod (intent, AndroidIntent.setPackage, javaString ("com.android.vending").get());
 
-        serviceConnection = GlobalRef (CreateJavaInterface (this, "android/content/ServiceConnection").get());
-        android.activity.callBooleanMethod (JuceAppActivity.bindService, intent,
-                                            serviceConnection.get(), 1 /*BIND_AUTO_CREATE*/);
+        serviceConnection = GlobalRef (CreateJavaInterface (this, "android/content/ServiceConnection"));
+
+        env->CallBooleanMethod (getCurrentActivity().get(), AndroidContext.bindService, intent,
+                                serviceConnection.get(), 1 /*BIND_AUTO_CREATE*/);
 
         if (threadPool == nullptr)
-            threadPool = new ThreadPool (1);
+            threadPool.reset (new ThreadPool (1));
     }
 
     ~Pimpl()
@@ -142,11 +99,9 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
 
         if (serviceConnection != nullptr)
         {
-            android.activity.callVoidMethod (JuceAppActivity.unbindService, serviceConnection.get());
+            getEnv()->CallVoidMethod (getCurrentActivity().get(), AndroidContext.unbindService, serviceConnection.get());
             serviceConnection.clear();
         }
-
-        getInAppPurchaseInstances().removeFirstMatchingValue (this);
     }
 
     //==============================================================================
@@ -176,22 +131,22 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
         auto* env = getEnv();
 
         auto responseCodeString = javaString ("RESPONSE_CODE");
-        auto responseCode = env->CallIntMethod (buyIntentBundle.get(), Bundle.getInt, responseCodeString.get());
+        auto responseCode = env->CallIntMethod (buyIntentBundle.get(), AndroidBundle.getInt, responseCodeString.get());
 
         if (responseCode == 0)
         {
             auto buyIntentString = javaString ("BUY_INTENT");
-            auto pendingIntent   = LocalRef<jobject> (env->CallObjectMethod (buyIntentBundle.get(), Bundle.getParcelable, buyIntentString.get()));
+            auto pendingIntent   = LocalRef<jobject> (env->CallObjectMethod (buyIntentBundle.get(), AndroidBundle.getParcelable, buyIntentString.get()));
 
             auto  requestCode = 1001;
-            auto intentSender    = LocalRef<jobject> (env->CallObjectMethod (pendingIntent.get(), PendingIntent.getIntentSender));
-            auto fillInIntent    = LocalRef<jobject> (env->NewObject (Intent, Intent.constructor));
-            auto flagsMask       = LocalRef<jobject> (env->CallStaticObjectMethod (Integer, Integer.valueOf, 0));
-            auto flagsValues     = LocalRef<jobject> (env->CallStaticObjectMethod (Integer, Integer.valueOf, 0));
-            auto extraFlags      = LocalRef<jobject> (env->CallStaticObjectMethod (Integer, Integer.valueOf, 0));
+            auto intentSender    = LocalRef<jobject> (env->CallObjectMethod (pendingIntent.get(), AndroidPendingIntent.getIntentSender));
+            auto fillInIntent    = LocalRef<jobject> (env->NewObject (AndroidIntent, AndroidIntent.constructor));
+            auto flagsMask       = LocalRef<jobject> (env->CallStaticObjectMethod (JavaInteger, JavaInteger.valueOf, 0));
+            auto flagsValues     = LocalRef<jobject> (env->CallStaticObjectMethod (JavaInteger, JavaInteger.valueOf, 0));
+            auto extraFlags      = LocalRef<jobject> (env->CallStaticObjectMethod (JavaInteger, JavaInteger.valueOf, 0));
 
-            android.activity.callVoidMethod (JuceAppActivity.startIntentSenderForResult, intentSender.get(), requestCode,
-                                             fillInIntent.get(), flagsMask.get(), flagsValues.get(), extraFlags.get());
+            env->CallVoidMethod (getCurrentActivity().get(), AndroidActivity.startIntentSenderForResult, intentSender.get(), requestCode,
+                                 fillInIntent.get(), flagsMask.get(), flagsValues.get(), extraFlags.get());
         }
         else if (responseCode == 7)
         {
@@ -263,14 +218,14 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
 
         auto skuString         = javaString (productIdentifier);
         auto productTypeString = javaString (isSubscription ? "subs" : "inapp");
-        auto devString         = javaString (getDeveloperExtraData());
+        auto devString         = javaString ("");
 
         if (subscriptionIdentifiers.isEmpty())
             return LocalRef<jobject> (inAppBillingService.callObjectMethod (IInAppBillingService.getBuyIntent, 3,
                                                                             getPackageName().get(), skuString.get(),
                                                                             productTypeString.get(), devString.get()));
 
-        auto skuList = LocalRef<jobject> (env->NewObject (ArrayList, ArrayList.constructor,
+        auto skuList = LocalRef<jobject> (env->NewObject (JavaArrayList, JavaArrayList.constructor,
                                                           (int) subscriptionIdentifiers.size()));
 
         if (skuList.get() == 0)
@@ -280,9 +235,9 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
         }
 
         for (const auto& identifier : subscriptionIdentifiers)
-            env->CallBooleanMethod (skuList.get(), ArrayList.add, javaString (identifier).get());
+            env->CallBooleanMethod (skuList.get(), JavaArrayList.add, javaString (identifier).get());
 
-        auto extraParams = LocalRef<jobject> (env->NewObject (Bundle, Bundle.constructor));
+        auto extraParams = LocalRef<jobject> (env->NewObject (AndroidBundle, AndroidBundle.constructor));
 
         if (extraParams.get() == 0)
         {
@@ -293,8 +248,8 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
         auto skusToReplaceString        = javaString ("skusToReplace");
         auto replaceSkusProrationString = javaString ("replaceSkusProration");
 
-        env->CallVoidMethod (extraParams.get(), Bundle.putStringArrayList, skusToReplaceString.get(), skuList.get());
-        env->CallVoidMethod (extraParams.get(), Bundle.putBoolean, replaceSkusProrationString.get(), creditForUnusedSubscription);
+        env->CallVoidMethod (extraParams.get(), AndroidBundle.putStringArrayList, skusToReplaceString.get(), skuList.get());
+        env->CallVoidMethod (extraParams.get(), AndroidBundle.putBoolean, replaceSkusProrationString.get(), creditForUnusedSubscription);
 
         return LocalRef<jobject> (inAppBillingService.callObjectMethod (IInAppBillingService.getBuyIntentExtraParams, 6,
                                                                         getPackageName().get(), skuString.get(),
@@ -305,7 +260,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
     //==============================================================================
     void notifyAboutPurchaseResult (const InAppPurchases::Purchase& purchase, bool success, const String& statusDescription)
     {
-        owner.listeners.call (&Listener::productPurchaseFinished, { purchase, {} }, success, statusDescription);
+        owner.listeners.call ([&] (Listener& l) { l.productPurchaseFinished ({ purchase, {} }, success, statusDescription); });
     }
 
     //==============================================================================
@@ -371,7 +326,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
     //==============================================================================
     static LocalRef<jstring> getPackageName()
     {
-        return LocalRef<jstring> ((jstring) (android.activity.callObjectMethod (JuceAppActivity.getPackageName)));
+        return LocalRef<jstring> ((jstring) (getEnv()->CallObjectMethod (getAppContext().get(), AndroidContext.getPackageName)));
     }
 
     //==============================================================================
@@ -385,7 +340,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
                                    const Callback& callbackToUse)
             : ThreadPoolJob ("GetProductsInformationJob"),
               owner (parent),
-              packageName (packageNameToUse.get()),
+              packageName (LocalRef<jobject> (packageNameToUse.get())),
               productIdentifiers (productIdentifiersToUse),
               callback (callbackToUse)
         {}
@@ -437,22 +392,22 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
         {
             auto* env = getEnv();
 
-            auto skuList = LocalRef<jobject> (env->NewObject (ArrayList, ArrayList.constructor, productIdentifiersToQuery.size()));
+            auto skuList = LocalRef<jobject> (env->NewObject (JavaArrayList, JavaArrayList.constructor, productIdentifiersToQuery.size()));
 
             if (skuList.get() == 0)
                 return LocalRef<jobject> (0);
 
             for (const auto& pi : productIdentifiersToQuery)
-                env->CallBooleanMethod (skuList.get(), ArrayList.add, javaString (pi).get());
+                env->CallBooleanMethod (skuList.get(), JavaArrayList.add, javaString (pi).get());
 
-            auto querySkus = LocalRef<jobject> (env->NewObject (Bundle, Bundle.constructor));
+            auto querySkus = LocalRef<jobject> (env->NewObject (AndroidBundle, AndroidBundle.constructor));
 
             if (querySkus.get() == 0)
                 return LocalRef<jobject> (0);
 
             auto itemIdListString = javaString ("ITEM_ID_LIST");
 
-            env->CallVoidMethod (querySkus.get(), Bundle.putStringArrayList, itemIdListString.get(), skuList.get());
+            env->CallVoidMethod (querySkus.get(), AndroidBundle.putStringArrayList, itemIdListString.get(), skuList.get());
 
             auto productTypeString = javaString (productType);
 
@@ -473,27 +428,27 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
 
                 auto responseCodeString = javaString ("RESPONSE_CODE");
 
-                auto responseCode = env->CallIntMethod (retrievedProducts.get(), Bundle.getInt, responseCodeString.get());
+                auto responseCode = env->CallIntMethod (retrievedProducts.get(), AndroidBundle.getInt, responseCodeString.get());
 
                 if (responseCode == 0)
                 {
                     auto detailsListString = javaString ("DETAILS_LIST");
 
-                    auto responseList = LocalRef<jobject> (env->CallObjectMethod (retrievedProducts.get(), Bundle.getStringArrayList,
+                    auto responseList = LocalRef<jobject> (env->CallObjectMethod (retrievedProducts.get(), AndroidBundle.getStringArrayList,
                                                                                   detailsListString.get()));
 
                     if (responseList != 0)
                     {
-                        auto iterator = LocalRef<jobject> (env->CallObjectMethod (responseList.get(), ArrayList.iterator));
+                        auto iterator = LocalRef<jobject> (env->CallObjectMethod (responseList.get(), JavaArrayList.iterator));
 
                         if (iterator.get() != 0)
                         {
                             for (;;)
                             {
-                                if (! env->CallBooleanMethod (iterator, Iterator.hasNext))
+                                if (! env->CallBooleanMethod (iterator, JavaIterator.hasNext))
                                     break;
 
-                                auto response = juce::LocalRef<jstring> ((jstring)env->CallObjectMethod (iterator, Iterator.next));
+                                auto response = juce::LocalRef<jstring> ((jstring)env->CallObjectMethod (iterator, JavaIterator.next));
 
                                 if (response.get() != 0)
                                 {
@@ -555,7 +510,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
                               const Callback& callbackToUse)
             : ThreadPoolJob ("GetProductsBoughtJob"),
               owner (parent),
-              packageName (packageNameToUse.get()),
+              packageName (LocalRef<jobject> (packageNameToUse.get())),
               callback (callbackToUse)
         {}
 
@@ -601,7 +556,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
             if (ownedItems.get() != 0)
             {
                 auto responseCodeString = javaString ("RESPONSE_CODE");
-                auto responseCode = env->CallIntMethod (ownedItems.get(), Bundle.getInt, responseCodeString.get());
+                auto responseCode = env->CallIntMethod (ownedItems.get(), AndroidBundle.getInt, responseCodeString.get());
 
                 if (responseCode == 0)
                 {
@@ -610,16 +565,16 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
                     auto signatureListString     = javaString ("INAPP_DATA_SIGNATURE_LIST");
                     auto continuationTokenString = javaString ("INAPP_CONTINUATION_TOKEN");
 
-                    auto ownedSkus            = LocalRef<jobject> (env->CallObjectMethod (ownedItems.get(), Bundle.getStringArrayList, itemListString.get()));
-                    auto purchaseDataList     = LocalRef<jobject> (env->CallObjectMethod (ownedItems.get(), Bundle.getStringArrayList, dataListString.get()));
-                    auto signatureList        = LocalRef<jobject> (env->CallObjectMethod (ownedItems.get(), Bundle.getStringArrayList, signatureListString.get()));
-                    auto newContinuationToken = LocalRef<jstring> ((jstring) env->CallObjectMethod (ownedItems.get(), Bundle.getString, continuationTokenString.get()));
+                    auto ownedSkus            = LocalRef<jobject> (env->CallObjectMethod (ownedItems.get(), AndroidBundle.getStringArrayList, itemListString.get()));
+                    auto purchaseDataList     = LocalRef<jobject> (env->CallObjectMethod (ownedItems.get(), AndroidBundle.getStringArrayList, dataListString.get()));
+                    auto signatureList        = LocalRef<jobject> (env->CallObjectMethod (ownedItems.get(), AndroidBundle.getStringArrayList, signatureListString.get()));
+                    auto newContinuationToken = LocalRef<jstring> ((jstring) env->CallObjectMethod (ownedItems.get(), AndroidBundle.getString, continuationTokenString.get()));
 
-                    for (auto i = 0; i < env->CallIntMethod (purchaseDataList.get(), ArrayList.size); ++i)
+                    for (auto i = 0; i < env->CallIntMethod (purchaseDataList.get(), JavaArrayList.size); ++i)
                     {
-                        auto sku          = juceString ((jstring) (env->CallObjectMethod (ownedSkus.get(),        ArrayList.get, i)));
-                        auto purchaseData = juceString ((jstring) (env->CallObjectMethod (purchaseDataList.get(), ArrayList.get, i)));
-                        auto signature    = juceString ((jstring) (env->CallObjectMethod (signatureList.get(),    ArrayList.get, i)));
+                        auto sku          = juceString ((jstring) (env->CallObjectMethod (ownedSkus.get(),        JavaArrayList.get, i)));
+                        auto purchaseData = juceString ((jstring) (env->CallObjectMethod (purchaseDataList.get(), JavaArrayList.get, i)));
+                        auto signature    = juceString ((jstring) (env->CallObjectMethod (signatureList.get(),    JavaArrayList.get, i)));
 
                         var responseData = JSON::parse (purchaseData);
 
@@ -677,7 +632,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
                             const Callback& callbackToUse)
             : ThreadPoolJob ("ConsumePurchaseJob"),
               owner (parent),
-              packageName (packageNameToUse.get()),
+              packageName (LocalRef<jobject> (packageNameToUse.get())),
               productIdentifier (productIdentifierToUse),
               purchaseToken (purchaseTokenToUse),
               callback (callbackToUse)
@@ -727,19 +682,19 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
                 auto* env = getEnv();
 
                 auto responseCodeString = javaString ("RESPONSE_CODE");
-                auto responseCode = env->CallIntMethod (ownedItems.get(), Bundle.getInt, responseCodeString.get());
+                auto responseCode = env->CallIntMethod (ownedItems.get(), AndroidBundle.getInt, responseCodeString.get());
 
                 if (responseCode == 0)
                 {
                     auto dataListString          = javaString ("INAPP_PURCHASE_DATA_LIST");
                     auto continuationTokenString = javaString ("INAPP_CONTINUATION_TOKEN");
 
-                    auto purchaseDataList     = LocalRef<jobject> (env->CallObjectMethod (ownedItems.get(), Bundle.getStringArrayList, dataListString.get()));
-                    auto newContinuationToken = LocalRef<jstring> ((jstring) env->CallObjectMethod (ownedItems.get(), Bundle.getString, continuationTokenString.get()));
+                    auto purchaseDataList     = LocalRef<jobject> (env->CallObjectMethod (ownedItems.get(), AndroidBundle.getStringArrayList, dataListString.get()));
+                    auto newContinuationToken = LocalRef<jstring> ((jstring) env->CallObjectMethod (ownedItems.get(), AndroidBundle.getString, continuationTokenString.get()));
 
-                    for (auto i = 0; i < env->CallIntMethod (purchaseDataList.get(), ArrayList.size); ++i)
+                    for (auto i = 0; i < env->CallIntMethod (purchaseDataList.get(), JavaArrayList.size); ++i)
                     {
-                        auto purchaseData = juceString ((jstring) (env->CallObjectMethod (purchaseDataList.get(), ArrayList.get, i)));
+                        auto purchaseData = juceString ((jstring) (env->CallObjectMethod (purchaseDataList.get(), JavaArrayList.get, i)));
 
                         var responseData = JSON::parse (purchaseData);
 
@@ -780,7 +735,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
             {
                 const auto& result = getProductsInformationJobResults.getReference (i);
 
-                owner.listeners.call (&Listener::productsInfoReturned, result);
+                owner.listeners.call ([&] (Listener& l) { l.productsInfoReturned (result); });
                 getProductsInformationJobResults.remove (i);
             }
         }
@@ -792,7 +747,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
             {
                 const auto& result = getProductsBoughtJobResults.getReference (i);
 
-                owner.listeners.call (&Listener::purchasesListRestored, result.purchases, result.success, result.statusDescription);
+                owner.listeners.call ([&] (Listener& l) { l.purchasesListRestored (result.purchases, result.success, result.statusDescription); });
                 getProductsBoughtJobResults.remove (i);
             }
         }
@@ -804,21 +759,14 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
             {
                 const auto& result = consumePurchaseJobResults.getReference (i);
 
-                owner.listeners.call (&Listener::productConsumed, result.productIdentifier,
-                                      result.success, result.statusDescription);
+                owner.listeners.call ([&] (Listener& l) { l.productConsumed (result.productIdentifier, result.success, result.statusDescription); });
                 consumePurchaseJobResults.remove (i);
             }
         }
     }
 
     //==============================================================================
-    static Array<Pimpl*>& getInAppPurchaseInstances() noexcept
-    {
-        static Array<Pimpl*> instances;
-        return instances;
-    }
-
-    static void inAppPurchaseCompleted (jobject intentData)
+    void inAppPurchaseCompleted (jobject intentData)
     {
         auto* env = getEnv();
 
@@ -826,14 +774,14 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
         auto inAppDataSignatureString = javaString ("INAPP_DATA_SIGNATURE");
         auto responseCodeString       = javaString ("RESPONSE_CODE");
 
-        auto pd  = LocalRef<jstring> ((jstring) env->CallObjectMethod (intentData, Intent.getStringExtra, inAppPurchaseDataString.get()));
-        auto sig = LocalRef<jstring> ((jstring) env->CallObjectMethod (intentData, Intent.getStringExtra, inAppDataSignatureString.get()));
+        auto pd  = LocalRef<jstring> ((jstring) env->CallObjectMethod (intentData, AndroidIntent.getStringExtra, inAppPurchaseDataString.get()));
+        auto sig = LocalRef<jstring> ((jstring) env->CallObjectMethod (intentData, AndroidIntent.getStringExtra, inAppDataSignatureString.get()));
         auto purchaseDataString  = pd.get()  != 0 ? juceString (pd.get())  : String();
         auto dataSignatureString = sig.get() != 0 ? juceString (sig.get()) : String();
 
         var responseData = JSON::parse (purchaseDataString);
 
-        auto responseCode = env->CallIntMethod (intentData, Intent.getIntExtra, responseCodeString.get());
+        auto responseCode = env->CallIntMethod (intentData, AndroidIntent.getIntExtra, responseCodeString.get());
         auto statusCodeUserString = statusCodeToUserString (responseCode);
 
         if (auto* object = responseData.getDynamicObject())
@@ -854,47 +802,16 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
             var purchaseToken    = props[purchaseTokenIdentifier];
             var developerPayload = props[developerPayloadIdentifier];
 
-            if (auto* target = getPimplFromDeveloperExtraData (developerPayload))
-            {
-                auto purchaseTimeString = Time (purchaseTime.toString().getLargeIntValue())
-                                            .toString (true, true, true, true);
+            auto purchaseTimeString = Time (purchaseTime.toString().getLargeIntValue())
+                                        .toString (true, true, true, true);
 
-                target->notifyAboutPurchaseResult ({ orderId.toString(), productId.toString(), packageName.toString(),
-                                                     purchaseTimeString, purchaseToken.toString() },
-                                                   true, statusCodeUserString);
-            }
-        }
-    }
-
-    //==============================================================================
-    String getDeveloperExtraData()
-    {
-        static const Identifier inAppPurchaseInstance ("inAppPurchaseInstance");
-        DynamicObject::Ptr developerString (new DynamicObject());
-
-        developerString->setProperty (inAppPurchaseInstance,
-                                      "0x" + String::toHexString (reinterpret_cast<pointer_sized_int> (this)));
-        return JSON::toString (var (developerString));
-    }
-
-    static Pimpl* getPimplFromDeveloperExtraData (const String& developerExtra)
-    {
-        static const Identifier inAppPurchaseInstance ("inAppPurchaseInstance");
-
-        if (DynamicObject::Ptr developerData = JSON::fromString (developerExtra).getDynamicObject())
-        {
-            String hexAddr = developerData->getProperty (inAppPurchaseInstance);
-
-            if (hexAddr.startsWith ("0x"))
-                hexAddr = hexAddr.fromFirstOccurrenceOf ("0x", false, false);
-
-            auto* target = reinterpret_cast<Pimpl*> (static_cast<pointer_sized_int> (hexAddr.getHexValue64()));
-
-            if (getInAppPurchaseInstances().contains (target))
-                return target;
+            notifyAboutPurchaseResult ({ orderId.toString(), productId.toString(), packageName.toString(),
+                                         purchaseTimeString, purchaseToken.toString() },
+                                       true, statusCodeUserString);
+            return;
         }
 
-        return nullptr;
+        notifyAboutPurchaseResult ({}, false, statusCodeUserString);
     }
 
     //==============================================================================
@@ -918,7 +835,7 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
     //==============================================================================
     InAppPurchases& owner;
     GlobalRef inAppBillingService, serviceConnection;
-    ScopedPointer<ThreadPool> threadPool;
+    std::unique_ptr<ThreadPool> threadPool;
 
     CriticalSection getProductsInformationJobResultsLock,
                     getProductsBoughtJobResultsLock,
@@ -933,7 +850,8 @@ struct InAppPurchases::Pimpl    : private AsyncUpdater,
 //==============================================================================
 void juce_inAppPurchaseCompleted (void* intentData)
 {
-    InAppPurchases::Pimpl::inAppPurchaseCompleted (static_cast<jobject> (intentData));
+    if (auto* instance = InAppPurchases::getInstance())
+        instance->pimpl->inAppPurchaseCompleted (static_cast<jobject> (intentData));
 }
 
 } // namespace juce

@@ -27,12 +27,12 @@ MessageManager::MessageManager() noexcept
   : messageThreadId (Thread::getCurrentThreadId())
 {
     if (JUCEApplicationBase::isStandaloneApp())
-        Thread::setCurrentThreadName ("Juce Message Thread");
+        Thread::setCurrentThreadName ("JUCE Message Thread");
 }
 
 MessageManager::~MessageManager() noexcept
 {
-    broadcaster = nullptr;
+    broadcaster.reset();
 
     doPlatformSpecificShutdown();
 
@@ -68,7 +68,7 @@ bool MessageManager::MessageBase::post()
 {
     auto* mm = MessageManager::instance;
 
-    if (mm == nullptr || mm->quitMessagePosted || ! postMessageToSystemQueue (this))
+    if (mm == nullptr || mm->quitMessagePosted.get() != 0 || ! postMessageToSystemQueue (this))
     {
         Ptr deleter (this); // (this will delete messages that were just created with a 0 ref count)
         return false;
@@ -83,9 +83,9 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 {
     jassert (isThisTheMessageThread()); // must only be called by the message thread
 
-    const int64 endTime = Time::currentTimeMillis() + millisecondsToRunFor;
+    auto endTime = Time::currentTimeMillis() + millisecondsToRunFor;
 
-    while (! quitMessageReceived)
+    while (quitMessageReceived.get() == 0)
     {
         JUCE_TRY
         {
@@ -98,7 +98,7 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
             break;
     }
 
-    return ! quitMessageReceived;
+    return quitMessageReceived.get() == 0;
 }
 #endif
 
@@ -121,7 +121,7 @@ void MessageManager::runDispatchLoop()
 {
     jassert (isThisTheMessageThread()); // must only be called by the message thread
 
-    while (! quitMessageReceived)
+    while (quitMessageReceived.get() == 0)
     {
         JUCE_TRY
         {
@@ -155,7 +155,7 @@ public:
     }
 
     WaitableEvent finished;
-    void* volatile result = nullptr;
+    std::atomic<void*> result { nullptr };
 
 private:
     MessageCallbackFunction* const func;
@@ -177,7 +177,7 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* cons
     if (message->post())
     {
         message->finished.wait();
-        return message->result;
+        return message->result.load();
     }
 
     jassertfalse; // the OS message queue failed to send the message!
@@ -194,7 +194,7 @@ void MessageManager::deliverBroadcastMessage (const String& value)
 void MessageManager::registerBroadcastListener (ActionListener* const listener)
 {
     if (broadcaster == nullptr)
-        broadcaster = new ActionBroadcaster();
+        broadcaster.reset (new ActionBroadcaster());
 
     broadcaster->addActionListener (listener);
 }
@@ -213,7 +213,7 @@ bool MessageManager::isThisTheMessageThread() const noexcept
 
 void MessageManager::setCurrentThreadAsMessageThread()
 {
-    const Thread::ThreadID thisThread = Thread::getCurrentThreadId();
+    auto thisThread = Thread::getCurrentThreadId();
 
     if (messageThreadId != thisThread)
     {
@@ -227,8 +227,24 @@ void MessageManager::setCurrentThreadAsMessageThread()
 
 bool MessageManager::currentThreadHasLockedMessageManager() const noexcept
 {
-    const Thread::ThreadID thisThread = Thread::getCurrentThreadId();
+    auto thisThread = Thread::getCurrentThreadId();
     return thisThread == messageThreadId || thisThread == threadWithLock.get();
+}
+
+bool MessageManager::existsAndIsLockedByCurrentThread() noexcept
+{
+    if (auto i = getInstanceWithoutCreating())
+        return i->currentThreadHasLockedMessageManager();
+
+    return false;
+}
+
+bool MessageManager::existsAndIsCurrentThread() noexcept
+{
+    if (auto i = getInstanceWithoutCreating())
+        return i->isThisTheMessageThread();
+
+    return false;
 }
 
 //==============================================================================
@@ -294,7 +310,7 @@ bool MessageManager::Lock::tryAcquire (bool lockIsMandatory) const noexcept
 
     try
     {
-        blockingMessage = new BlockingMessage (this);
+        blockingMessage = *new BlockingMessage (this);
     }
     catch (...)
     {
@@ -349,7 +365,7 @@ void MessageManager::Lock::exit() const noexcept
         lockGained.set (0);
 
         if (mm != nullptr)
-            mm->threadWithLock = 0;
+            mm->threadWithLock = {};
 
         if (blockingMessage != nullptr)
         {
@@ -417,7 +433,7 @@ bool MessageManagerLock::attemptLock (Thread* threadToCheck, ThreadPoolJob* jobT
     return true;
 }
 
-MessageManagerLock::~MessageManagerLock() noexcept     { mmLock.exit(); }
+MessageManagerLock::~MessageManagerLock()  { mmLock.exit(); }
 
 void MessageManagerLock::exitSignalSent()
 {

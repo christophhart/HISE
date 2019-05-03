@@ -40,6 +40,8 @@ namespace juce
     to manually sort them using your preferred comparator after collecting the list.
 
     It also provides an estimate of its progress, using a (highly inaccurate!) algorithm.
+
+    @tags{Core}
 */
 class JUCE_API  DirectoryIterator  final
 {
@@ -116,9 +118,8 @@ public:
 
 private:
     //==============================================================================
-    class NativeIterator
+    struct NativeIterator
     {
-    public:
         NativeIterator (const File& directory, const String& wildCard);
         ~NativeIterator();
 
@@ -127,25 +128,20 @@ private:
                    Time* modTime, Time* creationTime, bool* isReadOnly);
 
         class Pimpl;
-
-    private:
-        friend class DirectoryIterator;
-        friend struct ContainerDeletePolicy<Pimpl>;
-        ScopedPointer<Pimpl> pimpl;
+        std::unique_ptr<Pimpl> pimpl;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NativeIterator)
     };
 
-    friend struct ContainerDeletePolicy<NativeIterator::Pimpl>;
     StringArray wildCards;
     NativeIterator fileFinder;
     String wildCard, path;
-    int index;
-    mutable int totalNumFiles;
+    int index = -1;
+    mutable int totalNumFiles = -1;
     const int whatToLookFor;
     const bool isRecursive;
-    bool hasBeenAdvanced;
-    ScopedPointer<DirectoryIterator> subIterator;
+    bool hasBeenAdvanced = false;
+    std::unique_ptr<DirectoryIterator> subIterator;
     File currentFile;
 
     static StringArray parseWildcards (const String& pattern);

@@ -39,6 +39,8 @@ namespace juce
     be at a non-zero position.
 
     @see AudioFormatReader
+
+    @tags{Audio}
 */
 class JUCE_API  AudioSubsectionReader  : public AudioFormatReader
 {
@@ -61,7 +63,7 @@ public:
                            bool deleteSourceWhenDeleted);
 
     /** Destructor. */
-    ~AudioSubsectionReader();
+    ~AudioSubsectionReader() override;
 
 
     //==============================================================================

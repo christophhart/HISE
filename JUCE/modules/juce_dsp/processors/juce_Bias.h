@@ -37,12 +37,14 @@ namespace dsp
 
     This is an extremely simple bias implementation that simply adds a value to a signal.
     More complicated bias behaviours exist in real circuits - for your homework ;).
+
+    @tags{DSP}
 */
 template <typename FloatType>
 class Bias
 {
 public:
-    Bias() noexcept {}
+    Bias() noexcept = default;
 
     //==============================================================================
     /** Sets the DC bias
@@ -51,7 +53,7 @@ public:
     void setBias (FloatType newBias) noexcept
     {
         jassert (newBias >= static_cast<FloatType> (-1) && newBias <= static_cast<FloatType> (1));
-        bias.setValue(newBias);
+        bias.setTargetValue (newBias);
     }
 
     //==============================================================================
@@ -107,6 +109,16 @@ public:
         auto len         = inBlock.getNumSamples();
         auto numChannels = inBlock.getNumChannels();
 
+        if (context.isBypassed)
+        {
+            bias.skip (static_cast<int> (len));
+
+            if (context.usesSeparateInputAndOutputBlocks())
+                outBlock.copy (inBlock);
+
+            return;
+        }
+
         if (numChannels == 1)
         {
             auto* src = inBlock.getChannelPointer (0);
@@ -132,7 +144,7 @@ public:
 
 private:
     //==============================================================================
-    LinearSmoothedValue<FloatType> bias;
+    SmoothedValue<FloatType> bias;
     double sampleRate = 0, rampDurationSeconds = 0;
 
     void updateRamp() noexcept

@@ -157,8 +157,8 @@ const char* const WavAudioFormat::tracktionLoopInfo    = "tracktion loop info";
 //==============================================================================
 namespace WavFileHelpers
 {
-    inline int chunkName (const char* const name) noexcept   { return (int) ByteOrder::littleEndianInt (name[0], name[1], name[2], name[3]); }
-    inline size_t roundUpSize (size_t sz) noexcept           { return (sz + 3) & ~3u; }
+    JUCE_CONSTEXPR inline int chunkName (const char* name) noexcept         { return (int) ByteOrder::littleEndianInt (name); }
+    JUCE_CONSTEXPR inline size_t roundUpSize (size_t sz) noexcept           { return (sz + 3) & ~3u; }
 
     #if JUCE_MSVC
      #pragma pack (push, 1)
@@ -849,20 +849,21 @@ namespace WavFileHelpers
     {
         static void addToMetadata (StringPairArray& destValues, const String& source)
         {
-            ScopedPointer<XmlElement> xml (XmlDocument::parse (source));
-
-            if (xml != nullptr && xml->hasTagName ("ebucore:ebuCoreMain"))
+            if (auto xml = parseXML (source))
             {
-                if (auto* xml2 = xml->getChildByName ("ebucore:coreMetadata"))
+                if (xml->hasTagName ("ebucore:ebuCoreMain"))
                 {
-                    if (auto* xml3 = xml2->getChildByName ("ebucore:identifier"))
+                    if (auto xml2 = xml->getChildByName ("ebucore:coreMetadata"))
                     {
-                        if (auto* xml4 = xml3->getChildByName ("dc:identifier"))
+                        if (auto xml3 = xml2->getChildByName ("ebucore:identifier"))
                         {
-                            auto ISRCCode = xml4->getAllSubText().fromFirstOccurrenceOf ("ISRC:", false, true);
+                            if (auto xml4 = xml3->getChildByName ("dc:identifier"))
+                            {
+                                auto ISRCCode = xml4->getAllSubText().fromFirstOccurrenceOf ("ISRC:", false, true);
 
-                            if (ISRCCode.isNotEmpty())
-                                destValues.set (WavAudioFormat::ISRC, ISRCCode);
+                                if (ISRCCode.isNotEmpty())
+                                    destValues.set (WavAudioFormat::ISRC, ISRCCode);
+                            }
                         }
                     }
                 }
@@ -1134,10 +1135,10 @@ public:
                                 auto identifier     = (uint32) input->readInt();
                                 auto sampleLength   = (uint32) input->readInt();
                                 auto purpose        = (uint32) input->readInt();
-                                auto country        = (uint16) input->readInt();
-                                auto language       = (uint16) input->readInt();
-                                auto dialect        = (uint16) input->readInt();
-                                auto codePage       = (uint16) input->readInt();
+                                auto country        = (uint16) input->readShort();
+                                auto language       = (uint16) input->readShort();
+                                auto dialect        = (uint16) input->readShort();
+                                auto codePage       = (uint16) input->readShort();
                                 auto stringLength   = adtlLength - 20;
 
                                 MemoryBlock textBlock;
@@ -1318,7 +1319,7 @@ public:
         writeHeader();
     }
 
-    ~WavAudioFormatWriter()
+    ~WavAudioFormatWriter() override
     {
         writeHeader();
     }
@@ -1672,7 +1673,7 @@ bool WavAudioFormat::isChannelLayoutSupported (const AudioChannelSet& channelSet
 
 AudioFormatReader* WavAudioFormat::createReaderFor (InputStream* sourceStream, bool deleteStreamIfOpeningFails)
 {
-    ScopedPointer<WavAudioFormatReader> r (new WavAudioFormatReader (sourceStream));
+    std::unique_ptr<WavAudioFormatReader> r (new WavAudioFormatReader (sourceStream));
 
    #if JUCE_USE_OGGVORBIS
     if (r->isSubformatOggVorbis)
@@ -1682,7 +1683,7 @@ AudioFormatReader* WavAudioFormat::createReaderFor (InputStream* sourceStream, b
     }
    #endif
 
-    if (r->sampleRate > 0 && r->numChannels > 0 && r->bytesPerFrame > 0)
+    if (r->sampleRate > 0 && r->numChannels > 0 && r->bytesPerFrame > 0 && r->bitsPerSample <= 32)
         return r.release();
 
     if (! deleteStreamIfOpeningFails)
@@ -1738,19 +1739,25 @@ namespace WavFileHelpers
         TemporaryFile tempFile (file);
         WavAudioFormat wav;
 
-        if (ScopedPointer<AudioFormatReader> reader = wav.createReaderFor (file.createInputStream(), true))
+        std::unique_ptr<AudioFormatReader> reader (wav.createReaderFor (file.createInputStream(), true));
+
+        if (reader != nullptr)
         {
-            if (ScopedPointer<OutputStream> outStream = tempFile.getFile().createOutputStream())
+            std::unique_ptr<OutputStream> outStream (tempFile.getFile().createOutputStream());
+
+            if (outStream != nullptr)
             {
-                if (ScopedPointer<AudioFormatWriter> writer = wav.createWriterFor (outStream, reader->sampleRate,
-                                                                                   reader->numChannels, (int) reader->bitsPerSample,
-                                                                                   metadata, 0))
+                std::unique_ptr<AudioFormatWriter> writer (wav.createWriterFor (outStream.get(), reader->sampleRate,
+                                                                                reader->numChannels, (int) reader->bitsPerSample,
+                                                                                metadata, 0));
+
+                if (writer != nullptr)
                 {
                     outStream.release();
 
                     bool ok = writer->writeFromAudioReader (*reader, 0, -1);
-                    writer = nullptr;
-                    reader = nullptr;
+                    writer.reset();
+                    reader.reset();
 
                     return ok && tempFile.overwriteTargetFileWithTemporary();
                 }
@@ -1765,11 +1772,13 @@ bool WavAudioFormat::replaceMetadataInFile (const File& wavFile, const StringPai
 {
     using namespace WavFileHelpers;
 
-    if (ScopedPointer<WavAudioFormatReader> reader = static_cast<WavAudioFormatReader*> (createReaderFor (wavFile.createInputStream(), true)))
+    std::unique_ptr<WavAudioFormatReader> reader (static_cast<WavAudioFormatReader*> (createReaderFor (wavFile.createInputStream(), true)));
+
+    if (reader != nullptr)
     {
         auto bwavPos  = reader->bwavChunkStart;
         auto bwavSize = reader->bwavSize;
-        reader = nullptr;
+        reader.reset();
 
         if (bwavSize > 0)
         {
@@ -1833,12 +1842,12 @@ struct WaveAudioFormatTests : public UnitTest
         {
             beginTest ("Creating a basic wave writer");
 
-            ScopedPointer<AudioFormatWriter> writer (format.createWriterFor (new MemoryOutputStream (memoryBlock, false),
-                                                                             44100.0, numTestAudioBufferChannels,
-                                                                             32, metadataValues, 0));
+            std::unique_ptr<AudioFormatWriter> writer (format.createWriterFor (new MemoryOutputStream (memoryBlock, false),
+                                                                               44100.0, numTestAudioBufferChannels,
+                                                                               32, metadataValues, 0));
             expect (writer != nullptr);
 
-            AudioSampleBuffer buffer (numTestAudioBufferChannels, numTestAudioBufferSamples);
+            AudioBuffer<float> buffer (numTestAudioBufferChannels, numTestAudioBufferSamples);
             buffer.clear();
 
             beginTest ("Writing audio data to the basic wave writer");
@@ -1848,7 +1857,7 @@ struct WaveAudioFormatTests : public UnitTest
         {
             beginTest ("Creating a basic wave reader");
 
-            ScopedPointer<AudioFormatReader> reader (format.createReaderFor (new MemoryInputStream (memoryBlock, false), false));
+            std::unique_ptr<AudioFormatReader> reader (format.createReaderFor (new MemoryInputStream (memoryBlock, false), false));
             expect (reader != nullptr);
             expect (reader->metadataValues == metadataValues, "Somehow, the metadata is different!");
         }

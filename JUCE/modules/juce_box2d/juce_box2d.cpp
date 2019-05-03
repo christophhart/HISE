@@ -37,6 +37,9 @@
  #pragma clang diagnostic push
  #pragma clang diagnostic ignored "-Wsign-conversion"
  #pragma clang diagnostic ignored "-Wfloat-conversion"
+ #if __has_warning("-Wzero-as-null-pointer-constant")
+  #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
+ #endif
 #elif defined (__GNUC__)
  #pragma GCC diagnostic push
  #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
@@ -44,6 +47,15 @@
 #endif
 
 #include "juce_box2d.h"
+
+#include <cstdarg>
+
+using int8   = juce::int8;
+using int16  = juce::int16;
+using int32  = juce::int32;
+using uint8  = juce::uint8;
+using uint16 = juce::uint16;
+using uint32 = juce::uint32;
 
 #include "box2d/Collision/b2BroadPhase.cpp"
 #include "box2d/Collision/b2CollideCircle.cpp"

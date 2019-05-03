@@ -43,7 +43,7 @@ void MenuBarModel::menuItemsChanged()
     triggerAsyncUpdate();
 }
 
-void MenuBarModel::setApplicationCommandManagerToWatch (ApplicationCommandManager* const newManager) noexcept
+void MenuBarModel::setApplicationCommandManagerToWatch (ApplicationCommandManager* newManager)
 {
     if (manager != newManager)
     {
@@ -57,12 +57,12 @@ void MenuBarModel::setApplicationCommandManagerToWatch (ApplicationCommandManage
     }
 }
 
-void MenuBarModel::addListener (Listener* const newListener) noexcept
+void MenuBarModel::addListener (Listener* newListener)
 {
     listeners.add (newListener);
 }
 
-void MenuBarModel::removeListener (Listener* const listenerToRemove) noexcept
+void MenuBarModel::removeListener (Listener* listenerToRemove)
 {
     // Trying to remove a listener that isn't on the list!
     // If this assertion happens because this object is a dangling pointer, make sure you've not
@@ -75,12 +75,12 @@ void MenuBarModel::removeListener (Listener* const listenerToRemove) noexcept
 //==============================================================================
 void MenuBarModel::handleAsyncUpdate()
 {
-    listeners.call (&MenuBarModel::Listener::menuBarItemsChanged, this);
+    listeners.call ([this] (Listener& l) { l.menuBarItemsChanged (this); });
 }
 
 void MenuBarModel::applicationCommandInvoked (const ApplicationCommandTarget::InvocationInfo& info)
 {
-    listeners.call (&MenuBarModel::Listener::menuCommandInvoked, this, info);
+    listeners.call ([this, &info] (Listener& l) { l.menuCommandInvoked (this, info); });
 }
 
 void MenuBarModel::applicationCommandListChanged()
@@ -91,7 +91,7 @@ void MenuBarModel::applicationCommandListChanged()
 void MenuBarModel::handleMenuBarActivate (bool isActive)
 {
     menuBarActivated (isActive);
-    listeners.call (&MenuBarModel::Listener::menuBarActivated, this, isActive);
+    listeners.call ([this, isActive] (Listener& l) { l.menuBarActivated (this, isActive); });
 }
 
 void MenuBarModel::menuBarActivated (bool) {}

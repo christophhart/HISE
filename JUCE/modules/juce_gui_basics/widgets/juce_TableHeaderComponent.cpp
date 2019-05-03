@@ -55,7 +55,7 @@ TableHeaderComponent::TableHeaderComponent()
 
 TableHeaderComponent::~TableHeaderComponent()
 {
-    dragOverlayComp = nullptr;
+    dragOverlayComp.reset();
 }
 
 //==============================================================================
@@ -156,7 +156,7 @@ void TableHeaderComponent::moveColumn (const int columnId, int newIndex)
     auto currentIndex = getIndexOfColumnId (columnId, false);
     newIndex = visibleIndexToTotalIndex (newIndex);
 
-    if (columns [currentIndex] != 0 && currentIndex != newIndex)
+    if (columns[currentIndex] != nullptr && currentIndex != newIndex)
     {
         columns.move (currentIndex, newIndex);
         sendColumnsChanged();
@@ -436,40 +436,42 @@ String TableHeaderComponent::toString() const
 
 void TableHeaderComponent::restoreFromString (const String& storedVersion)
 {
-    ScopedPointer<XmlElement> storedXml (XmlDocument::parse (storedVersion));
-    int index = 0;
-
-    if (storedXml != nullptr && storedXml->hasTagName ("TABLELAYOUT"))
+    if (auto storedXML = parseXML (storedVersion))
     {
-        forEachXmlChildElement (*storedXml, col)
+        if (storedXML->hasTagName ("TABLELAYOUT"))
         {
-            auto tabId = col->getIntAttribute ("id");
+            int index = 0;
 
-            if (auto* ci = getInfoForId (tabId))
+            forEachXmlChildElement (*storedXML, col)
             {
-                columns.move (columns.indexOf (ci), index);
-                ci->width = col->getIntAttribute ("width");
-                setColumnVisible (tabId, col->getBoolAttribute ("visible"));
+                auto tabId = col->getIntAttribute ("id");
+
+                if (auto* ci = getInfoForId (tabId))
+                {
+                    columns.move (columns.indexOf (ci), index);
+                    ci->width = col->getIntAttribute ("width");
+                    setColumnVisible (tabId, col->getBoolAttribute ("visible"));
+                }
+
+                ++index;
             }
 
-            ++index;
+            columnsResized = true;
+            sendColumnsChanged();
+
+            setSortColumnId (storedXML->getIntAttribute ("sortedCol"),
+                             storedXML->getBoolAttribute ("sortForwards", true));
         }
-
-        columnsResized = true;
-        sendColumnsChanged();
-
-        setSortColumnId (storedXml->getIntAttribute ("sortedCol"),
-                         storedXml->getBoolAttribute ("sortForwards", true));
     }
 }
 
 //==============================================================================
-void TableHeaderComponent::addListener (Listener* const newListener)
+void TableHeaderComponent::addListener (Listener* newListener)
 {
     listeners.addIfNotAlreadyThere (newListener);
 }
 
-void TableHeaderComponent::removeListener (Listener* const listenerToRemove)
+void TableHeaderComponent::removeListener (Listener* listenerToRemove)
 {
     listeners.removeFirstMatchingValue (listenerToRemove);
 }
@@ -499,11 +501,11 @@ void TableHeaderComponent::reactToMenuItem (const int menuReturnId, const int /*
 
 void TableHeaderComponent::paint (Graphics& g)
 {
-    LookAndFeel& lf = getLookAndFeel();
+    auto& lf = getLookAndFeel();
 
     lf.drawTableHeaderBackground (g, *this);
 
-    const Rectangle<int> clip (g.getClipBounds());
+    auto clip = g.getClipBounds();
 
     int x = 0;
 
@@ -564,7 +566,7 @@ void TableHeaderComponent::mouseDrag (const MouseEvent& e)
          && e.mouseWasDraggedSinceMouseDown()
          && ! e.mods.isPopupMenu())
     {
-        dragOverlayComp = nullptr;
+        dragOverlayComp.reset();
 
         columnIdBeingResized = getResizeDraggerAt (e.getMouseDownX());
 
@@ -695,7 +697,8 @@ void TableHeaderComponent::beginDrag (const MouseEvent& e)
             auto temp = columnIdBeingDragged;
             columnIdBeingDragged = 0;
 
-            addAndMakeVisible (dragOverlayComp = new DragOverlayComp (createComponentSnapshot (columnRect, false)));
+            dragOverlayComp.reset (new DragOverlayComp (createComponentSnapshot (columnRect, false)));
+            addAndMakeVisible (dragOverlayComp.get());
             columnIdBeingDragged = temp;
 
             dragOverlayComp->setBounds (columnRect);
@@ -744,7 +747,7 @@ void TableHeaderComponent::mouseUp (const MouseEvent& e)
     if (columnIdUnderMouse != 0 && ! (e.mouseWasDraggedSinceMouseDown() || e.mods.isPopupMenu()))
         columnClicked (columnIdUnderMouse, e.mods);
 
-    dragOverlayComp = nullptr;
+    dragOverlayComp.reset();
 }
 
 MouseCursor TableHeaderComponent::getMouseCursor()

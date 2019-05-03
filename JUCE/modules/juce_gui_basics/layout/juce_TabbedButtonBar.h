@@ -38,6 +38,8 @@ class TabbedButtonBar;
     method to create it instead of the default one.
 
     @see TabbedButtonBar
+
+    @tags{GUI}
 */
 class JUCE_API  TabBarButton  : public Button
 {
@@ -47,7 +49,7 @@ public:
     TabBarButton (const String& name, TabbedButtonBar& ownerBar);
 
     /** Destructor. */
-    ~TabBarButton();
+    ~TabBarButton() override;
 
     /** Returns the bar that contains this button. */
     TabbedButtonBar& getTabbedButtonBar() const   { return owner; }
@@ -72,7 +74,7 @@ public:
                             ExtraComponentPlacement extraComponentPlacement);
 
     /** Returns the custom component, if there is one. */
-    Component* getExtraComponent() const noexcept                           { return extraComponent; }
+    Component* getExtraComponent() const noexcept                           { return extraComponent.get(); }
 
     /** Returns the placement of the custom component, if there is one. */
     ExtraComponentPlacement getExtraComponentPlacement() const noexcept     { return extraCompPlacement; }
@@ -107,7 +109,7 @@ public:
 
     //==============================================================================
     /** @internal */
-    void paintButton (Graphics&, bool isMouseOverButton, bool isButtonDown) override;
+    void paintButton (Graphics&, bool, bool) override;
     /** @internal */
     void clicked (const ModifierKeys&) override;
     /** @internal */
@@ -122,7 +124,7 @@ protected:
     TabbedButtonBar& owner;
     int overlapPixels = 0;
 
-    ScopedPointer<Component> extraComponent;
+    std::unique_ptr<Component> extraComponent;
     ExtraComponentPlacement extraCompPlacement = afterText;
 
 private:
@@ -145,6 +147,8 @@ private:
     and other housekeeping.
 
     @see TabbedComponent
+
+    @tags{GUI}
 */
 class JUCE_API  TabbedButtonBar  : public Component,
                                    public ChangeBroadcaster
@@ -169,7 +173,7 @@ public:
     TabbedButtonBar (Orientation orientation);
 
     /** Destructor. */
-    ~TabbedButtonBar();
+    ~TabbedButtonBar() override;
 
     //==============================================================================
     /** Changes the bar's orientation.
@@ -304,7 +308,7 @@ public:
     */
     struct JUCE_API  LookAndFeelMethods
     {
-        virtual ~LookAndFeelMethods() {}
+        virtual ~LookAndFeelMethods() = default;
 
         virtual int getTabButtonSpaceAroundImage() = 0;
         virtual int getTabButtonOverlap (int tabDepth) = 0;
@@ -343,7 +347,7 @@ protected:
 private:
     struct TabInfo
     {
-        ScopedPointer<TabBarButton> button;
+        std::unique_ptr<TabBarButton> button;
         String name;
         Colour colour;
     };
@@ -355,10 +359,8 @@ private:
     int currentTabIndex = -1;
 
     class BehindFrontTabComp;
-    friend class BehindFrontTabComp;
-    friend struct ContainerDeletePolicy<BehindFrontTabComp>;
-    ScopedPointer<BehindFrontTabComp> behindFrontTab;
-    ScopedPointer<Button> extraTabsButton;
+    std::unique_ptr<BehindFrontTabComp> behindFrontTab;
+    std::unique_ptr<Button> extraTabsButton;
 
     void showExtraItemsMenu();
     static void extraItemsMenuCallback (int, TabbedButtonBar*);

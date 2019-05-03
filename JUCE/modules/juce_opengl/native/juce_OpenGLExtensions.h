@@ -64,7 +64,8 @@ namespace juce
     USE_FUNCTION (glUniform1fv,             void, (GLint p1, GLsizei p2, const GLfloat* p3), (p1, p2, p3))\
     USE_FUNCTION (glUniformMatrix2fv,       void, (GLint p1, GLsizei p2, GLboolean p3, const GLfloat* p4), (p1, p2, p3, p4))\
     USE_FUNCTION (glUniformMatrix3fv,       void, (GLint p1, GLsizei p2, GLboolean p3, const GLfloat* p4), (p1, p2, p3, p4))\
-    USE_FUNCTION (glUniformMatrix4fv,       void, (GLint p1, GLsizei p2, GLboolean p3, const GLfloat* p4), (p1, p2, p3, p4))
+    USE_FUNCTION (glUniformMatrix4fv,       void, (GLint p1, GLsizei p2, GLboolean p3, const GLfloat* p4), (p1, p2, p3, p4))\
+    USE_FUNCTION (glBindAttribLocation,     void, (GLuint p1, GLuint p2, const GLchar* p3), (p1, p2, p3))
 
 /** @internal This macro contains a list of GL extension functions that need to be dynamically loaded on Windows/Linux.
     @see OpenGLExtensionFunctions
@@ -96,6 +97,8 @@ namespace juce
 
 /** This class contains a generated list of OpenGL extension functions, which are either dynamically loaded
     for a specific GL context, or simply call-through to the appropriate OS function where available.
+
+    @tags{OpenGL}
 */
 struct OpenGLExtensionFunctions
 {

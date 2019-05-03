@@ -30,12 +30,14 @@ namespace juce
     some or all of the virtual functions to implement their behaviour.
 
     @see OutputStream, MemoryInputStream, BufferedInputStream, FileInputStream
+
+    @tags{Core}
 */
 class JUCE_API  InputStream
 {
 public:
     /** Destructor. */
-    virtual ~InputStream()  {}
+    virtual ~InputStream() = default;
 
     //==============================================================================
     /** Returns the total number of bytes available for reading in this stream.
@@ -241,16 +243,17 @@ public:
 
     /** Reads and discards a number of bytes from the stream.
 
-        Some input streams might implement this efficiently, but the base
+        Some input streams might implement this more efficiently, but the base
         class will just keep reading data until the requisite number of bytes
-        have been done.
+        have been done. For large skips it may be quicker to call setPosition()
+        with the required position.
     */
     virtual void skipNextBytes (int64 numBytesToSkip);
 
 
 protected:
     //==============================================================================
-    InputStream() noexcept {}
+    InputStream() = default;
 
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (InputStream)

@@ -7,11 +7,15 @@
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
+
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
+
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
    JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
    EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
@@ -28,24 +32,31 @@ void Analytics::addDestination (AnalyticsDestination* destination)
     destinations.add (destination);
 }
 
-void Analytics::setUserId (const String& newUserId)
+OwnedArray<AnalyticsDestination>& Analytics::getDestinations()
+{
+    return destinations;
+}
+
+void Analytics::setUserId (String newUserId)
 {
     userId = newUserId;
 }
 
-void Analytics::setUserProperties (const StringPairArray& properties)
+void Analytics::setUserProperties (StringPairArray properties)
 {
     userProperties = properties;
 }
 
 void Analytics::logEvent (const String& eventName,
-                          const StringPairArray& parameters)
+                          const StringPairArray& parameters,
+                          int eventType)
 {
     if (! isSuspended)
     {
         AnalyticsDestination::AnalyticsEvent event
         {
             eventName,
+            eventType,
             Time::getMillisecondCounter(),
             parameters,
             userId,
@@ -62,6 +73,6 @@ void Analytics::setSuspended (bool shouldBeSuspended)
     isSuspended = shouldBeSuspended;
 }
 
-juce_ImplementSingleton (Analytics)
+JUCE_IMPLEMENT_SINGLETON (Analytics)
 
 }

@@ -32,13 +32,15 @@ namespace juce
     A subclass of this is used to drive a ListBox.
 
     @see ListBox
+
+    @tags{GUI}
 */
 class JUCE_API  ListBoxModel
 {
 public:
     //==============================================================================
     /** Destructor. */
-    virtual ~ListBoxModel()  {}
+    virtual ~ListBoxModel() = default;
 
     //==============================================================================
     /** This has to return the number of items in the list.
@@ -174,6 +176,8 @@ private:
     more specialised tasks, it can supply a custom component to fill each row.
 
     @see ComboBox, TableListBox
+
+    @tags{GUI}
 */
 class JUCE_API  ListBox  : public Component,
                            public SettableTooltipClient
@@ -189,7 +193,7 @@ public:
              ListBoxModel* model = nullptr);
 
     /** Destructor. */
-    ~ListBox();
+    ~ListBox() override;
 
 
     //==============================================================================
@@ -497,7 +501,7 @@ public:
     void setHeaderComponent (Component* newHeaderComponent);
 
     /** Returns whatever header component was set with setHeaderComponent(). */
-    Component* getHeaderComponent() const noexcept      { return headerComponent; }
+    Component* getHeaderComponent() const noexcept      { return headerComponent.get(); }
 
     /** Changes the width of the rows in the list.
 
@@ -576,9 +580,9 @@ private:
     friend class ListViewport;
     friend class TableListBox;
     ListBoxModel* model;
-    ScopedPointer<ListViewport> viewport;
-    ScopedPointer<Component> headerComponent;
-    ScopedPointer<MouseListener> mouseMoveSelector;
+    std::unique_ptr<ListViewport> viewport;
+    std::unique_ptr<Component> headerComponent;
+    std::unique_ptr<MouseListener> mouseMoveSelector;
     SparseSet<int> selected;
     int totalItems = 0, rowHeight = 22, minimumRowWidth = 0;
     int outlineThickness = 0;

@@ -35,6 +35,8 @@ namespace juce
 
     OSC messages are the elementary objects that are used to exchange any data
     via OSC. An OSCSender can send OSCMessage objects to an OSCReceiver.
+
+    @tags{OSC}
 */
 class JUCE_API  OSCMessage
 {
@@ -53,7 +55,6 @@ public:
     OSCMessage (const OSCAddressPattern& ap) noexcept;
 
 
-   #if JUCE_COMPILER_SUPPORTS_VARIADIC_TEMPLATES
     /** Constructs an OSCMessage object with the given address pattern and list
         of arguments.
 
@@ -68,7 +69,6 @@ public:
     */
     template <typename Arg1, typename... Args>
     OSCMessage (const OSCAddressPattern& ap, Arg1&& arg1, Args&&... args);
-   #endif
 
     /** Sets the address pattern of the OSCMessage.
 
@@ -93,7 +93,8 @@ public:
         This method does not check the range and results in undefined behaviour
         in case i < 0 or i >= size().
     */
-    OSCArgument& operator[] (const int i) const noexcept;
+    OSCArgument& operator[] (const int i) noexcept;
+    const OSCArgument& operator[] (const int i) const noexcept;
 
     /** Returns a pointer to the first OSCArgument in the OSCMessage object.
         This method is provided for compatibility with standard C++ iteration mechanisms.
@@ -108,19 +109,18 @@ public:
     /** Removes all arguments from the OSCMessage. */
     void clear();
 
-
     //==============================================================================
-    /** Creates a new OSCArgument of type int32 with a given value
+    /** Creates a new OSCArgument of type int32 with the given value,
         and adds it to the OSCMessage object.
     */
     void addInt32 (int32 value);
 
-    /** Creates a new OSCArgument of type float32 with a given value
+    /** Creates a new OSCArgument of type float32 with the given value,
         and adds it to the OSCMessage object.
     */
     void addFloat32 (float value);
 
-    /** Creates a new OSCArgument of type string with a given value
+    /** Creates a new OSCArgument of type string with the given value,
         and adds it to the OSCMessage object.
     */
     void addString (const String& value);
@@ -128,9 +128,14 @@ public:
     /** Creates a new OSCArgument of type blob with binary data content copied from
         the given MemoryBlock.
 
-        Note: if the argument passed is an lvalue, this may copy the binary data.
+        Note: If the argument passed is an lvalue, this may copy the binary data.
     */
-    void addBlob (const MemoryBlock& blob);
+    void addBlob (MemoryBlock blob);
+
+    /** Creates a new OSCArgument of type colour with the given value,
+        and adds it to the OSCMessage object.
+    */
+    void addColour (OSCColour colour);
 
     /** Adds the OSCArgument argument to the OSCMessage object.
 
@@ -143,7 +148,6 @@ public:
 private:
 
     //==============================================================================
-   #if JUCE_COMPILER_SUPPORTS_VARIADIC_TEMPLATES
     template <typename Arg1, typename... Args>
     void addArguments (Arg1&& arg1, Args&&... args)
     {
@@ -152,7 +156,6 @@ private:
     }
 
     void addArguments() {}
-   #endif
 
     //==============================================================================
     OSCAddressPattern addressPattern;
@@ -161,13 +164,11 @@ private:
 
 
 //==============================================================================
-#if JUCE_COMPILER_SUPPORTS_VARIADIC_TEMPLATES
- template <typename Arg1, typename... Args>
- OSCMessage::OSCMessage (const OSCAddressPattern& ap, Arg1&& arg1, Args&&... args)
-     : addressPattern (ap)
- {
-     addArguments (std::forward<Arg1> (arg1), std::forward<Args> (args)...);
- }
-#endif
+template <typename Arg1, typename... Args>
+OSCMessage::OSCMessage (const OSCAddressPattern& ap, Arg1&& arg1, Args&&... args)
+    : addressPattern (ap)
+{
+    addArguments (std::forward<Arg1> (arg1), std::forward<Args> (args)...);
+}
 
 } // namespace juce

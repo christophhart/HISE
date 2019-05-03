@@ -36,13 +36,15 @@ namespace juce
     To compile this, you'll need to set the JUCE_USE_FLAC flag.
 
     @see AudioFormat
+
+    @tags{Audio}
 */
 class JUCE_API  FlacAudioFormat    : public AudioFormat
 {
 public:
     //==============================================================================
     FlacAudioFormat();
-    ~FlacAudioFormat();
+    ~FlacAudioFormat() override;
 
     //==============================================================================
     Array<int> getPossibleSampleRates() override;

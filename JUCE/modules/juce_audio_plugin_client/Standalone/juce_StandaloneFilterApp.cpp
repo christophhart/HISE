@@ -87,6 +87,11 @@ public:
                                            false, {}, nullptr
                                           #ifdef JucePlugin_PreferredChannelConfigurations
                                            , juce::Array<StandalonePluginHolder::PluginInOuts> (channels, juce::numElementsInArray (channels))
+                                          #else
+                                           , {}
+                                          #endif
+                                          #if JUCE_DONT_AUTO_OPEN_MIDI_DEVICES_ON_MOBILE
+                                           , false
                                           #endif
                                            );
     }
@@ -94,10 +99,10 @@ public:
     //==============================================================================
     void initialise (const String&) override
     {
-        mainWindow = createWindow();
+        mainWindow.reset (createWindow());
 
-       #if JUCE_IOS || JUCE_ANDROID
-        Desktop::getInstance().setKioskModeComponent (mainWindow, false);
+       #if JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE
+        Desktop::getInstance().setKioskModeComponent (mainWindow.get(), false);
        #endif
 
         mainWindow->setVisible (true);
@@ -112,6 +117,9 @@ public:
     //==============================================================================
     void systemRequestedQuit() override
     {
+        if (mainWindow.get() != nullptr)
+            mainWindow->pluginHolder->savePluginState();
+
         if (ModalComponentManager::getInstance()->cancelAllModalComponents())
         {
             Timer::callAfterDelay (100, []()
@@ -121,12 +129,14 @@ public:
             });
         }
         else
+        {
             quit();
+        }
     }
 
 protected:
     ApplicationProperties appProperties;
-    ScopedPointer<StandaloneFilterWindow> mainWindow;
+    std::unique_ptr<StandaloneFilterWindow> mainWindow;
 };
 
 } // namespace juce

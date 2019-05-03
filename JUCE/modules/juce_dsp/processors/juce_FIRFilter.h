@@ -48,6 +48,8 @@ namespace FIR
         thanks to FFT.
 
         @see FIRFilter::Coefficients, Convolution, FFT
+
+        @tags{DSP}
     */
     template <typename SampleType>
     class Filter
@@ -58,12 +60,15 @@ namespace FIR
         */
         using NumericType = typename SampleTypeHelpers::ElementType<SampleType>::Type;
 
+        /** A typedef for a ref-counted pointer to the coefficients object */
+        using CoefficientsPtr = typename Coefficients<NumericType>::Ptr;
+
         //==============================================================================
         /** This will create a filter which will produce silence. */
         Filter() : coefficients (new Coefficients<NumericType>)                                     { reset(); }
 
         /** Creates a filter with a given set of coefficients. */
-        Filter (Coefficients<NumericType>* coefficientsToUse)  : coefficients (coefficientsToUse)   { reset(); }
+        Filter (CoefficientsPtr coefficientsToUse)  : coefficients (std::move (coefficientsToUse))   { reset(); }
 
         Filter (const Filter&) = default;
         Filter (Filter&&) = default;
@@ -106,7 +111,7 @@ namespace FIR
         }
 
         //==============================================================================
-        /** The coefficients of the FIR filter. It's up to the called to ensure that
+        /** The coefficients of the FIR filter. It's up to the caller to ensure that
             these coefficients are modified in a thread-safe way.
 
             If you change the order of the coefficients then you must call reset after
@@ -138,8 +143,19 @@ namespace FIR
             auto* fir = coefficients->getRawCoefficients();
             size_t p = pos;
 
-            for (size_t i = 0; i < numSamples; ++i)
-                dst[i] = processSingleSample (src[i], fifo, fir, size, p);
+            if (context.isBypassed)
+            {
+                for (size_t i = 0; i < numSamples; ++i)
+                {
+                    fifo[p] = dst[i] = src[i];
+                    p = (p == 0 ? size - 1 : p - 1);
+                }
+            }
+            else
+            {
+                for (size_t i = 0; i < numSamples; ++i)
+                    dst[i] = processSingleSample (src[i], fifo, fir, size, p);
+            }
 
             pos = p;
         }
@@ -172,7 +188,7 @@ namespace FIR
         static SampleType JUCE_VECTOR_CALLTYPE processSingleSample (SampleType sample, SampleType* buf,
                                                                     const NumericType* fir, size_t m, size_t& p) noexcept
         {
-            SampleType out = {};
+            SampleType out (0);
 
             buf[p] = sample;
 
@@ -197,6 +213,8 @@ namespace FIR
         A set of coefficients for use in an FIRFilter object.
 
         @see FIRFilter
+
+        @tags{DSP}
     */
     template <typename NumericType>
     struct Coefficients  : public ProcessorState

@@ -38,6 +38,8 @@ namespace juce
     or addSection().
 
     @see PropertyComponent
+
+    @tags{GUI}
 */
 class JUCE_API  PropertyPanel  : public Component
 {
@@ -50,7 +52,7 @@ public:
     PropertyPanel (const String& name);
 
     /** Destructor. */
-    ~PropertyPanel();
+    ~PropertyPanel() override;
 
     //==============================================================================
     /** Deletes all property components from the panel. */

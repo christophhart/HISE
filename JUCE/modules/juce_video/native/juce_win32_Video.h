@@ -159,12 +159,17 @@ namespace VideoRenderers
 
 //==============================================================================
 struct VideoComponent::Pimpl  : public Component
+                             #if JUCE_WIN_PER_MONITOR_DPI_AWARE
+                              , public ComponentPeer::ScaleFactorListener
+                             #endif
 {
-    Pimpl()  : videoLoaded (false)
+    Pimpl (VideoComponent& ownerToUse, bool)
+        : owner (ownerToUse),
+          videoLoaded (false)
     {
         setOpaque (true);
-        context = new DirectShowContext (*this);
-        componentWatcher = new ComponentWatcher (*this);
+        context.reset (new DirectShowContext (*this));
+        componentWatcher.reset (new ComponentWatcher (*this));
     }
 
     ~Pimpl()
@@ -172,6 +177,12 @@ struct VideoComponent::Pimpl  : public Component
         close();
         context = nullptr;
         componentWatcher = nullptr;
+
+       #if JUCE_WIN_PER_MONITOR_DPI_AWARE
+        for (int i = 0; i < ComponentPeer::getNumPeers(); ++i)
+            if (auto* peer = ComponentPeer::getPeer (i))
+                peer->removeScaleFactorListener (this);
+       #endif
     }
 
     Result loadFromString (const String& fileOrURLPath)
@@ -200,7 +211,7 @@ struct VideoComponent::Pimpl  : public Component
 
     Result load (const URL& url)
     {
-        auto r = loadFromString (url.toString (true));
+        auto r = loadFromString (URL::removeEscapeChars (url.toString (true)));
 
         if (r.wasOk())
             currentURL = url;
@@ -257,6 +268,11 @@ struct VideoComponent::Pimpl  : public Component
             context->setSpeed (newSpeed);
     }
 
+    double getSpeed() const
+    {
+        return videoLoaded ? context->getSpeed() : 0.0;
+    }
+
     Rectangle<int> getNativeSize() const
     {
         return videoLoaded ? context->getVideoSize()
@@ -293,7 +309,7 @@ struct VideoComponent::Pimpl  : public Component
 
         if (getWidth() > 0 && getHeight() > 0)
             if (auto* peer = getTopLevelComponent()->getPeer())
-                context->updateWindowPosition (peer->getAreaCoveredBy (*this));
+                context->updateWindowPosition ((peer->getAreaCoveredBy (*this).toDouble() * peer->getPlatformScaleFactor()).toNearestInt());
     }
 
     void updateContextVisibility()
@@ -307,10 +323,38 @@ struct VideoComponent::Pimpl  : public Component
         repaint();
     }
 
+    void playbackStarted()
+    {
+        if (owner.onPlaybackStarted != nullptr)
+            owner.onPlaybackStarted();
+    }
+
+    void playbackStopped()
+    {
+        if (owner.onPlaybackStopped != nullptr)
+            owner.onPlaybackStopped();
+    }
+
+    void errorOccurred (const String& errorMessage)
+    {
+        if (owner.onErrorOccurred != nullptr)
+            owner.onErrorOccurred (errorMessage);
+    }
+
+   #if JUCE_WIN_PER_MONITOR_DPI_AWARE
+    void nativeScaleFactorChanged (double /*newScaleFactor*/) override
+    {
+        if (videoLoaded)
+            updateContextPosition();
+    }
+   #endif
+
     File currentFile;
     URL currentURL;
 
 private:
+    VideoComponent& owner;
+
     bool videoLoaded;
 
     //==============================================================================
@@ -343,7 +387,7 @@ private:
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentWatcher)
     };
 
-    ScopedPointer<ComponentWatcher> componentWatcher;
+    std::unique_ptr<ComponentWatcher> componentWatcher;
 
     //======================================================================
     struct DirectShowContext    : public AsyncUpdater
@@ -395,12 +439,15 @@ private:
             deleteNativeWindow();
 
             mediaEvent->SetNotifyWindow (0, 0, 0);
+
             if (videoRenderer != nullptr)
                 videoRenderer->setVideoWindow (nullptr);
 
             createNativeWindow();
 
+            mediaEvent->CancelDefaultHandling (EC_STATE_CHANGE);
             mediaEvent->SetNotifyWindow ((OAHWND) hwnd, graphEventID, 0);
+
             if (videoRenderer != nullptr)
                 videoRenderer->setVideoWindow (hwnd);
         }
@@ -462,7 +509,7 @@ private:
             {
                 if (SystemStats::getOperatingSystemType() >= SystemStats::WinVista)
                 {
-                    videoRenderer = new VideoRenderers::EVR();
+                    videoRenderer.reset (new VideoRenderers::EVR());
                     hr = videoRenderer->create (graphBuilder, baseFilter, hwnd);
 
                     if (FAILED (hr))
@@ -471,7 +518,7 @@ private:
 
                 if (videoRenderer == nullptr)
                 {
-                    videoRenderer = new VideoRenderers::VMR7();
+                    videoRenderer.reset (new VideoRenderers::VMR7());
                     hr = videoRenderer->create (graphBuilder, baseFilter, hwnd);
                 }
             }
@@ -510,7 +557,10 @@ private:
 
             // set window to receive events
             if (SUCCEEDED (hr))
+            {
+                mediaEvent->CancelDefaultHandling (EC_STATE_CHANGE);
                 hr = mediaEvent->SetNotifyWindow ((OAHWND) hwnd, graphEventID, 0);
+            }
 
             if (SUCCEEDED (hr))
             {
@@ -586,22 +636,33 @@ private:
 
                 switch (ec)
                 {
-                case EC_REPAINT:
-                    component.repaint();
-                    break;
+                    case EC_REPAINT:
+                        component.repaint();
+                        break;
 
-                case EC_COMPLETE:
-                    component.stop();
-                    break;
+                    case EC_COMPLETE:
+                        component.stop();
+                        component.setPosition (0.0);
+                        break;
 
-                case EC_USERABORT:
-                case EC_ERRORABORT:
-                case EC_ERRORABORTEX:
-                    component.close();
-                    break;
+                    case EC_ERRORABORT:
+                    case EC_ERRORABORTEX:
+                        component.errorOccurred (getErrorMessageFromResult ((HRESULT) p1).getErrorMessage());
+                        // intentional fallthrough
+                    case EC_USERABORT:
+                        component.close();
+                        break;
 
-                default:
-                    break;
+                    case EC_STATE_CHANGE:
+                        switch (p1)
+                        {
+                            case State_Paused:  component.playbackStopped(); break;
+                            case State_Running: component.playbackStarted(); break;
+                            default: break;
+                        }
+
+                    default:
+                        break;
                 }
             }
         }
@@ -642,6 +703,13 @@ private:
             REFTIME duration;
             mediaPosition->get_Duration (&duration);
             return duration;
+        }
+
+        double getSpeed() const
+        {
+            double speed;
+            mediaPosition->get_Rate (&speed);
+            return speed;
         }
 
         double getPosition() const
@@ -689,7 +757,7 @@ private:
         ComSmartPtr<IBasicAudio> basicAudio;
         ComSmartPtr<IBaseFilter> baseFilter;
 
-        ScopedPointer<VideoRenderers::Base> videoRenderer;
+        std::unique_ptr<VideoRenderers::Base> videoRenderer;
 
         bool hasVideo = false, needToUpdateViewport = true, needToRecreateNativeWindow = false;
 
@@ -700,9 +768,13 @@ private:
 
             if (auto* topLevelPeer = component.getTopLevelComponent()->getPeer())
             {
-                nativeWindow = new NativeWindow ((HWND) topLevelPeer->getNativeHandle(), this);
+                nativeWindow.reset (new NativeWindow ((HWND) topLevelPeer->getNativeHandle(), this));
 
                 hwnd = nativeWindow->hwnd;
+
+               #if JUCE_WIN_PER_MONITOR_DPI_AWARE
+                topLevelPeer->addScaleFactorListener (&component);
+               #endif
 
                 if (hwnd != 0)
                 {
@@ -772,7 +844,7 @@ private:
             bool isRegistered() const noexcept              { return atom != 0; }
             LPCTSTR getWindowClassName() const noexcept     { return (LPCTSTR) (pointer_sized_uint) MAKELONG (atom, 0); }
 
-            juce_DeclareSingleton_SingleThreaded_Minimal (NativeWindowClass)
+            JUCE_DECLARE_SINGLETON_SINGLETHREADED_MINIMAL (NativeWindowClass)
 
         private:
             NativeWindowClass()
@@ -879,14 +951,14 @@ private:
             JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NativeWindow)
         };
 
-        ScopedPointer<NativeWindow> nativeWindow;
+        std::unique_ptr<NativeWindow> nativeWindow;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DirectShowContext)
     };
 
-    ScopedPointer<DirectShowContext> context;
+    std::unique_ptr<DirectShowContext> context;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
 };
 
-juce_ImplementSingleton_SingleThreaded (VideoComponent::Pimpl::DirectShowContext::NativeWindowClass)
+JUCE_IMPLEMENT_SINGLETON (VideoComponent::Pimpl::DirectShowContext::NativeWindowClass)

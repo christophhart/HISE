@@ -29,6 +29,8 @@ namespace juce
     audio sample format class.
 
     @see AudioData::Pointer.
+
+    @tags{Audio}
 */
 class JUCE_API  AudioData
 {
@@ -275,8 +277,8 @@ public:
     class NonInterleaved
     {
     public:
-        inline NonInterleaved() noexcept {}
-        inline NonInterleaved (const NonInterleaved&) noexcept {}
+        inline NonInterleaved() = default;
+        inline NonInterleaved (const NonInterleaved&) = default;
         inline NonInterleaved (const int) noexcept {}
         inline void copyFrom (const NonInterleaved&) noexcept {}
         template <class SampleFormatType> inline void advanceData (SampleFormatType& s) noexcept                    { s.advance(); }
@@ -290,15 +292,15 @@ public:
     class Interleaved
     {
     public:
-        inline Interleaved() noexcept : numInterleavedChannels (1) {}
-        inline Interleaved (const Interleaved& other) noexcept : numInterleavedChannels (other.numInterleavedChannels) {}
+        inline Interleaved() noexcept  {}
+        inline Interleaved (const Interleaved& other) = default;
         inline Interleaved (const int numInterleavedChans) noexcept : numInterleavedChannels (numInterleavedChans) {}
         inline void copyFrom (const Interleaved& other) noexcept { numInterleavedChannels = other.numInterleavedChannels; }
         template <class SampleFormatType> inline void advanceData (SampleFormatType& s) noexcept                    { s.skip (numInterleavedChannels); }
         template <class SampleFormatType> inline void advanceDataBy (SampleFormatType& s, int numSamples) noexcept  { s.skip (numInterleavedChannels * numSamples); }
         template <class SampleFormatType> inline void clear (SampleFormatType& s, int numSamples) noexcept          { while (--numSamples >= 0) { s.clear(); s.skip (numInterleavedChannels); } }
         template <class SampleFormatType> inline int getNumBytesBetweenSamples (const SampleFormatType&) const noexcept { return numInterleavedChannels * SampleFormatType::bytesPerSample; }
-        int numInterleavedChannels;
+        int numInterleavedChannels = 1;
         enum { isInterleavedType = 1 };
     };
 
@@ -306,7 +308,7 @@ public:
     class NonConst
     {
     public:
-        typedef void VoidType;
+        using VoidType = void;
         static inline void* toVoidPtr (VoidType* v) noexcept { return v; }
         enum { isConst = 0 };
     };
@@ -314,7 +316,7 @@ public:
     class Const
     {
     public:
-        typedef const void VoidType;
+        using VoidType = const void;
         static inline void* toVoidPtr (VoidType* v) noexcept { return const_cast<void*> (v); }
         enum { isConst = 1 };
     };
@@ -585,7 +587,7 @@ public:
     class Converter
     {
     public:
-        virtual ~Converter() {}
+        virtual ~Converter() = default;
 
         /** Converts a sequence of samples from the converter's source format into the dest format. */
         virtual void convertSamples (void* destSamples, const void* sourceSamples, int numSamples) const = 0;
@@ -648,6 +650,8 @@ public:
 
     Note that these functions are deprecated - the AudioData class provides a much more
     flexible set of conversion classes now.
+
+    @tags{Audio}
 */
 class JUCE_API  AudioDataConverters
 {

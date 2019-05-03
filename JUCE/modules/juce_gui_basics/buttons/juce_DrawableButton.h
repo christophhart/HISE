@@ -35,6 +35,8 @@ namespace juce
     'normal', 'over' and 'down' states.
 
     @see Button
+
+    @tags{GUI}
 */
 class JUCE_API  DrawableButton  : public Button
 {
@@ -66,7 +68,7 @@ public:
                     ButtonStyle buttonStyle);
 
     /** Destructor. */
-    ~DrawableButton();
+    ~DrawableButton() override;
 
     //==============================================================================
     /** Sets up the images to draw for the various button states.
@@ -167,7 +169,7 @@ public:
 
     //==============================================================================
     /** @internal */
-    void paintButton (Graphics&, bool isMouseOverButton, bool isButtonDown) override;
+    void paintButton (Graphics&, bool, bool) override;
     /** @internal */
     void buttonStateChanged() override;
     /** @internal */
@@ -180,7 +182,7 @@ public:
 private:
     //==============================================================================
     ButtonStyle style;
-    ScopedPointer<Drawable> normalImage, overImage, downImage, disabledImage,
+    std::unique_ptr<Drawable> normalImage, overImage, downImage, disabledImage,
                             normalImageOn, overImageOn, downImageOn, disabledImageOn;
     Drawable* currentImage = nullptr;
     int edgeIndent = 3;

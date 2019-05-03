@@ -34,6 +34,8 @@ namespace juce
     A subclass can inherit from this and implement just a few methods such as
     paint() and mouse-handling. The base class provides some simple abstractions
     to take care of continuously repainting itself.
+
+    @tags{OpenGL}
 */
 class JUCE_API  OpenGLAppComponent   : public Component,
                                        private OpenGLRenderer
@@ -42,7 +44,7 @@ public:
     OpenGLAppComponent();
 
     /** Destructor. */
-    ~OpenGLAppComponent();
+    ~OpenGLAppComponent() override;
 
     /** Returns the number of times that the render method has been called since
         the component started running.

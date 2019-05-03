@@ -44,6 +44,8 @@ class OpenGLTexture;
     stop and the native resources to be freed safely.
 
     @see OpenGLRenderer
+
+    @tags{OpenGL}
 */
 class JUCE_API  OpenGLContext
 {
@@ -258,7 +260,7 @@ public:
     //==============================================================================
     /** Returns the scale factor used by the display that is being rendered.
 
-        The scale is that of the display - see Desktop::Displays::Display::scale
+        The scale is that of the display - see Displays::Display::scale
 
         Note that this should only be called during an OpenGLRenderer::renderOpenGL()
         callback - at other times the value it returns is undefined.
@@ -321,7 +323,7 @@ private:
     NativeContext* nativeContext = nullptr;
     OpenGLRenderer* renderer = nullptr;
     double currentRenderScale = 1.0;
-    ScopedPointer<Attachment> attachment;
+    std::unique_ptr<Attachment> attachment;
     OpenGLPixelFormat openGLPixelFormat;
     void* contextToShareWith = nullptr;
     OpenGLVersion versionRequired = defaultGLVersion;
@@ -332,9 +334,9 @@ private:
     //==============================================================================
     struct AsyncWorker  : public ReferenceCountedObject
     {
-        typedef ReferenceCountedObjectPtr<AsyncWorker> Ptr;
+        using Ptr = ReferenceCountedObjectPtr<AsyncWorker>;
         virtual void operator() (OpenGLContext&) = 0;
-        virtual ~AsyncWorker() {}
+        ~AsyncWorker() override = default;
     };
 
     template <typename FunctionType>
@@ -346,10 +348,6 @@ private:
 
         JUCE_DECLARE_NON_COPYABLE (AsyncWorkerFunctor)
     };
-
-    //==============================================================================
-    friend void componentPeerAboutToChange (Component&, bool);
-    void overrideCanBeAttached (bool);
 
     //==============================================================================
     CachedImage* getCachedImage() const noexcept;

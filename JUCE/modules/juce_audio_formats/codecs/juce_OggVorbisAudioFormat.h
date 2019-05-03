@@ -36,13 +36,15 @@ namespace juce
     To compile this, you'll need to set the JUCE_USE_OGGVORBIS flag.
 
     @see AudioFormat,
+
+    @tags{Audio}
 */
 class JUCE_API  OggVorbisAudioFormat  : public AudioFormat
 {
 public:
     //==============================================================================
     OggVorbisAudioFormat();
-    ~OggVorbisAudioFormat();
+    ~OggVorbisAudioFormat() override;
 
     //==============================================================================
     Array<int> getPossibleSampleRates() override;

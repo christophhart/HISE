@@ -27,10 +27,6 @@
 namespace juce
 {
 
-KeyPress::KeyPress() noexcept
-{
-}
-
 KeyPress::KeyPress (int code, ModifierKeys m, juce_wchar textChar) noexcept
     : keyCode (code), mods (m), textCharacter (textChar)
 {
@@ -38,19 +34,6 @@ KeyPress::KeyPress (int code, ModifierKeys m, juce_wchar textChar) noexcept
 
 KeyPress::KeyPress (const int code) noexcept  : keyCode (code)
 {
-}
-
-KeyPress::KeyPress (const KeyPress& other) noexcept
-    : keyCode (other.keyCode), mods (other.mods), textCharacter (other.textCharacter)
-{
-}
-
-KeyPress& KeyPress::operator= (const KeyPress& other) noexcept
-{
-    keyCode = other.keyCode;
-    mods = other.mods;
-    textCharacter = other.textCharacter;
-    return *this;
 }
 
 bool KeyPress::operator== (int otherKeyCode) const noexcept
@@ -77,7 +60,7 @@ bool KeyPress::operator!= (int otherKeyCode) const noexcept         { return ! o
 bool KeyPress::isCurrentlyDown() const
 {
     return isKeyCurrentlyDown (keyCode)
-            && (ModifierKeys::getCurrentModifiers().getRawFlags() & ModifierKeys::allKeyboardModifiers)
+            && (ModifierKeys::currentModifiers.getRawFlags() & ModifierKeys::allKeyboardModifiers)
                   == (mods.getRawFlags() & ModifierKeys::allKeyboardModifiers);
 }
 
@@ -281,6 +264,7 @@ String KeyPress::getTextDescription() const
         else if (keyCode == numberPadDivide)            desc << KeyPressHelpers::numberPadPrefix() << '/';
         else if (keyCode == numberPadSeparator)         desc << KeyPressHelpers::numberPadPrefix() << "separator";
         else if (keyCode == numberPadDecimalPoint)      desc << KeyPressHelpers::numberPadPrefix() << '.';
+        else if (keyCode == numberPadEquals)            desc << KeyPressHelpers::numberPadPrefix() << '=';
         else if (keyCode == numberPadDelete)            desc << KeyPressHelpers::numberPadPrefix() << "delete";
         else                                            desc << '#' << String::toHexString (keyCode);
     }

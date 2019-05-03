@@ -32,14 +32,17 @@ namespace juce
     The base class for a type of plugin format, such as VST, AudioUnit, LADSPA, etc.
 
     @see AudioPluginFormatManager
+
+    @tags{Audio}
 */
 class JUCE_API  AudioPluginFormat
 {
 public:
     //==============================================================================
+    /** Structure used for callbacks when instantiation is completed. */
     struct JUCE_API  InstantiationCompletionCallback
     {
-        virtual ~InstantiationCompletionCallback() {}
+        virtual ~InstantiationCompletionCallback() = default;
         virtual void completionCallback (AudioPluginInstance* instance, const String& error) = 0;
 
         JUCE_LEAK_DETECTOR (InstantiationCompletionCallback)
@@ -148,12 +151,14 @@ protected:
 
     AudioPluginFormat() noexcept;
 
+    using PluginCreationCallback = void (*) (void*, AudioPluginInstance*, const String&);
+
     /** Implementors must override this function. This is guaranteed to be called on
         the message thread. You may call the callback on any thread.
     */
     virtual void createPluginInstance (const PluginDescription&, double initialSampleRate,
                                        int initialBufferSize, void* userData,
-                                       void (*callback) (void*, AudioPluginInstance*, const String&)) = 0;
+                                       PluginCreationCallback) = 0;
 
     virtual bool requiresUnblockedMessageThreadDuringCreation (const PluginDescription&) const noexcept = 0;
 

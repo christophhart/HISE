@@ -35,6 +35,12 @@
 
 #include "juce_dsp.h"
 
+#if ! JUCE_HAS_CONSTEXPR
+ #ifndef JUCE_DEMO_RUNNER
+  #error "The juce_dsp module requires a compiler that supports constexpr"
+ #endif
+#else
+
 #ifndef JUCE_USE_VDSP_FRAMEWORK
  #define JUCE_USE_VDSP_FRAMEWORK 1
 #endif
@@ -51,6 +57,7 @@
 
 #include "processors/juce_FIRFilter.cpp"
 #include "processors/juce_IIRFilter.cpp"
+#include "processors/juce_LadderFilter.cpp"
 #include "processors/juce_Oversampling.cpp"
 #include "maths/juce_SpecialFunctions.cpp"
 #include "maths/juce_Matrix.cpp"
@@ -76,9 +83,11 @@
 
 #if JUCE_UNIT_TESTS
 #include "maths/juce_Matrix_test.cpp"
+#include "maths/juce_LogRampedValue_test.cpp"
 #if JUCE_USE_SIMD
 #include "containers/juce_SIMDRegister_test.cpp"
 #endif
 #include "frequency/juce_FFT_test.cpp"
 #include "processors/juce_FIRFilter_test.cpp"
+#endif
 #endif
