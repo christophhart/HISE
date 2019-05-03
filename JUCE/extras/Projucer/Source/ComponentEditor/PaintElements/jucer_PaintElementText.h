@@ -147,6 +147,7 @@ public:
 
             text = xml.getStringAttribute ("text", "Hello World");
             typefaceName = xml.getStringAttribute ("fontname", FontPropertyComponent::getDefaultFont());
+            font = FontPropertyComponent::applyNameToFont (typefaceName, font);
             font.setHeight ((float) xml.getDoubleAttribute ("fontsize", 15.0));
             font.setBold (xml.getBoolAttribute ("bold", false));
             font.setItalic (xml.getBoolAttribute ("italic", false));
@@ -404,7 +405,7 @@ private:
             element->getDocument()->addChangeListener (this);
         }
 
-        ~TextProperty()
+        ~TextProperty() override
         {
             element->getDocument()->removeChangeListener (this);
         }

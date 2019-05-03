@@ -42,7 +42,7 @@ struct ErrorList    : public ChangeBroadcaster
         }
         else
         {
-            for (DiagnosticMessage& d : messages)
+            for (auto& d : messages)
                 if (d.isError())
                     dest.add (d);
         }
@@ -114,7 +114,7 @@ private:
 
     static void checkThread()
     {
-        jassert (MessageManager::getInstance()->isThisTheMessageThread());
+        JUCE_ASSERT_MESSAGE_THREAD
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ErrorList)

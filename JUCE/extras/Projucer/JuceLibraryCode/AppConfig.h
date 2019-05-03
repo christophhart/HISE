@@ -16,23 +16,26 @@
 //==============================================================================
 // [BEGIN_USER_CODE_SECTION]
 
+#define JUCER_ENABLE_GPL_MODE 1
+
 /*
- ==============================================================================
- In accordance with the terms of the JUCE 5 End-Use License Agreement, the
- JUCE Code in SECTION A cannot be removed, changed or otherwise rendered
- ineffective unless you have a JUCE Indie or Pro license, or are using JUCE
- under the GPL v3 license.
+  ==============================================================================
 
- End User License Agreement: www.juce.com/juce-5-licence
+   In accordance with the terms of the JUCE 5 End-Use License Agreement, the
+   JUCE Code in SECTION A cannot be removed, changed or otherwise rendered
+   ineffective unless you have a JUCE Indie or Pro license, or are using JUCE
+   under the GPL v3 license.
 
- If you are using a GPL v3 license then you can set JUCER_ENABLE_GPL_MODE to
- 1 to use the Projucer without online license validation.
- ==============================================================================
- */
+   End User License Agreement: www.juce.com/juce-5-licence
+
+  ==============================================================================
+*/
 
 // BEGIN SECTION A
 
-#define JUCER_ENABLE_GPL_MODE 1
+#ifndef JUCER_ENABLE_GPL_MODE
+ #define JUCER_ENABLE_GPL_MODE 0
+#endif
 
 // END SECTION A
 
@@ -66,6 +69,7 @@
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
 //==============================================================================
+#define JUCE_MODULE_AVAILABLE_juce_analytics            1
 #define JUCE_MODULE_AVAILABLE_juce_core                 1
 #define JUCE_MODULE_AVAILABLE_juce_cryptography         1
 #define JUCE_MODULE_AVAILABLE_juce_data_structures      1
@@ -84,7 +88,7 @@
 #endif
 
 #ifndef    JUCE_LOG_ASSERTIONS
- #define   JUCE_LOG_ASSERTIONS 1
+ //#define JUCE_LOG_ASSERTIONS 1
 #endif
 
 #ifndef    JUCE_CHECK_MEMORY_LEAKS
@@ -100,7 +104,11 @@
 #endif
 
 #ifndef    JUCE_USE_CURL
- #define   JUCE_USE_CURL 0
+ //#define JUCE_USE_CURL 1
+#endif
+
+#ifndef    JUCE_LOAD_CURL_SYMBOLS_LAZILY
+ //#define JUCE_LOAD_CURL_SYMBOLS_LAZILY 1
 #endif
 
 #ifndef    JUCE_CATCH_UNHANDLED_EXCEPTIONS
@@ -109,6 +117,10 @@
 
 #ifndef    JUCE_ALLOW_STATIC_NULL_VARIABLES
  //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
+#endif
+
+#ifndef    JUCE_STRICT_REFCOUNTEDPOINTER
+ //#define JUCE_STRICT_REFCOUNTEDPOINTER 1
 #endif
 
 #ifndef    JUCE_ENABLE_AUDIO_GUARD
@@ -133,11 +145,23 @@
  //#define JUCE_USE_DIRECTWRITE 1
 #endif
 
+#ifndef    JUCE_DISABLE_COREGRAPHICS_FONT_SMOOTHING
+ //#define JUCE_DISABLE_COREGRAPHICS_FONT_SMOOTHING 1
+#endif
+
 //==============================================================================
 // juce_gui_basics flags:
 
 #ifndef    JUCE_ENABLE_REPAINT_DEBUGGING
  //#define JUCE_ENABLE_REPAINT_DEBUGGING 1
+#endif
+
+#ifndef    JUCE_USE_XRANDR
+ //#define JUCE_USE_XRANDR 1
+#endif
+
+#ifndef    JUCE_USE_XINERAMA
+ //#define JUCE_USE_XINERAMA 1
 #endif
 
 #ifndef    JUCE_USE_XSHM
@@ -156,11 +180,15 @@
  //#define JUCE_HEADLESS_PLUGIN_CLIENT 1
 #endif
 
+#ifndef    JUCE_WIN_PER_MONITOR_DPI_AWARE
+ //#define JUCE_WIN_PER_MONITOR_DPI_AWARE 1
+#endif
+
 //==============================================================================
 // juce_gui_extra flags:
 
 #ifndef    JUCE_WEB_BROWSER
- #define   JUCE_WEB_BROWSER 0
+ //#define JUCE_WEB_BROWSER 1
 #endif
 
 #ifndef    JUCE_ENABLE_LIVE_CONSTANT_EDITOR

@@ -45,7 +45,7 @@ class PaintElement  : public Component,
 public:
     //==============================================================================
     PaintElement (PaintRoutine* owner, const String& typeName);
-    virtual ~PaintElement();
+    ~PaintElement() override;
 
     //==============================================================================
     virtual void setInitialBounds (int parentWidth, int parentHeight);
@@ -130,7 +130,7 @@ protected:
     void updateSiblingComps();
 
 private:
-    ScopedPointer<ResizableBorderComponent> border;
+    std::unique_ptr<ResizableBorderComponent> border;
     String typeName;
     bool selected, dragging, mouseDownSelectStatus;
     double originalAspectRatio;

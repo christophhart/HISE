@@ -31,18 +31,16 @@
 //==============================================================================
 class ResourceEditorPanel  : public Component,
                              private TableListBoxModel,
-                             private ChangeListener,
-                             private Button::Listener
+                             private ChangeListener
 {
 public:
     ResourceEditorPanel (JucerDocument& document);
-    ~ResourceEditorPanel();
+    ~ResourceEditorPanel() override;
 
     void resized() override;
     void paint (Graphics& g) override;
     void visibilityChanged() override;
     void changeListenerCallback (ChangeBroadcaster*) override;
-    void buttonClicked (Button*) override;
 
     int getNumRows() override;
     void paintRowBackground (Graphics& g, int rowNumber, int width, int height, bool rowIsSelected) override;
@@ -54,8 +52,9 @@ public:
 
 private:
     void lookAndFeelChanged() override;
+    void reloadAll();
 
     JucerDocument& document;
-    ScopedPointer<TableListBox> listBox;
+    std::unique_ptr<TableListBox> listBox;
     TextButton addButton, reloadAllButton, delButton;
 };

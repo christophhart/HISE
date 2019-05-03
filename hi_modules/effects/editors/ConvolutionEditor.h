@@ -52,7 +52,10 @@ public:
 		auto x = (float)getWidth() * range.getStart();
 		auto w = (float)getWidth() * range.getLength();
 
-		p.scaleToFit(x, 0.0f, w, (float)getHeight(), false);
+		auto b = p.getBounds();
+
+		if(b.getWidth() > 0 && b.getHeight() > 0)
+			p.scaleToFit(x, 0.0f, w, (float)getHeight(), false);
 	}
 
 	void resized() override

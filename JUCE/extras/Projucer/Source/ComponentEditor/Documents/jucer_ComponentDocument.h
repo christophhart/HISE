@@ -45,7 +45,7 @@ public:
     StringArray getPaintRoutineNames() const                    { return StringArray ("Graphics"); }
     PaintRoutine* getPaintRoutine (const int index) const       { return index == 0 ? backgroundGraphics.get() : nullptr; }
 
-    ComponentLayout* getComponentLayout() const                 { return components; }
+    ComponentLayout* getComponentLayout() const                 { return components.get(); }
 
     //==============================================================================
     XmlElement* createXml() const;
@@ -55,6 +55,6 @@ public:
     void applyCustomPaintSnippets (StringArray&);
 
 private:
-    ScopedPointer<ComponentLayout> components;
-    ScopedPointer<PaintRoutine> backgroundGraphics;
+    std::unique_ptr<ComponentLayout> components;
+    std::unique_ptr<PaintRoutine> backgroundGraphics;
 };

@@ -178,13 +178,15 @@ public:
         const int maxRedirects = 5;
 
         // we need to do the redirecting manually due to inconsistencies on the way headers are handled on redirects
-        ScopedPointer<InputStream> in;
+        std::unique_ptr<InputStream> in;
 
         for (int redirect = 0; redirect < maxRedirects; ++redirect)
         {
             StringPairArray responseHeaders;
 
-            in = url.createInputStream (false, nullptr, nullptr, headers, 10000, &responseHeaders, &statusCode, 0);
+            in.reset (url.createInputStream (false, nullptr, nullptr, headers,
+                                             10000, &responseHeaders, &statusCode, 0));
+
             if (in == nullptr || statusCode != 302)
                 break;
 
@@ -212,7 +214,7 @@ public:
 
                 total += written;
 
-                setStatusMessage (String (TRANS ("Downloading...  (123)"))
+                setStatusMessage (String (TRANS("Downloading...  (123)"))
                                   .replace ("123", File::descriptionOfSizeInBytes (total)));
             }
 
@@ -232,8 +234,7 @@ public:
 };
 
 //==============================================================================
-class UpdateUserDialog   : public Component,
-                           public Button::Listener
+class UpdateUserDialog   : public Component
 {
 public:
     UpdateUserDialog (const LatestVersionChecker::JuceVersionTriple& version,
@@ -242,36 +243,42 @@ public:
                       const char* overwriteFolderPath)
         : hasOverwriteButton (overwriteFolderPath != nullptr)
     {
-        addAndMakeVisible (titleLabel = new Label ("Title Label",
-                                                   TRANS ("Download \"123\" version 456?").replace ("123", productName)
-                                                                                          .replace ("456", version.toString())));
+        titleLabel.reset (new Label ("Title Label",
+                                     TRANS("Download \"123\" version 456?")
+                                         .replace ("123", productName)
+                                         .replace ("456", version.toString())));
+        addAndMakeVisible (titleLabel.get());
 
         titleLabel->setFont (Font (15.00f, Font::bold));
         titleLabel->setJustificationType (Justification::centredLeft);
         titleLabel->setEditable (false, false, false);
 
-        addAndMakeVisible (contentLabel = new Label ("Content Label",
-                                                     TRANS ("A new version of \"123\" is available - would you like to download it?")
-                                                        .replace ("123", productName)));
+        contentLabel.reset(new Label ("Content Label",
+                                      TRANS("A new version of \"123\" is available - would you like to download it?")
+                                          .replace ("123", productName)));
+        addAndMakeVisible (contentLabel.get());
         contentLabel->setFont (Font (15.00f, Font::plain));
         contentLabel->setJustificationType (Justification::topLeft);
         contentLabel->setEditable (false, false, false);
 
-        addAndMakeVisible (okButton = new TextButton ("OK Button"));
+        okButton.reset (new TextButton ("OK Button"));
+        addAndMakeVisible (okButton.get());
         okButton->setButtonText (TRANS(hasOverwriteButton ? "Choose Another Folder..." : "OK"));
-        okButton->addListener (this);
+        okButton->onClick = [this] { exitParentDialog (2); };
 
-        addAndMakeVisible (cancelButton = new TextButton ("Cancel Button"));
+        cancelButton.reset (new TextButton ("Cancel Button"));
+        addAndMakeVisible (cancelButton.get());
         cancelButton->setButtonText (TRANS("Cancel"));
-        cancelButton->addListener (this);
+        cancelButton->onClick = [this] { exitParentDialog (-1); };
 
-        addAndMakeVisible (changeLogLabel = new Label ("Change Log Label",
-                                                       TRANS("Release Notes:")));
+        changeLogLabel.reset (new Label ("Change Log Label", TRANS("Release Notes:")));
+        addAndMakeVisible (changeLogLabel.get());
         changeLogLabel->setFont (Font (15.00f, Font::plain));
         changeLogLabel->setJustificationType (Justification::topLeft);
         changeLogLabel->setEditable (false, false, false);
 
-        addAndMakeVisible (changeLog = new TextEditor ("Change Log"));
+        changeLog.reset (new TextEditor ("Change Log"));
+        addAndMakeVisible (changeLog.get());
         changeLog->setMultiLine (true);
         changeLog->setReturnKeyStartsNewLine (true);
         changeLog->setReadOnly (true);
@@ -282,42 +289,45 @@ public:
 
         if (hasOverwriteButton)
         {
-            addAndMakeVisible (overwriteLabel = new Label ("Overwrite Label",
-                                                           TRANS("Updating will overwrite everything in the following folder:")));
+            overwriteLabel.reset (new Label ("Overwrite Label",
+                                             TRANS("Updating will overwrite everything in the following folder:")));
+            addAndMakeVisible (overwriteLabel.get());
             overwriteLabel->setFont (Font (15.00f, Font::plain));
             overwriteLabel->setJustificationType (Justification::topLeft);
             overwriteLabel->setEditable (false, false, false);
 
-            addAndMakeVisible (overwritePath = new Label ("Overwrite Path", overwriteFolderPath));
+            overwritePath.reset (new Label ("Overwrite Path", overwriteFolderPath));
+            addAndMakeVisible (overwritePath.get());
             overwritePath->setFont (Font (15.00f, Font::bold));
             overwritePath->setJustificationType (Justification::topLeft);
             overwritePath->setEditable (false, false, false);
 
-            addAndMakeVisible (overwriteButton = new TextButton ("Overwrite Button"));
+            overwriteButton.reset (new TextButton ("Overwrite Button"));
+            addAndMakeVisible (overwriteButton.get());
             overwriteButton->setButtonText (TRANS("Overwrite"));
-            overwriteButton->addListener (this);
+            overwriteButton->onClick = [this] { exitParentDialog (1); };
         }
 
-        juceIcon = Drawable::createFromImageData (BinaryData::juce_icon_png,
-                                                  BinaryData::juce_icon_pngSize);
+        juceIcon.reset (Drawable::createFromImageData (BinaryData::juce_icon_png,
+                                                       BinaryData::juce_icon_pngSize));
 
-        setSize (518, overwritePath ? 345 : 269);
+        setSize (518, overwritePath != nullptr ? 345 : 269);
 
         lookAndFeelChanged();
     }
 
-    ~UpdateUserDialog()
+    ~UpdateUserDialog() override
     {
-        titleLabel = nullptr;
-        contentLabel = nullptr;
-        okButton = nullptr;
-        cancelButton = nullptr;
-        changeLogLabel = nullptr;
-        changeLog = nullptr;
-        overwriteLabel = nullptr;
-        overwritePath = nullptr;
-        overwriteButton = nullptr;
-        juceIcon = nullptr;
+        titleLabel.reset();
+        contentLabel.reset();
+        okButton.reset();
+        cancelButton.reset();
+        changeLogLabel.reset();
+        changeLog.reset();
+        overwriteLabel.reset();
+        overwritePath.reset();
+        overwriteButton.reset();
+        juceIcon.reset();
     }
 
     void paint (Graphics& g) override
@@ -353,14 +363,10 @@ public:
         }
     }
 
-    void buttonClicked (Button* clickedButton) override
+    void exitParentDialog (int returnVal)
     {
-        if (DialogWindow* parentDialog = findParentComponentOfClass<DialogWindow>())
-        {
-            if      (clickedButton == overwriteButton) parentDialog->exitModalState (1);
-            else if (clickedButton == okButton)        parentDialog->exitModalState (2);
-            else if (clickedButton == cancelButton)    parentDialog->exitModalState (-1);
-        }
+        if (auto* parentDialog = findParentComponentOfClass<DialogWindow>())
+            parentDialog->exitModalState (returnVal);
         else
             jassertfalse;
     }
@@ -374,7 +380,7 @@ public:
                                                                            releaseNotes, overwritePath), true);
 
         DialogWindow::LaunchOptions lo;
-        lo.dialogTitle = TRANS ("Download \"123\" version 456?").replace ("456", version.toString())
+        lo.dialogTitle = TRANS("Download \"123\" version 456?").replace ("456", version.toString())
                                                                 .replace ("123", productName);
         lo.dialogBackgroundColour = userDialog->findColour (backgroundColourId);
         lo.content = userDialog;
@@ -389,11 +395,11 @@ public:
 
 private:
     bool hasOverwriteButton;
-    ScopedPointer<Label> titleLabel, contentLabel, changeLogLabel, overwriteLabel, overwritePath;
-    ScopedPointer<TextButton> okButton, cancelButton;
-    ScopedPointer<TextEditor> changeLog;
-    ScopedPointer<TextButton> overwriteButton;
-    ScopedPointer<Drawable> juceIcon;
+    std::unique_ptr<Label> titleLabel, contentLabel, changeLogLabel, overwriteLabel, overwritePath;
+    std::unique_ptr<TextButton> okButton, cancelButton;
+    std::unique_ptr<TextEditor> changeLog;
+    std::unique_ptr<TextButton> overwriteButton;
+    std::unique_ptr<Drawable> juceIcon;
 
     void lookAndFeelChanged() override
     {
@@ -611,8 +617,6 @@ URL LatestVersionChecker::getLatestVersionURL (String& headers) const
 
 void LatestVersionChecker::checkForNewVersion()
 {
-	return;
-
     hasAttemptedToReadWebsite = true;
 
     {
@@ -622,9 +626,9 @@ void LatestVersionChecker::checkForNewVersion()
 
         const int numRedirects = 0;
 
-        const ScopedPointer<InputStream> in (updateURL.createInputStream (false, nullptr, nullptr,
-                                                                          extraHeaders, 0, &responseHeaders,
-                                                                          &statusCode, numRedirects));
+        const std::unique_ptr<InputStream> in (updateURL.createInputStream (false, nullptr, nullptr,
+                                                                            extraHeaders, 0, &responseHeaders,
+                                                                            &statusCode, numRedirects));
 
         if (threadShouldExit())
             return;  // can't connect: fail silently.
@@ -747,19 +751,16 @@ void LatestVersionChecker::modalStateFinished (int result,
 
 void LatestVersionChecker::askUserForLocationToDownload (URL& newVersionToDownload, const String& extraHeaders)
 {
-    File targetFolder (EnabledModuleList::findGlobalModulesFolder());
-
-    if (isJuceModulesFolder (targetFolder))
-        targetFolder = targetFolder.getParentDirectory();
+    File targetFolder (getAppSettings().getStoredPath (Ids::jucePath, TargetOS::getThisOS()).get());
 
     FileChooser chooser (TRANS("Please select the location into which you'd like to install the new version"),
-        targetFolder);
+                         targetFolder);
 
     if (chooser.browseForDirectory())
     {
         targetFolder = chooser.getResult();
 
-        if (isJuceModulesFolder (targetFolder))
+        if (isJUCEModulesFolder (targetFolder))
             targetFolder = targetFolder.getParentDirectory();
 
         if (targetFolder.getChildFile ("JUCE").isDirectory())
@@ -768,8 +769,8 @@ void LatestVersionChecker::askUserForLocationToDownload (URL& newVersionToDownlo
         if (targetFolder.getChildFile (".git").isDirectory())
         {
             AlertWindow::showMessageBox (AlertWindow::WarningIcon,
-                                         TRANS ("Downloading new JUCE version"),
-                                         TRANS ("This folder is a GIT repository!\n\n"
+                                         TRANS("Downloading new JUCE version"),
+                                         TRANS("This folder is a GIT repository!\n\n"
                                                 "You should use a \"git pull\" to update it to the latest version. "
                                                 "Or to use the Projucer to get an update, you should select an empty "
                                                 "folder into which you'd like to download the new code."));
@@ -777,7 +778,7 @@ void LatestVersionChecker::askUserForLocationToDownload (URL& newVersionToDownlo
             return;
         }
 
-        if (isJuceFolder (targetFolder))
+        if (isJUCEFolder (targetFolder))
         {
             if (! AlertWindow::showOkCancelBox (AlertWindow::WarningIcon,
                                                 TRANS("Overwrite existing JUCE folder?"),

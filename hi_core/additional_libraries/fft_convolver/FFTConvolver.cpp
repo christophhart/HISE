@@ -31,8 +31,7 @@
 
 namespace fftconvolver
 {  
-
-FFTConvolver::FFTConvolver() :
+FFTConvolver::FFTConvolver(audiofft::ImplementationType fftType) :
   _blockSize(0),
   _segSize(0),
   _segCount(0),
@@ -40,7 +39,7 @@ FFTConvolver::FFTConvolver() :
   _segments(),
   _segmentsIR(),
   _fftBuffer(),
-  _fft(),
+  _fft(fftType),
   _preMultiplied(),
   _conv(),
   _overlap(),

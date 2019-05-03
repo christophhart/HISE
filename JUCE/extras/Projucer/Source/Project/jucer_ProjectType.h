@@ -67,6 +67,7 @@ public:
             AudioUnitPlugIn   = 14,
             AudioUnitv3PlugIn = 15,
             StandalonePlugIn  = 16,
+            UnityPlugIn       = 17,
 
             SharedCodeTarget  = 20, // internal
             AggregateTarget   = 21,
@@ -94,7 +95,7 @@ public:
 
     private:
         //==============================================================================
-        Target& operator= (const Target&) JUCE_DELETED_FUNCTION;
+        Target& operator= (const Target&) = delete;
     };
 
     virtual bool supportsTargetType (Target::Type /*targetType*/) const     { return false; }
@@ -110,7 +111,7 @@ private:
 
 //==============================================================================
 inline ProjectType::ProjectType (const String& t, const String& d)
-  : type (t), desc (d)
+    : type (t), desc (d)
 {
 }
 
@@ -121,9 +122,9 @@ inline ProjectType::~ProjectType()
 
 inline const ProjectType* ProjectType::findType (const String& typeCode)
 {
-    const Array<ProjectType*>& types = getAllTypes();
+    const auto& types = getAllTypes();
 
-    for (int i = types.size(); --i >= 0;)
+    for (auto i = types.size(); --i >= 0;)
         if (types.getUnchecked(i)->getType() == typeCode)
             return types.getUnchecked(i);
 
@@ -186,6 +187,7 @@ struct ProjectType_AudioPlugin  : public ProjectType
             case Target::AudioUnitPlugIn:
             case Target::AudioUnitv3PlugIn:
             case Target::StandalonePlugIn:
+            case Target::UnityPlugIn:
             case Target::SharedCodeTarget:
             case Target::AggregateTarget:
                 return true;
@@ -206,5 +208,5 @@ inline Array<ProjectType*> ProjectType::getAllTypes()
     static ProjectType_DLL dll;
     static ProjectType_AudioPlugin plugin;
 
-    return { &guiApp, &consoleApp, &staticLib, &dll, &plugin };
+    return Array<ProjectType*>(&guiApp, &consoleApp, &staticLib, &dll, &plugin);
 }

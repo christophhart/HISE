@@ -53,7 +53,7 @@ namespace fftconvolver
 class FFTConvolver
 {  
 public:
-  FFTConvolver();  
+  FFTConvolver(audiofft::ImplementationType fftType);  
   virtual ~FFTConvolver();
   
   /**

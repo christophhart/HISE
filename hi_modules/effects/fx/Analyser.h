@@ -213,6 +213,8 @@ public:
 	AudioAnalyserComponent(Processor* p) :
 		processor(p)
 	{
+		setColour(AudioAnalyserComponent::ColourId::bgColour, Colours::transparentBlack);
+
 		startTimer(30);
 	};
 

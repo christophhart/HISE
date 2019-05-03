@@ -30,11 +30,11 @@
 #include "jucer_AppearanceSettings.h"
 
 //==============================================================================
-class StoredSettings : public ValueTree::Listener
+class StoredSettings   : public ValueTree::Listener
 {
 public:
     StoredSettings();
-    ~StoredSettings();
+    ~StoredSettings() override;
 
     PropertiesFile& getGlobalProperties();
     PropertiesFile& getProjectProperties (const String& projectUID);
@@ -51,9 +51,10 @@ public:
     //==============================================================================
     Array<Colour> swatchColours;
 
-    struct ColourSelectorWithSwatches    : public ColourSelector
+    struct ColourSelectorWithSwatches   : public ColourSelector
     {
-        ColourSelectorWithSwatches() {}
+        ColourSelectorWithSwatches();
+        ~ColourSelectorWithSwatches() override;
 
         int getNumSwatches() const override;
         Colour getSwatchColour (int index) const override;
@@ -61,31 +62,18 @@ public:
     };
 
     //==============================================================================
+    ValueWithDefault getStoredPath (const Identifier& key, DependencyPathOS os);
+
+    bool shouldAskUserToSetJUCEPath() noexcept;
+    void setDontAskAboutJUCEPathAgain() noexcept;
+
+    //==============================================================================
     AppearanceSettings appearance;
     StringArray monospacedFontNames;
     File lastWizardFolder;
 
-    //==============================================================================
-    Value getStoredPath (const Identifier& key);
-    Value getFallbackPathForOS (const Identifier& key, DependencyPathOS);
-
-    bool isGlobalPathValid (const File& relativeTo, const Identifier& key, const String& path);
-
 private:
-    OwnedArray<PropertiesFile> propertyFiles;
-    ValueTree projectDefaults;
-    ValueTree fallbackPaths;
-
-    void changed (bool isProjectDefaults)
-    {
-        ScopedPointer<XmlElement> data (isProjectDefaults ? projectDefaults.createXml()
-                                                          : fallbackPaths.createXml());
-
-        propertyFiles.getUnchecked (0)->setValue (isProjectDefaults ? "PROJECT_DEFAULT_SETTINGS"
-                                                                    : "FALLBACK_PATHS",
-                                                  data);
-    }
-
+    //==============================================================================
     void updateGlobalPreferences();
     void updateRecentFiles();
     void updateLastWizardFolder();
@@ -95,14 +83,23 @@ private:
     void saveSwatchColours();
 
     void updateOldProjectSettingsFiles();
+    void checkJUCEPaths();
 
     //==============================================================================
+    void changed (bool);
+
     void valueTreePropertyChanged (ValueTree& vt, const Identifier&) override  { changed (vt == projectDefaults); }
     void valueTreeChildAdded (ValueTree& vt, ValueTree&) override              { changed (vt == projectDefaults); }
     void valueTreeChildRemoved (ValueTree& vt, ValueTree&, int) override       { changed (vt == projectDefaults); }
     void valueTreeChildOrderChanged (ValueTree& vt, int, int) override         { changed (vt == projectDefaults); }
     void valueTreeParentChanged (ValueTree& vt) override                       { changed (vt == projectDefaults); }
 
+    //==============================================================================
+    OwnedArray<PropertiesFile> propertyFiles;
+    ValueTree projectDefaults;
+    ValueTree fallbackPaths;
+
+    //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StoredSettings)
 };
 

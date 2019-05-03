@@ -24,10 +24,13 @@
   ==============================================================================
 */
 
+#pragma once
+
 #include "jucer_ProjectExport_CodeBlocks.h"
 #include "jucer_ProjectExport_Make.h"
 #include "jucer_ProjectExport_Xcode.h"
 
+//==============================================================================
 class CLionProjectExporter  : public ProjectExporter
 {
 protected:
@@ -41,13 +44,12 @@ protected:
         }
 
         void createConfigProperties (PropertyListBuilder&) override         {}
-        var getDefaultOptimisationLevel() const override                    { return {}; }
         String getModuleLibraryArchName() const override                    { return {}; }
     };
 
     BuildConfiguration::Ptr createBuildConfig (const ValueTree& tree) const override
     {
-        return new CLionBuildConfiguration (project, tree, *this);
+        return *new CLionBuildConfiguration (project, tree, *this);
     }
 
 public:
@@ -75,8 +77,7 @@ public:
     {
         name = getName();
 
-        if (getTargetLocationString().isEmpty())
-            getTargetLocationValue() = getDefaultBuildsRootFolder() + "CLion";
+        targetLocationValue.setDefault (getDefaultBuildsRootFolder() + getTargetFolderForExporter (getValueTreeTypeName()));
     }
 
     //==============================================================================
@@ -100,7 +101,6 @@ public:
     bool supportsTargetType (ProjectType::Target::Type) const override   { return true; }
 
     void addPlatformSpecificSettingsForProjectType (const ProjectType&) override {}
-    void initialiseDependencyPathValues() override {}
 
     //==============================================================================
     bool canLaunchProject() override
@@ -109,19 +109,21 @@ public:
         static Identifier exporterName ("XCODE_MAC");
        #elif JUCE_WINDOWS
         static Identifier exporterName ("CODEBLOCKS_WINDOWS");
+       #elif JUCE_LINUX
+        static Identifier exporterName ("LINUX_MAKE");
        #else
         static Identifier exporterName;
        #endif
 
         if (getProject().getExporters().getChildWithName (exporterName).isValid())
-            return getCLionExecutable().existsAsFile();
+            return getCLionExecutableOrApp().exists();
 
         return false;
     }
 
     bool launchProject() override
     {
-        return getCLionExecutable().startAsProcess (getTargetFolder().getFullPathName());
+        return getCLionExecutableOrApp().startAsProcess (getTargetFolder().getFullPathName().quoted());
     }
 
     String getDescription() override
@@ -129,7 +131,7 @@ public:
         String description;
 
         description << "The " << getName() << " exporter produces a single CMakeLists.txt file with "
-                    << "multiple platform dependant sections, where the configuration for each section "
+                    << "multiple platform dependent sections, where the configuration for each section "
                     << "is inherited from other exporters added to this project." << newLine
                     << newLine
                     << "The exporters which provide the CLion configuration for the corresponding platform are:" << newLine
@@ -137,7 +139,7 @@ public:
 
         for (auto& exporterName : getExporterNames())
         {
-            ScopedPointer<ProjectExporter> exporter = createNewExporter (getProject(), exporterName);
+            std::unique_ptr<ProjectExporter> exporter (createNewExporter (getProject(), exporterName));
 
             if (isExporterSupported (*exporter))
                 description << exporter->getName() << newLine;
@@ -147,8 +149,8 @@ public:
                     << "Add these exporters to the project to enable CLion builds." << newLine
                     << newLine
                     << "Not all features of all the exporters are currently supported. Notable omissions are AUv3 "
-                    << "plug-ins, embedding resources and fat binaries on MacOS, and adding application icons. On "
-                    << "Windows CLion requires a GCC-based compiler like MinGW.";
+                    << "plug-ins, embedding resources and fat binaries on MacOS. On Windows the CLion exporter "
+                    << "requires a GCC-based compiler like MinGW.";
 
         return description;
     }
@@ -157,9 +159,7 @@ public:
     {
         for (Project::ExporterIterator exporter (getProject()); exporter.next();)
             if (isExporterSupported (*exporter))
-                properties.add (new BooleanPropertyComponent (getExporterEnabledValue (*exporter),
-                                                              "Import settings from exporter",
-                                                              exporter->getName()),
+                properties.add (new BooleanPropertyComponent (getExporterEnabledValue (*exporter), "Import settings from exporter", exporter->getName()),
                                 "If this is enabled then settings from the corresponding exporter will "
                                 "be used in the generated CMakeLists.txt");
     }
@@ -169,9 +169,10 @@ public:
     void create (const OwnedArray<LibraryModule>&) const override
     {
         MemoryOutputStream out;
+        out.setNewLineString ("\n");
 
         out << "# Automatically generated CMakeLists, created by the Projucer" << newLine
-            << "# Don't edit this file! Your changes will be overwritten when you re-save the Projucer project!" << newLine
+            << "# Do not edit this file! Your changes will be overwritten when you re-save the Projucer project!" << newLine
             << newLine;
 
         out << "cmake_minimum_required (VERSION 3.4.1)" << newLine
@@ -184,6 +185,11 @@ public:
 
         // We'll append to this later.
         overwriteFileIfDifferentOrThrow (getTargetFolder().getChildFile ("CMakeLists.txt"), out);
+
+        // CMake has stopped adding PkgInfo files to bundles, so we need to do it manually
+        MemoryOutputStream pkgInfoOut;
+        pkgInfoOut << "BNDL????";
+        overwriteFileIfDifferentOrThrow (getTargetFolder().getChildFile ("PkgInfo"), out);
     }
 
     void writeCMakeListsExporterSection (ProjectExporter* exporter) const
@@ -193,7 +199,9 @@ public:
 
         MemoryBlock existingContent;
         getTargetFolder().getChildFile ("CMakeLists.txt").loadFileAsData (existingContent);
+
         MemoryOutputStream out (existingContent, true);
+        out.setNewLineString ("\n");
 
         out << "###############################################################################" << newLine
             << "# " << exporter->getName() << newLine
@@ -223,19 +231,21 @@ public:
 
 private:
     //==============================================================================
-    static File getCLionExecutable()
+    static File getCLionExecutableOrApp()
     {
-       #if JUCE_MAC
-        return { "/Applications/CLion.app/Contents/MacOS/clion" };
-       #elif JUCE_WINDOWS
-        auto regValue = WindowsRegistry::getValue ("HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\Applications\\clion64.exe\\shell\\open\\command\\", {}, {});
-        auto openCmd = StringArray::fromTokens (regValue, true);
+        File clionExeOrApp (getAppSettings()
+                            .getStoredPath (Ids::clionExePath, TargetOS::getThisOS()).get()
+                            .toString()
+                            .replace ("${user.home}", File::getSpecialLocation (File::userHomeDirectory).getFullPathName()));
 
-        if (! openCmd.isEmpty())
-            return { openCmd[0].unquoted() };
+       #if JUCE_MAC
+        if (clionExeOrApp.getFullPathName().endsWith ("/Contents/MacOS/clion"))
+            clionExeOrApp = clionExeOrApp.getParentDirectory()
+                                         .getParentDirectory()
+                                         .getParentDirectory();
        #endif
 
-        return {};
+        return clionExeOrApp;
     }
 
     //==============================================================================
@@ -265,9 +275,20 @@ private:
     }
 
     //==============================================================================
+    static bool isWindowsAbsolutePath (const String& path)
+    {
+        return path.length() > 1 && path[1] == ':';
+    }
+
+    static bool isUnixAbsolutePath (const String& path)
+    {
+        return path.isNotEmpty() && (path[0] == '/' || path[0] == '~' || path.startsWith ("$ENV{HOME}"));
+    }
+
+    //==============================================================================
     static String setCMakeVariable (const String& variableName, const String& value)
     {
-        return String ("set (") + variableName + " \"" + value + "\")";
+        return "set (" + variableName + " \"" + value + "\")";
     }
 
     static String addToCMakeVariable (const String& variableName, const String& value)
@@ -281,9 +302,9 @@ private:
     }
 
     template <class Target, class Exporter>
-    void getFileInfoList (Target& target, Exporter& exporter, const Project::Item& projectItem, std::vector<std::pair<String, bool>>& fileInfoList) const
+    void getFileInfoList (Target& target, Exporter& exporter, const Project::Item& projectItem, std::vector<std::tuple<String, bool, String>>& fileInfoList) const
     {
-        const auto targetType = (getProject().getProjectType().isAudioPlugin() ? target.type : Target::Type::SharedCodeTarget);
+        auto targetType = (getProject().getProjectType().isAudioPlugin() ? target.type : Target::Type::SharedCodeTarget);
 
         if (projectItem.isGroup())
         {
@@ -292,8 +313,10 @@ private:
         }
         else if (projectItem.shouldBeAddedToTargetProject() && getProject().getTargetTypeFromFilePath (projectItem.getFile(), true) == targetType )
         {
-            const auto path = RelativePath (projectItem.getFile(), exporter.getTargetFolder(), RelativePath::buildTargetFolder).toUnixStyle();
-            fileInfoList.push_back ({ path, projectItem.shouldBeCompiled() });
+            auto path = RelativePath (projectItem.getFile(), exporter.getTargetFolder(), RelativePath::buildTargetFolder).toUnixStyle();
+
+            fileInfoList.push_back (std::make_tuple (path, projectItem.shouldBeCompiled(),
+                                                     exporter.compilerFlagSchemesMap[projectItem.getCompilerFlagSchemeString()].get().toString()));
         }
     }
 
@@ -302,9 +325,8 @@ private:
     {
         for (auto* target : exporter.targets)
         {
-            if (target->getTargetFileType() == ProjectType::Target::TargetFileType::macOSAppex
-                || target->type == ProjectType::Target::Type::AggregateTarget
-                || target->type == ProjectType::Target::Type::AudioUnitv3PlugIn)
+            if (target->type == ProjectType::Target::Type::AggregateTarget
+             || target->type == ProjectType::Target::Type::AudioUnitv3PlugIn)
                 continue;
 
             String functionName;
@@ -314,6 +336,11 @@ private:
             {
                 case ProjectType::Target::TargetFileType::executable:
                     functionName = "add_executable";
+
+                    if (exporter.isCodeBlocks() && exporter.isWindows()
+                          && target->type != ProjectType::Target::Type::ConsoleApp)
+                        properties.add ("WIN32");
+
                     break;
                 case ProjectType::Target::TargetFileType::staticLibrary:
                 case ProjectType::Target::TargetFileType::sharedLibraryOrDLL:
@@ -339,18 +366,73 @@ private:
 
             out << newLine;
 
-            std::vector<std::pair<String, bool>> fileInfoList;
+            std::vector<std::tuple<String, bool, String>> fileInfoList;
             for (auto& group : exporter.getAllGroups())
                 getFileInfoList (*target, exporter, group, fileInfoList);
 
             for (auto& fileInfo : fileInfoList)
-                out << "    " << fileInfo.first.quoted() << newLine;
+                out << "    " << std::get<0> (fileInfo).quoted() << newLine;
+
+            auto isCMakeBundle = exporter.isXcode() && target->getTargetFileType() == ProjectType::Target::TargetFileType::pluginBundle;
+            auto pkgInfoPath = String ("PkgInfo").quoted();
+
+            if (isCMakeBundle)
+                out << "    " << pkgInfoPath << newLine;
+
+            auto xcodeIcnsFilePath = [&] () -> String
+            {
+                if (exporter.isXcode() && target->getTargetFileType() == ProjectType::Target::TargetFileType::executable)
+                {
+                    StringArray pathComponents = { "..", "MacOSX", "Icon.icns" };
+                    auto xcodeIcnsFile = getTargetFolder();
+
+                    for (auto& comp : pathComponents)
+                        xcodeIcnsFile = xcodeIcnsFile.getChildFile (comp);
+
+                    if (xcodeIcnsFile.existsAsFile())
+                        return pathComponents.joinIntoString ("/").quoted();
+                }
+
+                return {};
+            }();
+
+            if (xcodeIcnsFilePath.isNotEmpty())
+                out << "    " << xcodeIcnsFilePath << newLine;
+
+            if (exporter.isCodeBlocks() && target->getTargetFileType() == ProjectType::Target::TargetFileType::executable)
+            {
+                StringArray pathComponents = { "..", "CodeBlocksWindows", "resources.rc" };
+                auto windowsRcFile = getTargetFolder();
+
+                for (auto& comp : pathComponents)
+                    windowsRcFile = windowsRcFile.getChildFile (comp);
+
+                if (windowsRcFile.existsAsFile())
+                    out << "    " << pathComponents.joinIntoString ("/").quoted() << newLine;
+            }
 
             out << ")" << newLine << newLine;
 
+            if (isCMakeBundle)
+                out << "set_source_files_properties (" << pkgInfoPath << " PROPERTIES MACOSX_PACKAGE_LOCATION .)" << newLine;
+
+            if (xcodeIcnsFilePath.isNotEmpty())
+                out << "set_source_files_properties (" << xcodeIcnsFilePath << " PROPERTIES MACOSX_PACKAGE_LOCATION \"Resources\")" << newLine;
+
             for (auto& fileInfo : fileInfoList)
-                if (! fileInfo.second)
-                    out << "set_source_files_properties (" << fileInfo.first.quoted() << " PROPERTIES HEADER_FILE_ONLY TRUE)" << newLine;
+            {
+                if (std::get<1> (fileInfo))
+                {
+                    auto extraCompilerFlags = std::get<2> (fileInfo);
+
+                    if (extraCompilerFlags.isNotEmpty())
+                        out << "set_source_files_properties(" << std::get<0> (fileInfo).quoted() << " PROPERTIES COMPILE_FLAGS " << extraCompilerFlags << " )" << newLine;
+                }
+                else
+                {
+                    out << "set_source_files_properties (" << std::get<0> (fileInfo).quoted() << " PROPERTIES HEADER_FILE_ONLY TRUE)" << newLine;
+                }
+            }
 
             out << newLine;
         }
@@ -359,7 +441,7 @@ private:
     //==============================================================================
     void writeCMakeListsMakefileSection (OutputStream& out, MakefileProjectExporter& exporter) const
     {
-        out << "project (" << getProject().getTitle() << " C CXX)" << newLine
+        out << "project (" << getProject().getProjectNameString().quoted() << " C CXX)" << newLine
             << newLine;
 
         out << "find_package (PkgConfig REQUIRED)" << newLine;
@@ -397,8 +479,11 @@ private:
                 << "#------------------------------------------------------------------------------" << newLine
                 << newLine;
 
-            const auto buildTypeCondition = String ("CMAKE_BUILD_TYPE STREQUAL " + config.getName());
+            auto buildTypeCondition = String ("CMAKE_BUILD_TYPE STREQUAL " + config.getName());
             out << "if (" << buildTypeCondition << ")" << newLine
+                << newLine;
+
+            out << "execute_process (COMMAND uname -m OUTPUT_VARIABLE JUCE_ARCH_LABEL OUTPUT_STRIP_TRAILING_WHITESPACE)" << newLine
                 << newLine;
 
             out << "include_directories (" << newLine;
@@ -415,7 +500,7 @@ private:
 
             for (auto& library : exporter.getLibraryNames (config))
             {
-                const String cmakeLibraryID (library.toUpperCase());
+                String cmakeLibraryID (library.toUpperCase());
                 cmakeFoundLibraries.add (String ("${") + cmakeLibraryID + "}");
                 out << "find_library (" << cmakeLibraryID << " " << library << newLine;
 
@@ -423,7 +508,7 @@ private:
                     out << "    " << path.quoted() << newLine;
 
                 out << ")" << newLine
-                << newLine;
+                    << newLine;
             }
 
             for (auto* target : exporter.targets)
@@ -431,11 +516,22 @@ private:
                 if (target->type == ProjectType::Target::Type::AggregateTarget)
                     continue;
 
-                const auto targetVarName = getTargetVarName (*target);
+                auto targetVarName = getTargetVarName (*target);
 
                 out << "set_target_properties (" << targetVarName << " PROPERTIES" << newLine
-                    << "    OUTPUT_NAME "  <<  config.getTargetBinaryNameString().quoted() << newLine
-                    << ")" << newLine << newLine;
+                    << "    OUTPUT_NAME "  <<  config.getTargetBinaryNameString().quoted() << newLine;
+
+                auto cxxStandard = project.getCppStandardString();
+
+                if (cxxStandard == "latest")
+                    cxxStandard = "17";
+
+                out << "    CXX_STANDARD " << cxxStandard << newLine;
+
+                if (! shouldUseGNUExtensions())
+                    out << "    CXX_EXTENSIONS OFF" << newLine;
+
+                out << ")" << newLine << newLine;
 
                 auto defines = exporter.getDefines (config);
                 defines.addArray (target->getDefines (config));
@@ -490,9 +586,15 @@ private:
             cFlags.add (exporter.getArchFlags (config));
             cFlags.addArray (exporter.getCPreprocessorFlags (config));
             cFlags.addArray (exporter.getCFlags (config));
+            out << addToCMakeVariable ("CMAKE_C_FLAGS", cFlags.joinIntoString (" ")) << newLine;
 
-            out << addToCMakeVariable ("CMAKE_C_FLAGS", cFlags.joinIntoString (" ")) << newLine
-                << addToCMakeVariable ("CMAKE_CXX_FLAGS", "${CMAKE_C_FLAGS} " + exporter.getCXXFlags().joinIntoString (" ")) << newLine
+            String cxxFlags;
+
+            for (auto& flag : exporter.getCXXFlags())
+                if (! flag.startsWith ("-std="))
+                    cxxFlags += " " + flag;
+
+            out << addToCMakeVariable ("CMAKE_CXX_FLAGS", "${CMAKE_C_FLAGS} " + cxxFlags) << newLine
                 << newLine;
 
             out << "endif (" << buildTypeCondition << ")" << newLine
@@ -503,7 +605,7 @@ private:
     //==============================================================================
     void writeCMakeListsCodeBlocksSection (OutputStream& out, CodeBlocksProjectExporter& exporter) const
     {
-        out << "project (" << getProject().getTitle() << " C CXX)" << newLine
+        out << "project (" << getProject().getProjectNameString().quoted() << " C CXX)" << newLine
             << newLine;
 
         writeCMakeTargets (out, exporter);
@@ -527,14 +629,14 @@ private:
                 << "#------------------------------------------------------------------------------" << newLine
                 << newLine;
 
-            const auto buildTypeCondition = String ("CMAKE_BUILD_TYPE STREQUAL " + config.getName());
+            auto buildTypeCondition = String ("CMAKE_BUILD_TYPE STREQUAL " + config.getName());
             out << "if (" << buildTypeCondition << ")" << newLine
                 << newLine;
 
             out << "include_directories (" << newLine;
 
             for (auto& path : exporter.getIncludePaths (config))
-                out << "    " << path.quoted() << newLine;
+                out << "    " << path.replace ("\\", "/").quoted() << newLine;
 
             out << ")" << newLine << newLine;
 
@@ -543,11 +645,22 @@ private:
                 if (target->type == ProjectType::Target::Type::AggregateTarget)
                     continue;
 
-                const auto targetVarName = getTargetVarName (*target);
+                auto targetVarName = getTargetVarName (*target);
 
                 out << "set_target_properties (" << targetVarName << " PROPERTIES" << newLine
-                    << "    OUTPUT_NAME "  <<  config.getTargetBinaryNameString().quoted() << newLine
-                    << ")" << newLine << newLine;
+                    << "    OUTPUT_NAME "  <<  config.getTargetBinaryNameString().quoted() << newLine;
+
+                auto cxxStandard = project.getCppStandardString();
+
+                if (cxxStandard == "latest")
+                    cxxStandard = "17";
+
+                out << "    CXX_STANDARD " << cxxStandard << newLine;
+
+                if (! shouldUseGNUExtensions())
+                    out << "    CXX_EXTENSIONS OFF" << newLine;
+
+                out << ")" << newLine << newLine;
 
                 out << "target_compile_definitions (" << targetVarName << " PRIVATE" << newLine;
 
@@ -559,7 +672,8 @@ private:
                 out << "target_compile_options (" << targetVarName << " PRIVATE" << newLine;
 
                 for (auto& option : exporter.getCompilerFlags (config, *target))
-                    out << "    " << option.quoted() << newLine;
+                    if (! option.startsWith ("-std="))
+                        out << "    " << option.quoted() << newLine;
 
                 out << ")" << newLine << newLine;
 
@@ -569,6 +683,16 @@ private:
                     || target->type == ProjectType::Target::Type::StandalonePlugIn)
                     out << "    SHARED_CODE" << newLine
                         << "    -L." << newLine;
+
+                for (auto& path : exporter.getLinkerSearchPaths (config, *target))
+                {
+                    out << "    \"-L\\\"";
+
+                    if (! isWindowsAbsolutePath (path))
+                        out << "${CMAKE_CURRENT_SOURCE_DIR}/";
+
+                    out << path.replace ("\\", "/").unquoted() << "\\\"\"" << newLine;
+                }
 
                 for (auto& flag : exporter.getLinkerFlags (config, *target))
                     out << "    " << flag << newLine;
@@ -594,7 +718,7 @@ private:
     //==============================================================================
     void writeCMakeListsXcodeSection (OutputStream& out, XcodeProjectExporter& exporter) const
     {
-        // We need to dind out the SDK root before defining the project. Unfortunately this is
+        // We need to find out the SDK root before defining the project. Unfortunately this is
         // set per-target in the Xcode project, but we want it per-configuration.
         for (ProjectExporter::ConstConfigIterator c (exporter); c.next();)
         {
@@ -603,12 +727,12 @@ private:
             for (auto* target : exporter.targets)
             {
                 if (target->getTargetFileType() == ProjectType::Target::TargetFileType::macOSAppex
-                    || target->type == ProjectType::Target::Type::AggregateTarget
-                    || target->type == ProjectType::Target::Type::AudioUnitv3PlugIn)
+                      || target->type == ProjectType::Target::Type::AggregateTarget
+                      || target->type == ProjectType::Target::Type::AudioUnitv3PlugIn)
                     continue;
 
-                const auto targetAttributes = target->getTargetSettings (config);
-                const auto targetAttributeKeys = targetAttributes.getAllKeys();
+                auto targetAttributes = target->getTargetSettings (config);
+                auto targetAttributeKeys = targetAttributes.getAllKeys();
 
                 if (targetAttributes.getAllKeys().contains ("SDKROOT"))
                 {
@@ -620,7 +744,7 @@ private:
             }
         }
 
-        out << "project (" << getProject().getTitle() << " C CXX)" << newLine << newLine;
+        out << "project (" << getProject().getProjectNameString().quoted() << " C CXX)" << newLine << newLine;
 
         writeCMakeTargets (out, exporter);
 
@@ -632,7 +756,7 @@ private:
                 continue;
 
             if (target->type == ProjectType::Target::Type::AudioUnitPlugIn)
-                out << "find_program (RC_COMPILER Rez NO_DEFAULT_PATHS PATHS /Applications/Xcode.app/Contents/Developer/usr/bin)" << newLine
+                out << "find_program (RC_COMPILER Rez NO_DEFAULT_PATHS PATHS \"/Applications/Xcode.app/Contents/Developer/usr/bin\")" << newLine
                     << "if (NOT RC_COMPILER)" << newLine
                     << "    message (WARNING \"failed to find Rez; older resource-based AU plug-ins may not work correctly\")" << newLine
                     << "endif (NOT RC_COMPILER)" << newLine  << newLine;
@@ -652,11 +776,14 @@ private:
                 << "#------------------------------------------------------------------------------" << newLine
                 << newLine;
 
-            const auto buildTypeCondition = String ("CMAKE_BUILD_TYPE STREQUAL " + config.getName());
+            auto buildTypeCondition = String ("CMAKE_BUILD_TYPE STREQUAL " + config.getName());
             out << "if (" << buildTypeCondition << ")" << newLine
                 << newLine;
 
-            const auto configSettings = exporter.getProjectSettings (config);
+            out << "execute_process (COMMAND uname -m OUTPUT_VARIABLE JUCE_ARCH_LABEL OUTPUT_STRIP_TRAILING_WHITESPACE)" << newLine
+                << newLine;
+
+            auto configSettings = exporter.getProjectSettings (config);
             auto configSettingsKeys = configSettings.getAllKeys();
 
             auto binaryName = config.getTargetBinaryNameString();
@@ -671,30 +798,19 @@ private:
                     || target->type == ProjectType::Target::Type::AudioUnitv3PlugIn)
                     continue;
 
-                const auto targetVarName = getTargetVarName (*target);
+                auto targetVarName = getTargetVarName (*target);
 
                 auto targetAttributes = target->getTargetSettings (config);
                 auto targetAttributeKeys = targetAttributes.getAllKeys();
-
-                StringArray libSearchPaths;
-
-                if (targetAttributeKeys.contains ("LIBRARY_SEARCH_PATHS"))
-                {
-                    auto paths = targetAttributes["LIBRARY_SEARCH_PATHS"].trim().substring (1).dropLastCharacters (1);
-                    paths = paths.replace ("\"$(inherited)\"", {});
-                    paths = paths.replace ("$(HOME)", "$ENV{HOME}");
-                    libSearchPaths.addTokens (paths, ",\"\t\\", {});
-                    libSearchPaths.removeEmptyStrings();
-                    targetAttributeKeys.removeString ("LIBRARY_SEARCH_PATHS");
-                }
 
                 StringArray headerSearchPaths;
 
                 if (targetAttributeKeys.contains ("HEADER_SEARCH_PATHS"))
                 {
                     auto paths = targetAttributes["HEADER_SEARCH_PATHS"].trim().substring (1).dropLastCharacters (1);
-                    paths = paths.replace ("\"$(inherited)\"", {});
-                    paths = paths.replace ("$(HOME)", "$ENV{HOME}");
+                    paths = paths.replace ("\"$(inherited)\"", {})
+                                 .replace ("$(HOME)", "$ENV{HOME}")
+                                 .replace ("~", "$ENV{HOME}");
                     headerSearchPaths.addTokens (paths, ",\"\t\\", {});
                     headerSearchPaths.removeEmptyStrings();
                     targetAttributeKeys.removeString ("HEADER_SEARCH_PATHS");
@@ -725,18 +841,28 @@ private:
 
                 StringArray cppFlags;
 
+                String archLabel ("${JUCE_ARCH_LABEL}");
+
                 // Fat binaries are not supported.
                 if (targetAttributeKeys.contains ("ARCHS"))
                 {
                     auto value = targetAttributes["ARCHS"].unquoted();
 
                     if  (value.contains ("NATIVE_ARCH_ACTUAL"))
+                    {
                         cppFlags.add ("-march=native");
+                    }
                     else if (value.contains ("ARCHS_STANDARD_32_BIT"))
+                    {
+                        archLabel = "i386";
                         cppFlags.add ("-arch x86");
+                    }
                     else if (value.contains ("ARCHS_STANDARD_32_64_BIT")
                           || value.contains ("ARCHS_STANDARD_64_BIT"))
-                         cppFlags.add ("-arch x86_64");
+                    {
+                        archLabel = "x86_64";
+                        cppFlags.add ("-arch x86_64");
+                    }
 
                     targetAttributeKeys.removeString ("ARCHS");
                 }
@@ -771,11 +897,8 @@ private:
                     targetAttributeKeys.removeString ("GCC_FAST_MATH");
                 }
 
-                if (targetAttributeKeys.contains ("CLANG_CXX_LANGUAGE_STANDARD"))
-                {
-                    cppFlags.add ("-std=" + targetAttributes["CLANG_CXX_LANGUAGE_STANDARD"].unquoted());
-                    targetAttributeKeys.removeString ("CLANG_CXX_LANGUAGE_STANDARD");
-                }
+                // We'll take this setting from the project
+                targetAttributeKeys.removeString ("CLANG_CXX_LANGUAGE_STANDARD");
 
                 if (targetAttributeKeys.contains ("CLANG_CXX_LIBRARY"))
                 {
@@ -789,6 +912,27 @@ private:
                     out << "    " << flag << newLine;
 
                 out << ")" << newLine << newLine;
+
+                StringArray libSearchPaths;
+
+                if (targetAttributeKeys.contains ("LIBRARY_SEARCH_PATHS"))
+                {
+                    auto paths = targetAttributes["LIBRARY_SEARCH_PATHS"].trim().substring (1).dropLastCharacters (1);
+                    paths = paths.replace ("\"$(inherited)\"", {});
+                    paths = paths.replace ("$(HOME)", "$ENV{HOME}");
+                    libSearchPaths.addTokens (paths, ",\"\t\\", {});
+                    libSearchPaths.removeEmptyStrings();
+
+                    for (auto& libPath : libSearchPaths)
+                    {
+                        libPath = libPath.replace ("${CURRENT_ARCH}", archLabel);
+
+                        if (! isUnixAbsolutePath (libPath))
+                            libPath = "${CMAKE_CURRENT_SOURCE_DIR}/" + libPath;
+                    }
+
+                    targetAttributeKeys.removeString ("LIBRARY_SEARCH_PATHS");
+                }
 
                 StringArray linkerFlags;
 
@@ -818,26 +962,40 @@ private:
 
                     for (auto& item : exporter.getAllGroups())
                     {
-                        if (item.getName() == "Juce Library Code")
+                        if (item.getName() == ProjectSaver::getJuceCodeGroupName())
                         {
-                            String resSourcesVar (targetVarName + "_REZ_SOURCES");
-                            String resOutputVar (targetVarName + "_REZ_OUTPUT");
+                            auto resSourcesVar = targetVarName + "_REZ_SOURCES";
+                            auto resOutputVar = targetVarName + "_REZ_OUTPUT";
+
+                            auto sdkVersion = config.getOSXSDKVersionString().upToFirstOccurrenceOf (" ", false, false);
+                            auto sysroot = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX" + sdkVersion + ".sdk";
+
+                            RelativePath rFile ("JuceLibraryCode/include_juce_audio_plugin_client_AU.r", RelativePath::projectFolder);
+                            rFile = rebaseFromProjectFolderToBuildTarget (rFile);
 
                             out << "if (RC_COMPILER)" << newLine
                                 << "    set (" << resSourcesVar << newLine
-                                << "        \"" << item.determineGroupFolder().getFullPathName() + "/include_juce_audio_plugin_client_AU.r\"" << newLine
+                                << "        " << ("${CMAKE_CURRENT_SOURCE_DIR}/" + rFile.toUnixStyle()).quoted() << newLine
                                 << "    )" << newLine
-                                << "    set (" << resOutputVar << " \"${CMAKE_CURRENT_BINARY_DIR}/" << binaryName << ".rsrc\")" << newLine
+                                << "    set (" << resOutputVar << " " << ("${CMAKE_CURRENT_BINARY_DIR}/" + binaryName + ".rsrc").quoted() << ")" << newLine
                                 << "    target_sources (" << targetVarName << " PRIVATE" << newLine
                                 << "        ${" << resSourcesVar << "}" << newLine
                                 << "        ${" << resOutputVar << "}" << newLine
                                 << "    )" << newLine
                                 << "    execute_process (COMMAND" << newLine
                                 << "        ${RC_COMPILER}" << newLine
-                                << "        " << rezFlags.unquoted().removeCharacters ("\\") << newLine;
+                                << "        " << rezFlags.unquoted().removeCharacters ("\\") << newLine
+                                << "        -isysroot " << sysroot.quoted() << newLine;
 
                             for (auto& path : headerSearchPaths)
-                                out << "        -I \"${PROJECT_SOURCE_DIR}/" << path.unquoted() << "\"" << newLine;
+                            {
+                                out << "        -I \"";
+
+                                if (! isUnixAbsolutePath (path))
+                                    out << "${PROJECT_SOURCE_DIR}/";
+
+                                out << path << "\"" << newLine;
+                            }
 
                             out << "        ${" << resSourcesVar << "}" << newLine
                                 << "        -o ${" << resOutputVar << "}" << newLine
@@ -856,7 +1014,7 @@ private:
                 {
                     auto plistFile = exporter.getTargetFolder().getChildFile (targetAttributes["INFOPLIST_FILE"]);
                     XmlDocument infoPlistData (plistFile);
-                    ScopedPointer<XmlElement> plist = infoPlistData.getDocumentElement();
+                    std::unique_ptr<XmlElement> plist (infoPlistData.getDocumentElement());
 
                     if (plist != nullptr)
                     {
@@ -880,9 +1038,9 @@ private:
                             }
                         }
 
-                        File updatedPlist (getTargetFolder().getChildFile (config.getName() + "-" + plistFile.getFileName()));
+                        auto updatedPlist = getTargetFolder().getChildFile (config.getName() + "-" + plistFile.getFileName());
                         plist->writeToFile (updatedPlist, "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
-                        targetAttributes.set ("INFOPLIST_FILE", updatedPlist.getFullPathName().quoted());
+                        targetAttributes.set ("INFOPLIST_FILE", ("${CMAKE_CURRENT_SOURCE_DIR}/" + updatedPlist.getFileName()).quoted());
                     }
                     else
                     {
@@ -894,6 +1052,16 @@ private:
 
                 out << "set_target_properties (" << targetVarName << " PROPERTIES" << newLine
                     << "    OUTPUT_NAME "  << binaryName.quoted() << newLine;
+
+                auto cxxStandard = project.getCppStandardString();
+
+                if (cxxStandard == "latest")
+                    cxxStandard = "17";
+
+                out << "    CXX_STANDARD " << cxxStandard << newLine;
+
+                if (! shouldUseGNUExtensions())
+                    out << "    CXX_EXTENSIONS OFF" << newLine;
 
                 for (auto& key : targetAttributeKeys)
                     out << "    XCODE_ATTRIBUTE_" << key << " " << targetAttributes[key] << newLine;
@@ -925,7 +1093,7 @@ private:
                     out << "    SHARED_CODE" << newLine;
 
                 for (auto& path : libSearchPaths)
-                    out << "    \"-L" << path << "\"" << newLine;
+                    out << "    \"-L\\\"" << path << "\\\"\"" << newLine;
 
                 for (auto& flag : linkerFlags)
                     out << "    " << flag.quoted() << newLine;
@@ -941,12 +1109,12 @@ private:
                     if (target->getTargetFileType() == ProjectType::Target::TargetFileType::pluginBundle
                         && targetAttributeKeys.contains("INSTALL_PATH"))
                     {
-                        const auto installPath = targetAttributes["INSTALL_PATH"].unquoted();
-                        const auto productFilename = binaryName + (targetAttributeKeys.contains ("WRAPPER_EXTENSION") ? "." + targetAttributes["WRAPPER_EXTENSION"] : String());
+                        auto installPath = targetAttributes["INSTALL_PATH"].unquoted().replace ("$(HOME)", "$ENV{HOME}");
+                        auto productFilename = binaryName + (targetAttributeKeys.contains ("WRAPPER_EXTENSION") ? "." + targetAttributes["WRAPPER_EXTENSION"] : String());
                         auto productPath = (installPath + productFilename).quoted();
                         out << "add_custom_command (TARGET " << targetVarName << " POST_BUILD" << newLine
-                            << "    COMMAND cmake -E remove_directory " << productPath << newLine
-                            << "    COMMAND cmake -E copy_directory \"${CMAKE_BINARY_DIR}/" << productFilename << "\" " << productPath << newLine
+                            << "    COMMAND ${CMAKE_COMMAND} -E remove_directory " << productPath << newLine
+                            << "    COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}/" << productFilename << "\" " << productPath << newLine
                             << "    COMMENT \"Copying \\\"" << productFilename << "\\\" to \\\"" << installPath.unquoted() << "\\\"\"" << newLine
                             << ")" << newLine << newLine;
                     }
@@ -996,7 +1164,7 @@ private:
                     else if (configSettings[key] == "YES_AGGRESSIVE") compilerFlags.add ("--Wconditional-uninitialized");
                     else                                              compilerFlags.add (")-Wno-uninitialized");
                 }
-                else if (key == "WARNING_CFLAGS") compilerFlags.add (configSettings[key]);
+                else if (key == "WARNING_CFLAGS") compilerFlags.add (configSettings[key].unquoted());
             }
 
             out << addToCMakeVariable ("CMAKE_CXX_FLAGS", compilerFlags.joinIntoString (" ")) << newLine

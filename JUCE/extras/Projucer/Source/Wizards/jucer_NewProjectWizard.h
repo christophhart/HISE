@@ -32,7 +32,7 @@ static void setExecutableNameForAllTargets (Project& project, const String& exeN
 {
     for (Project::ExporterIterator exporter (project); exporter.next();)
         for (ProjectExporter::ConfigIterator config (*exporter); config.next();)
-            config->getTargetBinaryName() = exeName;
+            config->getValue (Ids::targetName) = exeName;
 }
 
 static Project::Item createSourceGroup (Project& project)
@@ -81,7 +81,6 @@ struct NewProjectWizard
             "juce_gui_basics",
             "juce_gui_extra",
             "juce_cryptography",
-            "juce_video",
             "juce_opengl",
             "juce_audio_basics",
             "juce_audio_devices",
@@ -129,16 +128,17 @@ struct NewProjectWizard
         projectFile = targetFolder.getChildFile (File::createLegalFileName (appTitle))
                                   .withFileExtension (Project::projectFileExtension);
 
-        ScopedPointer<Project> project (new Project (projectFile));
+        std::unique_ptr<Project> project (new Project (projectFile));
 
         if (failedFiles.size() == 0)
         {
             project->setFile (projectFile);
             project->setTitle (appTitle);
-            project->getBundleIdentifier() = project->getDefaultBundleIdentifier();
 
             if (! initialiseProject (*project))
                 return nullptr;
+
+            project->getConfigFlag ("JUCE_STRICT_REFCOUNTEDPOINTER") = true;
 
             addExporters (*project, wc);
             addDefaultModules (*project, useGlobalPath);
@@ -159,6 +159,11 @@ struct NewProjectWizard
             return nullptr;
         }
 
+        StringPairArray data;
+        data.set ("label", "Project Type = " + project->getProjectTypeString());
+
+        Analytics::getInstance()->logEvent ("Project Setting", data, ProjucerAnalyticsEvent::projectEvent);
+
         return project.release();
     }
 
@@ -176,14 +181,14 @@ struct NewProjectWizard
 
     void addDefaultModules (Project& project, bool useGlobalPath)
     {
-        StringArray mods (getDefaultModules());
+        auto defaultModules = getDefaultModules();
 
-        ModuleList list;
-        list.addAllModulesInFolder (modulesFolder);
+        AvailableModuleList list;
+        list.scanPaths ({ modulesFolder });
 
-        for (int i = 0; i < mods.size(); ++i)
-            if (const ModuleDescription* info = list.getModuleWithID (mods[i]))
-                project.getModules().addModule (info->moduleFolder, false, useGlobalPath);
+        for (auto& mod : list.getAllModules())
+            if (defaultModules.contains (mod.first))
+                project.getEnabledModules().addModule (mod.second, false, useGlobalPath, false);
     }
 
     void addExporters (Project& project, WizardComp& wizardComp)

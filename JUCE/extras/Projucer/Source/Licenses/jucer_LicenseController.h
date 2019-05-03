@@ -96,15 +96,13 @@ private:
     //==============================================================================
     void updateState (const LicenseState&);
 
+    static LicenseState licenseStateFromOldSettings (XmlElement*);
     static LicenseState licenseStateFromSettings (PropertiesFile&);
     static void licenseStateToSettings (const LicenseState&, PropertiesFile&);
 
    #if ! JUCER_ENABLE_GPL_MODE
     //==============================================================================
     struct ModalCompletionCallback;
-    friend struct ModalCompletionCallback;
-
-    friend class ScopedPointer<LicenseThread>;
     friend struct LicenseThread;
 
     //==============================================================================
@@ -114,7 +112,7 @@ private:
     void queryWebview (const String&, const String&, HashMap<String, String>&);
 
     //==============================================================================
-    ScopedPointer<LicenseThread> thread;
+    std::unique_ptr<LicenseThread> thread;
     LicenseWebview* licenseWebview = nullptr;
    #endif
 

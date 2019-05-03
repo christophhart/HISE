@@ -40,11 +40,11 @@ AppearanceSettings::AppearanceSettings (bool updateAppWhenChanged)
         CPlusPlusCodeTokeniser tokeniser;
         CodeEditorComponent editor (doc, &tokeniser);
 
-        const CodeEditorComponent::ColourScheme cs (editor.getColourScheme());
+        CodeEditorComponent::ColourScheme cs (editor.getColourScheme());
 
         for (int i = cs.types.size(); --i >= 0;)
         {
-            CodeEditorComponent::ColourScheme::TokenType& t = cs.types.getReference(i);
+            auto& t = cs.types.getReference(i);
             getColourValue (t.name) = t.colour.toString();
         }
 
@@ -64,12 +64,11 @@ File AppearanceSettings::getSchemesFolder()
 
 void AppearanceSettings::writeDefaultSchemeFile (const String& xmlString, const String& name)
 {
-    const File file (getSchemesFolder().getChildFile (name).withFileExtension (getSchemeFileSuffix()));
+    auto file = getSchemesFolder().getChildFile (name).withFileExtension (getSchemeFileSuffix());
 
     AppearanceSettings settings (false);
 
-    ScopedPointer<XmlElement> xml (XmlDocument::parse (xmlString));
-    if (xml != nullptr)
+    if (auto xml = parseXML (xmlString))
         settings.readFromXML (*xml);
 
     settings.writeToFile (file);
@@ -80,8 +79,7 @@ void AppearanceSettings::refreshPresetSchemeList()
     writeDefaultSchemeFile (BinaryData::colourscheme_dark_xml,  "Default (Dark)");
     writeDefaultSchemeFile (BinaryData::colourscheme_light_xml, "Default (Light)");
 
-    Array<File> newSchemes;
-    getSchemesFolder().findChildFiles (newSchemes, File::findFiles, false, String ("*") + getSchemeFileSuffix());
+    auto newSchemes = getSchemesFolder().findChildFiles (File::findFiles, false, String ("*") + getSchemeFileSuffix());
 
     if (newSchemes != presetSchemeFiles)
     {
@@ -132,13 +130,15 @@ bool AppearanceSettings::readFromXML (const XmlElement& xml)
 
 bool AppearanceSettings::readFromFile (const File& file)
 {
-    const ScopedPointer<XmlElement> xml (XmlDocument::parse (file));
-    return xml != nullptr && readFromXML (*xml);
+    if (auto xml = parseXML (file))
+        return readFromXML (*xml);
+
+    return false;
 }
 
 bool AppearanceSettings::writeToFile (const File& file) const
 {
-    const ScopedPointer<XmlElement> xml (settings.createXml());
+    const std::unique_ptr<XmlElement> xml (settings.createXml());
     return xml != nullptr && xml->writeToFile (file, String());
 }
 
@@ -208,7 +208,7 @@ Value AppearanceSettings::getColourValue (const String& colourName)
     {
         c = ValueTree ("COLOUR");
         c.setProperty (Ids::name, colourName, nullptr);
-        settings.addChild (c, -1, nullptr);
+        settings.appendChild (c, nullptr);
     }
 
     return c.getPropertyAsValue (Ids::colour, nullptr);
