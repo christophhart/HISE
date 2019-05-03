@@ -44,7 +44,7 @@ class ProjectContentComponent  : public Component,
 public:
     //==============================================================================
     ProjectContentComponent();
-    ~ProjectContentComponent();
+    ~ProjectContentComponent() override;
 
     Project* getProject() const noexcept    { return project; }
     virtual void setProject (Project*);
@@ -66,7 +66,8 @@ public:
 
     void hideEditor();
     bool setEditorComponent (Component* editor, OpenDocumentManager::Document* doc);
-    Component* getEditorComponent() const    { return contentView; }
+    Component* getEditorComponentContent() const;
+    Component* getEditorComponent() const    { return contentView.get(); }
     Component& getSidebarComponent()         { return sidebarTabs; }
 
     bool goToPreviousFile();
@@ -74,7 +75,7 @@ public:
     bool canGoToCounterpart() const;
     bool goToCounterpart();
 
-    bool saveProject (bool shouldWait = false);
+    bool saveProject (bool shouldWait = false, bool openInIDE = false);
     void closeProject();
     void openInSelectedIDE (bool saveFirst);
     void showNewExporterMenu();
@@ -96,6 +97,7 @@ public:
 
     void deleteSelectedTreeItems();
 
+    void refreshProjectTreeFileStatuses();
     void updateMissingFileStatuses();
     void createProjectTabs();
     void deleteProjectTabs();
@@ -128,6 +130,8 @@ public:
     void getCommandInfo (CommandID, ApplicationCommandInfo&) override;
     bool perform (const InvocationInfo&) override;
 
+    bool isSaveCommand (const CommandID id);
+
     void paint (Graphics&) override;
     void resized() override;
     void childBoundsChanged (Component*) override;
@@ -139,20 +143,20 @@ private:
     friend HeaderComponent;
 
     //==============================================================================
-    Project* project;
-    OpenDocumentManager::Document* currentDocument;
+    Project* project = nullptr;
+    OpenDocumentManager::Document* currentDocument = nullptr;
     RecentDocumentList recentDocumentList;
-    ScopedPointer<Component> logo, translationTool, contentView, header;
+    std::unique_ptr<Component> logo, translationTool, contentView, header;
 
-    TabbedComponent sidebarTabs;
-    ScopedPointer<ResizableEdgeComponent> resizerBar;
+    TabbedComponent sidebarTabs  { TabbedButtonBar::TabsAtTop };
+    std::unique_ptr<ResizableEdgeComponent> resizerBar;
     ComponentBoundsConstrainer sidebarSizeConstrainer;
 
     BubbleMessageComponent bubbleMessage;
     ReferenceCountedObjectPtr<CompileEngineChildProcess> childProcess;
     bool isForeground = false;
 
-    ScopedPointer<Label> fileNameLabel;
+    std::unique_ptr<Label> fileNameLabel;
 
     int lastViewedTab = 0;
 

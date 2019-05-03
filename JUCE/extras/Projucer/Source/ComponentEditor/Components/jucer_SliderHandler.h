@@ -171,8 +171,8 @@ struct SliderHandler  : public ComponentTypeHandler
             const String userCodeComment ("UserSliderCode_" + memberVariableName);
 
             callback
-                << "if (sliderThatWasMoved == " << memberVariableName
-                << ")\n{\n    //[" << userCodeComment << "] -- add your slider handling code here..\n    //[/" << userCodeComment << "]\n}\n";
+                << "if (sliderThatWasMoved == " << memberVariableName << ".get())\n"
+                << "{\n    //[" << userCodeComment << "] -- add your slider handling code here..\n    //[/" << userCodeComment << "]\n}\n";
         }
     }
 
@@ -614,8 +614,8 @@ private:
 
         String getText() const override
         {
-            Slider* s = dynamic_cast<Slider*> (component);
-            jassert (s != 0);
+            auto s = dynamic_cast<Slider*> (component);
+            jassert (s != nullptr);
 
             return String (s->getSkewFactor());
         }

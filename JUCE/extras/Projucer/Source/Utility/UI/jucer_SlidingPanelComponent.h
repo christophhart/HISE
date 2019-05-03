@@ -33,7 +33,7 @@ class SlidingPanelComponent   : public Component
 {
 public:
     SlidingPanelComponent();
-    ~SlidingPanelComponent();
+    ~SlidingPanelComponent() override;
 
     /** Adds a new tab to the panel slider. */
     void addTab (const String& tabName,
@@ -67,7 +67,7 @@ private:
         ~PageInfo();
 
         Component::SafePointer<Component> content;
-        ScopedPointer<DotButton> dotButton;
+        std::unique_ptr<DotButton> dotButton;
         String name;
         bool shouldDelete;
     };

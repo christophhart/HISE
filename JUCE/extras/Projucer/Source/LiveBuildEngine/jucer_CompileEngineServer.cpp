@@ -26,6 +26,7 @@
 
 #include "../Application/jucer_Headers.h"
 #include "../Application/jucer_Application.h"
+#include "jucer_CompileEngineServer.h"
 #include "jucer_CompileEngineDLL.h"
 #include "jucer_MessageIDs.h"
 #include "jucer_CppHelpers.h"
@@ -66,7 +67,7 @@ struct ZombiePatrol    : private Thread,
         startTimer (1000);
     }
 
-    ~ZombiePatrol()
+    ~ZombiePatrol() override
     {
         stopThread (1000);
     }
@@ -157,12 +158,12 @@ public:
         setParentProcessID (info[3].getHexValue32());
        #endif
 
-        zombieKiller = new ZombiePatrol (*this);
+        zombieKiller.reset (new ZombiePatrol (*this));
     }
 
-    ~ServerIPC()
+    ~ServerIPC() override
     {
-        zombieKiller = nullptr;
+        zombieKiller.reset();
 
         if (dll.isLoaded())
             dll.projucer_deleteBuilder (liveCodeBuilder);
@@ -207,7 +208,7 @@ public:
 
     CompileEngineDLL dll;
     LiveCodeBuilder liveCodeBuilder;
-    ScopedPointer<ZombiePatrol> zombieKiller;
+    std::unique_ptr<ZombiePatrol> zombieKiller;
 };
 
 //==============================================================================
@@ -258,7 +259,7 @@ void* createClangServer (const String& commandLine)
     StringArray info;
     info.addTokens (commandLine.fromFirstOccurrenceOf (commandPrefix, false, false), commandTokenSeparator, "");
 
-    ScopedPointer<ServerIPC> ipc = new ServerIPC (info);
+    std::unique_ptr<ServerIPC> ipc (new ServerIPC (info));
 
     if (ipc->dll.isLoaded())
     {

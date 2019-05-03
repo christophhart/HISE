@@ -33,7 +33,7 @@ struct FloatingToolWindow  : public DialogWindow
     FloatingToolWindow (const String& title,
                         const String& windowPosPropertyName,
                         Component* content,
-                        ScopedPointer<Component>& ownerPointer,
+                        std::unique_ptr<Component>& ownerPointer,
                         bool shouldBeResizable,
                         int defaultW, int defaultH,
                         int minW, int minH,
@@ -57,10 +57,10 @@ struct FloatingToolWindow  : public DialogWindow
             centreAroundComponent (Component::getCurrentlyFocusedComponent(), defaultW, defaultH);
 
         setVisible (true);
-        owner = this;
+        owner.reset (this);
     }
 
-    ~FloatingToolWindow()
+    ~FloatingToolWindow() override
     {
         if (windowPosProperty.isNotEmpty())
             getGlobalProperties().setValue (windowPosProperty, getWindowStateAsString());
@@ -68,7 +68,7 @@ struct FloatingToolWindow  : public DialogWindow
 
     void closeButtonPressed() override
     {
-        owner = nullptr;
+        owner.reset();
     }
 
     bool escapeKeyPressed() override
@@ -84,7 +84,7 @@ struct FloatingToolWindow  : public DialogWindow
 
 private:
     String windowPosProperty;
-    ScopedPointer<Component>& owner;
+    std::unique_ptr<Component>& owner;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FloatingToolWindow)
 };

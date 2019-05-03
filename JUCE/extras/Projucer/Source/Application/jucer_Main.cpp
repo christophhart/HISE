@@ -36,7 +36,8 @@
 #include "Windows/jucer_AboutWindowComponent.h"
 #include "Windows/jucer_ApplicationUsageDataWindowComponent.h"
 #include "Windows/jucer_EditorColourSchemeWindowComponent.h"
-#include "Windows/jucer_GlobalSearchPathsWindowComponent.h"
+#include "Windows/jucer_GlobalPathsWindowComponent.h"
+#include "Windows/jucer_PIPCreatorWindowComponent.h"
 #include "Windows/jucer_FloatingToolWindow.h"
 
 #include "../LiveBuildEngine/jucer_MessageIDs.h"
@@ -52,7 +53,7 @@
 #include "../LiveBuildEngine/UI/jucer_ComponentListComponent.h"
 #include "../LiveBuildEngine/jucer_CompileEngineServer.h"
 
-juce_ImplementSingleton (CompileEngineDLL);
+JUCE_IMPLEMENT_SINGLETON (CompileEngineDLL)
 
 struct ProjucerAppClasses
 {

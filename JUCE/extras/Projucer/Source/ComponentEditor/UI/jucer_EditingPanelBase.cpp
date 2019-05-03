@@ -32,16 +32,15 @@
 class EditingPanelBase::MagnifierComponent  : public Component
 {
 public:
-    MagnifierComponent (Component* comp)
-        : scaleFactor (1.0), content (comp)
+    MagnifierComponent (Component* c) : content (c)
     {
-        addAndMakeVisible (content);
-        childBoundsChanged (content);
+        addAndMakeVisible (content.get());
+        childBoundsChanged (content.get());
     }
 
     void childBoundsChanged (Component* child)
     {
-        const Rectangle<int> childArea (getLocalArea (child, child->getLocalBounds()));
+        auto childArea = getLocalArea (child, child->getLocalBounds());
         setSize (childArea.getWidth(), childArea.getHeight());
     }
 
@@ -54,16 +53,15 @@ public:
     }
 
 private:
-    double scaleFactor;
-    ScopedPointer<Component> content;
+    double scaleFactor = 1.0;
+    std::unique_ptr<Component> content;
 };
 
 //==============================================================================
 class ZoomingViewport   : public Viewport
 {
 public:
-    ZoomingViewport (EditingPanelBase* const p)
-        : panel (p), isSpaceDown (false)
+    ZoomingViewport (EditingPanelBase* p) : panel (p)
     {
     }
 
@@ -88,21 +86,21 @@ public:
 
             if (isSpaceDown)
             {
-                DraggerOverlayComp* const dc = new DraggerOverlayComp();
+                auto dc = new DraggerOverlayComp();
                 addAndMakeVisible (dc);
                 dc->setBounds (getLocalBounds());
             }
             else
             {
                 for (int i = getNumChildComponents(); --i >= 0;)
-                    ScopedPointer<DraggerOverlayComp> deleter (dynamic_cast<DraggerOverlayComp*> (getChildComponent (i)));
+                    std::unique_ptr<DraggerOverlayComp> deleter (dynamic_cast<DraggerOverlayComp*> (getChildComponent (i)));
             }
         }
     }
 
 private:
     EditingPanelBase* const panel;
-    bool isSpaceDown;
+    bool isSpaceDown = false;
 
     //==============================================================================
     class DraggerOverlayComp    : public Component

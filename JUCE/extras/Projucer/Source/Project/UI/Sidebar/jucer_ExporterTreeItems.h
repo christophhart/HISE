@@ -69,12 +69,12 @@ public:
 
     Icon getIcon() const override
     {
-        return getIconForExporter (exporter).withColour (getContentColour (true));
+        return getIconForExporter (exporter.get()).withColour (getContentColour (true));
     }
 
     void showDocument() override
     {
-        showSettingsPage (new SettingsComp (exporter));
+        showSettingsPage (new SettingsComp (*exporter));
     }
 
     void deleteItem() override
@@ -117,7 +117,7 @@ public:
     {
         if (resultCode == 1)
         {
-            exporter->addNewConfiguration (nullptr);
+            exporter->addNewConfiguration (false);
         }
         else if (resultCode == 2)
         {
@@ -142,7 +142,7 @@ public:
 
     void itemDropped (const DragAndDropTarget::SourceDetails& dragSourceDetails, int insertIndex) override
     {
-        const int oldIndex = indexOfConfig (dragSourceDetails.description.toString().fromLastOccurrenceOf ("||", false, false));
+        auto oldIndex = indexOfConfig (dragSourceDetails.description.toString().fromLastOccurrenceOf ("||", false, false));
 
         if (oldIndex >= 0)
             configListTree.moveChild (oldIndex, insertIndex, project.getUndoManagerFor (configListTree));
@@ -171,7 +171,7 @@ public:
 
 private:
     Project& project;
-    ScopedPointer<ProjectExporter> exporter;
+    std::unique_ptr<ProjectExporter> exporter;
     ValueTree configListTree;
     int exporterIndex;
 
@@ -186,15 +186,15 @@ private:
     //==============================================================================
     struct SettingsComp  : public Component
     {
-        SettingsComp (ProjectExporter* exp)
-            : group (exp->getName(),
-                     ExporterItem::getIconForExporter (exp),
-                     exp->getDescription())
+        SettingsComp (ProjectExporter& exp)
+            : group (exp.getName(),
+                     ExporterItem::getIconForExporter (&exp),
+                     exp.getDescription())
         {
             addAndMakeVisible (group);
 
             PropertyListBuilder props;
-            exp->createPropertyEditors (props);
+            exp.createPropertyEditors (props);
             group.setProperties (props);
             parentSizeChanged();
         }
@@ -234,7 +234,7 @@ public:
 
     void showDocument() override
     {
-        showSettingsPage (new SettingsComp (config));
+        showSettingsPage (new SettingsComp (*config));
     }
 
     void deleteItem() override
@@ -262,7 +262,7 @@ public:
     void handlePopupMenuResult (int resultCode) override
     {
         if (resultCode == 1)
-            exporter.addNewConfiguration (config);
+            exporter.addNewConfigurationFromExisting (*config);
         else if (resultCode == 2)
             deleteAllSelectedItems();
     }
@@ -283,13 +283,13 @@ private:
     class SettingsComp  : public Component
     {
     public:
-        SettingsComp (ProjectExporter::BuildConfiguration* conf)
-            : group (conf->exporter.getName() + " - " + conf->getName(), Icon (getIcons().config, Colours::transparentBlack))
+        SettingsComp (ProjectExporter::BuildConfiguration& conf)
+            : group (conf.exporter.getName() + " - " + conf.getName(), Icon (getIcons().config, Colours::transparentBlack))
         {
             addAndMakeVisible (group);
 
             PropertyListBuilder props;
-            conf->createPropertyEditors (props);
+            conf.createPropertyEditors (props);
             group.setProperties (props);
             parentSizeChanged();
         }
@@ -308,8 +308,7 @@ private:
 };
 
 //==============================================================================
-class ExportersTreeRoot    : public JucerTreeViewBase,
-                             private ValueTree::Listener
+class ExportersTreeRoot    : public ProjectTreeItemBase
 {
 public:
     ExportersTreeRoot (Project& p)

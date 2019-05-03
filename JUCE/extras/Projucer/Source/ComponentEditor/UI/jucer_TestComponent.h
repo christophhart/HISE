@@ -37,7 +37,7 @@ public:
                    JucerDocument* const loadedDocument,
                    const bool alwaysFillBackground);
 
-    ~TestComponent();
+    ~TestComponent() override;
 
     //==============================================================================
     void setFilename (const String& fn);
@@ -48,7 +48,7 @@ public:
 
     File findFile() const;
 
-    JucerDocument* getDocument() const noexcept                 { return loadedDocument; }
+    JucerDocument* getDocument() const noexcept                 { return loadedDocument.get(); }
     JucerDocument* getOwnerDocument() const noexcept            { return ownerDocument; }
 
     void setToInitialSize();
@@ -64,7 +64,7 @@ public:
 
 private:
     JucerDocument* ownerDocument;
-    ScopedPointer<JucerDocument> loadedDocument;
+    std::unique_ptr<JucerDocument> loadedDocument;
     String filename, constructorParams;
     Time lastModificationTime;
     const bool alwaysFillBackground;

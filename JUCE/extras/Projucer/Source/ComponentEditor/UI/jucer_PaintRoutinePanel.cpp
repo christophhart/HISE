@@ -43,7 +43,7 @@ public:
         document.addChangeListener (this);
     }
 
-    ~ComponentBackgroundColourProperty()
+    ~ComponentBackgroundColourProperty() override
     {
         document.removeChangeListener (this);
     }
@@ -109,7 +109,7 @@ public:
 
     void updateList()
     {
-        ScopedPointer<XmlElement> state (propsPanel->getOpennessState());
+        std::unique_ptr<XmlElement> state (propsPanel->getOpennessState());
 
         clear();
 

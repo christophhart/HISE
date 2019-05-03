@@ -35,11 +35,9 @@ public:
     EditorColourSchemeWindowComponent()
     {
         if (getAppSettings().monospacedFontNames.size() == 0)
-            content = new AppearanceEditor::FontScanPanel();
+            changeContent (new AppearanceEditor::FontScanPanel());
         else
-            content = new AppearanceEditor::EditorPanel();
-
-        changeContent (content);
+            changeContent (new AppearanceEditor::EditorPanel());
     }
 
     void paint (Graphics& g) override
@@ -54,12 +52,13 @@ public:
 
     void changeContent (Component* newContent)
     {
-        content = newContent;
-        addAndMakeVisible (content);
+        content.reset (newContent);
+        addAndMakeVisible (newContent);
         content->setBounds (getLocalBounds().reduced (10));
     }
+
 private:
-    ScopedPointer<Component> content;
+    std::unique_ptr<Component> content;
 
     //==============================================================================
     struct AppearanceEditor
@@ -114,21 +113,20 @@ private:
                 const auto width = font.getStringWidth ("....");
 
                 return width == font.getStringWidth ("WWWW")
-                && width == font.getStringWidth ("0000")
-                && width == font.getStringWidth ("1111")
-                && width == font.getStringWidth ("iiii");
+                    && width == font.getStringWidth ("0000")
+                    && width == font.getStringWidth ("1111")
+                    && width == font.getStringWidth ("iiii");
             }
 
             StringArray fontsToScan, fontsFound;
         };
 
         //==============================================================================
-        struct EditorPanel  : public Component,
-                              private Button::Listener
+        struct EditorPanel  : public Component
         {
             EditorPanel()
-            : loadButton ("Load Scheme..."),
-            saveButton ("Save Scheme...")
+                : loadButton ("Load Scheme..."),
+                  saveButton ("Save Scheme...")
             {
                 rebuildProperties();
                 addAndMakeVisible (panel);
@@ -136,15 +134,15 @@ private:
                 addAndMakeVisible (loadButton);
                 addAndMakeVisible (saveButton);
 
-                loadButton.addListener (this);
-                saveButton.addListener (this);
+                loadButton.onClick = [this] { loadScheme(); };
+                saveButton.onClick = [this] { saveScheme (false); };
 
                 lookAndFeelChanged();
 
                 saveSchemeState();
             }
 
-            ~EditorPanel()
+            ~EditorPanel() override
             {
                 if (hasSchemeBeenModifiedSinceSave())
                     saveScheme (true);
@@ -184,14 +182,6 @@ private:
 
             Font codeFont;
             Array<var> colourValues;
-
-            void buttonClicked (Button* b) override
-            {
-                if (b == &loadButton)
-                    loadScheme();
-                else
-                    saveScheme (false);
-            }
 
             void saveScheme (bool isExit)
             {

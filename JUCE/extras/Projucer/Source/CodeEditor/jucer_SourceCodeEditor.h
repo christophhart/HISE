@@ -46,11 +46,11 @@ public:
     bool hasFileBeenModifiedExternally() override            { return modDetector.hasBeenModified(); }
     void fileHasBeenRenamed (const File& newFile) override   { modDetector.fileHasBeenRenamed (newFile); }
     String getState() const override                         { return lastState != nullptr ? lastState->toString() : String(); }
-    void restoreState (const String& state) override         { lastState = new CodeEditorComponent::State (state); }
+    void restoreState (const String& state) override         { lastState.reset (new CodeEditorComponent::State (state)); }
 
     File getCounterpartFile() const override
     {
-        const File file (getFile());
+        auto file = getFile();
 
         if (file.hasFileExtension (sourceFileExtensions))
         {
@@ -71,7 +71,7 @@ public:
     {
         while (*extensions != nullptr)
         {
-            const File f (file.withFileExtension (*extensions++));
+            auto f = file.withFileExtension (*extensions++);
 
             if (f.existsAsFile())
                 return f;
@@ -127,10 +127,10 @@ public:
 
 protected:
     FileModificationDetector modDetector;
-    ScopedPointer<CodeDocument> codeDoc;
+    std::unique_ptr<CodeDocument> codeDoc;
     Project* project;
 
-    ScopedPointer<CodeEditorComponent::State> lastState;
+    std::unique_ptr<CodeEditorComponent::State> lastState;
 
     void reloadInternal();
 };
@@ -145,12 +145,12 @@ class SourceCodeEditor  : public DocumentEditorComponent,
 public:
     SourceCodeEditor (OpenDocumentManager::Document*, CodeDocument&);
     SourceCodeEditor (OpenDocumentManager::Document*, GenericCodeEditorComponent*);
-    ~SourceCodeEditor();
+    ~SourceCodeEditor() override;
 
     void scrollToKeepRangeOnScreen (Range<int> range);
     void highlight (Range<int> range, bool cursorAtStart);
 
-    ScopedPointer<GenericCodeEditorComponent> editor;
+    std::unique_ptr<GenericCodeEditorComponent> editor;
 
 private:
     void resized() override;
@@ -179,7 +179,7 @@ class GenericCodeEditorComponent  : public CodeEditorComponent
 {
 public:
     GenericCodeEditorComponent (const File&, CodeDocument&, CodeTokeniser*);
-    ~GenericCodeEditorComponent();
+    ~GenericCodeEditorComponent() override;
 
     void addPopupMenuItems (PopupMenu&, const MouseEvent*) override;
     void performPopupMenuAction (int menuItemID) override;
@@ -214,7 +214,7 @@ public:
 private:
     File file;
     class FindPanel;
-    ScopedPointer<FindPanel> findPanel;
+    std::unique_ptr<FindPanel> findPanel;
     ListenerList<Listener> listeners;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GenericCodeEditorComponent)
@@ -225,7 +225,7 @@ class CppCodeEditorComponent  : public GenericCodeEditorComponent
 {
 public:
     CppCodeEditorComponent (const File&, CodeDocument&);
-    ~CppCodeEditorComponent();
+    ~CppCodeEditorComponent() override;
 
     void addPopupMenuItems (PopupMenu&, const MouseEvent*) override;
     void performPopupMenuAction (int menuItemID) override;

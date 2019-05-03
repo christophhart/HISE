@@ -96,7 +96,7 @@ struct ActivityList   : public ChangeBroadcaster
     void sendClassListChangedMessage (const ClassDatabase::ClassList& newList)
     {
         checkThread();
-        listeners.call (&ActivityList::Listener::classListChanged, newList);
+        listeners.call ([&] (Listener& l) { l.classListChanged (newList); });
     }
 
 private:
@@ -105,7 +105,7 @@ private:
 
     static void checkThread()
     {
-        jassert (MessageManager::getInstance()->isThisTheMessageThread());
+        JUCE_ASSERT_MESSAGE_THREAD
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ActivityList)

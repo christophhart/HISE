@@ -34,10 +34,14 @@ namespace CommandIDs
     enum
     {
         newProject              = 0x300000,
-        open                    = 0x300001,
-        closeDocument           = 0x300002,
-        saveDocument            = 0x300003,
-        saveDocumentAs          = 0x300004,
+        newProjectFromClipboard = 0x300001,
+        newPIP                  = 0x300002,
+        open                    = 0x300003,
+        closeDocument           = 0x300004,
+        saveDocument            = 0x300005,
+        saveDocumentAs          = 0x300006,
+
+        launchDemoRunner        = 0x300007,
 
         closeProject            = 0x300010,
         saveProject             = 0x300011,
@@ -62,11 +66,15 @@ namespace CommandIDs
         showExporterSettings    = 0x300036,
 
         closeWindow             = 0x300040,
-        closeAllDocuments       = 0x300041,
-        goToPreviousDoc         = 0x300042,
-        goToNextDoc             = 0x300043,
-        goToCounterpart         = 0x300044,
-        deleteSelectedItem      = 0x300045,
+        closeAllWindows         = 0x300041,
+        closeAllDocuments       = 0x300042,
+        goToPreviousDoc         = 0x300043,
+        goToNextDoc             = 0x300044,
+        goToCounterpart         = 0x300045,
+        deleteSelectedItem      = 0x300046,
+        goToPreviousWindow      = 0x300047,
+        goToNextWindow          = 0x300048,
+        clearRecentFiles        = 0x300049,
 
         showFindPanel           = 0x300050,
         findSelection           = 0x300051,
@@ -92,6 +100,11 @@ namespace CommandIDs
         prevError               = 0x300081,
 
         loginLogout             = 0x300090,
+
+        showForum               = 0x300100,
+        showAPIModules          = 0x300101,
+        showAPIClasses          = 0x300102,
+        showTutorials           = 0x300103,
 
         lastCommandIDEntry
     };

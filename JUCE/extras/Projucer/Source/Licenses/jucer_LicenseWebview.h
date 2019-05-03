@@ -65,7 +65,7 @@ private:
         struct RedirectWebBrowserComponent : public WebBrowserComponent
         {
             RedirectWebBrowserComponent (LicenseWebviewContent& controller) : WebBrowserComponent (false), owner (controller) {}
-            virtual ~RedirectWebBrowserComponent() {}
+            ~RedirectWebBrowserComponent() override  {}
 
             bool pageAboutToLoad           (const String& url) override { return owner.pageAboutToLoad (url); }
             void pageFinishedLoading       (const String& url) override { owner.pageFinishedLoading (url); }
@@ -78,29 +78,26 @@ private:
         };
 
         //==============================================================================
-        struct Header : public Component, private LicenseController::StateChangedCallback,
-                        private Button::Listener
+        struct Header  : public Component,
+                         private LicenseController::StateChangedCallback
         {
-            Header ()
-                : avatarButton ("User Settings", &getIcons().user)
+            Header()  : avatarButton ("User Settings", &getIcons().user)
             {
                 setOpaque (true);
                 addChildComponent (avatarButton);
 
-                avatarButton.addListener (this);
+                avatarButton.onClick = [this] { showAvatarWindow(); };
 
-                if (LicenseController* licenseController = ProjucerApplication::getApp().licenseController)
+                if (auto* licenseController = ProjucerApplication::getApp().licenseController.get())
                 {
                     licenseController->addLicenseStatusChangedCallback (this);
                     licenseStateChanged (licenseController->getState());
                 }
             }
 
-            virtual ~Header()
+            ~Header() override
             {
-                avatarButton.removeListener (this);
-
-                if (LicenseController* licenseController = ProjucerApplication::getApp().licenseController)
+                if (auto* licenseController = ProjucerApplication::getApp().licenseController.get())
                     licenseController->removeLicenseStatusChangedCallback (this);
             }
 
@@ -126,11 +123,11 @@ private:
                 avatarButton.repaint();
             }
 
-            void buttonClicked (Button*) override
+            void showAvatarWindow()
             {
-                if (LicenseController* licenseController = ProjucerApplication::getApp().licenseController)
+                if (auto* licenseController = ProjucerApplication::getApp().licenseController.get())
                 {
-                    const LicenseState::Type type = licenseController->getState().type;
+                    auto type = licenseController->getState().type;
 
                     auto* content = new UserSettingsPopup (true);
                     content->setSize (200, (type == LicenseState::Type::noLicenseChosenYet ? 100 : 150));
@@ -140,15 +137,13 @@ private:
             }
 
             const uint32 backgroundColour = 0xff414141;
-            ScopedPointer<Drawable> juceLogo
-                = Drawable::createFromImageData (BinaryData::jucelogowithtext_svg,
-                                                 BinaryData::jucelogowithtext_svgSize);
+            std::unique_ptr<Drawable> juceLogo { Drawable::createFromImageData (BinaryData::jucelogowithtext_svg,
+                                                                                BinaryData::jucelogowithtext_svgSize) };
             IconButton avatarButton;
 
             JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Header)
         };
 
-        //==============================================================================
         //==============================================================================
     public:
         LicenseWebviewContent (LicenseWebview& parentWindowToUse, ModalComponentManager::Callback* callbackToUse)
@@ -196,6 +191,7 @@ private:
                 HashMap<String, String> params;
 
                 auto n = url.getParameterNames().size();
+
                 for (int i = 0; i < n; ++i)
                     params.set (url.getParameterNames()[i], url.getParameterValues()[i]);
 
@@ -273,7 +269,7 @@ private:
 
         //==============================================================================
         LicenseWebview& parentWindow;
-        ScopedPointer<ModalComponentManager::Callback> modalCallback;
+        std::unique_ptr<ModalComponentManager::Callback> modalCallback;
         Header header;
         RedirectWebBrowserComponent webview;
         std::function<void (const String&, const HashMap<String, String>&)> pageCallback;

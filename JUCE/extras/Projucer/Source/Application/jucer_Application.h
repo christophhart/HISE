@@ -33,6 +33,10 @@
 #include "../Utility/UI/jucer_ProjucerLookAndFeel.h"
 #include "../Licenses/jucer_LicenseController.h"
 
+#if JUCE_MODULE_AVAILABLE_juce_analytics
+ #include "jucer_ProjucerAnalytics.h"
+#endif
+
 struct ChildProcessCache;
 
 //==============================================================================
@@ -75,7 +79,9 @@ public:
     void createBuildMenu (PopupMenu&);
     void createColourSchemeItems (PopupMenu&);
     void createWindowMenu (PopupMenu&);
+    void createDocumentMenu (PopupMenu&);
     void createToolsMenu (PopupMenu&);
+    void createHelpMenu (PopupMenu&);
     void createExtraAppleMenuItems (PopupMenu&);
     void handleMainMenuCommand (int menuItemID);
 
@@ -86,11 +92,15 @@ public:
 
     //==============================================================================
     void createNewProject();
-    void updateNewlyOpenedProject (Project&);
+    void createNewProjectFromClipboard();
+    void createNewPIP();
     void askUserToOpenFile();
     bool openFile (const File&);
+    void saveAllDocuments();
     bool closeAllDocuments (bool askUserToSave);
     bool closeAllMainWindows();
+    void closeAllMainWindowsAndQuitIfNeeded();
+    void clearRecentFiles();
 
     PropertiesFile::Options getPropertyFileOptionsFor (const String& filename, bool isProjectSettings);
 
@@ -102,8 +112,15 @@ public:
     void showApplicationUsageDataAgreementPopup();
     void dismissApplicationUsageDataAgreementPopup();
 
-    void showPathsWindow();
+    void showPathsWindow (bool highlightJUCEPath = false);
     void showEditorColourSchemeWindow();
+
+    void showPIPCreatorWindow();
+
+    void launchForumBrowser();
+    void launchModulesBrowser();
+    void launchClassesBrowser();
+    void launchTutorialsBrowser();
 
     void updateAllBuildTabs();
     LatestVersionChecker* createVersionChecker() const;
@@ -120,51 +137,81 @@ public:
     static int getEditorColourSchemeForGUIColourScheme (const StringArray& schemes, int guiColourSchemeIndex);
 
     //==============================================================================
+    void setAnalyticsEnabled (bool);
+
+    //==============================================================================
+    void rescanJUCEPathModules();
+    void rescanUserPathModules();
+
+    AvailableModuleList& getJUCEPathModuleList()     { return jucePathModuleList; }
+    AvailableModuleList& getUserPathsModuleList()    { return userPathsModuleList; }
+
+    //==============================================================================
     ProjucerLookAndFeel lookAndFeel;
 
-    ScopedPointer<StoredSettings> settings;
-    ScopedPointer<Icons> icons;
+    std::unique_ptr<StoredSettings> settings;
+    std::unique_ptr<Icons> icons;
 
     struct MainMenuModel;
-    ScopedPointer<MainMenuModel> menuModel;
+    std::unique_ptr<MainMenuModel> menuModel;
 
     MainWindowList mainWindowList;
     OpenDocumentManager openDocumentManager;
-    ScopedPointer<ApplicationCommandManager> commandManager;
+    std::unique_ptr<ApplicationCommandManager> commandManager;
 
-    ScopedPointer<Component> utf8Window, svgPathWindow, aboutWindow, applicationUsageDataWindow,
-                             pathsWindow, editorColourSchemeWindow;
+    std::unique_ptr<Component> utf8Window, svgPathWindow, aboutWindow, applicationUsageDataWindow,
+                               pathsWindow, editorColourSchemeWindow, pipCreatorWindow;
 
-    ScopedPointer<FileLogger> logger;
+    std::unique_ptr<FileLogger> logger;
 
     bool isRunningCommandLine;
-    ScopedPointer<ChildProcessCache> childProcessCache;
-    ScopedPointer<LicenseController> licenseController;
+    std::unique_ptr<ChildProcessCache> childProcessCache;
+    std::unique_ptr<LicenseController> licenseController;
 
 private:
-    void* server = nullptr;
-
-    ScopedPointer<LatestVersionChecker> versionChecker;
-    TooltipWindow tooltipWindow;
-
-    void loginOrLogout();
-
-    bool checkEULA();
-    bool currentEULAHasBeenAcceptedPreviously() const;
-    String getEULAChecksumProperty() const;
-    void setCurrentEULAAccepted (bool hasBeenAccepted) const;
-
+    //==============================================================================
     void handleAsyncUpdate() override;
     void initCommandManager();
 
-    //==============================================================================
-    void setColourScheme (int index, bool saveSetting);
+    void createExamplesPopupMenu (PopupMenu&) noexcept;
+    Array<File> getSortedExampleDirectories() noexcept;
+    Array<File> getSortedExampleFilesInDirectory (const File&) const noexcept;
+    bool findWindowAndOpenPIP (const File&);
+    void findAndLaunchExample (int);
 
+    void checkIfGlobalJUCEPathHasChanged();
+    File tryToFindDemoRunnerExecutable();
+    File tryToFindDemoRunnerProject();
+    void launchDemoRunner();
+
+    void resetAnalytics() noexcept;
+    void setupAnalytics();
+
+    void showSetJUCEPathAlert();
+
+    void setColourScheme (int index, bool saveSetting);
     void setEditorColourScheme (int index, bool saveSetting);
     void updateEditorColourSchemeIfNeeded();
 
-    int selectedColourSchemeIndex = 0;
+    //==============================================================================
+    void* server = nullptr;
 
-    int selectedEditorColourSchemeIndex = 0;
-    int numEditorColourSchemes = 0;
+    std::unique_ptr<LatestVersionChecker> versionChecker;
+    TooltipWindow tooltipWindow;
+
+    AvailableModuleList jucePathModuleList, userPathsModuleList;
+
+    int numExamples = 0;
+    std::unique_ptr<AlertWindow> demoRunnerAlert;
+    std::unique_ptr<AlertWindow> pathAlert;
+    bool hasScannedForDemoRunnerExecutable = false, hasScannedForDemoRunnerProject = false;
+    File lastJUCEPath, lastDemoRunnerExectuableFile, lastDemoRunnerProjectFile;
+   #if JUCE_LINUX
+    ChildProcess makeProcess;
+   #endif
+
+    int selectedColourSchemeIndex = 0, selectedEditorColourSchemeIndex = 0, numEditorColourSchemes = 0;
+
+    //==============================================================================
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProjucerApplication)
 };

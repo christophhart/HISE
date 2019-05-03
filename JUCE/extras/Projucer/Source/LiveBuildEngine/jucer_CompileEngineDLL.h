@@ -29,7 +29,7 @@
 #include "jucer_LiveCodeBuilderDLL.h"
 
 //==============================================================================
-struct CompileEngineDLL : DeletedAtShutdown
+struct CompileEngineDLL  : private DeletedAtShutdown
 {
     CompileEngineDLL()
     {
@@ -39,6 +39,7 @@ struct CompileEngineDLL : DeletedAtShutdown
     ~CompileEngineDLL()
     {
         shutdown();
+        clearSingletonInstance();
     }
 
     bool tryLoadDll()
@@ -117,7 +118,7 @@ struct CompileEngineDLL : DeletedAtShutdown
         return userAppData.getChildFile ("Projucer").getChildFile (String ("CompileEngine-") + ProjectInfo::versionString);
     }
 
-    juce_DeclareSingleton (CompileEngineDLL, false)
+    JUCE_DECLARE_SINGLETON (CompileEngineDLL, false)
 
 private:
     DynamicLibrary dll;
@@ -143,20 +144,20 @@ private:
     }
 
    #if JUCE_MAC
-    static bool tryFindDLLFileInAppBundle(File &outFile)
+    static bool tryFindDLLFileInAppBundle (File& outFile)
     {
         File currentAppFile (File::getSpecialLocation (File::currentApplicationFile));
         return tryFindDLLFileInFolder (currentAppFile.getChildFile ("Contents"), outFile);
     }
    #endif
 
-    static bool tryFindDLLFileInAppFolder(File &outFile)
+    static bool tryFindDLLFileInAppFolder (File& outFile)
     {
         auto currentAppFile = File::getSpecialLocation (File::currentApplicationFile);
         return tryFindDLLFileInFolder (currentAppFile.getParentDirectory(), outFile);
     }
 
-    static bool tryFindDLLFileInAppConfigFolder(File &outFile)
+    static bool tryFindDLLFileInAppConfigFolder (File& outFile)
     {
         auto userAppDataFolder = getVersionedUserAppSupportFolder();
         return tryFindDLLFileInFolder (userAppDataFolder, outFile);

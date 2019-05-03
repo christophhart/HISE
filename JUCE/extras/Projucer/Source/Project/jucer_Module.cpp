@@ -25,68 +25,14 @@
 */
 
 #include "../Application/jucer_Headers.h"
-#include "jucer_Module.h"
 #include "../ProjectSaving/jucer_ProjectSaver.h"
 #include "../ProjectSaving/jucer_ProjectExport_Xcode.h"
+#include "../Application/jucer_Application.h"
 
 //==============================================================================
-static String trimCommentCharsFromStartOfLine (const String& line)
-{
-    return line.trimStart().trimCharactersAtStart ("*/").trimStart();
-}
-
-static var parseModuleDesc (const StringArray& lines)
-{
-    DynamicObject* o = new DynamicObject();
-    var result (o);
-
-    for (int i = 0; i < lines.size(); ++i)
-    {
-        String line = trimCommentCharsFromStartOfLine (lines[i]);
-
-        int colon = line.indexOfChar (':');
-
-        if (colon >= 0)
-        {
-            String key = line.substring (0, colon).trim();
-            String value = line.substring (colon + 1).trim();
-
-            o->setProperty (key, value);
-        }
-    }
-
-    return result;
-}
-
-static var parseModuleDesc (const File& header)
-{
-    StringArray lines;
-    header.readLines (lines);
-
-    for (int i = 0; i < lines.size(); ++i)
-    {
-        if (trimCommentCharsFromStartOfLine (lines[i]).startsWith ("BEGIN_JUCE_MODULE_DECLARATION"))
-        {
-            StringArray desc;
-
-            for (int j = i + 1; j < lines.size(); ++j)
-            {
-                if (trimCommentCharsFromStartOfLine (lines[j]).startsWith ("END_JUCE_MODULE_DECLARATION"))
-                    return parseModuleDesc (desc);
-
-                desc.add (lines[j]);
-            }
-
-            break;
-        }
-    }
-
-    return {};
-}
-
 ModuleDescription::ModuleDescription (const File& folder)
    : moduleFolder (folder),
-     moduleInfo (parseModuleDesc (getHeader()))
+     moduleInfo (parseJUCEHeaderMetadata (getHeader()))
 {
 }
 
@@ -98,7 +44,7 @@ File ModuleDescription::getHeader() const
 
         for (auto e : extensions)
         {
-            File header (moduleFolder.getChildFile (moduleFolder.getFileName() + e));
+            auto header = moduleFolder.getChildFile (moduleFolder.getFileName() + e);
 
             if (header.existsAsFile())
                 return header;
@@ -117,187 +63,149 @@ StringArray ModuleDescription::getDependencies() const
 }
 
 //==============================================================================
-ModuleList::ModuleList()
-{
-}
-
-ModuleList::ModuleList (const ModuleList& other)
-{
-    operator= (other);
-}
-
-ModuleList& ModuleList::operator= (const ModuleList& other)
-{
-    modules.clear();
-    modules.addCopiesOf (other.modules);
-    return *this;
-}
-
-const ModuleDescription* ModuleList::getModuleWithID (const String& moduleID) const
-{
-    for (auto* m : modules)
-        if (m->getID() == moduleID)
-            return m;
-
-    return nullptr;
-}
-
-struct ModuleSorter
-{
-    static int compareElements (const ModuleDescription* m1, const ModuleDescription* m2)
-    {
-        return m1->getID().compareIgnoreCase (m2->getID());
-    }
-};
-
-void ModuleList::sort()
-{
-    ModuleSorter sorter;
-    modules.sort (sorter);
-}
-
-StringArray ModuleList::getIDs() const
-{
-    StringArray results;
-
-    for (auto* m : modules)
-        results.add (m->getID());
-
-    results.sort (true);
-    return results;
-}
-
-Result ModuleList::tryToAddModuleFromFolder (const File& path)
+static bool tryToAddModuleFromFolder (const File& path, ModuleIDAndFolderList& list)
 {
     ModuleDescription m (path);
 
     if (m.isValid())
     {
-        modules.add (new ModuleDescription (m));
-        return Result::ok();
+        list.push_back ({ m.getID(), path });
+        return true;
     }
 
-    return Result::fail (path.getFullPathName() + " is not a valid module");
+    return false;
 }
 
-Result ModuleList::addAllModulesInFolder (const File& path)
-{
-    if (! tryToAddModuleFromFolder (path))
-    {
-        const int subfolders = 2;
-        return addAllModulesInSubfoldersRecursively (path, subfolders);
-    }
-
-    return Result::ok();
-}
-
-Result ModuleList::addAllModulesInSubfoldersRecursively (const File& path, int depth)
+static void addAllModulesInSubfoldersRecursively (const File& path, int depth, ModuleIDAndFolderList& list)
 {
     if (depth > 0)
     {
         for (DirectoryIterator iter (path, false, "*", File::findDirectories); iter.next();)
         {
-            auto childPath = iter.getFile().getLinkedTarget();
+            if (auto* job = ThreadPoolJob::getCurrentThreadPoolJob())
+                if (job->shouldExit())
+                    return;
 
-            if (! tryToAddModuleFromFolder (childPath))
-                addAllModulesInSubfoldersRecursively (childPath, depth - 1);
+            auto childPath = iter.getFile();
+
+            if (! tryToAddModuleFromFolder (childPath, list))
+                addAllModulesInSubfoldersRecursively (childPath, depth - 1, list);
         }
     }
-
-    return Result::ok();
 }
 
-static Array<File> getAllPossibleModulePathsFromExporters (Project& project)
+static void addAllModulesInFolder (const File& path, ModuleIDAndFolderList& list)
 {
-    StringArray paths;
-
-    for (Project::ExporterIterator exporter (project); exporter.next();)
+    if (! tryToAddModuleFromFolder (path, list))
     {
-        auto& modules = project.getModules();
-        auto n = modules.getNumModules();
+        int subfolders = 3;
+        addAllModulesInSubfoldersRecursively (path, subfolders, list);
+    }
+}
 
-        for (int i = 0; i < n; ++i)
+static void sort (ModuleIDAndFolderList& listToSort)
+{
+    std::sort (listToSort.begin(), listToSort.end(), [] (const ModuleIDAndFolder& m1, const ModuleIDAndFolder& m2)
+                                                     {
+                                                         return m1.first.compareIgnoreCase (m2.first) < 0;
+                                                     });
+}
+
+//==============================================================================
+struct ModuleScannerJob    : public ThreadPoolJob
+{
+    ModuleScannerJob (const Array<File>& paths, std::function<void (const ModuleIDAndFolderList&)>&& callback)
+        : ThreadPoolJob ("ModuleScannerJob"),
+          pathsToScan (paths),
+          completionCallback (std::move (callback))
+    {
+    }
+
+    JobStatus runJob() override
+    {
+        ModuleIDAndFolderList list;
+
+        for (auto& p : pathsToScan)
+            addAllModulesInFolder (p, list);
+
+        if (! shouldExit())
         {
-            auto id = modules.getModuleID (i);
-
-            if (modules.shouldUseGlobalPath (id))
-                continue;
-
-            const auto path = exporter->getPathForModuleString (id);
-
-            if (path.isNotEmpty())
-                paths.addIfNotAlreadyThere (path);
+            sort (list);
+            completionCallback (list);
         }
 
-        String oldPath (exporter->getLegacyModulePath());
-
-        if (oldPath.isNotEmpty())
-            paths.addIfNotAlreadyThere (oldPath);
+        return jobHasFinished;
     }
 
-    Array<File> files;
+    Array<File> pathsToScan;
+    std::function<void (const ModuleIDAndFolderList&)> completionCallback;
+};
 
-    for (auto& path : paths)
-    {
-        auto f = project.resolveFilename (path);
-
-        if (f.isDirectory())
-        {
-            files.addIfNotAlreadyThere (f);
-
-            if (f.getChildFile ("modules").isDirectory())
-                files.addIfNotAlreadyThere (f.getChildFile ("modules"));
-        }
-    }
-
-    return files;
+AvailableModuleList::AvailableModuleList()
+{
 }
 
-Result ModuleList::scanProjectExporterModulePaths (Project& project)
+ThreadPoolJob* AvailableModuleList::createScannerJob (const Array<File>& paths)
 {
-    modules.clear();
-    Result result (Result::ok());
+    return new ModuleScannerJob (paths, [this] (ModuleIDAndFolderList scannedModuleList)
+                                        {
+                                            {
+                                                const ScopedLock swapLock (lock);
+                                                moduleList.swap (scannedModuleList);
+                                            }
 
-    for (auto& m : getAllPossibleModulePathsFromExporters (project))
-    {
-        result = addAllModulesInFolder (m);
-
-        if (result.failed())
-            break;
-    }
-
-    sort();
-    return result;
+                                            listeners.call ([] (Listener& l) { MessageManager::callAsync ([&] { l.availableModulesChanged(); }); });
+                                        });
 }
 
-void ModuleList::scanGlobalJuceModulePath()
+void AvailableModuleList::removePendingAndAddJob (ThreadPoolJob* jobToAdd)
 {
-    modules.clear();
-
-    auto& settings = getAppSettings();
-
-    auto path = settings.getStoredPath (Ids::defaultJuceModulePath).toString();
-
-    if (path.isNotEmpty())
-        addAllModulesInFolder ({ path });
-
-    sort();
+    scanPool.removeAllJobs (false, 100);
+    scanPool.addJob (jobToAdd, true);
 }
 
-void ModuleList::scanGlobalUserModulePath()
+void AvailableModuleList::scanPaths (const Array<File>& paths)
 {
-    modules.clear();
+    auto* job = createScannerJob (paths);
 
-    auto paths = StringArray::fromTokens (getAppSettings().getStoredPath (Ids::defaultUserModulePath).toString(), ";", {});
+    removePendingAndAddJob (job);
+    scanPool.waitForJobToFinish (job, -1);
+}
 
-    for (auto p : paths)
+void AvailableModuleList::scanPathsAsync (const Array<File>& paths)
+{
+    removePendingAndAddJob (createScannerJob (paths));
+}
+
+ModuleIDAndFolderList AvailableModuleList::getAllModules() const
+{
+    const ScopedLock readLock (lock);
+
+    return moduleList;
+}
+
+ModuleIDAndFolder AvailableModuleList::getModuleWithID (const String& id) const
+{
+    const ScopedLock readLock (lock);
+
+    for (auto& mod : moduleList)
+        if (mod.first == id)
+            return mod;
+
+    return {};
+}
+
+void AvailableModuleList::removeDuplicates (const ModuleIDAndFolderList& other)
+{
+    const ScopedLock readLock (lock);
+
+    for (auto& m : other)
     {
-        auto f = File::createFileWithoutCheckingPath (p.trim());
-        if (f.exists())
-            addAllModulesInFolder (f);
-    }
+        auto pos = std::find (moduleList.begin(), moduleList.end(), m);
 
-    sort();
+        if (pos != moduleList.end())
+            moduleList.erase (pos);
+    }
 }
 
 //==============================================================================
@@ -309,16 +217,16 @@ LibraryModule::LibraryModule (const ModuleDescription& d)
 //==============================================================================
 void LibraryModule::writeIncludes (ProjectSaver& projectSaver, OutputStream& out)
 {
-    Project& project = projectSaver.project;
-    EnabledModuleList& modules = project.getModules();
+    auto& project = projectSaver.project;
+    auto& modules = project.getEnabledModules();
 
-    const String id (getID());
+    auto id = getID();
 
     if (modules.shouldCopyModuleFilesLocally (id).getValue())
     {
-        const File juceModuleFolder (moduleInfo.getFolder());
+        auto juceModuleFolder = moduleInfo.getFolder();
 
-        const File localModuleFolder (project.getLocalModuleFolder (id));
+        auto localModuleFolder = project.getLocalModuleFolder (id);
         localModuleFolder.createDirectory();
         projectSaver.copyFolder (juceModuleFolder, localModuleFolder);
     }
@@ -341,7 +249,7 @@ void LibraryModule::addSettingsForModuleToExporter (ProjectExporter& exporter, P
 {
     auto& project = exporter.getProject();
 
-    const auto moduleRelativePath = exporter.getModuleFolderRelativeToProject (getID());
+    auto moduleRelativePath = exporter.getModuleFolderRelativeToProject (getID());
 
     exporter.addToExtraSearchPaths (moduleRelativePath.getParentDirectory());
 
@@ -353,38 +261,36 @@ void LibraryModule::addSettingsForModuleToExporter (ProjectExporter& exporter, P
     else
         libDirPlatform = exporter.getTargetFolder().getFileName();
 
-    const auto libSubdirPath = String (moduleRelativePath.toUnixStyle() + "/libs/") + libDirPlatform;
-    const auto moduleLibDir = File (project.getProjectFolder().getFullPathName() + "/" + libSubdirPath);
+    auto libSubdirPath = moduleRelativePath.toUnixStyle() + "/libs/" + libDirPlatform;
+    auto moduleLibDir = File (project.getProjectFolder().getFullPathName() + "/" + libSubdirPath);
 
     if (moduleLibDir.exists())
-        exporter.addToModuleLibPaths (RelativePath (libSubdirPath, moduleRelativePath.getRoot()));
+        exporter.addToModuleLibPaths ({ libSubdirPath, moduleRelativePath.getRoot() });
 
-    const auto extraInternalSearchPaths = moduleInfo.getExtraSearchPaths().trim();
+    auto extraInternalSearchPaths = moduleInfo.getExtraSearchPaths().trim();
 
     if (extraInternalSearchPaths.isNotEmpty())
     {
-        StringArray paths;
-        paths.addTokens (extraInternalSearchPaths, true);
+        auto paths = StringArray::fromTokens (extraInternalSearchPaths, true);
 
-        for (int i = 0; i < paths.size(); ++i)
-            exporter.addToExtraSearchPaths (moduleRelativePath.getChildFile (paths.getReference(i)));
+        for (auto& path : paths)
+            exporter.addToExtraSearchPaths (moduleRelativePath.getChildFile (path.unquoted()));
     }
 
     {
-        const String extraDefs (moduleInfo.getPreprocessorDefs().trim());
+        auto extraDefs = moduleInfo.getPreprocessorDefs().trim();
 
         if (extraDefs.isNotEmpty())
-            exporter.getExporterPreprocessorDefs() = exporter.getExporterPreprocessorDefsString() + "\n" + extraDefs;
+            exporter.getExporterPreprocessorDefsValue() = exporter.getExporterPreprocessorDefsString() + "\n" + extraDefs;
     }
 
     {
         Array<File> compiled;
-        auto& modules = project.getModules();
+        auto& modules = project.getEnabledModules();
         auto id = getID();
 
-        const File localModuleFolder = modules.shouldCopyModuleFilesLocally (id).getValue()
-                                          ? project.getLocalModuleFolder (id)
-                                          : moduleInfo.getFolder();
+        auto localModuleFolder = modules.shouldCopyModuleFilesLocally (id).getValue() ? project.getLocalModuleFolder (id)
+                                                                                      : moduleInfo.getFolder();
 
         findAndAddCompiledUnits (exporter, &projectSaver, compiled);
 
@@ -399,7 +305,7 @@ void LibraryModule::addSettingsForModuleToExporter (ProjectExporter& exporter, P
         if (project.isAUPluginHost())
             xcodeExporter.xcodeFrameworks.addTokens (xcodeExporter.isOSX() ? "AudioUnit CoreAudioKit" : "CoreAudioKit", false);
 
-        const String frameworks (moduleInfo.moduleInfo [xcodeExporter.isOSX() ? "OSXFrameworks" : "iOSFrameworks"].toString());
+        auto frameworks = moduleInfo.moduleInfo [xcodeExporter.isOSX() ? "OSXFrameworks" : "iOSFrameworks"].toString();
         xcodeExporter.xcodeFrameworks.addTokens (frameworks, ", ", {});
 
         parseAndAddLibs (xcodeExporter.xcodeLibs, moduleInfo.moduleInfo [exporter.isOSX() ? "OSXLibs" : "iOSLibs"].toString());
@@ -424,7 +330,7 @@ void LibraryModule::addSettingsForModuleToExporter (ProjectExporter& exporter, P
 
 void LibraryModule::getConfigFlags (Project& project, OwnedArray<Project::ConfigFlag>& flags) const
 {
-    const File header (moduleInfo.getHeader());
+    auto header = moduleInfo.getHeader();
     jassert (header.exists());
 
     StringArray lines;
@@ -432,11 +338,11 @@ void LibraryModule::getConfigFlags (Project& project, OwnedArray<Project::Config
 
     for (int i = 0; i < lines.size(); ++i)
     {
-        String line (lines[i].trim());
+        auto line = lines[i].trim();
 
         if (line.startsWith ("/**") && line.containsIgnoreCase ("Config:"))
         {
-            ScopedPointer<Project::ConfigFlag> config (new Project::ConfigFlag());
+            std::unique_ptr<Project::ConfigFlag> config (new Project::ConfigFlag());
             config->sourceModuleID = getID();
             config->symbol = line.fromFirstOccurrenceOf (":", false, false).trim();
 
@@ -453,7 +359,20 @@ void LibraryModule::getConfigFlags (Project& project, OwnedArray<Project::Config
                 }
 
                 config->description = config->description.upToFirstOccurrenceOf ("*/", false, false);
-                config->value.referTo (project.getConfigFlag (config->symbol));
+                config->value = project.getConfigFlag (config->symbol);
+
+                i += 2;
+                if (lines[i].contains ("#define " + config->symbol))
+                {
+                    auto value = lines[i].fromFirstOccurrenceOf ("#define " + config->symbol, false, true).trim();
+                    config->value.setDefault (value == "0" ? false : true);
+                }
+
+                auto currentValue = config->value.get().toString();
+
+                if      (currentValue == "enabled")     config->value = true;
+                else if (currentValue == "disabled")    config->value = false;
+
                 flags.add (config.release());
             }
         }
@@ -506,8 +425,7 @@ String LibraryModule::CompileUnit::getFilenameForProxyFile() const
 
 Array<LibraryModule::CompileUnit> LibraryModule::getAllCompileUnits (ProjectType::Target::Type forTarget) const
 {
-    Array<File> files;
-    getFolder().findChildFiles (files, File::findFiles, false);
+    auto files = getFolder().findChildFiles (File::findFiles, false);
 
     FileSorter sorter;
     files.sort (sorter);
@@ -602,9 +520,9 @@ void LibraryModule::addBrowseableCode (ProjectExporter& exporter, const Array<Fi
     if (sourceFiles.isEmpty())
         findBrowseableFiles (localModuleFolder, sourceFiles);
 
-    Project::Item sourceGroup (Project::Item::createGroup (exporter.getProject(), getID(), "__mainsourcegroup" + getID(), false));
+    auto sourceGroup = Project::Item::createGroup (exporter.getProject(), getID(), "__mainsourcegroup" + getID(), false);
 
-    const RelativePath moduleFromProject (exporter.getModuleFolderRelativeToProject (getID()));
+    auto moduleFromProject = exporter.getModuleFolderRelativeToProject (getID());
 
     auto moduleHeader = moduleInfo.getHeader();
 
@@ -623,7 +541,7 @@ void LibraryModule::addBrowseableCode (ProjectExporter& exporter, const Array<Fi
     sourceGroup.sortAlphabetically (true, true);
     sourceGroup.addFileAtIndex (moduleHeader, -1, false);
 
-    exporter.getModulesGroup().state.addChild (sourceGroup.state.createCopy(), -1, nullptr);
+    exporter.getModulesGroup().state.appendChild (sourceGroup.state.createCopy(), nullptr);
 }
 
 
@@ -635,7 +553,7 @@ EnabledModuleList::EnabledModuleList (Project& p, const ValueTree& s)
 
 ModuleDescription EnabledModuleList::getModuleInfo (const String& moduleID)
 {
-    return ModuleDescription (getModuleFolder (moduleID));
+    return ModuleDescription (project.getModuleWithID (moduleID).second);
 }
 
 bool EnabledModuleList::isModuleEnabled (const String& moduleID) const
@@ -667,66 +585,6 @@ Value EnabledModuleList::shouldShowAllModuleFilesInProject (const String& module
                 .getPropertyAsValue (Ids::showAllCode, getUndoManager());
 }
 
-File EnabledModuleList::getModuleFolderFromPathIfItExists (const String& path, const String& moduleID, const Project& project)
-{
-    if (path.isNotEmpty())
-    {
-        auto moduleFolder = project.resolveFilename (path);
-
-        if (moduleFolder.exists())
-        {
-            if (ModuleDescription (moduleFolder).isValid())
-                return moduleFolder;
-
-            auto f = moduleFolder.getChildFile (moduleID);
-
-            if (ModuleDescription (f).isValid())
-                return f;
-        }
-    }
-
-    return {};
-}
-
-File EnabledModuleList::findUserModuleFolder (const String& possiblePaths, const String& moduleID)
-{
-    auto paths = StringArray::fromTokens (possiblePaths, ";", {});
-
-    for (auto p : paths)
-    {
-        auto f = File::createFileWithoutCheckingPath (p.trim());
-        if (f.exists())
-        {
-            auto moduleFolder = getModuleFolderFromPathIfItExists (f.getFullPathName(), moduleID, project);
-            if (moduleFolder != File())
-                return moduleFolder;
-        }
-    }
-
-    return {};
-}
-
-File EnabledModuleList::getModuleFolder (const String& moduleID)
-{
-    if (shouldUseGlobalPath (moduleID))
-    {
-        if (isJuceModule (moduleID))
-            return getModuleFolderFromPathIfItExists (getAppSettings().getStoredPath (Ids::defaultJuceModulePath).toString(), moduleID, project);
-
-        return findUserModuleFolder (moduleID, getAppSettings().getStoredPath (Ids::defaultUserModulePath).toString());
-    }
-
-    auto paths = getAllPossibleModulePathsFromExporters (project);
-    for (auto p : paths)
-    {
-        auto f = getModuleFolderFromPathIfItExists (p.getFullPathName(), moduleID, project);
-        if (f != File())
-            return f;
-    }
-
-    return {};
-}
-
 struct ModuleTreeSorter
 {
     static int compareElements (const ValueTree& m1, const ValueTree& m2)
@@ -747,20 +605,20 @@ Value EnabledModuleList::shouldCopyModuleFilesLocally (const String& moduleID) c
                 .getPropertyAsValue (Ids::useLocalCopy, getUndoManager());
 }
 
-void EnabledModuleList::addModule (const File& moduleFolder, bool copyLocally, bool useGlobalPath)
+void EnabledModuleList::addModule (const File& moduleFolder, bool copyLocally, bool useGlobalPath, bool sendAnalyticsEvent)
 {
     ModuleDescription info (moduleFolder);
 
     if (info.isValid())
     {
-        const String moduleID (info.getID());
+        auto moduleID = info.getID();
 
         if (! isModuleEnabled (moduleID))
         {
             ValueTree module (Ids::MODULE);
-            module.setProperty (Ids::ID, moduleID, nullptr);
+            module.setProperty (Ids::ID, moduleID, getUndoManager());
 
-            state.addChild (module, -1, getUndoManager());
+            state.appendChild (module, getUndoManager());
             sortAlphabetically();
 
             shouldShowAllModuleFilesInProject (moduleID) = true;
@@ -772,13 +630,24 @@ void EnabledModuleList::addModule (const File& moduleFolder, bool copyLocally, b
 
             for (Project::ExporterIterator exporter (project); exporter.next();)
                 exporter->getPathForModuleValue (moduleID) = path.toUnixStyle();
+
+            if (! useGlobalPath)
+                project.rescanExporterPathModules (false);
+
+            if (sendAnalyticsEvent)
+            {
+                StringPairArray data;
+                data.set ("label", moduleID);
+
+                Analytics::getInstance()->logEvent ("Module Added", data, ProjucerAnalyticsEvent::projectEvent);
+            }
         }
     }
 }
 
 void EnabledModuleList::removeModule (String moduleID) // must be pass-by-value, and not a const ref!
 {
-    for (int i = state.getNumChildren(); --i >= 0;)
+    for (auto i = state.getNumChildren(); --i >= 0;)
         if (state.getChild(i) [Ids::ID] == moduleID)
             state.removeChild (i, getUndoManager());
 
@@ -804,7 +673,7 @@ StringArray EnabledModuleList::getAllModules() const
 
 static void getDependencies (Project& project, const String& moduleID, StringArray& dependencies)
 {
-    ModuleDescription info (project.getModules().getModuleInfo (moduleID));
+    auto info = project.getEnabledModules().getModuleInfo (moduleID);
 
     for (auto uid : info.getDependencies())
     {
@@ -830,7 +699,7 @@ StringArray EnabledModuleList::getExtraDependenciesNeeded (const String& moduleI
 
 bool EnabledModuleList::doesModuleHaveHigherCppStandardThanProject (const String& moduleID)
 {
-    auto projectCppStandard = project.getCppStandardValue().toString();
+    auto projectCppStandard = project.getCppStandardString();
 
     if (projectCppStandard == "latest")
         return false;
@@ -842,7 +711,7 @@ bool EnabledModuleList::doesModuleHaveHigherCppStandardThanProject (const String
 
 bool EnabledModuleList::areMostModulesUsingGlobalPath() const
 {
-    auto numYes = 0, numNo = 0;
+    int numYes = 0, numNo = 0;
 
     for (auto i = getNumModules(); --i >= 0;)
     {
@@ -857,7 +726,7 @@ bool EnabledModuleList::areMostModulesUsingGlobalPath() const
 
 bool EnabledModuleList::areMostModulesCopiedLocally() const
 {
-    auto numYes = 0, numNo = 0;
+    int numYes = 0, numNo = 0;
 
     for (auto i = getNumModules(); --i >= 0;)
     {
@@ -872,34 +741,20 @@ bool EnabledModuleList::areMostModulesCopiedLocally() const
 
 void EnabledModuleList::setLocalCopyModeForAllModules (bool copyLocally)
 {
-    for (int i = getNumModules(); --i >= 0;)
-        shouldCopyModuleFilesLocally (project.getModules().getModuleID (i)) = copyLocally;
-}
-
-File EnabledModuleList::findGlobalModulesFolder()
-{
-    auto& settings = getAppSettings();
-    auto path = settings.getStoredPath (Ids::defaultJuceModulePath).toString();
-
-    if (settings.isGlobalPathValid (File(), Ids::defaultJuceModulePath, path))
-        return { path };
-
-    return {};
+    for (auto i = getNumModules(); --i >= 0;)
+        shouldCopyModuleFilesLocally (project.getEnabledModules().getModuleID (i)) = copyLocally;
 }
 
 File EnabledModuleList::findDefaultModulesFolder (Project& project)
 {
-    auto globalPath = findGlobalModulesFolder();
+    File globalPath (getAppSettings().getStoredPath (Ids::defaultJuceModulePath, TargetOS::getThisOS()).get().toString());
 
-    if (globalPath != File())
+    if (globalPath.exists())
         return globalPath;
 
-    ModuleList available;
-    available.scanProjectExporterModulePaths (project);
-
-    for (int i = available.modules.size(); --i >= 0;)
+    for (auto& exporterPathModule : project.getExporterPathsModuleList().getAllModules())
     {
-        File f (available.modules.getUnchecked(i)->getFolder());
+        auto f = exporterPathModule.second;
 
         if (f.isDirectory())
             return f.getParentDirectory();
@@ -908,40 +763,11 @@ File EnabledModuleList::findDefaultModulesFolder (Project& project)
     return File::getCurrentWorkingDirectory();
 }
 
-bool EnabledModuleList::isJuceModule (const String& moduleID)
-{
-    static StringArray juceModuleIds =
-    {
-        "juce_audio_basics",
-        "juce_audio_devices",
-        "juce_audio_formats",
-        "juce_audio_plugin_client",
-        "juce_audio_processors",
-        "juce_audio_utils",
-        "juce_blocks_basics",
-        "juce_box2d",
-        "juce_core",
-        "juce_cryptography",
-        "juce_data_structures",
-        "juce_dsp",
-        "juce_events",
-        "juce_graphics",
-        "juce_gui_basics",
-        "juce_gui_extra",
-        "juce_opengl",
-        "juce_osc",
-        "juce_product_unlocking",
-        "juce_video"
-    };
-
-    return juceModuleIds.contains (moduleID);
-}
-
 void EnabledModuleList::addModuleFromUserSelectedFile()
 {
-    static File lastLocation (findDefaultModulesFolder (project));
+    static auto lastLocation = findDefaultModulesFolder (project);
 
-    FileChooser fc ("Select a module to add...", lastLocation, String());
+    FileChooser fc ("Select a module to add...", lastLocation, {});
 
     if (fc.browseForDirectory())
     {
@@ -952,27 +778,15 @@ void EnabledModuleList::addModuleFromUserSelectedFile()
 
 void EnabledModuleList::addModuleInteractive (const String& moduleID)
 {
-    ModuleList list;
+    auto f = project.getModuleWithID (moduleID).second;
 
-    list.scanGlobalJuceModulePath();
-    if (auto* info = list.getModuleWithID (moduleID))
+    if (f != File())
     {
-        addModule (info->moduleFolder, areMostModulesCopiedLocally(), areMostModulesUsingGlobalPath());
+        addModule (f, areMostModulesCopiedLocally(), areMostModulesUsingGlobalPath(), true);
         return;
     }
 
-    list.scanGlobalUserModulePath();
-    if (auto* info = list.getModuleWithID (moduleID))
-    {
-        addModule (info->moduleFolder, areMostModulesCopiedLocally(), areMostModulesUsingGlobalPath());
-        return;
-    }
-
-    list.scanProjectExporterModulePaths (project);
-    if (auto* info = list.getModuleWithID (moduleID))
-        addModule (info->moduleFolder, areMostModulesCopiedLocally(), false);
-    else
-        addModuleFromUserSelectedFile();
+    addModuleFromUserSelectedFile();
 }
 
 void EnabledModuleList::addModuleOfferingToCopy (const File& f, bool isFromUserSpecifiedFolder)
@@ -993,16 +807,17 @@ void EnabledModuleList::addModuleOfferingToCopy (const File& f, bool isFromUserS
         return;
     }
 
-    addModule (m.moduleFolder, areMostModulesCopiedLocally(), isFromUserSpecifiedFolder ? false
-                                                                                        : areMostModulesUsingGlobalPath());
+    addModule (m.moduleFolder, areMostModulesCopiedLocally(),
+               isFromUserSpecifiedFolder ? false : areMostModulesUsingGlobalPath(),
+               true);
 }
 
-bool isJuceFolder (const File& f)
+bool isJUCEFolder (const File& f)
 {
-    return isJuceModulesFolder (f.getChildFile ("modules"));
+    return isJUCEModulesFolder (f.getChildFile ("modules"));
 }
 
-bool isJuceModulesFolder (const File& f)
+bool isJUCEModulesFolder (const File& f)
 {
     return f.isDirectory() && f.getChildFile ("juce_core").isDirectory();
 }

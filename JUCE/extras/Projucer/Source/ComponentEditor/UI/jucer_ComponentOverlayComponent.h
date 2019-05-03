@@ -39,7 +39,7 @@ public:
     ComponentOverlayComponent (Component* const targetComponent,
                                ComponentLayout& layout);
 
-    ~ComponentOverlayComponent();
+    ~ComponentOverlayComponent() override;
 
     //==============================================================================
     virtual void showPopupMenu();
@@ -76,7 +76,7 @@ public:
     const int borderThickness;
 
 private:
-    ScopedPointer<ResizableBorderComponent> border;
+    std::unique_ptr<ResizableBorderComponent> border;
 
     ComponentLayout& layout;
 

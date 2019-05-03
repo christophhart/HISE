@@ -40,7 +40,7 @@ class JucerDocument  : public ChangeBroadcaster,
 {
 public:
     JucerDocument (SourceCodeDocument* cpp);
-    ~JucerDocument();
+    ~JucerDocument() override;
 
     static bool isValidJucerCppFile (const File&);
     static XmlElement* pullMetaDataFromCppFile (const String& cpp);
@@ -58,7 +58,7 @@ public:
     File getCppFile() const     { return cpp->getFile(); }
     File getHeaderFile() const  { return getCppFile().withFileExtension (".h"); }
 
-    bool flushChangesToDocuments (Project*);
+    bool flushChangesToDocuments (Project*, bool);
     bool reloadFromDocument();
 
     //==============================================================================
@@ -168,8 +168,8 @@ private:
     bool snapActive = true, snapShown = true;
     float componentOverlayOpacity = 0.33f;
     StringArray activeExtraMethods;
-    ScopedPointer<XmlElement> currentXML;
-    ScopedPointer<Timer> userDocChangeTimer;
+    std::unique_ptr<XmlElement> currentXML;
+    std::unique_ptr<Timer> userDocChangeTimer;
 
     void timerCallback() override;
     void codeDocumentTextInserted (const String& newText, int insertIndex) override;

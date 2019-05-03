@@ -63,7 +63,7 @@ Component* ComponentTypeHandler::createCopyOf (JucerDocument* document, Componen
     jassert (getHandlerFor (existing) == this);
 
     Component* const newOne = createNewComponent (document);
-    ScopedPointer<XmlElement> xml (createXmlFor (&existing, document->getComponentLayout()));
+    std::unique_ptr<XmlElement> xml (createXmlFor (&existing, document->getComponentLayout()));
 
     if (xml != nullptr)
         restoreFromXml (*xml, newOne, document->getComponentLayout());
@@ -200,7 +200,7 @@ bool ComponentTypeHandler::restoreFromXml (const XmlElement& xml,
     RelativePositionedRectangle rpr;
     rpr.restoreFromXml (xml, currentPos);
 
-    jassert (layout != 0);
+    jassert (layout != nullptr);
     setComponentPosition (comp, rpr, layout);
 
     if (SettableTooltipClient* const ttc = dynamic_cast<SettableTooltipClient*> (comp))
@@ -559,7 +559,7 @@ void ComponentTypeHandler::fillInMemberVariableDeclarations (GeneratedCode& code
         clsName = getClassName (component);
 
     code.privateMemberDeclarations
-        << "ScopedPointer<" << clsName << "> " << memberVariableName << ";\n";
+        << "std::unique_ptr<" << clsName << "> " << memberVariableName << ";\n";
 }
 
 void ComponentTypeHandler::fillInResizeCode (GeneratedCode& code, Component* component, const String& memberVariableName)
@@ -572,7 +572,7 @@ void ComponentTypeHandler::fillInResizeCode (GeneratedCode& code, Component* com
     r << memberVariableName << "->setBounds ("
       << x << ", " << y << ", " << w << ", " << h << ");\n";
 
-    if (pos.rect.isPositionAbsolute())
+    if (pos.rect.isPositionAbsolute() && ! code.document->getComponentLayout()->isComponentPositionRelative (component))
         code.constructorCode += r + "\n";
     else
         code.getCallbackCode (String(), "void", "resized()", false) += r;
@@ -589,7 +589,7 @@ void ComponentTypeHandler::fillInCreationCode (GeneratedCode& code, Component* c
     const String virtualName (component->getProperties() ["virtualName"].toString());
 
     String s;
-    s << "addAndMakeVisible (" << memberVariableName << " = new ";
+    s << memberVariableName << ".reset (new ";
 
     if (virtualName.isNotEmpty())
         s << CodeHelpers::makeValidIdentifier (virtualName, false, false, true);
@@ -597,7 +597,9 @@ void ComponentTypeHandler::fillInCreationCode (GeneratedCode& code, Component* c
         s << getClassName (component);
 
     if (params.isEmpty())
+    {
         s << "());\n";
+    }
     else
     {
         StringArray lines;
@@ -607,6 +609,9 @@ void ComponentTypeHandler::fillInCreationCode (GeneratedCode& code, Component* c
 
         s << " (" << params << "));\n";
     }
+
+    s << "addAndMakeVisible (" << memberVariableName << ".get());\n";
+
 
     if (SettableTooltipClient* ttc = dynamic_cast<SettableTooltipClient*> (component))
     {
