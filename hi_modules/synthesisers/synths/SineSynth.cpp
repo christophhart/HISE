@@ -105,8 +105,6 @@ ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 }
 
 
-
-
 float const * SineSynth::getSaturatedTableValues()
 {
 	for (int i = 0; i < 128; i++)

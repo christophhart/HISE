@@ -162,10 +162,10 @@ public:
 
 	void removeFloatingWindow(FloatingTileDocumentWindow* windowToRemove)
 	{
-		popoutWindows.removeObject(windowToRemove, true);
-
-		if (docWindow = windowToRemove)
+		if (docWindow == windowToRemove)
 			docWindow = nullptr;
+		else
+			popoutWindows.removeObject(windowToRemove, true);
 	}
 
 	void showHelp(ComponentWithHelp* h) override

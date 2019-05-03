@@ -1429,6 +1429,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	{
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", "0");
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST3%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "1");
 
@@ -1482,6 +1483,12 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 
 		const bool buildAU = BuildOptionHelpers::isAU(option);
 		const bool buildVST = BuildOptionHelpers::isVST(option) || BuildOptionHelpers::isHeadlessLinuxPlugin(option);
+
+		auto vst3 = GET_SETTING(HiseSettings::Project::VST3Support) == "1";
+
+		const bool buildVST2 = buildVST && !vst3;
+		const bool buildVST3 = buildVST && vst3;
+
 #if JUCE_LINUX
 		const bool buildAAX = false;
 #else
@@ -1489,7 +1496,8 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 #endif
 
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", buildAU ? "1" : "0");
-		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", buildVST ? "1" : "0");
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", buildVST2 ? "1" : "0");
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST3%", buildVST3 ? "1" : "0");
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX%", buildAAX ? "1" : "0");
 
 		const File vstSDKPath = hisePath.getChildFile("tools/SDK/VST3 SDK");

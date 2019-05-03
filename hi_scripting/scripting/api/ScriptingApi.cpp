@@ -1892,7 +1892,7 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 	auto& sounds = soundSelection.getItemArray();
 	auto id = sampleIds[propertyId];
 
-	auto f = [sounds, id, newValue](Processor* p)
+	auto f = [sounds, id, newValue](Processor* /*p*/)
 	{
 		const int numSelected = sounds.size();
 

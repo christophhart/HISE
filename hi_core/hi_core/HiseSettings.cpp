@@ -84,6 +84,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(RedirectSampleFolder);
 	ids.add(AAXCategoryFX);
 	ids.add(SupportMonoFX);
+	ids.add(VST3Support);
 	ids.add(UseRawFrontend);
 
 	return ids;
@@ -293,6 +294,11 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		P(HiseSettings::Project::SupportMonoFX);
 		D("If enabled, the effect plugin will also be compatible to mono channel tracks.");
 		D("> This setting will have no effect for virtual instruments.");
+		P_();
+
+		P(HiseSettings::Project::VST3Support);
+		D("If enabled, the exported plugins will use the VST3 SDK standard instead of the VST 2.x SDK. Until further notice, this is a experimental feature so proceed with caution.");
+		D("> Be aware that Steinberg stopped support for the VST 2.4 SDK in October 2018 so if you don't have a valid VST2 license agreement in place, you must use the VST3 SDK.");
 		P_();
 
 		P(HiseSettings::Project::UseRawFrontend);
@@ -526,6 +532,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
 		id == Project::SupportMonoFX ||
+		id == Project::VST3Support ||
 		id == Project::UseRawFrontend ||
 		id == Project::SupportFullDynamicsHLAC ||
 		id == Documentation::RefreshOnStartup)
@@ -691,6 +698,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
 	else if (id == Project::SupportMonoFX)			return "No";
+	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;

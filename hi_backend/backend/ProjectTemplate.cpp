@@ -39,7 +39,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "\r\n"
 "<JUCERPROJECT id=\"Tw64Zd\" name=\"%NAME%\" projectType=\"audioplug\" version=\"%VERSION%\"\r\n"
 "              bundleIdentifier=\"%BUNDLE_ID%\" includeBinaryInAppConfig=\"1\" buildVST=\"%BUILD_VST%\"\r\n"
-"              buildVST3=\"0\" buildAU=\"%BUILD_AU%\" buildAUv3=\"%BUILD_AUV3%\" buildStandalone=\"%BUILD_AUV3%\" buildRTAS=\"0\" buildAAX=\"%BUILD_AAX%\" pluginName=\"%NAME%\"\r\n"
+"              buildVST3=\"%BUILD_VST3%\" buildAU=\"%BUILD_AU%\" buildAUv3=\"%BUILD_AUV3%\" buildStandalone=\"%BUILD_AUV3%\" buildRTAS=\"0\" buildAAX=\"%BUILD_AAX%\" pluginName=\"%NAME%\"\r\n"
 "              pluginDesc=\"%NAME%\" pluginManufacturer=\"%COMPANY%\" pluginManufacturerCode=\"%MC%\"\r\n"
 "              pluginCode=\"%PC%\" pluginChannelConfigs=\"%CHANNEL_CONFIG%\" pluginIsSynth=\"%PLUGINISSYNTH%\"\r\n"
 "              pluginWantsMidiIn=\"%PLUGINWANTSMIDIIN\" pluginProducesMidiOut=\"0\" pluginIsMidiEffectPlugin=\"0\"\r\n"
