@@ -287,25 +287,25 @@ public:
 	*/
 	void setValueWithoutSmoothing(FloatType newValue) noexcept
 	{
-		target = newValue;
-		currentValue = target;
-		countdown = 0;
+		this->target = newValue;
+		this->currentValue = this->target;
+		this->countdown = 0;
 	}
 
 	void setValueAndRampTime(FloatType newValue, double sampleRateToUse, double rampLengthInSeconds) noexcept
 	{
-		if (target != newValue)
+		if (this->target != newValue)
 		{
-			target = newValue;
+			this->target = newValue;
 
 			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
-			stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
-			countdown = stepsToTarget;
+			this->stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
+			this->countdown = this->stepsToTarget;
 
-			if (countdown <= 0)
-				currentValue = target;
+			if (this->countdown <= 0)
+				this->currentValue = this->target;
 			else
-				step = (target - currentValue) / (FloatType)countdown;
+				this->step = (this->target - this->currentValue) / (FloatType)this->countdown;
 		}
 		else // might be possible that it still wants the same target but at a different speed
 		{
@@ -316,12 +316,12 @@ public:
 			{
 				// Readjust the ramp speed
 				stepsToTarget = thisStepsToTarget;
-				countdown = stepsToTarget;
+				this->countdown = this->stepsToTarget;
 
-				if (countdown <= 0)
-					currentValue = target;
+				if (this->countdown <= 0)
+					this->currentValue = this->target;
 				else
-					step = (target - currentValue) / (FloatType)countdown;
+					this->step = (this->target - this->currentValue) / (FloatType)this->countdown;
 			}
 
 		}

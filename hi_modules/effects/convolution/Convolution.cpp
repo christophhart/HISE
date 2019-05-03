@@ -195,7 +195,7 @@ void ConvolutionEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttributeWithDefault(Predelay);
 	loadAttributeWithDefault(HiCut);
 	loadAttribute(Damping, "Damping");
-	loadAttributeWithDefault(FFTType, "FFTType");
+	loadAttributeWithDefault(FFTType);
 
 	AudioSampleProcessor::restoreFromValueTree(v);
 }
