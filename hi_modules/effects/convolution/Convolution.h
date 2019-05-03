@@ -151,8 +151,8 @@ class MultithreadedConvolver : public fftconvolver::TwoStageFFTConvolver
 
 public:
 
-	MultithreadedConvolver() :
-		TwoStageFFTConvolver(),
+	MultithreadedConvolver(audiofft::ImplementationType fftType) :
+		TwoStageFFTConvolver(fftType),
 		backgroundThread(*this)
 	{};
 
@@ -304,6 +304,7 @@ public:
 		Predelay, ///< delays the reverb tail by the given amount in milliseconds
 		HiCut, ///< applies a low pass filter to the impulse response
 		Damping, ///< applies a fade-out to the impulse response
+		FFTType, ///< the FFT implementation. It picks the best available but for some weird use cases you can force to use another one.
 		numEffectParameters
 	};
 
@@ -346,6 +347,10 @@ public:
 	const CriticalSection& getFileLock() const override { return unusedFileLock; }
 
 private:
+
+	audiofft::ImplementationType currentType = audiofft::ImplementationType::numImplementationTypes;
+
+	void createEngine(audiofft::ImplementationType fftType);
 
 	SpinLock swapLock;
 

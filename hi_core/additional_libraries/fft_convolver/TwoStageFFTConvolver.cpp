@@ -28,14 +28,14 @@
 namespace fftconvolver
 {
 
-TwoStageFFTConvolver::TwoStageFFTConvolver() :
+TwoStageFFTConvolver::TwoStageFFTConvolver(audiofft::ImplementationType fftType) :
   _headBlockSize(0),
   _tailBlockSize(0),
-  _headConvolver(),
-  _tailConvolver0(),
+  _headConvolver(fftType),
+  _tailConvolver0(fftType),
   _tailOutput0(),
   _tailPrecalculated0(0),
-  _tailConvolver(),
+  _tailConvolver(fftType),
   _tailOutput(),
   _tailPrecalculated(0),
   _tailInput(),

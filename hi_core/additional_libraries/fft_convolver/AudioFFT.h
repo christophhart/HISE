@@ -93,12 +93,22 @@
 
 namespace audiofft
 {
+	enum class ImplementationType
+	{
+		BestAvailable,
+		IPP,
+		AppleAccelerate,
+		Ooura,
+		FFTW3,
+		numImplementationTypes
+	};
 
   namespace detail
   {
+	
+
     class AudioFFTImpl;
   }
-
 
   // =============================================================
 
@@ -113,7 +123,7 @@ namespace audiofft
     /**
      * @brief Constructor
      */
-    AudioFFT();
+    AudioFFT(ImplementationType fftType);
 
     AudioFFT(const AudioFFT&) = delete;
     AudioFFT& operator=(const AudioFFT&) = delete;

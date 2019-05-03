@@ -70,12 +70,10 @@ namespace audiofft
       virtual void ifft(float* data, const float* re, const float* im) = 0;
     };
 
-
     constexpr bool IsPowerOf2(size_t val)
     {
       return (val == 1 || (val & (val-1)) == 0);
     }
-
 
     template<typename TypeDest, typename TypeSrc>
     void ConvertBuffer(TypeDest* dest, const TypeSrc* src, size_t len)
@@ -85,7 +83,6 @@ namespace audiofft
         dest[i] = static_cast<TypeDest>(src[i]);
       }
     }
-
 
     template<typename TypeDest, typename TypeSrc, typename TypeFactor>
     void ScaleBuffer(TypeDest* dest, const TypeSrc* src, const TypeFactor factor, size_t len)
@@ -98,12 +95,9 @@ namespace audiofft
 
   } // End of namespace detail
 
-
   // ================================================================
 
 
-#ifdef AUDIOFFT_OOURA_USED
-#if !USE_IPP
 
   /**
    * @internal
@@ -770,21 +764,10 @@ namespace audiofft
   };
 
 
-  /**
-   * @internal
-   * @brief Concrete FFT implementation
-   */
-  typedef OouraFFT AudioFFTImplementation;
-
-#endif
-#endif // AUDIOFFT_OOURA_USED
-
-
   // ================================================================
 
 
 #ifdef AUDIOFFT_APPLE_ACCELERATE_USED
-
 
   /**
    * @internal
@@ -966,7 +949,7 @@ namespace audiofft
 	  int order;
   };
 
-  typedef IPP_FFT AudioFFTImplementation;
+  
 
 #endif
 
@@ -1095,16 +1078,40 @@ namespace audiofft
   // =============================================================
 
 
-  AudioFFT::AudioFFT() :
-    _impl(new AudioFFTImplementation())
+  AudioFFT::AudioFFT(ImplementationType fftType)
   {
+	  /* This selects the FFT implementation based on these rules:
+
+	  - if Apple's FFT should be used (iOS), use this.
+	  - if USE_IPP is set and the fftType is IPP, use this
+	  - if Ooura is chosen or all other implementations are not avalailable,
+	    use this (on all systems).
+	  */
+
+	  switch (fftType)
+	  {
+	  case ImplementationType::BestAvailable:
+	  case audiofft::ImplementationType::AppleAccelerate:
+#ifdef AUDIOFFT_APPLE_ACCELERATE
+		  _impl.reset(new AppleAccelerateFFT());
+
+		  break;
+#endif
+	  case audiofft::ImplementationType::IPP:
+#if USE_IPP
+		  _impl.reset(new IPP_FFT());
+		  break;
+#endif
+	  default:
+		  _impl.reset(new OouraFFT());
+		  break;
+	  }
   }
 
 
   AudioFFT::~AudioFFT()
   {
   }
-
 
   void AudioFFT::init(size_t size)
   {
@@ -1123,7 +1130,6 @@ namespace audiofft
   {
     _impl->ifft(data, re, im);
   }
-
 
   size_t AudioFFT::ComplexSize(size_t size)
   {

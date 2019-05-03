@@ -55,7 +55,7 @@ namespace fftconvolver
 class TwoStageFFTConvolver
 {  
 public:
-  TwoStageFFTConvolver();  
+  TwoStageFFTConvolver(audiofft::ImplementationType fftType);  
   virtual ~TwoStageFFTConvolver();
   
   /**
