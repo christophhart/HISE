@@ -1508,7 +1508,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		}
 
 		if (buildVST)
-			REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER%", vstSDKPath.getFullPathName());
+			REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER%", hisePath.getChildFile("tools/SDK/VST3 SDK").getFullPathName());
 		else
 			REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER", String());
 
