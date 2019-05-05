@@ -465,7 +465,7 @@ private:
 	uint16 eventId = 0;				// DWord 3
 	uint16 startOffset = 0;
 
-	uint32 timestamp;
+    uint32 timestamp = 0;
 };
 
 #define HISE_EVENT_BUFFER_SIZE 256

@@ -711,7 +711,10 @@ void EventIdHandler::handleEventIds()
 		jassert(!m->isArtificial());
 
 		if (m->isAllNotesOff())
+        {
 			memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
+            overlappingNoteOns.clear();
+        }
 
 		if (m->isNoteOn())
 		{

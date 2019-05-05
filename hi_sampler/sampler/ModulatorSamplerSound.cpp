@@ -657,7 +657,7 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 // ====================================================================================================================
 
 ModulatorSamplerSoundPool::ModulatorSamplerSoundPool(MainController *mc_, FileHandlerBase* handler) :
-PoolBase(mc, handler),
+PoolBase(mc_, handler),
 mc(mc_),
 debugProcessor(nullptr),
 mainAudioProcessor(nullptr),
