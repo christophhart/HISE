@@ -564,11 +564,11 @@ juce::IIRCoefficients PolyFilterEffect::getCurrentCoefficients() const
 			return voiceFilters.getCurrentCoefficients();
 		}
 
-		return MonoFilterEffect::getDisplayCoefficients(mode, frequency, q, gain, getSampleRate());
+        return monoFilters.getCurrentCoefficients();
 	}
 	else
 	{
-		return MonoFilterEffect::getDisplayCoefficients(mode, frequency, q, gain, getSampleRate());
+		return monoFilters.getCurrentCoefficients();
 	}
 }
 

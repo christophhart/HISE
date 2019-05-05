@@ -210,8 +210,6 @@ private:
 	float q;
 	float gain;
 
-	
-
 	bool changeFlag;
 
 	float bipolarIntensity = 0.0f;
