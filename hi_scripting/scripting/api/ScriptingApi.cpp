@@ -1706,6 +1706,7 @@ struct ScriptingApi::Sampler::Wrapper
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setUseStaticMatrix);
+    API_METHOD_WRAPPER_1(Sampler, loadSampleForAnalysis);
 };
 
 
@@ -1734,6 +1735,7 @@ sampler(sampler_)
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(isNoteNumberMapped);
+    ADD_API_METHOD_1(loadSampleForAnalysis);
 	ADD_API_METHOD_1(setUseStaticMatrix);
 
 	sampleIds.add(SampleIds::ID);
@@ -2139,6 +2141,45 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	}
 }
 
+var ScriptingApi::Sampler::loadSampleForAnalysis(int soundIndex)
+{
+    auto& sounds = soundSelection.getItemArray();
+    
+    
+    if(auto sound = sounds[soundIndex].get())
+    {
+        ScopedPointer<AudioFormatReader> reader = sound->getReferenceToSound()->createReaderForPreview();
+        
+        if (reader != nullptr)
+        {
+            int numSamplesToRead = reader->lengthInSamples;
+            
+            if(numSamplesToRead > 0 && reader->numChannels == 2)
+            {
+                Array<var> channelData;
+                
+                VariantBuffer::Ptr l = new VariantBuffer(numSamplesToRead);
+                VariantBuffer::Ptr r = new VariantBuffer(numSamplesToRead);
+                
+                AudioSampleBuffer b;
+                
+                float* data[2] = {l->buffer.getWritePointer(0), r->buffer.getWritePointer(0)};
+                
+                b.setDataToReferTo(data, 2, numSamplesToRead);
+                
+                reader->read(&b, 0, numSamplesToRead, 0, true, true);
+                
+                channelData.add(var(l));
+                channelData.add(var(r));
+                
+                return channelData;
+            }
+        }
+    }
+    
+    return {};
+}
+    
 String ScriptingApi::Sampler::getCurrentSampleMapId() const
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);

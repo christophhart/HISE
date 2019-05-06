@@ -469,6 +469,12 @@ public:
 		/** Returns the name of the channel with the given index (Multimic samples only. */
 		String getMicPositionName(int channelIndex);
 
+        
+        /** Loads the content of the given sample into an array of VariantBuffers that can be used
+            for analysis. 
+        */
+        var loadSampleForAnalysis(int indexInSelection);
+        
 		/** Returns the number of mic positions. */
 		int getNumMicPositions() const;
 
