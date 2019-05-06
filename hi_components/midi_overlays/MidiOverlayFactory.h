@@ -126,8 +126,6 @@ public:
 		setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colour(0xFF444444));
 		setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white);
 		setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white);
-
-		
 	};
 
 	SET_PANEL_NAME("MidiOverlayPanel");
@@ -138,19 +136,20 @@ public:
 		{
 			auto id = MidiOverlayFactory::getInstance().getIdList()[index];
 
-			auto newOverlay = MidiOverlayFactory::getInstance().create(id, mp);
+			if (auto newOverlay = MidiOverlayFactory::getInstance().create(id, mp))
+			{
+				newOverlay->setFont(getFont());
 
-			newOverlay->setFont(getFont());
-			
-			auto asComponent = dynamic_cast<Component*>(newOverlay);
+				auto asComponent = dynamic_cast<Component*>(newOverlay);
 
-			asComponent->setColour(HiseColourScheme::ComponentBackgroundColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
-			asComponent->setColour(HiseColourScheme::ComponentFillTopColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
-			asComponent->setColour(HiseColourScheme::ComponentFillBottomColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
-			asComponent->setColour(HiseColourScheme::ComponentTextColourId, findPanelColour(FloatingTileContent::PanelColourId::textColour));
-			asComponent->setColour(HiseColourScheme::ComponentOutlineColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
+				asComponent->setColour(HiseColourScheme::ComponentBackgroundColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+				asComponent->setColour(HiseColourScheme::ComponentFillTopColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
+				asComponent->setColour(HiseColourScheme::ComponentFillBottomColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+				asComponent->setColour(HiseColourScheme::ComponentTextColourId, findPanelColour(FloatingTileContent::PanelColourId::textColour));
+				asComponent->setColour(HiseColourScheme::ComponentOutlineColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
 
-			return asComponent;
+				return asComponent;
+			}
 		}
 
 		return nullptr;

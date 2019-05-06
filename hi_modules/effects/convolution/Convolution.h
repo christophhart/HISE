@@ -224,8 +224,7 @@ class ConvolutionEffect: public MasterEffectProcessor,
 						 public AudioSampleProcessor
 {
 
-	class LoadingThread : public Thread,
-						  private Timer
+	class LoadingThread : public Thread
 	{
 	public:
 
@@ -254,18 +253,27 @@ class ConvolutionEffect: public MasterEffectProcessor,
 				startThread(5);
 			}
 
-			
+			if (pending)
+				shouldRestart = true;
+			else
+				pending = true;
 
-			startTimer(30);
+			//startTimer(30);
 		};
 
 		
 	private:
 
-		void reloadInternal();
+		bool pending = false;
 
+		bool reloadInternal();
+
+#if 0
 		void timerCallback() override
 		{
+			if (parent.rampFlag)
+				return;
+
 			if (isReloading)
 			{
 				shouldRestart = true;
@@ -277,13 +285,11 @@ class ConvolutionEffect: public MasterEffectProcessor,
 
 			parent.convolverL->reset();
 			parent.convolverR->reset();
-
-			stopTimer();
 		}
+#endif
 
 		bool shouldRestart = false;
 		bool shouldReload = false;
-		bool isReloading = false;
 
 	};
 
@@ -348,6 +354,8 @@ public:
 
 private:
 
+	bool processingEnabled = true;
+
 	audiofft::ImplementationType currentType = audiofft::ImplementationType::numImplementationTypes;
 
 	void createEngine(audiofft::ImplementationType fftType);
@@ -389,6 +397,7 @@ private:
 	std::atomic<bool> isCurrentlyProcessing;
 	std::atomic<bool> loadAfterProcessFlag;
 
+	bool smoothInputBuffer = false;
 	bool rampFlag;
 	bool rampUp;
 	bool processFlag;

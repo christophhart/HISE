@@ -161,7 +161,10 @@ public:
 		{
 			getProcessor()->addDeleteListener(this);
 
-			addAndMakeVisible(content = createContentComponent(currentIndex));
+			content = createContentComponent(currentIndex);
+			
+			if(content != nullptr)
+				addAndMakeVisible(content);
 		}
 
 		auto titleToUse = hasCustomTitle() ? getCustomTitle() : getTitle();

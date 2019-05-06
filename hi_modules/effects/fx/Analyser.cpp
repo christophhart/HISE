@@ -426,6 +426,8 @@ Component* AudioAnalyserComponent::Panel::createContentComponent(int index)
 	case 0: c = new Goniometer(getProcessor()); break;
 	case 1: c = new Oscilloscope(getProcessor()); break;
 	case 2:	c = new FFTDisplay(getProcessor()); break;
+	default:
+		return nullptr;
 	}
 
 	if (findPanelColour(FloatingTileContent::PanelColourId::bgColour).isOpaque())

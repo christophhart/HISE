@@ -501,8 +501,10 @@ public:
 	Component* createContentComponent(int /*index*/) override
 	{
 		auto p = new Plotter();
-		auto mod = dynamic_cast<Modulation*>(getConnectedProcessor());
-		mod->setPlotter(p);
+		if (auto mod = dynamic_cast<Modulation*>(getConnectedProcessor()))
+		{
+			mod->setPlotter(p);
+		}
 
 		return p;
 	}
@@ -532,14 +534,17 @@ public:
 
 	Component* createContentComponent(int /*index*/) override
 	{
-		auto p = dynamic_cast<SliderPackProcessor*>(getProcessor());
+		if (auto p = dynamic_cast<SliderPackProcessor*>(getProcessor()))
+		{
+			auto sp = new SliderPack(p->getSliderPackData(0));
 
-		auto sp = new SliderPack(p->getSliderPackData(0));
+			sp->setOpaque(true);
+			sp->setColour(Slider::backgroundColourId, Colour(0xff333333));
 
-		sp->setOpaque(true);
-		sp->setColour(Slider::backgroundColourId, Colour(0xff333333));
-
-		return sp;
+			return sp;
+		}
+		
+		return nullptr;
 	}
 
 	void fillModuleList(StringArray& moduleList) override
