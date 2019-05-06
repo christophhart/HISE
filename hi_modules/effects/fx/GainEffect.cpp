@@ -300,6 +300,9 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 		balanceSmoother.prepareToPlay(sampleRate / (double)samplesPerBlock);
 		balanceSmoother.setSmoothingTime(1000.0f);
+
+		smoothedGainL.setValueWithoutSmoothing(gain);
+		smoothedGainR.setValueWithoutSmoothing(gain);
 	}
 }
 

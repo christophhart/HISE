@@ -278,7 +278,8 @@ public:
 	{
 		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-		softBypassRamper.reset(sampleRate / (double)samplesPerBlock, 0.1);
+		if (sampleRate > 0.0 && samplesPerBlock > 0)
+			softBypassRamper.reset(sampleRate / (double)samplesPerBlock, 0.1);
 	}
 
 	/** A wrapper function around the actual processing.
