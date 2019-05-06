@@ -820,6 +820,7 @@ public:
 		refCountedPool.clear();
 
 		weakPool.clear();
+		allFilesLoaded = false;
 		sendPoolChangeMessage(Removed);
 	}
 
@@ -910,6 +911,7 @@ public:
 
 	void loadAllFilesFromDataProvider()
 	{
+		allFilesLoaded = true;
 		ScopedNotificationDelayer snd(*this, EventType::Added);
 
 		auto refList = getDataProvider()->getListOfAllEmbeddedReferences();
@@ -932,7 +934,11 @@ public:
 
 			loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
 		}
+
+		allFilesLoaded = true;
 	}
+
+	bool areAllFilesLoaded() const noexcept { return allFilesLoaded; }
 
 	/** Returns a statistic string with the size and memory usage of the pool. */
 	String getStatistics() const
@@ -1153,6 +1159,8 @@ public:
 	
 
 private:
+
+	bool allFilesLoaded = false;
 
 	SharedResourcePointer<SharedCache<DataType>> sharedCache;
 

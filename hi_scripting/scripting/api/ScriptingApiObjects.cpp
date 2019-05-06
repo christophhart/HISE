@@ -1702,6 +1702,13 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 
 		ScopedLock sl(asp->getFileLock());
 
+#if USE_BACKEND
+		auto pool = audioSampleProcessor->getMainController()->getCurrentAudioSampleBufferPool();
+
+		if (!pool->areAllFilesLoaded())
+			reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
+#endif
+
 		asp->setLoadedFile(fileName, true);
 	}
 }
