@@ -998,6 +998,18 @@ void MonolithExporter::checkSanity()
 		if (filesToWrite[i]->size() != numSamples)
             throw("Sample amount mismatch for Channel " + String(i + 1));
 	}
+
+	ModulatorSampler::SoundIterator iter(sampleMap->getSampler());
+
+	Array<double> legitSampleRates({ 44100.0, 48000.0, 88200.0, 96000.0 });
+
+	while (auto sound = iter.getNextSound())
+	{
+		auto sr = sound->getSampleRate();
+
+		if (!legitSampleRates.contains(sr))
+			throw String("Sample " + sound->getReferenceToSound()->getFileName(true) + " has unsupported samplerate: " + String(sr));
+	}
 }
 
 void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
