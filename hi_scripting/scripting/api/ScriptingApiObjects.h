@@ -176,6 +176,52 @@ public:
 		// ============================================================================================================
 	};
 
+	class ScriptTableData : public ConstScriptingObject,
+							public DebugableObject
+	{
+	public:
+
+		ScriptTableData(ProcessorWithScriptingContent* pwsc);
+
+		~ScriptTableData()
+		{
+			
+		}
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("TableData"); }
+
+		String getDebugName() const override { return "Table"; };
+		String getDebugValue() const override { return "Table"; };
+
+		void rightClickCallback(const MouseEvent& e, Component *c) override;
+
+		Table* getTable() const { return const_cast<Table*>(dynamic_cast<const Table*>(&table)); }
+
+		// ============================================================================================================
+
+		/** Sets the point with the given index to the values. */
+		void setTablePoint(int pointIndex, float x, float y, float curve);
+
+		/** Adds a new table point (x and y are normalized coordinates). */
+		void addTablePoint(float x, float y);
+
+		/** Resets the table with the given index to a 0..1 line. */
+		void reset();
+
+		/** Returns the value of the table at the given input (0.0 ... 1.0). */
+		float getTableValueNormalised(double normalisedInput);
+
+		// ============================================================================================================
+
+	private:
+
+		LookupTableProcessor::TableChangeBroadcaster broadcaster;
+
+		struct Wrapper;
+
+		SampleLookupTable table;
+	};
+
 	class ScriptSliderPackData : public ConstScriptingObject,
 								 public DebugableObject
 	{

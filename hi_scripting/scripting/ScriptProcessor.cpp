@@ -850,6 +850,8 @@ void JavascriptProcessor::DelayedPositionUpdater::scriptComponentUpdated(Identif
 
 void JavascriptProcessor::saveScript(ValueTree &v) const
 {
+	saveComplexDataTypeAmounts(v);
+
 	String x;
 
 	if (isConnectedToExternalFile())
@@ -866,10 +868,10 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 	v.setProperty("Script", x, nullptr);
 }
 
-
-
 void JavascriptProcessor::restoreScript(const ValueTree &v)
 {
+	restoreComplexDataTypes(v);
+
 	String x = v.getProperty("Script", String());
 
 	auto contentPropertyChild = v.getChildWithName("ContentProperties");

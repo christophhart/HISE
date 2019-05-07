@@ -171,6 +171,72 @@ void addScriptParameters(ConstScriptingObject* this_, Processor* p)
 	this_->addConstant("ScriptParameters", var(scriptedParameters.get()));
 }
 
+struct ScriptingObjects::ScriptTableData::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_0(ScriptTableData, reset);
+	API_VOID_METHOD_WRAPPER_4(ScriptTableData, setTablePoint);
+	API_VOID_METHOD_WRAPPER_2(ScriptTableData, addTablePoint);
+	API_METHOD_WRAPPER_1(ScriptTableData, getTableValueNormalised);
+};
+
+ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc):
+	ConstScriptingObject(pwsc, 0),
+	DebugableObject()
+{
+	
+	table.setHandler(pwsc->getMainController_()->getGlobalUIUpdater());
+	broadcaster.enablePooledUpdate(pwsc->getMainController_()->getGlobalUIUpdater());
+
+	ADD_API_METHOD_0(reset);
+	ADD_API_METHOD_2(addTablePoint);
+	ADD_API_METHOD_4(setTablePoint);
+	ADD_API_METHOD_1(getTableValueNormalised);
+}
+
+void ScriptingObjects::ScriptTableData::rightClickCallback(const MouseEvent& e, Component *c)
+{
+#if USE_BACKEND
+	TableEditor *te = new TableEditor(nullptr, &table);
+
+	te->setSize(300, 200);
+
+	auto editor = GET_BACKEND_ROOT_WINDOW(c);
+
+	MouseEvent ee = e.getEventRelativeTo(editor);
+
+	editor->getRootFloatingTile()->showComponentInRootPopup(te, editor, ee.getMouseDownPosition());
+#else
+	ignoreUnused(e, c);
+#endif
+}
+
+void ScriptingObjects::ScriptTableData::setTablePoint(int pointIndex, float x, float y, float curve)
+{
+	table.setTablePoint(pointIndex, x, y, curve);
+	table.sendPooledChangeMessage();
+}
+
+void ScriptingObjects::ScriptTableData::addTablePoint(float x, float y)
+{
+	table.addTablePoint(x, y);
+	table.sendPooledChangeMessage();
+}
+
+void ScriptingObjects::ScriptTableData::reset()
+{
+	table.reset();
+	table.sendPooledChangeMessage();
+}
+
+float ScriptingObjects::ScriptTableData::getTableValueNormalised(double normalisedInput)
+{
+	if (auto lup = dynamic_cast<LookupTableProcessor*>(getScriptProcessor()))
+		lup->sendTableIndexChangeMessage(false, getTable(), (float)normalisedInput);
+		
+	table.sendPooledChangeMessage();
+	return table.getInterpolatedValue((double)SAMPLE_LOOKUP_TABLE_SIZE * normalisedInput);
+}
+
 
 struct ScriptingObjects::ScriptSliderPackData::Wrapper
 {

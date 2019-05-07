@@ -964,6 +964,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, saveUserPreset);
 	API_METHOD_WRAPPER_0(Engine, isMpeEnabled);
 	API_METHOD_WRAPPER_0(Engine, createSliderPackData);
+	API_METHOD_WRAPPER_1(Engine, createAndRegisterSliderPackData);
+	API_METHOD_WRAPPER_1(Engine, createAndRegisterTableData);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
@@ -985,6 +987,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
+	API_METHOD_WRAPPER_0(Engine, getControlRateDownsamplingFactor);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
 	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
@@ -1065,10 +1068,13 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createTimerObject);
 	ADD_API_METHOD_0(createMessageHolder);
 	ADD_API_METHOD_0(createSliderPackData);
+	ADD_API_METHOD_1(createAndRegisterSliderPackData);
+	ADD_API_METHOD_1(createAndRegisterTableData);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
 	ADD_API_METHOD_1(setGlobalFont);
 	ADD_API_METHOD_1(extendTimeOut);
+	ADD_API_METHOD_0(getControlRateDownsamplingFactor);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
@@ -1304,6 +1310,11 @@ var ScriptingApi::Engine::getSettingsWindowObject()
 {
 	reportScriptError("Deprecated");
 	return var();
+}
+
+double ScriptingApi::Engine::getControlRateDownsamplingFactor() const
+{
+	return (double)HISE_EVENT_RASTER;
 }
 
 int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
@@ -1552,6 +1563,26 @@ int ScriptingApi::Engine::isControllerUsedByAutomation(int controllerNumber)
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };
 
 ScriptingObjects::ScriptSliderPackData* ScriptingApi::Engine::createSliderPackData() { return new ScriptingObjects::ScriptSliderPackData(getScriptProcessor()); }
+
+hise::ScriptingObjects::ScriptSliderPackData* ScriptingApi::Engine::createAndRegisterSliderPackData(int index)
+{
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		return jp->addOrReturnSliderPackObject(index);
+	}
+
+	return nullptr;
+}
+
+hise::ScriptingObjects::ScriptTableData* ScriptingApi::Engine::createAndRegisterTableData(int index)
+{
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		return jp->addOrReturnTableObject(index);
+	}
+
+	return nullptr;
+}
 
 ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { return new ScriptingObjects::TimerObject(getScriptProcessor()); }
 

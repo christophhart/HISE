@@ -252,6 +252,9 @@ public:
 		/** Converts a pitch ratio to semitones (0.5 ... 2.0) -> (-12 ... 12) */
 		double getSemitonesFromPitchRatio(double pitchRatio) const { return 1200.0 * log2(pitchRatio); }
 
+		/** Returns the downsampling factor for the modulation signal (default is 8). */
+		double getControlRateDownsamplingFactor() const;
+
 		/** Converts MIDI note number to Midi note name ("C3" for middle C). */
 		String getMidiNoteName(int midiNumber) const { return MidiMessage::getMidiNoteName(midiNumber, true, true, 3); };
 
@@ -377,6 +380,12 @@ public:
 
 		/** Creates a SliderPack Data object. */
 		ScriptingObjects::ScriptSliderPackData* createSliderPackData();
+
+		/** Creates a SliderPack Data object and registers it so you can access it from other modules. */
+		ScriptingObjects::ScriptSliderPackData* createAndRegisterSliderPackData(int index);
+
+		/** Creates a Table object and registers it so you can access it from other modules. */
+		ScriptingObjects::ScriptTableData* createAndRegisterTableData(int index);
 
 		/** Creates a new timer object. */
 		ScriptingObjects::TimerObject* createTimerObject();

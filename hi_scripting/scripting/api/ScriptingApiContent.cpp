@@ -1847,6 +1847,7 @@ struct ScriptingApi::Content::ScriptTable::Wrapper
 	API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setSnapValues);
+	API_VOID_METHOD_WRAPPER_1(ScriptTable, referToData);
 };
 
 ScriptingApi::Content::ScriptTable::ScriptTable(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int ) :
@@ -1876,6 +1877,7 @@ lookupTableIndex(-1)
 	ADD_API_METHOD_1(getTableValue);
 	ADD_API_METHOD_2(connectToOtherTable);
 	ADD_API_METHOD_1(setSnapValues);
+	ADD_API_METHOD_1(referToData);
 
 	broadcaster.enablePooledUpdate(base->getMainController_()->getGlobalUIUpdater());
 }
@@ -2017,6 +2019,9 @@ void ScriptingApi::Content::ScriptTable::setSnapValues(var snapValueArray)
 
 LookupTableProcessor * ScriptingApi::Content::ScriptTable::getTableProcessor() const
 {
+	if (connectedProcessor == nullptr && useOtherTable)
+		return const_cast<LookupTableProcessor*>(dynamic_cast<const LookupTableProcessor*>(getScriptProcessor()));
+
 	return dynamic_cast<LookupTableProcessor*>(connectedProcessor.get());
 }
 
@@ -2071,6 +2076,22 @@ void ScriptingApi::Content::ScriptTable::resetValueToDefault()
 	{
 		t->reset();
 		t->sendChangeMessage();
+	}
+}
+
+void ScriptingApi::Content::ScriptTable::referToData(var tableData)
+{
+	if (auto td = dynamic_cast<ScriptingObjects::ScriptTableData*>(tableData.getObject()))
+	{
+		referencedTable = td->getTable();
+		useOtherTable = true;
+	}
+	else
+	{
+		referencedTable = nullptr;
+		useOtherTable = false;
+		
+		reportScriptError("Invalid table");
 	}
 }
 
@@ -2203,6 +2224,9 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 		if ((dynamic_cast<SliderPackProcessor*>(p) != nullptr) && p->getId() == newPackId)
 		{
 			existingData = dynamic_cast<SliderPackProcessor*>(p)->getSliderPackData(otherPackIndex);
+
+			if (existingData == nullptr)
+				logErrorAndContinue("Slider Pack for " + newPackId + " with index " + String(otherPackIndex) + " wasn't found");
 
 			return;
 		}

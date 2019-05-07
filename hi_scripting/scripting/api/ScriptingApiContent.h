@@ -1026,6 +1026,9 @@ public:
 		/** Makes the table snap to the given x positions (from 0.0 to 1.0). */
 		void setSnapValues(var snapValueArray);
 
+		/** Connects it to a table data object. */
+		void referToData(var tableData);
+
 		// ========================================================================================================
 
 		struct Wrapper;
