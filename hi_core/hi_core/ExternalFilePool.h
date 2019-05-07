@@ -922,6 +922,9 @@ public:
 
 	void loadAllFilesFromProjectFolder()
 	{
+		refCountedPool.clear();
+		weakPool.clear();
+
 		ScopedNotificationDelayer snd(*this, EventType::Added);
 
 		auto fileList = parentHandler->getFileList(type, false, true);
