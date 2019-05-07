@@ -49,6 +49,8 @@ MidiLooper::MidiLooper(MidiPlayer* p) :
 	setColour(HiseColourScheme::ComponentFillTopColourId, Colours::white);
 	setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::red);
 
+	p->getMainController()->skin(loopLength);
+
 	addAndMakeVisible(loopLength);
 	loopLength.addItem("1 Bar", 1);
 	loopLength.addItem("2 Bars", 2);
@@ -65,17 +67,21 @@ MidiLooper::MidiLooper(MidiPlayer* p) :
 	addAndMakeVisible(undoButton);
 	undoButton.addListener(this);
 
+	clearButton.setLookAndFeel(&blaf);
+	addButton.setLookAndFeel(&blaf);
+	undoButton.setLookAndFeel(&blaf);
+
 	startTimer(30);
 }
 
 void MidiLooper::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
 {
-
+	repaint();
 }
 
 void MidiLooper::sequencesCleared()
 {
-
+	repaint();
 }
 
 int MidiLooper::getPreferredHeight() const
@@ -97,7 +103,7 @@ void MidiLooper::buttonClicked(Button* b)
 {
 	if (b == &clearButton)
 	{
-		getPlayer()->flushEdit({});
+		getPlayer()->clearCurrentSequence();
 	}
 	else if (b == &addButton)
 	{
@@ -123,10 +129,6 @@ void MidiLooper::paint(Graphics& g)
 
 	auto ar = getLocalBounds();
 	auto top = ar.removeFromTop(32);
-
-	g.setColour(findColour(HiseColourScheme::ComponentFillTopColourId).withMultipliedAlpha(flashAlpha));
-	top.removeFromLeft(clearButton.getRight() + 10);
-	g.fillRect(top.toFloat());
 
 	if (auto seq = getPlayer()->getCurrentSequence())
 	{
@@ -167,12 +169,6 @@ void MidiLooper::timerCallback()
 	if (auto seq = getPlayer()->getCurrentSequence())
 	{
 		auto thisPos = (int)(getPlayer()->getPlaybackPosition() * seq->getLengthInQuarters());
-
-		if (lastPos != thisPos)
-			flashAlpha = 1.0f;
-		else
-			flashAlpha *= 0.90f;
-
 		lastPos = thisPos;
 
 		repaint();
@@ -189,8 +185,9 @@ void MidiLooper::resized()
 
 	loopLength.setBounds(top.removeFromLeft(128));
 	ar.removeFromLeft(margin);
-	addButton.setBounds(top.removeFromLeft(128));
-	clearButton.setBounds(top.removeFromLeft(128));
+	addButton.setBounds(top.removeFromLeft(70));
+	clearButton.setBounds(top.removeFromLeft(70));
+	undoButton.setBounds(top.removeFromLeft(70));
 }
 
 }

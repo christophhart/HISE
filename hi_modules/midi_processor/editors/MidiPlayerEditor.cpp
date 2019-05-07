@@ -160,7 +160,13 @@ void MidiPlayerEditor::timerCallback()
 			currentSequence.clear();
 
 			for (int i = 0; i < actualNumSequences; i++)
-				currentSequence.addItem(mp->getSequenceId(i).toString(), i + 1);
+			{
+				auto name = mp->getSequenceId(i).toString();
+				if (name.isEmpty())
+					name = "Sequence " + String(i + 1);
+
+				currentSequence.addItem(name, i + 1);
+			}
 
 			currentSequence.setSelectedId((int)mp->getAttribute(MidiPlayer::CurrentSequence), dontSendNotification);
 		}

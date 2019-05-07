@@ -86,8 +86,12 @@ void SimpleMidiViewer::rebuildRectangles()
 	if (auto seq = getPlayer()->getCurrentSequence())
 	{
 		currentRectangles = seq->getRectangleList(getLocalBounds().toFloat());
-		repaint();
+
 	}
+	else
+		currentRectangles = {};
+
+	repaint();
 }
 
 void SimpleMidiViewer::mouseDown(const MouseEvent& e)

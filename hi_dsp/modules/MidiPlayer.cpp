@@ -518,6 +518,9 @@ bool MidiPlayer::EditAction::undo()
 
 void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destination, const Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate)
 {
+	if (destination == nullptr)
+		return;
+
 	ScopedPointer<MidiMessageSequence> newSeq = new MidiMessageSequence();
 
 	auto samplePerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
@@ -782,10 +785,17 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 	if (currentSequenceIndex >= 0 && currentPosition != -1.0)
 	{
-		if (!loopEnabled && currentPosition > 1.0)
+		if (currentPosition > 1.0 && !loopEnabled)
 		{
 			stop();
 			return;
+		}
+
+		if (isRecording() && (currentPosition - recordStart) > 1.0)
+		{
+			finishRecording();
+			playState = PlayState::Play;
+			sendAllocationFreeChangeMessage();
 		}
 
 		auto seq = getCurrentSequence();
@@ -793,6 +803,9 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 		auto tickThisTime = (numSamples - timeStampForNextCommand) * ticksPerSample;
 		auto lengthInTicks = seq->getLength();
+
+		if (lengthInTicks == 0.0)
+			return;
 
 		auto positionInTicks = getPlaybackPosition() * lengthInTicks;
 
@@ -822,7 +835,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 			newEvent.setTimeStamp(timeStamp);
 			newEvent.setArtificial();
 
-			if (newEvent.isNoteOn())
+			if (newEvent.isNoteOn() && !isBypassed())
 			{
 				getMainController()->getEventHandler().pushArtificialNoteOn(newEvent);
 
@@ -866,10 +879,19 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 {
 	currentTimestampInBuffer = m.getTimeStamp();
 
+	if (isBypassed())
+		return;
+
 	if (isRecording() && !m.isArtificial() && recordState == RecordState::Prepared)
 	{
 		if (auto seq = getCurrentSequence())
 		{
+			if (useNextNoteAsRecordStartPos)
+			{
+				recordStart = currentPosition;
+				useNextNoteAsRecordStartPos = false;
+			}
+
 			auto lengthInQuarters = seq->getLengthInQuarters() * getPlaybackPosition();
 			auto ticks = lengthInQuarters * HiseMidiSequence::TicksPerQuarter;
 
@@ -983,6 +1005,12 @@ void MidiPlayer::flushEdit(const Array<HiseEvent>& newEvents)
 		newAction->perform();
 }
 
+void MidiPlayer::clearCurrentSequence()
+{
+	currentlyRecordedEvents.clear();
+	flushEdit({});
+}
+
 void MidiPlayer::resetCurrentSequence()
 {
 	if (auto seq = getCurrentSequence())
@@ -1035,6 +1063,9 @@ bool MidiPlayer::stop(int timestamp)
 
 	if (auto seq = getCurrentSequence())
 	{
+		if (isRecording())
+			finishRecording();
+
 		seq->resetPlayback();
 		playState = PlayState::Stop;
 		timeStampForNextCommand = timestamp;
@@ -1059,6 +1090,12 @@ bool MidiPlayer::record(int timestamp)
 
 	playState = PlayState::Record;
 	timeStampForNextCommand = timestamp;
+
+	currentPosition = fmod(currentPosition, 1.0);
+
+	useNextNoteAsRecordStartPos = true;
+
+	
 
 	if (recordState == RecordState::Idle)
 		prepareForRecording(true);

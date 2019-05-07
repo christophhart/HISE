@@ -351,12 +351,17 @@ public:
 		thread without bothering about multi-threading. */
 	void flushEdit(const Array<HiseEvent>& newEvents);
 
+	/** Clears the current sequence and any recorded events. */
+	void clearCurrentSequence();
+
 	/** Returns the undo manager used for all editing operations. 
 	
 		This differs from the default undo manager for parameter changes because edits might
 		get triggered by UI controls and it would be difficult to deinterleave parameter changes
 		and MIDI edits. */
 	UndoManager* getUndoManager() { return undoManager; };
+
+	
 
 	/** Resets the current sequence back to its pooled state. This operation is undo-able. */
 	void resetCurrentSequence();
@@ -426,6 +431,9 @@ private:
 
 	double ticksPerSample = 0.0;
 	int currentTimestampInBuffer = 0;
+
+	bool useNextNoteAsRecordStartPos = false;
+	double recordStart = 0.0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiPlayer);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiPlayer);

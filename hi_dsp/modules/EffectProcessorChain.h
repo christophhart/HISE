@@ -342,7 +342,8 @@ public:
 		dynamics,
 		analyser,
 		shapeFX,
-		polyshapeFx
+		polyshapeFx,
+		midiMetronome
 	};
 
 	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):

@@ -64,13 +64,14 @@ public:
 
 private:
 
+	BlackTextButtonLookAndFeel blaf;
+
 	int loopUuid = 1;
 	ComboBox loopLength;
 	TextButton clearButton;
 	TextButton addButton;
 	TextButton undoButton;
 
-	float flashAlpha = 0.0f;
 	int lastPos;
 };
 

@@ -85,6 +85,198 @@ public:
 
 };
 
+
+/** A simple effect that does nothing. */
+class MidiMetronome : public MasterEffectProcessor
+{
+public:
+
+	enum Parameters
+	{
+		Enabled,
+		Volume,
+		NoiseAmount,
+		numParameters
+	};
+
+	SET_PROCESSOR_NAME("MidiMetronome", "MidiMetronome", "A simple metronome that connects to a MIDI player.");
+
+	MidiMetronome(MainController *mc, const String &uid) :
+		MasterEffectProcessor(mc, uid)
+	{
+		finaliseModChains();
+	};
+
+	~MidiMetronome()
+	{};
+
+	void setInternalAttribute(int parameterIndex, float newValue) override
+	{
+		switch (parameterIndex)
+		{
+		case Parameters::Enabled: enabled = newValue > 0.5f; break;
+		case Parameters::Volume: gain = Decibels::decibelsToGain(newValue); break;
+		case Parameters::NoiseAmount: noiseAmount = newValue; break;
+		default:
+			break;
+		}
+	};
+
+	float getAttribute(int parameterIndex) const override
+	{
+		switch (parameterIndex)
+		{
+		case Parameters::Enabled: return enabled ? 1.0f : 0.0f;
+		case Parameters::Volume:  return Decibels::gainToDecibels(gain);
+		case Parameters::NoiseAmount: return noiseAmount;
+		default:	return 0.0f;
+		}
+	};
+
+	float getDefaultValue(int parameterIndex) const override
+	{
+		switch (parameterIndex)
+		{
+		case Parameters::Enabled:     0.0f;
+		case Parameters::Volume:      -12.0f;
+		case Parameters::NoiseAmount: return 0.5f;
+		default:	return 0.0f;
+		}
+	}
+
+	void restoreFromValueTree(const ValueTree &v) override
+	{
+		MasterEffectProcessor::restoreFromValueTree(v);
+		connectToPlayer(v.getProperty("PlayerID", ""));
+
+		loadAttribute(Enabled, "Enabled");
+		loadAttribute(Volume, "Volume");
+		loadAttribute(NoiseAmount, "NoiseAmount");
+
+	}
+
+	ValueTree exportAsValueTree() const override
+	{
+		auto v = MasterEffectProcessor::exportAsValueTree();
+		v.setProperty("PlayerID", getConnectedId(), nullptr);
+
+		saveAttribute(Enabled, "Enabled");
+		saveAttribute(Volume, "Volume");
+		saveAttribute(NoiseAmount, "NoiseAmount");
+		return v;
+	}
+
+	bool hasTail() const override { return false; };
+
+	int getNumInternalChains() const override { return 0; };
+	int getNumChildProcessors() const override { return 0; };
+
+	void setSoftBypass(bool /*shouldBeSoftBypassed*/, bool /*useRamp*//* =true */) override {};
+
+	bool isFadeOutPending() const noexcept override
+	{
+		return false;
+	}
+
+	Processor *getChildProcessor(int /*processorIndex*/) override
+	{
+		return nullptr;
+	};
+
+	const Processor *getChildProcessor(int /*processorIndex*/) const override
+	{
+		return nullptr;
+	};
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
+	{
+		if (enabled && player != nullptr)
+		{
+			auto pos = player->getPlaybackPosition();
+
+			auto thisQuarter = getQuarterFromPosition();
+
+			if (thisQuarter != lastQuarter && thisQuarter >= 0)
+			{
+				rampValue = 1.0f;
+
+				uptimeDelta = JUCE_LIVE_CONSTANT(0.1);
+				uptime = 0.0;
+
+				if (thisQuarter % 4 == 0)
+					uptimeDelta *= 2.0;
+
+				lastQuarter = thisQuarter;
+			}
+
+			if (rampValue != 0.0f)
+			{
+				auto l = b.getWritePointer(0, startSample);
+				auto r = b.getWritePointer(1, startSample);
+
+				while (--numSamples >= 0)
+				{
+					rampValue *= JUCE_LIVE_CONSTANT_OFF(0.9988f);
+
+					auto n = (Random::getSystemRandom().nextFloat() * 0.5f - 0.5f) * rampValue;
+
+					auto s = std::sin(uptime) * rampValue;
+
+					uptime += uptimeDelta;
+
+					auto mValue = gain * (noiseAmount * n + (1.0f - noiseAmount) * s);
+
+					*l++ += mValue;
+					*r++ += mValue;
+				}
+			}
+		}
+	}
+
+	int getQuarterFromPosition()
+	{
+		if (player->getPlayState() == MidiPlayer::PlayState::Stop)
+			return -1;
+
+		if (player->getCurrentSequence() == nullptr)
+			return -1;
+
+		lastPos = player->getPlaybackPosition() * player->getCurrentSequence()->getLengthInQuarters();
+
+		return (int)std::floor(lastPos);
+	}
+
+	void connectToPlayer(const String& id)
+	{
+		if(id.isNotEmpty())
+			player = dynamic_cast<MidiPlayer*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), id));
+
+		sendChangeMessage();
+	}
+
+	String getConnectedId() const
+	{
+		return player != nullptr ? player->getId() : "";
+	}
+
+	WeakReference<MidiPlayer> player;
+
+	float rampValue = 0.0f;
+	int lastQuarter = -1;
+
+	float noiseAmount = 0.5f;
+	float gain = 0.25f;
+
+	bool enabled = false;
+	double lastPos = 0.0;
+	double uptime = 0.0;
+	double uptimeDelta = 0.0;
+};
+
+
+
 /** A utility effect that allows smooth gain changes, static delays and panning.
 	@ingroup effectTypes
 	
@@ -119,6 +311,7 @@ public:
         Delay,
         Width,
 		Balance,
+		InvertPolarity,
 		numParameters
 	};
 
@@ -128,6 +321,10 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;;
+	float getDefaultValue(int ) const override
+	{
+		return 0.0f;
+	}
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
@@ -175,6 +372,7 @@ public:
     
 private:
 
+	bool invertPolarity = false;
 	float gain;
     float delay;
 	float balance;

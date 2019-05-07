@@ -60,6 +60,7 @@ smoothedGainR(1.0f)
     parameterNames.add("Delay");
     parameterNames.add("Width");
 	parameterNames.add("Balance");
+	parameterNames.add("InvertPolarity");
 
 	editorStateIdentifiers.add("GainChainShown");
     editorStateIdentifiers.add("DelayChainShown");
@@ -139,6 +140,7 @@ void GainEffect::setInternalAttribute(int parameterIndex, float newValue)
     case Delay:                         setDelayTime(newValue); break;
     case Width:                         msDecoder.setWidth(newValue/100.0f); break;
 	case Balance:						balance = newValue; break;
+	case InvertPolarity:				invertPolarity = newValue; break;
 	default:							jassertfalse; return;
 	}
 }
@@ -151,6 +153,7 @@ float GainEffect::getAttribute(int parameterIndex) const
     case Delay:                         return delay;
     case Width:                         return msDecoder.getWidth() * 100.0f;
 	case Balance:						return balance;
+	case InvertPolarity:				return invertPolarity ? 1.0f : 0.0f;
 	default:							jassertfalse; return 1.0f;
 	}
 }
@@ -163,6 +166,7 @@ void GainEffect::restoreFromValueTree(const ValueTree &v)
     loadAttribute(Delay, "Delay");
     loadAttribute(Width, "Width");
 	loadAttribute(Balance, "Balance");
+	loadAttributeWithDefault(InvertPolarity);
 }
 
 ValueTree GainEffect::exportAsValueTree() const
@@ -173,6 +177,7 @@ ValueTree GainEffect::exportAsValueTree() const
     saveAttribute(Delay, "Delay");
     saveAttribute(Width, "Width");
 	saveAttribute(Balance, "Balance");
+	saveAttribute(InvertPolarity, "InvertPolarity");
 
 	return v;
 }
@@ -195,6 +200,9 @@ ProcessorEditorBody *GainEffect::createEditor(ProcessorEditor *parentEditor)
 
 void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
+	if (invertPolarity)
+		buffer.applyGain(-1.0f);
+
 	const int samplesToCopy = numSamples;
 	const int startIndex = startSample;
 
@@ -320,4 +328,104 @@ ProcessorEditorBody * EmptyFX::createEditor(ProcessorEditor *parentEditor)
 
 #endif
 }
+
+#if USE_BACKEND
+
+class MetronomeEditorBody : public ProcessorEditorBody,
+							public ComboBoxListener
+{
+public:
+
+	MetronomeEditorBody(ProcessorEditor* parentEditor) :
+		ProcessorEditorBody(parentEditor),
+		enableButton("Enabled"),
+		gainSlider("Volume"),
+		noiseSlider("Noise")
+	{
+		addAndMakeVisible(enableButton);
+		enableButton.setup(getProcessor(), MidiMetronome::Enabled, "Enabled");
+		addAndMakeVisible(midiPlayerSelector);
+		getProcessor()->getMainController()->skin(midiPlayerSelector);
+
+		midiPlayerSelector.setTextWhenNothingSelected("Select MIDI Player");
+
+		auto list = ProcessorHelpers::getListOfAllProcessors<MidiPlayer>(getProcessor()->getMainController()->getMainSynthChain());
+
+		gainSlider.setup(getProcessor(), MidiMetronome::Volume, "Volume");
+		gainSlider.setMode(HiSlider::Mode::Decibel);
+		noiseSlider.setup(getProcessor(), MidiMetronome::NoiseAmount, "Noise");
+		noiseSlider.setMode(HiSlider::NormalizedPercentage);
+
+		noiseSlider.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+		noiseSlider.setTextBoxStyle(Slider::TextBoxRight, false, 80, 20);
+
+		gainSlider.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+		gainSlider.setTextBoxStyle(Slider::TextBoxRight, false, 80, 20);
+
+		addAndMakeVisible(gainSlider);
+		addAndMakeVisible(noiseSlider);
+
+		int index = 1;
+
+		for (auto l : list)
+		{
+			midiPlayerSelector.addItem(l->getId(), index++);
+		}
+
+		midiPlayerSelector.addListener(this);
+
+	}
+
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+	{
+		dynamic_cast<MidiMetronome*>(getProcessor())->connectToPlayer(midiPlayerSelector.getText());
+	}
+
+	void updateGui() override
+	{
+		enableButton.updateValue();
+		gainSlider.updateValue();
+		noiseSlider.updateValue();
+
+		midiPlayerSelector.setText(dynamic_cast<MidiMetronome*>(getProcessor())->getConnectedId(), dontSendNotification);
+	}
+
+	int getBodyHeight() const override { return 48; };
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		enableButton.setBounds(b.removeFromLeft(130).reduced(8));
+		b.removeFromLeft(20);
+		midiPlayerSelector.setBounds(b.removeFromLeft(150).reduced(8));
+		b.removeFromLeft(20);
+		gainSlider.setBounds(b.removeFromLeft(120));
+		b.removeFromLeft(10);
+		noiseSlider.setBounds(b.removeFromLeft(120));
+	}
+
+	HiToggleButton enableButton;
+	HiSlider gainSlider;
+	HiSlider noiseSlider;
+	ComboBox midiPlayerSelector;
+};
+
+#endif
+
+hise::ProcessorEditorBody * MidiMetronome::createEditor(ProcessorEditor *parentEditor)
+{
+
+#if USE_BACKEND
+
+	return new MetronomeEditorBody(parentEditor);
+
+#else 
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
+	return nullptr;
+
+#endif
+}
+
 } // namespace hise
