@@ -79,11 +79,6 @@ public:
 		return nextIndexToDisplay;
 	}
 
-	void clearDisplayIndex()
-	{
-		nextIndexToDisplay = -1;
-	}
-
 	void swapData(Array<var> &otherData)
 	{
 		{
@@ -96,8 +91,11 @@ public:
 
 	void setDisplayedIndex(int index)
 	{
-		nextIndexToDisplay = index;
-		sendPooledChangeMessage();
+		if (index != nextIndexToDisplay)
+		{
+			nextIndexToDisplay = index;
+			sendPooledChangeMessage();
+		}
 	}
 
 	const float* getCachedData()
@@ -313,6 +311,8 @@ public:
     }
     
 private:
+
+	int currentDisplayIndex = -1;
 
 	int getSliderIndexForMouseEvent(const MouseEvent& e);
     

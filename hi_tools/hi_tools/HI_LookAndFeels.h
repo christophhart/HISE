@@ -1263,6 +1263,21 @@ public:
 
 	};
 
+	void drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label)
+	{
+		g.setColour(box.findColour(HiseColourScheme::ColourIds::ComponentTextColourId).withMultipliedAlpha(0.5f));
+
+		auto font = label.getLookAndFeel().getLabelFont(label);
+
+		g.setFont(font);
+
+		auto textArea = label.getLocalBounds();
+
+		g.drawFittedText(box.getTextWhenNothingSelected(), textArea, label.getJustificationType(),
+			jmax(1, (int)(textArea.getHeight() / font.getHeight())),
+			label.getMinimumHorizontalScale());
+	}
+
 	int getSliderThumbRadius(Slider& ) override { return 0; }
 
 	void drawLinearSlider (Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPos*/, float minSliderPos, float maxSliderPos, const Slider::SliderStyle style, Slider &s) override

@@ -182,6 +182,9 @@ private:
 
 		for (int i = 0; i < tree.getNumChildren(); ++i)
 		{
+			if (content == nullptr)
+				break;
+
 			auto scli = new ScriptComponentListItem(tree.getChild(i), undoManager, content, searchTerm);
 
 			addSubItem(scli);

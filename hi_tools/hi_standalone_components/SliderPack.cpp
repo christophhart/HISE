@@ -321,11 +321,7 @@ void SliderPack::changeListenerCallback(SafeChangeBroadcaster *)
 
 	const int displayIndex = data->getNextIndexToDisplay();
 
-	if (displayIndex != -1)
-	{
-		setDisplayedIndex(displayIndex);
-		data->clearDisplayIndex();
-	}
+	setDisplayedIndex(displayIndex);
 
 	update();
 }
@@ -641,8 +637,12 @@ void SliderPack::setValuesFromLine()
 
 void SliderPack::setDisplayedIndex(int displayIndex)
 {
-	displayAlphas.set(displayIndex, 0.4f);
-	startTimer(30);
+	if (currentDisplayIndex != displayIndex)
+	{
+		currentDisplayIndex = displayIndex;
+		displayAlphas.set(displayIndex, 0.4f);
+		startTimer(30);
+	}
 }
 
 void SliderPack::timerCallback()

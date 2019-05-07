@@ -129,6 +129,14 @@ void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 	
 	addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
+	for (auto c : getChildren())
+	{
+		if (auto button = dynamic_cast<Button*>(c))
+		{
+			button->addListener(this);
+		}
+	}
+
 }
 
 bool DialogWindowWithBackgroundThread::threadShouldExit() const

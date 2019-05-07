@@ -229,6 +229,8 @@ void ApiClass::addFunction(const Identifier &id, call0 newFunction)
 			return;
 		}
 	}
+
+	jassertfalse;
 }
 
 void ApiClass::addFunction1(const Identifier &id, call1 newFunction)
@@ -242,6 +244,8 @@ void ApiClass::addFunction1(const Identifier &id, call1 newFunction)
 			return;
 		}
 	}
+
+	jassertfalse;
 }
 
 void ApiClass::addFunction2(const Identifier &id, call2 newFunction)
@@ -255,6 +259,8 @@ void ApiClass::addFunction2(const Identifier &id, call2 newFunction)
 			return;
 		}
 	}
+
+	jassertfalse;
 }
 
 void ApiClass::addFunction3(const Identifier &id, call3 newFunction)
@@ -268,6 +274,8 @@ void ApiClass::addFunction3(const Identifier &id, call3 newFunction)
 			return;
 		}
 	}
+
+	jassertfalse;
 }
 
 void ApiClass::addFunction4(const Identifier &id, call4 newFunction)
@@ -281,6 +289,8 @@ void ApiClass::addFunction4(const Identifier &id, call4 newFunction)
 			return;
 		}
 	}
+
+	jassertfalse;
 }
 
 void ApiClass::addFunction5(const Identifier &id, call5 newFunction)
@@ -294,6 +304,8 @@ void ApiClass::addFunction5(const Identifier &id, call5 newFunction)
 			return;
 		}
 	}
+
+	jassertfalse;
 }
 
 void ApiClass::getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const

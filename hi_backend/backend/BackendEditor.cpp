@@ -626,8 +626,11 @@ public:
                 auto editorOfParent = rootContainer->getFirstEditorOf(root->getMainSynthChain());
                 auto editorOfChain = rootContainer->getFirstEditorOf(midiChain);
                 
-                editorOfParent->getChainBar()->refreshPanel();
-                editorOfParent->sendResizedMessage();
+				if (editorOfParent != nullptr)
+				{
+					editorOfParent->getChainBar()->refreshPanel();
+					editorOfParent->sendResizedMessage();
+				}
                 
                 if(editorOfChain != nullptr)
                 {

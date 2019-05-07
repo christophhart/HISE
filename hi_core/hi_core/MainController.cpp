@@ -799,7 +799,7 @@ void MainController::skin(Component &c)
     c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
     c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 	c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
-
+	
 
 #if 0
     if(dynamic_cast<Slider*>(&c) != nullptr) 

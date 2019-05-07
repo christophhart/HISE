@@ -391,7 +391,6 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 	editorStateIdentifiers.add("onControlOpen");
 	editorStateIdentifiers.add("externalPopupShown");
 
-
 	getMatrix().setNumAllowedConnections(NUM_MAX_CHANNELS);
 
 	for (int i = 0; i < NUM_MAX_CHANNELS; i++)
@@ -592,10 +591,10 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 }
 
 JavascriptVoiceStartModulator::JavascriptVoiceStartModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
-VoiceStartModulator(mc, id, voiceAmount, m),
-Modulation(m),
 JavascriptProcessor(mc),
-ProcessorWithScriptingContent(mc)
+ProcessorWithScriptingContent(mc),
+VoiceStartModulator(mc, id, voiceAmount, m),
+Modulation(m)
 {
 	initContent();
 
@@ -718,8 +717,6 @@ const JavascriptProcessor::SnippetDocument * JavascriptVoiceStartModulator::getS
 
 void JavascriptVoiceStartModulator::registerApiClasses()
 {
-	content = new ScriptingApi::Content(this);
-
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
@@ -846,7 +843,9 @@ void JavascriptTimeVariantModulator::prepareToPlay(double sampleRate, int sample
 {
 	TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
 
-	buffer->referToData(internalBuffer.getWritePointer(0), samplesPerBlock);
+	if(internalBuffer.getNumChannels() > 0)
+		buffer->referToData(internalBuffer.getWritePointer(0), samplesPerBlock);
+
 	bufferVar = var(buffer);
 
 	if (!prepareToPlayCallback->isSnippetEmpty())
@@ -911,8 +910,6 @@ const JavascriptProcessor::SnippetDocument * JavascriptTimeVariantModulator::get
 
 void JavascriptTimeVariantModulator::registerApiClasses()
 {
-	content = new ScriptingApi::Content(this);
-
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));
@@ -1173,8 +1170,6 @@ const JavascriptProcessor::SnippetDocument * JavascriptEnvelopeModulator::getSni
 
 void JavascriptEnvelopeModulator::registerApiClasses()
 {
-	content = new ScriptingApi::Content(this);
-
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, dynamic_cast<ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true)));

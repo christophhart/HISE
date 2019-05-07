@@ -3599,7 +3599,7 @@ ScriptingObject(p),
 asyncRebuildBroadcaster(*this),
 updateDispatcher(p->getMainController_()),
 height(50),
-width(-1),
+width(600),
 name(String()),
 allowGuiCreation(true),
 colour(Colour(0xff777777))
