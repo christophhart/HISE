@@ -275,42 +275,43 @@ void HiSliderPropertyComponent::updateRange()
 	static const Identifier w("width");
 	static const Identifier h("height");
 
-	ScriptComponent* sc = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection();
-
-	int maxWidth = sc->parent->getContentWidth();
-	int maxHeight = sc->parent->getContentHeight();
-
-	auto parent = sc->getParentScriptComponent();
-
-	if (parent != nullptr)
+	if (auto sc = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection())
 	{
-		maxWidth = parent->getScriptObjectProperty(ScriptComponent::Properties::width);
-		maxHeight = parent->getScriptObjectProperty(ScriptComponent::Properties::height);
-	}
+		int maxWidth = sc->parent->getContentWidth();
+		int maxHeight = sc->parent->getContentHeight();
 
-	int range;
+		auto parent = sc->getParentScriptComponent();
 
-	if (getId() == w)
-	{
-		range = maxWidth - (int)sc->getScriptObjectProperty(ScriptComponent::Properties::x);
-	}
-	else if (getId() == h)
-	{
-		range = maxHeight - (int)sc->getScriptObjectProperty(ScriptComponent::Properties::y);
-	}
-	else if (getId() == x)
-	{
-		range = maxWidth - (int)sc->getScriptObjectProperty(ScriptComponent::Properties::width);
-	}
-	else
-	{
-		range = maxHeight - (int)sc->getScriptObjectProperty(ScriptComponent::Properties::height);
-	}
+		if (parent != nullptr)
+		{
+			maxWidth = parent->getScriptObjectProperty(ScriptComponent::Properties::width);
+			maxHeight = parent->getScriptObjectProperty(ScriptComponent::Properties::height);
+		}
 
-	if (oldRange != range)
-	{
-		comp.slider.setRange(0.0, (double)range, 1);
-		comp.slider.repaint();
+		int range;
+
+		if (getId() == w)
+		{
+			range = maxWidth - (int)sc->getScriptObjectProperty(ScriptComponent::Properties::x);
+		}
+		else if (getId() == h)
+		{
+			range = maxHeight - (int)sc->getScriptObjectProperty(ScriptComponent::Properties::y);
+		}
+		else if (getId() == x)
+		{
+			range = maxWidth - (int)sc->getScriptObjectProperty(ScriptComponent::Properties::width);
+		}
+		else
+		{
+			range = maxHeight - (int)sc->getScriptObjectProperty(ScriptComponent::Properties::height);
+		}
+
+		if (oldRange != range)
+		{
+			comp.slider.setRange(0.0, (double)range, 1);
+			comp.slider.repaint();
+		}
 	}
 }
 
@@ -563,23 +564,20 @@ HiFilePropertyComponent::HiFilePropertyComponent(const Identifier& id, ScriptCom
 
 void HiFilePropertyComponent::refresh()
 {
-	auto sc = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection();
-
-	auto newVar = getCurrentPropertyValue();
-
-	combinedComponent.box.clear(dontSendNotification);
-	auto sa = sc->getOptionsFor(getId());
-	combinedComponent.box.addItemList(sa, 1);
-
-	if (newVar.isUndefined())
+	if (auto sc = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection())
 	{
-		combinedComponent.box.setText("*", dontSendNotification);
-	}
-	else
-	{
-		combinedComponent.box.setText(newVar.toString(), dontSendNotification);
-	}
+		auto newVar = getCurrentPropertyValue();
 
+		combinedComponent.box.clear(dontSendNotification);
+		auto sa = sc->getOptionsFor(getId());
+		combinedComponent.box.addItemList(sa, 1);
+
+		if (newVar.isUndefined())
+			combinedComponent.box.setText("*", dontSendNotification);
+		else
+			combinedComponent.box.setText(newVar.toString(), dontSendNotification);
+	}
+	
 	repaint();
 }
 
@@ -734,9 +732,10 @@ void HiPropertyComponent::Overlay::buttonClicked(Button* /*b*/)
 
 	ScriptComponentEditBroadcaster* br = findParentComponentOfClass<ScriptComponentEditPanel>()->getScriptComponentEditBroadcaster();
 
-	auto sc = br->getFirstFromSelection();
+	if (auto sc = br->getFirstFromSelection())
+		ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(sc, id);
 
-	ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(sc, id);
+	
 }
 
 
