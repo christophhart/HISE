@@ -420,18 +420,8 @@ private:
 	
 	float predelayMs = 0.0f;
 
-#if USE_FFT_CONVOLVER
-
 	ScopedPointer<MultithreadedConvolver> convolverL;
 	ScopedPointer<MultithreadedConvolver> convolverR;
-
-#else
-
-	struct WdlPimpl;
-
-	ScopedPointer<WdlPimpl> wdlPimpl;
-
-#endif
 
 	double cutoffFrequency = 20000.0;
 
@@ -444,9 +434,7 @@ private:
 	/** Adds a 2-Pole Lowpass with an exponential curve to the impulse response. */
 	static void applyHighFrequencyDamping(AudioSampleBuffer& buffer, int numSamples, double cutoffFrequency, double sampleRate);
 
-
 	void calcCutoff();
-	
 };
 
 

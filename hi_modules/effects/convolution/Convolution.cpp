@@ -108,6 +108,7 @@ void ConvolutionEffect::createEngine(audiofft::ImplementationType fftType)
 
 void ConvolutionEffect::setImpulse()
 {
+	enableProcessing(false);
 	loadingThread.reloadImpulse();
 }
 
@@ -119,7 +120,7 @@ float ConvolutionEffect::getAttribute(int parameterIndex) const
 	case WetGain:		return Decibels::gainToDecibels(wetGain);
 	case Latency:		return (float)latency;
 	case ImpulseLength:	return 1.0f;
-	case ProcessInput:	return processFlag ? 1.0f : 0.0f;
+	case ProcessInput:	return processingEnabled ? 1.0f : 0.0f;
 	case UseBackgroundThread:	return convolverL->isUsingBackgroundThread() ? 1.0f : 0.0f;
 	case Predelay:		return predelayMs;
 	case HiCut:			return (float)cutoffFrequency;
@@ -145,7 +146,9 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 		break;
 	case ImpulseLength:	setImpulse();
 		break;
-	case ProcessInput:	enableProcessing(newValue >= 0.5f); break;
+	case ProcessInput:	processingEnabled = newValue >= 0.5f;
+						enableProcessing(processingEnabled); 
+						break;
 	case UseBackgroundThread:	convolverL->setUseBackgroundThread(newValue > 0.5f);
 								convolverR->setUseBackgroundThread(newValue > 0.5f);
 								break;
@@ -257,11 +260,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 	float *r = buffer.getWritePointer(1, 0);
 
 	float *channels[2] = { l, r };
-
 	
 	isCurrentlyProcessing.store(true);
-
-	ScopedLock sl(getImpulseLock());
 
 	if (isReloading || (!processFlag && !rampFlag))
 	{
@@ -276,30 +276,56 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		return;
 	}
 
-	const int availableSamples = numSamples;
+	ScopedTryLock sl2(getImpulseLock());
 
-	
+	if (!sl2.isLocked())
+		jassertfalse;
+
+	ScopedLock sl(getImpulseLock());
+
+	const int availableSamples = numSamples;
 
 	if (availableSamples > 0)
 	{
+        float* convolutedL = wetBuffer.getWritePointer(0);
+        float* convolutedR = wetBuffer.getWritePointer(1);
 
-        float* convolutedL = wetBuffer.getWritePointer(0);//reinterpret_cast<float*>(alloca(sizeof(float) * numSamples));
-        float* convolutedR = wetBuffer.getWritePointer(1);//reinterpret_cast<float*>(alloca(sizeof(float) * numSamples));
+		if (smoothInputBuffer)
+		{
+			auto smoothed_input_l = (float*)alloca(sizeof(float)*numSamples);
+			auto smoothed_input_r = (float*)alloca(sizeof(float)*numSamples);
 
-		//memset(convolutedL, 0, sizeof(float)*numSamples);
-		//memset(convolutedR, 0, sizeof(float)*numSamples);
+			int numToDo = numSamples;
 
-		if (convolverL != nullptr)
-			convolverL->process(l, convolutedL, numSamples);
+			float s_gain = 0.0f;
+			float s_step = 1.0f / (float)numSamples;
 
-		if(convolverR != nullptr)
-			convolverR->process(r, convolutedR, numSamples);
+			for (int i = 0; i < numSamples; i++)
+			{
+				smoothed_input_l[i] = s_gain * l[i];
+				smoothed_input_r[i] = s_gain * r[i];
+
+				s_gain += s_step;
+			}
+			
+			if (convolverL != nullptr)
+				convolverL->process(smoothed_input_l, convolutedL, numSamples);
+
+			if (convolverR != nullptr)
+				convolverR->process(smoothed_input_r, convolutedR, numSamples);
+
+			smoothInputBuffer = false;
+		}
+		else
+		{
+			if (convolverL != nullptr)
+				convolverL->process(l, convolutedL, numSamples);
+
+			if (convolverR != nullptr)
+				convolverR->process(r, convolutedR, numSamples);
+		}
 		
-		
-
 		smoothedGainerDry.processBlock(channels, 2, numSamples);
-
-		
 
 #if ENABLE_ALL_PEAK_METERS
 		currentValues.inL = FloatVectorOperations::findMaximum(l, numSamples);
@@ -367,9 +393,6 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 			FloatVectorOperations::addWithMultiply(l, wetBuffer.getReadPointer(0), 0.5f, availableSamples);
 			FloatVectorOperations::addWithMultiply(r, wetBuffer.getReadPointer(1), 0.5f, availableSamples);
-
-
-
 		}
 	}
 
@@ -402,6 +425,9 @@ void ConvolutionEffect::enableProcessing(bool shouldBeProcessed)
 		ScopedLock sl(getImpulseLock());
 
 		processFlag = shouldBeProcessed;
+
+		if (processFlag)
+			smoothInputBuffer = true;
 
 		rampFlag = true;
 		rampUp = shouldBeProcessed;
@@ -544,19 +570,32 @@ void ConvolutionEffect::LoadingThread::run()
 {
 	while (!threadShouldExit())
 	{
-		while(shouldReload)
+		bool doSomething = pending && parent.rampFlag == false ||
+						   shouldRestart;
+
+		if (doSomething)
 		{
-			ScopedValueSetter<bool> ss(isReloading, true);
+			ScopedLock sl(parent.getImpulseLock());
+
+			ScopedValueSetter<bool> svs(parent.isReloading, true);
+
+			parent.convolverL->reset();
+			parent.convolverR->reset();
+			
+			if (reloadInternal())
+			{
+				pending = false;
+			}
+
 			shouldRestart = false;
-			reloadInternal();
 		}
 
-		wait(500);
+		wait(100);
 	}
 	
 }
 
-void ConvolutionEffect::LoadingThread::reloadInternal()
+bool ConvolutionEffect::LoadingThread::reloadInternal()
 {
 	if (parent.getSampleBuffer() == nullptr || parent.getSampleBuffer()->getNumChannels() == 0)
 	{
@@ -564,11 +603,8 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 
 		parent.convolverL->reset();
 		parent.convolverR->reset();
-		shouldReload = false;
-		return;
+		return true;
 	}
-
-	ScopedValueSetter<bool> s(parent.isReloading, true);
 
 	auto pBuffer = *parent.getSampleBuffer();
 
@@ -578,11 +614,7 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 	copyBuffer.copyFrom(1, 0, pBuffer.getReadPointer(pBuffer.getNumChannels() >= 2 ? 1 : 0), pBuffer.getNumSamples(), 1.0f);
 
 	if (shouldRestart)
-	{
-		shouldReload = true;
-		return;
-	}
-	
+		return false;
 
 	const auto offset = parent.getRange().getStart();
 	const auto irLength = parent.getRange().getLength();
@@ -600,11 +632,7 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 	AudioSampleBuffer scratchBuffer(2, resampledLength);
 
 	if (shouldRestart)
-	{
-		shouldReload = true;
-		return;
-	}
-		
+		return false;
 
 	if (resampleRatio != 1.0)
 	{
@@ -620,29 +648,19 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 	}
 
 	if (shouldRestart)
-	{
-		shouldReload = true;
-		return;
-	}
+		return false;
 
 	if (parent.damping != 1.0f)
 		applyExponentialFadeout(scratchBuffer, resampledLength, parent.damping);
 
 	if (shouldRestart)
-	{
-		shouldReload = true;
-		return;
-	}
+		return false;
 
 	if (parent.cutoffFrequency != 20000.0)
 		applyHighFrequencyDamping(scratchBuffer, resampledLength, parent.cutoffFrequency, parent.getSampleRate());
 
 	if (shouldRestart)
-	{
-		shouldReload = true;
-		return;
-	}
-
+		return false;
 
 	const auto headSize = nextPowerOfTwo(parent.getLargestBlockSize());
 	const auto fullTailLength = nextPowerOfTwo(resampledLength - headSize);
@@ -652,20 +670,17 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 	parent.convolverL->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
 
 	if (shouldRestart)
-	{
-		shouldReload = true;
-		return;
-	}
+		return false;
+
 
 	parent.convolverR->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);
 
 	if (shouldRestart)
-	{
-		shouldReload = true;
-		return;
-	}
+		return false;
 
-	shouldReload = false;
+	parent.enableProcessing(parent.processingEnabled);
+
+	return true;
 }
 
 } // namespace hise
