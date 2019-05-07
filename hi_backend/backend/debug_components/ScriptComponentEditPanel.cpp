@@ -101,7 +101,7 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(MainController* mc_, Processo
 	addAndMakeVisible(copyButton = new ShapeButton("Copy", normal, over, down));
 	copyButton->setShape(f.createPath("Copy"), true, true, true);
 	copyButton->addListener(this);
-	copyButton->setTooltip("Copy the selected properties");
+	copyButton->setTooltip("Copy selected properties as JSON");
 
 	addAndMakeVisible(pasteButton = new ShapeButton("Paste", normal, over, down));
 	pasteButton->setShape(f.createPath("Paste"), true, true, true);

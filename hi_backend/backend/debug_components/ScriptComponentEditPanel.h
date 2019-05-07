@@ -68,7 +68,7 @@ public:
 			LOAD_PATH_IF_URL("copy", SampleMapIcons::copySamples);
 			LOAD_PATH_IF_URL("paste", SampleMapIcons::pasteSamples);
 			
-			return Path();
+			return p;
 		}
 	};
 
