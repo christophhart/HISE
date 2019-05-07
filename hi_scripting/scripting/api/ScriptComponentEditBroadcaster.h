@@ -239,6 +239,8 @@ public:
 
 	void undo(bool shouldUndo);
 
+	void showJSONEditor(Component* t);
+
 	
 	class PropertyChange : public UndoableAction
 	{

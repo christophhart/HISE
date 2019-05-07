@@ -409,6 +409,13 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 
 		return true;
 	}
+	else if ((key.isKeyCode('j') || key.isKeyCode('J')))
+	{
+		if(auto d = draggers.getFirst())
+			getScriptComponentEditBroadcaster()->showJSONEditor(d);
+
+		return true;
+	}
 	else if ((keyCode == 'C' || keyCode == 'c') && key.getModifiers().isCommandDown())
 	{
 		auto s = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());

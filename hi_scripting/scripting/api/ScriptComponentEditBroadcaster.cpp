@@ -325,6 +325,63 @@ void ScriptComponentEditBroadcaster::undo(bool shouldUndo)
 	}
 }
 
+void ScriptComponentEditBroadcaster::showJSONEditor(Component* t)
+{
+	ScriptingApi::Content* content = nullptr;
+
+	if (auto sc = getFirstFromSelection())
+		content = sc->getScriptProcessor()->getScriptingContent();
+	else
+		return;
+
+	Array<var> list;
+
+	for (auto sc : getSelection())
+	{
+		auto v = ValueTreeConverters::convertContentPropertiesToDynamicObject(sc->getPropertyValueTree());
+		list.add(v);
+	}
+
+	JSONEditor* editor = new JSONEditor(var(list));
+
+	editor->setEditable(true);
+
+	auto callback = [content, this](const var& newData)
+	{
+		if (auto ar = newData.getArray())
+		{
+			auto selection = this->getSelection();
+
+			jassert(ar->size() == selection.size());
+
+			auto undoManager = &this->getUndoManager();
+
+			ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
+
+			undoManager->beginNewTransaction("Raw JSON Edit");
+
+			for (int i = 0; i < selection.size(); i++)
+			{
+				auto sc = selection[i];
+
+				auto newJson = ar->getUnchecked(i);
+
+				ScriptingApi::Content::Helpers::setComponentValueTreeFromJSON(content, sc->name, newJson, undoManager);
+			}
+		}
+
+		return;
+	};
+
+	editor->setCallback(callback, true);
+	editor->setName("Editing JSON");
+	editor->setSize(400, 400);
+
+	t->findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(editor, t, t->getLocalBounds().getCentre());
+
+	editor->grabKeyboardFocus();
+}
+
 String ScriptComponentEditBroadcaster::getTransactionName(ScriptComponent* sc, const Identifier& id, const var& newValue)
 {
 	String p;

@@ -712,9 +712,11 @@ void ScriptComponentList::resized()
 
 #undef ADD_SCRIPT_COMPONENT
 
+
+
 bool ScriptComponentList::keyPressed(const KeyPress& key)
 {
-	if (key == KeyPress::deleteKey)
+	if (key == KeyPress::deleteKey || key == KeyPress::backspaceKey)
 	{
 		deleteSelectedItems();
 		return true;
@@ -741,59 +743,7 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 	}
 	if ((key.isKeyCode('j') || key.isKeyCode('J')) )
 	{
-		Array<var> list;
-
-		for (int i = 0; i < tree->getNumSelectedItems(); i++)
-		{
-			auto t = static_cast<ScriptComponentListItem*>(tree->getSelectedItem(i))->tree;
-			auto v = ValueTreeConverters::convertContentPropertiesToDynamicObject(t);
-			list.add(v);
-		}
-
-		JSONEditor* editor = new JSONEditor(var(list));
-
-		editor->setEditable(true);
-
-		auto& tmpContent = content;
-
-		auto callback = [tmpContent, this](const var& newData)
-		{
-			auto b = this->getScriptComponentEditBroadcaster();
-
-			if (auto ar = newData.getArray())
-			{
-				auto selection = b->getSelection();
-
-				jassert(ar->size() == selection.size());
-
-				auto undoManager = &b->getUndoManager();
-
-				ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
-
-				undoManager->beginNewTransaction("Raw JSON Edit");
-
-				for (int i = 0; i < selection.size(); i++)
-				{
-					auto sc = selection[i];
-
-					auto newJson = ar->getUnchecked(i);
-
-					ScriptingApi::Content::Helpers::setComponentValueTreeFromJSON(content, sc->name, newJson, undoManager);
-				}
-			}
-
-
-
-			return;
-		};
-
-		editor->setCallback(callback, true);
-		editor->setName("Editing JSON");
-		editor->setSize(400, 400);
-
-		findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(editor, this, getLocalBounds().getCentre());
-
-		editor->grabKeyboardFocus();
+		getScriptComponentEditBroadcaster()->showJSONEditor(this);
 
 		return true;
 	}
