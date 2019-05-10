@@ -112,6 +112,7 @@ void AlertWindow::addButton (const String& name,
     b->addShortcut (shortcutKey1);
     b->addShortcut (shortcutKey2);
     b->onClick = [this, b] { exitAlert (b); };
+	b->addListener(this);
 
     Array<TextButton*> buttonsArray (buttons.begin(), buttons.size());
     auto& lf = getLookAndFeel();

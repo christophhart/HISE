@@ -42,7 +42,8 @@ namespace juce
 
     @tags{GUI}
 */
-class JUCE_API  AlertWindow  : public TopLevelWindow
+class JUCE_API  AlertWindow  : public TopLevelWindow,
+							   public Button::Listener
 {
 public:
     //==============================================================================
@@ -189,6 +190,8 @@ public:
                                 got. The value should be in the range 0 to 1.0
     */
     void addProgressBarComponent (double& progressValue);
+
+	void buttonClicked(Button* b) override {};
 
     //==============================================================================
     /** Adds a user-defined component to the dialog box.

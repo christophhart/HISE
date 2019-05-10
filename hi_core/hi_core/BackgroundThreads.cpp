@@ -123,20 +123,9 @@ void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 	addProgressBarComponent(logData.progress);
 	
 	if (addOKButton)
-	{
 		addButton("OK", 1, KeyPress(KeyPress::returnKey));
-	}
 	
 	addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
-
-	for (auto c : getChildren())
-	{
-		if (auto button = dynamic_cast<Button*>(c))
-		{
-			button->addListener(this);
-		}
-	}
-
 }
 
 bool DialogWindowWithBackgroundThread::threadShouldExit() const
