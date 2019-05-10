@@ -95,6 +95,7 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	parameterNames.add("LimitInput");
 	parameterNames.add("Drive");
 	parameterNames.add("Mix");
+	parameterNames.add("BypassFilters");
 
 #if HI_USE_SHAPE_FX_SCRIPTING
 	setupApi();
@@ -147,6 +148,7 @@ void ShapeFX::setInternalAttribute(int parameterIndex, float newValue)
 	case LimitInput: limitInput = newValue > 0.5f; break;
 	case Drive: drive = newValue; break;
 	case Mix: mix = newValue; updateMix(); break;
+	case BypassFilters:	bypassFilters = newValue > 0.5f; break;
 	default:  jassertfalse;
 	}
 }
@@ -167,6 +169,7 @@ float ShapeFX::getAttribute(int parameterIndex) const
 	case LimitInput: return limitInput ? 1.0f : 0.0f;
 	case Drive: return drive;
 	case Mix: return mix;
+	case BypassFilters: return bypassFilters ? 1.0f : 0.0f;
 	default:  return 0.0f;
 	}
 }
@@ -187,6 +190,7 @@ float ShapeFX::getDefaultValue(int parameterIndex) const
 	case LimitInput: return (float)true;
 	case Drive: return 0.0f;
 	case Mix: return 1.0f;
+	case BypassFilters: return 0.0f;
 	default:  return 0.0f;
 	}
 }
@@ -215,6 +219,7 @@ juce::ValueTree ShapeFX::exportAsValueTree() const
 	saveAttribute(LimitInput, "LimitInput");
 	saveAttribute(Drive, "Drive");
 	saveAttribute(Mix, "Mix");
+	saveAttribute(BypassFilters, "BypassFilters");
 
 	return v;
 }
@@ -243,6 +248,7 @@ void ShapeFX::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(LimitInput, "LimitInput");
 	loadAttribute(Drive, "Drive");
 	loadAttribute(Mix, "Mix");
+	loadAttributeWithDefault(BypassFilters);
 }
 
 hise::Table* ShapeFX::getTable(int /*tableIndex*/) const
@@ -292,7 +298,6 @@ void ShapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 	mixSmootherR.reset(sampleRate, 0.04);
 	mixSmoother_invR.reset(sampleRate, 0.04);
 
-
 	lDelay.prepareToPlay(sampleRate);
 	rDelay.prepareToPlay(sampleRate);
 
@@ -313,8 +318,6 @@ void ShapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	lDcRemover.setCoefficients(dcCoeffs);
 	rDcRemover.setCoefficients(dcCoeffs);
-
-	
 
 	limiter.setSampleRate(sampleRate);
 	limiter.setAttack(0.03);
@@ -556,11 +559,14 @@ void ShapeFX::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 	mixSmoother_invL.applyGain(dryL, numSamples);
 	mixSmoother_invR.applyGain(dryR, numSamples);
 
-	lHighPass.processSamples(wetL, numSamples);
-	rHighPass.processSamples(wetR, numSamples);
-	
-	lLowPass.processSamples(wetL, numSamples);
-	rLowPass.processSamples(wetR, numSamples);
+	if (!bypassFilters)
+	{
+		lHighPass.processSamples(wetL, numSamples);
+		rHighPass.processSamples(wetR, numSamples);
+
+		lLowPass.processSamples(wetL, numSamples);
+		rLowPass.processSamples(wetR, numSamples);
+	}
 	
 	gainer.processBlock(wetL, wetR, numSamples);
 
@@ -613,9 +619,11 @@ void ShapeFX::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 		processBitcrushedValues(wetL, wetR, numSamples);
 	}
 
-	
-	lDcRemover.processSamples(wetL, numSamples);
-	rDcRemover.processSamples(wetR, numSamples);
+	if (!bypassFilters)
+	{
+		lDcRemover.processSamples(wetL, numSamples);
+		rDcRemover.processSamples(wetR, numSamples);
+	}
 
 	if (autogain)
 		autogainer.processBlock(wetL, wetR, numSamples);

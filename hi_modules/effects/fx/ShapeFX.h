@@ -176,6 +176,7 @@ public:
 		LimitInput,
 		Drive,
 		Mix,
+		BypassFilters,
 		numParameters
 	};
 
@@ -319,6 +320,8 @@ private:
 	bool autogain;
 
 	float biasLeft, biasRight, drive, lowpass, highpass, reduce, mix, gain, autogainValue;
+
+	bool bypassFilters = false;
 
 	int oversampleFactor = 1;
 
