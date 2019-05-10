@@ -86,6 +86,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("SmoothingTime"));
 	parameterNames.add(Identifier("NumSteps"));
 	parameterNames.add(Identifier("LoopEnabled"));
+	parameterNames.add(Identifier("PhaseOffset"));
 
 	frequencyUpdater.setManualCountLimit(4096/HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 
@@ -163,6 +164,7 @@ void LfoModulator::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(FadeIn, "FadeIn");
 	loadAttribute(WaveFormType, "WaveformType");
 	loadAttribute(Legato, "Legato");
+	loadAttributeWithDefault(PhaseOffset);
 
 	loadAttribute(SmoothingTime, "SmoothingTime");
 
@@ -185,6 +187,7 @@ juce::ValueTree LfoModulator::exportAsValueTree() const
 	saveAttribute(TempoSync, "TempoSync");
 	saveAttribute(SmoothingTime, "SmoothingTime");
 	saveAttribute(LoopEnabled, "LoopEnabled");
+	saveAttribute(PhaseOffset, "PhaseOffset");
 
 	saveTable(customTable, "CustomWaveform");
 
@@ -231,6 +234,8 @@ float LfoModulator::getDefaultValue(int parameterIndex) const
 		return 16.0f;
 	case Parameters::LoopEnabled:
 		return true;
+	case Parameters::PhaseOffset:
+		return 0.0;
 	default:
 		jassertfalse;
 		return -1.0f;
@@ -257,6 +262,8 @@ float LfoModulator::getAttribute(int parameter_index) const
 		return (float)data->getNumSliders();
 	case Parameters::LoopEnabled:
 		return loopEnabled ? 1.0f : 0.0f;
+	case Parameters::PhaseOffset:
+		return (float)phaseOffset; 
 	default: 
 		jassertfalse;
 		return -1.0f;
@@ -304,6 +311,8 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 	case Parameters::LoopEnabled:
 		loopEnabled = newValue > 0.5f;
 		break;
+	case Parameters::PhaseOffset:
+		phaseOffset = (double)newValue; break;
 	default: 
 		jassertfalse;
 	}
@@ -553,7 +562,7 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 	{
 		if(legato == false || keysPressed == 0)
 		{
-			uptime = 0.0;
+			uptime = phaseOffset * (double)SAMPLE_LOOKUP_TABLE_SIZE;
 			lastCycleIndex = 0;
 
 			loopEndValue = -1.0f;

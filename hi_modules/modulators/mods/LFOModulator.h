@@ -97,6 +97,7 @@ public:
 		SmoothingTime, ///< smoothes hard edges of the oscillator
 		NumSteps,
 		LoopEnabled, ///< enables loop mode for the LFO
+		PhaseOffset, ///< the initial phase of the LFO
 		numParameters
 	};
 
@@ -318,6 +319,8 @@ private:
 
 	float currentValue;
 	float loopEndValue = -1.0f;
+
+	double phaseOffset = 0.0f;
 
 	double angleDelta;
 

@@ -7,12 +7,12 @@
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Projucer version: 5.2.0
+  Created with Projucer version: 5.4.3
 
   ------------------------------------------------------------------------------
 
-  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
-  Copyright (c) 2015 - ROLI Ltd.
+  The Projucer is part of the JUCE library.
+  Copyright (c) 2017 - ROLI Ltd.
 
   ==============================================================================
 */
@@ -57,7 +57,7 @@ public:
 
 		auto type = (int)getProcessor()->getAttribute(LfoModulator::WaveFormType);
 
-		
+
 
 		tempoSyncButton->updateValue();
 		retriggerButton->updateValue();
@@ -130,16 +130,17 @@ private:
     //[/UserVariables]
 
     //==============================================================================
-    ScopedPointer<HiSlider> frequencySlider;
-    ScopedPointer<HiSlider> fadeInSlider;
-    ScopedPointer<Label> label;
-    ScopedPointer<HiComboBox> waveFormSelector;
-    ScopedPointer<WaveformComponent> waveformDisplay;
-    ScopedPointer<HiToggleButton> tempoSyncButton;
-    ScopedPointer<HiToggleButton> retriggerButton;
-    ScopedPointer<TableEditor> waveformTable;
-    ScopedPointer<HiSlider> smoothTimeSlider;
-    ScopedPointer<HiToggleButton> loopButton;
+    std::unique_ptr<HiSlider> frequencySlider;
+    std::unique_ptr<HiSlider> fadeInSlider;
+    std::unique_ptr<Label> label;
+    std::unique_ptr<HiComboBox> waveFormSelector;
+    std::unique_ptr<WaveformComponent> waveformDisplay;
+    std::unique_ptr<HiToggleButton> tempoSyncButton;
+    std::unique_ptr<HiToggleButton> retriggerButton;
+    std::unique_ptr<TableEditor> waveformTable;
+    std::unique_ptr<HiSlider> smoothTimeSlider;
+    std::unique_ptr<HiToggleButton> loopButton;
+    std::unique_ptr<HiSlider> phaseSlider;
 
 
     //==============================================================================
@@ -151,3 +152,4 @@ private:
 } // namespace hise
 
 //[/EndFile]
+
