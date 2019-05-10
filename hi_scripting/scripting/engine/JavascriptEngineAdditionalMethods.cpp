@@ -301,7 +301,11 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 
 	try
 	{
-		prepareTimeout();
+		if(!externalFunctionPending)
+			prepareTimeout();
+
+		ScopedValueSetter<bool> svs(externalFunctionPending, true);
+
 		if (result != nullptr) *result = Result::ok();
 
 		RootObject::FunctionObject *fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject());

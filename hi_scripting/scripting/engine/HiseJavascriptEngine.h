@@ -950,7 +950,8 @@ public:
 private:
 
     bool initialising = false;
-            
+	bool externalFunctionPending = false;
+
 	ReferenceCountedObjectPtr<RootObject> root;
 	void prepareTimeout() const noexcept;
 	
