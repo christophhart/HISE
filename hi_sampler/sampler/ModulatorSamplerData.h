@@ -226,6 +226,8 @@ public:
 
 	int getNumRRGroups() const;
 
+	void discardChanges();
+
 	void saveAndReloadMap();
 
 	void suspendInternalTimers(bool shouldBeSuspended)

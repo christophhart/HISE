@@ -346,6 +346,12 @@ int SampleMap::getNumRRGroups() const
 	return (int)getSampler()->getAttribute(ModulatorSampler::RRGroupAmount);
 }
 
+void SampleMap::discardChanges()
+{
+	auto pool = sampler->getMainController()->getCurrentSampleMapPool();
+	pool->loadFromReference(getReference(), PoolHelpers::ForceReloadStrong);
+}
+
 void SampleMap::saveAndReloadMap()
 {
 	auto f = getReference().getFile();
