@@ -879,9 +879,12 @@ void SampleMapEditor::comboBoxChanged(ComboBox* b)
 {
 	auto t = b->getText();
 
-	if (sampler->getSampleMap()->hasUnsavedChanges() && PresetHandler::showYesNoWindow("Save " + sampler->getSampleMap()->getId().toString(), "Do you want to save the current sample map"))
+	if (sampler->getSampleMap()->hasUnsavedChanges())
 	{
-		sampler->getSampleMap()->saveAndReloadMap();
+		if (PresetHandler::showYesNoWindow("Save " + sampler->getSampleMap()->getId().toString(), "Do you want to save the current sample map"))
+			sampler->getSampleMap()->saveAndReloadMap();
+		else
+			sampler->getSampleMap()->discardChanges();
 	}
 
 	PoolReference r(sampler->getMainController(), t, FileHandlerBase::SampleMaps);
