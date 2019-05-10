@@ -379,6 +379,9 @@ void HiseMidiSequence::setPlaybackPosition(double normalisedPosition)
 
 juce::RectangleList<float> HiseMidiSequence::getRectangleList(Rectangle<float> targetBounds) const
 {
+	if (getLength() == 0.0)
+		return {};
+
 	SimpleReadWriteLock::ScopedReadLock sl(swapLock);
 
 	RectangleList<float> list;
@@ -391,21 +394,18 @@ juce::RectangleList<float> HiseMidiSequence::getRectangleList(Rectangle<float> t
 			{
 				auto x = (float)(e->message.getTimeStamp() / getLength());
 				auto w = (float)(e->noteOffObject->message.getTimeStamp() / getLength()) - x;
-				auto y = (float)(127 - e->message.getNoteNumber());
-				auto h = 1.0f;
+				auto y = (float)(127 - e->message.getNoteNumber()) / 128.0f;
+				auto h = 1.0f / 128.0f;
 
 				list.add({ x, y, w, h });
 			}
 		}
 	}
-
+	
 	if (!targetBounds.isEmpty())
 	{
-		auto bounds = list.getBounds();
-		list.offsetAll(0.0f, -bounds.getY());
-		auto scaler = AffineTransform::scale(targetBounds.getWidth() / bounds.getRight(), targetBounds.getHeight() / bounds.getHeight());
+		auto scaler = AffineTransform::scale(targetBounds.getWidth(), targetBounds.getHeight());
 		list.transformAll(scaler);
-		list.offsetAll(0.0f, targetBounds.getY());
 	}
 
 	return list;
