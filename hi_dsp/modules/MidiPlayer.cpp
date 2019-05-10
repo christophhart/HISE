@@ -221,10 +221,12 @@ double HiseMidiSequence::getLength() const
 	if (artificialLengthInQuarters != -1.0)
 		return artificialLengthInQuarters * (double)TicksPerQuarter;
 
-	if (auto currentSequence = sequences.getFirst())
-		return currentSequence->getEndTime();
+	double maxLength = 0.0;
 
-	return 0.0;
+	for (auto seq : sequences)
+		maxLength = jmax(maxLength, seq->getEndTime());
+
+	return maxLength;
 }
 
 double HiseMidiSequence::getLengthInQuarters()
@@ -266,7 +268,7 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 				newSequence->deleteEvent(j--, false);
 		}
 
-		if (newSequence->getNumEvents() > 0)
+		if(newSequence->getNumEvents() > 0)
 			normalisedFile.addTrack(*newSequence);
 	}
 
@@ -764,13 +766,18 @@ void MidiPlayer::loadMidiFile(PoolReference reference)
 
 #endif
 
-	currentlyLoadedFiles.add(reference);
+	if (newContent.get() != nullptr)
+	{
+		currentlyLoadedFiles.add(reference);
 
-	HiseMidiSequence::Ptr newSequence = new HiseMidiSequence();
-	newSequence->loadFrom(newContent->data.getFile());
-	//newSequence->setId(reference.getFile().getFileNameWithoutExtension());
-	addSequence(newSequence);
-	
+		HiseMidiSequence::Ptr newSequence = new HiseMidiSequence();
+		newSequence->loadFrom(newContent->data.getFile());
+		//newSequence->setId(reference.getFile().getFileNameWithoutExtension());
+		addSequence(newSequence);
+	}
+	else
+		jassertfalse;
+		
 }
 
 void MidiPlayer::prepareToPlay(double sampleRate_, int samplesPerBlock_)
