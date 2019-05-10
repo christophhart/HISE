@@ -2941,6 +2941,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setRepaintOnPositionChange);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, flushMessageList);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getEventList);
+	API_METHOD_WRAPPER_2(ScriptedMidiPlayer, saveAsMidiFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, reset);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, undo);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, redo);
@@ -2969,6 +2970,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(stop);
 	ADD_API_METHOD_1(record);
 	ADD_API_METHOD_3(setFile);
+	ADD_API_METHOD_2(saveAsMidiFile);
 	ADD_API_METHOD_1(setTrack);
 }
 
@@ -3207,6 +3209,14 @@ bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearEx
 	return false;
 }
 
+bool ScriptingObjects::ScriptedMidiPlayer::saveAsMidiFile(String fileName, int trackIndex)
+{
+	if (auto pl = getPlayer())
+		return pl->saveAsMidiFile(fileName, trackIndex);
+
+	return false;	
+}
+
 void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
 {
 	if (auto pl = getPlayer())
@@ -3217,5 +3227,6 @@ void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr 
 {
 
 }
+
 
 } // namespace hise

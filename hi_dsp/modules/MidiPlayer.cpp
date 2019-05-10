@@ -1212,6 +1212,85 @@ hise::HiseMidiSequence::Ptr MidiPlayer::getListOfCurrentlyRecordedEvents()
 	return recordedList;
 }
 
+bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
+{
+	trackIndex -= 1;
+
+	if (getCurrentSequence() == nullptr)
+		return false;
+
+	if (auto track = getCurrentSequence()->getReadPointer(currentTrackIndex))
+	{
+		PoolReference r(getMainController(), fileName, FileHandlerBase::MidiFiles);
+
+		auto pool = getMainController()->getCurrentMidiFilePool();
+
+		if (r.getFile().existsAsFile())
+		{
+			if (auto mf = pool->loadFromReference(r, PoolHelpers::ForceReloadStrong))
+			{
+				MidiFile& existingFile = mf->data.getFile();
+
+				if (trackIndex < existingFile.getNumTracks())
+				{
+					MidiFile copy;
+
+					for (int i = 0; i < existingFile.getNumTracks(); i++)
+						copy.addTrack(i == trackIndex ? *track : *existingFile.getTrack(i));
+
+					r.getFile().deleteFile();
+					r.getFile().create();
+					FileOutputStream fos(r.getFile());
+					bool ok = copy.writeTo(fos);
+					pool->loadFromReference(r, PoolHelpers::ForceReloadStrong);
+					return ok;
+				}
+				else
+				{
+					for (int i = existingFile.getNumTracks(); i < trackIndex; i++)
+					{
+						MidiMessageSequence empty;
+						empty.addEvent(MidiMessage::pitchWheel(1, 8192));
+						existingFile.addTrack(empty);
+					}
+
+					existingFile.addTrack(*track);
+
+					r.getFile().deleteFile();
+					r.getFile().create();
+					FileOutputStream fos(r.getFile());
+					
+					bool ok = existingFile.writeTo(fos);
+					pool->loadFromReference(r, PoolHelpers::ForceReloadStrong);
+					return ok;
+				}
+			}
+		}
+		else
+		{
+			MidiFile newFile;
+
+			for (int i = 0; i < trackIndex; i++)
+			{
+				MidiMessageSequence empty;
+				empty.addEvent(MidiMessage::tempoMetaEvent(HiseMidiSequence::TicksPerQuarter));
+				newFile.addTrack(empty);
+			}
+
+			newFile.addTrack(*track);
+
+			r.getFile().create();
+			FileOutputStream fos(r.getFile());
+
+			bool ok = newFile.writeTo(fos);
+			pool->loadFromReference(r, PoolHelpers::ForceReloadStrong);
+			return ok;
+		}
+	}
+
+	return false;
+}
+
 void MidiPlayer::updatePositionInCurrentSequence()
 {
 	if (auto seq = getCurrentSequence())

@@ -1088,6 +1088,9 @@ public:
 		/** Loads a MIDI file and switches to this sequence if specified. */
 		bool setFile(String fileName, bool clearExistingSequences, bool selectNewSequence);
 
+		/** Saves the current sequence into the given file at the track position. */
+		bool saveAsMidiFile(String fileName, int trackIndex);
+
 		/** Sets the track index (starting with one). */
 		void setTrack(int trackIndex);
 

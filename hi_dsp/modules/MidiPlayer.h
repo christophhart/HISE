@@ -395,6 +395,8 @@ public:
 	/** Creates a temporary sequence containing all the events from the currently recorded event list. */
 	HiseMidiSequence::Ptr getListOfCurrentlyRecordedEvents();
 
+	bool saveAsMidiFile(const String& fileName, int trackIndex);
+
 private:
 
 	Array<HiseEvent> currentlyRecordedEvents;
