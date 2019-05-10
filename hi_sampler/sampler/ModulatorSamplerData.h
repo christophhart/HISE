@@ -235,6 +235,8 @@ public:
 		notifier.asyncUpdateCollector.suspend(shouldBeSuspended);
 	}
 
+	bool& getSyncEditModeFlag() { return syncEditMode; }
+
 private:
 
 	struct ChangeWatcher : private ValueTree::Listener
@@ -320,6 +322,7 @@ private:
 	bool delayNotifications = false;
 	bool notificationPending = false;
 	
+	bool syncEditMode = false;
 
 	struct Notifier: public Dispatchable
 	{

@@ -764,7 +764,9 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 	bool correctThread = (currentThread == MainController::KillStateHandler::SampleLoadingThread) ||
 						 (!restrictToSampleLoadingThread && currentThread == MainController::KillStateHandler::ScriptingThread);
 
-	if (!isOnAir() && correctThread)
+	bool hasSampleLock = LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::SampleLock);
+
+	if (hasSampleLock || !isOnAir() && correctThread)
 	{
 		f(this);
 		return true;

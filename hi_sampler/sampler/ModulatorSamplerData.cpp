@@ -401,7 +401,10 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 		return SafeFunctionCall::OK;
 	};
 
-	sampler->killAllVoicesAndCall(f);
+	if (syncEditMode)
+		f(sampler);
+	else
+		sampler->killAllVoicesAndCall(f);
 }
 
 void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
@@ -472,7 +475,10 @@ void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& chil
 		return SafeFunctionCall::OK;
 	};
 
-	sampler->killAllVoicesAndCall(f);
+	if (syncEditMode)
+		f(sampler);
+	else
+		sampler->killAllVoicesAndCall(f);
 }
 
 void SampleMap::sendSampleDeletedMessage(ModulatorSampler * s)
