@@ -317,6 +317,314 @@ void ScriptingObjects::ScriptSliderPackData::setRange(double minValue, double ma
 	data.setRange(minValue, maxValue, stepSize);
 }
 
+
+struct ScriptingObjects::ScriptingSamplerSound::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptingSamplerSound, setFromJSON);
+	API_METHOD_WRAPPER_1(ScriptingSamplerSound, get);
+	API_VOID_METHOD_WRAPPER_2(ScriptingSamplerSound, set);
+	API_VOID_METHOD_WRAPPER_0(ScriptingSamplerSound, deleteSample);
+	API_METHOD_WRAPPER_0(ScriptingSamplerSound, duplicateSample);
+	API_METHOD_WRAPPER_0(ScriptingSamplerSound, loadIntoBufferArray);
+	API_METHOD_WRAPPER_1(ScriptingSamplerSound, replaceAudioFile);
+};
+
+ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScriptingContent* p, ModulatorSampler* sampler_, ModulatorSamplerSound::Ptr sound_) :
+	ConstScriptingObject(p, ModulatorSamplerSound::numProperties),
+	sound(sound_),
+	sampler(sampler_)
+{
+	ADD_API_METHOD_1(setFromJSON);
+	ADD_API_METHOD_1(get);
+	ADD_API_METHOD_2(set);
+	ADD_API_METHOD_0(deleteSample);
+	ADD_API_METHOD_0(duplicateSample);
+	ADD_API_METHOD_0(loadIntoBufferArray);
+	ADD_API_METHOD_1(replaceAudioFile);
+
+	sampleIds.ensureStorageAllocated(ModulatorSamplerSound::numProperties);
+	sampleIds.add(SampleIds::ID);
+	sampleIds.add(SampleIds::FileName);
+	sampleIds.add(SampleIds::Root);
+	sampleIds.add(SampleIds::HiKey);
+	sampleIds.add(SampleIds::LoKey);
+	sampleIds.add(SampleIds::LoVel);
+	sampleIds.add(SampleIds::HiVel);
+	sampleIds.add(SampleIds::RRGroup);
+	sampleIds.add(SampleIds::Volume);
+	sampleIds.add(SampleIds::Pan);
+	sampleIds.add(SampleIds::Normalized);
+	sampleIds.add(SampleIds::Pitch);
+	sampleIds.add(SampleIds::SampleStart);
+	sampleIds.add(SampleIds::SampleEnd);
+	sampleIds.add(SampleIds::SampleStartMod);
+	sampleIds.add(SampleIds::LoopStart);
+	sampleIds.add(SampleIds::LoopEnd);
+	sampleIds.add(SampleIds::LoopXFade);
+	sampleIds.add(SampleIds::LoopEnabled);
+	sampleIds.add(SampleIds::LowerVelocityXFade);
+	sampleIds.add(SampleIds::UpperVelocityXFade);
+	sampleIds.add(SampleIds::SampleState);
+	sampleIds.add(SampleIds::Reversed);
+
+	for (int i = 1; i < sampleIds.size(); i++)
+		addConstant(sampleIds[i].toString(), (int)i);
+}
+
+juce::String ScriptingObjects::ScriptingSamplerSound::getDebugValue() const
+{
+	return sound != nullptr ? sound->getPropertyAsString(SampleIds::FileName) : "";
+}
+
+void ScriptingObjects::ScriptingSamplerSound::rightClickCallback(const MouseEvent& e, Component *c)
+{
+
+}
+
+void ScriptingObjects::ScriptingSamplerSound::set(int propertyIndex, var newValue)
+{
+	if (!objectExists())
+	{
+		reportScriptError("Sound does not exist");
+		RETURN_VOID_IF_NO_THROW();
+	}
+
+	sound->setSampleProperty(sampleIds[propertyIndex], newValue);
+}
+
+void ScriptingObjects::ScriptingSamplerSound::setFromJSON(var object)
+{
+	if (!objectExists())
+	{
+		reportScriptError("Sound does not exist");
+		RETURN_VOID_IF_NO_THROW();
+	}
+
+	if (auto dyn = object.getDynamicObject())
+	{
+		for (auto prop : dyn->getProperties())
+		{
+			// TODO: maybe defer the update until everything is set ?
+			sound->setSampleProperty(prop.name, prop.value);
+		}
+	}
+}
+
+var ScriptingObjects::ScriptingSamplerSound::get(int propertyIndex) const
+{
+	if (!objectExists())
+	{
+		reportScriptError("Sound does not exist");
+		RETURN_IF_NO_THROW(var());
+	}
+
+	return sound->getSampleProperty(sampleIds[propertyIndex]);
+}
+
+var ScriptingObjects::ScriptingSamplerSound::loadIntoBufferArray()
+{
+	Array<var> channelData;
+
+	for (int i = 0; i < sound->getNumMultiMicSamples(); i++)
+	{
+		ScopedPointer<AudioFormatReader> reader = sound->getReferenceToSound(i)->createReaderForPreview();
+
+		if (reader != nullptr)
+		{
+			int numSamplesToRead = reader->lengthInSamples;
+			bool isStereo = reader->numChannels == 2;
+
+			if (numSamplesToRead > 0)
+			{
+				if (!isStereo)
+				{
+					VariantBuffer::Ptr l = new VariantBuffer(numSamplesToRead);
+					AudioSampleBuffer b;
+					float* data[1] = { l->buffer.getWritePointer(0) };
+					b.setDataToReferTo(data, 1, numSamplesToRead);
+					reader->read(&b, 0, numSamplesToRead, 0, true, false);
+					channelData.add(var(l));
+				}
+				else
+				{
+					VariantBuffer::Ptr l = new VariantBuffer(numSamplesToRead);
+					VariantBuffer::Ptr r = new VariantBuffer(numSamplesToRead);
+
+					AudioSampleBuffer b;
+
+					float* data[2] = { l->buffer.getWritePointer(0), r->buffer.getWritePointer(0) };
+
+					b.setDataToReferTo(data, 2, numSamplesToRead);
+
+					reader->read(&b, 0, numSamplesToRead, 0, true, true);
+
+					channelData.add(var(l));
+					channelData.add(var(r));
+				}
+			}
+		}
+	}
+
+	return channelData;
+}
+
+ScriptingObjects::ScriptingSamplerSound* ScriptingObjects::ScriptingSamplerSound::duplicateSample()
+{
+	auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+	auto s = getSampler();
+	auto mc = s->getMainController();
+
+	ScopedValueSetter<bool> svs(s->getSampleMap()->getSyncEditModeFlag(), true);
+
+	SuspendHelpers::ScopedTicket ticket(mc);
+	mc->getJavascriptThreadPool().killVoicesAndExtendTimeOut(jp, 1000);
+
+	while (mc->getKillStateHandler().isAudioRunning())
+	{
+		Thread::sleep(100);
+	}
+
+	LockHelpers::freeToGo(s->getMainController());
+	LockHelpers::SafeLock sl(mc, LockHelpers::Type::SampleLock);
+
+	auto copy = sound->getData().createCopy();
+
+	s->getSampleMap()->addSound(copy);
+	s->refreshPreloadSizes();
+
+	auto newSound = dynamic_cast<ModulatorSamplerSound*>(s->getSound(s->getNumSounds() - 1));
+
+	return new ScriptingSamplerSound(getScriptProcessor(), s, newSound);
+}
+
+void ScriptingObjects::ScriptingSamplerSound::deleteSample()
+{
+	if (!objectExists())
+	{
+		reportScriptError("Sound does not exist");
+		RETURN_VOID_IF_NO_THROW();
+	}
+
+	auto handler = getSampler()->getSampleEditHandler();
+	auto soundCopy = sound;
+
+	auto f = [handler, soundCopy](Processor* /*s*/)
+	{
+		handler->getSampler()->getSampleMap()->removeSound(soundCopy);
+
+		return SafeFunctionCall::OK;
+	};
+
+	handler->getSampler()->killAllVoicesAndCall(f);
+}
+
+juce::String ScriptingObjects::ScriptingSamplerSound::getId(int id) const
+{
+	return sampleIds[id].toString();
+}
+
+bool ScriptingObjects::ScriptingSamplerSound::replaceAudioFile(var audioData)
+{
+	if (!objectExists())
+	{
+		reportScriptError("Sound does not exist");
+		RETURN_IF_NO_THROW(false);
+	}
+
+	if (!audioData.isArray())
+	{
+		reportScriptError("You need to pass in an array of buffers.");
+		RETURN_IF_NO_THROW(false);
+	}
+
+	int numChannels = 0;
+
+	for (int i = 0; i < sound->getNumMultiMicSamples(); i++)
+	{
+		if (sound->getReferenceToSound(i)->isMonolithic())
+		{
+			reportScriptError("Can't write to monolith files");
+			RETURN_IF_NO_THROW(false);
+		}
+
+		numChannels += sound->getReferenceToSound(i)->isStereo() ? 2 : 1;
+	}
+
+	auto& ar = *audioData.getArray();
+
+	if (ar.size() != numChannels)
+	{
+		reportScriptError("Channel amount doesn't match.");
+		RETURN_IF_NO_THROW(false);
+	}
+
+	int currentChannel = 0;
+
+	int length = -1;
+
+	for (int i = 0; i < sound->getNumMultiMicSamples(); i++)
+	{
+		int numChannelsForThisMicPosition = sound->getReferenceToSound(i)->isStereo() ? 2 : 1;
+
+		float* channels[2] = { nullptr, nullptr };
+
+		if (auto l = ar[currentChannel].getBuffer())
+		{
+			channels[0] = l->buffer.getWritePointer(0);
+
+			if (length == -1)
+				length = l->size;
+			else if (length != l->size)
+				reportScriptError("channel length mismatch: " + String(l->size) + ", Expected: " + String(length));
+
+		}
+		else
+			reportScriptError("Invalid channel data at index " + String(currentChannel));
+
+		if (numChannelsForThisMicPosition == 2)
+		{
+			if (auto r = ar[currentChannel + 1].getBuffer())
+			{
+				channels[1] = r->buffer.getWritePointer(0);
+
+				if (length != r->size)
+					reportScriptError("channel length mismatch: " + String(r->size) + ", Expected: " + String(length));
+			}
+			else
+				reportScriptError("Invalid channel data at index " + String(currentChannel + 1));
+		}
+
+		AudioSampleBuffer b;
+		b.setDataToReferTo(channels, numChannelsForThisMicPosition, length);
+		
+		bool ok = sound->getReferenceToSound(i)->replaceAudioFile(b);
+
+		if (!ok)
+		{
+			debugError(getSampler(), "Error writing sample " + sound->getReferenceToSound(i)->getFileName(true));
+			return false;
+		}
+
+		currentChannel += numChannelsForThisMicPosition;
+	}
+
+	return true;
+}
+
+hise::ModulatorSampler* ScriptingObjects::ScriptingSamplerSound::getSampler() const
+{
+	auto s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("Can't find sampler");
+		RETURN_IF_NO_THROW(nullptr);
+	}
+
+	return s;
+}
+
 // ScriptingModulator ===========================================================================================================
 
 struct ScriptingObjects::ScriptingModulator::Wrapper

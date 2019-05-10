@@ -1738,6 +1738,10 @@ struct ScriptingApi::Sampler::Wrapper
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setUseStaticMatrix);
     API_METHOD_WRAPPER_1(Sampler, loadSampleForAnalysis);
+	API_METHOD_WRAPPER_1(Sampler, createSelection);
+	API_METHOD_WRAPPER_1(Sampler, createSelectionFromIndexes);
+	API_METHOD_WRAPPER_0(Sampler, createListFromGUISelection);
+	API_METHOD_WRAPPER_0(Sampler, createListFromScriptSelection);
 };
 
 
@@ -1768,6 +1772,10 @@ sampler(sampler_)
 	ADD_API_METHOD_1(isNoteNumberMapped);
     ADD_API_METHOD_1(loadSampleForAnalysis);
 	ADD_API_METHOD_1(setUseStaticMatrix);
+	ADD_API_METHOD_1(createSelection);
+	ADD_API_METHOD_1(createSelectionFromIndexes);
+	ADD_API_METHOD_0(createListFromGUISelection);
+	ADD_API_METHOD_0(createListFromScriptSelection);
 
 	sampleIds.add(SampleIds::ID);
 	sampleIds.add(SampleIds::FileName);
@@ -1861,6 +1869,8 @@ int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
 void ScriptingApi::Sampler::refreshRRMap()
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+	
+	
 
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
@@ -1877,6 +1887,120 @@ void ScriptingApi::Sampler::refreshRRMap()
 	}
 
 	s->refreshRRMap();
+}
+
+
+var ScriptingApi::Sampler::createSelection(String regex)
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("createSelection() only works with Samplers.");
+		RETURN_IF_NO_THROW({});
+	}
+
+	SelectedItemSet<ModulatorSamplerSound::Ptr> newSet;
+
+	ModulatorSamplerSound::selectSoundsBasedOnRegex(regex, s, newSet);
+
+	Array<var> newSelection;
+
+	for (auto sound : newSet)
+	{
+		newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
+	}
+
+	return var(newSelection);
+}
+
+
+var ScriptingApi::Sampler::createSelectionFromIndexes(var indexData)
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("selectSounds() only works with Samplers.");
+		RETURN_IF_NO_THROW({});
+	}
+
+	Array<var> selection;
+	
+	if (auto ar = indexData.getArray())
+	{
+		for (auto index : *ar)
+		{
+			selection.add(new ScriptingObjects::ScriptingSamplerSound(
+				getScriptProcessor(), s,
+				dynamic_cast< ModulatorSamplerSound*>(s->getSound(index))));
+		}
+	}
+	else
+	{
+		if (indexData.isInt() || indexData.isInt64())
+		{
+			if ((int)indexData == -1)
+			{
+				for (int i = 0; i < s->getNumSounds(); i++)
+				{
+					selection.add(new ScriptingObjects::ScriptingSamplerSound(
+						getScriptProcessor(), s,
+						dynamic_cast<ModulatorSamplerSound*>(s->getSound(i))));
+				}
+			}
+			else
+			{
+				selection.add(new ScriptingObjects::ScriptingSamplerSound(
+					getScriptProcessor(), s,
+					dynamic_cast<ModulatorSamplerSound*>(s->getSound(indexData))));
+			}
+		}
+	}
+
+	return var(selection);
+}
+
+var ScriptingApi::Sampler::createListFromScriptSelection()
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("createListFromScriptSelection() only works with Samplers.");
+		RETURN_IF_NO_THROW({});
+	}
+
+	Array<var> newSelection;
+
+	for (auto sound : soundSelection)
+		newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
+
+	return newSelection;
+}
+
+var ScriptingApi::Sampler::createListFromGUISelection()
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("createListFromGUISelection() only works with Samplers.");
+		RETURN_IF_NO_THROW({});
+	}
+
+	Array<var> newSelection;
+
+	const auto& selection = s->getSampleEditHandler()->getSelection();
+
+	for(auto sound: selection)
+		newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
+
+	return newSelection;
 }
 
 void ScriptingApi::Sampler::selectSounds(String regexWildcard)
@@ -1900,6 +2024,8 @@ int ScriptingApi::Sampler::getNumSelectedSounds()
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
 
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	
 
 	if (s == nullptr)
 	{
@@ -2084,6 +2210,8 @@ String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
 	return s->getChannelData(channelIndex).suffix;
 }
 
+
+
 int ScriptingApi::Sampler::getNumMicPositions() const
 {
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
@@ -2174,38 +2302,22 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 
 var ScriptingApi::Sampler::loadSampleForAnalysis(int soundIndex)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("loadSampleForAnalysis() only works with Samplers.");
+		RETURN_IF_NO_THROW({});
+	}
+
     auto& sounds = soundSelection.getItemArray();
-    
     
     if(auto sound = sounds[soundIndex].get())
     {
-        ScopedPointer<AudioFormatReader> reader = sound->getReferenceToSound()->createReaderForPreview();
-        
-        if (reader != nullptr)
-        {
-            int numSamplesToRead = reader->lengthInSamples;
-            
-            if(numSamplesToRead > 0 && reader->numChannels == 2)
-            {
-                Array<var> channelData;
-                
-                VariantBuffer::Ptr l = new VariantBuffer(numSamplesToRead);
-                VariantBuffer::Ptr r = new VariantBuffer(numSamplesToRead);
-                
-                AudioSampleBuffer b;
-                
-                float* data[2] = {l->buffer.getWritePointer(0), r->buffer.getWritePointer(0)};
-                
-                b.setDataToReferTo(data, 2, numSamplesToRead);
-                
-                reader->read(&b, 0, numSamplesToRead, 0, true, true);
-                
-                channelData.add(var(l));
-                channelData.add(var(r));
-                
-                return channelData;
-            }
-        }
+		ScopedPointer<ScriptingObjects::ScriptingSamplerSound> ownedSound = new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound);
+		return ownedSound->loadIntoBufferArray();
     }
     
     return {};

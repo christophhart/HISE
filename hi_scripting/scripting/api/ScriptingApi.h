@@ -478,7 +478,18 @@ public:
 		/** Returns the name of the channel with the given index (Multimic samples only. */
 		String getMicPositionName(int channelIndex);
 
+		/** Returns an array with all samples that match this regex. */
+		var createSelection(String regex);
         
+		/** Returns an array with all samples from the index data (can be either int or array of int, -1 selects all.). */
+		var createSelectionFromIndexes(var indexData);
+
+		/** Returns a list of the sounds selected by the selectSounds() method. */
+		var createListFromScriptSelection();
+
+		/** Returns a list of the sounds selected in the samplemap. */
+		var createListFromGUISelection();
+
         /** Loads the content of the given sample into an array of VariantBuffers that can be used
             for analysis. 
         */

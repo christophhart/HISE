@@ -270,6 +270,65 @@ public:
 
 	};
 
+	class ScriptingSamplerSound : public ConstScriptingObject,
+								 public DebugableObject
+	{
+	public:
+
+		// ============================================================================================================
+
+		ScriptingSamplerSound(ProcessorWithScriptingContent* p, ModulatorSampler* ownerSampler, ModulatorSamplerSound::Ptr sound_);
+		~ScriptingSamplerSound() {};
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Sample"); }
+
+		String getDebugName() const override { return "Sample"; };
+		String getDebugValue() const override;
+		void rightClickCallback(const MouseEvent& e, Component *c) override;
+
+		bool objectDeleted() const override { return sound == nullptr; }
+		bool objectExists() const override { return sound != nullptr; }
+
+		// ============================================================================================================
+
+		/** Sets the sample property. */
+		void set(int propertyIndex, var newValue);
+
+		/** Sets the properties from a JSON object. */
+		void setFromJSON(var object);
+
+		/** Returns the sample property. */
+		var get(int propertyIndex) const;
+
+		/** Loads the sample into a array of buffers for analysis. */
+		var loadIntoBufferArray();
+
+		/** Duplicates the sample. */
+		ScriptingSamplerSound* duplicateSample();
+
+		/** Deletes the sample from the Sampler (not just this reference!). */
+		void deleteSample();
+
+		/** Returns the ID of the property (use this with the setFromJSONMethod). */
+		String getId(int id) const;
+
+		/** Writes the content of the audio data (array of buffers) into the audio file. This is undoable!. */
+		bool replaceAudioFile(var audioData);
+
+		// ============================================================================================================
+
+	private:
+
+		ModulatorSampler* getSampler() const;
+
+		Array<Identifier> sampleIds;
+
+		struct Wrapper;
+
+		WeakReference<Processor> sampler;
+		ModulatorSamplerSound::Ptr sound;
+	};
+
 	class ScriptingMessageHolder : public ConstScriptingObject,
 								   public DebugableObject
 	{
