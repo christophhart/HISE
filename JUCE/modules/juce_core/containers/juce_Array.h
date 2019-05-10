@@ -1022,7 +1022,7 @@ public:
 	int getNumAllocated() const noexcept
 	{
 		const ScopedLockType lock(getLock());
-		return values.numAllocated;
+		return values.capacity();
 	}
 
     //==============================================================================
