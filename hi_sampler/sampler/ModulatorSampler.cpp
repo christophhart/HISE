@@ -776,7 +776,6 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 		getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 		return false;
 	}
-		
 }
 
 bool ModulatorSampler::hasPendingAsyncJobs() const
@@ -848,7 +847,7 @@ void ModulatorSampler::setCrossfadeTableValue(float newValue)
 void ModulatorSampler::resetNoteDisplay(int noteNumber)
 {
 	lastStartedVoice = nullptr;
-	samplerDisplayValues.currentNotes[noteNumber] = 0;
+	samplerDisplayValues.currentNotes[jlimit(0, 127, noteNumber)] = 0;
 	samplerDisplayValues.currentSamplePos = -1.0;
 	sendAllocationFreeChangeMessage();
 }
