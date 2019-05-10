@@ -693,7 +693,7 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 
 			for (auto& a : automationData[number])
 			{
-				if (a.used)
+				if (a.used && a.processor.get() != nullptr)
 				{
 					jassert(a.processor.get() != nullptr);
 

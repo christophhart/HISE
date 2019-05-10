@@ -2175,12 +2175,28 @@ bool ScriptedControlAudioParameter::isMetaParameter() const
     
 void ScriptedControlAudioParameter::setParameterNotifyingHost(int index, float newValue)
 {
+	auto mc = dynamic_cast<MainController*>(parentProcessor);
+
+	if (mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+	{
+		indexForHost = index;
+		valueForHost = newValue;
+		triggerAsyncUpdate();
+	}
+	else
+		setParameterNotifyingHostInternal(index, newValue);
+}
+
+void ScriptedControlAudioParameter::setParameterNotifyingHostInternal(int index, float newValue)
+{
 	ScopedValueSetter<bool> setter(dynamic_cast<MainController*>(parentProcessor)->getPluginParameterUpdateState(), false, true);
 
 	auto sanitizedValue = jlimit<float>(range.start, range.end, newValue);
 
 	parentProcessor->setParameterNotifyingHost(index, range.convertTo0to1(sanitizedValue));
 }
+
+
 
 ScriptedControlAudioParameter::Type ScriptedControlAudioParameter::getType(ScriptingApi::Content::ScriptComponent *component)
 {

@@ -35,7 +35,8 @@
 
 namespace hise { using namespace juce;
 
-class ScriptedControlAudioParameter : public AudioProcessorParameterWithID
+class ScriptedControlAudioParameter : public AudioProcessorParameterWithID,
+									  public AsyncUpdater
 {
 public:
 
@@ -56,6 +57,11 @@ public:
 								  int index);
 
 	void setControlledScriptComponent(ScriptingApi::Content::ScriptComponent *newComponent);
+
+	void handleAsyncUpdate() override
+	{
+		setParameterNotifyingHostInternal(indexForHost, valueForHost);
+	}
 
 	// ================================================================================================================
 
@@ -90,6 +96,11 @@ public:
 	void deactivateUpdateForNextSetValue() { deactivated = true; }
 
 private:
+
+	void setParameterNotifyingHostInternal(int index, float newValue);
+
+	float valueForHost = 0.0f;
+	int indexForHost = -1;
 
 	// ================================================================================================================
 
