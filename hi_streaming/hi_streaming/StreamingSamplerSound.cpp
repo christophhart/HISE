@@ -265,6 +265,54 @@ bool StreamingSamplerSound::isOpened()
 	return fileReader.isOpened();
 }
 
+bool StreamingSamplerSound::isStereo() const
+{
+	return fileReader.isStereo();
+}
+
+int StreamingSamplerSound::getBitRate() const
+{
+	ScopedPointer<AudioFormatReader> reader = fileReader.createMonolithicReaderForPreview();
+	
+	if (reader != nullptr)
+		return reader->bitsPerSample;
+
+	return -1;
+}
+
+bool StreamingSamplerSound::replaceAudioFile(const AudioSampleBuffer& b)
+{
+	if (b.getNumChannels() == (fileReader.isStereo() ? 2 : 1))
+	{
+		TemporaryFile tmp(File(fileReader.getFileName(true)));
+
+		tmp.getFile().create();
+
+		auto fos = new FileOutputStream(tmp.getFile());
+
+		ScopedPointer<AudioFormatWriter> writer = fileReader.createWriterWithSameFormat(fos);
+
+		if (writer != nullptr)
+		{
+			bool ok = writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
+
+			if (ok)
+				ok = writer->flush();
+
+			writer = nullptr;
+
+			fileReader.closeFileHandles(sendNotification);
+
+			if (ok)
+				return tmp.overwriteTargetFileWithTemporary();
+
+			return ok;
+		}
+
+		return false;
+	}
+}
+
 bool StreamingSamplerSound::isMonolithic() const
 {
 	return fileReader.isMonolithic();
@@ -984,6 +1032,38 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 	{
 		return pool->afm.createReaderFor(loadedFile);
 	}
+}
+
+
+juce::AudioFormatWriter* StreamingSamplerSound::FileReader::createWriterWithSameFormat(OutputStream* out)
+{
+	ScopedPointer<OutputStream> ownedOutput = out;
+
+	if (monolithicInfo != nullptr)
+	{
+		// Can't use this method with monoliths...
+		jassertfalse;
+		return nullptr;
+	}
+
+	auto extension = loadedFile.getFileExtension();
+
+	ScopedPointer<AudioFormatReader> r = createMonolithicReaderForPreview();
+
+	for (int i = 0; i < pool->afm.getNumKnownFormats(); i++)
+	{
+		if (pool->afm.getKnownFormat(i)->getFileExtensions().contains(extension))
+		{
+			auto writer = pool->afm.getKnownFormat(i)->createWriterFor(ownedOutput, r->sampleRate, r->numChannels, r->bitsPerSample, r->metadataValues, 9);
+
+			if (writer != nullptr)
+				ownedOutput.release();
+
+			return writer;
+		}
+	}
+
+	return nullptr;
 }
 
 void StreamingSamplerSound::FileReader::setMonolithicInfo(MonolithInfoToUse* info, int channelIndex, int sampleIndex)

@@ -203,6 +203,12 @@ public:
 	void openFileHandle();
 	bool isOpened();
 
+	bool isStereo() const;
+
+	int getBitRate() const;
+
+	bool replaceAudioFile(const AudioSampleBuffer& b);
+
 	bool isMonolithic() const;
 	AudioFormatReader* createReaderForPreview();
 
@@ -381,6 +387,8 @@ private:
 		float calculatePeakValue();
 
 		AudioFormatReader* createMonolithicReaderForPreview();
+
+		AudioFormatWriter* createWriterWithSameFormat(OutputStream* out);
 
 		// ==============================================================================================================================================
 
