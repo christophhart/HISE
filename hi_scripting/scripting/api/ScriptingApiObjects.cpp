@@ -506,6 +506,7 @@ void ScriptingObjects::ScriptingSamplerSound::deleteSample()
 		RETURN_VOID_IF_NO_THROW();
 	}
 
+#if USE_BACKEND
 	auto handler = getSampler()->getSampleEditHandler();
 	auto soundCopy = sound;
 
@@ -517,6 +518,7 @@ void ScriptingObjects::ScriptingSamplerSound::deleteSample()
 	};
 
 	handler->getSampler()->killAllVoicesAndCall(f);
+#endif
 }
 
 juce::String ScriptingObjects::ScriptingSamplerSound::getId(int id) const

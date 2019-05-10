@@ -1995,10 +1995,12 @@ var ScriptingApi::Sampler::createListFromGUISelection()
 
 	Array<var> newSelection;
 
+#if USE_BACKEND
 	const auto& selection = s->getSampleEditHandler()->getSelection();
 
 	for(auto sound: selection)
 		newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
+#endif
 
 	return newSelection;
 }
