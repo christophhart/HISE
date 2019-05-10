@@ -308,6 +308,281 @@ public:
 		Smoother smoother;
 	};
 
+
+	class FFT : public DspBaseObject
+	{
+	public:
+
+		enum class Parameters
+		{
+			ImplementationType = 0,
+			Domain,
+			Window,
+			Inverse,
+			Normalise,
+			NumChannels,
+			numParameters
+		};
+
+		enum class DomainModes
+		{
+			Raw = (int)Parameters::numParameters,
+			Magnitude,
+			Phase,
+			numDomainModes
+		};
+
+		enum class WindowTypes
+		{
+			Rectangle = (int)DomainModes::numDomainModes,
+			Hann,
+			BlackmanHarris,
+			FlatTop,
+			numWindowTypes
+		};
+
+		SET_MODULE_NAME("fft");
+
+
+		FFT():
+			DspBaseObject()
+		{
+			resetFFT();
+		}
+
+		void prepareToPlay(double sampleRate, int blockSize) override
+		{
+			lastSize = nextPowerOfTwo(blockSize);
+
+			resetFFT();
+		}
+
+		int getNumConstants() const override
+		{
+			return (int)WindowTypes::numWindowTypes;
+		}
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, ImplementationType, size, name);
+				FILL_PARAMETER_ID(Parameters, Domain, size, name);
+				FILL_PARAMETER_ID(Parameters, Window, size, name);
+				FILL_PARAMETER_ID(Parameters, Inverse, size, name);
+				FILL_PARAMETER_ID(Parameters, Normalise, size, name);
+				FILL_PARAMETER_ID(Parameters, NumChannels, size, name);
+				FILL_PARAMETER_ID(DomainModes, Raw, size, name);
+				FILL_PARAMETER_ID(DomainModes, Magnitude, size, name);
+				FILL_PARAMETER_ID(DomainModes, Phase, size, name);
+				FILL_PARAMETER_ID(WindowTypes, Rectangle, size, name);
+				FILL_PARAMETER_ID(WindowTypes, Hann, size, name);
+				FILL_PARAMETER_ID(WindowTypes, BlackmanHarris, size, name);
+				FILL_PARAMETER_ID(WindowTypes, FlatTop, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < (int)WindowTypes::numWindowTypes)
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+
+		int getNumParameters() const override { return (int)Parameters::numParameters; };
+
+		void setParameter(int index, float newValue) override
+		{
+			auto i = (Parameters)index;
+
+			switch (i)
+			{
+			case Parameters::Inverse:
+				inverse = newValue > 0.5f;
+				break;
+			case Parameters::Domain:
+				currentMode = (DomainModes)(int)newValue;
+				break;
+			case Parameters::Window:
+				windowType = (WindowTypes)(int)newValue; break;
+			case Parameters::ImplementationType:
+				type = (audiofft::ImplementationType)(int)newValue;
+				resetFFT();
+				break;
+			case Parameters::NumChannels:
+				numChannels = jlimit(1, 8, (int)newValue);
+				resetFFT();
+				break;
+			default:
+				break;
+			}
+		}
+
+		float getParameter(int index) const override
+		{
+			auto i = (Parameters)index;
+
+			switch (i)
+			{
+			case Parameters::Inverse: return inverse ? 1.0f : 0.0f;
+			case Parameters::Domain:  return (float)(int)currentMode;
+			case Parameters::Window:  return (float)(int)windowType;
+			case Parameters::NumChannels: return (float)numChannels;
+			case Parameters::ImplementationType: return (float)type;
+			default: return 0.0f;
+			}
+		}
+
+		const float* getWindow() const
+		{
+			auto index = (int)(windowType)-(int)(DomainModes::numDomainModes);
+			return windowBuffer.getReadPointer(index);
+		}
+
+		void createWindow(WindowTypes t, float* data, int numSamples)
+		{
+			switch (t)
+			{
+			case WindowTypes::Rectangle: 
+				FloatVectorOperations::fill(data, 1.0f, numSamples);
+				break;
+			case WindowTypes::BlackmanHarris: 
+				icstdsp::VectorFunctions::blackman(data, numSamples);
+				break;
+			case WindowTypes::FlatTop:
+				icstdsp::VectorFunctions::flattop(data, numSamples);
+				break;
+			case WindowTypes::Hann:
+				icstdsp::VectorFunctions::hann(data, numSamples);
+				break;
+			default:
+				break;
+			}
+		}
+
+		void processBlock(float **data, int channels, int numSamples)
+		{
+			if (channels == numChannels && numSamples == lastSize)
+			{
+				ScopedLock sl(lock);
+
+				auto re = realTempBuffer.getArrayOfWritePointers();
+				auto img = imgTempBuffer.getArrayOfWritePointers();
+
+				for (int c = 0; c < channels; c++)
+				{
+					auto fft = ffts[c];
+
+					FloatVectorOperations::multiply(data[c], getWindow(), numSamples);
+
+					fft->fft(data[c], re[c], img[c]);
+
+					switch (currentMode)
+					{
+					case DomainModes::Raw:
+					{
+						for (int i = 0; i < numSamples; i+= 2)
+						{
+							data[c][i] = re[c][i / 2];
+							data[c][i + 1] = img[c][i / 2];
+						}
+
+						break;
+					}
+					case DomainModes::Magnitude:
+					{
+						for (int i = 0; i < numSamples / 2; i++)
+						{
+							float v = re[c][i] * re[c][i] + img[c][i] * img[c][i];
+
+							data[c][i] = std::sqrtf(v);
+						}
+
+						FloatVectorOperations::multiply(data[c], 1.0f / (float)(lastSize / 2), numSamples/2);
+
+						FloatVectorOperations::clear(data[c] + numSamples / 2, numSamples / 2);
+
+						break;
+					}
+					case DomainModes::Phase:
+					{
+						// later...
+
+						break;
+					}
+					}
+				}
+			}
+			else
+			{
+				throw String("config mismatch for FFT");
+			}
+		}
+
+		void resetFFT()
+		{
+			ScopedLock sl(lock);
+
+			ffts.clear();
+
+			for (int i = 0; i < numChannels; i++)
+			{
+				ffts.add(new audiofft::AudioFFT(type));
+
+				if (lastSize != -1)
+					ffts.getLast()->init(lastSize);
+			}
+
+			if (lastSize != -1)
+			{
+				auto tempBufferSize = audiofft::AudioFFT::ComplexSize(lastSize);
+
+				if (realTempBuffer.getNumChannels() != numChannels ||
+					realTempBuffer.getNumSamples() != tempBufferSize)
+					realTempBuffer.setSize(numChannels, tempBufferSize);
+
+				if (imgTempBuffer.getNumChannels() != numChannels ||
+					imgTempBuffer.getNumSamples() != tempBufferSize)
+					imgTempBuffer.setSize(numChannels, tempBufferSize);
+
+				if (lastSize != windowBuffer.getNumSamples())
+				{
+					constexpr int numWindows = (int)WindowTypes::numWindowTypes - (int)DomainModes::numDomainModes;
+
+					windowBuffer.setSize(numWindows, lastSize);
+
+					for (int i = 0; i < numWindows; i++)
+					{
+						auto w = (WindowTypes)(i + (int)DomainModes::numDomainModes);
+						createWindow(w, windowBuffer.getWritePointer(i), lastSize);
+					}
+				}
+
+			}
+		}
+
+		CriticalSection lock;
+
+		WindowTypes windowType = WindowTypes::Rectangle;
+		DomainModes currentMode = DomainModes::Magnitude;
+		audiofft::ImplementationType type = audiofft::ImplementationType::BestAvailable;
+		bool inverse = false;
+		bool calculatePhase = false;
+		int lastSize = -1;
+		int numChannels = 1;
+		
+		AudioSampleBuffer realTempBuffer;
+		AudioSampleBuffer imgTempBuffer;
+		AudioSampleBuffer windowBuffer;
+		float* windowToUse = nullptr;
+
+		OwnedArray<audiofft::AudioFFTBase> ffts;
+	};
+
 	// Don't use this for anything else than to check the Debug Logger!
 	class GlitchCreator : public DspBaseObject
 	{
@@ -2016,6 +2291,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 	{
 		registerDspModule<ScriptingDsp::Delay>();
 		registerDspModule<ScriptingDsp::SignalSmoother>();
+		registerDspModule<ScriptingDsp::FFT>();
 		registerDspModule<ScriptingDsp::SmoothedGainer>();
 		registerDspModule<ScriptingDsp::StereoWidener>();
         registerDspModule<ScriptingDsp::MoogFilter>();
