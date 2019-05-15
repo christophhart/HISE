@@ -623,6 +623,7 @@ public:
 			ApiCollection,
 			ScriptWatchTable,
 			ScriptComponentEditPanel,
+			DspNetworkGraph,
 			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,

@@ -152,9 +152,23 @@ private:
 *	It contains the glue code for accessing it per Javascript and is reference counted to manage the lifetime of the external module.
 */
 class DspInstance : public ConstScriptingObject,
-					public AssignableObject
+					public AssignableObject,
+					public DebugableObject
 {
 public:
+
+	struct Listener
+	{
+		virtual ~Listener() {};
+
+		virtual void parameterChanged(int parameterIndex) = 0;
+		virtual void preBlockProcessed(const float** data, int numChannels, int numSamples) = 0;
+		virtual void blockWasProcessed(const float** data, int numChannels, int numSamples) = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
 
 	/** Creates a new instance from the given Factory with the supplied name. */
 	DspInstance(const DspFactory *f, const String &moduleName_);
@@ -162,6 +176,11 @@ public:
 
 	void initialise();
 	void unload();
+
+	String getDebugName() const override { return "DSP object"; }
+	String getDebugValue() const override { return moduleName; }
+
+	void rightClickCallback(const MouseEvent& e, Component* c) override;
 
 	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("DspModule") };
 
@@ -239,7 +258,19 @@ public:
 
 	void checkPriorityInversion();
 
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
 private:
+
+	Array<WeakReference<Listener>> listeners;
 
 	WeakReference<Processor> processor;
 

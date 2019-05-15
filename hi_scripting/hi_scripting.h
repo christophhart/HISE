@@ -76,19 +76,19 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 //#include "scripting/api/DspFactory.h"
+#include "scripting/engine/DebugHelpers.h"
 #include "scripting/api/DspInstance.h"
-#if JUCE_IOS
-#elif INCLUDE_TCC
-#include "scripting/api/TccDspObject.h"
-#endif
+
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
-#include "scripting/scripting_audio_processor/ScriptedAudioProcessor.h"
 
-#include "scripting/engine/DebugHelpers.h"
+
+
 #include "scripting/engine/HiseJavascriptEngine.h"
 
 #include "scripting/api/XmlApi.h"
+#include "scripting/scripting_audio_processor/DspNetwork.h"
+#include "scripting/scripting_audio_processor/DspNetworkComponents.h"
 #include "scripting/api/ScriptingApiObjects.h"
 #include "scripting/api/ScriptingApi.h"
 #include "scripting/api/ScriptingApiContent.h"

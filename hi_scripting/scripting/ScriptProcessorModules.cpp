@@ -438,6 +438,13 @@ void JavascriptMasterEffect::connectionChanged()
 		}
 	}
 
+	auto numChannels = channels.size();
+
+	for (auto n : networks)
+	{
+		n->setNumChannels(numChannels);
+	}
+
 	channelData = var(channels);
 }
 

@@ -295,7 +295,8 @@ class JavascriptProcessor :	public FileChangeListener,
 							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
 							public SliderPackProcessor,
-							public LookupTableProcessor
+							public LookupTableProcessor,
+							public scriptnode::DspNetwork::Holder
 {
 public:
 

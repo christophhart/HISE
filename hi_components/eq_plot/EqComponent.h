@@ -37,6 +37,178 @@ namespace hise { using namespace juce;
 
 class ModulatorSynth;
 
+struct AnalyserRingBuffer
+{
+	void setAnalyserBufferSize(int newValue)
+	{
+		ScopedWriteLock sl(lock);
+
+		jassert(isPowerOfTwo(newValue));
+
+		analyseBufferSize = newValue;
+		indexInBuffer = 0;
+
+		internalBuffer.setSize(2, analyseBufferSize);
+		internalBuffer.clear();
+	}
+
+	void pushSamples(AudioSampleBuffer& b, int startSample, int numSamples)
+	{
+		ScopedReadLock sl(lock);
+
+		auto l = b.getReadPointer(0, startSample);
+		auto r = b.getReadPointer(1, startSample);
+
+		const int numToCopy = jmin<int>(internalBuffer.getNumSamples(), numSamples);
+
+		const int numBeforeWrap = jmin<int>(numToCopy, internalBuffer.getNumSamples() - indexInBuffer);
+
+		FloatVectorOperations::copy(internalBuffer.getWritePointer(0, indexInBuffer), l, numBeforeWrap);
+		FloatVectorOperations::copy(internalBuffer.getWritePointer(1, indexInBuffer), r, numBeforeWrap);
+
+		const int numAfterWrap = numToCopy - numBeforeWrap;
+
+		if (numAfterWrap > 0)
+		{
+			FloatVectorOperations::copy(internalBuffer.getWritePointer(0, 0), l, numAfterWrap);
+			FloatVectorOperations::copy(internalBuffer.getWritePointer(1, 0), r, numAfterWrap);
+		}
+
+		indexInBuffer = (indexInBuffer + numToCopy) % internalBuffer.getNumSamples();
+	}
+
+	ReadWriteLock lock;
+
+	int indexInBuffer = 0;
+
+	int analyseBufferSize = -1;
+
+	AudioSampleBuffer internalBuffer;
+
+};
+
+
+class OscilloscopeBase
+{
+protected:
+
+	OscilloscopeBase(const AnalyserRingBuffer& ringBuffer_) :
+		ringBuffer(ringBuffer_)
+	{};
+
+	virtual Colour getColourForAnalyserBase(int colourId) = 0;
+
+	void drawWaveform(Graphics& g);
+
+private:
+
+	const AnalyserRingBuffer& ringBuffer;
+
+	void drawPath(const float* l_, int numSamples, int width, Path& p)
+	{
+		int stride = roundToInt((float)numSamples / width);
+		stride = jmax<int>(1, stride * 2);
+
+		if (numSamples != 0)
+		{
+			p.clear();
+			p.startNewSubPath(0.0f, 0.0f);
+			p.lineTo(0.0f, 1.0f);
+			p.lineTo(0.0f, -1.0f);
+
+			for (int i = stride; i < numSamples; i += stride)
+			{
+				const int numToCheck = jmin<int>(stride, numSamples - i);
+
+				auto value = jmax<float>(0.0f, FloatVectorOperations::findMaximum(l_ + i, numToCheck));
+
+				p.lineTo((float)i, -1.0f * value);
+
+			};
+
+			for (int i = numSamples - 1; i > 0; i -= stride)
+			{
+				const int numToCheck = jmin<int>(stride, numSamples - i);
+
+				auto value = jmin<float>(0.0f, FloatVectorOperations::findMinimum(l_ + i, numToCheck));
+
+				p.lineTo((float)i, -1.0f * value);
+			};
+
+			p.closeSubPath();
+		}
+		else
+		{
+			p.clear();
+		}
+	}
+
+	void drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
+	{
+		AudioSampleBuffer b2(2, b.getNumSamples());
+
+		auto dataL = b2.getWritePointer(0);
+		auto dataR = b2.getWritePointer(1);
+		int size = b.getNumSamples();
+
+		auto readIndex = ringBuffer.indexInBuffer;
+
+		int numBeforeWrap = size - readIndex;
+		int numAfterWrap = size - numBeforeWrap;
+
+		FloatVectorOperations::copy(dataL, b.getReadPointer(0, readIndex), numBeforeWrap);
+		FloatVectorOperations::copy(dataL + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
+
+		FloatVectorOperations::copy(dataR, b.getReadPointer(1, readIndex), numBeforeWrap);
+		FloatVectorOperations::copy(dataR + numBeforeWrap, b.getReadPointer(1, 0), numAfterWrap);
+
+		auto asComponent = dynamic_cast<Component*>(this);
+
+		drawPath(dataL, b.getNumSamples(), asComponent->getWidth(), lPath);
+		drawPath(dataR, b.getNumSamples(), asComponent->getWidth(), rPath);
+
+		lPath.scaleToFit(0.0f, 0.0f, (float)asComponent->getWidth(), (float)(asComponent->getHeight() / 2), false);
+		rPath.scaleToFit(0.0f, (float)(asComponent->getHeight() / 2), (float)asComponent->getWidth(), (float)(asComponent->getHeight() / 2), false);
+
+		g.fillPath(lPath);
+		g.fillPath(rPath);
+	}
+
+	Path lPath;
+	Path rPath;
+
+
+};
+
+class FFTDisplayBase
+{
+protected:
+
+	FFTDisplayBase(const AnalyserRingBuffer& ringBuffer_):
+		ringBuffer(ringBuffer_)
+#if USE_IPP
+		, fftObject(IppFFT::DataType::RealFloat)
+#endif
+	{}
+
+#if USE_IPP
+	IppFFT fftObject;
+#endif
+
+	virtual Colour getColourForAnalyserBase(int colourId) = 0;
+	virtual double getSamplerate() const = 0;
+
+	void drawSpectrum(Graphics& g);
+
+	const AnalyserRingBuffer& ringBuffer;
+
+	Path lPath;
+	Path rPath;
+
+	AudioSampleBuffer windowBuffer;
+	AudioSampleBuffer fftBuffer;
+};
+
 //==============================================================================
 class EqComponent   : public Component,
 							   public SliderListener

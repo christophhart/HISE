@@ -411,9 +411,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 	}
 	else if ((key.isKeyCode('j') || key.isKeyCode('J')))
 	{
-		if(auto d = draggers.getFirst())
-			getScriptComponentEditBroadcaster()->showJSONEditor(d);
-
+		getScriptComponentEditBroadcaster()->showJSONEditor(this);
 		return true;
 	}
 	else if ((keyCode == 'C' || keyCode == 'c') && key.getModifiers().isCommandDown())

@@ -770,9 +770,16 @@ void JSONEditor::executeCallback()
 	{
 		callback(newData);
 		
-		auto f = [this]()
+		Component::SafePointer<JSONEditor> safeThis(this);
+
+		auto f = [safeThis]()
 		{
-			this->findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+			if (safeThis.getComponent() != nullptr)
+			{
+				if(auto ft = safeThis.getComponent()->findParentComponentOfClass<FloatingTilePopup>())
+					ft->deleteAndClose();
+			}
+				
 		};
 
 		if(closeAfterCallbackExecution)

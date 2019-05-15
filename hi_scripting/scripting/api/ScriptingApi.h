@@ -261,6 +261,9 @@ public:
 		/** Converts MIDI note name to MIDI number ("C3" for middle C). */
 		int getMidiNoteFromName(String midiNoteName) const;
 
+		/** Creates a Dsp node network. */
+		var createDspNetwork(String id);
+
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
 

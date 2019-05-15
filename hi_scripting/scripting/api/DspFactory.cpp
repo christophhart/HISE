@@ -48,6 +48,8 @@ public:
 		}
 	}
 
+	StringArray getListOfAllAvailableModules();
+
 	var load(const String &name, const String &password)
 	{
 		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name, password));
@@ -90,6 +92,34 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibraryLoader)
 };
+
+juce::StringArray DspFactory::LibraryLoader::getListOfAllAvailableModules()
+{
+	StringArray allModules;
+	StringArray libs;
+
+	handler->getAllStaticLibraries(libs);
+
+	handler->getAllDynamicLibraries(libs);
+
+	for (auto lib : libs)
+	{
+		if (auto f = handler->getFactory(lib, ""))
+		{
+			auto moduleList = f->getModuleList();
+
+			if (moduleList.isArray())
+			{
+				for (auto moduleId : *moduleList.getArray())
+				{
+					allModules.add(lib + "." + moduleId.toString());
+				}
+			}
+		}
+	}
+
+	return allModules;
+}
 
 struct DspFactory::Wrapper
 {

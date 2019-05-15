@@ -2016,8 +2016,6 @@ public:
 		icstdsp::MoogFilter moogR;
 	};
 
-
-
 	class Biquad : public DspBaseObject
 	{
 	public:

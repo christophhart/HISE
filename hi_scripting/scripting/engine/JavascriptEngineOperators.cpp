@@ -292,7 +292,7 @@ struct HiseJavascriptEngine::RootObject::LeftShiftOp : public BinaryOperator
 
 			return a;
 		}
-
+		
 		return a;
 	}
 };
@@ -318,12 +318,14 @@ struct HiseJavascriptEngine::RootObject::RightShiftOp : public BinaryOperator
 				*a.getBuffer() >> *b.getBuffer();
 			}
 		}
-		else if (DspInstance* instance = dynamic_cast<DspInstance*>(a.getObject()))
+		else if (a.isObject())
 		{
-            
-			if (b.isBuffer() || b.isArray())
+			if (DspInstance* instance = dynamic_cast<DspInstance*>(a.getObject()))
 			{
-				*instance >> b;
+				if (b.isBuffer() || b.isArray())
+				{
+					*instance >> b;
+				}
 			}
 		}
 

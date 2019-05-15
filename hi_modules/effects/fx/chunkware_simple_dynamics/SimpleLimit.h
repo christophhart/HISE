@@ -66,6 +66,8 @@ namespace chunkware_simple
 
 		SimpleDataType getGainReduction() const { return gR; }
 
+		void setRatio(SimpleDataType) {}
+
 	protected:
 
 		// class for faster attack/release

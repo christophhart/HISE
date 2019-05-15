@@ -63,11 +63,7 @@ bypassed(false)
 
 void DspInstance::initialise()
 {
-	
-
     const SpinLock::ScopedLockType sl(getLock());
-    
-	
 
 	if (DynamicDspFactory* dynamicFactory = dynamic_cast<DynamicDspFactory*>(factory.get()))
 	{
@@ -170,6 +166,7 @@ void DspInstance::processBlock(const var &data)
 			Array<var> *a = data.getArray();
 
 			float *sampleData[NUM_MAX_CHANNELS];
+			const float** sampleDataForListeners = const_cast<const float**>(sampleData);
 			int numSamples = -1;
 
 			
@@ -220,6 +217,15 @@ void DspInstance::processBlock(const var &data)
 				FloatVectorOperations::copy(leftSamples, sampleData[0], numSamples);
 				FloatVectorOperations::copy(rightSamples, sampleData[1], numSamples);
 
+
+#if USE_BACKEND
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->preBlockProcessed(sampleDataForListeners, numChannels, numSamples);
+				}
+#endif
+
 				object->processBlock(sampleData, a->size(), numSamples);
 
 				if (rampUp)
@@ -247,6 +253,13 @@ void DspInstance::processBlock(const var &data)
 
 				switchBypassFlag = false;
 
+#if USE_BACKEND
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->blockWasProcessed(sampleDataForListeners, numChannels, numSamples);
+				}
+#endif
 			}
 			else
 			{
@@ -256,7 +269,24 @@ void DspInstance::processBlock(const var &data)
 				for (int i = 0; i < numChannels; i++)
 					FloatSanitizers::sanitizeArray(sampleData[i], numSamples);
 
+#if USE_BACKEND
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->preBlockProcessed(sampleDataForListeners, numChannels, numSamples);
+				}
+#endif
+
 				object->processBlock(sampleData, numChannels, numSamples);
+
+
+#if USE_BACKEND
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->blockWasProcessed(sampleDataForListeners, numChannels, numSamples);
+				}
+#endif
 
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[0], true, numSamples);
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[1], false, numSamples);
@@ -273,15 +303,33 @@ void DspInstance::processBlock(const var &data)
 			if (b != nullptr)
 			{
 				float *sampleData[1] = { b->buffer.getWritePointer(0) };
+				const float** sampleDataForListeners = const_cast<const float**>(sampleData);
 				const int numSamples = b->size;
 
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[0], true, numSamples);
 				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
 
+
+#if USE_BACKEND
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->preBlockProcessed(sampleDataForListeners, 1, numSamples);
+				}
+#endif
+
 				object->processBlock(sampleData, 1, numSamples);
 
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[0], true, numSamples);
 				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
+
+#if USE_BACKEND
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->blockWasProcessed(sampleDataForListeners, 1, numSamples);
+				}
+#endif
 			}
 		}
 		else throwError("Data Buffer is not valid");
@@ -295,6 +343,14 @@ void DspInstance::setParameter(int index, float newValue)
 		const SpinLock::ScopedLockType sl(getLock());
         
 		object->setParameter(index, newValue);
+
+#if USE_BACKEND
+		for (auto l : listeners)
+		{
+			if (l.get() != nullptr)
+				l->parameterChanged(index);
+		}
+#endif
 	}
 }
 
@@ -476,6 +532,24 @@ DspInstance::~DspInstance()
 	}
 
 	unload();
+}
+
+void DspInstance::rightClickCallback(const MouseEvent& e, Component* c)
+{
+#if USE_BACKEND
+
+	DspObjectDebugger* d = new DspObjectDebugger(this);
+
+	d->setSize(600, 600);
+
+	auto editor = GET_BACKEND_ROOT_WINDOW(c);
+
+	MouseEvent ee = e.getEventRelativeTo(editor);
+
+	editor->getRootFloatingTile()->showComponentInRootPopup(d, editor, ee.getMouseDownPosition());
+#else
+	ignoreUnused(e, c);
+#endif
 }
 
 void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)

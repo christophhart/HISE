@@ -60,7 +60,8 @@
 
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.cpp"
-#include "scripting/scripting_audio_processor/ScriptedAudioProcessor.cpp"
+#include "scripting/scripting_audio_processor/DspNetwork.cpp"
+#include "scripting/scripting_audio_processor/DspNetworkComponents.cpp"
 
 #include "scripting/ScriptProcessor.cpp"
 #include "scripting/ScriptProcessorModules.cpp"

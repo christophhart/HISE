@@ -37,6 +37,8 @@ namespace hise {
 using namespace juce;
 
 
+
+
 /** A analyser that powers one of the available visualisations in HISE (FFT, Oscilloscope or Goniometer.
 	@ingroup effectTypes
 */
@@ -63,8 +65,7 @@ public:
 		parameterNames.add("BufferSize");
 		parameterDescriptions.add("The buffer size of the internal ring buffer.");
 
-		setAnalyserBufferSize(8192);
-
+		ringBuffer.setAnalyserBufferSize(8192);
 	};
 
 	void setInternalAttribute(int index, float newValue)
@@ -72,7 +73,7 @@ public:
 		switch (index)
 		{
 		case Parameters::PreviewType: currentType = (int)newValue; break;
-		case Parameters::BufferSize: setAnalyserBufferSize((int)newValue); break;
+		case Parameters::BufferSize: ringBuffer.setAnalyserBufferSize((int)newValue); break;
 		}
 	}
 
@@ -81,11 +82,9 @@ public:
 		switch (index)
 		{
 		case Parameters::PreviewType: return (float)currentType;
-		case Parameters::BufferSize: return (float)analyseBufferSize;
+		case Parameters::BufferSize: return (float)ringBuffer.analyseBufferSize;
 		default: jassertfalse; return -1;
 		}
-
-
 	}
 
 	~AnalyserEffect()
@@ -110,7 +109,6 @@ public:
 
 		return v;
 	}
-
 	
 	bool hasTail() const override { return false; };
 
@@ -122,19 +120,6 @@ public:
 		return nullptr;
 	};
 
-	void setAnalyserBufferSize(int newValue)
-	{
-		ScopedWriteLock sl(bufferLock);
-
-		jassert(isPowerOfTwo(newValue));
-
-		analyseBufferSize = newValue;
-		indexInBuffer = 0;
-
-		internalBuffer.setSize(2, analyseBufferSize);
-		internalBuffer.clear();
-	}
-
 	const Processor *getChildProcessor(int /*processorIndex*/) const override
 	{
 		return nullptr;
@@ -144,54 +129,30 @@ public:
 
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 	{
-
-
-		ScopedReadLock sl(bufferLock);
-
-		auto l = b.getReadPointer(0, startSample);
-		auto r = b.getReadPointer(1, startSample);
-
-		const int numToCopy = jmin<int>(internalBuffer.getNumSamples(), numSamples);
-
-		const int numBeforeWrap = jmin<int>(numToCopy, internalBuffer.getNumSamples() - indexInBuffer);
-		
-		FloatVectorOperations::copy(internalBuffer.getWritePointer(0, indexInBuffer), l, numBeforeWrap);
-		FloatVectorOperations::copy(internalBuffer.getWritePointer(1, indexInBuffer), r, numBeforeWrap);
-		
-		const int numAfterWrap = numToCopy - numBeforeWrap;
-
-		if (numAfterWrap > 0)
-		{
-			FloatVectorOperations::copy(internalBuffer.getWritePointer(0, 0), l, numAfterWrap);
-			FloatVectorOperations::copy(internalBuffer.getWritePointer(1, 0), r, numAfterWrap);
-		}
-
-		indexInBuffer = (indexInBuffer + numToCopy) % internalBuffer.getNumSamples();
+		ringBuffer.pushSamples(b, startSample, numSamples);
 	}
 
-	AudioSampleBuffer getAnalyseBuffer() const
+	const AudioSampleBuffer& getAnalyseBuffer() const
 	{
-		return internalBuffer;
+		return ringBuffer.internalBuffer;
 	}
 	
 	int getCurrentReadIndex() const
 	{
-		return indexInBuffer;
+		return ringBuffer.indexInBuffer;
 	}
 
-	ReadWriteLock& getBufferLock() { return bufferLock; }
+	ReadWriteLock& getBufferLock() { return ringBuffer.lock; }
+
+	const AnalyserRingBuffer& getRingBuffer() const { return ringBuffer; }
 
 private:
 
-	juce::ReadWriteLock bufferLock;
+	AnalyserRingBuffer ringBuffer;
 
 	int currentType = 1;
 
-	int indexInBuffer = 0;
-
-    int analyseBufferSize = -1;
-    
-	AudioSampleBuffer internalBuffer;
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserEffect);
 };
@@ -263,48 +224,43 @@ protected:
 	
 };
 
-class FFTDisplay : public AudioAnalyserComponent
+
+class FFTDisplay : public FFTDisplayBase,
+				   public AudioAnalyserComponent
 {
 public:
 
 	FFTDisplay(Processor* p) :
-#if USE_IPP
-        AudioAnalyserComponent(p),
-		fftObject(IppFFT::DataType::RealFloat)
-#else
+	   FFTDisplayBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer()),
        AudioAnalyserComponent(p)
-#endif
 	{};
 
-	void paint(Graphics& g) override;
+	void paint(Graphics& g) override
+	{
+		drawSpectrum(g);
+	}
 
-private:
-
-#if USE_IPP
-	IppFFT fftObject;
-#endif
-
-	Path lPath;
-	Path rPath;
-
-	AudioSampleBuffer windowBuffer;
-	AudioSampleBuffer fftBuffer;
+	double getSamplerate() const override { return getAnalyser()->getSampleRate(); }
+	Colour getColourForAnalyserBase(int colourId) override { return AudioAnalyserComponent::getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
 };
 
-class Oscilloscope : public AudioAnalyserComponent
+
+class Oscilloscope : public AudioAnalyserComponent,
+					 public OscilloscopeBase
 {
 public:
 
 	Oscilloscope(Processor* p) :
-		AudioAnalyserComponent(p)
+		AudioAnalyserComponent(p),
+		OscilloscopeBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer())
 	{};
 
-	void paint(Graphics& g) override;
+	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
 
-	Path lPath;
-	Path rPath;
-
-	void drawOscilloscope(Graphics &g, const juce::AudioSampleBuffer &buffer);
+	void paint(Graphics& g) override
+	{
+		OscilloscopeBase::drawWaveform(g);
+	}
 };
 
 class Goniometer : public AudioAnalyserComponent

@@ -111,6 +111,12 @@ public:
 	double getFrequency() const noexcept { return frequency; }
 	float getGain() const noexcept { return gain; }
 
+	void setSmoothingTime(double newSmoothingTime)
+	{
+		SpinLock::ScopedLockType sl(lock);
+		object->setSmoothingTime(jlimit(0.0, 1.0, newSmoothingTime));
+	}
+
 	void setSampleRate(double newSampleRate)
 	{
 		SpinLock::ScopedLockType sl(lock);
@@ -135,8 +141,8 @@ private:
 		virtual ~InternalBankBase() {};
 
 		virtual void setSampleRate(double sampleRate) = 0;
-
 		virtual void setType(int subType) = 0;
+		virtual void setSmoothingTime(double smoothingTimeSeconds) = 0;
 
 		virtual void setFrequency(double newFrequency) = 0;
 		virtual void setQ(double newQ) = 0;
@@ -165,6 +171,11 @@ private:
 		void setSampleRate(double sampleRate) override
 		{
 			filter.setSampleRate(sampleRate);
+		}
+
+		void setSmoothingTime(double smoothingTimeSeconds) override
+		{
+			filter.setSmoothingTime(smoothingTimeSeconds);
 		}
 
 		void setType(int subType) override
@@ -229,6 +240,12 @@ private:
 			filters[voiceIndex].reset();
 		}
 
+		void setSmoothingTime(double smoothingTimeSeconds) override
+		{
+			for(auto& filter: filters)
+				filter.setSmoothingTime(smoothingTimeSeconds);
+		}
+
 		void setFrequency(double newFrequency) override
 		{
 			for (auto& filter : filters)
@@ -289,7 +306,153 @@ private:
 	ScopedPointer<InternalBankBase> object = nullptr;
 };
 
+#ifndef FILL_PARAMETER_ID
+/** Adds a case statement for the enum and returns the name of the enum. */
+#define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: size = HelperFunctions::writeString(text, #enumId); break;
+#endif
 
+class ScriptFilterBank : public StaticDspFactory
+{
+public:
+
+	class Filter : public DspBaseObject
+	{
+	public:
+
+		enum Parameters
+		{
+			Gain = 0,
+			Frequency,
+			Q,
+			Mode,
+			Reset,
+			SmoothingTime,
+			
+			numParameters
+		};
+
+		Filter() :
+			DspBaseObject(),
+			internalFilter(1)
+		{
+			b.setSize(0, 0);
+		};
+
+		SET_MODULE_NAME("multi_filter");
+
+		int getNumConstants() const override
+		{
+			return Parameters::numParameters + hise::FilterBank::FilterMode::numFilterModes;
+		}
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, Gain, size, name);
+				FILL_PARAMETER_ID(Parameters, Frequency, size, name);
+				FILL_PARAMETER_ID(Parameters, Q, size, name);
+				FILL_PARAMETER_ID(Parameters, Mode, size, name);
+				FILL_PARAMETER_ID(Parameters, Reset, size, name);
+				FILL_PARAMETER_ID(Parameters, SmoothingTime, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, LowPass, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, HighPass, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, LowShelf, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, HighShelf, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, Peak, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, ResoLow, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, StateVariableLP, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, StateVariableHP, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, MoogLP, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, OnePoleLowPass, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, OnePoleHighPass, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, StateVariablePeak, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, StateVariableNotch, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, StateVariableBandPass, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, Allpass, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, LadderFourPoleLP, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, LadderFourPoleHP, size, name);
+				FILL_PARAMETER_ID(Parameters::numParameters + hise::FilterBank::FilterMode, RingMod, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+			else if (index < getNumConstants())
+			{
+				value = index - Parameters::numParameters;
+				return true;
+			}
+
+			return false;
+		};
+
+		void setParameter(int index, float newValue) override
+		{
+			switch (index)
+			{
+			case Parameters::Gain:			internalFilter.setGain(newValue); break;
+			case Parameters::Frequency:		internalFilter.setFrequency(newValue); break;
+			case Parameters::Q:				internalFilter.setQ(newValue); break;
+			case Parameters::Mode:			internalFilter.setMode((FilterBank::FilterMode)(int)newValue); break;
+			case Parameters::Reset:			internalFilter.reset(); break;
+			case Parameters::SmoothingTime: smoothingTime = newValue;  internalFilter.setSmoothingTime((double)newValue); break;
+			default: break;
+			}
+		}
+
+		float getParameter(int index) const override
+		{
+			switch (index)
+			{
+			case Parameters::Gain:			return internalFilter.getGain();
+			case Parameters::Frequency:		return internalFilter.getFrequency();
+			case Parameters::Q:				return internalFilter.getQ();
+			case Parameters::Mode:			return internalFilter.getMode();
+			case Parameters::SmoothingTime: return smoothingTime;
+			case Parameters::Reset:			
+			
+			default: return 0.0f;
+			}
+		}
+
+		int getNumParameters() const override { return Parameters::numParameters; }
+
+		void processBlock(float **data, int numChannels, int numSamples) override
+		{
+			b.setDataToReferTo(data, numChannels, numSamples);
+			FilterHelpers::RenderData r(b, 0, numSamples);
+			internalFilter.renderMono(r);
+		}
+
+		void prepareToPlay(double sampleRate, int blockSize) override
+		{
+			internalFilter.setSampleRate(sampleRate);
+		}
+
+		float smoothingTime = 0.03f;
+		hise::FilterBank internalFilter;
+		AudioSampleBuffer b;
+	};
+
+	ScriptFilterBank() :
+		StaticDspFactory()
+	{
+
+	}
+
+	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("filters") };
+
+	void registerModules() override
+	{
+		registerDspModule<Filter>();
+	}
+};
 
 class FilterEffect
 {

@@ -165,13 +165,18 @@ public:
 	{
 		sampleRate = newSampleRate;
 
-		frequency.reset(newSampleRate / 64.0, 0.03);
-		q.reset(newSampleRate / 64.0, 0.03);
-		gain.reset(newSampleRate / 64.0, 0.03);
-		
+		frequency.reset(newSampleRate / 64.0, smoothingTimeSeconds);
+		q.reset(newSampleRate / 64.0, smoothingTimeSeconds);
+		gain.reset(newSampleRate / 64.0, smoothingTimeSeconds);
 
 		reset();
 		clearCoefficients();
+	}
+
+	void setSmoothingTime(float newSmoothingTimeSeconds)
+	{
+		smoothingTimeSeconds = newSmoothingTimeSeconds;
+		setSampleRate(sampleRate);
 	}
 
 	/** Sets the amount of channels. */
@@ -264,6 +269,7 @@ private:
 
 	bool dirty = false;
 
+	double smoothingTimeSeconds = 0.03;
 	double sampleRate = 44100.0;
 	LinearSmoothedValue<double> frequency = 10000.0;
 	LinearSmoothedValue<double> q = 1.0;

@@ -988,6 +988,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_METHOD_WRAPPER_0(Engine, getControlRateDownsamplingFactor);
+	API_METHOD_WRAPPER_1(Engine, createDspNetwork);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
 	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
@@ -1079,6 +1080,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_1(loadImageIntoPool);
+	ADD_API_METHOD_1(createDspNetwork);
 }
 
 
@@ -1328,6 +1330,17 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 }
 
 
+
+var ScriptingApi::Engine::createDspNetwork(String id)
+{
+	if (auto holder = dynamic_cast<scriptnode::DspNetwork::Holder*>(getScriptProcessor()))
+	{
+		return holder->getOrCreate(id);
+	}
+
+	reportScriptError("Not available on this script processor");
+	RETURN_IF_NO_THROW({});
+}
 
 void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));}
 

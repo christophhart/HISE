@@ -35,6 +35,10 @@
 
 namespace hise { using namespace juce;
 
+
+
+
+
 class WrappedAudioProcessorEditorContent : public Component,
 	public ComboBox::Listener
 {

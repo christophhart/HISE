@@ -51,6 +51,9 @@ namespace chunkware_simple
 		void process( SimpleDataType &in1, SimpleDataType &in2 );	// gate runtime process
 		void process( SimpleDataType &in1, SimpleDataType &in2, SimpleDataType keyLinked );	// with stereo-linked key in
 		
+		void setRatio(SimpleDataType ) {}
+		SimpleDataType getRatio() const { return SimpleDataType(1); }
+
 		SimpleDataType getGainReduction() const { return gR; }
 
 	private:

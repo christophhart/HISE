@@ -139,7 +139,7 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		{
 			cacheIndex(instance, s);
 
-			instance->assign(cachedIndex, (float)newValue);
+			instance->assign(cachedIndex, newValue);
 			
 			return;
 		}
