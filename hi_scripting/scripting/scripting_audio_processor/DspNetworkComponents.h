@@ -34,6 +34,7 @@
 
 namespace hise
 {
+using namespace juce;
 
 class ProcessorWithScriptingContent;
 
@@ -52,7 +53,11 @@ struct NodeComponent : public Component
 		return (bool)dataReference[PropertyIds::Folded];
 	}
 
+	bool isDragged() const;
+
 	bool isSelected() const;
+
+	bool isBeingCopied() const;
 
 	struct Factory : public PathFactory
 	{
@@ -80,13 +85,24 @@ struct NodeComponent : public Component
 			powerButton("on", this, f),
 			deleteButton("delete", this, f)
 		{
+			powerButton.setToggleModeWithColourChange(true);
+			powerButton.setToggleStateAndUpdateIcon(!parent.node->isBypassed());
+			
 			addAndMakeVisible(powerButton);
 			addAndMakeVisible(deleteButton);
 		}
 
 		void buttonClicked(Button* b) override
 		{
-
+			if (b == &powerButton)
+			{
+				parent.node->setProperty(PropertyIds::Bypassed, !b->getToggleState());
+			}
+			if (b == &deleteButton)
+			{
+				parent.dataReference.getParent().removeChild(
+					parent.dataReference, parent.node->getUndoManager());
+			}
 		}
 
 		void mouseDoubleClick(const MouseEvent& event) override
@@ -118,13 +134,12 @@ struct NodeComponent : public Component
 			g.setColour(parent.getOutlineColour());
 			g.fillAll();
 
-			g.setColour(Colours::white);
+			g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
 			g.setFont(GLOBAL_BOLD_FONT());
 			g.drawText(parent.dataReference[PropertyIds::ID].toString(), getLocalBounds(), Justification::centred);
 		}
 
 		bool isDragging = false;
-
 
 		Factory f;
 		HiseShapeButton powerButton;
@@ -137,9 +152,8 @@ struct NodeComponent : public Component
 
 	NodeComponent(NodeBase* b) :
 		dataReference(b->getValueTree()),
-		header(*this),
-		node(b)
-
+		node(b),
+		header(*this)
 	{
 		setName(b->getId());
 		addAndMakeVisible(header);
@@ -162,18 +176,32 @@ struct NodeComponent : public Component
 			g.drawRect(getLocalBounds(), 1);
 
 		}
+
+		if (isBeingCopied())
+		{
+			Path p;
+			p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon,
+				sizeof(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
+
+			auto b = getLocalBounds().toFloat().withSizeKeepingCentre(32, 32);
+
+			p.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), true);
+			g.setColour(Colours::white.withAlpha(0.6f));
+			g.fillPath(p);
+		}
 	}
 
 	void resized() override
 	{
+		
 		auto b = getLocalBounds();
 
 		header.setBounds(b.removeFromTop(24));
 	}
 
 	ValueTree dataReference;
-	Header header;
 	NodeBase::Ptr node;
+	Header header;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeComponent);
 };
@@ -187,9 +215,14 @@ struct DeactivatedComponent : public NodeComponent
 		header.setEnabled(false);
 	}
 
+	void resized() override
+	{
+
+	}
+
 	void paint(Graphics& g) override
 	{
-		g.fillAll(Colours::grey.withAlpha(0.8f));
+		g.fillAll(Colours::grey.withAlpha(0.3f));
 		
 	}
 };
@@ -247,8 +280,9 @@ struct ContainerComponent : public NodeComponent
 			m.addSeparator();
 			m.addSectionHeader("Create new node");
 
-			m.addItem(9000, "serial");
-			m.addItem(9001, "parallel");
+			m.addItem(9000, "chain");
+			m.addItem(9001, "split");
+			m.addItem(9002, "multi");
 
 			auto sa = network->getListOfAllAvailableModuleIds();
 
@@ -264,9 +298,11 @@ struct ContainerComponent : public NodeComponent
 				var newNode;
 
 				if (result == 9000)
-					newNode = network->create("serial", {});
+					newNode = network->create("chain", {});
 				if (result == 9001)
-					newNode = network->create("parallel", {});
+					newNode = network->create("split", {});
+				if (result == 9002)
+					newNode = network->create("multi", {});
 
 				if (result >= 11000)
 				{
@@ -302,14 +338,37 @@ struct ContainerComponent : public NodeComponent
 		repaint();
 	}
 
-	void insertDraggedNode(NodeComponent* newNode)
+	void insertDraggedNode(NodeComponent* newNode, bool copyNode)
 	{
+		for (auto nc : childNodeComponents)
+		{
+			if (auto dnc = dynamic_cast<DeactivatedComponent*>(nc))
+			{
+				if (!copyNode && childNodeComponents.indexOf(nc) < insertPosition)
+					insertPosition--;
+
+				childNodeComponents.removeObject(nc);
+				break;
+			}
+		}
+
 		if (insertPosition != -1)
 		{
 			auto newTree = newNode->node->getValueTree();
 
-			newTree.getParent().removeChild(newTree, node->getUndoManager());
-			node->getValueTree().addChild(newTree, insertPosition, node->getUndoManager());
+			if (copyNode)
+			{
+				
+			}
+			else
+			{
+				newTree.getParent().removeChild(newTree, node->getUndoManager());
+
+				auto container = dynamic_cast<NodeContainer*>(node.get());
+
+				container->getNodeTree().addChild(newTree, insertPosition, node->getUndoManager());
+			}
+			
 		}
 	}
 
@@ -330,8 +389,12 @@ struct ContainerComponent : public NodeComponent
 
 	void clearDropTarget()
 	{
-		insertPosition = -1;
-		repaint();
+		if (insertPosition != -1)
+		{
+			insertPosition = -1;
+			repaint();
+		}
+		
 
 		for (auto n : childNodeComponents)
 		{
@@ -395,6 +458,9 @@ private:
 
 		void valueTreePropertyChanged(ValueTree& , const Identifier& id) override
 		{
+			if (id == PropertyIds::Bypassed)
+				parent.repaint();
+
 			if (id == PropertyIds::Folded)
 				sendPooledChangeMessage();
 		}
@@ -770,19 +836,29 @@ struct DspNetworkGraph : public Component,
 		resized();
 	}
 
-	void updateDragging(Point<int> position)
+	void updateDragging(Point<int> position, bool copyNode)
 	{
+		copyDraggedNode = copyNode;
+
 		if (auto c = dynamic_cast<ContainerComponent*>(root.get()))
 		{
 			c->setDropTarget({});
 		}
 
-		if (auto container = dynamic_cast<ContainerComponent*>(root->getComponentAt(position)))
+		if(auto hoveredComponent = root->getComponentAt(position))
 		{
-			currentDropTarget = container;
-			DBG(container->getName());
-			auto pointInContainer = container->getLocalPoint(this, position);
-			container->setDropTarget(pointInContainer);
+			auto container = dynamic_cast<ContainerComponent*>(hoveredComponent);
+
+			if(container == nullptr)
+				container = hoveredComponent->findParentComponentOfClass<ContainerComponent>();
+
+			if(container != nullptr)
+			{
+				currentDropTarget = container;
+				DBG(container->getName());
+				auto pointInContainer = container->getLocalPoint(this, position);
+				container->setDropTarget(pointInContainer);
+			}
 		}
 	}
 
@@ -790,7 +866,7 @@ struct DspNetworkGraph : public Component,
 	{
 		if (currentDropTarget != nullptr)
 		{
-			currentDropTarget->insertDraggedNode(currentlyDraggedComponent);
+			currentDropTarget->insertDraggedNode(currentlyDraggedComponent, copyDraggedNode);
 			currentlyDraggedComponent = nullptr;
 		}
 	}
@@ -833,20 +909,12 @@ struct DspNetworkGraph : public Component,
 	{
 		if (auto parentContainer = dynamic_cast<ContainerComponent*>(n->getParentComponent()))
 		{
-			
-
-
-
-			parentContainer->removeDraggedNode(n);
-
 			n->setBufferedToImage(true);
-
 			auto b = n->getLocalArea(parentContainer, n->getBounds());
-
-			n->setBounds(b);
-
+			parentContainer->removeDraggedNode(n);
 			addAndMakeVisible(currentlyDraggedComponent = n);
 
+			n->setBounds(b);
 			return true;
 		}
 
@@ -902,6 +970,8 @@ struct DspNetworkGraph : public Component,
 	SelectedItemSet<WeakReference<NodeComponent>> selection;
 
 	ValueTree dataReference;
+
+	bool copyDraggedNode = false;
 
 	ScopedPointer<NodeComponent> root;
 

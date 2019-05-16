@@ -205,6 +205,9 @@ void ParallelNodeComponent::paint(Graphics& g)
 	auto b = getLocalBounds().toFloat();
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xcf39363f)));
 
+	if(isMultiChannelNode())
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xcf393f36)));
+
 	g.fillRoundedRectangle(b, 5.0f);
 	g.setColour(getOutlineColour());
 	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
@@ -238,8 +241,6 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 	auto b2 = getLocalBounds();
 
-	int isMultiChannel = JUCE_LIVE_CONSTANT(1);
-
 	b2.removeFromTop(NodeBase::HeaderHeight);
 	b2.removeFromTop(NodeBase::NodeMargin / 2);
 	b2.removeFromBottom(NodeBase::NodeMargin / 2);
@@ -255,9 +256,38 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 	p.addPieSegment(pin1, 0.0f, float_Pi * 2.0f, 0.5f);
 	p.addPieSegment(pin2, 0.0f, float_Pi * 2.0f, 0.5f);
 
-	if (isMultiChannel)
+	if (isMultiChannelNode())
 	{
+		int currentChannelIndex = 0;
+		int channelInTarget = -1;
+		NodeComponent* targetNode = nullptr;
 
+		for (auto c : childNodeComponents)
+		{
+			int numChannelsForThisNode = c->node->getNumChannelsToProcess();
+
+			if (currentChannelIndex + numChannelsForThisNode > cableIndex)
+			{
+				channelInTarget = cableIndex - currentChannelIndex;
+				targetNode = c;
+				break;
+			}
+
+			currentChannelIndex += numChannelsForThisNode;
+		}
+
+		if (targetNode != nullptr && !targetNode->node->isBypassed())
+		{
+			auto targetOffsetX = getCableXOffset(channelInTarget);
+
+			auto b = targetNode->getBounds().toFloat();
+
+			Point<float> p1(b.getCentreX() + targetOffsetX, b.getY());
+			Point<float> p2(b.getCentreX() + targetOffsetX, b.getBottom());
+
+			p.addLineSegment({ start, p1 }, 2.0f);
+			p.addLineSegment({ p2, end }, 2.0f);
+		}
 
 #if 0
 
@@ -280,15 +310,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 					currentCableIndex = 0;
 				}
 
-				auto targetOffsetX = getCableXOffset(currentCableIndex++);
-
-				auto b = currentNode->getBounds().toFloat();
-
-				Point<float> p1(b.getCentreX() + targetOffsetX, b.getY());
-				Point<float> p2(b.getCentreX() + targetOffsetX, b.getBottom());
-
-				p.addLineSegment({ start, p1 }, 2.0f);
-				p.addLineSegment({ p2, end }, 2.0f);
+				
 
 				numForThisNode--;
 			}
@@ -313,10 +335,11 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 		}
 	}
 
-	
-
-	g.setColour(Colour(0xFFAAAAAA));
-	g.fillPath(p);
+	if (!node->isBypassed())
+	{
+		g.setColour(Colour(0xFFAAAAAA));
+		g.fillPath(p);
+	}
 }
 
 juce::Point<int> ContainerComponent::getStartPosition() const
@@ -345,8 +368,12 @@ void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 	{
 		d.dragComponent(&parent, e, nullptr);
 		parent.getParentComponent()->repaint();
+		bool copyNode = e.mods.isAltDown();
 
-		findParentComponentOfClass<DspNetworkGraph>()->updateDragging(parent.getParentComponent()->getLocalPoint(this, e.getPosition()));
+		if (copyNode != parent.isBeingCopied())
+			repaint();
+
+		findParentComponentOfClass<DspNetworkGraph>()->updateDragging(parent.getParentComponent()->getLocalPoint(this, e.getPosition()), copyNode);
 
 		return;
 	}
@@ -406,12 +433,24 @@ juce::Colour NodeComponent::getOutlineColour() const
 
 bool NodeComponent::isRoot() const
 {
-	return dynamic_cast<DspNetworkGraph*>(getParentComponent()) != nullptr;
+	return !isDragged() && dynamic_cast<DspNetworkGraph*>(getParentComponent()) != nullptr;
+}
+
+
+bool NodeComponent::isDragged() const
+{
+	return findParentComponentOfClass<DspNetworkGraph>()->currentlyDraggedComponent == this;
 }
 
 bool NodeComponent::isSelected() const
 {
 	return findParentComponentOfClass<DspNetworkGraph>()->selection.isSelected(const_cast<NodeComponent*>(this));
+}
+
+
+bool NodeComponent::isBeingCopied() const
+{
+	return isDragged() && findParentComponentOfClass<DspNetworkGraph>()->copyDraggedNode;
 }
 
 }

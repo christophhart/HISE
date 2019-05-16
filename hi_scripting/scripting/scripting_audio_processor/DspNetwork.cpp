@@ -74,12 +74,49 @@ juce::Rectangle<int> NodeBase::reduceHeightIfFolded(Rectangle<int> originalHeigh
 		return originalHeight;
 }
 
+
+void NodeBase::updateIdsInValueTree(ValueTree& v)
+{
+	auto nodeTree = v.getChildWithName(PropertyIds::Nodes);
+
+	for (auto n : nodeTree)
+		updateIdsInValueTree(v);
+}
+
+
+juce::String DspNetwork::getNonExistentId(const String& id, StringArray& usedIds) const
+{
+	int trailingIndex = id.getTrailingIntValue();
+	
+	auto idWithoutNumber = trailingIndex == 0 ? id : id.upToLastOccurrenceOf(String(trailingIndex), false, false);
+
+	String newId = id + String(trailingIndex++);
+
+	var existingNode = get(newId);
+
+	while (existingNode.isObject())
+	{
+		newId = idWithoutNumber + String(trailingIndex++);
+		existingNode = get(newId);
+	}
+
+	id = newId;
+
+}
+
 NodeContainer::NodeContainer(DspNetwork* parent, ValueTree data_) :
 	NodeBase(parent, data_, 0)
 {
 	data.addListener(this);
 
-	for (auto child : data)
+	if (!data.getChildWithName(PropertyIds::Nodes).isValid())
+	{
+		ValueTree n(PropertyIds::Nodes);
+		data.addChild(n, -1, getUndoManager());
+	}
+		
+
+	for (auto child : getNodeTree())
 		valueTreeChildAdded(data, child);
 }
 
@@ -96,21 +133,19 @@ void NodeContainer::assign(const int index, var newValue)
 	{
 		auto tree = node->getValueTree();
 
-		tree.setProperty(PropertyIds::NumChannels, getNumChannelsToProcess(), nullptr);
-
 		getUndoManager()->beginNewTransaction();
 		tree.getParent().removeChild(tree, getUndoManager());
-		data.addChild(tree, index, getUndoManager());
+		getNodeTree().addChild(tree, index, getUndoManager());
 	}
 	else
 	{
-		data.removeChild(index, getUndoManager());
+		getNodeTree().removeChild(index, getUndoManager());
 	}
 }
 
 void NodeContainer::valueTreeChildAdded(ValueTree& parentTree, ValueTree& child)
 {
-	if (parentTree != data)
+	if (parentTree != getNodeTree())
 		return;
 
 	if (auto nodeToAdd = getRootNetwork()->getNodeForValueTree(child))
@@ -121,18 +156,24 @@ void NodeContainer::valueTreeChildAdded(ValueTree& parentTree, ValueTree& child)
 		int insertIndex = parentTree.indexOf(child);
 
 		ScopedLock sl(getRootNetwork()->getConnectionLock());
+
+		setChannelsForNewNode(nodeToAdd, insertIndex);
+
 		nodes.insert(insertIndex, nodeToAdd);
 	}
 }
 
 void NodeContainer::valueTreeChildRemoved(ValueTree& parentTree, ValueTree& child, int)
 {
-	if (parentTree != data)
+	if (parentTree != getNodeTree())
 		return;
 
 	if (auto nodeToRemove = getRootNetwork()->getNodeForValueTree(child))
 	{
 		ScopedLock sl(getRootNetwork()->getConnectionLock());
+
+		setChannelsForNewNode(nullptr, nodes.indexOf(nodeToRemove));
+
 		nodes.removeAllInstancesOf(nodeToRemove);
 	}
 }
@@ -452,21 +493,9 @@ var DspNetwork::create(String path, String id)
 
 	if (id.isEmpty())
 	{
-		int trailingIndex = 1;
-
-		String nameToUse = path.fromFirstOccurrenceOf(".", false, false);
-
-		String newId = nameToUse + String(trailingIndex++);
-
-		var existingNode = get(newId);
-
-		while (existingNode.isObject())
-		{
-			newId = nameToUse + String(trailingIndex++);
-			existingNode = get(newId);
-		}
-
-		id = newId;
+		String nameToUse = path.contains(".") ? path.fromFirstOccurrenceOf(".", false, false) : path;
+		StringArray unused;
+		id = getNonExistentId(nameToUse, unused);
 	}
 
 	newNodeData.setProperty(PropertyIds::ID, id, nullptr);
@@ -493,7 +522,7 @@ var DspNetwork::create(String path, String id)
 	return createFromValueTree(newNodeData);
 }
 
-var DspNetwork::get(String id)
+var DspNetwork::get(String id) const
 {
 	if (id.isEmpty())
 		return {};

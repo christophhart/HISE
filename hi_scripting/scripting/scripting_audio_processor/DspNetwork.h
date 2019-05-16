@@ -48,6 +48,11 @@ namespace PropertyIds
 {
 DECLARE_ID(Network);
 DECLARE_ID(Node);
+DECLARE_ID(Nodes);
+DECLARE_ID(Parameter);
+DECLARE_ID(Parameters);
+DECLARE_ID(Bypassed);
+DECLARE_ID(Value);
 DECLARE_ID(HiseFXNode);
 DECLARE_ID(ID);
 DECLARE_ID(Type);
@@ -75,6 +80,40 @@ class NodeComponent;
 
 struct NodeBase: public ConstScriptingObject
 {
+	struct Parameter
+	{
+		ValueTree getOrCreateValueTree(NodeBase& n, var id)
+		{
+			auto pTree = n.getValueTree().getChildWithName(PropertyIds::Parameters);
+
+			for (auto c : pTree)
+			{
+				if (c[PropertyIds::ID] == id)
+					return c;
+			}
+
+			ValueTree p(PropertyIds::Parameter);
+			p.setProperty(PropertyIds::ID, id, n.getUndoManager());
+			pTree.addChild(p, -1, n.getUndoManager());
+
+			return p;
+		}
+
+		using Callback = std::function<void(float)>;
+
+		Parameter(NodeBase& parent_, const String& id, const Callback& cb) :
+			parent(parent_),
+			data(getOrCreateValueTree(parent, id)),
+			value(data, PropertyIds::Value, parent.getUndoManager())
+		{};
+
+		NodeBase& parent;
+		ValueTree data;
+		juce::CachedValue<float> value;
+
+		Callback cb;
+	};
+
 	class AsyncPropertyListener: private ValueTree::Listener,
 								 private SafeChangeBroadcaster,
 							     private SafeChangeListener
@@ -198,7 +237,14 @@ struct NodeBase: public ConstScriptingObject
 
 	virtual void prepare(double sampleRate, int blockSize) = 0;
 
+	bool isBypassed() const { return data[PropertyIds::Bypassed]; }
+
 	bool isConnected() const { return data.getParent().isValid(); }
+
+	void setProperty(const Identifier& id, const var value)
+	{
+		data.setProperty(id, value, getUndoManager());
+	}
 
 	void setDefaultValue(const Identifier& id, var newValue);
 
@@ -221,11 +267,15 @@ struct NodeBase: public ConstScriptingObject
 
 	int getNumChannelsToProcess() const { return (int)data[PropertyIds::NumChannels]; };
 
+	
+
 protected:
 
 	ValueTree data;
 
 private:
+
+	
 
 	WeakReference<ConstScriptingObject> parent;
 	WeakReference<NodeBase> parentNode;
@@ -299,7 +349,7 @@ public:
 	var create(String path, String id);
 
 	/** Returns a reference to the node with the given id. */
-	var get(String id);
+	var get(String id) const;
 
 	String getId() const { return data[PropertyIds::ID].toString(); }
 
@@ -307,7 +357,11 @@ public:
 
 	CriticalSection& getConnectionLock() { return connectLock; }
 
+	void updateIdsInValueTree(ValueTree& v, StringArray& usedIds);
+
 private:
+
+	String getNonExistentId(const String& id, StringArray& usedIds) const;
 
 	CriticalSection connectLock;
 
@@ -342,6 +396,8 @@ struct NodeContainer : public NodeBase,
 	NodeContainer(DspNetwork* root, ValueTree data);
 	~NodeContainer();
 
+	ValueTree getNodeTree() const { return data.getChildWithName(PropertyIds::Nodes); }
+
 	void prepare(double sampleRate, int blockSize) override
 	{
 		for (auto n : nodes)
@@ -365,7 +421,7 @@ struct NodeContainer : public NodeBase,
 
 	void clear()
 	{
-		getValueTree().removeAllChildren(getUndoManager());
+		getNodeTree().removeAllChildren(getUndoManager());
 	}
 
 	void valueTreePropertyChanged(ValueTree& , const Identifier& ) override {}
@@ -375,6 +431,12 @@ struct NodeContainer : public NodeBase,
 	void valueTreeParentChanged(ValueTree&) override {};
 
 protected:
+
+	virtual void setChannelsForNewNode(NodeBase* newNode, int insertPosition)
+	{
+		if(newNode != nullptr)
+			newNode->getValueTree().setProperty(PropertyIds::NumChannels, getNumChannelsToProcess(), getUndoManager());
+	}
 
 	friend class ContainerComponent;
 
@@ -400,7 +462,7 @@ public:
 		if (v == data && id == PropertyIds::NumChannels)
 		{
 			for (auto n : nodes)
-				n->getValueTree().setProperty(PropertyIds::NumChannels, v[id], nullptr);
+				n->getValueTree().setProperty(PropertyIds::NumChannels, v[id], getUndoManager());
 		}
 	}
 
@@ -522,6 +584,23 @@ public:
 
 			channelIndex += numChannelsThisTime;
 		}
+	}
+
+	void setChannelsForNewNode(NodeBase* newNode, int insertPosition) override
+	{
+		int numChannelsAvailable = getNumChannelsToProcess();
+		int numNodes = (nodes.size() + (newNode != nullptr ? 1 : -1));
+
+		if (numNodes == 0)
+			return;
+
+		int numPerNode = numChannelsAvailable / numNodes;
+
+		if(newNode != nullptr)
+			newNode->getValueTree().setProperty(PropertyIds::NumChannels, numPerNode, getUndoManager());
+
+		for (auto n : nodes)
+			n->getValueTree().setProperty(PropertyIds::NumChannels, numPerNode, getUndoManager());
 	}
 
 	float* currentChannelData[NUM_MAX_CHANNELS];
