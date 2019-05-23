@@ -69,6 +69,12 @@ bool MainController::KillStateHandler::handleKillState()
 	{
 		if (!checkForClearance())
 		{
+#if FRONTEND_IS_PLUGIN
+
+			// no kill voice time for fx plugins needed.
+			currentState = State::VoiceKill;
+			return true;
+#else
 			currentState = VoiceKill;
 
 			mc->getMainSynthChain()->killAllVoices();
@@ -82,11 +88,16 @@ bool MainController::KillStateHandler::handleKillState()
 			{
 				return true;
 			}
+#endif
 		}
 		return true;
 	}
 	case State::VoiceKill:
 	{
+#if FRONTEND_IS_PLUGIN
+		currentState = State::Suspended;
+		return true;
+#else
 		if (voicesAreKilled())
 		{
 			currentState = State::Suspended;
@@ -94,19 +105,27 @@ bool MainController::KillStateHandler::handleKillState()
 		}
 
 		return true;
+#endif
 	}
+	case State::WaitingForClearance:
+		currentState = State::Clear;
+		return true;
 	case State::Suspended:
 	{
 		if (checkForClearance())
 		{
+#if FRONTEND_IS_PLUGIN
+			currentState = State::WaitingForClearance;
+			return true;
+#else
 			{
 				DBG_WITH_AUDIO_GUARD("All tickets cleared. Resume processing");
 			}
 			
-
 			mc->getMainSynthChain()->resetAllVoices();
 			currentState = State::Clear;
 			return true;
+#endif
 		}
 
 		return false;
@@ -147,6 +166,31 @@ bool MainController::KillStateHandler::handleKillState()
 
 }
 
+
+
+bool MainController::KillStateHandler::handleBufferDuringSuspension(AudioSampleBuffer& b)
+{
+	if (currentState == Clear)
+		return true;
+
+	if (currentState == VoiceKill)
+	{
+		b.applyGainRamp(0, b.getNumSamples(), 1.0f, 0.0f);
+		return true;
+	}
+
+	if (currentState == WaitingForClearance)
+	{
+		b.applyGainRamp(0, b.getNumSamples(), 0.0f, 1.0f);
+		return true;
+	}
+
+	if (currentState == Suspended)
+	{
+		b.clear();
+		return false;
+	}
+}
 
 
 void MainController::KillStateHandler::requestQuit()
