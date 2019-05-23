@@ -935,6 +935,9 @@ public:
 		*	This will return true only for the sample loading thread and the scripting thread. */
 		bool isSuspendableThread() const noexcept;
 
+
+		bool handleBufferDuringSuspension(AudioSampleBuffer& b);
+
 	private:
 
 		friend class SuspendHelpers::ScopedTicket;
@@ -980,6 +983,7 @@ public:
 			WaitingForInitialisation = 0,
 			Clear,
 			VoiceKill,
+			WaitingForClearance,
 			Suspended,
 			ShutdownSignalReceived,
 			PendingShutdown,

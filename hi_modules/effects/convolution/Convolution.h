@@ -342,6 +342,8 @@ public:
 	{
 		convolverL->cleanPipeline();
 		convolverR->cleanPipeline();
+		leftPredelay.clear();
+		rightPredelay.clear();
 	}
 
 	int getNumChildProcessors() const override { return 0; };

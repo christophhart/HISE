@@ -579,8 +579,7 @@ void ConvolutionEffect::LoadingThread::run()
 
 			ScopedValueSetter<bool> svs(parent.isReloading, true);
 
-			parent.convolverL->reset();
-			parent.convolverR->reset();
+			
 			
 			if (reloadInternal())
 			{
@@ -667,17 +666,10 @@ bool ConvolutionEffect::LoadingThread::reloadInternal()
 
 	ScopedLock sl(parent.getImpulseLock());
 
+	parent.convolverL->reset();
+	parent.convolverR->reset();
 	parent.convolverL->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
-
-	if (shouldRestart)
-		return false;
-
-
 	parent.convolverR->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);
-
-	if (shouldRestart)
-		return false;
-
 	parent.enableProcessing(parent.processingEnabled);
 
 	return true;

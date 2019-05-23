@@ -527,13 +527,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	numSamplesThisBlock = buffer.getNumSamples();
 
+#if !FRONTEND_IS_PLUGIN
 	if (!getKillStateHandler().handleKillState())
 	{
-#if !FRONTEND_IS_PLUGIN
-		buffer.clear();
-#endif
 
-		
+		buffer.clear();
+
 
 		MidiBuffer::Iterator it(midiMessages);
 
@@ -553,6 +552,14 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		return;
 	}
 
+#else
+	getKillStateHandler().handleKillState();
+
+	if (!getKillStateHandler().handleBufferDuringSuspension(buffer))
+		return;
+#endif
+
+	
 
 
 	ScopedTryLock sl(processLock);
@@ -1284,7 +1291,5 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }
-
-
 
 } // namespace hise
