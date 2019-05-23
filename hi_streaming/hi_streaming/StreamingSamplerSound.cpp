@@ -937,7 +937,6 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 {
 	if (!fileHandlesOpen) openFileHandles(sendNotification);
 
-
 #if USE_SAMPLE_DEBUG_COUNTER
 
 	float* l = buffer.getWritePointer(0, startSample);
@@ -982,8 +981,6 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 			normalReader->read(buffer.getFloatBufferForFileReader(), startSample, numSamples, readerPosition, true, true);
 		else
 			dynamic_cast<hlac::HlacSubSectionReader*>(normalReader.get())->readIntoFixedBuffer(buffer, startSample, numSamples, readerPosition);
-
-
 	}
 	else
 	{
@@ -1025,13 +1022,9 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForPreview()
 {
 	if (monolithicInfo != nullptr)
-	{
 		return monolithicInfo->createThumbnailReader(monolithicIndex, monolithicChannelIndex);
-	}
 	else
-	{
 		return pool->afm.createReaderFor(loadedFile);
-	}
 }
 
 

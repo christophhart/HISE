@@ -92,7 +92,7 @@ void ComplexMultiplyAccumulate(Sample* FFTCONVOLVER_RESTRICT re,
 	FloatVectorOperations::addWithMultiply(im, reA, imB, len);
 	FloatVectorOperations::subtractWithMultiply(im, imA, reB, len);
 
-#elif FFTCONVOLVER_USE_SSE
+#elif FFTCONVOLVER_USE_SSE && !HI_ENABLE_LEGACY_CPU_SUPPORT
   const size_t end4 = 4 * (len / 4);
   for (size_t i=0; i<end4; i+=4)
   {

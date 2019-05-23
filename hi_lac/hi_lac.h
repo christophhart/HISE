@@ -76,15 +76,20 @@ SampleMap bugs:
 #include "AppConfig.h"
 #include "../JUCE/modules/juce_audio_formats/juce_audio_formats.h"
 
-#if !JUCE_IOS
-#include <nmmintrin.h> 
-#endif
-
 // This is the current HLAC version. HLAC has full backward compatibility.
 #define HLAC_VERSION 3
 
 // This is the compression block size used by HLAC. Don't change that value unless you know what you're doing...
 #define COMPRESSION_BLOCK_SIZE 4096
+
+/** Config: HI_ENABLE_LEGACY_CPU_SUPPORT
+
+If enabled, then all SSE instructions are replaced by their native implementation. This can be used to compile a
+version that runs on legacy CPU models. 
+*/
+#ifndef HI_ENABLE_LEGACY_CPU_SUPPORT
+#define HI_ENABLE_LEGACY_CPU_SUPPORT 0
+#endif
 
 //=============================================================================
 /** Config: HLAC_MEASURE_DECODING_PERFORMANCE

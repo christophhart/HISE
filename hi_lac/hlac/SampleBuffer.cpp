@@ -347,46 +347,6 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 			Range<int> dstRange({ startSampleDst, startSampleDst + numSamples });
 
 			dst.normaliser.copyFrom(source.normaliser, srcRange, dstRange);
-
-			
-
-#if 0
-
-			auto o1 = (dst.getNormaliseMap(0).getOffset() + startSampleDst) % COMPRESSION_BLOCK_SIZE;
-			auto o2 = (source.getNormaliseMap(0).getOffset() + startSampleSource) % COMPRESSION_BLOCK_SIZE;
-
-			
-
-			dst.setUseOneMap(source.useOneMap);
-				
-			if ((o1 == o2))
-			{
-				dst.getNormaliseMap(0).copyIntBufferWithNormalisation(source.getNormaliseMap(0), (const int16*)source.getReadPointer(0), (int16*)dst.getWritePointer(0, 0), startSampleSource, startSampleDst, numSamples, true);
-
-				if (dst.hasSecondChannel() && !dst.useOneMap)
-				{
-					dst.getNormaliseMap(1).copyIntBufferWithNormalisation(source.getNormaliseMap(1), (const int16*)source.getReadPointer(1), (int16*)dst.getWritePointer(1, 0), startSampleSource, startSampleDst, numSamples, true);
-				}
-
-				dummy++;
-
-				//AudioThreadGuard::Suspender ss;
-				//CompressionHelpers::dump(dst.getFixedBuffer(0), "Merge" + String(dummy) + ".wav");
-
-			}
-			else
-			{
-				equaliseNormalisationAndCopy(dst, source, startSampleDst, startSampleSource, numSamples, 0);
-
-				if (dst.hasSecondChannel())
-				{
-					equaliseNormalisationAndCopy(dst, source, startSampleDst, startSampleSource, numSamples, 1);
-					
-
-				}
-			}
-#endif
-			
 		}
 	}
 	else

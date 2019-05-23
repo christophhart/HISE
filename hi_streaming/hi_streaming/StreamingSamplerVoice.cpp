@@ -230,13 +230,9 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 			numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
 
 			if (writeBufferIsBeingFilled || entireSampleIsLoaded)
-			{
 				voiceBuffer.clear(offset, numSamplesToCopyFromSecondBuffer);
-			}
 			else
-			{
 				hlac::HiseSampleBuffer::copy(voiceBuffer, *localWriteBuffer, offset, 0, numSamplesToCopyFromSecondBuffer);
-			}
 		}
 		else
 		{
@@ -279,11 +275,8 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 	else
 	{
 		const int index = (int)readIndexDouble;
-
 		StereoChannelData returnData;
-
 		returnData.b = localReadBuffer;
-
 		returnData.offsetInBuffer = index;
 
 		return returnData;
@@ -312,8 +305,6 @@ bool SampleLoader::advanceReadIndex(double uptime)
 
 			return queueIsFree;
 		}
-
-		
 	}
 
 	return true;
@@ -322,7 +313,6 @@ bool SampleLoader::advanceReadIndex(double uptime)
 int SampleLoader::getNumSamplesForStreamingBuffers() const
 {
 	jassert(b1.getNumSamples() == b2.getNumSamples());
-
 	return b1.getNumSamples();
 }
 
@@ -553,26 +543,6 @@ void StreamingSamplerVoice::setDebugLogger(DebugLogger* newLogger)
 
 static int alignedCalls = 0;
 static int unalignedCalls = 0;
-
-using SSEFloat = dsp::SIMDRegister<float>;
-
-#if 0
-struct Helpers
-{
-	static SSEFloat getSSEFloatRegister(const float* a)
-	{
-		return SSEFloat::fromRawArray(a);
-	}
-
-	static SSEFloat getSSEFloatRegister(const int16* d)
-	{
-		auto l = _mm_load_si128(reinterpret_cast<const __m128i*>(d));
-		l = _mm_cvtepi16_epi32(l);
-		return _mm_cvtepi32_ps(l);
-	}
-};
-#endif
-
 
 template <typename SignalType, bool isFloat> void interpolateMonoSamples(const SignalType* inL, const SignalType* unusedIn, const float* pitchData, float* outL, float* unusedOut, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
 {
