@@ -500,6 +500,7 @@ ScriptingObjects::ScriptingSamplerSound* ScriptingObjects::ScriptingSamplerSound
 
 void ScriptingObjects::ScriptingSamplerSound::deleteSample()
 {
+#if HI_ENABLE_EXPANSION_EDITING
 	if (!objectExists())
 	{
 		reportScriptError("Sound does not exist");
@@ -517,6 +518,7 @@ void ScriptingObjects::ScriptingSamplerSound::deleteSample()
 	};
 
 	handler->getSampler()->killAllVoicesAndCall(f);
+#endif
 }
 
 juce::String ScriptingObjects::ScriptingSamplerSound::getId(int id) const

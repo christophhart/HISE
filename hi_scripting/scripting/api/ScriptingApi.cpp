@@ -1998,6 +1998,7 @@ var ScriptingApi::Sampler::createListFromScriptSelection()
 
 var ScriptingApi::Sampler::createListFromGUISelection()
 {
+#if USE_BACKEND
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -2014,6 +2015,9 @@ var ScriptingApi::Sampler::createListFromGUISelection()
 		newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
 
 	return newSelection;
+#else
+	return {};
+#endif
 }
 
 void ScriptingApi::Sampler::selectSounds(String regexWildcard)
