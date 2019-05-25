@@ -169,6 +169,39 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
+	class SimpleTimer
+	{
+	public:
+		SimpleTimer(PooledUIUpdater* h):
+			updater(h)
+		{
+			start();
+		}
+
+		virtual ~SimpleTimer()
+		{
+			stop();
+		}
+
+		void start()
+		{
+			updater->simpleTimers.addIfNotAlreadyThere(this);
+		}
+
+		void stop()
+		{
+			updater->simpleTimers.removeAllInstancesOf(this);
+		}
+
+		virtual void timerCallback() = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(SimpleTimer);
+
+		WeakReference<PooledUIUpdater> updater;
+	};
+
 	class Broadcaster
 	{
 	public:
@@ -202,6 +235,12 @@ public:
 
 	void timerCallback() override
 	{
+		for (auto st : simpleTimers)
+		{
+			if (st != nullptr)
+				st->timerCallback();
+		}
+
 		WeakReference<Broadcaster> b;
 
 		while (pendingHandlers.pop(b))
@@ -219,6 +258,9 @@ public:
 		}
 	}
 
+private:
+
+	Array<WeakReference<SimpleTimer>> simpleTimers;
 	LockfreeQueue<WeakReference<Broadcaster>> pendingHandlers;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(PooledUIUpdater);

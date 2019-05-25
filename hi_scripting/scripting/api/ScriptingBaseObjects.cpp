@@ -310,6 +310,44 @@ ValueTree ValueTreeConverters::convertDynamicObjectToContentProperties(const var
 	return root;
 }
 
+var ValueTreeConverters::convertScriptNodeToDynamicObject(ValueTree v)
+{
+	DynamicObject::Ptr root = new DynamicObject();
+
+	Array<var> parameters;
+	Array<var> nodes;
+
+	for (int i = 0; i < v.getNumProperties(); i++)
+	{
+		auto id = v.getPropertyName(i);
+		root->setProperty(id, v[id]);
+	}
+
+	auto pTree = v.getChildWithName(scriptnode::PropertyIds::Parameters);
+
+	for (auto p : pTree)
+		parameters.add(convertValueTreeToDynamicObject(p));
+
+	auto nTree = v.getChildWithName(scriptnode::PropertyIds::Nodes);
+
+	for (auto n : nTree)
+	{
+		nodes.add(convertScriptNodeToDynamicObject(n));
+	}
+
+	if (parameters.size() > 0)
+		root->setProperty(scriptnode::PropertyIds::Parameters, parameters);
+	if (nodes.size() > 0)
+		root->setProperty(scriptnode::PropertyIds::Nodes, nodes);
+
+	return var(root);
+}
+
+juce::ValueTree ValueTreeConverters::convertDynamicObjectToScriptNodeTree(var obj)
+{
+	return {};
+}
+
 void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 {
 	if (auto dyn = object.getDynamicObject())

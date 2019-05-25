@@ -256,6 +256,10 @@ struct ValueTreeConverters
 
 	static ValueTree convertDynamicObjectToContentProperties(const var& d);
 
+	static var convertScriptNodeToDynamicObject(ValueTree v);
+
+	static ValueTree convertDynamicObjectToScriptNodeTree(var obj);
+
 private:
 
 	static void v2d_internal(var& object, const ValueTree& v);
