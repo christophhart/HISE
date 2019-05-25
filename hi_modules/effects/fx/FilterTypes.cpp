@@ -89,6 +89,26 @@ void MoogFilterSubType::processSamples(AudioSampleBuffer& buffer, int startSampl
 	}
 }
 
+void MoogFilterSubType::processSingle(float* frameData, int numChannels)
+{
+	for (int c = 0; c < numChannels; c++)
+	{
+		double input = (double)frameData[c];
+
+		input -= out4[c] * fb;
+		input *= 0.35013 * fss;
+		out1[c] = input + 0.3 * in1[c] + invF * out1[c];
+		in1[c] = input;
+		out2[c] = out1[c] + 0.3 * in2[c] + invF * out2[c];
+		in2[c] = out1[c];
+		out3[c] = out2[c] + 0.3 * in3[c] + invF * out3[c];
+		in3[c] = out2[c];
+		out4[c] = out3[c] + 0.3 * in4[c] + invF * out4[c];
+		in4[c] = out3[c];
+		frameData[c] = 2.0f * (float)out4[c];
+	}
+}
+
 void SimpleOnePoleSubType::processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples)
 {
 	lastChannelAmount = buffer.getNumChannels();
@@ -133,6 +153,37 @@ void SimpleOnePoleSubType::processSamples(AudioSampleBuffer& buffer, int startSa
 	}
 }
 
+void SimpleOnePoleSubType::processSingle(float* d, int numChannels)
+{
+	switch (onePoleType)
+	{
+	case FilterType::HP:
+	{
+		for (int c = 0; c < numChannels; c++)
+		{
+			const float tmp = a0 * d[c] - b1 * lastValues[c];
+			lastValues[c] = tmp;
+			d[c] = d[c] - tmp;
+		}
+
+		break;
+	}
+	case FilterType::LP:
+	{
+		for (int c = 0; c < numChannels; c++)
+		{
+			d[c] = a0 * d[c] - b1 * lastValues[c];
+			lastValues[c] = d[c];
+		}
+
+		break;
+	}
+	default:
+		jassertfalse;
+		break;
+	}
+}
+
 void RingmodFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
 	uptimeDelta = frequency / sampleRate * 2.0 * double_Pi;
@@ -160,6 +211,20 @@ void RingmodFilterSubType::processSamples(AudioSampleBuffer& buffer, int startSa
 	}
 }
 
+void RingmodFilterSubType::processSingle(float* d, int numChannels)
+{
+	const float invGain = 1.0f - oscGain;
+	const float oscValue = oscGain * (float)std::sin(uptime);;
+
+	for (int c = 0; c < numChannels; c++)
+	{
+		const float input = d[c];
+		d[c] = invGain * input + input * oscValue;
+	}
+
+	uptime += uptimeDelta;
+}
+
 void StaticBiquadSubType::reset(int numNewChannels)
 {
 	numChannels = numNewChannels;
@@ -181,6 +246,14 @@ void StaticBiquadSubType::processSamples(AudioSampleBuffer& b, int startSample, 
 	}
 }
 
+void StaticBiquadSubType::processSingle(float* d, int numChannels)
+{
+	for (int i = 0; i < numChannels; i++)
+	{
+		d[i] = filters[i].processSingleSampleRaw(d[i]);
+	}
+}
+
 void PhaseAllpassSubType::processSamples(AudioSampleBuffer& b, int startSample, int numSamples)
 {
 	for (int c = 0; c < numFilters; c++)
@@ -191,6 +264,12 @@ void PhaseAllpassSubType::processSamples(AudioSampleBuffer& b, int startSample, 
 			*d = filters[c].getNextSample(*d);
 		}
 	}
+}
+
+void PhaseAllpassSubType::processSingle(float* d, int numChannels)
+{
+	for (int i = 0; i < numChannels; i++)
+		d[i] = filters[i].getNextSample(d[i]);
 }
 
 void PhaseAllpassSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
@@ -242,6 +321,14 @@ void LadderSubType::processSamples(AudioSampleBuffer& b, int startSample, int nu
 			float* d = b.getWritePointer(c, i + startSample);
 			*d = processSample(*d, c);
 		}
+	}
+}
+
+void LadderSubType::processSingle(float* d, int numChannels)
+{
+	for (int c = 0; c < numChannels; c++)
+	{
+		d[c] = processSample(d[c], c);
 	}
 }
 
@@ -420,6 +507,99 @@ void StateVariableFilterSubType::processSamples(AudioSampleBuffer& buffer, int s
         default:
             jassertfalse;
             break;
+	}
+}
+
+void StateVariableFilterSubType::processSingle(float* d, int numChannels)
+{
+	switch (type)
+	{
+	case LP:
+	{
+		for (int c = 0; c < numChannels; c++)
+		{
+			float v0 = d[c];
+			float v1z = z1_A[c];
+			float v2z = v2[c];
+			float v3 = v0 + v0z[c] - 2.0f * v2z;
+			z1_A[c] += g1 * v3 - g2 * v1z;
+			v2[c] += g3 * v3 + g4 * v1z;
+			v0z[c] = v0;
+			d[c] = v2[c];
+		}
+
+		break;
+	}
+	case BP:
+	{
+		for (int c = 0; c < numChannels; c++)
+		{
+			float v0 = d[c];
+			float v1z = z1_A[c];
+			float v2z = v2[c];
+			float v3 = v0 + v0z[c] - 2.0f * v2z;
+			z1_A[c] += g1 * v3 - g2 * v1z;
+			v2[c] += g3 * v3 + g4 * v1z;
+			v0z[c] = v0;
+			d[c] = z1_A[c];
+		}
+
+		break;
+	}
+
+	case HP:
+	{
+		for (int c = 0; c < numChannels; c++)
+		{
+			float v0 = d[c];
+			float v1z = z1_A[c];
+			float v2z = v2[c];
+			float v3 = v0 + v0z[c] - 2.0f * v2z;
+			z1_A[c] += g1 * v3 - g2 * v1z;
+			v2[c] += g3 * v3 + g4 * v1z;
+			v0z[c] = v0;
+			d[c] = v0 - k * z1_A[c] - v2[c];
+		}
+
+		break;
+	}
+	case FilterType::ALLPASS:
+	{
+		for (int c = 0; c < numChannels; c++)
+		{
+			const float input = d[c];
+			const float HP = (input - x1 * z1_A[c] - v2[c]) / x2;
+			const float BP = HP * gCoeff + z1_A[c];
+			const float LP = BP * gCoeff + v2[c];
+
+			z1_A[c] = gCoeff * HP + BP;
+			v2[c] = gCoeff * BP + LP;
+
+			const float AP = input - (4.0f * RCoeff * BP);
+			d[c] = AP;
+		}
+		break;
+	}
+
+	case NOTCH:
+	{
+		for (int c = 0; c < numChannels; c++)
+		{
+			float v0 = d[c];
+			float v1z = z1_A[c];
+			float v2z = v2[c];
+			float v3 = v0 + v0z[c] - 2.0f * v2z;
+			z1_A[c] += g1 * v3 - g2 * v1z;
+			v2[c] += g3 * v3 + g4 * v1z;
+			v0z[c] = v0;
+			d[c] = v0 - k * z1_A[c];
+		}
+
+		break;
+	}
+	default:
+		jassertfalse;
+		break;
 	}
 }
 
