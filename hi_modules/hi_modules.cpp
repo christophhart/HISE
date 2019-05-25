@@ -169,6 +169,15 @@ namespace wdl
 
 #endif
 
+#include "effects/fx_nodes/CoreNodes.cpp"
+#include "effects/fx_nodes/ConvolutionNode.cpp"
+#include "effects/fx_nodes/DelayNode.cpp"
+#include "effects/fx_nodes/DynamicsNode.cpp"
+#include "effects/fx_nodes/FilterNode.cpp"
+#include "effects/fx_nodes/PhaseNode.cpp"
+#include "effects/fx_nodes/ShaperNode.cpp"
+#include "effects/fx_nodes/HiseNodeFactory.cpp"
+
 #include "raw/raw_misc.cpp"
 #include "raw/raw_builder.cpp"
 #include "raw/raw_positioner.cpp"

@@ -650,7 +650,7 @@ public:
 	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
 
 	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); saveNetworks(v); saveScript(v); return v; }
-	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreNetworks(v); restoreScript(v); restoreContent(v); }
+	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{

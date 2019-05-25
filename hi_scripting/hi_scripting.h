@@ -82,17 +82,40 @@ END_JUCE_MODULE_DECLARATION
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 
+#include "scripting/scriptnode/data/Properties.h"
+#include "scripting/scriptnode/data/RangeHelpers.h"
+#include "scripting/scriptnode/data/ValueTreeHelpers.h"
+#include "scripting/scriptnode/data/DspHelpers.h"
+#include "scripting/scriptnode/data/NodeBase.h"
+#include "scripting/scriptnode/data/CodeGenerator.h"
+#include "scripting/scriptnode/data/DspNetwork.h"
+#include "scripting/scriptnode/data/ModulationSourceNode.h"
+#include "scripting/scriptnode/data/NodeContainer.h"
+#include "scripting/scriptnode/data/NodeWrapper.h"
+#include "scripting/scriptnode/data/ProcessNodes.h"
+#include "scripting/scriptnode/data/DspNode.h"
+#include "scripting/scriptnode/data/FeedbackNode.h"
+
+
+#include "scripting/scriptnode/ui/ParameterSlider.h"
+#include "scripting/scriptnode/ui/PropertyEditor.h"
+#include "scripting/scriptnode/ui/NodeComponent.h"
+#include "scripting/scriptnode/ui/ModulationSourceComponent.h"
+#include "scripting/scriptnode/ui/NodeContainerComponent.h"
+#include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
+#include "scripting/scriptnode/ui/DspNodeComponent.h"
+#include "scripting/scriptnode/ui/DspNetworkComponents.h"
 
 
 #include "scripting/engine/HiseJavascriptEngine.h"
 
 #include "scripting/api/XmlApi.h"
-#include "scripting/scripting_audio_processor/DspNetwork.h"
-#include "scripting/scripting_audio_processor/DspNetworkComponents.h"
 #include "scripting/api/ScriptingApiObjects.h"
 #include "scripting/api/ScriptingApi.h"
 #include "scripting/api/ScriptingApiContent.h"
 #include "scripting/api/ScriptComponentEditBroadcaster.h"
+
+
 
 #include "scripting/ScriptProcessor.h"
 #include "scripting/ScriptProcessorModules.h"

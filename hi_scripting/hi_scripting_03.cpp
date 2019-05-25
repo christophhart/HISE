@@ -34,38 +34,25 @@
 
 #include "JuceHeader.h"
 
-#include <regex>
+#include "scripting/scriptnode/data/Properties.cpp"
+#include "scripting/scriptnode/data/RangeHelpers.cpp"
+#include "scripting/scriptnode/data/ValueTreeHelpers.cpp"
+#include "scripting/scriptnode/data/DspHelpers.cpp"
+#include "scripting/scriptnode/data/NodeBase.cpp"
+#include "scripting/scriptnode/data/CodeGenerator.cpp"
+#include "scripting/scriptnode/data/DspNetwork.cpp"
+#include "scripting/scriptnode/data/ModulationSourceNode.cpp"
+#include "scripting/scriptnode/data/NodeContainer.cpp"
+#include "scripting/scriptnode/data/NodeWrapper.cpp"
+#include "scripting/scriptnode/data/ProcessNodes.cpp"
+#include "scripting/scriptnode/data/DspNode.cpp"
+#include "scripting/scriptnode/data/FeedbackNode.cpp"
 
-
-#include "scripting/api/DspFactory.cpp"
-#include "scripting/api/DspInstance.cpp"
-
-#include "scripting/engine/JavascriptApiClass.cpp"
-#include "scripting/api/ScriptingBaseObjects.cpp"
-
-#include "scripting/engine/HiseJavascriptEngine.cpp"
-#include "scripting/engine/JavascriptEngineExpressions.cpp"
-#include "scripting/engine/JavascriptEngineStatements.cpp"
-#include "scripting/engine/JavascriptEngineOperators.cpp"
-#include "scripting/engine/JavascriptEngineCustom.cpp"
-#include "scripting/engine/JavascriptEngineParser.cpp"
-#include "scripting/engine/JavascriptEngineObjects.cpp"
-#include "scripting/engine/JavascriptEngineMathObject.cpp"
-#include "scripting/engine/JavascriptEngineAdditionalMethods.cpp"
-#include "scripting/engine/JavascriptEngineCyclicReferenceChecks.cpp"
-
-#include "scripting/api/ScriptingApiObjects.cpp"
-#include "scripting/api/ScriptingApi.cpp"
-
-
-
-#include "scripting/scripting_audio_processor/ScriptDspModules.cpp"
-
-#include "scripting/ScriptProcessor.cpp"
-#include "scripting/ScriptProcessorModules.cpp"
-#include "scripting/HardcodedScriptProcessor.cpp"
-#include "scripting/hardcoded_modules/Arpeggiator.cpp"
-
-#include "scripting/api/ScriptingApiWrappers.cpp"
-#include "scripting/api/ScriptingApiContent.cpp"
-
+#include "scripting/scriptnode/ui/ParameterSlider.cpp"
+#include "scripting/scriptnode/ui/PropertyEditor.cpp"
+#include "scripting/scriptnode/ui/NodeComponent.cpp"
+#include "scripting/scriptnode/ui/ModulationSourceComponent.cpp"
+#include "scripting/scriptnode/ui/NodeContainerComponent.cpp"
+#include "scripting/scriptnode/ui/FeedbackNodeComponents.cpp"
+#include "scripting/scriptnode/ui/DspNodeComponent.cpp"
+#include "scripting/scriptnode/ui/DspNetworkComponents.cpp"

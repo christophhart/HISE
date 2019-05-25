@@ -872,6 +872,8 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 {
 	restoreComplexDataTypes(v);
 
+	restoreNetworks(v);
+
 	String x = v.getProperty("Script", String());
 
 	auto contentPropertyChild = v.getChildWithName("ContentProperties");
