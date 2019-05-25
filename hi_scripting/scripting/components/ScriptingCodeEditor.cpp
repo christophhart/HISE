@@ -41,7 +41,6 @@ scriptProcessor(p),
 processor(dynamic_cast<Processor*>(p)),
 snippetId(snippetId_)
 {
-
 	p->addEditor(this);
 
 	getGutterComponent()->addMouseListener(this, true);

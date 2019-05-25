@@ -89,7 +89,15 @@ public:
 
 	void setPeakMultiChannel(float *numbers, int numChannels);
 
+	void setInvertMode(bool shouldInvertRange)
+	{
+		invertMode = shouldInvertRange;
+		repaint();
+	}
+
 private:
+
+	bool invertMode = false;
 
 	void drawMonoMeter(Graphics &g);
 	void drawStereoMeter(Graphics &g);;

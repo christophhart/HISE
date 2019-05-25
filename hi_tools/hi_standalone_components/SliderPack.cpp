@@ -315,15 +315,16 @@ void SliderPack::resized()
 void SliderPack::changeListenerCallback(SafeChangeBroadcaster *)
 {
 	if (data->getNumSliders() != sliders.size())
-	{
 		setNumSliders(data->getNumSliders());
-	}
 
 	const int displayIndex = data->getNextIndexToDisplay();
 
-	setDisplayedIndex(displayIndex);
-
-	update();
+	if (displayIndex != -1 && currentDisplayIndex != displayIndex)
+	{
+		setDisplayedIndex(displayIndex);
+	}
+	else
+		update();
 }
 
 void SliderPack::update()

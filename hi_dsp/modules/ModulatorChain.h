@@ -592,6 +592,20 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorChain)
 };
 
+
+struct ModBufferExpansion
+{
+
+	static bool isEqual(float rampStart, const float* data, int numElements);
+
+	/** Expands the data found in modulationData + startsample according to the HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR.
+	*
+	*	It updates the rampstart and returns true if there was movement in the modulation data.
+	*
+	*/
+	static bool expand(const float* modulationData, int startSample, int numSamples, float& rampStart);
+};
+
 /**	Allows creation of TimeVariantModulators.
 *
 *	This holds three different FactoryTypes and enables nice popup menus.

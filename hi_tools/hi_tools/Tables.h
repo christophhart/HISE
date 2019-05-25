@@ -376,17 +376,13 @@ protected:
 
 	float *getWritePointer() override;
 
-
 private:
 
 	double coefficient;
-
 	float data[SAMPLE_LOOKUP_TABLE_SIZE];
-
 	int sampleLength;
 
-
-
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleLookupTable);
 };
 
 

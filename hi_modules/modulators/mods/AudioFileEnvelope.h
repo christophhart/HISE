@@ -92,6 +92,17 @@ public:
 		/** You have to call this before any call to calculateValue. */
 		void setSampleRate(double sampleRate_);
 
+		void setAttackDouble(double newAttack)
+		{
+			setAttack((float)newAttack);
+		}
+
+		void setReleaseDouble(double newRelease)
+		{
+			setRelease((float)newRelease);
+		}
+
+
 		void setAttack(float newAttack)
 		{
 			attack = newAttack;

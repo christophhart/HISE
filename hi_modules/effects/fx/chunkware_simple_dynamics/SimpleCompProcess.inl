@@ -89,7 +89,7 @@ namespace chunkware_simple
 	}
 
 	//-------------------------------------------------------------
-	INLINE void SimpleCompRms::process( SimpleDataType &in1, SimpleDataType &in2 )
+	void SimpleCompRms::process( SimpleDataType &in1, SimpleDataType &in2 )
 	{
 		// create sidechain
 

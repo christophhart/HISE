@@ -121,7 +121,10 @@ void VuMeter::drawMonoMeter(Graphics &g)
 			colours[ledColour].withMultipliedAlpha(0.2f),
 			0.0f, h, false));
 
-		g.fillRect(2.0f, 2.0f, value, h - 4.0f);
+		if(invertMode)
+			g.fillRect(w - value - 2.0f, 2.0f, value, h - 4.0f);
+		else
+			g.fillRect(2.0f, 2.0f, value, h - 4.0f);
 
 		previousValue = value;
 

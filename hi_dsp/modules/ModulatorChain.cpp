@@ -33,55 +33,6 @@
 namespace hise { using namespace juce;
 
 
-struct ModBufferExpansion
-{
-
-	static bool isEqual(float rampStart, const float* data, int numElements)
-	{
-		auto range = FloatVectorOperations::findMinAndMax(data, numElements);
-		return (range.contains(rampStart) || range.getEnd() == rampStart) && range.getLength() < 0.001f;
-	}
-
-	/** Expands the data found in modulationData + startsample according to the HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR.
-	*
-	*	It updates the rampstart and returns true if there was movement in the modulation data.
-	*
-	*/
-	static bool expand(const float* modulationData, int startSample, int numSamples, float& rampStart)
-	{
-		const int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-		const int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-
-		if (isEqual(rampStart, modulationData + startSample_cr, numSamples_cr))
-		{
-			rampStart = modulationData[startSample_cr];
-			return false;
-		}
-		else
-		{
-#if HISE_USE_CONTROLRATE_DOWNSAMPLING
-
-			float* temp = (float*)alloca(sizeof(float) * (numSamples_cr));
-			FloatVectorOperations::copy(temp, modulationData + startSample_cr, numSamples_cr);
-			float* d = const_cast<float*>(modulationData + startSample);
-
-			constexpr float ratio = 1.0f / (float)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-
-			for (int i = 0; i < numSamples_cr; i++)
-			{
-				AlignedSSERamper<HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR> ramper(d);
-
-				const float delta1 = (temp[i] - rampStart) * ratio;
-				ramper.ramp(rampStart, delta1);
-				rampStart = temp[i];
-				d += HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-			}
-#endif
-
-			return true;
-		}
-	}
-};
 
 template <class ModulatorSubType> struct ModIterator
 {
@@ -1327,5 +1278,46 @@ Processor *ModulatorChainFactoryType::createProcessor(int typeIndex, const Strin
 		
 	return MainController::createProcessor(factory, s, id);
 };
+
+bool ModBufferExpansion::isEqual(float rampStart, const float* data, int numElements)
+{
+	auto range = FloatVectorOperations::findMinAndMax(data, numElements);
+	return (range.contains(rampStart) || range.getEnd() == rampStart) && range.getLength() < 0.001f;
+}
+
+bool ModBufferExpansion::expand(const float* modulationData, int startSample, int numSamples, float& rampStart)
+{
+	const int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	const int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	if (isEqual(rampStart, modulationData + startSample_cr, numSamples_cr))
+	{
+		rampStart = modulationData[startSample_cr];
+		return false;
+	}
+	else
+	{
+#if HISE_USE_CONTROLRATE_DOWNSAMPLING
+
+		float* temp = (float*)alloca(sizeof(float) * (numSamples_cr));
+		FloatVectorOperations::copy(temp, modulationData + startSample_cr, numSamples_cr);
+		float* d = const_cast<float*>(modulationData + startSample);
+
+		constexpr float ratio = 1.0f / (float)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+		for (int i = 0; i < numSamples_cr; i++)
+		{
+			AlignedSSERamper<HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR> ramper(d);
+
+			const float delta1 = (temp[i] - rampStart) * ratio;
+			ramper.ramp(rampStart, delta1);
+			rampStart = temp[i];
+			d += HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		}
+#endif
+
+		return true;
+	}
+}
 
 } // namespace hise

@@ -104,7 +104,13 @@ public:
 	FilterMode getMode() const noexcept { return mode; }
 
 	void setQ(double newQ);;
-	void setFrequency(double newFrequency);;
+
+	void setFrequency(double newFrequency)
+	{
+		frequency = newFrequency;
+		object->setFrequency(newFrequency);
+	}
+
 	void setGain(float newGain);;
 
 	double getQ() const noexcept { return q; }
@@ -168,11 +174,6 @@ private:
 			filter.render(r);
 		}
 
-		void setSampleRate(double sampleRate) override
-		{
-			filter.setSampleRate(sampleRate);
-		}
-
 		void setSmoothingTime(double smoothingTimeSeconds) override
 		{
 			filter.setSmoothingTime(smoothingTimeSeconds);
@@ -188,17 +189,22 @@ private:
 			filter.reset();
 		}
 
-		void setFrequency(double newFrequency) override
+		void setFrequency(double newFrequency) final override
 		{
 			filter.setFrequency(newFrequency);
 		}
 
-		void setQ(double newFrequency) override
+		void setQ(double newFrequency) final override
 		{
 			filter.setQ(newFrequency);
 		}
 
-		void setGain(double newFrequency) override
+		void setSampleRate(double newSampleRate) final override
+		{
+			filter.setSampleRate(newSampleRate);
+		}
+
+		void setGain(double newFrequency) final override
 		{
 			filter.setGain(newFrequency);
 		}
@@ -223,6 +229,11 @@ private:
 			filters[r.voiceIndex].render(r);
 		}
 
+		void processFrame(float* frameData, int numChannels)
+		{
+			filters[r.voiceIndex].processFrame(frameData, numChannels);
+		}
+
 		void setSampleRate(double sampleRate) override
 		{
 			for (auto &filter : filters)
@@ -240,25 +251,25 @@ private:
 			filters[voiceIndex].reset();
 		}
 
-		void setSmoothingTime(double smoothingTimeSeconds) override
+		void setSmoothingTime(double smoothingTimeSeconds) final override
 		{
 			for(auto& filter: filters)
 				filter.setSmoothingTime(smoothingTimeSeconds);
 		}
 
-		void setFrequency(double newFrequency) override
+		void setFrequency(double newFrequency) final override
 		{
 			for (auto& filter : filters)
 				filter.setFrequency(newFrequency);
 		}
 
-		void setQ(double newFrequency) override
+		void setQ(double newFrequency) final override
 		{
 			for (auto& filter : filters)
 				filter.setQ(newFrequency);
 		}
 
-		void setGain(double newFrequency) override
+		void setGain(double newFrequency) final override
 		{
 			for (auto& filter : filters)
 				filter.setGain(newFrequency);
@@ -310,6 +321,9 @@ private:
 /** Adds a case statement for the enum and returns the name of the enum. */
 #define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: size = HelperFunctions::writeString(text, #enumId); break;
 #endif
+
+
+
 
 class ScriptFilterBank : public StaticDspFactory
 {
@@ -479,4 +493,7 @@ protected:
 };
 
 }
+
+
+
 #endif // FILTER_HELPERS_H_INCLUDED

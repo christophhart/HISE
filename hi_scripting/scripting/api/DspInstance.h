@@ -87,10 +87,6 @@ private:
 
 typedef DspBaseObject*(*createDspModule_)(const char *);
 
-#if INCLUDE_TCC
-class TccDspFactory;
-#endif
-
 class DspFactory::Handler
 {
 public:
@@ -142,9 +138,67 @@ private:
 
 	MainController* mc = nullptr;
 
-#if INCLUDE_TCC
-	ReferenceCountedObjectPtr<TccDspFactory> tccFactory;
-#endif
+};
+
+class DspFactory::LibraryLoader : public DynamicObject
+{
+public:
+
+	LibraryLoader(Processor* p_) :
+		p(p_)
+	{
+		if (p != nullptr)
+		{
+			mc = p->getMainController();
+			handler->setMainController(mc);
+			ADD_DYNAMIC_METHOD(load);
+			ADD_DYNAMIC_METHOD(list);
+		}
+	}
+
+	StringArray getListOfAllAvailableModules();
+
+	var load(const String &name, const String &password)
+	{
+		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name, password));
+
+		f->currentProcessor = p;
+
+		return var(f);
+	}
+
+	var list()
+	{
+		StringArray s1, s2;
+
+		handler->getAllStaticLibraries(s1);
+		handler->getAllDynamicLibraries(s2);
+
+		String output = "Available static libraries: \n";
+		output << s1.joinIntoString("\n");
+
+		output << "\nAvailable dynamic libraries: " << "\n";
+		output << s2.joinIntoString("\n");
+
+		return var(output);
+	}
+
+
+private:
+
+	struct Wrapper
+	{
+		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, load, ARG(0).toString(), ARG(1).toString());
+		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, list);
+	};
+
+	SharedResourcePointer<DspFactory::Handler> handler;
+
+	Processor* p = nullptr;
+	MainController* mc = nullptr;
+
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibraryLoader)
 };
 
 /** This objects is a wrapper around the actual DSP module that is loaded from a plugin.

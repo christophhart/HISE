@@ -225,6 +225,8 @@ void FilterBank::renderMono(FilterHelpers::RenderData& r)
 	}
 }
 
+
+
 #undef RENDER_POLY
 #undef RENDER_MONO
 
@@ -276,12 +278,6 @@ void FilterBank::setQ(double newQ)
 {
 	q = newQ;
 	object->setQ(newQ);
-}
-
-void FilterBank::setFrequency(double newFrequency)
-{
-	frequency = newFrequency;
-	object->setFrequency(newFrequency);
 }
 
 void FilterBank::setGain(float newGain)

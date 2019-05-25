@@ -88,6 +88,12 @@ public:
 
 	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
 	
+	void setSoftBypass(bool /*shouldBeSoftBypassed*/, bool /*useRamp*//* =true */) override {};
+
+	bool isFadeOutPending() const noexcept override
+	{
+		return false;
+	}
 
 	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override;
 

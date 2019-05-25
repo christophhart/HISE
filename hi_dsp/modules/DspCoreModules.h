@@ -22,8 +22,6 @@ template <int MaxLength=65536> class DelayLine
     static constexpr int DELAY_BUFFER_MASK = MaxLength - 1;
     
 public:
-
-    
     
 	DelayLine() :
 		readIndex(0),
@@ -83,7 +81,6 @@ public:
 				else					processSampleWithFade(data[i]);
 			}
 		}
-		
 	}
 
 	float getLastValue()
@@ -110,7 +107,6 @@ public:
 		readIndex = 0;
 
 	}
-
 
 private:
 
@@ -140,7 +136,6 @@ private:
 			}
 		}
 	}
-
 
 	void processSampleWithoutFade(float& f)
 	{
