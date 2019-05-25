@@ -179,6 +179,11 @@ private:
 	static Array<ClassDocumentation> classes;
 };
 
+
+
+
+
+
 class ApiCollection : public SearchableListComponent
 {
 public:
@@ -281,5 +286,270 @@ private:
 };
 
 } // namespace hise
+
+
+
+namespace scriptnode
+{
+using namespace juce;
+using namespace hise;
+
+class DspNodeList : public SearchableListComponent,
+	public ValueTree::Listener,
+	public AsyncUpdater,
+	public DspNetwork::SelectionListener
+{
+public:
+
+	struct NodeItem : public SearchableListComponent::Item,
+		public ButtonListener,
+		public ValueTree::Listener,
+		public Label::Listener
+	{
+		NodeItem(DspNetwork* parent, const String& id) :
+			Item(id),
+			node(dynamic_cast<NodeBase*>(parent->get(id).getObject())),
+			data(node->getValueTree()),
+			label(),
+			powerButton("on", this, f)
+		{
+			data.addListener(this);
+
+			label.setText(id, dontSendNotification);
+			usePopupMenu = false;
+
+			addAndMakeVisible(powerButton);
+			addAndMakeVisible(label);
+			label.addListener(this);
+
+			label.setFont(GLOBAL_BOLD_FONT());
+			label.setColour(Label::ColourIds::textColourId, Colours::white);
+			label.setEditable(false, true);
+			label.refreshWithEachKey = false;
+			label.addMouseListener(this, this);
+
+			powerButton.setToggleModeWithColourChange(true);
+			powerButton.setToggleStateAndUpdateIcon(!data[PropertyIds::Bypassed]);
+		}
+
+		~NodeItem()
+		{
+			data.removeListener(this);
+		}
+
+		void valueTreeChildAdded(ValueTree& p, ValueTree& c) override { }
+		void valueTreeChildOrderChanged(ValueTree& p, int oldIndex, int newIndex) override {};
+		void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override {  };
+		void valueTreePropertyChanged(ValueTree& t, const Identifier& id) override
+		{
+			if (t == data && id == PropertyIds::Bypassed)
+				powerButton.setToggleStateAndUpdateIcon(!t[id]);
+			if (t == data && id == PropertyIds::ID)
+				label.setText(t[id], dontSendNotification);
+		};
+
+		void valueTreeParentChanged(ValueTree& t) override { };
+
+		void labelTextChanged(Label*) override
+		{
+			if (node != nullptr)
+				node->setProperty(PropertyIds::ID, label.getText());
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			if (node != nullptr)
+				node->setProperty(PropertyIds::Bypassed, !b->getToggleState());
+		}
+
+		void paint(Graphics& g) override
+		{
+			if (node != nullptr)
+			{
+				bool selected = node->getRootNetwork()->isSelected(node);
+
+				Colour c = selected ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.3f);
+
+				g.setColour(c);
+				g.drawRect(getLocalBounds().reduced(1));
+			}
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds().reduced(1);
+
+			powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(2));
+			label.setBounds(b);
+		}
+
+		void mouseUp(const MouseEvent& event) override
+		{
+			if (node != nullptr)
+				node->getRootNetwork()->addToSelection(node, event.mods);
+		}
+
+		NodeBase::Ptr node;
+		ValueTree data;
+		NodeComponent::Factory f;
+		NiceLabel label;
+		HiseShapeButton powerButton;
+	};
+
+	struct NodeCollection : public SearchableListComponent::Collection
+	{
+		NodeCollection(DspNetwork* network_) :
+			network(network_)
+		{};
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds();
+			auto top = b.removeFromTop(30);
+			g.setColour(Colours::white.withAlpha(0.8f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(getName(), top.toFloat(), Justification::centred);
+		}
+
+		void addItems(StringArray& idList)
+		{
+			for (auto id : idList)
+			{
+				auto newItem = new NodeItem(network.get(), id);
+				addAndMakeVisible(newItem);
+				items.add(newItem);
+			}
+		}
+
+	protected:
+
+		WeakReference<DspNetwork> network;
+	};
+
+	struct ModuleItem : public SearchableListComponent::Item
+	{
+		ModuleItem(const String& path) :
+			Item(path)
+		{};
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.drawRect(getLocalBounds().reduced(1));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white);
+
+			auto b = getLocalBounds().toFloat().reduced(1);
+			b.removeFromLeft(b.getHeight());
+
+			g.drawText(searchKeywords, b, Justification::centredLeft);
+		}
+	};
+
+	struct AvailableModules : public NodeCollection
+	{
+		AvailableModules(DspNetwork* network_) :
+			NodeCollection(network_)
+		{
+			setName("Available Nodes");
+			auto sa = network->getListOfAllAvailableModuleIds();
+
+			for (auto s : sa)
+			{
+				auto newItem = new ModuleItem(s);
+				addAndMakeVisible(newItem);
+				items.add(newItem);
+			}
+		}
+	};
+
+	struct UsedNodes : public NodeCollection
+	{
+		UsedNodes(DspNetwork* network) :
+			NodeCollection(network)
+		{
+			setName("Used Nodes");
+			addItems(network->getListOfUsedNodeIds());
+		}
+	};
+
+	struct UnusedNodes : public NodeCollection
+	{
+		UnusedNodes(DspNetwork* network) :
+			NodeCollection(network)
+		{
+			setName("Unused Nodes");
+			addItems(network->getListOfUnusedNodeIds());
+		};
+	};
+
+	struct Panel : public NetworkPanel
+	{
+		Panel(FloatingTile* parent) :
+			NetworkPanel(parent)
+		{};
+
+		SET_PANEL_NAME("UnusedDspNodeList");
+
+		Component* createComponentForNetwork(DspNetwork* parent) override
+		{
+			return new DspNodeList(parent, getParentShell()->getBackendRootWindow());
+		}
+	};
+
+	int getNumCollectionsToCreate() const override { return 3; }
+
+	Collection* createCollection(int index) override
+	{
+		if (index == 0)
+			return new UsedNodes(parent);
+		else if (index == 1)
+			return new UnusedNodes(parent);
+		else
+			return new AvailableModules(parent);
+	}
+
+	DspNodeList(DspNetwork* parent_, BackendRootWindow* window) :
+		SearchableListComponent(window),
+		parent(parent_),
+		networkTree(parent->getValueTree())
+	{
+		networkTree.addListener(this);
+		parent->addSelectionListener(this);
+	}
+
+	~DspNodeList()
+	{
+		if (parent != nullptr)
+			parent->removeSelectionListener(this);
+
+		networkTree.removeListener(this);
+	}
+
+	void selectionChanged(const NodeBase::List& selection) override
+	{
+		for (int i = 0; i < getNumCollections(); i++)
+		{
+			getCollection(i)->repaintAllItems();
+		}
+	}
+
+	void valueTreeChildAdded(ValueTree& p, ValueTree& c) override { triggerAsyncUpdate(); }
+	void valueTreeChildOrderChanged(ValueTree& p, int oldIndex, int newIndex) override {};
+	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { triggerAsyncUpdate(); };
+	void valueTreePropertyChanged(ValueTree& t, const Identifier& property) override {};
+	void valueTreeParentChanged(ValueTree& t) override { triggerAsyncUpdate(); };
+
+	void handleAsyncUpdate() override
+	{
+		rebuildModuleList(true);
+	}
+
+	WeakReference<DspNetwork> parent;
+	ValueTree networkTree;
+
+};
+}
+
 
 #endif  // APIBROWSER_H_INCLUDED

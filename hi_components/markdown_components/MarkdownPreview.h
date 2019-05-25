@@ -1420,8 +1420,14 @@ public:
 
 				auto t = tmp.getComponent();
 
-				t->tree.setRootItem(t->rootItem = new Item(t->parent.getHolder().getDatabase().rootItem, t->parent));
-				t->resized();
+				if (t != nullptr)
+				{
+					t->rootItem = new Item(t->parent.getHolder().getDatabase().rootItem, t->parent);
+					t->tree.setRootItem(t->rootItem);
+					t->resized();
+				}
+
+				
 			};
 
 			MessageManager::callAsync(f);

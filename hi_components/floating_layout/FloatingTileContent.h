@@ -621,9 +621,11 @@ public:
 			AudioAnalyser,
 			Console,
 			ApiCollection,
+
 			ScriptWatchTable,
 			ScriptComponentEditPanel,
 			DspNetworkGraph,
+			DspNodeList,
 			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,
