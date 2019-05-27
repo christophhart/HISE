@@ -38,597 +38,300 @@ using namespace hise;
 
 
 
+#define CHAIN(x) wr::multi::chain<x>
+
+
 namespace core
 {
 
+#if 0
+namespace chain1_impl
+{
 
+using chain1_ = wr::one::frame<2, wr::multi::chain<wr::one::mod<core::simple_saw>, math::mul>>;
 
-struct frame2_block2 : public HiseDspBase, public HardcodedNode
+struct instance : public wr::one::parameter<chain1_>
 {
 	// Node Definitions ============================================================
-
-	// Member Nodes ================================================================
-
-	struct dry_wet_
-	{
-		// Node Definitions ============================================================
-		SET_HISE_NODE_ID("dry_wet");
-		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-		// Member Nodes ================================================================
-
-		struct comp_analyser_
-		{
-			// Node Definitions ============================================================
-			SET_HISE_NODE_ID("comp_analyser");
-			SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-			// Member Nodes ================================================================
-			dynamics::comp compressor;
-			math::clear clearer;
-
-			// Interface methods === ========================================================
-			void initialise(ProcessorWithScriptingContent* sp)
-			{
-				compressor.initialise(sp);
-				clearer.initialise(sp);
-			}
-
-			void prepare(int numChannels, double sampleRate, int blockSize)
-			{
-				compressor.prepare(numChannels, sampleRate, blockSize);
-				clearer.prepare(numChannels, sampleRate, blockSize);
-			}
-
-			void process(ProcessData& data)
-			{
-				compressor.process(data);
-				clearer.process(data);
-			}
-
-			void processSingle(float* frameData, int numChannels)
-			{
-				compressor.processSingle(frameData, numChannels);
-				clearer.processSingle(frameData, numChannels);
-			}
-
-			bool handleModulation(ProcessData& data, double& value)
-			{
-			}
-
-			void createParameters(Array<ParameterData>& data)
-			{
-				Array<ParameterData> ip;
-				ip.addArray(createParametersT(&compressor, "compressor"));
-				ip.addArray(createParametersT(&clearer, "clearer"));
-
-				// Parameter Initalisation =================================================
-				Array<ParameterInitValue> iv;
-				iv.add({ "compressor.Threshhold", -90.0 });
-				iv.add({ "compressor.Attack", 0.7 });
-				iv.add({ "compressor.Release", 6.6 });
-				iv.add({ "compressor.Ratio", 1.1 });
-				iv.add({ "clearer.Value", 0.0 });
-				initParameterData(ip, iv);
-
-				data.addArray(ip);
-			}
-
-			// Private Members =============================================================
-		} comp_analyser;
-
-		filters::svf filter;
-
-		// Interface methods ===========================================================
-		void initialise(ProcessorWithScriptingContent* sp)
-		{
-			comp_analyser.initialise(sp);
-			filter.initialise(sp);
-		}
-
-		void prepare(int numChannels, double sampleRate, int blockSize)
-		{
-			comp_analyser.prepare(numChannels, sampleRate, blockSize);
-			filter.prepare(numChannels, sampleRate, blockSize);
-
-			DspHelpers::increaseBuffer(splitBuffer, numChannels * 2, blockSize);
-		}
-
-		void process(ProcessData& data)
-		{
-			auto original = data.copyTo(splitBuffer, 0);
-
-			{
-				comp_analyser.process(data);
-			}
-			{
-				auto wd = original.copyTo(splitBuffer, 1);
-				filter.process(wd);
-				data += wd;
-			}
-		}
-
-		void processSingle(float* frameData, int numChannels)
-		{
-		}
-
-		bool handleModulation(ProcessData& data, double& value)
-		{
-		}
-
-		void createParameters(Array<ParameterData>& data)
-		{
-			Array<ParameterData> ip;
-			ip.addArray(createParametersT(&comp_analyser, ""));
-			ip.addArray(createParametersT(&filter, "filter"));
-
-			// Parameter Initalisation =================================================
-			Array<ParameterInitValue> iv;
-			iv.add({ "filter.Frequency", 464.0 });
-			iv.add({ "filter.Q", 6.0 });
-			iv.add({ "filter.Gain", 14.7 });
-			iv.add({ "filter.Smoothing", 0.0 });
-			iv.add({ "filter.Mode", 0.0 });
-			initParameterData(ip, iv);
-
-			data.addArray(ip);
-		}
-
-		// Private Members =============================================================
-		AudioSampleBuffer splitBuffer;
-	} dry_wet;
-
+	SET_HISE_NODE_ID("chain1");
+	GET_SELF_AS_OBJECT(instance);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	// Interface methods ===========================================================
-	void initialise(ProcessorWithScriptingContent* sp) override
+
+	
+
+	void createParameters(Array<ParameterData>& data) override
 	{
-		dry_wet.initialise(sp);
-	}
+		fillInternalParameterList(get<0>(obj), "osc1");
+		fillInternalParameterList(get<1>(obj), "mul1");
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
-	{
-		blockSize = 1;
-		dry_wet.prepare(numChannels, sampleRate, blockSize);
-	}
+		// Static Parameter Initalisation =================================================
+		
+		initValues.add({ "osc1.PeriodTime", 1000.0 });
+		initValues.add({ "mul1.Value", 1.0 });
+		
 
-	void process(ProcessData& data)
-	{
-		static constexpr int NumChannels = 2;
+		initStaticParameterData();
 
-		int numToDo = data.size;
-		float frame[NumChannels];
+		// Internal Modulation Initialisation
 
-		while (--numToDo >= 0)
+		
+		
+
+		/*
+		// Initialise internal modulation
 		{
-			data.copyToFrame<NumChannels>(frame);
-			dry_wet.processSingle(frame, NumChannels);
-			data.copyFromFrameAndAdvance<NumChannels>(frame);
+			auto p = getParameter(ip, "1.Frequency");
+			NormalisableRange<double> r = { 100.0, 200.0, 0.1 };
+			obj.getObject().get<0>().setCallback(DspHelpers::getFunctionFrom0To1ForRange(r, false, p.db));
 		}
+		*/
+
+		
+		
+
 	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		dry_wet.processSingle(frameData, numChannels);
-	}
-
-	bool handleModulation(ProcessData& data, double& value)
-	{
-	}
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		Array<ParameterData> ip;
-		ip.addArray(createParametersT(&dry_wet, ""));
-
-		// Parameter Initalisation =================================================
-		Array<ParameterInitValue> iv;
-		initParameterData(ip, iv);
-
-		// Parameter Callbacks =====================================================
-		{
-			ParameterData p("Amount");
-			p.range = { 0.0, 1.0, 0.0, 1.0 };
-			auto rangeCopy = p.range;
-
-			auto comp2_Threshhold = getParameter(ip, "comp2.Threshhold");
-
-			p.db = [comp2_Threshhold, rangeCopy](float newValue)
-			{
-				auto normalised = rangeCopy.convertTo0to1(newValue);
-				comp2_Threshhold.db(comp2_Threshhold.range.convertFrom0to1(normalised));
-			};
-
-			data.add(std::move(p));
-		}
-	}
-
-	// Private Members =============================================================
 };
-
-
-
-
-struct sin_lfo : public HiseDspBase, public HardcodedNode
-{
-	// Node Definitions ============================================================
-	SET_HISE_NODE_ID("sin_lfo");
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-	SET_HISE_EXTRA_COMPONENT(60, ModulationSourcePlotter);
-
-	// Member Nodes ================================================================
-	core::oscillator oscillator1;
-	math::sig2mod sig2mod1;
-	core::peak peak1;
-
-	// Interface methods ===========================================================
-	void prepare(int numChannels, double sampleRate, int blockSize)
-	{
-		sampleRate /= (double)HISE_EVENT_RASTER;
-		blockSize /= HISE_EVENT_RASTER;
-		numChannels = 1;
-
-		oscillator1.prepare(numChannels, sampleRate, blockSize);
-		sig2mod1.prepare(numChannels, sampleRate, blockSize);
-		peak1.prepare(numChannels, sampleRate, blockSize);
-	}
-
-	void process(ProcessData& data)
-	{
-		int numToProcess = data.size / HISE_EVENT_RASTER;
-
-		auto d = ALLOCA_FLOAT_ARRAY(numToProcess);
-		CLEAR_FLOAT_ARRAY(d, numToProcess);
-		ProcessData modData(&d, 1, numToProcess);
-
-		oscillator1.process(modData);
-		sig2mod1.process(modData);
-		peak1.process(modData);
-
-		modValue = DspHelpers::findPeak(modData);
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		if (--singleCounter > 0) return;
-
-		singleCounter = HISE_EVENT_RASTER;
-		float value = 0.0f;
-
-		oscillator1.processSingle(&value, 1);
-		sig2mod1.processSingle(&value, 1);
-		peak1.processSingle(&value, 1);
-	}
-
-	bool handleModulation(ProcessData& data, double& value)
-	{
-		value = modValue;
-		return true;
-	}
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		Array<ParameterData> ip;
-		ip.addArray(createParametersT(&oscillator1, "oscillator1"));
-		ip.addArray(createParametersT(&sig2mod1, "sig2mod1"));
-		ip.addArray(createParametersT(&peak1, "peak1"));
-
-		// Parameter Initalisation =================================================
-		Array<ParameterInitValue> iv;
-		// Parameter Callbacks =====================================================
-		iv.add({ "oscillator1.Mode", 0.0 });
-		iv.add({ "oscillator1.Frequency", 2.07406 });
-		iv.add({ "sig2mod1.Value", 0.0 });
-		initParameterData(ip, iv);
-
-		{
-			ParameterData p("Frequency");
-			p.range = { 0.0, 1.0, 0.0, 1.0 };
-			auto rangeCopy = p.range;
-
-			auto oscillator1_Frequency = getParameter(ip, "oscillator1.Frequency");
-
-			p.db = [oscillator1_Frequency, rangeCopy](float newValue)
-			{
-				auto normalised = rangeCopy.convertTo0to1(newValue);
-				oscillator1_Frequency.db(oscillator1_Frequency.range.convertFrom0to1(normalised));
-			};
-
-			data.add(std::move(p));
-		}
-	}
-
-	// Private Members =============================================================
-	int singleCounter = 0;
-	double modValue = 0.0;
-};
-
-
-
-struct mod1 : public HiseDspBase, public HardcodedNode
-{
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-	SET_HISE_NODE_ID("mod1");
-	core::oscillator oscillator1;
-	math::sig2mod sig2mod1;
-	core::peak peak2;
-
-	void prepare(int numChannels, double sampleRate, int blockSize)
-	{
-		sampleRate /= (double)HISE_EVENT_RASTER;
-		blockSize /= HISE_EVENT_RASTER;
-		numChannels = 1;
-
-		oscillator1.prepare(numChannels, sampleRate, blockSize);
-		sig2mod1.prepare(numChannels, sampleRate, blockSize);
-		peak2.prepare(numChannels, sampleRate, blockSize);
-	}
-
-	void process(ProcessData& data)
-	{
-		int numToProcess = data.size / HISE_EVENT_RASTER;
-
-		auto d = ALLOCA_FLOAT_ARRAY(numToProcess);
-		CLEAR_FLOAT_ARRAY(d, numToProcess);
-		ProcessData modData(&d, 1, numToProcess);
-
-		oscillator1.process(modData);
-		sig2mod1.process(modData);
-		peak2.process(modData);
-
-		modValue = DspHelpers::findPeak(modData);
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		if (--singleCounter > 0) return;
-
-		singleCounter = HISE_EVENT_RASTER;
-		float value = 0.0f;
-
-		oscillator1.processSingle(&value, 1);
-		sig2mod1.processSingle(&value, 1);
-		peak2.processSingle(&value, 1);
-	}
-
-	bool handleModulation(ProcessData& data, double& value)
-	{
-		value = modValue;
-		return true;
-	}
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		Array<ParameterData> ip;
-		ip.addArray(createParametersT(&oscillator1, "oscillator1"));
-		ip.addArray(createParametersT(&sig2mod1, "sig2mod1"));
-		ip.addArray(createParametersT(&peak2, "peak2"));
-
-	}
-
-	int singleCounter = 0;
-	double modValue = 0.0;
-};
-
-
-
-
-struct seq_lfo : public HiseDspBase, public HardcodedNode
-{
-	// Node Definitions ============================================================
-	SET_HISE_NODE_ID("seq_lfo");
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-	SET_HISE_EXTRA_COMPONENT(60, ModulationSourcePlotter);
-
-	// Member Nodes ================================================================
-	core::simple_saw simple_saw2;
-	core::seq seq2;
-	core::peak peak1;
-
-	// Interface methods ===========================================================
-	void initialise(ProcessorWithScriptingContent* sp)override
-	{
-		simple_saw2.initialise(sp);
-		seq2.initialise(sp);
-		peak1.initialise(sp);
-	}
-
-	void prepare(int numChannels, double sampleRate, int blockSize)
-	{
-		sampleRate /= (double)HISE_EVENT_RASTER;
-		blockSize /= HISE_EVENT_RASTER;
-		numChannels = 1;
-
-		simple_saw2.prepare(numChannels, sampleRate, blockSize);
-		seq2.prepare(numChannels, sampleRate, blockSize);
-		peak1.prepare(numChannels, sampleRate, blockSize);
-	}
-
-	void process(ProcessData& data)
-	{
-		int numToProcess = data.size / HISE_EVENT_RASTER;
-
-		auto d = ALLOCA_FLOAT_ARRAY(numToProcess);
-		CLEAR_FLOAT_ARRAY(d, numToProcess);
-		ProcessData modData(&d, 1, numToProcess);
-
-		simple_saw2.process(modData);
-		seq2.process(modData);
-		peak1.process(modData);
-
-		modValue = DspHelpers::findPeak(modData);
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		if (--singleCounter > 0) return;
-
-		singleCounter = HISE_EVENT_RASTER;
-		float value = 0.0f;
-
-		simple_saw2.processSingle(&value, 1);
-		seq2.processSingle(&value, 1);
-		peak1.processSingle(&value, 1);
-	}
-
-	bool handleModulation(ProcessData& data, double& value)
-	{
-		value = modValue;
-		return true;
-	}
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		Array<ParameterData> ip;
-		ip.addArray(createParametersT(&simple_saw2, "simple_saw2"));
-		ip.addArray(createParametersT(&seq2, "seq2"));
-		ip.addArray(createParametersT(&peak1, "peak1"));
-
-		// Parameter Initalisation =================================================
-		Array<ParameterInitValue> iv;
-		// Parameter Callbacks =====================================================
-		iv.add({ "simple_saw2.PeriodTime", 1000.0 });
-		iv.add({ "seq2.SliderPack", 0.0 });
-		initParameterData(ip, iv);
-
-		{
-			ParameterData p("Pack");
-			p.range = { 0.0, 1.0, 0.0, 1.0 };
-			auto rangeCopy = p.range;
-
-			auto seq2_SliderPack = getParameter(ip, "seq2.SliderPack");
-
-			p.db = [seq2_SliderPack, rangeCopy](float newValue)
-			{
-				auto normalised = rangeCopy.convertTo0to1(newValue);
-				seq2_SliderPack.db(seq2_SliderPack.range.convertFrom0to1(normalised));
-			};
-
-			data.add(std::move(p));
-		}
-		{
-			ParameterData p("Frequency");
-			p.range = { 0.0, 1.0, 0.0, 1.0 };
-			auto rangeCopy = p.range;
-
-			auto simple_saw2_PeriodTime = getParameter(ip, "simple_saw2.PeriodTime");
-
-			p.db = [simple_saw2_PeriodTime, rangeCopy](float newValue)
-			{
-				auto normalised = rangeCopy.convertTo0to1(newValue);
-				simple_saw2_PeriodTime.db(simple_saw2_PeriodTime.range.convertFrom0to1(normalised));
-			};
-
-			data.add(std::move(p));
-		}
-	}
-
-	// Private Members =============================================================
-	int singleCounter = 0;
-	double modValue = 0.0;
-};
-
-
-
-struct mod2 : public HiseDspBase, public HardcodedNode
-{
-	// Node Definitions ============================================================
-	SET_HISE_NODE_ID("mod2");
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-	SET_HISE_EXTRA_COMPONENT(60, ModulationSourcePlotter);
-
-	// Member Nodes ================================================================
-	math::add add2;
-	dynamics::envelope_follower envelope_follower1;
-	core::peak peak1;
-
-	// Interface methods ===========================================================
-	void prepare(int numChannels, double sampleRate, int blockSize)
-	{
-		sampleRate /= (double)HISE_EVENT_RASTER;
-		blockSize /= HISE_EVENT_RASTER;
-		numChannels = 1;
-
-		add2.prepare(numChannels, sampleRate, blockSize);
-		envelope_follower1.prepare(numChannels, sampleRate, blockSize);
-		peak1.prepare(numChannels, sampleRate, blockSize);
-	}
-
-	void process(ProcessData& data)
-	{
-		int numToProcess = data.size / HISE_EVENT_RASTER;
-
-		auto d = ALLOCA_FLOAT_ARRAY(numToProcess);
-		CLEAR_FLOAT_ARRAY(d, numToProcess);
-		ProcessData modData(&d, 1, numToProcess);
-
-		add2.process(modData);
-		envelope_follower1.process(modData);
-		peak1.process(modData);
-
-		modValue = DspHelpers::findPeak(modData);
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		if (--singleCounter > 0) return;
-
-		singleCounter = HISE_EVENT_RASTER;
-		float value = 0.0f;
-
-		add2.processSingle(&value, 1);
-		envelope_follower1.processSingle(&value, 1);
-		peak1.processSingle(&value, 1);
-	}
-
-	bool handleModulation(ProcessData& data, double& value)
-	{
-		value = modValue;
-		return true;
-	}
-
-	// Parameter Initalisation =================================================
-	// Parameter Callbacks =====================================================
-	void createParameters(Array<ParameterData>& data)
-	{
-		Array<ParameterData> ip;
-		ip.addArray(createParametersT(&add2, "add2"));
-		ip.addArray(createParametersT(&envelope_follower1, "envelope_follower1"));
-		ip.addArray(createParametersT(&peak1, "peak1"));
-
-		Array<ParameterInitValue> iv;
-		iv.add({ "add2.Value", 0.73 });
-		iv.add({ "envelope_follower1.Attack", 0.9 });
-		iv.add({ "envelope_follower1.Release", 398.0 });
-		initParameterData(ip, iv);
-
-		{
-			ParameterData p("Value");
-			p.range = { 0.0, 1.0, 0.0, 1.0 };
-			auto rangeCopy = p.range;
-
-			auto add2_Value = getParameter(ip, "add2.Value");
-
-			p.db = [add2_Value, rangeCopy](float newValue)
-			{
-				auto normalised = rangeCopy.convertTo0to1(newValue);
-				add2_Value.db(add2_Value.range.convertFrom0to1(normalised));
-			};
-
-			data.add(std::move(p));
-		}
-	}
-
-	// Private Members =============================================================
-	int singleCounter = 0;
-	double modValue = 0.0;
-};
-
-
-
-
-
 
 }
+
+using chain1 = chain1_impl::instance;
+#endif
+
+namespace chain1_impl
+{
+// Template Alias Definition =======================================================
+using chain1_ = container::chain<bypass::smoothed<core::oscillator>, bypass::smoothed<core::oscillator>, core::gain>;
+
+struct instance : public wr::one::parameter<chain1_>
+{
+	SET_HISE_NODE_ID("chain1");
+	GET_SELF_AS_OBJECT(instance);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+	void createParameters(Array<ParameterData>& data)
+	{
+		fillInternalParameterList(get<0>(obj), "oscillator1");
+		fillInternalParameterList(get<1>(obj), "oscillator2");
+		fillInternalParameterList(get<2>(obj), "gain1");
+
+		// Parameter Initalisation =====================================================
+		initValues.add({ "oscillator1.Mode", 0.0 });
+		initValues.add({ "oscillator1.Frequency", 220.0 });
+		initValues.add({ "oscillator2.Mode", 0.0 });
+		initValues.add({ "oscillator2.Frequency", 748.0 });
+		initValues.add({ "gain1.Gain", 0.0 });
+		initValues.add({ "gain1.Smoothing", 20.0 });
+		initStaticParameterData();
+
+		// Internal Modulation =========================================================
+		// Parameter Callbacks =========================================================
+		{
+			ParameterData p("Switch");
+			p.range = { 0.0, 1.0, 0.0, 1.0 };
+			auto rangeCopy = p.range;
+
+			auto oscillator1_Bypassed = getParameter("oscillator1.Bypassed");
+			oscillator1_Bypassed.range = { 0.0, 0.5, 0.5, 1.0 };
+			auto oscillator2_Bypassed = getParameter("oscillator2.Bypassed");
+			oscillator2_Bypassed.range = { 0.5, 1.0, 0.5, 1.0 };
+
+			p.db = [oscillator1_Bypassed, oscillator2_Bypassed, rangeCopy](double newValue)
+			{
+				auto normalised = rangeCopy.convertTo0to1(newValue);
+				oscillator1_Bypassed.setBypass(newValue);
+				oscillator2_Bypassed.setBypass(newValue);
+			};
+
+
+			data.add(std::move(p));
+		}
+		{
+			ParameterData p("Volume");
+			p.range = { 0.0, 1.0, 0.0, 1.0 };
+			auto rangeCopy = p.range;
+
+			auto gain1_Gain = getParameter("gain1.Gain");
+			gain1_Gain.range = { -100.0, 0.0, 0.1, 5.42227 };
+
+			p.db = [gain1_Gain, rangeCopy](double newValue)
+			{
+				auto normalised = rangeCopy.convertTo0to1(newValue);
+				gain1_Gain(normalised);
+			};
+
+
+			data.add(std::move(p));
+		}
+	}
+
+};
+
+}
+
+using chain1 = chain1_impl::instance;
+
+
+
+namespace oversample8x1_impl
+{
+// Template Alias Definition =======================================================
+using chain2_ = container::chain<core::oscillator, core::gain>;
+using frame2_block1_ = container::frame2_block<chain2_>;
+using oversample8x1_ = container::oversample8x<frame2_block1_>;
+
+struct instance : public wr::one::parameter<oversample8x1_>
+{
+	SET_HISE_NODE_ID("oversample8x1");
+	GET_SELF_AS_OBJECT(instance);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	void createParameters(Array<ParameterData>& data)
+	{
+		fillInternalParameterList(get<0, 0, 0>(obj), "oscillator3");
+		fillInternalParameterList(get<0, 0, 1>(obj), "gain2");
+
+		// Parameter Initalisation =====================================================
+		initValues.add({ "oscillator3.Mode", 0.0 });
+		initValues.add({ "oscillator3.Frequency", 100.0 });
+		initValues.add({ "gain2.Gain", -2.165 });
+		initValues.add({ "gain2.Smoothing", 20.0 });
+		initStaticParameterData();
+
+		// Internal Modulation =========================================================
+		// Parameter Callbacks =========================================================
+		{
+			ParameterData p("Freq");
+			p.range = { 0.0, 1.0, 0.01, 1.0 };
+			auto rangeCopy = p.range;
+
+			auto oscillator3_Frequency = getParameter("oscillator3.Frequency");
+			oscillator3_Frequency.range = { 100.0, 120.0, 0.1, 0.229905 };
+
+			p.db = [oscillator3_Frequency, rangeCopy](double newValue)
+			{
+				auto normalised = rangeCopy.convertTo0to1(newValue);
+				oscillator3_Frequency(normalised);
+			};
+
+
+			data.add(std::move(p));
+		}
+		{
+			ParameterData p("Vol");
+			p.range = { 0.0, 1.0, 0.01, 1.0 };
+			auto rangeCopy = p.range;
+
+			auto gain2_Gain = getParameter("gain2.Gain");
+			gain2_Gain.range = { -12.0, 0.0, 0.1, 5.42227 };
+
+			p.db = [gain2_Gain, rangeCopy](double newValue)
+			{
+				auto normalised = rangeCopy.convertTo0to1(newValue);
+				gain2_Gain(normalised);
+			};
+
+
+			data.add(std::move(p));
+		}
+	}
+
+};
+
+}
+
+using oversample8x1 = oversample8x1_impl::instance;
+
+
+
+namespace chain4_impl
+{
+// Template Alias Definition =======================================================
+using chain4_ = container::chain<bypass::smoothed<core::oscillator>, bypass::smoothed<core::oscillator>>;
+
+struct instance : public wr::one::parameter<chain4_>
+{
+	SET_HISE_NODE_ID("chain4");
+	GET_SELF_AS_OBJECT(instance);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+	void createParameters(Array<ParameterData>& data)
+	{
+		fillInternalParameterList(get<0>(obj), "oscillator1");
+		fillInternalParameterList(get<1>(obj), "oscillator2");
+
+		// Parameter Initalisation =====================================================
+		initValues.add({ "oscillator1.Mode", 0.0 });
+		initValues.add({ "oscillator1.Frequency", 220.0 });
+		initValues.add({ "oscillator2.Mode", 0.0 });
+		initValues.add({ "oscillator2.Frequency", 775.5 });
+		initStaticParameterData();
+
+		// Internal Modulation =========================================================
+		// Parameter Callbacks =========================================================
+		{
+#if 0
+			ParameterData p("Switch");
+			p.range = { 0.0, 1.0, 0.0, 1.0 };
+			auto rangeCopy = p.range;
+
+			auto oscillator1_Bypassed = getParameter("oscillator1.Bypassed");
+			oscillator1_Bypassed.range = { 1.0, 2.0, 0.5, 1.0 };
+			auto oscillator2_Bypassed = getParameter("oscillator2.Bypassed");
+			oscillator2_Bypassed.range = { 2.0, 3.0, 0.5, 1.0 };
+
+			p.db = [oscillator1_Bypassed, oscillator2_Bypassed, rangeCopy](double newValue)
+			{
+				auto normalised = rangeCopy.convertTo0to1(newValue);
+				oscillator1_Bypassed(normalised);
+				oscillator2_Bypassed(normalised);
+			};
+#endif
+
+			ParameterData p("Switch");
+			p.range = { 0.0, 3.0, 0.0, 1.0 };
+			auto rangeCopy = p.range;
+
+			auto oscillator1_Bypassed = getParameter("oscillator1.Bypassed");
+			oscillator1_Bypassed.range = { 1.0, 2.0, 0.5, 1.0 };
+			auto oscillator2_Bypassed = getParameter("oscillator2.Bypassed");
+			oscillator2_Bypassed.range = { 2.0, 3.0, 0.5, 1.0 };
+
+			p.db = [oscillator1_Bypassed, oscillator2_Bypassed, rangeCopy](double newValue)
+			{
+				oscillator1_Bypassed.setBypass(newValue);
+				oscillator2_Bypassed.setBypass(newValue);
+			};
+
+
+			data.add(std::move(p));
+		}
+	}
+
+};
+
+}
+
+using chain4 = chain4_impl::instance;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+} // }namespace core
 
 class HiseFxNodeFactory : public NodeFactory
 {

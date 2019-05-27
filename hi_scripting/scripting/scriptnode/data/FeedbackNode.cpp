@@ -75,12 +75,12 @@ juce::Component* SequencerNode::createExtraComponent(PooledUIUpdater* updater)
 
 void SequencerNode::createParameters(Array<ParameterData>& data)
 {
-	jassert(jp != nullptr);
+	jassert(sp != nullptr);
 
 	{
 		ParameterData p("SliderPack");
 
-		double maxPacks = (double)jp.get()->getNumSliderPacks();
+		double maxPacks = (double)sp.get()->getNumSliderPacks();
 
 		p.range = { 0.0, jmax(1.0, maxPacks), 1.0 };
 		p.db = BIND_MEMBER_FUNCTION_1(SequencerNode::setSliderPack);
@@ -89,17 +89,17 @@ void SequencerNode::createParameters(Array<ParameterData>& data)
 	}
 }
 
-void SequencerNode::initialise(ProcessorWithScriptingContent* sp)
+void SequencerNode::initialise(NodeBase* n)
 {
-	jp = dynamic_cast<JavascriptProcessor*>(sp);
+	sp = dynamic_cast<SliderPackProcessor*>(n->getScriptProcessor());
 }
 
 
 void SequencerNode::setSliderPack(double indexAsDouble)
 {
-	jassert(jp != nullptr);
+	jassert(sp != nullptr);
 	auto index = (int)indexAsDouble;
-	packData = jp.get()->getSliderPackData(index);
+	packData = sp.get()->getSliderPackData(index);
 }
 
 struct TableNode::TableInterface : public HiseDspBase::ExtraComponent<TableNode>
@@ -142,11 +142,11 @@ juce::Component* TableNode::createExtraComponent(PooledUIUpdater* updater)
 
 void TableNode::createParameters(Array<ParameterData>& data)
 {
-	if (jp != nullptr)
+	if (tp != nullptr)
 	{
 		ParameterData p("TableIndex");
 
-		double maxPacks = (double)jp.get()->getNumTables();
+		double maxPacks = (double)tp.get()->getNumTables();
 
 		p.range = { 0.0, jmax(1.0, maxPacks), 1.0 };
 		p.db = BIND_MEMBER_FUNCTION_1(TableNode::setTable);
@@ -156,16 +156,16 @@ void TableNode::createParameters(Array<ParameterData>& data)
 }
 
 
-void TableNode::initialise(ProcessorWithScriptingContent* sp)
+void TableNode::initialise(NodeBase* n)
 {
-	jp = dynamic_cast<JavascriptProcessor*>(sp);
+	tp = dynamic_cast<LookupTableProcessor*>(n->getScriptProcessor());
 }
 
 void TableNode::setTable(double indexAsDouble)
 {
-	jassert(jp != nullptr);
+	jassert(tp != nullptr);
 	auto index = (int)indexAsDouble;
-	tableData = dynamic_cast<SampleLookupTable*>(jp.get()->getTable(index));
+	tableData = dynamic_cast<SampleLookupTable*>(tp.get()->getTable(index));
 }
 
 }

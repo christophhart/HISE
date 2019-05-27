@@ -45,12 +45,13 @@ class tempo_sync : public HiseDspBase,
 public:
 
 	SET_HISE_NODE_ID("tempo_sync");
+	GET_SELF_AS_OBJECT(tempo_sync);
 	SET_HISE_NODE_EXTRA_HEIGHT(24);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
-	void initialise(ProcessorWithScriptingContent* sp) override
+	void initialise(NodeBase* n) override
 	{
-		mc = sp->getMainController_();
+		mc = n->getScriptProcessor()->getMainController_();
 		mc->addTempoListener(this);
 	}
 
@@ -132,6 +133,11 @@ public:
 
 	}
 
+	void reset()
+	{
+
+	}
+
 	void process(ProcessData& d)
 	{
 
@@ -142,7 +148,7 @@ public:
 
 	}
 
-	bool handleModulation(ProcessData& d, double& max)
+	bool handleModulation(double& max)
 	{
 		if (lastTempoMs != currentTempoMilliseconds)
 		{
@@ -168,15 +174,16 @@ class peak : public HiseDspBase
 public:
 
 	SET_HISE_NODE_ID("peak");
+	GET_SELF_AS_OBJECT(peak);
 	SET_HISE_NODE_EXTRA_HEIGHT(60);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	void prepare(int numChannels, double sampleRate, int blockSize)
 	{}
 
-	bool handleModulation(ProcessData& data, double& max)
+	bool handleModulation(double& value)
 	{
-		max = DspHelpers::findPeak(data);
+		value = max;
 
 		return true;
 	}
@@ -191,15 +198,20 @@ public:
 
 	}
 
+	forcedinline void reset() noexcept { max = 0.0; };
+
+
 	void process(ProcessData& data)
 	{
-
+		max = DspHelpers::findPeak(data);
 	}
 
 	void processSingle(float* frameData, int numChannels)
 	{
-
+		max = DspHelpers::findPeak(ProcessData(&frameData, 1, numChannels));
 	}
+
+	double max = 0.0;
 };
 
 
@@ -208,15 +220,18 @@ class simple_saw : public HiseDspBase
 public:
 
 	SET_HISE_NODE_ID("simple_saw");
+	GET_SELF_AS_OBJECT(simple_saw);
 	SET_HISE_NODE_EXTRA_HEIGHT(60);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
+
+	
 
 	simple_saw()
 	{
 		setPeriodTime(100.0);
 	}
 
-	bool handleModulation(ProcessData& d, double& v)
+	bool handleModulation(double& v)
 	{ 
 		v = currentValue;
 		return true;
@@ -246,12 +261,14 @@ public:
 		currentValue = fmod(uptime, 1.0);
 	}
 
+	forcedinline void reset() noexcept { uptime = 0.0; };
+
 	void processSingle(float* frameData, int numChannels)
 	{
-		auto nextValue = fmod(uptime, 1.0);
+		currentValue = fmod(uptime, 1.0);
 		uptime += uptimeDelta;
 
-		FloatVectorOperations::fill(frameData, nextValue, numChannels);
+		FloatVectorOperations::add(frameData, currentValue, numChannels);
 	}
 
 	Component* createExtraComponent(PooledUIUpdater* updater)
@@ -299,6 +316,8 @@ public:
 	SET_HISE_NODE_ID("oscillator");
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
+	GET_SELF_AS_OBJECT(oscillator);
+
 	StringArray modes;
 
 	oscillator()
@@ -334,6 +353,8 @@ public:
 		uptimeDelta = newFrequency / sr * double_Pi * 2.0;
 	}
 
+	forcedinline void reset() noexcept { uptime = 0.0; };
+
 	void prepare(int numChannels, double sampleRate, int blockSize)
 	{
 
@@ -348,7 +369,7 @@ public:
 
 	}
 
-	bool handleModulation(ProcessData&, double&) noexcept { return false; };
+	bool handleModulation(double&) noexcept { return false; };
 
 	void process(ProcessData& data)
 	{
@@ -431,6 +452,7 @@ public:
 
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
 	SET_HISE_NODE_ID("gain");
+	GET_SELF_AS_OBJECT(gain);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	void prepare(int numChannels, double sampleRate, int blockSize)
@@ -457,13 +479,22 @@ public:
 			g->applyGain(*channelToUse++, d.size);
 	}
 
+	forcedinline void reset() noexcept 
+	{ 
+		for (auto g : gainers)
+		{
+			g->reset(sr, smoothingTime);
+			g->setValueWithoutSmoothing(gainValue);
+		}
+	};
+
 	void processSingle(float* numFrames, int numChannels)
 	{
 		auto nextValue = gainers[0]->getNextValue();
 		FloatVectorOperations::multiply(numFrames, nextValue, numChannels);
 	}
 	
-	bool handleModulation(ProcessData&, double&) noexcept { return false; };
+	bool handleModulation(double&) noexcept { return false; };
 
 	void createParameters(Array<ParameterData>& data) override
 	{
@@ -500,11 +531,7 @@ public:
 	{
 		smoothingTime = smoothingTimeMs * 0.001;
 		
-		for (auto g : gainers)
-		{
-			g->reset(sr, smoothingTime);
-			g->setValueWithoutSmoothing(gainValue);
-		}
+		reset();
 			
 	}
 
@@ -662,9 +689,10 @@ namespace math
 
 		SET_HISE_NODE_ID(OpType::getId());
 		SET_HISE_NODE_EXTRA_HEIGHT(0);
+		GET_SELF_AS_OBJECT(OpNode<OpType>);
 		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-		bool handleModulation(ProcessData&, double&) noexcept { return false; };
+		bool handleModulation(double&) noexcept { return false; };
 
 		void process(ProcessData& d)
 		{
@@ -679,6 +707,8 @@ namespace math
 			d.numChannels = 1;
 			f.op(d, value);
 		}
+
+		forcedinline void reset() noexcept {}
 
 		void prepare(int /*numChannels*/, double /*sampleRate*/, int /*blockSize*/)
 		{}

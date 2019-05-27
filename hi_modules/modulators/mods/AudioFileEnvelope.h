@@ -102,6 +102,10 @@ public:
 			setRelease((float)newRelease);
 		}
 
+		void reset()
+		{
+			lastValue = 0.0;
+		}
 
 		void setAttack(float newAttack)
 		{

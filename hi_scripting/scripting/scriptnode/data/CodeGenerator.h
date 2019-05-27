@@ -40,8 +40,58 @@ using namespace hise;
 
 struct CppGen
 {
+	struct Accessor
+	{
+		enum class Format
+		{
+			ParameterDefinition,
+			GetMethod,
+			ID
+		};
+
+		String id;
+		Array<int> path;
+
+		String toString(Format f) const
+		{
+			String s;
+
+			switch (f)
+			{
+			case Format::ID: return "\"" + id + "\"";
+			case Format::GetMethod:
+			{
+				s << "get<";
+
+				for (int i = 0; i < path.size(); i++)
+				{
+					s << path[i];
+
+					if (i != path.size() - 1)
+						s << ", ";
+				}
+
+				s << ">(obj)";
+				return s;
+			}
+			case Format::ParameterDefinition:
+			{
+				s << "fillInternalParameterList(";
+				s << toString(Format::GetMethod) << ", ";
+				s << toString(Format::ID);
+				s << ");\n";
+				return s;
+			}
+			}
+
+			return s;
+		}
+	};
+
 	enum class CodeLocation
 	{
+		TemplateAlias,
+
 		Definitions,
 		PrepareBody,
 		ProcessBody,
@@ -80,7 +130,15 @@ struct CppGen
 
 		static String createClass(const String& content, const String& classId, bool outerClass);
 
+		static String createClass(const String& content, const String& templateId);
+
 		static String createPrettyNumber(double value, bool createFloat);
+
+		static String createAlias(const String& aliasName, const String& className);
+		static String createTemplateAlias(const String& aliasName, const String& className, const StringArray& templateArguments);
+		static String wrapIntoTemplate(const String& className, const String& outerTemplate);
+		static String prependNamespaces(const String& className, const Array<Identifier>& namespaces);
+		static String wrapIntoNamespace(const String& s, const String& namespaceId);
 	};
 
 	struct Helpers

@@ -39,12 +39,12 @@ using namespace hise;
 HiseFxNodeFactory::HiseFxNodeFactory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerNode<HiseDspNodeBase<core::sin_lfo>>();
 	registerNode<HiseDspNodeBase<core::SequencerNode>>();
 	registerNode<HiseDspNodeBase<core::simple_saw>>();
-	registerNode<HiseDspNodeBase<core::seq_lfo>>();
-	registerNode<HiseDspNodeBase<core::mod2>>();
+	registerNode<HiseDspNodeBase<core::chain1>>();
+	registerNode<HiseDspNodeBase<core::chain4>>();
 	registerNode<HiseDspNodeBase<core::table>>();
+	registerNode<HiseDspNodeBase<core::oversample8x1>>();
 	registerNode<HiseDspNodeBase<core::fix_delay>>();
 	registerNode<HiseDspNodeBase<core::oscillator>>();
 	registerNode<HiseDspNodeBase<core::gain>>();

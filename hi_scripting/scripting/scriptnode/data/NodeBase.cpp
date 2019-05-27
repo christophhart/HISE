@@ -71,11 +71,15 @@ void NodeBase::processSingle(float* frameData, int numChannels)
 juce::String NodeBase::createCppClass(bool isOuterClass)
 {
 	ignoreUnused(isOuterClass);
-	String s = data[PropertyIds::FactoryPath].toString().replace(".", "::");
 
-	s << " " << getId() << ";\n";
+	auto className = data[PropertyIds::FactoryPath].toString().replace(".", "::");
 
-	return s;
+	if (data[PropertyIds::DynamicBypass].toString().isNotEmpty())
+	{
+		className = CppGen::Emitter::wrapIntoTemplate(className, "wr::bypass::smoothed");
+	};
+	
+	return className;
 }
 
 void NodeBase::setProperty(const Identifier& id, const var value)

@@ -37,8 +37,20 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-
 #define DECLARE_ID(x) static const Identifier x(#x);
+
+namespace NamespaceIds
+{
+
+DECLARE_ID(wr);
+DECLARE_ID(one);
+DECLARE_ID(multi);
+DECLARE_ID(bypass);
+
+}
+
+
+
 
 namespace PropertyIds
 {
@@ -62,6 +74,7 @@ DECLARE_ID(SkewFactor);
 DECLARE_ID(ShowParameters);
 DECLARE_ID(Bypassed);
 DECLARE_ID(DynamicBypass);
+DECLARE_ID(BypassRampTimeMs);
 DECLARE_ID(Value);
 DECLARE_ID(ID);
 DECLARE_ID(Index);
@@ -129,7 +142,8 @@ struct PropertyHelpers
 #define SET_HISE_EXTRA_COMPONENT(height, className) SET_HISE_NODE_EXTRA_HEIGHT(height); \
 												    CREATE_EXTRA_COMPONENT(className);
 
-
+#define GET_OBJECT_FROM_CONTAINER(index) &obj.getObject().get<index>()
+#define GET_SELF_AS_OBJECT(className) className& getObject() { return *this;} const className& getObject() const { return *this; }
 
 namespace UIValues
 {

@@ -42,6 +42,7 @@ public:
 
 	static Identifier getStaticId() { return FilterType::getFilterTypeId(); }
 	SET_HISE_NODE_EXTRA_HEIGHT(60);
+	GET_SELF_AS_OBJECT(FilterNodeBase<FilterType>);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	void createParameters(Array<ParameterData>& parameters) override
@@ -152,7 +153,7 @@ public:
 		return new Graph(this, updater);
 	}
 
-	bool handleModulation(ProcessData&, double&) noexcept { return false; };
+	bool handleModulation(double&) noexcept { return false; };
 
 	forcedinline void prepare(int numChannels, double sampleRate, double blockSize) noexcept
 	{
@@ -166,6 +167,11 @@ public:
 		buffer.setDataToReferTo(d.data, d.numChannels, d.size);
 		FilterHelpers::RenderData r(buffer, 0, d.size);
 		filter.render(r);
+	}
+
+	void reset()
+	{
+		filter.reset();
 	}
 
 	void processSingle(float* frameData, int numChannels)

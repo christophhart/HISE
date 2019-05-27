@@ -172,6 +172,16 @@ public:
 
 		getModulationTargetTree().addChild(m, -1, getUndoManager());
 	}
+
+	String createCppClass(bool isOuterClass) override
+	{
+		auto s = NodeBase::createCppClass(isOuterClass);
+
+		if (getModulationTargetTree().getNumChildren() > 0)
+			return CppGen::Emitter::wrapIntoTemplate(s, "wr::one::mod");
+		else
+			return s;
+	}
 	
 	void prepare(double sampleRate, int blockSize)
 	{
@@ -321,7 +331,6 @@ private:
 
 	valuetree::ChildListener targetListener;
 
-	
 	bool ok = false;
 
 	ReferenceCountedArray<ModulationTarget> targets;

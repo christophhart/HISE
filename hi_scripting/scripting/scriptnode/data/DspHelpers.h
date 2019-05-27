@@ -128,6 +128,24 @@ struct ProcessData
 			*data[i]++ = frame[i];
 	}
 
+	void copyToFrameDynamic(float* frame) const
+	{
+		for (int i = 0; i < numChannels; i++)
+			frame[i] = *data[i];
+	}
+
+	void copyFromFrameAndAdvanceDynamic(const float* frame)
+	{
+		for (int i = 0; i < numChannels; i++)
+			*data[i]++ = frame[i];
+	}
+
+	void advanceChannelPointers()
+	{
+		for (int i = 0; i < numChannels; i++)
+			*data[i]++;
+	}
+
 	ProcessData copyTo(AudioSampleBuffer& buffer, int index);
 	ProcessData& operator+=(const ProcessData& other);
 	ProcessData referTo(AudioSampleBuffer& buffer, int index);

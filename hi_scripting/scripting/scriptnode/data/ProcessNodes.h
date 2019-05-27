@@ -37,10 +37,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-namespace container
-{
-
-
 
 template <int B> class FixedBlockNode: public SerialNode
 {
@@ -108,8 +104,8 @@ public:
 	SingleSampleBlock(DspNetwork* n, ValueTree d) :
 		SerialNode(n, d)
 	{
-		
 		initListeners();
+		obj.getObject().initialise(this);
 	};
 
 	SCRIPTNODE_FACTORY(SingleSampleBlock<NumChannels>, "frame" + String(NumChannels) + "_block");
@@ -145,33 +141,24 @@ public:
 			return SerialNode::getCppCode(location);
 	}
 
+	void reset() final override
+	{
+		obj.reset();
+	}
+
 	void process(ProcessData& data) final override
 	{
 		if (isBypassed())
-		{
-			for (auto n : nodes)
-				n->process(data);
-		}
+			obj.getObject().process(data);
 		else
-		{
-			int numToDo = data.size;
-			float frame[NumChannels];
-
-			while (--numToDo >= 0)
-			{
-				data.copyToFrame<NumChannels>(frame);
-				processSingle(frame, NumChannels);
-				data.copyFromFrameAndAdvance<NumChannels>(frame);
-			}
-		}
+			obj.process(data);
 	}
 
 	void processSingle(float* frameData, int numChannels) final override
 	{
 		jassert(numChannels == NumChannels);
 
-		for (auto n : nodes)
-			n->processSingle(frameData, NumChannels);
+		obj.processSingle(frameData, numChannels);
 	}
 
 	void updateBypassState(Identifier, var newValue)
@@ -188,8 +175,30 @@ public:
 
 	valuetree::PropertyListener bypassListener;
 
+	wrap::frame<NumChannels, SerialNode::DynamicSerialProcessor> obj;
 };
 
+namespace container
+{
+
+template <typename... Ts> using frame1_block = wrap::frame<1, container::chain<Ts...>>;
+template <typename... Ts> using frame2_block = wrap::frame<2, container::chain<Ts...>>;
+template <typename... Ts> using frame3_block = wrap::frame<3, container::chain<Ts...>>;
+template <typename... Ts> using frame4_block = wrap::frame<4, container::chain<Ts...>>;
+template <typename... Ts> using frame6_block = wrap::frame<6, container::chain<Ts...>>;
+template <typename... Ts> using frame8_block = wrap::frame<8, container::chain<Ts...>>;
+template <typename... Ts> using frame16_block = wrap::frame<16, container::chain<Ts...>>;
+
+template <typename... Ts> using oversample2x = wrap::oversample<2, container::chain<Ts...>>;
+template <typename... Ts> using oversample4x = wrap::oversample<4, container::chain<Ts...>>;
+template <typename... Ts> using oversample8x = wrap::oversample<8, container::chain<Ts...>>;
+template <typename... Ts> using oversample16x = wrap::oversample<16, container::chain<Ts...>>;
+
+}
+
+
+
+/*
 using frame1_block = SingleSampleBlock<1>;
 using frame2_block = SingleSampleBlock<2>;
 using frame3_block = SingleSampleBlock<3>;
@@ -203,8 +212,7 @@ using fix128_block = FixedBlockNode<128>;
 using fix256_block = FixedBlockNode<256>;
 using fix512_block = FixedBlockNode<512>;
 using fix1024_block = FixedBlockNode<1024>;
-
-}
+*/
 
 
 

@@ -39,8 +39,10 @@
 #include "scripting/scriptnode/data/ValueTreeHelpers.cpp"
 #include "scripting/scriptnode/data/DspHelpers.cpp"
 #include "scripting/scriptnode/data/NodeBase.cpp"
+
 #include "scripting/scriptnode/data/CodeGenerator.cpp"
 #include "scripting/scriptnode/data/DspNetwork.cpp"
+#include "scripting/scriptnode/data/StaticNodeWrappers.cpp"
 #include "scripting/scriptnode/data/ModulationSourceNode.cpp"
 #include "scripting/scriptnode/data/NodeContainer.cpp"
 #include "scripting/scriptnode/data/NodeWrapper.cpp"

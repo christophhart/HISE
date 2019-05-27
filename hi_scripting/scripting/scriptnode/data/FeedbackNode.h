@@ -44,6 +44,7 @@ namespace core
 struct SequencerNode : public HiseDspBase
 {
 	SET_HISE_NODE_ID("seq");
+	GET_SELF_AS_OBJECT(SequencerNode);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 	SET_HISE_NODE_EXTRA_WIDTH(512);
 	SET_HISE_NODE_EXTRA_HEIGHT(100);
@@ -54,9 +55,9 @@ struct SequencerNode : public HiseDspBase
 
 	void createParameters(Array<ParameterData>& data) override;
 
-	void initialise(ProcessorWithScriptingContent* sp) override;
+	void initialise(NodeBase* n) override;
 
-	bool handleModulation(ProcessData& d, double& value)
+	bool handleModulation(double& value)
 	{
 		if (changed)
 		{
@@ -68,13 +69,19 @@ struct SequencerNode : public HiseDspBase
 		return false;
 	}
 
+	void reset()
+	{
+		lastIndex = -1;
+		currentValue = 0.0;
+		changed = true;
+	}
+
 	void process(ProcessData& data)
 	{
 		if (packData != nullptr)
 		{
 			auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(data));
 			auto index = roundDoubleToInt(peakValue * (double)packData->getNumSliders());
-
 
 			changed = lastIndex != index;
 
@@ -116,7 +123,7 @@ struct SequencerNode : public HiseDspBase
 
 	void setSliderPack(double indexAsDouble);
 
-	WeakReference<JavascriptProcessor> jp;
+	WeakReference<SliderPackProcessor> sp;
 	WeakReference<SliderPackData> packData;
 
 	int lastIndex = -1;
@@ -127,6 +134,7 @@ struct SequencerNode : public HiseDspBase
 struct TableNode : public HiseDspBase
 {
 	SET_HISE_NODE_ID("table");
+	GET_SELF_AS_OBJECT(TableNode);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 	SET_HISE_NODE_EXTRA_WIDTH(512);
 	SET_HISE_NODE_EXTRA_HEIGHT(100);
@@ -137,9 +145,9 @@ struct TableNode : public HiseDspBase
 
 	void createParameters(Array<ParameterData>& data) override;
 
-	void initialise(ProcessorWithScriptingContent* sp) override;
+	void initialise(NodeBase* n) override;
 
-	bool handleModulation(ProcessData& d, double& value)
+	bool handleModulation(double& value)
 	{
 		if (changed)
 		{
@@ -154,6 +162,12 @@ struct TableNode : public HiseDspBase
 	void prepare(int numChannels, double sampleRate, int blockSize)
 	{
 
+	}
+
+	forcedinline void reset() noexcept
+	{
+		currentValue = 0.0;
+		changed = true;
 	}
 
 	void process(ProcessData& data)
@@ -191,7 +205,7 @@ struct TableNode : public HiseDspBase
 
 	void setTable(double indexAsDouble);
 
-	WeakReference<JavascriptProcessor> jp;
+	WeakReference<LookupTableProcessor> tp;
 	WeakReference<SampleLookupTable> tableData;
 
 	double currentValue = 0;

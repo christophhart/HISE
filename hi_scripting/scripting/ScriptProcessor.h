@@ -284,7 +284,97 @@ private:
 };
 
 
+class ComplexDataHolder: public SliderPackProcessor,
+						 public LookupTableProcessor
+{
+public:
 
+	virtual ~ComplexDataHolder() {};
+
+	SliderPackData* getSliderPackData(int index) override
+	{
+		if (auto d = sliderPacks[index])
+			return d->getSliderPackData();
+
+		return nullptr;
+	}
+
+	const SliderPackData* getSliderPackData(int index) const override
+	{
+		if (auto d = sliderPacks[index])
+			return d->getSliderPackData();
+
+		return nullptr;
+	}
+
+	Table* getTable(int index) const override
+	{
+		if (auto d = tables[index])
+			return d->getTable();
+
+		return nullptr;
+	}
+
+	int getNumTables() const override { return tables.size(); };
+
+	int getNumSliderPacks() const override { return sliderPacks.size(); }
+
+	void saveComplexDataTypeAmounts(ValueTree& v) const
+	{
+		if (!sliderPacks.isEmpty())
+			v.setProperty("NumSliderPacks", sliderPacks.size(), nullptr);
+
+		if (!tables.isEmpty())
+			v.setProperty("NumTables", sliderPacks.size(), nullptr);
+	}
+
+	void restoreComplexDataTypes(const ValueTree& v)
+	{
+		int numSliderPacks = v.getProperty("NumSliderPacks", 0);
+
+		if (numSliderPacks > 0)
+		{
+			sliderPacks.ensureStorageAllocated(numSliderPacks);
+
+			for (int i = 0; i < numSliderPacks; i++)
+				sliderPacks.add(new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
+		}
+
+		int numTables = v.getProperty("NumTables", 0);
+
+		if (numTables > 0)
+		{
+			tables.ensureStorageAllocated(numTables);
+
+			for (int i = 0; i < numTables; i++)
+				tables.add(new ScriptingObjects::ScriptTableData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
+		}
+	}
+
+	ScriptingObjects::ScriptSliderPackData* addOrReturnSliderPackObject(int index)
+	{
+		if (auto d = sliderPacks[index])
+			return d;
+
+		sliderPacks.set(index, new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
+		return sliderPacks[index];
+	}
+
+	ScriptingObjects::ScriptTableData* addOrReturnTableObject(int index)
+	{
+		if (auto d = tables[index])
+			return d;
+
+		tables.set(index, new ScriptingObjects::ScriptTableData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
+		return tables[index];
+	}
+
+protected:
+
+	ReferenceCountedArray<ScriptingObjects::ScriptSliderPackData> sliderPacks;
+	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
+
+};
 
 
 /** The base class for modules that can be scripted. 
@@ -294,8 +384,7 @@ private:
 class JavascriptProcessor :	public FileChangeListener,
 							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
-							public SliderPackProcessor,
-							public LookupTableProcessor,
+							public ComplexDataHolder,
 							public scriptnode::DspNetwork::Holder
 {
 public:
@@ -590,83 +679,7 @@ public:
 		return dynamic_cast<const ProcessorWithScriptingContent*>(this)->getScriptingContent();
 	}
 
-	SliderPackData* getSliderPackData(int index) override
-	{
-		if (auto d = sliderPacks[index])
-			return d->getSliderPackData();
-
-		return nullptr;
-	}
-
-	const SliderPackData* getSliderPackData(int index) const override
-	{
-		if (auto d = sliderPacks[index])
-			return d->getSliderPackData();
-
-		return nullptr;
-	}
-
-	Table* getTable(int index) const override
-	{
-		if (auto d = tables[index])
-			return d->getTable();
-
-		return nullptr;
-	}
-
-	int getNumTables() const override { return tables.size(); };
-
-	int getNumSliderPacks() const override { return sliderPacks.size(); }
-
-	void saveComplexDataTypeAmounts(ValueTree& v) const
-	{
-		if(!sliderPacks.isEmpty())
-			v.setProperty("NumSliderPacks", sliderPacks.size(), nullptr);
-
-		if (!tables.isEmpty())
-			v.setProperty("NumTables", sliderPacks.size(), nullptr);
-	}
-
-	void restoreComplexDataTypes(const ValueTree& v)
-	{
-		int numSliderPacks = v.getProperty("NumSliderPacks", 0);
-
-		if (numSliderPacks > 0)
-		{
-			sliderPacks.ensureStorageAllocated(numSliderPacks);
-
-			for (int i = 0; i < numSliderPacks; i++)
-				sliderPacks.add(new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		}
-
-		int numTables = v.getProperty("NumTables", 0);
-
-		if (numTables > 0)
-		{
-			tables.ensureStorageAllocated(numTables);
-
-			for (int i = 0; i < numTables; i++)
-				tables.add(new ScriptingObjects::ScriptTableData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		}
-	}
-
-	ScriptingObjects::ScriptSliderPackData* addOrReturnSliderPackObject(int index)
-	{
-		if (auto d = sliderPacks[index])
-			return d;
-
-		sliderPacks.set(index, new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return sliderPacks[index];
-	}
-
-	ScriptingObjects::ScriptTableData* addOrReturnTableObject(int index)
-	{
-		if (auto d = tables[index])
-			return d;
-
-		tables.set(index, new ScriptingObjects::ScriptTableData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return tables[index];
-	}
+	
 
 	void clearContentPropertiesDoc()
 	{
@@ -729,8 +742,7 @@ protected:
 
 private:
 
-	ReferenceCountedArray<ScriptingObjects::ScriptSliderPackData> sliderPacks;
-	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
+	
 
 	struct Helpers
 	{

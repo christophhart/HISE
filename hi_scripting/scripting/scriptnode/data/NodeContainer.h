@@ -80,6 +80,12 @@ struct NodeContainer : public NodeBase,
 
 	ValueTree getNodeTree() const { return data.getChildWithName(PropertyIds::Nodes); }
 
+	void reset() override 
+	{ 
+		for (auto n : nodes)
+			n->reset();
+	}
+
 	void prepare(double sampleRate, int blockSize) override
 	{
 		ScopedLock sl(getRootNetwork()->getConnectionLock());
@@ -116,9 +122,47 @@ struct NodeContainer : public NodeBase,
 
 	String createCppClass(bool isOuterClass) override;
 
+	String createTemplateAlias();
+	
+	NodeBase::List getChildNodesRecursive()
+	{
+		NodeBase::List l;
+
+		for (auto n : nodes)
+		{
+			l.add(n);
+
+			if (auto c = dynamic_cast<NodeContainer*>(n.get()))
+				l.addArray(c->getChildNodesRecursive());
+		}
+
+		return l;
+	}
+
+	void fillAccessors(Array<CppGen::Accessor>& accessors, Array<int> currentPath)
+	{
+		for (int i = 0; i < nodes.size(); i++)
+		{
+			Array<int> thisPath = currentPath;
+			thisPath.add(i);
+
+			if (auto c = dynamic_cast<NodeContainer*>(nodes[i].get()))
+			{
+				c->fillAccessors(accessors, thisPath);
+			}
+			else
+			{
+				accessors.add({ nodes[i]->getId(), thisPath });
+			}
+		}
+	}
+
 	virtual String getCppCode(CppGen::CodeLocation location);
 
 	ValueTree getNodeTree() { return data.getOrCreateChildWithName(PropertyIds::Nodes, getUndoManager()); }
+
+	List& getNodeList() { return nodes; }
+	const List& getNodeList() const { return nodes; }
 
 protected:
 
@@ -150,6 +194,55 @@ class SerialNode : public NodeContainer
 {
 public:
 
+	class DynamicSerialProcessor: public HiseDspBase
+	{
+	public:
+
+		SET_HISE_NODE_EXTRA_HEIGHT(0);
+		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+		bool handleModulation(double& value) { return false; }
+
+		void initialise(NodeBase* p)
+		{
+			parent = dynamic_cast<NodeContainer*>(p);
+		}
+
+		void reset()
+		{
+			for (auto n : parent->getNodeList())
+				n->reset();
+		}
+
+		void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+		{
+			// do nothing here, the container inits the child nodes.
+		}
+
+		void process(ProcessData& d)
+		{
+			jassert(parent != nullptr);
+
+			for (auto n : parent->getNodeList())
+				n->process(d);
+		}
+
+		void processSingle(float* frameData, int numChannels)
+		{
+			jassert(parent != nullptr);
+
+			for (auto n : parent->getNodeList())
+				n->processSingle(frameData, numChannels);
+		}
+
+		void createParameters(Array<ParameterData>& data) override {};
+
+		DynamicSerialProcessor& getObject() { return *this; }
+		const DynamicSerialProcessor& getObject() const { return *this; }
+
+		NodeContainer* parent;
+	};
+
 	SerialNode(DspNetwork* root, ValueTree data);
 
 	Identifier getObjectName() const override { return "SerialNode"; };
@@ -158,13 +251,15 @@ public:
 
 	String getCppCode(CppGen::CodeLocation location) override;
 
-private:
-
-	
 };
+
+
+
 
 class ChainNode : public SerialNode
 {
+	using InternalWrapper = bypass::smoothed<SerialNode::DynamicSerialProcessor, false>;
+
 public:
 
 	SCRIPTNODE_FACTORY(ChainNode, "chain");
@@ -175,7 +270,17 @@ public:
 
 	void process(ProcessData& data) final override;
 	void processSingle(float* frameData, int numChannels) final override;
+
+	void prepare(double sampleRate, int blockSize) override;
+
+	void reset() final override { wrapper.reset(); }
+
+private:
+
+	InternalWrapper wrapper;
+	valuetree::PropertyListener bypassListener;
 };
+
 
 class ModulationChainNode : public SerialNode
 {
@@ -195,15 +300,12 @@ public:
 
 private:
 	
-	int singleCounter = 0;
+	container::mod<SerialNode::DynamicSerialProcessor> obj;
 };
-
 
 template <int OversampleFactor> class OversampleNode : public SerialNode
 {
 public:
-
-	using Oversampler = juce::dsp::Oversampling<float>;
 
 	SCRIPTNODE_FACTORY(OversampleNode, "oversample" + String(OversampleFactor) + "x");
 
@@ -211,6 +313,8 @@ public:
 		SerialNode(network, d)
 	{
 		initListeners();
+
+		obj.initialise(this);
 
 		bypassListener.setCallback(d, { PropertyIds::Bypassed },
 			valuetree::AsyncMode::Synchronously,
@@ -227,19 +331,13 @@ public:
 	{
 		NodeContainer::prepare(sampleRate, blockSize);
 
-		ScopedPointer<Oversampler> newOverSampler;
-		
-		if (!isBypassed())
+		if (isBypassed())
 		{
-			newOverSampler = new Oversampler(getNumChannelsToProcess(), std::log2(OversampleFactor), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
-
-			if (blockSize > 0)
-				newOverSampler->initProcessing(blockSize);
+			obj.getObject().prepare(getNumChannelsToProcess(), sampleRate, blockSize);
 		}
-
+		else
 		{
-			ScopedLock sl(getRootNetwork()->getConnectionLock());
-			oversampler.swapWith(newOverSampler);
+			obj.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
 		}
 	}
 
@@ -253,40 +351,24 @@ public:
 		return isBypassed() ? originalBlockSize : originalBlockSize * OversampleFactor;
 	}
 
+	void reset() final override
+	{
+		obj.reset();
+	}
+
 	void process(ProcessData& d) noexcept final override
 	{
 		if (isBypassed())
 		{
-			for (auto n : nodes)
-				n->process(d);
+			obj.getObject().process(d);
 		}
 		else
 		{
-			if (oversampler == nullptr)
-				return;
-
-			juce::dsp::AudioBlock<float> input(d.data, d.numChannels, d.size);
-
-			auto& output = oversampler->processSamplesUp(input);
-
-			float* data[NUM_MAX_CHANNELS];
-
-			for (int i = 0; i < d.numChannels; i++)
-				data[i] = output.getChannelPointer(i);
-
-			ProcessData od;
-			od.data = data;
-			od.numChannels = d.numChannels;
-			od.size = d.size * OversampleFactor;
-
-			for (auto n : nodes)
-				n->process(od);
-
-			oversampler->processSamplesDown(input);
+			obj.process(d);
 		}
 	}
 
-	ScopedPointer<Oversampler> oversampler;
+	wrap::oversample<OversampleFactor, SerialNode::DynamicSerialProcessor> obj;
 
 	valuetree::PropertyListener bypassListener;
 };
@@ -376,6 +458,7 @@ public:
 	Identifier getObjectName() const override { return "MultiChannelNode"; };
 };
 
+/*
 namespace container
 {
 using split = SplitNode;
@@ -388,6 +471,7 @@ using oversample4x = OversampleNode<4>;
 using oversample2x = OversampleNode<2>;
 
 }
+*/
 
 class NodeContainerFactory : public NodeFactory
 {

@@ -42,6 +42,7 @@ struct fix_delay : public HiseDspBase
 {
 	SET_HISE_NODE_ID("fix_delay");
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+	GET_SELF_AS_OBJECT(fix_delay);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	fix_delay() {};
@@ -64,9 +65,9 @@ struct fix_delay : public HiseDspBase
 		setDelayTimeMilliseconds(delayTimeSeconds * 1000.0);
 	}
 
-	bool handleModulation(ProcessData& d, double& data) noexcept { return false; };
+	bool handleModulation(double& data) noexcept { return false; };
 
-	void reset() noexcept
+	forcedinline void reset() noexcept
 	{
 		for (auto d : delayLines)
 			d->clear();

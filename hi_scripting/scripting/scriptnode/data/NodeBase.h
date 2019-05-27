@@ -99,6 +99,9 @@ struct NodeBase : public ConstScriptingObject
 	    this method if there's a faster way. */
 	virtual void processSingle(float* frameData, int numChannels);
 
+	/** Override this to reset your node. */
+	virtual void reset() = 0;
+
 	/** Override this method and create a Cpp class. */
 	virtual String createCppClass(bool isOuterClass);
 

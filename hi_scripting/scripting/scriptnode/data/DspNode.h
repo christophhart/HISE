@@ -37,7 +37,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-
 namespace feedback
 {
 	class SourceNode : public NodeBase
@@ -60,10 +59,15 @@ namespace feedback
 				buffer.setSize(getNumChannelsToProcess(), blockSize);
 			}
 
+			reset();
+		}
+
+		void reset() final override
+		{
 			memset(singleFrameData, 0, sizeof(float) * NUM_MAX_CHANNELS);
 		}
 
-		void process(ProcessData& data) override
+		void process(ProcessData& data) final override
 		{
 			if (connectedOK)
 			{
@@ -101,6 +105,8 @@ namespace feedback
 		SCRIPTNODE_FACTORY(TargetNode, "input");
 
 		Identifier getObjectName() const override { return getStaticId(); }
+
+		void reset() final override {}
 
 		void updateConnection(Identifier, var newValue)
 		{
@@ -178,280 +184,6 @@ namespace feedback
 
 
 
-class HiseDspBase
-{
-public:
-
-	virtual ~HiseDspBase() {};
-
-	struct ParameterData
-	{
-		ParameterData(const String& id_) :
-			id(id_)
-		{};
-
-		ValueTree createValueTree() const
-		{
-			ValueTree p(PropertyIds::Parameter);
-
-			RangeHelpers::storeDoubleRange(p, false, range, nullptr);
-
-			p.setProperty(PropertyIds::ID, id, nullptr);
-			p.setProperty(PropertyIds::Value, defaultValue, nullptr);
-
-			return p;
-		}
-
-		String id;
-		NormalisableRange<double> range;
-		double defaultValue = 0.0;
-
-		void setParameterValueNames(const StringArray& valueNames)
-		{
-			parameterNames = valueNames;
-			range = { 0.0, (double)valueNames.size() - 1.0, 1.0 };
-		}
-
-		void init()
-		{
-			db(defaultValue);
-		}
-
-		std::function<void(double)> db;
-		StringArray parameterNames;
-	};
-
-	template <class ObjectType> class ExtraComponent : public Component,
-		public PooledUIUpdater::SimpleTimer
-	{
-	protected:
-
-		ExtraComponent(ObjectType* t, PooledUIUpdater* updater) :
-			SimpleTimer(updater),
-			object(dynamic_cast<HiseDspBase*>(t))
-		{};
-
-		ObjectType* getObject() const
-		{
-			return dynamic_cast<ObjectType*>(object.get());
-		}
-
-	private:
-
-		WeakReference<HiseDspBase> object;
-	};
-
-	virtual int getExtraWidth() const { return 0; };
-
-	virtual void initialise(ProcessorWithScriptingContent* sp) 
-	{
-		ignoreUnused(sp);
-	};
-
-	virtual Component* createExtraComponent(PooledUIUpdater* updater)
-	{
-		ignoreUnused(updater);
-		return nullptr;
-	}
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseDspBase);
-
-	virtual void createParameters(Array<ParameterData>& data) = 0;
-};
-
-template <class HiseDspBaseType> class HiseDspNodeBase : public ModulationSourceNode
-{
-public:
-	HiseDspNodeBase(DspNetwork* parent, ValueTree d) :
-		ModulationSourceNode(parent, d)
-	{
-		obj.initialise(parent->getScriptProcessor());
-
-		d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
-
-		Array<HiseDspBase::ParameterData> pData;
-
-		obj.createParameters(pData);
-
-		for (auto p : pData)
-		{
-			auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.id);
-
-			if (!existingChild.isValid())
-			{
-				existingChild = p.createValueTree();
-				getParameterTree().addChild(existingChild, -1, getUndoManager());
-			}
-
-			auto newP = new Parameter(this, existingChild);
-			newP->setCallback(p.db);
-			newP->valueNames = p.parameterNames;
-
-			addParameter(newP);
-		}
-
-		
-	};
-
-	SCRIPTNODE_FACTORY(HiseDspNodeBase, HiseDspBaseType::getStaticId());
-
-	NodeComponent* createComponent() override
-	{
-		auto nc = new DefaultParameterNodeComponent(this);
-
-		if (auto extra = obj.createExtraComponent(getScriptProcessor()->getMainController_()->getGlobalUIUpdater()))
-		{
-			extra->setSize(0, obj.ExtraHeight);
-			nc->setExtraComponent(extra);
-		}
-
-		return nc;
-	}
-
-	Identifier getObjectName() const override { return getStaticId(); }
-
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
-	{
-		int numParameters = getNumParameters();
-			
-		if(numParameters == 0)
-			return createRectangleForParameterSliders(0).withPosition(topLeft);
-		if (numParameters % 5 == 0)
-			return createRectangleForParameterSliders(5).withPosition(topLeft);
-		else if (numParameters % 4 == 0)
-			return createRectangleForParameterSliders(4).withPosition(topLeft);
-		else if (numParameters % 3 == 0)
-			return createRectangleForParameterSliders(3).withPosition(topLeft);
-		else if (numParameters % 2 == 0)
-			return createRectangleForParameterSliders(2).withPosition(topLeft);
-		else if (numParameters == 1)
-			return createRectangleForParameterSliders(1).withPosition(topLeft);
-		
-
-		return {};
-	}
-
-	Rectangle<int> createRectangleForParameterSliders(int numColumns) const
-	{
-		int h = UIValues::HeaderHeight;
-		h += obj.ExtraHeight;
-
-		int w = 0;
-
-		if (numColumns == 0)
-			w = UIValues::NodeWidth * 2;
-		else
-		{
-			int numParameters = getNumParameters();
-			int numRows = std::ceil((float)numParameters / (float)numColumns);
-
-			h += numRows * (48 + 18);
-			w = jmin(numColumns * 100, numParameters * 100);
-		}
-
-		w = jmax(w, obj.getExtraWidth());
-
-		auto b = Rectangle<int>(0, 0, w, h);
-		return b.expanded(UIValues::NodeMargin);
-	}
-
-	void prepare(double sampleRate, int blockSize) final override
-	{
-		ModulationSourceNode::prepare(sampleRate, blockSize);
-
-		obj.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
-	}
-
-	void processSingle(float* frameData, int numChannels) final override
-	{
-		obj.processSingle(frameData, numChannels);
-
-		if (obj.isModulationSource)
-		{
-			ProcessData d;
-			d.data = &frameData;
-			d.size = numChannels;
-			d.numChannels = 1;
-
-			double value = 0.0;
-			if (obj.handleModulation(d, value))
-				sendValueToTargets(value, 1);
-		}
-	}
-
-	void process(ProcessData& data) noexcept final override
-	{
-		obj.process(data);
-
-		if (obj.isModulationSource)
-		{
-			double value = 0.0;
-
-			if (obj.handleModulation(data, value))
-				sendValueToTargets(value, data.size);
-		}
-	}
-
-	HiseDspBaseType obj;
-};
-
-
-struct HardcodedNode
-{
-	struct ParameterInitValue
-	{
-		ParameterInitValue(const char* id_, double v) :
-			id(id_),
-			value(v)
-		{};
-
-		String id;
-		double value;
-	};
-
-	static constexpr int ExtraHeight = 0;
-
-	template <class T> static Array<HiseDspBase::ParameterData> createParametersT(T* d, const String& prefix)
-	{
-		Array<HiseDspBase::ParameterData> data;
-		d->createParameters(data);
-
-		if (prefix.isNotEmpty())
-		{
-			for (auto& c : data)
-				c.id = prefix + "." + c.id;
-		}
-		
-
-		return data;
-	}
-
-	static void initParameterData(Array<HiseDspBase::ParameterData>& d, const Array<ParameterInitValue>& initValues)
-	{
-		for (auto& parameter : d)
-		{
-			for (auto& initValue : initValues)
-			{
-				if (parameter.id == initValue.id)
-				{
-					parameter.db(initValue.value);
-					break;
-				}
-			}
-		}
-	}
-
-	static HiseDspBase::ParameterData getParameter(const Array<HiseDspBase::ParameterData>& data, const String& id)
-	{
-		for (auto& c : data)
-			if (c.id == id)
-				return c;
-
-		return HiseDspBase::ParameterData("undefined");
-	}
-};
-
-
 
 
 class DspNode : public NodeBase,
@@ -486,6 +218,8 @@ public:
 		else
 			reportScriptError("Cant' find parameter for index " + String(index));
 	}
+
+	void reset() final override {};
 
 	virtual int getCachedIndex(const var &indexExpression) const override
 	{

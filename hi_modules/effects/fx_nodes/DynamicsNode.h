@@ -70,6 +70,7 @@ public:
 	}
 
 	SET_HISE_NODE_EXTRA_HEIGHT(30);
+	GET_SELF_AS_OBJECT(DynamicsNodeBase<DynamicProcessorType>);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	DynamicsNodeBase()
@@ -171,7 +172,7 @@ public:
 		return new ModulationSourcePlotter(updater);
 	}
 
-	bool handleModulation(ProcessData& d, double& max) noexcept 
+	bool handleModulation(double& max) noexcept 
 	{
 		max = jlimit(0.0, 1.0, 1.0 - obj.getGainReduction());
 		return true;
@@ -180,6 +181,11 @@ public:
 	void prepare(int numChannels, double sampleRate, int blockSize)
 	{
 		obj.setSampleRate(sampleRate);
+	}
+
+	void reset() noexcept
+	{
+		obj.initRuntime();
 	}
 
 	void process(ProcessData& d)
@@ -233,17 +239,23 @@ public:
 
 	SET_HISE_NODE_ID("envelope_follower");
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+	GET_SELF_AS_OBJECT(EnvelopeFollowerNode);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	EnvelopeFollowerNode():
 		envelope(20.0, 50.0)
 	{}
 
-	bool handleModulation(ProcessData&, double&) noexcept { return false; };
+	bool handleModulation(double&) noexcept { return false; };
 
 	void prepare(int numChannels, double sampleRate, int blockSize)
 	{
 		envelope.setSampleRate(sampleRate);
+	}
+
+	forcedinline void reset() noexcept
+	{
+		envelope.reset();
 	}
 
 	void process(ProcessData& d)

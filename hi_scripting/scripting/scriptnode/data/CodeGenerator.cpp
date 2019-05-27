@@ -169,6 +169,21 @@ juce::String CppGen::Emitter::createClass(const String& content, const String& c
 		return s;
 }
 
+juce::String CppGen::Emitter::createClass(const String& content, const String& templateId)
+{
+	String s;
+
+	s << "struct instance: public wr::one::parameter<" << templateId << ">\n";
+	s << "{\n";
+
+	s << content;
+
+	s << "};\n";
+
+	return s;
+
+}
+
 juce::String CppGen::Emitter::createPrettyNumber(double value, bool createFloat)
 {
 	if (fmod(value, 1.0) == 0.0)
@@ -179,6 +194,62 @@ juce::String CppGen::Emitter::createPrettyNumber(double value, bool createFloat)
 	{
 		return String(value) + (createFloat ? "f" : "");
 	}
+}
+
+juce::String CppGen::Emitter::createAlias(const String& aliasName, const String& className)
+{
+	String s;
+	s << "using " << aliasName << " = " << className << ";\n";
+	return s;
+}
+
+juce::String CppGen::Emitter::createTemplateAlias(const String& aliasName, const String& className, const StringArray& templateArguments)
+{
+	String s;
+	s << "using " << aliasName << " = " << className << "<";
+
+	for (int i = 0; i < templateArguments.size(); i++)
+	{
+		s << templateArguments[i];
+
+		if (i != templateArguments.size() - 1)
+			s << ", ";
+	}
+
+	s << ">;\n";
+
+	return s;
+}
+
+juce::String CppGen::Emitter::wrapIntoTemplate(const String& className, const String& outerTemplate)
+{
+	String s;
+
+	s << outerTemplate << "<" << className << ">";
+	return s;
+}
+
+juce::String CppGen::Emitter::prependNamespaces(const String& className, const Array<Identifier>& namespaces)
+{
+	String s;
+	for (auto id : namespaces)
+		s << id.toString() << "::";
+
+	s << className;
+
+	return s;
+}
+
+juce::String CppGen::Emitter::wrapIntoNamespace(const String& s, const String& namespaceId)
+{
+	String n;
+	n << "namespace " << namespaceId << "\n{\n";
+
+	n << s;
+
+	n << "}\n";
+
+	return n;
 }
 
 juce::String CppGen::Helpers::createIntendation(const String& code)
