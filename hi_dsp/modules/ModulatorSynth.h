@@ -472,6 +472,8 @@ public:
 
 	UnorderedStack<ModulatorSynthSound*> soundsToBeStarted;
 
+	HiseEventBuffer* getEventBuffer() { return &eventBuffer; }
+
 private:
 
 	VoiceStack pendingRemoveVoices;

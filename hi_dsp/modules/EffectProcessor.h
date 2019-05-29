@@ -282,6 +282,11 @@ public:
 			softBypassRamper.reset(sampleRate / (double)samplesPerBlock, 0.1);
 	}
 
+	void setEventBuffer(HiseEventBuffer* eventBufferFromSynth)
+	{
+		eventBuffer = eventBufferFromSynth;
+	}
+
 	/** A wrapper function around the actual processing.
 	*
 	*	You can assume that all internal chains are processed and the numSample amount is set according to the stepsize calculated with
@@ -405,7 +410,13 @@ public:
     
 	AudioSampleBuffer* killBuffer = nullptr;
 
+protected:
+
+	HiseEventBuffer* eventBuffer = nullptr;
+
 private:
+
+	
 
 	SoftBypassState softBypassState = Inactive;
 	LinearSmoothedValue<float> softBypassRamper;

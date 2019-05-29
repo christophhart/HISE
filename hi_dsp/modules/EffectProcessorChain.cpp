@@ -194,6 +194,7 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 			const int index = chain->masterEffects.indexOf(dynamic_cast<MasterEffectProcessor*>(siblingToInsertBefore));
 			chain->masterEffects.insert(index, mep);
 			mep->setKillBuffer(chain->killBuffer);
+			mep->setEventBuffer(dynamic_cast<ModulatorSynth*>(chain->getParentProcessor())->getEventBuffer());
 
 		}
 		else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(newProcessor))
