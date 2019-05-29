@@ -94,7 +94,8 @@ struct ProcessData
 	ProcessData(float** d, int c, int s) :
 		data(d),
 		numChannels(c),
-		size(s)
+		size(s),
+		eventBuffer(nullptr)
 	{};
 
 	ProcessData() {};
@@ -102,6 +103,7 @@ struct ProcessData
 	float** data = nullptr;
 	int numChannels = 0;
 	int size = 0;
+	HiseEventBuffer* eventBuffer = nullptr;
 
 	ChannelIterator channels()
 	{
@@ -112,12 +114,14 @@ struct ProcessData
 	float** begin() const { return data; }
 	float** end() const { return data + numChannels; }
 
+	
+
 	template <int NumChannels> void copyToFrame(float* frame) const
 	{
 		jassert(isPositiveAndBelow(NumChannels, numChannels+1));
 
 		for (int i = 0; i < NumChannels; i++)
-			frame[i] = *data[i];
+			frame[i] = data[i][0];
 	}
 
 	template <int NumChannels> void copyFromFrameAndAdvance(const float* frame)
@@ -125,7 +129,10 @@ struct ProcessData
 		jassert(isPositiveAndBelow(NumChannels, numChannels + 1));
 
 		for (int i = 0; i < NumChannels; i++)
-			*data[i]++ = frame[i];
+		{
+			data[i][0] = frame[i];
+			data[i] += 1;
+		}
 	}
 
 	void copyToFrameDynamic(float* frame) const
@@ -146,9 +153,11 @@ struct ProcessData
 			*data[i]++;
 	}
 
+	
+
 	ProcessData copyTo(AudioSampleBuffer& buffer, int index);
 	ProcessData& operator+=(const ProcessData& other);
-	ProcessData referTo(AudioSampleBuffer& buffer, int index);
+	ProcessData referTo(AudioSampleBuffer& buffer, int index) const;
 };
 
 

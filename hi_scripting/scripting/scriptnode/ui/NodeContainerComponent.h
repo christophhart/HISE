@@ -418,4 +418,21 @@ struct ParallelNodeComponent : public ContainerComponent
 	void paintCable(Graphics& g, int cableIndex);
 };
 
+struct ModChainNodeComponent : public ContainerComponent
+{
+	ModChainNodeComponent(ModulationChainNode* node);
+
+	bool isMultiChannelNode() const { return false; }
+
+	int getInsertPosition(Point<int> position) const override;
+	Rectangle<float> getInsertRuler(int position);
+
+	void resized() override;
+	void paint(Graphics& g) override;
+	//void paintCable(Graphics& g, int cableIndex);
+
+	ModulationSourceBaseComponent dragger;
+
+};
+
 }

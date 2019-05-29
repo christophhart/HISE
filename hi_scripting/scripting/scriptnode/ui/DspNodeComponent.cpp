@@ -77,27 +77,6 @@ void DefaultParameterNodeComponent::resized()
 }
 
 
-FeedbackTargetComponent::FeedbackTargetComponent(NodeBase* n) :
-	NodeComponent(n)
-{
-	auto list = node->getRootNetwork()->getListOfNodesWithType<feedback::SourceNode>(false);
-
-	int index = 1;
-
-	for (auto l : list)
-	{
-		sourceSelector.addItem(l->getId(), index++);
-	}
-
-	addAndMakeVisible(sourceSelector);
-
-	n->getScriptProcessor()->getMainController_()->skin(sourceSelector);
-	sourceSelector.addListener(this);
-	
-	comboboxUpdater.setCallback(n->getValueTree(), { PropertyIds::Connection },
-		valuetree::AsyncMode::Asynchronously,
-		BIND_MEMBER_FUNCTION_2(FeedbackTargetComponent::updateComboBox));
-}
 
 
 void ModulationSourceBaseComponent::mouseDown(const MouseEvent& e)
@@ -113,6 +92,21 @@ void ModulationSourceBaseComponent::mouseDown(const MouseEvent& e)
 		findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(pe, this, getLocalBounds().getCentre());
 	}
 }
+
+scriptnode::ModulationSourceNode* ModulationSourceBaseComponent::getSourceNodeFromParent() const
+{
+	if (sourceNode == nullptr)
+	{
+		if (auto pc = findParentComponentOfClass<NodeComponent>())
+		{
+			sourceNode = dynamic_cast<ModulationSourceNode*>(pc->node.get());
+		}
+	}
+
+	return sourceNode;
+}
+
+
 
 }
 

@@ -35,27 +35,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-
-
-
-
-
-
-void HardcodedNode::initStaticParameterData()
-{
-	for (auto& parameter : internalParameterList)
-	{
-		for (auto& initValue : initValues)
-		{
-			if (parameter.id == initValue.id)
-			{
-				parameter.db(initValue.value);
-				break;
-			}
-		}
-	}
-}
-
 scriptnode::HiseDspBase::ParameterData HardcodedNode::getParameter(const String& id)
 {
 	for (auto& c : internalParameterList)
@@ -64,6 +43,18 @@ scriptnode::HiseDspBase::ParameterData HardcodedNode::getParameter(const String&
 
 	return HiseDspBase::ParameterData("undefined");
 }
+
+
+scriptnode::HiseDspBase::ParameterData HardcodedNode::getParameter(const String& id, NormalisableRange<double> d)
+{
+	return getParameter(id).withRange(d);
+}
+
+bool HiseDspBase::isHardcoded() const
+{
+	return dynamic_cast<const HardcodedNode*>(this) != nullptr;
+}
+
 
 }
 

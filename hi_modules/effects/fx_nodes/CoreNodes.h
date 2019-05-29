@@ -559,6 +559,12 @@ namespace math
 				for (int i = 0; i < d.numChannels; i++)
 					FloatVectorOperations::multiply(d.data[i], value, d.size);
 			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ *= value;
+			}
 		};
 		
 		struct add
@@ -569,6 +575,12 @@ namespace math
 			{
 				for (int i = 0; i < d.numChannels; i++)
 					FloatVectorOperations::add(d.data[i], value, d.size);
+			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ += value;
 			}
 		};
 		
@@ -581,6 +593,12 @@ namespace math
 				for (int i = 0; i < d.numChannels; i++)
 					FloatVectorOperations::clear(d.data[i], d.size);
 			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ = 0.0f;
+			}
 		};
 
 		struct sub
@@ -591,6 +609,12 @@ namespace math
 			{
 				for (int i = 0; i < d.numChannels; i++)
 					FloatVectorOperations::add(d.data[i], -value, d.size);
+			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ -= value;
 			}
 		};
 
@@ -603,6 +627,12 @@ namespace math
 				auto factor = value > 0.0f ? 1.0f / value : 0.0f;
 				for (int i = 0; i < d.numChannels; i++)
 					FloatVectorOperations::multiply(d.data[i], factor, d.size);
+			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ /= value;
 			}
 		};
 		
@@ -620,6 +650,12 @@ namespace math
 						*ptr++ = std::tanhf(*ptr * value);
 				}
 			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ = std::tanhf(*frameData * value);
+			}
 		};
 
 		struct pi
@@ -630,6 +666,12 @@ namespace math
 			{
 				for (auto ptr : d)
 					FloatVectorOperations::multiply(ptr, float_Pi * value, d.size);
+			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ *= float_Pi * value;
 			}
 		};
 
@@ -645,6 +687,12 @@ namespace math
 						*ptr++ = std::sin(*ptr);
 				}
 			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ = std::sin(*frameData);
+			}
 		};
 
 		struct sig2mod
@@ -657,6 +705,12 @@ namespace math
 					for (auto& s : ch)
 						s = s * 0.5f + 0.5f;
 			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ *= *frameData * 0.5f + 0.5f;
+			}
 		};
 		
 		struct clip
@@ -668,6 +722,12 @@ namespace math
 				for (auto ptr: d)
 					FloatVectorOperations::clip(ptr, ptr, -value, value, d.size);
 			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ = jlimit(0.0f, 1.0f, *frameData);
+			}
 		};
 
 		struct abs
@@ -678,6 +738,12 @@ namespace math
 			{
 				for (int i = 0; i < d.numChannels; i++)
 					FloatVectorOperations::abs(d.data[i], d.data[i], d.size);
+			}
+
+			static void opSingle(float* frameData, int numChannels, float value)
+			{
+				for (int i = 0; i < numChannels; i++)
+					*frameData++ = *frameData > 0.0f ? *frameData : *frameData * -1.0f;
 			}
 		};
 	};
@@ -696,16 +762,12 @@ namespace math
 
 		void process(ProcessData& d)
 		{
-			f.op(d, value);
+			OpType::op(d, value);
 		}
 
 		void processSingle(float* frameData, int numChannels)
 		{
-			ProcessData d;
-			d.data = &frameData;
-			d.size = numChannels;
-			d.numChannels = 1;
-			f.op(d, value);
+			OpType::opSingle(frameData, numChannels, value);
 		}
 
 		forcedinline void reset() noexcept {}
@@ -727,7 +789,6 @@ namespace math
 			data.add(std::move(p));
 		}
 
-		OpType f;
 		float value = OpType::defaultValue;
 	};
 

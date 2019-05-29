@@ -172,6 +172,16 @@ juce::StringArray DspNetwork::getListOfUnusedNodeIds() const
 	return sa;
 }
 
+void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
+{
+	ScopedLock sl(getConnectionLock());
+
+	ProcessData d(b.getArrayOfWritePointers(), b.getNumChannels(), b.getNumSamples());
+	d.eventBuffer = e;
+
+	signalPath->process(d);
+}
+
 void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 {
 	ScopedLock sl(getConnectionLock());
@@ -381,6 +391,8 @@ DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 
 	networks.add(newNetwork);
 
+	setActiveNetwork(newNetwork);
+
 	return newNetwork;
 }
 
@@ -424,6 +436,7 @@ void DspNetwork::Holder::restoreNetworks(const ValueTree& d)
 				c.createCopy());
 
 			networks.add(newNetwork);
+			setActiveNetwork(newNetwork);
 		}
 	}
 }

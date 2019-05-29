@@ -39,19 +39,16 @@ using namespace hise;
 
 namespace bypass
 {
-template <class T, bool AddAsParameter=true> class smoothed
+template <class T, bool AddAsParameter=true> class smoothed: public SingleWrapper<T>
 {
 public:
+
+	GET_SELF_AS_OBJECT(smoothed);
 
 	static constexpr int ExtraHeight = T::ExtraHeight;
 
 	int getExtraWidth() const { return obj.getExtraWidth(); }
 	static constexpr bool isModulationSource = T::isModulationSource;
-
-	void initialise(NodeBase* n)
-	{
-		obj.initialise(n);
-	}
 
 	forcedinline void process(ProcessData& data) noexcept
 	{
@@ -166,7 +163,7 @@ public:
 		}
 	}
 
-	void createParameters(Array<HiseDspBase::ParameterData>& data)
+	void createParameters(Array<HiseDspBase::ParameterData>& data) override
 	{
 		if (AddAsParameter)
 		{
@@ -184,17 +181,7 @@ public:
 		obj.createParameters(data);
 	}
 
-	Component* createExtraComponent(PooledUIUpdater* updater)
-	{
-		return obj.createExtraComponent(updater);
-	}
-
-	auto& getObject() { return *this; }
-	const auto& getObject() const { return *this; }
-
 private:
-
-	T obj;
 
 	AudioSampleBuffer wetBuffer;
 

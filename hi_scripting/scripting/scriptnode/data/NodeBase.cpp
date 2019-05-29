@@ -355,7 +355,7 @@ struct DragHelpers
 
 		if (auto sourceContainer = dynamic_cast<NodeContainer*>(parent->getRootNetwork()->get(sourceNodeId).getObject()))
 		{
-			return sourceContainer->getParameterTree().getChildWithProperty(PropertyIds::ID, pId);
+			return sourceContainer->asNode()->getParameterTree().getChildWithProperty(PropertyIds::ID, pId);
 		}
 
 		return {};

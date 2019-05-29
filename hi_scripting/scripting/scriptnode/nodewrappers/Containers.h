@@ -65,24 +65,16 @@ struct AccessHelper<0>
 };
 
 //==============================================================================
-template <typename Processor, typename Subclass>
+template <bool IsFirst, typename Processor, typename Subclass>
 struct ChainElement
 {
+	using P = Processor;
+
 	void prepare(int numChannels, double sampleRate, int blockSize)
 	{
 		processor.prepare(numChannels, sampleRate, blockSize);
 	}
-
-	void process(ProcessData& data) noexcept
-	{
-		processor.process(data);
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		processor.processSingle(frameData, numChannels);
-	}
-
+	
 	void initialise(NodeBase* n)
 	{
 		processor.initialise(n);
@@ -96,6 +88,58 @@ struct ChainElement
 		return false;
 	}
 
+	void processWithCopy(ProcessData& data, ProcessData& original, AudioSampleBuffer& splitBuffer)
+	{
+		auto wd = original.copyTo(splitBuffer, 1);
+		processor.process(wd);
+		data += wd;
+	}
+
+	void processWithFixedChannels(ProcessData& d)
+	{
+		ProcessData copy(d);
+
+		constexpr int c = Processor::getFixChannelAmount();
+
+		copy.numChannels = c;
+		d.numChannels -= c;
+		d.data += c;
+
+		jassert(d.numChannels >= 0);
+
+		processor.process(copy);
+	}
+
+	void processSingleWithFixedChannels(float** frameData)
+	{
+		constexpr int c = Processor::getFixChannelAmount();
+		processor.processSingle(*frameData, c);
+		*frameData += c;
+	}
+
+	void process(ProcessData& data) noexcept
+	{
+		processor.process(data);
+	}
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		processor.processSingle(frameData, numChannels);
+	}
+
+	void processSingleWithOriginal(float* frameData, float* originalData, int numChannels)
+	{
+		float wb[NUM_MAX_CHANNELS];
+		memcpy(wb, originalData, sizeof(float)*numChannels);
+
+		processor.processSingle(frameData, numChannels);
+
+		FloatVectorOperations::add(frameData, wb, numChannels);		
+	}
+
+	ChainElement& getObject() { return *this; };
+	const ChainElement& getObject() const { return *this; };
+
 	void reset() { processor.reset(); }
 
 	Processor processor;
@@ -107,18 +151,16 @@ struct ChainElement
 	Subclass& getThis() noexcept { return *static_cast<Subclass*> (this); }
 	const Subclass& getThis() const noexcept { return *static_cast<const Subclass*> (this); }
 
-	ChainElement& getObject() { return *this; };
-	const ChainElement& getObject() const { return *this; };
-
 	template <int arg> auto& get() noexcept { return AccessHelper<arg>::get(getThis()); }
 	template <int arg> const auto& get() const noexcept { return AccessHelper<arg>::get(getThis()); }
 };
 
+
 //==============================================================================
-template <typename FirstProcessor, typename... SubsequentProcessors>
-struct ChainBase : public ChainElement<FirstProcessor, ChainBase<FirstProcessor, SubsequentProcessors...>>
+template <bool IsFirst, typename FirstProcessor, typename... SubsequentProcessors>
+struct ChainBase : public ChainElement<IsFirst, FirstProcessor, ChainBase<IsFirst, FirstProcessor, SubsequentProcessors...>>
 {
-	using Base = ChainElement<FirstProcessor, ChainBase<FirstProcessor, SubsequentProcessors...>>;
+	using Base = ChainElement<IsFirst, FirstProcessor, ChainBase<IsFirst, FirstProcessor, SubsequentProcessors...>>;
 
 	void process(ProcessData& data) noexcept
 	{
@@ -152,14 +194,307 @@ struct ChainBase : public ChainElement<FirstProcessor, ChainBase<FirstProcessor,
 
 	void reset() { Base::reset(); processors.reset(); }
 
-	ChainBase<SubsequentProcessors...> processors;
+	ChainBase<false, SubsequentProcessors...> processors;
 };
 
-template <typename ProcessorType> struct ChainBase<ProcessorType> : public ChainElement<ProcessorType, ChainBase<ProcessorType>> {};
+template <bool IsFirst, typename ProcessorType> struct ChainBase<IsFirst, ProcessorType> : public ChainElement<IsFirst, ProcessorType, ChainBase<IsFirst, ProcessorType>> {};
+
+//==============================================================================
+template <bool IsFirst, typename FirstProcessor, typename... SubsequentProcessors>
+struct SplitBase : public ChainElement<IsFirst, FirstProcessor, SplitBase<IsFirst, FirstProcessor, SubsequentProcessors...>>
+{
+	using Base = ChainElement<IsFirst, FirstProcessor, SplitBase<IsFirst, FirstProcessor, SubsequentProcessors...>>;
+
+	void processWithCopy(ProcessData& data, ProcessData& original, AudioSampleBuffer& splitBuffer) noexcept
+	{
+		if (IsFirst)
+		{
+			Base::process(data);
+			processors.processWithCopy(data, original, splitBuffer);
+		}
+		else
+		{
+			auto wd = original.copyTo(splitBuffer, 1);
+
+			Base::process(wd);
+			processors.processWithCopy(data, original, splitBuffer);
+
+			data += wd;
+		}
+	}
+
+	void prepare(int numChannels, double sampleRate, int blockSize)
+	{
+		Base::prepare(numChannels, sampleRate, blockSize);
+		processors.prepare(numChannels, sampleRate, blockSize);
+	}
+
+	void processSingleWithOriginal(float* frameData, float* originalData, int numChannels) noexcept
+	{
+		if (IsFirst)
+		{
+			Base::processSingle(frameData, numChannels);
+		}
+		else
+		{
+			float wb[NUM_MAX_CHANNELS];
+			memcpy(wb, originalData, sizeof(float)*numChannels);
+
+			Base::processSingle(wb, numChannels);
+			FloatVectorOperations::add(frameData, wb, numChannels);
+		}
+
+		processors.processSingleWithOriginal(frameData, originalData, numChannels);
+	}
+
+	void initialise(NodeBase* n)
+	{
+		Base::initialise(n);
+		processors.initialise(n);
+	}
+
+	bool handleModulation(double& value) noexcept
+	{
+		auto b = Base::handleModulation(value);
+		return processors.handleModulation(value) || b;
+	}
+
+	void reset() { Base::reset(); processors.reset(); }
+
+	SplitBase<false, SubsequentProcessors...> processors;
+};
+
+template <bool IsFirst, typename ProcessorType> struct SplitBase<IsFirst, ProcessorType> : public ChainElement<IsFirst, ProcessorType, SplitBase<IsFirst, ProcessorType>> {};
+
+
+
+
+
+//==============================================================================
+template <bool IsFirst, typename FirstProcessor, typename... SubsequentProcessors>
+struct MultiBase : public ChainElement<IsFirst, FirstProcessor, MultiBase<IsFirst, FirstProcessor, SubsequentProcessors...>>
+{
+	using Base = ChainElement<IsFirst, FirstProcessor, MultiBase<IsFirst, FirstProcessor, SubsequentProcessors...>>;
+
+	void prepare(int numChannels, double sampleRate, int blockSize)
+	{
+		Base::prepare(numChannels, sampleRate, blockSize);
+		processors.prepare(numChannels, sampleRate, blockSize);
+	}
+
+
+	void processWithFixedChannels(ProcessData& data) noexcept
+	{
+		Base::processWithFixedChannels(data);
+		processors.processWithFixedChannels(data);
+	}
+
+	void processSingleWithFixedChannels(float** frameData) noexcept
+	{
+		Base::processSingleWithFixedChannels(frameData);
+		processors.processSingleWithFixedChannels(frameData);
+	}
+
+	void initialise(NodeBase* n)
+	{
+		Base::initialise(n);
+		processors.initialise(n);
+	}
+
+	bool handleModulation(double& value) noexcept
+	{
+		auto b = Base::handleModulation(value);
+		return processors.handleModulation(value) || b;
+	}
+
+	void reset() { Base::reset(); processors.reset(); }
+
+	MultiBase<false, SubsequentProcessors...> processors;
+};
+
+template <bool IsFirst, typename ProcessorType> struct MultiBase<IsFirst, ProcessorType> : public ChainElement<IsFirst, ProcessorType, MultiBase<IsFirst, ProcessorType>> {};
+
+
+
+
 
 }
 
-template <typename... Processors> using chain = impl::ChainBase<Processors...>;
+template <typename... Processors> using chain = impl::ChainBase<true, Processors...>;
+
+template <typename... Processors> struct split
+{
+	static constexpr bool isModulationSource = impl::SplitBase<true, Processors...>::isModulationSource;
+
+	void initialise(NodeBase* n)
+	{
+		chain.initialise(n);
+	}
+
+	bool handleModulation(double& value)
+	{
+		return chain.handleModulation(value);
+	}
+
+	void process(ProcessData& data)
+	{
+		auto original = data.copyTo(splitBuffer, 0);
+		chain.processWithCopy(data, original, splitBuffer);
+	}
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		float originalData[NUM_MAX_CHANNELS];
+		memcpy(originalData, frameData, sizeof(float)*numChannels);
+
+		chain.processSingleWithOriginal(frameData, originalData, numChannels);
+	}
+
+	void prepare(int numChannels, double sampleRate, int blockSize)
+	{
+		DspHelpers::increaseBuffer(splitBuffer, numChannels * 2, blockSize);
+		chain.prepare(numChannels, sampleRate, blockSize);
+	}
+
+	void reset()
+	{
+		chain.reset();
+	}
+
+	auto& getObject() { return chain.getObject(); }
+	const auto& getObject() const { return chain.getObject(); }
+	
+	impl::SplitBase<true, Processors...> chain;
+	AudioSampleBuffer splitBuffer;
+};
+
+template <typename... Processors> struct multi
+{
+	using Type = impl::MultiBase<true, Processors...>;
+	static constexpr bool isModulationSource = Type::isModulationSource;
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	bool handleModulation(double& value)
+	{
+		return obj.handleModulation(value);
+	}
+
+	void process(ProcessData& data)
+	{
+		ProcessData copy(data);
+
+		obj.processWithFixedChannels(copy);
+	}
+
+	void processSingle(float* frameData, int)
+	{
+		obj.processSingleWithFixedChannels(&frameData);
+	}
+
+	void prepare(int numChannels, double sampleRate, int blockSize)
+	{
+		obj.prepare(numChannels, sampleRate, blockSize);
+	}
+
+	void reset()
+	{
+		obj.reset();
+	}
+
+	auto& getObject() { return obj.getObject(); }
+	const auto& getObject() const { return obj.getObject(); }
+
+	Type obj;
+};
+
+template <int T> struct IsZero
+{
+	static constexpr bool value = T == 0;
+};
+
+template <class SignalPath, class FeedbackPath> class feedback
+{
+public:
+
+	static constexpr bool isModulationSource = false;
+
+	void initialise(NodeBase* n)
+	{
+		s.initialise(n);
+		f.initialise(n);
+	}
+
+	void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+	{
+		channelAmount = numChannelsToProcess;
+
+		if (blockSize > 1)
+			DspHelpers::increaseBuffer(feedbackBuffer, numChannelsToProcess, blockSize);
+		
+		s.prepare(numChannelsToProcess, sampleRate, blockSize);
+		f.prepare(numChannelsToProcess, sampleRate, blockSize);
+
+		reset();
+	}
+
+	void reset()
+	{
+		feedbackBuffer.clear();
+		memset(singleData, 0, sizeof(float)* channelAmount);
+
+		s.reset();
+		f.reset();
+	}
+
+	void process(ProcessData& data)
+	{
+		auto fb = data.referTo(feedbackBuffer, 0);
+		data += fb;
+		s.process(data);
+		data.copyTo(feedbackBuffer, 0);
+		f.process(fb);
+	}
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		for (int i = 0; i < numChannels; i++)
+			frameData[i] += singleData[i];
+
+		s.processSingle(frameData, numChannels);
+
+		for (int i = 0; i < numChannels; i++)
+			singleData[i] = frameData[i];
+
+		f.processSingle(singleData, numChannels);
+	}
+
+	bool handleModulation(double& value)
+	{
+		return false;
+	}
+
+	auto& getObject() { return *this; }
+	const auto& getObject() const { return *this; }
+
+	auto& getNode(std::true_type)  { return s; }
+	auto& getNode(std::false_type) { return f; }
+
+	template <int arg> auto& get() noexcept 
+	{ 
+		return getNode(std::integral_constant<bool, IsZero<arg>::value>{});
+	}
+
+	SignalPath s;
+	FeedbackPath f;
+
+	int channelAmount;
+	AudioSampleBuffer feedbackBuffer;
+	float singleData[NUM_MAX_CHANNELS];
+};
 
 
 template <class T> class mod
@@ -189,7 +524,7 @@ public:
 		auto d = ALLOCA_FLOAT_ARRAY(numToProcess);
 		CLEAR_FLOAT_ARRAY(d, numToProcess);
 		ProcessData modData = { &d, 1, numToProcess };
-
+		modData.eventBuffer = data.eventBuffer;
 		obj.process(modData);
 	}
 

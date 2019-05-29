@@ -168,7 +168,7 @@ scriptnode::ProcessData ProcessData::copyTo(AudioSampleBuffer& buffer, int index
 }
 
 
-scriptnode::ProcessData ProcessData::referTo(AudioSampleBuffer& buffer, int index)
+scriptnode::ProcessData ProcessData::referTo(AudioSampleBuffer& buffer, int index) const
 {
 	ProcessData d;
 
@@ -177,6 +177,7 @@ scriptnode::ProcessData ProcessData::referTo(AudioSampleBuffer& buffer, int inde
 	d.numChannels = jmin(buffer.getNumChannels() - channelOffset, numChannels);
 	d.size = jmin(buffer.getNumSamples(), size);
 	d.data = buffer.getArrayOfWritePointers() + channelOffset;
+	d.eventBuffer = eventBuffer;
 
 	return d;
 }

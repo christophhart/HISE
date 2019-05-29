@@ -36,15 +36,15 @@ using namespace juce;
 using namespace hise;
 
 
-NodeContainer::NodeContainer(DspNetwork* parent, ValueTree data_) :
-	NodeBase(parent, data_, 0)
+NodeContainer::NodeContainer()
 {
 
 }
 
 void NodeContainer::nodeAddedOrRemoved(ValueTree& child, bool wasAdded)
 {
-	if (auto nodeToProcess = getRootNetwork()->getNodeForValueTree(child))
+	auto n = asNode();
+	if (auto nodeToProcess = n->getRootNetwork()->getNodeForValueTree(child))
 	{
 		if (wasAdded)
 		{
@@ -53,15 +53,15 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree& child, bool wasAdded)
 
 			int insertIndex = getNodeTree().indexOf(child);
 
-			ScopedLock sl(getRootNetwork()->getConnectionLock());
+			ScopedLock sl(n->getRootNetwork()->getConnectionLock());
 			nodes.insert(insertIndex, nodeToProcess);
-			updateChannels(getValueTree(), PropertyIds::NumChannels);
+			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
 		}
 		else
 		{
-			ScopedLock sl(getRootNetwork()->getConnectionLock());
+			ScopedLock sl(n->getRootNetwork()->getConnectionLock());
 			nodes.removeAllInstancesOf(nodeToProcess);
-			updateChannels(getValueTree(), PropertyIds::NumChannels);
+			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
 		}
 	}
 }
@@ -69,20 +69,22 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree& child, bool wasAdded)
 
 void NodeContainer::parameterAddedOrRemoved(ValueTree& child, bool wasAdded)
 {
+	auto n = asNode();
+
 	if (wasAdded)
 	{
-		auto newParameter = new MacroParameter(this, child);
-		addParameter(newParameter);
+		auto newParameter = new MacroParameter(asNode(), child);
+		n->addParameter(newParameter);
 	}
 	else
 	{
-		auto index = getParameterTree().indexOf(child);
+		auto index = n->getParameterTree().indexOf(child);
 
-		for (int i = 0; i < getNumParameters(); i++)
+		for (int i = 0; i < n->getNumParameters(); i++)
 		{
-			if (getParameter(i)->data == child)
+			if (n->getParameter(i)->data == child)
 			{
-				removeParameter(i);
+				n->removeParameter(i);
 				break;
 			}
 		}
@@ -92,44 +94,46 @@ void NodeContainer::parameterAddedOrRemoved(ValueTree& child, bool wasAdded)
 
 void NodeContainer::updateChannels(ValueTree v, Identifier id)
 {
-	if (v == getValueTree())
+	if (v == asNode()->getValueTree())
 	{
 		channelLayoutChanged(nullptr);
 
 		if (originalSampleRate > 0.0)
-			prepare(originalSampleRate, originalBlockSize);
+			asNode()->prepare(originalSampleRate, originalBlockSize);
 	}
 	else if (v.getParent() == getNodeTree())
 	{
 		if (channelRecursionProtection)
 			return;
 
-		auto childNode = getRootNetwork()->getNodeForValueTree(v);
+		auto childNode = asNode()->getRootNetwork()->getNodeForValueTree(v);
 
 		ScopedValueSetter<bool> svs(channelRecursionProtection, true);
 
 		channelLayoutChanged(childNode);
 
 		if (originalSampleRate > 0.0)
-			prepare(originalSampleRate, originalBlockSize);
+			asNode()->prepare(originalSampleRate, originalBlockSize);
 	}
 }
 
 void NodeContainer::assign(const int index, var newValue)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	ScopedLock sl(asNode()->getRootNetwork()->getConnectionLock());
+
+	auto un = asNode()->getUndoManager();
 
 	if (auto node = dynamic_cast<NodeBase*>(newValue.getObject()))
 	{
 		auto tree = node->getValueTree();
 
-		getUndoManager()->beginNewTransaction();
-		tree.getParent().removeChild(tree, getUndoManager());
-		getNodeTree().addChild(tree, index, getUndoManager());
+		un->beginNewTransaction();
+		tree.getParent().removeChild(tree, un);
+		getNodeTree().addChild(tree, index, un);
 	}
 	else
 	{
-		getNodeTree().removeChild(index, getUndoManager());
+		getNodeTree().removeChild(index, un);
 	}
 }
 
@@ -150,13 +154,13 @@ juce::String NodeContainer::createTemplateAlias()
 	for (auto n : nodes)
 		children.add(n->createCppClass(false));
 
-	s << CppGen::Emitter::createTemplateAlias(createCppClass(false), data[PropertyIds::FactoryPath].toString().replace(".", "::"), children);
+	s << CppGen::Emitter::createTemplateAlias(createCppClassForNodes(false), asNode()->getValueTree()[PropertyIds::FactoryPath].toString().replace(".", "::"), children);
 
 	return s;
 }
 
 
-juce::String NodeContainer::createCppClass(bool isOuterClass)
+juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 {
 	if (isOuterClass)
 	{
@@ -165,10 +169,9 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 		s << getCppCode(CppGen::CodeLocation::TemplateAlias);
 		s << "\n";
 
-
-
 		String classContent = getCppCode(CppGen::CodeLocation::Definitions);
 
+		classContent << "\n";
 		
 		CppGen::MethodInfo parameterMethod;
 		parameterMethod.name = "createParameters";
@@ -179,7 +182,7 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 
 		auto& pb = parameterMethod.body;
 
-
+		CppGen::Emitter::emitCommentLine(pb, 0, "Node Registration");
 
 		Array<CppGen::Accessor> acessors;
 
@@ -188,10 +191,9 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 		for (const auto& a : acessors)
 			pb << a.toString(CppGen::Accessor::Format::ParameterDefinition);
 
-		
 		pb << "\n";
 
-		CppGen::Emitter::emitCommentLine(pb, 1, "Parameter Initalisation");
+		CppGen::Emitter::emitCommentLine(pb, 0, "Parameter Initalisation");
 
 		for (auto n : getChildNodesRecursive())
 		{
@@ -200,13 +202,12 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 				auto pName = n->getParameter(i)->getId();
 				auto pValue = n->getParameter(i)->getValue();
 
-				pb << "initValues.add({ \"" << n->getId() << "." << pName << "\", ";
-				pb << CppGen::Emitter::createPrettyNumber(pValue, false) << " });\n";
+				pb << "setParameterDefault(\"" << n->getId() << "." << pName << "\", ";
+				pb << CppGen::Emitter::createPrettyNumber(pValue, false) << ");\n";
 			}
 		}
-		pb << "initStaticParameterData();\n\n";
-
-		CppGen::Emitter::emitCommentLine(pb, 1, "Internal Modulation");
+		
+		String modString;
 
 		for (auto n : getChildNodesRecursive())
 		{
@@ -215,36 +216,22 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 				if (modSource->getModulationTargetTree().getNumChildren() == 0)
 					continue;
 
-				/*
-		{
-			auto gain2_Gain = getParameter(internalParameterList, "gain2.Gain");
-			gain2_Gain.range = { -60.0, 0.0, 0.01 };
-
-			auto f = [gain2_Gain](double newValue)
-			{
-				gain2_Gain(newValue);
-			};
-
-			setInternalModulationParameter(get<0>(obj), f);
-		}
-		*/
-
 				String mCode;
-
 				StringArray modTargetIds;
+
+				int tIndex = 1;
 
 				for (auto m : modSource->getModulationTargetTree())
 				{
 					String modTargetId;
 					modTargetId << m[PropertyIds::NodeId].toString() << "." << m[PropertyIds::ParameterId].toString();
 
-					auto modIdName = modTargetId.replaceCharacter('.', '_');
+					auto modIdName = "mod_target" + String(tIndex++);
 
 					modTargetIds.add(modIdName);
 
-					mCode << "auto " << modIdName << " = getParameter(\"" << modTargetId << "\");\n";
-					mCode << modIdName << ".range =" << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(m)) << ";\n";
-					
+					mCode << "auto " << modIdName << " = getParameter(\"" << modTargetId << "\", ";
+					mCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(m)) << ");\n";
 				}
 
 				CppGen::MethodInfo l;
@@ -269,8 +256,6 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 
 				CppGen::Emitter::emitFunctionDefinition(mCode, l);
 
-				// setInternalModulationParameter(get<0>(obj), f);
-
 				String modAccessor;
 
 				for (const auto& a : acessors)
@@ -284,25 +269,36 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 
 				mCode << "\nsetInternalModulationParameter(" << modAccessor << ", f);\n";
 
-				pb << CppGen::Emitter::surroundWithBrackets(mCode);
+				modString << CppGen::Emitter::surroundWithBrackets(mCode);
 			}
 		}
 
-		CppGen::Emitter::emitCommentLine(pb, 1, "Parameter Callbacks");
-		for (int i = 0; i < getNumParameters(); i++)
+		if (modString.isNotEmpty())
 		{
-			auto p = getParameter(i);
+			pb << "\n";
+			CppGen::Emitter::emitCommentLine(pb, 0, "Internal Modulation");
+			pb << modString;
+		}
+
+		String parameterString;
+
+		auto n = asNode();
+
+		for (int i = 0; i < n->getNumParameters(); i++)
+		{
+			auto p = n->getParameter(i);
 
 			String pCode;
 
 			auto macro = dynamic_cast<MacroParameter*>(p);
 
-			pCode << "ParameterData p(\"" << macro->getId() << "\");\n";
-			pCode << "p.range = " << CppGen::Emitter::createRangeString(macro->inputRange) << ";\n";
-			pCode << "auto rangeCopy = p.range;\n";
+			pCode << "ParameterData p(\"" << macro->getId() << "\", ";
+			pCode << CppGen::Emitter::createRangeString(macro->inputRange) << ");\n";
 			pCode << "\n";
 
 			StringArray connectionIds;
+
+			int pIndex = 1;
 
 			for (auto c : macro->getConnectionTree())
 			{
@@ -310,15 +306,19 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 				String conId;
 				conId << c[PropertyIds::NodeId].toString() << "." << c[PropertyIds::ParameterId].toString();
 
-				
+				String conIdName;
 
-				auto conIdName = conId.replaceCharacter('.', '_');
+				if (c[PropertyIds::ParameterId].toString() == PropertyIds::Bypassed.toString())
+					conIdName = "bypass_target";
+				else
+					conIdName = "param_target";
+				
+				conIdName << String(pIndex++);
 
 				connectionIds.add(conIdName);
 
-				pCode << "auto " << conIdName << " = getParameter(\"" << conId << "\");\n";
-
-				pCode << conIdName << ".range =" << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(c)) << ";\n";
+				pCode << "auto " << conIdName << " = getParameter(\"" << conId << "\", ";
+				pCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(c)) << ");\n";
 			}
 
 			pCode << "\n";
@@ -329,15 +329,15 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 			for (auto c_id : connectionIds)
 				l.name << c_id << ", ";
 
-			l.name << "rangeCopy]";
+			l.name << "outer = p.range]";
 			l.returnType << "p.db = ";
 			l.arguments = { "double newValue" };
 
-			l.body << "auto normalised = rangeCopy.convertTo0to1(newValue);\n";
+			l.body << "auto normalised = outer.convertTo0to1(newValue);\n";
 
 			for (auto c_id : connectionIds)
 			{
-				if (c_id.endsWith(PropertyIds::Bypassed.toString()))
+				if (c_id.startsWith("bypass_target"))
 					l.body << c_id << ".setBypass(newValue);\n";
 				else
 					l.body << c_id << "(normalised);\n";
@@ -350,184 +350,32 @@ juce::String NodeContainer::createCppClass(bool isOuterClass)
 
 			pCode << "\ndata.add(std::move(p));\n";
 
-			pb << CppGen::Emitter::surroundWithBrackets(pCode);
+			parameterString << CppGen::Emitter::surroundWithBrackets(pCode);
+		}
+
+		if (parameterString.isNotEmpty())
+		{
+			pb << "\n";
+			CppGen::Emitter::emitCommentLine(pb, 0, "Parameter Callbacks");
+			pb << parameterString;
 		}
 
 		CppGen::Emitter::emitFunctionDefinition(classContent, parameterMethod);
 
-
-		s << CppGen::Emitter::createClass(classContent, createCppClass(false));
-		
+		s << CppGen::Emitter::createClass(classContent, createCppClassForNodes(false));
 		s = CppGen::Helpers::createIntendation(s);
 
-		auto impl = CppGen::Emitter::wrapIntoNamespace(s, getId() + "_impl");
+		auto nid = n->getId();
 
-		impl << "\n" << CppGen::Emitter::createAlias(getId(), getId() + "_impl::instance");
+		auto impl = CppGen::Emitter::wrapIntoNamespace(s, nid + "_impl");
+
+		impl << "\n" << CppGen::Emitter::createAlias(nid, nid + "_impl::instance");
 
 		return impl;
 	}
 	else
-		return getId() + "_";
+		return asNode()->getId() + "_";
 	
-
-#if 0
-	String s;
-
-
-	CppGen::Emitter::emitCommentLine(s, 1, "Node Definitions");
-	s << getCppCode(CppGen::CodeLocation::Definitions);
-
-	s << "\n";
-
-	CppGen::Emitter::emitCommentLine(s, 1, "Member Nodes");
-
-	
-
-	s << "\n";
-
-	CppGen::Emitter::emitCommentLine(s, 1, "Interface methods");
-
-	CppGen::MethodInfo initMethod;
-	initMethod.name = "initialise";
-	initMethod.returnType = "void";
-	initMethod.arguments = { "ProcessorWithScriptingContent* sp" };
-	initMethod.specifiers = isOuterClass ? " override" : "";
-	for (auto n : nodes)
-		initMethod.body << n->getId() << ".initialise(sp);\n";
-	CppGen::Emitter::emitFunctionDefinition(s, initMethod);
-
-	CppGen::MethodInfo prepareMethod;
-	prepareMethod.name = "prepare";
-	prepareMethod.arguments = { "int numChannels", "double sampleRate", "int blockSize" };
-	prepareMethod.returnType = "void";
-	prepareMethod.body << getCppCode(CppGen::CodeLocation::PrepareBody);
-	CppGen::Emitter::emitFunctionDefinition(s, prepareMethod);
-
-	CppGen::MethodInfo processMethod;
-	processMethod.name = "process";
-	processMethod.arguments = { "ProcessData& data" };
-	processMethod.returnType = "void";
-	processMethod.body = getCppCode(CppGen::CodeLocation::ProcessBody);
-	CppGen::Emitter::emitFunctionDefinition(s, processMethod);
-
-	CppGen::MethodInfo processSingleMethod;
-	processSingleMethod.name = "processSingle";
-	processSingleMethod.arguments = { "float* frameData", "int numChannels" };
-	processSingleMethod.returnType = "void";
-	processSingleMethod.body = getCppCode(CppGen::CodeLocation::ProcessSingleBody);
-	CppGen::Emitter::emitFunctionDefinition(s, processSingleMethod);
-
-	CppGen::MethodInfo handleModMethod;
-	handleModMethod.name = "handleModulation";
-	handleModMethod.returnType = "bool";
-	handleModMethod.arguments = { "ProcessData& data", "double& value" };
-	handleModMethod.body = getCppCode(CppGen::CodeLocation::HandleModulationBody);
-	CppGen::Emitter::emitFunctionDefinition(s, handleModMethod);
-
-	CppGen::MethodInfo parameterMethod;
-	parameterMethod.name = "createParameters";
-	parameterMethod.arguments = { "Array<ParameterData>& data" };
-	parameterMethod.returnType = "void";
-
-	auto& pb = parameterMethod.body;
-
-	pb << "Array<ParameterData> ip;\n";
-
-	for (auto n : nodes)
-	{
-		auto id = n->getId();
-		auto prefix = (dynamic_cast<NodeContainer*>(n.get()) != nullptr) ? "" : id;
-		pb << "ip.addArray(createParametersT(&" << id << ", \"" << prefix << "\"));\n";
-	}
-
-	pb << "\n";
-
-	CppGen::Emitter::emitCommentLine(pb, 2, "Parameter Initalisation");
-	pb << "Array<ParameterInitValue> iv;\n";
-
-	for (auto n : nodes)
-	{
-		for (int i = 0; i < n->getNumParameters(); i++)
-		{
-			auto pName = n->getParameter(i)->getId();
-			auto pValue = n->getParameter(i)->getValue();
-
-			pb << "iv.add({ \"" << n->getId() << "." << pName << "\", ";
-			pb << CppGen::Emitter::createPrettyNumber(pValue, false) << " });\n";
-		}
-	}
-	pb << "initParameterData(ip, iv);\n\n";
-
-	if (isOuterClass)
-	{
-		CppGen::Emitter::emitCommentLine(pb, 2, "Parameter Callbacks");
-		for (int i = 0; i < getNumParameters(); i++)
-		{
-			auto p = getParameter(i);
-
-			String pCode;
-
-			auto macro = dynamic_cast<MacroParameter*>(p);
-
-			pCode << "ParameterData p(\"" << macro->getId() << "\");\n";
-			pCode << "p.range = " << CppGen::Emitter::createRangeString(macro->inputRange) << ";\n";
-			pCode << "auto rangeCopy = p.range;\n";
-			pCode << "\n";
-
-			StringArray connectionIds;
-
-			for (auto c : macro->getConnectionTree())
-			{
-				String conId;
-				conId << c[PropertyIds::NodeId].toString() << "." << c[PropertyIds::ParameterId].toString();
-
-				auto conIdName = conId.replaceCharacter('.', '_');
-
-				connectionIds.add(conIdName);
-
-				pCode << "auto " << conIdName << " = getParameter(ip, \"" << conId << "\");\n";
-			}
-
-			pCode << "\n";
-
-			CppGen::MethodInfo l;
-			l.name = "[";
-
-			for (auto c_id : connectionIds)
-				l.name << c_id << ", ";
-
-			l.name << "rangeCopy]";
-			l.returnType << "p.db = ";
-			l.arguments = { "float newValue" };
-
-			l.body << "auto normalised = rangeCopy.convertTo0to1(newValue);\n";
-
-			for (auto c_id : connectionIds)
-				l.body << c_id << ".db(" << c_id << ".range.convertFrom0to1(normalised));\n";
-
-			l.addSemicolon = true;
-
-			CppGen::Emitter::emitFunctionDefinition(pCode, l);
-
-			pCode << "data.add(std::move(p));\n";
-
-			pb << CppGen::Emitter::surroundWithBrackets(pCode);
-		}
-
-	}
-	else
-	{
-		pb << "data.addArray(ip);\n";
-	}
-
-	CppGen::Emitter::emitFunctionDefinition(s, parameterMethod);
-
-	CppGen::Emitter::emitCommentLine(s, 1, "Private Members");
-
-	s << getCppCode(CppGen::CodeLocation::PrivateMembers);
-
-	return CppGen::Emitter::createClass(s, getId(), isOuterClass);
-#endif
 }
 
 
@@ -541,9 +389,8 @@ juce::String NodeContainer::getCppCode(CppGen::CodeLocation location)
 	{
 		String s;
 
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_ID", getId(), true);
-		CppGen::Emitter::emitDefinition(s, "GET_SELF_AS_OBJECT", "instance", false);
-
+		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_ID", asNode()->getId(), true);
+		
 		return s;
 	}
 	if (location == CppGen::CodeLocation::PrepareBody)
@@ -561,7 +408,7 @@ juce::String NodeContainer::getCppCode(CppGen::CodeLocation location)
 
 void NodeContainer::initListeners()
 {
-	parameterListener.setCallback(getParameterTree(),
+	parameterListener.setCallback(asNode()->getParameterTree(),
 		valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(NodeContainer::parameterAddedOrRemoved));
 
@@ -569,13 +416,13 @@ void NodeContainer::initListeners()
 		valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(NodeContainer::nodeAddedOrRemoved));
 
-	channelListener.setCallback(data, { PropertyIds::NumChannels },
+	channelListener.setCallback(asNode()->getValueTree(), { PropertyIds::NumChannels },
 		valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(NodeContainer::updateChannels));
 }
 
 SerialNode::SerialNode(DspNetwork* root, ValueTree data) :
-	NodeContainer(root, data)
+	NodeBase(root, data, 0)
 {
 }
 
@@ -612,7 +459,7 @@ void ChainNode::processSingle(float* frameData, int numChannels)
 
 void ChainNode::prepare(double sampleRate, int blockSize)
 {
-	NodeContainer::prepare(sampleRate, blockSize);
+	NodeContainer::prepareNodes(sampleRate, blockSize);
 	wrapper.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
 }
 
@@ -764,18 +611,25 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 
 void SplitNode::prepare(double sampleRate, int blockSize)
 {
-	NodeContainer::prepare(sampleRate, blockSize);
+	NodeContainer::prepareNodes(sampleRate, blockSize);
 
 	DspHelpers::increaseBuffer(splitBuffer, getNumChannelsToProcess() * 2, blockSize);
 }
 
 juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
 {
+	return NodeContainer::getCppCode(location);
+
+#if 0
 	if (location == CppGen::CodeLocation::Definitions)
 	{
 		String s = NodeContainer::getCppCode(location);
 		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
 		return s;
+	}
+	else if (location == CppGen::CodeLocation::TemplateAlias)
+	{
+
 	}
 	else if (location == CppGen::CodeLocation::PrepareBody)
 	{
@@ -812,12 +666,7 @@ juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
 
 		return s;
 	}
-	else if (location == CppGen::CodeLocation::PrivateMembers)
-	{
-		return "AudioSampleBuffer splitBuffer;\n";
-	}
-
-	return {};
+#endif
 }
 
 
@@ -880,6 +729,8 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNode<SplitNode>({});
 	registerNode<MultiChannelNode>({});
 	registerNode<ModulationChainNode>({});
+	registerNode<FeedbackContainer>({});
+	registerNode<EventProcessorNode>({});
 	registerNode<OversampleNode<2>>({});
 	registerNode<OversampleNode<4>>({});
 	registerNode<OversampleNode<8>>({});
@@ -897,11 +748,13 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNode<SingleSampleBlock<6>>({});
 	registerNode<SingleSampleBlock<8>>({});
 	registerNode<SingleSampleBlock<16>>({});
+	
 }
 
 
 ModulationChainNode::ModulationChainNode(DspNetwork* n, ValueTree t) :
-	SerialNode(n, t)
+	ModulationSourceNode(n, t),
+	NodeContainer()
 {
 	initListeners();
 	obj.initialise(this);
@@ -912,7 +765,16 @@ void ModulationChainNode::processSingle(float* frameData, int numChannels) noexc
 	if (isBypassed())
 		return;
 
-	obj.processSingle(frameData, numChannels);
+	
+	obj.processSingle(frameData, 1);
+
+	auto thisValue = *frameData;
+
+	if (thisValue != lastValue)
+	{
+		lastValue = thisValue;
+		sendValueToTargets(thisValue, HISE_EVENT_RASTER);
+	}
 }
 
 void ModulationChainNode::process(ProcessData& data) noexcept
@@ -920,7 +782,25 @@ void ModulationChainNode::process(ProcessData& data) noexcept
 	if (isBypassed())
 		return;
 
-	obj.process(data);
+	ProcessData copy(data);
+	copy.numChannels = 1;
+
+	obj.process(copy);
+
+	double thisValue = 0.0;
+
+	obj.handleModulation(thisValue);
+
+	if (thisValue != lastValue)
+	{
+		lastValue = thisValue;
+		sendValueToTargets(thisValue, data.size);
+	}
+}
+
+scriptnode::NodeComponent* ModulationChainNode::createComponent()
+{
+	return new ModChainNodeComponent(this);
 }
 
 juce::String ModulationChainNode::getCppCode(CppGen::CodeLocation location)
@@ -978,6 +858,42 @@ juce::String ModulationChainNode::getCppCode(CppGen::CodeLocation location)
 
 
 	return s;
+}
+
+juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft) const
+{
+	using namespace UIValues;
+
+	const int minWidth = NodeWidth;
+	const int topRow = NodeHeight;
+
+	int maxW = minWidth;
+	int h = 0;
+
+	h += UIValues::NodeMargin;
+	h += UIValues::HeaderHeight; // the input
+
+	if (data[PropertyIds::ShowParameters])
+		h += UIValues::ParameterHeight;
+
+	h += PinHeight; // the "hole" for the cable
+
+	Point<int> childPos(NodeMargin, NodeMargin);
+
+	for (auto n : nodes)
+	{
+		auto bounds = n->getPositionInCanvas(childPos);
+
+		bounds = n->reduceHeightIfFolded(bounds);
+
+		maxW = jmax<int>(maxW, bounds.getWidth());
+		h += bounds.getHeight() + NodeMargin;
+		childPos = childPos.translated(0, bounds.getHeight());
+	}
+
+	h += PinHeight; // the "hole" for the cable
+
+	return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
 }
 
 NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTree& d)
@@ -1209,6 +1125,12 @@ void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange
 			numChannelsAvailable -= n->getNumChannelsToProcess();
 		}
 	}
+}
+
+EventProcessorNode::EventProcessorNode(DspNetwork* n, ValueTree t):
+	SerialNode(n, t)
+{
+	obj.initialise(this);
 }
 
 }

@@ -39,35 +39,29 @@ using namespace hise;
 
 namespace feedback
 {
-	class SourceNode : public NodeBase
+	class SourceNode : public HiseDspBase
 	{
 	public:
 
-		SourceNode(DspNetwork* rootNetwork, ValueTree data) :
-			NodeBase(rootNetwork, data, 0)
-		{}
-
-		SCRIPTNODE_FACTORY(SourceNode, "output");
+		SET_HISE_NODE_ID("output");
+		SET_HISE_NODE_EXTRA_HEIGHT(0);
+		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 		
-		Identifier getObjectName() const override { return getStaticId(); }
-
-		void prepare(double sampleRate, int blockSize) override
+		
+		void prepare(int numChannels, double sampleRate, int blockSize)
 		{
-			if (buffer.getNumChannels() != getNumChannelsToProcess() ||
-				buffer.getNumSamples() < blockSize)
-			{
-				buffer.setSize(getNumChannelsToProcess(), blockSize);
-			}
+			DspHelpers::increaseBuffer(buffer, numChannels, blockSize);
 
 			reset();
 		}
 
-		void reset() final override
+		void reset()
 		{
 			memset(singleFrameData, 0, sizeof(float) * NUM_MAX_CHANNELS);
+			buffer.clear();
 		}
 
-		void process(ProcessData& data) final override
+		void process(ProcessData& data)
 		{
 			if (connectedOK)
 			{
@@ -76,9 +70,16 @@ namespace feedback
 			}
 		}
 
-		void processSingle(float* frameData, int numChannels) final override
+		bool handleModulation(double& value) { return false; }
+
+		void processSingle(float* frameData, int numChannels)
 		{
 			FloatVectorOperations::copy(frameData, singleFrameData, numChannels);
+		}
+
+		void createParameters(Array<ParameterData>& data) override
+		{
+
 		}
 
 		float singleFrameData[NUM_MAX_CHANNELS];
@@ -89,34 +90,47 @@ namespace feedback
 		JUCE_DECLARE_WEAK_REFERENCEABLE(SourceNode);
 	};
 
-	class TargetNode : public NodeBase
+	class TargetNode : public HiseDspBase
 	{
 	public:
 
+		SET_HISE_NODE_ID("input");
+		SET_HISE_NODE_EXTRA_HEIGHT(32);
+		SET_HISE_NODE_EXTRA_WIDTH(128);
+		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-		TargetNode(DspNetwork* parent, ValueTree data) :
-			NodeBase(parent, data, 0)
+		void initialise(NodeBase* n) override
 		{
-			connectionListener.setCallback(data, { PropertyIds::Connection },
-				valuetree::AsyncMode::Synchronously,
-				BIND_MEMBER_FUNCTION_2(TargetNode::updateConnection));
-		};
+			parent = n;
 
-		SCRIPTNODE_FACTORY(TargetNode, "input");
+			if (auto hc = n->getAsHardcodedNode())
+			{
+				// TODO...
+				jassertfalse;
+			}
+			else
+			{
+				connectionListener.setCallback(n->getValueTree(), { PropertyIds::Connection },
+					valuetree::AsyncMode::Synchronously,
+					BIND_MEMBER_FUNCTION_2(TargetNode::updateConnection));
+			}
+		}
 
-		Identifier getObjectName() const override { return getStaticId(); }
-
-		void reset() final override {}
+		void reset() {}
 
 		void updateConnection(Identifier, var newValue)
 		{
-			if (auto n = dynamic_cast<NodeBase*>(getRootNetwork()->get(newValue).getObject()))
+			if (auto n = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(newValue).getObject()))
 			{
 				if (connectedSource != nullptr)
 					connectedSource->connectedOK = false;
 
-				if (connectedSource = dynamic_cast<SourceNode*>(n))
+				if (auto cNode = dynamic_cast<HiseDspNodeBase<SourceNode>*>(n))
+				{
+					connectedSource = cNode->getReferenceToInternalObject();
 					connectedSource->connectedOK = true;
+				}
+					
 			}
 		}
 
@@ -126,19 +140,50 @@ namespace feedback
 				connectedSource->connectedOK = false;
 		}
 
-		void prepare(double sampleRate, int blockSize) override
+		void prepare(int numChannels, double sampleRate, int blockSize) 
 		{
 			
 		}
 
-		NodeComponent* createComponent();
-
-		Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+		struct FeedbackTargetComponent : public HiseDspBase::ExtraComponent<TargetNode>,
+										 public ComboBox::Listener
 		{
-			return Rectangle<int>(0, 0, 128, 32 + UIValues::HeaderHeight).withPosition(topLeft);
+			FeedbackTargetComponent(TargetNode* t, PooledUIUpdater* updater);
+
+			void timerCallback() override {}
+
+			void resized() override
+			{
+				auto b = getLocalBounds();
+				sourceSelector.setBounds(b.reduced(5));
+			}
+
+			void comboBoxChanged(ComboBox*) override
+			{
+				getObject()->parent->setProperty(PropertyIds::Connection, sourceSelector.getText());
+			}
+
+			void updateComboBox(Identifier, var newValue)
+			{
+				auto t = newValue.toString();
+
+				if (t.isEmpty())
+					sourceSelector.setSelectedId(0, dontSendNotification);
+				else
+					sourceSelector.setText(t, dontSendNotification);
+			}
+
+			valuetree::PropertyListener comboboxUpdater;
+			ComboBox sourceSelector;
+		};
+
+
+		Component* createExtraComponent(PooledUIUpdater* updater) override
+		{
+			return new FeedbackTargetComponent(this, updater);
 		}
 
-		void process(ProcessData& data) override
+		void process(ProcessData& data)
 		{
 			if (connectedSource != nullptr)
 			{
@@ -150,13 +195,20 @@ namespace feedback
 			}
 		}
 
-		void processSingle(float* frameData, int numChannels) final override
+		void processSingle(float* frameData, int numChannels)
 		{
 			if (connectedSource != nullptr)
-			{
 				FloatVectorOperations::copy(connectedSource->singleFrameData, frameData, numChannels);
-			}
 		}
+		
+		bool handleModulation(double& value) { return false; }
+
+		void createParameters(Array<ParameterData>& data) override
+		{
+
+		}
+
+		NodeBase::Ptr parent;
 
 		valuetree::PropertyListener connectionListener;
 
@@ -174,8 +226,8 @@ namespace feedback
 		FeedbackFactory(DspNetwork* n) :
 			NodeFactory(n)
 		{
-			registerNode<input>();
-			registerNode<output>();
+			registerNode<HiseDspNodeBase<input>>();
+			registerNode<HiseDspNodeBase<output>>();
 		}
 
 		Identifier getId() const override { return "feedback"; }

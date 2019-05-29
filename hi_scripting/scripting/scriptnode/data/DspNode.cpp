@@ -179,11 +179,30 @@ void DspNode::initialise()
 	}
 }
 
-
-
-scriptnode::NodeComponent* feedback::TargetNode::createComponent()
+feedback::TargetNode::FeedbackTargetComponent::FeedbackTargetComponent(TargetNode* t, PooledUIUpdater* updater) :
+	ExtraComponent(t, updater)
 {
-	return new FeedbackTargetComponent(this);
+	auto n = getObject()->parent;
+
+	auto list = n->getRootNetwork()->getListOfNodesWithType<HiseDspNodeBase<SourceNode>>(false);
+
+	int index = 1;
+
+	for (auto l : list)
+		sourceSelector.addItem(l->getId(), index++);
+
+	addAndMakeVisible(sourceSelector);
+
+	n->getScriptProcessor()->getMainController_()->skin(sourceSelector);
+	sourceSelector.addListener(this);
+
+	comboboxUpdater.setCallback(n->getValueTree(), { PropertyIds::Connection },
+		valuetree::AsyncMode::Asynchronously,
+		BIND_MEMBER_FUNCTION_2(FeedbackTargetComponent::updateComboBox));
+
+	stop();
+
+	setSize(128, 32);
 }
 
 }

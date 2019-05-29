@@ -37,81 +37,6 @@ namespace scriptnode
 using namespace hise;
 using namespace juce;
 
-struct ModulationSourceBaseComponent : public Component,
-	public PooledUIUpdater::SimpleTimer
-{
-	ModulationSourceBaseComponent(PooledUIUpdater* updater) :
-		SimpleTimer(updater)
-	{};
-
-	ModulationSourceNode* getSourceNodeFromParent() const
-	{
-		if (sourceNode == nullptr)
-		{
-			if (auto pc = findParentComponentOfClass<NodeComponent>())
-			{
-				sourceNode = dynamic_cast<ModulationSourceNode*>(pc->node.get());
-			}
-		}
-
-		return sourceNode;
-	}
-
-	void timerCallback() override {};
-
-	void paint(Graphics& g) override
-	{
-		g.setColour(Colour(0xFF999999));
-		g.drawRect(getLocalBounds(), 1);
-
-		g.setColour(Colours::white.withAlpha(0.1f));
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText("Drag to modulation target", getLocalBounds().toFloat(), Justification::centred);
-	}
-
-	Image createDragImage()
-	{
-		Image img(Image::ARGB, 128, 48, true);
-		Graphics g(img);
-
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.4f));
-		g.fillAll();
-		g.setColour(Colours::black);
-		g.setFont(GLOBAL_BOLD_FONT());
-
-		g.drawText(getSourceNodeFromParent()->getId(), 0, 0, 128, 48, Justification::centred);
-
-		return img;
-	}
-
-	void mouseDown(const MouseEvent& e) override;
-
-	void mouseDrag(const MouseEvent& event) override
-	{
-		if (getSourceNodeFromParent() == nullptr)
-			return;
-
-		if (auto container = DragAndDropContainer::findParentDragContainerFor(this))
-		{
-			// We need to be able to drag it anywhere...
-			while (auto pc = DragAndDropContainer::findParentDragContainerFor(dynamic_cast<Component*>(container)))
-				container = pc;
-
-			var d;
-
-			DynamicObject::Ptr details = new DynamicObject();
-
-			details->setProperty(PropertyIds::ID, sourceNode->getId());
-			details->setProperty(PropertyIds::ModulationTarget, true);
-
-			container->startDragging(var(details), this, createDragImage());
-		}
-	}
-
-protected:
-
-	mutable WeakReference<ModulationSourceNode> sourceNode;
-};
 
 struct ModulationSourcePlotter : ModulationSourceBaseComponent
 {
@@ -179,40 +104,6 @@ struct ModulationSourcePlotter : ModulationSourceBaseComponent
 	
 };
 
-
-struct FeedbackTargetComponent : public NodeComponent,
-								 public ComboBox::Listener
-{
-	FeedbackTargetComponent(NodeBase* n);
-
-	void resized() override
-	{
-		NodeComponent::resized();
-		auto b = getLocalBounds();
-		b.removeFromTop(UIValues::HeaderHeight);
-		sourceSelector.setBounds(b.reduced(5));
-	}
-
-	
-
-	void comboBoxChanged(ComboBox*) override
-	{
-		node->setProperty(PropertyIds::Connection, sourceSelector.getText());
-	}
-
-	void updateComboBox(Identifier, var newValue)
-	{
-		auto t = newValue.toString();
-
-		if (t.isEmpty())
-			sourceSelector.setSelectedId(0, dontSendNotification);
-		else
-			sourceSelector.setText(t, dontSendNotification);
-	}
-
-	valuetree::PropertyListener comboboxUpdater;
-	ComboBox sourceSelector;
-};
 
 struct DefaultParameterNodeComponent : public NodeComponent
 {

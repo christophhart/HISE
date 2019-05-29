@@ -173,7 +173,7 @@ juce::String CppGen::Emitter::createClass(const String& content, const String& t
 {
 	String s;
 
-	s << "struct instance: public wr::one::parameter<" << templateId << ">\n";
+	s << "struct instance: public no_modulation<instance, " << templateId << ">\n";
 	s << "{\n";
 
 	s << content;

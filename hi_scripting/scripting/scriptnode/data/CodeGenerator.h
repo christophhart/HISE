@@ -76,7 +76,7 @@ struct CppGen
 			}
 			case Format::ParameterDefinition:
 			{
-				s << "fillInternalParameterList(";
+				s << "registerNode(";
 				s << toString(Format::GetMethod) << ", ";
 				s << toString(Format::ID);
 				s << ");\n";

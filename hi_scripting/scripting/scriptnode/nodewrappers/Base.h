@@ -37,6 +37,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+class HardcodedNode;
 
 class HiseDspBase
 {
@@ -52,6 +53,11 @@ public:
 			id(id_)
 		{};
 
+		ParameterData(const String& id_, NormalisableRange<double> r) :
+			id(id_),
+			range(r)
+		{};
+
 		ValueTree createValueTree() const
 		{
 			ValueTree p(PropertyIds::Parameter);
@@ -64,6 +70,13 @@ public:
 			return p;
 		}
 
+		ParameterData withRange(NormalisableRange<double> r)
+		{
+			ParameterData copy(*this);
+			copy.range = r;
+			return copy;
+		}
+
 		void operator()(double newValue) const
 		{
 			db(range.convertFrom0to1(newValue));
@@ -72,6 +85,17 @@ public:
 		void setBypass(double newValue) const
 		{
 			db(range.getRange().contains(newValue) ? 0.0 : 1.0);
+		}
+
+		void callWithRange(double value)
+		{
+			db(range.convertFrom0to1(value));
+		}
+
+		void addConversion(const Identifier& converterId)
+		{
+			db = DspHelpers::wrapIntoConversionLambda(converterId, db, range, false);
+			range = {};
 		}
 
 		String id;
@@ -113,11 +137,20 @@ public:
 		WeakReference<HiseDspBase> object;
 	};
 
+	bool isHardcoded() const;
+
 	virtual int getExtraWidth() const { return 0; };
 
 	virtual void initialise(NodeBase* n)
 	{
 		ignoreUnused(n);
+	}
+
+	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
+
+	virtual Array<HiseDspBase*> createListOfNodesWithSameId()
+	{
+		return { this };
 	}
 
 	virtual Component* createExtraComponent(PooledUIUpdater* updater)
@@ -126,10 +159,43 @@ public:
 		return nullptr;
 	}
 
+
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseDspBase);
 
 	virtual void createParameters(Array<ParameterData>& data) = 0;
 };
+
+
+template <class T> class SingleWrapper : public HiseDspBase
+{
+public:
+
+	inline void initialise(NodeBase* n) override
+	{
+		obj.initialise(n);
+	}
+
+	Component* createExtraComponent(PooledUIUpdater* updater) override
+	{
+		return obj.createExtraComponent(updater);
+	}
+
+	HardcodedNode* getAsHardcodedNode() override { return obj.getAsHardcodedNode(); }
+
+	Array<HiseDspBase*> createListOfNodesWithSameId() override
+	{
+		if (std::is_base_of<HiseDspBase, T>())
+			return { this, static_cast<HiseDspBase*>(&obj) };
+		else
+			return { this };
+	}
+
+protected:
+
+	T obj;
+};
+
 
 
 

@@ -81,6 +81,16 @@ public:
 		}
 	}
 
+	void prepare(double sampleRate, int blockSize) final override
+	{
+		prepareNodes(sampleRate, blockSize);
+	}
+
+	void reset() final override
+	{
+		resetNodes();
+	}
+
 	int getBlockSizeForChildNodes() const override
 	{ 
 		return isBypassed() ? originalBlockSize : FixedBlockSize;
@@ -146,12 +156,24 @@ public:
 		obj.reset();
 	}
 
+	void prepare(double sampleRate, int blockSize) final override
+	{
+		prepareNodes(sampleRate, blockSize);
+	}
+
 	void process(ProcessData& data) final override
 	{
 		if (isBypassed())
 			obj.getObject().process(data);
 		else
-			obj.process(data);
+		{
+			float* channels[NumChannels];
+
+			memcpy(channels, data.data, NumChannels * sizeof(float*));
+			ProcessData copy(channels, NumChannels, data.size);
+			obj.process(copy);
+		}
+			
 	}
 
 	void processSingle(float* frameData, int numChannels) final override

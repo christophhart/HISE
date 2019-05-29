@@ -524,6 +524,8 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 {
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 	
+	if (getActiveNetwork() != nullptr)
+		getActiveNetwork()->prepareToPlay(sampleRate, samplesPerBlock);
 
 	if (!prepareToPlayCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
@@ -545,6 +547,12 @@ void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
 	}
 	else
 	{
+		if (getActiveNetwork() != nullptr)
+		{
+			getActiveNetwork()->process(buffer, eventBuffer);
+			return;
+		}
+
 		if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 		{
 			const int numSamples = buffer.getNumSamples();
@@ -575,6 +583,12 @@ void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
 void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	ignoreUnused(startSample);
+
+	if (getActiveNetwork() != nullptr)
+	{
+		getActiveNetwork()->process(b, eventBuffer);
+		return;
+	}
 
 	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{

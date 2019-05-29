@@ -101,6 +101,11 @@ public:
 		wrapper.reset();
 	}
 
+	HiseDspBaseType* getReferenceToInternalObject() 
+	{ 
+		return dynamic_cast<HiseDspBaseType*>(wrapper.createListOfNodesWithSameId().getLast());
+	}
+
 	Identifier getObjectName() const override { return getStaticId(); }
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
@@ -184,6 +189,11 @@ public:
 		}
 	}
 
+	HardcodedNode* getAsHardcodedNode() override
+	{
+		return wrapper.getObject().getAsHardcodedNode();
+	}
+
 	WrapperType wrapper;
 
 	valuetree::PropertyListener bypassListener;
@@ -231,24 +241,87 @@ struct HardcodedNode
 		modObject->setCallback(f);
 	}
 
-	void initStaticParameterData();
+	void setParameterDefault(const String& parameterId, double value)
+	{
+		for (auto& parameter : internalParameterList)
+		{
+			if (parameter.id == parameterId)
+			{
+				parameter.db(value);
+				break;
+			}
+		}
+	}
 
 	Array<HiseDspBase::ParameterData> internalParameterList;
 	Array<ParameterInitValue> initValues;
 
-
 	HiseDspBase::ParameterData getParameter(const String& id);
+
+	HiseDspBase::ParameterData getParameter(const String& id, NormalisableRange<double> d);
+
+	String getNodeId(const HiseDspBase* internalNode) const
+	{
+		for (const auto& n : internalNodes)
+		{
+			for (const auto& in_ : n.nodes)
+			{
+				if (in_ == internalNode)
+					return n.id;
+			}
+		}
+
+		return {};
+	}
+
+	HiseDspBase* getNode(const String& id) const
+	{
+		for (const auto& n : internalNodes)
+		{
+			if (n.id == id)
+				return n.nodes.getFirst();
+		}
+
+		return nullptr;
+	}
+
+	template <class T> void registerNode(T* obj, const String& id)
+	{
+		if (auto typed = dynamic_cast<HiseDspBase*>(&obj->getObject()))
+		{
+			internalNodes.add({ typed->createListOfNodesWithSameId(), id });
+			fillInternalParameterList(typed, id);
+		}
+	}
+
+private:
+
+	struct InternalNode
+	{
+		Array<HiseDspBase*> nodes;
+		String id;
+	};
+
+	Array<InternalNode> internalNodes;
+
+	StringArray registeredIds;
+};
+
+struct hc
+{
+	static constexpr int no_modulation = 1;
+	static constexpr int with_modulation = 2;
 };
 
 
-namespace wr
-{
-namespace one
-{
-template <class DspProcessorType> struct parameter : public HiseDspBase,
+template <class SubType, class DspProcessorType, int ModulationType> struct hardcoded : public HiseDspBase,
 public HardcodedNode
 {
 public:
+
+	GET_SELF_AS_OBJECT(SubType);
+
+	static constexpr bool isModulationSource = (ModulationType == hc::with_modulation);
 
 	void initialise(NodeBase* n) override
 	{
@@ -278,6 +351,11 @@ public:
 	void processSingle(float* frameData, int numChannels) noexcept
 	{
 		obj.processSingle(frameData, numChannels);
+	}
+
+	HardcodedNode* getAsHardcodedNode() override 
+	{ 
+		return this; 
 	}
 
 	template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, class T> auto get(T& t)
@@ -316,11 +394,7 @@ public:
 
 	DspProcessorType obj;
 };
-}
-}
 
-
-
-
+template <typename SubType, typename ProcessorType> using no_mod = hardcoded<SubType, ProcessorType, hc::no_modulation>;
 
 }

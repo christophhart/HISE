@@ -97,7 +97,7 @@ void ContainerComponent::Updater::valueTreeParentChanged(ValueTree&)
 }
 
 ContainerComponent::ContainerComponent(NodeContainer* b) :
-	NodeComponent(b),
+	NodeComponent(b->asNode()),
 	updater(*this),
 	parameters(*this)
 {
@@ -157,10 +157,33 @@ void ContainerComponent::mouseDown(const MouseEvent& event)
 
 		auto sa = network->getListOfAllAvailableModuleIds();
 
+		//sa.sort(true);
+
+		
+
+		String currentFactory;
+		PopupMenu sub;
 		int newId = 11000;
 
-		for (auto mId : sa)
-			m.addItem(newId++, mId);
+		for (const auto& s : sa)
+		{
+			auto thisFactory = s.upToFirstOccurrenceOf(".", false, false);
+
+			if (thisFactory != currentFactory)
+			{
+				if (sub.getNumItems() != 0)
+					m.addSubMenu(currentFactory, sub);
+
+				sub = PopupMenu();
+
+				currentFactory = thisFactory;
+			}
+
+			sub.addItem(newId++, s.fromFirstOccurrenceOf(".", false, false));
+		}
+
+		if (sub.getNumItems() != 0)
+			m.addSubMenu(currentFactory, sub);
 
 		int result = m.show();
 
@@ -651,38 +674,6 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 			p.addLineSegment({ start, p1 }, 2.0f);
 			p.addLineSegment({ p2, end }, 2.0f);
 		}
-
-#if 0
-
-		if (auto currentNode = childNodeComponents[nodeIndex++])
-		{
-			auto numForThisNode = currentNode->node->getNumChannelsToProcess();
-			int currentCableIndex = 0;
-
-			for (int i = 0; i < node->getNumChannelsToProcess(); i++)
-			{
-
-				if (numForThisNode <= 0)
-				{
-					currentNode = childNodeComponents[nodeIndex++];
-
-					if (currentNode == nullptr)
-						break;
-
-					numForThisNode = currentNode->node->getNumChannelsToProcess();
-					currentCableIndex = 0;
-				}
-
-
-
-				numForThisNode--;
-			}
-		}
-#endif
-
-
-
-
 	}
 	else
 	{
@@ -706,6 +697,104 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 }
 
 
+
+ModChainNodeComponent::ModChainNodeComponent(ModulationChainNode* node):
+	ContainerComponent(node),
+	dragger(node->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
+{
+	addAndMakeVisible(dragger);
+}
+
+int ModChainNodeComponent::getInsertPosition(Point<int> position) const
+{
+	auto targetY = position.getY();
+	auto p = childNodeComponents.size();
+
+	for (auto nc : childNodeComponents)
+	{
+		if (targetY < nc->getY() + nc->getHeight() / 2)
+		{
+			p = childNodeComponents.indexOf(nc);
+			break;
+		}
+	}
+
+	return p;
+}
+
+juce::Rectangle<float> ModChainNodeComponent::getInsertRuler(int position)
+{
+	int targetY = getHeight() - UIValues::PinHeight;
+
+	if (auto childBeforeInsert = childNodeComponents[position])
+		targetY = childBeforeInsert->getY();
+
+	targetY -= (3 * UIValues::NodeMargin / 4);
+	return Rectangle<int>(UIValues::NodeMargin, targetY, getWidth() - 2 * UIValues::NodeMargin, UIValues::NodeMargin / 2).toFloat();
+}
+
+void ModChainNodeComponent::resized()
+{
+	ContainerComponent::resized();
+
+	Point<int> startPos = getStartPosition();
+
+	for (auto nc : childNodeComponents)
+	{
+		auto bounds = nc->node->getPositionInCanvas(startPos);
+
+		bounds = nc->node->reduceHeightIfFolded(bounds);
+
+		nc->setBounds(bounds);
+
+		auto x = (getWidth() - bounds.getWidth()) / 2;
+		nc->setTopLeftPosition(x, bounds.getY());
+
+		startPos = startPos.withY(bounds.getBottom() + UIValues::NodeMargin);
+	}
+
+	auto b = getLocalBounds().removeFromBottom(28);
+	dragger.setBounds(b.reduced(4));
+}
+
+void ModChainNodeComponent::paint(Graphics& g)
+{
+	auto b = getLocalBounds().toFloat();
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xcd403c32)));
+
+	g.fillRoundedRectangle(b, 5.0f);
+	g.setColour(getOutlineColour());
+	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
+
+	if (addPosition != -1)
+	{
+		g.fillAll(Colours::white.withAlpha(0.01f));
+
+		g.setColour(Colours::white.withAlpha(0.08f));
+		g.fillRoundedRectangle(getInsertRuler(addPosition), 2.5f);
+	}
+
+	if (insertPosition != -1)
+	{
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.05f));
+		g.fillRoundedRectangle(getLocalBounds().toFloat(), 5.0f);
+
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.8f));
+		g.fillRoundedRectangle(getInsertRuler(insertPosition), 2.5f);
+	}
+
+	DropShadow sh;
+	sh.colour = Colours::black.withAlpha(0.5f);
+	sh.offset = { 0, 2 };
+	sh.radius = 3;
+
+	for (auto nc : childNodeComponents)
+	{
+		Path rr;
+		rr.addRoundedRectangle(nc->getBounds().toFloat(), 5.0f);
+		sh.drawForPath(g, rr);
+	}
+}
 
 }
 

@@ -37,8 +37,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-struct NodeContainer : public NodeBase,
-	public AssignableObject
+struct NodeContainer : public AssignableObject
 {
 	struct MacroParameter : public NodeBase::Parameter
 	{
@@ -76,19 +75,30 @@ struct NodeContainer : public NodeBase,
 		valuetree::RecursivePropertyListener rangeListener;
 	};
 
-	NodeContainer(DspNetwork* root, ValueTree data);
+	NodeContainer();
 
-	ValueTree getNodeTree() const { return data.getChildWithName(PropertyIds::Nodes); }
-
-	void reset() override 
+	void resetNodes()
 	{ 
 		for (auto n : nodes)
 			n->reset();
 	}
 
-	void prepare(double sampleRate, int blockSize) override
+	NodeBase* asNode() 
+	{ 
+		auto n = dynamic_cast<NodeBase*>(this); 
+		jassert(n != nullptr);
+		return n;
+	}
+	const NodeBase* asNode() const 
+	{ 
+		auto n = dynamic_cast<const NodeBase*>(this);
+		jassert(n != nullptr);
+		return n;
+	}
+
+	void prepareNodes(double sampleRate, int blockSize)
 	{
-		ScopedLock sl(getRootNetwork()->getConnectionLock());
+		ScopedLock sl(asNode()->getRootNetwork()->getConnectionLock());
 
 		originalSampleRate = sampleRate;
 		originalBlockSize = blockSize;
@@ -117,10 +127,10 @@ struct NodeContainer : public NodeBase,
 
 	void clear()
 	{
-		getNodeTree().removeAllChildren(getUndoManager());
+		getNodeTree().removeAllChildren(asNode()->getUndoManager());
 	}
 
-	String createCppClass(bool isOuterClass) override;
+	String createCppClassForNodes(bool isOuterClass);
 
 	String createTemplateAlias();
 	
@@ -159,10 +169,10 @@ struct NodeContainer : public NodeBase,
 
 	virtual String getCppCode(CppGen::CodeLocation location);
 
-	ValueTree getNodeTree() { return data.getOrCreateChildWithName(PropertyIds::Nodes, getUndoManager()); }
+	ValueTree getNodeTree() { return asNode()->getValueTree().getOrCreateChildWithName(PropertyIds::Nodes, asNode()->getUndoManager()); }
 
-	List& getNodeList() { return nodes; }
-	const List& getNodeList() const { return nodes; }
+	NodeBase::List& getNodeList() { return nodes; }
+	const NodeBase::List& getNodeList() const { return nodes; }
 
 protected:
 
@@ -170,7 +180,7 @@ protected:
 
 	friend class ContainerComponent;
 
-	List nodes;
+	NodeBase::List nodes;
 
 	double originalSampleRate = 0.0;
 	int originalBlockSize = 0;
@@ -190,7 +200,8 @@ private:
 	bool channelRecursionProtection = false;
 };
 
-class SerialNode : public NodeContainer
+class SerialNode : public NodeBase,
+				   public NodeContainer
 {
 public:
 
@@ -201,7 +212,10 @@ public:
 		SET_HISE_NODE_EXTRA_HEIGHT(0);
 		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-		bool handleModulation(double& value) { return false; }
+		bool handleModulation(double& value) 
+		{ 
+			return false; 
+		}
 
 		void initialise(NodeBase* p)
 		{
@@ -282,25 +296,130 @@ private:
 };
 
 
-class ModulationChainNode : public SerialNode
+class ModulationChainNode : public ModulationSourceNode,
+							public NodeContainer
 {
 public:
 
-	SCRIPTNODE_FACTORY(ModulationChainNode, "mod");
+	class DynamicModContainer : public HiseDspBase
+	{
+	public:
+
+		SET_HISE_NODE_EXTRA_HEIGHT(0);
+		SET_HISE_NODE_IS_MODULATION_SOURCE(true);
+
+		bool handleModulation(double& value)
+		{
+			value = modValue;
+			return true;
+		}
+
+		void initialise(NodeBase* p)
+		{
+			parent = dynamic_cast<NodeContainer*>(p);
+		}
+
+		void reset()
+		{
+			for (auto n : parent->getNodeList())
+				n->reset();
+
+			modValue = 0.0;
+		}
+
+		void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+		{
+			// do nothing here, the container inits the child nodes.
+		}
+
+		void process(ProcessData& d)
+		{
+			jassert(parent != nullptr);
+
+			for (auto n : parent->getNodeList())
+				n->process(d);
+
+			modValue = DspHelpers::findPeak(d);
+		}
+
+		void processSingle(float* frameData, int numChannels)
+		{
+			jassert(parent != nullptr);
+
+			for (auto n : parent->getNodeList())
+				n->processSingle(frameData, numChannels);
+		}
+
+		void createParameters(Array<ParameterData>& data) override {};
+
+		DynamicModContainer& getObject() { return *this; }
+		const DynamicModContainer& getObject() const { return *this; }
+
+		NodeContainer* parent = nullptr;
+		double modValue = 0.0;
+	};
+
+	SCRIPTNODE_FACTORY(ModulationChainNode, "modchain");
 
 	ModulationChainNode(DspNetwork* n, ValueTree t);;
 
 	void processSingle(float* frameData, int numChannels) noexcept final override;
 	void process(ProcessData& data) noexcept final override;
+	void prepare(double sampleRate, int blockSize)
+	{
+		NodeContainer::prepareNodes(sampleRate, blockSize);
+	}
+
+	void reset() final override
+	{
+		NodeContainer::resetNodes();
+	}
+
+	NodeComponent* createComponent() override;
 
 	String getCppCode(CppGen::CodeLocation location) override;
 
 	virtual int getBlockSizeForChildNodes() const { return jmax(1, originalBlockSize / HISE_EVENT_RASTER); }
 	virtual double getSampleRateForChildNodes() const { return originalSampleRate / (double)HISE_EVENT_RASTER; }
 
+	Identifier getObjectName() const override { return getStaticId(); }
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+
 private:
 	
-	container::mod<SerialNode::DynamicSerialProcessor> obj;
+	container::mod<DynamicModContainer> obj;
+
+	double lastValue = 0.0;
+	int numLeft = 0;
+};
+
+class EventProcessorNode : public SerialNode
+{
+public:
+
+	SCRIPTNODE_FACTORY(ModulationChainNode, "event_processor");
+
+	EventProcessorNode(DspNetwork* n, ValueTree t);;
+
+	void processSingle(float* frameData, int numChannels) noexcept final override
+	{
+		jassertfalse;
+	}
+
+	void process(ProcessData& data) noexcept final override
+	{
+		obj.process(data);
+	}
+
+	void prepare(double sampleRate, int blockSize) override
+	{
+		obj.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
+	}
+
+private:
+
+	wrap::event<SerialNode::DynamicSerialProcessor> obj;
 };
 
 template <int OversampleFactor> class OversampleNode : public SerialNode
@@ -329,7 +448,7 @@ public:
 
 	void prepare(double sampleRate, int blockSize) override
 	{
-		NodeContainer::prepare(sampleRate, blockSize);
+		prepareNodes(sampleRate, blockSize);
 
 		if (isBypassed())
 		{
@@ -374,12 +493,13 @@ public:
 };
 
 
-class ParallelNode : public NodeContainer
+class ParallelNode : public NodeBase,
+					 public NodeContainer
 {
 public:
 
 	ParallelNode(DspNetwork* root, ValueTree data) :
-		NodeContainer(root, data)
+		NodeBase(root, data, 0)
 	{}
 
 	NodeComponent* createComponent() override;
@@ -403,6 +523,11 @@ public:
 
 	void prepare(double sampleRate, int blockSize) override;
 
+	void reset() final override
+	{
+		resetNodes();
+	}
+
 	String getCppCode(CppGen::CodeLocation location) override;
 
 	void process(ProcessData& data) final override;
@@ -410,6 +535,136 @@ public:
 	void processSingle(float* frameData, int numChannels) override;
 
 	AudioSampleBuffer splitBuffer;
+};
+
+
+
+class FeedbackContainer : public ParallelNode
+{
+public:
+
+	class DynamicFeedbackNode : public HiseDspBase
+	{
+	public:
+
+		SET_HISE_NODE_EXTRA_HEIGHT(0);
+		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+		bool handleModulation(double& value) { return false; }
+
+		void initialise(NodeBase* p)
+		{
+			parent = dynamic_cast<NodeContainer*>(p);
+		}
+
+		
+
+		void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+		{
+			DspHelpers::increaseBuffer(feedbackBuffer, numChannelsToProcess, blockSize);
+
+			auto nl = parent->getNodeList();
+			first = nl[0];
+			feedbackLoop = nl[1];
+
+			reset();
+			// do nothing here, the container inits the child nodes.
+		}
+
+		void reset()
+		{
+			feedbackBuffer.clear();
+			memset(singleData, 0, sizeof(float)* feedbackBuffer.getNumChannels());
+
+			for (auto n : parent->getNodeList())
+				n->reset();
+		}
+
+		void process(ProcessData& d)
+		{
+			jassert(parent != nullptr);
+
+			auto fb = d.referTo(feedbackBuffer, 0);
+
+			d += fb;
+
+			if(first != nullptr)
+				first->process(d);
+
+			if (feedbackLoop != nullptr)
+			{
+				d.copyTo(feedbackBuffer, 0);
+				feedbackLoop->process(fb);
+			}
+		}
+
+		void processSingle(float* frameData, int numChannels)
+		{
+			for (int i = 0; i < numChannels; i++)
+				frameData[i] += singleData[i];
+
+			if (first != nullptr)
+				first->processSingle(frameData, numChannels);
+
+			if (feedbackLoop != nullptr)
+			{
+				for (int i = 0; i < numChannels; i++)
+					singleData[i] = frameData[i];
+
+				feedbackLoop->processSingle(singleData, numChannels);
+			}
+		}
+
+		void createParameters(Array<ParameterData>& data) override {};
+
+		DynamicFeedbackNode& getObject() { return *this; }
+		const DynamicFeedbackNode& getObject() const { return *this; }
+
+		NodeContainer* parent;
+
+		NodeBase::Ptr first;
+		NodeBase::Ptr feedbackLoop;
+
+		AudioSampleBuffer feedbackBuffer;
+		float singleData[NUM_MAX_CHANNELS];
+	};
+
+	FeedbackContainer(DspNetwork* root, ValueTree data):
+		ParallelNode(root, data)
+	{
+		initListeners();
+		obj.initialise(this);
+	}
+
+	SCRIPTNODE_FACTORY(FeedbackContainer, "feedback");
+
+	void process(ProcessData& data) final override
+	{
+		obj.process(data);
+		
+	}
+
+	void prepare(double sampleRate, int blockSize)
+	{
+		NodeContainer::prepareNodes(sampleRate, blockSize);
+		obj.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
+	}
+
+	void reset() final override
+	{
+		obj.reset();
+		
+	}
+
+	void processSingle(float* frameData, int numChannels) final override
+	{
+		obj.processSingle(frameData, numChannels);
+	}
+
+	Identifier getObjectName() const override { return "FeedbackNode"; };
+
+	DynamicFeedbackNode obj;
+	
 };
 
 class MultiChannelNode : public ParallelNode
@@ -423,6 +678,16 @@ public:
 	};
 
 	SCRIPTNODE_FACTORY(MultiChannelNode, "multi");
+
+	void prepare(double sampleRate, int blockSize) final override
+	{
+		NodeContainer::prepareNodes(sampleRate, blockSize);
+	}
+
+	void reset() final override
+	{
+		NodeContainer::resetNodes();
+	}
 
 	void process(ProcessData& data) override
 	{

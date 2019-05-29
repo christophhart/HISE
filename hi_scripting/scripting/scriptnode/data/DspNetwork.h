@@ -104,6 +104,8 @@ public:
 		return list;
 	}
 
+	void process(AudioSampleBuffer& b, HiseEventBuffer* e);
+
 	// ===============================================================================
 
 	/** Initialise processing of all nodes. */

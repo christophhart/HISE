@@ -89,6 +89,8 @@ DECLARE_ID(ModulationTargets);
 DECLARE_ID(ModulationTarget);
 DECLARE_ID(ValueTarget);
 DECLARE_ID(OpType);
+DECLARE_ID(Callback);
+DECLARE_ID(undefined);
 
 enum EditType
 {

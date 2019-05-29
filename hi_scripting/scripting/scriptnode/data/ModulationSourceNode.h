@@ -143,7 +143,9 @@ public:
 				{
 					if (t->data == c)
 					{
-						t->parameter->data.removeProperty(PropertyIds::ModulationTarget, getUndoManager());
+						if(t->parameter != nullptr)
+							t->parameter->data.removeProperty(PropertyIds::ModulationTarget, getUndoManager());
+
 						targets.removeObject(t);
 						break;
 					}
@@ -178,7 +180,7 @@ public:
 		auto s = NodeBase::createCppClass(isOuterClass);
 
 		if (getModulationTargetTree().getNumChildren() > 0)
-			return CppGen::Emitter::wrapIntoTemplate(s, "wr::one::mod");
+			return CppGen::Emitter::wrapIntoTemplate(s, "wrap::mod");
 		else
 			return s;
 	}
@@ -338,5 +340,467 @@ private:
 };
 
 
+struct ModulationSourceBaseComponent : public Component,
+	public PooledUIUpdater::SimpleTimer
+{
+	ModulationSourceBaseComponent(PooledUIUpdater* updater) :
+		SimpleTimer(updater)
+	{};
+
+	ModulationSourceNode* getSourceNodeFromParent() const;
+
+	void timerCallback() override {};
+
+	void paint(Graphics& g) override
+	{
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.drawRect(getLocalBounds(), 1);
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Drag to modulation target", getLocalBounds().toFloat(), Justification::centred);
+	}
+
+	Image createDragImage()
+	{
+		Image img(Image::ARGB, 128, 48, true);
+		Graphics g(img);
+
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.4f));
+		g.fillAll();
+		g.setColour(Colours::black);
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		g.drawText(getSourceNodeFromParent()->getId(), 0, 0, 128, 48, Justification::centred);
+
+		return img;
+	}
+
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseDrag(const MouseEvent& event) override
+	{
+		if (getSourceNodeFromParent() == nullptr)
+			return;
+
+		if (auto container = DragAndDropContainer::findParentDragContainerFor(this))
+		{
+			// We need to be able to drag it anywhere...
+			while (auto pc = DragAndDropContainer::findParentDragContainerFor(dynamic_cast<Component*>(container)))
+				container = pc;
+
+			var d;
+
+			DynamicObject::Ptr details = new DynamicObject();
+
+			details->setProperty(PropertyIds::ID, sourceNode->getId());
+			details->setProperty(PropertyIds::ModulationTarget, true);
+
+			container->startDragging(var(details), this, createDragImage());
+		}
+	}
+
+protected:
+
+	mutable WeakReference<ModulationSourceNode> sourceNode;
+};
+
+struct ScriptFunctionManager: public hise::GlobalScriptCompileListener
+{
+	~ScriptFunctionManager()
+	{
+		if (mc != nullptr)
+			mc->removeScriptListener(this);
+	}
+
+	bool init(NodeBase* n, HiseDspBase* parent);
+
+	void scriptWasCompiled(JavascriptProcessor *processor) override;
+
+	void updateFunction(Identifier, var newValue);
+
+	double callWithDouble(double inputValue);
+
+	Identifier getCallbackId() const
+	{
+		return callbackId;
+	}
+
+	valuetree::PropertyListener functionListener;
+	WeakReference<JavascriptProcessor> jp;
+	Result lastResult = Result::ok();
+
+	Identifier callbackId;
+
+	var functionName;
+	var function;
+	var input[8];
+	bool ok = false;
+
+	MainController* mc;
+
+	NodeBase* pendingNode = nullptr;
+	HiseDspBase* pendingParent = nullptr;
+};
+
+class MidiSourceNode : public HiseDspBase
+{
+public:
+
+	enum class Mode
+	{
+		Gate = 0,
+		Velocity,
+		NoteNumber,
+		Frequency
+	};
+
+	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
+	SET_HISE_NODE_ID("midi");
+	GET_SELF_AS_OBJECT(MidiSourceNode);
+	SET_HISE_NODE_EXTRA_HEIGHT(40);
+	SET_HISE_NODE_EXTRA_WIDTH(256);
+
+	void initialise(NodeBase* n)
+	{
+		scriptFunction.init(n, this);
+	}
+
+	struct Display : public HiseDspBase::ExtraComponent<MidiSourceNode>
+	{
+		Display(MidiSourceNode* t, PooledUIUpdater* updater):
+			ExtraComponent<MidiSourceNode>(t, updater),
+			dragger(updater)
+		{
+			meter.setColour(VuMeter::backgroundColour, Colour(0xFF333333));
+			meter.setColour(VuMeter::outlineColour, Colour(0x45ffffff));
+			meter.setType(VuMeter::MonoHorizontal);
+			meter.setColour(VuMeter::ledColour, Colours::grey);
+
+			addAndMakeVisible(meter);
+			addAndMakeVisible(dragger);
+
+			setSize(256, 40);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			meter.setBounds(b.removeFromTop(24));
+			dragger.setBounds(b);
+		}
+
+		void timerCallback() override
+		{
+			meter.setPeak(getObject()->modValue);
+		}
+
+		ModulationSourceBaseComponent dragger;
+		VuMeter meter;
+	};
+
+	Component* createExtraComponent(PooledUIUpdater* updater) override
+	{
+		return new Display(this, updater);
+	}
+
+	void prepare(int numChannels, double sampleRate, int blockSize) {};
+
+	void reset() {};
+
+	void processSingle(float* frameData, int numChannels) {};
+
+	void process(ProcessData& d)
+	{
+		if (d.eventBuffer != nullptr)
+		{
+			HiseEventBuffer::Iterator it(*d.eventBuffer);
+
+			while (auto e = it.getNextEventPointer(true, false))
+			{
+				switch (currentMode)
+				{
+				case Mode::Gate:
+				{
+					if (e->isNoteOnOrOff())
+					{
+						modValue = e->isNoteOn() ? 1.0 : 0.0;
+						changed = true;
+					}
+
+					break;
+				}
+				case Mode::Velocity:
+				{
+					if (e->isNoteOn())
+					{
+						modValue = e->getVelocity() / 127.0;
+						changed = true;
+					}
+
+					break;
+				}
+				case Mode::NoteNumber:
+				{
+					if (e->isNoteOn())
+					{
+						modValue = (double)e->getNoteNumber() / 127.0;
+						changed = true;
+					}
+
+					break;
+				}
+				case Mode::Frequency:
+				{
+					if (e->isNoteOn())
+					{
+						modValue = (e->getFrequency() - 20.0) / 19980.0;
+						changed = true;
+					}
+
+					break;
+				}
+				}
+
+				if(changed)
+					modValue = scriptFunction.callWithDouble(modValue);
+			}
+		}
+	}
+
+	bool handleModulation(double& value)
+	{
+		if (changed)
+		{
+			value = modValue;
+			changed = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	void createParameters(Array<ParameterData>& data) override
+	{
+		ParameterData d("Mode");
+
+		d.setParameterValueNames({ "Gate", "Velocity", "NoteNumber", "Frequency"});
+		d.defaultValue = 0.0;
+		d.db = BIND_MEMBER_FUNCTION_1(MidiSourceNode::setMode);
+
+		data.add(std::move(d));
+
+		scriptFunction.init(nullptr, nullptr);
+	}
+
+	void setMode(double newMode)
+	{
+		currentMode = (Mode)(int)newMode;
+	}
+
+	Mode currentMode;
+
+	ScriptFunctionManager scriptFunction;
+
+	double modValue = 0.0;
+	bool changed = false;
+};
+
+class TimerNode : public HiseDspBase
+{
+public:
+
+	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
+	SET_HISE_NODE_ID("timer");
+	GET_SELF_AS_OBJECT(TimerNode);
+	SET_HISE_NODE_EXTRA_HEIGHT(40);
+	SET_HISE_NODE_EXTRA_WIDTH(256);
+
+	void initialise(NodeBase* n)
+	{
+		scriptFunction.init(n, this);
+	}
+
+	struct Display : public HiseDspBase::ExtraComponent<TimerNode>
+	{
+		Display(TimerNode* t, PooledUIUpdater* updater) :
+			ExtraComponent<TimerNode>(t, updater),
+			dragger(updater)
+		{
+			addAndMakeVisible(dragger);
+
+			setSize(256, 40);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			b.removeFromTop(24);
+			dragger.setBounds(b);
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().removeFromTop(24);
+
+			g.setColour(Colours::white.withAlpha(alpha));
+			g.fillEllipse(b.withSizeKeepingCentre(20, 20).toFloat());
+		}
+
+		void timerCallback() override
+		{
+			float lastAlpha = alpha;
+
+			if (getObject()->ui_led)
+			{
+				alpha = 1.0f;
+				getObject()->ui_led = false;
+			}
+			else
+				alpha = jmax(0.0f, alpha - 0.1f);
+
+			if (lastAlpha != alpha)
+				repaint();
+		}
+
+		float alpha = 0.0f;
+		ModulationSourceBaseComponent dragger;
+	};
+
+	Component* createExtraComponent(PooledUIUpdater* updater) override
+	{
+		return new Display(this, updater);
+	}
+
+	void prepare(int numChannels, double sampleRate, int blockSize) 
+	{
+		sr = sampleRate;
+	};
+
+	void reset()
+	{
+		samplesLeft = samplesBetweenCallbacks;
+	};
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		if (!active)
+			return;
+
+		if (--samplesLeft <= 0)
+		{
+			modValue = scriptFunction.callWithDouble(0.0);
+			changed = true;
+			ui_led = true;
+			samplesLeft = samplesBetweenCallbacks;
+		}
+
+		FloatVectorOperations::fill(frameData, modValue, numChannels);
+	};
+
+	void process(ProcessData& d)
+	{
+		if (!active)
+		{
+			return;
+		}
+
+		if (d.size < samplesLeft)
+		{
+			samplesLeft -= d.size;
+
+			for (auto ch : d)
+				FloatVectorOperations::fill(ch, (float)modValue, d.size);
+		}
+
+		else
+		{
+			const int numRemaining = d.size - samplesLeft;
+
+			for (auto ch : d)
+				FloatVectorOperations::fill(ch, (float)modValue, numRemaining);
+
+			modValue = scriptFunction.callWithDouble(0.0);
+			changed = true;
+			ui_led = true;
+
+			const int numAfter = d.size - numRemaining;
+
+			for (auto ch : d)
+				FloatVectorOperations::fill(ch + numRemaining, modValue, numAfter);
+
+			samplesLeft = samplesBetweenCallbacks + numRemaining;
+		}
+	}
+
+	bool handleModulation(double& value)
+	{
+		if (changed)
+		{
+			value = modValue;
+			changed = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	void createParameters(Array<ParameterData>& data) override
+	{
+		{
+			ParameterData d("Interval");
+
+			d.range = { 0.0, 2000.0, 0.1 };
+			d.defaultValue = 500.0;
+			d.db = BIND_MEMBER_FUNCTION_1(TimerNode::setInterval);
+
+			data.add(std::move(d));
+		}
+		
+		{
+			ParameterData d("Active");
+
+			d.range = { 0.0, 1.0, 1.0 };
+			d.defaultValue = 500.0;
+			d.db = BIND_MEMBER_FUNCTION_1(TimerNode::setActive);
+
+			data.add(std::move(d));
+		}
+
+		scriptFunction.init(nullptr, nullptr);
+	}
+
+	void setActive(double value)
+	{
+		bool thisActive = value > 0.5;
+
+		if (active != thisActive)
+		{
+			active = thisActive;
+			reset();
+		}
+	}
+
+	void setInterval(double timeMs)
+	{
+		samplesBetweenCallbacks = roundDoubleToInt(timeMs * 0.001 * sr);
+	}
+
+	bool active = false;
+	double sr = 44100.0;
+	int samplesBetweenCallbacks = 22050;
+	int samplesLeft = 22050;
+
+	ScriptFunctionManager scriptFunction;
+
+	double modValue = 0.0;
+	bool changed = false;
+	bool ui_led = false;
+};
+
+namespace core
+{
+using midi = MidiSourceNode;
+using timer = TimerNode;
+}
 
 }

@@ -36,10 +36,6 @@ using namespace juce;
 using namespace hise;
 
 
-namespace core
-{
-
-
 struct SequencerNode::SequencerInterface : public HiseDspBase::ExtraComponent<SequencerNode>
 {
 	SequencerInterface(PooledUIUpdater* updater, SequencerNode* s) :
@@ -168,7 +164,6 @@ void TableNode::setTable(double indexAsDouble)
 	tableData = dynamic_cast<SampleLookupTable*>(tp.get()->getTable(index));
 }
 
-}
 
 
 }

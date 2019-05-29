@@ -37,9 +37,128 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+
+template <int NumChannels, class T> class fix
+{
+public:
+
+	static constexpr bool isModulationSource = T::isModulationSource;
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	void prepare(int, double sampleRate, int blockSize)
+	{
+		obj.prepare(getFixChannelAmount(), sampleRate, blockSize);
+	}
+
+	forcedinline void reset() noexcept { obj.reset(); }
+
+	forcedinline void process(ProcessData& data) noexcept
+	{
+		auto dCopy = ProcessData(data);
+		dCopy.numChannels = getFixChannelAmount();
+
+		obj.process(dCopy);
+	}
+
+	constexpr static int getFixChannelAmount()
+	{
+		return NumChannels;
+	}
+
+	forcedinline void processSingle(float* frameData, int ) noexcept
+	{
+		obj.processSingle(frameData, getFixChannelAmount());
+	}
+
+	forcedinline bool handleModulation(double& value) noexcept
+	{
+		return obj.handleModulation(value);
+	}
+
+	auto& getObject() { return obj.getObject(); }
+	const auto& getObject() const { return obj.getObject(); }
+
+private:
+
+	T obj;
+};
+
+
 namespace wrap
 {
 
+template <class T> class event
+{
+public:
+
+	static constexpr bool isModulationSource = false;
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	void prepare(int numChannels, double sampleRate, int blockSize)
+	{
+		obj.prepare(numChannels, sampleRate, blockSize);
+	}
+
+	void process(ProcessData& d)
+	{
+		if (d.eventBuffer != nullptr)
+		{
+			HiseEventBuffer::Iterator it(*d.eventBuffer);
+
+			auto dCopy = ProcessData(d);
+
+			dCopy.eventBuffer = &internalBuffer;
+			int numTotal = d.size;
+
+			HiseEvent e;
+			int samplePos = 0;
+			int lastPos = samplePos;
+
+			while (it.getNextEvent(e, samplePos, true, false))
+			{
+				if (samplePos == lastPos)
+					internalBuffer.addEvent(e);
+				else
+				{
+					int numThisTime = samplePos - lastPos;
+
+					dCopy.size = numThisTime;
+
+					obj.process(dCopy);
+
+					internalBuffer.clear();
+					internalBuffer.addEvent(e);
+
+					for (auto ch : dCopy)
+						*ch += numThisTime;
+
+					lastPos = samplePos;
+				}
+			}
+		}
+	}
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		jassertfalse;
+	}
+
+	bool handleModulation(double& value) noexcept { return false; }
+
+	T& getObject() { return *this; }
+	const T& getObject() const { return *this; }
+
+	HiseEventBuffer internalBuffer;
+	T obj;
+};
 
 template <int NumChannels, class T> class frame
 {
@@ -54,7 +173,7 @@ public:
 
 	void prepare(int numChannels, double sampleRate, int blockSize)
 	{
-		obj.prepare(numChannels, sampleRate, blockSize);
+		obj.prepare(NumChannels, sampleRate, blockSize);
 	}
 
 	forcedinline void reset() noexcept { obj.reset(); }
@@ -72,9 +191,9 @@ public:
 		}
 	}
 
-	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	forcedinline void processSingle(float* frameData, int unused) noexcept
 	{
-		obj.processSingle(frameData, numChannels);
+		obj.processSingle(frameData, NumChannels);
 	}
 
 	bool handleModulation(double& value)
@@ -181,8 +300,10 @@ private:
 };
 
 
-template <class T> struct mod
+template <class T> struct mod: public SingleWrapper<T>
 {
+	GET_SELF_AS_OBJECT(mod);
+
 	constexpr static bool isModulationSource = false;
 
 	inline void process(ProcessData& data) noexcept
@@ -207,17 +328,12 @@ template <class T> struct mod
 			db(modValue);
 	}
 
-	inline void initialise(NodeBase* n) noexcept
-	{
-		obj.initialise(n);
-	}
-
-	void createParameters(Array<HiseDspBase::ParameterData>& data)
+	void createParameters(Array<HiseDspBase::ParameterData>& data) override
 	{
 		obj.createParameters(data);
 	}
 
-	inline void prepare(int numChannels, double sampleRate, int blockSize) noexcept
+	void prepare(int numChannels, double sampleRate, int blockSize)
 	{
 		obj.prepare(numChannels, sampleRate, blockSize);
 	}
@@ -232,10 +348,6 @@ template <class T> struct mod
 		db = c;
 	}
 
-	auto& getObject() { return *this; }
-	const auto& getObject() const { return *this; }
-
-	T obj;
 	DspHelpers::ParameterCallback db;
 	double modValue = 0.0;
 };

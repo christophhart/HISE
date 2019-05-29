@@ -38,9 +38,6 @@ using namespace juce;
 using namespace hise;
 
 
-namespace core
-{
-
 struct SequencerNode : public HiseDspBase
 {
 	SET_HISE_NODE_ID("seq");
@@ -103,7 +100,7 @@ struct SequencerNode : public HiseDspBase
 		{
 			auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(ProcessData(&frameData, 1, numChannels)));
 			auto index = roundDoubleToInt(peakValue * (double)packData->getNumSliders());
-			
+
 			changed = lastIndex != index;
 
 			if (changed)
@@ -118,7 +115,7 @@ struct SequencerNode : public HiseDspBase
 
 	void prepare(int numChannels, double sampleRate, int blockSize)
 	{
-		
+
 	}
 
 	void setSliderPack(double indexAsDouble);
@@ -212,7 +209,8 @@ struct TableNode : public HiseDspBase
 	bool changed = true;
 };
 
-
+namespace core
+{
 
 using seq = SequencerNode;
 using table = TableNode;

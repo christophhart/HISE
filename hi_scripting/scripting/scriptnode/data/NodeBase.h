@@ -40,6 +40,7 @@ using namespace hise;
 
 class DspNetwork;
 class NodeComponent;
+class HardcodedNode;
 
 struct NodeBase : public ConstScriptingObject
 {
@@ -111,6 +112,8 @@ struct NodeBase : public ConstScriptingObject
 	/** Override this method and return the bounds in the canvas for the topLeft position. */
 	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;
 	
+	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
+
 	void setBypassed(bool shouldBeBypassed);
 	bool isBypassed() const noexcept;
 
