@@ -163,7 +163,9 @@ public:
 	*/
 	int registerCallbackName(const Identifier &callbackName, int numArgs, double bufferTime);
 
-	var executeInlineFunction(var inlineFunction, var* arguments, Result* result);
+	var executeInlineFunction(var inlineFunction, var* arguments, Result* result, int numArgs=-1);
+
+	var getInlineFunction(const Identifier& id);
 
 	var executeCallback(int callbackIndex, Result *result);
 

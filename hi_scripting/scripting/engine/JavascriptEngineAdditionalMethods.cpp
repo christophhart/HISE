@@ -674,7 +674,19 @@ int HiseJavascriptEngine::RootObject::HiseSpecialData::getExternalCIndex(const I
 }
 
 
-var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* arguments, Result* result)
+var HiseJavascriptEngine::getInlineFunction(const Identifier& id)
+{
+	if (auto r = dynamic_cast<HiseJavascriptEngine::RootObject*>(getRootObject()))
+	{
+		return var(r->hiseSpecialData.getInlineFunction(id));
+	}
+
+	return {};
+}
+
+
+
+var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* arguments, Result* result, int numArgs)
 {
 #if JUCE_DEBUG
 	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
@@ -683,6 +695,25 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 
 	auto f = static_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(inlineFunction.getObject());
 
+	if (f == nullptr)
+	{
+		if (result != nullptr)
+			*result = Result::fail("No valid function");
+
+		return {};
+	};
+
+	if (numArgs == -1)
+		numArgs = f->parameterNames.size();
+
+	if (f->parameterNames.size() != numArgs)
+	{
+		if(result != nullptr)
+			*result = Result::fail("Argument amount mismatch.");
+
+		return {};
+	}
+
 	auto rootObj = getRootObject();
 	auto s = HiseJavascriptEngine::RootObject::Scope(nullptr, static_cast<HiseJavascriptEngine::RootObject*>(rootObj), rootObj);
 
@@ -690,7 +721,7 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 	{
 		prepareTimeout();
 		if (result != nullptr) *result = Result::ok();
-		return f->performDynamically(s, arguments, 2);
+		return f->performDynamically(s, arguments, numArgs);
 	}
 	catch (String &error)
 	{
