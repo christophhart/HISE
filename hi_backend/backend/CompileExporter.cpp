@@ -1639,14 +1639,17 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", isUsingCIMode() ? "0" : "1");
 
 #if JUCE_MAC
-	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a");
-	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", "/opt/intel/ipp/include");
-	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", "/opt/intel/ipp/lib");
-#else
-	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", String());
-	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", String());
-	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", String());
+    if (exporter->useIpp) {
+        REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a");
+        REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", "/opt/intel/ipp/include");
+        REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", "/opt/intel/ipp/lib");
+    } else
 #endif
+    {
+        REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", String());
+        REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", String());
+        REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", String());
+    }
 }
 
 void CompileExporter::ProjectTemplateHelpers::handleCompanyInfo(CompileExporter* exporter, String& templateProject)
