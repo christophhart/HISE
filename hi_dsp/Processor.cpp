@@ -757,7 +757,7 @@ bool Processor::isValidAndInitialised(bool checkOnAir) const
 	const bool isMainSynthChain = getMainController()->getMainSynthChain() == this;
 	const bool hasParent = getParentProcessor(false) != nullptr;
 
-	const bool isValid = onAir_ && (isMainSynthChain || hasParent) || getMainController()->isFlakyThreadingAllowed();
+	const bool isValid = (onAir_ && (isMainSynthChain || hasParent)) || getMainController()->isFlakyThreadingAllowed();
 
 	// Normally you expect this method to be true, so this assertion will fire here
 	// so that you can check the reason from the bools above...

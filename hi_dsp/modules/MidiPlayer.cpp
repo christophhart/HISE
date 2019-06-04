@@ -951,6 +951,7 @@ void MidiPlayer::changeTransportState(PlayState newState)
 	case PlayState::Play:	play(0);	return;
 	case PlayState::Stop:	stop(0);	return;
 	case PlayState::Record: record(0);	return;
+        default: return;
 	}
 }
 

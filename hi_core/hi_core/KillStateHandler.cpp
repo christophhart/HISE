@@ -190,6 +190,8 @@ bool MainController::KillStateHandler::handleBufferDuringSuspension(AudioSampleB
 		b.clear();
 		return false;
 	}
+
+	return true;
 }
 
 

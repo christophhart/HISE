@@ -692,7 +692,7 @@ void HiColourPropertyComponent::ColourComp::updateColour(Colour c)
 void HiColourPropertyComponent::ColourComp::paint(Graphics& g)
 {
 	auto r = getLocalBounds();
-	auto lr = r.removeFromLeft(80);
+	r.removeFromLeft(80);
 
 	g.fillCheckerBoard(r.toFloat(), 10, 10, Colour(0xFF888888), Colour(0xFF444444));
 

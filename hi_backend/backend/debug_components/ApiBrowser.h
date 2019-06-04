@@ -306,6 +306,7 @@ public:
 		public ValueTree::Listener,
 		public Label::Listener
 	{
+		
 		NodeItem(DspNetwork* parent, const String& id) :
 			Item(id),
 			node(dynamic_cast<NodeBase*>(parent->get(id).getObject())),
@@ -326,7 +327,7 @@ public:
 			label.setColour(Label::ColourIds::textColourId, Colours::white);
 			label.setEditable(false, true);
 			label.refreshWithEachKey = false;
-			label.addMouseListener(this, this);
+			label.addMouseListener(this, true);
 
 			powerButton.setToggleModeWithColourChange(true);
 			powerButton.setToggleStateAndUpdateIcon(!data[PropertyIds::Bypassed]);
@@ -337,18 +338,20 @@ public:
 			data.removeListener(this);
 		}
 
-		void valueTreeChildAdded(ValueTree& p, ValueTree& c) override { }
-		void valueTreeChildOrderChanged(ValueTree& p, int oldIndex, int newIndex) override {};
+		void valueTreeChildAdded(ValueTree& , ValueTree& ) override { }
+		void valueTreeChildOrderChanged(ValueTree& , int , int ) override {};
 		void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override {  };
 		void valueTreePropertyChanged(ValueTree& t, const Identifier& id) override
 		{
+			JUCE_COMPILER_WARNING("Replace with valuetree");
+
 			if (t == data && id == PropertyIds::Bypassed)
 				powerButton.setToggleStateAndUpdateIcon(!t[id]);
 			if (t == data && id == PropertyIds::ID)
 				label.setText(t[id], dontSendNotification);
 		};
 
-		void valueTreeParentChanged(ValueTree& t) override { };
+		void valueTreeParentChanged(ValueTree& ) override { };
 
 		void labelTextChanged(Label*) override
 		{
@@ -411,9 +414,9 @@ public:
 			g.drawText(getName(), top.toFloat(), Justification::centred);
 		}
 
-		void addItems(StringArray& idList)
+		void addItems(const StringArray& idList)
 		{
-			for (auto id : idList)
+			for (const auto& id : idList)
 			{
 				auto newItem = new NodeItem(network.get(), id);
 				addAndMakeVisible(newItem);
@@ -485,15 +488,15 @@ public:
 
 	struct Panel : public NetworkPanel
 	{
-		Panel(FloatingTile* parent) :
-			NetworkPanel(parent)
+		Panel(FloatingTile* p) :
+			NetworkPanel(p)
 		{};
 
 		SET_PANEL_NAME("UnusedDspNodeList");
 
-		Component* createComponentForNetwork(DspNetwork* parent) override
+		Component* createComponentForNetwork(DspNetwork* p) override
 		{
-			return new DspNodeList(parent, getParentShell()->getBackendRootWindow());
+			return new DspNodeList(p, getParentShell()->getBackendRootWindow());
 		}
 	};
 
@@ -526,19 +529,21 @@ public:
 		networkTree.removeListener(this);
 	}
 
-	void selectionChanged(const NodeBase::List& selection) override
+	void selectionChanged(const NodeBase::List&) override
 	{
 		for (int i = 0; i < getNumCollections(); i++)
-		{
 			getCollection(i)->repaintAllItems();
-		}
 	}
 
-	void valueTreeChildAdded(ValueTree& p, ValueTree& c) override { triggerAsyncUpdate(); }
-	void valueTreeChildOrderChanged(ValueTree& p, int oldIndex, int newIndex) override {};
+	void valueTreeChildAdded(ValueTree& , ValueTree& ) override 
+	{
+		JUCE_COMPILER_WARNING("Replace with value tree");
+		triggerAsyncUpdate(); 
+	}
+	void valueTreeChildOrderChanged(ValueTree&, int, int) override {};
 	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { triggerAsyncUpdate(); };
-	void valueTreePropertyChanged(ValueTree& t, const Identifier& property) override {};
-	void valueTreeParentChanged(ValueTree& t) override { triggerAsyncUpdate(); };
+	void valueTreePropertyChanged(ValueTree&, const Identifier&) override {};
+	void valueTreeParentChanged(ValueTree&) override { triggerAsyncUpdate(); };
 
 	void handleAsyncUpdate() override
 	{

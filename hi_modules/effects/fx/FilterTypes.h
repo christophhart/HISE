@@ -225,13 +225,13 @@ public:
 	{
 		auto cType = FilterSubType::getCoefficientTypeList();
 
-		auto mode = cType[type];
+		auto m = cType[type];
 
-		auto f_ = frequency.getCurrentValue();
-		auto q_ = q.getCurrentValue();
-		auto g_ = gain.getCurrentValue();
+		auto f_ = (double)frequency.getCurrentValue();
+		auto q_ = (double)q.getCurrentValue();
+		auto g_ = (float)gain.getCurrentValue();
 
-		switch (mode)
+		switch (m)
 		{
 		case FilterHelpers::AllPass: return IIRCoefficients::makeAllPass(sampleRate, f_, q_);
 		case FilterHelpers::LowPassReso: return IIRCoefficients::makeLowPass(sampleRate, f_, q_);
@@ -247,6 +247,7 @@ public:
 
 	void reset(int unused=0)
 	{
+		ignoreUnused(unused);
 		frequency.setValueWithoutSmoothing(frequency.getTargetValue());
 		gain.setValueWithoutSmoothing(gain.getTargetValue());
 		q.setValueWithoutSmoothing(q.getTargetValue());
@@ -254,15 +255,17 @@ public:
 		FilterSubType::reset(numChannels);
 	}
 	
-	void processSingle(float* frameData, int numChannel)
+	void processSingle(float* frameData, int channels)
 	{
+		jassert(channels == numChannels);
+
 		if (--frameCounter <= 0)
 		{
 			frameCounter = 64;
 			updateEvery64Frame();
 		}
 
-		FilterSubType::processSingle(frameData, numChannels);
+		FilterSubType::processSingle(frameData, channels);
 	}
 
 	StringArray getModes() const
@@ -395,15 +398,15 @@ protected:
 		memset(lpData, 0, sizeof(Data)*numChannels);
 	}
 
-	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples)
+	void processSamples(AudioSampleBuffer& buffer, int startSample, int)
 	{
 		for (int c = 0; c < buffer.getNumChannels(); c++)
 		{
-			float* ptr = buffer.getWritePointer(c + startSample);
+			auto ptr = buffer.getWritePointer(c + startSample);
 
 			for (int i = 0; i < buffer.getNumSamples(); i++)
 			{
-				*ptr++ = process(*ptr, c);
+                ptr[i] = process(ptr[i], c);
 			}
 		}
 	}
@@ -420,32 +423,31 @@ protected:
 
 	void updateCoefficients(double sampleRate, double frequency, double /*q*/, double /*gain*/)
 	{
-		auto pi = double_Pi;
-
-		auto cowc = 2 * pi*frequency;
-		auto cowc2 = cowc * cowc;
-		auto cowc3 = cowc2 * cowc;
-		auto cowc4 = cowc2 * cowc2;
-		auto cok = cowc / std::tan(pi*frequency / sampleRate);
-		auto cok2 = cok * cok;
-		auto cok3 = cok2 * cok;
-		auto cok4 = cok2 * cok2;
-		auto sqrt2 = std::sqrt(2.0);
-		auto sq_tmp1 = sqrt2 * cowc3 * cok;
-		auto sq_tmp2 = sqrt2 * cowc * cok3;
-		auto a_tmp = 4.0 * cowc2*cok2 + 2.0 * sq_tmp1 + cok4 + 2.0 * sq_tmp2 + cowc4;
+		const double pi = double_Pi;
+		const double cowc = 2.0 * pi*frequency;
+		const double cowc2 = cowc * cowc;
+		const double cowc3 = cowc2 * cowc;
+		const double cowc4 = cowc2 * cowc2;
+		const double cok = cowc / std::tan(pi*frequency / sampleRate);
+		const double cok2 = cok * cok;
+		const double cok3 = cok2 * cok;
+		const double cok4 = cok2 * cok2;
+		const double sqrt2 = std::sqrt(2.0);
+		const double sq_tmp1 = sqrt2 * cowc3 * cok;
+		const double sq_tmp2 = sqrt2 * cowc * cok3;
+		const double a_tmp = 4.0 * cowc2*cok2 + 2.0 * sq_tmp1 + cok4 + 2.0 * sq_tmp2 + cowc4;
 
 		b1co = (4.0 * (cowc4 + sq_tmp1 - cok4 - sq_tmp2)) / a_tmp;
-		b2co = (6.0 * cowc4 - 8 * cowc2*cok2 + 6 * cok4) / a_tmp;
+		b2co = (6.0 * cowc4 - 8.0 * cowc2*cok2 + 6.0 * cok4) / a_tmp;
 		b3co = (4.0 * (cowc4 - sq_tmp1 + sq_tmp2 - cok4)) / a_tmp;
-		b4co = (cok4 - 2 * sq_tmp1 + cowc4 - 2 * sq_tmp2 + 4 * cowc2*cok2) / a_tmp;
+		b4co = (cok4 - 2.0 * sq_tmp1 + cowc4 - 2.0 * sq_tmp2 + 4.0 * cowc2*cok2) / a_tmp;
 
 		//================================================
 		// low-pass
 		//================================================
 		lpco.coefficients[0] = cowc4 / a_tmp;
-		lpco.coefficients[1] = 4 * cowc4 / a_tmp;
-		lpco.coefficients[2] = 6 * cowc4 / a_tmp;
+		lpco.coefficients[1] = 4.0 * cowc4 / a_tmp;
+		lpco.coefficients[2] = 6.0 * cowc4 / a_tmp;
 		lpco.coefficients[3] = lpco.coefficients[1];
 		lpco.coefficients[4] = lpco.coefficients[0];
 
@@ -453,8 +455,8 @@ protected:
 		// high-pass
 		//=====================================================
 		hpco.coefficients[0] = cok4 / a_tmp;
-		hpco.coefficients[1] = -4 * cok4 / a_tmp;
-		hpco.coefficients[2] = 6 * cok4 / a_tmp;
+		hpco.coefficients[1] = -4.0 * cok4 / a_tmp;
+		hpco.coefficients[2] = 6.0 * cok4 / a_tmp;
 		hpco.coefficients[3] = hpco.coefficients[1];
 		hpco.coefficients[4] = hpco.coefficients[0];
 
@@ -533,11 +535,21 @@ private:
 		if(mode == 0)
 			returnValue = tempy;
 
-		return returnValue;
+		return (float)returnValue;
 	}
 
-	IIRCoefficients lpco;
-	IIRCoefficients hpco;
+	struct Coefficients
+	{
+		Coefficients()
+		{
+			memset(coefficients, 0, sizeof(double) * 5);
+		}
+
+		double coefficients[5];
+	};
+
+	Coefficients lpco;
+	Coefficients hpco;
 	int mode;
 };
 

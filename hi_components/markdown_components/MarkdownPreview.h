@@ -751,7 +751,7 @@ public:
 						}
 					}
 
-					if (currentSelection = displayedItems[itemIndex])
+					if ((currentSelection = displayedItems[itemIndex]))
 					{
 						for (auto s : displayedItems)
 						{

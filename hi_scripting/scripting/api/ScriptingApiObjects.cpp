@@ -376,7 +376,7 @@ juce::String ScriptingObjects::ScriptingSamplerSound::getDebugValue() const
 	return sound != nullptr ? sound->getPropertyAsString(SampleIds::FileName) : "";
 }
 
-void ScriptingObjects::ScriptingSamplerSound::rightClickCallback(const MouseEvent& e, Component *c)
+void ScriptingObjects::ScriptingSamplerSound::rightClickCallback(const MouseEvent&, Component *)
 {
 
 }
@@ -431,7 +431,7 @@ var ScriptingObjects::ScriptingSamplerSound::loadIntoBufferArray()
 
 		if (reader != nullptr)
 		{
-			int numSamplesToRead = reader->lengthInSamples;
+			int numSamplesToRead = (int)reader->lengthInSamples;
 			bool isStereo = reader->numChannels == 2;
 
 			if (numSamplesToRead > 0)

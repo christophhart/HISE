@@ -932,8 +932,6 @@ void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 
 void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent& e)
 {
-	auto area = parent->getContainerBounds();
-
 	auto e2 = e.getEventRelativeTo(parent);
 
 	downOffset = parent->isVertical() ? e2.getMouseDownY() : e2.getMouseDownX();

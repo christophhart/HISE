@@ -246,9 +246,9 @@ void StaticBiquadSubType::processSamples(AudioSampleBuffer& b, int startSample, 
 	}
 }
 
-void StaticBiquadSubType::processSingle(float* d, int numChannels)
+void StaticBiquadSubType::processSingle(float* d, int channels)
 {
-	for (int i = 0; i < numChannels; i++)
+	for (int i = 0; i < channels; i++)
 	{
 		d[i] = filters[i].processSingleSampleRaw(d[i]);
 	}

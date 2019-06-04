@@ -231,7 +231,7 @@ private:
 
 		void processFrame(float* frameData, int numChannels)
 		{
-			filters[r.voiceIndex].processFrame(frameData, numChannels);
+			filters[this->r.voiceIndex].processFrame(frameData, numChannels);
 		}
 
 		void setSampleRate(double sampleRate) override
@@ -319,7 +319,7 @@ private:
 
 #ifndef FILL_PARAMETER_ID
 /** Adds a case statement for the enum and returns the name of the enum. */
-#define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: size = HelperFunctions::writeString(text, #enumId); break;
+#define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: size = (int)HelperFunctions::writeString(text, #enumId); break;
 #endif
 
 
@@ -425,9 +425,9 @@ public:
 			switch (index)
 			{
 			case Parameters::Gain:			return internalFilter.getGain();
-			case Parameters::Frequency:		return internalFilter.getFrequency();
-			case Parameters::Q:				return internalFilter.getQ();
-			case Parameters::Mode:			return internalFilter.getMode();
+			case Parameters::Frequency:		return (float)internalFilter.getFrequency();
+			case Parameters::Q:				return (float)internalFilter.getQ();
+			case Parameters::Mode:			return (float)internalFilter.getMode();
 			case Parameters::SmoothingTime: return smoothingTime;
 			case Parameters::Reset:			
 			
@@ -444,7 +444,7 @@ public:
 			internalFilter.renderMono(r);
 		}
 
-		void prepareToPlay(double sampleRate, int blockSize) override
+		void prepareToPlay(double sampleRate, int) override
 		{
 			internalFilter.setSampleRate(sampleRate);
 		}

@@ -295,8 +295,6 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			auto smoothed_input_l = (float*)alloca(sizeof(float)*numSamples);
 			auto smoothed_input_r = (float*)alloca(sizeof(float)*numSamples);
 
-			int numToDo = numSamples;
-
 			float s_gain = 0.0f;
 			float s_step = 1.0f / (float)numSamples;
 

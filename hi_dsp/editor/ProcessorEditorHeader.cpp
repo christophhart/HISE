@@ -115,8 +115,6 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	plotButton->addListener(this);
 	plotButton->setTooltip("Open a plot window to display the modulator value.");
     
-	Colour buttonColour = isHeaderOfModulatorSynth() ? Colours::black : Colours::white;
-
 	addAndMakeVisible(bypassButton = new HeaderButton("Bypass Button", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape), this));
 
 	
@@ -130,7 +128,8 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     foldButton->addListener (this);
 
 	addAndMakeVisible(workspaceButton = new ShapeButton("Workspace", Colours::white, Colours::white, Colours::white));
-	Path workspacePath = ColumnIcons::getPath(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
+    Path workspacePath;
+    workspacePath.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
 	workspaceButton->setShape(workspacePath, true, true, true);
 	workspaceButton->addListener(this);
 	workspaceButton->setToggleState(true, dontSendNotification);

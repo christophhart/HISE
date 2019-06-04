@@ -96,6 +96,8 @@ protected:
 		ringBuffer(ringBuffer_)
 	{};
 
+    virtual ~OscilloscopeBase() {};
+    
 	virtual Colour getColourForAnalyserBase(int colourId) = 0;
 
 	void drawWaveform(Graphics& g);
@@ -195,6 +197,8 @@ protected:
 	IppFFT fftObject;
 #endif
 
+    virtual ~FFTDisplayBase() {};
+    
 	virtual Colour getColourForAnalyserBase(int colourId) = 0;
 	virtual double getSamplerate() const = 0;
 

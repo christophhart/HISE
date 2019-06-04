@@ -63,6 +63,8 @@ public:
 
 	struct Manager
 	{
+        virtual ~Manager() {};
+        
 		virtual void suspendStateChanged(bool shouldBeSuspended) = 0;
 	};
 

@@ -350,7 +350,7 @@ public:
 			resetFFT();
 		}
 
-		void prepareToPlay(double sampleRate, int blockSize) override
+		void prepareToPlay(double /*sampleRate*/, int blockSize) override
 		{
 			lastSize = nextPowerOfTwo(blockSize);
 
@@ -514,6 +514,7 @@ public:
 
 						break;
 					}
+                        default: break;
 					}
 				}
 			}
@@ -539,7 +540,7 @@ public:
 
 			if (lastSize != -1)
 			{
-				auto tempBufferSize = audiofft::AudioFFT::ComplexSize(lastSize);
+				auto tempBufferSize = (int)audiofft::AudioFFT::ComplexSize(lastSize);
 
 				if (realTempBuffer.getNumChannels() != numChannels ||
 					realTempBuffer.getNumSamples() != tempBufferSize)

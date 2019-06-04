@@ -74,10 +74,7 @@ public:
 			p.getHeightForWidth((float)getWidth());
 		}
 
-
 		DspObjectDebugger& parent;
-
-		String s;
 
 		MarkdownRenderer p;
 	};
@@ -159,7 +156,7 @@ public:
 
 		void sliderValueChanged(Slider* slider) override
 		{
-			parent.obj->setParameter(index, slider->getValue());
+			parent.obj->setParameter(index, (float)slider->getValue());
 		}
 
 		void paint(Graphics& g) override
@@ -174,7 +171,7 @@ public:
 
 		static String getStringFromVar(var value)
 		{
-			
+            return value.toString();
 		}
 
 		void update(var newValue)

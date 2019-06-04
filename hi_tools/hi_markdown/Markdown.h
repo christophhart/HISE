@@ -222,7 +222,7 @@ public:
 	
 	MarkdownParser(const String& markdownCode);
 
-	~MarkdownParser();
+	virtual ~MarkdownParser();
 
 	void setFonts(Font normalFont, Font codeFont, Font headlineFont, float defaultFontSize);
 

@@ -128,6 +128,8 @@ public:
 		setCreateFooter(true);
 		parse();
 	}
+    
+    virtual ~Markdown2HtmlConverter() {};
 
 	void setHeaderFile(File headerFile)
 	{

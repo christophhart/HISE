@@ -1463,7 +1463,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 				
 
 				auto bounds = button.getLocalBounds();
-				auto pBounds = isNextLink ? bounds.removeFromRight(h) : bounds.removeFromLeft(h);
+				isNextLink ? bounds.removeFromRight(h) : bounds.removeFromLeft(h);
 
 				g.setFont(font);
 				g.setColour(textColour.withAlpha(button.isEnabled() ? 1.0f : 0.1f));

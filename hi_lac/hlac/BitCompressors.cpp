@@ -126,7 +126,7 @@ void unpackArrayOfInt16(int16* d, int /*numValues*/, uint8 bitDepth)
 {
 	jassert(reinterpret_cast<uint64>(d) % 16 == 0);
 
-#if HI_ENABLE_LEGACY_CPU_SUPPORT || JUCE_IOS
+#if HI_ENABLE_LEGACY_CPU_SUPPORT || !JUCE_WINDOWS
 	for (int i = 0; i < 8; i++)
 	{
 		d[i] = decompressUInt16(d[i], bitDepth);

@@ -90,6 +90,7 @@ juce::MidiMessage HiseEvent::toMidiMesage() const
 	case Type::PitchBend:	return MidiMessage::pitchWheel(channel, getPitchWheelValue());
 	case Type::Aftertouch:	return MidiMessage::aftertouchChange(channel, number, value);
 	case Type::ProgramChange: return MidiMessage::programChange(channel, getPitchWheelValue());
+    default: break;
 	}
 
 	// the other types can't be converted correctly...

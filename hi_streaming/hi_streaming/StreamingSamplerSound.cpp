@@ -311,6 +311,8 @@ bool StreamingSamplerSound::replaceAudioFile(const AudioSampleBuffer& b)
 
 		return false;
 	}
+    
+    return false;
 }
 
 bool StreamingSamplerSound::isMonolithic() const
@@ -989,6 +991,10 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 	}
 }
 
+float getAbsoluteValue(float input)
+{
+    return input > 0.0f ? input : input * -1.0f;
+}
 
 float StreamingSamplerSound::FileReader::calculatePeakValue()
 {
@@ -1012,8 +1018,9 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 
 	closeFileHandles();
 
-	const float maxLeft = jmax<float>(abs(l1), abs(l2));
-	const float maxRight = jmax<float>(abs(r1), abs(r2));
+    // so tired of std::abs...
+    const float maxLeft = jmax<float>(getAbsoluteValue(l1), getAbsoluteValue(l2));
+	const float maxRight = jmax<float>(getAbsoluteValue(r1), getAbsoluteValue(r2));
 
 	return jmax<float>(maxLeft, maxRight);
 }

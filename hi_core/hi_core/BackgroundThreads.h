@@ -136,7 +136,7 @@ public:
 			handler->registerHelper(this);
 	}
 
-	~ComponentWithHelp()
+	virtual ~ComponentWithHelp()
 	{
 		if (handler != nullptr)
 			handler->removeHelper(this);

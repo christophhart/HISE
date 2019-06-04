@@ -418,6 +418,8 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(DatabaseListener);
 	};
 
+    virtual ~MarkdownDatabaseHolder() {};
+    
 	const MarkdownDataBase& getDatabase() const
 	{
 		return db;

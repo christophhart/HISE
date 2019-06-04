@@ -137,8 +137,8 @@ public:
 	{
 		switch (parameterIndex)
 		{
-		case Parameters::Enabled:     0.0f;
-		case Parameters::Volume:      -12.0f;
+		case Parameters::Enabled:     return 0.0f;
+		case Parameters::Volume:      return -12.0f;
 		case Parameters::NoiseAmount: return 0.5f;
 		default:	return 0.0f;
 		}
@@ -194,8 +194,6 @@ public:
 	{
 		if (enabled && player != nullptr)
 		{
-			auto pos = player->getPlaybackPosition();
-
 			auto thisQuarter = getQuarterFromPosition();
 
 			if (thisQuarter != lastQuarter && thisQuarter >= 0)
@@ -228,8 +226,8 @@ public:
 
 					auto mValue = gain * (noiseAmount * n + (1.0f - noiseAmount) * s);
 
-					*l++ += mValue;
-					*r++ += mValue;
+					*l++ += (float)mValue;
+					*r++ += (float)mValue;
 				}
 			}
 		}
@@ -248,10 +246,10 @@ public:
 		return (int)std::floor(lastPos);
 	}
 
-	void connectToPlayer(const String& id)
+	void connectToPlayer(const String& playerId)
 	{
-		if(id.isNotEmpty())
-			player = dynamic_cast<MidiPlayer*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), id));
+		if(playerId.isNotEmpty())
+			player = dynamic_cast<MidiPlayer*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), playerId));
 
 		sendChangeMessage();
 	}

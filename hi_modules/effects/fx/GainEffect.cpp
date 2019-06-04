@@ -376,7 +376,7 @@ public:
 
 	}
 
-	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+	void comboBoxChanged(ComboBox*) override
 	{
 		dynamic_cast<MidiMetronome*>(getProcessor())->connectToPlayer(midiPlayerSelector.getText());
 	}
