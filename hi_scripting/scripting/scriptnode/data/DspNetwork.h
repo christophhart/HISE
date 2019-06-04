@@ -148,7 +148,14 @@ public:
 
 	NodeBase::List getSelection() const { return selection.getItemArray(); }
 
+	void setVoiceIndex(int newVoiceIndex)
+	{
+		voiceIndex = newVoiceIndex;
+	}
+
 private:
+
+	int voiceIndex = -1;
 
 	SelectedItemSet<NodeBase::Ptr> selection;
 
@@ -212,7 +219,7 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetwork);
 };
 
-#define SCRIPTNODE_FACTORY(x, id) static NodeBase* createNode(DspNetwork* n, ValueTree& d) { return new x(n, d); }; \
+#define SCRIPTNODE_FACTORY(x, id) static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new x(n, d); }; \
 								  static Identifier getStaticId() { return Identifier(id); };
 
 class NodeFactory
@@ -223,6 +230,8 @@ public:
 		network(n)
 	{};
 
+    virtual ~NodeFactory() {};
+    
 	using CreateCallback = std::function<NodeBase*(DspNetwork*, ValueTree)>;
 	using PostCreateCallback = std::function<void(NodeBase* n)>;
 	using IdFunction = std::function<Identifier()>;
@@ -242,7 +251,12 @@ public:
 
 	template <class T> void registerNode(const PostCreateCallback& cb = {})
 	{
-		registeredItems.add({ T::createNode, T::getStaticId, cb });
+        Item newItem;
+        newItem.cb = T::createNode;
+        newItem.id = T::getStaticId;
+        newItem.pb = cb;
+        
+		registeredItems.add(newItem);
 	};
 
 	virtual Identifier getId() const = 0;

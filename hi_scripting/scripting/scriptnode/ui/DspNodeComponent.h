@@ -66,8 +66,8 @@ struct ModulationSourcePlotter : ModulationSourceBaseComponent
 		
 		float rectangleWidth = 0.5f;
 
-		auto width = (float)getWidth() - 2.0 * offset;
-		auto maxHeight = (float)getHeight() - 2.0 * offset;
+		auto width = (float)getWidth() - 2.0f * offset;
+		auto maxHeight = (float)getHeight() - 2.0f * offset;
 
 		int samplesPerPixel = ModulationSourceNode::RingBufferSize / jmax((int)(width/rectangleWidth), 1);
 
@@ -105,8 +105,10 @@ struct ModulationSourcePlotter : ModulationSourceBaseComponent
 };
 
 
-struct DefaultParameterNodeComponent : public NodeComponent
+class DefaultParameterNodeComponent : public NodeComponent
 {
+public:
+
 	DefaultParameterNodeComponent(NodeBase* node);;
 
 	void setExtraComponent(Component* newExtraComponent)

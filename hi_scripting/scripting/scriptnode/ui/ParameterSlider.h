@@ -52,17 +52,17 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
 		public SliderListener
 	{
 		SliderLabel(Slider& s) :
-			parent(s)
+			parent(&s)
 		{
-			parent.addListener(this);
-			setText(parent.getName(), dontSendNotification);
+			parent->addListener(this);
+			setText(parent->getName(), dontSendNotification);
 		};
 
 		void editorShown(TextEditor* ed)
 		{
 			Label::editorShown(ed);
 
-			ed->setText(parent.getTextFromValue(parent.getValue()), dontSendNotification);
+			ed->setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
 			ed->selectAll();
 			ed->setBounds(getLocalBounds());
 		}
@@ -70,31 +70,31 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
 		void resized() override
 		{
 			if (getCurrentTextEditor() == nullptr)
-				setText(parent.getName(), dontSendNotification);
+				setText(parent->getName(), dontSendNotification);
 		}
 
 		~SliderLabel()
 		{
-			parent.removeListener(this);
+            
 		}
 
 		void sliderValueChanged(Slider*) override
 		{
-			if (parent.isMouseOverOrDragging(true))
-				setText(parent.getTextFromValue(parent.getValue()), dontSendNotification);
+			if (parent->isMouseOverOrDragging(true))
+				setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
 		}
 
 		void sliderDragEnded(Slider*)
 		{
-			setText(parent.getName(), dontSendNotification);
+			setText(parent->getName(), dontSendNotification);
 		}
 
 		void sliderDragStarted(Slider*)
 		{
-			setText(parent.getTextFromValue(parent.getValue()), dontSendNotification);
+			setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
 		}
 
-		Slider& parent;
+        Component::SafePointer<Slider> parent;
 	};
 
 
@@ -109,7 +109,8 @@ struct ParameterSlider : public Slider,
 	public PooledUIUpdater::SimpleTimer
 {
 	ParameterSlider(NodeBase* node_, int index);
-
+    ~ParameterSlider();
+    
 	void checkEnabledState(Identifier, var);
 	void updateRange(Identifier, var);
 	void timerCallback() override;

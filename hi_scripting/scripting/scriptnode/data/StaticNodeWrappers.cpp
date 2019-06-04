@@ -35,6 +35,16 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+NodeComponent* ComponentHelpers::createDefaultComponent(NodeBase* n)
+{
+    return  new DefaultParameterNodeComponent(n);
+}
+ 
+void ComponentHelpers::addExtraComponentToDefault(NodeComponent* nc, Component* c)
+{
+    dynamic_cast<DefaultParameterNodeComponent*>(nc)->setExtraComponent(c);
+}
+    
 scriptnode::HiseDspBase::ParameterData HardcodedNode::getParameter(const String& id)
 {
 	for (auto& c : internalParameterList)

@@ -146,7 +146,14 @@ public:
 		ignoreUnused(n);
 	}
 
+	virtual void prepare(PrepareSpecs specs) {};
+
 	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
+
+	virtual void handleHiseEvent(HiseEvent& e)
+	{
+		ignoreUnused(e);
+	};
 
 	virtual Array<HiseDspBase*> createListOfNodesWithSameId()
 	{
@@ -166,6 +173,12 @@ public:
 	virtual void createParameters(Array<ParameterData>& data) = 0;
 };
 
+template <int V> class PolyDspBase : public HiseDspBase
+{
+public:
+
+	static constexpr int NumVoices = V;
+};
 
 template <class T> class SingleWrapper : public HiseDspBase
 {
@@ -179,6 +192,11 @@ public:
 	Component* createExtraComponent(PooledUIUpdater* updater) override
 	{
 		return obj.createExtraComponent(updater);
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		obj.handleHiseEvent(e);
 	}
 
 	HardcodedNode* getAsHardcodedNode() override { return obj.getAsHardcodedNode(); }
@@ -195,6 +213,134 @@ protected:
 
 	T obj;
 };
+
+namespace wrap
+{
+template <class T> class synth : public SingleWrapper<T>
+{
+public:
+
+	void process(ProcessData& d)
+	{
+		HiseEventBuffer::Iterator it(*d.eventBuffer);
+
+		float* currentChannels[NUM_MAX_CHANNELS];
+		memcpy(currentChannels, d.data, sizeof(float*) * d.numChannels);
+
+		int samplePos = 0;
+		int lastPos = 0;
+		HiseEvent e;
+		int numTodo = d.size;
+
+		while (it.getNextEvent(e, samplePos, true))
+		{
+			handleEvent(e);
+
+			int numThisTime = samplePos - lastPos;
+
+			if (numThisTime > 0)
+			{
+				ProcessData copy(currentChannels, d.numChannels, numThisTime);
+				copy.eventBuffer = nullptr;
+				renderVoices(copy);
+				lastPos = samplePos;
+				copy.advanceChannelPointers(numThisTime);
+				numTodo -= numThisTime;
+			}
+		}
+
+		if (numTodo > 0)
+		{
+			ProcessData copy(currentChannels, d.numChannels, numTodo);
+			copy.eventBuffer = nullptr;
+			renderVoices(copy);
+		}
+	}
+
+	void handleEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+		{
+			auto newVoiceIndex = (uint16)voiceMask.findNextClearBit(0);
+			voiceMask.setBit(newVoiceIndex, true);
+			activeVoices.insert({ newVoiceIndex, e });
+
+			DBG("Start voice with index " + String(newVoiceIndex));
+
+			ScopedValueSetter<int> svs(currentVoiceIndex, newVoiceIndex);
+			this->obj.reset();
+		}
+
+		for (const auto& av : activeVoices)
+		{
+			ScopedValueSetter<int> svs(currentVoiceIndex, av.voiceIndex);
+			this->handleHiseEvent(e);
+		}
+	}
+
+	void renderVoices(ProcessData& d)
+	{
+		for (int i = 0; i < activeVoices.size(); i++)
+		{
+			if(!renderVoice(d, activeVoices[i]))
+			{
+				jassert(!voiceMask[activeVoices[i].voiceIndex]);
+				DBG("Stop voice with index " + String(activeVoices[i].voiceIndex));
+				activeVoices.removeElement(i--);
+			}
+		}	
+	}
+
+	bool renderVoice(ProcessData& d, const VoiceData& vd)
+	{
+		float* chData[NUM_MAX_CHANNELS];
+		auto data = ALLOCA_FLOAT_ARRAY(d.size * d.numChannels);
+		auto copy = d.copyToRawArray(chData, data, true);
+		copy.shouldReset = true;
+
+		ScopedValueSetter<int> svs(currentVoiceIndex, vd.voiceIndex);
+		this->obj.process(copy);
+
+		d += copy;
+
+		if (copy.shouldReset)
+		{
+			voiceMask.clearBit(vd.voiceIndex);
+			return false;
+		}
+
+		return true;
+	}
+
+	void reset()
+	{
+		this->obj.reset();
+
+		activeVoices.clear();
+		voiceMask.clear();
+	}
+
+	void processSingle(float* d, int numChannels)
+	{
+		jassertfalse;
+	}
+
+	void prepare(PrepareSpecs specs)
+	{
+		specs.voiceIndex = &currentVoiceIndex;
+		this->obj.prepare(specs);
+	}
+	
+	void createParameters(Array<HiseDspBase::ParameterData>& data) override
+	{
+		this->obj.createParameters(data);
+	}
+
+	hise::UnorderedStack<VoiceData> activeVoices;
+	BigInteger voiceMask;
+	int currentVoiceIndex = -1;
+};
+}
 
 
 

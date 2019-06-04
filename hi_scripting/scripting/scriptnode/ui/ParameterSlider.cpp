@@ -70,6 +70,11 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 
 	setScrollWheelEnabled(false);
 }
+    
+ParameterSlider::~ParameterSlider()
+{
+    removeListener(this);
+}
 
 
 void ParameterSlider::checkEnabledState(Identifier, var)
@@ -215,6 +220,7 @@ juce::Font ParameterKnobLookAndFeel::getLabelFont(Label&)
 	return GLOBAL_BOLD_FONT();
 }
 
+    
 
 juce::Label* ParameterKnobLookAndFeel::createSliderTextBox(Slider& slider)
 {

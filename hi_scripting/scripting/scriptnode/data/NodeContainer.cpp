@@ -41,7 +41,7 @@ NodeContainer::NodeContainer()
 
 }
 
-void NodeContainer::nodeAddedOrRemoved(ValueTree& child, bool wasAdded)
+void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 {
 	auto n = asNode();
 	if (auto nodeToProcess = n->getRootNetwork()->getNodeForValueTree(child))
@@ -67,7 +67,7 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree& child, bool wasAdded)
 }
 
 
-void NodeContainer::parameterAddedOrRemoved(ValueTree& child, bool wasAdded)
+void NodeContainer::parameterAddedOrRemoved(ValueTree child, bool wasAdded)
 {
 	auto n = asNode();
 
@@ -99,7 +99,15 @@ void NodeContainer::updateChannels(ValueTree v, Identifier id)
 		channelLayoutChanged(nullptr);
 
 		if (originalSampleRate > 0.0)
-			asNode()->prepare(originalSampleRate, originalBlockSize);
+		{
+			PrepareSpecs ps;
+			ps.numChannels = asNode()->getNumChannelsToProcess();
+			ps.blockSize = originalBlockSize;
+			ps.sampleRate = originalSampleRate;
+			ps.voiceIndex = lastVoiceIndex;
+
+			asNode()->prepare(ps);
+		}
 	}
 	else if (v.getParent() == getNodeTree())
 	{
@@ -107,13 +115,19 @@ void NodeContainer::updateChannels(ValueTree v, Identifier id)
 			return;
 
 		auto childNode = asNode()->getRootNetwork()->getNodeForValueTree(v);
-
 		ScopedValueSetter<bool> svs(channelRecursionProtection, true);
-
 		channelLayoutChanged(childNode);
 
 		if (originalSampleRate > 0.0)
-			asNode()->prepare(originalSampleRate, originalBlockSize);
+		{
+			PrepareSpecs ps;
+			ps.numChannels = asNode()->getNumChannelsToProcess();
+			ps.blockSize = originalBlockSize;
+			ps.sampleRate = originalSampleRate;
+			ps.voiceIndex = lastVoiceIndex;
+
+			asNode()->prepare(ps);
+		}
 	}
 }
 
@@ -457,10 +471,10 @@ void ChainNode::processSingle(float* frameData, int numChannels)
 	wrapper.processSingle(frameData, numChannels);
 }
 
-void ChainNode::prepare(double sampleRate, int blockSize)
+void ChainNode::prepare(PrepareSpecs ps)
 {
-	NodeContainer::prepareNodes(sampleRate, blockSize);
-	wrapper.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
+	NodeContainer::prepareNodes(ps);
+	wrapper.prepare(ps);
 }
 
 String ChainNode::getCppCode(CppGen::CodeLocation location)
@@ -514,7 +528,7 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 	h += UIValues::NodeMargin;
 	h += UIValues::HeaderHeight; // the input
 
-	if (data[PropertyIds::ShowParameters])
+	if (v_data[PropertyIds::ShowParameters])
 		h += UIValues::ParameterHeight;
 
 	h += PinHeight; // the "hole" for the cable
@@ -581,7 +595,7 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 	y += UIValues::HeaderHeight;
 	y += UIValues::PinHeight;
 
-	if (data[PropertyIds::ShowParameters])
+	if (v_data[PropertyIds::ShowParameters])
 		y += UIValues::ParameterHeight;
 
 	Point<int> startPos(UIValues::NodeMargin, y);
@@ -609,11 +623,12 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 }
 
 
-void SplitNode::prepare(double sampleRate, int blockSize)
+void SplitNode::prepare(PrepareSpecs ps)
 {
-	NodeContainer::prepareNodes(sampleRate, blockSize);
+	NodeContainer::prepareNodes(ps);
 
-	DspHelpers::increaseBuffer(splitBuffer, getNumChannelsToProcess() * 2, blockSize);
+	ps.numChannels *= 2;
+	DspHelpers::increaseBuffer(splitBuffer, ps);
 }
 
 juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
@@ -873,7 +888,7 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 	h += UIValues::NodeMargin;
 	h += UIValues::HeaderHeight; // the input
 
-	if (data[PropertyIds::ShowParameters])
+	if (v_data[PropertyIds::ShowParameters])
 		h += UIValues::ParameterHeight;
 
 	h += PinHeight; // the "hole" for the cable
@@ -1008,7 +1023,7 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 
 	connectionListener.setCallback(getConnectionTree(),
 		valuetree::AsyncMode::Synchronously,
-		[this](ValueTree& child, bool wasAdded)
+		[this](ValueTree child, bool wasAdded)
 	{
 		if (!wasAdded)
 		{
@@ -1084,7 +1099,7 @@ void NodeContainer::MacroParameter::rebuildCallback()
 }
 
 
-void NodeContainer::MacroParameter::updateRangeForConnection(ValueTree& v, Identifier)
+void NodeContainer::MacroParameter::updateRangeForConnection(ValueTree v, Identifier)
 {
 	RangeHelpers::checkInversion(v, &rangeListener, parent->getUndoManager());
 	rebuildCallback();
@@ -1131,6 +1146,7 @@ EventProcessorNode::EventProcessorNode(DspNetwork* n, ValueTree t):
 	SerialNode(n, t)
 {
 	obj.initialise(this);
+	initListeners();
 }
 
 }

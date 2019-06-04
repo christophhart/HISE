@@ -53,7 +53,7 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 	});
 
 	rebuildListener.setCallback(dataReference, valuetree::AsyncMode::Synchronously,
-		[this](ValueTree& c, bool)
+		[this](ValueTree c, bool)
 	{
 		if (c.getType() == PropertyIds::Node)
 			triggerAsyncUpdate();

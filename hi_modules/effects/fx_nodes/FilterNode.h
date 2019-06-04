@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-#pragma once;
+#pragma once
 
 namespace scriptnode {
 using namespace juce;
@@ -113,8 +113,8 @@ public:
 			ExtraComponent<FilterNodeBase<FilterType>>(d, h),
 			filterGraph(1)
 		{
-			lastCoefficients = getObject()->filter.getApproximateCoefficients();
-			addAndMakeVisible(filterGraph);
+			lastCoefficients = this->getObject()->filter.getApproximateCoefficients();
+			this->addAndMakeVisible(filterGraph);
 			filterGraph.addFilter(hise::FilterType::HighPass);
 		}
 
@@ -129,19 +129,19 @@ public:
 
 		void timerCallback() override
 		{
-			IIRCoefficients thisCoefficients = getObject()->filter.getApproximateCoefficients();
+			IIRCoefficients thisCoefficients = this->getObject()->filter.getApproximateCoefficients();
 
 			if (coefficientsChanged(lastCoefficients, thisCoefficients))
 			{
 				lastCoefficients = thisCoefficients;
-				filterGraph.setCoefficients(0, getObject()->sr, thisCoefficients);
+				filterGraph.setCoefficients(0, this->getObject()->sr, thisCoefficients);
 			}
 		}
 
 		void resized() override
 		{
-			if (getWidth() > 0)
-				filterGraph.setBounds(getLocalBounds());
+			if (this->getWidth() > 0)
+				filterGraph.setBounds(this->getLocalBounds());
 		}
 
 		IIRCoefficients lastCoefficients;
@@ -155,11 +155,11 @@ public:
 
 	bool handleModulation(double&) noexcept { return false; };
 
-	forcedinline void prepare(int numChannels, double sampleRate, double blockSize) noexcept
+	forcedinline void prepare(PrepareSpecs ps) noexcept
 	{
-		sr = sampleRate;
-		filter.setNumChannels(numChannels);
-		filter.setSampleRate(sampleRate);
+		sr = ps.sampleRate;
+		filter.setNumChannels(ps.numChannels);
+		filter.setSampleRate(ps.sampleRate);
 	}
 
 	forcedinline void process(ProcessData& d) noexcept

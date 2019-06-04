@@ -41,8 +41,11 @@ using namespace hise;
 
 
 
-void DspHelpers::increaseBuffer(AudioSampleBuffer& b, int numChannels, int numSamples)
+void DspHelpers::increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& specs)
 {
+	auto numChannels = specs.numChannels;
+	auto numSamples = specs.blockSize;
+
 	if (numChannels != b.getNumChannels() ||
 		b.getNumSamples() < numSamples)
 	{
@@ -140,7 +143,7 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::wrapIntoConversionLambda(c
 }
 
 
-double DspHelpers::findPeak(ProcessData& data)
+double DspHelpers::findPeak(const ProcessData& data)
 {
 	double max = 0.0;
 

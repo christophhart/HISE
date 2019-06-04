@@ -81,9 +81,9 @@ public:
 		}
 	}
 
-	void prepare(double sampleRate, int blockSize) final override
+	void prepare(PrepareSpecs ps) final override
 	{
-		prepareNodes(sampleRate, blockSize);
+		prepareNodes(ps);
 	}
 
 	void reset() final override
@@ -96,10 +96,14 @@ public:
 		return isBypassed() ? originalBlockSize : FixedBlockSize;
 	}
 
-	void updateBypassState(Identifier, var newValue)
+	void updateBypassState(Identifier, var)
 	{
-		auto b = (bool)newValue;
-		prepare(originalBlockSize, originalSampleRate);
+		PrepareSpecs ps;
+		ps.numChannels = getNumChannelsToProcess();
+		ps.blockSize = originalBlockSize;
+		ps.sampleRate = originalSampleRate;
+		
+		prepare(ps);
 	}
 
 	AudioSampleBuffer b;
@@ -156,9 +160,9 @@ public:
 		obj.reset();
 	}
 
-	void prepare(double sampleRate, int blockSize) final override
+	void prepare(PrepareSpecs ps) final override
 	{
-		prepareNodes(sampleRate, blockSize);
+		prepareNodes(ps);
 	}
 
 	void process(ProcessData& data) final override
@@ -183,10 +187,8 @@ public:
 		obj.processSingle(frameData, numChannels);
 	}
 
-	void updateBypassState(Identifier, var newValue)
+	void updateBypassState(Identifier, var)
 	{
-		auto b = (bool)newValue;
-		
 		prepare(originalSampleRate, originalBlockSize);
 	}
 

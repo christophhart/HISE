@@ -47,7 +47,7 @@ public:
 
 	static constexpr int ExtraHeight = T::ExtraHeight;
 
-	int getExtraWidth() const { return obj.getExtraWidth(); }
+	int getExtraWidth() const { return this->obj.getExtraWidth(); }
 	static constexpr bool isModulationSource = T::isModulationSource;
 
 	forcedinline void process(ProcessData& data) noexcept
@@ -61,7 +61,7 @@ public:
 
 			ProcessData stackData(stackChannels, data.numChannels, data.size);
 
-			obj.process(stackData);
+			this->obj.process(stackData);
 
 			float wet[NUM_MAX_CHANNELS];
 			float dry[NUM_MAX_CHANNELS];
@@ -87,7 +87,7 @@ public:
 			if (bypassed)
 				return;
 
-			obj.process(data);
+			this->obj.process(data);
 		}
 	}
 
@@ -97,7 +97,7 @@ public:
 		{
 			FloatVectorOperations::copy(wetFrameData, frameData, numChannels);
 
-			obj.processSingle(wetFrameData, numChannels);
+			this->obj.processSingle(wetFrameData, numChannels);
 
 			auto rampValue = bypassRamper.getNextValue();
 			auto invRampValue = 1.0f - rampValue;
@@ -110,33 +110,31 @@ public:
 			if (bypassed)
 				return;
 
-			obj.processSingle(frameData, numChannels);
+			this->obj.processSingle(frameData, numChannels);
 		}
 	}
 
 	bool shouldSmoothBypass() const { return bypassRamper.isSmoothing(); }
 
-	void prepare(int numChannels, double sampleRate, int samplesPerBlock)
+	void prepare(PrepareSpecs ps)
 	{
-		sr = sampleRate;
+		sr = ps.sampleRate;
 		bypassRamper.reset(sr, smoothTimeMs * 0.001);
-
-		DspHelpers::increaseBuffer(wetBuffer, numChannels, samplesPerBlock);
-
-		obj.prepare(numChannels, sampleRate, samplesPerBlock);
+		DspHelpers::increaseBuffer(wetBuffer, ps);
+		this->obj.prepare(ps);
 	}
 
-	void reset() { obj.reset(); }
+	void reset() { this->obj.reset(); }
 
 	constexpr bool allowsModulation()
 	{
-		return obj.isModulationSource;
+		return this->obj.isModulationSource;
 	}
 
 	forcedinline bool handleModulation(double& value) noexcept
 	{
 		if (!bypassed)
-			return obj.handleModulation(value);
+			return this->obj.handleModulation(value);
 
 		return false;
 	}
@@ -149,7 +147,7 @@ public:
 	void setBypassed(bool shouldBeBypassed)
 	{
 		bypassed = shouldBeBypassed;
-		bypassRamper.setTargetValue(bypassed ? 0.0 : 1.0);
+		bypassRamper.setTargetValue(bypassed ? 0.0f : 1.0f);
 	}
 
 	void setBypassedFromValueTreeCallback(Identifier id, var newValue)
@@ -178,7 +176,7 @@ public:
 
 		}
 		
-		obj.createParameters(data);
+		this->obj.createParameters(data);
 	}
 
 private:
@@ -218,9 +216,9 @@ public:
 		return obj.isModulationSource;
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(numChannels, sampleRate, blockSize);
+		obj.prepare(ps);
 	}
 
 	forcedinline void reset() noexcept { obj.reset(); }
@@ -279,9 +277,9 @@ public:
 		return obj.isModulationSource;
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(numChannels, sampleRate, blockSize);
+		obj.prepare(ps);
 	}
 
 	forcedinline void reset() noexcept { obj.reset(); }

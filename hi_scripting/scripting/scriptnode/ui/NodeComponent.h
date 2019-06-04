@@ -39,8 +39,10 @@ using namespace hise;
 using namespace juce;
 
 
-struct NodeComponent : public Component
+class NodeComponent : public Component
 {
+public:
+
 	enum class MenuActions
 	{
 		ExportAsCpp = 1,
@@ -73,7 +75,7 @@ struct NodeComponent : public Component
 		void mouseUp(const MouseEvent& e) override;
 		void mouseDrag(const MouseEvent& e) override;
 		
-		bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override
+		bool isInterestedInDragSource(const SourceDetails&) override
 		{
 			return true;
 		}
@@ -94,7 +96,7 @@ struct NodeComponent : public Component
 			repaint();
 		}
 
-		void itemDragExit(const SourceDetails& dragSourceDetails) override
+		void itemDragExit(const SourceDetails&) override
 		{
 			isHoveringOverBypass = false;
 			repaint();

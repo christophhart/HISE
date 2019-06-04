@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-#pragma once;
+#pragma once
 
 namespace scriptnode {
 using namespace juce;
@@ -38,22 +38,22 @@ using namespace hise;
 
 struct DynamicHelpers
 {
-	static Identifier getId(chunkware_simple::SimpleGate* ptr)
+	static Identifier getId(chunkware_simple::SimpleGate*)
 	{
 		RETURN_STATIC_IDENTIFIER("gate");
 	}
 
-	static Identifier getId(chunkware_simple::SimpleComp* ptr)
+	static Identifier getId(chunkware_simple::SimpleComp*)
 	{
 		RETURN_STATIC_IDENTIFIER("comp");
 	}
 
-	static Identifier getId(chunkware_simple::SimpleCompRms* ptr)
+	static Identifier getId(chunkware_simple::SimpleCompRms*)
 	{
 		RETURN_STATIC_IDENTIFIER("comp_rms");
 	}
 
-	static Identifier getId(chunkware_simple::SimpleLimit* ptr)
+	static Identifier getId(chunkware_simple::SimpleLimit*)
 	{
 		RETURN_STATIC_IDENTIFIER("limiter");
 	}
@@ -178,9 +178,9 @@ public:
 		return true;
 	};
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.setSampleRate(sampleRate);
+		obj.setSampleRate(ps.sampleRate);
 	}
 
 	void reset() noexcept
@@ -196,8 +196,8 @@ public:
 			{
 				double v[2] = { d.data[0][i], d.data[1][i] };
 				obj.process(v[0], v[1]);
-				d.data[0][i] = v[0];
-				d.data[1][i] = v[1];
+				d.data[0][i] = (float)v[0];
+				d.data[1][i] = (float)v[1];
 			}
 		}
 		else if (d.numChannels == 1)
@@ -206,7 +206,7 @@ public:
 			{
 				double v[2] = { d.data[0][i], d.data[0][i] };
 				obj.process(v[0], v[1]);
-				d.data[0][i] = v[0];
+				d.data[0][i] = (float)v[0];
 				
 			}
 		}
@@ -248,9 +248,9 @@ public:
 
 	bool handleModulation(double&) noexcept { return false; };
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps) override
 	{
-		envelope.setSampleRate(sampleRate);
+		envelope.setSampleRate(ps.sampleRate);
 	}
 
 	forcedinline void reset() noexcept

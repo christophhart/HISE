@@ -63,17 +63,17 @@ struct MacroPropertyEditor : public Component,
 			setSize(cEditor.getWidth(), cEditor.getHeight() + 24);
 		}
 
-		void buttonClicked(Button* b) override
+		void buttonClicked(Button* ) override
 		{
 			auto dataCopy = data;
 			auto undoManager = node->getUndoManager();
 
-			auto f = [dataCopy, undoManager]()
+			auto func = [dataCopy, undoManager]()
 			{
 				dataCopy.getParent().removeChild(dataCopy, undoManager);
 			};
 
-			MessageManager::callAsync(f);
+			MessageManager::callAsync(func);
 		}
 
 		void paint(Graphics& g) override
@@ -86,7 +86,7 @@ struct MacroPropertyEditor : public Component,
 		void resized() override
 		{
 			auto b = getLocalBounds();
-			auto top = b.removeFromTop(24);
+			b.removeFromTop(24);
 
 			deleteButton.setBounds(b.removeFromRight(24).reduced(4));
 
@@ -119,8 +119,6 @@ struct MacroPropertyEditor : public Component,
 
 	void resized() override
 	{
-		auto b = getLocalBounds();
-
 		parameterProperties.setTopLeftPosition(0, 0);
 		
 		int y = parameterProperties.getBottom();
@@ -137,18 +135,18 @@ struct MacroPropertyEditor : public Component,
 		if (parentTree == connectionData)
 			rebuildConnections();
 	}
-	void valueTreeChildOrderChanged(ValueTree& parentTree, int oldIndex, int newIndex) override
+	void valueTreeChildOrderChanged(ValueTree& parentTree, int , int ) override
 	{
 		if (parentTree == connectionData)
 			rebuildConnections();
 	}
 
-	void valueTreeChildRemoved(ValueTree& parentTree, ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override
+	void valueTreeChildRemoved(ValueTree& parentTree, ValueTree& , int ) override
 	{
 		if (parentTree == connectionData)
 			rebuildConnections();
 	}
-	void valueTreePropertyChanged(ValueTree&, const Identifier& id) override {}
+	void valueTreePropertyChanged(ValueTree&, const Identifier& ) override {}
 	void valueTreeParentChanged(ValueTree&) override {}
 
 	void rebuildConnections()
@@ -179,9 +177,11 @@ struct MacroPropertyEditor : public Component,
 
 
 
-struct ContainerComponent : public NodeComponent,
+class ContainerComponent : public NodeComponent,
 							public DragAndDropContainer
 {
+public:
+
 	struct ParameterComponent : public Component,
 								public ButtonListener,
 								public ValueTree::Listener
@@ -256,7 +256,7 @@ struct ContainerComponent : public NodeComponent,
 
 			rebuildParameters();
 		}
-		void valueTreeChildOrderChanged(ValueTree& parentTree, int oldIndex, int newIndex) override
+		void valueTreeChildOrderChanged(ValueTree& parentTree, int, int) override
 		{
 			if (parentTree.getType() == PropertyIds::Connections)
 				return;
@@ -264,14 +264,14 @@ struct ContainerComponent : public NodeComponent,
 			rebuildParameters();
 		}
 
-		void valueTreeChildRemoved(ValueTree& parentTree, ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override
+		void valueTreeChildRemoved(ValueTree& parentTree, ValueTree&, int) override
 		{
 			if (parentTree.getType() == PropertyIds::Connections)
 				return;
 
 			rebuildParameters();
 		}
-		void valueTreePropertyChanged(ValueTree&, const Identifier& id) override {}
+		void valueTreePropertyChanged(ValueTree&, const Identifier&) override {}
 		void valueTreeParentChanged(ValueTree&) override {}
 		
 		void rebuildParameters()

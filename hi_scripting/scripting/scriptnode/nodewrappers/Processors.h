@@ -49,9 +49,10 @@ public:
 		obj.initialise(n);
 	}
 
-	void prepare(int, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(getFixChannelAmount(), sampleRate, blockSize);
+		ps.numChannels = getFixChannelAmount();
+		obj.prepare(ps);
 	}
 
 	forcedinline void reset() noexcept { obj.reset(); }
@@ -102,9 +103,9 @@ public:
 		obj.initialise(n);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(numChannels, sampleRate, blockSize);
+		obj.prepare(ps);
 	}
 
 	void process(ProcessData& d)
@@ -116,7 +117,6 @@ public:
 			auto dCopy = ProcessData(d);
 
 			dCopy.eventBuffer = &internalBuffer;
-			int numTotal = d.size;
 
 			HiseEvent e;
 			int samplePos = 0;
@@ -171,9 +171,10 @@ public:
 		obj.initialise(n);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(NumChannels, sampleRate, blockSize);
+		ps.numChannels = NumChannels;
+		obj.prepare(ps);
 	}
 
 	forcedinline void reset() noexcept { obj.reset(); }
@@ -220,18 +221,23 @@ public:
 
 	using Oversampler = juce::dsp::Oversampling<float>;
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
 		jassert(lock != nullptr);
 
 		ScopedPointer<Oversampler> newOverSampler;
 
-		obj.prepare(numChannels, sampleRate * (double)OversamplingFactor, blockSize * OversamplingFactor);
+		auto originalBlockSize = ps.blockSize;
 
-		newOverSampler = new Oversampler(numChannels, std::log2(OversamplingFactor), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+		ps.sampleRate *= (double)OversamplingFactor;
+		ps.blockSize *= OversamplingFactor;
 
-		if (blockSize > 0)
-			newOverSampler->initProcessing(blockSize);
+		obj.prepare(ps);
+
+		newOverSampler = new Oversampler(ps.numChannels, std::log2(OversamplingFactor), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+
+		if (originalBlockSize > 0)
+			newOverSampler->initProcessing(originalBlockSize);
 
 		{
 			ScopedLock sl(*lock);
@@ -253,6 +259,11 @@ public:
 		jassertfalse;
 	}
 
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
 	forcedinline void process(ProcessData& d) noexcept
 	{
 		if (oversampler == nullptr)
@@ -260,7 +271,7 @@ public:
 
 		juce::dsp::AudioBlock<float> input(d.data, d.numChannels, d.size);
 
-		auto& output = oversampler->processSamplesUp(input);
+		auto output = oversampler->processSamplesUp(input);
 
 		float* data[NUM_MAX_CHANNELS];
 
@@ -308,34 +319,34 @@ template <class T> struct mod: public SingleWrapper<T>
 
 	inline void process(ProcessData& data) noexcept
 	{
-		obj.process(data);
+		this->obj.process(data);
 
-		if (obj.handleModulation(modValue))
+		if (this->obj.handleModulation(modValue))
 			db(modValue);
 	}
 
 	forcedinline void reset() noexcept 
 	{
 		modValue = 0.0;
-		obj.reset(); 
+		this->obj.reset();
 	}
 
 	inline void processSingle(float* frameData, int numChannels) noexcept
 	{
-		obj.processSingle(frameData, numChannels);
+		this->obj.processSingle(frameData, numChannels);
 
-		if (obj.handleModulation(modValue))
+		if (this->obj.handleModulation(modValue))
 			db(modValue);
 	}
 
 	void createParameters(Array<HiseDspBase::ParameterData>& data) override
 	{
-		obj.createParameters(data);
+		this->obj.createParameters(data);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(numChannels, sampleRate, blockSize);
+		this->obj.prepare(ps);
 	}
 
 	bool handleModulation(double& value) noexcept

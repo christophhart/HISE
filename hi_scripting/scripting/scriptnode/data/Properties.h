@@ -137,6 +137,8 @@ struct PropertyHelpers
 #define CREATE_EXTRA_COMPONENT(className) Component* createExtraComponent(PooledUIUpdater* updater) \
 										  { return new className(updater); };
 
+#define SET_HISE_POLY_NODE_ID(id) static Identifier getStaticId() { if (NumVoices == 1) return Identifier(id); \
+	else return Identifier(String(id) + String("_poly")); }
 #define SET_HISE_NODE_ID(id) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(id); };
 #define SET_HISE_NODE_EXTRA_HEIGHT(x) static constexpr int ExtraHeight = x;
 #define SET_HISE_NODE_EXTRA_WIDTH(x) virtual int getExtraWidth() const { return x; };

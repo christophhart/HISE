@@ -80,6 +80,7 @@ void PropertyListener::sendMessageForAllProperties()
 		triggerAsyncUpdate();
 		break;
 	}
+    
 	}
 }
 

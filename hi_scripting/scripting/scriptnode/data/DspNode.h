@@ -48,9 +48,9 @@ namespace feedback
 		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 		
 		
-		void prepare(int numChannels, double sampleRate, int blockSize)
+		void prepare(PrepareSpecs ps)
 		{
-			DspHelpers::increaseBuffer(buffer, numChannels, blockSize);
+			DspHelpers::increaseBuffer(buffer, ps);
 
 			reset();
 		}
@@ -70,14 +70,14 @@ namespace feedback
 			}
 		}
 
-		bool handleModulation(double& value) { return false; }
+		bool handleModulation(double&) { return false; }
 
 		void processSingle(float* frameData, int numChannels)
 		{
 			FloatVectorOperations::copy(frameData, singleFrameData, numChannels);
 		}
 
-		void createParameters(Array<ParameterData>& data) override
+		void createParameters(Array<ParameterData>&) override
 		{
 
 		}
@@ -140,7 +140,7 @@ namespace feedback
 				connectedSource->connectedOK = false;
 		}
 
-		void prepare(int numChannels, double sampleRate, int blockSize) 
+		void prepare(PrepareSpecs) 
 		{
 			
 		}
@@ -201,9 +201,9 @@ namespace feedback
 				FloatVectorOperations::copy(connectedSource->singleFrameData, frameData, numChannels);
 		}
 		
-		bool handleModulation(double& value) { return false; }
+		bool handleModulation(double&) { return false; }
 
-		void createParameters(Array<ParameterData>& data) override
+		void createParameters(Array<ParameterData>&) override
 		{
 
 		}
@@ -269,6 +269,8 @@ public:
 		}
 		else
 			reportScriptError("Cant' find parameter for index " + String(index));
+        
+        RETURN_IF_NO_THROW({});
 	}
 
 	void reset() final override {};
@@ -278,10 +280,10 @@ public:
 		return (int)indexExpression;
 	}
 
-	void prepare(double sampleRate, int blockSize) override
+	void prepare(PrepareSpecs ps) override
 	{
 		if (obj != nullptr)
-			obj->prepareToPlay(sampleRate, blockSize);
+			obj->prepareToPlay(ps.sampleRate, ps.blockSize);
 	}
 
 	void process(ProcessData& data) final override
@@ -301,12 +303,14 @@ public:
 		{
 			int numParameters = obj->getNumParameters();
 
-			int numRows = std::ceil((float)numParameters / 4.0f);
+			int numRows = (int)std::ceilf((float)numParameters / 4.0f);
 
 			auto b = Rectangle<int>(0, 0, jmin(400, numParameters * 100), numRows * (48+18) + UIValues::HeaderHeight);
 
 			return b.expanded(UIValues::NodeMargin).withPosition(topLeft);
 		}
+        
+        return {};
 	}
 
 	NodeComponent* createComponent() override;

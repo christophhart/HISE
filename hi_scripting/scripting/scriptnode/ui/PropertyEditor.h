@@ -64,11 +64,6 @@ struct PropertyEditor : public Component
 		setSize(300, p.getTotalContentHeight());
 	}
 
-	~PropertyEditor()
-	{
-		int x = 5;
-	}
-
 	void resized() override
 	{
 		p.setBounds(getLocalBounds());

@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-#pragma once;
+#pragma once
 
 namespace scriptnode {
 using namespace juce;

@@ -37,13 +37,94 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-template <class HiseDspBaseType> class HiseDspNodeBase : public ModulationSourceNode
+struct ComponentHelpers
+{
+    static NodeComponent* createDefaultComponent(NodeBase* n);
+    static void addExtraComponentToDefault(NodeComponent* nc, Component* c);
+        
+};
+
+
+class WrapperNode : public ModulationSourceNode
+{
+protected:
+
+	WrapperNode(DspNetwork* parent, ValueTree d) :
+		ModulationSourceNode(parent, d)
+	{
+		
+	};
+
+	NodeComponent* createComponent() override
+	{
+		auto nc = ComponentHelpers::createDefaultComponent(this);
+
+		if (auto extra = createExtraComponent())
+		{
+			extra->setSize(getExtraWidth(), getExtraHeight());
+			ComponentHelpers::addExtraComponentToDefault(nc, extra);
+		}
+
+		return nc;
+	}
+
+	virtual Component* createExtraComponent() { return nullptr; }
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	{
+		int numParameters = getNumParameters();
+
+		if (numParameters == 0)
+			return createRectangleForParameterSliders(0).withPosition(topLeft);
+		if (numParameters % 5 == 0)
+			return createRectangleForParameterSliders(5).withPosition(topLeft);
+		else if (numParameters % 4 == 0)
+			return createRectangleForParameterSliders(4).withPosition(topLeft);
+		else if (numParameters % 3 == 0)
+			return createRectangleForParameterSliders(3).withPosition(topLeft);
+		else if (numParameters % 2 == 0)
+			return createRectangleForParameterSliders(2).withPosition(topLeft);
+		else if (numParameters == 1)
+			return createRectangleForParameterSliders(1).withPosition(topLeft);
+
+		return {};
+	}
+
+	Rectangle<int> createRectangleForParameterSliders(int numColumns) const
+	{
+		int h = UIValues::HeaderHeight;
+		h += getExtraHeight();
+
+		int w = 0;
+
+		if (numColumns == 0)
+			w = UIValues::NodeWidth * 2;
+		else
+		{
+			int numParameters = getNumParameters();
+			int numRows = (int)std::ceilf((float)numParameters / (float)numColumns);
+
+			h += numRows * (48 + 18);
+			w = jmin(numColumns * 100, numParameters * 100);
+		}
+
+		w = jmax(w, getExtraWidth());
+
+		auto b = Rectangle<int>(0, 0, w, h);
+		return b.expanded(UIValues::NodeMargin);
+	}
+
+	virtual int getExtraWidth() const { return 0; }
+	virtual int getExtraHeight() const { return 0; }
+};
+    
+template <class HiseDspBaseType> class HiseDspNodeBase : public WrapperNode
 {
 	using WrapperType = bypass::smoothed<HiseDspBaseType, false>;
 
 public:
 	HiseDspNodeBase(DspNetwork* parent, ValueTree d) :
-		ModulationSourceNode(parent, d)
+		WrapperNode(parent, d)
 	{
 		wrapper.getObject().initialise(this);
 
@@ -72,28 +153,27 @@ public:
 			addParameter(newP);
 		}
 
-
-
 		bypassListener.setCallback(d, { PropertyIds::Bypassed },
 			valuetree::AsyncMode::Synchronously,
 			std::bind(&WrapperType::setBypassedFromValueTreeCallback,
 				&wrapper, std::placeholders::_1, std::placeholders::_2));
-
 	};
 
 	SCRIPTNODE_FACTORY(HiseDspNodeBase, HiseDspBaseType::getStaticId());
 
-	NodeComponent* createComponent() override
+	Component* createExtraComponent()
 	{
-		auto nc = new DefaultParameterNodeComponent(this);
+		return wrapper.getObject().createExtraComponent(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+	}
 
-		if (auto extra = wrapper.getObject().createExtraComponent(getScriptProcessor()->getMainController_()->getGlobalUIUpdater()))
-		{
-			extra->setSize(0, wrapper.getObject().ExtraHeight);
-			nc->setExtraComponent(extra);
-		}
+	int getExtraHeight() const override
+	{
+		return wrapper.getObject().ExtraHeight;
+	}
 
-		return nc;
+	int getExtraWidth() const override
+	{
+		return wrapper.getObject().getExtraWidth();
 	}
 
 	void reset()
@@ -108,55 +188,10 @@ public:
 
 	Identifier getObjectName() const override { return getStaticId(); }
 
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	void prepare(PrepareSpecs specs) final override
 	{
-		int numParameters = getNumParameters();
-
-		if (numParameters == 0)
-			return createRectangleForParameterSliders(0).withPosition(topLeft);
-		if (numParameters % 5 == 0)
-			return createRectangleForParameterSliders(5).withPosition(topLeft);
-		else if (numParameters % 4 == 0)
-			return createRectangleForParameterSliders(4).withPosition(topLeft);
-		else if (numParameters % 3 == 0)
-			return createRectangleForParameterSliders(3).withPosition(topLeft);
-		else if (numParameters % 2 == 0)
-			return createRectangleForParameterSliders(2).withPosition(topLeft);
-		else if (numParameters == 1)
-			return createRectangleForParameterSliders(1).withPosition(topLeft);
-
-		return {};
-	}
-
-	Rectangle<int> createRectangleForParameterSliders(int numColumns) const
-	{
-		int h = UIValues::HeaderHeight;
-		h += wrapper.getObject().ExtraHeight;
-
-		int w = 0;
-
-		if (numColumns == 0)
-			w = UIValues::NodeWidth * 2;
-		else
-		{
-			int numParameters = getNumParameters();
-			int numRows = std::ceil((float)numParameters / (float)numColumns);
-
-			h += numRows * (48 + 18);
-			w = jmin(numColumns * 100, numParameters * 100);
-		}
-
-		w = jmax(w, wrapper.getObject().getExtraWidth());
-
-		auto b = Rectangle<int>(0, 0, w, h);
-		return b.expanded(UIValues::NodeMargin);
-	}
-
-	void prepare(double sampleRate, int blockSize) final override
-	{
-		ModulationSourceNode::prepare(sampleRate, blockSize);
-
-		wrapper.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
+		ModulationSourceNode::prepare(specs);
+		wrapper.prepare(specs);
 	}
 
 	void processSingle(float* frameData, int numChannels) final override
@@ -189,6 +224,11 @@ public:
 		}
 	}
 
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		wrapper.handleHiseEvent(e);
+	}
+
 	HardcodedNode* getAsHardcodedNode() override
 	{
 		return wrapper.getObject().getAsHardcodedNode();
@@ -199,8 +239,128 @@ public:
 	valuetree::PropertyListener bypassListener;
 };
 
-struct HardcodedNode
+
+template <class HiseDspBaseType> class PolyDspBaseNode : public WrapperNode
 {
+	using WrapperType = HiseDspBaseType;
+	static constexpr int NumVoices = WrapperType::NumVoices;
+
+public:
+	PolyDspBaseNode(DspNetwork* parent, ValueTree d) :
+		WrapperNode(parent, d)
+	{
+		wrapper.getObject().initialise(this);
+		d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
+
+		Array<HiseDspBase::ParameterData> pData;
+
+		wrapper.getObject().createParameters(pData);
+
+		for (auto p : pData)
+		{
+			auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.id);
+
+			if (!existingChild.isValid())
+			{
+				existingChild = p.createValueTree();
+				getParameterTree().addChild(existingChild, -1, getUndoManager());
+			}
+
+			auto newP = new Parameter(this, existingChild);
+			newP->setCallback(p.db);
+			newP->valueNames = p.parameterNames;
+
+			addParameter(newP);
+		}
+	};
+
+	SCRIPTNODE_FACTORY(PolyDspBaseNode, HiseDspBaseType::getStaticId());
+
+	Component* createExtraComponent()
+	{
+		return wrapper.getObject().createExtraComponent(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+	}
+
+	int getExtraHeight() const override
+	{
+		return wrapper.getObject().ExtraHeight;
+	}
+
+	int getExtraWidth() const override
+	{
+		return wrapper.getObject().getExtraWidth();
+	}
+
+	void reset()
+	{
+		wrapper.reset();
+	}
+
+	HiseDspBaseType* getReferenceToInternalObject()
+	{
+		return dynamic_cast<HiseDspBaseType*>(wrapper.createListOfNodesWithSameId().getLast());
+	}
+
+	Identifier getObjectName() const override { return getStaticId(); }
+
+	void prepare(PrepareSpecs ps) final override
+	{
+		ModulationSourceNode::prepare(ps);
+		jassert(ps.voiceIndex != nullptr);
+		ps.numChannels = getNumChannelsToProcess();
+		wrapper.prepare(ps);
+	}
+
+	void processSingle(float* frameData, int numChannels) final override
+	{
+		// The voice index is already set.
+
+		wrapper.processSingle(frameData, numChannels);
+
+		if (wrapper.isModulationSource)
+		{
+			ProcessData d;
+			d.data = &frameData;
+			d.size = numChannels;
+			d.numChannels = 1;
+
+			double value = 0.0;
+			if (wrapper.handleModulation(value))
+				sendValueToTargets(value, 1);
+		}
+	}
+
+	void process(ProcessData& data) noexcept final override
+	{
+		wrapper.setCurrentVoiceIndex(data.voiceData.voiceIndex);
+		wrapper.process(data);
+
+		if (wrapper.isModulationSource)
+		{
+			double value = 0.0;
+
+			if (wrapper.handleModulation(value))
+				sendValueToTargets(value, data.size);
+		}
+
+		wrapper.setCurrentVoiceIndex(-1);
+	}
+
+	HardcodedNode* getAsHardcodedNode() override
+	{
+		return wrapper.getObject().getAsHardcodedNode();
+	}
+
+	WrapperType wrapper;
+
+	valuetree::PropertyListener bypassListener;
+};
+
+
+class HardcodedNode
+{
+public:
+
 	struct ParameterInitValue
 	{
 		ParameterInitValue(const char* id_, double v) :
@@ -328,9 +488,9 @@ public:
 		obj.initialise(n);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(numChannels, sampleRate, blockSize);
+		obj.prepare(ps);
 	}
 
 	bool handleModulation(double& value)
@@ -358,39 +518,37 @@ public:
 		return this; 
 	}
 
-	template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, class T> auto get(T& t)
+	template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, class T> auto* get(T& t)
 	{
 		return get<Index6>(*get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))))));
 	}
 
-	template <int Index1, int Index2, int Index3, int Index4, int Index5, class T> auto get(T& t)
+	template <int Index1, int Index2, int Index3, int Index4, int Index5, class T> auto* get(T& t)
 	{
 		return get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t)))));
 	}
 
-	template <int Index1, int Index2, int Index3, int Index4, class T> auto get(T& t)
+	template <int Index1, int Index2, int Index3, int Index4, class T> auto* get(T& t)
 	{
 		return get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))));
 	}
 
-	template <int Index1, int Index2, int Index3, class T> auto get(T& t)
+	template <int Index1, int Index2, int Index3, class T> auto* get(T& t)
 	{
 		return get<Index3>(*get<Index2>(*get<Index1>(t)));
 	}
 
-	template <int Index1, int Index2, class T> constexpr auto get(T& t)
+	template <int Index1, int Index2, class T> auto* get(T& t)
 	{
 		return get<Index2>(*get<Index1>(t));
 	}
 
-	template <int Index, class T> auto get(T& t)
+	template <int Index, class T> static auto* get(T& t)
 	{
-		return &t.getObject().get<Index>().getObject();
+        auto* obj1 = &t.getObject();
+        auto* obj2 = &obj1->template get<Index>();
+        return &obj2->getObject();
 	}
-
-
-
-
 
 	DspProcessorType obj;
 };

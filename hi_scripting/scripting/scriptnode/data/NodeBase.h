@@ -94,11 +94,16 @@ struct NodeBase : public ConstScriptingObject
 	virtual void process(ProcessData& data) = 0;
 
 	/** This will be called before calls to process. */
-	virtual void prepare(double sampleRate, int blockSize) = 0;
+	virtual void prepare(PrepareSpecs specs) = 0;
 
 	/** The default implementation calls process with a sample amount of 1, but you can override
 	    this method if there's a faster way. */
 	virtual void processSingle(float* frameData, int numChannels);
+
+	virtual void handleHiseEvent(HiseEvent& e)
+	{
+		ignoreUnused(e);
+	}
 
 	/** Override this to reset your node. */
 	virtual void reset() = 0;
@@ -117,14 +122,14 @@ struct NodeBase : public ConstScriptingObject
 	void setBypassed(bool shouldBeBypassed);
 	bool isBypassed() const noexcept;
 
-	bool isConnected() const { return data.getParent().isValid(); }
+	bool isConnected() const { return v_data.getParent().isValid(); }
 	void setProperty(const Identifier& id, const var value);
 	void setDefaultValue(const Identifier& id, var newValue);
 	
 	void addConnectionToBypass(var dragDetails);
 
 	DspNetwork* getRootNetwork() const;
-	ValueTree getParameterTree() { return data.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager()); }
+	ValueTree getParameterTree() { return v_data.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager()); }
 	
 	NodeBase* getParentNode() const;
 	ValueTree getValueTree() const;
@@ -135,13 +140,13 @@ struct NodeBase : public ConstScriptingObject
 
 	void setNumChannels(int newNumChannels)
 	{
-		if (!data[PropertyIds::LockNumChannels])
+		if (!v_data[PropertyIds::LockNumChannels])
 			setProperty(PropertyIds::NumChannels, newNumChannels);
 	}
 
 	bool hasFixChannelAmount() const;
 
-	int getNumChannelsToProcess() const { return (int)data[PropertyIds::NumChannels]; };
+	int getNumChannelsToProcess() const { return (int)v_data[PropertyIds::NumChannels]; };
 
 	int getNumParameters() const;;
 	Parameter* getParameter(const String& id) const;
@@ -151,7 +156,7 @@ struct NodeBase : public ConstScriptingObject
 
 protected:
 
-	ValueTree data;
+	ValueTree v_data;
 
 private:
 

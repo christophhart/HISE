@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-#pragma once;
+#pragma once
 
 namespace scriptnode {
 using namespace juce;
@@ -47,25 +47,25 @@ struct fix_delay : public HiseDspBase
 
 	fix_delay() {};
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		if (delayLines.size() != numChannels)
+		if (delayLines.size() != ps.numChannels)
 		{
 			delayLines.clear();
 
-			for (int i = 0; i < numChannels; i++)
+			for (int i = 0; i < ps.numChannels; i++)
 				delayLines.add(new DelayLine<>());
 		}
 
 		reset();
 
 		for (auto d : delayLines)
-			d->prepareToPlay(sampleRate);
+			d->prepareToPlay(ps.sampleRate);
 
 		setDelayTimeMilliseconds(delayTimeSeconds * 1000.0);
 	}
 
-	bool handleModulation(double& data) noexcept { return false; };
+	bool handleModulation(double&) noexcept { return false; };
 
 	forcedinline void reset() noexcept
 	{
@@ -75,7 +75,7 @@ struct fix_delay : public HiseDspBase
 
 	void process(ProcessData& d) noexcept
 	{
-		d.size == delayLines.size();
+		jassert(d.numChannels == delayLines.size());
 
 		for (int i = 0; i < delayLines.size(); i++)
 		{

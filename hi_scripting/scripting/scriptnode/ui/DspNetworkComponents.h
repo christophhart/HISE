@@ -60,10 +60,11 @@ struct NetworkPanel : public PanelWithProcessorConnection
 };
 
 
-struct DspNetworkGraph : public Component,
+class DspNetworkGraph : public Component,
 	public AsyncUpdater,
 	public DspNetwork::SelectionListener
 {
+public:
 	struct ScrollableParent : public Component
 	{
 		ScrollableParent(DspNetwork* n);
@@ -88,13 +89,13 @@ struct DspNetworkGraph : public Component,
 
 		SET_PANEL_NAME("DspNetworkGraph");
 
-		Component* createComponentForNetwork(DspNetwork* parent) override
+		Component* createComponentForNetwork(DspNetwork* p) override
 		{
-			return new ScrollableParent(parent);
+			return new ScrollableParent(p);
 		}
 	};
 
-	void selectionChanged(const NodeBase::List& newSelection) override
+	void selectionChanged(const NodeBase::List&) override
 	{
 		root->repaintAllNodes();
 	}

@@ -38,9 +38,9 @@ using namespace hise;
 NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) :
 	ConstScriptingObject(rootNetwork->getScriptProcessor(), numConstants_),
 	parent(rootNetwork),
-	data(data_),
+	v_data(data_),
 	bypassUpdater(rootNetwork->getScriptProcessor()->getMainController_()),
-	bypassed(data, PropertyIds::Bypassed, getUndoManager(), false)
+	bypassed(v_data, PropertyIds::Bypassed, getUndoManager(), false)
 {
 	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::LockNumChannels, false);
@@ -72,9 +72,9 @@ juce::String NodeBase::createCppClass(bool isOuterClass)
 {
 	ignoreUnused(isOuterClass);
 
-	auto className = data[PropertyIds::FactoryPath].toString().replace(".", "::");
+	auto className = v_data[PropertyIds::FactoryPath].toString().replace(".", "::");
 
-	if (data[PropertyIds::DynamicBypass].toString().isNotEmpty())
+	if (v_data[PropertyIds::DynamicBypass].toString().isNotEmpty())
 	{
 		className = CppGen::Emitter::wrapIntoTemplate(className, "wr::bypass::smoothed");
 	};
@@ -84,13 +84,13 @@ juce::String NodeBase::createCppClass(bool isOuterClass)
 
 void NodeBase::setProperty(const Identifier& id, const var value)
 {
-	data.setProperty(id, value, getUndoManager());
+	v_data.setProperty(id, value, getUndoManager());
 }
 
 void NodeBase::setDefaultValue(const Identifier& id, var newValue)
 {
-	if (!data.hasProperty(id))
-		data.setProperty(id, newValue, nullptr);
+	if (!v_data.hasProperty(id))
+		v_data.setProperty(id, newValue, nullptr);
 }
 
 
@@ -128,7 +128,7 @@ bool NodeBase::isBypassed() const noexcept
 
 NodeBase* NodeBase::getParentNode() const
 {
-	auto v = data.getParent().getParent();
+	auto v = v_data.getParent().getParent();
 
 	if (v.getType() == PropertyIds::Node)
 	{
@@ -141,12 +141,12 @@ NodeBase* NodeBase::getParentNode() const
 
 juce::ValueTree NodeBase::getValueTree() const
 {
-	return data;
+	return v_data;
 }
 
 juce::String NodeBase::getId() const
 {
-	return data[PropertyIds::ID].toString();
+	return v_data[PropertyIds::ID].toString();
 }
 
 juce::UndoManager* NodeBase::getUndoManager()
@@ -156,7 +156,7 @@ juce::UndoManager* NodeBase::getUndoManager()
 
 juce::Rectangle<int> NodeBase::reduceHeightIfFolded(Rectangle<int> originalHeight) const
 {
-	if (data[PropertyIds::Folded])
+	if (v_data[PropertyIds::Folded])
 		return originalHeight.withHeight(UIValues::HeaderHeight);
 	else
 		return originalHeight;
@@ -166,7 +166,7 @@ juce::Rectangle<int> NodeBase::reduceHeightIfFolded(Rectangle<int> originalHeigh
 
 bool NodeBase::hasFixChannelAmount() const
 {
-	return data[PropertyIds::LockNumChannels];
+	return v_data[PropertyIds::LockNumChannels];
 }
 
 int NodeBase::getNumParameters() const
@@ -191,6 +191,8 @@ scriptnode::NodeBase::Parameter* NodeBase::getParameter(int index) const
 	{
 		return parameters[index];
 	}
+    
+    return nullptr;
 }
 
 

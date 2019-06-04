@@ -70,9 +70,9 @@ struct ChainElement
 {
 	using P = Processor;
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		processor.prepare(numChannels, sampleRate, blockSize);
+		processor.prepare(ps);
 	}
 	
 	void initialise(NodeBase* n)
@@ -86,6 +86,11 @@ struct ChainElement
 			return processor.handleModulation(value);
 
 		return false;
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		processor.handleHiseEvent(e);
 	}
 
 	void processWithCopy(ProcessData& data, ProcessData& original, AudioSampleBuffer& splitBuffer)
@@ -168,10 +173,16 @@ struct ChainBase : public ChainElement<IsFirst, FirstProcessor, ChainBase<IsFirs
 		processors.process(data);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		Base::prepare(numChannels, sampleRate, blockSize);
-		processors.prepare(numChannels, sampleRate, blockSize);
+		Base::prepare(ps);
+		processors.prepare(ps);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		Base::handleHiseEvent(e);
+		processors.handleHiseEvent(e);
 	}
 
 	void processSingle(float* frameData, int numChannels) noexcept
@@ -223,10 +234,17 @@ struct SplitBase : public ChainElement<IsFirst, FirstProcessor, SplitBase<IsFirs
 		}
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		Base::prepare(numChannels, sampleRate, blockSize);
-		processors.prepare(numChannels, sampleRate, blockSize);
+		Base::prepare(ps);
+		processors.prepare(ps);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		HiseEvent c(e);
+		Base::handleHiseEvent(e);
+		processors.handleHiseEvent(c);
 	}
 
 	void processSingleWithOriginal(float* frameData, float* originalData, int numChannels) noexcept
@@ -276,12 +294,11 @@ struct MultiBase : public ChainElement<IsFirst, FirstProcessor, MultiBase<IsFirs
 {
 	using Base = ChainElement<IsFirst, FirstProcessor, MultiBase<IsFirst, FirstProcessor, SubsequentProcessors...>>;
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		Base::prepare(numChannels, sampleRate, blockSize);
-		processors.prepare(numChannels, sampleRate, blockSize);
+		Base::prepare(ps);
+		processors.prepare(ps);
 	}
-
 
 	void processWithFixedChannels(ProcessData& data) noexcept
 	{
@@ -293,6 +310,13 @@ struct MultiBase : public ChainElement<IsFirst, FirstProcessor, MultiBase<IsFirs
 	{
 		Base::processSingleWithFixedChannels(frameData);
 		processors.processSingleWithFixedChannels(frameData);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		HiseEvent c(e);
+		Base::handleHiseEvent(e);
+		processors.handleHiseEvent(c);
 	}
 
 	void initialise(NodeBase* n)
@@ -336,6 +360,11 @@ template <typename... Processors> struct split
 		return chain.handleModulation(value);
 	}
 
+	void handleHiseEvent(HiseEvent& e)
+	{
+		chain.handleHiseEvent(e);
+	}
+
 	void process(ProcessData& data)
 	{
 		auto original = data.copyTo(splitBuffer, 0);
@@ -350,10 +379,11 @@ template <typename... Processors> struct split
 		chain.processSingleWithOriginal(frameData, originalData, numChannels);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		DspHelpers::increaseBuffer(splitBuffer, numChannels * 2, blockSize);
-		chain.prepare(numChannels, sampleRate, blockSize);
+		chain.prepare(ps);
+		ps.numChannels *= 2;
+		DspHelpers::increaseBuffer(splitBuffer, ps);
 	}
 
 	void reset()
@@ -383,6 +413,11 @@ template <typename... Processors> struct multi
 		return obj.handleModulation(value);
 	}
 
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
 	void process(ProcessData& data)
 	{
 		ProcessData copy(data);
@@ -395,9 +430,9 @@ template <typename... Processors> struct multi
 		obj.processSingleWithFixedChannels(&frameData);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(numChannels, sampleRate, blockSize);
+		obj.prepare(ps);
 	}
 
 	void reset()
@@ -428,15 +463,15 @@ public:
 		f.initialise(n);
 	}
 
-	void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		channelAmount = numChannelsToProcess;
+		channelAmount = ps.numChannels;
 
-		if (blockSize > 1)
-			DspHelpers::increaseBuffer(feedbackBuffer, numChannelsToProcess, blockSize);
+		if (ps.blockSize > 1)
+			DspHelpers::increaseBuffer(feedbackBuffer, ps);
 		
-		s.prepare(numChannelsToProcess, sampleRate, blockSize);
-		f.prepare(numChannelsToProcess, sampleRate, blockSize);
+		s.prepare(ps);
+		f.prepare(ps);
 
 		reset();
 	}
@@ -477,6 +512,12 @@ public:
 		return false;
 	}
 
+	void handleHiseEvent(HiseEvent& e)
+	{
+		s.handleHiseEvent(e);
+		f.handleHiseEvent(e);
+	}
+
 	auto& getObject() { return *this; }
 	const auto& getObject() const { return *this; }
 
@@ -506,9 +547,12 @@ public:
 		obj.initialise(n);
 	}
 
-	void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		obj.prepare(numChannelsToProcess, sampleRate / (double)HISE_EVENT_RASTER, blockSize / HISE_EVENT_RASTER);
+		ps.sampleRate /= (double)HISE_EVENT_RASTER;
+		ps.blockSize /= HISE_EVENT_RASTER;
+        ps.numChannels = 1;
+		this->obj.prepare(ps);
 	}
 
 	void reset()
@@ -541,6 +585,11 @@ public:
 	bool handleModulation(double& value)
 	{
 		return obj.handleModulation(value);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
 	}
 
 	T& getObject() { return obj.getObject(); }

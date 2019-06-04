@@ -78,7 +78,7 @@ struct SequencerNode : public HiseDspBase
 		if (packData != nullptr)
 		{
 			auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(data));
-			auto index = roundDoubleToInt(peakValue * (double)packData->getNumSliders());
+			auto index = roundToInt(peakValue * (double)packData->getNumSliders());
 
 			changed = lastIndex != index;
 
@@ -90,7 +90,7 @@ struct SequencerNode : public HiseDspBase
 			}
 
 			for (auto c : data)
-				FloatVectorOperations::fill(c, currentValue, data.size);
+				FloatVectorOperations::fill(c, (float)currentValue, data.size);
 		}
 	}
 
@@ -99,7 +99,7 @@ struct SequencerNode : public HiseDspBase
 		if (packData != nullptr)
 		{
 			auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(ProcessData(&frameData, 1, numChannels)));
-			auto index = roundDoubleToInt(peakValue * (double)packData->getNumSliders());
+			auto index = roundToInt(peakValue * (double)packData->getNumSliders());
 
 			changed = lastIndex != index;
 
@@ -109,11 +109,11 @@ struct SequencerNode : public HiseDspBase
 				currentValue = packData->getValue(index);
 			}
 
-			FloatVectorOperations::fill(frameData, currentValue, numChannels);
+			FloatVectorOperations::fill(frameData, (float)currentValue, numChannels);
 		}
 	};
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs)
 	{
 
 	}
@@ -156,7 +156,7 @@ struct TableNode : public HiseDspBase
 		return false;
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize)
+	void prepare(PrepareSpecs)
 	{
 
 	}
@@ -180,7 +180,7 @@ struct TableNode : public HiseDspBase
 				currentValue = value;
 
 			for (auto c : data)
-				FloatVectorOperations::fill(c, currentValue, data.size);
+				FloatVectorOperations::fill(c, (float)currentValue, data.size);
 		}
 	}
 
@@ -196,7 +196,7 @@ struct TableNode : public HiseDspBase
 			if (changed)
 				currentValue = value;
 
-			FloatVectorOperations::fill(frameData, currentValue, numChannels);
+			FloatVectorOperations::fill(frameData, (float)currentValue, numChannels);
 		}
 	};
 

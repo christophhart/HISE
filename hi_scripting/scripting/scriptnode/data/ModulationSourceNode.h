@@ -61,10 +61,7 @@ public:
 
 	struct ModulationTarget: public ConstScriptingObject
 	{
-		static void nothing(double unused)
-		{
-
-		}
+		static void nothing(double) {}
 
 		ModulationTarget(ModulationSourceNode* parent_, ValueTree data_):
 			ConstScriptingObject(parent_->getScriptProcessor(), 0),
@@ -104,7 +101,7 @@ public:
 
 							removeWatcher.setCallback(parameter->data, 
 								valuetree::AsyncMode::Synchronously,
-							[this](ValueTree& c)
+							[this](ValueTree& )
 							{
 								data.getParent().removeChild(data.getParent(), parent->getUndoManager());
 							});
@@ -133,10 +130,13 @@ public:
 	{
 		targetListener.setCallback(getModulationTargetTree(), 
 			valuetree::AsyncMode::Synchronously,
-			[this](ValueTree& c, bool wasAdded)
+			[this](ValueTree c, bool wasAdded)
 		{
 			if (wasAdded)
-				targets.add(new ModulationTarget(this, c));
+			{
+				ValueTree newTree(c);
+				targets.add(new ModulationTarget(this, newTree));
+			}
 			else
 			{
 				for (auto t : targets)
@@ -185,12 +185,12 @@ public:
 			return s;
 	}
 	
-	void prepare(double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
 		ringBuffer = new SimpleRingBuffer();
 		
-		if(sampleRate > 0.0)
-			sampleRateFactor = 32768.0 / sampleRate;
+		if(ps.sampleRate > 0.0)
+			sampleRateFactor = 32768.0 / ps.sampleRate;
 
 		ok = true;
 
@@ -235,6 +235,8 @@ public:
 	{
 		if (ringBuffer != nullptr)
 			return ringBuffer->read(b);
+
+		return 0;
 	}
 
 	void setScaleModulationValue(bool shouldScaleValue)
@@ -377,7 +379,7 @@ struct ModulationSourceBaseComponent : public Component,
 
 	void mouseDown(const MouseEvent& e) override;
 
-	void mouseDrag(const MouseEvent& event) override
+	void mouseDrag(const MouseEvent&) override
 	{
 		if (getSourceNodeFromParent() == nullptr)
 			return;
@@ -442,9 +444,11 @@ struct ScriptFunctionManager: public hise::GlobalScriptCompileListener
 	HiseDspBase* pendingParent = nullptr;
 };
 
-class MidiSourceNode : public HiseDspBase
+template <int V> class MidiSourceNode : public HiseDspBase
 {
 public:
+
+	static constexpr int NumVoices = V;
 
 	enum class Mode
 	{
@@ -476,22 +480,22 @@ public:
 			meter.setType(VuMeter::MonoHorizontal);
 			meter.setColour(VuMeter::ledColour, Colours::grey);
 
-			addAndMakeVisible(meter);
-			addAndMakeVisible(dragger);
+			this->addAndMakeVisible(meter);
+			this->addAndMakeVisible(dragger);
 
-			setSize(256, 40);
+			this->setSize(256, 40);
 		}
 
 		void resized() override
 		{
-			auto b = getLocalBounds();
+			auto b = this->getLocalBounds();
 			meter.setBounds(b.removeFromTop(24));
 			dragger.setBounds(b);
 		}
 
 		void timerCallback() override
 		{
-			meter.setPeak(getObject()->modValue);
+			meter.setPeak((float)this->getObject()->modValue.getCurrentOrFirst().getModValue());
 		}
 
 		ModulationSourceBaseComponent dragger;
@@ -503,80 +507,83 @@ public:
 		return new Display(this, updater);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize) {};
+	void prepare(PrepareSpecs sp) 
+	{
+		modValue.prepare(sp);
+	};
 
-	void reset() {};
+	void reset(){};
 
-	void processSingle(float* frameData, int numChannels) {};
+	void processSingle(float*, int) {};
 
 	void process(ProcessData& d)
 	{
+#if 0
 		if (d.eventBuffer != nullptr)
 		{
 			HiseEventBuffer::Iterator it(*d.eventBuffer);
 
-			while (auto e = it.getNextEventPointer(true, false))
-			{
-				switch (currentMode)
-				{
-				case Mode::Gate:
-				{
-					if (e->isNoteOnOrOff())
-					{
-						modValue = e->isNoteOn() ? 1.0 : 0.0;
-						changed = true;
-					}
-
-					break;
-				}
-				case Mode::Velocity:
-				{
-					if (e->isNoteOn())
-					{
-						modValue = e->getVelocity() / 127.0;
-						changed = true;
-					}
-
-					break;
-				}
-				case Mode::NoteNumber:
-				{
-					if (e->isNoteOn())
-					{
-						modValue = (double)e->getNoteNumber() / 127.0;
-						changed = true;
-					}
-
-					break;
-				}
-				case Mode::Frequency:
-				{
-					if (e->isNoteOn())
-					{
-						modValue = (e->getFrequency() - 20.0) / 19980.0;
-						changed = true;
-					}
-
-					break;
-				}
-				}
-
-				if(changed)
-					modValue = scriptFunction.callWithDouble(modValue);
-			}
+			
 		}
+#endif
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		bool thisChanged = false;
+		double thisModValue = 0.0;
+
+		switch (currentMode)
+		{
+		case Mode::Gate:
+		{
+			if (e.isNoteOnOrOff())
+			{
+				thisModValue = e.isNoteOn() ? 1.0 : 0.0;
+				thisChanged = true;
+			}
+
+			break;
+		}
+		case Mode::Velocity:
+		{
+			if (e.isNoteOn())
+			{
+				thisModValue = (double)e.getVelocity() / 127.0;
+				thisChanged = true;
+			}
+
+			break;
+		}
+		case Mode::NoteNumber:
+		{
+			if (e.isNoteOn())
+			{
+				thisModValue = (double)e.getNoteNumber() / 127.0;
+				thisChanged = true;
+			}
+
+			break;
+		}
+		case Mode::Frequency:
+		{
+			if (e.isNoteOn())
+			{
+				thisModValue = (e.getFrequency() - 20.0) / 19980.0;
+				thisChanged = true;
+			}
+
+			break;
+		}
+		}
+
+		if (thisChanged)
+			modValue.get().setModValue(scriptFunction.callWithDouble(thisModValue));
 	}
 
 	bool handleModulation(double& value)
 	{
-		if (changed)
-		{
-			value = modValue;
-			changed = false;
-			return true;
-		}
-
-		return false;
+		return modValue.get().getChangedValue(value);
 	}
 
 	void createParameters(Array<ParameterData>& data) override
@@ -601,8 +608,7 @@ public:
 
 	ScriptFunctionManager scriptFunction;
 
-	double modValue = 0.0;
-	bool changed = false;
+	PolyData<ModValue, NumVoices> modValue;
 };
 
 class TimerNode : public HiseDspBase
@@ -671,9 +677,9 @@ public:
 		return new Display(this, updater);
 	}
 
-	void prepare(int numChannels, double sampleRate, int blockSize) 
+	void prepare(PrepareSpecs ps) override
 	{
-		sr = sampleRate;
+		sr = ps.sampleRate;
 	};
 
 	void reset()
@@ -694,7 +700,7 @@ public:
 			samplesLeft = samplesBetweenCallbacks;
 		}
 
-		FloatVectorOperations::fill(frameData, modValue, numChannels);
+		FloatVectorOperations::fill(frameData, (float)modValue, numChannels);
 	};
 
 	void process(ProcessData& d)
@@ -726,7 +732,7 @@ public:
 			const int numAfter = d.size - numRemaining;
 
 			for (auto ch : d)
-				FloatVectorOperations::fill(ch + numRemaining, modValue, numAfter);
+				FloatVectorOperations::fill(ch + numRemaining, (float)modValue, numAfter);
 
 			samplesLeft = samplesBetweenCallbacks + numRemaining;
 		}
@@ -782,7 +788,7 @@ public:
 
 	void setInterval(double timeMs)
 	{
-		samplesBetweenCallbacks = roundDoubleToInt(timeMs * 0.001 * sr);
+		samplesBetweenCallbacks = roundToInt(timeMs * 0.001 * sr);
 	}
 
 	bool active = false;
@@ -799,7 +805,7 @@ public:
 
 namespace core
 {
-using midi = MidiSourceNode;
+using midi = MidiSourceNode<NUM_POLYPHONIC_VOICES>;
 using timer = TimerNode;
 }
 

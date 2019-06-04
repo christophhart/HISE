@@ -87,6 +87,7 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/scriptnode/data/ValueTreeHelpers.h"
 #include "scripting/scriptnode/data/DspHelpers.h"
 #include "scripting/scriptnode/data/NodeBase.h"
+#include "scripting/scriptnode/ui/NodeComponent.h"
 #include "scripting/scriptnode/data/CodeGenerator.h"
 #include "scripting/scriptnode/data/DspNetwork.h"
 #include "scripting/scriptnode/nodewrappers/Base.h"
@@ -95,8 +96,9 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/scriptnode/nodewrappers/Containers.h"
 #include "scripting/scriptnode/nodewrappers/Processors.h"
 
-#include "scripting/scriptnode/data/StaticNodeWrappers.h"
 #include "scripting/scriptnode/data/ModulationSourceNode.h"
+#include "scripting/scriptnode/data/StaticNodeWrappers.h"
+
 #include "scripting/scriptnode/data/NodeContainer.h"
 #include "scripting/scriptnode/data/NodeWrapper.h"
 #include "scripting/scriptnode/data/ProcessNodes.h"
@@ -106,7 +108,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "scripting/scriptnode/ui/ParameterSlider.h"
 #include "scripting/scriptnode/ui/PropertyEditor.h"
-#include "scripting/scriptnode/ui/NodeComponent.h"
+
 #include "scripting/scriptnode/ui/ModulationSourceComponent.h"
 #include "scripting/scriptnode/ui/NodeContainerComponent.h"
 #include "scripting/scriptnode/ui/FeedbackNodeComponents.h"

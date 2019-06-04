@@ -67,7 +67,7 @@ struct NodeContainer : public AssignableObject
 		MacroParameter(NodeBase* parentNode, ValueTree data_);;
 
 		void rebuildCallback();
-		void updateRangeForConnection(ValueTree& v, Identifier);
+		void updateRangeForConnection(ValueTree v, Identifier);
 
 		NormalisableRange<double> inputRange;
 
@@ -96,15 +96,19 @@ struct NodeContainer : public AssignableObject
 		return n;
 	}
 
-	void prepareNodes(double sampleRate, int blockSize)
+	void prepareNodes(PrepareSpecs ps)
 	{
 		ScopedLock sl(asNode()->getRootNetwork()->getConnectionLock());
 
-		originalSampleRate = sampleRate;
-		originalBlockSize = blockSize;
+		originalSampleRate = ps.sampleRate;
+		originalBlockSize = ps.blockSize;
+		lastVoiceIndex = ps.voiceIndex;
+
+		ps.sampleRate = getSampleRateForChildNodes();
+		ps.blockSize = getBlockSizeForChildNodes();
 
 		for (auto n : nodes)
-			n->prepare(getSampleRateForChildNodes(), getBlockSizeForChildNodes());
+			n->prepare(ps);
 	}
 
 	virtual void assign(const int index, var newValue) override;
@@ -185,18 +189,19 @@ protected:
 	double originalSampleRate = 0.0;
 	int originalBlockSize = 0;
 
-	virtual void channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange) {};
+	virtual void channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange) { ignoreUnused(nodeThatCausedLayoutChange); };
 
 private:
 
-	void nodeAddedOrRemoved(ValueTree& v, bool wasAdded);
-	void parameterAddedOrRemoved(ValueTree& v, bool wasAdded);
+	void nodeAddedOrRemoved(ValueTree v, bool wasAdded);
+	void parameterAddedOrRemoved(ValueTree v, bool wasAdded);
 	void updateChannels(ValueTree v, Identifier id);
 
 	valuetree::ChildListener nodeListener;
 	valuetree::ChildListener parameterListener;
 	valuetree::RecursivePropertyListener channelListener;
 
+	int* lastVoiceIndex = nullptr;
 	bool channelRecursionProtection = false;
 };
 
@@ -212,9 +217,15 @@ public:
 		SET_HISE_NODE_EXTRA_HEIGHT(0);
 		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-		bool handleModulation(double& value) 
+		bool handleModulation(double&) 
 		{ 
 			return false; 
+		}
+
+		void handleHiseEvent(HiseEvent& e) final override
+		{
+			for (auto n : parent->getNodeList())
+				n->handleHiseEvent(e);
 		}
 
 		void initialise(NodeBase* p)
@@ -228,7 +239,7 @@ public:
 				n->reset();
 		}
 
-		void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+		void prepare(PrepareSpecs)
 		{
 			// do nothing here, the container inits the child nodes.
 		}
@@ -249,7 +260,7 @@ public:
 				n->processSingle(frameData, numChannels);
 		}
 
-		void createParameters(Array<ParameterData>& data) override {};
+		void createParameters(Array<ParameterData>& ) override {};
 
 		DynamicSerialProcessor& getObject() { return *this; }
 		const DynamicSerialProcessor& getObject() const { return *this; }
@@ -285,7 +296,12 @@ public:
 	void process(ProcessData& data) final override;
 	void processSingle(float* frameData, int numChannels) final override;
 
-	void prepare(double sampleRate, int blockSize) override;
+	void prepare(PrepareSpecs ps) override;
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		wrapper.handleHiseEvent(e);
+	}
 
 	void reset() final override { wrapper.reset(); }
 
@@ -327,7 +343,7 @@ public:
 			modValue = 0.0;
 		}
 
-		void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+		void prepare(PrepareSpecs)
 		{
 			// do nothing here, the container inits the child nodes.
 		}
@@ -350,7 +366,7 @@ public:
 				n->processSingle(frameData, numChannels);
 		}
 
-		void createParameters(Array<ParameterData>& data) override {};
+		void createParameters(Array<ParameterData>&) override {};
 
 		DynamicModContainer& getObject() { return *this; }
 		const DynamicModContainer& getObject() const { return *this; }
@@ -365,9 +381,14 @@ public:
 
 	void processSingle(float* frameData, int numChannels) noexcept final override;
 	void process(ProcessData& data) noexcept final override;
-	void prepare(double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps) override
 	{
-		NodeContainer::prepareNodes(sampleRate, blockSize);
+		NodeContainer::prepareNodes(ps);
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		obj.handleHiseEvent(e);
 	}
 
 	void reset() final override
@@ -398,28 +419,98 @@ class EventProcessorNode : public SerialNode
 {
 public:
 
-	SCRIPTNODE_FACTORY(ModulationChainNode, "event_processor");
+	class DynamicSynthChain : public PolyDspBase<16>
+	{
+	public:
+
+		SET_HISE_NODE_EXTRA_HEIGHT(0);
+		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+		bool handleModulation(double&)
+		{
+			return false;
+		}
+
+		void handleHiseEvent(HiseEvent& e) final override
+		{
+			for (auto n : parent->getNodeList())
+				n->handleHiseEvent(e);
+		}
+
+		void initialise(NodeBase* p)
+		{
+			parent = dynamic_cast<NodeContainer*>(p);
+		}
+
+		void reset()
+		{
+			for (auto n : parent->getNodeList())
+				n->reset();
+		}
+
+		void prepare(PrepareSpecs)
+		{
+			// do nothing here, the container inits the child nodes.
+		}
+
+		void process(ProcessData& d)
+		{
+			jassert(parent != nullptr);
+
+			for (auto n : parent->getNodeList())
+				n->process(d);
+		}
+
+		void processSingle(float* frameData, int numChannels)
+		{
+			jassert(parent != nullptr);
+
+			for (auto n : parent->getNodeList())
+				n->processSingle(frameData, numChannels);
+		}
+
+		void createParameters(Array<ParameterData>&) override {};
+
+		DynamicSynthChain& getObject() { return *this; }
+		const DynamicSynthChain& getObject() const { return *this; }
+
+		NodeContainer* parent;
+	};
+
+	SCRIPTNODE_FACTORY(EventProcessorNode, "synth");
 
 	EventProcessorNode(DspNetwork* n, ValueTree t);;
 
-	void processSingle(float* frameData, int numChannels) noexcept final override
+	void processSingle(float*, int) noexcept final override
 	{
 		jassertfalse;
 	}
 
-	void process(ProcessData& data) noexcept final override
+	void process(ProcessData& d) noexcept final override
 	{
-		obj.process(data);
+		obj.process(d);
 	}
 
-	void prepare(double sampleRate, int blockSize) override
+	void prepare(PrepareSpecs ps) override
 	{
-		obj.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
+		ps.voiceIndex = &obj.currentVoiceIndex;
+		NodeContainer::prepareNodes(ps);
+		obj.prepare(ps);
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	void reset() override
+	{
+		obj.reset();
 	}
 
 private:
 
-	wrap::event<SerialNode::DynamicSerialProcessor> obj;
+	wrap::synth<DynamicSynthChain> obj;
 };
 
 template <int OversampleFactor> class OversampleNode : public SerialNode
@@ -440,23 +531,27 @@ public:
 			BIND_MEMBER_FUNCTION_2(OversampleNode<OversampleFactor>::updateBypassState));
 	}
 
-	void updateBypassState(Identifier, var newValue)
+	void updateBypassState(Identifier, var )
 	{
-		auto bp = (bool)newValue;
-		prepare(originalSampleRate, originalBlockSize);
+		PrepareSpecs ps;
+		ps.blockSize = originalBlockSize;
+		ps.sampleRate = originalSampleRate;
+		ps.numChannels = getNumChannelsToProcess();
+
+		prepare(ps);
 	}
 
-	void prepare(double sampleRate, int blockSize) override
+	void prepare(PrepareSpecs ps) override
 	{
-		prepareNodes(sampleRate, blockSize);
+		prepareNodes(ps);
 
 		if (isBypassed())
 		{
-			obj.getObject().prepare(getNumChannelsToProcess(), sampleRate, blockSize);
+			obj.getObject().prepare(ps);
 		}
 		else
 		{
-			obj.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
+			obj.prepare(ps);
 		}
 	}
 
@@ -473,6 +568,11 @@ public:
 	void reset() final override
 	{
 		obj.reset();
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		obj.handleHiseEvent(e);
 	}
 
 	void process(ProcessData& d) noexcept final override
@@ -521,7 +621,7 @@ public:
 
 	SCRIPTNODE_FACTORY(SplitNode, "split");
 
-	void prepare(double sampleRate, int blockSize) override;
+	void prepare(PrepareSpecs ps) override;
 
 	void reset() final override
 	{
@@ -529,6 +629,15 @@ public:
 	}
 
 	String getCppCode(CppGen::CodeLocation location) override;
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		for (auto n : nodes)
+		{
+			HiseEvent copy(e);
+			n->handleHiseEvent(e);
+		}
+	}
 
 	void process(ProcessData& data) final override;
 
@@ -550,18 +659,16 @@ public:
 		SET_HISE_NODE_EXTRA_HEIGHT(0);
 		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-		bool handleModulation(double& value) { return false; }
+		bool handleModulation(double&) { return false; }
 
 		void initialise(NodeBase* p)
 		{
 			parent = dynamic_cast<NodeContainer*>(p);
 		}
 
-		
-
-		void prepare(int numChannelsToProcess, double sampleRate, int blockSize)
+		void prepare(PrepareSpecs ps)
 		{
-			DspHelpers::increaseBuffer(feedbackBuffer, numChannelsToProcess, blockSize);
+			DspHelpers::increaseBuffer(feedbackBuffer, ps);
 
 			auto nl = parent->getNodeList();
 			first = nl[0];
@@ -569,6 +676,12 @@ public:
 
 			reset();
 			// do nothing here, the container inits the child nodes.
+		}
+
+		void handleHiseEvent(HiseEvent& e) final override
+		{
+			for (auto n : parent->getNodeList())
+				n->handleHiseEvent(e);
 		}
 
 		void reset()
@@ -615,7 +728,7 @@ public:
 			}
 		}
 
-		void createParameters(Array<ParameterData>& data) override {};
+		void createParameters(Array<ParameterData>&) override {};
 
 		DynamicFeedbackNode& getObject() { return *this; }
 		const DynamicFeedbackNode& getObject() const { return *this; }
@@ -638,16 +751,16 @@ public:
 
 	SCRIPTNODE_FACTORY(FeedbackContainer, "feedback");
 
-	void process(ProcessData& data) final override
+	void process(ProcessData& d) final override
 	{
-		obj.process(data);
+		obj.process(d);
 		
 	}
 
-	void prepare(double sampleRate, int blockSize)
+	void prepare(PrepareSpecs ps)
 	{
-		NodeContainer::prepareNodes(sampleRate, blockSize);
-		obj.prepare(getNumChannelsToProcess(), sampleRate, blockSize);
+		NodeContainer::prepareNodes(ps);
+		obj.prepare(ps);
 	}
 
 	void reset() final override
@@ -679,9 +792,9 @@ public:
 
 	SCRIPTNODE_FACTORY(MultiChannelNode, "multi");
 
-	void prepare(double sampleRate, int blockSize) final override
+	void prepare(PrepareSpecs ps) final override
 	{
-		NodeContainer::prepareNodes(sampleRate, blockSize);
+		NodeContainer::prepareNodes(ps);
 	}
 
 	void reset() final override
@@ -689,7 +802,16 @@ public:
 		NodeContainer::resetNodes();
 	}
 
-	void process(ProcessData& data) override
+	void handleHiseEvent(HiseEvent& e) override
+	{
+		for (auto n : nodes)
+		{
+			HiseEvent c(e);
+			n->handleHiseEvent(c);
+		}
+	}
+
+	void process(ProcessData& d) override
 	{
 		int channelIndex = 0;
 
@@ -699,15 +821,15 @@ public:
 			int startChannel = channelIndex;
 			int endChannel = startChannel + numChannelsThisTime;
 
-			if (endChannel <= data.numChannels)
+			if (endChannel <= d.numChannels)
 			{
 				for (int i = 0; i < numChannelsThisTime; i++)
-					currentChannelData[i] = data.data[startChannel + i];
+					currentChannelData[i] = d.data[startChannel + i];
 
 				ProcessData thisData;
 				thisData.data = currentChannelData;
 				thisData.numChannels = numChannelsThisTime;
-				thisData.size = data.size;
+				thisData.size = d.size;
 
 				n->process(thisData);
 			}

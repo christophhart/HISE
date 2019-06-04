@@ -173,8 +173,8 @@ private:
 
 	Array<Identifier> syncedIds;
 
-	void valueTreeChildAdded(ValueTree& p, ValueTree& c) override { }
-	void valueTreeChildRemoved(ValueTree& p, ValueTree& c, int) override {}
+	void valueTreeChildAdded(ValueTree& , ValueTree& ) override { }
+	void valueTreeChildRemoved(ValueTree& , ValueTree& , int) override {}
 	void valueTreeChildOrderChanged(ValueTree&, int, int) override { }
 	void valueTreePropertyChanged(ValueTree& v, const Identifier& id) override;
 	void valueTreeParentChanged(ValueTree&) override {}

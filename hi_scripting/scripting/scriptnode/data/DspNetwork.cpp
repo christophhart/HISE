@@ -186,7 +186,13 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 {
 	ScopedLock sl(getConnectionLock());
 
-	signalPath->prepare(sampleRate, blockSize);
+	PrepareSpecs ps;
+	ps.sampleRate = sampleRate;
+	ps.blockSize = blockSize;
+	ps.numChannels = signalPath->getNumChannelsToProcess();
+	ps.voiceIndex = &voiceIndex;
+
+	signalPath->prepare(ps);
 }
 
 void DspNetwork::processBlock(var data)
