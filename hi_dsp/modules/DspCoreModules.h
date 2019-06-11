@@ -16,7 +16,7 @@ namespace hise { using namespace juce;
 //#define DELAY_BUFFER_SIZE 65536
 //#define DELAY_BUFFER_MASK 65536-1
 
-template <int MaxLength=65536> class DelayLine
+template <int MaxLength=65536, class LockType=SpinLock, bool AllowFade=true> class DelayLine
 {
     static constexpr int DELAY_BUFFER_SIZE = MaxLength;
     static constexpr int DELAY_BUFFER_MASK = MaxLength - 1;
@@ -38,7 +38,7 @@ public:
 
 	void prepareToPlay(double sampleRate_)
 	{
-		SpinLock::ScopedLockType sl(processLock);
+		LockType::ScopedLockType sl(processLock);
 
 		sampleRate = sampleRate_;
 	}
@@ -50,21 +50,21 @@ public:
 
 	void setDelayTimeSamples(int delayInSamples)
 	{
-		SpinLock::ScopedLockType sl(processLock);
+		LockType::ScopedLockType sl(processLock);
 
 		setInternalDelayTime(delayInSamples);
 	}
 
 	void setFadeTimeSamples(int newFadeTimeInSamples)
 	{
-		SpinLock::ScopedLockType sl(processLock);
+		LockType::ScopedLockType sl(processLock);
 
 		fadeTimeSamples = newFadeTimeInSamples;
 	}
 
 	void processBlock(float* data, int numValues)
 	{
-		SpinLock::ScopedLockType sl(processLock);
+		LockType::ScopedLockType sl(processLock);
 
 		if (fadeCounter < 0)
 		{
@@ -77,8 +77,10 @@ public:
 		{
 			for (int i = 0; i < numValues; i++)
 			{
-				if (fadeCounter < 0)	processSampleWithoutFade(data[i]);
-				else					processSampleWithFade(data[i]);
+				if (fadeTimeSamples == 0 || fadeCounter < 0)	
+					processSampleWithoutFade(data[i]);
+				else					
+					processSampleWithFade(data[i]);
 			}
 		}
 	}
@@ -90,10 +92,12 @@ public:
 
 	float getDelayedValue(float inputValue)
 	{
-		SpinLock::ScopedLockType sl(processLock);
+		LockType::ScopedLockType sl(processLock);
 
-		if (fadeCounter < 0)	processSampleWithoutFade(inputValue);
-		else					processSampleWithFade(inputValue);
+		if (fadeTimeSamples == 0 || fadeCounter < 0)	
+			processSampleWithoutFade(inputValue);
+		else					
+			processSampleWithFade(inputValue);
 
 		return inputValue;
 	}
@@ -105,13 +109,26 @@ public:
 
 		writeIndex = currentDelayTime;
 		readIndex = 0;
+		fadeCounter = -1;
 
+	}
+
+	String toDbgString()
+	{
+		String s;
+
+		s << "currentDelayTime: " << currentDelayTime << ", ";
+		s << "readIndex: " << readIndex << ",";
+		s << "writeIndex: " << writeIndex << ", ";
+		return s;
 	}
 
 private:
 
 	void processSampleWithFade(float& f)
 	{
+		jassert(fadeTimeSamples != 0);
+
 		delayBuffer[writeIndex++] = f;
 
 		const float oldValue = delayBuffer[oldReadIndex++];
@@ -139,19 +156,24 @@ private:
 
 	void processSampleWithoutFade(float& f)
 	{
+		jassert(isPositiveAndBelow(readIndex, DELAY_BUFFER_SIZE));
+		jassert(isPositiveAndBelow(writeIndex, DELAY_BUFFER_SIZE));
+
 		delayBuffer[writeIndex++] = f;
 
 		f = delayBuffer[readIndex++];
 
 		readIndex &= DELAY_BUFFER_MASK;
 		writeIndex &= DELAY_BUFFER_MASK;
+
+		
 	}
 
 	void setInternalDelayTime(int delayInSamples)
 	{
 		delayInSamples = jmin<int>(delayInSamples, DELAY_BUFFER_SIZE - 1);
 
-		if (fadeCounter != -1)
+		if (fadeTimeSamples > 0 && fadeCounter != -1)
 		{
 			lastIgnoredDelayTime = delayInSamples;
 			return;
@@ -170,7 +192,7 @@ private:
 		readIndex = (writeIndex - delayInSamples) & DELAY_BUFFER_MASK;
 	}
 
-	SpinLock processLock;
+	LockType processLock;
 
 	double maxDelayTime;
 	int currentDelayTime;

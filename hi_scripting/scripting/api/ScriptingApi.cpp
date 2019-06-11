@@ -919,6 +919,16 @@ void ScriptingApi::Message::setHiseEvent(const HiseEvent& m)
 	constMessageHolder = &m;
 }
 
+hise::HiseEvent& ScriptingApi::Message::getCurrentEventReference()
+{
+	if (messageHolder != nullptr)
+		return *messageHolder;
+	
+	jassertfalse;
+	static HiseEvent unused;
+	return unused;
+}
+
 // ====================================================================================================== Engine functions
 
 struct ScriptingApi::Engine::Wrapper

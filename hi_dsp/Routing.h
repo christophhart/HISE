@@ -105,16 +105,33 @@ public:
 		void setEditorShown(bool isShown) noexcept { editorShown = isShown; }
 
 		void setTargetProcessor(Processor *p);
-		String getTargetName() const { return targetProcessor.get() != nullptr ? targetProcessor.get()->getId() : "HISE Output"; }
-		String getSourceName() const { return thisAsProcessor->getId(); }
+		String getTargetName() const 
+		{ 
+			if (!isProcessorMatrix())
+				return "Output";
+
+			return targetProcessor.get() != nullptr ? targetProcessor.get()->getId() : "HISE Output"; 
+		}
+		String getSourceName() const 
+		{ 
+			if (!isProcessorMatrix())
+				return "Input";
+
+			return thisAsProcessor->getId(); 
+		}
 
 		void setGainValues(float *numMaxChannelValues, bool isSourceValue);
 		float getGainValue(int channelIndex, bool getSourceValue) const { return getSourceValue ? sourceGainValues[channelIndex] : targetGainValues[channelIndex]; };
 
-		void init()
+		void init(Processor* pTouse=nullptr)
 		{
-			thisAsProcessor = dynamic_cast<Processor*>(owningProcessor);
+			thisAsProcessor = pTouse != nullptr ? pTouse : dynamic_cast<Processor*>(owningProcessor);
 			resetToDefault();
+		}
+
+		bool isProcessorMatrix() const
+		{
+			return dynamic_cast<Processor*>(owningProcessor) != nullptr;
 		}
 
 		void loadPreset(Presets newPreset);

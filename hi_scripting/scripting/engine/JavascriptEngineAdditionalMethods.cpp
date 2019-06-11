@@ -685,6 +685,42 @@ var HiseJavascriptEngine::getInlineFunction(const Identifier& id)
 }
 
 
+juce::StringArray HiseJavascriptEngine::getInlineFunctionNames(int numArgs /*= -1*/)
+{
+	if (auto r = dynamic_cast<HiseJavascriptEngine::RootObject*>(getRootObject()))
+	{
+		StringArray list;
+
+		auto addAll = [numArgs](RootObject::JavascriptNamespace* ns, StringArray& sa)
+		{
+			String prefix = ns->id == Identifier("root") ? "" : ns->id.toString() + ".";
+
+			for (auto f_ : ns->inlineFunctions)
+			{
+				if (auto f = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f_))
+				{
+					if (numArgs != -1 && f->parameterNames.size() != numArgs)
+						continue;
+
+					sa.add(prefix + f->name.toString());
+				}
+			}
+		};
+
+		addAll(&r->hiseSpecialData, list);
+
+		for (auto ns : r->hiseSpecialData.namespaces)
+		{
+			addAll(ns, list);
+		}
+		
+		return list;
+	}
+
+	return {};
+}
+
+
 
 var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* arguments, Result* result, int numArgs)
 {

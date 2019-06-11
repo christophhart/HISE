@@ -118,7 +118,7 @@ void MidiLooper::buttonClicked(Button* b)
 	}
 	else if (b == &undoButton)
 	{
-		getPlayer()->setEnableUndoManager(true);
+		getPlayer()->enableInternalUndoManager(true);
 		getPlayer()->getUndoManager()->undo();
 	}
 }

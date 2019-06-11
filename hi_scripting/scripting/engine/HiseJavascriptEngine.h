@@ -167,6 +167,8 @@ public:
 
 	var getInlineFunction(const Identifier& id);
 
+	StringArray getInlineFunctionNames(int numArgs = -1);
+
 	var executeCallback(int callbackIndex, Result *result);
 
 	void setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue);

@@ -163,6 +163,8 @@ public:
 		void setHiseEvent(HiseEvent &m);
 		void setHiseEvent(const HiseEvent& m);		
 
+		HiseEvent& getCurrentEventReference();
+
 		struct Wrapper;
 
 	private:
