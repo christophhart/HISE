@@ -205,6 +205,11 @@ Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
 
 int Processor::getNumParameters() const
 {
+	if (auto jp = dynamic_cast<const JavascriptProcessor*>(this))
+	{
+		if (auto n = jp->getActiveNetwork())
+			return n->networkParameterHandler.getNumParameters();
+	}
 	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
 	{
 		return pwsc->getNumScriptParameters();

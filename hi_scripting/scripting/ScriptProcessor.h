@@ -39,6 +39,7 @@ namespace hise { using namespace juce;
 class ModulatorSynthGroup;
 
 
+
 /** A class that has a content that can be populated with script components. 
 *	@ingroup processor_interfaces
 *
@@ -50,7 +51,8 @@ public:
 
 	ProcessorWithScriptingContent(MainController* mc_) :
 		restoredContentValues(ValueTree("Content")),
-		mc(mc_)
+		mc(mc_),
+		contentParameterHandler(*this)
 	{}
 
 	enum EditorStates
@@ -117,8 +119,6 @@ public:
 
 	const MainController* getMainController_() const { return mc; }
 
-	
-
 protected:
 
 	/** Call this from the base class to create the content. */
@@ -140,6 +140,35 @@ protected:
 	ReferenceCountedObjectPtr<ScriptingApi::Content> content;
 
 	//WeakReference<ScriptingApi::Content> content;
+
+	struct ContentParameterHandler: public ScriptParameterHandler
+	{
+		ContentParameterHandler(ProcessorWithScriptingContent& parent):
+			p(parent)
+		{}
+
+		void setParameter(int index, float newValue) final override
+		{
+			p.setControlValue(index, newValue);
+		}
+
+		float getParameter(int index) const final override
+		{
+			return p.getControlValue(index);
+		}
+
+		int getNumParameters() const final override
+		{
+			return p.getNumScriptParameters();
+		}
+
+		Identifier getParameterId(int parameterIndex) const final override
+		{
+			return p.getContentParameterIdentifier(parameterIndex);
+		}
+
+		ProcessorWithScriptingContent& p;
+	} contentParameterHandler;
 
 private:
 

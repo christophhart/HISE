@@ -321,16 +321,31 @@ public:
 
 	Path getSpecialSymbol() const override;
 
-	float getAttribute(int index) const override { return getControlValue(index); }
-	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
+	float getAttribute(int index) const override
+	{
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameter(index);
+		else
+			return contentParameterHandler.getParameter(index);
+	}
 
-	ValueTree exportAsValueTree() const override { ValueTree v = TimeVariantModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
-	void restoreFromValueTree(const ValueTree &v) override { TimeVariantModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+	void setInternalAttribute(int index, float newValue) override
+	{
+		if (auto n = getActiveNetwork())
+			n->networkParameterHandler.setParameter(index, newValue);
+		else
+			contentParameterHandler.setParameter(index, newValue);
+	}
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
-		return getContentParameterIdentifier(parameterIndex);
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameterId(parameterIndex);
+		else
+			return contentParameterHandler.getParameterId(parameterIndex);
 	}
+	ValueTree exportAsValueTree() const override { ValueTree v = TimeVariantModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { TimeVariantModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -415,15 +430,32 @@ public:
 
 	Path getSpecialSymbol() const override;
 
-	float getAttribute(int index) const override { return getControlValue(index); }
-	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
-
+	
 	ValueTree exportAsValueTree() const override { ValueTree v = EnvelopeModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override { EnvelopeModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
 
+	float getAttribute(int index) const override
+	{
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameter(index);
+		else
+			return contentParameterHandler.getParameter(index);
+	}
+
+	void setInternalAttribute(int index, float newValue) override
+	{
+		if (auto n = getActiveNetwork())
+			n->networkParameterHandler.setParameter(index, newValue);
+		else
+			contentParameterHandler.setParameter(index, newValue);
+	}
+
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
-		return getContentParameterIdentifier(parameterIndex);
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameterId(parameterIndex);
+		else
+			return contentParameterHandler.getParameterId(parameterIndex);
 	}
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
@@ -646,16 +678,32 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
 
-	float getAttribute(int index) const override { return getControlValue(index); }
-	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
-
-	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); saveNetworks(v); saveScript(v); return v; }
-	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+	float getAttribute(int index) const override 
+	{ 
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameter(index);
+		else
+			return contentParameterHandler.getParameter(index);
+	}
+	
+	void setInternalAttribute(int index, float newValue) override 
+	{ 
+		if (auto n = getActiveNetwork())
+			n->networkParameterHandler.setParameter(index, newValue);
+		else
+			contentParameterHandler.setParameter(index, newValue);
+	}
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
-		return getContentParameterIdentifier(parameterIndex);
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameterId(parameterIndex);
+		else
+			return contentParameterHandler.getParameterId(parameterIndex);
 	}
+
+	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
 
 	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
 

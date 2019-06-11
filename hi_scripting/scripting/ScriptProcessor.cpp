@@ -851,6 +851,7 @@ void JavascriptProcessor::DelayedPositionUpdater::scriptComponentUpdated(Identif
 void JavascriptProcessor::saveScript(ValueTree &v) const
 {
 	saveComplexDataTypeAmounts(v);
+	saveNetworks(v);
 
 	String x;
 
