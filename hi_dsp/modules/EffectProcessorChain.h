@@ -337,6 +337,7 @@ public:
 		saturation,
 		audioProcessorWrapper,
 		scriptFxProcessor,
+		polyScriptFxProcessor,
 		slotFX,
 		emptyFX,
 		dynamics,

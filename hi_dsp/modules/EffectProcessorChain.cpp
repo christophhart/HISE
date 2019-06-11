@@ -115,6 +115,7 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(SaturatorEffect);
 	ADD_NAME_TO_TYPELIST(AudioProcessorWrapper);
 	ADD_NAME_TO_TYPELIST(JavascriptMasterEffect);
+	ADD_NAME_TO_TYPELIST(JavascriptPolyphonicEffect);
 	ADD_NAME_TO_TYPELIST(SlotFX);
 	ADD_NAME_TO_TYPELIST(EmptyFX);
 	ADD_NAME_TO_TYPELIST(DynamicsEffect);
@@ -132,6 +133,7 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	{
 	case polyphonicFilter:				return new PolyFilterEffect(m, id, numVoices);
 	case harmonicFilter:				return new HarmonicFilter(m, id, numVoices);
+	case polyScriptFxProcessor:			return new JavascriptPolyphonicEffect(m, id, numVoices);
 	case harmonicFilterMono:			return new HarmonicMonophonicFilter(m, id);
 	case curveEq:						return new CurveEq(m, id);
 	case stereoEffect:					return new StereoEffect(m, id, numVoices);

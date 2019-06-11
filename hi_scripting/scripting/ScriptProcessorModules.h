@@ -400,13 +400,6 @@ public:
 	enum Callback
 	{
 		onInit = 0,
-		prepare,
-		renderVoice,
-		onStartVoice,
-		onStopVoice,
-		onNoteOn,
-		onNoteOff,
-		onController,
 		onControl,
 		numCallbacks
 	};
@@ -414,12 +407,6 @@ public:
 	enum EditorStates
 	{
 		prepareToPlayOpen = ProcessorWithScriptingContent::EditorStates::numEditorStates,
-		renderVoiceOpen,
-		startVoiceOpen,
-		stopVoiceOpen,
-		onNoteOnOpen,
-		onNoteOffOpen,
-		onControllerOpen,
 		onControlOpen,
 		externalPopupShown,
 		numScriptEditorStates
@@ -484,6 +471,8 @@ public:
 
 private:
 
+	int currentVoiceIndex = -1;
+
 	struct ScriptEnvelopeState : public EnvelopeModulator::ModulatorState
 	{
 		ScriptEnvelopeState(int voiceIndex_) :
@@ -493,7 +482,24 @@ private:
 		float uptime = 0.0f;
 		bool isPlaying = false;
 		bool isRingingOff = false;
+		HiseEvent noteOnEvent;
 	};
+
+	struct VoiceData
+	{
+		bool operator==(const VoiceData& other) const
+		{
+			return other.voiceIndex == voiceIndex && noteOn == other.noteOn;
+		}
+
+		int voiceIndex;
+		HiseEvent noteOn;
+	};
+
+	UnorderedStack<VoiceData, NUM_POLYPHONIC_VOICES> voiceNoteOns;
+	
+	HiseEvent lastNoteOn;
+	
 
 	ModulatorState *createSubclassedState(int voiceIndex) const override { return new ScriptEnvelopeState(voiceIndex); };
 
@@ -501,17 +507,7 @@ private:
 	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
 	ScriptingApi::Synth *synthObject;
 
-	VariantBuffer::Ptr buffer;
-	var bufferVar;
-
 	ScopedPointer<SnippetDocument> onInitCallback;
-	ScopedPointer<SnippetDocument> prepareToPlayCallback;
-	ScopedPointer<SnippetDocument> renderVoiceCallback;
-	ScopedPointer<SnippetDocument> startVoiceCallback;
-	ScopedPointer<SnippetDocument> stopVoiceCallback;
-	ScopedPointer<SnippetDocument> onNoteOnCallback;
-	ScopedPointer<SnippetDocument> onNoteOffCallback;
-	ScopedPointer<SnippetDocument> onControllerCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptEnvelopeModulator)
@@ -582,7 +578,7 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void preHiseEventCallback(const HiseEvent &m) override;
-	void preStartVoice(int voiceIndex, int noteNumber) override;;
+	void preStartVoice(int voiceIndex, const HiseEvent& e) override;;
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
@@ -621,6 +617,8 @@ private:
 	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
 	ScriptingApi::Synth *synthObject;
 };
+
+
 
 class JavascriptMasterEffect : public JavascriptProcessor,
 							   public ProcessorWithScriptingContent,
@@ -720,6 +718,122 @@ private:
 	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> prepareToPlayCallback;
 	ScopedPointer<SnippetDocument> processBlockCallback;
+	ScopedPointer<SnippetDocument> onControlCallback;
+
+	ScriptingApi::Engine* engineObject;
+};
+
+class JavascriptPolyphonicEffect : public JavascriptProcessor,
+	public ProcessorWithScriptingContent,
+	public VoiceEffectProcessor
+{
+public:
+
+	SET_PROCESSOR_NAME("PolyScriptFX", "Polyphonic Script FX", "A polyphonic scriptable audio effect.");
+
+	enum class Callback
+	{
+		onInit,
+		onControl,
+		numCallbacks
+	};
+
+	enum EditorStates
+	{
+		onControlOpen = ProcessorWithScriptingContent::EditorStates::numEditorStates,
+		externalPopupShown,
+		numScriptEditorStates
+	};
+
+	JavascriptPolyphonicEffect(MainController *mc, const String &id, int numVoices);
+	~JavascriptPolyphonicEffect();
+
+
+	Path getSpecialSymbol() const override;
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	SnippetDocument *getSnippet(int c) override;
+	const SnippetDocument *getSnippet(int c) const override;
+	int getNumSnippets() const override { return (int)Callback::numCallbacks; }
+	void registerApiClasses() override;
+	void postCompileCallback() override;
+
+	bool hasTail() const override { return false; };
+
+	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
+
+	int getNumInternalChains() const override { return 0; };
+	int getNumChildProcessors() const override { return 0; };
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+
+	ValueTree exportAsValueTree() const override { ValueTree v = VoiceEffectProcessor::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { VoiceEffectProcessor::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+	float getAttribute(int index) const override
+	{
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameter(index);
+		else
+			return contentParameterHandler.getParameter(index);
+	}
+
+	void setInternalAttribute(int index, float newValue) override
+	{
+		if (auto n = getActiveNetwork())
+			n->networkParameterHandler.setParameter(index, newValue);
+		else
+			contentParameterHandler.setParameter(index, newValue);
+	}
+
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	{
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameterId(parameterIndex);
+		else
+			return contentParameterHandler.getParameterId(parameterIndex);
+	}
+
+	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
+
+	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) final override;
+
+	void startVoice(int voiceIndex, const HiseEvent& e) final override;
+
+	void stopVoice(int ) final override {}
+
+	void reset(int voiceIndex) final override;
+
+	void handleHiseEvent(const HiseEvent &m) final override;;
+
+	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSample) final override
+	{
+		jassertfalse;
+	}
+
+	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) final override
+	{
+
+	}
+
+private:
+
+	struct VoiceData
+	{
+		bool operator==(const VoiceData& other) const
+		{
+			return other.voiceIndex == voiceIndex && noteOn == other.noteOn;
+		}
+
+		int voiceIndex;
+		HiseEvent noteOn;
+	};
+
+	UnorderedStack<VoiceData, NUM_POLYPHONIC_VOICES> voiceNoteOns;
+
+	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
 	ScriptingApi::Engine* engineObject;
