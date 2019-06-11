@@ -282,6 +282,8 @@ public:
 		CurrentSequence,		   ///< the index of the currently played sequence (not zero based for combobox compatibility)
 		CurrentTrack,			   ///< the index of the currently played track within a sequence.
 		LoopEnabled,			   ///< toggles between oneshot and loop playback
+		LoopStart,				   ///< start of the (loop) playback
+		LoopEnd,				   ///< end of the (loop) playback
 		numSpecialParameters
 	};
 
@@ -343,7 +345,9 @@ public:
 	double getPlaybackPosition() const;
 
 	void swapCurrentSequence(MidiMessageSequence* newSequence);
-	void setEnableUndoManager(bool shouldBeEnabled);
+	void enableInternalUndoManager(bool shouldBeEnabled);
+
+	void setExternalUndoManager(UndoManager* externalUndoManager);
 
 	/** Applies the list of events to the currently loaded sequence. This operation is undo-able. 
 	
@@ -402,14 +406,15 @@ private:
 	Array<HiseEvent> currentlyRecordedEvents;
 
 
-  std::atomic<RecordState> recordState{ RecordState::Idle};
+	std::atomic<RecordState> recordState{ RecordState::Idle};
 
 
 	bool isRecording() const noexcept { return getPlayState() == PlayState::Record; }
 
 	void sendSequenceUpdateMessage(NotificationType notification);
 
-	ScopedPointer<UndoManager> undoManager;
+	ScopedPointer<UndoManager> ownedUndoManager;
+	UndoManager* undoManager;
 
 	Array<PoolReference> currentlyLoadedFiles;
 
@@ -424,6 +429,8 @@ private:
 
 	PlayState playState = PlayState::Stop;
 
+	double loopStart = 0.0;
+	double loopEnd = 1.0;
 	double currentPosition = -1.0;
 	int currentSequenceIndex = -1;
 	int currentTrackIndex = 0;

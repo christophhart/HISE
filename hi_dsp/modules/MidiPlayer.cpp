@@ -490,8 +490,8 @@ bool MidiPlayer::EditAction::perform()
 	{
 		writeArrayToSequence(currentPlayer->getCurrentSequence(),
 							 newEvents,
-							 currentPlayer->getMainController()->getBpm(),
-							 currentPlayer->getSampleRate());
+							 bpm,
+							 sampleRate);
 
 		currentPlayer->updatePositionInCurrentSequence();
 		currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
@@ -507,8 +507,8 @@ bool MidiPlayer::EditAction::undo()
 	{
 		writeArrayToSequence(currentPlayer->getCurrentSequence(), 
 			                 oldEvents, 
-			                 currentPlayer->getMainController()->getBpm(),
-							 currentPlayer->getSampleRate());
+			                 bpm,
+							 sampleRate);
 
 		currentPlayer->updatePositionInCurrentSequence();
 		currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
@@ -683,6 +683,8 @@ float MidiPlayer::getAttribute(int index) const
 	case CurrentSequence:		return (float)(currentSequenceIndex + 1);
 	case CurrentTrack:			return (float)(currentTrackIndex + 1);
 	case LoopEnabled:			return loopEnabled ? 1.0f : 0.0f;
+	case LoopStart:				return (float)loopStart;
+	case LoopEnd:				return (float)loopEnd;
 	default:
 		break;
 	}
@@ -700,6 +702,18 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 	{
 		currentPosition = jlimit<double>(0.0, 1.0, (double)newAmount); 
 
+		updatePositionInCurrentSequence();
+		break;
+	}
+	case LoopStart:
+	{
+		loopStart = jlimit(0.0, 1.0, (double)newAmount);
+		updatePositionInCurrentSequence();
+		break;
+	}
+	case LoopEnd:
+	{
+		loopEnd = jlimit(0.0, 1.0, (double)newAmount);
 		updatePositionInCurrentSequence();
 		break;
 	}
@@ -805,8 +819,21 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 			sendAllocationFreeChangeMessage();
 		}
 
+		
+
 		auto seq = getCurrentSequence();
 		seq->setCurrentTrackIndex(currentTrackIndex);
+
+		if (currentPosition < loopStart)
+		{
+			currentPosition = loopStart;
+			updatePositionInCurrentSequence();
+		}
+		else if (currentPosition > loopEnd)
+		{
+			currentPosition = loopStart + fmod(currentPosition - loopStart, loopEnd - loopStart);
+			updatePositionInCurrentSequence();
+		}
 
 		auto tickThisTime = (numSamples - timeStampForNextCommand) * ticksPerSample;
 		auto lengthInTicks = seq->getLength();
@@ -929,12 +956,17 @@ void MidiPlayer::removeSequenceListener(SequenceListener* listenerToRemove)
 
 void MidiPlayer::sendSequenceUpdateMessage(NotificationType notification)
 {
-	auto update = [this]()
+	WeakReference<MidiPlayer> mp = this;
+
+	auto update = [mp]()
 	{
-		for (auto l : sequenceListeners)
+		if (mp.get() == nullptr)
+			return;
+
+		for (auto l : mp->sequenceListeners)
 		{
 			if (l != nullptr)
-				l->sequenceLoaded(getCurrentSequence());
+				l->sequenceLoaded(mp->getCurrentSequence());
 		}
 	};
 
@@ -987,9 +1019,9 @@ void MidiPlayer::swapCurrentSequence(MidiMessageSequence* newSequence)
 }
 
 
-void MidiPlayer::setEnableUndoManager(bool shouldBeEnabled)
+void MidiPlayer::enableInternalUndoManager(bool shouldBeEnabled)
 {
-	bool isEnabled = undoManager != nullptr;
+	bool isEnabled = ownedUndoManager != nullptr;
 
 	if (isEnabled != shouldBeEnabled)
 	{
@@ -1000,13 +1032,24 @@ void MidiPlayer::setEnableUndoManager(bool shouldBeEnabled)
 	}
 }
 
+void MidiPlayer::setExternalUndoManager(UndoManager* externalUndoManager)
+{
+	ownedUndoManager = nullptr;
+	undoManager = externalUndoManager;
+}
+
 void MidiPlayer::flushEdit(const Array<HiseEvent>& newEvents)
 {
 	ScopedPointer<EditAction> newAction = new EditAction(this, newEvents, getSampleRate(), getMainController()->getBpm());
 
 	if (undoManager != nullptr)
 	{
-		undoManager->beginNewTransaction();
+		// The internal undomanager will keep each action separate, 
+		// but if you use an external undo manager, you might want to coallescate
+		// them in a timer callback...
+		if (ownedUndoManager != nullptr)
+			ownedUndoManager->beginNewTransaction();
+
 		undoManager->perform(newAction.release());
 	}
 	else
@@ -1222,7 +1265,7 @@ hise::HiseMidiSequence::Ptr MidiPlayer::getListOfCurrentlyRecordedEvents()
 
 bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 {
-	trackIndex -= 1;
+	//trackIndex -= 1;
 
 	if (getCurrentSequence() == nullptr)
 		return false;
@@ -1244,7 +1287,12 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 					MidiFile copy;
 
 					for (int i = 0; i < existingFile.getNumTracks(); i++)
-						copy.addTrack(i == trackIndex ? *track : *existingFile.getTrack(i));
+					{
+						if (i == trackIndex)
+							copy.addTrack(*track);
+						else
+							copy.addTrack(*existingFile.getTrack(i));
+					}
 
 					r.getFile().deleteFile();
 					r.getFile().create();
