@@ -412,6 +412,7 @@ public:
                 setConditionAttribute (*e, config);
                 e->setAttribute ("Label", "Configuration");
                 e->createNewChildElement ("ConfigurationType")->addTextElement (getProjectType());
+				e->createNewChildElement("PreferredToolArchitecture")->addTextElement("x64");
                 e->createNewChildElement ("UseOfMfc")->addTextElement ("false");
                 e->createNewChildElement ("WholeProgramOptimization")->addTextElement (config.isLinkTimeOptimisationEnabled() ? "true"
                                                                                                                               : "false");
