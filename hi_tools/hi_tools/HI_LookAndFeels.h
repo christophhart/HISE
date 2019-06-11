@@ -681,6 +681,32 @@ public:
 		return textButtonFont;
 	};
 
+	void drawButtonBackground(Graphics& g, Button& b, const Colour& backgroundColour, bool over, bool down)
+	{
+		auto ar = b.getLocalBounds().toFloat();
+
+		if (b.getToggleState())
+		{
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.4f));
+			g.fillRoundedRectangle(ar, 2.0f);
+		}
+
+		g.setColour(Colours::white.withAlpha(0.1f));
+
+		if (over)
+			g.fillRoundedRectangle(ar, 2.0f);
+
+		if (down)
+			g.fillRoundedRectangle(ar, 2.0f);
+	}
+
+	void drawButtonText(Graphics& g, TextButton& b, bool , bool )
+	{
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(b.getToggleState() ? Colours::black : Colours::white);
+		g.drawText(b.getButtonText(), b.getLocalBounds().toFloat(), Justification::centred);
+	}
+
 	int labelWidth = 110;
 
 	Font comboBoxFont;

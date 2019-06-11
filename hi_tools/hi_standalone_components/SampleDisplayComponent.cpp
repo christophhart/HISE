@@ -747,8 +747,9 @@ void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<f
 
 		bounds.removeFromTop(trimmedTop);
 		bounds.removeFromBottom(trimmedBottom);
-
-		p.scaleToFit(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), false);
+		
+		if(!std::isinf(bounds.getY()) && !std::isinf(bounds.getHeight()))
+			p.scaleToFit(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), false);
 	}
 }
 

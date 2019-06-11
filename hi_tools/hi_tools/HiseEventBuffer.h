@@ -114,7 +114,7 @@ public:
 	MidiMessage toMidiMesage() const;
 
 	/** Allows using the empty check in a scoped if-condition. */
-	explicit operator bool() const noexcept { return isEmpty(); }
+	explicit operator bool() const noexcept { return !isEmpty(); }
 
 	/** checks whether the event is equal to another. This checks for
 		bit-equality. */
@@ -739,9 +739,6 @@ public:
 
 	/** Removes the matching noteOn event for the given noteOff event. */
 	uint16 getEventIdForNoteOff(const HiseEvent &noteOffEvent);
-
-	/** Returns the matching note on event for the given note off event (but doesn't remove it). */
-	HiseEvent peekNoteOn(const HiseEvent& noteOffEvent);
 
 	/** Adds the artificial event to the internal stack array. */
 	void pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept;

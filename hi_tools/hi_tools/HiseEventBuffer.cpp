@@ -251,6 +251,9 @@ int HiseEvent::getTimeStamp() const noexcept
 
 void HiseEvent::setTimeStamp(int newTimestamp) noexcept
 {
+	jassert(isPositiveAndBelow(newTimestamp, 0x3FFFFFFF));
+	newTimestamp = jlimit(0, 0x3FFFFFFF, newTimestamp);
+
 	constexpr uint32 tsMask = 0x3FFFFFFF;
 	constexpr uint32 flagMask = 0xC0000000;
 	uint32 flagValues = timestamp & flagMask;
@@ -823,41 +826,6 @@ void EventIdHandler::pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept
 	currentEventId++;
 }
 
-
-HiseEvent EventIdHandler::peekNoteOn(const HiseEvent& noteOffEvent)
-{
-	if (noteOffEvent.isArtificial())
-	{
-		if (noteOffEvent.getEventId() != 0)
-		{
-			return artificialEvents[noteOffEvent.getEventId() % HISE_EVENT_ID_ARRAY_SIZE];
-		}
-		else
-		{
-			jassertfalse;
-
-			return HiseEvent();
-		}
-	}
-	else
-	{
-		auto channel = jlimit<int>(0, 15, noteOffEvent.getChannel() - 1);
-
-		if (auto e = realNoteOnEvents[channel][noteOffEvent.getNoteNumber()])
-			return e;
-		
-		for (auto no : overlappingNoteOns)
-		{
-			if (no.getNoteNumber() == noteOffEvent.getNoteNumber() && no.getChannel() == channel)
-			{
-				return no;
-			}
-		}
-
-		jassertfalse;
-		return HiseEvent();
-	}
-}
 
 HiseEvent EventIdHandler::popNoteOnFromEventId(uint16 eventId)
 {

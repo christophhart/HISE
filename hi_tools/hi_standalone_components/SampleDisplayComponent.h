@@ -103,7 +103,13 @@ public:
 
 	void resized() override
 	{
-		rebuildPaths();
+		if (rebuildOnResize)
+			rebuildPaths();
+		else
+		{
+			repaint();
+		}
+			
 	}
 
 	void setDrawHorizontalLines(bool shouldDrawHorizontalLines)
@@ -134,9 +140,15 @@ public:
 		
 	}
 
+	void setRebuildOnResize(bool shouldRebuild)
+	{
+		rebuildOnResize = shouldRebuild;
+	}
+
 	void setRange(const int left, const int right);
 private:
 
+	bool rebuildOnResize = true;
 	bool repaintOnUpdate = false;
 	bool rebuildOnUpdate = false;
 

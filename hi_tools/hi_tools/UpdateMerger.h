@@ -510,7 +510,7 @@ public:
 		}
 	}
 
-	/** Sets the smoothing time in seconds. 
+	/** Sets the smoothing time in milliseconds. 
 	*
 	*	If you pass 0.0 as parameter, the smoother gets deactivated and saves precious CPU cycles.
 	*/
