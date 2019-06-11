@@ -346,8 +346,7 @@ public:
 
 	void changeListenerCallback(SafeChangeBroadcaster *) { refreshList(); }
 
-	void preStartVoice(int voiceIndex, int noteNumber);
-	
+	void preStartVoice(int voiceIndex, const HiseEvent& e) final override;
 
 	void preVoiceRendering(int startSample, int numThisTime) override;
 

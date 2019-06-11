@@ -445,7 +445,7 @@ public:
 
 	void recalculateDisplayTable();
 
-	void startVoice(int voiceIndex, int noteNumber) override;
+	void startVoice(int voiceIndex, const HiseEvent& e) override;
 
 private:
 

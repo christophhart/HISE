@@ -117,7 +117,7 @@ public:
 	/** Calls the base class startNote() for the group itself and all child synths.  */
 	void startNote(int midiNoteNumber, float velocity, SynthesiserSound*, int) override;
 
-	ModulatorSynthVoice* startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, int midiNoteNumber, float velocity);
+	ModulatorSynthVoice* startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, const HiseEvent& e);
 
 	/** Calls the base class stopNote() for the group itself and all child synths. */
 	void stopNote(float, bool) override;

@@ -121,13 +121,13 @@ ProcessorEditorBody* GlobalModulatorContainer::createEditor(ProcessorEditor *par
 #endif
 }
 
-void GlobalModulatorContainer::preStartVoice(int voiceIndex, int noteNumber)
+void GlobalModulatorContainer::preStartVoice(int voiceIndex, const HiseEvent& e)
 {
-	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
+	ModulatorSynth::preStartVoice(voiceIndex, e);
 
 	for (auto& vd : voiceStartData)
 	{
-		vd.saveValue(noteNumber, voiceIndex);
+		vd.saveValue(e.getNoteNumber(), voiceIndex);
 	}
 }
 

@@ -599,9 +599,9 @@ void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int sta
 	voiceFilters.renderPoly(r);
 }
 
-void PolyFilterEffect::startVoice(int voiceIndex, int noteNumber)
+void PolyFilterEffect::startVoice(int voiceIndex, const HiseEvent& e)
 {
-	VoiceEffectProcessor::startVoice(voiceIndex, noteNumber);
+	VoiceEffectProcessor::startVoice(voiceIndex, e);
 
 	voiceFilters.reset(voiceIndex);
 

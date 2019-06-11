@@ -126,7 +126,7 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 	auto mod = getFMModulator();
 
 	if (mod != nullptr)
-		startNoteInternal(mod, voiceIndex, midiNoteNumber, velocity);
+		startNoteInternal(mod, voiceIndex, getCurrentHiseEvent());
 
 	for (int i = 0; i < numUnisonoVoices; i++)
 	{
@@ -142,18 +142,21 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 			if (childSynth == mod)
 				continue;
 
-			startNoteInternal(childSynth, unisonoVoiceIndex, midiNoteNumber, velocity);
+			startNoteInternal(childSynth, unisonoVoiceIndex, getCurrentHiseEvent());
 		}
 	}
 };
 
 
-ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, int midiNoteNumber, float /*velocity*/)
+ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, const HiseEvent& e)
 {
 	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
 		return nullptr;
 
-	midiNoteNumber += transposeAmount;
+
+	int midiNoteNumber = e.getNoteNumber() + e.getTransposeAmount();
+
+	//midiNoteNumber += transposeAmount;
 
 	auto group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
 
@@ -179,7 +182,7 @@ ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth*
 				childVoice->addToStartOffset((uint16)startOffsetRandomizer.nextInt(441));
 			}
 
-			childSynth->preStartVoice(childVoice->getVoiceIndex(), midiNoteNumber);
+			childSynth->preStartVoice(childVoice->getVoiceIndex(), getCurrentHiseEvent());
 			childSynth->startVoiceWithHiseEvent(childVoice, s, getCurrentHiseEvent());
 
 			getChildContainer(childVoiceIndex).addVoice(childVoice);

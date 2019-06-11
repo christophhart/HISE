@@ -289,7 +289,7 @@ public:
 	bool shouldUpdateUI() const noexcept{ return !deactivateUIUpdate; };
 	void setShouldUpdateUI(bool shouldUpdate) noexcept{ deactivateUIUpdate = !shouldUpdate; };
 
-	void preStartVoice(int voiceIndex, int noteNumber) override;
+	void preStartVoice(int voiceIndex, const HiseEvent& e) override;
 	void soundsChanged() {};
 	bool soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity) override;;
 	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;

@@ -457,9 +457,9 @@ public:
 		return path;
 	}
 
-	virtual void startMonophonicVoice(int noteNumber=-1)
+	virtual void startMonophonicVoice(const HiseEvent& e)
 	{
-		ignoreUnused(noteNumber);
+		ignoreUnused(e);
 
 		for (auto& mb : modChains)
 			mb.startVoice(0);
@@ -601,8 +601,10 @@ public:
 		return;
 	}
 
-	virtual void startVoice(int voiceIndex, int /*noteNumber*/)
+	virtual void startVoice(int voiceIndex, const HiseEvent& e)
 	{
+		ignoreUnused(e);
+
 		for (auto& mb : modChains)
 			mb.startVoice(voiceIndex);
 	}
@@ -619,7 +621,7 @@ public:
 			mb.resetVoice(voiceIndex);
 	}
 
-	void handleHiseEvent(const HiseEvent &m) final override
+	void handleHiseEvent(const HiseEvent &m) override
 	{
 		for (auto& mb : modChains)
 			mb.handleHiseEvent(m);

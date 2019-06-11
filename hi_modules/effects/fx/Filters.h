@@ -184,7 +184,7 @@ public:
 	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/);
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 	/** Resets the filter state if a new voice is started. */
-	void startVoice(int voiceIndex, int noteNumber) override;
+	void startVoice(int voiceIndex, const HiseEvent& e) override;
 	bool hasTail() const override { return false; };
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;

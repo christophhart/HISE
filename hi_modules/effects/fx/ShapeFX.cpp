@@ -934,9 +934,9 @@ void PolyshapeFX::recalculateDisplayTable()
 
 
 
-void PolyshapeFX::startVoice(int voiceIndex, int noteNumber)
+void PolyshapeFX::startVoice(int voiceIndex, const HiseEvent& e)
 {
-	VoiceEffectProcessor::startVoice(voiceIndex, noteNumber);
+	VoiceEffectProcessor::startVoice(voiceIndex, e);
 
 	driveSmoothers[voiceIndex].setValueWithoutSmoothing(drive-1.0f);
 

@@ -400,7 +400,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 			break;
 		}
 
-		const int samplesToNextMidiMessage = midiEventPos - startSample;
+		const int samplesToNextMidiMessage = jmax(numSamples, midiEventPos - startSample);
 
 		jassert(startSample % HISE_EVENT_RASTER == 0);
 		jassert(midiEventPos % HISE_EVENT_RASTER == 0);
@@ -781,7 +781,7 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 	voice->saveStartUptimeDelta();
 }
 
-void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
+void ModulatorSynth::preStartVoice(int voiceIndex, const HiseEvent& e)
 {
 	LOG_SYNTH_EVENT("preStartVoice for " + getId() + " with index " + String(voiceIndex));
 
@@ -792,9 +792,7 @@ void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 		mb.startVoice(voiceIndex);
 	}
 
-	
-
-	effectChain->startVoice(voiceIndex, noteNumber);
+	effectChain->startVoice(voiceIndex, e);
 }
 
 void ModulatorSynth::preStopVoice(int voiceIndex)
@@ -1111,7 +1109,7 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 			v->setStartUptime(getMainController()->getUptime());
 			v->setCurrentHiseEvent(m);
 
-			preStartVoice(voiceIndex, transposedMidiNoteNumber);
+			preStartVoice(voiceIndex, m);
 
 			startVoiceWithHiseEvent (v, sound, m);
 		}

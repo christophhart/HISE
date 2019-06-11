@@ -347,7 +347,7 @@ public:
 	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/) {}
 	/** Calculates the frequency chain and sets the q to the current value. */
 	/** Resets the filter state if a new voice is started. */
-	void startVoice(int voiceIndex, int noteNumber) override;
+	void startVoice(int voiceIndex, const HiseEvent& e) override;
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
@@ -445,7 +445,7 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 	
 	/** Resets the filter state if a new voice is started. */
-	void startMonophonicVoice(int noteNumber) override;
+	void startMonophonicVoice(const HiseEvent& e) override;
 
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
 

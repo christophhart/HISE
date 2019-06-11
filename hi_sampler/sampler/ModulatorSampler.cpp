@@ -877,9 +877,9 @@ String ModulatorSampler::getMemoryUsage() const
 	return memory;
 }
 
-void ModulatorSampler::preStartVoice(int voiceIndex, int noteNumber)
+void ModulatorSampler::preStartVoice(int voiceIndex, const HiseEvent& e)
 {
-	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
+	ModulatorSynth::preStartVoice(voiceIndex, e);
 
 	const bool useSampleStartChain = sampleStartChain->shouldBeProcessedAtAll();
 

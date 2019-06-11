@@ -158,11 +158,13 @@ void HarmonicFilter::prepareToPlay(double sampleRate, int samplesPerBlock)
 	}
 }
 
-void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
+void HarmonicFilter::startVoice(int voiceIndex, const HiseEvent& e)
 {
-	VoiceEffectProcessor::startVoice(voiceIndex, noteNumber);
+	VoiceEffectProcessor::startVoice(voiceIndex, e);
 
-	const float freq = (float)MidiMessage::getMidiNoteInHertz(noteNumber + semiToneTranspose);
+	HiseEvent copy(e);
+	copy.setTransposeAmount(copy.getTransposeAmount() + semiToneTranspose);
+	const float freq = copy.getFrequency();
 
 	filterBanks[voiceIndex].reset();
 	filterBanks[voiceIndex].updateBaseFrequency(freq);
@@ -378,11 +380,13 @@ void HarmonicMonophonicFilter::prepareToPlay(double sampleRate, int samplesPerBl
 
 	filterBank.setSampleRate(sampleRate);
 }
-void HarmonicMonophonicFilter::startMonophonicVoice(int noteNumber)
+void HarmonicMonophonicFilter::startMonophonicVoice(const HiseEvent& e)
 {
-	MonophonicEffectProcessor::startMonophonicVoice(noteNumber);
+	MonophonicEffectProcessor::startMonophonicVoice(e);
 
-	const float freq = (float)MidiMessage::getMidiNoteInHertz(noteNumber + semiToneTranspose);
+	HiseEvent copy(e);
+	copy.setTransposeAmount(copy.getTransposeAmount() + semiToneTranspose);
+	const float freq = copy.getFrequency();
 
 	filterBank.reset();
 	filterBank.updateBaseFrequency(freq);

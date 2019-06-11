@@ -213,11 +213,11 @@ public:
 
 	void renderMasterEffects(AudioSampleBuffer &b);
 
-	void startVoice(int voiceIndex, int noteNumber) 
+	void startVoice(int voiceIndex, const HiseEvent& e) 
 	{
 		if(isBypassed()) return;
-		FOR_EACH_VOICE_EFFECT(startVoice(voiceIndex, noteNumber)); 
-		FOR_EACH_MONO_EFFECT(startMonophonicVoice(noteNumber));
+		FOR_EACH_VOICE_EFFECT(startVoice(voiceIndex, e)); 
+		FOR_EACH_MONO_EFFECT(startMonophonicVoice(e));
 		FOR_EACH_MASTER_EFFECT(startMonophonicVoice());
 	};
 
