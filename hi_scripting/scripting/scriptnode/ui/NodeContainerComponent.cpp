@@ -191,13 +191,13 @@ void ContainerComponent::mouseDown(const MouseEvent& event)
 		{
 			var newNode;
 
+			auto container = dynamic_cast<NodeContainer*>(node.get());
+
 			if (result >= 11000)
 			{
 				auto moduleId = sa[result - 11000];
-				newNode = network->create(moduleId, {});
+				newNode = network->create(moduleId, {}, container->isPolyphonic());
 			}
-
-			auto container = dynamic_cast<NodeContainer*>(node.get());
 
 			container->assign(addPosition, newNode);
 		}
@@ -245,11 +245,8 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 
 		if (copyNode)
 		{
-			auto copy = newTree.createCopy();
-			StringArray usedIds;
-			node->getRootNetwork()->updateIdsInValueTree(copy, usedIds);
-			node->getRootNetwork()->createFromValueTree(copy);
-
+			auto copy = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
+			node->getRootNetwork()->createFromValueTree(container->isPolyphonic(), copy, true);
 			container->getNodeTree().addChild(copy, insertPosition, node->getUndoManager());
 		}
 		else
@@ -418,7 +415,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 	bottom.removeFromBottom(UIValues::PinHeight);
 
 	auto end = bottom.getCentre().toFloat().translated(xOffset, 0.0f);
-	auto end1 = end.withY(getHeight() - UIValues::PinHeight - UIValues::NodeMargin);
+	auto end1 = end.withY((float)(getHeight() - UIValues::PinHeight - UIValues::NodeMargin));
 
 	if (auto lastNode = childNodeComponents.getLast())
 	{

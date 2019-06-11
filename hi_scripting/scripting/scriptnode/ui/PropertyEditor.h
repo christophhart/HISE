@@ -38,6 +38,118 @@ using namespace juce;
 using namespace hise;
 
 
+struct NodePropertyComponent : public PropertyComponent
+{
+	NodePropertyComponent(NodeBase* n, ValueTree d) :
+		PropertyComponent(d[PropertyIds::ID].toString()),
+		comp(d, n)
+	{
+		addAndMakeVisible(comp);
+	}
+
+	struct Comp : public Component,
+				  public ComboBoxListener,
+				  public Value::Listener
+	{
+		Comp(ValueTree d, NodeBase* n):
+			v(d.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()))
+		{
+			publicButton.getToggleStateValue().referTo(d.getPropertyAsValue(PropertyIds::Public, n->getUndoManager()));
+			publicButton.setButtonText("Public");
+			addAndMakeVisible(publicButton);
+			publicButton.setLookAndFeel(&laf);
+			publicButton.setClickingTogglesState(true);
+
+			Identifier propId = Identifier(d[PropertyIds::ID].toString().fromLastOccurrenceOf(".", false, false));
+
+			if (propId == PropertyIds::FillMode || propId == PropertyIds::UseMidi || propId == PropertyIds::UseResetValue)
+			{
+				TextButton* t = new TextButton();
+				t->setButtonText("Enabled");
+				t->setClickingTogglesState(true);
+				t->getToggleStateValue().referTo(v);
+				t->setLookAndFeel(&laf);
+
+				editor = t;
+				addAndMakeVisible(editor);
+			}
+			else if (propId == PropertyIds::Callback || propId == PropertyIds::Connection)
+			{
+				Array<var> values;
+
+				StringArray sa = getListForId(propId, n);
+
+				for (auto s : sa)
+					values.add(s);
+
+				auto c = new ComboBox();
+
+				c->addItemList(sa, 1);
+				c->addListener(this);
+				v.addListener(this);
+
+				editor = c;
+
+				valueChanged(v);
+			}
+			else
+			{
+				auto te = new TextEditor();
+				te->getTextValue().referTo(v);
+				te->setLookAndFeel(&laf);
+				editor = te;
+			}
+
+			if(editor != nullptr)
+				addAndMakeVisible(editor);
+
+		}
+
+		StringArray getListForId(const Identifier& id, NodeBase* n)
+		{
+			if (id == PropertyIds::Callback)
+			{
+				if (auto jp = dynamic_cast<JavascriptProcessor*>(n->getScriptProcessor()))
+				{
+					return jp->getScriptEngine()->getInlineFunctionNames(1);
+				}
+			}
+			else if (id == PropertyIds::Connection)
+			{
+				return routing::Factory::getSourceNodeList(n);
+			}
+
+			return {};
+		}
+
+		void valueChanged(Value& value)
+		{
+			if (auto cb = dynamic_cast<ComboBox*>(editor.get()))
+				cb->setText(value.getValue(), dontSendNotification);
+		}
+
+		void comboBoxChanged(ComboBox* c) override
+		{
+			v.setValue(c->getText());
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			publicButton.setBounds(b.removeFromRight(40));
+			
+			if(editor != nullptr)
+				editor->setBounds(b);
+		}
+
+		Value v;
+		ScopedPointer<Component> editor;
+		TextButton publicButton;
+		HiPropertyPanelLookAndFeel laf;
+	} comp;
+
+	void refresh() override {};
+};
 
 struct PropertyEditor : public Component
 {
@@ -52,8 +164,19 @@ struct PropertyEditor : public Component
 			if (hiddenIds.contains(id))
 				continue;
 
-			auto nt = PropertyHelpers::createPropertyComponent(data, id, n->getUndoManager());
+			auto nt = PropertyHelpers::createPropertyComponent(n->getScriptProcessor(), data, id, n->getUndoManager());
 
+			newProperties.add(nt);
+		}
+
+		for (auto prop : n->getPropertyTree())
+		{
+			if (!(bool)prop[PropertyIds::Public] && prop[PropertyIds::ID].toString().contains("."))
+			{
+				continue;
+			}
+
+			auto nt = new NodePropertyComponent(n, prop);
 			newProperties.add(nt);
 		}
 

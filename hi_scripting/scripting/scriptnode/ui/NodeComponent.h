@@ -47,6 +47,8 @@ public:
 	{
 		ExportAsCpp = 1,
 		EditProperties,
+		UnfreezeNode,
+		FreezeNode,
 		numMenuActions
 	};
 
@@ -139,6 +141,16 @@ public:
 	{
 		m.addItem((int)MenuActions::ExportAsCpp, "Export as hardcoded C++ module");
 		m.addItem((int)MenuActions::EditProperties, "Edit Properties");
+
+		if (auto hc = node.get()->getAsHardcodedNode())
+		{
+			m.addItem((int)MenuActions::UnfreezeNode, "Unfreeze hardcoded node");
+		}
+		else if (node->getValueTree().hasProperty(PropertyIds::FreezedId) || 
+			     node->getValueTree().hasProperty(PropertyIds::FreezedPath))
+		{
+			m.addItem((int)MenuActions::FreezeNode, "Replace with hardcoded version");
+		}
 	}
 
 	virtual void handlePopupMenuResult(int result);

@@ -34,21 +34,41 @@
 
 #include "JuceHeader.h"
 
-#include "scripting/scriptnode/data/Properties.cpp"
-#include "scripting/scriptnode/data/RangeHelpers.cpp"
-#include "scripting/scriptnode/data/ValueTreeHelpers.cpp"
-#include "scripting/scriptnode/data/DspHelpers.cpp"
-#include "scripting/scriptnode/data/NodeBase.cpp"
 
-#include "scripting/scriptnode/data/CodeGenerator.cpp"
-#include "scripting/scriptnode/data/DspNetwork.cpp"
-#include "scripting/scriptnode/data/StaticNodeWrappers.cpp"
-#include "scripting/scriptnode/data/ModulationSourceNode.cpp"
-#include "scripting/scriptnode/data/NodeContainer.cpp"
-#include "scripting/scriptnode/data/NodeWrapper.cpp"
-#include "scripting/scriptnode/data/ProcessNodes.cpp"
-#include "scripting/scriptnode/data/DspNode.cpp"
-#include "scripting/scriptnode/data/FeedbackNode.cpp"
+#include "scripting/scriptnode/nodes/CodeGenerator.h"
+#include "scripting/scriptnode/nodes/NodeContainer.h"
+#include "scripting/scriptnode/nodes/NodeWrapper.h"
+
+#include "scripting/scriptnode/nodes/ProcessNodes.h"
+#include "scripting/scriptnode/nodes/DspNode.h"
+
+#include "scripting/scriptnode/ui/ParameterSlider.h"
+#include "scripting/scriptnode/ui/PropertyEditor.h"
+
+#include "scripting/scriptnode/ui/ModulationSourceComponent.h"
+#include "scripting/scriptnode/ui/NodeContainerComponent.h"
+#include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
+#include "scripting/scriptnode/ui/DspNodeComponent.h"
+#include "scripting/scriptnode/ui/DspNetworkComponents.h"
+
+
+#include "scripting/scriptnode/api/Properties.cpp"
+#include "scripting/scriptnode/api/RangeHelpers.cpp"
+#include "scripting/scriptnode/api/ValueTreeHelpers.cpp"
+#include "scripting/scriptnode/api/DspHelpers.cpp"
+#include "scripting/scriptnode/api/Base.cpp"
+#include "scripting/scriptnode/api/NodeBase.cpp"
+#include "scripting/scriptnode/api/NodeProperty.cpp"
+#include "scripting/scriptnode/api/ModulationSourceNode.cpp"
+#include "scripting/scriptnode/api/DspNetwork.cpp"
+#include "scripting/scriptnode/api/StaticNodeWrappers.cpp"
+
+#include "scripting/scriptnode/nodes/CodeGenerator.cpp"
+#include "scripting/scriptnode/nodes/NodeContainer.cpp"
+#include "scripting/scriptnode/nodes/NodeWrapper.cpp"
+#include "scripting/scriptnode/nodes/ProcessNodes.cpp"
+#include "scripting/scriptnode/nodes/DspNode.cpp"
+
 
 #include "scripting/scriptnode/ui/ParameterSlider.cpp"
 #include "scripting/scriptnode/ui/PropertyEditor.cpp"
@@ -58,3 +78,4 @@
 #include "scripting/scriptnode/ui/FeedbackNodeComponents.cpp"
 #include "scripting/scriptnode/ui/DspNodeComponent.cpp"
 #include "scripting/scriptnode/ui/DspNetworkComponents.cpp"
+#include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.cpp"

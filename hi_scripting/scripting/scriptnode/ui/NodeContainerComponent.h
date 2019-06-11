@@ -390,7 +390,6 @@ private:
 	void rebuildNodes();
 
 	ParameterComponent parameters;
-
 };
 
 struct SerialNodeComponent : public ContainerComponent

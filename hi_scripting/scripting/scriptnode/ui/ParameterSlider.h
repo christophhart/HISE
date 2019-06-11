@@ -48,14 +48,21 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
 
 	Font getLabelFont(Label&) override;
 
-	struct SliderLabel : public NiceLabel,
-		public SliderListener
+	struct SliderLabel : public NiceLabel
 	{
 		SliderLabel(Slider& s) :
 			parent(&s)
 		{
-			parent->addListener(this);
-			setText(parent->getName(), dontSendNotification);
+			auto tmp = Component::SafePointer<SliderLabel>(this);
+			auto n = parent->getName();
+
+			auto f = [tmp, n]()
+			{
+				if(tmp.getComponent() != nullptr)
+					tmp.getComponent()->setText(n, dontSendNotification);
+			};
+
+			MessageManager::callAsync(f);
 		};
 
 		void editorShown(TextEditor* ed)
@@ -78,20 +85,22 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
             
 		}
 
-		void sliderValueChanged(Slider*) override
+		void updateText()
 		{
 			if (parent->isMouseOverOrDragging(true))
 				setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
+			else
+				setText(parent->getName(), dontSendNotification);
 		}
 
-		void sliderDragEnded(Slider*)
-		{
-			setText(parent->getName(), dontSendNotification);
-		}
-
-		void sliderDragStarted(Slider*)
+		void startDrag()
 		{
 			setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
+		}
+
+		void endDrag()
+		{
+			setText(parent->getName(), dontSendNotification);
 		}
 
         Component::SafePointer<Slider> parent;
@@ -127,6 +136,9 @@ struct ParameterSlider : public Slider,
 	valuetree::PropertyListener rangeListener;
 
 	void mouseDown(const MouseEvent& e) override;
+
+	void sliderDragStarted(Slider*) override;
+	void sliderDragEnded(Slider*) override;
 
 	void sliderValueChanged(Slider*) override;
 

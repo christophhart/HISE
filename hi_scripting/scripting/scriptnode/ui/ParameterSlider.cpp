@@ -68,6 +68,11 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 	setTextBoxStyle(Slider::TextBoxBelow, false, 100, 18);
 	setLookAndFeel(&laf);
 
+	if (auto nl = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
+	{
+		nl->updateText();
+	}
+
 	setScrollWheelEnabled(false);
 }
     
@@ -184,10 +189,33 @@ void ParameterSlider::mouseDown(const MouseEvent& e)
 }
 
 
+
+
+void ParameterSlider::sliderDragStarted(Slider*)
+{
+	if (auto nl = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
+	{
+		nl->startDrag();
+	}
+}
+
+void ParameterSlider::sliderDragEnded(Slider*)
+{
+	if (auto nl = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
+	{
+		nl->endDrag();
+	}
+}
+
 void ParameterSlider::sliderValueChanged(Slider*)
 {
 	if (parameterToControl != nullptr)
 		parameterToControl->setValueAndStoreAsync(getValue());
+
+	if (auto nl = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
+	{
+		nl->updateText();
+	}
 }
 
 

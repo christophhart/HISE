@@ -79,33 +79,6 @@ void DefaultParameterNodeComponent::resized()
 
 
 
-void ModulationSourceBaseComponent::mouseDown(const MouseEvent& e)
-{
-	if (getSourceNodeFromParent() == nullptr)
-		return;
-
-	if (e.mods.isRightButtonDown())
-	{
-		auto pe = new MacroPropertyEditor(sourceNode, sourceNode->getValueTree(), PropertyIds::ModulationTargets);
-
-		pe->setName("Edit Modulation Targets");
-		findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(pe, this, getLocalBounds().getCentre());
-	}
-}
-
-scriptnode::ModulationSourceNode* ModulationSourceBaseComponent::getSourceNodeFromParent() const
-{
-	if (sourceNode == nullptr)
-	{
-		if (auto pc = findParentComponentOfClass<NodeComponent>())
-		{
-			sourceNode = dynamic_cast<ModulationSourceNode*>(pc->node.get());
-		}
-	}
-
-	return sourceNode;
-}
-
 
 
 }

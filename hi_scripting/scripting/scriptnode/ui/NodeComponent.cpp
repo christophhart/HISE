@@ -61,7 +61,7 @@ void NodeComponent::Header::buttonClicked(Button* b)
 {
 	if (b == &powerButton)
 	{
-		parent.node->setProperty(PropertyIds::Bypassed, !b->getToggleState());
+		parent.node->setValueTreeProperty(PropertyIds::Bypassed, !b->getToggleState());
 	}
 	if (b == &deleteButton)
 	{
@@ -172,7 +172,13 @@ void NodeComponent::Header::paint(Graphics& g)
 
 	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
 	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText(parent.dataReference[PropertyIds::ID].toString(), getLocalBounds(), Justification::centred);
+
+	String s = parent.dataReference[PropertyIds::ID].toString();
+
+	if (parent.node.get()->isPolyphonic())
+		s << " [poly]";
+
+	g.drawText(s, getLocalBounds(), Justification::centred);
 
 	if (isHoveringOverBypass)
 	{
@@ -251,24 +257,137 @@ void NodeComponent::handlePopupMenuResult(int result)
 	if (result == (int)MenuActions::ExportAsCpp)
 	{
 		const String c = node->createCppClass(true);
+
+		CodeHelpers::addFileToCustomFolder(node->getId(), c);
+
 		SystemClipboard::copyTextToClipboard(c);
+
+		String cppClassName = "custom." + node->getId();
+		node->setValueTreeProperty(PropertyIds::FreezedPath, cppClassName);
 	}
 	if (result == (int)MenuActions::EditProperties)
 	{
 		auto n = new PropertyEditor(node, node->getValueTree());
-		auto g = findParentComponentOfClass<DspNetworkGraph>();
+		auto g = findParentComponentOfClass<FloatingTile>();
 		auto b = g->getLocalArea(this, header.getBounds());
 
 		CallOutBox::launchAsynchronously(n, b, g);
+	}
+	if (result == (int)MenuActions::UnfreezeNode)
+	{
+		if (auto hc = node->getAsHardcodedNode())
+		{
+			// Check if there is already a node that was unfrozen
+
+			for (auto n : node->getRootNetwork()->getListOfUnconnectedNodes())
+			{
+				if (n->getValueTree()[PropertyIds::FreezedId].toString() == node->getId())
+				{
+					auto newTree = n->getValueTree();
+					auto oldTree = node->getValueTree();
+					auto um = node->getUndoManager();
+
+					auto f = [oldTree, newTree, um]()
+					{
+						auto& p = oldTree.getParent();
+
+						int position = p.indexOf(oldTree);
+						p.removeChild(oldTree, um);
+						p.addChild(newTree, position, um);
+					};
+
+					MessageManager::callAsync(f);
+					return;
+				}
+			}
+
+			auto t = hc->getSnippetText();
+
+			if (t.isNotEmpty())
+			{
+				auto newTree = ValueTreeConverters::convertBase64ToValueTree(t, true);
+				newTree = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
+				newTree.setProperty(PropertyIds::FreezedPath, node->getValueTree()[PropertyIds::FactoryPath], nullptr);
+				newTree.setProperty(PropertyIds::FreezedId, node->getId(), nullptr);
+
+				{
+					auto oldTree = node->getValueTree();
+					auto um = node->getUndoManager();
+
+					node->getRootNetwork()->createFromValueTree(true, newTree, true);
+
+					auto f = [oldTree, newTree, um]()
+					{
+						auto& p = oldTree.getParent();
+
+						int position = p.indexOf(oldTree);
+						p.removeChild(oldTree, um);
+						p.addChild(newTree, position, um);
+					};
+
+					MessageManager::callAsync(f);
+				}
+			}
+		}
+	}
+	if (result == (int)MenuActions::FreezeNode)
+	{
+		auto freezedId = node->getValueTree()[PropertyIds::FreezedId].toString();
+
+		if (freezedId.isNotEmpty())
+		{
+			if (auto fn = dynamic_cast<NodeBase*>(node->getRootNetwork()->get(freezedId).getObject()))
+			{
+				auto newTree = fn->getValueTree();
+				auto oldTree = node->getValueTree();
+				auto um = node->getUndoManager();
+
+				auto f = [oldTree, newTree, um]()
+				{
+					auto& p = oldTree.getParent();
+
+					int position = p.indexOf(oldTree);
+					p.removeChild(oldTree, um);
+					p.addChild(newTree, position, um);
+				};
+
+				MessageManager::callAsync(f);
+			}
+
+			return;
+		}
+
+		auto freezedPath = node->getValueTree()[PropertyIds::FreezedPath].toString();
+
+		if (freezedPath.isNotEmpty())
+		{
+			auto newNode = node->getRootNetwork()->create(freezedPath, node->getId() + "_freezed", node->isPolyphonic());
+
+			if (auto nn = dynamic_cast<NodeBase*>(newNode.getObject()))
+			{
+				auto newTree = nn->getValueTree();
+				auto oldTree = node->getValueTree();
+				auto um = node->getUndoManager();
+
+				auto f = [oldTree, newTree, um]()
+				{
+					auto& p = oldTree.getParent();
+
+					int position = p.indexOf(oldTree);
+					p.removeChild(oldTree, um);
+					p.addChild(newTree, position, um);
+				};
+
+				MessageManager::callAsync(f);
+			}
+		}
 	}
 }
 
 juce::Colour NodeComponent::getOutlineColour() const
 {
 	if (isRoot())
-	{
 		return dynamic_cast<const Processor*>(node->getScriptProcessor())->getColour();
-	}
 
 	return header.isDragging ? Colour(0x88444444) : Colour(0xFF555555);
 }

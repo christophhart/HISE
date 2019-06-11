@@ -356,13 +356,13 @@ public:
 		void labelTextChanged(Label*) override
 		{
 			if (node != nullptr)
-				node->setProperty(PropertyIds::ID, label.getText());
+				node->setValueTreeProperty(PropertyIds::ID, label.getText());
 		}
 
 		void buttonClicked(Button* b) override
 		{
 			if (node != nullptr)
-				node->setProperty(PropertyIds::Bypassed, !b->getToggleState());
+				node->setValueTreeProperty(PropertyIds::Bypassed, !b->getToggleState());
 		}
 
 		void paint(Graphics& g) override

@@ -73,7 +73,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
 	registerType<MarkdownEditorPanel>(PopupMenuOptions::MarkdownEditor);
 
-	registerType<scriptnode::DspNetworkGraph::Panel>(PopupMenuOptions::DspNetworkGraph);
+	registerType<scriptnode::DspNetworkGraphPanel>(PopupMenuOptions::DspNetworkGraph);
 #endif
 
 	registerFrontendPanelTypes();
@@ -693,7 +693,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
 	case PopupMenuOptions::AudioAnalyser:		parent->setNewContent(GET_PANEL_NAME(AudioAnalyserComponent::Panel)); break;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); break;
-	case PopupMenuOptions::DspNetworkGraph:		parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNetworkGraph::Panel)); break;
+	case PopupMenuOptions::DspNetworkGraph:		parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNetworkGraphPanel)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;

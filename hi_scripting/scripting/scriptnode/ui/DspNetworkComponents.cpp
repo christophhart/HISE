@@ -191,6 +191,19 @@ template <class T> void fillChildComponentList(Array<T*>& list, Component* c)
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
+	Array<ModulationSourceBaseComponent*> modSourceList;
+	fillChildComponentList(modSourceList, this);
+
+	for (auto modSource : modSourceList)
+	{
+		auto start = getCircle(modSource, false);
+
+		g.setColour(Colours::black);
+		g.fillEllipse(start);
+		g.setColour(Colour(0xFFAAAAAA));
+		g.drawEllipse(start, 2.0f);
+	}
+
 	Array<ParameterSlider*> list;
 	fillChildComponentList(list, this);
 
@@ -226,14 +239,11 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		}		
 	}
 
-	Array<ModulationSourceBaseComponent*> modSourceList;
-	fillChildComponentList(modSourceList, this);
+	
 
 	for (auto modSource : modSourceList)
 	{
-		auto start = getCircle(modSource);
-		g.setColour(Colours::red);
-		g.fillRect(start);
+		auto start = getCircle(modSource, false);
 
 		if (auto sourceNode = modSource->getSourceNodeFromParent())
 		{
@@ -310,11 +320,7 @@ bool DspNetworkGraph::setCurrentlyDraggedComponent(NodeComponent* n)
 	return false;
 }
 
-DspNetworkGraph::Panel::Panel(FloatingTile* parent) :
-	NetworkPanel(parent)
-{
 
-}
 
 
 bool DspNetworkGraph::Actions::deselectAll(DspNetworkGraph& g)

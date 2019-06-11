@@ -99,6 +99,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(UseIPP);
 	ids.add(RebuildPoolFiles);
 	ids.add(Support32BitMacOS);
+	ids.add(CustomNodePath);
 
 	return ids;
 }
@@ -328,6 +329,10 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("This is the path to the source code of HISE. It must be the root folder of the repository (so that the folders `hi_core`, `hi_modules` etc. are immediate child folders.  ");
 		D("This will be used for the compilation of the exported plugins and also contains all necessary SDKs (ASIO, VST, etc).");
 		D("> Always make sure you are using the **exact** same source code that was used to build HISE or there will be unpredicatble issues.");
+		P_();
+
+		P(HiseSettings::Compiler::CustomNodePath);
+		D("This is the path to the directory where the additional nodes are stored. If you want to use this feature, recompile HISE with the HI_ENABLE_CUSTOM_NODES flag.");
 		P_();
 
 		P(HiseSettings::Compiler::UseIPP);
@@ -623,6 +628,7 @@ bool HiseSettings::Data::isFileId(const Identifier& id)
 	return id == Compiler::HisePath || 
 		   id == Scripting::GlobalScriptPath || 
 		   id == Project::RedirectSampleFolder ||
+		   id == Compiler::CustomNodePath ||
 		   id == Documentation::DocRepository;
 }
 
@@ -930,6 +936,22 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		for (int i = 0; i < midiNames.size(); i++)
 			driver->toggleMidiInput(midiNames[i], state[i]);
 	}
+	if (id == Compiler::CustomNodePath)
+	{
+		auto hisePath = File(getSetting(Compiler::HisePath).toString());
+		auto hiseFile = hisePath.getChildFile("hi_modules/nodes/CustomNodeInclude.cpp");
+
+		String hc;
+
+		if (hisePath.isDirectory())
+		{
+			scriptnode::CodeHelpers::setIncludeDirectory(newValue.toString());
+			hc << scriptnode::CodeHelpers::createIncludeFile();	
+		}
+
+		hiseFile.replaceWithText(hc);
+	}
+
 	else if (id == Midi::MidiChannels)
 	{
 		auto sa = HiseSettings::ConversionHelpers::getChannelList();

@@ -38,71 +38,7 @@ using namespace hise;
 using namespace juce;
 
 
-struct ModulationSourcePlotter : ModulationSourceBaseComponent
-{
-	ModulationSourcePlotter(PooledUIUpdater* updater):
-		ModulationSourceBaseComponent(updater)
-	{
-		setSize(0, ModulationSourceNode::ModulationBarHeight);
-		buffer.setSize(1, ModulationSourceNode::RingBufferSize);
-	}
 
-	void timerCallback() override
-	{
-		if (getSourceNodeFromParent() != nullptr)
-		{
-			auto numNew = sourceNode->fillAnalysisBuffer(buffer);
-
-			if (numNew != 0)
-				rebuildPath();
-		}
-	}
-
-	
-
-	void rebuildPath()
-	{
-		float offset = 2.0f;
-		
-		float rectangleWidth = 0.5f;
-
-		auto width = (float)getWidth() - 2.0f * offset;
-		auto maxHeight = (float)getHeight() - 2.0f * offset;
-
-		int samplesPerPixel = ModulationSourceNode::RingBufferSize / jmax((int)(width/rectangleWidth), 1);
-
-		rectangles.clear();
-
-		int sampleIndex = 0;
-
-		for (float i = 0.0f; i < width; i+= rectangleWidth)
-		{
-			float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, samplesPerPixel));
-			FloatSanitizers::sanitizeFloatNumber(maxValue);
-			float height = maxValue * maxHeight;
-			float y = offset + maxHeight - height;
-
-			sampleIndex += samplesPerPixel;
-
-			rectangles.add({ i + offset, y, rectangleWidth, height });
-		}
-		repaint();
-	}
-
-	void paint(Graphics& g) override
-	{
-		g.fillAll(Colour(0xFF333333));
-
-		g.setColour(Colour(0xFF999999));
-		g.fillRectList(rectangles);
-
-		ModulationSourceBaseComponent::paint(g);		
-	}
-
-	RectangleList<float> rectangles;
-	AudioSampleBuffer buffer;
-	
-};
 
 
 class DefaultParameterNodeComponent : public NodeComponent

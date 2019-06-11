@@ -76,6 +76,8 @@ viewUndoManager(new UndoManager())
 
 		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 	}
+
+	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
 }
 
 

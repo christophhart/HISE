@@ -82,38 +82,26 @@ END_JUCE_MODULE_DECLARATION
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 
-#include "scripting/scriptnode/data/Properties.h"
-#include "scripting/scriptnode/data/RangeHelpers.h"
-#include "scripting/scriptnode/data/ValueTreeHelpers.h"
-#include "scripting/scriptnode/data/DspHelpers.h"
-#include "scripting/scriptnode/data/NodeBase.h"
+#include "scripting/scriptnode/api/Properties.h"
+#include "scripting/scriptnode/api/RangeHelpers.h"
+#include "scripting/scriptnode/api/ValueTreeHelpers.h"
+#include "scripting/scriptnode/api/DspHelpers.h"
+#include "scripting/scriptnode/api/NodeBase.h"
+
 #include "scripting/scriptnode/ui/NodeComponent.h"
-#include "scripting/scriptnode/data/CodeGenerator.h"
-#include "scripting/scriptnode/data/DspNetwork.h"
-#include "scripting/scriptnode/nodewrappers/Base.h"
-#include "scripting/scriptnode/nodewrappers/Bypass.h"
 
-#include "scripting/scriptnode/nodewrappers/Containers.h"
-#include "scripting/scriptnode/nodewrappers/Processors.h"
+#include "scripting/scriptnode/api/DspNetwork.h"
+#include "scripting/scriptnode/api/Base.h"
+#include "scripting/scriptnode/api/Bypass.h"
 
-#include "scripting/scriptnode/data/ModulationSourceNode.h"
-#include "scripting/scriptnode/data/StaticNodeWrappers.h"
+#include "scripting/scriptnode/api/Containers.h"
+#include "scripting/scriptnode/api/Processors.h"
 
-#include "scripting/scriptnode/data/NodeContainer.h"
-#include "scripting/scriptnode/data/NodeWrapper.h"
-#include "scripting/scriptnode/data/ProcessNodes.h"
-#include "scripting/scriptnode/data/DspNode.h"
-#include "scripting/scriptnode/data/FeedbackNode.h"
+#include "scripting/scriptnode/api/ModulationSourceNode.h"
+#include "scripting/scriptnode/api/StaticNodeWrappers.h"
+#include "scripting/scriptnode/api/NodeProperty.h"
 
-
-#include "scripting/scriptnode/ui/ParameterSlider.h"
-#include "scripting/scriptnode/ui/PropertyEditor.h"
-
-#include "scripting/scriptnode/ui/ModulationSourceComponent.h"
-#include "scripting/scriptnode/ui/NodeContainerComponent.h"
-#include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
-#include "scripting/scriptnode/ui/DspNodeComponent.h"
-#include "scripting/scriptnode/ui/DspNetworkComponents.h"
+#include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
 
 
 #include "scripting/engine/HiseJavascriptEngine.h"

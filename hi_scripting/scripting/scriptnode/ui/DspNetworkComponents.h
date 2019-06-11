@@ -45,19 +45,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-struct NetworkPanel : public PanelWithProcessorConnection
-{
-	NetworkPanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{};
 
-	Identifier getProcessorTypeId() const override;
-	virtual Component* createComponentForNetwork(DspNetwork* parent) = 0;
-	Component* createContentComponent(int index) override;
-	void fillModuleList(StringArray& moduleList) override;
-	virtual bool hasSubIndex() const { return true; }
-	void fillIndexList(StringArray& sa);
-};
 
 
 class DspNetworkGraph : public Component,
@@ -83,17 +71,7 @@ public:
 		Viewport viewport;
 	};
 
-	struct Panel : public NetworkPanel
-	{
-		Panel(FloatingTile* parent);
-
-		SET_PANEL_NAME("DspNetworkGraph");
-
-		Component* createComponentForNetwork(DspNetwork* p) override
-		{
-			return new ScrollableParent(p);
-		}
-	};
+	
 
 	void selectionChanged(const NodeBase::List&) override
 	{
@@ -147,13 +125,13 @@ public:
 		g.strokePath(p, PathStrokeType(2.0f));
 	};
 
-	static Rectangle<float> getCircle(Component* c)
+	static Rectangle<float> getCircle(Component* c, bool getKnobCircle=true)
 	{
 		if (auto n = c->findParentComponentOfClass<DspNetworkGraph>())
 		{
 			float width = 6.0f;
 			float height = 6.0f;
-			float y = JUCE_LIVE_CONSTANT_OFF(66.0f);
+			float y = getKnobCircle ? 66.0f : c->getHeight();
 			float circleX = c->getLocalBounds().toFloat().getWidth() / 2.0f - width / 2.0f;
 
 			Rectangle<float> circleBounds = { circleX, y, width, height };
