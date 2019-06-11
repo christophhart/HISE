@@ -902,10 +902,10 @@ public:
 #if ENABLE_ALL_PEAK_METERS
 		if (isMonophonic || polyManager.getLastStartedVoice() == voiceIndex)
 		{
-			const float displayValue = voiceBuffer[startSample];
+			const float displayValue = scratchBuffer[startSample];// voiceBuffer[startSample];
 			setOutputValue(displayValue);
 
-			pushPlotterValues(voiceBuffer, startSample, numSamples);
+			pushPlotterValues(scratchBuffer, startSample, numSamples);
 		}
 #endif
 
