@@ -166,7 +166,11 @@ public:
 		p->setId(s);
 
 		if (renameChildProcessors)
-			renameRecursive(p, s);
+		{
+			StringArray usedIds;
+			renameRecursive(p, s, usedIds);
+		}
+			
 	}
 
 	/** returns a string that can be used for debugging purposes. */
@@ -204,9 +208,34 @@ private:
 		level--;
 	}
 
-	static void renameRecursive(Processor* p, const String& indexedPrefix)
+	static void renameRecursive(Processor* p, const String& indexedPrefix, StringArray& usedIds)
 	{
-		p->setId(indexedPrefix);
+		if (usedIds.contains(indexedPrefix))
+		{
+			int trailingIntValue = indexedPrefix.getTrailingIntValue();
+
+			String idWithoutNumber;
+
+			if (trailingIntValue != 0)
+				idWithoutNumber = indexedPrefix.upToLastOccurrenceOf(String(trailingIntValue), false, false);
+			else
+				idWithoutNumber = indexedPrefix;
+
+			int index = 1;
+
+			String newId = idWithoutNumber + String(index);
+
+			while (index++ < 100 && usedIds.contains(newId))
+			{
+				newId = idWithoutNumber + String(index);
+			}
+
+			p->setId(newId);
+		}
+		else
+			p->setId(indexedPrefix);
+
+		usedIds.add(p->getId());
 
 		for (int i = 0; i < p->getNumInternalChains(); i++)
 		{
@@ -216,9 +245,9 @@ private:
 			{
 				auto child = c->getHandler()->getProcessor(j);
 
-				String thisPrefix = indexedPrefix + "_" + child->getType().toString();
+				String thisPrefix = p->getId() + "_" + child->getType().toString();
 
-				renameRecursive(child, thisPrefix);
+				renameRecursive(child, thisPrefix, usedIds);
 			}
 		}
 	}

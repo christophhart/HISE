@@ -357,6 +357,24 @@ template <typename DataType> struct Data
 		}
 	};
 
+	/** Loads / saves a Processor's attribute using 1 - value. */
+	template <int attributeIndex> struct InvertedBoolAttribute
+	{
+		static DataType save(Processor* p)
+		{
+			static_assert(std::is_same<DataType, bool>(), "only allowed with bool data type");
+			float value = p->getAttribute(attributeIndex);
+			return value > 0.5f ? false : true;
+		}
+
+		static void load(Processor* p, const DataType& newValue)
+		{
+			static_assert(std::is_same<DataType, bool>(), "only allowed with bool data type");
+			float value = newValue ? 0.0f : 1.0f;
+			p->setAttribute(attributeIndex, value, sendNotification);
+		}
+	};
+
 	/** Loads / saves the table data as encoded String. */
 	template <int tableIndex = 0> struct Table
 	{
@@ -595,7 +613,7 @@ public:
 
 		void buttonClicked(juce::Button*) override
 		{
-			parameterChangedFromUI(!getComponent().getToggleState());
+			parameterChangedFromUI(getComponent().getToggleState());
 		}
 	};
 
