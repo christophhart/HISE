@@ -647,7 +647,12 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 	if (id == SampleIds::ID)
 		return getId();
 
-	return data.getProperty(id, getDefaultValue(id));
+	var rv = data.getProperty(id, getDefaultValue(id));
+
+	if (SampleIds::Helpers::isMapProperty(id))
+		return jlimit(0, 127, (int)rv);
+	else
+		return rv;
 }
 
 // ====================================================================================================================
