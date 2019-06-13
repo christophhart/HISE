@@ -370,6 +370,7 @@ public:
     */
     void hideTextBox (bool discardCurrentEditorContents);
 
+	
 
     //==============================================================================
     /** Changes the slider's current value.
@@ -976,6 +977,11 @@ public:
     void mouseExit (const MouseEvent&) override;
     /** @internal */
     void mouseEnter (const MouseEvent&) override;
+
+protected:
+
+	/** returns the current textbox label. */
+	Label* getTextBox();
 
 private:
     //==============================================================================
