@@ -545,7 +545,7 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 MidiPlayer::MidiPlayer(MainController *mc, const String &id, ModulatorSynth* ) :
 	MidiProcessor(mc, id),
-	undoManager(new UndoManager())
+	ownedUndoManager(new UndoManager())
 {
 	addAttributeID(Stop);
 	addAttributeID(Play);
@@ -1190,27 +1190,38 @@ void MidiPlayer::finishRecording()
 	{
 		auto mp = static_cast<MidiPlayer*>(p);
 
-		auto& l = mp->currentlyRecordedEvents;
+		auto l = &mp->currentlyRecordedEvents;
 
 		int lastTimestamp = (int)MidiPlayerHelpers::ticksToSamples(mp->getCurrentSequence()->getLength(), mp->getMainController()->getBpm(), mp->getSampleRate()) - 1;
 
-		for (int i = 0; i < l.size(); i++)
+		for (int i = 0; i < l->size(); i++)
 		{
-			auto currentEvent = l[i];
+			auto& currentEvent = l->getReference(i);
 
 			if (currentEvent.isNoteOn())
 			{
 				bool found = false;
 
-				for (int j = 0; j < l.size(); j++)
+				for (int j = 0; j < l->size(); j++)
 				{
-					if (l[j].isNoteOff() && l[j].getEventId() == currentEvent.getEventId())
+					if (l->getUnchecked(j).isNoteOff() && l->getUnchecked(j).getEventId() == currentEvent.getEventId())
 					{
-						if (l[j].getTimeStamp() < currentEvent.getTimeStamp())
+						if (l->getUnchecked(j).getTimeStamp() < currentEvent.getTimeStamp())
 						{
-							l.getReference(j).setTimeStamp(lastTimestamp);
+							l->getReference(j).setTimeStamp(lastTimestamp);
 						}
 						
+						if (currentEvent.getTransposeAmount() != 0)
+						{
+							int numberWithTranspose = currentEvent.getNoteNumber() + currentEvent.getTransposeAmount();
+
+							currentEvent.setNoteNumber(numberWithTranspose);
+							currentEvent.setTransposeAmount(0);
+							l->getReference(j).setNoteNumber(numberWithTranspose);
+						}
+
+						
+
 						found = true;
 						break;
 					}
@@ -1218,10 +1229,10 @@ void MidiPlayer::finishRecording()
 
 				if (!found)
 				{
-					HiseEvent artificialNoteOff(HiseEvent::Type::NoteOff, (uint8)currentEvent.getNoteNumber(), 1, (uint8)currentEvent.getChannel());
+					HiseEvent artificialNoteOff(HiseEvent::Type::NoteOff, (uint8)(currentEvent.getNoteNumber() + currentEvent.getTransposeAmount()), 1, (uint8)currentEvent.getChannel());
 					artificialNoteOff.setTimeStamp(lastTimestamp);
 					artificialNoteOff.setEventId(currentEvent.getEventId());
-					l.add(artificialNoteOff);
+					l->add(artificialNoteOff);
 				}
 			}
 
@@ -1229,9 +1240,9 @@ void MidiPlayer::finishRecording()
 			{
 				bool found = false;
 
-				for (int j = 0; j < l.size(); j++)
+				for (int j = 0; j < l->size(); j++)
 				{
-					if (l[j].isNoteOn() && currentEvent.getEventId() == l[j].getEventId())
+					if (l->getUnchecked(j).isNoteOn() && currentEvent.getEventId() == l->getUnchecked(j).getEventId())
 					{
 						found = true;
 						break;
@@ -1239,7 +1250,7 @@ void MidiPlayer::finishRecording()
 				}
 
 				if (!found)
-					l.remove(i--);
+					l->remove(i--);
 			}
 		}
 

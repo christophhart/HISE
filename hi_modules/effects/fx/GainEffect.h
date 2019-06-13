@@ -248,8 +248,10 @@ public:
 
 	void connectToPlayer(const String& playerId)
 	{
-		if(playerId.isNotEmpty())
+		if (playerId.isNotEmpty())
 			player = dynamic_cast<MidiPlayer*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), playerId));
+		else
+			player = nullptr;
 
 		sendChangeMessage();
 	}
@@ -271,6 +273,8 @@ public:
 	double lastPos = 0.0;
 	double uptime = 0.0;
 	double uptimeDelta = 0.0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiMetronome);
 };
 
 
