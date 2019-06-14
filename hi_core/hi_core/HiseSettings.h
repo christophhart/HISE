@@ -122,6 +122,7 @@ Array<Identifier> getAllIds();
 
 namespace Other
 {
+DECLARE_ID(GlobalSamplePath);
 DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);
 DECLARE_ID(AudioThreadGuardEnabled)
@@ -160,8 +161,6 @@ Array<Identifier> getAllIds();
 } // Midi
 
 #undef DECLARE_ID
-
-
 
 
 struct Data: public SafeChangeBroadcaster

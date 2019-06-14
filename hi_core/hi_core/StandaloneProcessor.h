@@ -98,6 +98,11 @@ public:
 		return *dataObject;
 	}
 
+	HiseSettings::Data* getSettingsAsPtr()
+	{
+		return dataObject.get();
+	}
+
 	static File getSettingDirectory();
 
 	static void restoreGlobalSettings(MainController* mc);

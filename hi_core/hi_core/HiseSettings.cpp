@@ -134,6 +134,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 {
 	Array<Identifier> ids;
 
+	ids.add(GlobalSamplePath);
 	ids.add(EnableAutosave);
 	ids.add(AutosaveInterval);
 	ids.add(AudioThreadGuardEnabled);
@@ -395,6 +396,11 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("It's the same functionality as found in the compiled plugins.");
 		P_();
 
+		P(HiseSettings::Other::GlobalSamplePath);
+		D("If you want to redirect all sample locations to a global sample path (eg. on a dedicated hard drive or the Dropbox folder), you can set it here.")
+		D("Then you can just put a redirection file using the `{GLOBAL_SAMPLE_FOLDER}` wildcard into each sample folder that you want to redirect");
+		P_();
+
 		P(HiseSettings::Other::EnableAutosave);
 		D("The autosave function will store up to 5 archive files called `AutosaveXXX.hip` in the archive folder of the project.");
 		D("In a rare and almost never occuring event of a crash, this might be your saviour...");
@@ -629,6 +635,7 @@ bool HiseSettings::Data::isFileId(const Identifier& id)
 		   id == Scripting::GlobalScriptPath || 
 		   id == Project::RedirectSampleFolder ||
 		   id == Compiler::CustomNodePath ||
+		   id == Other::GlobalSamplePath ||
 		   id == Documentation::DocRepository;
 }
 
@@ -723,6 +730,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";
 	else if (id == User::Company)					return "My Company";
+	else if (id == Other::GlobalSamplePath)         return "";
 	else if (id == Scripting::GlobalScriptPath)		
 	{
 		FRONTEND_ONLY(jassertfalse);

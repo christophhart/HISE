@@ -289,6 +289,7 @@ public:
    
 	static File getAppDataDirectory();
 	
+	void checkSubDirectories();
 
 private:
 
@@ -300,7 +301,7 @@ private:
 
 	
 	
-	void checkSubDirectories();
+	
 
 	File checkSubDirectory(SubDirectories dir);
 	bool anySubdirectoryExists(const File& possibleProjectFolder) const;

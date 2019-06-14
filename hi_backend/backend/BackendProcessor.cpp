@@ -54,6 +54,9 @@ viewUndoManager(new UndoManager())
 
 	initData(this);
 
+	GET_PROJECT_HANDLER(getMainSynthChain()).checkSubDirectories();
+
+
 	if (!inUnitTestMode())
 	{
 		getAutoSaver().updateAutosaving();

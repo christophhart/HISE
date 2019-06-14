@@ -676,6 +676,8 @@ struct CountedProcessorId
 };
 
 
+
+
 void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEditor)
 {
 	if (workingDirectory.exists() && workingDirectory.isDirectory())
@@ -875,9 +877,22 @@ File ProjectHandler::checkSubDirectory(SubDirectories dir)
                 }
             }
             
-            
-            
 			return File(absolutePath);
+		}
+		else if (absolutePath.contains("{GLOBAL_SAMPLE_FOLDER}"))
+		{
+			if (auto gs = dynamic_cast<GlobalSettingManager*>(getMainController()))
+			{
+				auto path = gs->getSettingsObject().getSetting(HiseSettings::Other::GlobalSamplePath);
+
+				if (isAbsolutePathCrossPlatform(path))
+				{
+					File globalSamplePath(path);
+
+					auto childPath = absolutePath.fromFirstOccurrenceOf("{GLOBAL_SAMPLE_FOLDER}", false, false);
+					return globalSamplePath.getChildFile(childPath);
+				}
+			}
 		}
 	}
 
@@ -2240,7 +2255,7 @@ juce::File FileHandlerBase::getSubDirectory(SubDirectories dir) const
 			return s.file;
 	}
 
-	jassertfalse;
+	//jassertfalse;
 	return {};
 }
 
