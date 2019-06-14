@@ -84,7 +84,7 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
+        <MODULEPATH id="stk_wrapper" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -127,7 +127,7 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
+        <MODULEPATH id="stk_wrapper" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -188,7 +188,7 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
+        <MODULEPATH id="stk_wrapper" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0" smallIcon="bfBEgJ"
@@ -229,7 +229,7 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
+        <MODULEPATH id="stk_wrapper" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -272,7 +272,7 @@
                HI_EXPORT_DSP_LIBRARY="0" JUCE_ALSA="1" JUCE_JACK="1" USE_VDSP_FFT="0"
                ENABLE_SCRIPTING_BREAKPOINTS="1" HLAC_MEASURE_DECODING_PERFORMANCE="0"
                HLAC_DEBUG_LOG="0" HLAC_INCLUDE_TEST_SUITE="0" STANDALONE_STREAMING="0"
-               JUCE_ENABLE_AUDIO_GUARD="1" JUCE_PLUGINHOST_LADSPA="0" HI_ENABLE_CUSTOM_NODE_LOCATION="1"/>
+               JUCE_ENABLE_AUDIO_GUARD="1" JUCE_PLUGINHOST_LADSPA="0" HI_ENABLE_CUSTOM_NODE_LOCATION="0"/>
   <LIVE_SETTINGS>
     <OSX defines="USE_IPP=0"/>
     <WINDOWS/>
