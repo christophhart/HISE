@@ -38,6 +38,8 @@ using namespace juce;
 using namespace hise;
 
 
+namespace core
+{
 
 template <int V> class MidiSourceNode : public HiseDspBase
 {
@@ -142,8 +144,6 @@ private:
 	PolyData<ModValue, NumVoices> modValue;	
 };
 
-namespace core
-{
 DEFINE_EXTERN_NODE_TEMPLATE(midi, midi_poly, MidiSourceNode);
 DEFINE_EXTERN_NODE_TEMPLATE(timer, timer_poly, TimerNode);
 }

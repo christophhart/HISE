@@ -231,7 +231,11 @@ class Pool : public hise::ControlledObject
 {
 public:
 
-	static constexpr char projectFolderWildcard[] = "{PROJECT_FOLDER}";
+	static String getProjectFolderWildcard()
+    {
+        static const String projectFolderWildcard = "{PROJECT_FOLDER}";
+        return projectFolderWildcard;
+    }
 
 	Pool(MainController* mc, bool allowLoading = false) :
 		ControlledObject(mc),

@@ -95,7 +95,7 @@ public:
 	}
 };
 
-DECLARE_POLY_STK_TEMPLATE(InstrumentWrapper, Plucked, 1);
+
 
 class Guitar
 {
@@ -132,8 +132,11 @@ public:
 	}
 };
 
-DECLARE_POLY_STK_TEMPLATE(InstrumentWrapper, Guitar, 1);
+
 
 }
 
+DECLARE_POLY_STK_TEMPLATE(InstrumentWrapper, Plucked, 1);
+DECLARE_POLY_STK_TEMPLATE(InstrumentWrapper, Guitar, 1);
+    
 }

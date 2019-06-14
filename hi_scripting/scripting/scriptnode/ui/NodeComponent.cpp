@@ -289,7 +289,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 					auto f = [oldTree, newTree, um]()
 					{
-						auto& p = oldTree.getParent();
+						auto p = oldTree.getParent();
 
 						int position = p.indexOf(oldTree);
 						p.removeChild(oldTree, um);
@@ -318,7 +318,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 					auto f = [oldTree, newTree, um]()
 					{
-						auto& p = oldTree.getParent();
+						auto p = oldTree.getParent();
 
 						int position = p.indexOf(oldTree);
 						p.removeChild(oldTree, um);
@@ -344,7 +344,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 				auto f = [oldTree, newTree, um]()
 				{
-					auto& p = oldTree.getParent();
+					auto p = oldTree.getParent();
 
 					int position = p.indexOf(oldTree);
 					p.removeChild(oldTree, um);
@@ -371,7 +371,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 				auto f = [oldTree, newTree, um]()
 				{
-					auto& p = oldTree.getParent();
+					auto p = oldTree.getParent();
 
 					int position = p.indexOf(oldTree);
 					p.removeChild(oldTree, um);

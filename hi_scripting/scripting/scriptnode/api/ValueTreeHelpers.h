@@ -44,7 +44,7 @@ struct Helpers
 {
 	using Function = std::function<bool(ValueTree&)>;
 
-	static bool foreach(ValueTree& v, const Function& f)
+	static bool foreach(ValueTree v, const Function& f)
 	{
 		if (f(v))
 			return true;

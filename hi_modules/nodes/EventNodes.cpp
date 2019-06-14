@@ -36,13 +36,15 @@ using namespace juce;
 using namespace hise;
 
 
+namespace core
+{
 
 template <int NV> class MidiDisplay : public HiseDspBase::ExtraComponent<MidiSourceNode<NV>>
 {
 public:
 
 	MidiDisplay(MidiSourceNode<NV>* t, PooledUIUpdater* updater) :
-		ExtraComponent<MidiSourceNode<NV>>(t, updater),
+      HiseDspBase::ExtraComponent<MidiSourceNode<NV>>(t, updater),
 		dragger(updater)
 	{
 		meter.setColour(VuMeter::backgroundColour, Colour(0xFF333333));
@@ -180,7 +182,7 @@ template <int NV> class TimerDisplay : public HiseDspBase::ExtraComponent<TimerN
 public:
 
 	TimerDisplay(TimerNode<NV>* t, PooledUIUpdater* updater) :
-		ExtraComponent<TimerNode<NV>>(t, updater),
+      HiseDspBase::ExtraComponent<TimerNode<NV>>(t, updater),
 		dragger(updater)
 	{
 		this->addAndMakeVisible(dragger);
@@ -227,7 +229,7 @@ DEFINE_EXTERN_NODE_TEMPIMPL(TimerDisplay);
 
 
 template <int NV>
-scriptnode::TimerNode<NV>::TimerNode():
+TimerNode<NV>::TimerNode():
 	fillMode(PropertyIds::FillMode, true)
 {
 
@@ -411,6 +413,7 @@ void TimerNode<NV>::initialise(NodeBase* n)
 }
 
 DEFINE_EXTERN_NODE_TEMPIMPL(TimerNode);
-
+}
+    
 }
 

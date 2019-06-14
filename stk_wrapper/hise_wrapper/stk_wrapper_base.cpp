@@ -63,7 +63,7 @@ TP SAMPLERATE_WRAPPER::SampleRateWrapper()
 	// use this to query the size if the static_assert fires...
 	static constexpr int d = sizeof(Guitar);
 	
-	static_assert(sizeof(StkType) == DataSize, "Data size mismatch");
+	//static_assert(sizeof(StkType) == DataSize, "Data size mismatch");
 
 	memset(data, 0, DataSize);
 }
@@ -133,10 +133,10 @@ TP void WRAPPER_BASE::setParameter0(double newValue)
 	paramValues[0] = newValue;
 
 	if (voiceRenderingActive())
-		for (auto& o : *this) T::setParameter<0>(o.get(), newValue);
+		for (auto& o : *this) T::template setParameter<0>(o.get(), newValue);
 	else
 		for (auto& o : *this)
-			o.forEachVoice([newValue](ObjectType& ob) { T::setParameter<0>(ob, newValue); });
+			o.forEachVoice([newValue](ObjectType& ob) { T::template setParameter<0>(ob, newValue); });
 }
 
 TP void WRAPPER_BASE::setParameter1(double newValue)
@@ -144,10 +144,10 @@ TP void WRAPPER_BASE::setParameter1(double newValue)
 	paramValues[1] = newValue;
 
 	if (voiceRenderingActive())
-		for (auto& o : *this) T::setParameter<1>(o.get(), newValue);
+		for (auto& o : *this) T::template setParameter<1>(o.get(), newValue);
 	else
 		for (auto& o : *this)
-			o.forEachVoice([newValue](ObjectType& ob) { T::setParameter<1>(ob, newValue); });
+			o.forEachVoice([newValue](ObjectType& ob) { T::template setParameter<1>(ob, newValue); });
 }
 
 TP void WRAPPER_BASE::setParameter2(double newValue)
@@ -155,10 +155,10 @@ TP void WRAPPER_BASE::setParameter2(double newValue)
 	paramValues[2] = newValue;
 
 	if (voiceRenderingActive())
-		for (auto& o : *this) T::setParameter<2>(o.get(), newValue);
+		for (auto& o : *this) T::template setParameter<2>(o.get(), newValue);
 	else
 		for (auto& o : *this)
-			o.forEachVoice([newValue](ObjectType& ob) { T::setParameter<2>(ob, newValue); });
+			o.forEachVoice([newValue](ObjectType& ob) { T::template setParameter<2>(ob, newValue); });
 }
 
 TP void WRAPPER_BASE::setParameter3(double newValue)
@@ -166,10 +166,10 @@ TP void WRAPPER_BASE::setParameter3(double newValue)
 	paramValues[3] = newValue;
 
 	if (voiceRenderingActive())
-		for (auto& o : *this) T::setParameter<3>(o.get(), newValue);
+		for (auto& o : *this) T::template setParameter<3>(o.get(), newValue);
 	else
 		for (auto& o : *this)
-			o.forEachVoice([newValue](ObjectType& ob) { T::setParameter<3>(ob, newValue); });
+			o.forEachVoice([newValue](ObjectType& ob) { T::template setParameter<3>(ob, newValue); });
 }
 
 
@@ -178,13 +178,13 @@ TP void WRAPPER_BASE::setParameter3(double newValue)
 TP void WRAPPER_BASE::createParameters(Array<ParameterData>& data)
 {
 	if (T::NumParameters >= 1)
-		T::addParameter<0>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter0));
+		T::template addParameter<0>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter0));
 	if (T::NumParameters >= 2)
-		T::addParameter<1>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter1));
+		T::template addParameter<1>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter1));
 	if (T::NumParameters >= 3)
-		T::addParameter<2>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter2));
+		T::template addParameter<2>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter2));
 	if (T::NumParameters >= 4)
-		T::addParameter<3>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter3));
+		T::template addParameter<3>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter3));
 }
 
 TP void WRAPPER_BASE::prepare(PrepareSpecs ps)
@@ -227,7 +227,7 @@ TP void WRAPPER_BASE::prepare(PrepareSpecs ps)
 
 
 TP EFFECT_WRAPPER::EffectWrapper():
-	WrapperBase()
+	WrapperBase<T, DataSize, StkType, NumChannels, NV>()
 {
 	
 }
@@ -264,11 +264,9 @@ TP void EFFECT_WRAPPER::processSingle(float* frameData, int numChannels)
 	{
 		constexpr int numThisTime = getNumChannelsToProcess<T, 1>();
 
-		DelayL;
-
 		for (int j = 0; j < numThisTime; j++)
 		{
-			*ptr++ = objects[i].get().getObject()->tick(*ptr, j);
+			*ptr++ = this->objects[i].get().getObject()->tick(*ptr, j);
 		}
 	}
 }
@@ -318,7 +316,7 @@ TP void INSTRUMENT_WRAPPER::processSingle(float* frameData, int numChannels)
 
 		for (int j = 0; j < numThisTime; j++)
 		{
-			*ptr++ += objects[i].get().getObject()->tick(j);
+			*ptr++ += this->objects[i].get().getObject()->tick(j);
 		}
 	}
 }
@@ -326,7 +324,7 @@ TP void INSTRUMENT_WRAPPER::processSingle(float* frameData, int numChannels)
 
 TP void INSTRUMENT_WRAPPER::handleHiseEvent(HiseEvent& e)
 {
-	auto& obj = *objects[0].get().getObject();
+	auto& obj = *this->objects[0].get().getObject();
 
 	if (e.isNoteOn())
 	{
@@ -334,7 +332,7 @@ TP void INSTRUMENT_WRAPPER::handleHiseEvent(HiseEvent& e)
 	}
 	if (e.isNoteOff())
 	{
-		float r = objects[0].get().getRelease();
+		float r = this->objects[0].get().getRelease();
 		obj.noteOff(r);
 	}
 }

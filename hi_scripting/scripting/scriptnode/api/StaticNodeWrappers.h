@@ -103,8 +103,9 @@ public:
 				&wrapper, std::placeholders::_1, std::placeholders::_2));
 	};
 
-	SCRIPTNODE_FACTORY(HiseDspNodeBase, HiseDspBaseType::getStaticId());
-
+    static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new HiseDspNodeBase<HiseDspBaseType>(n, d); }; 
+    static Identifier getStaticId() { return HiseDspBaseType::getStaticId(); };
+    
 	Component* createExtraComponent()
 	{
 		return wrapper.getObject().createExtraComponent(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
@@ -377,6 +378,143 @@ public:
 
 	DspProcessorType obj;
 };
+
+    
+#define SCRIPTNODE_FACTORY(x, id) static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new x(n, d); }; \
+static Identifier getStaticId() { return Identifier(id); };
+    
+    class NodeFactory
+    {
+    public:
+        
+        NodeFactory(DspNetwork* n) :
+        network(n)
+        {};
+        
+        virtual ~NodeFactory() {};
+        
+        using CreateCallback = std::function<NodeBase*(DspNetwork*, ValueTree)>;
+        using PostCreateCallback = std::function<void(NodeBase* n)>;
+        using IdFunction = std::function<Identifier()>;
+        
+        StringArray getModuleList() const
+        {
+            StringArray sa;
+            String prefix = getId().toString() + ".";
+            
+            for (const auto& item : monoNodes)
+            {
+                sa.add(prefix + item.id().toString());
+            }
+            
+            return sa;
+        }
+        
+        template <class T> void registerNodeRaw(const PostCreateCallback& cb = {})
+        {
+            Item newItem;
+            newItem.cb = T::createNode;
+            newItem.id = T::getStaticId;
+            newItem.pb = cb;
+            
+            monoNodes.add(newItem);
+        }
+        
+        template <class T> void registerNode(const PostCreateCallback& cb = {})
+        {
+            using WrappedT = HiseDspNodeBase<T>;
+            
+            Item newItem;
+            newItem.cb = WrappedT::createNode;
+            newItem.id = WrappedT::getStaticId;
+            newItem.pb = cb;
+            
+            monoNodes.add(newItem);
+        };
+        
+        template <class MonoT, class PolyT> void registerPolyNode(const PostCreateCallback& cb = {})
+        {
+            using WrappedPolyT = HiseDspNodeBase<PolyT>;
+            using WrappedMonoT = HiseDspNodeBase<MonoT>;
+            
+            {
+                Item newItem;
+                newItem.cb = WrappedPolyT::createNode;
+                newItem.id = WrappedPolyT::getStaticId;
+                newItem.pb = cb;
+                
+                polyNodes.add(newItem);
+            }
+            
+            {
+                Item newItem;
+                newItem.cb = WrappedMonoT::createNode;
+                newItem.id = WrappedMonoT::getStaticId;
+                newItem.pb = cb;
+                
+                monoNodes.add(newItem);
+            }
+        };
+        
+        virtual Identifier getId() const = 0;
+        
+        NodeBase* createNode(ValueTree data, bool createPolyIfAvailable) const;
+        
+        void setNetworkToUse(DspNetwork* n)
+        {
+            network = n;
+        }
+        
+    private:
+        
+        struct Item
+        {
+            CreateCallback cb;
+            IdFunction id;
+            PostCreateCallback pb;
+        };
+        
+        Array<Item> monoNodes;
+        Array<Item> polyNodes;
+        
+        WeakReference<DspNetwork> network;
+    };
+    
+    class SingletonFactory : public NodeFactory,
+    public juce::DeletedAtShutdown
+    {
+    public:
+        
+        SingletonFactory() :
+        NodeFactory(nullptr)
+        {};
+    };
+    
+#define DEFINE_FACTORY_FOR_NAMESPACE NodeFactory* Factory::instance = nullptr; \
+NodeFactory* Factory::getInstance(DspNetwork* n) \
+{ if (instance == nullptr) instance = new Factory(); return instance; }
+    
+#define DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(name) class Factory : private SingletonFactory \
+{ \
+public: \
+Identifier getId() const override { RETURN_STATIC_IDENTIFIER(#name); } \
+static NodeFactory* getInstance(DspNetwork* n); \
+static NodeFactory* instance; \
+}; 
+    
+    
+    template <class FactoryClass, class T> struct RegisterAtFactory
+    {
+        RegisterAtFactory() { FactoryClass::getInstance(nullptr)->template registerNode<T>(); }
+    };
+    
+    template <class FactoryClass, class T, class PolyT> struct PolyRegisterAtFactory
+    {
+        PolyRegisterAtFactory() { FactoryClass::getInstance(nullptr)->template registerPolyNode<T, PolyT>(); }
+    };
+    
+#define REGISTER_POLY PolyRegisterAtFactory<Factory, instance<1>, instance<NUM_POLYPHONIC_VOICES>> reg;
+#define REGISTER_MONO RegisterAtFactory<Factory, instance> reg;
 
 
 }

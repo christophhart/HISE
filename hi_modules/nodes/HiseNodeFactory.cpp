@@ -87,7 +87,6 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<ramp_envelope, ramp_envelope_poly>();
 	registerPolyNode<gain, gain_poly>();
 	registerNode<peak>();
-	registerPolyNode<panner, panner_poly>();
 	registerNode<tempo_sync>();
 	registerPolyNode<timer, timer_poly>();
 	registerPolyNode<midi, midi_poly>({});

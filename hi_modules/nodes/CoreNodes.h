@@ -502,58 +502,6 @@ DEFINE_EXTERN_NODE_TEMPIMPL(haas_impl);
 
 
 
-namespace panner_impl
-{
-// Template Alias Definition =======================================================
-
-using panner_ = wrap::frame<2, container::multi<fix<1, core::gain_poly>, fix<1, core::gain_poly>>>;
-
-template <int NV> struct instance : public hardcoded<panner_>
-{
-	static constexpr int NumVoices = NV;
-
-	SET_HISE_POLY_NODE_ID("panner");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0>(obj), "gain2");
-		registerNode(get<1>(obj), "gain3");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("gain2.Gain", -6.0206);
-		setParameterDefault("gain2.Smoothing", 20.0);
-		setParameterDefault("gain3.Gain", -6.0206);
-		setParameterDefault("gain3.Smoothing", 20.0);
-
-		// Parameter Callbacks =============================================================
-		{
-			ParameterData p("Balance", { 0.0, 1.0, 0.01, 1.0 });
-
-			auto param_target1 = getParameter("gain2.Gain", { -100.0, 0.0, 0.1, 5.42227 });
-			auto param_target2 = getParameter("gain3.Gain", { -100.0, 0.0, 0.1, 5.42227 });
-
-			param_target1.addConversion(ConverterIds::DryAmount);
-			param_target2.addConversion(ConverterIds::WetAmount);
-
-			p.db = [param_target1, param_target2, outer = p.range](double newValue)
-			{
-				auto normalised = outer.convertTo0to1(newValue);
-				param_target1(normalised);
-				param_target2(normalised);
-			};
-
-			data.add(std::move(p));
-		}
-	}
-
-};
-
-}
-
-DEFINE_EXTERN_NODE_TEMPLATE(panner, panner_poly, panner_impl::instance);
 
 
 } // namespace core

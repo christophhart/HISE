@@ -86,7 +86,8 @@ public:
 	}
 };
 
-DECLARE_POLY_STK_TEMPLATE(EffectWrapper, DelayA, 1);
+
+
 
 class DelayL
 {
@@ -117,9 +118,6 @@ public:
 	}
 };
 
-DECLARE_POLY_STK_TEMPLATE(EffectWrapper, DelayL, 1);
-
-
 class JCRev
 {
 public:
@@ -145,11 +143,11 @@ public:
 	}
 };
 
-DECLARE_STK_TEMPLATE(EffectWrapper, JCRev, 1);
-
 }
 
-
+DECLARE_STK_TEMPLATE(EffectWrapper, JCRev, 1);
+DECLARE_POLY_STK_TEMPLATE(EffectWrapper, DelayA, 1);
+DECLARE_POLY_STK_TEMPLATE(EffectWrapper, DelayL, 1);
 
 
 

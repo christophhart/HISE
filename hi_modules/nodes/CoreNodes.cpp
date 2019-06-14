@@ -462,6 +462,16 @@ oscillator_impl<NV>::oscillator_impl():
 	modes = { "Sine", "Saw", "Noise", "Square" };
 }
 
+template <int V>
+void oscillator_impl<V>::handleHiseEvent(HiseEvent& e)
+{
+    if (useMidi.getValue() && e.isNoteOn())
+    {
+        setFrequency(e.getFrequency());
+    }
+}
+
+    
 template <int NV>
 void oscillator_impl<NV>::createParameters(Array<HiseDspBase::ParameterData>& data)
 {
@@ -571,14 +581,6 @@ void gain_impl<V>::createParameters(Array<ParameterData>& data)
 }
 
 
-template <int NV>
-void oscillator_impl<NV>::handleHiseEvent(HiseEvent& e)
-{
-	if (useMidi.getValue() && e.isNoteOn())
-	{
-		setFrequency(e.getFrequency());
-	}
-}
 
 
 template <int V>

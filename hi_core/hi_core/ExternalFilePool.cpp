@@ -578,7 +578,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		{
 			m = EmbeddedResource;
 			reference = input;
-			f = {};
+			f = File();
 			return;
 		}
 	}
@@ -702,7 +702,7 @@ juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String&
 				DBG(i.getProperty("ID").toString());
 		}
 
-		jassertfalse;
+        DBG("WARNING: Not found: " + referenceString);
 		return nullptr;
 	}
 	else

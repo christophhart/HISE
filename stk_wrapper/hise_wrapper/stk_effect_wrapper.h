@@ -108,9 +108,11 @@ using Callback = std::function<void(double)>;
 
 // ============================================================================================= Forward declarations
 
+
 FORWARD_DECLARE_POLY_STK_CLASS(EffectWrapper, DelayA, delay_a, delay_a_poly, 1);
 FORWARD_DECLARE_POLY_STK_CLASS(EffectWrapper, DelayL, delay_l, delay_l_poly, 1);
 FORWARD_DECLARE_STK_CLASS(EffectWrapper, JCRev, jc_rev, 1);
+
 
 
 }

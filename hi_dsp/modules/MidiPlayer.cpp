@@ -989,7 +989,10 @@ void MidiPlayer::changeTransportState(PlayState newState)
 
 hise::HiseMidiSequence* MidiPlayer::getCurrentSequence() const
 {
-	return currentSequences[currentSequenceIndex].get();
+    if(currentSequenceIndex != -1)
+        return currentSequences[currentSequenceIndex].get();
+    else
+        return nullptr;
 }
 
 juce::Identifier MidiPlayer::getSequenceId(int index) const
@@ -997,6 +1000,9 @@ juce::Identifier MidiPlayer::getSequenceId(int index) const
 	if (index == -1)
 		index = currentSequenceIndex;
 
+    if(index == -1)
+        return {};
+    
 	if (auto s = currentSequences[index])
 	{
 		return s->getId();

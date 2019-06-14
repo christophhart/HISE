@@ -414,7 +414,7 @@ private:
 	void sendSequenceUpdateMessage(NotificationType notification);
 
 	ScopedPointer<UndoManager> ownedUndoManager;
-	UndoManager* undoManager;
+    UndoManager* undoManager = nullptr;
 
 	Array<PoolReference> currentlyLoadedFiles;
 

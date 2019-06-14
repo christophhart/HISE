@@ -16,12 +16,14 @@ namespace hise { using namespace juce;
 //#define DELAY_BUFFER_SIZE 65536
 //#define DELAY_BUFFER_MASK 65536-1
 
-template <int MaxLength=65536, class LockType=SpinLock, bool AllowFade=true> class DelayLine
+template <int MaxLength=65536, typename LockType=SpinLock, bool AllowFade=true> class DelayLine
 {
     static constexpr int DELAY_BUFFER_SIZE = MaxLength;
     static constexpr int DELAY_BUFFER_MASK = MaxLength - 1;
     
 public:
+    
+    using ScopedLockType = typename LockType::ScopedLockType;
     
 	DelayLine() :
 		readIndex(0),
@@ -38,7 +40,7 @@ public:
 
 	void prepareToPlay(double sampleRate_)
 	{
-		LockType::ScopedLockType sl(processLock);
+        ScopedLockType sl(processLock);
 
 		sampleRate = sampleRate_;
 	}
@@ -50,21 +52,21 @@ public:
 
 	void setDelayTimeSamples(int delayInSamples)
 	{
-		LockType::ScopedLockType sl(processLock);
+		ScopedLockType sl(processLock);
 
 		setInternalDelayTime(delayInSamples);
 	}
 
 	void setFadeTimeSamples(int newFadeTimeInSamples)
 	{
-		LockType::ScopedLockType sl(processLock);
+		ScopedLockType sl(processLock);
 
 		fadeTimeSamples = newFadeTimeInSamples;
 	}
 
 	void processBlock(float* data, int numValues)
 	{
-		LockType::ScopedLockType sl(processLock);
+		ScopedLockType sl(processLock);
 
 		if (fadeCounter < 0)
 		{
@@ -92,7 +94,7 @@ public:
 
 	float getDelayedValue(float inputValue)
 	{
-		LockType::ScopedLockType sl(processLock);
+		ScopedLockType sl(processLock);
 
 		if (fadeTimeSamples == 0 || fadeCounter < 0)	
 			processSampleWithoutFade(inputValue);

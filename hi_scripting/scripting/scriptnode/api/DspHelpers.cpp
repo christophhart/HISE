@@ -264,7 +264,7 @@ void CodeHelpers::setIncludeDirectory(String filePath)
 	if (filePath.isNotEmpty() && File::isAbsolutePath(filePath))
 		includeDirectory = File(filePath);
 	else
-		includeDirectory = {};
+		includeDirectory = File();
 }
 
 juce::File CodeHelpers::getIncludeDirectory()
