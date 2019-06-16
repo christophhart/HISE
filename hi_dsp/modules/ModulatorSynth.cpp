@@ -400,7 +400,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 			break;
 		}
 
-		const int samplesToNextMidiMessage = jmax(numSamples, midiEventPos - startSample);
+		const int samplesToNextMidiMessage = jmin(numSamples - startSample, midiEventPos - startSample);
 
 		jassert(startSample % HISE_EVENT_RASTER == 0);
 		jassert(midiEventPos % HISE_EVENT_RASTER == 0);
