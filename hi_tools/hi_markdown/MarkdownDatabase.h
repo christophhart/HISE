@@ -503,6 +503,7 @@ public:
 
 	bool nothingInHere() const { return nothingToShow; }
 
+	virtual void registerContentProcessor(MarkdownContentProcessor* processor) = 0;
 
 private:
 
@@ -510,7 +511,7 @@ private:
 
 	double* progressCounter = nullptr;
 
-	virtual void registerContentProcessor(MarkdownContentProcessor* processor) = 0;
+	
 
 	Array<WeakReference<MarkdownContentProcessor>> contentProcessors;
 

@@ -44,7 +44,7 @@ MarkdownPreview::MarkdownPreview(MarkdownDatabaseHolder& holder) :
 	topbar(*this),
 	rootDirectory(holder.getDatabaseRootDirectory())
 {
-	jassert(dynamic_cast<MainController*>(&holder)->isFlakyThreadingAllowed());
+	//jassert(dynamic_cast<MainController*>(&holder)->isFlakyThreadingAllowed());
 
 	renderer.setDatabaseHolder(&holder);
 	renderer.setCreateFooter(true);
@@ -251,19 +251,20 @@ void MarkdownPreview::resized()
 {
 	auto ar = getLocalBounds();
 
-	auto topBounds = ar.removeFromTop(46);
-
-	if (toc.isVisible())
+	if (navigationShown)
 	{
-		toc.setBounds(ar.removeFromLeft(toc.getPreferredWidth()));
+		auto topBounds = ar.removeFromTop(46);
 
+		if (toc.isVisible())
+		{
+			toc.setBounds(ar.removeFromLeft(toc.getPreferredWidth()));
+
+		}
+
+		topbar.setBounds(topBounds);
 	}
-
+	
 	renderer.updateCreatedComponents();
-
-
-	topbar.setBounds(topBounds);
-
 
 	ar.removeFromLeft(32);
 	ar.removeFromTop(16);

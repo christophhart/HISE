@@ -239,6 +239,11 @@ public:
 		return false;
 	}
 
+	void setNavigationShown(bool shouldBeShown)
+	{
+		navigationShown = shouldBeShown;
+	}
+
 	void enableEditing(bool shouldBeEnabled);
 
 	bool editingEnabled = false;
@@ -1524,6 +1529,8 @@ public:
 	}
 
 	void resized() override;
+
+	bool navigationShown = true;
 
 	LookAndFeel_V3 laf;
 	
