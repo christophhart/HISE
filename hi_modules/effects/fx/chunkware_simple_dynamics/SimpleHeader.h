@@ -5,7 +5,7 @@
  *	Library		: SimpleSource
  *  Version		: 1.12
  *
- *	© 2006, ChunkWare Music Software, OPEN-SOURCE
+ *	ï¿½ 2006, ChunkWare Music Software, OPEN-SOURCE
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a
  *	copy of this software and associated documentation files (the "Software"),
@@ -35,7 +35,7 @@
 #define NOMINMAX				// for standard library min(), max()
 #define _USE_MATH_DEFINES		// for math constants
 #else						// other IDE's
-#define INLINE inline
+#define INLINE 
 #endif
 
 #include <algorithm>	// for min(), max()
