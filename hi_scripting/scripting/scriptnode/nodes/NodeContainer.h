@@ -111,7 +111,10 @@ struct NodeContainer : public AssignableObject
 		ps.blockSize = getBlockSizeForChildNodes();
 
 		for (auto n : nodes)
+		{
 			n->prepare(ps);
+			n->reset();
+		}
 	}
 
 	bool shouldCreatePolyphonicClass() const
