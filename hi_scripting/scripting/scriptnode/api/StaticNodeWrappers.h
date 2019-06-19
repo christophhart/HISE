@@ -478,6 +478,7 @@ static Identifier getStaticId() { return Identifier(id); };
         Array<Item> polyNodes;
         
         WeakReference<DspNetwork> network;
+		JUCE_DECLARE_WEAK_REFERENCEABLE(NodeFactory);
     };
     
     class SingletonFactory : public NodeFactory,

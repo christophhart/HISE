@@ -51,19 +51,25 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_) 
 	data(data_),
 	selectionUpdater(*this)
 {
-	nodeFactories.add(new NodeContainerFactory(this));
-	nodeFactories.add(new core::Factory(this));
-	nodeFactories.add(new math::Factory(this));
-	nodeFactories.add(new routing::Factory(this));
+	ownedFactories.add(new NodeContainerFactory(this));
+	ownedFactories.add(new core::Factory(this));
+	ownedFactories.add(new math::Factory(this));
+	ownedFactories.add(new routing::Factory(this));
+
+
+
+	ownedFactories.add(new filters::Factory(this));
+	ownedFactories.add(new dynamics::Factory(this));
+	ownedFactories.add(new stk::StkFactory(this));
+
+	for (auto nf : ownedFactories)
+		nodeFactories.add(nf);
+
+	nodeFactories.add(meta::Factory::getInstance(this));
 
 #if HI_ENABLE_CUSTOM_NODE_LOCATION
 	nodeFactories.add(custom::Factory::getInstance(this));
 #endif
-
-	nodeFactories.add(new filters::Factory(this));
-	nodeFactories.add(new dynamics::Factory(this));
-	nodeFactories.add(meta::Factory::getInstance(this));
-	nodeFactories.add(new stk::StkFactory(this));
 
 	loader = new DspFactory::LibraryLoader(dynamic_cast<Processor*>(p));
 

@@ -225,7 +225,9 @@ private:
 
 	} selectionUpdater;
 
-	OwnedArray<NodeFactory> nodeFactories;
+	OwnedArray<NodeFactory> ownedFactories;
+
+	Array<WeakReference<NodeFactory>> nodeFactories;
 
 	String getNonExistentId(String id, StringArray& usedIds) const;
 
