@@ -375,8 +375,6 @@ void scriptnode::core::haas_impl<V>::setPosition(double newValue)
 
 	if (delayL.isVoiceRenderingActive())
 	{
-		
-
 		if (position == 0.0)
 		{
 			delayL.get().setDelayTimeSamples(0);
@@ -392,12 +390,15 @@ void scriptnode::core::haas_impl<V>::setPosition(double newValue)
 			delayL.get().setDelayTimeSamples(0);
 			delayR.get().setDelayTimeSeconds(d);
 		}
-
 	}
 	else
 	{
-		auto setZero = [](DelayType& t) { t.setFadeTimeSamples(2048); t.setDelayTimeSamples(0); };
-		auto setSeconds = [d](DelayType& t) { t.setFadeTimeSamples(2048); t.setDelayTimeSeconds(d); };
+		// We don't allow fade times in polyphonic effects because there is no constant flow of signal that
+		// causes issues with the fade time logic...
+		int fadeTime = NumVoices == 1 ? 2048 : 0;
+
+		auto setZero = [fadeTime](DelayType& t) { t.setFadeTimeSamples(fadeTime); t.setDelayTimeSamples(0); };
+		auto setSeconds = [fadeTime, d](DelayType& t) { t.setFadeTimeSamples(fadeTime); t.setDelayTimeSeconds(d); };
 
 		if (position == 0.0)
 		{
