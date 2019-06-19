@@ -491,7 +491,7 @@ void SerialNodeComponent::paint(Graphics& g)
 	{
 		Path rr;
 		rr.addRoundedRectangle(nc->getBounds().toFloat(), 5.0f);
-		sh.drawForPath(g, rr);
+		//sh.drawForPath(g, rr);
 	}
 
 	if (addPosition != -1)

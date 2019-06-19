@@ -140,6 +140,19 @@ struct NodeBase : public ConstScriptingObject
 
 	virtual bool isPolyphonic() const { return false; }
 
+	bool isBodyShown() const
+	{
+		if (v_data[PropertyIds::Folded])
+			return false;
+
+		if (auto p = getParentNode())
+		{
+			return p->isBodyShown();
+		}
+
+		return true;
+	}
+
 	void addConnectionToBypass(var dragDetails);
 
 	DspNetwork* getRootNetwork() const;

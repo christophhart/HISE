@@ -67,10 +67,16 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 	{
 		this->resizeNodes();
 	});
+
+	setOpaque(true);
+
+	context.attachTo(*this);
 }
 
 DspNetworkGraph::~DspNetworkGraph()
 {
+	context.detach();
+
 	if (network != nullptr)
 		network->removeSelectionListener(this);
 }
@@ -196,6 +202,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	for (auto modSource : modSourceList)
 	{
+		if (!modSource->getSourceNodeFromParent()->isBodyShown())
+			continue;
+
 		auto start = getCircle(modSource, false);
 
 		g.setColour(Colours::black);
@@ -218,6 +227,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 	for (auto slider : list)
 	{
 		auto connection = slider->parameterToControl->data[PropertyIds::Connection].toString();
+
+		if (!slider->parameterToControl->parent->isBodyShown())
+			continue;
 
 		if (connection.isNotEmpty())
 		{
@@ -247,12 +259,19 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 		if (auto sourceNode = modSource->getSourceNodeFromParent())
 		{
+			if (!sourceNode->isBodyShown())
+				continue;
+
 			auto modTargets = sourceNode->getModulationTargetTree();
 
 			for (auto c : modTargets)
 			{
+				
 				for (auto s : list)
 				{
+					if (!s->parameterToControl->parent->isBodyShown())
+						continue;
+
 					auto parentMatch = s->parameterToControl->parent->getId() == c[PropertyIds::NodeId].toString();
 					auto paraMatch = s->parameterToControl->getId() == c[PropertyIds::ParameterId].toString();
 
@@ -287,6 +306,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 			for (auto sourceSlider : list)
 			{
+				if (!sourceSlider->parameterToControl->parent->isBodyShown())
+					continue;
+
 				if (sourceSlider->parameterToControl->getId() == pId &&
 					sourceSlider->parameterToControl->parent->getId() == nodeId)
 				{

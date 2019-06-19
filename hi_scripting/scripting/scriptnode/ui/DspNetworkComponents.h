@@ -142,6 +142,8 @@ public:
 		return {};
 	};
 
+	OpenGLContext context;
+
 	bool setCurrentlyDraggedComponent(NodeComponent* n);
 
 	ValueTree dataReference;

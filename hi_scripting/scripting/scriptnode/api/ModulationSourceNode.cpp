@@ -372,6 +372,7 @@ scriptnode::ModulationSourceNode* ModulationSourceBaseComponent::getSourceNodeFr
 ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 	ModulationSourceBaseComponent(updater)
 {
+	setOpaque(true);
 	setSize(0, ModulationSourceNode::ModulationBarHeight);
 	buffer.setSize(1, ModulationSourceNode::RingBufferSize);
 }
@@ -391,7 +392,7 @@ void ModulationSourcePlotter::rebuildPath()
 {
 	float offset = 2.0f;
 
-	float rectangleWidth = 0.5f;
+	float rectangleWidth = 1.0f;
 
 	auto width = (float)getWidth() - 2.0f * offset;
 	auto maxHeight = (float)getHeight() - 2.0f * offset;
