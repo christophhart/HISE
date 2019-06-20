@@ -69,14 +69,10 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 	});
 
 	setOpaque(true);
-
-	context.attachTo(*this);
 }
 
 DspNetworkGraph::~DspNetworkGraph()
 {
-	context.detach();
-
 	if (network != nullptr)
 		network->removeSelectionListener(this);
 }
@@ -89,6 +85,10 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::deleteSelection(*this);
 	if ((key.isKeyCode('j') || key.isKeyCode('J')))
 		return Actions::showJSONEditorForSelection(*this);
+	if ((key.isKeyCode('z') || key.isKeyCode('Z')) && key.getModifiers().isCommandDown())
+		return Actions::undo(*this);
+	if ((key.isKeyCode('Y') || key.isKeyCode('Y')) && key.getModifiers().isCommandDown())
+		return Actions::redo(*this);
 
 	return false;
 }
@@ -347,51 +347,34 @@ bool DspNetworkGraph::setCurrentlyDraggedComponent(NodeComponent* n)
 
 bool DspNetworkGraph::Actions::deselectAll(DspNetworkGraph& g)
 {
+	g.network->deselectAll();
+
 	return true;
-
-#if 0
-	if (g.selection.getNumSelected() == 0)
-		return false;
-
-	for (auto n : g.selection)
-	{
-		if (n != nullptr)
-			n->repaint();
-	}
-
-	g.selection.deselectAll();
-	return true;
-#endif
 }
 
 bool DspNetworkGraph::Actions::deleteSelection(DspNetworkGraph& g)
 {
-	return true;
-
-#if 0
-	if (g.selection.getNumSelected() == 0)
-		return false;
-
-	g.root->node->getUndoManager()->beginNewTransaction();
-
-	for (auto n : g.selection)
+	for (auto n : g.network->getSelection())
 	{
 		if (n == nullptr)
 			continue;
 
-		auto tree = n->node->getValueTree();
-		tree.getParent().removeChild(tree, n->node->getUndoManager());
+		auto tree = n->getValueTree();
+		tree.getParent().removeChild(tree, n->getUndoManager());
 	}
 
 	return true;
-#endif
 }
 
 bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 {
 	Array<var> list;
+	NodeBase::List selection = g.network->getSelection();
 
-	for (auto node : g.network->getSelection())
+	if (selection.size() != 1)
+		return false;
+
+	for (auto node : selection)
 	{
 		auto v = ValueTreeConverters::convertScriptNodeToDynamicObject(node->getValueTree());
 		list.add(v);
@@ -401,9 +384,17 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 
 	editor->setEditable(true);
 
-	auto callback = [&g](const var& newData)
+	auto callback = [&g, selection](const var& newData)
 	{
-		
+		if (auto n = selection.getFirst())
+		{
+			if (newData.isArray())
+			{
+				auto newTree = ValueTreeConverters::convertDynamicObjectToScriptNodeTree(newData.getArray()->getFirst());
+				n->getValueTree().copyPropertiesAndChildrenFrom(newTree, n->getUndoManager());
+			}
+			
+		}
 
 		return;
 	};
@@ -412,17 +403,62 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 	editor->setName("Editing JSON");
 	editor->setSize(400, 400);
 
-	g.findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(editor, &g, g.getLocalBounds().getCentre());
+	Component* componentToPointTo = &g;
 
+	if (list.size() == 1)
+	{
+		if (auto fn = g.network->getSelection().getFirst())
+		{
+			Array<NodeComponent*> list;
+			fillChildComponentList<NodeComponent>(list, &g);
+
+			for (auto nc : list)
+			{
+				if (nc->node == fn)
+				{
+					componentToPointTo = nc;
+					break;
+				}
+			}
+		}
+	}
+
+	auto p = g.findParentComponentOfClass<ScrollableParent>();
+	auto b = p->getLocalArea(componentToPointTo, componentToPointTo->getLocalBounds());
+
+	CallOutBox::launchAsynchronously(editor, b, p);
 	editor->grabKeyboardFocus();
 
 	return true;
+}
+
+bool DspNetworkGraph::Actions::undo(DspNetworkGraph& g)
+{
+	if (auto um = g.network->getUndoManager())
+		return um->undo();
+
+	return false;
+}
+
+bool DspNetworkGraph::Actions::redo(DspNetworkGraph& g)
+{
+	if (auto um = g.network->getUndoManager())
+		return um->redo();
+
+	return false;
 }
 
 DspNetworkGraph::ScrollableParent::ScrollableParent(DspNetwork* n)
 {
 	addAndMakeVisible(viewport);
 	viewport.setViewedComponent(new DspNetworkGraph(n), true);
+	context.attachTo(*this);
+	setOpaque(true);
+}
+
+DspNetworkGraph::ScrollableParent::~ScrollableParent()
+{
+	context.detach();
 }
 
 void DspNetworkGraph::ScrollableParent::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel)

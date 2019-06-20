@@ -182,7 +182,11 @@ void ParameterSlider::mouseDown(const MouseEvent& e)
 		auto pe = new MacroPropertyEditor(node, pTree);
 
 		pe->setName("Edit Parameter");
-		findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(pe, this, getLocalBounds().getCentre());
+
+		auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+		auto b = g->getLocalArea(this, getLocalBounds());
+
+		CallOutBox::launchAsynchronously(pe, b, g);
 	}
 	else
 		Slider::mouseDown(e);

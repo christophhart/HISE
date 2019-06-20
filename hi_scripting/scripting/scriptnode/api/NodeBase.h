@@ -71,12 +71,18 @@ struct NodeBase : public ConstScriptingObject
 		NodeBase::Ptr parent;
 		ValueTree data;
 
+		void updateFromValueTree(Identifier, var newValue)
+		{
+			setValueAndStoreAsync((double)newValue);
+		}
+
 	private:
 
 		static void nothing(double) {};
 		void storeValue();
 
 		valuetree::PropertyListener opTypeListener;
+		valuetree::PropertyListener valuePropertyUpdater;
 		DspHelpers::ParameterCallback db;
 		LockFreeUpdater valueUpdater;
 
@@ -183,6 +189,15 @@ struct NodeBase : public ConstScriptingObject
 	void addParameter(Parameter* p);
 	void removeParameter(int index);
 
+	void setParentNode(Ptr newParentNode)
+	{
+		parentNode = newParentNode;
+	}
+
+private:
+
+	WeakReference<ConstScriptingObject> parent;
+
 protected:
 
 	ValueTree v_data;
@@ -195,7 +210,7 @@ private:
 
 	ReferenceCountedArray<Parameter> parameters;
 
-	WeakReference<ConstScriptingObject> parent;
+	
 	WeakReference<NodeBase> parentNode;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeBase);

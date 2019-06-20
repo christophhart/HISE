@@ -102,6 +102,7 @@ ContainerComponent::ContainerComponent(NodeContainer* b) :
 	parameters(*this)
 {
 	addAndMakeVisible(parameters);
+	setOpaque(true);
 	rebuildNodes();
 }
 
@@ -455,7 +456,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 		p.addLineSegment(l, 2.0f);
 	}
 
-	sh.drawForPath(g, p);
+	//sh.drawForPath(g, p);
 	g.setColour(Colour(0xFFAAAAAA));
 
 	g.fillPath(p);
@@ -464,16 +465,32 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 void SerialNodeComponent::paint(Graphics& g)
 {
 	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xb83f363a)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF3f363a)));
+
+	
 
 	if (dynamic_cast<DspNetworkGraph*>(getParentComponent()) != nullptr)
 	{
-		g.setColour(dynamic_cast<Processor*>(node->getScriptProcessor())->getColour().withAlpha(0.2f));
+		g.setColour(dynamic_cast<Processor*>(node->getScriptProcessor())->getColour().withMultipliedSaturation(0.6f).withMultipliedBrightness(0.8f));
 	}
 
 	g.fillRoundedRectangle(b, 5.0f);
 	g.setColour(getOutlineColour());
-	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
+	g.drawRoundedRectangle(b.reduced(1.5f), 0.0f, 3.0f);
+
+	g.setColour(Colours::white.withAlpha(0.03f));
+
+	int yStart = 0;
+	
+	if (auto ng = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15) % 10;
+	}
+
+	for (int i = yStart; i < getHeight(); i += 10)
+	{
+		g.drawHorizontalLine(i, 3.0f, (float)getWidth() - 3.0f);
+	}
 
 	for (int i = 0; i < node->getNumChannelsToProcess(); i++)
 	{
@@ -582,14 +599,23 @@ void ParallelNodeComponent::paint(Graphics& g)
 		g.setOpacity(0.3f);
 
 	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xcf39363f)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF39363f)));
 
 	if (isMultiChannelNode())
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xcf393f36)));
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF393f36)));
+
+	
 
 	g.fillRoundedRectangle(b, 5.0f);
 	g.setColour(getOutlineColour());
 	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
+
+	g.setColour(Colours::white.withAlpha(0.03f));
+
+	for (int i = 0; i < getWidth(); i += 10)
+	{
+		g.drawVerticalLine(i, 0.0f, (float)getHeight());
+	}
 
 	for (int i = 0; i < node->getNumChannelsToProcess(); i++)
 	{
@@ -778,18 +804,6 @@ void ModChainNodeComponent::paint(Graphics& g)
 
 		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.8f));
 		g.fillRoundedRectangle(getInsertRuler(insertPosition), 2.5f);
-	}
-
-	DropShadow sh;
-	sh.colour = Colours::black.withAlpha(0.5f);
-	sh.offset = { 0, 2 };
-	sh.radius = 3;
-
-	for (auto nc : childNodeComponents)
-	{
-		Path rr;
-		rr.addRoundedRectangle(nc->getBounds().toFloat(), 5.0f);
-		sh.drawForPath(g, rr);
 	}
 }
 

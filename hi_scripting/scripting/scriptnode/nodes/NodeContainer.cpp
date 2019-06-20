@@ -51,6 +51,8 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 			if (nodes.contains(nodeToProcess))
 				return;
 
+			nodeToProcess->setParentNode(asNode());
+
 			int insertIndex = getNodeTree().indexOf(child);
 
 			ScopedLock sl(n->getRootNetwork()->getConnectionLock());
@@ -59,6 +61,8 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 		}
 		else
 		{
+			nodeToProcess->setParentNode(nullptr);
+
 			ScopedLock sl(n->getRootNetwork()->getConnectionLock());
 			nodes.removeAllInstancesOf(nodeToProcess);
 			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
@@ -152,7 +156,6 @@ void NodeContainer::assign(const int index, var newValue)
 	{
 		auto tree = node->getValueTree();
 
-		un->beginNewTransaction();
 		tree.getParent().removeChild(tree, un);
 		getNodeTree().addChild(tree, index, un);
 	}

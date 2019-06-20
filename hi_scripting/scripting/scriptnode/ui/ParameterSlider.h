@@ -65,6 +65,16 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
 			MessageManager::callAsync(f);
 		};
 
+		void mouseEnter(const MouseEvent& event) override
+		{
+			updateText();
+		}
+
+		void mouseExit(const MouseEvent& event) override
+		{
+			updateText();
+		}
+
 		void editorShown(TextEditor* ed)
 		{
 			Label::editorShown(ed);
@@ -87,7 +97,7 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
 
 		void updateText()
 		{
-			if (parent->isMouseOverOrDragging(true))
+			if (parent->isMouseOverOrDragging(true) || isMouseOver())
 				setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
 			else
 				setText(parent->getName(), dontSendNotification);

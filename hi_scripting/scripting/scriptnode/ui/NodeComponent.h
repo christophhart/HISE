@@ -39,7 +39,8 @@ using namespace hise;
 using namespace juce;
 
 
-class NodeComponent : public Component
+class NodeComponent : public Component,
+					  public DspNetwork::SelectionListener
 {
 public:
 
@@ -49,6 +50,11 @@ public:
 		EditProperties,
 		UnfreezeNode,
 		FreezeNode,
+		WrapIntoChain,
+		WrapIntoSplit,
+		WrapIntoMulti,
+		WrapIntoFrame,
+		WrapIntoOversample4,
 		numMenuActions
 	};
 
@@ -66,6 +72,8 @@ public:
 		Header(NodeComponent& parent_);
 
 		void buttonClicked(Button* b) override;
+
+		String getPowerButtonId(bool getOff) const;
 
 		void updatePowerButtonState(Identifier id, var newValue);
 
@@ -87,6 +95,28 @@ public:
 			auto b = powerButton.getLocalBounds();
 			isHoveringOverBypass = b.contains(dragSourceDetails.localPosition);
 
+			repaint();
+		}
+
+		void updateColour(Identifier id, var value)
+		{
+			int64 colourValue = 0;
+
+			if (value.isInt64() || value.isInt())
+				colourValue = (int64)value;
+			else if (value.isString())
+			{
+				auto string = value.toString();
+
+				if (string.startsWith("0x"))
+					colourValue = string.getHexValue64();
+				else
+					colourValue = string.getLargeIntValue();
+			}
+
+			colour = Colour((uint32)colourValue);
+
+			
 			repaint();
 		}
 
@@ -115,10 +145,15 @@ public:
 			repaint();
 		}
 		
-		valuetree::PropertyListener powerButtonUpdater;
+		
 
 		NodeComponent& parent;
 		Factory f;
+
+		Colour colour = Colours::transparentBlack;
+
+		valuetree::PropertyListener powerButtonUpdater;
+		valuetree::PropertyListener colourUpdater;
 		HiseShapeButton powerButton;
 		HiseShapeButton deleteButton;
 		HiseShapeButton parameterButton;
@@ -137,6 +172,8 @@ public:
 	void paintOverChildren(Graphics& g) override;
 	void resized() override;
 
+	void selectionChanged(const NodeBase::List& selection) override;
+
 	virtual void fillContextMenu(PopupMenu& m)
 	{
 		m.addItem((int)MenuActions::ExportAsCpp, "Export as hardcoded C++ module");
@@ -151,6 +188,13 @@ public:
 		{
 			m.addItem((int)MenuActions::FreezeNode, "Replace with hardcoded version");
 		}
+
+		m.addSectionHeader("Wrap into container");
+		m.addItem((int)MenuActions::WrapIntoChain, "Chain");
+		m.addItem((int)MenuActions::WrapIntoSplit, "Split");
+		m.addItem((int)MenuActions::WrapIntoMulti, "Multi");
+		m.addItem((int)MenuActions::WrapIntoFrame, "Frame");
+		m.addItem((int)MenuActions::WrapIntoOversample4, "Oversample(4x)");
 	}
 
 	virtual void handlePopupMenuResult(int result);
@@ -176,6 +220,7 @@ public:
 		}
 	}
 
+	bool wasSelected = false;
 	ValueTree dataReference;
 	NodeBase::Ptr node;
 	Header header;

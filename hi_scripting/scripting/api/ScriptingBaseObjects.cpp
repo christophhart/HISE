@@ -317,17 +317,20 @@ var ValueTreeConverters::convertScriptNodeToDynamicObject(ValueTree v)
 	Array<var> parameters;
 	Array<var> nodes;
 
+	// Convert Node Properties
 	for (int i = 0; i < v.getNumProperties(); i++)
 	{
 		auto id = v.getPropertyName(i);
 		root->setProperty(id, v[id]);
 	}
 
+	// Convert Node Parameters
 	auto pTree = v.getChildWithName(scriptnode::PropertyIds::Parameters);
 
 	for (auto p : pTree)
 		parameters.add(convertValueTreeToDynamicObject(p));
 
+	// Convert Child nodes
 	auto nTree = v.getChildWithName(scriptnode::PropertyIds::Nodes);
 
 	for (auto n : nTree)
@@ -343,9 +346,50 @@ var ValueTreeConverters::convertScriptNodeToDynamicObject(ValueTree v)
 	return var(root);
 }
 
-juce::ValueTree ValueTreeConverters::convertDynamicObjectToScriptNodeTree(var obj)
+juce::ValueTree ValueTreeConverters::convertDynamicObjectToScriptNodeTree(var objVar)
 {
-	return {};
+	ValueTree t(scriptnode::PropertyIds::Node);
+
+	if (auto obj = objVar.getDynamicObject())
+	{
+		// Convert Node Properties
+		for (int i = 0; i < obj->getProperties().size(); i++)
+		{
+			auto id = obj->getProperties().getName(i);
+			auto value = obj->getProperty(id);
+			t.setProperty(id, value, nullptr);
+		}
+
+		ValueTree param(scriptnode::PropertyIds::Parameters);
+
+		if (auto parameters = obj->getProperty(scriptnode::PropertyIds::Parameters).getDynamicObject())
+		{
+			for (int i = 0; i < parameters->getProperties().size(); i++)
+			{
+				auto id = parameters->getProperties().getName(i);
+				auto value = parameters->getProperty(id);
+				param.setProperty(id, value, nullptr);
+			}
+		}
+
+		ValueTree nodes(scriptnode::PropertyIds::Nodes);
+
+		if (auto nodeTree = obj->getProperty(scriptnode::PropertyIds::Nodes).getDynamicObject())
+		{
+			
+
+			for (auto nt : nodeTree->getProperties())
+			{
+				auto childNode = convertDynamicObjectToScriptNodeTree(nt.value);
+				nodes.addChild(childNode, -1, nullptr);
+			}
+		}
+
+		t.addChild(nodes, -1, nullptr);
+		t.addChild(param, -1, nullptr);
+	}
+
+	return t;
 }
 
 void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)

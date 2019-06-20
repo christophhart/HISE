@@ -5024,11 +5024,7 @@ juce::Colour ScriptingApi::Content::Helpers::getCleanedObjectColour(const var& v
 	int64 colourValue = 0;
 
 	if (value.isInt64() || value.isInt())
-	{
 		colourValue = (int64)value;
-
-		
-	}
 	else if (value.isString())
 	{
 		auto string = value.toString();

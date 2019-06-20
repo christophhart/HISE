@@ -61,5 +61,17 @@ struct DspNetworkGraphPanel : public NetworkPanel
 };
 
 
+class NodePropertyPanel : public NetworkPanel
+{
+public:
+
+	NodePropertyPanel(FloatingTile* parent);
+
+	SET_PANEL_NAME("NodePropertyPanel");
+
+	Component* createComponentForNetwork(DspNetwork* p) override;
+};
+
+
 
 }

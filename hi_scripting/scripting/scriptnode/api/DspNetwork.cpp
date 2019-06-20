@@ -48,16 +48,12 @@ struct DspNetwork::Wrapper
 
 DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_) :
 	ConstScriptingObject(p, 2),
-	data(data_),
-	selectionUpdater(*this)
+	data(data_)
 {
 	ownedFactories.add(new NodeContainerFactory(this));
 	ownedFactories.add(new core::Factory(this));
 	ownedFactories.add(new math::Factory(this));
 	ownedFactories.add(new routing::Factory(this));
-
-
-
 	ownedFactories.add(new filters::Factory(this));
 	ownedFactories.add(new dynamics::Factory(this));
 	ownedFactories.add(new stk::StkFactory(this));
@@ -84,11 +80,14 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_) 
 	//ADD_API_METHOD_0(disconnectAll);
 	//ADD_API_METHOD_3(injectAfter);
 
-	
+	selectionUpdater = new SelectionUpdater(*this);
+
+	setEnableUndoManager(enableUndo);
 }
 
 DspNetwork::~DspNetwork()
 {
+	selectionUpdater = nullptr;
 	nodes.clear();
 	
 }
@@ -700,7 +699,7 @@ scriptnode::NodeBase* NodeFactory::createNode(ValueTree data, bool createPolyIfA
 DspNetwork::SelectionUpdater::SelectionUpdater(DspNetwork& parent_) :
 	parent(parent_)
 {
-	WeakReference<DspNetwork> weakParent;
+	WeakReference<DspNetwork> weakParent = &parent;
 
 	auto f = [weakParent, this]()
 	{

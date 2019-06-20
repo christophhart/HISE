@@ -35,9 +35,33 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+juce::String NodeComponent::Header::getPowerButtonId(bool getOff) const
+{
+	auto path = parent.node->getValueTree()[PropertyIds::FactoryPath].toString();
+
+	if (path.startsWith("container."))
+	{
+		path = path.fromFirstOccurrenceOf("container.", false, false);
+
+		if (getOff)
+		{
+			if (path.contains("frame") || path.contains("oversample"))
+				return "chain";
+			else
+				return "on";
+		}
+		else
+			return path;
+	}
+		
+	return "on";
+}
+
+
+
 NodeComponent::Header::Header(NodeComponent& parent_) :
 	parent(parent_),
-	powerButton("on", this, f),
+	powerButton(getPowerButtonId(false), this, f, getPowerButtonId(true)),
 	deleteButton("delete", this, f),
 	parameterButton("parameter", this, f)
 {
@@ -46,6 +70,9 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	powerButtonUpdater.setCallback(parent.node->getValueTree(), { PropertyIds::Bypassed, PropertyIds::DynamicBypass},
 		valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(NodeComponent::Header::updatePowerButtonState));
+
+	colourUpdater.setCallback(parent.node->getValueTree(), { PropertyIds::NodeColour }, valuetree::AsyncMode::Asynchronously,
+		BIND_MEMBER_FUNCTION_2(NodeComponent::Header::updateColour));
 
 	addAndMakeVisible(powerButton);
 	addAndMakeVisible(deleteButton);
@@ -129,12 +156,20 @@ void NodeComponent::Header::mouseDown(const MouseEvent& e)
 
 void NodeComponent::Header::mouseUp(const MouseEvent& e)
 {
+	if (e.mods.isRightButtonDown())
+	{
+		return;
+	}
+
 	auto graph = findParentComponentOfClass<DspNetworkGraph>();
 
 	if (isDragging)
 		graph->finishDrag();
 	else
+	{
 		parent.node->getRootNetwork()->addToSelection(parent.node, e.mods);
+	}
+		
 }
 
 void NodeComponent::Header::mouseDrag(const MouseEvent& e)
@@ -155,7 +190,7 @@ void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 
 	auto distance = e.getDistanceFromDragStart();
 
-	if (distance > 50)
+	if (distance > 25)
 	{
 		isDragging = true;
 
@@ -170,14 +205,48 @@ void NodeComponent::Header::paint(Graphics& g)
 	g.setColour(parent.getOutlineColour());
 	g.fillAll();
 
-	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
+	
 	g.setFont(GLOBAL_BOLD_FONT());
+
+
 
 	String s = parent.dataReference[PropertyIds::ID].toString();
 
 	if (parent.node.get()->isPolyphonic())
 		s << " [poly]";
 
+	
+
+	auto textWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(s) + 10.0f;
+
+	auto colourBounds = getLocalBounds().reduced(3, 6);
+
+	if (powerButton.isVisible())
+		colourBounds.removeFromLeft(powerButton.getWidth() + 6);
+
+	if (parameterButton.isVisible())
+		colourBounds.removeFromLeft(parameterButton.getWidth() + 6);
+
+	if (deleteButton.isVisible())
+		colourBounds.removeFromRight(deleteButton.getWidth() + 6);
+
+	if (!colour.isTransparent())
+	{
+		g.setColour(colour);
+		
+		auto textBounds = getLocalBounds().toFloat().withSizeKeepingCentre(textWidth, (float)getHeight());
+
+		auto colourL = colourBounds.toFloat().withRight(textBounds.getX());
+		auto colourR = colourBounds.toFloat().withLeft(textBounds.getRight());
+
+		g.fillRoundedRectangle(colourL, 2.0f);
+		g.fillRoundedRectangle(colourR, 2.0f);
+	}
+
+	
+
+
+	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
 	g.drawText(s, getLocalBounds(), Justification::centred);
 
 	if (isHoveringOverBypass)
@@ -193,8 +262,11 @@ NodeComponent::NodeComponent(NodeBase* b) :
 	node(b),
 	header(*this)
 {
+	node->getRootNetwork()->addSelectionListener(this);
+
 	setName(b->getId());
 	addAndMakeVisible(header);
+	setOpaque(true);
 
 	repaintListener.setCallback(dataReference, {PropertyIds::ID, PropertyIds::NumChannels},
 		valuetree::AsyncMode::Asynchronously,
@@ -210,13 +282,15 @@ NodeComponent::NodeComponent(NodeBase* b) :
 
 NodeComponent::~NodeComponent()
 {
-
+	node->getRootNetwork()->removeSelectionListener(this);
 }
 
 
 void NodeComponent::paint(Graphics& g)
 {
 	g.fillAll(Colour(0xFF444444));
+	g.setColour(getOutlineColour());
+	g.drawRect(getLocalBounds());
 }
 
 
@@ -252,6 +326,17 @@ void NodeComponent::resized()
 }
 
 
+void NodeComponent::selectionChanged(const NodeBase::List& selection)
+{
+	bool nowSelected = selection.contains(node);
+
+	if (wasSelected != nowSelected)
+	{
+		wasSelected = nowSelected;
+		repaint();
+	}
+}
+
 void NodeComponent::handlePopupMenuResult(int result)
 {
 	if (result == (int)MenuActions::ExportAsCpp)
@@ -268,7 +353,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 	if (result == (int)MenuActions::EditProperties)
 	{
 		auto n = new PropertyEditor(node, node->getValueTree());
-		auto g = findParentComponentOfClass<FloatingTile>();
+		auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
 		auto b = g->getLocalArea(this, header.getBounds());
 
 		CallOutBox::launchAsynchronously(n, b, g);
@@ -382,6 +467,68 @@ void NodeComponent::handlePopupMenuResult(int result)
 			}
 		}
 	}
+	if (result >= (int)MenuActions::WrapIntoChain && result <= (int)MenuActions::WrapIntoOversample4)
+	{
+		auto framePath = "container.frame" + String(node->getNumChannelsToProcess()) + "_block";
+
+		StringArray ids = { "container.chain", "container.split", "container.multi",
+						      framePath, "container.oversample4x" };
+
+		int idIndex = result - (int)MenuActions::WrapIntoChain;
+
+		auto path = ids[idIndex];
+
+		
+		int index = 1;
+		
+		auto newId = "wrap" + node->getId() + String(index);
+
+		auto network = node->getRootNetwork();
+
+		while (network->get(newId).isObject())
+		{
+			index++;
+			newId = "wrap" + node->getId() + String(index);
+		}
+		
+		auto newNode = node->getRootNetwork()->create(path, newId, node->isPolyphonic());
+
+		if (auto newContainer = dynamic_cast<NodeBase*>(newNode.getObject()))
+		{
+			auto containerTree = newContainer->getValueTree();
+
+			auto um = node->getUndoManager();
+
+			auto selection = network->getSelection();
+
+			if (selection.isEmpty() || !selection.contains(node))
+			{
+				auto nodeTree = node->getValueTree();
+				auto parent = nodeTree.getParent();
+				auto index = parent.indexOf(nodeTree);
+
+				parent.removeChild(nodeTree, um);
+				containerTree.getChildWithName(PropertyIds::Nodes).addChild(nodeTree, -1, um);
+
+				jassert(!containerTree.getParent().isValid());
+
+				parent.addChild(containerTree, index, um);
+			}
+			else
+			{
+				auto parent = selection.getFirst()->getValueTree().getParent();
+				auto index = parent.indexOf(selection.getFirst()->getValueTree());
+
+				for (auto n : selection)
+				{
+					n->getValueTree().getParent().removeChild(n->getValueTree(), um);
+					containerTree.getChildWithName(PropertyIds::Nodes).addChild(n->getValueTree(), -1, um);
+				}
+
+				parent.addChild(containerTree, index, um);
+			}
+		}
+	}
 }
 
 juce::Colour NodeComponent::getOutlineColour() const
@@ -423,12 +570,15 @@ DeactivatedComponent::DeactivatedComponent(NodeBase* b) :
 	NodeComponent(b)
 {
 	header.setEnabled(false);
+	setOpaque(true);
 }
 
 
 void DeactivatedComponent::paint(Graphics& g)
 {
-	g.fillAll(Colours::grey.withAlpha(0.3f));
+	g.fillAll(Colour(0xFF555555));
+	g.setColour(Colour(0xFF888888));
+	g.drawRect(getLocalBounds());
 }
 
 
@@ -448,6 +598,17 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("delete", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
 	LOAD_PATH_IF_URL("move", ColumnIcons::moveIcon);
 	LOAD_PATH_IF_URL("parameter", HiBinaryData::SpecialSymbols::macros);
+	LOAD_PATH_IF_URL("split", Icons::splitIcon);
+	LOAD_PATH_IF_URL("chain", Icons::chainIcon);
+	LOAD_PATH_IF_URL("multi", Icons::multiIcon);
+	LOAD_PATH_IF_URL("mod", Icons::modIcon);
+	
+	if (url.contains("frame"))
+	{
+		p.loadPathFromData(Icons::frameIcon, sizeof(Icons::frameIcon));
+	}
+
+
 
 	return p;
 }

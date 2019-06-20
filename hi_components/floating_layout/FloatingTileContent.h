@@ -626,6 +626,7 @@ public:
 			ScriptComponentEditPanel,
 			DspNetworkGraph,
 			DspNodeList,
+			DspNodeParameterEditor,
 			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,

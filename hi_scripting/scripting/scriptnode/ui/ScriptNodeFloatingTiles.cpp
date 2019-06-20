@@ -48,5 +48,64 @@ Component* DspNetworkGraphPanel::createComponentForNetwork(DspNetwork* p)
 	return new DspNetworkGraph::ScrollableParent(p);
 }
 
+NodePropertyPanel::NodePropertyPanel(FloatingTile* parent):
+	NetworkPanel(parent)
+{
+
+}
+
+struct NodePropertyContent : public Component,
+							 public DspNetwork::SelectionListener
+{
+	NodePropertyContent(DspNetwork* n):
+		network(n)
+	{
+		addAndMakeVisible(viewport);
+		viewport.setViewedComponent(&content, false);
+		n->addSelectionListener(this);
+	}
+
+	~NodePropertyContent()
+	{
+		if(network != nullptr)
+			network->removeSelectionListener(this);
+	}
+
+	void resized() override
+	{
+		viewport.setBounds(getLocalBounds());
+		content.setSize(viewport.getWidth() - viewport.getScrollBarThickness(), content.getHeight());
+	}
+
+	void selectionChanged(const NodeBase::List& selection)
+	{
+		editors.clear();
+
+		auto y = 0;
+
+		for (auto n : selection)
+		{
+			PropertyEditor* pe = new PropertyEditor(n, n->getValueTree());
+			editors.add(pe);
+			pe->setTopLeftPosition(0, y);
+			pe->setSize(content.getWidth(), pe->getHeight());
+			content.addAndMakeVisible(pe);
+			y = pe->getBottom();
+		}
+
+		content.setSize(content.getWidth(), y);
+	}
+
+	WeakReference<DspNetwork> network;
+	Component content;
+	Viewport viewport;
+	OwnedArray<PropertyEditor> editors;
+};
+
+juce::Component* NodePropertyPanel::createComponentForNetwork(DspNetwork* p)
+{
+	return new NodePropertyContent(p);
+}
+
 }
 

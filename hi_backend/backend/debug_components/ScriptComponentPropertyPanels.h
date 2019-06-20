@@ -256,8 +256,6 @@ public:
 
 private:
 
-	
-
 	struct ColourComp : public Component,
 						public Label::Listener,
 						public ChangeListener

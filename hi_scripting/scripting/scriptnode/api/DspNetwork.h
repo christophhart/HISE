@@ -41,7 +41,8 @@ class NodeFactory;
 
 /** A network of multiple DSP objects that are connected using a graph. */
 class DspNetwork : public ConstScriptingObject,
-	public DebugableObject
+				   public DebugableObject,
+				   public Timer
 {
 public:
 
@@ -170,10 +171,12 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(SelectionListener);
 	};
 
-	void addSelectionListener(SelectionListener* l) { selectionUpdater.listeners.addIfNotAlreadyThere(l); }
-	void removeSelectionListener(SelectionListener* l) { selectionUpdater.listeners.removeAllInstancesOf(l); }
+	void addSelectionListener(SelectionListener* l) { if(selectionUpdater != nullptr) selectionUpdater->listeners.addIfNotAlreadyThere(l); }
+	void removeSelectionListener(SelectionListener* l) { if(selectionUpdater != nullptr) selectionUpdater->listeners.removeAllInstancesOf(l); }
 
 	bool isSelected(NodeBase* node) const { return selection.isSelected(node); }
+
+	void deselectAll() { selection.deselectAll(); }
 
 	void addToSelection(NodeBase* node, ModifierKeys mods);
 
@@ -202,9 +205,43 @@ public:
 
 	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone);
 
+	void setEnableUndoManager(bool shouldBeEnabled)
+	{
+		enableUndo = shouldBeEnabled;
+		if (enableUndo)
+		{
+			startTimer(1500);
+		}
+		else
+			stopTimer();
+	}
+
+	void timerCallback() override
+	{
+		um.beginNewTransaction();
+	}
+
+	UndoManager* getUndoManager() 
+	{ 
+		if (!enableUndo)
+			return nullptr;
+
+		if (um.isPerformingUndoRedo())
+			return nullptr;
+		else
+			return &um;
+	}
+
 private:
 
+#if USE_BACKEND
+	bool enableUndo = true;
+#else
+	// disable undo on compiled plugins unless explicitely stated
+	bool enableUndo = false; 
+#endif
 
+	UndoManager um;
 
 	bool isPoly = false;
 
@@ -223,7 +260,9 @@ private:
 
 		DspNetwork& parent;
 
-	} selectionUpdater;
+	};
+
+	ScopedPointer<SelectionUpdater> selectionUpdater;
 
 	OwnedArray<NodeFactory> ownedFactories;
 

@@ -88,10 +88,13 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/scriptnode/api/DspHelpers.h"
 #include "scripting/scriptnode/api/NodeBase.h"
 
-#include "scripting/scriptnode/ui/NodeComponent.h"
+
 
 
 #include "scripting/scriptnode/api/DspNetwork.h"
+
+
+#include "scripting/scriptnode/ui/NodeComponent.h"
 #include "scripting/scriptnode/api/Base.h"
 #include "scripting/scriptnode/api/Bypass.h"
 

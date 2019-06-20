@@ -46,8 +46,6 @@ using namespace juce;
 using namespace hise;
 
 
-
-
 class DspNetworkGraph : public Component,
 	public AsyncUpdater,
 	public DspNetwork::SelectionListener
@@ -56,6 +54,8 @@ public:
 	struct ScrollableParent : public Component
 	{
 		ScrollableParent(DspNetwork* n);
+
+		~ScrollableParent();
 
 		void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
 		void resized() override;
@@ -69,21 +69,25 @@ public:
 
 		float zoomFactor = 1.0f;
 		Viewport viewport;
+		OpenGLContext context;
+
 	};
-
-	
-
-	void selectionChanged(const NodeBase::List&) override
-	{
-		root->repaintAllNodes();
-	}
 
 	struct Actions
 	{
 		static bool deselectAll(DspNetworkGraph& g);;
 		static bool deleteSelection(DspNetworkGraph& g);
 		static bool showJSONEditorForSelection(DspNetworkGraph& g);
+		static bool undo(DspNetworkGraph& g);
+		static bool redo(DspNetworkGraph& g);
 	};
+
+	void selectionChanged(const NodeBase::List&) override
+	{
+		
+	}
+
+	
 
 	DspNetworkGraph(DspNetwork* n);
 	~DspNetworkGraph();
@@ -142,7 +146,6 @@ public:
 		return {};
 	};
 
-	OpenGLContext context;
 
 	bool setCurrentlyDraggedComponent(NodeComponent* n);
 

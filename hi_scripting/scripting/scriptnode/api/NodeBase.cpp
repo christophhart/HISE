@@ -44,6 +44,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 {
 	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::LockNumChannels, false);
+	setDefaultValue(PropertyIds::NodeColour, 0);
 
 	bypassUpdater.setFunction([this]()
 	{
@@ -138,6 +139,11 @@ bool NodeBase::isBypassed() const noexcept
 
 NodeBase* NodeBase::getParentNode() const
 {
+	if (parentNode != nullptr)
+	{
+		return parentNode;
+	}
+
 	auto v = v_data.getParent().getParent();
 
 	if (v.getType() == PropertyIds::Node)
@@ -161,7 +167,7 @@ juce::String NodeBase::getId() const
 
 juce::UndoManager* NodeBase::getUndoManager()
 {
-	return dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getControlUndoManager();
+	return getRootNetwork()->getUndoManager();
 }
 
 juce::Rectangle<int> NodeBase::reduceHeightIfFolded(Rectangle<int> originalHeight) const
@@ -231,6 +237,9 @@ NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 
 	valueUpdater.setFunction(BIND_MEMBER_FUNCTION_0(NodeBase::Parameter::storeValue));
 	
+	valuePropertyUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
+		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
+
 	opTypeListener.setCallback(data, { PropertyIds::OpType },
 		valuetree::AsyncMode::Synchronously,
 		[this](Identifier, var newValue)
