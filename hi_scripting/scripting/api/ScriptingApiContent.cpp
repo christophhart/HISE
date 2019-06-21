@@ -1663,6 +1663,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 128);
 	setDefaultValue(ScriptComponent::Properties::height, 28);
+	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(text, name.toString());
 	setDefaultValue(bgColour, (int64)0x00000000);
 	setDefaultValue(itemColour, (int64)0x00000000);
