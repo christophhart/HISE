@@ -44,6 +44,125 @@ class HardcodedNode;
 
 struct NodeBase : public ConstScriptingObject
 {
+	struct HelpManager: ControlledObject
+	{
+		HelpManager(NodeBase& parent, ValueTree d);
+
+		struct Listener
+		{
+			virtual ~Listener() {};
+
+			virtual void helpChanged(float newWidth, float newHeight) = 0;
+
+			virtual void repaintHelp() = 0;
+
+		private:
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		};
+
+		void update(Identifier id, var newValue)
+		{
+			if (id == PropertyIds::NodeColour)
+			{
+				highlightColour = PropertyHelpers::getColourFromVar(newValue);
+				if (highlightColour.isTransparent())
+					highlightColour = Colour(SIGNAL_COLOUR);
+
+				if (helpRenderer != nullptr)
+				{
+					helpRenderer->getStyleData().headlineColour = highlightColour;
+					
+					helpRenderer->setNewText(lastText);
+
+					for (auto l : listeners)
+					{
+						if (l != nullptr)
+							l->repaintHelp();
+					}
+				}
+			}
+			else if (id == PropertyIds::Comment)
+			{
+				lastText = newValue.toString();
+				rebuild();
+			}
+			else if (id == PropertyIds::CommentWidth)
+			{
+				lastWidth = (float)newValue;
+
+				rebuild();
+			}
+		}
+
+		void render(Graphics& g, Rectangle<float> area)
+		{
+			if (helpRenderer != nullptr && !area.isEmpty())
+			{
+				area.removeFromLeft(10.0f);
+				g.setColour(Colours::black.withAlpha(0.1f));
+				g.fillRoundedRectangle(area, 2.0f);
+				helpRenderer->draw(g, area.reduced(10.0f));
+			}
+				
+		}
+
+		void addHelpListener(Listener* l)
+		{
+			listeners.addIfNotAlreadyThere(l);
+			l->helpChanged(lastWidth + 30.0f, lastHeight + 20.0f);
+		}
+
+		void removeHelpListener(Listener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+
+		Rectangle<float> getHelpSize() const
+		{
+			return { 0.0f, 0.0f, lastHeight > 0.0f ? lastWidth + 30.0f : 0.0f, lastHeight + 20.0f };
+		}
+
+	private:
+
+		void rebuild()
+		{
+			if (lastText.isNotEmpty())
+			{
+				helpRenderer = new MarkdownRenderer(lastText);
+				helpRenderer->setDatabaseHolder(dynamic_cast<MarkdownDatabaseHolder*>(getMainController()));
+				helpRenderer->getStyleData().headlineColour = highlightColour;
+				helpRenderer->setDefaultTextSize(15.0f);
+				helpRenderer->parse();
+				lastHeight = helpRenderer->getHeightForWidth(lastWidth);
+			}
+			else
+			{
+				helpRenderer = nullptr;
+				lastHeight = 0.0f;
+			}
+
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->helpChanged(lastWidth + 30.0f, lastHeight);
+			}
+		}
+
+		String lastText;
+		Colour highlightColour = Colour(SIGNAL_COLOUR);
+
+		float lastWidth = 300.0f;
+		float lastHeight = 0.0f;
+
+		Array<WeakReference<HelpManager::Listener>> listeners;
+		ScopedPointer<hise::MarkdownRenderer> helpRenderer;
+		valuetree::PropertyListener commentListener;
+		valuetree::PropertyListener colourListener;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(HelpManager);
+	};
+
 	using Ptr = WeakReference<NodeBase>;
 	using List = Array<WeakReference<NodeBase>>;
 
@@ -159,6 +278,8 @@ struct NodeBase : public ConstScriptingObject
 		return true;
 	}
 
+	HelpManager& getHelpManager() { return helpManager; }
+
 	void addConnectionToBypass(var dragDetails);
 
 	DspNetwork* getRootNetwork() const;
@@ -171,7 +292,9 @@ struct NodeBase : public ConstScriptingObject
 	String getId() const;
 	UndoManager* getUndoManager();
 
-	Rectangle<int> reduceHeightIfFolded(Rectangle<int> originalHeight) const;
+	Rectangle<int> getBoundsToDisplay(Rectangle<int> originalHeight) const;
+
+	Rectangle<int> getBoundsWithoutHelp(Rectangle<int> originalHeight) const;
 
 	void setNumChannels(int newNumChannels)
 	{
@@ -203,6 +326,8 @@ protected:
 	ValueTree v_data;
 
 private:
+
+	HelpManager helpManager;
 
 	CachedValue<bool> bypassed;
 	bool pendingBypassState;

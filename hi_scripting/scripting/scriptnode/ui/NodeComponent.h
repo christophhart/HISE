@@ -100,23 +100,7 @@ public:
 
 		void updateColour(Identifier id, var value)
 		{
-			int64 colourValue = 0;
-
-			if (value.isInt64() || value.isInt())
-				colourValue = (int64)value;
-			else if (value.isString())
-			{
-				auto string = value.toString();
-
-				if (string.startsWith("0x"))
-					colourValue = string.getHexValue64();
-				else
-					colourValue = string.getLargeIntValue();
-			}
-
-			colour = Colour((uint32)colourValue);
-
-			
+			colour = PropertyHelpers::getColourFromVar(value);
 			repaint();
 		}
 

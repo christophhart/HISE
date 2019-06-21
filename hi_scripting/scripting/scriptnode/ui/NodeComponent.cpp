@@ -598,14 +598,14 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("delete", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
 	LOAD_PATH_IF_URL("move", ColumnIcons::moveIcon);
 	LOAD_PATH_IF_URL("parameter", HiBinaryData::SpecialSymbols::macros);
-	LOAD_PATH_IF_URL("split", Icons::splitIcon);
-	LOAD_PATH_IF_URL("chain", Icons::chainIcon);
-	LOAD_PATH_IF_URL("multi", Icons::multiIcon);
-	LOAD_PATH_IF_URL("mod", Icons::modIcon);
+	LOAD_PATH_IF_URL("split", ScriptnodeIcons::splitIcon);
+	LOAD_PATH_IF_URL("chain", ScriptnodeIcons::chainIcon);
+	LOAD_PATH_IF_URL("multi", ScriptnodeIcons::multiIcon);
+	LOAD_PATH_IF_URL("mod", ScriptnodeIcons::modIcon);
 	
 	if (url.contains("frame"))
 	{
-		p.loadPathFromData(Icons::frameIcon, sizeof(Icons::frameIcon));
+		p.loadPathFromData(ScriptnodeIcons::frameIcon, sizeof(ScriptnodeIcons::frameIcon));
 	}
 
 

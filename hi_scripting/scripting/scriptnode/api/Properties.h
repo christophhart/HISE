@@ -59,6 +59,8 @@ DECLARE_ID(Network);
 DECLARE_ID(Node);
 DECLARE_ID(Nodes);
 DECLARE_ID(NodeColour);
+DECLARE_ID(Comment);
+DECLARE_ID(CommentWidth);
 DECLARE_ID(Parameter);
 DECLARE_ID(Parameters);
 DECLARE_ID(Connections);
@@ -136,6 +138,25 @@ DECLARE_ID(Add);
 
 struct PropertyHelpers
 {
+	static Colour getColourFromVar(const var& value)
+	{
+		int64 colourValue = 0;
+
+		if (value.isInt64() || value.isInt())
+			colourValue = (int64)value;
+		else if (value.isString())
+		{
+			auto string = value.toString();
+
+			if (string.startsWith("0x"))
+				colourValue = string.getHexValue64();
+			else
+				colourValue = string.getLargeIntValue();
+		}
+
+		return Colour((uint32)colourValue);
+	};
+
 	static PropertyComponent* createPropertyComponent(ProcessorWithScriptingContent* p, ValueTree& d, const Identifier& id, UndoManager* um);
 };
 

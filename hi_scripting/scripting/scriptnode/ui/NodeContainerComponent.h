@@ -178,7 +178,8 @@ struct MacroPropertyEditor : public Component,
 
 
 class ContainerComponent : public NodeComponent,
-							public DragAndDropContainer
+							public DragAndDropContainer,
+							public NodeBase::HelpManager::Listener
 {
 public:
 
@@ -335,6 +336,24 @@ public:
 	virtual int getInsertPosition(Point<int> x) const = 0;
 	void removeDraggedNode(NodeComponent* draggedNode);
 	void insertDraggedNode(NodeComponent* newNode, bool copyNode);
+
+	void helpChanged(float newWidth, float newHeight) override;
+
+	void repaintHelp() override { repaint(); }
+
+	void drawHelp(Graphics& g)
+	{
+		for (auto nc : childNodeComponents)
+		{
+			auto helpBounds = nc->node->getHelpManager().getHelpSize();
+
+			if (!helpBounds.isEmpty())
+			{
+				helpBounds.setPosition(nc->getBounds().toFloat().getTopRight());
+				nc->node->getHelpManager().render(g, helpBounds);
+			}
+		}
+	}
 
 	void setDropTarget(Point<int> position);
 	void clearDropTarget();

@@ -131,6 +131,7 @@ protected:
 	mutable WeakReference<ModulationSourceNode> sourceNode;
 };
 
+
 struct ModulationSourcePlotter : ModulationSourceBaseComponent
 {
 	ModulationSourcePlotter(PooledUIUpdater* updater);

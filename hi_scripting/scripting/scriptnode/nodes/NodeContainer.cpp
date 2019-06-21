@@ -620,9 +620,7 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 	for (auto n : nodes)
 	{
 		auto bounds = n->getPositionInCanvas(childPos);
-
-		bounds = n->reduceHeightIfFolded(bounds);
-
+		bounds = n->getBoundsToDisplay(bounds);
 		maxW = jmax<int>(maxW, bounds.getWidth());
 		h += bounds.getHeight() + NodeMargin;
 		childPos = childPos.translated(0, bounds.getHeight());
@@ -688,7 +686,7 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 	for (auto n : nodes)
 	{
 		auto b = n->getPositionInCanvas(startPos);
-		b = n->reduceHeightIfFolded(b);
+		b = n->getBoundsToDisplay(b);
 		maxy = jmax(b.getBottom(), maxy);
 		startPos = startPos.translated(b.getWidth() + UIValues::NodeMargin, 0);
 		maxWidth = startPos.getX();
@@ -696,9 +694,6 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 	}
 
 	maxy += UIValues::PinHeight;
-
-
-
 	maxy += UIValues::NodeMargin;
 
 	return { topLeft.getX(), topLeft.getY(), maxWidth, maxy };
@@ -982,7 +977,7 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 	{
 		auto bounds = n->getPositionInCanvas(childPos);
 
-		bounds = n->reduceHeightIfFolded(bounds);
+		bounds = n->getBoundsToDisplay(bounds);
 
 		maxW = jmax<int>(maxW, bounds.getWidth());
 		h += bounds.getHeight() + NodeMargin;

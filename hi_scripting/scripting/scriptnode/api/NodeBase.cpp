@@ -40,11 +40,14 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	parent(rootNetwork),
 	v_data(data_),
 	bypassUpdater(rootNetwork->getScriptProcessor()->getMainController_()),
-	bypassed(v_data, PropertyIds::Bypassed, getUndoManager(), false)
+	bypassed(v_data, PropertyIds::Bypassed, getUndoManager(), false),
+	helpManager(*this, data_)
 {
 	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::LockNumChannels, false);
 	setDefaultValue(PropertyIds::NodeColour, 0);
+	setDefaultValue(PropertyIds::Comment, "");
+	setDefaultValue(PropertyIds::CommentWidth, 300);
 
 	bypassUpdater.setFunction([this]()
 	{
@@ -117,9 +120,10 @@ juce::Rectangle<int> NodeBase::getPositionInCanvas(Point<int> topLeft) const
 {
 	using namespace UIValues;
 
-	return Rectangle<int>(NodeWidth, NodeHeight)
-		.withPosition(topLeft)
-		.reduced(NodeMargin);
+	Rectangle<int> body(NodeWidth, NodeHeight);
+
+	body = body.withPosition(topLeft).reduced(NodeMargin);
+	return body;
 }
 
 void NodeBase::setBypassed(bool shouldBeBypassed)
@@ -170,15 +174,32 @@ juce::UndoManager* NodeBase::getUndoManager()
 	return getRootNetwork()->getUndoManager();
 }
 
-juce::Rectangle<int> NodeBase::reduceHeightIfFolded(Rectangle<int> originalHeight) const
+juce::Rectangle<int> NodeBase::getBoundsToDisplay(Rectangle<int> originalHeight) const
 {
 	if (v_data[PropertyIds::Folded])
 		return originalHeight.withHeight(UIValues::HeaderHeight);
 	else
+	{ 
+		auto helpBounds = helpManager.getHelpSize().toNearestInt();
+
+		originalHeight.setWidth(originalHeight.getWidth() + helpBounds.getWidth());
+		originalHeight.setHeight(jmax<int>(originalHeight.getHeight(), helpBounds.getHeight()));
+
 		return originalHeight;
+	}
 }
 
 
+
+juce::Rectangle<int> NodeBase::getBoundsWithoutHelp(Rectangle<int> originalHeight) const
+{
+	if (v_data[PropertyIds::Folded])
+		return originalHeight.withHeight(UIValues::HeaderHeight);
+	else
+	{
+		return originalHeight;
+	}
+}
 
 bool NodeBase::hasFixChannelAmount() const
 {
@@ -445,6 +466,13 @@ void NodeBase::Parameter::addConnectionTo(var dragDetails)
 		ValueTree connectionTree = sourcePTree.getChildWithName(PropertyIds::Connections);
 		connectionTree.addChild(newC, -1, parent->getUndoManager());
 	}
+}
+
+NodeBase::HelpManager::HelpManager(NodeBase& parent, ValueTree d) :
+	ControlledObject(parent.getScriptProcessor()->getMainController_())
+{
+	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour, PropertyIds::CommentWidth }, valuetree::AsyncMode::Asynchronously,
+		BIND_MEMBER_FUNCTION_2(NodeBase::HelpManager::update));
 }
 
 }

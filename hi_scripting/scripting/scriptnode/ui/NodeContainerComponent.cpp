@@ -259,6 +259,16 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 }
 
 
+void ContainerComponent::helpChanged(float newWidth, float newHeight)
+{
+	if (auto ng = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		ng->resizeNodes();
+	}
+
+	repaint();
+}
+
 void ContainerComponent::setDropTarget(Point<int> position)
 {
 	if (position.isOrigin())
@@ -316,6 +326,12 @@ float ContainerComponent::getCableXOffset(int cableIndex, int factor /*= 1*/) co
 
 void ContainerComponent::rebuildNodes()
 {
+	for (auto nc : childNodeComponents)
+	{
+		if(nc->node != nullptr)
+			nc->node->getHelpManager().removeHelpListener(this);
+	}
+
 	childNodeComponents.clear();
 
 	if (auto container = dynamic_cast<NodeContainer*>(node.get()))
@@ -324,8 +340,8 @@ void ContainerComponent::rebuildNodes()
 		{
 			auto newNode = n->createComponent();
 
+			n->getHelpManager().addHelpListener(this);
 			addAndMakeVisible(newNode);
-
 			childNodeComponents.add(newNode);
 		}
 	}
@@ -380,15 +396,19 @@ void SerialNodeComponent::resized()
 	for (auto nc : childNodeComponents)
 	{
 		auto bounds = nc->node->getPositionInCanvas(startPos);
-
-		bounds = nc->node->reduceHeightIfFolded(bounds);
+		bounds = nc->node->getBoundsWithoutHelp(bounds);
 
 		nc->setBounds(bounds);
 
-		auto x = (getWidth() - bounds.getWidth()) / 2;
+		auto helpBounds = nc->node->getHelpManager().getHelpSize().toNearestInt();
+
+		auto widthWithHelp = bounds.getWidth() + helpBounds.getWidth();
+		auto heightWithHelp = jmax(bounds.getHeight(), helpBounds.getHeight());
+
+		auto x = (getWidth() - widthWithHelp) / 2;
 		nc->setTopLeftPosition(x, bounds.getY());
 
-		startPos = startPos.withY(bounds.getBottom() + UIValues::NodeMargin);
+		startPos = startPos.withY(bounds.getY() + heightWithHelp + UIValues::NodeMargin);
 	}
 }
 
@@ -497,6 +517,7 @@ void SerialNodeComponent::paint(Graphics& g)
 		paintSerialCable(g, i);
 	}
 
+	drawHelp(g);
 
 
 	DropShadow sh;
@@ -585,11 +606,12 @@ void ParallelNodeComponent::resized()
 	{
 		auto bounds = nc->node->getPositionInCanvas(startPos);
 
-		bounds = nc->node->reduceHeightIfFolded(bounds);
+		bounds = nc->node->getBoundsWithoutHelp(bounds);
+		auto helpBounds = nc->node->getHelpManager().getHelpSize().toNearestInt();
 
 		nc->setBounds(bounds);
 
-		startPos = startPos.withX(bounds.getRight() + UIValues::NodeMargin);
+		startPos = startPos.withX(bounds.getRight() + helpBounds.getWidth() + UIValues::NodeMargin);
 	}
 }
 
@@ -621,6 +643,8 @@ void ParallelNodeComponent::paint(Graphics& g)
 	{
 		paintCable(g, i);
 	}
+
+	drawHelp(g);
 
 	if (addPosition != -1)
 	{
@@ -765,15 +789,16 @@ void ModChainNodeComponent::resized()
 	for (auto nc : childNodeComponents)
 	{
 		auto bounds = nc->node->getPositionInCanvas(startPos);
-
-		bounds = nc->node->reduceHeightIfFolded(bounds);
+		bounds = nc->node->getBoundsToDisplay(bounds);
 
 		nc->setBounds(bounds);
 
-		auto x = (getWidth() - bounds.getWidth()) / 2;
+		auto helpBounds = nc->node->getHelpManager().getHelpSize().toNearestInt();
+		auto widthWithHelp = bounds.getWidth() + helpBounds.getWidth();
+		auto heightWithHelp = jmax(bounds.getHeight(), helpBounds.getHeight());
+		auto x = (getWidth() - widthWithHelp) / 2;
 		nc->setTopLeftPosition(x, bounds.getY());
-
-		startPos = startPos.withY(bounds.getBottom() + UIValues::NodeMargin);
+		startPos = startPos.withY(bounds.getY() + heightWithHelp + UIValues::NodeMargin);
 	}
 
 	auto b = getLocalBounds().removeFromBottom(28);
@@ -788,6 +813,8 @@ void ModChainNodeComponent::paint(Graphics& g)
 	g.fillRoundedRectangle(b, 5.0f);
 	g.setColour(getOutlineColour());
 	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
+
+	drawHelp(g);
 
 	if (addPosition != -1)
 	{
