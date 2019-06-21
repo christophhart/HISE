@@ -249,6 +249,13 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 		break;
 	}
+	case PopupMenuOptions::DspNetworkGraph:
+	case PopupMenuOptions::DspNodeList:
+	case PopupMenuOptions::DspNodeParameterEditor:
+	{
+		path.loadPathFromData(ScriptnodeIcons::splitIcon, sizeof(ScriptnodeIcons::splitIcon));
+		break;
+	}
 	case PopupMenuOptions::PresetBrowser:
 	{
 		path.loadPathFromData(MainToolbarIcons::presetBrowser, sizeof(MainToolbarIcons::presetBrowser));
