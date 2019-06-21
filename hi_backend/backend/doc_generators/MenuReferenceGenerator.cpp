@@ -233,6 +233,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspacesItem(Markdo
 	createAndAddWorkspace(wItem, "Main Workspace");
 	createAndAddWorkspace(wItem, "Scripting Workspace");
 	createAndAddWorkspace(wItem, "Sampler Workspace");
+	createAndAddWorkspace(wItem, "Custom Workspace");
 
 	parent.addChild(std::move(wItem));
 }

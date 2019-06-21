@@ -520,6 +520,7 @@ public:
 						auto f2 = [mp]()
 						{
 							mp->currentSearchResults = nullptr;
+							mp->topbar.searchBar.setText("", dontSendNotification);
 						};
 
 						MessageManager::callAsync(f2);
@@ -1070,6 +1071,7 @@ public:
 
 						parent.renderer.gotoLink({ parent.rootDirectory, searchBar.getText(true) });
 						searchBar.hideEditor(false);
+						searchBar.setText("", dontSendNotification);
 						parent.currentSearchResults = nullptr;
 						return true;
 					}
@@ -1427,12 +1429,11 @@ public:
 
 				if (t != nullptr)
 				{
+					t->tree.setRootItem(nullptr);
 					t->rootItem = new Item(t->parent.getHolder().getDatabase().rootItem, t->parent);
 					t->tree.setRootItem(t->rootItem);
 					t->resized();
 				}
-
-				
 			};
 
 			MessageManager::callAsync(f);
