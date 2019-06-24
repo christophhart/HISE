@@ -490,8 +490,6 @@ void ScriptComponentEditPanel::pasteAction()
 
 		auto& undoManager = b->getUndoManager();
 
-		undoManager.beginNewTransaction("Paste properties");
-
 		while (auto sc = iter.getNextScriptComponent())
 		{
 			auto vt = sc->getPropertyValueTree();

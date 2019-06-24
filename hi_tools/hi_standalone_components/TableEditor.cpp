@@ -125,7 +125,6 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 		if (undoManager != nullptr && thisIndex != lastEditedPointIndex)
 		{
 			lastEditedPointIndex = thisIndex;
-			undoManager->beginNewTransaction("Change Curve");
 		}
 		
 		updateCurve(x, y, wheel.deltaY, true);
@@ -402,9 +401,6 @@ void TableEditor::mouseDown(const MouseEvent &e)
 	{
 		if (dp != nullptr)
 		{
-			if (undoManager != nullptr)
-				undoManager->beginNewTransaction("Move graph point");
-
 			currently_dragged_point = dp;
 
 			showTouchOverlay();
@@ -421,9 +417,6 @@ void TableEditor::mouseDown(const MouseEvent &e)
 		}
 		else
 		{
-			if (undoManager != nullptr)
-				undoManager->beginNewTransaction("Add graph point");
-
 			x = snapXValueToGrid(x);
 
 			addDragPoint(x, y, 0.5f, false, false, true);
@@ -435,9 +428,6 @@ void TableEditor::mouseDown(const MouseEvent &e)
 	{
 		if(dp != nullptr)
 		{
-			if (undoManager != nullptr)
-				undoManager->beginNewTransaction("Remove graph point");
-
 			removeDragPoint(dp);
 
 			if (editedTable.get() != nullptr) 

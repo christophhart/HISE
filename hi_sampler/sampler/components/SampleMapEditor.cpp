@@ -747,7 +747,6 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							}
 	case FillVelocityGaps:
 	case FillNoteGaps:		{
-							sampler->getUndoManager()->beginNewTransaction("Fill Gaps");
 
 							SampleImporter::closeGaps(selectedSoundList, info.commandID == FillNoteGaps);
 

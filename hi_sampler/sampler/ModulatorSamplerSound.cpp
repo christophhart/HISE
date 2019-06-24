@@ -245,21 +245,14 @@ void ModulatorSamplerSound::toggleBoolProperty(const Identifier& id)
 
 void ModulatorSamplerSound::startPropertyChange(const Identifier& id, int newValue)
 {
-	String x;
-	x << id.toString() << ": " << getPropertyAsString(id) << " -> " << String(newValue);
-	if (undoManager != nullptr) undoManager->beginNewTransaction(x);
 }
 
 void ModulatorSamplerSound::endPropertyChange(const Identifier& id, int startValue, int endValue)
 {
-	String x;
-	x << id.toString() << ": " << String(startValue) << " -> " << String(endValue);
-	if (undoManager != nullptr) undoManager->setCurrentTransactionName(x);
 }
 
 void ModulatorSamplerSound::endPropertyChange(const String &actionName)
 {
-	if (undoManager != nullptr) undoManager->setCurrentTransactionName(actionName);
 }
 
 

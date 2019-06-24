@@ -223,11 +223,11 @@ public:
 	/** Call this whenever you want to start a new series of property modifications. */
 	void startPropertyChange(const Identifier& id, int newValue);
 
-	void startPropertyChange() { if (undoManager != nullptr) undoManager->beginNewTransaction(); }
+	void startPropertyChange() {  }
 
-	void startPropertyChange(const String& name)
+	void startPropertyChange(const String& )
 	{
-		undoManager->beginNewTransaction(name);
+		
 	}
 
 	/** Call this whenever you finish a series of property modifications.

@@ -239,8 +239,8 @@ class ScriptComponentList : public Component,
 	public DragAndDropContainer,
 	public ScriptingApi::Content::RebuildListener,
 	public ScriptComponentEditListener,
-	private Timer,
-	public TextEditor::Listener
+	public TextEditor::Listener,
+	public Timer
 {
 public:
 	ScriptComponentList(ScriptingApi::Content* c);
@@ -301,8 +301,6 @@ public:
 	{
 		OwnedArray<ValueTree> selectedItems;
 		ScriptComponentListItem::getSelectedTreeViewItems(*tree, selectedItems);
-
-		undoManager.beginNewTransaction("Delete selection");
 
 		for (int i = selectedItems.size(); --i >= 0;)
 		{
@@ -378,8 +376,6 @@ private:
 
 	void timerCallback() override
 	{
-		undoManager.beginNewTransaction();
-
 		if (tree != nullptr)
 		{
 			scrollY = tree->getViewport()->getViewPositionY();

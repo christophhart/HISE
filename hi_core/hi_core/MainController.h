@@ -59,7 +59,8 @@ namespace hise { using namespace juce;
 */
 class MainController: public GlobalScriptCompileBroadcaster,
 					  public OverlayMessageBroadcaster,
-					  public ThreadWithQuasiModalProgressWindow::Holder
+					  public ThreadWithQuasiModalProgressWindow::Holder,
+					  public Timer
 {
 public:
 
@@ -1189,7 +1190,7 @@ public:
 
 	void rebuildVoiceLimits();
 
-
+	void timerCallback() override;
 
 #if USE_BACKEND
 

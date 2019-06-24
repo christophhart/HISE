@@ -98,6 +98,7 @@ MainController::MainController() :
 
 	hostInfo = new DynamicObject();
     
+	startTimer(500);
 };
 
 
@@ -1269,6 +1270,14 @@ void MainController::rebuildVoiceLimits()
 	{
 		synth->setVoiceLimit((int)synth->getAttribute(ModulatorSynth::VoiceLimit));
 	}
+}
+
+void MainController::timerCallback()
+{
+	getControlUndoManager()->beginNewTransaction();
+#if USE_BACKEND
+	getScriptComponentEditBroadcaster()->getUndoManager().beginNewTransaction();
+#endif
 }
 
 void MainController::handleSuspendedNoteOffs()

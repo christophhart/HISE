@@ -37,7 +37,6 @@ void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHan
 	auto f = [handler](Processor* /*s*/)
 	{
 		auto& soundsToBeDeleted = handler->getSelection().getItemArray();
-		handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");
 
 		ModulatorSampler::ScopedUpdateDelayer sud(handler->getSampler());
 
@@ -1872,7 +1871,6 @@ private:
 		{
 			auto s = dynamic_cast<ModulatorSampler*>(p);
 
-			s->getUndoManager()->beginNewTransaction();
 
 			for (auto t : tmp)
 			{

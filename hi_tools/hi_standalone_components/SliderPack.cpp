@@ -164,8 +164,7 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 void SliderPackData::setNewUndoAction() const
 {
-	if (undoManager != nullptr)
-		undoManager->beginNewTransaction();
+	
 }
 
 void SliderPackData::setNumSliders(int numSliders)

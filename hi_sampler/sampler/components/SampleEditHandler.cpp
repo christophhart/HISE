@@ -36,8 +36,6 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 {
 	ModulatorSampler *s = sampler;
 
-	s->getUndoManager()->beginNewTransaction("Moving Samples");
-
 	int lowestValue = 127;
 	int highestValue = 0;
 

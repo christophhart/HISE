@@ -779,7 +779,6 @@ void ScriptingApi::Content::ScriptComponent::setValueWithUndo(var newValue)
 	String undoName = getProcessor()->getId();
 	undoName << " - " << getProcessor()->getIdentifierForParameterIndex(parameterIndex).toString() << ": " << String((float)newValue, 2);
 
-	getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(undoName);
 	getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
 }
 
@@ -2994,7 +2993,6 @@ void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newV
     
     auto newEvent = new BorderPanel::UndoableControlEvent(p, index, (float)oldValue, (float)newValue);
     
-    getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(actionName);
     getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
     
 }
@@ -4450,8 +4448,6 @@ void ScriptingApi::Content::Helpers::deleteSelection(Content* c, ScriptComponent
 {
 	ScriptComponentEditBroadcaster::Iterator iter(b);
 
-	b->getUndoManager().beginNewTransaction("Delete selection");
-
 	ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
 
 	while (auto sc = iter.getNextScriptComponent())
@@ -4486,8 +4482,6 @@ bool ScriptingApi::Content::Helpers::renameComponent(Content* c, const Identifie
 	auto childTree = c->getValueTreeForComponent(id);
 
 	auto& undoManager = c->getProcessor()->getMainController()->getScriptComponentEditBroadcaster()->getUndoManager();
-
-	undoManager.beginNewTransaction("Rename Component");
 
 	if (childTree.isValid())
 	{
@@ -4532,7 +4526,6 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 	static const Identifier x("x");
 	static const Identifier y("y");
 
-	undoManager->beginNewTransaction("Duplicate Selection");
 	ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
 
 	for (auto sc : selection)
@@ -4620,7 +4613,6 @@ void ScriptingApi::Content::Helpers::createNewComponentData(Content* c, ValueTre
 {
 	auto b = c->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
 	auto undoManager = &b->getUndoManager();
-	undoManager->beginNewTransaction("Add Component");
 
 	ValueTree n("Component");
 	n.setProperty("type", typeName, nullptr);

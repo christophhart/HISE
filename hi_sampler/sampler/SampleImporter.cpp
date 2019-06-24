@@ -91,7 +91,6 @@ void SampleImporter::closeGaps(Array<ModulatorSamplerSound*> &selection, bool cl
 
 	auto undoManager = selection.getFirst()->getMainController()->getControlUndoManager();
 
-	undoManager->beginNewTransaction("Close gaps");
 
 	for (auto d : data)
 	{

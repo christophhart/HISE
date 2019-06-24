@@ -219,10 +219,6 @@ void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomO
 
 		UndoableControlEvent* newEvent = new UndoableControlEvent(getProcessor(), parameter, oldValue, newValue);
 
-		String undoName = getProcessor()->getId();
-		undoName << " - " << getProcessor()->getIdentifierForParameterIndex(parameter).toString() << ": " << String(newValue, 2);
-
-		getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(undoName);
 		getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
 	}
 	else

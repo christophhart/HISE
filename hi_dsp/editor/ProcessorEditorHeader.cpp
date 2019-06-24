@@ -731,7 +731,6 @@ void ProcessorEditorHeader::sliderDragEnded(Slider* s)
 		String undoName = getProcessor()->getId();
 		undoName << " - " << "Volume" << ": " << String(s->getValue(), 2);
 
-		getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(undoName);
 		getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
 	}
 }

@@ -772,8 +772,6 @@ void ScriptingContentOverlay::Dragger::moveOverlayedComponent(int deltaX, int de
 
 	auto tName = "Position update: " + sizeString;
 
-	b->getUndoManager().beginNewTransaction(tName);
-
 	b->setScriptComponentPropertyDeltaForSelection(x, deltaX, sendNotification, false);
 	b->setScriptComponentPropertyDeltaForSelection(y, deltaY, sendNotification, false);
 }
@@ -789,8 +787,6 @@ void ScriptingContentOverlay::Dragger::resizeOverlayedComponent(int newWidth, in
 	String sizeString = "[" + String(newWidth) + ", " + String(newHeight) + "]";
 
 	auto tName = "Resize";
-
-	b->getUndoManager().beginNewTransaction(tName);
 
 	b->setScriptComponentProperty(sc, width, newWidth, sendNotification, false);
 	b->setScriptComponentProperty(sc, height, newHeight, sendNotification, false);

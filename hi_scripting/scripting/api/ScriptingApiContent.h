@@ -1898,7 +1898,6 @@ public:
 
 #if JUCE_WINDOWS && USE_BACKEND
 		auto undoManager = &getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster()->getUndoManager();
-		undoManager->beginNewTransaction("Add Component");
 #else
 		UndoManager* undoManager = nullptr;
 #endif

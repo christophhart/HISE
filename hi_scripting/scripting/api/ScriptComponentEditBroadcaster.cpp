@@ -197,9 +197,6 @@ void ScriptComponentEditBroadcaster::prepareSelectionForDragging(ScriptComponent
 
 void ScriptComponentEditBroadcaster::setScriptComponentProperty(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners/*=sendNotification*/, bool beginNewTransaction/*=true*/)
 {
-	if (beginNewTransaction)
-		manager.beginNewTransaction(getTransactionName(sc, propertyId, newValue));
-
 	manager.perform(new PropertyChange(this, sc, propertyId, newValue, notifyListeners));
 }
 
@@ -229,8 +226,6 @@ bool ScriptComponentEditBroadcaster::isSelected(ScriptComponent* sc) const
 
 void ScriptComponentEditBroadcaster::setScriptComponentPropertyForSelection(const Identifier& propertyId, const var& newValue, NotificationType notifyListeners)
 {
-	manager.beginNewTransaction(getTransactionName(nullptr, propertyId, newValue));
-
 	Iterator iter(this);
 
 	ScriptComponentSelection thisSelection;
@@ -256,9 +251,6 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyForSelection(cons
 
 void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool beginNewTransaction /*= true*/)
 {
-	if(beginNewTransaction)
-		manager.beginNewTransaction("Multiple");
-
 	Iterator iter(this);
 
 	while (auto sc = iter.getNextScriptComponent())
@@ -269,9 +261,6 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection
 
 void ScriptComponentEditBroadcaster::setScriptComponentPropertyDelta(ScriptComponent* sc, const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool beginNewTransaction /*= true*/)
 {
-	if (beginNewTransaction)
-		manager.beginNewTransaction("Delta");
-
 	var oldValue = sc->getScriptObjectProperty(propertyId);
 
 	var newValue = (double)oldValue + (double)delta;
@@ -357,8 +346,6 @@ void ScriptComponentEditBroadcaster::showJSONEditor(Component* t)
 			auto undoManager = &this->getUndoManager();
 
 			ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
-
-			undoManager->beginNewTransaction("Raw JSON Edit");
 
 			for (int i = 0; i < selection.size(); i++)
 			{

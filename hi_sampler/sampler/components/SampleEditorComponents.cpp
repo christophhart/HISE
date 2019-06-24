@@ -335,7 +335,6 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 		return;
 	}
     
-	ownerSampler->getUndoManager()->beginNewTransaction("Dragging of " + String(dragStartData.size()) + " samples");
 
     if(copyDraggedSounds) 
 		SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler);

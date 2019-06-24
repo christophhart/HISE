@@ -50,10 +50,7 @@ public:
 
 	void startDrag()
 	{
-		if (undoManager != nullptr)
-		{
-			undoManager->beginNewTransaction();
-		}
+		
 	}
 
 	double getStepSize() const;

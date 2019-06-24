@@ -299,8 +299,6 @@ void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<Val
         
         ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
         
-		undoManager.beginNewTransaction("Hierarchy change");
-
 		for (int i = items.size(); --i >= 0;)
 		{
 			ValueTree& v = *items.getUnchecked(i);
