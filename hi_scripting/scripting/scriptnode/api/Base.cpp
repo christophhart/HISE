@@ -98,7 +98,9 @@ void HiseDspBase::ParameterData::addConversion(const Identifier& converterId)
 void HiseDspBase::ParameterData::setParameterValueNames(const StringArray& valueNames)
 {
 	parameterNames = valueNames;
-	range = { 0.0, (double)valueNames.size() - 1.0, 1.0 };
+
+	if(valueNames.size() > 1)
+		range = { 0.0, (double)valueNames.size() - 1.0, 1.0 };
 }
 
 void HiseDspBase::ParameterData::init()

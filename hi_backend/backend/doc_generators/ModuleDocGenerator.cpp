@@ -568,45 +568,71 @@ juce::String Resolver::getContent(const MarkdownLink& url)
 
 			auto header = url.getHeaderFromFile(root);
 
+			auto parameterDescriptions = header.getKeyList("parameters");
 			
 			NodeBase::Ptr node = dynamic_cast<NodeBase*>(data->network->get(nodeId).getObject());
 
-			auto tree = node->getValueTree();
-
-			String content;
-			String nl = "\n";
-
-			content << url.toString(MarkdownLink::Format::ContentHeader);
-
-			content << "# " << nodeId << nl;
-			content << "`" << tree[PropertyIds::FactoryPath].toString() << "`" << nl;
-
-			content << "![screen](/images/sn_screen_" << nodeId << ".png)";
-
-			content << "## Parameters" << nl;
-
-			content << "| ID | Range | Default | Description |" << nl;
-			content << "| --- | --- | --- | ------ |" << nl;
-
-			for (int i = 0; i < node->getNumParameters(); i++)
+			if (node != nullptr)
 			{
-				auto param = node->getParameter(i);
+				auto tree = node->getValueTree();
 
-				auto pTree = param->data;
+				String content;
+				String nl = "\n";
 
-				content << "| " << param->getId();
+				content << url.toString(MarkdownLink::Format::ContentHeader);
 
-				auto range = RangeHelpers::getDoubleRange(pTree);
-				content << " | " << String(range.start, 2) << " - " << String(range.end, 2);
-				content << " | " << String((double)pTree[PropertyIds::Value], 2);
-				content << " | " << header.getKeyValue(param->getId()) << " |" << nl;
+				content << "> `" << tree[PropertyIds::FactoryPath].toString() << "`" << nl;
+
+				content << "![screen](/images/sn_screen_" << nodeId << ".png)";
+
+				content << header.getKeyValue("summary") << nl;
+
+				if (node->getNumParameters() > 0)
+				{
+					content << "## Parameters" << nl;
+
+					content << "| ID | Range | Default | Description |" << nl;
+					content << "| --- | --- | --- | ------ |" << nl;
+
+					for (int i = 0; i < node->getNumParameters(); i++)
+					{
+						auto param = node->getParameter(i);
+
+						auto pId = param->getId();
+
+						auto pTree = param->data;
+
+						content << "| " << pId;
+
+						auto range = RangeHelpers::getDoubleRange(pTree);
+						content << " | " << String(range.start, 2) << " - " << String(range.end, 2);
+						content << " | " << String((double)pTree[PropertyIds::Value], 2);
+
+						bool found = false;
+
+						for (auto d : parameterDescriptions)
+						{
+							if (d.trim().startsWith(pId))
+							{
+								auto desc = d.fromFirstOccurrenceOf(":", false, false).trim();
+								content << " | " << desc << " |" << nl;
+								found = true;
+								break;
+							}
+						}
+
+						if (!found)
+							content << " | " << "no description." << " |" << nl;
+
+					}
+
+					content << nl;
+				}
+
+				content << url.toString(MarkdownLink::Format::ContentWithoutHeader);
+
+				return content;
 			}
-
-			content << nl;
-
-			content << url.toString(MarkdownLink::Format::ContentWithoutHeader);
-
-			return content;
 		}
 		else
 		{

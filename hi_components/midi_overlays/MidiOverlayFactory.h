@@ -170,6 +170,11 @@ public:
 		fillModuleListWithType<MidiPlayer>(moduleList);
 	}
 
+	Identifier getProcessorTypeId() const override
+	{
+		return MidiPlayer::getClassType();
+	}
+
 	bool hasSubIndex() const override { return true; }
 
 	void fillIndexList(StringArray& indexList) override
