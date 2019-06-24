@@ -349,6 +349,9 @@ public:
 		bgColour = 1024,
 		lineColour,
 		fillColour,
+		rulerColour,
+		overlayTextId,
+		overlayBgColour,
 		numColourIds
 	};
 
@@ -438,6 +441,12 @@ public:
 	{
 		lineThickness = newLineThickness;
 		repaint();
+	}
+
+
+	void setFont(Font newFont)
+	{
+		fontToUse = newFont;
 	}
 
 	void setSnapValues(var snapArray)

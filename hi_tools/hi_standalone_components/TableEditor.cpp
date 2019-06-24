@@ -53,6 +53,9 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 	setColour(ColourIds::bgColour, Colours::transparentBlack);
 	setColour(ColourIds::fillColour, Colours::white.withAlpha(0.2f));
 	setColour(ColourIds::lineColour, Colours::white);
+	setColour(ColourIds::rulerColour, Colours::white);
+	setColour(ColourIds::overlayTextId, Colour(0xDD000000));
+	setColour(ColourIds::overlayBgColour, Colour(0xBBffffff));
 
 	if(editedTable.get() != nullptr)
         editedTable->addChangeListener(this);
@@ -295,12 +298,12 @@ void TableEditor::paint (Graphics& g)
 		int x_ = jlimit<int>(0, getWidth() - boxWidth, dp->getPos().x - boxWidth / 2);
 		int y_ = jlimit<int>(0, getHeight() - boxHeight, dp->getPos().y - 20);
 
-        g.setColour(Colour(0xBBffffff));
+        g.setColour(findColour(ColourIds::overlayBgColour));
 
         juce::Rectangle<int> textBox(x_, y_, boxWidth, boxHeight);
         
         g.fillRect(textBox);
-        g.setColour(Colour(0xDD000000));
+        g.setColour(findColour(ColourIds::overlayTextId));
         g.drawRect(textBox, 1);
         g.drawText(text, textBox, Justification::centred, false);
         g.setColour(Colours::darkgrey.withAlpha(0.4f));
@@ -322,7 +325,7 @@ void TableEditor::Ruler::paint(Graphics &g)
 	if (te->flatDesign)
 	{
 		
-		g.setColour(te->findColour(TableEditor::ColourIds::lineColour));
+		g.setColour(te->findColour(TableEditor::ColourIds::rulerColour));
 		g.drawLine(Line<float>(value * (float)getWidth(), 0.0f, value * (float)getWidth(), (float)getHeight()), 2.0f);
 	}
 	else
