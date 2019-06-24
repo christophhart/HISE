@@ -78,6 +78,7 @@
 
 #include "hi_tools/VariantBuffer.cpp"
 #include "hi_tools/Tables.cpp"
+#include "hi_tools/ValueTreeHelpers.cpp"
 
 #include "hi_standalone_components/SampleDisplayComponent.cpp"
 

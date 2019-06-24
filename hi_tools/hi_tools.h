@@ -118,6 +118,7 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/VariantBuffer.h"
 #include "hi_tools/Tables.h"
 
+#include "hi_tools/ValueTreeHelpers.h"
 
 #if USE_IPP
 

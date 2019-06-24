@@ -39,7 +39,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ConstScriptingObject(rootNetwork->getScriptProcessor(), numConstants_),
 	parent(rootNetwork),
 	v_data(data_),
-	bypassUpdater(rootNetwork->getScriptProcessor()->getMainController_()),
+	bypassUpdater(rootNetwork->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	bypassed(v_data, PropertyIds::Bypassed, getUndoManager(), false),
 	helpManager(*this, data_)
 {
@@ -250,7 +250,7 @@ void NodeBase::removeParameter(int index)
 NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	ConstScriptingObject(parent_->getScriptProcessor(), 0),
 	parent(parent_),
-	valueUpdater(parent_->getScriptProcessor()->getMainController_()),
+	valueUpdater(parent_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	data(data_)
 {
 	value.value = data[PropertyIds::Value];

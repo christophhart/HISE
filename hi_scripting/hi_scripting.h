@@ -84,7 +84,6 @@ END_JUCE_MODULE_DECLARATION
 
 #include "scripting/scriptnode/api/Properties.h"
 #include "scripting/scriptnode/api/RangeHelpers.h"
-#include "scripting/scriptnode/api/ValueTreeHelpers.h"
 #include "scripting/scriptnode/api/DspHelpers.h"
 #include "scripting/scriptnode/api/NodeBase.h"
 

@@ -32,10 +32,9 @@
 
 #pragma once
 
-namespace scriptnode
+namespace hise
 {
 using namespace juce;
-using namespace hise;
 
 namespace valuetree
 {
@@ -257,6 +256,7 @@ private:
 
 }
 
+
 class LockFreeUpdater : private SafeChangeBroadcaster,
 						private SafeChangeListener
 {
@@ -264,11 +264,7 @@ public:
 
 	using Function = std::function<void(void)>;
 
-	LockFreeUpdater(MainController* mc)
-	{
-		setHandler(mc->getGlobalUIUpdater());
-		addChangeListener(this);
-	}
+	LockFreeUpdater(PooledUIUpdater* updater);
 
 	~LockFreeUpdater()
 	{

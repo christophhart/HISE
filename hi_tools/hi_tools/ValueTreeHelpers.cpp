@@ -30,11 +30,10 @@
  *   ===========================================================================
  */
 
-namespace scriptnode
+namespace hise
 {
 
 using namespace juce;
-using namespace hise;
 
 namespace valuetree
 {
@@ -76,7 +75,7 @@ void PropertyListener::sendMessageForAllProperties()
 	case AsyncMode::Coallescated:
 	{
 		changedIds.clear();
-		changedIds.add(PropertyIds::Coallescated);
+		changedIds.add("Coallescated");
 		triggerAsyncUpdate();
 		break;
 	}
@@ -109,7 +108,7 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 			triggerAsyncUpdate();
 			break;
 		case AsyncMode::Coallescated:
-			changedIds.addIfNotAlreadyThere(PropertyIds::Coallescated);
+			changedIds.addIfNotAlreadyThere("Coallescated");
 			triggerAsyncUpdate();
 			break;
 		default:
@@ -352,6 +351,12 @@ void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 
 }
 
+
+LockFreeUpdater::LockFreeUpdater(PooledUIUpdater* updater)
+{
+	setHandler(updater);
+	addChangeListener(this);
+}
 
 }
 

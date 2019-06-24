@@ -54,7 +54,6 @@
 
 #include "scripting/scriptnode/api/Properties.cpp"
 #include "scripting/scriptnode/api/RangeHelpers.cpp"
-#include "scripting/scriptnode/api/ValueTreeHelpers.cpp"
 #include "scripting/scriptnode/api/DspHelpers.cpp"
 #include "scripting/scriptnode/api/Base.cpp"
 #include "scripting/scriptnode/api/NodeBase.cpp"

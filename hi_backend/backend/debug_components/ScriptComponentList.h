@@ -127,14 +127,12 @@ public:
 	}
 
 	void itemSelectionChanged(bool isNowSelected) override;
-
 	void itemOpennessChanged(bool isNowOpen) override;
 
 	var getDragSourceDescription() override;;
 
 	
 	bool isInterestedInDragSource(const DragAndDropTarget::SourceDetails& dragSourceDetails) override;
-
 	void itemDropped(const DragAndDropTarget::SourceDetails&, int insertIndex) override;
 
 	static void moveItems(TreeView& treeView, const OwnedArray<ValueTree>& items,
@@ -157,13 +155,8 @@ public:
 
 private:
 
-	
-
 	friend class ScriptComponentList;
-
-
 	bool fitsSearch = true;
-
 	
 	ValueTree tree;
 	UndoManager& undoManager;
