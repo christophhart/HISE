@@ -2019,10 +2019,14 @@ var ScriptingApi::Sampler::createListFromGUISelection()
 
 	Array<var> newSelection;
 
-	const auto& selection = s->getSampleEditHandler()->getSelection();
+	{
+		MessageManagerLock mm;
+		const auto& selection = s->getSampleEditHandler()->getSelection();
 
-	for(auto sound: selection)
-		newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
+		for (auto sound : selection)
+			newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
+	}
+	
 
 	return newSelection;
 #else

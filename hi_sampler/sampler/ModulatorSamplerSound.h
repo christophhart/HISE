@@ -95,6 +95,22 @@ DECLARE_ID(Reversed);
 struct Helpers
 {
 
+	static const Array<Identifier>& getMapIds()
+	{
+		static const Array<Identifier> ids = { Root , HiKey, LoKey,  HiVel,  LoVel,
+			RRGroup, LowerVelocityXFade,  UpperVelocityXFade };
+
+		return ids;
+	}
+
+	static const Array<Identifier>& getAudioIds()
+	{
+		static const Array<Identifier> ids = { SampleStart,  SampleEnd,  SampleStartMod,  
+			LoopEnabled,  LoopStart,  LoopEnd,  LoopXFade };
+
+		return ids;
+	}
+
 	static bool isMapProperty(const Identifier& id)
 	{
 		return id == Root || id == HiKey || id == LoKey || id == HiVel || id == LoVel || id == RRGroup ||

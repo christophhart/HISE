@@ -385,4 +385,8 @@ private:
 #define SET_IMAGE_RESAMPLING_QUALITY()
 #endif
 
+#define BIND_MEMBER_FUNCTION_0(x) std::bind(&x, this)
+#define BIND_MEMBER_FUNCTION_1(x) std::bind(&x, this, std::placeholders::_1)
+#define BIND_MEMBER_FUNCTION_2(x) std::bind(&x, this, std::placeholders::_1, std::placeholders::_2)
+
 } // namespace hise

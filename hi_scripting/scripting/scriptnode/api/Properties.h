@@ -160,9 +160,7 @@ struct PropertyHelpers
 	static PropertyComponent* createPropertyComponent(ProcessorWithScriptingContent* p, ValueTree& d, const Identifier& id, UndoManager* um);
 };
 
-#define BIND_MEMBER_FUNCTION_0(x) std::bind(&x, this)
-#define BIND_MEMBER_FUNCTION_1(x) std::bind(&x, this, std::placeholders::_1)
-#define BIND_MEMBER_FUNCTION_2(x) std::bind(&x, this, std::placeholders::_1, std::placeholders::_2)
+
 
 #define ALLOCA_FLOAT_ARRAY(size) (float*)alloca(size * sizeof(float)); 
 #define CLEAR_FLOAT_ARRAY(v, size) memset(v, 0, sizeof(float)*size);

@@ -379,7 +379,14 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 		}
 
 		sampleDraggingEnabled = false;
-		refreshGraphics();
+		
+		auto f2 = [this]()
+		{
+			this->refreshGraphics();
+		};
+
+		MessageManager::callAsync(f2);
+		
 
 		return SafeFunctionCall::OK;
 	};
@@ -394,12 +401,14 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 
 void SamplerSoundMap::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/)
 {
+#if 0
 	auto index = s->getId();
 
 	if (SampleIds::Helpers::isMapProperty(id) && index < sampleComponents.size())
 	{
 		updateSampleComponent(index);
 	}
+#endif
 
 	
 }
@@ -533,9 +542,8 @@ void SamplerSoundMap::drawSoundMap(Graphics &g)
 
 void SamplerSoundMap::paint(Graphics &g)
 {
-	g.drawImageAt(currentSnapshot, 0, 0);
-
-	
+	//g.drawImageAt(currentSnapshot, 0, 0);
+	drawSoundMap(g);
 };
 
 void SamplerSoundMap::paintOverChildren(Graphics &g)
@@ -643,7 +651,7 @@ void SamplerSoundMap::updateSampleComponentWithSound(ModulatorSamplerSound *soun
     
     if(index < sampleComponents.size())
     {
-        updateSampleComponent(index);
+        updateSampleComponent(index, dontSendNotification);
     }
     else
     {
@@ -652,10 +660,11 @@ void SamplerSoundMap::updateSampleComponentWithSound(ModulatorSamplerSound *soun
 };
 
 
-void SamplerSoundMap::updateSampleComponent(int index)
+void SamplerSoundMap::updateSampleComponent(int index, NotificationType notifySync)
 {
-	const ModulatorSamplerSound *s = sampleComponents[index]->getSound();
+	ModulatorSamplerSound* s = sampleComponents[index]->getSound();
 
+	
 	if(s != nullptr)
 	{
 		const float noteWidth = (float)getWidth() / 128.0f;
@@ -671,7 +680,7 @@ void SamplerSoundMap::updateSampleComponent(int index)
 
 		sampleComponents[index]->setSampleBounds((int)x, (int)y, (int)(x_max - x), (int)(y_max-y));
 		
-        refreshGraphics();
+		repaint();
 	}
 }
 
@@ -680,7 +689,7 @@ void SamplerSoundMap::updateSampleComponents()
 {
 	for(int i = 0; i < sampleComponents.size(); i++)
 	{
-		updateSampleComponent(i);
+		updateSampleComponent(i, dontSendNotification);
 	}
 };
 
@@ -706,7 +715,7 @@ void SamplerSoundMap::updateSoundData()
 		refreshGraphics();
 	}
 
-	updateSampleComponents();
+	sampleMapWasChanged(ownerSampler->getSampleMap()->getReference());
 }
 
 bool SamplerSoundMap::keyPressed(const KeyPress &k)

@@ -298,9 +298,9 @@ class SamplerSoundMap: public Component,
 					   public ChangeListener,
 					   public LassoSource<WeakReference<SampleComponent>>,
 					   public SettableTooltipClient,
-					   public Timer,
 					   public MainController::SampleManager::PreloadListener,
-					   public SampleMap::Listener
+					   public SampleMap::Listener,
+					   public Timer
 {
 public:
 	
@@ -325,25 +325,36 @@ public:
 
 	~SamplerSoundMap();;
 
+	
 	void timerCallback() override
 	{
-		if (getWidth() > 0 && getHeight() > 0)
-		{
-			currentSnapshot = Image(Image::RGB, getWidth(), getHeight(), true);
-
-			Graphics g2(currentSnapshot);
-
-			drawSoundMap(g2);
-
-			repaint();
-		}
-
-        stopTimer();
+		return;
 	}
 
 	void sampleMapWasChanged(PoolReference newSampleMap) override
 	{
+		propertyUpdater.setCallback(ownerSampler->getSampleMap()->getValueTree(),
+			SampleIds::Helpers::getMapIds(), valuetree::AsyncMode::Asynchronously, 
+			BIND_MEMBER_FUNCTION_2(SamplerSoundMap::updateSamplesFromValueTree));
+
 		updateSampleComponents();
+	}
+
+	void updateSamplesFromValueTree(ValueTree v, Identifier id)
+	{
+		auto index = (int)v["ID"] - 1;
+
+		for (int i = 0; i < sampleComponents.size(); i++)
+		{
+			if (auto sound = sampleComponents[i]->getSound())
+			{
+				if (sound->getData() == v)
+				{
+					updateSampleComponent(i, sendNotificationSync);
+					break;
+				}
+			}
+		}
 	}
 
 	void sampleAmountChanged() override
@@ -387,7 +398,7 @@ public:
 	void updateSampleComponentWithSound(ModulatorSamplerSound *sound);
 
 	/** updates the position / size of the sound with the supplied index. */
-	void updateSampleComponent(int index);
+	void updateSampleComponent(int index, NotificationType s);
 
 	/** updates the position / size of all sounds. */
 	void updateSampleComponents();
@@ -430,7 +441,7 @@ public:
 
     void refreshGraphics()
     {
-        if(!isTimerRunning()) startTimer(50);
+		repaint();
     }
     
     void drawSoundMap(Graphics &g);
@@ -491,6 +502,8 @@ private:
 	uint32 milliSecondsSinceLastLassoCheck;
     
     Image currentSnapshot;
+
+	valuetree::RecursivePropertyListener propertyUpdater;
 };
 
 /** A wrapper class around a SamplerSoundMap which adds a keyboard that can be clicked to trigger the note. 
