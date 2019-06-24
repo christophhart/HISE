@@ -551,7 +551,10 @@ bool NodeComponent::isFolded() const
 
 bool NodeComponent::isDragged() const
 {
-	return findParentComponentOfClass<DspNetworkGraph>()->currentlyDraggedComponent == this;
+	if(auto ng = findParentComponentOfClass<DspNetworkGraph>())
+		return ng->currentlyDraggedComponent == this;
+
+	return false;
 }
 
 bool NodeComponent::isSelected() const

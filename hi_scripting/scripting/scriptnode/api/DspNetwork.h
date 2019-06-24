@@ -109,6 +109,8 @@ public:
 	NodeBase* getNodeForValueTree(const ValueTree& v);
 	NodeBase::List getListOfUnconnectedNodes() const;
 
+	ValueTree getListOfAvailableModulesAsTree() const;
+
 	StringArray getListOfAllAvailableModuleIds() const;
 	StringArray getListOfUsedNodeIds() const;
 	StringArray getListOfUnusedNodeIds() const;

@@ -721,6 +721,8 @@ private:
 	ScopedPointer<SnippetDocument> onControlCallback;
 
 	ScriptingApi::Engine* engineObject;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptMasterEffect);
 };
 
 class JavascriptPolyphonicEffect : public JavascriptProcessor,

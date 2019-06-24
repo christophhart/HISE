@@ -145,6 +145,32 @@ NodeBase::List DspNetwork::getListOfUnconnectedNodes() const
 	return unconnectedNodes;
 }
 
+
+juce::ValueTree DspNetwork::getListOfAvailableModulesAsTree() const
+{
+	ValueTree v(PropertyIds::Nodes);
+
+	for (auto nf : nodeFactories)
+	{
+		auto list = nf->getModuleList();
+
+		ValueTree f("Factory");
+		f.setProperty(PropertyIds::ID, nf->getId().toString(), nullptr);
+
+		for (auto l : list)
+		{
+			ValueTree n(PropertyIds::Node);
+			n.setProperty(PropertyIds::FactoryPath, f[PropertyIds::ID].toString(), nullptr);
+			n.setProperty(PropertyIds::ID, l, nullptr);
+			f.addChild(n, -1, nullptr);
+		}
+
+		v.addChild(f, -1, nullptr);
+	}
+
+	return v;
+}
+
 juce::StringArray DspNetwork::getListOfAllAvailableModuleIds() const
 {
 	auto l = dynamic_cast<DspFactory::LibraryLoader*>(loader.get());

@@ -180,7 +180,6 @@ public:
 		bool isAlwaysOpen = false;
 		Colour c;
 		String icon;
-		
 
 		void addChild(Item&& item)
 		{

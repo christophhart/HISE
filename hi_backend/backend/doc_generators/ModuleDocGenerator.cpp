@@ -460,3 +460,183 @@ juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink&
 
 
 }
+
+namespace scriptnode
+{
+
+namespace doc
+{
+using namespace juce;
+using namespace hise;
+
+ItemGenerator::ItemGenerator(File r, BackendProcessor& bp):
+	MarkdownDataBase::ItemGeneratorBase(r)
+{
+	data->sine = new SineSynth(&bp, "Sine", NUM_POLYPHONIC_VOICES);
+	data->sine->prepareToPlay(44100.0, 512);
+	auto fxChain = dynamic_cast<EffectProcessorChain*>(data->sine->getChildProcessor(ModulatorSynth::EffectChain));
+	data->effect = new JavascriptMasterEffect(&bp, "dsp");
+	data->network = data->effect->getOrCreate("dsp");
+	fxChain->getHandler()->add(data->effect, nullptr);
+}
+
+
+hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& parent)
+{
+	MarkdownDataBase::Item root;
+	root.url = MarkdownLink(rootDirectory, scriptnodeWildcard);
+	root.keywords = { "ScriptNode" };
+	root.tocString = "ScriptNode";
+	root.c = Colours::blue;
+
+	auto list = data->network->getListOfAvailableModulesAsTree();
+
+	MarkdownDataBase::Item lItem;
+	lItem.url = root.url.getChildUrl("list");
+	lItem.url.setType(MarkdownLink::Folder);
+	lItem.tocString = "List of Nodes";
+	lItem.c = Colours::blue;
+
+	for (auto f : list)
+	{
+		addNodeFactoryItem(f, lItem);
+	}
+
+	root.addChild(std::move(lItem));
+
+	return root;
+}
+
+
+void ItemGenerator::addNodeFactoryItem(ValueTree factoryTree, MarkdownDataBase::Item& list)
+{
+	MarkdownDataBase::Item fItem;
+
+	fItem.url = list.url.getChildUrl(factoryTree[PropertyIds::ID].toString());
+	fItem.url.setType(MarkdownLink::Type::Folder);
+	fItem.tocString = factoryTree[PropertyIds::ID].toString();
+
+	fItem.c = Colours::blue;
+
+	for (auto nt : factoryTree)
+	{
+		addNodeItem(nt, fItem);
+	}
+
+	list.addChild(std::move(fItem));
+}
+
+
+void ItemGenerator::addNodeItem(ValueTree nodeTree, MarkdownDataBase::Item& factory)
+{
+	auto path = nodeTree[PropertyIds::ID].toString();
+	auto id = path.fromFirstOccurrenceOf(".", false, false);
+	
+	MessageManagerLock lock;
+
+	NodeBase::Ptr nb = dynamic_cast<NodeBase*>(data->network->create(path, id, false).getObject());;
+
+	jassert(nb != nullptr);
+
+	MarkdownDataBase::Item nItem;
+
+	nItem.url = factory.url.getChildUrl(id);
+	nItem.url.setType(MarkdownLink::Type::MarkdownFile);
+	nItem.tocString = id;
+	
+	nItem.c = Colours::blue;
+	nItem.keywords = { path, id };
+
+	factory.addChild(std::move(nItem));
+}
+
+
+Resolver::Resolver(File root_):
+	MarkdownParser::LinkResolver()
+{
+	rootUrl = MarkdownLink(root, scriptnodeWildcard);
+}
+
+
+juce::String Resolver::getContent(const MarkdownLink& url)
+{
+	if (url.isChildOf(rootUrl))
+	{
+		if (url.isChildOf(rootUrl.getChildUrl("list")))
+		{
+			auto nodeId = url.toString(MarkdownLink::Format::UrlSubPath);
+
+			auto header = url.getHeaderFromFile(root);
+
+			
+			NodeBase::Ptr node = dynamic_cast<NodeBase*>(data->network->get(nodeId).getObject());
+
+			auto tree = node->getValueTree();
+
+			String content;
+			String nl = "\n";
+
+			content << url.toString(MarkdownLink::Format::ContentHeader);
+
+			content << "# " << nodeId << nl;
+			content << "`" << tree[PropertyIds::FactoryPath].toString() << "`" << nl;
+
+			content << "![screen](/images/sn_screen_" << nodeId << ".png)";
+
+			content << "## Parameters" << nl;
+
+			content << "| ID | Range | Default | Description |" << nl;
+			content << "| --- | --- | --- | ------ |" << nl;
+
+			for (int i = 0; i < node->getNumParameters(); i++)
+			{
+				auto param = node->getParameter(i);
+
+				auto pTree = param->data;
+
+				content << "| " << param->getId();
+
+				auto range = RangeHelpers::getDoubleRange(pTree);
+				content << " | " << String(range.start, 2) << " - " << String(range.end, 2);
+				content << " | " << String((double)pTree[PropertyIds::Value], 2);
+				content << " | " << header.getKeyValue(param->getId()) << " |" << nl;
+			}
+
+			content << nl;
+
+			content << url.toString(MarkdownLink::Format::ContentWithoutHeader);
+
+			return content;
+		}
+		else
+		{
+			return url.toString(MarkdownLink::Format::ContentFull);
+		}
+	}
+
+	return {};
+}
+
+
+hise::Image ScreenshotProvider::getImage(const MarkdownLink& url, float width)
+{
+	auto imageFileURL = url.toString(MarkdownLink::Format::UrlSubPath).upToFirstOccurrenceOf(".png", false, false);
+
+	if (imageFileURL.startsWith("sn_screen_"))
+	{
+		auto id = imageFileURL.fromFirstOccurrenceOf("sn_screen_", false, false);
+
+		if (auto node = dynamic_cast<NodeBase*>(data->network->get(id).getObject()))
+		{
+			MessageManagerLock mmlock;
+			auto c = dynamic_cast<juce::Component*>(node->createComponent());
+			c->setBounds(node->getPositionInCanvas({ 0, 0 }));
+			return c->createComponentSnapshot(c->getLocalBounds());
+		}
+	}
+
+	return {};
+}
+
+}
+}
