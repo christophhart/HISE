@@ -142,6 +142,13 @@ void ContainerComponent::mouseDown(const MouseEvent& event)
 		PopupMenu m;
 		m.setLookAndFeel(&plaf);
 
+		String clipboard = SystemClipboard::getTextFromClipboard();
+
+		if (clipboard.startsWith("ScriptNode"))
+		{
+			m.addItem(120000, "Add node from clipboard", true);
+		}
+
 		m.addSectionHeader("Add existing node");
 
 		auto network = node->getRootNetwork();
@@ -194,7 +201,17 @@ void ContainerComponent::mouseDown(const MouseEvent& event)
 
 			auto container = dynamic_cast<NodeContainer*>(node.get());
 
-			if (result >= 11000)
+			if (result == 120000)
+			{
+				auto data = clipboard.fromFirstOccurrenceOf("ScriptNode", false, false);
+				auto newTree = ValueTreeConverters::convertBase64ToValueTree(data, true);
+
+				if (newTree.isValid())
+				{
+					newNode = network->createFromValueTree(network->isPolyphonic(), newTree, true);
+				}
+			}
+			else if (result >= 11000)
 			{
 				auto moduleId = sa[result - 11000];
 				newNode = network->create(moduleId, {}, container->isPolyphonic());

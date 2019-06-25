@@ -358,6 +358,13 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 		CallOutBox::launchAsynchronously(n, b, g);
 	}
+	if (result == (int)MenuActions::ExportAsSnippet)
+	{
+		auto data = "ScriptNode" + ValueTreeConverters::convertValueTreeToBase64(node->getValueTree(), true);
+
+		SystemClipboard::copyTextToClipboard(data);
+		PresetHandler::showMessageWindow("Copied to clipboard", "The node was copied to the clipboard");
+	}
 	if (result == (int)MenuActions::UnfreezeNode)
 	{
 		if (auto hc = node->getAsHardcodedNode())

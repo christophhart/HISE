@@ -47,6 +47,7 @@ public:
 	enum class MenuActions
 	{
 		ExportAsCpp = 1,
+		ExportAsSnippet,
 		EditProperties,
 		UnfreezeNode,
 		FreezeNode,
@@ -161,6 +162,7 @@ public:
 	virtual void fillContextMenu(PopupMenu& m)
 	{
 		m.addItem((int)MenuActions::ExportAsCpp, "Export as hardcoded C++ module");
+		m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
 		m.addItem((int)MenuActions::EditProperties, "Edit Properties");
 
 		if (auto hc = node.get()->getAsHardcodedNode())
