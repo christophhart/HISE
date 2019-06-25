@@ -84,8 +84,8 @@ juce::MidiMessage HiseEvent::toMidiMesage() const
 {
 	switch (type)
 	{
-	case Type::NoteOn:		return MidiMessage::noteOn(channel, number, value);
-	case Type::NoteOff:		return MidiMessage::noteOff(channel, number);
+	case Type::NoteOn:		return MidiMessage::noteOn(channel, number + transposeValue, value);
+	case Type::NoteOff:		return MidiMessage::noteOff(channel, number + transposeValue);
 	case Type::Controller:	return MidiMessage::controllerEvent(channel, number, value);
 	case Type::PitchBend:	return MidiMessage::pitchWheel(channel, getPitchWheelValue());
 	case Type::Aftertouch:	return MidiMessage::aftertouchChange(channel, number, value);
