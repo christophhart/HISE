@@ -593,6 +593,9 @@ public:
 
 	void updateBypassState(Identifier, var )
 	{
+		if (originalBlockSize == 0 || originalSampleRate == 0.0)
+			return;
+
 		PrepareSpecs ps;
 		ps.blockSize = originalBlockSize;
 		ps.sampleRate = originalSampleRate;
