@@ -365,7 +365,11 @@ public:
 		and MIDI edits. */
 	UndoManager* getUndoManager() { return undoManager; };
 
-	
+	/** If set to false, the recording will not be flushed and you can preprocess it. */
+	void setFlushRecordingOnStop(bool shouldFlushRecording)
+	{
+		flushRecordedEvents = shouldFlushRecording;
+	}
 
 	/** Resets the current sequence back to its pooled state. This operation is undo-able. */
 	void resetCurrentSequence();
@@ -399,6 +403,9 @@ public:
 	/** Creates a temporary sequence containing all the events from the currently recorded event list. */
 	HiseMidiSequence::Ptr getListOfCurrentlyRecordedEvents();
 
+	/** Returns the array of HiseEvents without conversion to a HiseMidiSequence. */
+	const Array<HiseEvent>& getListOfCurrentlyRecordedEventsRaw() const { return currentlyRecordedEvents; }
+
 	bool saveAsMidiFile(const String& fileName, int trackIndex);
 
 private:
@@ -429,6 +436,7 @@ private:
 
 	PlayState playState = PlayState::Stop;
 
+	bool flushRecordedEvents = true;
 	double loopStart = 0.0;
 	double loopEnd = 1.0;
 	double currentPosition = -1.0;

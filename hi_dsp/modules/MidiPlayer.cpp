@@ -533,6 +533,22 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 			continue;
 
 		auto timeStamp = ((double)e.getTimeStamp() / samplePerQuarter) * (double)HiseMidiSequence::TicksPerQuarter;
+
+		if (e.isNoteOn() && e.getTransposeAmount() != 0)
+		{
+			// We need to write the tranpose amount into the matching note-off
+			// or it can't resolve it as matching pair
+
+			for (auto& no : arrayToWrite)
+			{
+				if (no.isNoteOff() && no.getEventId() == e.getEventId())
+				{
+					no.setTransposeAmount(e.getTransposeAmount());
+					break;
+				}
+			}
+		}
+
 		auto m = e.toMidiMesage();
 		m.setTimeStamp(timeStamp);
 		newSeq->addEvent(m);
@@ -932,7 +948,7 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 			auto timestampSamples = (int)MidiPlayerHelpers::ticksToSamples(ticks, getMainController()->getBpm(), getSampleRate());
 
 			// This will be processed after the position has advanced so we need to subtract the last blocksize and add the message's timestamp.
-			timestampSamples -= lastBlockSize;
+			timestampSamples = jmax(0, timestampSamples - lastBlockSize);
 			timestampSamples += currentTimestampInBuffer;
 
 			HiseEvent copy(m);
@@ -1260,8 +1276,9 @@ void MidiPlayer::finishRecording()
 			}
 		}
 
-		mp->flushEdit(mp->currentlyRecordedEvents);
-
+		if (mp->flushRecordedEvents)
+			mp->flushEdit(mp->currentlyRecordedEvents);
+		
 		// This is a shortcut because the preparation would just fill it with the current sequence.
 		mp->recordState.store(RecordState::Prepared);
 
