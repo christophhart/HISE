@@ -197,6 +197,13 @@ void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::S
     if(streamToUse == nullptr)
     {
         auto resourceFile = getSampleManager().getProjectHandler().getEmbeddedResourceDirectory().getChildFile(fileNameToLook);
+
+		if (!resourceFile.existsAsFile())
+		{
+			sendOverlayMessage(DeactiveOverlay::CriticalCustomErrorMessage,
+				"The file " + resourceFile.getFullPathName() + " can't be found.");
+			return;
+		}
             
         fis = new FileInputStream(resourceFile);
         streamToUse = fis.release();
