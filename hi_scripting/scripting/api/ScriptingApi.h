@@ -257,6 +257,12 @@ public:
 		/** Returns the downsampling factor for the modulation signal (default is 8). */
 		double getControlRateDownsamplingFactor() const;
 
+		/** Returns the latency of the plugin as reported to the host. Default is 0. */
+		int getLatencySamples() const;
+
+		/** sets the latency of the plugin as reported to the host. Default is 0. */
+		void setLatencySamples(int latency);
+
 		/** Converts MIDI note number to Midi note name ("C3" for middle C). */
 		String getMidiNoteName(int midiNumber) const { return MidiMessage::getMidiNoteName(midiNumber, true, true, 3); };
 

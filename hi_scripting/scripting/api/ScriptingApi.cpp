@@ -1008,6 +1008,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 	API_VOID_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
+	API_VOID_METHOD_WRAPPER_1(Engine, setLatencySamples);
+	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -1091,6 +1093,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_1(loadImageIntoPool);
 	ADD_API_METHOD_1(createDspNetwork);
+	ADD_API_METHOD_1(setLatencySamples);
+	ADD_API_METHOD_0(getLatencySamples);
 }
 
 
@@ -1327,6 +1331,17 @@ var ScriptingApi::Engine::getSettingsWindowObject()
 double ScriptingApi::Engine::getControlRateDownsamplingFactor() const
 {
 	return (double)HISE_EVENT_RASTER;
+}
+
+int ScriptingApi::Engine::getLatencySamples() const
+{
+	return dynamic_cast<const AudioProcessor*>(getScriptProcessor()->getMainController_())->getLatencySamples();
+}
+
+void ScriptingApi::Engine::setLatencySamples(int latency)
+{
+	auto ap = dynamic_cast<AudioProcessor*>(getScriptProcessor()->getMainController_());
+	ap->setLatencySamples(latency);
 }
 
 int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
