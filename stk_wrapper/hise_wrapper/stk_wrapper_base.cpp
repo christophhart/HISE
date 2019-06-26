@@ -312,7 +312,7 @@ TP void INSTRUMENT_WRAPPER::processSingle(float* frameData, int numChannels)
 	{
 		constexpr int numThisTime = getNumChannelsToProcess<T, 1>();
 
-		DelayL;
+		//DelayL;
 
 		for (int j = 0; j < numThisTime; j++)
 		{
