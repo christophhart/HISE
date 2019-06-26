@@ -71,7 +71,7 @@ WaveOsc::WaveOsc(int tablesize, int tables, float maxpitch, float minpitch,
 	gamma = 1.0f/(smprate/flim - 1.0f);
 	float flow = __max(smprate/static_cast<float>(tablesize), minpitch);
 	x = logf(flow/maxpitch);
-	y = __max(1.0f, ceilf(x/logf(gamma)));
+	y = __max(1.0f, ceil(x/logf(gamma)));
 	pblocks = static_cast<int>(y);
 	gamma = expf(x/y);
 	pcrit = __min(0.99f,__max(0, logf(flow/minpitch)/pconv));
@@ -632,7 +632,7 @@ Envelope::Envelope(float tmax, float tmin, int maxsegs)
 	// set time scale factors according to control range
 	tmin = __max(1.0f,__min(500000.0f,tmin));
 	tmax = __max(1.0f,__min(500000.0f,tmax));
-	tscl1 = sqrtf(tmin);
+	tscl1 = sqrt(tmin);
 	tscl2 = 0.5f*logf(tmax/tmin);
 }
 
@@ -863,12 +863,12 @@ void Amp::processInplace(float* data, int samples)
 		t = static_cast<unsigned int>(ncurve);	// nail current value to t
 		switch(ccurve) {
 		case 0:	
-			if (t == 1) {a = sqrtf(fabsf(a));}
-			if (t == 2) {a = sqrtf(sqrtf(fabsf(a)));}
+			if (t == 1) {a = sqrt(fabsf(a));}
+			if (t == 2) {a = sqrt(sqrt(fabsf(a)));}
 			break;
 		case 1:		
 			if (t == 0) {a *= a;}
-			if (t == 2) {a = sqrtf(fabsf(a));}
+			if (t == 2) {a = sqrt(fabsf(a));}
 			break;
 		case 2:
 			if (t == 0) {a = a*a*a*a;}
@@ -961,7 +961,7 @@ void ChambFilter::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
 	const float fmin = 5.0f;
 
-	fscl1 = sqrtf(__min(1.0f, __max(0.0001f, M_PI_FLOAT*fmin / (1.22f*(float)sampleRate))));
+	fscl1 = sqrt(__min(1.0f, __max(0.0001f, M_PI_FLOAT*fmin / (1.22f*(float)sampleRate))));
 	fscl2 = -logf(fscl1);
 }
 
@@ -1255,7 +1255,7 @@ void MoogFilter::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 	const float fmin = 20.0f;
 
 	// init frequency conversion
-	fscl1 = sqrtf(__min(1.0f, __max(0.0001f, 2.5f*fmin / (float)sampleRate)));
+	fscl1 = sqrt(__min(1.0f, __max(0.0001f, 2.5f*fmin / (float)sampleRate)));
 	fscl2 = -logf(fscl1);
 }
 
@@ -1786,7 +1786,7 @@ void Hilbert::Update(float* in, float* out1, float* out2, int samples)
 // construction
 Lowpass1::Lowpass1(float smprate, float fmin)
 {
-	fscl1 = sqrtf(2.0f*__min(0.495f,__max(0.00005f,fmin/smprate)));
+	fscl1 = sqrt(2.0f*__min(0.495f,__max(0.00005f,fmin/smprate)));
 	fscl2 = -logf(fscl1) + 0.5f*logf(2.0f*0.495f);
 	fc = s = 0; adidx = 0;
 	GetAntiDenormalTable(adtab,16);
@@ -1818,7 +1818,7 @@ void Lowpass1::Update(float* data, int samples, float invsmp, float freq)
 // construction
 Highpass1::Highpass1(float smprate, float fmin)
 {
-	fscl1 = sqrtf(2.0f*__min(0.495f,__max(0.00005f,fmin/smprate)));
+	fscl1 = sqrt(2.0f*__min(0.495f,__max(0.00005f,fmin/smprate)));
 	fscl2 = -logf(fscl1) + 0.5f*logf(2.0f*0.495f);
 	fc = s = 0; adidx = 0;
 	GetAntiDenormalTable(adtab,16);

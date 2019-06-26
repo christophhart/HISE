@@ -444,7 +444,7 @@ void ModulatorSynthGroupVoice::calculateDetuneMultipliers(int childVoiceIndex)
 
 		const int unisonoIndex = childVoiceIndex % numUnisonoVoices;
 
-		detuneValues.gainFactor = 1.0f / sqrtf((float)numUnisonoVoices);
+		detuneValues.gainFactor = 1.0f / sqrt((float)numUnisonoVoices);
 
 		const float normalizedVoiceIndex = (float)unisonoIndex / (float)(numUnisonoVoices - 1);
 		const float normalizedDetuneAmount = normalizedVoiceIndex * 2.0f - 1.0f;

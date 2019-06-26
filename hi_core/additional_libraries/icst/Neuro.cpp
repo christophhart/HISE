@@ -565,8 +565,8 @@ void PCA::ica(float* ics, float* pcs, int vsize, int m, int n)
 	m = __min(m,n);
 	int i,j; float x,pp,p;
 	float fvsize = static_cast<float>(vsize);
-	float plim = 1.0f - FLT_EPSILON*5.0f*sqrtf(fvsize*static_cast<float>(n));
-	float scl = sqrtf(fvsize);
+	float plim = 1.0f - FLT_EPSILON*5.0f*sqrt(fvsize*static_cast<float>(n));
+	float scl = sqrt(fvsize);
 	float invscl = 1.0f/scl;
 	float* v = VectorFunctions::sseallocf(vsize);	// workspace (distorted independent comp.)
 	float* wtmp = new float[n];				// workspace (intermediate weight)

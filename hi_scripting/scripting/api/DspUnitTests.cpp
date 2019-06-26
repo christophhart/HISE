@@ -403,10 +403,10 @@ private:
 
 		// Tests
 
-		expect(testData.isWithinErrorRange(10000, sqrtf(2.0f), 0), "Left channel 1");
+		expect(testData.isWithinErrorRange(10000, sqrt(2.0f), 0), "Left channel 1");
 		expect(testData.isWithinErrorRange(10000, 0.0f, 1), "Right channel 1");
 		expect(testData.isWithinErrorRange(15000, 0.0f, 0), "Left channel 2");
-		expect(testData.isWithinErrorRange(15000, sqrtf(2.0f), 1), "Left channel 2");
+		expect(testData.isWithinErrorRange(15000, sqrt(2.0f), 1), "Left channel 2");
 
 		bp = nullptr;
 	}
@@ -610,7 +610,7 @@ private:
 		expect(testData.isWithinErrorRange(offset, -1.0f, 0), "First sample left");
 		expect(testData.isWithinErrorRange(offset, -1.0f, 1), "First sample right");
 
-		float pitchFactorRight = pf * sqrtf(2.0f); // 6 semitones down
+		float pitchFactorRight = pf * sqrt(2.0f); // 6 semitones down
 		float pitchFactorLeft = 0.5f * pitchFactorRight;
 
 		const int leftNextDirac = offset + roundToInt(ceil(256.0 / pitchFactorLeft));

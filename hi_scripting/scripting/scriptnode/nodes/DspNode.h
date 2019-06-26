@@ -104,7 +104,7 @@ public:
 		{
 			int numParameters = obj->getNumParameters();
 
-			int numRows = (int)std::ceilf((float)numParameters / 4.0f);
+			int numRows = (int)std::ceil((float)numParameters / 4.0f);
 
 			auto b = Rectangle<int>(0, 0, jmin(400, numParameters * 100), numRows * (48+18) + UIValues::HeaderHeight);
 

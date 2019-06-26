@@ -52,7 +52,7 @@ static float acoshf(float x);
 static double acosh(double x);
 
 // inverse hyperbolic tangent
-static float atanhf(float x);
+static float atanh(float x);
 static double atanh(double x);
 
 // error function
