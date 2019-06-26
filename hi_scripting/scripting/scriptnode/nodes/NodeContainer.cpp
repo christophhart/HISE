@@ -989,12 +989,20 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 	return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
 }
 
-NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTree& d)
+NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTree d)
 {
 	auto nodeId = d[PropertyIds::NodeId];
 
 	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
 	{
+		auto um = parent->getUndoManager();
+
+		nodeRemoveUpdater.setCallback(targetNode->getValueTree(), valuetree::AsyncMode::Asynchronously,
+			[d, um](ValueTree& v)
+		{
+			d.getParent().removeChild(d, um);
+		});
+
 		auto parameterId = d[PropertyIds::ParameterId].toString();
 
 		if (parameterId == PropertyIds::Bypassed.toString())

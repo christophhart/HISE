@@ -43,12 +43,14 @@ struct NodeContainer : public AssignableObject
 	{
 		struct Connection
 		{
-			Connection(NodeBase* parent, ValueTree& d);
+			Connection(NodeBase* parent, ValueTree d);
 
 			DspHelpers::ParameterCallback createCallbackForNormalisedInput();
 			bool isValid() const { return p.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
 
 		private:
+
+			
 
 			NodeBase::Ptr nodeToBeBypassed;
 			double rangeMultiplerForBypass = 1.0;
@@ -56,6 +58,8 @@ struct NodeContainer : public AssignableObject
 			valuetree::PropertySyncer opSyncer;
 			valuetree::PropertyListener idUpdater;
 			
+			valuetree::RemoveListener nodeRemoveUpdater;
+
 			Identifier conversion = ConverterIds::Identity;
 			Identifier opType = OperatorIds::SetValue;
 			ReferenceCountedObjectPtr<Parameter> p;

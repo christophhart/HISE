@@ -174,6 +174,8 @@ private:
 
 	ValueTree parent;
 	ValueTree child;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(RemoveListener);
 };
 
 

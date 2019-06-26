@@ -175,14 +175,37 @@ RemoveListener::~RemoveListener()
 
 void RemoveListener::setCallback(ValueTree childToListenTo, AsyncMode asyncMode, const Callback& c)
 {
-	mode = asyncMode;
-	jassert(childToListenTo.getParent().isValid());
+	WeakReference<RemoveListener> tmp = this;
 
-	child = childToListenTo;
-	parent = child.getParent();
-	parent.addListener(this);
+	auto f = [tmp, childToListenTo, asyncMode, c]()
+	{
+		if (tmp.get() == nullptr)
+			return;
 
-	cb = c;
+		tmp.get()->mode = asyncMode;
+
+		//childToListenTo.getParent().isValid());
+
+		tmp.get()->child = childToListenTo;
+		tmp.get()->parent = tmp.get()->child.getParent();
+		tmp.get()->parent.addListener(tmp.get());
+
+		tmp.get()->cb = c;
+	};
+
+	if (childToListenTo.getParent().isValid())
+	{
+		f();
+	}
+	else
+	{
+		// It might be possible that the value tree you want to listen
+		// has not yet been added to a parent (most likely in case of a coallescated
+		// undo action). In this case, we'll execute the registration asynchronously.
+		MessageManager::callAsync(f);
+	}
+
+	
 }
 
 

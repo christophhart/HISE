@@ -80,7 +80,13 @@ struct MacroPropertyEditor : public Component,
 		{
 			g.setColour(Colours::white);
 			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText("Connection", getLocalBounds().removeFromTop(24).toFloat(), Justification::centred);
+
+			String text = "Connection: ";
+
+			text << data[PropertyIds::NodeId].toString() << ".";
+			text << data[PropertyIds::ParameterId].toString();
+
+			g.drawText(text, getLocalBounds().removeFromTop(24).toFloat(), Justification::centred);
 		}
 
 		void resized() override
@@ -102,15 +108,42 @@ struct MacroPropertyEditor : public Component,
 
 	MacroPropertyEditor(NodeBase* b, ValueTree data, Identifier childDataId=PropertyIds::Connections):
 		parameterProperties(b, data),
-		node(b)
+		node(b),
+		connectionContent(*this)
 	{
 		connectionData = data.getChildWithName(childDataId);
 		connectionData.addListener(this);
 
+		
+
 		addAndMakeVisible(parameterProperties);
+
+		addAndMakeVisible(connectionViewport);
+		connectionViewport.setViewedComponent(&connectionContent, false);
+
+		setSize(parameterProperties.getWidth() + connectionViewport.getScrollBarThickness(), parameterProperties.getHeight() + 300);
 
 		rebuildConnections();
 	}
+
+	struct Content: public Component
+	{
+		Content(MacroPropertyEditor& parent_) :
+			parent(parent_)
+		{};
+
+		void paint(Graphics& g) override
+		{
+			if (parent.connectionEditors.isEmpty())
+			{
+				g.setColour(Colours::white);
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.drawText("No connections available.", getLocalBounds().toFloat(), Justification::centred);
+			}
+		}
+		
+		MacroPropertyEditor& parent;
+	};
 
 	~MacroPropertyEditor()
 	{
@@ -120,14 +153,12 @@ struct MacroPropertyEditor : public Component,
 	void resized() override
 	{
 		parameterProperties.setTopLeftPosition(0, 0);
-		
 		int y = parameterProperties.getBottom();
 
-		for (auto c : connectionEditors)
-		{
-			c->setTopLeftPosition(0, y);
-			y += c->getHeight();
-		}
+		auto b = getLocalBounds();
+		b.removeFromTop(y);
+
+		connectionViewport.setBounds(b);
 	}
 
 	void valueTreeChildAdded(ValueTree& parentTree, ValueTree&) override
@@ -153,18 +184,27 @@ struct MacroPropertyEditor : public Component,
 	{
 		connectionEditors.clear();
 
-		int y = parameterProperties.getHeight();
+		int y = 0;
 
 		for (auto c : connectionData)
 		{
 			auto newEditor = new ConnectionEditor(node, c);
-			addAndMakeVisible(newEditor);
+			connectionContent.addAndMakeVisible(newEditor);
 			connectionEditors.add(newEditor);
 
 			y += newEditor->getHeight();
 		}
 
-		setSize(parameterProperties.getWidth(), y);
+		connectionContent.setSize(parameterProperties.getWidth(), y);
+
+		y = 0;
+
+		for (auto c : connectionEditors)
+		{
+			c->setTopLeftPosition(0, y);
+			y += c->getHeight();
+		}
+
 		resized();
 	}
 
@@ -173,6 +213,9 @@ struct MacroPropertyEditor : public Component,
 
 	PropertyEditor parameterProperties;
 	OwnedArray<ConnectionEditor> connectionEditors;
+
+	Viewport connectionViewport;
+	Content connectionContent;
 };
 
 
