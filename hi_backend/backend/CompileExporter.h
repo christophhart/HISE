@@ -259,7 +259,7 @@ private:
 
 	struct HeaderHelpers
 	{
-		static void addBasicIncludeLines(String& pluginDataHeaderFile, bool isIOS=false);
+		static void addBasicIncludeLines(CompileExporter* exporter, String& pluginDataHeaderFile, bool isIOS=false);
 		static void addAdditionalSourceCodeHeaderLines(CompileExporter* exporter, String& pluginDataHeaderFile);
 		static void addStaticDspFactoryRegistration(String& pluginDataHeaderFile, CompileExporter* exporter);
 		static void addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile);

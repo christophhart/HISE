@@ -579,20 +579,41 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			else
 				return ErrorCodes::CorruptedPoolFiles;
 
+			auto pname = GET_SETTING(HiseSettings::Project::Name);
+			auto cname = GET_SETTING(HiseSettings::User::Company);
+			auto projectFolder = ProjectHandler::getAppDataDirectory().getParentDirectory().getChildFile(cname).getChildFile(pname);
+
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
-				imageOutputFile = tempDirectory.getChildFile("images");
+				
 				sampleOutputFile = tempDirectory.getChildFile("impulses");
-
-				if (iof.existsAsFile())
-					iof.copyFileTo(imageOutputFile);
-				else
-					return ErrorCodes::CorruptedPoolFiles;
 
 				if (sof.existsAsFile())
 					sof.copyFileTo(sampleOutputFile);
 				else
 					return ErrorCodes::CorruptedPoolFiles;
+			}
+			else if (PresetHandler::showYesNoWindow("Copy Audio files to app data directory?",
+				"Do you want to copy the audio pool file to your project's app data directory?"))
+			{
+				sampleOutputFile = projectFolder.getChildFile(sof.getFileName());
+				sof.copyFileTo(sampleOutputFile);
+			}
+
+			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedImageFiles))
+			{
+				imageOutputFile = tempDirectory.getChildFile("images");
+
+				if (iof.existsAsFile())
+					iof.copyFileTo(imageOutputFile);
+				else
+					return ErrorCodes::CorruptedPoolFiles;
+			}
+			else if (PresetHandler::showYesNoWindow("Copy Image files to app data directory?",
+				"Do you want to copy the image pool file to your project's app data directory?"))
+			{
+				imageOutputFile = projectFolder.getChildFile(iof.getFileName());
+				iof.copyFileTo(imageOutputFile);
 			}
 		}
 		else if (BuildOptionHelpers::isIOS(option))
@@ -1246,22 +1267,14 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 {
 	String pluginDataHeaderFile;
 
-    HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile, iOSAUv3);
+    HeaderHelpers::addBasicIncludeLines(this, pluginDataHeaderFile, iOSAUv3);
 
 	HeaderHelpers::addAdditionalSourceCodeHeaderLines(this,pluginDataHeaderFile);
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
 	HeaderHelpers::addCopyProtectionHeaderLines(publicKey, pluginDataHeaderFile);
 
-	if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
-	{
-		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN_WITH_AUDIO_FILES(nullptr, nullptr); }\n";
-		pluginDataHeaderFile << "\n";
-	}
-	else
-	{
-		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN(nullptr, nullptr); }\n";
-		pluginDataHeaderFile << "\n";
-	}
+	pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN(nullptr, nullptr); }\n";
+	pluginDataHeaderFile << "\n";
 
     if(iOSAUv3)
     {
@@ -1286,7 +1299,7 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppHeaderFile(const
 
 	String pluginDataHeaderFile;
 
-	HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile);
+	HeaderHelpers::addBasicIncludeLines(this, pluginDataHeaderFile);
 
 	HeaderHelpers::addAdditionalSourceCodeHeaderLines(this,pluginDataHeaderFile);
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
@@ -2359,7 +2372,7 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 	return ErrorCodes::OK;
 }
 
-void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p, bool isIOS)
+void CompileExporter::HeaderHelpers::addBasicIncludeLines(CompileExporter* exporter, String& p, bool isIOS)
 {
 	p << "\n";
 
@@ -2368,10 +2381,20 @@ void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p, bool isIOS)
 
 	p << "\nBEGIN_EMBEDDED_DATA()";
     
+	auto& dataObject = exporter->dataObject;
+
     if(!isIOS)
     {
-        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
-        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
+		if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
+			p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
+		else
+			p << "\nDEFINE_EXTERNAL_DATA(hise::FileHandlerBase::AudioFiles)";
+
+		if (IS_SETTING_TRUE(HiseSettings::Project::EmbedImageFiles))
+			p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
+		else
+			p << "\nDEFINE_EXTERNAL_DATA(hise::FileHandlerBase::Images);";
+
 		p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::MidiFiles, PresetData::midiFiles, PresetData::midiFilesSize);";
         p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::SampleMaps, PresetData::samplemaps, PresetData::samplemapsSize);";
     }

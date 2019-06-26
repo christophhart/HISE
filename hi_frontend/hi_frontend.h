@@ -81,6 +81,7 @@ struct FrontendFactory
 
 #define BEGIN_EMBEDDED_DATA() juce::MemoryInputStream* hise::FrontendFactory::getEmbeddedData(hise::FileHandlerBase::SubDirectories directory) { switch (directory) {
 #define DEFINE_EMBEDDED_DATA(subdirectory, data, size) case subdirectory: return new MemoryInputStream(data, size, false);
+#define DEFINE_EXTERNAL_DATA(subdirectory) case subdirectory: return nullptr;
 #define END_EMBEDDED_DATA() default: return nullptr; }}
 
 #endif   // HI_FRONTEND_INCLUDED

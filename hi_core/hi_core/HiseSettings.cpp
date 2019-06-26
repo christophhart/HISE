@@ -73,6 +73,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(BundleIdentifier);
 	ids.add(PluginCode);
 	ids.add(EmbedAudioFiles);
+	ids.add(EmbedImageFiles);
 	ids.add(SupportFullDynamicsHLAC);
 	ids.add(AdditionalDspLibraries);
 	ids.add(OSXStaticLibs);
@@ -213,7 +214,17 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("copies them to the right location:");
 		D("> **Windows:** `%APPDATA%\\Company\\Product\\`");
 		D("> **macOS:** `~/Library/Application Support/Company/Product/`");
-		D("Normally you would try to embed them into the binary, however if you have a lot of images and audio files (> 50MB)");
+		D("Normally you would try to embed them into the binary, however if you have a lot of audio files (> 50MB)");
+		D("the compiler will crash with an **out of heap space** error, so in this case you're better off not embedding them.");
+		P_();
+
+		P(HiseSettings::Project::EmbedImageFiles);
+		D("If this is **enabled**, it will embed all audio files (impulse responses & loops) into the plugin.");
+		D("If it's **disabled**, it will use the resource files found in the app data directory and you need to make sure that your installer");
+		D("copies them to the right location:");
+		D("> **Windows:** `%APPDATA%\\Company\\Product\\`");
+		D("> **macOS:** `~/Library/Application Support/Company/Product/`");
+		D("Normally you would try to embed them into the binary, however if you have a lot of images (> 50MB)");
 		D("the compiler will crash with an **out of heap space** error, so in this case you're better off not embedding them.");
 		P_();
 
@@ -535,6 +546,7 @@ void HiseSettings::Data::addSetting(ValueTree& v, const Identifier& id)
 juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 {
 	if (id == Project::EmbedAudioFiles ||
+		id == Project::EmbedImageFiles ||
 		id == Compiler::UseIPP ||
 		id == Scripting::EnableCallstack ||
 		id == Other::EnableAutosave ||
@@ -707,6 +719,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Project::BundleIdentifier)	    return "com.myCompany.product";
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "Yes";
+	else if (id == Project::EmbedImageFiles)		return "Yes";
 	else if (id == Project::SupportFullDynamicsHLAC)	return "No";
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
