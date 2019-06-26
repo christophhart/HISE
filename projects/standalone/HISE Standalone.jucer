@@ -191,13 +191,14 @@
         <MODULEPATH id="stk_wrapper" path="../../"/>
       </MODULEPATHS>
     </VS2017>
-    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0" smallIcon="bfBEgJ"
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=1" smallIcon="bfBEgJ"
                 bigIcon="bfBEgJ" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
-                linuxExtraPkgConfig="x11 xinerama xext">
+                linuxExtraPkgConfig="x11 xinerama xext" extraLinkerFlags="-no-pie&#10;/opt/intel/ipp/lib/intel64/libippi.a &#10;/opt/intel/ipp/lib/intel64/libipps.a&#10;/opt/intel/ipp/lib/intel64/libippvm.a&#10;/opt/intel/ipp/lib/intel64/libippcore.a&#10;">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"/>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"
+                       libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/lib"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"
-                       linkTimeOptimisation="1"/>
+                       linkTimeOptimisation="1" libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/include"/>
         <CONFIGURATION name="TravisCI" isDebug="1" optimisation="1" targetName="HISE Standalone"
                        defines="TRAVIS_CI=1"/>
       </CONFIGURATIONS>
@@ -276,5 +277,6 @@
   <LIVE_SETTINGS>
     <OSX defines="USE_IPP=0"/>
     <WINDOWS/>
+    <LINUX/>
   </LIVE_SETTINGS>
 </JUCERPROJECT>
