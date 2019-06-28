@@ -145,7 +145,7 @@ using namespace juce;
 		{
 			if (getToggleState())
 			{
-				setColours(Colour(SIGNAL_COLOUR).withAlpha(0.8f), Colour(SIGNAL_COLOUR), Colour(SIGNAL_COLOUR));
+				setColours(onColour.withAlpha(0.8f), onColour, onColour);
 			}
 			else
 			{
@@ -187,6 +187,7 @@ using namespace juce;
 			offShape = newOffShape;
 		}
 
+		Colour onColour = Colour(SIGNAL_COLOUR);
 		Path onShape;
 		Path offShape;
 	};

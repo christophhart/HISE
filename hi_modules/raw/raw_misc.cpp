@@ -65,7 +65,12 @@ juce::Image Pool::loadImage(const String& id)
 {
 	auto pool = getMainController()->getCurrentImagePool();
 
-	PoolReference ref(pool, "{PROJECT_FOLDER}" + id, ProjectHandler::Images);
+	String idToUse = id;
+
+	if (!idToUse.startsWith("{PROJECT_FOLDER}"))
+		idToUse = "{PROJECT_FOLDER}" + id;
+
+	PoolReference ref(pool, idToUse, ProjectHandler::Images);
 
 	auto entry = pool->loadFromReference(ref, allowUnusedSources ? PoolHelpers::LoadAndCacheStrong :
 		PoolHelpers::DontCreateNewEntry
