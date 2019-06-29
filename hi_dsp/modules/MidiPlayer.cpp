@@ -932,6 +932,11 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 	if (isBypassed())
 		return;
 
+	if (m.isAllNotesOff())
+	{
+		stop(m.getTimeStamp());
+	}
+
 	if (isRecording() && !m.isArtificial() && recordState == RecordState::Prepared)
 	{
 		if (auto seq = getCurrentSequence())
