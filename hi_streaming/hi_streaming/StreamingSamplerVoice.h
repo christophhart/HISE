@@ -105,7 +105,7 @@ public:
 
 	private:
 
-		StreamingSamplerSound *sound;
+		StreamingSamplerSound::Ptr sound;
 		SampleLoader *loader;
 	};
 
