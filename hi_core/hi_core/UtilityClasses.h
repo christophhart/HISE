@@ -637,13 +637,15 @@ public:
 		tempoNames.add("1/64T");	tempoFactors[SixtyForthTriplet] = 0.125f / 3.0f;
 	}
 
+	static float getTempoFactor(Tempo t)
+	{
+		jassert(t < numTempos);
+		return t < numTempos ? tempoFactors[(int)t] : tempoFactors[(int)Tempo::Quarter];
+	};
+
 private:
 
-	static float getTempoFactor(Tempo t)
-    {
-        jassert(t < numTempos);
-        return t < numTempos ? tempoFactors[(int)t] : tempoFactors[(int)Tempo::Quarter];
-    };
+	
 
 	static StringArray tempoNames;
 	static float tempoFactors[numTempos];

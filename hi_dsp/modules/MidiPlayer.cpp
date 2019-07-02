@@ -527,12 +527,17 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 	auto samplePerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
 
+	auto maxLength = destination->getLength();
+
 	for (const auto& e : arrayToWrite)
 	{
 		if (e.isEmpty())
 			continue;
 
 		auto timeStamp = ((double)e.getTimeStamp() / samplePerQuarter) * (double)HiseMidiSequence::TicksPerQuarter;
+
+		if (maxLength != 0.0)
+			timeStamp = jmin(maxLength, timeStamp);
 
 		if (e.isNoteOn() && e.getTransposeAmount() != 0)
 		{
