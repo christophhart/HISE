@@ -1121,6 +1121,34 @@ public:
 	void threadFinished() override
 	{
 		PresetHandler::showMessageWindow("Sucessfully exported", "All pools were successfully exported");
+
+		auto& data = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject();
+		auto project = data.getSetting(HiseSettings::Project::Name).toString();
+		auto company = data.getSetting(HiseSettings::User::Company).toString();
+		auto targetDirectory = ProjectHandler::getAppDataDirectory().getParentDirectory().getChildFile(company).getChildFile(project);
+		auto& handler = mc->getCurrentFileHandler();
+
+		if (!(bool)data.getSetting(HiseSettings::Project::EmbedImageFiles))
+		{
+			if (PresetHandler::showYesNoWindow("Copy image pool file to App data directory",
+				"Do you want to copy the ImageResources.dat file to the app data directory?\nThis is required for the compiled plugin to load the new resources on this machine"))
+			{
+				auto f = handler.getTempFileForPool(FileHandlerBase::Images);
+				jassert(f.existsAsFile());
+				f.copyFileTo(targetDirectory.getChildFile(f.getFileName()));
+			}
+		}
+
+		if (!(bool)data.getSetting(HiseSettings::Project::EmbedAudioFiles))
+		{
+			if (PresetHandler::showYesNoWindow("Copy audio pool file to App data directory",
+				"Do you want to copy the AudioResources.dat file to the app data directory?\nThis is required for the compiled plugin to load the new resources on this machine"))
+			{
+				auto f = handler.getTempFileForPool(FileHandlerBase::AudioFiles);
+				jassert(f.existsAsFile());
+				f.copyFileTo(targetDirectory.getChildFile(f.getFileName()));
+			}
+		}
 	}
 
 private:
