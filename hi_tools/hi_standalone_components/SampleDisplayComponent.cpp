@@ -748,7 +748,8 @@ void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<f
 		bounds.removeFromTop(trimmedTop);
 		bounds.removeFromBottom(trimmedBottom);
 		
-		if(!std::isinf(bounds.getY()) && !std::isinf(bounds.getHeight()))
+		if(!std::isinf(bounds.getY()) && !std::isinf(bounds.getHeight()) &&
+		   !std::isnan(bounds.getY()) && !std::isnan(bounds.getHeight()))
 			p.scaleToFit(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), false);
 	}
 }
@@ -815,7 +816,7 @@ HiseAudioThumbnail::~HiseAudioThumbnail()
 	loadingThread.stopThread(400);
 }
 
-void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/)
+void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/, bool synchronously)
 {
 	currentReader = nullptr;
 
@@ -833,12 +834,12 @@ void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/)
 		lengthInSeconds = l->size / 44100.0;
 	}
 
-	rebuildPaths();
+	rebuildPaths(synchronously);
 }
 
 void HiseAudioThumbnail::paint(Graphics& g)
 {
-	if (isClear)
+	if (isClear || rebuildOnUpdate)
 		return;
 
 	

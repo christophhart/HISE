@@ -86,7 +86,7 @@ public:
 
 	~HiseAudioThumbnail();
 
-	void setBuffer(var bufferL, var bufferR = var());
+	void setBuffer(var bufferL, var bufferR = var(), bool synchronously=false);
 
 	void paint(Graphics& g) override;
 
@@ -128,7 +128,7 @@ public:
 
 			loadingThread.startThread(5);
 				
-
+			repaint();
 			rebuildOnUpdate = false;
 		}
 
@@ -158,10 +158,19 @@ private:
 		triggerAsyncUpdate();
 	}
 
-	void rebuildPaths()
+	void rebuildPaths(bool synchronously = false)
 	{
-		rebuildOnUpdate = true;
-		triggerAsyncUpdate();
+		if (synchronously)
+		{
+			isClear = true;
+			repaint();
+			loadingThread.run();
+		}
+		else
+		{
+			rebuildOnUpdate = true;
+			triggerAsyncUpdate();
+		}
 	}
 
 	class LoadingThread : public Thread
