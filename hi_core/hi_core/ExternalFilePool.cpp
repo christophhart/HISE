@@ -205,6 +205,11 @@ void PoolHelpers::fillMetadata(Image& data, var* additionalData)
 
 	meta->setProperty("Size", String(data.getWidth()) + " px x " + String(data.getHeight()) + " px");
 
+	if (data.getWidth() % 2 == 0 && data.getHeight() % 2 == 0)
+	{
+		meta->setProperty("Non-retina size: ", String(data.getWidth() / 2) + " px x " + String(data.getHeight() / 2) + " px");
+	}
+
 	*additionalData = var(meta);
 }
 
