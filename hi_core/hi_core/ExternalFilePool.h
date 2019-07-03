@@ -735,7 +735,7 @@ public:
 		{
 			StringArray sa;
 
-			if (*this)
+			if (get() != nullptr)
 			{
 				sa.add(getRef().getReferenceString());
 				auto dataSize = PoolHelpers::getDataSize(getData());

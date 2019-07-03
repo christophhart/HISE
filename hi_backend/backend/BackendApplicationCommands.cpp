@@ -1877,7 +1877,9 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 					s->getSampleMap()->saveAndReloadMap();
 			}
 
-			File scriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
+			File originalScriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
+
+			File scriptDirectory = originalScriptDirectory.getSiblingFile("TempScriptDirectory");
 
 			Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
 
@@ -1902,7 +1904,7 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 				sp->mergeCallbacksToScript(content);
 
-				File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), dynamic_cast<Processor*>(sp)->getId());
+				File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), scriptDirectory, dynamic_cast<Processor*>(sp)->getId());
 
 				scriptFile.replaceWithText(content);
 			}
@@ -1916,6 +1918,18 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 			debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
             
+			if (originalScriptDirectory.deleteRecursively())
+			{
+				scriptDirectory.moveFileTo(originalScriptDirectory);
+			}
+			else
+			{
+				PresetHandler::showMessageWindow("Error at writing script file",
+					"The embedded script files could not be saved (probably because the file is opened somewhere else).\nPress OK to show the folder and move it manually", PresetHandler::IconType::Error);
+
+				scriptDirectory.revealToUser();
+			}
+
             
 		}
 	}

@@ -460,9 +460,9 @@ struct XmlBackupFunctions
 		}
 	}
 
-	static File getScriptFileFor(ModulatorSynthChain *masterChain, const String &id)
+	static File getScriptFileFor(ModulatorSynthChain *masterChain, File& directory, const String &id)
 	{
-		return getScriptDirectoryFor(masterChain).getChildFile(getSanitiziedName(id) + ".js");
+		return directory.getChildFile(getSanitiziedName(id) + ".js");
 	}
 
 private:
