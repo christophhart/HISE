@@ -136,6 +136,11 @@ public:
 
 	NodeBase* getRootNode() { return signalPath.get(); }
 
+	void setRootNode(NodeBase::Ptr newRootNode)
+	{
+		signalPath = newRootNode;
+	}
+
 	Identifier getParameterIdentifier(int parameterIndex);
 
 	// ===============================================================================
@@ -223,7 +228,9 @@ public:
 		um.beginNewTransaction();
 	}
 
-	UndoManager* getUndoManager() 
+	void changeNodeId(ValueTree& c, const String& oldId, const String& newId, UndoManager* um);
+
+	UndoManager* getUndoManager()
 	{ 
 		if (!enableUndo)
 			return nullptr;
@@ -272,9 +279,9 @@ private:
 
 	String getNonExistentId(String id, StringArray& usedIds) const;
 
-	void updateId(NodeBase* n, const String& newId);
+	void updateIdInConnection(NodeBase* n, const String& oldId, const String& newId);
 
-	
+	valuetree::RecursivePropertyListener idUpdater;
 
 	CriticalSection connectLock;
 

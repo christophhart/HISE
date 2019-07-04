@@ -197,11 +197,14 @@ struct NodeBase : public ConstScriptingObject
 
 	private:
 
+		
+
 		static void nothing(double) {};
 		void storeValue();
 
 		valuetree::PropertyListener opTypeListener;
 		valuetree::PropertyListener valuePropertyUpdater;
+		valuetree::PropertyListener idUpdater;
 		DspHelpers::ParameterCallback db;
 		LockFreeUpdater valueUpdater;
 
@@ -317,6 +320,14 @@ struct NodeBase : public ConstScriptingObject
 		parentNode = newParentNode;
 	}
 
+	void setCurrentId(const String& newId)
+	{
+		currentId = newId;
+	}
+
+	String getCurrentId() const { return currentId; }
+
+
 private:
 
 	WeakReference<ConstScriptingObject> parent;
@@ -326,6 +337,8 @@ protected:
 	ValueTree v_data;
 
 private:
+
+	String currentId;
 
 	HelpManager helpManager;
 

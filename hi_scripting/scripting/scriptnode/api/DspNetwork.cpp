@@ -65,6 +65,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_) 
 
 #if HI_ENABLE_CUSTOM_NODE_LOCATION
 	nodeFactories.add(custom::Factory::getInstance(this));
+	nodeFactories.add(project::Factory::getInstance(this));
 #endif
 
 	loader = new DspFactory::LibraryLoader(dynamic_cast<Processor*>(p));
@@ -83,6 +84,18 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_) 
 	selectionUpdater = new SelectionUpdater(*this);
 
 	setEnableUndoManager(enableUndo);
+
+	idUpdater.setCallback(data, { PropertyIds::ID }, valuetree::AsyncMode::Synchronously, 
+		[this](ValueTree v, Identifier id)
+	{
+		if (auto n = getNodeForValueTree(v))
+		{
+			auto oldId = n->getCurrentId();
+			auto newId = v[PropertyIds::ID].toString();
+
+			changeNodeId(data, oldId, newId, getUndoManager());
+		}
+	});
 }
 
 DspNetwork::~DspNetwork()
@@ -318,6 +331,9 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 {
 	auto id = d[PropertyIds::ID].toString();
 
+	if (!isPolyphonic())
+		createPolyIfAvailable = false;
+
 	auto existing = forceCreate ? var() : get(id);
 
 	if (existing.isObject())
@@ -348,11 +364,11 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 					auto oldId = newNode->getId();
 					auto newId = getNonExistentId(id, sa);
 
-					updateId(newNode, newId);
+					updateIdInConnection(newNode, oldId, newId);
+
+					newNode->setValueTreeProperty(PropertyIds::ID, newId);
 				}
 			}
-			//StringArray usedIds;
-			//updateIdsInValueTree(d, usedIds);
 
 			nodes.add(newNode);
 			return newNode.get();
@@ -473,10 +489,8 @@ juce::String DspNetwork::getNonExistentId(String id, StringArray& usedIds) const
 }
 
 
-void DspNetwork::updateId(NodeBase* n, const String& newId)
+void DspNetwork::updateIdInConnection(NodeBase* n, const String& oldId, const String& newId)
 {
-	auto oldId = n->getId();
-	n->setValueTreeProperty(PropertyIds::ID, newId);
 
 	auto um = signalPath->getUndoManager();
 
@@ -541,70 +555,71 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 
 	DBG("Changed IDS:");
 
-	
-
 	for (auto& ch : changes)
-	{
-		DBG(ch.oldId + " -> " + ch.newId);
-
-		auto updateParameter = [ch](ValueTree& v)
-		{
-			if (v.hasType(PropertyIds::Parameter))
-			{
-				auto conId = v[PropertyIds::Connection].toString();
-
-				if (conId.contains(ch.oldId))
-				{
-					auto newConId = conId.replace(ch.oldId, ch.newId);
-					DBG("Update " + conId + " - >" + newConId);
-					v.setProperty(PropertyIds::Connection, newConId, nullptr);
-				}
-			}
-
-			return false;
-		};
-
-		valuetree::Helpers::foreach(c, updateParameter);
-
-		auto updateConnection = [ch](ValueTree& v)
-		{
-			if (v.hasType(PropertyIds::Connection))
-			{
-				auto nId = v[PropertyIds::NodeId].toString();
-
-				if (nId == ch.oldId)
-				{
-					DBG("Update connection ");
-					v.setProperty(PropertyIds::NodeId, ch.newId, nullptr);
-				}
-			}
-
-			return false;
-		};
-
-		valuetree::Helpers::foreach(c, updateConnection);
-		
-		auto updateSendConnection = [ch](ValueTree& v)
-		{
-			if (v.hasType(PropertyIds::Property) && 
-				v[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
-			{
-				auto oldValue = v[PropertyIds::Value].toString();
-
-				if (oldValue == ch.oldId)
-				{
-					DBG("Update feedback connection");
-					v.setProperty(PropertyIds::Value, ch.newId, nullptr);
-				}
-			}
-
-			return false;
-		};
-
-		valuetree::Helpers::foreach(c, updateSendConnection);
-	}
+		changeNodeId(c, ch.oldId, ch.newId, nullptr);
 
 	return c;
+}
+
+void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& newId, UndoManager* um)
+{
+	DBG(oldId + " -> " + newId);
+
+	auto updateParameter = [oldId, newId, um](ValueTree& v)
+	{
+		if (v.hasType(PropertyIds::Parameter))
+		{
+			auto conId = v[PropertyIds::Connection].toString();
+
+			if (conId.contains(oldId))
+			{
+				auto newConId = conId.replace(oldId, newId);
+				DBG("Update " + conId + " - >" + newConId);
+				v.setProperty(PropertyIds::Connection, newConId, um);
+			}
+		}
+
+		return false;
+	};
+
+	valuetree::Helpers::foreach(c, updateParameter);
+
+	auto updateConnection = [oldId, newId, um](ValueTree& v)
+	{
+		if (v.hasType(PropertyIds::Connection))
+		{
+			auto nId = v[PropertyIds::NodeId].toString();
+
+			if (nId == oldId)
+			{
+				DBG("Update connection ");
+				v.setProperty(PropertyIds::NodeId, newId, um);
+			}
+		}
+
+		return false;
+	};
+
+	valuetree::Helpers::foreach(c, updateConnection);
+
+	auto updateSendConnection = [oldId, newId, um](ValueTree& v)
+	{
+		if (v.hasType(PropertyIds::Property) &&
+			v[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
+		{
+			auto oldValue = v[PropertyIds::Value].toString();
+
+			if (oldValue == oldId)
+			{
+				DBG("Update feedback connection");
+				v.setProperty(PropertyIds::Value, newId, um);
+			}
+		}
+
+		return false;
+	};
+
+	valuetree::Helpers::foreach(c, updateSendConnection);
 }
 
 DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)

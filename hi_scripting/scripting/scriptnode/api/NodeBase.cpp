@@ -41,7 +41,8 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	v_data(data_),
 	bypassUpdater(rootNetwork->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	bypassed(v_data, PropertyIds::Bypassed, getUndoManager(), false),
-	helpManager(*this, data_)
+	helpManager(*this, data_),
+	currentId(v_data[PropertyIds::ID].toString())
 {
 	setDefaultValue(PropertyIds::NumChannels, 2);
 	setDefaultValue(PropertyIds::LockNumChannels, false);
