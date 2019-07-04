@@ -141,7 +141,10 @@ juce::ValueTree HiseMidiSequence::exportAsValueTree() const
 
 void HiseMidiSequence::restoreFromValueTree(const ValueTree &v)
 {
-	id = v.getProperty("ID").toString();
+	auto id_ = v.getProperty("ID").toString();
+
+	if (id_.isNotEmpty())
+		id = Identifier(id_);
 
 	// This property isn't used in this class, but if you want to
 	// have any kind of connection to a pooled MidiFile, you will

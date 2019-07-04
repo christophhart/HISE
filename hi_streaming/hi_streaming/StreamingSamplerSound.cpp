@@ -840,8 +840,6 @@ void StreamingSamplerSound::FileReader::wakeSound()
 
 void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyPool)
 {
-
-
 	if (fileHandlesOpen)
 	{
 		jassert(memoryReader != nullptr || normalReader != nullptr);

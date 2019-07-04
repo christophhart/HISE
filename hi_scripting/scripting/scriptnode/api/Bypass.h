@@ -196,6 +196,7 @@ template <class T> class no
 {
 public:
 
+
 	void initialise(NodeBase* n)
 	{
 		obj.initialise(n);
@@ -228,6 +229,11 @@ public:
 		return obj.handleModulation(value);
 	}
 
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
 	void setBypassedFromRange(double value)
 	{
 
@@ -251,9 +257,107 @@ private:
 	T obj;
 };
 
-template <class T> class yes
+
+
+template <class T, bool AddAsParameter = true> class yes : public SingleWrapper<T>
 {
 public:
+
+	GET_SELF_AS_OBJECT(yes);
+
+	static constexpr int ExtraHeight = T::ExtraHeight;
+
+	int getExtraWidth() const { return this->obj.getExtraWidth(); }
+	static constexpr bool isModulationSource = T::isModulationSource;
+
+	forcedinline void process(ProcessData& data) noexcept
+	{
+		if (bypassed)
+			return;
+
+		this->obj.process(data);
+	}
+
+	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	{
+		if (bypassed)
+			return;
+
+		this->obj.processSingle(frameData, numChannels);
+	}
+
+	bool shouldSmoothBypass() const { return bypassRamper.isSmoothing(); }
+
+	void prepare(PrepareSpecs ps)
+	{
+		this->obj.prepare(ps);
+	}
+
+	void reset() 
+	{ 
+		if(bypassed)
+			this->obj.reset(); 
+	}
+
+	constexpr bool allowsModulation()
+	{
+		return this->obj.isModulationSource;
+	}
+
+	forcedinline bool handleModulation(double& value) noexcept
+	{
+		if (!bypassed)
+			return this->obj.handleModulation(value);
+
+		return false;
+	}
+
+	void setBypassedFromRange(double value)
+	{
+		setBypassed(value > 0.5);
+	}
+
+	void setBypassed(bool shouldBeBypassed)
+	{
+		bypassed = shouldBeBypassed;
+	}
+
+	void setBypassedFromValueTreeCallback(Identifier id, var newValue)
+	{
+		if (id == PropertyIds::Bypassed)
+			setBypassed((bool)newValue);
+	}
+
+	void createParameters(Array<HiseDspBase::ParameterData>& data) override
+	{
+		if (AddAsParameter)
+		{
+			HiseDspBase::ParameterData p("Bypassed");
+
+			using ThisClass = yes<T, AddAsParameter>;
+
+			p.defaultValue = 0.0;
+			p.db = BIND_MEMBER_FUNCTION_1(ThisClass::setBypassedFromRange);
+
+			data.add(std::move(p));
+
+		}
+
+		this->obj.createParameters(data);
+	}
+
+private:
+
+	bool bypassed = false;
+};
+
+
+#if 0
+template <class T, bool AddAsParameter> class yes: public SingleWrapper<T>
+{
+public:
+
+	GET_SELF_AS_OBJECT(yes);
 
 	void initialise(NodeBase* n)
 	{
@@ -270,6 +374,12 @@ public:
 	{
 		if (!bypassed)
 			obj.processSingle(frameData, numChannels);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if(!bypassed)
+			obj.handleHiseEvent(e);
 	}
 
 	constexpr bool allowsModulation()
@@ -318,6 +428,7 @@ private:
 
 	T obj;
 };
+#endif
 
 }
 }
