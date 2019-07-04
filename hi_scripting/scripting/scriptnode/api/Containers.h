@@ -383,6 +383,8 @@ template <typename... Processors> struct split
 
 	static constexpr bool isModulationSource = Type::isModulationSource;
 
+	static constexpr bool isSingleNode = sizeof...(Processors) == 1;
+
 	void initialise(NodeBase* n)
 	{
 		obj.initialise(n);
@@ -395,28 +397,43 @@ template <typename... Processors> struct split
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		obj.handleHiseEventWithCopy(e);
+		if (isSingleNode)
+			obj.handleHiseEvent(e);
+		else
+			obj.handleHiseEventWithCopy(e);
 	}
 
 	void process(ProcessData& data)
 	{
-		auto original = data.copyTo(splitBuffer, 0);
-		obj.processWithCopy(data, original, splitBuffer);
+		if (isSingleNode)
+			obj.process(data);
+		else
+		{
+			auto original = data.copyTo(splitBuffer, 0);
+			obj.processWithCopy(data, original, splitBuffer);
+		}
 	}
 
 	void processSingle(float* frameData, int numChannels)
 	{
-		float originalData[NUM_MAX_CHANNELS];
-		memcpy(originalData, frameData, sizeof(float)*numChannels);
+		if (isSingleNode)
+			obj.processSingle(frameData, numChannels);
+		else
+		{
+			float originalData[NUM_MAX_CHANNELS];
+			memcpy(originalData, frameData, sizeof(float)*numChannels);
 
-		obj.processSingleWithOriginal(frameData, originalData, numChannels);
+			obj.processSingleWithOriginal(frameData, originalData, numChannels);
+		}
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
 		obj.prepare(ps);
 		ps.numChannels *= 2;
-		DspHelpers::increaseBuffer(splitBuffer, ps);
+		
+		if(!isSingleNode)
+			DspHelpers::increaseBuffer(splitBuffer, ps);
 	}
 
 	void reset()
