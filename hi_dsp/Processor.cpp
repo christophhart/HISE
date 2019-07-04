@@ -852,16 +852,19 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 	PoolReference newRef(dynamic_cast<Processor*>(this)->getMainController(), fileName, ProjectHandler::SubDirectories::AudioFiles);
 
-	if (data.getRef() != newRef && !newRef.isValid())
+    if(data.getRef() == newRef)
+        return;
+    
+    
+	if (!newRef.isValid())
 	{
 		if (currentPool != nullptr)
 		{
 			currentPool->removeListener(this);
 			currentPool = nullptr;
 		}
-			
-
-		data.clear();
+		
+        data.clear();
 
 		length = 0;
 		sampleRateOfLoadedFile = -1.0;
@@ -878,8 +881,7 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		newFileLoaded();
 	}
-
-	if(data.getRef() != newRef && loadThisFile && newRef.isValid())
+    else
 	{
 		ScopedLock sl(getFileLock());
 

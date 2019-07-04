@@ -391,8 +391,9 @@ bool AudioSampleBufferComponentBase::isInterestedInFileDrag(const StringArray &f
 
 bool AudioSampleBufferComponentBase::isAudioFile(const String &s)
 {
-	AudioFormatManager afm;
+    AudioFormatManager afm;
 
+    
 	
 	afm.registerBasicFormats();
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
@@ -447,7 +448,7 @@ void AudioSampleBufferComponentBase::setAudioSampleBuffer(const AudioSampleBuffe
 		var lVar = var(l);
 		var rVar;
 
-		if (data[1] != nullptr)
+		if (b->getNumChannels() > 1)
 		{
 			VariantBuffer::Ptr r = new VariantBuffer(data[1], b->getNumSamples());
 			rVar = var(r);
