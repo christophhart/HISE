@@ -162,7 +162,13 @@ struct CommonData
 
 struct Base
 {
-	static constexpr char scriptnodeWildcard[] = "/scriptnode";
+    static String getWildcard()
+    {
+        const static String scriptnodeWildcard = "/scriptnode";
+        return scriptnodeWildcard;
+    }
+    
+	
 	SharedResourcePointer<CommonData> data;
 };
 

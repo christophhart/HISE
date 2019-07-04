@@ -484,7 +484,7 @@ ItemGenerator::ItemGenerator(File r, BackendProcessor& bp):
 hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& parent)
 {
 	MarkdownDataBase::Item root;
-	root.url = MarkdownLink(rootDirectory, scriptnodeWildcard);
+	root.url = MarkdownLink(rootDirectory, getWildcard());
 	root.keywords = { "ScriptNode" };
 	root.tocString = "ScriptNode";
 	root.c = Colours::blue;
@@ -554,7 +554,7 @@ void ItemGenerator::addNodeItem(ValueTree nodeTree, MarkdownDataBase::Item& fact
 Resolver::Resolver(File root_):
 	MarkdownParser::LinkResolver()
 {
-	rootUrl = MarkdownLink(root, scriptnodeWildcard);
+	rootUrl = MarkdownLink(root, getWildcard());
 }
 
 
