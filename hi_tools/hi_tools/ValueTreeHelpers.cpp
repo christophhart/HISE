@@ -79,6 +79,8 @@ void PropertyListener::sendMessageForAllProperties()
 		triggerAsyncUpdate();
 		break;
 	}
+    default:
+        break;
     
 	}
 }
@@ -368,7 +370,8 @@ void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 		pendingChanges.addIfNotAlreadyThere({ c, false });
 		triggerAsyncUpdate();
 		break;
-	
+    default:
+        break;
 	}
 }
 

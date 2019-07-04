@@ -191,6 +191,8 @@ class HardcodedNode
 {
 public:
 
+    virtual ~HardcodedNode() {};
+    
 	struct ParameterInitValue
 	{
 		ParameterInitValue(const char* id_, double v) :

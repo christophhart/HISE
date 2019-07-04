@@ -61,7 +61,7 @@ using namespace scriptnode;
 TP SAMPLERATE_WRAPPER::SampleRateWrapper()
 {
 	// use this to query the size if the static_assert fires...
-	static constexpr int d = sizeof(Guitar);
+	//static constexpr int d = sizeof(Guitar);
 	
 	//static_assert(sizeof(StkType) == DataSize, "Data size mismatch");
 
@@ -266,7 +266,8 @@ TP void EFFECT_WRAPPER::processSingle(float* frameData, int numChannels)
 
 		for (int j = 0; j < numThisTime; j++)
 		{
-			*ptr++ = this->objects[i].get().getObject()->tick(*ptr, j);
+            auto value = *ptr;
+			*ptr++ = this->objects[i].get().getObject()->tick(value, j);
 		}
 	}
 }
@@ -312,12 +313,8 @@ TP void INSTRUMENT_WRAPPER::processSingle(float* frameData, int numChannels)
 	{
 		constexpr int numThisTime = getNumChannelsToProcess<T, 1>();
 
-		//DelayL;
-
 		for (int j = 0; j < numThisTime; j++)
-		{
 			*ptr++ += this->objects[i].get().getObject()->tick(j);
-		}
 	}
 }
 

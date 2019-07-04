@@ -1072,7 +1072,6 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 
 	const int midiChannel = m.getChannel();
 	const int midiNoteNumber = m.getNoteNumber();
-	const int transposedMidiNoteNumber = midiNoteNumber + m.getTransposeAmount();
 	const bool retriggerWithDifferentChannels = getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().isMpeEnabled();
 
 	for(auto sound: soundsToBeStarted)

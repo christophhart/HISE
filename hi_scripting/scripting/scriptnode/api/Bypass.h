@@ -286,8 +286,6 @@ public:
 		this->obj.processSingle(frameData, numChannels);
 	}
 
-	bool shouldSmoothBypass() const { return bypassRamper.isSmoothing(); }
-
 	void prepare(PrepareSpecs ps)
 	{
 		this->obj.prepare(ps);

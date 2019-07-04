@@ -321,7 +321,6 @@ void ScriptContentComponent::updateComponentParent(ScriptCreatedComponentWrapper
 
 	auto sc = wrapper->getScriptComponent();
 
-	const Rectangle<int> localBounds = c->getBoundsInParent();
 	const Rectangle<int> currentPosition = sc->getPosition();
 
 

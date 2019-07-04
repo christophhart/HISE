@@ -471,11 +471,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 	p.addLineSegment({ start, start1 }, 2.0f);
 	p.addLineSegment({ end, end1 }, 2.0f);
 
-
-
-	float xPos = start.getX();
-
-	DropShadow sh;
+    DropShadow sh;
 	sh.colour = Colours::black.withAlpha(0.5f);
 	sh.offset = { 0, 2 };
 	sh.radius = 3;

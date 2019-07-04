@@ -406,7 +406,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 		loadedPlugins.add(newLib.release());
 		return loadedPlugins.getLast();
 	}
-	catch (String errorMessage)
+	catch (String& errorMessage)
 	{
 		throw errorMessage;
 		return nullptr;

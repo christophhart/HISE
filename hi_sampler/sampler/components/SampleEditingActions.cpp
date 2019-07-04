@@ -1409,12 +1409,6 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 				{
 					drawThreshhold(g, getLocalBounds());
 				}
-
-				
-				auto b = getLocalBounds();
-				
-
-				
 			}
 
 			void setThreshhold(double newLevel)
@@ -1869,9 +1863,6 @@ private:
 
 		auto f = [tmp](Processor* p)
 		{
-			auto s = dynamic_cast<ModulatorSampler*>(p);
-
-
 			for (auto t : tmp)
 			{
 				if (t.s.get() != nullptr)

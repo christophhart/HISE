@@ -2600,8 +2600,6 @@ struct ScriptedDrawActions
 
 		void perform(Graphics& g) override
 		{
-			auto ri = r.toNearestInt();
-
 			g.drawImageWithin(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), RectanglePlacement::centred);
 
 			
@@ -2619,8 +2617,6 @@ struct ScriptedDrawActions
 		
 		void perform(Graphics& g) override 
 		{
-			auto ri = r.toNearestInt();
-			
 			g.drawImage(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img.getWidth(), (int)((double)r.getHeight() * scaleFactor));
 
 

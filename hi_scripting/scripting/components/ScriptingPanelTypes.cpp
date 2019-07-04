@@ -414,8 +414,6 @@ public:
 	{
 		bool isInContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
 
-		auto total = getLocalBounds();
-
 		if (isInContent)
 		{
 			content->setBounds(0, 0, getWidth(), getHeight());

@@ -342,8 +342,6 @@ public:
 
 	void updateSamplesFromValueTree(ValueTree v, Identifier id)
 	{
-		auto index = (int)v["ID"] - 1;
-
 		for (int i = 0; i < sampleComponents.size(); i++)
 		{
 			if (auto sound = sampleComponents[i]->getSound())

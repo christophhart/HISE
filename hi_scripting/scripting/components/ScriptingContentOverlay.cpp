@@ -786,8 +786,6 @@ void ScriptingContentOverlay::Dragger::resizeOverlayedComponent(int newWidth, in
 
 	String sizeString = "[" + String(newWidth) + ", " + String(newHeight) + "]";
 
-	auto tName = "Resize";
-
 	b->setScriptComponentProperty(sc, width, newWidth, sendNotification, false);
 	b->setScriptComponentProperty(sc, height, newHeight, sendNotification, false);
 }

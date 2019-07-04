@@ -58,10 +58,7 @@ void DefaultParameterNodeComponent::resized()
 	b.removeFromTop(UIValues::HeaderHeight);
 
 	if (extraComponent != nullptr)
-	{
-		auto h = extraComponent->getHeight();
 		extraComponent->setBounds(b.removeFromTop(extraComponent->getHeight()));
-	}
 
 	int numPerRow = jmax(1, getWidth() / 100);
 

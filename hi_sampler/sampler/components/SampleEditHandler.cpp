@@ -34,8 +34,6 @@ namespace hise { using namespace juce;
 
 void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 {
-	ModulatorSampler *s = sampler;
-
 	int lowestValue = 127;
 	int highestValue = 0;
 

@@ -289,7 +289,7 @@ void mdaDegrade::processReplacing(float **inputs, float **outputs, int sampleFra
 		buf5=b5;
 		buf6=b6; 
 		buf7=b7; 
-		buf8=b8, 
+        buf8=b8;
 		buf9=b9;  
 		tcount=t; 
 	}
@@ -316,7 +316,7 @@ void mdaDegrade::processReplacing(float **inputs, float **outputs, int sampleFra
 		buf5R=b5R;
 		buf6R=b6R; 
 		buf7R=b7R; 
-		buf8R=b8R, 
+        buf8R=b8R;
 		buf9R=b9R;  
 		tcount=t; }
 

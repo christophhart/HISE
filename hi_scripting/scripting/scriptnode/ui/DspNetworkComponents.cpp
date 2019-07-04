@@ -216,14 +216,6 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 	Array<ParameterSlider*> list;
 	fillChildComponentList(list, this);
 
-	auto matchesConnection = [](ParameterSlider* s, const String& path)
-	{
-		String thisPath = s->parameterToControl->parent->getId();
-		thisPath << "." << s->parameterToControl->getId();
-
-		return path == thisPath;
-	};
-	
 	for (auto slider : list)
 	{
 		if (slider->parameterToControl == nullptr)

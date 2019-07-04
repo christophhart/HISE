@@ -568,7 +568,7 @@ void ConvolutionEffect::LoadingThread::run()
 {
 	while (!threadShouldExit())
 	{
-		bool doSomething = pending && parent.rampFlag == false ||
+		bool doSomething = (pending && (parent.rampFlag == false)) ||
 						   shouldRestart;
 
 		if (doSomething)

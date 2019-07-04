@@ -82,8 +82,6 @@ void NodeContainer::parameterAddedOrRemoved(ValueTree child, bool wasAdded)
 	}
 	else
 	{
-		auto index = n->getParameterTree().indexOf(child);
-
 		for (int i = 0; i < n->getNumParameters(); i++)
 		{
 			if (n->getParameter(i)->data == child)
@@ -609,8 +607,6 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 	using namespace UIValues;
 
 	const int minWidth = NodeWidth;
-	const int topRow = NodeHeight;
-
 	int maxW = minWidth;
 	int h = 0;
 
@@ -978,8 +974,7 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 	using namespace UIValues;
 
 	const int minWidth = NodeWidth;
-	const int topRow = NodeHeight;
-
+	
 	int maxW = minWidth;
 	int h = 0;
 

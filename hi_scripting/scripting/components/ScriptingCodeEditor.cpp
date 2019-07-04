@@ -1985,7 +1985,7 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 		g.fillAll(Colour(0xff363636));
 
 		auto b = getLocalBounds();
-		auto lb = b.removeFromLeft(getGutterWidth());
+		b.removeFromLeft(getGutterWidth());
 
 		g.setColour(editor->findColour(CodeEditorComponent::ColourIds::backgroundColourId));
 		g.fillRect(b);

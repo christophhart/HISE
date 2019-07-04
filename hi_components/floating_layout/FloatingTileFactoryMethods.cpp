@@ -125,7 +125,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
 	registerType<MidiOverlayPanel>(PopupMenuOptions::MidiPlayerOverlay);
 	registerType<ActivityLedPanel>(PopupMenuOptions::ActivityLed);
-	registerType<CustomSettingsWindowPanel>(PopupMenuOptions::PluginSettings),
+    registerType<CustomSettingsWindowPanel>(PopupMenuOptions::PluginSettings);
 	registerType<MidiSourcePanel>(PopupMenuOptions::MidiSourceList);
 	registerType<MidiChannelPanel>(PopupMenuOptions::MidiChannelList);
 	registerType<TooltipPanel>(PopupMenuOptions::TooltipPanel);

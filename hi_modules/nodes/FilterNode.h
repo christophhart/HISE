@@ -41,7 +41,7 @@ namespace filters
 
 struct CoefficientProvider
 {
-	~CoefficientProvider() {};
+	virtual ~CoefficientProvider() {};
 	virtual IIRCoefficients getCoefficients() = 0;
 
 	double sr = 44100.0;

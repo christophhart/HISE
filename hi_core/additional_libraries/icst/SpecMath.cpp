@@ -1627,7 +1627,8 @@ void SpecMath::fqbandpass(float* f, float* q, float* g, float fc, float bw,
 			a = 4.0f*fc*fc;
 			b = bws + a;
 			c = 0.5f*(b + sqrt(b*b - a*bws/(q[i]*q[i])));
-			d = sqrt(c), e = sqrt(c - a);
+            d = sqrt(c);
+            e = sqrt(c - a);
 			f[2*i] = 0.5f*(d - e);
 			f[2*i+1] = 0.5f*(d + e);
 			q[2*i] = q[2*i+1] = q[i]*d/bw;

@@ -186,8 +186,6 @@ juce::ValueTree DspNetwork::getListOfAvailableModulesAsTree() const
 
 juce::StringArray DspNetwork::getListOfAllAvailableModuleIds() const
 {
-	auto l = dynamic_cast<DspFactory::LibraryLoader*>(loader.get());
-
 	StringArray sa;
 
 	for (auto nf : nodeFactories)

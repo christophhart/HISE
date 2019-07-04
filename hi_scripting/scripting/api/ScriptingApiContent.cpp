@@ -1008,7 +1008,7 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 {
 	Array<PropertyWithValue> vArray;
 	vArray.add({ Properties::min });
-	vArray.add({ Properties::max }),
+    vArray.add({ Properties::max });
 		vArray.add({ Properties::saveInPreset, false });
 	vArray.add({ Properties::macroControl, -1 });
 	vArray.add({ Properties::isPluginParameter, false });

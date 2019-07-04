@@ -87,9 +87,10 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 
 	var getResult(const Scope& s) const override
 	{
-		const bool allowIllegalCalls = apiClass->allowIllegalCallsOnAudioThread(functionIndex);
+		
 
 #if JUCE_ENABLE_AUDIO_GUARD
+        const bool allowIllegalCalls = apiClass->allowIllegalCallsOnAudioThread(functionIndex);
 		AudioThreadGuard::Suspender suspender(allowIllegalCalls);
 #endif
 

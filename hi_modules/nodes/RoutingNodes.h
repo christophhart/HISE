@@ -41,6 +41,7 @@ namespace routing
 
 struct SendBase
 {
+    virtual ~SendBase() {};
 	virtual Colour getColour() const = 0;
 	virtual bool isConnected() const = 0;
 };

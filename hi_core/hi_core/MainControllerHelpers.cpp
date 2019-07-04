@@ -1093,7 +1093,7 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 	if (shouldDelayRendering())
 	{
 	
-		const bool ok = circularInputBuffer.writeSamples(buffer, 0, buffer.getNumSamples());
+		circularInputBuffer.writeSamples(buffer, 0, buffer.getNumSamples());
 
 		jassert(ok);
 
