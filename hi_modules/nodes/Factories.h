@@ -98,6 +98,12 @@ namespace custom
 {
 DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(custom);
 }
+
+namespace project
+{
+DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(project);
+}
+
 #endif
 
 namespace routing

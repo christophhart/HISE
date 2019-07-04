@@ -1707,7 +1707,9 @@ XmlElement* createXmlElementForFile(ModulatorSynthChain* chainToExport, String& 
 
 		for (auto c : children)
 		{
-			if (auto c_xml = createXmlElementForFile(chainToExport, templateProject, c, false))
+			bool isCustomNodeIncludeFile = c.getFileName() == "includes.cpp" && c.getParentDirectory().getFileName() == "CustomNodes";
+
+			if (auto c_xml = createXmlElementForFile(chainToExport, templateProject, c, isCustomNodeIncludeFile))
 			{
 				xml->addChildElement(c_xml);
 			}
@@ -1766,6 +1768,9 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 		copyProtectionCppFile.copyFileTo(copyProtectionTargetFile);
 	else
 		copyProtectionTargetFile.create();
+
+	
+
 
 	File iconFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("Icon.png");
 

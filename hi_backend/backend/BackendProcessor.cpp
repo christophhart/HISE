@@ -124,6 +124,8 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 	};
 
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+
+	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
 }
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
@@ -288,3 +290,5 @@ void BackendProcessor::setEditorData(var editorState)
 }
 
 } // namespace hise
+
+

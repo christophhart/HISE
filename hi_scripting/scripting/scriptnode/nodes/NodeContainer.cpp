@@ -362,6 +362,8 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 
 			StringArray connectionIds;
 
+			StringArray invertedConnections;
+
 			int pIndex = 1;
 
 			for (auto c : macro->getConnectionTree())
@@ -383,6 +385,9 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 
 				pCode << "auto " << conIdName << " = getParameter(\"" << conId << "\", ";
 				pCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(c)) << ");\n";
+
+				if (c[PropertyIds::Inverted])
+					invertedConnections.add(conIdName);
 
 				auto converter = c[PropertyIds::Converter].toString();
 
@@ -408,10 +413,12 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 
 			for (auto c_id : connectionIds)
 			{
+				String invPrefix = invertedConnections.contains(c_id) ? "1.0 - " : "";
+
 				if (c_id.startsWith("bypass_target"))
-					l.body << c_id << ".setBypass(newValue);\n";
+					l.body << c_id << ".setBypass(" << invPrefix << "newValue);\n";
 				else
-					l.body << c_id << "(normalised);\n";
+					l.body << c_id << "(" << invPrefix << "normalised);\n";
 			}
 				
 
@@ -662,6 +669,19 @@ juce::String SerialNode::getCppCode(CppGen::CodeLocation location)
 
 }
 
+juce::String ParallelNode::getCppCode(CppGen::CodeLocation location)
+{
+	if (location == CppGen::CodeLocation::Definitions)
+	{
+		String s = NodeContainer::getCppCode(location);
+		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
+
+		return s;
+	}
+	else
+		return NodeContainer::getCppCode(location);
+}
+
 NodeComponent* ParallelNode::createComponent()
 {
 	return new ParallelNodeComponent(this);
@@ -710,7 +730,7 @@ void SplitNode::prepare(PrepareSpecs ps)
 
 juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
 {
-	return NodeContainer::getCppCode(location);
+	return ParallelNode::getCppCode(location);
 
 #if 0
 	if (location == CppGen::CodeLocation::Definitions)
@@ -991,7 +1011,7 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 
 NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTree d)
 {
-	auto nodeId = d[PropertyIds::NodeId];
+	auto nodeId = d[PropertyIds::NodeId].toString();
 
 	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
 	{
@@ -1023,6 +1043,11 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTre
 				}
 			}
 		}
+	}
+	else
+	{
+		p = nullptr;
+		return;
 	}
 
 	auto converterId = d[PropertyIds::Converter].toString();
@@ -1153,6 +1178,11 @@ void NodeContainer::MacroParameter::rebuildCallback()
 
 		if (newC->isValid())
 			connections.add(newC.release());
+		else
+		{
+			cTree.removeChild(c, nullptr);
+			break;
+		}
 	}
 
 	if (connections.size() > 0)

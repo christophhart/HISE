@@ -967,7 +967,7 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		if (hisePath.isDirectory())
 		{
 			scriptnode::CodeHelpers::setIncludeDirectory(newValue.toString());
-			hc << scriptnode::CodeHelpers::createIncludeFile();	
+			hc << scriptnode::CodeHelpers::createIncludeFile(scriptnode::CodeHelpers::getIncludeDirectory());
 		}
 
 		hiseFile.replaceWithText(hc);

@@ -681,6 +681,8 @@ public:
 		return createCppClassForNodes(isOuterClass);
 	}
 
+	String getCppCode(CppGen::CodeLocation location) override;
+
 	NodeComponent* createComponent() override;
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;

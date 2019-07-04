@@ -249,6 +249,12 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "raw/raw_UserPreset.h"
 #include "raw/raw_PluginParameter.h"
 
-
+#include "nodes/CoreNodes.h"
+#include "nodes/MathNodes.h"
+#include "nodes/DynamicsNode.h"
+#include "nodes/EventNodes.h"
+#include "nodes/FilterNode.h"
+#include "nodes/RoutingNodes.h"
+#include "nodes/DelayNode.h"
 
 #endif   // HI_MODULES_INCLUDED

@@ -379,7 +379,7 @@ struct DspHelpers
 
 struct CodeHelpers
 {
-	static String createIncludeFile();
+	
 
 	static void setIncludeDirectory(String filePath);
 
@@ -389,9 +389,14 @@ struct CodeHelpers
 
 	static void addFileToCustomFolder(const String& filename, const String& content);
 
+	static String createIncludeFile(File targetDirectory);
+
 private:
 
+	static void addFileInternal(const String& filename, const String& content, File targetDirectory);
+
 	static File includeDirectory;
+	static File projectIncludeDirectory;
 };
 
 
