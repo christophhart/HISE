@@ -226,10 +226,13 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 	
 	for (auto slider : list)
 	{
-		auto connection = slider->parameterToControl->data[PropertyIds::Connection].toString();
+		if (slider->parameterToControl == nullptr)
+			continue;
 
 		if (!slider->parameterToControl->parent->isBodyShown())
 			continue;
+
+		auto connection = slider->parameterToControl->data[PropertyIds::Connection].toString();
 
 		if (connection.isNotEmpty())
 		{

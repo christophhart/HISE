@@ -94,6 +94,8 @@ void PropertyListener::handleAsyncUpdate()
 
 void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier& id)
 {
+	MessageManagerLock mm;
+
 	if (v == v_ && ids.contains(id))
 	{
 		switch (mode)
