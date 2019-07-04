@@ -499,7 +499,7 @@ public:
 						{
 							float v = re[c][i] * re[c][i] + img[c][i] * img[c][i];
 
-							data[c][i] = std::sqrtf(v);
+							data[c][i] = std::sqrt(v);
 						}
 
 						FloatVectorOperations::multiply(data[c], 1.0f / (float)(lastSize / 2), numSamples/2);

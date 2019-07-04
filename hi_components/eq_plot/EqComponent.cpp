@@ -174,7 +174,7 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 	for (int i = 2; i < size; i += 2)
 	{
-		data[i] = sqrtf(data[i] * data[i] + data[i + 1] * data[i + 1]);
+		data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
 		data[i + 1] = data[i];
 	}
 

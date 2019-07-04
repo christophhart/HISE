@@ -76,7 +76,7 @@ struct ShapeFX::ShapeFunctions
 			auto v = fabsf(input);
 			auto sign = (0.f < input) - (input < 0.0f);
 
-			return (float)sign * sqrtf(v);
+			return (float)sign * sqrt(v);
 		};
 	};
 };

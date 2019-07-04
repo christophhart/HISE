@@ -141,14 +141,14 @@ namespace Operations
 				auto ptr = d.data[i];
 
 				for (int j = 0; j < d.size; j++)
-					ptr[j] = std::tanhf(ptr[j] * value);
+					ptr[j] = std::tanh(ptr[j] * value);
 			}
 		}
 
 		static void opSingle(float* frameData, int numChannels, float value)
 		{
 			for (int i = 0; i < numChannels; i++)
-				frameData[i] = std::tanhf(frameData[i] * value);
+				frameData[i] = std::tanh(frameData[i] * value);
 		}
 	};
 

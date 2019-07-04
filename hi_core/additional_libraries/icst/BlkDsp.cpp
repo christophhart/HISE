@@ -371,7 +371,7 @@ Complex VectorFunctions::goertzel(float* d, int size, int k)
 // d[0..size-1] -> d[[0],[0],[0..1],[0..3],..,[0..size/2-1]]
 void VectorFunctions::hwt(float* d, int size)
 {
-	static const float scl = sqrtf(0.5f);
+	static const float scl = sqrt(0.5f);
 	int i,j,k;
 	float* r; r = new float[size];
 	memcpy(r,d,size*sizeof(float));
@@ -406,7 +406,7 @@ void VectorFunctions::hwt(float* d, int size)
 // d[[0],[0],[0..1],[0..3],..,[0..size/2-1]] -> d[0..size-1]	
 void VectorFunctions::ihwt(float* d, int size)
 {
-	static const float scl = sqrtf(0.5f);
+	static const float scl = sqrt(0.5f);
 	int h,i,j,k;
 	float* r; r = new float[size];
 	memcpy(r,d,size*sizeof(float));
@@ -529,8 +529,8 @@ void VectorFunctions::logspace(float* d, int size, float start, float end)
 	int i=0; double x0=0, x1,x2,x3, delta=0, qdelta;
 	if (start*end > 0) {
 		if (size == 1) {
-			if (start > 0) {d[0] = sqrtf(start*end);}
-			else {d[0] = -sqrtf(start*end);}
+			if (start > 0) {d[0] = sqrt(start*end);}
+			else {d[0] = -sqrt(start*end);}
 			return;
 		}
 		x0 = static_cast<double>(start);
@@ -857,7 +857,7 @@ void VectorFunctions::gnoise(float* d, int size, int apxorder)
 	cs.Leave();							// single thread access off
 #endif
 #else
-    float scl = sqrtf(3.0f/static_cast<float>(apxorder));
+    float scl = sqrt(3.0f/static_cast<float>(apxorder));
 	randsse(d, size, apxorder);
 	mul(d, scl, size);
 #endif
@@ -1166,7 +1166,7 @@ void VectorFunctions::finv(float* d, int size)
 void VectorFunctions::fsqrt(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
-	for (int i=0; i<size; i++) {d[i] = sqrtf(d[i]);}
+	for (int i=0; i<size; i++) {d[i] = sqrt(d[i]);}
 #else
 	__m128 r0; int i=0;
 	while (i <= (size - 4)) {
@@ -2025,7 +2025,7 @@ float VectorFunctions::energy(float* d, int size)
 
 // return L2 vector norm of d: sqrt(<d,d>)
 float VectorFunctions::norm(float* d, int size) {
-	return sqrtf(energy(d,size));}	
+	return sqrt(energy(d,size));}	
 
 // return signal power of d: <d,d>/size
 float VectorFunctions::power(float* d, int size) {
@@ -2033,7 +2033,7 @@ float VectorFunctions::power(float* d, int size) {
 
 // return RMS value of d: sqrt(<d,d>/size)
 float VectorFunctions::rms(float* d, int size) {
-	return sqrtf(energy(d,size)/static_cast<float>(size));}
+	return sqrt(energy(d,size)/static_cast<float>(size));}
 
 // return index of maximum d
 int VectorFunctions::maxi(float* d, int size)
@@ -3734,7 +3734,7 @@ void VectorFunctions::cpxmag(float* d, float* r, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT
 	int i, j=0;
-	for (i=0; i<size; i++) {d[i] = sqrtf(r[j]*r[j] + r[j+1]*r[j+1]); j+=2;}	
+	for (i=0; i<size; i++) {d[i] = sqrt(r[j]*r[j] + r[j+1]*r[j+1]); j+=2;}	
 #else
 	cpxpow(d,r,size);
 	fsqrt(d,size);
@@ -3779,7 +3779,7 @@ void VectorFunctions::cpxpow(float* d, float* r, int size)
 float VectorFunctions::cpxenergy(float* d, int size) {return energy(d,2*size);}
 
 // return L2 vector norm: sqrt(<d,d*>)		
-float VectorFunctions::cpxnorm(float* d, int size) {return sqrtf(energy(d,2*size));}
+float VectorFunctions::cpxnorm(float* d, int size) {return sqrt(energy(d,2*size));}
 
 // return signal power: <d,d*>/size
 float VectorFunctions::cpxpower(float* d, int size) {
@@ -3787,7 +3787,7 @@ float VectorFunctions::cpxpower(float* d, int size) {
 
 // return RMS value of d: sqrt(<d,d*>/size)
 float VectorFunctions::cpxrms(float* d, int size) {
-	return sqrtf(energy(d,2*size)/static_cast<float>(size));}
+	return sqrt(energy(d,2*size)/static_cast<float>(size));}
 
 // normalize d to cpxnorm=1, return norm factor
 float VectorFunctions::cpxnormalize(float* d, int size) {return normalize(d,2*size);}		
@@ -4408,7 +4408,7 @@ void VectorFunctions::cpxcombine(float* d, float* mag, int size)
 	int i=0,j=0; float norm;
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (i=0; i<size; i++,j+=2) {
-		norm = mag[i]/sqrtf(__max(d[j]*d[j] + d[j+1]*d[j+1], FLT_MIN));
+		norm = mag[i]/sqrt(__max(d[j]*d[j] + d[j+1]*d[j+1], FLT_MIN));
 		d[j]*=norm; d[j+1]*=norm;
 	}
 #else
@@ -4486,7 +4486,7 @@ void VectorFunctions::cpxcombine(float* d, float* mag, int size)
 		}
 	}
 	while (j < size) {
-		norm = mag[i]/sqrtf(__max(d[j]*d[j] + d[j+1]*d[j+1], FLT_MIN));
+		norm = mag[i]/sqrt(__max(d[j]*d[j] + d[j+1]*d[j+1], FLT_MIN));
 		d[j]*=norm; d[j+1]*=norm;
 		i++; j+=2;
 	}
@@ -6978,8 +6978,8 @@ float VectorFunctions::grubbs(float* d, int size, int* idx, float* mv)
 	if (size < 3) {return 0;}
 	x = d[i] - m;
 	x = x*x*n;
-	x = sqrtf((n - 2.0f)*x/(v*(n - 1.0f)*(n - 1.0f) - x));
-	tmp = sqrtf(x*x + nu);
+	x = sqrt((n - 2.0f)*x/(v*(n - 1.0f)*(n - 1.0f) - x));
+	tmp = sqrt(x*x + nu);
 	return 2.0f*n*SpecMath::rbeta(0.5f - 0.5f*x/tmp, 0.5f*nu, 0.5f*nu);
 }
 
@@ -6993,34 +6993,34 @@ float VectorFunctions::grubbs(float* d, int size, int* idx, float* mv)
 Complex VectorFunctions::ttest(	float ref, int xsize, float xmean, float xvar,
 					bool onesided, int ysize, float ymean, float yvar, float* t)
 {
-	static const float IEPS = 10.0f/sqrtf(FLT_EPSILON);
+	static const float IEPS = 10.0f/sqrt(FLT_EPSILON);
 	float tt,nu,tmp; Complex r;
 	float nx = static_cast<float>(__max(xsize,2));
 	float ny = static_cast<float>(__max(ysize,2));
 	xvar = __max(xvar,FLT_MIN); yvar = __max(yvar,FLT_MIN);
 	if (ysize <= 0) { // one-sample or paired two-sample
 		nu = nx - 1.0f;
-		r.im = (xmean - ref)/sqrtf(xvar);
-		tt = r.im*sqrtf(nx);
+		r.im = (xmean - ref)/sqrt(xvar);
+		tt = r.im*sqrt(nx);
 	}
 	else { // unpaired two-sample
 		nu = nx + ny - 2.0f;
-		r.im = (xmean - ymean - ref)*sqrtf(nu/((nx-1.0f)*xvar + (ny-1.0f)*yvar));
-		tt = r.im*sqrtf(nx*ny/(nx + ny));
+		r.im = (xmean - ymean - ref)*sqrt(nu/((nx-1.0f)*xvar + (ny-1.0f)*yvar));
+		tt = r.im*sqrt(nx*ny/(nx + ny));
 	}
 	if (t) {t[0] = tt;}
 	nu = __min(nu, 1000000.0f);
 	tmp = fabsf(tt);
 	if (onesided) {
 		if (tmp < (IEPS*nu)) {
-			tmp = tt/sqrtf(tmp*tmp + nu);
+			tmp = tt/sqrt(tmp*tmp + nu);
 			r.re = SpecMath::rbeta(0.5f - 0.5f*tmp, 0.5f*nu, 0.5f*nu);
 		}
 		else {r.re = (tt > 0) ? 0 : 1.0f;}	
 	}
 	else {
 		if (tmp < (IEPS*nu)) {
-			tmp /= sqrtf(tmp*tmp + nu);
+			tmp /= sqrt(tmp*tmp + nu);
 			r.re = 2.0f*SpecMath::rbeta(0.5f - 0.5f*tmp, 0.5f*nu, 0.5f*nu);
 		}
 		else {r.re = 0;}
@@ -7151,7 +7151,7 @@ float VectorFunctions::binomtest(float pa, int asize, int tsize, bool onesided)
 // return cumulative distribution function of the normal distribution
 float VectorFunctions::cdfn(float x, float mean, float std)
 {
-	static const float scl = 1.0f/sqrtf(2.0f);
+	static const float scl = 1.0f/sqrt(2.0f);
 	if (std > 0) {return 0.5f*SpecMath::erfcf(scl*(mean - x)/std);}
 	else {
 		if (x > mean) {return 1.0f;}
@@ -7163,7 +7163,7 @@ float VectorFunctions::cdfn(float x, float mean, float std)
 // return cumulative distribution function complement of the normal distribution
 float VectorFunctions::cdfcn(float x, float mean, float std)
 {
-	static const float scl = 1.0f/sqrtf(2.0f);
+	static const float scl = 1.0f/sqrt(2.0f);
 	if (std > 0) {return 0.5f*SpecMath::erfcf(scl*(x - mean)/std);}
 	else {
 		if (x > mean) {return 0;}

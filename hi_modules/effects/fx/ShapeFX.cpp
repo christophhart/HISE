@@ -370,8 +370,8 @@ void ShapeFX::processBitcrushedValues(float* l, float* r, int numSamples)
 
 
 
-			l[i] = (stepSize * ceilf(l[i] * gainValue * invStepSize) - 0.5f * stepSize) / gainValue;
-			r[i] = (stepSize * ceilf(r[i] * gainValue * invStepSize) - 0.5f * stepSize) / gainValue;
+			l[i] = (stepSize * ceil(l[i] * gainValue * invStepSize) - 0.5f * stepSize) / gainValue;
+			r[i] = (stepSize * ceil(r[i] * gainValue * invStepSize) - 0.5f * stepSize) / gainValue;
 		}
 	}
 }

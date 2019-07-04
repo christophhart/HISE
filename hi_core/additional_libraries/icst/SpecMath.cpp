@@ -20,15 +20,15 @@
 //* functions
 //*
 // inverse hyperbolic sine
-float SpecMath::asinhf(float x) {return logf(x + sqrtf(x*x + 1.0f));}
+float SpecMath::asinhf(float x) {return logf(x + sqrt(x*x + 1.0f));}
 double SpecMath::asinh(double x) {return log(x + sqrt(x*x + 1.0));}
 
 // inverse hyperbolic cosine
-float SpecMath::acoshf(float x) {return logf(x + sqrtf(x*x - 1.0f));}
+float SpecMath::acoshf(float x) {return logf(x + sqrt(x*x - 1.0f));}
 double SpecMath::acosh(double x) {return log(x + sqrt(x*x - 1.0));}
 
 // inverse hyperbolic tangent
-float SpecMath::atanhf(float x) {return 0.5f*logf((1.0f + x)/(1.0f - x));}
+float SpecMath::atanh(float x) {return 0.5f*logf((1.0f + x)/(1.0f - x));}
 double SpecMath::atanh(double x) {return 0.5*log((1.0 + x)/(1.0 - x));}
 
 // error function, taken from Ooura's math packages
@@ -553,7 +553,7 @@ float SpecMath::bessj(float x, int n)
 		if (fabs(xd) < static_cast<double>(FLT_MIN)) {return 0;} 
 		if (n < 30) {m = mtab[n];}		// m must be even, theoretically
 		else {							// cubic root but sqrt suffices
-			m = ((n>>1) + 6 + static_cast<int>(sqrtf(static_cast<float>(n))))<<1;
+			m = ((n>>1) + 6 + static_cast<int>(sqrt(static_cast<float>(n))))<<1;
 		}
 		a = norm = 0;
 		b = 1.0;						// just any nonzero value 
@@ -671,12 +671,12 @@ fr:	// if degree < 3: find roots and terminate
 		else if (cnt == (d-2)) {
 			tre = k[d-1]*k[d-1] - 4.0f*k[d]*k[d-2];
 			if (tre >= 0) {
-				tre = sqrtf(tre); tim = -0.5f/k[d];
+				tre = sqrt(tre); tim = -0.5f/k[d];
 				r[ridx] = tim*(k[d-1] - tre); r[ridx+2] = tim*(k[d-1] + tre);
 				r[ridx+1] = 0; r[ridx+3] = 0;
 			}
 			else {
-				tre = sqrtf(-tre); tim = -0.5f/k[d];
+				tre = sqrt(-tre); tim = -0.5f/k[d];
 				r[ridx] = r[ridx+2] = tim*k[d-1];
 				r[ridx+1] = tim*tre; r[ridx+3] = -r[ridx+1];	
 			}
@@ -727,10 +727,10 @@ it:
 		ure = pre*pd2re - pim*pd2im; uim = pre*pd2im + pim*pd2re;
 		tre = nm1*tre - n*ure; tim = nm1*tim - n*uim;
 		tre *= nm1; tim *= nm1;
-		temp = sqrtf(tre*tre + tim*tim);
-		if (tim >= 0) {tim = sqrtf(0.5f*(temp - tre));}
-		else {tim = -sqrtf(0.5f*(temp - tre));}
-		tre = sqrtf(0.5f*(temp + tre));
+		temp = sqrt(tre*tre + tim*tim);
+		if (tim >= 0) {tim = sqrt(0.5f*(temp - tre));}
+		else {tim = -sqrt(0.5f*(temp - tre));}
+		tre = sqrt(0.5f*(temp + tre));
 		if ((pdre*tre + pdim*tim) >= 0) {pdre += tre; pdim += tim;}
 		else {pdre -= tre; pdim -= tim;}
 		ure = pdre*pdre + pdim*pdim;
@@ -752,7 +752,7 @@ it:
 	}
 
 	// deflate polynomial
-	eps *= sqrtf(eps);							// a measure whether close roots
+	eps *= sqrt(eps);							// a measure whether close roots
 	ure = xre*xre; uim = xim*xim;				// should form a conjugate pair
 	if (uim <= (eps*ure)) {						// real root
 		r[ridx] = xre; r[ridx+1] = 0;
@@ -1562,7 +1562,7 @@ void SpecMath::fqbessel(float* f, float* q, int d)
 void SpecMath::fqcheby(float* f, float* q, float rdb, int d)
 {
 	float a = 1.0f/static_cast<float>(d), b=0.5f;
-	float g = a*asinhf(1.0f/sqrtf(expf(logf(10.0f)*0.1f*fabsf(rdb)) - 1.0f));
+	float g = a*asinhf(1.0f/sqrt(expf(logf(10.0f)*0.1f*fabsf(rdb)) - 1.0f));
 	float c = coshf(g); c *= c;
 	float e = sinhf(g);
 	float x;
@@ -1570,7 +1570,7 @@ void SpecMath::fqcheby(float* f, float* q, float rdb, int d)
 	a *= M_PI_FLOAT;
 	for (int i=0; i<(d/2); i++) {
 		x = cosf(a*b);
-		f[i] = sqrtf(c - x*x);
+		f[i] = sqrt(c - x*x);
 		q[i] = 0.5f*f[i]/(e*x);
 		b += 1.0f;
 	}
@@ -1610,10 +1610,10 @@ void SpecMath::fqbandpass(float* f, float* q, float* g, float fc, float bw,
 	float a,b,c,d,e,bws;
 	if (fs > 0) {						
 		a = M_PI_FLOAT/fs; b = 1.0f/a;
-		c = sqrtf(bw*bw + 4.0f*fc*fc);
+		c = sqrt(bw*bw + 4.0f*fc*fc);
 		d = tanf(0.5f*a*(c + bw)); e = tanf(0.5f*a*(c - bw));
 		bw = b*(d - e);
-		fc = b*sqrtf(d*e);
+		fc = b*sqrt(d*e);
 	}
 	for (int i=n-1; i>=0; i--) {
 		if (q[i] < 0.5f) {							// use 1 biquad
@@ -1626,8 +1626,8 @@ void SpecMath::fqbandpass(float* f, float* q, float* g, float fc, float bw,
 			bws = bw*bw;
 			a = 4.0f*fc*fc;
 			b = bws + a;
-			c = 0.5f*(b + sqrtf(b*b - a*bws/(q[i]*q[i])));
-			d = sqrtf(c), e = sqrtf(c - a);
+			c = 0.5f*(b + sqrt(b*b - a*bws/(q[i]*q[i])));
+			d = sqrt(c), e = sqrt(c - a);
 			f[2*i] = 0.5f*(d - e);
 			f[2*i+1] = 0.5f*(d + e);
 			q[2*i] = q[2*i+1] = q[i]*d/bw;

@@ -229,10 +229,10 @@ struct ResynthesisHelpers
 			for (int i = 0; i < size / 2; i++)
 			{
 				magL[i] = dl[2 * i] * dl[2 * i] + dl[2 * i + 1] * dl[2 * i + 1];
-				magL[i] = sqrtf(magL[i]);
+				magL[i] = sqrt(magL[i]);
 
 				magR[i] = dr[2 * i] * dr[2 * i] + dr[2 * i + 1] * dr[2 * i + 1];
-				magR[i] = sqrtf(magR[i]);
+				magR[i] = sqrt(magR[i]);
 			}
 
 			auto halfSize = (double)size / 2.0;

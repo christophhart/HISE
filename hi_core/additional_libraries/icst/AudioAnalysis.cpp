@@ -66,7 +66,7 @@
 		if ((freq) || (time)) {
 			VectorFunctions::cpxcopy(temp,d,hsize);
 			x = 1e-6f*VectorFunctions::cpxrms(temp,hsize);	// prevent large reassignment
-			x = __max(x,2.0f*sqrtf(FLT_MIN));		// error for near 0 components
+			x = __max(x,2.0f*sqrt(FLT_MIN));		// error for near 0 components
 			VectorFunctions::cpxprune(temp,x,x,hsize);		// allowing 120 dB dynamic range							
 			VectorFunctions::cpxinv(temp,hsize);				
 		}
@@ -101,7 +101,7 @@
 				pp1 = d[j+2]*d[j+2] + d[j+3]*d[j+3];	// and next bin
 				if ((pm1 <= p) && (p > pp1))			// local power max? -> peak
 				{										// calc. reassigned amplitude
-					y = sqrtf(p);
+					y = sqrt(p);
 					pm1 = logf(pm1 + FLT_MIN);
 					p = logf(p + FLT_MIN);
 					pp1 = logf(pp1 + FLT_MIN);
@@ -126,7 +126,7 @@
 				{										// calc. reassigned amplitude
 					x *= x;								
 					x = 1.0f+(aic[0]+(aic[1]+(aic[2]+aic[3]*x)*x)*x)*x;
-					amp[i] = 2.0f*x*sqrtf(p);
+					amp[i] = 2.0f*x*sqrt(p);
 					i+=2; j+=4;							// next bin can't be a peak
 				}
 				else {amp[i]=0; i++; j+=2;}				// no peak
@@ -799,7 +799,7 @@
 			for (i=0; i<size; i++) {
 				x = d[i]*d[i] + ANTI_DENORMAL_FLOAT*ANTI_DENORMAL_FLOAT; 
 				if (x > c) {c += (atime*(x - c));} else {c += (rtime*(x - c));}
-				r[i] = sqrtf(c);
+				r[i] = sqrt(c);
 			}
 		}
 	#else
@@ -1199,7 +1199,7 @@
 		float n = VectorFunctions::norm(d+1,size-1);
 		float x = n*c[0];
 		c[0] = n;
-		if (x >= FLT_MIN) {x = sqrtf(fabsf(1.0f - VectorFunctions::dotp(c+1,d+1,size-1)/x));}
+		if (x >= FLT_MIN) {x = sqrt(fabsf(1.0f - VectorFunctions::dotp(c+1,d+1,size-1)/x));}
 		else {x = 0;}
 		VectorFunctions::copy(c+1,d+1,size-1);
 		return x;
