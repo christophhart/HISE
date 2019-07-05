@@ -1095,8 +1095,6 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 	
 		circularInputBuffer.writeSamples(buffer, 0, buffer.getNumSamples());
 
-		jassert(ok);
-
 		INSTRUMENT_ONLY(circularInputBuffer.writeMidiEvents(midiMessages, 0, buffer.getNumSamples()));
 		INSTRUMENT_ONLY(buffer.clear());
 
