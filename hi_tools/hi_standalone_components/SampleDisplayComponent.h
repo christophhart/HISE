@@ -163,8 +163,18 @@ private:
 		if (synchronously)
 		{
 			isClear = true;
-			repaint();
+			
 			loadingThread.run();
+
+			Component::SafePointer<Component> thisSafe = this;
+
+			auto f = [thisSafe]()
+			{
+				if (thisSafe.getComponent() != nullptr)
+					thisSafe.getComponent()->repaint();
+			};
+
+			MessageManager::callAsync(f);
 		}
 		else
 		{

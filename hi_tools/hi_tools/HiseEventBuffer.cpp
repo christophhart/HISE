@@ -56,6 +56,8 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	
 	number = data[1];
 	value = data[2];
+
+	setTimeStamp((int)message.getTimeStamp());
 }
 
 HiseEvent::HiseEvent(Type type_, uint8 number_, uint8 value_, uint8 channel_ /*= 1*/) :
