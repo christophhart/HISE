@@ -917,6 +917,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 					newNoteOff.setEventId(on_id);
 					newNoteOff.setTimeStamp(noteOffTimeStamp);
+					newNoteOff.setTimeStamp(noteOffTimeStamp);
 
 					if (noteOffTimeStamp < numSamples)
 						buffer.addEvent(newNoteOff);
@@ -980,6 +981,14 @@ void MidiPlayer::removeSequenceListener(SequenceListener* listenerToRemove)
 	sequenceListeners.removeAllInstancesOf(listenerToRemove);
 }
 
+void MidiPlayer::sendPlaybackChangeMessage(int timestamp)
+{
+	if (!playbackListeners.isEmpty())
+	{
+		for (auto pl : playbackListeners)
+			pl->playbackChanged(timestamp, playState);
+	}
+}
 
 void MidiPlayer::sendSequenceUpdateMessage(NotificationType notification)
 {
@@ -1135,6 +1144,9 @@ bool MidiPlayer::play(int timestamp)
 		playState = PlayState::Play;
 		timeStampForNextCommand = timestamp;
 		
+		sendPlaybackChangeMessage(timestamp);
+
+
 		return true;
 	}
 		
@@ -1154,6 +1166,10 @@ bool MidiPlayer::stop(int timestamp)
 		playState = PlayState::Stop;
 		timeStampForNextCommand = timestamp;
 		currentPosition = -1.0;
+		
+		sendPlaybackChangeMessage(timestamp);
+
+
 		return true;
 	}
 		

@@ -195,6 +195,23 @@ class MidiPlayer : public MidiProcessor,
 {
 public:
 
+	enum class PlayState
+	{
+		Stop,
+		Play,
+		Record,
+		numPlayStates
+	};
+
+	struct PlaybackListener
+	{
+		virtual ~PlaybackListener() {}
+
+		virtual void playbackChanged(int timestamp, PlayState newState) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(PlaybackListener);
+	};
+
 	/** A Listener that will be notified when a new HiseMidiSequence was loaded. */
 	struct SequenceListener
 	{
@@ -259,14 +276,7 @@ public:
 	/**@ internal */
 	void tempoChanged(double newTempo) override;
 
-	enum class PlayState
-	{
-		Stop,
-		Play,
-		Record,
-		numPlayStates
-	};
-
+	
 	enum class RecordState
 	{
 		Idle,
@@ -391,6 +401,8 @@ public:
 		by passing in the timestamp of the current event within the buffer. */
 	bool stop(int timestampInBuffer=0);
 
+	double getTicksPerSample() const { return ticksPerSample; }
+
 	/** Starts recording. If the sequence is already playing, it switches into overdub mode, otherwise it also starts playing. */
 	bool record(int timestampInBuffer=0);
 
@@ -408,10 +420,23 @@ public:
 
 	bool saveAsMidiFile(const String& fileName, int trackIndex);
 
+	void addPlaybackListener(PlaybackListener* l)
+	{
+		playbackListeners.addIfNotAlreadyThere(l);
+	}
+
+	void removePlaybackListener(PlaybackListener* l)
+	{
+		playbackListeners.removeAllInstancesOf(l);
+	}
+
 private:
 
-	Array<HiseEvent> currentlyRecordedEvents;
+	void sendPlaybackChangeMessage(int timestamp);
 
+	Array<WeakReference<PlaybackListener>> playbackListeners;
+
+	Array<HiseEvent> currentlyRecordedEvents;
 
 	std::atomic<RecordState> recordState{ RecordState::Idle};
 
