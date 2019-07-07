@@ -107,7 +107,13 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 	if (!wholeBufferProcessors.isEmpty())
 	{
 		for (auto wmp : wholeBufferProcessors)
+		{
 			wmp->preprocessBuffer(buffer, numSamples);
+			buffer.alignEventsToRaster<HISE_EVENT_RASTER>(numSamples);
+		}
+			
+
+		
 	}
 
 	if (buffer.isEmpty() && futureEventBuffer.isEmpty() && artificialEvents.isEmpty()) return;
