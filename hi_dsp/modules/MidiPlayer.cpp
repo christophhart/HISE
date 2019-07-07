@@ -263,8 +263,6 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 		ScopedPointer<MidiMessageSequence> newSequence = new MidiMessageSequence(*file.getTrack(i));
 		newSequence->deleteSysExMessages();
 
-		DBG("Track " + String(i + 1));
-
 		for (int j = 0; j < newSequence->getNumEvents(); j++)
 		{
 			if (newSequence->getEventPointer(j)->message.isMetaEvent())

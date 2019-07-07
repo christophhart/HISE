@@ -420,33 +420,7 @@ bool DspNetwork::updateIdsInValueTree(ValueTree& v, StringArray& usedIds)
 	auto newId = getNonExistentId(oldId, usedIds);
 
 	if (oldId != newId)
-	{
 		v.setProperty(PropertyIds::ID, newId, signalPath->getUndoManager());
-
-#if 0
-		auto um = signalPath->getUndoManager();
-
-		DBG("_______________________________________________________");
-		DBG("New: " + newId + ", old: " + oldId);
-		DBG("Update ID in " + v.createXml()->createDocument(""));
-
-		auto updateIds = [newId, oldId, um](ValueTree& v)
-		{
-			auto oldConnection = v[PropertyIds::Connection].toString();
-
-			if (oldConnection.contains(oldId))
-			{
-				auto newConnection = oldConnection.replace(oldId, newId);
-				DBG("Update " + oldConnection + " to " + newConnection);
-				v.setProperty(PropertyIds::Connection, newConnection, um);
-			};
-
-			return false;
-		};
-
-		valuetree::Helpers::foreach(v, updateIds);
-#endif
-	}
 
 	auto nodeTree = v.getChildWithName(PropertyIds::Nodes);
 
@@ -492,9 +466,6 @@ void DspNetwork::updateIdInConnection(NodeBase* n, const String& oldId, const St
 
 	auto um = signalPath->getUndoManager();
 
-	DBG("_______________________________________________________");
-	DBG("New: " + newId + ", old: " + oldId);
-	
 	auto updateIds = [newId, oldId, um](ValueTree& v)
 	{
 		auto oldConnection = v[PropertyIds::Connection].toString();
@@ -502,7 +473,6 @@ void DspNetwork::updateIdInConnection(NodeBase* n, const String& oldId, const St
 		if (oldConnection.contains(oldId))
 		{
 			auto newConnection = oldConnection.replace(oldId, newId);
-			DBG("Update " + oldConnection + " to " + newConnection);
 			v.setProperty(PropertyIds::Connection, newConnection, um);
 		};
 
@@ -551,8 +521,6 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 
 	valuetree::Helpers::foreach(c, setNewId);
 
-	DBG("Changed IDS:");
-
 	for (auto& ch : changes)
 		changeNodeId(c, ch.oldId, ch.newId, nullptr);
 
@@ -561,8 +529,6 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 
 void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& newId, UndoManager* um)
 {
-	DBG(oldId + " -> " + newId);
-
 	auto updateParameter = [oldId, newId, um](ValueTree& v)
 	{
 		if (v.hasType(PropertyIds::Parameter))
@@ -572,7 +538,6 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 			if (conId.contains(oldId))
 			{
 				auto newConId = conId.replace(oldId, newId);
-				DBG("Update " + conId + " - >" + newConId);
 				v.setProperty(PropertyIds::Connection, newConId, um);
 			}
 		}
@@ -590,7 +555,6 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 
 			if (nId == oldId)
 			{
-				DBG("Update connection ");
 				v.setProperty(PropertyIds::NodeId, newId, um);
 			}
 		}
@@ -609,7 +573,6 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 
 			if (oldValue == oldId)
 			{
-				DBG("Update feedback connection");
 				v.setProperty(PropertyIds::Value, newId, um);
 			}
 		}

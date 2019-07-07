@@ -110,6 +110,8 @@ private:
     MidSideDecoder msDecoder;
     
 	float pan;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(StereoEffect);
 };
 
 

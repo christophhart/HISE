@@ -923,7 +923,8 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 
 void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 {
-	jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread);
+	jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread ||
+	LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
 
 	switch (repeatMode)
 	{

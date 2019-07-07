@@ -560,9 +560,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		return;
 #endif
 
-	
-
-
 	ScopedTryLock sl(processLock);
 
 	if (!sl.isLocked())
@@ -580,7 +577,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		return;
 	}
-
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
