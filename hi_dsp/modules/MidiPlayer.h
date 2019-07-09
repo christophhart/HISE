@@ -57,12 +57,11 @@ class HiseMidiSequence : public ReferenceCountedObject,
 {
 public:
 
-	struct TimeSignature
+	struct TimeSignature: public RestorableObject
 	{
 		double numBars = 0.0;
 		double nominator = 4.0;
 		double denominator = 4.0;
-		double preferredTempo = 120.0;
 
 		void calculateNumBars(double lengthInQuarters)
 		{
@@ -74,7 +73,22 @@ public:
 			return numBars / denominator * 4.0 * nominator;
 		}
 
-		
+		ValueTree exportAsValueTree() const override
+		{
+			ValueTree v("TimeSignature");
+			v.setProperty("NumBars", numBars, nullptr);
+			v.setProperty("Nominator", nominator, nullptr);
+			v.setProperty("Denominator", denominator, nullptr);
+
+			return v;
+		}
+
+		void restoreFromValueTree(const ValueTree &v) override
+		{
+			numBars = v.getProperty("NumBars", 0.0);
+			nominator = v.getProperty("Nominator", 4.0);
+			denominator = v.getProperty("Denominator", 4.0);
+		}
 
 	};
 

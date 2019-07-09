@@ -123,6 +123,8 @@ juce::ValueTree HiseMidiSequence::exportAsValueTree() const
 	ValueTree v("MidiFile");
 	v.setProperty("ID", id.toString(), nullptr);
 
+	v.addChild(signature.exportAsValueTree(), -1, nullptr);
+
 	MemoryOutputStream mos;
 
 	MidiFile currentFile;
@@ -163,6 +165,14 @@ void HiseMidiSequence::restoreFromValueTree(const ValueTree &v)
 		MidiFile mf;
 		mf.readFrom(mis);
 		loadFrom(mf);
+
+		auto tsData = v.getChildWithName("TimeSignature");
+
+		if (tsData.isValid())
+		{
+			signature.restoreFromValueTree(tsData);
+			setLengthFromTimeSignature(signature);
+		}
 	}
 }
 
