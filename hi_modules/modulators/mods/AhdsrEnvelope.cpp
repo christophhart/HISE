@@ -157,7 +157,6 @@ void AhdsrEnvelope::setDecayRate(float rate)
 
 void AhdsrEnvelope::setReleaseRate(float rate)
 {
-    
 	release = jmax<float>(1.0f, rate);
 
     releaseCoef = calcCoef(release, targetRatioDR);
@@ -464,6 +463,13 @@ bool AhdsrEnvelope::isPlaying(int voiceIndex) const
 
 void AhdsrEnvelope::calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const
 {
+	if (timeInMilliSeconds < 1.0f)
+	{
+		stateCoeff = 0.0f;
+		stateBase = 1.0f;
+		return;
+	}
+
 	const float t = (timeInMilliSeconds / 1000.0f) * (float)getSampleRateForCurrentMode();
 	const float exp1 = (powf(base, 1.0f / t));
 	const float invertedBase = 1.0f / (base - 1.0f);
