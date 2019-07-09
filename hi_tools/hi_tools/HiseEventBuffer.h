@@ -407,6 +407,9 @@ public:
 		memset(eventToClear, 0, sizeof(HiseEvent) * numEvents);
 	}
 
+	/** Returns a string for debugging purposes. */
+	String toDebugString() const;
+
 	struct ChannelFilterData
 	{
 		ChannelFilterData():

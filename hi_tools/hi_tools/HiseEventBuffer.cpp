@@ -310,6 +310,19 @@ void HiseEvent::setSongPositionValue(int positionInMidiBeats)
 	value = (positionInMidiBeats >> 7) & 127;
 }
 
+juce::String HiseEvent::toDebugString() const
+{
+	String s;
+
+	s << getTypeAsString() << ", Number: " << number << ", Value: " << value;
+	s << ", Channel: " << channel;
+	s << ", Timestamp: " << getTimeStamp();
+	s << (isArtificial() ? ", artficial" : "");
+	s << (isIgnored() ? ", ignored" : "");
+
+	return s;
+}
+
 HiseEventBuffer::HiseEventBuffer()
 {
 	numUsed = HISE_EVENT_BUFFER_SIZE;
@@ -353,6 +366,14 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 		if (timestampInBuffer > messageTimestamp)
 		{
 			insertEventAtPosition(hiseEvent, i);
+
+#if JUCE_DEBUG
+			if (!timeStampsAreSorted())
+			{
+				for (int j = 0; j < numToLookFor; j++)
+					DBG(buffer[j].toDebugString());
+			}
+#endif
 
 			jassert(timeStampsAreSorted());
 
