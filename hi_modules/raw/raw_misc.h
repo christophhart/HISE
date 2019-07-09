@@ -545,6 +545,12 @@ public:
 			useLoadingThread = shouldUseLoadingThread;
 		}
 
+		/** Returns the processor that this connection is operating on. */
+		Processor* getProcessor() { return processor.get(); }
+
+		/** Returns the processor that this connection is operating on. */
+		const Processor* getProcessor() const { return processor.get(); }
+
 	protected:
 
 		/** Call this method from your subclass's listener callback. */
