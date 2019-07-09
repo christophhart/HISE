@@ -57,6 +57,27 @@ class HiseMidiSequence : public ReferenceCountedObject,
 {
 public:
 
+	struct TimeSignature
+	{
+		double numBars = 0.0;
+		double nominator = 4.0;
+		double denominator = 4.0;
+		double preferredTempo = 120.0;
+
+		void calculateNumBars(double lengthInQuarters)
+		{
+			numBars = lengthInQuarters * denominator / 4.0 / nominator;
+		}
+		
+		double getNumQuarters() const
+		{
+			return numBars / denominator * 4.0 * nominator;
+		}
+
+		
+
+	};
+
 	/** The internal resolution (set to a sensible high default). */
 	static constexpr int TicksPerQuarter = 960;
 
@@ -91,11 +112,16 @@ public:
 	/** Forces the length of the sequence to this value. If you want to use the original length, pass in -1.0. */
 	void setLengthInQuarters(double newLength);
 
+	/** Uses a time signature object to set the length. */
+	void setLengthFromTimeSignature(TimeSignature s);
+
 	/** Creates a temporary MIDI file with the content of this sequence.
 		
 		This is used by the drag to external target functionality.
 	*/
 	File writeToTempFile();
+
+	TimeSignature getTimeSignature() const { return signature; }
 
 	/** Sets the ID of this sequence. */
 	void setId(const Identifier& newId);
@@ -147,6 +173,8 @@ public:
 	void createEmptyTrack();
 
 private:
+
+	TimeSignature signature;
 
 	/** A simple, non reentrant lock with read-write access. */
 	struct SimpleReadWriteLock
@@ -257,8 +285,7 @@ public:
 
 	private:
 
-		
-		
+		HiseMidiSequence::TimeSignature oldSig;
 
 		WeakReference<MidiPlayer> currentPlayer;
 		Array<HiseEvent> newEvents;
@@ -267,6 +294,48 @@ public:
 		double bpm;
 		Identifier sequenceId;
 	};
+
+
+	struct TimesigUndo : public UndoableAction
+	{
+		TimesigUndo(MidiPlayer* player_, HiseMidiSequence::TimeSignature newSig_) :
+			player(player_),
+			sequence(player_->getCurrentSequence()),
+			oldSig(sequence->getTimeSignature()),
+			newSig(newSig_)
+		{}
+
+		bool perform() override
+		{
+			if (sequence != nullptr)
+			{
+				sequence->setLengthFromTimeSignature(newSig);
+				player->sendSequenceUpdateMessage(sendNotification);
+
+				return true;
+			}
+				
+			return false;
+		}
+
+		bool undo() override
+		{
+			if (sequence != nullptr)
+			{
+				sequence->setLengthFromTimeSignature(oldSig);
+				player->sendSequenceUpdateMessage(sendNotification);
+				return true;
+			}
+				
+			return false;
+		}
+
+		WeakReference<MidiPlayer> player;
+		WeakReference<HiseMidiSequence> sequence;
+		HiseMidiSequence::TimeSignature oldSig;
+		HiseMidiSequence::TimeSignature newSig;
+	};
+
 
 	SET_PROCESSOR_NAME("MidiPlayer", "MIDI Player", "A player for MIDI sequences.");
 
@@ -380,6 +449,8 @@ public:
 	{
 		flushRecordedEvents = shouldFlushRecording;
 	}
+
+	void setLength(HiseMidiSequence::TimeSignature sig, bool useUndoManager=true);
 
 	/** Resets the current sequence back to its pooled state. This operation is undo-able. */
 	void resetCurrentSequence();

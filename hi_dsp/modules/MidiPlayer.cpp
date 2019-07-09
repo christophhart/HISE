@@ -249,7 +249,13 @@ double HiseMidiSequence::getLengthInQuarters()
 void HiseMidiSequence::setLengthInQuarters(double newLength)
 {
 	artificialLengthInQuarters = newLength;
-	
+	signature.calculateNumBars(artificialLengthInQuarters);
+}
+
+void HiseMidiSequence::setLengthFromTimeSignature(TimeSignature s)
+{
+	signature = s;
+	setLengthInQuarters(signature.getNumQuarters());
 }
 
 void HiseMidiSequence::loadFrom(const MidiFile& file)
@@ -258,10 +264,26 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 
 	MidiFile normalisedFile;
 
+	MidiMessageSequence times;
+
+	file.findAllTimeSigEvents(times);
+	
+
+	int nom, denom;
+	double preferredTempo = 120.0;
+
+	for (auto te : times)
+		te->message.getTimeSignatureInfo(nom, denom);
+
+	signature.nominator = (double)nom;
+	signature.denominator = (double)denom;
+
 	for (int i = 0; i < file.getNumTracks(); i++)
 	{
 		ScopedPointer<MidiMessageSequence> newSequence = new MidiMessageSequence(*file.getTrack(i));
 		newSequence->deleteSysExMessages();
+
+		
 
 		for (int j = 0; j < newSequence->getNumEvents(); j++)
 		{
@@ -274,6 +296,8 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 	}
 
 	normalisedFile.setTicksPerQuarterNote(TicksPerQuarter);
+
+	signature.calculateNumBars(file.getLastTimestamp() / TicksPerQuarter);
 
 	for (int i = 0; i < normalisedFile.getNumTracks(); i++)
 	{
@@ -434,7 +458,33 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 		{
 			auto m = ev->message;
 
-			auto timeStamp = (int)(samplePerQuarter * m.getTimeStamp() / (double)HiseMidiSequence::TicksPerQuarter);
+			if (m.getTimeStamp() >= getLength())
+			{
+				if (m.isNoteOn())
+					continue;
+				else
+				{
+					bool skipThisNoteOff = true;
+
+					for (const auto& no : *mSeq)
+					{
+						if (no->noteOffObject == ev)
+						{
+							if (no->message.getTimeStamp() < getLength())
+								skipThisNoteOff = false;
+
+							break;
+						}
+					}
+
+					if (skipThisNoteOff)
+						continue;
+				}
+			}
+			
+			auto tToUse = jmin(getLength() - 1, m.getTimeStamp());
+
+			auto timeStamp = (int)(samplePerQuarter * tToUse / (double)HiseMidiSequence::TicksPerQuarter);
 			HiseEvent newEvent(m);
 			newEvent.setTimeStamp(timeStamp);
 
@@ -476,8 +526,11 @@ MidiPlayer::EditAction::EditAction(WeakReference<MidiPlayer> currentPlayer_, con
 	bpm(bpm_)
 {
 	if (auto seq = currentPlayer->getCurrentSequence())
+	{
 		oldEvents = seq->getEventList(sampleRate, bpm);
-
+		oldSig = seq->getTimeSignature();
+	}
+		
 	if (currentPlayer == nullptr)
 		return;
 
@@ -494,6 +547,7 @@ bool MidiPlayer::EditAction::perform()
 							 bpm,
 							 sampleRate);
 
+		currentPlayer->getCurrentSequence()->setLengthFromTimeSignature(oldSig);
 		currentPlayer->updatePositionInCurrentSequence();
 		currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
 		return true;
@@ -511,6 +565,7 @@ bool MidiPlayer::EditAction::undo()
 			                 bpm,
 							 sampleRate);
 
+		currentPlayer->getCurrentSequence()->setLengthFromTimeSignature(oldSig);
 		currentPlayer->updatePositionInCurrentSequence();
 		currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
 		return true;
@@ -746,7 +801,7 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 		if (auto seq = getCurrentSequence())
 			lastLength = seq->getLengthInQuarters();
 
-		currentSequenceIndex = jlimit<int>(-1, currentSequences.size(), (int)(newAmount - 1)); 
+		currentSequenceIndex = jlimit<int>(-1, currentSequences.size()-1, (int)(newAmount - 1)); 
 
 		currentlyRecordedEvents.clear();
 		recordState.store(RecordState::Idle);
@@ -1102,6 +1157,22 @@ void MidiPlayer::clearCurrentSequence()
 {
 	currentlyRecordedEvents.clear();
 	flushEdit({});
+}
+
+void MidiPlayer::setLength(HiseMidiSequence::TimeSignature sig, bool useUndoManager)
+{
+	if (auto seq = getCurrentSequence())
+	{
+		if (useUndoManager && getUndoManager() != nullptr)
+		{
+			getUndoManager()->perform(new TimesigUndo(this, sig));
+		}
+		else
+		{
+			seq->setLengthFromTimeSignature(sig);
+			sendSequenceUpdateMessage(sendNotification);
+		}
+	}
 }
 
 void MidiPlayer::resetCurrentSequence()
