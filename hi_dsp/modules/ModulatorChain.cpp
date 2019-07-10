@@ -1007,6 +1007,7 @@ void ModulatorChain::ModulatorChainHandler::bypassStateChanged(Processor* p, boo
 
 	checkActiveState();
 
+	notifyListeners(Chain::Handler::Listener::EventType::ProcessorOrderChanged, p);
 	notifyPostEventListeners(Chain::Handler::Listener::EventType::ProcessorOrderChanged, p);
 }
 
