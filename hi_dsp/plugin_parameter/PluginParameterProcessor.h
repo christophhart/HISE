@@ -107,6 +107,10 @@ auto busProp = BusesProperties();
     
 	virtual ~PluginParameterAudioProcessor() {};
 
+	void handleLatencyInPrepareToPlay(double samplerate);
+
+	void handleLatencyWhenBypassed(AudioSampleBuffer& buffer, MidiBuffer& );
+
 	void setScriptedPluginParameter(Identifier id, float newValue);
 	void addScriptedParameters();
 
@@ -127,6 +131,9 @@ auto busProp = BusesProperties();
 	void changeProgramName (int , const String& ) {};
     
 	String name;
+
+	OwnedArray<DelayLine<8192>> bypassedLatencyDelays;
+	int lastLatencySamples = 0;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginParameterAudioProcessor)

@@ -236,7 +236,7 @@ public:
 		midiMessages.clear();
 		allNotesOff();
 #else
-		ignoreUnused(buffer, midiMessages);
+		handleLatencyWhenBypassed(buffer, midiMessages);
 #endif
 		
 	};

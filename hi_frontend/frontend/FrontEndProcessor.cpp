@@ -376,10 +376,16 @@ const String FrontendProcessor::getName(void) const
 
 void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
+
+
     getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 
-#if FRONTEND_IS_PLUGIN && HI_SUPPORT_MONO_CHANNEL_LAYOUT
+#if FRONTEND_IS_PLUGIN
+	handleLatencyInPrepareToPlay(newSampleRate);
+	
+#if HI_SUPPORT_MONO_CHANNEL_LAYOUT
 	ProcessorHelpers::increaseBufferIfNeeded(stereoCopy, samplesPerBlock);
+#endif
 #endif
 };
 

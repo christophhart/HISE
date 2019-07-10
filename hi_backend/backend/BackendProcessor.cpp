@@ -133,6 +133,13 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 	getDelayedRenderer().processWrapped(buffer, midiMessages);
 };
 
+void BackendProcessor::processBlockBypassed(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
+{
+	buffer.clear();
+	midiMessages.clear();
+	//allNotesOff();
+}
+
 void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &/*midiMessages*/)
 {
 	
@@ -143,6 +150,8 @@ void BackendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
 	setRateAndBufferSizeDetails(newSampleRate, samplesPerBlock);
  
+	handleLatencyInPrepareToPlay(newSampleRate);
+
 	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 };
 

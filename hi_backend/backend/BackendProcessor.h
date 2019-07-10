@@ -95,12 +95,7 @@ public:
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
-	virtual void processBlockBypassed (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
-	{
-		buffer.clear();
-		midiMessages.clear();
-		//allNotesOff();
-	};
+	virtual void processBlockBypassed (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);;
 
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
 

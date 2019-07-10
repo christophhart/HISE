@@ -70,6 +70,41 @@ void PluginParameterAudioProcessor::addScriptedParameters()
 	}
 }
 
+
+void PluginParameterAudioProcessor::handleLatencyInPrepareToPlay(double samplerate)
+{
+	if (getLatencySamples() != lastLatencySamples && getLatencySamples() != 0)
+	{
+		lastLatencySamples = getLatencySamples();
+		updateHostDisplay();
+
+		int numChannels = AudioProcessor::getBusesLayout().getMainOutputChannels();
+
+		bypassedLatencyDelays.clear();
+
+		for (int i = 0; i < numChannels; i++)
+		{
+			bypassedLatencyDelays.add(new DelayLine<8192>());
+			bypassedLatencyDelays.getLast()->prepareToPlay(newSampleRate);
+			bypassedLatencyDelays.getLast()->setFadeTimeSamples(0);
+			bypassedLatencyDelays.getLast()->setDelayTimeSamples(lastLatencySamples);
+		}
+	}
+}
+
+void PluginParameterAudioProcessor::handleLatencyWhenBypassed(AudioSampleBuffer& buffer, MidiBuffer&)
+{
+	if (lastLatencySamples != 0)
+	{
+		jassert(buffer.getNumChannels() < bypassedLatencyDelays.size());
+
+		auto numChannels = jmin(buffer.getNumChannels(), bypassedLatencyDelays.size());
+
+		for (int i = 0; i < numChannels; i++)
+			bypassedLatencyDelays[i]->processBlock(buffer.getWritePointer(0, i), buffer.getNumSamples());
+	}
+}
+
 void PluginParameterAudioProcessor::setScriptedPluginParameter(Identifier id, float newValue)
 {
 	for (int i = 0; i < getNumParameters(); i++)
