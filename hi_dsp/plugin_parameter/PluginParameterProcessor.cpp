@@ -85,7 +85,7 @@ void PluginParameterAudioProcessor::handleLatencyInPrepareToPlay(double samplera
 		for (int i = 0; i < numChannels; i++)
 		{
 			bypassedLatencyDelays.add(new DelayLine<8192>());
-			bypassedLatencyDelays.getLast()->prepareToPlay(newSampleRate);
+			bypassedLatencyDelays.getLast()->prepareToPlay(samplerate);
 			bypassedLatencyDelays.getLast()->setFadeTimeSamples(0);
 			bypassedLatencyDelays.getLast()->setDelayTimeSamples(lastLatencySamples);
 		}
