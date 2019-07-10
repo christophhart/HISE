@@ -999,6 +999,12 @@ public:
 		/** Resets the table with the given index to a 0..1 line. */
 		void reset(int tableIndex);
 
+		/** Restores the state from a base64 encoded string. */
+		void restoreFromBase64(int tableIndex, const String& state);
+
+		/** Exports the state as base64 encoded string. */
+		String exportAsBase64(int tableIndex) const;
+
 		// ============================================================================================================
 		
 		struct Wrapper;

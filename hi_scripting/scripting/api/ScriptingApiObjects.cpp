@@ -2115,6 +2115,8 @@ struct ScriptingObjects::ScriptingTableProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptingTableProcessor, addTablePoint);
 	API_VOID_METHOD_WRAPPER_1(ScriptingTableProcessor, reset);
 	API_VOID_METHOD_WRAPPER_5(ScriptingTableProcessor, setTablePoint);
+	API_METHOD_WRAPPER_1(ScriptingTableProcessor, exportAsBase64);
+	API_VOID_METHOD_WRAPPER_2(ScriptingTableProcessor, restoreFromBase64);
 };
 
 
@@ -2140,6 +2142,8 @@ tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
 	ADD_API_METHOD_3(addTablePoint);
 	ADD_API_METHOD_1(reset);
 	ADD_API_METHOD_5(setTablePoint);
+	ADD_API_METHOD_1(exportAsBase64);
+	ADD_API_METHOD_2(restoreFromBase64);
 }
 
 
@@ -2154,8 +2158,11 @@ void ScriptingObjects::ScriptingTableProcessor::setTablePoint(int tableIndex, in
 		{
 			table->setTablePoint(pointIndex, x, y, curve);
 			table->sendChangeMessage();
+			return;
 		}
 	}
+
+	reportScriptError("No table");
 }
 
 
@@ -2169,8 +2176,11 @@ void ScriptingObjects::ScriptingTableProcessor::addTablePoint(int tableIndex, fl
 		{
 			table->addTablePoint(x, y);
 			table->sendChangeMessage();
+			return;
 		}
 	}
+
+	reportScriptError("No table");
 }
 
 
@@ -2178,14 +2188,42 @@ void ScriptingObjects::ScriptingTableProcessor::reset(int tableIndex)
 {
 	if (tableProcessor != nullptr)
 	{
-		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
-
-		if (table != nullptr)
+		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
 		{
 			table->reset();
 			table->sendChangeMessage();
+			return;
 		}
 	}
+
+	reportScriptError("No table");
+}
+
+void ScriptingObjects::ScriptingTableProcessor::restoreFromBase64(int tableIndex, const String& state)
+{
+	if (tableProcessor != nullptr)
+	{
+		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
+		{
+			table->restoreData(state);
+			table->sendChangeMessage();
+			return;
+		}
+	}
+
+	reportScriptError("No table");
+}
+
+juce::String ScriptingObjects::ScriptingTableProcessor::exportAsBase64(int tableIndex) const
+{
+	if (tableProcessor != nullptr)
+	{
+		if (auto table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex))
+			return table->exportData();
+	}
+
+	reportScriptError("No table");
+	RETURN_IF_NO_THROW("");
 }
 
 // TimerObject ==============================================================================================================
