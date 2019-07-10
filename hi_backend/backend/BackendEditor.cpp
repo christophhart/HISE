@@ -1027,6 +1027,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 
 		newOptions.highlightColour = Colour(SIGNAL_COLOUR);
 		newOptions.backgroundColour = Colours::black.withAlpha(0.8f);
+		newOptions.textColour = Colours::white;
 		newOptions.font = GLOBAL_BOLD_FONT();
 
 		pr->setOptions(newOptions);
