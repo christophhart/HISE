@@ -631,6 +631,7 @@ ScriptCreatedComponentWrapper(content, index)
 
 	cb->setup(getProcessor(), getIndex(), scriptComboBox->name.toString());
 	cb->addListener(this);
+	cb->setLookAndFeel(&plaf);
 
 	component = cb;
 
@@ -664,10 +665,52 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int proper
 			PROPERTY_CASE::ScriptComponent::itemColour2 :
 			PROPERTY_CASE::ScriptComponent::textColour : updateColours(cb); break;
 		PROPERTY_CASE::ScriptComboBox::Items:			 updateItems(cb); break;
+		PROPERTY_CASE::ScriptComboBox::FontName:
+		PROPERTY_CASE::ScriptComboBox::FontSize :
+		PROPERTY_CASE::ScriptComboBox::FontStyle : updateFont(getScriptComponent()); break;
 		PROPERTY_CASE::ScriptSlider::numProperties :
 	default:
 		break;
 	}
+}
+
+void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateFont(ScriptComponent* cb)
+{
+	const String fontName = cb->getScriptObjectProperty(ScriptingApi::Content::ScriptComboBox::FontName).toString();
+	const String fontStyle = cb->getScriptObjectProperty(ScriptingApi::Content::ScriptComboBox::FontStyle).toString();
+	const float fontSize = (float)cb->getScriptObjectProperty(ScriptingApi::Content::ScriptComboBox::FontSize);
+
+	if (fontName == "Oxygen" || fontName == "Default")
+	{
+		if (fontStyle == "Bold")
+			plaf.setComboBoxFont(GLOBAL_BOLD_FONT().withHeight(fontSize));
+		else
+		{
+			plaf.setComboBoxFont(GLOBAL_FONT().withHeight(fontSize));
+		}
+	}
+	else if (fontName == "Source Code Pro")
+	{
+		plaf.setComboBoxFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+	}
+	else
+	{
+		const juce::Typeface::Ptr typeface = dynamic_cast<const Processor*>(contentComponent->getScriptProcessor())->getMainController()->getFont(fontName);
+
+		if (typeface != nullptr)
+		{
+			Font font = Font(typeface).withHeight(fontSize);
+			plaf.setComboBoxFont(font);
+		}
+		else
+		{
+			Font font(fontName, fontStyle, fontSize);
+			plaf.setComboBoxFont(font);
+		}
+	}
+
+	getComponent()->resized();
+	getComponent()->repaint();
 }
 
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateItems(HiComboBox * cb)

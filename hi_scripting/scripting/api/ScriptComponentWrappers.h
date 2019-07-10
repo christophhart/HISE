@@ -584,12 +584,15 @@ public:
 
 		void updateComponent(int index, var newValue) override;
 
-		
+		void updateFont(ScriptComponent* cb);
+
 		void updateValue(var newValue) override;
 
 		void comboBoxChanged(ComboBox* ) override { /*changed(c->getText());*/ };
 
 	private:
+
+		PopupLookAndFeel plaf;
 
 		void updateItems(HiComboBox * cb);
 		void updateColours(HiComboBox * cb);

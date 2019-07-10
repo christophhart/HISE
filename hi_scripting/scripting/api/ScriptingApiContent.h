@@ -844,6 +844,9 @@ public:
 		enum Properties
 		{
 			Items = ScriptComponent::numProperties,
+			FontName,
+			FontSize,
+			FontStyle,
 			numProperties
 		};
 
@@ -853,6 +856,8 @@ public:
 		// ========================================================================================================
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptComboBox"); }
+
+		StringArray getOptionsFor(const Identifier &id) override;
 
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		bool isAutomatable() const override { return true; }

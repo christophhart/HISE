@@ -1651,6 +1651,8 @@ struct ScriptingApi::Content::ScriptLabel::Wrapper
 ScriptingApi::Content::ScriptLabel::ScriptLabel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int) :
 ScriptComponent(base, name)
 {
+	
+
 	ADD_SCRIPT_PROPERTY(i01, "fontName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_NUMBER_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -1751,6 +1753,10 @@ ScriptComponent(base, name)
 {
 	propertyIds.add(Identifier("items"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
 
+	ADD_SCRIPT_PROPERTY(i01, "fontName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_NUMBER_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
+	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+
 	priorityProperties.add(getIdFor(Items));
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
@@ -1758,6 +1764,9 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptComponent::Properties::width, 128);
 	setDefaultValue(ScriptComponent::Properties::height, 32);
 	setDefaultValue(Items, "");
+	setDefaultValue(FontStyle, "plain");
+	setDefaultValue(FontSize, 13.0f);
+	setDefaultValue(FontName, "Default");
 	setDefaultValue(ScriptComponent::Properties::defaultValue, 1);
 	setDefaultValue(ScriptComponent::min, 1.0f);
 	
@@ -1840,6 +1849,30 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	vArray.add({ Properties::Items });
 
 	return vArray;
+}
+
+juce::StringArray ScriptingApi::Content::ScriptComboBox::getOptionsFor(const Identifier &id)
+{
+	StringArray sa;
+
+	int index = propertyIds.indexOf(id);
+
+	Font f("Arial", 13.0f, Font::plain);
+
+	switch (index)
+	{
+	case FontStyle:	sa.addArray(f.getAvailableStyles());
+		break;
+	case FontName:	sa.add("Default");
+		sa.add("Oxygen");
+		sa.add("Source Code Pro");
+		getScriptProcessor()->getMainController_()->fillWithCustomFonts(sa);
+		sa.addArray(Font::findAllTypefaceNames());
+		break;
+	default:		sa = ScriptComponent::getOptionsFor(id);
+	}
+
+	return sa;
 }
 
 struct ScriptingApi::Content::ScriptTable::Wrapper

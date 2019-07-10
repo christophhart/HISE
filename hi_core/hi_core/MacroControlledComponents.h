@@ -297,6 +297,8 @@ public:
         ComboBox(name),
 		MacroControlledObject()
 	{
+		font = GLOBAL_FONT();
+
 		addListener(this);
 
         setWantsKeyboardFocus(false);
@@ -384,6 +386,7 @@ public:
 		return r;
 	};
 	
+	Font font;
 };
 
 class HiToggleButton: public ToggleButton,

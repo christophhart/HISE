@@ -187,50 +187,6 @@ void VUSliderLookAndFeel::drawLinearSlider(Graphics &g,
 	}
 };
 
-void GlobalHiseLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c, bool isMouseOverButton)
-{
-    Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId) :
-                                            Colour(0x66333333);
-    
-    Colour lowerBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId) :
-                                            Colour(0xfb111111);
-    
-    g.setGradientFill(ColourGradient(upperBgColour.withMultipliedBrightness(isMouseOverButton ? 1.6f : 1.1f),
-                                     64.0f, 8.0f,
-                                     lowerBgColour.withMultipliedBrightness(isMouseOverButton ? 1.9f : 1.0f),
-                                     64.0f, (float)(height+32),
-                                     false));
-    
-    g.fillRect ((float)x, (float)y, (float)width, (float)height);
-    
-    Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId) :
-    Colours::white.withAlpha(0.3f);
-    
-    g.setColour (outlineColour);
-    
-    if(width > 0 && height > 0)
-    {
-        g.drawRect((float)x, (float)y, (float)width, (float)height, 1.0f);
-    }
-}
-
-void GlobalHiseLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox &c)
-{
-    c.setColour(ComboBox::ColourIds::textColourId, c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
-
-	drawHiBackground(g, 0, 0, width, height - 2, dynamic_cast<ComboBox*>(&c), isButtonDown);
-
-	static const unsigned char pathData[] = { 110, 109, 0, 0, 130, 67, 92, 174, 193, 67, 108, 0, 0, 140, 67, 92, 174, 193, 67, 108, 0, 0, 135, 67, 92, 174, 198, 67, 99, 109, 0, 0, 130, 67, 92, 46, 191, 67, 108, 0, 0, 140, 67, 92, 46, 191, 67, 108, 0, 0, 135, 67, 92, 46, 186, 67, 99, 101, 0, 0 };
-
-	Path path;
-	path.loadPathFromData(pathData, sizeof(pathData));
-
-	path.scaleToFit((float)width - 20.0f, (float)(height - 12) * 0.5f, 12.0f, 12.0f, true);
-
-	g.setColour(c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
-	g.fillPath(path);
-}
-
 void GlobalHiseLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
 {
 	s.setTextBoxStyle (Slider::TextBoxRight, false, 80, 28);
@@ -736,6 +692,98 @@ void PopupLookAndFeel::drawMenuBarBackground(Graphics& g, int width, int height,
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff959595)));
 
 	g.drawLine(0.0f, (float)height, (float)width, (float)height);
+}
+
+
+void PopupLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c /*= nullptr*/, bool isMouseOverButton /*= false*/)
+{
+	Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId) :
+		Colour(0x66333333);
+
+	Colour lowerBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId) :
+		Colour(0xfb111111);
+
+	g.setGradientFill(ColourGradient(upperBgColour.withMultipliedBrightness(isMouseOverButton ? 1.6f : 1.1f),
+		64.0f, 8.0f,
+		lowerBgColour.withMultipliedBrightness(isMouseOverButton ? 1.9f : 1.0f),
+		64.0f, (float)(height + 32),
+		false));
+
+	g.fillRect((float)x, (float)y, (float)width, (float)height);
+
+	Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId) :
+		Colours::white.withAlpha(0.3f);
+
+	g.setColour(outlineColour);
+
+	if (width > 0 && height > 0)
+	{
+		g.drawRect((float)x, (float)y, (float)width, (float)height, 1.0f);
+	}
+}
+
+
+juce::Font PopupLookAndFeel::getPopupMenuFont()
+{
+	if (HiseDeviceSimulator::isMobileDevice())
+	{
+		if (comboBoxFont.getTypefaceName() == "Oxygen")
+			return comboBoxFont.withHeight(24.0f);
+		else
+			return comboBoxFont;
+	}
+	else
+	{
+		if (comboBoxFont.getTypefaceName() == "Oxygen")
+			return comboBoxFont.withHeight(16.0f);
+		else
+			return comboBoxFont;
+	}
+}
+
+void PopupLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int, int, int, int, ComboBox &c)
+{
+	c.setColour(ComboBox::ColourIds::textColourId, c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
+
+	drawHiBackground(g, 0, 0, width, height - 2, dynamic_cast<ComboBox*>(&c), isButtonDown);
+
+	static const unsigned char pathData[] = { 110, 109, 0, 0, 130, 67, 92, 174, 193, 67, 108, 0, 0, 140, 67, 92, 174, 193, 67, 108, 0, 0, 135, 67, 92, 174, 198, 67, 99, 109, 0, 0, 130, 67, 92, 46, 191, 67, 108, 0, 0, 140, 67, 92, 46, 191, 67, 108, 0, 0, 135, 67, 92, 46, 186, 67, 99, 101, 0, 0 };
+
+	Path path;
+	path.loadPathFromData(pathData, sizeof(pathData));
+
+	path.scaleToFit((float)width - 20.0f, (float)(height - 12) * 0.5f, 12.0f, 12.0f, true);
+
+	g.setColour(c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
+	g.fillPath(path);
+}
+
+Rectangle<int> getTextBoundsForComboBox(ComboBox& c)
+{
+	if (c.getHeight() < 20)
+		return { 5, 2, c.getWidth() - 25, c.getHeight() - 4 };
+	else
+		return { 5, 5, c.getWidth() - 25, c.getHeight() - 10 };
+}
+
+void PopupLookAndFeel::positionComboBoxText(ComboBox &c, Label &labelToPosition)
+{
+	labelToPosition.setBounds(getTextBoundsForComboBox(c));
+
+	labelToPosition.setFont(getComboBoxFont(c));
+}
+
+void PopupLookAndFeel::drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label)
+{
+	g.setColour(box.findColour(HiseColourScheme::ColourIds::ComponentTextColourId).withMultipliedAlpha(0.5f));
+
+	auto font = label.getLookAndFeel().getLabelFont(label);
+
+	g.setFont(comboBoxFont);
+
+	auto textArea = getTextBoundsForComboBox(box);
+
+	g.drawFittedText(box.getTextWhenNothingSelected(), textArea, label.getJustificationType(), 1);
 }
 
 FrontendKnobLookAndFeel::FrontendKnobLookAndFeel():

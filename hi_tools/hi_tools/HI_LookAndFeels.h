@@ -176,6 +176,8 @@ public:
     
 	PopupLookAndFeel()
 	{
+		comboBoxFont = GLOBAL_BOLD_FONT();
+
 		setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
 
 		Colour dark = JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333));
@@ -189,25 +191,14 @@ public:
 		setColour(PopupMenu::ColourIds::headerTextColourId, bright);
 	};
 
-protected:
+	static void drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c = nullptr, bool isMouseOverButton = false);
 
-	Font getPopupMenuFont() override
+	void setComboBoxFont(Font f)
 	{
-		if (HiseDeviceSimulator::isMobileDevice())
-		{
-			return GLOBAL_BOLD_FONT().withHeight(24.0f);
-		}
-		else
-		{
-#if USE_BACKEND
-			return GLOBAL_BOLD_FONT().withHeight(15.0f);
-#else
-			return GLOBAL_BOLD_FONT().withHeight(16.0f);
-#endif
-		}
-	};
+		comboBoxFont = f;
+	}
 
-
+protected:
 
 	void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override
 	{
@@ -420,6 +411,8 @@ protected:
         }
     }
     
+
+
     void drawPopupMenuSectionHeader (Graphics& g, const Rectangle<int>& area, const String& sectionName)
     {
         g.setFont (getPopupMenuFont());
@@ -447,7 +440,28 @@ protected:
 		return LookAndFeel_V3::getParentComponentForMenuOptions(options);
 
 	};
-    
+
+
+	Font getPopupMenuFont() override;;
+
+
+
+
+
+	void drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int, int, int, int, ComboBox &c);
+
+	
+
+	Font getComboBoxFont(ComboBox & c) override
+	{
+		return comboBoxFont;
+	}
+
+	void positionComboBoxText(ComboBox &c, Label &labelToPosition) override;
+
+	void drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label);
+
+	Font comboBoxFont;
 };
 
 
@@ -1210,76 +1224,24 @@ public:
 		return label;
 	}
 
-	Font getPopupMenuFont () override
+	static void fillPathHiStyle(Graphics &g, const Path &p, int width, int height, bool drawBorders = true)
 	{
-		if (HiseDeviceSimulator::isMobileDevice())
-		{
-			return comboBoxFont.withHeight(24.0f);
-		}
-		else
-		{
-#if USE_BACKEND
-			return comboBoxFont.withHeight(15.0f);
-#else
-			return comboBoxFont.withHeight(16.0f);
-#endif
-		}
-	};
-
-    static void drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c=nullptr, bool isMouseOverButton=false);
-	
-
-	void 	drawComboBox (Graphics &g, int width, int height, bool isButtonDown, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox &c) override;
- 
-	void setComboBoxFont(Font f)
-	{
-		comboBoxFont = f;
-	}
-
-	Font 	getComboBoxFont (ComboBox &) override
-	{
-		
-
-		return comboBoxFont;
-	}
-
-	void 	positionComboBoxText (ComboBox &c, Label &labelToPosition) override
-	{
-		if (c.getHeight() < 20)
-		{
-			labelToPosition.setBounds(5, 2, c.getWidth() - 25, c.getHeight() - 4);
-
-		}
-		else
-		{
-			labelToPosition.setBounds(5, 5, c.getWidth() - 25, c.getHeight() - 10);
-
-		}
-
-		
-		labelToPosition.setFont (getComboBoxFont (c));
 
 
-	}
-
-	static void fillPathHiStyle(Graphics &g, const Path &p, int width, int height, bool drawBorders=true)
-	{
-		
-
-		if(drawBorders)
+		if (drawBorders)
 		{
 			g.setColour(Colours::lightgrey.withAlpha(0.8f));
-			g.strokePath (p, PathStrokeType(1.0f));
+			g.strokePath(p, PathStrokeType(1.0f));
 
 			g.setColour(Colours::lightgrey.withAlpha(0.1f));
 			g.drawRect(0, 0, width, height, 1);
 		}
-	
-		g.setGradientFill (ColourGradient (Colour (0x88ffffff),
-										0.0f, 0.0f,
-										Colour (0x11ffffff),
-										0.0f, (float) height,
-										false));
+
+		g.setGradientFill(ColourGradient(Colour(0x88ffffff),
+			0.0f, 0.0f,
+			Colour(0x11ffffff),
+			0.0f, (float)height,
+			false));
 
 		g.fillPath(p);
 
@@ -1288,21 +1250,6 @@ public:
 		d.drawForPath(g, p);
 
 	};
-
-	void drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label)
-	{
-		g.setColour(box.findColour(HiseColourScheme::ColourIds::ComponentTextColourId).withMultipliedAlpha(0.5f));
-
-		auto font = label.getLookAndFeel().getLabelFont(label);
-
-		g.setFont(font);
-
-		auto textArea = label.getLocalBounds();
-
-		g.drawFittedText(box.getTextWhenNothingSelected(), textArea, label.getJustificationType(),
-			jmax(1, (int)(textArea.getHeight() / font.getHeight())),
-			label.getMinimumHorizontalScale());
-	}
 
 	int getSliderThumbRadius(Slider& ) override { return 0; }
 
@@ -1396,7 +1343,6 @@ public:
 
 private:
     
-	Font comboBoxFont;
 
     Image cachedImage_smalliKnob_png;
 	Image cachedImage_knobRing_png;

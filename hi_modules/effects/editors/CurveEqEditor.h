@@ -223,7 +223,7 @@ public:
 
 	void paint(Graphics &g)
 	{
-		GlobalHiseLookAndFeel::drawHiBackground(g, 1, 1, getWidth() - 2, getHeight() - 2, nullptr, false);
+		PopupLookAndFeel::drawHiBackground(g, 1, 1, getWidth() - 2, getHeight() - 2, nullptr, false);
 	}
 
 	int getCurrentType() const
