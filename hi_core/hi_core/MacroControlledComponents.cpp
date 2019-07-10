@@ -389,14 +389,11 @@ void HiSlider::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isLeftButtonDown())
 	{
-		if (e.mods.isShiftDown())
+		if (e.mods.isShiftDown() && getWidth() > 25)
 		{
 			addAndMakeVisible(inputLabel = new TextEditor());
 			
-			
 			inputLabel->centreWithSize(getWidth(), 20);
-
-			
 			inputLabel->addListener(this);
 			
 			inputLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::black.withAlpha(0.6f));

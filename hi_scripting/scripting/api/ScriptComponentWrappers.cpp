@@ -307,6 +307,9 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderStyle(ScriptingA
 	{
 		auto showTextBox = (bool)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::showTextBox);
 
+		if (!showTextBox)
+			s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
+
 		s->setTextBoxStyle(showTextBox ? Slider::TextBoxAbove : Slider::NoTextBox, !showTextBox, s->getWidth(), s->getHeight());
 	}
 
