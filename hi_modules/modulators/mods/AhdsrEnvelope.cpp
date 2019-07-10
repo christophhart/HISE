@@ -182,10 +182,8 @@ void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
 
 float AhdsrEnvelope::startVoice(int voiceIndex)
 {
-#if ENABLE_ALL_PEAK_METERS
 	stateInfo.state = AhdsrEnvelopeState::ATTACK;
 	stateInfo.changeTime = getMainController()->getUptime();
-#endif
 
 	if (isMonophonic)
 	{
@@ -330,7 +328,6 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 		
 	}
 
-#if ENABLE_ALL_PEAK_METERS
 	const bool isActiveVoice = polyManager.getCurrentVoice() == polyManager.getLastStartedVoice();
 
 	if (isMonophonic || isActiveVoice)
@@ -341,7 +338,6 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 			stateInfo.changeTime = getMainController()->getUptime();
 		}
 	}
-#endif
 }
 
 void AhdsrEnvelope::reset(int voiceIndex)
@@ -355,11 +351,8 @@ void AhdsrEnvelope::reset(int voiceIndex)
 	{
 		EnvelopeModulator::reset(voiceIndex);
 
-#if ENABLE_ALL_PEAK_METERS
 		if (voiceIndex == polyManager.getLastStartedVoice())
 			stateInfo.state = AhdsrEnvelopeState::IDLE;
-#endif
-
 
 		state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
 		state->current_state = AhdsrEnvelopeState::IDLE;
