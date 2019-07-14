@@ -68,6 +68,15 @@ public:
 			numBars = lengthInQuarters * denominator / 4.0 / nominator;
 		}
 		
+		String toString() const
+		{
+			String s;
+			s << roundToInt(numBars) << " of ";
+			s << roundToInt(nominator) << "/";
+			s << roundToInt(denominator);
+			return s;
+		}
+
 		double getNumQuarters() const
 		{
 			return numBars / denominator * 4.0 * nominator;

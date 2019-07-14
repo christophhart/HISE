@@ -234,6 +234,9 @@ double HiseMidiSequence::getLength() const
 	if (artificialLengthInQuarters != -1.0)
 		return artificialLengthInQuarters * (double)TicksPerQuarter;
 
+	if (signature.numBars != 0.0)
+		return signature.getNumQuarters() * (double)TicksPerQuarter;
+
 	double maxLength = 0.0;
 
 	for (auto seq : sequences)
@@ -279,7 +282,8 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 	file.findAllTimeSigEvents(times);
 	
 
-	int nom, denom;
+	int nom = 4;
+	int denom = 4;
 	double preferredTempo = 120.0;
 
 	for (auto te : times)
@@ -722,7 +726,7 @@ void MidiPlayer::addSequence(HiseMidiSequence::Ptr newSequence, bool select)
 
 void MidiPlayer::clearSequences(NotificationType notifyListeners)
 {
-	if (undoManager != nullptr)
+	if(undoManager == ownedUndoManager && undoManager != nullptr)
 		undoManager->clearUndoHistory();
 
 	currentSequences.clear();
@@ -1414,6 +1418,23 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 
 	if (auto track = getCurrentSequence()->getReadPointer(currentTrackIndex))
 	{
+		MidiMessageSequence trackCopy(*track);
+
+		auto sig = getCurrentSequence()->getTimeSignature();
+
+		auto timeSigMessage = MidiMessage::timeSignatureMetaEvent(sig.nominator, sig.denominator);
+		
+		timeSigMessage.setTimeStamp(0);
+
+		
+
+		auto endMessage = MidiMessage::endOfTrack();
+		endMessage.setTimeStamp(getCurrentSequence()->getLength());
+
+		trackCopy.addEvent(timeSigMessage);
+		trackCopy.addEvent(endMessage);
+		trackCopy.sort();
+
 		PoolReference r(getMainController(), fileName, FileHandlerBase::MidiFiles);
 
 		auto pool = getMainController()->getCurrentMidiFilePool();
@@ -1431,7 +1452,7 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 					for (int i = 0; i < existingFile.getNumTracks(); i++)
 					{
 						if (i == trackIndex)
-							copy.addTrack(*track);
+							copy.addTrack(trackCopy);
 						else
 							copy.addTrack(*existingFile.getTrack(i));
 					}
@@ -1449,10 +1470,12 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 					{
 						MidiMessageSequence empty;
 						empty.addEvent(MidiMessage::pitchWheel(1, 8192));
+						empty.addEvent(timeSigMessage);
+						empty.addEvent(endMessage);
 						existingFile.addTrack(empty);
 					}
 
-					existingFile.addTrack(*track);
+					existingFile.addTrack(trackCopy);
 
 					r.getFile().deleteFile();
 					r.getFile().create();
@@ -1467,6 +1490,7 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 		else
 		{
 			MidiFile newFile;
+			newFile.setTicksPerQuarterNote(HiseMidiSequence::TicksPerQuarter);
 
 			for (int i = 0; i < trackIndex; i++)
 			{
@@ -1475,7 +1499,7 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 				newFile.addTrack(empty);
 			}
 
-			newFile.addTrack(*track);
+			newFile.addTrack(trackCopy);
 
 			r.getFile().create();
 			FileOutputStream fos(r.getFile());
