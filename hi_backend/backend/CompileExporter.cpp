@@ -1606,6 +1606,12 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 
 #endif
 
+#if JUCE_LINUX
+	REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "x11 xinerama xext");
+#else
+	REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
+#endif
+
 	REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "enabled");
 

@@ -158,7 +158,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "        <MODULEPATH id=\"stk_wrapper\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </XCODE_MAC>\r\n"
-"   <LINUX_MAKE targetFolder=\"Builds/LinuxMakefile\">\r\n"
+"   <LINUX_MAKE targetFolder=\"Builds/LinuxMakefile\" linuxExtraPkgConfig=\"%LINUX_GUI_LIBS%\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME%\"/>\r\n"
 "        <CONFIGURATION name=\"Release\" isDebug=\"0\" optimisation=\"3\" targetName=\"%NAME%\"/>\r\n"
