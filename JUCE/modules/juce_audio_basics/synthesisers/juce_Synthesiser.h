@@ -354,6 +354,8 @@ public:
     /** Returns one of the sounds. */
     SynthesiserSound* getSound (int index) const noexcept       { return sounds[index].get(); }
 
+	SynthesiserSound::Ptr getSoundRefCounted(int index) const noexcept { return sounds[index]; }
+
     /** Adds a new sound to the synthesiser.
 
         The object passed in is reference counted, so will be deleted when the
