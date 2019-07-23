@@ -108,12 +108,15 @@ public:
 
 	private:
 
-		ModulatorSamplerSound* getSoundInternal()
+		SharedPointer getSoundInternal()
 		{
 			if (index >= s->getNumSounds())
 				return nullptr;
 
-			return static_cast<ModulatorSamplerSound*>(s->getSound(index++));
+			auto synSound = s->getSoundRefCounted(index++);
+			SharedPointer rs(static_cast<ModulatorSamplerSound*>(synSound.get()));
+			synSound = nullptr;
+			return rs;
 		}
 
 		int index = 0;
