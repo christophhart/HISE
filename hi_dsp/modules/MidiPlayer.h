@@ -133,6 +133,8 @@ public:
 	/** Returns the length of the MIDI sequence in quarter beats. */
 	double getLengthInQuarters();
 
+	double getLengthInSeconds(double bpm);
+
 	/** Forces the length of the sequence to this value. If you want to use the original length, pass in -1.0. */
 	void setLengthInQuarters(double newLength);
 

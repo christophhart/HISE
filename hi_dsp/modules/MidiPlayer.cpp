@@ -329,6 +329,11 @@ double HiseMidiSequence::getLengthInQuarters()
 }
 
 
+double HiseMidiSequence::getLengthInSeconds(double bpm)
+{
+	return getLengthInQuarters() * 60.0 / bpm;
+}
+
 void HiseMidiSequence::setLengthInQuarters(double newLength)
 {
 	artificialLengthInQuarters = newLength;
