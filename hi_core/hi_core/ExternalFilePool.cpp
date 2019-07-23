@@ -900,7 +900,8 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Addit
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, ValueTree* data) const
 {
 	ScopedPointer<MemoryInputStream> scopedInput = mis;
-	zstd::ZCompressor<SampleMapDictionaryProvider> dec;
+	
+	static zstd::ZCompressor<SampleMapDictionaryProvider> dec;
 	MemoryBlock mb;
 	mis->readIntoMemoryBlock(mb);
 	dec.expand(mb, *data);
