@@ -62,6 +62,7 @@ public:
 		double numBars = 0.0;
 		double nominator = 4.0;
 		double denominator = 4.0;
+		Range<double> normalisedLoopRange = { 0.0, 1.0 };
 
 		void calculateNumBars(double lengthInQuarters)
 		{
@@ -145,6 +146,8 @@ public:
 	File writeToTempFile();
 
 	TimeSignature getTimeSignature() const { return signature; }
+
+	TimeSignature* getTimeSignaturePtr() { return &signature; };
 
 	/** Sets the ID of this sequence. */
 	void setId(const Identifier& newId);
@@ -526,6 +529,10 @@ public:
 
 private:
 
+	double getLoopStart() const;
+
+	double getLoopEnd() const;
+
 	void sendPlaybackChangeMessage(int timestamp);
 
 	Array<WeakReference<PlaybackListener>> playbackListeners;
@@ -556,8 +563,6 @@ private:
 	PlayState playState = PlayState::Stop;
 
 	bool flushRecordedEvents = true;
-	double loopStart = 0.0;
-	double loopEnd = 1.0;
 	double currentPosition = -1.0;
 	int currentSequenceIndex = -1;
 	int currentTrackIndex = 0;

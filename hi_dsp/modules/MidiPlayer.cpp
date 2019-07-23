@@ -191,29 +191,99 @@ juce::MidiMessage* HiseMidiSequence::getNextEvent(Range<double> rangeToLookForTi
 			nextIndex = 0;
 		}
 
-		if (auto nextEvent = seq->getEventPointer(nextIndex))
+		auto loopEndTicks = getLength() * signature.normalisedLoopRange.getEnd();
+		
+
+		auto wrapAroundLoop = rangeToLookForTicks.contains(loopEndTicks);
+
+		if (wrapAroundLoop)
 		{
-			auto timestamp = nextEvent->message.getTimeStamp();
+			auto loopStartTicks = getLength() * signature.normalisedLoopRange.getStart();
+			auto rangeEndAfterWrap = rangeToLookForTicks.getEnd() - loopEndTicks + loopStartTicks;
 
-			auto maxLength = getLength();
+			Range<double> beforeWrap = { rangeToLookForTicks.getStart(), loopEndTicks };
+			Range<double> afterWrap = { loopStartTicks, rangeEndAfterWrap };
 
-
-			if (rangeToLookForTicks.contains(timestamp))
+			if (auto nextEvent = seq->getEventPointer(nextIndex))
 			{
-				lastPlayedIndex = nextIndex;
-				return &nextEvent->message;
+				auto ts = nextEvent->message.getTimeStamp();
+
+				if (beforeWrap.contains(ts))
+				{
+					lastPlayedIndex = nextIndex;
+					return &nextEvent->message;
+				}
+
+				// We don't want to wrap around notes that lie within the loop range.
+				if (ts < loopEndTicks)
+					return nullptr;
 			}
-			else if (rangeToLookForTicks.contains(maxLength))
-			{
-				auto rangeAtBeginning = rangeToLookForTicks.getEnd() - maxLength;
 
-				if (timestamp < rangeAtBeginning)
+			auto indexAfterWrap = seq->getNextIndexAtTime(loopStartTicks);
+
+			if (auto afterEvent = seq->getEventPointer(indexAfterWrap))
+			{
+				while (afterEvent != nullptr && afterEvent->message.isNoteOff())
+				{
+					indexAfterWrap++;
+
+					afterEvent = seq->getEventPointer(indexAfterWrap);
+				}
+
+				if (afterEvent != nullptr)
+				{
+					jassert(afterEvent->message.isNoteOn());
+
+					auto ts = afterEvent->message.getTimeStamp();
+
+					if (afterWrap.contains(ts))
+					{
+						lastPlayedIndex = indexAfterWrap;
+						return &afterEvent->message;
+					}
+				}
+			}
+		}
+		else
+		{
+			if (auto nextEvent = seq->getEventPointer(nextIndex))
+			{
+				if (rangeToLookForTicks.contains(nextEvent->message.getTimeStamp()))
 				{
 					lastPlayedIndex = nextIndex;
 					return &nextEvent->message;
 				}
 			}
 		}
+
+
+#if 0
+		if (auto nextEvent = seq->getEventPointer(nextIndex))
+		{
+			auto timestamp = nextEvent->message.getTimeStamp();
+			
+			if (rangeToLookForTicks.contains(timestamp))
+			{
+				lastPlayedIndex = nextIndex;
+				return &nextEvent->message;
+			}
+			else if ()
+			{
+				auto rangeAtBeginning = rangeToLookForTicks.getEnd() - (getLength() * signature.normalisedLoopRange.getLength());
+
+				if (timestamp < rangeAtBeginning)
+				{
+					// It's before the wrap
+					lastPlayedIndex = nextIndex;
+					return &nextEvent->message;
+				}
+				else
+				{
+					seq->getNextIndexAtTime()
+				}
+			}
+		}
+#endif
 	}
 
 	return nullptr;
@@ -774,8 +844,8 @@ float MidiPlayer::getAttribute(int index) const
 	case CurrentSequence:		return (float)(currentSequenceIndex + 1);
 	case CurrentTrack:			return (float)(currentTrackIndex + 1);
 	case LoopEnabled:			return loopEnabled ? 1.0f : 0.0f;
-	case LoopStart:				return (float)loopStart;
-	case LoopEnd:				return (float)loopEnd;
+	case LoopStart:				return (float)getLoopStart();
+	case LoopEnd:				return (float)getLoopEnd();
 	default:
 		break;
 	}
@@ -798,22 +868,33 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 	}
 	case LoopStart:
 	{
-		loopStart = jlimit(0.0, 1.0, (double)newAmount);
+		auto loopStart = jlimit(0.0, 1.0, (double)newAmount);
+
+		if (auto seq = getCurrentSequence())
+			seq->getTimeSignaturePtr()->normalisedLoopRange.setStart(loopStart);
+
 		updatePositionInCurrentSequence();
 		break;
 	}
 	case LoopEnd:
 	{
-		loopEnd = jlimit(0.0, 1.0, (double)newAmount);
+		auto loopEnd = jlimit(0.0, 1.0, (double)newAmount);
+
+		if (auto seq = getCurrentSequence())
+			seq->getTimeSignaturePtr()->normalisedLoopRange.setEnd(loopEnd);
+
 		updatePositionInCurrentSequence();
 		break;
 	}
 	case CurrentSequence:		
 	{
-		double lastLength = 0.0f;
+		Range<double> lastLoopRange;
+
 
 		if (auto seq = getCurrentSequence())
-			lastLength = seq->getLengthInQuarters();
+			lastLoopRange = seq->getTimeSignature().normalisedLoopRange;
+
+		auto posInLoop = (getPlaybackPosition() - lastLoopRange.getStart()) / lastLoopRange.getLength();
 
 		currentSequenceIndex = jlimit<int>(-1, currentSequences.size()-1, (int)(newAmount - 1)); 
 
@@ -822,13 +903,13 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 
 		if (auto seq = getCurrentSequence())
 		{
-			double newLength = seq->getLengthInQuarters();
-
-			if (newLength > 0.0 && currentPosition >= 0.0)
+			if (posInLoop != 0.0)
 			{
-				double ratio = lastLength / newLength;
-				currentPosition = currentPosition * ratio;
-				
+				auto newLoopRange = seq->getTimeSignature().normalisedLoopRange;
+
+				auto newPos = newLoopRange.getStart() + posInLoop * newLoopRange.getLength();
+
+				currentPosition = newPos;
 				updatePositionInCurrentSequence();
 			}
 		}
@@ -915,6 +996,9 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 		auto seq = getCurrentSequence();
 		seq->setCurrentTrackIndex(currentTrackIndex);
 
+		auto loopStart = getLoopStart();
+		auto loopEnd = getLoopEnd();
+
 		if (currentPosition < loopStart)
 		{
 			currentPosition = loopStart;
@@ -948,7 +1032,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 			auto timeStampInThisBuffer = e->getTimeStamp() - positionInTicks;
 
 			if (timeStampInThisBuffer < 0.0)
-				timeStampInThisBuffer += lengthInTicks;
+				timeStampInThisBuffer += getCurrentSequence()->getTimeSignature().normalisedLoopRange.getLength() * lengthInTicks;
 
 			auto timeStamp = (int)MidiPlayerHelpers::ticksToSamples(timeStampInThisBuffer, getMainController()->getBpm(), getSampleRate());
 			timeStamp += timeStampForNextCommand;
@@ -1048,6 +1132,22 @@ void MidiPlayer::addSequenceListener(SequenceListener* newListener)
 void MidiPlayer::removeSequenceListener(SequenceListener* listenerToRemove)
 {
 	sequenceListeners.removeAllInstancesOf(listenerToRemove);
+}
+
+double MidiPlayer::getLoopStart() const
+{
+	if (auto seq = getCurrentSequence())
+		return seq->getTimeSignature().normalisedLoopRange.getStart();
+
+	return 0.0;
+}
+
+double MidiPlayer::getLoopEnd() const
+{
+	if (auto seq = getCurrentSequence())
+		return seq->getTimeSignature().normalisedLoopRange.getEnd();
+
+	return 1.0;
 }
 
 void MidiPlayer::sendPlaybackChangeMessage(int timestamp)
