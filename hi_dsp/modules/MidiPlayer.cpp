@@ -631,10 +631,14 @@ bool MidiPlayer::EditAction::perform()
 							 bpm,
 							 sampleRate);
 
-		currentPlayer->getCurrentSequence()->setLengthFromTimeSignature(oldSig);
-		currentPlayer->updatePositionInCurrentSequence();
-		currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
-		return true;
+		if (auto seq = currentPlayer->getCurrentSequence())
+		{
+			currentPlayer->getCurrentSequence()->setLengthFromTimeSignature(oldSig);
+			currentPlayer->updatePositionInCurrentSequence();
+			currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
+
+			return true;
+		}
 	}
 		
 	return false;

@@ -537,6 +537,14 @@ public:
 		{
 			loadFunction = FunctionClass::load;
 			saveFunction = FunctionClass::save;
+
+			
+
+			if (saveFunction)
+			{
+				ValueType initialValue = saveFunction(getProcessor());
+				updateUI(initialValue);
+			}
 		}
 
 		/** If this is enabled, it will wrap the execution of the callback into a SafeFunction call. */
