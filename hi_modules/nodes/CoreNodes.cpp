@@ -797,7 +797,7 @@ void scriptnode::core::bitcrush_impl<V>::createParameters(Array<ParameterData>& 
 	{
 		ParameterData p("Bit Depth");
 
-		p.range = { 1.0, 16.0, 0.1 };
+		p.range = { 4.0, 16.0, 0.1 };
 		p.defaultValue = 16.0;
 		p.db = BIND_MEMBER_FUNCTION_1(bitcrush_impl::setBitDepth);
 
@@ -823,7 +823,7 @@ void scriptnode::core::bitcrush_impl<V>::reset() noexcept
 
 void getBitcrushedValue(float* data, int numSamples, float bitDepth)
 {
-	const float invStepSize = pow(2.0f, 16.0f - bitDepth);
+	const float invStepSize = pow(2.0f, bitDepth);
 	const float stepSize = 1.0f / invStepSize;
 
 	for (int i = 0; i < numSamples; i++)
