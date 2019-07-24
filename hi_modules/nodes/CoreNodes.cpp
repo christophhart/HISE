@@ -668,6 +668,198 @@ void gain_impl<V>::prepare(PrepareSpecs ps)
 
 DEFINE_EXTERN_NODE_TEMPIMPL(gain_impl);
 
+
+template <int V>
+scriptnode::core::sampleandhold_impl<V>::sampleandhold_impl()
+{
+
+}
+
+template <int V>
+void scriptnode::core::sampleandhold_impl<V>::setFactor(double value)
+{
+	auto factor = jlimit(1, 44100, roundToInt(value));
+
+	if (data.isVoiceRenderingActive())
+		data.get().factor = factor;
+	else
+		data.forEachVoice([factor](Data& d_) {d_.factor = factor; });
+}
+
+template <int V>
+void scriptnode::core::sampleandhold_impl<V>::createParameters(Array<ParameterData>& data)
+{
+	{
+		ParameterData p("Counter");
+		p.range = { 1, 64, 1.0 };
+		p.db = BIND_MEMBER_FUNCTION_1(sampleandhold_impl::setFactor);
+
+		data.add(std::move(p));
+	}
+}
+
+template <int V>
+void scriptnode::core::sampleandhold_impl<V>::processSingle(float* numFrames, int numChannels)
+{
+	auto& v = data.get();
+
+	if (v.counter == 0)
+	{
+		FloatVectorOperations::copy(v.currentValues, numFrames, numChannels);
+		v.counter = v.factor;
+	}
+	else
+	{
+		FloatVectorOperations::copy(numFrames, v.currentValues, numChannels);
+		v.counter--;
+	}
+}
+
+template <int V>
+void scriptnode::core::sampleandhold_impl<V>::reset() noexcept
+{
+	if (data.isVoiceRenderingActive())
+		data.get().clear(lastChannelAmount);
+	else
+		data.forEachVoice([this](Data& d_) {d_.clear(lastChannelAmount); });
+}
+
+template <int V>
+void scriptnode::core::sampleandhold_impl<V>::process(ProcessData& d)
+{
+	Data& v = data.get();
+
+	if (v.counter > d.size)
+	{
+		for(int i = 0; i < d.numChannels; i++)
+			FloatVectorOperations::fill(d.data[i], v.currentValues[i], d.size);
+
+		v.counter -= d.size;
+	}
+	else
+	{
+		for (int i = 0; i < d.size; i++)
+		{
+			if (v.counter == 0)
+			{
+				for (int c = 0; c < d.numChannels; c++)
+				{
+					v.currentValues[c] = d.data[c][i];
+					v.counter = v.factor + 1;
+				}
+			}
+
+			for (int c = 0; c < d.numChannels; c++)
+				d.data[c][i] = v.currentValues[c];
+
+			v.counter--;
+		}
+	}
+}
+
+template <int V>
+void scriptnode::core::sampleandhold_impl<V>::prepare(PrepareSpecs ps)
+{
+	data.prepare(ps);
+	lastChannelAmount = ps.numChannels;
+}
+
+template <int V>
+void scriptnode::core::sampleandhold_impl<V>::initialise(NodeBase* n)
+{
+
+}
+
+DEFINE_EXTERN_NODE_TEMPIMPL(sampleandhold_impl);
+
+
+
+template <int V>
+scriptnode::core::bitcrush_impl<V>::bitcrush_impl()
+{
+	bitDepth.setAll(16.0f);
+}
+
+template <int V>
+void scriptnode::core::bitcrush_impl<V>::setBitDepth(double newBitDepth)
+{
+	auto v = jlimit(1.0f, 16.0f, (float)newBitDepth);
+
+	if (bitDepth.isVoiceRenderingActive())
+		bitDepth.get() = v;
+	else
+		bitDepth.setAll(v);
+}
+
+template <int V>
+void scriptnode::core::bitcrush_impl<V>::createParameters(Array<ParameterData>& data)
+{
+	{
+		ParameterData p("Bit Depth");
+
+		p.range = { 1.0, 16.0, 0.1 };
+		p.defaultValue = 16.0;
+		p.db = BIND_MEMBER_FUNCTION_1(bitcrush_impl::setBitDepth);
+
+		data.add(std::move(p));
+	}
+}
+
+template <int V>
+bool scriptnode::core::bitcrush_impl<V>::handleModulation(double&) noexcept
+{
+	return false;
+}
+
+template <int V>
+void scriptnode::core::bitcrush_impl<V>::reset() noexcept
+{
+
+}
+
+
+
+// ======================================================================================================
+
+void getBitcrushedValue(float* data, int numSamples, float bitDepth)
+{
+	const float invStepSize = pow(2.0f, 16.0f - bitDepth);
+	const float stepSize = 1.0f / invStepSize;
+
+	for (int i = 0; i < numSamples; i++)
+		data[i] = (stepSize * ceil(data[i] * invStepSize) - 0.5f * stepSize);
+}
+
+// ======================================================================================================
+
+template <int V>
+void scriptnode::core::bitcrush_impl<V>::process(ProcessData& d)
+{
+	for (auto ch : d)
+		getBitcrushedValue(ch, d.size, bitDepth.get());
+}
+
+
+template <int V>
+void scriptnode::core::bitcrush_impl<V>::processSingle(float* numFrames, int numChannels)
+{
+	getBitcrushedValue(numFrames, numChannels, bitDepth.get());
+}
+
+template <int V>
+void scriptnode::core::bitcrush_impl<V>::prepare(PrepareSpecs ps)
+{
+	bitDepth.prepare(ps);
+}
+
+template <int V>
+void scriptnode::core::bitcrush_impl<V>::initialise(NodeBase* n)
+{
+
+}
+
+DEFINE_EXTERN_NODE_TEMPIMPL(bitcrush_impl)
+
 template <int NV>
 Component* smoother_impl<NV>::createExtraComponent(PooledUIUpdater* updater)
 {

@@ -92,6 +92,8 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<midi, midi_poly>({});
 	registerPolyNode<smoother, smoother_poly>({});
 	registerPolyNode<haas, haas_poly>({});
+	registerPolyNode<sampleandhold, sampleandhold_poly>({});
+	registerPolyNode<bitcrush, bitcrush_poly>({});
 }
 }
 

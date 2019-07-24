@@ -261,6 +261,88 @@ public:
 
 DEFINE_EXTERN_NODE_TEMPLATE(gain, gain_poly, gain_impl);
 
+template <int V> class sampleandhold_impl : public HiseDspBase
+{
+public:
+
+	static constexpr int NumVoices = V;
+
+	SET_HISE_NODE_EXTRA_HEIGHT(0);
+	SET_HISE_POLY_NODE_ID("sampleandhold");
+	GET_SELF_AS_OBJECT(sampleandhold_impl);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	sampleandhold_impl();
+
+	void initialise(NodeBase* n);
+	void prepare(PrepareSpecs ps);
+	void process(ProcessData& d);
+	void reset() noexcept;;
+	void processSingle(float* numFrames, int numChannels);
+	bool handleModulation(double&) noexcept { return false; };
+	void createParameters(Array<ParameterData>& data) override;
+
+	void setFactor(double value);
+
+private:
+	
+	struct Data
+	{
+		Data()
+		{
+			clear();
+		}
+
+		void clear(int numChannelsToClear=NUM_MAX_CHANNELS)
+		{
+			memset(currentValues, 0, sizeof(float) * numChannelsToClear);
+			counter = 0;
+		}
+
+		int factor = 1;
+		int counter = 0;
+		float currentValues[NUM_MAX_CHANNELS];
+	};
+
+	PolyData<Data, NumVoices> data;
+	int lastChannelAmount = NUM_MAX_CHANNELS;
+};
+
+DEFINE_EXTERN_NODE_TEMPLATE(sampleandhold, sampleandhold_poly, sampleandhold_impl);
+
+template <int V> class bitcrush_impl : public HiseDspBase
+{
+public:
+
+	static constexpr int NumVoices = V;
+
+	SET_HISE_NODE_EXTRA_HEIGHT(0);
+	SET_HISE_POLY_NODE_ID("bitcrush");
+	GET_SELF_AS_OBJECT(bitcrush_impl);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	bitcrush_impl();
+
+	void initialise(NodeBase* n);
+	void prepare(PrepareSpecs ps);
+	void process(ProcessData& d);
+	void reset() noexcept;;
+	void processSingle(float* numFrames, int numChannels);
+	bool handleModulation(double&) noexcept;;
+	void createParameters(Array<ParameterData>& data) override;
+
+	void setBitDepth(double newBitDepth);
+
+private:
+
+	PolyData<float, NumVoices> bitDepth;
+	
+};
+
+
+
+DEFINE_EXTERN_NODE_TEMPLATE(bitcrush, bitcrush_poly, bitcrush_impl);
+
 template <int NV> class smoother_impl : public HiseDspBase
 {
 public:
