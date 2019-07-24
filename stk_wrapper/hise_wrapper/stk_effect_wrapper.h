@@ -56,51 +56,36 @@ using namespace hise;
 using namespace juce;
 using namespace scriptnode;
 
-#if JUCE_DEBUG
-#define SET_OBJECT_SIZE(name, debugSize, releaseSize) static constexpr int name = debugSize;
-#else
-#define SET_OBJECT_SIZE(name, debugSize, releaseSize) static constexpr int name = releaseSize;
-#endif
-
-
-// This namespace contains the sizeof(T) value for the samplerate wrapper.
-namespace objectsize
-{
-SET_OBJECT_SIZE(DelayA, 296, 280);
-SET_OBJECT_SIZE(DelayL, 288, 272);
-SET_OBJECT_SIZE(JCRev, 3376, 3168);
-}
-
 /** Definitions. */
 
 #define STK_WRAPPER(className, node_id) using Type = stk::className; \
-									    using ObjectWrapper = SampleRateWrapper<Type, objectsize::className>; \
+									    using ObjectWrapper = SampleRateWrapper<Type, sizeof(Type)>; \
 											  static Type* create(void* data) { return new (data) Type(); } \
 											  static Identifier getId() { static const Identifier id(node_id); return id; }
 
 #define STK_NUM_CHANNELS(n) static constexpr int NumChannelsPerObject = n;
 #define STK_NUM_PARAMETERS(n) static constexpr int NumParameters = n;
 
-#define STK_TEMPLATE_WRAPPER(wrapperClass, stkClass) template class wrapperClass<helper::stkClass, objectsize::stkClass, stkClass, 1>;
+#define STK_TEMPLATE_WRAPPER(wrapperClass, stkClass) template class wrapperClass<helper::stkClass, sizeof(stk::stkClass), stkClass, 1>;
 
 #define FORWARD_DECLARE_POLY_STK_CLASS(wrapperClass, className, nodeName, polyNodeName, numChannels) \
    class className; namespace helper { class className; } \
-   extern template class wrapperClass<helper::className, objectsize::className, stk::className, numChannels, 1>; \
-   using nodeName = wrapperClass<helper::className, objectsize::className, stk::className, numChannels, 1>; \
-   extern template class wrapperClass<helper::className, objectsize::className, stk::className, numChannels, NUM_POLYPHONIC_VOICES>; \
-   using polyNodeName = wrapperClass<helper::className, objectsize::className, stk::className, numChannels, NUM_POLYPHONIC_VOICES>; 
+   extern template class wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, 1>; \
+   using nodeName = wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, 1>; \
+   extern template class wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, NUM_POLYPHONIC_VOICES>; \
+   using polyNodeName = wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, NUM_POLYPHONIC_VOICES>; 
 
 #define FORWARD_DECLARE_STK_CLASS(wrapperClass, className, nodeName, numChannels) \
    class className; namespace helper { class className; }\
-   extern template class wrapperClass<helper::className, objectsize::className, stk::className, numChannels, 1>; \
-   using nodeName = wrapperClass<helper::className, objectsize::className, stk::className, numChannels, 1>;
+   extern template class wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, 1>; \
+   using nodeName = wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, 1>;
 
 #define DECLARE_POLY_STK_TEMPLATE(wrapperClass, className, numChannels) \
-template class wrapperClass<helper::className, objectsize::className, stk::className, numChannels, 1>; \
-template class wrapperClass<helper::className, objectsize::className, stk::className, numChannels, NUM_POLYPHONIC_VOICES>;
+template class wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, 1>; \
+template class wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, NUM_POLYPHONIC_VOICES>;
 
 #define DECLARE_STK_TEMPLATE(wrapperClass, className, numChannels) \
-template class wrapperClass<helper::className, objectsize::className, stk::className, numChannels, 1>; \
+template class wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, 1>; \
 
 using ParameterList = Array<scriptnode::HiseDspBase::ParameterData>;
 
@@ -111,8 +96,10 @@ using Callback = std::function<void(double)>;
 
 FORWARD_DECLARE_POLY_STK_CLASS(EffectWrapper, DelayA, delay_a, delay_a_poly, 1);
 FORWARD_DECLARE_POLY_STK_CLASS(EffectWrapper, DelayL, delay_l, delay_l_poly, 1);
+FORWARD_DECLARE_POLY_STK_CLASS(EffectWrapper, FormSwep, formswep, formswep_poly, 1);
 FORWARD_DECLARE_STK_CLASS(EffectWrapper, JCRev, jc_rev, 1);
-
+FORWARD_DECLARE_STK_CLASS(EffectWrapper, Chorus, chorus, 1);
+FORWARD_DECLARE_STK_CLASS(EffectWrapper, PRCRev, prc_rev, 1);
 
 
 }

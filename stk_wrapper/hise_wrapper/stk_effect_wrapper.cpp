@@ -143,9 +143,108 @@ public:
 	}
 };
 
+class PRCRev
+{
+public:
+	STK_WRAPPER(PRCRev, "prc_rev");
+	STK_NUM_PARAMETERS(1);
+	STK_NUM_CHANNELS(2);
+
+	template <int Index> static void addParameter(ParameterList& data, const Callback& cb)
+	{
+		if (Index == 0)
+		{
+			HiseDspBase::ParameterData p("Reverb Time");
+			p.range = { 0.0, 10.0, 0.0 };
+			p.db = cb;
+			data.add(std::move(p));
+		}
+	}
+
+	template <int Index> static void setParameter(ObjectWrapper& d, double newValue)
+	{
+		if (Index == 0)
+			d.getObject()->setT60(newValue);
+	}
+};
+
+class Chorus
+{
+public:
+
+	STK_WRAPPER(Chorus, "chorus");
+	STK_NUM_PARAMETERS(2);
+	STK_NUM_CHANNELS(2);
+
+	template <int Index> static void addParameter(ParameterList& data, const Callback& cb)
+	{
+		if (Index == 0)
+		{
+			HiseDspBase::ParameterData p("Depth");
+			p.range = { 0.0, 1.0, 0.0 };
+			p.db = cb;
+			data.add(std::move(p));
+		}
+		if (Index == 1)
+		{
+			HiseDspBase::ParameterData p("Frequency");
+			p.range = { 0.1, 10.0, 0.1 };
+			p.db = cb;
+			data.add(std::move(p));
+		}
+	}
+
+	template <int Index> static void setParameter(ObjectWrapper& d, double newValue)
+	{
+		if (Index == 0)
+			d.getObject()->setModDepth(newValue);
+		if (Index == 1)
+			d.getObject()->setModFrequency(newValue);
+	}
+};
+
+class FormSwep
+{
+public:
+
+	STK_WRAPPER(FormSwep, "formswep");
+	STK_NUM_PARAMETERS(2);
+	STK_NUM_CHANNELS(2);
+
+	template <int Index> static void addParameter(ParameterList& data, const Callback& cb)
+	{
+		if (Index == 0)
+		{
+			HiseDspBase::ParameterData p("Frequency");
+			p.range = { 20.0, 20000.0, 0.1 };
+			p.range.setSkewForCentre(1000.0);
+			p.db = cb;
+			data.add(std::move(p));
+		}
+		if (Index == 1)
+		{
+			HiseDspBase::ParameterData p("Radius");
+			p.range = { 0.01, 0.99, 0.01 };
+			p.db = cb;
+			data.add(std::move(p));
+		}
+	}
+
+	template <int Index> static void setParameter(ObjectWrapper& d, double newValue)
+	{
+		if (Index == 0)
+			d.getObject()->setFrequency(newValue);
+		if (Index == 1)
+			d.getObject()->setRadius(newValue);
+	}
+};
+
 }
 
 DECLARE_STK_TEMPLATE(EffectWrapper, JCRev, 1);
+DECLARE_STK_TEMPLATE(EffectWrapper, PRCRev, 1);
+DECLARE_STK_TEMPLATE(EffectWrapper, Chorus, 1);
+DECLARE_POLY_STK_TEMPLATE(EffectWrapper, FormSwep, 1);
 DECLARE_POLY_STK_TEMPLATE(EffectWrapper, DelayA, 1);
 DECLARE_POLY_STK_TEMPLATE(EffectWrapper, DelayL, 1);
 

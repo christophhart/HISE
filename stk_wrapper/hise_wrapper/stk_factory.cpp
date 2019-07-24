@@ -62,6 +62,9 @@ StkFactory::StkFactory(DspNetwork* network):
 	registerPolyNode<delay_a, delay_a_poly>();
 	registerPolyNode<delay_l, delay_l_poly>();
 	registerNode<jc_rev>();
+	registerNode<prc_rev>();
+	registerNode<chorus>();
+	registerPolyNode<formswep, formswep_poly>();
 	registerPolyNode<plucked, plucked_poly>();
 	registerPolyNode<guitar, guitar_poly>();
 }

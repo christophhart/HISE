@@ -56,12 +56,6 @@ using namespace hise;
 using namespace juce;
 using namespace scriptnode;
 
-namespace objectsize
-{
-SET_OBJECT_SIZE(Plucked, 912, 864);
-SET_OBJECT_SIZE(Guitar, 760, 688);
-}
-
 FORWARD_DECLARE_POLY_STK_CLASS(InstrumentWrapper, Plucked, plucked, plucked_poly, 1);
 FORWARD_DECLARE_POLY_STK_CLASS(InstrumentWrapper, Guitar, guitar, guitar_poly, 1);
 

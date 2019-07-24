@@ -51,6 +51,18 @@ void FormSwep :: sampleRateChanged( StkFloat newRate, StkFloat oldRate )
   }
 }
 
+
+void FormSwep::setRadius(StkFloat r)
+{
+	setResonance(frequency_, r);
+}
+
+
+void FormSwep::setFrequency(StkFloat freq)
+{
+	setResonance(freq, radius_);
+}
+
 void FormSwep :: setResonance( StkFloat frequency, StkFloat radius )
 {
 #if defined(_STK_DEBUG_)

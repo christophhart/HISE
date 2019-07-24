@@ -46,6 +46,10 @@ class FormSwep : public Filter
   */
   void setResonance( StkFloat frequency, StkFloat radius );
 
+  void setRadius(StkFloat radius);
+
+  void setFrequency(StkFloat freq);
+
   //! Set both the current and target resonance parameters.
   void setStates( StkFloat frequency, StkFloat radius, StkFloat gain = 1.0 );
 
@@ -75,7 +79,7 @@ class FormSwep : public Filter
   StkFloat lastOut( void ) const { return lastFrame_[0]; };
 
   //! Input one sample to the filter and return a reference to one output.
-  StkFloat tick( StkFloat input );
+  StkFloat tick( StkFloat input, unsigned int channel=0 );
 
   //! Take a channel of the StkFrames object as inputs to the filter and replace with corresponding outputs.
   /*!
@@ -120,7 +124,7 @@ class FormSwep : public Filter
 
 };
 
-inline StkFloat FormSwep :: tick( StkFloat input )
+inline StkFloat FormSwep :: tick( StkFloat input, unsigned int channel)
 {                                     
   if ( dirty_ )  {
     sweepState_ += sweepRate_;
