@@ -72,7 +72,11 @@ public:
 #if FRONTEND_IS_PLUGIN
 #if HI_SUPPORT_MONO_CHANNEL_LAYOUT
 
+#if HI_SUPPORT_MONO_TO_STEREO
+		return BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::stereo());
+#else
 		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
+#endif
 #else
 		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
 #endif
@@ -95,8 +99,13 @@ auto busProp = BusesProperties();
     {
 #if FRONTEND_IS_PLUGIN
 #if HI_SUPPORT_MONO_CHANNEL_LAYOUT
+#if HI_SUPPORT_MONO_TO_STEREO
+		return (layouts.getMainInputChannels() == 1 && layouts.getMainOutputChannels() == 2);
+#else
+
 		return (layouts.getMainInputChannels() == 1 && layouts.getMainOutputChannels() == 1) ||
 			   (layouts.getMainInputChannels() == 2 && layouts.getMainOutputChannels() == 2);
+#endif
 #else
 		return (layouts.getMainInputChannels() == 2 && layouts.getMainOutputChannels() == 2);
 #endif

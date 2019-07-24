@@ -163,6 +163,14 @@ If enabled, the plugin will also be compatible to mono track configurations.
 #define HI_SUPPORT_MONO_CHANNEL_LAYOUT 0
 #endif
 
+/** Config: HI_SUPPORT_MONO_TO_STEREO
+
+If enabled, the plugin will accept mono input channels for stereo processing. 
+*/
+#ifndef HI_SUPPORT_MONO_TO_STEREO
+#define HI_SUPPORT_MONO_TO_STEREO 0
+#endif
+
 /** Config: HI_SUPPORT_FULL_DYNAMICS_HLAC
 
 If enabled, the sample extraction dialog will show the option "Full Dynamics" when extracting the sample files. 
