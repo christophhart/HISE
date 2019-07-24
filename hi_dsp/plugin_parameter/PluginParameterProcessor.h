@@ -141,7 +141,7 @@ auto busProp = BusesProperties();
     
 	String name;
 
-	OwnedArray<DelayLine<8192>> bypassedLatencyDelays;
+	OwnedArray<DelayLine<32768>> bypassedLatencyDelays;
 	int lastLatencySamples = 0;
 
     //==============================================================================

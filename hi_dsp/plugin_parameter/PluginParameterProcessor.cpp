@@ -84,7 +84,7 @@ void PluginParameterAudioProcessor::handleLatencyInPrepareToPlay(double samplera
 
 		for (int i = 0; i < numChannels; i++)
 		{
-			bypassedLatencyDelays.add(new DelayLine<8192>());
+			bypassedLatencyDelays.add(new DelayLine<32768>());
 			bypassedLatencyDelays.getLast()->prepareToPlay(samplerate);
 			bypassedLatencyDelays.getLast()->setFadeTimeSamples(0);
 			bypassedLatencyDelays.getLast()->setDelayTimeSamples(lastLatencySamples);
@@ -96,12 +96,12 @@ void PluginParameterAudioProcessor::handleLatencyWhenBypassed(AudioSampleBuffer&
 {
 	if (lastLatencySamples != 0)
 	{
-		jassert(buffer.getNumChannels() < bypassedLatencyDelays.size());
+		jassert(buffer.getNumChannels() <= bypassedLatencyDelays.size());
 
 		auto numChannels = jmin(buffer.getNumChannels(), bypassedLatencyDelays.size());
 
 		for (int i = 0; i < numChannels; i++)
-			bypassedLatencyDelays[i]->processBlock(buffer.getWritePointer(0, i), buffer.getNumSamples());
+			bypassedLatencyDelays[i]->processBlock(buffer.getWritePointer(i, 0), buffer.getNumSamples());
 	}
 }
 
