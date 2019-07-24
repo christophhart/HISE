@@ -213,6 +213,11 @@ juce::MidiMessage* HiseMidiSequence::getNextEvent(Range<double> rangeToLookForTi
 					lastPlayedIndex = nextIndex;
 					return &nextEvent->message;
 				}
+				if (afterWrap.contains(ts))
+				{
+					lastPlayedIndex = nextIndex;
+					return &nextEvent->message;
+				}
 
 				// We don't want to wrap around notes that lie within the loop range.
 				if (ts < loopEndTicks)
@@ -321,6 +326,9 @@ double HiseMidiSequence::getLengthInQuarters()
 
 	if (artificialLengthInQuarters != -1.0)
 		return artificialLengthInQuarters;
+
+	if (signature.numBars != 0.0)
+		return signature.getNumQuarters();
 
 	if (auto currentSequence = sequences.getFirst())
 		return currentSequence->getEndTime() / (double)TicksPerQuarter;
@@ -510,6 +518,9 @@ juce::RectangleList<float> HiseMidiSequence::getRectangleList(Rectangle<float> t
 			{
 				auto x = (float)(e->message.getTimeStamp() / getLength());
 				auto w = (float)(e->noteOffObject->message.getTimeStamp() / getLength()) - x;
+
+				jassert(x < 1.0f);
+
 				auto y = (float)(127 - e->message.getNoteNumber()) / 128.0f;
 				auto h = 1.0f / 128.0f;
 

@@ -89,6 +89,8 @@ public:
 			v.setProperty("NumBars", numBars, nullptr);
 			v.setProperty("Nominator", nominator, nullptr);
 			v.setProperty("Denominator", denominator, nullptr);
+			v.setProperty("LoopStart", normalisedLoopRange.getStart(), nullptr);
+			v.setProperty("LoopEnd", normalisedLoopRange.getEnd(), nullptr);
 
 			return v;
 		}
@@ -98,6 +100,8 @@ public:
 			numBars = v.getProperty("NumBars", 0.0);
 			nominator = v.getProperty("Nominator", 4.0);
 			denominator = v.getProperty("Denominator", 4.0);
+			normalisedLoopRange.setStart(v.getProperty("LoopStart", 0.0));
+			normalisedLoopRange.setEnd(v.getProperty("LoopEnd", 1.0));
 		}
 
 	};
