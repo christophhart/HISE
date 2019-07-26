@@ -62,6 +62,7 @@
 #include "scripting/scriptnode/api/DspNetwork.cpp"
 #include "scripting/scriptnode/api/StaticNodeWrappers.cpp"
 
+#include "scripting/scriptnode/nodes/AudioFileNodeBase.cpp"
 #include "scripting/scriptnode/nodes/CodeGenerator.cpp"
 #include "scripting/scriptnode/nodes/NodeContainer.cpp"
 #include "scripting/scriptnode/nodes/NodeWrapper.cpp"

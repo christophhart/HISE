@@ -277,6 +277,7 @@ Factory::Factory(DspNetwork* n) :
 	registerPolyNode<moog, moog_poly>();
 	registerPolyNode<allpass, allpass_poly>();
 	registerPolyNode<linkwitzriley, linkwitzriley_poly>();
+	registerNode<convolution>();
 }
 
 

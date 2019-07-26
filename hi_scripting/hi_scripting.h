@@ -126,7 +126,7 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"
 
-
+#include "scripting/scriptnode/nodes/AudioFileNodeBase.h"
 
 #if USE_BACKEND
 

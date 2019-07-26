@@ -83,6 +83,7 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<ramp, ramp_poly>();
 	registerNode<table>();
 	registerNode<fix_delay>();
+	registerNode<file_player>();
 	registerPolyNode<oscillator, oscillator_poly>();
 	registerPolyNode<ramp_envelope, ramp_envelope_poly>();
 	registerPolyNode<gain, gain_poly>();

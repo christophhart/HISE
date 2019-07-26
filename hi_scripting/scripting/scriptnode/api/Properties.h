@@ -105,6 +105,8 @@ DECLARE_ID(UseMidi);
 DECLARE_ID(ResetValue);
 DECLARE_ID(UseResetValue);
 DECLARE_ID(RoutingMatrix);
+DECLARE_ID(SampleIndex);
+DECLARE_ID(File);
 
 enum EditType
 {

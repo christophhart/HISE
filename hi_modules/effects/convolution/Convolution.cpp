@@ -592,6 +592,8 @@ void ConvolutionEffect::LoadingThread::run()
 	
 }
 
+
+
 bool ConvolutionEffect::LoadingThread::reloadInternal()
 {
 	if (parent.getSampleBuffer() == nullptr || parent.getSampleBuffer()->getNumChannels() == 0)
@@ -605,44 +607,14 @@ bool ConvolutionEffect::LoadingThread::reloadInternal()
 
 	auto pBuffer = *parent.getSampleBuffer();
 
-	AudioSampleBuffer copyBuffer(2, parent.getSampleBuffer()->getNumSamples());
-
-	copyBuffer.copyFrom(0, 0, pBuffer.getReadPointer(0), pBuffer.getNumSamples(), 1.0f);
-	copyBuffer.copyFrom(1, 0, pBuffer.getReadPointer(pBuffer.getNumChannels() >= 2 ? 1 : 0), pBuffer.getNumSamples(), 1.0f);
-
-	if (shouldRestart)
-		return false;
-
-	const auto offset = parent.getRange().getStart();
-	const auto irLength = parent.getRange().getLength();
-
-	if (irLength > 44100 * 20)
-		jassertfalse;
-
-	auto l = copyBuffer.getReadPointer(0, offset);
-	auto r = copyBuffer.getReadPointer(1, offset);
-
 	auto resampleRatio = parent.getResampleFactor();
 
-	int resampledLength = roundToInt((double)irLength * resampleRatio);
+	AudioSampleBuffer scratchBuffer;
 
-	AudioSampleBuffer scratchBuffer(2, resampledLength);
-
-	if (shouldRestart)
+	if (!MultithreadedConvolver::prepareImpulseResponse(pBuffer, scratchBuffer, &shouldRestart, parent.getRange(), resampleRatio))
 		return false;
 
-	if (resampleRatio != 1.0)
-	{
-		LagrangeInterpolator resampler;
-		resampler.process(1.0 / resampleRatio, l, scratchBuffer.getWritePointer(0), resampledLength);
-		resampler.reset();
-		resampler.process(1.0 / resampleRatio, r, scratchBuffer.getWritePointer(1), resampledLength);
-	}
-	else
-	{
-		FloatVectorOperations::copy(scratchBuffer.getWritePointer(0), l, irLength);
-		FloatVectorOperations::copy(scratchBuffer.getWritePointer(1), r, irLength);
-	}
+	auto resampledLength = scratchBuffer.getNumSamples();
 
 	if (shouldRestart)
 		return false;
@@ -671,6 +643,69 @@ bool ConvolutionEffect::LoadingThread::reloadInternal()
 	parent.enableProcessing(parent.processingEnabled);
 
 	return true;
+}
+
+bool MultithreadedConvolver::prepareImpulseResponse(const AudioSampleBuffer& originalBuffer, AudioSampleBuffer& buffer, bool* abortFlag, Range<int> range, double resampleRatio)
+{
+	AudioSampleBuffer copyBuffer(2, originalBuffer.getNumSamples());
+
+	if (range.isEmpty())
+		range = { 0, originalBuffer.getNumSamples() };
+
+	if (originalBuffer.getNumSamples() == 0)
+		return true;
+
+	copyBuffer.copyFrom(0, 0, originalBuffer.getReadPointer(0), originalBuffer.getNumSamples(), 1.0f);
+	copyBuffer.copyFrom(1, 0, originalBuffer.getReadPointer(originalBuffer.getNumChannels() >= 2 ? 1 : 0), originalBuffer.getNumSamples(), 1.0f);
+
+	if (abortFlag != nullptr && abortFlag)
+		return false;
+
+	const auto offset = range.getStart();
+	const auto irLength = range.getLength();
+
+	if (irLength > 44100 * 20)
+		jassertfalse;
+
+	auto l = copyBuffer.getReadPointer(0, offset);
+	auto r = copyBuffer.getReadPointer(1, offset);
+
+	int resampledLength = roundToInt((double)irLength * resampleRatio);
+
+	buffer.setSize(2, resampledLength);
+
+	if (abortFlag != nullptr && abortFlag)
+		return false;
+
+	if (resampleRatio != 1.0)
+	{
+		LagrangeInterpolator resampler;
+		resampler.process(1.0 / resampleRatio, l, buffer.getWritePointer(0), resampledLength);
+		resampler.reset();
+		resampler.process(1.0 / resampleRatio, r, buffer.getWritePointer(1), resampledLength);
+	}
+	else
+	{
+		FloatVectorOperations::copy(buffer.getWritePointer(0), l, irLength);
+		FloatVectorOperations::copy(buffer.getWritePointer(1), r, irLength);
+	}
+
+	return true;
+}
+
+double MultithreadedConvolver::getResampleFactor(double sampleRate, double impulseSampleRate)
+{
+	auto resampleFactor = sampleRate / impulseSampleRate;
+
+	// not yet initialised, return a default until it will be recalled with the correct sample rate
+	if (resampleFactor < 0.0)
+	{
+		return 1.0;
+	}
+	else
+	{
+		return resampleFactor;
+	}
 }
 
 } // namespace hise

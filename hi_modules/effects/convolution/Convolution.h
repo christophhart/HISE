@@ -183,6 +183,10 @@ public:
 		}
 	}
 
+	static bool prepareImpulseResponse(const AudioSampleBuffer& originalBuffer, AudioSampleBuffer& buffer, bool* abortFlag, Range<int> range, double resampleRatio);
+
+	static double getResampleFactor(double sampleRate, double impulseSampleRate);
+
 	void setUseBackgroundThread(bool shouldBeUsingBackgroundThread)
 	{
 		if (useBackgroundThread != shouldBeUsingBackgroundThread)
@@ -354,6 +358,8 @@ public:
 
 	const CriticalSection& getFileLock() const override { return unusedFileLock; }
 
+	
+
 private:
 
 	bool processingEnabled = true;
@@ -371,18 +377,7 @@ private:
 		const auto renderingSampleRate = getSampleRate();
 		const auto bufferSampleRate = getSampleRateForLoadedFile();
 
-		auto resampleFactor = renderingSampleRate / bufferSampleRate;
-
-		// not yet initialised, return a default until it will be recalled with the correct sample rate
-		if (resampleFactor < 0.0)
-		{
-			return 1.0;
-		}
-		else
-		{
-			return resampleFactor;
-		}
-
+		return MultithreadedConvolver::getResampleFactor(renderingSampleRate, bufferSampleRate);
 	}
 
 	CriticalSection unusedFileLock;
@@ -441,5 +436,126 @@ private:
 
 
 } // namespace hise
+
+namespace scriptnode
+{
+using namespace hise;
+using namespace juce;
+
+namespace filters
+{
+
+struct convolution : public AudioFileNodeBase
+{
+	SET_HISE_NODE_ID("convolution");
+	GET_SELF_AS_OBJECT(convolution);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+	SET_HISE_NODE_EXTRA_WIDTH(256);
+	SET_HISE_NODE_EXTRA_HEIGHT(100);
+
+	void prepare(PrepareSpecs specs) override
+	{
+		lastSampleRate = specs.sampleRate;
+		largestBlockSize = specs.blockSize;
+
+		OwnedArray<MultithreadedConvolver> newConvolvers;
+
+		for (int i = 0; i < specs.numChannels; i++)
+		{
+			newConvolvers.add(new MultithreadedConvolver(audiofft::ImplementationType::BestAvailable));
+		}
+
+		{
+			SpinLock::ScopedLockType sl(lock);
+			convolvers.swapWith(newConvolvers);
+		}
+
+		rebuildImpulse();
+	}
+
+	void rebuildImpulse()
+	{
+		AudioSampleBuffer impulseBuffer;
+
+		auto ratio = MultithreadedConvolver::getResampleFactor(lastSampleRate, audioFile->getSampleRate());
+
+		{
+			SpinLock::ScopedLockType sl(lock);
+			MultithreadedConvolver::prepareImpulseResponse(currentBuffer->range, impulseBuffer, nullptr, {}, ratio);
+		}
+		
+		if (impulseBuffer.getNumSamples() == 0)
+		{
+			SpinLock::ScopedLockType sl(impulseLock);
+
+			for (auto c : convolvers)
+				c->reset();
+
+			return;
+		}
+
+		const auto headSize = nextPowerOfTwo(largestBlockSize);
+		const auto fullTailLength = nextPowerOfTwo(impulseBuffer.getNumSamples() - headSize);
+
+		{
+			SpinLock::ScopedLockType sl(impulseLock);
+
+			for (int i = 0; i < convolvers.size(); i++)
+			{
+				int channelIndex = i % impulseBuffer.getNumChannels();
+				auto c = convolvers[i];
+
+				c->init(headSize, fullTailLength, impulseBuffer.getReadPointer(channelIndex), impulseBuffer.getNumSamples());
+			}
+		}
+		
+		reset();
+	}
+
+	void contentChanged() override
+	{
+		AudioFileNodeBase::contentChanged();
+
+		rebuildImpulse();
+	}
+
+	void reset()
+	{
+		SpinLock::ScopedLockType sl(impulseLock);
+
+		for (auto c : convolvers)
+			c->cleanPipeline();
+	}
+
+	bool handleModulation(double& modValue)
+	{
+		return false;
+	}
+
+	void process(ProcessData& d)
+	{
+		auto numToProcess = jmin(d.numChannels, convolvers.size());
+
+		SpinLock::ScopedLockType sl(impulseLock);
+
+		for (int i = 0; i < d.numChannels; i++)
+			convolvers[i]->process(d.data[i], d.data[i], d.size);
+	}
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		jassertfalse;
+	}
+
+	SpinLock impulseLock;
+
+	OwnedArray<hise::MultithreadedConvolver> convolvers;
+	
+	int largestBlockSize = 0; 
+	double lastSampleRate = 44100.0;
+};
+
+}
+}
 
 #endif  // CONVOLUTION_H_INCLUDED

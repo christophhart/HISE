@@ -120,16 +120,26 @@ template <class T> struct NodePropertyT : public NodeProperty
 			BIND_MEMBER_FUNCTION_2(NodePropertyT::update));
 	}
 
-	void update(Identifier, var newValue)
+	void update(Identifier id, var newValue)
 	{
-		value = (T)newValue;
+		value = newValue;
+
+		if (additionalCallback)
+			additionalCallback(id, newValue);
 	}
 
-	T getValue() const { return value.load(); }
+	void setAdditionalCallback(const valuetree::PropertyListener::PropertyCallback& c)
+	{
+		additionalCallback = c;
+	}
+
+	T getValue() const { return value; }
 
 private:
 
-	std::atomic<T> value;
+	valuetree::PropertyListener::PropertyCallback additionalCallback;
+
+	T value;
 	valuetree::PropertyListener updater;
 };
 
