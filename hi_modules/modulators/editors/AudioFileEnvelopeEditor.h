@@ -135,7 +135,7 @@ private:
     ScopedPointer<Label> label;
     ScopedPointer<HiSlider> smoothSlider;
     ScopedPointer<HiToggleButton> retriggerButton;
-    ScopedPointer<AudioSampleBufferComponent> sampleBufferContent;
+    ScopedPointer<AudioSampleProcessorBufferComponent> sampleBufferContent;
     ScopedPointer<HiComboBox> modeSelector;
     ScopedPointer<HiSlider> gainSlider;
     ScopedPointer<HiSlider> attackSlider;

@@ -3387,11 +3387,12 @@ StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Iden
 	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
 	if (mp == nullptr) return StringArray();
 
-
 	auto aps = ProcessorHelpers::getAllIdsForType<AudioSampleProcessor>(mp->getOwnerSynth());
 	auto samplers = ProcessorHelpers::getAllIdsForType<ModulatorSampler>(mp->getOwnerSynth());
+	auto cds = ProcessorHelpers::getAllIdsForType<ComplexDataHolder>(mp->getOwnerSynth());
 
 	aps.addArray(samplers);
+	aps.addArray(cds);
 
 	return aps;
 }
@@ -3406,6 +3407,19 @@ void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChan
 	if (id == getIdFor(parameterId))
 	{
 		return;
+	}
+
+	if (id == getIdFor(sampleIndex))
+	{
+		if (auto cdh = dynamic_cast<ComplexDataHolder*>(getConnectedProcessor()))
+		{
+			auto index = (int)newValue;
+
+			if (index < cdh->getNumAudioFiles())
+			{
+				audioFile = cdh->addOrReturnAudioFile(index);
+			}
+		}
 	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
@@ -3423,7 +3437,6 @@ void ScriptingApi::Content::ScriptAudioWaveform::handleDefaultDeactivatedPropert
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(max));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(macroControl));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));

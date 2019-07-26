@@ -1785,17 +1785,21 @@ ScriptCreatedComponentWrapper(content, index)
 
 		samplerListener = new SamplerListener(s, ssw);
 	}
+	else if (saf = form->getScriptAudioFile())
+	{
+		auto asb = new ScriptAudioFileBufferComponent(saf);
+		asb->setName(form->name.toString());
+		component = asb;
+	}
 	else
 	{
-		AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(form->getConnectedProcessor());
+		auto asb = new AudioSampleProcessorBufferComponent(form->getConnectedProcessor());
 
 		asb->setName(form->name.toString());
 		asb->addAreaListener(this);
 
 		component = asb;
 	}
-
-	
 
 	initAllProperties();
 }
@@ -1805,8 +1809,7 @@ ScriptCreatedComponentWrapper(content, index)
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::~AudioWaveformWrapper()
 {
 	samplerListener = nullptr;
-
-	
+	saf = nullptr;
 }
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()
@@ -1836,7 +1839,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
             PROPERTY_CASE::ScriptAudioWaveform::Properties::sampleIndex: updateSampleIndex(form, adc, newValue); break;
 		}
 
-		if (auto asb = dynamic_cast<AudioSampleBufferComponent*>(component.get()))
+		if (auto asb = dynamic_cast<AudioSampleProcessorBufferComponent*>(component.get()))
 		{
 			switch (propertyIndex)
 			{
@@ -1844,13 +1847,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
 				PROPERTY_CASE::ScriptAudioWaveform::Properties::showFileName: asb->setShowFileName((bool)newValue); break;
 			}
 		}
-
 	}
-	
-
-
-
-	
 }
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateSampleIndex(ScriptingApi::Content::ScriptAudioWaveform *form, AudioDisplayComponent* asb, int newValue)
@@ -1863,8 +1860,6 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateSampleIndex(Scr
             {
                 samplerListener->setActive(newValue == -1);
             }
-            
-            
             
             if(newValue != -1 && lastIndex != newValue)
             {
@@ -1891,7 +1886,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDis
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::timerCallback()
 {
-	auto asb = dynamic_cast<AudioSampleBufferComponent*>(component.get());
+	auto asb = dynamic_cast<AudioSampleProcessorBufferComponent*>(component.get());
 
 	if(asb != nullptr)
 		asb->updatePlaybackPosition();

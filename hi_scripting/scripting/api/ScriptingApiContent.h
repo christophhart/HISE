@@ -1544,13 +1544,15 @@ public:
 		void restoreFromValueTree(const ValueTree &v) override;
 		AudioSampleProcessor * getAudioProcessor();;
 
+		ScriptingObjects::ScriptAudioFile::Ptr getScriptAudioFile() { return audioFile; }
+
 		ModulatorSampler* getSampler();
 
 		// ========================================================================================================
 
 	private:
 
-		
+		ScriptingObjects::ScriptAudioFile::Ptr audioFile;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptAudioWaveform);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptAudioWaveform);

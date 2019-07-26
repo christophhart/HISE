@@ -799,6 +799,7 @@ public:
 		void updateColours(AudioDisplayComponent* asb);
         
         int lastIndex = -1;
+		ScriptingObjects::ScriptAudioFile::Ptr saf;
 	};
 
 	class FloatingTileWrapper : public ScriptCreatedComponentWrapper

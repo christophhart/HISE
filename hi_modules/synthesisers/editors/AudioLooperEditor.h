@@ -122,7 +122,7 @@ private:
     //[/UserVariables]
 
     //==============================================================================
-    ScopedPointer<AudioSampleBufferComponent> sampleBufferContent;
+    ScopedPointer<AudioSampleProcessorBufferComponent> sampleBufferContent;
     ScopedPointer<Label> label;
     ScopedPointer<HiComboBox> syncToHost;
     ScopedPointer<HiToggleButton> pitchButton;

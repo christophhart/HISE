@@ -976,6 +976,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createSliderPackData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterSliderPackData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterTableData);
+	API_METHOD_WRAPPER_1(Engine, createAndRegisterAudioFile);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
@@ -1083,6 +1084,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createSliderPackData);
 	ADD_API_METHOD_1(createAndRegisterSliderPackData);
 	ADD_API_METHOD_1(createAndRegisterTableData);
+	ADD_API_METHOD_1(createAndRegisterAudioFile);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
 	ADD_API_METHOD_1(setGlobalFont);
@@ -1617,6 +1619,16 @@ hise::ScriptingObjects::ScriptTableData* ScriptingApi::Engine::createAndRegister
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
 	{
 		return jp->addOrReturnTableObject(index);
+	}
+
+	return nullptr;
+}
+
+hise::ScriptingObjects::ScriptAudioFile* ScriptingApi::Engine::createAndRegisterAudioFile(int index)
+{
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		return jp->addOrReturnAudioFile(index);
 	}
 
 	return nullptr;

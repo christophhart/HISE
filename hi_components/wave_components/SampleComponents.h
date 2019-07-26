@@ -43,17 +43,47 @@ public:
 	HiseAudioSampleBufferComponent(SafeChangeBroadcaster* p);;
 
 	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
-	void updatePlaybackPosition() override;
+	
 	File getDefaultDirectory() const override;
 	void itemDropped(const SourceDetails& dragSourceDetails) override;
-	void loadFile(const File& f) override;
-	void newBufferLoaded() override;
-	void updateProcessorConnection() override;
 	void poolItemWasDropped(const PoolReference& /*ref*/);
+};
+
+class AudioSampleProcessorBufferComponent : public HiseAudioSampleBufferComponent
+{
+public:
+
+	AudioSampleProcessorBufferComponent(SafeChangeBroadcaster* p);
+
+	void updatePlaybackPosition() override;
+	void updateProcessorConnection() override;
+	void newBufferLoaded() override;
+
+	void loadFile(const File& f) override;
 	void mouseDoubleClick(const MouseEvent&) override;
 };
 
-using AudioSampleBufferComponent = HiseAudioSampleBufferComponent;
+
+class ScriptAudioFileBufferComponent : public HiseAudioSampleBufferComponent
+{
+public:
+
+	ScriptAudioFileBufferComponent(ReferenceCountedObject* saf);
+	~ScriptAudioFileBufferComponent();
+
+	void updatePlaybackPosition() override;
+	void updateProcessorConnection() override;
+	void newBufferLoaded() override;
+
+	void loadFile(const File& f) override;
+	void mouseDoubleClick(const MouseEvent&) override;
+
+	struct UpdateHandler;
+
+	ScopedPointer<UpdateHandler> updater;
+};
+
+
 
 
 /** A component that displays the waveform of a sample.

@@ -205,7 +205,7 @@ private:
 
 		bool isFileSuitable(const File &file) const override
 		{
-			return file.hasFileExtension("hip") || AudioSampleBufferComponent::isAudioFile(file.getFullPathName());
+			return file.hasFileExtension("hip") || AudioSampleProcessorBufferComponent::isAudioFile(file.getFullPathName());
 		}
 		
 
@@ -249,7 +249,7 @@ private:
 
 		bool isAudioFile(const File& file) const
 		{
-			return AudioSampleBufferComponent::isAudioFile(file.getFullPathName());
+			return AudioSampleProcessorBufferComponent::isAudioFile(file.getFullPathName());
 		}
         
 		bool isXmlFile(const File& file) const

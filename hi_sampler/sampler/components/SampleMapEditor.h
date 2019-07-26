@@ -327,7 +327,7 @@ public:
 
 			File file(firstName);
 
-			return file.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName) || file.hasFileExtension("xml");
+			return file.isDirectory() || AudioSampleProcessorBufferComponent::isAudioFile(firstName) || file.hasFileExtension("xml");
 		}
 		else
 		{

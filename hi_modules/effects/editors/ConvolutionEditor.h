@@ -185,7 +185,7 @@ private:
     ScopedPointer<HiSlider> wetSlider;
     ScopedPointer<VuMeter> dryMeter;
     ScopedPointer<VuMeter> wetMeter;
-    ScopedPointer<AudioSampleBufferComponent> impulseDisplay;
+    ScopedPointer<AudioSampleProcessorBufferComponent> impulseDisplay;
     ScopedPointer<HiToggleButton> resetButton;
     ScopedPointer<Label> label;
     ScopedPointer<HiToggleButton> backgroundButton;

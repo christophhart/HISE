@@ -34,7 +34,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (getProcessor()));
+    addAndMakeVisible (sampleBufferContent = new AudioSampleProcessorBufferComponent (getProcessor()));
     sampleBufferContent->setName ("new component");
 
     addAndMakeVisible (label = new Label ("new label",

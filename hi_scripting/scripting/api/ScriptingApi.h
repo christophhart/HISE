@@ -398,6 +398,9 @@ public:
 		/** Creates a Table object and registers it so you can access it from other modules. */
 		ScriptingObjects::ScriptTableData* createAndRegisterTableData(int index);
 
+		/** Creates a audio file holder and registers it so you can access it from other modules. */
+		ScriptingObjects::ScriptAudioFile* createAndRegisterAudioFile(int index);
+
 		/** Creates a new timer object. */
 		ScriptingObjects::TimerObject* createTimerObject();
 

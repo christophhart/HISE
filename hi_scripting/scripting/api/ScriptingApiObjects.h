@@ -176,6 +176,124 @@ public:
 		// ============================================================================================================
 	};
 
+	class ScriptAudioFile : public ConstScriptingObject,
+						    public DebugableObject,
+							public AsyncUpdater,
+							public PooledUIUpdater::SimpleTimer
+	{
+	public:
+
+		struct RefCountedBuffer : public ReferenceCountedObject
+		{
+			void setRange(int min, int max)
+			{
+				int numChannels = all.getNumChannels();
+				sampleRange = { min, max };
+
+				for (int i = 0; i < numChannels; i++)
+					ptrs[i] = all.getWritePointer(i, min);
+
+				range.setDataToReferTo(ptrs, numChannels, sampleRange.getLength());
+			}
+
+			bool clear = true;
+			using Ptr = ReferenceCountedObjectPtr<RefCountedBuffer>;
+
+			double sampleRate = 44100.0;
+			AudioSampleBuffer all;
+			AudioSampleBuffer range;
+			Range<int> sampleRange;
+			float* ptrs[NUM_MAX_CHANNELS];
+			PoolReference currentFileReference;
+		};
+
+		using Ptr = ReferenceCountedObjectPtr<ScriptAudioFile>;
+
+		struct Listener
+		{
+			virtual ~Listener() {};
+
+			virtual void contentChanged() = 0;
+
+			virtual void playbackPositionChanged(double newPosition) {};
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		};
+
+		ScriptAudioFile(ProcessorWithScriptingContent* pwsc);;
+
+		String getDebugName() const override { return "AudioFile"; };
+		String getDebugValue() const override { return "AudioFile"; };
+
+		void rightClickCallback(const MouseEvent& e, Component *c) override {};
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("AudioFile"); }
+
+		void addListener(Listener* l, bool isSynchronous=false)
+		{
+			listeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeListener(Listener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+
+		void handleAsyncUpdate();
+
+		// ============================================================================================================
+
+		void clear();
+
+		/** Sets a new sample range. */
+		void setRange(int min, int max);
+
+		/** Loads an audio file from the given reference. */
+		void loadFile(const String& filePath);
+		
+		/** Returns the current audio data as array of channels. */
+		var getContent();
+
+		/** Sends an update message to all registered listeners. */
+		void update();
+
+		/** returns the amount of samples. */
+		int getNumSamples() const;
+
+		/** Returns the samplerate of the audio file. */
+		double getSampleRate() const;
+
+		/** Returns the reference string for the currently loaded file. */
+		String getCurrentlyLoadedFile() const;
+
+		// ============================================================================================================
+
+		void timerCallback() override;
+
+		RefCountedBuffer::Ptr getBuffer();
+
+		void setPosition(double newPosition)
+		{
+			position = newPosition;
+		}
+
+		SpinLock& getLock() { return sampleLock; }
+
+	private:
+
+		std::atomic<double> position = 0.0;
+		double lastPosition = 0.0;
+
+
+		SpinLock sampleLock;
+
+		Array<WeakReference<Listener>> listeners;
+
+		RefCountedBuffer::Ptr buffer;
+		
+		struct Wrapper;
+	};
+
 	class ScriptTableData : public ConstScriptingObject,
 							public DebugableObject
 	{

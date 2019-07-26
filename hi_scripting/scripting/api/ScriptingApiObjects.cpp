@@ -171,6 +171,178 @@ void addScriptParameters(ConstScriptingObject* this_, Processor* p)
 	this_->addConstant("ScriptParameters", var(scriptedParameters.get()));
 }
 
+struct ScriptingObjects::ScriptAudioFile::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, loadFile);
+	API_METHOD_WRAPPER_0(ScriptAudioFile, getContent);
+	API_VOID_METHOD_WRAPPER_0(ScriptAudioFile, update);
+	API_VOID_METHOD_WRAPPER_2(ScriptAudioFile, setRange);
+	API_METHOD_WRAPPER_0(ScriptAudioFile, getNumSamples);
+	API_METHOD_WRAPPER_0(ScriptAudioFile, getSampleRate);
+};
+
+ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc) :
+	ConstScriptingObject(pwsc, 0),
+	SimpleTimer(pwsc->getMainController_()->getGlobalUIUpdater())
+{
+	ADD_API_METHOD_2(setRange);
+	ADD_API_METHOD_1(loadFile);
+	ADD_API_METHOD_0(getContent);
+	ADD_API_METHOD_0(update);
+	ADD_API_METHOD_0(getNumSamples);
+	ADD_API_METHOD_0(getSampleRate);
+
+	buffer = new RefCountedBuffer();
+}
+
+void ScriptingObjects::ScriptAudioFile::handleAsyncUpdate()
+{
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->contentChanged();
+	}
+}
+
+void ScriptingObjects::ScriptAudioFile::clear()
+{
+	RefCountedBuffer::Ptr newB = new RefCountedBuffer();
+
+	{
+		SpinLock::ScopedLockType sl(getLock());
+		std::swap(newB, buffer);
+	}
+}
+
+void ScriptingObjects::ScriptAudioFile::setRange(int min, int max)
+{
+	int numChannels = buffer->all.getNumChannels();
+
+	if (numChannels == 0)
+	{
+		clear();
+		return;
+	}
+
+	min = jmax(0, min);
+	max = jmin(buffer->all.getNumSamples(), max);
+
+	int size = max - min;
+
+	if (size == 0)
+	{
+		clear();
+		return;
+	}
+
+	{
+		SpinLock::ScopedLockType sl(getLock());
+		buffer->setRange(min, max);
+	}
+
+	update();
+}
+
+void ScriptingObjects::ScriptAudioFile::loadFile(const String& filePath)
+{
+	if (filePath == getCurrentlyLoadedFile())
+		return;
+
+	if (filePath.isEmpty())
+	{
+		clear();
+		update();
+		stop();
+		return;
+	}
+
+	auto mc = getScriptProcessor()->getMainController_();
+	
+	
+
+	RefCountedBuffer::Ptr newBuffer = new RefCountedBuffer();
+
+	newBuffer->currentFileReference = PoolReference(mc, filePath, FileHandlerBase::AudioFiles);
+
+	auto poolData = mc->getCurrentAudioSampleBufferPool()->loadFromReference(newBuffer->currentFileReference, PoolHelpers::LoadAndCacheWeak);
+
+	if (auto d = poolData.get())
+	{
+		auto rb = d->data;
+
+		newBuffer->all.makeCopyOf(rb);
+		newBuffer->sampleRate = d->additionalData.getProperty(MetadataIDs::SampleRate, 44100.0);
+		newBuffer->clear = false;
+		newBuffer->setRange(0, rb.getNumSamples());
+
+		{
+			SpinLock::ScopedLockType sl(getLock());
+			std::swap(newBuffer, buffer);
+		}
+
+		update();
+		start();
+	}
+}
+
+var ScriptingObjects::ScriptAudioFile::getContent()
+{
+	Array<var> channels;
+
+	if (auto b = getBuffer())
+	{
+		for (int i = 0; i < b->all.getNumChannels(); i++)
+		{
+			auto n = new VariantBuffer(b->range.getWritePointer(i), b->range.getNumSamples());
+			channels.add(var(n));
+		}
+	}
+
+	return channels;
+}
+
+void ScriptingObjects::ScriptAudioFile::update()
+{
+	triggerAsyncUpdate();
+}
+
+int ScriptingObjects::ScriptAudioFile::getNumSamples() const
+{
+	if (buffer->clear)
+		return 0;
+
+	return buffer->sampleRange.getLength();
+}
+
+double ScriptingObjects::ScriptAudioFile::getSampleRate() const
+{
+	return buffer->sampleRate;
+}
+
+juce::String ScriptingObjects::ScriptAudioFile::getCurrentlyLoadedFile() const
+{
+	return buffer->currentFileReference.getReferenceString();
+}
+
+void ScriptingObjects::ScriptAudioFile::timerCallback()
+{
+	if (lastPosition != position.load())
+	{
+		lastPosition = position.load();
+
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->playbackPositionChanged(lastPosition);
+		}
+	}
+}
+
+ScriptingObjects::ScriptAudioFile::RefCountedBuffer::Ptr ScriptingObjects::ScriptAudioFile::getBuffer()
+{
+	return buffer;
+}
+
 struct ScriptingObjects::ScriptTableData::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(ScriptTableData, reset);
@@ -3571,6 +3743,5 @@ void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr 
 {
 
 }
-
 
 } // namespace hise

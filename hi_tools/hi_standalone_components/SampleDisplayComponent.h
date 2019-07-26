@@ -512,6 +512,11 @@ public:
 		list.add(l);
 	};
 
+	void removeAreaListener(Listener* l)
+	{
+		list.remove(l);
+	}
+
 	void refreshSampleAreaBounds(SampleArea* areaToSkip=nullptr)
 	{
 		if(getTotalSampleAmount() == 0) return;

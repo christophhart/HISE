@@ -37,18 +37,8 @@ using namespace juce;
 HiseAudioSampleBufferComponent::HiseAudioSampleBufferComponent(SafeChangeBroadcaster* p) :
 	AudioSampleBufferComponentBase(p)
 {
-	updateProcessorConnection();
-
-	if (connectedProcessor != nullptr)
-	{
-		removeAllChangeListeners();
-		connectedProcessor->addChangeListener(this);
-		changeListenerCallback(connectedProcessor);
-	}
+	
 }
-
-
-
 
 bool HiseAudioSampleBufferComponent::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
 {
@@ -56,11 +46,6 @@ bool HiseAudioSampleBufferComponent::isInterestedInDragSource(const SourceDetail
 	return ref && ref.getFileType() == FileHandlerBase::SubDirectories::AudioFiles;
 }
 
-void HiseAudioSampleBufferComponent::updatePlaybackPosition()
-{
-	if (connectedProcessor)
-		setPlaybackPosition(dynamic_cast<Processor*>(connectedProcessor.get())->getInputValue());
-}
 
 juce::File HiseAudioSampleBufferComponent::getDefaultDirectory() const
 {
@@ -83,22 +68,34 @@ void HiseAudioSampleBufferComponent::itemDropped(const SourceDetails& dragSource
 	poolItemWasDropped(ref);
 }
 
-void HiseAudioSampleBufferComponent::loadFile(const File& f)
-{
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
-	{
-#if USE_BACKEND
-		String fileName = f.getFullPathName();
-#else
-		auto fileName = FrontendHandler::getRelativePathForAdditionalAudioFile(f);
-#endif
 
-		buffer = nullptr;
-		asp->setLoadedFile(fileName, true);
+
+void HiseAudioSampleBufferComponent::poolItemWasDropped(const PoolReference& /*ref*/)
+{
+
+}
+
+
+AudioSampleProcessorBufferComponent::AudioSampleProcessorBufferComponent(SafeChangeBroadcaster* p) :
+	HiseAudioSampleBufferComponent(p)
+{
+	updateProcessorConnection();
+
+	if (connectedProcessor != nullptr)
+	{
+		removeAllChangeListeners();
+		connectedProcessor->addChangeListener(this);
+		changeListenerCallback(connectedProcessor);
 	}
 }
 
-void HiseAudioSampleBufferComponent::newBufferLoaded()
+void AudioSampleProcessorBufferComponent::updatePlaybackPosition()
+{
+	if (connectedProcessor)
+		setPlaybackPosition(dynamic_cast<Processor*>(connectedProcessor.get())->getInputValue());
+}
+
+void AudioSampleProcessorBufferComponent::newBufferLoaded()
 {
 	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get());
 
@@ -114,12 +111,34 @@ void HiseAudioSampleBufferComponent::newBufferLoaded()
 
 		xPositionOfLoop = { x1, x2 };
 		setShowLoop(asp->isUsingLoop());
-
-
 	}
 }
 
-void HiseAudioSampleBufferComponent::updateProcessorConnection()
+void AudioSampleProcessorBufferComponent::loadFile(const File& f)
+{
+	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+	{
+#if USE_BACKEND
+		String fileName = f.getFullPathName();
+#else
+		auto fileName = FrontendHandler::getRelativePathForAdditionalAudioFile(f);
+#endif
+
+		buffer = nullptr;
+		asp->setLoadedFile(fileName, true);
+	}
+}
+
+void AudioSampleProcessorBufferComponent::mouseDoubleClick(const MouseEvent&)
+{
+	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+	{
+		buffer = nullptr;
+		asp->setLoadedFile("", true);
+	}
+}
+
+void AudioSampleProcessorBufferComponent::updateProcessorConnection()
 {
 	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
 	{
@@ -128,19 +147,109 @@ void HiseAudioSampleBufferComponent::updateProcessorConnection()
 	}
 }
 
-void HiseAudioSampleBufferComponent::poolItemWasDropped(const PoolReference& /*ref*/)
+ScriptingObjects::ScriptAudioFile* getScriptAudioFile(ReferenceCountedObject* p)
+{
+	return dynamic_cast<ScriptingObjects::ScriptAudioFile*>(p);
+}
+
+struct ScriptAudioFileBufferComponent::UpdateHandler: public ScriptingObjects::ScriptAudioFile::Listener,
+													  public AudioDisplayComponent::Listener
+{
+	UpdateHandler(ScriptAudioFileBufferComponent& parent_, ReferenceCountedObject* saf):
+		parent(parent_),
+		audioFile(dynamic_cast<ScriptingObjects::ScriptAudioFile*>(saf))
+	{
+		parent.addAreaListener(this);
+		audioFile->addListener(this);
+
+		contentChanged();
+	}
+
+	void playbackPositionChanged(double newPos)
+	{
+		parent.setPlaybackPosition(newPos);
+	}
+
+	void contentChanged() override
+	{
+		if (audioFile != nullptr)
+		{
+			if (auto b = audioFile->getBuffer())
+			{
+				if(b->clear)
+					parent.setAudioSampleBuffer(nullptr, {}, dontSendNotification);
+				else
+				{
+					parent.setAudioSampleBuffer(&b->all, audioFile->getCurrentlyLoadedFile(), dontSendNotification);
+					parent.setRange(b->sampleRange);
+				}
+			}
+		}
+	}
+
+	void rangeChanged(AudioDisplayComponent *, int ) override
+	{
+		currentRange = parent.getSampleArea(AudioDisplayComponent::AreaTypes::PlayArea)->getSampleRange();
+
+		if (audioFile != nullptr)
+			audioFile->setRange(currentRange.getStart(), currentRange.getEnd());
+	}
+
+	~UpdateHandler()
+	{
+		parent.removeAreaListener(this);
+
+		if (audioFile != nullptr)
+			audioFile->removeListener(this);
+	}
+
+	Range<int> currentRange;
+	ScriptAudioFileBufferComponent& parent;
+	ScriptingObjects::ScriptAudioFile::Ptr audioFile;
+};
+
+ScriptAudioFileBufferComponent::ScriptAudioFileBufferComponent(ReferenceCountedObject* saf):
+	HiseAudioSampleBufferComponent(nullptr)
+{
+	updater = new UpdateHandler(*this, saf);
+}
+
+ScriptAudioFileBufferComponent::~ScriptAudioFileBufferComponent()
+{
+	updater = nullptr;
+}
+
+void ScriptAudioFileBufferComponent::updatePlaybackPosition()
 {
 
 }
 
-void HiseAudioSampleBufferComponent::mouseDoubleClick(const MouseEvent&)
+void ScriptAudioFileBufferComponent::updateProcessorConnection()
 {
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+
+}
+
+void ScriptAudioFileBufferComponent::newBufferLoaded()
+{
+	
+}
+
+void ScriptAudioFileBufferComponent::loadFile(const File& f)
+{
+	if (updater->audioFile != nullptr)
 	{
-		buffer = nullptr;
-		asp->setLoadedFile("", true);
+		updater->audioFile->loadFile(f.getFullPathName());
 	}
 }
+
+void ScriptAudioFileBufferComponent::mouseDoubleClick(const MouseEvent&)
+{
+	if (updater->audioFile != nullptr)
+	{
+		updater->audioFile->loadFile("");
+	}
+}
+
 
 SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler) :
 	AudioDisplayComponent(),

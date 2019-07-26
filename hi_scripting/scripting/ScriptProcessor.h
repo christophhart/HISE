@@ -348,6 +348,8 @@ public:
 
 	int getNumSliderPacks() const override { return sliderPacks.size(); }
 
+	int getNumAudioFiles() const { return audioFiles.size(); };
+
 	void saveComplexDataTypeAmounts(ValueTree& v) const
 	{
 		if (!sliderPacks.isEmpty())
@@ -355,10 +357,15 @@ public:
 
 		if (!tables.isEmpty())
 			v.setProperty("NumTables", sliderPacks.size(), nullptr);
+
+		if (!audioFiles.isEmpty())
+			v.setProperty("NumAudioFiles", audioFiles.size(), nullptr);
 	}
 
 	void restoreComplexDataTypes(const ValueTree& v)
 	{
+		auto pc = dynamic_cast<ProcessorWithScriptingContent*>(this);
+
 		int numSliderPacks = v.getProperty("NumSliderPacks", 0);
 
 		if (numSliderPacks > 0)
@@ -366,7 +373,7 @@ public:
 			sliderPacks.ensureStorageAllocated(numSliderPacks);
 
 			for (int i = 0; i < numSliderPacks; i++)
-				sliderPacks.add(new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
+				sliderPacks.add(new ScriptingObjects::ScriptSliderPackData(pc));
 		}
 
 		int numTables = v.getProperty("NumTables", 0);
@@ -376,7 +383,17 @@ public:
 			tables.ensureStorageAllocated(numTables);
 
 			for (int i = 0; i < numTables; i++)
-				tables.add(new ScriptingObjects::ScriptTableData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
+				tables.add(new ScriptingObjects::ScriptTableData(pc));
+		}
+
+		int numAudioFiles = v.getProperty("NumAudioFiles", 0);
+
+		if (numAudioFiles > 0)
+		{
+			audioFiles.ensureStorageAllocated(numAudioFiles);
+
+			for (int i = 0; i < numAudioFiles; i++)
+				audioFiles.add(new ScriptingObjects::ScriptAudioFile(pc));
 		}
 	}
 
@@ -387,6 +404,15 @@ public:
 
 		sliderPacks.set(index, new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
 		return sliderPacks[index];
+	}
+
+	ScriptingObjects::ScriptAudioFile* addOrReturnAudioFile(int index)
+	{
+		if (auto d = audioFiles[index])
+			return d;
+
+		audioFiles.set(index, new ScriptingObjects::ScriptAudioFile(dynamic_cast<ProcessorWithScriptingContent*>(this)));
+		return audioFiles[index];
 	}
 
 	ScriptingObjects::ScriptTableData* addOrReturnTableObject(int index)
@@ -400,9 +426,11 @@ public:
 
 protected:
 
+	
+
 	ReferenceCountedArray<ScriptingObjects::ScriptSliderPackData> sliderPacks;
 	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
-
+	ReferenceCountedArray<ScriptingObjects::ScriptAudioFile> audioFiles;
 };
 
 

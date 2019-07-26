@@ -57,7 +57,7 @@ AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (ProcessorEditor *p)
     retriggerButton->addListener (this);
     retriggerButton->setColour (ToggleButton::textColourId, Colours::white);
 
-    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (getProcessor()));
+    addAndMakeVisible (sampleBufferContent = new AudioSampleProcessorBufferComponent (getProcessor()));
     sampleBufferContent->setName ("new component");
 
     addAndMakeVisible (modeSelector = new HiComboBox ("Mode Selection"));
