@@ -337,6 +337,32 @@ void NodeComponent::selectionChanged(const NodeBase::List& selection)
 	}
 }
 
+void NodeComponent::fillContextMenu(PopupMenu& m)
+{
+	m.addItem((int)MenuActions::ExportAsCpp, "Export module to Custom folder", CodeHelpers::customFolderIsDefined());
+	m.addItem((int)MenuActions::ExportAsCppProject, "Export module to Project folder", CodeHelpers::projectFolderIsDefined());
+
+	m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
+	m.addItem((int)MenuActions::EditProperties, "Edit Properties");
+
+	if (auto hc = node.get()->getAsHardcodedNode())
+	{
+		m.addItem((int)MenuActions::UnfreezeNode, "Unfreeze hardcoded node");
+	}
+	else if (node->getValueTree().hasProperty(PropertyIds::FreezedId) ||
+		node->getValueTree().hasProperty(PropertyIds::FreezedPath))
+	{
+		m.addItem((int)MenuActions::FreezeNode, "Replace with hardcoded version");
+	}
+
+	m.addSectionHeader("Wrap into container");
+	m.addItem((int)MenuActions::WrapIntoChain, "Chain");
+	m.addItem((int)MenuActions::WrapIntoSplit, "Split");
+	m.addItem((int)MenuActions::WrapIntoMulti, "Multi");
+	m.addItem((int)MenuActions::WrapIntoFrame, "Frame");
+	m.addItem((int)MenuActions::WrapIntoOversample4, "Oversample(4x)");
+}
+
 void NodeComponent::handlePopupMenuResult(int result)
 {
 	if (result == (int)MenuActions::ExportAsCpp)
@@ -349,6 +375,12 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 		String cppClassName = "custom." + node->getId();
 		node->setValueTreeProperty(PropertyIds::FreezedPath, cppClassName);
+	}
+	if (result == (int)MenuActions::ExportAsCppProject)
+	{
+		const String c = node->createCppClass(true);
+		CodeHelpers::addFileToProjectFolder(node->getId(), c);
+		SystemClipboard::copyTextToClipboard(c);
 	}
 	if (result == (int)MenuActions::EditProperties)
 	{

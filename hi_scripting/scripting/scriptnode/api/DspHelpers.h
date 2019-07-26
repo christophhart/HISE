@@ -389,7 +389,13 @@ struct CodeHelpers
 
 	static void addFileToCustomFolder(const String& filename, const String& content);
 
+	static void addFileToProjectFolder(const String& filename, const String& content);
+
 	static String createIncludeFile(File targetDirectory);
+
+	static bool customFolderIsDefined();
+
+	static bool projectFolderIsDefined();
 
 private:
 

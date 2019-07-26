@@ -47,6 +47,7 @@ public:
 	enum class MenuActions
 	{
 		ExportAsCpp = 1,
+		ExportAsCppProject,
 		ExportAsSnippet,
 		EditProperties,
 		UnfreezeNode,
@@ -159,29 +160,7 @@ public:
 
 	void selectionChanged(const NodeBase::List& selection) override;
 
-	virtual void fillContextMenu(PopupMenu& m)
-	{
-		m.addItem((int)MenuActions::ExportAsCpp, "Export as hardcoded C++ module");
-		m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
-		m.addItem((int)MenuActions::EditProperties, "Edit Properties");
-
-		if (auto hc = node.get()->getAsHardcodedNode())
-		{
-			m.addItem((int)MenuActions::UnfreezeNode, "Unfreeze hardcoded node");
-		}
-		else if (node->getValueTree().hasProperty(PropertyIds::FreezedId) || 
-			     node->getValueTree().hasProperty(PropertyIds::FreezedPath))
-		{
-			m.addItem((int)MenuActions::FreezeNode, "Replace with hardcoded version");
-		}
-
-		m.addSectionHeader("Wrap into container");
-		m.addItem((int)MenuActions::WrapIntoChain, "Chain");
-		m.addItem((int)MenuActions::WrapIntoSplit, "Split");
-		m.addItem((int)MenuActions::WrapIntoMulti, "Multi");
-		m.addItem((int)MenuActions::WrapIntoFrame, "Frame");
-		m.addItem((int)MenuActions::WrapIntoOversample4, "Oversample(4x)");
-	}
+	virtual void fillContextMenu(PopupMenu& m);
 
 	virtual void handlePopupMenuResult(int result);
 

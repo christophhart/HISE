@@ -240,6 +240,9 @@ juce::String CodeHelpers::createIncludeFile(File targetDirectory)
 	Array<File> cppFiles = targetDirectory.findChildFiles(File::findFiles, false, "*.cpp");
 	String s;
 
+	if(targetDirectory == projectIncludeDirectory)
+		s << "#include \"JuceHeader.h\n\n\"";
+
 	for (auto cppFile : cppFiles)
 	{
 		if (cppFile == includeFile)
@@ -276,6 +279,7 @@ juce::String CodeHelpers::createIncludeFile(File targetDirectory)
 
 	return hc;
 }
+
 
 void CodeHelpers::addFileInternal(const String& filename, const String& content, File targetDirectory)
 {
@@ -331,31 +335,26 @@ void CodeHelpers::initCustomCodeFolder(Processor* p)
 #endif
 }
 
+
+bool CodeHelpers::customFolderIsDefined()
+{
+	return includeDirectory.isDirectory();
+}
+
+bool CodeHelpers::projectFolderIsDefined()
+{
+	return projectIncludeDirectory.isDirectory();
+}
+
 void CodeHelpers::addFileToCustomFolder(const String& filename, const String& content)
 {
-	if (includeDirectory.isDirectory() && projectIncludeDirectory.isDirectory())
-	{
-		if (PresetHandler::showYesNoWindow("Export to project folder or global node folder",
-			"Do you want to copy the file to the projects Custom node folder?", PresetHandler::IconType::Question))
-		{
-			addFileInternal(filename, content, projectIncludeDirectory);
-		}
-		else
-			addFileInternal(filename, content, includeDirectory);
+	addFileInternal(filename, content, includeDirectory);
 
-	}
-	else if (projectIncludeDirectory.isDirectory())
-	{
-		addFileInternal(filename, content, projectIncludeDirectory);
-	}
-	else if (getIncludeDirectory().isDirectory())
-	{
-		addFileInternal(filename, content, includeDirectory);
-	}
-	else
-	{
-		PresetHandler::showMessageWindow("Custom Path is not set", "You need to set the custom path folder in the HISE settings", PresetHandler::IconType::Error);
-	}
+}
+
+void CodeHelpers::addFileToProjectFolder(const String& filename, const String& content)
+{
+	addFileInternal(filename, content, projectIncludeDirectory);
 }
 
 }
