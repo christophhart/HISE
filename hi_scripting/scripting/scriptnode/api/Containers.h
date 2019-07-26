@@ -195,9 +195,9 @@ struct ChainBase : public ChainElement<IsFirst, FirstProcessor, ChainBase<IsFirs
 			auto wd = original.copyTo(splitBuffer, 1);
 
 			Base::process(wd);
-			processors.processWithCopy(data, original, splitBuffer);
 
 			data += wd;
+			processors.processWithCopy(data, original, splitBuffer);
 		}
 	}
 
