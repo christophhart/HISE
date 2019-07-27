@@ -625,12 +625,14 @@ public:
 
 	void processSingle(float* frameData, int numChannels)
 	{
-		if (--singleCounter > 0) return;
+		if (--singleCounter <= 0)
+        {
+            singleCounter = HISE_EVENT_RASTER;
+            lastValue = 0.0f;
+            obj.processSingle(&lastValue, 1);
+        }
 
-		singleCounter = HISE_EVENT_RASTER;
-		float value = 0.0f;
-
-		obj.processSingle(&value, 1);
+		frameData[0] = (float)lastValue;
 	}
 
 	bool handleModulation(double& value)
@@ -648,6 +650,7 @@ public:
 
 	T obj;
 	int singleCounter = 0;
+    float lastValue = 0.0f;
 };
 
 

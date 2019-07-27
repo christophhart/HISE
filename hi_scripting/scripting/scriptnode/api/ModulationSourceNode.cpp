@@ -351,7 +351,12 @@ void ModulationSourceBaseComponent::mouseDown(const MouseEvent& e)
 		auto pe = new MacroPropertyEditor(sourceNode, sourceNode->getValueTree(), PropertyIds::ModulationTargets);
 
 		pe->setName("Edit Modulation Targets");
-		findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(pe, this, getLocalBounds().getCentre());
+        
+        
+        auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+        auto b = g->getLocalArea(this, getLocalBounds());
+        
+        CallOutBox::launchAsynchronously(pe, b, g);
 	}
 }
 

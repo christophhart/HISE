@@ -281,7 +281,7 @@ public:
 
 	private:
 
-		std::atomic<double> position = 0.0;
+        std::atomic<double> position {0.0};
 		double lastPosition = 0.0;
 
 
