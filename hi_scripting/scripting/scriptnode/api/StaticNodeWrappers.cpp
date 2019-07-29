@@ -77,11 +77,8 @@ juce::String HardcodedNode::getNodeId(const HiseDspBase* internalNode) const
 {
 	for (const auto& n : internalNodes)
 	{
-		for (const auto& in_ : n.nodes)
-		{
-			if (in_ == internalNode)
-				return n.id;
-		}
+		if (n.node == internalNode)
+			return n.id;
 	}
 
 	return {};

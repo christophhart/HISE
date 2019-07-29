@@ -61,6 +61,7 @@ protected:
 	virtual int getExtraWidth() const { return 0; }
 	virtual int getExtraHeight() const { return 0; }
 };
+
     
 template <class HiseDspBaseType> class HiseDspNodeBase : public WrapperNode
 {
@@ -126,12 +127,14 @@ public:
 		wrapper.reset();
 	}
 
+	HiseDspBase* getInternalT()
+	{
+		return wrapper.getInternalT();
+	}
+
 	bool isPolyphonic() const override { return wrapper.isPolyphonic(); }
 
-	HiseDspBaseType* getReferenceToInternalObject() 
-	{ 
-		return dynamic_cast<HiseDspBaseType*>(wrapper.createListOfNodesWithSameId().getLast());
-	}
+	
 
 	Identifier getObjectName() const override { return getStaticId(); }
 
@@ -358,7 +361,6 @@ public:
 				c.id = prefix + "." + c.id;
 		}
 
-
 		return data;
 	}
 
@@ -387,12 +389,14 @@ public:
 
 	String getNodeId(const HiseDspBase* internalNode) const;
 
+	
+
 	HiseDspBase* getNode(const String& id) const
 	{
 		for (const auto& n : internalNodes)
 		{
 			if (n.id == id)
-				return n.nodes.getFirst();
+				return n.node;
 		}
 
 		return nullptr;
@@ -402,7 +406,13 @@ public:
 	{
 		if (auto typed = dynamic_cast<HiseDspBase*>(&obj->getObject()))
 		{
-			internalNodes.add({ typed->createListOfNodesWithSameId(), id });
+			if (auto hc = typed->getAsHardcodedNode())
+			{
+				hc->fillInternalParameterList(typed, id);
+				internalNodes.addArray(hc->internalNodes);
+			}
+
+			internalNodes.add({ typed, id });
 			fillInternalParameterList(typed, id);
 		}
 	}
@@ -411,13 +421,11 @@ private:
 
 	struct InternalNode
 	{
-		Array<HiseDspBase*> nodes;
+		HiseDspBase* node = nullptr;
 		String id;
 	};
 
 	Array<InternalNode> internalNodes;
-
-	StringArray registeredIds;
 };
 
 struct hc

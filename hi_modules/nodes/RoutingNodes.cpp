@@ -290,7 +290,7 @@ void SendNode::ConnectionNodeProperty::update(Identifier, var newValue)
 	else
 	{
 		if (auto n = dynamic_cast<HiseDspNodeBase<ReceiveNode>*>(p.parent->getRootNetwork()->get(newValue).getObject()))
-			p.connectTo(n->getReferenceToInternalObject());
+			p.connectTo(n->getInternalT());
 		else
 			p.connectTo(nullptr);
 	}

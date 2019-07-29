@@ -123,10 +123,7 @@ public:
 		ignoreUnused(e);
 	};
 
-	virtual Array<HiseDspBase*> createListOfNodesWithSameId()
-	{
-		return { this };
-	}
+	
 
 	virtual Component* createExtraComponent(PooledUIUpdater* updater)
 	{
@@ -166,21 +163,12 @@ public:
 		return obj.isPolyphonic();
 	}
 
-	HardcodedNode* getAsHardcodedNode() override { return obj.getAsHardcodedNode(); }
-
-	Array<HiseDspBase*> createListOfNodesWithSameId() override
+	HiseDspBase* getInternalT()
 	{
-		if (std::is_base_of<HiseDspBase, T>())
-		{
-			// Would be great to use if constexpr here...
-			auto ptr = reinterpret_cast<HiseDspBase*>(&obj);
-			jassert(ptr != nullptr);
-			return { this, ptr };
-		}
-			
-		else
-			return { this };
+		return dynamic_cast<HiseDspBase*>(&obj);
 	}
+
+	HardcodedNode* getAsHardcodedNode() override { return obj.getAsHardcodedNode(); }
 
 protected:
 
