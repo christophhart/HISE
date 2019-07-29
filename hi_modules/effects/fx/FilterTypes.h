@@ -155,7 +155,10 @@ public:
 	MultiChannelFilter():
 		frequency(1000.0),
 		q(1.0),
-		gain(1.0)
+		gain(1.0),
+		currentFreq(1000.0),
+		currentQ(1.0),
+		currentGain(1.0)
 	{
 
 	}
@@ -203,17 +206,20 @@ public:
 
 	void setFrequency(double newFrequency)
 	{
-		frequency.setValue(FilterLimits::limitFrequency(newFrequency));
+		targetFreq = FilterLimits::limitFrequency(newFrequency);
+		frequency.setValue(targetFreq);
 	}
 
 	void setQ(double newQ)
 	{
-		q.setValue(FilterLimits::limitQ(newQ));
+		targetQ = FilterLimits::limitQ(newQ);
+		q.setValue(targetQ);
 	}
 
 	void setGain(double newGain)
 	{
-		gain.setValue(FilterLimits::limitGain(newGain));
+		targetGain = FilterLimits::limitGain(newGain);
+		gain.setValue(targetGain);
 	}
 
 	static Identifier getFilterTypeId()
@@ -248,9 +254,9 @@ public:
 	void reset(int unused=0)
 	{
 		ignoreUnused(unused);
-		frequency.setValueWithoutSmoothing(frequency.getTargetValue());
-		gain.setValueWithoutSmoothing(gain.getTargetValue());
-		q.setValueWithoutSmoothing(q.getTargetValue());
+		frequency.setValueWithoutSmoothing(targetFreq);
+		gain.setValueWithoutSmoothing(targetGain);
+		q.setValueWithoutSmoothing(targetQ);
 
 		FilterSubType::reset(numChannels);
 	}
@@ -357,6 +363,10 @@ private:
 	double currentFreq;
 	double currentGain;
 	double currentQ;
+
+	double targetFreq = 1000.0;
+	double targetQ = 1.0;
+	double targetGain = 1.0;
 
 	int frameCounter = 0;
 	int type = -1;
