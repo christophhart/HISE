@@ -282,6 +282,7 @@ public:
 					p.setProperty(PropertyIds::ID, name, nullptr);
 					p.setProperty(PropertyIds::MinValue, 0.0, nullptr);
 					p.setProperty(PropertyIds::MaxValue, 1.0, nullptr);
+					p.setProperty(PropertyIds::StepSize, 0.01, nullptr);
 					p.setProperty(PropertyIds::Value, 1.0, nullptr);
 					parameterTree.addChild(p, -1, parent.node->getUndoManager());
 				}
@@ -490,10 +491,6 @@ struct ModChainNodeComponent : public ContainerComponent
 
 	void resized() override;
 	void paint(Graphics& g) override;
-	//void paintCable(Graphics& g, int cableIndex);
-
-	ModulationSourceBaseComponent dragger;
-
 };
 
 }

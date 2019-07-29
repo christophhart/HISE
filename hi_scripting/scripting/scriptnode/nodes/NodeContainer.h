@@ -274,7 +274,7 @@ public:
 
 		bool handleModulation(double&) 
 		{ 
-			return false; 
+			return false;
 		}
 
 		void handleHiseEvent(HiseEvent& e) final override
@@ -372,78 +372,9 @@ private:
 };
 
 
-class ModulationChainNode : public ModulationSourceNode,
-							public NodeContainer
+class ModulationChainNode : public SerialNode
 {
 public:
-
-	class DynamicModContainer : public HiseDspBase
-	{
-	public:
-
-		SET_HISE_NODE_EXTRA_HEIGHT(0);
-		SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-
-		bool handleModulation(double& value)
-		{
-			value = modValue.get();
-			return true;
-		}
-
-		void initialise(NodeBase* p)
-		{
-			parent = dynamic_cast<NodeContainer*>(p);
-		}
-
-		void reset()
-		{
-			for (auto n : parent->getNodeList())
-				n->reset();
-
-			if (modValue.isVoiceRenderingActive())
-				modValue.get() = 0.0;
-			else
-				modValue.setAll(0.0);
-		}
-
-		void handleHiseEvent(HiseEvent& e)
-		{
-			for (auto n : parent->getNodeList())
-				n->handleHiseEvent(e);
-		}
-
-		void prepare(PrepareSpecs ps)
-		{
-			modValue.prepare(ps);
-			// do nothing here, the container inits the child nodes.
-		}
-
-		void process(ProcessData& d)
-		{
-			jassert(parent != nullptr);
-
-			for (auto n : parent->getNodeList())
-				n->process(d);
-
-			modValue.get() = DspHelpers::findPeak(d);
-		}
-
-		void processSingle(float* frameData, int numChannels)
-		{
-			jassert(parent != nullptr);
-
-			for (auto n : parent->getNodeList())
-				n->processSingle(frameData, numChannels);
-		}
-
-		void createParameters(Array<ParameterData>&) override {};
-
-		DynamicModContainer& getObject() { return *this; }
-		const DynamicModContainer& getObject() const { return *this; }
-
-		NodeContainer* parent = nullptr;
-		PolyData<double, NUM_POLYPHONIC_VOICES> modValue = 0.0;
-	};
 
 	SCRIPTNODE_FACTORY(ModulationChainNode, "modchain");
 
@@ -455,7 +386,6 @@ public:
 	{
 		NodeContainer::prepareNodes(ps);
 		obj.prepare(ps);
-		lastValue.prepare(ps);
 	}
 
 	void handleHiseEvent(HiseEvent& e) final override
@@ -467,11 +397,6 @@ public:
 	{
 		NodeContainer::resetNodes();
 		obj.reset();
-		
-		if (lastValue.isVoiceRenderingActive())
-			lastValue.get() = 0.0;
-		else
-			lastValue.setAll(0.0);
 	}
 
 	NodeComponent* createComponent() override;
@@ -492,10 +417,7 @@ public:
 
 private:
 	
-	container::mod<DynamicModContainer> obj;
-
-	PolyData<double, NUM_POLYPHONIC_VOICES> lastValue = 0.0;
-	int numLeft = 0;
+	wrap::control_rate<SerialNode::DynamicSerialProcessor> obj;
 };
 
 class PolySynthesiserNode : public SerialNode

@@ -53,7 +53,7 @@ template <typename... Ts> using oversample4x = wrap::oversample<4, container::ch
 template <typename... Ts> using oversample8x = wrap::oversample<8, container::chain<Ts...>>;
 template <typename... Ts> using oversample16x = wrap::oversample<16, container::chain<Ts...>>;
 
-template <typename... Processors> using modchain = wrap::mod<chain<Processors...>>;
+template <typename... Ts> using modchain = wrap::control_rate<chain<Ts...>>;
 
 }
 

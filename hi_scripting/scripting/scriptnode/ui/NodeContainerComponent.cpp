@@ -759,10 +759,8 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 
 ModChainNodeComponent::ModChainNodeComponent(ModulationChainNode* node):
-	ContainerComponent(node),
-	dragger(node->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
+	ContainerComponent(node)
 {
-	addAndMakeVisible(dragger);
 }
 
 int ModChainNodeComponent::getInsertPosition(Point<int> position) const
@@ -813,9 +811,6 @@ void ModChainNodeComponent::resized()
 		nc->setTopLeftPosition(x, bounds.getY());
 		startPos = startPos.withY(bounds.getY() + heightWithHelp + UIValues::NodeMargin);
 	}
-
-	auto b = getLocalBounds().removeFromBottom(28);
-	dragger.setBounds(b.reduced(4));
 }
 
 void ModChainNodeComponent::paint(Graphics& g)

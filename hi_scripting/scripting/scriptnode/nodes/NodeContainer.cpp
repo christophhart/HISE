@@ -93,7 +93,6 @@ void NodeContainer::parameterAddedOrRemoved(ValueTree child, bool wasAdded)
 	}
 }
 
-
 void NodeContainer::updateChannels(ValueTree v, Identifier id)
 {
 	if (v == asNode()->getValueTree())

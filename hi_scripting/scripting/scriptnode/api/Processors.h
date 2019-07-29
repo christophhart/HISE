@@ -93,6 +93,52 @@ private:
 	T obj;
 };
 
+template <class T> class skip
+{
+public:
+
+	static constexpr bool isModulationSource = T::isModulationSource;
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		
+	}
+
+	forcedinline void reset() noexcept {  }
+
+	forcedinline void process(ProcessData& data) noexcept
+	{
+		
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		
+	}
+
+	forcedinline void processSingle(float* frameData, int) noexcept
+	{
+		
+	}
+
+	forcedinline bool handleModulation(double& value) noexcept
+	{
+		return false;
+	}
+
+	auto& getObject() { return obj.getObject(); }
+	const auto& getObject() const { return obj.getObject(); }
+
+private:
+
+	T obj;
+};
+
 
 namespace wrap
 {
@@ -326,6 +372,69 @@ private:
 
 	ScopedPointer<Oversampler> oversampler;
 	T obj;
+};
+
+template <class T> class control_rate
+{
+public:
+
+	constexpr static bool isModulationSource = false;
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		ps.sampleRate /= (double)HISE_EVENT_RASTER;
+		ps.blockSize /= HISE_EVENT_RASTER;
+		ps.numChannels = 1;
+		this->obj.prepare(ps);
+	}
+
+	void reset()
+	{
+		obj.reset();
+		singleCounter = 0;
+	}
+
+	void process(ProcessData& data)
+	{
+		int numToProcess = data.size / HISE_EVENT_RASTER;
+
+		auto d = ALLOCA_FLOAT_ARRAY(numToProcess);
+		CLEAR_FLOAT_ARRAY(d, numToProcess);
+		ProcessData modData = { &d, 1, numToProcess };
+		modData.eventBuffer = data.eventBuffer;
+		obj.process(modData);
+	}
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		if (--singleCounter <= 0)
+		{
+			singleCounter = HISE_EVENT_RASTER;
+			float lastValue = 0.0f;
+			obj.processSingle(&lastValue, 1);
+		}
+	}
+
+	bool handleModulation(double& value)
+	{
+		return false;
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	auto& getObject() { return obj.getObject(); }
+	const auto& getObject() const { return obj.getObject(); }
+
+	T obj;
+	int singleCounter = 0;
 };
 
 

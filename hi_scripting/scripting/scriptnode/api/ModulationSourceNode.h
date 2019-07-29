@@ -78,6 +78,8 @@ public:
 	int fillAnalysisBuffer(AudioSampleBuffer& b);
 	void setScaleModulationValue(bool shouldScaleValue);
 
+	bool shouldScaleModulationValue() const noexcept { return scaleModulationValue; }
+
 private:
 
 	double sampleRateFactor = 1.0;
