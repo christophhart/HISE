@@ -193,9 +193,9 @@ struct Matrix : public HiseDspBase,
 	GET_SELF_AS_OBJECT(Matrix);
 
 	HISE_EMPTY_RESET;
-	HISE_EMPTY_CREATE_PARAM;
 
-	Matrix()
+	Matrix() :
+		internalData(PropertyIds::EmbeddedData, "")
 	{
 		
 	}
@@ -206,18 +206,11 @@ struct Matrix : public HiseDspBase,
 			
 		getMatrix().init(dynamic_cast<Processor*>(n->getScriptProcessor()));
 
-		matrixData = n->getValueTree().getChildWithName(PropertyIds::RoutingMatrix);
 
 		ScopedValueSetter<bool> svs(recursion, true);
 
-		if (matrixData.isValid())
-			getMatrix().restoreFromValueTree(matrixData);
-		else
-		{
-			matrixData = getMatrix().exportAsValueTree();
-			n->getValueTree().addChild(matrixData, -1, um);
-		}
-			
+		internalData.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(Matrix::updateFromEmbeddedData));
+		internalData.init(n, this);
 	}
 
 	Component* createExtraComponent(PooledUIUpdater* updater)
@@ -239,6 +232,18 @@ struct Matrix : public HiseDspBase,
 	void numDestinationChannelsChanged() { updateData(); };
 	void connectionChanged() { updateData(); };
 
+	void updateFromEmbeddedData(Identifier id, var newValue)
+	{
+		auto base64Data = newValue.toString();
+
+		if (base64Data.isNotEmpty())
+		{
+			auto matrixData = ValueTreeConverters::convertBase64ToValueTree(newValue.toString(), true);
+
+			getMatrix().restoreFromValueTree(matrixData);
+		}
+	}
+
 	void updateData()
 	{
 		if (recursion)
@@ -246,8 +251,9 @@ struct Matrix : public HiseDspBase,
 
 		ScopedValueSetter<bool> svs(recursion, true);
 
-		if(matrixData.isValid())
-			matrixData.copyPropertiesAndChildrenFrom(getMatrix().exportAsValueTree(), um);
+		auto data = ValueTreeConverters::convertValueTreeToBase64(getMatrix().exportAsValueTree(), true);
+
+		internalData.storeValue(data, um);
 
 		memset(channelRouting, -1, NUM_MAX_CHANNELS);
 		memset(sendRouting, -1, NUM_MAX_CHANNELS);
@@ -314,12 +320,18 @@ struct Matrix : public HiseDspBase,
 	};
 	bool handleModulation(double&) { return false; }
 
+	void createParameters(Array<ParameterData>&) override
+	{
+		internalData.init(nullptr, this);
+	}
+
 	bool recursion = false;
-	ValueTree matrixData;
 	UndoManager* um = nullptr;
 
 	int8 channelRouting[NUM_MAX_CHANNELS];
 	int8 sendRouting[NUM_MAX_CHANNELS];
+
+	NodePropertyT<String> internalData;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Matrix);
 };
