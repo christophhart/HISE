@@ -110,10 +110,13 @@ struct CppGen
 		StringArray arguments;
 		String body;
 		bool addSemicolon = false;
+		bool addNewLine = true;
 	};
 
 	struct Emitter
 	{
+		static String addNodeTemplateWrappers(String className, NodeBase* n);
+
 		static void emitDefinition(String& s, const String& definition, const String& value, bool useQuotes = true);
 
 		static void emitConstexprVariable(String& s, const String& variableName, int value);

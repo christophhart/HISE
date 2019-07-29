@@ -181,7 +181,7 @@ juce::String NodeContainer::createTemplateAlias()
 		StringArray children;
 
 		for (auto n : nodes)
-			children.add(n->createCppClass(false));
+			children.add(CppGen::Emitter::addNodeTemplateWrappers(n->createCppClass(false), n));
 
 		s << CppGen::Emitter::createTemplateAlias(createCppClassForNodes(false), asNode()->getValueTree()[PropertyIds::FactoryPath].toString().replace(".", "::"), children);
 	}
@@ -193,6 +193,320 @@ juce::String NodeContainer::createTemplateAlias()
 	
 	return s;
 }
+
+struct ClassGenerator
+{
+	ClassGenerator(NodeContainer& container_) :
+		container(container_)
+	{
+		container.fillAccessors(accessors, {});
+
+		nodeList = container.getChildNodesRecursive();
+	}
+
+	NodeBase::List nodeList;
+	NodeContainer& container;
+	Array<CppGen::Accessor> accessors;
+
+	struct ConnectionData
+	{
+		String id;
+		bool isInverted = false;
+		String opType;
+	};
+
+	String createParameterInitialisation()
+	{
+		String pb;
+
+		CppGen::Emitter::emitCommentLine(pb, 0, "Parameter Initalisation");
+
+		for (auto n : nodeList)
+		{
+			for (int i = 0; i < n->getNumParameters(); i++)
+			{
+				auto pName = n->getParameter(i)->getId();
+				auto pValue = n->getParameter(i)->getValue();
+
+				pb << "setParameterDefault(\"" << n->getId() << "." << pName << "\", ";
+				pb << CppGen::Emitter::createPrettyNumber(pValue, false) << ");\n";
+			}
+		}
+
+		pb << "\n";
+
+		return pb;
+	}
+
+	String createParameterDefinition()
+	{
+		String s;
+
+		for (const auto& a : accessors)
+			s << a.toString(CppGen::Accessor::Format::ParameterDefinition);
+
+		s << "\n";
+
+		return s;
+	}
+
+	String createPropertyInitialisation()
+	{
+		String pb;
+
+		CppGen::Emitter::emitCommentLine(pb, 0, "Setting node properties");
+
+		for (auto n : nodeList)
+		{
+			for (auto prop : n->getPropertyTree())
+			{
+				pb << "setNodeProperty(\"" << n->getId() << "." << prop[PropertyIds::ID].toString();
+				pb << "\", " << CppGen::Emitter::getVarAsCode(prop[PropertyIds::Value]);
+				pb << ", " << ((bool)prop[PropertyIds::Public] ? "true" : "false") << ");\n";
+			}
+		}
+
+		return pb;
+	}
+
+	String createParameter(NodeBase::Parameter* p, bool isInternalParameter)
+	{
+		String pCode;
+
+		auto macro = dynamic_cast<NodeContainer::MacroParameter*>(p);
+
+		pCode << "ParameterData p(\"";
+		
+		if (isInternalParameter)
+			pCode << p->parent->getId() << ".";
+
+		pCode << macro->getId() << "\", ";
+		pCode << CppGen::Emitter::createRangeString(macro->inputRange) << ");\n";
+
+		auto defaultValue = p->getValue();
+
+		if(defaultValue != 0.0)
+			pCode << "p.setDefaultValue(" << CppGen::Emitter::createPrettyNumber(p->getValue(), false) << ");\n";
+
+		pCode << "\n";
+
+		
+
+		Array<ConnectionData> connections;
+
+		int pIndex = 1;
+
+		for (auto c : macro->getConnectionTree())
+		{
+			String conId;
+			conId << c[PropertyIds::NodeId].toString() << "." << c[PropertyIds::ParameterId].toString();
+
+			String conIdName;
+
+			if (c[PropertyIds::ParameterId].toString() == PropertyIds::Bypassed.toString())
+				conIdName = "bypass_target";
+			else
+				conIdName = "param_target";
+
+			conIdName << String(pIndex++);
+
+			ConnectionData cd;
+			cd.id = conIdName;
+			cd.isInverted = c[PropertyIds::Inverted];
+			auto opType = c[PropertyIds::OpType].toString();
+
+
+			if (opType != OperatorIds::SetValue.toString())
+			{
+				cd.opType = opType;
+			}
+			else
+			{
+				for (auto n : nodeList)
+				{
+					for (int i = 0; i < n->getNumParameters(); i++)
+					{
+						auto p = n->getParameter(i);
+
+						if (p->matchesConnection(c))
+						{
+							auto isCombined = p->getConnectedMacroParameters().size() > 1;
+
+							if (isCombined)
+								cd.opType = c[PropertyIds::OpType].toString();
+						}
+					}
+				}
+			}
+
+			pCode << "auto " << conIdName << " = ";
+
+			if (cd.opType.isEmpty())
+				pCode << "getParameter";
+			else
+				pCode << "getCombinedParameter";
+
+			pCode << "(\"" << conId << "\", ";
+			pCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(c));
+
+			if (!cd.opType.isEmpty())
+				pCode << ", \"" << cd.opType << "\"";
+
+			pCode << ");\n";
+
+			auto converter = c[PropertyIds::Converter].toString();
+
+			if (converter != ConverterIds::Identity.toString())
+			{
+				if (cd.opType.isEmpty())
+					pCode << conIdName << ".addConversion(ConverterIds::" << converter << ");\n";
+				else
+					pCode << conIdName << "->addConversion(ConverterIds::" << converter << ", \"" << cd.opType << "\");\n";
+			}
+
+			connections.add(std::move(cd));
+		}
+
+		bool useExternalConversion = !RangeHelpers::isIdentity(macro->inputRange);
+
+		pCode << "\n";
+
+		CppGen::MethodInfo l;
+		l.name = "[";
+
+		for (auto& c : connections)
+		{
+			l.name << c.id; 
+
+			if(connections.getLast().id != c.id)
+				l.name << ", ";
+		}
+
+		if (useExternalConversion)
+			l.name << ", outer = p.range";
+
+		l.name << "]";
+		l.returnType << "";
+		l.arguments = { "double newValue" };
+
+		String variableName = "newValue";
+
+		if (useExternalConversion)
+		{
+			l.body << "auto normalised = outer.convertTo0to1(newValue);\n";
+			variableName = "normalised";
+		}
+		
+		for (auto& c : connections)
+		{
+			String invPrefix = c.isInverted ? "1.0 - " : "";
+			String opTypePrefix = c.opType.isEmpty() ? "" : "->" + c.opType;
+
+			if (c.id.startsWith("bypass_target"))
+				l.body << c.id << ".setBypass(" << invPrefix << variableName <<  ");\n";
+			else
+				l.body << c.id << opTypePrefix << "(" << invPrefix << variableName << ");\n";	
+		}
+
+		l.addSemicolon = false;
+		l.addNewLine = false;
+
+		pCode << "p.setCallback(";
+		CppGen::Emitter::emitFunctionDefinition(pCode, l);
+		pCode << ");\n";
+
+		if (isInternalParameter)
+			pCode << "internalParameterList";
+		else
+			pCode << "data";
+		
+		pCode << ".add(std::move(p)); \n";
+
+		return CppGen::Emitter::surroundWithBrackets(pCode);
+	}
+
+	String createModulation(NodeBase* n)
+	{
+		if (auto modSource = dynamic_cast<ModulationSourceNode*>(n))
+		{
+			if (modSource->getModulationTargetTree().getNumChildren() == 0)
+				return {};
+
+			String mCode;
+			Array<ConnectionData> modTargets;
+
+			int tIndex = 1;
+
+			for (auto m : modSource->getModulationTargetTree())
+			{
+				String modTargetId;
+				modTargetId << m[PropertyIds::NodeId].toString() << "." << m[PropertyIds::ParameterId].toString();
+
+				auto modIdName = "mod_target" + String(tIndex++);
+
+				ConnectionData cd;
+
+				cd.id = modIdName;
+				cd.isInverted = m[PropertyIds::Inverted];
+				cd.opType = m[PropertyIds::OpType].toString();
+
+				modTargets.add(cd);
+
+				mCode << "auto " << modIdName << " = getParameter(\"" << modTargetId << "\", ";
+				mCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(m)) << ");\n";
+			}
+
+			CppGen::MethodInfo l;
+			l.name = "[";
+
+			for (int i = 0; i < modTargets.size(); i++)
+			{
+				l.name << modTargets[i].id;
+
+				if (i != modTargets.size() - 1)
+					l.name << ", ";
+			}
+
+			l.name << "]";
+			l.returnType << "auto f = ";
+			l.arguments = { "double newValue" };
+
+			bool shouldScale = modSource->shouldScaleModulationValue();
+
+			for (auto modTarget : modTargets)
+			{
+				auto id = modTarget.id;
+				String invPrefix = modTarget.isInverted ? "1.0 - " : "";
+
+				if (shouldScale)
+					l.body << id << "(" << invPrefix << "newValue);\n";
+				else
+					l.body << id << ".callUnscaled(" << invPrefix << "newValue);\n";
+			}
+
+			l.addSemicolon = true;
+
+			CppGen::Emitter::emitFunctionDefinition(mCode, l);
+
+			String modAccessor;
+
+			for (const auto& a : accessors)
+			{
+				if (a.id == modSource->getId())
+				{
+					modAccessor = a.toString(CppGen::Accessor::Format::GetMethod);
+					break;
+				}
+			}
+
+			mCode << "\nsetInternalModulationParameter(" << modAccessor << ", f);\n";
+
+			return CppGen::Emitter::surroundWithBrackets(mCode);
+		}
+
+		return {};
+	}
+};
 
 
 juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
@@ -231,108 +545,21 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 
 		CppGen::Emitter::emitCommentLine(pb, 0, "Node Registration");
 
+		ClassGenerator gen(*this);
+
 		Array<CppGen::Accessor> acessors;
 
-		fillAccessors(acessors, {});
-
-		for (const auto& a : acessors)
-			pb << a.toString(CppGen::Accessor::Format::ParameterDefinition);
-
-		pb << "\n";
-
-		CppGen::Emitter::emitCommentLine(pb, 0, "Parameter Initalisation");
-
-		for (auto n : getChildNodesRecursive())
-		{
-			for (int i = 0; i < n->getNumParameters(); i++)
-			{
-				auto pName = n->getParameter(i)->getId();
-				auto pValue = n->getParameter(i)->getValue();
-
-				pb << "setParameterDefault(\"" << n->getId() << "." << pName << "\", ";
-				pb << CppGen::Emitter::createPrettyNumber(pValue, false) << ");\n";
-			}
-		}
 		
-		pb << "\n";
-		
-		CppGen::Emitter::emitCommentLine(pb, 0, "Setting node properties");
+		pb << gen.createParameterDefinition();
 
-		for (auto n : getChildNodesRecursive())
-		{
-			for (auto prop : n->getPropertyTree())
-			{
-				pb << "setNodeProperty(\"" << n->getId() << "." << prop[PropertyIds::ID].toString();
-				pb << "\", " << CppGen::Emitter::getVarAsCode(prop[PropertyIds::Value]);
-				pb << ", " << ((bool)prop[PropertyIds::Public] ? "true" : "false") << ");\n";
-			}
-		}
+		pb << gen.createParameterInitialisation();
+		
+		pb << gen.createPropertyInitialisation();
 
 		String modString;
 
 		for (auto n : getChildNodesRecursive())
-		{
-			if (auto modSource = dynamic_cast<ModulationSourceNode*>(n.get()))
-			{
-				if (modSource->getModulationTargetTree().getNumChildren() == 0)
-					continue;
-
-				String mCode;
-				StringArray modTargetIds;
-
-				int tIndex = 1;
-
-				for (auto m : modSource->getModulationTargetTree())
-				{
-					String modTargetId;
-					modTargetId << m[PropertyIds::NodeId].toString() << "." << m[PropertyIds::ParameterId].toString();
-
-					auto modIdName = "mod_target" + String(tIndex++);
-
-					modTargetIds.add(modIdName);
-
-					mCode << "auto " << modIdName << " = getParameter(\"" << modTargetId << "\", ";
-					mCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(m)) << ");\n";
-				}
-
-				CppGen::MethodInfo l;
-				l.name = "[";
-
-				for (int i = 0; i < modTargetIds.size(); i++)
-				{
-					l.name << modTargetIds[i];
-					
-					if(i != modTargetIds.size() - 1)
-						l.name << ", ";
-				}
-				
-				l.name << "]";
-				l.returnType << "auto f = ";
-				l.arguments = { "double newValue" };
-
-				for (auto c_id : modTargetIds)
-					l.body << c_id << "(newValue);\n";
-
-				l.addSemicolon = true;
-
-				CppGen::Emitter::emitFunctionDefinition(mCode, l);
-
-				String modAccessor;
-
-				for (const auto& a : acessors)
-				{
-					if (a.id == modSource->getId())
-					{
-						modAccessor = a.toString(CppGen::Accessor::Format::GetMethod);
-						break;
-					}
-				}
-
-				mCode << "\nsetInternalModulationParameter(" << modAccessor << ", f);\n";
-
-				modString << CppGen::Emitter::surroundWithBrackets(mCode);
-			}
-		}
+			modString << gen.createModulation(n);
 
 		if (modString.isNotEmpty())
 		{
@@ -343,90 +570,22 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 
 		String parameterString;
 
+		for (auto c : getChildNodesRecursive())
+		{
+			if (auto childContainer = dynamic_cast<NodeContainer*>(c.get()))
+			{
+				for (int i = 0; i < c->getNumParameters(); i++)
+				{
+					CppGen::Emitter::emitCommentLine(parameterString, 0, "Internal parameter definition");
+					parameterString << gen.createParameter(c->getParameter(i), true);
+				}
+			}
+		}
+
 		auto n = asNode();
 
 		for (int i = 0; i < n->getNumParameters(); i++)
-		{
-			auto p = n->getParameter(i);
-
-			String pCode;
-
-			auto macro = dynamic_cast<MacroParameter*>(p);
-
-			pCode << "ParameterData p(\"" << macro->getId() << "\", ";
-			pCode << CppGen::Emitter::createRangeString(macro->inputRange) << ");\n";
-			pCode << "\n";
-
-			StringArray connectionIds;
-
-			StringArray invertedConnections;
-
-			int pIndex = 1;
-
-			for (auto c : macro->getConnectionTree())
-			{
-				
-				String conId;
-				conId << c[PropertyIds::NodeId].toString() << "." << c[PropertyIds::ParameterId].toString();
-
-				String conIdName;
-
-				if (c[PropertyIds::ParameterId].toString() == PropertyIds::Bypassed.toString())
-					conIdName = "bypass_target";
-				else
-					conIdName = "param_target";
-				
-				conIdName << String(pIndex++);
-
-				connectionIds.add(conIdName);
-
-				pCode << "auto " << conIdName << " = getParameter(\"" << conId << "\", ";
-				pCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(c)) << ");\n";
-
-				if (c[PropertyIds::Inverted])
-					invertedConnections.add(conIdName);
-
-				auto converter = c[PropertyIds::Converter].toString();
-
-				if (converter != ConverterIds::Identity.toString())
-				{
-					pCode << conIdName << ".addConversion(ConverterIds::" << converter << ");\n";
-				}
-			}
-
-			pCode << "\n";
-
-			CppGen::MethodInfo l;
-			l.name = "[";
-
-			for (auto c_id : connectionIds)
-				l.name << c_id << ", ";
-
-			l.name << "outer = p.range]";
-			l.returnType << "p.db = ";
-			l.arguments = { "double newValue" };
-
-			l.body << "auto normalised = outer.convertTo0to1(newValue);\n";
-
-			for (auto c_id : connectionIds)
-			{
-				String invPrefix = invertedConnections.contains(c_id) ? "1.0 - " : "";
-
-				if (c_id.startsWith("bypass_target"))
-					l.body << c_id << ".setBypass(" << invPrefix << "newValue);\n";
-				else
-					l.body << c_id << "(" << invPrefix << "normalised);\n";
-			}
-				
-
-			l.addSemicolon = true;
-
-			CppGen::Emitter::emitFunctionDefinition(pCode, l);
-
-			pCode << "\ndata.add(std::move(p));\n";
-
-			parameterString << CppGen::Emitter::surroundWithBrackets(pCode);
-		}
+			parameterString << gen.createParameter(n->getParameter(i), false);
 
 		if (parameterString.isNotEmpty())
 		{
@@ -470,8 +629,6 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 	{
 		return asNode()->getId() + "_";
 	}
-		
-	
 }
 
 
@@ -860,8 +1017,7 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 
 
 ModulationChainNode::ModulationChainNode(DspNetwork* n, ValueTree t) :
-	ModulationSourceNode(n, t),
-	NodeContainer()
+	SerialNode(n, t)
 {
 	initListeners();
 	obj.initialise(this);
@@ -872,16 +1028,7 @@ void ModulationChainNode::processSingle(float* frameData, int numChannels) noexc
 	if (isBypassed())
 		return;
 
-	
 	obj.processSingle(frameData, 1);
-
-	auto thisValue = *frameData;
-
-	if (thisValue != lastValue.get())
-	{
-		lastValue.get() = thisValue;
-		sendValueToTargets(thisValue, HISE_EVENT_RASTER);
-	}
 }
 
 void ModulationChainNode::process(ProcessData& data) noexcept
@@ -893,17 +1040,8 @@ void ModulationChainNode::process(ProcessData& data) noexcept
 	copy.numChannels = 1;
 
 	obj.process(copy);
-
 	double thisValue = 0.0;
-
 	obj.handleModulation(thisValue);
-
-	if (thisValue != lastValue.get())
-	{
-		lastValue.get() = thisValue;
-
-		sendValueToTargets(thisValue, data.size);
-	}
 }
 
 scriptnode::NodeComponent* ModulationChainNode::createComponent()
@@ -1003,8 +1141,11 @@ juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft
 	return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
 }
 
-NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTree d)
+NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTree d):
+	connectionData(d),
+	um(parent->getUndoManager())
 {
+
 	auto nodeId = d[PropertyIds::NodeId].toString();
 
 	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
@@ -1031,8 +1172,12 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTre
 			{
 				if (targetNode->getParameter(i)->getId() == parameterId)
 				{
+
 					p = targetNode->getParameter(i);
-					opSyncer.setPropertiesToSync(d, p->data, { PropertyIds::OpType }, parent->getUndoManager());
+
+					opSyncer.setCallback(connectionData, { PropertyIds::OpType, }, valuetree::AsyncMode::Synchronously,
+						BIND_MEMBER_FUNCTION_2(Connection::updateConnectionInTargetParameter));
+
 					break;
 				}
 			}
@@ -1143,14 +1288,7 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 			if (auto macroTarget = parent->getRootNetwork()->getNodeWithId(macroTargetId))
 			{
 				if (parameterId == PropertyIds::Bypassed.toString())
-				{
 					macroTarget->getValueTree().removeProperty(PropertyIds::DynamicBypass, parent->getUndoManager());
-				}
-				else
-				{
-					if (auto p = macroTarget->getParameter(parameterId))
-						p->data.removeProperty(PropertyIds::Connection, parent->getUndoManager());
-				}
 			}
 		}
 
@@ -1164,7 +1302,6 @@ void NodeContainer::MacroParameter::rebuildCallback()
 
 	connections.clear();
 	auto cTree = data.getChildWithName(PropertyIds::Connections);
-	
 
 	for (auto c : cTree)
 	{
@@ -1217,6 +1354,28 @@ void NodeContainer::MacroParameter::updateRangeForConnection(ValueTree v, Identi
 {
 	RangeHelpers::checkInversion(v, &rangeListener, parent->getUndoManager());
 	rebuildCallback();
+}
+
+juce::Identifier NodeContainer::MacroParameter::getOpTypeForParameter(Parameter* target) const
+{
+	for (auto c : connections)
+	{
+		if (c->matchesTarget(target))
+		{
+			return c->getOpType();
+		}
+	}
+
+	return Identifier();
+}
+
+bool NodeContainer::MacroParameter::matchesTarget(const Parameter* target) const
+{
+	for (auto c : connections)
+		if (c->matchesTarget(target))
+			return true;
+
+	return false;
 }
 
 void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange)

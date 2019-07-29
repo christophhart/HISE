@@ -39,6 +39,24 @@ using namespace hise;
 
 
 
+juce::String CppGen::Emitter::addNodeTemplateWrappers(String className, NodeBase* n)
+{
+	auto v_data = n->getValueTree();
+
+	if (v_data[PropertyIds::DynamicBypass].toString().isNotEmpty())
+		className = wrapIntoTemplate(className, "bypass::yes");
+
+	if (n->hasFixChannelAmount() || dynamic_cast<MultiChannelNode*>(n->getParentNode()) != nullptr)
+	{
+		auto templateArgs = String(n->getNumChannelsToProcess()) + ", " + className;
+
+		className = wrapIntoTemplate(templateArgs, "fix");
+	}
+		
+
+	return className;
+}
+
 void CppGen::Emitter::emitDefinition(String& s, const String& definition, const String& value, bool useQuotes)
 {
 	s << definition << " (";
@@ -82,10 +100,11 @@ void CppGen::Emitter::emitFunctionDefinition(String& s, const MethodInfo& f)
 
 	s << "}";
 	
-	if (f.addSemicolon)
+	if(f.addSemicolon)
 		s << ";";
 
-	s << "\n\n";
+	if (f.addNewLine)
+		s << "\n\n";
 }
 
 void CppGen::Emitter::emitCommentLine(String& code, int tabLevel, const String& comment)
