@@ -362,8 +362,21 @@ struct DspHelpers
 	/** Increases the buffer size to match the process specs. */
 	static void increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& ps);
 
+	
+
 	using ConverterFunction = std::function<double(double)>;
 	using ParameterCallback = std::function<void(double)>;
+
+	struct ConverterFunctions
+	{
+		static double decibel2Gain(double input);
+		static double gain2Decibel(double input);
+		static double dryAmount(double input);
+		static double wetAmount(double input);
+		static double subtractFromOne(double input);
+
+		static ConverterFunction getFunction(const Identifier& id);
+	};
 
 	/** Returns a ParameterCallback with the given range. */
 	static ParameterCallback getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction);

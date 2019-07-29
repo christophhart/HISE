@@ -51,6 +51,7 @@ void HardcodedNode::setParameterDefault(const String& parameterId, double value)
 	{
 		if (parameter.id == parameterId)
 		{
+			parameter.setDefaultValue(value);
 			parameter.db(value);
 			break;
 		}

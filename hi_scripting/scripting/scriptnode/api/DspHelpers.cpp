@@ -53,7 +53,6 @@ void DspHelpers::increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& specs)
 	}
 }
 
-
 scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction)
 {
 	if (RangeHelpers::isIdentity(range))
@@ -88,56 +87,78 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRang
 	}
 }
 
+
+double DspHelpers::ConverterFunctions::decibel2Gain(double input)
+{
+	return Decibels::decibelsToGain(input);
+}
+
+double DspHelpers::ConverterFunctions::gain2Decibel(double input)
+{
+	return Decibels::gainToDecibels(input);
+}
+
+double DspHelpers::ConverterFunctions::dryAmount(double input)
+{
+	auto invGain = jlimit(0.0, 1.0, 1.0 - input);
+	auto invDb = Decibels::gainToDecibels(invGain);
+	return invDb;
+}
+
+double DspHelpers::ConverterFunctions::wetAmount(double input)
+{
+	return Decibels::gainToDecibels(input);
+}
+
+double DspHelpers::ConverterFunctions::subtractFromOne(double input)
+{
+	return jlimit(0.0, 1.0, 1.0 - input);
+}
+
+DspHelpers::ConverterFunction DspHelpers::ConverterFunctions::getFunction(const Identifier& id)
+{
+	if (id.isNull() || id == ConverterIds::Identity)
+		return {};
+	if (id == ConverterIds::Decibel2Gain)
+		return decibel2Gain;
+	if (id == ConverterIds::Gain2Decibel)
+		return gain2Decibel;
+	if (id == ConverterIds::SubtractFromOne)
+		return subtractFromOne;
+	if (id == ConverterIds::DryAmount)
+		return dryAmount;
+	if (id == ConverterIds::WetAmount)
+		return wetAmount;
+
+}
+
 scriptnode::DspHelpers::ParameterCallback DspHelpers::wrapIntoConversionLambda(const Identifier& converterId, const ParameterCallback& originalFunction, NormalisableRange<double> range, bool inverted)
 {
 	using namespace ConverterIds;
 
-	if (converterId == Identity)
+	if (converterId == Identity || converterId.isNull())
 		return getFunctionFrom0To1ForRange(range, inverted, originalFunction);
-	if (converterId == Decibel2Gain)
-	{
-		return [originalFunction](double newValue)
-		{
-			double gain = Decibels::decibelsToGain(newValue);
-			originalFunction(gain);
-		};
-	}
-	if (converterId == Gain2Decibel)
-	{
-		return [originalFunction](double newValue)
-		{
-			double db = Decibels::gainToDecibels(newValue);
-			originalFunction(db);
-		};
-	}
+
 	if (converterId == SubtractFromOne)
 	{
 		auto withRange = getFunctionFrom0To1ForRange(range, false, originalFunction);
 
 		return [withRange](double normedValue)
 		{
-			double v = jlimit(0.0, 1.0, 1.0 - normedValue);
+			double v = ConverterFunctions::subtractFromOne(normedValue);
 			withRange(v);
 		};
 	}
-	if (converterId == DryAmount)
-	{
-		return [originalFunction](double newValue)
-		{
-			auto invGain = jlimit(0.0, 1.0, 1.0 - newValue);
-			auto invDb = Decibels::gainToDecibels(invGain);
 
-			originalFunction(invDb);
-		};
-	}
-	if (converterId == WetAmount)
+	if (auto cf = ConverterFunctions::getFunction(converterId))
 	{
-		return [originalFunction](double newValue)
+		return [originalFunction, cf](double newValue)
 		{
-			auto db = Decibels::gainToDecibels(newValue);
-			originalFunction(db);
+			originalFunction(cf(newValue));
 		};
 	}
+	else
+		return originalFunction;
 
 	return getFunctionFrom0To1ForRange(range, inverted, originalFunction);
 }
@@ -356,6 +377,7 @@ void CodeHelpers::addFileToProjectFolder(const String& filename, const String& c
 {
 	addFileInternal(filename, content, projectIncludeDirectory);
 }
+
 
 }
 

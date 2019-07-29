@@ -204,6 +204,147 @@ public:
 		double value;
 	};
 
+	struct CombinedParameterValue
+	{
+		CombinedParameterValue(const HiseDspBase::ParameterData& p):
+			id(p.id),
+			callback(p.db),
+			lastValue(p.defaultValue)
+		{
+
+		}
+
+		bool matches(const HiseDspBase::ParameterData& p) const
+		{
+			return id == p.id;
+		}
+
+		void SetValue(double newValue)
+		{
+			lastValue = newValue;
+			update();
+		}
+
+		void Add(double newValue)
+		{
+			addValue = newValue;
+			update();
+		}
+
+		void Multiply(double newValue)
+		{
+			mulValue = newValue;
+			update();
+		}
+		
+		void updateRangeForOpType(Identifier opType, NormalisableRange<double> newRange)
+		{
+			if (opType == OperatorIds::Add)
+			{
+				addRange = newRange;
+				useAddRange = !RangeHelpers::isIdentity(newRange);
+			}
+			if (opType == OperatorIds::SetValue)
+			{
+				setRange = newRange;
+				useSetRange = !RangeHelpers::isIdentity(newRange);
+			}
+			if (opType == OperatorIds::Multiply)
+			{
+				mulRange = newRange;
+				useMulRange = !RangeHelpers::isIdentity(newRange);
+			}
+		}
+
+		void addConversion(Identifier converterId, Identifier opType)
+		{
+			if (opType == OperatorIds::SetValue)
+				setConverter = DspHelpers::ConverterFunctions::getFunction(converterId);
+			if(opType == OperatorIds::Multiply)
+				mulConverter = DspHelpers::ConverterFunctions::getFunction(converterId);
+			if(opType == OperatorIds::Add)
+				addConverter = DspHelpers::ConverterFunctions::getFunction(converterId);
+		}
+
+	private:
+
+		void update()
+		{
+			auto newValue = getSet() * getMul() + getAdd();
+			callback(newValue);
+		}
+
+		std::function<void(double)> callback;
+
+		double getSet() const
+		{
+			return useSetRange ? setRange.convertFrom0to1(getSetConverted()) : getSetConverted();
+		}
+
+		double getMul() const
+		{
+			return useMulRange ? mulRange.convertFrom0to1(getMullConverted()) : getMullConverted();
+		}
+
+		double getAdd() const
+		{
+			return useAddRange ? addRange.convertFrom0to1(getAddConverted()) : getAddConverted();
+		}
+
+		double getSetConverted() const
+		{
+			return setConverter ? setConverter(lastValue) : lastValue;
+		}
+
+		double getAddConverted() const
+		{
+			return addConverter ? addConverter(addValue) : addValue;
+		}
+
+		double getMullConverted() const
+		{
+			return mulConverter ? mulConverter(mulValue) : mulValue;
+		}
+
+		String id;
+		double lastValue = 0.0;
+		double mulValue = 1.0;
+		double addValue = 0.0;
+
+		NormalisableRange<double> mulRange;
+		NormalisableRange<double> setRange;
+		NormalisableRange<double> addRange;
+
+		std::function<double(double)> setConverter;
+		std::function<double(double)> mulConverter;
+		std::function<double(double)> addConverter;
+
+		bool useSetRange = false;
+		bool useMulRange = false;
+		bool useAddRange = false;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CombinedParameterValue);
+	};
+
+	CombinedParameterValue* getCombinedParameter(const String& id, NormalisableRange<double> range, Identifier opType)
+	{
+		auto p = getParameter(id, range);
+
+		for (auto c : combinedParameterValues)
+		{
+			if (c->matches(p))
+			{
+				c->updateRangeForOpType(opType, p.range);
+				return c;
+			}
+		}
+
+		auto c = new CombinedParameterValue(p);
+		c->updateRangeForOpType(opType, p.range);
+		combinedParameterValues.add(c);
+		return c;
+	}
+
 	static constexpr int ExtraHeight = 0;
 
 	template <class T> static Array<HiseDspBase::ParameterData> createParametersT(T* d, const String& prefix)
@@ -235,6 +376,8 @@ public:
 
 	Array<HiseDspBase::ParameterData> internalParameterList;
 	Array<ParameterInitValue> initValues;
+
+	OwnedArray<CombinedParameterValue> combinedParameterValues;
 
 	HiseDspBase::ParameterData getParameter(const String& id);
 

@@ -76,7 +76,7 @@ scriptnode::HiseDspBase::ParameterData HiseDspBase::ParameterData::withRange(Nor
 
 void HiseDspBase::ParameterData::operator()(double newValue) const
 {
-	db(range.convertFrom0to1(newValue));
+	callWithRange(newValue);
 }
 
 void HiseDspBase::ParameterData::setBypass(double newValue) const
@@ -84,9 +84,14 @@ void HiseDspBase::ParameterData::setBypass(double newValue) const
 	db(range.getRange().contains(newValue) ? 0.0 : 1.0);
 }
 
-void HiseDspBase::ParameterData::callWithRange(double value)
+void HiseDspBase::ParameterData::callWithRange(double value) const
 {
 	db(range.convertFrom0to1(value));
+}
+
+void HiseDspBase::ParameterData::callUnscaled(double newValue) const
+{
+	db(newValue);
 }
 
 void HiseDspBase::ParameterData::addConversion(const Identifier& converterId)

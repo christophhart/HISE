@@ -50,23 +50,39 @@ public:
 	struct ParameterData
 	{
 		ParameterData(const String& id_);;
-		ParameterData(const String& id_, NormalisableRange<double> r);;
+		ParameterData(const String& id_, NormalisableRange<double> r);
 		ParameterData withRange(NormalisableRange<double> r);
 
 		ValueTree createValueTree() const;
 		
+		
+		void setDefaultValue(double newDefaultValue)
+		{
+			defaultValue = newDefaultValue;
+		}
+
+		void callUnscaled(double newValue) const;
+
 		void operator()(double newValue) const;
 		void setBypass(double newValue) const;
-		void callWithRange(double value);
+		void callWithRange(double value) const;
 		void addConversion(const Identifier& converterId);
 		void setParameterValueNames(const StringArray& valueNames);
 		void init();
+
+		void setCallback(const std::function<void(double)>& callback)
+		{
+			db = callback;
+			db(defaultValue);
+		}
 
 		String id;
 		NormalisableRange<double> range;
 		double defaultValue = 0.0;
 		std::function<void(double)> db;
 		StringArray parameterNames;
+
+		double lastValue = 0.0;
 	};
 
 	template <class ObjectType> class ExtraComponent : public Component,
