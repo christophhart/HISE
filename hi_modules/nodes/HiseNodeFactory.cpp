@@ -37,17 +37,6 @@ using namespace juce;
 using namespace hise;
 
 
-
-namespace core
-{
-
-
-}
-
-
-
-
-
 namespace dynamics
 {
 Factory::Factory(DspNetwork* network) :
@@ -61,18 +50,20 @@ Factory::Factory(DspNetwork* network) :
 
 }
 
-
-
-namespace core
+namespace fx
 {
-
-
+Factory::Factory(DspNetwork* network) :
+	NodeFactory(network)
+{
+	registerPolyNode<sampleandhold, sampleandhold_poly>({});
+	registerPolyNode<bitcrush, bitcrush_poly>({});
+	registerPolyNode<haas, haas_poly>({});
+	registerNode<reverb>({});
+}
 
 
 
 }
-
-
 
 namespace core
 {
@@ -92,9 +83,6 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<timer, timer_poly>();
 	registerPolyNode<midi, midi_poly>({});
 	registerPolyNode<smoother, smoother_poly>({});
-	registerPolyNode<haas, haas_poly>({});
-	registerPolyNode<sampleandhold, sampleandhold_poly>({});
-	registerPolyNode<bitcrush, bitcrush_poly>({});
 }
 }
 

@@ -47,62 +47,14 @@ struct fix_delay : public HiseDspBase
 
 	fix_delay() {};
 
-	void prepare(PrepareSpecs ps)
-	{
-		if (delayLines.size() != ps.numChannels)
-		{
-			delayLines.clear();
-
-			for (int i = 0; i < ps.numChannels; i++)
-				delayLines.add(new DelayLine<>());
-		}
-
-		reset();
-
-		for (auto d : delayLines)
-			d->prepareToPlay(ps.sampleRate);
-
-		setDelayTimeMilliseconds(delayTimeSeconds * 1000.0);
-	}
-
+	void prepare(PrepareSpecs ps);
 	bool handleModulation(double&) noexcept { return false; };
+	void reset() noexcept;
 
-	forcedinline void reset() noexcept
-	{
-		for (auto d : delayLines)
-			d->clear();
-	}
-
-	void process(ProcessData& d) noexcept
-	{
-		jassert(d.numChannels == delayLines.size());
-
-		for (int i = 0; i < delayLines.size(); i++)
-		{
-			delayLines[i]->processBlock(d.data[i], d.size);
-		}
-	}
-
-	void processSingle(float* numFrames, int numChannels) noexcept
-	{
-		for (int i = 0; i < numChannels; i++)
-			numFrames[i] = delayLines[i]->getDelayedValue(numFrames[i]);
-	}
-
-	void setDelayTimeMilliseconds(double newValue)
-	{
-		delayTimeSeconds = newValue * 0.001;
-
-		for (auto d : delayLines)
-			d->setDelayTimeSeconds(delayTimeSeconds);
-	}
-
-	void setFadeTimeMilliseconds(double newValue)
-	{
-		for (auto d : delayLines)
-			d->setFadeTimeSamples((int)newValue);
-	}
-
+	void process(ProcessData& d) noexcept;
+	void processSingle(float* numFrames, int numChannels) noexcept;
+	void setDelayTimeMilliseconds(double newValue);
+	void setFadeTimeMilliseconds(double newValue);
 	void createParameters(Array<ParameterData>& data) override;
 
 	OwnedArray<DelayLine<>> delayLines;

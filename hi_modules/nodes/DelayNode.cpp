@@ -36,6 +36,25 @@ using namespace hise;
 
 namespace core
 {
+
+void fix_delay::prepare(PrepareSpecs ps)
+{
+	if (delayLines.size() != ps.numChannels)
+	{
+		delayLines.clear();
+
+		for (int i = 0; i < ps.numChannels; i++)
+			delayLines.add(new DelayLine<>());
+	}
+
+	reset();
+
+	for (auto d : delayLines)
+		d->prepareToPlay(ps.sampleRate);
+
+	setDelayTimeMilliseconds(delayTimeSeconds * 1000.0);
+}
+
 void fix_delay::createParameters(Array<ParameterData>& data)
 {
 	{
@@ -53,6 +72,42 @@ void fix_delay::createParameters(Array<ParameterData>& data)
 		p.defaultValue = 512;
 		data.add(std::move(p));
 	}
+}
+
+void fix_delay::reset() noexcept
+{
+	for (auto d : delayLines)
+		d->clear();
+}
+
+void fix_delay::process(ProcessData& d) noexcept
+{
+	jassert(d.numChannels == delayLines.size());
+
+	for (int i = 0; i < delayLines.size(); i++)
+	{
+		delayLines[i]->processBlock(d.data[i], d.size);
+	}
+}
+
+void fix_delay::processSingle(float* numFrames, int numChannels) noexcept
+{
+	for (int i = 0; i < numChannels; i++)
+		numFrames[i] = delayLines[i]->getDelayedValue(numFrames[i]);
+}
+
+void fix_delay::setDelayTimeMilliseconds(double newValue)
+{
+	delayTimeSeconds = newValue * 0.001;
+
+	for (auto d : delayLines)
+		d->setDelayTimeSeconds(delayTimeSeconds);
+}
+
+void fix_delay::setFadeTimeMilliseconds(double newValue)
+{
+	for (auto d : delayLines)
+		d->setFadeTimeSamples((int)newValue);
 }
 
 }

@@ -52,6 +52,19 @@ public:
 
 }
 
+namespace fx
+{
+
+class Factory : public NodeFactory
+{
+public:
+
+	Factory(DspNetwork* network);;
+	Identifier getId() const override { return "fx"; }
+};
+
+}
+
 namespace dynamics
 {
 
