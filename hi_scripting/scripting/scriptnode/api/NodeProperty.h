@@ -120,6 +120,12 @@ template <class T> struct NodePropertyT : public NodeProperty
 			BIND_MEMBER_FUNCTION_2(NodePropertyT::update));
 	}
 
+	void storeValue(const T& newValue, UndoManager* um)
+	{
+		if(getPropertyTree().isValid())
+			getPropertyTree().setPropertyExcludingListener(&updater, PropertyIds::Value, newValue, um);
+	}
+
 	void update(Identifier id, var newValue)
 	{
 		value = newValue;

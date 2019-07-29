@@ -81,18 +81,6 @@ juce::String NodeBase::createCppClass(bool isOuterClass)
 
 	if (isPolyphonic())
 		className << "_poly";
-
-	if (v_data[PropertyIds::DynamicBypass].toString().isNotEmpty())
-	{
-		className = CppGen::Emitter::wrapIntoTemplate(className, "wr::bypass::smoothed");
-	};
-
-	if (hasFixChannelAmount() || dynamic_cast<MultiChannelNode*>(getParentNode()) != nullptr)
-	{
-		String fixWrapper;
-		fixWrapper << "fix<" << getNumChannelsToProcess() << ", " << className << ">";
-		className = fixWrapper;
-	}
 	
 	return className;
 }
@@ -261,15 +249,6 @@ NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	
 	valuePropertyUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
 		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
-
-	opTypeListener.setCallback(data, { PropertyIds::OpType },
-		valuetree::AsyncMode::Synchronously,
-		[this](Identifier, var newValue)
-	{
-		value.modMulValue = 1.0;
-		value.modAddValue = 0.0;
-	});
-	
 }
 
 
@@ -360,6 +339,12 @@ void NodeBase::Parameter::multiplyModulationValue(double newValue)
 		else
 			jassertfalse;
 	}
+}
+
+void NodeBase::Parameter::clearModulationValues()
+{
+	value.modAddValue = 0.0;
+	value.modMulValue = 1.0;
 }
 
 struct DragHelpers
@@ -454,19 +439,40 @@ void NodeBase::Parameter::addConnectionTo(var dragDetails)
 		newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
 		newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
 		newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
+		RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
 
-		auto r = RangeHelpers::getDoubleRange(data);
-
-		RangeHelpers::storeDoubleRange(newC, false, r, nullptr);
-
-		String connectionId = sourceNodeId + "." + parameterId;
-
-		data.setProperty(PropertyIds::Connection, connectionId, parent->getUndoManager());
-		data.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), parent->getUndoManager());
-
-		ValueTree connectionTree = sourcePTree.getChildWithName(PropertyIds::Connections);
+		auto connectionTree = sourcePTree.getChildWithName(PropertyIds::Connections);
 		connectionTree.addChild(newC, -1, parent->getUndoManager());
 	}
+}
+
+bool NodeBase::Parameter::matchesConnection(const ValueTree& c) const
+{
+	auto matchesNode = c[PropertyIds::NodeId].toString() == parent->getId();
+	auto matchesParameter = c[PropertyIds::ParameterId].toString() == getId();
+	return matchesNode && matchesParameter;
+}
+
+juce::Array<NodeBase::Parameter*> NodeBase::Parameter::getConnectedMacroParameters() const
+{
+	Array<Parameter*> list;
+
+	if (auto n = parent)
+	{
+		while (n = n->getParentNode())
+		{
+			for (int i = 0; i < n->getNumParameters(); i++)
+			{
+				if (auto m = dynamic_cast<NodeContainer::MacroParameter*>(n->getParameter(i)))
+				{
+					if (m->matchesTarget(this))
+						list.add(m);
+				}
+			}
+		}
+	}
+
+	return list;
 }
 
 NodeBase::HelpManager::HelpManager(NodeBase& parent, ValueTree d) :

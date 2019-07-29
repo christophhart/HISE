@@ -279,8 +279,6 @@ private:
 
 	String getNonExistentId(String id, StringArray& usedIds) const;
 
-	void updateIdInConnection(NodeBase* n, const String& oldId, const String& newId);
-
 	valuetree::RecursivePropertyListener idUpdater;
 
 	CriticalSection connectLock;

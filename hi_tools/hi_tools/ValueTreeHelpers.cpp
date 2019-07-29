@@ -377,6 +377,23 @@ void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 
 
 
+void RecursiveTypedChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c)
+{
+	if (p.getType() != parentType)
+		return;
+
+	ChildListener::valueTreeChildAdded(p, c);
+
+}
+
+void RecursiveTypedChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
+{
+	if (p.getType() != parentType)
+		return;
+
+	ChildListener::valueTreeChildRemoved(p, c, 0);
+}
+
 }
 
 

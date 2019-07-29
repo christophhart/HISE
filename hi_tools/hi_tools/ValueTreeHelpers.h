@@ -109,6 +109,11 @@ struct PropertyListener : public Base
 
 	void sendMessageForAllProperties();
 
+	bool isRegisteredTo(const ValueTree& t) const
+	{
+		return v == t;
+	}
+
 private:
 
 	void handleAsyncUpdate();
@@ -179,7 +184,6 @@ private:
 };
 
 
-
 /** Syncs two properties with each other. */
 struct PropertySyncer : private ValueTree::Listener
 {
@@ -210,6 +214,8 @@ private:
 };
 
 
+
+
 struct ChildListener : public Base
 {
 	/** Callback when a child was added / removed. The second parameter is true if its added. */
@@ -229,7 +235,7 @@ struct ChildListener : public Base
 		allowCallbacksForChildEvents = shouldFireCallbacksForChildEvents;
 	}
 
-private:
+protected:
 
 	bool allowCallbacksForChildEvents = false;
 
@@ -253,6 +259,27 @@ private:
 
 	ValueTree v;
 	ChildChangeCallback cb;
+};
+
+/** A listener that watches all children of the root tree with the given ID for child changes. */
+struct RecursiveTypedChildListener : public ChildListener
+{
+	RecursiveTypedChildListener()
+	{
+		forwardCallbacksForChildEvents(true);
+	}
+
+	void setTypeToWatch(Identifier newParentType)
+	{
+		parentType = newParentType;
+	}
+
+private:
+
+	Identifier parentType;
+
+	void valueTreeChildAdded(ValueTree& p, ValueTree& c) override;
+	void valueTreeChildRemoved(ValueTree& p, ValueTree& c, int) override;
 };
 
 

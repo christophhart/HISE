@@ -130,7 +130,11 @@ struct ParameterSlider : public Slider,
 	ParameterSlider(NodeBase* node_, int index);
     ~ParameterSlider();
     
-	void checkEnabledState(Identifier, var);
+	void updateOnConnectionChange(ValueTree& p, bool wasAdded);
+
+	void updateOnOpTypeChange(Identifier id, var newValue);
+
+	void checkEnabledState();
 	void updateRange(Identifier, var);
 	void timerCallback() override;
 
@@ -141,9 +145,16 @@ struct ParameterSlider : public Slider,
 	void itemDragExit(const SourceDetails& dragSourceDetails) override;
 	void itemDropped(const SourceDetails& dragSourceDetails) override;
 
-	valuetree::PropertyListener connectionListener;
+	Array<NodeContainer::MacroParameter*> getConnectedMacroParameters();
+
+	valuetree::RecursiveTypedChildListener connectionListener;
+	
+	OwnedArray<valuetree::PropertyListener> opTypeListeners;
+
 	valuetree::PropertyListener valueListener;
 	valuetree::PropertyListener rangeListener;
+
+	bool matchesConnection(ValueTree& c) const;
 
 	void mouseDown(const MouseEvent& e) override;
 
@@ -158,6 +169,7 @@ struct ParameterSlider : public Slider,
 	int macroHoverIndex = -1;
 	double lastModValue = 0.0f;
 	bool modulationActive = false;
+	bool isReadOnlyModulated = false;
 
 	WeakReference<NodeBase::Parameter> parameterToControl;
 	ValueTree pTree;

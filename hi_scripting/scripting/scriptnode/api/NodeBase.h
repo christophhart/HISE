@@ -176,8 +176,13 @@ struct NodeBase : public ConstScriptingObject
 		void addModulationValue(double newValue);
 		void multiplyModulationValue(double newValue);
 
+		void clearModulationValues();
 
 		void addConnectionTo(var dragDetails);
+
+		bool matchesConnection(const ValueTree& c) const;
+
+		Array<Parameter*> getConnectedMacroParameters() const;
 
 		String getId() const;
 		double getValue() const;

@@ -48,14 +48,31 @@ struct NodeContainer : public AssignableObject
 			DspHelpers::ParameterCallback createCallbackForNormalisedInput();
 			bool isValid() const { return p.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
 
+			bool matchesTarget(const Parameter* target) const
+			{
+				return target == p.get();
+			}
+
+			Identifier getOpType() const { return opType; };
+
 		private:
 
-			
+			void updateConnectionInTargetParameter(Identifier id, var newValue)
+			{
+				if (id == PropertyIds::OpType)
+				{
+					p->clearModulationValues();
+				}
+			}
 
+			ValueTree targetNodeData;
+			ValueTree connectionData;
+
+			UndoManager* um = nullptr;
 			NodeBase::Ptr nodeToBeBypassed;
 			double rangeMultiplerForBypass = 1.0;
 
-			valuetree::PropertySyncer opSyncer;
+			valuetree::PropertyListener opSyncer;
 			valuetree::PropertyListener idUpdater;
 			
 			valuetree::RemoveListener nodeRemoveUpdater;
@@ -73,6 +90,10 @@ struct NodeContainer : public AssignableObject
 
 		void rebuildCallback();
 		void updateRangeForConnection(ValueTree v, Identifier);
+
+		Identifier getOpTypeForParameter(Parameter* target) const;
+
+		bool matchesTarget(const Parameter* target) const;
 
 		NormalisableRange<double> inputRange;
 

@@ -216,37 +216,30 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 	Array<ParameterSlider*> list;
 	fillChildComponentList(list, this);
 
-	for (auto slider : list)
+	for (auto sourceSlider : list)
 	{
-		if (slider->parameterToControl == nullptr)
-			continue;
-
-		if (!slider->parameterToControl->parent->isBodyShown())
-			continue;
-
-		auto connection = slider->parameterToControl->data[PropertyIds::Connection].toString();
-
-		if (connection.isNotEmpty())
+		if (auto macro = dynamic_cast<NodeContainer::MacroParameter*>(sourceSlider->parameterToControl.get()))
 		{
-			auto nodeId = connection.upToFirstOccurrenceOf(".", false, false);
-			auto pId = connection.fromFirstOccurrenceOf(".", false, false);
-
-			for (auto sourceSlider : list)
+			for (auto c : macro->connections)
 			{
-				if (sourceSlider->parameterToControl->getId() == pId &&
-					sourceSlider->parameterToControl->parent->getId() == nodeId)
+				for (auto targetSlider : list)
 				{
-					auto start = getCircle(sourceSlider);
-					auto end = getCircle(slider);
+					auto target = targetSlider->parameterToControl;
 
-					paintCable(g, start, end, Colour(MIDI_PROCESSOR_COLOUR));
-					break;
+					if (target == nullptr || !target->parent->isBodyShown())
+						continue;
+
+					if (c->matchesTarget(target))
+					{
+						auto start = getCircle(sourceSlider);
+						auto end = getCircle(targetSlider);
+
+						paintCable(g, start, end, Colour(MIDI_PROCESSOR_COLOUR));
+					}
 				}
 			}
-		}		
+		}
 	}
-
-	
 
 	for (auto modSource : modSourceList)
 	{

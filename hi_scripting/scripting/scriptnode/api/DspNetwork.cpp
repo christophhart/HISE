@@ -354,21 +354,9 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 
 		if (newNode != nullptr)
 		{
-			for (auto n : nodes)
-			{
-				if (newNode->getId() == n->getId())
-				{
-					StringArray sa;
-
-					auto oldId = newNode->getId();
-					auto newId = getNonExistentId(id, sa);
-
-					updateIdInConnection(newNode, oldId, newId);
-
-					newNode->setValueTreeProperty(PropertyIds::ID, newId);
-				}
-			}
-
+			StringArray sa;
+			auto newId = getNonExistentId(id, sa);
+			newNode->setValueTreeProperty(PropertyIds::ID, newId);
 			nodes.add(newNode);
 			return newNode.get();
 		}
@@ -461,28 +449,6 @@ juce::String DspNetwork::getNonExistentId(String id, StringArray& usedIds) const
 	return id;
 }
 
-
-void DspNetwork::updateIdInConnection(NodeBase* n, const String& oldId, const String& newId)
-{
-
-	auto um = signalPath->getUndoManager();
-
-	auto updateIds = [newId, oldId, um](ValueTree& v)
-	{
-		auto oldConnection = v[PropertyIds::Connection].toString();
-
-		if (oldConnection.contains(oldId))
-		{
-			auto newConnection = oldConnection.replace(oldId, newId);
-			v.setProperty(PropertyIds::Connection, newConnection, um);
-		};
-
-		return false;
-	};
-
-	valuetree::Helpers::foreach(n->getValueTree().getChildWithName(PropertyIds::Parameters), updateIds);
-}
-
 juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClone)
 {
 	struct IdChange
@@ -530,24 +496,6 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 
 void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& newId, UndoManager* um)
 {
-	auto updateParameter = [oldId, newId, um](ValueTree& v)
-	{
-		if (v.hasType(PropertyIds::Parameter))
-		{
-			auto conId = v[PropertyIds::Connection].toString();
-
-			if (conId.contains(oldId))
-			{
-				auto newConId = conId.replace(oldId, newId);
-				v.setProperty(PropertyIds::Connection, newConId, um);
-			}
-		}
-
-		return false;
-	};
-
-	valuetree::Helpers::foreach(c, updateParameter);
-
 	auto updateConnection = [oldId, newId, um](ValueTree& v)
 	{
 		if (v.hasType(PropertyIds::Connection))

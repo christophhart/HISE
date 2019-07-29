@@ -46,10 +46,9 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 {
 	setName(pTree[PropertyIds::ID].toString());
 
-	connectionListener.setCallback(pTree,
-		{ PropertyIds::Connection, PropertyIds::ModulationTarget, PropertyIds::OpType },
-		valuetree::AsyncMode::Coallescated,
-		BIND_MEMBER_FUNCTION_2(ParameterSlider::checkEnabledState));
+	connectionListener.setTypeToWatch(PropertyIds::Connections);
+	connectionListener.setCallback(pTree.getRoot(), valuetree::AsyncMode::Asynchronously,
+		BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnConnectionChange));
 
 	rangeListener.setCallback(pTree, RangeHelpers::getRangeIds(),
 		valuetree::AsyncMode::Coallescated,
@@ -73,6 +72,21 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 		nl->updateText();
 	}
 
+	for (auto m : getConnectedMacroParameters())
+	{
+		for (auto c : m->getConnectionTree())
+		{
+			if (matchesConnection(c))
+			{
+				auto newOpListener = new valuetree::PropertyListener();
+				newOpListener->setCallback(c, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
+					BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnOpTypeChange));
+
+				opTypeListeners.add(newOpListener);
+			}
+		}
+	}
+
 	setScrollWheelEnabled(false);
 }
     
@@ -81,18 +95,57 @@ ParameterSlider::~ParameterSlider()
     removeListener(this);
 }
 
-
-void ParameterSlider::checkEnabledState(Identifier, var)
+void ParameterSlider::updateOnConnectionChange(ValueTree& p, bool wasAdded)
 {
+	if (!matchesConnection(p))
+		return;
+
+	if (wasAdded)
+	{
+		auto newOpListener = new valuetree::PropertyListener();
+		newOpListener->setCallback(p, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
+		BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnOpTypeChange));
+
+		opTypeListeners.add(newOpListener);
+	}
+	else
+	{
+		for (auto l : opTypeListeners)
+		{
+			if (l->isRegisteredTo(p))
+			{
+				opTypeListeners.removeObject(l);
+				break;
+			}
+		}
+	}
+
+	checkEnabledState();
+}
+
+void ParameterSlider::updateOnOpTypeChange(Identifier id, var newValue)
+{
+	checkEnabledState();
+}
+
+void ParameterSlider::checkEnabledState()
+{
+	auto macroList = getConnectedMacroParameters();
+
 	bool isModulated = (bool)pTree[PropertyIds::ModulationTarget];
-	bool isConnectedToMacro = pTree[PropertyIds::Connection].toString().isNotEmpty();
-	bool isReadOnly = pTree[PropertyIds::OpType].toString() == OperatorIds::SetValue.toString();
+	bool isConnectedToMacro = macroList.size() > 0;
+	isReadOnlyModulated = isModulated;
+
+	for (auto m : macroList)
+	{
+		isReadOnlyModulated |= m->getOpTypeForParameter(parameterToControl) == OperatorIds::SetValue;
+	}
 
 	modulationActive = isModulated || isConnectedToMacro;
 
 	if (modulationActive)
 	{
-		setEnabled(!isReadOnly);
+		setEnabled(!isReadOnlyModulated);
 		start();
 	}
 	else
@@ -104,7 +157,6 @@ void ParameterSlider::checkEnabledState(Identifier, var)
 	if (auto g = findParentComponentOfClass<DspNetworkGraph>())
 		g->repaint();
 }
-
 
 void ParameterSlider::updateRange(Identifier, var)
 {
@@ -138,7 +190,7 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 	if (details.sourceComponent == this)
 		return false;
 
-	return !modulationActive;
+	return !isReadOnlyModulated;
 }
 
 void ParameterSlider::paint(Graphics& g)
@@ -173,6 +225,30 @@ void ParameterSlider::itemDropped(const SourceDetails& dragSourceDetails)
 	macroHoverIndex = -1;
 	parameterToControl->addConnectionTo(dragSourceDetails.description);
 	repaint();	
+}
+
+Array<NodeContainer::MacroParameter*> ParameterSlider::getConnectedMacroParameters()
+{
+	Array<NodeContainer::MacroParameter*> list;
+
+	if (parameterToControl == nullptr)
+		return list;
+
+	auto unTypedList = parameterToControl->getConnectedMacroParameters();
+
+	for (auto t : unTypedList)
+		list.add(dynamic_cast<NodeContainer::MacroParameter*>(t));
+
+	return list;
+}
+
+bool ParameterSlider::matchesConnection(ValueTree& c) const
+{
+	if (parameterToControl == nullptr)
+		return false;
+
+	return parameterToControl->matchesConnection(c);
+
 }
 
 void ParameterSlider::mouseDown(const MouseEvent& e)
