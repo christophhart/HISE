@@ -1080,12 +1080,11 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 uint64 CompressionHelpers::Misc::NumberOfSetBits(uint64 i)
 {
-#if JUCE_MSVC && JUCE_64BIT
+#if JUCE_MSVC && JUCE_64BIT && !HI_ENABLE_LEGACY_CPU_SUPPORT
 	return __popcnt64(i);
 #else
     
     BigInteger b((int64)i);
-    
     return b.countNumberOfSetBits();
     
 #endif
