@@ -231,23 +231,24 @@ void ModulationSourceNode::SimpleRingBuffer::clear()
 
 int ModulationSourceNode::SimpleRingBuffer::read(AudioSampleBuffer& b)
 {
+	while (isBeingWritten) // busy wait, but OK
+	{
+		return 0;
+	}
+
 	jassert(b.getNumSamples() == RingBufferSize && b.getNumChannels() == 1);
 
 	auto start = Time::getMillisecondCounter();
 
-	while (isBeingWritten) // busy wait, but OK
-	{
-		auto end = Time::getMillisecondCounter();
-		if (end - start > 10)
-			break;
-	}
+	
 
 	auto dst = b.getWritePointer(0);
-	int numBeforeIndex = writeIndex;
+	int thisWriteIndex = writeIndex;
+	int numBeforeIndex = thisWriteIndex;
 	int offsetBeforeIndex = RingBufferSize - numBeforeIndex;
 
 	FloatVectorOperations::copy(dst + offsetBeforeIndex, buffer, numBeforeIndex);
-	FloatVectorOperations::copy(dst, buffer + writeIndex, offsetBeforeIndex);
+	FloatVectorOperations::copy(dst, buffer + thisWriteIndex, offsetBeforeIndex);
 
 	int numToReturn = numAvailable;
 	numAvailable = 0;
@@ -388,7 +389,7 @@ void ModulationSourcePlotter::timerCallback()
 	{
 		auto numNew = sourceNode->fillAnalysisBuffer(buffer);
 
-		if (numNew != 0)
+		if (numNew > 4 * getSamplesPerPixel())
 			rebuildPath();
 	}
 }
@@ -402,7 +403,7 @@ void ModulationSourcePlotter::rebuildPath()
 	auto width = (float)getWidth() - 2.0f * offset;
 	auto maxHeight = (float)getHeight() - 2.0f * offset;
 
-	int samplesPerPixel = ModulationSourceNode::RingBufferSize / jmax((int)(width / rectangleWidth), 1);
+	int samplesPerPixel = getSamplesPerPixel();
 
 	rectangles.clear();
 
@@ -430,6 +431,19 @@ void ModulationSourcePlotter::paint(Graphics& g)
 	g.fillRectList(rectangles);
 
 	ModulationSourceBaseComponent::paint(g);
+}
+
+int ModulationSourcePlotter::getSamplesPerPixel() const
+{
+	float offset = 2.0f;
+
+	float rectangleWidth = 1.0f;
+
+	auto width = (float)getWidth() - 2.0f * offset;
+	auto maxHeight = (float)getHeight() - 2.0f * offset;
+
+	int samplesPerPixel = ModulationSourceNode::RingBufferSize / jmax((int)(width / rectangleWidth), 1);
+	return samplesPerPixel;
 }
 
 }

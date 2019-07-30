@@ -142,6 +142,8 @@ struct ModulationSourcePlotter : ModulationSourceBaseComponent
 	void rebuildPath();
 	void paint(Graphics& g) override;
 
+	int getSamplesPerPixel() const;
+
 	RectangleList<float> rectangles;
 	AudioSampleBuffer buffer;
 };
