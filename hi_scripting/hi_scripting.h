@@ -98,6 +98,9 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/scriptnode/api/Bypass.h"
 
 #include "scripting/scriptnode/api/Containers.h"
+#include "scripting/scriptnode/api/Container_Chain.h"
+#include "scripting/scriptnode/api/Container_Split.h"
+#include "scripting/scriptnode/api/Container_Multi.h"
 #include "scripting/scriptnode/api/Processors.h"
 
 #include "scripting/scriptnode/api/ModulationSourceNode.h"
