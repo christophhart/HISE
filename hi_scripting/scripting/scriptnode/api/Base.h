@@ -39,13 +39,9 @@ using namespace hise;
 
 class HardcodedNode;
 
-class HiseDspBase
+class ParameterHolder
 {
 public:
-
-	using Function = std::function<void(HiseDspBase&)>;
-
-	virtual ~HiseDspBase() {};
 
 	struct ParameterData
 	{
@@ -54,8 +50,7 @@ public:
 		ParameterData withRange(NormalisableRange<double> r);
 
 		ValueTree createValueTree() const;
-		
-		
+
 		void setDefaultValue(double newDefaultValue)
 		{
 			defaultValue = newDefaultValue;
@@ -84,6 +79,22 @@ public:
 
 		double lastValue = 0.0;
 	};
+
+	virtual ~ParameterHolder() {};
+
+	virtual void createParameters(Array<ParameterData>& data) = 0;
+
+};
+
+class HiseDspBase: public ParameterHolder
+{
+public:
+
+	HiseDspBase() {};
+
+	using Function = std::function<void(HiseDspBase&)>;
+
+	virtual ~HiseDspBase() {};
 
 	template <class ObjectType> class ExtraComponent : public Component,
 		public PooledUIUpdater::SimpleTimer
@@ -135,8 +146,8 @@ public:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseDspBase);
 
-	virtual void createParameters(Array<ParameterData>& data) = 0;
-
+	
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseDspBase);
 };
 
 template <class T> class SingleWrapper : public HiseDspBase

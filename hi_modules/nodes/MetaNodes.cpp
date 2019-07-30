@@ -34,665 +34,249 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
-
-
 namespace meta
 {
 
-
-namespace chain3_impl
+namespace width_bandpass_impl
 {
+
+using width_bandpass_ = container::chain<filters::svf, filters::svf>;
+
+void instance::createParameters(Array<ParameterData>& data)
+{
+#define obj GET_PIMPL(width_bandpass_)
+	// Node Registration ===============================================================
+	registerNode(get<0>(obj), "hp");
+	registerNode(get<1>(obj), "lp");
+
+	// Parameter Initalisation =========================================================
+	setParameterDefault("hp.Frequency", 20000.0);
+	setParameterDefault("hp.Q", 1.0);
+	setParameterDefault("hp.Gain", 0.0);
+	setParameterDefault("hp.Smoothing", 0.00873185);
+	setParameterDefault("hp.Mode", 1.0);
+	setParameterDefault("lp.Frequency", 20000.0);
+	setParameterDefault("lp.Q", 1.0);
+	setParameterDefault("lp.Gain", 0.0);
+	setParameterDefault("lp.Smoothing", 0.00873185);
+	setParameterDefault("lp.Mode", 0.0);
+
+	// Setting node properties =========================================================
+
+	// Parameter Callbacks =============================================================
+	{
+		ParameterData p("Frequency", { 20.0, 20000.0, 0.1, 1.0 });
+		p.setDefaultValue(20000.0);
+
+		auto param_target1 = getCombinedParameter("hp.Frequency", { 20.0, 20000.0, 0.1, 0.229905 }, "SetValue");
+		auto param_target2 = getCombinedParameter("lp.Frequency", { 20.0, 20000.0, 0.1, 0.229905 }, "SetValue");
+
+		p.setCallback([param_target1, param_target2, outer = p.range](double newValue)
+		{
+			auto normalised = outer.convertTo0to1(newValue);
+			param_target1->SetValue(normalised);
+			param_target2->SetValue(normalised);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Width", { 0.0, 1.0, 0.01, 1.0 });
+
+		auto param_target1 = getCombinedParameter("hp.Frequency", { 0.0, 1.0, 0.1, 0.229905 }, "Multiply");
+		auto param_target2 = getCombinedParameter("lp.Frequency", { 1.0, 16.0, 0.1, 0.229905 }, "Multiply");
+		param_target2->addConversion(ConverterIds::SubtractFromOne, "Multiply");
+		auto param_target3 = getParameter("hp.Q", { 1.0, 4.0, 0.1, 1.0 });
+		auto param_target4 = getParameter("lp.Q", { 1.0, 4.0, 0.1, 1.0 });
+
+		p.setCallback([param_target1, param_target2, param_target3, param_target4](double newValue)
+		{
+			param_target1->Multiply(newValue);
+			param_target2->Multiply(newValue);
+			param_target3(newValue);
+			param_target4(newValue);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Smoothing", { 0.0, 1.0, 0.01, 1.0 });
+		p.setDefaultValue(0.24);
+
+		auto param_target1 = getParameter("hp.Smoothing", { 0.0, 1.0, 0.01, 0.30103 });
+		auto param_target2 = getParameter("lp.Smoothing", { 0.0, 1.0, 0.01, 0.30103 });
+
+		p.setCallback([param_target1, param_target2](double newValue)
+		{
+			param_target1(newValue);
+			param_target2(newValue);
+		});
+		data.add(std::move(p));
+	}
+#undef obj
+}
+
+
+String instance::getSnippetText() const
+{
+	return "737.3oc6V86aSCDE94ld7ihPJUvbGfUTTZ.DpSNhT0pH0j1hKvH5Z705S01mw4bCtvBBPBI9K.FfUlXhgxV+CfhPp+E.aHVBKLvBbmSSi+ET21zBEkawwWd268887688t5LcBnLR0IAk7nVTctwcVDaq6fa1DlB2fyb8mCyM.kQQMX1bL0l3Vngg3IT2yphA11lX1DTPJCA.LCqwJQ1VIWcQ.pvLYdtRiD1.UXVVDaNnLDp6uusLvx++RBKttuL52.a4r.0hTS3kSOLDrtRYMCVq4vtXKBm3J8+PcrlnKiUmn0DDttd.uNkjWCiLbhxkyhVhZJcPglqtzeEdnjqFS2yDyoL6EvtKS3BTCgXlvI67l3fUsWk3x6vxZT6agM8Hg8WM78ht2S2p7LrVD2YnVTdXKuoiS7cE1pwINZz0BN+Kdtb8NUsUHs5j1j6t4C9x0dj0lpxL5YPS4RtqGwtgOjHrPVv8kCVaoFF2a9d45hwvcWKih6t1t639Gu70e+Be6iA3NGZ9X3EZqBYOOWZiD4YnTp44RajRdVX6ti2tvRh2SflV1nEKhgKT1UHCPRH2VMMHCPZPtsZXHe+y+lo+zZONFj+o+ql6bSt01kFZVLF2fZubOb+r2NVQkO+P0CHtyWN63NejT8Nb4OjpqIULRo5vkI7NmJkUfHpJlCTUFnpLPUYfpxdUUQlpCqpDoAMWH1fh2Vj0lzdnDgJVX7jsSJJUXBQnFRkhf6K06UQDkpRU029lS6fG4NgAi3HA4ZAPGAUUWHTQ49vrNK36HuRIRiv6D2+cjYfeCMM+OilwqgNIpyLjr1ImV2YhCFuFZ3CgZnZdlbpioOzuzi1uI2QD8QkJMwDEuJb.KhFEo4sH2U32obYVyZS16zssZR5Vr7QLci+YUNFrO0qjF+x2WmfmCMdl+NdrhXHz3EJBPxgH8Ff1WDAVerm704W+Cp6+AI8.TeJ4dTdojrqAb7llQtmxuvJWgaG";
+}
+
+DSP_METHODS_PIMPL_IMPL(width_bandpass_);
+
+REGISTER_MONO;
+
+}
+
+namespace filter_delay_impl
+{
+
 // Template Alias Definition =======================================================
-using chain3_ = container::chain<core::oscillator_poly, core::peak>;
+using frame2_block2_ = container::frame2_block<routing::receive, meta::width_bandpass, core::fix_delay, routing::send>;
+using filter_delay_ = container::chain<bypass::yes<routing::matrix>, bypass::yes<routing::matrix>, bypass::yes<routing::matrix>, wrap::mod<core::tempo_sync>, core::gain, frame2_block2_>;
 
-template <int NV> struct instance : public hardcoded<chain3_>
+String instance::getSnippetText() const
 {
-	static constexpr int NumVoices = NV;
-
-	SET_HISE_POLY_NODE_ID("chain3");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0>(obj), "oscillator2");
-		registerNode(get<1>(obj), "peak1");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("oscillator2.Mode", 0.0);
-		setParameterDefault("oscillator2.Frequency", 220.0);
-		setParameterDefault("oscillator2.Freq Ratio", 1.0);
-
-		// Setting node properties =========================================================
-		setNodeProperty("oscillator2.UseMidi", false, false);
-	}
-
-};
-
-REGISTER_POLY;
-
-}
-DEFINE_EXTERN_NODE_TEMPLATE(chain3, chain3_poly, chain3_impl::instance);
-DEFINE_EXTERN_NODE_TEMPIMPL(chain3_impl::instance);
-
-
-
-namespace chain1_impl
-{
-// Template Alias Definition =======================================================
-using chain1_ = container::frame2_block<container::chain<routing::receive, filters::one_pole, core::fix_delay, routing::send>>;
-
-struct instance : public hardcoded<chain1_>
-{
-	SET_HISE_NODE_ID("chain1");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0, 0>(obj), "receive4");
-		registerNode(get<0, 1>(obj), "one_pole1");
-		registerNode(get<0, 2>(obj), "fix_delay1");
-		registerNode(get<0, 3>(obj), "send5");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("receive4.Feedback", 0.55);
-		setParameterDefault("one_pole1.Frequency", 1888.9);
-		setParameterDefault("one_pole1.Q", 1.0);
-		setParameterDefault("one_pole1.Gain", 0.0);
-		setParameterDefault("one_pole1.Smoothing", 0.01);
-		setParameterDefault("one_pole1.Mode", 0.0);
-		setParameterDefault("fix_delay1.DelayTime", 208.7);
-		setParameterDefault("fix_delay1.FadeTime", 512.0);
-
-		// Setting node properties =========================================================
-		setNodeProperty("receive4.AddToSignal", true, false);
-		setNodeProperty("send5.Connection", "receive4", false);
-	}
-
-};
-
+	return "1579.3oc6X0zbaSDFdUR1jlOZoLzYJ+BXfofFY4j51CfsiMt0M1ocrcKeLcFOxVqsUhjVUYojpxAlggCbqmgqbmgqbD9KvAlggKvufdggqrq9bWI4T2z3PNfujrR6p8884448ic2Gqh.Ba0rNP3JvQZ5NH69pHcEOPCkgNXauGn3LAH7lvgXSGEMSjs3vIj+B120n1DESSj9TfvxPYPK7vCS8PIv9jOeMrN10NXbMrgAxzAHrDL5++DMU5N.gEkj.65YoLcZGECqdZFn1juxJPYIP2I3iefhshAhXe9e5BfF1HzyPpA12aAIuRQjyAB9VH0fcNb5MUy3nBKSsxo.fvp66iFaRQiMg5nQN8wl5ofhqBswtNZliEMTbr0d54KRj3TBKU2yTwPaXvinFlOyTPLbiAMv5pAteAxpaiUc0Ubzvl8TrGibHNLnSfmzNvQDfDqtKwBGh3cnvQRAVdWjopD0b9fBQuoP3P5qh9e.CgQFXisP1NZ93rP3HJ1Gn79XiAHUhwVWwQA7HEcWBMffkjEKhu0t26Fc1qoWoNxx02Ca15Iip13yjb630tXo8lZdPWosa0okaoNsMlT8dMzZcrXsVhG5VcTwZGrWspFetJVT26FU2cz8viOpXsNcJN3SEEu6g0mb.3AtCz0FF3Y.F9+RvoDSGguHQ9uJDNiPY4EN4S2vyTtWCVZmydteTQu61qY655GzRTbjrkzwGNS9eKns13I+eBfTZf3v7yAQvDXoseMEA2.MZzntsc6Mxqp0AM1cx80DeXq6FoAZs8Qia0LOMvknl0kgNHCKb+odlCkyVPzFIl79yWUfvx4vlBBoeHPXc5FRK5sIon2SCq3ESLAunN8gzOOno4QDVIpjYaMyPlvejxSCGsJrfDwzZgOFY2RyPyIXBOzxJdb3T55fr5p8LD0ajDIxiCQGG.iDKi7jhREjJxKTDVJdDMRbtLnUfEt0IZN9SHwX7UpLlBcLkuWC1ixmQ5u0WA3+6cpTCSnvgTbk1pAa2Ch9318s54YQVwFvtHmfUCXbi0msaTf2MtYJ2nPZ23lygarErsqtilktFYyS4KWsBWjHqZeM3XR1iT57MCz4iO2a4KWENeVjkRkEYKXGzzH7mQnvEdmZMuA7gSQyyxdkknqRxAJwpRoulkcCm.KA6Wg8DiY1QbaYY4R977pv6PokTLL.vpVuFuZsookqyqgbcQlFHnq6tFXryDRMIPbTgbbV40BnrQTSUt+.ch9Kkd8sYNnB6zVPh2jyNrBSjzVPUcu9iFzmTcMcYindGrQCQZGgtvETktz7kgUUU6g6pM1TQGvj2Z1gGBu5YvoevSRH4mpKVEsJQyHketuMfMPH0AJDFONt3i1329dqO72KyFWbc93h3EkWnACydU3wTXt+.ESU+lt3X2qCG5N0AaHlZRbzITXIBlmgkCTRQbLTHHPNjk2D1v07PuAXuMRS2BuOYpYo6nrAaWYFbNKgsb9A+jUFSWIeuDRK7YeyuVgk5RlIKAlL2DZb8U9tuk96mJykPHb8unbPBAxA2ehKxbnWBg5urc94Jf42tAfL1MYGxytAfbraxbYs6u3Z+vc9ym80mfcuFLffh2xm+K+8693m+Wku.ay4j7MYClYaCrMVl5bR9sNj71KBo5lUY7M9urlWRC37vdkurR1N5oY5NkUqk29kZ4jo7xavjjjUQEkiA+ieUkSPmDVTjzxBmN4Jw0DmRN83E9BhaAYpiD59bE7mYgwYefXdc4pLr6JzsbcXzI5mE6tFTV71291Izwi8y27OkEDRrV+T8rEA2L4vgIW1I2gC2.FeeCjE5qynAKvlpD.VifI4Tu7zUwmFkrCmbDBKHVHUbzNYzifbcn3auaA5ME37F4En2vcWTKPORlyiJd13QoEyLcncRZiLcukVIKLCnhMRjGph22ErT9T07JKNACNcmeB1rsE7hxYaKPpRly4ymFe9PO9K7hC93tTgSA.lWCN46I40fyKJmWCNRbMSF2zStM3jQGx1Y4bIDeO+bp+wbJDybRgTW5VxleFAlmmclmALiZ2ct.xnVgOK.xnM9LBDOOa4NGPL35YlKPL5qLefXzc6wgcg2ezqc1vE6Mcw2nz+B0P7WfA";
 }
 
-using chain1 = chain1_impl::instance;
-
-
-namespace chain2_impl
+void instance::createParameters(Array<ParameterData>& data)
 {
-// Template Alias Definition =======================================================
-using chain2_ = container::chain<core::gain_poly>;
+#define obj GET_PIMPL(filter_delay_)
 
-struct instance : public hardcoded<chain2_>
-{
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_ID("chain2");
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+	// Node Registration ===============================================================
+	registerNode(get<0>(obj), "left_only");
+	registerNode(get<1>(obj), "stereo");
+	registerNode(get<2>(obj), "right_only");
+	registerNode(get<3>(obj), "tempo_sync2");
+	registerNode(get<4>(obj), "gain2");
+	registerNode(get<5, 0>(obj), "dly_fb_out");
+	registerNode(get<5, 1>(obj), "width_bandpass");
+	registerNode(get<5, 2>(obj), "fix_delay");
+	registerNode(get<5, 3>(obj), "dly_fb_in");
 
-	void createParameters(Array<ParameterData>& data)
+	// Parameter Initalisation =========================================================
+	setParameterDefault("tempo_sync2.Tempo", 11.0);
+	setParameterDefault("tempo_sync2.Multiplier", 4.0);
+	setParameterDefault("gain2.Gain", 0.0);
+	setParameterDefault("gain2.Smoothing", 20.0);
+	setParameterDefault("dly_fb_out.Feedback", 0.41);
+	setParameterDefault("width_bandpass.Frequency", 8811.2);
+	setParameterDefault("width_bandpass.Width", 0.58);
+	setParameterDefault("width_bandpass.Smoothing", 0.0);
+	setParameterDefault("fix_delay.DelayTime", 500.0);
+	setParameterDefault("fix_delay.FadeTime", 598.0);
+
+	// Setting node properties =========================================================
+	setNodeProperty("left_only.EmbeddedData", "72.3o8BJ+RKIy7R22DKonLqfAFY0uRyM37KsnjS04LRLu7RMmhAJFiLw.CL.kuAf3CjKCAmZdo.ly+ABfJogv3CRR3bX..HkDhj", false);
+	setNodeProperty("stereo.EmbeddedData", "75.3o8BJ+RKIy7R22DKonLqfAFY0uRyM37KsnjS04LRLu7RMmhAJFiLw.CL.kuAf3CjKCAmZdo.ly+ABfJogf3yHTIMDljL..f2p0wk", false);
+	setNodeProperty("right_only.EmbeddedData", "74.3o8BJ+RKIy7R22DKonLqfAFY0uRyM37KsnjS04LRLu7RMmhAJFiLw.CL.kuAf3+efffSMuTfyApjFBhOi.ULHIMDljL..L4vgLI", false);
+	setNodeProperty("gain2.ResetValue", "0", false);
+	setNodeProperty("gain2.UseResetValue", "0", false);
+	setNodeProperty("dly_fb_out.AddToSignal", "1", false);
+	setNodeProperty("dly_fb_in.Connection", "dly_fb_out", false);
+
+	// Internal Modulation =============================================================
 	{
-		// Node Registration ===============================================================
-		registerNode(get<0>(obj), "gain2");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("gain2.Gain", 0.0);
-		setParameterDefault("gain2.Smoothing", 20.0);
-
-		// Setting node properties =========================================================
-
-		// Parameter Callbacks =============================================================
+		auto mod_target1 = getParameter("fix_delay.DelayTime", { 0.0, 1000.0, 0.1, 0.30103 });
+		auto f = [mod_target1](double newValue)
 		{
-			ParameterData p("Volume", { 0.0, 1.0, 0.01, 1.0 });
-
-			auto param_target1 = getParameter("gain2.Gain", { -12.0, 0.0, 0.1, 1.0 });
-
-			p.db = [param_target1, outer = p.range](double newValue)
-			{
-				auto normalised = outer.convertTo0to1(newValue);
-				param_target1(normalised);
-			};
+			mod_target1.callUnscaled(newValue);
+		};
 
 
-			data.add(std::move(p));
-		}
+		setInternalModulationParameter(get<3>(obj), f);
 	}
 
-};
+	// Parameter Callbacks =============================================================
+	{
+		ParameterData p("Channel", { 0.0, 2.999, 0.01, 1.0 });
+		p.setDefaultValue(1.46);
 
+		auto bypass_target1 = getParameter("left_only.Bypassed", { 0.0, 1.0, 0.5, 1.0 });
+		auto bypass_target2 = getParameter("stereo.Bypassed", { 1.0, 2.0, 0.5, 1.0 });
+		auto bypass_target3 = getParameter("right_only.Bypassed", { 2.0, 3.0, 0.5, 1.0 });
+
+		p.setCallback([bypass_target1, bypass_target2, bypass_target3, outer = p.range](double newValue)
+		{
+			auto normalised = outer.convertTo0to1(newValue);
+			bypass_target1.setBypass(newValue);
+			bypass_target2.setBypass(newValue);
+			bypass_target3.setBypass(newValue);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Feedback", { 0.0, 1.0, 0.01, 1.0 });
+		p.setDefaultValue(0.41);
+
+		auto param_target1 = getParameter("dly_fb_out.Feedback", { 0.0, 1.0, 0.01, 1.0 });
+
+		p.setCallback([param_target1](double newValue)
+		{
+			param_target1(newValue);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Time", { 1.0, 16.0, 1.0, 1.0 });
+		p.setDefaultValue(4.0);
+
+		auto param_target1 = getParameter("tempo_sync2.Multiplier", { 1.0, 16.0, 1.0, 1.0 });
+
+		p.setCallback([param_target1, outer = p.range](double newValue)
+		{
+			auto normalised = outer.convertTo0to1(newValue);
+			param_target1(normalised);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Frequency", { 0.0, 1.0, 0.01, 1.0 });
+		p.setDefaultValue(0.44);
+
+		auto param_target1 = getParameter("width_bandpass.Frequency", { 20.0, 20000.0, 0.1, 1.0 });
+
+		p.setCallback([param_target1](double newValue)
+		{
+			param_target1(newValue);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Width", { 0.0, 1.0, 0.01, 1.0 });
+		p.setDefaultValue(0.58);
+
+		auto param_target1 = getParameter("width_bandpass.Width", { 0.0, 1.0, 0.01, 1.0 });
+
+		p.setCallback([param_target1](double newValue)
+		{
+			param_target1(newValue);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Input", { 0.0, 1.0, 0.01, 1.0 });
+		p.setDefaultValue(1.0);
+
+		auto param_target1 = getParameter("gain2.Gain", { -100.0, 0.0, 0.1, 5.42227 });
+
+		p.setCallback([param_target1](double newValue)
+		{
+			param_target1(newValue);
+		});
+		data.add(std::move(p));
+	}
+
+#undef obj
 }
 
-using chain2 = chain2_impl::instance;
+DSP_METHODS_PIMPL_IMPL(filter_delay_);
 
-
-namespace nested_impl
-{
-// Template Alias Definition =======================================================
-
-using nested_ = container::chain<meta::chain2>;
-
-struct instance : public hardcoded<nested_>
-{
-	SET_HISE_NODE_ID("nested");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0>(obj), "chain4");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("chain4.Volume", 0.81);
-
-		// Setting node properties =========================================================
-	}
-
-};
+REGISTER_MONO;
 
 }
 
-using nested = nested_impl::instance;
-
-
-
-
-namespace synth1_impl
-{
-// Template Alias Definition =======================================================
-using modchain1_ = container::modchain<core::oscillator_poly>;
-using synth1_ = container::synth<wrap::mod<core::midi>, core::oscillator_poly, wrap::mod<core::midi>, modchain1_, core::gain_poly, core::ramp_envelope_poly>;
-
-struct instance : public hardcoded<synth1_>
-{
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_ID("synth1");
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-	
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0>(obj), "midi2");
-		registerNode(get<1>(obj), "oscillator1");
-		registerNode(get<2>(obj), "midi1");
-		registerNode(get<3>(obj), "oscillator2");
-		registerNode(get<4>(obj), "gain1");
-		registerNode(get<5>(obj), "ramp_envelope2");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("midi2.Mode", 3.0);
-		setParameterDefault("oscillator1.Mode", 0.0);
-		setParameterDefault("oscillator1.Frequency", 123.471);
-		setParameterDefault("oscillator1.Freq Ratio", 1.01302);
-		setParameterDefault("midi1.Mode", 2.0);
-		setParameterDefault("oscillator2.Mode", 0.0);
-		setParameterDefault("oscillator2.Frequency", 0.527208);
-		setParameterDefault("oscillator2.Freq Ratio", 1.0);
-		setParameterDefault("gain1.Gain", -21.9748);
-		setParameterDefault("gain1.Smoothing", 4.2);
-		setParameterDefault("ramp_envelope2.Gate", 0.0);
-		setParameterDefault("ramp_envelope2.Ramp Time", 552.0);
-
-		
-
-		// Internal Modulation =============================================================
-		{
-			auto mod_target1 = getParameter("oscillator1.Frequency", { 20.0, 20000.0, 0.1, 1.0 });
-			auto f = [mod_target1](double newValue)
-			{
-				mod_target1(newValue);
-			};
-
-
-			setInternalModulationParameter(get<0>(obj), f);
-		}
-		{
-			auto mod_target1 = getParameter("oscillator2.Frequency", { 0.4, 10.0, 0.1, 0.229905 });
-			auto f = [mod_target1](double newValue)
-			{
-				mod_target1(newValue);
-			};
-
-
-			setInternalModulationParameter(get<2>(obj), f);
-		}
-		{
-			auto mod_target1 = getParameter("gain1.Gain", { -100.0, 0.0, 0.1, 5.42227 });
-			auto mod_target2 = getParameter("oscillator1.Freq Ratio", { 1.0, 1.05, 1.0, 1.0 });
-			auto f = [mod_target1, mod_target2](double newValue)
-			{
-				mod_target1(newValue);
-				mod_target2(newValue);
-			};
-
-
-			setInternalModulationParameter(get<3>(obj), f);
-		}
-	}
-
-};
+DEFINE_FACTORY_FOR_NAMESPACE
 
 }
-
-using synth1 = synth1_impl::instance;
-
-namespace synth2_impl
-{
-// Template Alias Definition =======================================================
-using chain1_ = container::chain<core::oscillator_poly, math::sig2mod, math::mul, wrap::mod<core::peak>, math::clear>;
-using split1_ = container::split<chain1_, core::oscillator_poly>;
-using frame2_block1_ = container::frame2_block<split1_>;
-using synth2_ = container::synth<wrap::mod<core::midi>, frame2_block1_, core::ramp_envelope_poly>;
-
-struct instance : public hardcoded<synth2_>
-{
-	SET_HISE_NODE_ID("synth2");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0>(obj), "midi1");
-		registerNode(get<1, 0, 0, 0>(obj), "oscillator5");
-		registerNode(get<1, 0, 0, 1>(obj), "sig2mod1");
-		registerNode(get<1, 0, 0, 2>(obj), "mul2");
-		registerNode(get<1, 0, 0, 3>(obj), "peak1");
-		registerNode(get<1, 0, 0, 4>(obj), "clear1");
-		registerNode(get<1, 0, 1>(obj), "oscillator4");
-		registerNode(get<2>(obj), "ramp_envelope1");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("midi1.Mode", 3.0);
-		setParameterDefault("oscillator5.Mode", 0.0);
-		setParameterDefault("oscillator5.Frequency", 123.471);
-		setParameterDefault("oscillator5.Freq Ratio", 3.0);
-		setParameterDefault("sig2mod1.Value", 1.0);
-		setParameterDefault("mul2.Value", 1.0);
-		setParameterDefault("clear1.Value", 0.0);
-		setParameterDefault("oscillator4.Mode", 0.0);
-		setParameterDefault("oscillator4.Frequency", 123.471);
-		setParameterDefault("oscillator4.Freq Ratio", 5.67946);
-		setParameterDefault("ramp_envelope1.Gate", 0.0);
-		setParameterDefault("ramp_envelope1.Ramp Time", 224.0);
-
-		// Internal Modulation =============================================================
-		{
-			auto mod_target1 = getParameter("oscillator4.Frequency", { 20.0, 20000.0, 0.1, 1.0 });
-			auto mod_target2 = getParameter("oscillator5.Frequency", { 20.0, 20000.0, 0.1, 1.0 });
-			auto f = [mod_target1, mod_target2](double newValue)
-			{
-				mod_target1(newValue);
-				mod_target2(newValue);
-			};
-
-
-			setInternalModulationParameter(get<0>(obj), f);
-		}
-		{
-			auto mod_target1 = getParameter("oscillator4.Freq Ratio", { 1.0, 6.0, 1.0, 1.0 });
-			auto f = [mod_target1](double newValue)
-			{
-				mod_target1(newValue);
-			};
-
-
-			setInternalModulationParameter(get<1, 0, 0, 3>(obj), f);
-		}
-	}
-
-};
-
-}
-
-using synth2 = synth2_impl::instance;
-
-
-namespace sine_synth_impl
-{
-// Template Alias Definition =======================================================
-using chain5_ = core::empty;
-using chain6_ = container::chain<core::oscillator_poly, core::gain_poly>;
-using split2_ = container::split<chain5_, chain6_>;
-using sine_synth_ = container::chain<wrap::mod<core::midi_poly>, split2_>;
-
-template <int NV> struct instance : public hardcoded<sine_synth_>
-{
-	static constexpr int NumVoices = NV;
-
-	SET_HISE_POLY_NODE_ID("sine_synth");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0>(obj), "midi2");
-		registerNode(get<1, 1, 0>(obj), "oscillator3");
-		registerNode(get<1, 1, 1>(obj), "gain2");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("midi2.Mode", 0.0);
-		setParameterDefault("oscillator3.Mode", 0.0);
-		setParameterDefault("oscillator3.Frequency", 220.0);
-		setParameterDefault("oscillator3.Freq Ratio", 2.0);
-		setParameterDefault("gain2.Gain", -100.0);
-		setParameterDefault("gain2.Smoothing", 21.8);
-
-		// Setting node properties =========================================================
-		setNodeProperty("midi2.Callback", "undefined", false);
-		setNodeProperty("oscillator3.UseMidi", true, false);
-		setNodeProperty("gain2.ResetValue", 0, false);
-		setNodeProperty("gain2.UseResetValue", true, false);
-
-		// Internal Modulation =============================================================
-		{
-			auto mod_target1 = getParameter("gain2.Gain", { -100.0, 0.0, 0.1, 5.42227 });
-			auto f = [mod_target1](double newValue)
-			{
-				mod_target1(newValue);
-			};
-
-
-			setInternalModulationParameter(get<0>(obj), f);
-		}
-
-		// Parameter Callbacks =============================================================
-		{
-			ParameterData p("Harmonic", { 1.0, 16.0, 0.01, 1.0 });
-
-			auto param_target1 = getParameter("oscillator3.Freq Ratio", { 1.0, 16.0, 1.0, 1.0 });
-
-			
-
-			p.db = [param_target1, outer = p.range](double newValue)
-			{
-				auto normalised = outer.convertTo0to1(newValue);
-				param_target1(normalised);
-			};
-
-
-			data.add(std::move(p));
-		}
-	}
-
-};
-
-}
-DEFINE_EXTERN_NODE_TEMPLATE(sine_synth, sine_synth_poly, sine_synth_impl::instance);
-DEFINE_EXTERN_NODE_TEMPIMPL(sine_synth_impl::instance);
-
-
-namespace frame2_block1_impl
-{
-// Template Alias Definition =======================================================
-using chain3_ = container::chain<math::clear, core::oscillator, math::sig2mod, wrap::mod<core::peak>, math::clear>;
-using chain1_ = container::chain<routing::receive, stk::delay_a, routing::send>;
-using chain2_ = container::chain<routing::receive, stk::delay_a, routing::send>;
-using multi1_ = container::multi<fix<1, chain1_>, fix<1, chain2_>>;
-using split1_ = container::split<chain3_, multi1_>;
-using frame2_block1_ = container::frame2_block<split1_>;
-
-struct instance : public hardcoded<frame2_block1_>
-{
-	SET_HISE_NODE_ID("frame2_block1");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0, 0, 0>(obj), "clear1");
-		registerNode(get<0, 0, 1>(obj), "oscillator1");
-		registerNode(get<0, 0, 2>(obj), "sig2mod1");
-		registerNode(get<0, 0, 3>(obj), "peak1");
-		registerNode(get<0, 0, 4>(obj), "clear2");
-		registerNode(get<0, 1, 0, 0>(obj), "receive1");
-		registerNode(get<0, 1, 0, 1>(obj), "delay_a1");
-		registerNode(get<0, 1, 0, 2>(obj), "send3");
-		registerNode(get<0, 1, 1, 0>(obj), "receive2");
-		registerNode(get<0, 1, 1, 1>(obj), "delay_a2");
-		registerNode(get<0, 1, 1, 2>(obj), "send2");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("clear1.Value", 0.0);
-		setParameterDefault("oscillator1.Mode", 0.0);
-		setParameterDefault("oscillator1.Frequency", 0.160709);
-		setParameterDefault("oscillator1.Freq Ratio", 1.0);
-		setParameterDefault("sig2mod1.Value", 0.0);
-		setParameterDefault("clear2.Value", 0.0);
-		setParameterDefault("receive1.Feedback", 0.85);
-		setParameterDefault("delay_a1.Delay", 4.97568);
-		setParameterDefault("receive2.Feedback", 0.85);
-		setParameterDefault("delay_a2.Delay", 0.0243211);
-
-		// Setting node properties =========================================================
-		setNodeProperty("oscillator1.UseMidi", false, false);
-		setNodeProperty("receive1.AddToSignal", true, false);
-		setNodeProperty("send3.Connection", "receive1", false);
-		setNodeProperty("receive2.AddToSignal", true, false);
-		setNodeProperty("send2.Connection", "receive2", false);
-
-		// Internal Modulation =============================================================
-		{
-			auto mod_target1 = getParameter("delay_a1.Delay", { 0.0, 5.0, 0.0001, 1.0 });
-			auto mod_target2 = getParameter("delay_a2.Delay", { 0.0, 5.0, 0.0001, 1.0 });
-			auto f = [mod_target1, mod_target2](double newValue)
-			{
-				mod_target1(newValue);
-				mod_target2(newValue);
-			};
-
-
-			setInternalModulationParameter(get<0, 0, 3>(obj), f);
-		}
-
-		// Parameter Callbacks =============================================================
-		{
-			ParameterData p("Feedback", { 0.0, 1.0, 0.01, 1.0 });
-
-			auto param_target1 = getParameter("receive1.Feedback", { 0.0, 1.0, 0.01, 1.0 });
-			auto param_target2 = getParameter("receive2.Feedback", { 0.0, 1.0, 0.01, 1.0 });
-
-			p.db = [param_target1, param_target2, outer = p.range](double newValue)
-			{
-				auto normalised = outer.convertTo0to1(newValue);
-				param_target1(normalised);
-				param_target2(normalised);
-			};
-
-
-			data.add(std::move(p));
-		}
-		{
-			ParameterData p("Speed", { 0.0, 1.0, 0.01, 1.0 });
-
-			auto param_target1 = getParameter("oscillator1.Frequency", { 0.1, 10.0, 0.1, 0.229905 });
-
-			p.db = [param_target1, outer = p.range](double newValue)
-			{
-				auto normalised = outer.convertTo0to1(newValue);
-				param_target1(normalised);
-			};
-
-
-			data.add(std::move(p));
-		}
-	}
-
-};
-
-}
-
-using frame2_block1 = frame2_block1_impl::instance;
-
-
-
-
-namespace funkyBoy_impl
-{
-// Template Alias Definition =======================================================
-using funkyBoy_ = container::chain<core::gain>;
-
-struct instance : public hardcoded<funkyBoy_>
-{
-	SET_HISE_NODE_ID("funkyBoy");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	String getSnippetText() const override
-	{
-		return "349.3ocqQ9rRCCDDFe1VWEsBhH9ZTPnmsgZQoPSIzzJ3w0zwjklraXyFqwWBOqW7UvqdPvW.O4Cjtaq+osof8f6gcX9X9l42tSO4HDHzNsAxNzqxEiKZIKfSYAZopvioi.x9z.oPy3BTUOHxDgd4ImDwDBLNy3kTA.nqLX7BxjpsJRYYY8YIoC3InqQa6MfomFNjpdLEKA0nJyHzyPgIRH89EmsnglYczhrTyvhBqG9eQgqbTdLSykhALUHpsv3ojonRymRTkuxJ.RUKU6R6iYn9bVbNByt+ogFq4WFyCriEVx2dzgY35ZctuFC.emYpti3ZSOwQ1xb4hkZxEu5xtoTi6Jmfpt7Dtd9JGllVRE.eMl5yucp+Gt2ddto+XbxrcfU83fWdK7oCcruoMomY2CklHr9HCPIjctyYUHCvJP1T6ei7GEO5cP62aZQtF0OQJ0QbQ3xb2vYgMO7IbP3xa.";
-	}
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0>(obj), "gain1");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("gain1.Gain", 0.0);
-		setParameterDefault("gain1.Smoothing", 20.0);
-
-		// Setting node properties =========================================================
-		setNodeProperty("gain1.ResetValue", 0, false);
-		setNodeProperty("gain1.UseResetValue", 0, false);
-	}
-
-};
-
-}
-
-using funkyBoy = funkyBoy_impl::instance;
-
-
-
-#if 0
-namespace flanger_impl
-{
-// Template Alias Definition =======================================================
-using modchain1_ = container::chain<core::oscillator, math::sig2mod, wrap::mod<core::peak>>;
-using multi1_ = container::multi<fix<1, stk::delay_a>, fix<1, stk::delay_a>>;
-using chain1_ = container::chain<routing::receive, multi1_, math::tanh, routing::send, core::gain>;
-using split1_ = container::split<core::gain, modchain1_, chain1_>;
-using flanger_ = container::frame2_block<split1_>;
-
-struct instance : public hardcoded<flanger_>
-{
-	SET_HISE_NODE_ID("flanger");
-	GET_SELF_AS_OBJECT(instance);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data)
-	{
-		// Node Registration ===============================================================
-		registerNode(get<0, 0>(obj), "gain1");
-		registerNode(get<0, 1, 0>(obj), "oscillator2");
-		registerNode(get<0, 1, 1>(obj), "sig2mod1");
-		registerNode(get<0, 1, 2>(obj), "peak1");
-		registerNode(get<0, 2, 0>(obj), "receive1");
-		registerNode(get<0, 2, 1, 0>(obj), "delay_a1");
-		registerNode(get<0, 2, 1, 1>(obj), "delay_a5");
-		registerNode(get<0, 2, 2>(obj), "tanh1");
-		registerNode(get<0, 2, 3>(obj), "send1");
-		registerNode(get<0, 2, 4>(obj), "gain2");
-
-		// Parameter Initalisation =========================================================
-		setParameterDefault("gain1.Gain", -100.0);
-		setParameterDefault("gain1.Smoothing", 20.0);
-		setParameterDefault("oscillator2.Mode", 0.0);
-		setParameterDefault("oscillator2.Frequency", 0.4753);
-		setParameterDefault("oscillator2.Freq Ratio", 1.0);
-		setParameterDefault("sig2mod1.Value", 0.0);
-		setParameterDefault("receive1.Feedback", 0.72);
-		setParameterDefault("delay_a1.Delay", 1.09292);
-		setParameterDefault("delay_a5.Delay", 11.9071);
-		setParameterDefault("tanh1.Value", 1.0);
-		setParameterDefault("gain2.Gain", 0.0);
-		setParameterDefault("gain2.Smoothing", 20.0);
-
-		// Setting node properties =========================================================
-		setNodeProperty("gain1.ResetValue", 0, false);
-		setNodeProperty("gain1.UseResetValue", 0, false);
-		setNodeProperty("oscillator2.UseMidi", false, false);
-		setNodeProperty("receive1.AddToSignal", true, false);
-		setNodeProperty("send1.Connection", "receive1", false);
-		setNodeProperty("gain2.ResetValue", 0, false);
-		setNodeProperty("gain2.UseResetValue", 0, false);
-
-		// Internal Modulation =============================================================
-		{
-			auto mod_target1 = getParameter("delay_a1.Delay", { 1.0, 12.0, 0.0001, 1.0 });
-			auto mod_target2 = getParameter("delay_a5.Delay", { 1.0, 12.0, 0.0001, 1.0 });
-			auto f = [mod_target1, mod_target2](double newValue)
-			{
-				mod_target1(newValue);
-				mod_target2(newValue);
-			};
-
-
-			setInternalModulationParameter(get<0, 1, 2>(obj), f);
-		}
-
-		// Parameter Callbacks =============================================================
-		{
-			ParameterData p("Amount", { 0.0, 1.0, 0.01, 1.0 });
-
-			auto param_target1 = getParameter("gain1.Gain", { -100.0, 0.0, 0.1, 5.42227 });
-			auto param_target2 = getParameter("gain2.Gain", { -100.0, 0.0, 0.1, 5.42227 });
-
-			p.db = [param_target1, param_target2, outer = p.range](double newValue)
-			{
-				auto normalised = outer.convertTo0to1(newValue);
-				param_target1(normalised);
-				param_target2(normalised);
-			};
-
-
-			data.add(std::move(p));
-		}
-		{
-			ParameterData p("Rate", { 0.0, 1.0, 0.01, 1.0 });
-
-			auto param_target1 = getParameter("oscillator2.Frequency", { 0.01, 1.0, 0.0001, 1.0 });
-
-			p.db = [param_target1, outer = p.range](double newValue)
-			{
-				auto normalised = outer.convertTo0to1(newValue);
-				param_target1(normalised);
-			};
-
-
-			data.add(std::move(p));
-		}
-		{
-			ParameterData p("Feedback", { 0.0, 1.0, 0.01, 1.0 });
-
-			auto param_target1 = getParameter("receive1.Feedback", { 0.0, 1.0, 0.01, 1.0 });
-
-			p.db = [param_target1, outer = p.range](double newValue)
-			{
-				auto normalised = outer.convertTo0to1(newValue);
-				param_target1(normalised);
-			};
-
-
-			data.add(std::move(p));
-		}
-	}
-
-};
-
-}
-
-using flanger = flanger_impl::instance;
-#endif
-
-DEFINE_FACTORY_FOR_NAMESPACE;
-
-
-}
-
-
 
 }

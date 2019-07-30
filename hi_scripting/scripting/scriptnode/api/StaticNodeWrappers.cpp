@@ -45,6 +45,36 @@ void ComponentHelpers::addExtraComponentToDefault(NodeComponent* nc, Component* 
     dynamic_cast<DefaultParameterNodeComponent*>(nc)->setExtraComponent(c);
 }
     
+scriptnode::HardcodedNode::CombinedParameterValue* HardcodedNode::getCombinedParameter(const String& id, NormalisableRange<double> range, Identifier opType)
+{
+	auto p = getParameter(id, range);
+
+	for (auto c : combinedParameterValues)
+	{
+		if (c->matches(p))
+		{
+			c->updateRangeForOpType(opType, p.range);
+			return c;
+		}
+	}
+
+	auto c = new CombinedParameterValue(p);
+	c->updateRangeForOpType(opType, p.range);
+	combinedParameterValues.add(c);
+	return c;
+}
+
+void HardcodedNode::setNodeProperty(const String& id, const var& newValue, bool isPublic)
+{
+	auto propTree = nodeData.getChildWithName(PropertyIds::Properties).getChildWithProperty(PropertyIds::ID, id);
+
+	if (propTree.isValid())
+	{
+		propTree.setProperty(PropertyIds::Value, newValue, um);
+		propTree.setProperty(PropertyIds::Public, isPublic, um);
+	}
+}
+
 void HardcodedNode::setParameterDefault(const String& parameterId, double value)
 {
 	for (auto& parameter : internalParameterList)
@@ -82,6 +112,17 @@ juce::String HardcodedNode::getNodeId(const HiseDspBase* internalNode) const
 	}
 
 	return {};
+}
+
+scriptnode::HiseDspBase* HardcodedNode::getNode(const String& id) const
+{
+	for (const auto& n : internalNodes)
+	{
+		if (n.id == id)
+			return n.node;
+	}
+
+	return nullptr;
 }
 
 bool HiseDspBase::isHardcoded() const

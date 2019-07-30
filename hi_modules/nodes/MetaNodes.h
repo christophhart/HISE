@@ -32,9 +32,67 @@
 
 #pragma once
 
+#include "JuceHeader.h"
+
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
+
+/** Howto convert hardcoded node classes to meta nodes:
+
+1. Move implementation and alias definitions to source file.
+2. Subclass from hardcoded_pimpl instead
+3. Add DEFINE_DSP_METHODS_PIMPL to class definition.
+4. Add #define obj GET_PIMPL(classname_) and #undef obj to createParameters implementation
+5. Add DSP_METHODS_PIMPL_IMPL(width_bandpass_) in source file
+*/
+
+namespace meta
+{
+namespace width_bandpass_impl
+{
+// Template Alias Definition =======================================================
+
+struct instance : public hardcoded_pimpl
+{
+	SET_HISE_NODE_ID("width_bandpass");
+	GET_SELF_AS_OBJECT(instance);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	String getSnippetText() const override;
+
+	void createParameters(Array<ParameterData>& data);
+
+	DEFINE_DSP_METHODS_PIMPL;
+};
+
+}
+
+using width_bandpass = width_bandpass_impl::instance;
+
+namespace filter_delay_impl
+{
+
+struct instance : public hardcoded_pimpl
+{
+	SET_HISE_NODE_ID("filter_delay");
+	GET_SELF_AS_OBJECT(instance);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	String getSnippetText() const override;
+
+	void createParameters(Array<ParameterData>& data);
+
+	DEFINE_DSP_METHODS_PIMPL;
+};
+
+}
+
+using filter_delay = filter_delay_impl::instance;
+
+}
+
+
 
 
 }

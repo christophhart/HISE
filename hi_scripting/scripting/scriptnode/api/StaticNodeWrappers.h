@@ -189,12 +189,46 @@ public:
 	valuetree::PropertyListener bypassListener;
 };
 
+template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, class T> static auto* get(T& t)
+{
+	return get<Index6>(*get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))))));
+}
+
+template <int Index1, int Index2, int Index3, int Index4, int Index5, class T> static auto* get(T& t)
+{
+	return get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t)))));
+}
+
+template <int Index1, int Index2, int Index3, int Index4, class T> static auto* get(T& t)
+{
+	return get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))));
+}
+
+template <int Index1, int Index2, int Index3, class T> static auto* get(T& t)
+{
+	return get<Index3>(*get<Index2>(*get<Index1>(t)));
+}
+
+template <int Index1, int Index2, class T> static auto* get(T& t)
+{
+	return get<Index2>(*get<Index1>(t));
+}
+
+template <int Index, class T> static auto* get(T& t)
+{
+	auto* obj1 = &t.getObject();
+	auto* obj2 = &obj1->template get<Index>();
+	return &obj2->getObject();
+}
 
 class HardcodedNode
 {
 public:
 
-    virtual ~HardcodedNode() {};
+    virtual ~HardcodedNode() 
+	{
+		combinedParameterValues.clear();
+	};
     
 	struct ParameterInitValue
 	{
@@ -329,28 +363,11 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CombinedParameterValue);
 	};
 
-	CombinedParameterValue* getCombinedParameter(const String& id, NormalisableRange<double> range, Identifier opType)
-	{
-		auto p = getParameter(id, range);
-
-		for (auto c : combinedParameterValues)
-		{
-			if (c->matches(p))
-			{
-				c->updateRangeForOpType(opType, p.range);
-				return c;
-			}
-		}
-
-		auto c = new CombinedParameterValue(p);
-		c->updateRangeForOpType(opType, p.range);
-		combinedParameterValues.add(c);
-		return c;
-	}
+	CombinedParameterValue* getCombinedParameter(const String& id, NormalisableRange<double> range, Identifier opType);
 
 	static constexpr int ExtraHeight = 0;
 
-	template <class T> static Array<HiseDspBase::ParameterData> createParametersT(T* d, const String& prefix)
+	static Array<HiseDspBase::ParameterData> createParametersT(ParameterHolder* d, const String& prefix)
 	{
 		Array<HiseDspBase::ParameterData> data;
 		d->createParameters(data);
@@ -364,7 +381,7 @@ public:
 		return data;
 	}
 
-	template <class T> void fillInternalParameterList(T* obj, const String& name)
+	void fillInternalParameterList(ParameterHolder* obj, const String& name)
 	{
 		internalParameterList.addArray(createParametersT(obj, name));
 	}
@@ -373,6 +390,8 @@ public:
 	{
 		modObject->setCallback(f);
 	}
+
+	void setNodeProperty(const String& id, const var& newValue, bool isPublic);
 
 	void setParameterDefault(const String& parameterId, double value);
 
@@ -389,18 +408,7 @@ public:
 
 	String getNodeId(const HiseDspBase* internalNode) const;
 
-	
-
-	HiseDspBase* getNode(const String& id) const
-	{
-		for (const auto& n : internalNodes)
-		{
-			if (n.id == id)
-				return n.node;
-		}
-
-		return nullptr;
-	}
+	HiseDspBase* getNode(const String& id) const;
 
 	template <class T> void registerNode(T* obj, const String& id)
 	{
@@ -416,6 +424,13 @@ public:
 			fillInternalParameterList(typed, id);
 		}
 	}
+
+	
+
+protected:
+
+	ValueTree nodeData;
+	UndoManager* um = nullptr;
 
 private:
 
@@ -434,12 +449,71 @@ struct hc
 	static constexpr int with_modulation = 2;
 };
 
+#define DEF_CONSTDEST instance(); ~instance();
+#define DEF_PREPARE_PIMPL void prepare(PrepareSpecs ps);
+#define DEF_INIT_PIMPL void initialise(NodeBase* n);
+#define DEF_HANDLE_MOD_PIMPL bool handleModulation(double& value);
+#define DEF_HANDLE_EVENT_PIMPL void handleHiseEvent(HiseEvent& e);
+#define DEF_PROCESS_PIMPL void process(ProcessData& data) noexcept;
+#define DEF_RESET_PIMPL void reset();
+#define DEF_PROCESS_SINGLE_PIMPL void processSingle(float* frameData, int numChannels) noexcept;
 
-template <class DspProcessorType> struct hardcoded : public HiseDspBase,
-public HardcodedNode
+#define DEFINE_DSP_METHODS_PIMPL DEF_CONSTDEST DEF_PREPARE_PIMPL; DEF_INIT_PIMPL; DEF_HANDLE_MOD_PIMPL; DEF_HANDLE_EVENT_PIMPL; DEF_PROCESS_PIMPL; DEF_RESET_PIMPL; DEF_PROCESS_SINGLE_PIMPL;
+
+
+#define GET_PIMPL(NodeType) (*reinterpret_cast<NodeType*>(pimpl))
+#define PREPARE_PIMPL(NodeType) void instance::prepare(PrepareSpecs ps) { GET_PIMPL(NodeType).prepare(ps); }
+#define INIT_PIMPL(NodeType) void instance::initialise(NodeBase* n) { GET_PIMPL(NodeType).initialise(n); nodeData = n->getValueTree(); um = n->getUndoManager(); }
+#define HANDLE_MOD_PIMPL(NodeType) bool instance::handleModulation(double& value) { return GET_PIMPL(NodeType).handleModulation(value); }
+#define HANDLE_EVENT_PIMPL(NodeType) void instance::handleHiseEvent(HiseEvent& e) { GET_PIMPL(NodeType).handleHiseEvent(e); }
+#define PROCESS_PIMPL(NodeType) void instance::process(ProcessData& data) noexcept { GET_PIMPL(NodeType).process(data); }
+#define RESET_PIMPL(NodeType) void instance::reset() { GET_PIMPL(NodeType).reset(); }
+#define PROCESS_SINGLE_PIMPL(NodeType) void instance::processSingle(float* frameData, int numChannels) noexcept { GET_PIMPL(NodeType).processSingle(frameData, numChannels); }
+#define CONSTRUCTOR_PIMPL(NodeType) instance::instance() { pimpl = new NodeType(); }
+#define DESTRUCTOR_PIMPL(NodeType) instance::~instance() { delete &GET_PIMPL(NodeType); }
+
+#define DSP_METHODS_PIMPL_IMPL(NodeType) CONSTRUCTOR_PIMPL(NodeType); DESTRUCTOR_PIMPL(NodeType); PREPARE_PIMPL(NodeType); INIT_PIMPL(NodeType); HANDLE_MOD_PIMPL(NodeType); HANDLE_EVENT_PIMPL(NodeType); PROCESS_PIMPL(NodeType); RESET_PIMPL(NodeType); PROCESS_SINGLE_PIMPL(NodeType);
+
+#define PREPARE_T void prepare(PrepareSpecs ps) { obj.prepare(ps); }
+#define INIT_T void initialise(NodeBase* n) { obj.initialise(n); nodeData = n->getValueTree(); um = n->getUndoManager(); }
+#define HANDLE_MOD_T bool handleModulation(double& value) { return obj.handleModulation(value); }
+#define HANDLE_EVENT_T void handleHiseEvent(HiseEvent& e) { obj.handleHiseEvent(e); }
+#define PROCESS_T void process(ProcessData& data) noexcept { obj.process(data); }
+#define RESET_T void reset() { obj.reset(); }
+#define PROCESS_SINGLE_T void processSingle(float* frameData, int numChannels) noexcept { obj.processSingle(frameData, numChannels); }
+
+#define DSP_METHODS_T PREPARE_T; INIT_T; HANDLE_MOD_T; HANDLE_EVENT_T; PROCESS_T; RESET_T; PROCESS_SINGLE_T;
+
+struct hardcoded_pimpl : public HiseDspBase,
+					public HardcodedNode
+{
+	virtual ~hardcoded_pimpl() {};
+
+	HardcodedNode* getAsHardcodedNode() override
+	{
+		return this;
+	}
+
+	void* pimpl;
+};
+
+struct hardcoded_t : public HiseDspBase,
+	public HardcodedNode
+{
+	virtual ~hardcoded_t() {};
+
+	HardcodedNode* getAsHardcodedNode() override
+	{
+		return this;
+	}
+};
+
+template <class DspProcessorType> struct hardcoded : hardcoded_t
 {
 public:
 
+	virtual ~hardcoded() {};
+	
 	void initialise(NodeBase* n) override
 	{
 		obj.initialise(n);
@@ -448,8 +522,7 @@ public:
 		um = n->getUndoManager();
 	}
 
-	void prepare(PrepareSpecs ps)
-	{
+	void prepare(PrepareSpecs ps) {
 		obj.prepare(ps);
 	}
 
@@ -473,61 +546,12 @@ public:
 		obj.reset();
 	}
 
-	void setNodeProperty(const String& id, const var& newValue, bool isPublic)
-	{
-		auto propTree = nodeData.getChildWithName(PropertyIds::Properties).getChildWithProperty(PropertyIds::ID, id);
-
-		if (propTree.isValid())
-		{
-			propTree.setProperty(PropertyIds::Value, newValue, um);
-			propTree.setProperty(PropertyIds::Public, isPublic, um);
-		}
-	}
-
 	void processSingle(float* frameData, int numChannels) noexcept
 	{
 		obj.processSingle(frameData, numChannels);
 	}
 
-	HardcodedNode* getAsHardcodedNode() override 
-	{ 
-		return this; 
-	}
-
-	template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, class T> auto* get(T& t)
-	{
-		return get<Index6>(*get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))))));
-	}
-
-	template <int Index1, int Index2, int Index3, int Index4, int Index5, class T> auto* get(T& t)
-	{
-		return get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t)))));
-	}
-
-	template <int Index1, int Index2, int Index3, int Index4, class T> auto* get(T& t)
-	{
-		return get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))));
-	}
-
-	template <int Index1, int Index2, int Index3, class T> auto* get(T& t)
-	{
-		return get<Index3>(*get<Index2>(*get<Index1>(t)));
-	}
-
-	template <int Index1, int Index2, class T> auto* get(T& t)
-	{
-		return get<Index2>(*get<Index1>(t));
-	}
-
-	template <int Index, class T> static auto* get(T& t)
-	{
-        auto* obj1 = &t.getObject();
-        auto* obj2 = &obj1->template get<Index>();
-        return &obj2->getObject();
-	}
-
-	ValueTree nodeData;
-	UndoManager* um = nullptr;
+	
 
 	DspProcessorType obj;
 };
