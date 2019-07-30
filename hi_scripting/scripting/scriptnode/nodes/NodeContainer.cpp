@@ -801,7 +801,7 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 {
 	using namespace UIValues;
 
-	const int minWidth = NodeWidth;
+	const int minWidth = jmax(NodeWidth, 100 * getNumParameters() + 50);
 	int maxW = minWidth;
 	int h = 0;
 

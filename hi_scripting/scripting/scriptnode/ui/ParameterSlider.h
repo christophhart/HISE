@@ -190,6 +190,12 @@ struct MacroParameterSlider : public Component
 
 	void setEditEnabled(bool shouldBeEnabled);
 
+	bool keyPressed(const KeyPress& key) override;
+
+	void focusGained(FocusChangeType) override { repaint(); }
+
+	void focusLost(FocusChangeType) override { repaint(); }
+
 private:
 
 	bool editEnabled = false;

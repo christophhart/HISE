@@ -157,6 +157,8 @@ public:
 	valuetree::ChildListener rebuildListener;
 	valuetree::RecursivePropertyListener resizeListener;
 
+	valuetree::RecursiveTypedChildListener macroListener;
+
 	ScopedPointer<NodeComponent> root;
 
 	Component::SafePointer<ContainerComponent> currentDropTarget;

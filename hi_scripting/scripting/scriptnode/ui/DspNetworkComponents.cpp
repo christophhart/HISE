@@ -59,6 +59,13 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 			triggerAsyncUpdate();
 	});
 
+	macroListener.setTypeToWatch(PropertyIds::Parameters);
+	macroListener.setCallback(dataReference, valuetree::AsyncMode::Asynchronously,
+		[this](ValueTree, bool)
+	{
+		this->rebuildNodes();
+	});
+
 	rebuildListener.forwardCallbacksForChildEvents(true);
 
 	resizeListener.setCallback(dataReference, { PropertyIds::Folded, PropertyIds::ShowParameters },

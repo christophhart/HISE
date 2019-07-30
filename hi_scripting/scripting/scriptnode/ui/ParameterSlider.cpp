@@ -184,7 +184,6 @@ void ParameterSlider::timerCallback()
 	}
 }
 
-
 bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 {
 	if (details.sourceComponent == this)
@@ -401,6 +400,7 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
 	slider(node, index)
 {
 	addAndMakeVisible(slider);
+	setWantsKeyboardFocus(true);
 }
 
 void MacroParameterSlider::resized()
@@ -432,6 +432,12 @@ void MacroParameterSlider::paintOverChildren(Graphics& g)
 	{
 		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.2f));
 		g.fillRoundedRectangle(getLocalBounds().reduced(2).toFloat(), 3.0f);
+
+		if (hasKeyboardFocus(true))
+		{
+			g.setColour(Colour(SIGNAL_COLOUR));
+			g.drawRect(getLocalBounds().reduced(2), 1);
+		}
 	}
 }
 
@@ -446,6 +452,26 @@ void MacroParameterSlider::setEditEnabled(bool shouldBeEnabled)
 		slider.removeMouseListener(this);
 
 	repaint();
+}
+
+bool MacroParameterSlider::keyPressed(const KeyPress& key)
+{
+	if (key == KeyPress::deleteKey || key == KeyPress::backspaceKey)
+	{
+		auto treeToRemove = slider.parameterToControl->data;
+		auto um = slider.node->getUndoManager();
+
+		auto f = [treeToRemove, um]()
+		{
+			treeToRemove.getParent().removeChild(treeToRemove, um);
+		};
+
+		MessageManager::callAsync(f);
+
+		return true;
+	}
+
+	return false;
 }
 
 }
