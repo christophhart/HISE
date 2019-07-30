@@ -270,7 +270,7 @@ public:
 	int getExtraWidth() const { return this->obj.getExtraWidth(); }
 	static constexpr bool isModulationSource = T::isModulationSource;
 
-	forcedinline void process(ProcessData& data) noexcept
+	void process(ProcessData& data) noexcept
 	{
 		if (bypassed)
 			return;
@@ -278,7 +278,7 @@ public:
 		this->obj.process(data);
 	}
 
-	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	void processSingle(float* frameData, int numChannels) noexcept
 	{
 		if (bypassed)
 			return;
@@ -302,7 +302,7 @@ public:
 		return this->obj.isModulationSource;
 	}
 
-	forcedinline bool handleModulation(double& value) noexcept
+	bool handleModulation(double& value) noexcept
 	{
 		if (!bypassed)
 			return this->obj.handleModulation(value);

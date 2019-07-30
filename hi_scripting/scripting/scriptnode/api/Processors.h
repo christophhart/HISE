@@ -241,11 +241,8 @@ public:
 
 		int numToDo = data.size;
 		float frame[NumChannels];
-
 		float* frameData[NumChannels];
-
 		memcpy(frameData, data.data, sizeof(float*)*NumChannels);
-
 		ProcessData copy(frameData, NumChannels, data.size);
 
 		while (--numToDo >= 0)

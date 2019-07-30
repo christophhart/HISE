@@ -84,8 +84,6 @@ public:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FilterNodeBase);
 };
 
-
-
 #define DEFINE_FILTER_NODE_TEMPLATE(monoName, polyName, className) extern template class FilterNodeBase<className, 1>; \
 using monoName = FilterNodeBase<hise::MultiChannelFilter<className>, 1>; \
 extern template class FilterNodeBase<className, NUM_POLYPHONIC_VOICES>; \

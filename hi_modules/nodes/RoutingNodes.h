@@ -161,31 +161,7 @@ struct MsDecoder : public HiseDspBase
 struct Matrix : public HiseDspBase,
 				public RoutableProcessor
 {
-#if USE_BACKEND
-	struct Editor: public ExtraComponent<hise::RoutableProcessor>
-	{
-		Editor(RoutableProcessor* r, PooledUIUpdater* updater):
-			ExtraComponent<hise::RoutableProcessor>(r, updater),
-			editor(&r->getMatrix())
-		{
-			addAndMakeVisible(editor);
-			setSize(600, 200);
-			stop();
-		}
 
-		void timerCallback() override
-		{
-
-		}
-
-		void resized() override
-		{
-			editor.setBounds(getLocalBounds());
-		}
-
-		hise::RouterComponent editor;
-	};
-#endif
 
 	SET_HISE_NODE_ID("matrix");
 	SET_HISE_NODE_EXTRA_HEIGHT(200);
@@ -194,136 +170,28 @@ struct Matrix : public HiseDspBase,
 
 	HISE_EMPTY_RESET;
 
-	Matrix() :
-		internalData(PropertyIds::EmbeddedData, "")
-	{
-		
-	}
-
-	void initialise(NodeBase* n) override
-	{
-		um = n->getUndoManager();
-			
-		getMatrix().init(dynamic_cast<Processor*>(n->getScriptProcessor()));
-
-
-		ScopedValueSetter<bool> svs(recursion, true);
-
-		internalData.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(Matrix::updateFromEmbeddedData));
-		internalData.init(n, this);
-	}
-
-	Component* createExtraComponent(PooledUIUpdater* updater)
-	{
 #if USE_BACKEND
-		return new Editor(this, updater);
-#else
-		return nullptr;
+	struct Editor;
 #endif
-	}
 
-	void prepare(PrepareSpecs specs)
-	{
-		getMatrix().setNumSourceChannels(specs.numChannels);
-		getMatrix().setNumDestinationChannels(specs.numChannels);
-	}
+	Matrix();
+
+	void initialise(NodeBase* n) override;
+
+	Component* createExtraComponent(PooledUIUpdater* updater);
 
 	void numSourceChannelsChanged() { updateData(); };
 	void numDestinationChannelsChanged() { updateData(); };
 	void connectionChanged() { updateData(); };
 
-	void updateFromEmbeddedData(Identifier id, var newValue)
-	{
-		auto base64Data = newValue.toString();
+	void updateFromEmbeddedData(Identifier id, var newValue);
+	void updateData();
 
-		if (base64Data.isNotEmpty())
-		{
-			auto matrixData = ValueTreeConverters::convertBase64ToValueTree(newValue.toString(), true);
-
-			getMatrix().restoreFromValueTree(matrixData);
-		}
-	}
-
-	void updateData()
-	{
-		if (recursion)
-			return;
-
-		ScopedValueSetter<bool> svs(recursion, true);
-
-		auto data = ValueTreeConverters::convertValueTreeToBase64(getMatrix().exportAsValueTree(), true);
-
-		internalData.storeValue(data, um);
-
-		memset(channelRouting, -1, NUM_MAX_CHANNELS);
-		memset(sendRouting, -1, NUM_MAX_CHANNELS);
-
-		for (int i = 0; i < getMatrix().getNumSourceChannels(); i++)
-		{
-			channelRouting[i] = (int8)getMatrix().getConnectionForSourceChannel(i);
-			sendRouting[i] = (int8)getMatrix().getSendForSourceChannel(i);
-		}
-	}
-
-	void process(ProcessData& data) 
-	{
-		float frameData[NUM_MAX_CHANNELS];
-		float* chData[NUM_MAX_CHANNELS];
-
-		memcpy(chData, data.data, data.numChannels * sizeof(float*));
-
-		ProcessData copy(chData, data.numChannels, data.size);
-
-		if (data.size > 0)
-		{
-			copy.copyToFrameDynamic(frameData);
-			getMatrix().setGainValues(frameData, true);
-			processSingle(frameData, data.numChannels);
-			getMatrix().setGainValues(frameData, false);
-			copy.copyFromFrameAndAdvanceDynamic(frameData);
-		}
-
-		for (int i = 1; i < data.size; i++)
-		{
-			copy.copyToFrameDynamic(frameData);
-			processSingle(frameData, data.numChannels);
-			copy.copyFromFrameAndAdvanceDynamic(frameData);
-		}
-
-		
-	};
-
-	void processSingle(float* frameData, int numChannels) 
-	{
-		float copyData[NUM_MAX_CHANNELS + 1];
-		copyData[0] = 0.0f;
-		float* chData = copyData + 1;
-
-		for (int i = 0; i < numChannels; i++)
-		{
-			chData[i] = frameData[i];
-			frameData[i] = 0.0f;
-		}
-
-		for (int i = 0; i < numChannels; i++)
-		{
-			auto index = channelRouting[i];
-			
-			if(index != -1)
-				frameData[index] += chData[i];
-
-			auto sendIndex = sendRouting[i];
-
-			if (sendIndex != -1)
-				frameData[sendIndex] += chData[i];
-		}
-	};
+	void prepare(PrepareSpecs specs);
+	void process(ProcessData& data);;
+	void processSingle(float* frameData, int numChannels);;
 	bool handleModulation(double&) { return false; }
-
-	void createParameters(Array<ParameterData>&) override
-	{
-		internalData.init(nullptr, this);
-	}
+	void createParameters(Array<ParameterData>&) override;
 
 	bool recursion = false;
 	UndoManager* um = nullptr;

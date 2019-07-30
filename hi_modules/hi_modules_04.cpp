@@ -1,7 +1,4 @@
-
 #include "JuceHeader.h"
 
-
-
-#include "nodes/MetaNodes.h"
-#include "nodes/MetaNodes.cpp"
+#include "nodes/FilterNode.h"
+#include "nodes/FilterNode.cpp"

@@ -190,10 +190,14 @@ struct PropertyHelpers
 #define HISE_EMPTY_CREATE_PARAM void createParameters(Array<ParameterData>&){}
 #define HISE_EMPTY_MOD bool handleModulation(double& value) { return false; }
 
+#define DEFINE_EXTERN_MONO_TEMPLATE(monoName, classWithTemplate) extern template class classWithTemplate; using monoName = classWithTemplate;
+
 #define DEFINE_EXTERN_NODE_TEMPLATE(monoName, polyName, className) extern template class className<1>; \
 using monoName = className<1>; \
 extern template class className<NUM_POLYPHONIC_VOICES>; \
 using polyName = className<NUM_POLYPHONIC_VOICES>; 
+
+#define DEFINE_EXTERN_MONO_TEMPIMPL(classWithTemplate) template class classWithTemplate;
 
 #define DEFINE_EXTERN_NODE_TEMPIMPL(className) template class className<1>; template class className<NUM_POLYPHONIC_VOICES>;
 

@@ -34,4 +34,235 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+
+struct DynamicHelpers
+{
+	static Identifier getId(chunkware_simple::SimpleGate*)
+	{
+		RETURN_STATIC_IDENTIFIER("gate");
+	}
+
+	static Identifier getId(chunkware_simple::SimpleComp*)
+	{
+		RETURN_STATIC_IDENTIFIER("comp");
+	}
+
+	static Identifier getId(chunkware_simple::SimpleCompRms*)
+	{
+		RETURN_STATIC_IDENTIFIER("comp_rms");
+	}
+
+	static Identifier getId(chunkware_simple::SimpleLimit*)
+	{
+		RETURN_STATIC_IDENTIFIER("limiter");
+	}
+};
+
+
+template <class DynamicProcessorType>
+Identifier scriptnode::DynamicsNodeBase<DynamicProcessorType>::getStaticId()
+{
+	DynamicProcessorType* t = nullptr;
+	return DynamicHelpers::getId(t);
+}
+
+template <class DynamicProcessorType>
+void scriptnode::DynamicsNodeBase<DynamicProcessorType>::createParameters(Array<ParameterData>& data)
+{
+	{
+		ParameterData p("Threshhold");
+		p.range = { -100.0, 0.0, 0.1 };
+		p.range.setSkewForCentre(-12.0);
+		p.defaultValue = 0.0;
+
+		p.db = std::bind(&DynamicProcessorType::setThresh, &obj, std::placeholders::_1);
+
+		data.add(std::move(p));
+	}
+
+	{
+		ParameterData p("Attack");
+		p.range = { 0.0, 250.0, 0.1 };
+		p.range.setSkewForCentre(50.0);
+		p.defaultValue = 50.0;
+
+		p.db = std::bind(&DynamicProcessorType::setAttack, &obj, std::placeholders::_1);
+
+		data.add(std::move(p));
+	}
+
+	{
+		ParameterData p("Release");
+		p.range = { 0.0, 250.0, 0.1 };
+		p.range.setSkewForCentre(50.0);
+		p.defaultValue = 50.0;
+
+		p.db = std::bind(&DynamicProcessorType::setRelease, &obj, std::placeholders::_1);
+
+		data.add(std::move(p));
+	}
+
+	{
+		ParameterData p("Ratio");
+		p.range = { 1.0, 32.0, 0.1 };
+		p.range.setSkewForCentre(4.0);
+		p.defaultValue = 1.0;
+
+		p.db = [this](double newValue)
+		{
+			auto ratio = (newValue != 0.0) ? 1.0 / newValue : 1.0;
+			obj.setRatio(ratio);
+		};
+
+		data.add(std::move(p));
+	}
+}
+
+template <class DynamicProcessorType>
+Component* scriptnode::DynamicsNodeBase<DynamicProcessorType>::createExtraComponent(PooledUIUpdater* updater)
+{
+	return new ModulationSourcePlotter(updater);
+}
+
+template <class DynamicProcessorType>
+bool scriptnode::DynamicsNodeBase<DynamicProcessorType>::handleModulation(double& max) noexcept
+{
+	max = jlimit(0.0, 1.0, 1.0 - obj.getGainReduction());
+	return true;
+}
+
+template <class DynamicProcessorType>
+void scriptnode::DynamicsNodeBase<DynamicProcessorType>::prepare(PrepareSpecs ps)
+{
+	obj.setSampleRate(ps.sampleRate);
+}
+
+template <class DynamicProcessorType>
+void scriptnode::DynamicsNodeBase<DynamicProcessorType>::reset() noexcept
+{
+	obj.initRuntime();
+}
+
+template <class DynamicProcessorType>
+void scriptnode::DynamicsNodeBase<DynamicProcessorType>::process(ProcessData& d)
+{
+	if (d.numChannels >= 2)
+	{
+		for (int i = 0; i < d.size; i++)
+		{
+			double v[2] = { d.data[0][i], d.data[1][i] };
+			obj.process(v[0], v[1]);
+			d.data[0][i] = (float)v[0];
+			d.data[1][i] = (float)v[1];
+		}
+	}
+	else if (d.numChannels == 1)
+	{
+		for (int i = 0; i < d.size; i++)
+		{
+			double v[2] = { d.data[0][i], d.data[0][i] };
+			obj.process(v[0], v[1]);
+			d.data[0][i] = (float)v[0];
+
+		}
+	}
+}
+
+template <class DynamicProcessorType>
+void scriptnode::DynamicsNodeBase<DynamicProcessorType>::processSingle(float* data, int numChannels)
+{
+	if (numChannels == 2)
+	{
+		double values[2] = { data[0], data[1] };
+		obj.process(values[0], values[1]);
+		data[0] = (float)values[0];
+		data[1] = (float)values[1];
+	}
+	else if (numChannels == 1)
+	{
+		double values[2] = { data[0], data[0] };
+		obj.process(values[0], values[1]);
+		data[0] = (float)values[0];
+	}
+}
+
+template <class DynamicProcessorType>
+scriptnode::DynamicsNodeBase<DynamicProcessorType>::DynamicsNodeBase()
+{
+
+}
+
+DEFINE_EXTERN_MONO_TEMPIMPL(DynamicsNodeBase<chunkware_simple::SimpleGate>);
+DEFINE_EXTERN_MONO_TEMPIMPL(DynamicsNodeBase<chunkware_simple::SimpleComp>);
+DEFINE_EXTERN_MONO_TEMPIMPL(DynamicsNodeBase<chunkware_simple::SimpleLimit>);
+
+EnvelopeFollowerNode::EnvelopeFollowerNode() :
+	envelope(20.0, 50.0)
+{
+
+}
+
+void EnvelopeFollowerNode::prepare(PrepareSpecs ps)
+{
+	envelope.setSampleRate(ps.sampleRate);
+}
+
+forcedinline void EnvelopeFollowerNode::reset() noexcept
+{
+	envelope.reset();
+}
+
+void EnvelopeFollowerNode::process(ProcessData& d)
+{
+	for (int i = 0; i < d.size; i++)
+	{
+		float input = 0.0;
+
+		for (int c = 0; c < d.numChannels; c++)
+			input = jmax(std::abs(d.data[c][i]), input);
+
+		input = envelope.calculateValue(input);
+
+		for (int c = 0; c < d.numChannels; c++)
+			d.data[c][i] = input;
+	}
+}
+
+void EnvelopeFollowerNode::processSingle(float* data, int numChannels)
+{
+	float input = 0.0;
+
+	for (int i = 0; i < numChannels; i++)
+		input = jmax(std::abs(data[i]), input);
+
+	input = envelope.calculateValue(input);
+
+	FloatVectorOperations::fill(data, input, numChannels);
+}
+
+void EnvelopeFollowerNode::createParameters(Array<ParameterData>& data)
+{
+	{
+		ParameterData p("Attack");
+		p.range = { 0.0, 1000.0, 0.1 };
+		p.range.setSkewForCentre(50.0);
+		p.defaultValue = 20.0;
+
+		p.db = std::bind(&EnvelopeFollower::AttackRelease::setAttackDouble, &envelope, std::placeholders::_1);
+
+		data.add(std::move(p));
+	}
+
+	{
+		ParameterData p("Release");
+		p.range = { 0.0, 1000.0, 0.1 };
+		p.range.setSkewForCentre(50.0);
+		p.defaultValue = 50.0;
+
+		p.db = std::bind(&EnvelopeFollower::AttackRelease::setReleaseDouble, &envelope, std::placeholders::_1);
+
+		data.add(std::move(p));
+	}
+}
+
 }

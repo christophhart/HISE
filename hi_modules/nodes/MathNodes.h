@@ -48,197 +48,88 @@ namespace Operations
 	{
 		SET_ID(mul); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value)
-		{
-			for (int i = 0; i < d.numChannels; i++)
-				FloatVectorOperations::multiply(d.data[i], value, d.size);
-		}
-
-		static void opSingle(float* frameData, int numChannels, float value)
-		{
-			for (int i = 0; i < numChannels; i++)
-				*frameData++ *= value;
-		}
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
 	};
 
 	struct add
 	{
 		SET_ID(add); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float value)
-		{
-			for (int i = 0; i < d.numChannels; i++)
-				FloatVectorOperations::add(d.data[i], value, d.size);
-		}
-
-		static void opSingle(float* frameData, int numChannels, float value)
-		{
-			for (int i = 0; i < numChannels; i++)
-				*frameData++ += value;
-		}
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
 	};
 
 	struct clear
 	{
 		SET_ID(clear); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float)
-		{
-			for (int i = 0; i < d.numChannels; i++)
-				FloatVectorOperations::clear(d.data[i], d.size);
-		}
-
-		static void opSingle(float* frameData, int numChannels, float)
-		{
-			for (int i = 0; i < numChannels; i++)
-				*frameData++ = 0.0f;
-		}
+		static void op(ProcessData& d, float);
+		static void opSingle(float* frameData, int numChannels, float);
 	};
 
 	struct sub
 	{
 		SET_ID(sub); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float value)
-		{
-			for (int i = 0; i < d.numChannels; i++)
-				FloatVectorOperations::add(d.data[i], -value, d.size);
-		}
-
-		static void opSingle(float* frameData, int numChannels, float value)
-		{
-			for (int i = 0; i < numChannels; i++)
-				*frameData++ -= value;
-		}
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
 	};
 
 	struct div
 	{
 		SET_ID(div); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value)
-		{
-			auto factor = value > 0.0f ? 1.0f / value : 0.0f;
-			for (int i = 0; i < d.numChannels; i++)
-				FloatVectorOperations::multiply(d.data[i], factor, d.size);
-		}
-
-		static void opSingle(float* frameData, int numChannels, float value)
-		{
-			for (int i = 0; i < numChannels; i++)
-				*frameData++ /= value;
-		}
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
 	};
 
 	struct tanh
 	{
 		SET_ID(tanh); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value)
-		{
-			for (int i = 0; i < d.numChannels; i++)
-			{
-				auto ptr = d.data[i];
-
-				for (int j = 0; j < d.size; j++)
-					ptr[j] = std::tanh(ptr[j] * value);
-			}
-		}
-
-		static void opSingle(float* frameData, int numChannels, float value)
-		{
-			for (int i = 0; i < numChannels; i++)
-				frameData[i] = std::tanh(frameData[i] * value);
-		}
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
 	};
 
 	struct pi
 	{
 		SET_ID(pi); SET_DEFAULT(2.0f);
 
-		static void op(ProcessData& d, float value)
-		{
-			for (auto ptr : d)
-				FloatVectorOperations::multiply(ptr, float_Pi * value, d.size);
-		}
-
-		static void opSingle(float* frameData, int numChannels, float value)
-		{
-			for (int i = 0; i < numChannels; i++)
-				*frameData++ *= float_Pi * value;
-		}
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
 	};
 
 	struct sin
 	{
 		SET_ID(sin); SET_DEFAULT(2.0f);
 
-		static void op(ProcessData& d, float)
-		{
-			for (auto ptr : d)
-			{
-				for (int i = 0; i < d.size; i++)
-					ptr[i] = std::sin(ptr[i]);
-			}
-		}
-
-		static void opSingle(float* frameData, int numChannels, float)
-		{
-			for (int i = 0; i < numChannels; i++)
-				frameData[i] = std::sin(frameData[i]);
-		}
+		static void op(ProcessData& d, float);
+		static void opSingle(float* frameData, int numChannels, float);
 	};
 
 	struct sig2mod
 	{
 		SET_ID(sig2mod); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float)
-		{
-			for (auto& ch : d.channels())
-				for (auto& s : ch)
-					s = s * 0.5f + 0.5f;
-		}
-
-		static void opSingle(float* frameData, int numChannels, float)
-		{
-			for (int i = 0; i < numChannels; i++)
-				frameData[i] = frameData[i] * 0.5f + 0.5f;
-		}
+		static void op(ProcessData& d, float);
+		static void opSingle(float* frameData, int numChannels, float);
 	};
 
 	struct clip
 	{
 		SET_ID(clip); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value)
-		{
-			for (auto ptr : d)
-				FloatVectorOperations::clip(ptr, ptr, -value, value, d.size);
-		}
-
-		static void opSingle(float* frameData, int numChannels, float value)
-		{
-			for (int i = 0; i < numChannels; i++)
-				frameData[i] = jlimit(-value, value, frameData[i]);
-		}
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
 	};
 
 	struct abs
 	{
 		SET_ID(abs); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float)
-		{
-			for (int i = 0; i < d.numChannels; i++)
-				FloatVectorOperations::abs(d.data[i], d.data[i], d.size);
-		}
-
-		static void opSingle(float* frameData, int numChannels, float)
-		{
-			for (int i = 0; i < numChannels; i++)
-				frameData[i] = frameData[i] > 0.0f ? frameData[i] : frameData[i] * -1.0f;
-		}
+		static void op(ProcessData& d, float);
+		static void opSingle(float* frameData, int numChannels, float);
 	};
 }
 
@@ -253,71 +144,16 @@ public:
 	GET_SELF_AS_OBJECT(OpNode);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-	bool handleModulation(double&) noexcept { return false; };
-
-	void process(ProcessData& d)
-	{
-		OpType::op(d, value.get());
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		OpType::opSingle(frameData, numChannels, value.get());
-	}
-
-	forcedinline void reset() noexcept {}
-
-	void prepare(PrepareSpecs ps)
-	{
-		value.prepare(ps);
-	}
-
-	void createParameters(Array<ParameterData>& data) override
-	{
-		ParameterData p("Value");
-		p.range = { 0.0, 1.0, 0.01 };
-		p.defaultValue = OpType::defaultValue;
-
-		p.db = BIND_MEMBER_FUNCTION_1(OpNode::setValue);
-
-		data.add(std::move(p));
-	}
-
-	void setValue(double newValue)
-	{
-		if (NumVoices == 1)
-		{
-			value.getMonoValue() = (float)newValue;
-		}
-		else
-		{
-			if (value.isVoiceRenderingActive())
-			{
-				value.get() = (float)newValue;
-			}
-			else
-			{
-				auto nv = (float)newValue;
-				value.forEachVoice([nv](float& v)
-				{
-					v = nv;
-				});
-			}
-		}
-
-
-	}
+	bool handleModulation(double&) noexcept;;
+	void process(ProcessData& d);
+	void processSingle(float* frameData, int numChannels);
+	void reset() noexcept;
+	void prepare(PrepareSpecs ps);
+	void createParameters(Array<ParameterData>& data) override;
+	void setValue(double newValue);
 
 	PolyData<float, NumVoices> value = OpType::defaultValue;
 };
-
-
-#if 0
-extern template class OpNode<Operations::mul, 1>; 
-using mul = OpNode<Operations::mul, 1>; 
-extern template class OpNode<Operations::mul, NUM_POLYPHONIC_VOICES>; 
-using mul_poly = OpNode<Operations::mul, NUM_POLYPHONIC_VOICES>;
-#endif
 
 #define DEFINE_OP_NODE_IMPL(opName) template class OpNode<Operations::opName, 1>; \
 template class OpNode<Operations::opName, NUM_POLYPHONIC_VOICES>;
@@ -326,29 +162,6 @@ template class OpNode<Operations::opName, NUM_POLYPHONIC_VOICES>;
 using monoName = OpNode<Operations::monoName, 1>; \
 extern template class OpNode<Operations::monoName, NUM_POLYPHONIC_VOICES>; \
 using polyName = OpNode<Operations::monoName, NUM_POLYPHONIC_VOICES>;
-
-
-#if 0
-using add = OpNode<Operations::add, 1>;
-using sub = OpNode<Operations::sub, 1>;
-using div = OpNode<Operations::div, 1>;
-using tanh = OpNode<Operations::tanh, 1>;
-using clip = OpNode<Operations::clip, 1>;
-using sin = OpNode<Operations::sin, 1>;
-using pi = OpNode<Operations::pi, 1>;
-using sig2mod = OpNode<Operations::sig2mod, 1>;
-using abs = OpNode<Operations::abs, 1>;
-using clear = OpNode<Operations::clear, 1>;
-
-
-using add_poly = OpNode<Operations::add, NUM_POLYPHONIC_VOICES>;
-using sub_poly = OpNode<Operations::sub, NUM_POLYPHONIC_VOICES>;
-using div_poly = OpNode<Operations::div, NUM_POLYPHONIC_VOICES>;
-using tanh_poly = OpNode<Operations::tanh, NUM_POLYPHONIC_VOICES>;
-using clip_poly = OpNode<Operations::clip, NUM_POLYPHONIC_VOICES>;
-using pi_poly = OpNode<Operations::pi, NUM_POLYPHONIC_VOICES>;
-using abs_poly = OpNode<Operations::abs, NUM_POLYPHONIC_VOICES>;
-#endif
 
 DEFINE_OP_NODE(mul, mul_poly);
 DEFINE_OP_NODE(add, add_poly);

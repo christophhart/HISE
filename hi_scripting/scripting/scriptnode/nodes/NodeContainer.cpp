@@ -41,6 +41,69 @@ NodeContainer::NodeContainer()
 
 }
 
+void NodeContainer::resetNodes()
+{
+
+	for (auto n : nodes)
+		n->reset();
+}
+
+scriptnode::NodeBase* NodeContainer::asNode()
+{
+
+	auto n = dynamic_cast<NodeBase*>(this);
+	jassert(n != nullptr);
+	return n;
+}
+
+const scriptnode::NodeBase* NodeContainer::asNode() const
+{
+
+	auto n = dynamic_cast<const NodeBase*>(this);
+	jassert(n != nullptr);
+	return n;
+}
+
+void NodeContainer::prepareNodes(PrepareSpecs ps)
+{
+	ScopedLock sl(asNode()->getRootNetwork()->getConnectionLock());
+
+	originalSampleRate = ps.sampleRate;
+	originalBlockSize = ps.blockSize;
+	lastVoiceIndex = ps.voiceIndex;
+
+	ps.sampleRate = getSampleRateForChildNodes();
+	ps.blockSize = getBlockSizeForChildNodes();
+
+	for (auto n : nodes)
+	{
+		n->prepare(ps);
+		n->reset();
+	}
+}
+
+bool NodeContainer::shouldCreatePolyphonicClass() const
+{
+	if (isPolyphonic())
+	{
+		for (auto n : getNodeList())
+		{
+			if (auto nc = dynamic_cast<NodeContainer*>(n.get()))
+			{
+				if (nc->shouldCreatePolyphonicClass())
+					return true;
+			}
+
+			if (n->isPolyphonic())
+				return true;
+		}
+
+		return false;
+	}
+
+	return false;
+}
+
 void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 {
 	auto n = asNode();
@@ -192,6 +255,39 @@ juce::String NodeContainer::createTemplateAlias()
 
 	
 	return s;
+}
+
+scriptnode::NodeBase::List NodeContainer::getChildNodesRecursive()
+{
+	NodeBase::List l;
+
+	for (auto n : nodes)
+	{
+		l.add(n);
+
+		if (auto c = dynamic_cast<NodeContainer*>(n.get()))
+			l.addArray(c->getChildNodesRecursive());
+	}
+
+	return l;
+}
+
+void NodeContainer::fillAccessors(Array<CppGen::Accessor>& accessors, Array<int> currentPath)
+{
+	for (int i = 0; i < nodes.size(); i++)
+	{
+		Array<int> thisPath = currentPath;
+		thisPath.add(i);
+
+		if (auto c = dynamic_cast<NodeContainer*>(nodes[i].get()))
+		{
+			c->fillAccessors(accessors, thisPath);
+		}
+		else
+		{
+			accessors.add({ nodes[i]->getId(), thisPath });
+		}
+	}
 }
 
 struct ClassGenerator
@@ -509,6 +605,16 @@ struct ClassGenerator
 };
 
 
+int NodeContainer::getCachedIndex(const var &indexExpression) const
+{
+	return (int)indexExpression;
+}
+
+void NodeContainer::clear()
+{
+	getNodeTree().removeAllChildren(asNode()->getUndoManager());
+}
+
 juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 {
 	if (isOuterClass)
@@ -689,74 +795,7 @@ NodeComponent* SerialNode::createComponent()
 }
 
 
-ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
-	SerialNode(n, t)
-{
-	initListeners();
 
-	wrapper.getObject().initialise(this);
-
-	setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0);
-
-	bypassListener.setCallback(t, { PropertyIds::Bypassed, PropertyIds::BypassRampTimeMs },
-		valuetree::AsyncMode::Asynchronously,
-		std::bind(&InternalWrapper::setBypassedFromValueTreeCallback, &wrapper, std::placeholders::_1, std::placeholders::_2));
-}
-
-void ChainNode::process(ProcessData& data)
-{
-	wrapper.process(data);
-}
-
-
-void ChainNode::processSingle(float* frameData, int numChannels)
-{
-	wrapper.processSingle(frameData, numChannels);
-}
-
-void ChainNode::prepare(PrepareSpecs ps)
-{
-	NodeContainer::prepareNodes(ps);
-	wrapper.prepare(ps);
-}
-
-String ChainNode::getCppCode(CppGen::CodeLocation location)
-{
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s = NodeContainer::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-
-		return s;
-	}
-	else if (location == CppGen::CodeLocation::ProcessBody)
-	{
-		String s;
-		s << "bypassHandler.process(data);\n";
-		return s;
-	}
-	else if (location == CppGen::CodeLocation::ProcessSingleBody)
-	{
-		String s;
-		s << "bypassHandler.processSingle(frameData, numChannels);\n";
-		return s;
-	}
-	else if (location == CppGen::CodeLocation::PrepareBody)
-	{
-		String s = SerialNode::getCppCode(location);
-		s << "bypassHandler.prepare(int numChannels, sampleRate, blockSize);\n";
-		return s;
-
-	}
-	else if (location == CppGen::CodeLocation::PrivateMembers)
-	{
-		String s;
-		s << "BypassHandler bypassHandler;\n";
-		return s;
-	}
-	else
-		return SerialNode::getCppCode(location);
-}
 
 juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 {
@@ -792,6 +831,11 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 
 
 
+juce::String SerialNode::createCppClass(bool isOuterClass)
+{
+	return createCppClassForNodes(isOuterClass);
+}
+
 juce::String SerialNode::getCppCode(CppGen::CodeLocation location)
 {
 	if (location == CppGen::CodeLocation::PrepareBody)
@@ -818,6 +862,59 @@ juce::String SerialNode::getCppCode(CppGen::CodeLocation location)
 	}
 	else
 		return NodeContainer::getCppCode(location);
+
+}
+
+
+
+bool SerialNode::DynamicSerialProcessor::handleModulation(double&)
+{
+
+	return false;
+}
+
+void SerialNode::DynamicSerialProcessor::handleHiseEvent(HiseEvent& e)
+{
+	for (auto n : parent->getNodeList())
+		n->handleHiseEvent(e);
+}
+
+void SerialNode::DynamicSerialProcessor::initialise(NodeBase* p)
+{
+	parent = dynamic_cast<NodeContainer*>(p);
+}
+
+void SerialNode::DynamicSerialProcessor::reset()
+{
+	for (auto n : parent->getNodeList())
+		n->reset();
+}
+
+void SerialNode::DynamicSerialProcessor::prepare(PrepareSpecs)
+{
+	// do nothing here, the container inits the child nodes.
+}
+
+void SerialNode::DynamicSerialProcessor::process(ProcessData& d)
+{
+	jassert(parent != nullptr);
+
+	for (auto n : parent->getNodeList())
+		n->process(d);
+}
+
+void SerialNode::DynamicSerialProcessor::processSingle(float* frameData, int numChannels)
+{
+	jassert(parent != nullptr);
+
+	for (auto n : parent->getNodeList())
+		n->processSingle(frameData, numChannels);
+}
+
+
+ParallelNode::ParallelNode(DspNetwork* root, ValueTree data) :
+	NodeBase(root, data, 0)
+{
 
 }
 
@@ -871,119 +968,9 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 	return { topLeft.getX(), topLeft.getY(), maxWidth, maxy };
 }
 
-
-void SplitNode::prepare(PrepareSpecs ps)
+juce::String ParallelNode::createCppClass(bool isOuterClass)
 {
-	NodeContainer::prepareNodes(ps);
-
-	ps.numChannels *= 2;
-	DspHelpers::increaseBuffer(splitBuffer, ps);
-}
-
-juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
-{
-	return ParallelNode::getCppCode(location);
-
-#if 0
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s = NodeContainer::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-		return s;
-	}
-	else if (location == CppGen::CodeLocation::TemplateAlias)
-	{
-
-	}
-	else if (location == CppGen::CodeLocation::PrepareBody)
-	{
-		String s = NodeContainer::getCppCode(location);
-
-		s << "\nDspHelpers::increaseBuffer(splitBuffer, numChannels * 2, blockSize);\n";
-		return s;
-	}
-	else if (location == CppGen::CodeLocation::ProcessBody)
-	{
-		String s;
-		s << "auto original = data.copyTo(splitBuffer, 0);\n\n";
-
-		bool isFirst = true;
-
-		for (auto n : nodes)
-		{
-			String code;
-
-			if (isFirst)
-			{
-				code << n->getId() << ".process(data);\n";
-				isFirst = false;
-			}
-			else
-			{
-				code << "auto wd = original.copyTo(splitBuffer, 1);\n";
-				code << n->getId() << ".process(wd);\n";
-				code << "data += wd;\n";
-			}
-
-			s << CppGen::Emitter::surroundWithBrackets(code);
-		}
-
-		return s;
-	}
-#endif
-}
-
-
-void SplitNode::process(ProcessData& data)
-{
-	if (isBypassed())
-		return;
-
-	auto original = data.copyTo(splitBuffer, 0);
-
-	bool isFirst = true;
-
-	for (auto n : nodes)
-	{
-		if (isFirst)
-		{
-			n->process(data);
-			isFirst = false;
-		}
-		else
-		{
-			auto wd = original.copyTo(splitBuffer, 1);
-			n->process(wd);
-			data += wd;
-		}
-	}
-}
-
-
-void SplitNode::processSingle(float* frameData, int numChannels)
-{
-	if (isBypassed())
-		return;
-
-	float original[NUM_MAX_CHANNELS];
-	memcpy(original, frameData, sizeof(float)*numChannels);
-	bool isFirst = true;
-
-	for (auto n : nodes)
-	{
-		if (isFirst)
-		{
-			n->processSingle(frameData, numChannels);
-			isFirst = false;
-		}
-		else
-		{
-			float wb[NUM_MAX_CHANNELS];
-			memcpy(wb, original, sizeof(float)*numChannels);
-			n->processSingle(wb, numChannels);
-			FloatVectorOperations::add(frameData, wb, numChannels);
-		}
-	}
+	return createCppClassForNodes(isOuterClass);
 }
 
 NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
@@ -993,8 +980,6 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<SplitNode>({});
 	registerNodeRaw<MultiChannelNode>({});
 	registerNodeRaw<ModulationChainNode>({});
-	registerNodeRaw<FeedbackContainer>({});
-	registerNodeRaw<PolySynthesiserNode>({});
 	registerNodeRaw<OversampleNode<2>>({});
 	registerNodeRaw<OversampleNode<4>>({});
 	registerNodeRaw<OversampleNode<8>>({});
@@ -1015,131 +1000,6 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	
 }
 
-
-ModulationChainNode::ModulationChainNode(DspNetwork* n, ValueTree t) :
-	SerialNode(n, t)
-{
-	initListeners();
-	obj.initialise(this);
-}
-
-void ModulationChainNode::processSingle(float* frameData, int numChannels) noexcept
-{
-	if (isBypassed())
-		return;
-
-	obj.processSingle(frameData, 1);
-}
-
-void ModulationChainNode::process(ProcessData& data) noexcept
-{
-	if (isBypassed())
-		return;
-
-	ProcessData copy(data);
-	copy.numChannels = 1;
-
-	obj.process(copy);
-	double thisValue = 0.0;
-	obj.handleModulation(thisValue);
-}
-
-scriptnode::NodeComponent* ModulationChainNode::createComponent()
-{
-	return new ModChainNodeComponent(this);
-}
-
-juce::String ModulationChainNode::getCppCode(CppGen::CodeLocation location)
-{
-	String s;
-
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s = NodeContainer::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "true", false);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_EXTRA_COMPONENT", "60, ModulationSourcePlotter", false);
-		return s;
-	}
-	if (location == CppGen::CodeLocation::ProcessBody)
-	{
-		s << "int numToProcess = data.size / HISE_EVENT_RASTER;\n\n";
-		s << "auto d = ALLOCA_FLOAT_ARRAY(numToProcess);\n";
-		s << "CLEAR_FLOAT_ARRAY(d, numToProcess);\n";
-		s << "ProcessData modData(&d, 1, numToProcess);\n\n";
-
-		for (auto n : nodes)
-			s << n->getId() << ".process(modData);\n";
-
-
-		s << "\nmodValue = DspHelpers::findPeak(modData);\n";
-	}
-	else if (location == CppGen::CodeLocation::ProcessSingleBody)
-	{
-		s << "if (--singleCounter > 0) return;\n\n";
-
-		s << "singleCounter = HISE_EVENT_RASTER;\n";
-		s << "float value = 0.0f;\n\n";
-
-		for (auto n : nodes)
-			s << n->getId() << ".processSingle(&value, 1);\n";
-	}
-	else if (location == CppGen::CodeLocation::PrepareBody)
-	{
-		s << "sampleRate /= (double)HISE_EVENT_RASTER;\n";
-		s << "blockSize /= HISE_EVENT_RASTER;\n";
-		s << "numChannels = 1;\n\n";
-
-		s << NodeContainer::getCppCode(location);
-	}
-	else if (location == CppGen::CodeLocation::HandleModulationBody)
-	{
-		s << "value = modValue;\n";
-		s << "return true;\n";
-	}
-	else if (location == CppGen::CodeLocation::PrivateMembers)
-	{
-		s << "int singleCounter = 0;\n";
-		s << "double modValue = 0.0;\n";
-	}
-
-
-	return s;
-}
-
-juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft) const
-{
-	using namespace UIValues;
-
-	const int minWidth = NodeWidth;
-	
-	int maxW = minWidth;
-	int h = 0;
-
-	h += UIValues::NodeMargin;
-	h += UIValues::HeaderHeight; // the input
-
-	if (v_data[PropertyIds::ShowParameters])
-		h += UIValues::ParameterHeight;
-
-	h += PinHeight; // the "hole" for the cable
-
-	Point<int> childPos(NodeMargin, NodeMargin);
-
-	for (auto n : nodes)
-	{
-		auto bounds = n->getPositionInCanvas(childPos);
-
-		bounds = n->getBoundsToDisplay(bounds);
-
-		maxW = jmax<int>(maxW, bounds.getWidth());
-		h += bounds.getHeight() + NodeMargin;
-		childPos = childPos.translated(0, bounds.getHeight());
-	}
-
-	h += PinHeight; // the "hole" for the cable
-
-	return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
-}
 
 NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTree d):
 	connectionData(d),
@@ -1204,7 +1064,7 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTre
 }
 
 
-scriptnode::DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connection::createCallbackForNormalisedInput()
+DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connection::createCallbackForNormalisedInput()
 {
 	DspHelpers::ParameterCallback f;
 
@@ -1248,6 +1108,14 @@ scriptnode::DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connect
 
 }
 
+
+void NodeContainer::MacroParameter::Connection::updateConnectionInTargetParameter(Identifier id, var newValue)
+{
+	if (id == PropertyIds::OpType)
+	{
+		p->clearModulationValues();
+	}
+}
 
 juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()
 {
@@ -1378,48 +1246,5 @@ bool NodeContainer::MacroParameter::matchesTarget(const Parameter* target) const
 	return false;
 }
 
-void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange)
-{
-	int numChannelsAvailable = getNumChannelsToProcess();
-	int numNodes = nodes.size();
-
-	if (numNodes == 0)
-		return;
-
-	// Use the ones with locked channel amounts first
-	for (auto n : nodes)
-	{
-		if (n->hasFixChannelAmount())
-		{
-			numChannelsAvailable -= n->getNumChannelsToProcess();
-			numNodes--;
-		}
-	}
-
-	if (numNodes > 0)
-	{
-		int numPerNode = numChannelsAvailable / numNodes;
-
-		for (auto n : nodes)
-		{
-			if (n->hasFixChannelAmount())
-				continue;
-
-			int thisNum = jmax(0, jmin(numChannelsAvailable, numPerNode));
-
-			if (n != nodeThatCausedLayoutChange)
-				n->setNumChannels(thisNum);
-
-			numChannelsAvailable -= n->getNumChannelsToProcess();
-		}
-	}
-}
-
-PolySynthesiserNode::PolySynthesiserNode(DspNetwork* n, ValueTree t):
-	SerialNode(n, t)
-{
-	obj.initialise(this);
-	initListeners();
-}
 
 }

@@ -37,6 +37,7 @@
 
 #include "scripting/scriptnode/nodes/CodeGenerator.h"
 #include "scripting/scriptnode/nodes/NodeContainer.h"
+#include "scripting/scriptnode/nodes/NodeContainerTypes.h"
 #include "scripting/scriptnode/nodes/NodeWrapper.h"
 
 #include "scripting/scriptnode/nodes/ProcessNodes.h"
@@ -65,6 +66,7 @@
 #include "scripting/scriptnode/nodes/AudioFileNodeBase.cpp"
 #include "scripting/scriptnode/nodes/CodeGenerator.cpp"
 #include "scripting/scriptnode/nodes/NodeContainer.cpp"
+#include "scripting/scriptnode/nodes/NodeContainerTypes.cpp"
 #include "scripting/scriptnode/nodes/NodeWrapper.cpp"
 #include "scripting/scriptnode/nodes/ProcessNodes.cpp"
 #include "scripting/scriptnode/nodes/DspNode.cpp"
