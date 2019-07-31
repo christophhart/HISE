@@ -103,12 +103,32 @@ struct instance : public hardcoded_pimpl
 	String getSnippetText() const override;
 	void createParameters(Array<ParameterData>& data);
 
-	DEFINE_DSP_METHODS_PIMPL
+	DEFINE_DSP_METHODS_PIMPL;
 };
 
 }
 
 using tremolo = tremolo_impl::instance;
+
+namespace transient_designer_impl
+{
+
+struct instance : public hardcoded_pimpl
+{
+	SET_HISE_NODE_ID("transient_designer");
+	GET_SELF_AS_OBJECT(instance);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	String getSnippetText() const override;
+
+	void createParameters(Array<ParameterData>& data);
+
+	DEFINE_DSP_METHODS_PIMPL;
+};
+
+}
+
+using transient_designer = transient_designer_impl::instance;
 
 }
 

@@ -112,7 +112,7 @@ public:
 			attack = newAttack;
 
 			if (attack == 0.0f)
-				attackCoefficient = 1.0;
+				attackCoefficient = 0.0;
 
 			else
 				calculateCoefficients();

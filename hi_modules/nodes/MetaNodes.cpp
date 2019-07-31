@@ -402,6 +402,160 @@ REGISTER_MONO;
 
 }
 
+namespace transient_designer_impl
+{
+// Template Alias Definition =======================================================
+using convert_to_mono_ = container::multi<fix<1, math::mul>, fix<1, math::clear>>;
+using fast_envelope_ = container::chain<dynamics::envelope_follower>;
+using slow_envelope_ = container::chain<dynamics::envelope_follower, math::mul>;
+using split_ = container::split<fast_envelope_, slow_envelope_>;
+using analysis_ = container::chain<filters::one_pole, core::gain, math::pow, routing::ms_decode, convert_to_mono_, routing::ms_encode, math::clip, split_, math::mul, math::add, math::clip, wrap::mod<core::peak>, math::clear>;
+using signal_ = container::chain<skip<core::gain>, core::gain>;
+using spolitter_ = container::split<analysis_, signal_>;
+using transient_designer_ = container::frame2_block<spolitter_>;
+
+DSP_METHODS_PIMPL_IMPL(transient_designer_);
+
+juce::String instance::getSnippetText() const
+{
+	return "1477.3oc6Z07aaTDEeVmLMItABPJRQHP7Q4POfrhiAUtfrKtJUQJIjVmRUNYM0dR7pr6NK6NtAW3.RPk3FWAjnHj3.WfiH3Txe.DIjhDvQ3HhKAgDGPpp7lc8ZueLNdS55ORj8EaO67wu4898dy68lcUVUJRYxktJR4BXtEwvVkZvKWkZqtkA0BsHoBmY0XMBuFRYNbElAmnBOHylVDc5BkusFqx1nUqqWrFwvfpYiTvJoPHzxP6AZVYrUg0pHSiU2RzInOnhLccX4PJovd+9VpUEKEV4UfdTpFam0HhUhSsDyQJ2YwFA+d01P+7XaSllJmGFwOoODaaB8nmA02rgIw1lVUL51fLkOPlFSLHZMrUs6LFqTC9tGiwaPzMWWUmtBLKSMNx4yqVnMleLWLm1EypFl04kqYFDyOEdSUMgNICyfVFj8zABn8KzWjoU04W.GYEV05ZDtJyXch0VTNrsP93QvT25evzsjwcnVb2YYEUi2lnUm5eUVg7tAa6iOnvxrcnVKqpCLJe87lllgaE5aIN0rj5ccF+m+YhO+X9RaS2wUhJZc+2+Ou7GpuedWt7hVz2oN0nRCTqk0YXMtUATbvcNmOGj2Ot2+mDetXHb60yf31qucG2+28+l+8k96e1A2iguNJjn6v7n3KmWXuHxYzBRkyKrmD4Lz2tiWOXIv64vWSXqEZE8ST5JjQnnP9v7xfLBICxGl2OjeuK7cW6Ot6GEBxOrwWt1rW8flTiR5LFulpwVsws2vFX3tUaGgndEgKEIrCKFL6bUgeGjqamoDCXlVtJKukPIEv2y4A+kVzLaMn7T1xQyXcvQiuMkRpl+qAXfH1YSiuA0lxcEEQTKqU+1ZpUDSMJz3lAeSaZbGpeOcohOs3RRr.ujTKvMjZABmW2EKvwvYQGgsWgGMNbgOoPr4vPe6t6htZ64QI7ycwXS1NAYrow5v2YDsOPIrw4jQkgK2e9ciLAVJ2WtejztJMcaHV1JhVBnQlEawpyAcYl1c3zT.LczyoSvjBkVYNqrNyf04XM0qqwU6KwC6emEJx3llL.VjZxHZODBU525EkTmMMZ7o.l.WQiRBk6zztp.2mLRIzCTBwvnNsaPCfWJHg.nkrGgeL2db1vOlfQpZlMbjeMYjpliNHsecP5Dtivs5ICnhqHufJyf2jXyAZ+cnZ.rGtqphRfzab.9lLMMgNNHveVb0FFDc0J1Y71Ys64PY9NmvzM5GQv+ZeZwWb+uvsvJShuBmSprcRmxeOEzSA4KBG.a6yX8a+ku+2dNkpEBZr1MupMsXrAdzoDKlTArXb.9HKlArEyreE4eV5AOcgyBVLAJMup6dvJtYgzmrERxnLNb2ginL1MtNthYfhVB4yPkdqWEm3.WC9Asp0bGzFXLoZUo5BQ6ihYOwsl98NqKNmSJTixfZfmAUSsgIkrszaxv4AC5r1kpOTTB2HLbAFVBFyi6E1k6czzRYIdVyB7O7biew6vjmn88NcLKH1HqmjobXG6TZlDKdSUHZmJxkIsWI50MoF1DNcn95M84dH0Yrq5bNItdlq+bUmO+89qq+C2e2yBW0YnS.FcK8IB0McRcpYO5V5QQiI.ToCUzY77YxMe14yg5Hc9qMeiz+5EelBmnzOCn5F22NG6RBtRyfHdAG4WbeQKZuqv.9yF8siPQoHCrVpHj7Nmv29uvtzKrrvu6LxhKqHyqbGP5YKUErqTAN7aYtdCSwoT3RdD3j5EFQdbCmr.3ZJlaUbp3EOyF9VKAAu4iGGmadTbErAqAY.AaKzjPh1duQRZfjsPtr4t7qihHaaWCsnHaiBxPlTgq2q.48hPcS0AIbv6EIfDtMlNUJhO9TpS4a3vbpowq685kaihassjkWQjpQElbMlTYsWgBCHi8xDIgjvwu.cGt6iZhTxYTQStHo7+mJ51cxntBPStmrs6bRCEYtii+eoa2ipFD9O2Ogzux1vubhZAI7dFLXi+G7Aq9vA";
+}
+
+void instance::createParameters(Array<ParameterData>& data)
+{
+	auto& obj = *pimpl;
+
+	// Node Registration ===============================================================
+	registerNode(get<0, 0, 0>(obj), "input_hp");
+	registerNode(get<0, 0, 1>(obj), "analysis_gain");
+	registerNode(get<0, 0, 2>(obj), "pow");
+	registerNode(get<0, 0, 3>(obj), "ms_decode");
+	registerNode(get<0, 0, 4, 0>(obj), "mul");
+	registerNode(get<0, 0, 4, 1>(obj), "clear");
+	registerNode(get<0, 0, 5>(obj), "ms_encode1");
+	registerNode(get<0, 0, 6>(obj), "clip1");
+	registerNode(get<0, 0, 7, 0, 0>(obj), "fast_follower");
+	registerNode(get<0, 0, 7, 1, 0>(obj), "slow_follower");
+	registerNode(get<0, 0, 7, 1, 1>(obj), "inverter");
+	registerNode(get<0, 0, 8>(obj), "ratio");
+	registerNode(get<0, 0, 9>(obj), "add");
+	registerNode(get<0, 0, 10>(obj), "clip");
+	registerNode(get<0, 0, 11>(obj), "peak");
+	registerNode(get<0, 0, 12>(obj), "analysis_clear");
+	registerNode(get<0, 1, 0>(obj), "compensate_gain");
+	registerNode(get<0, 1, 1>(obj), "dynamic_gain");
+
+	// Parameter Initalisation =========================================================
+	setParameterDefault("input_hp.Frequency", 93.9);
+	setParameterDefault("input_hp.Q", 1.0);
+	setParameterDefault("input_hp.Gain", 0.0);
+	setParameterDefault("input_hp.Smoothing", 0.01);
+	setParameterDefault("input_hp.Mode", 1.0);
+	setParameterDefault("analysis_gain.Gain", 2.0);
+	setParameterDefault("analysis_gain.Smoothing", 20.0);
+	setParameterDefault("pow.Value", 1.0);
+	setParameterDefault("mul.Value", 1.0);
+	setParameterDefault("clear.Value", 0.0);
+	setParameterDefault("clip1.Value", 1.0);
+	setParameterDefault("fast_follower.Attack", 0.0);
+	setParameterDefault("fast_follower.Release", 160.035);
+	setParameterDefault("slow_follower.Attack", 5.49735);
+	setParameterDefault("slow_follower.Release", 160.035);
+	setParameterDefault("inverter.Value", -1.0);
+	setParameterDefault("ratio.Value", 0.01);
+	setParameterDefault("add.Value", 0.5);
+	setParameterDefault("clip.Value", 1.0);
+	setParameterDefault("analysis_clear.Value", 0.0);
+	setParameterDefault("compensate_gain.Gain", -0.03);
+	setParameterDefault("compensate_gain.Smoothing", 20.0);
+	setParameterDefault("dynamic_gain.Gain", 0.0138037);
+	setParameterDefault("dynamic_gain.Smoothing", 6.535);
+
+	// Setting node properties =========================================================
+	setNodeProperty("analysis_gain.ResetValue", 0, false);
+	setNodeProperty("analysis_gain.UseResetValue", 0, false);
+	setNodeProperty("compensate_gain.ResetValue", 0, false);
+	setNodeProperty("compensate_gain.UseResetValue", 0, false);
+	setNodeProperty("dynamic_gain.ResetValue", 0, false);
+	setNodeProperty("dynamic_gain.UseResetValue", 0, false);
+
+	// Internal Modulation =============================================================
+	{
+		auto mod_target1 = getParameter("dynamic_gain.Gain", { -18.0, 18.0, 0.1, 1.0 });
+		auto f = [mod_target1](double newValue)
+		{
+			mod_target1(newValue);
+		};
+
+
+		setInternalModulationParameter(get<0, 0, 11>(obj), f);
+	}
+
+	// Parameter Callbacks =============================================================
+	{
+		ParameterData p("Analysis Gain", { -12.0, 12.0, 0.1, 1.0 });
+		p.setDefaultValue(2.0);
+
+		auto param_target1 = getParameter("analysis_gain.Gain", { -12.0, 12.0, 0.1, 1.0 });
+
+		p.setCallback([param_target1, outer = p.range](double newValue)
+		{
+			auto normalised = outer.convertTo0to1(newValue);
+			param_target1(normalised);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Attack", { 0.0, 100.0, 1.0, 1.0 });
+		p.setDefaultValue(30.0);
+
+		auto param_target1 = getParameter("slow_follower.Attack", { 0.0, 1000.0, 0.1, 0.231378 });
+
+		p.setCallback([param_target1, outer = p.range](double newValue)
+		{
+			auto normalised = outer.convertTo0to1(newValue);
+			param_target1(normalised);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Release", { 100.0, 1000.0, 1.0, 1.0 });
+		p.setDefaultValue(689.0);
+
+		auto param_target1 = getParameter("fast_follower.Release", { 0.0, 1000.0, 0.1, 0.231378 });
+		auto param_target2 = getParameter("slow_follower.Release", { 0.0, 1000.0, 0.1, 0.231378 });
+
+		p.setCallback([param_target1, param_target2, outer = p.range](double newValue)
+		{
+			auto normalised = outer.convertTo0to1(newValue);
+			param_target1(normalised);
+			param_target2(normalised);
+		});
+		data.add(std::move(p));
+	}
+	{
+		ParameterData p("Transients", { -1.0, 1.0, 0.01, 1.0 });
+		p.setDefaultValue(0.01);
+
+		auto param_target1 = getParameter("ratio.Value", { -1.0, 1.0, 0.01, 1.0 });
+		auto param_target2 = getParameter("compensate_gain.Gain", { -3.0, 3.0, 0.1, 1.0 });
+		auto param_target3 = getParameter("dynamic_gain.Smoothing", { 3.0, 10.0, 0.1, 1.0 });
+
+		p.setCallback([param_target1, param_target2, param_target3, outer = p.range](double newValue)
+		{
+			auto normalised = outer.convertTo0to1(newValue);
+			param_target1(normalised);
+			param_target2(1.0 - normalised);
+			param_target3(normalised);
+		});
+		data.add(std::move(p));
+	}
+}
+
+REGISTER_MONO;
+
+}
+
 DEFINE_FACTORY_FOR_NAMESPACE
 
 }
