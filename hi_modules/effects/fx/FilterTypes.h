@@ -381,18 +381,19 @@ public:
 	enum Mode
 	{
 		LP,
-		HP
+		HP,
+		Allpass
 	};
 
 	SET_FILTER_TYPE(FilterHelpers::FilterSubType::LinkwitzRiley);
 
 	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("linkwitzriley"); };
 
-	StringArray getModes() const { return { "LP", "HP" }; };
+	StringArray getModes() const { return { "LP", "HP", "AP" }; };
 
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const 
 	{ 
-		return { FilterHelpers::LowPass, FilterHelpers::HighPass };
+		return { FilterHelpers::LowPass, FilterHelpers::HighPass, FilterHelpers::AllPass };
 	}
 
 protected:
@@ -433,6 +434,8 @@ protected:
 
 	void updateCoefficients(double sampleRate, double frequency, double /*q*/, double /*gain*/)
 	{
+		
+
 		const double pi = double_Pi;
 		const double cowc = 2.0 * pi*frequency;
 		const double cowc2 = cowc * cowc;
@@ -446,6 +449,8 @@ protected:
 		const double sq_tmp1 = sqrt2 * cowc3 * cok;
 		const double sq_tmp2 = sqrt2 * cowc * cok3;
 		const double a_tmp = 4.0 * cowc2*cok2 + 2.0 * sq_tmp1 + cok4 + 2.0 * sq_tmp2 + cowc4;
+
+		SpinLock::ScopedLockType sl(lock);
 
 		b1co = (4.0 * (cowc4 + sq_tmp1 - cok4 - sq_tmp2)) / a_tmp;
 		b2co = (6.0 * cowc4 - 8.0 * cowc2*cok2 + 6.0 * cok4) / a_tmp;
@@ -474,6 +479,8 @@ protected:
 
 private:
 
+	SpinLock lock;
+
 	struct Data
 	{
 		double xm1 = 0.0f;
@@ -491,16 +498,18 @@ private:
 
 	float process(float input, int channel)
 	{
-		double tempx, tempy;
+		SpinLock::ScopedLockType sl(lock);
+
+		double tempx, hp, lp;
 		tempx = (double)input;
 
 		double returnValue;
 
 		auto& hptemp = hpData[channel];
 		auto& lptemp = lpData[channel];
-			// High pass
-
-		tempy = hpco.coefficients[0]*tempx +
+			
+		// High pass
+		hp = hpco.coefficients[0]*tempx +
 		hpco.coefficients[1]*hptemp.xm1 +
 		hpco.coefficients[2]*hptemp.xm2 +
 		hpco.coefficients[3]*hptemp.xm3 +
@@ -517,12 +526,11 @@ private:
 		hptemp.ym4 = hptemp.ym3;
 		hptemp.ym3 = hptemp.ym2;
 		hptemp.ym2 = hptemp.ym1;
-		hptemp.ym1 = tempy;
-		returnValue = tempy;
+		hptemp.ym1 = hp;
 
 		// Low pass
 
-		tempy = 
+		lp = 
 		lpco.coefficients[0] *tempx +
 		lpco.coefficients[1] *lptemp.xm1 +
 		lpco.coefficients[2] *lptemp.xm2 +
@@ -540,12 +548,14 @@ private:
 		lptemp.ym4 = lptemp.ym3;
 		lptemp.ym3 = lptemp.ym2;
 		lptemp.ym2 = lptemp.ym1;
-		lptemp.ym1 = tempy;
+		lptemp.ym1 = lp;
 		
-		if(mode == 0)
-			returnValue = tempy;
-
-		return (float)returnValue;
+		switch (mode)
+		{
+		case LP: return lp;
+		case HP: return hp;
+		case Allpass: return lp + hp;
+		}
 	}
 
 	struct Coefficients
