@@ -66,13 +66,28 @@ scriptnode::HardcodedNode::CombinedParameterValue* HardcodedNode::getCombinedPar
 
 void HardcodedNode::setNodeProperty(const String& id, const var& newValue, bool isPublic)
 {
-	auto propTree = nodeData.getChildWithName(PropertyIds::Properties).getChildWithProperty(PropertyIds::ID, id);
+	auto propTree = getNodePropertyTree(id);
 
 	if (propTree.isValid())
 	{
 		propTree.setProperty(PropertyIds::Value, newValue, um);
 		propTree.setProperty(PropertyIds::Public, isPublic, um);
 	}
+}
+
+var HardcodedNode::getNodeProperty(const String& id, const var& defaultValue) const
+{
+	auto propTree = getNodePropertyTree(id);
+
+	if (propTree.isValid())
+		return propTree[PropertyIds::Value];
+
+	return defaultValue;
+}
+
+juce::ValueTree HardcodedNode::getNodePropertyTree(const String& id) const
+{
+	return nodeData.getChildWithName(PropertyIds::Properties).getChildWithProperty(PropertyIds::ID, id);
 }
 
 void HardcodedNode::setParameterDefault(const String& parameterId, double value)

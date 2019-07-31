@@ -108,6 +108,7 @@ DECLARE_ID(UseResetValue);
 DECLARE_ID(RoutingMatrix);
 DECLARE_ID(SampleIndex);
 DECLARE_ID(File);
+DECLARE_ID(PublicComponent);
 
 enum EditType
 {
@@ -192,8 +193,8 @@ struct PropertyHelpers
 #define SET_HISE_POLY_NODE_ID(id) SET_HISE_NODE_ID(id); bool isPolyphonic() const override { return NumVoices > 1; };
 
 #define SET_HISE_NODE_ID(id) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(id); };
-#define SET_HISE_NODE_EXTRA_HEIGHT(x) static constexpr int ExtraHeight = x;
-#define SET_HISE_NODE_EXTRA_WIDTH(x) virtual int getExtraWidth() const { return x; };
+#define SET_HISE_NODE_EXTRA_HEIGHT(x) int getExtraHeight() const final override { return x; };
+#define SET_HISE_NODE_EXTRA_WIDTH(x) int getExtraWidth() const final override { return x; };
 #define SET_HISE_NODE_IS_MODULATION_SOURCE(x) static constexpr bool isModulationSource = x;
 #define SET_HISE_EXTRA_COMPONENT(height, className) SET_HISE_NODE_EXTRA_HEIGHT(height); \
 												    CREATE_EXTRA_COMPONENT(className);

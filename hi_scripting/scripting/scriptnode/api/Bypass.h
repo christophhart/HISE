@@ -45,9 +45,7 @@ public:
 
 	GET_SELF_AS_OBJECT(smoothed);
 
-	static constexpr int ExtraHeight = T::ExtraHeight;
 
-	int getExtraWidth() const { return this->obj.getExtraWidth(); }
 	static constexpr bool isModulationSource = T::isModulationSource;
 
 	forcedinline void process(ProcessData& data) noexcept
@@ -265,9 +263,8 @@ public:
 
 	GET_SELF_AS_OBJECT(yes);
 
-	static constexpr int ExtraHeight = T::ExtraHeight;
+	
 
-	int getExtraWidth() const { return this->obj.getExtraWidth(); }
 	static constexpr bool isModulationSource = T::isModulationSource;
 
 	void process(ProcessData& data) noexcept

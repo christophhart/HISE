@@ -89,6 +89,7 @@ public:
 
 	SET_HISE_NODE_ID("send");
 	SET_HISE_NODE_EXTRA_HEIGHT(5);
+	SET_HISE_NODE_EXTRA_WIDTH(128);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	GET_SELF_AS_OBJECT(SendNode);
 
@@ -96,7 +97,7 @@ public:
 	~SendNode();
 
 	void initialise(NodeBase* n) override;
-	int getExtraWidth() const override;
+
 	void reset();
 	void prepare(PrepareSpecs);
 	Colour getColour() const override;

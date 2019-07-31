@@ -186,11 +186,6 @@ void SendNode::initialise(NodeBase* n)
 	connectionUpdater.init(n, this);
 }
 
-int SendNode::getExtraWidth() const
-{
-	return 128;
-}
-
 void SendNode::reset()
 {
 

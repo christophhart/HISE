@@ -112,12 +112,12 @@ public:
 		return wrapper.getObject().createExtraComponent(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
 	}
 
-	int getExtraHeight() const override
+	int getExtraHeight() const final override
 	{
-		return wrapper.getObject().ExtraHeight;
+		return wrapper.getObject().getExtraHeight();
 	}
 
-	int getExtraWidth() const override
+	int getExtraWidth() const final override
 	{
 		return wrapper.getObject().getExtraWidth();
 	}
@@ -225,6 +225,8 @@ template <int Index, class T> static auto* get(T& t)
 	auto* obj2 = &obj1->template get<Index>();
 	return &obj2->getObject();
 }
+
+
 
 class HardcodedNode
 {
@@ -398,6 +400,8 @@ public:
 
 	void setNodeProperty(const String& id, const var& newValue, bool isPublic);
 
+	var getNodeProperty(const String& id, const var& defaultReturnValue) const;
+
 	void setParameterDefault(const String& parameterId, double value);
 
 	Array<HiseDspBase::ParameterData> internalParameterList;
@@ -430,14 +434,26 @@ public:
 		}
 	}
 
-	
+	void addPublicComponent(const String& nodeId)
+	{
+		nodesWithPublicComponent.add(nodeId);
+	}
 
 protected:
+
+	StringArray getNodeIdsWithPublicComponent()
+	{
+		return nodesWithPublicComponent;
+	}
 
 	ValueTree nodeData;
 	UndoManager* um = nullptr;
 
 private:
+
+	StringArray nodesWithPublicComponent;
+
+	ValueTree getNodePropertyTree(const String& id) const;
 
 	struct InternalNode
 	{
@@ -447,6 +463,7 @@ private:
 
 	Array<InternalNode> internalNodes;
 };
+
 
 struct hc
 {
@@ -479,31 +496,104 @@ struct hc
 
 #define DSP_METHODS_PIMPL_IMPL(NodeType) DEFINE_PIMPL_CLASS(NodeType); DEFINE_CONSTRUCTOR; DEFINE_DESTRUCTOR; PREPARE_PIMPL; INIT_PIMPL; HANDLE_MOD_PIMPL; HANDLE_EVENT_PIMPL; PROCESS_PIMPL; RESET_PIMPL; PROCESS_SINGLE_PIMPL;
 
-struct hardcoded_pimpl : public HiseDspBase,
-					public HardcodedNode
+struct HardcodedNodeComponent : public Component
+{
+public:
+
+	HardcodedNodeComponent(HardcodedNode* hc, const StringArray& nodeIds, PooledUIUpdater* updater)
+	{
+		int w = 256;
+		int h = 0;
+
+		for (auto nId : nodeIds)
+		{
+			if (auto node = hc->getNode(nId))
+			{
+				auto newComponent = node->createExtraComponent(updater);
+				newComponent->setSize(w, newComponent->getHeight());
+				components.add(newComponent);
+				addAndMakeVisible(newComponent);
+
+				h += newComponent->getHeight();
+			}
+		}
+
+		setSize(w, h);
+	}
+
+	void resized() override
+	{
+		int y = 0;
+
+		for (auto c : components)
+		{
+			c->setTopLeftPosition(0, y);
+			y += c->getHeight();
+		}
+	}
+
+	OwnedArray<Component> components;
+};
+
+struct hardcoded_base : public HiseDspBase,
+	public HardcodedNode
+{
+	virtual ~hardcoded_base() {};
+
+	HardcodedNode* getAsHardcodedNode() override
+	{
+		return this;
+	}
+
+	int getExtraWidth() const override
+	{
+		if (extraWidth != -1)
+			return extraWidth;
+
+		return HiseDspBase::getExtraWidth();
+	}
+
+	int getExtraHeight() const override
+	{
+		if (extraHeight != -1)
+			return extraHeight;
+
+		return HiseDspBase::getExtraHeight();
+	}
+
+	Component* createExtraComponent(PooledUIUpdater* updater) override
+	{
+		extraHeight = -1;
+		extraWidth = -1;
+		StringArray sa = getNodeIdsWithPublicComponent();
+
+		if (sa.isEmpty())
+			return nullptr;
+		else
+		{
+			auto c = new HardcodedNodeComponent(this, sa, updater);
+			extraHeight = c->getHeight();
+			extraWidth = c->getWidth();
+			return c;
+		}
+			
+	}
+
+	int extraHeight = -1;
+	int extraWidth = -1;
+};
+
+struct hardcoded_pimpl : public hardcoded_base
 {
 	virtual ~hardcoded_pimpl() {};
 
-	HardcodedNode* getAsHardcodedNode() override
-	{
-		return this;
-	}
-
-	
 };
 
-struct hardcoded_t : public HiseDspBase,
-	public HardcodedNode
-{
-	virtual ~hardcoded_t() {};
 
-	HardcodedNode* getAsHardcodedNode() override
-	{
-		return this;
-	}
-};
 
-template <class DspProcessorType> struct hardcoded : hardcoded_t
+
+
+template <class DspProcessorType> struct hardcoded : hardcoded_base
 {
 public:
 
@@ -545,8 +635,6 @@ public:
 	{
 		obj.processSingle(frameData, numChannels);
 	}
-
-	
 
 	DspProcessorType obj;
 };
@@ -637,6 +725,20 @@ static Identifier getStaticId() { return Identifier(id); };
             network = n;
         }
         
+		void sortEntries()
+		{
+			struct Sorter
+			{
+				static int compareElements(Item& first, Item& second)
+				{
+					return first.id().toString().compareNatural(second.id().toString());
+				}
+			} sorter;
+
+			monoNodes.sort(sorter);
+			polyNodes.sort(sorter);
+		}
+
     private:
         
         struct Item

@@ -120,6 +120,8 @@ public:
 
 	virtual int getExtraWidth() const { return 0; };
 
+	virtual int getExtraHeight() const { return 0; };
+
 	virtual void initialise(NodeBase* n)
 	{
 		ignoreUnused(n);
@@ -153,6 +155,9 @@ public:
 template <class T> class SingleWrapper : public HiseDspBase
 {
 public:
+
+	int getExtraHeight() const final override { return this->obj.getExtraHeight(); }
+	int getExtraWidth() const final override { return this->obj.getExtraWidth(); }
 
 	inline void initialise(NodeBase* n) override
 	{
