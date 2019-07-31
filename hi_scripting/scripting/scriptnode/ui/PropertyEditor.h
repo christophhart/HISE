@@ -151,9 +151,85 @@ struct NodePropertyComponent : public PropertyComponent
 	void refresh() override {};
 };
 
+struct MultiColumnPropertyPanel : public Component
+{
+	MultiColumnPropertyPanel()
+	{
+
+	}
+
+	void setUseTwoColumns(bool shouldUseTwoColumns)
+	{
+		useTwoColumns = shouldUseTwoColumns;
+	}
+
+	void addProperties(Array<PropertyComponent*> props)
+	{
+		for (auto p : props)
+		{
+			addAndMakeVisible(p);
+			properties.add(p);
+			contentHeight += p->getPreferredHeight();
+
+			if (useTwoColumns)
+			{
+				p->setColour(TextPropertyComponent::backgroundColourId, Colour(0xFFAAAAAA));
+				p->getChildComponent(0)->setColour(ComboBox::backgroundColourId, Colour(0xFFAAAAAA));
+			}
+				
+		}
+
+	}
+
+	void resized()
+	{
+		int y = 0;
+
+		if (useTwoColumns)
+		{
+			int x = 0;
+			auto w = getWidth() / 2;
+
+			for (auto p : properties)
+			{
+				auto h = p->getPreferredHeight();
+				
+				p->setBounds(x, y, w, h);
+
+				if(x == w)
+					y += h;
+
+				x += w;
+
+				if (x == getWidth())
+					x = 0;
+			}
+		}
+		else
+		{
+			for (auto p : properties)
+			{
+				auto h = p->getPreferredHeight();
+				p->setBounds(0, y, getWidth(), h);
+
+				y += h;
+			}
+		}
+		
+	}
+
+	int getTotalContentHeight() const { return contentHeight / (useTwoColumns ? 2 : 1); }
+
+	bool useTwoColumns = true;
+	
+	int contentHeight = 0;
+
+	OwnedArray<PropertyComponent> properties;
+};
+
 struct PropertyEditor : public Component
 {
-	PropertyEditor(NodeBase* n, ValueTree data, Array<Identifier> hiddenIds = {})
+	PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds = {})
 	{
 		Array<PropertyComponent*> newProperties;
 
@@ -180,11 +256,12 @@ struct PropertyEditor : public Component
 			newProperties.add(nt);
 		}
 
+		p.setUseTwoColumns(useTwoColumns);
 		p.addProperties(newProperties);
 
 		addAndMakeVisible(p);
 		p.setLookAndFeel(&plaf);
-		setSize(300, p.getTotalContentHeight());
+		setSize(400, p.getTotalContentHeight());
 	}
 
 	void resized() override
@@ -193,7 +270,7 @@ struct PropertyEditor : public Component
 	}
 
 	HiPropertyPanelLookAndFeel plaf;
-	PropertyPanel p;
+	MultiColumnPropertyPanel p;
 };
 
 

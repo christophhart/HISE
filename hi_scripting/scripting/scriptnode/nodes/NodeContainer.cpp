@@ -826,7 +826,7 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 
 	h += PinHeight; // the "hole" for the cable
 
-	return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
+	return getBoundsToDisplay({ topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h });
 }
 
 

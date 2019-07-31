@@ -65,6 +65,11 @@ public:
 			g.fillAll(Colour(0xFF262626));
 		}
 
+		DspNetworkGraph* getGraph() const
+		{
+			return dynamic_cast<DspNetworkGraph*>(viewport.getViewedComponent());
+		}
+
 		void centerCanvas();
 
 		float zoomFactor = 1.0f;
@@ -102,6 +107,8 @@ public:
 	void resized() override;
 
 	void paintOverChildren(Graphics& g) override;
+
+	NodeComponent* getComponent(NodeBase::Ptr node);
 
 	static void paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c)
 	{

@@ -842,5 +842,58 @@ void ModChainNodeComponent::paint(Graphics& g)
 	}
 }
 
+void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
+{
+	if (b == &deleteButton)
+	{
+		auto dataCopy = data;
+		auto undoManager = node->getUndoManager();
+
+		auto func = [dataCopy, undoManager]()
+		{
+			dataCopy.getParent().removeChild(dataCopy, undoManager);
+		};
+
+
+
+		MessageManager::callAsync(func);
+	}
+	else
+	{
+		if (auto targetNode = node->getRootNetwork()->getNodeWithId(data[PropertyIds::NodeId].toString()))
+		{
+
+
+			Component::SafePointer<CallOutBox> cb(findParentComponentOfClass<CallOutBox>());
+
+			auto f = [targetNode, cb]()
+			{
+
+
+				if (cb.getComponent())
+				{
+					if (auto dsp_parent = cb.getComponent()->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
+					{
+						if (auto nc = dsp_parent->getGraph()->getComponent(targetNode))
+						{
+							nc->grabKeyboardFocus();
+						}
+					}
+
+					cb.getComponent()->dismiss();
+
+				}
+
+				targetNode->getRootNetwork()->deselectAll();
+				targetNode->getRootNetwork()->addToSelection(targetNode, ModifierKeys());
+
+
+			};
+
+			MessageManager::callAsync(f);
+		}
+	}
+}
+
 }
 

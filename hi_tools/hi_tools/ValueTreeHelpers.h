@@ -302,7 +302,8 @@ public:
 
 	void triggerUpdateWithLambda()
 	{
-		sendPooledChangeMessage();
+		if(f)
+			sendPooledChangeMessage();
 	}
 
 	void setFunction(const Function& newFunction) { f = newFunction; }
@@ -311,7 +312,8 @@ private:
 
 	void changeListenerCallback(SafeChangeBroadcaster *) override
 	{
-		f();
+		if(f)
+			f();
 	}
 
 	Function f;

@@ -166,7 +166,7 @@ juce::UndoManager* NodeBase::getUndoManager()
 juce::Rectangle<int> NodeBase::getBoundsToDisplay(Rectangle<int> originalHeight) const
 {
 	if (v_data[PropertyIds::Folded])
-		return originalHeight.withHeight(UIValues::HeaderHeight);
+		return originalHeight.withHeight(UIValues::HeaderHeight).withWidth(UIValues::NodeWidth);
 	else
 	{ 
 		auto helpBounds = helpManager.getHelpSize().toNearestInt();
@@ -249,6 +249,16 @@ NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	
 	valuePropertyUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
 		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
+
+	modulationStorageBypasser.setCallback(data, {PropertyIds::ModulationTarget},
+		valuetree::AsyncMode::Synchronously,
+		[this](Identifier, var newValue)
+	{
+		if ((bool)newValue)
+			this->valueUpdater.setFunction({});
+		else
+			valueUpdater.setFunction(BIND_MEMBER_FUNCTION_0(NodeBase::Parameter::storeValue));
+	});
 }
 
 

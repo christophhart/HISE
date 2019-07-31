@@ -39,7 +39,7 @@ using namespace juce;
 using namespace hise;
 
 struct MacroPropertyEditor : public Component,
-							 public ValueTree::Listener
+							 public TextEditor::Listener
 {
 	struct ConnectionEditor : public Component,
 							  public ButtonListener
@@ -51,42 +51,62 @@ struct MacroPropertyEditor : public Component,
 					PropertyIds::Inverted };
 		}
 
-		ConnectionEditor(NodeBase* b, ValueTree connectionData) :
-			cEditor(b, connectionData, getHiddenIds()),
+		ConnectionEditor(NodeBase* b, ValueTree connectionData, bool showSourceInTitle) :
+			cEditor(b, true, connectionData, getHiddenIds()),
 			node(b),
 			deleteButton("delete", this, f),
-			data(connectionData)
+			gotoButton("goto", this, f),
+			data(connectionData),
+			showSource(showSourceInTitle)
 		{
+			if(auto targetNode = b->getRootNetwork()->getNodeWithId(connectionData[PropertyIds::NodeId].toString()))
+				c = PropertyHelpers::getColour(targetNode->getValueTree());
+
 			addAndMakeVisible(cEditor);
 			addAndMakeVisible(deleteButton);
+			addAndMakeVisible(gotoButton);
 
 			setSize(cEditor.getWidth(), cEditor.getHeight() + 24);
 		}
 
-		void buttonClicked(Button* ) override
-		{
-			auto dataCopy = data;
-			auto undoManager = node->getUndoManager();
-
-			auto func = [dataCopy, undoManager]()
-			{
-				dataCopy.getParent().removeChild(dataCopy, undoManager);
-			};
-
-			MessageManager::callAsync(func);
-		}
+		void buttonClicked(Button* b) override;
 
 		void paint(Graphics& g) override
 		{
+			g.setColour(Colours::white.withAlpha(0.05f));
+			g.fillRoundedRectangle(getLocalBounds().toFloat(), 3.0f);
+
+			String text = getPathFromNode(showSource, data);
+			Font f = GLOBAL_MONOSPACE_FONT().withHeight(15.0f);
+
+			auto title = getLocalBounds().removeFromTop(24).toFloat();
+
+			if (!c.isTransparent())
+			{
+				auto w = f.getStringWidthFloat(text) + 15.0f;
+
+				auto fill = title.reduced(3.0);
+				fill.removeFromTop(1.0f);
+				fill.removeFromBottom(1.0f);
+
+				auto left = (title.getWidth() - w) / 2.0f;
+				
+				auto leftFill = fill.removeFromLeft((float)left);
+				auto rightFill = fill.removeFromRight((float)left);
+
+				leftFill.removeFromLeft(20.0f);
+
+				g.setColour(c);
+				g.fillRoundedRectangle(leftFill, 3.0f);
+				g.fillRoundedRectangle(rightFill, 3.0f);
+			}
+
 			g.setColour(Colours::white);
-			g.setFont(GLOBAL_BOLD_FONT());
+			g.setFont(f);
+			
+			g.fillPath(icon);
 
-			String text = "Connection: ";
-
-			text << data[PropertyIds::NodeId].toString() << ".";
-			text << data[PropertyIds::ParameterId].toString();
-
-			g.drawText(text, getLocalBounds().removeFromTop(24).toFloat(), Justification::centred);
+			g.drawText(text, title, Justification::centred);
 		}
 
 		void resized() override
@@ -96,126 +116,276 @@ struct MacroPropertyEditor : public Component,
 
 			deleteButton.setBounds(b.removeFromRight(24).reduced(4));
 
+			gotoButton.setBounds(2, 2, 16, 16);
+
 			cEditor.setBounds(b);
 		}
+
+		Path icon;
+
+		Colour c;
 
 		NodeBase::Ptr node;
 		ValueTree data;
 		NodeComponent::Factory f;
 		HiseShapeButton deleteButton;
+		HiseShapeButton gotoButton;
 		PropertyEditor cEditor;
+		bool showSource = false;
 	};
 
-	MacroPropertyEditor(NodeBase* b, ValueTree data, Identifier childDataId=PropertyIds::Connections):
-		parameterProperties(b, data),
-		node(b),
-		connectionContent(*this)
-	{
-		connectionData = data.getChildWithName(childDataId);
-		connectionData.addListener(this);
+	
 
+	struct Content: public Component
+	{
+		Content(MacroPropertyEditor& parent_) :
+			parent(parent_),
+			searchBar("Search")
+		{
+			addAndMakeVisible(searchBar);
+			searchBar.addListener(&parent);
+			searchBar.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
+			searchBar.setFont(GLOBAL_FONT());
+			searchBar.setSelectAllWhenFocused(true);
+			searchBar.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+		};
+
+		~Content()
+		{
+			searchBar.removeListener(&parent);
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT().withHeight(15.0f));
+
+			auto b = getLocalBounds();
+			b.removeFromTop(5);
+
+			auto titleArea = b.removeFromTop(30).toFloat();
+
+			g.setColour(Colours::black.withAlpha(0.2f));
+			g.fillRoundedRectangle(titleArea, 3.0f);
+
+			g.setColour(Colours::white);
+			g.drawText("Connections", titleArea, Justification::centred);
+
+			g.setColour(Colours::white.withAlpha(0.6f));
+
+			static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
+				103, 67, 206, 99, 56, 68, 244, 59, 128, 67, 98, 72, 209, 112, 68, 66, 60, 134, 67, 254, 238, 144, 68, 83, 128, 238, 67, 0, 0, 144, 68, 0, 0, 48, 68, 99, 109, 0, 0, 208, 68, 0, 0, 0, 195, 98, 14, 229, 208, 68, 70, 27, 117, 195, 211, 63, 187, 68, 146, 218, 151, 195, 167, 38, 179, 68, 23, 8, 77, 195, 98, 36, 92, 165, 68, 187, 58,
+				191, 194, 127, 164, 151, 68, 251, 78, 102, 65, 0, 224, 137, 68, 0, 0, 248, 66, 98, 186, 89, 77, 68, 68, 20, 162, 194, 42, 153, 195, 67, 58, 106, 186, 193, 135, 70, 41, 67, 157, 224, 115, 67, 98, 13, 96, 218, 193, 104, 81, 235, 67, 243, 198, 99, 194, 8, 94, 78, 68, 70, 137, 213, 66, 112, 211, 134, 68, 98, 109, 211, 138, 67,
+				218, 42, 170, 68, 245, 147, 37, 68, 128, 215, 185, 68, 117, 185, 113, 68, 28, 189, 169, 68, 98, 116, 250, 155, 68, 237, 26, 156, 68, 181, 145, 179, 68, 76, 44, 108, 68, 16, 184, 175, 68, 102, 10, 33, 68, 98, 249, 118, 174, 68, 137, 199, 2, 68, 156, 78, 169, 68, 210, 27, 202, 67, 0, 128, 160, 68, 0, 128, 152, 67, 98, 163,
+				95, 175, 68, 72, 52, 56, 67, 78, 185, 190, 68, 124, 190, 133, 66, 147, 74, 205, 68, 52, 157, 96, 194, 98, 192, 27, 207, 68, 217, 22, 154, 194, 59, 9, 208, 68, 237, 54, 205, 194, 0, 0, 208, 68, 0, 0, 0, 195, 99, 101, 0, 0 };
+
+			Path path;
+			path.loadPathFromData(searchIcon, sizeof(searchIcon));
+			path.applyTransform(AffineTransform::rotation(float_Pi));
+
+			path.scaleToFit(4.0f, 44.0f, 16.0f, 16.0f, true);
+
+			g.fillPath(path);
+		}
 		
+		void resized() override
+		{
+			auto b = getLocalBounds();
+
+			b.removeFromTop(40);
+			auto top = b.removeFromTop(24);
+			top.removeFromLeft(24);
+
+			searchBar.setBounds(top);
+		}
+
+		TextEditor searchBar;
+
+		MacroPropertyEditor& parent;
+	};
+
+	MacroPropertyEditor(NodeBase* b, ValueTree data, Identifier childDataId = PropertyIds::Connections) :
+		parameterProperties(b, false, data),
+		node(b),
+		connectionContent(*this),
+		containerMode(dynamic_cast<NodeContainer*>(b) != nullptr || childDataId == PropertyIds::ModulationTargets),
+		resizer(this, &constrainer)
+	{
+		if (containerMode)
+		{
+			connectionData = data.getChildWithName(childDataId);
+
+			connectionListener.setCallback(connectionData, valuetree::AsyncMode::Asynchronously,
+				[this](ValueTree& v, bool wasAdded)
+			{ 
+				if (!wasAdded)
+					connectionArray.removeAllInstancesOf(v);
+
+				this->rebuildConnections();
+			});
+
+			for (auto c : connectionData)
+				connectionArray.add(c);
+		}
+		else
+		{
+			bool found = false;
+
+			for (int i = 0; i < b->getNumParameters(); i++)
+			{
+				auto p = b->getParameter(i);
+
+				if (found)
+					break;
+
+				if (p->data == data)
+				{
+					found = true;
+
+					auto list = p->getConnectedMacroParameters();
+
+					for (auto mp : list)
+					{
+						for (auto c : dynamic_cast<NodeContainer::MacroParameter*>(mp)->getConnectionTree())
+						{
+							if (p->matchesConnection(c))
+								connectionArray.add(c);
+						}
+					}
+				}
+			}
+		}
 
 		addAndMakeVisible(parameterProperties);
 
 		addAndMakeVisible(connectionViewport);
 		connectionViewport.setViewedComponent(&connectionContent, false);
 
-		setSize(parameterProperties.getWidth() + connectionViewport.getScrollBarThickness(), parameterProperties.getHeight() + 300);
+		int height = jmin(700, connectionArray.isEmpty() ? 50 : (140 + (connectionArray.size() * 110)));
+
+		setSize(parameterProperties.getWidth() + connectionViewport.getScrollBarThickness(), parameterProperties.getHeight() + height);
+
+		constrainer.setMaximumWidth(getWidth());
+		constrainer.setMinimumWidth(getWidth());
+
+		addAndMakeVisible(resizer);
 
 		rebuildConnections();
 	}
 
-	struct Content: public Component
-	{
-		Content(MacroPropertyEditor& parent_) :
-			parent(parent_)
-		{};
-
-		void paint(Graphics& g) override
-		{
-			if (parent.connectionEditors.isEmpty())
-			{
-				g.setColour(Colours::white);
-				g.setFont(GLOBAL_BOLD_FONT());
-				g.drawText("No connections available.", getLocalBounds().toFloat(), Justification::centred);
-			}
-		}
-		
-		MacroPropertyEditor& parent;
-	};
-
 	~MacroPropertyEditor()
 	{
-		connectionData.removeListener(this);
+		
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto titleArea = getLocalBounds().removeFromTop(40);
+		g.setColour(Colours::black.withAlpha(0.2f));
+		g.fillRoundedRectangle(titleArea.toFloat(), 3.0f);
+
+		g.setColour(Colours::white);
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(15.0f));
+
+		
+
+		
+
+		g.drawText("Parameter Properties", titleArea.toFloat(), Justification::centred);
 	}
 
 	void resized() override
 	{
-		parameterProperties.setTopLeftPosition(0, 0);
+		connectionViewport.setVisible(!connectionArray.isEmpty());
+		resizer.setVisible(connectionArray.size() > 2);
+
+		parameterProperties.setTopLeftPosition(0, 40);
 		int y = parameterProperties.getBottom();
 
 		auto b = getLocalBounds();
 		b.removeFromTop(y);
 
 		connectionViewport.setBounds(b);
+
+		auto s = connectionViewport.getScrollBarThickness();
+		resizer.setBounds(getLocalBounds().removeFromRight(s).removeFromBottom(s));
 	}
 
-	void valueTreeChildAdded(ValueTree& parentTree, ValueTree&) override
+	static String getPathFromNode(bool showSource, ValueTree& data)
 	{
-		if (parentTree == connectionData)
-			rebuildConnections();
-	}
-	void valueTreeChildOrderChanged(ValueTree& parentTree, int , int ) override
-	{
-		if (parentTree == connectionData)
-			rebuildConnections();
+		String text;
+
+		if (showSource)
+		{
+			text << data.getParent().getParent().getParent().getParent()[PropertyIds::ID].toString() << ".";
+			text << data.getParent().getParent()[PropertyIds::ID].toString();
+		}
+		else
+		{
+			text << data[PropertyIds::NodeId].toString() << ".";
+			text << data[PropertyIds::ParameterId].toString();
+		}
+
+		return text;
 	}
 
-	void valueTreeChildRemoved(ValueTree& parentTree, ValueTree& , int ) override
+	void textEditorTextChanged(TextEditor& te) override
 	{
-		if (parentTree == connectionData)
-			rebuildConnections();
+		searchTerm = te.getText().toLowerCase();
+		rebuildConnections();
 	}
-	void valueTreePropertyChanged(ValueTree&, const Identifier& ) override {}
-	void valueTreeParentChanged(ValueTree&) override {}
 
 	void rebuildConnections()
 	{
 		connectionEditors.clear();
 
-		int y = 0;
+		int y = 84;
 
-		for (auto c : connectionData)
+		for (auto c : connectionArray)
 		{
-			auto newEditor = new ConnectionEditor(node, c);
+			if (searchTerm.isNotEmpty() && !getPathFromNode(!containerMode, c).toLowerCase().contains(searchTerm))
+			{
+				continue;
+			}
+
+			auto newEditor = new ConnectionEditor(node, c, !containerMode);
 			connectionContent.addAndMakeVisible(newEditor);
 			connectionEditors.add(newEditor);
 
-			y += newEditor->getHeight();
+			y += newEditor->getHeight() + 10;
 		}
 
 		connectionContent.setSize(parameterProperties.getWidth(), y);
 
-		y = 0;
+		y = 84;
 
 		for (auto c : connectionEditors)
 		{
 			c->setTopLeftPosition(0, y);
-			y += c->getHeight();
+			y += c->getHeight() + 10;
 		}
 
 		resized();
 	}
 
+	String searchTerm;
+	
+	bool containerMode = false;
+
 	NodeBase::Ptr node;
 	ValueTree connectionData;
+	Array<ValueTree> connectionArray;
+
+	valuetree::ChildListener connectionListener;
 
 	PropertyEditor parameterProperties;
 	OwnedArray<ConnectionEditor> connectionEditors;
 
 	Viewport connectionViewport;
 	Content connectionContent;
+
+	ComponentBoundsConstrainer constrainer;
+	juce::ResizableCornerComponent resizer;
 };
 
 
@@ -238,8 +408,7 @@ public:
 				Path p;
 
 				LOAD_PATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
-				LOAD_PATH_IF_URL("edit", ColumnIcons::customizeIcon);
-				LOAD_PATH_IF_URL("drag", ColumnIcons::bigResizeIcon);
+				LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
 
 				return p;
 			}
@@ -250,13 +419,11 @@ public:
 		ParameterComponent(ContainerComponent& parent_):
 			parent(parent_),
 			parameterTree(parent.dataReference.getChildWithName(PropertyIds::Parameters)),
-			editButton("edit", this, f),
 			dragButton("drag", this, f),
 			addButton("add", this, f)
 		{
 			parameterTree.addListener(this);
 
-			addAndMakeVisible(editButton);
 			addAndMakeVisible(dragButton);
 			addAndMakeVisible(addButton);
 
@@ -340,7 +507,6 @@ public:
 			auto bRow = b.removeFromLeft(b.getHeight() / 3);
 
 			addButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
-			editButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
 			dragButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
 
 			for (auto s : sliders)
@@ -352,18 +518,11 @@ public:
 		void paint(Graphics& g) override
 		{
 			g.fillAll(Colours::black.withAlpha(0.1f));
-
-			g.setColour(Colours::white);
-			g.drawText(String(sliders.size()), getLocalBounds().toFloat(), Justification::centred);
-
 		}
-
-		
 
 		ContainerComponent& parent;
 		ValueTree parameterTree;
 		Factory f;
-		HiseShapeButton editButton;
 		HiseShapeButton dragButton;
 		HiseShapeButton addButton;
 		OwnedArray<MacroParameterSlider> sliders;

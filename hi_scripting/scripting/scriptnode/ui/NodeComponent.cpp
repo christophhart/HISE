@@ -384,7 +384,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 	}
 	if (result == (int)MenuActions::EditProperties)
 	{
-		auto n = new PropertyEditor(node, node->getValueTree());
+		auto n = new PropertyEditor(node, false, node->getValueTree());
 		auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
 		auto b = g->getLocalArea(this, header.getBounds());
 
@@ -639,6 +639,7 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("fold", HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon);
 	LOAD_PATH_IF_URL("delete", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
 	LOAD_PATH_IF_URL("move", ColumnIcons::moveIcon);
+	LOAD_PATH_IF_URL("goto", ColumnIcons::targetIcon);
 	LOAD_PATH_IF_URL("parameter", HiBinaryData::SpecialSymbols::macros);
 	LOAD_PATH_IF_URL("split", ScriptnodeIcons::splitIcon);
 	LOAD_PATH_IF_URL("chain", ScriptnodeIcons::chainIcon);

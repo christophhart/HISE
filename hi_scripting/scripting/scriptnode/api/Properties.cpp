@@ -247,7 +247,8 @@ struct SliderWithLimit : public PropertyComponent
 		auto min = jmin(v, data.getProperty(LowerLimit, 0.0));
 		auto max = jmax(v, data.getProperty(UpperLimit, 1.0));
 		auto stepSize = data.getProperty(StepSize, 0.01);
-
+		
+		c.setScrollWheelEnabled(false);
 		c.setRange(min, max, stepSize);
 		c.getValueObject().referTo(data.getPropertyAsValue(id, um, true));
 	}

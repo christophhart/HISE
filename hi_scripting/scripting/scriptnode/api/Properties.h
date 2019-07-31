@@ -141,6 +141,24 @@ DECLARE_ID(Add);
 
 struct PropertyHelpers
 {
+	static Colour getColour(ValueTree data)
+	{
+		while (data.getParent().isValid())
+		{
+			if (data.hasProperty(PropertyIds::NodeColour))
+			{
+				auto c = getColourFromVar(data[PropertyIds::NodeColour]);
+
+				if (!c.isTransparent())
+					return c;
+			}
+
+			data = data.getParent();
+		}
+
+		return Colour();
+	}
+
 	static Colour getColourFromVar(const var& value)
 	{
 		int64 colourValue = 0;

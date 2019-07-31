@@ -321,6 +321,18 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 }
 
+scriptnode::NodeComponent* DspNetworkGraph::getComponent(NodeBase::Ptr node)
+{
+	Array<NodeComponent*> nodes;
+	fillChildComponentList(nodes, this);
+
+	for (auto nc : nodes)
+		if (nc->node == node)
+			return nc;
+
+	return nullptr;
+}
+
 bool DspNetworkGraph::setCurrentlyDraggedComponent(NodeComponent* n)
 {
 	if (auto parentContainer = dynamic_cast<ContainerComponent*>(n->getParentComponent()))
