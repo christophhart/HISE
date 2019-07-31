@@ -189,6 +189,11 @@ public:
 	valuetree::PropertyListener bypassListener;
 };
 
+template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, int Index7, class T> static auto* get(T& t)
+{
+	return get<Index7>(*get<Index6>(*get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t)))))));
+}
+
 template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, class T> static auto* get(T& t)
 {
 	return get<Index6>(*get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))))));
@@ -449,7 +454,8 @@ struct hc
 	static constexpr int with_modulation = 2;
 };
 
-#define DEF_CONSTDEST instance(); ~instance();
+#define DEF_CONSTRUCTOR instance(); ~instance();
+#define DEF_PIMPL struct Impl; Impl* pimpl;
 #define DEF_PREPARE_PIMPL void prepare(PrepareSpecs ps);
 #define DEF_INIT_PIMPL void initialise(NodeBase* n);
 #define DEF_HANDLE_MOD_PIMPL bool handleModulation(double& value);
@@ -458,31 +464,20 @@ struct hc
 #define DEF_RESET_PIMPL void reset();
 #define DEF_PROCESS_SINGLE_PIMPL void processSingle(float* frameData, int numChannels) noexcept;
 
-#define DEFINE_DSP_METHODS_PIMPL DEF_CONSTDEST DEF_PREPARE_PIMPL; DEF_INIT_PIMPL; DEF_HANDLE_MOD_PIMPL; DEF_HANDLE_EVENT_PIMPL; DEF_PROCESS_PIMPL; DEF_RESET_PIMPL; DEF_PROCESS_SINGLE_PIMPL;
+#define DEFINE_DSP_METHODS_PIMPL DEF_CONSTRUCTOR; DEF_PIMPL; DEF_PREPARE_PIMPL; DEF_INIT_PIMPL; DEF_HANDLE_MOD_PIMPL; DEF_HANDLE_EVENT_PIMPL; DEF_PROCESS_PIMPL; DEF_RESET_PIMPL; DEF_PROCESS_SINGLE_PIMPL;
 
+#define DEFINE_PIMPL_CLASS(NodeType) struct instance::Impl : public NodeType {  };
+#define DEFINE_CONSTRUCTOR instance::instance() { pimpl = new Impl(); }
+#define DEFINE_DESTRUCTOR instance::~instance() { delete pimpl; }
+#define PREPARE_PIMPL void instance::prepare(PrepareSpecs ps) { pimpl->prepare(ps); }
+#define INIT_PIMPL void instance::initialise(NodeBase* n) { pimpl->initialise(n); nodeData = n->getValueTree(); um = n->getUndoManager(); }
+#define HANDLE_MOD_PIMPL bool instance::handleModulation(double& value) { return pimpl->handleModulation(value); }
+#define HANDLE_EVENT_PIMPL void instance::handleHiseEvent(HiseEvent& e) { pimpl->handleHiseEvent(e); }
+#define PROCESS_PIMPL void instance::process(ProcessData& data) noexcept { pimpl->process(data); }
+#define RESET_PIMPL void instance::reset() { pimpl->reset(); }
+#define PROCESS_SINGLE_PIMPL void instance::processSingle(float* frameData, int numChannels) noexcept { pimpl->processSingle(frameData, numChannels); }
 
-#define GET_PIMPL(NodeType) (*reinterpret_cast<NodeType*>(pimpl))
-#define PREPARE_PIMPL(NodeType) void instance::prepare(PrepareSpecs ps) { GET_PIMPL(NodeType).prepare(ps); }
-#define INIT_PIMPL(NodeType) void instance::initialise(NodeBase* n) { GET_PIMPL(NodeType).initialise(n); nodeData = n->getValueTree(); um = n->getUndoManager(); }
-#define HANDLE_MOD_PIMPL(NodeType) bool instance::handleModulation(double& value) { return GET_PIMPL(NodeType).handleModulation(value); }
-#define HANDLE_EVENT_PIMPL(NodeType) void instance::handleHiseEvent(HiseEvent& e) { GET_PIMPL(NodeType).handleHiseEvent(e); }
-#define PROCESS_PIMPL(NodeType) void instance::process(ProcessData& data) noexcept { GET_PIMPL(NodeType).process(data); }
-#define RESET_PIMPL(NodeType) void instance::reset() { GET_PIMPL(NodeType).reset(); }
-#define PROCESS_SINGLE_PIMPL(NodeType) void instance::processSingle(float* frameData, int numChannels) noexcept { GET_PIMPL(NodeType).processSingle(frameData, numChannels); }
-#define CONSTRUCTOR_PIMPL(NodeType) instance::instance() { pimpl = new NodeType(); }
-#define DESTRUCTOR_PIMPL(NodeType) instance::~instance() { delete &GET_PIMPL(NodeType); }
-
-#define DSP_METHODS_PIMPL_IMPL(NodeType) CONSTRUCTOR_PIMPL(NodeType); DESTRUCTOR_PIMPL(NodeType); PREPARE_PIMPL(NodeType); INIT_PIMPL(NodeType); HANDLE_MOD_PIMPL(NodeType); HANDLE_EVENT_PIMPL(NodeType); PROCESS_PIMPL(NodeType); RESET_PIMPL(NodeType); PROCESS_SINGLE_PIMPL(NodeType);
-
-#define PREPARE_T void prepare(PrepareSpecs ps) { obj.prepare(ps); }
-#define INIT_T void initialise(NodeBase* n) { obj.initialise(n); nodeData = n->getValueTree(); um = n->getUndoManager(); }
-#define HANDLE_MOD_T bool handleModulation(double& value) { return obj.handleModulation(value); }
-#define HANDLE_EVENT_T void handleHiseEvent(HiseEvent& e) { obj.handleHiseEvent(e); }
-#define PROCESS_T void process(ProcessData& data) noexcept { obj.process(data); }
-#define RESET_T void reset() { obj.reset(); }
-#define PROCESS_SINGLE_T void processSingle(float* frameData, int numChannels) noexcept { obj.processSingle(frameData, numChannels); }
-
-#define DSP_METHODS_T PREPARE_T; INIT_T; HANDLE_MOD_T; HANDLE_EVENT_T; PROCESS_T; RESET_T; PROCESS_SINGLE_T;
+#define DSP_METHODS_PIMPL_IMPL(NodeType) DEFINE_PIMPL_CLASS(NodeType); DEFINE_CONSTRUCTOR; DEFINE_DESTRUCTOR; PREPARE_PIMPL; INIT_PIMPL; HANDLE_MOD_PIMPL; HANDLE_EVENT_PIMPL; PROCESS_PIMPL; RESET_PIMPL; PROCESS_SINGLE_PIMPL;
 
 struct hardcoded_pimpl : public HiseDspBase,
 					public HardcodedNode
@@ -494,7 +489,7 @@ struct hardcoded_pimpl : public HiseDspBase,
 		return this;
 	}
 
-	void* pimpl;
+	
 };
 
 struct hardcoded_t : public HiseDspBase,

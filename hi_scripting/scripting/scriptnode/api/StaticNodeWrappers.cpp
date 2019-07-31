@@ -191,7 +191,7 @@ juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColu
 	w = jmax(w, getExtraWidth());
 
 	auto b = Rectangle<int>(0, 0, w, h);
-	return b.expanded(UIValues::NodeMargin);
+	return getBoundsToDisplay(b.expanded(UIValues::NodeMargin));
 }
 
 }

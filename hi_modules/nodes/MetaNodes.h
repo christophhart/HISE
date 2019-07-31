@@ -38,13 +38,14 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
-/** Howto convert hardcoded node classes to meta nodes:
+/** Howto convert hardcoded node classes to pimpl nodes:
 
-1. Move implementation and alias definitions to source file.
-2. Subclass from hardcoded_pimpl instead
-3. Add DEFINE_DSP_METHODS_PIMPL to class definition.
-4. Add #define obj GET_PIMPL(classname_) and #undef obj to createParameters implementation
-5. Add DSP_METHODS_PIMPL_IMPL(width_bandpass_) in source file
+1. Paste the entire class definition here.
+2. Move implementation and alias definitions to source file (create impl namespace).
+3. Subclass from hardcoded_pimpl instead
+4. Add DEFINE_DSP_METHODS_PIMPL to class definition.
+5. Add DSP_METHODS_PIMPL_IMPL(classname_) in source file (before createParameters)
+6. Add `auto& obj = *pimpl;` to createParameters implementation.
 */
 
 namespace meta
@@ -89,6 +90,25 @@ struct instance : public hardcoded_pimpl
 }
 
 using filter_delay = filter_delay_impl::instance;
+
+namespace tremolo_impl
+{
+
+struct instance : public hardcoded_pimpl
+{
+	SET_HISE_NODE_ID("tremolo");
+	GET_SELF_AS_OBJECT(instance);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	String getSnippetText() const override;
+	void createParameters(Array<ParameterData>& data);
+
+	DEFINE_DSP_METHODS_PIMPL
+};
+
+}
+
+using tremolo = tremolo_impl::instance;
 
 }
 
