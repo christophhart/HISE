@@ -45,6 +45,8 @@ juce::String CppGen::Emitter::addNodeTemplateWrappers(String className, NodeBase
 
 	if (v_data[PropertyIds::DynamicBypass].toString().isNotEmpty())
 		className = wrapIntoTemplate(className, "bypass::yes");
+	else if (v_data[PropertyIds::Bypassed])
+		className = wrapIntoTemplate(className, "skip");
 
 	if (n->hasFixChannelAmount() || dynamic_cast<MultiChannelNode*>(n->getParentNode()) != nullptr)
 	{
@@ -53,6 +55,7 @@ juce::String CppGen::Emitter::addNodeTemplateWrappers(String className, NodeBase
 		className = wrapIntoTemplate(templateArgs, "fix");
 	}
 		
+	
 
 	return className;
 }
