@@ -110,11 +110,14 @@ DEFINE_OP_NODE_IMPL(sub);
 DEFINE_OP_NODE_IMPL(div);
 DEFINE_OP_NODE_IMPL(tanh);
 DEFINE_OP_NODE_IMPL(clip);
-DEFINE_OP_NODE_IMPL(sin);
-DEFINE_OP_NODE_IMPL(pi);
-DEFINE_OP_NODE_IMPL(sig2mod);
-DEFINE_OP_NODE_IMPL(abs);
-DEFINE_OP_NODE_IMPL(clear);
+DEFINE_MONO_OP_NODE_IMPL(sin);
+DEFINE_MONO_OP_NODE_IMPL(pi);
+DEFINE_MONO_OP_NODE_IMPL(sig2mod);
+DEFINE_MONO_OP_NODE_IMPL(abs);
+DEFINE_MONO_OP_NODE_IMPL(clear);
+DEFINE_MONO_OP_NODE_IMPL(square);
+DEFINE_MONO_OP_NODE_IMPL(sqrt);
+DEFINE_MONO_OP_NODE_IMPL(pow);
 
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
@@ -127,9 +130,14 @@ Factory::Factory(DspNetwork* n) :
 	registerPolyNode<tanh, tanh_poly>();
 	registerPolyNode<clip, clip_poly>();
 	registerNode<sin>();
-	registerPolyNode<pi, pi_poly>();
+	registerNode<pi>();
 	registerNode<sig2mod>();
-	registerPolyNode<abs, abs_poly>();
+	registerNode<abs>();
+	registerNode<square>();
+	registerNode<sqrt>();
+	registerNode<pow>();
+
+	sortEntries();
 }
 
 
@@ -211,16 +219,16 @@ void Operations::tanh::opSingle(float* frameData, int numChannels, float value)
 		frameData[i] = std::tanh(frameData[i] * value);
 }
 
-void Operations::pi::op(ProcessData& d, float value)
+void Operations::pi::op(ProcessData& d, float)
 {
 	for (auto ptr : d)
-		FloatVectorOperations::multiply(ptr, float_Pi * value, d.size);
+		FloatVectorOperations::multiply(ptr, float_Pi, d.size);
 }
 
-void Operations::pi::opSingle(float* frameData, int numChannels, float value)
+void Operations::pi::opSingle(float* frameData, int numChannels, float)
 {
 	for (int i = 0; i < numChannels; i++)
-		*frameData++ *= float_Pi * value;
+		*frameData++ *= float_Pi;
 }
 
 void Operations::sin::op(ProcessData& d, float)
@@ -273,6 +281,48 @@ void Operations::abs::opSingle(float* frameData, int numChannels, float)
 {
 	for (int i = 0; i < numChannels; i++)
 		frameData[i] = frameData[i] > 0.0f ? frameData[i] : frameData[i] * -1.0f;
+}
+
+void Operations::square::op(ProcessData& d, float)
+{
+	for (int i = 0; i < d.numChannels; i++)
+		FloatVectorOperations::multiply(d.data[i], d.data[i], d.size);
+}
+
+void Operations::square::opSingle(float* frameData, int numChannels, float )
+{
+	for (int i = 0; i < numChannels; i++)
+		frameData[i] *= frameData[i];
+}
+
+void Operations::sqrt::op(ProcessData& d, float)
+{
+	for (int c = 0; c < d.numChannels; c++)
+	{
+		for (int i = 0; i < d.size; i++)
+			d.data[c][i] = std::sqrtf(d.data[c][i]);
+	}
+}
+
+void Operations::sqrt::opSingle(float* frameData, int numChannels, float)
+{
+	for (int i = 0; i < numChannels; i++)
+		frameData[i] = std::sqrtf(frameData[i]);
+}
+
+void Operations::pow::op(ProcessData& d, float value)
+{
+	for (int c = 0; c < d.numChannels; c++)
+	{
+		for (int i = 0; i < d.size; i++)
+			d.data[c][i] = std::powf(d.data[c][i], value);
+	}
+}
+
+void Operations::pow::opSingle(float* frameData, int numChannels, float value)
+{
+	for (int i = 0; i < numChannels; i++)
+		frameData[i] = std::powf(frameData[i], value);
 }
 
 }

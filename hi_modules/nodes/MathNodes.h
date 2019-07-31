@@ -124,6 +124,30 @@ namespace Operations
 		static void opSingle(float* frameData, int numChannels, float value);
 	};
 
+	struct square
+	{
+		SET_ID(square); SET_DEFAULT(1.0f);
+
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
+	};
+
+	struct sqrt
+	{
+		SET_ID(sqrt); SET_DEFAULT(1.0f);
+
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
+	};
+
+	struct pow
+	{
+		SET_ID(pow); SET_DEFAULT(1.0f);
+
+		static void op(ProcessData& d, float value);
+		static void opSingle(float* frameData, int numChannels, float value);
+	};
+
 	struct abs
 	{
 		SET_ID(abs); SET_DEFAULT(0.0f);
@@ -158,6 +182,11 @@ public:
 #define DEFINE_OP_NODE_IMPL(opName) template class OpNode<Operations::opName, 1>; \
 template class OpNode<Operations::opName, NUM_POLYPHONIC_VOICES>;
 
+#define DEFINE_MONO_OP_NODE_IMPL(opName) template class OpNode<Operations::opName, 1>; \
+
+#define DEFINE_MONO_OP_NODE(monoName) extern template class OpNode<Operations::monoName, 1>; \
+using monoName = OpNode<Operations::monoName, 1>;
+
 #define DEFINE_OP_NODE(monoName, polyName) extern template class OpNode<Operations::monoName, 1>; \
 using monoName = OpNode<Operations::monoName, 1>; \
 extern template class OpNode<Operations::monoName, NUM_POLYPHONIC_VOICES>; \
@@ -169,11 +198,14 @@ DEFINE_OP_NODE(sub, sub_poly);
 DEFINE_OP_NODE(div, div_poly);
 DEFINE_OP_NODE(tanh, tanh_poly);
 DEFINE_OP_NODE(clip, clip_poly);
-DEFINE_OP_NODE(sin, sin_poly);
-DEFINE_OP_NODE(pi, pi_poly);
-DEFINE_OP_NODE(sig2mod, sig2mod_poly);
-DEFINE_OP_NODE(abs, abs_poly);
-DEFINE_OP_NODE(clear, clear_poly);
+DEFINE_MONO_OP_NODE(sin);
+DEFINE_MONO_OP_NODE(pi);
+DEFINE_MONO_OP_NODE(sig2mod);
+DEFINE_MONO_OP_NODE(abs);
+DEFINE_MONO_OP_NODE(clear);
+DEFINE_MONO_OP_NODE(square);
+DEFINE_MONO_OP_NODE(sqrt);
+DEFINE_MONO_OP_NODE(pow);
 
 }
 
