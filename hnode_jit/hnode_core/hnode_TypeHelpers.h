@@ -78,15 +78,15 @@ struct Helpers
 
 	template <typename T> constexpr static Types::ID getTypeFromTypeId()
 	{
-		if constexpr (std::is_same<T, float>())
+		if (std::is_same<T, float>())
 			return Types::ID::Float;
-		if constexpr (std::is_same<T, double>())
+		if (std::is_same<T, double>())
 			return Types::ID::Double;
-		if constexpr (std::is_same<T, int>())
+		if (std::is_same<T, int>())
 			return Types::ID::Integer;
-		if constexpr (std::is_same<T, HiseEvent>())
+		if (std::is_same<T, HiseEvent>())
 			return Types::ID::Event;
-		if constexpr (std::is_same<T, block>())
+		if (std::is_same<T, block>())
 			return Types::ID::Block;
 
 		return Types::ID::Void;

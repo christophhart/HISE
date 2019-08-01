@@ -38,7 +38,7 @@ using namespace juce;
 using namespace asmjit;
 
 
-#define HNODE_JIT_ADD_C_FUNCTION_0(rt, ptr, name) addFunction(new FunctionData(FunctionData::create<rt>(name, static_cast<rt(*)()>(ptr))))
+#define HNODE_JIT_ADD_C_FUNCTION_0(rt, ptr, name) addFunction(new FunctionData(FunctionData::createWithoutParameters<rt>(name, static_cast<rt(*)()>(ptr))))
 
 #define HNODE_JIT_ADD_C_FUNCTION_1(rt, ptr, argType1, name) addFunction(new FunctionData(FunctionData::create<rt, argType1>(name, static_cast<rt(*)(argType1)>(ptr))))
 

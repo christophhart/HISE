@@ -41,34 +41,76 @@ using namespace juce;
 /** A wrapper around a function. */
 struct FunctionData
 {
-	
-
-	template <typename T, typename... Ts> void addArgs()
+#if 0
+	template<typename T>
+	void loadBrush_sub_impl()
 	{
-		args.add(Types::Helpers::getTypeFromTypeId<T>());
-
-		if constexpr (sizeof...(Ts) > 0)
-			addArgs<Ts...>();
+		// do some work here
 	}
 
-	template <typename ReturnType, typename...Parameters> static FunctionData create(const Identifier& id, void* ptr = nullptr)
+	template<typename... Targs>
+	void loadBrush_sub();
+
+	template<typename T, typename... V>
+	void loadBrush_sub_helper()
+	{
+		loadBrush_sub_impl<T>();
+		loadBrush_sub<V...>();
+	}
+
+	template<typename... Targs>
+	void loadBrush_sub()
+	{
+		loadBrush_sub_helper<Targs...>();
+	}
+
+	template<>
+	void loadBrush_sub<>()
+	{
+	}
+#endif
+
+	template <typename T> void addArgs()
+	{
+		args.add(Types::Helpers::getTypeFromTypeId<T>());
+	}
+
+	template <typename T1, typename T2> void addArgs()
+	{
+		args.add(Types::Helpers::getTypeFromTypeId<T1>());
+		args.add(Types::Helpers::getTypeFromTypeId<T2>());
+	}
+
+	template <typename T1, typename T2, typename T3> void addArgs()
+	{
+		args.add(Types::Helpers::getTypeFromTypeId<T1>());
+		args.add(Types::Helpers::getTypeFromTypeId<T2>());
+		args.add(Types::Helpers::getTypeFromTypeId<T3>());
+	}
+
+	template <typename ReturnType> static FunctionData createWithoutParameters(const Identifier& id, void* ptr = nullptr)
 	{
 		FunctionData d;
 
 		d.id = id;
 		d.returnType = Types::Helpers::getTypeFromTypeId<ReturnType>();
-
-		if constexpr (sizeof...(Parameters) > 0)
-			d.addArgs<Parameters...>();
-
 		d.function = ptr;
 
+		return d;
+	}
+
+	template <typename ReturnType, typename...Parameters> static FunctionData create(const Identifier& id, void* ptr = nullptr)
+	{
+		FunctionData d = createWithoutParameters<ReturnType>(id, ptr);
+		d.addArgs<Parameters...>();
 		return d;
 	}
 
 	String getSignature(const Array<Identifier>& parameterIds = {}) const;
 
 	operator bool() const noexcept { return function != nullptr; };
+
+	bool matchesArgumentTypes(Types::ID returnType, const Array<Types::ID>& argsList);
 
 	bool matchesArgumentTypes(const Array<Types::ID>& typeList);
 
@@ -94,14 +136,31 @@ struct FunctionData
 
 	template <typename... Parameters> void callVoid(Parameters... ps)
 	{
+		if (function != nullptr)
+			callVoidUnchecked(ps...);
+	}
+
+	template <typename... Parameters> forcedinline void callVoidUnchecked(Parameters... ps)
+	{
 		using signature = void(*)(Parameters...);
 
-		if (function != nullptr)
-		{
-			auto f_ = (signature)function;
+		auto f_ = (signature)function;
+		f_(ps...);
+	}
 
-			f_(ps...);
-		}
+	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUnchecked(Parameters... ps)
+	{
+		using signature = ReturnType & (*)(Parameters...);
+		auto f_ = (signature)function;
+		auto& r = f_(ps...);
+		return ReturnType(r);
+	}
+
+	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUncheckedWithCopy(Parameters... ps)
+	{
+		using signature = ReturnType(*)(Parameters...);
+		auto f_ = (signature)function;
+		return static_cast<ReturnType>(f_(ps...));
 	}
 
 	template <typename ReturnType, typename... Parameters> ReturnType call(Parameters... ps)
@@ -109,29 +168,18 @@ struct FunctionData
 		// You must not call this method if you return an event or a block.
 		// Use callWithReturnCopy instead...
 
-		if constexpr(Types::Helpers::getTypeFromTypeId<ReturnType>() == Types::ID::Event ||
+		if (Types::Helpers::getTypeFromTypeId<ReturnType>() == Types::ID::Event ||
 			Types::Helpers::getTypeFromTypeId<ReturnType>() == Types::ID::Block)
 		{
-			using signature = ReturnType&(*)(Parameters...);
-
 			if (function != nullptr)
-			{
-				auto f_ = (signature)function;
-				auto& r = f_(ps...);
-				return ReturnType(r);
-			}
+				return callUnchecked<ReturnType, Parameters...>(ps...);
 			else
 				return ReturnType();
 		}
 		else
 		{
-			using signature = ReturnType(*)(Parameters...);
-
 			if (function != nullptr)
-			{
-				auto f_ = (signature)function;
-				return static_cast<ReturnType>(f_(ps...));
-			}
+				return callUncheckedWithCopy<ReturnType, Parameters...>(ps...);
 			else
 				return ReturnType();
 		}
