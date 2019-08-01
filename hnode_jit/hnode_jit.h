@@ -82,10 +82,10 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-#include "../../HISE modules/hi_tools/hi_tools.h"
-#include "../../HISE modules/hi_lac/hi_lac.h"
-#include "../../HISE modules/JUCE/modules/juce_dsp/juce_dsp.h"
-#include "../../HISE modules/JUCE/modules/juce_gui_extra/juce_gui_extra.h"
+#include "../hi_tools/hi_tools.h"
+#include "../hi_lac/hi_lac.h"
+#include "../JUCE/modules/juce_dsp/juce_dsp.h"
+#include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 
 
 #include "hnode_core/hnode_Types.h"
