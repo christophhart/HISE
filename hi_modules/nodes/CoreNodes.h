@@ -42,11 +42,8 @@ namespace container
 
 template <typename... Ts> using frame1_block = wrap::frame<1, container::chain<Ts...>>;
 template <typename... Ts> using frame2_block = wrap::frame<2, container::chain<Ts...>>;
-template <typename... Ts> using frame3_block = wrap::frame<3, container::chain<Ts...>>;
 template <typename... Ts> using frame4_block = wrap::frame<4, container::chain<Ts...>>;
-template <typename... Ts> using frame6_block = wrap::frame<6, container::chain<Ts...>>;
-template <typename... Ts> using frame8_block = wrap::frame<8, container::chain<Ts...>>;
-template <typename... Ts> using frame16_block = wrap::frame<16, container::chain<Ts...>>;
+template <typename... Ts> using framex_block = wrap::frame_x<container::chain<Ts...>>;
 
 template <typename... Ts> using oversample2x = wrap::oversample<2, container::chain<Ts...>>;
 template <typename... Ts> using oversample4x = wrap::oversample<4, container::chain<Ts...>>;

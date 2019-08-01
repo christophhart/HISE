@@ -158,4 +158,203 @@ public:
 	Identifier getObjectName() const override { return "MultiChannelNode"; };
 };
 
+
+template <int B> class FixedBlockNode : public SerialNode
+{
+public:
+
+	FixedBlockNode(DspNetwork* n, ValueTree d) :
+		SerialNode(n, d)
+	{
+		initListeners();
+
+		bypassListener.setCallback(d, { PropertyIds::Bypassed },
+			valuetree::AsyncMode::Synchronously,
+			BIND_MEMBER_FUNCTION_2(FixedBlockNode<B>::updateBypassState));
+	};
+
+	static constexpr int FixedBlockSize = B;
+
+	SCRIPTNODE_FACTORY(FixedBlockNode<B>, "fix" + String(FixedBlockSize) + "_block");
+
+	void process(ProcessData& data) final override
+	{
+		if (isBypassed())
+		{
+			for (auto n : nodes)
+				n->process(data);
+		}
+		else
+		{
+			int numToDo = data.size;
+			data.size = FixedBlockSize;
+
+			while (numToDo > 0)
+			{
+				for (auto n : nodes)
+					n->process(data);
+
+				for (auto& d : data)
+					d += FixedBlockSize;
+
+				numToDo -= FixedBlockSize;
+			}
+		}
+	}
+
+	void prepare(PrepareSpecs ps) final override
+	{
+		prepareNodes(ps);
+	}
+
+	void reset() final override
+	{
+		resetNodes();
+	}
+
+	int getBlockSizeForChildNodes() const override
+	{
+		return isBypassed() ? originalBlockSize : FixedBlockSize;
+	}
+
+	void updateBypassState(Identifier, var)
+	{
+		PrepareSpecs ps;
+		ps.numChannels = getNumChannelsToProcess();
+		ps.blockSize = originalBlockSize;
+		ps.sampleRate = originalSampleRate;
+
+		prepare(ps);
+	}
+
+	AudioSampleBuffer b;
+
+	valuetree::PropertyListener bypassListener;
+};
+
+class SingleSampleBlockX : public SerialNode
+{
+public:
+
+	SingleSampleBlockX(DspNetwork* n, ValueTree d);
+
+	SCRIPTNODE_FACTORY(SingleSampleBlockX, "framex_block");
+
+	void prepare(PrepareSpecs ps) final override;
+	void reset() final override;
+	void process(ProcessData& data) final override;
+	void processSingle(float* frameData, int numChannels) final override;
+	int getBlockSizeForChildNodes() const override;;
+	void handleHiseEvent(HiseEvent& e) override;
+
+	String getCppCode(CppGen::CodeLocation location);
+
+	valuetree::PropertyListener bypassListener;
+	wrap::frame_x<SerialNode::DynamicSerialProcessor> obj;
+	AudioSampleBuffer leftoverBuffer;
+};
+
+template <int NumChannels> class SingleSampleBlock : public SerialNode
+{
+public:
+
+	SingleSampleBlock(DspNetwork* n, ValueTree d) :
+		SerialNode(n, d)
+	{
+		initListeners();
+		obj.getObject().initialise(this);
+	};
+
+	SCRIPTNODE_FACTORY(SingleSampleBlock<NumChannels>, "frame" + String(NumChannels) + "_block");
+
+	String getCppCode(CppGen::CodeLocation location)
+	{
+		if (location == CppGen::CodeLocation::Definitions)
+		{
+			String s;
+			s << SerialNode::getCppCode(location);
+			CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
+			return s;
+		}
+		
+		return SerialNode::getCppCode(location);
+	}
+
+	void reset() final override
+	{
+		obj.reset();
+	}
+
+	void prepare(PrepareSpecs ps) final override
+	{
+		prepareNodes(ps);
+
+		auto numLeftOverChannels = NumChannels - ps.numChannels;
+
+		if (numLeftOverChannels == 0)
+			leftoverBuffer = {};
+		else
+			leftoverBuffer.setSize(numLeftOverChannels, ps.blockSize);
+	}
+
+	void process(ProcessData& data) final override
+	{
+		if (isBypassed())
+			obj.getObject().process(data);
+		else
+		{
+			float* channels[NumChannels];
+
+			int numChannels = jmin(NumChannels, data.numChannels);
+
+			memcpy(channels, data.data, numChannels * sizeof(float*));
+
+			int numLeftOverChannels = NumChannels - data.numChannels;
+
+			if (numLeftOverChannels > 0)
+			{
+				// fix channel mismatch
+				jassert(leftoverBuffer.getNumChannels() == numLeftOverChannels);
+
+				leftoverBuffer.clear();
+
+				for (int i = 0; i < numLeftOverChannels; i++)
+					channels[data.numChannels + i] = leftoverBuffer.getWritePointer(i);
+			}
+
+			ProcessData copy(channels, NumChannels, data.size);
+			obj.process(copy);
+		}
+	}
+
+	void processSingle(float* frameData, int numChannels) final override
+	{
+		jassert(numChannels == NumChannels);
+
+		obj.processSingle(frameData, numChannels);
+	}
+
+	void updateBypassState(Identifier, var)
+	{
+		prepare(originalSampleRate, originalBlockSize);
+	}
+
+	int getBlockSizeForChildNodes() const override
+	{
+		return isBypassed() ? originalBlockSize : 1;
+	};
+
+	void handleHiseEvent(HiseEvent& e) override
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	valuetree::PropertyListener bypassListener;
+
+	wrap::frame<NumChannels, SerialNode::DynamicSerialProcessor> obj;
+
+	AudioSampleBuffer leftoverBuffer;
+};
+
+
 }

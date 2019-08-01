@@ -211,6 +211,63 @@ public:
 	T obj;
 };
 
+template <class T> class frame_x
+{
+public:
+
+	static constexpr bool isModulationSource = T::isModulationSource;
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		obj.prepare(ps);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	forcedinline void reset() noexcept { obj.reset(); }
+
+	forcedinline void process(ProcessData& data) noexcept
+	{
+		int numToDo = data.size;
+		float* frame = (float*)alloca(data.numChannels * sizeof(float));
+		float** frameData = (float**)alloca(data.numChannels * sizeof(float*));
+		memcpy(frameData, data.data, sizeof(float*)*data.numChannels);
+		ProcessData copy(frameData, data.numChannels, data.size);
+
+		while (--numToDo >= 0)
+		{
+			copy.copyToFrameDynamic(frame);
+			processSingle(frame, data.numChannels);
+			copy.copyFromFrameAndAdvanceDynamic(frame);
+		}
+	}
+
+	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	{
+		obj.processSingle(frameData, numChannels);
+	}
+
+	bool handleModulation(double& value)
+	{
+		return obj.handleModulation(value);
+	}
+
+	auto& getObject() { return obj.getObject(); }
+	const auto& getObject() const { return obj.getObject(); }
+
+private:
+
+	T obj;
+};
+
 template <int NumChannels, class T> class frame
 {
 public:

@@ -64,9 +64,13 @@ const scriptnode::NodeBase* NodeContainer::asNode() const
 	return n;
 }
 
-void NodeContainer::prepareNodes(PrepareSpecs ps)
+void NodeContainer::prepareContainer(PrepareSpecs ps)
 {
-	ScopedLock sl(asNode()->getRootNetwork()->getConnectionLock());
+	auto& lock = asNode()->getRootNetwork()->getConnectionLock();
+	ScopedTryLock sl(lock);
+
+	// You need to lock this before anyway...
+	jassert(sl.isLocked());
 
 	originalSampleRate = ps.sampleRate;
 	originalBlockSize = ps.blockSize;
@@ -74,6 +78,11 @@ void NodeContainer::prepareNodes(PrepareSpecs ps)
 
 	ps.sampleRate = getSampleRateForChildNodes();
 	ps.blockSize = getBlockSizeForChildNodes();
+}
+
+void NodeContainer::prepareNodes(PrepareSpecs ps)
+{
+	prepareContainer(ps);
 
 	for (auto n : nodes)
 	{
@@ -980,6 +989,9 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<SplitNode>({});
 	registerNodeRaw<MultiChannelNode>({});
 	registerNodeRaw<ModulationChainNode>({});
+	registerNodeRaw<SingleSampleBlock<1>>({});
+	registerNodeRaw<SingleSampleBlock<2>>({});
+	registerNodeRaw<SingleSampleBlockX>({});
 	registerNodeRaw<OversampleNode<2>>({});
 	registerNodeRaw<OversampleNode<4>>({});
 	registerNodeRaw<OversampleNode<8>>({});
@@ -990,14 +1002,6 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<FixedBlockNode<256>>({});
 	registerNodeRaw<FixedBlockNode<512>>({});
 	registerNodeRaw<FixedBlockNode<1024>>({});
-	registerNodeRaw<SingleSampleBlock<1>>({});
-	registerNodeRaw<SingleSampleBlock<2>>({});
-	registerNodeRaw<SingleSampleBlock<3>>({});
-	registerNodeRaw<SingleSampleBlock<4>>({});
-	registerNodeRaw<SingleSampleBlock<6>>({});
-	registerNodeRaw<SingleSampleBlock<8>>({});
-	registerNodeRaw<SingleSampleBlock<16>>({});
-	
 }
 
 

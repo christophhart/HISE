@@ -63,6 +63,8 @@ void ChainNode::processSingle(float* frameData, int numChannels)
 
 void ChainNode::prepare(PrepareSpecs ps)
 {
+	ScopedLock sl(getRootNetwork()->getConnectionLock());
+
 	NodeContainer::prepareNodes(ps);
 	wrapper.prepare(ps);
 }
@@ -123,6 +125,8 @@ juce::Identifier SplitNode::getObjectName() const
 
 void SplitNode::prepare(PrepareSpecs ps)
 {
+	ScopedLock sl(getRootNetwork()->getConnectionLock());
+
 	NodeContainer::prepareNodes(ps);
 
 	ps.numChannels *= 2;
@@ -229,6 +233,8 @@ void ModulationChainNode::process(ProcessData& data) noexcept
 
 void ModulationChainNode::prepare(PrepareSpecs ps)
 {
+	ScopedLock sl(getRootNetwork()->getConnectionLock());
+
 	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
 }
@@ -485,7 +491,9 @@ void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange
 
 void MultiChannelNode::prepare(PrepareSpecs ps)
 {
-	NodeContainer::prepareNodes(ps);
+	ScopedLock sl(getRootNetwork()->getConnectionLock());
+
+	NodeContainer::prepareContainer(ps);
 	int channelIndex = 0;
 
 	for (int i = 0; i < NUM_MAX_CHANNELS; i++)
@@ -562,6 +570,60 @@ void MultiChannelNode::process(ProcessData& d)
 
 		channelIndex += numChannelsThisTime;
 	}
+}
+
+SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :
+	SerialNode(n, d)
+{
+	initListeners();
+	obj.getObject().initialise(this);
+}
+
+void SingleSampleBlockX::prepare(PrepareSpecs ps)
+{
+	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	prepareNodes(ps);
+}
+
+void SingleSampleBlockX::reset()
+{
+	obj.reset();
+}
+
+void SingleSampleBlockX::process(ProcessData& data)
+{
+	if (isBypassed())
+		obj.getObject().process(data);
+	else
+		obj.process(data);
+}
+
+void SingleSampleBlockX::processSingle(float* frameData, int numChannels)
+{
+	obj.processSingle(frameData, numChannels);
+}
+
+int SingleSampleBlockX::getBlockSizeForChildNodes() const
+{
+	return isBypassed() ? originalBlockSize : 1;
+}
+
+void SingleSampleBlockX::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+juce::String SingleSampleBlockX::getCppCode(CppGen::CodeLocation location)
+{
+	if (location == CppGen::CodeLocation::Definitions)
+	{
+		String s;
+		s << SerialNode::getCppCode(location);
+		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
+		return s;
+	}
+
+	return SerialNode::getCppCode(location);
 }
 
 }

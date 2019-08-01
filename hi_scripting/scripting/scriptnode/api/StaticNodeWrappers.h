@@ -122,6 +122,11 @@ public:
 		return wrapper.getObject().getExtraWidth();
 	}
 
+	bool isUsingModulation() const override
+	{
+		return HiseDspBaseType::isModulationSource;
+	}
+
 	void reset()
 	{
 		wrapper.reset();
