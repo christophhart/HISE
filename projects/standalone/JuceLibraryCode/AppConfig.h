@@ -62,6 +62,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_streaming                1
 #define JUCE_MODULE_AVAILABLE_hi_tools                    1
 #define JUCE_MODULE_AVAILABLE_hi_zstd                     1
+#define JUCE_MODULE_AVAILABLE_hnode_jit                   1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics           1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices          1
 #define JUCE_MODULE_AVAILABLE_juce_audio_formats          1
@@ -122,6 +123,10 @@
 
 #ifndef    HI_SUPPORT_MONO_CHANNEL_LAYOUT
  //#define HI_SUPPORT_MONO_CHANNEL_LAYOUT 0
+#endif
+
+#ifndef    HI_SUPPORT_MONO_TO_STEREO
+ //#define HI_SUPPORT_MONO_TO_STEREO 0
 #endif
 
 #ifndef    HI_SUPPORT_FULL_DYNAMICS_HLAC
@@ -218,7 +223,7 @@
 // hi_modules flags:
 
 #ifndef    HI_ENABLE_CUSTOM_NODE_LOCATION
- #define   HI_ENABLE_CUSTOM_NODE_LOCATION 0
+ #define   HI_ENABLE_CUSTOM_NODE_LOCATION 1
 #endif
 
 //==============================================================================

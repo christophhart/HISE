@@ -26,6 +26,7 @@
 #include <hi_streaming/hi_streaming.h>
 #include <hi_tools/hi_tools.h>
 #include <hi_zstd/hi_zstd.h>
+#include <hnode_jit/hnode_jit.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_formats/juce_audio_formats.h>
