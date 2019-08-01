@@ -1,0 +1,16 @@
+// Surpress all warnings for asmjit code...
+
+#pragma warning( push )
+#pragma warning( disable : 4245)
+#pragma warning( push )
+#pragma warning( disable : 4100)
+#pragma warning( push )
+#pragma warning( disable : 4456)
+#pragma warning( push )
+#pragma warning( disable : 4458)
+#pragma warning( push )
+#pragma warning( disable : 4706)
+#pragma warning( push )
+#pragma warning( disable : 4702)
+#pragma warning( push )
+#pragma warning( disable : 4838)
