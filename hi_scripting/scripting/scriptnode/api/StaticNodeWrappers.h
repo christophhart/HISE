@@ -232,72 +232,7 @@ template <int Index, class T> static auto* get(T& t)
 }
 
 
-class JitNode : public HiseDspBase
-{
-public:
 
-	SET_HISE_NODE_ID("jit");
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-	GET_SELF_AS_OBJECT(JitNode);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	void createParameters(Array<ParameterData>& data) override
-	{
-
-	}
-
-	JitNode():
-		compiler(scope)
-	{
-		String f_l = "float process(int channel, float input){ return Math.abs(input) * 0.5f; }";
-		
-		f = compiler.compileJitObject(f_l);
-		function = f["process"];
-	}
-
-	void prepare(PrepareSpecs specs)
-	{
-
-	}
-
-	void initialise(NodeBase* n)
-	{
-
-	}
-
-	bool handleModulation(double& v)
-	{
-		return false;
-	}
-
-	void reset()
-	{
-
-	}
-
-	void process(ProcessData& d)
-	{
-		for (int i = 0; i < d.size; i++)
-		{
-			for (int c = 0; c < d.numChannels; c++)
-			{
-				auto v = d.data[c][i];
-				d.data[c][i] = function.call<float>(i, v);
-			}
-		}
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		for (int i = 0; i < numChannels; i++)
-			function.call<float>(i, frameData[i]);
-	}
-
-	hnode::jit::GlobalScope scope;
-	hnode::jit::Compiler compiler;
-	hnode::jit::JitObject f;
-	hnode::jit::FunctionData function;
-};
 
 
 

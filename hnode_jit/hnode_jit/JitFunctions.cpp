@@ -96,6 +96,14 @@ bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, b
 }
 
 
+bool FunctionData::matchesArgumentTypes(Types::ID r, const Array<Types::ID>& argsList)
+{
+	if (r != returnType)
+		return false;
+
+	return matchesArgumentTypes(argsList);
+}
+
 bool FunctionClass::hasFunction(const Identifier& classId, const Identifier& functionId) const
 {
 	if (classId != className)

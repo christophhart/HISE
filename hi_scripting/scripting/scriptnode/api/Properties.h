@@ -109,6 +109,7 @@ DECLARE_ID(RoutingMatrix);
 DECLARE_ID(SampleIndex);
 DECLARE_ID(File);
 DECLARE_ID(PublicComponent);
+DECLARE_ID(Code);
 
 enum EditType
 {

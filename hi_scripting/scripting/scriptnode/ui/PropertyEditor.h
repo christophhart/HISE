@@ -45,11 +45,15 @@ struct NodePropertyComponent : public PropertyComponent
 		comp(d, n)
 	{
 		addAndMakeVisible(comp);
+
+		if (d[PropertyIds::ID].toString() == PropertyIds::Code.toString())
+			setPreferredHeight(400);
 	}
 
 	struct Comp : public Component,
 				  public ComboBoxListener,
-				  public Value::Listener
+				  public Value::Listener,
+				  public ButtonListener
 	{
 		Comp(ValueTree d, NodeBase* n):
 			v(d.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()))
@@ -60,6 +64,11 @@ struct NodePropertyComponent : public PropertyComponent
 			publicButton.setLookAndFeel(&laf);
 			publicButton.setClickingTogglesState(true);
 
+			compileButton.setButtonText("Apply");
+			addAndMakeVisible(compileButton);
+			compileButton.setLookAndFeel(&laf);
+			compileButton.addListener(this);
+			
 			Identifier propId = Identifier(d[PropertyIds::ID].toString().fromLastOccurrenceOf(".", false, false));
 
 			if (propId == PropertyIds::FillMode || propId == PropertyIds::UseMidi || propId == PropertyIds::UseResetValue)
@@ -92,12 +101,20 @@ struct NodePropertyComponent : public PropertyComponent
 
 				valueChanged(v);
 			}
+			else if (propId == PropertyIds::Code)
+			{
+				codeDoc = new CodeDocument();
+				codeDoc->replaceAllContent(v.toString());
+				tokeniser = new CPlusPlusCodeTokeniser();
+				editor = new CodeEditorComponent(*codeDoc, tokeniser.get());
+			}
 			else
 			{
 				auto te = new TextEditor();
 				te->getTextValue().referTo(v);
 				te->setLookAndFeel(&laf);
 				editor = te;
+				
 			}
 
 			if(editor != nullptr)
@@ -133,19 +150,38 @@ struct NodePropertyComponent : public PropertyComponent
 			v.setValue(c->getText());
 		}
 
+		void buttonClicked(Button* b) override
+		{
+			v.setValue(codeDoc->getAllContent());
+		}
+
 		void resized() override
 		{
 			auto b = getLocalBounds();
-			publicButton.setBounds(b.removeFromRight(40));
+
+			if (dynamic_cast<CodeEditorComponent*>(editor.get()) == nullptr)
+				publicButton.setBounds(b.removeFromRight(40));
+			else
+			{
+				compileButton.setBounds(b.removeFromBottom(24));
+				publicButton.setVisible(false);
+			}
+				
 			
 			if(editor != nullptr)
 				editor->setBounds(b);
 		}
 
 		Value v;
+
+		ScopedPointer<CodeDocument> codeDoc;
+		ScopedPointer<CodeTokeniser> tokeniser;
 		ScopedPointer<Component> editor;
 		TextButton publicButton;
+		TextButton compileButton;
 		HiPropertyPanelLookAndFeel laf;
+		
+		
 	} comp;
 
 	void refresh() override {};

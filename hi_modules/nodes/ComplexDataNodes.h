@@ -130,7 +130,6 @@ namespace core
 {
 
 using table = TableNode;
-using jit = JitNode;
 
 }
 

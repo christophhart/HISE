@@ -140,6 +140,168 @@ public:
 	HISE_EMPTY_MOD;
 };
 
+class jit : public HiseDspBase
+{
+public:
+
+	SET_HISE_NODE_ID("jit");
+	SET_HISE_NODE_EXTRA_HEIGHT(0);
+	GET_SELF_AS_OBJECT(jit);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	
+
+	jit() :
+		compiler(scope),
+		code(PropertyIds::Code, getDefaultCode())
+	{
+		
+	}
+
+	static String getDefaultCode()
+	{
+		String s;
+		String nl = "\n";
+		String emptyBracket;
+		emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
+
+		s << "void prepare(double sampleRate, int blockSize, int numChannels)" << nl;
+		s << emptyBracket;
+		
+		s << "void reset()" << nl;
+		s << emptyBracket;
+
+		s << "float processMono(float input)" << nl;
+		s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
+
+		s << "void processStereo(block frame)" << nl;
+		s << emptyBracket;
+
+		return s;
+	}
+
+	void updateCode(Identifier id, var newValue)
+	{
+		auto code = newValue.toString();
+
+		if (compiler.getLastCompiledCode() != code)
+		{
+			SpinLock::ScopedLockType sl(compileLock);
+
+			obj = compiler.compileJitObject(code);
+
+			{
+				using namespace hnode::Types;
+
+				prepareFunction = obj["prepare"];
+
+				if (!prepareFunction.matchesArgumentTypes(ID::Void, { ID::Double, ID::Integer, ID::Integer }))
+					prepareFunction = {};
+
+				resetFunction = obj["reset"];
+
+				if (!resetFunction.matchesArgumentTypes(ID::Void, {}))
+					resetFunction = {};
+
+				monoFunction = obj["processMono"];
+
+				if (!monoFunction.matchesArgumentTypes(ID::Float, { ID::Float }))
+					monoFunction = {};
+
+				stereoFunction = obj["processStereo"];
+
+				if (!stereoFunction.matchesArgumentTypes(ID::Void, { ID::Block }))
+					stereoFunction = {};
+			}
+		}
+	}
+
+	void prepare(PrepareSpecs specs)
+	{
+		SpinLock::ScopedLockType sl(compileLock);
+
+		if (prepareFunction)
+			prepareFunction.callVoid(specs.sampleRate, specs.blockSize, specs.numChannels);
+	}
+
+	void createParameters(Array<ParameterData>& data) override
+	{
+		code.init(nullptr, this);
+		
+	}
+
+	void initialise(NodeBase* n)
+	{
+		code.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(jit::updateCode));
+		code.init(n, this);
+	}
+
+	bool handleModulation(double& v)
+	{
+		return false;
+	}
+
+	void reset()
+	{
+		SpinLock::ScopedLockType sl(compileLock);
+
+		if (resetFunction)
+			resetFunction.callVoid();
+	}
+
+	void process(ProcessData& d)
+	{
+		SpinLock::ScopedLockType sl(compileLock);
+
+		if (d.numChannels == 1 && monoFunction)
+		{
+			for (int i = 0; i < d.size; i++)
+				d.data[0][i] = monoFunction.callUnchecked<float>(d.data[0][i]);
+		}
+		if (d.numChannels == 2 && stereoFunction)
+		{
+			for (int i = 0; i < d.size; i++)
+			{
+				float frame[2];
+				frame[0] = d.data[0][i];
+				frame[1] = d.data[1][i];
+				
+				stereoFunction.callVoidUnchecked(hnode::block(frame, 2));
+
+				d.data[0][i] = frame[0];
+				d.data[1][i] = frame[1];
+			}
+		}
+	}
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		SpinLock::ScopedLockType sl(compileLock);
+
+		if (numChannels == 1 && monoFunction)
+			frameData[0] = monoFunction.callUnchecked<float>(frameData[0]);
+		else if (numChannels == 2 && stereoFunction)
+			stereoFunction.callVoidUnchecked(hnode::block(frameData, 2));
+	}
+
+	SpinLock compileLock;
+
+	using Func = hnode::jit::FunctionData;
+
+	hnode::jit::GlobalScope scope;
+	hnode::jit::Compiler compiler;
+	hnode::jit::JitObject obj;
+
+	NodePropertyT<String> code;
+	
+	Func stereoFunction;
+	Func monoFunction;
+	Func resetFunction;
+	Func prepareFunction;
+	Func eventFunction;
+	Func modFunction;
+};
+
 template <int NV> class ramp_impl : public HiseDspBase
 {
 public:
@@ -302,6 +464,8 @@ scriptnode::core::smoother_impl<NV>::smoother_impl():
 }
 
 DEFINE_EXTERN_NODE_TEMPLATE(smoother, smoother_poly, smoother_impl);
+
+
 
 
 template <int V> class ramp_envelope_impl : public HiseDspBase

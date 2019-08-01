@@ -84,6 +84,9 @@ public:
 	{
 		NewClassParser parser(this, code);
 
+		if(newScope == nullptr)
+			newScope = new JitCompiledFunctionClass(memoryPool);
+
 		try
 		{
 			setCurrentPass(BaseCompiler::Parsing);
