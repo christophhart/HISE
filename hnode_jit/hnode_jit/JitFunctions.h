@@ -41,35 +41,6 @@ using namespace juce;
 /** A wrapper around a function. */
 struct FunctionData
 {
-#if 0
-	template<typename T>
-	void loadBrush_sub_impl()
-	{
-		// do some work here
-	}
-
-	template<typename... Targs>
-	void loadBrush_sub();
-
-	template<typename T, typename... V>
-	void loadBrush_sub_helper()
-	{
-		loadBrush_sub_impl<T>();
-		loadBrush_sub<V...>();
-	}
-
-	template<typename... Targs>
-	void loadBrush_sub()
-	{
-		loadBrush_sub_helper<Targs...>();
-	}
-
-	template<>
-	void loadBrush_sub<>()
-	{
-	}
-#endif
-
 	template <typename T> void addArgs()
 	{
 		args.add(Types::Helpers::getTypeFromTypeId<T>());

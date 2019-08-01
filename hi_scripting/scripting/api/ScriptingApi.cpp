@@ -2054,7 +2054,6 @@ var ScriptingApi::Sampler::createListFromGUISelection()
 			newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
 	}
 	
-
 	return newSelection;
 #else
 	return {};

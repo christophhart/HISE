@@ -105,9 +105,12 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 		stereoCopy.copyFrom(0, 0, buffer, 0, 0, buffer.getNumSamples());
 		stereoCopy.copyFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
 
-		getDelayedRenderer().processWrapped(stereoCopy, midiMessages);
-
-		buffer.copyFrom(0, 0, stereoCopy, 0, 0, buffer.getNumSamples());
+        AudioSampleBuffer smallBuffer(stereoCopy.getArrayOfWritePointers(), 2, buffer.getNumSamples());
+        
+        getDelayedRenderer().processWrapped(smallBuffer, midiMessages);
+        
+        buffer.copyFrom(0, 0, stereoCopy, 0, 0, buffer.getNumSamples());
+        
 	}
 	else
 	{
