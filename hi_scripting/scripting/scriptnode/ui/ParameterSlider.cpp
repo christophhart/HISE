@@ -95,7 +95,7 @@ ParameterSlider::~ParameterSlider()
     removeListener(this);
 }
 
-void ParameterSlider::updateOnConnectionChange(ValueTree& p, bool wasAdded)
+void ParameterSlider::updateOnConnectionChange(ValueTree p, bool wasAdded)
 {
 	if (!matchesConnection(p))
 		return;

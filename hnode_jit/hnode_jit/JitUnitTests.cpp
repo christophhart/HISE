@@ -67,7 +67,7 @@ public:
 
 		if (auto f = func["test"])
 		{
-			ReturnType v = f.call<ReturnType>(input);
+			ReturnType v = f.template call<ReturnType>(input);
 
 			if (!(v == expected))
 			{

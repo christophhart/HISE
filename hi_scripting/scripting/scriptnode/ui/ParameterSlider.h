@@ -130,7 +130,7 @@ struct ParameterSlider : public Slider,
 	ParameterSlider(NodeBase* node_, int index);
     ~ParameterSlider();
     
-	void updateOnConnectionChange(ValueTree& p, bool wasAdded);
+	void updateOnConnectionChange(ValueTree p, bool wasAdded);
 
 	void updateOnOpTypeChange(Identifier id, var newValue);
 

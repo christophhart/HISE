@@ -215,7 +215,7 @@ struct MacroPropertyEditor : public Component,
 			connectionData = data.getChildWithName(childDataId);
 
 			connectionListener.setCallback(connectionData, valuetree::AsyncMode::Asynchronously,
-				[this](ValueTree& v, bool wasAdded)
+				[this](ValueTree v, bool wasAdded)
 			{ 
 				if (!wasAdded)
 					connectionArray.removeAllInstancesOf(v);

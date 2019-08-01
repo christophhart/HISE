@@ -72,6 +72,9 @@ END_JUCE_MODULE_DECLARATION
 
 #pragma once
 
+
+#define IF_CONSTEXPR if
+
 #include "AppConfig.h"
 
 #ifndef HNODE_BOOL_IS_NOT_INT

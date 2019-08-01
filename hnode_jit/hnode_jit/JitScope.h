@@ -38,12 +38,12 @@ using namespace juce;
 using namespace asmjit;
 
 
-#define HNODE_JIT_ADD_C_FUNCTION_0(rt, ptr, name) addFunction(new FunctionData(FunctionData::createWithoutParameters<rt>(name, static_cast<rt(*)()>(ptr))))
+#define HNODE_JIT_ADD_C_FUNCTION_0(rt, ptr, name) addFunction(new FunctionData(FunctionData:: template createWithoutParameters<rt>(name, reinterpret_cast<void*>(ptr))))
 
-#define HNODE_JIT_ADD_C_FUNCTION_1(rt, ptr, argType1, name) addFunction(new FunctionData(FunctionData::create<rt, argType1>(name, static_cast<rt(*)(argType1)>(ptr))))
+#define HNODE_JIT_ADD_C_FUNCTION_1(rt, ptr, argType1, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1>(name, static_cast<rt(*)(argType1)>(ptr))))
 
-#define HNODE_JIT_ADD_C_FUNCTION_2(rt, ptr, argType1, argType2, name) addFunction(new FunctionData(FunctionData::create<rt, argType1, argType2>(name, static_cast<rt(*)(argType1, argType2)>(ptr))));
-#define HNODE_JIT_ADD_C_FUNCTION_3(rt, ptr, argType1, argType2, argType3, name) addFunction(new FunctionData(FunctionData::create<rt, argType1, argType2, argType3>(name, static_cast<rt(*)(argType1, argType2, argType3)>(ptr))));
+#define HNODE_JIT_ADD_C_FUNCTION_2(rt, ptr, argType1, argType2, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2>(name, static_cast<rt(*)(argType1, argType2)>(ptr))));
+#define HNODE_JIT_ADD_C_FUNCTION_3(rt, ptr, argType1, argType2, argType3, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2, argType3>(name, static_cast<rt(*)(argType1, argType2, argType3)>(ptr))));
 
 
 class ConsoleFunctions : public FunctionClass
@@ -178,7 +178,7 @@ public:
 		nf->returnType = Types::ID::Void;
 		nf->args.add(Types::ID::Event);
 		nf->args.add(Types::ID::Integer);
-		nf->function = Wrapper::setNoteNumber;
+		nf->function = reinterpret_cast<void*>(Wrapper::setNoteNumber);
 		nf->id = "setNoteNumber";
 
 		addFunction(nf);

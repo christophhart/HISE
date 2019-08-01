@@ -47,7 +47,7 @@ template <typename... Processors> struct multi: public container_base<Processors
 
 	void initialise(NodeBase* b)
 	{
-		init_each(b, indexes);
+		this->init_each(b, this->indexes);
 	}
 
 	template <class T> void process_multi(T& obj, ProcessData& d, int& channelIndex)
@@ -77,7 +77,7 @@ template <typename... Processors> struct multi: public container_base<Processors
 	void process_each_multi(ProcessData& d, int& channelIndex, std::index_sequence<Ns...>) {
 		using swallow = int[];
 		(void)swallow {
-			1, (process_multi(std::get<Ns>(processors), d, channelIndex), void(), int{})...
+			1, (process_multi(std::get<Ns>(this->processors), d, channelIndex), void(), int{})...
 		};
 	}
 
@@ -85,30 +85,30 @@ template <typename... Processors> struct multi: public container_base<Processors
 	void process_single_each_multi(float* data, int& channelIndex, std::index_sequence<Ns...>) {
 		using swallow = int[];
 		(void)swallow {
-			1, (process_single_multi(std::get<Ns>(processors), data, channelIndex), void(), int{})...
+			1, (process_single_multi(std::get<Ns>(this->processors), data, channelIndex), void(), int{})...
 		};
 	}
 
 	void process(ProcessData& d)
 	{
 		int channelIndex = 0;
-		process_each_multi(d, channelIndex, indexes);
+		process_each_multi(d, channelIndex, this->indexes);
 	}
 
 	void processSingle(float* data, int )
 	{
 		int channelIndex = 0;
-		process_single_each_multi(data, channelIndex, indexes);
+		process_single_each_multi(data, channelIndex, this->indexes);
 	}
 
 	void reset()
 	{
-		reset_each(indexes);
+		this->reset_each(this->indexes);
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
-		prepare_each(ps, indexes);
+		this->prepare_each(ps, this->indexes);
 	}
 
 	bool handleModulation(double& value)
@@ -118,7 +118,7 @@ template <typename... Processors> struct multi: public container_base<Processors
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		handle_event_each(e, indexes);
+		this->handle_event_each(e, this->indexes);
 	}
 };
 

@@ -34,6 +34,8 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+namespace dynamics
+{
 
 struct DynamicHelpers
 {
@@ -60,14 +62,14 @@ struct DynamicHelpers
 
 
 template <class DynamicProcessorType>
-Identifier scriptnode::DynamicsNodeBase<DynamicProcessorType>::getStaticId()
+Identifier dynamics_wrapper<DynamicProcessorType>::getStaticId()
 {
 	DynamicProcessorType* t = nullptr;
 	return DynamicHelpers::getId(t);
 }
 
 template <class DynamicProcessorType>
-void scriptnode::DynamicsNodeBase<DynamicProcessorType>::createParameters(Array<ParameterData>& data)
+void dynamics_wrapper<DynamicProcessorType>::createParameters(Array<ParameterData>& data)
 {
 	{
 		ParameterData p("Threshhold");
@@ -119,32 +121,32 @@ void scriptnode::DynamicsNodeBase<DynamicProcessorType>::createParameters(Array<
 }
 
 template <class DynamicProcessorType>
-Component* scriptnode::DynamicsNodeBase<DynamicProcessorType>::createExtraComponent(PooledUIUpdater* updater)
+Component* dynamics_wrapper<DynamicProcessorType>::createExtraComponent(PooledUIUpdater* updater)
 {
 	return new ModulationSourcePlotter(updater);
 }
 
 template <class DynamicProcessorType>
-bool scriptnode::DynamicsNodeBase<DynamicProcessorType>::handleModulation(double& max) noexcept
+bool dynamics_wrapper<DynamicProcessorType>::handleModulation(double& max) noexcept
 {
 	max = jlimit(0.0, 1.0, 1.0 - obj.getGainReduction());
 	return true;
 }
 
 template <class DynamicProcessorType>
-void scriptnode::DynamicsNodeBase<DynamicProcessorType>::prepare(PrepareSpecs ps)
+void dynamics_wrapper<DynamicProcessorType>::prepare(PrepareSpecs ps)
 {
 	obj.setSampleRate(ps.sampleRate);
 }
 
 template <class DynamicProcessorType>
-void scriptnode::DynamicsNodeBase<DynamicProcessorType>::reset() noexcept
+void dynamics_wrapper<DynamicProcessorType>::reset() noexcept
 {
 	obj.initRuntime();
 }
 
 template <class DynamicProcessorType>
-void scriptnode::DynamicsNodeBase<DynamicProcessorType>::process(ProcessData& d)
+void dynamics_wrapper<DynamicProcessorType>::process(ProcessData& d)
 {
 	if (d.numChannels >= 2)
 	{
@@ -169,7 +171,7 @@ void scriptnode::DynamicsNodeBase<DynamicProcessorType>::process(ProcessData& d)
 }
 
 template <class DynamicProcessorType>
-void scriptnode::DynamicsNodeBase<DynamicProcessorType>::processSingle(float* data, int numChannels)
+void dynamics_wrapper<DynamicProcessorType>::processSingle(float* data, int numChannels)
 {
 	if (numChannels == 2)
 	{
@@ -187,32 +189,32 @@ void scriptnode::DynamicsNodeBase<DynamicProcessorType>::processSingle(float* da
 }
 
 template <class DynamicProcessorType>
-scriptnode::DynamicsNodeBase<DynamicProcessorType>::DynamicsNodeBase()
+dynamics_wrapper<DynamicProcessorType>::dynamics_wrapper()
 {
 
 }
 
-DEFINE_EXTERN_MONO_TEMPIMPL(DynamicsNodeBase<chunkware_simple::SimpleGate>);
-DEFINE_EXTERN_MONO_TEMPIMPL(DynamicsNodeBase<chunkware_simple::SimpleComp>);
-DEFINE_EXTERN_MONO_TEMPIMPL(DynamicsNodeBase<chunkware_simple::SimpleLimit>);
+DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleGate>);
+DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleComp>);
+DEFINE_EXTERN_MONO_TEMPIMPL(dynamics_wrapper<chunkware_simple::SimpleLimit>);
 
-EnvelopeFollowerNode::EnvelopeFollowerNode() :
+envelope_follower::envelope_follower() :
 	envelope(20.0, 50.0)
 {
 
 }
 
-void EnvelopeFollowerNode::prepare(PrepareSpecs ps)
+void envelope_follower::prepare(PrepareSpecs ps)
 {
 	envelope.setSampleRate(ps.sampleRate);
 }
 
-forcedinline void EnvelopeFollowerNode::reset() noexcept
+forcedinline void envelope_follower::reset() noexcept
 {
 	envelope.reset();
 }
 
-void EnvelopeFollowerNode::process(ProcessData& d)
+void envelope_follower::process(ProcessData& d)
 {
 	for (int i = 0; i < d.size; i++)
 	{
@@ -228,7 +230,7 @@ void EnvelopeFollowerNode::process(ProcessData& d)
 	}
 }
 
-void EnvelopeFollowerNode::processSingle(float* data, int numChannels)
+void envelope_follower::processSingle(float* data, int numChannels)
 {
 	float input = 0.0;
 
@@ -240,7 +242,7 @@ void EnvelopeFollowerNode::processSingle(float* data, int numChannels)
 	FloatVectorOperations::fill(data, input, numChannels);
 }
 
-void EnvelopeFollowerNode::createParameters(Array<ParameterData>& data)
+void envelope_follower::createParameters(Array<ParameterData>& data)
 {
 	{
 		ParameterData p("Attack");
@@ -264,5 +266,7 @@ void EnvelopeFollowerNode::createParameters(Array<ParameterData>& data)
 		data.add(std::move(p));
 	}
 }
-
+    
+}
+    
 }

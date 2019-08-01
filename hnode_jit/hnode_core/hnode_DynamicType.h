@@ -59,9 +59,9 @@ public:
 
 	template <Types::ID expectedType> VariableStorage& store(const VariableStorage& other)
 	{
-		if constexpr (expectedType == Types::ID::Integer)
+		IF_CONSTEXPR (expectedType == Types::ID::Integer)
 			data.i.value = (int)other;
-		else if constexpr (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(= )
 		
 		return *this;
@@ -70,13 +70,13 @@ public:
 
 	template <Types::ID expectedType> VariableStorage& add(const VariableStorage& other)
 	{
-		if constexpr (expectedType == Types::ID::Integer)
+		IF_CONSTEXPR (expectedType == Types::ID::Integer)
 			data.i.value += (int)other;
-		else if constexpr (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(+=)
-		else if constexpr (expectedType == Types::ID::Block)
+		else IF_CONSTEXPR (expectedType == Types::ID::Block)
 			data.b + (block)other;
-		else if constexpr (expectedType == Types::ID::Signal)
+		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
 		{
 			if (other.getTypeValue() == Types::ID::Block)
 				data.b + (block)other;
@@ -89,7 +89,7 @@ public:
 
 	template <Types::ID expectedType> VariableStorage& and_(const VariableStorage& other)
 	{
-		if constexpr (expectedType == Types::ID::Integer)
+		IF_CONSTEXPR (expectedType == Types::ID::Integer)
 			data.i.value &= (int)other;
 		
 		return *this;
@@ -97,7 +97,7 @@ public:
 
 	template <Types::ID expectedType> VariableStorage& or_(const VariableStorage& other)
 	{
-		if constexpr (expectedType == Types::ID::Integer)
+		IF_CONSTEXPR (expectedType == Types::ID::Integer)
 			data.i.value |= (int)other;
 
 		return *this;
@@ -105,7 +105,7 @@ public:
 
 	template <Types::ID expectedType> VariableStorage& mod(const VariableStorage& other)
 	{
-		if constexpr (expectedType == Types::ID::Integer)
+		IF_CONSTEXPR (expectedType == Types::ID::Integer)
 			data.i.value %= (int)other;
 
 		return *this;
@@ -113,13 +113,13 @@ public:
 
 	template <Types::ID expectedType> VariableStorage& sub(const VariableStorage& other)
 	{
-		if constexpr (expectedType == Types::ID::Integer)
+		IF_CONSTEXPR (expectedType == Types::ID::Integer)
 			data.i.value -= (int)other;
-		else if constexpr (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(-=)
-		else if constexpr (expectedType == Types::ID::Block)
+		else IF_CONSTEXPR (expectedType == Types::ID::Block)
 			data.b - (block)other;
-		else if constexpr (expectedType == Types::ID::Signal)
+		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
 		{
 			if (other.getTypeValue() == Types::ID::Block)
 				data.b - (block)other;
@@ -132,11 +132,11 @@ public:
 
 	template <Types::ID expectedType> VariableStorage& div(const VariableStorage& other)
 	{
-		if constexpr (expectedType == Types::ID::Integer)
+		IF_CONSTEXPR (expectedType == Types::ID::Integer)
 			data.i.value /= (int)other;
-		else if constexpr (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(/=)
-		else if constexpr (expectedType == Types::ID::Signal)
+		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
 		{
 			if (other.getTypeValue() == Types::ID::Double)
 				data.b * (FloatType)(1.0 / (double)other);
@@ -147,13 +147,13 @@ public:
 
 	template <Types::ID expectedType> VariableStorage& mul(const VariableStorage& other)
 	{
-		if constexpr (expectedType == Types::ID::Integer)
+		IF_CONSTEXPR (expectedType == Types::ID::Integer)
 			data.i.value *= (int)other;
-		else if constexpr (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(*=)
-		else if constexpr (expectedType == Types::ID::Block)
+		else IF_CONSTEXPR (expectedType == Types::ID::Block)
 			data.b * (block)other;
-		else if constexpr (expectedType == Types::ID::Signal)
+		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
 		{
 			if (other.getTypeValue() == Types::ID::Block)
 				data.b * other.data.b;
@@ -185,13 +185,13 @@ public:
 
 	template <Types::ID TypeID> auto toType() const
 	{
-		if constexpr (TypeID == Types::ID::Float || TypeID == Types::ID::Float)
+		IF_CONSTEXPR (TypeID == Types::ID::Float || TypeID == Types::ID::Float)
 			return toFloat();
-		else if constexpr (TypeID == Types::ID::Integer)
+		else IF_CONSTEXPR (TypeID == Types::ID::Integer)
 			return toInt();
-		else if constexpr (TypeID == Types::ID::Block)
+		else IF_CONSTEXPR (TypeID == Types::ID::Block)
 			return toBlock();
-		else if constexpr (TypeID == Types::ID::Event)
+		else IF_CONSTEXPR (TypeID == Types::ID::Event)
 			return toEvent();
 		
 		return 0;

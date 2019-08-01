@@ -189,7 +189,7 @@ public:
 	{
 		auto f = JitCallableObject::createMemberFunctionForJitCode("getValue");
 		f->returnType = Types::ID::Float;
-		f->function = Wrappers::getValue;
+		f->function = reinterpret_cast<void*>(Wrappers::getValue);
 		f->args = {};
 
 		addFunction(f);

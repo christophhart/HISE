@@ -56,7 +56,9 @@ struct GlobalBase
 
 	template<typename T> static T store(GlobalBase* b, T newValue)
 	{
-		jassert(JITTypeHelpers::matchesType<T>(b->type));
+#if JUCE_WINDOWS
+		jassert(JITTypeHelpers::template matchesType<T>(b->type));
+#endif
 
 		T* castedData = reinterpret_cast<T*>(b->getDataPointer());
 		*castedData = newValue;
@@ -79,7 +81,9 @@ struct GlobalBase
 	
 	template<typename T> static T get(GlobalBase* b)
 	{
+#if JUCE_WINDOWS
 		jassert(JITTypeHelpers::matchesType<T>(b->type));
+#endif
 
 		return *reinterpret_cast<T*>(b->getDataPointer());
 	}

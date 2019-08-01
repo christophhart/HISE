@@ -380,7 +380,7 @@ struct DragHelpers
 		details->setProperty(PropertyIds::ID, sourceNodeId);
 		details->setProperty(PropertyIds::ParameterId, parameterId);
 		
-		return details;
+		return var(details.get());
 	}
 
 	static String getSourceNodeId(var dragDetails)

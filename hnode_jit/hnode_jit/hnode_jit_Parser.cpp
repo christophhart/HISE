@@ -238,7 +238,10 @@ hnode::VariableStorage BlockParser::parseVariableStorageLiteral()
 	else if (type == Types::ID::Double)
 		return VariableStorage(stringValue.getDoubleValue() * (!isMinus ? 1.0 : -1.0));
 	else if (type == Types::ID::Event)
-		return HiseEvent();
+    {
+        HiseEvent e;
+		return VariableStorage(e);
+    }
 	else if (type == Types::ID::Block)
 		return block();
 	else

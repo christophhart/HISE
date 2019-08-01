@@ -47,17 +47,17 @@ template <typename... Processors> struct chain: public container_base<Processors
 
 	void process(ProcessData& d)
 	{
-		process_each(d, indexes);
+		process_each(d, this->indexes);
 	}
 
 	void processSingle(float* data, int numChannels)
 	{
-		process_single_each(data, numChannels, indexes);
+		process_single_each(data, numChannels, this->indexes);
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
-		prepare_each(ps, indexes);
+		this->prepare_each(ps, this->indexes);
 	}
 
 	bool handleModulation(double& value)
@@ -67,7 +67,7 @@ template <typename... Processors> struct chain: public container_base<Processors
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		handle_event_each(e, indexes);
+		this->handle_event_each(e, this->indexes);
 	}
 
 private:
@@ -76,7 +76,7 @@ private:
 	void process_each(ProcessData& d, std::index_sequence<Ns...>) {
 		using swallow = int[];
 		(void)swallow {
-			1, (std::get<Ns>(processors).process(d), void(), int{})...
+			1, (std::get<Ns>(this->processors).process(d), void(), int{})...
 		};
 	}
 
@@ -84,7 +84,7 @@ private:
 	void process_single_each(float* d, int numChannels, std::index_sequence<Ns...>) {
 		using swallow = int[];
 		(void)swallow {
-			1, (std::get<Ns>(processors).processSingle(d, numChannels), void(), int{})...
+			1, (std::get<Ns>(this->processors).processSingle(d, numChannels), void(), int{})...
 		};
 	}
 };

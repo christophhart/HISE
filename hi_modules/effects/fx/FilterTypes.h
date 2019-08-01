@@ -555,6 +555,7 @@ private:
 		case LP: return lp;
 		case HP: return hp;
 		case Allpass: return lp + hp;
+        default: return 0.0f;
 		}
 	}
 

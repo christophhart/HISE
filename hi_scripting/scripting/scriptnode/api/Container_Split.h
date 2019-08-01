@@ -49,7 +49,7 @@ template <typename... Processors> struct split : public container_base<Processor
 		auto original = d.copyTo(splitBuffer, 0);
 		int channelCounter = 0;
 
-		process_split_each(d, original, channelCounter, indexes);
+		process_split_each(d, original, channelCounter, this->indexes);
 	}
 
 	void processSingle(float* data, int numChannels)
@@ -58,12 +58,12 @@ template <typename... Processors> struct split : public container_base<Processor
 		memcpy(original, data, sizeof(float)*numChannels);
 		int channelCounter = 0;
 
-		process_split_single_each(data, original, numChannels, channelCounter, indexes);
+		process_split_single_each(data, original, numChannels, channelCounter, this->indexes);
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
-		prepare_each(ps, indexes);
+		this->prepare_each(ps, this->indexes);
 
 		ps.numChannels *= 2;
 		DspHelpers::increaseBuffer(splitBuffer, ps);
@@ -76,7 +76,9 @@ template <typename... Processors> struct split : public container_base<Processor
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		handle_event_each_copy(e, indexes);
+        HiseEvent copy(e);
+        
+		handle_event_each_copy(copy, this->indexes);
 	}
 
 private:
@@ -85,7 +87,7 @@ private:
 	void handle_event_each_copy(HiseEvent& e, std::index_sequence<Ns...>) {
 		using swallow = int[];
 		(void)swallow {
-			1, (std::get<Ns>(processors).handleHiseEvent(HiseEvent(e)), void(), int{})...
+			1, (std::get<Ns>(this->processors).handleHiseEvent(e), void(), int{})...
 		};
 	}
 
@@ -118,7 +120,7 @@ private:
 	void process_split_each(ProcessData& d, ProcessData& original, int& channelCounter, std::index_sequence<Ns...>) {
 		using swallow = int[];
 		(void)swallow {
-			1, (process_node(std::get<Ns>(processors), d, original, channelCounter), void(), int{})...
+			1, (process_node(std::get<Ns>(this->processors), d, original, channelCounter), void(), int{})...
 		};
 	}
 
@@ -126,7 +128,7 @@ private:
 	void process_split_single_each(float* frameData, float* original, int numChannels, int& channelCounter, std::index_sequence<Ns...>) {
 		using swallow = int[];
 		(void)swallow {
-			1, (process_node(std::get<Ns>(processors), frameData, original, numChannels, channelCounter), void(), int{})...
+			1, (process_node(std::get<Ns>(this->processors), frameData, original, numChannels, channelCounter), void(), int{})...
 		};
 	}
 

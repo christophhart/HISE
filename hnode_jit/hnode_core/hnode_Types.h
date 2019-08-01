@@ -151,7 +151,7 @@ template <typename T> struct FloatingTypeBlock
 
 	static FloatingTypeBlock<T> createFromAudioSampleBuffer(AudioSampleBuffer* b)
 	{
-		if constexpr (sizeof(T) == 4)
+		IF_CONSTEXPR (sizeof(T) == 4)
 		{
 			return FloatingTypeBlock(*reinterpret_cast<AudioBuffer<T>*>(b));
 		}
@@ -205,7 +205,7 @@ template <typename T> struct FloatingTypeBlock
 		testBounds(offsetSrc + numToCopy, other.size()+1);
 		testBounds(offsetDst + numToCopy, size()+1);
 
-		if constexpr(sizeof(DataType) == sizeof(OtherData::DataType))
+		IF_CONSTEXPR (sizeof(DataType) == sizeof(OtherData::DataType))
 		{
 			FloatVectorOperations::copy(data + offsetDst, other.getData() + offsetSrc, numToCopy);
 		}
@@ -272,7 +272,7 @@ static forcedinline float max(float value1, float value2) { return jmax<float>(v
 static forcedinline float random() { return Random::getSystemRandom().nextFloat(); };
 
 static int round(int value) { return value; };
-static forcedinline int randInt(int low=0, int high=INT_MAX) { Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
+static forcedinline int randInt(int low=0, int high=INT_MAX) { return  Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
 
 
 static forcedinline double sin(double a) { return std::sin(a); }

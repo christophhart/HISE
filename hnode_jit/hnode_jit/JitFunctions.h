@@ -65,14 +65,14 @@ struct FunctionData
 
 		d.id = id;
 		d.returnType = Types::Helpers::getTypeFromTypeId<ReturnType>();
-		d.function = ptr;
+		d.function = reinterpret_cast<void*>(ptr);
 
 		return d;
 	}
 
-	template <typename ReturnType, typename...Parameters> static FunctionData create(const Identifier& id, void* ptr = nullptr)
+	template <typename ReturnType, typename...Parameters> static FunctionData create(const Identifier& id, ReturnType(*ptr)(Parameters...) = nullptr)
 	{
-		FunctionData d = createWithoutParameters<ReturnType>(id, ptr);
+		FunctionData d = createWithoutParameters<ReturnType>(id, reinterpret_cast<void*>(ptr));
 		d.addArgs<Parameters...>();
 		return d;
 	}

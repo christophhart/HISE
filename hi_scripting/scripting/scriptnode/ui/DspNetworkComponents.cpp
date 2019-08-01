@@ -595,13 +595,13 @@ bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
 
 	for (auto n : g.network->getSelection())
 	{
-		auto& tree = n->getValueTree();
+		auto tree = n->getValueTree();
 		insertIndex = jmax(insertIndex, tree.getParent().indexOf(tree));
 	}
 
 	for (auto n : g.network->getSelection())
 	{
-		auto& tree = n->getValueTree();
+		auto tree = n->getValueTree();
 		auto copy = n->getRootNetwork()->cloneValueTreeWithNewIds(tree);
 		n->getRootNetwork()->createFromValueTree(true, copy, true);
 		tree.getParent().addChild(copy, insertIndex, n->getUndoManager());

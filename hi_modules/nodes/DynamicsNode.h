@@ -36,17 +36,20 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
-template <class DynamicProcessorType> class DynamicsNodeBase : public HiseDspBase
+namespace dynamics
+{
+    
+template <class DynamicProcessorType> class dynamics_wrapper : public HiseDspBase
 {
 public:
 
 	static Identifier getStaticId();
 
 	SET_HISE_NODE_EXTRA_HEIGHT(30);
-	GET_SELF_AS_OBJECT(DynamicsNodeBase<DynamicProcessorType>);
+	GET_SELF_AS_OBJECT(dynamics_wrapper<DynamicProcessorType>);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
-	DynamicsNodeBase();
+	dynamics_wrapper();
 
 	void createParameters(Array<ParameterData>& data);
 	Component* createExtraComponent(PooledUIUpdater* updater) override;
@@ -59,16 +62,16 @@ public:
 	DynamicProcessorType obj;
 };
 
-class EnvelopeFollowerNode : public HiseDspBase
+class envelope_follower : public HiseDspBase
 {
 public:
 
 	SET_HISE_NODE_ID("envelope_follower");
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
-	GET_SELF_AS_OBJECT(EnvelopeFollowerNode);
+	GET_SELF_AS_OBJECT(envelope_follower);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-	EnvelopeFollowerNode();
+	envelope_follower();
 
 	bool handleModulation(double&) noexcept { return false; };
 	void prepare(PrepareSpecs ps) override;
@@ -80,14 +83,11 @@ public:
 	EnvelopeFollower::AttackRelease envelope;
 };
 
-namespace dynamics
-{
 
-DEFINE_EXTERN_MONO_TEMPLATE(gate, DynamicsNodeBase<chunkware_simple::SimpleGate>);
-DEFINE_EXTERN_MONO_TEMPLATE(comp, DynamicsNodeBase<chunkware_simple::SimpleComp>);
-DEFINE_EXTERN_MONO_TEMPLATE(limiter, DynamicsNodeBase<chunkware_simple::SimpleLimit>);
-
-using envelope_follower = EnvelopeFollowerNode;
+DEFINE_EXTERN_MONO_TEMPLATE(gate, dynamics_wrapper<chunkware_simple::SimpleGate>);
+DEFINE_EXTERN_MONO_TEMPLATE(comp, dynamics_wrapper<chunkware_simple::SimpleComp>);
+DEFINE_EXTERN_MONO_TEMPLATE(limiter, dynamics_wrapper<chunkware_simple::SimpleLimit>);
+;
 }
 
 
