@@ -117,6 +117,34 @@ private:
 
 };
 
+template <int V> class phase_delay_impl : public HiseDspBase
+{
+public:
+
+	static constexpr int NumVoices = V;
+
+	SET_HISE_NODE_EXTRA_HEIGHT(0);
+	SET_HISE_POLY_NODE_ID("phase_delay");
+	GET_SELF_AS_OBJECT(phase_delay_impl);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	phase_delay_impl();
+
+	void initialise(NodeBase* n);
+	void prepare(PrepareSpecs ps);
+	void process(ProcessData& d);
+	void reset() noexcept;;
+	void processSingle(float* numFrames, int numChannels);
+	bool handleModulation(double&) noexcept;;
+	void createParameters(Array<ParameterData>& data) override;
+
+	void setFrequency(double frequency);
+
+	PolyData<AllpassDelay, NumVoices> delays[2];
+	double sr = 44100.0;
+};
+
+DEFINE_EXTERN_NODE_TEMPLATE(phase_delay, phase_delay_poly, phase_delay_impl);
 
 DEFINE_EXTERN_NODE_TEMPLATE(bitcrush, bitcrush_poly, bitcrush_impl);
 

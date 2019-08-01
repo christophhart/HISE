@@ -58,7 +58,9 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<sampleandhold, sampleandhold_poly>({});
 	registerPolyNode<bitcrush, bitcrush_poly>({});
 	registerPolyNode<haas, haas_poly>({});
+	registerPolyNode<phase_delay, phase_delay_poly>({});
 	registerNode<reverb>({});
+	
 }
 
 

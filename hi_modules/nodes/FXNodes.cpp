@@ -231,6 +231,110 @@ void bitcrush_impl<V>::initialise(NodeBase* n)
 DEFINE_EXTERN_NODE_TEMPIMPL(bitcrush_impl)
 
 template <int V>
+phase_delay_impl<V>::phase_delay_impl()
+{
+
+}
+
+template <int V>
+void phase_delay_impl<V>::initialise(NodeBase* n)
+{
+	
+}
+
+template <int V>
+void phase_delay_impl<V>::prepare(PrepareSpecs ps)
+{
+	sr = ps.sampleRate * 0.5;
+	delays[0].prepare(ps);
+	delays[1].prepare(ps);
+}
+
+template <int V>
+void phase_delay_impl<V>::process(ProcessData& d)
+{
+	int numChannels = jmin(2, d.numChannels);
+
+	for (int c = 0; c < numChannels; c++)
+	{
+		auto ptr = d.data[c];
+		auto& dl = delays[c].get();
+
+		for (int i = 0; i < d.size; i++)
+			*ptr++ = dl.getNextSample(*ptr);
+	}
+}
+
+template <int V>
+void scriptnode::fx::phase_delay_impl<V>::reset() noexcept
+{
+	if (delays[0].isVoiceRenderingActive())
+	{
+		delays[0].get().reset();
+		delays[1].get().reset();
+	}
+	else
+	{
+		auto f = [](AllpassDelay& d) { d.reset(); };
+		delays[0].forEachVoice(f);
+		delays[1].forEachVoice(f);
+	}
+}
+
+template <int V>
+void phase_delay_impl<V>::processSingle(float* numFrames, int numChannels)
+{
+	numChannels = jmin(2, numChannels);
+
+	for (int i = 0; i < numChannels; i++)
+		numFrames[i] = delays[i].get().getNextSample(numFrames[i]);
+}
+
+template <int V>
+bool phase_delay_impl<V>::handleModulation(double&) noexcept
+{
+	return false;
+}
+
+template <int V>
+void phase_delay_impl<V>::createParameters(Array<ParameterData>& data)
+{
+	{
+		ParameterData p("Frequency");
+		p.range = { 20.0, 20000.0, 0.1 };
+		p.range.setSkewForCentre(1000.0);
+		p.defaultValue = 400.0;
+		p.db = BIND_MEMBER_FUNCTION_1(phase_delay_impl::setFrequency);
+
+		data.add(std::move(p));
+	}
+}
+
+template <int V>
+void phase_delay_impl<V>::setFrequency(double newFrequency)
+{
+	newFrequency /= sr;
+
+	auto coefficient = AllpassDelay::getDelayCoefficient(newFrequency);
+
+	if (delays[0].isVoiceRenderingActive())
+	{
+		delays[0].get().setDelay(coefficient);
+		delays[1].get().setDelay(coefficient);
+	}
+		
+	else
+	{
+		auto f = [coefficient](AllpassDelay& d) {d.setDelay(coefficient); };
+		delays[0].forEachVoice(f);
+		delays[1].forEachVoice(f);
+	}
+		
+}
+
+DEFINE_EXTERN_NODE_TEMPIMPL(phase_delay_impl);
+
+template <int V>
 void haas_impl<V>::setPosition(double newValue)
 {
 	position = newValue;
