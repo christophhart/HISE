@@ -114,6 +114,7 @@ public:
 	StringArray getListOfAllAvailableModuleIds() const;
 	StringArray getListOfUsedNodeIds() const;
 	StringArray getListOfUnusedNodeIds() const;
+	StringArray getFactoryList() const;
 
 	template <class T> NodeBase::List getListOfNodesWithType(bool includeUsedNodes)
 	{

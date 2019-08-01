@@ -59,6 +59,7 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../hi_sampler/hi_sampler.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
+#include "../hnode_jit/hnode_jit.h"
 
 #if INCLUDE_NATIVE_JIT
 #include "../hi_native_jit/hi_native_jit_public.h"

@@ -267,10 +267,14 @@ struct NodeBase : public ConstScriptingObject
 	void setBypassed(bool shouldBeBypassed);
 	bool isBypassed() const noexcept;
 
+	int getIndexInParent() const;
+
 	bool isConnected() const { return v_data.getParent().isValid(); }
 	void setValueTreeProperty(const Identifier& id, const var value);
 
 	void setDefaultValue(const Identifier& id, var newValue);
+
+	void setNodeProperty(const Identifier& id, const var& newValue);
 
 	virtual bool isPolyphonic() const { return false; }
 

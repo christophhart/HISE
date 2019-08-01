@@ -80,6 +80,8 @@ public:
 
 	bool shouldScaleModulationValue() const noexcept { return scaleModulationValue; }
 
+	virtual bool isUsingModulation() const { return false; }
+
 private:
 
 	double sampleRateFactor = 1.0;

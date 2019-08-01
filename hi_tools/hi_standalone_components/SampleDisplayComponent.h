@@ -63,15 +63,15 @@ public:
 
 		VariantBuffer::Ptr l = new VariantBuffer(data[0], buffer->getNumSamples());
 
-		var lVar = var(l);
+		var lVar = var(l.get());
 		var rVar;
 
-		thumbnail.lBuffer = var(l);
+		thumbnail.lBuffer = var(l.get());
 
 		if (data[1] != nullptr)
 		{
 			VariantBuffer::Ptr r = new VariantBuffer(data[1], buffer->getNumSamples());
-			thumbnail.rBuffer = var(r);
+			thumbnail.rBuffer = var(r.get());
 		}
 
 		thumbnail.setDrawHorizontalLines(true);

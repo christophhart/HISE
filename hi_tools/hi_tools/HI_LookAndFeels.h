@@ -452,7 +452,7 @@ protected:
 
 	
 
-	Font getComboBoxFont(ComboBox & c) override
+	Font getComboBoxFont(ComboBox & ) override
 	{
 		return comboBoxFont;
 	}
@@ -728,7 +728,7 @@ public:
 	Font labelFont;
 	Font popupMenuFont;
 
-   
+	Colour propertyBgColour = Colour(0xff3d3d3d);
 };
 
 
@@ -1561,6 +1561,12 @@ public:
 
 	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool);
 
+	void drawButtonText(Graphics& g, TextButton& b, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
+	{
+		g.setColour(Colours::white);
+		g.setFont(f);
+		g.drawText(b.getButtonText(), b.getLocalBounds().toFloat(), Justification::centred);
+	}
 
 	Colour textColour;
 	Font f;

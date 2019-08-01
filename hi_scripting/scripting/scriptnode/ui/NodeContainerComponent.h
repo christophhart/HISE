@@ -39,7 +39,8 @@ using namespace juce;
 using namespace hise;
 
 struct MacroPropertyEditor : public Component,
-							 public TextEditor::Listener
+							 public TextEditor::Listener,
+							 public ButtonListener
 {
 	struct ConnectionEditor : public Component,
 							  public ButtonListener
@@ -164,10 +165,7 @@ struct MacroPropertyEditor : public Component,
 			b.removeFromTop(5);
 
 			auto titleArea = b.removeFromTop(30).toFloat();
-
-			g.setColour(Colours::black.withAlpha(0.2f));
-			g.fillRoundedRectangle(titleArea, 3.0f);
-
+			titleArea.removeFromLeft(16);
 			g.setColour(Colours::white);
 			g.drawText("Connections", titleArea, Justification::centred);
 
@@ -209,7 +207,8 @@ struct MacroPropertyEditor : public Component,
 		node(b),
 		connectionContent(*this),
 		containerMode(dynamic_cast<NodeContainer*>(b) != nullptr || childDataId == PropertyIds::ModulationTargets),
-		resizer(this, &constrainer)
+		resizer(this, &constrainer),
+		connectionButton("Add connection")
 	{
 		if (containerMode)
 		{
@@ -229,18 +228,18 @@ struct MacroPropertyEditor : public Component,
 		}
 		else
 		{
-			bool found = false;
-
 			for (int i = 0; i < b->getNumParameters(); i++)
 			{
-				auto p = b->getParameter(i);
+				
 
-				if (found)
+				if (parameter != nullptr)
 					break;
+
+				auto p = b->getParameter(i);
 
 				if (p->data == data)
 				{
-					found = true;
+					parameter = p;
 
 					auto list = p->getConnectedMacroParameters();
 
@@ -261,7 +260,15 @@ struct MacroPropertyEditor : public Component,
 		addAndMakeVisible(connectionViewport);
 		connectionViewport.setViewedComponent(&connectionContent, false);
 
-		int height = jmin(700, connectionArray.isEmpty() ? 50 : (140 + (connectionArray.size() * 110)));
+		int height = jmin(700, connectionArray.isEmpty() ? 10 : (100 + (connectionArray.size() * 110)));
+
+		if (!containerMode)
+		{
+			height += 32;
+			addAndMakeVisible(connectionButton);
+			connectionButton.setLookAndFeel(&blaf);
+			connectionButton.addListener(this);
+		}
 
 		setSize(parameterProperties.getWidth() + connectionViewport.getScrollBarThickness(), parameterProperties.getHeight() + height);
 
@@ -273,6 +280,8 @@ struct MacroPropertyEditor : public Component,
 		rebuildConnections();
 	}
 
+	void buttonClicked(Button* b) override;
+
 	~MacroPropertyEditor()
 	{
 		
@@ -280,18 +289,6 @@ struct MacroPropertyEditor : public Component,
 
 	void paint(Graphics& g) override
 	{
-		auto titleArea = getLocalBounds().removeFromTop(40);
-		g.setColour(Colours::black.withAlpha(0.2f));
-		g.fillRoundedRectangle(titleArea.toFloat(), 3.0f);
-
-		g.setColour(Colours::white);
-		g.setFont(GLOBAL_BOLD_FONT().withHeight(15.0f));
-
-		
-
-		
-
-		g.drawText("Parameter Properties", titleArea.toFloat(), Justification::centred);
 	}
 
 	void resized() override
@@ -299,11 +296,14 @@ struct MacroPropertyEditor : public Component,
 		connectionViewport.setVisible(!connectionArray.isEmpty());
 		resizer.setVisible(connectionArray.size() > 2);
 
-		parameterProperties.setTopLeftPosition(0, 40);
+		parameterProperties.setTopLeftPosition(0, 0);
 		int y = parameterProperties.getBottom();
 
 		auto b = getLocalBounds();
 		b.removeFromTop(y);
+
+		if(!containerMode)
+			connectionButton.setBounds(b.removeFromBottom(32));
 
 		connectionViewport.setBounds(b);
 
@@ -372,6 +372,7 @@ struct MacroPropertyEditor : public Component,
 	
 	bool containerMode = false;
 
+	NodeBase::Parameter* parameter = nullptr;
 	NodeBase::Ptr node;
 	ValueTree connectionData;
 	Array<ValueTree> connectionArray;
@@ -386,6 +387,9 @@ struct MacroPropertyEditor : public Component,
 
 	ComponentBoundsConstrainer constrainer;
 	juce::ResizableCornerComponent resizer;
+
+	TextButton connectionButton;
+	hise::BlackTextButtonLookAndFeel blaf;
 };
 
 
@@ -450,6 +454,7 @@ public:
 					p.setProperty(PropertyIds::MinValue, 0.0, nullptr);
 					p.setProperty(PropertyIds::MaxValue, 1.0, nullptr);
 					p.setProperty(PropertyIds::StepSize, 0.01, nullptr);
+					p.setProperty(PropertyIds::SkewFactor, 1.0, nullptr);
 					p.setProperty(PropertyIds::Value, 1.0, nullptr);
 					parameterTree.addChild(p, -1, parent.node->getUndoManager());
 				}
@@ -561,6 +566,8 @@ public:
 	void setDropTarget(Point<int> position);
 	void clearDropTarget();
 
+	virtual Rectangle<float> getInsertRuler(int position) const { jassertfalse; return {}; }
+
 	void resized() override
 	{
 		NodeComponent::resized();
@@ -577,6 +584,8 @@ public:
 		b.removeFromTop(UIValues::HeaderHeight);
 		parameters.setBounds(b.removeFromTop(UIValues::ParameterHeight));
 	}
+
+	int getCurrentAddPosition() const { return addPosition; }
 
 protected:
 
@@ -619,7 +628,7 @@ struct SerialNodeComponent : public ContainerComponent
 	SerialNodeComponent(SerialNode* node);
 
 	int getInsertPosition(Point<int> position) const override;
-	Rectangle<float> getInsertRuler(int position) const;
+	Rectangle<float> getInsertRuler(int position) const override;
 
 	void resized() override;
 	void paintSerialCable(Graphics& g, int cableIndex);
@@ -632,7 +641,7 @@ struct ParallelNodeComponent : public ContainerComponent
 
 	bool isMultiChannelNode() const;
 	int getInsertPosition(Point<int> position) const override;
-	Rectangle<float> getInsertRuler(int position);
+	Rectangle<float> getInsertRuler(int position) const override;
 
 	void resized() override;
 	void paint(Graphics& g) override;
@@ -646,7 +655,7 @@ struct ModChainNodeComponent : public ContainerComponent
 	bool isMultiChannelNode() const { return false; }
 
 	int getInsertPosition(Point<int> position) const override;
-	Rectangle<float> getInsertRuler(int position);
+	Rectangle<float> getInsertRuler(int position) const override;
 
 	void resized() override;
 	void paint(Graphics& g) override;

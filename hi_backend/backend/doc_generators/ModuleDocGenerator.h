@@ -195,6 +195,8 @@ struct Resolver : public MarkdownParser::LinkResolver,
 
 	String getContent(const MarkdownLink& url) override;
 
+	bool inlineDocMode = false;
+
 	MarkdownLink rootUrl;
 	File root;
 };

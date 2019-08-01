@@ -39,6 +39,8 @@ using namespace hise;
 using namespace juce;
 
 
+
+
 class NodeComponent : public Component,
 					  public DspNetwork::SelectionListener
 {
@@ -57,6 +59,8 @@ public:
 		WrapIntoMulti,
 		WrapIntoFrame,
 		WrapIntoOversample4,
+		SurroundWithFeedback,
+		SurroundWithMSDecoder,
 		numMenuActions
 	};
 
@@ -194,6 +198,8 @@ public:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeComponent);
 };
+
+
 
 
 struct DeactivatedComponent : public NodeComponent

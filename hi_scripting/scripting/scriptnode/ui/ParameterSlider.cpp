@@ -258,10 +258,12 @@ void ParameterSlider::mouseDown(const MouseEvent& e)
 
 		pe->setName("Edit Parameter");
 
+		
+
 		auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
 		auto b = g->getLocalArea(this, getLocalBounds());
 
-		CallOutBox::launchAsynchronously(pe, b, g);
+		g->setCurrentModalWindow(pe, b);
 	}
 	else
 		Slider::mouseDown(e);
@@ -300,6 +302,9 @@ void ParameterSlider::sliderValueChanged(Slider*)
 
 juce::String ParameterSlider::getTextFromValue(double value)
 {
+	if (parameterToControl == nullptr)
+		return "Empty";
+
 	if (parameterToControl->valueNames.isEmpty())
 		return Slider::getTextFromValue(value);
 
@@ -309,6 +314,9 @@ juce::String ParameterSlider::getTextFromValue(double value)
 
 double ParameterSlider::getValueFromText(const String& text)
 {
+	if (parameterToControl == nullptr)
+		return 0.0;
+
 	if (parameterToControl->valueNames.contains(text))
 		return (double)parameterToControl->valueNames.indexOf(text);
 
@@ -416,12 +424,9 @@ void MacroParameterSlider::mouseDrag(const MouseEvent& event)
 	{
 		if (auto container = DragAndDropContainer::findParentDragContainerFor(this))
 		{
-			DynamicObject::Ptr details = new DynamicObject();
+			auto details = DragHelpers::createDescription(slider.node->getId(), slider.parameterToControl->getId());
 
-			details->setProperty(PropertyIds::ID, slider.node->getId());
-			details->setProperty(PropertyIds::ParameterId, slider.parameterToControl->getId());
-
-			container->startDragging(var(details), &slider);
+			container->startDragging(details, &slider);
 		}
 	}
 }

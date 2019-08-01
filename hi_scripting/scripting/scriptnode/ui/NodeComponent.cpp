@@ -141,16 +141,7 @@ void NodeComponent::Header::mouseDown(const MouseEvent& e)
 {
 	if (e.mods.isRightButtonDown())
 	{
-		PopupLookAndFeel plaf;
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-		
-		parent.fillContextMenu(m);
-
-		int result = m.show();
-
-		if(result > 0)
-			parent.handlePopupMenuResult(result);
+		parent.handlePopupMenuResult((int)MenuActions::EditProperties);
 	}
 }
 
@@ -361,6 +352,10 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 	m.addItem((int)MenuActions::WrapIntoMulti, "Multi");
 	m.addItem((int)MenuActions::WrapIntoFrame, "Frame");
 	m.addItem((int)MenuActions::WrapIntoOversample4, "Oversample(4x)");
+
+	m.addSectionHeader("Surround with nodes");
+	m.addItem((int)MenuActions::SurroundWithFeedback, "send / receive");
+	m.addItem((int)MenuActions::SurroundWithMSDecoder, "ms_encode / ms_decode");
 }
 
 void NodeComponent::handlePopupMenuResult(int result)
@@ -384,11 +379,12 @@ void NodeComponent::handlePopupMenuResult(int result)
 	}
 	if (result == (int)MenuActions::EditProperties)
 	{
-		auto n = new PropertyEditor(node, false, node->getValueTree());
+		auto n = new NodePopupEditor(this);
+		
 		auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
-		auto b = g->getLocalArea(this, header.getBounds());
+		auto b = g->getLocalArea(this, getLocalBounds());
 
-		CallOutBox::launchAsynchronously(n, b, g);
+		g->setCurrentModalWindow(n, b);
 	}
 	if (result == (int)MenuActions::ExportAsSnippet)
 	{
@@ -568,6 +564,46 @@ void NodeComponent::handlePopupMenuResult(int result)
 			}
 		}
 	}
+	if (result >= (int)MenuActions::SurroundWithFeedback && result <= (int)MenuActions::SurroundWithMSDecoder)
+	{
+		bool addFeedback = result == (int)MenuActions::SurroundWithFeedback;
+
+		auto network = node->getRootNetwork();
+
+		String firstNode, secondNode;
+
+		if (addFeedback)
+		{
+			firstNode = "routing.receive";
+			secondNode = "routing.send";
+		}
+		else
+		{
+			firstNode = "routing.ms_decode";
+			secondNode = "routing.ms_encode";
+		}
+
+		auto thisTree = node->getValueTree();
+		auto parent = thisTree.getParent();
+		String firstId;
+
+		if (auto fn = dynamic_cast<NodeBase*>(network->create(firstNode, "", true).getObject()))
+		{
+			int insertIndex = parent.indexOf(thisTree);
+			parent.addChild(fn->getValueTree(), insertIndex, node->getUndoManager());
+
+			firstId = fn->getId();
+		}
+
+		if (auto sn = dynamic_cast<NodeBase*>(network->create(secondNode, "", true).getObject()))
+		{
+			int insertIndex = parent.indexOf(thisTree);
+			parent.addChild(sn->getValueTree(), insertIndex + 1, node->getUndoManager());
+
+			sn->setNodeProperty(PropertyIds::Connection, firstId);
+		}
+	}
+	
 }
 
 juce::Colour NodeComponent::getOutlineColour() const

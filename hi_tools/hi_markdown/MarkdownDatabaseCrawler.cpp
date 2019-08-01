@@ -573,7 +573,7 @@ void DatabaseCrawler::createDataFiles(File root, bool createImages)
 	obj->setProperty("image-hash", getHashFromFileContent(imageF));
 
 	auto metaF = root.getChildFile("hash.json");
-	metaF.replaceWithText(JSON::toString(var(obj)));
+	metaF.replaceWithText(JSON::toString(var(obj.get())));
 }
 
 void DatabaseCrawler::loadDataFiles(File root)

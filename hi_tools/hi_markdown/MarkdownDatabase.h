@@ -124,7 +124,7 @@ public:
 
 			newObject->setProperty("Children", childrenArray);
 
-			return var(newObject);
+			return var(newObject.get());
 		}
 		
 		Item getChildWithName(const String& name) const

@@ -99,6 +99,14 @@ void NodeBase::setDefaultValue(const Identifier& id, var newValue)
 
 
 
+void NodeBase::setNodeProperty(const Identifier& id, const var& newValue)
+{
+	auto propTree = getPropertyTree().getChildWithProperty(PropertyIds::ID, id.toString());
+
+	if (propTree.isValid())
+		propTree.setProperty(PropertyIds::Value, newValue, getUndoManager());
+}
+
 NodeComponent* NodeBase::createComponent()
 {
 	return new NodeComponent(this);
@@ -128,6 +136,11 @@ void NodeBase::setBypassed(bool shouldBeBypassed)
 bool NodeBase::isBypassed() const noexcept
 {
 	return bypassed;
+}
+
+int NodeBase::getIndexInParent() const
+{
+	return v_data.getParent().indexOf(v_data);
 }
 
 NodeBase* NodeBase::getParentNode() const
@@ -359,6 +372,17 @@ void NodeBase::Parameter::clearModulationValues()
 
 struct DragHelpers
 {
+	static var createDescription(const String& sourceNodeId, const String& parameterId, bool isMod=false)
+	{
+		DynamicObject::Ptr details = new DynamicObject();
+
+		details->setProperty(PropertyIds::ModulationTarget, isMod);
+		details->setProperty(PropertyIds::ID, sourceNodeId);
+		details->setProperty(PropertyIds::ParameterId, parameterId);
+		
+		return details;
+	}
+
 	static String getSourceNodeId(var dragDetails)
 	{
 		return dragDetails.getProperty(PropertyIds::ID, "").toString();

@@ -231,6 +231,9 @@ struct PropertyEditor : public Component
 {
 	PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds = {})
 	{
+
+		plaf.propertyBgColour = Colours::transparentBlack;
+
 		Array<PropertyComponent*> newProperties;
 
 		for (int i = 0; i < data.getNumProperties(); i++)
@@ -273,5 +276,82 @@ struct PropertyEditor : public Component
 	MultiColumnPropertyPanel p;
 };
 
+
+struct NodePopupEditor : public Component,
+						 public ButtonListener
+{
+	struct Factory : public PathFactory
+	{
+		String getId() const { return "edit"; }
+
+		Path createPath(const String& s) const override;
+
+	} factory;
+
+	NodePopupEditor(NodeComponent* nc_) :
+		nc(nc_),
+		editor(nc->node, false, nc->node->getValueTree()),
+		exportButton("export", this, factory),
+		wrapButton("wrap", this, factory),
+		surroundButton("surround", this, factory)
+	{
+		setName("Edit Node Properties");
+
+		addAndMakeVisible(editor);
+		addAndMakeVisible(exportButton);
+		addAndMakeVisible(wrapButton);
+		addAndMakeVisible(surroundButton);
+		setWantsKeyboardFocus(true);
+		setSize(editor.getWidth(), editor.getHeight() + 50);
+	}
+
+	bool keyPressed(const KeyPress& key) override
+	{
+		if (key.getKeyCode() == 'w' || key.getKeyCode() == 'W')
+		{
+			buttonClicked(&wrapButton);
+			return true;
+		}
+		if (key.getKeyCode() == 's' || key.getKeyCode() == 'S')
+		{
+			buttonClicked(&surroundButton);
+			return true;
+		}
+		if (key.getKeyCode() == 'e' || key.getKeyCode() == 'E')
+		{
+			buttonClicked(&exportButton);
+			return true;
+		}
+		if (key == KeyPress::tabKey)
+		{
+			editor.getChildComponent(0)->grabKeyboardFocus();
+			return true;
+		}
+	}
+
+	void buttonClicked(Button* b) override;
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		auto top = b.removeFromTop(50);
+
+		auto w3 = getWidth() / 3;
+
+		wrapButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
+		surroundButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
+		exportButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
+
+		editor.setBounds(b);
+	}
+
+	
+
+	Component::SafePointer<NodeComponent> nc;
+	PropertyEditor editor;
+	HiseShapeButton exportButton, wrapButton, surroundButton;
+
+};
 
 }

@@ -445,13 +445,13 @@ void AudioSampleBufferComponentBase::setAudioSampleBuffer(const AudioSampleBuffe
 
 		VariantBuffer::Ptr l = new VariantBuffer(data[0], b->getNumSamples());
 
-		var lVar = var(l);
+		var lVar = var(l.get());
 		var rVar;
 
 		if (b->getNumChannels() > 1)
 		{
 			VariantBuffer::Ptr r = new VariantBuffer(data[1], b->getNumSamples());
-			rVar = var(r);
+			rVar = var(r.get());
 		}
 
 		preview->setBuffer(lVar, rVar);
@@ -631,11 +631,11 @@ void HiseAudioThumbnail::LoadingThread::run()
 		if (threadShouldExit())
 			return;
 
-		lb = var(l);
+		lb = var(l.get());
 
 		if (reader->numChannels > 1)
 		{
-			rb = var(r);
+			rb = var(r.get());
 		}
 
 		if (parent.get() != nullptr)

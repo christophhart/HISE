@@ -534,7 +534,7 @@ void ItemGenerator::addNodeItem(ValueTree nodeTree, MarkdownDataBase::Item& fact
 	
 	MessageManagerLock lock;
 
-	NodeBase::Ptr nb = dynamic_cast<NodeBase*>(data->network->create(path, id, false).getObject());;
+	NodeBase::Ptr nb = dynamic_cast<NodeBase*>(data->network->create(path, "", false).getObject());;
 
 	jassert(nb != nullptr);
 
@@ -581,7 +581,8 @@ juce::String Resolver::getContent(const MarkdownLink& url)
 
 				content << url.toString(MarkdownLink::Format::ContentHeader);
 
-				content << "> `" << tree[PropertyIds::FactoryPath].toString() << "`" << nl;
+				if(!inlineDocMode)
+					content << "> `" << tree[PropertyIds::FactoryPath].toString() << "`" << nl;
 
 				content << "![screen](/images/sn_screen_" << nodeId << ".png)";
 
@@ -589,7 +590,10 @@ juce::String Resolver::getContent(const MarkdownLink& url)
 
 				if (node->getNumParameters() > 0)
 				{
-					content << "## Parameters" << nl;
+					if(inlineDocMode)
+						content << "### Parameters" << nl;
+					else
+						content << "## Parameters" << nl;
 
 					content << "| ID | Range | Default | Description |" << nl;
 					content << "| --- | --- | --- | ------ |" << nl;

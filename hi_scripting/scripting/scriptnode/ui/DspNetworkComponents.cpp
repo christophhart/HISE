@@ -84,6 +84,9 @@ DspNetworkGraph::~DspNetworkGraph()
 		network->removeSelectionListener(this);
 }
 
+
+
+
 bool DspNetworkGraph::keyPressed(const KeyPress& key)
 {
 	if (key == KeyPress::escapeKey)
@@ -96,6 +99,20 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::undo(*this);
 	if ((key.isKeyCode('Y') || key.isKeyCode('Y')) && key.getModifiers().isCommandDown())
 		return Actions::redo(*this);
+	if ((key.isKeyCode('d') || key.isKeyCode('D')) && key.getModifiers().isCommandDown())
+		return Actions::duplicateSelection(*this);
+	if ((key.isKeyCode('n') || key.isKeyCode('N')))
+		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::New);
+	if ((key.isKeyCode('w') || key.isKeyCode('W')))
+		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::Wrap);
+	if ((key.isKeyCode('s') || key.isKeyCode('S')))
+		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::Surround);
+	if ((key).isKeyCode('f') || key.isKeyCode('F'))
+		return Actions::foldSelection(*this);
+	if ((key).isKeyCode('p') || key.isKeyCode('P'))
+		return Actions::editNodeProperty(*this);
+	if (key == KeyPress::upKey || key == KeyPress::downKey)
+		return Actions::arrowKeyAction(*this, key);
 
 	return false;
 }
@@ -352,6 +369,248 @@ bool DspNetworkGraph::setCurrentlyDraggedComponent(NodeComponent* n)
 
 
 
+void DspNetworkGraph::Actions::selectAndScrollToNode(DspNetworkGraph& g, NodeBase::Ptr node)
+{
+	g.network->addToSelection(node, {});
+
+	if (auto nc = g.getComponent(node))
+	{
+		auto viewport = g.findParentComponentOfClass<Viewport>();
+
+		auto nodeArea = viewport->getLocalArea(nc, nc->getLocalBounds());
+		auto viewArea = viewport->getViewArea();
+
+		if (!viewArea.contains(nodeArea))
+		{
+			int deltaX = 0;
+			int deltaY = 0;
+
+			auto combined = viewArea.getUnion(nodeArea);
+
+			if (nodeArea.getX() < viewArea.getX())
+				deltaX = nodeArea.getX() - viewArea.getX();
+			else if (nodeArea.getRight() > viewArea.getRight() && viewArea.getWidth() > nodeArea.getWidth())
+				deltaX = nodeArea.getRight() - viewArea.getRight();
+			
+
+			if (nodeArea.getY() < viewArea.getY())
+				deltaY = nodeArea.getY() - viewArea.getY();
+			else if (nodeArea.getBottom() > viewArea.getBottom() && viewArea.getHeight() > nodeArea.getHeight())
+				deltaY = nodeArea.getBottom() - viewArea.getBottom();
+			
+
+			viewport->setViewPosition(viewArea.getX() + deltaX, viewArea.getY() + deltaY);
+
+		}
+
+
+	}
+}
+
+bool DspNetworkGraph::Actions::editNodeProperty(DspNetworkGraph& g)
+{
+	if (auto n = g.network->getSelection().getFirst())
+	{
+		g.getComponent(n)->handlePopupMenuResult((int)NodeComponent::MenuActions::EditProperties);
+		return true;
+	}
+
+	return false;
+}
+
+bool DspNetworkGraph::Actions::foldSelection(DspNetworkGraph& g)
+{
+	auto selection = g.network->getSelection();
+
+	if (selection.isEmpty())
+		return false;
+
+	auto shouldBeFolded = !(bool)selection.getFirst()->getValueTree()[PropertyIds::Folded];
+
+	for (auto n : selection)
+		n->setValueTreeProperty(PropertyIds::Folded, shouldBeFolded);
+
+	return true;
+}
+
+bool DspNetworkGraph::Actions::arrowKeyAction(DspNetworkGraph& g, const KeyPress& k)
+{
+	auto node = g.network->getSelection().getFirst();
+
+	if (node == nullptr || g.network->getSelection().size() > 1)
+		return false;
+
+	auto network = g.network;
+
+	bool swapAction = k.getModifiers().isShiftDown();
+
+	if (swapAction)
+	{
+		auto swapWithPrev = k == KeyPress::upKey;
+
+		auto tree = node->getValueTree();
+		auto parent = tree.getParent();
+		auto index = node->getIndexInParent();
+		auto swapIndex = -1;
+
+		if (swapWithPrev)
+			parent.moveChild(index, index - 1, node->getUndoManager());
+		else
+			parent.moveChild(index, index + 1, node->getUndoManager());
+
+		return true;
+	}
+	else
+	{
+		
+
+		auto selectPrev = k == KeyPress::upKey;
+		auto index = node->getIndexInParent();
+
+		if (selectPrev)
+		{
+			auto container = dynamic_cast<NodeContainer*>(node->getParentNode());
+
+			if (container == nullptr)
+				return false;
+
+			if (index == 0)
+				selectAndScrollToNode(g, node->getParentNode());
+			else
+			{
+				auto prevNode = container->getNodeList()[index - 1];
+
+				if (auto prevContainer = dynamic_cast<NodeContainer*>(prevNode.get()))
+				{
+					if (auto lastChild = prevContainer->getNodeList().getLast())
+					{
+						selectAndScrollToNode(g, lastChild);
+						return true;
+					}
+				}
+
+				selectAndScrollToNode(g, prevNode);
+				return true;
+			}
+				
+
+			return true;
+		}
+		else
+		{
+			auto container = dynamic_cast<NodeContainer*>(node.get());
+
+			if (container != nullptr && node->isBodyShown())
+			{
+				if (auto firstChild = container->getNodeList()[0])
+				{
+					selectAndScrollToNode(g, firstChild);
+					return true;
+				}
+			}
+			
+			container = dynamic_cast<NodeContainer*>(node->getParentNode());
+			
+			if (container == nullptr)
+				return false;
+
+			if (auto nextSibling = container->getNodeList()[index + 1])
+			{
+				selectAndScrollToNode(g, nextSibling);
+				return true;
+			}
+
+			node = node->getParentNode();
+
+			container = dynamic_cast<NodeContainer*>(node->getParentNode());
+
+			if (container == nullptr)
+				return false;
+
+			index = node->getIndexInParent();
+
+			if (auto nextSibling = container->getNodeList()[index + 1])
+			{
+				selectAndScrollToNode(g, nextSibling);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPopup::Mode mode)
+{
+	auto firstInSelection = g.network->getSelection().getFirst();
+
+	NodeBase::Ptr containerToLookFor;
+
+	int addPosition = -1;
+
+	if (dynamic_cast<NodeContainer*>(firstInSelection.get()) != nullptr)
+		containerToLookFor = firstInSelection;
+	else if (firstInSelection != nullptr)
+	{
+		containerToLookFor = firstInSelection->getParentNode();
+		addPosition = firstInSelection->getIndexInParent() + 1;
+	}
+
+	Array<ContainerComponent*> list;
+
+	fillChildComponentList(list, &g);
+	
+	auto parent = g.getParentComponent();
+
+	for (auto nc : list)
+	{
+		auto thisAddPosition = nc->getCurrentAddPosition();
+		bool thisContainer = nc->node == containerToLookFor || (containerToLookFor == nullptr && thisAddPosition != -1);
+
+		if (thisContainer)
+		{
+			if (addPosition == -1)
+				addPosition = thisAddPosition;
+
+			KeyboardPopup* newPopup = new KeyboardPopup(nc->node, addPosition);
+
+			auto midPoint = nc->getInsertRuler(addPosition);
+
+			auto sp = g.findParentComponentOfClass<ScrollableParent>();
+
+			auto r = sp->getLocalArea(nc, midPoint.toNearestInt());
+
+			
+
+			sp->setCurrentModalWindow(newPopup, r);
+		}
+	}
+
+	return true;
+}
+
+bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
+{
+	int insertIndex = 0;
+
+	for (auto n : g.network->getSelection())
+	{
+		auto& tree = n->getValueTree();
+		insertIndex = jmax(insertIndex, tree.getParent().indexOf(tree));
+	}
+
+	for (auto n : g.network->getSelection())
+	{
+		auto& tree = n->getValueTree();
+		auto copy = n->getRootNetwork()->cloneValueTreeWithNewIds(tree);
+		n->getRootNetwork()->createFromValueTree(true, copy, true);
+		tree.getParent().addChild(copy, insertIndex, n->getUndoManager());
+		insertIndex = tree.getParent().indexOf(copy);
+	}
+
+	return true;
+}
+
 bool DspNetworkGraph::Actions::deselectAll(DspNetworkGraph& g)
 {
 	g.network->deselectAll();
@@ -433,8 +692,7 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 	auto p = g.findParentComponentOfClass<ScrollableParent>();
 	auto b = p->getLocalArea(componentToPointTo, componentToPointTo->getLocalBounds());
 
-	CallOutBox::launchAsynchronously(editor, b, p);
-	editor->grabKeyboardFocus();
+	p->setCurrentModalWindow(editor, b);
 
 	return true;
 }
@@ -457,8 +715,11 @@ bool DspNetworkGraph::Actions::redo(DspNetworkGraph& g)
 
 DspNetworkGraph::ScrollableParent::ScrollableParent(DspNetwork* n)
 {
+	
 	addAndMakeVisible(viewport);
 	viewport.setViewedComponent(new DspNetworkGraph(n), true);
+	addAndMakeVisible(dark);
+	dark.setVisible(false);
 	context.attachTo(*this);
 	setOpaque(true);
 }
@@ -489,6 +750,7 @@ void DspNetworkGraph::ScrollableParent::mouseWheelMove(const MouseEvent& event, 
 void DspNetworkGraph::ScrollableParent::resized()
 {
 	viewport.setBounds(getLocalBounds());
+	dark.setBounds(getLocalBounds());
 	centerCanvas();
 }
 
@@ -549,6 +811,143 @@ void NetworkPanel::fillIndexList(StringArray& sa)
 		sa.clear();
 		sa.addArray(sa2);
 	}
+}
+
+KeyboardPopup::Help::Help(DspNetwork* n) :
+	renderer("", nullptr)
+{
+#if USE_BACKEND
+
+	auto bp = dynamic_cast<BackendProcessor*>(n->getScriptProcessor()->getMainController_())->getDocProcessor();
+	
+	rootDirectory = bp->getDatabaseRootDirectory();
+	renderer.setDatabaseHolder(bp);
+	
+	initGenerator(rootDirectory, bp);
+	renderer.setImageProvider(new doc::ScreenshotProvider(&renderer));
+	renderer.setLinkResolver(new doc::Resolver(rootDirectory));
+	
+#endif
+
+		
+}
+
+
+void KeyboardPopup::Help::showDoc(const String& text)
+{
+	if (text.isEmpty())
+	{
+		renderer.setNewText("> no search results");
+		return;
+	}
+
+	String link;
+
+	link << doc::ItemGenerator::getWildcard();
+	link << "/list/";
+	link << text.replace(".", "/");
+
+	MarkdownLink url(rootDirectory, link);
+	renderer.gotoLink(url);
+	rebuild(getWidth());
+}
+
+bool KeyboardPopup::Help::initialised = false;
+
+void KeyboardPopup::Help::initGenerator(const File& root, MainController* mc)
+{
+	if (initialised)
+		return;
+
+	auto bp = dynamic_cast<BackendProcessor*>(mc);
+
+	static doc::ItemGenerator gen(root, *bp);
+	gen.createRootItem(bp->getDatabase());
+
+	initialised = true;
+}
+
+
+void KeyboardPopup::addNodeAndClose(String path)
+{
+	auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+
+	auto container = dynamic_cast<NodeContainer*>(node.get());
+	auto ap = addPosition;
+
+	auto f = [sp, path, container, ap]()
+	{
+		if (path.isNotEmpty())
+		{
+			var newNode;
+
+			auto network = container->asNode()->getRootNetwork();
+
+			newNode = network->create(path, {}, container->isPolyphonic());
+
+#if 0 // CLIPBOARD, later
+			if (result == 120000)
+			{
+				auto data = clipboard.fromFirstOccurrenceOf("ScriptNode", false, false);
+				auto newTree = ValueTreeConverters::convertBase64ToValueTree(data, true);
+
+				if (newTree.isValid())
+				{
+					newNode = network->createFromValueTree(network->isPolyphonic(), newTree, true);
+				}
+			}
+			else if (result >= 11000)
+			{
+
+		}
+#endif
+
+			container->assign(ap, newNode);
+
+			network->deselectAll();
+			network->addToSelection(dynamic_cast<NodeBase*>(newNode.getObject()), ModifierKeys());
+		}
+
+		sp->setCurrentModalWindow(nullptr, {});
+	};
+
+	MessageManager::callAsync(f);
+}
+
+bool KeyboardPopup::keyPressed(const KeyPress& k, Component*)
+{
+	if (k == KeyPress::F1Key)
+	{
+		buttonClicked(&helpButton);
+		return true;
+	}
+	if (k == KeyPress::escapeKey)
+	{
+		addNodeAndClose({});
+	}
+	if (k == KeyPress::upKey)
+	{
+		auto pos = list.selectNext(false);
+		scrollToMakeVisible(pos);
+		nodeEditor.setText(list.getCurrentText(), dontSendNotification);
+		updateHelp();
+		return true;
+	}
+	else if (k == KeyPress::downKey)
+	{
+		auto pos = list.selectNext(true);
+		scrollToMakeVisible(pos);
+		nodeEditor.setText(list.getCurrentText(), dontSendNotification);
+		updateHelp();
+		return true;
+	}
+	else if (k == KeyPress::returnKey)
+	{
+		addNodeAndClose(list.getCurrentText());
+		return true;
+	}
+
+	return false;
 }
 
 }

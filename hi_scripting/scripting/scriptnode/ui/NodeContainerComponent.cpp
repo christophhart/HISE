@@ -136,8 +136,16 @@ void ContainerComponent::mouseExit(const MouseEvent& event)
 
 void ContainerComponent::mouseDown(const MouseEvent& event)
 {
+	if (auto n = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		DspNetworkGraph::Actions::showKeyboardPopup(*n, KeyboardPopup::Mode::New);
+	}
+
 	if (event.mods.isRightButtonDown())
 	{
+		
+
+#if 0
 		PopupLookAndFeel plaf;
 		PopupMenu m;
 		m.setLookAndFeel(&plaf);
@@ -219,6 +227,7 @@ void ContainerComponent::mouseDown(const MouseEvent& event)
 
 			container->assign(addPosition, newNode);
 		}
+#endif
 	}
 }
 
@@ -594,7 +603,7 @@ int ParallelNodeComponent::getInsertPosition(Point<int> position) const
 }
 
 
-juce::Rectangle<float> ParallelNodeComponent::getInsertRuler(int position)
+juce::Rectangle<float> ParallelNodeComponent::getInsertRuler(int position) const
 {
 	int targetX = getWidth();
 
@@ -780,7 +789,7 @@ int ModChainNodeComponent::getInsertPosition(Point<int> position) const
 	return p;
 }
 
-juce::Rectangle<float> ModChainNodeComponent::getInsertRuler(int position)
+juce::Rectangle<float> ModChainNodeComponent::getInsertRuler(int position) const
 {
 	int targetY = getHeight() - UIValues::PinHeight;
 
@@ -854,43 +863,115 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 			dataCopy.getParent().removeChild(dataCopy, undoManager);
 		};
 
-
-
 		MessageManager::callAsync(func);
 	}
 	else
 	{
 		if (auto targetNode = node->getRootNetwork()->getNodeWithId(data[PropertyIds::NodeId].toString()))
 		{
+			auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
 
-
-			Component::SafePointer<CallOutBox> cb(findParentComponentOfClass<CallOutBox>());
-
-			auto f = [targetNode, cb]()
+			auto f = [sp, targetNode]()
 			{
+				sp->setCurrentModalWindow(nullptr, {});
 
-
-				if (cb.getComponent())
+				if (auto nc = sp->getGraph()->getComponent(targetNode))
 				{
-					if (auto dsp_parent = cb.getComponent()->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
-					{
-						if (auto nc = dsp_parent->getGraph()->getComponent(targetNode))
-						{
-							nc->grabKeyboardFocus();
-						}
-					}
-
-					cb.getComponent()->dismiss();
-
+					nc->grabKeyboardFocus();
 				}
 
 				targetNode->getRootNetwork()->deselectAll();
 				targetNode->getRootNetwork()->addToSelection(targetNode, ModifierKeys());
-
-
 			};
 
 			MessageManager::callAsync(f);
+		}
+	}
+}
+
+void MacroPropertyEditor::buttonClicked(Button* b)
+{
+	if (b == &connectionButton)
+	{
+		if (parameter != nullptr)
+		{
+			PopupLookAndFeel plaf;
+			PopupMenu m;
+
+			m.setLookAndFeel(&plaf);
+
+			NodeBase::Ptr parent = node->getParentNode();
+
+			struct Entry
+			{
+				String getName() const { return nId + pId; }
+				String nId;
+				String pId;
+				bool isMod;
+			};
+
+			Array<Entry> pEntries;
+			Array<Entry> mEntries;
+
+			while (parent != nullptr)
+			{
+				if (auto c = dynamic_cast<NodeContainer*>(parent.get()))
+				{
+					for (auto n : c->getNodeList())
+					{
+						if (auto mod = dynamic_cast<ModulationSourceNode*>(n.get()))
+						{
+							if(mod->isUsingModulation())
+								mEntries.add({ parent->getId(), mod->getId(), true });
+						}
+					}
+				}
+
+				for (int i = 0; i < parent->getNumParameters(); i++)
+					pEntries.add({ parent->getId(), parent->getParameter(i)->getId(), false });
+
+				parent = parent->getParentNode();
+			}
+
+			int pOffset = 9000;
+			int mOffset = 12000;
+
+			if (pEntries.size() > 0)
+			{
+				m.addSectionHeader("Connect to Macro Parameter");
+
+				for (int i = 0; i < pEntries.size(); i++)
+				{
+					m.addItem(pOffset + i, pEntries[i].getName());
+				}
+			}
+
+			if (mEntries.size() > 0)
+			{
+				m.addSectionHeader("Connect to Modulation");
+
+				for (int i = 0; i < mEntries.size(); i++)
+				{
+					m.addItem(mOffset + i, mEntries[i].getName());
+				}
+			}
+
+			int result = m.show();
+
+			if (result >= mOffset)
+			{
+				auto entry = mEntries[result - mOffset];
+				auto details = DragHelpers::createDescription(entry.pId, "", true);
+				parameter->addConnectionTo(details);
+
+			}
+
+			else if (result >= pOffset)
+			{
+				auto e = pEntries[result - pOffset];
+				auto details = DragHelpers::createDescription(e.nId, e.pId, false);
+				parameter->addConnectionTo(details);
+			}
 		}
 	}
 }

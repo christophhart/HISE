@@ -976,7 +976,7 @@ void BlackTextButtonLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, 
 
 void HiPropertyPanelLookAndFeel::drawPropertyComponentBackground(Graphics& g, int width, int height, PropertyComponent& /*component*/)
 {
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff3d3d3d)));
+	g.setColour(propertyBgColour);
 	g.fillAll();
 
 	g.setColour(Colours::white.withAlpha(0.03f));

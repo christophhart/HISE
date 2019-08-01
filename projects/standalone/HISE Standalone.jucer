@@ -4,7 +4,7 @@
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
               jucerVersion="5.4.3" companyName="Hart Instruments" companyWebsite="http://hise.audio"
               companyCopyright="Hart Instruments" displaySplashScreen="0" reportAppUsage="0"
-              splashScreenColour="Dark" cppLanguageStandard="14">
+              splashScreenColour="Dark" cppLanguageStandard="17">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
       <FILE id="ho3qQy" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
@@ -85,6 +85,7 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
+        <MODULEPATH id="hnode_jit" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -128,6 +129,7 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
+        <MODULEPATH id="hnode_jit" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -189,6 +191,7 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
+        <MODULEPATH id="hnode_jit" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=1" smallIcon="bfBEgJ"
@@ -231,6 +234,7 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
+        <MODULEPATH id="hnode_jit" path="../../../HISE modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -247,6 +251,7 @@
     <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hnode_jit" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_devices" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_formats" showAllCode="1" useLocalCopy="0"/>
@@ -273,7 +278,7 @@
                HI_EXPORT_DSP_LIBRARY="0" JUCE_ALSA="1" JUCE_JACK="1" USE_VDSP_FFT="0"
                ENABLE_SCRIPTING_BREAKPOINTS="1" HLAC_MEASURE_DECODING_PERFORMANCE="0"
                HLAC_DEBUG_LOG="0" HLAC_INCLUDE_TEST_SUITE="0" STANDALONE_STREAMING="0"
-               JUCE_ENABLE_AUDIO_GUARD="1" JUCE_PLUGINHOST_LADSPA="0" HI_ENABLE_CUSTOM_NODE_LOCATION="0"/>
+               JUCE_ENABLE_AUDIO_GUARD="1" JUCE_PLUGINHOST_LADSPA="0" HI_ENABLE_CUSTOM_NODE_LOCATION="1"/>
   <LIVE_SETTINGS>
     <OSX defines="USE_IPP=0"/>
     <WINDOWS/>

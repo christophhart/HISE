@@ -36,11 +36,72 @@ using namespace juce;
 using namespace hise;
 
 
+juce::Path NodePopupEditor::Factory::createPath(const String& s) const
+{
+	auto url = MarkdownLink::Helpers::getSanitizedFilename(s);
 
+	Path p;
 
+	LOAD_PATH_IF_URL("export", HnodeIcons::freezeIcon);
+	LOAD_PATH_IF_URL("wrap", HnodeIcons::mapIcon);
+	LOAD_PATH_IF_URL("surround", HnodeIcons::injectNodeIcon);
 
+	return p;
+}
 
+void NodePopupEditor::buttonClicked(Button* b)
+{
+	int mode = 0;
+	if (b == &wrapButton)
+		mode = 1;
+	if (b == &surroundButton)
+		mode = 2;
 
+	auto tmp = nc.getComponent();
+	auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+
+	Component::SafePointer<Component> tmp2 = b;
+
+	auto f = [tmp, mode, sp, tmp2]()
+	{
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+
+		if (mode == 0)
+		{
+			m.addSectionHeader("Export Node");
+			m.addItem((int)NodeComponent::MenuActions::ExportAsCpp, "Export as custom CPP class");
+			m.addItem((int)NodeComponent::MenuActions::ExportAsCppProject, "Export as project CPP class");
+			m.addItem((int)NodeComponent::MenuActions::ExportAsSnippet, "Export as Base64 snippet");
+		}
+		else if (mode == 1)
+		{
+			m.addSectionHeader("Move into container");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoChain, "Wrap into chain");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoSplit, "Wrap into split");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoMulti, "Wrap into multi");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoFrame, "Wrap into frame");
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoOversample4, "Wrap into oversample4");
+		}
+		else
+		{
+			m.addSectionHeader("Surround with Node pair");
+			m.addItem((int)NodeComponent::MenuActions::SurroundWithFeedback, "Surround with feedback");
+			m.addItem((int)NodeComponent::MenuActions::SurroundWithMSDecoder, "Surround with M/S");
+		}
+
+		int result = m.showAt(tmp2.getComponent());
+
+		if (result != 0)
+		{
+			tmp->handlePopupMenuResult(result);
+			sp->setCurrentModalWindow(nullptr, {});
+		}
+	};
+
+	MessageManager::callAsync(f);
+}
 
 }
 

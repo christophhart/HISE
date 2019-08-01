@@ -225,6 +225,22 @@ juce::StringArray DspNetwork::getListOfUnusedNodeIds() const
 	return sa;
 }
 
+juce::StringArray DspNetwork::getFactoryList() const
+{
+	StringArray sa;
+
+	for (auto nf : nodeFactories)
+	{
+		if (nf->getModuleList().isEmpty())
+			continue;
+
+		sa.add(nf->getId().toString());
+	}
+		
+
+	return sa;
+}
+
 void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 {
 	ScopedLock sl(getConnectionLock());

@@ -292,7 +292,7 @@ VariantBuffer * VariantBuffer::Factory::getFreeVariantBuffer()
 		{
 			VariantBuffer::Ptr p(sectionBufferStack[i]);
 
-			return p;
+			return p.get();
 		}
 	}
 
