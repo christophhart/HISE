@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="L2bkCQ" name="jit_playground" projectType="guiapp" jucerVersion="5.2.0"
+<JUCERPROJECT id="L2bkCQ" name="jit_playground" projectType="guiapp" jucerVersion="5.4.3"
               cppLanguageStandard="latest" displaySplashScreen="0" reportAppUsage="0"
               splashScreenColour="Dark" version="1.0.0" bundleIdentifier="com.yourcompany.jit_playground"
               includeBinaryInAppConfig="1" companyCopyright="">
@@ -137,6 +137,7 @@
   </MODULES>
   <LIVE_SETTINGS>
     <WINDOWS/>
+    <OSX/>
   </LIVE_SETTINGS>
-  <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="enabled"/>
+  <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1"/>
 </JUCERPROJECT>

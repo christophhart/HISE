@@ -45,7 +45,7 @@ JitPlayground::JitPlayground() :
 	addAndMakeVisible(editor);
 	addAndMakeVisible(console);
 
-	editor.setFont(Font("Consolas", 18.0f, Font::plain));
+	editor.setFont(GLOBAL_MONOSPACE_FONT());
 	editor.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF333333));
 	editor.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white);
 
@@ -66,7 +66,7 @@ JitPlayground::JitPlayground() :
 	addAndMakeVisible(graph);
 
 	assembly.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xFF555555));
-	assembly.setFont(Font("Consolas", 14.0f, Font::plain));
+	assembly.setFont(GLOBAL_MONOSPACE_FONT());
 	assembly.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF333333));
 	assembly.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white);
 
@@ -77,7 +77,7 @@ JitPlayground::JitPlayground() :
 	assembly.setReadOnly(true);
 
 	console.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xFF555555));
-	console.setFont(Font("Consolas", 14.0f, Font::plain));
+	console.setFont(GLOBAL_MONOSPACE_FONT());
 	console.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF333333));
 	console.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white);
 
