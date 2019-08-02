@@ -209,7 +209,7 @@ void envelope_follower::prepare(PrepareSpecs ps)
 	envelope.setSampleRate(ps.sampleRate);
 }
 
-forcedinline void envelope_follower::reset() noexcept
+void envelope_follower::reset() noexcept
 {
 	envelope.reset();
 }

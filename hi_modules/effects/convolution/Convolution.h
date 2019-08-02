@@ -538,7 +538,7 @@ struct convolution : public AudioFileNodeBase
 
 		SpinLock::ScopedLockType sl(impulseLock);
 
-		for (int i = 0; i < d.numChannels; i++)
+		for (int i = 0; i < numToProcess; i++)
 			convolvers[i]->process(d.data[i], d.data[i], d.size);
 	}
 

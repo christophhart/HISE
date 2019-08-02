@@ -835,6 +835,9 @@ KeyboardPopup::Help::Help(DspNetwork* n) :
 
 void KeyboardPopup::Help::showDoc(const String& text)
 {
+    ignoreUnused(text);
+    
+#if USE_BACKEND
 	if (text.isEmpty())
 	{
 		renderer.setNewText("> no search results");
@@ -850,12 +853,16 @@ void KeyboardPopup::Help::showDoc(const String& text)
 	MarkdownLink url(rootDirectory, link);
 	renderer.gotoLink(url);
 	rebuild(getWidth());
+#endif
 }
 
 bool KeyboardPopup::Help::initialised = false;
 
 void KeyboardPopup::Help::initGenerator(const File& root, MainController* mc)
 {
+    ignoreUnused(root, mc);
+    
+#if USE_BACKEND
 	if (initialised)
 		return;
 
@@ -865,6 +872,7 @@ void KeyboardPopup::Help::initGenerator(const File& root, MainController* mc)
 	gen.createRootItem(bp->getDatabase());
 
 	initialised = true;
+#endif
 }
 
 
