@@ -391,6 +391,7 @@ struct Operations::Compare : public Expression
 		Expression(location),
 		op(op_)
 	{
+		type = Types::Integer;
 		addSubExpression(l);
 		addSubExpression(r);
 	};
@@ -635,6 +636,9 @@ struct Operations::ReturnStatement : public Expression
 			if (auto fScope = dynamic_cast<FunctionScope*>(findFunctionScope(scope)))
 			{
 				auto expectedType = fScope->data.returnType;
+
+				if(auto first = getSubExpr(0))
+					type = first->getType();
 
 				if (isVoid() && expectedType != Types::ID::Void)
 					throwError("function must return a value");

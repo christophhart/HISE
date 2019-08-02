@@ -20,7 +20,7 @@ juce::String hise::HelperFunctions::createStringFromChar(const char* charFromOth
 		s.push_back(*charFromOtherHeap++);
 
 
-	return String(s);
+	return juce::String(s);
 }
 
 

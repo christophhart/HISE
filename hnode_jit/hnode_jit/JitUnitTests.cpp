@@ -403,22 +403,23 @@ private:
 		ScopedPointer<HiseJITTestCase<float>> test;
 
 		CREATE_TEST("float test(float in) {{return 2.0f;}}; ");
+		expectCompileOK(test->compiler);
 		EXPECT("Empty scope", 12.0f, 2.0f);
 
 		CREATE_TEST("float x = 1.0f; float test(float input) {{ float x = x; x *= 1000.0f; } return x; }");
-
+		expectCompileOK(test->compiler);
 		EXPECT("Overwrite with local variable", 12.0f, 1.0f);
 
 		CREATE_TEST("float x = 1.0f; float test(float input) {{ x *= 1000.0f; } return x; }");
-
+		expectCompileOK(test->compiler);
 		EXPECT("Change global in sub scope", 12.0f, 1000.0f);
 
 		CREATE_TEST("float test(float input){ float x1 = 12.0f; float x2 = 12.0f; float x3 = 12.0f; float x4 = 12.0f; float x5 = 12.0f; float x6 = 12.0f; float x7 = 12.0f;float x8 = 12.0f; float x9 = 12.0f; float x10 = 12.0f; float x11 = 12.0f; float x12 = 12.0f; return x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11 + x12; }");
-
+		expectCompileOK(test->compiler);
 		EXPECT("12 variables", 12.0f, 144.0f);
 
 		CREATE_TEST("float test(float in) { float x = 8.0f; float y = 0.0f; { float x = x + 9.0f; y = x; } return y; }");
-
+		expectCompileOK(test->compiler);
 		EXPECT("Save scoped variable to local variable", 12.0f, 17.0f);
 	}
 
@@ -429,33 +430,43 @@ private:
 		ScopedPointer<HiseJITTestCase<float>> test;
 
 		CREATE_TEST("float x = 0.0f; float test(float i){ return (true && false) ? 12.0f : 4.0f; };");
+		expectCompileOK(test->compiler);
 		EXPECT("And with parenthesis", 2.0f, 4.0f);
 
 		CREATE_TEST("float x = 0.0f; float test(float i){ return true && false ? 12.0f : 4.0f; };");
+		expectCompileOK(test->compiler);
 		EXPECT("And without parenthesis", 2.0f, 4.0f);
 
 		CREATE_TEST("float x = 0.0f; float test(float i){ return true && true && false ? 12.0f : 4.0f; };");
+		expectCompileOK(test->compiler);
 		EXPECT("Two Ands", 2.0f, 4.0f);
 
 		CREATE_TEST("float x = 1.0f; float test(float i){ return true || false ? 12.0f : 4.0f; };");
+		expectCompileOK(test->compiler);
 		EXPECT("Or", 2.0f, 12.0f);
 
 		CREATE_TEST("float x = 0.0f; float test(float i){ return (false || false) && true  ? 12.0f : 4.0f; };");
+		expectCompileOK(test->compiler);
 		EXPECT("Or with parenthesis", 2.0f, 4.0f);
 
 		CREATE_TEST("float x = 0.0f; float test(float i){ return false || false && true ? 12.0f : 4.0f; };");
+		expectCompileOK(test->compiler);
 		EXPECT("Or with parenthesis", 2.0f, 4.0f);
 
 		CREATE_TEST("float x = 1.0f; int change() { x = 5.0f; return 1; } float test(float in){ 0 && change(); return x;}");
+		expectCompileOK(test->compiler);
 		EXPECT("Short circuit of && operation", 12.0f, 1.0f);
 
 		CREATE_TEST("float x = 1.0f; int change() { x = 5.0f; return 1; } float test(float in){ 1 || change(); return x;}");
+		expectCompileOK(test->compiler);
 		EXPECT("Short circuit of || operation", 12.0f, 1.0f);
 
 		CREATE_TEST("float x = 1.0f; int change() { x = 5.0f; return 1; } float test(float in){ int c = change(); 0 && c; return x;}");
+		expectCompileOK(test->compiler);
 		EXPECT("Don't short circuit variable expression with &&", 12.0f, 5.0f);
 
 		CREATE_TEST("float x = 1.0f; int change() { x = 5.0f; return 1; } float test(float in){ int c = change(); 1 || c; return x;}");
+		expectCompileOK(test->compiler);
 		EXPECT("Don't short circuit variable expression with ||", 12.0f, 5.0f);
 
 		auto ce = [](float input)
@@ -469,6 +480,7 @@ private:
 		float value = r.nextFloat() * 24.0f;
 
 		CREATE_TEST("float test(float input){return (12.0f > input) ? (input * 2.0f) : (input >= 20.0f && (float)(int)input != input ? 5.0f : 19.0f);}");
+		expectCompileOK(test->compiler);
 		EXPECT("Complex expression", value, ce(value));
 	}
 
@@ -479,21 +491,27 @@ private:
 		ScopedPointer<HiseJITTestCase<float>> test;
 
 		CREATE_TEST("float x = 0.0f; float test(float i){ x=7.0f; return x; };");
+		expectCompileOK(test->compiler);
 		EXPECT("Global float", 2.0f, 7.0f);
 
 		CREATE_TEST("float x=0.0f; float test(float i){ x=-7.0f; return x; };");
+		expectCompileOK(test->compiler);
 		EXPECT("Global negative float", 2.0f, -7.0f);
 
 		CREATE_TEST("float x=-7.0f; float test(float i){ return x; };");
+		expectCompileOK(test->compiler);
 		EXPECT("Global negative float definition", 2.0f, -7.0f);
 
 		CREATE_TEST_SETUP("double x = 2.0; void setup(){x = 26.0; }; float test(float i){ return (float)x;};");
+		expectCompileOK(test->compiler);
 		EXPECT("Global set & get from different functions", 2.0f, 26.0f);
 		
 		CREATE_TEST("float x=2.0f;float test(float i){return x*2.0f;};")
+		expectCompileOK(test->compiler);
 		EXPECT("Global float with operation", 2.0f, 4.0f)
 
 		CREATE_TEST("int x=2;float test(float i){return (float)x;};")
+		expectCompileOK(test->compiler);
 		EXPECT("Global cast", 2.0f, 2.0f)
 
 #if INCLUDE_BUFFERS
@@ -502,6 +520,7 @@ private:
 #endif
 
 		CREATE_TEST("int c=0;float test(float i){c+=1;c+=1;c+=1;return (float)c;};")
+		expectCompileOK(test->compiler);
 		EXPECT("Incremental", 0.0f, 3.0f)
 
 #if INCLUDE_BUFFERS
