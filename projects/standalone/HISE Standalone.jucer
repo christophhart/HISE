@@ -194,12 +194,12 @@
         <MODULEPATH id="hnode_jit" path="../../"/>
       </MODULEPATHS>
     </VS2017>
-    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=1" smallIcon="bfBEgJ"
-                bigIcon="bfBEgJ" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=1&#10;&#10;"
+                smallIcon="bfBEgJ" bigIcon="bfBEgJ" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
                 linuxExtraPkgConfig="x11 xinerama xext" extraLinkerFlags="-no-pie&#10;/opt/intel/ipp/lib/intel64/libippi.a &#10;/opt/intel/ipp/lib/intel64/libipps.a&#10;/opt/intel/ipp/lib/intel64/libippvm.a&#10;/opt/intel/ipp/lib/intel64/libippcore.a&#10;">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"
-                       libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/lib"/>
+                       libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/include"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"
                        linkTimeOptimisation="1" libraryPath="/opt/intel/ipp/lib" headerPath="/opt/intel/ipp/include"/>
         <CONFIGURATION name="TravisCI" isDebug="1" optimisation="1" targetName="HISE Standalone"
@@ -270,15 +270,12 @@
             useGlobalPath="0"/>
     <MODULE id="stk_wrapper" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
-  <JUCEOPTIONS JUCE_ASIO="1" JUCE_DIRECTSOUND="1" JUCE_PLUGINHOST_VST="0" JUCE_PLUGINHOST_VST3="0"
-               JUCE_PLUGINHOST_AU="0" USE_BACKEND="1" JUCE_USE_DIRECTWRITE="1"
-               IS_STANDALONE_APP="1" USE_IPP="1" USE_COPY_PROTECTION="0" USE_GLITCH_DETECTION="1"
-               ENABLE_PLOTTER="1" ENABLE_SCRIPTING_SAFE_CHECKS="1" ENABLE_ALL_PEAK_METERS="1"
-               ENABLE_CONSOLE_OUTPUT="1" ENABLE_HOST_INFO="1" ENABLE_CPU_MEASUREMENT="1"
-               HI_EXPORT_DSP_LIBRARY="0" JUCE_ALSA="1" JUCE_JACK="1" USE_VDSP_FFT="0"
-               ENABLE_SCRIPTING_BREAKPOINTS="1" HLAC_MEASURE_DECODING_PERFORMANCE="0"
-               HLAC_DEBUG_LOG="0" HLAC_INCLUDE_TEST_SUITE="0" STANDALONE_STREAMING="0"
-               JUCE_ENABLE_AUDIO_GUARD="1" JUCE_PLUGINHOST_LADSPA="0" HI_ENABLE_CUSTOM_NODE_LOCATION="1"/>
+  <JUCEOPTIONS USE_IPP="0" USE_BACKEND="1" USE_FRONTEND="0" USE_RAW_FRONTEND="0"
+               IS_STANDALONE_APP="1" USE_COPY_PROTECTION="0" HI_EXPORT_DSP_LIBRARY="0"
+               JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" HI_SUPPORT_FULL_DYNAMICS_HLAC="1"
+               ENABLE_PLOTTER="1" ENABLE_SCRIPTING_SAFE_CHECKS="1" ENABLE_SCRIPTING_BREAKPOINTS="1"
+               ENABLE_ALL_PEAK_METERS="1" JUCE_ASIO="1" JUCE_DIRECTSOUND="1"
+               JUCE_USE_DIRECTWRITE="1"/>
   <LIVE_SETTINGS>
     <OSX defines="USE_IPP=0"/>
     <WINDOWS/>
