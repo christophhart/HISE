@@ -250,8 +250,12 @@ struct FunctionType
 using block = Types::FloatBlock;
 using event = hise::HiseEvent;
 
+using namespace std;
+
 struct hmath
 {
+
+
 	static constexpr double pi = 3.141592653589793238;
 	static constexpr double e = 2.71828182845904523536;
 
@@ -275,43 +279,43 @@ static int round(int value) { return value; };
 static forcedinline int randInt(int low=0, int high=INT_MAX) { return  Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
 
 
-static forcedinline double sin(double a) { return std::sin(a); }
-static forcedinline double asin(double a) { return std::asin(a); }
-static forcedinline double cos(double a) { return std::cos(a); }
-static forcedinline double acos(double a) { return std::acos(a); }
-static forcedinline double sinh(double a) { return std::sinh(a); }
-static forcedinline double cosh(double a) { return std::cosh(a); }
-static forcedinline double tan(double a) { return std::tan(a); }
-static forcedinline double tanh(double a) { return std::tanh(a); }
-static forcedinline double atan(double a) { return std::atan(a); }
-static forcedinline double atanh(double a) { return std::atanh(a); }
-static forcedinline double log(double a) { return std::log(a); }
-static forcedinline double log10(double a) { return std::log10(a); }
-static forcedinline double exp(double a) { return std::exp(a); }
-static forcedinline double pow(double base, double exp) { return std::pow(base, exp); }
+static forcedinline double sin(double a) { return sin(a); }
+static forcedinline double asin(double a) { return asin(a); }
+static forcedinline double cos(double a) { return cos(a); }
+static forcedinline double acos(double a) { return acos(a); }
+static forcedinline double sinh(double a) { return sinh(a); }
+static forcedinline double cosh(double a) { return cosh(a); }
+static forcedinline double tan(double a) { return tan(a); }
+static forcedinline double tanh(double a) { return tanh(a); }
+static forcedinline double atan(double a) { return atan(a); }
+static forcedinline double atanh(double a) { return atanh(a); }
+static forcedinline double log(double a) { return log(a); }
+static forcedinline double log10(double a) { return log10(a); }
+static forcedinline double exp(double a) { return exp(a); }
+static forcedinline double pow(double base, double exp) { return pow(base, exp); }
 static forcedinline double sqr(double a) { return square(a); }
-static forcedinline double sqrt(double a) { return std::sqrt(a); }
-static forcedinline double ceil(double a) { return std::ceil(a); }
-static forcedinline double floor(double a) { return std::floor(a); }
+static forcedinline double sqrt(double a) { return sqrt(a); }
+static forcedinline double ceil(double a) { return ceil(a); }
+static forcedinline double floor(double a) { return floor(a); }
 
-static forcedinline float sin(float a) { return std::sinf(a); }
-static forcedinline float asin(float a) { return std::asinf(a); }
-static forcedinline float cos(float a) { return std::cosf(a); }
-static forcedinline float acos(float a) { return std::acosf(a); }
-static forcedinline float sinh(float a) { return std::sinhf(a); }
-static forcedinline float cosh(float a) { return std::coshf(a); }
-static forcedinline float tan(float a) { return std::tanf(a); }
-static forcedinline float tanh(float a) { return std::tanhf(a); }
-static forcedinline float atan(float a) { return std::atanf(a); }
-static forcedinline float atanh(float a) { return std::atanhf(a); }
-static forcedinline float log(float a) { return std::logf(a); }
-static forcedinline float log10(float a) { return std::log10f(a); }
-static forcedinline float exp(float a) { return std::expf(a); }
-static forcedinline float pow(float base, float exp) { return std::powf(base, exp); }
+static forcedinline float sin(float a) { return sinf(a); }
+static forcedinline float asin(float a) { return asinf(a); }
+static forcedinline float cos(float a) { return cosf(a); }
+static forcedinline float acos(float a) { return acosf(a); }
+static forcedinline float sinh(float a) { return sinhf(a); }
+static forcedinline float cosh(float a) { return coshf(a); }
+static forcedinline float tan(float a) { return tanf(a); }
+static forcedinline float tanh(float a) { return tanhf(a); }
+static forcedinline float atan(float a) { return atanf(a); }
+static forcedinline float atanh(float a) { return atanhf(a); }
+static forcedinline float log(float a) { return logf(a); }
+static forcedinline float log10(float a) { return log10f(a); }
+static forcedinline float exp(float a) { return expf(a); }
+static forcedinline float pow(float base, float exp) { return powf(base, exp); }
 static forcedinline float sqr(float a) { return square(a); }
-static forcedinline float sqrt(float a) { return std::sqrtf(a); }
-static forcedinline float ceil(float a) { return std::ceilf(a); }
-static forcedinline float floor(float a) { return std::floorf(a); }
+static forcedinline float sqrt(float a) { return sqrtf(a); }
+static forcedinline float ceil(float a) { return ceilf(a); }
+static forcedinline float floor(float a) { return floorf(a); }
 
 struct wrapped
 {

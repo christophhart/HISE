@@ -49,7 +49,7 @@ using namespace asmjit;
 #define INT_REG_R(x) x->getRegisterForReadOp().as<X86Gp>()
 #define INT_MEM(x) x->getImmediateIntValue()
 
-#define INT_OP(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
+#define INT_OP(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), (uint64_t)INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
 
 AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, Types::ID type_) :
 	cc(cc_),
@@ -354,7 +354,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitTernaryOp(Operations::TernaryOp* 
 	if (condition->reg->isMemoryLocation())
 	{
 		auto dummy = cc.newInt32();
-		cc.mov(dummy, condition->reg->getImmediateIntValue());
+		cc.mov(dummy, (uint64_t)condition->reg->getImmediateIntValue());
 		cc.cmp(dummy, 0);
 	}
 	else

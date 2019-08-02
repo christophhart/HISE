@@ -36,7 +36,7 @@ using namespace hise;
 
 namespace math
 {
-
+using namespace std;
 
 template <class OpType, int V>
 bool scriptnode::math::OpNode<OpType, V>::handleModulation(double&) noexcept
@@ -209,14 +209,14 @@ void Operations::tanh::op(ProcessData& d, float value)
 		auto ptr = d.data[i];
 
 		for (int j = 0; j < d.size; j++)
-			ptr[j] = std::tanh(ptr[j] * value);
+			ptr[j] = tanhf(ptr[j] * value);
 	}
 }
 
 void Operations::tanh::opSingle(float* frameData, int numChannels, float value)
 {
 	for (int i = 0; i < numChannels; i++)
-		frameData[i] = std::tanh(frameData[i] * value);
+		frameData[i] = tanhf(frameData[i] * value);
 }
 
 void Operations::pi::op(ProcessData& d, float)
@@ -236,14 +236,14 @@ void Operations::sin::op(ProcessData& d, float)
 	for (auto ptr : d)
 	{
 		for (int i = 0; i < d.size; i++)
-			ptr[i] = std::sin(ptr[i]);
+			ptr[i] = sinf(ptr[i]);
 	}
 }
 
 void Operations::sin::opSingle(float* frameData, int numChannels, float)
 {
 	for (int i = 0; i < numChannels; i++)
-		frameData[i] = std::sin(frameData[i]);
+		frameData[i] = sinf(frameData[i]);
 }
 
 void Operations::sig2mod::op(ProcessData& d, float)
@@ -300,14 +300,14 @@ void Operations::sqrt::op(ProcessData& d, float)
 	for (int c = 0; c < d.numChannels; c++)
 	{
 		for (int i = 0; i < d.size; i++)
-			d.data[c][i] = std::sqrtf(d.data[c][i]);
+			d.data[c][i] = sqrtf(d.data[c][i]);
 	}
 }
 
 void Operations::sqrt::opSingle(float* frameData, int numChannels, float)
 {
 	for (int i = 0; i < numChannels; i++)
-		frameData[i] = std::sqrtf(frameData[i]);
+		frameData[i] = sqrtf(frameData[i]);
 }
 
 void Operations::pow::op(ProcessData& d, float value)
@@ -315,14 +315,14 @@ void Operations::pow::op(ProcessData& d, float value)
 	for (int c = 0; c < d.numChannels; c++)
 	{
 		for (int i = 0; i < d.size; i++)
-			d.data[c][i] = std::powf(d.data[c][i], value);
+			d.data[c][i] = powf(d.data[c][i], value);
 	}
 }
 
 void Operations::pow::opSingle(float* frameData, int numChannels, float value)
 {
 	for (int i = 0; i < numChannels; i++)
-		frameData[i] = std::powf(frameData[i], value);
+		frameData[i] = powf(frameData[i], value);
 }
 
 }

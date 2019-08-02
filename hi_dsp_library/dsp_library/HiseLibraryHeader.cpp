@@ -11,7 +11,7 @@ size_t hise::HelperFunctions::writeString(char* location, const char* content)
 	return strlen(content);
 }
 
-String hise::HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size_t length)
+juce::String hise::HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size_t length)
 {
 	std::string s;
 	s.reserve(length);
