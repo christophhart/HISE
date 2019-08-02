@@ -51,7 +51,7 @@ JitPlayground::JitPlayground() :
 
 	editor.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xFF555555));
 
-	
+    doc.replaceAllContent(getDefaultCode());
 
 	testSignal.setColour(ComboBox::ColourIds::backgroundColourId, Colour(0xFF444444));
 
@@ -203,6 +203,7 @@ private:
 void JitPlayground::recalculate()
 {
 	b.setSize(1, 44100);
+    b.clear();
 	createTestSignal();
 
 	jit::GlobalScope memory;
@@ -221,42 +222,60 @@ void JitPlayground::recalculate()
 
 	auto functions = cc.compileJitObject(s);
 
-	auto data = functions["processStereo"];
+	auto data = functions["processMono"];
 
 	assemblyDoc.replaceAllContent(cc.getAssemblyCode());
 
-	
+    
 
 
 	block bl(b.getWritePointer(0), b.getNumSamples());
 
-	auto start = Time::getMillisecondCounterHiRes();
-
-	try
-	{
-
-		data.callVoid(bl);
-	}
-	catch (Types::OutOfBoundsException& exception)
-	{
-		String error;
-
-		error << "Out of bounds buffer access: " << String(exception.index);
-		resultLabel.setText(error, dontSendNotification);
-	}
 	
 
-	auto stop = Time::getMillisecondCounterHiRes();
+    if(data)
+    {
+        functions["prepare"].callVoid(44100.0, 44100, 1);
+        functions["reset"].callVoid();
+        
+        try
+        {
+            auto ptr = b.getWritePointer(0);
+            
+            auto start = Time::getMillisecondCounterHiRes();
+            
+            for(int i = 0; i < b.getNumSamples(); i++)
+            {
+                *ptr++ = data.call<float>(*ptr);
+            }
+            
+            auto stop = Time::getMillisecondCounterHiRes();
+            
+            auto duration = stop - start;
+            
+            //auto resultValue = 1.0f;
+            
+            String rs;
+            
+            rs << "Compiled OK. Time: " << String(duration * 0.1) << "%";
+            
+            resultLabel.setText(rs, dontSendNotification);
+            
+        }
+        catch (Types::OutOfBoundsException& exception)
+        {
+            String error;
+            
+            b.clear();
+            
+            error << "Out of bounds buffer access: " << String(exception.index);
+            resultLabel.setText(error, dontSendNotification);
+        }
+    }
+    
+	
 
-	auto duration = stop - start;
-
-	//auto resultValue = 1.0f;
-
-	String rs;
-
-	rs << "Compiled OK. Time: " << String(duration * 0.1) << "%";
-
-	resultLabel.setText(rs, dontSendNotification);
+	
 
 
 	//auto r = functions->getVariable("x");
@@ -361,27 +380,32 @@ void Graph::setBuffer(AudioSampleBuffer& b)
 {
 	p.clear();
 
-	p.startNewSubPath(0.0f, 1.0f);
-
-	int samplesPerPixel = b.getNumSamples() / getWidth();
-
-	for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
-	{
-		int numToDo = jmin(samplesPerPixel, b.getNumSamples() - i);
-		auto range = FloatVectorOperations::findMinAndMax(b.getWritePointer(0, i), numToDo);
-
-		if (range.getEnd() > (-1.0f * range.getStart()))
-		{
-			p.lineTo((float)i, 1.0f - range.getEnd());
-		}
-		else
-			p.lineTo((float)i, 1.0f - range.getStart());
-	}
-
-	p.lineTo(b.getNumSamples(), 1.0f);
-	p.closeSubPath();
-
-	p.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), false);
+    if(b.getMagnitude(0, b.getNumSamples()) > 0.0f)
+    {
+        p.startNewSubPath(0.0f, 1.0f);
+        
+        int samplesPerPixel = b.getNumSamples() / getWidth();
+        
+        for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
+        {
+            int numToDo = jmin(samplesPerPixel, b.getNumSamples() - i);
+            auto range = FloatVectorOperations::findMinAndMax(b.getWritePointer(0, i), numToDo);
+            
+            if (range.getEnd() > (-1.0f * range.getStart()))
+            {
+                p.lineTo((float)i, 1.0f - range.getEnd());
+            }
+            else
+                p.lineTo((float)i, 1.0f - range.getStart());
+        }
+        
+        p.lineTo(b.getNumSamples(), 1.0f);
+        p.closeSubPath();
+        
+        p.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), false);
+    }
+    
+	
 
 	repaint();
 }

@@ -160,24 +160,7 @@ public:
 
 	static String getDefaultCode()
 	{
-		String s;
-		String nl = "\n";
-		String emptyBracket;
-		emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
-
-		s << "void prepare(double sampleRate, int blockSize, int numChannels)" << nl;
-		s << emptyBracket;
-		
-		s << "void reset()" << nl;
-		s << emptyBracket;
-
-		s << "float processMono(float input)" << nl;
-		s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
-
-		s << "void processStereo(block frame)" << nl;
-		s << emptyBracket;
-
-		return s;
+        return hnode::jit::JitPlayground::getDefaultCode();
 	}
 
 	void updateCode(Identifier id, var newValue)

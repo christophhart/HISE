@@ -73,6 +73,50 @@ class JitPlayground : public Component,
 {
 public:
 
+    
+    static String getDefaultCode()
+    {
+        auto emitCommentLine = [](String& code, const String& comment)
+        {
+            code << "/** " << comment << " */\n" ;
+        };
+        
+        String s;
+        String nl = "\n";
+        String emptyBracket;
+        emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
+        
+        emitCommentLine(s, "Variable definitions");
+        s << "double sr = 0.0;" << nl;
+        s << "int c = 0;" << nl << nl;
+        
+        emitCommentLine(s, "Initialise the processing here.");
+        s << "void prepare(double sampleRate, int blockSize, int numChannels)" << nl;
+        s << "{" << nl;
+        s << "\tsr = sampleRate;" << nl;
+        s << "\tc = numChannels;" << nl;
+        s << "}" << nl << nl;
+        
+        emitCommentLine(s, "Reset the processing pipeline");
+        s << "void reset()" << nl;
+        s << emptyBracket;
+        
+        emitCommentLine(s, "Mono processing callback");
+        s << "float processMono(float input)" << nl;
+        s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
+        
+        emitCommentLine(s, "Multichannel processing callback");
+        s << "void processStereo(block frame)" << nl;
+        s << "{" << nl;
+        s << "\t// Clear first channel" << nl;
+        s << "\tframe[0] = 0.0f;" << nl;
+        s << "\t// Clear second channel" << nl;
+        s << "\tframe[1] = 0.0f;" << nl;
+        s << "}";
+        
+        return s;
+    }
+    
 	JitPlayground();
 
 	void paint(Graphics& g) override;
