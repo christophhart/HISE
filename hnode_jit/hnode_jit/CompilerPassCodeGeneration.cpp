@@ -82,9 +82,11 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 
 	cc.setInlineComment("Write class variable");
 
+    auto data = source->getGlobalDataPointer();
+    
 #if JUCE_64BIT
 	X86Gp address = cc.newGpq();
-	cc.mov(address, reinterpret_cast<uint64_t>(source->getGlobalDataPointer()));
+	cc.mov(address, reinterpret_cast<uint64_t>(data));
 	auto target = x86::qword_ptr(address);
 #else
 	auto target = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
