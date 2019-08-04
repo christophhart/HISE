@@ -80,6 +80,11 @@ public:
 	void addObjectDeleteListener(ObjectDeleteListener* l);
 	void removeObjectDeleteListener(ObjectDeleteListener* l);
 
+    VariableStorage& operator[](const Identifier& id)
+    {
+        return getVariableReference(id);
+    }
+    
 private:
 
 	Array<WeakReference<ObjectDeleteListener>> deleteListeners;

@@ -580,6 +580,10 @@ public:
 		}
 
 		
+		Rectangle<int> getCurrentTarget() const
+		{
+			return dark.ruler.toNearestInt();
+		}
 
 		void setCurrentModalWindow(Component* newComponent, Rectangle<int> target)
 		{
@@ -677,6 +681,18 @@ public:
 				if (getParentComponent() == nullptr)
 				{
 					jassertfalse;
+					return;
+				}
+
+				auto parentBounds = getParentComponent()->getLocalBounds();
+
+				if (parentBounds.getWidth() - 150 > getWidth() || parentBounds.getHeight() - 150)
+				{
+					lockPosition = true;
+					
+					auto newBounds = parentBounds.withSizeKeepingCentre(getWidth(), getHeight());
+					setTopLeftPosition(newBounds.getX(), newBounds.getY());
+					updateShadow();
 					return;
 				}
 

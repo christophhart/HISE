@@ -37,8 +37,8 @@ using namespace juce;
 using namespace asmjit;
 
 GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
-	FunctionClass("Parent"),
-	BaseScope("Parent", nullptr, numVariables)
+	FunctionClass("Globals"),
+	BaseScope("Globals", nullptr, numVariables)
 {
 	jassert(scopeType == BaseScope::Global);
 }

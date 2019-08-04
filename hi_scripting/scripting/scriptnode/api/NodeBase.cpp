@@ -474,6 +474,7 @@ void NodeBase::Parameter::addConnectionTo(var dragDetails)
 		newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
 		newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
 		RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
+		newC.setProperty(PropertyIds::Expression, "", nullptr);
 
 		auto connectionTree = sourcePTree.getChildWithName(PropertyIds::Connections);
 		connectionTree.addChild(newC, -1, parent->getUndoManager());

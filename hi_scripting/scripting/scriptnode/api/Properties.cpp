@@ -363,6 +363,128 @@ struct SliderWithLimit : public PropertyComponent
 	} c;
 };
 
+struct ExpressionPropertyComponent : public PropertyComponent
+{
+	ExpressionPropertyComponent(ValueTree& data, const Identifier& id, UndoManager* um):
+		PropertyComponent(id.toString())
+	{
+		addAndMakeVisible(comp);
+		comp.editor.getTextValue().referTo(data.getPropertyAsValue(id, um, true));
+		setPreferredHeight(32);
+		
+	}
+
+	void refresh() override {};
+
+	struct Comp : public Component,
+				  public Value::Listener
+	{
+		Comp()
+		{
+			addAndMakeVisible(editor);
+			editor.setFont(GLOBAL_MONOSPACE_FONT());
+			editor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.7f));
+			editor.getTextValue().addListener(this);
+			editor.setSelectAllWhenFocused(true);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			b.removeFromRight(getHeight() + 3);
+			b.removeFromBottom(3);
+			editor.setBounds(b);	
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds();
+
+			auto pb = b.removeFromRight(getHeight());
+
+			p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
+
+			
+			auto c = ok ? Colours::green : Colours::red;
+			c = c.withSaturation(0.3f);
+			c = c.withBrightness(0.4f);
+
+			g.setColour(c);
+
+			g.fillRect(pb);
+			g.setColour(Colours::white.withAlpha(0.6f));
+			g.fillPath(p);
+
+		}
+
+		void valueChanged(Value& value) override
+		{
+			empty = value.toString().isEmpty();
+
+			if (!empty)
+			{
+				String s = "float get(float input){ return ";
+				s << value.toString() << "; }";
+
+				hnode::jit::Compiler compiler(gs);
+				expression = compiler.compileJitObject(s);
+
+				ok = compiler.getCompileResult().wasOk();
+
+				if (auto f = expression["get"])
+				{
+					float data[32];
+
+					for (int i = 0; i < 32; i++)
+					{
+						float v = (float)i / 32.0f;
+						data[i] = f.call<float>(v);
+					}
+
+					Path newPath;
+					newPath.startNewSubPath(0.0f, 1.0f);
+
+					for (int i = 0; i < 32; i++)
+					{
+						newPath.lineTo((float)(i) / 32.0f, 1.0f - data[i]);
+					}
+
+					newPath.lineTo(1.0f, 0.0f);
+					newPath.lineTo(1.0f, 1.0f);
+					newPath.closeSubPath();
+
+					p = newPath;
+				}
+			}
+			else
+			{
+				Path newPath;
+				newPath.startNewSubPath(0.0f, 1.0f);
+				newPath.lineTo(1.0f, 0.0f);
+				newPath.lineTo(1.0f, 1.0f);
+				newPath.closeSubPath();
+
+				p = newPath;
+			}
+
+			
+
+			
+
+			repaint();
+		}
+
+		hnode::jit::JitObject expression;
+		hnode::jit::GlobalScope gs;
+		bool empty = false;
+		bool ok = false;
+		TextEditor editor;
+		Path p;
+	} comp;
+
+	
+};
+
 juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* p, ValueTree& d, const Identifier& id, UndoManager* um)
 {
 	using namespace PropertyIds;
@@ -401,9 +523,9 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 		return new SliderWithLimit(d, id, um);
 
 	if (propId == LockNumChannels)
-	{
 		return new ToggleButtonPropertyComponent(d, id, um);
-	}
+	if (propId == Expression)
+		return new ExpressionPropertyComponent(d, id, um);
 
 	bool isComment = id == PropertyIds::Comment;
 

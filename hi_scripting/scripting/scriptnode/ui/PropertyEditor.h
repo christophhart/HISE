@@ -45,82 +45,13 @@ struct NodePropertyComponent : public PropertyComponent
 		comp(d, n)
 	{
 		addAndMakeVisible(comp);
-
-		if (d[PropertyIds::ID].toString() == PropertyIds::Code.toString())
-			setPreferredHeight(400);
 	}
 
 	struct Comp : public Component,
 				  public ComboBoxListener,
-				  public Value::Listener,
-				  public ButtonListener
+				  public Value::Listener
 	{
-		Comp(ValueTree d, NodeBase* n):
-			v(d.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()))
-		{
-			publicButton.getToggleStateValue().referTo(d.getPropertyAsValue(PropertyIds::Public, n->getUndoManager()));
-			publicButton.setButtonText("Public");
-			addAndMakeVisible(publicButton);
-			publicButton.setLookAndFeel(&laf);
-			publicButton.setClickingTogglesState(true);
-
-			compileButton.setButtonText("Apply");
-			addAndMakeVisible(compileButton);
-			compileButton.setLookAndFeel(&laf);
-			compileButton.addListener(this);
-			
-			Identifier propId = Identifier(d[PropertyIds::ID].toString().fromLastOccurrenceOf(".", false, false));
-
-			if (propId == PropertyIds::FillMode || propId == PropertyIds::UseMidi || propId == PropertyIds::UseResetValue)
-			{
-				TextButton* t = new TextButton();
-				t->setButtonText("Enabled");
-				t->setClickingTogglesState(true);
-				t->getToggleStateValue().referTo(v);
-				t->setLookAndFeel(&laf);
-
-				editor = t;
-				addAndMakeVisible(editor);
-			}
-			else if (propId == PropertyIds::Callback || propId == PropertyIds::Connection)
-			{
-				Array<var> values;
-
-				StringArray sa = getListForId(propId, n);
-
-				for (auto s : sa)
-					values.add(s);
-
-				auto c = new ComboBox();
-
-				c->addItemList(sa, 1);
-				c->addListener(this);
-				v.addListener(this);
-
-				editor = c;
-
-				valueChanged(v);
-			}
-			else if (propId == PropertyIds::Code)
-			{
-				codeDoc = new CodeDocument();
-				codeDoc->replaceAllContent(v.toString());
-				tokeniser = new CPlusPlusCodeTokeniser();
-				editor = new CodeEditorComponent(*codeDoc, tokeniser.get());
-			}
-			else
-			{
-				auto te = new TextEditor();
-				te->getTextValue().referTo(v);
-				te->setLookAndFeel(&laf);
-				editor = te;
-				
-			}
-
-			if(editor != nullptr)
-				addAndMakeVisible(editor);
-
-		}
+		Comp(ValueTree d, NodeBase* n);
 
 		StringArray getListForId(const Identifier& id, NodeBase* n)
 		{
@@ -150,37 +81,22 @@ struct NodePropertyComponent : public PropertyComponent
 			v.setValue(c->getText());
 		}
 
-		void buttonClicked(Button* b) override
-		{
-			v.setValue(codeDoc->getAllContent());
-		}
-
 		void resized() override
 		{
 			auto b = getLocalBounds();
 
-			if (dynamic_cast<CodeEditorComponent*>(editor.get()) == nullptr)
-				publicButton.setBounds(b.removeFromRight(40));
-			else
-			{
-				compileButton.setBounds(b.removeFromBottom(24));
-				publicButton.setVisible(false);
-			}
+			publicButton.setBounds(b.removeFromRight(40));
 				
-			
 			if(editor != nullptr)
 				editor->setBounds(b);
 		}
 
 		Value v;
 
-		ScopedPointer<CodeDocument> codeDoc;
-		ScopedPointer<CodeTokeniser> tokeniser;
 		ScopedPointer<Component> editor;
 		TextButton publicButton;
-		TextButton compileButton;
-		HiPropertyPanelLookAndFeel laf;
 		
+		HiPropertyPanelLookAndFeel laf;
 		
 	} comp;
 
@@ -217,44 +133,9 @@ struct MultiColumnPropertyPanel : public Component
 
 	}
 
-	void resized()
-	{
-		int y = 0;
+	void resized();
 
-		if (useTwoColumns)
-		{
-			int x = 0;
-			auto w = getWidth() / 2;
-
-			for (auto p : properties)
-			{
-				auto h = p->getPreferredHeight();
-				
-				p->setBounds(x, y, w, h);
-
-				if(x == w)
-					y += h;
-
-				x += w;
-
-				if (x == getWidth())
-					x = 0;
-			}
-		}
-		else
-		{
-			for (auto p : properties)
-			{
-				auto h = p->getPreferredHeight();
-				p->setBounds(0, y, getWidth(), h);
-
-				y += h;
-			}
-		}
-		
-	}
-
-	int getTotalContentHeight() const { return contentHeight / (useTwoColumns ? 2 : 1); }
+	int getTotalContentHeight() const;
 
 	bool useTwoColumns = true;
 	
@@ -341,29 +222,7 @@ struct NodePopupEditor : public Component,
 		setSize(editor.getWidth(), editor.getHeight() + 50);
 	}
 
-	bool keyPressed(const KeyPress& key) override
-	{
-		if (key.getKeyCode() == 'w' || key.getKeyCode() == 'W')
-		{
-			buttonClicked(&wrapButton);
-			return true;
-		}
-		if (key.getKeyCode() == 's' || key.getKeyCode() == 'S')
-		{
-			buttonClicked(&surroundButton);
-			return true;
-		}
-		if (key.getKeyCode() == 'e' || key.getKeyCode() == 'E')
-		{
-			buttonClicked(&exportButton);
-			return true;
-		}
-		if (key == KeyPress::tabKey)
-		{
-			editor.getChildComponent(0)->grabKeyboardFocus();
-			return true;
-		}
-	}
+	bool keyPressed(const KeyPress& key) override;
 
 	void buttonClicked(Button* b) override;
 

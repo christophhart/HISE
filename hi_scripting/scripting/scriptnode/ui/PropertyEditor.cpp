@@ -49,6 +49,50 @@ juce::Path NodePopupEditor::Factory::createPath(const String& s) const
 	return p;
 }
 
+
+bool NodePopupEditor::keyPressed(const KeyPress& key)
+{
+	if (key.getKeyCode() == 'w' || key.getKeyCode() == 'W')
+	{
+		buttonClicked(&wrapButton);
+		return true;
+	}
+	if (key.getKeyCode() == 's' || key.getKeyCode() == 'S')
+	{
+		buttonClicked(&surroundButton);
+		return true;
+	}
+	if (key.getKeyCode() == 'e' || key.getKeyCode() == 'E')
+	{
+		buttonClicked(&exportButton);
+		return true;
+	}
+	if (key.getKeyCode() == 'o' || key.getKeyCode() == 'O')
+	{
+		if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
+		{
+			auto f = [sp]()
+			{
+				auto pg = new hnode::jit::JitPlayground();
+
+				auto bounds = sp->getBounds().reduced(100);
+
+				pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
+				sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
+			};
+
+			MessageManager::callAsync(f);
+			
+			return true;
+		}
+	}
+	if (key == KeyPress::tabKey)
+	{
+		editor.getChildComponent(0)->grabKeyboardFocus();
+		return true;
+	}
+}
+
 void NodePopupEditor::buttonClicked(Button* b)
 {
 	int mode = 0;
@@ -101,6 +145,145 @@ void NodePopupEditor::buttonClicked(Button* b)
 	};
 
 	MessageManager::callAsync(f);
+}
+
+
+NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
+	v(d.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()))
+{
+	publicButton.getToggleStateValue().referTo(d.getPropertyAsValue(PropertyIds::Public, n->getUndoManager()));
+	publicButton.setButtonText("Public");
+	addAndMakeVisible(publicButton);
+	publicButton.setLookAndFeel(&laf);
+	publicButton.setClickingTogglesState(true);
+
+	Identifier propId = Identifier(d[PropertyIds::ID].toString().fromLastOccurrenceOf(".", false, false));
+
+	if (propId == PropertyIds::FillMode || propId == PropertyIds::UseMidi || propId == PropertyIds::UseResetValue)
+	{
+		TextButton* t = new TextButton();
+		t->setButtonText("Enabled");
+		t->setClickingTogglesState(true);
+		t->getToggleStateValue().referTo(v);
+		t->setLookAndFeel(&laf);
+
+		editor = t;
+		addAndMakeVisible(editor);
+	}
+	else if (propId == PropertyIds::Callback || propId == PropertyIds::Connection)
+	{
+		Array<var> values;
+
+		StringArray sa = getListForId(propId, n);
+
+		for (auto s : sa)
+			values.add(s);
+
+		auto c = new ComboBox();
+
+		c->addItemList(sa, 1);
+		c->addListener(this);
+		v.addListener(this);
+
+		editor = c;
+
+		valueChanged(v);
+	}
+	else if (propId == PropertyIds::Code)
+	{
+		TextButton* jp = new TextButton("Edit Code");
+		jp->onClick = [this]()
+		{
+			if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
+			{
+				auto pg = new hnode::jit::JitPlayground();
+
+				auto bounds = sp->getBounds().reduced(100);
+
+				pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
+				sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
+				return;
+			}
+
+			if (auto ft = findParentComponentOfClass<FloatingTile>())
+			{
+				auto pg = new hnode::jit::JitPlayground();
+				pg->setSize(1024, 768);
+
+				ft->showComponentInRootPopup(pg, this, {});
+				return;
+			}
+		};
+
+		editor = jp;
+	}
+	else
+	{
+		auto te = new TextEditor();
+		te->getTextValue().referTo(v);
+		te->setLookAndFeel(&laf);
+		editor = te;
+
+	}
+
+	if (editor != nullptr)
+		addAndMakeVisible(editor);
+}
+
+
+void MultiColumnPropertyPanel::resized()
+{
+	int y = 0;
+
+	if (useTwoColumns)
+	{
+		int x = 0;
+		auto w = getWidth() / 2;
+
+		for (auto p : properties)
+		{
+			auto h = p->getPreferredHeight();
+
+			p->setBounds(x, y, w, h);
+
+			if (x == w)
+				y += h;
+
+			x += w;
+
+			if (x == getWidth())
+				x = 0;
+		}
+
+		if (properties.size() % 2 != 0)
+		{
+			properties.getLast()->setSize(getWidth(), properties.getLast()->getHeight());
+		}
+	}
+	else
+	{
+		for (auto p : properties)
+		{
+			auto h = p->getPreferredHeight();
+			p->setBounds(0, y, getWidth(), h);
+
+			y += h;
+		}
+	}
+}
+
+
+int MultiColumnPropertyPanel::getTotalContentHeight() const
+{
+	if (!useTwoColumns)
+		return contentHeight;
+
+	auto rv = contentHeight / 2;
+
+	if (properties.size() % 2 != 0)
+		rv += properties.getLast()->getPreferredHeight();
+
+	return rv;
 }
 
 }

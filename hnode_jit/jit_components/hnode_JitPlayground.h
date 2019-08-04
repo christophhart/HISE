@@ -37,6 +37,12 @@ namespace hnode {
 namespace jit {
 using namespace juce;
 
+struct SnexPathFactory: public hise::PathFactory
+{
+    String getId() const override { return "Snex"; }
+    Path createPath(const String& id) const override;
+};
+    
 struct Graph : public Component
 {
 	void setBuffer(AudioSampleBuffer& b);
@@ -73,7 +79,6 @@ class JitPlayground : public Component,
 {
 public:
 
-    
     static String getDefaultCode()
     {
         auto emitCommentLine = [](String& code, const String& comment)
@@ -102,11 +107,11 @@ public:
         s << emptyBracket;
         
         emitCommentLine(s, "Mono processing callback");
-        s << "float processMono(float input)" << nl;
+        s << "float processSample(float input)" << nl;
         s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
         
         emitCommentLine(s, "Multichannel processing callback");
-        s << "void processStereo(block frame)" << nl;
+        s << "void processFrame(block frame)" << nl;
         s << "{" << nl;
         s << "\t// Clear first channel" << nl;
         s << "\tframe[0] = 0.0f;" << nl;
@@ -133,6 +138,36 @@ public:
 
 private:
 
+	struct ButtonLaf : public LookAndFeel_V3
+	{
+		void drawButtonBackground(Graphics& g, Button& b, const Colour& , bool over, bool down)
+		{
+			float alpha = 0.0f;
+
+			if (over)
+				alpha += 0.2f;
+			if (down)
+				alpha += 0.2f;
+
+			if (b.getToggleState())
+			{
+				g.setColour(Colours::white.withAlpha(0.5f));
+				g.fillRoundedRectangle(b.getLocalBounds().toFloat(), 3.0f);
+			}
+
+			g.setColour(Colours::white.withAlpha(alpha));
+			g.fillRoundedRectangle(b.getLocalBounds().toFloat(), 3.0f);
+		}
+
+		void drawButtonText(Graphics&g, TextButton& b, bool over, bool down)
+		{
+			auto c = !b.getToggleState() ? Colours::white : Colours::black;
+			g.setColour(c.withAlpha(0.8f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(b.getButtonText(), b.getLocalBounds().toFloat(), Justification::centred);
+		}
+	} blaf;
+
 	void logMessage(const String& m) override
 	{
 		consoleContent.insertText(consoleContent.getNumCharacters(), m);
@@ -141,7 +176,7 @@ private:
 
 	void recalculate();
 
-	LookAndFeel_V3 laf;
+    hise::PopupLookAndFeel laf;
 
 	AudioSampleBuffer b;
 	Graph graph;
@@ -158,6 +193,15 @@ private:
 	Compiler::Tokeniser consoleTokeniser;
 	CodeDocument consoleContent;
 	CodeEditorComponent console;
+    
+    SnexPathFactory factory;
+    Path snexIcon;
+
+	TextButton showAssembly;
+	TextButton showSignal;
+	TextButton showConsole;
+	TextButton compileButton;
+
 };
 
 }
