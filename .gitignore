@@ -62,3 +62,7 @@ tools/cpp_api_builder/output/
 tools/cpp_api_builder/input/
 tools/jit_playground/jit_playground/JuceLibraryCode/
 tools/jit_playground/jit_playground/Builds/
+tools/snex_playground/JuceLibraryCode/BinaryData.cpp
+tools/snex_playground/Builds/VisualStudio2017/x64/Debug/App/jit_play.809191E7.tlog/CL.command.1.tlog
+tools/snex_playground/Builds/
+tools/snex_playground/JuceLibraryCode/

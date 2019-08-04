@@ -426,7 +426,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 				String s = "float get(float input){ return ";
 				s << value.toString() << "; }";
 
-				hnode::jit::Compiler compiler(gs);
+				snex::jit::Compiler compiler(gs);
 				expression = compiler.compileJitObject(s);
 
 				ok = compiler.getCompileResult().wasOk();
@@ -474,8 +474,8 @@ struct ExpressionPropertyComponent : public PropertyComponent
 			repaint();
 		}
 
-		hnode::jit::JitObject expression;
-		hnode::jit::GlobalScope gs;
+		snex::jit::JitObject expression;
+		snex::jit::GlobalScope gs;
 		bool empty = false;
 		bool ok = false;
 		TextEditor editor;

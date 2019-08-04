@@ -16,8 +16,6 @@
 //==============================================================================
 // [BEGIN_USER_CODE_SECTION]
 
-#define JUCE_ENABLE_AUDIO_GUARD 0
-
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
 // [END_USER_CODE_SECTION]
@@ -50,155 +48,24 @@
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
 //==============================================================================
-#define JUCE_MODULE_AVAILABLE_hi_backend                  1
-#define JUCE_MODULE_AVAILABLE_hi_components               1
-#define JUCE_MODULE_AVAILABLE_hi_core                     1
-#define JUCE_MODULE_AVAILABLE_hi_dsp                      1
-#define JUCE_MODULE_AVAILABLE_hi_dsp_library              1
-#define JUCE_MODULE_AVAILABLE_hi_lac                      1
-#define JUCE_MODULE_AVAILABLE_hi_modules                  1
-#define JUCE_MODULE_AVAILABLE_hi_sampler                  1
-#define JUCE_MODULE_AVAILABLE_hi_scripting                1
-#define JUCE_MODULE_AVAILABLE_hi_snex                     1
-#define JUCE_MODULE_AVAILABLE_hi_streaming                1
-#define JUCE_MODULE_AVAILABLE_hi_tools                    1
-#define JUCE_MODULE_AVAILABLE_hi_zstd                     1
-#define JUCE_MODULE_AVAILABLE_juce_audio_basics           1
-#define JUCE_MODULE_AVAILABLE_juce_audio_devices          1
-#define JUCE_MODULE_AVAILABLE_juce_audio_formats          1
-#define JUCE_MODULE_AVAILABLE_juce_audio_processors       1
-#define JUCE_MODULE_AVAILABLE_juce_audio_utils            1
-#define JUCE_MODULE_AVAILABLE_juce_core                   1
-#define JUCE_MODULE_AVAILABLE_juce_cryptography           1
-#define JUCE_MODULE_AVAILABLE_juce_data_structures        1
-#define JUCE_MODULE_AVAILABLE_juce_dsp                    1
-#define JUCE_MODULE_AVAILABLE_juce_events                 1
-#define JUCE_MODULE_AVAILABLE_juce_graphics               1
-#define JUCE_MODULE_AVAILABLE_juce_gui_basics             1
-#define JUCE_MODULE_AVAILABLE_juce_gui_extra              1
-#define JUCE_MODULE_AVAILABLE_juce_opengl                 1
-#define JUCE_MODULE_AVAILABLE_juce_product_unlocking      1
-#define JUCE_MODULE_AVAILABLE_stk_wrapper                 1
+#define JUCE_MODULE_AVAILABLE_hi_lac                     1
+#define JUCE_MODULE_AVAILABLE_hi_snex                    1
+#define JUCE_MODULE_AVAILABLE_hi_tools                   1
+#define JUCE_MODULE_AVAILABLE_hi_zstd                    1
+#define JUCE_MODULE_AVAILABLE_juce_audio_basics          1
+#define JUCE_MODULE_AVAILABLE_juce_audio_devices         1
+#define JUCE_MODULE_AVAILABLE_juce_audio_formats         1
+#define JUCE_MODULE_AVAILABLE_juce_audio_processors      1
+#define JUCE_MODULE_AVAILABLE_juce_core                  1
+#define JUCE_MODULE_AVAILABLE_juce_cryptography          1
+#define JUCE_MODULE_AVAILABLE_juce_data_structures       1
+#define JUCE_MODULE_AVAILABLE_juce_events                1
+#define JUCE_MODULE_AVAILABLE_juce_graphics              1
+#define JUCE_MODULE_AVAILABLE_juce_gui_basics            1
+#define JUCE_MODULE_AVAILABLE_juce_gui_extra             1
+#define JUCE_MODULE_AVAILABLE_juce_opengl                1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
-
-//==============================================================================
-// hi_core flags:
-
-#ifndef    USE_BACKEND
- #define   USE_BACKEND 1
-#endif
-
-#ifndef    USE_FRONTEND
- #define   USE_FRONTEND 0
-#endif
-
-#ifndef    USE_RAW_FRONTEND
- #define   USE_RAW_FRONTEND 0
-#endif
-
-#ifndef    IS_STANDALONE_APP
- #define   IS_STANDALONE_APP 1
-#endif
-
-#ifndef    USE_COPY_PROTECTION
- #define   USE_COPY_PROTECTION 0
-#endif
-
-#ifndef    USE_IPP
- #define   USE_IPP 0
-#endif
-
-#ifndef    USE_VDSP_FFT
- //#define USE_VDSP_FFT 0
-#endif
-
-#ifndef    FRONTEND_IS_PLUGIN
- //#define FRONTEND_IS_PLUGIN 0
-#endif
-
-#ifndef    USE_CUSTOM_FRONTEND_TOOLBAR
- //#define USE_CUSTOM_FRONTEND_TOOLBAR 0
-#endif
-
-#ifndef    HI_SUPPORT_MONO_CHANNEL_LAYOUT
- //#define HI_SUPPORT_MONO_CHANNEL_LAYOUT 0
-#endif
-
-#ifndef    HI_SUPPORT_MONO_TO_STEREO
- //#define HI_SUPPORT_MONO_TO_STEREO 0
-#endif
-
-#ifndef    HI_SUPPORT_FULL_DYNAMICS_HLAC
- #define   HI_SUPPORT_FULL_DYNAMICS_HLAC 1
-#endif
-
-#ifndef    IS_STANDALONE_FRONTEND
- //#define IS_STANDALONE_FRONTEND 0
-#endif
-
-#ifndef    USE_GLITCH_DETECTION
- //#define USE_GLITCH_DETECTION 0
-#endif
-
-#ifndef    ENABLE_PLOTTER
- #define   ENABLE_PLOTTER 1
-#endif
-
-#ifndef    ENABLE_SCRIPTING_SAFE_CHECKS
- #define   ENABLE_SCRIPTING_SAFE_CHECKS 1
-#endif
-
-#ifndef    CRASH_ON_GLITCH
- //#define CRASH_ON_GLITCH 0
-#endif
-
-#ifndef    HISE_ENABLE_EXPANSIONS
- //#define HISE_ENABLE_EXPANSIONS 0
-#endif
-
-#ifndef    ENABLE_SCRIPTING_BREAKPOINTS
- #define   ENABLE_SCRIPTING_BREAKPOINTS 1
-#endif
-
-#ifndef    ENABLE_ALL_PEAK_METERS
- #define   ENABLE_ALL_PEAK_METERS 1
-#endif
-
-#ifndef    ENABLE_CONSOLE_OUTPUT
- //#define ENABLE_CONSOLE_OUTPUT 1
-#endif
-
-#ifndef    ENABLE_HOST_INFO
- //#define ENABLE_HOST_INFO 1
-#endif
-
-#ifndef    ENABLE_STARTUP_LOGGER
- //#define ENABLE_STARTUP_LOGGER 0
-#endif
-
-#ifndef    ENABLE_CPU_MEASUREMENT
- //#define ENABLE_CPU_MEASUREMENT 1
-#endif
-
-#ifndef    USE_HARD_CLIPPER
- //#define USE_HARD_CLIPPER 0
-#endif
-
-#ifndef    USE_SPLASH_SCREEN
- //#define USE_SPLASH_SCREEN 0
-#endif
-
-//==============================================================================
-// hi_dsp_library flags:
-
-#ifndef    HI_EXPORT_DSP_LIBRARY
- #define   HI_EXPORT_DSP_LIBRARY 0
-#endif
-
-#ifndef    IS_STATIC_DSP_LIBRARY
- //#define IS_STATIC_DSP_LIBRARY 1
-#endif
 
 //==============================================================================
 // hi_lac flags:
@@ -220,20 +87,6 @@
 #endif
 
 //==============================================================================
-// hi_modules flags:
-
-#ifndef    HI_ENABLE_CUSTOM_NODE_LOCATION
- //#define HI_ENABLE_CUSTOM_NODE_LOCATION 0
-#endif
-
-//==============================================================================
-// hi_streaming flags:
-
-#ifndef    STANDALONE_STREAMING
- //#define STANDALONE_STREAMING 1
-#endif
-
-//==============================================================================
 // juce_audio_devices flags:
 
 #ifndef    JUCE_USE_WINRT_MIDI
@@ -241,7 +94,7 @@
 #endif
 
 #ifndef    JUCE_ASIO
- #define   JUCE_ASIO 1
+ //#define JUCE_ASIO 0
 #endif
 
 #ifndef    JUCE_WASAPI
@@ -253,7 +106,7 @@
 #endif
 
 #ifndef    JUCE_DIRECTSOUND
- #define   JUCE_DIRECTSOUND 1
+ //#define JUCE_DIRECTSOUND 1
 #endif
 
 #ifndef    JUCE_ALSA
@@ -323,17 +176,6 @@
 #endif
 
 //==============================================================================
-// juce_audio_utils flags:
-
-#ifndef    JUCE_USE_CDREADER
- //#define JUCE_USE_CDREADER 0
-#endif
-
-#ifndef    JUCE_USE_CDBURNER
- //#define JUCE_USE_CDBURNER 0
-#endif
-
-//==============================================================================
 // juce_core flags:
 
 #ifndef    JUCE_FORCE_DEBUG
@@ -381,29 +223,6 @@
 #endif
 
 //==============================================================================
-// juce_dsp flags:
-
-#ifndef    JUCE_ASSERTION_FIRFILTER
- //#define JUCE_ASSERTION_FIRFILTER 1
-#endif
-
-#ifndef    JUCE_DSP_USE_INTEL_MKL
- //#define JUCE_DSP_USE_INTEL_MKL 0
-#endif
-
-#ifndef    JUCE_DSP_USE_SHARED_FFTW
- //#define JUCE_DSP_USE_SHARED_FFTW 0
-#endif
-
-#ifndef    JUCE_DSP_USE_STATIC_FFTW
- //#define JUCE_DSP_USE_STATIC_FFTW 0
-#endif
-
-#ifndef    JUCE_DSP_ENABLE_SNAP_TO_ZERO
- //#define JUCE_DSP_ENABLE_SNAP_TO_ZERO 1
-#endif
-
-//==============================================================================
 // juce_events flags:
 
 #ifndef    JUCE_EXECUTE_APP_SUSPEND_ON_IOS_BACKGROUND_TASK
@@ -418,7 +237,7 @@
 #endif
 
 #ifndef    JUCE_USE_DIRECTWRITE
- #define   JUCE_USE_DIRECTWRITE 1
+ //#define JUCE_USE_DIRECTWRITE 1
 #endif
 
 #ifndef    JUCE_DISABLE_COREGRAPHICS_FONT_SMOOTHING

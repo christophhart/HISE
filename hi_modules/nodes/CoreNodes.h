@@ -160,7 +160,7 @@ public:
 
 	static String getDefaultCode()
 	{
-        return hnode::jit::JitPlayground::getDefaultCode();
+        return snex::jit::JitPlayground::getDefaultCode();
 	}
 
 	void updateCode(Identifier id, var newValue)
@@ -174,7 +174,7 @@ public:
 			obj = compiler.compileJitObject(code);
 
 			{
-				using namespace hnode::Types;
+				using namespace snex::Types;
 
 				prepareFunction = obj["prepare"];
 
@@ -249,7 +249,7 @@ public:
 				frame[0] = d.data[0][i];
 				frame[1] = d.data[1][i];
 				
-				stereoFunction.callVoidUnchecked(hnode::block(frame, 2));
+				stereoFunction.callVoidUnchecked(snex::block(frame, 2));
 
 				d.data[0][i] = frame[0];
 				d.data[1][i] = frame[1];
@@ -264,16 +264,16 @@ public:
 		if (numChannels == 1 && monoFunction)
 			frameData[0] = monoFunction.callUnchecked<float>(frameData[0]);
 		else if (numChannels == 2 && stereoFunction)
-			stereoFunction.callVoidUnchecked(hnode::block(frameData, 2));
+			stereoFunction.callVoidUnchecked(snex::block(frameData, 2));
 	}
 
 	SpinLock compileLock;
 
-	using Func = hnode::jit::FunctionData;
+	using Func = snex::jit::FunctionData;
 
-	hnode::jit::GlobalScope scope;
-	hnode::jit::Compiler compiler;
-	hnode::jit::JitObject obj;
+	snex::jit::GlobalScope scope;
+	snex::jit::Compiler compiler;
+	snex::jit::JitObject obj;
 
 	NodePropertyT<String> code;
 	

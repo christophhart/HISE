@@ -73,7 +73,7 @@ bool NodePopupEditor::keyPressed(const KeyPress& key)
 		{
 			auto f = [sp]()
 			{
-				auto pg = new hnode::jit::JitPlayground();
+				auto pg = new snex::jit::JitPlayground();
 
 				auto bounds = sp->getBounds().reduced(100);
 
@@ -196,7 +196,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 		{
 			if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
 			{
-				auto pg = new hnode::jit::JitPlayground();
+				auto pg = new snex::jit::JitPlayground();
 
 				auto bounds = sp->getBounds().reduced(100);
 
@@ -207,7 +207,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 
 			if (auto ft = findParentComponentOfClass<FloatingTile>())
 			{
-				auto pg = new hnode::jit::JitPlayground();
+				auto pg = new snex::jit::JitPlayground();
 				pg->setSize(1024, 768);
 
 				ft->showComponentInRootPopup(pg, this, {});

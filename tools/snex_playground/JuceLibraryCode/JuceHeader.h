@@ -14,35 +14,22 @@
 
 #include "AppConfig.h"
 
-#include <hi_backend/hi_backend.h>
-#include <hi_components/hi_components.h>
-#include <hi_core/hi_core.h>
-#include <hi_dsp/hi_dsp.h>
-#include <hi_dsp_library/hi_dsp_library.h>
 #include <hi_lac/hi_lac.h>
-#include <hi_modules/hi_modules.h>
-#include <hi_sampler/hi_sampler.h>
-#include <hi_scripting/hi_scripting.h>
 #include <hi_snex/hi_snex.h>
-#include <hi_streaming/hi_streaming.h>
 #include <hi_tools/hi_tools.h>
 #include <hi_zstd/hi_zstd.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_core/juce_core.h>
 #include <juce_cryptography/juce_cryptography.h>
 #include <juce_data_structures/juce_data_structures.h>
-#include <juce_dsp/juce_dsp.h>
 #include <juce_events/juce_events.h>
 #include <juce_graphics/juce_graphics.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 #include <juce_opengl/juce_opengl.h>
-#include <juce_product_unlocking/juce_product_unlocking.h>
-#include <stk_wrapper/stk_wrapper.h>
 
 #include "BinaryData.h"
 
@@ -55,9 +42,9 @@
 #if ! JUCE_DONT_DECLARE_PROJECTINFO
 namespace ProjectInfo
 {
-    const char* const  projectName    = "HISE Standalone";
-    const char* const  companyName    = "Hart Instruments";
-    const char* const  versionString  = "2.1.0";
-    const int          versionNumber  = 0x20100;
+    const char* const  projectName    = "snex_playground";
+    const char* const  companyName    = "";
+    const char* const  versionString  = "1.0.0";
+    const int          versionNumber  = 0x10000;
 }
 #endif
