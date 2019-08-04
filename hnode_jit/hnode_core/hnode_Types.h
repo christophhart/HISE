@@ -45,7 +45,7 @@ struct BlockMismatchException
 };
 
 #ifndef HNODE_ALLOW_BLOCK_EXCEPTION
-#define HNODE_ALLOW_BLOCK_EXCEPTION 1
+#define HNODE_ALLOW_BLOCK_EXCEPTION 0
 #endif
 
 #if HNODE_ALLOW_BLOCK_EXCEPTION
@@ -174,7 +174,7 @@ template <typename T> struct FloatingTypeBlock
 
 	T& operator[](int index) hnode_buffer_except
 	{
-		testBounds(index, size());
+        testBounds(index, size());
 		return data[index];
 	}
 
@@ -191,7 +191,7 @@ template <typename T> struct FloatingTypeBlock
 		return { data + offset, subSize };
 	}
 
-	int size() const noexcept { return size_; } hnode_buffer_except
+	int size() const noexcept { return size_; } 
 
 	T* getData() hnode_buffer_except {  return data;  }
 

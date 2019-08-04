@@ -111,12 +111,16 @@ class BlockFunctions : public FunctionClass
 	{
 		static float getSample(block b, int index)
 		{
-			return b[index];
+			if(isPositiveAndBelow(index, b.size()))
+               return b[index];
+               
+            return 0.0f;
 		}
 
 		static void setSample(block b, int index, float newValue)
 		{
-			b[index] = newValue;
+            if(isPositiveAndBelow(index, b.size()))
+                b[index] = newValue;
 		}
 
 		static int getWritePointer(block b)

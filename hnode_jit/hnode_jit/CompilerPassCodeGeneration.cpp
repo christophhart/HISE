@@ -72,7 +72,12 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 	IF_(double) FP_OP(cc.movsd, target, value);
 	IF_(int)   INT_OP(cc.mov,   target, value);
 	IF_(HiseEvent) INT_OP(cc.mov, target, value);
-	IF_(block)	   INT_OP(cc.mov, target, value);
+	IF_(block)
+    {
+        value->createRegister(cc);
+        cc.mov(INT_REG_W(target), INT_REG_R(value));
+        
+    }
 }
 
 
@@ -535,7 +540,7 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 
 	if (data.returnType == Types::ID::Float) sig.setRetT<float>();
 	if (data.returnType == Types::ID::Double) sig.setRetT<double>();
-	if (data.returnType == Types::ID::Integer) sig.setRetT<int>();
+	if (data.returnType == Types::ID::Integer) sig.setRetT<uint64_t>();
 	if (data.returnType == Types::ID::Event) sig.setRet(TypeId::kIntPtr);
 	if (data.returnType == Types::ID::Block) sig.setRet(TypeId::kIntPtr);
 
@@ -608,7 +613,7 @@ Result ConstExprEvaluator::process(SyntaxTree* tree)
 		}
 		if (auto c = as<Operations::Cast>(s))
 		{
-			if (auto ce = evalCast(c->getSubExpr(0), c->type))
+			if (auto ce = evalCast(c->getSubExpr(0), c->getType()))
 				c->replaceInParent(ce);
 		}
 		if (auto b = as<Operations::BinaryOp>(s))

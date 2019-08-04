@@ -282,6 +282,16 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
+        CREATE_TYPED_TEST("float test(block in){ in[1] = Math.abs(in, 124.0f); return 1.0f; };");
+        test->setup();
+        test->func["test"].call<float>(bl);
+        expectEquals<float>(bl[1], 0.0f, "Calling function with wrong signature as block assignment");
+        
+        CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
+        test->setup();
+        test->func["test"].call<float>(bl);
+        expectEquals<float>(bl[1], 0.0f, "Calling function with wrong signature as block assignment");
+        
 		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
 
 		test->setup();
@@ -296,18 +306,16 @@ private:
 		CREATE_TYPED_TEST("float test(block in, block in2){ return in[0] + in2[128]; };");
 
 		test->setup();
-
 		auto rb2 = test->func["test"].call<float>(bl, bl2);
-
 		expectEquals<float>(rb2, 0.86f + 0.92f, "Adding two block values");
 
 		CREATE_TYPED_TEST("float test(block in){ in[1] = 124.0f; return 1.0f; };");
-
 		test->setup();
 		test->func["test"].call<float>(bl);
-
 		expectEquals<float>(bl[1], 124.0f, "Setting block value");
-
+        
+        
+        
 		expect(false, "This test crashes, so fix it once we need block iteration...");
 
 #if 0

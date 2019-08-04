@@ -563,6 +563,8 @@ struct Operations::FunctionCall : public Expression
 					return;
 				}
 			}
+            
+            throwError("Wrong argument types for function call " + symbol.toString());
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -968,6 +970,8 @@ struct Operations::BlockAssignment : public Expression
 		{
 			if (getSubExpr(0)->getType() != Types::ID::Float)
 			{
+                auto type = getSubExpr(0)->getType();
+                
 				Ptr implicitCast = new Operations::Cast(location, getSubExpr(0), Types::ID::Float);
 
 				logWarning("Implicit cast to float for []-operation");

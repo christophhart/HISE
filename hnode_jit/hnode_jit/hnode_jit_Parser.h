@@ -177,7 +177,7 @@ public:
 			return nullptr;
 		}
 
-		Types::ID type;
+		
 
 		int getNumSubExpressions() const
 		{
@@ -230,9 +230,13 @@ public:
 		String asmComment;
 
 		RegPtr reg;
-
-	private:
-
+        
+    protected:
+        
+        Types::ID type;
+        
+    private:
+        
 		ReferenceCountedArray<Expression> subExpr;
 	};
 

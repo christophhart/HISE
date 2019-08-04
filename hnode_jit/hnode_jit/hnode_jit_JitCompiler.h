@@ -48,7 +48,7 @@ using namespace juce;
 	- define functions which can be called from C++ or from other JITted functions
 	- use common inbuilt functions like powf, sin, cos, etc.
 	- use local variables without runtime penalties
-	- call functions with max two parameters
+	- call functions with max three parameters
 	- simple branching using the a ? b : c logic
 
 	You can give it a C code snippet as string and it will compile and return instances of scopes that can be used independently.

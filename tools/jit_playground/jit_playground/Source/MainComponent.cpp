@@ -15,18 +15,6 @@ MainComponent::MainComponent()
 	runner.setAssertOnFailure(false);
 	runner.runAllTests();
 
-	hnode::jit::GlobalScope pool;
-	hnode::jit::Compiler compiler(pool); 
-
-	String code = "float member = 8.0f; float square(float input){member = input; return (float)input * input; }";
-
-	if (auto obj = compiler.compileJitObject(code))
-	{
-		auto f = obj["square"];
-		auto returnValue = f.call<float>(12.0f);
-		DBG(returnValue);
-	}
-
 	addAndMakeVisible(playground);
     setSize (1024, 768);
 }
@@ -38,7 +26,7 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::paint (Graphics& g)
 {
-    
+	g.fillAll(Colour(0xFF333336));
 }
 
 void MainComponent::resized()
