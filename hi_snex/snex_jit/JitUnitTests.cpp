@@ -209,12 +209,8 @@ public:
 
 	void runTest() override
 	{
-		
-
 		testParser();
-
 		testSimpleIntOperations();
-		
 
 		testOperations<float>();
 		testOperations<double>();
@@ -223,6 +219,7 @@ public:
 		testCompareOperators<double>();
 		testCompareOperators<int>();
 		testCompareOperators<float>();
+
 		testTernaryOperator();
 		testComplexExpressions();
 		testGlobals();
@@ -230,20 +227,11 @@ public:
 		testDoubleFunctionCalls();
 		testBigFunctionBuffer();
 		testLogicalOperations();
-
-
 		testScopes();
-
 		testBlocks();
-
 		testEventSetters();
 		testEvents();
-
-
 		testDspModules();
-
-		//testDynamicObjectProperties();
-		//testDynamicObjectFunctionCalls();
 	}
 
 
@@ -728,6 +716,11 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
+        CREATE_TEST("float ov(int a){ return 9.0f; } float ov(double a) { return 14.0f; } float test(float input) { return ov(5); }");
+        EXPECT("function overloading", 2.0f, 9.0f);
+        
+        return;
+        
 		Random r;
 
 		const float v = r.nextFloat() * 122.0f * r.nextBool() ? 1.0f : -1.0f;
@@ -735,17 +728,17 @@ private:
 		CREATE_TEST("float square(float input){return input*input;}; float test(float input){ return square(input);};")
 			EXPECT("JIT Function call", v, v*v);
 
-#if INCLUDE_CONDITIONALS
+        CREATE_TEST("float ov(int a){ return 9.0f; } float ov(double a) { return 14.0f; } float test(float input) { return ov(5); }");
+        EXPECT("function overloading", 2.0f, 9.0f);
+    
 		CREATE_TEST("float a(){return 2.0f;}; float b(){ return 4.0f;}; float test(float input){ const float x = input > 50.0f ? a() : b(); return x;};")
 			EXPECT("JIT Conditional function call", v, v > 50.0f ? 2.0f : 4.0f);
-
 
 		CREATE_TEST("int isBigger(int a){return a > 0;}; float test(float input){return isBigger(4) ? 12.0f : 4.0f; };");
 		EXPECT("int function", 2.0f, 12.0f);
 
 		CREATE_TEST("int getIfTrue(int isTrue){return true ? 1 : 0;}; float test(float input) { return getIfTrue(true) == 1 ? 12.0f : 4.0f; }; ");
 		EXPECT("int parameter", 2.0f, 12.0f);
-#endif
 
 		String x;
 		NewLine nl;

@@ -180,7 +180,7 @@ struct FunctionClass
 
 	bool fillJitFunctionPointer(FunctionData& dataWithoutPointer);
 
-	bool injectFunctionPointer(Identifier& id, void* funcPointer);
+	bool injectFunctionPointer(FunctionData& dataToInject);
 
 protected:
 

@@ -53,6 +53,7 @@ struct Helpers
 	static String getTypeIDName(ID Type);
 
 
+	static bool matchesTypeLoose(ID expected, ID actual);
 	static bool matchesTypeStrict(ID expected, ID actual);
 	static bool matchesType(ID expected, ID actual);
 	static bool isFixedType(ID type);

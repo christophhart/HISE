@@ -102,7 +102,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto fClass = dynamic_cast<FunctionClass*>(scope);
 
-		bool success = fClass->injectFunctionPointer(data.id, data.function);
+		bool success = fClass->injectFunctionPointer(data);
 
 		jassert(success);
 

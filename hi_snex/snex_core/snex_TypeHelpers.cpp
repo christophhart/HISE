@@ -146,6 +146,11 @@ juce::String Types::Helpers::getTypeIDName(ID type)
 }
 
 
+bool Types::Helpers::matchesTypeLoose(ID expected, ID actual)
+{
+	return expected == actual || (isNumeric(expected) && isNumeric(actual));
+}
+
 juce::juce_wchar Types::Helpers::getTypeChar(ID id)
 {
 	return getTypeName(id).toLowerCase()[0];
@@ -345,7 +350,7 @@ snex::Types::ID Types::Helpers::getTypeFromStringValue(const String& value)
 
 bool Types::Helpers::matchesTypeStrict(ID expected, ID actual)
 {
-	return (int)expected & (int)actual;
+	return (int)expected & (int)actual || (expected == actual);
 }
 
 

@@ -80,7 +80,7 @@ bool FunctionData::matchesArgumentTypes(const Array<Types::ID>& typeList)
 
 bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType /*= true*/) const
 {
-	if (!Types::Helpers::matchesType(returnType, otherFunctionData.returnType))
+	if (checkReturnType && !Types::Helpers::matchesType(returnType, otherFunctionData.returnType))
 		return false;
 
 	if (args.size() != otherFunctionData.args.size())
@@ -158,12 +158,36 @@ void FunctionClass::addFunction(FunctionData* newData)
 
 bool FunctionClass::fillJitFunctionPointer(FunctionData& dataWithoutPointer)
 {
+	// first check strict typing
+	for (auto f : functions)
+	{
+		if (f->id == dataWithoutPointer.id && f->matchesArgumentTypes(dataWithoutPointer, false))
+		{
+			dataWithoutPointer.function = f->function;
+
+			return dataWithoutPointer.function != nullptr;
+
+		}
+	}
+
 	for (auto f : functions)
 	{
 		if (f->id == dataWithoutPointer.id)
 		{
-			dataWithoutPointer.function = f->function;
-			return true;
+			auto& fArgs = f->args;
+			auto& dArgs = dataWithoutPointer.args;
+
+			if (fArgs.size() == dArgs.size())
+			{
+				for (int i = 0; i < fArgs.size(); i++)
+				{
+					if (!Types::Helpers::matchesTypeLoose(fArgs[0], dArgs[0]))
+						return false;
+				}
+
+				dataWithoutPointer.function = f->function;
+				return true;
+			}
 		}
 	}
 
@@ -171,13 +195,13 @@ bool FunctionClass::fillJitFunctionPointer(FunctionData& dataWithoutPointer)
 }
 
 
-bool FunctionClass::injectFunctionPointer(Identifier& id, void* funcPointer)
+bool FunctionClass::injectFunctionPointer(FunctionData& dataToInject)
 {
 	for (auto f : functions)
 	{
-		if (f->id == id)
+		if (f->id == dataToInject.id && f->matchesArgumentTypes(dataToInject, true))
 		{
-			f->function = funcPointer;
+			f->function = dataToInject.function;
 			return true;
 		}
 	}
