@@ -77,14 +77,30 @@ The **SNEX** syntax uses brackets for blocks and semicolons for statements. Comm
 }
 ```
 
-Function definitions have this syntax:
+
+
+You can define variables in any scope (function scope or global scope), however **there are no anonymous scopes**.
+
+## Language structure
+
+A valid SNEX code contains of definitions of variables and functions:
 
 ```cpp
-ReturnType functionName(Arguments...)
+// some variables
+type a = something;
+type b = somethingElse;
+...
+
+// function definitions
+type functionName()
 {
-   // body
+    //... function body
 }
 ```
+
+**There is no concept of classes or any other object oriented design principle.** The rationale behind this is that a SNEX compiled object is already a class.
+
+## Variables
 
 Variable names must be a valid identifier, and **definitions must initialise the value**:
 
@@ -92,7 +108,27 @@ Variable names must be a valid identifier, and **definitions must initialise the
 type variableName = initialValue;
 ```
 
-You can define variables in any scope (function scope or global scope), however **there are no anonymous scopes**.
+You can also define constant values by prepending `const` to the definition:
+
+```cpp
+const type value = initialValue;
+```
+
+Doing so will speed up the compilation because it doesn't need to lookup the memory location.
+
+## Functions
+
+
+Function definitions have this syntax:
+
+```cpp
+ReturnType functionName(ArgumentType1 arg1, ArgumentType2 arg2)
+{
+   // body
+}
+```
+
+Functions can be overloaded: despite having the same name, their argument amount and types can vary. However they can't differ only in the return type.
 
 ## Types
 
@@ -112,7 +148,27 @@ Unlike HiseScript, **SNEX** is strictly typed. **However there is a very limited
 int x = (int)2.0f;
 ```
 
-however, the compiler will generate implicit casts (and warn you about this).
+Type mismatches will be implicitely corrected by the compiler if possible (but it will produce a warning message so it's not recommended behaviour to just don't care about types).
+
+## Variable visibility
+
+**SNEX** variables are visible inside their scope (= `{...}` block) or parent scopes. The inner scope has the highest priority and override variable names is possible:
+
+```
+void test()
+{
+    float x = 25.0f;
+	
+	{
+		float x = 90.0f;
+		Console.print(x); // 90.0f;
+	}
+	
+	Console.print(x); // 25.0f;
+}
+```
+
+However, since this is a common pitfall for bugs, it will produce a compiler warning.
 
 ## Operators
 
@@ -219,7 +275,7 @@ void test(int input)
 
 ### Function calls
 
-You can call other functions using this syntax: `functionCall(parameter1, parameter2);` It currently supports up to three parameters. Be aware that you can't call functions before defining them:
+You can call other functions using this syntax: `functionCall(parameter1, parameter2);`Be aware that forward declaring is not supported so you can't call functions before defining them:
 
 ```cpp
 void f1()
