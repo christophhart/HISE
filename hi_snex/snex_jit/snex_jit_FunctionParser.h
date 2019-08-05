@@ -32,39 +32,48 @@
 
 #pragma once
 
-
-#include <typeindex>
-
-#include "snex_jit_Functions.h"
-#include "snex_jit_BaseScope.h"
-#include "snex_jit_GlobalScope.h"
-#include "snex_jit_JitCallableObject.h"
-#include "snex_jit_JitCompiledFunctionClass.h"
-#include "snex_jit_JitCompiler.h"
-
 namespace snex {
 namespace jit {
 using namespace juce;
+using namespace asmjit;
 
-using TypeInfo = std::type_index;
+class FunctionParser : public BlockParser
+{
+public:
 
-#if HNODE_BOOL_IS_NOT_INT
-using BooleanType = unsigned char
-#else
-using BooleanType = int;
-#endif
+	FunctionParser(BaseCompiler* c, Operations::Function& f) :
+		BlockParser(c, f.code, f.location.program, f.codeLength)
+	{};
 
-using PointerType = uint64_t;
+	StatementPtr parseStatementBlock();
+	StatementPtr parseStatement();
+	StatementPtr parseAssignment();
+	StatementPtr parseReturnStatement();
+	StatementPtr parseVariableDefinition(bool isConst);
+	StatementPtr parseLoopStatement();
 
-#if JUCE_64BIT
-typedef uint64_t AddressType;
-#else
-typedef uint32_t AddressType;
-#endif
+	void finaliseSyntaxTree(SyntaxTree* tree) override;
+
+	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, TokenType op);
+
+	ExprPtr parseExpression();
+	ExprPtr parseTernaryOperator();
+	ExprPtr parseBool();
+	ExprPtr parseLogicOperation();
+	ExprPtr parseComparation();
+	ExprPtr parseSum();
+	ExprPtr parseDifference();
+	ExprPtr parseProduct();
+	ExprPtr parseTerm();
+	ExprPtr parseCast(Types::ID type);
+	ExprPtr parseUnary();
+	ExprPtr parseFactor();
+	ExprPtr parseSymbolOrLiteral();
+	ExprPtr parseReference();
+	ExprPtr parseLiteral(bool isNegative=false);
+	ExprPtr parseFunctionCall();
+};
 
 
-
-
-} // end namespace jit
-} // end namespace snex
-
+}
+}

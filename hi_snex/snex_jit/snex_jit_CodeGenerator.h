@@ -114,11 +114,7 @@ struct AsmCodeGenerator
 
 private:
 
-	
-
 	static void createRegistersForArguments(X86Compiler& cc, ReferenceCountedArray<AssemblyRegister>& parameters, const FunctionData& f);
-
-	
 	Types::ID type;
 };
 

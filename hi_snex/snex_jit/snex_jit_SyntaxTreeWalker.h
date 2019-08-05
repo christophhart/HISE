@@ -32,39 +32,50 @@
 
 #pragma once
 
-
-#include <typeindex>
-
-#include "snex_jit_Functions.h"
-#include "snex_jit_BaseScope.h"
-#include "snex_jit_GlobalScope.h"
-#include "snex_jit_JitCallableObject.h"
-#include "snex_jit_JitCompiledFunctionClass.h"
-#include "snex_jit_JitCompiler.h"
-
 namespace snex {
-namespace jit {
+namespace jit
+{
 using namespace juce;
 
-using TypeInfo = std::type_index;
 
-#if HNODE_BOOL_IS_NOT_INT
-using BooleanType = unsigned char
-#else
-using BooleanType = int;
-#endif
+struct SyntaxTreeWalker
+{
+	SyntaxTreeWalker(const Operations::Statement* statement, bool searchFromRoot = true)
+	{
+		if (searchFromRoot)
+		{
+			while (statement->parent != nullptr)
+				statement = statement->parent;
+		}
 
-using PointerType = uint64_t;
+		add(const_cast<Operations::Statement*>(statement));
+	}
 
-#if JUCE_64BIT
-typedef uint64_t AddressType;
-#else
-typedef uint32_t AddressType;
-#endif
+	Operations::Statement* getNextStatement()
+	{
+		return statements[index++].get();
+	}
+
+	template <class T> T* getNextStatementOfType()
+	{
+		while (auto s = getNextStatement())
+		{
+			if (auto typed = dynamic_cast<T*>(s))
+				return typed;
+		}
+
+		return nullptr;
+	}
+
+private:
+
+	void add(Operations::Statement* s);
+
+	Array<WeakReference<Operations::Statement>> statements;
+	int index = 0;
+};
 
 
 
-
-} // end namespace jit
-} // end namespace snex
-
+}
+}

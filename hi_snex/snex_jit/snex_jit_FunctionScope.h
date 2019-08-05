@@ -37,44 +37,60 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-class NewFunctionParser : public BlockParser
+
+struct RegisterScope : public BaseScope
+{
+	RegisterScope(BaseScope* parentScope) :
+		BaseScope({}, parentScope)
+	{
+		jassert(getScopeType() >= BaseScope::Function);
+	}
+
+	AssemblyRegister* getRegister(RefPtr ref)
+	{
+		for (auto r : allocatedRegisters)
+		{
+			if (*r == ref)
+				return r;
+		}
+
+		if (auto rParent = dynamic_cast<RegisterScope*>(parent.get()))
+			return rParent->getRegister(ref);
+
+		return nullptr;
+	}
+
+	void addAssemblyRegister(AssemblyRegister* newRegister)
+	{
+		allocatedRegisters.add(newRegister);
+	}
+
+private:
+
+	ReferenceCountedArray<AssemblyRegister> allocatedRegisters;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RegisterScope);
+};
+
+
+class FunctionScope : public RegisterScope
 {
 public:
+	FunctionScope(BaseScope* parent) :
+		RegisterScope(parent)
+	{
+		jassert(scopeType == BaseScope::Function);
+	}
 
-	NewFunctionParser(BaseCompiler* c, Operations::Function& f) :
-		BlockParser(c, f.code, f.location.program, f.codeLength)
-	{};
+	~FunctionScope() {}
 
-	
+	ReferenceCountedObjectPtr<ReferenceCountedObject> parentFunction;
+	FunctionData data;
+	Array<Identifier> parameters;
 
-	StatementPtr parseStatementBlock();
-	StatementPtr parseStatement();
-	StatementPtr parseAssignment();
-	StatementPtr parseReturnStatement();
-	StatementPtr parseVariableDefinition(bool isConst);
-	StatementPtr parseLoopStatement();
-
-	void finaliseSyntaxTree(SyntaxTree* tree) override;
-
-	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, TokenType op);
-
-	ExprPtr parseExpression();
-	ExprPtr parseTernaryOperator();
-	ExprPtr parseBool();
-	ExprPtr parseLogicOperation();
-	ExprPtr parseComparation();
-	ExprPtr parseSum();
-	ExprPtr parseDifference();
-	ExprPtr parseProduct();
-	ExprPtr parseTerm();
-	ExprPtr parseCast(Types::ID type);
-	ExprPtr parseUnary();
-	ExprPtr parseFactor();
-	ExprPtr parseSymbolOrLiteral();
-	ExprPtr parseReference();
-	ExprPtr parseLiteral(bool isNegative=false);
-	ExprPtr parseFunctionCall();
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionScope);
 };
+
 
 
 }

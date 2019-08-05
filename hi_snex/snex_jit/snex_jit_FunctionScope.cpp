@@ -30,89 +30,11 @@
 *   ===========================================================================
 */
 
-#pragma once
 
 namespace snex {
 namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-struct GlobalBase
-{
-	GlobalBase(const Identifier& id_):
-		id(id_),
-		ownData(0.0),
-		data(&ownData)
-	{
-
-	};
-
-	~GlobalBase()
-	{
-
-	}
-
-	void* getDataPointer() { return data->getDataPointer(); }
-
-	template<typename T> static T store(GlobalBase* b, T newValue)
-	{
-#if JUCE_WINDOWS
-		jassert(JITTypeHelpers::template matchesType<T>(b->type));
-#endif
-
-		T* castedData = reinterpret_cast<T*>(b->getDataPointer());
-		*castedData = newValue;
-
-		return T();
-	}
-
-	static void storeDynamic(GlobalBase* b, const VariableStorage& newValue)
-	{
-		*b->data = newValue;
-
-	}
-
-
-	void setExternalMemory(VariableStorage& d)
-	{
-		ownData = {};
-		data = &d;
-	}
-	
-	template<typename T> static T get(GlobalBase* b)
-	{
-#if JUCE_WINDOWS
-		jassert(JITTypeHelpers::matchesType<T>(b->type));
-#endif
-
-		return *reinterpret_cast<T*>(b->getDataPointer());
-	}
-
-
-	template <typename T> static GlobalBase* create(GlobalScope* memoryPool, const Identifier& id)
-	{
-		jassertfalse;
-
-		if (memoryPool == nullptr)
-		{
-			jassertfalse;
-			return nullptr;
-		}
-		else
-		{
-			return nullptr;
-		}
-	}
-
-	Identifier id;
-
-	bool isConst = false;
-
-private:
-
-	VariableStorage ownData;
-	VariableStorage* data;
-};
-
-} // end namespace jit
-} // end namespace snex
+}
+}

@@ -37,26 +37,56 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-#define ADD_GLOBAL(type, name) globals.add(GlobalBase::create<type>(name));
-
-/** The information fed to the function parser. */
-struct FunctionParserInfo: public FunctionData
+class DeadcodeEliminator : public OptimizationPass
 {
-	FunctionParserInfo() :
-		code(String::CharPointerType(nullptr))
-	{}
+	String getName() const override { return "Dead code elimination"; }
 
-	Array<Identifier> parameterNames;
-
-	String::CharPointerType code;
-	int length;
-	String program;
-	int offset = 0;
-
-	bool addVoidReturnStatement;
+	Result process(SyntaxTree* tree) override;
 };
 
+class Inliner: public OptimizationPass
+{
+public:
 
+	using TokenType = ParserHelpers::TokenType;
 
-} // end namespace jit
-} // end namespace snex
+	struct Helpers
+	{
+		static int getPrecedenceLevel(TokenType t)
+		{
+			if (t == JitTokens::divide)	return 4;
+			if (t == JitTokens::times )	return 3;
+			if (t == JitTokens::minus)	return 2;
+			if (t == JitTokens::plus)	return 1;
+			else						return 0;
+		}
+
+		static int isSwappable(TokenType t)
+		{
+			if (t == JitTokens::divide)	return false;
+			if (t == JitTokens::times)	return true;
+			if (t == JitTokens::minus)	return false;
+			if (t == JitTokens::plus)	return true;
+			else						return false;
+		}
+	};
+
+	String getName() const override
+	{
+		return "Inlining";
+	}
+
+	Result process(SyntaxTree* tree) override;
+
+	using ExprPtr = Operations::Expression::Ptr;
+
+	static void swapBinaryOpIfPossible(ExprPtr binOp);
+
+	static void createSelfAssignmentFromBinaryOp(ExprPtr assignment);
+
+	static bool containsVariableReference(ExprPtr p, BaseScope::RefPtr refToCheck);
+
+};
+
+}
+}

@@ -37,64 +37,6 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-#if 0
-RegisterAllocator::RegisterAllocator(Compiler& cc_):
-	cc(cc_)
-{}
-
-
-bool RegisterAllocator::isLeftOfAssignment(ExprPtr vRef, bool dontCareAboutSelfAssign)
-{
-	if (auto as = dynamic_cast<Operations::Assignment*>(vRef->parent.get()))
-	{
-		return (as->getSubExpr(0) == vRef) && 
-			   (dontCareAboutSelfAssign || as->assignmentType == JitTokens::assign_);
-	}
-
-	return false;
-}
-
-void RegisterAllocator::createAssemblyRegister(ExprPtr ptr)
-{
-	jassert(ptr->currentPass == BaseCompiler::RegisterAllocation);
-
-	RegPtr reg = ptr->getRegister();
-	reg->createRegister(cc);
-}
-
-
-void RegisterAllocator::allocateBinaryOp(ExprPtr binaryOp)
-{
-	auto l = binaryOp->getSubExpr(0);
-
-	RegPtr regToUse;
-
-	if (l->optData.isTemporary)
-		regToUse = createRegisterPtr(l);
-	else
-		regToUse = createRegisterPtr(binaryOp);
-	
-	binaryOp->optData.isTemporary = true;
-	binaryOp->setRegister(regToUse);
-	createAssemblyRegister(binaryOp);
-}
-
-
-void RegisterAllocator::allocateReturnRegister(ExprPtr returnNode)
-{
-	auto type = returnNode->getType();
-
-	if (returnNode->getType() == Types::ID::Void) 
-		return;
-
-	auto newReg = new AssemblyRegister(returnNode->getType());
-	returnNode->setRegister(newReg);
-
-	newReg->createRegister(cc);
-}
-#endif
-
-
 
 
 juce::Result Inliner::process(SyntaxTree* tree)

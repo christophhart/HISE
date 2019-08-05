@@ -1,7 +1,39 @@
-namespace snex
-{
-namespace jit
-{
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licences for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licencing:
+*
+*   http://www.hartinstruments.net/hise/
+*
+*   HISE is based on the JUCE library,
+*   which also must be licenced for commercial applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
+#pragma once
+
+namespace snex {
+namespace jit {
 using namespace juce;
 using namespace asmjit;
 
@@ -28,7 +60,7 @@ public:
 
 		if (compiler->getCurrentPass() == BaseCompiler::ResolvingSymbols)
 		{
-			if(blockScope == nullptr)
+			if (blockScope == nullptr)
 				blockScope = new RegisterScope(scope);
 		}
 
@@ -42,42 +74,6 @@ public:
 };
 
 
-struct SyntaxTreeWalker
-{
-	SyntaxTreeWalker(const Operations::Statement* statement, bool searchFromRoot = true)
-	{
-		if (searchFromRoot)
-		{
-			while (statement->parent != nullptr)
-				statement = statement->parent;
-		}
-
-		add(const_cast<Operations::Statement*>(statement));
-	}
-
-	Operations::Statement* getNextStatement()
-	{
-		return statements[index++].get();
-	}
-
-	template <class T> T* getNextStatementOfType()
-	{
-		while (auto s = getNextStatement())
-		{
-			if (auto typed = dynamic_cast<T*>(s))
-				return typed;
-		}
-
-		return nullptr;
-	}
-
-private:
-
-	void add(Operations::Statement* s);
-
-	Array<WeakReference<Operations::Statement>> statements;
-	int index = 0;
-};
 
 
 struct Operations::Immediate : public Expression
@@ -146,8 +142,8 @@ struct Operations::VariableReference : public Expression
 			if (isLocalToScope)
 			{
 				type = id.type;
-				
-				if(scope->getScopeForSymbol(id) != nullptr)
+
+				if (scope->getScopeForSymbol(id) != nullptr)
 					logWarning("Declaration hides previous variable definition");
 
 				auto r = scope->allocate(id.id, VariableStorage(getType(), 0));
@@ -199,17 +195,17 @@ struct Operations::VariableReference : public Expression
 		{
 			// Nothing to do...
 		}
-		
+
 		bool initialiseVariables = (currentPass == BaseCompiler::RegisterAllocation && parameterIndex != -1) ||
 			(currentPass == BaseCompiler::CodeGeneration && parameterIndex == -1);
 
-		if(initialiseVariables)
+		if (initialiseVariables)
 		{
 			reg = compiler->registerPool.getRegisterForVariable(ref);
 
 			if (reg->isIteratorRegister())
 				return;
-			
+
 			auto asg = CREATE_ASM_COMPILER(type);
 
 			if (parameterIndex != -1 && isFirstReference())
@@ -308,7 +304,7 @@ struct Operations::Assignment : public Expression
 			if (getSubExpr(0)->isConstExpr() && findClassScope(scope) == scope)
 			{
 				auto& ref = getTargetVariable()->ref->getDataReference(true);
-				
+
 				ref = getSubExpr(0)->getConstExprValue();
 			}
 
@@ -330,7 +326,7 @@ struct Operations::Assignment : public Expression
 
 			auto value = getSubRegister(0);
 			auto tReg = getSubRegister(1);
-			
+
 			if (assignmentType == JitTokens::assign_)
 			{
 				if (tReg != value)
@@ -391,7 +387,7 @@ struct Operations::Compare : public Expression
 			auto r = getSubExpr(1);
 
 			reg = compiler->getRegFromPool(getType());
-		
+
 			auto tReg = getSubRegister(0);
 			auto value = getSubRegister(1);
 
@@ -419,7 +415,7 @@ struct Operations::LogicalNot : public Expression
 	{
 		Expression::process(compiler, scope);
 
-		
+
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
@@ -463,7 +459,7 @@ public:
 			Statement::process(compiler, scope);
 		else
 			Expression::process(compiler, scope);
-		
+
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
 			checkAndSetType(1);
@@ -516,7 +512,7 @@ struct Operations::FunctionCall : public Expression
 
 			if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
-				
+
 
 				if (fc->hasFunction(symbol.parent, symbol.id))
 				{
@@ -544,8 +540,8 @@ struct Operations::FunctionCall : public Expression
 					return;
 				}
 			}
-            
-            throwError("Wrong argument types for function call " + symbol.toString());
+
+			throwError("Wrong argument types for function call " + symbol.toString());
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -553,11 +549,11 @@ struct Operations::FunctionCall : public Expression
 			if (!function)
 			{
 				auto fClass = dynamic_cast<FunctionClass*>(findClassScope(scope));
-				
+
 				if (!fClass->fillJitFunctionPointer(function))
 					throwError("Can't find function pointer to JIT function " + function.functionName);
 			}
-			
+
 			auto asg = CREATE_ASM_COMPILER(type);
 
 			for (int i = 0; i < getNumSubExpressions(); i++)
@@ -579,7 +575,7 @@ struct Operations::FunctionCall : public Expression
 		}
 	}
 
-	
+
 	Symbol symbol;
 	Array<FunctionData> possibleMatches;
 	FunctionData function;
@@ -620,7 +616,7 @@ struct Operations::ReturnStatement : public Expression
 			{
 				auto expectedType = fScope->data.returnType;
 
-				if(auto first = getSubExpr(0))
+				if (auto first = getSubExpr(0))
 					type = first->getType();
 
 				if (isVoid() && expectedType != Types::ID::Void)
@@ -652,7 +648,7 @@ struct Operations::ReturnStatement : public Expression
 
 
 struct Operations::Function : public Statement,
-							  public asmjit::ErrorHandler
+	public asmjit::ErrorHandler
 {
 	Function(Location l) :
 		Statement(l),
@@ -667,7 +663,7 @@ struct Operations::Function : public Statement,
 		parameters.clear();
 	}
 
-	bool handleError(asmjit::Error , const char* message, CodeEmitter* )
+	bool handleError(asmjit::Error, const char* message, CodeEmitter*)
 	{
 		throwError(String(message));
 		return true;
@@ -679,8 +675,8 @@ struct Operations::Function : public Statement,
 
 	String::CharPointerType code;
 	int codeLength = 0;
-	
-	
+
+
 	ScopedPointer<FunctionScope> functionScope;
 	ScopedPointer<SyntaxTree> statements;
 	FunctionData data;
@@ -710,7 +706,7 @@ struct Operations::BinaryOp : public Expression
 			Expression::process(compiler, scope);
 		else
 			Statement::process(compiler, scope);
-		
+
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
 			if (op == JitTokens::logicalAnd ||
@@ -721,7 +717,7 @@ struct Operations::BinaryOp : public Expression
 			else
 				checkAndSetType();
 		}
-		
+
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
 			auto asg = CREATE_ASM_COMPILER(getType());
@@ -747,7 +743,7 @@ struct Operations::BinaryOp : public Expression
 				asg.emitBinaryOp(op, reg, getSubRegister(1));
 			}
 
-			
+
 		}
 	}
 
@@ -972,14 +968,14 @@ struct Operations::BlockLoop : public Expression
 		addSubExpression(t);
 		//addSubExpression(b_.get());
 
-        if(dynamic_cast<StatementBlock*>(b_.get()) == nullptr)
-        {
-            b = new StatementBlock(b_->location);
-            b->addStatement(b_);
-        }
-        else
-            b = dynamic_cast<StatementBlock*>(b_.get());
-        
+		if (dynamic_cast<StatementBlock*>(b_.get()) == nullptr)
+		{
+			b = new StatementBlock(b_->location);
+			b->addStatement(b_);
+		}
+		else
+			b = dynamic_cast<StatementBlock*>(b_.get());
+
 		b->setParent(this);
 		target = t;
 	};
@@ -991,7 +987,7 @@ struct Operations::BlockLoop : public Expression
 		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 		{
 			target->process(compiler, scope);
-			
+
 			b->blockScope = new RegisterScope(scope);
 			b->blockScope->allocate(iterator, VariableStorage(0.0f));
 
@@ -1041,7 +1037,7 @@ struct Operations::BlockLoop : public Expression
 					call->setRet(0, wpReg);
 				}
 
-                // size()
+				// size()
 				auto endReg = acg.cc.newGpd();
 
 				{
@@ -1074,13 +1070,13 @@ struct Operations::BlockLoop : public Expression
 				auto adress = x86::qword_ptr(wpReg);
 
 				cc.movss(itReg->getRegisterForWriteOp().as<X86Xmm>(), adress);
-                
+
 				b->process(compiler, scope);
-                
+
 				cc.movss(adress, itReg->getRegisterForReadOp().as<X86Xmm>());
 				cc.add(wpReg, 4);
 				cc.dec(endReg);
-                cc.setInlineComment("loop_block }");
+				cc.setInlineComment("loop_block }");
 				cc.jnz(loopStart);
 			}
 		}
@@ -1107,7 +1103,7 @@ struct Operations::Negation : public Expression
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			if(!isConstExpr())
+			if (!isConstExpr())
 			{
 				auto asg = CREATE_ASM_COMPILER(getType());
 

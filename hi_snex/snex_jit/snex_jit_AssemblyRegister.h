@@ -175,59 +175,5 @@ private:
 	ReferenceCountedArray<AssemblyRegister> currentRegisterPool;
 };
 
-/** TODO: Remove maybe? */
-struct RegisterScope : public BaseScope
-{
-	RegisterScope(BaseScope* parentScope) :
-		BaseScope({}, parentScope)
-	{
-		jassert(getScopeType() >= BaseScope::Function);
-	}
-
-	AssemblyRegister* getRegister(RefPtr ref)
-	{
-		for (auto r : allocatedRegisters)
-		{
-			if (*r == ref)
-				return r;
-		}
-
-		if (auto rParent = dynamic_cast<RegisterScope*>(parent.get()))
-			return rParent->getRegister(ref);
-
-		return nullptr;
-	}
-
-	void addAssemblyRegister(AssemblyRegister* newRegister)
-	{
-		allocatedRegisters.add(newRegister);
-	}
-
-private:
-
-	ReferenceCountedArray<AssemblyRegister> allocatedRegisters;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RegisterScope);
-};
-
-class FunctionScope : public RegisterScope
-{
-public:
-	FunctionScope(BaseScope* parent) :
-		RegisterScope(parent)
-	{
-		jassert(scopeType == BaseScope::Function);
-	}
-
-	~FunctionScope() {}
-
-	ReferenceCountedObjectPtr<ReferenceCountedObject> parentFunction;
-	FunctionData data;
-	Array<Identifier> parameters;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionScope);
-};
-
-
 }
 }

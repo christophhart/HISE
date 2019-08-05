@@ -402,77 +402,8 @@ void JitPlayground::recalculate()
         resultLabel.setText("processFrame was not found.", dontSendNotification);
     }
     
-	
-
-	
-
-
-	//auto r = functions->getVariable("x");
-
-	//auto value = Types::Helpers::getCppValueString(r);
-
-	//logMessage("Result: " + String(result));
-	//logMessage("X is " + value);
 
 	graph.setBuffer(b);
-
-	return;
-	
-#if 0
-	Funky ff("ff");
-
-	ff.registerToMemoryPool(&memory);
-
-	snex::jit::JITCompiler compiler(s);
-	
-	ScopedPointer<JITScope> scope1 = compiler.compileAndReturnScope(&memory);
-
-	if (scope1 == nullptr)
-	{
-		resultLabel.setText(compiler.getErrorMessage(), dontSendNotification);
-		return;
-	}
-	else
-	{
-		String s = scope1->dumpAssembly();
-		assemblyDoc.replaceAllContent(s);
-	}
-
-	auto data = FunkyFunctionData::create<float, float>("get_1");
-
-	auto fResult = scope1->getCompiledFunction(data);
-
-
-	if (fResult.wasOk())
-	{
-		auto start = Time::getMillisecondCounterHiRes();
-
-		auto d = b.getWritePointer(0);
-
-		for (int i = 0; i < b.; i++)
-//			d[i] = f1(d[i]);
-
-		auto stop = Time::getMillisecondCounterHiRes();
-
-		auto duration = stop - start;
-
-        
-		//auto resultValue = 1.0f;
-		auto resultValue = data.call<float>(1.0f);
-
-		graph.setBuffer(b);
-
-		String s;
-
-		s << "Compiled OK. Result for 1.0f: " << String(resultValue) << ". Time: " << String(duration * 0.1) << "%";
-
-		resultLabel.setText(s, dontSendNotification);
-	}
-	else
-	{
-		resultLabel.setText(fResult.getErrorMessage(), dontSendNotification);
-	}
-#endif
 }
 
 bool JitPlayground::keyPressed(const KeyPress& k)

@@ -1,11 +1,33 @@
-/*
-  ==============================================================================
-
-    NewFunkyParser.h
-    Created: 31 Jan 2019 4:53:19pm
-    Author:  Christoph
-
-  ==============================================================================
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licences for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licencing:
+*
+*   http://www.hartinstruments.net/hise/
+*
+*   HISE is based on the JUCE library,
+*   which also must be licenced for commercial applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
 */
 
 #pragma once
@@ -21,347 +43,7 @@ using namespace juce;
 #define CREATE_ASM_COMPILER(type) AsmCodeGenerator(getFunctionCompiler(compiler), type);
 #define SKIP_IF_CONSTEXPR if(isConstExpr()) return;
 
-class FunctionScope;
 
-/** This class has a variable pool that will not exceed the lifetime of the compilation. */
-class Operations
-{
-public:
-
-	using FunctionCompiler = asmjit::X86Compiler;
-
-	static FunctionCompiler& getFunctionCompiler(BaseCompiler* c);
-
-	static BaseScope* findClassScope(BaseScope* scope);
-
-	static BaseScope* findFunctionScope(BaseScope* scope);
-
-	using RegPtr = AssemblyRegister::Ptr;
-
-	static asmjit::Runtime* getRuntime(BaseCompiler* c);
-
-	using Symbol = BaseScope::Symbol;
-	using Location = ParserHelpers::CodeLocation;
-	using TokenType = ParserHelpers::TokenType;
-
-	struct Statement : public ReferenceCountedObject
-	{
-		using Ptr = ReferenceCountedObjectPtr<Statement>;
-
-		Statement(Location l) :
-			location(l)
-		{};
-
-		void setParent(Statement* parent_)
-		{
-			parent = parent_;
-		}
-
-		template <class T> bool is() const
-		{
-			return dynamic_cast<const T*>(this) != nullptr;
-		}
-
-		virtual ~Statement() {};
-
-		virtual Types::ID getType() const = 0;
-		virtual void process(BaseCompiler* compiler, BaseScope* scope)
-		{
-			currentCompiler = compiler;
-			currentScope = scope;
-			currentPass = compiler->getCurrentPass();
-		}
-
-		virtual bool hasSideEffect() const { return false; }
-
-		void throwError(const String& errorMessage)
-		{
-			ParserHelpers::CodeLocation::Error e(location.program, location.location);
-			e.errorMessage = errorMessage;
-			throw e;
-		}
-
-		void logOptimisationMessage(const String& m)
-		{
-			logMessage(currentCompiler, BaseCompiler::VerboseProcessMessage, m);
-		}
-
-		void logWarning(const String& m)
-		{
-			logMessage(currentCompiler, BaseCompiler::Warning, m);
-		}
-
-		bool isConstExpr() const;
-
-		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message)
-		{
-			String m;
-
-			m << "Line " << location.getLineNumber(location.program, location.location) << ": ";
-			m << message;
-
-			DBG(m);
-
-			compiler->logMessage(type, m);
-		}
-
-		Location location;
-
-		BaseCompiler* currentCompiler = nullptr;
-		BaseScope* currentScope = nullptr;
-		BaseCompiler::Pass currentPass;
-		
-
-		WeakReference<Statement> parent;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Statement);
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement);
-	};
-	
-	/** A high level node in the syntax tree that is used by the optimization passes
-		to simplify the code.
-	*/
-	struct Expression : public Statement
-	{
-		using Ptr = ReferenceCountedObjectPtr<Expression>;
-
-		Expression(Location loc) :
-			Statement(loc)
-		{};
-
-		virtual ~Expression() {};
-
-		Types::ID getType() const override 
-		{ 
-#if 0
-			if (auto firstExpr = subExpr.getFirst())
-				return firstExpr->getType();
-#endif
-
-			return type; 
-		}
-
-		void attachAsmComment(const String& message)
-		{
-			asmComment = message;
-		}
-
-		void checkAndSetType(int offset = 0, Types::ID expectedType=Types::ID::Dynamic);
-
-		/** Processes all sub expressions. Call this from your base class. */
-		void process(BaseCompiler* compiler, BaseScope* scope) override;
-
-		
-
-		bool isAnonymousStatement() const
-		{
-			return isStatementType<StatementBlock>(parent) ||
-				   isStatementType<SyntaxTree>(parent);
-		}
-
-		VariableStorage getConstExprValue() const;
-
-		
-
-		
-
-		int getNumSubExpressions() const
-		{
-			return subExpr.size();
-		}
-
-		void addSubExpression(Ptr expr, int index=-1) 
-		{ 
-			if (index == -1)
-				subExpr.add(expr.get());
-			else
-				subExpr.insert(index, expr.get());
-
-			expr->setParent(this);
-		}
-
-		void swapSubExpressions(int first, int second)
-		{
-			subExpr.swap(first, second);
-		}
-
-		bool hasSubExpr(int index) const 
-		{ 
-			return isPositiveAndBelow(index, subExpr.size()); 
-		}
-
-		Ptr replaceSubExpr(int index, Ptr newExpr)
-		{
-			Ptr returnExpr;
-
-			if (returnExpr = getSubExpr(index))
-			{
-				subExpr.set(index, newExpr.get());
-				newExpr->parent = this;
-
-				returnExpr->parent = nullptr;
-			}
-			else
-			{
-				jassertfalse;
-			}
-
-			return returnExpr;
-		}
-
-		Ptr getSubExpr(int index) const 
-		{ 
-			return subExpr[index];
-		}
-
-		/** Returns a pointer to the register of this expression.
-		
-			This can be called after the RegisterAllocation pass
-		*/
-		RegPtr getSubRegister(int index) const
-		{
-			// If you hit this, you have either forget to call the 
-			// Statement::process() or you try to access an register 
-			// way too early...
-			jassert(currentPass >= BaseCompiler::Pass::RegisterAllocation);
-
-			if (auto e = getSubExpr(index))
-				return e->reg;
-
-			// Can't find the subexpression you want
-			jassertfalse;
-
-			return nullptr;
-		}
-
-		String asmComment;
-
-		RegPtr reg;
-        
-    protected:
-        
-		friend class ConstExprEvaluator;
-
-		Ptr replaceInParent(Expression::Ptr newExpression)
-		{
-			if (auto expr = dynamic_cast<Expression*>(parent.get()))
-			{
-				for (int i = 0; i < expr->subExpr.size(); i++)
-				{
-					if (expr->getSubExpr(i).get() == this)
-					{
-						Ptr f(this);
-						expr->subExpr.set(i, newExpression.get());
-						newExpression->parent = expr;
-						return f;
-					}
-				}
-			}
-
-			return nullptr;
-		}
-
-        Types::ID type;
-        
-    private:
-        
-		ReferenceCountedArray<Expression> subExpr;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Expression);
-	};
-
-	template <class T> static bool isStatementType(const Statement* t)
-	{
-		return dynamic_cast<const T*>(t) != nullptr;
-	}
-
-	template <class T> static T* findParentStatementOfType(Operations::Statement* e)
-	{
-		if (auto p = dynamic_cast<T*>(e))
-			return p;
-
-		if (e->parent != nullptr)
-			return findParentStatementOfType<T>(e->parent.get());
-
-		return nullptr;
-	}
-
-	template <class T> static const T* findParentStatementOfType(const Operations::Statement* e)
-	{
-		if (auto p = dynamic_cast<const T*>(e))
-			return p;
-
-		if (e->parent != nullptr)
-			return findParentStatementOfType<T>(e->parent.get());
-
-		return nullptr;
-	}
-
-	static bool isOpAssignment(Expression::Ptr p);
-
-
-	struct Assignment;		struct Immediate;
-	struct FunctionCall;	struct ReturnStatement;			struct StatementBlock;
-	struct Function;		struct BinaryOp;				struct VariableReference;
-	struct TernaryOp;		struct LogicalNot;				struct Cast;
-	struct Negation;		struct Compare;					struct UnaryOp;
-	struct Increment;		struct BlockAccess;				struct BlockAssignment;
-	struct BlockLoop;
-
-	static Expression* findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope);
-};
-
-class SyntaxTree: public Operations::Statement
-{
-public:
-
-	SyntaxTree(ParserHelpers::CodeLocation l):
-		Statement(l)
-	{};
-
-	Types::ID getType() const { return Types::ID::Void; }
-
-	~SyntaxTree()
-	{
-		list.clear();
-	}
-
-	void add(Operations::Statement::Ptr newStatement)
-	{
-		newStatement->setParent(this);
-		list.add(newStatement);
-	}
-
-	ReferenceCountedArray<Operations::Statement> list;
-
-	void addVariableReference(Operations::Statement* s)
-	{
-		variableReferences.add(s);
-	}
-
-
-	bool isFirstReference(Operations::Statement* v) const;
-	
-	Operations::Statement* getLastVariableForReference(BaseScope::RefPtr ref) const;
-
-	Operations::Statement* getLastAssignmentForReference(BaseScope::RefPtr ref) const;
-
-	Operations::Statement** begin() const
-	{
-		return list.begin();
-	}
-
-	Operations::Statement** end() const
-	{
-		return list.end();
-	}
-
-private:
-
-	Array<WeakReference<Statement>> variableReferences;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SyntaxTree);
-};
 
 class OptimizationPass : public BaseCompiler::OptimizationPassBase
 {
