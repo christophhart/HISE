@@ -103,7 +103,28 @@ public:
 	/** Destructor. */
 	~HiseJavascriptEngine();
 
-	
+	struct TimeoutExtender
+	{
+		TimeoutExtender(HiseJavascriptEngine* e) :
+			engine(e)
+		{
+			start = Time::getMillisecondCounter();
+		};
+
+		~TimeoutExtender()
+		{
+#if USE_BACKEND
+			if (engine != nullptr)
+			{
+				auto delta = Time::getMillisecondCounter() - start;
+				engine->extendTimeout(delta);
+			}
+#endif
+		}
+
+		uint32 start;
+		WeakReference<HiseJavascriptEngine> engine;
+	};
 
 	/** Attempts to parse and run a block of javascript code.
 	If there's a parse or execution error, the error description is returned in
@@ -965,6 +986,7 @@ private:
 
 	DynamicObject::Ptr unneededScope;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseJavascriptEngine);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)
 };
 

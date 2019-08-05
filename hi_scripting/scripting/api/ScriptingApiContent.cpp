@@ -2954,7 +2954,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String prettyName)
 {
-PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
+	PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
 
 	for (const auto& img : loadedImages)
 	{
@@ -2962,10 +2962,10 @@ PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler
 			return;
 	}
 
+	HiseJavascriptEngine::TimeoutExtender xt(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
+
 	if (auto newImage = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref))
-	{
 		loadedImages.add({ newImage, prettyName });
-	}
 	else
 	{
 		BACKEND_ONLY(reportScriptError("Image " + imageName + " not found. "));

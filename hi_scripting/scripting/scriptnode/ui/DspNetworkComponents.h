@@ -768,7 +768,7 @@ public:
 				
 				g.drawRect(b, 1.0f);
 
-				b = b.removeFromTop(headerHeight).reduced(1.0f);
+				b = b.removeFromTop((float)headerHeight).reduced(1.0f);
 
 
 

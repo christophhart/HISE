@@ -1537,6 +1537,9 @@ void ScriptingApi::Engine::setAllowDuplicateSamples(bool shouldAllow)
 void ScriptingApi::Engine::loadAudioFilesIntoPool()
 {
 #if USE_BACKEND
+
+	HiseJavascriptEngine::TimeoutExtender xt(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
+
 	auto pool = getScriptProcessor()->getMainController_()->getCurrentAudioSampleBufferPool();
 	pool->loadAllFilesFromProjectFolder();
 #endif
@@ -1545,6 +1548,8 @@ void ScriptingApi::Engine::loadAudioFilesIntoPool()
 void ScriptingApi::Engine::loadImageIntoPool(const String& id)
 {
 #if USE_BACKEND
+
+	HiseJavascriptEngine::TimeoutExtender xt(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
 
 	auto mc = getScriptProcessor()->getMainController_();
 
