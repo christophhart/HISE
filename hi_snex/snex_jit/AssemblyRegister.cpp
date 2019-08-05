@@ -245,7 +245,6 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 		jassert(state == ActiveRegister);
 		return;
 	}
-		
 
 	if (type == Types::ID::Float)
 		reg = cc.newXmmSs();

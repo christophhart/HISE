@@ -73,26 +73,7 @@ struct SyntaxTreeWalker
 
 private:
 
-	void add(Operations::Statement* s)
-	{
-		statements.add(s);
-
-		if (auto bl = dynamic_cast<Operations::StatementBlock*>(s))
-		{
-			for (auto s_ : bl->statements)
-				add(s_);
-		}
-		else if (auto st = dynamic_cast<SyntaxTree*>(s))
-		{
-			for (auto s_ : st->list)
-				add(s_);
-		}
-		else if (auto expr = dynamic_cast<Operations::Expression*>(s))
-		{
-			for (int i = 0; i < expr->getNumSubExpressions(); i++)
-				add(expr->getSubExpr(i).get());
-		}
-	}
+	void add(Operations::Statement* s);
 
 	Array<WeakReference<Operations::Statement>> statements;
 	int index = 0;
@@ -995,7 +976,14 @@ struct Operations::BlockLoop : public Expression
 		addSubExpression(t);
 		//addSubExpression(b_.get());
 
-		b = dynamic_cast<StatementBlock*>(b_.get());
+        if(dynamic_cast<StatementBlock*>(b_.get()) == nullptr)
+        {
+            b = new StatementBlock(b_->location);
+            b->addStatement(b_);
+        }
+        else
+            b = dynamic_cast<StatementBlock*>(b_.get());
+        
 		b->setParent(this);
 		target = t;
 	};
@@ -1038,25 +1026,44 @@ struct Operations::BlockLoop : public Expression
 				target->process(compiler, scope);
 				target->reg->loadMemoryIntoRegister(acg.cc);
 
-				Array<FunctionData> matches;
-				cs->addMatchingFunctions(matches, "Block", "getWritePointer");
-				auto gwp = matches[0];
-				matches.clear();
+				// getWritePointer
+				auto wpReg = acg.cc.newIntPtr();
 
-				cs->addMatchingFunctions(matches, "Block", "size");
-				auto size_f = matches[0];
+				{
+					FuncSignatureX sig;
+					sig.setRet(asmjit::TypeId::kIntPtr);
+					sig.addArg(asmjit::TypeId::kIntPtr);
 
-				ReferenceCountedArray<AssemblyRegister> parameters;
-				parameters.add(target->reg);
+					// Push the function pointer
+					auto fn = acg.cc.newIntPtr("fn");
+					acg.cc.mov(fn, imm_ptr(BlockFunctions::Wrapper::getWritePointer));
 
-				auto beginReg = compiler->getRegFromPool(Types::ID::Integer);
-				beginReg->createRegister(acg.cc);
+					auto call = acg.cc.call(fn, sig);
 
-				acg.emitFunctionCall(beginReg, gwp, parameters);
+					call->setInlineComment("getWritePointer");
+					call->setArg(0, target->reg->getRegisterForReadOp());
+					call->setRet(0, wpReg);
+				}
 
-				auto endReg = compiler->getRegFromPool(Types::ID::Integer);
-				endReg->createRegister(acg.cc);
-				acg.emitFunctionCall(endReg, size_f, parameters);
+                // size()
+				auto endReg = acg.cc.newGpd();
+
+				{
+					FuncSignatureX sig;
+					sig.setRet(asmjit::TypeId::kI32);
+
+					// Push the function pointer
+					auto fn = acg.cc.newIntPtr("fn");
+					acg.cc.mov(fn, imm_ptr(BlockFunctions::Wrapper::size));
+
+					CCFuncCall* call = acg.cc.call(fn, sig);
+
+					call->setInlineComment("size()");
+
+					int offset = 0;
+
+					call->setRet(0, endReg);
+				}
 
 				auto bs = b->blockScope.get();
 				BaseScope::RefPtr r = b->blockScope->get({ {}, iterator, Types::ID::Float });
@@ -1067,26 +1074,21 @@ struct Operations::BlockLoop : public Expression
 
 				auto& cc = getFunctionCompiler(compiler);
 
-				//cc.mov(endReg->getRegisterForWriteOp().as<X86Gp>(), 512);
-
 				auto loopStart = cc.newLabel();
 
 				cc.setInlineComment("loop_block {");
 				cc.bind(loopStart);
 
-				auto adress = x86::qword_ptr(beginReg->getRegisterForReadOp().as<X86Gpq>());
+				auto adress = x86::qword_ptr(wpReg);
 
 				cc.movss(itReg->getRegisterForWriteOp().as<X86Xmm>(), adress);
-
+                
 				b->process(compiler, scope);
-
+                
 				cc.movss(adress, itReg->getRegisterForReadOp().as<X86Xmm>());
-
-				cc.add(beginReg->getRegisterForWriteOp().as<X86Gp>(), 4);
-				cc.dec(endReg->getRegisterForWriteOp().as<X86Gp>());
-				
-				cc.setInlineComment("loop_block }");
-
+				cc.add(wpReg, 4);
+				cc.dec(endReg);
+                cc.setInlineComment("loop_block }");
 				cc.jnz(loopStart);
 			}
 		}

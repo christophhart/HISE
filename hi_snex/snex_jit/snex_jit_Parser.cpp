@@ -469,6 +469,36 @@ Operations::Statement* SyntaxTree::getLastAssignmentForReference(BaseScope::RefP
 	return lastAssignment;
 }
 
+
+void SyntaxTreeWalker::add(Operations::Statement* s)
+{
+	statements.add(s);
+
+	if (auto bl = dynamic_cast<Operations::StatementBlock*>(s))
+	{
+		for (auto s_ : bl->statements)
+			add(s_);
+	}
+	else if (auto st = dynamic_cast<SyntaxTree*>(s))
+	{
+		for (auto s_ : st->list)
+			add(s_);
+	}
+	else if (auto bl = dynamic_cast<Operations::BlockLoop*>(s))
+	{
+		// the statement block is not a "real" sub expr (because it shouldn't
+		// be subject to the usual codegen)
+		add(bl->getSubExpr(0).get());
+		add(bl->b);
+	}
+	else if (auto expr = dynamic_cast<Operations::Expression*>(s))
+	{
+		for (int i = 0; i < expr->getNumSubExpressions(); i++)
+			add(expr->getSubExpr(i).get());
+	}
+}
+
+
 bool Operations::Statement::isConstExpr() const
 {
 	return isStatementType<Immediate>(static_cast<const Statement*>(this));

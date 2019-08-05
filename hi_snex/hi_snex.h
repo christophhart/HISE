@@ -67,11 +67,6 @@ END_JUCE_MODULE_DECLARATION
 
 #include "AppConfig.h"
 
-#ifndef HNODE_BOOL_IS_NOT_INT
-#define HNODE_BOOL_IS_NOT_INT 0
-#endif
-
-
 #include "../hi_tools/hi_tools.h"
 #include "../hi_lac/hi_lac.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"

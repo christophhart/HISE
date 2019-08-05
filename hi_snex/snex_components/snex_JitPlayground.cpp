@@ -361,7 +361,12 @@ void JitPlayground::recalculate()
         {
             auto ptr = b.getWritePointer(0);
             
+            
             auto start = Time::getMillisecondCounterHiRes();
+            
+            data.callVoid(bl);
+#if 0
+            
             
             for(int i = 0; i < b.getNumSamples(); i++)
             {
@@ -370,6 +375,7 @@ void JitPlayground::recalculate()
                 ptr++;
                 
             }
+#endif
             
             auto stop = Time::getMillisecondCounterHiRes();
             

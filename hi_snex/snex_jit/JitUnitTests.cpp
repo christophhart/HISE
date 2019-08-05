@@ -269,7 +269,6 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
-
         CREATE_TYPED_TEST("float test(block in){ in[1] = Math.abs(in, 124.0f); return 1.0f; };");
         test->setup();
         test->func["test"].call<float>(bl);
@@ -302,11 +301,13 @@ private:
 		test->func["test"].call<float>(bl);
 		expectEquals<float>(bl[1], 124.0f, "Setting block value");
         
+        CREATE_TYPED_TEST("float l = 1.94f; float test(block in){ loop_block(s: in) s = 2.4f; loop_block(s: in) l = s; return l; }");
+        test->setup();
+        auto shouldBe24 = test->func["test"].call<float>(bl);
+        expectEquals<float>(shouldBe24, 2.4f, "Setting global variable in block loop");
         
         
-		expect(false, "This test crashes, so fix it once we need block iteration...");
-
-#if 0
+        
 		CREATE_TYPED_TEST("void test(block in){ loop_block(sample: in){ sample = 2.0f; }}");
 		test->setup();
 
@@ -314,13 +315,10 @@ private:
 		
 		f.callVoid(bl);
 
-
 		for (int i = 0; i < bl.size(); i++)
 		{
 			expectEquals<float>(bl[i], 2.0f, "Setting all values");
 		}
-#endif
-
 	}
 
 	void testEvents()

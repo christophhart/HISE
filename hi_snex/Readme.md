@@ -77,13 +77,11 @@ The **SNEX** syntax uses brackets for blocks and semicolons for statements. Comm
 }
 ```
 
-
-
 You can define variables in any scope (function scope or global scope), however **there are no anonymous scopes**.
 
 ## Language structure
 
-A valid SNEX code contains of definitions of variables and functions:
+A valid SNEX code consists of definitions of variables and functions:
 
 ```cpp
 // some variables
@@ -98,7 +96,9 @@ type functionName()
 }
 ```
 
-**There is no concept of classes or any other object oriented design principle.** The rationale behind this is that a SNEX compiled object is already a class.
+**There is no concept of classes or any other object oriented design principle.** 
+The rationale behind this is that a SNEX compiled object is already like a class, and the scope of a 
+single SNEX code does not exceed the complexity of a single C++ class.
 
 ## Variables
 
@@ -154,7 +154,7 @@ Type mismatches will be implicitely corrected by the compiler if possible (but i
 
 **SNEX** variables are visible inside their scope (= `{...}` block) or parent scopes. The inner scope has the highest priority and override variable names is possible:
 
-```
+```cpp
 void test()
 {
     float x = 25.0f;
@@ -309,9 +309,29 @@ int f2()
 {
 	return 42; // must return a int
 }
-
 ```
 
+### Block Iterator
+
+The only control flow mechanism in **SNEX** is an iterator for a `block`:
+
+```cpp
+double uptime = 0.0;
+
+loop_block(sample: block)
+{
+    sample = (float)Math.sin(uptime);
+    uptime += 0.002;
+}
+```
+
+This looks like a non-standard addition, however it can be resolved to valid Cpp using the macro
+
+```cpp
+#define loop_block(x) for(auto& x)
+````
+
+because the `snex::Types::block` class in Cpp supports range-based for loops.
 
 ### API classes
 

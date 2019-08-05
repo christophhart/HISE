@@ -107,6 +107,8 @@ Compiler::DebugHandler* ConsoleFunctions::currentDebugHandler = nullptr;
 
 class BlockFunctions : public FunctionClass
 {
+public:
+
 	struct Wrapper
 	{
 		static float getSample(block b, int index)
@@ -123,9 +125,9 @@ class BlockFunctions : public FunctionClass
                 b[index] = newValue;
 		}
 
-		static int getWritePointer(block b)
+		static AddressType getWritePointer(block b)
 		{
-			return reinterpret_cast<uint64>(b.getData());
+			return reinterpret_cast<AddressType>(b.getData());
 		}
 
 		static int size(block b)
@@ -142,7 +144,7 @@ public:
 	{
 		HNODE_JIT_ADD_C_FUNCTION_2(float, Wrapper::getSample, block, int, "getSample");
 		HNODE_JIT_ADD_C_FUNCTION_3(void, Wrapper::setSample, block, int, float, "setSample");
-		HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getWritePointer, block, "getWritePointer");
+		HNODE_JIT_ADD_C_FUNCTION_1(AddressType, Wrapper::getWritePointer, block, "getWritePointer");
 		HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::size, block, "size");
 	}
 };

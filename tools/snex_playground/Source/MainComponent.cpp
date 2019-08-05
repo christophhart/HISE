@@ -12,7 +12,7 @@
 MainComponent::MainComponent()
 {
 	UnitTestRunner runner;
-	runner.setAssertOnFailure(false);
+	runner.setAssertOnFailure(true);
 	runner.runAllTests();
 
 	addAndMakeVisible(playground);
