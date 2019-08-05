@@ -274,6 +274,41 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
+		CREATE_TYPED_TEST("int v = 0; int test(block in) { loop_block(s: in) v += 1; return v; }");
+		test->setup();
+		auto numSamples2 = test->func["test"].call<int>(bl);
+		expectEquals<int>(numSamples2, bl.size(), "Counting samples in block");
+
+		for (int i = 0; i < b.getNumSamples(); i++)
+		{
+			b.setSample(0, i, (float)(i + 1));
+		}
+		
+		CREATE_TYPED_TEST("float v = 0.0f; float test(block in) { loop_block(s: in) v = s; return v; }");
+		test->setup();
+		auto numSamples3 = test->func["test"].call<float>(bl);
+		expectEquals<int>(numSamples3, (float)bl.size(), "read block value into global variable");
+
+		CREATE_TYPED_TEST("int v = 0; int test(block in) { loop_block(s: in) v = s; return v; }");
+		test->setup();
+		auto numSamples4 = test->func["test"].call<int>(bl);
+		expectEquals<int>(numSamples4, bl.size(), "read block value with cast");
+
+#if 0
+		double uptime = 0.0;
+
+		/** Multichannel processing callback */
+		void processFrame(block frame)
+		{
+			loop_block(s: frame)
+			{
+				s = (float)Math.sin(uptime);
+				uptime += 0.001;
+			}
+		}
+#endif
+		b.clear();
+
         CREATE_TYPED_TEST("float test(block in){ in[1] = Math.abs(in, 124.0f); return 1.0f; };");
         test->setup();
         test->func["test"].call<float>(bl);
@@ -282,7 +317,7 @@ private:
         CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
         test->setup();
         test->func["test"].call<float>(bl);
-        expectEquals<float>(bl[1], 0.0f, "Implicit cast of function call to block assignment");
+        expectEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
         
 		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
 
@@ -311,7 +346,10 @@ private:
         auto shouldBe24 = test->func["test"].call<float>(bl);
         expectEquals<float>(shouldBe24, 2.4f, "Setting global variable in block loop");
         
-        
+		CREATE_TYPED_TEST("int v = 0; int test(block in) { loop_block(s: in) v += 1; return v; }");
+		test->setup();
+		auto numSamples = test->func["test"].call<int>(bl);
+		expectEquals<int>(numSamples, bl.size(), "Counting samples in block");
         
 		CREATE_TYPED_TEST("void test(block in){ loop_block(sample: in){ sample = 2.0f; }}");
 		test->setup();
@@ -489,6 +527,10 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
+		CREATE_TEST("float x=2.0f; void setup() { x = 5; } float test(float i){return x;};")
+			expectCompileOK(test->compiler);
+		EXPECT("Global implicit cast", 2.0f, 5.0f);
+
 		CREATE_TEST("float x = 0.0f; float test(float i){ x=7.0f; return x; };");
 		expectCompileOK(test->compiler);
 		EXPECT("Global float", 2.0f, 7.0f);
@@ -501,6 +543,7 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("Global negative float definition", 2.0f, -7.0f);
 
+
 		CREATE_TEST_SETUP("double x = 2.0; void setup(){x = 26.0; }; float test(float i){ return (float)x;};");
 		expectCompileOK(test->compiler);
 		EXPECT("Global set & get from different functions", 2.0f, 26.0f);
@@ -512,6 +555,10 @@ private:
 		CREATE_TEST("int x=2;float test(float i){return (float)x;};")
 		expectCompileOK(test->compiler);
 		EXPECT("Global cast", 2.0f, 2.0f)
+
+		CREATE_TEST("float x=2.0f; void setup() { x = 5; } float test(float i){return x;};")
+		expectCompileOK(test->compiler);
+		EXPECT("Global implicit cast", 2.0f, 5.0f);
 
 		CREATE_TEST("int c=0;float test(float i){c+=1;c+=1;c+=1;return (float)c;};")
 		expectCompileOK(test->compiler);

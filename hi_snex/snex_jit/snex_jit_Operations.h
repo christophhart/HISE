@@ -203,6 +203,12 @@ struct Operations::VariableReference : public Expression
 		{
 			reg = compiler->registerPool.getRegisterForVariable(ref);
 
+			if (reg->isActive() && findParentStatementOfType<BlockLoop>(this) != nullptr)
+			{
+
+				return;
+			}
+
 			if (reg->isIteratorRegister())
 				return;
 
@@ -317,7 +323,9 @@ struct Operations::Assignment : public Expression
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			checkAndSetType();
+			auto expectedType = getTargetVariable()->getType();
+
+			checkAndSetType(0, expectedType);
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -348,6 +356,7 @@ struct Operations::Assignment : public Expression
 	TokenType assignmentType;
 	bool isLocalDefinition = false;
 };
+
 
 
 Operations::TokenType Operations::VariableReference::isWriteAccess()
@@ -1055,6 +1064,19 @@ struct Operations::BlockLoop : public Expression
 				}
 
 				BaseScope::RefPtr r = b->blockScope->get({ {}, iterator, Types::ID::Float });
+
+				{
+					SyntaxTreeWalker w(b, false);
+
+					while (auto v = w.getNextStatementOfType<VariableReference>())
+					{
+						// If we write to a class variable, we need to create the register
+						// outside the loop
+						if (v->isClassVariable && v->isWriteAccess())
+							v->process(compiler, scope);
+					}
+				}
+
 
 				auto itReg = compiler->registerPool.getRegisterForVariable(r);
 				itReg->createRegister(acg.cc);

@@ -149,13 +149,14 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 
 			if (e->isConstExpr())
 			{
-				subExpr.set(i, ConstExprEvaluator::evalCast(e.get(), exprType).get());
+				replaceSubExpr(i, ConstExprEvaluator::evalCast(e.get(), exprType).get());
 			}
 			else
 			{
 				Ptr implCast = new Operations::Cast(e->location, e, exprType);
 				implCast->attachAsmComment("Implicit cast from Line " + location.getLineNumber(location.program, location.location));
-				subExpr.set(i, implCast.get());
+
+				replaceSubExpr(i, implCast);
 			}
 		}
 		else
@@ -224,7 +225,8 @@ snex::jit::Operations::Expression::Ptr Operations::Expression::replaceSubExpr(in
 		subExpr.set(index, newExpr.get());
 		newExpr->parent = this;
 
-		returnExpr->parent = nullptr;
+		if(returnExpr->parent == this)
+			returnExpr->parent = nullptr;
 	}
 	else
 	{

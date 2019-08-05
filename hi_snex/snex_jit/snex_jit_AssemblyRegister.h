@@ -108,6 +108,8 @@ public:
 
 	bool isGlobalVariableRegister() const;
 
+	bool isActive() const;
+
 	/** Creates a memory location for the given constant. */
 	void createMemoryLocation(asmjit::X86Compiler& cc);
 
