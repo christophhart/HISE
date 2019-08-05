@@ -60,7 +60,7 @@ template <typename... Processors> struct chain: public container_base<Processors
 		this->prepare_each(ps, this->indexes);
 	}
 
-	bool handleModulation(double& value)
+	bool handleModulation(double& )
 	{
 		return false;
 	}

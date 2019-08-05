@@ -45,6 +45,9 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
+#pragma warning( push )
+#pragma warning( disable : 4244)
+
 template <typename T, typename ReturnType=T> class HiseJITTestCase
 {
 public:
@@ -92,8 +95,10 @@ public:
 
 		func = compiler->compileJitObject(code);
 
+#if JUCE_DEBUG
 		if (!wasOK())
 			DBG(compiler->getCompileResult().getErrorMessage());
+#endif
 
 		if (auto f = func["setup"])
 			f.callVoid();
@@ -244,9 +249,10 @@ private:
 		expect(r.wasOk(), r.getErrorMessage() + "\nFunction Code:\n\n" + compiler->getLastCompiledCode());
 	}
 
-	void expectAllFunctionsDefined(JITTestModule* m)
+	void expectAllFunctionsDefined(JITTestModule* )
 	{
 	}
+
 	void testEventSetters()
 	{
 		using T = HiseEvent;
@@ -716,8 +722,6 @@ private:
 
         CREATE_TEST("float ov(int a){ return 9.0f; } float ov(double a) { return 14.0f; } float test(float input) { return ov(5); }");
         EXPECT("function overloading", 2.0f, 9.0f);
-        
-        return;
         
 		Random r;
 
@@ -1407,5 +1411,6 @@ static HiseJITUnitTest njut;
 #undef CREATE_TEST_SETUP
 #undef EXPECT
 
+#pragma warning( pop)
 
 }}

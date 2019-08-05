@@ -179,8 +179,6 @@ void Inliner::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 	if (auto bOp = dynamic_cast<Operations::BinaryOp*>(assignment->getSubExpr(1).get()))
 	{
-		bool isSelfAssignment = false;
-
 		// If the left side is a binary op, it means you can't assign it because it will
 		// have a forced operator precedence
 		if (Operations::isStatementType<Operations::BinaryOp>(bOp->getSubExpr(0).get()))
@@ -238,7 +236,7 @@ bool Inliner::containsVariableReference(ExprPtr p, BaseScope::RefPtr refToCheck)
 }
 
 
-juce::Result DeadcodeEliminator::process(SyntaxTree* tree)
+juce::Result DeadcodeEliminator::process(SyntaxTree* )
 {
 #if 0
 

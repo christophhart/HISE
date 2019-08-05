@@ -114,7 +114,7 @@ template <class T> struct NodePropertyT : public NodeProperty
 		value(defaultValue)
 	{};
 
-	void postInit(NodeBase* n) override
+	void postInit(NodeBase* ) override
 	{
 		updater.setCallback(getPropertyTree(), { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
 			BIND_MEMBER_FUNCTION_2(NodePropertyT::update));

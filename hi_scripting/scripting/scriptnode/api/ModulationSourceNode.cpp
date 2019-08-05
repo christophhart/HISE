@@ -238,10 +238,6 @@ int ModulationSourceNode::SimpleRingBuffer::read(AudioSampleBuffer& b)
 
 	jassert(b.getNumSamples() == RingBufferSize && b.getNumChannels() == 1);
 
-	auto start = Time::getMillisecondCounter();
-
-	
-
 	auto dst = b.getWritePointer(0);
 	int thisWriteIndex = writeIndex;
 	int numBeforeIndex = thisWriteIndex;
@@ -440,7 +436,6 @@ int ModulationSourcePlotter::getSamplesPerPixel() const
 	float rectangleWidth = 1.0f;
 
 	auto width = (float)getWidth() - 2.0f * offset;
-	auto maxHeight = (float)getHeight() - 2.0f * offset;
 
 	int samplesPerPixel = ModulationSourceNode::RingBufferSize / jmax((int)(width / rectangleWidth), 1);
 	return samplesPerPixel;

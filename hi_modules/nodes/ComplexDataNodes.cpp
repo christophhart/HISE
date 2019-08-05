@@ -316,7 +316,7 @@ void core::file_player::reset()
 	uptime = 0.0;
 }
 
-bool core::file_player::handleModulation(double& modValue)
+bool core::file_player::handleModulation(double& )
 {
 	return false;
 }

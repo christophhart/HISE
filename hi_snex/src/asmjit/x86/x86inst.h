@@ -2243,7 +2243,13 @@ struct X86Inst {
     ASMJIT_INLINE bool isPrefetch() const noexcept { return hasOperationFlag(kOperationPrefetch); }
     ASMJIT_INLINE bool isBarrier() const noexcept { return hasOperationFlag(kOperationBarrier); }
     ASMJIT_INLINE bool isVolatile() const noexcept { return hasOperationFlag(kOperationVolatile); }
+
+#pragma warning (push)
+#pragma warning (disable: 4245)
+
     ASMJIT_INLINE bool isPrivileged() const noexcept { return hasOperationFlag(kOperationPrivileged); }
+
+#pragma warning (pop)
 
     ASMJIT_INLINE bool hasFeature(uint32_t feature) const noexcept {
       for (uint32_t i = 0; i < ASMJIT_ARRAY_SIZE(_features); i++)

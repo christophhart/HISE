@@ -491,7 +491,14 @@ const var::VariantType_Buffer		var::VariantType_Buffer::instance;
 
 //==============================================================================
 var::var() noexcept : type (&VariantType_Void::instance) {}
+
+#pragma warning(push)
+#pragma warning(disable: 4702)
+
 var::var (const VariantType& t) noexcept  : type (&t) {}
+
+#pragma warning(pop)
+
 var::~var() noexcept  { type->cleanUp (value); }
 
 JUCE_DECLARE_DEPRECATED_STATIC (const var var::null;)

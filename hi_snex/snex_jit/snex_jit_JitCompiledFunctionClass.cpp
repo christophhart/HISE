@@ -56,6 +56,9 @@ VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 	{
 		return r->getDataCopy();
 	}
+
+	jassertfalse;
+	return {};
 }
 
 

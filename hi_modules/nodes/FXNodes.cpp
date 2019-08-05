@@ -57,14 +57,14 @@ void sampleandhold_impl<V>::setFactor(double value)
 }
 
 template <int V>
-void sampleandhold_impl<V>::createParameters(Array<ParameterData>& data)
+void sampleandhold_impl<V>::createParameters(Array<ParameterData>& d)
 {
 	{
 		ParameterData p("Counter");
 		p.range = { 1, 64, 1.0 };
 		p.db = BIND_MEMBER_FUNCTION_1(sampleandhold_impl::setFactor);
 
-		data.add(std::move(p));
+		d.add(std::move(p));
 	}
 }
 
@@ -135,7 +135,7 @@ void sampleandhold_impl<V>::prepare(PrepareSpecs ps)
 }
 
 template <int V>
-void sampleandhold_impl<V>::initialise(NodeBase* n)
+void sampleandhold_impl<V>::initialise(NodeBase* )
 {
 
 }
@@ -223,7 +223,7 @@ void bitcrush_impl<V>::prepare(PrepareSpecs ps)
 }
 
 template <int V>
-void bitcrush_impl<V>::initialise(NodeBase* n)
+void bitcrush_impl<V>::initialise(NodeBase* )
 {
 
 }
@@ -237,7 +237,7 @@ phase_delay_impl<V>::phase_delay_impl()
 }
 
 template <int V>
-void phase_delay_impl<V>::initialise(NodeBase* n)
+void phase_delay_impl<V>::initialise(NodeBase* )
 {
 	
 }
@@ -315,7 +315,7 @@ void phase_delay_impl<V>::setFrequency(double newFrequency)
 {
 	newFrequency /= sr;
 
-	auto coefficient = AllpassDelay::getDelayCoefficient(newFrequency);
+	auto coefficient = AllpassDelay::getDelayCoefficient((float)newFrequency);
 
 	if (delays[0].isVoiceRenderingActive())
 	{
@@ -476,7 +476,7 @@ reverb::reverb()
 	r.setParameters(p);
 }
 
-void reverb::initialise(NodeBase* n)
+void reverb::initialise(NodeBase* )
 {
 	
 }

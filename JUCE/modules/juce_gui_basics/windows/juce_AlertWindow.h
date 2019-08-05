@@ -191,7 +191,7 @@ public:
     */
     void addProgressBarComponent (double& progressValue);
 
-	void buttonClicked(Button* b) override {};
+	void buttonClicked(Button* ) override {};
 
     //==============================================================================
     /** Adds a user-defined component to the dialog box.

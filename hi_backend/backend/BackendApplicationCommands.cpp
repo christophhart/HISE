@@ -2511,6 +2511,8 @@ juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainC
 
 void BackendCommandTarget::Actions::convertSampleMapToWavetableBanks(BackendRootWindow* bpe)
 {
+	ignoreUnused(bpe);
+
 #if USE_IPP
 	WavetableConverterDialog *converter = new WavetableConverterDialog(bpe->getMainSynthChain());
 

@@ -143,7 +143,7 @@ MidiFileIn :: MidiFileIn( std::string fileName )
       count += getNextEvent( &event, 0 );
     }
     rewindTrack( 0 );
-    for ( unsigned int i=0; i<nTracks_; i++ ) {
+    for ( unsigned int i_=0; i_<nTracks_; i_++ ) {
       trackCounters_.push_back( 0 );
       trackTempoIndex_.push_back( 0 );
     }

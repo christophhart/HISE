@@ -1861,7 +1861,7 @@ private:
 
 		auto tmp = std::move(trimActions);
 
-		auto f = [tmp](Processor* p)
+		auto trimSample = [tmp](Processor* )
 		{
 			for (auto t : tmp)
 			{
@@ -1875,7 +1875,7 @@ private:
 			return SafeFunctionCall::OK;
 		};
 
-		sampler->killAllVoicesAndCall(f);
+		sampler->killAllVoicesAndCall(trimSample);
 		
 	}
 

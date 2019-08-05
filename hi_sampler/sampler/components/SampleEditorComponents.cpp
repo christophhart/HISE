@@ -401,6 +401,8 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 
 void SamplerSoundMap::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/)
 {
+	ignoreUnused(s, id);
+
 #if 0
 	auto index = s->getId();
 
@@ -660,7 +662,7 @@ void SamplerSoundMap::updateSampleComponentWithSound(ModulatorSamplerSound *soun
 };
 
 
-void SamplerSoundMap::updateSampleComponent(int index, NotificationType notifySync)
+void SamplerSoundMap::updateSampleComponent(int index, NotificationType )
 {
 	ModulatorSamplerSound* s = sampleComponents[index]->getSound();
 

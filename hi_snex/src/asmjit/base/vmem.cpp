@@ -255,12 +255,17 @@ ASMJIT_INLINE Error vMemMgrReleaseVMem(VMemMgr* self, void* p, size_t vSize) noe
 #endif
 }
 
+#pragma warning(push)
+#pragma warning(disable: 4505)
+
 //! \internal
 //!
 //! Check whether the Red-Black tree is valid.
 static bool vMemMgrCheckTree(VMemMgr* self) noexcept {
   return rbAssert(self->_root) > 0;
 }
+
+#pragma warning(pop)
 
 //! \internal
 //!

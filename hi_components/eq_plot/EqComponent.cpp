@@ -281,7 +281,7 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 	auto asComponent = dynamic_cast<Component*>(this);
 	g.setColour(Colours::grey);
 	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText("You need IPP for the FFT Analyser", 0.0f, 0.0f, (float)asComponent->getWidth(), (float)asComponent->getHeight(), Justification::centred, false);
+	g.drawText("You need IPP for the FFT Analyser", asComponent->getLocalBounds().toFloat(), Justification::centred, false);
 
 #endif
 }

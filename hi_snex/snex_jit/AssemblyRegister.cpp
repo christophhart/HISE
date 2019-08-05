@@ -179,16 +179,18 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc)
 
 	createRegister(cc);
 
-	asmjit::Error e;
+	asmjit::Error e = asmjit::kErrorOk;
 
 	if (type == Types::ID::Float)
 		e = cc.movss(reg.as<X86Xmm>(), memory);
-	if (type == Types::ID::Double)
+	else if (type == Types::ID::Double)
 		e = cc.movsd(reg.as<X86Xmm>(), memory);
-	if (type == Types::ID::Integer)
+	else if (type == Types::ID::Integer)
 		e = cc.mov(reg.as<IntRegisterType>(), immediateIntValue);
-	if (type == Types::ID::Block || type == Types::ID::Event)
+	else if (type == Types::ID::Block || type == Types::ID::Event)
 		e = cc.mov(reg.as<X86Gpq>(), memory);
+	else
+		jassertfalse;
 
 	state = ActiveRegister;
 	jassert(e == 0);

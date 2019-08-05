@@ -195,7 +195,7 @@ void ScriptComponentEditBroadcaster::prepareSelectionForDragging(ScriptComponent
 	sendSelectionChangeMessage();
 }
 
-void ScriptComponentEditBroadcaster::setScriptComponentProperty(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners/*=sendNotification*/, bool beginNewTransaction/*=true*/)
+void ScriptComponentEditBroadcaster::setScriptComponentProperty(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners/*=sendNotification*/, bool /*beginNewTransaction*//*=true*/)
 {
 	manager.perform(new PropertyChange(this, sc, propertyId, newValue, notifyListeners));
 }
@@ -249,7 +249,7 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyForSelection(cons
 	
 }
 
-void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool beginNewTransaction /*= true*/)
+void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool /*beginNewTransaction*/ /*= true*/)
 {
 	Iterator iter(this);
 
@@ -259,7 +259,7 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection
 	}
 }
 
-void ScriptComponentEditBroadcaster::setScriptComponentPropertyDelta(ScriptComponent* sc, const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool beginNewTransaction /*= true*/)
+void ScriptComponentEditBroadcaster::setScriptComponentPropertyDelta(ScriptComponent* sc, const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool /*beginNewTransaction*/ /*= true*/)
 {
 	var oldValue = sc->getScriptObjectProperty(propertyId);
 

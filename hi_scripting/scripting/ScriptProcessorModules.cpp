@@ -486,8 +486,6 @@ void JavascriptPolyphonicEffect::prepareToPlay(double sampleRate, int samplesPer
 
 void JavascriptPolyphonicEffect::renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	JUCE_COMPILER_WARNING("Check has tail (eg. with filter)");
-
 	if (auto n = getActiveNetwork())
 	{
 		float* channels[NUM_MAX_CHANNELS];

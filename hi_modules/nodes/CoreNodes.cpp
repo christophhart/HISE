@@ -241,7 +241,7 @@ void ramp_impl<NV>::processSingle(float* frameData, int numChannels)
 	}
 		
 	for (int i = 0; i < numChannels; i++)
-		frameData[i] += newValue;
+		frameData[i] += (float)newValue;
 
 	currentValue.get() = newValue;
 }
@@ -614,10 +614,10 @@ void gain_impl<V>::reset() noexcept
 		if (useResetValue.getValue())
 		{
 			gainer.get().setValueWithoutSmoothing(rv);
-			gainer.get().setValue(gainValue);
+			gainer.get().setValue((float)gainValue);
 		}
 		else
-			gainer.get().setValueWithoutSmoothing(gainValue);
+			gainer.get().setValueWithoutSmoothing((float)gainValue);
 	}
 	else
 	{
@@ -627,8 +627,8 @@ void gain_impl<V>::reset() noexcept
 
 		gainer.forEachVoice([s, t, gf](LinearSmoothedValue<float>& g)
 		{
-			g.reset(s, t);
-			g.setValueWithoutSmoothing(gf);
+			g.reset((float)s, (float)t);
+			g.setValueWithoutSmoothing((float)gf);
 		});
 	}
 }
@@ -683,9 +683,9 @@ void smoother_impl<NV>::setDefaultValue(double newDefaultValue)
 	auto d = defaultValue; auto sm = smoothingTimeMs;
 
 	if (smoother.isVoiceRenderingActive())
-		smoother.get().resetToValue(d, sm);
+		smoother.get().resetToValue((float)d, (float)sm);
 	else
-		smoother.forEachVoice([d, sm](Smoother& s) {s.resetToValue(d, sm); });
+		smoother.forEachVoice([d, sm](Smoother& s) {s.resetToValue((float)d, (float)sm); });
 }
 
 template <int NV>
@@ -694,9 +694,9 @@ void smoother_impl<NV>::setSmoothingTime(double newSmoothingTime)
 	smoothingTimeMs = newSmoothingTime;
 
 	if (smoother.isVoiceRenderingActive())
-		smoother.get().setSmoothingTime(smoothingTimeMs);
+		smoother.get().setSmoothingTime((float)smoothingTimeMs);
 	else
-		smoother.forEachVoice([newSmoothingTime](Smoother& s) {s.setSmoothingTime(newSmoothingTime); });
+		smoother.forEachVoice([newSmoothingTime](Smoother& s) {s.setSmoothingTime((float)newSmoothingTime); });
 }
 
 template <int NV>
@@ -720,7 +720,7 @@ void smoother_impl<NV>::process(ProcessData& d)
 }
 
 template <int NV>
-void smoother_impl<NV>::processSingle(float* data, int numChannels)
+void smoother_impl<NV>::processSingle(float* data, int)
 {
 	*data = smoother.get().smooth(*data);
 	modValue.get().setModValue(smoother.get().getDefaultValue());
@@ -754,7 +754,7 @@ void scriptnode::core::smoother_impl<NV>::prepare(PrepareSpecs ps)
 	smoother.forEachVoice([sr, sm](hise::Smoother& s)
 	{
 		s.prepareToPlay(sr);
-		s.setSmoothingTime(sm);
+		s.setSmoothingTime((float)sm);
 	});
 }
 
@@ -840,9 +840,9 @@ void ramp_envelope_impl<V>::reset()
 }
 
 template <int V>
-void ramp_envelope_impl<V>::processSingle(float* data, int numChannels)
+void ramp_envelope_impl<V>::processSingle(float* , int )
 {
-
+	jassertfalse;
 }
 
 template <int V>

@@ -451,7 +451,6 @@ bool DspNetworkGraph::Actions::arrowKeyAction(DspNetworkGraph& g, const KeyPress
 		auto tree = node->getValueTree();
 		auto parent = tree.getParent();
 		auto index = node->getIndexInParent();
-		auto swapIndex = -1;
 
 		if (swapWithPrev)
 			parent.moveChild(index, index - 1, node->getUndoManager());
@@ -540,7 +539,7 @@ bool DspNetworkGraph::Actions::arrowKeyAction(DspNetworkGraph& g, const KeyPress
 	return false;
 }
 
-bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPopup::Mode mode)
+bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPopup::Mode )
 {
 	auto firstInSelection = g.network->getSelection().getFirst();
 
@@ -560,8 +559,6 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 
 	fillChildComponentList(list, &g);
 	
-	auto parent = g.getParentComponent();
-
 	for (auto nc : list)
 	{
 		auto thisAddPosition = nc->getCurrentAddPosition();
@@ -675,10 +672,10 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 	{
 		if (auto fn = g.network->getSelection().getFirst())
 		{
-			Array<NodeComponent*> list;
-			fillChildComponentList<NodeComponent>(list, &g);
+			Array<NodeComponent*> ncList;
+			fillChildComponentList<NodeComponent>(ncList, &g);
 
-			for (auto nc : list)
+			for (auto nc : ncList)
 			{
 				if (nc->node == fn)
 				{

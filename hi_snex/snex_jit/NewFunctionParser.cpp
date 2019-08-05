@@ -35,6 +35,8 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			auto initValue = VariableStorage(data.args[i], 0);
 			auto initType = initValue.getType();
+
+			ignoreUnused(initType);
 			jassert(initType == data.args[i]);
 
 			functionScope->allocate(parameters[i], initValue);
@@ -71,21 +73,20 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		ScopedPointer<asmjit::StringLogger> l = new asmjit::StringLogger();
 
 		auto runtime = getRuntime(compiler);
-		auto jitClassScope = findClassScope(scope);
 
-		ScopedPointer<asmjit::CodeHolder> code = new asmjit::CodeHolder();
-		code->setLogger(l);
-		code->setErrorHandler(this);
-		code->init(runtime->getCodeInfo());
+		ScopedPointer<asmjit::CodeHolder> ch = new asmjit::CodeHolder();
+		ch->setLogger(l);
+		ch->setErrorHandler(this);
+		ch->init(runtime->getCodeInfo());
 
 		//code->setErrorHandler(this);
 
-		ScopedPointer<asmjit::X86Compiler> cc = new asmjit::X86Compiler(code);
+		ScopedPointer<asmjit::X86Compiler> cc = new asmjit::X86Compiler(ch);
 
 		FuncSignatureX sig;
 
 		AsmCodeGenerator::fillSignature(data, sig, false);
-		auto func = cc->addFunc(sig);
+		cc->addFunc(sig);
 
 		dynamic_cast<ClassCompiler*>(compiler)->setFunctionCompiler(cc);
 
@@ -98,12 +99,13 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		cc->finalize();
 		cc = nullptr;
 
-		runtime->add(&data.function, code);
+		runtime->add(&data.function, ch);
 
 		auto fClass = dynamic_cast<FunctionClass*>(scope);
 
 		bool success = fClass->injectFunctionPointer(data);
 
+		ignoreUnused(success);
 		jassert(success);
 
 		auto& as = dynamic_cast<ClassCompiler*>(compiler)->assembly;
@@ -111,9 +113,9 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		as << "; function " << data.getSignature() << "\n";
 		as <<  l->getString();
 
-		code->setLogger(nullptr);
+		ch->setLogger(nullptr);
 		l = nullptr;
-		code = nullptr;
+		ch = nullptr;
 
 		compiler->setCurrentPass(BaseCompiler::FunctionCompilation);
 	}

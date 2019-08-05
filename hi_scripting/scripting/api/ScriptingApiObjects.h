@@ -215,7 +215,7 @@ public:
 
 			virtual void contentChanged() = 0;
 
-			virtual void playbackPositionChanged(double newPosition) {};
+			virtual void playbackPositionChanged(double /*newPos*/) {};
 
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 		};
@@ -225,12 +225,13 @@ public:
 		String getDebugName() const override { return "AudioFile"; };
 		String getDebugValue() const override { return "AudioFile"; };
 
-		void rightClickCallback(const MouseEvent& e, Component *c) override {};
+		void rightClickCallback(const MouseEvent& , Component *) override {};
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("AudioFile"); }
 
 		void addListener(Listener* l, bool isSynchronous=false)
 		{
+			ignoreUnused(isSynchronous);
 			listeners.addIfNotAlreadyThere(l);
 		}
 

@@ -37,8 +37,10 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-struct ConstExprEvaluator: public OptimizationPass
+class ConstExprEvaluator: public OptimizationPass
 {
+public:
+
 	using TokenType = const char*;
 
 	static VariableStorage binaryOp(TokenType t, VariableStorage left, VariableStorage right);

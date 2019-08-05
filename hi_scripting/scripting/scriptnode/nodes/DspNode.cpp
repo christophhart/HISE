@@ -122,7 +122,7 @@ void DspNode::initialise()
 			auto object = obj;
 			WeakReference<ConstScriptingObject> weakThis = this;
 
-			auto f = [object](int index, var newValue)
+			auto sanitizeAndSet = [object](int index, var newValue)
 			{
 				auto floatValue = (float)newValue;
 				FloatSanitizers::sanitizeFloatNumber(floatValue);
@@ -151,7 +151,7 @@ void DspNode::initialise()
 
 				if (parameterData.isValid())
 				{
-					f(i, parameterData[PropertyIds::Value]);
+					sanitizeAndSet(i, parameterData[PropertyIds::Value]);
 				}
 				else
 				{

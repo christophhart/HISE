@@ -37,8 +37,10 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-template <int NV> struct seq_impl : public HiseDspBase
+template <int NV> class seq_impl : public HiseDspBase
 {
+public:
+
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("seq");

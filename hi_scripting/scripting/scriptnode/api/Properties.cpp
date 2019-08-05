@@ -127,7 +127,7 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 			repaint();
 		}
 
-		void mouseDown(const MouseEvent& event)
+		void mouseDown(const MouseEvent& )
 		{
 			auto p = new Popup(this);
 
@@ -148,7 +148,7 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 			l.setBounds(getLocalBounds().withWidth(80));
 		}
 
-		void labelTextChanged(Label* labelThatHasChanged) override
+		void labelTextChanged(Label* ) override
 		{
 			const String t = l.getText().trimCharactersAtStart("#");
 
@@ -291,7 +291,7 @@ struct SliderWithLimit : public PropertyComponent
 				float x, y, w, h;
 
 				y = b.getY();
-				w = range.convertTo0to1(value) * b.getWidth();
+				w = (float)range.convertTo0to1(value) * b.getWidth();
 				h = b.getHeight();
 
 				if (bipolar)
@@ -400,7 +400,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 		{
 			auto b = getLocalBounds();
 
-			auto pb = b.removeFromRight(getHeight());
+			auto pb = b.removeFromRight(getHeight()).toFloat();
 
 			p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
 
@@ -485,7 +485,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 	
 };
 
-juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* p, ValueTree& d, const Identifier& id, UndoManager* um)
+juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* , ValueTree& d, const Identifier& id, UndoManager* um)
 {
 	using namespace PropertyIds;
 
@@ -507,10 +507,10 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 		StringArray sa;
 		Array<var> values;
 
-		for (auto id : ids)
+		for (auto cId : ids)
 		{
-			sa.add(id.toString());
-			values.add(id.toString());
+			sa.add(cId.toString());
+			values.add(cId.toString());
 		}
 
 		return new juce::ChoicePropertyComponent(value, name, sa, values);

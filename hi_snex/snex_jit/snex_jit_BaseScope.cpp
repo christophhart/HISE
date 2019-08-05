@@ -115,14 +115,13 @@ BaseScope::BaseScope(const Identifier& id, BaseScope* parent_ /*= nullptr*/, int
 
 BaseScope::~BaseScope()
 {
-	int x = 5;
 }
 
 juce::Result BaseScope::allocate(const Identifier& id, VariableStorage v)
 {
-	for (auto v : allocatedVariables)
+	for (auto av : allocatedVariables)
 	{
-		if (v.id == id)
+		if (av.id == id)
 			return Result::fail("already exists");
 	};
 
@@ -285,6 +284,7 @@ snex::VariableStorage BaseScope::Reference::getDataCopy() const
 
 snex::VariableStorage& BaseScope::Reference::getDataReference(bool allowConstInitialisation /*= false*/) const
 {
+	ignoreUnused(allowConstInitialisation);
 	jassert(!(isConst && !allowConstInitialisation));
 
 	return scope.get()->getVariableReference(id.id);
@@ -298,9 +298,6 @@ snex::Types::ID BaseScope::Reference::getType() const
 
 bool BaseScope::InternalReference::operator==(const InternalReference& other) const
 {
-	auto thisType = ref.getType();
-	auto otherType = other.ref.getType();
-
 	return id == other.id;
 }
 

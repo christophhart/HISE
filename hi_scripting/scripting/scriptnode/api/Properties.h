@@ -209,7 +209,7 @@ struct PropertyHelpers
 #define HISE_EMPTY_PROCESS void process(ProcessData&) {}
 #define HISE_EMPTY_PROCESS_SINGLE void processSingle(float*, int) {}
 #define HISE_EMPTY_CREATE_PARAM void createParameters(Array<ParameterData>&){}
-#define HISE_EMPTY_MOD bool handleModulation(double& value) { return false; }
+#define HISE_EMPTY_MOD bool handleModulation(double& ) { return false; }
 
 #define DEFINE_EXTERN_MONO_TEMPLATE(monoName, classWithTemplate) extern template class classWithTemplate; using monoName = classWithTemplate;
 

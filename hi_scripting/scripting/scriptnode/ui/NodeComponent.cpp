@@ -116,7 +116,7 @@ void NodeComponent::Header::updatePowerButtonState(Identifier id, var newValue)
 	}
 }
 
-void NodeComponent::Header::mouseDoubleClick(const MouseEvent& event)
+void NodeComponent::Header::mouseDoubleClick(const MouseEvent& )
 {
 	parent.dataReference.setProperty(PropertyIds::Folded, !parent.isFolded(), nullptr);
 	parent.getParentComponent()->repaint();
@@ -540,19 +540,19 @@ void NodeComponent::handlePopupMenuResult(int result)
 			{
 				auto nodeTree = node->getValueTree();
 				auto parent = nodeTree.getParent();
-				auto index = parent.indexOf(nodeTree);
+				auto nIndex = parent.indexOf(nodeTree);
 
 				parent.removeChild(nodeTree, um);
 				containerTree.getChildWithName(PropertyIds::Nodes).addChild(nodeTree, -1, um);
 
 				jassert(!containerTree.getParent().isValid());
 
-				parent.addChild(containerTree, index, um);
+				parent.addChild(containerTree, nIndex, um);
 			}
 			else
 			{
 				auto parent = selection.getFirst()->getValueTree().getParent();
-				auto index = parent.indexOf(selection.getFirst()->getValueTree());
+				auto nIndex = parent.indexOf(selection.getFirst()->getValueTree());
 
 				for (auto n : selection)
 				{
@@ -560,7 +560,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 					containerTree.getChildWithName(PropertyIds::Nodes).addChild(n->getValueTree(), -1, um);
 				}
 
-				parent.addChild(containerTree, index, um);
+				parent.addChild(containerTree, nIndex, um);
 			}
 		}
 	}

@@ -78,13 +78,13 @@ struct MacroPropertyEditor : public Component,
 			g.fillRoundedRectangle(getLocalBounds().toFloat(), 3.0f);
 
 			String text = getPathFromNode(showSource, data);
-			Font f = GLOBAL_MONOSPACE_FONT().withHeight(15.0f);
+			Font font = GLOBAL_MONOSPACE_FONT().withHeight(15.0f);
 
 			auto title = getLocalBounds().removeFromTop(24).toFloat();
 
 			if (!c.isTransparent())
 			{
-				auto w = f.getStringWidthFloat(text) + 15.0f;
+				auto w = font.getStringWidthFloat(text) + 15.0f;
 
 				auto fill = title.reduced(3.0);
 				fill.removeFromTop(1.0f);
@@ -103,7 +103,7 @@ struct MacroPropertyEditor : public Component,
 			}
 
 			g.setColour(Colours::white);
-			g.setFont(f);
+			g.setFont(font);
 			
 			g.fillPath(icon);
 
@@ -287,7 +287,7 @@ struct MacroPropertyEditor : public Component,
 		
 	}
 
-	void paint(Graphics& g) override
+	void paint(Graphics& ) override
 	{
 	}
 
@@ -566,7 +566,7 @@ public:
 	void setDropTarget(Point<int> position);
 	void clearDropTarget();
 
-	virtual Rectangle<float> getInsertRuler(int position) const { jassertfalse; return {}; }
+	virtual Rectangle<float> getInsertRuler(int ) const { jassertfalse; return {}; }
 
 	void resized() override
 	{

@@ -71,7 +71,7 @@ BlockParser::StatementPtr NewFunctionParser::parseStatement()
 	}
 	else if (matchIf(JitTokens::loop_block_))
 	{
-		statement = parseLoopStatement(false);
+		statement = parseLoopStatement();
 	}
 
 	else if (matchIfTypeToken())
@@ -113,7 +113,7 @@ snex::jit::BlockParser::StatementPtr NewFunctionParser::parseVariableDefinition(
 	return new Operations::Assignment(location, target, JitTokens::assign_, expr);
 }
 
-snex::jit::BlockParser::StatementPtr NewFunctionParser::parseLoopStatement(bool isInterleavedLoop)
+snex::jit::BlockParser::StatementPtr NewFunctionParser::parseLoopStatement()
 {
 	match(JitTokens::openParen);
 

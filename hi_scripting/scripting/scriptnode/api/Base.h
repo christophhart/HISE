@@ -127,7 +127,7 @@ public:
 		ignoreUnused(n);
 	}
 
-	virtual void prepare(PrepareSpecs specs) {};
+	virtual void prepare(PrepareSpecs ) {};
 
 	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
 

@@ -39,7 +39,7 @@ using namespace asmjit;
 
 struct GlobalBase
 {
-	GlobalBase(const Identifier& id_, VariableStorage& t):
+	GlobalBase(const Identifier& id_):
 		id(id_),
 		ownData(0.0),
 		data(&ownData)

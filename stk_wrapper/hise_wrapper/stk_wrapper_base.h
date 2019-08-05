@@ -164,7 +164,7 @@ public:
 
 	void process(ProcessData& d);
 	void processSingle(float* frameData, int numChannels);
-	void handleHiseEvent(HiseEvent& e) { }
+	void handleHiseEvent(HiseEvent& ) { }
 };
 
 template <class T, size_t DataSize, class StkType, int NumChannels, int NV>

@@ -83,8 +83,6 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 
 void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 {
-	auto type = source->getType();
-
 	cc.setInlineComment("Write class variable");
 
     auto data = source->getGlobalDataPointer();
@@ -105,12 +103,9 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 
 void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 {
-	auto type = target->getType();
-
 	cc.setInlineComment("Load class variable");
 
 	auto data = target->getGlobalDataPointer();
-
 
 #if JUCE_64BIT
 	X86Gp address = cc.newGpq();
@@ -190,7 +185,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 		if (r->isMemoryLocation())
 		{
-			auto forcedMemory = cc.newInt32Const(kConstScopeLocal, INT_MEM(r));
+			auto forcedMemory = cc.newInt32Const(kConstScopeLocal, static_cast<int>(INT_MEM(r)));
 			cc.idiv(dummy, INT_REG_W(l), forcedMemory);
 		}
 		else					   cc.idiv(dummy, INT_REG_W(l), INT_REG_R(r));
@@ -495,7 +490,6 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	FuncSignatureX sig;
 
 	bool isMemberFunction = f.object != nullptr;
-	auto type = f.returnType;
 	fillSignature(f, sig, isMemberFunction);
 
 	X86Gp o;

@@ -80,6 +80,9 @@ void scriptnode::math::OpNode<OpType, V>::createParameters(Array<ParameterData>&
 	data.add(std::move(p));
 }
 
+#pragma warning(push)
+#pragma warning(disable: 4127)
+
 template <class OpType, int V>
 void scriptnode::math::OpNode<OpType, V>::setValue(double newValue)
 {
@@ -103,6 +106,8 @@ void scriptnode::math::OpNode<OpType, V>::setValue(double newValue)
 		}
 	}
 }
+
+#pragma warning( pop)
 
 DEFINE_OP_NODE_IMPL(mul);
 DEFINE_OP_NODE_IMPL(add);

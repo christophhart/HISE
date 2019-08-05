@@ -18,18 +18,18 @@
 
 namespace stk {
 
-Delay :: Delay( unsigned long delay, unsigned long maxDelay )
+Delay :: Delay( unsigned long delay, unsigned long maxDelay_)
 {
   // Writing before reading allows delays from 0 to length-1. 
   // If we want to allow a delay of maxDelay, we need a
   // delay-line of length = maxDelay+1.
-  if ( delay > maxDelay ) {
+  if ( delay > maxDelay_) {
     oStream_ << "Delay::Delay: maxDelay must be > than delay argument!\n";
     handleError( StkError::FUNCTION_ARGUMENT );
   }
 
-  if ( ( maxDelay + 1 ) > inputs_.size() )
-    inputs_.resize( maxDelay + 1, 1, 0.0 );
+  if ( (maxDelay_ + 1 ) > inputs_.size() )
+    inputs_.resize(maxDelay_ + 1, 1, 0.0 );
 
   inPoint_ = 0;
   this->setDelay( delay );
@@ -54,7 +54,7 @@ void Delay :: setDelay( unsigned long delay )
 
   // read chases write
   if ( inPoint_ >= delay ) outPoint_ = inPoint_ - delay;
-  else outPoint_ = inputs_.size() + inPoint_ - delay;
+  else outPoint_ = static_cast<unsigned long>(inputs_.size() + inPoint_ - delay);
   delay_ = delay;
 }
 

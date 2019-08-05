@@ -481,7 +481,7 @@ ItemGenerator::ItemGenerator(File r, BackendProcessor& bp):
 }
 
 
-hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& parent)
+hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& )
 {
 	MarkdownDataBase::Item root;
 	root.url = MarkdownLink(rootDirectory, getWildcard());
@@ -650,6 +650,7 @@ juce::String Resolver::getContent(const MarkdownLink& url)
 
 hise::Image ScreenshotProvider::getImage(const MarkdownLink& url, float width)
 {
+	ignoreUnused(width);
 	auto imageFileURL = url.toString(MarkdownLink::Format::UrlSubPath).upToFirstOccurrenceOf(".png", false, false);
 
 	if (imageFileURL.startsWith("sn_screen_"))

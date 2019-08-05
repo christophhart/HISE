@@ -667,7 +667,7 @@ struct Operations::Function : public Statement,
 		parameters.clear();
 	}
 
-	bool handleError(asmjit::Error err, const char* message, CodeEmitter* origin)
+	bool handleError(asmjit::Error , const char* message, CodeEmitter* )
 	{
 		throwError(String(message));
 		return true;
@@ -952,12 +952,8 @@ struct Operations::BlockAssignment : public Expression
 		{
 			if (getSubExpr(0)->getType() != Types::ID::Float)
 			{
-                auto type = getSubExpr(0)->getType();
-                
 				Ptr implicitCast = new Operations::Cast(location, getSubExpr(0), Types::ID::Float);
-
 				logWarning("Implicit cast to float for []-operation");
-
 				replaceSubExpr(0, implicitCast);
 			}
 		}
@@ -1059,13 +1055,9 @@ struct Operations::BlockLoop : public Expression
 					CCFuncCall* call = acg.cc.call(fn, sig);
 
 					call->setInlineComment("size()");
-
-					int offset = 0;
-
 					call->setRet(0, endReg);
 				}
 
-				auto bs = b->blockScope.get();
 				BaseScope::RefPtr r = b->blockScope->get({ {}, iterator, Types::ID::Float });
 
 				auto itReg = compiler->registerPool.getRegisterForVariable(r);

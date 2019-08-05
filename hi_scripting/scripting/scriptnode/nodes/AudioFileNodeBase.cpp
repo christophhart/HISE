@@ -112,20 +112,20 @@ void AudioFileNodeBase::updateFile(Identifier id, var newValue)
 
 void AudioFileNodeBase::updateIndex(Identifier id, var newValue)
 {
-	int index = (int)newValue;
+	int newIndex = (int)newValue;
 
-	if (index == -1 && isUsingInternalReference)
+	if (newIndex == -1 && isUsingInternalReference)
 		return;
 
 	if (audioFile != nullptr)
 		audioFile->removeListener(this);
 
-	if (index == -1)
+	if (newIndex == -1)
 		audioFile = new ScriptingObjects::ScriptAudioFile(pwsc);
 	else
-		audioFile = holder->addOrReturnAudioFile(index);
+		audioFile = holder->addOrReturnAudioFile(newIndex);
 
-	isUsingInternalReference = index == -1;
+	isUsingInternalReference = newIndex == -1;
 
 	audioFile->addListener(this, true);
 
@@ -136,13 +136,13 @@ void AudioFileNodeBase::updateIndex(Identifier id, var newValue)
 	}
 }
 
-void AudioFileNodeBase::createParameters(Array<ParameterData>& data)
+void AudioFileNodeBase::createParameters(Array<ParameterData>& )
 {
 	index.init(nullptr, this);
 	internalReference.init(nullptr, this);
 }
 
-juce::Component* AudioFileNodeBase::createExtraComponent(PooledUIUpdater* updater)
+juce::Component* AudioFileNodeBase::createExtraComponent(PooledUIUpdater* )
 {
 	return new WrappedDisplay(this);
 }

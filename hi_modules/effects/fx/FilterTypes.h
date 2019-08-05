@@ -503,8 +503,6 @@ private:
 		double tempx, hp, lp;
 		tempx = (double)input;
 
-		double returnValue;
-
 		auto& hptemp = hpData[channel];
 		auto& lptemp = lpData[channel];
 			
@@ -552,9 +550,9 @@ private:
 		
 		switch (mode)
 		{
-		case LP: return lp;
-		case HP: return hp;
-		case Allpass: return lp + hp;
+		case LP: return static_cast<float>(lp);
+		case HP: return static_cast<float>(hp);
+		case Allpass: return static_cast<float>(lp + hp);
         default: return 0.0f;
 		}
 	}

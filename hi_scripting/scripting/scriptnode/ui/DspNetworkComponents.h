@@ -105,7 +105,7 @@ public:
 				setSize(w, 28);
 			}
 
-			void mouseDown(const MouseEvent& e)
+			void mouseDown(const MouseEvent& )
 			{
 				findParentComponentOfClass<TagList>()->toggleTag(getName());
 			}
@@ -235,7 +235,7 @@ public:
 		list.rebuild(getWidthForListItems());
 	}
 
-	void buttonClicked(Button* b)
+	void buttonClicked(Button* )
 	{
 		if (help == nullptr)
 		{
@@ -298,8 +298,8 @@ public:
 
 		void rebuild(int maxWidth)
 		{
-			auto height = renderer.getHeightForWidth(maxWidth-20);
-			setSize(maxWidth, height + 20);
+			auto height = renderer.getHeightForWidth((float)(maxWidth)-20.0f);
+			setSize(maxWidth, (int)height + 20);
 		}
 
 		File rootDirectory;
@@ -449,7 +449,7 @@ public:
 				selected(isSelected_)
 			{}
 
-			void mouseDown(const MouseEvent& event)
+			void mouseDown(const MouseEvent& )
 			{
 				findParentComponentOfClass<PopupList>()->setSelected(this);
 			}
@@ -833,7 +833,7 @@ public:
 				repaint();
 			}
 
-			void mouseDown(const MouseEvent& event) override
+			void mouseDown(const MouseEvent& ) override
 			{
 				findParentComponentOfClass<ScrollableParent>()->setCurrentModalWindow(nullptr, {});
 			}

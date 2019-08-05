@@ -776,7 +776,7 @@ static Identifier getStaticId() { return Identifier(id); };
     };
     
 #define DEFINE_FACTORY_FOR_NAMESPACE NodeFactory* Factory::instance = nullptr; \
-NodeFactory* Factory::getInstance(DspNetwork* n) \
+NodeFactory* Factory::getInstance(DspNetwork* ) \
 { if (instance == nullptr) instance = new Factory(); return instance; }
     
 #define DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(name) class Factory : private SingletonFactory \

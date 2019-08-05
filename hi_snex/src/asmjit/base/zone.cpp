@@ -197,6 +197,9 @@ char* Zone::sformat(const char* fmt, ...) noexcept {
 // [asmjit::ZoneHeap - Helpers]
 // ============================================================================
 
+#pragma warning(push)
+#pragma warning(disable: 4505)
+
 static bool ZoneHeap_hasDynamicBlock(ZoneHeap* self, ZoneHeap::DynamicBlock* block) noexcept {
   ZoneHeap::DynamicBlock* cur = self->_dynamicBlocks;
   while (cur) {
@@ -206,6 +209,8 @@ static bool ZoneHeap_hasDynamicBlock(ZoneHeap* self, ZoneHeap::DynamicBlock* blo
   }
   return false;
 }
+
+#pragma warning(pop)
 
 // ============================================================================
 // [asmjit::ZoneHeap - Init / Reset]

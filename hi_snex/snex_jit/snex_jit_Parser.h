@@ -230,6 +230,8 @@ public:
 
 			// Can't find the subexpression you want
 			jassertfalse;
+
+			return nullptr;
 		}
 
 		String asmComment;

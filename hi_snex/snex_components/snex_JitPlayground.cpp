@@ -58,7 +58,7 @@ JitPlayground::JitPlayground() :
 	addAndMakeVisible(editor);
 	addAndMakeVisible(console);
 
-	editor.setFont(GLOBAL_MONOSPACE_FONT());
+	editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(18.0f));
 	editor.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xCC38383A));
 	editor.setOpaque(false);
 	editor.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white);
@@ -283,7 +283,7 @@ public:
 			
 	};
 
-	void registerAllObjectFunctions(GlobalScope* memory)
+	void registerAllObjectFunctions(GlobalScope* )
 	{
 		auto f = JitCallableObject::createMemberFunctionForJitCode("getValue");
 		f->returnType = Types::ID::Float;
@@ -359,9 +359,6 @@ void JitPlayground::recalculate()
         
         try
         {
-            auto ptr = b.getWritePointer(0);
-            
-            
             auto start = Time::getMillisecondCounterHiRes();
             
             data.callVoid(bl);
@@ -532,7 +529,7 @@ void Graph::setBuffer(AudioSampleBuffer& b)
                 p.lineTo((float)i, 1.0f - range.getStart());
         }
         
-        p.lineTo(b.getNumSamples(), 1.0f);
+        p.lineTo((float)b.getNumSamples(), 1.0f);
         p.closeSubPath();
         
         p.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), false);

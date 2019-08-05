@@ -298,7 +298,7 @@ juce::String Types::Helpers::getCppValueString(const VariableStorage& v)
 
 		double d = v.toDouble();
 
-		if (fmodf(d, 1.0f) == 0.0f)
+		if (fmod(d, 1.0) == 0.0)
 			value << String((int)d) << ".0";
 		else
 		{

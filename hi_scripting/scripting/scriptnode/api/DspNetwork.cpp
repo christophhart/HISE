@@ -510,9 +510,9 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 	return c;
 }
 
-void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& newId, UndoManager* um)
+void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& newId, UndoManager* undoManager)
 {
-	auto updateConnection = [oldId, newId, um](ValueTree& v)
+	auto updateConnection = [oldId, newId, undoManager](ValueTree& v)
 	{
 		if (v.hasType(PropertyIds::Connection))
 		{
@@ -520,7 +520,7 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 
 			if (nId == oldId)
 			{
-				v.setProperty(PropertyIds::NodeId, newId, um);
+				v.setProperty(PropertyIds::NodeId, newId, undoManager);
 			}
 		}
 
@@ -529,7 +529,7 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 
 	valuetree::Helpers::foreach(c, updateConnection);
 
-	auto updateSendConnection = [oldId, newId, um](ValueTree& v)
+	auto updateSendConnection = [oldId, newId, undoManager](ValueTree& v)
 	{
 		if (v.hasType(PropertyIds::Property) &&
 			v[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
@@ -538,7 +538,7 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 
 			if (oldValue == oldId)
 			{
-				v.setProperty(PropertyIds::Value, newId, um);
+				v.setProperty(PropertyIds::Value, newId, undoManager);
 			}
 		}
 

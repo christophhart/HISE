@@ -220,11 +220,16 @@ const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
 	return internalBuffer.getReadPointer(0);
 }
 
+#pragma warning (push)
+#pragma warning (disable: 4589)
+
 TimeModulation::TimeModulation(Mode m) :
     Modulation(m),
 	internalBuffer(0, 0)
 {
 }
+
+#pragma warning (pop)
 
 void TimeModulation::prepareToModulate(double sampleRate, int /*samplesPerBlock*/)
 {

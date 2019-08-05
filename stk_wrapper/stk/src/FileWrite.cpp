@@ -722,10 +722,10 @@ void FileWrite :: write( StkFrames& buffer )
     return;
   }
 
-  unsigned long nSamples = buffer.size();
+  auto nSamples = buffer.size();
   if ( dataType_ == STK_SINT16 ) {
     SINT16 sample;
-    for ( unsigned long k=0; k<nSamples; k++ ) {
+    for ( int k=0; k<nSamples; k++ ) {
       sample = (SINT16) (buffer[k] * 32767.0);
       //sample = ((SINT16) (( buffer[k] + 1.0 ) * 32767.5 + 0.5)) - 32768;
       if ( byteswap_ ) swap16( (unsigned char *)&sample );

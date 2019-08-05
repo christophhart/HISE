@@ -22,21 +22,21 @@
 
 namespace stk {
 
-DelayA :: DelayA( StkFloat delay, unsigned long maxDelay )
+DelayA :: DelayA( StkFloat delay, unsigned long maxDelay_ )
 {
   if ( delay < 0.5 ) {
     oStream_ << "DelayA::DelayA: delay must be >= 0.5!";
     handleError( StkError::FUNCTION_ARGUMENT );
   }
 
-  if ( delay > (StkFloat) maxDelay ) {
+  if ( delay > (StkFloat) maxDelay_) {
     oStream_ << "DelayA::DelayA: maxDelay must be > than delay argument!";
     handleError( StkError::FUNCTION_ARGUMENT );
   }
 
   // Writing before reading allows delays from 0 to length-1. 
-  if ( maxDelay + 1 > inputs_.size() )
-    inputs_.resize( maxDelay + 1, 1, 0.0 );
+  if (maxDelay_ + 1 > inputs_.size() )
+    inputs_.resize(maxDelay_ + 1, 1, 0.0 );
 
   inPoint_ = 0;
   this->setDelay( delay );
@@ -64,8 +64,8 @@ void DelayA :: setMaximumDelay( unsigned long delay )
 
 void DelayA :: setDelay( StkFloat delay )
 {
-  unsigned long length = inputs_.size();
-  if ( delay + 1 > length ) { // The value is too big.
+  auto length = inputs_.size();
+  if (delay + 1 > length ) { // The value is too big.
     oStream_ << "DelayA::setDelay: argument (" << delay << ") greater than maximum!";
     handleError( StkError::WARNING ); return;
   }

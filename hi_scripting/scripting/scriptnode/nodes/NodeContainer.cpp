@@ -431,11 +431,11 @@ struct ClassGenerator
 				{
 					for (int i = 0; i < n->getNumParameters(); i++)
 					{
-						auto p = n->getParameter(i);
+						auto tp = n->getParameter(i);
 
-						if (p->matchesConnection(c))
+						if (tp->matchesConnection(c))
 						{
-							auto isCombined = p->getConnectedMacroParameters().size() > 1;
+							auto isCombined = tp->getConnectedMacroParameters().size() > 1;
 
 							if (isCombined)
 								cd.opType = c[PropertyIds::OpType].toString();
@@ -1014,12 +1014,11 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTre
 
 	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
 	{
-		auto um = parent->getUndoManager();
-
+		auto undoManager = um;
 		nodeRemoveUpdater.setCallback(targetNode->getValueTree(), valuetree::AsyncMode::Asynchronously,
-			[d, um](ValueTree& v)
+			[d, undoManager](ValueTree& )
 		{
-			d.getParent().removeChild(d, um);
+			d.getParent().removeChild(d, undoManager);
 		});
 
 		auto parameterId = d[PropertyIds::ParameterId].toString();

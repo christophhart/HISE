@@ -295,27 +295,21 @@ using namespace juce;
 using namespace hise;
 
 class DspNodeList : public SearchableListComponent,
-	public ValueTree::Listener,
-	public AsyncUpdater,
 	public DspNetwork::SelectionListener
 {
 public:
 
 	struct NodeItem : public SearchableListComponent::Item,
 		public ButtonListener,
-		public ValueTree::Listener,
 		public Label::Listener
 	{
 		
 		NodeItem(DspNetwork* parent, const String& id) :
 			Item(id),
 			node(dynamic_cast<NodeBase*>(parent->get(id).getObject())),
-			data(node->getValueTree()),
 			label(),
 			powerButton("on", this, f)
 		{
-			data.addListener(this);
-
 			label.setText(id, dontSendNotification);
 			usePopupMenu = false;
 
@@ -330,28 +324,23 @@ public:
 			label.addMouseListener(this, true);
 
 			powerButton.setToggleModeWithColourChange(true);
-			powerButton.setToggleStateAndUpdateIcon(!data[PropertyIds::Bypassed]);
+
+			idListener.setCallback(node->getValueTree(), { PropertyIds::ID }, valuetree::AsyncMode::Asynchronously,
+				BIND_MEMBER_FUNCTION_2(NodeItem::updateId));
+
+			bypassListener.setCallback(node->getValueTree(), { PropertyIds::Bypassed }, valuetree::AsyncMode::Asynchronously,
+				BIND_MEMBER_FUNCTION_2(NodeItem::updateBypassState));
 		}
 
-		~NodeItem()
+		void updateBypassState(Identifier id, var newValue)
 		{
-			data.removeListener(this);
+			powerButton.setToggleStateAndUpdateIcon(!newValue);
 		}
 
-		void valueTreeChildAdded(ValueTree& , ValueTree& ) override { }
-		void valueTreeChildOrderChanged(ValueTree& , int , int ) override {};
-		void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override {  };
-		void valueTreePropertyChanged(ValueTree& t, const Identifier& id) override
+		void updateId(Identifier id, var newValue)
 		{
-			JUCE_COMPILER_WARNING("Replace with valuetree");
-
-			if (t == data && id == PropertyIds::Bypassed)
-				powerButton.setToggleStateAndUpdateIcon(!t[id]);
-			if (t == data && id == PropertyIds::ID)
-				label.setText(t[id], dontSendNotification);
-		};
-
-		void valueTreeParentChanged(ValueTree& ) override { };
+			label.setText(newValue.toString(), dontSendNotification);
+		}
 
 		void labelTextChanged(Label*) override
 		{
@@ -392,8 +381,10 @@ public:
 				node->getRootNetwork()->addToSelection(node, event.mods);
 		}
 
+		valuetree::PropertyListener idListener;
+		valuetree::PropertyListener bypassListener;
+
 		NodeBase::Ptr node;
-		ValueTree data;
 		NodeComponent::Factory f;
 		NiceLabel label;
 		HiseShapeButton powerButton;
@@ -517,8 +508,14 @@ public:
 		parent(parent_),
 		networkTree(parent->getValueTree())
 	{
-		networkTree.addListener(this);
 		parent->addSelectionListener(this);
+
+		nodeUpdater.setTypeToWatch(PropertyIds::Nodes);
+		nodeUpdater.setCallback(networkTree, valuetree::AsyncMode::Asynchronously,
+			[this](ValueTree, bool)
+		{
+			this->rebuildModuleList(true);
+		});
 	}
 
 	~DspNodeList()
@@ -526,7 +523,6 @@ public:
 		if (parent != nullptr)
 			parent->removeSelectionListener(this);
 
-		networkTree.removeListener(this);
 	}
 
 	void selectionChanged(const NodeBase::List&) override
@@ -535,23 +531,10 @@ public:
 			getCollection(i)->repaintAllItems();
 	}
 
-	void valueTreeChildAdded(ValueTree& , ValueTree& ) override 
-	{
-		JUCE_COMPILER_WARNING("Replace with value tree");
-		triggerAsyncUpdate(); 
-	}
-	void valueTreeChildOrderChanged(ValueTree&, int, int) override {};
-	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { triggerAsyncUpdate(); };
-	void valueTreePropertyChanged(ValueTree&, const Identifier&) override {};
-	void valueTreeParentChanged(ValueTree&) override { triggerAsyncUpdate(); };
-
-	void handleAsyncUpdate() override
-	{
-		rebuildModuleList(true);
-	}
-
 	WeakReference<DspNetwork> parent;
 	ValueTree networkTree;
+
+	valuetree::RecursiveTypedChildListener nodeUpdater;
 
 };
 }

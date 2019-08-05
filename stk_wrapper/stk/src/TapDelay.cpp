@@ -18,25 +18,25 @@
 
 namespace stk {
 
-TapDelay :: TapDelay( std::vector<unsigned long> taps, unsigned long maxDelay )
+TapDelay :: TapDelay( std::vector<unsigned long> taps, unsigned long maxDelay_ )
 {
   // Writing before reading allows delays from 0 to length-1. 
   // If we want to allow a delay of maxDelay, we need a
   // delayline of length = maxDelay+1.
-  if ( maxDelay < 1 ) {
+  if (maxDelay_ < 1 ) {
     oStream_ << "TapDelay::TapDelay: maxDelay must be > 0!\n";
     handleError( StkError::FUNCTION_ARGUMENT );
   }
 
   for ( unsigned int i=0; i<taps.size(); i++ ) {
-    if ( taps[i] > maxDelay ) {
+    if ( taps[i] > maxDelay_) {
       oStream_ << "TapDelay::TapDelay: maxDelay must be > than all tap delay values!\n";
       handleError( StkError::FUNCTION_ARGUMENT );
     }
   }
 
-  if ( ( maxDelay + 1 ) > inputs_.size() )
-    inputs_.resize( maxDelay + 1, 1, 0.0 );
+  if ( (maxDelay_ + 1 ) > inputs_.size() )
+    inputs_.resize(maxDelay_ + 1, 1, 0.0 );
 
   inPoint_ = 0;
   this->setTapDelays( taps );
@@ -78,7 +78,7 @@ void TapDelay :: setTapDelays( std::vector<unsigned long> taps )
   for ( unsigned int i=0; i<taps.size(); i++ ) {
     // read chases write
     if ( inPoint_ >= taps[i] ) outPoint_[i] = inPoint_ - taps[i];
-    else outPoint_[i] = inputs_.size() + inPoint_ - taps[i];
+    else outPoint_[i] = static_cast<unsigned long>(inputs_.size() + inPoint_ - taps[i]);
     delays_[i] = taps[i];
   }
 }

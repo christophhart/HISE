@@ -198,9 +198,8 @@ void instance::createParameters(Array<ParameterData>& data)
 		auto bypass_target2 = getParameter("stereo.Bypassed", { 1.0, 2.0, 0.5, 1.0 });
 		auto bypass_target3 = getParameter("right_only.Bypassed", { 2.0, 3.0, 0.5, 1.0 });
 
-		p.setCallback([bypass_target1, bypass_target2, bypass_target3, outer = p.range](double newValue)
+		p.setCallback([bypass_target1, bypass_target2, bypass_target3](double newValue)
 		{
-			auto normalised = outer.convertTo0to1(newValue);
 			bypass_target1.setBypass(newValue);
 			bypass_target2.setBypass(newValue);
 			bypass_target3.setBypass(newValue);

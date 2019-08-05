@@ -204,14 +204,14 @@ void ParameterSlider::paint(Graphics& g)
 }
 
 
-void ParameterSlider::itemDragEnter(const SourceDetails& dragSourceDetails)
+void ParameterSlider::itemDragEnter(const SourceDetails& )
 {
 	macroHoverIndex = 1;
 	repaint();
 }
 
 
-void ParameterSlider::itemDragExit(const SourceDetails& dragSourceDetails)
+void ParameterSlider::itemDragExit(const SourceDetails& )
 {
 	macroHoverIndex = -1;
 	repaint();
@@ -358,7 +358,7 @@ juce::Label* ParameterKnobLookAndFeel::createSliderTextBox(Slider& slider)
 	return l;
 }
 
-void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int x, int y, int width, int height, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, Slider& s)
+void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int width, int height, float , float , float , Slider& s)
 {
 	height = s.getHeight();
 	width = s.getWidth();
@@ -418,7 +418,7 @@ void MacroParameterSlider::resized()
 	slider.setBounds(b);
 }
 
-void MacroParameterSlider::mouseDrag(const MouseEvent& event)
+void MacroParameterSlider::mouseDrag(const MouseEvent& )
 {
 	if (editEnabled)
 	{

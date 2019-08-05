@@ -367,7 +367,6 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 
 	int nom = 4;
 	int denom = 4;
-	double preferredTempo = 120.0;
 
 	for (auto te : times)
 		te->message.getTimeSignatureInfo(nom, denom);
@@ -1542,7 +1541,7 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 
 		auto sig = getCurrentSequence()->getTimeSignature();
 
-		auto timeSigMessage = MidiMessage::timeSignatureMetaEvent(sig.nominator, sig.denominator);
+		auto timeSigMessage = MidiMessage::timeSignatureMetaEvent((int)sig.nominator, (int)sig.denominator);
 		
 		timeSigMessage.setTimeStamp(0);
 

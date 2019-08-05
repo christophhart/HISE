@@ -51,7 +51,7 @@ ContainerComponent::Updater::~Updater()
 	copy.removeListener(this);
 }
 
-void ContainerComponent::Updater::changeListenerCallback(SafeChangeBroadcaster *b)
+void ContainerComponent::Updater::changeListenerCallback(SafeChangeBroadcaster *)
 {
 	parent.rebuildNodes();
 }
@@ -64,14 +64,14 @@ void ContainerComponent::Updater::valueTreeChildAdded(ValueTree& parentTree, Val
 }
 
 
-void ContainerComponent::Updater::valueTreeChildOrderChanged(ValueTree& parentTree, int oldIndex, int newIndex)
+void ContainerComponent::Updater::valueTreeChildOrderChanged(ValueTree& parentTree, int , int )
 {
 	if (parentTree == copy)
 		sendPooledChangeMessage();
 }
 
 
-void ContainerComponent::Updater::valueTreeChildRemoved(ValueTree& parentTree, ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved)
+void ContainerComponent::Updater::valueTreeChildRemoved(ValueTree& parentTree, ValueTree& , int)
 {
 	if (parentTree == copy)
 		sendPooledChangeMessage();
@@ -127,7 +127,7 @@ void ContainerComponent::mouseMove(const MouseEvent& event)
 }
 
 
-void ContainerComponent::mouseExit(const MouseEvent& event)
+void ContainerComponent::mouseExit(const MouseEvent& )
 {
 	addPosition = -1;
 	repaint();
@@ -285,7 +285,7 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 }
 
 
-void ContainerComponent::helpChanged(float newWidth, float newHeight)
+void ContainerComponent::helpChanged(float , float )
 {
 	if (auto ng = findParentComponentOfClass<DspNetworkGraph>())
 	{
@@ -490,10 +490,10 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 		auto tc = childNodeComponents[i];
 		auto nc = childNodeComponents[i + 1];
 
-		Point<int> start({ tc->getBounds().getCentreX(), tc->getBounds().getBottom() });
-		Point<int> end({ nc->getBounds().getCentreX(), nc->getBounds().getY() });
+		Point<int> start_({ tc->getBounds().getCentreX(), tc->getBounds().getBottom() });
+		Point<int> end_({ nc->getBounds().getCentreX(), nc->getBounds().getY() });
 
-		Line<float> l(start.toFloat().translated(xOffset, 0.0f), end.toFloat().translated(xOffset, 0.0f));
+		Line<float> l(start_.toFloat().translated(xOffset, 0.0f), end_.toFloat().translated(xOffset, 0.0f));
 
 		p.addLineSegment(l, 2.0f);
 	}
@@ -871,7 +871,7 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 		{
 			auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
 
-			auto f = [sp, targetNode]()
+			auto gotoNode = [sp, targetNode]()
 			{
 				sp->setCurrentModalWindow(nullptr, {});
 
@@ -884,7 +884,7 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 				targetNode->getRootNetwork()->addToSelection(targetNode, ModifierKeys());
 			};
 
-			MessageManager::callAsync(f);
+			MessageManager::callAsync(gotoNode);
 		}
 	}
 }

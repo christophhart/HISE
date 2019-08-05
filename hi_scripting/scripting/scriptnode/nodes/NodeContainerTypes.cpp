@@ -210,7 +210,7 @@ ModulationChainNode::ModulationChainNode(DspNetwork* n, ValueTree t) :
 	obj.initialise(this);
 }
 
-void ModulationChainNode::processSingle(float* frameData, int numChannels) noexcept
+void ModulationChainNode::processSingle(float* frameData, int ) noexcept
 {
 	if (isBypassed())
 		return;
@@ -261,7 +261,7 @@ juce::String ModulationChainNode::getCppCode(CppGen::CodeLocation location)
 
 	if (location == CppGen::CodeLocation::Definitions)
 	{
-		String s = NodeContainer::getCppCode(location);
+		s = NodeContainer::getCppCode(location);
 		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "true", false);
 		CppGen::Emitter::emitDefinition(s, "SET_HISE_EXTRA_COMPONENT", "60, ModulationSourcePlotter", false);
 		return s;
@@ -530,7 +530,7 @@ void MultiChannelNode::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void MultiChannelNode::processSingle(float* frameData, int numChannels)
+void MultiChannelNode::processSingle(float* frameData, int )
 {
 	for (int i = 0; i < nodes.size(); i++)
 	{

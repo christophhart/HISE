@@ -309,6 +309,9 @@ struct CallConv {
     _passedOrder[kind].packed[1] = p1;
   }
 
+#pragma warning (push)
+#pragma warning (disable: 4245)
+
   ASMJIT_INLINE void setPassedToNone(uint32_t kind) noexcept {
     ASMJIT_ASSERT(kind < kMaxVRegKinds);
 
@@ -316,6 +319,8 @@ struct CallConv {
                            ASMJIT_PACK32_4x8(0xFF, 0xFF, 0xFF, 0xFF));
     _passedRegs[kind] = 0;
   }
+
+#pragma warning (pop)
 
   ASMJIT_INLINE void setPassedOrder(uint32_t kind, uint32_t a0, uint32_t a1 = 0xFF, uint32_t a2 = 0xFF, uint32_t a3 = 0xFF, uint32_t a4 = 0xFF, uint32_t a5 = 0xFF, uint32_t a6 = 0xFF, uint32_t a7 = 0xFF) noexcept {
     ASMJIT_ASSERT(kind < kMaxVRegKinds);

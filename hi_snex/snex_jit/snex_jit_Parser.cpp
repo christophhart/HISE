@@ -179,7 +179,7 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	return s;
 }
 
-BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool isConst)
+BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst*/)
 {
 	auto type = currentHnodeType;
 	auto target = new Operations::VariableReference(location, { {}, currentSymbol.id, type });
@@ -194,7 +194,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction()
 {
 	auto func = new Operations::Function(location);
 
-	StatementPtr p = func;
+	StatementPtr newStatement = func;
 
 	auto& fData = func->data;
 
@@ -227,9 +227,9 @@ BlockParser::StatementPtr NewClassParser::parseFunction()
 	}
 
 	
-	func->codeLength = location.location - func->code;
+	func->codeLength = static_cast<int>(location.location - func->code);
 	
-	return p;
+	return newStatement;
 }
 
 snex::VariableStorage BlockParser::parseVariableStorageLiteral()
@@ -323,7 +323,7 @@ bool Operations::isOpAssignment(Expression::Ptr p)
 	return false;
 }
 
-Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope)
+Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr variable, BaseScope* )
 {
 	if (auto sBlock = findParentStatementOfType<SyntaxTree>(variable.get()))
 	{
@@ -332,6 +332,8 @@ Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr va
 			if (isStatementType<Assignment>(s))
 				return dynamic_cast<Expression*>(s);
 		}
+
+		return nullptr;
 	}
 	else
 	{
@@ -417,8 +419,6 @@ snex::VariableStorage Operations::Expression::getConstExprValue() const
 
 bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 {
-	Statement* lastRef = nullptr;
-
 	for (auto v : variableReferences)
 	{
 		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
@@ -474,9 +474,9 @@ void SyntaxTreeWalker::add(Operations::Statement* s)
 {
 	statements.add(s);
 
-	if (auto bl = dynamic_cast<Operations::StatementBlock*>(s))
+	if (auto sb = dynamic_cast<Operations::StatementBlock*>(s))
 	{
-		for (auto s_ : bl->statements)
+		for (auto s_ : sb->statements)
 			add(s_);
 	}
 	else if (auto st = dynamic_cast<SyntaxTree*>(s))

@@ -527,7 +527,7 @@ struct convolution : public AudioFileNodeBase
 			c->cleanPipeline();
 	}
 
-	bool handleModulation(double& modValue)
+	bool handleModulation(double& )
 	{
 		return false;
 	}
@@ -542,7 +542,7 @@ struct convolution : public AudioFileNodeBase
 			convolvers[i]->process(d.data[i], d.data[i], d.size);
 	}
 
-	void processSingle(float* frameData, int numChannels)
+	void processSingle(float* , int )
 	{
 		jassertfalse;
 	}

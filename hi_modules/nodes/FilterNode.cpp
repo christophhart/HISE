@@ -174,8 +174,8 @@ void FilterNodeBase<FilterType, NV>::prepare(PrepareSpecs ps) noexcept
 {
 	sr = ps.sampleRate;
 
-	int c = ps.numChannels;
-	int s = ps.sampleRate;
+	auto c = ps.numChannels;
+	auto s = ps.sampleRate;
 
 	filter.prepare(ps);
 

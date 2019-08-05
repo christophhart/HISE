@@ -145,7 +145,7 @@ void RecursivePropertyListener::handleAsyncUpdate()
 	pendingChanges.clear();
 }
 
-void RecursivePropertyListener::valueTreePropertyChanged(ValueTree& v, const Identifier& id)
+void RecursivePropertyListener::valueTreePropertyChanged(ValueTree& changedTree, const Identifier& id)
 {
 	if (!ids.contains(id))
 		return;
@@ -155,10 +155,10 @@ void RecursivePropertyListener::valueTreePropertyChanged(ValueTree& v, const Ide
 	case AsyncMode::Unregistered:
 		break;
 	case AsyncMode::Synchronously:
-		f(v, id);
+		f(changedTree, id);
 		break;
 	case AsyncMode::Asynchronously:
-		pendingChanges.add({ v, id });
+		pendingChanges.add({ changedTree, id });
 		triggerAsyncUpdate();
 		break;
 	case AsyncMode::Coallescated:

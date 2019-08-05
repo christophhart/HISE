@@ -172,8 +172,8 @@ inline void LentPitShift::process()
   outputLine_.tick( zeroFrame, outputFrames );
 
   // Initialization of the Hamming window used in the algorithm
-  for ( int n=-(int)lastPeriod_; n<(int)lastPeriod_; n++ )
-    window[n+lastPeriod_] = (1 + cos(PI*n/lastPeriod_)) / 2	;
+  for ( int n_=-(int)lastPeriod_; n_<(int)lastPeriod_; n_++ )
+    window[n_+lastPeriod_] = (1 + cos(PI*n_/lastPeriod_)) / 2	;
 
   long M;  // Index of reading in the input delay line
   long N;  // Index of writing in the output delay line

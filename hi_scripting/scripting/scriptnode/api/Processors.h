@@ -104,29 +104,29 @@ public:
 		obj.initialise(n);
 	}
 
-	void prepare(PrepareSpecs ps)
+	void prepare(PrepareSpecs )
 	{
 		
 	}
 
 	forcedinline void reset() noexcept {  }
 
-	forcedinline void process(ProcessData& data) noexcept
+	forcedinline void process(ProcessData& ) noexcept
 	{
 		
 	}
 
-	void handleHiseEvent(HiseEvent& e)
+	void handleHiseEvent(HiseEvent& )
 	{
 		
 	}
 
-	forcedinline void processSingle(float* frameData, int) noexcept
+	forcedinline void processSingle(float* , int) noexcept
 	{
 		
 	}
 
-	forcedinline bool handleModulation(double& value) noexcept
+	forcedinline bool handleModulation(double& ) noexcept
 	{
 		return false;
 	}
@@ -310,7 +310,7 @@ public:
 		}
 	}
 
-	forcedinline void processSingle(float* frameData, int unused) noexcept
+	forcedinline void processSingle(float* frameData, int ) noexcept
 	{
 		obj.processSingle(frameData, NumChannels);
 	}
@@ -464,7 +464,7 @@ public:
 		obj.process(modData);
 	}
 
-	void processSingle(float* frameData, int numChannels)
+	void processSingle(float* , int )
 	{
 		if (--singleCounter <= 0)
 		{
@@ -474,7 +474,7 @@ public:
 		}
 	}
 
-	bool handleModulation(double& value)
+	bool handleModulation(double& )
 	{
 		return false;
 	}

@@ -695,7 +695,7 @@ public:
 		return textButtonFont;
 	};
 
-	void drawButtonBackground(Graphics& g, Button& b, const Colour& backgroundColour, bool over, bool down)
+	void drawButtonBackground(Graphics& g, Button& b, const Colour& , bool over, bool down)
 	{
 		auto ar = b.getLocalBounds().toFloat();
 
@@ -1561,7 +1561,7 @@ public:
 
 	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool);
 
-	void drawButtonText(Graphics& g, TextButton& b, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
+	void drawButtonText(Graphics& g, TextButton& b, bool , bool ) override
 	{
 		g.setColour(Colours::white);
 		g.setFont(f);

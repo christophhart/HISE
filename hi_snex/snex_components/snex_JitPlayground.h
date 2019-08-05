@@ -127,7 +127,7 @@ public:
 	void paint(Graphics& g) override;
 	void resized() override;
 
-	void comboBoxChanged(ComboBox* b) override
+	void comboBoxChanged(ComboBox* ) override
 	{
 		recalculate();
 	}
@@ -159,7 +159,7 @@ private:
 			g.fillRoundedRectangle(b.getLocalBounds().toFloat(), 3.0f);
 		}
 
-		void drawButtonText(Graphics&g, TextButton& b, bool over, bool down)
+		void drawButtonText(Graphics&g, TextButton& b, bool , bool )
 		{
 			auto c = !b.getToggleState() ? Colours::white : Colours::black;
 			g.setColour(c.withAlpha(0.8f));

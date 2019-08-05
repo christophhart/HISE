@@ -65,6 +65,10 @@ bool VariableStorage::operator==(const VariableStorage& other) const
 		return data.e == (HiseEvent)other;
 	if (getType() == Types::ID::Block)
 		return data.b.getData() == ((block)other).getData();
+	if (getType() == Types::ID::Void)
+		return true;
+
+	return false;
 }
 
 void VariableStorage::setWithType(Types::ID newType, double value)
@@ -161,7 +165,7 @@ VariableStorage::operator double() const noexcept
 VariableStorage::operator int() const
 {
 	jassert(getTypeValue() == Types::ID::Integer);
-	return data.i.value;
+	return static_cast<int>(data.i.value);
 }
 
 VariableStorage::operator HiseEvent() const
@@ -197,11 +201,11 @@ snex::FloatType VariableStorage::toFloat() const
 int VariableStorage::toInt() const
 {
 	if (getTypeValue() == Types::ID::Integer)
-		return data.i.value;
+		return static_cast<int>(data.i.value);
 	if (getTypeValue() == Types::ID::Float)
-		return static_cast<float>(data.f.value);
+		return static_cast<int>(data.f.value);
 	else if (getTypeValue() == Types::ID::Double)
-		return static_cast<double>(data.d.value);
+		return static_cast<int>(data.d.value);
 	
 	return 0;
 }

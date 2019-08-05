@@ -243,15 +243,15 @@ void ModulatorSamplerSound::toggleBoolProperty(const Identifier& id)
 	}
 }
 
-void ModulatorSamplerSound::startPropertyChange(const Identifier& id, int newValue)
+void ModulatorSamplerSound::startPropertyChange(const Identifier& /*id*/, int /*newValue*/)
 {
 }
 
-void ModulatorSamplerSound::endPropertyChange(const Identifier& id, int startValue, int endValue)
+void ModulatorSamplerSound::endPropertyChange(const Identifier& /*id*/, int /*startValue*/, int /*endValue*/)
 {
 }
 
-void ModulatorSamplerSound::endPropertyChange(const String &actionName)
+void ModulatorSamplerSound::endPropertyChange(const String &/*actionName*/)
 {
 }
 

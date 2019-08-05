@@ -164,8 +164,8 @@ juce::StringArray Factory::getSourceNodeList(NodeBase* n)
 	
 	auto list = n->getRootNetwork()->getListOfNodesWithType<HiseDspNodeBase<ReceiveNode>>(false);
 
-	for (auto n : list)
-		sa.add(n->getId());
+	for (auto rn : list)
+		sa.add(rn->getId());
 
 	return sa;
 }
@@ -270,7 +270,7 @@ SendNode::ConnectionNodeProperty::ConnectionNodeProperty(SendNode& parent) :
 
 }
 
-void SendNode::ConnectionNodeProperty::postInit(NodeBase* n)
+void SendNode::ConnectionNodeProperty::postInit(NodeBase* )
 {
 	updater.setCallback(getPropertyTree(), { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(ConnectionNodeProperty::update));
@@ -441,9 +441,9 @@ void Matrix::updateData()
 
 	ScopedValueSetter<bool> svs(recursion, true);
 
-	auto data = ValueTreeConverters::convertValueTreeToBase64(getMatrix().exportAsValueTree(), true);
+	auto matrixData = ValueTreeConverters::convertValueTreeToBase64(getMatrix().exportAsValueTree(), true);
 
-	internalData.storeValue(data, um);
+	internalData.storeValue(matrixData, um);
 
 	memset(channelRouting, -1, NUM_MAX_CHANNELS);
 	memset(sendRouting, -1, NUM_MAX_CHANNELS);
@@ -455,28 +455,28 @@ void Matrix::updateData()
 	}
 }
 
-void Matrix::process(ProcessData& data)
+void Matrix::process(ProcessData& d)
 {
 	float frameData[NUM_MAX_CHANNELS];
 	float* chData[NUM_MAX_CHANNELS];
 
-	memcpy(chData, data.data, data.numChannels * sizeof(float*));
+	memcpy(chData, d.data, d.numChannels * sizeof(float*));
 
-	ProcessData copy(chData, data.numChannels, data.size);
+	ProcessData copy(chData, d.numChannels, d.size);
 
-	if (data.size > 0)
+	if (d.size > 0)
 	{
 		copy.copyToFrameDynamic(frameData);
 		getMatrix().setGainValues(frameData, true);
-		processSingle(frameData, data.numChannels);
+		processSingle(frameData, d.numChannels);
 		getMatrix().setGainValues(frameData, false);
 		copy.copyFromFrameAndAdvanceDynamic(frameData);
 	}
 
-	for (int i = 1; i < data.size; i++)
+	for (int i = 1; i < d.size; i++)
 	{
 		copy.copyToFrameDynamic(frameData);
-		processSingle(frameData, data.numChannels);
+		processSingle(frameData, d.numChannels);
 		copy.copyFromFrameAndAdvanceDynamic(frameData);
 	}
 }

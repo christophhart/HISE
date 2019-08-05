@@ -65,12 +65,12 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
 			MessageManager::callAsync(f);
 		};
 
-		void mouseEnter(const MouseEvent& event) override
+		void mouseEnter(const MouseEvent& ) override
 		{
 			updateText();
 		}
 
-		void mouseExit(const MouseEvent& event) override
+		void mouseExit(const MouseEvent& ) override
 		{
 			updateText();
 		}

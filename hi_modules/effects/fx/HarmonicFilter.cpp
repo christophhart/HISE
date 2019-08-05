@@ -164,7 +164,7 @@ void HarmonicFilter::startVoice(int voiceIndex, const HiseEvent& e)
 
 	HiseEvent copy(e);
 	copy.setTransposeAmount(copy.getTransposeAmount() + semiToneTranspose);
-	const float freq = copy.getFrequency();
+	auto freq = copy.getFrequency();
 
 	filterBanks[voiceIndex].reset();
 	filterBanks[voiceIndex].updateBaseFrequency(freq);
@@ -386,7 +386,7 @@ void HarmonicMonophonicFilter::startMonophonicVoice(const HiseEvent& e)
 
 	HiseEvent copy(e);
 	copy.setTransposeAmount(copy.getTransposeAmount() + semiToneTranspose);
-	const float freq = copy.getFrequency();
+	auto freq = copy.getFrequency();
 
 	filterBank.reset();
 	filterBank.updateBaseFrequency(freq);

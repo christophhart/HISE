@@ -185,7 +185,7 @@ struct ResynthesisHelpers
 	*/
 	static bool calculateHarmonicSpectrum(const AudioSampleBuffer &buffer, double sampleRate, AudioSampleBuffer& harmonicSpectrum, double pitch, SampleMapToWavetableConverter::WindowType windowType)
 	{
-		
+		ignoreUnused(buffer, sampleRate, pitch, harmonicSpectrum, windowType);
 
 #if USE_IPP
 		if (pitch != 0.0)

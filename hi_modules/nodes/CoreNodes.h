@@ -165,13 +165,13 @@ public:
 
 	void updateCode(Identifier id, var newValue)
 	{
-		auto code = newValue.toString();
+		auto newCode = newValue.toString();
 
-		if (compiler.getLastCompiledCode() != code)
+		if (compiler.getLastCompiledCode() != newCode)
 		{
 			SpinLock::ScopedLockType sl(compileLock);
 
-			obj = compiler.compileJitObject(code);
+			obj = compiler.compileJitObject(newCode);
 
 			{
 				using namespace snex::Types;
@@ -207,7 +207,7 @@ public:
 			prepareFunction.callVoid(specs.sampleRate, specs.blockSize, specs.numChannels);
 	}
 
-	void createParameters(Array<ParameterData>& data) override
+	void createParameters(Array<ParameterData>& ) override
 	{
 		code.init(nullptr, this);
 		
@@ -219,7 +219,7 @@ public:
 		code.init(n, this);
 	}
 
-	bool handleModulation(double& v)
+	bool handleModulation(double& )
 	{
 		return false;
 	}

@@ -91,6 +91,8 @@ bool NodePopupEditor::keyPressed(const KeyPress& key)
 		editor.getChildComponent(0)->grabKeyboardFocus();
 		return true;
 	}
+
+	return false;
 }
 
 void NodePopupEditor::buttonClicked(Button* b)

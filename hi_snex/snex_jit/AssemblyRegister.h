@@ -38,7 +38,7 @@ using namespace juce;
 using namespace asmjit;
 
 
-struct SyntaxTree;
+class SyntaxTree;
 class BlockScope;
 
 /** A high level, reference counted assembly register. */
@@ -154,8 +154,10 @@ private:
 	WeakReference<BaseScope::Reference> variableId;
 };
 
-struct AssemblyRegisterPool
+class AssemblyRegisterPool
 {
+public:
+
 	using RegPtr = AssemblyRegister::Ptr;
 	using RegList = ReferenceCountedArray<AssemblyRegister>;
 
@@ -208,8 +210,9 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RegisterScope);
 };
 
-struct FunctionScope : public RegisterScope
+class FunctionScope : public RegisterScope
 {
+public:
 	FunctionScope(BaseScope* parent) :
 		RegisterScope(parent)
 	{

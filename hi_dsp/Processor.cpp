@@ -848,7 +848,7 @@ int ProcessorHelpers::getParameterIndexFromProcessor(Processor* p, const Identif
 
 void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFile/*=false*/, bool forceReload/*=false*/)
 {
-	ignoreUnused(forceReload);
+	ignoreUnused(forceReload, loadThisFile);
 
 	PoolReference newRef(dynamic_cast<Processor*>(this)->getMainController(), fileName, ProjectHandler::SubDirectories::AudioFiles);
 

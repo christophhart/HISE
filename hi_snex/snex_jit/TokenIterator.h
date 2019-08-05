@@ -104,9 +104,9 @@ struct ParserHelpers
 		{
 			int line = 1;
 
-			int charactersFromStart = (end - start);
+			auto charactersFromStart = (end - start);
 
-			for (int i = 0; i < jmin<int>(charactersFromStart, start.length()); i++)
+			for (int i = 0; i < jmin<int>((int)charactersFromStart, (int)start.length()); i++)
 			{
 				if (start[i] == '\n')
 				{
@@ -283,6 +283,7 @@ struct ParserHelpers
 
 			throwTokenMismatch("Type");
 
+			RETURN_IF_NO_THROW(Types::ID::Void);
 		}
 
 		bool matchIfAssignmentType()

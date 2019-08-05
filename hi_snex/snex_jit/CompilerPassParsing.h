@@ -52,7 +52,7 @@ public:
 	StatementPtr parseAssignment();
 	StatementPtr parseReturnStatement();
 	StatementPtr parseVariableDefinition(bool isConst);
-	StatementPtr parseLoopStatement(bool isInterleavedLoop);
+	StatementPtr parseLoopStatement();
 
 	void finaliseSyntaxTree(SyntaxTree* tree) override;
 

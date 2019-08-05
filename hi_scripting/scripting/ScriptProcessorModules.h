@@ -810,12 +810,12 @@ public:
 
 	void handleHiseEvent(const HiseEvent &m) final override;;
 
-	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSample) final override
+	void applyEffect(int , AudioSampleBuffer &, int , int ) final override
 	{
 		jassertfalse;
 	}
 
-	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) final override
+	void renderNextBlock(AudioSampleBuffer &, int , int ) final override
 	{
 
 	}

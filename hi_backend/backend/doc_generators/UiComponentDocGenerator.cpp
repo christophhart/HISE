@@ -408,7 +408,7 @@ UIComponentDatabase::ScreenshotProvider::ScreenshotProvider(MarkdownParser* pare
 	ImageProvider(parent)
 {}
 
-juce::Image UIComponentDatabase::ScreenshotProvider::getImage(const MarkdownLink& url, float )
+juce::Image UIComponentDatabase::ScreenshotProvider::getImage(const MarkdownLink& , float )
 {
 	return {};
 }

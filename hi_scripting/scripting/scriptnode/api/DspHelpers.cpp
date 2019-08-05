@@ -129,7 +129,8 @@ DspHelpers::ConverterFunction DspHelpers::ConverterFunctions::getFunction(const 
 		return dryAmount;
 	if (id == ConverterIds::WetAmount)
 		return wetAmount;
-
+	
+	return {};
 }
 
 scriptnode::DspHelpers::ParameterCallback DspHelpers::wrapIntoConversionLambda(const Identifier& converterId, const ParameterCallback& originalFunction, NormalisableRange<double> range, bool inverted)
@@ -159,8 +160,6 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::wrapIntoConversionLambda(c
 	}
 	else
 		return originalFunction;
-
-	return getFunctionFrom0To1ForRange(range, inverted, originalFunction);
 }
 
 
