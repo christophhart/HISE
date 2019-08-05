@@ -506,7 +506,8 @@ DEFINE_EXTERN_NODE_TEMPIMPL(oscillator_impl);
 template <int V>
 gain_impl<V>::gain_impl():
 	resetValue(PropertyIds::ResetValue, 0.0f),
-	useResetValue(PropertyIds::UseResetValue, false)
+	useResetValue(PropertyIds::UseResetValue, false),
+	gainBuffer(1, 0)
 {
 
 }
@@ -640,7 +641,8 @@ void gain_impl<V>::process(ProcessData& d)
 
 	if (thisGainer.isSmoothing())
 	{
-		auto gainData = ALLOCA_FLOAT_ARRAY(d.size);
+		jassert(d.size <= gainBuffer.getNumSamples());
+		auto gainData = gainBuffer.getWritePointer(0);
 
 		for (int i = 0; i < d.size; i++)
 			gainData[i] = thisGainer.getNextValue();
@@ -662,6 +664,8 @@ void gain_impl<V>::prepare(PrepareSpecs ps)
 {
 	gainer.prepare(ps);
 	sr = ps.sampleRate;
+
+	DspHelpers::increaseBuffer(gainBuffer, ps);
 
 	setSmoothingTime(smoothingTime * 1000.0);
 }

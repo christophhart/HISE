@@ -399,6 +399,7 @@ public:
 	NodePropertyT<float> resetValue;
 	NodePropertyT<float> useResetValue;
 	PolyData<LinearSmoothedValue<float>, NumVoices> gainer;
+	AudioSampleBuffer gainBuffer;
 };
 
 DEFINE_EXTERN_NODE_TEMPLATE(gain, gain_poly, gain_impl);
