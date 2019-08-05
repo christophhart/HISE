@@ -83,6 +83,8 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 
 void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 {
+	type = source->getType();
+
 	cc.setInlineComment("Write class variable");
 
     auto data = source->getGlobalDataPointer();
@@ -103,6 +105,8 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 
 void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 {
+	type = target->getType();
+
 	cc.setInlineComment("Load class variable");
 
 	auto data = target->getGlobalDataPointer();
