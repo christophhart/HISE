@@ -343,6 +343,8 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 
 	LOG_START("Restoring main container");
 
+	ScopedSoftBypassDisabler ssbd(this);
+
 	synthChain->restoreFromValueTree(synthData);
 
 	setSkipCompileAtPresetLoad(false);

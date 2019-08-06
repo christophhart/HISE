@@ -113,6 +113,8 @@ var NodeBase::getNodeProperty(const Identifier& id)
 
 	if (propTree.isValid())
 		return propTree[PropertyIds::Value];
+
+	return {};
 }
 
 NodeComponent* NodeBase::createComponent()

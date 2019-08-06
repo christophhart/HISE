@@ -226,7 +226,7 @@ public:
 	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler/* =dontSendNotification */) noexcept override
 	{
 		Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
-		setSoftBypass(shouldBeBypassed);
+		setSoftBypass(shouldBeBypassed, getMainController()->shouldUseSoftBypassRamps());
 	}
 
 	virtual bool isFadeOutPending() const noexcept;

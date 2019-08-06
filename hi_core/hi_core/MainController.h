@@ -1346,6 +1346,13 @@ public:
 
 	void removeControlledObject(ControlledObject* obj) { registeredObjects.removeAllInstancesOf(obj); }
 
+	void setAllowSoftBypassRamps(bool shouldBeAllowed)
+	{
+		allowSoftBypassRamps = shouldBeAllowed;
+	}
+
+	bool shouldUseSoftBypassRamps() const noexcept;
+
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -1409,8 +1416,6 @@ protected:
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
-	
-
 private:
 
 	Array<WeakReference<ControlledObject>> registeredObjects;
@@ -1423,6 +1428,8 @@ private:
 	bool fadeOutPreviewBuffer = false;
 
 	bool flakyThreadingAllowed = false;
+
+	bool allowSoftBypassRamps = true;
 
 	void loadPresetInternal(const ValueTree& v);
 

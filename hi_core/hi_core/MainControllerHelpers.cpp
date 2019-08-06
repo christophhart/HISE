@@ -1277,4 +1277,16 @@ void OverlayMessageBroadcaster::sendOverlayMessage(int newState, const String& n
 #endif
 }
 
+ScopedSoftBypassDisabler::ScopedSoftBypassDisabler(MainController* mc) :
+	ControlledObject(mc)
+{
+	previousState = mc->shouldUseSoftBypassRamps();
+	mc->setAllowSoftBypassRamps(false);
+}
+
+ScopedSoftBypassDisabler::~ScopedSoftBypassDisabler()
+{
+	getMainController()->setAllowSoftBypassRamps(previousState);
+}
+
 } // namespace hise

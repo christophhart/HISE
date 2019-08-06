@@ -434,7 +434,14 @@ private:
 
 };
 
+struct ScopedSoftBypassDisabler: public ControlledObject
+{
+	ScopedSoftBypassDisabler(MainController* mc);
 
+	~ScopedSoftBypassDisabler();
+
+	bool previousState;
+};
 
 /** This introduces an artificial delay of max 256 samples and calls the internal processing loop with a fixed number of samples.
 *

@@ -434,6 +434,15 @@ void MainController::killAndCallOnLoadingThread(const ProcessorFunction& f)
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
+bool MainController::shouldUseSoftBypassRamps() const noexcept
+{
+#if USE_BACKEND || !FRONTEND_IS_PLUGIN
+	return true;
+#else
+	return allowSoftBypassRamps;
+#endif
+}
+
 int MainController::getNumActiveVoices() const
 {
 	return getMainSynthChain()->getNumActiveVoices();

@@ -103,12 +103,6 @@ bool MasterEffectProcessor::isFadeOutPending() const noexcept
 
 void MasterEffectProcessor::setSoftBypass(bool shouldBeSoftBypassed, bool useRamp/*=true*/)
 {
-#if FRONTEND_IS_PLUGIN
-
-	softBypassState = shouldBeSoftBypassed ? Bypassed : Inactive;
-	softBypassRamper.setValueWithoutSmoothing(shouldBeSoftBypassed ? 0.0f : 1.0f);
-
-#else
 	if (useRamp)
 	{
 		softBypassRamper.setValue(shouldBeSoftBypassed ? 0.0f : 1.0f);
@@ -131,7 +125,6 @@ void MasterEffectProcessor::setSoftBypass(bool shouldBeSoftBypassed, bool useRam
 		softBypassState = shouldBeSoftBypassed ? Bypassed : Inactive;
 		softBypassRamper.setValueWithoutSmoothing(shouldBeSoftBypassed ? 0.0f : 1.0f);
 	}
-#endif
 }
 
 } // namespace hise
