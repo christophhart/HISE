@@ -34,7 +34,244 @@ namespace hise {
 using namespace juce;
 
 
-hise::MoogFilterSubType::MoogFilterSubType()
+double FilterLimits::limit(double minValue, double maxValue, double value)
+{
+#if HISE_IOS
+	return jlimit<double>(minValue, maxValue, value);
+#else
+	_mm_store_sd(&value, _mm_min_sd(_mm_max_sd(_mm_set_sd(value), _mm_set_sd(minValue)), _mm_set_sd(maxValue)));
+	return value;
+#endif
+}
+
+double FilterLimits::limitFrequency(double freq)
+{
+	return limit(FilterLimitValues::lowFrequency, FilterLimitValues::highFrequency, freq);
+}
+
+double FilterLimits::limitQ(double q)
+{
+	return limit(FilterLimitValues::lowQ, FilterLimitValues::highQ, q);
+}
+
+double FilterLimits::limitGain(double gain)
+{
+	return limit(FilterLimitValues::lowGain, FilterLimitValues::highGain, gain);
+}
+
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::setType(int newType)
+{
+	if (type != newType)
+	{
+		type = newType;
+		FilterSubType::setType(type);
+		clearCoefficients();
+	}
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::setSampleRate(double newSampleRate)
+{
+	sampleRate = newSampleRate;
+
+	frequency.reset(newSampleRate / 64.0, smoothingTimeSeconds);
+	q.reset(newSampleRate / 64.0, smoothingTimeSeconds);
+	gain.reset(newSampleRate / 64.0, smoothingTimeSeconds);
+
+	reset();
+	clearCoefficients();
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::setSmoothingTime(double newSmoothingTimeSeconds)
+{
+	smoothingTimeSeconds = newSmoothingTimeSeconds;
+	setSampleRate(sampleRate);
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::setNumChannels(int newNumChannels)
+{
+	numChannels = jlimit<int>(0, NUM_MAX_CHANNELS, newNumChannels);
+	reset();
+	clearCoefficients();
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::setFrequency(double newFrequency)
+{
+	targetFreq = FilterLimits::limitFrequency(newFrequency);
+	frequency.setValue(targetFreq);
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::setQ(double newQ)
+{
+	targetQ = FilterLimits::limitQ(newQ);
+	q.setValue(targetQ);
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::setGain(double newGain)
+{
+	targetGain = FilterLimits::limitGain(newGain);
+	gain.setValue(targetGain);
+}
+
+template <class FilterSubType>
+Identifier MultiChannelFilter<FilterSubType>::getFilterTypeId()
+{
+	return FilterSubType::getStaticId();
+}
+
+template <class FilterSubType>
+IIRCoefficients MultiChannelFilter<FilterSubType>::getApproximateCoefficients() const
+{
+	auto cType = FilterSubType::getCoefficientTypeList();
+
+	auto m = cType[type];
+
+	auto f_ = (double)frequency.getCurrentValue();
+	auto q_ = (double)q.getCurrentValue();
+	auto g_ = (float)gain.getCurrentValue();
+
+	switch (m)
+	{
+	case FilterHelpers::AllPass: return IIRCoefficients::makeAllPass(sampleRate, f_, q_);
+	case FilterHelpers::LowPassReso: return IIRCoefficients::makeLowPass(sampleRate, f_, q_);
+	case FilterHelpers::LowPass: return IIRCoefficients::makeLowPass(sampleRate, f_);
+	case FilterHelpers::BandPass: return IIRCoefficients::makeBandPass(sampleRate, f_);
+	case FilterHelpers::LowShelf: return IIRCoefficients::makeLowShelf(sampleRate, f_, q_, g_);
+	case FilterHelpers::HighShelf: return IIRCoefficients::makeHighShelf(sampleRate, f_, q_, g_);
+	case FilterHelpers::Peak: return IIRCoefficients::makePeakFilter(sampleRate, f_, q_, g_);
+	case FilterHelpers::HighPass: return IIRCoefficients::makeHighPass(sampleRate, f_, q_);
+	default:	return IIRCoefficients::makeLowPass(sampleRate, f_);
+	}
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::reset(int unused/*=0*/)
+{
+	ignoreUnused(unused);
+	frequency.setValueWithoutSmoothing(targetFreq);
+	gain.setValueWithoutSmoothing(targetGain);
+	q.setValueWithoutSmoothing(targetQ);
+
+	FilterSubType::reset(numChannels);
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::processSingle(float* frameData, int channels)
+{
+	jassert(channels == numChannels);
+
+	if (--frameCounter <= 0)
+	{
+		frameCounter = 64;
+		updateEvery64Frame();
+	}
+
+	FilterSubType::processSingle(frameData, channels);
+}
+
+template <class FilterSubType>
+StringArray MultiChannelFilter<FilterSubType>::getModes() const
+{
+	return FilterSubType::getModes();
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::render(FilterHelpers::RenderData& r)
+{
+	update(r);
+
+	if (numChannels != r.b.getNumChannels())
+	{
+		setNumChannels(r.b.getNumChannels());
+	}
+
+	FilterSubType::processSamples(r.b, r.startSample, r.numSamples);
+}
+
+template <class FilterSubType>
+double MultiChannelFilter<FilterSubType>::limit(double value, double minValue, double maxValue)
+{
+	// Branchless SSE clamp.
+	// return minss( maxss(val,minval), maxval );
+
+#if HISE_IOS
+	return jlimit<double>(minValue, maxValue, value);
+#else
+	_mm_store_sd(&value, _mm_min_sd(_mm_max_sd(_mm_set_sd(value), _mm_set_sd(minValue)), _mm_set_sd(maxValue)));
+	return value;
+#endif
+}
+
+template <class FilterSubType>
+bool MultiChannelFilter<FilterSubType>::compareAndSet(double& value, double newValue) noexcept
+{
+	bool unEqual = value != newValue;
+	value = newValue;
+	return unEqual;
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::clearCoefficients()
+{
+	dirty = true;
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::updateEvery64Frame()
+{
+	auto thisFreq = FilterLimits::limitFrequency(frequency.getNextValue());
+	auto thisGain = gain.getNextValue();
+	auto thisQ = FilterLimits::limitQ(q.getNextValue());
+
+	dirty |= compareAndSet(currentFreq, thisFreq);
+	dirty |= compareAndSet(currentGain, thisGain);
+	dirty |= compareAndSet(currentQ, thisQ);
+
+	if (dirty)
+	{
+		FilterSubType::updateCoefficients(sampleRate, thisFreq, thisQ, thisGain);
+		dirty = false;
+	}
+}
+
+template <class FilterSubType>
+void MultiChannelFilter<FilterSubType>::update(FilterHelpers::RenderData& renderData)
+{
+	auto thisFreq = FilterLimits::limitFrequency(renderData.freqModValue * frequency.getNextValue());
+	auto thisGain = renderData.gainModValue * gain.getNextValue();
+	auto thisQ = FilterLimits::limitQ(q.getNextValue() * renderData.qModValue);
+
+	dirty |= compareAndSet(currentFreq, thisFreq);
+	dirty |= compareAndSet(currentGain, thisGain);
+	dirty |= compareAndSet(currentQ, thisQ);
+
+	if (dirty)
+	{
+		FilterSubType::updateCoefficients(sampleRate, thisFreq, thisQ, thisGain);
+		dirty = false;
+	}
+}
+
+template <class FilterSubType>
+MultiChannelFilter<FilterSubType>::MultiChannelFilter() :
+	frequency(1000.0),
+	q(1.0),
+	gain(1.0),
+	currentFreq(1000.0),
+	currentQ(1.0),
+	currentGain(1.0)
+{
+
+}
+
+MoogFilterSubType::MoogFilterSubType()
 {
 	in1 = data;
 	in2 = in1 + NUM_MAX_CHANNELS;
@@ -50,6 +287,46 @@ hise::MoogFilterSubType::MoogFilterSubType()
 	updateCoefficients(44100.0, 20000.0, 1.0, 0.0);
 }
 
+
+hise::FilterHelpers::FilterSubType MoogFilterSubType::getFilterType()
+{
+	return FilterHelpers::FilterSubType::MoogFilterSubType;
+}
+
+juce::Identifier MoogFilterSubType::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("moog");
+}
+
+MoogFilterSubType::~MoogFilterSubType()
+{
+
+}
+
+juce::StringArray MoogFilterSubType::getModes() const
+{
+	return { "One Pole", "Two Poles", "Four Poles" };
+}
+
+Array<hise::FilterHelpers::CoefficientType> MoogFilterSubType::getCoefficientTypeList() const
+{
+	return { FilterHelpers::LowPassReso, FilterHelpers::LowPassReso, FilterHelpers::LowPassReso };
+}
+
+void MoogFilterSubType::reset(int numChannels)
+{
+	memset(data, 0, sizeof(double)*numChannels * 8);
+}
+
+void MoogFilterSubType::setMode(int newMode)
+{
+	mode = (Mode)newMode;
+}
+
+void MoogFilterSubType::setType(int /*t*/)
+{
+
+}
 
 void MoogFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
@@ -107,6 +384,51 @@ void MoogFilterSubType::processSingle(float* frameData, int numChannels)
 		in4[c] = out3[c];
 		frameData[c] = 2.0f * (float)out4[c];
 	}
+}
+
+DEFINE_MULTI_CHANNEL_FILTER(MoogFilterSubType);
+
+hise::FilterHelpers::FilterSubType SimpleOnePoleSubType::getFilterType()
+{
+	return FilterHelpers::FilterSubType::SimpleOnePoleSubType;
+}
+
+juce::Identifier SimpleOnePoleSubType::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("one_pole");
+}
+
+juce::StringArray SimpleOnePoleSubType::getModes() const
+{
+	return { "LP", "HP" };
+}
+
+Array<hise::FilterHelpers::CoefficientType> SimpleOnePoleSubType::getCoefficientTypeList() const
+{
+	return { FilterHelpers::LowPass, FilterHelpers::HighPass };
+}
+
+SimpleOnePoleSubType::SimpleOnePoleSubType()
+{
+	memset(lastValues, 0, sizeof(float)*NUM_MAX_CHANNELS);
+}
+
+void SimpleOnePoleSubType::setType(int t)
+{
+	onePoleType = (FilterType)t;
+}
+
+void SimpleOnePoleSubType::reset(int numChannels)
+{
+	memset(lastValues, 0, sizeof(float)*numChannels);
+}
+
+void SimpleOnePoleSubType::updateCoefficients(double sampleRate, double frequency, double /*q*/, double /*gain*/)
+{
+	const double x = exp(-2.0*double_Pi*frequency / sampleRate);
+
+	a0 = (float)(1.0 - x);
+	b1 = (float)-x;
 }
 
 void SimpleOnePoleSubType::processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples)
@@ -184,11 +506,43 @@ void SimpleOnePoleSubType::processSingle(float* d, int numChannels)
 	}
 }
 
+DEFINE_MULTI_CHANNEL_FILTER(SimpleOnePoleSubType);
+
+hise::FilterHelpers::FilterSubType RingmodFilterSubType::getFilterType()
+{
+	return FilterHelpers::FilterSubType::RingmodFilterSubType;
+}
+
+juce::Identifier RingmodFilterSubType::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("ring_mod");
+}
+
+juce::StringArray RingmodFilterSubType::getModes() const
+{
+	return { "RingMod" };
+}
+
+Array<hise::FilterHelpers::CoefficientType> RingmodFilterSubType::getCoefficientTypeList() const
+{
+	return { FilterHelpers::AllPass };
+}
+
 void RingmodFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
 	uptimeDelta = frequency / sampleRate * 2.0 * double_Pi;
 	oscGain = jmap<float>((float)q, 0.3f, 9.9f, 0.0f, 1.0f);
 	oscGain = jlimit<float>(0.0f, 1.0f, oscGain);
+}
+
+void RingmodFilterSubType::reset(int /*numChannels*/)
+{
+	uptime = 0.0;
+}
+
+void RingmodFilterSubType::setType(int /*t*/)
+{
+
 }
 
 void RingmodFilterSubType::processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples)
@@ -225,6 +579,36 @@ void RingmodFilterSubType::processSingle(float* d, int numChannels)
 	uptime += uptimeDelta;
 }
 
+DEFINE_MULTI_CHANNEL_FILTER(RingmodFilterSubType);
+
+hise::FilterHelpers::FilterSubType StaticBiquadSubType::getFilterType()
+{
+	return FilterHelpers::FilterSubType::StaticBiquadSubType;
+}
+
+juce::Identifier StaticBiquadSubType::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("biquad");
+}
+
+juce::StringArray StaticBiquadSubType::getModes() const
+{
+	return { "LowPass", "High Pass", "High Shelf", "Low Shelf", "Peak", "Reso Low" };
+}
+
+Array<hise::FilterHelpers::CoefficientType> StaticBiquadSubType::getCoefficientTypeList() const
+{
+	return { FilterHelpers::LowPass, FilterHelpers::HighPass,
+			 FilterHelpers::HighShelf, FilterHelpers::LowShelf,
+			 FilterHelpers::Peak, FilterHelpers::LowPassReso };
+}
+
+void StaticBiquadSubType::setType(int newType)
+{
+	biquadType = (FilterType)newType;
+	reset(numChannels);
+}
+
 void StaticBiquadSubType::reset(int numNewChannels)
 {
 	numChannels = numNewChannels;
@@ -254,6 +638,28 @@ void StaticBiquadSubType::processSingle(float* d, int channels)
 	}
 }
 
+DEFINE_MULTI_CHANNEL_FILTER(StaticBiquadSubType);
+
+hise::FilterHelpers::FilterSubType PhaseAllpassSubType::getFilterType()
+{
+	return FilterHelpers::FilterSubType::PhaseAllpassSubType;
+}
+
+juce::Identifier PhaseAllpassSubType::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("allpass");
+}
+
+juce::StringArray PhaseAllpassSubType::getModes() const
+{
+	return { "All Pass" };
+}
+
+Array<hise::FilterHelpers::CoefficientType> PhaseAllpassSubType::getCoefficientTypeList() const
+{
+	return { FilterHelpers::AllPass };
+}
+
 void PhaseAllpassSubType::processSamples(AudioSampleBuffer& b, int startSample, int numSamples)
 {
 	for (int c = 0; c < numFilters; c++)
@@ -272,6 +678,11 @@ void PhaseAllpassSubType::processSingle(float* d, int numChannels)
 		d[i] = filters[i].getNextSample(d[i]);
 }
 
+void PhaseAllpassSubType::setType(int /**/)
+{
+
+}
+
 void PhaseAllpassSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
 	if (sampleRate <= 0.0f)
@@ -285,6 +696,21 @@ void PhaseAllpassSubType::updateCoefficients(double sampleRate, double frequency
 		filters[i].minDelay = (float)(frequency / (sampleRate / 2.0));
 		filters[i].feedback = (float)jmap<double>(q, 0.3, 9.9, 0.0, 0.99);
 	}
+}
+
+void PhaseAllpassSubType::reset(int newNumChannels)
+{
+	numFilters = newNumChannels;
+}
+
+PhaseAllpassSubType::InternalFilter::InternalFilter()
+{
+	reset();
+}
+
+void PhaseAllpassSubType::InternalFilter::reset()
+{
+	currentValue = 0.0f;
 }
 
 float PhaseAllpassSubType::InternalFilter::getNextSample(float input)
@@ -310,6 +736,38 @@ float PhaseAllpassSubType::InternalFilter::getNextSample(float input)
 	currentValue = output;
 
 	return input + output;
+}
+
+DEFINE_MULTI_CHANNEL_FILTER(PhaseAllpassSubType);
+
+hise::FilterHelpers::FilterSubType LadderSubType::getFilterType()
+{
+	return FilterHelpers::FilterSubType::LadderSubType;
+}
+
+juce::Identifier LadderSubType::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("ladder");
+}
+
+Array<hise::FilterHelpers::CoefficientType> LadderSubType::getCoefficientTypeList() const
+{
+	return { FilterHelpers::LowPassReso };
+}
+
+juce::StringArray LadderSubType::getModes() const
+{
+	return { "LP24" };
+}
+
+void LadderSubType::reset(int newNumChannels)
+{
+	memset(buf, 0, sizeof(float) * newNumChannels * 4);
+}
+
+void LadderSubType::setType(int /*t*/)
+{
+
 }
 
 void LadderSubType::processSamples(AudioSampleBuffer& b, int startSample, int numSamples)
@@ -356,13 +814,56 @@ float LadderSubType::processSample(float input, int channel)
 	return 2.0f * buffer[3];
 }
 
+DEFINE_MULTI_CHANNEL_FILTER(LadderSubType);
+
+hise::FilterHelpers::FilterSubType StateVariableFilterSubType::getFilterType()
+{
+	return FilterHelpers::FilterSubType::StateVariableFilterSubType;
+}
+
+juce::Identifier StateVariableFilterSubType::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("svf");
+}
+
+juce::StringArray StateVariableFilterSubType::getModes() const
+{
+	return { "LP", "HP", "BP", "Notch", "Allpass" };
+}
+
+Array<hise::FilterHelpers::CoefficientType> StateVariableFilterSubType::getCoefficientTypeList() const
+{
+	return { FilterHelpers::LowPassReso, FilterHelpers::HighPass,
+			 FilterHelpers::BandPass, FilterHelpers::BandPass,
+			 FilterHelpers::AllPass };
+}
+
+StateVariableFilterSubType::StateVariableFilterSubType()
+{
+	memset(v0z, 0, sizeof(float)*NUM_MAX_CHANNELS);
+	memset(z1_A, 0, sizeof(float)*NUM_MAX_CHANNELS);
+	memset(v2, 0, sizeof(float)*NUM_MAX_CHANNELS);
+}
+
+void StateVariableFilterSubType::reset(int numChannels)
+{
+	memset(v0z, 0, sizeof(float)*numChannels);
+	memset(z1_A, 0, sizeof(float)*numChannels);
+	memset(v2, 0, sizeof(float)*numChannels);
+}
+
+void StateVariableFilterSubType::setType(int t)
+{
+	type = (FilterType)t;
+}
+
 void StateVariableFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
 	const float scaledQ = jlimit<float>(0.0f, 9.999f, (float)q * 0.1f);
 
 	if (type == FilterType::ALLPASS)
 	{
-		// prewarp the cutoff (for bilinear-transform filters)
+		// pre-warp the cutoff (for bilinear-transform filters)
 		float wd = static_cast<float>(frequency * 2.0f * float_Pi);
 		float T = 1.0f / (float)sampleRate;
 		float wa = (2.0f / T) * tan(wd * T / 2.0f);
@@ -602,5 +1103,194 @@ void StateVariableFilterSubType::processSingle(float* d, int numChannels)
 		break;
 	}
 }
+
+DEFINE_MULTI_CHANNEL_FILTER(StateVariableFilterSubType);
+
+hise::FilterHelpers::FilterSubType LinkwitzRiley::getFilterType()
+{
+	return FilterHelpers::FilterSubType::LinkwitzRiley;
+}
+
+juce::Identifier LinkwitzRiley::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("linkwitzriley");
+}
+
+juce::StringArray LinkwitzRiley::getModes() const
+{
+	return { "LP", "HP", "AP" };
+}
+
+Array<hise::FilterHelpers::CoefficientType> LinkwitzRiley::getCoefficientTypeList() const
+{
+
+	return { FilterHelpers::LowPass, FilterHelpers::HighPass, FilterHelpers::AllPass };
+}
+
+void LinkwitzRiley::setType(int type)
+{
+	mode = type;
+}
+
+void LinkwitzRiley::reset(int numChannels)
+{
+	memset(hpData, 0, sizeof(Data)*numChannels);
+	memset(lpData, 0, sizeof(Data)*numChannels);
+}
+
+void LinkwitzRiley::processSamples(AudioSampleBuffer& buffer, int startSample, int)
+{
+	for (int c = 0; c < buffer.getNumChannels(); c++)
+	{
+		auto ptr = buffer.getWritePointer(c + startSample);
+
+		for (int i = 0; i < buffer.getNumSamples(); i++)
+		{
+			ptr[i] = process(ptr[i], c);
+		}
+	}
+}
+
+void LinkwitzRiley::processSingle(float* frameData, int numChannels)
+{
+	for (int i = 0; i < numChannels; i++)
+	{
+		frameData[i] = process(frameData[i], i);
+	}
+}
+
+void LinkwitzRiley::updateCoefficients(double sampleRate, double frequency, double /*q*/, double /*gain*/)
+{
+
+
+	const double pi = double_Pi;
+	const double cowc = 2.0 * pi*frequency;
+	const double cowc2 = cowc * cowc;
+	const double cowc3 = cowc2 * cowc;
+	const double cowc4 = cowc2 * cowc2;
+	const double cok = cowc / std::tan(pi*frequency / sampleRate);
+	const double cok2 = cok * cok;
+	const double cok3 = cok2 * cok;
+	const double cok4 = cok2 * cok2;
+	const double sqrt2 = std::sqrt(2.0);
+	const double sq_tmp1 = sqrt2 * cowc3 * cok;
+	const double sq_tmp2 = sqrt2 * cowc * cok3;
+	const double a_tmp = 4.0 * cowc2*cok2 + 2.0 * sq_tmp1 + cok4 + 2.0 * sq_tmp2 + cowc4;
+
+	SpinLock::ScopedLockType sl(lock);
+
+	b1co = (4.0 * (cowc4 + sq_tmp1 - cok4 - sq_tmp2)) / a_tmp;
+	b2co = (6.0 * cowc4 - 8.0 * cowc2*cok2 + 6.0 * cok4) / a_tmp;
+	b3co = (4.0 * (cowc4 - sq_tmp1 + sq_tmp2 - cok4)) / a_tmp;
+	b4co = (cok4 - 2.0 * sq_tmp1 + cowc4 - 2.0 * sq_tmp2 + 4.0 * cowc2*cok2) / a_tmp;
+
+	//================================================
+	// low-pass
+	//================================================
+	lpco.coefficients[0] = cowc4 / a_tmp;
+	lpco.coefficients[1] = 4.0 * cowc4 / a_tmp;
+	lpco.coefficients[2] = 6.0 * cowc4 / a_tmp;
+	lpco.coefficients[3] = lpco.coefficients[1];
+	lpco.coefficients[4] = lpco.coefficients[0];
+
+	//=====================================================
+	// high-pass
+	//=====================================================
+	hpco.coefficients[0] = cok4 / a_tmp;
+	hpco.coefficients[1] = -4.0 * cok4 / a_tmp;
+	hpco.coefficients[2] = 6.0 * cok4 / a_tmp;
+	hpco.coefficients[3] = hpco.coefficients[1];
+	hpco.coefficients[4] = hpco.coefficients[0];
+}
+
+float LinkwitzRiley::process(float input, int channel)
+{
+	SpinLock::ScopedLockType sl(lock);
+
+	double tempx, hp, lp;
+	tempx = (double)input;
+
+	auto& hptemp = hpData[channel];
+	auto& lptemp = lpData[channel];
+
+	// High pass
+	hp = hpco.coefficients[0] * tempx +
+		hpco.coefficients[1] * hptemp.xm1 +
+		hpco.coefficients[2] * hptemp.xm2 +
+		hpco.coefficients[3] * hptemp.xm3 +
+		hpco.coefficients[4] * hptemp.xm4 -
+		b1co * hptemp.ym1 -
+		b2co * hptemp.ym2 -
+		b3co * hptemp.ym3 -
+		b4co * hptemp.ym4;
+
+	hptemp.xm4 = hptemp.xm3;
+	hptemp.xm3 = hptemp.xm2;
+	hptemp.xm2 = hptemp.xm1;
+	hptemp.xm1 = tempx;
+	hptemp.ym4 = hptemp.ym3;
+	hptemp.ym3 = hptemp.ym2;
+	hptemp.ym2 = hptemp.ym1;
+	hptemp.ym1 = hp;
+
+	// Low pass
+
+	lp =
+		lpco.coefficients[0] * tempx +
+		lpco.coefficients[1] * lptemp.xm1 +
+		lpco.coefficients[2] * lptemp.xm2 +
+		lpco.coefficients[3] * lptemp.xm3 +
+		lpco.coefficients[4] * lptemp.xm4 -
+		b1co * lptemp.ym1 -
+		b2co * lptemp.ym2 -
+		b3co * lptemp.ym3 -
+		b4co * lptemp.ym4;
+
+	lptemp.xm4 = lptemp.xm3; // these are the same as hptemp and could be optimised away
+	lptemp.xm3 = lptemp.xm2;
+	lptemp.xm2 = lptemp.xm1;
+	lptemp.xm1 = tempx;
+	lptemp.ym4 = lptemp.ym3;
+	lptemp.ym3 = lptemp.ym2;
+	lptemp.ym2 = lptemp.ym1;
+	lptemp.ym1 = lp;
+
+	switch (mode)
+	{
+	case LP: return static_cast<float>(lp);
+	case HP: return static_cast<float>(hp);
+	case Allpass: return static_cast<float>(lp + hp);
+	default: return 0.0f;
+	}
+}
+
+DEFINE_MULTI_CHANNEL_FILTER(LinkwitzRiley);
+
+PhaseAllpassSubType::InternalFilter::AllpassDelay::AllpassDelay() :
+	delay(0.f),
+	currentValue(0.f)
+{
+
+}
+
+float PhaseAllpassSubType::InternalFilter::AllpassDelay::getDelayCoefficient(float delaySamples)
+{
+	return (1.f - delaySamples) / (1.f + delaySamples);
+}
+
+void PhaseAllpassSubType::InternalFilter::AllpassDelay::setDelay(float newDelay) noexcept
+{
+	delay = newDelay;
+}
+
+float PhaseAllpassSubType::InternalFilter::AllpassDelay::getNextSample(float input) noexcept
+{
+	float y = input * -delay + currentValue;
+	currentValue = y * delay + input;
+
+	return y;
+}
+
+DEFINE_MULTI_CHANNEL_FILTER(PhaseAllpassSubType);
 
 }
