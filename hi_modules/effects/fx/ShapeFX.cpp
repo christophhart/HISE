@@ -141,7 +141,13 @@ void ShapeFX::setInternalAttribute(int parameterIndex, float newValue)
 	case HighPass: highpass = jmax<float>(20.0f, newValue); updateFilter(false); break;
 	case LowPass: lowpass = jmax<float>(20.0f, newValue); updateFilter(true); break;
 	case Mode: mode = (ShapeMode)(int)newValue; updateMode(); break;
-	case Oversampling: oversampleFactor = (int)newValue; updateOversampling(); break;
+	case Oversampling: 
+		if (oversampleFactor != (int)newValue)
+		{
+			oversampleFactor = (int)newValue;
+			updateOversampling(); 
+			break;
+		}
 	case Gain: gain = Decibels::decibelsToGain(newValue); updateMode(); break;
 	case Reduce: reduce = newValue; break;
 	case Autogain: autogain = newValue > 0.5f; updateMode(); break;
