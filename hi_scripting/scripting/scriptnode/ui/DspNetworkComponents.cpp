@@ -547,13 +547,15 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 
 	int addPosition = -1;
 
-	if (dynamic_cast<NodeContainer*>(firstInSelection.get()) != nullptr)
+	if (dynamic_cast<NodeContainer*>(firstInSelection.get()) != nullptr && firstInSelection->getParentNode() != nullptr)
 		containerToLookFor = firstInSelection;
 	else if (firstInSelection != nullptr)
 	{
 		containerToLookFor = firstInSelection->getParentNode();
 		addPosition = firstInSelection->getIndexInParent() + 1;
 	}
+
+	
 
 	Array<ContainerComponent*> list;
 
@@ -563,6 +565,8 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 	{
 		auto thisAddPosition = nc->getCurrentAddPosition();
 		bool thisContainer = nc->node == containerToLookFor || (containerToLookFor == nullptr && thisAddPosition != -1);
+		
+
 
 		if (thisContainer)
 		{

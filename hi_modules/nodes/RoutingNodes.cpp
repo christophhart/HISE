@@ -463,6 +463,7 @@ void Matrix::process(ProcessData& d)
 	memcpy(chData, d.data, d.numChannels * sizeof(float*));
 
 	ProcessData copy(chData, d.numChannels, d.size);
+	copy.allowPointerModification();
 
 	if (d.size > 0)
 	{

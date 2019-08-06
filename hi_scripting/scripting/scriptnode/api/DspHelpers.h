@@ -188,6 +188,8 @@ private:
 /** A lightweight object containing the data. */
 struct ProcessData
 {
+	
+
 	struct SampleIterator
 	{
 		SampleIterator() :
@@ -271,6 +273,7 @@ struct ProcessData
 
 	template <int NumChannels> void copyToFrame(float* frame) const
 	{
+		jassert(modifyPointersAllowed);
 		jassert(isPositiveAndBelow(NumChannels, numChannels+1));
 
 		for (int i = 0; i < NumChannels; i++)
@@ -279,6 +282,7 @@ struct ProcessData
 
 	template <int NumChannels> void copyFromFrameAndAdvance(const float* frame)
 	{
+		jassert(modifyPointersAllowed);
 		jassert(isPositiveAndBelow(NumChannels, numChannels + 1));
 
 		for (int i = 0; i < NumChannels; i++)
@@ -299,6 +303,52 @@ struct ProcessData
 	ProcessData copyTo(AudioSampleBuffer& buffer, int index);
 	ProcessData& operator+=(const ProcessData& other);
 	ProcessData referTo(AudioSampleBuffer& buffer, int index) const;
+
+	void allowPointerModification()
+	{
+		modifyPointersAllowed = true;
+	}
+
+	bool modifyPointersAllowed = false;
+};
+
+struct PointerWatcher
+{
+#if JUCE_DEBUG
+	PointerWatcher(ProcessData& data) :
+		dataToWatch(data),
+		c(data.numChannels),
+		size(data.size)
+	{
+		memcpy(reinterpret_cast<void*>(d), data.data, data.numChannels * sizeof(float*));
+	}
+
+	~PointerWatcher()
+	{
+		bool sizeMatches = dataToWatch.size = size;
+		bool channelMatches = dataToWatch.numChannels = c;
+
+		// You've managed to change the channel amount or block size during processing
+		jassert(sizeMatches && channelMatches);
+
+		for (int i = 0; i < c; i++)
+		{
+			if (dataToWatch.data[i] != d[i])
+			{
+				// You've managed to change the pointers during processing.
+				jassertfalse;
+			}
+		}
+	}
+
+	ProcessData& dataToWatch;
+	int c;
+	int size;
+	float* d[NUM_MAX_CHANNELS];
+#else
+	PointerWatcher(ProcessData& d)
+	{};
+#endif
 };
 
 struct OscData

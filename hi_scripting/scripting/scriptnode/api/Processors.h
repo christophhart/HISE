@@ -301,6 +301,7 @@ public:
 		float* frameData[NumChannels];
 		memcpy(frameData, data.data, sizeof(float*)*NumChannels);
 		ProcessData copy(frameData, NumChannels, data.size);
+		copy.allowPointerModification();
 
 		while (--numToDo >= 0)
 		{

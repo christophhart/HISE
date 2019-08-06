@@ -52,22 +52,33 @@ public:
 	{
 		if (shouldSmoothBypass())
 		{
+
 			for (int c = 0; c < data.numChannels; c++)
 				wetBuffer.copyFrom(c, 0, data.data[c], data.size);
 
-			memcpy(stackChannels, wetBuffer.getArrayOfWritePointers(), data.numChannels * sizeof(float*));
+			float* wetDataPointers[NUM_MAX_CHANNELS];
+			float* dryDataPointers[NUM_MAX_CHANNELS];
 
-			ProcessData stackData(stackChannels, data.numChannels, data.size);
+			auto bytesToCopy = data.numChannels * sizeof(float*);
 
-			this->obj.process(stackData);
+			memcpy(wetDataPointers, wetBuffer.getArrayOfWritePointers(), bytesToCopy);
+			memcpy(dryDataPointers, data.data, bytesToCopy);
+
+			ProcessData wetData(wetDataPointers, data.numChannels, data.size);
+			ProcessData dryData(dryDataPointers, data.numChannels, data.size);
+			
+			this->obj.process(wetData);
 
 			float wet[NUM_MAX_CHANNELS];
 			float dry[NUM_MAX_CHANNELS];
 
+			wetData.allowPointerModification();
+			dryData.allowPointerModification();
+
 			for (int i = 0; i < data.size; i++)
 			{
-				data.copyToFrameDynamic(dry);
-				stackData.copyToFrameDynamic(wet);
+				wetData.copyToFrameDynamic(wet);
+				dryData.copyToFrameDynamic(dry);
 
 				auto rampValue = bypassRamper.getNextValue();
 				auto invRampValue = 1.0f - rampValue;
@@ -76,9 +87,10 @@ public:
 				FloatVectorOperations::multiply(wet, rampValue, data.numChannels);
 				FloatVectorOperations::add(dry, wet, data.numChannels);
 
-				data.copyFromFrameAndAdvanceDynamic(dry);
-				stackData.advanceChannelPointers();
+				dryData.copyFromFrameAndAdvanceDynamic(dry);
+				wetData.advanceChannelPointers();
 			}
+
 		}
 		else
 		{
@@ -93,15 +105,17 @@ public:
 	{
 		if (shouldSmoothBypass())
 		{
-			FloatVectorOperations::copy(wetFrameData, frameData, numChannels);
+			float wet[NUM_MAX_CHANNELS];
 
-			this->obj.processSingle(wetFrameData, numChannels);
+			FloatVectorOperations::copy(wet, frameData, numChannels);
+
+			this->obj.processSingle(wet, numChannels);
 
 			auto rampValue = bypassRamper.getNextValue();
 			auto invRampValue = 1.0f - rampValue;
 
 			FloatVectorOperations::multiply(frameData, invRampValue, numChannels);
-			FloatVectorOperations::addWithMultiply(frameData, wetFrameData, rampValue, numChannels);
+			FloatVectorOperations::addWithMultiply(frameData, wet, rampValue, numChannels);
 		}
 		else
 		{
@@ -180,9 +194,6 @@ public:
 private:
 
 	AudioSampleBuffer wetBuffer;
-
-	float* stackChannels[NUM_MAX_CHANNELS];
-	float wetFrameData[NUM_MAX_CHANNELS];
 
 	LinearSmoothedValue<float> bypassRamper;
 	double sr = 44100.0;

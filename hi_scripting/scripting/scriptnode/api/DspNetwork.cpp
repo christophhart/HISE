@@ -246,6 +246,8 @@ void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 	ScopedLock sl(getConnectionLock());
 
 	ProcessData d(b.getArrayOfWritePointers(), b.getNumChannels(), b.getNumSamples());
+	PointerWatcher pw(d);
+
 	d.eventBuffer = e;
 
 	signalPath->process(d);

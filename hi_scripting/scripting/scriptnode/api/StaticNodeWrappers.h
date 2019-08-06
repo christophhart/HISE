@@ -65,7 +65,7 @@ protected:
     
 template <class HiseDspBaseType> class HiseDspNodeBase : public WrapperNode
 {
-	using WrapperType = bypass::yes<HiseDspBaseType, false>;
+	using WrapperType = bypass::smoothed<HiseDspBaseType, false>;
 
 public:
 	HiseDspNodeBase(DspNetwork* parent, ValueTree d) :

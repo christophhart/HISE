@@ -83,31 +83,6 @@ String ChainNode::getCppCode(CppGen::CodeLocation location)
 
 		return s;
 	}
-	else if (location == CppGen::CodeLocation::ProcessBody)
-	{
-		String s;
-		s << "bypassHandler.process(data);\n";
-		return s;
-	}
-	else if (location == CppGen::CodeLocation::ProcessSingleBody)
-	{
-		String s;
-		s << "bypassHandler.processSingle(frameData, numChannels);\n";
-		return s;
-	}
-	else if (location == CppGen::CodeLocation::PrepareBody)
-	{
-		String s = SerialNode::getCppCode(location);
-		s << "bypassHandler.prepare(int numChannels, sampleRate, blockSize);\n";
-		return s;
-
-	}
-	else if (location == CppGen::CodeLocation::PrivateMembers)
-	{
-		String s;
-		s << "BypassHandler bypassHandler;\n";
-		return s;
-	}
 	else
 		return SerialNode::getCppCode(location);
 }
@@ -160,10 +135,16 @@ void SplitNode::process(ProcessData& data)
 	{
 		if (channelCounter++ == 0)
 		{
+			if (n->isBypassed())
+				continue;
+
 			n->process(data);
 		}
 		else
 		{
+			if (n->isBypassed())
+				continue;
+
 			auto wd = original.copyTo(splitBuffer, 1);
 			n->process(wd);
 			data += wd;

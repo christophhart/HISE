@@ -179,18 +179,24 @@ double DspHelpers::findPeak(const ProcessData& data)
 
 void ProcessData::copyToFrameDynamic(float* frame) const
 {
+	jassert(modifyPointersAllowed);
+
 	for (int i = 0; i < numChannels; i++)
 		frame[i] = *data[i];
 }
 
 void ProcessData::copyFromFrameAndAdvanceDynamic(const float* frame)
 {
+	jassert(modifyPointersAllowed);
+
 	for (int i = 0; i < numChannels; i++)
 		*data[i]++ = frame[i];
 }
 
 void ProcessData::advanceChannelPointers(int sampleAmount/*=1*/)
 {
+	jassert(modifyPointersAllowed);
+
 	for (int i = 0; i < numChannels; i++)
 		data[i] += sampleAmount;
 }
