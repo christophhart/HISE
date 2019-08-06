@@ -366,10 +366,14 @@ struct SliderWithLimit : public PropertyComponent
 struct ExpressionPropertyComponent : public PropertyComponent
 {
 	ExpressionPropertyComponent(ValueTree& data, const Identifier& id, UndoManager* um):
-		PropertyComponent(id.toString())
+		PropertyComponent(id.toString()),
+		comp(data.getPropertyAsValue(id, um, true))
 	{
 		addAndMakeVisible(comp);
-		comp.editor.getTextValue().referTo(data.getPropertyAsValue(id, um, true));
+
+		
+
+		
 		setPreferredHeight(32);
 		
 	}
@@ -377,113 +381,185 @@ struct ExpressionPropertyComponent : public PropertyComponent
 	void refresh() override {};
 
 	struct Comp : public Component,
-				  public Value::Listener
+				  public KeyListener
 	{
-		Comp()
+		struct Display : public Component,
+						 public Value::Listener
 		{
-			addAndMakeVisible(editor);
-			editor.setFont(GLOBAL_MONOSPACE_FONT());
-			editor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.7f));
-			editor.getTextValue().addListener(this);
-			editor.setSelectAllWhenFocused(true);
-		}
-
-		void resized() override
-		{
-			auto b = getLocalBounds();
-			b.removeFromRight(getHeight() + 3);
-			b.removeFromBottom(3);
-			editor.setBounds(b);	
-		}
-
-		void paint(Graphics& g) override
-		{
-			auto b = getLocalBounds();
-
-			auto pb = b.removeFromRight(getHeight()).toFloat();
-
-			p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
-
-			
-			auto c = ok ? Colours::green : Colours::red;
-			c = c.withSaturation(0.3f);
-			c = c.withBrightness(0.4f);
-
-			g.setColour(c);
-
-			g.fillRect(pb);
-			g.setColour(Colours::white.withAlpha(0.6f));
-			g.fillPath(p);
-
-		}
-
-		void valueChanged(Value& value) override
-		{
-			empty = value.toString().isEmpty();
-
-			if (!empty)
+			Display(Value& v, bool smallMode_) :
+				smallMode(smallMode_),
+				value(v)
 			{
-				String s = "float get(float input){ return ";
-				s << value.toString() << "; }";
-
-				snex::jit::Compiler compiler(gs);
-				expression = compiler.compileJitObject(s);
-
-				ok = compiler.getCompileResult().wasOk();
-
-				if (auto f = expression["get"])
+				value.addListener(this);
+				setRepaintsOnMouseActivity(true);
+				
+				if (!smallMode)
 				{
-					float data[32];
+					addAndMakeVisible(label);
+				}
 
-					for (int i = 0; i < 32; i++)
+			};
+
+			void resized()
+			{
+				rebuild();
+
+				if (!smallMode)
+					label.setBounds(getLocalBounds().removeFromBottom(32));
+			}
+
+			~Display()
+			{
+				value.removeListener(this);
+			}
+
+			Value value;
+
+			void mouseDown(const MouseEvent& event) override;
+
+			Label label;
+
+			bool smallMode;
+			snex::jit::JitObject expression;
+			snex::jit::GlobalScope gs;
+			bool empty = false;
+			bool ok = false;
+			Path p;
+
+			void paint(Graphics& g) override
+			{
+				auto b = getLocalBounds();
+
+				
+				auto c = ok ? Colours::green : Colours::red;
+				c = c.withSaturation(0.3f);
+				c = c.withBrightness(0.4f);
+
+				g.setColour(c);
+
+				g.fillRect(b);
+				g.setColour(Colours::white.withAlpha(0.6f));
+				g.fillPath(p);
+			}
+
+			void rebuild()
+			{
+				empty = value.toString().isEmpty();
+
+				if (!empty)
+				{
+					String s = "float get(float input){ return ";
+					s << value.toString() << "; }";
+
+					snex::jit::Compiler compiler(gs);
+					expression = compiler.compileJitObject(s);
+
+					ok = compiler.getCompileResult().wasOk();
+
+					if (!ok)
+						label.setText(compiler.getCompileResult().getErrorMessage(), dontSendNotification);
+
+					if (auto f = expression["get"])
 					{
-						float v = (float)i / 32.0f;
-						data[i] = f.call<float>(v);
-					}
+						int numToUse = smallMode ? 32 : 128;
 
+						float* data = (float*)alloca(numToUse * sizeof(float*));
+
+						for (int i = 0; i < numToUse; i++)
+						{
+							float v = (float)i / (float)(numToUse-1);
+							data[i] = f.call<float>(v);
+						}
+
+						Path newPath;
+						newPath.startNewSubPath(0.0f, (float)getHeight());
+
+						auto b = getLocalBounds().toFloat();
+
+						for (int i = 0; i < numToUse; i++)
+						{
+							newPath.lineTo(((float)(i) / (float)(numToUse - 1)) * b.getWidth(), (1.0f - data[i]) * b.getHeight());
+						}
+
+
+						newPath.lineTo(b.getWidth(), b.getHeight());
+						newPath.closeSubPath();
+
+						p = newPath;
+					}
+				}
+				else
+				{
 					Path newPath;
 					newPath.startNewSubPath(0.0f, 1.0f);
-
-					for (int i = 0; i < 32; i++)
-					{
-						newPath.lineTo((float)(i) / 32.0f, 1.0f - data[i]);
-					}
-
 					newPath.lineTo(1.0f, 0.0f);
 					newPath.lineTo(1.0f, 1.0f);
 					newPath.closeSubPath();
 
 					p = newPath;
 				}
+
+				repaint();
 			}
-			else
+
+			void valueChanged(Value& value) override
 			{
-				Path newPath;
-				newPath.startNewSubPath(0.0f, 1.0f);
-				newPath.lineTo(1.0f, 0.0f);
-				newPath.lineTo(1.0f, 1.0f);
-				newPath.closeSubPath();
-
-				p = newPath;
+				rebuild();
 			}
+		};
 
-			
+		Comp(Value& value):
+			display(value, true)
+		{
+			editor.getTextValue().referTo(value);
 
-			
+			addAndMakeVisible(editor);
+			editor.setFont(GLOBAL_MONOSPACE_FONT());
+			editor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.7f));
+			editor.setSelectAllWhenFocused(true);
+			editor.addKeyListener(this);
 
-			repaint();
+			addAndMakeVisible(display);
 		}
 
-		snex::jit::JitObject expression;
-		snex::jit::GlobalScope gs;
-		bool empty = false;
-		bool ok = false;
+		bool keyPressed(const KeyPress& key, Component*) override
+		{
+			if (key == KeyPress::returnKey)
+			{
+				editor.getTextValue().setValue(editor.getText());
+				return true;
+			}
+
+			return false;
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			display.setBounds(b.removeFromRight(getHeight() + 3));
+			b.removeFromBottom(3);
+			editor.setBounds(b);	
+		}
+
 		TextEditor editor;
-		Path p;
+		Display display;
+		
 	} comp;
 
 	
 };
+
+void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& event)
+{
+	Display* bigOne = new Display(value, false);
+	bigOne->setSize(300, 300);
+
+	auto pc = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+
+	auto b = pc->getLocalArea(this, getLocalBounds());
+
+	CallOutBox::launchAsynchronously(bigOne, b, pc);
+}
 
 juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* , ValueTree& d, const Identifier& id, UndoManager* um)
 {
