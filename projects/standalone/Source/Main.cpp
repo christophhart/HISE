@@ -125,8 +125,9 @@ public:
 		print("Cleans the Binaries folder of the given project.");
 		print("-p:PATH - the path to the project folder.");
 		print("");
-		print("create-win-installer" );
+		print("create-win-installer [-noaax]" );
 		print("Creates a template install script for Inno Setup for the project" );
+		print("Add the -noaax flag to not include the AAX build");
 
 		exit(0);
 	}
