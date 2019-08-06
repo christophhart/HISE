@@ -139,7 +139,7 @@ public:
 		ScopedPointer<StandaloneProcessor> sp = new StandaloneProcessor();
 		ScopedPointer<MainController> mc = dynamic_cast<MainController*>(sp->createProcessor());
 
-		const bool includeAAX = !args.contains("--noaax");
+		const bool includeAAX = !args.contains("-noaax");
 
 		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX);
 
