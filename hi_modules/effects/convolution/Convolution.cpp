@@ -577,14 +577,12 @@ void ConvolutionEffect::LoadingThread::run()
 
 			ScopedValueSetter<bool> svs(parent.isReloading, true);
 
-			
+			shouldRestart = false;
 			
 			if (reloadInternal())
 			{
 				pending = false;
 			}
-
-			shouldRestart = false;
 		}
 
 		wait(100);
@@ -658,7 +656,7 @@ bool MultithreadedConvolver::prepareImpulseResponse(const AudioSampleBuffer& ori
 	copyBuffer.copyFrom(0, 0, originalBuffer.getReadPointer(0), originalBuffer.getNumSamples(), 1.0f);
 	copyBuffer.copyFrom(1, 0, originalBuffer.getReadPointer(originalBuffer.getNumChannels() >= 2 ? 1 : 0), originalBuffer.getNumSamples(), 1.0f);
 
-	if (abortFlag != nullptr && abortFlag)
+	if (abortFlag != nullptr && *abortFlag)
 		return false;
 
 	const auto offset = range.getStart();
@@ -674,7 +672,7 @@ bool MultithreadedConvolver::prepareImpulseResponse(const AudioSampleBuffer& ori
 
 	buffer.setSize(2, resampledLength);
 
-	if (abortFlag != nullptr && abortFlag)
+	if (abortFlag != nullptr && *abortFlag)
 		return false;
 
 	if (resampleRatio != 1.0)
