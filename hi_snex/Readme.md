@@ -1,4 +1,4 @@
-![](SNEX.png)
+![](snex.png)
 
 Version: 1.0 alpha
 
@@ -38,22 +38,21 @@ juce::String code = "float member = 8.0f; float square(float input){ member = in
 // Compiles and returns a object that contains the function code and slots for class variables.
 if (auto obj = compiler.compileJitObject(code))
 {
-	// Returns a wrapper around the function with the given name
-	auto f = obj["square"];
+    // Returns a wrapper around the function with the given name
+    auto f = obj["square"];
+    
+    // Returns a reference to the variable slot `member`
+    auto ptr = obj.getVariablePtr("member");
 
-	// Returns a reference to the variable slot `member`
-	auto ptr = obj.getVariablePtr("member");
+    DBG(ptr->toFloat()); // 8.0f
 
-	DBG(ptr->toFloat()); // 8.0f
-
-	// call the function - the return type has to be passed in via template.
+    // call the function - the return type has to be passed in via template.
     // It checks that the function signature matches 
     // and the JIT function was compiled correctly.
-	auto returnValue = f.call<float>(12.0f);
+    auto returnValue = f.call<float>(12.0f);
     
-    
-	DBG(returnValue); // 144.0f
-	DBG(ptr->toFloat()); // 12.0f
+    DBG(returnValue); // 144.0f
+    DBG(ptr->toFloat()); // 12.0f
 }
 else
 {
@@ -73,7 +72,7 @@ The **SNEX** syntax uses brackets for blocks and semicolons for statements. Comm
     multiline comment
 */
 {
-	x; // a statement
+    x; // a statement
 }
 ```
 
@@ -158,13 +157,13 @@ Type mismatches will be implicitely corrected by the compiler if possible (but i
 void test()
 {
     float x = 25.0f;
-	
-	{
-		float x = 90.0f;
-		Console.print(x); // 90.0f;
-	}
-	
-	Console.print(x); // 25.0f;
+    
+    {
+        float x = 90.0f;
+        Console.print(x); // 90.0f;
+    }
+    
+    Console.print(x); // 25.0f;
 }
 ```
 
@@ -217,7 +216,7 @@ int f2()
 
 void test()
 {
-	int c = f1() && f2() ? 2 : 1;
+    int c = f1() && f2() ? 2 : 1;
     Console.print(c);
 }
 
@@ -268,7 +267,7 @@ void falseBranch()
 
 void test(int input)
 {
-	input > 5 ? trueBranch() : falseBranch();
+    input > 5 ? trueBranch() : falseBranch();
 }
 
 ```
@@ -307,7 +306,7 @@ void f1()
 
 int f2()
 {
-	return 42; // must return a int
+    return 42; // must return a int
 }
 ```
 
