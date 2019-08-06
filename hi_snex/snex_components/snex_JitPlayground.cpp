@@ -35,7 +35,43 @@ namespace jit {
 using namespace juce;
 
 
-JitPlayground::JitPlayground() :
+juce::String SnexPlayground::getDefaultCode()
+{
+	auto emitCommentLine = [](String& code, const String& comment)
+	{
+		code << "/** " << comment << " */\n";
+	};
+
+	String s;
+	String nl = "\n";
+	String emptyBracket;
+	emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
+
+	emitCommentLine(s, "Initialise the processing here.");
+	s << "void prepare(double sampleRate, int blockSize, int numChannels)" << nl;
+	s << emptyBracket;
+
+	emitCommentLine(s, "Reset the processing pipeline");
+	s << "void reset()" << nl;
+	s << emptyBracket;
+
+	emitCommentLine(s, "Mono sample processing callback");
+	s << "void processChannel(block channel, int channelIndex)" << nl;
+	s << emptyBracket;
+
+	emitCommentLine(s, "Mono sample processing callback");
+	s << "float processSample(float input)" << nl;
+	s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
+
+	emitCommentLine(s, "Interleaved processing callback");
+	s << "void processFrame(block frame)" << nl;
+	s << emptyBracket;
+
+	return s;
+}
+
+SnexPlayground::SnexPlayground(Value externalCode) :
+	externalCodeValue(externalCode),
 	editor(doc, &tokeniser),
 	assembly(assemblyDoc, &assemblyTokeniser),
 	console(consoleContent, &consoleTokeniser),
@@ -65,7 +101,12 @@ JitPlayground::JitPlayground() :
 
 	editor.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0x33FFFFFF));
 
-    doc.replaceAllContent(getDefaultCode());
+	if (externalCode.toString().isEmpty())
+		doc.replaceAllContent(getDefaultCode());
+	else
+		doc.replaceAllContent(externalCode.toString());
+	
+	doc.clearUndoHistory();
 
 	testSignal.setColour(ComboBox::ColourIds::backgroundColourId, Colour(0xFF444444));
 
@@ -75,7 +116,6 @@ JitPlayground::JitPlayground() :
 	testSignal.setTextWhenNothingSelected("Select test signal");
 
 	editor.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
-
 	editor.setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFBBBBBB));
 
 	addAndMakeVisible(graph);
@@ -184,7 +224,12 @@ JitPlayground::JitPlayground() :
 	MessageManager::callAsync(f);
 }
 
-void JitPlayground::paint(Graphics& g)
+SnexPlayground::~SnexPlayground()
+{
+	externalCodeValue.setValue(doc.getAllContent());
+}
+
+void SnexPlayground::paint(Graphics& g)
 {
     snexIcon.scaleToFit(10.0f, 0.0f, 50.0f, 32.0f, true);
     g.setColour(Colours::white.withAlpha(0.5f));
@@ -192,7 +237,7 @@ void JitPlayground::paint(Graphics& g)
     
 }
 
-void JitPlayground::resized()
+void SnexPlayground::resized()
 {
 	auto area = getLocalBounds();
 
@@ -298,7 +343,7 @@ private:
 	float value = 12.0f;
 };
 
-void JitPlayground::recalculate()
+void SnexPlayground::recalculate()
 {
 	b.setSize(1, 44100);
     b.clear();
@@ -321,6 +366,8 @@ void JitPlayground::recalculate()
     
 	String s;
 	s << doc.getAllContent();
+
+	externalCodeValue.setValue(s);
 
 	consoleContent.replaceAllContent({});
 	consoleContent.clearUndoHistory();
@@ -406,7 +453,7 @@ void JitPlayground::recalculate()
 	graph.setBuffer(b);
 }
 
-bool JitPlayground::keyPressed(const KeyPress& k)
+bool SnexPlayground::keyPressed(const KeyPress& k)
 {
 	if (k.getKeyCode() == KeyPress::F5Key)
 	{
@@ -419,7 +466,7 @@ bool JitPlayground::keyPressed(const KeyPress& k)
 	return false;
 }
 
-void JitPlayground::createTestSignal()
+void SnexPlayground::createTestSignal()
 {
 	auto d = b.getWritePointer(0);
 

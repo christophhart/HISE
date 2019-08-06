@@ -69,7 +69,7 @@ struct NodeProperty
 	NodeBase* pendingNode = nullptr;
 	HiseDspBase* pendingParent = nullptr;
 
-	ValueTree getPropertyTree() { return d; }
+	ValueTree getPropertyTree() const { return d; }
 
 private:
 

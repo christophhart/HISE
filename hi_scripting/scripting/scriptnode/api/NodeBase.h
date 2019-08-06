@@ -276,6 +276,8 @@ struct NodeBase : public ConstScriptingObject
 
 	void setNodeProperty(const Identifier& id, const var& newValue);
 
+	var getNodeProperty(const Identifier& id) ;
+
 	virtual bool isPolyphonic() const { return false; }
 
 	bool isBodyShown() const
@@ -303,7 +305,7 @@ struct NodeBase : public ConstScriptingObject
 	NodeBase* getParentNode() const;
 	ValueTree getValueTree() const;
 	String getId() const;
-	UndoManager* getUndoManager();
+	UndoManager* getUndoManager() const;
 
 	Rectangle<int> getBoundsToDisplay(Rectangle<int> originalHeight) const;
 

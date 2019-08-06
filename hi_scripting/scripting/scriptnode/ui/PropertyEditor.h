@@ -94,6 +94,7 @@ struct NodePropertyComponent : public PropertyComponent
 		Value v;
 
 		ScopedPointer<Component> editor;
+		NodeBase::Ptr jitNode;
 		TextButton publicButton;
 		
 		HiPropertyPanelLookAndFeel laf;
@@ -241,12 +242,9 @@ struct NodePopupEditor : public Component,
 		editor.setBounds(b);
 	}
 
-	
-
 	Component::SafePointer<NodeComponent> nc;
 	PropertyEditor editor;
 	HiseShapeButton exportButton, wrapButton, surroundButton;
-
 };
 
 }

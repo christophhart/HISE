@@ -71,14 +71,23 @@ bool NodePopupEditor::keyPressed(const KeyPress& key)
 	{
 		if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
 		{
-			auto f = [sp]()
+			auto n = nc->node;
+
+			auto f = [this, n, sp]()
 			{
-				auto pg = new snex::jit::JitPlayground();
+				auto propTree = n.get()->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
 
-				auto bounds = sp->getBounds().reduced(100);
+				if (propTree.isValid())
+				{
+					auto pg = new snex::jit::SnexPlayground(propTree.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()));
 
-				pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
-				sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
+					auto bounds = sp->getBounds().reduced(100);
+
+					pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
+					sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
+				}
+
+				
 			};
 
 			MessageManager::callAsync(f);
@@ -194,28 +203,27 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 	else if (propId == PropertyIds::Code)
 	{
 		TextButton* jp = new TextButton("Edit Code");
-		jp->onClick = [this]()
+
 		{
-			if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
+			jp->onClick = [this, n]()
 			{
-				auto pg = new snex::jit::JitPlayground();
+				auto pTree = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
+				if (pTree.isValid())
+				{
+					if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
+					{
+						auto value = pTree.getPropertyAsValue(PropertyIds::Value, n->getUndoManager());
+						auto pg = new snex::jit::SnexPlayground(value);
 
-				auto bounds = sp->getBounds().reduced(100);
+						auto bounds = sp->getBounds().reduced(100);
 
-				pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
-				sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
-				return;
-			}
-
-			if (auto ft = findParentComponentOfClass<FloatingTile>())
-			{
-				auto pg = new snex::jit::JitPlayground();
-				pg->setSize(1024, 768);
-
-				ft->showComponentInRootPopup(pg, this, {});
-				return;
-			}
-		};
+						pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
+						sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
+						return;
+					}
+				}
+			};
+		}
 
 		editor = jp;
 	}
@@ -231,7 +239,6 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 	if (editor != nullptr)
 		addAndMakeVisible(editor);
 }
-
 
 void MultiColumnPropertyPanel::resized()
 {

@@ -81,7 +81,7 @@ juce::String NodeBase::createCppClass(bool isOuterClass)
 
 	if (isPolyphonic())
 		className << "_poly";
-	
+
 	return className;
 }
 
@@ -105,6 +105,14 @@ void NodeBase::setNodeProperty(const Identifier& id, const var& newValue)
 
 	if (propTree.isValid())
 		propTree.setProperty(PropertyIds::Value, newValue, getUndoManager());
+}
+
+var NodeBase::getNodeProperty(const Identifier& id)
+{
+	auto propTree = getPropertyTree().getChildWithProperty(PropertyIds::ID, id.toString());
+
+	if (propTree.isValid())
+		return propTree[PropertyIds::Value];
 }
 
 NodeComponent* NodeBase::createComponent()
@@ -171,7 +179,7 @@ juce::String NodeBase::getId() const
 	return v_data[PropertyIds::ID].toString();
 }
 
-juce::UndoManager* NodeBase::getUndoManager()
+juce::UndoManager* NodeBase::getUndoManager() const
 {
 	return getRootNetwork()->getUndoManager();
 }

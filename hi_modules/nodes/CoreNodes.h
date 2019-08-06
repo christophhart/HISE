@@ -149,18 +149,11 @@ public:
 	GET_SELF_AS_OBJECT(jit);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-	
-
 	jit() :
 		compiler(scope),
-		code(PropertyIds::Code, getDefaultCode())
+		code(PropertyIds::Code, "")
 	{
 		
-	}
-
-	static String getDefaultCode()
-	{
-        return snex::jit::JitPlayground::getDefaultCode();
 	}
 
 	void updateCode(Identifier id, var newValue)
@@ -186,15 +179,22 @@ public:
 				if (!resetFunction.matchesArgumentTypes(ID::Void, {}))
 					resetFunction = {};
 
-				monoFunction = obj["processMono"];
+				sampleFunction = obj["processSample"];
 
-				if (!monoFunction.matchesArgumentTypes(ID::Float, { ID::Float }))
-					monoFunction = {};
+				if (!sampleFunction.matchesArgumentTypes(ID::Float, { ID::Float }))
+					sampleFunction = {};
 
-				stereoFunction = obj["processStereo"];
+				forceMono = (bool)sampleFunction;
 
-				if (!stereoFunction.matchesArgumentTypes(ID::Void, { ID::Block }))
-					stereoFunction = {};
+				frameFunction = obj["processFrame"];
+
+				if (!frameFunction.matchesArgumentTypes(ID::Void, { ID::Block }))
+					frameFunction = {};
+
+				channelFunction = obj["processChannel"];
+
+				if (!channelFunction.matchesArgumentTypes(ID::Void, { ID::Block, ID::Integer }))
+					channelFunction = {};
 			}
 		}
 	}
@@ -205,12 +205,14 @@ public:
 
 		if (prepareFunction)
 			prepareFunction.callVoid(specs.sampleRate, specs.blockSize, specs.numChannels);
+
+		if (resetFunction)
+			resetFunction.callVoid();
 	}
 
 	void createParameters(Array<ParameterData>& ) override
 	{
 		code.init(nullptr, this);
-		
 	}
 
 	void initialise(NodeBase* n)
@@ -236,23 +238,48 @@ public:
 	{
 		SpinLock::ScopedLockType sl(compileLock);
 
-		if (d.numChannels == 1 && monoFunction)
+		if (forceMono)
 		{
-			for (int i = 0; i < d.size; i++)
-				d.data[0][i] = monoFunction.callUnchecked<float>(d.data[0][i]);
-		}
-		if (d.numChannels == 2 && stereoFunction)
-		{
-			for (int i = 0; i < d.size; i++)
+			if (channelFunction)
 			{
-				float frame[2];
-				frame[0] = d.data[0][i];
-				frame[1] = d.data[1][i];
-				
-				stereoFunction.callVoidUnchecked(snex::block(frame, 2));
+				snex::block b(d.data[0], d.size);
+				channelFunction.callVoidUnchecked(b, 0);
+			}
+			else if (sampleFunction)
+			{
+				for (int i = 0; i < d.size; i++)
+				{
+					auto value = d.data[0][i];
+					d.data[0][i] = sampleFunction.callUnchecked<float>(value);
+				}
+			}
+			
+		}
+		else
+		{
+			if (channelFunction)
+			{
+				for (int c = 0; c < d.numChannels; c++)
+				{
+					snex::block b(d.data[c], d.size);
+					channelFunction.callVoidUnchecked(b);
+				}
+			}
+			else if (frameFunction)
+			{
+				ProcessData copy(d);
 
-				d.data[0][i] = frame[0];
-				d.data[1][i] = frame[1];
+				float frame[NUM_MAX_CHANNELS];
+
+				for (int i = 0; i < d.size; i++)
+				{
+					copy.copyToFrameDynamic(frame);
+
+					snex::block b(frame, d.numChannels);
+					frameFunction.callVoidUnchecked(b);
+
+					copy.copyFromFrameAndAdvanceDynamic(frame);
+				}
 			}
 		}
 	}
@@ -261,10 +288,32 @@ public:
 	{
 		SpinLock::ScopedLockType sl(compileLock);
 
-		if (numChannels == 1 && monoFunction)
-			frameData[0] = monoFunction.callUnchecked<float>(frameData[0]);
-		else if (numChannels == 2 && stereoFunction)
-			stereoFunction.callVoidUnchecked(snex::block(frameData, 2));
+		if (forceMono)
+		{
+			if (sampleFunction)
+				frameData[0] = sampleFunction.callUnchecked<float>(frameData[0]);
+			else
+			{
+				snex::block b(frameData, 1);
+				channelFunction.callVoidUnchecked(b);
+			}
+		}
+		else
+		{
+			if (frameFunction)
+			{
+				snex::block b(frameData, numChannels);
+				frameFunction.callVoidUnchecked(b);
+			}
+			else
+			{
+				for (int i = 0; i < numChannels; i++)
+				{
+					snex::block b(frameData + i, 1);
+					channelFunction.callVoidUnchecked(b);
+				}
+			}
+		}
 	}
 
 	SpinLock compileLock;
@@ -277,12 +326,15 @@ public:
 
 	NodePropertyT<String> code;
 	
-	Func stereoFunction;
-	Func monoFunction;
+	Func sampleFunction;
+	Func channelFunction;
+	Func frameFunction;
 	Func resetFunction;
 	Func prepareFunction;
 	Func eventFunction;
 	Func modFunction;
+
+	bool forceMono = false;
 };
 
 template <int NV> class ramp_impl : public HiseDspBase
