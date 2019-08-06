@@ -9,7 +9,8 @@
 #include "MainComponent.h"
 
 //==============================================================================
-MainComponent::MainComponent()
+MainComponent::MainComponent():
+    playground(v)
 {
 	UnitTestRunner runner;
 	runner.setAssertOnFailure(true);

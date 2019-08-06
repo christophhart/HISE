@@ -187,7 +187,7 @@ private:
             {
                 NSRect r = [[[owner->statusItem view] window] frame];
                 NSRect half_sr = [[[NSScreen screens] objectAtIndex: 0] frame];
-                r.origin.y = sr.size.height - r.origin.y - r.size.height;
+                r.origin.y = half_sr.size.height - r.origin.y - r.size.height;
                 owner->owner.setBounds (convertToRectInt (r));
             }
         }

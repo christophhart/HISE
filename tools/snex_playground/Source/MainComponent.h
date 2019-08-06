@@ -30,7 +30,8 @@ private:
     //==============================================================================
     // Your private member variables go here...
 
-	snex::jit::JitPlayground playground;
+    Value v;
+	snex::jit::SnexPlayground playground;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
