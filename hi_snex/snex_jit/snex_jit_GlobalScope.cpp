@@ -47,6 +47,11 @@ GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 void GlobalScope::registerObjectFunction(FunctionClass* objectClass)
 {
 	objectClassesWithJitCallableFunctions.add(objectClass);
+
+	if (auto jco = dynamic_cast<JitCallableObject*>(objectClass))
+		jco->registerToMemoryPool(this);
+	else
+		jassertfalse;
 }
 
 void GlobalScope::deregisterObject(const Identifier& id)

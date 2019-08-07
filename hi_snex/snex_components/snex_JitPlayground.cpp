@@ -297,55 +297,7 @@ void SnexPlayground::resized()
 #define JIT_MEMBER_WRAPPER_4(R, C, N, T1, T2, T3, T4)	  static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4) { return static_cast<C*>(o)->N(a1, a2, a3, a4); };
 #define JIT_MEMBER_WRAPPER_5(R, C, N, T1, T2, T3, T4, T5) static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) { return static_cast<C*>(o)->N(a1, a2, a3, a4, a5); };
 
-#define ADD_JIT_INFO(ReturnType, FunctionName, ...) if( functionId == Identifier(#FunctionName)) { f->function = Wrappers::FunctionName; f->returnType = ReturnType; f->args = { __VA_ARGS__ }; return f;}
 
-
-
-struct Funky: public JitCallableObject
-{
-public:
-
-	Funky(Identifier id) :
-		JitCallableObject(id)
-	{};
-
-	float getMaxFunk(int i1)
-	{
-		return i1 + value;
-	}
-
-	int get5(float f1, float f2, float f3, float f4, float f5)
-	{
-		return (int)(f1*f2*f3*f4*f5);
-	}
-
-	float getValue() const
-	{
-		return value;
-	}
-
-	struct Wrappers
-	{
-		JIT_MEMBER_WRAPPER_0(float, Funky, getValue);
-		JIT_MEMBER_WRAPPER_1(float, Funky, getMaxFunk, int);
-		JIT_MEMBER_WRAPPER_5(int, Funky, get5, float, float, float, float, float)
-			
-	};
-
-	void registerAllObjectFunctions(GlobalScope* )
-	{
-		auto f = JitCallableObject::createMemberFunctionForJitCode("getValue");
-		f->returnType = Types::ID::Float;
-		f->function = reinterpret_cast<void*>(Wrappers::getValue);
-		f->args = {};
-
-		addFunction(f);
-	}
-
-private:
-
-	float value = 12.0f;
-};
 
 void SnexPlayground::recalculate()
 {
@@ -358,10 +310,7 @@ void SnexPlayground::recalculate()
 
 	jit::GlobalScope memory;
 	memory.allocate("x", 2.0f);
-
     memory["x"] = 9.0f;
-    
-    
     
     float d[12];
     d[2] = 7.0f;
@@ -382,11 +331,7 @@ void SnexPlayground::recalculate()
 	Compiler cc(memory);
 	cc.setDebugHandler(this);
 
-    auto fu = new Funky("Funky");
-    
-    memory.registerObjectFunction(fu);
-
-    fu->registerToMemoryPool(&memory);
+    memory.registerObjectFunction(new JitTestObject("Funky"));
     
 	auto functions = cc.compileJitObject(s);
 

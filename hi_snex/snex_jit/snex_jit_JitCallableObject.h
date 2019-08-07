@@ -57,13 +57,88 @@ protected:
 
 	virtual void registerAllObjectFunctions(GlobalScope* memory) = 0;
 
-	FunctionData* createMemberFunctionForJitCode(const Identifier& functionId);
+	FunctionData* createMemberFunction(const Types::ID returnType, const Identifier& functionId, const Array<Types::ID>& args)
+	{
+		ScopedPointer<FunctionData> functionWrapper(new FunctionData());
+		functionWrapper->object = this;
+		functionWrapper->id = functionId;
+		functionWrapper->functionName << objectId << "." << functionId << "()";
+		functionWrapper->args = args;
+		functionWrapper->returnType = returnType;
+
+		return functionWrapper.release();
+	}
 
 private:
 
 	WeakReference<GlobalScope> globalScope;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(JitCallableObject);
+};
+
+/** This is a example implementation of how to use the JitCallableObjectClass. 
+
+	In order to use it, just create an instance and pass it to the 
+	global scope using GlobalScope::registerObjectFunction();
+*/
+struct JitTestObject : public JitCallableObject
+{
+public:
+
+	/** Create a class. The id will be used as first element in the dot operator. */
+	JitTestObject(Identifier id) :
+		JitCallableObject(id)
+	{};
+
+	/** A member function. */
+	int get5(float f1, float f2, float f3, float f4, float f5)
+	{
+		return (int)(f1*f2*f3*f4*f5) * value;
+	}
+
+	/** Another random member function. */
+	float getValue() const
+	{
+		return value;
+	}
+
+	/** We need to create static function wrappers that have a pointer to its object as first parameter. */
+	struct Wrappers
+	{
+		JIT_MEMBER_WRAPPER_0(float, JitTestObject, getValue);
+		JIT_MEMBER_WRAPPER_5(int, JitTestObject, get5, float, float, float, float, float)
+	};
+
+	/** Register all functions that you want to access here. */
+	void registerAllObjectFunctions(GlobalScope*)
+	{
+		using namespace Types;
+
+		{
+			// Creates a function data object and fills in the given information
+			auto f = createMemberFunction(Float, "getValue", {});
+
+			// Give it the function pointer to the static function wrapper
+			f->function = Wrappers::getValue;
+
+			// Add the function to make it accessible inside SNEX
+			addFunction(f);
+		}
+
+		{
+			auto f = createMemberFunction(Integer,
+				"get5",
+				{ Float, Float, Float, Float, Float });
+			f->function = Wrappers::get5;
+
+			addFunction(f);
+		}
+	}
+
+private:
+
+	// Some random member variable.
+	float value = 12.0f;
 };
 
 }

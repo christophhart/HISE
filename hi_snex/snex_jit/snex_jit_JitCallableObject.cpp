@@ -57,15 +57,5 @@ void JitCallableObject::registerToMemoryPool(GlobalScope* m)
 	registerAllObjectFunctions(m);
 }
 
-snex::jit::FunctionData* JitCallableObject::createMemberFunctionForJitCode(const Identifier& functionId)
-{
-	ScopedPointer<FunctionData> functionWrapper(new FunctionData());
-	functionWrapper->object = this;
-	functionWrapper->id = functionId;
-	functionWrapper->functionName << objectId << "." << functionId << "()";
-
-	return functionWrapper.release();
-}
-
 }
 }

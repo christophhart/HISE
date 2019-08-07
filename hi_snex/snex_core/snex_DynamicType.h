@@ -56,7 +56,6 @@ public:
 	explicit operator Types::FloatBlock() const;
 	explicit operator HiseEvent() const;
 
-
 	template <Types::ID expectedType> VariableStorage& store(const VariableStorage& other)
 	{
 		IF_CONSTEXPR (expectedType == Types::ID::Integer)

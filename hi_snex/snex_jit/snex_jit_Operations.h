@@ -530,6 +530,17 @@ struct Operations::FunctionCall : public Expression
 				}
 			}
 
+			if (auto gc = dynamic_cast<GlobalScope*>(findClassScope(scope)->getParent()))
+			{
+				jassert(gc->getScopeType() == BaseScope::Global);
+
+				if (gc->hasFunction(symbol.parent, symbol.id))
+				{
+					gc->addMatchingFunctions(possibleMatches, symbol.parent, symbol.id);
+					return;
+				}
+			}
+
 			throwError("Can't find function " + symbol.toString());
 		}
 

@@ -32,8 +32,13 @@
 
 #pragma once
 
+#define JIT_MEMBER_WRAPPER_0(R, C, N)					  static R N(void* o) { return static_cast<C*>(o)->N(); };
+#define JIT_MEMBER_WRAPPER_1(R, C, N, T1)				  static R N(void* o, T1 a1) { return static_cast<C*>(o)->N(a1); };
+#define JIT_MEMBER_WRAPPER_2(R, C, N, T1, T2)			  static R N(void* o, T1 a1, T2 a2, ) { return static_cast<C*>(o)->N(a1, a2); };
+#define JIT_MEMBER_WRAPPER_3(R, C, N, T1, T2, T3)		  static R N(void* o, T1 a1, T2 a2, T3 a3, ) { return static_cast<C*>(o)->N(a1, a2, a3); };
+#define JIT_MEMBER_WRAPPER_4(R, C, N, T1, T2, T3, T4)	  static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4) { return static_cast<C*>(o)->N(a1, a2, a3, a4); };
+#define JIT_MEMBER_WRAPPER_5(R, C, N, T1, T2, T3, T4, T5) static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) { return static_cast<C*>(o)->N(a1, a2, a3, a4, a5); };
 
-#include <typeindex>
 
 #include "snex_jit_Functions.h"
 #include "snex_jit_BaseScope.h"
@@ -45,8 +50,6 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-
-using TypeInfo = std::type_index;
 
 #if HNODE_BOOL_IS_NOT_INT
 using BooleanType = unsigned char
