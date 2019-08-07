@@ -80,6 +80,69 @@ class SnexPlayground : public Component,
 {
 public:
 
+    struct ParameterList: public Component
+    {
+        void setNumSliders(int numSliders)
+        {
+            sliders.clear();
+            
+            for(int i = 0; i < numSliders; i++)
+            {
+                auto s = new juce::Slider("Parameter " + String(i+1));
+                s->setLookAndFeel(&laf);
+                s->setRange(0.0, 1.0, 0.01);
+                s->setSliderStyle(Slider::SliderStyle::RotaryHorizontalVerticalDrag);
+                
+                
+                s->setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+                s->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+                s->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+                s->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+                
+                addAndMakeVisible(s);
+                s->setSize(128, 48);
+                sliders.add(s);
+            }
+            
+            auto numColumns = jmax(1, getWidth() / 150);
+            auto numRows = sliders.size() / numColumns + 1;
+            
+            setSize(getWidth(), numRows * 60);
+            resized();
+        }
+        
+        void resized() override
+        {
+            auto numColumns = jmax(1, getWidth() / 150);
+            auto numRows = sliders.size() / numColumns + 1;
+            
+            int x = 0;
+            int y = 0;
+            int i = 0;
+            
+            for(int row = 0; row < numRows; row++)
+            {
+                x = 0;
+                
+                for(int column = 0; column < numColumns; column++)
+                {
+                    if(auto s = sliders[i])
+                    {
+                        sliders[i++]->setTopLeftPosition(x, y + 5);
+                        x += 150;
+                    }
+                    else
+                        break;
+                }
+                
+                y += 50;
+            }
+        }
+        
+        hise::GlobalHiseLookAndFeel laf;
+        juce::OwnedArray<juce::Slider> sliders;
+    };
+    
     static String getDefaultCode();
     
 	SnexPlayground(Value externalCodeValue);
@@ -167,6 +230,8 @@ private:
 	TextButton showSignal;
 	TextButton showConsole;
 	TextButton compileButton;
+    
+    ParameterList sliders;
 
 };
 

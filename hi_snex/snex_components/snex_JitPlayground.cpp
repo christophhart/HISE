@@ -221,6 +221,8 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 		editor.grabKeyboardFocus();
 	};
 
+    addAndMakeVisible(sliders);
+    
 	MessageManager::callAsync(f);
 }
 
@@ -261,6 +263,8 @@ void SnexPlayground::resized()
 	showSignal.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	showConsole.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 
+    sliders.setBounds(area.removeFromTop(sliders.getHeight()));
+    
 	if (consoleVisible || signalVisible || assemblyVisible)
 	{
 		auto left = area.removeFromRight(480);
@@ -345,6 +349,9 @@ private:
 
 void SnexPlayground::recalculate()
 {
+    sliders.setNumSliders(Random::getSystemRandom().nextInt(12));
+    resized();
+    
 	b.setSize(1, 44100);
     b.clear();
 	createTestSignal();
@@ -377,7 +384,7 @@ void SnexPlayground::recalculate()
 
     auto fu = new Funky("Funky");
     
-	memory.addFunctionClass(fu);
+    memory.registerObjectFunction(fu);
 
     fu->registerToMemoryPool(&memory);
     

@@ -18,47 +18,68 @@ There are two places where it can be used: in the `core.jit` node, which allows 
 
 ## Getting started
 
-The easiest way to get to know the language is to use the SNEX Playground which offers you a JIT compiler, a code editor with a predefined snippet and shows the assembly output that is fed directly to the CPU.
+The easiest way to get to know the language is to use the SNEX Playground which offers you a JIT compiler, a code editor with a predefined snippet and shows the assembly output that is fed directly to the CPU. It also uses the same callbacks as the `core.jit` node and offers various test signals that you can use to check your algorithm.
 
-## Embedding the language
+### Callbacks
 
-Embedding the language in a C++ project is pretty simple:
+The SNEX code will be compiled to functions that are executed on certain events (similar to HiseScript). There are four callback types:
+
+#### The `prepare()` callback
 
 ```cpp
-
-// Create a global scope that contains global variables.
-snex::jit::GlobalScope pool;
-
-// Create a compiler that turns a String into a function pointer.
-snex::jit::Compiler compiler(pool);
-
-// The SNEX code to be parsed - Check the language reference below
-juce::String code = "float member = 8.0f; float square(float input){ member = input; return input * input; }";
-
-// Compiles and returns a object that contains the function code and slots for class variables.
-if (auto obj = compiler.compileJitObject(code))
-{
-    // Returns a wrapper around the function with the given name
-    auto f = obj["square"];
-    
-    // Returns a reference to the variable slot `member`
-    auto ptr = obj.getVariablePtr("member");
-
-    DBG(ptr->toFloat()); // 8.0f
-
-    // call the function - the return type has to be passed in via template.
-    // It checks that the function signature matches 
-    // and the JIT function was compiled correctly.
-    auto returnValue = f.call<float>(12.0f);
-    
-    DBG(returnValue); // 144.0f
-    DBG(ptr->toFloat()); // 12.0f
-}
-else
-{
-    DBG(compiler.getErrorMessage());
-}
+void prepare(double samplerate, int blocksize, int numChannels)
 ```
+
+The `prepare` callback will be executed when the node is initialised or when some of the processing specifications (samplerate, blocksize or channel amount) change. You should use this function to setup your variables according to the specifications - calculate frequency coefficients etc.
+
+#### The `reset()` callback.
+
+```cpp
+void reset()
+```
+
+The `reset()` callback will be called whenever the processing pipeline needs to be resetted. This may occur under various circumstances and should be as fast as possible (unlike the prepare callback which happens very rarely):
+
+- when a voice is started
+- when the node is unbypassed
+- after the `prepare` function was called
+
+You should use this function to clear any state variable (eg. last values or counters for oscillators).
+
+#### The `setX` callbacks
+
+```cpp
+void setX(double newValue)
+```
+
+Whenever you want to change a parameter from the outside, you can write a function that starts with `set`and it will automatically create a scriptnode parameter with the same name (so `setGain` will create a parameter called **Gain**)
+
+#### The `processX` callbacks
+
+These callbacks will be executed to calculate the audio signal. There are three different callbacks available, each one will be more suitable than the others for certain types of applications.
+
+```cpp
+// channel processing: one block of audio data at the time
+void processChannel(block input, int numChannel)
+
+// Monophonic (or stateless multichannel) processing: One sample in, one sample out
+float processSample(float input)
+
+// frame-based processing: all samples of every channel at the time
+void processFrame(block frame)
+```
+
+The decision which callback you want to use depends on the algorithm: for stereo-effects, the interleaved processing of the `processFrame` callback is most suitable, but is slower than the `processSample` or the `processChannel` callbacks, which should be preferred for monophonic signal calculation.
+
+> Be aware that if the `core.jit` node is wrapped in a `framex_block` node, the `processFrame` node will yield the best performance because it directly maps to the functionality of the surrounding container.
+
+The `core.jit` node will pick the best function available according to these rules:
+
+- if the `processChannel` function is defined, it will used as default. If there are more than one channels, the function will be executed for each channel, so be aware of discontinuities in the state variables.
+- if the `processFrame` function is defined it will be used inside a `framex_block` node. Otherwise the `processChannel` function will be called with a block size of 1.
+- if the `processSample` function is defined, it will be called for the first channel only. Defining this function means that the processing is supposed to be monophonic, **which means that the `processChannel` function will also be called for the first channel only.**
+
+The `core.jit` node will show which `processX` function is currently in use (along with the CPU usage), so you can compare the performances.
 
 ## Language Reference
 
@@ -240,7 +261,7 @@ block b;
 b[12] = 12.0f;
 ```
 
-**There is an out-of-bounds check that prevents read access violations** if you use an invalid array index.
+**There is an out-of-bounds check that prevents read access violations** if you use an invalid array index. This comes with some performance overhead, which can be deactivated using a compiler flag.
 
 ### Ternary Operator
 
@@ -348,3 +369,43 @@ float x = Math.sin(2.0f);
 
 > The `Math` class contains overloaded functions for `double` and `float`, so be aware of implicit casts here.
 
+
+## Embedding the language
+
+Embedding the language in a C++ project is pretty simple:
+
+```cpp
+
+// Create a global scope that contains global variables.
+snex::jit::GlobalScope pool;
+
+// Create a compiler that turns a String into a function pointer.
+snex::jit::Compiler compiler(pool);
+
+// The SNEX code to be parsed - Check the language reference below
+juce::String code = "float member = 8.0f; float square(float input){ member = input; return input * input; }";
+
+// Compiles and returns a object that contains the function code and slots for class variables.
+if (auto obj = compiler.compileJitObject(code))
+{
+    // Returns a wrapper around the function with the given name
+    auto f = obj["square"];
+    
+    // Returns a reference to the variable slot `member`
+    auto ptr = obj.getVariablePtr("member");
+
+    DBG(ptr->toFloat()); // 8.0f
+
+    // call the function - the return type has to be passed in via template.
+    // It checks that the function signature matches 
+    // and the JIT function was compiled correctly.
+    auto returnValue = f.call<float>(12.0f);
+    
+    DBG(returnValue); // 144.0f
+    DBG(ptr->toFloat()); // 12.0f
+}
+else
+{
+    DBG(compiler.getErrorMessage());
+}
+```
