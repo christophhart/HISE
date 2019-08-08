@@ -292,8 +292,12 @@ TP void INSTRUMENT_WRAPPER::process(ProcessData& d)
 
 
 	float frameData[ChannelAmount];
+	float* copyPtrs[ChannelAmount];
 
-	ProcessData copy(ch, ChannelAmount, d.size);
+	memcpy(copyPtrs, d.data, sizeof(float*) * ChannelAmount);
+
+	ProcessData copy(copyPtrs, ChannelAmount, d.size);
+	copy.allowPointerModification();
 
 	for (int i = 0; i < d.size; i++)
 	{
