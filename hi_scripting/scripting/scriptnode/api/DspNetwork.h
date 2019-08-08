@@ -78,6 +78,8 @@ public:
 		void saveNetworks(ValueTree& d) const;
 		void restoreNetworks(const ValueTree& d);
 
+		virtual bool isPolyphonic() const { return false; };
+
 		void setActiveNetwork(DspNetwork* n)
 		{
 			activeNetwork = n;
@@ -95,7 +97,7 @@ public:
 		ReferenceCountedArray<DspNetwork> networks;
 	};
 
-	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data);
+	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data, bool isPolyphonic);
 	~DspNetwork();
 
 	void setNumChannels(int newNumChannels);
@@ -132,8 +134,6 @@ public:
 	void process(AudioSampleBuffer& b, HiseEventBuffer* e);
 
 	bool isPolyphonic() const { return isPoly; }
-
-	void setPolyphonic(bool shouldBePolyphonic) { isPoly = shouldBePolyphonic; voiceIndex = isPoly ? -1 : 0; }
 
 	NodeBase* getRootNode() { return signalPath.get(); }
 
@@ -224,6 +224,8 @@ public:
 			stopTimer();
 	}
 
+	int* getVoiceIndexPtr() { return &voiceIndex; }
+
 	void timerCallback() override
 	{
 		um.beginNewTransaction();
@@ -253,9 +255,9 @@ private:
 
 	UndoManager um;
 
-	bool isPoly = false;
+	const bool isPoly;
 
-	int voiceIndex = 0;
+	int voiceIndex;
 
 	SelectedItemSet<NodeBase::Ptr> selection;
 

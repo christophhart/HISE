@@ -372,7 +372,7 @@ void Matrix::initialise(NodeBase* n)
 	getMatrix().init(dynamic_cast<Processor*>(n->getScriptProcessor()));
 
 
-	ScopedValueSetter<bool> svs(recursion, true);
+	//ScopedValueSetter<bool> svs(recursion, true);
 
 	internalData.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(Matrix::updateFromEmbeddedData));
 	internalData.init(n, this);
@@ -429,7 +429,6 @@ void Matrix::updateFromEmbeddedData(Identifier id, var newValue)
 	if (base64Data.isNotEmpty())
 	{
 		auto matrixData = ValueTreeConverters::convertBase64ToValueTree(newValue.toString(), true);
-
 		getMatrix().restoreFromValueTree(matrixData);
 	}
 }

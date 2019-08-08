@@ -46,9 +46,11 @@ struct DspNetwork::Wrapper
 	//API_VOID_METHOD_WRAPPER_3(DspNetwork, injectAfter);
 };
 
-DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_) :
+DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, bool poly) :
 	ConstScriptingObject(p, 2),
-	data(data_)
+	data(data_),
+	isPoly(poly),
+	voiceIndex(poly ? -1 : 0)
 {
 	ownedFactories.add(new NodeContainerFactory(this));
 	ownedFactories.add(new core::Factory(this));
@@ -569,7 +571,7 @@ DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 
 	v.addChild(s, -1, nullptr);
 
-	auto newNetwork = new DspNetwork(asScriptProcessor, v);
+	auto newNetwork = new DspNetwork(asScriptProcessor, v, isPolyphonic());
 
 	networks.add(newNetwork);
 
@@ -615,7 +617,7 @@ void DspNetwork::Holder::restoreNetworks(const ValueTree& d)
 		for (auto c : v)
 		{
 			auto newNetwork = new DspNetwork(dynamic_cast<ProcessorWithScriptingContent*>(this),
-				c.createCopy());
+				c.createCopy(), isPolyphonic());
 
 			networks.add(newNetwork);
 			setActiveNetwork(newNetwork);

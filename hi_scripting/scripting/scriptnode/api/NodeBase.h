@@ -211,7 +211,7 @@ struct NodeBase : public ConstScriptingObject
 		valuetree::PropertyListener valuePropertyUpdater;
 		valuetree::PropertyListener idUpdater;
 		valuetree::PropertyListener modulationStorageBypasser;
-		DspHelpers::ParameterCallback db;
+		DspHelpers::ParameterCallback db = nothing;
 		LockFreeUpdater valueUpdater;
 
 		struct ParameterValue
