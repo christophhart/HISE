@@ -119,13 +119,34 @@ BlockFunctions::BlockFunctions() :
 	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::size, block, "size");
 }
 
-ConsoleFunctions::ConsoleFunctions() :
-	FunctionClass("Console")
+
+void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 {
-	HNODE_JIT_ADD_C_FUNCTION_1(void, print, int, "print");
-	HNODE_JIT_ADD_C_FUNCTION_1(void, print, float, "print");
-	HNODE_JIT_ADD_C_FUNCTION_1(void, print, double, "print");
-	HNODE_JIT_ADD_C_FUNCTION_1(void, print, HiseEvent, "print");
+	using namespace Types;
+
+	{
+		auto f = createMemberFunction(Void, "print", { Float });
+		f->function = WrapperFloat::print;
+		addFunction(f);
+	}
+
+	{
+		auto f = createMemberFunction(Void, "print", { Double });
+		f->function = WrapperDouble::print;
+		addFunction(f);
+	}
+
+	{
+		auto f = createMemberFunction(Void, "print", { Integer });
+		f->function = WrapperInt::print;
+		addFunction(f);
+	}
+
+	{
+		auto f = createMemberFunction(Void, "print", { Event });
+		f->function = WrapperEvent::print;
+		addFunction(f);
+	}
 }
 
 }

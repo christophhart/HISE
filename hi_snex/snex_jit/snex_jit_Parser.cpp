@@ -51,7 +51,6 @@ public:
 
 		addFunctionClass(new MessageFunctions());
 		addFunctionClass(new MathFunctions());
-		addFunctionClass(new ConsoleFunctions());
 		addFunctionClass(new BlockFunctions());
 	};
 

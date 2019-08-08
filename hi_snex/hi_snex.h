@@ -53,9 +53,7 @@ END_JUCE_MODULE_DECLARATION
 
 /* TODO Rewrite:
 
-
-- remove C++ class bullshit
-- make oneline mode for expr node
+- update readme
 
 */
 

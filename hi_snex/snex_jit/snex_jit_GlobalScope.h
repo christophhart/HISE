@@ -36,6 +36,26 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+/** A interface class for anything that needs to print out the logs from the
+	compiler.
+
+	If you want to enable debug output at runtime, you need to pass it to
+	GlobalScope::addDebugHandler.
+
+	If you want to show the compiler output, pass it to Compiler::setDebugHandler
+*/
+struct DebugHandler
+{
+	virtual ~DebugHandler() {};
+
+	/** Overwrite this function and print the message somewhere.
+
+		Be aware that this is called synchronously, so it might cause clicks.
+	*/
+	virtual void logMessage(const String& s) = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(DebugHandler);
+};
 
 /** The global scope that is passed to the compiler and contains the global variables
 	and all registered objects.
@@ -85,7 +105,26 @@ public:
         return getVariableReference(id);
     }
     
+	
+	void addDebugHandler(DebugHandler* handler)
+	{
+		debugHandlers.addIfNotAlreadyThere(handler);
+	}
+
+	void removeDebugHandler(DebugHandler* handler)
+	{
+		debugHandlers.removeAllInstancesOf(handler);
+	}
+
+	void logMessage(const String& message)
+	{
+		for (auto dh : debugHandlers)
+			dh->logMessage(message);
+	}
+
 private:
+
+	Array<WeakReference<DebugHandler>> debugHandlers;
 
 	Array<WeakReference<ObjectDeleteListener>> deleteListeners;
 

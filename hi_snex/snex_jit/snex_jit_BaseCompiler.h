@@ -80,7 +80,7 @@ struct BaseCompiler
 		virtual Result process(SyntaxTree* tree) = 0;
 	};
 
-	void setDebugHandler(Compiler::DebugHandler* l)
+	void setDebugHandler(DebugHandler* l)
 	{
 		debugHandler = l;
 	}
@@ -155,7 +155,7 @@ private:
 
 	Pass currentPass;
 
-	WeakReference<Compiler::DebugHandler> debugHandler;
+	WeakReference<DebugHandler> debugHandler;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BaseCompiler)
 };

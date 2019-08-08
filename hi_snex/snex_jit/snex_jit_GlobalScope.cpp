@@ -40,6 +40,10 @@ GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 	FunctionClass("Globals"),
 	BaseScope("Globals", nullptr, numVariables)
 {
+	auto c = new ConsoleFunctions(this);
+
+	registerObjectFunction(c);
+
 	jassert(scopeType == BaseScope::Global);
 }
 

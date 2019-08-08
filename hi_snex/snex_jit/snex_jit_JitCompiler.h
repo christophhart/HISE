@@ -36,6 +36,8 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+
+
 /** A JIT compiler for a C language subset based on AsmJIT.
 
 	It is supposed to be used as "scripting" language for the inner loop of a DSP routine. It offers about 70% - 80% performance of
@@ -110,14 +112,7 @@ public:
 		}
 	};
 
-	struct DebugHandler
-	{
-		virtual ~DebugHandler() {};
-
-		virtual void logMessage(const String& s) = 0;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(DebugHandler);
-	};
+	
 
 	~Compiler();
 	Compiler(GlobalScope& memoryPool);

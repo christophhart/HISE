@@ -71,8 +71,7 @@ void Compiler::setDebugHandler(DebugHandler* newHandler)
 {
 	compiler->setDebugHandler(newHandler);
 
-	ConsoleFunctions::setDebugHandler(newHandler);
-
+	compiler->memoryPool.addDebugHandler(newHandler);
 }
 
 

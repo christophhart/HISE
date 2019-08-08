@@ -45,27 +45,51 @@ using namespace asmjit;
 #define HNODE_JIT_ADD_C_FUNCTION_2(rt, ptr, argType1, argType2, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2>(name, static_cast<rt(*)(argType1, argType2)>(ptr))));
 #define HNODE_JIT_ADD_C_FUNCTION_3(rt, ptr, argType1, argType2, argType3, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2, argType3>(name, static_cast<rt(*)(argType1, argType2, argType3)>(ptr))));
 
-class ConsoleFunctions : public FunctionClass
+class ConsoleFunctions : public JitCallableObject
 {
-	static void print(int value)
+	struct WrapperInt
+	{
+		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, print, int);
+	};
+
+	struct WrapperDouble
+	{
+		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, print, double);
+	};
+
+	struct WrapperFloat
+	{
+		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, print, float);
+	};
+
+	struct WrapperEvent
+	{
+		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, print, HiseEvent);
+	};
+
+	
+	void print(int value)
 	{
 		DBG(value);
-		if (currentDebugHandler != nullptr)
-			currentDebugHandler->logMessage(String(value) + "\n");
+		
+		if (gs != nullptr)
+			gs->logMessage(String(value) + "\n");
 	}
-	static void print(double value)
+	void print(double value)
 	{
 		DBG(value);
-		if (currentDebugHandler != nullptr)
-			currentDebugHandler->logMessage(String(value) + "\n");
+		
+		if (gs != nullptr)
+			gs->logMessage(String(value) + "\n");
 	}
-	static void print(float value)
+	void print(float value)
 	{
 		DBG(value);
-		if (currentDebugHandler != nullptr)
-			currentDebugHandler->logMessage(String(value) + "\n");
+		
+		if (gs != nullptr)
+			gs->logMessage(String(value) + "\n");
 	}
-	static void print(HiseEvent e)
+	void print(HiseEvent e)
 	{
 		String s;
 
@@ -77,25 +101,22 @@ class ConsoleFunctions : public FunctionClass
 		s << "\n";
 
 		DBG(s);
-		if (currentDebugHandler != nullptr)
-			currentDebugHandler->logMessage(s);
+
+		if(gs != nullptr)
+			gs->logMessage(s);
 	}
 
-
-	static Compiler::DebugHandler* currentDebugHandler;
-
+	void registerAllObjectFunctions(GlobalScope*) override;
 
 public:
 
-	static void setDebugHandler(Compiler::DebugHandler* handler)
-	{
-		currentDebugHandler = handler;
-	}
+	ConsoleFunctions(GlobalScope* scope_) :
+		JitCallableObject("Console"),
+		gs(scope_)
+	{};
 
-	ConsoleFunctions();
+	WeakReference<GlobalScope> gs;
 };
-
-Compiler::DebugHandler* ConsoleFunctions::currentDebugHandler = nullptr;
 
 class BlockFunctions : public FunctionClass
 {
