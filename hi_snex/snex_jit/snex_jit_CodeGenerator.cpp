@@ -296,7 +296,6 @@ void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
 	FLOAT_COMPARE(JitTokens::notEquals, cc.cmovne);
 
 #undef FLOAT_COMPARE
-	
 }
 
 void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
@@ -338,8 +337,80 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 }
 
 
+AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Operations::Expression* condition, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s)
+{
+	RegPtr returnReg;
+	
+	if (returnType != Types::ID::Void)
+	{
+		returnReg = c->registerPool.getNextFreeRegister(returnType);
+		returnReg->createRegister(cc);
+		auto vv = returnReg->getRegisterForWriteOp();
+	}
+
+	
+	auto l = cc.newLabel();
+
+	auto e = cc.newLabel();
+
+	// emit the code for the condition here
+	condition->process(c, s);
+
+	if (condition->reg->isMemoryLocation())
+	{
+		auto dummy = cc.newInt32();
+		cc.mov(dummy, (uint64_t)condition->reg->getImmediateIntValue());
+		cc.cmp(dummy, 0);
+	}
+	else
+		cc.cmp(INT_REG_R(condition->reg), 0);
+
+	cc.jnz(l);
+
+	condition->reg->flagForReuseIfAnonymous();
+
+	if (falseBranch != nullptr)
+	{
+		cc.setInlineComment("false branch");
+
+		falseBranch->process(c, s);
+
+		if (returnReg != nullptr)
+		{
+			if (auto fAsExpr = dynamic_cast<Operations::Expression*>(falseBranch))
+			{
+				emitStore(returnReg, fAsExpr->reg);
+				fAsExpr->reg->flagForReuseIfAnonymous();
+			}
+			else
+				jassertfalse;
+		}
+	}
+	
+	cc.jmp(e);
+	cc.bind(l);
+	cc.setInlineComment("true branch");
+	trueBranch->process(c, s);
+
+	if (returnReg != nullptr)
+	{
+		if (auto tAsExpr = dynamic_cast<Operations::Expression*>(trueBranch))
+		{
+			emitStore(returnReg, tAsExpr->reg);
+			tAsExpr->reg->flagForReuseIfAnonymous();
+		}
+	}
+
+	cc.bind(e);
+
+	return returnReg;
+}
+
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitTernaryOp(Operations::TernaryOp* tOp, BaseCompiler* c, BaseScope* s)
 {
+	return emitBranch(tOp->getType(), tOp->getSubExpr(0).get(), tOp->getSubExpr(1).get(), tOp->getSubExpr(2).get(), c, s);
+
+#if 0
 	auto returnReg = c->registerPool.getNextFreeRegister(tOp->getType());
 
 	auto condition = tOp->getSubExpr(0);
@@ -383,6 +454,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitTernaryOp(Operations::TernaryOp* 
 	cc.bind(e);
 
 	return returnReg;
+#endif
 }
 
 

@@ -96,6 +96,8 @@ struct AsmCodeGenerator
 
 	void emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr);
 
+	RegPtr emitBranch(Types::ID returnType, Operations::Expression* cond, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s);
+
 	RegPtr emitTernaryOp(Operations::TernaryOp* op, BaseCompiler* c, BaseScope* s);
 
 	RegPtr emitLogicalNot(RegPtr expr);

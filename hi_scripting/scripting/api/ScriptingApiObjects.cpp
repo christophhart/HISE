@@ -3714,12 +3714,21 @@ bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearEx
 		if (clearExistingSequences)
 			pl->clearSequences(dontSendNotification);
 
-		PoolReference r(pl->getMainController(), fileName, FileHandlerBase::MidiFiles);
-		pl->loadMidiFile(r);
-		if (selectNewSequence)
-			pl->setAttribute(MidiPlayer::CurrentSequence, (float)pl->getNumSequences(), sendNotification);
+		if (!fileName.isEmpty())
+		{
+			PoolReference r(pl->getMainController(), fileName, FileHandlerBase::MidiFiles);
+			pl->loadMidiFile(r);
+			if (selectNewSequence)
+				pl->setAttribute(MidiPlayer::CurrentSequence, (float)pl->getNumSequences(), sendNotification);
 
-		return r.isValid();
+			return r.isValid();
+
+		}
+		else
+		{
+			// if it's empty, we don't want to load anything, so we "succeeded".
+			return true;
+		}
 	}
 		
 	return false;

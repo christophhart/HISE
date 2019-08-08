@@ -199,7 +199,7 @@ public:
 	struct TernaryOp;		struct LogicalNot;				struct Cast;
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
-	struct BlockLoop;
+	struct BlockLoop;		struct IfStatement;
 
 	static Expression* findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope);
 };

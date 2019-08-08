@@ -249,7 +249,7 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 {
 	if (reg.isValid())
 	{
-		jassert(state == ActiveRegister);
+		jassert(state == ActiveRegister || state == DirtyGlobalRegister);
 		return;
 	}
 

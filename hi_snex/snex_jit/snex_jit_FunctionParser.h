@@ -51,6 +51,8 @@ public:
 	StatementPtr parseReturnStatement();
 	StatementPtr parseVariableDefinition(bool isConst);
 	StatementPtr parseLoopStatement();
+	StatementPtr parseIfStatement();
+	
 
 	void finaliseSyntaxTree(SyntaxTree* tree) override;
 

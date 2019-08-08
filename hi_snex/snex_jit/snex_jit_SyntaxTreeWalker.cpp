@@ -45,6 +45,13 @@ void SyntaxTreeWalker::add(Operations::Statement* s)
 		for (auto s_ : sb->statements)
 			add(s_);
 	}
+	else if (auto is = dynamic_cast<Operations::IfStatement*>(s))
+	{
+		add(is->cond);
+		add(is->trueBranch);
+		if (is->falseBranch != nullptr)
+			add(is->falseBranch);
+	}
 	else if (auto st = dynamic_cast<SyntaxTree*>(s))
 	{
 		for (auto s_ : st->list)

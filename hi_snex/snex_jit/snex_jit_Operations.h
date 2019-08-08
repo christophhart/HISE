@@ -1150,5 +1150,69 @@ struct Operations::Negation : public Expression
 	}
 };
 
+struct Operations::IfStatement : public Statement
+{
+	IfStatement(Location loc, Expression::Ptr cond_, Ptr trueBranch_, Ptr falseBranch_):
+		Statement(loc),
+		cond(cond_),
+		trueBranch(trueBranch_),
+		falseBranch(falseBranch_)
+	{
+		cond->setParent(this);
+		trueBranch->setParent(this);
+
+		if (falseBranch != nullptr)
+			falseBranch->setParent(this);
+	}
+
+	Types::ID getType() const override { return Types::ID::Void; }
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		Statement::process(compiler, scope);
+
+		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+		{
+			cond->process(compiler, scope);
+			trueBranch->process(compiler, scope);
+
+			if (falseBranch != nullptr)
+				falseBranch->process(compiler, scope);
+		}
+
+		COMPILER_PASS(BaseCompiler::TypeCheck)
+		{
+			cond->process(compiler, scope);
+
+			if (cond->getType() != Types::ID::Integer)
+				throwError("Condition must be boolean expression");
+
+			trueBranch->process(compiler, scope);
+
+			if (falseBranch != nullptr)
+				falseBranch->process(compiler, scope);
+		}
+
+		COMPILER_PASS(BaseCompiler::RegisterAllocation)
+		{
+			cond->process(compiler, scope);
+			trueBranch->process(compiler, scope);
+
+			if (falseBranch != nullptr)
+				falseBranch->process(compiler, scope);
+		}
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
+			acg.emitBranch(Types::ID::Void, cond.get(), trueBranch.get(), falseBranch.get(), compiler, scope);
+		}
+	}
+
+	Expression::Ptr cond;
+	Ptr trueBranch;
+	Ptr falseBranch;
+};
+
 }
 }

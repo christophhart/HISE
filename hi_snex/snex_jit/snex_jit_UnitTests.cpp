@@ -91,13 +91,16 @@ public:
 
 	void setup()
 	{
-		DBG(code);
+		
 
 		func = compiler->compileJitObject(code);
 
 #if JUCE_DEBUG
 		if (!wasOK())
+		{
+			DBG(code);
 			DBG(compiler->getCompileResult().getErrorMessage());
+		}
 #endif
 
 		if (auto f = func["setup"])
@@ -214,6 +217,8 @@ public:
 
 	void runTest() override
 	{
+		// Begin of standard tests
+
 		testParser();
 		testSimpleIntOperations();
 
@@ -226,6 +231,8 @@ public:
 		testCompareOperators<float>();
 
 		testTernaryOperator();
+		testIfStatement();
+		
 		testComplexExpressions();
 		testGlobals();
 		testFunctionCalls();
@@ -846,11 +853,29 @@ private:
 
 	}
 
+	void testIfStatement()
+	{
+		beginTest("Test if-statement");
+
+		ScopedPointer<HiseJITTestCase<float>> test;
+
+		CREATE_TEST("float test(float input){ if(input > 1.0f) return 10.0f; return 2.0f; }");
+		EXPECT("True branch", 4.0f, 10.0f);
+		EXPECT("Fall through", 0.5f, 2.0f);
+
+		// TODO: add more if tests
+	}
+
 	void testTernaryOperator()
 	{
 		beginTest("Test ternary operator");
 
 		ScopedPointer<HiseJITTestCase<float>> test;
+
+		CREATE_TEST("float test(float input){ return (input > 1.0f) ? 10.0f : 2.0f; }");
+
+		EXPECT("Simple ternary operator true branch", 4.0f, 10.0f);
+		EXPECT("Simple ternary operator false branch", -24.9f, 2.0f);
 
 		CREATE_TEST("float test(float input){ return (true ? false : true) ? 12.0f : 4.0f; }; ");
 		EXPECT("Nested ternary operator", 0.0f, 4.0f);
@@ -861,7 +886,6 @@ private:
 		beginTest("Testing big function buffer");
 
 		String code;
-
 
 		ADD_CODE_LINE("int get1() { return 1; };\n");
 		ADD_CODE_LINE("int get2() { return 1; };\n");

@@ -58,7 +58,11 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 
 	StatementPtr statement;
 
-	if (matchIf(JitTokens::openBrace))
+	if (matchIf(JitTokens::if_))
+	{
+		statement = parseIfStatement();
+	}
+	else if (matchIf(JitTokens::openBrace))
 	{
 		statement = parseStatementBlock();
 		
@@ -127,6 +131,26 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 	StatementPtr block = parseStatement();
 
 	return new Operations::BlockLoop(location, variableId, loopBlock.get(), block.get());
+}
+
+snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
+{
+	match(JitTokens::openParen);
+
+	ExprPtr cond = parseBool();
+
+	match(JitTokens::closeParen);
+
+	StatementPtr trueBranch = parseStatement();
+
+	StatementPtr falseBranch;
+
+	if (matchIf(JitTokens::else_))
+	{
+		falseBranch = parseStatement();
+	}
+
+	return new Operations::IfStatement(location, cond, trueBranch, falseBranch);
 }
 
 void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
