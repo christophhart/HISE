@@ -432,3 +432,79 @@ else
     DBG(compiler.getErrorMessage());
 }
 ```
+
+## Examples
+
+These examples show some basic DSP algorithms and how they are implemented in SNEX. In order to use it, just load the given HISE Snippets into the latest version of HISE and play around.
+
+### Basic Sine Synthesiser
+
+HISE automatically supports polyphony when 
+
+```cpp
+// we initialise it to a weird value, will get corrected later
+double sr = 0.0;
+
+// the counter for the signal generation
+double uptime = 0.0;
+
+// the increment value (will control the frequency)
+double delta = 0.0;
+
+
+
+void prepare(double sampleRate, int blockSize, int numChannels)
+{
+    // set the samplerate for the frequency calculation
+    sr = sampleRate;
+}
+
+void reset()
+{
+    // When we start a new voice, we just need to reset the counter
+    uptime = 0.0;
+}
+
+void handleEvent(event e)
+{
+    // get the frequency (in Hz) from the event
+    const double cyclesPerSecond = e.getFrequency();
+
+    // calculate the increment per sample
+    const double cyclesPerSample = cyclesPerSecond / sr;
+    
+    // multiyply it with 2*PI to get the increment value
+    delta = 2.0 * 3.14159265359 * cyclesPerSample;
+}
+
+void processFrame(block frame)
+{
+    // Calculate the signal
+    frame[0] = (float)Math.sin(uptime);
+
+    // Increment the value
+    uptime += delta;
+
+    // Copy the signal to the right channel
+    frame[1] = frame[0];
+}
+```
+
+```cpp
+smoothed_float s = 1.0f;
+
+void prepare(double sampleRate, int blockSize, int numChannels)
+{
+    s.prepare(sampleRate, 100);
+}
+
+void reset()
+{
+    s.clear(0.0);
+}
+
+float processSample(float input)
+{
+    return s.next(input);
+}
+```

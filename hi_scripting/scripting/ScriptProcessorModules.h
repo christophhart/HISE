@@ -417,6 +417,7 @@ public:
 
 	Path getSpecialSymbol() const override;
 
+	bool isPolyphonic() const override { return true; }
 	
 	ValueTree exportAsValueTree() const override { ValueTree v = EnvelopeModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override { EnvelopeModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
@@ -750,6 +751,7 @@ public:
 	JavascriptPolyphonicEffect(MainController *mc, const String &id, int numVoices);
 	~JavascriptPolyphonicEffect();
 
+	bool isPolyphonic() const override { return true; }
 
 	Path getSpecialSymbol() const override;
 
@@ -840,6 +842,130 @@ private:
 
 	ScriptingApi::Engine* engineObject;
 };
+
+class JavascriptSynthesiser : public JavascriptProcessor,
+						  public ProcessorWithScriptingContent,
+						  public ModulatorSynth
+{
+public:
+
+	struct Sound : public ModulatorSynthSound
+	{
+		bool appliesToNote(int ) final override { return true; };
+		bool appliesToChannel(int ) final override { return true; };
+		bool appliesToVelocity(int ) final override { return true; };
+	};
+
+	struct Voice : public ModulatorSynthVoice
+	{
+		Voice(JavascriptSynthesiser* p) :
+			ModulatorSynthVoice(p),
+			synth(p)
+		{}
+
+		
+
+		void calculateBlock(int startSample, int numSamples) override;
+
+		JavascriptSynthesiser* synth;
+	};
+	
+	SET_PROCESSOR_NAME("ScriptSynth", "Scriptnode Syntesiser", "A polyphonic scriptable synthesiser.");
+
+	enum class Callback
+	{
+		onInit,
+		onControl,
+		numCallbacks
+	};
+
+	enum EditorStates
+	{
+		onControlOpen = ProcessorWithScriptingContent::EditorStates::numEditorStates,
+		externalPopupShown,
+		numScriptEditorStates
+	};
+
+	JavascriptSynthesiser(MainController *mc, const String &id, int numVoices);
+		
+	~JavascriptSynthesiser();
+
+	Path getSpecialSymbol() const override;
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	SnippetDocument *getSnippet(int c) override;
+	const SnippetDocument *getSnippet(int c) const override;
+	int getNumSnippets() const override { return (int)Callback::numCallbacks; }
+	void registerApiClasses() override;
+	void postCompileCallback() override;
+
+	void preHiseEventCallback(const HiseEvent &e) override;
+
+	void preStartVoice(int voiceIndex, const HiseEvent& e) override;
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+
+	bool isPolyphonic() const override { return true; }
+
+	ValueTree exportAsValueTree() const override { ValueTree v = ModulatorSynth::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override
+	{ ModulatorSynth::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+	float getAttribute(int index) const override
+	{
+		if (index < ModulatorSynth::Parameters::numModulatorSynthParameters)
+		{
+			return ModulatorSynth::getAttribute(index);
+		}
+
+		index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
+
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameter(index);
+		else
+			return contentParameterHandler.getParameter(index);
+	}
+
+	void setInternalAttribute(int index, float newValue) override
+	{
+		if (index < ModulatorSynth::Parameters::numModulatorSynthParameters)
+		{
+			ModulatorSynth::setInternalAttribute(index, newValue);
+			return;
+		}
+
+		index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
+
+		if (auto n = getActiveNetwork())
+			n->networkParameterHandler.setParameter(index, newValue);
+		else
+			contentParameterHandler.setParameter(index, newValue);
+	}
+
+	Identifier getIdentifierForParameterIndex(int index) const override
+	{
+		if (index < ModulatorSynth::Parameters::numModulatorSynthParameters)
+		{
+			return ModulatorSynth::getIdentifierForParameterIndex(index);
+		}
+
+		index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
+
+		if (auto n = getActiveNetwork())
+			return n->networkParameterHandler.getParameterId(index);
+		else
+			return contentParameterHandler.getParameterId(index);
+	}
+
+	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
+
+	ScopedPointer<SnippetDocument> onInitCallback;
+	ScopedPointer<SnippetDocument> onControlCallback;
+
+	ScriptingApi::Engine* engineObject;
+};
+
 
 } // namespace hise
 #endif  // SCRIPTPROCESSORMODULES_H_INCLUDED

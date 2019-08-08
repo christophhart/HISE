@@ -480,7 +480,6 @@ void JavascriptPolyphonicEffect::prepareToPlay(double sampleRate, int samplesPer
 	if (auto n = getActiveNetwork())
 	{
 		n->prepareToPlay(sampleRate, (double)samplesPerBlock);
-		n->setPolyphonic(true);
 	}
 }
 
@@ -1234,7 +1233,6 @@ void JavascriptEnvelopeModulator::prepareToPlay(double sampleRate, int samplesPe
 
 	if (auto n = getActiveNetwork())
 	{
-		n->setPolyphonic(true);
 		n->setNumChannels(1);
 		n->prepareToPlay(getControlRate(), samplesPerBlock / HISE_EVENT_RASTER);
 	}
@@ -1692,6 +1690,189 @@ ProcessorEditorBody* JavascriptModulatorSynth::createEditor(ProcessorEditor *par
 
 	return nullptr;
 #endif
+}
+
+JavascriptSynthesiser::JavascriptSynthesiser(MainController *mc, const String &id, int numVoices):
+	JavascriptProcessor(mc),
+	ProcessorWithScriptingContent(mc),
+	ModulatorSynth(mc, id, numVoices)
+{
+	initContent();
+
+	onInitCallback = new SnippetDocument("onInit");
+	onControlCallback = new SnippetDocument("onControl", "number value");
+
+	editorStateIdentifiers.add("contentShown");
+	editorStateIdentifiers.add("onInitOpen");
+	editorStateIdentifiers.add("onControlOpen");
+
+	finaliseModChains();
+
+	for (int i = 0; i < numVoices; i++)
+	{
+		addVoice(new Voice(this));
+	}
+
+	addSound(new Sound());
+}
+
+JavascriptSynthesiser::~JavascriptSynthesiser()
+{
+
+}
+
+juce::Path JavascriptSynthesiser::getSpecialSymbol() const
+{
+	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+}
+
+hise::ProcessorEditorBody * JavascriptSynthesiser::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+	return new ScriptingEditor(parentEditor);
+#else
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
+
+	return nullptr;
+#endif
+}
+
+hise::JavascriptProcessor::SnippetDocument * JavascriptSynthesiser::getSnippet(int c)
+{
+	Callback ca = (Callback)c;
+
+	switch (ca)
+	{
+	case Callback::onInit:			return onInitCallback;
+	case Callback::onControl:		return onControlCallback;
+	case Callback::numCallbacks:	return nullptr;
+	default:
+		break;
+	}
+
+	return nullptr;
+}
+
+
+const hise::JavascriptProcessor::SnippetDocument * JavascriptSynthesiser::getSnippet(int c) const
+{
+	Callback ca = (Callback)c;
+
+	switch (ca)
+	{
+	case Callback::onInit:			return onInitCallback;
+	case Callback::onControl:		return onControlCallback;
+	case Callback::numCallbacks:	return nullptr;
+	default:
+		break;
+	}
+
+	return nullptr;
+}
+
+void JavascriptSynthesiser::registerApiClasses()
+{
+	engineObject = new ScriptingApi::Engine(this);
+
+	scriptEngine->registerNativeObject("Content", content);
+	scriptEngine->registerApiClass(engineObject);
+	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
+
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
+	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
+}
+
+void JavascriptSynthesiser::postCompileCallback()
+{
+	prepareToPlay(getSampleRate(), getLargestBlockSize());
+}
+
+void JavascriptSynthesiser::preHiseEventCallback(const HiseEvent &e)
+{
+	ModulatorSynth::preHiseEventCallback(e);
+
+	if (e.isNoteOn())
+		return; // will be handled by preStartVoice
+
+	if (auto n = getActiveNetwork())
+	{
+		for (auto av : activeVoices)
+		{
+			if (e.isNoteOff() && av->getCurrentHiseEvent().getEventId() != e.getEventId())
+				continue;
+
+			scriptnode::DspNetwork::VoiceSetter vs(*n, av->getVoiceIndex());
+
+			HiseEvent copy(e);
+			n->getRootNode()->handleHiseEvent(copy);
+		}
+	}
+}
+
+void JavascriptSynthesiser::preStartVoice(int voiceIndex, const HiseEvent& e)
+{
+	ModulatorSynth::preStartVoice(voiceIndex, e);
+
+	if (auto n = getActiveNetwork())
+	{
+		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
+
+		HiseEvent copy(e);
+		n->getRootNode()->handleHiseEvent(copy);
+	}
+}
+
+void JavascriptSynthesiser::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+
+	if (sampleRate == -1.0)
+		return;
+
+	if (auto n = getActiveNetwork())
+	{
+		n->prepareToPlay(sampleRate, (double)samplesPerBlock);
+	}
+}
+
+void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSamples)
+{
+	if (auto n = synth->getActiveNetwork())
+	{
+		float* channels[NUM_MAX_CHANNELS];
+
+		voiceBuffer.clear();
+
+		int numChannels = voiceBuffer.getNumChannels();
+		memcpy(channels, voiceBuffer.getArrayOfWritePointers(), sizeof(float*) * numChannels);
+
+		for (int i = 0; i < numChannels; i++)
+			channels[i] += startSample;
+
+		scriptnode::ProcessData d(channels, numChannels, numSamples);
+
+		{
+			scriptnode::DspNetwork::VoiceSetter vs(*n, getVoiceIndex());
+			n->getRootNode()->process(d);
+		}
+		
+		if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+		{
+			for(int i = 0; i < voiceBuffer.getNumChannels(); i++)
+				FloatVectorOperations::multiply(voiceBuffer.getWritePointer(i, startSample), modValues + startSample, numSamples);
+		}
+		else
+		{
+			const float gainValue = getOwnerSynth()->getConstantGainModValue();
+
+			for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
+				FloatVectorOperations::multiply(voiceBuffer.getWritePointer(i, startSample), gainValue, numSamples);
+		}
+
+		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
+	}
 }
 
 } // namespace hise

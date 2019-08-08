@@ -923,12 +923,12 @@ public:
         sineSynth,
         modulatorSynthChain,
         globalModulatorContainer,
-		
 		waveSynth,
 		noise,
 		wavetableSynth,
 		audioLooper,
-		modulatorSynthGroup
+		modulatorSynthGroup,
+		scriptSynth
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):
