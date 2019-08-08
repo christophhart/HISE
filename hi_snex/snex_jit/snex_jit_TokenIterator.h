@@ -56,7 +56,7 @@ using namespace juce;
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
 	X(void_, "void")			X(buffer_, "Buffer") X(public_, "public")	X(private_, "private") \
 	X(class_, "class")			X(block_, "block")	X(event_, "event")	X(loop_block_, "loop_block") \
-	X(if_, "if")				X(else_, "else")
+	X(if_, "if")				X(else_, "else")	X(sfloat, "sfloat")		X(sdouble, "sdouble") \
 
 namespace JitTokens
 {
@@ -273,6 +273,16 @@ struct ParserHelpers
 			location.throwError(s);
 		}
 
+		bool isSmoothedVariableType() const
+		{
+			if (currentType == JitTokens::sfloat)
+				return true;
+			if (currentType == JitTokens::sdouble)
+				return true;
+
+			return false;
+		}
+
 		Types::ID matchType()
 		{
 			if (matchIf(JitTokens::float_)) return Types::ID::Float;
@@ -281,6 +291,8 @@ struct ParserHelpers
 			if (matchIf(JitTokens::event_))	return Types::ID::Event;
 			if (matchIf(JitTokens::block_))	return Types::ID::Block;
 			if (matchIf(JitTokens::void_))	return Types::ID::Void;
+			if (matchIf(JitTokens::sfloat)) return Types::ID::Float;
+			if (matchIf(JitTokens::sdouble)) return Types::ID::Double;
 
 			throwTokenMismatch("Type");
 

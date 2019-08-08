@@ -143,5 +143,32 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 }
 
+void Operations::SmoothedVariableDefinition::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	Statement::process(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	{
+		jassert(scope->getScopeType() == BaseScope::Class);
+
+		if (auto cs = dynamic_cast<ClassScope*>(scope))
+		{
+			if (type == Types::ID::Float)
+				cs->addFunctionClass(new SmoothedFloat<float>(id.id, iv.toFloat()));
+			else if (type == Types::ID::Double)
+				cs->addFunctionClass(new SmoothedFloat<double>(id.id, iv.toDouble()));
+			else
+				throwError("Wrong type for smoothed value");
+		}
+
+	}
+
+	COMPILER_PASS(BaseCompiler::TypeCheck)
+	{
+		if (type != iv.getType())
+			logWarning("Type mismatch at smoothed value");
+	}
+}
+
 }
 }

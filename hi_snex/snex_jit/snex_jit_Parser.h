@@ -94,6 +94,7 @@ public:
 	{}
 
 	StatementPtr parseStatement() override;
+	StatementPtr parseSmoothedVariableDefinition();
 	StatementPtr parseVariableDefinition(bool isConst);
 	StatementPtr parseFunction();
 };

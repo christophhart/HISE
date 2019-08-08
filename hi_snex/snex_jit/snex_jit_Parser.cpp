@@ -56,6 +56,8 @@ public:
 
 	ScopedPointer<asmjit::JitRuntime> runtime;
 
+private:
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ClassScope);
 };
 
@@ -156,8 +158,9 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 {
 	bool isConst = matchIf(JitTokens::const_);
 
+	bool isSmoothedType = isSmoothedVariableType();
 	currentHnodeType = matchType();
-
+	
 	matchIfSymbol();
 
 	StatementPtr s;
@@ -170,12 +173,31 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	}
 	else
 	{
-		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + currentSymbol.toString());
-		s = parseVariableDefinition(isConst);
-		match(JitTokens::semicolon);
+		if (isSmoothedType)
+		{
+			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding smoothed variable " + currentSymbol.toString());
+			s = parseSmoothedVariableDefinition();
+			match(JitTokens::semicolon);
+		}
+		else
+		{
+			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + currentSymbol.toString());
+			s = parseVariableDefinition(isConst);
+			match(JitTokens::semicolon);
+		}
 	}
 
 	return s;
+}
+
+snex::jit::BlockParser::StatementPtr NewClassParser::parseSmoothedVariableDefinition()
+{
+	StatementPtr s;
+
+	match(JitTokens::assign_);
+	auto value = parseVariableStorageLiteral();
+
+	return new Operations::SmoothedVariableDefinition(location, currentSymbol, currentHnodeType, value);
 }
 
 BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst*/)

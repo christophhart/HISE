@@ -164,7 +164,11 @@ struct FunctionClass
 		className(id)
 	{};
 
-	virtual ~FunctionClass() {};
+	virtual ~FunctionClass()
+	{
+		registeredClasses.clear();
+		functions.clear();
+	};
 
 	virtual bool hasFunction(const Identifier& classId, const Identifier& functionId) const;
 

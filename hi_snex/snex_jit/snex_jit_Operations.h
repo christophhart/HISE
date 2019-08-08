@@ -100,6 +100,8 @@ struct Operations::Immediate : public Expression
 	VariableStorage v;
 };
 
+
+
 struct Operations::VariableReference : public Expression
 {
 	VariableReference(Location l, const Symbol& id_) :
@@ -552,7 +554,7 @@ struct Operations::FunctionCall : public Expression
 			for (int i = 0; i < getNumSubExpressions(); i++)
 				parameterTypes.add(getSubExpr(i)->getType());
 
-			for (auto f : possibleMatches)
+			for (auto& f : possibleMatches)
 			{
 				if (f.matchesArgumentTypes(parameterTypes))
 				{
@@ -1208,6 +1210,27 @@ struct Operations::IfStatement : public Statement,
 	Expression::Ptr cond;
 	Ptr trueBranch;
 	Ptr falseBranch;
+};
+
+struct Operations::SmoothedVariableDefinition : public Statement
+{
+	SmoothedVariableDefinition(Location l, BaseScope::Symbol id_, Types::ID t, VariableStorage initialValue) :
+		Statement(l),
+		type(t),
+		id(id_),
+		iv(initialValue)
+	{
+		
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope);
+
+	BaseScope::Symbol id;
+	VariableStorage iv;
+
+	Types::ID getType() const override { return type; }
+
+	Types::ID type;
 };
 
 }

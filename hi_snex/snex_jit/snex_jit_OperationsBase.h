@@ -199,7 +199,7 @@ public:
 	struct TernaryOp;		struct LogicalNot;				struct Cast;
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
-	struct BlockLoop;		struct IfStatement;
+	struct BlockLoop;		struct IfStatement;				struct SmoothedVariableDefinition;
 
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.

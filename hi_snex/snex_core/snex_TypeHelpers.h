@@ -16,6 +16,40 @@ namespace snex
 namespace Types
 {
 
+template <typename T> class SmoothedFloatCpp
+{
+public:
+
+	void reset(T initValue)
+	{
+		v.setValueWithoutSmoothing(initValue);
+	}
+
+	void prepare(double samplerate, double milliSeconds)
+	{
+		v.reset(samplerate, milliSeconds * 0.001);
+	}
+
+	void set(T newTargetValue)
+	{
+		v.setTargetValue(newTargetValue);
+	}
+
+	float next()
+	{
+		return v.getNextValue();
+	}
+
+
+
+	SmoothedFloatCpp(T initialValue)
+	{
+		reset(initialValue);
+	};
+
+	juce::LinearSmoothedValue<T> v;
+}
+
 using namespace juce;
 
 
@@ -96,5 +130,8 @@ struct Helpers
 
 
 }
+
+using sfloat = Types::SmoothedFloatCpp<float>;
+using sdouble = Types::SmoothedFloatCpp<double>;
 
 }

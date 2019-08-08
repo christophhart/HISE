@@ -45,6 +45,87 @@ using namespace asmjit;
 #define HNODE_JIT_ADD_C_FUNCTION_2(rt, ptr, argType1, argType2, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2>(name, static_cast<rt(*)(argType1, argType2)>(ptr))));
 #define HNODE_JIT_ADD_C_FUNCTION_3(rt, ptr, argType1, argType2, argType3, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2, argType3>(name, static_cast<rt(*)(argType1, argType2, argType3)>(ptr))));
 
+
+
+
+
+template <typename T> class SmoothedFloat : public JitCallableObject
+{
+public:
+
+	void reset(T initValue)
+	{
+		v.setValueWithoutSmoothing(initValue);
+	}
+
+	void prepare(double samplerate, double milliSeconds)
+	{
+		v.reset(samplerate, milliSeconds * 0.001);
+	}
+
+	void set(T newTargetValue)
+	{
+		v.setTargetValue(newTargetValue);
+	}
+
+	float next()
+	{
+		return v.getNextValue();
+	}
+
+	juce::LinearSmoothedValue<T> v;
+
+	SmoothedFloat(const Identifier& id, T initialValue) :
+		JitCallableObject(id)
+	{
+		registerAllObjectFunctions(nullptr);
+		reset(initialValue);
+	};
+
+	~SmoothedFloat()
+	{
+		functions.clear();
+	}
+
+	struct Wrapper
+	{
+		JIT_MEMBER_WRAPPER_1(void, SmoothedFloat, reset, T);
+		JIT_MEMBER_WRAPPER_2(void, SmoothedFloat, prepare, double, double);
+		JIT_MEMBER_WRAPPER_1(void, SmoothedFloat, set, T);
+		JIT_MEMBER_WRAPPER_0(T, SmoothedFloat, next);
+	};
+
+	void registerAllObjectFunctions(GlobalScope*) override
+	{
+		Types::ID valueType = Types::Helpers::getTypeFromTypeId<T>();
+
+		{
+			auto f = createMemberFunction(Types::ID::Void, "reset", { valueType });
+			f->function = Wrapper::reset;
+			addFunction(f);
+		}
+
+		{
+			auto f = createMemberFunction(Types::ID::Void, "prepare", { Types::ID::Double, Types::ID::Double });
+			f->function = Wrapper::prepare;
+			addFunction(f);
+		}
+
+		{
+			auto f = createMemberFunction(Types::ID::Void, "set", { valueType });
+			f->function = Wrapper::set;
+			addFunction(f);
+		}
+
+		{
+			auto f = createMemberFunction(valueType, "next", {});
+			f->function = Wrapper::next;
+			addFunction(f);
+		}
+	}
+};
+
+
 class ConsoleFunctions : public JitCallableObject
 {
 	struct WrapperInt
