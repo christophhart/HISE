@@ -123,6 +123,24 @@ public:
 	double max = 0.0;
 };
 
+class mono2stereo : public HiseDspBase
+{
+public:
+
+	SET_HISE_NODE_ID("mono2stereo");
+	GET_SELF_AS_OBJECT(mono2stereo);
+	SET_HISE_NODE_EXTRA_HEIGHT(0);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_CREATE_PARAM;
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_MOD;
+	
+	void process(ProcessData& data);
+	void processSingle(float* frameData, int numChannels);
+};
+
 class empty : public HiseDspBase
 {
 public:

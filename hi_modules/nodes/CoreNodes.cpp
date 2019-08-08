@@ -950,6 +950,18 @@ void peak::processSingle(float* frameData, int numChannels)
 
 
 
+void mono2stereo::process(ProcessData& data)
+{
+	if(data.numChannels >= 2)
+		FloatVectorOperations::copy(data.data[1], data.data[0], data.size);
+}
+
+void mono2stereo::processSingle(float* frameData, int numChannels)
+{
+	if (numChannels >= 2)
+		frameData[1] = frameData[0];
+}
+
 } // namespace core
 
 } // namespace scriptnode
