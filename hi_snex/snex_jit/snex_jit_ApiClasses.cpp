@@ -120,25 +120,25 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 
 	{
 		auto f = createMemberFunction(Void, "print", { Float });
-		f->function = WrapperFloat::print;
+		f->setFunction(WrapperFloat::print);
 		addFunction(f);
 	}
 
 	{
 		auto f = createMemberFunction(Void, "print", { Double });
-		f->function = WrapperDouble::print;
+		f->setFunction(WrapperDouble::print);
 		addFunction(f);
 	}
 
 	{
 		auto f = createMemberFunction(Void, "print", { Integer });
-		f->function = WrapperInt::print;
+		f->setFunction(WrapperInt::print);
 		addFunction(f);
 	}
 
 	{
 		auto f = createMemberFunction(Void, "print", { Event });
-		f->function = WrapperEvent::print;
+		f->setFunction(WrapperEvent::print);
 		addFunction(f);
 	}
 }

@@ -77,6 +77,11 @@ struct FunctionData
 		return d;
 	}
 
+    template <typename T> void setFunction(T* typedFunctionPointer)
+    {
+        function = reinterpret_cast<void*>(typedFunctionPointer);
+    }
+    
 	String getSignature(const Array<Identifier>& parameterIds = {}) const;
 
 	operator bool() const noexcept { return function != nullptr; };

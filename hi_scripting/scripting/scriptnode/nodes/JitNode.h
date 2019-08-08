@@ -253,7 +253,7 @@ public:
 				for (int i = 0; i < d.size; i++)
 				{
 					auto value = d.data[c][i];
-					d.data[c][i] = cc.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
+					d.data[c][i] = cc.callbacks[CallbackCollection::Sample].template callUncheckedWithCopy<float>(value);
 				}
 			}
 
@@ -286,7 +286,7 @@ public:
 			{
 				auto v = static_cast<float>(frameData[i]);
 				auto& f = cc.callbacks[bestCallback];
-				frameData[i] = f.callUnchecked<float>(v);
+                frameData[i] = f.template callUnchecked<float>(v);
 			}
 			break;
 		}

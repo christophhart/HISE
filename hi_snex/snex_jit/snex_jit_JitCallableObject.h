@@ -119,7 +119,7 @@ public:
 			auto f = createMemberFunction(Float, "getValue", {});
 
 			// Give it the function pointer to the static function wrapper
-			f->function = Wrappers::getValue;
+			f->function = reinterpret_cast<void*>(Wrappers::getValue);
 
 			// Add the function to make it accessible inside SNEX
 			addFunction(f);
@@ -129,7 +129,7 @@ public:
 			auto f = createMemberFunction(Integer,
 				"get5",
 				{ Float, Float, Float, Float, Float });
-			f->function = Wrappers::get5;
+			f->function = reinterpret_cast<void*>(Wrappers::get5);
 
 			addFunction(f);
 		}

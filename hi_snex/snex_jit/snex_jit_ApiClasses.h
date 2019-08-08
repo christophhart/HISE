@@ -101,25 +101,25 @@ public:
 
 		{
 			auto f = createMemberFunction(Types::ID::Void, "reset", { valueType });
-			f->function = Wrapper::reset;
+			f->setFunction(Wrapper::reset);
 			addFunction(f);
 		}
 
 		{
 			auto f = createMemberFunction(Types::ID::Void, "prepare", { Types::ID::Double, Types::ID::Double });
-			f->function = Wrapper::prepare;
+			f->setFunction(Wrapper::prepare);
 			addFunction(f);
 		}
 
 		{
 			auto f = createMemberFunction(Types::ID::Void, "set", { valueType });
-			f->function = Wrapper::set;
+			f->setFunction(Wrapper::set);
 			addFunction(f);
 		}
 
 		{
 			auto f = createMemberFunction(valueType, "next", {});
-			f->function = Wrapper::next;
+			f->setFunction(Wrapper::next);
 			addFunction(f);
 		}
 	}

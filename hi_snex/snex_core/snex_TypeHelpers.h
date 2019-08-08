@@ -48,7 +48,7 @@ public:
 	};
 
 	juce::LinearSmoothedValue<T> v;
-}
+};
 
 using namespace juce;
 

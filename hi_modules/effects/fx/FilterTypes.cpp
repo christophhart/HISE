@@ -1291,6 +1291,4 @@ float PhaseAllpassSubType::InternalFilter::AllpassDelay::getNextSample(float inp
 	return y;
 }
 
-DEFINE_MULTI_CHANNEL_FILTER(PhaseAllpassSubType);
-
 }
