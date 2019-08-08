@@ -74,7 +74,8 @@ Factory::Factory(DspNetwork* network) :
 {
 	registerPolyNode<seq, seq_poly>();
 	registerPolyNode<ramp, ramp_poly>();
-	registerNodeRaw<JitNode>();
+	registerPolyNodeRaw<JitNode, JitPolyNode>();
+	registerNode<mono2stereo>({});
 	registerNode<table>();
 	registerNode<fix_delay>();
 	registerNode<file_player>();

@@ -82,6 +82,11 @@ struct CallbackCollection
 		if (!resetFunction.matchesArgumentTypes(ID::Void, {}))
 			resetFunction = {};
 
+		eventFunction = obj["handleEvent"];
+
+		if (!eventFunction.matchesArgumentTypes(ID::Void, { ID::Event }))
+			eventFunction = {};
+
 		callbacks[Sample] = obj[cIds[Sample]];
 
 		if (!callbacks[Sample].matchesArgumentTypes(ID::Float, { ID::Float }))

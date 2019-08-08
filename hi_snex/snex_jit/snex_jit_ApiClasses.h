@@ -161,20 +161,14 @@ public:
 
 	struct Wrapper
 	{
-#define WRAP_MESSAGE_GET_FUNCTION(x) static int x(HiseEvent e) { return (int)e.x(); };
-#define WRAP_MESSAGE_SET_FUNCTION(x) static void x(HiseEvent e, int v) {e.x(v); };
+#define WRAP_MESSAGE_GET_FUNCTION(returnType, x) static returnType x(HiseEvent e) { return static_cast<returnType>(e.x()); };
 
-		WRAP_MESSAGE_GET_FUNCTION(getNoteNumber);
-		WRAP_MESSAGE_GET_FUNCTION(getVelocity);
-		WRAP_MESSAGE_GET_FUNCTION(getChannel);
-		WRAP_MESSAGE_GET_FUNCTION(isNoteOn);
-		WRAP_MESSAGE_GET_FUNCTION(isNoteOnOrOff);
-
-		static void setNoteNumber(HiseEvent& e, int noteNumber)
-		{
-			e.setNoteNumber(noteNumber);
-		}
-
+		WRAP_MESSAGE_GET_FUNCTION(int, getNoteNumber);
+		WRAP_MESSAGE_GET_FUNCTION(int, getVelocity);
+		WRAP_MESSAGE_GET_FUNCTION(int, getChannel);
+		WRAP_MESSAGE_GET_FUNCTION(int, isNoteOn);
+		WRAP_MESSAGE_GET_FUNCTION(int, isNoteOnOrOff);
+		WRAP_MESSAGE_GET_FUNCTION(double, getFrequency);
 
 #undef WRAP_MESSAGE_FUNCTION
 	};

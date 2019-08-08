@@ -99,15 +99,9 @@ MessageFunctions::MessageFunctions() :
 	FunctionClass("Message")
 {
 	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getNoteNumber, HiseEvent, "getNoteNumber");
-
-	auto nf = new FunctionData();
-	nf->returnType = Types::ID::Void;
-	nf->args.add(Types::ID::Event);
-	nf->args.add(Types::ID::Integer);
-	nf->function = reinterpret_cast<void*>(Wrapper::setNoteNumber);
-	nf->id = "setNoteNumber";
-
-	addFunction(nf);
+	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getVelocity, HiseEvent, "getVelocity");
+	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getChannel, HiseEvent, "getChannel");
+	HNODE_JIT_ADD_C_FUNCTION_1(double, Wrapper::getFrequency, HiseEvent, "getFrequency");
 }
 
 BlockFunctions::BlockFunctions() :

@@ -383,9 +383,6 @@ private:
 		test = new Event2IntTest("int test(event in){ return in.getNoteNumber(); }");
 		EXPECT("getNoteNumber", testEvent, 59);
 
-		test = new Event2IntTest("int test(event in){ in.setNoteNumber(40); return in.getNoteNumber(); }");
-		EXPECT("setNoteNumber", testEvent, 40);
-
 		test = new Event2IntTest("int test(event in){ return in.getNoteNumber() > 64 ? 17 : 13; }");
 		EXPECT("getNoteNumber arithmetic", testEvent, 13);
 

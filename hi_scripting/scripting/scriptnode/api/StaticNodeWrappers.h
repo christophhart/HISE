@@ -680,6 +680,25 @@ static Identifier getStaticId() { return Identifier(id); };
             return sa;
         }
         
+		template <class MonoT, class PolyT> void registerPolyNodeRaw()
+		{
+			{
+				Item newItem;
+				newItem.cb = PolyT::createNode;
+				newItem.id = PolyT::getStaticId;
+
+				polyNodes.add(newItem);
+			}
+
+			{
+				Item newItem;
+				newItem.cb = MonoT::createNode;
+				newItem.id = MonoT::getStaticId;
+
+				monoNodes.add(newItem);
+			}
+		}
+
         template <class T> void registerNodeRaw(const PostCreateCallback& cb = {})
         {
             Item newItem;

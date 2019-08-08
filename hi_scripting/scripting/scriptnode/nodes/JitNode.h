@@ -42,11 +42,13 @@ class JitNode;
 namespace core
 {
 
-class jit : public HiseDspBase
+template <int NV> class jit : public HiseDspBase
 {
 public:
 
-	SET_HISE_NODE_ID("jit");
+	static constexpr int NumVoices = NV;
+
+	SET_HISE_POLY_NODE_ID("jit");
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
 	GET_SELF_AS_OBJECT(jit);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -61,45 +63,112 @@ public:
 	{
 		auto newCode = newValue.toString();
 
-		snex::jit::Compiler compiler(scope);
+		SpinLock::ScopedLockType sl(compileLock);
 
-		if (compiler.getLastCompiledCode() != newCode)
+		auto scopePointer = &scope;
+
+		auto lsCopy = lastSpecs;
+
+		auto compileEachVoice = [scopePointer, newCode, lsCopy](CallbackCollection& c)
 		{
-			SpinLock::ScopedLockType sl(compileLock);
+			snex::jit::Compiler compiler(*scopePointer);
 
 			auto newObject = compiler.compileJitObject(newCode);
 
 			if (compiler.getCompileResult().wasOk())
 			{
-				cData.obj = newObject;
-				cData.setupCallbacks();
-				cData.prepare(lastSpecs.sampleRate, lastSpecs.blockSize, lastSpecs.numChannels);
+				c.obj = newObject;
+				c.setupCallbacks();
+				c.prepare(lsCopy.sampleRate, lsCopy.blockSize, lsCopy.numChannels);
 			}
-		}
+		};
+
+		cData.forEachVoice(compileEachVoice);
 	}
 
 	void prepare(PrepareSpecs specs)
 	{
 		SpinLock::ScopedLockType sl(compileLock);
 
+		cData.prepare(specs);
+
 		lastSpecs = specs;
-		cData.prepare(specs.sampleRate, specs.blockSize, specs.numChannels);
+
+		voiceIndexPtr = specs.voiceIndex;
+
+		cData.forEachVoice([specs](CallbackCollection& c)
+		{
+			c.prepare(specs.sampleRate, specs.blockSize, specs.numChannels);
+		});
 	}
 
 	void createParameters(Array<ParameterData>& data) override
 	{
 		code.init(nullptr, this);
 
-		auto ids = cData.obj.getFunctionIds();
-		auto names = snex::jit::ParameterHelpers::getParameterNames(cData.obj);
+		auto c = cData.getFirst();
+
+		auto ids = c.obj.getFunctionIds();
+		auto names = snex::jit::ParameterHelpers::getParameterNames(c.obj);
+
+		bool isPoly = cData.isPolyphonic();
 
 		for (auto& name : names)
 		{
 			ParameterData p(name, { 0.0, 1.0 });
-			auto f = snex::jit::ParameterHelpers::getFunction(name, cData.obj);
+			
 
-			if (f)
-				p.db = reinterpret_cast<void(*)(double)>(f.function);
+			using DoubleCallbackPtr = void(*)(double);
+
+			if (!isPoly)
+			{
+				auto f = snex::jit::ParameterHelpers::getFunction(name, c.obj);
+
+				if (f)
+					p.db = reinterpret_cast<DoubleCallbackPtr>(f.function);
+				else
+					p.db = {};
+			}
+			else
+			{
+				Array<DoubleCallbackPtr> voiceFunctions;
+
+				auto tmp = &voiceFunctions;
+
+				cData.forEachVoice([tmp, name](CallbackCollection& cc)
+				{
+					auto f = snex::jit::ParameterHelpers::getFunction(name, cc.obj);
+
+					if (f)
+						tmp->add(reinterpret_cast<DoubleCallbackPtr>(f.function));
+				});
+
+				auto ptr = voiceIndexPtr;
+
+				if (ptr == nullptr)
+					return;
+
+				p.db = [voiceFunctions, ptr](double newValue)
+				{
+					jassert(ptr != nullptr);
+
+					if (*ptr != -1)
+					{
+						auto f = voiceFunctions[*ptr];
+						f(newValue);
+					}
+					else
+					{
+						for (auto f : voiceFunctions)
+						{
+							if(f != nullptr)
+								f(newValue);
+						}
+							
+					}
+				};
+			}
+
 
 			data.add(std::move(p));
 		}
@@ -109,8 +178,16 @@ public:
 	{
 		node = n;
 
+		voiceIndexPtr = n->getRootNetwork()->getVoiceIndexPtr();
+
 		code.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(jit::updateCode));
 		code.init(n, this);
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		if(cData.isVoiceRenderingActive())
+			cData.get().eventFunction.callVoid(e);
 	}
 
 	bool handleModulation(double&)
@@ -122,8 +199,10 @@ public:
 	{
 		SpinLock::ScopedLockType sl(compileLock);
 
-		if (cData.resetFunction)
-			cData.resetFunction.callVoid();
+		if (cData.isVoiceRenderingActive())
+			cData.get().resetFunction.callVoid();
+		else
+			cData.forEachVoice([](CallbackCollection& c) {c.resetFunction.callVoid(); });
 	}
 
 	using CallbackCollection = snex::jit::CallbackCollection;
@@ -132,7 +211,9 @@ public:
 	{
 		SpinLock::ScopedLockType sl(compileLock);
 
-		auto bestCallback = cData.bestCallback[CallbackCollection::ProcessType::BlockProcessing];
+		auto& cc = cData.get();
+
+		auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::BlockProcessing];
 
 		switch (bestCallback)
 		{
@@ -141,7 +222,7 @@ public:
 			for (int c = 0; c < d.numChannels; c++)
 			{
 				snex::block b(d.data[c], d.size);
-				cData.callbacks[CallbackCollection::Channel].callVoidUnchecked(b, c);
+				cc.callbacks[CallbackCollection::Channel].callVoidUnchecked(b, c);
 			}
 			break;
 		}
@@ -158,7 +239,7 @@ public:
 				copy.copyToFrameDynamic(frame);
 
 				snex::block b(frame, d.numChannels);
-				cData.callbacks[CallbackCollection::Frame].callVoidUnchecked(b);
+				cc.callbacks[CallbackCollection::Frame].callVoidUnchecked(b);
 
 				copy.copyFromFrameAndAdvanceDynamic(frame);
 			}
@@ -172,7 +253,7 @@ public:
 				for (int i = 0; i < d.size; i++)
 				{
 					auto value = d.data[c][i];
-					d.data[c][i] = cData.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
+					d.data[c][i] = cc.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
 				}
 			}
 
@@ -187,14 +268,16 @@ public:
 	{
 		SpinLock::ScopedLockType sl(compileLock);
 
-		auto bestCallback = cData.bestCallback[CallbackCollection::ProcessType::FrameProcessing];
+		auto& cc = cData.get();
+
+		auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::FrameProcessing];
 
 		switch (bestCallback)
 		{
 		case CallbackCollection::Frame:
 		{
 			snex::block b(frameData, numChannels);
-			cData.callbacks[bestCallback].callVoidUnchecked(b);
+			cc.callbacks[bestCallback].callVoidUnchecked(b);
 			break;
 		}
 		case CallbackCollection::Sample:
@@ -202,7 +285,7 @@ public:
 			for (int i = 0; i < numChannels; i++)
 			{
 				auto v = static_cast<float>(frameData[i]);
-				auto& f = cData.callbacks[bestCallback];
+				auto& f = cc.callbacks[bestCallback];
 				frameData[i] = f.callUnchecked<float>(v);
 			}
 			break;
@@ -212,7 +295,7 @@ public:
 			for (int i = 0; i < numChannels; i++)
 			{
 				snex::block b(frameData + i, 1);
-				cData.callbacks[bestCallback].callVoidUnchecked(b);
+				cc.callbacks[bestCallback].callVoidUnchecked(b);
 			}
 			break;
 		}
@@ -227,31 +310,138 @@ public:
 
 	snex::jit::GlobalScope scope;
 
-	CallbackCollection cData;
+	PolyData<CallbackCollection, NumVoices> cData;
 
 	NodePropertyT<String> code;
 	NodeBase::Ptr node;
 
+	int* voiceIndexPtr = nullptr;
 };
 }
 
-class JitNode : public HiseDspNodeBase<core::jit>,
-				public snex::jit::DebugHandler
+class JitNodeBase: public snex::jit::DebugHandler
 {
 public:
 
-	void logMessage(const String& message) override;
+	void initUpdater()
+	{
+		parameterUpdater.setCallback(asNode()->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString()),
+			{ PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
+			BIND_MEMBER_FUNCTION_2(JitNodeBase::updateParameters));
+	}
+	
+	NodeBase* asNode() { return dynamic_cast<NodeBase*>(this); }
 
-	JitNode(DspNetwork* parent, ValueTree d);
+	void logMessage(const String& message) override
+	{
+		String s;
+		s << dynamic_cast<NodeBase*>(this)->getId() << ": " << message;
+		debugToConsole(dynamic_cast<NodeBase*>(this)->getProcessor(), s);
+	}
 
-	valuetree::PropertyListener parameterUpdater;
+	virtual HiseDspBase* getInternalJitNode() = 0;
 
-	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitNode(n, d); };
+	void updateParameters(Identifier id, var newValue)
+	{
+		auto obj = getInternalJitNode();
 
-	void updateParameters(Identifier id, var newValue);
+		Array<HiseDspBase::ParameterData> l;
+		obj->createParameters(l);
+
+		StringArray foundParameters;
+
+		for (int i = 0; i < asNode()->getNumParameters(); i++)
+		{
+			auto pId = asNode()->getParameter(i)->getId();
+
+			bool found = false;
+
+			for (auto& p : l)
+			{
+				if (p.id == pId)
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+			{
+				auto v = asNode()->getParameter(i)->data;
+				v.getParent().removeChild(v, asNode()->getUndoManager());
+				asNode()->removeParameter(i--);
+			}
+
+		}
+
+		for (const auto& p : l)
+		{
+			foundParameters.add(p.id);
+
+			if (auto param = asNode()->getParameter(p.id))
+			{
+				p.db(param->getValue());
+			}
+			else
+			{
+				auto newTree = p.createValueTree();
+				asNode()->getParameterTree().addChild(newTree, -1, nullptr);
+
+				auto newP = new NodeBase::Parameter(asNode(), newTree);
+				newP->setCallback(p.db);
+				asNode()->addParameter(newP);
+			}
+		}
+	}
+
+	virtual ~JitNodeBase() {};
 
 private:
 
+	valuetree::PropertyListener parameterUpdater;
+
+};
+
+class JitNode : public HiseDspNodeBase<core::jit<1>>,
+				public JitNodeBase
+
+{
+public:
+
+	JitNode(DspNetwork* parent, ValueTree d) :
+		HiseDspNodeBase<core::jit<1>>(parent, d)
+	{
+		dynamic_cast<core::jit<1>*>(getInternalT())->scope.addDebugHandler(this);
+		initUpdater();
+	}
+
+	HiseDspBase* getInternalJitNode() override
+	{
+		return wrapper.getInternalT();
+	}
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitNode(n, d); };
+};
+
+class JitPolyNode : public HiseDspNodeBase<core::jit<NUM_POLYPHONIC_VOICES>>,
+	public JitNodeBase
+
+{
+public:
+
+	JitPolyNode(DspNetwork* parent, ValueTree d) :
+		HiseDspNodeBase<core::jit<NUM_POLYPHONIC_VOICES>>(parent, d)
+	{
+		dynamic_cast<core::jit<NUM_POLYPHONIC_VOICES>*>(getInternalT())->scope.addDebugHandler(this);
+		initUpdater();
+	}
+
+	HiseDspBase* getInternalJitNode() override
+	{
+		return wrapper.getInternalT();
+	}
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitPolyNode(n, d); };
 };
 
 
