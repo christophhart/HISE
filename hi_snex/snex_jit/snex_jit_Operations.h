@@ -203,9 +203,10 @@ struct Operations::VariableReference : public Expression
 		{
 			reg = compiler->registerPool.getRegisterForVariable(ref);
 
-			if (reg->isActive() && findParentStatementOfType<BlockLoop>(this) != nullptr)
+			if (reg->isActiveOrDirtyGlobalRegister() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
 			{
-
+				// the code generation has already happened before the branch so that we have the global register
+				// available in any case
 				return;
 			}
 
@@ -626,8 +627,6 @@ struct Operations::ReturnStatement : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Statement::process(compiler, scope);
-
 		Expression::process(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
@@ -979,7 +978,8 @@ struct Operations::BlockAssignment : public Expression
 };
 
 
-struct Operations::BlockLoop : public Expression
+struct Operations::BlockLoop : public Expression,
+							   public Operations::ConditionalBranch
 {
 	BlockLoop(Location l, Identifier it_, Expression::Ptr t, Statement::Ptr b_) :
 		Expression(l),
@@ -1076,18 +1076,7 @@ struct Operations::BlockLoop : public Expression
 
 				BaseScope::RefPtr r = b->blockScope->get({ {}, iterator, Types::ID::Float });
 
-				{
-					SyntaxTreeWalker w(b, false);
-
-					while (auto v = w.getNextStatementOfType<VariableReference>())
-					{
-						// If we write to a class variable, we need to create the register
-						// outside the loop
-						if (v->isClassVariable && v->isWriteAccess())
-							v->process(compiler, scope);
-					}
-				}
-
+				allocateDirtyGlobalVariables(b, compiler, scope);
 
 				auto itReg = compiler->registerPool.getRegisterForVariable(r);
 				itReg->createRegister(acg.cc);
@@ -1150,7 +1139,8 @@ struct Operations::Negation : public Expression
 	}
 };
 
-struct Operations::IfStatement : public Statement
+struct Operations::IfStatement : public Statement,
+								 public Operations::ConditionalBranch
 {
 	IfStatement(Location loc, Expression::Ptr cond_, Ptr trueBranch_, Ptr falseBranch_):
 		Statement(loc),
@@ -1205,6 +1195,12 @@ struct Operations::IfStatement : public Statement
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
 			auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
+
+			allocateDirtyGlobalVariables(trueBranch, compiler, scope);
+
+			if(falseBranch)
+				allocateDirtyGlobalVariables(falseBranch, compiler, scope);
+			
 			acg.emitBranch(Types::ID::Void, cond.get(), trueBranch.get(), falseBranch.get(), compiler, scope);
 		}
 	}

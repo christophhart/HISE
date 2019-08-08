@@ -208,6 +208,11 @@ bool AssemblyRegister::isActive() const
 	return state == ActiveRegister;
 }
 
+bool AssemblyRegister::isActiveOrDirtyGlobalRegister() const
+{
+	return state == ActiveRegister || state == DirtyGlobalRegister;
+}
+
 void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 {
 	jassert(memoryLocation != nullptr);

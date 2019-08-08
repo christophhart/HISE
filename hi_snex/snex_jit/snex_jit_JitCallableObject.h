@@ -93,7 +93,7 @@ public:
 	/** A member function. */
 	int get5(float f1, float f2, float f3, float f4, float f5)
 	{
-		return (int)(f1*f2*f3*f4*f5) * value;
+		return (int)(f1*f2*f3*f4*f5 * value);
 	}
 
 	/** Another random member function. */

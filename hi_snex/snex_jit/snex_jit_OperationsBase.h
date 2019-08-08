@@ -201,6 +201,16 @@ public:
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
 	struct BlockLoop;		struct IfStatement;
 
+	/** Just a empty base class that checks whether the global variables will be loaded
+		before the branch.
+	*/
+	struct ConditionalBranch
+	{
+		void allocateDirtyGlobalVariables(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
+
+		virtual ~ConditionalBranch() {}
+	};
+
 	static Expression* findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope);
 };
 

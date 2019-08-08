@@ -217,8 +217,6 @@ public:
 
 	void runTest() override
 	{
-		// Begin of standard tests
-
 		testParser();
 		testSimpleIntOperations();
 
@@ -859,10 +857,26 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
+		CREATE_TEST("float x = 1.0f; float test(float input) { if (input == 10.0f) x += 1.0f; else x += 2.0f; return x; }");
+		EXPECT("Set global variable, true branch", 10.0f, 2.0f);
+		EXPECT("Set global variable, false branch", 12.0f, 4.0f);
+
+		CREATE_TEST("float x = 1.0f; float test(float input) { if (input == 10.0f) x += 12.0f; return x; }");
+		EXPECT("Set global variable in true branch, false branch", 9.0f, 1.0f);
+		EXPECT("Set global variable in true branch", 10.0f, 13.0f);
+
+		CREATE_TEST("float x = 1.0f; float test(float input) { if (input == 10.0f) return 2.0f; else x += 12.0f; return x; }");
+		EXPECT("Set global variable in false branch, true branch", 10.0f, 2.0f);
+		EXPECT("Set global variable in false branch", 12.0f, 13.0f);
+
 		CREATE_TEST("float test(float input){ if(input > 1.0f) return 10.0f; return 2.0f; }");
 		EXPECT("True branch", 4.0f, 10.0f);
 		EXPECT("Fall through", 0.5f, 2.0f);
 
+		CREATE_TEST("float x = 1.0f; float test(float input) { x = 1.0f; if (input < -0.5f) x = 12.0f; return x; }");
+		EXPECT("Set global variable in true branch after memory load, false branch", 9.0f, 1.0f);
+		EXPECT("Set global variable in true branch after memory load", -10.0f, 12.0f);
+		
 		// TODO: add more if tests
 	}
 

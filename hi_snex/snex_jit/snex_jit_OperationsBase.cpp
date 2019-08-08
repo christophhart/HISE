@@ -401,5 +401,18 @@ void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::Mes
 	compiler->logMessage(type, m);
 }
 
+void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr statementToSearchFor, BaseCompiler* c, BaseScope* s)
+{
+	SyntaxTreeWalker w(statementToSearchFor, false);
+
+	while (auto v = w.getNextStatementOfType<VariableReference>())
+	{
+		// If we write to a class variable, we need to create the register
+		// outside the loop
+		if (v->isClassVariable && v->isWriteAccess())
+			v->process(c, s);
+	}
+}
+
 }
 }

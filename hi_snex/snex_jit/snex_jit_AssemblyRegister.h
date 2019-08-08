@@ -110,6 +110,8 @@ public:
 
 	bool isActive() const;
 
+	bool isActiveOrDirtyGlobalRegister() const;
+
 	/** Creates a memory location for the given constant. */
 	void createMemoryLocation(asmjit::X86Compiler& cc);
 
