@@ -45,7 +45,7 @@ smoothedGainR(1.0f)
 	modChains += {this, "Gain Modulation"};
 	modChains += {this, "Delay Modulation"};
 	modChains += {this, "Width Modulation"};
-	modChains += {this, "Pan Modulation"};
+	modChains += {this, "Pan Modulation", ModulatorChain::ModulationType::Normal, Modulation::PanMode};
 
 	finaliseModChains();
 
@@ -268,8 +268,12 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 	}
 
 
-	const float balanceModValue = modChains[InternalChains::BalanceChain].getOneModulationValue(startSample);
-	const float smoothedBalance = balanceSmoother.smooth(balance * balanceModValue);
+	auto& bc = modChains[InternalChains::BalanceChain];
+
+	float smoothedBalance = balanceSmoother.smooth(balance);
+
+	if (bc.getChain()->shouldBeProcessedAtAll())
+		smoothedBalance *= bc.getOneModulationValue(startSample);
 
 	const float leftGain = BalanceCalculator::getGainFactorForBalance(smoothedBalance, true);
 	const float rightGain = BalanceCalculator::getGainFactorForBalance(smoothedBalance, false);
