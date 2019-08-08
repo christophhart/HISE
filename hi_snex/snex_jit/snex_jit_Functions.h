@@ -174,7 +174,7 @@ struct FunctionClass
 
 	void addFunction(FunctionData* newData);
 
-	
+	Array<Identifier> getFunctionIds() const;
 
 	Identifier getClassName() const { return className; }
 

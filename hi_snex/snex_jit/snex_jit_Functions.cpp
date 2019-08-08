@@ -154,6 +154,16 @@ void FunctionClass::addFunction(FunctionData* newData)
 }
 
 
+juce::Array<juce::Identifier> FunctionClass::getFunctionIds() const
+{
+	Array<Identifier> ids;
+
+	for (auto r : functions)
+		ids.add(r->id);
+
+	return ids;
+}
+
 bool FunctionClass::fillJitFunctionPointer(FunctionData& dataWithoutPointer)
 {
 	// first check strict typing

@@ -72,6 +72,11 @@ snex::VariableStorage* JitCompiledFunctionClass::getVariablePtr(const Identifier
 	return nullptr;
 }
 
+juce::Array<juce::Identifier> JitCompiledFunctionClass::getFunctionIds() const
+{
+	return pimpl->getFunctionIds();
+}
+
 FunctionData JitCompiledFunctionClass::getFunction(const Identifier& functionId)
 {
 	if (pimpl->hasFunction({}, functionId))
@@ -105,6 +110,16 @@ snex::jit::FunctionData JitObject::operator[](const Identifier& functionId) cons
 	return {};
 }
 
+
+juce::Array<juce::Identifier> JitObject::getFunctionIds() const
+{
+	if (*this)
+	{
+		return functionClass->getFunctionIds();
+	}
+
+	return {};
+}
 
 JitObject::operator bool() const
 {

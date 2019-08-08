@@ -57,6 +57,8 @@ public:
 
 	VariableStorage* getVariablePtr(const Identifier& id);
 
+	Array<Identifier> getFunctionIds() const;
+
 private:
 
 	friend class ClassCompiler;
@@ -77,6 +79,8 @@ public:
 	VariableStorage* getVariablePtr(const Identifier& id) const;
 
 	FunctionData operator[](const Identifier& functionId) const;
+
+	Array<Identifier> getFunctionIds() const;
 
 	explicit operator bool() const;;
 	
