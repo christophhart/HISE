@@ -278,6 +278,8 @@ struct NodeBase : public ConstScriptingObject
 
 	var getNodeProperty(const Identifier& id) ;
 
+	Value getNodePropertyAsValue(const Identifier& id);
+
 	virtual bool isPolyphonic() const { return false; }
 
 	bool isBodyShown() const

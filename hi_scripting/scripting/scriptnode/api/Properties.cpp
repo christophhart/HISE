@@ -365,7 +365,7 @@ struct SliderWithLimit : public PropertyComponent
 
 struct ExpressionPropertyComponent : public PropertyComponent
 {
-	ExpressionPropertyComponent(ValueTree& data, const Identifier& id, UndoManager* um):
+	ExpressionPropertyComponent(ValueTree data, const Identifier& id, UndoManager* um):
 		PropertyComponent(id.toString()),
 		comp(data.getPropertyAsValue(id, um, true))
 	{
@@ -386,7 +386,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 		struct Display : public Component,
 						 public Value::Listener
 		{
-			Display(Value& v, bool smallMode_) :
+			Display(const Value& v, bool smallMode_) :
 				smallMode(smallMode_),
 				value(v)
 			{
@@ -502,13 +502,13 @@ struct ExpressionPropertyComponent : public PropertyComponent
 				repaint();
 			}
 
-			void valueChanged(Value& value) override
+			void valueChanged(Value& ) override
 			{
 				rebuild();
 			}
 		};
 
-		Comp(Value& value):
+		Comp(const Value& value):
 			display(value, true)
 		{
 			editor.getTextValue().referTo(value);

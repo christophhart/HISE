@@ -117,6 +117,16 @@ var NodeBase::getNodeProperty(const Identifier& id)
 	return {};
 }
 
+juce::Value NodeBase::getNodePropertyAsValue(const Identifier& id)
+{
+	auto propTree = getPropertyTree().getChildWithProperty(PropertyIds::ID, id.toString());
+
+	if (propTree.isValid())
+		return propTree.getPropertyAsValue(PropertyIds::Value, getUndoManager(), true);
+
+	return {};
+}
+
 NodeComponent* NodeBase::createComponent()
 {
 	return new NodeComponent(this);

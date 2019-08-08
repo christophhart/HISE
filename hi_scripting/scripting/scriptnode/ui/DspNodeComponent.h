@@ -56,11 +56,28 @@ public:
 			extraWidth = extraComponent->getWidth();
 	}
 
+	void updateSliders(ValueTree v, bool )
+	{
+		sliders.clear();
+
+		for (int i = 0; i < node->getNumParameters(); i++)
+		{
+			auto newSlider = new ParameterSlider(node, i);
+
+			addAndMakeVisible(newSlider);
+			sliders.add(newSlider);
+		}
+
+		resized();
+	}
+
 	void resized() override;
 
 	int extraWidth = -1;
 	ScopedPointer<Component> extraComponent;
 	OwnedArray<ParameterSlider> sliders;
+
+	valuetree::ChildListener parameterListener;
 };
 
 }

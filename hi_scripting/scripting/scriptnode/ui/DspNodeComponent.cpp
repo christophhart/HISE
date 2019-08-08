@@ -39,13 +39,9 @@ using namespace hise;
 DefaultParameterNodeComponent::DefaultParameterNodeComponent(NodeBase* node) :
 	NodeComponent(node)
 {
-	for (int i = 0; i < node->getNumParameters(); i++)
-	{
-		auto newSlider = new ParameterSlider(node, i);
+	parameterListener.setCallback(node->getParameterTree(), valuetree::AsyncMode::Asynchronously,
+		BIND_MEMBER_FUNCTION_2(DefaultParameterNodeComponent::updateSliders));
 
-		addAndMakeVisible(newSlider);
-		sliders.add(newSlider);
-	}
 }
 
 

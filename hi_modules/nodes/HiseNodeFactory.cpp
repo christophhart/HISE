@@ -74,8 +74,8 @@ Factory::Factory(DspNetwork* network) :
 {
 	registerPolyNode<seq, seq_poly>();
 	registerPolyNode<ramp, ramp_poly>();
+	registerNodeRaw<JitNode>();
 	registerNode<table>();
-	registerNode<jit>();
 	registerNode<fix_delay>();
 	registerNode<file_player>();
 	registerPolyNode<oscillator, oscillator_poly>();

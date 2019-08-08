@@ -69,6 +69,7 @@
 #include "scripting/scriptnode/nodes/NodeContainerTypes.cpp"
 #include "scripting/scriptnode/nodes/NodeWrapper.cpp"
 #include "scripting/scriptnode/nodes/ProcessNodes.cpp"
+#include "scripting/scriptnode/nodes/JitNode.cpp"
 #include "scripting/scriptnode/nodes/DspNode.cpp"
 
 
