@@ -197,7 +197,7 @@ public:
 	void createParameters(Array<HiseDspBase::ParameterData>& data);
 	
 	void initialise(NodeBase* n) override;
-	void reset() noexcept { voiceData.get().reset(); };
+	void reset() noexcept;;
 	void prepare(PrepareSpecs ps);
 	bool handleModulation(double&) noexcept { return false; };
 	void process(ProcessData& data);

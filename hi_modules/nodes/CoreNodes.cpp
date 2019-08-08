@@ -361,36 +361,33 @@ Component* oscillator_impl<NV>::createExtraComponent(PooledUIUpdater* updater)
 	return new OscDisplay<NV>(this, updater);
 }
 
+
+template <int NV>
+void scriptnode::core::oscillator_impl<NV>::reset() noexcept
+{
+	if (voiceData.isVoiceRenderingActive())
+		voiceData.get().reset();
+	else
+		voiceData.forEachVoice([](OscData& s) { s.reset(); });
+}
+
+
 template <int NV>
 void oscillator_impl<NV>::processSingle(float* data, int numChannels)
 {
-	auto newValue = sinTable->getInterpolatedValue(voiceData.get().tick());
-
-	for (int i = 0; i < numChannels; i++)
-		data[i] += newValue;
+	data[0] += sinTable->getInterpolatedValue(voiceData.get().tick());
 }
 
 template <int NV>
 void oscillator_impl<NV>::process(ProcessData& data)
 {
-	auto stackData = (float*)alloca(data.size * sizeof(float));
-	auto signal = stackData;
-
 	int numSamples = data.size;
 
 	auto& thisData = voiceData.get();
+	auto* ptr = data.data[0];
 
 	while (--numSamples >= 0)
-	{
-		*stackData++ = sinTable->getInterpolatedValue(thisData.tick());
-
-		//*stackData++ = (float)std::sin(thisData.tick());
-	}
-
-	for (auto c : data)
-	{
-		FloatVectorOperations::add(c, signal, data.size);
-	}
+		*ptr++ += sinTable->getInterpolatedValue(thisData.tick());
 }
 
 
