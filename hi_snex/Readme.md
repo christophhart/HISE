@@ -73,11 +73,32 @@ The decision which callback you want to use depends on the algorithm: for stereo
 
 > Be aware that if the `core.jit` node is wrapped in a `framex_block` node, the `processFrame` node will yield the best performance because it directly maps to the functionality of the surrounding container.
 
-The `core.jit` node will pick the best function available according to these rules:
+The `core.jit` node will pick the best function for the given context: block based processing or frame-based processing by wrapping it into a `framex_block` container node.
 
-- if the `processChannel` function is defined, it will used as default. If there are more than one channels, the function will be executed for each channel, so be aware of discontinuities in the state variables.
-- if the `processFrame` function is defined it will be used inside a `framex_block` node. Otherwise the `processChannel` function will be called with a block size of 1.
-- if the `processSample` function is defined, it will be called for the first channel only. Defining this function means that the processing is supposed to be monophonic, **which means that the `processChannel` function will also be called for the first channel only.**
+**Block based processing**: This is the default and means that the stream of audio samples is divided into chunks with a fixed length. In this case the functions are chosen in this order:
+
+1. `processChannel()`
+2. `processFrame()`
+3. `processSample()`
+
+The `processFrame` method will be always be prioritised over the `processSample` method because once you define it, it's highly likely that you want to perform some kind of interleaved algorithm.
+
+The fastest operation mode is of course using the `processChannel` method with a `loop_block` iterator, however using the `processFrame` method should be equally fast as using a `framex_block` method.
+
+**Frame based processing**: Some DSP algorithms need to have all samples of each channel available at the same time. The simplest example would be a stereo-to mono converter, which just add the channels:
+
+```cpp
+l = l + r;
+r = l;
+```
+
+This is known as interleaved (or frame-based) processing and can be achieved by wrapping any node into a `framex_block` container. In this case, the callbacks will be chosen in this order:
+
+1. `processFrame()`
+2. `processSample()`
+3. `processChannel()`
+
+Be aware that while the `processChannel` function is still used as last resort, it yields the worst performance, since it will create a buffer with the length 1 for each sample in each channel and then call the function.
 
 The `core.jit` node will show which `processX` function is currently in use (along with the CPU usage), so you can compare the performances.
 
@@ -265,33 +286,13 @@ b[12] = 12.0f;
 
 ### Ternary Operator
 
-There is no `if` statement branching in **SNEX**, however conditional execution can be achieved using the ternary operator:
+Simple branching inside an expression can be done via the ternary operator:
 
 ```cpp
 a ? b : c
 ```
 
 The false branch will not be evaluated.
-
-The rationale behind this is that in a inner loop of a DSP algorithm should not rely on heavy branching. If you however do so, you can workaround this by calling functions:
-
-```cpp
-void trueBranch()
-{
-    // some statements;
-}
-
-void falseBranch()
-{
-    // some statements;
-}
-
-void test(int input)
-{
-    input > 5 ? trueBranch() : falseBranch();
-}
-
-```
 
 ### Function calls
 
@@ -312,6 +313,28 @@ void f3()
 {
     f1(); // now you can call it
 }
+```
+
+### if / else-if branching
+
+Conditional execution of entire code blocks is possible using the `if` / `else` keywords:
+
+```cpp
+if(condition)
+{
+    // first case
+}
+else if (otherCondition)
+{
+    // second case
+    return;
+}
+else
+{
+    // fallback code
+}
+
+// Some other code (will not be executed if otherCondition was true)
 ```
 
 ### Return statement

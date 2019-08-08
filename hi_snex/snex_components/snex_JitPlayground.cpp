@@ -35,61 +35,28 @@ namespace jit {
 using namespace juce;
 
 
-juce::String SnexPlayground::getDefaultCode()
-{
-	auto emitCommentLine = [](String& code, const String& comment)
-	{
-		code << "/** " << comment << " */\n";
-	};
-
-	String s;
-	String nl = "\n";
-	String emptyBracket;
-	emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
-
-	emitCommentLine(s, "Initialise the processing here.");
-	s << "void prepare(double sampleRate, int blockSize, int numChannels)" << nl;
-	s << emptyBracket;
-
-	emitCommentLine(s, "Reset the processing pipeline");
-	s << "void reset()" << nl;
-	s << emptyBracket;
-
-	emitCommentLine(s, "Mono sample processing callback");
-	s << "void processChannel(block channel, int channelIndex)" << nl;
-	s << emptyBracket;
-
-	emitCommentLine(s, "Mono sample processing callback");
-	s << "float processSample(float input)" << nl;
-	s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
-
-	emitCommentLine(s, "Interleaved processing callback");
-	s << "void processFrame(block frame)" << nl;
-	s << emptyBracket;
-
-	return s;
-}
-
 SnexPlayground::SnexPlayground(Value externalCode) :
 	externalCodeValue(externalCode),
 	editor(doc, &tokeniser),
 	assembly(assemblyDoc, &assemblyTokeniser),
 	console(consoleContent, &consoleTokeniser),
 	snexIcon(factory.createPath("snex")),
+	showInfo("Info"),
 	showAssembly("Assembly"),
 	showSignal("Test signal"),
 	showConsole("Console"),
+	showParameters("Parameters"),
+	spacerAssembly("Assembly"),
+	spacerSignal("Test signal"),
+	spacerConsole("Console"),
+	spacerInfo("Info"),
+	spacerParameters("Parameters"),
 	compileButton("Compile")
 {
 	setName("SNEX Editor");
 
     setLookAndFeel(&laf);
 
-    testSignal.setColour(hise::HiseColourScheme::ComponentBackgroundColour, Colour(0));
-    testSignal.setColour(hise::HiseColourScheme::ComponentFillTopColourId, Colour(0));
-    testSignal.setColour(hise::HiseColourScheme::ComponentFillBottomColourId, Colour(0));
-    testSignal.setColour(hise::HiseColourScheme::ComponentOutlineColourId, Colour(0));
-    testSignal.setColour(hise::HiseColourScheme::ComponentTextColourId, Colours::white);
     
 	addAndMakeVisible(editor);
 	addAndMakeVisible(console);
@@ -108,12 +75,7 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 	
 	doc.clearUndoHistory();
 
-	testSignal.setColour(ComboBox::ColourIds::backgroundColourId, Colour(0xFF444444));
-
-	testSignal.setColour(ComboBox::ColourIds::textColourId, Colours::white);
-	testSignal.setColour(ComboBox::ColourIds::arrowColourId, Colours::white);
-	testSignal.setColour(ComboBox::ColourIds::outlineColourId, Colours::transparentBlack);
-	testSignal.setTextWhenNothingSelected("Select test signal");
+	
 
 	editor.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
 	editor.setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFBBBBBB));
@@ -157,9 +119,10 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 	scheme.set("Punctuation", Colour(0xFFBBBBBB));
 	scheme.set("Preprocessor Text", Colour(0xFFBBBB88));
 
-	testSignal.addItemList({ "Noise", "Ramp", "Fast Ramp" }, 1);
-	addAndMakeVisible(testSignal);
-	testSignal.addListener(this);
+	graph.testSignal.addListener(this);
+	graph.channelMode.addListener(this);
+	graph.bufferLength.addListener(this);
+	graph.processingMode.addListener(this);
 
 	editor.setColourScheme(scheme);
 
@@ -171,24 +134,51 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 	resultLabel.setColour(juce::Label::ColourIds::textColourId, Colours::white);
 	resultLabel.setEditable(false);
 
+	addAndMakeVisible(stateViewer);
+	addAndMakeVisible(showInfo);
+	addAndMakeVisible(showParameters);
 	addAndMakeVisible(showAssembly);
 	addAndMakeVisible(showSignal);
 	addAndMakeVisible(showConsole);
+
+	addAndMakeVisible(spacerAssembly);
+	addAndMakeVisible(spacerParameters);
+	addAndMakeVisible(spacerConsole);
+	addAndMakeVisible(spacerInfo);
+	addAndMakeVisible(spacerSignal);
+	addAndMakeVisible(sliders);
 	addAndMakeVisible(compileButton);
 
+	stateViewer.setVisible(false);
 	assembly.setVisible(false);
 	console.setVisible(false);
 	graph.setVisible(false);
-	testSignal.setVisible(false);
+	sliders.setVisible(false);
 
+	showInfo.setClickingTogglesState(true);
 	showAssembly.setClickingTogglesState(true);
 	showConsole.setClickingTogglesState(true);
 	showSignal.setClickingTogglesState(true);
+	showParameters.setClickingTogglesState(true);
     
+	showInfo.setLookAndFeel(&blaf);
 	showAssembly.setLookAndFeel(&blaf);
 	showSignal.setLookAndFeel(&blaf);
 	showConsole.setLookAndFeel(&blaf);
+	showParameters.setLookAndFeel(&blaf);
 	compileButton.setLookAndFeel(&blaf);
+
+	showInfo.onClick = [this]()
+	{
+		stateViewer.setVisible(showInfo.getToggleState());
+		resized();
+	};
+
+	showParameters.onClick = [this]()
+	{
+		sliders.setVisible(showParameters.getToggleState());
+		resized();
+	};
 
 	showConsole.onClick = [this]() 
 	{ 
@@ -199,7 +189,6 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 	showSignal.onClick = [this]()
 	{
 		graph.setVisible(showSignal.getToggleState());
-		testSignal.setVisible(showSignal.getToggleState());
 		resized();
 	};
 
@@ -211,8 +200,10 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 
 	compileButton.onClick = [this]() 
 	{ 
-		recalculate(); 
+		recompile(); 
 	};
+
+	consoleContent.addListener(this);
 
 
 	auto f = [this]()
@@ -221,8 +212,12 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 		editor.grabKeyboardFocus();
 	};
 
-    addAndMakeVisible(sliders);
     
+    
+	cData.setListener(&stateViewer);
+
+	recompile();
+
 	MessageManager::callAsync(f);
 }
 
@@ -230,6 +225,43 @@ SnexPlayground::~SnexPlayground()
 {
 	externalCodeValue.setValue(doc.getAllContent());
 }
+
+
+juce::String SnexPlayground::getDefaultCode()
+{
+	auto emitCommentLine = [](String& code, const String& comment)
+	{
+		code << "/** " << comment << " */\n";
+	};
+
+	String s;
+	String nl = "\n";
+	String emptyBracket;
+	emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
+
+	emitCommentLine(s, "Initialise the processing here.");
+	s << "void prepare(double sampleRate, int blockSize, int numChannels)" << nl;
+	s << emptyBracket;
+
+	emitCommentLine(s, "Reset the processing pipeline");
+	s << "void reset()" << nl;
+	s << emptyBracket;
+
+	emitCommentLine(s, "Mono sample processing callback");
+	s << "void processChannel(block channel, int channelIndex)" << nl;
+	s << emptyBracket;
+
+	emitCommentLine(s, "Mono sample processing callback");
+	s << "float processSample(float input)" << nl;
+	s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
+
+	emitCommentLine(s, "Interleaved processing callback");
+	s << "void processFrame(block frame)" << nl;
+	s << emptyBracket;
+
+	return s;
+}
+
 
 void SnexPlayground::paint(Graphics& g)
 {
@@ -251,133 +283,223 @@ void SnexPlayground::resized()
 	bottom.removeFromRight(10);
     resultLabel.setBounds(bottom);
 
+	bool infoVisible = stateViewer.isVisible();
 	bool consoleVisible = console.isVisible();
-	bool signalVisible = graph.isVisible() && testSignal.isVisible();
+	bool signalVisible = graph.isVisible();
 	bool assemblyVisible = assembly.isVisible();
+	bool parametersVisible = sliders.isVisible();
+
+	spacerSignal.setVisible(signalVisible);
+	spacerInfo.setVisible(infoVisible);
+	spacerAssembly.setVisible(assemblyVisible);
+	spacerConsole.setVisible(consoleVisible);
+	spacerParameters.setVisible(parametersVisible);
 
 	auto topRight = top.removeFromRight(480);
 
-	auto buttonWidth = topRight.getWidth() / 3;
+	auto buttonWidth = topRight.getWidth() / 5;
 
-	showAssembly.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
+	showInfo.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
+	showParameters.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	showSignal.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
+	showAssembly.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
+	
 	showConsole.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
+	
+	top.removeFromLeft(100);
 
-    sliders.setBounds(area.removeFromTop(sliders.getHeight()));
-    
-	if (consoleVisible || signalVisible || assemblyVisible)
+	if (infoVisible || consoleVisible || signalVisible || assemblyVisible || parametersVisible)
 	{
 		auto left = area.removeFromRight(480);
 
+		if (infoVisible)
+		{
+			spacerInfo.setBounds(left.removeFromTop(20));
+			stateViewer.setBounds(left.removeFromTop(stateViewer.getHeight()));
+		}
+			
+
+		if (parametersVisible)
+		{
+			spacerParameters.setBounds(left.removeFromTop(20));
+			sliders.setBounds(left.removeFromTop(sliders.getHeight()));
+		}
+
 		if (signalVisible)
 		{
-			testSignal.setBounds(left.removeFromTop(30));
-			graph.setBounds(left.removeFromTop(100));
+			spacerSignal.setBounds(left.removeFromTop(20));
+
+			graph.setBounds(left.removeFromTop(160));
 		}
 
 		if (assemblyVisible)
 		{
+			spacerAssembly.setBounds(left.removeFromTop(20));
 			auto h = consoleVisible ? left.getHeight() / 2 : left.getHeight();
 			assembly.setBounds(left.removeFromTop(h));
 		}
 
 		if (consoleVisible)
+		{
+			spacerConsole.setBounds(left.removeFromTop(20));
 			console.setBounds(left);
+		}
+			
 	}
 	
-
 	editor.setBounds(area);
 }
 
 
-#define JIT_MEMBER_WRAPPER_0(R, C, N)					  static R N(void* o) { return static_cast<C*>(o)->N(); };
-#define JIT_MEMBER_WRAPPER_1(R, C, N, T1)				  static R N(void* o, T1 a1) { return static_cast<C*>(o)->N(a1); };
-#define JIT_MEMBER_WRAPPER_2(R, C, N, T1, T2)			  static R N(void* o, T1 a1, T2 a2, ) { return static_cast<C*>(o)->N(a1, a2); };
-#define JIT_MEMBER_WRAPPER_3(R, C, N, T1, T2, T3)		  static R N(void* o, T1 a1, T2 a2, T3 a3, ) { return static_cast<C*>(o)->N(a1, a2, a3); };
-#define JIT_MEMBER_WRAPPER_4(R, C, N, T1, T2, T3, T4)	  static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4) { return static_cast<C*>(o)->N(a1, a2, a3, a4); };
-#define JIT_MEMBER_WRAPPER_5(R, C, N, T1, T2, T3, T4, T5) static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) { return static_cast<C*>(o)->N(a1, a2, a3, a4, a5); };
-
-
-
 void SnexPlayground::recalculate()
 {
-    sliders.setNumSliders(Random::getSystemRandom().nextInt(12));
-    resized();
-    
-	b.setSize(1, 44100);
-    b.clear();
-	createTestSignal();
+	int mode = jmax(0, graph.processingMode.getSelectedItemIndex());
 
-	jit::GlobalScope memory;
-	memory.allocate("x", 2.0f);
-    memory["x"] = 9.0f;
-    
-    float d[12];
-    d[2] = 7.0f;
-    d[5] = 12.0f;
-    
-    block bd(d, 12);
-    
-    memory.allocate("d", bd);
-    
-	String s;
-	s << doc.getAllContent();
+	auto bestCallback = cData.getBestCallback(mode);
 
-	externalCodeValue.setValue(s);
+	stateViewer.setFrameProcessing(mode);
 
-	consoleContent.replaceAllContent({});
-	consoleContent.clearUndoHistory();
-
-	Compiler cc(memory);
-	cc.setDebugHandler(this);
-
-    memory.registerObjectFunction(new JitTestObject("Funky"));
-    
-	auto functions = cc.compileJitObject(s);
-
-	if (!cc.getCompileResult().wasOk())
-	{
-		resultLabel.setText(cc.getCompileResult().getErrorMessage(), dontSendNotification);
-		graph.setBuffer(b);
-		return;
-	}
-
-	auto data = functions["processFrame"];
-
-    
-	assemblyDoc.replaceAllContent(cc.getAssemblyCode());
-
-	block bl(b.getWritePointer(0), b.getNumSamples());
-
-	
-
-    if(data)
+    if(bestCallback != CallbackCollection::Inactive)
     {
-        functions["prepare"].callVoid(44100.0, 44100, 1);
-        functions["reset"].callVoid();
-        
+		int numChannels = jmax(1, graph.channelMode.getSelectedId());
+		int numSamples = jmax(16, graph.bufferLength.getText().getIntValue());
+
+		b.setSize(numChannels, numSamples);
+		b.clear();
+		createTestSignal();
+		
+		cData.prepare((double)numSamples, numSamples, numChannels);
+		
         try
         {
-            auto start = Time::getMillisecondCounterHiRes();
-            
-            data.callVoid(bl);
-#if 0
-            
-            
-            for(int i = 0; i < b.getNumSamples(); i++)
-            {
-                block frame(ptr, 1);
-                data.callVoid(frame);
-                ptr++;
-                
-            }
-#endif
-            
+			auto start = Time::getMillisecondCounterHiRes();
+
+			if (mode == CallbackCollection::FrameProcessing)
+			{
+				switch (bestCallback)
+				{
+				case CallbackCollection::Channel:
+				{
+					for (int i = 0; i < b.getNumSamples(); i++)
+					{
+						for (int c = 0; c < b.getNumChannels(); c++)
+						{
+							block bl(b.getWritePointer(c, i), 1);
+							cData.callbacks[CallbackCollection::Channel].callVoidUnchecked(bl, c);
+						}
+					}
+
+					break;
+				}
+				case CallbackCollection::Frame:
+				{
+					float* l = b.getWritePointer(0);
+					float* r = numChannels > 1 ? b.getWritePointer(1) : nullptr;
+
+					for (int i = 0; i < b.getNumSamples(); i++)
+					{
+						float data[2];
+
+						data[0] = *l;
+
+						if (r != nullptr)
+							data[1] = *r;
+
+						block bl(data, numChannels);
+						cData.callbacks[CallbackCollection::Frame].callVoidUnchecked(bl);
+
+						*l++ = data[0];
+
+						if (r != nullptr)
+							*r++ = data[1];
+					}
+					break;
+				}
+				case CallbackCollection::Sample:
+				{
+					float* l = b.getWritePointer(0);
+					float* r = numChannels > 1 ? b.getWritePointer(1) : nullptr;
+
+					for (int i = 0; i < b.getNumSamples(); i++)
+					{
+
+						float value = *l;
+						float result = cData.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
+						*l++ = result;
+
+						if (r != nullptr)
+						{
+							value = *r;
+							result = cData.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
+							*r++ = result;
+						}
+					}
+					break;
+				}
+				}
+			}
+			else
+			{
+				switch (bestCallback)
+				{
+				case CallbackCollection::Channel:
+				{
+					for (int i = 0; i < numChannels; i++)
+					{
+						block bl(b.getWritePointer(i), b.getNumSamples());
+						cData.callbacks[CallbackCollection::Channel].callVoidUnchecked(bl, i);
+					}
+
+					break;
+				}
+				case CallbackCollection::Frame:
+				{
+					float* l = b.getWritePointer(0);
+					float* r = numChannels > 1 ? b.getWritePointer(1) : nullptr;
+
+					for (int i = 0; i < b.getNumSamples(); i++)
+					{
+						float data[2];
+
+						data[0] = *l;
+
+						if (r != nullptr)
+							data[1] = *r;
+
+						block bl(data, numChannels);
+						cData.callbacks[CallbackCollection::Frame].callVoidUnchecked(bl);
+
+						*l++ = data[0];
+
+						if (r != nullptr)
+							*r++ = data[1];
+					}
+					break;
+				}
+				case CallbackCollection::Sample:
+				{
+					for (int c = 0; c < b.getNumChannels(); c++)
+					{
+						float *ptr = b.getWritePointer(c);
+
+						for (int i = 0; i < b.getNumSamples(); i++)
+						{
+							float value = *ptr;
+							float result = cData.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
+							*ptr++ = result;
+						}
+					}
+					
+					break;
+				}
+			}
+
+			
+			}
+
             auto stop = Time::getMillisecondCounterHiRes();
             
             auto duration = stop - start;
-            
-            //auto resultValue = 1.0f;
             
             String rs;
             
@@ -400,17 +522,48 @@ void SnexPlayground::recalculate()
     {
         resultLabel.setText("processFrame was not found.", dontSendNotification);
     }
-    
 
 	graph.setBuffer(b);
+}
+
+void SnexPlayground::recompile()
+{
+	String s;
+	s << doc.getAllContent();
+
+	externalCodeValue.setValue(s);
+
+	consoleContent.replaceAllContent({});
+	consoleContent.clearUndoHistory();
+
+	Compiler cc(memory);
+	cc.setDebugHandler(this);
+
+	auto newObject = cc.compileJitObject(s);
+
+	if (!cc.getCompileResult().wasOk())
+	{
+		resultLabel.setText(cc.getCompileResult().getErrorMessage(), dontSendNotification);
+		graph.setBuffer(b);
+	}
+	else
+	{
+		cData.obj = newObject;
+		cData.setupCallbacks();
+
+		assemblyDoc.replaceAllContent(cc.getAssemblyCode());
+		sliders.updateFromJitObject(cData.obj);
+
+		resized();
+		recalculate();
+	}
 }
 
 bool SnexPlayground::keyPressed(const KeyPress& k)
 {
 	if (k.getKeyCode() == KeyPress::F5Key)
 	{
-		recalculate();
-
+		recompile();
 
 		return true;
 	}
@@ -422,7 +575,7 @@ void SnexPlayground::createTestSignal()
 {
 	auto d = b.getWritePointer(0);
 
-	int signalType = testSignal.getSelectedItemIndex();
+	int signalType = graph.testSignal.getSelectedItemIndex();
 
 	for (int i = 0; i < b.getNumSamples(); i++)
 	{
@@ -432,40 +585,49 @@ void SnexPlayground::createTestSignal()
 		case 1:	d[i] = (float)i / (float)b.getNumSamples(); break;
 		case 2:	d[i] = fmodf((float)i / (float)b.getNumSamples() * 30.0f, 1.0f); break;
 		}
+	}
 
+	if (b.getNumChannels() > 1)
+	{
+		FloatVectorOperations::copy(b.getWritePointer(1), b.getWritePointer(0), b.getNumSamples());
 	}
 }
 
 void Graph::setBuffer(AudioSampleBuffer& b)
 {
-	p.clear();
+	calculatePath(l, b, 0);
 
-    if(b.getMagnitude(0, b.getNumSamples()) > 0.0f)
-    {
-        p.startNewSubPath(0.0f, 1.0f);
-        
-        int samplesPerPixel = b.getNumSamples() / jmax(1, getWidth());
-        
-        for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
-        {
-            int numToDo = jmin(samplesPerPixel, b.getNumSamples() - i);
-            auto range = FloatVectorOperations::findMinAndMax(b.getWritePointer(0, i), numToDo);
-            
-            if (range.getEnd() > (-1.0f * range.getStart()))
-            {
-                p.lineTo((float)i, 1.0f - range.getEnd());
-            }
-            else
-                p.lineTo((float)i, 1.0f - range.getStart());
-        }
-        
-        p.lineTo((float)b.getNumSamples(), 1.0f);
-        p.closeSubPath();
-        
-        p.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), false);
-    }
+	stereoMode = b.getNumChannels() == 2;
+
+	if (stereoMode)
+		calculatePath(r, b, 1);
+	else
+		r.clear();
     
+	auto pb = getLocalBounds();
+	pb.removeFromLeft(boxWidth);
+	pb.removeFromRight(60);
+
+	leftPeaks = b.findMinMax(0, 0, b.getNumSamples());
+
 	
+	
+
+	if (stereoMode)
+	{
+		auto lb = pb.removeFromTop(getHeight() / 2).toFloat();
+		auto rb = pb.toFloat();
+
+		l.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
+		r.scaleToFit(rb.getX(), rb.getY(), rb.getWidth(), rb.getHeight(), false);
+
+		rightPeaks = b.findMinMax(1, 0, b.getNumSamples());
+	}
+	else
+	{
+		auto lb = pb.toFloat();
+		l.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
+	}
 
 	repaint();
 }
@@ -474,8 +636,9 @@ void Graph::paint(Graphics& g)
 {
 	g.fillAll(Colour(0x33666666));
 	
+	g.setFont(GLOBAL_BOLD_FONT());
 
-	if (p.isEmpty())
+	if (l.isEmpty() && r.isEmpty())
 	{
 		g.setColour(Colours::white.withAlpha(0.5f));
 		g.setFont(GLOBAL_BOLD_FONT());
@@ -484,7 +647,74 @@ void Graph::paint(Graphics& g)
 	else
 	{
 		g.setColour(Colours::white.withAlpha(0.8f));
-		g.fillPath(p);
+		g.fillPath(l);
+
+		if (stereoMode && !r.isEmpty())
+			g.fillPath(r);
+
+		auto b = getLocalBounds().removeFromRight(50);
+
+		if (stereoMode)
+		{
+			auto l = b.removeFromTop(b.getHeight() / 2).toFloat();
+			auto r = b.toFloat();
+
+			auto lMax = l.removeFromTop(18);
+			auto lMin = l.removeFromBottom(18);
+
+			g.drawText(String(leftPeaks.getStart(), 1), lMin, Justification::left);
+			g.drawText(String(leftPeaks.getEnd(), 1), lMax, Justification::left);
+
+			auto rMax = r.removeFromTop(18);
+			auto rMin = r.removeFromBottom(18);
+
+			g.drawText(String(rightPeaks.getStart(), 1), rMin, Justification::left);
+			g.drawText(String(rightPeaks.getEnd(), 1), rMax, Justification::left);
+		}
+		else
+		{
+			auto l = b.removeFromTop(b.getHeight()).toFloat();
+
+			auto lMax = l.removeFromTop(18);
+			auto lMin = l.removeFromBottom(18);
+
+			g.drawText(String(leftPeaks.getStart(), 1), lMin, Justification::left);
+			g.drawText(String(leftPeaks.getEnd(), 1), lMax, Justification::left);
+		}
+	}
+
+	
+
+	
+
+
+}
+
+void Graph::calculatePath(Path& p, AudioSampleBuffer& b, int channel)
+{
+	p.clear();
+
+	if (b.getMagnitude(channel, 0, b.getNumSamples()) > 0.0f)
+	{
+		p.startNewSubPath(0.0f, 1.0f);
+
+		int samplesPerPixel = jmax(1, b.getNumSamples() / jmax(1, getWidth()));
+
+		for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
+		{
+			int numToDo = jmin(samplesPerPixel, b.getNumSamples() - i);
+			auto range = FloatVectorOperations::findMinAndMax(b.getWritePointer(channel, i), numToDo);
+
+			if (range.getEnd() > (-1.0f * range.getStart()))
+			{
+				p.lineTo((float)i, 1.0f - range.getEnd());
+			}
+			else
+				p.lineTo((float)i, 1.0f - range.getStart());
+		}
+
+		p.lineTo((float)(b.getNumSamples()-1), 1.0f);
+		p.closeSubPath();		
 	}
 }
 
