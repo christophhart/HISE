@@ -69,9 +69,11 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			FunctionParser p(compiler, *this);
 
 			statements = p.parseStatementList();
-
+			
+			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, statements);
 			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, statements);
 			compiler->executePass(BaseCompiler::TypeCheck, functionScope, statements);
+			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, statements);
 
 			functionScope->parentFunction = nullptr;
 
@@ -84,10 +86,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			throw e;
 		}
-
-
-
-
 	}
 
 	COMPILER_PASS(BaseCompiler::FunctionCompilation)
@@ -114,6 +112,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		compiler->registerPool.clear();
 
+		compiler->executePass(BaseCompiler::PreCodeGenerationOptimization, functionScope, statements);
 		compiler->executePass(BaseCompiler::RegisterAllocation, functionScope, statements);
 		compiler->executePass(BaseCompiler::CodeGeneration, functionScope, statements);
 

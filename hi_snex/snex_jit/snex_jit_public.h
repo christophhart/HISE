@@ -39,6 +39,26 @@
 #define JIT_MEMBER_WRAPPER_4(R, C, N, T1, T2, T3, T4)	  static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4) { return static_cast<C*>(o)->N(a1, a2, a3, a4); };
 #define JIT_MEMBER_WRAPPER_5(R, C, N, T1, T2, T3, T4, T5) static R N(void* o, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) { return static_cast<C*>(o)->N(a1, a2, a3, a4, a5); };
 
+namespace snex
+{
+namespace jit
+{
+#define DECLARE_ID(x) static const juce::Identifier x(#x);
+
+namespace OptimizationIds
+{
+DECLARE_ID(ConstantFolding);
+DECLARE_ID(Inlining);
+DECLARE_ID(DeadCodeElimination);
+DECLARE_ID(BinaryOpOptimisation);
+}
+
+#undef DECLARE_ID
+}
+}
+
+
+
 
 #include "snex_jit_Functions.h"
 #include "snex_jit_BaseScope.h"

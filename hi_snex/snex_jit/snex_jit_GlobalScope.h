@@ -57,6 +57,8 @@ struct DebugHandler
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DebugHandler);
 };
 
+class BaseCompiler;
+
 /** The global scope that is passed to the compiler and contains the global variables
 	and all registered objects.
 
@@ -122,7 +124,23 @@ public:
 			dh->logMessage(message);
 	}
 
+	/** Add an optimization pass ID that will be added to each compiler that uses this scope. 
+		
+		Use one of the IDs defined in the namespace OptimizationIds.
+	*/
+	void addOptimization(const Identifier& passId)
+	{
+		optimizationPasses.addIfNotAlreadyThere(passId);
+	}
+
+	const Array<Identifier>& getOptimizationPassList() const
+	{
+		return optimizationPasses;
+	}
+
 private:
+
+	Array<Identifier> optimizationPasses;
 
 	Array<WeakReference<DebugHandler>> debugHandlers;
 

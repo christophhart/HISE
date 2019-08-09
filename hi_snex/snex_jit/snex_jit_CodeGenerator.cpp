@@ -70,14 +70,14 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 	IF_(void) jassertfalse;
 	IF_(float)  FP_OP(cc.movss, target, value);
 	IF_(double) FP_OP(cc.movsd, target, value);
-	IF_(int)   INT_OP(cc.mov,   target, value);
+	IF_(int)   INT_OP(cc.mov, target, value);
 	IF_(HiseEvent) INT_OP(cc.mov, target, value);
 	IF_(block)
-    {
-        value->createRegister(cc);
-        cc.mov(INT_REG_W(target), INT_REG_R(value));
-        
-    }
+	{
+		value->createRegister(cc);
+		cc.mov(INT_REG_W(target), INT_REG_R(value));
+
+	}
 }
 
 
@@ -87,8 +87,8 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 
 	cc.setInlineComment("Write class variable");
 
-    auto data = source->getGlobalDataPointer();
-    
+	auto data = source->getGlobalDataPointer();
+
 #if JUCE_64BIT
 	X86Gp address = cc.newGpq();
 	cc.mov(address, reinterpret_cast<uint64_t>(data));
@@ -97,7 +97,7 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 	auto target = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
 #endif
 
-	IF_(int)	cc.mov  (target, source->getRegisterForReadOp().as<X86Gp>());
+	IF_(int)	cc.mov(target, source->getRegisterForReadOp().as<X86Gp>());
 	IF_(float)	cc.movss(target, source->getRegisterForReadOp().as<X86Xmm>());
 	IF_(double) cc.movsd(target, source->getRegisterForReadOp().as<X86Xmm>());
 }
@@ -193,16 +193,16 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 			cc.idiv(dummy, INT_REG_W(l), forcedMemory);
 		}
 		else					   cc.idiv(dummy, INT_REG_W(l), INT_REG_R(r));
-		
+
 		if (op == JitTokens::modulo)
 			cc.mov(INT_REG_W(l), dummy);
 
 		return l;
 	}
 
-	BINARY_OP(JitTokens::plus,   cc.add, cc.addss, cc.addsd);
-	BINARY_OP(JitTokens::minus,  cc.sub, cc.subss, cc.subsd);
-	BINARY_OP(JitTokens::times,  cc.imul, cc.mulss, cc.mulsd);
+	BINARY_OP(JitTokens::plus, cc.add, cc.addss, cc.addsd);
+	BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
+	BINARY_OP(JitTokens::times, cc.imul, cc.mulss, cc.mulsd);
 	BINARY_OP(JitTokens::divide, cc.idiv, cc.divss, cc.divsd);
 
 	return l;
@@ -215,7 +215,7 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 	auto l = lExpr->reg;
 
 	auto shortCircuit = cc.newLabel();
-	
+
 	l->loadMemoryIntoRegister(cc);
 
 	int shortCircuitValue = (op->op == JitTokens::logicalAnd) ? 1 : 0;
@@ -284,7 +284,7 @@ void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
 #define FLOAT_COMPARE(token, command) if (op == token) command(INT_REG_R(target), condReg);
 
 	auto condReg = cc.newGpq();
-	
+
 	cc.mov(INT_REG_W(target), 0);
 	cc.mov(condReg, 1);
 
@@ -340,7 +340,7 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Operations::Expression* condition, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s)
 {
 	RegPtr returnReg;
-	
+
 	if (returnType != Types::ID::Void)
 	{
 		returnReg = c->registerPool.getNextFreeRegister(returnType);
@@ -348,7 +348,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 		auto vv = returnReg->getRegisterForWriteOp();
 	}
 
-	
+
 	auto l = cc.newLabel();
 
 	auto e = cc.newLabel();
@@ -386,7 +386,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 				jassertfalse;
 		}
 	}
-	
+
 	cc.jmp(e);
 	cc.bind(l);
 	cc.setInlineComment("true branch");
@@ -420,7 +420,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitTernaryOp(Operations::TernaryOp* 
 	returnReg->createRegister(cc);
 	auto vv = returnReg->getRegisterForWriteOp();
 
-	
+
 
 	auto l = cc.newLabel();
 	auto e = cc.newLabel();
@@ -440,7 +440,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitTernaryOp(Operations::TernaryOp* 
 	cc.jnz(l);
 
 	condition->reg->flagForReuseIfAnonymous();
-	
+
 	cc.setInlineComment("false branch");
 	falseBranch->process(c, s);
 	emitStore(returnReg, falseBranch->reg);
@@ -500,7 +500,7 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 
 		IF_(float) // SOURCE TYPE
 		{
-			if(IS_MEM(expr)) cc.cvttss2si(INT_REG_W(target), FP_MEM(expr));
+			if (IS_MEM(expr)) cc.cvttss2si(INT_REG_W(target), FP_MEM(expr));
 			else			 cc.cvttss2si(INT_REG_W(target), FP_REG_R(expr));
 		}
 		IF_(double) // SOURCE TYPE
@@ -526,7 +526,7 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 			else			  cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
 		}
 
-		return ;
+		return;
 	}
 	IF_(float) // TARGET TYPE
 	{
@@ -596,7 +596,7 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	{
 		call->setArg(i + offset, parameterRegisters[i]->getRegisterForReadOp());
 	}
-	
+
 	if (f.returnType != Types::ID::Void)
 	{
 		returnReg->createRegister(cc);
@@ -627,170 +627,7 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 	}
 }
 
-struct VOps
-{
-#define VAR_OP(name, opChar) static VariableStorage name(VariableStorage l, VariableStorage r) { return VariableStorage(l.getType(), l.toDouble() opChar r.toDouble()); }
-
-	VAR_OP(sum, +);
-	VAR_OP(mul, *);
-	VAR_OP(div, /);
-	VAR_OP(sub, -);
-
-#undef VAR_OP
-};
-
-
-
-snex::VariableStorage ConstExprEvaluator::binaryOp(TokenType t, VariableStorage left, VariableStorage right)
-{
-	if (t == JitTokens::plus || t == JitTokens::plusEquals) return VOps::sum(left, right);
-	if (t == JitTokens::minus || t == JitTokens::minusEquals) return VOps::sub(left, right);
-	if (t == JitTokens::times || t == JitTokens::timesEquals) return VOps::mul(left, right);
-	if (t == JitTokens::divide || t == JitTokens::divideEquals) return VOps::div(left, right);
-
-	return left;
-}
-
-Result ConstExprEvaluator::process(SyntaxTree* tree)
-{
-	jassertfalse;
-
-	for (auto s : *tree)
-	{
-		if (auto v = as<Operations::VariableReference>(s))
-		{
-			// Keep the first reference to a const variable alive
-			// so that the parent assignment can do it's job
-			bool isConstInitialisation = v->ref->isConst && v->isFirstReference();
-
-			if (!v->isClassVariable && v->ref->isConst && !isConstInitialisation)
-				replaceWithImmediate(v, v->ref->getDataCopy());
-		}
-		if (auto a = as<Operations::Assignment>(s))
-		{
-			auto target = a->getTargetVariable();
-
-			if (target->isLocalToScope && a->isLastAssignmentToTarget() && target->isFirstReference() && a->getSubExpr(1)->isConstExpr())
-				target->ref->isConst = true;
-
-			if (a->assignmentType == JitTokens::assign_ &&
-				a->getSubExpr(1)->isConstExpr())
-			{
-				bool allowInitialisation = !target->isLocalConst ||
-					target->isFirstReference();
-
-				auto& value = target->ref->getDataReference(allowInitialisation);
-				value = dynamic_cast<Operations::Immediate*>(a->getSubExpr(1).get())->v;
-			}
-		}
-		if (auto c = as<Operations::Cast>(s))
-		{
-			if (auto ce = evalCast(c->getSubExpr(0), c->getType()))
-				c->replaceInParent(ce);
-		}
-		if (auto b = as<Operations::BinaryOp>(s))
-		{
-			if (auto ce = evalBinaryOp(b->getSubExpr(0), b->getSubExpr(1), b->op))
-				b->replaceInParent(ce);
-			else
-			{
-				if (b->getSubExpr(1)->isConstExpr())
-				{
-					ExprPtr old = b->getSubExpr(1);
-
-					ExprPtr newPtr = ConstExprEvaluator::createInvertImmediate(b->getSubExpr(1), b->op);
-
-					if (old != newPtr)
-					{
-						auto oldOp = b->op;
-						old->replaceInParent(newPtr);
-
-						if (b->op == JitTokens::divide) b->op = JitTokens::times;
-						if (b->op == JitTokens::minus) b->op = JitTokens::plus;
-						String m;
-						m << "Replaced " << oldOp << " with " << b->op;
-						b->logOptimisationMessage(m);
-					}
-
-				}
-			}
-		}
-		if (auto n = as<Operations::Negation>(s))
-		{
-			if (auto ce = evalNegation(n->getSubExpr(0)))
-				n->replaceInParent(ce);
-		}
-	}
-
-	return Result::ok();
-}
-
-
-void ConstExprEvaluator::replaceWithImmediate(ExprPtr e, const VariableStorage& value)
-{
-	jassertfalse;
-
-	e->replaceInParent(new Operations::Immediate(e->location, value));
-}
-
-snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalBinaryOp(ExprPtr left, ExprPtr right, OpType op)
-{
-	if (left->isConstExpr() && right->isConstExpr())
-	{
-		VariableStorage result;
-		VariableStorage leftValue = left->getConstExprValue();
-		VariableStorage rightValue = right->getConstExprValue();
-
-		if (op == JitTokens::plus) result = VOps::sum(leftValue, rightValue);
-		if (op == JitTokens::minus) result = VOps::sub(leftValue, rightValue);
-		if (op == JitTokens::times) result = VOps::mul(leftValue, rightValue);
-		if (op == JitTokens::divide) result = VOps::div(leftValue, rightValue);
-
-		return new Operations::Immediate(left->location, result);
-	}
-
-	return nullptr;
-}
-
-
-snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalNegation(ExprPtr expr)
-{
-	if (expr->isConstExpr())
-	{
-		auto result = VOps::mul(expr->getConstExprValue(), -1.0);
-		return new Operations::Immediate(expr->location, result);
-	}
-
-	return nullptr;
-}
-
-
-
-ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalCast(ExprPtr expression, Types::ID targetType)
-{
-	if (expression->isConstExpr())
-	{
-		auto value = expression->getConstExprValue();
-		return new Operations::Immediate(expression->location, VariableStorage(targetType, value.toDouble()));
-	}
-
-	return nullptr;
-}
-
-
-snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::createInvertImmediate(ExprPtr immediate, OpType op)
-{
-	auto v = immediate->getConstExprValue().toDouble();
-
-	if (op == JitTokens::minus) v *= -1.0;
-	else if (op == JitTokens::divide) v = 1.0 / v;
-	else return immediate;
-
-	return new Operations::Immediate(immediate->location, VariableStorage(immediate->getType(), v));
-}
 
 }
-
-#undef IS
 
 }

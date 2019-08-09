@@ -37,36 +37,7 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-class ConstExprEvaluator: public OptimizationPass
-{
-public:
 
-	using TokenType = const char*;
-
-	static VariableStorage binaryOp(TokenType t, VariableStorage left, VariableStorage right);
-		
-	using ExprPtr = Operations::Expression::Ptr;
-	using OpType = const char*;
-
-	String getName() const { return "Constant folding"; };
-
-	Result process(SyntaxTree* tree) override;
-
-	void replaceWithImmediate(ExprPtr e, const VariableStorage& value);
-
-	/** Checks if the two expressions are constant.
-
-		Returns nullptr if it can't be optimized, otherwise an
-		Immediate expression with the result.
-	*/
-	static ExprPtr evalBinaryOp(ExprPtr left, ExprPtr right, OpType op);
-
-	static ExprPtr evalNegation(ExprPtr expr);
-
-	static ExprPtr evalCast(ExprPtr expression, Types::ID targetType);
-
-	static ExprPtr createInvertImmediate(ExprPtr immediate, OpType op);
-};
 
 struct AsmCodeGenerator
 {

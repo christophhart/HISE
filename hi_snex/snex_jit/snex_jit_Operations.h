@@ -73,7 +73,19 @@ public:
 	ReferenceCountedArray<Statement> statements;
 };
 
+struct Operations::Noop : public Expression
+{
+	Noop(Location l) :
+		Expression(l)
+	{}
 
+	void process(BaseCompiler* compiler, BaseScope* scope)
+	{
+		Statement::process(compiler, scope);
+	}
+
+	Types::ID getType() const override { return Types::ID::Void; };
+};
 
 
 struct Operations::Immediate : public Expression
@@ -125,11 +137,36 @@ struct Operations::VariableReference : public Expression
 		return isLast;
 	}
 
+	bool isConstExpr() const override
+	{
+		if (parameterIndex != -1)
+			return false;
+
+		return isLocalConst;
+	}
+
+	VariableStorage getConstExprValue() const
+	{
+		jassert(isLocalToScope);
+
+		return ref->getDataCopy();
+	}
+
 	bool isReferencedOnce() const
 	{
 		// The class variable definition is also a reference so we 
 		// need to take it into account.
 		return ref->getNumReferences() == (isClassVariable ? 2 : 1);
+	}
+
+	bool isParameter(BaseScope* scope) const
+	{
+		if (auto fScope = dynamic_cast<FunctionScope*>(scope->getScopeForSymbol(id)))
+		{
+			return fScope->parameters.contains(id.id);
+		}
+
+		return false;
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
@@ -178,7 +215,12 @@ struct Operations::VariableReference : public Expression
 					parameterIndex = fScope->parameters.indexOf(id.id);
 
 					if (parameterIndex != -1)
+					{
+						// This might be changed by the constant folding
+						// so we have to reset it here...
+						isLocalConst = false;
 						type = fScope->data.args[parameterIndex];
+					}
 				}
 			}
 			else
@@ -225,7 +267,7 @@ struct Operations::VariableReference : public Expression
 
 			if (isFirstReference())
 			{
-				auto assignmentType = isWriteAccess();
+				auto assignmentType = getWriteAccessType();
 
 				auto* dataPointer = &ref.get()->getDataReference(assignmentType == JitTokens::assign_);
 
@@ -253,7 +295,12 @@ struct Operations::VariableReference : public Expression
 		}
 	}
 
-	TokenType isWriteAccess();
+	bool isBeingWritten()
+	{
+		return getWriteAccessType() != JitTokens::void_;
+	}
+
+	TokenType getWriteAccessType();
 
 	bool isFirstReference()
 	{
@@ -352,7 +399,7 @@ struct Operations::Assignment : public Expression
 
 	VariableReference* getTargetVariable() const
 	{
-		jassert(currentPass >= BaseCompiler::ResolvingSymbols);
+		jassert(currentPass >= BaseCompiler::ResolvingSymbols || BaseCompiler::isOptimizationPass(currentPass));
 		return dynamic_cast<VariableReference*>(getSubExpr(1).get());
 	}
 
@@ -362,11 +409,11 @@ struct Operations::Assignment : public Expression
 
 
 
-Operations::TokenType Operations::VariableReference::isWriteAccess()
+Operations::TokenType Operations::VariableReference::getWriteAccessType()
 {
 	if (auto as = dynamic_cast<Assignment*>(parent.get()))
 	{
-		if (as->getTargetVariable() == this)
+		if (as->getSubExpr(1).get() == this)
 			return as->assignmentType;
 	}
 

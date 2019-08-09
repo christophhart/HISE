@@ -70,6 +70,16 @@ public:
 		memoryPool(memoryPool_),
 		lastResult(Result::ok())
 	{
+		const auto& optList = memoryPool.getOptimizationPassList();
+
+		if (!optList.isEmpty())
+		{
+			OptimizationFactory f;
+
+			for (const auto& id : optList)
+				addOptimization(f.createOptimization(id));
+		}
+
 		newScope = new JitCompiledFunctionClass(memoryPool);
 	};
 
@@ -95,8 +105,10 @@ public:
 		{
 			setCurrentPass(BaseCompiler::Parsing);
 			syntaxTree = parser.parseStatementList();
+			executePass(PreSymbolOptimization, newScope->pimpl, syntaxTree);
 			executePass(ResolvingSymbols, newScope->pimpl, syntaxTree);
 			executePass(TypeCheck, newScope->pimpl, syntaxTree);
+			executePass(PostSymbolOptimization, newScope->pimpl, syntaxTree);
 			executePass(FunctionParsing, newScope->pimpl, syntaxTree);
 
 			// Optimize now
@@ -279,14 +291,31 @@ snex::VariableStorage BlockParser::parseVariableStorageLiteral()
 		return {};
 }
 
+void BaseCompiler::executeOptimization(ReferenceCountedObject* statement, BaseScope* scope)
+{
+	if (passes.isEmpty())
+		return;
+
+	Operations::Statement::Ptr ptr(dynamic_cast<Operations::Statement*>(statement));
+
+	for(auto o: passes)
+		dynamic_cast<OptimizationPass*>(o)->process(this, scope, ptr);
+}
+
 void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
 {
+	if (isOptimizationPass(p) && passes.isEmpty())
+		return;
+
 	setCurrentPass(p);
 
 	for (auto s : *statements)
 	{
 		try
 		{
+			for (auto o : passes)
+				o->reset();
+
 			s->process(this, scope);
 		}
 		catch (DeadCodeException& d)
@@ -300,8 +329,20 @@ void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
 	}
 }
 
+void OptimizationPass::replaceWithNoop(StatementPtr s)
+{
+	s->logOptimisationMessage("Remove statement");
+	
+	replaceExpression(s, new Operations::Noop(s->location));
+}
 
-
+void OptimizationPass::replaceExpression(StatementPtr old, ExprPtr newExpression)
+{
+	if (auto exp = dynamic_cast<Operations::Expression*>(old.get()))
+	{
+		exp->replaceInParent(newExpression);
+	}
+}
 
 }
 }

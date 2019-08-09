@@ -364,6 +364,11 @@ void Operations::Statement::process(BaseCompiler* compiler, BaseScope* scope)
 	currentCompiler = compiler;
 	currentScope = scope;
 	currentPass = compiler->getCurrentPass();
+
+	if (BaseCompiler::isOptimizationPass(currentPass))
+	{
+		compiler->executeOptimization(this, scope);
+	}
 }
 
 void Operations::Statement::throwError(const String& errorMessage)
@@ -409,7 +414,7 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 	{
 		// If we write to a class variable, we need to create the register
 		// outside the loop
-		if (v->isClassVariable && v->isWriteAccess())
+		if (v->isClassVariable && v->isBeingWritten())
 			v->process(c, s);
 	}
 }

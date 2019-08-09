@@ -86,7 +86,7 @@ public:
 		void logWarning(const String& m);
 		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message);
 
-		bool isConstExpr() const;
+		virtual bool isConstExpr() const;
 
 		Location location;
 
@@ -124,7 +124,7 @@ public:
 
 		bool isAnonymousStatement() const;
 
-		VariableStorage getConstExprValue() const;
+		virtual VariableStorage getConstExprValue() const;
 
 		int getNumSubExpressions() const;
 
@@ -150,7 +150,7 @@ public:
 
 	protected:
 
-		friend class ConstExprEvaluator;
+		friend class OptimizationPass;
 
 		Ptr replaceInParent(Expression::Ptr newExpression);
 
@@ -193,7 +193,7 @@ public:
 	static bool isOpAssignment(Expression::Ptr p);
 
 
-	struct Assignment;		struct Immediate;
+	struct Assignment;		struct Immediate;				struct Noop;
 	struct FunctionCall;	struct ReturnStatement;			struct StatementBlock;
 	struct Function;		struct BinaryOp;				struct VariableReference;
 	struct TernaryOp;		struct LogicalNot;				struct Cast;

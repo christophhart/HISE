@@ -53,6 +53,12 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 	spacerParameters("Parameters"),
 	compileButton("Compile")
 {
+	
+	memory.addOptimization(OptimizationIds::ConstantFolding);
+	memory.addOptimization(OptimizationIds::DeadCodeElimination);
+	memory.addOptimization(OptimizationIds::Inlining);
+	memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
+
 	setName("SNEX Editor");
 
     setLookAndFeel(&laf);
@@ -537,6 +543,7 @@ void SnexPlayground::recompile()
 	consoleContent.clearUndoHistory();
 
 	Compiler cc(memory);
+
 	cc.setDebugHandler(this);
 
 	auto newObject = cc.compileJitObject(s);

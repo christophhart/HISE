@@ -63,11 +63,13 @@ struct BaseCompiler
 	enum Pass
 	{
 		Parsing,
+		PreSymbolOptimization,
 		ResolvingSymbols,
 		TypeCheck,
+		PostSymbolOptimization,
 		FunctionParsing,
-
 		FunctionCompilation,
+		PreCodeGenerationOptimization,
 		RegisterAllocation,
 		CodeGeneration,
 		numPasses
@@ -77,7 +79,9 @@ struct BaseCompiler
 	{
 		virtual ~OptimizationPassBase() {};
 		virtual String getName() const = 0;
-		virtual Result process(SyntaxTree* tree) = 0;
+
+		/** This will get called before each statement so you can reset the state. */
+		virtual void reset() {};
 	};
 
 	void setDebugHandler(DebugHandler* l)
@@ -112,19 +116,29 @@ struct BaseCompiler
 		verbosity = maxVerbosity;
 	}
 
+	static bool isOptimizationPass(Pass p)
+	{
+		return p == PreSymbolOptimization ||
+			p == PostSymbolOptimization   ||
+			p == PreCodeGenerationOptimization;
+	}
+
 	void setCurrentPass(Pass p)
 	{
 		currentPass = p;
 
 		switch (currentPass)
 		{
-		case Parsing:logMessage(PassMessage, "Parsing class statements"); break;
-		case FunctionParsing:	    logMessage(PassMessage, "Parsing Functions"); break;
-		case ResolvingSymbols:		logMessage(PassMessage, "Resolving symbols"); break;
-		case RegisterAllocation:	logMessage(PassMessage, "Allocating Registers"); break;
-		case TypeCheck:				logMessage(PassMessage, "Checking Types"); break;
-		case FunctionCompilation:	logMessage(PassMessage, "Compiling Functions"); break;
-		case CodeGeneration:	logMessage(PassMessage, "Generating assembly code"); break;
+		case Parsing:					    logMessage(PassMessage, "Parsing class statements"); break;
+		case FunctionParsing:				logMessage(PassMessage, "Parsing Functions"); break;
+		case PreSymbolOptimization:			logMessage(PassMessage, "Optimization Stage 1"); break;
+		case PostSymbolOptimization:		logMessage(PassMessage, "Optimization Stage 2"); break;
+		case PreCodeGenerationOptimization: logMessage(PassMessage, "Optimization Stage 3"); break;
+		case ResolvingSymbols:				logMessage(PassMessage, "Resolving symbols"); break;
+		case RegisterAllocation:			logMessage(PassMessage, "Allocating Registers"); break;
+		case TypeCheck:						logMessage(PassMessage, "Checking Types"); break;
+		case FunctionCompilation:			logMessage(PassMessage, "Compiling Functions"); break;
+		case CodeGeneration:				logMessage(PassMessage, "Generating assembly code"); break;
 		case numPasses:
 		default:
 			break;
@@ -135,6 +149,8 @@ struct BaseCompiler
 
 	void executePass(Pass p, BaseScope* scope, SyntaxTree* statements);
 
+	void executeOptimization(ReferenceCountedObject* statement, BaseScope* scope);
+	
 	void addOptimization(OptimizationPassBase* newPass)
 	{
 		passes.add(newPass);
