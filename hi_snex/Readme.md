@@ -118,9 +118,7 @@ The **SNEX** syntax uses brackets for blocks and semicolons for statements. Comm
 }
 ```
 
-You can define variables in any scope (function scope or global scope), however **there are no anonymous scopes**.
-
-## Language structure
+## Code structure
 
 A valid SNEX code consists of definitions of variables and functions:
 
@@ -393,56 +391,24 @@ float x = Math.sin(2.0f);
 > The `Math` class contains overloaded functions for `double` and `float`, so be aware of implicit casts here.
 
 
-## Embedding the language
-
-Embedding the language in a C++ project is pretty simple:
-
-```cpp
-
-// Create a global scope that contains global variables.
-snex::jit::GlobalScope pool;
-
-// Create a compiler that turns a String into a function pointer.
-snex::jit::Compiler compiler(pool);
-
-// The SNEX code to be parsed - Check the language reference below
-juce::String code = "float member = 8.0f; float square(float input){ member = input; return input * input; }";
-
-// Compiles and returns a object that contains the function code and slots for class variables.
-if (auto obj = compiler.compileJitObject(code))
-{
-    // Returns a wrapper around the function with the given name
-    auto f = obj["square"];
-    
-    // Returns a reference to the variable slot `member`
-    auto ptr = obj.getVariablePtr("member");
-
-    DBG(ptr->toFloat()); // 8.0f
-
-    // call the function - the return type has to be passed in via template.
-    // It checks that the function signature matches 
-    // and the JIT function was compiled correctly.
-    auto returnValue = f.call<float>(12.0f);
-    
-    DBG(returnValue); // 144.0f
-    DBG(ptr->toFloat()); // 12.0f
-}
-else
-{
-    DBG(compiler.getErrorMessage());
-}
-```
-
 ## Examples
 
 These examples show some basic DSP algorithms and how they are implemented in SNEX. In order to use it, just load the given HISE Snippets into the latest version of HISE and play around.
 
 ### Basic Sine Synthesiser
 
-HISE automatically supports polyphony when 
+HISE automatically supports polyphony: if the DSP network is polyphonic, the JIT compiler will compile the code for each voice. The beauty of this is that we don't have to care about voice management plus we can use the effects and modulators from HISE.
+
+The lifetime of a voice will always be:
+
+- the `reset()` callback - here we need to reset the phase of the oscillator or it will click at the beginning
+- the `handleEvent()` callback - we use this to determine the frequency of the oscillator
+- one of the `process` callbacks for as long as the voice is active (= all envelopes are active).
+
+This code will generate a basic sine wave generator. The performance is about 2-3x slower than the HISE Sine Wave Generator, but it will catch up once the algorithms get complexer (eg. additive synthesis).
 
 ```cpp
-// we initialise it to a weird value, will get corrected later
+// we initialise it to zero, will get corrected later
 double sr = 0.0;
 
 // the counter for the signal generation
@@ -450,8 +416,6 @@ double uptime = 0.0;
 
 // the increment value (will control the frequency)
 double delta = 0.0;
-
-
 
 void prepare(double sampleRate, int blockSize, int numChannels)
 {
@@ -477,34 +441,54 @@ void handleEvent(event e)
     delta = 2.0 * 3.14159265359 * cyclesPerSample;
 }
 
-void processFrame(block frame)
+void processChannel(block input, int channelIndex)
 {
-    // Calculate the signal
-    frame[0] = (float)Math.sin(uptime);
+    // We just calculate the left channel here
+    // (duplicating it to stereo is a task for 
+    // the core.mono2stereo node...
+    if(channelIndex == 1)
+        return;
 
-    // Increment the value
-    uptime += delta;
+    loop_block(sample: input)
+    {
+        // Calculate the signal
+        sample = (float)Math.sin(uptime);
 
-    // Copy the signal to the right channel
-    frame[1] = frame[0];
+        // Increment the value
+        uptime += delta;
+    }    
 }
 ```
 
+## Special Objects
+
+Apart from the basic types listed above there are a few additional object types that are useful in a DSP development context.
+
+### Smoothed Floating point values
+
+A common task in writing DSP algorithms is having to create smooth parameter changes, which reduce the so-called zipper effect that occurs when the parameter steps become audible.
+
+**SNEX** has a ramping tool built into the language itself: `sfloat` and `sdouble`.
+
 ```cpp
-smoothed_float s = 1.0f;
+// create a smoothed float value
+sfloat s = 1.0f;
 
 void prepare(double sampleRate, int blockSize, int numChannels)
 {
-    s.prepare(sampleRate, 100);
+    // this sets the smoothing time (in milliseconds.
+    s.prepare(sampleRate, 100.0);
 }
 
 void reset()
 {
-    s.clear(0.0);
+    // directly jumps to the given value
+    s.reset(0.0);
 }
 
 float processSample(float input)
 {
-    return s.next(input);
+    // calculates the next ramp value (or returns the target value)
+    return s.next();
 }
 ```
