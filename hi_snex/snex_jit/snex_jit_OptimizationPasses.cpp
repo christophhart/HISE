@@ -37,31 +37,34 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-
+void OptimizationPass::replaceWithNoop(StatementPtr s)
+{
+	s->logOptimisationMessage("Remove statement");
+	replaceExpression(s, new Operations::Noop(s->location));
+}
 
 struct VOps
 {
 #define VAR_OP(name, opChar) static VariableStorage name(VariableStorage l, VariableStorage r) { return VariableStorage(l.getType(), l.toDouble() opChar r.toDouble()); }
+#define VAR_OP_INT(name, opChar) static VariableStorage name(VariableStorage l, VariableStorage r) { return VariableStorage(l.getType(), l.toInt() opChar r.toInt()); }
 
-	VAR_OP(sum, +);
-	VAR_OP(mul, *);
-	VAR_OP(div, / );
-	VAR_OP(sub, -);
+	VAR_OP(plus, +);
+	VAR_OP(times, *);
+	VAR_OP(divide, / );
+	VAR_OP(minus, -);
+	VAR_OP_INT(modulo, %);
+	VAR_OP(greaterThan, >);
+	VAR_OP(lessThan, < );
+	VAR_OP(greaterThanOrEqual, >= );
+	VAR_OP(lessThanOrEqual, <= );
+	VAR_OP(equals, == );
+	VAR_OP(notEquals, != );
+	VAR_OP_INT(logicalAnd, &&);
+	VAR_OP_INT(logicalOr, ||);
 
 #undef VAR_OP
+#undef VAR_OP_INT
 };
-
-
-
-snex::VariableStorage ConstExprEvaluator::binaryOp(TokenType t, VariableStorage left, VariableStorage right)
-{
-	if (t == JitTokens::plus || t == JitTokens::plusEquals) return VOps::sum(left, right);
-	if (t == JitTokens::minus || t == JitTokens::minusEquals) return VOps::sub(left, right);
-	if (t == JitTokens::times || t == JitTokens::timesEquals) return VOps::mul(left, right);
-	if (t == JitTokens::divide || t == JitTokens::divideEquals) return VOps::div(left, right);
-
-	return left;
-}
 
 void ConstExprEvaluator::process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
@@ -70,6 +73,29 @@ void ConstExprEvaluator::process(BaseCompiler* compiler, BaseScope* s, Statement
 		if (auto v = as<Operations::VariableReference>(statement))
 		{
 			addConstKeywordToSingleWriteVariables(v, s, compiler);
+		}
+
+		if (auto is = as<Operations::IfStatement>(statement))
+		{
+			is->cond->process(compiler, s);
+
+			if (is->cond->isConstExpr())
+			{
+				int v = is->cond->getConstExprValue().toInt();
+
+				is->logOptimisationMessage("Remove dead branch");
+
+				if (v == 1)
+					replaceExpression(is, is->trueBranch.get());
+				else
+				{
+					if (is->falseBranch != nullptr)
+						replaceExpression(is, is->falseBranch);
+					else
+						replaceWithNoop(is);
+				}
+					
+			}
 		}
 
 		if (auto a = as<Operations::Assignment>(statement))
@@ -91,13 +117,55 @@ void ConstExprEvaluator::process(BaseCompiler* compiler, BaseScope* s, Statement
 			}
 		}
 
+		if (auto cOp = as<Operations::Compare>(statement))
+		{
+			cOp->getSubExpr(0)->process(compiler, s);
+			cOp->getSubExpr(1)->process(compiler, s);
+
+			if (auto constexprResult = evalBinaryOp(cOp->getSubExpr(0), cOp->getSubExpr(1), cOp->op))
+			{
+				statement->logOptimisationMessage("Folded comparison");
+				replaceExpression(statement, constexprResult);
+			}
+		}
+
 		if (auto bOp = as<Operations::BinaryOp>(statement))
 		{
+			bOp->getSubExpr(0)->process(compiler, s);
+			bOp->getSubExpr(1)->process(compiler, s);
+
 			if (auto constExprBinaryOp = evalBinaryOp(bOp->getSubExpr(0), bOp->getSubExpr(1), bOp->op))
 			{
 				statement->logOptimisationMessage("Folded binary op");
 				replaceExpression(statement, constExprBinaryOp);
 			}
+			else if (bOp->isLogicOp())
+			{
+				if (bOp->getSubExpr(1)->isConstExpr())
+					bOp->swapSubExpressions(0, 1);
+
+				if (bOp->getSubExpr(0)->isConstExpr())
+				{
+					auto lValue = bOp->getSubExpr(0)->getConstExprValue();
+
+					if (bOp->op == JitTokens::logicalAnd && lValue.toInt() == 0)
+					{
+						statement->logOptimisationMessage("short-circuit constant && op");
+						replaceExpression(statement, new Operations::Immediate(statement->location, 0));
+					}
+					else if (bOp->op == JitTokens::logicalOr && lValue.toInt() == 1)
+					{
+						statement->logOptimisationMessage("short-circuit constant || op");
+						replaceExpression(statement, new Operations::Immediate(statement->location, 1));
+					}
+					else
+					{
+						statement->logOptimisationMessage("removed constant condition in logic op");
+						replaceExpression(statement, bOp->getSubExpr(1));
+					}
+				}
+			}
+
 		}
 	}
 
@@ -132,7 +200,7 @@ void ConstExprEvaluator::process(BaseCompiler* compiler, BaseScope* s, Statement
 			// so that the parent assignment can do it's job
 			bool isConstInitialisation = v->ref->isConst && v->isFirstReference();
 
-			if (!v->isClassVariable && v->ref->isConst && !isConstInitialisation)
+			if (!v->isClassVariable() && v->ref->isConst && !isConstInitialisation)
 				replaceWithImmediate(v, v->ref->getDataCopy());
 		}
 		if (auto a = as<Operations::Assignment>(s))
@@ -196,6 +264,8 @@ void ConstExprEvaluator::process(BaseCompiler* compiler, BaseScope* s, Statement
 
 void ConstExprEvaluator::addConstKeywordToSingleWriteVariables(Operations::VariableReference* v, BaseScope* s, BaseCompiler* compiler)
 {
+	// This is flawed: globals, function return values, etc. need to be detected properly...
+#if 0
 	if (!v->isLocalConst && !v->isParameter(s))
 	{
 		SyntaxTreeWalker w(v);
@@ -214,6 +284,7 @@ void ConstExprEvaluator::addConstKeywordToSingleWriteVariables(Operations::Varia
 			v->isLocalConst = true;
 		}
 	}
+#endif
 }
 
 void ConstExprEvaluator::replaceWithImmediate(ExprPtr e, const VariableStorage& value)
@@ -233,10 +304,21 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalBinaryOp(ExprPtr 
 		VariableStorage leftValue = left->getConstExprValue();
 		VariableStorage rightValue = right->getConstExprValue();
 
-		if (op == JitTokens::plus) result = VOps::sum(leftValue, rightValue);
-		if (op == JitTokens::minus) result = VOps::sub(leftValue, rightValue);
-		if (op == JitTokens::times) result = VOps::mul(leftValue, rightValue);
-		if (op == JitTokens::divide) result = VOps::div(leftValue, rightValue);
+#define REPLACE_WITH_CONST_OP(x) if (op == JitTokens::x) result = VOps::x(leftValue, rightValue);
+
+		REPLACE_WITH_CONST_OP(plus);
+		REPLACE_WITH_CONST_OP(minus);
+		REPLACE_WITH_CONST_OP(times);
+		REPLACE_WITH_CONST_OP(divide);
+		REPLACE_WITH_CONST_OP(modulo);
+		REPLACE_WITH_CONST_OP(greaterThan);
+		REPLACE_WITH_CONST_OP(greaterThanOrEqual);
+		REPLACE_WITH_CONST_OP(lessThan);
+		REPLACE_WITH_CONST_OP(lessThanOrEqual);
+		REPLACE_WITH_CONST_OP(equals);
+		REPLACE_WITH_CONST_OP(notEquals);
+		REPLACE_WITH_CONST_OP(logicalAnd);
+		REPLACE_WITH_CONST_OP(logicalOr);
 
 		return new Operations::Immediate(left->location, result);
 	}
@@ -249,7 +331,7 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalNegation(ExprPtr 
 {
 	if (expr->isConstExpr())
 	{
-		auto result = VOps::mul(expr->getConstExprValue(), -1.0);
+		auto result = VOps::times(expr->getConstExprValue(), -1.0);
 		return new Operations::Immediate(expr->location, result);
 	}
 
@@ -296,7 +378,7 @@ void Inliner::process(BaseCompiler* c, BaseScope* s, StatementPtr statement)
 #if 0
 			bool canBeInlined = v->ref->getNumReferences() == 2 && // single usage
 				!v->isFirstReference() &&		  // not the definition
-				!v->isClassVariable;			  // not a class variable
+				!v->isClassVariable();			  // not a class variable
 
 			if (canBeInlined)
 			{
@@ -334,13 +416,19 @@ void Inliner::process(BaseCompiler* c, BaseScope* s, StatementPtr statement)
 
 void DeadcodeEliminator::process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
-	COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
+	COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
 	{
+        if (auto imm = as<Operations::Immediate>(statement))
+        {
+            if(imm->isAnonymousStatement())
+                replaceWithNoop(imm);
+        }
+        
 		if (auto a = as<Operations::Assignment>(statement))
 		{
 			auto v = a->getTargetVariable();
 
-			if (v->isClassVariable)
+			if (v->isClassVariable())
 				return;
 
 			if (v->isParameter(s))
@@ -378,7 +466,7 @@ void DeadcodeEliminator::process(BaseCompiler* compiler, BaseScope* s, Statement
 			// statements. Unreferenced local variables will be removed 
 			// in its assignment.
 			if (v->isAnonymousStatement() &&
-				(v->isClassVariable || v->parameterIndex != -1))
+				(v->isClassVariable() || v->parameterIndex != -1))
 			{
 				v->optimizeAway();
 			}
@@ -393,7 +481,7 @@ void DeadcodeEliminator::process(BaseCompiler* compiler, BaseScope* s, Statement
 			auto target = a->getTargetVariable();
 
 			bool singleReference = target->isReferencedOnce();
-			bool notGlobal = !target->isClassVariable;
+			bool notGlobal = !target->isClassVariable();
 
 
 			if (singleReference && notGlobal)
@@ -421,16 +509,13 @@ void BinaryOpOptimizer::process(BaseCompiler* compiler, BaseScope* s, StatementP
 			{
 				if (isAssignedVariable(bOp->getSubExpr(0)))
 				{
-					Array<Operations::BinaryOp*> binaryOps;
-
-					SyntaxTreeWalker w(bOp, false);
-
-					while (auto innerOp = w.getNextStatementOfType<Operations::BinaryOp>())
-					{
-						binaryOps.addIfNotAlreadyThere(innerOp);
-
-						a->logOptimisationMessage("Replace " + String(innerOp->op) + " with self assignment");
-					}
+					a->logOptimisationMessage("Replace " + String(bOp->op) + " with self assignment");
+                    
+                    a->assignmentType = bOp->op;
+                    
+                    auto right = bOp->getSubExpr(1);
+                    
+                    replaceExpression(bOp, right);
 				}
 			}
 
@@ -475,7 +560,7 @@ bool BinaryOpOptimizer::isAssignedVariable(ExprPtr e) const
 	}
 	else
 	{
-		for (int i = 0; i < e->getNumSubExpressions(); i++)
+		for (int i = 0; i < e->getNumChildStatements(); i++)
 		{
 			if(isAssignedVariable(e->getSubExpr(i)))
 				return true;
@@ -506,7 +591,7 @@ bool BinaryOpOptimizer::containsVariableReference(ExprPtr p, BaseScope::RefPtr r
 		return v->ref == refToCheck;
 	}
 
-	for (int i = 0; i < p->getNumSubExpressions(); i++)
+	for (int i = 0; i < p->getNumChildStatements(); i++)
 	{
 		if (containsVariableReference(p->getSubExpr(i), refToCheck))
 			return true;
@@ -574,7 +659,7 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 				as->logOptimisationMessage("Create self assign");
 				as->assignmentType = bOp->op;
-				as->replaceSubExpr(1, bOp->getSubExpr(1));
+				as->replaceChildStatement(1, bOp->getSubExpr(1));
 				return;
 			}
 		}
@@ -585,7 +670,7 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 			{
 				as->logOptimisationMessage("Create self assign");
 				as->assignmentType = bOp->op;
-				as->replaceSubExpr(1, bOp->getSubExpr(0));
+				as->replaceChildStatement(1, bOp->getSubExpr(0));
 				return;
 			}
 		}

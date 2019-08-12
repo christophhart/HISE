@@ -156,7 +156,7 @@ SyntaxTree* BlockParser::parseStatementList()
 	while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 	{
 		auto s = parseStatement();
-		list->add(s);
+		list->addStatement(s);
 	}
 
 	matchIf(JitTokens::closeBrace);
@@ -291,58 +291,7 @@ snex::VariableStorage BlockParser::parseVariableStorageLiteral()
 		return {};
 }
 
-void BaseCompiler::executeOptimization(ReferenceCountedObject* statement, BaseScope* scope)
-{
-	if (passes.isEmpty())
-		return;
 
-	Operations::Statement::Ptr ptr(dynamic_cast<Operations::Statement*>(statement));
-
-	for(auto o: passes)
-		dynamic_cast<OptimizationPass*>(o)->process(this, scope, ptr);
-}
-
-void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
-{
-	if (isOptimizationPass(p) && passes.isEmpty())
-		return;
-
-	setCurrentPass(p);
-
-	for (auto s : *statements)
-	{
-		try
-		{
-			for (auto o : passes)
-				o->reset();
-
-			s->process(this, scope);
-		}
-		catch (DeadCodeException& d)
-		{
-			auto lineNumber = d.location.getLineNumber(d.location.program, d.location.location);
-
-			String m;
-			m << "Skipping removed expression at Line " << lineNumber;
-			s->logOptimisationMessage(m);
-		}
-	}
-}
-
-void OptimizationPass::replaceWithNoop(StatementPtr s)
-{
-	s->logOptimisationMessage("Remove statement");
-	
-	replaceExpression(s, new Operations::Noop(s->location));
-}
-
-void OptimizationPass::replaceExpression(StatementPtr old, ExprPtr newExpression)
-{
-	if (auto exp = dynamic_cast<Operations::Expression*>(old.get()))
-	{
-		exp->replaceInParent(newExpression);
-	}
-}
 
 }
 }

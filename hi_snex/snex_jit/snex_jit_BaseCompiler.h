@@ -165,6 +165,8 @@ struct BaseCompiler
 
 private:
 
+    OptimizationPassBase* currentOptimization = nullptr;
+    
 	OwnedArray<OptimizationPassBase> passes;
 
 	MessageType verbosity = numMessageTypes;

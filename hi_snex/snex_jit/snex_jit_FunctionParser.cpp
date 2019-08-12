@@ -155,22 +155,48 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
 
 void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
 {
-	auto lastReturnStatement = tree->list.getLast().get();
+	auto lastStatement = tree->getLastStatement().get();
 
-	if (dynamic_cast<Operations::ReturnStatement*>(lastReturnStatement) != nullptr)
+	while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastStatement))
+		lastStatement = bl->getLastStatement();
+
+	auto isReturn = [](Operations::Statement* s)
 	{
+		return dynamic_cast<Operations::ReturnStatement*>(s) != nullptr;
+	};
+
+	if (isReturn(lastStatement))
 		return;
-	}
 
-	while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastReturnStatement))
+	if (auto is = dynamic_cast<Operations::IfStatement*>(lastStatement))
 	{
-		lastReturnStatement = bl->statements.getLast().get();
+		if (is->falseBranch == nullptr)
+			is->throwError("Not all paths return a value");
 
-		if (dynamic_cast<Operations::ReturnStatement*>(lastReturnStatement) != nullptr)
+		auto lastTrueStatement = is->trueBranch;
+		auto lastFalseStatement = is->falseBranch;
+
+		while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastTrueStatement.get()))
+			lastTrueStatement = bl->getLastStatement();
+		
+		while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastTrueStatement.get()))
+			lastTrueStatement = bl->getLastStatement();
+
+
+		auto lastTrueStatementOK = isReturn(lastTrueStatement);
+		auto lastFalseStatementOK = isReturn(lastFalseStatement);
+		
+		if (lastFalseStatementOK && lastTrueStatementOK)
 			return;
+
+		is->trueBranch->addStatement(new Operations::ReturnStatement(location, nullptr));
+
+		if (is->falseBranch)
+			is->falseBranch->addStatement(new Operations::ReturnStatement(location, nullptr));
 	}
 
-	tree->list.add(new Operations::ReturnStatement(location, nullptr));
+	
+	tree->addStatement(new Operations::ReturnStatement(location, nullptr));
 }
 
 BlockParser::ExprPtr FunctionParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenType op)
@@ -209,7 +235,7 @@ Operations::Expression::Ptr FunctionParser::parseFunctionCall()
 
 	while (!isEOF() && currentType != JitTokens::closeParen)
 	{
-		f->addSubExpression(parseExpression());
+		f->addStatement(parseExpression());
 		matchIf(JitTokens::comma);
 	};
 

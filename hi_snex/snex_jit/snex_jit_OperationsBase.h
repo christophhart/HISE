@@ -81,10 +81,34 @@ public:
 
 		virtual bool hasSideEffect() const { return false; }
 
+		Ptr getChildStatement(int index) const
+		{
+			return childStatements[index];
+		}
+
+		int getNumChildStatements() const
+		{
+			return childStatements.size();
+		}
+
+		void swapSubExpressions(int first, int second)
+		{
+			childStatements.swap(first, second);
+		}
+
 		void throwError(const String& errorMessage);
 		void logOptimisationMessage(const String& m);
 		void logWarning(const String& m);
 		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message);
+
+		Statement** begin() const { return childStatements.begin(); }
+
+		Statement** end() const { return childStatements.end(); }
+
+		Statement::Ptr getLastStatement() const
+		{
+			return childStatements.getLast();
+		}
 
 		virtual bool isConstExpr() const;
 
@@ -95,6 +119,15 @@ public:
 		BaseCompiler::Pass currentPass;
 
 		WeakReference<Statement> parent;
+
+		void addStatement(Statement* b, bool addFirst=false);
+
+		Ptr replaceInParent(Ptr newExpression);
+		Ptr replaceChildStatement(int index, Ptr newExpr);
+
+	private:
+
+		ReferenceCountedArray<Statement> childStatements;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Statement);
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement);
@@ -126,15 +159,7 @@ public:
 
 		virtual VariableStorage getConstExprValue() const;
 
-		int getNumSubExpressions() const;
-
-		void addSubExpression(Ptr expr, int index = -1);
-
-		void swapSubExpressions(int first, int second);
-
 		bool hasSubExpr(int index) const;
-
-		Ptr replaceSubExpr(int index, Ptr newExpr);
 
 		Ptr getSubExpr(int index) const;
 
@@ -150,15 +175,12 @@ public:
 
 	protected:
 
-		friend class OptimizationPass;
 
-		Ptr replaceInParent(Expression::Ptr newExpression);
+		
 
 		Types::ID type;
 
 	private:
-
-		ReferenceCountedArray<Expression> subExpr;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Expression);
 	};
@@ -219,22 +241,14 @@ class SyntaxTree : public Operations::Statement
 public:
 
 	SyntaxTree(ParserHelpers::CodeLocation l);;
-	~SyntaxTree();
-
 	Types::ID getType() const { return Types::ID::Void; }
-
-	void add(Operations::Statement::Ptr newStatement);
-
-	ReferenceCountedArray<Operations::Statement> list;
 
 	void addVariableReference(Operations::Statement* s);
 	bool isFirstReference(Operations::Statement* v) const;
 
 	Operations::Statement* getLastVariableForReference(BaseScope::RefPtr ref) const;
 	Operations::Statement* getLastAssignmentForReference(BaseScope::RefPtr ref) const;
-	Operations::Statement** begin() const { return list.begin(); }
-	Operations::Statement** end() const { return list.end();}
-
+	
 private:
 
 	Array<WeakReference<Statement>> variableReferences;

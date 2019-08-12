@@ -40,22 +40,13 @@ void SyntaxTreeWalker::add(Operations::Statement* s)
 {
 	statements.add(s);
 
-	if (auto sb = dynamic_cast<Operations::StatementBlock*>(s))
-	{
-		for (auto s_ : sb->statements)
-			add(s_);
-	}
-	else if (auto is = dynamic_cast<Operations::IfStatement*>(s))
+	if (auto is = dynamic_cast<Operations::IfStatement*>(s))
 	{
 		add(is->cond);
 		add(is->trueBranch);
+
 		if (is->falseBranch != nullptr)
 			add(is->falseBranch);
-	}
-	else if (auto st = dynamic_cast<SyntaxTree*>(s))
-	{
-		for (auto s_ : st->list)
-			add(s_);
 	}
 	else if (auto bl = dynamic_cast<Operations::BlockLoop*>(s))
 	{
@@ -64,10 +55,10 @@ void SyntaxTreeWalker::add(Operations::Statement* s)
 		add(bl->getSubExpr(0).get());
 		add(bl->b);
 	}
-	else if (auto expr = dynamic_cast<Operations::Expression*>(s))
+	else
 	{
-		for (int i = 0; i < expr->getNumSubExpressions(); i++)
-			add(expr->getSubExpr(i).get());
+		for (int i = 0; i < s->getNumChildStatements(); i++)
+			add(s->getChildStatement(i));
 	}
 }
 

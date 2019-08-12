@@ -45,24 +45,7 @@ using namespace juce;
 
 
 
-class OptimizationPass : public BaseCompiler::OptimizationPassBase
-{
-public:
 
-	using StatementPtr = Operations::Statement::Ptr;
-	using ExprPtr = Operations::Expression::Ptr;
-
-	virtual void process(BaseCompiler* c, BaseScope* s, StatementPtr statement) = 0;
-
-	void replaceWithNoop(StatementPtr s);
-
-	void replaceExpression(StatementPtr old, ExprPtr newExpression);
-
-	template <class T> T* as(StatementPtr obj)
-	{
-		return dynamic_cast<T*>(obj.get());
-	}
-};
 
 class BlockParser : public ParserHelpers::TokenIterator
 {

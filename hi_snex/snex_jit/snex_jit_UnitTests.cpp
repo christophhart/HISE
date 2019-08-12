@@ -48,6 +48,59 @@ using namespace asmjit;
 #pragma warning( push )
 #pragma warning( disable : 4244)
 
+class OptimizationTestCase
+{
+public:
+
+	void setOptimizations(const Array<Identifier>& passList)
+	{
+		for (auto& p : passList)
+			optimizingScope.addOptimization(p);
+	}
+
+	void setExpressionBody(const String& body_)
+	{
+		jassert(body_.contains("%BODY%"));
+
+		body = body_;
+	}
+
+	bool sameAssembly(const String& expressionToBeOptimised, const String& reference)
+	{
+		auto o = body.replace("%BODY%", expressionToBeOptimised);
+		auto r = body.replace("%BODY%", reference);
+
+		auto oAssembly = getAssemblyOutput(o, optimizingScope);
+		auto rAssembly = getAssemblyOutput(r, referenceScope);
+
+		bool equal = oAssembly.hashCode64() == rAssembly.hashCode64();
+
+		return equal;
+	}
+
+private:
+
+	String getAssemblyOutput(const String& t, GlobalScope& s)
+	{
+		Compiler c(s);
+		auto obj = c.compileJitObject(t);
+
+		if (!c.getCompileResult().wasOk())
+		{
+			auto r = c.getCompileResult().getErrorMessage();
+			jassertfalse;
+			return t;
+		}
+			
+
+		return c.getAssemblyCode();
+	}
+
+	String body;
+	GlobalScope referenceScope;
+	GlobalScope optimizingScope;
+};
+    
 template <typename T, typename ReturnType=T> class HiseJITTestCase
 {
 public:
@@ -217,6 +270,11 @@ public:
 
 	void runTest() override
 	{
+		testIfStatement();
+		return;
+
+		testOptimizations();
+
 		testParser();
 		testSimpleIntOperations();
 
@@ -251,6 +309,59 @@ private:
 		auto r = compiler->getCompileResult();
 
 		expect(r.wasOk(), r.getErrorMessage() + "\nFunction Code:\n\n" + compiler->getLastCompiledCode());
+	}
+
+	void testOptimizations()
+	{
+		beginTest("Testing Optimizations");
+
+		{
+			OptimizationTestCase t;
+			t.setOptimizations({ OptimizationIds::ConstantFolding });
+			t.setExpressionBody("int test(){ return %BODY%; }");
+
+			expect(t.sameAssembly("1 && 0", "0"), "Simple logical and");
+
+			expect(t.sameAssembly("2 + 5", "7"), "Simple addition folding");
+			expect(t.sameAssembly("1 + 3 * 8", "25"), "Nested expression folding");
+
+			auto refString = "(7 * 18 - (13 / 4) + (1 + 1)) / 8";
+			constexpr int value = (7 * 18 - (13 / 4) + (1 + 1)) / 8;
+
+			expect(t.sameAssembly(refString, String(value)), "Complex expression folding");
+			expect(t.sameAssembly("13 % 5", "3"), "Modulo folding");
+			expect(t.sameAssembly("124 > 18", "1"), "Simple comparison folding");
+			expect(t.sameAssembly("124.0f == 18.0f", "0"), "Simple equality folding");
+
+			auto cExpr = "190.0f != 17.0f || ((8 - 2) < 4) && (9.0f == 0.4f)";
+			constexpr int cExprValue = 190.0f != 17.0f || ((8 - 2) < 4) && (9.0f == 0.4f);
+
+			expect(t.sameAssembly(cExpr, String(cExprValue)), "Complex logical expression folding");
+		}
+
+		{
+			OptimizationTestCase t;
+			t.setOptimizations({ OptimizationIds::ConstantFolding });
+			t.setExpressionBody("int test(){ int x = (int)Math.random(); %BODY% }");
+
+			expect(t.sameAssembly("return 1 || x;", "return 1;"), "short circuit constant || expression");
+			expect(t.sameAssembly("return x || 1;", "return 1;"), "short circuit constant || expression pt. 2");
+			expect(t.sameAssembly("return x || 0;", "return x;"), "remove constant || sub-expression pt. 2");
+			expect(t.sameAssembly("return 0 || x;", "return x;"), "remove constant || sub-expression pt. 2");
+			expect(t.sameAssembly("return 0 && x;", "return 0;"), "short circuit constant || expression");
+			expect(t.sameAssembly("return x && 0;", "return 0;"), "short circuit constant || expression pt. 2");
+			expect(t.sameAssembly("return x && 1;", "return x;"), "remove constant || sub-expression pt. 2");
+			expect(t.sameAssembly("return 1 && x;", "return x;"), "remove constant || sub-expression pt. 2");
+		}
+
+		{
+			OptimizationTestCase t;
+			t.setOptimizations({ OptimizationIds::ConstantFolding });
+			t.setExpressionBody("int test(){ %BODY% }");
+
+			expect(t.sameAssembly("if(0) return 2; return 1;", "return 1;"), "Constant if branch folding");
+			expect(t.sameAssembly("if(12 > 13) return 8; else return 5; return 2;", "return 5;"), "Constant else branch folding");
+		}
 	}
 
 	void expectAllFunctionsDefined(JITTestModule* )
@@ -853,6 +964,11 @@ private:
 		beginTest("Test if-statement");
 
 		ScopedPointer<HiseJITTestCase<float>> test;
+
+		CREATE_TEST("float test(float input){ if (input == 12.0f) return 1.0f; else return 2.0f;");
+		expectCompileOK(test->compiler);
+		EXPECT("If statement as last statement", 12.0f, 1.0f);
+		EXPECT("If statement as last statement, false branch", 9.0f, 2.0f);
 
 		CREATE_TEST("float x = 1.0f; float test(float input) { if (input == 10.0f) x += 1.0f; else x += 2.0f; return x; }");
 		EXPECT("Set global variable, true branch", 10.0f, 2.0f);

@@ -137,7 +137,7 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 {
 	Types::ID exprType = expectedType;
 
-	for (int i = offset; i < subExpr.size(); i++)
+	for (int i = offset; i < getNumChildStatements(); i++)
 	{
 		auto e = getSubExpr(i);
 
@@ -149,14 +149,14 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 
 			if (e->isConstExpr())
 			{
-				replaceSubExpr(i, ConstExprEvaluator::evalCast(e.get(), exprType).get());
+				replaceChildStatement(i, ConstExprEvaluator::evalCast(e.get(), exprType).get());
 			}
 			else
 			{
 				Ptr implCast = new Operations::Cast(e->location, e, exprType);
 				implCast->attachAsmComment("Implicit cast from Line " + location.getLineNumber(location.program, location.location));
 
-				replaceSubExpr(i, implCast);
+				replaceChildStatement(i, implCast);
 			}
 		}
 		else
@@ -173,8 +173,11 @@ void Operations::Expression::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	Statement::process(compiler, scope);
 
-	for (auto e : subExpr)
-		e->process(compiler, scope);
+	for (int i = 0; i < getNumChildStatements(); i++)
+	{
+		if (getChildStatement(i) != nullptr)
+			getChildStatement(i)->process(compiler, scope);
+	}
 }
 
 bool Operations::Expression::isAnonymousStatement() const
@@ -191,54 +194,14 @@ snex::VariableStorage Operations::Expression::getConstExprValue() const
 	return {};
 }
 
-int Operations::Expression::getNumSubExpressions() const
-{
-	return subExpr.size();
-}
-
-void Operations::Expression::addSubExpression(Ptr expr, int index /*= -1*/)
-{
-	if (index == -1)
-		subExpr.add(expr.get());
-	else
-		subExpr.insert(index, expr.get());
-
-	expr->setParent(this);
-}
-
-void Operations::Expression::swapSubExpressions(int first, int second)
-{
-	subExpr.swap(first, second);
-}
-
 bool Operations::Expression::hasSubExpr(int index) const
 {
-	return isPositiveAndBelow(index, subExpr.size());
+	return isPositiveAndBelow(index, getNumChildStatements());
 }
 
-snex::jit::Operations::Expression::Ptr Operations::Expression::replaceSubExpr(int index, Ptr newExpr)
+Operations::Expression::Ptr Operations::Expression::getSubExpr(int index) const
 {
-	Ptr returnExpr;
-
-	if (returnExpr = getSubExpr(index))
-	{
-		subExpr.set(index, newExpr.get());
-		newExpr->parent = this;
-
-		if(returnExpr->parent == this)
-			returnExpr->parent = nullptr;
-	}
-	else
-	{
-		jassertfalse;
-	}
-
-	return returnExpr;
-}
-
-snex::jit::Operations::Expression::Ptr Operations::Expression::getSubExpr(int index) const
-{
-	return subExpr[index];
+	return Expression::Ptr(dynamic_cast<Expression*>(getChildStatement(index).get()));
 }
 
 snex::jit::Operations::RegPtr Operations::Expression::getSubRegister(int index) const
@@ -257,24 +220,6 @@ snex::jit::Operations::RegPtr Operations::Expression::getSubRegister(int index) 
 	return nullptr;
 }
 
-snex::jit::Operations::Expression::Ptr Operations::Expression::replaceInParent(Expression::Ptr newExpression)
-{
-	if (auto expr = dynamic_cast<Expression*>(parent.get()))
-	{
-		for (int i = 0; i < expr->subExpr.size(); i++)
-		{
-			if (expr->getSubExpr(i).get() == this)
-			{
-				Ptr f(this);
-				expr->subExpr.set(i, newExpression.get());
-				newExpression->parent = expr;
-				return f;
-			}
-		}
-	}
-
-	return nullptr;
-}
 
 SyntaxTree::SyntaxTree(ParserHelpers::CodeLocation l) :
 	Statement(l)
@@ -339,19 +284,6 @@ Operations::Statement* SyntaxTree::getLastAssignmentForReference(BaseScope::RefP
 	return lastAssignment;
 }
 
-SyntaxTree::~SyntaxTree()
-{
-	list.clear();
-}
-
-
-
-
-void SyntaxTree::add(Operations::Statement::Ptr newStatement)
-{
-	newStatement->setParent(this);
-	list.add(newStatement);
-}
 
 Operations::Statement::Statement(Location l) :
 	location(l)
@@ -393,6 +325,53 @@ bool Operations::Statement::isConstExpr() const
 	return isStatementType<Immediate>(static_cast<const Statement*>(this));
 }
 
+void Operations::Statement::addStatement(Statement* b, bool addFirst/*=false*/)
+{
+	if (addFirst)
+		childStatements.insert(0, b);
+	else
+		childStatements.add(b);
+
+	b->setParent(this);
+}
+
+Operations::Statement::Ptr Operations::Statement::replaceInParent(Statement::Ptr newExpression)
+{
+	if (parent != nullptr)
+	{
+		for (int i = 0; i < parent->getNumChildStatements(); i++)
+		{
+			if (parent->getChildStatement(i).get() == this)
+			{
+				Ptr f(this);
+				parent->childStatements.set(i, newExpression.get());
+				newExpression->parent = parent;
+				return f;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+
+Operations::Statement::Ptr Operations::Statement::replaceChildStatement(int index, Ptr newExpr)
+{
+	Ptr returnExpr;
+
+	if (returnExpr = getChildStatement(index))
+	{
+		childStatements.set(index, newExpr.get());
+		newExpr->parent = this;
+
+		if (returnExpr->parent == this)
+			returnExpr->parent = nullptr;
+	}
+	else
+		jassertfalse;
+
+	return returnExpr;
+}
 
 void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message)
 {
@@ -414,7 +393,7 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 	{
 		// If we write to a class variable, we need to create the register
 		// outside the loop
-		if (v->isClassVariable && v->isBeingWritten())
+		if (v->isClassVariable() && v->isBeingWritten())
 			v->process(c, s);
 	}
 }

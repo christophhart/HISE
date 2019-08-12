@@ -37,10 +37,91 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
+/** An OptimizationPass is a class that performs optimization on a given
+    Statement.
+ 
+    In order to use it, subclass from this class, register it to the
+    OptimizationFactory and then call GlobalScope::addOptimization with the
+    given ID.
+ 
+    There are three Optimization contexts:
+ 
+    - directly after parsing, before the symbols are resolved
+    - after the type check
+    - before the code generation
+ 
+ 
+*/
+class OptimizationPass : public BaseCompiler::OptimizationPassBase
+{
+public:
+        
+    using StatementPtr = Operations::Statement::Ptr;
+    using ExprPtr = Operations::Expression::Ptr;
+    
+    /** Overwrite this method and perform the operation.
+        The signature is similar to Statement::process(), so you can perform
+        similar operations.
+     
+        Be aware that by default this will be called in the same order as the
+        Statement::process() method, which is children first, then the parent node.
+     
+        Example:
+     
+        float x = 1.0f * y + 8.0f;
+     
+        The order in which the nodes will be evaluated is:
+     
+        - multiplication
+        - addition
+        - assignment
+     
+        However, you can force another order by explicitely calling process()
+        on a child node (in this case, use Statement::process() or it might not
+        have the correct state.
+     
+        It will also be called only during optimization passes, so you can't
+        perform anything during regular passes (eg. ResolvingSymbols).
+    */
+    virtual void process(BaseCompiler* c, BaseScope* s, StatementPtr statement) = 0;
+    
+    /** Call this if you want to replace a statement with a noop node.
+        If the statement is not referenced anywhere else, it might be
+        deleted, so be aware of that when you need to use the object afterwards.
+    */
+    void replaceWithNoop(StatementPtr s);
+    
+    /** Call this if you want to replace the given statement with a new expression
+        as a result of a optimization pass. */
+
+	void replaceExpression(StatementPtr old, StatementPtr newExpression)
+	{
+		old->replaceInParent(newExpression);
+	}
+
+    /** Short helper tool to check Types. */
+    template <class T> T* as(StatementPtr obj)
+    {
+        return dynamic_cast<T*>(obj.get());
+    }
+};
+
+    
+    
 #define OPTIMIZATION_FACTORY(id, x) static Identifier getStaticId() { return id; } \
 static BaseCompiler::OptimizationPassBase* create() { return new x(); } \
 String getName() const override { return getStaticId().toString(); };
 
+    /** TODO: Optimizations:
+     
+     1 Expression simplifications:
+       - x / constant => x * (1 / constant)
+       - x * 2 => x + x
+       - 125 - x => -x + 125 ( => x *= -1; x += 125 )
+       - x % pow2 => x & log2(pow2)-1;
+     
+     */
+    
 class ConstExprEvaluator : public OptimizationPass
 {
 public:
@@ -49,7 +130,6 @@ public:
 
 	using TokenType = const char*;
 
-	static VariableStorage binaryOp(TokenType t, VariableStorage left, VariableStorage right);
 
 	using OpType = const char*;
 

@@ -48,11 +48,7 @@ public:
 
 	Types::ID getType() const override { return Types::ID::Void; };
 
-	void addStatement(Statement* s)
-	{
-		statements.add(s);
-		s->setParent(this);
-	}
+	
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
@@ -64,13 +60,12 @@ public:
 				blockScope = new RegisterScope(scope);
 		}
 
-		for (auto s : statements)
-			s->process(compiler, blockScope);
+		for (int i = 0; i < getNumChildStatements(); i++)
+			getChildStatement(i)->process(compiler, blockScope);
 	}
 
 	ScopedPointer<RegisterScope> blockScope;
 
-	ReferenceCountedArray<Statement> statements;
 };
 
 struct Operations::Noop : public Expression
@@ -156,7 +151,7 @@ struct Operations::VariableReference : public Expression
 	{
 		// The class variable definition is also a reference so we 
 		// need to take it into account.
-		return ref->getNumReferences() == (isClassVariable ? 2 : 1);
+		return ref->getNumReferences() == (isClassVariable() ? 2 : 1);
 	}
 
 	bool isParameter(BaseScope* scope) const
@@ -194,8 +189,6 @@ struct Operations::VariableReference : public Expression
 
 				if (isLocalConst)
 					ref->isConst = true;
-
-				isClassVariable = false;
 			}
 			else if (auto vScope = scope->getScopeForSymbol(id))
 			{
@@ -207,9 +200,7 @@ struct Operations::VariableReference : public Expression
 					isLocalToScope = true;
 					isLocalConst = ref->isConst;
 				}
-				else
-					isClassVariable = vScope == findClassScope(scope);
-
+				
 				if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
 				{
 					parameterIndex = fScope->parameters.indexOf(id.id);
@@ -302,6 +293,12 @@ struct Operations::VariableReference : public Expression
 
 	TokenType getWriteAccessType();
 
+    bool isClassVariable() const
+    {
+        jassert(ref != nullptr);
+        return ref->scope->getScopeType() == BaseScope::Class;
+    }
+    
 	bool isFirstReference()
 	{
 		SyntaxTreeWalker walker(this);
@@ -323,7 +320,7 @@ struct Operations::VariableReference : public Expression
 	BaseScope::RefPtr ref;		// The Reference from the resolver
 	bool isLocalToScope = false;
 	bool isLocalConst = false;
-	bool isClassVariable = false;
+	//bool isClassVariable = false;
 };
 
 struct Operations::Assignment : public Expression
@@ -332,8 +329,8 @@ struct Operations::Assignment : public Expression
 		Expression(l),
 		assignmentType(assignmentType_)
 	{
-		addSubExpression(expr);
-		addSubExpression(target); // the target must be evaluated after the expression
+		addStatement(expr);
+		addStatement(target); // the target must be evaluated after the expression
 	}
 
 	bool isLastAssignmentToTarget() const
@@ -428,8 +425,8 @@ struct Operations::Compare : public Expression
 		op(op_)
 	{
 		type = Types::Integer;
-		addSubExpression(l);
-		addSubExpression(r);
+		addStatement(l);
+		addStatement(r);
 	};
 
 	Types::ID getType() const override { return Types::Integer; }
@@ -465,7 +462,7 @@ struct Operations::LogicalNot : public Expression
 	LogicalNot(Location l, Ptr expr) :
 		Expression(l)
 	{
-		addSubExpression(expr);
+		addStatement(expr);
 	};
 
 	Types::ID getType() const override { return Types::ID::Integer; }
@@ -500,9 +497,9 @@ public:
 	TernaryOp(Location l, Expression::Ptr c, Expression::Ptr t, Expression::Ptr f) :
 		Expression(l)
 	{
-		addSubExpression(c);
-		addSubExpression(t);
-		addSubExpression(f);
+		addStatement(c);
+		addStatement(t);
+		addStatement(f);
 	}
 
 	Types::ID getType() const override
@@ -554,7 +551,8 @@ struct Operations::FunctionCall : public Expression
 			if (auto eventScope = scope->getScopeForSymbol(eventSymbol))
 			{
 				VariableReference* object = new VariableReference(location, eventSymbol);
-				addSubExpression(object, 0);
+
+				addStatement(object, true);
 				object->process(compiler, scope);
 				symbol.parent = "Message";
 			}
@@ -564,7 +562,7 @@ struct Operations::FunctionCall : public Expression
 			if (auto blockScope = scope->getScopeForSymbol(blockSymbol))
 			{
 				VariableReference* object = new VariableReference(location, blockSymbol);
-				addSubExpression(object, 0);
+				addStatement(object, true);
 				object->process(compiler, scope);
 				symbol.parent = "Block";
 			}
@@ -598,7 +596,7 @@ struct Operations::FunctionCall : public Expression
 		{
 			Array<Types::ID> parameterTypes;
 
-			for (int i = 0; i < getNumSubExpressions(); i++)
+			for (int i = 0; i < getNumChildStatements(); i++)
 				parameterTypes.add(getSubExpr(i)->getType());
 
 			for (auto& f : possibleMatches)
@@ -626,12 +624,12 @@ struct Operations::FunctionCall : public Expression
 
 			auto asg = CREATE_ASM_COMPILER(type);
 
-			for (int i = 0; i < getNumSubExpressions(); i++)
+			for (int i = 0; i < getNumChildStatements(); i++)
 				parameterRegs.add(compiler->getRegFromPool(getSubExpr(i)->getType()));
 
 			reg = compiler->getRegFromPool(type);
 
-			for (int i = 0; i < getNumSubExpressions(); i++)
+			for (int i = 0; i < getNumChildStatements(); i++)
 			{
 				auto pType = getSubExpr(i)->getType();
 				auto typedAcg = CREATE_ASM_COMPILER(pType);
@@ -659,7 +657,7 @@ struct Operations::ReturnStatement : public Expression
 		Expression(l)
 	{
 		if (expr != nullptr)
-			addSubExpression(expr);
+			addStatement(expr);
 		else
 			type = Types::ID::Void;
 	}
@@ -744,7 +742,6 @@ struct Operations::Function : public Statement,
 	String::CharPointerType code;
 	int codeLength = 0;
 
-
 	ScopedPointer<FunctionScope> functionScope;
 	ScopedPointer<SyntaxTree> statements;
 	FunctionData data;
@@ -759,8 +756,8 @@ struct Operations::BinaryOp : public Expression
 		Expression(l),
 		op(opType)
 	{
-		addSubExpression(left);
-		addSubExpression(right);
+		addStatement(left);
+		addStatement(right);
 	};
 
 	bool isLogicOp() const { return op == JitTokens::logicalOr || op == JitTokens::logicalAnd; }
@@ -823,7 +820,7 @@ struct Operations::UnaryOp : public Expression
 	UnaryOp(Location l, Ptr expr) :
 		Expression(l)
 	{
-		addSubExpression(expr);
+		addStatement(expr);
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
@@ -881,7 +878,7 @@ struct Operations::Cast : public Expression
 	Cast(Location l, Expression::Ptr expression, Types::ID targetType) :
 		Expression(l)
 	{
-		addSubExpression(expression);
+		addStatement(expression);
 		type = targetType;
 	};
 
@@ -917,8 +914,8 @@ struct Operations::BlockAccess : public Expression
 	BlockAccess(Location l, Ptr target, Ptr index) :
 		Expression(l)
 	{
-		addSubExpression(index);
-		addSubExpression(target);
+		addStatement(index);
+		addStatement(target);
 
 		type = Types::ID::Float;
 	}
@@ -966,9 +963,8 @@ struct Operations::BlockAssignment : public Expression
 		Expression(l),
 		op(opType)
 	{
-
-		addSubExpression(v);
-		addSubExpression(target);
+		addStatement(v);
+		addStatement(target);
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
@@ -1018,7 +1014,7 @@ struct Operations::BlockAssignment : public Expression
 			{
 				Ptr implicitCast = new Operations::Cast(location, getSubExpr(0), Types::ID::Float);
 				logWarning("Implicit cast to float for []-operation");
-				replaceSubExpr(0, implicitCast);
+				replaceChildStatement(0, implicitCast);
 			}
 		}
 	}
@@ -1034,8 +1030,7 @@ struct Operations::BlockLoop : public Expression,
 		Expression(l),
 		iterator(it_)
 	{
-		addSubExpression(t);
-		//addSubExpression(b_.get());
+		addStatement(t);
 
 		if (dynamic_cast<StatementBlock*>(b_.get()) == nullptr)
 		{
@@ -1165,7 +1160,7 @@ struct Operations::Negation : public Expression
 	Negation(Location l, Expression::Ptr e) :
 		Expression(l)
 	{
-		addSubExpression(e);
+		addStatement(e);
 	};
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
@@ -1206,9 +1201,19 @@ struct Operations::IfStatement : public Statement,
 
 	Types::ID getType() const override { return Types::ID::Void; }
 
+	
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
 		Statement::process(compiler, scope);
+
+		if (BaseCompiler::isOptimizationPass(currentPass))
+		{
+			cond->process(compiler, scope);
+			trueBranch->process(compiler, scope);
+
+			if (falseBranch != nullptr)
+				falseBranch->process(compiler, scope);
+		}
 
 		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 		{
