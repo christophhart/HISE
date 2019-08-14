@@ -131,7 +131,10 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 		{
 			auto p = new Popup(this);
 
-			auto root = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
+			Component* root = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+
+			if (root == nullptr)
+				root = findParentComponentOfClass<PropertyPanel>();
 
 			CallOutBox::launchAsynchronously(p, root->getLocalArea(this, getLocalBounds()), root);
 		}

@@ -861,6 +861,9 @@ public:
 		static bool freezeNode(NodeBase::Ptr node);
 		static bool unfreezeNode(NodeBase::Ptr node);
 
+		static bool toggleBypass(DspNetworkGraph& g);
+		static bool toggleFreeze(DspNetworkGraph& g);
+
 		static bool editNodeProperty(DspNetworkGraph& g);
 		static bool foldSelection(DspNetworkGraph& g);
 		static bool arrowKeyAction(DspNetworkGraph& g, const KeyPress& k);

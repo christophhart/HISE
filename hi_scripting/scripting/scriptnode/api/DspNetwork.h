@@ -184,6 +184,11 @@ public:
 
 	bool isSelected(NodeBase* node) const { return selection.isSelected(node); }
 
+	void deselect(NodeBase* node)
+	{
+		selection.deselect(node);
+	}
+
 	void deselectAll() { selection.deselectAll(); }
 
 	void addToSelection(NodeBase* node, ModifierKeys mods);
@@ -272,6 +277,7 @@ private:
 
 		DspNetwork& parent;
 
+		valuetree::RecursiveTypedChildListener deleteChecker;
 	};
 
 	ScopedPointer<SelectionUpdater> selectionUpdater;

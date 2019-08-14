@@ -302,7 +302,7 @@ void ModulationSourceBaseComponent::paint(Graphics& g)
 
 juce::Image ModulationSourceBaseComponent::createDragImage()
 {
-	Image img(Image::ARGB, 128, 48, true);
+	Image img(Image::ARGB, 100, 60, true);
 	Graphics g(img);
 
 	g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.4f));
@@ -320,11 +320,11 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
 	if (getSourceNodeFromParent() == nullptr)
 		return;
 
-	if (auto container = DragAndDropContainer::findParentDragContainerFor(this))
+	if (auto container = dynamic_cast<DragAndDropContainer*>(findParentComponentOfClass<DspNetworkGraph>()->root.get()))
 	{
 		// We need to be able to drag it anywhere...
-		while (auto pc = DragAndDropContainer::findParentDragContainerFor(dynamic_cast<Component*>(container)))
-			container = pc;
+		//while (auto pc = DragAndDropContainer::findParentDragContainerFor(dynamic_cast<Component*>(container)))
+//			container = pc;
 
 		var d;
 

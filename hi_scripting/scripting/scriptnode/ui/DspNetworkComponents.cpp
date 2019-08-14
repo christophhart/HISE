@@ -93,8 +93,10 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::deselectAll(*this);
 	if (key == KeyPress::deleteKey || key == KeyPress::backspaceKey)
 		return Actions::deleteSelection(*this);
+#if 0
 	if ((key.isKeyCode('j') || key.isKeyCode('J')))
 		return Actions::showJSONEditorForSelection(*this);
+#endif
 	if ((key.isKeyCode('z') || key.isKeyCode('Z')) && key.getModifiers().isCommandDown())
 		return Actions::undo(*this);
 	if ((key.isKeyCode('Y') || key.isKeyCode('Y')) && key.getModifiers().isCommandDown())
@@ -105,8 +107,12 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::New);
 	if ((key).isKeyCode('f') || key.isKeyCode('F'))
 		return Actions::foldSelection(*this);
+	if ((key).isKeyCode('u') || key.isKeyCode('U'))
+		return Actions::toggleFreeze(*this);
 	if ((key).isKeyCode('p') || key.isKeyCode('P'))
 		return Actions::editNodeProperty(*this);
+	if ((key).isKeyCode('q') || key.isKeyCode('Q'))
+		return Actions::toggleBypass(*this);
 	if (key == KeyPress::upKey || key == KeyPress::downKey)
 		return Actions::arrowKeyAction(*this, key);
 
@@ -411,6 +417,8 @@ bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
 	{
 		if (auto fn = dynamic_cast<NodeBase*>(node->getRootNetwork()->get(freezedId).getObject()))
 		{
+			node->getRootNetwork()->deselect(fn);
+
 			auto newTree = fn->getValueTree();
 			auto oldTree = node->getValueTree();
 			auto um = node->getUndoManager();
@@ -425,6 +433,16 @@ bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
 			};
 
 			MessageManager::callAsync(f);
+
+			auto nw = node->getRootNetwork();
+			auto s = [newTree, nw]()
+			{
+				auto newNode = nw->getNodeForValueTree(newTree);
+				nw->deselectAll();
+				nw->addToSelection(newNode, ModifierKeys());
+			};
+
+			MessageManager::callAsync(s);
 		}
 
 		return true;
@@ -452,6 +470,16 @@ bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
 			};
 
 			MessageManager::callAsync(f);
+
+			auto nw = node->getRootNetwork();
+			auto s = [newTree, nw]()
+			{
+				auto newNode = nw->getNodeForValueTree(newTree);
+				nw->deselectAll();
+				nw->addToSelection(newNode, ModifierKeys());
+			};
+
+			MessageManager::callAsync(s);
 		}
 
 		return true;
@@ -484,6 +512,18 @@ bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
 				};
 
 				MessageManager::callAsync(f);
+
+				auto nw = node->getRootNetwork();
+
+				auto s = [newTree, nw]()
+				{
+					auto newNode = nw->getNodeForValueTree(newTree);
+					nw->deselectAll();
+					nw->addToSelection(newNode, ModifierKeys());
+				};
+
+				MessageManager::callAsync(s);
+
 				return true;
 			}
 		}
@@ -501,7 +541,7 @@ bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
 				auto oldTree = node->getValueTree();
 				auto um = node->getUndoManager();
 
-				node->getRootNetwork()->createFromValueTree(true, newTree, true);
+				auto newNode = node->getRootNetwork()->createFromValueTree(true, newTree, true);
 
 				auto f = [oldTree, newTree, um]()
 				{
@@ -513,9 +553,58 @@ bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
 				};
 
 				MessageManager::callAsync(f);
+
+				auto nw = node->getRootNetwork();
+
+				auto s = [newNode, nw]()
+				{
+					nw->deselectAll();
+					nw->addToSelection(newNode, ModifierKeys());
+				};
+
+				MessageManager::callAsync(s);
 			}
 		}
 
+		return true;
+	}
+
+	return false;
+}
+
+bool DspNetworkGraph::Actions::toggleBypass(DspNetworkGraph& g)
+{
+	auto selection = g.network->getSelection();
+
+	if (selection.isEmpty())
+		return false;
+
+	bool oldState = selection.getFirst()->isBypassed();
+
+	for (auto n : selection)
+	{
+		n->setBypassed(!oldState);
+	}
+
+	return true;
+}
+
+bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
+{
+	auto selection = g.network->getSelection();
+
+	if (selection.isEmpty())
+		return false;
+
+	auto f = selection.getFirst();
+
+	if (auto r = f->getAsRestorableNode())
+	{
+		unfreezeNode(f);
+		return true;
+	}
+	else if (freezeNode(f))
+	{
 		return true;
 	}
 
@@ -773,6 +862,8 @@ bool DspNetworkGraph::Actions::deleteSelection(DspNetworkGraph& g)
 		auto tree = n->getValueTree();
 		tree.getParent().removeChild(tree, n->getUndoManager());
 	}
+
+	g.network->deselectAll();
 
 	return true;
 }

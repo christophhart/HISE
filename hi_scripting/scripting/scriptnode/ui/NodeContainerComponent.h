@@ -447,6 +447,13 @@ public:
 			{
 				auto name = PresetHandler::getCustomName("Parameter", "Enter the parameter name");
 
+				while (name.isNotEmpty() && parent.node->getParameter(name) != nullptr)
+				{
+					PresetHandler::showMessageWindow("Already there", "The parameter " + name + " already exists. You need to be more creative.");
+
+					name = PresetHandler::getCustomName("Parameter", "Enter a new parameter name");
+				}
+
 				if (name.isNotEmpty())
 				{
 					ValueTree p(PropertyIds::Parameter);

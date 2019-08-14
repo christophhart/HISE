@@ -679,6 +679,22 @@ DspNetwork::SelectionUpdater::SelectionUpdater(DspNetwork& parent_) :
 	};
 
 	MessageManager::callAsync(f);
+
+#if 0
+	deleteChecker.setCallback(parent.data, valuetree::AsyncMode::Asynchronously,
+		[this](ValueTree v, bool wasAdded)
+	{
+		if (!wasAdded)
+		{
+			if (auto nodeThatWasRemoved = parent.getNodeForValueTree(v))
+			{
+				parent.deselect(nodeThatWasRemoved);
+			}
+		}
+	});
+
+	deleteChecker.setTypeToWatch(PropertyIds::Nodes);
+#endif
 }
 
 DspNetwork::SelectionUpdater::~SelectionUpdater()

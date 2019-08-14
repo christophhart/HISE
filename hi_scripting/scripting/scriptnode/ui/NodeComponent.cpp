@@ -94,6 +94,8 @@ void NodeComponent::Header::buttonClicked(Button* b)
 	}
 	if (b == &deleteButton)
 	{
+		parent.node->getRootNetwork()->deselect(parent.node);
+
 		parent.dataReference.getParent().removeChild(
 			parent.dataReference, parent.node->getUndoManager());
 	}
