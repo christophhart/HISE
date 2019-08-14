@@ -73,7 +73,7 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 		statement = parseReturnStatement();
 		match(JitTokens::semicolon);
 	}
-	else if (matchIf(JitTokens::loop_block_))
+	else if (matchIf(JitTokens::for_))
 	{
 		statement = parseLoopStatement();
 	}
@@ -120,6 +120,10 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition(boo
 snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 {
 	match(JitTokens::openParen);
+
+	match(JitTokens::auto_);
+
+	match(JitTokens::bitwiseAnd);
 
 	auto variableId = parseIdentifier();
 	match(JitTokens::colon);

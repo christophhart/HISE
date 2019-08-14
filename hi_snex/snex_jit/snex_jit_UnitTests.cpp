@@ -447,7 +447,7 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
-		CREATE_TYPED_TEST("int v = 0; int test(block in) { loop_block(s: in) v += 1; return v; }");
+		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v += 1; return v; }");
 		test->setup();
 		auto numSamples2 = test->func["test"].call<int>(bl);
 		expectEquals<int>(numSamples2, bl.size(), "Counting samples in block");
@@ -457,12 +457,12 @@ private:
 			b.setSample(0, i, (float)(i + 1));
 		}
 		
-		CREATE_TYPED_TEST("float v = 0.0f; float test(block in) { loop_block(s: in) v = s; return v; }");
+		CREATE_TYPED_TEST("float v = 0.0f; float test(block in) { for(auto& s: in) v = s; return v; }");
 		test->setup();
 		auto numSamples3 = test->func["test"].call<float>(bl);
 		expectEquals<int>(numSamples3, (float)bl.size(), "read block value into global variable");
 
-		CREATE_TYPED_TEST("int v = 0; int test(block in) { loop_block(s: in) v = s; return v; }");
+		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v = s; return v; }");
 		test->setup();
 		auto numSamples4 = test->func["test"].call<int>(bl);
 		expectEquals<int>(numSamples4, bl.size(), "read block value with cast");
@@ -514,17 +514,17 @@ private:
 		test->func["test"].call<float>(bl);
 		expectEquals<float>(bl[1], 124.0f, "Setting block value");
         
-        CREATE_TYPED_TEST("float l = 1.94f; float test(block in){ loop_block(s: in) s = 2.4f; loop_block(s: in) l = s; return l; }");
+        CREATE_TYPED_TEST("float l = 1.94f; float test(block in){ for(auto& s: in) s = 2.4f; for(auto& s: in) l = s; return l; }");
         test->setup();
         auto shouldBe24 = test->func["test"].call<float>(bl);
         expectEquals<float>(shouldBe24, 2.4f, "Setting global variable in block loop");
         
-		CREATE_TYPED_TEST("int v = 0; int test(block in) { loop_block(s: in) v += 1; return v; }");
+		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v += 1; return v; }");
 		test->setup();
 		auto numSamples = test->func["test"].call<int>(bl);
 		expectEquals<int>(numSamples, bl.size(), "Counting samples in block");
         
-		CREATE_TYPED_TEST("void test(block in){ loop_block(sample: in){ sample = 2.0f; }}");
+		CREATE_TYPED_TEST("void test(block in){ for(auto& sample: in){ sample = 2.0f; }}");
 		test->setup();
 
 		auto f = test->func["test"];

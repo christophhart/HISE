@@ -55,8 +55,9 @@ using namespace juce;
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
 	X(void_, "void")			X(buffer_, "Buffer") X(public_, "public")	X(private_, "private") \
-	X(class_, "class")			X(block_, "block")	X(event_, "event")	X(loop_block_, "loop_block") \
+	X(class_, "class")			X(block_, "block")	X(event_, "event")		X(for_, "for") \
 	X(if_, "if")				X(else_, "else")	X(sfloat, "sfloat")		X(sdouble, "sdouble") \
+	X(auto_, "auto")
 
 namespace JitTokens
 {
