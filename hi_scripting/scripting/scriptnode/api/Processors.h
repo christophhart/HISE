@@ -260,6 +260,7 @@ public:
 		float** frameData = (float**)alloca(data.numChannels * sizeof(float*));
 		memcpy(frameData, data.data, sizeof(float*)*data.numChannels);
 		ProcessData copy(frameData, data.numChannels, data.size);
+		copy.allowPointerModification();
 
 		while (--numToDo >= 0)
 		{

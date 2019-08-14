@@ -103,10 +103,6 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::duplicateSelection(*this);
 	if ((key.isKeyCode('n') || key.isKeyCode('N')))
 		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::New);
-	if ((key.isKeyCode('w') || key.isKeyCode('W')))
-		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::Wrap);
-	if ((key.isKeyCode('s') || key.isKeyCode('S')))
-		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::Surround);
 	if ((key).isKeyCode('f') || key.isKeyCode('F'))
 		return Actions::foldSelection(*this);
 	if ((key).isKeyCode('p') || key.isKeyCode('P'))
@@ -666,7 +662,11 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 
 	int addPosition = -1;
 
-	if (dynamic_cast<NodeContainer*>(firstInSelection.get()) != nullptr && firstInSelection->getParentNode() != nullptr)
+	bool somethingSelected = dynamic_cast<NodeContainer*>(firstInSelection.get()) != nullptr;
+	bool stillInNetwork = somethingSelected && firstInSelection->getParentNode() != nullptr;
+	
+
+	if (somethingSelected && stillInNetwork)
 		containerToLookFor = firstInSelection;
 	else if (firstInSelection != nullptr)
 	{
@@ -674,20 +674,45 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 		addPosition = firstInSelection->getIndexInParent() + 1;
 	}
 
-	
-
 	Array<ContainerComponent*> list;
 
 	fillChildComponentList(list, &g);
 	
+	bool mouseOver = g.isMouseOver(true);
+
+	if (mouseOver)
+	{
+		int hoverPosition = -1;
+		NodeBase* hoverContainer = nullptr;
+
+		for (auto nc : list)
+		{
+			auto thisAdd = nc->getCurrentAddPosition();
+
+			if (thisAdd != -1)
+			{
+				hoverPosition = thisAdd;
+				hoverContainer = nc->node;
+				break;
+			}
+		}
+
+		if (hoverPosition != -1)
+		{
+			containerToLookFor = nullptr;
+			addPosition = -1;
+		}
+	}
+
 	for (auto nc : list)
 	{
 		auto thisAddPosition = nc->getCurrentAddPosition();
-		bool thisContainer = nc->node == containerToLookFor || (containerToLookFor == nullptr && thisAddPosition != -1);
+
 		
+		bool containerIsSelected = nc->node == containerToLookFor;
+		bool nothingSelectedAndAddPositionMatches = (containerToLookFor == nullptr && thisAddPosition != -1);
 
-
-		if (thisContainer)
+		if (containerIsSelected || nothingSelectedAndAddPositionMatches)
 		{
 			if (addPosition == -1)
 				addPosition = thisAddPosition;
