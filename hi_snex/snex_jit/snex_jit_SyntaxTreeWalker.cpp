@@ -40,15 +40,7 @@ void SyntaxTreeWalker::add(Operations::Statement* s)
 {
 	statements.add(s);
 
-	if (auto is = dynamic_cast<Operations::IfStatement*>(s))
-	{
-		add(is->cond);
-		add(is->trueBranch);
-
-		if (is->falseBranch != nullptr)
-			add(is->falseBranch);
-	}
-	else if (auto bl = dynamic_cast<Operations::BlockLoop*>(s))
+	if (auto bl = dynamic_cast<Operations::BlockLoop*>(s))
 	{
 		// the statement block is not a "real" sub expr (because it shouldn't
 		// be subject to the usual codegen)

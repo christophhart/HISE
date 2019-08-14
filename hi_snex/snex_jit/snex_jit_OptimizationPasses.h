@@ -83,7 +83,7 @@ public:
         It will also be called only during optimization passes, so you can't
         perform anything during regular passes (eg. ResolvingSymbols).
     */
-    virtual void process(BaseCompiler* c, BaseScope* s, StatementPtr statement) = 0;
+    virtual void processStatementInternal(BaseCompiler* c, BaseScope* s, StatementPtr statement) = 0;
     
     /** Call this if you want to replace a statement with a noop node.
         If the statement is not referenced anywhere else, it might be
@@ -138,7 +138,7 @@ public:
 		constantVariables.clear();
 	}
 
-	void process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement);
+	void processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement);
 
 	void addConstKeywordToSingleWriteVariables(Operations::VariableReference* v, BaseScope* s, BaseCompiler* compiler);
 
@@ -191,15 +191,19 @@ public:
 
 	OPTIMIZATION_FACTORY(OptimizationIds::BinaryOpOptimisation, BinaryOpOptimizer);
 
-	void process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+	void processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 
 private:
+
+	bool swapIfBetter(ExprPtr bOp, const char* op, BaseCompiler* compiler, BaseScope* s);
+
+	bool simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCompiler* compiler, BaseScope* s);
 
 	bool isAssignedVariable(ExprPtr e) const;
 
 	static Operations::BinaryOp* getFirstOp(ExprPtr e);
 
-	BaseScope::Symbol currentlyAssignedId;
+	BaseScope::RefPtr currentlyAssignedId;
 
 	static bool containsVariableReference(ExprPtr p, BaseScope::RefPtr refToCheck);
 
@@ -214,7 +218,7 @@ public:
 
 	OPTIMIZATION_FACTORY(OptimizationIds::DeadCodeElimination, DeadcodeEliminator);
 
-	void process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+	void processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 };
 
 class Inliner: public OptimizationPass
@@ -227,7 +231,7 @@ public:
 
 	
 
-	void process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+	void processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 
 	using ExprPtr = Operations::Expression::Ptr;
 

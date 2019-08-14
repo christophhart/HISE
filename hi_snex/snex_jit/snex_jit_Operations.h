@@ -98,6 +98,10 @@ struct Operations::Immediate : public Expression
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
+			// We don't need to use the target register from the 
+			// assignment for immediates
+			reg = nullptr;
+
 			reg = compiler->getRegFromPool(getType());
 			reg->setDataPointer(&v);
 			reg->createMemoryLocation(getFunctionCompiler(compiler));
@@ -116,6 +120,12 @@ struct Operations::VariableReference : public Expression
 		id(id_)
 	{};
 
+	/** This scans the tree and checks whether it's the last reference.
+	
+		It ignores the control flow, so when the variable is part of a true
+		branch, it might return true if the variable is used in the false
+		branch.
+	*/
 	bool isLastVariableReference() const
 	{
 		SyntaxTreeWalker walker(this);
@@ -126,10 +136,53 @@ struct Operations::VariableReference : public Expression
 
 		while (lastOne = walker.getNextStatementOfType<VariableReference>())
 		{
+			if (lastOne->ref != ref)
+				continue;
+
 			isLast = lastOne == this;
 		}
 
 		return isLast;
+	}
+
+	/** This flags all variables that are not referenced later as ready for
+	    reuse.
+		
+		The best place to call this is after a child statement was processed
+		with the BaseCompiler::CodeGeneration pass.
+		It makes sure that if the register is used by a parent expression that
+		it will not be flagged for reuse (eg. when used as target register of
+		a binary operation).
+	*/
+	static void reuseAllLastReferences(Statement::Ptr parentStatement)
+	{
+		ReferenceCountedArray<AssemblyRegister> parentRegisters;
+
+		auto pExpr = dynamic_cast<Expression*>(parentStatement.get());
+
+		while (pExpr != nullptr)
+		{
+			if (pExpr->reg != nullptr)
+				parentRegisters.add(pExpr->reg);
+
+			pExpr = dynamic_cast<Expression*>(pExpr->parent.get());
+		}
+
+		SyntaxTreeWalker w(parentStatement, false);
+
+		while (auto v = w.getNextStatementOfType<VariableReference>())
+		{
+			if (parentRegisters.contains(v->reg))
+				continue;
+
+			if (v->isLastVariableReference())
+			{
+				if (v->parameterIndex != -1)
+					continue;
+
+				v->reg->flagForReuse();
+			}
+		}
 	}
 
 	bool isConstExpr() const override
@@ -231,12 +284,40 @@ struct Operations::VariableReference : public Expression
 			// Nothing to do...
 		}
 
+#if 0
 		bool initialiseVariables = (currentPass == BaseCompiler::RegisterAllocation && parameterIndex != -1) ||
 			(currentPass == BaseCompiler::CodeGeneration && parameterIndex == -1);
+#endif
 
-		if (initialiseVariables)
+		bool initialiseVariables = currentPass == BaseCompiler::CodeGeneration;
+
+		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{
-			reg = compiler->registerPool.getRegisterForVariable(ref);
+			
+
+			// We need to initialise parameter registers before the rest
+			if (parameterIndex != -1)
+			{
+				reg = compiler->registerPool.getRegisterForVariable(ref);
+
+				if (isFirstReference())
+				{
+					auto asg = CREATE_ASM_COMPILER(type);
+					asg.emitParameter(reg, parameterIndex);
+				}
+				
+				return;
+			}
+		}
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			if (parameterIndex != -1)
+				return;
+
+			// It might already be assigned to a reused register
+			if (reg == nullptr)
+				reg = compiler->registerPool.getRegisterForVariable(ref);
 
 			if (reg->isActiveOrDirtyGlobalRegister() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
 			{
@@ -250,33 +331,25 @@ struct Operations::VariableReference : public Expression
 
 			auto asg = CREATE_ASM_COMPILER(type);
 
-			if (parameterIndex != -1 && isFirstReference())
-			{
-				asg.emitParameter(reg, parameterIndex);
-				return;
-			}
-
 			if (isFirstReference())
 			{
 				auto assignmentType = getWriteAccessType();
 
 				auto* dataPointer = &ref.get()->getDataReference(assignmentType == JitTokens::assign_);
 
-				reg->setDataPointer(dataPointer);
-
 				if (assignmentType != JitTokens::void_)
 				{
 					if (assignmentType != JitTokens::assign_)
 					{
+						reg->setDataPointer(dataPointer);
 						reg->loadMemoryIntoRegister(asg.cc);
 					}
 					else
-					{
 						reg->createRegister(asg.cc);
-					}
 				}
 				else
 				{
+					reg->setDataPointer(dataPointer);
 					reg->createMemoryLocation(asg.cc);
 
 					if (!isReferencedOnce())
@@ -349,9 +422,16 @@ struct Operations::Assignment : public Expression
 		CodeGeneration, = > Store or Op
 		*/
 
-		Expression::process(compiler, scope);
-
-
+		/** Assignments might use the target register, so we need to process the target first*/
+		if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
+		{
+			Statement::process(compiler, scope);
+		}
+		else
+		{
+			Expression::process(compiler, scope);
+		}
+		
 		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 		{
 			if (getSubExpr(0)->isConstExpr() && findClassScope(scope) == scope)
@@ -377,6 +457,13 @@ struct Operations::Assignment : public Expression
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
+			auto targetV = getTargetVariable();
+
+			getSubExpr(0)->process(compiler, scope);
+
+
+			targetV->process(compiler, scope);
+
 			auto acg = CREATE_ASM_COMPILER(type);
 
 			auto value = getSubRegister(0);
@@ -389,6 +476,12 @@ struct Operations::Assignment : public Expression
 			}
 			else
 				acg.emitBinaryOp(assignmentType, tReg, value);
+
+			
+
+			
+
+			
 
 			//getSubRegister(0)->flagForReuseIfAnonymous();
 		}
@@ -437,20 +530,24 @@ struct Operations::Compare : public Expression
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			auto asg = CREATE_ASM_COMPILER(getType());
+			{
+				auto asg = CREATE_ASM_COMPILER(getType());
 
-			auto l = getSubExpr(0);
-			auto r = getSubExpr(1);
+				auto l = getSubExpr(0);
+				auto r = getSubExpr(1);
 
-			reg = compiler->getRegFromPool(getType());
+				reg = compiler->getRegFromPool(getType());
 
-			auto tReg = getSubRegister(0);
-			auto value = getSubRegister(1);
+				auto tReg = getSubRegister(0);
+				auto value = getSubRegister(1);
 
-			asg.emitCompare(op, reg, l->reg, r->reg);
+				asg.emitCompare(op, reg, l->reg, r->reg);
 
-			l->reg->flagForReuseIfAnonymous();
-			r->reg->flagForReuseIfAnonymous();
+				VariableReference::reuseAllLastReferences(this);
+
+				l->reg->flagForReuseIfAnonymous();
+				r->reg->flagForReuseIfAnonymous();
+			}
 		}
 	}
 
@@ -612,6 +709,26 @@ struct Operations::FunctionCall : public Expression
 			throwError("Wrong argument types for function call " + symbol.toString());
 		}
 
+		COMPILER_PASS(BaseCompiler::RegisterAllocation)
+		{
+			reg = compiler->getRegFromPool(type);
+
+			//VariableReference::reuseAllLastReferences(this);
+
+			for (int i = 0; i < getNumChildStatements(); i++)
+			{
+				auto pReg = compiler->getRegFromPool(getSubExpr(i)->getType());
+
+				auto asg = CREATE_ASM_COMPILER(type);
+
+				pReg->createRegister(asg.cc);
+
+				//getSubExpr(i)->setTargetRegister(pReg, false);
+
+				parameterRegs.add(pReg);
+			}
+		}
+
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
 			if (!function)
@@ -624,17 +741,51 @@ struct Operations::FunctionCall : public Expression
 
 			auto asg = CREATE_ASM_COMPILER(type);
 
-			for (int i = 0; i < getNumChildStatements(); i++)
-				parameterRegs.add(compiler->getRegFromPool(getSubExpr(i)->getType()));
+			
+			VariableReference::reuseAllLastReferences(this);
 
-			reg = compiler->getRegFromPool(type);
+			for (int i = 0; i < parameterRegs.size(); i++)
+			{
+				auto existingReg = getSubExpr(i)->reg;
 
+				auto pReg = parameterRegs[i];
+
+				if (existingReg != pReg)
+				{
+					auto pType = getSubExpr(i)->getType();
+					auto typedAcg = CREATE_ASM_COMPILER(pType);
+					typedAcg.emitComment("Parameter Save");
+					typedAcg.emitStore(pReg, existingReg);
+				}
+
+				
+			}
+			
+#if 0
+			VariableReference::reuseAllLastReferences(this);
+
+			
 			for (int i = 0; i < getNumChildStatements(); i++)
 			{
-				auto pType = getSubExpr(i)->getType();
-				auto typedAcg = CREATE_ASM_COMPILER(pType);
-				typedAcg.emitStore(parameterRegs[i], getSubExpr(i)->reg);
+				auto existingReg = getSubExpr(i)->reg;
+
+				if (existingReg->canBeReused())
+				{
+					parameterRegs.add(existingReg);
+				}
+				else
+				{
+					auto pReg = compiler->getRegFromPool(getSubExpr(i)->getType());
+					auto pType = getSubExpr(i)->getType();
+					auto typedAcg = CREATE_ASM_COMPILER(pType);
+					typedAcg.emitStore(pReg, existingReg);
+
+					parameterRegs.add(pReg);
+				}
+
+				
 			}
+#endif
 
 			asg.emitFunctionCall(reg, function, parameterRegs);
 
@@ -795,23 +946,45 @@ struct Operations::BinaryOp : public Expression
 			{
 				auto l = getSubRegister(0);
 
+				if (auto childOp = dynamic_cast<BinaryOp*>(getSubExpr(0).get()))
+				{
+					if (childOp->usesTempRegister)
+						l->flagForReuse();
+				}
+
+				usesTempRegister = false;
+
+				
+				
+
 				if (l->canBeReused())
 				{
 					reg = l;
+					jassert(!reg->isMemoryLocation());
 				}
+				else
 				{
-					asg.emitComment("temp register for binary op");
-					reg = compiler->getRegFromPool(getType());
+					if (reg == nullptr)
+					{
+						asg.emitComment("temp register for binary op");
+						reg = compiler->getRegFromPool(getType());
+						usesTempRegister = true;
+					}
+
 					asg.emitStore(reg, getSubRegister(0));
 				}
 
 				asg.emitBinaryOp(op, reg, getSubRegister(1));
+
+				VariableReference::reuseAllLastReferences(getChildStatement(0));
+				VariableReference::reuseAllLastReferences(getChildStatement(1));
 			}
 
 
 		}
 	}
 
+	bool usesTempRegister = false;
 	TokenType op;
 };
 
@@ -1056,6 +1229,25 @@ struct Operations::BlockLoop : public Expression,
 			b->blockScope->allocate(iterator, VariableStorage(0.0f));
 
 			b->process(compiler, scope);
+
+			
+			{
+				SyntaxTreeWalker w(b, false);
+
+				while (auto v = w.getNextStatementOfType<VariableReference>())
+				{
+					if (v->ref->id.id == iterator)
+					{
+						if (auto a = dynamic_cast<Assignment*>(v->parent.get()))
+						{
+							 loadIterator = a->assignmentType != JitTokens::assign_ ||
+											!(a->getTargetVariable() == v);
+						}
+
+						break;
+					}
+				}
+			}
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
@@ -1082,41 +1274,7 @@ struct Operations::BlockLoop : public Expression,
 				target->process(compiler, scope);
 				target->reg->loadMemoryIntoRegister(acg.cc);
 
-				// getWritePointer
-				auto wpReg = acg.cc.newIntPtr();
-
-				{
-					FuncSignatureX sig;
-					sig.setRet(asmjit::TypeId::kIntPtr);
-					sig.addArg(asmjit::TypeId::kIntPtr);
-
-					// Push the function pointer
-					auto fn = acg.cc.newIntPtr("fn");
-					acg.cc.mov(fn, imm_ptr(BlockFunctions::Wrapper::getWritePointer));
-
-					auto call = acg.cc.call(fn, sig);
-
-					call->setInlineComment("getWritePointer");
-					call->setArg(0, target->reg->getRegisterForReadOp());
-					call->setRet(0, wpReg);
-				}
-
-				// size()
-				auto endReg = acg.cc.newGpd();
-
-				{
-					FuncSignatureX sig;
-					sig.setRet(asmjit::TypeId::kI32);
-
-					// Push the function pointer
-					auto fn = acg.cc.newIntPtr("fn");
-					acg.cc.mov(fn, imm_ptr(BlockFunctions::Wrapper::size));
-
-					CCFuncCall* call = acg.cc.call(fn, sig);
-
-					call->setInlineComment("size()");
-					call->setRet(0, endReg);
-				}
+				auto endRegPtr = compiler->registerPool.getNextFreeRegister(Types::ID::Integer);
 
 				BaseScope::RefPtr r = b->blockScope->get({ {}, iterator, Types::ID::Float });
 
@@ -1128,14 +1286,30 @@ struct Operations::BlockLoop : public Expression,
 
 				auto& cc = getFunctionCompiler(compiler);
 
+				auto blockAddress = target->reg->getRegisterForReadOp().as<X86Gp>();
+				
+				endRegPtr->createRegister(acg.cc);
+
+				auto wpReg = acg.cc.newIntPtr();
+				auto endReg = endRegPtr->getRegisterForWriteOp().as<X86Gp>();
+
+				auto sizeAddress = x86::dword_ptr(blockAddress, 4);
+				auto writePointerAddress = x86::dword_ptr(blockAddress, 8);
+
+				cc.setInlineComment("block size");
+				cc.mov(endReg, sizeAddress);
+				cc.setInlineComment("block data ptr");
+				cc.mov(wpReg, writePointerAddress);
+				
 				auto loopStart = cc.newLabel();
 
 				cc.setInlineComment("loop_block {");
 				cc.bind(loopStart);
 
-				auto adress = x86::qword_ptr(wpReg);
+				auto adress = x86::dword_ptr(wpReg);
 
-				cc.movss(itReg->getRegisterForWriteOp().as<X86Xmm>(), adress);
+				if(loadIterator)
+					cc.movss(itReg->getRegisterForWriteOp().as<X86Xmm>(), adress);
 
 				b->process(compiler, scope);
 
@@ -1144,6 +1318,9 @@ struct Operations::BlockLoop : public Expression,
 				cc.dec(endReg);
 				cc.setInlineComment("loop_block }");
 				cc.jnz(loopStart);
+				itReg->flagForReuse(true);
+				target->reg->flagForReuse(true);
+				endRegPtr->flagForReuse(true);
 			}
 		}
 	}
@@ -1152,6 +1329,8 @@ struct Operations::BlockLoop : public Expression,
 	Identifier iterator;
 	Expression::Ptr target;
 	ReferenceCountedObjectPtr<StatementBlock> b;
+
+	bool loadIterator = true;
 };
 
 
@@ -1186,82 +1365,66 @@ struct Operations::Negation : public Expression
 struct Operations::IfStatement : public Statement,
 								 public Operations::ConditionalBranch
 {
-	IfStatement(Location loc, Expression::Ptr cond_, Ptr trueBranch_, Ptr falseBranch_):
-		Statement(loc),
-		cond(cond_),
-		trueBranch(trueBranch_),
-		falseBranch(falseBranch_)
+	IfStatement(Location loc, Expression::Ptr cond, Ptr trueBranch, Ptr falseBranch):
+		Statement(loc)
 	{
-		cond->setParent(this);
-		trueBranch->setParent(this);
+		addStatement(cond.get());
+		addStatement(trueBranch);
 
 		if (falseBranch != nullptr)
-			falseBranch->setParent(this);
+			addStatement(falseBranch);
 	}
 
 	Types::ID getType() const override { return Types::ID::Void; }
 
+	bool hasFalseBranch() const { return getNumChildStatements() > 2; }
 	
+	Statement::Ptr getTrueBranch() const { return getChildStatement(1); }
+	Statement::Ptr getFalseBranch() const { return getChildStatement(2); }
+
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
 		Statement::process(compiler, scope);
 
 		if (BaseCompiler::isOptimizationPass(currentPass))
 		{
-			cond->process(compiler, scope);
-			trueBranch->process(compiler, scope);
-
-			if (falseBranch != nullptr)
-				falseBranch->process(compiler, scope);
+			processAllChildren(compiler, scope);
 		}
 
 		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 		{
-			cond->process(compiler, scope);
-			trueBranch->process(compiler, scope);
-
-			if (falseBranch != nullptr)
-				falseBranch->process(compiler, scope);
+			processAllChildren(compiler, scope);
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			cond->process(compiler, scope);
+			processAllChildren(compiler, scope);
 
-			if (cond->getType() != Types::ID::Integer)
+			if (getChildStatement(0)->getType() != Types::ID::Integer)
 				throwError("Condition must be boolean expression");
-
-			trueBranch->process(compiler, scope);
-
-			if (falseBranch != nullptr)
-				falseBranch->process(compiler, scope);
 		}
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{
-			cond->process(compiler, scope);
-			trueBranch->process(compiler, scope);
-
-			if (falseBranch != nullptr)
-				falseBranch->process(compiler, scope);
+			processAllChildren(compiler, scope);
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
 			auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 
-			allocateDirtyGlobalVariables(trueBranch, compiler, scope);
+			allocateDirtyGlobalVariables(getChildStatement(1), compiler, scope);
 
-			if(falseBranch)
-				allocateDirtyGlobalVariables(falseBranch, compiler, scope);
+			if(hasFalseBranch())
+				allocateDirtyGlobalVariables(getChildStatement(2), compiler, scope);
 			
-			acg.emitBranch(Types::ID::Void, cond.get(), trueBranch.get(), falseBranch.get(), compiler, scope);
+			auto cond = dynamic_cast<Expression*>(getChildStatement(0).get());
+			auto trueBranch = getChildStatement(1);
+			auto falseBranch = hasFalseBranch() ? getChildStatement(2).get() : nullptr;
+
+			acg.emitBranch(Types::ID::Void, cond, trueBranch, falseBranch, compiler, scope);
 		}
 	}
-
-	Expression::Ptr cond;
-	Ptr trueBranch;
-	Ptr falseBranch;
 };
 
 struct Operations::SmoothedVariableDefinition : public Statement

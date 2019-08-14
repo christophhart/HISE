@@ -89,8 +89,13 @@ struct BaseCompiler
 		debugHandler = l;
 	}
 
+	bool hasLogger() const { return debugHandler != nullptr; }
+
 	void logMessage(MessageType level, const String& s)
 	{
+		if (!hasLogger())
+			return;
+
 		if (level > verbosity)
 			return;
 

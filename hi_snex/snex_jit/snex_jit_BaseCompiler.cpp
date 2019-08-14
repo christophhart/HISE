@@ -45,7 +45,7 @@ using namespace asmjit;
         
         Operations::Statement::Ptr ptr(dynamic_cast<Operations::Statement*>(statement));
         
-        dynamic_cast<OptimizationPass*>(currentOptimization)->process(this, scope, ptr);
+        dynamic_cast<OptimizationPass*>(currentOptimization)->processStatementInternal(this, scope, ptr);
     }
     
     void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)

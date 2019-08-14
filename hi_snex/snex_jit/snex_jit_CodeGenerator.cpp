@@ -51,9 +51,10 @@ using namespace asmjit;
 
 #define INT_OP(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), (uint64_t)INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
 
-AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, Types::ID type_) :
+AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_) :
 	cc(cc_),
-	type(type_)
+	type(type_),
+	registerPool(pool)
 {
 
 }
@@ -85,21 +86,21 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 {
 	type = source->getType();
 
-	cc.setInlineComment("Write class variable");
-
+	cc.setInlineComment("Write class variable ");
 	auto data = source->getGlobalDataPointer();
 
 #if JUCE_64BIT
-	X86Gp address = cc.newGpq();
-	cc.mov(address, reinterpret_cast<uint64_t>(data));
-	auto target = x86::qword_ptr(address);
+
+	TemporaryRegister ad(*this, Types::ID::Block);
+	int ok = cc.mov(ad.get(), reinterpret_cast<uint64_t>(data));
+	auto target = x86::qword_ptr(ad.get());
 #else
 	auto target = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
 #endif
 
-	IF_(int)	cc.mov(target, source->getRegisterForReadOp().as<X86Gp>());
-	IF_(float)	cc.movss(target, source->getRegisterForReadOp().as<X86Xmm>());
-	IF_(double) cc.movsd(target, source->getRegisterForReadOp().as<X86Xmm>());
+	IF_(int)	ok = cc.mov(target, source->getRegisterForReadOp().as<X86Gp>());
+	IF_(float)	ok = cc.movss(target, source->getRegisterForReadOp().as<X86Xmm>());
+	IF_(double) ok = cc.movsd(target, source->getRegisterForReadOp().as<X86Xmm>());
 }
 
 
@@ -112,9 +113,10 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 	auto data = target->getGlobalDataPointer();
 
 #if JUCE_64BIT
-	X86Gp address = cc.newGpq();
-	cc.mov(address, reinterpret_cast<uint64_t>(data));
-	auto source = x86::qword_ptr(address);
+	TemporaryRegister address(*this, Types::ID::Block);
+
+	cc.mov(address.get(), reinterpret_cast<uint64_t>(data));
+	auto source = x86::qword_ptr(address.get());
 #else
 	auto source = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
 #endif
@@ -124,51 +126,6 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 	IF_(float)	cc.movss(FP_REG_R(target), source);
 	IF_(double) cc.movsd(FP_REG_R(target), source);
 }
-
-#if 0
-AsmCodeGenerator::RegPtr AsmCodeGenerator::emitImmediate(VariableStorage value)
-{
-	jassert(type == value.getType());
-	RegPtr newReg = new AssemblyRegister(type);
-	emitImmediate(newReg, value);
-	return newReg;
-}
-
-
-void AsmCodeGenerator::emitImmediate(RegPtr target, VariableStorage value)
-{
-	IF_(float)	target->setImmediateFloatingPointValue(cc, value);
-	IF_(double)	target->setImmediateFloatingPointValue(cc, value);
-	IF_(int)	target->setImmediateIntValue(static_cast<int>(value));
-}
-#endif
-
-#if 0
-AsmCodeGenerator::RegPtr AsmCodeGenerator::emitParameter(int parameterIndex)
-{
-	asmjit::Error error;
-	RegPtr reg = new AssemblyRegister(type);
-
-	IF_(double)
-	{
-		reg->reg = cc.newXmmSs("Parameter Register");
-		cc.setArg(parameterIndex, reg->reg);
-	}
-	IF_(float)
-	{
-		reg->reg = cc.newXmmSd();
-		cc.setArg(parameterIndex, reg->reg);
-	}
-	IF_(int)
-	{
-		reg->reg = cc.newGpd();
-		cc.setArg(parameterIndex, reg->reg);
-	}
-
-	return reg;
-}
-#endif
-
 
 void AsmCodeGenerator::emitParameter(RegPtr parameterRegister, int parameterIndex)
 {
@@ -180,22 +137,26 @@ void AsmCodeGenerator::emitParameter(RegPtr parameterRegister, int parameterInde
 
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, RegPtr r)
 {
+	jassert(l != nullptr && r != nullptr);
+
 	if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 	{
-		X86Gp dummy = cc.newInt32("dummy");
+		TemporaryRegister dummy(*this, Types::ID::Integer);
+		
 
-		cc.xor_(dummy, dummy);
-		cc.cdq(dummy, INT_REG_W(l));
+		cc.xor_(dummy.get(), dummy.get());
+		cc.cdq(dummy.get(), INT_REG_W(l));
 
 		if (r->isMemoryLocation())
 		{
 			auto forcedMemory = cc.newInt32Const(kConstScopeLocal, static_cast<int>(INT_MEM(r)));
-			cc.idiv(dummy, INT_REG_W(l), forcedMemory);
+			cc.idiv(dummy.get(), INT_REG_W(l), forcedMemory);
 		}
-		else					   cc.idiv(dummy, INT_REG_W(l), INT_REG_R(r));
+		else					   
+			cc.idiv(dummy.get(), INT_REG_W(l), INT_REG_R(r));
 
 		if (op == JitTokens::modulo)
-			cc.mov(INT_REG_W(l), dummy);
+			cc.mov(INT_REG_W(l), dummy.get());
 
 		return l;
 	}
@@ -281,12 +242,12 @@ void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
 	IF_(float) FP_OP(cc.ucomiss, l, r);
 	IF_(double) FP_OP(cc.ucomisd, l, r);
 
-#define FLOAT_COMPARE(token, command) if (op == token) command(INT_REG_R(target), condReg);
+#define FLOAT_COMPARE(token, command) if (op == token) command(INT_REG_R(target), condReg.get());
 
-	auto condReg = cc.newGpq();
+	TemporaryRegister condReg(*this, Types::ID::Block);
 
 	cc.mov(INT_REG_W(target), 0);
-	cc.mov(condReg, 1);
+	cc.mov(condReg.get(), 1);
 
 	FLOAT_COMPARE(JitTokens::greaterThan, cc.cmova);
 	FLOAT_COMPARE(JitTokens::lessThan, cc.cmovb);
@@ -358,9 +319,13 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 
 	if (condition->reg->isMemoryLocation())
 	{
-		auto dummy = cc.newInt32();
-		cc.mov(dummy, (uint64_t)condition->reg->getImmediateIntValue());
-		cc.cmp(dummy, 0);
+		auto dummy = c->registerPool.getNextFreeRegister(Types::ID::Integer);
+		dummy->createRegister(cc);
+
+		cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), (uint64_t)condition->reg->getImmediateIntValue());
+		cc.cmp(dummy->getRegisterForReadOp().as<X86Gp>(), 0);
+
+		dummy->flagForReuse(true);
 	}
 	else
 		cc.cmp(INT_REG_R(condition->reg), 0);
@@ -409,52 +374,6 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitTernaryOp(Operations::TernaryOp* tOp, BaseCompiler* c, BaseScope* s)
 {
 	return emitBranch(tOp->getType(), tOp->getSubExpr(0).get(), tOp->getSubExpr(1).get(), tOp->getSubExpr(2).get(), c, s);
-
-#if 0
-	auto returnReg = c->registerPool.getNextFreeRegister(tOp->getType());
-
-	auto condition = tOp->getSubExpr(0);
-	auto trueBranch = tOp->getSubExpr(1);
-	auto falseBranch = tOp->getSubExpr(2);
-
-	returnReg->createRegister(cc);
-	auto vv = returnReg->getRegisterForWriteOp();
-
-
-
-	auto l = cc.newLabel();
-	auto e = cc.newLabel();
-
-	// emit the code for the condition here
-	condition->process(c, s);
-
-	if (condition->reg->isMemoryLocation())
-	{
-		auto dummy = cc.newInt32();
-		cc.mov(dummy, (uint64_t)condition->reg->getImmediateIntValue());
-		cc.cmp(dummy, 0);
-	}
-	else
-		cc.cmp(INT_REG_R(condition->reg), 0);
-
-	cc.jnz(l);
-
-	condition->reg->flagForReuseIfAnonymous();
-
-	cc.setInlineComment("false branch");
-	falseBranch->process(c, s);
-	emitStore(returnReg, falseBranch->reg);
-	falseBranch->reg->flagForReuseIfAnonymous();
-	cc.jmp(e);
-	cc.bind(l);
-	cc.setInlineComment("true branch");
-	trueBranch->process(c, s);
-	emitStore(returnReg, trueBranch->reg);
-	trueBranch->reg->flagForReuseIfAnonymous();
-	cc.bind(e);
-
-	return returnReg;
-#endif
 }
 
 
@@ -568,12 +487,11 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	bool isMemberFunction = f.object != nullptr;
 	fillSignature(f, sig, isMemberFunction);
 
-	X86Gp o;
+	TemporaryRegister o(*this, Types::ID::Block);
 
 	if (isMemberFunction)
 	{
-		o = cc.newIntPtr("obj");
-		cc.mov(o, imm_ptr(f.object));
+		cc.mov(o.get(), imm_ptr(f.object));
 	}
 
 	// Push the function pointer
@@ -588,7 +506,7 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 
 	if (isMemberFunction)
 	{
-		call->setArg(0, o);
+		call->setArg(0, o.get());
 		offset = 1;
 	}
 

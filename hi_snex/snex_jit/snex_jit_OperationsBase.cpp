@@ -154,7 +154,7 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 			else
 			{
 				Ptr implCast = new Operations::Cast(e->location, e, exprType);
-				implCast->attachAsmComment("Implicit cast from Line " + location.getLineNumber(location.program, location.location));
+				implCast->attachAsmComment("Implicit cast");
 
 				replaceChildStatement(i, implCast);
 			}
@@ -351,6 +351,7 @@ Operations::Statement::Ptr Operations::Statement::replaceInParent(Statement::Ptr
 		}
 	}
 
+	jassertfalse;
 	return nullptr;
 }
 
@@ -375,6 +376,9 @@ Operations::Statement::Ptr Operations::Statement::replaceChildStatement(int inde
 
 void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message)
 {
+	if (!compiler->hasLogger())
+		return;
+
 	String m;
 
 	m << "Line " << location.getLineNumber(location.program, location.location) << ": ";
@@ -391,9 +395,9 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 
 	while (auto v = w.getNextStatementOfType<VariableReference>())
 	{
-		// If we write to a class variable, we need to create the register
+		// If use a class variable, we need to create the register
 		// outside the loop
-		if (v->isClassVariable() && v->isBeingWritten())
+		if (v->isClassVariable() && v->isFirstReference())
 			v->process(c, s);
 	}
 }

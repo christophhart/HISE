@@ -170,11 +170,11 @@ void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
 
 	if (auto is = dynamic_cast<Operations::IfStatement*>(lastStatement))
 	{
-		if (is->falseBranch == nullptr)
+		if (!is->hasFalseBranch())
 			is->throwError("Not all paths return a value");
 
-		auto lastTrueStatement = is->trueBranch;
-		auto lastFalseStatement = is->falseBranch;
+		auto lastTrueStatement = is->getTrueBranch();
+		auto lastFalseStatement = is->getFalseBranch();
 
 		while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastTrueStatement.get()))
 			lastTrueStatement = bl->getLastStatement();
@@ -189,10 +189,8 @@ void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
 		if (lastFalseStatementOK && lastTrueStatementOK)
 			return;
 
-		is->trueBranch->addStatement(new Operations::ReturnStatement(location, nullptr));
-
-		if (is->falseBranch)
-			is->falseBranch->addStatement(new Operations::ReturnStatement(location, nullptr));
+		is->getTrueBranch()->addStatement(new Operations::ReturnStatement(location, nullptr));
+		is->getFalseBranch()->addStatement(new Operations::ReturnStatement(location, nullptr));
 	}
 
 	

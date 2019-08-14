@@ -39,7 +39,7 @@ using namespace asmjit;
 MathFunctions::MathFunctions() :
 	FunctionClass("Math")
 {
-	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sin, double, "sin");
+	HNODE_JIT_ADD_C_FUNCTION_1(double, std::sin, double, "sin");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::asin, double, "asin");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::cos, double, "cos");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::acos, double, "acos");
@@ -67,7 +67,7 @@ MathFunctions::MathFunctions() :
 	HNODE_JIT_ADD_C_FUNCTION_0(double, hmath::randomDouble, "randomDouble");
 
 
-	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sin, float, "sin");
+	HNODE_JIT_ADD_C_FUNCTION_1(float, std::sinf, float, "sin");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::asin, float, "asin");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::cos, float, "cos");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::acos, float, "acos");

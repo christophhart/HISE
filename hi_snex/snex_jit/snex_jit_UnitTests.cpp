@@ -105,9 +105,12 @@ template <typename T, typename ReturnType=T> class HiseJITTestCase
 {
 public:
 
-	HiseJITTestCase(const String& stringToTest) :
+	HiseJITTestCase(const String& stringToTest, const Array<Identifier>& optimizationList) :
 		code(stringToTest)
 	{
+		for (auto o : optimizationList)
+			memory.addOptimization(o);
+
 		compiler = new Compiler(memory);
 	}
 
@@ -233,17 +236,17 @@ public:
 
 
 
-#define CREATE_TEST(x) test = new HiseJITTestCase<float>(x);
-#define CREATE_TYPED_TEST(x) test = new HiseJITTestCase<T>(x);
-#define CREATE_TEST_SETUP(x) test = new HiseJITTestCase<float>(x); test->setup();
+#define CREATE_TEST(x) test = new HiseJITTestCase<float>(x, optimizations);
+#define CREATE_TYPED_TEST(x) test = new HiseJITTestCase<T>(x, optimizations);
+#define CREATE_TEST_SETUP(x) test = new HiseJITTestCase<float>(x, optimizations); test->setup();
 
-#define EXPECT(testName, input, result) expect(test->wasOK(), String(testName) + String(" parsing")); expectEquals<float>(test->getResult(input, result), result, testName);
+#define EXPECT(testName, input, result) expect(test->wasOK(), String(testName) + String(" parsing")); expectAlmostEquals<float>(test->getResult(input, result), result, testName);
 
-#define EXPECT_TYPED(testName, input, result) expect(test->wasOK(), String(testName) + String(" parsing")); expectEquals<T>(test->getResult(input, result), result, testName);
+#define EXPECT_TYPED(testName, input, result) expect(test->wasOK(), String(testName) + String(" parsing")); expectAlmostEquals<T>(test->getResult(input, result), result, testName);
 
 #define GET_TYPE(T) Types::Helpers::getTypeNameFromTypeId<T>()
 
-#define CREATE_BOOL_TEST(x) test = new HiseJITTestCase<int>(String("int test(int input){ ") + String(x));
+#define CREATE_BOOL_TEST(x) test = new HiseJITTestCase<int>(String("int test(int input){ ") + String(x), optimizations);
 
 
 #define EXPECT_BOOL(name, result) expect(test->wasOK(), String(name) + String(" parsing")); expect(test->getResult(0, result) == result, name);
@@ -270,10 +273,22 @@ public:
 
 	void runTest() override
 	{
-		testIfStatement();
-		return;
-
+		
 		testOptimizations();
+
+		runTestsWithOptimisation({});
+		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
+		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
+	}
+
+	void runTestsWithOptimisation(const Array<Identifier>& ids)
+	{
+		logMessage("OPTIMIZATIONS");
+
+		for (auto o : ids)
+			logMessage("--- " + o.toString());
+
+		optimizations = ids;
 
 		testParser();
 		testSimpleIntOperations();
@@ -281,14 +296,14 @@ public:
 		testOperations<float>();
 		testOperations<double>();
 		testOperations<int>();
-		
+
 		testCompareOperators<double>();
 		testCompareOperators<int>();
 		testCompareOperators<float>();
 
 		testTernaryOperator();
 		testIfStatement();
-		
+
 		testComplexExpressions();
 		testGlobals();
 		testFunctionCalls();
@@ -301,7 +316,6 @@ public:
 		testEvents();
 	}
 
-
 private:
 
 	void expectCompileOK(Compiler* compiler)
@@ -313,7 +327,7 @@ private:
 
 	void testOptimizations()
 	{
-		beginTest("Testing Optimizations");
+		beginTest("Testing Constant folding");
 
 		{
 			OptimizationTestCase t;
@@ -360,12 +374,55 @@ private:
 			t.setExpressionBody("int test(){ %BODY% }");
 
 			expect(t.sameAssembly("if(0) return 2; return 1;", "return 1;"), "Constant if branch folding");
-			expect(t.sameAssembly("if(12 > 13) return 8; else return 5; return 2;", "return 5;"), "Constant else branch folding");
+			expect(t.sameAssembly("if(12 > 13) return 8; else return 5;", "return 5;"), "Constant else branch folding");
+		}
+
+		beginTest("Testing binary op optimizations");
+
+		{
+			OptimizationTestCase t;
+			t.setOptimizations({ OptimizationIds::BinaryOpOptimisation });
+			t.setExpressionBody("void test(){ %BODY% }");
+
+			expect(t.sameAssembly("int x = 5; int y = x; int z = 12 + y;",
+								  "int x = 5; int y = x; int z = y + 12;"),
+								  "Swap expressions to reuse register");
+
+			expect(t.sameAssembly("int x = 5; int y = x - 5;",
+				"int x = 5; int y = x + -5;"),
+				"Replace minus");
+
+			expect(t.sameAssembly("float z = 41.0f / 8.0f;",
+								  "float z = 41.0f * 0.125f;"),
+				"Replace constant division");
+
+			expect(t.sameAssembly(
+				"float x = 12.0f; x /= 4.0f;",
+				"float x = 12.0f; x *= 0.25f;"),
+				"Replace constant self-assign division");
+
+			expect(t.sameAssembly(
+				"int x = 12; x /= 4;",
+				"int x = 12; x /= 4;"),
+				"Don't replace constant int self-assign division");
 		}
 	}
 
 	void expectAllFunctionsDefined(JITTestModule* )
 	{
+	}
+
+	template <typename T> void expectAlmostEquals(T actual, T expected, const String& errorMessage)
+	{
+		if (Types::Helpers::getTypeFromTypeId<T>() == Types::ID::Integer)
+		{
+			expectEquals<int>(actual, expected, errorMessage);
+		}
+		else
+		{
+			auto diff = abs((double)actual - (double)expected);
+			expect(diff < 0.000001, errorMessage);
+		}
 	}
 
 	void testEventSetters()
@@ -491,13 +548,13 @@ private:
 
 		ScopedPointer<Event2IntTest> test;
 
-		test = new Event2IntTest("int test(event in){ return in.getNoteNumber(); }");
+		test = new Event2IntTest("int test(event in){ return in.getNoteNumber(); }", optimizations);
 		EXPECT("getNoteNumber", testEvent, 59);
 
-		test = new Event2IntTest("int test(event in){ return in.getNoteNumber() > 64 ? 17 : 13; }");
+		test = new Event2IntTest("int test(event in){ return in.getNoteNumber() > 64 ? 17 : 13; }", optimizations);
 		EXPECT("getNoteNumber arithmetic", testEvent, 13);
 
-		test = new Event2IntTest("int test(event in1, event in2){ return in1.getNoteNumber() > in2.getNoteNumber() ? 17 : 13; }");
+		test = new Event2IntTest("int test(event in1, event in2){ return in1.getNoteNumber() > in2.getNoteNumber() ? 17 : 13; }", optimizations);
 
 	}
 
@@ -507,7 +564,7 @@ private:
 
 		ScopedPointer<HiseJITTestCase<int>> test;
 
-		test = new HiseJITTestCase<int>("float x = 1.0f;;");
+		test = new HiseJITTestCase<int>("float x = 1.0f;;", optimizations);
 		expectCompileOK(test->compiler);
 	}
 
@@ -517,31 +574,43 @@ private:
 
 		ScopedPointer<HiseJITTestCase<int>> test;
 
-		test = new HiseJITTestCase<int>("int test(int input){ int x = 6; return x;};");
+		test = new HiseJITTestCase<int>("int test(int input) { int x = 5; int y = x; int z = y + 12; return z; }", optimizations);
 		expectCompileOK(test->compiler);
-		EXPECT("local int variable", 0, 6);
+		EXPECT("reuse double assignment", 0, 17);
 
-		test = new HiseJITTestCase<int>("int x = 0; int test(int input){ x = input; return x;};");
+		test = new HiseJITTestCase<int>("int x = 0; int test(int input){ x = input; return x;};", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("int assignment", 6, 6);
 
-		test = new HiseJITTestCase<int>("int x = 2; int test(int input){ x = -5; return x;};");
+		test = new HiseJITTestCase<int>("int test(int input){ int x = 6; return x;};", optimizations);
+		expectCompileOK(test->compiler);
+		EXPECT("local int variable", 0, 6);
+
+		test = new HiseJITTestCase<int>("int test(int input){ int x = 6; return x;};", optimizations);
+		expectCompileOK(test->compiler);
+		EXPECT("local int variable", 0, 6);
+
+		test = new HiseJITTestCase<int>("int x = 0; int test(int input){ x = input; return x;};", optimizations);
+		expectCompileOK(test->compiler);
+		EXPECT("int assignment", 6, 6);
+
+		test = new HiseJITTestCase<int>("int x = 2; int test(int input){ x = -5; return x;};", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("negative int assignment", 0, -5);
 
-		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { x++; return x; }");
+		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { x++; return x; }", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("post int increment", 0, 13);
 
-		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { return x++; }");
+		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { return x++; }", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("post increment as return", 0, 12);
 
-		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { ++x; return x; }");
+		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { ++x; return x; }", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("post int increment", 0, 13);
 
-		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { return ++x; }");
+		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { return ++x; }", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("post increment as return", 0, 13);
 	}
@@ -640,8 +709,20 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
+
+		{
+			float delta = 0.0f;
+			const float x = 200.0f; 
+			const float y = x / 44100.0f; 
+			delta = 2.0f * 3.14f * y;
+
+			CREATE_TEST("float delta = 0.0f; float test(float input) { float y = 200.0f / 44100.0f; delta = 2.0f * 3.14f * y; return delta; }");
+			EXPECT("Reusing of local variable", 0.0f, delta);
+		}
+		
+
 		CREATE_TEST("float x=2.0f; void setup() { x = 5; } float test(float i){return x;};")
-			expectCompileOK(test->compiler);
+		expectCompileOK(test->compiler);
 		EXPECT("Global implicit cast", 2.0f, 5.0f);
 
 		CREATE_TEST("float x = 0.0f; float test(float i){ x=7.0f; return x; };");
@@ -673,8 +754,17 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("Global implicit cast", 2.0f, 5.0f);
 
+
+		
+
 		CREATE_TEST("int c=0;float test(float i){c+=1;c+=1;c+=1;return (float)c;};")
 		expectCompileOK(test->compiler);
+
+
+		CREATE_TEST("float g = 0.0f; void setup() { float x = 1.0f; g = x + 2.0f * x; } float test(float i){return g;}")
+			expectCompileOK(test->compiler);
+		EXPECT("Don't reuse local variable slot", 2.0f, 3.0f);
+
 	}
 
 	template <typename T> String getTypeName() const
@@ -937,7 +1027,7 @@ private:
 
 		CREATE_TYPED_TEST(getTestFunction<double>("return Math.atanh(input);"));
 		expectCompileOK(test->compiler);
-		EXPECT_TYPED("atanh", v, atanh(v));
+		EXPECT_TYPED("atanh", 0.6, atanh(0.6));
 
 		CREATE_TYPED_TEST(getTestFunction<double>("return Math.pow(input, 2.0);"))
 			expectCompileOK(test->compiler);
@@ -1043,6 +1133,8 @@ private:
 
 		expectEquals(result, 9.0f, "Testing reallocation of Function buffers");
 	}
+
+	Array<Identifier> optimizations;
 };
 
 

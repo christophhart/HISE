@@ -47,18 +47,19 @@ struct VOps
 {
 #define VAR_OP(name, opChar) static VariableStorage name(VariableStorage l, VariableStorage r) { return VariableStorage(l.getType(), l.toDouble() opChar r.toDouble()); }
 #define VAR_OP_INT(name, opChar) static VariableStorage name(VariableStorage l, VariableStorage r) { return VariableStorage(l.getType(), l.toInt() opChar r.toInt()); }
+#define VAR_OP_CMP(name, opChar)  static VariableStorage name(VariableStorage l, VariableStorage r) { return VariableStorage(Types::ID::Integer, l.toDouble() opChar r.toDouble()); }
 
 	VAR_OP(plus, +);
 	VAR_OP(times, *);
 	VAR_OP(divide, / );
 	VAR_OP(minus, -);
 	VAR_OP_INT(modulo, %);
-	VAR_OP(greaterThan, >);
-	VAR_OP(lessThan, < );
-	VAR_OP(greaterThanOrEqual, >= );
-	VAR_OP(lessThanOrEqual, <= );
-	VAR_OP(equals, == );
-	VAR_OP(notEquals, != );
+	VAR_OP_CMP(greaterThan, >);
+	VAR_OP_CMP(lessThan, < );
+	VAR_OP_CMP(greaterThanOrEqual, >= );
+	VAR_OP_CMP(lessThanOrEqual, <= );
+	VAR_OP_CMP(equals, == );
+	VAR_OP_CMP(notEquals, != );
 	VAR_OP_INT(logicalAnd, &&);
 	VAR_OP_INT(logicalOr, ||);
 
@@ -66,7 +67,7 @@ struct VOps
 #undef VAR_OP_INT
 };
 
-void ConstExprEvaluator::process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
+void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
 	COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
 	{
@@ -77,36 +78,37 @@ void ConstExprEvaluator::process(BaseCompiler* compiler, BaseScope* s, Statement
 
 		if (auto is = as<Operations::IfStatement>(statement))
 		{
-			is->cond->process(compiler, s);
+			is->getChildStatement(0)->process(compiler, s);
 
-			if (is->cond->isConstExpr())
+			auto cond = dynamic_cast<Operations::Expression*>(is->getChildStatement(0).get());
+
+			if (cond->isConstExpr())
 			{
-				int v = is->cond->getConstExprValue().toInt();
+				int v = cond->getConstExprValue().toInt();
 
 				is->logOptimisationMessage("Remove dead branch");
 
 				if (v == 1)
-					replaceExpression(is, is->trueBranch.get());
+					replaceExpression(is, is->getChildStatement(1));
 				else
 				{
-					if (is->falseBranch != nullptr)
-						replaceExpression(is, is->falseBranch);
+					if (is->hasFalseBranch())
+						replaceExpression(is, is->getChildStatement(2));
 					else
 						replaceWithNoop(is);
 				}
-					
 			}
 		}
 
 		if (auto a = as<Operations::Assignment>(statement))
 		{
-			process(compiler, s, a->getSubExpr(0));
+			a->getSubExpr(0)->process(compiler, s);
 
 			if (a->getSubExpr(0)->isConstExpr())
 			{
 				auto value = a->getSubExpr(0)->getConstExprValue();
 
-				process(compiler, s, a->getSubExpr(1));
+				a->getSubExpr(1)->process(compiler, s);
 
 				if (a->getTargetVariable()->isLocalConst)
 				{
@@ -368,7 +370,7 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::createInvertImmediate
 #undef IS
 
 
-void Inliner::process(BaseCompiler* c, BaseScope* s, StatementPtr statement)
+void Inliner::processStatementInternal(BaseCompiler* c, BaseScope* s, StatementPtr statement)
 {
 #if 0
 	for (auto s : *tree)
@@ -414,7 +416,7 @@ void Inliner::process(BaseCompiler* c, BaseScope* s, StatementPtr statement)
 }
 
 
-void DeadcodeEliminator::process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
+void DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
 	COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
 	{
@@ -493,17 +495,34 @@ void DeadcodeEliminator::process(BaseCompiler* compiler, BaseScope* s, Statement
 	
 }
 
-void BinaryOpOptimizer::process(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
+void BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
 	COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
 	{
+		if (auto bOp = as<Operations::BinaryOp>(statement))
+		{
+			simplifyOp(bOp->getSubExpr(0), bOp->getSubExpr(1), bOp->op, compiler, s);
+			swapIfBetter(bOp, bOp->op, compiler, s);
+		}
+	}
+
+	COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+	{
+		if (auto bOp = as<Operations::BinaryOp>(statement))
+		{
+			swapIfBetter(bOp, bOp->op, compiler, s);
+		}
+
 		if (auto a = as<Operations::Assignment>(statement))
 		{
-			currentlyAssignedId = a->getTargetVariable()->id;
+			simplifyOp(a->getSubExpr(1), a->getSubExpr(0), a->assignmentType, compiler, s);
+
+			
+			currentlyAssignedId = a->getTargetVariable()->ref;
 
 			a->getSubExpr(0)->process(compiler, s);
 
-			DBG("Optimize assignment + " + currentlyAssignedId.toString());
+			DBG("Optimize assignment + " + currentlyAssignedId->id.toString());
 
 			if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
 			{
@@ -511,6 +530,7 @@ void BinaryOpOptimizer::process(BaseCompiler* compiler, BaseScope* s, StatementP
 				{
 					a->logOptimisationMessage("Replace " + String(bOp->op) + " with self assignment");
                     
+
                     a->assignmentType = bOp->op;
                     
                     auto right = bOp->getSubExpr(1);
@@ -519,44 +539,111 @@ void BinaryOpOptimizer::process(BaseCompiler* compiler, BaseScope* s, StatementP
 				}
 			}
 
-			currentlyAssignedId = {};
+			currentlyAssignedId = nullptr;
 
 		}
 
-		if (auto bOp = as<Operations::BinaryOp>(statement))
-		{
-			if (!currentlyAssignedId)
-				return;
-
-			StatementPtr rightOp(bOp->getSubExpr(1).get());
-
-			rightOp->process(compiler, s);
-
-			
-			DBG("Optimize op " + String(bOp->op));
-
-			if (isAssignedVariable(bOp->getSubExpr(0)))
-			{
-				bOp->logOptimisationMessage("Good order");
-			}
-			else if (isAssignedVariable(bOp->getSubExpr(1)))
-			{
-				if (Helpers::isSwappable(bOp->op))
-				{
-					bOp->logOptimisationMessage("Wrong order, swap them");
-					bOp->swapSubExpressions(0, 1);
-				}
-			}
-		}
+		
 	}
 	
+}
+
+bool BinaryOpOptimizer::swapIfBetter(ExprPtr bOp, const char* op, BaseCompiler* compiler, BaseScope* s)
+{
+	if (currentlyAssignedId == nullptr)
+		return false;
+
+	StatementPtr rightOp(bOp->getSubExpr(1).get());
+
+	rightOp->process(compiler, s);
+
+	auto l = bOp->getSubExpr(0);
+	auto r = bOp->getSubExpr(1);
+
+	DBG("Optimize op " + String(op));
+
+	if (isAssignedVariable(l))
+	{
+		bOp->logOptimisationMessage("Good order");
+	}
+	else if (isAssignedVariable(r))
+	{
+		if (Helpers::isSwappable(op))
+		{
+			bOp->logOptimisationMessage("Wrong order, swap them");
+			bOp->swapSubExpressions(0, 1);
+			return true;
+		}
+	}
+	else if (l->isConstExpr() && !r->isConstExpr())
+	{
+		if (Helpers::isSwappable(op))
+		{
+			bOp->logOptimisationMessage("Wrong order, swap them");
+			bOp->swapSubExpressions(0, 1);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCompiler* compiler, BaseScope* s)
+{
+	auto parent = l->parent;
+
+	auto replaceOp = [this](Operations::Statement* p, const char* o)
+	{
+		if (auto bOp = as<Operations::BinaryOp>(p))
+			bOp->op = o;
+		else if (auto a = as<Operations::Assignment>(p))
+			a->assignmentType = o;
+	};
+
+	if (op == JitTokens::minus)
+	{
+		if (r->isConstExpr())
+		{
+			parent->logOptimisationMessage("Replace minus");
+			
+			auto value = r->getConstExprValue();
+			auto invValue = VariableStorage(value.getType(), value.toDouble() * -1.0);
+
+			replaceExpression(r, new Operations::Immediate(r->location, invValue));
+			replaceOp(parent, JitTokens::plus);
+
+			return true;
+		}
+	}
+
+	if (op == JitTokens::divide)
+	{
+		if (r->isConstExpr() && r->getType() != Types::ID::Integer)
+		{
+			parent->logOptimisationMessage("Replace division");
+
+			auto value = r->getConstExprValue();
+
+			if (value.toDouble() == 0.0)
+				r->throwError("Division by zero");
+
+			auto invValue = VariableStorage(value.getType(), 1.0 / value.toDouble());
+
+			replaceExpression(r, new Operations::Immediate(r->location, invValue));
+			replaceOp(parent, JitTokens::times);
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool BinaryOpOptimizer::isAssignedVariable(ExprPtr e) const
 {
 	if (auto v = dynamic_cast<Operations::VariableReference*>(e.get()))
 	{
-		return v->id == currentlyAssignedId;
+		return v->ref == currentlyAssignedId;
 	}
 	else
 	{

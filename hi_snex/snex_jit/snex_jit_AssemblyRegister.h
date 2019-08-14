@@ -83,7 +83,7 @@ public:
 
 	void flagForReuseIfAnonymous();
 
-	void flagForReuse();
+	void flagForReuse(bool forceReuse=false);
 
 	bool canBeReused() const;
 
@@ -136,6 +136,8 @@ public:
 
 		return false;
 	}
+
+	void clearForReuse();
 
 private:
 

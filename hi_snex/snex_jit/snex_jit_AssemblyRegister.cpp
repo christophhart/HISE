@@ -69,13 +69,22 @@ void AssemblyRegister::flagForReuseIfAnonymous()
 }
 
 
-void AssemblyRegister::flagForReuse()
+void AssemblyRegister::flagForReuse(bool forceReuse)
 {
-	if (!dirty)
+	if (!forceReuse)
 	{
-		reusable = true;
-		state = ReusableRegister;
+		if (!isActive())
+			return;
+
+		if (isIter)
+			return;
+
+		if (dirty)
+			return;
 	}
+
+	reusable = true;
+	state = ReusableRegister;
 }
 
 
@@ -221,7 +230,7 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 	{
 		// We can't use the value as constant memory location because it might be changed
 		// somewhere else.
-		AsmCodeGenerator acg(cc, type);
+		AsmCodeGenerator acg(cc, nullptr, type);
 		createRegister(cc);
 		acg.emitMemoryLoad(this);
 	}
@@ -254,7 +263,12 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 {
 	if (reg.isValid())
 	{
-		jassert(state == ActiveRegister || state == DirtyGlobalRegister);
+		// From now on we can use it just like a regular register
+		if (state == ReusableRegister)
+			state = ActiveRegister;
+
+		jassert(state == ActiveRegister || 
+			    state == DirtyGlobalRegister);
 		return;
 	}
 
@@ -265,7 +279,7 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 	if (type == Types::ID::Integer)
 		reg = cc.newGpd();
 	if (type == Types::Event || type == Types::Block)
-		reg = cc.newGpq();
+		reg = cc.newIntPtr();
 
 	state = ActiveRegister;
 }
@@ -280,9 +294,21 @@ bool AssemblyRegister::isMemoryLocation() const
 void AssemblyRegister::setDataPointer(VariableStorage* memLoc)
 {
 	memoryLocation = memLoc;
+	reg = {};
 	state = State::UnloadedMemoryLocation;
 }
 
+
+void AssemblyRegister::clearForReuse()
+{
+	isIter = false;
+	state = ReusableRegister;
+	dirty = false;
+	reusable = false;
+	immediateIntValue = 0;
+	memoryLocation = nullptr;
+	variableId = {};
+}
 
 AssemblyRegisterPool::AssemblyRegisterPool()
 {
@@ -318,9 +344,8 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterForVari
 			return r;
 	}
 
-	RegPtr newReg = new AssemblyRegister(variableId->id.type);
+	auto newReg = getNextFreeRegister(variableId->id.type);
 	newReg->setReference(variableId);
-	currentRegisterPool.add(newReg);
 	return newReg;
 }
 
@@ -339,10 +364,17 @@ AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(Types::ID type)
 	for (auto r : currentRegisterPool)
 	{
 		if (r->getType() == type && r->canBeReused())
+		{
+			r->clearForReuse();
 			return r;
+		}
 	}
 
-	return new AssemblyRegister(type);
+	RegPtr newReg = new AssemblyRegister(type);
+	
+	currentRegisterPool.add(newReg);
+
+	return newReg;
 }
 
 }

@@ -40,7 +40,7 @@ using namespace juce;
 
 #define PROCESS_IF_NOT_NULL(expr) if (expr != nullptr) expr->process(compiler, scope);
 #define COMPILER_PASS(x) if (compiler->getCurrentPass() == x)
-#define CREATE_ASM_COMPILER(type) AsmCodeGenerator(getFunctionCompiler(compiler), type);
+#define CREATE_ASM_COMPILER(type) AsmCodeGenerator(getFunctionCompiler(compiler), &compiler->registerPool, type);
 #define SKIP_IF_CONSTEXPR if(isConstExpr()) return;
 
 

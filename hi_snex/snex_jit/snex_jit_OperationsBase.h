@@ -96,6 +96,13 @@ public:
 			childStatements.swap(first, second);
 		}
 
+		void flushChildStatements()
+		{
+			jassert(currentPass >= BaseCompiler::CodeGeneration);
+
+			childStatements.clear();
+		}
+
 		void throwError(const String& errorMessage);
 		void logOptimisationMessage(const String& m);
 		void logWarning(const String& m);
@@ -108,6 +115,12 @@ public:
 		Statement::Ptr getLastStatement() const
 		{
 			return childStatements.getLast();
+		}
+
+		void processAllChildren(BaseCompiler* compiler, BaseScope* scope)
+		{
+			for (auto s : *this)
+				s->process(compiler, scope);
 		}
 
 		virtual bool isConstExpr() const;
@@ -173,10 +186,30 @@ public:
 
 		RegPtr reg;
 
+		void releaseRegister()
+		{
+			reg = nullptr;
+		}
+
+		void setTargetRegister(RegPtr targetToUse, bool clearRegister=true)
+		{
+			if (reg != nullptr)
+				return;
+
+			if (clearRegister)
+			{
+				jassert(targetToUse->canBeReused());
+
+				targetToUse->clearForReuse();
+
+				
+			}
+
+			reg = targetToUse;
+		}
+
+
 	protected:
-
-
-		
 
 		Types::ID type;
 

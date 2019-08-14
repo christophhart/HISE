@@ -41,11 +41,53 @@ using namespace asmjit;
 
 struct AsmCodeGenerator
 {
+	
+
 	using RegPtr = AssemblyRegister::Ptr;
 	using Compiler = asmjit::X86Compiler;
 	using OpType = const char*;
 
-	AsmCodeGenerator(Compiler& cc_, Types::ID type_);;
+	struct TemporaryRegister
+	{
+		TemporaryRegister(AsmCodeGenerator& acg, Types::ID type)
+		{
+			if (acg.registerPool != nullptr)
+			{
+				tempReg = acg.registerPool->getNextFreeRegister(type);
+				tempReg->createRegister(acg.cc);
+			}
+			else
+			{
+				switch (type)
+				{
+				case Types::ID::Float:	 uncountedReg = acg.cc.newXmmSs(); break;
+				case Types::ID::Double:	 uncountedReg = acg.cc.newXmmSd(); break;
+				case Types::ID::Integer: uncountedReg = acg.cc.newGpd(); break;
+				case Types::ID::Event:
+				case Types::ID::Block:	 uncountedReg = acg.cc.newIntPtr(); break;
+				}
+			}
+		}
+
+		~TemporaryRegister()
+		{
+			if (tempReg != nullptr)
+				tempReg->flagForReuse(true);
+		}
+
+		X86Gp get()
+		{
+			if (tempReg != nullptr)
+				return tempReg->getRegisterForWriteOp().as<X86Gp>();
+			else
+				return uncountedReg.as<X86Gp>();
+		}
+
+		X86Reg uncountedReg;
+		RegPtr tempReg;
+	};
+
+	AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_);;
 
 	void emitComment(const char* m);
 
@@ -86,6 +128,8 @@ struct AsmCodeGenerator
 	static void fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer);
 
 private:
+
+	AssemblyRegisterPool* registerPool;
 
 	static void createRegistersForArguments(X86Compiler& cc, ReferenceCountedArray<AssemblyRegister>& parameters, const FunctionData& f);
 	Types::ID type;
