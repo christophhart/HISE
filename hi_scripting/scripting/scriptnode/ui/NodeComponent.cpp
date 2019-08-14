@@ -45,7 +45,9 @@ juce::String NodeComponent::Header::getPowerButtonId(bool getOff) const
 
 		if (getOff)
 		{
-			if (path.contains("frame") || path.contains("oversample"))
+			if (path.contains("frame") || 
+				path.contains("oversample") || 
+				path.contains("midi"))
 				return "chain";
 			else
 				return "on";
@@ -282,6 +284,21 @@ void NodeComponent::paint(Graphics& g)
 	g.fillAll(Colour(0xFF444444));
 	g.setColour(getOutlineColour());
 	g.drawRect(getLocalBounds());
+
+	Path p;
+
+	if (node->getAsRestorableNode() != nullptr)
+		p.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+	else if (dynamic_cast<JitNodeBase*>(node.get()) != nullptr)
+		p.loadPathFromData(HnodeIcons::jit, sizeof(HnodeIcons::jit));
+
+	if(!p.isEmpty())
+	{
+		auto b = getLocalBounds().removeFromRight(22).removeFromBottom(22).reduced(3).toFloat();
+		p.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), true);
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.fillPath(p);
+	}
 }
 
 
@@ -680,7 +697,11 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("split", ScriptnodeIcons::splitIcon);
 	LOAD_PATH_IF_URL("chain", ScriptnodeIcons::chainIcon);
 	LOAD_PATH_IF_URL("multi", ScriptnodeIcons::multiIcon);
-	LOAD_PATH_IF_URL("mod", ScriptnodeIcons::modIcon);
+	LOAD_PATH_IF_URL("modchain", ScriptnodeIcons::modIcon);
+	LOAD_PATH_IF_URL("midichain", HiBinaryData::SpecialSymbols::midiData);
+	LOAD_PATH_IF_URL("oversample2x", ScriptnodeIcons::os2Icon);
+	LOAD_PATH_IF_URL("oversample4x", ScriptnodeIcons::os4Icon);
+	LOAD_PATH_IF_URL("oversample8x", ScriptnodeIcons::os8Icon);
 	
 	if (url.contains("frame"))
 	{

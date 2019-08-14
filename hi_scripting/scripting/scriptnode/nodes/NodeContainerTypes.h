@@ -76,7 +76,6 @@ public:
 	void reset() final override;
 
 	NodeComponent* createComponent() override;
-	String getCppCode(CppGen::CodeLocation location) override;
 	String createCppClass(bool isOuterClass) override;
 
 	int getBlockSizeForChildNodes() const override;
@@ -89,6 +88,28 @@ public:
 private:
 	
 	wrap::control_rate<SerialNode::DynamicSerialProcessor> obj;
+};
+
+class MidiChainNode : public SerialNode
+{
+public:
+
+	SCRIPTNODE_FACTORY(MidiChainNode, "midichain");
+
+	MidiChainNode(DspNetwork* n, ValueTree t);
+
+	void processSingle(float* frameData, int numChannels) noexcept final override;
+	void process(ProcessData& data) noexcept final override;
+	void prepare(PrepareSpecs ps) override;
+	void handleHiseEvent(HiseEvent& e) final override;
+	void reset() final override;
+	String getCppCode(CppGen::CodeLocation location) override;
+	
+	Identifier getObjectName() const override { return getStaticId(); }
+
+private:
+
+	wrap::event<SerialNode::DynamicSerialProcessor> obj;
 };
 
 template <int OversampleFactor> class OversampleNode : public SerialNode

@@ -159,57 +159,76 @@ public:
 		obj.prepare(ps);
 	}
 
+	void reset()
+	{
+		obj.reset();
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
 	void process(ProcessData& d)
 	{
-		if (d.eventBuffer != nullptr)
+		if (d.eventBuffer != nullptr && !d.eventBuffer->isEmpty())
 		{
-			HiseEventBuffer::Iterator it(*d.eventBuffer);
+			float* ptrs[NUM_MAX_CHANNELS];
+			int numChannels = d.numChannels;
+			memcpy(ptrs, d.data, sizeof(float*) * numChannels);
 
-			auto dCopy = ProcessData(d);
-
-			dCopy.eventBuffer = &internalBuffer;
-
-			HiseEvent e;
-			int samplePos = 0;
-			int lastPos = samplePos;
-
-			while (it.getNextEvent(e, samplePos, true, false))
+			auto advancePtrs = [numChannels](float** dt, int numSamples)
 			{
-				if (samplePos == lastPos)
-					internalBuffer.addEvent(e);
-				else
+				for (int i = 0; i < numChannels; i++)
+					dt[i] += numSamples;
+			};
+
+			HiseEventBuffer::Iterator iter(*d.eventBuffer);
+
+			int lastPos = 0;
+			int numLeft = d.size;
+			int samplePos;
+			HiseEvent e;
+
+			while (iter.getNextEvent(e, samplePos, true, false))
+			{
+				int numThisTime = jmin(numLeft, samplePos - lastPos);
+
+				obj.handleHiseEvent(e);
+
+				if (numThisTime > 0)
 				{
-					int numThisTime = samplePos - lastPos;
-
-					dCopy.size = numThisTime;
-
-					obj.process(dCopy);
-
-					internalBuffer.clear();
-					internalBuffer.addEvent(e);
-
-					for (auto ch : dCopy)
-						*ch += numThisTime;
-
+					ProcessData part(ptrs, numChannels, numThisTime);
+					obj.process(part);
+					advancePtrs(ptrs, numThisTime);
+					numLeft = jmax(0, numLeft - numThisTime);
 					lastPos = samplePos;
 				}
 			}
+
+			if (numLeft > 0)
+			{
+				ProcessData part(ptrs, numChannels, numLeft);
+				obj.process(part);
+			}
 		}
+		else
+			obj.process(d);
 	}
 
 	void processSingle(float* frameData, int numChannels)
 	{
-		jassertfalse;
+		obj.processSingle(frameData, numChannels);
 	}
 
 	bool handleModulation(double& value) noexcept { return false; }
 
-	T& getObject() { return *this; }
-	const T& getObject() const { return *this; }
+	auto& getObject() { return obj.getObject(); }
+	const auto& getObject() const { return obj.getObject(); }
 
-	HiseEventBuffer internalBuffer;
 	T obj;
 };
+
 
 template <class T> class frame_x
 {

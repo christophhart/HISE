@@ -985,10 +985,12 @@ juce::String ParallelNode::createCppClass(bool isOuterClass)
 NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	NodeFactory(parent)
 {
+	
 	registerNodeRaw<ChainNode>({});
 	registerNodeRaw<SplitNode>({});
 	registerNodeRaw<MultiChannelNode>({});
 	registerNodeRaw<ModulationChainNode>({});
+	registerNodeRaw<MidiChainNode>({});
 	registerNodeRaw<SingleSampleBlock<1>>({});
 	registerNodeRaw<SingleSampleBlock<2>>({});
 	registerNodeRaw<SingleSampleBlockX>({});

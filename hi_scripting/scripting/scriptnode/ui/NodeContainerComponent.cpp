@@ -831,6 +831,19 @@ void ModChainNodeComponent::paint(Graphics& g)
 	g.setColour(getOutlineColour());
 	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
 
+	int yStart = 0;
+	g.setColour(Colours::white.withAlpha(0.03f));
+
+	if (auto ng = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15) % 10;
+	}
+
+	for (int i = yStart; i < getHeight(); i += 10)
+	{
+		g.drawHorizontalLine(i, 3.0f, (float)getWidth() - 3.0f);
+	}
+
 	drawHelp(g);
 
 	if (addPosition != -1)

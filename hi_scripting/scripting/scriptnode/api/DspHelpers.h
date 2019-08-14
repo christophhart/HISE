@@ -142,6 +142,11 @@ template <typename T, int NumVoices> struct PolyData
 			return getFirst();
 	}
 
+	const T& getFirst() const
+	{
+		return *data;
+	}
+
 	T& getFirst()
 	{
 		return *data;

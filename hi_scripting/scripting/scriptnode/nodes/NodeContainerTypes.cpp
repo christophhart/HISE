@@ -236,63 +236,6 @@ scriptnode::NodeComponent* ModulationChainNode::createComponent()
 	return new ModChainNodeComponent(this);
 }
 
-juce::String ModulationChainNode::getCppCode(CppGen::CodeLocation location)
-{
-	String s;
-
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		s = NodeContainer::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "true", false);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_EXTRA_COMPONENT", "60, ModulationSourcePlotter", false);
-		return s;
-	}
-	if (location == CppGen::CodeLocation::ProcessBody)
-	{
-		s << "int numToProcess = data.size / HISE_EVENT_RASTER;\n\n";
-		s << "auto d = ALLOCA_FLOAT_ARRAY(numToProcess);\n";
-		s << "CLEAR_FLOAT_ARRAY(d, numToProcess);\n";
-		s << "ProcessData modData(&d, 1, numToProcess);\n\n";
-
-		for (auto n : nodes)
-			s << n->getId() << ".process(modData);\n";
-
-
-		s << "\nmodValue = DspHelpers::findPeak(modData);\n";
-	}
-	else if (location == CppGen::CodeLocation::ProcessSingleBody)
-	{
-		s << "if (--singleCounter > 0) return;\n\n";
-
-		s << "singleCounter = HISE_EVENT_RASTER;\n";
-		s << "float value = 0.0f;\n\n";
-
-		for (auto n : nodes)
-			s << n->getId() << ".processSingle(&value, 1);\n";
-	}
-	else if (location == CppGen::CodeLocation::PrepareBody)
-	{
-		s << "sampleRate /= (double)HISE_EVENT_RASTER;\n";
-		s << "blockSize /= HISE_EVENT_RASTER;\n";
-		s << "numChannels = 1;\n\n";
-
-		s << NodeContainer::getCppCode(location);
-	}
-	else if (location == CppGen::CodeLocation::HandleModulationBody)
-	{
-		s << "value = modValue;\n";
-		s << "return true;\n";
-	}
-	else if (location == CppGen::CodeLocation::PrivateMembers)
-	{
-		s << "int singleCounter = 0;\n";
-		s << "double modValue = 0.0;\n";
-	}
-
-
-	return s;
-}
-
 juce::String ModulationChainNode::createCppClass(bool isOuterClass)
 {
 	return createCppClassForNodes(isOuterClass);
@@ -605,6 +548,58 @@ juce::String SingleSampleBlockX::getCppCode(CppGen::CodeLocation location)
 	}
 
 	return SerialNode::getCppCode(location);
+}
+
+MidiChainNode::MidiChainNode(DspNetwork* n, ValueTree t):
+	SerialNode(n, t)
+{
+	initListeners();
+	obj.getObject().initialise(this);
+}
+
+void MidiChainNode::processSingle(float* frameData, int numChannels) noexcept
+{
+	obj.processSingle(frameData, numChannels);
+}
+
+void MidiChainNode::process(ProcessData& data) noexcept
+{
+	if (isBypassed())
+	{
+		obj.getObject().process(data);
+	}
+	else
+	{
+		obj.process(data);
+	}
+}
+
+void MidiChainNode::prepare(PrepareSpecs ps)
+{
+	ScopedLock sl(getRootNetwork()->getConnectionLock());
+
+	prepareNodes(ps);
+}
+
+void MidiChainNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+void MidiChainNode::reset()
+{
+	obj.reset();
+}
+
+juce::String MidiChainNode::getCppCode(CppGen::CodeLocation location)
+{
+	if (location == CppGen::CodeLocation::Definitions)
+	{
+		String s;
+		s << SerialNode::getCppCode(location);
+		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
+		return s;
+	}
 }
 
 }
