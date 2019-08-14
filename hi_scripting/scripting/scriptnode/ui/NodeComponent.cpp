@@ -183,7 +183,11 @@ void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 
 	auto distance = e.getDistanceFromDragStart();
 
-	if (distance > 25)
+	
+
+	
+
+	if (!parent.isRoot() && distance > 25)
 	{
 		isDragging = true;
 
@@ -353,7 +357,7 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 	m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
 	m.addItem((int)MenuActions::EditProperties, "Edit Properties");
 
-	if (auto hc = node.get()->getAsHardcodedNode())
+	if (auto hc = node.get()->getAsRestorableNode())
 	{
 		m.addItem((int)MenuActions::UnfreezeNode, "Unfreeze hardcoded node");
 	}
@@ -412,112 +416,11 @@ void NodeComponent::handlePopupMenuResult(int result)
 	}
 	if (result == (int)MenuActions::UnfreezeNode)
 	{
-		if (auto hc = node->getAsHardcodedNode())
-		{
-			// Check if there is already a node that was unfrozen
-
-			for (auto n : node->getRootNetwork()->getListOfUnconnectedNodes())
-			{
-				if (n->getValueTree()[PropertyIds::FreezedId].toString() == node->getId())
-				{
-					auto newTree = n->getValueTree();
-					auto oldTree = node->getValueTree();
-					auto um = node->getUndoManager();
-
-					auto f = [oldTree, newTree, um]()
-					{
-						auto p = oldTree.getParent();
-
-						int position = p.indexOf(oldTree);
-						p.removeChild(oldTree, um);
-						p.addChild(newTree, position, um);
-					};
-
-					MessageManager::callAsync(f);
-					return;
-				}
-			}
-
-			auto t = hc->getSnippetText();
-
-			if (t.isNotEmpty())
-			{
-				auto newTree = ValueTreeConverters::convertBase64ToValueTree(t, true);
-				newTree = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
-				newTree.setProperty(PropertyIds::FreezedPath, node->getValueTree()[PropertyIds::FactoryPath], nullptr);
-				newTree.setProperty(PropertyIds::FreezedId, node->getId(), nullptr);
-
-				{
-					auto oldTree = node->getValueTree();
-					auto um = node->getUndoManager();
-
-					node->getRootNetwork()->createFromValueTree(true, newTree, true);
-
-					auto f = [oldTree, newTree, um]()
-					{
-						auto p = oldTree.getParent();
-
-						int position = p.indexOf(oldTree);
-						p.removeChild(oldTree, um);
-						p.addChild(newTree, position, um);
-					};
-
-					MessageManager::callAsync(f);
-				}
-			}
-		}
+		DspNetworkGraph::Actions::unfreezeNode(node);
 	}
 	if (result == (int)MenuActions::FreezeNode)
 	{
-		auto freezedId = node->getValueTree()[PropertyIds::FreezedId].toString();
-
-		if (freezedId.isNotEmpty())
-		{
-			if (auto fn = dynamic_cast<NodeBase*>(node->getRootNetwork()->get(freezedId).getObject()))
-			{
-				auto newTree = fn->getValueTree();
-				auto oldTree = node->getValueTree();
-				auto um = node->getUndoManager();
-
-				auto f = [oldTree, newTree, um]()
-				{
-					auto p = oldTree.getParent();
-
-					int position = p.indexOf(oldTree);
-					p.removeChild(oldTree, um);
-					p.addChild(newTree, position, um);
-				};
-
-				MessageManager::callAsync(f);
-			}
-
-			return;
-		}
-
-		auto freezedPath = node->getValueTree()[PropertyIds::FreezedPath].toString();
-
-		if (freezedPath.isNotEmpty())
-		{
-			auto newNode = node->getRootNetwork()->create(freezedPath, node->getId() + "_freezed", node->isPolyphonic());
-
-			if (auto nn = dynamic_cast<NodeBase*>(newNode.getObject()))
-			{
-				auto newTree = nn->getValueTree();
-				auto oldTree = node->getValueTree();
-				auto um = node->getUndoManager();
-
-				auto f = [oldTree, newTree, um]()
-				{
-					auto p = oldTree.getParent();
-
-					int position = p.indexOf(oldTree);
-					p.removeChild(oldTree, um);
-					p.addChild(newTree, position, um);
-				};
-
-				MessageManager::callAsync(f);
-			}
-		}
+		DspNetworkGraph::Actions::freezeNode(node);
 	}
 	if (result >= (int)MenuActions::WrapIntoChain && result <= (int)MenuActions::WrapIntoOversample4)
 	{
@@ -633,7 +536,7 @@ juce::Colour NodeComponent::getOutlineColour() const
 
 bool NodeComponent::isRoot() const
 {
-	return !isDragged() && dynamic_cast<DspNetworkGraph*>(getParentComponent()) != nullptr;
+	return node->getRootNetwork()->getRootNode() == node;
 }
 
 bool NodeComponent::isFolded() const

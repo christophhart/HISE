@@ -41,6 +41,7 @@ using namespace hise;
 class DspNetwork;
 class NodeComponent;
 class HardcodedNode;
+class RestorableNode;
 
 struct NodeBase : public ConstScriptingObject
 {
@@ -263,6 +264,8 @@ struct NodeBase : public ConstScriptingObject
 	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;
 	
 	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
+
+	virtual RestorableNode* getAsRestorableNode() { return nullptr; }
 
 	void setBypassed(bool shouldBeBypassed);
 	bool isBypassed() const noexcept;

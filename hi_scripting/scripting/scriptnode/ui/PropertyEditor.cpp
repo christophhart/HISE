@@ -125,6 +125,20 @@ void NodePopupEditor::buttonClicked(Button* b)
 
 		if (mode == 0)
 		{
+			if (tmp->node->getAsRestorableNode())
+			{
+				m.addItem((int)NodeComponent::MenuActions::UnfreezeNode, "Unfreeze Node");
+				m.addSeparator();
+			}
+
+			auto freezedId = tmp->node->getValueTree()[PropertyIds::FreezedId].toString();
+
+			if (freezedId.isNotEmpty())
+			{
+				m.addItem((int)NodeComponent::MenuActions::FreezeNode, "Freeze Node (discard changes)");
+				m.addSeparator();
+			}
+
 			m.addSectionHeader("Export Node");
 			m.addItem((int)NodeComponent::MenuActions::ExportAsCpp, "Export as custom CPP class");
 			m.addItem((int)NodeComponent::MenuActions::ExportAsCppProject, "Export as project CPP class");

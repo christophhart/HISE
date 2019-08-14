@@ -407,6 +407,125 @@ void DspNetworkGraph::Actions::selectAndScrollToNode(DspNetworkGraph& g, NodeBas
 	}
 }
 
+bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
+{
+	auto freezedId = node->getValueTree()[PropertyIds::FreezedId].toString();
+
+	if (freezedId.isNotEmpty())
+	{
+		if (auto fn = dynamic_cast<NodeBase*>(node->getRootNetwork()->get(freezedId).getObject()))
+		{
+			auto newTree = fn->getValueTree();
+			auto oldTree = node->getValueTree();
+			auto um = node->getUndoManager();
+
+			auto f = [oldTree, newTree, um]()
+			{
+				auto p = oldTree.getParent();
+
+				int position = p.indexOf(oldTree);
+				p.removeChild(oldTree, um);
+				p.addChild(newTree, position, um);
+			};
+
+			MessageManager::callAsync(f);
+		}
+
+		return true;
+	}
+
+	auto freezedPath = node->getValueTree()[PropertyIds::FreezedPath].toString();
+
+	if (freezedPath.isNotEmpty())
+	{
+		auto newNode = node->getRootNetwork()->create(freezedPath, node->getId() + "_freezed", node->isPolyphonic());
+
+		if (auto nn = dynamic_cast<NodeBase*>(newNode.getObject()))
+		{
+			auto newTree = nn->getValueTree();
+			auto oldTree = node->getValueTree();
+			auto um = node->getUndoManager();
+
+			auto f = [oldTree, newTree, um]()
+			{
+				auto p = oldTree.getParent();
+
+				int position = p.indexOf(oldTree);
+				p.removeChild(oldTree, um);
+				p.addChild(newTree, position, um);
+			};
+
+			MessageManager::callAsync(f);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
+{
+	if (auto hc = node->getAsRestorableNode())
+	{
+		// Check if there is already a node that was unfrozen
+
+		for (auto n : node->getRootNetwork()->getListOfUnconnectedNodes())
+		{
+			if (n->getValueTree()[PropertyIds::FreezedId].toString() == node->getId())
+			{
+				auto newTree = n->getValueTree();
+				auto oldTree = node->getValueTree();
+				auto um = node->getUndoManager();
+
+				auto f = [oldTree, newTree, um]()
+				{
+					auto p = oldTree.getParent();
+
+					int position = p.indexOf(oldTree);
+					p.removeChild(oldTree, um);
+					p.addChild(newTree, position, um);
+				};
+
+				MessageManager::callAsync(f);
+				return true;
+			}
+		}
+
+		auto t = hc->getSnippetText();
+
+		if (t.isNotEmpty())
+		{
+			auto newTree = ValueTreeConverters::convertBase64ToValueTree(t, true);
+			newTree = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
+			newTree.setProperty(PropertyIds::FreezedPath, node->getValueTree()[PropertyIds::FactoryPath], nullptr);
+			newTree.setProperty(PropertyIds::FreezedId, node->getId(), nullptr);
+
+			{
+				auto oldTree = node->getValueTree();
+				auto um = node->getUndoManager();
+
+				node->getRootNetwork()->createFromValueTree(true, newTree, true);
+
+				auto f = [oldTree, newTree, um]()
+				{
+					auto p = oldTree.getParent();
+
+					int position = p.indexOf(oldTree);
+					p.removeChild(oldTree, um);
+					p.addChild(newTree, position, um);
+				};
+
+				MessageManager::callAsync(f);
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 bool DspNetworkGraph::Actions::editNodeProperty(DspNetworkGraph& g)
 {
 	if (auto n = g.network->getSelection().getFirst())

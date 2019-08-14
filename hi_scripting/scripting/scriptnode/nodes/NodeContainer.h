@@ -131,6 +131,7 @@ struct NodeContainer : public AssignableObject
 
 	String createCppClassForNodes(bool isOuterClass);
 	String createTemplateAlias();
+	String createJitClasses();
 	NodeBase::List getChildNodesRecursive();
 	void fillAccessors(Array<CppGen::Accessor>& accessors, Array<int> currentPath);
 	virtual String getCppCode(CppGen::CodeLocation location);

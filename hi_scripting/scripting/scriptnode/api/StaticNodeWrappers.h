@@ -184,6 +184,18 @@ public:
 		wrapper.handleHiseEvent(e);
 	}
 
+	RestorableNode* getAsRestorableNode() override
+	{
+		if (auto hc = getAsHardcodedNode())
+		{
+			return hc;
+		}
+
+		auto rn = dynamic_cast<RestorableNode*>(wrapper.getInternalT());
+
+		return rn;
+	}
+
 	HardcodedNode* getAsHardcodedNode() override
 	{
 		return wrapper.getObject().getAsHardcodedNode();
@@ -198,10 +210,20 @@ public:
 
 
 
+class RestorableNode
+{
+public:
+
+	virtual ~RestorableNode()
+	{
+
+	}
+
+	virtual String getSnippetText() const { return ""; }
+};
 
 
-
-class HardcodedNode
+class HardcodedNode : public RestorableNode
 {
 public:
 
@@ -386,7 +408,7 @@ public:
 
 	HiseDspBase::ParameterData getParameter(const String& id, NormalisableRange<double> d);
 
-	virtual String getSnippetText() const { return ""; }
+	
 
 	String getNodeId(const HiseDspBase* internalNode) const;
 
@@ -819,6 +841,9 @@ static NodeFactory* instance; \
     
 #define REGISTER_POLY PolyRegisterAtFactory<Factory, instance<1>, instance<NUM_POLYPHONIC_VOICES>> reg;
 #define REGISTER_MONO RegisterAtFactory<Factory, instance> reg;
+
+#define REGISTER_POLY_SNEX PolyRegisterAtFactory<Factory, hardcoded_jit<instance, 1>, hardcoded_jit<instance, NUM_POLYPHONIC_VOICES>> reg;
+#define REGISTER_MONO_SNEX RegisterAtFactory<Factory, hardcoded_jit<instance, 1>> reg;
 
 
 }

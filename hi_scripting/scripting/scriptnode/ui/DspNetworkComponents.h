@@ -858,6 +858,9 @@ public:
 	{
 		static void selectAndScrollToNode(DspNetworkGraph& g, NodeBase::Ptr node);
 
+		static bool freezeNode(NodeBase::Ptr node);
+		static bool unfreezeNode(NodeBase::Ptr node);
+
 		static bool editNodeProperty(DspNetworkGraph& g);
 		static bool foldSelection(DspNetworkGraph& g);
 		static bool arrowKeyAction(DspNetworkGraph& g, const KeyPress& k);

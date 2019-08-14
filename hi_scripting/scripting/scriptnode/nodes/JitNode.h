@@ -39,10 +39,182 @@ using namespace hise;
 
 class JitNode;
 
+struct CallbackTypes
+{
+static constexpr int Channel = 0;
+static constexpr int Frame = 1;
+static constexpr int Sample = 2;
+static constexpr int Inactive = -1;
+};
+
+using namespace snex;
+
+#define loop_block(x) for(auto& x)
+#define SET_HISE_BLOCK_CALLBACK(s) static constexpr int BlockCallback = CallbackTypes::s;
+#define SET_HISE_FRAME_CALLBACK(s) static constexpr int FrameCallback = CallbackTypes::s;
+
+struct jit_base: public RestorableNode
+{
+	struct Parameter
+	{
+		String id;
+		std::function<void(double)> f;
+	};
+
+	virtual ~jit_base() {};
+
+	struct ConsoleDummy
+	{
+		template <typename T> void print(const T& value)
+		{
+			DBG(value);
+		}
+	} Console;
+
+	virtual void createParameters()
+	{
+
+	}
+
+	void addParameter(String name, const std::function<void(double)>& f)
+	{
+		parameters.add({ name, f });
+	}
+
+	Array<Parameter> parameters;
+
+	snex::hmath Math;
+};
+
+template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
+												  public RestorableNode
+{
+	constexpr static int NumVoices = NV;
+
+	SET_HISE_NODE_EXTRA_HEIGHT(0);
+	SET_HISE_NODE_EXTRA_WIDTH(0);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+	SET_HISE_POLY_NODE_ID(T::getStaticId());
+
+	GET_SELF_AS_OBJECT(hardcoded_jit);
+
+	void prepare(PrepareSpecs sp)
+	{
+		obj.prepare(sp);
+
+		obj.forEachVoice([sp](T& o)
+		{
+			o.prepare(sp.sampleRate, sp.blockSize, sp.numChannels);
+		});
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		obj.get().handleEvent(e);
+	}
+
+	void reset()
+	{
+		if (obj.isVoiceRenderingActive())
+			obj.get().reset();
+		else
+			obj.forEachVoice([](T& o) {o.reset(); });
+	}
+
+	bool handleModulation(double& value)
+	{
+		return false;
+	}
+
+	void process(ProcessData& d)
+	{
+		auto& o = obj.get();
+
+		if (T::BlockCallback == CallbackTypes::Channel)
+		{
+			for (int i = 0; i < d.numChannels; i++)
+			{
+				snex::block b(d.data[i], d.size);
+				o.processChannel(b, i);
+			}
+		}
+		else if (T::BlockCallback == CallbackTypes::Frame)
+		{
+			float frame[NUM_MAX_CHANNELS];
+			float* copyPtr[NUM_MAX_CHANNELS];
+			memcpy(copyPtr, d.data, sizeof(float*)*d.numChannels);
+			
+			ProcessData copy(copyPtr, d.numChannels, d.size);
+			copy.allowPointerModification();
+
+			for (int i = 0; i < d.size; i++)
+			{
+				copy.copyToFrameDynamic(frame);
+				o.processFrame(snex::block(frame, d.numChannels));
+				copy.copyFromFrameAndAdvanceDynamic(frame);
+			}
+		}
+		else if (T::BlockCallback == CallbackTypes::Sample)
+		{
+			for (int c = 0; c < d.numChannels; c++)
+			{
+				for (int i = 0; i < d.size; i++)
+				{
+					auto v = d.data[c][i];
+					d.data[c][i] = o.processSample(v);
+				}
+			}
+		}
+	}
+
+	void processSingle(float* data, int numChannels)
+	{
+		auto& o = obj.get();
+
+		if (T::FrameCallback == CallbackTypes::Frame)
+		{
+			o.processFrame(snex::block(data, numChannels));
+		}
+		else if (T::FrameCallback == CallbackTypes::Channel)
+		{
+			for (int i = 0; i < numChannels; i++)
+				o.processChannel(snex::block(data + i, 1), i);
+		}
+		else if (T::FrameCallback == CallbackTypes::Sample)
+		{
+			for (int i = 0; i < numChannels; i++)
+				data[i] = o.processSample(data[i]);
+		}
+	}
+
+	void createParameters(Array<ParameterData>& data) override
+	{
+		obj.getFirst().createParameters();
+
+		for (auto jp : obj.getFirst().parameters)
+		{
+			ParameterData p(jp.id);
+			p.db = jp.f;
+			data.add(std::move(p));
+		}
+
+		obj.getFirst().parameters.clear();
+	}
+
+	String getSnippetText() const override
+	{
+		return obj.getFirst().getSnippetText();
+	}
+
+	PolyData<T, NumVoices> obj;
+};
+
+
 namespace core
 {
 
-template <int NV> class jit : public HiseDspBase
+template <int NV> class jit : public HiseDspBase,
+							  public AsyncUpdater
 {
 public:
 
@@ -59,118 +231,112 @@ public:
 
 	}
 
+	void handleAsyncUpdate()
+	{
+		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::Compile))
+		{
+			auto compileEachVoice = [this](CallbackCollection& c)
+			{
+				snex::jit::Compiler compiler(scope);
+
+				auto newObject = compiler.compileJitObject(lastCode);
+
+				if (compiler.getCompileResult().wasOk())
+				{
+					c.obj = newObject;
+					c.setupCallbacks();
+					c.prepare(lastSpecs.sampleRate, lastSpecs.blockSize, lastSpecs.numChannels);
+				}
+			};
+
+			cData.forEachVoice(compileEachVoice);
+		}
+		else
+		{
+			DBG("DEFER");
+			triggerAsyncUpdate();
+		}
+	}
+
 	void updateCode(Identifier id, var newValue)
 	{
 		auto newCode = newValue.toString();
 
-		SpinLock::ScopedLockType sl(compileLock);
-
-		auto scopePointer = &scope;
-
-		auto lsCopy = lastSpecs;
-
-		auto compileEachVoice = [scopePointer, newCode, lsCopy](CallbackCollection& c)
+		if (newCode != lastCode)
 		{
-			snex::jit::Compiler compiler(*scopePointer);
-
-			auto newObject = compiler.compileJitObject(newCode);
-
-			if (compiler.getCompileResult().wasOk())
-			{
-				c.obj = newObject;
-				c.setupCallbacks();
-				c.prepare(lsCopy.sampleRate, lsCopy.blockSize, lsCopy.numChannels);
-			}
-		};
-
-		cData.forEachVoice(compileEachVoice);
+			lastCode = newCode;
+			handleAsyncUpdate();
+		}
 	}
 
 	void prepare(PrepareSpecs specs)
 	{
-		SpinLock::ScopedLockType sl(compileLock);
-
 		cData.prepare(specs);
 
 		lastSpecs = specs;
 
 		voiceIndexPtr = specs.voiceIndex;
 
-		cData.forEachVoice([specs](CallbackCollection& c)
+		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
 		{
-			c.prepare(specs.sampleRate, specs.blockSize, specs.numChannels);
-		});
+			cData.forEachVoice([specs](CallbackCollection& c)
+			{
+				c.prepare(specs.sampleRate, specs.blockSize, specs.numChannels);
+			});
+		}
+	}
+
+	template <int Index> bool createParameter(Array<ParameterData>& data)
+	{
+		auto& c = cData.getFirst();
+
+		auto& cp = c.parameters[Index];
+
+		if (cp.name.isNotEmpty())
+		{
+			ParameterData p(cp.name, { 0.0, 1.0 });
+			p.db = BIND_MEMBER_FUNCTION_1(jit::setParameter<Index>);
+			
+			data.add(std::move(p));
+
+			return true;
+		}
+
+		return false;
 	}
 
 	void createParameters(Array<ParameterData>& data) override
 	{
 		code.init(nullptr, this);
 
-		auto c = cData.getFirst();
-
-		auto ids = c.obj.getFunctionIds();
-		auto names = snex::jit::ParameterHelpers::getParameterNames(c.obj);
-
-		bool isPoly = cData.isPolyphonic();
-
-		for (auto& name : names)
+		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::Compile))
 		{
-			ParameterData p(name, { 0.0, 1.0 });
-			
-
-			using DoubleCallbackPtr = void(*)(double);
-
-			if (!isPoly)
-			{
-				auto f = snex::jit::ParameterHelpers::getFunction(name, c.obj);
-
-				if (f)
-					p.db = reinterpret_cast<DoubleCallbackPtr>(f.function);
-				else
-					p.db = {};
-			}
-			else
-			{
-				Array<DoubleCallbackPtr> voiceFunctions;
-
-				auto tmp = &voiceFunctions;
-
-				cData.forEachVoice([tmp, name](CallbackCollection& cc)
-				{
-					auto f = snex::jit::ParameterHelpers::getFunction(name, cc.obj);
-
-					if (f)
-						tmp->add(reinterpret_cast<DoubleCallbackPtr>(f.function));
-				});
-
-				auto ptr = voiceIndexPtr;
-
-				if (ptr == nullptr)
-					return;
-
-				p.db = [voiceFunctions, ptr](double newValue)
-				{
-					jassert(ptr != nullptr);
-
-					if (*ptr != -1)
-					{
-						auto f = voiceFunctions[*ptr];
-						f(newValue);
-					}
-					else
-					{
-						for (auto f : voiceFunctions)
-						{
-							if(f != nullptr)
-								f(newValue);
-						}
-							
-					}
-				};
-			}
-
-
-			data.add(std::move(p));
+			if (!createParameter<0>(data))
+				return;
+			if (!createParameter<1>(data))
+				return;
+			if (!createParameter<2>(data))
+				return;
+			if (!createParameter<3>(data))
+				return;
+			if (!createParameter<4>(data))
+				return;
+			if (!createParameter<5>(data))
+				return;
+			if (!createParameter<6>(data))
+				return;
+			if (!createParameter<7>(data))
+				return;
+			if (!createParameter<8>(data))
+				return;
+			if (!createParameter<9>(data))
+				return;
+			if (!createParameter<10>(data))
+				return;
+			if (!createParameter<11>(data))
+				return;
+			if (!createParameter<12>(data))
+				return;
 		}
 	}
 
@@ -186,8 +352,11 @@ public:
 
 	void handleHiseEvent(HiseEvent& e) final override
 	{
-		if(cData.isVoiceRenderingActive())
-			cData.get().eventFunction.callVoid(e);
+		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
+		{
+			if (cData.isVoiceRenderingActive())
+				cData.get().eventFunction.callVoid(e);
+		}
 	}
 
 	bool handleModulation(double&)
@@ -197,114 +366,189 @@ public:
 
 	void reset()
 	{
-		SpinLock::ScopedLockType sl(compileLock);
-
-		if (cData.isVoiceRenderingActive())
-			cData.get().resetFunction.callVoid();
-		else
-			cData.forEachVoice([](CallbackCollection& c) {c.resetFunction.callVoid(); });
+		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
+		{
+			if (cData.isVoiceRenderingActive())
+				cData.get().resetFunction.callVoid();
+			else
+				cData.forEachVoice([](CallbackCollection& c) {c.resetFunction.callVoid(); });
+		}
 	}
 
 	using CallbackCollection = snex::jit::CallbackCollection;
 
 	void process(ProcessData& d)
 	{
-		SpinLock::ScopedLockType sl(compileLock);
-
-		auto& cc = cData.get();
-
-		auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::BlockProcessing];
-
-		switch (bestCallback)
+		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
 		{
-		case CallbackCollection::Channel:
-		{
-			for (int c = 0; c < d.numChannels; c++)
+			auto& cc = cData.get();
+
+			auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::BlockProcessing];
+
+			switch (bestCallback)
 			{
-				snex::block b(d.data[c], d.size);
-				cc.callbacks[CallbackCollection::Channel].callVoidUnchecked(b, c);
+			case CallbackCollection::Channel:
+			{
+				for (int c = 0; c < d.numChannels; c++)
+				{
+					snex::block b(d.data[c], d.size);
+					cc.callbacks[CallbackCollection::Channel].callVoidUnchecked(b, c);
+				}
+				break;
 			}
-			break;
-		}
-		case CallbackCollection::Frame:
-		{
-			float frame[NUM_MAX_CHANNELS];
-			float* frameData[NUM_MAX_CHANNELS];
-			memcpy(frameData, d.data, sizeof(float*) * d.numChannels);
-			ProcessData copy(frameData, d.numChannels, d.size);
-			copy.allowPointerModification();
-
-			for (int i = 0; i < d.size; i++)
+			case CallbackCollection::Frame:
 			{
-				copy.copyToFrameDynamic(frame);
+				float frame[NUM_MAX_CHANNELS];
+				float* frameData[NUM_MAX_CHANNELS];
+				memcpy(frameData, d.data, sizeof(float*) * d.numChannels);
+				ProcessData copy(frameData, d.numChannels, d.size);
+				copy.allowPointerModification();
 
-				snex::block b(frame, d.numChannels);
-				cc.callbacks[CallbackCollection::Frame].callVoidUnchecked(b);
-
-				copy.copyFromFrameAndAdvanceDynamic(frame);
-			}
-
-			break;
-		}
-		case CallbackCollection::Sample:
-		{
-			for (int c = 0; c < d.numChannels; c++)
-			{
 				for (int i = 0; i < d.size; i++)
 				{
-					auto value = d.data[c][i];
-					d.data[c][i] = cc.callbacks[CallbackCollection::Sample].template callUncheckedWithCopy<float>(value);
-				}
-			}
+					copy.copyToFrameDynamic(frame);
 
-			break;
-		}
-		default:
-			break;
+					snex::block b(frame, d.numChannels);
+					cc.callbacks[CallbackCollection::Frame].callVoidUnchecked(b);
+
+					copy.copyFromFrameAndAdvanceDynamic(frame);
+				}
+
+				break;
+			}
+			case CallbackCollection::Sample:
+			{
+				for (int c = 0; c < d.numChannels; c++)
+				{
+					for (int i = 0; i < d.size; i++)
+					{
+						auto value = d.data[c][i];
+						d.data[c][i] = cc.callbacks[CallbackCollection::Sample].template callUncheckedWithCopy<float>(value);
+					}
+				}
+
+				break;
+			}
+			default:
+				break;
+			}
 		}
 	}
 
 	void processSingle(float* frameData, int numChannels)
 	{
-		SpinLock::ScopedLockType sl(compileLock);
-
-		auto& cc = cData.get();
-
-		auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::FrameProcessing];
-
-		switch (bestCallback)
+		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
 		{
-		case CallbackCollection::Frame:
-		{
-			snex::block b(frameData, numChannels);
-			cc.callbacks[bestCallback].callVoidUnchecked(b);
-			break;
-		}
-		case CallbackCollection::Sample:
-		{
-			for (int i = 0; i < numChannels; i++)
+			auto& cc = cData.get();
+
+			auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::FrameProcessing];
+
+			switch (bestCallback)
 			{
-				auto v = static_cast<float>(frameData[i]);
-				auto& f = cc.callbacks[bestCallback];
-                frameData[i] = f.template callUnchecked<float>(v);
-			}
-			break;
-		}
-		case CallbackCollection::Channel:
-		{
-			for (int i = 0; i < numChannels; i++)
+			case CallbackCollection::Frame:
 			{
-				snex::block b(frameData + i, 1);
+				snex::block b(frameData, numChannels);
 				cc.callbacks[bestCallback].callVoidUnchecked(b);
+				break;
 			}
-			break;
-		}
-		default:
-			break;
+			case CallbackCollection::Sample:
+			{
+				for (int i = 0; i < numChannels; i++)
+				{
+					auto v = static_cast<float>(frameData[i]);
+					auto& f = cc.callbacks[bestCallback];
+					frameData[i] = f.template callUnchecked<float>(v);
+				}
+				break;
+			}
+			case CallbackCollection::Channel:
+			{
+				for (int i = 0; i < numChannels; i++)
+				{
+					snex::block b(frameData + i, 1);
+					cc.callbacks[bestCallback].callVoidUnchecked(b);
+				}
+				break;
+			}
+			default:
+				break;
+			}
 		}
 	}
 
-	SpinLock compileLock;
+	template<int Index> void setParameter(double newValue)
+	{
+		if (auto lock = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
+		{
+			if (cData.isVoiceRenderingActive())
+			{
+				cData.get().parameters.getReference(Index).f.callVoid(newValue);
+			}
+			else
+			{
+				cData.forEachVoice([newValue](CallbackCollection& cc)
+				{
+					cc.parameters.getReference(Index).f.callVoid(newValue);
+				});
+			}
+		}
+	}
+
+	struct ScopedCompileLock
+	{
+		enum AccessType
+		{
+			ReadOnly,
+			Compile,
+			numAccessTypes
+		};
+
+		ScopedCompileLock(jit& parent_, AccessType type_):
+			parent(parent_),
+			type(type_)
+		{
+			if (type == ReadOnly && !parent.currentlyCompiling)
+			{
+				++parent.numReaders;
+				locked = true;
+			}
+			else if (parent.numReaders == 0)
+			{
+				jassert(!parent.currentlyCompiling);
+
+				prevCompileState = parent.currentlyCompiling;
+				parent.currentlyCompiling.store(true);
+				++parent.numReaders;
+				
+				locked = true;
+			}
+			else
+				locked = false;
+		}
+
+		operator bool() const
+		{
+			return locked;
+		}
+
+		~ScopedCompileLock()
+		{
+			if (type == Compile)
+				parent.currentlyCompiling.store(prevCompileState);
+
+			if (locked)
+				--parent.numReaders;
+		}
+
+		jit& parent;
+
+		AccessType type;
+		bool prevCompileState;
+		bool locked;
+	};
+
+	std::atomic<int> numReaders = 0;
+	std::atomic<bool> currentlyCompiling = false;
 
 	PrepareSpecs lastSpecs;
 
@@ -312,6 +556,7 @@ public:
 
 	PolyData<CallbackCollection, NumVoices> cData;
 
+	String lastCode;
 	NodePropertyT<String> code;
 	NodeBase::Ptr node;
 
@@ -330,6 +575,8 @@ public:
 			BIND_MEMBER_FUNCTION_2(JitNodeBase::updateParameters));
 	}
 	
+	snex::jit::CallbackCollection& getFirstCollection();
+
 	NodeBase* asNode() { return dynamic_cast<NodeBase*>(this); }
 
 	void logMessage(const String& message) override
@@ -338,6 +585,8 @@ public:
 		s << dynamic_cast<NodeBase*>(this)->getId() << ": " << message;
 		debugToConsole(dynamic_cast<NodeBase*>(this)->getProcessor(), s);
 	}
+
+	String convertJitCodeToCppClass(int numVoices, bool addToFactory);
 
 	virtual HiseDspBase* getInternalJitNode() = 0;
 
@@ -396,6 +645,8 @@ public:
 
 	virtual ~JitNodeBase() {};
 
+	
+
 private:
 
 	valuetree::PropertyListener parameterUpdater;
@@ -414,6 +665,8 @@ public:
 		dynamic_cast<core::jit<1>*>(getInternalT())->scope.addDebugHandler(this);
 		initUpdater();
 	}
+
+	String createCppClass(bool isOuterClass) override;
 
 	HiseDspBase* getInternalJitNode() override
 	{
@@ -435,6 +688,8 @@ public:
 		dynamic_cast<core::jit<NUM_POLYPHONIC_VOICES>*>(getInternalT())->scope.addDebugHandler(this);
 		initUpdater();
 	}
+
+	String createCppClass(bool isOuterClass) override;
 
 	HiseDspBase* getInternalJitNode() override
 	{

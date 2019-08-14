@@ -37,6 +37,39 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+
+struct ParameterHelpers
+{
+	static FunctionData getFunction(const String& parameterName, JitObject& obj)
+	{
+		Identifier id("set" + parameterName);
+
+		auto f = obj[id];
+
+		if (f.matchesArgumentTypes(Types::ID::Void, { Types::ID::Double }))
+			return f;
+
+		return {};
+	}
+
+	static StringArray getParameterNames(JitObject& obj)
+	{
+		auto ids = obj.getFunctionIds();
+		StringArray sa;
+
+		for (int i = 0; i < ids.size(); i++)
+		{
+			auto fName = ids[i].toString();
+
+			if (fName.startsWith("set"))
+				sa.add(fName.fromFirstOccurrenceOf("set", false, false));
+		}
+
+		return sa;
+	}
+};
+
+
 struct CallbackCollection
 {
 	struct Listener
@@ -65,6 +98,23 @@ struct CallbackCollection
 		numActiveCallbacks,
 		Inactive
 	};
+
+	CallbackCollection()
+	{
+		bestCallback[FrameProcessing] = Inactive;
+		bestCallback[BlockProcessing] = Inactive;
+	}
+
+	String getBestCallbackName(int processType)
+	{
+		auto cb = bestCallback[processType];
+
+		if (cb == Channel) return "Channel";
+		if (cb == Frame) return "Frame";
+		if (cb == Sample) return "Sample";
+
+		return "Inactive";
+	}
 
 	void setupCallbacks()
 	{
@@ -105,6 +155,20 @@ struct CallbackCollection
 		bestCallback[FrameProcessing] = getBestCallback(FrameProcessing);
 		bestCallback[BlockProcessing] = getBestCallback(BlockProcessing);
 
+		parameters.clear();
+
+		auto parameterNames = ParameterHelpers::getParameterNames(obj);
+
+		for (auto n : parameterNames)
+		{
+			auto pFunction = ParameterHelpers::getFunction(n, obj);
+
+			if (!pFunction.matchesArgumentTypes(ID::Void, { ID::Double }))
+				pFunction = {};
+
+			parameters.add({ n, pFunction });
+		}
+
 		if (listener != nullptr)
 			listener->initialised(*this);
 	}
@@ -137,6 +201,9 @@ struct CallbackCollection
 
 	void prepare(double sampleRate, int blockSize, int numChannels)
 	{
+		if (sampleRate == -1 || blockSize == 0 || numChannels == 0)
+			return;
+
 		if (prepareFunction)
 			prepareFunction.callVoid(sampleRate, blockSize, numChannels);
 
@@ -152,6 +219,8 @@ struct CallbackCollection
 		listener = l;
 	}
 
+	
+
 	ActiveCallback bestCallback[numProcessTypes];
 
 	snex::jit::JitObject obj;
@@ -162,6 +231,14 @@ struct CallbackCollection
 	FunctionData prepareFunction;
 	FunctionData eventFunction;
 	FunctionData modFunction;
+
+	struct Parameter
+	{
+		String name;
+		FunctionData f;
+	};
+
+	Array<Parameter> parameters;
 
 	WeakReference<Listener> listener;
 };
@@ -347,37 +424,6 @@ class AssemblyTokeniser : public juce::CodeTokeniser
 	int readNextToken(CodeDocument::Iterator& source) override;
 
 	CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
-};
-
-struct ParameterHelpers
-{
-	static FunctionData getFunction(const String& parameterName, JitObject& obj)
-	{
-		Identifier id("set" + parameterName);
-
-		auto f = obj[id];
-
-		if (f.matchesArgumentTypes(Types::ID::Void, { Types::ID::Double }))
-			return f;
-
-		return {};
-	}
-
-	static StringArray getParameterNames(JitObject& obj)
-	{
-		auto ids = obj.getFunctionIds();
-		StringArray sa;
-
-		for (int i = 0; i < ids.size(); i++)
-		{
-			auto fName = ids[i].toString();
-
-			if (fName.startsWith("set"))
-				sa.add(fName.fromFirstOccurrenceOf("set", false, false));
-		}
-
-		return sa;
-	}
 };
 
 class SnexPlayground : public Component,

@@ -90,6 +90,7 @@ struct CppGen
 
 	enum class CodeLocation
 	{
+		InnerJitClasses,
 		TemplateAlias,
 
 		Definitions,
@@ -127,11 +128,15 @@ struct CppGen
 		static String createLine(String& content);
 		static String createDefinition(String& name, String& assignment);
 
+		static String createFactoryMacro(bool shouldCreatePoly, bool isSnexClass);
+
 		static String createRangeString(NormalisableRange<double> range);
 
 		static String surroundWithBrackets(const String& s);
 
 		static String createClass(const String& content, const String& templateId, bool createPolyphonicClass);
+
+		static String createJitClass(const String& className, const String& content);
 
 		static String createPrettyNumber(double value, bool createFloat);
 

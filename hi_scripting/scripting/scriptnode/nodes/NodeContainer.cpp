@@ -238,16 +238,12 @@ juce::String NodeContainer::createTemplateAlias()
 {
 	String s;
 
-	
-
 	if (nodes.size() > 0)
 	{
 		for (auto n : nodes)
 		{
 			if (auto c = dynamic_cast<NodeContainer*>(n.get()))
-			{
 				s << c->createTemplateAlias();
-			}
 		}
 
 		StringArray children;
@@ -263,6 +259,23 @@ juce::String NodeContainer::createTemplateAlias()
 	}
 
 	
+	return s;
+}
+
+juce::String NodeContainer::createJitClasses()
+{
+	String s;
+
+	for (auto n : nodes)
+	{
+		if (auto c = dynamic_cast<NodeContainer*>(n.get()))
+			s << c->createJitClasses();
+
+		if (auto j = dynamic_cast<JitNodeBase*>(n.get()))
+			s << j->convertJitCodeToCppClass(isPolyphonic() ? NUM_POLYPHONIC_VOICES : 1, false);
+	}
+	
+
 	return s;
 }
 
@@ -365,6 +378,10 @@ struct ClassGenerator
 		{
 			for (auto prop : n->getPropertyTree())
 			{
+				// Don't set the Code property of JIT nodes
+				if (prop[PropertyIds::ID].toString() == PropertyIds::Code.toString())
+					continue;
+
 				pb << "setNodeProperty(\"" << n->getId() << "." << prop[PropertyIds::ID].toString();
 				pb << "\", " << CppGen::Emitter::getVarAsCode(prop[PropertyIds::Value]);
 				pb << ", " << ((bool)prop[PropertyIds::Public] ? "true" : "false") << ");\n";
@@ -629,6 +646,15 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 	if (isOuterClass)
 	{
 		String s;
+
+		String jitClasses = getCppCode(CppGen::CodeLocation::InnerJitClasses);
+
+		if (jitClasses.isNotEmpty())
+		{
+			CppGen::Emitter::emitCommentLine(s, 0, "Inner SNEX classes");
+			s << jitClasses << "\n";
+		}
+
 		CppGen::Emitter::emitCommentLine(s, 0, "Template Alias Definition");
 		s << getCppCode(CppGen::CodeLocation::TemplateAlias);
 		s << "\n";
@@ -716,10 +742,9 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 
 		auto nid = n->getId();
 
-		if (shouldCreatePolyphonicClass())
-			s << "REGISTER_POLY;\n";
-		else
-			s << "REGISTER_MONO;\n";
+		s << CppGen::Emitter::createFactoryMacro(shouldCreatePolyphonicClass(), false);
+
+		
 
 		auto impl = CppGen::Emitter::wrapIntoNamespace(s, nid + "_impl");
 
@@ -736,8 +761,6 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 			impl << "\n" << CppGen::Emitter::createAlias(nid, nid + "_impl::instance");
 		}
 
-		
-
 		return impl;
 	}
 	else
@@ -750,6 +773,10 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 juce::String NodeContainer::getCppCode(CppGen::CodeLocation location)
 {
 	
+	if (location == CppGen::CodeLocation::InnerJitClasses)
+	{
+		return createJitClasses();
+	}
 	if (location == CppGen::CodeLocation::TemplateAlias)
 	{
 		return createTemplateAlias();

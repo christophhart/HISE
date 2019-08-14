@@ -312,7 +312,7 @@ public:
 
 		auto numLeftOverChannels = NumChannels - ps.numChannels;
 
-		if (numLeftOverChannels == 0)
+		if (numLeftOverChannels <= 0)
 			leftoverBuffer = {};
 		else
 			leftoverBuffer.setSize(numLeftOverChannels, ps.blockSize);

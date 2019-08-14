@@ -97,17 +97,23 @@ void CppGen::Emitter::emitFunctionDefinition(String& s, const MethodInfo& f)
 
 	emitArgumentList(s, f.arguments);
 
-	s << ")" << f.specifiers << "\n{\n";
-
-	s << f.body;
-
-	s << "}";
+	s << ")" << f.specifiers;
 	
+	if (f.body.isEmpty())
+		s << " {}";
+	else 
+		s << "\n{\n" << f.body << "}";
+
 	if(f.addSemicolon)
 		s << ";";
 
 	if (f.addNewLine)
-		s << "\n\n";
+	{
+		if (f.body.isEmpty())
+			s << "\n";
+		else
+			s << "\n\n";
+	}
 }
 
 void CppGen::Emitter::emitCommentLine(String& code, int tabLevel, const String& comment)
@@ -145,6 +151,28 @@ juce::String CppGen::Emitter::createDefinition(String& name, String& assignment)
 	String s;
 	s << "auto " << name << " = " << assignment;
 	return createLine(s);
+}
+
+juce::String CppGen::Emitter::createFactoryMacro(bool shouldCreatePoly, bool isSnexClass)
+{
+	String s;
+
+	if (isSnexClass)
+	{
+		if (shouldCreatePoly)
+			s << "REGISTER_POLY_SNEX;\n";
+		else
+			s << "REGISTER_MONO_SNEX;\n";
+	}
+	else
+	{
+		if (shouldCreatePoly)
+			s << "REGISTER_POLY;\n";
+		else
+			s << "REGISTER_MONO;\n";
+	}
+
+	return s;
 }
 
 juce::String CppGen::Emitter::createRangeString(NormalisableRange<double> range)
@@ -185,6 +213,20 @@ juce::String CppGen::Emitter::createClass(const String& content, const String& t
 
 	return s;
 
+}
+
+juce::String CppGen::Emitter::createJitClass(const String& className, const String& content)
+{
+	String s;
+
+	s << "struct instance: public jit_base\n";
+	s << "{\n";
+
+	s << content;
+
+	s << "};\n";
+
+	return s;
 }
 
 juce::String CppGen::Emitter::createPrettyNumber(double value, bool createFloat)
@@ -263,11 +305,11 @@ juce::String CppGen::Emitter::prependNamespaces(const String& className, const A
 juce::String CppGen::Emitter::wrapIntoNamespace(const String& s, const String& namespaceId)
 {
 	String n;
-	n << "namespace " << namespaceId << "\n{\n";
+	n << "\nnamespace " << namespaceId << "\n{\n\n";
 
 	n << s;
 
-	n << "}\n";
+	n << "\n}\n\n";
 
 	return n;
 }
@@ -292,7 +334,7 @@ juce::String CppGen::Helpers::createIntendation(const String& code)
 	for (auto line : lines)
 	{
 		if (line.trim().startsWith("}"))
-			tabLevel--;
+			tabLevel = jmax(0, tabLevel - 1);
 
 		if (!line.startsWith("private:") && !line.startsWith("public:"))
 			addTab(newCode, tabLevel);
