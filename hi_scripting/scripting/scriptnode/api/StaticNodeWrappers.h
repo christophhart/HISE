@@ -567,6 +567,44 @@ public:
 	OwnedArray<Component> components;
 };
 
+
+#define SET_HISE_BLOCK_CALLBACK(s) static constexpr int BlockCallback = CallbackTypes::s;
+#define SET_HISE_FRAME_CALLBACK(s) static constexpr int FrameCallback = CallbackTypes::s;
+
+struct jit_base : public RestorableNode
+{
+	struct Parameter
+	{
+		String id;
+		std::function<void(double)> f;
+	};
+
+	virtual ~jit_base() {};
+
+	struct ConsoleDummy
+	{
+		template <typename T> void print(const T& value)
+		{
+			DBG(value);
+		}
+	} Console;
+
+	virtual void createParameters()
+	{
+
+	}
+
+	void addParameter(String name, const std::function<void(double)>& f)
+	{
+		parameters.add({ name, f });
+	}
+
+	Array<Parameter> parameters;
+
+	snex::hmath Math;
+};
+
+
 struct hardcoded_base : public HiseDspBase,
 	public HardcodedNode
 {
@@ -620,9 +658,6 @@ struct hardcoded_pimpl : public hardcoded_base
 	virtual ~hardcoded_pimpl() {};
 
 };
-
-
-
 
 
 template <class DspProcessorType> struct hardcoded : hardcoded_base

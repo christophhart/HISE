@@ -20,6 +20,7 @@
 #include "snex_core/snex_TypeHelpers.cpp"
 #include "snex_core/snex_DynamicType.cpp"
 
+
 #include "snex_jit/snex_jit_Functions.cpp"
 #include "snex_jit/snex_jit_ApiClasses.cpp"
 #include "snex_jit/snex_jit_AssemblyRegister.cpp"
@@ -44,6 +45,8 @@
 #include "snex_jit/snex_jit_JitCompiler.cpp"
 
 #include "snex_jit/snex_jit_UnitTests.cpp"
+
+#include "snex_core/snex_CallbackCollection.cpp"
 #include "snex_components/snex_JitPlayground.cpp"
 
 

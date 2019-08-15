@@ -38,211 +38,6 @@ namespace jit {
 using namespace juce;
 
 
-struct ParameterHelpers
-{
-	static FunctionData getFunction(const String& parameterName, JitObject& obj)
-	{
-		Identifier id("set" + parameterName);
-
-		auto f = obj[id];
-
-		if (f.matchesArgumentTypes(Types::ID::Void, { Types::ID::Double }))
-			return f;
-
-		return {};
-	}
-
-	static StringArray getParameterNames(JitObject& obj)
-	{
-		auto ids = obj.getFunctionIds();
-		StringArray sa;
-
-		for (int i = 0; i < ids.size(); i++)
-		{
-			auto fName = ids[i].toString();
-
-			if (fName.startsWith("set"))
-				sa.add(fName.fromFirstOccurrenceOf("set", false, false));
-		}
-
-		return sa;
-	}
-};
-
-
-struct CallbackCollection
-{
-	struct Listener
-	{
-		virtual ~Listener() {};
-
-		virtual void initialised(const CallbackCollection& c) = 0;
-
-		virtual void prepare(double samplerate, int blockSize, int numChannels) = 0;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-	};
-
-	enum ProcessType
-	{
-		FrameProcessing,
-		BlockProcessing,
-		numProcessTypes
-	};
-
-	enum ActiveCallback
-	{
-		Channel,
-		Frame,
-		Sample,
-		numActiveCallbacks,
-		Inactive
-	};
-
-	CallbackCollection()
-	{
-		bestCallback[FrameProcessing] = Inactive;
-		bestCallback[BlockProcessing] = Inactive;
-	}
-
-	String getBestCallbackName(int processType)
-	{
-		auto cb = bestCallback[processType];
-
-		if (cb == Channel) return "Channel";
-		if (cb == Frame) return "Frame";
-		if (cb == Sample) return "Sample";
-
-		return "Inactive";
-	}
-
-	void setupCallbacks()
-	{
-		StringArray cIds = { "processChannel", "processFrame", "processSample" };
-
-		using namespace snex::Types;
-
-		prepareFunction = obj["prepare"];
-
-		if (!prepareFunction.matchesArgumentTypes(ID::Void, { ID::Double, ID::Integer, ID::Integer }))
-			prepareFunction = {};
-
-		resetFunction = obj["reset"];
-
-		if (!resetFunction.matchesArgumentTypes(ID::Void, {}))
-			resetFunction = {};
-
-		eventFunction = obj["handleEvent"];
-
-		if (!eventFunction.matchesArgumentTypes(ID::Void, { ID::Event }))
-			eventFunction = {};
-
-		callbacks[Sample] = obj[cIds[Sample]];
-
-		if (!callbacks[Sample].matchesArgumentTypes(ID::Float, { ID::Float }))
-			callbacks[Sample] = {};
-
-		callbacks[Frame] = obj[cIds[Frame]];
-
-		if (!callbacks[Frame].matchesArgumentTypes(ID::Void, { ID::Block }))
-			callbacks[Frame] = {};
-
-		callbacks[Channel] = obj[cIds[Channel]];
-
-		if (!callbacks[Channel].matchesArgumentTypes(ID::Void, { ID::Block, ID::Integer }))
-			callbacks[Channel] = {};
-
-		bestCallback[FrameProcessing] = getBestCallback(FrameProcessing);
-		bestCallback[BlockProcessing] = getBestCallback(BlockProcessing);
-
-		parameters.clear();
-
-		auto parameterNames = ParameterHelpers::getParameterNames(obj);
-
-		for (auto n : parameterNames)
-		{
-			auto pFunction = ParameterHelpers::getFunction(n, obj);
-
-			if (!pFunction.matchesArgumentTypes(ID::Void, { ID::Double }))
-				pFunction = {};
-
-			parameters.add({ n, pFunction });
-		}
-
-		if (listener != nullptr)
-			listener->initialised(*this);
-	}
-
-	ActiveCallback getBestCallback(int processType) const
-	{
-		if (processType == FrameProcessing)
-		{
-			if (callbacks[Frame])
-				return Frame;
-			if (callbacks[Sample])
-				return Sample;
-			if (callbacks[Channel])
-				return Channel;
-
-			return Inactive;
-		}
-		else
-		{
-			if (callbacks[Channel])
-				return Channel;
-			if (callbacks[Frame])
-				return Frame;
-			if (callbacks[Sample])
-				return Sample;
-
-			return Inactive;
-		}
-	}
-
-	void prepare(double sampleRate, int blockSize, int numChannels)
-	{
-		if (sampleRate == -1 || blockSize == 0 || numChannels == 0)
-			return;
-
-		if (prepareFunction)
-			prepareFunction.callVoid(sampleRate, blockSize, numChannels);
-
-		if (resetFunction)
-			resetFunction.callVoid();
-
-		if(listener != nullptr)
-			listener->prepare(sampleRate, blockSize, numChannels);
-	}
-
-	void setListener(Listener* l)
-	{
-		listener = l;
-	}
-
-	
-
-	ActiveCallback bestCallback[numProcessTypes];
-
-	snex::jit::JitObject obj;
-
-	FunctionData callbacks[numActiveCallbacks];
-
-	FunctionData resetFunction;
-	FunctionData prepareFunction;
-	FunctionData eventFunction;
-	FunctionData modFunction;
-
-	struct Parameter
-	{
-		String name;
-		FunctionData f;
-	};
-
-	Array<Parameter> parameters;
-
-	WeakReference<Listener> listener;
-};
-
 struct CallbackStateComponent : public Component,
 								public CallbackCollection::Listener
 {
@@ -273,9 +68,9 @@ struct CallbackStateComponent : public Component,
 	{
 		switch (currentCallback)
 		{
-		case CallbackCollection::Channel:	return "processChannel()";
-		case CallbackCollection::Frame:		return "processFrame()";
-		case CallbackCollection::Sample:	return "processSample()";
+		case CallbackTypes::Channel:	return "processChannel()";
+		case CallbackTypes::Frame:		return "processFrame()";
+		case CallbackTypes::Sample:	return "processSample()";
 		default:							return "inactive";
 		}
 	}
@@ -319,10 +114,10 @@ struct CallbackStateComponent : public Component,
 	int blockSize = 0;
 	int numChannels = 0;
 
-	CallbackCollection::ActiveCallback frameCallback;
-	CallbackCollection::ActiveCallback blockCallback;
+	int frameCallback = CallbackTypes::Inactive;
+	int blockCallback = CallbackTypes::Inactive;
 
-	CallbackCollection::ActiveCallback currentCallback = CallbackCollection::Inactive;
+	int currentCallback = CallbackTypes::Inactive;
 	bool frameProcessing = false;
 	bool active = false;
 

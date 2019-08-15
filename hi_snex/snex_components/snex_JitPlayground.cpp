@@ -365,7 +365,7 @@ void SnexPlayground::recalculate()
 
 	stateViewer.setFrameProcessing(mode);
 
-    if(bestCallback != CallbackCollection::Inactive)
+    if(bestCallback != CallbackTypes::Inactive)
     {
 		int numChannels = jmax(1, graph.channelMode.getSelectedId());
 		int numSamples = jmax(16, graph.bufferLength.getText().getIntValue());
@@ -384,20 +384,20 @@ void SnexPlayground::recalculate()
 			{
 				switch (bestCallback)
 				{
-				case CallbackCollection::Channel:
+				case CallbackTypes::Channel:
 				{
 					for (int i = 0; i < b.getNumSamples(); i++)
 					{
 						for (int c = 0; c < b.getNumChannels(); c++)
 						{
 							block bl(b.getWritePointer(c, i), 1);
-							cData.callbacks[CallbackCollection::Channel].callVoidUnchecked(bl, c);
+							cData.callbacks[CallbackTypes::Channel].callVoidUnchecked(bl, c);
 						}
 					}
 
 					break;
 				}
-				case CallbackCollection::Frame:
+				case CallbackTypes::Frame:
 				{
 					float* l = b.getWritePointer(0);
 					float* r = numChannels > 1 ? b.getWritePointer(1) : nullptr;
@@ -412,7 +412,7 @@ void SnexPlayground::recalculate()
 							data[1] = *r;
 
 						block bl(data, numChannels);
-						cData.callbacks[CallbackCollection::Frame].callVoidUnchecked(bl);
+						cData.callbacks[CallbackTypes::Frame].callVoidUnchecked(bl);
 
 						*l++ = data[0];
 
@@ -421,7 +421,7 @@ void SnexPlayground::recalculate()
 					}
 					break;
 				}
-				case CallbackCollection::Sample:
+				case CallbackTypes::Sample:
 				{
 					float* l = b.getWritePointer(0);
 					float* r = numChannels > 1 ? b.getWritePointer(1) : nullptr;
@@ -430,13 +430,13 @@ void SnexPlayground::recalculate()
 					{
 
 						float value = *l;
-						float result = cData.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
+						float result = cData.callbacks[CallbackTypes::Sample].callUncheckedWithCopy<float>(value);
 						*l++ = result;
 
 						if (r != nullptr)
 						{
 							value = *r;
-							result = cData.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
+							result = cData.callbacks[CallbackTypes::Sample].callUncheckedWithCopy<float>(value);
 							*r++ = result;
 						}
 					}
@@ -448,17 +448,17 @@ void SnexPlayground::recalculate()
 			{
 				switch (bestCallback)
 				{
-				case CallbackCollection::Channel:
+				case CallbackTypes::Channel:
 				{
 					for (int i = 0; i < numChannels; i++)
 					{
 						block bl(b.getWritePointer(i), b.getNumSamples());
-						cData.callbacks[CallbackCollection::Channel].callVoidUnchecked(bl, i);
+						cData.callbacks[CallbackTypes::Channel].callVoidUnchecked(bl, i);
 					}
 
 					break;
 				}
-				case CallbackCollection::Frame:
+				case CallbackTypes::Frame:
 				{
 					float* l = b.getWritePointer(0);
 					float* r = numChannels > 1 ? b.getWritePointer(1) : nullptr;
@@ -473,7 +473,7 @@ void SnexPlayground::recalculate()
 							data[1] = *r;
 
 						block bl(data, numChannels);
-						cData.callbacks[CallbackCollection::Frame].callVoidUnchecked(bl);
+						cData.callbacks[CallbackTypes::Frame].callVoidUnchecked(bl);
 
 						*l++ = data[0];
 
@@ -482,7 +482,7 @@ void SnexPlayground::recalculate()
 					}
 					break;
 				}
-				case CallbackCollection::Sample:
+				case CallbackTypes::Sample:
 				{
 					for (int c = 0; c < b.getNumChannels(); c++)
 					{
@@ -491,7 +491,7 @@ void SnexPlayground::recalculate()
 						for (int i = 0; i < b.getNumSamples(); i++)
 						{
 							float value = *ptr;
-							float result = cData.callbacks[CallbackCollection::Sample].callUncheckedWithCopy<float>(value);
+							float result = cData.callbacks[CallbackTypes::Sample].callUncheckedWithCopy<float>(value);
 							*ptr++ = result;
 						}
 					}

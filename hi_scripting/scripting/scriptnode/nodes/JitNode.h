@@ -37,54 +37,9 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-class JitNode;
 
-struct CallbackTypes
-{
-static constexpr int Channel = 0;
-static constexpr int Frame = 1;
-static constexpr int Sample = 2;
-static constexpr int Inactive = -1;
-};
 
 using namespace snex;
-
-#define loop_block(x) for(auto& x)
-#define SET_HISE_BLOCK_CALLBACK(s) static constexpr int BlockCallback = CallbackTypes::s;
-#define SET_HISE_FRAME_CALLBACK(s) static constexpr int FrameCallback = CallbackTypes::s;
-
-struct jit_base: public RestorableNode
-{
-	struct Parameter
-	{
-		String id;
-		std::function<void(double)> f;
-	};
-
-	virtual ~jit_base() {};
-
-	struct ConsoleDummy
-	{
-		template <typename T> void print(const T& value)
-		{
-			DBG(value);
-		}
-	} Console;
-
-	virtual void createParameters()
-	{
-
-	}
-
-	void addParameter(String name, const std::function<void(double)>& f)
-	{
-		parameters.add({ name, f });
-	}
-
-	Array<Parameter> parameters;
-
-	snex::hmath Math;
-};
 
 template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 												  public RestorableNode
@@ -213,7 +168,7 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 namespace core
 {
 
-template <int NV> class jit : public HiseDspBase,
+template <int NV> class jit_impl : public HiseDspBase,
 							  public AsyncUpdater
 {
 public:
@@ -222,268 +177,47 @@ public:
 
 	SET_HISE_POLY_NODE_ID("jit");
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
-	GET_SELF_AS_OBJECT(jit);
+	GET_SELF_AS_OBJECT(jit_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-	jit() :
-		code(PropertyIds::Code, "")
-	{
+	jit_impl();
 
-	}
+	void handleAsyncUpdate();
 
-	void handleAsyncUpdate()
-	{
-		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::Compile))
-		{
-			auto compileEachVoice = [this](CallbackCollection& c)
-			{
-				snex::jit::Compiler compiler(scope);
+	void updateCode(Identifier id, var newValue);
 
-				auto newObject = compiler.compileJitObject(lastCode);
+	void prepare(PrepareSpecs specs);
 
-				if (compiler.getCompileResult().wasOk())
-				{
-					c.obj = newObject;
-					c.setupCallbacks();
-					c.prepare(lastSpecs.sampleRate, lastSpecs.blockSize, lastSpecs.numChannels);
-				}
-			};
-
-			cData.forEachVoice(compileEachVoice);
-		}
-		else
-		{
-			DBG("DEFER");
-			triggerAsyncUpdate();
-		}
-	}
-
-	void updateCode(Identifier id, var newValue)
-	{
-		auto newCode = newValue.toString();
-
-		if (newCode != lastCode)
-		{
-			lastCode = newCode;
-			handleAsyncUpdate();
-		}
-	}
-
-	void prepare(PrepareSpecs specs)
-	{
-		cData.prepare(specs);
-
-		lastSpecs = specs;
-
-		voiceIndexPtr = specs.voiceIndex;
-
-		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
-		{
-			cData.forEachVoice([specs](CallbackCollection& c)
-			{
-				c.prepare(specs.sampleRate, specs.blockSize, specs.numChannels);
-			});
-		}
-	}
+	void createParameters(Array<ParameterData>& data) override;
+	void initialise(NodeBase* n);
+	void handleHiseEvent(HiseEvent& e) final override;
+	bool handleModulation(double&);
+	void reset();
+	void process(ProcessData& d);
+	void processSingle(float* frameData, int numChannels);
 
 	template <int Index> bool createParameter(Array<ParameterData>& data)
 	{
 		auto& c = cData.getFirst();
-
 		auto& cp = c.parameters[Index];
 
 		if (cp.name.isNotEmpty())
 		{
 			ParameterData p(cp.name, { 0.0, 1.0 });
-			p.db = BIND_MEMBER_FUNCTION_1(jit::setParameter<Index>);
-			
+			p.db = BIND_MEMBER_FUNCTION_1(jit_impl::setParameter<Index>);
 			data.add(std::move(p));
-
 			return true;
 		}
 
 		return false;
 	}
 
-	void createParameters(Array<ParameterData>& data) override
-	{
-		code.init(nullptr, this);
-
-		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::Compile))
-		{
-			if (!createParameter<0>(data))
-				return;
-			if (!createParameter<1>(data))
-				return;
-			if (!createParameter<2>(data))
-				return;
-			if (!createParameter<3>(data))
-				return;
-			if (!createParameter<4>(data))
-				return;
-			if (!createParameter<5>(data))
-				return;
-			if (!createParameter<6>(data))
-				return;
-			if (!createParameter<7>(data))
-				return;
-			if (!createParameter<8>(data))
-				return;
-			if (!createParameter<9>(data))
-				return;
-			if (!createParameter<10>(data))
-				return;
-			if (!createParameter<11>(data))
-				return;
-			if (!createParameter<12>(data))
-				return;
-		}
-	}
-
-	void initialise(NodeBase* n)
-	{
-		node = n;
-
-		voiceIndexPtr = n->getRootNetwork()->getVoiceIndexPtr();
-
-		code.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(jit::updateCode));
-		code.init(n, this);
-	}
-
-	void handleHiseEvent(HiseEvent& e) final override
-	{
-		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
-		{
-			if (cData.isVoiceRenderingActive())
-				cData.get().eventFunction.callVoid(e);
-		}
-	}
-
-	bool handleModulation(double&)
-	{
-		return false;
-	}
-
-	void reset()
-	{
-		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
-		{
-			if (cData.isVoiceRenderingActive())
-				cData.get().resetFunction.callVoid();
-			else
-				cData.forEachVoice([](CallbackCollection& c) {c.resetFunction.callVoid(); });
-		}
-	}
-
-	using CallbackCollection = snex::jit::CallbackCollection;
-
-	void process(ProcessData& d)
-	{
-		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
-		{
-			auto& cc = cData.get();
-
-			auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::BlockProcessing];
-
-			switch (bestCallback)
-			{
-			case CallbackCollection::Channel:
-			{
-				for (int c = 0; c < d.numChannels; c++)
-				{
-					snex::block b(d.data[c], d.size);
-					cc.callbacks[CallbackCollection::Channel].callVoidUnchecked(b, c);
-				}
-				break;
-			}
-			case CallbackCollection::Frame:
-			{
-				float frame[NUM_MAX_CHANNELS];
-				float* frameData[NUM_MAX_CHANNELS];
-				memcpy(frameData, d.data, sizeof(float*) * d.numChannels);
-				ProcessData copy(frameData, d.numChannels, d.size);
-				copy.allowPointerModification();
-
-				for (int i = 0; i < d.size; i++)
-				{
-					copy.copyToFrameDynamic(frame);
-
-					snex::block b(frame, d.numChannels);
-					cc.callbacks[CallbackCollection::Frame].callVoidUnchecked(b);
-
-					copy.copyFromFrameAndAdvanceDynamic(frame);
-				}
-
-				break;
-			}
-			case CallbackCollection::Sample:
-			{
-				for (int c = 0; c < d.numChannels; c++)
-				{
-					for (int i = 0; i < d.size; i++)
-					{
-						auto value = d.data[c][i];
-						d.data[c][i] = cc.callbacks[CallbackCollection::Sample].template callUncheckedWithCopy<float>(value);
-					}
-				}
-
-				break;
-			}
-			default:
-				break;
-			}
-		}
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		if (auto l = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
-		{
-			auto& cc = cData.get();
-
-			auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::FrameProcessing];
-
-			switch (bestCallback)
-			{
-			case CallbackCollection::Frame:
-			{
-				snex::block b(frameData, numChannels);
-				cc.callbacks[bestCallback].callVoidUnchecked(b);
-				break;
-			}
-			case CallbackCollection::Sample:
-			{
-				for (int i = 0; i < numChannels; i++)
-				{
-					auto v = static_cast<float>(frameData[i]);
-					auto& f = cc.callbacks[bestCallback];
-					frameData[i] = f.template callUnchecked<float>(v);
-				}
-				break;
-			}
-			case CallbackCollection::Channel:
-			{
-				for (int i = 0; i < numChannels; i++)
-				{
-					snex::block b(frameData + i, 1);
-					cc.callbacks[bestCallback].callVoidUnchecked(b);
-				}
-				break;
-			}
-			default:
-				break;
-			}
-		}
-	}
-
 	template<int Index> void setParameter(double newValue)
 	{
-		if (auto lock = ScopedCompileLock(*this, ScopedCompileLock::ReadOnly))
+		if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
 		{
 			if (cData.isVoiceRenderingActive())
-			{
 				cData.get().parameters.getReference(Index).f.callVoid(newValue);
-			}
 			else
 			{
 				cData.forEachVoice([newValue](CallbackCollection& cc)
@@ -494,158 +228,37 @@ public:
 		}
 	}
 
-	struct ScopedCompileLock
-	{
-		enum AccessType
-		{
-			ReadOnly,
-			Compile,
-			numAccessTypes
-		};
-
-		ScopedCompileLock(jit& parent_, AccessType type_):
-			parent(parent_),
-			type(type_)
-		{
-			if (type == ReadOnly && !parent.currentlyCompiling)
-			{
-				++parent.numReaders;
-				locked = true;
-			}
-			else if (parent.numReaders == 0)
-			{
-				jassert(!parent.currentlyCompiling);
-
-				prevCompileState = parent.currentlyCompiling;
-				parent.currentlyCompiling.store(true);
-				++parent.numReaders;
-				
-				locked = true;
-			}
-			else
-				locked = false;
-		}
-
-		operator bool() const
-		{
-			return locked;
-		}
-
-		~ScopedCompileLock()
-		{
-			if (type == Compile)
-				parent.currentlyCompiling.store(prevCompileState);
-
-			if (locked)
-				--parent.numReaders;
-		}
-
-		jit& parent;
-
-		AccessType type;
-		bool prevCompileState;
-		bool locked;
-	};
-
-	std::atomic<int> numReaders = 0;
-	std::atomic<bool> currentlyCompiling = false;
-
+	hise::SingleWriteLockfreeMutex lock;
 	PrepareSpecs lastSpecs;
-
 	snex::jit::GlobalScope scope;
-
 	PolyData<CallbackCollection, NumVoices> cData;
-
 	String lastCode;
 	NodePropertyT<String> code;
 	NodeBase::Ptr node;
 
 	int* voiceIndexPtr = nullptr;
 };
+
+DEFINE_EXTERN_NODE_TEMPLATE(jit, jit_poly, jit_impl);
+
+
 }
 
 class JitNodeBase: public snex::jit::DebugHandler
 {
 public:
 
-	void initUpdater()
-	{
-		parameterUpdater.setCallback(asNode()->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString()),
-			{ PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
-			BIND_MEMBER_FUNCTION_2(JitNodeBase::updateParameters));
-	}
-	
-	snex::jit::CallbackCollection& getFirstCollection();
-
-	NodeBase* asNode() { return dynamic_cast<NodeBase*>(this); }
-
-	void logMessage(const String& message) override
-	{
-		String s;
-		s << dynamic_cast<NodeBase*>(this)->getId() << ": " << message;
-		debugToConsole(dynamic_cast<NodeBase*>(this)->getProcessor(), s);
-	}
-
-	String convertJitCodeToCppClass(int numVoices, bool addToFactory);
-
-	virtual HiseDspBase* getInternalJitNode() = 0;
-
-	void updateParameters(Identifier id, var newValue)
-	{
-		auto obj = getInternalJitNode();
-
-		Array<HiseDspBase::ParameterData> l;
-		obj->createParameters(l);
-
-		StringArray foundParameters;
-
-		for (int i = 0; i < asNode()->getNumParameters(); i++)
-		{
-			auto pId = asNode()->getParameter(i)->getId();
-
-			bool found = false;
-
-			for (auto& p : l)
-			{
-				if (p.id == pId)
-				{
-					found = true;
-					break;
-				}
-			}
-
-			if (!found)
-			{
-				auto v = asNode()->getParameter(i)->data;
-				v.getParent().removeChild(v, asNode()->getUndoManager());
-				asNode()->removeParameter(i--);
-			}
-
-		}
-
-		for (const auto& p : l)
-		{
-			foundParameters.add(p.id);
-
-			if (auto param = asNode()->getParameter(p.id))
-			{
-				p.db(param->getValue());
-			}
-			else
-			{
-				auto newTree = p.createValueTree();
-				asNode()->getParameterTree().addChild(newTree, -1, nullptr);
-
-				auto newP = new NodeBase::Parameter(asNode(), newTree);
-				newP->setCallback(p.db);
-				asNode()->addParameter(newP);
-			}
-		}
-	}
-
 	virtual ~JitNodeBase() {};
 
+	void initUpdater();
 	
+	snex::CallbackCollection& getFirstCollection();
+
+	NodeBase* asNode() { return dynamic_cast<NodeBase*>(this); }
+	void logMessage(const String& message) override;
+	String convertJitCodeToCppClass(int numVoices, bool addToFactory);
+	virtual HiseDspBase* getInternalJitNode() = 0;
+	void updateParameters(Identifier id, var newValue);
 
 private:
 
@@ -653,49 +266,27 @@ private:
 
 };
 
-class JitNode : public HiseDspNodeBase<core::jit<1>>,
+class JitNode : public HiseDspNodeBase<core::jit>,
 				public JitNodeBase
 
 {
 public:
 
-	JitNode(DspNetwork* parent, ValueTree d) :
-		HiseDspNodeBase<core::jit<1>>(parent, d)
-	{
-		dynamic_cast<core::jit<1>*>(getInternalT())->scope.addDebugHandler(this);
-		initUpdater();
-	}
-
+	JitNode(DspNetwork* parent, ValueTree d);
 	String createCppClass(bool isOuterClass) override;
-
-	HiseDspBase* getInternalJitNode() override
-	{
-		return wrapper.getInternalT();
-	}
-
+	HiseDspBase* getInternalJitNode() override;
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitNode(n, d); };
 };
 
-class JitPolyNode : public HiseDspNodeBase<core::jit<NUM_POLYPHONIC_VOICES>>,
+class JitPolyNode : public HiseDspNodeBase<core::jit_poly>,
 	public JitNodeBase
 
 {
 public:
 
-	JitPolyNode(DspNetwork* parent, ValueTree d) :
-		HiseDspNodeBase<core::jit<NUM_POLYPHONIC_VOICES>>(parent, d)
-	{
-		dynamic_cast<core::jit<NUM_POLYPHONIC_VOICES>*>(getInternalT())->scope.addDebugHandler(this);
-		initUpdater();
-	}
-
+	JitPolyNode(DspNetwork* parent, ValueTree d);
 	String createCppClass(bool isOuterClass) override;
-
-	HiseDspBase* getInternalJitNode() override
-	{
-		return wrapper.getInternalT();
-	}
-
+	HiseDspBase* getInternalJitNode() override;
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitPolyNode(n, d); };
 };
 

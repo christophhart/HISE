@@ -79,7 +79,7 @@ END_JUCE_MODULE_DECLARATION
 #include "snex_jit/snex_jit_public.h"
 
 
-
+#include "snex_core/snex_CallbackCollection.h"
 #include "snex_components/snex_JitPlayground.h"
 
 

@@ -67,16 +67,280 @@ struct JitCodeHelpers
 	}
 };
 
-snex::jit::CallbackCollection& JitNodeBase::getFirstCollection()
+namespace core
 {
-	if (auto poly = dynamic_cast<core::jit<NUM_POLYPHONIC_VOICES>*>(getInternalJitNode()))
+
+template <int NV>
+jit_impl<NV>::jit_impl() :
+	code(PropertyIds::Code, "")
+{
+
+}
+
+template <int NV>
+void jit_impl<NV>::handleAsyncUpdate()
+{
+	if (auto l = SingleWriteLockfreeMutex::ScopedWriteLock(lock))
+	{
+		auto compileEachVoice = [this](CallbackCollection& c)
+		{
+			snex::jit::Compiler compiler(scope);
+
+			auto newObject = compiler.compileJitObject(lastCode);
+
+			if (compiler.getCompileResult().wasOk())
+			{
+				c.obj = newObject;
+				c.setupCallbacks();
+				c.prepare(lastSpecs.sampleRate, lastSpecs.blockSize, lastSpecs.numChannels);
+			}
+		};
+
+		cData.forEachVoice(compileEachVoice);
+	}
+	else
+	{
+		DBG("DEFER");
+		triggerAsyncUpdate();
+	}
+}
+
+template <int NV>
+void jit_impl<NV>::updateCode(Identifier id, var newValue)
+{
+	auto newCode = newValue.toString();
+
+	if (newCode != lastCode)
+	{
+		lastCode = newCode;
+		handleAsyncUpdate();
+	}
+}
+
+template <int NV>
+void jit_impl<NV>::prepare(PrepareSpecs specs)
+{
+	cData.prepare(specs);
+
+	lastSpecs = specs;
+
+	voiceIndexPtr = specs.voiceIndex;
+
+	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
+	{
+		cData.forEachVoice([specs](CallbackCollection& c)
+		{
+			c.prepare(specs.sampleRate, specs.blockSize, specs.numChannels);
+		});
+	}
+}
+
+template <int NV>
+void jit_impl<NV>::createParameters(Array<ParameterData>& data)
+{
+	code.init(nullptr, this);
+
+	if (auto l = SingleWriteLockfreeMutex::ScopedWriteLock(lock))
+	{
+		if (!createParameter<0>(data))
+			return;
+		if (!createParameter<1>(data))
+			return;
+		if (!createParameter<2>(data))
+			return;
+		if (!createParameter<3>(data))
+			return;
+		if (!createParameter<4>(data))
+			return;
+		if (!createParameter<5>(data))
+			return;
+		if (!createParameter<6>(data))
+			return;
+		if (!createParameter<7>(data))
+			return;
+		if (!createParameter<8>(data))
+			return;
+		if (!createParameter<9>(data))
+			return;
+		if (!createParameter<10>(data))
+			return;
+		if (!createParameter<11>(data))
+			return;
+		if (!createParameter<12>(data))
+			return;
+	}
+}
+
+template <int NV>
+void jit_impl<NV>::initialise(NodeBase* n)
+{
+	node = n;
+
+	voiceIndexPtr = n->getRootNetwork()->getVoiceIndexPtr();
+
+	code.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(jit_impl::updateCode));
+	code.init(n, this);
+}
+
+template <int NV>
+void jit_impl<NV>::handleHiseEvent(HiseEvent& e)
+{
+	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
+	{
+		if (cData.isVoiceRenderingActive())
+			cData.get().eventFunction.callVoid(e);
+	}
+}
+
+template <int NV>
+bool jit_impl<NV>::handleModulation(double&)
+{
+	return false;
+}
+
+template <int NV>
+void jit_impl<NV>::reset()
+{
+	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
+	{
+		if (cData.isVoiceRenderingActive())
+			cData.get().resetFunction.callVoid();
+		else
+			cData.forEachVoice([](CallbackCollection& c) {c.resetFunction.callVoid(); });
+	}
+}
+
+template <int NV>
+void jit_impl<NV>::process(ProcessData& d)
+{
+	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
+	{
+		auto& cc = cData.get();
+
+		auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::BlockProcessing];
+
+		switch (bestCallback)
+		{
+		case CallbackTypes::Channel:
+		{
+			for (int c = 0; c < d.numChannels; c++)
+			{
+				snex::block b(d.data[c], d.size);
+				cc.callbacks[CallbackTypes::Channel].callVoidUnchecked(b, c);
+			}
+			break;
+		}
+		case CallbackTypes::Frame:
+		{
+			float frame[NUM_MAX_CHANNELS];
+			float* frameData[NUM_MAX_CHANNELS];
+			memcpy(frameData, d.data, sizeof(float*) * d.numChannels);
+			ProcessData copy(frameData, d.numChannels, d.size);
+			copy.allowPointerModification();
+
+			for (int i = 0; i < d.size; i++)
+			{
+				copy.copyToFrameDynamic(frame);
+
+				snex::block b(frame, d.numChannels);
+				cc.callbacks[CallbackTypes::Frame].callVoidUnchecked(b);
+
+				copy.copyFromFrameAndAdvanceDynamic(frame);
+			}
+
+			break;
+		}
+		case CallbackTypes::Sample:
+		{
+			for (int c = 0; c < d.numChannels; c++)
+			{
+				for (int i = 0; i < d.size; i++)
+				{
+					auto value = d.data[c][i];
+					d.data[c][i] = cc.callbacks[CallbackTypes::Sample].template callUncheckedWithCopy<float>(value);
+				}
+			}
+
+			break;
+		}
+		default:
+			break;
+		}
+	}
+}
+
+template <int NV>
+void jit_impl<NV>::processSingle(float* frameData, int numChannels)
+{
+	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
+	{
+		auto& cc = cData.get();
+
+		auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::FrameProcessing];
+
+		switch (bestCallback)
+		{
+		case CallbackTypes::Frame:
+		{
+			snex::block b(frameData, numChannels);
+			cc.callbacks[bestCallback].callVoidUnchecked(b);
+			break;
+		}
+		case CallbackTypes::Sample:
+		{
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto v = static_cast<float>(frameData[i]);
+				auto& f = cc.callbacks[bestCallback];
+				frameData[i] = f.template callUnchecked<float>(v);
+			}
+			break;
+		}
+		case CallbackTypes::Channel:
+		{
+			for (int i = 0; i < numChannels; i++)
+			{
+				snex::block b(frameData + i, 1);
+				cc.callbacks[bestCallback].callVoidUnchecked(b);
+			}
+			break;
+		}
+		default:
+			break;
+		}
+	}
+}
+
+DEFINE_EXTERN_NODE_TEMPIMPL(jit_impl);
+
+}
+
+
+
+void JitNodeBase::initUpdater()
+{
+	parameterUpdater.setCallback(asNode()->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString()),
+		{ PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
+		BIND_MEMBER_FUNCTION_2(JitNodeBase::updateParameters));
+}
+
+snex::CallbackCollection& JitNodeBase::getFirstCollection()
+{
+	if (auto poly = dynamic_cast<core::jit_poly*>(getInternalJitNode()))
 	{
 		return poly->cData.getFirst();
 	}
-	else if (auto mono = dynamic_cast<core::jit<1>*>(getInternalJitNode()))
+	else if (auto mono = dynamic_cast<core::jit*>(getInternalJitNode()))
 	{
 		return mono->cData.getFirst();
 	}
+}
+
+void JitNodeBase::logMessage(const String& message)
+{
+	String s;
+	s << dynamic_cast<NodeBase*>(this)->getId() << ": " << message;
+	debugToConsole(dynamic_cast<NodeBase*>(this)->getProcessor(), s);
 }
 
 juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFactory)
@@ -224,6 +488,66 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 	return content;
 }
 
+void JitNodeBase::updateParameters(Identifier id, var newValue)
+{
+	auto obj = getInternalJitNode();
+
+	Array<HiseDspBase::ParameterData> l;
+	obj->createParameters(l);
+
+	StringArray foundParameters;
+
+	for (int i = 0; i < asNode()->getNumParameters(); i++)
+	{
+		auto pId = asNode()->getParameter(i)->getId();
+
+		bool found = false;
+
+		for (auto& p : l)
+		{
+			if (p.id == pId)
+			{
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+		{
+			auto v = asNode()->getParameter(i)->data;
+			v.getParent().removeChild(v, asNode()->getUndoManager());
+			asNode()->removeParameter(i--);
+		}
+
+	}
+
+	for (const auto& p : l)
+	{
+		foundParameters.add(p.id);
+
+		if (auto param = asNode()->getParameter(p.id))
+		{
+			p.db(param->getValue());
+		}
+		else
+		{
+			auto newTree = p.createValueTree();
+			asNode()->getParameterTree().addChild(newTree, -1, nullptr);
+
+			auto newP = new NodeBase::Parameter(asNode(), newTree);
+			newP->setCallback(p.db);
+			asNode()->addParameter(newP);
+		}
+	}
+}
+
+JitPolyNode::JitPolyNode(DspNetwork* parent, ValueTree d) :
+	HiseDspNodeBase<core::jit_poly>(parent, d)
+{
+	dynamic_cast<core::jit_poly*>(getInternalT())->scope.addDebugHandler(this);
+	initUpdater();
+}
+
 juce::String JitPolyNode::createCppClass(bool isOuterClass)
 {
 	if (isOuterClass)
@@ -232,12 +556,29 @@ juce::String JitPolyNode::createCppClass(bool isOuterClass)
 		return getId();
 }
 
+scriptnode::HiseDspBase* JitPolyNode::getInternalJitNode()
+{
+	return wrapper.getInternalT();
+}
+
+JitNode::JitNode(DspNetwork* parent, ValueTree d) :
+	HiseDspNodeBase<core::jit>(parent, d)
+{
+	dynamic_cast<core::jit*>(getInternalT())->scope.addDebugHandler(this);
+	initUpdater();
+}
+
 juce::String JitNode::createCppClass(bool isOuterClass)
 {
 	if (isOuterClass)
 		return CppGen::Helpers::createIntendation(convertJitCodeToCppClass(1, true));
 	else
 		return getId();
+}
+
+scriptnode::HiseDspBase* JitNode::getInternalJitNode()
+{
+	return wrapper.getInternalT();
 }
 
 }

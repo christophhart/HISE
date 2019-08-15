@@ -479,6 +479,97 @@ public:
 	int oldMXCSR;
 };
 
+/** A simple mutex without locking.
+
+	It allows reading & writing from different threads with multiple simultaneous readers
+	but only one active writer at the same time.
+
+	If the lock can't be acquired (so either because a reader has it and a writer wants it
+	or if the writer has it and a reader wants it), it doesn't lock, but just return false
+	so it will never halt the execution.
+
+	This is suitable for situations where the execution of the reader / writer task is
+	somewhat optional but locking must never occur.
+*/
+struct SingleWriteLockfreeMutex
+{
+	/** A scoped read lock for the given mutex. */
+	struct ScopedReadLock
+	{
+		ScopedReadLock(SingleWriteLockfreeMutex& parent_) :
+			parent(parent_)
+		{
+			if (!parent.currentlyWriting)
+			{
+				++parent.numAccessors;
+				locked = true;
+			}
+			else
+				locked = false;
+		}
+
+		operator bool() const
+		{
+			return locked;
+		}
+
+		~ScopedReadLock()
+		{
+			if (locked)
+				--parent.numAccessors;
+		}
+
+		SingleWriteLockfreeMutex& parent;
+
+		bool locked;
+	};
+
+	/** A scoped write lock for the given mutex. */
+	struct ScopedWriteLock
+	{
+		ScopedWriteLock(SingleWriteLockfreeMutex& parent_) :
+			parent(parent_),
+			prevWriteState(parent.currentlyWriting.load())
+		{
+			if (parent.numAccessors == 0)
+			{
+				jassert(!parent.currentlyWriting);
+				parent.currentlyWriting.store(true);
+				++parent.numAccessors;
+
+				locked = true;
+			}
+			else
+				locked = false;
+		}
+
+		operator bool() const
+		{
+			return locked;
+		}
+
+		~ScopedWriteLock()
+		{
+			if (locked)
+			{
+				parent.currentlyWriting.store(prevWriteState);
+				--parent.numAccessors;
+			}
+
+		}
+
+		SingleWriteLockfreeMutex& parent;
+
+		bool prevWriteState;
+		bool locked;
+	};
+
+private:
+
+	std::atomic<int> numAccessors = 0;
+	std::atomic<bool> currentlyWriting = false;
+};
+
 /** This is a non allocating alternative to the AsyncUpdater.
 *	@ingroup event_handling
 *

@@ -6,6 +6,16 @@ using namespace juce;
 
 using FloatType = float;
 
+
+struct CallbackTypes
+{
+	static constexpr int Channel = 0;
+	static constexpr int Frame = 1;
+	static constexpr int Sample = 2;
+	static constexpr int NumCallbackTypes = 3;
+	static constexpr int Inactive = -1;
+};
+
 namespace Types
 {
 enum ID
