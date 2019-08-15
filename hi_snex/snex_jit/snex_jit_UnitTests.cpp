@@ -1077,6 +1077,10 @@ private:
 			expectCompileOK(test->compiler);
 		EXPECT_TYPED("fabs", v, fabs(v));
 
+		CREATE_TYPED_TEST(getTestFunction<double>("return Math.map(input, 10.0, 20.0);"))
+			expectCompileOK(test->compiler);
+		EXPECT_TYPED("map", 0.5, jmap(0.5, 10.0, 20.0));
+
 		CREATE_TYPED_TEST(getTestFunction<double>("return Math.exp(input);"))
 			expectCompileOK(test->compiler);
 		EXPECT_TYPED("exp", v, exp(v));

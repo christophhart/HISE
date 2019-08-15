@@ -62,6 +62,7 @@ MathFunctions::MathFunctions() :
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sqrt, double, "sqrt");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::ceil, double, "ceil");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::floor, double, "floor");
+	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::map, double, double, double, "map");
 
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sign, double, "sign");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::abs, double, "abs");
@@ -90,6 +91,7 @@ MathFunctions::MathFunctions() :
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sqrt, float, "sqrt");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::ceil, float, "ceil");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::floor, float, "floor");
+	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::map, float, float, float, "map");
 
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sign, float, "sign");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::abs, float, "abs");
