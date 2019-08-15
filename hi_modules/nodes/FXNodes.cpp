@@ -261,7 +261,11 @@ void phase_delay_impl<V>::process(ProcessData& d)
 		auto& dl = delays[c].get();
 
 		for (int i = 0; i < d.size; i++)
-			*ptr++ = dl.getNextSample(*ptr);
+        {
+            auto v = *ptr;
+            *ptr++ = dl.getNextSample(v);
+        }
+			
 	}
 }
 

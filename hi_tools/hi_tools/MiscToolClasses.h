@@ -566,8 +566,8 @@ struct SingleWriteLockfreeMutex
 
 private:
 
-	std::atomic<int> numAccessors = 0;
-	std::atomic<bool> currentlyWriting = false;
+    std::atomic<int> numAccessors { 0 };
+    std::atomic<bool> currentlyWriting { false };
 };
 
 /** This is a non allocating alternative to the AsyncUpdater.

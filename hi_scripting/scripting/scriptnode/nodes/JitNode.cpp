@@ -334,6 +334,12 @@ snex::CallbackCollection& JitNodeBase::getFirstCollection()
 	{
 		return mono->cData.getFirst();
 	}
+    else
+    {
+        jassertfalse;
+        static snex::CallbackCollection c;
+        return c;
+    }
 }
 
 juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFactory)

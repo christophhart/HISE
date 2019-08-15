@@ -514,7 +514,7 @@ juce::Array<NodeBase::Parameter*> NodeBase::Parameter::getConnectedMacroParamete
 
 	if (auto n = parent)
 	{
-		while (n = n->getParentNode())
+		while ((n = n->getParentNode()))
 		{
 			for (int i = 0; i < n->getNumParameters(); i++)
 			{

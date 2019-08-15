@@ -387,8 +387,6 @@ void DspNetworkGraph::Actions::selectAndScrollToNode(DspNetworkGraph& g, NodeBas
 			int deltaX = 0;
 			int deltaY = 0;
 
-			auto combined = viewArea.getUnion(nodeArea);
-
 			if (nodeArea.getX() < viewArea.getX())
 				deltaX = nodeArea.getX() - viewArea.getX();
 			else if (nodeArea.getRight() > viewArea.getRight() && viewArea.getWidth() > nodeArea.getWidth())

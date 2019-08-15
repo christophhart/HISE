@@ -1785,7 +1785,7 @@ ScriptCreatedComponentWrapper(content, index)
 
 		samplerListener = new SamplerListener(s, ssw);
 	}
-	else if (saf = form->getScriptAudioFile())
+	else if ((saf = form->getScriptAudioFile()))
 	{
 		auto asb = new ScriptAudioFileBufferComponent(saf);
 		asb->setName(form->name.toString());

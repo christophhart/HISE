@@ -199,7 +199,7 @@ public:
 	template <int Index> bool createParameter(Array<ParameterData>& data)
 	{
 		auto& c = cData.getFirst();
-		auto& cp = c.parameters[Index];
+        auto cp = c.parameters[Index];
 
 		if (cp.name.isNotEmpty())
 		{

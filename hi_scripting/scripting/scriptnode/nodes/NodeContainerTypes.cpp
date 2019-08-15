@@ -600,6 +600,8 @@ juce::String MidiChainNode::getCppCode(CppGen::CodeLocation location)
 		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
 		return s;
 	}
+    else
+        return SerialNode::getCppCode(location);
 }
 
 }
