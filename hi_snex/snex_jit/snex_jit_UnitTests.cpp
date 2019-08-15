@@ -101,7 +101,7 @@ private:
 	GlobalScope optimizingScope;
 };
     
-template <typename T, typename ReturnType=T> class HiseJITTestCase
+template <typename T, typename ReturnType=T> class HiseJITTestCase: public jit::DebugHandler
 {
 public:
 
@@ -112,6 +112,11 @@ public:
 			memory.addOptimization(o);
 
 		compiler = new Compiler(memory);
+	}
+
+	void logMessage(const String& s) override
+	{
+		DBG(s);
 	}
 
 	~HiseJITTestCase()
@@ -273,7 +278,6 @@ public:
 
 	void runTest() override
 	{
-		
 		testOptimizations();
 
 		runTestsWithOptimisation({});
@@ -304,6 +308,8 @@ public:
 		testTernaryOperator();
 		testIfStatement();
 
+		testMathConstants<float>();
+		testMathConstants<double>();
 		testComplexExpressions();
 		testGlobals();
 		testFunctionCalls();
@@ -347,10 +353,24 @@ private:
 			expect(t.sameAssembly("124 > 18", "1"), "Simple comparison folding");
 			expect(t.sameAssembly("124.0f == 18.0f", "0"), "Simple equality folding");
 
+			
+
 			auto cExpr = "190.0f != 17.0f || ((8 - 2) < 4) && (9.0f == 0.4f)";
 			constexpr int cExprValue = 190.0f != 17.0f || ((8 - 2) < 4) && (9.0f == 0.4f);
 
 			expect(t.sameAssembly(cExpr, String(cExprValue)), "Complex logical expression folding");
+		}
+
+		{
+			OptimizationTestCase t;
+
+			t.setOptimizations({ OptimizationIds::ConstantFolding });
+			t.setExpressionBody("double test(){ return %BODY%; }");
+
+			// We're not testing JUCE's double to String conversion here...
+			expect(t.sameAssembly("2.0 * Math.FORTYTWO", "84.0"), "Math constant folding");
+
+			expect(t.sameAssembly("1.0f > -125.0f ? 2.0 * Math.FORTYTWO : 0.4", "84.0"), "Math constant folding");
 		}
 
 		{
@@ -423,6 +443,22 @@ private:
 			auto diff = abs((double)actual - (double)expected);
 			expect(diff < 0.000001, errorMessage);
 		}
+	}
+
+	template <typename T> void testMathConstants()
+	{
+		beginTest("Testing math constants for " + Types::Helpers::getTypeNameFromTypeId<T>());
+
+		ScopedPointer<HiseJITTestCase<T>> test;
+
+		CREATE_TYPED_TEST(getTestFunction<T>("return Math.PI;"));
+		EXPECT_TYPED(GET_TYPE(T) + " PI", T(), static_cast<T>(hmath::PI));
+
+		CREATE_TYPED_TEST(getTestFunction<T>("return Math.E;"));
+		EXPECT_TYPED(GET_TYPE(T) + " PI", T(), static_cast<T>(hmath::E));
+
+		CREATE_TYPED_TEST(getTestFunction<T>("return Math.SQRT2;"));
+		EXPECT_TYPED(GET_TYPE(T) + " PI", T(), static_cast<T>(hmath::SQRT2));
 	}
 
 	void testEventSetters()

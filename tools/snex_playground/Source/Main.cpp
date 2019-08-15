@@ -25,6 +25,10 @@ public:
     //==============================================================================
     void initialise (const String& commandLine) override
     {
+		UnitTestRunner runner;
+		runner.setAssertOnFailure(true);
+		runner.runAllTests();
+
         // This method is where you should put your application's initialisation code..
 
         mainWindow.reset (new MainWindow (getApplicationName()));

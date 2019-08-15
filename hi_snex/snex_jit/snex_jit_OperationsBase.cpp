@@ -141,6 +141,15 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 	{
 		auto e = getSubExpr(i);
 
+		if (auto v = dynamic_cast<VariableReference*>(e.get()))
+		{
+			if (!v->functionClassConstant.isVoid())
+			{
+				v->type = expectedType;
+				continue;
+			}
+		}
+
 		auto thisType = e->getType();
 
 		if (!Types::Helpers::matchesTypeStrict(thisType, exprType))

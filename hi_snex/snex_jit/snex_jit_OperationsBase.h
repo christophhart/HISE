@@ -266,6 +266,34 @@ public:
 		virtual ~ConditionalBranch() {}
 	};
 
+	struct BranchingStatement
+	{
+		virtual ~BranchingStatement() {};
+
+		Statement::Ptr getCondition()
+		{
+			return asStatement()->getChildStatement(0);
+		}
+
+		Statement::Ptr getTrueBranch()
+		{
+			return asStatement()->getChildStatement(1);
+		}
+
+		Statement::Ptr getFalseBranch()
+		{
+			if (asStatement()->getNumChildStatements() > 2)
+				return asStatement()->getChildStatement(2);
+
+			return nullptr;
+		}
+
+		Statement* asStatement()
+		{
+			return dynamic_cast<Statement*>(this);
+		}
+	};
+
 	static Expression* findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope);
 };
 

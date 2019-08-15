@@ -124,6 +124,31 @@ bool FunctionClass::hasFunction(const Identifier& classId, const Identifier& fun
 }
 
 
+bool FunctionClass::hasConstant(const Identifier& classId, const Identifier& constantId) const
+{
+	if (classId != className)
+	{
+		for (auto c : registeredClasses)
+		{
+			if (c->hasConstant(classId, constantId))
+				return true;
+		}
+
+		return false;
+	}
+
+	for (auto& c : constants)
+		if (c.id == constantId)
+			return true;
+
+	return false;
+}
+
+void FunctionClass::addFunctionConstant(const Identifier& constantId, VariableStorage value)
+{
+	constants.add({ constantId, value });
+}
+
 void FunctionClass::addMatchingFunctions(Array<FunctionData>& matches, const Identifier& classId, const Identifier& functionId) const
 {
 	if (classId != className)
@@ -215,6 +240,30 @@ bool FunctionClass::injectFunctionPointer(FunctionData& dataToInject)
 	}
 
 	return false;
+}
+
+snex::VariableStorage FunctionClass::getConstantValue(const Identifier& classId, const Identifier& constantId) const
+{
+	if (className != classId)
+	{
+		for (auto r : registeredClasses)
+		{
+			auto v = r->getConstantValue(classId, constantId);
+
+			if (!v.isVoid())
+				return v;
+		}
+
+		return {};
+	}
+
+	for (auto& c : constants)
+	{
+		if (c.id == constantId)
+			return c.value;
+	}
+
+	return {};
 }
 
 } // end namespace jit

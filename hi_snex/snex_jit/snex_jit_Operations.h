@@ -267,6 +267,16 @@ struct Operations::VariableReference : public Expression
 					}
 				}
 			}
+			else if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
+			{
+				if (fc->hasConstant(id.parent, id.id))
+					functionClassConstant = fc->getConstantValue(id.parent, id.id);
+
+				if(functionClassConstant.isVoid())
+					throwError(id.parent.toString() + " does not have constant " + id.id.toString());
+				
+					
+			}
 			else
 				throwError("Can't resolve variable " + id.toString());
 
@@ -293,7 +303,17 @@ struct Operations::VariableReference : public Expression
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{
-			
+			if (!functionClassConstant.isVoid())
+			{
+				auto immValue = VariableStorage(parent.get()->getType(), functionClassConstant.toDouble());
+
+
+				Ptr c = new Immediate(location, immValue);
+
+				replaceInParent(c);
+
+				return;
+			}
 
 			// We need to initialise parameter registers before the rest
 			if (parameterIndex != -1)
@@ -393,6 +413,9 @@ struct Operations::VariableReference : public Expression
 	BaseScope::RefPtr ref;		// The Reference from the resolver
 	bool isLocalToScope = false;
 	bool isLocalConst = false;
+
+	VariableStorage functionClassConstant;
+
 	//bool isClassVariable = false;
 };
 
@@ -587,7 +610,8 @@ struct Operations::LogicalNot : public Expression
 	}
 };
 
-struct Operations::TernaryOp : public Expression
+struct Operations::TernaryOp : public Expression,
+							   public BranchingStatement
 {
 public:
 
@@ -1363,7 +1387,8 @@ struct Operations::Negation : public Expression
 };
 
 struct Operations::IfStatement : public Statement,
-								 public Operations::ConditionalBranch
+								 public Operations::ConditionalBranch,
+								 public Operations::BranchingStatement
 {
 	IfStatement(Location loc, Expression::Ptr cond, Ptr trueBranch, Ptr falseBranch):
 		Statement(loc)
@@ -1379,9 +1404,6 @@ struct Operations::IfStatement : public Statement,
 
 	bool hasFalseBranch() const { return getNumChildStatements() > 2; }
 	
-	Statement::Ptr getTrueBranch() const { return getChildStatement(1); }
-	Statement::Ptr getFalseBranch() const { return getChildStatement(2); }
-
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
 		Statement::process(compiler, scope);
@@ -1400,7 +1422,7 @@ struct Operations::IfStatement : public Statement,
 		{
 			processAllChildren(compiler, scope);
 
-			if (getChildStatement(0)->getType() != Types::ID::Integer)
+			if (getCondition()->getType() != Types::ID::Integer)
 				throwError("Condition must be boolean expression");
 		}
 
@@ -1413,14 +1435,14 @@ struct Operations::IfStatement : public Statement,
 		{
 			auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 
-			allocateDirtyGlobalVariables(getChildStatement(1), compiler, scope);
+			allocateDirtyGlobalVariables(getTrueBranch(), compiler, scope);
 
 			if(hasFalseBranch())
-				allocateDirtyGlobalVariables(getChildStatement(2), compiler, scope);
+				allocateDirtyGlobalVariables(getFalseBranch(), compiler, scope);
 			
-			auto cond = dynamic_cast<Expression*>(getChildStatement(0).get());
-			auto trueBranch = getChildStatement(1);
-			auto falseBranch = hasFalseBranch() ? getChildStatement(2).get() : nullptr;
+			auto cond = dynamic_cast<Expression*>(getCondition().get());
+			auto trueBranch = getTrueBranch();
+			auto falseBranch = getFalseBranch();
 
 			acg.emitBranch(Types::ID::Void, cond, trueBranch, falseBranch, compiler, scope);
 		}

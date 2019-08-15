@@ -12,9 +12,7 @@
 MainComponent::MainComponent():
     playground(v)
 {
-	UnitTestRunner runner;
-	runner.setAssertOnFailure(true);
-	runner.runAllTests();
+	
 
 	addAndMakeVisible(playground);
     setSize (1024, 768);

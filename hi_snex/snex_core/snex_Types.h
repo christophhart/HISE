@@ -269,9 +269,11 @@ using event = hise::HiseEvent;
 struct hmath
 {
 
-
-	static constexpr double pi = 3.141592653589793238;
-	static constexpr double e = 2.71828182845904523536;
+constexpr static double PI = 3.1415926535897932384626433832795;
+constexpr static double E = 2.7182818284590452353602874713527;
+constexpr static double SQRT2 = 1.4142135623730950488016887242097;
+constexpr static double FORTYTWO = 42.0; // just for unit test purposes, the other ones choke because of 
+                                   // String conversion imprecisions...
 
 static forcedinline double sign(double value) { return value > 0.0 ? 1.0 : -1.0; };
 static forcedinline double abs(double value) { return value * sign(value); };
@@ -292,7 +294,7 @@ static forcedinline float random() { return Random::getSystemRandom().nextFloat(
 static int round(int value) { return value; };
 static forcedinline int randInt(int low=0, int high=INT_MAX) { return  Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
 
-
+static forcedinline double map(double normalisedInput, double start, double end) { return jmap<double>(normalisedInput, start, end); }
 static forcedinline double sin(double a) { return std_::sin(a); }
 static forcedinline double asin(double a) { return std_::asin(a); }
 static forcedinline double cos(double a) { return std_::cos(a); }
@@ -312,6 +314,7 @@ static forcedinline double sqrt(double a) { return std_::sqrt(a); }
 static forcedinline double ceil(double a) { return std_::ceil(a); }
 static forcedinline double floor(double a) { return std_::floor(a); }
 
+static forcedinline float map(float normalisedInput, float start, float end) { return jmap<float>(normalisedInput, start, end); }
 static forcedinline float sin(float a) { return std_::sinf(a); }
 static forcedinline float asin(float a) { return std_::asinf(a); }
 static forcedinline float cos(float a) { return std_::cosf(a); }

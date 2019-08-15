@@ -110,13 +110,13 @@ struct FunctionData
 	/** A pretty formatted function name for debugging purposes. */
 	String functionName;
 
-	template <typename... Parameters> void callVoid(Parameters... ps)
+	template <typename... Parameters> void callVoid(Parameters... ps) const
 	{
 		if (function != nullptr)
 			callVoidUnchecked(ps...);
 	}
 
-	template <typename... Parameters> forcedinline void callVoidUnchecked(Parameters... ps)
+	template <typename... Parameters> forcedinline void callVoidUnchecked(Parameters... ps) const
 	{
 		using signature = void(*)(Parameters...);
 
@@ -124,7 +124,7 @@ struct FunctionData
 		f_(ps...);
 	}
 
-	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUnchecked(Parameters... ps)
+	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUnchecked(Parameters... ps) const
 	{
 		using signature = ReturnType & (*)(Parameters...);
 		auto f_ = (signature)function;
@@ -132,14 +132,14 @@ struct FunctionData
 		return ReturnType(r);
 	}
 
-	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUncheckedWithCopy(Parameters... ps)
+	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUncheckedWithCopy(Parameters... ps) const
 	{
 		using signature = ReturnType(*)(Parameters...);
 		auto f_ = (signature)function;
 		return static_cast<ReturnType>(f_(ps...));
 	}
 
-	template <typename ReturnType, typename... Parameters> ReturnType call(Parameters... ps)
+	template <typename ReturnType, typename... Parameters> ReturnType call(Parameters... ps) const
 	{
 		// You must not call this method if you return an event or a block.
 		// Use callWithReturnCopy instead...
@@ -165,6 +165,12 @@ struct FunctionData
 /** A function class is a collection of functions. */
 struct FunctionClass
 {
+	struct Constant
+	{
+		Identifier id;
+		VariableStorage value;
+	};
+
 	FunctionClass(const Identifier& id) :
 		className(id)
 	{};
@@ -176,6 +182,10 @@ struct FunctionClass
 	};
 
 	virtual bool hasFunction(const Identifier& classId, const Identifier& functionId) const;
+
+	bool hasConstant(const Identifier& classId, const Identifier& constantId) const;
+
+	void addFunctionConstant(const Identifier& constantId, VariableStorage value);
 
 	virtual void addMatchingFunctions(Array<FunctionData>& matches, const Identifier& classId, const Identifier& functionId) const;
 
@@ -191,12 +201,16 @@ struct FunctionClass
 
 	bool injectFunctionPointer(FunctionData& dataToInject);
 
+	VariableStorage getConstantValue(const Identifier& classId, const Identifier& constantId) const;
+
 protected:
 
 	OwnedArray<FunctionClass> registeredClasses;
 
 	Identifier className;
 	OwnedArray<FunctionData> functions;
+
+	Array<Constant> constants;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionClass);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FunctionClass)

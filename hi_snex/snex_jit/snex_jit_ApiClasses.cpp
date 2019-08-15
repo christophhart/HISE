@@ -39,6 +39,11 @@ using namespace asmjit;
 MathFunctions::MathFunctions() :
 	FunctionClass("Math")
 {
+	addFunctionConstant("PI", hmath::PI);
+	addFunctionConstant("E", hmath::E);
+	addFunctionConstant("SQRT2", hmath::SQRT2);
+	addFunctionConstant("FORTYTWO", hmath::FORTYTWO);
+
 	HNODE_JIT_ADD_C_FUNCTION_1(double, std::sin, double, "sin");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::asin, double, "asin");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::cos, double, "cos");

@@ -69,33 +69,42 @@ struct VOps
 
 void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
-	COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
+	// run both times, since something could become constexpr during symbol resolving...
+	if(compiler->getCurrentPass() == BaseCompiler::PostSymbolOptimization ||
+	   compiler->getCurrentPass() == BaseCompiler::PreSymbolOptimization)
 	{
 		if (auto v = as<Operations::VariableReference>(statement))
 		{
-			addConstKeywordToSingleWriteVariables(v, s, compiler);
+			if (!v->functionClassConstant.isVoid())
+			{
+				auto parentType = v->parent.get()->getType();
+
+				v->logOptimisationMessage("Replace function constant");
+
+				replaceWithImmediate(v, VariableStorage(parentType, v->functionClassConstant.toDouble()));
+			}
 		}
 
-		if (auto is = as<Operations::IfStatement>(statement))
+		if (auto is = as<Operations::BranchingStatement>(statement))
 		{
-			is->getChildStatement(0)->process(compiler, s);
+			is->getCondition()->process(compiler, s);
 
-			auto cond = dynamic_cast<Operations::Expression*>(is->getChildStatement(0).get());
+			auto cond = dynamic_cast<Operations::Expression*>(statement->getChildStatement(0).get());
 
-			if (cond->isConstExpr())
+			if (is->getCondition()->isConstExpr())
 			{
 				int v = cond->getConstExprValue().toInt();
 
-				is->logOptimisationMessage("Remove dead branch");
+				statement->logOptimisationMessage("Remove dead branch");
 
 				if (v == 1)
-					replaceExpression(is, is->getChildStatement(1));
+					replaceExpression(statement, is->getTrueBranch());
 				else
 				{
-					if (is->hasFalseBranch())
-						replaceExpression(is, is->getChildStatement(2));
+					if (auto falseBranch = is->getFalseBranch())
+						replaceExpression(statement, falseBranch);
 					else
-						replaceWithNoop(is);
+						replaceWithNoop(statement);
 				}
 			}
 		}
@@ -170,27 +179,6 @@ void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 		}
 	}
-
-	COMPILER_PASS(BaseCompiler::TypeCheck)
-	{
-		if (auto a = as<Operations::Assignment>(statement))
-		{
-			if (a->getTargetVariable()->isLocalConst)
-			{
-				constantVariables.add(a->getTargetVariable()->ref);
-			}
-		}
-
-		
-
-		if (auto n = as<Operations::Negation>(statement))
-		{
-			if (auto ce = evalNegation(n->getSubExpr(0)))
-				replaceExpression(statement, ce);
-		}
-	}
-
-	
 
 #if 0
 
@@ -291,7 +279,6 @@ void ConstExprEvaluator::addConstKeywordToSingleWriteVariables(Operations::Varia
 
 void ConstExprEvaluator::replaceWithImmediate(ExprPtr e, const VariableStorage& value)
 {
-	jassertfalse;
 
 	StatementPtr s(e.get());
 
