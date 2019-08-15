@@ -96,6 +96,8 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 	auto target = x86::qword_ptr(ad.get());
 #else
 	auto target = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
+    
+    int ok = 0;
 #endif
 
 	IF_(int)	ok = cc.mov(target, source->getRegisterForReadOp().as<X86Gp>());

@@ -193,7 +193,7 @@ struct Operations::VariableReference : public Expression
 		return isLocalConst;
 	}
 
-	VariableStorage getConstExprValue() const
+	VariableStorage getConstExprValue() const override
 	{
 		jassert(isLocalToScope);
 
@@ -832,7 +832,10 @@ struct Operations::ReturnStatement : public Expression
 		Expression(l)
 	{
 		if (expr != nullptr)
+        {
 			addStatement(expr);
+            type = Types::ID::Dynamic;
+        }
 		else
 			type = Types::ID::Void;
 	}

@@ -310,6 +310,7 @@ public:
 
 		testMathConstants<float>();
 		testMathConstants<double>();
+        
 		testComplexExpressions();
 		testGlobals();
 		testFunctionCalls();
@@ -355,8 +356,8 @@ private:
 
 			
 
-			auto cExpr = "190.0f != 17.0f || ((8 - 2) < 4) && (9.0f == 0.4f)";
-			constexpr int cExprValue = 190.0f != 17.0f || ((8 - 2) < 4) && (9.0f == 0.4f);
+			auto cExpr = "190.0f != 17.0f || (((8 - 2) < 4) && (9.0f == 0.4f))";
+			constexpr int cExprValue = 190.0f != 17.0f || (((8 - 2) < 4) && (9.0f == 0.4f));
 
 			expect(t.sameAssembly(cExpr, String(cExprValue)), "Complex logical expression folding");
 		}
@@ -996,7 +997,7 @@ private:
         
 		Random r;
 
-		const float v = r.nextFloat() * 122.0f * r.nextBool() ? 1.0f : -1.0f;
+		const float v = r.nextFloat() * 122.0f * (r.nextBool() ? 1.0f : -1.0f);
 
 		CREATE_TEST("float square(float input){return input*input;}; float test(float input){ return square(input);};")
 			EXPECT("JIT Function call", v, v*v);

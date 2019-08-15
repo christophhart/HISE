@@ -509,8 +509,6 @@ void BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 
 			a->getSubExpr(0)->process(compiler, s);
 
-			DBG("Optimize assignment + " + currentlyAssignedId->id.toString());
-
 			if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
 			{
 				if (isAssignedVariable(bOp->getSubExpr(0)))
@@ -546,8 +544,6 @@ bool BinaryOpOptimizer::swapIfBetter(ExprPtr bOp, const char* op, BaseCompiler* 
 
 	auto l = bOp->getSubExpr(0);
 	auto r = bOp->getSubExpr(1);
-
-	DBG("Optimize op " + String(op));
 
 	if (isAssignedVariable(l))
 	{
