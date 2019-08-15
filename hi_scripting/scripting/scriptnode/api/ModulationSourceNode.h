@@ -37,7 +37,8 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-class ModulationSourceNode: public NodeBase
+class ModulationSourceNode: public NodeBase,
+							public snex::DebugHandler
 {
 public:
 
@@ -54,6 +55,9 @@ public:
 
 		bool findTarget();
 
+		void setExpression(const String& exprCode);
+
+		valuetree::PropertyListener expressionUpdater;
 		valuetree::PropertyListener rangeUpdater;
 		valuetree::RemoveListener removeWatcher;
 		ReferenceCountedObjectPtr<NodeBase::Parameter> parameter;
@@ -62,6 +66,9 @@ public:
 		NormalisableRange<double> targetRange;
 		bool inverted = false;
 		DspHelpers::ParameterCallback callback;
+
+		snex::JitExpression::Ptr expr;
+		SpinLock expressionLock;
 	};
 
 	ValueTree getModulationTargetTree();;
@@ -74,6 +81,9 @@ public:
 	
 	void prepare(PrepareSpecs ps) override;
 	void sendValueToTargets(double value, int numSamplesForAnalysis);;
+
+	void logMessage(const String& s) override;
+
 
 	int fillAnalysisBuffer(AudioSampleBuffer& b);
 	void setScaleModulationValue(bool shouldScaleValue);

@@ -185,4 +185,50 @@ juce::StringArray ParameterHelpers::getParameterNames(JitObject& obj)
 	return sa;
 }
 
+JitExpression::JitExpression(const String& s, DebugHandler* handler) :
+	memory(0)
+{
+	String code = "double get(double input){ return " + s + ";}";
+
+	
+
+	snex::jit::Compiler c(memory);
+	obj = c.compileJitObject(code);
+
+	if (c.getCompileResult().wasOk())
+	{
+		f = obj["get"];
+
+		// Add this after the compilation, we don't want to spam the logger
+		// with compilation messages
+		if (handler != nullptr)
+			memory.addDebugHandler(handler);
+	}
+	else
+		errorMessage = c.getCompileResult().getErrorMessage();
+}
+
+double JitExpression::getValue(double input) const
+{
+	if (f)
+		return f.callUncheckedWithCopy<double>(input);
+	else
+		return input;
+}
+
+juce::String JitExpression::getErrorMessage() const
+{
+	return errorMessage;
+}
+
+bool JitExpression::isValid() const
+{
+	return (bool)f;
+}
+
+juce::String JitExpression::convertToValidCpp(String input)
+{
+	return input.replace("Math.", "hmath::");
+}
+
 }

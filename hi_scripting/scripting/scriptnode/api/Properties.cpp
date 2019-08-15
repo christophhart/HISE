@@ -399,6 +399,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 				if (!smallMode)
 				{
 					addAndMakeVisible(label);
+					label.setInterceptsMouseClicks(false, false);
 				}
 
 			};
@@ -429,6 +430,29 @@ struct ExpressionPropertyComponent : public PropertyComponent
 			bool ok = false;
 			Path p;
 
+			Point<float> hoverPos;
+
+			HeapBlock<double> data;
+			int numToUse = 0;
+
+			Range<double> range;
+
+			void mouseMove(const MouseEvent& e)
+			{
+				auto x = (float)e.getPosition().getX() / (float)getWidth();
+				auto y = (float)e.getPosition().getY() / (float)getHeight();
+				hoverPos = {x , y};
+
+				
+				repaint();
+			}
+
+			void mouseExit(const MouseEvent& e)
+			{
+				hoverPos = {};
+				repaint();
+			}
+
 			void paint(Graphics& g) override
 			{
 				auto b = getLocalBounds();
@@ -443,15 +467,93 @@ struct ExpressionPropertyComponent : public PropertyComponent
 				g.fillRect(b);
 				g.setColour(Colours::white.withAlpha(0.6f));
 				g.fillPath(p);
+
+				if (ok && !smallMode)
+				{
+					
+					auto f = GLOBAL_BOLD_FONT();
+
+					auto s = CppGen::Emitter::createPrettyNumber(range.getStart(), false);
+					auto e = CppGen::Emitter::createPrettyNumber(range.getEnd(), false);
+
+					auto sw = f.getStringWidthFloat(s) + 15.0f;
+					auto ew = f.getStringWidthFloat(e) + 15.0f;
+
+					g.setFont(f);
+					
+					auto b = getLocalBounds();
+					auto left = b.removeFromBottom(26).removeFromLeft(sw).toFloat();
+					auto right = b.removeFromTop(26).removeFromRight(ew).toFloat();
+
+					
+
+					g.setColour(Colours::black.withAlpha(0.3f));
+					g.fillRect(left);
+					g.fillRect(right);
+
+					g.setColour(Colours::white.withAlpha(0.8f));
+
+					g.drawText(s, left.reduced(3.0f), Justification::left);
+					g.drawText(e, right.reduced(3.0f), Justification::right);
+
+					if (!hoverPos.isOrigin())
+					{
+						int index = roundToInt(hoverPos.getX() * (float)numToUse);
+
+						index = jlimit(0, numToUse - 1, index);
+
+						auto value = data[index];
+
+						auto xPos = roundToInt(hoverPos.getX() * (float)getWidth());
+
+						auto yNormalised = (value - range.getStart()) / range.getLength();
+
+						auto yPos = roundToInt((1.0f - yNormalised) * (float)getHeight());
+
+						Rectangle<float> circle(xPos, yPos, 0.0f, 0.0f);
+
+						g.setColour(Colours::red);
+						g.fillEllipse(circle.withSizeKeepingCentre(10.0f, 10.0f));
+
+						String posText;
+
+						posText << String(hoverPos.getX(), 2);
+						posText << " | ";
+						posText << CppGen::Emitter::createPrettyNumber(value, false);
+
+						auto f = GLOBAL_BOLD_FONT();
+						auto w = f.getStringWidthFloat(posText) + 10.0f;
+
+						auto b = circle.withSizeKeepingCentre(w, 20);
+						if (yNormalised < 0.5)
+							b = b.translated(0.0f, -30.0f);
+						else
+							b = b.translated(0.0f, 30.0f);
+
+						if(b.getRight() > (float)getWidth())
+							b = b.withX((float)getWidth() - b.getWidth());
+
+						if (b.getX() < 0.0f)
+							b = b.withX(0.0f);
+
+						g.setColour(Colours::black.withAlpha(0.5f));
+						g.fillRoundedRectangle(b, 2.0f);
+						g.setColour(Colours::white.withAlpha(0.8f));
+						g.drawText(posText, b, Justification::centred);
+					}
+				}
 			}
 
 			void rebuild()
 			{
 				empty = value.toString().isEmpty();
 
+				numToUse = 0;
+				data.free();
+
 				if (!empty)
 				{
-					String s = "float get(float input){ return ";
+					String s = "double get(double input){ return ";
 					s << value.toString() << "; }";
 
 					snex::jit::Compiler compiler(gs);
@@ -464,31 +566,60 @@ struct ExpressionPropertyComponent : public PropertyComponent
 
 					if (auto f = expression["get"])
 					{
-						int numToUse = smallMode ? 32 : 128;
+						numToUse = smallMode ? 32 : 128;
 
-						float* data = (float*)alloca(numToUse * sizeof(float*));
+						data.calloc(numToUse);
+
+						double maxValue = -5000000.0;
+						double minValue = 5000000.0;
 
 						for (int i = 0; i < numToUse; i++)
 						{
-							float v = (float)i / (float)(numToUse-1);
-							data[i] = f.call<float>(v);
+							auto v = (double)i / (double)(numToUse-1);
+							v = f.call<double>(v);
+
+							minValue = jmin(minValue, v);
+							maxValue = jmax(maxValue, v);
+							data[i] = v;
 						}
 
 						Path newPath;
-						newPath.startNewSubPath(0.0f, (float)getHeight());
-
-						auto b = getLocalBounds().toFloat();
+						newPath.startNewSubPath(0.0f, (float)1.0f);
 
 						for (int i = 0; i < numToUse; i++)
 						{
-							newPath.lineTo(((float)(i) / (float)(numToUse - 1)) * b.getWidth(), (1.0f - data[i]) * b.getHeight());
+							auto value = data[i];
+
+							if (std::isnan(value) || std::isinf(value))
+							{
+								ok = false;
+								p = {};
+								label.setText("Invalid values", dontSendNotification);
+								break;
+							}
+
+							auto yNormalised = (data[i] - minValue) / (maxValue - minValue);
+
+							newPath.lineTo(((float)(i) / (float)(numToUse - 1)), 1.0f - yNormalised);
 						}
 
 
-						newPath.lineTo(b.getWidth(), b.getHeight());
+						newPath.lineTo(1.0f, 1.0f);
 						newPath.closeSubPath();
 
-						p = newPath;
+						auto b = getLocalBounds().toFloat();
+
+						if (newPath.getBounds().getHeight() > 0.0f &&
+							newPath.getBounds().getWidth() > 0.0f)
+						{
+							newPath.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
+							p = newPath;
+
+							range = { minValue, maxValue };
+						}
+						else
+							p = {};
+
 					}
 				}
 				else
@@ -514,10 +645,11 @@ struct ExpressionPropertyComponent : public PropertyComponent
 		Comp(const Value& value):
 			display(value, true)
 		{
-			editor.getTextValue().referTo(value);
+			
 
 			addAndMakeVisible(editor);
 			editor.setFont(GLOBAL_MONOSPACE_FONT());
+			editor.setText(value.toString(), dontSendNotification);
 			editor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.7f));
 			editor.setSelectAllWhenFocused(true);
 			editor.addKeyListener(this);
@@ -529,7 +661,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 		{
 			if (key == KeyPress::returnKey)
 			{
-				editor.getTextValue().setValue(editor.getText());
+				display.value.setValue(editor.getText());
 				return true;
 			}
 

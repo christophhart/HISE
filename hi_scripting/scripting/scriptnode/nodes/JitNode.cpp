@@ -336,13 +336,6 @@ snex::CallbackCollection& JitNodeBase::getFirstCollection()
 	}
 }
 
-void JitNodeBase::logMessage(const String& message)
-{
-	String s;
-	s << dynamic_cast<NodeBase*>(this)->getId() << ": " << message;
-	debugToConsole(dynamic_cast<NodeBase*>(this)->getProcessor(), s);
-}
-
 juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFactory)
 {
 	String id = asNode()->createCppClass(false);

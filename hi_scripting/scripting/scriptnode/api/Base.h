@@ -78,6 +78,7 @@ public:
 		StringArray parameterNames;
 
 		double lastValue = 0.0;
+		bool isUsingRange = true;
 	};
 
 	virtual ~ParameterHolder() {};

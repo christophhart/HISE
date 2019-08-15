@@ -313,6 +313,8 @@ static forcedinline double sqr(double a) { return a * a; }
 static forcedinline double sqrt(double a) { return std_::sqrt(a); }
 static forcedinline double ceil(double a) { return std_::ceil(a); }
 static forcedinline double floor(double a) { return std_::floor(a); }
+static forcedinline double db2gain(double a) { return Decibels::decibelsToGain(a); }
+static forcedinline double gain2db(double a) { return Decibels::gainToDecibels(a); }
 
 static forcedinline float map(float normalisedInput, float start, float end) { return jmap<float>(normalisedInput, start, end); }
 static forcedinline float sin(float a) { return std_::sinf(a); }
@@ -333,6 +335,8 @@ static forcedinline float sqr(float a) { return a * a; }
 static forcedinline float sqrt(float a) { return std_::sqrtf(a); }
 static forcedinline float ceil(float a) { return std_::ceilf(a); }
 static forcedinline float floor(float a) { return std_::floorf(a); }
+static forcedinline float db2gain(float a) { return Decibels::decibelsToGain(a); }
+static forcedinline float gain2db(float a) { return Decibels::gainToDecibels(a); }
 
 struct wrapped
 {

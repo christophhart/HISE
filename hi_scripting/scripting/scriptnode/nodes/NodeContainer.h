@@ -39,11 +39,12 @@ using namespace hise;
 
 struct NodeContainer : public AssignableObject
 {
-	struct MacroParameter : public NodeBase::Parameter
+	struct MacroParameter : public NodeBase::Parameter,
+							public snex::DebugHandler
 	{
 		struct Connection
 		{
-			Connection(NodeBase* parent, ValueTree d);
+			Connection(NodeBase* parent, MacroParameter* pp, ValueTree d);
 
 			DspHelpers::ParameterCallback createCallbackForNormalisedInput();
 			bool isValid() const { return p.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
@@ -66,11 +67,15 @@ struct NodeContainer : public AssignableObject
 			NodeBase::Ptr nodeToBeBypassed;
 			double rangeMultiplerForBypass = 1.0;
 
+			MacroParameter* parentParameter = nullptr;
+
+			valuetree::PropertyListener exprSyncer;
 			valuetree::PropertyListener opSyncer;
 			valuetree::PropertyListener idUpdater;
-			
+
 			valuetree::RemoveListener nodeRemoveUpdater;
 
+			String expressionCode;
 			Identifier conversion = ConverterIds::Identity;
 			Identifier opType = OperatorIds::SetValue;
 			ReferenceCountedObjectPtr<Parameter> p;
@@ -85,6 +90,16 @@ struct NodeContainer : public AssignableObject
 		void rebuildCallback();
 		void updateRangeForConnection(ValueTree v, Identifier);
 
+		void updateConnectionForExpression(ValueTree v, Identifier)
+		{
+			rebuildCallback();
+		}
+
+		void logMessage(const String& s) override
+		{
+			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), s);
+		}
+
 		Identifier getOpTypeForParameter(Parameter* target) const;
 
 		bool matchesTarget(const Parameter* target) const;
@@ -93,6 +108,7 @@ struct NodeContainer : public AssignableObject
 
 		valuetree::ChildListener connectionListener;
 		valuetree::RecursivePropertyListener rangeListener;
+		valuetree::RecursivePropertyListener expressionListener;
 
 		OwnedArray<Connection> connections;
 	};

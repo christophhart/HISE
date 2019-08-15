@@ -331,6 +331,7 @@ struct ClassGenerator
 		String id;
 		bool isInverted = false;
 		String opType;
+		String exprString;
 	};
 
 	String createParameterInitialisation()
@@ -437,6 +438,10 @@ struct ClassGenerator
 			cd.isInverted = c[PropertyIds::Inverted];
 			auto opType = c[PropertyIds::OpType].toString();
 
+			cd.exprString = snex::JitExpression::convertToValidCpp(c[PropertyIds::Expression].toString());
+
+			if (!cd.exprString.isEmpty())
+				cd.isInverted = false;
 
 			if (opType != OperatorIds::SetValue.toString())
 			{
@@ -469,7 +474,13 @@ struct ClassGenerator
 				pCode << "getCombinedParameter";
 
 			pCode << "(\"" << conId << "\", ";
-			pCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(c));
+
+			auto connectionRange = RangeHelpers::getDoubleRange(c);
+
+			if (cd.exprString.isNotEmpty())
+				connectionRange = {0.0, 1.0};
+
+			pCode << CppGen::Emitter::createRangeString(connectionRange);
 
 			if (!cd.opType.isEmpty())
 				pCode << ", \"" << cd.opType << "\"";
@@ -478,7 +489,7 @@ struct ClassGenerator
 
 			auto converter = c[PropertyIds::Converter].toString();
 
-			if (converter != ConverterIds::Identity.toString())
+			if (converter != ConverterIds::Identity.toString() && cd.exprString.isEmpty())
 			{
 				if (cd.opType.isEmpty())
 					pCode << conIdName << ".addConversion(ConverterIds::" << converter << ");\n";
@@ -509,14 +520,13 @@ struct ClassGenerator
 
 		l.name << "]";
 		l.returnType << "";
-		l.arguments = { "double newValue" };
+		l.arguments = { "double input" };
 
-		String variableName = "newValue";
+		String variableName = "input";
 
 		if (useExternalConversion)
 		{
-			l.body << "auto normalised = outer.convertTo0to1(newValue);\n";
-			variableName = "normalised";
+			l.body << "input = outer.convertTo0to1(input);\n";
 		}
 		
 		for (auto& c : connections)
@@ -524,10 +534,22 @@ struct ClassGenerator
 			String invPrefix = c.isInverted ? "1.0 - " : "";
 			String opTypePrefix = c.opType.isEmpty() ? "" : "->" + c.opType;
 
-			if (c.id.startsWith("bypass_target"))
-				l.body << c.id << ".setBypass(" << invPrefix << variableName <<  ");\n";
+			if (c.exprString.isNotEmpty())
+			{
+				if (c.id.startsWith("bypass_target"))
+					jassertfalse;
+				else
+				{
+					l.body << c.id << opTypePrefix << "(" << c.exprString << ");\n";
+				}
+			}
 			else
-				l.body << c.id << opTypePrefix << "(" << invPrefix << variableName << ");\n";	
+			{
+				if (c.id.startsWith("bypass_target"))
+					l.body << c.id << ".setBypass(" << invPrefix << variableName << ");\n";
+				else
+					l.body << c.id << opTypePrefix << "(" << invPrefix << variableName << ");\n";
+			}
 		}
 
 		l.addSemicolon = false;
@@ -572,10 +594,20 @@ struct ClassGenerator
 				cd.isInverted = m[PropertyIds::Inverted];
 				cd.opType = m[PropertyIds::OpType].toString();
 
+				cd.exprString = snex::JitExpression::convertToValidCpp(m[PropertyIds::Expression].toString());
+
+				auto modRange = RangeHelpers::getDoubleRange(m);
+
+				if (cd.exprString.isNotEmpty())
+				{
+					cd.isInverted = false;
+					modRange = { 0.0, 1.0 };
+				}
+
 				modTargets.add(cd);
 
 				mCode << "auto " << modIdName << " = getParameter(\"" << modTargetId << "\", ";
-				mCode << CppGen::Emitter::createRangeString(RangeHelpers::getDoubleRange(m)) << ");\n";
+				mCode << CppGen::Emitter::createRangeString(modRange) << ");\n";
 			}
 
 			CppGen::MethodInfo l;
@@ -591,19 +623,27 @@ struct ClassGenerator
 
 			l.name << "]";
 			l.returnType << "auto f = ";
-			l.arguments = { "double newValue" };
+			l.arguments = { "double input" };
 
 			bool shouldScale = modSource->shouldScaleModulationValue();
 
 			for (auto modTarget : modTargets)
 			{
 				auto id = modTarget.id;
-				String invPrefix = modTarget.isInverted ? "1.0 - " : "";
 
-				if (shouldScale)
-					l.body << id << "(" << invPrefix << "newValue);\n";
+				if (modTarget.exprString.isEmpty())
+				{
+					String invPrefix = modTarget.isInverted ? "1.0 - " : "";
+
+					if (shouldScale)
+						l.body << id << "(" << invPrefix << "input);\n";
+					else
+						l.body << id << ".callUnscaled(" << invPrefix << "input);\n";
+				}
 				else
-					l.body << id << ".callUnscaled(" << invPrefix << "newValue);\n";
+				{
+					l.body << id << ".callUnscaled(" << modTarget.exprString << ");\n";
+				}
 			}
 
 			l.addSemicolon = true;
@@ -1034,9 +1074,10 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 }
 
 
-NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, ValueTree d):
+NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroParameter* pp, ValueTree d):
 	connectionData(d),
-	um(parent->getUndoManager())
+	um(parent->getUndoManager()),
+	parentParameter(pp)
 {
 
 	auto nodeId = d[PropertyIds::NodeId].toString();
@@ -1134,7 +1175,29 @@ DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connection::createC
 		else
 			f = std::bind(&NodeBase::Parameter::setValueAndStoreAsync, p.get(), std::placeholders::_1);
 
-		return DspHelpers::wrapIntoConversionLambda(conversion, f, connectionRange, inverted);
+		auto expressionCode = connectionData[PropertyIds::Expression].toString();
+
+		if (expressionCode.isNotEmpty())
+		{
+			snex::JitExpression::Ptr e = new snex::JitExpression(expressionCode, parentParameter);
+
+			if (e->isValid())
+			{
+				auto r = connectionRange;
+
+				auto fWithExpression = [e, f](double input)
+				{
+					input = e->getValue(input);
+					f(input);
+				};
+
+				return fWithExpression;
+			}
+			else
+				return f;
+		}
+		else
+			return DspHelpers::wrapIntoConversionLambda(conversion, f, connectionRange, inverted);
 	}
 
 
@@ -1168,6 +1231,11 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 {
 	rangeListener.setCallback(getConnectionTree(),
 		RangeHelpers::getRangeIds(),
+		valuetree::AsyncMode::Synchronously,
+		BIND_MEMBER_FUNCTION_2(MacroParameter::updateRangeForConnection));
+
+	expressionListener.setCallback(getConnectionTree(),
+		{ PropertyIds::Expression },
 		valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(MacroParameter::updateRangeForConnection));
 
@@ -1205,7 +1273,7 @@ void NodeContainer::MacroParameter::rebuildCallback()
 
 	for (auto c : cTree)
 	{
-		ScopedPointer<Connection> newC = new Connection(parent, c );
+		ScopedPointer<Connection> newC = new Connection(parent, this, c);
 
 		if (newC->isValid())
 			connections.add(newC.release());

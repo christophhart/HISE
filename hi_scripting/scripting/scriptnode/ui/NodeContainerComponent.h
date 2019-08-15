@@ -67,7 +67,28 @@ struct MacroPropertyEditor : public Component,
 			addAndMakeVisible(deleteButton);
 			addAndMakeVisible(gotoButton);
 
+			expressionEnabler.setCallback(data, { PropertyIds::Expression }, valuetree::AsyncMode::Asynchronously,
+				BIND_MEMBER_FUNCTION_2(ConnectionEditor::enableProperties));
+
+			updateSize();
+		}
+
+		void updateSize()
+		{
+			cEditor.updateSize();
 			setSize(cEditor.getWidth(), cEditor.getHeight() + 24);
+		}
+
+		void enableProperties(Identifier, var newValue)
+		{
+			bool shouldBeEnabled = newValue.toString().isEmpty();
+
+			auto rangeIds = RangeHelpers::getRangeIds();
+
+			cEditor.enableProperties(rangeIds, shouldBeEnabled);
+
+			findParentComponentOfClass<MacroPropertyEditor>()->resizeConnections();
+
 		}
 
 		void buttonClicked(Button* b) override;
@@ -113,9 +134,9 @@ struct MacroPropertyEditor : public Component,
 		void resized() override
 		{
 			auto b = getLocalBounds();
-			b.removeFromTop(24);
+			auto top = b.removeFromTop(24);
 
-			deleteButton.setBounds(b.removeFromRight(24).reduced(4));
+			deleteButton.setBounds(top.removeFromRight(24).reduced(4));
 
 			gotoButton.setBounds(2, 2, 16, 16);
 
@@ -133,6 +154,8 @@ struct MacroPropertyEditor : public Component,
 		HiseShapeButton gotoButton;
 		PropertyEditor cEditor;
 		bool showSource = false;
+
+		valuetree::PropertyListener expressionEnabler;
 	};
 
 	
@@ -335,24 +358,14 @@ struct MacroPropertyEditor : public Component,
 		rebuildConnections();
 	}
 
-	void rebuildConnections()
+	void resizeConnections()
 	{
-		connectionEditors.clear();
-
 		int y = 84;
 
-		for (auto c : connectionArray)
+		for (auto c : connectionEditors)
 		{
-			if (searchTerm.isNotEmpty() && !getPathFromNode(!containerMode, c).toLowerCase().contains(searchTerm))
-			{
-				continue;
-			}
-
-			auto newEditor = new ConnectionEditor(node, c, !containerMode);
-			connectionContent.addAndMakeVisible(newEditor);
-			connectionEditors.add(newEditor);
-
-			y += newEditor->getHeight() + 10;
+			c->updateSize();
+			y += c->getHeight() + 10;
 		}
 
 		connectionContent.setSize(parameterProperties.getWidth(), y);
@@ -364,6 +377,25 @@ struct MacroPropertyEditor : public Component,
 			c->setTopLeftPosition(0, y);
 			y += c->getHeight() + 10;
 		}
+	}
+
+	void rebuildConnections()
+	{
+		connectionEditors.clear();
+
+		for (auto c : connectionArray)
+		{
+			if (searchTerm.isNotEmpty() && !getPathFromNode(!containerMode, c).toLowerCase().contains(searchTerm))
+			{
+				continue;
+			}
+
+			auto newEditor = new ConnectionEditor(node, c, !containerMode);
+			connectionContent.addAndMakeVisible(newEditor);
+			connectionEditors.add(newEditor);
+		}
+
+		resizeConnections();
 
 		resized();
 	}

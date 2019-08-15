@@ -244,7 +244,7 @@ DEFINE_EXTERN_NODE_TEMPLATE(jit, jit_poly, jit_impl);
 
 }
 
-class JitNodeBase: public snex::jit::DebugHandler
+class JitNodeBase
 {
 public:
 
@@ -255,7 +255,7 @@ public:
 	snex::CallbackCollection& getFirstCollection();
 
 	NodeBase* asNode() { return dynamic_cast<NodeBase*>(this); }
-	void logMessage(const String& message) override;
+	
 	String convertJitCodeToCppClass(int numVoices, bool addToFactory);
 	virtual HiseDspBase* getInternalJitNode() = 0;
 	void updateParameters(Identifier id, var newValue);

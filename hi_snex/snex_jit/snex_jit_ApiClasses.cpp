@@ -62,6 +62,8 @@ MathFunctions::MathFunctions() :
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sqrt, double, "sqrt");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::ceil, double, "ceil");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::floor, double, "floor");
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::db2gain, double, "db2gain");
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::gain2db, double, "gain2db");
 	HNODE_JIT_ADD_C_FUNCTION_3(double, hmath::map, double, double, double, "map");
 
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sign, double, "sign");
@@ -90,6 +92,8 @@ MathFunctions::MathFunctions() :
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sqr, float, "sqr");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sqrt, float, "sqrt");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::ceil, float, "ceil");
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::db2gain, float, "db2gain");
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::gain2db, float, "gain2db");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::floor, float, "floor");
 	HNODE_JIT_ADD_C_FUNCTION_3(float, hmath::map, float, float, float, "map");
 
@@ -126,25 +130,25 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 	using namespace Types;
 
 	{
-		auto f = createMemberFunction(Void, "print", { Float });
+		auto f = createMemberFunction(Float, "print", { Float });
 		f->setFunction(WrapperFloat::print);
 		addFunction(f);
 	}
 
 	{
-		auto f = createMemberFunction(Void, "print", { Double });
+		auto f = createMemberFunction(Double, "print", { Double });
 		f->setFunction(WrapperDouble::print);
 		addFunction(f);
 	}
 
 	{
-		auto f = createMemberFunction(Void, "print", { Integer });
+		auto f = createMemberFunction(Integer, "print", { Integer });
 		f->setFunction(WrapperInt::print);
 		addFunction(f);
 	}
 
 	{
-		auto f = createMemberFunction(Void, "print", { Event });
+		auto f = createMemberFunction(Event, "print", { Event });
 		f->setFunction(WrapperEvent::print);
 		addFunction(f);
 	}

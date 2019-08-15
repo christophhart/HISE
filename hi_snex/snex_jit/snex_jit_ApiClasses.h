@@ -130,47 +130,53 @@ class ConsoleFunctions : public JitCallableObject
 {
 	struct WrapperInt
 	{
-		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, print, int);
+		JIT_MEMBER_WRAPPER_1(int, ConsoleFunctions, print, int);
 	};
 
 	struct WrapperDouble
 	{
-		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, print, double);
+		JIT_MEMBER_WRAPPER_1(double, ConsoleFunctions, print, double);
 	};
 
 	struct WrapperFloat
 	{
-		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, print, float);
+		JIT_MEMBER_WRAPPER_1(float, ConsoleFunctions, print, float);
 	};
 
 	struct WrapperEvent
 	{
-		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, print, HiseEvent);
+		JIT_MEMBER_WRAPPER_1(HiseEvent, ConsoleFunctions, print, HiseEvent);
 	};
 
 	
-	void print(int value)
+	int print(int value)
 	{
 		DBG(value);
 		
 		if (gs != nullptr)
 			gs->logMessage(String(value) + "\n");
+
+		return value;
 	}
-	void print(double value)
+	double print(double value)
 	{
 		DBG(value);
 		
 		if (gs != nullptr)
 			gs->logMessage(String(value) + "\n");
+
+		return value;
 	}
-	void print(float value)
+	float print(float value)
 	{
 		DBG(value);
 		
 		if (gs != nullptr)
 			gs->logMessage(String(value) + "\n");
+
+		return value;
 	}
-	void print(HiseEvent e)
+	HiseEvent print(HiseEvent e)
 	{
 		String s;
 
@@ -185,6 +191,8 @@ class ConsoleFunctions : public JitCallableObject
 
 		if(gs != nullptr)
 			gs->logMessage(s);
+
+		return e;
 	}
 
 	void registerAllObjectFunctions(GlobalScope*) override;

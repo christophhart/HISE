@@ -48,6 +48,13 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 		targetRange = RangeHelpers::getDoubleRange(data);
 	});
 
+	expressionUpdater.setCallback(data, { PropertyIds::Expression },
+		valuetree::AsyncMode::Synchronously,
+		[this](Identifier, var newValue)
+	{
+		setExpression(newValue.toString());
+	});
+
 	callback = nothing;
 }
 
@@ -85,6 +92,27 @@ bool ModulationSourceNode::ModulationTarget::findTarget()
 	}
 
 	return false;
+}
+
+void ModulationSourceNode::ModulationTarget::setExpression(const String& exprCode)
+{
+	snex::JitExpression::Ptr newExpr;
+
+	if (exprCode.isEmpty())
+	{
+		SpinLock::ScopedLockType lock(expressionLock);
+		std::swap(expr, newExpr);
+	}
+	else
+	{
+		newExpr = new snex::JitExpression(exprCode, parent);
+
+		if (newExpr->isValid())
+		{
+			SpinLock::ScopedLockType lock(expressionLock);
+			std::swap(newExpr, expr);
+		}
+	}
 }
 
 juce::ValueTree ModulationSourceNode::getModulationTargetTree()
@@ -147,6 +175,8 @@ void ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 
 	RangeHelpers::storeDoubleRange(m, false, range, nullptr);
 
+	m.setProperty(PropertyIds::Expression, "", nullptr);
+
 	getModulationTargetTree().addChild(m, -1, getUndoManager());
 }
 
@@ -189,21 +219,55 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 
 		for (auto t : targets)
 		{
-			auto thisValue = value;
+			SpinLock::ScopedLockType l(t->expressionLock);
 
-			if (t->inverted)
-				thisValue = 1.0 - thisValue;
+			if (t->expr != nullptr)
+			{
+				auto thisValue = t->expr->getValue(value);
 
-			auto normalised = t->targetRange.convertFrom0to1(thisValue);
+				t->parameter->setValueAndStoreAsync(thisValue);
+			}
+			else
+			{
+				auto thisValue = value;
 
-			t->parameter->setValueAndStoreAsync(normalised);
+				if (t->inverted)
+					thisValue = 1.0 - thisValue;
+
+				auto normalised = t->targetRange.convertFrom0to1(thisValue);
+
+				t->parameter->setValueAndStoreAsync(normalised);
+			}
 		}
 	}
 	else
 	{
 		for (auto t : targets)
-			t->parameter->setValueAndStoreAsync(value);
+		{
+			SpinLock::ScopedLockType l(t->expressionLock);
+
+			if (t->expr != nullptr)
+			{
+				auto thisValue = t->expr->getValue(value);
+
+				t->parameter->setValueAndStoreAsync(thisValue);
+			}
+			else
+			{
+				t->parameter->setValueAndStoreAsync(value);
+			}
+
+			
+		}
+			
 	}
+}
+
+void ModulationSourceNode::logMessage(const String& s)
+{
+	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+
+	debugToConsole(p, s);
 }
 
 int ModulationSourceNode::fillAnalysisBuffer(AudioSampleBuffer& b)
@@ -353,7 +417,8 @@ void ModulationSourceBaseComponent::mouseDown(const MouseEvent& e)
         auto g = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
         auto b = g->getLocalArea(this, getLocalBounds());
         
-        CallOutBox::launchAsynchronously(pe, b, g);
+		g->setCurrentModalWindow(pe, b);
+
 	}
 }
 

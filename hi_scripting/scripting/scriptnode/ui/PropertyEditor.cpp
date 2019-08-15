@@ -265,6 +265,9 @@ void MultiColumnPropertyPanel::resized()
 
 		for (auto p : properties)
 		{
+			if (!p->isVisible())
+				continue;
+
 			auto h = p->getPreferredHeight();
 
 			p->setBounds(x, y, w, h);
@@ -287,6 +290,9 @@ void MultiColumnPropertyPanel::resized()
 	{
 		for (auto p : properties)
 		{
+			if (!p->isVisible())
+				continue;
+
 			auto h = p->getPreferredHeight();
 			p->setBounds(0, y, getWidth(), h);
 
@@ -301,12 +307,22 @@ int MultiColumnPropertyPanel::getTotalContentHeight() const
 	if (!useTwoColumns)
 		return contentHeight;
 
-	auto rv = contentHeight / 2;
+	int columnIndex = 0;
 
-	if (properties.size() % 2 != 0)
-		rv += properties.getLast()->getPreferredHeight();
+	int h = 0;
 
-	return rv;
+	for (auto p : properties)
+	{
+		if (!p->isVisible())
+			continue;
+
+		if (columnIndex % 2 == 0)
+			h += p->getPreferredHeight();
+
+		columnIndex++;
+	}
+
+	return h;
 }
 
 }

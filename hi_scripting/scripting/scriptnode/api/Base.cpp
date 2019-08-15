@@ -71,12 +71,16 @@ scriptnode::HiseDspBase::ParameterData HiseDspBase::ParameterData::withRange(Nor
 {
 	ParameterData copy(*this);
 	copy.range = r;
+	copy.isUsingRange = !RangeHelpers::isIdentity(r);
 	return copy;
 }
 
 void HiseDspBase::ParameterData::operator()(double newValue) const
 {
-	callWithRange(newValue);
+	if (isUsingRange)
+		callWithRange(newValue);
+	else
+		callUnscaled(newValue);
 }
 
 void HiseDspBase::ParameterData::setBypass(double newValue) const

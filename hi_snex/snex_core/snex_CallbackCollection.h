@@ -117,6 +117,65 @@ struct CallbackCollection
 	WeakReference<Listener> listener;
 };
 
+/** This is a lightweight JIT expression evaluator for double numbers.
+
+	In order to use, just create it on the heap and keep at least one reference
+	around as long as you call getValue().
+
+	The String passed into the constructor will be extended to a valid
+	function prototype:
+
+	double get(double input)
+	{
+		return %EXPRESSION%;
+	}
+
+	That means you can simply enter any expression you like using the
+	`input` parameter variable:
+
+	- Math.sin(input * Math.PI)
+	- input - 5.0;
+	- input > 0.5 ? 12.0 : (double)8;
+	- etc...
+*/
+struct JitExpression : public ReferenceCountedObject
+{
+	/** This object is reference counted, so it's recommended
+		to create it using this Ptr alias.
+	*/
+	using Ptr = ReferenceCountedObjectPtr<JitExpression>;
+
+	JitExpression(const String& s, DebugHandler* consoleHandler=nullptr);
+
+	/** Evaluates the expression and returns the value. 
+	
+		If the expression is invalid, it returns the input value.
+	*/
+	double getValue(double input) const;
+
+	/** Returns the last error message or an empty string if everything was fine. */
+	String getErrorMessage() const;
+
+	/** Checks if the expression is valid. */
+	bool isValid() const;
+
+	/** Converts a expression into a valid C++ expression.
+	
+		It mostly replaces calls to `Math` with its C++ struct counterpart hmath::,
+		but there might be other required conversions in the future.
+	*/
+	static String convertToValidCpp(String input);
+
+private:
+
+	String errorMessage;
+	jit::GlobalScope memory;
+	jit::JitObject obj;
+	jit::FunctionData f;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JitExpression);
+};
+
 
 struct ParameterHelpers
 {

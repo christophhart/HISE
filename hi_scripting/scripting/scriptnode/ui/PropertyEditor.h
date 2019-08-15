@@ -111,6 +111,19 @@ struct MultiColumnPropertyPanel : public Component
 
 	}
 
+	void enableProperties(const Array<Identifier>& ids, bool shouldBeEnabled)
+	{
+		for (auto p : properties)
+		{
+			Identifier pId(p->getName());
+
+			if (ids.contains(pId))
+			{
+				p->setVisible(shouldBeEnabled);
+			}
+		}
+	}
+
 	void setUseTwoColumns(bool shouldUseTwoColumns)
 	{
 		useTwoColumns = shouldUseTwoColumns;
@@ -166,23 +179,38 @@ struct PropertyEditor : public Component
 			newProperties.add(nt);
 		}
 
-		for (auto prop : n->getPropertyTree())
+		// Only add Node properties in two-column mode (aka Connection Editor)...
+		if (!useTwoColumns)
 		{
-			if (!(bool)prop[PropertyIds::Public] && prop[PropertyIds::ID].toString().contains("."))
+			for (auto prop : n->getPropertyTree())
 			{
-				continue;
-			}
+				if (!(bool)prop[PropertyIds::Public] && prop[PropertyIds::ID].toString().contains("."))
+				{
+					continue;
+				}
 
-			auto nt = new NodePropertyComponent(n, prop);
-			newProperties.add(nt);
+				auto nt = new NodePropertyComponent(n, prop);
+				newProperties.add(nt);
+			}
 		}
+		
 
 		p.setUseTwoColumns(useTwoColumns);
 		p.addProperties(newProperties);
 
 		addAndMakeVisible(p);
 		p.setLookAndFeel(&plaf);
+		updateSize();
+	}
+
+	void updateSize()
+	{
 		setSize(400, p.getTotalContentHeight());
+	}
+
+	void enableProperties(Array<Identifier>& ids, bool shouldBeEnabled)
+	{
+		p.enableProperties(ids, shouldBeEnabled);
 	}
 
 	void resized() override
