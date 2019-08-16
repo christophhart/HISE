@@ -142,7 +142,7 @@ public:
 		return ringBuffer.indexInBuffer;
 	}
 
-	ReadWriteLock& getBufferLock() { return ringBuffer.lock; }
+	SingleWriteLockfreeMutex& getBufferLock() { return ringBuffer.lock; }
 
 	const AnalyserRingBuffer& getRingBuffer() const { return ringBuffer; }
 

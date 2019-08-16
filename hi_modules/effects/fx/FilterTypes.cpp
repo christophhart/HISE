@@ -121,6 +121,30 @@ void MultiChannelFilter<FilterSubType>::setGain(double newGain)
 }
 
 template <class FilterSubType>
+double MultiChannelFilter<FilterSubType>::getQ() const
+{
+	return targetQ;
+}
+
+template <class FilterSubType>
+double MultiChannelFilter<FilterSubType>::getFrequency() const
+{
+	return targetFreq;
+}
+
+template <class FilterSubType>
+double MultiChannelFilter<FilterSubType>::getGain() const
+{
+	return targetGain;
+}
+
+template <class FilterSubType>
+int MultiChannelFilter<FilterSubType>::getType() const
+{
+	return type;
+}
+
+template <class FilterSubType>
 Identifier MultiChannelFilter<FilterSubType>::getFilterTypeId()
 {
 	return FilterSubType::getStaticId();
@@ -593,13 +617,13 @@ juce::Identifier StaticBiquadSubType::getStaticId()
 
 juce::StringArray StaticBiquadSubType::getModes() const
 {
-	return { "LowPass", "High Pass", "High Shelf", "Low Shelf", "Peak", "Reso Low" };
+	return { "LowPass", "High Pass", "Low Shelf", "High Shelf", "Peak", "Reso Low" };
 }
 
 Array<hise::FilterHelpers::CoefficientType> StaticBiquadSubType::getCoefficientTypeList() const
 {
 	return { FilterHelpers::LowPass, FilterHelpers::HighPass,
-			 FilterHelpers::HighShelf, FilterHelpers::LowShelf,
+			 FilterHelpers::LowShelf, FilterHelpers::HighShelf,
 			 FilterHelpers::Peak, FilterHelpers::LowPassReso };
 }
 

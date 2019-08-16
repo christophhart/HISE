@@ -110,11 +110,19 @@ public:
     float xToFreq (float xPos);
     float freqToX (float freq);
 
+	float yToGain(float yPos, float maxGain) const;
+	float gainToY(float gain, float maxGain) const;
+
     void setTraceColour (Colour newColour);
     
 	Path getFilterPath() const
 	{
 		return tracePath;
+	}
+
+	void setUseFlatDesign(bool shouldUseFlatDesign)
+	{
+		useFlatDesign = shouldUseFlatDesign;
 	}
 
     float maxdB, maxPhas;

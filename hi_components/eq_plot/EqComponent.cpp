@@ -133,148 +133,153 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 #if USE_IPP
 
-	ScopedReadLock sl(ringBuffer.lock);
-
-	const auto& b = ringBuffer.internalBuffer;
-
-	int size = b.getNumSamples();
-
-	if (windowBuffer.getNumSamples() == 0 || windowBuffer.getNumSamples() != size)
+	if (auto l_ = SingleWriteLockfreeMutex::ScopedReadLock(ringBuffer.lock))
 	{
-		windowBuffer = AudioSampleBuffer(1, size);
-		fftBuffer = AudioSampleBuffer(1, size);
+		const auto& b = ringBuffer.internalBuffer;
 
-		fftBuffer.clear();
+		int size = b.getNumSamples();
 
-		icstdsp::VectorFunctions::blackman(windowBuffer.getWritePointer(0), size);
-	}
-
-	AudioSampleBuffer b2(2, b.getNumSamples());
-
-	auto data = b2.getWritePointer(0);
-	auto lastValues = fftBuffer.getWritePointer(0);
-
-	auto readIndex = ringBuffer.indexInBuffer;
-
-	int numBeforeWrap = size - readIndex;
-	int numAfterWrap = size - numBeforeWrap;
-
-	FloatVectorOperations::copy(data, b.getReadPointer(0, readIndex), numBeforeWrap);
-	FloatVectorOperations::copy(data + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
-
-	FloatVectorOperations::add(data, b.getReadPointer(1, readIndex), numBeforeWrap);
-	FloatVectorOperations::add(data + numBeforeWrap, b.getReadPointer(1, 0), numAfterWrap);
-
-	FloatVectorOperations::multiply(data, 0.5f, size);
-	FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
-
-	auto sampleRate = getSamplerate();
-
-	fftObject.realFFTInplace(data, size);
-
-	for (int i = 2; i < size; i += 2)
-	{
-		data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
-		data[i + 1] = data[i];
-	}
-
-	//fftObject.realFFT(b.getReadPointer(1), b2.getWritePointer(1), b2.getNumSamples());
-
-	FloatVectorOperations::abs(data, b2.getReadPointer(0), size);
-	FloatVectorOperations::multiply(data, 1.0f / 95.0f, size);
-
-	auto asComponent = dynamic_cast<Component*>(this);
-
-	int stride = roundToInt((float)size / asComponent->getWidth());
-	stride *= 2;
-
-	lPath.clear();
-
-	lPath.startNewSubPath(0.0f, (float)asComponent->getHeight());
-	//lPath.lineTo(0.0f, -1.0f);
-
-
-	int log10Offset = (int)(10.0 / (sampleRate * 0.5) * (double)size + 1.0);
-
-	auto maxPos = log10f((float)(size));
-
-	float lastIndex = 0.0f;
-	float value = 0.0f;
-	int lastI = 0;
-	int sumAmount = 0;
-
-	int lastLineLog = 1;
-
-	g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
-
-	int xLog10Pos = roundToInt(log10((float)log10Offset) / maxPos * (float)asComponent->getWidth());
-
-	for (int i = log10Offset; i < size; i += 2)
-	{
-		auto f = (double)i / (double)size * sampleRate / 2.0;
-
-		auto thisLineLog = (int)log10(f);
-
-		if (thisLineLog == 0)
-			continue;
-
-		auto xPos = log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
-		auto diff = xPos - lastIndex;
-
-		if ((int)thisLineLog != lastLineLog)
+		if (windowBuffer.getNumSamples() == 0 || windowBuffer.getNumSamples() != size)
 		{
-			g.drawVerticalLine((int)xPos, 0.0f, (float)asComponent->getHeight());
+			windowBuffer = AudioSampleBuffer(1, size);
+			fftBuffer = AudioSampleBuffer(1, size);
 
-			lastLineLog = (int)thisLineLog;
+			fftBuffer.clear();
+
+			icstdsp::VectorFunctions::blackman(windowBuffer.getWritePointer(0), size);
 		}
 
-		auto indexDiff = i - lastI;
+		AudioSampleBuffer b2(2, b.getNumSamples());
 
-		float v = fabsf(data[i]);
+		auto data = b2.getWritePointer(0);
+		auto lastValues = fftBuffer.getWritePointer(0);
 
-		v = Decibels::gainToDecibels(v);
-		v = jlimit<float>(-70.0f, 0.0f, v);
-		v = 1.0f + v / 70.0f;
-		v = powf(v, 0.707f);
+		auto readIndex = ringBuffer.indexInBuffer;
 
-		value += v;
-		sumAmount++;
+		int numBeforeWrap = size - readIndex;
+		int numAfterWrap = size - numBeforeWrap;
 
-		if (diff > 1.0f && indexDiff > 4)
+		FloatVectorOperations::copy(data, b.getReadPointer(0, readIndex), numBeforeWrap);
+		FloatVectorOperations::copy(data + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
+
+		FloatVectorOperations::add(data, b.getReadPointer(1, readIndex), numBeforeWrap);
+		FloatVectorOperations::add(data + numBeforeWrap, b.getReadPointer(1, 0), numAfterWrap);
+
+		FloatVectorOperations::multiply(data, 0.5f, size);
+		FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
+
+		auto sampleRate = getSamplerate();
+
+		fftObject.realFFTInplace(data, size);
+
+		for (int i = 2; i < size; i += 2)
 		{
-			value /= (float)(sumAmount);
+			data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
+			data[i + 1] = data[i];
+		}
 
-			sumAmount = 0;
+		//fftObject.realFFT(b.getReadPointer(1), b2.getWritePointer(1), b2.getNumSamples());
 
-			lastIndex = xPos;
-			lastI = i;
+		FloatVectorOperations::abs(data, b2.getReadPointer(0), size);
+		FloatVectorOperations::multiply(data, 1.0f / 95.0f, size);
 
-			value = 0.6f * value + 0.4f * lastValues[i];
+		auto asComponent = dynamic_cast<Component*>(this);
 
-			if (value > lastValues[i])
-				lastValues[i] = value;
+		int stride = roundToInt((float)size / asComponent->getWidth());
+		stride *= 2;
+
+		lPath.clear();
+
+		lPath.startNewSubPath(0.0f, (float)asComponent->getHeight());
+		//lPath.lineTo(0.0f, -1.0f);
+
+
+		int log10Offset = (int)(10.0 / (sampleRate * 0.5) * (double)size + 1.0);
+
+		auto maxPos = log10f((float)(size));
+
+		float lastIndex = 0.0f;
+		float value = 0.0f;
+		int lastI = 0;
+		int sumAmount = 0;
+
+		int lastLineLog = 1;
+
+		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::lineColour));
+
+		int xLog10Pos = roundToInt(log10((float)log10Offset) / maxPos * (float)asComponent->getWidth());
+
+		for (int i = log10Offset; i < size; i += 2)
+		{
+			auto f = (double)i / (double)size * sampleRate / 2.0;
+
+			auto thisLineLog = (int)log10(f);
+
+			if (thisLineLog == 0)
+				continue;
+
+
+			float xPos;
+			
+			if (freqToXFunction)
+				xPos = freqToXFunction(f);
 			else
-				lastValues[i] = jmax<float>(0.0f, lastValues[i] - 0.02f);
+				xPos = log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
 
-			auto yPos = lastValues[i];
-			yPos = 1.0f - yPos;
+			auto diff = xPos - lastIndex;
 
-			yPos *= asComponent->getHeight();
+			if ((int)thisLineLog != lastLineLog)
+			{
+				g.drawVerticalLine((int)xPos, 0.0f, (float)asComponent->getHeight());
 
-			lPath.lineTo(xPos, yPos);
+				lastLineLog = (int)thisLineLog;
+			}
 
-			value = 0.0f;
+			auto indexDiff = i - lastI;
+
+			float v = fabsf(data[i]);
+
+			v = Decibels::gainToDecibels(v);
+			v = jlimit<float>(-70.0f, 0.0f, v);
+			v = 1.0f + v / 70.0f;
+			v = powf(v, 0.707f);
+
+			value += v;
+			sumAmount++;
+
+			if (diff > 1.0f && indexDiff > 4)
+			{
+				value /= (float)(sumAmount);
+
+				sumAmount = 0;
+
+				lastIndex = xPos;
+				lastI = i;
+
+				value = 0.6f * value + 0.4f * lastValues[i];
+
+				if (value > lastValues[i])
+					lastValues[i] = value;
+				else
+					lastValues[i] = jmax<float>(0.0f, lastValues[i] - 0.02f);
+
+				auto yPos = lastValues[i];
+				yPos = 1.0f - yPos;
+
+				yPos *= asComponent->getHeight();
+
+				lPath.lineTo(xPos, yPos);
+
+				value = 0.0f;
+			}
 		}
+
+		lPath.lineTo((float)asComponent->getWidth(), (float)asComponent->getHeight());
+		lPath.closeSubPath();
+
+		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
+		g.fillPath(lPath);
 	}
-
-
-
-	lPath.lineTo((float)asComponent->getWidth(), (float)asComponent->getHeight());
-
-	lPath.closeSubPath();
-
-	g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
-	g.fillPath(lPath);
 
 #else
 
@@ -288,13 +293,14 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 void OscilloscopeBase::drawWaveform(Graphics& g)
 {
-	ScopedReadLock sl(ringBuffer.lock);
+	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(ringBuffer.lock))
+	{
+		g.fillAll(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
 
-	g.fillAll(getColourForAnalyserBase(AudioAnalyserComponent::bgColour));
+		g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
 
-	g.setColour(getColourForAnalyserBase(AudioAnalyserComponent::fillColour));
-
-	drawOscilloscope(g, ringBuffer.internalBuffer);
+		drawOscilloscope(g, ringBuffer.internalBuffer);
+	}
 }
 
 } // namespace hise;

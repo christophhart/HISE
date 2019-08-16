@@ -38,6 +38,18 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+namespace analyse
+{
+
+class Factory : public NodeFactory
+{
+public:
+
+	Factory(DspNetwork* network);;
+	Identifier getId() const override { return "analyse"; }
+};
+
+}
 
 namespace core
 {

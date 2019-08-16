@@ -37,56 +37,73 @@ namespace hise { using namespace juce;
 
 class ModulatorSynth;
 
-struct AnalyserRingBuffer
+struct AnalyserRingBuffer: public AsyncUpdater
 {
+	void handleAsyncUpdate()
+	{
+		if (auto l = SingleWriteLockfreeMutex::ScopedWriteLock(lock))
+		{
+			analyseBufferSize = currentSize;
+			indexInBuffer = 0;
+
+			internalBuffer.setSize(2, analyseBufferSize);
+			internalBuffer.clear();
+		}
+		else
+			triggerAsyncUpdate();
+	}
+
+	bool isActive() const
+	{
+		return currentSize != 0;
+	}
+
 	void setAnalyserBufferSize(int newValue)
 	{
-		ScopedWriteLock sl(lock);
-
 		jassert(isPowerOfTwo(newValue));
 
-		analyseBufferSize = newValue;
-		indexInBuffer = 0;
+		currentSize = newValue;
 
-		internalBuffer.setSize(2, analyseBufferSize);
-		internalBuffer.clear();
+		handleAsyncUpdate();
 	}
 
 	void pushSamples(AudioSampleBuffer& b, int startSample, int numSamples)
 	{
-		ScopedReadLock sl(lock);
+		if (internalBuffer.getNumSamples() == 0)
+			return;
 
-		auto l = b.getReadPointer(0, startSample);
-		auto r = b.getReadPointer(1, startSample);
-
-		const int numToCopy = jmin<int>(internalBuffer.getNumSamples(), numSamples);
-
-		const int numBeforeWrap = jmin<int>(numToCopy, internalBuffer.getNumSamples() - indexInBuffer);
-
-		FloatVectorOperations::copy(internalBuffer.getWritePointer(0, indexInBuffer), l, numBeforeWrap);
-		FloatVectorOperations::copy(internalBuffer.getWritePointer(1, indexInBuffer), r, numBeforeWrap);
-
-		const int numAfterWrap = numToCopy - numBeforeWrap;
-
-		if (numAfterWrap > 0)
+		if (auto sl = SingleWriteLockfreeMutex::ScopedReadLock(lock))
 		{
-			FloatVectorOperations::copy(internalBuffer.getWritePointer(0, 0), l, numAfterWrap);
-			FloatVectorOperations::copy(internalBuffer.getWritePointer(1, 0), r, numAfterWrap);
-		}
+			auto l = b.getReadPointer(0, startSample);
+			auto r = b.getReadPointer(1, startSample);
 
-		indexInBuffer = (indexInBuffer + numToCopy) % internalBuffer.getNumSamples();
+			const int numToCopy = jmin<int>(internalBuffer.getNumSamples(), numSamples);
+
+			const int numBeforeWrap = jmin<int>(numToCopy, internalBuffer.getNumSamples() - indexInBuffer);
+
+			FloatVectorOperations::copy(internalBuffer.getWritePointer(0, indexInBuffer), l, numBeforeWrap);
+			FloatVectorOperations::copy(internalBuffer.getWritePointer(1, indexInBuffer), r, numBeforeWrap);
+
+			const int numAfterWrap = numToCopy - numBeforeWrap;
+
+			if (numAfterWrap > 0)
+			{
+				FloatVectorOperations::copy(internalBuffer.getWritePointer(0, 0), l, numAfterWrap);
+				FloatVectorOperations::copy(internalBuffer.getWritePointer(1, 0), r, numAfterWrap);
+			}
+
+			indexInBuffer = (indexInBuffer + numToCopy) % internalBuffer.getNumSamples();
+		}
 	}
 
-	ReadWriteLock lock;
+	mutable SingleWriteLockfreeMutex lock;
 
 	int indexInBuffer = 0;
-
+	int currentSize = 0;
 	int analyseBufferSize = -1;
 
 	AudioSampleBuffer internalBuffer;
-
 };
-
 
 class OscilloscopeBase
 {
@@ -197,10 +214,13 @@ protected:
 	IppFFT fftObject;
 #endif
 
-    virtual ~FFTDisplayBase() {};
-    
 	virtual Colour getColourForAnalyserBase(int colourId) = 0;
 	virtual double getSamplerate() const = 0;
+
+    virtual ~FFTDisplayBase() {};
+    
+	
+	
 
 	void drawSpectrum(Graphics& g);
 
@@ -208,6 +228,9 @@ protected:
 
 	Path lPath;
 	Path rPath;
+
+	std::function<float(float)> freqToXFunction;
+	
 
 	AudioSampleBuffer windowBuffer;
 	AudioSampleBuffer fftBuffer;

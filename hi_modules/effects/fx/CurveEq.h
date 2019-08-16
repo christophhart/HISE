@@ -37,6 +37,8 @@ namespace hise { using namespace juce;
 
 #define FFT_SIZE_FOR_EQ 4096
 
+#define OLD_EQ_FFT 0
+
 /** A parametriq equalizer with unlimited bands and FFT display. 
 *	@ingroup effectTypes
 *
@@ -74,25 +76,22 @@ public:
 		numBandParameters
 	};
 
-	class StereoFilter
+	struct StereoFilter : public MultiChannelFilter<StaticBiquadSubType>
 	{
-	public:
-
-		StereoFilter():
-			sampleRate(44100.0),
-			frequency(1000.0),
-			gain(1.0),
-			q(1.0),
-			type(Peak),
-			enabled(true)
+		StereoFilter()
 		{
-			updateCoefficients();
-		};
+			setNumChannels(2);
+			setSmoothingTime(0.015);
+		}
+
+		void renderIfEnabled(FilterHelpers::RenderData& r)
+		{
+			if (enabled)
+				render(r);
+		}
 
 		void setEnabled(bool shouldBeEnabled)
 		{
-			SpinLock::ScopedLockType sl(processLock);
-
 			enabled = shouldBeEnabled;
 		}
 
@@ -101,112 +100,13 @@ public:
 			return enabled;
 		}
 
-		void setType(int newType)
-		{
-			SpinLock::ScopedLockType sl(processLock);
-
-			type = (FilterType)newType;
-			updateCoefficients();
-		}
-
-		double getFrequency() const {return frequency; };
-
-		double getGain() const {return (double)gain; };
-
-		double getQ() const { return q; };
-
-		void setFrequency(double newFrequency)
-		{
-			SpinLock::ScopedLockType sl(processLock);
-
-			frequency = newFrequency;
-
-			updateCoefficients();
-		};
-
-
-		void setGain(double newGain)
-		{
-			SpinLock::ScopedLockType sl(processLock);
-
-			gain = (float)newGain;
-			updateCoefficients();
-		}
-
-		void setQ(double newQ)
-		{
-			SpinLock::ScopedLockType sl(processLock);
-
-			q = newQ;
-			updateCoefficients();
-		}
-		
-		void setSampleRate(double newSampleRate)
-		{
-			SpinLock::ScopedLockType sl(processLock);
-
-			sampleRate = newSampleRate;
-			updateCoefficients();
-			leftFilter.reset();
-			rightFilter.reset();
-		}
-
-		void process(AudioSampleBuffer &b, int startSample, int numSamples)
-		{
-			if(!enabled) return;
-
-			SpinLock::ScopedLockType sl(processLock);
-
-			leftFilter.processSamples(b.getWritePointer(0, startSample), numSamples);
-			rightFilter.processSamples(b.getWritePointer(1, startSample), numSamples);
-		}
-
-		IIRCoefficients getCoefficients() const
-		{
-			return currentCoefficients;
-		};
-
-		int getFilterType() const
-		{
-			return type;
-		}
-
 	private:
 
-		SpinLock processLock;
-
-		void updateCoefficients()
-		{
-			switch(type)
-			{
-			case LowPass:		currentCoefficients = IIRCoefficients::makeLowPass(sampleRate, frequency); break;
-			case HighPass:		currentCoefficients = IIRCoefficients::makeHighPass(sampleRate, frequency); break;
-			case LowShelf:		currentCoefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, gain); break;
-			case HighShelf:		currentCoefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, gain); break;
-			case Peak:			currentCoefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, gain); break;
-                case numFilterTypes: break;
-			}
-
-			leftFilter.setCoefficients(currentCoefficients);
-			rightFilter.setCoefficients(currentCoefficients);
-		};
-
-		IIRCoefficients currentCoefficients;
-
-		double sampleRate;
-		double frequency;
-		float gain;
-		double q;
-		bool enabled;
-		FilterType type;
-
-		IIRFilter leftFilter;
-		IIRFilter rightFilter;
+		bool enabled = true;
 	};
 
 	CurveEq(MainController *mc, const String &id):
-		MasterEffectProcessor(mc, id),
-		fftBufferIndex(0)
+		MasterEffectProcessor(mc, id)
 	{
 		finaliseModChains();
 
@@ -228,7 +128,6 @@ public:
 		parameterNames.add("BandOffset");
 		parameterDescriptions.add("the offset that can be used to get the desired formula.");
 
-		FloatVectorOperations::fill(fftData, 0.0f, 256);
 	};
 
 	int getParameterIndex(int filterIndex, int parameterType) const
@@ -240,13 +139,24 @@ public:
 
 	void setInternalAttribute(int index, float newValue) override;;
 
+	const AnalyserRingBuffer& getFFTBuffer() const
+	{
+		return fftBuffer;
+	}
+
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override
 	{
-		for(int i = 0; i < filterBands.size(); i++)
+		FilterHelpers::RenderData r(buffer, startSample, numSamples);
+
+		for (auto filter : filterBands)
 		{
-			filterBands[i]->process(buffer, startSample, numSamples);
+			filter->renderIfEnabled(r);
 		}
 
+		if (fftBuffer.isActive())
+			fftBuffer.pushSamples(buffer, startSample, numSamples);
+
+#if OLD_EQ_FFT
 		if(fftBufferIndex < FFT_SIZE_FOR_EQ)
 		{
 			const int numSamplesToCopy = jmin<int>(numSamples, FFT_SIZE_FOR_EQ - fftBufferIndex);
@@ -257,11 +167,12 @@ public:
 			fftBufferIndex += numSamplesToCopy;
 
 		}
+#endif
 	};
 
 	IIRCoefficients getCoefficients(int filterIndex)
 	{
-		return filterBands[filterIndex]->getCoefficients();
+		return filterBands[filterIndex]->getApproximateCoefficients();
 	};
 
 	int getNumFilterBands() const
@@ -274,6 +185,11 @@ public:
 		return filterBands[filterIndex];
 	}
 
+	void enableSpectrumAnalyser(bool shouldBeEnabled)
+	{
+		fftBuffer.setAnalyserBufferSize(shouldBeEnabled ? 16384 : 0);
+	}
+
 	void addFilterBand(double freq, double gain)
 	{
 		ScopedLock sl(getMainController()->getLock());
@@ -281,11 +197,8 @@ public:
 		StereoFilter *f = new StereoFilter();
 
 		f->setSampleRate(getSampleRate());
-
 		f->setType(CurveEq::Peak);
-
 		f->setGain(gain);
-
 		f->setFrequency(freq);
 
 		filterBands.add(f);
@@ -330,6 +243,8 @@ public:
 			v.setProperty("Band" + String(i), getAttribute(i), nullptr);
 		}
 
+		v.setProperty("FFTEnabled", fftBuffer.isActive(), nullptr);
+
 		return v;
 	};
 
@@ -350,44 +265,17 @@ public:
 
 		for(int i = 0; i < numFilters * numBandParameters; i++)
 		{
-#if HI_USE_BACKWARD_COMPATIBILITY
-            if(v.hasProperty(String(i)))
-            {
-                const float value = v.getProperty(String(i), 0.0f);
-                setAttribute(i, value, dontSendNotification);
-
-            }
-            else
-            {
-                const float value = v.getProperty("Band" + String(i), 0.0f);
-                setAttribute(i, value, dontSendNotification);
-            }
-#else
             const float value = v.getProperty("Band" + String(i), 0.0f);
             setAttribute(i, value, dontSendNotification);
-#endif
 		}
 
+		enableSpectrumAnalyser(v.getProperty("FFTEnabled", false));
 	}
 
 	struct AlignedDouble
 	{
 		double data;
 		double padding;
-	};
-
-	const double *getExternalData()
-	{
-		ScopedLock sl(getMainController()->getLock());
-
-		for(int i = 0; i < FFT_SIZE_FOR_EQ; i++)
-		{
-			externalFftData[i] = (float)fftData[i];
-		}
-
-		fftBufferIndex = 0;
-
-		return externalFftData;
 	};
 
 	bool hasTail() const override {return false;};
@@ -402,14 +290,16 @@ public:
 
 private:
 
+	AnalyserRingBuffer fftBuffer;
+
+#if OLD_EQ_FFT
 	float fftData[FFT_SIZE_FOR_EQ];
-
 	double externalFftData[FFT_SIZE_FOR_EQ];
-
 	int fftBufferIndex;
+#endif
 
 	OwnedArray<StereoFilter> filterBands;
-
+	
 	double lastSampleRate = 0.0;
 
 };

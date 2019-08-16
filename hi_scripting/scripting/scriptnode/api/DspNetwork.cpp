@@ -56,6 +56,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new core::Factory(this));
 	ownedFactories.add(new math::Factory(this));
 	ownedFactories.add(new routing::Factory(this));
+	ownedFactories.add(new analyse::Factory(this));
 	ownedFactories.add(new fx::Factory(this));
 	ownedFactories.add(new filters::Factory(this));
 	ownedFactories.add(new dynamics::Factory(this));

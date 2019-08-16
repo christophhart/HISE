@@ -184,7 +184,7 @@ private:
 
 		for (int i = 0; i < eq->getNumFilterBands(); i++)
 		{
-			addFilter(c, i, eq->getFilterBand(i)->getFilterType());
+			addFilter(c, i, (int)eq->getFilterBand(i)->getFilterType());
 		}
 
 		int numFilterBands = eq->getNumFilterBands();
@@ -528,6 +528,25 @@ float FilterGraph::freqToX (float freq)
 {
     float width = (float) getWidth();
     return (width - 5) * (log (freq / lowFreq) / log (highFreq / lowFreq)) + 2.5f;
+}
+
+float FilterGraph::yToGain(float yPos, float maxGain) const
+{
+	if (getHeight() == 0)
+		return 0.0f;
+
+	auto normalised = jlimit(0.0f, 1.0f, yPos / (float)getHeight());
+
+	return jmap(normalised, maxGain, -1.0f * maxGain);
+}
+
+float FilterGraph::gainToY(float gain, float maxGain) const
+{
+	auto normalised = (-1.0f * gain) / (maxGain * 2.0f) + 0.5f;
+
+	normalised = jlimit(0.0f, 1.0f, normalised);
+
+	return normalised * (float)getHeight();
 }
 
 void FilterGraph::setTraceColour (Colour newColour)

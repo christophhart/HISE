@@ -17,38 +17,23 @@
   ==============================================================================
 */
 
-//[Headers] You can add your own extra header files here...
 
 namespace hise { using namespace juce;
 
-#if JUCE_IOS
-#else
-#include "../fx/dustfft.c"
-#endif
-
-//[/Headers]
-
-#include "CurveEqEditor.h"
-
-
-//[MiscUserDefs] You can add your own user definitions and misc code here...
-//[/MiscUserDefs]
 
 //==============================================================================
 CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
-    //[Constructor_pre] You can add your own custom stuff here..
-    //[/Constructor_pre]
-
-    addAndMakeVisible (filterGraph = new FilterGraph (0));
-    filterGraph->setName ("new component");
+	auto eq = dynamic_cast<CurveEq*>(p->getProcessor());
 
     addAndMakeVisible (typeSelector = new FilterTypeSelector());
     typeSelector->setName ("new component");
 
-    addAndMakeVisible (dragOverlay = new FilterDragOverlay());
+    addAndMakeVisible (dragOverlay = new FilterDragOverlay(eq));
     dragOverlay->setName ("new component");
+
+	dragOverlay->addListener(this);
 
     addAndMakeVisible (enableBandButton = new HiToggleButton ("new toggle button"));
     enableBandButton->setButtonText (TRANS("Enable Band"));
@@ -74,13 +59,6 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
     qSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     qSlider->addListener (this);
 
-    addAndMakeVisible (fftRangeSlider = new Slider ("new slider"));
-    fftRangeSlider->setRange (-100, -30, 1);
-    fftRangeSlider->setSliderStyle (Slider::LinearBar);
-    fftRangeSlider->setTextBoxStyle (Slider::NoTextBox, false, 80, 20);
-    fftRangeSlider->setColour (Slider::thumbColourId, Colour (0xafffffff));
-    fftRangeSlider->addListener (this);
-
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("curve eq")));
     label->setFont (Font ("Arial", 26.00f, Font::bold));
@@ -89,9 +67,6 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
     label->setColour (Label::textColourId, Colour (0x52ffffff));
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-
-
-    //[UserPreSize]
 
     ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
     
@@ -110,290 +85,279 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 	qSlider->setup(getProcessor(), -1, "Q");
 	qSlider->setMode(HiSlider::Linear, 0.1, 8.0, 1.0);
 
-	updateFilters();
-	updateCoefficients();
-
 	enableBandButton->setup(getProcessor(), -1, "Enable Band");
 
 	typeSelector->setup(getProcessor(), -1, "Type");
 
-
-#if(JUCE_DEBUG)
-	startTimer(250);
-#else
-	startTimer(50);
-#endif
-
-	fftRangeSlider->setSliderStyle(Slider::SliderStyle::LinearBarVertical);
-
-	addAndMakeVisible(fftEnableButton = new ShapeButton("Enable FFT", Colours::white.withAlpha(0.5f), Colours::white, Colours::white));
+	addAndMakeVisible(fftEnableButton = new ToggleButton("Spectrum Analyser"));
 	fftEnableButton->addListener(this);
-	fftEnableButton->setClickingTogglesState(true);
 	fftEnableButton->setTooltip("Enable FFT plotting");
-
-	static const unsigned char pathData[] = { 110,109,0,0,140,66,92,46,206,67,108,0,0,160,66,92,46,186,67,108,0,0,170,66,92,174,193,67,108,0,0,180,66,92,46,191,67,108,0,0,190,66,92,46,201,67,108,0,0,200,66,92,174,193,67,108,0,0,210,66,92,174,203,67,108,0,0,220,66,92,46,201,67,108,0,0,240,66,92,174,
-	203,67,108,0,0,250,66,92,46,201,67,108,0,0,2,67,92,46,206,67,99,101,0,0 };
-
-	Path path;
-	path.loadPathFromData (pathData, sizeof (pathData));
-
-	fftEnableButton->setShape(path, true, true, true);
-	fftEnableButton->setOutline(Colours::white.withAlpha(0.5f), 1.0f);
-
-
-    //[/UserPreSize]
+	getProcessor()->getMainController()->skin(*fftEnableButton);
 
     setSize (800, 320);
 
 
-    //[Constructor] You can add your own custom stuff here..
 	h = getHeight();
-    //[/Constructor]
 }
 
 CurveEqEditor::~CurveEqEditor()
 {
-    //[Destructor_pre]. You can add your own custom destruction code here..
-    //[/Destructor_pre]
-
-    filterGraph = nullptr;
     typeSelector = nullptr;
     dragOverlay = nullptr;
     enableBandButton = nullptr;
     freqSlider = nullptr;
     gainSlider = nullptr;
     qSlider = nullptr;
-    fftRangeSlider = nullptr;
     label = nullptr;
 
-
-    //[Destructor]. You can add your own custom destruction code here..
-    //[/Destructor]
 }
 
 //==============================================================================
 void CurveEqEditor::paint (Graphics& g)
 {
-    //[UserPrePaint] Add your own custom painting code here..
-    //[/UserPrePaint]
-
-    ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 700);
-    
-    //[UserPaint] Add your own custom painting code here..
-
-    //[/UserPaint]
+	ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 700);
 }
 
 void CurveEqEditor::resized()
 {
-    //[UserPreResize] Add your own custom resize code here..
-    //[/UserPreResize]
+	auto b = getLocalBounds().withSizeKeepingCentre(700, getHeight() - 6);
 
-    filterGraph->setBounds ((getWidth() / 2) + -60 - (504 / 2), 24, 504, 272);
-    typeSelector->setBounds ((getWidth() / 2) + 209, 75, 118, 28);
-    dragOverlay->setBounds (((getWidth() / 2) + -60 - (504 / 2)) + 0, 24 + 0, roundToInt (504 * 1.0000f), roundToInt (272 * 1.0000f));
-    enableBandButton->setBounds ((getWidth() / 2) + 203, 111, 128, 32);
-    freqSlider->setBounds ((getWidth() / 2) + 330 - 128, 147, 128, 48);
-    gainSlider->setBounds ((getWidth() / 2) + 330 - 128, 201, 128, 48);
-    qSlider->setBounds ((getWidth() / 2) + 330 - 128, 252, 128, 48);
-    fftRangeSlider->setBounds ((getWidth() / 2) + -340, 46, 20, 250);
-    label->setBounds ((getWidth() / 2) + 332 - 264, 16, 264, 40);
-    //[UserResized] Add your own custom resize handling here..
+	auto right = b.removeFromRight(148).reduced(10);
 
-	dragOverlay->setEq(this, dynamic_cast<CurveEq*>(getProcessor()));
+	dragOverlay->setBounds(b);
 
-	fftEnableButton->setBounds(fftRangeSlider->getX(), dragOverlay->getY(), 20, 20);
+	label->setBounds(right.removeFromTop(20));
 
-    //[/UserResized]
+	right.removeFromTop(15);
+	typeSelector->setBounds(right.removeFromTop(32));
+	right.removeFromTop(5);
+	enableBandButton->setBounds(right.removeFromTop(32));
+	right.removeFromTop(5);
+	freqSlider->setBounds(right.removeFromTop(48));
+	gainSlider->setBounds(right.removeFromTop(48));
+	qSlider->setBounds(right.removeFromTop(48));
+	right.removeFromTop(10);
+	fftEnableButton->setBounds(right.removeFromTop(32));
 }
 
 void CurveEqEditor::buttonClicked (Button* buttonThatWasClicked)
 {
-    //[UserbuttonClicked_Pre]
-    //[/UserbuttonClicked_Pre]
-
     if (buttonThatWasClicked == enableBandButton)
     {
-        //[UserButtonCode_enableBandButton] -- add your button handler code here..
-		if(currentlySelectedFilterBand != -1) filterGraph->enableBand(currentlySelectedFilterBand, enableBandButton->getToggleState());
-        //[/UserButtonCode_enableBandButton]
-    }
+		auto eq = dynamic_cast<CurveEq*>(getProcessor());
 
-    //[UserbuttonClicked_Post]
+		if (currentlySelectedFilterBand != -1)
+		{
+			auto pIndex = CurveEq::BandParameter::numBandParameters * currentlySelectedFilterBand + CurveEq::BandParameter::Enabled;
+
+			eq->setAttribute(pIndex, enableBandButton->getToggleState(), sendNotification);
+		}
+    }
 
 	if(buttonThatWasClicked == fftEnableButton)
 	{
 		const bool on = fftEnableButton->getToggleState();
 
-		if(on)
-		{
-			dragOverlay->startTimer(30);
-			fftRangeSlider->setEnabled(true);
-		}
-		else
-		{
-			dragOverlay->stopTimer();
-			fftRangeSlider->setEnabled(false);
-			dragOverlay->clearFFTDisplay();
-		}
+		auto eq = dynamic_cast<CurveEq*>(getProcessor());
 
-		fftEnableButton->setColours(Colours::white.withAlpha(on ? 1.0f : 0.5f), Colours::white.withAlpha(0.7f), Colours::white.withAlpha(0.7f));
-
-
+		eq->enableSpectrumAnalyser(on);
 	}
 
-    //[/UserbuttonClicked_Post]
 }
 
 void CurveEqEditor::sliderValueChanged (Slider* sliderThatWasMoved)
 {
-    //[UsersliderValueChanged_Pre]
-    //[/UsersliderValueChanged_Pre]
-
     if (sliderThatWasMoved == freqSlider)
     {
-        //[UserSliderCode_freqSlider] -- add your slider handling code here..
-        //[/UserSliderCode_freqSlider]
     }
     else if (sliderThatWasMoved == gainSlider)
     {
-        //[UserSliderCode_gainSlider] -- add your slider handling code here..
-        //[/UserSliderCode_gainSlider]
     }
     else if (sliderThatWasMoved == qSlider)
     {
-        //[UserSliderCode_qSlider] -- add your slider handling code here..
-        //[/UserSliderCode_qSlider]
-    }
-    else if (sliderThatWasMoved == fftRangeSlider)
-    {
-        //[UserSliderCode_fftRangeSlider] -- add your slider handling code here..
-		dragOverlay->setFFTRange(fftRangeSlider->getValue());
-        //[/UserSliderCode_fftRangeSlider]
     }
 
-    //[UsersliderValueChanged_Post]
-	dragOverlay->updatePositions();
-
-    //[/UsersliderValueChanged_Post]
-}
-
-
-
-//[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
-
-void FilterDragOverlay::setEq(CurveEqEditor* editor_, CurveEq* eq_)
-{
-	eq = eq_;
-	editor = editor_;
-
-	dragComponents.clear();
-
-	for(int i = 0; i < eq->getNumFilterBands(); i++)
-	{
-		Point<int> point = getPosition(i);
-
-		addFilter(point.x, point.y);
-	}
+	dragOverlay->updatePositions(false);
 }
 
 Point<int> FilterDragOverlay::getPosition(int index)
 {
-	const int freqIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Freq);
-	const int gainIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Gain);
+	if (isPositiveAndBelow(index, eq->getNumFilterBands()))
+	{
+		const int freqIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Freq);
+		const int gainIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Gain);
 
-	const int x = (int)editor->getFilterGraph()->freqToX(eq->getAttribute(freqIndex));
+		const int x = (int)filterGraph.freqToX(eq->getAttribute(freqIndex));
+		const int y = (int)filterGraph.gainToY(eq->getAttribute(gainIndex), 24.0f);
 
-	const float gain = eq->getAttribute(gainIndex);
-
-	const int height = editor->getFilterGraph()->getHeight();
-
-	const int y = (height / 2) - (int)((gain / 24.0f) * ((float)height / 2.0f));
-
-	return Point<int>(x,y);
+		return Point<int>(x, y).translated(offset, offset);
+	}
+	else
+		return {};
 }
 
 void FilterDragOverlay::mouseDown(const MouseEvent &e)
 {
-    ProcessorEditor *editor2 = findParentComponentOfClass<ProcessorEditor>();
-    
-    if(editor2 != nullptr)
-    {
-        PresetHandler::setChanged(editor2->getProcessor());
-    }
-    
-	if(!e.mods.isRightButtonDown())
+	if (e.mods.isRightButtonDown())
 	{
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
 
+		m.addItem(1, "Delete all bands", true, false);
+		m.addItem(2, "Enable Spectrum Analyser", true, eq->getFFTBuffer().isActive());
+		m.addItem(3, "Cancel");
 
-		const double freq = (double)editor->getFilterGraph()->xToFreq((float)e.getPosition().x);
+		auto result = m.show();
+		
+		if (result == 3)
+			return;
 
-		const double gain = Decibels::decibelsToGain(getGain(e.getPosition().y));
+		if (result == 1)
+		{
+			while (eq->getNumFilterBands() > 0)
+				eq->removeFilterBand(0);
+		}
+		else if (result == 2)
+		{
+			eq->enableSpectrumAnalyser(!eq->getFFTBuffer().isActive());
+		}
+	}
+	else
+	{
+		const double freq = (double)filterGraph.xToFreq((float)e.getPosition().x-offset);
+		const double gain = Decibels::decibelsToGain((double)getGain(e.getPosition().y-offset));
 
 		eq->addFilterBand(freq, gain);
-
-		addFilter(e.getPosition().x, e.getPosition().y, &e);
-
 	}
+}
+
+void FilterDragOverlay::mouseUp(const MouseEvent& e)
+{
+	selectDragger(-1);
 }
 
 void FilterDragOverlay::FilterDragComponent::mouseDown (const MouseEvent& e)
 {
-	FilterDragOverlay *o = dynamic_cast<FilterDragOverlay*>(getParentComponent());
-
 	if(e.mods.isRightButtonDown())
 	{
+		StringArray sa = { "Low Pass", "High Pass", "Low Shelf", "High Shelf", "Peak" };
 
-		o->removeFilter(this);
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+
+		FilterTypeSelector::Factory pf;
+
+		auto thisBand = parent.eq->getFilterBand(index);
+
+		int typeOffset = 8000;
+
+		m.addItem(9000, "Delete Band", true, false);
+		m.addItem(10000, "Enable Band", true, thisBand->isEnabled());
+		m.addSeparator();
+
+		m.addSectionHeader("Select Type");
+
+		for (int i = 0; i < sa.size(); i++)
+		{
+			bool isSelected = thisBand->getType() == i;
+
+			auto p = pf.createPath(sa[i]);
+
+			auto dp = new DrawablePath();
+			dp->setPath(p);
+
+			m.addItem(typeOffset + i, sa[i], true, isSelected, dp);
+		}
+
+		m.addSeparator();
+		m.addItem(3, "Cancel");
+
+		auto result = m.show();
+
+		if (result == 0 || result == 3)
+			return;
+		else if (result == 9000)
+		{
+			auto tmp = &parent;
+			auto index_ = index;
+			auto f = [tmp, index_]()
+			{
+				tmp->removeFilter(index_);
+			};
+
+			MessageManager::callAsync(f);
+		}
+		else if (result == 10000)
+		{
+			auto enabled = thisBand->isEnabled();
+
+			auto pIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Enabled);
+			parent.eq->setAttribute(pIndex, enabled ? 0.0f : 1.0f, sendNotification);
+		}
+		else
+		{
+			auto t = result - typeOffset;
+			auto pIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Type);
+			parent.eq->setAttribute(pIndex, (float)t, sendNotification);
+		}
+
+		
 	}
 	else
 	{
-		o->selectDragger(index);
+		parent.selectDragger(index);
 		dragger.startDraggingComponent (this, e);
 	}
-
 }
 
-void FilterDragOverlay::removeFilter(FilterDragComponent *componentToRemove)
+void FilterDragOverlay::FilterDragComponent::mouseUp(const MouseEvent& e)
 {
-	const int index = dragComponents.indexOf(componentToRemove);
+	draggin = false;
+	parent.selectDragger(-1);
+}
 
-	dragComponents.removeObject(componentToRemove);
-
-	for(int i = 0; i < dragComponents.size(); i++)
-	{
-		dragComponents[i]->setIndex(i);
-	}
-
-	editor->bandRemoved(index);
-
+void FilterDragOverlay::removeFilter(int index)
+{
 	eq->removeFilterBand(index);
+
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->bandRemoved(index);
+	}
 }
 
 void FilterDragOverlay::FilterDragComponent::mouseDrag (const MouseEvent& e)
 {
-	dragger.dragComponent (this, e, constrainer);
+	auto te = e.getEventRelativeTo(this);
 
-	const int x = e.getEventRelativeTo(getParentComponent()).getPosition().x;
-	const int y = e.getEventRelativeTo(getParentComponent()).getPosition().y;
+	if (!draggin)
+	{
+		dragger.startDraggingComponent(this, te);
+		draggin = true;
+	}
 
-	const double freq = jlimit<double>(20.0, 20000.0, (double)editor->getFilterGraph()->xToFreq((float)x));
+	dragger.dragComponent (this, te, constrainer);
 
-	const double gain = dynamic_cast<FilterDragOverlay*>(getParentComponent())->getGain(y);
+	auto x = getBoundsInParent().getCentreX() - parent.offset;
+	auto y = getBoundsInParent().getCentreY() - parent.offset;
 
-	const int freqIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Freq);
-	const int gainIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Gain);
+	const double freq = jlimit<double>(20.0, 20000.0, (double)parent.filterGraph.xToFreq((float)x));
 
-	eq->setAttribute(freqIndex, (float)freq, sendNotification);
-	eq->setAttribute(gainIndex, (float)gain, sendNotification);
+	const double gain = parent.filterGraph.yToGain(y, 24.0f);
 
+	const int freqIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Freq);
+	const int gainIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Gain);
 
-
+	parent.eq->setAttribute(freqIndex, (float)freq, sendNotification);
+	parent.eq->setAttribute(gainIndex, (float)gain, sendNotification);
 }
 
 void FilterDragOverlay::mouseMove(const MouseEvent &e)
 {
-	setTooltip(String(getGain(e.getPosition().y), 1) + " dB / " + String((int)editor->getFilterGraph()->xToFreq((float)e.getPosition().x)) + " Hz");
+	setTooltip(String(getGain(e.getPosition().y), 1) + " dB / " + String((int)filterGraph.xToFreq((float)e.getPosition().x)) + " Hz");
 };
 
 
@@ -401,28 +365,22 @@ void FilterDragOverlay::FilterDragComponent::mouseWheelMove(const MouseEvent &e,
 {
 	if(e.mods.isCtrlDown())
 	{
-		double q = eq->getFilterBand(index)->getQ();
+		double q = parent.eq->getFilterBand(index)->getQ();
 
 		if(d.deltaY > 0)
-		{
 			q = jmin<double>(8.0, q * 1.3);
-		}
 		else
-		{
 			q = jmax<double>(0.1, q / 1.3);
-		}
 
-		const int qIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Q);
+		const int qIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Q);
 
-		eq->setAttribute(qIndex, (float)q, sendNotification);
+		parent.eq->setAttribute(qIndex, (float)q, sendNotification);
 
 	}
 	else
 	{
 		getParentComponent()->mouseWheelMove(e, d);
 	}
-
-
 }
 
 void FilterDragOverlay::selectDragger(int index)
@@ -434,217 +392,89 @@ void FilterDragOverlay::selectDragger(int index)
 		dragComponents[i]->setSelected(index == i);
 	}
 
-	editor->setSelectedFilterBand(index);
-
+	if (selectedIndex != -1)
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->filterBandSelected(index);
+		}
+	}
 }
 
-void FilterDragOverlay::timerCallback()
+
+juce::Path FilterTypeSelector::Factory::createPath(const String& url) const
 {
-	const double *d = eq->getExternalData();
+	StringArray sa("low-pass", "high-pass", "low-shelf", "high-shelf", "peak");
 
-	const double max = FloatVectorOperations::findMaximum(d, FFT_SIZE_FOR_EQ);
+	auto name = MarkdownLink::Helpers::getSanitizedFilename(url);
 
-	if(max == 0)
+	auto index = sa.indexOf(name);
+
+	Path path;
+
+	if (index != -1)
 	{
-		FloatVectorOperations::clear(gainValues, FFT_SIZE_FOR_EQ);
-
-		p.clear();
-
-		if(repaintUpdater.shouldUpdate())
+		switch (index)
 		{
+		case CurveEq::LowPass:
+		{
+			static const unsigned char pathData[] = { 110,109,0,0,210,66,0,48,204,67,98,0,0,210,66,85,133,205,67,0,0,210,66,171,218,206,67,0,0,210,66,0,48,208,67,98,184,49,227,66,2,50,208,67,22,100,244,66,241,43,208,67,179,202,2,67,22,51,208,67,98,161,92,7,67,235,74,208,67,249,38,11,67,117,227,209,67,133,
+			142,13,67,23,186,211,67,98,235,153,15,67,165,60,213,67,185,29,17,67,240,235,214,67,0,32,18,67,1,172,216,67,98,85,181,20,67,86,89,216,67,171,74,23,67,172,6,216,67,0,224,25,67,1,180,215,67,98,73,187,23,67,129,232,211,67,21,186,19,67,66,42,208,67,62,20,
+			13,67,100,229,205,67,98,35,105,9,67,120,158,204,67,58,229,4,67,231,20,204,67,152,118,0,67,1,48,204,67,98,202,72,241,66,1,48,204,67,102,164,225,66,1,48,204,67,0,0,210,66,1,48,204,67,99,101,0,0 };
 
-			clearFFTDisplay();
+			path.loadPathFromData(pathData, sizeof(pathData));
+			break;
+		}
+		case CurveEq::HighPass:
+		{
+			static const unsigned char pathData[] = { 110,109,0,0,112,66,0,48,204,67,98,142,227,74,66,0,48,204,67,69,230,49,66,242,81,207,67,0,224,35,66,0,32,210,67,98,187,217,21,66,14,238,212,67,0,128,16,66,0,180,215,67,0,128,16,66,0,180,215,67,108,0,128,47,66,0,172,216,67,98,0,128,47,66,0,172,216,67,69,
+			38,52,66,242,109,214,67,0,32,63,66,0,60,212,67,98,187,25,74,66,14,10,210,67,114,28,89,66,0,48,208,67,0,0,112,66,0,48,208,67,108,0,0,170,66,0,48,208,67,108,0,0,170,66,0,48,204,67,108,0,0,112,66,0,48,204,67,99,101,0,0 };
 
+			path.loadPathFromData(pathData, sizeof(pathData));
+			break;
+		}
+		case CurveEq::HighShelf:
+		{
+			static const unsigned char pathData[] = { 110,109,0,0,92,67,0,48,199,67,98,44,153,88,67,118,34,199,67,167,11,86,67,12,117,200,67,149,34,84,67,225,179,201,67,98,167,166,81,67,71,62,203,67,118,235,79,67,158,20,205,67,172,31,77,67,32,126,206,67,98,91,90,76,67,19,199,206,67,72,65,77,67,149,170,206,
+			67,147,30,76,67,0,176,206,67,98,184,105,71,67,0,176,206,67,220,180,66,67,0,176,206,67,1,0,62,67,0,176,206,67,98,1,0,62,67,85,5,208,67,1,0,62,67,171,90,209,67,1,0,62,67,0,176,210,67,98,176,50,67,67,37,174,210,67,184,101,72,67,192,179,210,67,46,152,77,
+			67,37,173,210,67,98,21,99,81,67,70,140,210,67,121,214,83,67,128,221,208,67,40,232,85,67,171,120,207,67,98,186,233,87,67,30,30,206,67,99,120,89,67,142,147,204,67,86,224,91,67,225,97,203,67,98,167,165,92,67,238,24,203,67,186,190,91,67,108,53,203,67,111,
+			225,92,67,1,48,203,67,98,245,64,99,67,1,48,203,67,123,160,105,67,1,48,203,67,1,0,112,67,1,48,203,67,98,1,0,112,67,172,218,201,67,1,0,112,67,86,133,200,67,1,0,112,67,1,48,199,67,98,86,85,105,67,1,48,199,67,172,170,98,67,1,48,199,67,1,0,92,67,1,48,199,
+			67,99,101,0,0 };
+
+			path.loadPathFromData(pathData, sizeof(pathData));
+			break;
 
 		}
-		return;
-	}
-
-#if JUCE_IOS
-    
-#else
-    
-	const int size = FFT_SIZE_FOR_EQ;
-	const int half = size / 2;
-
-	for(int i = 0; i < half; i++)
-	{
-		fftData[i] = std::complex<double>(d[i] * (double)i / (double)(half), 0.0);
-	}
-
-	for(int i = half; i < size; i++)
-	{
-		fftData[i] = std::complex<double>(d[i] * (1.0 - (double)(i - half) / (double)half), 0.0);
-	}
-
-	DustFFT_fwdD(reinterpret_cast<double*>(fftData), size);
-
-	for(int i = 0; i < size; i++)
-	{
-		fftAmpData[i] = sqrt(fftData[i].imag() * fftData[i].imag() + fftData[i].real() * fftData[i].real()) / (double)FFT_SIZE_FOR_EQ;
-	}
-
-	for(int i = 0; i < size; i++)
-	{
-		//gainValues[i] = 0.4f * fftAmpData[i] +  0.8f * gainValues[i];
-
-
-        gainValues[i] = ((float)fftAmpData[i] > gainValues[i]) ? (float)fftAmpData[i] : 0.9f * gainValues[i];
-
-	}
-
-	if(repaintUpdater.shouldUpdate())
-	{
-
-
-		Path tempPath;
-
-		tempPath.clear();
-
-		const double maxGain = FloatVectorOperations::findMaximum(fftAmpData, FFT_SIZE_FOR_EQ);
-
-		if(maxGain == 0.0) return;
-
-		float w = (float)getWidth();
-		float h = (float)getHeight();
-
-		tempPath.startNewSubPath(0.0f, h);
-
-		float lastX = 0.0f;
-
-		for(int i = 2; i < FFT_SIZE_FOR_EQ / 2; i++)
+		case CurveEq::LowShelf:
 		{
-			const float freq = ((float) i / (float)FFT_SIZE_FOR_EQ) * (float)eq->getSampleRate();
+			static const unsigned char pathData[] = { 110,109,0,0,117,67,92,174,198,67,98,0,0,117,67,177,3,200,67,0,0,117,67,7,89,201,67,0,0,117,67,92,174,202,67,98,171,170,123,67,92,174,202,67,171,42,129,67,92,174,202,67,0,128,132,67,92,174,202,67,98,208,39,132,67,172,192,202,67,179,75,133,67,224,102,203,
+			67,42,91,133,67,40,199,203,67,98,2,219,134,67,173,188,205,67,26,242,135,67,189,28,208,67,19,254,137,67,177,149,209,67,98,144,42,139,67,213,105,210,67,132,163,140,67,64,33,210,67,55,251,141,67,91,46,210,67,98,37,210,143,67,91,46,210,67,18,169,145,67,91,
+			46,210,67,0,128,147,67,91,46,210,67,98,0,128,147,67,6,217,208,67,0,128,147,67,176,131,207,67,0,128,147,67,91,46,206,67,98,0,0,145,67,91,46,206,67,0,128,142,67,91,46,206,67,0,0,140,67,91,46,206,67,98,48,88,140,67,11,28,206,67,77,52,139,67,215,117,205,
+			67,214,36,139,67,143,21,205,67,98,254,164,137,67,10,32,203,67,230,141,136,67,250,191,200,67,237,129,134,67,6,71,199,67,98,112,85,133,67,226,114,198,67,124,220,131,67,119,187,198,67,201,132,130,67,92,174,198,67,98,12,177,127,67,92,174,198,67,134,88,122,
+			67,92,174,198,67,0,0,117,67,92,174,198,67,99,101,0,0 };
 
-			const float x = editor->getFilterGraph()->freqToX(freq);
-
-			if((x - lastX) < 1.0f)
-			{
-				//continue;
-			}
-
-			lastX = x;
-
-			const double gain = Decibels::gainToDecibels(gainValues[i]);
-
-			double y = jmin<double>((double)getHeight(), (double)getHeight() * (gain / fftRange));
-
-			if(y < 0.0) y = 0.0;
-
-
-			tempPath.lineTo((float)x, (float)y);
+			path.loadPathFromData(pathData, sizeof(pathData));
+			break;
 		}
-
-
-
-		tempPath.lineTo(w, h);
-
-		tempPath.lineTo(0.0f, h);
-
-		tempPath.closeSubPath();
-
-		if(tempPath.getBounds().getHeight() != 0)
+		case CurveEq::Peak:
 		{
+			static const unsigned char pathData[] = { 110,109,0,0,22,67,0,176,181,67,98,187,189,18,67,27,175,181,67,216,98,16,67,236,14,183,67,212,53,15,67,102,114,184,67,98,140,250,12,67,223,183,186,67,79,140,11,67,108,99,189,67,63,64,7,67,186,241,190,67,98,99,112,4,67,66,246,191,67,19,226,0,67,231,160,
+			191,67,25,74,251,66,255,175,191,67,98,57,63,249,66,91,136,191,67,152,54,250,66,72,33,192,67,255,255,249,66,182,110,192,67,98,255,255,249,66,121,132,193,67,255,255,249,66,60,154,194,67,255,255,249,66,255,175,195,67,98,239,13,1,67,139,170,195,67,251,70,
+			5,67,5,221,195,67,2,16,9,67,3,249,194,67,98,8,153,14,67,113,211,193,67,116,255,17,67,255,42,191,67,228,79,20,67,174,135,188,67,98,177,239,20,67,88,14,188,67,96,130,21,67,123,192,186,67,205,34,22,67,78,198,186,67,98,241,145,24,67,34,154,189,67,148,50,
+			27,67,164,173,192,67,181,166,32,67,153,95,194,67,98,194,252,35,67,241,118,195,67,214,8,40,67,43,196,195,67,202,242,43,67,0,176,195,67,98,49,247,44,67,0,176,195,67,152,251,45,67,0,176,195,67,255,255,46,67,0,176,195,67,98,255,255,46,67,171,90,194,67,255,
+			255,46,67,85,5,193,67,255,255,46,67,0,176,191,67,98,48,69,44,67,193,162,191,67,205,121,41,67,176,214,191,67,122,208,38,67,176,117,191,67,98,1,143,34,67,185,180,190,67,246,109,32,67,50,135,188,67,35,182,30,67,72,152,186,67,98,81,69,29,67,110,22,185,67,
+			247,82,28,67,166,79,183,67,225,132,25,67,247,69,182,67,98,198,125,24,67,135,234,181,67,204,66,23,67,208,175,181,67,0,0,22,67,1,176,181,67,99,101,0,0 };
 
-			tempPath.scaleToFit(0.0f, 0.0f, w, h, false);
+			path.loadPathFromData(pathData, sizeof(pathData));
 
+			break;
 		}
-
-
-
-		p = Path(tempPath);
-
-		//FloatVectorOperations::clear(gainValues, FFT_SIZE_FOR_EQ);
-
-
-
-		repaint();
+		case CurveEq::numFilterTypes: break;
+		}
 	}
-    
-#endif
+
+	return path;
 }
 
-void FilterDragOverlay::paint(Graphics &g)
-{
-
-
-	g.setColour(Colours::black.withAlpha(0.1f));
-
-	g.fillPath(p);
-
-	g.setColour(Colours::white.withAlpha(0.2f));
-
-	g.strokePath(p, PathStrokeType(1.0f));
-
-}
-
-//[/MiscUserCode]
-
-
-//==============================================================================
-#if 0
-/*  -- Introjucer information section --
-
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
-    make changes in here at your peril!
-
-BEGIN_JUCER_METADATA
-
-<JUCER_COMPONENT documentType="Component" className="CurveEqEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody, public Timer, public FilterTypeSelector::Listener"
-                 constructorParams="ProcessorEditor *p" variableInitialisers="ProcessorEditorBody(p)&#10;"
-                 snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
-                 fixedSize="1" initialWidth="800" initialHeight="320">
-  <BACKGROUND backgroundColour="ffffff">
-    <ROUNDRECT pos="0Cc 6 700 304" cornerSize="6" fill="solid: 30000000" hasStroke="1"
-               stroke="2, mitered, butt" strokeColour="solid: 25ffffff"/>
-  </BACKGROUND>
-  <GENERICCOMPONENT name="new component" id="664814e01ba3b705" memberName="filterGraph"
-                    virtualName="" explicitFocusOrder="0" pos="-60Cc 24 504 272"
-                    class="FilterGraph" params="0"/>
-  <GENERICCOMPONENT name="new component" id="f3e7df800e17c4bc" memberName="typeSelector"
-                    virtualName="" explicitFocusOrder="0" pos="209C 75 118 28" class="FilterTypeSelector"
-                    params=""/>
-  <GENERICCOMPONENT name="new component" id="13694c782c19abe6" memberName="dragOverlay"
-                    virtualName="" explicitFocusOrder="0" pos="0 0 100% 100%" posRelativeX="664814e01ba3b705"
-                    posRelativeY="664814e01ba3b705" posRelativeW="664814e01ba3b705"
-                    posRelativeH="664814e01ba3b705" class="FilterDragOverlay" params=""/>
-  <TOGGLEBUTTON name="new toggle button" id="e6345feaa3cb5bea" memberName="enableBandButton"
-                virtualName="HiToggleButton" explicitFocusOrder="0" pos="203C 111 128 32"
-                posRelativeX="410a230ddaa2f2e8" txtcol="ffffffff" buttonText="Enable Band"
-                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
-  <SLIDER name="Frequency" id="89cc5b4c20e221e" memberName="freqSlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="330Cr 147 128 48"
-          posRelativeX="f930000f86c6c8b6" tooltip="Set the frequency of the selected band"
-          min="0" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
-          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
-  <SLIDER name="Gain" id="2e806a4ba1068f01" memberName="gainSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="330Cr 201 128 48" posRelativeX="f930000f86c6c8b6"
-          min="-24" max="24" int="0.10000000000000001" style="RotaryHorizontalVerticalDrag"
-          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
-  <SLIDER name="Q" id="9d5864f0ab12a1c4" memberName="qSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="330Cr 252 128 48" posRelativeX="f930000f86c6c8b6"
-          min="0.10000000000000001" max="8" int="1" style="RotaryHorizontalVerticalDrag"
-          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
-  <SLIDER name="new slider" id="2e6abe603ac2c6ea" memberName="fftRangeSlider"
-          virtualName="" explicitFocusOrder="0" pos="-340C 46 20 250" thumbcol="afffffff"
-          min="-100" max="-30" int="1" style="LinearBar" textBoxPos="NoTextBox"
-          textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1"/>
-  <LABEL name="new label" id="bd1d8d6ad6d04bdc" memberName="label" virtualName=""
-         explicitFocusOrder="0" pos="332Cr 16 264 40" textCol="52ffffff"
-         edTextCol="ff000000" edBkgCol="0" labelText="curve eq" editableSingleClick="0"
-         editableDoubleClick="0" focusDiscardsChanges="0" fontname="Arial"
-         fontsize="26" bold="1" italic="0" justification="34"/>
-</JUCER_COMPONENT>
-
-END_JUCER_METADATA
-*/
-#endif
-
-
-//[EndFile] You can add extra defines here...
 } // namespace hise
-//[/EndFile]

@@ -39,18 +39,14 @@ float CurveEq::getAttribute(int index) const
 	const int filterIndex = index / BandParameter::numBandParameters;
 	const BandParameter parameter = (BandParameter)(index % numBandParameters);
 
-	StereoFilter *filter = filterBands[filterIndex];
-
-	jassert(filter != nullptr);
-
-	if (filter != nullptr)
+	if (auto filter = filterBands[filterIndex])
 	{
 		switch (parameter)
 		{
 		case BandParameter::Gain:	 return Decibels::gainToDecibels((float)filter->getGain());
 		case BandParameter::Freq:	 return (float)filter->getFrequency();
 		case BandParameter::Q:		 return (float)filter->getQ();
-		case BandParameter::Type:	 return (float)filter->getFilterType();
+		case BandParameter::Type:	 return (float)filter->getType();
 		case BandParameter::Enabled: return filter->isEnabled() ? 1.0f : 0.0f;
 		case numBandParameters:
 		default:                     return 0.0f;
@@ -58,9 +54,10 @@ float CurveEq::getAttribute(int index) const
 	}
 	else
 	{
-		debugError(const_cast<CurveEq*>(this), "Invalid attribute index: " + String(index));
-		return 0.0f;
+		jassertfalse;
+		return 0;
 	}
+	
 
 	
 

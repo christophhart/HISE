@@ -141,6 +141,11 @@ public:
 	void setQ(double newQ);
 	void setGain(double newGain);
 
+	double getGain() const;
+	double getFrequency() const;
+	double getQ() const;
+	int getType() const;
+
 	static Identifier getFilterTypeId();
 	IIRCoefficients getApproximateCoefficients() const;
 
@@ -177,6 +182,7 @@ private:
 	int type = -1;
 	int numChannels = 2;
 };
+
 
 #define FORWARD_DECLARE_MULTI_CHANNEL_FILTER(className) extern template class MultiChannelFilter<className>;
 #define DEFINE_MULTI_CHANNEL_FILTER(className) template class MultiChannelFilter<className>;
@@ -397,8 +403,8 @@ public:
 	{
 		LowPass = 0,
 		HighPass,
-		HighShelf,
 		LowShelf,
+		HighShelf,
 		Peak,
 		ResoLow,
 		numFilterTypes

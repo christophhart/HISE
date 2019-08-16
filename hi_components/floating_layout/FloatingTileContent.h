@@ -585,9 +585,6 @@ public:
 	{
 	public:
 
-		
-
-		
 
 		enum class PopupMenuOptions
 		{
@@ -652,6 +649,7 @@ public:
 			MarkdownEditor,
 			MarkdownPreviewPanel,
 			FilterGraphPanel,
+			DraggableFilterPanel,
 			MPEPanel,
 			Matrix2x2,
 			ThreeColumns,

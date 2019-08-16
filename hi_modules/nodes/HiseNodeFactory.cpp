@@ -36,6 +36,17 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+namespace analyse
+{
+Factory::Factory(DspNetwork* network):
+	NodeFactory(network)
+{
+	registerNode<fft>({});
+	registerNode<oscilloscope>({});
+}
+
+}
+
 
 namespace dynamics
 {

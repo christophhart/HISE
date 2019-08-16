@@ -251,6 +251,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 
 #include "nodes/CoreNodes.h"
 #include "nodes/FXNodes.h"
+#include "nodes/AnalyserNodes.h"
 #include "nodes/ComplexDataNodes.h"
 #include "nodes/MathNodes.h"
 #include "nodes/DynamicsNode.h"
