@@ -108,6 +108,7 @@ struct BaseCompiler
 		case PassMessage:  m << "PASS: "; break;
 		case ProcessMessage: m << "- "; break;
 		case VerboseProcessMessage: m << "-- "; break;
+        default: break;
 		}
 
 		m << s << "\n";

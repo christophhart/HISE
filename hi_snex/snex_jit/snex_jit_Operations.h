@@ -134,7 +134,7 @@ struct Operations::VariableReference : public Expression
 
 		bool isLast = false;
 
-		while (lastOne = walker.getNextStatementOfType<VariableReference>())
+		while ((lastOne = walker.getNextStatementOfType<VariableReference>()))
 		{
 			if (lastOne->ref != ref)
 				continue;

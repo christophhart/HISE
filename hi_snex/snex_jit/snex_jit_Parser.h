@@ -58,6 +58,8 @@ public:
 		TokenIterator(code, wholeProgram, length),
 		compiler(c)
 	{};
+    
+    virtual ~BlockParser() {};
 
 	SyntaxTree* parseStatementList();
 
@@ -83,6 +85,8 @@ public:
 		BlockParser(c, code.getCharPointer(), code.getCharPointer(), code.length())
 	{}
 
+    virtual ~NewClassParser() {};
+    
 	StatementPtr parseStatement() override;
 	StatementPtr parseSmoothedVariableDefinition();
 	StatementPtr parseVariableDefinition(bool isConst);

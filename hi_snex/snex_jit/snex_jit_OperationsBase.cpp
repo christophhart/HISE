@@ -369,7 +369,7 @@ Operations::Statement::Ptr Operations::Statement::replaceChildStatement(int inde
 {
 	Ptr returnExpr;
 
-	if (returnExpr = getChildStatement(index))
+	if ((returnExpr = getChildStatement(index)))
 	{
 		childStatements.set(index, newExpr.get());
 		newExpr->parent = this;

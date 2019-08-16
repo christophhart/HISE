@@ -65,6 +65,7 @@ struct AsmCodeGenerator
 				case Types::ID::Integer: uncountedReg = acg.cc.newGpd(); break;
 				case Types::ID::Event:
 				case Types::ID::Block:	 uncountedReg = acg.cc.newIntPtr(); break;
+                default:                 break;
 				}
 			}
 		}

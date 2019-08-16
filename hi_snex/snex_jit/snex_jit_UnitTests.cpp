@@ -1044,7 +1044,7 @@ private:
 
 		Random r;
 
-		const double v = (double)(r.nextFloat() * 122.0f * r.nextBool() ? 1.0f : -1.0f);
+		const double v = (double)(r.nextFloat() * 122.0f * (r.nextBool() ? 1.0f : -1.0f));
 
 
 		CREATE_TYPED_TEST(getTestFunction<double>("return Math.sin(input);"))

@@ -89,8 +89,8 @@ template <typename T> struct FloatingTypeBlock
 	}
 
 	FloatingTypeBlock(T* d, int numSamples) :
-		data(d),
-		size_(numSamples)
+		size_(numSamples),
+        data(d)
 	{}
 
 	void referTo(const FloatingTypeBlock& other)
