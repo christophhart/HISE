@@ -215,7 +215,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "        <MODULEPATH id=\"hi_snex\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </XCODE_IPHONE>\r\n"
-"    <LINUX_MAKE targetFolder=\"Builds/LinuxMakefile\" vstLegacyFolder=\"%VSTSDK_FOLDER%\" extraDefs=\"%PLUGIN_CHANNEL_AMOUNT%\" linuxExtraPkgConfig=\"%LINUX_GUI_LIBS%\">\r\n"
+"    <LINUX_MAKE targetFolder=\"Builds/LinuxMakefile\" vstLegacyFolder=\"%VSTSDK_FOLDER%\" extraDefs=\"%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_LINUX%\" linuxExtraPkgConfig=\"%LINUX_GUI_LIBS%\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" isDebug=\"1\" optimisation=\"1\" linkTimeOptimisation=\"0\"\r\n"
 "                       targetName=\"%NAME%\" defines=\"USE_IPP=0\"/>\r\n"

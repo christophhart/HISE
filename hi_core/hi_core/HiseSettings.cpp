@@ -81,6 +81,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(ExtraDefinitionsWindows);
 	ids.add(ExtraDefinitionsOSX);
 	ids.add(ExtraDefinitionsIOS);
+    ids.add(ExtraDefinitionsLinux);
 	ids.add(AppGroupID);
 	ids.add(RedirectSampleFolder);
 	ids.add(AAXCategoryFX);
@@ -248,7 +249,7 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		P_();
 
 		P(HiseSettings::Project::ExtraDefinitionsWindows);
-		D("This field can be used to add preprocessor definitions. Use it to tailor the compile options for HISE for the project.");
+		D("This field can be used to add preprocessor definitions for Windows builds. Use it to tailor the compile options for HISE for the project.");
 		D("#### Examples");
 		D("```javascript");
 		D("ENABLE_ALL_PEAK_METERS=0");
@@ -256,8 +257,17 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("```\n");
 		P_();
 
+        P(HiseSettings::Project::ExtraDefinitionsLinux);
+        D("This field can be used to add preprocessor definitions  for Linux builds. Use it to tailor the compile options for HISE for the project.");
+        D("#### Examples");
+        D("```javascript");
+        D("ENABLE_ALL_PEAK_METERS=0");
+        D("NUM_POLYPHONIC_VOICES=100");
+        D("```\n");
+        P_();
+        
 		P(HiseSettings::Project::ExtraDefinitionsOSX);
-		D("This field can be used to add preprocessor definitions. Use it to tailor the compile options for HISE for the project.");
+		D("This field can be used to add preprocessor definitions for macOS builds. Use it to tailor the compile options for HISE for the project.");
 		D("#### Examples");
 		D("```javascript");
 		D("ENABLE_ALL_PEAK_METERS=0");
@@ -266,7 +276,7 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		P_();
 
 		P(HiseSettings::Project::ExtraDefinitionsIOS);
-		D("This field can be used to add preprocessor definitions. Use it to tailor the compile options for HISE for the project.");
+		D("This field can be used to add preprocessor definitions for iOS builds. Use it to tailor the compile options for HISE for the project.");
 		D("#### Examples");
 		D("```javascript");
 		D("ENABLE_ALL_PEAK_METERS=0");
