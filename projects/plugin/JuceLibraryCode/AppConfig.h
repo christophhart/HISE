@@ -59,6 +59,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_modules                    1
 #define JUCE_MODULE_AVAILABLE_hi_sampler                    1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                  1
+#define JUCE_MODULE_AVAILABLE_hi_snex                       1
 #define JUCE_MODULE_AVAILABLE_hi_streaming                  1
 #define JUCE_MODULE_AVAILABLE_hi_tools                      1
 #define JUCE_MODULE_AVAILABLE_hi_zstd                       1

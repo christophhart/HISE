@@ -107,6 +107,7 @@
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
         <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
@@ -186,6 +187,7 @@
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
         <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="" linuxExtraPkgConfig="x11 xinerama xext">
@@ -224,6 +226,7 @@
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
         <MODULEPATH id="stk_wrapper" path="../../../HISE modules"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -237,6 +240,7 @@
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
