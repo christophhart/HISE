@@ -302,6 +302,7 @@ private:
 	
 	double lastSampleRate = 0.0;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CurveEq);
 };
 
 } // namespace hise

@@ -325,6 +325,18 @@ public:
 		return controller;
 	};
 
+	/** Traverses the component hierarchy and returns the main controller from one of its parents. */
+	static MainController* getMainControllerFromParent(Component* c)
+	{
+		if (auto co = c->findParentComponentOfClass<ControlledObject>())
+		{
+			return co->getMainController();
+		}
+
+		jassertfalse;
+		return nullptr;
+	}
+
 	/** Provides write access to the main controller. Use this if you want to make changes. */
 	MainController *getMainController() noexcept
 	{

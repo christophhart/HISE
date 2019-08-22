@@ -52,6 +52,8 @@ public:
 
 	String getEmailAdress() const;
 
+	String getMachineId() const;
+
 	var isValidMachine(const String& machineId) const;
 
 	static void showActivationWindow(Component* overlay);

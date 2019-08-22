@@ -598,4 +598,5 @@ void FilterGraph::mouseMove (const MouseEvent &)
     }
 }
 
+
 } // namespace hise

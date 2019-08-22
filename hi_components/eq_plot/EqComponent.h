@@ -236,30 +236,145 @@ protected:
 	AudioSampleBuffer fftBuffer;
 };
 
-//==============================================================================
-class EqComponent   : public Component,
-							   public SliderListener
+class CurveEq;
+
+
+class FilterDragOverlay : public Component,
+	public SettableTooltipClient,
+	public SafeChangeListener,
+	public Timer
 {
 public:
-    //==============================================================================
-    EqComponent(ModulatorSynth *ownerSynth);
-    ~EqComponent();
 
-	void sliderValueChanged (Slider* sliderThatWasMoved);
-    void paint (Graphics&);
-    void resized();
+	struct Factory : public PathFactory
+	{
+		String getId() const override { return "FilterIcons"; }
+
+		Path createPath(const String& url) const override;
+
+	};
+
+	enum ColourIds
+	{
+		bgColour = 125160,
+		textColour
+	};
+
+	struct Panel;
+
+	int offset = 12;
+
+	struct Listener
+	{
+		virtual ~Listener() {};
+
+		virtual void bandRemoved(int index) = 0;
+
+		virtual void filterBandSelected(int index) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ = false);
+	~FilterDragOverlay();
+
+	void changeListenerCallback(SafeChangeBroadcaster *b) override;
+	void checkEnabledBands();
+
+	void timerCallback() override;
+	void resized() override;
+	void paint(Graphics &g);
+
+	void mouseMove(const MouseEvent &e);
+	void mouseDown(const MouseEvent &e);
+	void mouseDrag(const MouseEvent &e) override;
+	void mouseUp(const MouseEvent& e);
+
+	void addFilterDragger(int index);
+	void updateFilters();
+	void updateCoefficients();
+	void addFilterToGraph(int filterIndex, int filterType);
+	void updatePositions(bool forceUpdate);
+	Point<int> getPosition(int index);
+
+	Font font;
+	bool isInFloatingTile = false;
+	ScopedPointer<LookAndFeel> plaf;
+
+	class FilterDragComponent : public Component
+	{
+	public:
+
+		FilterDragComponent(FilterDragOverlay& parent_, int index_);;
+
+		void setConstrainer(ComponentBoundsConstrainer *constrainer_);;
+
+		void mouseDown(const MouseEvent& e);
+		void mouseUp(const MouseEvent& e);
+		void mouseDrag(const MouseEvent& e);
+		void mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &d) override;
+		void setSelected(bool shouldBeSelected);
+		void paint(Graphics &g);;
+		void setIndex(int newIndex);;
+
+	private:
+
+		bool draggin = false;
+
+		int index;
+
+		bool selected;
+
+		ComponentBoundsConstrainer *constrainer;
+		ComponentDragger dragger;
+		FilterDragOverlay& parent;
+	};
+
+	void removeFilter(int index);
+
+	double getGain(int y);
+
+	void selectDragger(int index);
+	void addListener(Listener* l);
+	void removeListener(Listener* l);
 
 private:
-    //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EqComponent)
 
-	ScopedPointer<FilterGraph> f;
-	ScopedPointer<Slider> gainSlider;
-    ScopedPointer<Slider> freqSlider;
-    ScopedPointer<Slider> qSlider;
+	CurveEq *eq;
+	int numFilters = 0;
 
-	WeakReference<ModulatorSynth> owner;
+public:
 
+
+	struct FFTDisplay : public Component,
+		public FFTDisplayBase
+	{
+		FFTDisplay(FilterDragOverlay& parent_);;
+
+		void paint(Graphics& g) override;
+		double getSamplerate() const override;
+		Colour getColourForAnalyserBase(int colourId);
+
+		FilterDragOverlay& parent;
+	} fftAnalyser;
+
+	FilterGraph filterGraph;
+
+private:
+
+	
+
+	
+
+	Array<WeakReference<Listener>> listeners;
+
+	UpdateMerger repaintUpdater;
+
+	int selectedIndex;
+
+	ScopedPointer<ComponentBoundsConstrainer> constrainer;
+
+	OwnedArray<FilterDragComponent> dragComponents;
 };
 
 } // namespace hise;

@@ -245,6 +245,7 @@ TP void EFFECT_WRAPPER::process(ProcessData& d)
 	float frameData[ChannelAmount];
 
 	ProcessData copy(ch, ChannelAmount, d.size);
+	copy.allowPointerModification();
 
 	for (int i = 0; i < d.size; i++)
 	{

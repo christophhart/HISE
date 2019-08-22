@@ -255,6 +255,8 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilterGraph)
 };
 
+
+
 } // namespace hise
 
 #endif  // __FILTERGRAPH_H_3CCF0ED1__
