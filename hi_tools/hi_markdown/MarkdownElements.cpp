@@ -537,7 +537,7 @@ struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 		{
 			area.removeFromTop(bulletMargin);
 			auto ar = area.removeFromTop(r.l.getHeight());
-			auto font = FontHelpers::getFontBoldened(parent->styleData.getFont());
+			auto font = parent->styleData.getBoldFont();
 			
 			String bp;
 			bp << rowIndex++ << ".";

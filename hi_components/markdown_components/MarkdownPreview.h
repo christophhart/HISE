@@ -1317,7 +1317,7 @@ public:
 				auto intendation = getItemPosition(false).getX();
 				
 				const auto& s = previewParent.internalComponent.styleData;
-				auto f = FontHelpers::getFontBoldened(s.getFont().withHeight(16.0f));
+				auto f = s.getBoldFont().withHeight(16.0f);
 
 				int thisWidth = intendation + f.getStringWidth(item.tocString) + 30;   
 				
@@ -1360,7 +1360,7 @@ public:
 
 				g.setColour(Colours::white.withAlpha(0.8f));
 
-				auto f = FontHelpers::getFontBoldened(s.getFont().withHeight(16.0f));
+				auto f = s.getBoldFont().withHeight(16.0f);
 
 				g.setFont(f);
 

@@ -46,6 +46,7 @@ struct MarkdownLayout
 		StyleData();
 
 		Font f;
+		Font boldFont;
 		float fontSize;
 		Colour codebackgroundColour;
 		Colour linkBackgroundColour;
@@ -54,6 +55,7 @@ struct MarkdownLayout
 		Colour linkColour;
 		Colour headlineColour;
 		Colour backgroundColour;
+		bool useSpecialBoldFont = false;
 
 		static StyleData createBrightStyle()
 		{
@@ -70,6 +72,14 @@ struct MarkdownLayout
 		static StyleData createDarkStyle()
 		{
 			return {};
+		}
+
+		Font getBoldFont() const
+		{
+			if (useSpecialBoldFont)
+				return boldFont;
+
+			else return FontHelpers::getFontBoldened(getFont());
 		}
 
 		Font getFont() const { return f.withHeight(fontSize); }

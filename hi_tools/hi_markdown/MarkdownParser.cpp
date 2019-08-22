@@ -106,9 +106,7 @@ void MarkdownParser::parseHeadline()
 	if (headlineLevel == 4)
 		fontSize = 1.2f * styleData.fontSize;
 
-	currentFont = styleData.f.withHeight(fontSize);
-
-	currentFont = FontHelpers::getFontBoldened(currentFont);
+	currentFont = styleData.getBoldFont().withHeight(fontSize);
 
 	String imageURL;
 
@@ -237,7 +235,7 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 					float size = currentFont.getHeight();
 
 					if (isBold)
-						currentFont = FontHelpers::getFontBoldened(styleData.getFont().withHeight(size));
+						currentFont = styleData.getBoldFont().withHeight(size);
 					else
 						currentFont = styleData.getFont().withHeight(size);
 				}
@@ -624,7 +622,7 @@ void MarkdownParser::parseTable()
 		else
 		{
 			parseText();
-			currentlyParsedBlock.setFont(FontHelpers::getFontBoldened(styleData.getFont()));
+			currentlyParsedBlock.setFont(styleData.getBoldFont());
 			newCell.s = currentlyParsedBlock;
 		}
 
@@ -848,9 +846,7 @@ void MarkdownParser::parseMarkdownHeader()
 	{
 		AttributedString s;
 
-		auto f = styleData.f.withHeight(styleData.fontSize * 3 / 2 + 7 * 3);
-
-		f = FontHelpers::getFontBoldened(f);
+		auto f = styleData.getBoldFont().withHeight(styleData.fontSize * 3 / 2 + 7 * 3);
 
 		s.append(headline, f, styleData.headlineColour);
 
