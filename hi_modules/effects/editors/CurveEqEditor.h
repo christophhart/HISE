@@ -90,7 +90,7 @@ public:
 	{
 		Path path;
 
-		Factory f;
+        FilterDragOverlay::Factory f;
 
 		addAndMakeVisible(lowPassButton = new ShapeButton("Low Pass", Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.7f), Colours::white));
 		lowPassButton->setShape(f.createPath("Low Pass"), true, true, true);
