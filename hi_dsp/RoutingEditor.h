@@ -87,6 +87,9 @@ public:
 
 	void timerCallback() override
 	{
+		if (processor.get() == nullptr)
+			return;
+
 		for (int i = 0; i < sourceChannels.size(); i++)
 		{
 			sourceChannels[i]->setGainValue(data->getGainValue(i, true) * 2.0f);

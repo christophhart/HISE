@@ -99,6 +99,8 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 		lPath.startNewSubPath(0.0f, (float)asComponent->getHeight());
 		//lPath.lineTo(0.0f, -1.0f);
 
+		if (sampleRate == 0.0)
+			sampleRate = 44100.0;
 
 		int log10Offset = (int)(10.0 / (sampleRate * 0.5) * (double)size + 1.0);
 

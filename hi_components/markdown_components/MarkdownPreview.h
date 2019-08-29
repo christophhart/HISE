@@ -44,6 +44,14 @@ class DocUpdater : public DialogWindowWithBackgroundThread,
 {
 public:
 
+	enum CacheURLType
+	{
+		Hash,
+		Content,
+		Images,
+		numCacheURLTypes
+	};
+
 	enum DownloadResult
 	{
 		NotExecuted =       0b0000,
@@ -107,6 +115,10 @@ public:
 
 	}
 	
+	URL getCacheUrl(CacheURLType type) const;
+
+	URL getBaseURL() const;
+
 	void createLocalHtmlFiles();
 
 	void downloadAndTestFile(const String& targetFileName);

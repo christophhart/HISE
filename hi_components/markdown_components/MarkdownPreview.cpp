@@ -804,9 +804,7 @@ void DocUpdater::updateFromServer()
 {
 	showStatusMessage("Fetching hash from server");
 
-	URL base("http://hise.audio/manual/");
-	
-	auto hashURL = base.getChildURL("hash.json");
+	auto hashURL = getCacheUrl(Hash);
 
 	setTimeoutMs(-1);
 	auto content = hashURL.readEntireTextStream(false);
@@ -866,6 +864,24 @@ void DocUpdater::updateFromServer()
 	holder.rebuildDatabase();
 }
 
+juce::URL DocUpdater::getCacheUrl(CacheURLType type) const
+{
+	switch (type)
+	{
+	case Hash:		return getBaseURL().getChildURL("cache/hash.json");
+	case Content:	return getBaseURL().getChildURL("cache/content.dat");
+	case Images:	return getBaseURL().getChildURL("cache/images.dat");
+	default:
+		jassertfalse;
+		return {};
+	}
+}
+
+juce::URL DocUpdater::getBaseURL() const
+{
+	return URL("https://docs.hise.audio/");
+}
+
 void DocUpdater::createLocalHtmlFiles()
 {
 	showStatusMessage("Create local HTML files");
@@ -880,7 +896,7 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 
 	showStatusMessage("Downloading " + targetFileName);
 
-	auto contentURL = base.getChildURL(targetFileName);
+	auto contentURL = getBaseURL().getChildURL("cache/" + targetFileName);
 
 	auto realFile = holder.getCachedDocFolder().getChildFile(targetFileName);
 	auto tmpFile = realFile.getSiblingFile("temp.dat");
