@@ -371,6 +371,8 @@ void MarkdownPreview::InternalComponent::markdownWasParsed(const Result& r)
 
 void MarkdownPreview::InternalComponent::mouseDown(const MouseEvent& e)
 {
+	parent.currentSearchResults = nullptr;
+
 	if (renderer.navigateFromXButtons(e))
 		return;
 
@@ -537,7 +539,7 @@ juce::Path MarkdownPreview::Topbar::TopbarPaths::createPath(const String& id) co
 
 	LOAD_PATH_IF_URL("back", EditorIcons::backIcon);
 	LOAD_PATH_IF_URL("forward", EditorIcons::forwardIcon);
-	LOAD_PATH_IF_URL("search", EditorIcons::searchIcon);
+	LOAD_PATH_IF_URL("search", EditorIcons::searchIcon2);
 	LOAD_PATH_IF_URL("home", MainToolbarIcons::home);
 	
 	LOAD_PATH_IF_URL("drag", EditorIcons::dragIcon);
@@ -767,8 +769,6 @@ void DocUpdater::addForumLinks()
 
 	auto v = JSON::parse(response);
 
-	
-
 	int numFound = 0;
 
 	if (auto postList = v.getProperty("topics", {}).getArray())
@@ -979,6 +979,70 @@ void MarkdownPreview::Topbar::databaseWasRebuild()
 		MessageManager::callAsync(f);
 
 	}
+}
+
+void MarkdownPreview::Topbar::labelTextChanged(Label* labelThatHasChanged)
+{
+	if (labelThatHasChanged->getText().startsWith("/"))
+	{
+		MarkdownLink l(parent.getHolder().getDatabaseRootDirectory(), labelThatHasChanged->getText());
+		parent.renderer.gotoLink(l);
+	}
+}
+
+void MarkdownPreview::Topbar::textEditorTextChanged(TextEditor& ed)
+{
+	if (parent.currentSearchResults != nullptr)
+	{
+		parent.currentSearchResults->setSearchString(ed.getText());
+	}
+}
+
+void MarkdownPreview::Topbar::editorShown(Label*, TextEditor& ed)
+{
+	ed.addListener(this);
+	ed.addKeyListener(this);
+	ed.addMouseListener(this, true);
+	showPopup();
+}
+
+void MarkdownPreview::Topbar::showPopup()
+{
+	if (parent.currentSearchResults == nullptr)
+	{
+		parent.addAndMakeVisible(parent.currentSearchResults = new SearchResults(*this));
+
+		
+
+		auto bl = searchBar.getBounds().getBottomLeft();
+
+		auto tl = parent.getLocalPoint(this, bl);
+
+		parent.currentSearchResults->setSize(searchBar.getWidth(), 24);
+		parent.currentSearchResults->setTopLeftPosition(tl);
+		
+		parent.currentSearchResults->setSearchString(searchBar.getText(true));
+		parent.currentSearchResults->timerCallback();
+
+		parent.currentSearchResults->grabKeyboardFocus();
+
+
+	}
+}
+
+void MarkdownPreview::Topbar::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel)
+{
+	jassertfalse;
+}
+
+void MarkdownPreview::Topbar::textEditorEscapeKeyPressed(TextEditor&)
+{
+	parent.currentSearchResults = nullptr;
+}
+
+void MarkdownPreview::Topbar::editorHidden(Label*, TextEditor& ed)
+{
+	ed.removeListener(this);
 }
 
 }

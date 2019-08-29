@@ -262,6 +262,8 @@ public:
 
 	void mouseDown(const MouseEvent& e) override
 	{
+		currentSearchResults = nullptr;
+
 		if (renderer.navigateFromXButtons(e))
 			return;
 
@@ -492,7 +494,6 @@ public:
 					repaint();
 				}
 
-
 				void mouseDown(const MouseEvent& e) override
 				{
 					down = true;
@@ -507,17 +508,10 @@ public:
 						auto mp = findParentComponentOfClass<MarkdownPreview>();
 						mp->addEditingMenuItems(m);
 
-						
-
-						
-
 						int result = m.show();
 
 						if (mp->performPopupMenuForEditingIcons(result, item.url))
 							return;
-
-						
-
 					}
 				}
 
@@ -541,12 +535,10 @@ public:
 
 				void mouseUp(const MouseEvent& e) override
 				{
-					
-
 					down = false;
 					repaint();
 
-					if(!e.mods.isRightButtonDown())
+					if(!e.mouseWasDraggedSinceMouseDown())
 						gotoLink();
 				}
 
@@ -640,7 +632,7 @@ public:
 				textSearchResults.setFont(parent.parent.internalComponent.styleData.getFont());
 				addAndMakeVisible(viewport);
 				viewport.setViewedComponent(&content, false);
-				
+				viewport.setScrollOnDragEnabled(true);
 				shadower.setOwner(this);
 			}
 
@@ -953,55 +945,19 @@ public:
 				File lastFile;
 			};
 
-			void labelTextChanged(Label* labelThatHasChanged) override
-			{
-				if (labelThatHasChanged->getText().startsWith("/"))
-				{
-					MarkdownLink l(parent.getHolder().getDatabaseRootDirectory(), labelThatHasChanged->getText());
-					parent.renderer.gotoLink(l);
-				}
-			}
+			void labelTextChanged(Label* labelThatHasChanged) override;
 
-			void textEditorTextChanged(TextEditor& ed)
-			{
-				if (parent.currentSearchResults != nullptr)
-				{
-					parent.currentSearchResults->setSearchString(ed.getText());
-				}
-			}
+			void textEditorTextChanged(TextEditor& ed);
 
-			void editorShown(Label* , TextEditor& ed) override
-			{
-				ed.addListener(this);
-				ed.addKeyListener(this);
-				showPopup();
-			}
+			void editorShown(Label* , TextEditor& ed) override;
 
-			void showPopup()
-			{
-				if (parent.currentSearchResults == nullptr)
-				{
-					parent.addAndMakeVisible(parent.currentSearchResults = new SearchResults(*this));
+			void showPopup();
 
-					auto bl = searchBar.getBounds().getBottomLeft();
+			void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
 
-					auto tl = parent.getLocalPoint(this, bl);
+			void textEditorEscapeKeyPressed(TextEditor&);
 
-					parent.currentSearchResults->setSize(searchBar.getWidth(), 24);
-					parent.currentSearchResults->setTopLeftPosition(tl);
-					parent.currentSearchResults->grabKeyboardFocus();
-				}
-			}
-
-			void textEditorEscapeKeyPressed(TextEditor&)
-			{
-				parent.currentSearchResults = nullptr;
-			}
-
-			void editorHidden(Label*, TextEditor& ed) override
-			{
-				ed.removeListener(this);
-			}
+			void editorHidden(Label*, TextEditor& ed) override;
 
 			void updateNavigationButtons()
 			{
@@ -1238,6 +1194,8 @@ public:
 					return &previewParent.renderer;
 				}
 
+				
+
 				Item* selectIfURLMatches(const MarkdownLink& url)
 				{
 					if (item.url == url)
@@ -1358,9 +1316,10 @@ public:
 					g.fillRoundedRectangle(area, 2.0f);
 				}
 
-				auto r = area.removeFromLeft(3.0f);
+				auto r = area.removeFromLeft(3.0f).reduced(0.0f, 1.0f);
 
 				area.removeFromLeft(5.0f);
+				
 
 				const auto& s = previewParent.internalComponent.styleData;
 
@@ -1423,6 +1382,7 @@ public:
 				if (auto t = dynamic_cast<Item*>(tree.getRootItem())->selectIfURLMatches(l))
 				{
 					t->setSelected(true, true);
+					t->setOpen(true);
 					tree.scrollToKeepItemVisible(t);
 				}
 			}

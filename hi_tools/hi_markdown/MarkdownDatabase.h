@@ -339,7 +339,7 @@ public:
 
 	void clear()
 	{
-		discussions.clear();
+		//discussions.clear();
 		itemGenerators.clear();
 		cachedFlatList.clear();
         rootDirectory = File();

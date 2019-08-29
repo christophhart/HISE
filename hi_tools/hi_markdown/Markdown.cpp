@@ -207,11 +207,35 @@ hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const Mouse
 			auto translatedPoint = event.getPosition().toFloat();
 			translatedPoint.addXY(eBounds.getX(), -eBounds.getY());
 
+			Array<HyperLink> matches;
+
 			for (auto& h : e->hyperLinks)
 			{
 				if (h.area.contains(translatedPoint))
-					return h;
+					matches.add(h);
 			}
+
+			if (!matches.isEmpty())
+			{
+				if (matches.size() == 1)
+					return matches.getFirst();
+				else
+				{
+					Array<float> areas;
+					float minArea = 12000001250.0f;
+
+					for (auto& m : matches)
+					{
+						areas.add(m.area.getWidth() * m.area.getHeight());
+						minArea = jmin(minArea, areas.getLast());
+					}
+
+					int index = areas.indexOf(minArea);
+
+					return matches[index];
+				}
+			}
+			
 		}
 
 		y += eBounds.getHeight();
