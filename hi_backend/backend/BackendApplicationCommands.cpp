@@ -1574,7 +1574,7 @@ void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWind
 {
 	auto mbw = dynamic_cast<ModalBaseWindow*>(bpe);
 
-	auto exporter = new SampleDataExporter(mbw);
+	auto exporter = new SampleDataExporter(bpe->getMainController());
 
 	exporter->setModalBaseWindowComponent(bpe->mainEditor);
 }
