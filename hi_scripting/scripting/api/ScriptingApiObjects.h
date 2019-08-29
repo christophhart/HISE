@@ -458,7 +458,7 @@ public:
 		ScriptingMessageHolder(ProcessorWithScriptingContent* content);
 		~ScriptingMessageHolder() {};
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Message"); }
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MessageHolder"); }
 
 		String getDebugName() const override { return "MessageHolder"; };
 		String getDebugValue() const override { return dump(); };
@@ -495,6 +495,9 @@ public:
 
 		/** Changes the controller value (range 0 - 127). */
 		void setControllerValue(int newControllerValue);
+
+		/** Sets the type of the event. */
+		void setType(int type);
 
 		/** Returns the Velocity. */
 		int getVelocity() const;
@@ -1250,6 +1253,12 @@ public:
 
 		/** Writes the given array of MessageHolder objects into the current sequence. This is undoable. */
 		void flushMessageList(var messageList);
+
+		/** Creates an empty sequence with the given length. */
+		void create(int nominator, int denominator, int barLength);
+
+		/** Checks if the MIDI player contains a sequence to read / write. */
+		bool isEmpty() const;
 
 		/** Resets the current sequence to the last loaded file. */
 		void reset();

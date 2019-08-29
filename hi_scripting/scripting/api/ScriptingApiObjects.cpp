@@ -3176,6 +3176,7 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, ignoreEvent);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getEventId);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getChannel);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setType);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setChannel);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setTransposeAmount);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getTransposeAmount);
@@ -3210,6 +3211,7 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	ADD_API_METHOD_1(setChannel);
 	ADD_API_METHOD_0(getGain);
 	ADD_API_METHOD_1(setGain);
+	ADD_API_METHOD_1(setType);
 	ADD_API_METHOD_1(setTransposeAmount);
 	ADD_API_METHOD_0(getTransposeAmount);
 	ADD_API_METHOD_1(setCoarseDetune);
@@ -3236,6 +3238,7 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	addConstant("VolumeFade", 10);
 	addConstant("PitchFade", 11);
 	addConstant("TimerEvent", 12);
+	addConstant("ProgramChange", 13);
 }
 
 int ScriptingObjects::ScriptingMessageHolder::getNoteNumber() const { return (int)e.getNoteNumber(); }
@@ -3247,6 +3250,15 @@ void ScriptingObjects::ScriptingMessageHolder::setNoteNumber(int newNoteNumber) 
 void ScriptingObjects::ScriptingMessageHolder::setVelocity(int newVelocity) { e.setVelocity((uint8)newVelocity); }
 void ScriptingObjects::ScriptingMessageHolder::setControllerNumber(int newControllerNumber) { e.setControllerNumber(newControllerNumber);}
 void ScriptingObjects::ScriptingMessageHolder::setControllerValue(int newControllerValue) { e.setControllerValue(newControllerValue); }
+
+void ScriptingObjects::ScriptingMessageHolder::setType(int type)
+{
+	if(isPositiveAndBelow(type, (int)HiseEvent::Type::numTypes))
+		e.setType((HiseEvent::Type)type);
+	else
+		reportScriptError("Unknown Type: " + String(type));
+}
+
 int ScriptingObjects::ScriptingMessageHolder::getVelocity() const { return e.getVelocity(); }
 void ScriptingObjects::ScriptingMessageHolder::ignoreEvent(bool shouldBeIgnored /*= true*/) { e.ignoreEvent(shouldBeIgnored); }
 int ScriptingObjects::ScriptingMessageHolder::getEventId() const { return (int)e.getEventId(); }
@@ -3466,6 +3478,8 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, record);
 	API_METHOD_WRAPPER_3(ScriptedMidiPlayer, setFile);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTrack);
+	API_VOID_METHOD_WRAPPER_3(ScriptedMidiPlayer, create);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, isEmpty);
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
@@ -3488,6 +3502,8 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_3(setFile);
 	ADD_API_METHOD_2(saveAsMidiFile);
 	ADD_API_METHOD_1(setTrack);
+	ADD_API_METHOD_0(isEmpty);
+	ADD_API_METHOD_3(create);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -3651,6 +3667,25 @@ void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
 	}
 	else
 		reportScriptError("Input is not an array");
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::create(int nominator, int denominator, int barLength)
+{
+	HiseMidiSequence::TimeSignature sig;
+
+	sig.nominator = nominator;
+	sig.denominator = denominator;
+	sig.numBars = barLength;
+	sig.normalisedLoopRange = { 0.0, 1.0 };
+	
+	HiseMidiSequence::Ptr seq = new HiseMidiSequence();
+	seq->setLengthFromTimeSignature(sig);
+	getPlayer()->addSequence(seq);
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::isEmpty() const
+{
+	return !sequenceValid();
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::reset()
