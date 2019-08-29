@@ -67,6 +67,9 @@ public:
 
 	void timerCallback() override
 	{
+		if (this->getObject() == nullptr)
+			return;
+
 		meter.setPeak((float)this->getObject()->modValue.getCurrentOrFirst().getModValue());
 	}
 

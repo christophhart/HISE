@@ -56,7 +56,7 @@ public:
 			extraWidth = extraComponent->getWidth();
 	}
 
-	void updateSliders(ValueTree v, bool )
+	void updateSliders(ValueTree , bool )
 	{
 		sliders.clear();
 

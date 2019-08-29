@@ -552,7 +552,7 @@ void ItemGenerator::addNodeItem(ValueTree nodeTree, MarkdownDataBase::Item& fact
 	nItem.url.setType(MarkdownLink::Type::MarkdownFile);
 	nItem.tocString = id;
 	
-	nItem.c = Colours::blue;
+	nItem.c = Colour(CommonData::colour);
 	nItem.keywords = { path, id };
 
 	factory.addChild(std::move(nItem));

@@ -49,6 +49,9 @@ struct SendBaseComponent : public HiseDspBase::ExtraComponent<SendBase>
 
 	void timerCallback() override
 	{
+		if (getObject() == nullptr)
+			return;
+
 		if (lastOK != getObject()->isConnected() || lastColour != getObject()->getColour())
 		{
 			lastOK = getObject()->isConnected();

@@ -291,7 +291,7 @@ juce::String MarkdownLink::getNameFromHeader() const
 
 MarkdownLink MarkdownLink::getChildUrl(const String& childName, bool asAnchor) const
 {
-	return MarkdownLink({}, toString(UrlFull)).getChildUrlWithRoot(childName, asAnchor);
+	return MarkdownLink(root, toString(UrlFull)).getChildUrlWithRoot(childName, asAnchor);
 }
 
 MarkdownLink MarkdownLink::getChildUrlWithRoot(const String& childName, bool asAnchor /*= false*/) const

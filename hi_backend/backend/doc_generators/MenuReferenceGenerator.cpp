@@ -189,14 +189,16 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenuReference(MarkdownDataB
 
 void MenuReferenceDocGenerator::ItemGenerator::createMenu(MarkdownDataBase::Item& parent, const String& menuName)
 {
-
 	MarkdownDataBase::Item menuItem;
-	menuItem.c = parent.c;
-	menuItem.tocString = menuName;
 	menuItem.url = parent.url.getChildUrl(menuName);
 	menuItem.url.setType(MarkdownLink::Folder);
+	menuItem.fillMetadataFromURL();
+	menuItem.c = parent.c;
+	menuItem.tocString = menuName;
 	menuItem.keywords.add(menuName);
 	
+	
+
 	data->createMenuCommandInfos();
 
 	for (const auto& info : data->commandInfos)

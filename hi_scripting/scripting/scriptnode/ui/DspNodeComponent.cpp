@@ -42,6 +42,7 @@ DefaultParameterNodeComponent::DefaultParameterNodeComponent(NodeBase* node) :
 	parameterListener.setCallback(node->getParameterTree(), valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(DefaultParameterNodeComponent::updateSliders));
 
+	updateSliders(node->getParameterTree(), false);
 }
 
 
