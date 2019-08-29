@@ -64,6 +64,9 @@ struct tempo_sync::TempoDisplay: public ModulationSourceBaseComponent
 
 	void timerCallback() override
 	{
+		if (p == nullptr)
+			return;
+
 		auto thisValue = p->currentTempoMilliseconds;
 
 		if (thisValue != lastValue)
@@ -84,7 +87,7 @@ struct tempo_sync::TempoDisplay: public ModulationSourceBaseComponent
 	}
 
 	double lastValue = 0.0;
-	tempo_sync* p;
+	WeakReference<tempo_sync> p;
 };
 
 
@@ -337,6 +340,9 @@ template <int NV> struct OscDisplay : public HiseDspBase::ExtraComponent<oscilla
 
 	void timerCallback() override
 	{
+		if (this->getObject() == nullptr)
+			return;
+
 		auto thisMode = this->getObject()->currentMode;
 
 		if (currentMode != thisMode)

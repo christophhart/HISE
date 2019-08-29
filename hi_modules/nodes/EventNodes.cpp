@@ -207,6 +207,9 @@ public:
 
 	void timerCallback() override
 	{
+		if (this->getObject() == nullptr)
+			return;
+
 		float lastAlpha = alpha;
 
 		if (this->getObject()->ui_led)

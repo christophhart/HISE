@@ -99,6 +99,8 @@ public:
 	TempoSyncer::Tempo currentTempo = TempoSyncer::Tempo::Eighth;
 
 	MainController* mc = nullptr;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(tempo_sync);
 };
 
 class peak : public HiseDspBase
