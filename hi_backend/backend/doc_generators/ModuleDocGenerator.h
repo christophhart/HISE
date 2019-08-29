@@ -86,7 +86,7 @@ namespace HiseModuleDatabase
 			ItemGeneratorBase(root_)
 		{
 			data->bp = &bp;
-			colour = Colour(0xFFb53038);
+			colour = Colour(0xFF1088CC);
 		}
 
 		~ItemGenerator()
@@ -153,7 +153,7 @@ using namespace hise;
 
 struct CommonData
 {
-	
+	static constexpr uint32 colour = 0xFFF15761;
 
 	ScopedPointer<SineSynth> sine;
 	WeakReference<DspNetwork> network;

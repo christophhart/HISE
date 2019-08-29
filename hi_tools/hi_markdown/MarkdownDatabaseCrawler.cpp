@@ -61,7 +61,7 @@ juce::Image DatabaseCrawler::Provider::findImageRecursive(ValueTree& t, const Ma
 {
 	auto thisURL = t.getProperty("URL").toString();
 
-	if (thisURL == url.toString(MarkdownLink::Everything))
+	if (thisURL == url.toString(MarkdownLink::UrlFull))
 	{
 		if (url.getType() == MarkdownLink::SVGImage)
 		{

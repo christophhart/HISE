@@ -3,7 +3,7 @@
 <JUCERPROJECT id="eTCSnn" name="CppBuilder" displaySplashScreen="0" reportAppUsage="1"
               splashScreenColour="Dark" projectType="consoleapp" version="1.0.0"
               bundleIdentifier="com.yourcompany.CppBuilder" includeBinaryInAppConfig="1"
-              cppLanguageStandard="11" companyCopyright="" jucerVersion="5.2.0">
+              cppLanguageStandard="11" companyCopyright="" jucerVersion="5.4.3">
   <MAINGROUP id="Uf0piC" name="CppBuilder">
     <GROUP id="{97755D09-53FC-7EB3-D48D-D7B67A1D9AE7}" name="Source">
       <FILE id="PHmmDR" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
@@ -32,4 +32,7 @@
     <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <JUCEOPTIONS/>
+  <LIVE_SETTINGS>
+    <WINDOWS/>
+  </LIVE_SETTINGS>
 </JUCERPROJECT>

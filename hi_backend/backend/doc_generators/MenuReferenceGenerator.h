@@ -123,7 +123,7 @@ namespace MenuReferenceDocGenerator
 			CommonData(root)
 		{
 			data->bp = dynamic_cast<BackendProcessor*>(&holder);
-			colour = Colour(0xFFaca3dd);
+			colour = Colour(0xFF73CF8F);
 		};
 
 		void createMenuReference(MarkdownDataBase::Item& parent);

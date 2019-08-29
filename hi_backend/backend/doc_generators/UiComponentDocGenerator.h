@@ -85,7 +85,7 @@ namespace UIComponentDatabase
 			holder(holder_)
 		{
 			d->init(dynamic_cast<BackendProcessor*>(&holder));
-			colour = Colour(0xFF136faa);
+			colour = Colour(0xFF9064FF);
 		}
 
 		MarkdownDataBase::Item createRootItem(MarkdownDataBase& parent) override;

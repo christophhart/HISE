@@ -64,7 +64,7 @@ namespace ScriptingApiDatabase
 		  rootUrl(rootFile_, apiWildcard),
 		  holder(holder_)
 		{
-			colour = Colour(0xFF6bc77e);
+			colour = Colour(0xFFD557D9);
 		}
 
 		MarkdownDataBase::Item createRootItem(MarkdownDataBase& parent) override;

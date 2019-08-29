@@ -481,13 +481,21 @@ ItemGenerator::ItemGenerator(File r, BackendProcessor& bp):
 }
 
 
-hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& )
+hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& parent)
 {
 	MarkdownDataBase::Item root;
 	root.url = MarkdownLink(rootDirectory, getWildcard());
+	root.fillMetadataFromURL();
 	root.keywords = { "ScriptNode" };
 	root.tocString = "ScriptNode";
-	root.c = Colours::blue;
+	root.c = Colour(CommonData::colour);
+
+	MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/manual"), root.c);
+
+	auto manual = mgen.createRootItem(parent);
+	manual.fillMetadataFromURL();
+
+	root.addChild(std::move(manual));
 
 	auto list = data->network->getListOfAvailableModulesAsTree();
 
@@ -495,7 +503,7 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& )
 	lItem.url = root.url.getChildUrl("list");
 	lItem.url.setType(MarkdownLink::Folder);
 	lItem.tocString = "List of Nodes";
-	lItem.c = Colours::blue;
+	lItem.c = root.c;
 
 	for (auto f : list)
 	{
@@ -516,7 +524,7 @@ void ItemGenerator::addNodeFactoryItem(ValueTree factoryTree, MarkdownDataBase::
 	fItem.url.setType(MarkdownLink::Type::Folder);
 	fItem.tocString = factoryTree[PropertyIds::ID].toString();
 
-	fItem.c = Colours::blue;
+	fItem.c = Colour(CommonData::colour);
 
 	for (auto nt : factoryTree)
 	{
