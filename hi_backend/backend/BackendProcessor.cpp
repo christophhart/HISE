@@ -46,15 +46,21 @@ viewUndoManager(new UndoManager())
 	getSampleManager().getModulatorSamplerSoundPool()->setDebugProcessor(synthChain);
 	getMacroManager().setMacroChain(synthChain);
 
+
 	if (!inUnitTestMode())
 	{
 		handleEditorData(false);
 		restoreGlobalSettings(this);
 	}
 
+	GET_PROJECT_HANDLER(synthChain).restoreWorkingProjects();
+
 	initData(this);
 
-	GET_PROJECT_HANDLER(getMainSynthChain()).checkSubDirectories();
+	GET_PROJECT_HANDLER(synthChain).checkSubDirectories();
+
+
+	getExpansionHandler().createAvailableExpansions();
 
 
 	if (!inUnitTestMode())
@@ -196,7 +202,7 @@ void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
 			File root(fileName);
 			if (root.exists() && root.isDirectory())
 			{
-				GET_PROJECT_HANDLER(p).setWorkingProject(root, nullptr);
+				GET_PROJECT_HANDLER(p).setWorkingProject(root);
 
 				bp->getSettingsObject().refreshProjectData();
 

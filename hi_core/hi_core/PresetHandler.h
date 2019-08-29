@@ -171,7 +171,11 @@ public:
 
 	static void createLinkFileInFolder(const File& source, const File& target);
 
+	void createLinkFileToGlobalSampleFolder(const String& suffix);
+
 	virtual File getRootFolder() const = 0;
+
+	virtual Array<SubDirectories> getSubDirectoryIds() const;
 
 	static String getWildcardForFiles(SubDirectories directory);
 
@@ -184,6 +188,12 @@ public:
 	static void loadOtherReferencedImages(ModulatorSynthChain* chainToExport);
 
 	ScopedPointer<PoolCollection> pool;
+
+	void checkSubDirectories();
+
+	void checkAllSampleMaps();
+
+	Result updateSampleMapIds(bool silentMode);
 
 protected:
 
@@ -198,6 +208,11 @@ protected:
 		bool isReference = false;
 		File file;
 	};
+
+	
+
+	File checkSubDirectory(SubDirectories dir);
+
 
 	
 
@@ -217,9 +232,7 @@ public:
 	ProjectHandler(MainController* mc_):
 		FileHandlerBase(mc_)
 	{
-#if USE_BACKEND
-		restoreWorkingProjects();
-#endif
+		
 	}
 
 	struct Listener
@@ -240,7 +253,7 @@ public:
 
 	void createNewProject(File &workingDirectory, Component* mainEditor);
 
-	Result setWorkingProject(const File &workingDirectory, Component* mainEditor);
+	Result setWorkingProject(const File &workingDirectory, bool checkDirectories=true);
 
 	static const StringArray &getRecentWorkDirectories() { return recentWorkDirectories; }
 
@@ -274,8 +287,6 @@ public:
 
 	void checkActiveProject();
 
-	void checkAllSampleMaps();
-
 	void addListener(Listener* newProjectListener)
 	{
 		listeners.addIfNotAlreadyThere(newProjectListener);
@@ -289,13 +300,13 @@ public:
    
 	static File getAppDataDirectory();
 	
-	void checkSubDirectories();
+	void restoreWorkingProjects();
 
 private:
 
 
 
-	void restoreWorkingProjects();
+	
 
 	bool isValidProjectFolder(const File &file) const;
 
@@ -303,7 +314,6 @@ private:
 	
 	
 
-	File checkSubDirectory(SubDirectories dir);
 	bool anySubdirectoryExists(const File& possibleProjectFolder) const;
 
 private:

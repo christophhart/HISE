@@ -899,7 +899,7 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 
 	jassert(sampleMap != nullptr);
 
-	showStatusMessage("Collecting files");
+	showStatusMessage("Collecting files for samplemap " + sampleMap->getId());
 
 	auto& lock = sampleMap->getSampler()->getMainController()->getSampleManager().getSampleLock();
 
@@ -930,11 +930,6 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 		return;
 	}
 
-	updateSampleMap();
-
-	if(exportSampleMap)
-		writeSampleMapFile(overwriteExistingData);
-
 	if (exportSamples)
 	{
 		for (int i = 0; i < numChannels; i++)
@@ -950,6 +945,11 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 			writeFiles(i, overwriteExistingData);
 		}
 	}
+
+	updateSampleMap();
+
+	if (exportSampleMap)
+		writeSampleMapFile(overwriteExistingData);
 }
 
 void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
@@ -1144,6 +1144,13 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 	ControlledObject(s->getMainController()),
 	sampler(s)
 {
+	StringArray sa;
+
+	sa.add("Yes");
+	sa.add("No");
+
+	addComboBox("checkSamplemaps", sa, "Validate Samplemap IDs");
+
 	StringArray sa2;
 
 
@@ -1169,6 +1176,17 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 
 void BatchReencoder::run()
 {
+	if (getComboBoxComponent("checkSamplemaps")->getSelectedItemIndex() == 0)
+	{
+		auto result = sampler->getMainController()->getActiveFileHandler()->updateSampleMapIds(true);
+
+		if (!result.wasOk())
+		{
+			setError(result.getErrorMessage());
+			return;
+		}
+	}
+
 #if USE_FRONTEND
 
 	auto exp = sampler->getMainController()->getExpansionHandler().getCurrentExpansion();
@@ -1187,11 +1205,20 @@ void BatchReencoder::run()
 
 	auto pool = sampler->getMainController()->getCurrentSampleMapPool();
 
+	if (auto currentExp = sampler->getMainController()->getExpansionHandler().getCurrentExpansion())
+	{
+		pool = &currentExp->pool->getSampleMapPool();
+	}
+
 #endif
 
 	setSampleMap(sampler->getSampleMap());
 
 	auto list = pool->getListOfAllReferences(true);
+
+	
+
+
 
 	for (int i = 0; i < list.size(); i++)
 	{

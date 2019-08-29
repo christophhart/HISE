@@ -68,8 +68,6 @@ ExpansionEditBar::ExpansionEditBar(FloatingTile* parent) :
 
 	buttons.add(new HiseShapeButton("New", this, f));  buttons.getLast()->setTooltip("Create a new expansion pack folder");
 	buttons.add(new HiseShapeButton("Rebuild", this, f)); buttons.getLast()->setTooltip("Refresh the expansion pack data");
-	buttons.add(new HiseShapeButton("Undo", this, f)); buttons.getLast()->setTooltip("Undo");
-	buttons.add(new HiseShapeButton("Redo", this, f)); buttons.getLast()->setTooltip("Redo");
 	buttons.add(new HiseShapeButton("Encode", this, f)); buttons.getLast()->setTooltip("Encode this expansion pack");
 
 	addAndMakeVisible(expansionSelector = new ComboBox("Expansion Selector"));
@@ -130,11 +128,6 @@ void ExpansionEditBar::resized()
 	area.removeFromLeft(spacerWidth);
 
 	getButton("Rebuild")->setBounds(area.removeFromLeft(widthForIcon));
-
-	area.removeFromLeft(spacerWidth);
-
-	getButton("Undo")->setBounds(area.removeFromLeft(widthForIcon));
-	getButton("Redo")->setBounds(area.removeFromLeft(widthForIcon));
 
 	area.removeFromLeft(spacerWidth);
 

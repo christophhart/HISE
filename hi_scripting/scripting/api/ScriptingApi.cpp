@@ -1000,6 +1000,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_METHOD_WRAPPER_0(Engine, getControlRateDownsamplingFactor);
 	API_METHOD_WRAPPER_1(Engine, createDspNetwork);
+	API_METHOD_WRAPPER_0(Engine, getExpansionList);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
 	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
@@ -1053,6 +1054,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
     ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
+	ADD_API_METHOD_0(getExpansionList);
 	ADD_API_METHOD_1(setUserPresetTagList);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
 	ADD_API_METHOD_1(saveUserPreset);
@@ -1440,6 +1442,21 @@ void ScriptingApi::Engine::openWebsite(String url)
     
 }
     
+var ScriptingApi::Engine::getExpansionList()
+{
+	auto& expHandler = getProcessor()->getMainController()->getExpansionHandler();
+
+	Array<var> list;
+
+	for (int i = 0; i < expHandler.getNumExpansions(); i++)
+	{
+		auto newObj = new ScriptingObjects::ExpansionObject(getScriptProcessor(), expHandler.getExpansion(i));
+		list.add(var(newObj));
+	}
+
+	return list;
+}
+
 void ScriptingApi::Engine::loadNextUserPreset(bool stayInDirectory)
 {
 	getProcessor()->getMainController()->getUserPresetHandler().incPreset(true, stayInDirectory);

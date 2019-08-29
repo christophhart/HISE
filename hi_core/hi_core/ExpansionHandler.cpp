@@ -128,7 +128,6 @@ ExpansionHandler::ExpansionHandler(MainController* mc_):
 	mc(mc_),
 	notifier(*this)
 {
-	
 }
 
 void ExpansionHandler::createNewExpansion(const File& expansionFolder)
@@ -261,13 +260,6 @@ const var ExpansionHandler::getMetadata(const PoolReference& sampleId)
 	return pool->getAdditionalData(sampleId);
 }
 
-hise::PooledImage ExpansionHandler::loadImageReference(const PoolReference& imageId, PoolHelpers::LoadingType loadingType /*= PoolHelpers::LoadAndCacheWeak*/)
-{
-	ImagePool* pool = nullptr;
-	getPoolForReferenceString(imageId, &pool);
-	return pool->loadFromReference(imageId, loadingType);
-}
-
 hise::PooledSampleMap ExpansionHandler::loadSampleMap(const PoolReference& sampleMapId)
 {
 	SampleMapPool* pool = nullptr;
@@ -307,6 +299,13 @@ FileHandlerBase* ExpansionHandler::getFileHandler(MainController* mc_)
     return &mc_->getCurrentFileHandler();
 }
     
+hise::PooledImage ExpansionHandler::loadImageReference(const PoolReference& imageId, PoolHelpers::LoadingType loadingType /*= PoolHelpers::LoadAndCacheWeak*/)
+{
+	ImagePool* pool = nullptr;
+	getPoolForReferenceString(imageId, &pool);
+	return pool->loadFromReference(imageId, loadingType);
+}
+
 PoolCollection* ExpansionHandler::getCurrentPoolCollection()
     {
         return mc->getCurrentFileHandler().pool;
@@ -394,6 +393,11 @@ juce::String Expansion::Helpers::getExpansionIdFromReference(const String& refer
 	}
 
 	return {};
+}
+
+var Expansion::Data::toPropertyObject() const
+{
+	return ValueTreeConverters::convertValueTreeToDynamicObject(v);
 }
 
 }

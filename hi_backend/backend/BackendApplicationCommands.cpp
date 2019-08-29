@@ -1067,7 +1067,7 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 			bpe->mainEditor->clearPreset();
 
-			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file, bpe);
+			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file);
             
 			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 
@@ -1463,73 +1463,23 @@ void BackendCommandTarget::Actions::addInterfacePreview(BackendRootWindow * bpe)
 	w->getRootFloatingTile()->refreshRootLayout();
 }
 
-void BackendCommandTarget::Actions::updateSampleMapIds(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::updateSampleMapIds(BackendRootWindow* bpe)
 {
 	if (PresetHandler::showYesNoWindow("Update SampleMap Ids", "Do you really want to update the IDs of all samplemaps in the current project?\nThis is undoable"))
 	{
-		
+		FileHandlerBase* handlerToUse = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-		File sampleMapRoot = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
-		File sampleRoot = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
-
-		Array<File> sampleMapFiles;
-
-		sampleMapRoot.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
-
-		for (int i = 0; i < sampleMapFiles.size(); i++)
+		if (auto e = bpe->getMainController()->getExpansionHandler().getCurrentExpansion())
 		{
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
-
-			if (xml != nullptr && xml->hasAttribute("ID"))
-			{
-				const String id = xml->getStringAttribute("ID");
-				const String relativePath = sampleMapFiles[i].getRelativePathFrom(sampleMapRoot).replace("\\", "/").upToFirstOccurrenceOf(".xml", false, true);
-
-				if (id != relativePath)
-				{
-					if (PresetHandler::showYesNoWindow("Mismatch detected", "Filename: \"" + relativePath + "\", ID: \"" + id + "\"\nDo you want to update the ID and rename the monolith samples?"))
-					{
-						xml->setAttribute("ID", relativePath);
-						sampleMapFiles[i].replaceWithText(xml->createDocument(""));
-
-						Array<File> sampleFiles;
-
-						String oldSampleFileName = id.replace("/", "_");
-
-						sampleRoot.findChildFiles(sampleFiles, File::findFiles, false);
-
-						for (auto f : sampleFiles)
-						{
-							if (f.getFileNameWithoutExtension() == oldSampleFileName)
-							{
-								File newFileName = sampleRoot.getChildFile(relativePath.replace("/", "_") + f.getFileExtension());
-
-								if (!newFileName.existsAsFile())
-								{
-									f.moveFileTo(newFileName);
-									PresetHandler::showMessageWindow("Sample file renamed", "The sample with the name " + f.getFileName() + " was renamed to " + newFileName.getFileName(), PresetHandler::IconType::Info);
-								}
-								else
-								{
-									PresetHandler::showMessageWindow("Sample already exists", "The sample with the name " + newFileName.getFullPathName() + " already exists", PresetHandler::IconType::Error);
-									return;
-								}
-							}
-						}
-					}
-				}
-
-			}
-			else
-			{
-				PresetHandler::showMessageWindow("Corrupt Samplemap", "The samplemap " + sampleMapFiles[i].getFullPathName() + " is corrupt", PresetHandler::IconType::Error);
-				return;
-			}
+			handlerToUse = e;
 		}
 
-		Array<File> sampleFiles;
+		auto result = handlerToUse->updateSampleMapIds(false);
 
-		
+		if (!result.wasOk())
+		{
+			PresetHandler::showMessageWindow("Error", result.getErrorMessage(), PresetHandler::IconType::Error);
+		}
 	}
 }
 
@@ -2015,7 +1965,7 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 
 		auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-		auto r = handler.setWorkingProject(f, bpe);
+		auto r = handler.setWorkingProject(f);
 
 		if (r.failed())
 		{
@@ -2052,7 +2002,7 @@ void BackendCommandTarget::Actions::closeProject(BackendRootWindow *bpe)
     
     if (!shouldDiscard) return;
     
-	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File(), bpe);
+	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File());
 }
 
 void BackendCommandTarget::Actions::showProjectInFinder(BackendRootWindow *bpe)
@@ -2417,7 +2367,14 @@ void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendRootWindo
 
 void BackendCommandTarget::Actions::checkAllSamplemaps(BackendRootWindow * bpe)
 {
-	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).checkAllSampleMaps();
+	if (auto exp = bpe->getMainController()->getExpansionHandler().getCurrentExpansion())
+	{
+		exp->checkAllSampleMaps();
+	}
+	else
+	{
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).checkAllSampleMaps();
+	}
 }
 
 void removeHiddenFilesFromList(Array<File> &list)

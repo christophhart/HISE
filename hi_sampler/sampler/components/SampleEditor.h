@@ -281,7 +281,26 @@ public:
 
 			if(useGain)
 				g.drawText(autogain, area, Justification::bottomRight, false);
+
+			if (auto f = selection.getFirst())
+			{
+				if (f->isMissing())
+				{
+					g.setColour(Colours::black.withAlpha(0.4f));
+					
+
+					auto b = viewport->getBounds().toFloat();
+
+					g.fillRect(b);
+
+					g.setColour(Colours::white);
+					g.drawText(f->getReferenceToSound()->getFileName(true) + " is missing", b, Justification::centred);
+				}
+			}
+
 		}
+
+
 	}
 
 	void updateWaveform()

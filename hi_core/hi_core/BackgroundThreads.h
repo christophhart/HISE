@@ -306,7 +306,6 @@ public:
 	/** Checks if the thread should exist. */
 	bool threadShouldExit() const;
 
-
 	// ================================================================================================================
 
 	/** Shows a status message during job execution. */
@@ -339,6 +338,11 @@ public:
 		}
 	}
 	
+	void setAdditionalLogFunction(const LogFunction& additionalLogFunction)
+	{
+		logData.logFunction = additionalLogFunction;
+	}
+
 protected:
 
 	LogData logData;
@@ -365,6 +369,9 @@ protected:
 	}
 
 private:
+
+	mutable bool recursion = false;
+
 
 	void handleAsyncUpdate() override;
 
@@ -441,7 +448,9 @@ class ProjectHandler;
 
 
 class SampleDataExporter : public DialogWindowWithBackgroundThread,
-						   public hlac::HlacArchiver::Listener
+						   public hlac::HlacArchiver::Listener,
+						   public ControlledObject
+					
 {
 public:
 
@@ -454,7 +463,7 @@ public:
 		numPartSizes
 	};
 
-	SampleDataExporter(ModalBaseWindow* mbw);;
+	SampleDataExporter(MainController* mc);;
 
 	void logVerboseMessage(const String& verboseMessage) override;
 	void logStatusMessage(const String& message) override;
@@ -463,9 +472,14 @@ public:
 	void run() override;;
 	void threadFinished() override;
 
+	void setTargetDirectory(const File& targetDirectory);
+
 private:
 
+
 	Array<File> collectMonoliths();
+
+	String getExpansionName() const;
 
 	String getMetadataJSON() const;
 
@@ -476,8 +490,6 @@ private:
 	String getProjectVersion() const;
 
 	File getTargetFile() const;
-
-	ModalBaseWindow* modalBaseWindow;
 
 	ModulatorSynthChain* synthChain;
 

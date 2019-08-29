@@ -1052,6 +1052,26 @@ public:
 
 	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
 
+	FileHandlerBase* getActiveFileHandler()
+	{
+		if (auto exp = getExpansionHandler().getCurrentExpansion())
+		{
+			return exp;
+		}
+
+		return &getCurrentFileHandler();
+	}
+
+	const FileHandlerBase* getActiveFileHandler() const
+	{
+		if (auto exp = getExpansionHandler().getCurrentExpansion())
+		{
+			return exp;
+		}
+
+		return &getCurrentFileHandler();
+	}
+
 	const FileHandlerBase& getCurrentFileHandler() const
 	{
 		return getSampleManager().getProjectHandler();

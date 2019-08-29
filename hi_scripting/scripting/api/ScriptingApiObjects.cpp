@@ -3753,4 +3753,125 @@ void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr 
 
 }
 
+struct ScriptingObjects::ExpansionObject::Wrapper
+{
+	API_METHOD_WRAPPER_0(ExpansionObject, getSampleMapList);
+	API_METHOD_WRAPPER_0(ExpansionObject, getImageList);
+	API_METHOD_WRAPPER_0(ExpansionObject, getAudioFileList);
+	API_METHOD_WRAPPER_0(ExpansionObject, getMidiFileList);
+	API_METHOD_WRAPPER_0(ExpansionObject, getProperties);
+	API_METHOD_WRAPPER_1(ExpansionObject, loadDataFile);
+	API_METHOD_WRAPPER_2(ExpansionObject, writeDataFile);
+};
+
+ScriptingObjects::ExpansionObject::ExpansionObject(ProcessorWithScriptingContent* p, Expansion* e) :
+	ConstScriptingObject(p, 0),
+	exp(e)
+{
+	ADD_API_METHOD_0(getSampleMapList);
+	ADD_API_METHOD_0(getImageList);
+	ADD_API_METHOD_0(getAudioFileList);
+	ADD_API_METHOD_0(getMidiFileList);
+	ADD_API_METHOD_0(getProperties);
+	ADD_API_METHOD_1(loadDataFile);
+	ADD_API_METHOD_2(writeDataFile);
+}
+
+var ScriptingObjects::ExpansionObject::getSampleMapList() const
+{
+	if (objectExists())
+	{
+		auto refList = exp->pool->getSampleMapPool().getListOfAllReferences(true);
+
+		Array<var> list;
+
+		for (auto& ref : refList)
+			list.add(ref.getReferenceString().upToFirstOccurrenceOf(".xml", false, true));
+
+		return list;
+	}
+
+	reportScriptError("Expansion was deleted");
+}
+
+var ScriptingObjects::ExpansionObject::getImageList() const
+{
+	if (objectExists())
+	{
+		exp->pool->getImagePool().loadAllFilesFromProjectFolder();
+		auto refList = exp->pool->getImagePool().getListOfAllReferences(true);
+		
+
+		Array<var> list;
+
+		for (auto& ref : refList)
+			list.add(ref.getReferenceString());
+
+		return list;
+	}
+
+	reportScriptError("Expansion was deleted");
+}
+
+var ScriptingObjects::ExpansionObject::getAudioFileList() const
+{
+	if (objectExists())
+	{
+		exp->pool->getAudioSampleBufferPool().loadAllFilesFromProjectFolder();
+		auto refList = exp->pool->getAudioSampleBufferPool().getListOfAllReferences(true);
+
+		
+
+		Array<var> list;
+
+		for (auto& ref : refList)
+			list.add(ref.getReferenceString());
+
+		return list;
+	}
+
+	reportScriptError("Expansion was deleted");
+}
+
+var ScriptingObjects::ExpansionObject::getMidiFileList() const
+{
+	if (objectExists())
+	{
+		auto refList = exp->pool->getMidiFilePool().getListOfAllReferences(true);
+
+		Array<var> list;
+
+		for (auto& ref : refList)
+			list.add(ref.getReferenceString());
+
+		return list;
+	}
+
+	reportScriptError("Expansion was deleted");
+}
+
+var ScriptingObjects::ExpansionObject::loadDataFile(var relativePath)
+{
+	auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
+
+	return JSON::parse(fileToLoad.loadFileAsString());
+}
+
+bool ScriptingObjects::ExpansionObject::writeDataFile(var relativePath, var dataToWrite)
+{
+	auto content = JSON::toString(dataToWrite);
+
+	auto targetFile = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
+
+	return targetFile.replaceWithText(content);
+}
+
+var ScriptingObjects::ExpansionObject::getProperties() const
+{
+	if (objectExists())
+		return exp->getPropertyObject();
+
+	return {};
+}
+
 } // namespace hise

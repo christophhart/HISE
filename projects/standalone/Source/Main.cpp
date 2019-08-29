@@ -218,7 +218,7 @@ public:
 
 		auto prevProject = handler->getWorkDirectory();
 
-		handler->setWorkingProject(root, nullptr);
+		handler->setWorkingProject(root);
 
 		mc = nullptr;
 		sp = nullptr;

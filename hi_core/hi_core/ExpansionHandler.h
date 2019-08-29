@@ -72,14 +72,14 @@ public:
 	{
 		afm.registerBasicFormats();
 		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+
+		
 	}
 
 	~Expansion()
 	{
 		saveExpansionInfoFile();
 	}
-
-	
 
 	/** Override this method and initialise the expansion. You need to do at least those things:
 	
@@ -89,7 +89,11 @@ public:
 	virtual void initialise() 
 	{
 		addMissingFolders();
+
+		checkSubDirectories();
+
 		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
+		pool->getMidiFilePool().loadAllFilesFromProjectFolder();
 
 		data = new Data(root, Helpers::loadValueTreeForFileBasedExpansion(root));
 
@@ -99,6 +103,16 @@ public:
 	virtual void encodeExpansion()
 	{
 		jassertfalse;
+	}
+
+	var getPropertyObject() const
+	{
+		return data->toPropertyObject();
+	}
+
+	Array<SubDirectories> getSubDirectoryIds() const override
+	{
+		return { AdditionalSourceCode, Images, AudioFiles, SampleMaps, MidiFiles, Samples, UserPresets };
 	}
 
 	virtual ExpansionType getExpansionType() const { return ExpansionType::FileBased; }
@@ -193,6 +207,8 @@ protected:
 			Helpers::initCachedValue(v, projectName);
 			Helpers::initCachedValue(v, projectVersion);
 		}
+
+		var toPropertyObject() const;
 
 		virtual ~Data() {};
 
@@ -385,6 +401,17 @@ public:
 	Expansion* getExpansionForWildcardReference(const String& stringToTest) const;
 
 	int getNumExpansions() const { return expansionList.size(); }
+
+	Expansion* getExpansionFromName(const String& name) const
+	{
+		for (auto e : expansionList)
+		{
+			if (e->data->name == name)
+				return e;
+		}
+
+		return nullptr;
+	}
 
 	Expansion* getExpansion(int index) const
 	{

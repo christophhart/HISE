@@ -333,7 +333,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 
 	if (f.getParentDirectory().getFileName() == "Presets")
 	{
-		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory(), this);
+		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory());
 	}
 
 	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return SafeFunctionCall::OK; });

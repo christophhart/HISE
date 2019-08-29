@@ -101,9 +101,13 @@ synchronous(synchronous_)
 	logData.logFunction = [tmp](const String& m)
 	{
 		if (tmp.getComponent() != nullptr)
-			tmp->showStatusMessage(m);
-	};
+		{
+			if (tmp.getComponent()->recursion)
+				return;
 
+			tmp->showStatusMessage(m);
+		}
+	};
 }
 
 DialogWindowWithBackgroundThread::~DialogWindowWithBackgroundThread()
@@ -206,6 +210,11 @@ void DialogWindowWithBackgroundThread::showStatusMessage(const String &message) 
 			// Did you just call this method before 'addBasicComponents()' ?
 			jassertfalse;
 		}
+
+		ScopedValueSetter<bool> svs(recursion, true);
+
+		if (logData.logFunction)
+			logData.logFunction(message);
 	}
 }
 
@@ -390,13 +399,15 @@ hise::MainController* ModalBaseWindow::getMainController()
 #endif
 }
 
-SampleDataExporter::SampleDataExporter(ModalBaseWindow* mbw) :
+SampleDataExporter::SampleDataExporter(MainController* mc) :
 	DialogWindowWithBackgroundThread("Export Samples for Installer"),
-	modalBaseWindow(mbw),
-	synthChain(mbw->getMainController()->getMainSynthChain())
+	ControlledObject(mc),
+	synthChain(getMainController()->getMainSynthChain())
 {
 	StringArray sa;
 	sa.add("Export Monolith files only");
+
+	
 
 	addComboBox("file_selection", sa, "Select files to export");
 
@@ -415,6 +426,29 @@ SampleDataExporter::SampleDataExporter(ModalBaseWindow* mbw) :
 	sa3.add("No");
 
 	addComboBox("supportFull", sa3, "Support Full Dynamics range");
+
+	StringArray sa4;
+
+	auto& expHandler = getMainController()->getExpansionHandler();
+
+	sa4.add("All available samples");
+
+	int activeExpansion = -1;
+
+	for (int i = 0; i < expHandler.getNumExpansions(); i++)
+	{
+		sa4.add(expHandler.getExpansion(i)->getProperty(ExpansionIds::Name));
+
+		if (expHandler.getCurrentExpansion() == expHandler.getExpansion(i))
+			activeExpansion = i;
+	}
+
+	addComboBox("expansions", sa4, "Select expansion to export");
+
+	if (activeExpansion != -1)
+	{
+		getComboBoxComponent("expansions")->setSelectedItemIndex(activeExpansion + 1, dontSendNotification);
+	}
 
 	if (GET_HISE_SETTING(synthChain, HiseSettings::Project::SupportFullDynamicsHLAC) == "0")
 		getComboBoxComponent("supportFull")->setSelectedItemIndex(1, dontSendNotification);
@@ -511,19 +545,69 @@ void SampleDataExporter::threadFinished()
 	}
 }
 
+void SampleDataExporter::setTargetDirectory(const File& targetDirectory)
+{
+	targetFile->setCurrentFile(targetDirectory, false, dontSendNotification);
+}
+
 Array<File> SampleDataExporter::collectMonoliths()
 {
 	Array<File> sampleMonoliths;
 
-	File sampleDirectory = GET_PROJECT_HANDLER(modalBaseWindow->getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+	File sampleDirectory = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
 	sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
+
+	
+
+	auto expName = getExpansionName();
+
+	if (expName.isNotEmpty())
+	{
+		StringArray validIds;
+
+		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(expName))
+		{
+			auto list = e->pool->getSampleMapPool().getListOfAllReferences(true);
+
+			auto folder = e->getSubDirectory(FileHandlerBase::SampleMaps);
+
+			for (auto ref : list)
+			{
+				auto path = ref.getFile().getRelativePathFrom(folder);
+
+				path = path.replaceCharacter('\\', '/');
+				path = path.replaceCharacter('/', '_');
+				path = path.upToFirstOccurrenceOf(".xml", false, true);
+
+				validIds.add(path);
+			}
+		}
+
+		for (int i = 0; i < sampleMonoliths.size(); i++)
+		{
+			auto name = sampleMonoliths[i].getFileNameWithoutExtension();
+
+			if (!validIds.contains(name))
+				sampleMonoliths.remove(i--);
+		}
+	}
 
 	sampleMonoliths.sort();
 
 	numExported = sampleMonoliths.size();
 
 	return sampleMonoliths;
+}
+
+juce::String SampleDataExporter::getExpansionName() const
+{
+	auto cb = getComboBoxComponent("expansions");
+
+	if (cb->getSelectedItemIndex() == 0 || cb->getNumItems() == 1)
+		return {};
+
+	return cb->getText();
 }
 
 String SampleDataExporter::getMetadataJSON() const
@@ -533,7 +617,14 @@ String SampleDataExporter::getMetadataJSON() const
 	d->setProperty("Name", getProjectName());
 	d->setProperty("Version", getProjectVersion());
 	d->setProperty("Company", getCompanyName());
-	
+
+	auto expName = getExpansionName();
+
+	if (expName.isNotEmpty())
+	{
+		d->setProperty("Expansion", expName);
+	}
+
 	int index = getComboBoxComponent("supportFull")->getSelectedItemIndex();
 
 	d->setProperty("BitDepth", index == 0 ? 24 : 16);
@@ -545,27 +636,50 @@ String SampleDataExporter::getMetadataJSON() const
 
 String SampleDataExporter::getProjectName() const
 {
+#if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
+#else
+	return FrontendHandler::getProjectName();
+#endif
 }
 
 String SampleDataExporter::getCompanyName() const
 {
+#if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company);
+#else
+	return FrontendHandler::getCompanyName();
+#endif
 }
 
 String SampleDataExporter::getProjectVersion() const
 {
+#if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
+#else
+	return FrontendHandler::getVersionString();
+#endif
 }
 
 File SampleDataExporter::getTargetFile() const
 {
 	auto currentFile = targetFile->getCurrentFile();
-	auto name = getProjectName();
-	auto version = getProjectVersion();
-	version = version.replaceCharacter('.', '_');
-	auto fileName = name + "_" + version + "_Samples.hr1";
-	return currentFile.getChildFile(fileName);
+
+	auto expName = getExpansionName();
+
+	if (expName.isEmpty())
+	{
+		auto name = getProjectName();
+		auto version = getProjectVersion();
+		version = version.replaceCharacter('.', '_');
+		auto fileName = name + "_" + version + "_Samples.hr1";
+		return currentFile.getChildFile(fileName);
+	}
+	else
+	{
+		auto fileName = expName + "_Samples.hr1";
+		return currentFile.getChildFile(fileName);
+	}
 }
 
 

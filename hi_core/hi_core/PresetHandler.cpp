@@ -709,10 +709,10 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEdi
 
 	}
 
-	setWorkingProject(workingDirectory, mainEditor);
+	setWorkingProject(workingDirectory);
 }
 
-juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Component* /*mainEditor*/)
+juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, bool checkDirectories)
 {
 	IF_NOT_HEADLESS(MessageManagerLock mm);
 
@@ -727,7 +727,8 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Com
 
 	currentWorkDirectory = workingDirectory;
 
-	checkSubDirectories();
+	if(checkDirectories)
+		checkSubDirectories();
 
 	jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
 
@@ -794,11 +795,9 @@ void ProjectHandler::restoreWorkingProjects()
 			recentWorkDirectories.add(xml->getChildElement(i)->getStringAttribute("path"));
 		}
 
-		setWorkingProject(current, nullptr);
+		setWorkingProject(current, false);
 
 		jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
-
-		
 	}
 }
 
@@ -824,93 +823,6 @@ bool ProjectHandler::isValidProjectFolder(const File &file) const
 	}
 
 	return true;
-}
-
-
-void ProjectHandler::checkSubDirectories()
-{
-	subDirectories.clear();
-
-	for (int i = 0; i < (int)SubDirectories::numSubDirectories; i++)
-	{
-		SubDirectories dir = (SubDirectories)i;
-
-		File f = checkSubDirectory(dir);
-		jassert(f.exists() && f.isDirectory());
-
-		File subDirectory = currentWorkDirectory.getChildFile(getIdentifier(dir));
-		File linkFile = getLinkFile(subDirectory);
-		const bool redirected = linkFile.existsAsFile();
-
-		subDirectories.add({ dir, redirected, f });
-	}
-}
-
-File ProjectHandler::checkSubDirectory(SubDirectories dir)
-{
-	File subDirectory = currentWorkDirectory.getChildFile(getIdentifier(dir));
-
-	jassert(subDirectory.exists());
-
-	File childFile = getLinkFile(subDirectory);
-
-	if (childFile.existsAsFile())
-	{
-		String absolutePath = childFile.loadFileAsString();
-
-		if (ProjectHandler::isAbsolutePathCrossPlatform(absolutePath))
-		{
-			if(!File(absolutePath).exists())
-            {
-                if(PresetHandler::showYesNoWindow("Missing Sample Folder", "The sample relocation folder does not exist. Press OK to choose a new location or Cancel to ignore this.", PresetHandler::IconType::Warning))
-                {
-                    FileChooser fc("Redirect sample folder to the following location");
-                    
-                    if (fc.browseForDirectory())
-                    {
-                        File f = fc.getResult();
-                        
-                        createLinkFile(SubDirectories::Samples, f);
-                        
-                        return f;
-                    }
-                }
-            }
-            
-			return File(absolutePath);
-		}
-		else if (absolutePath.contains("{GLOBAL_SAMPLE_FOLDER}"))
-		{
-			if (auto gs = dynamic_cast<GlobalSettingManager*>(getMainController()))
-			{
-				auto path = gs->getSettingsObject().getSetting(HiseSettings::Other::GlobalSamplePath);
-
-				if (isAbsolutePathCrossPlatform(path))
-				{
-					File globalSamplePath(path);
-
-					auto childPath = absolutePath.fromFirstOccurrenceOf("{GLOBAL_SAMPLE_FOLDER}", false, false);
-					return globalSamplePath.getChildFile(childPath);
-				}
-			}
-		}
-	}
-
-	if (subDirectory.isDirectory())
-	{
-		return subDirectory;
-	}
-	else if (subDirectory.isSymbolicLink())
-	{
-		return subDirectory.getLinkedTarget();
-	}
-	else
-	{
-		const String fileExtension = subDirectory.getFileExtension();
-		jassertfalse;
-
-		return File();
-	}
 }
 
 bool ProjectHandler::anySubdirectoryExists(const File& possibleProjectFolder) const
@@ -1036,56 +948,6 @@ juce::String ProjectHandler::getPrivateKeyFromFile(const File& f)
 void ProjectHandler::checkActiveProject()
 {
 	
-}
-
-
-
-
-void ProjectHandler::checkAllSampleMaps()
-{
-	Array<File> sampleMaps;
-	Array<File> samples;
-
-	getSubDirectory(SubDirectories::Samples).findChildFiles(samples, File::findFiles, true);
-	getSubDirectory(SubDirectories::SampleMaps).findChildFiles(sampleMaps, File::findFiles, true, "*.xml;*.XML");
-
-	String falseName;
-
-	for (int i = 0; i < sampleMaps.size(); i++)
-	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMaps[i]);
-
-		if (xml != nullptr)
-		{
-			ValueTree v = ValueTree::fromXml(*xml);
-
-			const String id = v.getProperty("ID").toString();
-
-			if (id != sampleMaps[i].getFileNameWithoutExtension())
-			{
-				PresetHandler::showMessageWindow("Mismatching SampleMap ID", "The SampleMap " + sampleMaps[i].getFileName() + " does not have the correct ID", PresetHandler::IconType::Error);
-				return;
-			}
-
-			
-
-			falseName = SampleMap::checkReferences(getMainController(), v, getSubDirectory(SubDirectories::Samples), samples);
-
-			if (falseName.isNotEmpty())
-			{
-				break;
-			}
-		}
-	}
-
-	if (falseName.isEmpty())
-	{
-		PresetHandler::showMessageWindow("All sample references are valid", "All sample maps have been scanned", PresetHandler::IconType::Info);
-	}
-	else
-	{
-		PresetHandler::showMessageWindow("Missing samples found", "The sample " + falseName + " wasn't found.", PresetHandler::IconType::Error);
-	}
 }
 
 juce::File ProjectHandler::getAppDataDirectory()
@@ -2388,6 +2250,27 @@ void FileHandlerBase::createLinkFileInFolder(const File& source, const File& tar
 	linkFile.replaceWithText(target.getFullPathName());
 }
 
+
+void FileHandlerBase::createLinkFileToGlobalSampleFolder(const String& suffix)
+{
+	auto linkFile = getLinkFile(getSubDirectory(Samples));
+	linkFile.replaceWithText("{GLOBAL_SAMPLE_FOLDER}" + suffix);
+
+	checkSubDirectories();
+}
+
+Array<FileHandlerBase::SubDirectories> FileHandlerBase::getSubDirectoryIds() const
+{
+	Array<SubDirectories> subDirs;
+
+	for (int i = 0; i < FileHandlerBase::numSubDirectories; i++)
+	{
+		subDirs.add((FileHandlerBase::SubDirectories)i);
+	}
+
+	return subDirs;
+}
+
 juce::String FileHandlerBase::getWildcardForFiles(SubDirectories directory)
 {
 	switch (directory)
@@ -2416,6 +2299,219 @@ FileHandlerBase::FileHandlerBase(MainController* mc_) :
 }
 
 
+
+void FileHandlerBase::checkSubDirectories()
+{
+	subDirectories.clear();
+
+	auto subDirList = getSubDirectoryIds();
+
+	for (auto dir : subDirList)
+	{
+		File f = checkSubDirectory(dir);
+		jassert(f.exists() && f.isDirectory());
+
+		File subDirectory = getRootFolder().getChildFile(getIdentifier(dir));
+		File linkFile = getLinkFile(subDirectory);
+		const bool redirected = linkFile.existsAsFile();
+
+		subDirectories.add({ dir, redirected, f });
+	}
+}
+
+
+void FileHandlerBase::checkAllSampleMaps()
+{
+	Array<File> sampleMaps;
+	Array<File> samples;
+
+	getSubDirectory(SubDirectories::Samples).findChildFiles(samples, File::findFiles, true);
+	getSubDirectory(SubDirectories::SampleMaps).findChildFiles(sampleMaps, File::findFiles, true, "*.xml;*.XML");
+
+	String falseName;
+
+	for (int i = 0; i < sampleMaps.size(); i++)
+	{
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMaps[i]);
+
+		if (xml != nullptr)
+		{
+			ValueTree v = ValueTree::fromXml(*xml);
+
+			const String id = v.getProperty("ID").toString();
+
+			if (id != sampleMaps[i].getFileNameWithoutExtension())
+			{
+				PresetHandler::showMessageWindow("Mismatching SampleMap ID", "The SampleMap " + sampleMaps[i].getFileName() + " does not have the correct ID", PresetHandler::IconType::Error);
+				return;
+			}
+
+			falseName = SampleMap::checkReferences(getMainController(), v, getSubDirectory(SubDirectories::Samples), samples);
+
+			if (falseName.isNotEmpty())
+				break;
+		}
+	}
+
+	if (falseName.isEmpty())
+		PresetHandler::showMessageWindow("All sample references are valid", "All sample maps have been scanned", PresetHandler::IconType::Info);
+	else
+		PresetHandler::showMessageWindow("Missing samples found", "The sample " + falseName + " wasn't found.", PresetHandler::IconType::Error);
+}
+
+
+juce::Result FileHandlerBase::updateSampleMapIds(bool silentMode)
+{
+	File sampleMapRoot = getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+	File sampleRoot = getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+	bool didSomething = false;
+
+	Array<File> sampleMapFiles;
+
+	sampleMapRoot.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+	for (int i = 0; i < sampleMapFiles.size(); i++)
+	{
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
+
+		if (xml != nullptr && xml->hasAttribute("ID"))
+		{
+			const String id = xml->getStringAttribute("ID");
+			const String relativePath = sampleMapFiles[i].getRelativePathFrom(sampleMapRoot).replace("\\", "/").upToFirstOccurrenceOf(".xml", false, true);
+
+			if (id != relativePath)
+			{
+				if (silentMode || PresetHandler::showYesNoWindow("Mismatch detected", "Filename: \"" + relativePath + "\", ID: \"" + id + "\"\nDo you want to update the ID and rename the monolith samples?"))
+				{
+					xml->setAttribute("ID", relativePath);
+					sampleMapFiles[i].replaceWithText(xml->createDocument(""));
+
+					didSomething = true;
+
+					Array<File> sampleFiles;
+
+					String oldSampleFileName = id.replace("/", "_");
+
+					sampleRoot.findChildFiles(sampleFiles, File::findFiles, false);
+
+					for (auto f : sampleFiles)
+					{
+						if (f.getFileNameWithoutExtension() == oldSampleFileName)
+						{
+							File newFileName = sampleRoot.getChildFile(relativePath.replace("/", "_") + f.getFileExtension());
+
+							if (!newFileName.existsAsFile())
+							{
+								f.moveFileTo(newFileName);
+
+								
+
+								if(!silentMode)
+									PresetHandler::showMessageWindow("Sample file renamed", "The sample with the name " + f.getFileName() + " was renamed to " + newFileName.getFileName(), PresetHandler::IconType::Info);
+							}
+							else
+							{
+								return Result::fail("The sample with the name " + newFileName.getFullPathName() + " already exists");
+							}
+						}
+					}
+				}
+			}
+
+		}
+		else
+		{
+			return Result::fail("The samplemap " + sampleMapFiles[i].getFullPathName() + " is corrupt");
+		}
+	}
+
+	if (didSomething)
+	{
+		pool->getSampleMapPool().refreshPoolAfterUpdate();
+	}
+
+	return Result::ok();
+}
+
+juce::File FileHandlerBase::checkSubDirectory(SubDirectories dir)
+{
+	File subDirectory = getRootFolder().getChildFile(getIdentifier(dir));
+
+	jassert(subDirectory.exists());
+
+	File childFile = getLinkFile(subDirectory);
+
+	if (childFile.existsAsFile())
+	{
+		String absolutePath = childFile.loadFileAsString();
+
+		if (ProjectHandler::isAbsolutePathCrossPlatform(absolutePath))
+		{
+			if (!File(absolutePath).exists())
+			{
+				if (PresetHandler::showYesNoWindow("Missing Sample Folder", "The sample relocation folder does not exist. Press OK to choose a new location or Cancel to ignore this.", PresetHandler::IconType::Warning))
+				{
+					FileChooser fc("Redirect sample folder to the following location");
+
+					if (fc.browseForDirectory())
+					{
+						File f = fc.getResult();
+
+						createLinkFile(SubDirectories::Samples, f);
+
+						return f;
+					}
+				}
+			}
+
+			return File(absolutePath);
+		}
+		else if (absolutePath.contains("{GLOBAL_SAMPLE_FOLDER}"))
+		{
+#if USE_BACKEND
+			if (auto gs = dynamic_cast<GlobalSettingManager*>(getMainController()))
+			{
+				auto path = gs->getSettingsObject().getSetting(HiseSettings::Other::GlobalSamplePath);
+
+				if (isAbsolutePathCrossPlatform(path))
+				{
+					File globalSamplePath(path);
+
+					auto childPath = absolutePath.fromFirstOccurrenceOf("{GLOBAL_SAMPLE_FOLDER}", false, false);
+					return globalSamplePath.getChildFile(childPath);
+				}
+			}
+			else
+			{
+				// If you hit this assertion it means that the main controller is not fully initialised.
+				// Just wait until the constructor went through...
+				jassertfalse;
+			}
+#else
+			// The global sample path will resolve to the default sample location for the end user
+
+			return FrontendHandler::getSampleLocationForCompiledPlugin();
+#endif
+		}
+	}
+
+	if (subDirectory.isDirectory())
+	{
+		return subDirectory;
+	}
+	else if (subDirectory.isSymbolicLink())
+	{
+		return subDirectory.getLinkedTarget();
+	}
+	else
+	{
+		const String fileExtension = subDirectory.getFileExtension();
+		jassertfalse;
+
+		return File();
+	}
+}
 
 void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* chain, DialogWindowWithBackgroundThread::LogData* logData)
 {

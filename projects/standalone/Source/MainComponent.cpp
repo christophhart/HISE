@@ -51,7 +51,7 @@ void MainContentComponent::handleCommandLineArguments(const String& args)
 			if ((currentProjectFolder != projectDirectory) &&
 				hise::PresetHandler::showYesNoWindow("Switch Project", "The file you are about to load is in a different project. Do you want to switch projects?", hise::PresetHandler::IconType::Question))
 			{
-				GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory, nullptr);
+				GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory);
 			}
 
 			if (presetFile.getFileExtension() == ".hip")

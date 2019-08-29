@@ -557,6 +557,8 @@ private:
 	String error;
 };
 
+
+
 class BatchReencoder : public MonolithExporter,
 	public ControlledObject
 {

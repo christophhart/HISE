@@ -1237,6 +1237,9 @@ juce::Identifier MidiPlayer::getSequenceId(int index) const
 
 double MidiPlayer::getPlaybackPosition() const
 {
+	if (std::isnan(currentPosition))
+		return 0.0;
+
 	return fmod(currentPosition, 1.0);
 }
 

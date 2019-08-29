@@ -42,6 +42,17 @@ using namespace juce;
 	{
 	public:
 
+		static void scalePath(Path& p, Rectangle<float> f)
+		{
+			p.scaleToFit(f.getX(), f.getY(), f.getWidth(), f.getHeight(), true);
+		}
+
+		static void scalePath(Path& p, Component* c, float padding)
+		{
+			auto b = c->getBoundsInParent().toFloat().reduced(padding);
+			scalePath(p, b);
+		}
+
 		struct KeyMapping
 		{
 			KeyMapping(const String& name, int keyCode, ModifierKeys::Flags mods=ModifierKeys::noModifiers);

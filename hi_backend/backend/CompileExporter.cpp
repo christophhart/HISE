@@ -286,7 +286,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 		if (currentProjectFolder != projectDirectory)
 		{
 			switchBack = true;
-			GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory, editor);
+			GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory);
 		}
 
 		if (presetFile.getFileExtension() == ".hip")
@@ -313,7 +313,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		if (!isUsingCIMode() && switchBack)
 		{
-			GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(currentProjectFolder, editor);
+			GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(currentProjectFolder);
 		}
 
 		editor = nullptr;

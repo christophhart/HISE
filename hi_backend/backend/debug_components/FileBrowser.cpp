@@ -537,7 +537,18 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 	}
 	else if (newRoot.getFileName() == "LinkWindows" || newRoot.getFileName() == "LinkOSX")
 	{
-		goToDirectory(File(newRoot.loadFileAsString()));
+		auto target = newRoot.loadFileAsString();
+
+		if (target.contains("{GLOBAL_SAMPLE_FOLDER}"))
+		{
+			auto path = dynamic_cast<GlobalSettingManager*>(rw->getMainController())->getSettingsObject().getSetting(HiseSettings::Other::GlobalSamplePath).toString();
+
+			File gsd(path);
+
+			target = gsd.getChildFile(target.fromFirstOccurrenceOf("{GLOBAL_SAMPLE_FOLDER}", false, false)).getFullPathName();
+		}
+
+		goToDirectory(File(target));
 	}
 	else if (newRoot.getFileExtension() == ".hip")
 	{

@@ -299,6 +299,9 @@ public:
         /** launches the given URL in the system's web browser. */
         void openWebsite(String url);
         
+		/** Creates a list of all available expansions. */
+		var getExpansionList();
+
 		/** Loads the next user preset. */
 		void loadNextUserPreset(bool stayInDirectory);
         
