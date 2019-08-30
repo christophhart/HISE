@@ -255,7 +255,9 @@ juce::String MarkdownLink::toString(Format format, const File& rootDirectory) co
 	case FormattedLinkMarkdown:		return "[" + getNameFromHeader() + "](" + toString(UrlFull) + ")";
 	case FormattedLinkMarkdownImage:		return "!" + toString(FormattedLinkMarkdown);
 	case FormattedLinkIcon:		return sanitizedURL.fromFirstOccurrenceOf("/images/icon_", false, false);
-	case UrlSubPath:				return sanitizedURL.fromLastOccurrenceOf("/", false, false);
+	case UrlSubPath:			return sanitizedURL.fromLastOccurrenceOf("/", false, false);
+	case SubURL:				jassert(type == WebContent);
+							    return URL(sanitizedURL).getSubPath();
 	case ContentFull:			return fileExists(rootToUse) ? getMarkdownFile(rootToUse).loadFileAsString().replace("\r\n", "\n") : "";
 	case ContentWithoutHeader:	return Helpers::removeMarkdownHeader(toString(ContentFull, rootToUse));
 	case ContentHeader:			return Helpers::getMarkdownHeader(toString(ContentFull, rootToUse));

@@ -108,7 +108,8 @@ class ProcessorEditor : public Component,
 							  public SafeChangeListener,
 							  public DragAndDropTarget,
 							  public CopyPasteTarget,
-							  public Dispatchable
+							  public Dispatchable,
+							  public ComponentWithDocumentation
 {
 public:
 
@@ -139,6 +140,11 @@ public:
 	void itemDropped(const SourceDetails &dragSourceDetails) override;;
 
 	ProcessorEditorPanel *getDragChainPanel();
+
+	MarkdownLink getLink() const override
+	{
+		return ProcessorHelpers::getMarkdownLink(getProcessor());
+	}
 
 	ProcessorEditorContainer *getRootContainer()
 	{

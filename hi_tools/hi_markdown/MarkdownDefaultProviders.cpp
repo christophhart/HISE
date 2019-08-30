@@ -172,7 +172,7 @@ juce::Image MarkdownParser::URLImageProvider::getImage(const MarkdownLink& urlLi
 	{
 		URL url(urlLink.toString(MarkdownLink::UrlFull));
 
-		auto path = urlLink.toString(MarkdownLink::UrlSubPath);
+		auto path = urlLink.toString(MarkdownLink::SubURL);
 		auto imageFile = imageDirectory.getChildFile(path);
 
 		if (imageFile.existsAsFile())

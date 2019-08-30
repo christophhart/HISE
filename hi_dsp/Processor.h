@@ -1048,6 +1048,8 @@ public:
 		return nullptr;
 	}
 
+	static MarkdownLink getMarkdownLink(const Processor* p);
+
 	/** Checks if the Processor can be hidden. This returns true for all processors that show up in the popup list. */
 	static bool isHiddableProcessor(const Processor *p);
 

@@ -445,6 +445,34 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("It will download two files, `Content.dat` and `Images.dat`, which contain a compressed version of the HISE documentation");
 		P_();
 
+		P(HiseSettings::Audio::BufferSize);
+		D("The buffer size in samples that will be used to render the audio. The best numbers are power-of two numbers, which should be preffered if possible.");
+		P_();
+
+		P(HiseSettings::Audio::Device);
+		D("The sound card that is used to output the sound");
+		P_();
+
+		P(HiseSettings::Audio::Driver);
+		D("The driver type. On Windows you should choose ASIO (on macOS it's CoreAudio by default)");
+		P_();
+
+		P(HiseSettings::Audio::Output);
+		D("The output channel if your audio interface has multple outputs");
+		P_();
+
+		P(HiseSettings::Audio::Samplerate);
+		D("The samplerate that HISE uses for rendering the audio. Make sure that this matches the sample rate on your audio interface, or you will get artifacts.");
+		P_();
+
+		P(HiseSettings::Midi::MidiChannels);
+		D("A list of all MIDI channels that should be processed. By default all channels are processed, but you might want to filter out some channels depending on your setup.");
+		P_();
+
+		P(HiseSettings::Midi::MidiInput);
+		D("The MIDI input device list. It should get updated automatically if you connect a new MIDI device - if not try restarting HISE");
+		P_();
+			
 		return s;
 
 	};

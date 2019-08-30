@@ -340,6 +340,21 @@ void NodeComponent::resized()
 }
 
 
+hise::MarkdownLink NodeComponent::getLink() const
+{
+	if (node != nullptr)
+	{
+		auto path = node->getValueTree()[PropertyIds::FactoryPath].toString().replaceCharacter('.', '/');
+		String s;
+		
+		s << "scriptnode/list/" << path << "/";
+
+		return { File(), s };
+	}
+
+	return {};
+}
+
 void NodeComponent::selectionChanged(const NodeBase::List& selection)
 {
 	bool nowSelected = selection.contains(node);

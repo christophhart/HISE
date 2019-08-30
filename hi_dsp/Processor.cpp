@@ -582,6 +582,64 @@ int ProcessorHelpers::getAmountOf(const Processor *rootProcessor, const Processo
 
 
 
+hise::MarkdownLink ProcessorHelpers::getMarkdownLink(const Processor* p)
+{
+	static const String wildcard = "/hise-modules/";
+
+	String s = wildcard;
+
+	if (auto modChain = dynamic_cast<const ModulatorChain*>(p))
+	{
+		return { File(), "/hise-modules/modulators/" };
+	}
+	
+	if (auto fxChain = dynamic_cast<const EffectProcessorChain*>(p))
+	{
+		return { File(), "/hise-modules/effects/" };
+	}
+
+	if (auto midiChain = dynamic_cast<const MidiProcessorChain*>(p))
+	{
+		return { File(), "/hise-modules/midi-processors/" };
+	}
+
+	if (auto mod = dynamic_cast<const Modulator*>(p))
+	{
+		s << "modulators/";
+
+		if (auto tv = dynamic_cast<const TimeVariantModulator*>(p))
+		{
+			s << "time-variant-modulators/";
+		}
+		else if (auto vs = dynamic_cast<const VoiceStartModulator*>(p))
+		{
+			s << "voice-start-modulators/";
+		}
+		else
+			s << "envelopes/";
+	}
+	else if (auto mp = dynamic_cast<const MidiProcessor*>(p))
+	{
+		s << "midi-processors/";
+	}
+	else if (auto fx = dynamic_cast<const EffectProcessor*>(p))
+	{
+		s << "effects/";
+	}
+	else
+	{
+		s << "sound-generators/";
+	}
+
+	s << "list/";
+
+
+
+	s << MarkdownLink::Helpers::getSanitizedFilename(p->getType().toString());
+
+	return MarkdownLink(File(), s);
+}
+
 bool ProcessorHelpers::isHiddableProcessor(const Processor *p)
 {
 	return dynamic_cast<const Chain*>(p) == nullptr ||

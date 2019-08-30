@@ -723,6 +723,31 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 		dragger.dragComponent(this, e, &constrainer);
 }
 
+hise::MarkdownLink ScriptingContentOverlay::Dragger::getLink() const
+{
+	if (sc != nullptr)
+	{
+		auto objName = sc->getObjectName().toString();
+		objName = objName.replace("Scripting", "");
+		objName = objName.replace("Scripted", "");
+		objName = objName.replace("Script", "");
+
+		if (objName == "Slider")
+			objName = "Knob";
+		else if (objName == "AudioWaveform")
+			objName = "audio-waveform";
+		else if (objName == "FloatingTile")
+			objName = "floating-tile";
+
+
+		String url = "ui-components/plugin-components/" + MarkdownLink::Helpers::getSanitizedFilename(objName);
+
+		return MarkdownLink(File(), url);
+	}
+
+	return {};
+}
+
 void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 {
 	if (e.mods.isRightButtonDown())

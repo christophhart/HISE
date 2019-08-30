@@ -92,6 +92,8 @@ private:
 			String description;
 		};
 
+		
+
 		String createMarkdownText() const override;
 
 		using VarArray = Array<var>;
@@ -192,7 +194,8 @@ public:
 
 	SET_GENERIC_PANEL_ID("ApiCollection");
 
-	class MethodItem : public SearchableListComponent::Item
+	class MethodItem : public SearchableListComponent::Item,
+					   public ComponentWithDocumentation
 	{
 	public:
 
@@ -214,6 +217,23 @@ public:
 				return extendedWidth + 20;
 			else
 				return Item::getPopupWidth();
+		}
+
+		void focusGained(FocusChangeType cause) override
+		{
+			repaint();
+		}
+
+		MarkdownLink getLink() const override
+		{
+			String s = "scripting/scripting-api/";
+			s << className << "#" << name << "/";
+			return { File(), s };
+		}
+
+		void focusLost(FocusChangeType cause) override
+		{
+			repaint();
 		}
 
 		void paintPopupBox(Graphics &g) const

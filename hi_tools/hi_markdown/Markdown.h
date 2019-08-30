@@ -567,6 +567,13 @@ private:
 };
 
 
+struct ComponentWithDocumentation
+{
+	virtual ~ComponentWithDocumentation() {};
+
+	virtual MarkdownLink getLink() const = 0;
+};
+
 class MarkdownHelpButton;
 
 }

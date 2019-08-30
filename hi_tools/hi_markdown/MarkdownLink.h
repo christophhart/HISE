@@ -318,6 +318,7 @@ public:
 		UrlFull,				///< returns the whole link (without the extra data)
 		UrlSubPath,					///< /root/something/funky#hello => funky
 		UrlWithoutAnchor,				///< /root/something/funky#hello => /root/something/funky
+		SubURL,					///< https://youtube.com/funkboymclovin/0.jpg => funkboymclovin/0.jpg
 		AnchorWithHashtag,		///< /root/something/funky#hello => #hello
 		AnchorWithoutHashtag,	///< /root/something/funky#hello => hello
 		FormattedLinkHtml,					///< /root/something/funky#hello => /root/something/funky.html#hello

@@ -991,6 +991,14 @@ void JavascriptCodeEditor::increaseMultiSelectionForCurrentToken()
 }
 
 
+MarkdownLink JavascriptCodeEditor::getLink() const
+{
+	if (currentPopup != nullptr)
+		return currentPopup->getLink();
+
+	return {};
+}
+
 bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 {
 #if USE_BACKEND

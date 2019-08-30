@@ -167,7 +167,8 @@ public:
 
 	void mouseDrag(const MouseEvent& e) override;
 
-	class Dragger : public Component
+	class Dragger : public Component,
+					public ComponentWithDocumentation
 	{
 	public:
 
@@ -180,6 +181,8 @@ public:
 		void mouseDown(const MouseEvent& e);
 
 		void mouseDrag(const MouseEvent& e);
+
+		MarkdownLink getLink() const override;
 
 		void mouseUp(const MouseEvent& e);
 

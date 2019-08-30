@@ -543,6 +543,16 @@ void JavascriptCodeEditor::AutoCompletePopup::selectRowInfo(int rowIndex)
 
 	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(thisRow->classId, methodName);
 
+	{
+		String s;
+		s << "scripting/scripting-api/";
+		s << MarkdownLink::Helpers::getSanitizedFilename(thisRow->classId.toString());
+		s << "#";
+		s << MarkdownLink::Helpers::getSanitizedFilename(methodName.toString()) << "/";
+
+		currentLink = { File(), s };
+	}
+
 	hasExtendedHelp = extendedHelp.isNotEmpty();
 
 	helpButton->setVisible(hasExtendedHelp);
@@ -584,6 +594,11 @@ void JavascriptCodeEditor::AutoCompletePopup::rebuildVisibleItems(const String &
 	const float maxWidth = 450.0f;
 	const int height = jmin<int>(200, fontHeight * 3 + (visibleInfo.size()) * (fontHeight + 4));
 	setSize((int)maxWidth + 6, height + 6);
+}
+
+hise::MarkdownLink JavascriptCodeEditor::AutoCompletePopup::getLink() const
+{
+	return currentLink;
 }
 
 void JavascriptCodeEditor::AutoCompletePopup::InfoBox::setInfo(RowInfo *newInfo)

@@ -46,7 +46,8 @@ class JavascriptCodeEditor: public CodeEditorComponent,
 							public Timer,
 							public DragAndDropTarget,
 							public CopyPasteTarget,
-                            public SafeChangeListener
+                            public SafeChangeListener,
+						    public ComponentWithDocumentation
 {
 public:
 
@@ -124,6 +125,8 @@ public:
 	void paintOverChildren(Graphics& g);
 
 	void rebuildHighlightedSelection(Array<CodeRegion> &newArray) { highlightedSelection.swapWith(newArray); repaint(); }
+
+	MarkdownLink getLink() const override;
 
 	bool keyPressed(const KeyPress& k) override;
 	void handleReturnKey() override;;

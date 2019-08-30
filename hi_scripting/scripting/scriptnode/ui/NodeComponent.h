@@ -42,7 +42,8 @@ using namespace juce;
 
 
 class NodeComponent : public Component,
-					  public DspNetwork::SelectionListener
+					  public DspNetwork::SelectionListener,
+					  public ComponentWithDocumentation
 {
 public:
 
@@ -161,6 +162,8 @@ public:
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 	void resized() override;
+
+	MarkdownLink getLink() const override;
 
 	void selectionChanged(const NodeBase::List& selection) override;
 

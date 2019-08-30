@@ -64,6 +64,8 @@ className(className_)
 		parser->parse();
 	}
 
+	setWantsKeyboardFocus(true);
+
 	help = ApiHelpers::createAttributedStringFromApi(methodTree, className, true, Colours::white);
 }
 
@@ -109,7 +111,7 @@ void ApiCollection::MethodItem::paint(Graphics& g)
 
 	g.fillRoundedRectangle(2.0f, 2.0f, w - 4.0f, h - 4.0f, 3.0f);
 
-	g.setColour(isMouseOver(true) ? Colours::white : c.withAlpha(0.5f));
+	g.setColour(hasKeyboardFocus(true) ? Colours::white : c.withAlpha(0.5f));
 
 	g.drawRoundedRectangle(2.0f, 2.0f, w - 4.0f, h - 4.0f, 3.0f, 2.0f);
 
@@ -149,7 +151,6 @@ ExtendedApiDocumentation::MethodDocumentation::MethodDocumentation(Identifier& c
 	DocumentationBase(id),
 	className(className_.toString())
 {
-
 }
 
 juce::String ExtendedApiDocumentation::MethodDocumentation::createMarkdownText() const

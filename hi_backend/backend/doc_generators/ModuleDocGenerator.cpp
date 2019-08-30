@@ -293,8 +293,6 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 			interfaces.add("AudioSampleProcessor");
 		if (dynamic_cast<LookupTableProcessor*>(p) != nullptr)
 			interfaces.add("TableProcessor");
-		if (dynamic_cast<SliderPackProcessor*>(p) != nullptr)
-			interfaces.add("SliderPackProcessor");
 		if (dynamic_cast<RoutableProcessor*>(p) != nullptr)
 			interfaces.add("RoutingMatrix");
 		

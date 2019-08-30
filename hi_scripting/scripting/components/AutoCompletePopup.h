@@ -591,7 +591,8 @@ public:
 
 
 class JavascriptCodeEditor::AutoCompletePopup : public ListBoxModel,
-	public Component
+	public Component,
+	public ComponentWithDocumentation
 {
 
 public:
@@ -633,6 +634,9 @@ public:
 	void addApiMethods(const ValueTree &classTree, const Identifier &objectId);
 
 	KeyboardFocusTraverser* createFocusTraverser() override;
+
+	MarkdownLink getLink() const override;
+
 
 	int getNumRows() override;
 	void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
@@ -702,6 +706,8 @@ private:
 	ScopedPointer<InfoBox> infoBox;
 	ScopedPointer<ListBox> listbox;
 	ScopedPointer<MarkdownHelpButton> helpButton;
+
+	MarkdownLink currentLink;
 
 	bool hasExtendedHelp = false;
 

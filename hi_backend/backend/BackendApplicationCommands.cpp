@@ -2557,9 +2557,40 @@ void BackendCommandTarget::Actions::createRecoveryXml(BackendRootWindow * bpe)
 	}
 }
 
+Component* findFocusedComponent(Component* c)
+{
+	if (c->hasKeyboardFocus(false))
+		return c;
+
+	if (c->hasKeyboardFocus(true))
+	{
+		for (int i = 0; i < c->getNumChildComponents(); i++)
+		{
+			if (auto comp = findFocusedComponent(c->getChildComponent(i)))
+				return comp;
+		}
+	}
+
+	return nullptr;
+}
+
 void BackendCommandTarget::Actions::showDocWindow(BackendRootWindow * bpe)
 {
-	bpe->createOrShowDocWindow();
+	MarkdownLink l;
+
+	if (auto comp = findFocusedComponent(bpe))
+	{
+		if (auto asHelp = dynamic_cast<ComponentWithDocumentation*>(comp))
+		{
+			l = asHelp->getLink();
+		}
+		else if (auto compWithHelp = comp->findParentComponentOfClass<ComponentWithDocumentation>())
+		{
+			l = compWithHelp->getLink();
+		}
+	}
+
+	auto doc = bpe->createOrShowDocWindow(l);
 }
 
 #undef REPLACE_WILDCARD
