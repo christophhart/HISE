@@ -303,6 +303,33 @@ MarkdownLink MarkdownLink::getChildUrlWithRoot(const String& childName, bool asA
 	return { root, s };
 }
 
+bool MarkdownLink::resolveFileOrFolder(const File& rootDir)
+{
+	if (type == MarkdownFileOrFolder)
+	{
+		File toUse = root;
+
+		if (rootDir.isDirectory())
+			toUse = rootDir;
+		
+		file = Helpers::getFileOrReadmeFromFolder(toUse, toString(UrlSubPath));
+
+		if (file.existsAsFile())
+		{
+			if (Helpers::isReadme(file))
+				type = Folder;
+			else
+				type = MarkdownFile;
+
+			return true;
+		}
+		else
+			return false;
+	}
+	else
+		return true;
+}
+
 MarkdownLink MarkdownLink::getParentUrl() const
 {
 	if (type == MarkdownFile)
@@ -424,7 +451,8 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 	{
 		DBG("Unresolved: " + getTypeString());
 	}
-		
+	
+	
 
 	String s;
 
@@ -440,6 +468,12 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 
 	if (anchor.isNotEmpty() && anchor != "#")
 		s << anchor;
+
+	if (sanitizedURL.contains("keyboard"))
+	{
+		auto t = getType();
+		int x = 5;
+	}
 
 	return s;
 }

@@ -3,7 +3,7 @@
 <JUCERPROJECT id="v5Vi2v" name="doc_builder" displaySplashScreen="0" reportAppUsage="0"
               splashScreenColour="Dark" projectType="consoleapp" version="1.0.0"
               bundleIdentifier="com.yourcompany.doc_builder" includeBinaryInAppConfig="1"
-              cppLanguageStandard="14" companyCopyright="" jucerVersion="5.2.0">
+              cppLanguageStandard="14" companyCopyright="" jucerVersion="5.4.3">
   <MAINGROUP id="CBhHJQ" name="doc_builder">
     <GROUP id="{1BF6A806-D526-1F84-0778-2A3D496375C7}" name="Source">
       <FILE id="RG17Js" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
@@ -121,6 +121,9 @@
   </MODULES>
   <JUCEOPTIONS USE_BACKEND="enabled" USE_FRONTEND="disabled" USE_RAW_FRONTEND="disabled"
                IS_STANDALONE_APP="enabled" USE_COPY_PROTECTION="disabled" USE_IPP="enabled"
-               USE_VDSP_FFT="disabled" FRONTEND_IS_PLUGIN="disabled" JUCE_ASIO="disabled"
+               USE_VDSP_FFT="disabled" FRONTEND_IS_PLUGIN="disabled" JUCE_ASIO="0"
                HI_EXPORT_DSP_LIBRARY="disabled"/>
+  <LIVE_SETTINGS>
+    <WINDOWS/>
+  </LIVE_SETTINGS>
 </JUCERPROJECT>

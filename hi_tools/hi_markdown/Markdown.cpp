@@ -456,7 +456,14 @@ void MarkdownParser::Element::prepareLinksForHtmlExport(const String& )
 {
 	for (auto& l : hyperLinks)
 	{
+
+
 		auto link = parent->getHolder()->getDatabase().getLink(l.url.toString(MarkdownLink::UrlFull));
+
+		for (auto lr : parent->linkResolvers)
+		{
+			link = lr->resolveURL(link);
+		}
 
 		if (link.getType() == MarkdownLink::MarkdownFileOrFolder)
 		{

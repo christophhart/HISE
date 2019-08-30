@@ -59,13 +59,13 @@ DatabaseCrawler::Provider::Provider(File root_, MarkdownParser* parent) :
 
 juce::Image DatabaseCrawler::Provider::findImageRecursive(ValueTree& t, const MarkdownLink& url, float width)
 {
-	auto thisURL = t.getProperty("URL").toString();
+	auto thisURL = t.getProperty(MarkdownContentIds::URL).toString();
 
 	if (thisURL == url.toString(MarkdownLink::UrlFull))
 	{
 		if (url.getType() == MarkdownLink::SVGImage)
 		{
-			if (auto mb = t.getProperty("Data").getBinaryData())
+			if (auto mb = t.getProperty(MarkdownContentIds::Data).getBinaryData())
 			{
 				ScopedPointer<XmlElement> xml = XmlDocument::parse(mb->toString());
 
@@ -83,7 +83,7 @@ juce::Image DatabaseCrawler::Provider::findImageRecursive(ValueTree& t, const Ma
 		{
 			PNGImageFormat format;
 
-			if (auto mb = t.getProperty("Data").getBinaryData())
+			if (auto mb = t.getProperty(MarkdownContentIds::Data).getBinaryData())
 				return format.loadFrom(mb->getData(), mb->getSize());
 			else
 				return {};
@@ -131,7 +131,7 @@ DatabaseCrawler::Resolver::Resolver(File root_):
 
 juce::String DatabaseCrawler::Resolver::findContentRecursive(ValueTree& t, const MarkdownLink& url)
 {
-	if (t.getProperty("URL").toString() == url.toString(MarkdownLink::UrlWithoutAnchor))
+	if (t.getProperty(MarkdownContentIds::URL).toString() == url.toString(MarkdownLink::UrlWithoutAnchor))
 		return t.getProperty("Content").toString();
 
 	for (auto c : t)
@@ -143,6 +143,34 @@ juce::String DatabaseCrawler::Resolver::findContentRecursive(ValueTree& t, const
 	}
 
 	return {};
+}
+
+MarkdownLink DatabaseCrawler::Resolver::resolveURL(const MarkdownLink& hyperLink)
+{
+	auto copy = MarkdownLink(hyperLink);
+	
+	findURLRecursive(data->v, copy);
+
+	return copy;
+}
+
+bool DatabaseCrawler::Resolver::findURLRecursive(ValueTree& t, MarkdownLink& hyperLink)
+{
+	if (t.getProperty(MarkdownContentIds::URL).toString() == hyperLink.toString(MarkdownLink::UrlWithoutAnchor))
+	{
+		auto type = (MarkdownLink::Type)(int)t.getProperty(MarkdownContentIds::LinkType);
+		hyperLink.setType(type);
+
+		return true;
+	}
+
+	for (auto c : t)
+	{
+		if (findURLRecursive(c, hyperLink))
+			return true;
+	}
+
+	return false;
 }
 
 juce::String DatabaseCrawler::Resolver::getContent(const MarkdownLink& url)
@@ -171,8 +199,8 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 	if (progressCounter != nullptr && totalLinks > 0)
 		*progressCounter = (double)currentLink / (double)totalLinks;
 
-	auto url = MarkdownLink(getHolder().getDatabaseRootDirectory(), v.getProperty("URL").toString());
-	url.setType((MarkdownLink::Type)(int)v.getProperty("LinkType", 0));
+	auto url = MarkdownLink(getHolder().getDatabaseRootDirectory(), v.getProperty(MarkdownContentIds::URL).toString());
+	url.setType((MarkdownLink::Type)(int)v.getProperty(MarkdownContentIds::LinkType, 0));
 
 	if (url.hasAnchor())
 		return;
@@ -196,7 +224,7 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 #endif
 	
 	auto path = f.getRelativePathFrom(getHolder().getDatabaseRootDirectory());
-	v.setProperty("FilePath", path, nullptr);
+	v.setProperty(MarkdownContentIds::FilePath, path, nullptr);
 
 	jassert(url.getType() == MarkdownLink::Type::MarkdownFile || url.getType() == MarkdownLink::Folder);
 
@@ -210,7 +238,7 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 	}
 #endif
 		
-	v.setProperty("LinkType", (int)url.getType(), nullptr);
+	v.setProperty(MarkdownContentIds::LinkType, (int)url.getType(), nullptr);
 
 	for (auto r : linkResolvers)
 	{
@@ -222,13 +250,13 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 
 		if (content.isNotEmpty())
 		{
-			v.setProperty("Content", content, nullptr);
+			v.setProperty(MarkdownContentIds::Content, content, nullptr);
 			numResolved++;
 			break;
 		}
 	}
 
-	if (!v.hasProperty("Content"))
+	if (!v.hasProperty(MarkdownContentIds::Content))
 	{
 		logMessage("Can't resolve URL " + url.toString(MarkdownLink::Everything));
 		numUnresolved++;
@@ -268,7 +296,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 	if (progressCounter != nullptr && totalLinks > 0)
 		*progressCounter = (double)(currentLink++) / (double)totalLinks;
 
-	auto content = cTree.getProperty("Content").toString();
+	auto content = cTree.getProperty(MarkdownContentIds::Content).toString();
 
 	if (content.isNotEmpty())
 	{
@@ -292,7 +320,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 				return;
 
 			auto l = imgUrl.withRoot(getHolder().getDatabaseRootDirectory());
-			auto existingChild = imageTree.getChildWithProperty("URL", l.toString(MarkdownLink::UrlFull));
+			auto existingChild = imageTree.getChildWithProperty(MarkdownContentIds::URL, l.toString(MarkdownLink::UrlFull));
 
 			if (existingChild.isValid())
 				continue;
@@ -314,7 +342,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 
 				
 				ValueTree c("Image");
-				c.setProperty("URL", l.toString(MarkdownLink::UrlFull), nullptr);
+				c.setProperty(MarkdownContentIds::URL, l.toString(MarkdownLink::UrlFull), nullptr);
 				
 				if (l.getType() == MarkdownLink::Image ||
 					l.getType() == MarkdownLink::Icon ||
@@ -323,7 +351,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 					juce::PNGImageFormat format;
 					MemoryOutputStream output;
 					format.writeImageToStream(img, output);
-					c.setProperty("Data", output.getMemoryBlock(), nullptr);
+					c.setProperty(MarkdownContentIds::Data, output.getMemoryBlock(), nullptr);
 				}
 				if (l.getType() == MarkdownLink::SVGImage)
 				{
@@ -333,7 +361,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 					MemoryBlock mb;
 
 					vectorFile.loadFileAsData(mb);
-					c.setProperty("Data", mb, nullptr);
+					c.setProperty(MarkdownContentIds::Data, mb, nullptr);
 				}
 
 				imageTree.addChild(c, -1, nullptr);
@@ -365,32 +393,7 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 	if (item.url.hasAnchor())
 		return;
 
-#if 0
-	if (item.type == MarkdownDataBase::Item::Folder)
-	{
-		auto content = v.getProperty("Content").toString();
-
-		Markdown2HtmlConverter converter(db, content);
-
-		converter.generateHtml(item.url.toString(MarkdownLink::UrlFull));
-
-		
-		logMessage("Create directory index" + f.getFullPathName());
-		f.create();
-	}
-	else if (item.type == MarkdownDataBase::Item::Type::Keyword)
-	{
-		f = item.url.toFile(MarkdownLink::FileType::HtmlFile);
-		f.create();
-		logMessage("Create HTML file" + f.getFullPathName());
-	}
-	else
-		jassertfalse;
-#endif
-
-	
-
-	auto type = (MarkdownLink::Type)(int)v.getProperty("LinkType", (int)MarkdownLink::Type::Invalid);
+	auto type = (MarkdownLink::Type)(int)v.getProperty(MarkdownContentIds::LinkType, (int)MarkdownLink::Type::Invalid);
 
 	auto url = item.url.withRoot(templateDirectory);
 	url.setType(type);
@@ -398,52 +401,21 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 
 	auto f = url.toFile(MarkdownLink::FileType::HtmlFile);
 
-#if 0
-	auto fPath = v.getProperty("FilePath").toString();
-
-	auto type = (MarkdownLink::Type)(int)v.getProperty("LinkType", (int)MarkdownLink::Type::Invalid);
-
-	auto url = item.url.withRoot(templateDirectory);
-	url.setType(type);
-
-	File f;
-
-	if (type == MarkdownLink::Type::Folder)
-	{
-		f = templateDirectory.getChildFile(fPath);
-
-		if (f.getFileNameWithoutExtension().toLowerCase() == "readme")
-			f = f.getParentDirectory();
-		
-		f = f.getChildFile("index.html");
-	}
-	else if (type == MarkdownLink::Type::MarkdownFile)
-	{
-		f = templateDirectory.getChildFile(fPath).withFileExtension(".html");
-	}
-#endif
 
 	DBG(url.getTypeString() + ": " + f.getFullPathName());
 
-#if 0
-	bool containsA = fPath.contains("array");
 
-	
-
-	auto fFile = templateDirectory.getChildFile(fPath).withFileExtension(".html");
-
-	if (fFile.getFileNameWithoutExtension().toLowerCase() == "readme")
-		fFile = fFile.getSiblingFile("index.html");
-
-	auto f = item.url.toFile(MarkdownLink::FileType::HtmlFile, templateDirectory);
-#endif
-
-	auto markdownCode = v.getProperty("Content").toString();
+	auto markdownCode = v.getProperty(MarkdownContentIds::Content).toString();
 
 	Markdown2HtmlConverter p(db, markdownCode);
 
 	p.setLinkWithoutAction(item.url);
 	p.setDatabaseHolder(&getHolder());
+
+	for (auto lr : linkResolvers)
+	{
+		p.setLinkResolver(lr->clone(&p));
+	}
 
 	try
 	{
@@ -514,13 +486,13 @@ void DatabaseCrawler::writeImagesToSubDirectory(File htmlDirectory)
 		if (progressCounter != nullptr)
 			*progressCounter = (double)counter++ / (double)numTotal;
 
-		MarkdownLink l(templateDirectory, c.getProperty("URL"));
+		MarkdownLink l(templateDirectory, c.getProperty(MarkdownContentIds::URL));
 
 		auto f = l.toFile(MarkdownLink::FileType::ImageFile);
 
 		if (l.getType() == MarkdownLink::SVGImage)
 		{
-			if (auto mb = c.getProperty("Data").getBinaryData())
+			if (auto mb = c.getProperty(MarkdownContentIds::Data).getBinaryData())
 			{
 				f.replaceWithData(mb->getData(), mb->getSize());
 			}
@@ -535,7 +507,7 @@ void DatabaseCrawler::writeImagesToSubDirectory(File htmlDirectory)
 			FileOutputStream fos(f);
 			f.create();
 
-			if (auto mb = c.getProperty("Data").getBinaryData())
+			if (auto mb = c.getProperty(MarkdownContentIds::Data).getBinaryData())
 			{
 				auto img = format.loadFrom(mb->getData(), mb->getSize());
 

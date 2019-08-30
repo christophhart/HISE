@@ -35,7 +35,18 @@
 namespace hise {
 using namespace juce;
 
+#define DECLARE_ID(x) static Identifier x(#x);
 
+namespace MarkdownContentIds
+{
+DECLARE_ID(URL);
+DECLARE_ID(LinkType);
+DECLARE_ID(Content);
+DECLARE_ID(Data);
+DECLARE_ID(FilePath);
+}
+
+#undef DECLARE_ID
 
 class MarkdownContentProcessor: public MarkdownDatabaseHolder::DatabaseListener
 {
@@ -63,6 +74,11 @@ public:
 	}
 
 	virtual void resolversUpdated() {}
+
+	virtual MarkdownLink resolveLink(const MarkdownLink& hyperLink)
+	{
+		return hyperLink;
+	}
 
 	void addLinkResolver(MarkdownParser::LinkResolver* resolver)
 	{
@@ -162,6 +178,15 @@ public:
 		Resolver(File root);
 
 		String findContentRecursive(ValueTree& t, const MarkdownLink& url);
+
+		/** This checks the database and returns the link to get the content.
+		
+			The HTML converter needs this in order to figure out whether a hyperlink
+			points to a file or a folder.
+		*/
+		MarkdownLink resolveURL(const MarkdownLink& hyperLink) override;
+
+		bool findURLRecursive(ValueTree& t, MarkdownLink& hyperLink);
 
 		MarkdownParser::ResolveType getPriority() const override { return MarkdownParser::ResolveType::Cached; }
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("CompressedDatabaseResolver"); };

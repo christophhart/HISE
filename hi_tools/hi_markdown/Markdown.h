@@ -123,6 +123,8 @@ public:
 		virtual LinkResolver* clone(MarkdownParser* parent) const = 0;
 		virtual Identifier getId() const = 0;
 		
+		virtual MarkdownLink resolveURL(const MarkdownLink& url) { return url; }
+
 		virtual File getFileToEdit(const MarkdownLink& url) 
 		{ 
 			ignoreUnused(url);
@@ -419,6 +421,7 @@ protected:
 			for (const auto& link : hyperLinks)
 			{
 				String linkWildcard = "{LINK" + String(index++) + "}";
+
 				s = s.replace(linkWildcard, link.url.toString(MarkdownLink::FormattedLinkHtml));
 			}
 

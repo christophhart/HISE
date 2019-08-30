@@ -1416,7 +1416,6 @@ void ScriptingApi::Engine::showMessage(String message)
 
 double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex); }
 
-
 void ScriptingApi::Engine::openWebsite(String url)
 {
     URL u(url);

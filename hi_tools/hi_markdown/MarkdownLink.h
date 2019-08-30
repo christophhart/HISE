@@ -51,7 +51,7 @@ public:
 			auto n = urlToPrettify.replaceCharacter('-', ' ');
 			String pretty;
 			auto ptr = n.getCharPointer();
-			
+
 			bool nextIsUppercase = true;
 
 			while (!ptr.isEmpty())
@@ -98,7 +98,7 @@ public:
 				valueString = (bool)value ? "`true`" : "`false`";
 			else
 				valueString = value.toString();
-			
+
 			if (valueString.isEmpty())
 				valueString << "`\"\"`";
 
@@ -125,7 +125,7 @@ public:
 				else
 					return f.getChildFile("Readme.md");
 			}
-			
+
 			if (!f.existsAsFile())
 				f = root.getChildFile(urlToUse).withFileExtension(".md");
 
@@ -175,8 +175,8 @@ public:
 			if (path.startsWith("http"))
 				return path;
 
-			
-				
+
+
 
 			auto p = removeLeadingNumbers(path);
 
@@ -220,8 +220,8 @@ public:
 		static bool isImageLink(const String& url)
 		{
 			return url.endsWith(".jpg") || url.endsWith(".JPG") ||
-				   url.endsWith(".gif") || url.endsWith(".GIF") ||
-				   url.endsWith(".png") || url.endsWith(".PNG");
+				url.endsWith(".gif") || url.endsWith(".GIF") ||
+				url.endsWith(".png") || url.endsWith(".PNG");
 		}
 
 		static double getSizeFromExtraData(const String& extraData);
@@ -310,7 +310,7 @@ public:
 		static String getMarkdownHeader(const String& content);
 	};
 
-	
+
 
 	enum Format
 	{
@@ -357,7 +357,7 @@ public:
 	bool operator==(const MarkdownLink& other) const;
 
 	/** Creates a markdown link from a String and the root directory. You can pass any string that is appropriate and the
-	    link will parse it and create a meaningful URL from it. */
+		link will parse it and create a meaningful URL from it. */
 	MarkdownLink(const File& rootDirectory, const String& url);
 
 	/** Creates a markdown link without a root. In this case, there will be no processing and the link must be formatted correctly. */
@@ -379,7 +379,7 @@ public:
 
 	/** Creates a string representation. */
 	String toString(Format format, const File& rootDirectory = {}) const noexcept;
-	
+
 	/** Returns the type. */
 	Type getType() const noexcept;
 
@@ -388,14 +388,17 @@ public:
 	String getNameFromHeader() const;
 
 	/** Returns a child URL for the given subpath. If it's a folder it will return a child url.
-		if it's a file, it will return an anchor. 
-		
+		if it's a file, it will return an anchor.
+
 		Attention: This will remove the root directory to prevent file searching and exponential slowdown during construction. If you
 		want to get a child URL with the root, use getChildUrlWithRoot instead.
 	*/
-	MarkdownLink getChildUrl(const String& childName, bool asAnchor=false) const;
+	MarkdownLink getChildUrl(const String& childName, bool asAnchor = false) const;
 
 	MarkdownLink getChildUrlWithRoot(const String& childName, bool asAnchor = false) const;
+
+	/** If the link is either a file or a folder readme, this will look up in the directory to resolve it. */
+	bool resolveFileOrFolder(const File& rootDirectory = File());
 
 	/** Returns the parent URL. If it has an anchor, it removes the anchor, otherwise it will point to the parent directory. */
 	MarkdownLink getParentUrl() const;

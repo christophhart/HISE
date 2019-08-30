@@ -62,6 +62,9 @@ struct FilterNodeGraph : public HiseDspBase::ExtraComponent<CoefficientProvider>
 
 	void timerCallback() override
 	{
+		if (this->getObject() == nullptr)
+			return;
+
 		IIRCoefficients thisCoefficients = this->getObject()->getCoefficients();
 
 		if (coefficientsChanged(lastCoefficients, thisCoefficients))
