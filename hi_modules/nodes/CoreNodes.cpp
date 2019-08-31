@@ -948,10 +948,20 @@ void peak::process(ProcessData& data)
 
 void peak::processSingle(float* frameData, int numChannels)
 {
-	max = 0.0;
-
-	for (int i = 0; i < numChannels; i++)
-		max = jmax(max, std::abs((double)frameData[i]));
+    if(numChannels == 1)
+        max = frameData[0];
+    else if (numChannels == 2)
+    {
+        max = jmax(frameData[0], frameData[1]);
+    }
+    else
+    {
+        max = 0.0;
+        
+        for (int i = 0; i < numChannels; i++)
+            max = jmax(max, std::abs((double)frameData[i]));
+    }
+	
 }
 
 
