@@ -49,10 +49,24 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 		{
 			windowBuffer = AudioSampleBuffer(1, size);
 			fftBuffer = AudioSampleBuffer(1, size);
-
 			fftBuffer.clear();
+		}
+			
+		if(lastWindowType != fftProperties.window)
+		{
+			auto d = windowBuffer.getWritePointer(0);
 
-			icstdsp::VectorFunctions::blackman(windowBuffer.getWritePointer(0), size);
+			switch (fftProperties.window)
+			{
+			case BlackmannHarris: icstdsp::VectorFunctions::bhw4(d, size); break;
+
+			case Hann:			  icstdsp::VectorFunctions::hann(d, size); break;
+			case Flattop:		  icstdsp::VectorFunctions::flattop(d, size); break;
+			case Rectangle:
+			default:			  FloatVectorOperations::fill(d, 1.0f, size); break;
+			}
+
+			lastWindowType = fftProperties.window;
 		}
 
 		AudioSampleBuffer b2(2, b.getNumSamples());
@@ -78,11 +92,36 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 		fftObject.realFFTInplace(data, size);
 
-		for (int i = 2; i < size; i += 2)
+		if (fftProperties.domain == Amplitude)
 		{
-			data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
-			data[i + 1] = data[i];
+			for (int i = 2; i < size; i += 2)
+			{
+				data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
+				data[i + 1] = data[i];
+			}
 		}
+		else
+		{
+			auto threshhold = FloatVectorOperations::findMaximum(data, size) / 10000.0;
+
+			data[0] = 0.0f;
+			data[1] = 0.0f;
+
+			for (int i = 2; i < size; i += 2)
+			{
+				auto real = data[i];
+				auto img = data[i + 1];
+				
+				if (real < threshhold) real = 0.0f;
+				if (img < threshhold) img = 0.0f;
+
+				auto phase = atan2f(img, real);
+
+				data[i] = phase;
+				data[i + 1] = phase;
+			}	
+		}
+		
 
 		//fftObject.realFFT(b.getReadPointer(1), b2.getWritePointer(1), b2.getNumSamples());
 
@@ -126,11 +165,10 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 			if (thisLineLog == 0)
 				continue;
 
-
 			float xPos;
 			
-			if (freqToXFunction)
-				xPos = freqToXFunction(f);
+			if (fftProperties.freq2x)
+				xPos = fftProperties.freq2x(f);
 			else
 				xPos = log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
 
@@ -147,10 +185,16 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 			float v = fabsf(data[i]);
 
-			v = Decibels::gainToDecibels(v);
-			v = jlimit<float>(-70.0f, 0.0f, v);
-			v = 1.0f + v / 70.0f;
-			v = powf(v, 0.707f);
+			if (fftProperties.gain2y)
+				v = fftProperties.gain2y(v);
+			else
+			{
+
+				v = Decibels::gainToDecibels(v);
+				v = jlimit<float>(-90.0f, 0.0f, v);
+				v = 1.0f + v / 90.0f;
+				v = powf(v, 0.707f);
+			}
 
 			value += v;
 			sumAmount++;
@@ -720,7 +764,7 @@ FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :
 	FFTDisplayBase(parent_.eq->getFFTBuffer()),
 	parent(parent_)
 {
-	freqToXFunction = std::bind(&FilterGraph::freqToX, &parent.filterGraph, std::placeholders::_1);
+	fftProperties.freq2x = std::bind(&FilterGraph::freqToX, &parent.filterGraph, std::placeholders::_1);
 }
 
 void FilterDragOverlay::FFTDisplay::paint(Graphics& g)

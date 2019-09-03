@@ -201,7 +201,40 @@ private:
 
 class FFTDisplayBase
 {
+public:
+
+	enum WindowType
+	{
+		Rectangle,
+		BlackmannHarris,
+		Hann,
+		Flattop,
+		numWindowTypes
+	};
+
+	enum Domain
+	{
+		Phase,
+		Amplitude,
+		numDomains
+	};
+
+	using ConverterFunction = std::function<float(float)>;
+
+	struct Properties
+	{
+		WindowType window = BlackmannHarris;
+		Range<double> dbRange = { -70.0, 0.0 };
+		Domain domain = Amplitude;
+		ConverterFunction freq2x;
+		ConverterFunction gain2y;
+	};
+
+	Properties fftProperties;
+
 protected:
+
+
 
 	FFTDisplayBase(const AnalyserRingBuffer& ringBuffer_):
 		ringBuffer(ringBuffer_)
@@ -229,7 +262,7 @@ protected:
 	Path lPath;
 	Path rPath;
 
-	std::function<float(float)> freqToXFunction;
+	WindowType lastWindowType = numWindowTypes;
 	
 
 	AudioSampleBuffer windowBuffer;
