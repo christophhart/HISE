@@ -158,6 +158,9 @@ public:
 	/** Returns a reference to the node with the given id. */
 	var get(String id) const;
 
+	/** Deletes the node if it is not in a signal path. */
+	bool deleteIfUnused(String id);
+
 	String getId() const { return data[PropertyIds::ID].toString(); }
 
 	ValueTree getValueTree() const { return data; };

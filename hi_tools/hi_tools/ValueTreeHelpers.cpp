@@ -177,27 +177,31 @@ RemoveListener::~RemoveListener()
 	parent.removeListener(this);
 }
 
-void RemoveListener::setCallback(ValueTree childToListenTo, AsyncMode asyncMode, const Callback& c)
+void RemoveListener::setCallback(ValueTree childToListenTo, AsyncMode asyncMode, bool checkParentsToo, const Callback& c)
 {
 	WeakReference<RemoveListener> tmp = this;
 
-	auto f = [tmp, childToListenTo, asyncMode, c]()
+	auto f = [tmp, childToListenTo, asyncMode, c, checkParentsToo]()
 	{
 		if (tmp.get() == nullptr)
 			return;
 
+		tmp.get()->fireRecursively = checkParentsToo;
+
 		tmp.get()->mode = asyncMode;
-
-		//childToListenTo.getParent().isValid());
-
 		tmp.get()->child = childToListenTo;
-		tmp.get()->parent = tmp.get()->child.getParent();
-		tmp.get()->parent.addListener(tmp.get());
 
+		if (checkParentsToo)
+			tmp.get()->parent = childToListenTo.getRoot();
+		else
+			tmp.get()->parent = childToListenTo.getParent();
+
+		
+		tmp.get()->parent.addListener(tmp.get());
 		tmp.get()->cb = c;
 	};
 
-	if (childToListenTo.getParent().isValid())
+	if (tmp.get()->parent.isValid())
 	{
 		f();
 	}
@@ -208,9 +212,8 @@ void RemoveListener::setCallback(ValueTree childToListenTo, AsyncMode asyncMode,
 		// undo action). In this case, we'll execute the registration asynchronously.
 		MessageManager::callAsync(f);
 	}
-
-	
 }
+
 
 
 void RemoveListener::handleAsyncUpdate()
@@ -221,7 +224,16 @@ void RemoveListener::handleAsyncUpdate()
 
 void RemoveListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 {
-	if (p == parent && c == child)
+	bool shouldFire = false;
+
+	if (fireRecursively)
+	{
+		shouldFire = child.isAChildOf(c) && p.isAChildOf(parent);
+	}
+	else
+		shouldFire = p == parent && c == child;
+
+	if (shouldFire)
 	{
 		if (mode == AsyncMode::Asynchronously)
 			triggerAsyncUpdate();

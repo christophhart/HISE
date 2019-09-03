@@ -167,10 +167,16 @@ struct RemoveListener : public Base
 
 	~RemoveListener();
 
-	/** Set a callback that will be fired when the given child is removed. */
-	void setCallback(ValueTree childToListenTo, AsyncMode asyncMode, const Callback& c);
+	/** Set a callback that will be fired when the given child is removed. 
+		
+		If checkParentsToo is true, then the callback will also fire if 
+		one of the parent nodes of this node was removed from its parent. 
+	*/
+	void setCallback(ValueTree childToListenTo, AsyncMode asyncMode, bool checkParentsToo, const Callback& c);
 
 private:
+
+	bool fireRecursively = false;
 
 	Callback cb;
 

@@ -52,6 +52,7 @@ public:
 		ExportAsCpp = 1,
 		ExportAsCppProject,
 		ExportAsSnippet,
+		CreateScreenShot,
 		EditProperties,
 		UnfreezeNode,
 		FreezeNode,
@@ -67,8 +68,10 @@ public:
 
 	struct Factory : public PathFactory
 	{
-		String getId() const { return "PowerButton"; };
+		String getId() const { return "Scriptnode"; };
 
+		Array<Description> getDescription() const override;
+		
 		Path createPath(const String& id) const override;
 	};
 

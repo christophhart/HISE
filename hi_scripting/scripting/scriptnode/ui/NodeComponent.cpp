@@ -45,9 +45,10 @@ juce::String NodeComponent::Header::getPowerButtonId(bool getOff) const
 
 		if (getOff)
 		{
-			if (path.contains("frame") || 
-				path.contains("oversample") || 
-				path.contains("midi"))
+			if (path.contains("frame") ||
+				path.contains("oversample") ||
+				path.contains("midi") ||
+				path.startsWith("fix"))
 				return "chain";
 			else
 				return "on";
@@ -415,6 +416,34 @@ void NodeComponent::handlePopupMenuResult(int result)
 		CodeHelpers::addFileToProjectFolder(node->getId(), c);
 		SystemClipboard::copyTextToClipboard(c);
 	}
+	if (result == (int)MenuActions::CreateScreenShot)
+	{
+		auto mc = node->getScriptProcessor()->getMainController_();
+
+		auto docRepo = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Documentation::DocRepository).toString();
+
+		if (docRepo.isNotEmpty())
+		{
+			auto targetDirectory = File(docRepo).getChildFile("images/scriptnode/");
+
+			auto imageFile = targetDirectory.getChildFile(node->getId()).withFileExtension("png");
+
+			targetDirectory.createDirectory();
+
+			auto g = findParentComponentOfClass<DspNetworkGraph>();
+
+			auto imgBounds = g->getLocalArea(this, getLocalBounds());
+
+			auto img = g->createComponentSnapshot(imgBounds, true);
+
+			PNGImageFormat pngFormat;
+			FileOutputStream fos(imageFile);
+			if (pngFormat.writeImageToStream(img, fos))
+			{
+				PresetHandler::showMessageWindow("Screenshot added to repository", "The screenshot was saved at " + imageFile.getFullPathName());
+			}
+		}
+	}
 	if (result == (int)MenuActions::EditProperties)
 	{
 		auto n = new NodePopupEditor(this);
@@ -603,6 +632,36 @@ void DeactivatedComponent::resized()
 }
 
 
+juce::Array<hise::PathFactory::Description> NodeComponent::Factory::getDescription() const
+{
+	Array<Description> d;
+
+	auto addD = [&d](const String& name)
+	{
+		d.add({ name, name });
+	};
+
+	addD("on");
+	addD("fold");
+	addD("delete");
+	addD("move");
+	addD("goto");
+	addD("parameter");
+	addD("split");
+	addD("chain");
+	addD("multi");
+	addD("modchain");
+	addD("midichain");
+	addD("oversample2x");
+	addD("oversample4x");
+	addD("oversample8x");
+	addD("newnode");
+	addD("oldnode");
+	addD("clipboard");
+
+	return d;
+}
+
 juce::Path NodeComponent::Factory::createPath(const String& id) const
 {
 	Path p;
@@ -622,6 +681,14 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("oversample2x", ScriptnodeIcons::os2Icon);
 	LOAD_PATH_IF_URL("oversample4x", ScriptnodeIcons::os4Icon);
 	LOAD_PATH_IF_URL("oversample8x", ScriptnodeIcons::os8Icon);
+	LOAD_PATH_IF_URL("clipboard", SampleMapIcons::pasteSamples);
+	LOAD_PATH_IF_URL("newnode", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
+	LOAD_PATH_IF_URL("oldnode", EditorIcons::swapIcon);
+
+	if (url.startsWith("fix"))
+	{
+		p.loadPathFromData(ScriptnodeIcons::fixIcon, sizeof(ScriptnodeIcons::fixIcon));
+	}
 	
 	if (url.contains("frame"))
 	{
@@ -634,5 +701,7 @@ juce::Path NodeComponent::Factory::createPath(const String& id) const
 }
 
 
-}
 
+
+
+}

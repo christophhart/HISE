@@ -397,24 +397,92 @@ public:
 	{
 		static constexpr int ItemHeight = 24;
 
-		StringArray allIds;
+		enum Type
+		{
+			Clipboard,
+			ExistingNode,
+			NewNode
+		};
+
+
+		struct Entry
+		{
+			bool operator==(const Entry& other) const
+			{
+				return displayName == other.displayName;
+			}
+
+			Type t;
+			String insertString;
+			String displayName;
+		};
+
+		Array<Entry> allIds;
 		String searchTerm;
 
-		PopupList(DspNetwork* n)
+		void rebuildItems()
 		{
-			allIds = n->getListOfAllAvailableModuleIds();
-			rebuild(0);
+			allIds.clear();
+
+			auto clipboardContent = SystemClipboard::getTextFromClipboard();
+
+			if (clipboardContent.startsWith("ScriptNode"))
+			{
+				auto v = ValueTreeConverters::convertBase64ToValueTree(clipboardContent.fromFirstOccurrenceOf("ScriptNode", false, true), true);
+
+				Entry cItem;
+				cItem.t = Clipboard;
+				cItem.insertString = clipboardContent;
+				cItem.displayName = v[PropertyIds::ID].toString();
+
+				allIds.add(cItem);
+			}
+
+			for (auto existingNodeId : network->getListOfUnusedNodeIds())
+			{
+				Entry eItem;
+				eItem.t = ExistingNode;
+				eItem.insertString = existingNodeId;
+				eItem.displayName = existingNodeId;
+				allIds.add(eItem);
+			}
+
+			for (auto newNodePath : network->getListOfAllAvailableModuleIds())
+			{
+				Entry nItem;
+				nItem.t = NewNode;
+				nItem.insertString = newNodePath;
+				nItem.displayName = newNodePath;
+				allIds.add(nItem);
+			}
+
+			rebuild(getWidth());
+		}
+
+		WeakReference<DspNetwork> network;
+
+		PopupList(DspNetwork* n):
+			network(n)
+		{
+			rebuildItems();
+		}
+
+		String getTextToInsert() const
+		{
+			if (auto i = items[selectedIndex])
+				return i->entry.insertString;
+
+			return {};
 		}
 
 		String getCurrentText() const
 		{
 			if (auto i = items[selectedIndex])
-				return i->path;
+				return i->entry.displayName;
 
 			return {};
 		}
 
-		
 
 		int selectedIndex = 0;
 
@@ -442,46 +510,27 @@ public:
 			g.fillAll(Colours::black.withAlpha(0.2f));
 		}
 
-		struct Item : public Component
+		struct Item : public Component,
+					  public ButtonListener
 		{
-			Item(const String& path_, bool isSelected_):
-				path(path_),
-				selected(isSelected_)
-			{}
+			Item(const Entry& entry_, bool isSelected_);
 
-			void mouseDown(const MouseEvent& )
-			{
-				findParentComponentOfClass<PopupList>()->setSelected(this);
-			}
+			void buttonClicked(Button* b) override;
 
-			void mouseUp(const MouseEvent& event)
-			{
-				if (!event.mouseWasDraggedSinceMouseDown())
-				{
-					findParentComponentOfClass<KeyboardPopup>()->addNodeAndClose(path);
-				}
-			}
+			void mouseDown(const MouseEvent& );
 
-			void paint(Graphics& g) override
-			{
-				if (selected)
-				{
-					g.fillAll(Colours::white.withAlpha(0.2f));
-					g.setColour(Colours::white.withAlpha(0.1f));
-					g.drawRect(getLocalBounds(), 1);
-				}
+			void mouseUp(const MouseEvent& event);
 
-				g.setFont(GLOBAL_BOLD_FONT());
-				g.setColour(Colours::white.withAlpha(0.8f));
-				g.drawText(path, getLocalBounds().toFloat().reduced(3.0f), Justification::centredLeft);
+			void paint(Graphics& g) override;
 
-				g.setColour(Colours::black.withAlpha(0.1f));
-				g.drawHorizontalLine(getHeight() - 1, 0.0f, (float)getWidth());
-
-			}
+			void resized() override;
 
 			bool selected = false;
-			String path;
+			Entry entry;
+
+			Path p;
+			NodeComponent::Factory f;
+			HiseShapeButton deleteButton;
 		};
 
 		void setSelected(Item* i)
@@ -518,17 +567,17 @@ public:
 
 			for (auto id : allIds)
 			{
-				if (searchTerm.isNotEmpty() && !id.contains(searchTerm))
+				if (searchTerm.isNotEmpty() && !id.displayName.contains(searchTerm))
 					continue;
 
-				if (searchTerm == id)
+				if (searchTerm == id.displayName)
 					selectedIndex = items.size();
 
 				auto newItem = new Item(id, selectedIndex == items.size());
 				items.add(newItem);
 				addAndMakeVisible(newItem);
 
-				maxWidth = jmax(f.getStringWidth(id) + 20, maxWidth);
+				maxWidth = jmax(f.getStringWidth(id.displayName) + 20, maxWidth);
 				y += ItemHeight;
 			}
 
@@ -863,6 +912,8 @@ public:
 
 		static bool toggleBypass(DspNetworkGraph& g);
 		static bool toggleFreeze(DspNetworkGraph& g);
+
+		static bool copyToClipboard(DspNetworkGraph& g);
 
 		static bool editNodeProperty(DspNetworkGraph& g);
 		static bool foldSelection(DspNetworkGraph& g);

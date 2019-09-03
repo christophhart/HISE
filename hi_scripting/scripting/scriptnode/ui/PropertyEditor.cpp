@@ -143,6 +143,7 @@ void NodePopupEditor::buttonClicked(Button* b)
 			m.addItem((int)NodeComponent::MenuActions::ExportAsCpp, "Export as custom CPP class");
 			m.addItem((int)NodeComponent::MenuActions::ExportAsCppProject, "Export as project CPP class");
 			m.addItem((int)NodeComponent::MenuActions::ExportAsSnippet, "Export as Base64 snippet");
+			m.addItem((int)NodeComponent::MenuActions::CreateScreenShot, "Create screenshot");
 		}
 		else if (mode == 1)
 		{

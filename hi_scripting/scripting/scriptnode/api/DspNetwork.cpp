@@ -347,6 +347,23 @@ var DspNetwork::get(String id) const
 	return {};
 }
 
+bool DspNetwork::deleteIfUnused(String id)
+{
+	for (auto n : nodes)
+	{
+		if (n->getId() == id)
+		{
+			if (!isInSignalPath(n))
+			{
+				nodes.removeObject(n);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate)
 {
 	auto id = d[PropertyIds::ID].toString();

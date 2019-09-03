@@ -460,23 +460,6 @@ public:
 		}
 	};
 
-	struct AvailableModules : public NodeCollection
-	{
-		AvailableModules(DspNetwork* network_) :
-			NodeCollection(network_)
-		{
-			setName("Available Nodes");
-			auto sa = network->getListOfAllAvailableModuleIds();
-
-			for (auto s : sa)
-			{
-				auto newItem = new ModuleItem(s);
-				addAndMakeVisible(newItem);
-				items.add(newItem);
-			}
-		}
-	};
-
 	struct UsedNodes : public NodeCollection
 	{
 		UsedNodes(DspNetwork* network) :
@@ -511,16 +494,14 @@ public:
 		}
 	};
 
-	int getNumCollectionsToCreate() const override { return 3; }
+	int getNumCollectionsToCreate() const override { return 2; }
 
 	Collection* createCollection(int index) override
 	{
 		if (index == 0)
 			return new UsedNodes(parent);
-		else if (index == 1)
+		else 
 			return new UnusedNodes(parent);
-		else
-			return new AvailableModules(parent);
 	}
 
 	DspNodeList(DspNetwork* parent_, BackendRootWindow* window) :

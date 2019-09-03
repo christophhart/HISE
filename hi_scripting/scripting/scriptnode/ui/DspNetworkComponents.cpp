@@ -113,6 +113,8 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::editNodeProperty(*this);
 	if ((key).isKeyCode('q') || key.isKeyCode('Q'))
 		return Actions::toggleBypass(*this);
+	if ((key).isKeyCode('c') || key.isKeyCode('C') && key.getModifiers().isCommandDown())
+		return Actions::copyToClipboard(*this);
 	if (key == KeyPress::upKey || key == KeyPress::downKey)
 		return Actions::arrowKeyAction(*this, key);
 
@@ -603,6 +605,17 @@ bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
 	}
 	else if (freezeNode(f))
 	{
+		return true;
+	}
+
+	return false;
+}
+
+bool DspNetworkGraph::Actions::copyToClipboard(DspNetworkGraph& g)
+{
+	if (auto n = g.network->getSelection().getFirst())
+	{
+		g.getComponent(n)->handlePopupMenuResult((int)NodeComponent::MenuActions::ExportAsSnippet);
 		return true;
 	}
 
@@ -1117,43 +1130,64 @@ void KeyboardPopup::addNodeAndClose(String path)
 	auto container = dynamic_cast<NodeContainer*>(node.get());
 	auto ap = addPosition;
 
-	auto f = [sp, path, container, ap]()
+	if (path.startsWith("ScriptNode"))
 	{
-		if (path.isNotEmpty())
+		auto f = [sp, container, ap]()
 		{
-			var newNode;
+			sp->setCurrentModalWindow(nullptr, {});
 
-			auto network = container->asNode()->getRootNetwork();
+			auto clipboard = SystemClipboard::getTextFromClipboard();
+			auto data = clipboard.fromFirstOccurrenceOf("ScriptNode", false, false);
+			auto newTree = ValueTreeConverters::convertBase64ToValueTree(data, true);
 
-			newNode = network->create(path, {}, container->isPolyphonic());
-
-#if 0 // CLIPBOARD, later
-			if (result == 120000)
+			if (newTree.isValid())
 			{
-				auto data = clipboard.fromFirstOccurrenceOf("ScriptNode", false, false);
-				auto newTree = ValueTreeConverters::convertBase64ToValueTree(data, true);
+				var newNode;
+				auto network = container->asNode()->getRootNetwork();
 
-				if (newTree.isValid())
-				{
-					newNode = network->createFromValueTree(network->isPolyphonic(), newTree, true);
-				}
+				newNode = network->createFromValueTree(network->isPolyphonic(), newTree, true);
+
+				container->assign(ap, newNode);
+
+				network->deselectAll();
+				network->addToSelection(dynamic_cast<NodeBase*>(newNode.getObject()), ModifierKeys());
 			}
-			else if (result >= 11000)
+
+			sp->setCurrentModalWindow(nullptr, {});
+		};
+
+		MessageManager::callAsync(f);
+	}
+	else
+	{
+		auto f = [sp, path, container, ap]()
+		{
+			if (path.isNotEmpty())
 			{
+				var newNode;
 
-		}
-#endif
+				auto network = container->asNode()->getRootNetwork();
 
-			container->assign(ap, newNode);
+				newNode = network->get(path);
 
-			network->deselectAll();
-			network->addToSelection(dynamic_cast<NodeBase*>(newNode.getObject()), ModifierKeys());
-		}
+				if(!newNode.isObject())
+					newNode = network->create(path, {}, container->isPolyphonic());
 
-		sp->setCurrentModalWindow(nullptr, {});
-	};
+				container->assign(ap, newNode);
 
-	MessageManager::callAsync(f);
+				network->deselectAll();
+				network->addToSelection(dynamic_cast<NodeBase*>(newNode.getObject()), ModifierKeys());
+			}
+
+			sp->setCurrentModalWindow(nullptr, {});
+		};
+
+		MessageManager::callAsync(f);
+	}
+
+	
+
+	
 }
 
 bool KeyboardPopup::keyPressed(const KeyPress& k, Component*)
@@ -1185,11 +1219,82 @@ bool KeyboardPopup::keyPressed(const KeyPress& k, Component*)
 	}
 	else if (k == KeyPress::returnKey)
 	{
-		addNodeAndClose(list.getCurrentText());
+		addNodeAndClose(list.getTextToInsert());
 		return true;
 	}
 
 	return false;
+}
+
+KeyboardPopup::PopupList::Item::Item(const Entry& entry_, bool isSelected_) :
+	entry(entry_),
+	selected(isSelected_),
+	deleteButton("delete", this, f)
+{
+	if (entry.t == ExistingNode)
+		addAndMakeVisible(deleteButton);
+
+	static const StringArray icons = { "clipboard", "oldnode", "newnode" };
+
+	p = f.createPath(icons[(int)entry.t]);
+}
+
+void KeyboardPopup::PopupList::Item::buttonClicked(Button* b)
+{
+	auto list = findParentComponentOfClass<PopupList>();
+	
+	list->network->deleteIfUnused(entry.insertString);
+
+	MessageManager::callAsync([list]()
+	{
+		list->rebuildItems();
+	});
+}
+
+void KeyboardPopup::PopupList::Item::mouseDown(const MouseEvent&)
+{
+	findParentComponentOfClass<PopupList>()->setSelected(this);
+}
+
+void KeyboardPopup::PopupList::Item::mouseUp(const MouseEvent& event)
+{
+	if (!event.mouseWasDraggedSinceMouseDown())
+	{
+		findParentComponentOfClass<KeyboardPopup>()->addNodeAndClose(entry.insertString);
+	}
+}
+
+void KeyboardPopup::PopupList::Item::paint(Graphics& g)
+{
+	if (selected)
+	{
+		g.fillAll(Colours::white.withAlpha(0.2f));
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.drawRect(getLocalBounds(), 1);
+	}
+
+	auto b = getLocalBounds().toFloat();
+
+	auto icon = b.removeFromLeft(b.getHeight());
+
+	PathFactory::scalePath(p, icon.reduced(6.0f));
+
+	b.removeFromLeft(10.0f);
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.drawText(entry.displayName, b.reduced(3.0f), Justification::centredLeft);
+
+	g.setColour(Colours::white.withAlpha(0.3f));
+	g.fillPath(p);
+
+	g.setColour(Colours::black.withAlpha(0.1f));
+	g.drawHorizontalLine(getHeight() - 1, 0.0f, (float)getWidth());
+}
+
+void KeyboardPopup::PopupList::Item::resized()
+{
+	deleteButton.setBounds(getLocalBounds().removeFromRight(getHeight()).reduced(3));
 }
 
 }

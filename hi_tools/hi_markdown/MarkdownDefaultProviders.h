@@ -105,7 +105,17 @@ public:
 
 	template <class T> void registerFactory()
 	{
-		factories->factories.add(new T());
+		ScopedPointer<T> newObj = new T();
+
+		auto id = newObj->getId();
+
+		for (auto f : factories->factories)
+		{
+			if (f->getId() == id)
+				return;
+		}
+
+		factories->factories.add(newObj.release());
 		factories->factories.getLast()->createPath("");
 	}
 
