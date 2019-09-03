@@ -281,7 +281,13 @@ NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	valueUpdater(parent_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	data(data_)
 {
-	value.value = data[PropertyIds::Value];
+	auto initialValue = (double)data[PropertyIds::Value];
+
+	value.forEachVoice([initialValue](ParameterValue& v)
+	{
+		v.value = initialValue;
+	});
+
 	auto weakThis = WeakReference<Parameter>(this);
 
 	valueUpdater.setFunction(BIND_MEMBER_FUNCTION_0(NodeBase::Parameter::storeValue));
@@ -310,7 +316,7 @@ juce::String NodeBase::Parameter::getId() const
 
 double NodeBase::Parameter::getValue() const
 {
-	return value.value;
+	return value.getCurrentOrFirst().value;
 }
 
 
@@ -338,7 +344,7 @@ void NodeBase::Parameter::setCallback(const DspHelpers::ParameterCallback& newCa
 
 double NodeBase::Parameter::getModValue() const
 {
-	return value.getModValue();
+	return value.getCurrentOrFirst().getModValue();
 }
 
 void NodeBase::Parameter::storeValue()
@@ -348,15 +354,26 @@ void NodeBase::Parameter::storeValue()
 
 void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
 {
-	if (!parent->getRootNetwork()->isCurrentlyRenderingVoice() && value.value == newValue)
-		return;
+	if (value.isVoiceRenderingActive())
+	{
+		value.getCurrentOrFirst().value = newValue;
 
-	value.value = newValue;
+		lastValue = getModValue();
 
-	if (db)
-		db(getModValue());
+		if (db)
+			db(lastValue);
+		else
+			jassertfalse;
+	}
 	else
-		jassertfalse;
+	{
+		value.forEachVoice([this, newValue](ParameterValue& v)
+		{
+			v.value = newValue;
+			if (v.updateLastValue() && db)
+				db(v.lastValue);
+		});
+	}
 
 	valueUpdater.triggerUpdateWithLambda();
 }
@@ -365,35 +382,56 @@ void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
 
 void NodeBase::Parameter::addModulationValue(double newValue)
 {
-	if (value.modAddValue != newValue)
+	if (value.isVoiceRenderingActive())
 	{
-		value.modAddValue = newValue;
+		auto& v = value.get();
+		v.modAddValue = newValue;
+		
+		if (v.updateLastValue() && db)
+			db(v.lastValue);
+	}
+	else
+	{
+		value.forEachVoice([this, newValue](ParameterValue& v)
+		{
+			v.modAddValue = newValue;
 
-		if (db)
-			db(value.getModValue());
-		else
-			jassertfalse;
+			if (v.updateLastValue())
+				db(v.lastValue);
+		});
 	}
 }
 
 
 void NodeBase::Parameter::multiplyModulationValue(double newValue)
 {
-	if (value.modMulValue != newValue)
+	if (value.isVoiceRenderingActive())
 	{
-		value.modMulValue = newValue;
+		auto& v = value.get();
+		v.modMulValue = newValue;
 
-		if (db)
-			db(value.getModValue());
-		else
-			jassertfalse;
+		if (v.updateLastValue() && db)
+			db(v.lastValue);
+	}
+	else
+	{
+		value.forEachVoice([this, newValue](ParameterValue& v)
+		{
+			v.modMulValue = newValue;
+
+			if (v.updateLastValue())
+				db(v.lastValue);
+		});
 	}
 }
 
 void NodeBase::Parameter::clearModulationValues()
 {
-	value.modAddValue = 0.0;
-	value.modMulValue = 1.0;
+	value.forEachVoice([](ParameterValue& v)
+	{
+		v.modAddValue = 0.0;
+		v.modMulValue = 1.0;
+	});
 }
 
 struct DragHelpers

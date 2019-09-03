@@ -38,7 +38,8 @@ using namespace hise;
 ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* parent_, ValueTree data_) :
 	ConstScriptingObject(parent_->getScriptProcessor(), 0),
 	parent(parent_),
-	data(data_)
+	data(data_),
+	active(data, PropertyIds::Enabled, parent->getUndoManager(), true)
 {
 	rangeUpdater.setCallback(data, RangeHelpers::getRangeIds(),
 		valuetree::AsyncMode::Coallescated,
@@ -46,6 +47,19 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 	{
 		inverted = RangeHelpers::checkInversion(data, &rangeUpdater, parent->getUndoManager());
 		targetRange = RangeHelpers::getDoubleRange(data);
+	});
+
+	opTypeListener.setCallback(data, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
+		[this](Identifier, var newValue)
+	{
+		auto id = Identifier(newValue.toString());
+
+		if (id == OperatorIds::SetValue)
+			opType = SetValue;
+		else if (id == OperatorIds::Add)
+			opType = Add;
+		else if (id == OperatorIds::Multiply)
+			opType = Multiply;
 	});
 
 	expressionUpdater.setCallback(data, { PropertyIds::Expression },
@@ -60,17 +74,27 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 
 
 
+ModulationSourceNode::ModulationTarget::~ModulationTarget()
+{
+	int x = 5;
+}
+
 bool ModulationSourceNode::ModulationTarget::findTarget()
 {
 	String nodeId = data[PropertyIds::NodeId];
 	String parameterId = data[PropertyIds::ParameterId];
 
-	auto list = parent->getRootNetwork()->getListOfNodesWithType<NodeBase>(false);
+	auto list = parent->getRootNetwork()->getListOfNodesWithType<NodeBase>(true);
 
 	for (auto n : list)
 	{
 		if (n->getId() == nodeId)
 		{
+			auto enabled = n->getRootNetwork()->isInSignalPath(n);
+
+			if(!enabled)
+				data.setProperty(PropertyIds::Enabled, false, parent->getUndoManager());
+
 			for (int i = 0; i < n->getNumParameters(); i++)
 			{
 				if (n->getParameter(i)->getId() == parameterId)
@@ -78,12 +102,15 @@ bool ModulationSourceNode::ModulationTarget::findTarget()
 					parameter = n->getParameter(i);
 					callback = parameter->getCallback();
 
-					removeWatcher.setCallback(parameter->data,
-						valuetree::AsyncMode::Synchronously,
+					removeWatcher.setCallback(n->getValueTree(),
+						valuetree::AsyncMode::Synchronously, true,
 						[this](ValueTree&)
 					{
-						data.getParent().removeChild(data.getParent(), parent->getUndoManager());
+						data.getParent().removeChild(data, parent->getUndoManager());
 					});
+
+
+
 
 					return true;
 				}
@@ -112,6 +139,19 @@ void ModulationSourceNode::ModulationTarget::setExpression(const String& exprCod
 			SpinLock::ScopedLockType lock(expressionLock);
 			std::swap(newExpr, expr);
 		}
+	}
+}
+
+void ModulationSourceNode::ModulationTarget::applyValue(double value)
+{
+	if (!active)
+		return;
+
+	switch (opType)
+	{
+	case SetValue: parameter->setValueAndStoreAsync(value); break;
+	case Multiply: parameter->multiplyModulationValue(value); break;
+	case Add:	   parameter->addModulationValue(value); break;
 	}
 }
 
@@ -155,10 +195,7 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 			}
 		}
 
-		ok = true;
-
-		for (auto t : targets)
-			ok &= t->findTarget();
+		checkTargets();
 	});
 }
 
@@ -168,6 +205,8 @@ void ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 
 	m.setProperty(PropertyIds::NodeId, n->parent->getId(), nullptr);
 	m.setProperty(PropertyIds::ParameterId, n->getId(), nullptr);
+	m.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
+	m.setProperty(PropertyIds::Enabled, true, nullptr);
 
 	n->data.setProperty(PropertyIds::ModulationTarget, true, getUndoManager());
 
@@ -197,21 +236,19 @@ void ModulationSourceNode::prepare(PrepareSpecs ps)
 	if (ps.sampleRate > 0.0)
 		sampleRateFactor = 32768.0 / ps.sampleRate;
 
-	ok = true;
+	prepareWasCalled = true;
 
-	for (auto t : targets)
-		ok &= t->findTarget();
+	checkTargets();
 }
 
 void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAnalysis)
 {
-	if (ringBuffer != nullptr)
+	if (ringBuffer != nullptr && 
+		numSamplesForAnalysis > 0 &&
+		getRootNetwork()->isRenderingFirstVoice())
 	{
 		ringBuffer->write(value, (int)(jmax(1.0, sampleRateFactor * (double)numSamplesForAnalysis)));
 	}
-
-	if (!ok)
-		return;
 
 	if (scaleModulationValue)
 	{
@@ -225,7 +262,7 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 			{
 				auto thisValue = t->expr->getValue(value);
 
-				t->parameter->setValueAndStoreAsync(thisValue);
+				t->applyValue(thisValue);
 			}
 			else
 			{
@@ -236,7 +273,7 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 
 				auto normalised = t->targetRange.convertFrom0to1(thisValue);
 
-				t->parameter->setValueAndStoreAsync(normalised);
+				t->applyValue(normalised);
 			}
 		}
 	}
@@ -244,22 +281,8 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 	{
 		for (auto t : targets)
 		{
-			SpinLock::ScopedLockType l(t->expressionLock);
-
-			if (t->expr != nullptr)
-			{
-				auto thisValue = t->expr->getValue(value);
-
-				t->parameter->setValueAndStoreAsync(thisValue);
-			}
-			else
-			{
-				t->parameter->setValueAndStoreAsync(value);
-			}
-
-			
+			t->applyValue(value);
 		}
-			
 	}
 }
 
@@ -281,6 +304,19 @@ int ModulationSourceNode::fillAnalysisBuffer(AudioSampleBuffer& b)
 void ModulationSourceNode::setScaleModulationValue(bool shouldScaleValue)
 {
 	scaleModulationValue = shouldScaleValue;
+}
+
+void ModulationSourceNode::checkTargets()
+{
+	// We need to skip this if the node wasn't initialised properly
+	if (!prepareWasCalled)
+		return;
+
+	for (int i = 0; i < targets.size(); i++)
+	{
+		if (!targets[i]->findTarget())
+			targets.remove(i--);
+	}
 }
 
 ModulationSourceNode::SimpleRingBuffer::SimpleRingBuffer()

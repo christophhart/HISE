@@ -733,7 +733,7 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 	if (id == MinValue || id == MaxValue)
 		return new SliderWithLimit(d, id, um);
 
-	if (propId == LockNumChannels)
+	if (propId == LockNumChannels || propId == Enabled)
 		return new ToggleButtonPropertyComponent(d, id, um);
 	if (propId == Expression)
 		return new ExpressionPropertyComponent(d, id, um);

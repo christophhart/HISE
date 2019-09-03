@@ -185,6 +185,11 @@ struct NodeBase : public ConstScriptingObject
 
 		Array<Parameter*> getConnectedMacroParameters() const;
 
+		void prepare(PrepareSpecs specs)
+		{
+			value.prepare(specs);
+		}
+
 		String getId() const;
 		double getValue() const;
 		DspHelpers::ParameterCallback& getReferenceToCallback();
@@ -203,7 +208,7 @@ struct NodeBase : public ConstScriptingObject
 
 	private:
 
-		
+		double lastValue = 0.0;
 
 		static void nothing(double) {};
 		void storeValue();
@@ -220,13 +225,23 @@ struct NodeBase : public ConstScriptingObject
 			double modAddValue = 0.0;
 			double modMulValue = 1.0;
 			double value = 0.0;
+			double lastValue = 0.0;
+
+			bool updateLastValue()
+			{
+				auto thisValue = getModValue();
+				std::swap(thisValue, lastValue);
+				return thisValue != lastValue;
+			}
 
 			double getModValue() const
 			{
 				return (value + modAddValue) * modMulValue;
 			}
 
-		} value;
+		};
+		
+		PolyData<ParameterValue, NUM_POLYPHONIC_VOICES> value;
 
 		
 

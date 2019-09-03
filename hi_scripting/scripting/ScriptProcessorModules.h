@@ -849,6 +849,13 @@ class JavascriptSynthesiser : public JavascriptProcessor,
 {
 public:
 
+	enum ModChains
+	{
+		Extra1 = 2,
+		Extra2,
+		numModChains
+	};
+
 	struct Sound : public ModulatorSynthSound
 	{
 		bool appliesToNote(int ) final override { return true; };
@@ -867,7 +874,14 @@ public:
 
 		void calculateBlock(int startSample, int numSamples) override;
 
+		void setVoiceStartDataForNextRenderCallback()
+		{
+			isVoiceStart = true;
+		}
+
 		JavascriptSynthesiser* synth;
+
+		bool isVoiceStart = false;
 	};
 	
 	SET_PROCESSOR_NAME("ScriptSynth", "Scriptnode Syntesiser", "A polyphonic scriptable synthesiser.");
@@ -907,6 +921,46 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 	bool isPolyphonic() const override { return true; }
+
+	float getModValueForNode(int modIndex, int startSample) const
+	{
+		if (modIndex == BasicChains::PitchChain)
+		{
+			auto& pc = modChains[BasicChains::PitchChain];
+			if (auto pValues = pc.getReadPointerForVoiceValues(0))
+				return pValues[startSample];
+			else
+				return pc.getConstantModulationValue();
+		}
+		else
+		{
+			return modChains[modIndex].getOneModulationValue(startSample);
+		}
+		
+	}
+
+	float getModValueAtVoiceStart(int modIndex) const;
+
+	
+
+	Processor* getChildProcessor(int processorIndex) override
+	{
+		if (processorIndex < ModulatorSynth::numInternalChains)
+			return ModulatorSynth::getChildProcessor(processorIndex);
+		if (processorIndex == ModulatorSynth::numInternalChains)
+			return modChains[Extra1].getChain();
+		if (processorIndex == ModulatorSynth::numInternalChains + 1)
+			return modChains[Extra2].getChain();
+	}
+
+	const Processor* getChildProcessor(int processorIndex) const override
+	{
+		return const_cast<JavascriptSynthesiser*>(this)->getChildProcessor(processorIndex);
+	}
+
+	int getNumInternalChains() const override { return ModulatorSynth::numInternalChains + 2; };
+
+	int getNumChildProcessors() const override { return getNumInternalChains(); };
 
 	ValueTree exportAsValueTree() const override { ValueTree v = ModulatorSynth::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override
@@ -960,10 +1014,16 @@ public:
 
 	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
 
+	ModulatorChain::ModChainWithBuffer* nodeChains[3];
+
 	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> onControlCallback;
 
 	ScriptingApi::Engine* engineObject;
+
+	int currentVoiceStartSample = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptSynthesiser);
 };
 
 

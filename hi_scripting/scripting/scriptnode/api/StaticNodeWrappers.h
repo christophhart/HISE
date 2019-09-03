@@ -130,6 +130,13 @@ public:
 	void reset()
 	{
 		wrapper.reset();
+
+		if (HiseDspBaseType::isModulationSource)
+		{
+			double initValue = 0.0;
+			if (getRootNetwork()->isCurrentlyRenderingVoice() && wrapper.getObject().handleModulation(initValue))
+				sendValueToTargets(initValue, 0);
+		}
 	}
 
 	HiseDspBase* getInternalT()
@@ -182,6 +189,13 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override
 	{
 		wrapper.handleHiseEvent(e);
+
+		if (wrapper.allowsModulation())
+		{
+			double value = 0.0;
+			if (wrapper.handleModulation(value))
+				sendValueToTargets(value, 0);
+		}
 	}
 
 	RestorableNode* getAsRestorableNode() override

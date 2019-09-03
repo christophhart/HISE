@@ -96,6 +96,7 @@ DECLARE_ID(NumChannels);
 DECLARE_ID(LockNumChannels);
 DECLARE_ID(ModulationTargets);
 DECLARE_ID(ModulationTarget);
+DECLARE_ID(ModulationChain);
 DECLARE_ID(ValueTarget);
 DECLARE_ID(OpType);
 DECLARE_ID(Expression);
@@ -111,6 +112,8 @@ DECLARE_ID(SampleIndex);
 DECLARE_ID(File);
 DECLARE_ID(PublicComponent);
 DECLARE_ID(Code);
+DECLARE_ID(AllowSubBlocks);
+DECLARE_ID(Enabled);
 
 enum EditType
 {

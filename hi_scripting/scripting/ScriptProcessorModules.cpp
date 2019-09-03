@@ -1706,7 +1706,19 @@ JavascriptSynthesiser::JavascriptSynthesiser(MainController *mc, const String &i
 	editorStateIdentifiers.add("onInitOpen");
 	editorStateIdentifiers.add("onControlOpen");
 
+	modChains += { this, "Extra1" };
+	modChains += { this, "Extra2" };
+
 	finaliseModChains();
+
+	modChains[Extra1].setIncludeMonophonicValuesInVoiceRendering(true);
+	modChains[Extra1].setExpandToAudioRate(false);
+
+	modChains[Extra2].setIncludeMonophonicValuesInVoiceRendering(true);
+	modChains[Extra2].setExpandToAudioRate(false);
+
+	modChains[Extra1].getChain()->setColour(Colour(0xFF888888));
+	modChains[Extra2].getChain()->setColour(Colour(0xFF888888));
 
 	for (int i = 0; i < numVoices; i++)
 	{
@@ -1817,10 +1829,11 @@ void JavascriptSynthesiser::preStartVoice(int voiceIndex, const HiseEvent& e)
 
 	if (auto n = getActiveNetwork())
 	{
-		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
+		static_cast<Voice*>(getVoice(voiceIndex))->setVoiceStartDataForNextRenderCallback();
 
-		HiseEvent copy(e);
-		n->getRootNode()->handleHiseEvent(copy);
+		currentVoiceStartSample = jlimit(0, getLargestBlockSize(), e.getTimeStamp());
+
+
 	}
 }
 
@@ -1837,10 +1850,30 @@ void JavascriptSynthesiser::prepareToPlay(double sampleRate, int samplesPerBlock
 	}
 }
 
+
+float JavascriptSynthesiser::getModValueAtVoiceStart(int modIndex) const
+{
+	return getModValueForNode(modIndex, currentVoiceStartSample);
+}
+
 void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSamples)
 {
 	if (auto n = synth->getActiveNetwork())
 	{
+		auto rootNode = n->getRootNode();
+
+		if (isVoiceStart)
+		{
+			scriptnode::DspNetwork::VoiceSetter vs(*n, getVoiceIndex());
+			// There are some nodes which need to setup some properties before
+			// calling reset based on the incoming event
+			auto event = getCurrentHiseEvent();
+			rootNode->handleHiseEvent(event);
+			rootNode->reset();
+
+			isVoiceStart = false;
+		}
+
 		float* channels[NUM_MAX_CHANNELS];
 
 		voiceBuffer.clear();
@@ -1855,7 +1888,7 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 
 		{
 			scriptnode::DspNetwork::VoiceSetter vs(*n, getVoiceIndex());
-			n->getRootNode()->process(d);
+			rootNode->process(d);
 		}
 		
 		if (auto modValues = getOwnerSynth()->getVoiceGainValues())

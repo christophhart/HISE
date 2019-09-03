@@ -47,9 +47,19 @@ public:
 
 	struct ModulationTarget: public ConstScriptingObject
 	{
+		enum OpType
+		{
+			SetValue,
+			Multiply,
+			Add,
+			numOpTypes
+		};
+
 		static void nothing(double) {}
 
 		ModulationTarget(ModulationSourceNode* parent_, ValueTree data_);
+
+		~ModulationTarget();
 
 		Identifier getObjectName() const override { return PropertyIds::ModulationTarget; }
 
@@ -57,16 +67,24 @@ public:
 
 		void setExpression(const String& exprCode);
 
+		void applyValue(double value);
+
+		valuetree::PropertyListener opTypeListener;
 		valuetree::PropertyListener expressionUpdater;
 		valuetree::PropertyListener rangeUpdater;
 		valuetree::RemoveListener removeWatcher;
+		
+
 		ReferenceCountedObjectPtr<NodeBase::Parameter> parameter;
 		WeakReference<ModulationSourceNode> parent;
 		ValueTree data;
+		
 		NormalisableRange<double> targetRange;
 		bool inverted = false;
 		DspHelpers::ParameterCallback callback;
 
+		CachedValue<bool> active;
+		OpType opType;
 		snex::JitExpression::Ptr expr;
 		SpinLock expressionLock;
 	};
@@ -94,12 +112,14 @@ public:
 
 private:
 
+	void checkTargets();
+
 	double sampleRateFactor = 1.0;
+	bool prepareWasCalled = false;
 
 	bool scaleModulationValue = true;
 
 	int ringBufferSize = 0;
-	int blockSize = 0;
 
 	struct SimpleRingBuffer
 	{
