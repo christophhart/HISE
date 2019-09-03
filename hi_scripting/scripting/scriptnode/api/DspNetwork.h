@@ -170,7 +170,9 @@ public:
 	NodeBase* createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate=false);
 	bool isInSignalPath(NodeBase* b) const;
 
-	bool isCurrentlyRenderingVoice() const { return isPolyphonic() && voiceIndex != -1; }
+	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && voiceIndex != -1; }
+
+	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || voiceIndex == 0; }
 
 	NodeBase* getNodeWithId(const String& id) const;
 

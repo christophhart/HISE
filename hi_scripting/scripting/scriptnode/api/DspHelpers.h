@@ -131,10 +131,20 @@ template <typename T, int NumVoices> struct PolyData
 
 	bool isVoiceRenderingActive() const
 	{
-		return isPolyphonic() && voicePtr != nullptr && *voicePtr != -1;
+		return isPolyphonic() && 
+			   voicePtr != nullptr && *voicePtr != -1 && 
+			   !MessageManager::getInstanceWithoutCreating()->currentThreadHasLockedMessageManager();
 	}
 
 	T& getCurrentOrFirst()
+	{
+		if (isVoiceRenderingActive())
+			return get();
+		else
+			return getFirst();
+	}
+
+	const T& getCurrentOrFirst() const
 	{
 		if (isVoiceRenderingActive())
 			return get();
@@ -170,7 +180,7 @@ private:
 		return *voicePtr;
 	}
 
-	int getVoiceIndex(int index)
+	int getVoiceIndex(int index) const
 	{
 		auto rv = index & (NumVoices - 1);
 		return rv;
@@ -188,6 +198,8 @@ private:
 
 	T data[NumVoices];
 	int* voicePtr = nullptr;
+	
+	
 };
 
 /** A lightweight object containing the data. */

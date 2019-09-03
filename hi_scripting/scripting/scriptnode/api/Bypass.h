@@ -136,7 +136,11 @@ public:
 		this->obj.prepare(ps);
 	}
 
-	void reset() { this->obj.reset(); }
+	void reset()
+	{ 
+		bypassRamper.setValueWithoutSmoothing(bypassRamper.getTargetValue());
+		this->obj.reset(); 
+	}
 
 	constexpr bool allowsModulation()
 	{

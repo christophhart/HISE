@@ -144,16 +144,52 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 
 	void createParameters(Array<ParameterData>& data) override
 	{
-		obj.getFirst().createParameters();
-
-		for (auto jp : obj.getFirst().parameters)
+		if (NumVoices == 1)
 		{
-			ParameterData p(jp.id);
-			p.db = jp.f;
-			data.add(std::move(p));
-		}
+			obj.getFirst().createParameters();
 
-		obj.getFirst().parameters.clear();
+			for (auto jp : obj.getFirst().parameters)
+			{
+				ParameterData p(jp.id);
+				p.db = jp.f;
+				data.add(std::move(p));
+			}
+
+			obj.getFirst().parameters.clear();
+		}
+		else
+		{
+			obj.forEachVoice([](T& o)
+			{
+				o.createParameters();
+			});
+
+
+			int index = 0;
+
+			for (auto jp : obj.getFirst().parameters)
+			{
+				ParameterData p(jp.id);
+
+				p.db = [index, this](double newValue)
+				{
+					if (obj.isVoiceRenderingActive())
+					{
+						obj.get().parameters[index].f(newValue);
+					}
+					else
+					{
+						obj.forEachVoice([index, newValue](T& o)
+						{
+							o.parameters[index].f(newValue);
+						});
+					}
+				};
+
+				index++;
+				data.add(std::move(p));
+			}
+		}
 	}
 
 	String getSnippetText() const override
