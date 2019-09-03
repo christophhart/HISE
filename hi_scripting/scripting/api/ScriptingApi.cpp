@@ -1010,6 +1010,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 	API_VOID_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
+	API_VOID_METHOD_WRAPPER_0(Engine, clearMidiFilePool);
+	API_VOID_METHOD_WRAPPER_0(Engine, clearSampleMapPool);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLatencySamples);
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 };
@@ -1095,6 +1097,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
+	ADD_API_METHOD_0(clearMidiFilePool);
+	ADD_API_METHOD_0(clearSampleMapPool);
 	ADD_API_METHOD_1(loadImageIntoPool);
 	ADD_API_METHOD_1(createDspNetwork);
 	ADD_API_METHOD_1(setLatencySamples);
@@ -1603,6 +1607,26 @@ void ScriptingApi::Engine::loadImageIntoPool(const String& id)
 	// We don't need that method in compiled plugins...
 	ignoreUnused(id);
 
+#endif
+}
+
+void ScriptingApi::Engine::clearSampleMapPool()
+{
+#if USE_BACKEND
+	auto& smPool = getScriptProcessor()->getMainController_()->getCurrentFileHandler().pool->getSampleMapPool();
+	auto numFiles = smPool.getNumLoadedFiles();
+	smPool.clearData();
+	debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "SampleMap pool cleared: " + String(numFiles) + " entries removed");
+#endif
+}
+
+void ScriptingApi::Engine::clearMidiFilePool()
+{
+#if USE_BACKEND
+	auto& midiPool = getScriptProcessor()->getMainController_()->getCurrentFileHandler().pool->getMidiFilePool();
+	auto numFiles = midiPool.getNumLoadedFiles();
+	midiPool.clearData();
+	debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "MIDI file pool cleared: " + String(numFiles) + " entries removed");
 #endif
 }
 

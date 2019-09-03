@@ -335,6 +335,12 @@ public:
 		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
 		void loadImageIntoPool(const String& id);
 
+		/** Removes all entries from the samplemap pool */
+		void clearSampleMapPool();
+
+		/** Removes all entries from the MIDi file pool. */
+		void clearMidiFilePool();
+
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		
