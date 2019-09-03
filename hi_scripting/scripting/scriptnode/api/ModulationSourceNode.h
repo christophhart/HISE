@@ -176,6 +176,9 @@ struct ModulationSourcePlotter : ModulationSourceBaseComponent
 
 	int getSamplesPerPixel() const;
 
+	float pixelCounter = 0.0f;
+	bool skip = false;
+
 	RectangleList<float> rectangles;
 	AudioSampleBuffer buffer;
 };

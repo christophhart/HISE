@@ -482,12 +482,28 @@ ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 
 void ModulationSourcePlotter::timerCallback()
 {
+	skip = !skip;
+
+	if (skip)
+		return;
+
 	if (getSourceNodeFromParent() != nullptr)
 	{
+		jassert(getSamplesPerPixel() > 0);
+
 		auto numNew = sourceNode->fillAnalysisBuffer(buffer);
 
-		if (numNew > 4 * getSamplesPerPixel())
-			rebuildPath();
+		pixelCounter += (float)numNew / (float)getSamplesPerPixel();
+
+		
+
+		rebuildPath();
+
+		if (pixelCounter > 4.0f)
+		{
+			pixelCounter = fmodf(pixelCounter, 4.0f);
+			repaint();
+		}	
 	}
 }
 
@@ -517,7 +533,6 @@ void ModulationSourcePlotter::rebuildPath()
 
 		rectangles.add({ i + offset, y, rectangleWidth, height });
 	}
-	repaint();
 }
 
 void ModulationSourcePlotter::paint(Graphics& g)
