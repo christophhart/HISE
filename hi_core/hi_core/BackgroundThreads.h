@@ -343,6 +343,13 @@ public:
 		logData.logFunction = additionalLogFunction;
 	}
 
+	/** You can add a lambda that will be executed on the message thread after the task
+	    has been completed. */
+	void setAdditionalFinishCallback(const std::function<void()>& f)
+	{
+		additionalFinishCallback = f;
+	}
+
 protected:
 
 	LogData logData;
@@ -369,6 +376,8 @@ protected:
 	}
 
 private:
+
+	std::function<void()> additionalFinishCallback;
 
 	mutable bool recursion = false;
 

@@ -194,6 +194,13 @@ void ExpansionHandler::createAvailableExpansions()
 }
 
 
+void ExpansionHandler::rebuildExpansions()
+{
+	expansionList.clear();
+
+	createAvailableExpansions();
+}
+
 #if !HISE_USE_CUSTOM_EXPANSION_TYPE
 hise::Expansion* ExpansionHandler::createExpansionForFile(const File& f)
 {
@@ -372,6 +379,35 @@ PooledAdditionalData Expansion::loadAdditionalData(const String& relativePath)
 	auto ref = createReferenceForFile(relativePath, FileHandlerBase::AdditionalSourceCode);
 
 	return pool->getPool<AdditionalDataReference>()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
+}
+
+void Expansion::redirectSampleDirectoryToDefault()
+{
+#if USE_FRONTEND
+	auto target = FrontendHandler::getSampleLocationForCompiledPlugin();
+
+	for (auto& s : subDirectories)
+	{
+		if(s.directoryType == SubDirectories::Samples)
+		{
+			s.file = target;
+			s.isReference = true;
+			break;
+		}
+	}
+
+#endif
+}
+
+void Expansion::saveExpansionInfoFile()
+{
+	if (Helpers::getExpansionInfoFile(root, Intermediate).existsAsFile() ||
+		Helpers::getExpansionInfoFile(root, Encrypted).existsAsFile())
+		return;
+
+	auto file = Helpers::getExpansionInfoFile(root, FileBased);
+
+	file.replaceWithText(data->v.toXmlString());
 }
 
 juce::String Expansion::Helpers::getExpansionIdFromReference(const String& referenceId)

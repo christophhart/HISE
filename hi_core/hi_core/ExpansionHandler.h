@@ -127,6 +127,9 @@ public:
 
 	PooledAdditionalData loadAdditionalData(const String& relativePath);
 
+	/** By default the expansion pack uses its own sample folder, but you can force this to use the default sample location. */
+	void redirectSampleDirectoryToDefault();
+
 #if 0
 	ValueTree getSampleMap(const String& sampleMapId)
 	{
@@ -164,7 +167,10 @@ public:
 
 	bool isActive() const noexcept { return numActiveReferences != 0; }
 
-	void incActiveRefCount() { numActiveReferences++; }
+	void incActiveRefCount() 
+	{ 
+		numActiveReferences++; 
+	}
 	void decActiveRefCount() 
 	{
 		jassert(numActiveReferences > 0);
@@ -180,6 +186,15 @@ public:
 		jassertfalse;
 		return {};
 
+	}
+
+	void saveExpansionInfoFile();
+
+	String getWildcard() const
+	{
+		String s;
+		s << "{EXP::" << getProperty(ExpansionIds::Name) << "}";
+		return s;
 	}
 
 protected:
@@ -238,16 +253,7 @@ protected:
 		return sub;
 	}
 
-	void saveExpansionInfoFile()
-	{
-		if (Helpers::getExpansionInfoFile(root, Intermediate).existsAsFile() ||
-			Helpers::getExpansionInfoFile(root, Encrypted).existsAsFile())
-			return;
-
-		auto file = Helpers::getExpansionInfoFile(root, FileBased);
-
-		file.replaceWithText(data->v.toXmlString());
-	}
+	
 
 	void addMissingFolders()
 	{
@@ -276,12 +282,7 @@ protected:
 			d.createDirectory();
 	}
 
-	String getWildcard() const
-	{
-		String s;
-		s << "{EXP::" << getProperty(ExpansionIds::Name) << "}";
-		return s;
-	}
+	
 
 	struct Helpers
 	{
@@ -346,7 +347,21 @@ public:
 		virtual ~Listener()
 		{}
 
+		/** This will be called whenever a expansion pack was created. 
+		
+			Normally, this will be called once at initialisation, but it might be possible that your project
+			will add more expansions on runtime so this callback can be used to add the new expansion.
+
+			Be aware that this call supersedes the expansionPackLoaded call (so if an expansion is being
+			created, it will call this instead of expansionPackLoaded asynchronously.
+		*/
 		virtual void expansionPackCreated(Expansion* newExpansion) { expansionPackLoaded(newExpansion); };
+
+		/** This will be called whenever an expansion pack was loaded. 
+		
+			Loading an expansion pack is not the only way of accessing its content, it is just telling
+			that it is supposed to be the "active" expansion.
+		*/
 		virtual void expansionPackLoaded(Expansion* currentExpansion) = 0;
 
 	private:
@@ -366,6 +381,8 @@ public:
 	void createNewExpansion(const File& expansionFolder);
 	File getExpansionFolder() const;
 	void createAvailableExpansions();
+
+	void rebuildExpansions();
 
 	Expansion* createExpansionForFile(const File& f);
 
@@ -455,6 +472,7 @@ private:
 	public:
 		enum class EventType
 		{
+			Nothing,
 			ExpansionLoaded,
 			ExpansionCreated,
 			numModes
@@ -468,7 +486,8 @@ private:
 
 		void sendNotification(EventType eventType, NotificationType notificationType = sendNotificationAsync)
 		{
-			m = eventType;
+			if ((int)eventType > (int)m)
+				m = eventType;
 
 			if (notificationType == sendNotificationAsync)
 			{
@@ -495,16 +514,16 @@ private:
 					else
 						l->expansionPackCreated(parent.currentExpansion);
 				}
-
 			}
+
+			m = EventType::Nothing;
 
 			return;
 		}
 
 		ExpansionHandler& parent;
 
-		EventType m;
-		WeakReference<Expansion> currentExpansion;
+		EventType m = EventType::Nothing;
 	};
 
 	Notifier notifier;

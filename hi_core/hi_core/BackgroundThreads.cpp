@@ -145,6 +145,10 @@ bool DialogWindowWithBackgroundThread::threadShouldExit() const
 void DialogWindowWithBackgroundThread::handleAsyncUpdate()
 {
 	threadFinished();
+
+	if (additionalFinishCallback)
+		additionalFinishCallback();
+
 	destroy();
 }
 

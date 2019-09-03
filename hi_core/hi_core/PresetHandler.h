@@ -173,6 +173,8 @@ public:
 
 	void createLinkFileToGlobalSampleFolder(const String& suffix);
 
+	
+
 	virtual File getRootFolder() const = 0;
 
 	virtual Array<SubDirectories> getSubDirectoryIds() const;
@@ -471,6 +473,8 @@ public:
     static File getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension);
 
 	static ValueTree collectAllUserPresets(ModulatorSynthChain* chain, FileHandlerBase* expansion=nullptr);
+
+	static StringArray getExpansionsForUserPreset(const File& userpresetFile);
 
 	static void extractUserPresets(const char* userPresetData, size_t size);
 

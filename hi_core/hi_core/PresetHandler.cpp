@@ -353,6 +353,19 @@ ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain, F
 }
 
 
+juce::StringArray UserPresetHelpers::getExpansionsForUserPreset(const File& userpresetFile)
+{
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(userpresetFile);
+
+	if (xml != nullptr)
+	{
+		auto v = xml->getStringAttribute("RequiredExpansions", "");
+		return StringArray::fromTokens(v, ";", "");
+	}
+
+	return {};
+}
+
 void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t size)
 {
 #if USE_FRONTEND
@@ -2253,7 +2266,11 @@ void FileHandlerBase::createLinkFileInFolder(const File& source, const File& tar
 
 void FileHandlerBase::createLinkFileToGlobalSampleFolder(const String& suffix)
 {
-	auto linkFile = getLinkFile(getSubDirectory(Samples));
+	auto linkFile = getLinkFile(getRootFolder().getChildFile(getIdentifier(Samples)));
+	
+	if (!linkFile.existsAsFile())
+		linkFile.create();
+
 	linkFile.replaceWithText("{GLOBAL_SAMPLE_FOLDER}" + suffix);
 
 	checkSubDirectories();
