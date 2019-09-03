@@ -978,6 +978,209 @@ void mono2stereo::processSingle(float* frameData, int numChannels)
 		frameData[1] = frameData[0];
 }
 
+hise_mod::hise_mod()
+{
+	
+}
+
+void hise_mod::initialise(NodeBase* b)
+{
+	parentProcessor = dynamic_cast<JavascriptSynthesiser*>(b->getScriptProcessor());
+	parentNode = dynamic_cast<ModulationSourceNode*>(b);
+}
+
+void hise_mod::prepare(PrepareSpecs ps)
+{
+	modValues.prepare(ps);
+	uptime.prepare(ps);
+
+	uptime.forEachVoice([](double& d) { d = 0.0; });
+
+	if (parentProcessor != nullptr && ps.sampleRate > 0.0)
+	{
+		synthBlockSize = (double)parentProcessor->getLargestBlockSize();
+		uptimeDelta = parentProcessor->getSampleRate() / ps.sampleRate;
+	}
+	
+}
+
+void hise_mod::process(ProcessData& d)
+{
+	if (parentProcessor != nullptr)
+	{
+		auto numToDo = (double)d.size;
+		auto& u = uptime.get();
+
+		
+		modValues.get().setModValueIfChanged(parentProcessor->getModValueForNode(modIndex, roundToInt(u)));
+		u = fmod(u + numToDo * uptimeDelta, synthBlockSize);
+	}
+}
+
+bool hise_mod::handleModulation(double& v)
+{
+	if (modValues.isVoiceRenderingActive())
+		return modValues.get().getChangedValue(v);
+	else
+		return false;
+}
+
+void hise_mod::processSingle(float* frameData, int numChannels)
+{
+	jassertfalse;
+}
+
+
+void hise_mod::handleHiseEvent(HiseEvent& e)
+{
+	if (e.isNoteOn())
+	{
+		uptime.get() = e.getTimeStamp() * uptimeDelta;
+	}
+}
+
+void hise_mod::createParameters(Array<ParameterData>& data)
+{
+	{
+		ParameterData p("Index");
+		p.setParameterValueNames({ "Pitch", "Extra 1", "Extra 2" });
+		p.db = BIND_MEMBER_FUNCTION_1(hise_mod::setIndex);
+		p.defaultValue = 0.0;
+		data.add(std::move(p));
+	}
+}
+
+void hise_mod::setIndex(double index)
+{
+	auto inp = roundToInt(index);
+
+	if (inp == 0)
+	{
+		modIndex = ModulatorSynth::BasicChains::PitchChain;
+	}
+
+	else if (inp == 1)
+		modIndex = JavascriptSynthesiser::ModChains::Extra1;
+
+	else if (inp == 2)
+		modIndex = JavascriptSynthesiser::ModChains::Extra2;
+
+	if (parentNode != nullptr)
+		parentNode->setScaleModulationValue(inp != 0);
+}
+
+void hise_mod::reset()
+{
+	if (modValues.isVoiceRenderingActive())
+	{
+		modValues.get().setModValue(parentProcessor->getModValueAtVoiceStart(modIndex));
+	}
+	else
+	{
+		modValues.forEachVoice([](ModValue& v)
+		{
+			v.setModValue(1.0);
+		});
+	}
+}
+
+void fm::prepare(PrepareSpecs ps)
+{
+	oscData.prepare(ps);
+	modGain.prepare(ps);
+	sr = ps.sampleRate;
+}
+
+void fm::reset()
+{
+	if (oscData.isVoiceRenderingActive())
+		oscData.get().reset();
+	else
+		oscData.forEachVoice([](OscData& d) {d.reset(); });
+}
+
+void fm::process(ProcessData& d)
+{
+	auto& od = oscData.get();
+
+	for (int i = 0; i < d.size; i++)
+	{
+		double modValue = (double)d.data[0][i];
+		d.data[0][i] = sinTable->getInterpolatedValue(od.tick());
+		od.uptime += modGain.get() * modValue;
+	}
+}
+
+void fm::processSingle(float* frameData, int numChannels)
+{
+	auto& od = oscData.get();
+	double modValue = (double)*frameData;
+	*frameData = sinTable->getInterpolatedValue(od.tick());
+	od.uptime += modGain.get() * modValue;
+}
+
+void fm::createParameters(Array<ParameterData>& data)
+{
+	{
+		ParameterData p("Frequency");
+		p.range = { 20.0, 20000.0, 0.1 };
+		p.setDefaultValue(20.0);
+		p.range.setSkewForCentre(1000.0);
+		p.db = BIND_MEMBER_FUNCTION_1(fm::setFrequency);
+
+		data.add(std::move(p));
+	}
+
+	{
+		ParameterData p("Modulator");
+		p.setDefaultValue(0.0);
+		p.db = BIND_MEMBER_FUNCTION_1(fm::setModulatorGain);
+		data.add(std::move(p));
+	}
+
+	{
+		ParameterData p("FreqMultiplier");
+		p.range = { 1.0, 12.0, 1.0 };
+		p.defaultValue = 1.0;
+		p.db = BIND_MEMBER_FUNCTION_1(fm::setFreqMultiplier);
+		data.add(std::move(p));
+	}
+}
+
+void fm::handleHiseEvent(HiseEvent& e)
+{
+	setFrequency(e.getFrequency());
+}
+
+void fm::setFreqMultiplier(double input)
+{
+	if (oscData.isVoiceRenderingActive())
+		oscData.get().multiplier = input;
+	else
+		oscData.forEachVoice([input](OscData& d) { d.multiplier = input; });
+}
+
+void fm::setModulatorGain(double newGain)
+{
+	auto newValue = newGain * sinTable->getTableSize() * 0.05;
+
+	if (modGain.isVoiceRenderingActive())
+		modGain.get() = newValue;
+	else
+		modGain.forEachVoice([newValue](double& d) {d = newValue; });
+}
+
+void fm::setFrequency(double newFrequency)
+{
+	auto freqValue = newFrequency;
+	auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
+
+	if (oscData.isVoiceRenderingActive())
+		oscData.get().uptimeDelta = newUptimeDelta;
+	else
+		oscData.forEachVoice([newUptimeDelta](OscData& d) {d.uptimeDelta = newUptimeDelta; });
+}
+
 } // namespace core
 
 } // namespace scriptnode

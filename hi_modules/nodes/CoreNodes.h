@@ -197,6 +197,65 @@ private:
 	NodePropertyT<bool> useMidi;
 };
 
+class hise_mod : public HiseDspBase
+{
+public:
+
+	enum Index
+	{
+		Pitch,
+		Extra1,
+		Extra2,
+		numIndexes
+	};
+
+	SET_HISE_NODE_ID("hise_mod");
+	GET_SELF_AS_OBJECT(hise_mod);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
+	SET_HISE_NODE_EXTRA_HEIGHT(30);
+
+	
+
+	hise_mod();
+
+	bool isPolyphonic() const override { return true; }
+
+	void initialise(NodeBase* b);
+	void prepare(PrepareSpecs ps);
+	
+	void process(ProcessData& d);
+	bool handleModulation(double& v);;
+	void processSingle(float* frameData, int numChannels);
+
+	void handleHiseEvent(HiseEvent& e) final override;
+
+	Component* createExtraComponent(PooledUIUpdater* updater)
+	{
+		return new ModulationSourceBaseComponent(updater);
+	}
+	
+	void createParameters(Array<ParameterData>& data) override;
+
+	void setIndex(double index);
+
+	void reset();
+
+private:
+
+	WeakReference<ModulationSourceNode> parentNode;
+	int modIndex = -1;
+
+	PolyData<ModValue, NUM_POLYPHONIC_VOICES> modValues;
+	PolyData<double, NUM_POLYPHONIC_VOICES> uptime;
+	
+	double uptimeDelta = 0.0;
+	double synthBlockSize = 0.0;
+
+	WeakReference<JavascriptSynthesiser> parentProcessor;
+};
+
+
+
 
 DEFINE_EXTERN_NODE_TEMPLATE(ramp, ramp_poly, ramp_impl);
 
@@ -243,6 +302,41 @@ public:
 };
 
 DEFINE_EXTERN_NODE_TEMPLATE(oscillator, oscillator_poly, oscillator_impl);
+
+class fm : public HiseDspBase
+{
+public:
+
+	SET_HISE_NODE_ID("fm");
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+	GET_SELF_AS_OBJECT(fm);
+
+	bool isPolyphonic() const { return true; }
+
+	void prepare(PrepareSpecs ps);
+	void reset();
+	bool handleModulation(double& v) { return false; }
+	void process(ProcessData& d);
+	void processSingle(float* frameData, int numChannels);
+
+	void createParameters(Array<ParameterData>& data) override;
+
+	void handleHiseEvent(HiseEvent& e);
+	
+private:
+
+	void setFreqMultiplier(double input);
+	void setModulatorGain(double newGain);
+	void setFrequency(double newFrequency);
+
+	double sr = 0.0;
+	double freqMultiplier = 1.0;
+
+	PolyData<OscData, NUM_POLYPHONIC_VOICES> oscData;
+	PolyData<double, NUM_POLYPHONIC_VOICES> modGain;
+
+	SharedResourcePointer<SineLookupTable<2048>> sinTable;
+};
 
 template <int V> class gain_impl : public HiseDspBase
 {
