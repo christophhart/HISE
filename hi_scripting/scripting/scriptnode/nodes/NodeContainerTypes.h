@@ -137,6 +137,36 @@ public:
 	int* lastVoiceIndex = nullptr;
 };
 
+template <int B> class FixedBlockNode : public SerialNode
+{
+public:
+
+	static constexpr int FixedBlockSize = B;
+
+	SCRIPTNODE_FACTORY(FixedBlockNode<B>, "fix" + String(FixedBlockSize) + "_block");
+
+	FixedBlockNode(DspNetwork* network, ValueTree d);
+
+	void process(ProcessData& data) final override;
+	void prepare(PrepareSpecs ps) final override;
+	void reset() final override;
+	void handleHiseEvent(HiseEvent& e) final override;
+
+	int getBlockSizeForChildNodes() const override
+	{
+		return isBypassed() ? originalBlockSize : FixedBlockSize;
+	}
+
+	void updateBypassState(Identifier, var);
+
+	wrap::fix_block<DynamicSerialProcessor, FixedBlockSize> obj;
+
+	valuetree::PropertyListener bypassListener;
+	int* lastVoiceIndex = nullptr;
+};
+
+
+
 class SplitNode : public ParallelNode
 {
 public:
@@ -180,78 +210,7 @@ public:
 };
 
 
-template <int B> class FixedBlockNode : public SerialNode
-{
-public:
 
-	FixedBlockNode(DspNetwork* n, ValueTree d) :
-		SerialNode(n, d)
-	{
-		initListeners();
-
-		bypassListener.setCallback(d, { PropertyIds::Bypassed },
-			valuetree::AsyncMode::Synchronously,
-			BIND_MEMBER_FUNCTION_2(FixedBlockNode<B>::updateBypassState));
-	};
-
-	static constexpr int FixedBlockSize = B;
-
-	SCRIPTNODE_FACTORY(FixedBlockNode<B>, "fix" + String(FixedBlockSize) + "_block");
-
-	void process(ProcessData& data) final override
-	{
-		if (isBypassed())
-		{
-			for (auto n : nodes)
-				n->process(data);
-		}
-		else
-		{
-			int numToDo = data.size;
-			data.size = FixedBlockSize;
-
-			while (numToDo > 0)
-			{
-				for (auto n : nodes)
-					n->process(data);
-
-				for (auto& d : data)
-					d += FixedBlockSize;
-
-				numToDo -= FixedBlockSize;
-			}
-		}
-	}
-
-	void prepare(PrepareSpecs ps) final override
-	{
-		prepareNodes(ps);
-	}
-
-	void reset() final override
-	{
-		resetNodes();
-	}
-
-	int getBlockSizeForChildNodes() const override
-	{
-		return isBypassed() ? originalBlockSize : FixedBlockSize;
-	}
-
-	void updateBypassState(Identifier, var)
-	{
-		PrepareSpecs ps;
-		ps.numChannels = getNumChannelsToProcess();
-		ps.blockSize = originalBlockSize;
-		ps.sampleRate = originalSampleRate;
-
-		prepare(ps);
-	}
-
-	AudioSampleBuffer b;
-
-	valuetree::PropertyListener bypassListener;
-};
 
 class SingleSampleBlockX : public SerialNode
 {

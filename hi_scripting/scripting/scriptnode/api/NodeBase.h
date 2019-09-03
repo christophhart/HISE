@@ -242,6 +242,8 @@ struct NodeBase : public ConstScriptingObject
 	/** This will be called before calls to process. */
 	virtual void prepare(PrepareSpecs specs) = 0;
 
+	void prepareParameters(PrepareSpecs specs);
+
 	/** The default implementation calls process with a sample amount of 1, but you can override
 	    this method if there's a faster way. */
 	virtual void processSingle(float* frameData, int numChannels);

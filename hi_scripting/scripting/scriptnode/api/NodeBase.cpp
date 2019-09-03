@@ -58,9 +58,15 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 
 DspNetwork* NodeBase::getRootNetwork() const
 {
-	return dynamic_cast<DspNetwork*>(parent.get());
+	return static_cast<DspNetwork*>(parent.get());
 }
 
+
+void NodeBase::prepareParameters(PrepareSpecs specs)
+{
+	for (int i = 0; i < getNumParameters(); i++)
+		getParameter(i)->prepare(specs);
+}
 
 void NodeBase::processSingle(float* frameData, int numChannels)
 {

@@ -370,6 +370,80 @@ template class OversampleNode<8>;
 template class OversampleNode<16>;
 
 
+template <int B>
+FixedBlockNode<B>::FixedBlockNode(DspNetwork* network, ValueTree d):
+SerialNode(network, d)
+{
+	initListeners();
+
+	obj.initialise(this);
+
+	bypassListener.setCallback(d, { PropertyIds::Bypassed },
+		valuetree::AsyncMode::Synchronously,
+		BIND_MEMBER_FUNCTION_2(FixedBlockNode<B>::updateBypassState));
+}
+
+
+template <int B>
+void scriptnode::FixedBlockNode<B>::updateBypassState(Identifier, var)
+{
+	if (originalBlockSize == 0)
+		return;
+
+	PrepareSpecs ps;
+	ps.blockSize = originalBlockSize;
+	ps.sampleRate = originalSampleRate;
+	ps.numChannels = getNumChannelsToProcess();
+	ps.voiceIndex = lastVoiceIndex;
+
+	prepare(ps);
+}
+
+template <int B>
+void FixedBlockNode<B>::process(ProcessData& d)
+{
+	if (isBypassed())
+	{
+		obj.getObject().process(d);
+	}
+	else
+	{
+		obj.process(d);
+	}
+}
+
+template <int B>
+void FixedBlockNode<B>::prepare(PrepareSpecs ps)
+{
+	lastVoiceIndex = ps.voiceIndex;
+	prepareNodes(ps);
+
+	if (isBypassed())
+		obj.getObject().prepare(ps);
+	else
+		obj.prepare(ps);
+}
+
+template <int B>
+void FixedBlockNode<B>::reset()
+{
+	obj.reset();
+}
+
+
+template <int B>
+void FixedBlockNode<B>::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+template class FixedBlockNode<8>;
+template class FixedBlockNode<16>;
+template class FixedBlockNode<32>;
+template class FixedBlockNode<64>;
+template class FixedBlockNode<128>;
+template class FixedBlockNode<256>;
+
 MultiChannelNode::MultiChannelNode(DspNetwork* root, ValueTree data) :
 	ParallelNode(root, data)
 {

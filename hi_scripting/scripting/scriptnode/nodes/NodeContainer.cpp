@@ -87,6 +87,7 @@ void NodeContainer::prepareNodes(PrepareSpecs ps)
 	for (auto n : nodes)
 	{
 		n->prepare(ps);
+		n->prepareParameters(ps);
 		n->reset();
 	}
 }
@@ -1065,12 +1066,12 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<OversampleNode<4>>({});
 	registerNodeRaw<OversampleNode<8>>({});
 	registerNodeRaw<OversampleNode<16>>({});
+	registerNodeRaw<FixedBlockNode<8>>({});
+	registerNodeRaw<FixedBlockNode<16>>({});
 	registerNodeRaw<FixedBlockNode<32>>({});
 	registerNodeRaw<FixedBlockNode<64>>({});
 	registerNodeRaw<FixedBlockNode<128>>({});
 	registerNodeRaw<FixedBlockNode<256>>({});
-	registerNodeRaw<FixedBlockNode<512>>({});
-	registerNodeRaw<FixedBlockNode<1024>>({});
 }
 
 
@@ -1085,7 +1086,7 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
 	{
 		auto undoManager = um;
-		nodeRemoveUpdater.setCallback(targetNode->getValueTree(), valuetree::AsyncMode::Asynchronously,
+		nodeRemoveUpdater.setCallback(targetNode->getValueTree(), valuetree::AsyncMode::Asynchronously, false,
 			[d, undoManager](ValueTree& )
 		{
 			d.getParent().removeChild(d, undoManager);

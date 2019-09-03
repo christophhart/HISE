@@ -44,6 +44,8 @@ public:
 
 	static constexpr bool isModulationSource = T::isModulationSource;
 
+	fix() {};
+
 	void initialise(NodeBase* n)
 	{
 		obj.initialise(n);
@@ -448,6 +450,80 @@ private:
 	ScopedPointer<Oversampler> oversampler;
 	T obj;
 };
+
+template <class T, int BlockSize> class fix_block
+{
+public:
+
+	constexpr static bool isModulationSource = false;
+
+	const auto& getObject() const { return obj.getObject(); }
+	auto& getObject() { return obj.getObject(); }
+
+	fix_block() {};
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		ps.blockSize = BlockSize;
+		obj.prepare(ps);
+	}
+
+	void reset()
+	{
+		obj.reset();
+	}
+
+	void process(ProcessData& d)
+	{
+		int numToDo = d.size;
+
+		if (numToDo < BlockSize)
+		{
+			obj.process(d);
+		}
+		else
+		{
+			float* cp[NUM_MAX_CHANNELS];
+			memcpy(cp, d.data, d.numChannels * sizeof(float*));
+
+			while (numToDo > 0)
+			{
+				ProcessData copy(cp, d.numChannels, jmin(BlockSize, numToDo));
+				obj.process(copy);
+
+				for (int i = 0; i < d.numChannels; i++)
+					cp[i] += copy.size;
+
+				numToDo -= copy.size;
+			}
+		}
+	}
+
+	void processSingle(float* frameData, int numChannels)
+	{
+		jassertfalse;
+	}
+
+	bool handleModulation(double& v)
+	{
+		return obj.handleModulation(v);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
+private:
+
+	T obj;
+};
+
 
 template <class T> class control_rate
 {
