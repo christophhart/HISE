@@ -498,10 +498,16 @@ void SampleMap::sendSampleDeletedMessage(ModulatorSampler * s)
 		s->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(s, update);
 }
 
-void SampleMap::save()
+bool SampleMap::save(const File& fileToUse)
 {
 #if HI_ENABLE_EXPANSION_EDITING
 	auto rootDirectory = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
+
+	if (fileToUse.existsAsFile())
+	{
+		auto id = fileToUse.getRelativePathFrom(rootDirectory).upToFirstOccurrenceOf(".xml", false, false);
+		setId(Identifier(id));
+	}
 
 	data.setProperty("ID", sampleMapId.toString(), nullptr);
 	
@@ -512,39 +518,45 @@ void SampleMap::save()
 	
 	File f;
 
-	if (isUsingUnsavedValueTree())
+	if (fileToUse.existsAsFile())
 	{
-		FileChooser fc("Save SampleMap As", rootDirectory, "*.xml", true);
-
-		if (fc.browseForFileToSave(true))
-		{
-			f = fc.getResult();
-
-			if (!f.isAChildOf(rootDirectory))
-			{
-				PresetHandler::showMessageWindow("Invalid Path", "You need to store the samplemap in the samplemap directory", PresetHandler::IconType::Error);
-				return;
-			}
-		}
+		f = fileToUse;
 	}
 	else
 	{
-		f = sampleMapData.getRef().getFile();
-
-		jassert(f.existsAsFile());
-
-		if (!PresetHandler::showYesNoWindow("Overwrite SampleMap", "Press OK to overwrite the current samplemap or cancel to select another file"))
+		if (isUsingUnsavedValueTree())
 		{
-
-			FileChooser fc("Save SampleMap As", f, "*.xml", true);
+			FileChooser fc("Save SampleMap As", rootDirectory, "*.xml", true);
 
 			if (fc.browseForFileToSave(true))
 			{
 				f = fc.getResult();
+
+				if (!f.isAChildOf(rootDirectory))
+				{
+					PresetHandler::showMessageWindow("Invalid Path", "You need to store the samplemap in the samplemap directory", PresetHandler::IconType::Error);
+					return false;
+				}
 			}
-			else
-				return;
 		}
+		else
+		{
+			f = sampleMapData.getRef().getFile();
+
+			jassert(f.existsAsFile());
+
+			if (!PresetHandler::showYesNoWindow("Overwrite SampleMap", "Press OK to overwrite the current samplemap or cancel to select another file"))
+			{
+
+				FileChooser fc("Save SampleMap As", f, "*.xml", true);
+
+				if (fc.browseForFileToSave(true))
+					f = fc.getResult();
+				else
+					return false;
+			}
+		}
+
 	}
 
 	ScopedPointer<XmlElement> xml = data.createXml();
@@ -566,6 +578,8 @@ void SampleMap::save()
 	};
 
 	getSampler()->killAllVoicesAndCall(func, true);
+
+	return true;
 
 #endif
 }

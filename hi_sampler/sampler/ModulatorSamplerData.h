@@ -129,7 +129,7 @@ public:
 	void loadUnsavedValueTree(const ValueTree& v);
 
 	/** Saves all data with the mode depending on the file extension. */
-	void save();
+	bool save(const File& fileToUse = File());
 
 	void saveSampleMapAsReference();
 

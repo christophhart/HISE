@@ -1001,6 +1001,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getControlRateDownsamplingFactor);
 	API_METHOD_WRAPPER_1(Engine, createDspNetwork);
 	API_METHOD_WRAPPER_0(Engine, getExpansionList);
+	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
 	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
@@ -1099,6 +1100,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_0(clearMidiFilePool);
 	ADD_API_METHOD_0(clearSampleMapPool);
+	ADD_API_METHOD_0(rebuildCachedPools);
 	ADD_API_METHOD_1(loadImageIntoPool);
 	ADD_API_METHOD_1(createDspNetwork);
 	ADD_API_METHOD_1(setLatencySamples);
@@ -1630,6 +1632,21 @@ void ScriptingApi::Engine::clearMidiFilePool()
 #endif
 }
 
+void ScriptingApi::Engine::rebuildCachedPools()
+{
+#if USE_BACKEND
+
+	auto& pools = getScriptProcessor()->getMainController_()->getCurrentFileHandler().pool;
+
+	pools->getMidiFilePool().clearData();
+	pools->getMidiFilePool().loadAllFilesFromProjectFolder();
+
+	pools->getSampleMapPool().clearData();
+	pools->getSampleMapPool().loadAllFilesFromProjectFolder();
+
+#endif
+}
+
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
 
 int ScriptingApi::Engine::isControllerUsedByAutomation(int controllerNumber)
@@ -1837,6 +1854,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_1(Sampler, createSelectionFromIndexes);
 	API_METHOD_WRAPPER_0(Sampler, createListFromGUISelection);
 	API_METHOD_WRAPPER_0(Sampler, createListFromScriptSelection);
+	API_METHOD_WRAPPER_1(Sampler, saveCurrentSampleMap);
 };
 
 
@@ -1871,6 +1889,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(createSelectionFromIndexes);
 	ADD_API_METHOD_0(createListFromGUISelection);
 	ADD_API_METHOD_0(createListFromScriptSelection);
+	ADD_API_METHOD_1(saveCurrentSampleMap);
 
 	sampleIds.add(SampleIds::ID);
 	sampleIds.add(SampleIds::FileName);
@@ -2505,6 +2524,45 @@ void ScriptingApi::Sampler::setUseStaticMatrix(bool shouldUseStaticMatrix)
 	}
 
 	s->setUseStaticMatrix(shouldUseStaticMatrix);
+}
+
+bool ScriptingApi::Sampler::saveCurrentSampleMap(String relativePathWithoutXml)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setAttribute() only works with Samplers.");
+		RETURN_IF_NO_THROW(false);
+	}
+
+	if (s->getNumSounds() == 0)
+	{
+		debugToConsole(s, "Skipping creation of empty samplemap");
+		return false;
+	}
+
+	if (auto sm = s->getSampleMap())
+	{
+		auto sampleMapsDirectory = s->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::SampleMaps);
+
+		auto targetFile = sampleMapsDirectory.getChildFile(relativePathWithoutXml).withFileExtension("xml");
+
+		if (targetFile.existsAsFile())
+		{
+			debugToConsole(s, "Overwriting file " + targetFile.getFullPathName());
+			targetFile.deleteFile();
+			targetFile.create();
+		}
+		else
+		{
+			targetFile.create();
+		}
+
+		return sm->save(targetFile);
+	}
+	else
+		return false;
 }
 
 // ====================================================================================================== Synth functions

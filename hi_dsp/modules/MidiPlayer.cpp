@@ -1583,6 +1583,10 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 					r.getFile().create();
 					FileOutputStream fos(r.getFile());
 					bool ok = copy.writeTo(fos);
+
+					if (ok)
+						debugToConsole(this, "Written MIDI content to " + r.getFile().getFullPathName());
+
 					pool->loadFromReference(r, PoolHelpers::ForceReloadStrong);
 					return ok;
 				}
@@ -1604,6 +1608,10 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 					FileOutputStream fos(r.getFile());
 					
 					bool ok = existingFile.writeTo(fos);
+
+					if (ok)
+						debugToConsole(this, "Written MIDI content to " + r.getFile().getFullPathName());
+
 					pool->loadFromReference(r, PoolHelpers::ForceReloadStrong);
 					return ok;
 				}
@@ -1627,6 +1635,10 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 			FileOutputStream fos(r.getFile());
 
 			bool ok = newFile.writeTo(fos);
+
+			if (ok)
+				debugToConsole(this, "Written MIDI content to " + r.getFile().getFullPathName());
+
 			pool->loadFromReference(r, PoolHelpers::ForceReloadStrong);
 			return ok;
 		}

@@ -341,6 +341,9 @@ public:
 		/** Removes all entries from the MIDi file pool. */
 		void clearMidiFilePool();
 
+		/** Rebuilds the entries for all cached pools (MIDI files and samplemaps). */
+		void rebuildCachedPools();
+
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		
@@ -547,6 +550,9 @@ public:
         
 		/** Disables dynamic resizing when a sample map is loaded. */
 		void setUseStaticMatrix(bool shouldUseStaticMatrix);
+
+		/** Saves (and loads) the current samplemap to the given path (which should be the same string as the ID). */
+		bool saveCurrentSampleMap(String relativePathWithoutXml);
 
 		// ============================================================================================================
 
