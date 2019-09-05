@@ -41,6 +41,9 @@ namespace valuetree
 
 void PropertyListener::setCallback(ValueTree d, const Array<Identifier>& ids_, AsyncMode asyncMode, const PropertyCallback& f_)
 {
+	if (v.isValid())
+		v.removeListener(this);
+
 	v = d;
 	v.addListener(this);
 
@@ -125,6 +128,9 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 
 void RecursivePropertyListener::setCallback(ValueTree parent, const Array<Identifier>& ids_, AsyncMode asyncMode, const RecursivePropertyCallback& f_)
 {
+	if (v.isValid())
+		v.removeListener(this);
+
 	v = parent;
 	v.addListener(this);
 
@@ -179,6 +185,9 @@ RemoveListener::~RemoveListener()
 
 void RemoveListener::setCallback(ValueTree childToListenTo, AsyncMode asyncMode, bool checkParentsToo, const Callback& c)
 {
+	if (parent.isValid())
+		parent.removeListener(this);
+
 	WeakReference<RemoveListener> tmp = this;
 
 	auto f = [tmp, childToListenTo, asyncMode, c, checkParentsToo]()
@@ -251,6 +260,11 @@ PropertySyncer::~PropertySyncer()
 
 void PropertySyncer::setPropertiesToSync(ValueTree& firstTree, ValueTree& secondTree, Array<Identifier> idsToSync, UndoManager* undoManagerToUse)
 {
+	if (first.isValid())
+		first.removeListener(this);
+	if (second.isValid())
+		second.removeListener(this);
+
 	first = firstTree;
 	second = secondTree;
 	first.addListener(this);
@@ -287,6 +301,9 @@ ChildListener::~ChildListener()
 
 void ChildListener::setCallback(ValueTree treeToListenTo, AsyncMode asyncMode, const ChildChangeCallback& newCallback)
 {
+	if (v.isValid())
+		v.removeListener(this);
+
 	mode = asyncMode;
 	v = treeToListenTo;
 	v.addListener(this);

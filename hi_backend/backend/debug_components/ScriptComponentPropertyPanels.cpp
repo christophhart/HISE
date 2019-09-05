@@ -320,9 +320,9 @@ HiChoicePropertyComponent::HiChoicePropertyComponent(const Identifier& id, Scrip
 	HiPropertyComponent(id, panel)
 {
 	addAndMakeVisible(comboBox);
-
+	comboBox.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 	comboBox.addListener(this);
-
+	
 	setLookAndFeel(&plaf);
 
 	refresh();
@@ -615,6 +615,12 @@ HiFilePropertyComponent::CombinedComponent::CombinedComponent() :
 {
 	addAndMakeVisible(box);
 	addAndMakeVisible(button);
+
+	box.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	box.setColour(HiseColourScheme::ComponentFillTopColourId, Colours::transparentBlack);
+	box.setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::transparentBlack);
+	box.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
+
 
 	button.setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
 	button.setColour(TextButton::buttonColourId, Colour(0x4c4b4b4b));

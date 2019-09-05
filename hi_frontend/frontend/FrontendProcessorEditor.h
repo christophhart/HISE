@@ -158,6 +158,10 @@ private:
     int originalSizeY = 0;
 
     bool overlayToolbar;
+
+#if HISE_USE_OPENGL_FOR_PLUGIN
+	OpenGLContext context;
+#endif
 };
 
 

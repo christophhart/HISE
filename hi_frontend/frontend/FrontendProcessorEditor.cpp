@@ -35,6 +35,10 @@ namespace hise { using namespace juce;
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
+#if HISE_USE_OPENGL_FOR_PLUGIN
+	context.attachTo(*this);
+#endif
+
 	fp->incActiveEditors();
 
     Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
@@ -168,6 +172,10 @@ AudioProcessorEditor(fp)
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
 {
+#if HISE_USE_OPENGL_FOR_PLUGIN
+	context.detach();
+#endif
+
 	dynamic_cast<FrontendProcessor*>(getAudioProcessor())->decActiveEditors();
 
 	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
