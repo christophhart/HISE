@@ -3480,6 +3480,10 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTrack);
 	API_VOID_METHOD_WRAPPER_3(ScriptedMidiPlayer, create);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, isEmpty);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumTracks);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumSequences);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getTimeSignature);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTimeSignature);
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
@@ -3504,6 +3508,10 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(setTrack);
 	ADD_API_METHOD_0(isEmpty);
 	ADD_API_METHOD_3(create);
+	ADD_API_METHOD_0(getNumTracks);
+	ADD_API_METHOD_0(getNumSequences);
+	ADD_API_METHOD_0(getTimeSignature);
+	ADD_API_METHOD_1(setTimeSignature);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -3783,9 +3791,78 @@ void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
 		pl->setAttribute(MidiPlayer::CurrentTrack, (float)trackIndex, sendNotification);
 }
 
+int ScriptingObjects::ScriptedMidiPlayer::getNumSequences()
+{
+	if (auto pl = getPlayer())
+		return pl->getNumSequences();
+}
+
+#define DECLARE_ID(x) static Identifier x(#x);
+namespace TimeSigIds
+{
+DECLARE_ID(Nominator);
+DECLARE_ID(Denominator);
+DECLARE_ID(NumBars);
+DECLARE_ID(LoopStart);
+DECLARE_ID(LoopEnd);
+}
+#undef DECLARE_ID
+
+var ScriptingObjects::ScriptedMidiPlayer::getTimeSignature()
+{
+	if (sequenceValid())
+	{
+		auto sig = getSequence()->getTimeSignature();
+
+		DynamicObject::Ptr newObj = new DynamicObject();
+		newObj->setProperty(TimeSigIds::Nominator, sig.nominator);
+		newObj->setProperty(TimeSigIds::Denominator, sig.denominator);
+		newObj->setProperty(TimeSigIds::NumBars, sig.numBars);
+		newObj->setProperty(TimeSigIds::LoopStart, sig.normalisedLoopRange.getStart());
+		newObj->setProperty(TimeSigIds::LoopEnd, sig.normalisedLoopRange.getEnd());
+
+		return var(newObj);
+	}
+
+	return {};
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::setTimeSignature(var timeSignatureObject)
+{
+	if (sequenceValid())
+	{
+		HiseMidiSequence::TimeSignature sig;
+
+		sig.nominator = timeSignatureObject.getProperty(TimeSigIds::Nominator, 0);
+		sig.denominator = timeSignatureObject.getProperty(TimeSigIds::Denominator, 0);
+		sig.numBars = timeSignatureObject.getProperty(TimeSigIds::NumBars, 0);
+
+		sig.normalisedLoopRange = { (double)timeSignatureObject.getProperty(TimeSigIds::LoopStart, 0.0),
+									(double)timeSignatureObject.getProperty(TimeSigIds::LoopEnd, 1.0) };
+
+		bool valid = sig.numBars > 0 && sig.nominator > 0 && sig.denominator > 0;
+
+		if(valid)
+			getSequence()->setLengthFromTimeSignature(sig);
+
+		return valid;
+	}
+
+	return false;
+}
+
 void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
 {
 
+}
+
+int ScriptingObjects::ScriptedMidiPlayer::getNumTracks()
+{
+	if (auto pl = getPlayer())
+	{
+		if (auto seq = pl->getCurrentSequence())
+			return seq->getNumTracks();
+	}
 }
 
 struct ScriptingObjects::ExpansionObject::Wrapper

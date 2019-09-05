@@ -1013,6 +1013,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
 	API_VOID_METHOD_WRAPPER_0(Engine, clearMidiFilePool);
 	API_VOID_METHOD_WRAPPER_0(Engine, clearSampleMapPool);
+	API_METHOD_WRAPPER_2(Engine, getSampleFilesFromDirectory);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLatencySamples);
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 };
@@ -1100,6 +1101,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_0(clearMidiFilePool);
 	ADD_API_METHOD_0(clearSampleMapPool);
+	ADD_API_METHOD_2(getSampleFilesFromDirectory);
 	ADD_API_METHOD_0(rebuildCachedPools);
 	ADD_API_METHOD_1(loadImageIntoPool);
 	ADD_API_METHOD_1(createDspNetwork);
@@ -1341,6 +1343,48 @@ var ScriptingApi::Engine::getSettingsWindowObject()
 double ScriptingApi::Engine::getControlRateDownsamplingFactor() const
 {
 	return (double)HISE_EVENT_RASTER;
+}
+
+var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePathFromSampleFolder, bool recursive)
+{
+#if USE_BACKEND
+
+	auto sampleRoot = getScriptProcessor()->getMainController_()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
+
+	auto directoryToSearch = sampleRoot.getChildFile(relativePathFromSampleFolder);
+
+	if (!directoryToSearch.isDirectory())
+	{
+		reportScriptError("The directory " + directoryToSearch.getFullPathName() + " does not exist");
+		RETURN_IF_NO_THROW(var());
+	}
+
+	auto list = directoryToSearch.findChildFiles(File::findFiles, recursive);
+
+	// We can be this restrictive here...
+	StringArray validExtensions = { ".aif", ".aiff", ".wav", ".AIF", ".AIFF", ".WAV" };
+
+	for (int i = 0; i < list.size(); i++)
+	{
+		if (list[i].isHidden() || list[i].getFileName().startsWith("."))
+			list.remove(i--);
+
+		if (!validExtensions.contains(list[i].getFileExtension()))
+			list.remove(i--);
+	}
+
+	Array<var> returnList;
+
+	for (auto& l : list)
+	{
+		PoolReference ref(getScriptProcessor()->getMainController_(), l.getFullPathName(), FileHandlerBase::Samples);
+
+		returnList.add(ref.getReferenceString());
+	}
+
+	return returnList;
+
+#endif
 }
 
 int ScriptingApi::Engine::getLatencySamples() const
@@ -1855,6 +1899,8 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, createListFromGUISelection);
 	API_METHOD_WRAPPER_0(Sampler, createListFromScriptSelection);
 	API_METHOD_WRAPPER_1(Sampler, saveCurrentSampleMap);
+	API_METHOD_WRAPPER_2(Sampler, importSamples);
+	API_METHOD_WRAPPER_0(Sampler, clearSampleMap);
 };
 
 
@@ -1890,6 +1936,8 @@ sampler(sampler_)
 	ADD_API_METHOD_0(createListFromGUISelection);
 	ADD_API_METHOD_0(createListFromScriptSelection);
 	ADD_API_METHOD_1(saveCurrentSampleMap);
+	ADD_API_METHOD_2(importSamples);
+	ADD_API_METHOD_0(clearSampleMap);
 
 	sampleIds.add(SampleIds::ID);
 	sampleIds.add(SampleIds::FileName);
@@ -2421,6 +2469,97 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	}
 }
 
+var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamples)
+{
+	if (fileNameList.isArray() && fileNameList.getArray()->size() == 0)
+		return fileNameList;
+
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s != nullptr)
+	{
+		auto start = Time::getMillisecondCounter();
+
+		SuspendHelpers::ScopedTicket ticket(s->getMainController());
+
+		s->getMainController()->getKillStateHandler().killVoicesAndWait();
+
+		LockHelpers::SafeLock sl(s->getMainController(), LockHelpers::Type::SampleLock);
+
+		auto sampleExists = [s](PoolReference r)
+		{
+			auto fileName = r.getFile().getFullPathName();
+
+			for (int i = 0; i < s->getNumSounds(); i++)
+			{
+				if (auto sound = dynamic_cast<ModulatorSamplerSound*>(s->getSound(i)))
+				{
+					auto f = sound->getPropertyAsString(SampleIds::FileName);
+
+					if (f == fileName)
+						return true;
+				}
+			}
+			
+			return false;
+		};
+
+		if (auto ar = fileNameList.getArray())
+		{
+			StringArray list;
+
+			for (auto& newSample : *ar)
+			{
+				PoolReference ref(s->getMainController(), newSample, FileHandlerBase::Samples);
+
+				if (skipExistingSamples && sampleExists(ref))
+					continue;
+
+				list.add(ref.getFile().getFullPathName());
+			}
+
+			BigInteger rootNotes;
+			// start at note number 0
+			rootNotes.setRange(0, jmin(127, list.size()), true);
+
+			int startIndex = s->getNumSounds();
+
+			ScopedValueSetter<bool> syncFlag(s->getSampleMap()->getSyncEditModeFlag(), true);
+
+			SampleImporter::loadAudioFilesUsingDropPoint(nullptr, s, list, rootNotes);
+
+			debugToConsole(s, "Imported " + String(list.size()) + " samples");
+
+			Array<var> refList;
+
+			for (int i = 0; i < s->getNumSounds(); i++)
+			{
+				if (auto sound = dynamic_cast<ModulatorSamplerSound*>(s->getSound(i)))
+				{
+					auto id = sound->getPropertyAsString(SampleIds::ID);
+
+					if(id.getIntValue() >= startIndex)
+					{
+						int noteNumber = jlimit(0, 127, refList.size());
+
+						auto obj = new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound);
+						refList.add(var(obj));
+					}
+				}
+			}
+
+			return refList;
+		}
+
+		auto stop = Time::getMillisecondCounter();
+		
+		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(stop - start);
+		
+	}
+}
+
 var ScriptingApi::Sampler::loadSampleForAnalysis(int soundIndex)
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
@@ -2563,6 +2702,22 @@ bool ScriptingApi::Sampler::saveCurrentSampleMap(String relativePathWithoutXml)
 	}
 	else
 		return false;
+}
+
+bool ScriptingApi::Sampler::clearSampleMap()
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("clear() only works with Samplers.");
+		RETURN_IF_NO_THROW(false);
+	}
+
+	if (auto sm = s->getSampleMap())
+	{
+		sm->clear(sendNotificationAsync);
+	}
 }
 
 // ====================================================================================================== Synth functions

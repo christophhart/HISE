@@ -1287,6 +1287,18 @@ public:
 		/** Sets the track index (starting with one). */
 		void setTrack(int trackIndex);
 
+		/** Returns the number of tracks in the current sequence. */
+		int getNumTracks();
+
+		/** Returns the number of loaded sequences. */
+		int getNumSequences();
+
+		/** Returns an object with properties about the length of the current sequence. */
+		var getTimeSignature();
+
+		/** Sets the timing information of the current sequence using the given object. */
+		bool setTimeSignature(var timeSignatureObject);
+
 		// ============================================================================================================
 
 		struct Wrapper;

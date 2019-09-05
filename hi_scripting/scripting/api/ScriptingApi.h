@@ -257,6 +257,9 @@ public:
 		/** Returns the downsampling factor for the modulation signal (default is 8). */
 		double getControlRateDownsamplingFactor() const;
 
+		/** Iterates the given sub-directory of the Samples folder and returns a list with all references to audio files. */
+		var getSampleFilesFromDirectory(const String& relativePathFromSampleFolder, bool recursive);
+
 		/** Returns the latency of the plugin as reported to the host. Default is 0. */
 		int getLatencySamples() const;
 
@@ -536,6 +539,10 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
+		
+		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
+		var importSamples(var fileNameList, bool skipExistingSamples);
+
 		/** Returns an array with all available sample maps. */
 		var getSampleMapList() const;
 
@@ -553,6 +560,9 @@ public:
 
 		/** Saves (and loads) the current samplemap to the given path (which should be the same string as the ID). */
 		bool saveCurrentSampleMap(String relativePathWithoutXml);
+
+		/** Clears the current samplemap. */
+		bool clearSampleMap();
 
 		// ============================================================================================================
 
