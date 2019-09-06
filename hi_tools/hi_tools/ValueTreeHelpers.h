@@ -131,6 +131,12 @@ private:
 
 struct RecursivePropertyListener : public Base
 {
+
+	~RecursivePropertyListener()
+	{
+		v.removeListener(this);
+	}
+
 	using RecursivePropertyCallback = std::function<void(ValueTree, Identifier)>;
 
 	void setCallback(ValueTree parent, const Array<Identifier>& ids_, AsyncMode asyncMode, const RecursivePropertyCallback& f_);
