@@ -237,6 +237,26 @@ public:
 
 	bool& getSyncEditModeFlag() { return syncEditMode; }
 
+	struct ScopedNotificationDelayer
+	{
+		ScopedNotificationDelayer(SampleMap& parent_) :
+			parent(parent_)
+		{
+			parent.delayNotifications = true;
+		};
+
+		~ScopedNotificationDelayer()
+		{
+			parent.delayNotifications = false;
+
+			if (parent.notificationPending)
+				parent.sendSampleAddedMessage();
+
+		}
+
+		SampleMap& parent;
+	};
+
 private:
 
 	struct ChangeWatcher : private ValueTree::Listener
@@ -299,25 +319,7 @@ private:
 
 	void setCurrentMonolith();
 
-	struct ScopedNotificationDelayer
-	{
-		ScopedNotificationDelayer(SampleMap& parent_):
-			parent(parent_)
-		{
-			parent.delayNotifications = true;
-		};
-
-		~ScopedNotificationDelayer()
-		{
-			parent.delayNotifications = false;
-
-			if (parent.notificationPending)
-				parent.sendSampleAddedMessage();
-			
-		}
-
-		SampleMap& parent;
-	};
+	
 
 	bool delayNotifications = false;
 	bool notificationPending = false;

@@ -333,9 +333,16 @@ public:
 
 	void sampleMapWasChanged(PoolReference newSampleMap) override
 	{
-		propertyUpdater.setCallback(ownerSampler->getSampleMap()->getValueTree(),
-			SampleIds::Helpers::getMapIds(), valuetree::AsyncMode::Asynchronously, 
-			BIND_MEMBER_FUNCTION_2(SamplerSoundMap::updateSamplesFromValueTree));
+		if (newSampleMap != oldReference)
+		{
+			oldReference = newSampleMap;
+
+			propertyUpdater = new valuetree::RecursivePropertyListener();
+
+			propertyUpdater->setCallback(ownerSampler->getSampleMap()->getValueTree(),
+				SampleIds::Helpers::getMapIds(), valuetree::AsyncMode::Asynchronously,
+				BIND_MEMBER_FUNCTION_2(SamplerSoundMap::updateSamplesFromValueTree));
+		}
 
 		updateSampleComponents();
 	}
@@ -448,6 +455,8 @@ public:
 
 private:
 
+	PoolReference oldReference;
+
 	bool isPreloading = false;
 
 	/** A POD object containing data for a dragged sound. */
@@ -501,7 +510,7 @@ private:
     
     Image currentSnapshot;
 
-	valuetree::RecursivePropertyListener propertyUpdater;
+	ScopedPointer<valuetree::RecursivePropertyListener> propertyUpdater;
 };
 
 /** A wrapper class around a SamplerSoundMap which adds a keyboard that can be clicked to trigger the note. 

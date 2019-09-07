@@ -70,6 +70,7 @@ void PropertyListener::sendMessageForAllProperties()
 	}
 	case AsyncMode::Asynchronously:
 	{
+		ScopedLock sl(asyncLock);
 		changedIds.clear();
 		changedIds.addArray(ids);
 		triggerAsyncUpdate();
@@ -77,6 +78,7 @@ void PropertyListener::sendMessageForAllProperties()
 	}
 	case AsyncMode::Coallescated:
 	{
+		ScopedLock sl(asyncLock);
 		changedIds.clear();
 		changedIds.add("Coallescated");
 		triggerAsyncUpdate();
@@ -91,6 +93,8 @@ void PropertyListener::sendMessageForAllProperties()
 
 void PropertyListener::handleAsyncUpdate()
 {
+	ScopedLock sl(asyncLock);
+
 	for (auto id : changedIds)
 		f(id, v[id]);
 
@@ -99,8 +103,6 @@ void PropertyListener::handleAsyncUpdate()
 
 void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier& id)
 {
-	MessageManagerLock mm;
-
 	if (v == v_ && ids.contains(id))
 	{
 		switch (mode)
@@ -111,13 +113,20 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 			f(id, v[id]);
 			break;
 		case AsyncMode::Asynchronously:
+		{
+			ScopedLock sl(asyncLock);
 			changedIds.addIfNotAlreadyThere(id);
 			triggerAsyncUpdate();
 			break;
+		}
+			
 		case AsyncMode::Coallescated:
+		{
+			ScopedLock sl(asyncLock);
 			changedIds.addIfNotAlreadyThere("Coallescated");
 			triggerAsyncUpdate();
 			break;
+		}
 		default:
 			break;
 		}
@@ -145,6 +154,8 @@ void RecursivePropertyListener::setCallback(ValueTree parent, const Array<Identi
 
 void RecursivePropertyListener::handleAsyncUpdate()
 {
+	ScopedLock sl(asyncLock);
+
 	for (auto c : pendingChanges)
 		f(c.v, c.id);
 
@@ -164,9 +175,12 @@ void RecursivePropertyListener::valueTreePropertyChanged(ValueTree& changedTree,
 		f(changedTree, id);
 		break;
 	case AsyncMode::Asynchronously:
+	{
+		ScopedLock sl(asyncLock);
 		pendingChanges.add({ changedTree, id });
 		triggerAsyncUpdate();
 		break;
+	}
 	case AsyncMode::Coallescated:
 		jassertfalse;
 		break;
@@ -179,6 +193,7 @@ void RecursivePropertyListener::valueTreePropertyChanged(ValueTree& changedTree,
 
 RemoveListener::~RemoveListener()
 {
+	
 	cancelPendingUpdate();
 	parent.removeListener(this);
 }
@@ -323,17 +338,25 @@ void ChildListener::sendAddMessageForAllChildren()
 			cb(c, true);
 		break;
 	case AsyncMode::Asynchronously:
-		
+	{
+		ScopedLock sl(asyncLock);
+
 		pendingChanges.clear();
 		for (auto c : v)
 			pendingChanges.addIfNotAlreadyThere({ c, true });
 
 		triggerAsyncUpdate();
 		break;
+	}
+		
 	case AsyncMode::Coallescated:
+	{
+		ScopedLock sl(asyncLock);
+
 		pendingChanges.clear();
 		pendingChanges.addIfNotAlreadyThere({ v, true });
 		break;
+	}
 	default:
 		break;
 	}
@@ -342,6 +365,8 @@ void ChildListener::sendAddMessageForAllChildren()
 
 void ChildListener::handleAsyncUpdate()
 {
+	ScopedLock sl(asyncLock);
+
 	for (auto& pc : pendingChanges)
 	{
 		if (pc.v == v)
@@ -371,12 +396,22 @@ void ChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c)
 		cb(c, true);
 		break;
 	case AsyncMode::Asynchronously:
+	{
+		ScopedLock sl(asyncLock);
+
 		pendingChanges.addIfNotAlreadyThere({ c, true });
 		triggerAsyncUpdate();
 		break;
+	}
+		
 	case valuetree::AsyncMode::Coallescated:
+	{
+		ScopedLock sl(asyncLock);
+
 		pendingChanges.add({ v, true });
 		break;
+	}
+		
 	default:
 		break;
 	}
@@ -396,9 +431,13 @@ void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 		break;
 	case valuetree::AsyncMode::Coallescated: // don't coallescate removals
 	case AsyncMode::Asynchronously:
+	{
+		ScopedLock sl(asyncLock);
+
 		pendingChanges.addIfNotAlreadyThere({ c, false });
 		triggerAsyncUpdate();
 		break;
+	}
     default:
         break;
 	}

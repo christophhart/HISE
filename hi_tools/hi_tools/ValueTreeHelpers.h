@@ -80,6 +80,9 @@ public:
 
 protected:
 
+	// Grab this lock whenever you push or process an async queue
+	CriticalSection asyncLock;
+
 	AsyncMode mode = AsyncMode::Unregistered;
 
 	void valueTreeChildAdded(ValueTree&, ValueTree&) override {}
@@ -134,6 +137,7 @@ struct RecursivePropertyListener : public Base
 
 	~RecursivePropertyListener()
 	{
+		cancelPendingUpdate();
 		v.removeListener(this);
 	}
 

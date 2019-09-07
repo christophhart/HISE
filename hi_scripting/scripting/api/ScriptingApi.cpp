@@ -2473,6 +2473,7 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 
 var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamples)
 {
+#if HI_ENABLE_EXPANSION_EDITING
 	if (fileNameList.isArray() && fileNameList.getArray()->size() == 0)
 		return fileNameList;
 
@@ -2530,9 +2531,13 @@ var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamp
 
 			ScopedValueSetter<bool> syncFlag(s->getSampleMap()->getSyncEditModeFlag(), true);
 
-			SampleImporter::loadAudioFilesUsingDropPoint(nullptr, s, list, rootNotes);
+			{
+				//SampleMap::ScopedNotificationDelayer snd(*s->getSampleMap());
 
-			debugToConsole(s, "Imported " + String(list.size()) + " samples");
+				SampleImporter::loadAudioFilesUsingDropPoint(nullptr, s, list, rootNotes);
+
+				debugToConsole(s, "Imported " + String(list.size()) + " samples");
+			}
 
 			Array<var> refList;
 
@@ -2560,6 +2565,7 @@ var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamp
 		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(stop - start);
 		
 	}
+#endif
 }
 
 var ScriptingApi::Sampler::loadSampleForAnalysis(int soundIndex)
