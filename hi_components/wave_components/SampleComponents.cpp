@@ -427,7 +427,7 @@ void SamplerSoundWaveform::paint(Graphics &g)
 			g.setColour(Colour(0x22000000));
 			g.fillRect(0, 0, 80, 20);
 			g.setFont(GLOBAL_BOLD_FONT());
-			g.setColour(Colours::white);
+			g.setColour(findColour(SamplerSoundWaveform::ColourIds::textColour));
 			g.drawText("Monolith", 0, 0, 80, 20, Justification::centred);
 		}
 	}

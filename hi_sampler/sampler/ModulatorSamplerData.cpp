@@ -1140,7 +1140,15 @@ void MonolithExporter::updateSampleMap()
 			if (reader != nullptr)
 			{
 				const auto length = (int64)hlac::CompressionHelpers::getPaddedSampleSize((int)reader->lengthInSamples);
+				auto sampleEnd = (int64)s.getProperty(SampleIds::SampleEnd, 0);
 
+				if (reader->lengthInSamples < sampleEnd)
+				{
+					if (logData.logFunction)
+						logData.logFunction("Truncated sample end for sample " + s.getProperty(SampleIds::FileName).toString());
+					s.setProperty(SampleIds::SampleEnd, reader->lengthInSamples, nullptr);
+				}
+				
 				largestSample = jmax<int64>(largestSample, length);
 
 				s.setProperty("MonolithOffset", offset, nullptr);

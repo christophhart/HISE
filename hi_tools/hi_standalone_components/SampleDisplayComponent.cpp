@@ -588,11 +588,15 @@ void HiseAudioThumbnail::LoadingThread::run()
 	var rb;
 	ScopedPointer<AudioFormatReader> reader;
 
+	bool scaleVertically = false;
+
 	{
 		if (parent.get() == nullptr)
 			return;
 
 		ScopedLock sl(parent->lock);
+
+		scaleVertically = parent->shouldScaleVertically();
 
 		bounds = parent->getBounds();
 
@@ -682,7 +686,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = l->buffer.getReadPointer(0);
 			const int numSamples = l->size;
 
-			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples);
+			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples, scaleVertically);
 		}
 	}
 	else
@@ -694,7 +698,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = l->buffer.getReadPointer(0);
 			const int numSamples = l->size;
 
-			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples);
+			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples, scaleVertically);
 		}
 
 		if (r != nullptr && r->size != 0)
@@ -702,7 +706,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = r->buffer.getReadPointer(0);
 			const int numSamples = r->size;
 
-			scalePathFromLevels(rPath, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples);
+			scalePathFromLevels(rPath, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples, scaleVertically);
 		}
 	}
 
@@ -720,7 +724,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 	}
 }
 
-void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<float> bounds, const float* data, const int numSamples)
+void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically)
 {
 	if (p.isEmpty())
 		return;
@@ -746,8 +750,11 @@ void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<f
 		auto trimmedTop = (1.0f - std::fabs(levels.getEnd())) * half;
 		auto trimmedBottom = (1.0f - std::fabs(levels.getStart())) * half;
 
-		bounds.removeFromTop(trimmedTop);
-		bounds.removeFromBottom(trimmedBottom);
+		if (!scaleVertically)
+		{
+			bounds.removeFromTop(trimmedTop);
+			bounds.removeFromBottom(trimmedBottom);
+		}
 		
 		if(!std::isinf(bounds.getY()) && !std::isinf(bounds.getHeight()) &&
 		   !std::isnan(bounds.getY()) && !std::isnan(bounds.getHeight()))

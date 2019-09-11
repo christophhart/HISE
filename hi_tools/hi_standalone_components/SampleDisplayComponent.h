@@ -97,6 +97,13 @@ public:
 		return lengthInSeconds;
 	}
 	
+	bool shouldScaleVertically() const { return scaleVertically; };
+
+	void setShouldScaleVertically(bool shouldScale)
+	{
+		scaleVertically = shouldScale;
+	};
+
 	void setReader(AudioFormatReader* r, int64 actualNumSamples=-1);
 
 	void clear();
@@ -148,6 +155,7 @@ public:
 	void setRange(const int left, const int right);
 private:
 
+	bool scaleVertically = false;
 	bool rebuildOnResize = true;
 	bool repaintOnUpdate = false;
 	bool rebuildOnUpdate = false;
@@ -195,7 +203,7 @@ private:
 
 		void run() override;;
 
-		void scalePathFromLevels(Path &lPath, Rectangle<float> bounds, const float* data, const int numSamples);
+		void scalePathFromLevels(Path &lPath, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically);
 
 		void calculatePath(Path &p, float width, const float* l_, int numSamples);
 
@@ -594,6 +602,18 @@ public:
 	
 	virtual float getNormalizedPeak() { return 1.0f; };
 
+	void mouseMove(const MouseEvent& e)
+	{
+		auto xNormalised = (float)e.getPosition().getX() / (float)getWidth();
+
+		hoverPosition = xNormalised * (float)getTotalSampleAmount();
+	}
+
+	float getHoverPosition() const
+	{
+		return hoverPosition;
+	}
+
 protected:
 
 	OwnedArray<SampleArea> areas;
@@ -608,7 +628,7 @@ protected:
 
 private:
 
-	
+	float hoverPosition = 0.0f;
 
 	double playBackPosition;
 

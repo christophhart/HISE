@@ -303,6 +303,9 @@ public:
 	/** Copied from MidiMessage. */
 	int getNoteNumber() const noexcept{ return (int)number; };
 
+	/** Returns the "actual" note number that might result from a transpose value. */
+	int getNoteNumberIncludingTransposeAmount() const noexcept { return (int)number + getTransposeAmount(); }
+
 	/** Copied from MidiMessage. */
 	void setNoteNumber(int newNoteNumber) noexcept;;
 
