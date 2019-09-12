@@ -1027,6 +1027,9 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 {
 	lastBlockSize = numSamples;
 
+	if (std::isnan(currentPosition))
+		currentPosition = -1.0;
+
 	if (currentSequenceIndex >= 0 && currentPosition != -1.0)
 	{
 		if (currentPosition > 1.0 && !loopEnabled)
