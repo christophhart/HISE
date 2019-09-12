@@ -538,7 +538,7 @@ juce::RectangleList<float> HiseMidiSequence::getRectangleList(Rectangle<float> t
 }
 
 
-Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
+Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm, bool throwOnError)
 {
 	Array<HiseEvent> newBuffer;
 	newBuffer.ensureStorageAllocated(getNumEvents());
@@ -547,9 +547,9 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 
 	auto samplePerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
 
-	uint16 eventIds[127];
-	uint16 currentEventId = 1;
-	memset(eventIds, 0, sizeof(uint16) * 127);
+	int16 eventIds[128];
+	int16 currentEventId = 1;
+	memset(eventIds, -1, sizeof(uint16) * 128);
 
 	if (auto mSeq = getReadPointer())
 	{
@@ -587,14 +587,46 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 			HiseEvent newEvent(m);
 			newEvent.setTimeStamp(timeStamp);
 
+			auto number = newEvent.getNoteNumber();
+			jassert(isPositiveAndBelow(number, 128));
+
 			if (newEvent.isNoteOn())
 			{
-				newEvent.setEventId(currentEventId);
-				eventIds[newEvent.getNoteNumber()] = currentEventId++;
+				if (eventIds[number] != -1)
+				{
+					if (throwOnError)
+						throw String("Overlapping notes found in sequence");
+					else
+					{
+						jassertfalse;
+						// Just ignore this event...
+						continue;
+					}
+				}
+
+				newEvent.setEventId((uint16)currentEventId);
+				eventIds[number] = currentEventId++;
 			}
 			if (newEvent.isNoteOff())
-				newEvent.setEventId(eventIds[newEvent.getNoteNumber()]);
+			{
+				auto currentIdForNote = eventIds[number];
 
+				if (currentIdForNote == -1)
+				{
+					if (throwOnError)
+						throw String("Can't find note on for note " + newEvent.toDebugString());
+					else
+					{
+						jassertfalse;
+						// Just ignore this event...
+						continue;
+					}
+				}
+
+				newEvent.setEventId((uint16)currentIdForNote);
+				eventIds[number] = -1;
+			}
+			
 			newBuffer.add(newEvent);
 		}
 	}

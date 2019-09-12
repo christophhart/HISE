@@ -234,7 +234,8 @@ public:
 	*/
 	static HiseEvent createTimerEvent(uint8 timerIndex, int offset);
 
-	
+	/** This is a less strict comparison that does not take the event ID and the timestamp into account. */
+	bool matchesMidiData(const HiseEvent& other) const;
 
 	/** Returns true if the event is a volume fade. */
 	bool isVolumeFade() const noexcept{ return type == Type::VolumeFade; };

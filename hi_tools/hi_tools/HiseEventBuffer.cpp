@@ -245,6 +245,13 @@ HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, int offset)
 	return e;
 }
 
+bool HiseEvent::matchesMidiData(const HiseEvent& other) const
+{
+	return type == other.type &&
+		   getNoteNumberIncludingTransposeAmount() == other.getNoteNumberIncludingTransposeAmount() &&
+		   value == other.value;
+}
+
 int HiseEvent::getTimeStamp() const noexcept
 {
 	constexpr uint32 tsMask = 0x0FFFFFFF;
