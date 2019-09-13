@@ -286,7 +286,7 @@ hise::Expansion* ExpansionHandler::getExpansionForWildcardReference(const String
 				return e;
 		}
 
-		throw String(id + " was not found");
+		return nullptr;
 	}
 
 	return nullptr;
