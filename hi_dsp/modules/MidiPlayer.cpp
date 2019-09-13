@@ -244,6 +244,7 @@ juce::MidiMessage* HiseMidiSequence::getNextEvent(Range<double> rangeToLookForTi
 					if (afterWrap.contains(ts))
 					{
 						lastPlayedIndex = indexAfterWrap;
+
 						return &afterEvent->message;
 					}
 				}
@@ -260,35 +261,6 @@ juce::MidiMessage* HiseMidiSequence::getNextEvent(Range<double> rangeToLookForTi
 				}
 			}
 		}
-
-
-#if 0
-		if (auto nextEvent = seq->getEventPointer(nextIndex))
-		{
-			auto timestamp = nextEvent->message.getTimeStamp();
-			
-			if (rangeToLookForTicks.contains(timestamp))
-			{
-				lastPlayedIndex = nextIndex;
-				return &nextEvent->message;
-			}
-			else if ()
-			{
-				auto rangeAtBeginning = rangeToLookForTicks.getEnd() - (getLength() * signature.normalisedLoopRange.getLength());
-
-				if (timestamp < rangeAtBeginning)
-				{
-					// It's before the wrap
-					lastPlayedIndex = nextIndex;
-					return &nextEvent->message;
-				}
-				else
-				{
-					seq->getNextIndexAtTime()
-				}
-			}
-		}
-#endif
 	}
 
 	return nullptr;
@@ -922,7 +894,7 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 		auto loopStart = jlimit(0.0, 1.0, (double)newAmount);
 
 		if (auto seq = getCurrentSequence())
-			seq->getTimeSignaturePtr()->normalisedLoopRange.setStart(loopStart);
+			seq->getTimeSignaturePtr()->setLoopStart(loopStart);
 
 		updatePositionInCurrentSequence();
 		break;
@@ -932,7 +904,7 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 		auto loopEnd = jlimit(0.0, 1.0, (double)newAmount);
 
 		if (auto seq = getCurrentSequence())
-			seq->getTimeSignaturePtr()->normalisedLoopRange.setEnd(loopEnd);
+			seq->getTimeSignaturePtr()->setLoopEnd(loopEnd);
 
 		updatePositionInCurrentSequence();
 		break;
@@ -1081,8 +1053,33 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 		else
 			currentRange = { positionInTicks, jmin<double>(lengthInTicks, positionInTicks + tickThisTime) };
 
+		MidiMessage* lastEvent = nullptr;
+
+		MidiMessage* eventsInThisCallback[16];
+		memset(eventsInThisCallback, 0, sizeof(MidiMessage*) * 16);
+
 		while (auto e = seq->getNextEvent(currentRange))
 		{
+			bool found = false;
+
+			for (int i = 0; i < 16; i++)
+			{
+				if (eventsInThisCallback[i] == e)
+				{
+					found = true;
+					break;
+				}
+
+				if (eventsInThisCallback[i] == nullptr)
+				{
+					eventsInThisCallback[i] = e;
+					break;
+				}
+			}
+
+			if (found)
+				break;
+
 			auto timeStampInThisBuffer = e->getTimeStamp() - positionInTicks;
 
 			if (timeStampInThisBuffer < 0.0)
