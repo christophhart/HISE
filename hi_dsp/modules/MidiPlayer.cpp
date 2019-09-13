@@ -1596,6 +1596,16 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 
 		auto pool = getMainController()->getCurrentMidiFilePool();
 
+		if (r.getMode() == PoolReference::Mode::ExpansionPath)
+		{
+			if (auto exp = getMainController()->getExpansionHandler().getExpansionForWildcardReference(r.getReferenceString()))
+			{
+				pool = &exp->pool->getMidiFilePool();
+			}
+			else
+				jassertfalse;
+		}
+
 		if (r.getFile().existsAsFile())
 		{
 			if (auto mf = pool->loadFromReference(r, PoolHelpers::ForceReloadStrong))
@@ -1614,14 +1624,18 @@ bool MidiPlayer::saveAsMidiFile(const String& fileName, int trackIndex)
 							copy.addTrack(*existingFile.getTrack(i));
 					}
 
-					r.getFile().deleteFile();
-					r.getFile().create();
-					FileOutputStream fos(r.getFile());
+					auto file = r.getFile();
+
+					file.deleteFile();
+					file.create();
+					FileOutputStream fos(file);
 					bool ok = copy.writeTo(fos);
 
 					if (ok)
 						debugToConsole(this, "Written MIDI content to " + r.getFile().getFullPathName());
 
+					pool->clearData();
+					pool->loadAllFilesFromProjectFolder();
 					pool->loadFromReference(r, PoolHelpers::ForceReloadStrong);
 					return ok;
 				}

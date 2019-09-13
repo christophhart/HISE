@@ -402,7 +402,8 @@ void Expansion::redirectSampleDirectoryToDefault()
 void Expansion::saveExpansionInfoFile()
 {
 	if (Helpers::getExpansionInfoFile(root, Intermediate).existsAsFile() ||
-		Helpers::getExpansionInfoFile(root, Encrypted).existsAsFile())
+		Helpers::getExpansionInfoFile(root, Encrypted).existsAsFile() || 
+		!root.isDirectory())
 		return;
 
 	auto file = Helpers::getExpansionInfoFile(root, FileBased);
