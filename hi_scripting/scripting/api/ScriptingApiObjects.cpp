@@ -1518,7 +1518,7 @@ struct ScriptingObjects::ScriptingSlotFX::Wrapper
     API_METHOD_WRAPPER_1(ScriptingSlotFX, setEffect);
     API_VOID_METHOD_WRAPPER_0(ScriptingSlotFX, clear);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSlotFX, swap);
-    
+	API_METHOD_WRAPPER_0(ScriptingSlotFX, getCurrentEffect);
 };
 
 ScriptingObjects::ScriptingSlotFX::ScriptingSlotFX(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -1542,9 +1542,9 @@ slotFX(fx)
     }
     
     ADD_API_METHOD_1(setEffect);
+	ADD_API_METHOD_0(getCurrentEffect);
     ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(swap);
-    
 };
 
 
@@ -1586,6 +1586,19 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 		reportScriptError("Invalid Slot");
 		RETURN_IF_NO_THROW(new ScriptingEffect(getScriptProcessor(), nullptr))
 	}
+}
+
+ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::getCurrentEffect()
+{
+	if (auto slot = getSlotFX())
+	{
+		if (auto fx = slot->getCurrentEffect())
+		{
+			return new ScriptingEffect(getScriptProcessor(), fx);
+		}
+	}
+
+	return {};
 }
 
 void ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)

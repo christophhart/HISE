@@ -815,6 +815,9 @@ public:
 		/** Loads the effect with the given name and returns a reference to it. */
 		ScriptingEffect* setEffect(String effectName);
 
+		/** Returns a reference to the currently loaded effect. */
+		ScriptingEffect* getCurrentEffect();
+
 		/** Swaps the effect with the other slot. */
 		void swap(var otherSlot);
 
