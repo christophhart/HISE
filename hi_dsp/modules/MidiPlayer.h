@@ -537,6 +537,8 @@ public:
 		playbackListeners.removeAllInstancesOf(l);
 	}
 
+	void sendSequenceUpdateMessage(NotificationType notification);
+
 private:
 
 	double getLoopStart() const;
@@ -554,7 +556,7 @@ private:
 
 	bool isRecording() const noexcept { return getPlayState() == PlayState::Record; }
 
-	void sendSequenceUpdateMessage(NotificationType notification);
+	
 
 	ScopedPointer<UndoManager> ownedUndoManager;
     UndoManager* undoManager = nullptr;
