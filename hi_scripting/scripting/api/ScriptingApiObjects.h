@@ -1290,6 +1290,9 @@ public:
 		/** Sets the track index (starting with one). */
 		void setTrack(int trackIndex);
 
+		/** Enables the (previously loaded) sequence with the given index. */
+		void setSequence(int sequenceIndex);
+
 		/** Returns the number of tracks in the current sequence. */
 		int getNumTracks();
 

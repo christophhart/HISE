@@ -3491,6 +3491,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, record);
 	API_METHOD_WRAPPER_3(ScriptedMidiPlayer, setFile);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTrack);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSequence);
 	API_VOID_METHOD_WRAPPER_3(ScriptedMidiPlayer, create);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, isEmpty);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumTracks);
@@ -3519,6 +3520,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_3(setFile);
 	ADD_API_METHOD_2(saveAsMidiFile);
 	ADD_API_METHOD_1(setTrack);
+	ADD_API_METHOD_1(setSequence);
 	ADD_API_METHOD_0(isEmpty);
 	ADD_API_METHOD_3(create);
 	ADD_API_METHOD_0(getNumTracks);
@@ -3802,6 +3804,12 @@ void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
 {
 	if (auto pl = getPlayer())
 		pl->setAttribute(MidiPlayer::CurrentTrack, (float)trackIndex, sendNotification);
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setSequence(int sequenceIndex)
+{
+	if (auto pl = getPlayer())
+		pl->setAttribute(MidiPlayer::CurrentSequence, (float)sequenceIndex, sendNotification);
 }
 
 int ScriptingObjects::ScriptedMidiPlayer::getNumSequences()
