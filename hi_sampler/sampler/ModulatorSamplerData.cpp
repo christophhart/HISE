@@ -581,6 +581,8 @@ bool SampleMap::save(const File& fileToUse)
 
 	return true;
 
+#else
+    return false;
 #endif
 }
 

@@ -2565,7 +2565,10 @@ var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamp
 		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(stop - start);
 		
 	}
+    
 #endif
+    
+    return {};
 }
 
 var ScriptingApi::Sampler::loadSampleForAnalysis(int soundIndex)
