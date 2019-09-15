@@ -444,42 +444,46 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
 		{
 			const float *data = getConnectedContainer()->getModulationValuesForModulator(getOriginalModulator(), startSample);
 
-			const float thisInputValue = data[0];
-
-			int i = 0;
-
-			const int startIndex = startSample;
-
-			while (--numSamples >= 0)
-			{
-				const int tableIndex = (int)(data[i++] * 127.0f);
-
-				internalBuffer.setSample(0, startSample++, table->get(tableIndex));
-			}
-
-			invertBuffer(startSample, numSamples);
-
-
-			setOutputValue(internalBuffer.getSample(0, startIndex));
-			sendTableIndexChangeMessage(false, table, thisInputValue);
-
+            if(data != nullptr)
+            {
+                const float thisInputValue = data[0];
+                
+                int i = 0;
+                
+                const int startIndex = startSample;
+                
+                while (--numSamples >= 0)
+                {
+                    const int tableIndex = (int)(data[i++] * 127.0f);
+                    
+                    internalBuffer.setSample(0, startSample++, table->get(tableIndex));
+                }
+                
+                invertBuffer(startSample, numSamples);
+                
+                
+                setOutputValue(internalBuffer.getSample(0, startIndex));
+                sendTableIndexChangeMessage(false, table, thisInputValue);
+                
+                return;
+            }
 		}
 		else
 		{
-			FloatVectorOperations::copy(internalBuffer.getWritePointer(0, startSample), getConnectedContainer()->getModulationValuesForModulator(getOriginalModulator(), startSample), numSamples);
-
-			invertBuffer(startSample, numSamples);
-
-			setOutputValue(internalBuffer.getSample(0, startSample));
+            if(auto src = getConnectedContainer()->getModulationValuesForModulator(getOriginalModulator(), startSample))
+            {
+                FloatVectorOperations::copy(internalBuffer.getWritePointer(0, startSample), src, numSamples);
+                invertBuffer(startSample, numSamples);
+                
+                setOutputValue(internalBuffer.getSample(0, startSample));
+                
+                return;
+            }
 		}
-
-		
 	}
-	else
-	{
-		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
-		setOutputValue(1.0f);
-	}
+	
+    FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
+    setOutputValue(1.0f);
 }
 
 void GlobalTimeVariantModulator::invertBuffer(int startSample, int numSamples)
