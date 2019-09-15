@@ -1518,7 +1518,7 @@ struct ScriptingObjects::ScriptingSlotFX::Wrapper
     API_METHOD_WRAPPER_1(ScriptingSlotFX, setEffect);
     API_VOID_METHOD_WRAPPER_0(ScriptingSlotFX, clear);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSlotFX, swap);
-    
+	API_METHOD_WRAPPER_0(ScriptingSlotFX, getCurrentEffect);
 };
 
 ScriptingObjects::ScriptingSlotFX::ScriptingSlotFX(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -1542,9 +1542,9 @@ slotFX(fx)
     }
     
     ADD_API_METHOD_1(setEffect);
+	ADD_API_METHOD_0(getCurrentEffect);
     ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(swap);
-    
 };
 
 
@@ -1586,6 +1586,19 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 		reportScriptError("Invalid Slot");
 		RETURN_IF_NO_THROW(new ScriptingEffect(getScriptProcessor(), nullptr))
 	}
+}
+
+ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::getCurrentEffect()
+{
+	if (auto slot = getSlotFX())
+	{
+		if (auto fx = slot->getCurrentEffect())
+		{
+			return new ScriptingEffect(getScriptProcessor(), fx);
+		}
+	}
+
+	return {};
 }
 
 void ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
@@ -3478,6 +3491,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, record);
 	API_METHOD_WRAPPER_3(ScriptedMidiPlayer, setFile);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTrack);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSequence);
 	API_VOID_METHOD_WRAPPER_3(ScriptedMidiPlayer, create);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, isEmpty);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumTracks);
@@ -3506,6 +3520,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_3(setFile);
 	ADD_API_METHOD_2(saveAsMidiFile);
 	ADD_API_METHOD_1(setTrack);
+	ADD_API_METHOD_1(setSequence);
 	ADD_API_METHOD_0(isEmpty);
 	ADD_API_METHOD_3(create);
 	ADD_API_METHOD_0(getNumTracks);
@@ -3789,6 +3804,12 @@ void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
 {
 	if (auto pl = getPlayer())
 		pl->setAttribute(MidiPlayer::CurrentTrack, (float)trackIndex, sendNotification);
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setSequence(int sequenceIndex)
+{
+	if (auto pl = getPlayer())
+		pl->setAttribute(MidiPlayer::CurrentSequence, (float)sequenceIndex, sendNotification);
 }
 
 int ScriptingObjects::ScriptedMidiPlayer::getNumSequences()

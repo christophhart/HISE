@@ -133,9 +133,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<AudioAnalyserComponent::Panel>(PopupMenuOptions::AudioAnalyser);
 	registerType<WaveformComponent::Panel>(PopupMenuOptions::WavetablePreview);
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);
-#if USE_BACKEND // TODO: Move this into a frontent compatible location
 	registerType<FilterDragOverlay::Panel>(PopupMenuOptions::DraggableFilterPanel);
-#endif
 	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
 	registerType<AhdsrGraph::Panel>(PopupMenuOptions::AHDSRGraph);
 	registerType<MarkdownPreviewPanel>(PopupMenuOptions::MarkdownPreviewPanel);

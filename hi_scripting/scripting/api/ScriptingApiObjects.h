@@ -815,6 +815,9 @@ public:
 		/** Loads the effect with the given name and returns a reference to it. */
 		ScriptingEffect* setEffect(String effectName);
 
+		/** Returns a reference to the currently loaded effect. */
+		ScriptingEffect* getCurrentEffect();
+
 		/** Swaps the effect with the other slot. */
 		void swap(var otherSlot);
 
@@ -1286,6 +1289,9 @@ public:
 
 		/** Sets the track index (starting with one). */
 		void setTrack(int trackIndex);
+
+		/** Enables the (previously loaded) sequence with the given index. */
+		void setSequence(int sequenceIndex);
 
 		/** Returns the number of tracks in the current sequence. */
 		int getNumTracks();

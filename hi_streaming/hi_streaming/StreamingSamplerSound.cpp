@@ -996,7 +996,7 @@ float getAbsoluteValue(float input)
 
 float StreamingSamplerSound::FileReader::calculatePeakValue()
 {
-#if USE_FRONTEND
+#if !HI_ENABLE_EXPANSION_EDITING
 
 	// If you hit this assertion, it means that you haven't saved the normalised gain value into the samplemap.
 	// Please resave the samplemap in order to speed up loading times

@@ -64,6 +64,25 @@ public:
 		double denominator = 4.0;
 		Range<double> normalisedLoopRange = { 0.0, 1.0 };
 
+		void setLoopEnd(double normalisedEnd)
+		{
+			jassert(numBars > 0.0);
+			jassert(denominator != 0.0);
+			auto beatLengthNormalised = 1.0 / (numBars * denominator);
+			normalisedEnd = jmax(normalisedLoopRange.getStart() + beatLengthNormalised, normalisedEnd);
+			normalisedLoopRange.setEnd(normalisedEnd);
+		}
+
+		void setLoopStart(double normalisedStart)
+		{
+			jassert(numBars > 0.0);
+			jassert(denominator != 0.0);
+			auto beatLengthNormalised = 1.0 / (numBars * denominator);
+
+			normalisedStart = jmin(normalisedStart, normalisedLoopRange.getEnd() - beatLengthNormalised);
+			normalisedLoopRange.setStart(normalisedStart);
+		}
+
 		void calculateNumBars(double lengthInQuarters)
 		{
 			numBars = lengthInQuarters * denominator / 4.0 / nominator;
@@ -537,6 +556,8 @@ public:
 		playbackListeners.removeAllInstancesOf(l);
 	}
 
+	void sendSequenceUpdateMessage(NotificationType notification);
+
 private:
 
 	double getLoopStart() const;
@@ -554,7 +575,7 @@ private:
 
 	bool isRecording() const noexcept { return getPlayState() == PlayState::Record; }
 
-	void sendSequenceUpdateMessage(NotificationType notification);
+	
 
 	ScopedPointer<UndoManager> ownedUndoManager;
     UndoManager* undoManager = nullptr;
