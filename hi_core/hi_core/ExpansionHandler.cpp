@@ -78,14 +78,14 @@ void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(Floatin
 		auto keyboard = ib.addChild<MidiKeyboardPanel>(expansionRoot);
 		ib.getPanel(keyboard)->setCanBeFolded(true);
 	}
-		
+
 
 	ib.getContent(editor)->setStyleProperty("showConnectionBar", false);
 	ib.getContent(mapEditor)->setStyleProperty("showConnectionBar", false);
 
-	
 
-	
+
+
 	ib.setCustomName(expansionRoot, "Expansion Editing");
 
 	auto c = ib.getContent<GlobalConnectorPanel<ModulatorSampler>>(connector);
@@ -178,7 +178,7 @@ void ExpansionHandler::createAvailableExpansions()
 				break;
 			}
 		}
-			
+
 		if (exists)
 			continue;
 
@@ -298,14 +298,14 @@ void ExpansionHandler::clearPools()
 	{
 		e->pool->clear();
 	}
-		
+
 }
 
 FileHandlerBase* ExpansionHandler::getFileHandler(MainController* mc_)
 {
     return &mc_->getCurrentFileHandler();
 }
-    
+
 hise::PooledImage ExpansionHandler::loadImageReference(const PoolReference& imageId, PoolHelpers::LoadingType loadingType /*= PoolHelpers::LoadAndCacheWeak*/)
 {
 	ImagePool* pool = nullptr;
@@ -412,7 +412,7 @@ void Expansion::saveExpansionInfoFile()
 
 juce::String Expansion::Helpers::getExpansionIdFromReference(const String& referenceId)
 {
-	
+
 
 	static const String expStart = "{EXP::";
 

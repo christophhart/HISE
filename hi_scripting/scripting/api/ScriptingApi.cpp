@@ -261,7 +261,7 @@ Justification ApiHelpers::getJustification(const String& justificationName, Resu
 	{
 		return justifications[index];
 	}
-	
+
 	if (r != nullptr)
 		*r = Result::fail("Justification not found: " + justificationName);
 
@@ -278,7 +278,7 @@ Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*
 		{
             auto d0 = (float)d->getUnchecked(0);
             auto d1 = (float)d->getUnchecked(1);
-            
+
             Point<float> p(SANITIZED(d0), SANITIZED(d1));
 
 			return p;
@@ -326,11 +326,11 @@ Rectangle<float> ApiHelpers::getRectangleFromVar(const var &data, Result *r/*=nu
             auto d1 = (float)d->getUnchecked(1);
             auto d2 = (float)d->getUnchecked(2);
             auto d3 = (float)d->getUnchecked(3);
-            
+
 			Rectangle<float> rectangle(SANITIZED(d0), SANITIZED(d1), SANITIZED(d2), SANITIZED(d3));
 
             if(r != nullptr) *r = Result::ok();
-            
+
 			return rectangle;
 		}
 		else
@@ -405,7 +405,7 @@ struct ScriptingApi::Message::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Message, store);
 	API_METHOD_WRAPPER_0(Message, makeArtificial);
 	API_METHOD_WRAPPER_0(Message, isArtificial);
-	
+
 };
 
 
@@ -476,7 +476,7 @@ void ScriptingApi::Message::delayEvent(int samplesToDelay)
 	{
 		reportIllegalCall("delayEvent()", "midi event");
 		return;
-	}	
+	}
 #endif
 
 	messageHolder->addToTimeStamp(samplesToDelay);
@@ -535,7 +535,7 @@ void ScriptingApi::Message::setControllerNumber(int newValue)
 		reportIllegalCall("setControllerNumber()", "onController");
 	}
 #endif
-	
+
 	messageHolder->setControllerNumber(newValue);
 };
 
@@ -554,9 +554,9 @@ void ScriptingApi::Message::setControllerValue(int newValue)
 	}
 #endif
 
-	
 
-	
+
+
 	messageHolder->setControllerValue(newValue);
 };
 
@@ -679,7 +679,7 @@ void ScriptingApi::Message::setChannel(int newValue)
 };
 
 int ScriptingApi::Message::getEventId() const
-{ 
+{
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 	if (constMessageHolder == nullptr)
 	{
@@ -879,13 +879,13 @@ int ScriptingApi::Message::makeArtificial()
 		else if (copy.isNoteOff())
 		{
 			HiseEvent e = getScriptProcessor()->getMainController_()->getEventHandler().popNoteOnFromEventId(artificialNoteOnIds[copy.getNoteNumber()]);
-			
+
 			if (e.isEmpty())
 			{
 				artificialNoteOnIds[copy.getNoteNumber()] = 0;
 				copy.ignoreEvent(true);
 			}
-			
+
 			copy.setEventId(artificialNoteOnIds[copy.getNoteNumber()]);
 		}
 
@@ -923,7 +923,7 @@ hise::HiseEvent& ScriptingApi::Message::getCurrentEventReference()
 {
 	if (messageHolder != nullptr)
 		return *messageHolder;
-	
+
 	jassertfalse;
 	static HiseEvent unused;
 	return unused;
@@ -1001,6 +1001,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getControlRateDownsamplingFactor);
 	API_METHOD_WRAPPER_1(Engine, createDspNetwork);
 	API_METHOD_WRAPPER_0(Engine, getExpansionList);
+	API_METHOD_WRAPPER_1(Engine, setCurrentExpansion);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
 	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
@@ -1059,6 +1060,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_0(getExpansionList);
+	ADD_API_METHOD_1(setCurrentExpansion);
 	ADD_API_METHOD_1(setUserPresetTagList);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
 	ADD_API_METHOD_1(saveUserPreset);
@@ -1212,14 +1214,14 @@ double ScriptingApi::Engine::getMilliSecondsForQuarterBeatsWithTempo(double quar
 	return getMilliSecondsForSamples(samples);
 }
 
-double ScriptingApi::Engine::getUptime() const		 
+double ScriptingApi::Engine::getUptime() const
 {
 	if (parentMidiProcessor != nullptr && parentMidiProcessor->getCurrentHiseEvent() != nullptr)
 	{
 		return parentMidiProcessor->getMainController()->getUptime() + parentMidiProcessor->getCurrentHiseEvent()->getTimeStamp() / getSampleRate();
 	}
 
-	return getProcessor()->getMainController()->getUptime(); 
+	return getProcessor()->getMainController()->getUptime();
 }
 double ScriptingApi::Engine::getHostBpm() const		 { return getProcessor()->getMainController()->getBpm(); }
 
@@ -1279,17 +1281,17 @@ var ScriptingApi::Engine::getDeviceResolution()
 	Array<var> a = { r.getX(), r.getY(), r.getWidth(), r.getHeight() };
 
 	return a;
-	
+
 }
 
 bool ScriptingApi::Engine::isPlugin() const
 {
 #if HISE_IOS
-    
+
     return HiseDeviceSimulator::isAUv3();
-    
+
 #else
-    
+
 #if IS_STANDALONE_APP
 	return false;
 #else
@@ -1443,9 +1445,9 @@ void ScriptingApi::Engine::showErrorMessage(String message, bool isCritical)
 			message);
 	}
 
-	
 
-	
+
+
 #else
 
 	ignoreUnused(isCritical);
@@ -1471,28 +1473,28 @@ double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { ret
 void ScriptingApi::Engine::openWebsite(String url)
 {
     URL u(url);
-    
+
     if (u.isWellFormed())
     {
         auto& tmp = u;
-        
+
         auto f = [tmp]()
         {
             tmp.launchInDefaultBrowser();
         };
-        
+
         new DelayedFunctionCaller(f, 300);
-        
-        
+
+
     }
     else
     {
         reportScriptError("not a valid URL");
     }
-    
-    
+
+
 }
-    
+
 var ScriptingApi::Engine::getExpansionList()
 {
 	auto& expHandler = getProcessor()->getMainController()->getExpansionHandler();
@@ -1506,6 +1508,12 @@ var ScriptingApi::Engine::getExpansionList()
 	}
 
 	return list;
+}
+
+bool ScriptingApi::Engine::setCurrentExpansion(const String& expansionName)
+{
+	auto& expHandler = getProcessor()->getMainController()->getExpansionHandler();
+	return expHandler.setCurrentExpansion(expansionName);
 }
 
 void ScriptingApi::Engine::loadNextUserPreset(bool stayInDirectory)
@@ -1560,7 +1568,7 @@ void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
 void ScriptingApi::Engine::setUserPresetTagList(var listOfTags)
 {
 	if(auto ar = listOfTags.getArray())
-	{ 
+	{
 		StringArray sa;
 
 		for (auto l : *ar)
@@ -1569,7 +1577,7 @@ void ScriptingApi::Engine::setUserPresetTagList(var listOfTags)
 		getProcessor()->getMainController()->getUserPresetHandler().getTagDataBase().setTagList(sa);
 	}
 
-	
+
 }
 
 var ScriptingApi::Engine::getUserPresetList() const
@@ -1765,7 +1773,7 @@ void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 		f = File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
 
 	f.replaceWithText(JSON::toString(object, false, DOUBLE_TO_STRING_DIGITS));
-	
+
 }
 
 var ScriptingApi::Engine::loadFromJSON(String fileName)
@@ -1816,16 +1824,16 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
         std::string s = stringToMatch.toStdString();
         std::regex reg(wildcard.toStdString());
         std::smatch match;
-        
+
         if (std::regex_search(s, match, reg))
         {
             var returnArray = var();
-            
+
             for (auto x:match)
             {
                 returnArray.insert(-1, String(x));
             }
-            
+
             return returnArray;
         }
     }
@@ -1834,7 +1842,7 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
         debugError(getProcessor(), e.what());
         return var::undefined();
     }
-    
+
     return var::undefined();
 }
 
@@ -1846,7 +1854,7 @@ String ScriptingApi::Engine::doubleToString(double value, int digits)
 void ScriptingApi::Engine::undo()
 {
 	WeakReference<Processor> p = getProcessor();
-	
+
 	auto f = [p]()
 	{
 		if(p != nullptr)
@@ -2033,8 +2041,8 @@ int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
 void ScriptingApi::Sampler::refreshRRMap()
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
-	
-	
+
+
 
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
@@ -2094,7 +2102,7 @@ var ScriptingApi::Sampler::createSelectionFromIndexes(var indexData)
 	}
 
 	Array<var> selection;
-	
+
 	if (auto ar = indexData.getArray())
 	{
 		for (auto index : *ar)
@@ -2167,7 +2175,7 @@ var ScriptingApi::Sampler::createListFromGUISelection()
 		for (auto sound : selection)
 			newSelection.add(new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound));
 	}
-	
+
 	return newSelection;
 #else
 	return {};
@@ -2187,7 +2195,7 @@ void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 	}
 
 	ModulatorSamplerSound::selectSoundsBasedOnRegex(regexWildcard, s, soundSelection);
-	
+
 }
 
 int ScriptingApi::Sampler::getNumSelectedSounds()
@@ -2196,7 +2204,7 @@ int ScriptingApi::Sampler::getNumSelectedSounds()
 
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
-	
+
 
 	if (s == nullptr)
 	{
@@ -2255,7 +2263,7 @@ void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var
 	auto f = [id, newValue](Processor* p)
 	{
 		auto s = static_cast<ModulatorSampler*>(p);
-		
+
 		ModulatorSampler::SoundIterator iter(s);
 
 		while (auto sound = iter.getNextSound())
@@ -2326,7 +2334,7 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
         reportScriptError("Mic position name must not be empty.");
         RETURN_VOID_IF_NO_THROW()
     }
-    
+
 	if (s == nullptr)
 	{
 		reportScriptError("purgeMicPosition() only works with Samplers.");
@@ -2339,7 +2347,7 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 		RETURN_VOID_IF_NO_THROW()
 	}
 
-    
+
 	for (int i = 0; i < s->getNumMicPositions(); i++)
 	{
 		if (micName == s->getChannelData(i).suffix)
@@ -2412,7 +2420,7 @@ bool ScriptingApi::Sampler::isMicPositionPurged(int micIndex)
 	}
 	else return false;
 
-	
+
 }
 
 bool ScriptingApi::Sampler::isNoteNumberMapped(int noteNumber)
@@ -2453,7 +2461,7 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 
 	if (fileName.isEmpty())
 		reportScriptError("Trying to load a empty sample map...");
-    
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s != nullptr)
@@ -2505,7 +2513,7 @@ var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamp
 						return true;
 				}
 			}
-			
+
 			return false;
 		};
 
@@ -2561,9 +2569,9 @@ var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamp
 		}
 
 		auto stop = Time::getMillisecondCounter();
-		
+
 		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(stop - start);
-		
+
 	}
 #endif
 }
@@ -2581,30 +2589,30 @@ var ScriptingApi::Sampler::loadSampleForAnalysis(int soundIndex)
 	}
 
     auto& sounds = soundSelection.getItemArray();
-    
+
     if(auto sound = sounds[soundIndex].get())
     {
 		ScopedPointer<ScriptingObjects::ScriptingSamplerSound> ownedSound = new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound);
 		return ownedSound->loadIntoBufferArray();
     }
-    
+
     return {};
 }
-    
+
 String ScriptingApi::Sampler::getCurrentSampleMapId() const
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
 
     ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
-    
+
     if (s != nullptr)
     {
         auto map = s->getSampleMap();
-        
+
         if(map != nullptr)
             return map->getId().toString();
     }
-    
+
     return String();
 }
 
@@ -2627,7 +2635,7 @@ var ScriptingApi::Sampler::getSampleMapList() const
 	for (auto r : references)
 		sampleMapNames.add(r.getReferenceString());
 
-	
+
 
 	return sampleMapNames;
 }
@@ -2635,26 +2643,26 @@ var ScriptingApi::Sampler::getSampleMapList() const
 var ScriptingApi::Sampler::getAttribute(int index) const
 {
     ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
-    
+
     if (s == nullptr)
     {
         reportScriptError("getAttribute() only works with Samplers.");
 		RETURN_IF_NO_THROW(var());
     }
-    
+
     return s->getAttribute(index);
 }
 
 void ScriptingApi::Sampler::setAttribute(int index, var newValue)
 {
     ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
-    
+
     if (s == nullptr)
     {
         reportScriptError("setAttribute() only works with Samplers.");
         RETURN_VOID_IF_NO_THROW()
     }
-    
+
     s->setAttribute(index, newValue, sendNotification);
 }
 
@@ -2852,13 +2860,13 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(isKeyDown);
 	ADD_API_METHOD_1(setClockSpeed);
 	ADD_API_METHOD_1(setShouldKillRetriggeredNote);
-	
+
 };
 
 
 int ScriptingApi::Synth::getNumChildSynths() const
 {
-	if(dynamic_cast<Chain*>(owner) == nullptr) 
+	if(dynamic_cast<Chain*>(owner) == nullptr)
 	{
 		reportScriptError("getNumChildSynths() can only be called on Chains!");
 		FRONTEND_ONLY(return -1;)
@@ -2890,7 +2898,7 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 
 	const HiseEvent e = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
 
-	
+
 
 	if (!e.isEmpty())
 	{
@@ -2931,7 +2939,7 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 }
 
 void ScriptingApi::Synth::addToFront(bool addToFront)
-{	
+{
 	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->addToFront(addToFront);
 }
 
@@ -2979,11 +2987,11 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 				}
 
 				parentMidiProcessor->addHiseEventToBuffer(e);
-                
+
                 if(targetVolume == -100)
                 {
                     HiseEvent no = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
-                    
+
                     if (!no.isEmpty())
                     {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -2993,30 +3001,30 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
                         }
 #endif
                         const int timeStampOffset = (int)(1.0 + (double)fadeTimeMilliseconds / 1000.0 * getProcessor()->getSampleRate());
-                        
+
                         int timestamp = timeStampOffset;
-                        
+
                         const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
-                        
+
                         if (current != nullptr)
                         {
                             timestamp += current->getTimeStamp();
                         }
-                        
+
                         HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)no.getNoteNumber(), 1, (uint8)no.getChannel());
                         noteOff.setEventId((uint16)eventId);
                         noteOff.setTimeStamp(timestamp);
                         noteOff.setArtificial();
-                        
+
                         parentMidiProcessor->addHiseEventToBuffer(noteOff);
-                        
+
                     }
                     else
                     {
                         reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
                     }
                 }
-                
+
 			}
 			else reportScriptError("Fade time must be positive");
 		}
@@ -3034,7 +3042,7 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 			if (fadeTimeMilliseconds >= 0)
 			{
 				HiseEvent e = HiseEvent::createPitchFade((uint16)eventId, fadeTimeMilliseconds, (uint8)targetCoarsePitch, (uint8)targetFinePitch);
-				
+
 				if(auto ce = parentMidiProcessor->getCurrentHiseEvent())
 					e.setTimeStamp((int)ce->getTimeStamp());
 
@@ -3099,10 +3107,10 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 	}
 #endif
 
-	
-	
 
-	
+
+
+
 
 	if (parentMidiProcessor == nullptr)
 		reportScriptError("Timers only work in MIDI processors!");
@@ -3155,7 +3163,7 @@ void ScriptingApi::Synth::stopTimer()
 
 bool ScriptingApi::Synth::isTimerRunning() const
 {
-	
+
 
 	if (jp != nullptr && jp->isDeferred())
 	{
@@ -3164,7 +3172,7 @@ bool ScriptingApi::Synth::isTimerRunning() const
 	}
 	else
 	{
-		if (parentMidiProcessor != nullptr) 
+		if (parentMidiProcessor != nullptr)
 			return owner->getTimerInterval(parentMidiProcessor->getIndexInChain()) != 0.0;
 		else return false;
 	}
@@ -3172,7 +3180,7 @@ bool ScriptingApi::Synth::isTimerRunning() const
 
 double ScriptingApi::Synth::getTimerInterval() const
 {
-	
+
 
 	if (jp != nullptr && jp->isDeferred())
 	{
@@ -3180,7 +3188,7 @@ double ScriptingApi::Synth::getTimerInterval() const
 	}
 	else
 	{
-		if (parentMidiProcessor != nullptr) 
+		if (parentMidiProcessor != nullptr)
 			return owner->getTimerInterval(parentMidiProcessor->getIndexInChain());
 		else return 0.0;
 	}
@@ -3195,7 +3203,7 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 			if (controllerValue >= 0)
 			{
                 HiseEvent e;
-                
+
                 if(controllerNumber == 129)
                 {
                     e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0);
@@ -3205,8 +3213,8 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
                 {
                     e = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue);
                 }
-                
-				
+
+
 				if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
 				{
 					e.setTimeStamp((int)current->getTimeStamp());
@@ -3251,12 +3259,12 @@ ScriptingObjects::ScriptingModulator *ScriptingApi::Synth::getModulator(const St
 		Processor::Iterator<Modulator> it(owner);
 
 		Modulator *m;
-		
+
 		while((m = it.getNextProcessor()) != 0)
 		{
 			if(m->getId() == name)
 			{
-				return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), m);	
+				return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), m);
 			}
 		}
 
@@ -3267,7 +3275,7 @@ ScriptingObjects::ScriptingModulator *ScriptingApi::Synth::getModulator(const St
 	{
 		reportIllegalCall("getModulator()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr))
-	}	
+	}
 }
 
 
@@ -3283,17 +3291,17 @@ ScriptingObjects::ScriptingMidiProcessor *ScriptingApi::Synth::getMidiProcessor(
 		Processor::Iterator<MidiProcessor> it(owner);
 
 		MidiProcessor *mp;
-		
+
 		while((mp = it.getNextProcessor()) != nullptr)
 		{
 			if(mp->getId() == name)
 			{
-				return new ScriptingObjects::ScriptingMidiProcessor(getScriptProcessor(), mp);	
+				return new ScriptingObjects::ScriptingMidiProcessor(getScriptProcessor(), mp);
 			}
 		}
 
         reportScriptError(name + " was not found. ");
-        
+
 		RETURN_IF_NO_THROW(new ScriptMidiProcessor(getScriptProcessor(), nullptr))
 	}
 	else
@@ -3302,7 +3310,7 @@ ScriptingObjects::ScriptingMidiProcessor *ScriptingApi::Synth::getMidiProcessor(
 
 		RETURN_IF_NO_THROW(new ScriptMidiProcessor(getScriptProcessor(), nullptr))
 
-	}	
+	}
 }
 
 
@@ -3313,16 +3321,16 @@ ScriptingObjects::ScriptingSynth *ScriptingApi::Synth::getChildSynth(const Strin
 		Processor::Iterator<ModulatorSynth> it(owner);
 
 		ModulatorSynth *m;
-		
+
 
 		while((m = it.getNextProcessor()) != 0)
 		{
 			if(m->getId() == name)
 			{
-				return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), m);	
+				return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), m);
 			}
 		}
-        
+
         reportScriptError(name + " was not found. ");
 		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
 	}
@@ -3331,7 +3339,7 @@ ScriptingObjects::ScriptingSynth *ScriptingApi::Synth::getChildSynth(const Strin
 		reportIllegalCall("getChildSynth()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
 
-	}	
+	}
 }
 
 ScriptingApi::Synth::ScriptSynth* ScriptingApi::Synth::getChildSynthByIndex(int index)
@@ -3390,13 +3398,13 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 		Processor::Iterator<EffectProcessor> it(owner);
 
 		EffectProcessor *fx;
-		
+
 
 		while((fx = it.getNextProcessor()) != nullptr)
 		{
 			if(fx->getId() == name)
 			{
-				return new ScriptEffect(getScriptProcessor(), fx);	
+				return new ScriptEffect(getScriptProcessor(), fx);
 			}
 		}
 
@@ -3407,7 +3415,7 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 	{
 		reportIllegalCall("getEffect()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptEffect(getScriptProcessor(), nullptr))
-	}	
+	}
 }
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)
@@ -3445,7 +3453,7 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 		{
 			if (dynamic_cast<Processor*>(lut)->getId() == name)
 			{
-				
+
 				return new ScriptTableProcessor(getScriptProcessor(), lut);
 			}
 		}
@@ -3472,7 +3480,7 @@ ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 		{
 			if (s->getId() == name)
 			{
-				
+
 				return new Sampler(getScriptProcessor(), s);
 			}
 		}
@@ -3704,7 +3712,7 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 					if (parentMidiProcessor != nullptr)
 					{
 						HiseEvent m = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value, (uint8)channel);
-						
+
 						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 						{
 							m.setTimeStamp((int)ce->getTimeStamp() + timeStampSamples);
@@ -3718,7 +3726,7 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 
 						parentMidiProcessor->addHiseEventToBuffer(m);
 					}
-					
+
 				}
 				else reportScriptError("Timestamp must be > 0");
 			}
@@ -3801,7 +3809,7 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 
 	if(attributeIndex == -12)
 	{
-		if (chain == ModulatorSynth::PitchModulation) 
+		if (chain == ModulatorSynth::PitchModulation)
 		{
 			const float pitchValue = jlimit(0.5f, 2.0f, powf(2, newValue/12.0f));
 
@@ -3810,16 +3818,16 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 		else
 		{
 			dynamic_cast<Modulation*>(modulator)->setIntensity(newValue);
-			
+
 		}
 	}
 	else if(attributeIndex == -13) modulator->setBypassed(newValue == 1.0f);
-	
+
 	else modulator->setAttribute(attributeIndex, newValue, dontSendNotification);
 
 	modulator->sendChangeMessage();
 
-	
+
 }
 
 
@@ -4235,12 +4243,12 @@ ScriptingApi::ModuleIds::ModuleIds(ModulatorSynth* s):
 Array<Identifier> ScriptingApi::ModuleIds::getTypeList(ModulatorSynth* s)
 {
 	Array<Identifier> ids;
-	
+
 	for (int i = 0; i < s->getNumInternalChains(); i++)
 	{
 		Chain* c = dynamic_cast<Chain*>(s->getChildProcessor(i));
 
-		
+
 
 		jassert(c != nullptr);
 
@@ -4248,7 +4256,7 @@ Array<Identifier> ScriptingApi::ModuleIds::getTypeList(ModulatorSynth* s)
 		{
 			FactoryType* t = c->getFactoryType();
 			auto list = t->getAllowedTypes();
-			
+
 			for (int j = 0; j < list.size(); j++)
 			{
 				ids.addIfNotAlreadyThere(list[j].type);

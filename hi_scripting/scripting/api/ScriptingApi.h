@@ -80,10 +80,10 @@ public:
 		*	Pitchwheel has number 128, Aftertouch has number 129.
 		*/
 		var getControllerNumber() const;
-		
+
 		/** Returns the value of the controller. */
 		var getControllerValue() const;
-		
+
 		/** Returns the MIDI Channel from 1 to 16. */
 		int getChannel() const;
 
@@ -98,7 +98,7 @@ public:
 
 		/** Changes the ControllerNumber. */
 		void setControllerNumber(int newControllerNumber);
-		
+
 		/** Changes the controller value (range 0 - 127). */
 		void setControllerValue(int newControllerValue);
 
@@ -161,7 +161,7 @@ public:
 		// ============================================================================================================
 
 		void setHiseEvent(HiseEvent &m);
-		void setHiseEvent(const HiseEvent& m);		
+		void setHiseEvent(const HiseEvent& m);
 
 		HiseEvent& getCurrentEventReference();
 
@@ -211,7 +211,7 @@ public:
 
 		/** Converts milli seconds to samples */
 		double getSamplesForMilliSeconds(double milliSeconds) const;;
-		
+
 		/** Converts samples to quarter beats using the current tempo. */
 		double getQuarterBeatsForSamples(double samples);
 
@@ -238,10 +238,10 @@ public:
 
 		/** Converts samples to milli seconds. */
 		double getMilliSecondsForSamples(double samples) const { return samples / getSampleRate() * 1000.0; };
-		
+
 		/** Converts decibel (-100.0 ... 0.0) to gain factor (0.0 ... 1.0). */
 		double getGainFactorForDecibels(double decibels) const { return Decibels::decibelsToGain<double>(decibels); };
-		
+
 		/** Converts gain factor (0.0 .. 1.0) to decibel (-100.0 ... 0). */
 		double getDecibelsForGainFactor(double gainFactor) const { return Decibels::gainToDecibels<double>(gainFactor); };
 
@@ -280,10 +280,10 @@ public:
 
 		/** Returns the uptime of the engine in seconds. */
 		double getUptime() const;
-		
+
 		/** Sets a key of the global keyboard to the specified colour (using the form 0x00FF00 for eg. of the key to the specified colour. */
 		void setKeyColour(int keyNumber, int colourAsHex);
-		
+
 		/** Extends the compilation timeout. Use this if you have a long task that would get cancelled otherwise. This is doing nothing in compiled plugins. */
 		void extendTimeOut(int additionalMilliseconds);
 
@@ -292,7 +292,7 @@ public:
 
 		/** Shows a error message on the compiled plugin (or prints it on the console). Use isCritical if you want to disable the "Ignore" Button. */
 		void showErrorMessage(String message, bool isCritical);
-        
+
 		/** Shows a message with an overlay on the compiled plugin with an "OK" button in order to notify the user about important events. */
 		void showMessage(String message);
 
@@ -301,13 +301,16 @@ public:
 
         /** launches the given URL in the system's web browser. */
         void openWebsite(String url);
-        
+
 		/** Creates a list of all available expansions. */
 		var getExpansionList();
 
+		/** Sets the active expansion and updates the preset browser. */
+		bool setCurrentExpansion(const String& expansionName);
+
 		/** Loads the next user preset. */
 		void loadNextUserPreset(bool stayInDirectory);
-        
+
 		/** Loads the previous user preset. */
 		void loadPreviousUserPreset(bool stayInDirectory);
 
@@ -349,7 +352,7 @@ public:
 
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
-		
+
 		/** Overwrites the host BPM. Use -1 for sync to host. */
 		void setHostBpm(double newTempo);
 
@@ -364,7 +367,7 @@ public:
 
 		/** Returns the name for the given macro index. */
 		String getMacroName(int index);
-		
+
 		/** Returns the current operating system ("OSX" or ("WIN"). */
 		String getOS();
 
@@ -388,7 +391,7 @@ public:
 
         /** Returns the product version (not the HISE version!). */
         String getVersion();
-        
+
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
 
@@ -402,7 +405,7 @@ public:
 		int isControllerUsedByAutomation(int controllerNumber);
 
 		/** Creates a MIDI List object. */
-        ScriptingObjects::MidiList *createMidiList(); 
+        ScriptingObjects::MidiList *createMidiList();
 
 		/** Creates a SliderPack Data object. */
 		ScriptingObjects::ScriptSliderPackData* createSliderPackData();
@@ -436,10 +439,10 @@ public:
 
         /** Returns an array with all matches. */
         var getRegexMatches(String stringToMatch, String regex);
-        
+
         /** Returns a string of the value with the supplied number of digits. */
         String doubleToString(double value, int digits);
-        
+
 		/** Reverts the last controller change. */
 		void undo();
 
@@ -509,7 +512,7 @@ public:
 
 		/** Returns an array with all samples that match this regex. */
 		var createSelection(String regex);
-        
+
 		/** Returns an array with all samples from the index data (can be either int or array of int, -1 selects all.). */
 		var createSelectionFromIndexes(var indexData);
 
@@ -520,10 +523,10 @@ public:
 		var createListFromGUISelection();
 
         /** Loads the content of the given sample into an array of VariantBuffers that can be used
-            for analysis. 
+            for analysis.
         */
         var loadSampleForAnalysis(int indexInSelection);
-        
+
 		/** Returns the number of mic positions. */
 		int getNumMicPositions() const;
 
@@ -539,7 +542,7 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
-		
+
 		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
 		var importSamples(var fileNameList, bool skipExistingSamples);
 
@@ -548,13 +551,13 @@ public:
 
         /** Returns the currently loaded sample map. */
         String getCurrentSampleMapId() const;
-        
+
         /** Gets the attribute with the given index (use the constants for clearer code). */
         var getAttribute(int index) const;
-        
+
         /** Sets a attribute to the given value. */
         void setAttribute(int index, var newValue);
-        
+
 		/** Disables dynamic resizing when a sample map is loaded. */
 		void setUseStaticMatrix(bool shouldUseStaticMatrix);
 
@@ -575,7 +578,7 @@ public:
 
 		Array<Identifier> sampleIds;
 	};
-	
+
 
 	/** Provides access to the synth where the script processor resides.
 	*	@ingroup scriptingApi
@@ -614,7 +617,7 @@ public:
 
 		/** Sends a note off message. The envelopes will tail off. */
 		void noteOff(int noteNumber);
-		
+
 		/** Sends a note off message for the supplied event ID. This is more stable than the deprecated noteOff() method. */
 		void noteOffByEventId(int eventId);
 
@@ -623,7 +626,7 @@ public:
 
 		/** Plays a note and returns the event id. Be careful or you get stuck notes! */
 		int playNote(int noteNumber, int velocity);
-		
+
 		/** Plays a note and returns the event id with the given channel and start offset. */
 		int playNoteWithStartOffset(int channel, int number, int velocity, int offset);
 
@@ -638,7 +641,7 @@ public:
 
 		/** Starts the timer of the synth. */
 		void startTimer(double seconds);
-		
+
 		/** Sets an attribute of the parent synth. */
 		void setAttribute(int attributeIndex, float newAttribute);
 
@@ -681,10 +684,10 @@ public:
 		/** Sets one of the eight macro controllers to the newValue.
 		*
 		*	@param macroIndex the index of the macro from 1 - 8
-		*	@param newValue The range for the newValue is 0.0 - 127.0. 
+		*	@param newValue The range for the newValue is 0.0 - 127.0.
 		*/
 		void setMacroControl(int macroIndex, float newValue);
-		
+
 
 		/** Sends a controller event to the synth. */
 		void sendController(int controllerNumber, int controllerValue);
@@ -776,15 +779,15 @@ public:
 			numPressedKeys.set(0);
 		}
 
-		void increaseNoteCounter(int noteNumber) noexcept 
-		{ 
-			++numPressedKeys; 
+		void increaseNoteCounter(int noteNumber) noexcept
+		{
+			++numPressedKeys;
 			keyDown.setBit(noteNumber, true);
 		}
-		
-		void decreaseNoteCounter(int noteNumber) 
-		{ 
-			--numPressedKeys; if (numPressedKeys.get() < 0) numPressedKeys.set(0); 
+
+		void decreaseNoteCounter(int noteNumber)
+		{
+			--numPressedKeys; if (numPressedKeys.get() < 0) numPressedKeys.set(0);
 			keyDown.setBit(noteNumber, false);
 		}
 		void setSustainPedal(bool shouldBeDown) { sustainState = shouldBeDown; };
@@ -796,7 +799,7 @@ public:
 		int internalAddNoteOn(int channel, int noteNumber, int velocity, int timestamp, int startOffset);
 
 		friend class ModuleHandler;
-		
+
 		OwnedArray<Message> artificialNoteOns;
 		ModulatorSynth * const owner;
 		Atomic<int> numPressedKeys;
@@ -814,9 +817,9 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Synth);
 	};
 
-	/** A set of handy function to debug the script. 
+	/** A set of handy function to debug the script.
 	*	@ingroup scriptingApi
-	*	
+	*
 	*
 	*/
 	class Console: public ApiClass,
@@ -843,7 +846,7 @@ public:
 
 		/** Stops the benchmark and prints the result. */
 		void stop();
-		
+
 		/** Clears the console. */
 		void clear();
 
@@ -917,7 +920,7 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Colours);
 	};
 
-	
+
 	class ModulatorApi : public ApiClass
 	{
 	public:
