@@ -30,15 +30,7 @@
 *   ===========================================================================
 */
 
-namespace hise { using namespace juce;
-
-float Interpolator::interpolateLinear(const float lowValue, const float highValue, const float delta)
-{
-	jassert(isPositiveAndNotGreaterThan(delta, 1.0f));
-
-	const float invDelta = 1.0f - delta;
-	return invDelta * lowValue + delta * highValue;
-};
+namespace hise { using namespace juce;;
 
 Table::Table():
 	xConverter(getDefaultTextValue),
