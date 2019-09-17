@@ -517,7 +517,7 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 			}
 			else
 			{
-				data.removeProperty(SampleIds::NormalizedPeak, nullptr);
+				//data.removeProperty(SampleIds::NormalizedPeak, nullptr);
 				normalizedPeak = 1.0f;
 			}
 		}
