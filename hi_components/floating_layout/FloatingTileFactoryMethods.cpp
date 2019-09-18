@@ -321,7 +321,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 		break;
 	}
-	case PopupMenuOptions::MarkdownPreviewPanel:
+    case PopupMenuOptions::MarkdownPreviewPanel:
 	{
 		static const unsigned char pathData[] = { 110,109,219,137,109,68,0,0,64,67,108,39,177,147,66,0,0,64,67,98,12,130,4,66,0,0,64,67,0,0,0,0,131,32,97,67,0,0,0,0,74,236,132,67,108,0,0,0,0,220,137,61,68,98,0,0,0,0,0,184,71,68,12,130,4,66,0,0,80,68,39,177,147,66,0,0,80,68,108,219,137,109,68,0,0,80,
 68,98,0,184,119,68,0,0,80,68,0,0,128,68,0,184,71,68,0,0,128,68,219,137,61,68,108,0,0,128,68,74,236,132,67,98,0,0,128,68,131,32,97,67,0,184,119,68,0,0,64,67,219,137,109,68,0,0,64,67,99,109,0,0,16,68,0,248,47,68,108,0,0,224,67,0,0,48,68,108,0,0,224,67,
@@ -579,6 +579,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 
 			addToPopupMenu(m, PopupMenuOptions::ScriptConnectorPanel, "Global Script Connector");
 			addToPopupMenu(m, PopupMenuOptions::ScriptEditor, "Script Editor");
+            addToPopupMenu(m, PopupMenuOptions::MarkdownEditor, "Markdown Editor");
 			addToPopupMenu(m, PopupMenuOptions::ScriptContent, "Script Content");
 			addToPopupMenu(m, PopupMenuOptions::ScriptComponentEditPanel, "Script Interface Property Editor");
 			addToPopupMenu(m, PopupMenuOptions::ScriptComponentList, "Script Component List");

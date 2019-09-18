@@ -173,14 +173,14 @@ public:
 
 	enum class ViewOptions
 	{
-		Naked =			 0xb0000000000000,
-		Topbar =		 0xb10000000,
-		Toc =			 0xb01000000,
-		Back =			 0xb00000010,
-		Search =		 0xb00000100,
-		Edit =			 0xb00001000,
-		ColourScheme =   0x100010000,
-		Everything =	 0xb11111111
+		Naked =			 0b00000000,
+		Topbar =		 0b10000000,
+		Toc =			 0b01000000,
+		Back =			 0b00000010,
+		Search =		 0b00000100,
+		Edit =			 0b00001000,
+		ColourScheme =   0b10010000,
+		Everything =	 0b11111111
 	};
 
 	MarkdownPreview(MarkdownDatabaseHolder& holder);
