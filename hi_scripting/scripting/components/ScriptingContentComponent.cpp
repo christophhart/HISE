@@ -612,55 +612,48 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 MarkdownPreviewPanel::MarkdownPreviewPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
+
+	MarkdownDatabaseHolder* holder;
+	bool isProjectDoc = false;
+	
 #if USE_BACKEND
-	auto holder = dynamic_cast<BackendProcessor*>(getMainController())->getDocProcessor();
+	if (!parent->isOnInterface() && !getMainController()->isFlakyThreadingAllowed())
+	{
+		holder = dynamic_cast<BackendProcessor*>(getMainController())->getDocProcessor();
+		isProjectDoc = false;
+	}
+	else
+	{
+		holder = getMainController()->getProjectDocHolder();
+		isProjectDoc = true;
+	}
 #else
-	auto holder = dynamic_cast<MarkdownDatabaseHolder*>(getMainController());
+	holder = getMainController()->getProjectDocHolder();
+	isProjectDoc = true;
+
 #endif
+		
 
 	addAndMakeVisible(preview = new MarkdownPreview(*holder));
+	
+
+	if (isProjectDoc)
+	{
+		preview->renderer.setCreateFooter(holder->getDatabase().createFooter);
+		preview->renderer.gotoLink(MarkdownLink(holder->getDatabaseRootDirectory(), "/"));
+		BACKEND_ONLY(preview->editingEnabled = true);
+		holder->rebuildDatabase();
+	}
+		
+	getMainController()->setCurrentMarkdownPreview(preview);
+	
 
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
 	setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
+	setDefaultPanelColour(PanelColourId::itemColour2, Colours::slategrey);
 	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
-}
-
-void MarkdownPreviewPanel::fromDynamicObject(const var& object)
-{
-	FloatingTileContent::fromDynamicObject(object);
-
-	contentFile = object.getProperty("ContentFile", {});
-
-	if (getWidth() > 0)
-		parseContent();
-
-
-}
-
-void MarkdownPreviewPanel::parseContent()
-{
-	if (contentFile.isNotEmpty())
-	{
-		ScopedPointer<MarkdownParser::LinkResolver> resolver = new ProjectLinkResolver(getMainController());
-
-		auto content = resolver->getContent(MarkdownLink::createWithoutRoot(contentFile));
-
-		preview->addImageProvider(new PooledImageProvider(getMainController(), nullptr));
-		preview->addLinkResolver(resolver.release());
-
-		if (content.isNotEmpty())
-		{
-			MarkdownLayout::StyleData d;
-
-			d.f = getFont();
-			d.fontSize = getFont().getHeight();
-			d.textColour = findPanelColour(PanelColourId::textColour);
-			d.headlineColour = findPanelColour(PanelColourId::itemColour1);
-
-			preview->setStyleData(d);
-			preview->setNewText(content, {});
-		}
-	}
+	setDefaultPanelColour(PanelColourId::itemColour3, Colour(0xFF222222));
+	
 }
 
 } // namespace hise

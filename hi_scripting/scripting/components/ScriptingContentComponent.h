@@ -358,90 +358,15 @@ class MarkdownPreviewPanel : public Component,
 {
 public:
 
-	struct ProjectLinkResolver : public ControlledObject,
-		public MarkdownParser::LinkResolver
-	{
-		ProjectLinkResolver(MainController* mc) :
-			ControlledObject(mc),
-			LinkResolver()
-		{};
-
-		String getContent(const MarkdownLink& url) override
-		{
-#if USE_BACKEND
-
-			ignoreUnused(url);
-			jassertfalse; // Do this correctly soon...
-
-			return {};
-#else
-			return getMainController()->getEmbeddedMarkdownContent("{PROJECT_FOLDER}" + url.toString(MarkdownLink::Everything));
-#endif
-		}
-
-		MarkdownParser::ResolveType getPriority() const override 
-		{ 
-#if USE_BACKEND
-			return MarkdownParser::ResolveType::FileBased;
-#else
-			return MarkdownParser::ResolveType::Cached; 
-#endif
-		}
-
-		LinkResolver* clone(MarkdownParser* ) const override { return new ProjectLinkResolver(const_cast<MainController*>(getMainController())); };
-		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("ProjectLinkResolver"); };
-	};
-
-	struct PooledImageProvider : public ControlledObject,
-		public MarkdownParser::ImageProvider
-	{
-		PooledImageProvider(MainController* mc, MarkdownParser* parent) :
-			ControlledObject(mc),
-			ImageProvider(parent)
-		{
-
-		}
-
-		Image getImage(const MarkdownLink& url, float width) override
-		{
-#if USE_BACKEND
-			PoolReference ref(getMainController(), "{PROJECT_FOLDER}" + url.toString(MarkdownLink::Everything), FileHandlerBase::Images);
-
-			if (!ref.isValid())
-				return {};
-
-			auto f = getMainController()->getCurrentImagePool()->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
-#else
-			PoolReference ref(getMainController()->getCurrentImagePool(), "{PROJECT_FOLDER}" + url.toString(MarkdownLink::UrlWithoutAnchor), FileHandlerBase::Images);
-
-			auto f = getMainController()->getCurrentImagePool()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
-#endif
-
-			if (auto d = f.getData())
-				return resizeImageToFit(*d, width);
-
-			return {};
-		}
-
-
-		MarkdownParser::ResolveType getPriority() const override
-		{
-#if USE_BACKEND
-			return MarkdownParser::ResolveType::FileBased;
-#else
-			return MarkdownParser::ResolveType::Cached;
-#endif
-		}
-
-		ImageProvider* clone(MarkdownParser* newParent) const override { return new PooledImageProvider(const_cast<MainController*>(getMainController()), newParent); };
-		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("PooledImageProvider"); };
-	};
-
 	SET_PANEL_NAME("MarkdownPanel");
 
 	enum SpecialPanelIds
 	{
-		ContentFile = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ShowToc = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ShowSearch,
+		ShowBack,
+		BoldFontName,
+		FixTocWidth,
 		numSpecialPanelIds
 	};
 
@@ -457,18 +382,70 @@ public:
 		g.fillAll(findPanelColour(PanelColourId::bgColour));
 	}
 
-	void fromDynamicObject(const var& object) override;
+	void fromDynamicObject(const var& obj) override
+	{
+		FloatingTileContent::fromDynamicObject(obj);
+
+		showSearch = getPropertyWithDefault(obj, SpecialPanelIds::ShowSearch);
+		showBack = getPropertyWithDefault(obj, SpecialPanelIds::ShowBack);
+		showToc = getPropertyWithDefault(obj, SpecialPanelIds::ShowToc);
+
+		int options = (int)MarkdownPreview::ViewOptions::Edit;
+		
+		if (showSearch || showBack)
+			options |= (int)MarkdownPreview::ViewOptions::Topbar;
+
+		if (showSearch)
+			options |= (int)MarkdownPreview::ViewOptions::Search;
+
+		if (showBack)
+			options |= (int)MarkdownPreview::ViewOptions::Back;
+
+		if (showToc)
+			options |= (int)MarkdownPreview::ViewOptions::Toc;
+
+		preview->setViewOptions(options);
+		
+		auto& sData = preview->renderer.getStyleData();
+
+		auto boldFontName = getPropertyWithDefault(obj, SpecialPanelIds::BoldFontName).toString();
+
+		sData.f = getFont();
+		sData.fontSize = getFont().getHeight();
+
+		if (boldFontName.isNotEmpty())
+		{
+			sData.useSpecialBoldFont = true;
+			sData.boldFont = getMainController()->getFontFromString(boldFontName, sData.fontSize);
+		}
+
+		sData.backgroundColour = findPanelColour(PanelColourId::bgColour);
+		sData.textColour = findPanelColour(PanelColourId::textColour);
+		sData.headlineColour = findPanelColour(PanelColourId::itemColour1);
+		sData.linkColour = findPanelColour(PanelColourId::itemColour2);
+		
+		fixWidth = getPropertyWithDefault(obj, SpecialPanelIds::FixTocWidth);
+
+		preview->toc.fixWidth = fixWidth;
+		preview->toc.setBgColour(findPanelColour(PanelColourId::itemColour3));
+
+		preview->renderer.setStyleData(sData);
+		preview->setStyleData(sData);
+		preview->resized();
+	}
 
 	var toDynamicObject() const override
 	{
-		auto v = FloatingTileContent::toDynamicObject();
+		auto obj = FloatingTileContent::toDynamicObject();
 
-		v.getDynamicObject()->setProperty("ContentFile", contentFile);
+		storePropertyInObject(obj, SpecialPanelIds::ShowBack, showBack);
+		storePropertyInObject(obj, SpecialPanelIds::ShowSearch, showSearch);
+		storePropertyInObject(obj, SpecialPanelIds::ShowToc, showToc);
+		storePropertyInObject(obj, SpecialPanelIds::BoldFontName, boldFontName);
+		storePropertyInObject(obj, SpecialPanelIds::FixTocWidth, fixWidth);
 
-		return v;
+		return obj;
 	}
-
-	void parseContent();
 
 	int getNumDefaultableProperties() const override
 	{
@@ -480,7 +457,11 @@ public:
 		if (index < (int)FloatingTileContent::PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultablePropertyId(index);
 
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ContentFile, "ContentFile");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowToc, "ShowToc");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowSearch, "ShowSearch");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowBack, "ShowBack");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::BoldFontName, "BoldFontName");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FixTocWidth, "FixTocWidth");
 
 		jassertfalse;
 		return{};
@@ -491,7 +472,11 @@ public:
 		if (index < (int)FloatingTileContent::PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultProperty(index);
 
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ContentFile, "");
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowToc, true);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSearch, true);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowBack, true);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::BoldFontName, "");
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FixTocWidth, -1);
 
 		jassertfalse;
 		return{};
@@ -501,8 +486,13 @@ public:
 	void resized() override
 	{
 		preview->setBounds(getParentShell()->getContentBounds());
-		parseContent();
 	}
+
+	bool showSearch = true;
+	bool showBack = true;
+	bool showToc = true;
+	int fixWidth = -1;
+	String boldFontName;
 
 	ScopedPointer<MarkdownPreview> preview;
 	String contentFile;

@@ -228,7 +228,7 @@ public:
 
 		crawler.loadDataFiles(holder.getCachedDocFolder());
 		crawler.writeJSONTocFile(htmlRoot);
-		crawler.createHtmlFilesInternal(contentDirectory, Markdown2HtmlConverter::LinkMode::LocalFile, "");
+		crawler.createHtmlFilesInternal(contentDirectory, Markdown2HtmlConverter::LinkMode::LocalFile, htmlRoot.getFullPathName());
 	}
 
 	

@@ -423,7 +423,7 @@ public:
 
 	bool isImageType() const noexcept;
 
-	MarkdownLink withRoot(const File& rootDirectory) const;
+	MarkdownLink withRoot(const File& rootDirectory, bool reparseLink) const;
 
 	MarkdownLink withPostData(const String& postData) const;
 

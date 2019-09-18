@@ -125,7 +125,7 @@ public:
 		MarkdownParser(markdownCode),
 		database(db)
 	{
-		setCreateFooter(true);
+		setCreateFooter(db.createFooter);
 		parse();
 	}
     
@@ -150,8 +150,14 @@ public:
 
 		html << headerContent;
 		
+		File root;
+
+		if (mode == LocalFile)
+			root = File(linkBase);
+
+
 		for (auto e : elements)
-			html << e->generateHtmlAndResolveLinks();
+			html << e->generateHtmlAndResolveLinks(root);
 
 		html << footerContent;
 

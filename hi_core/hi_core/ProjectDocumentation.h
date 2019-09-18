@@ -30,58 +30,34 @@
 *   ===========================================================================
 */
 
+
 #pragma once
 
-namespace hise {
-using namespace juce;
+namespace hise { using namespace juce;
 
-/** A markdown header is a datastructure containing metadata for a markdown document.
 
-	It is formatted using the Front Matter YAML specification.
+/** A class that manages the content for the project documentation.
 
-	The most important keys are "keywords" and "summary"
-*/
-struct MarkdownHeader
+	In HISE it will use the files in the Documentation folder, but on compiled projects it will use the
+	Documentation.dat file in the projects app data folder. */
+class ProjectDocDatabaseHolder : public MarkdownDatabaseHolder,
+								 public ControlledObject
 {
-	/** Returns the value for the key "keywords". */
-	StringArray getKeywords();
+public:
 
-	/** Returns the first value for the key "keywords". */
-	String getFirstKeyword();
-
-	/** Returns the value for the key "summary". */
-	String getDescription();
-
-	String getIcon() const;
-
-	String getKeyValue(const String& key) const;
-
-	/** Returns the colour from the `colour` property (as #AARRGGBB String). */
-	Colour getColour() const;
-
-	/** Creates a String representation of the header. */
-	String toString() const;
-
-	/** This returns a version of this header with only the header and the description. */
-	MarkdownHeader cleaned() const;
-
-	StringArray getKeyList(const String& key) const;
-
-	void checkValid();
-
-	static MarkdownHeader getHeaderForFile(File root, const String& url);
-
-	static File createEmptyMarkdownFileWithMarkdownHeader(File parent, String childName, String description);
-
-	struct Item
+	ProjectDocDatabaseHolder(MainController* mc):
+		ControlledObject(mc)
 	{
-		String toString() const;
+		getDatabase().createFooter = false;
+	}
 
-		String key;
-		StringArray values;
-	};
-
-	Array<Item> items;
+	void registerContentProcessor(MarkdownContentProcessor* processor) override;
+	void registerItemGenerators() override;
+	File getCachedDocFolder() const override;
+	File getDatabaseRootDirectory() const override;
+	bool shouldUseCachedData() const override;
 };
 
-}
+
+} // namespace hise
+

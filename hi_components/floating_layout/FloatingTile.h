@@ -565,7 +565,16 @@ public:
 
 	const MainController* getMainController() const { return mc; }
 
+	void setIsFloatingTileOnInterface()
+	{
+		interfaceFloatingTile = true;
+	}
+
+	bool isOnInterface() const { return interfaceFloatingTile; }
+
 private:
+
+	bool interfaceFloatingTile = false;
 
 	MainController* mc;
 

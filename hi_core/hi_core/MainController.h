@@ -35,6 +35,8 @@
 
 namespace hise { using namespace juce;
 
+class ProjectDocDatabaseHolder;
+
 /** The grand central station of HISE.
 *	@ingroup core
 *
@@ -802,7 +804,11 @@ public:
 
 		void initialise();
 
+
+
 	private:
+
+		
 
 		struct ConsoleMessage
 		{
@@ -1049,6 +1055,9 @@ public:
 
 	PooledUIUpdater* getGlobalUIUpdater() { return &globalUIUpdater; }
 	const PooledUIUpdater* getGlobalUIUpdater() const { return &globalUIUpdater; }
+
+	ProjectDocDatabaseHolder* getProjectDocHolder();
+	
 
 	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
 
@@ -1373,6 +1382,16 @@ public:
 
 	bool shouldUseSoftBypassRamps() const noexcept;
 
+	void setCurrentMarkdownPreview(MarkdownContentProcessor* p)
+	{
+		currentPreview = p;
+	}
+
+	MarkdownContentProcessor* getCurrentMarkdownPreview()
+	{
+		return currentPreview;
+	}
+
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -1435,6 +1454,8 @@ protected:
 	void killAndCallOnAudioThread(const ProcessorFunction& f);
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
+
+	
 
 private:
 
@@ -1513,6 +1534,9 @@ private:
 	DynamicObject::Ptr hostInfo;
 	
 	ReadWriteLock compileLock;
+
+	ScopedPointer<ProjectDocDatabaseHolder> projectDocHolder;
+	WeakReference<MarkdownContentProcessor> currentPreview;
 
 	ScopedPointer<SampleManager> sampleManager;
 	ExpansionHandler expansionHandler;

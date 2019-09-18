@@ -65,6 +65,20 @@ juce::String MarkdownHeader::getKeyValue(const String& key) const
 	return {};
 }
 
+juce::Colour MarkdownHeader::getColour() const
+{
+	auto c = getKeyValue("colour");
+
+	if (c.isEmpty())
+		return Colours::transparentBlack;
+
+	c = c.substring(1);
+
+	auto number = static_cast<uint32>(c.getHexValue32());
+
+	return Colour(number);
+}
+
 juce::String MarkdownHeader::toString() const
 {
 	String s = "---\n";

@@ -341,11 +341,30 @@ public:
 		if (editor.hasKeyboardFocus(true))
 			return;
 
-		auto ratio = (float)preview->viewport.getViewPositionY() / (float)preview->internalComponent.getHeight();
+		if (updatePreview())
+		{
+			auto ratio = (float)preview->viewport.getViewPositionY() / (float)preview->internalComponent.getHeight();
 
-		int l = (int)(ratio * (float)editor.getDocument().getNumLines());
+			int l = (int)(ratio * (float)editor.getDocument().getNumLines());
 
-		editor.scrollToKeepLinesOnScreen({ l, l + editor.getNumLinesOnScreen() });
+			editor.scrollToKeepLinesOnScreen({ l, l + editor.getNumLinesOnScreen() });
+		}
+	}
+
+	bool updatePreview()
+	{
+		if (preview.getComponent() != nullptr)
+			return true;
+
+		auto p = dynamic_cast<MarkdownPreview*>(getMainController()->getCurrentMarkdownPreview());
+
+		if (p != nullptr)
+		{
+			setPreview(p);
+			return true;
+		}
+			
+		return false;
 	}
 
 	void buttonClicked(Button* b) override;
@@ -395,7 +414,7 @@ public:
 
 	void timerCallback() override
 	{
-		if (preview != nullptr)
+		if (updatePreview())
 		{
 			preview->renderer.clearCurrentLink();
 			preview->setNewText(doc.getAllContent().replace("\r\n", "\n"), editor.currentFile);
@@ -403,6 +422,8 @@ public:
 
 		stopTimer();
 	}
+
+	File getRootFile();
 
 	void resized() override
 	{

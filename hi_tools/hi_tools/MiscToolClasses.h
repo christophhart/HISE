@@ -860,11 +860,19 @@ public:
 	*	@returns the interpolated value.
 	*/
 
-	template <typename FloatType> static FloatType interpolateLinear(const FloatType lowValue, const FloatType highValue, const FloatType delta)
+	static float interpolateLinear(const float lowValue, const float highValue, const float delta)
 	{
-		jassert(isPositiveAndNotGreaterThan(delta, FloatType(1)));
+		jassert(isPositiveAndNotGreaterThan(delta, 1.0f));
 
-		const FloatType invDelta = FloatType(1) - delta;
+		const float invDelta = 1.0f - delta;
+		return invDelta * lowValue + delta * highValue;
+	}
+
+	static double interpolateLinear(const double lowValue, const double highValue, const double delta)
+	{
+		jassert(isPositiveAndNotGreaterThan(delta, 1.0));
+
+		const double invDelta = 1.0 - delta;
 		return invDelta * lowValue + delta * highValue;
 	}
 

@@ -171,6 +171,18 @@ public:
 		numEditingMenuCommands
 	};
 
+	enum class ViewOptions
+	{
+		Naked =			 0xb0000000000000,
+		Topbar =		 0xb10000000,
+		Toc =			 0xb01000000,
+		Back =			 0xb00000010,
+		Search =		 0xb00000100,
+		Edit =			 0xb00001000,
+		ColourScheme =   0x100010000,
+		Everything =	 0xb11111111
+	};
+
 	MarkdownPreview(MarkdownDatabaseHolder& holder);
 
 	~MarkdownPreview();
@@ -255,6 +267,8 @@ public:
 	{
 		navigationShown = shouldBeShown;
 	}
+
+	
 
 	void enableEditing(bool shouldBeEnabled);
 
@@ -521,7 +535,7 @@ public:
 					{
 						auto& r = mp->renderer;
 
-						r.gotoLink(item.url.withRoot(mp->rootDirectory));
+						r.gotoLink(item.url.withRoot(mp->rootDirectory, true));
 
 						auto f2 = [mp]()
 						{
@@ -1062,52 +1076,7 @@ public:
 
 			}
 
-			void resized() override
-			{
-				Colour c = Colours::white;
-
-				tocButton.setColours(c.withAlpha(0.8f), c, c);
-
-				
-
-				//homeButton.setColours(c.withAlpha(0.8f), c, c);
-				//backButton.setColours(c.withAlpha(0.8f), c, c);
-				//forwardButton.setColours(c.withAlpha(0.8f), c, c);
-				lightSchemeButton.setColours(c.withAlpha(0.8f), c, c);
-				selectButton.setColours(c.withAlpha(0.8f), c, c);
-
-				homeButton.setVisible(false);
-
-				auto ar = getLocalBounds();
-				int buttonMargin = 12;
-				int margin = 0;
-				int height = ar.getHeight();
-
-				tocButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
-				ar.removeFromLeft(margin);
-				refreshButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
-				ar.removeFromLeft(margin);
-				//homeButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
-				backButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
-				forwardButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
-				ar.removeFromLeft(margin);
-				lightSchemeButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
-				ar.removeFromLeft(margin);
-				selectButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
-				ar.removeFromLeft(margin);
-
-
-				auto delta = 0; //parent.toc.getWidth() - ar.getX();
-
-				ar.removeFromLeft(delta);
-
-				auto sBounds = ar.removeFromLeft(height).reduced(buttonMargin).toFloat();
-				searchPath.scaleToFit(sBounds.getX(), sBounds.getY(), sBounds.getWidth(), sBounds.getHeight(), true);
-
-				editButton.setBounds(ar.removeFromRight(height).reduced(buttonMargin));
-				
-				searchBar.setBounds(ar.reduced(5));
-			}
+			void resized() override;
 
 			void paint(Graphics& g) override
 			{
@@ -1218,7 +1187,7 @@ public:
 					{
 						previewParent.currentSearchResults = nullptr;
 
-						previewParent.renderer.gotoLink(item.url.withRoot(previewParent.rootDirectory));
+						previewParent.renderer.gotoLink(item.url.withRoot(previewParent.rootDirectory, true));
 
 #if 0
 						auto link = item.url.upToFirstOccurrenceOf("#", false, false);
@@ -1348,13 +1317,19 @@ public:
 			parent.getHolder().addDatabaseListener(this);
 			addAndMakeVisible(tree);
 
-			tree.setColour(TreeView::ColourIds::backgroundColourId, Colour(0xFF222222));
+			setBgColour(bgColour);
 			tree.setColour(TreeView::ColourIds::selectedItemBackgroundColourId, Colours::transparentBlack);
 			tree.setColour(TreeView::ColourIds::linesColourId, Colours::red);
 			tree.setRootItemVisible(false);
 
 			tree.getViewport()->setScrollBarsShown(true, false);
 			databaseWasRebuild();
+		}
+
+		void setBgColour(Colour c)
+		{
+			bgColour = c;
+			tree.setColour(TreeView::ColourIds::backgroundColourId, bgColour);
 		}
 
 		~MarkdownDatabaseTreeview()
@@ -1388,28 +1363,7 @@ public:
 			}
 		}
 		
-		void databaseWasRebuild() override
-		{
-			Component::SafePointer<MarkdownDatabaseTreeview> tmp(this);
-
-			auto f = [tmp]()
-			{
-				if (tmp.getComponent() == nullptr)
-					return;
-
-				auto t = tmp.getComponent();
-
-				if (t != nullptr)
-				{
-					t->tree.setRootItem(nullptr);
-					t->rootItem = new Item(t->parent.getHolder().getDatabase().rootItem, t->parent);
-					t->tree.setRootItem(t->rootItem);
-					t->resized();
-				}
-			};
-
-			MessageManager::callAsync(f);
-		}
+		void databaseWasRebuild() override;
 
 		void openAll(TreeViewItem* item)
 		{
@@ -1467,6 +1421,9 @@ public:
 
 		int getPreferredWidth() const
 		{
+			if (fixWidth != -1)
+				return fixWidth;
+
 			if (rootItem == nullptr)
 				return 300;
 
@@ -1475,7 +1432,7 @@ public:
 
 		void paint(Graphics& g) override
 		{
-			g.fillAll(Colour(0xFF222222));
+			g.fillAll(bgColour);
 			
 		}
 
@@ -1484,6 +1441,9 @@ public:
 			tree.setBounds(getLocalBounds());
 		}
 
+		Colour bgColour = Colour(0xFF222222);
+
+		int fixWidth = -1;
 		juce::TreeView tree;
 		ScopedPointer<Item> rootItem;
 		MarkdownPreview& parent;
@@ -1501,6 +1461,16 @@ public:
 		g.fillAll(internalComponent.styleData.backgroundColour);
 	}
 
+	void setViewOptions(int newViewOptions)
+	{
+		currentViewOptions = newViewOptions;
+	}
+
+	bool shouldDisplay(ViewOptions option)
+	{
+		return currentViewOptions & (int)option;
+	}
+
 	void resized() override;
 
 	bool navigationShown = true;
@@ -1516,6 +1486,7 @@ public:
 	Topbar topbar;
 	File rootDirectory;
 	ScopedPointer<Topbar::SearchResults> currentSearchResults;
+	int currentViewOptions = (int)ViewOptions::Everything;
 };
 
 

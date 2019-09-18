@@ -2149,6 +2149,7 @@ juce::String FileHandlerBase::getIdentifier(SubDirectories dir)
 	case SubDirectories::UserPresets:		return "UserPresets/";
 	case SubDirectories::SampleMaps:		return "SampleMaps/";
 	case SubDirectories::MidiFiles:			return "MidiFiles/";
+	case SubDirectories::Documentation:		return "Documentation/";
 	case SubDirectories::numSubDirectories:
 	default:								jassertfalse; return String();
 	}

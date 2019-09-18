@@ -309,7 +309,9 @@ void HiSliderPropertyComponent::updateRange()
 
 		if (oldRange != range)
 		{
-			comp.slider.setRange(0.0, (double)range, 1);
+			if(range > 0.0)
+				comp.slider.setRange(0.0, (double)range, 1);
+
 			comp.slider.repaint();
 		}
 	}

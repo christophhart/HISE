@@ -102,7 +102,7 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForPro
 	
 
 	newItem.c = p->getColour();
-	newItem.url = parent.url.getChildUrl(p->getType().toString()).withRoot(rootDirectory);
+	newItem.url = parent.url.getChildUrl(p->getType().toString()).withRoot(rootDirectory, true);
 	newItem.url.setType(MarkdownLink::MarkdownFile);
 	
 	auto f = newItem.url.getMarkdownFile(rootDirectory);

@@ -89,6 +89,8 @@
 #include "ExternalFilePool.h"
 
 
+
+
 #include "ExpansionHandler.h"
 #include "GlobalScriptCompileBroadcaster.h"
 #include "MainControllerHelpers.h"
@@ -102,5 +104,7 @@
 #include "MacroControlBroadcaster.h"
 #include "MiscComponents.h"
 #include "StandaloneProcessor.h"
+
+#include "ProjectDocumentation.h"
 
 #endif  // HI_CORE_H_INCLUDED
