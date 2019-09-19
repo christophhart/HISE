@@ -520,9 +520,66 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm, b
 	auto samplePerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
 
 	int16 eventIds[128];
-	int16 currentEventId = 1;
+	int16 currentEventId = 0;
 	memset(eventIds, -1, sizeof(uint16) * 128);
 
+	
+
+	if (auto mSeq = getReadPointer())
+	{
+		auto maxLength = getLength();
+
+		for (const auto& ev : *mSeq)
+		{
+			if (ev->message.isNoteOn() && ev->noteOffObject != nullptr)
+			{
+				HiseEvent on = HiseEvent(ev->message);
+				on.setEventId(currentEventId);
+
+				HiseEvent off = HiseEvent(ev->noteOffObject->message);
+				off.setEventId(currentEventId);
+
+				currentEventId++;
+
+				auto onTsTicks = jmin(getLength() - 1.0, ev->message.getTimeStamp());
+				auto offTsTicks = jmin(getLength() - 1.0, ev->noteOffObject->message.getTimeStamp());
+
+				if (onTsTicks == offTsTicks) // note on lies after the end of the sequence
+					continue;
+
+				auto onTs = (int)(samplePerQuarter * onTsTicks / (double)HiseMidiSequence::TicksPerQuarter);
+				auto offTs = (int)(samplePerQuarter * offTsTicks / (double)HiseMidiSequence::TicksPerQuarter);
+				
+				on.setTimeStamp(onTs);
+				off.setTimeStamp(offTs);
+
+				newBuffer.add(on);
+				newBuffer.add(off);
+			}
+		}
+	}
+
+	struct NoteOnSorter
+	{
+		static int compareElements(const HiseEvent& first, const HiseEvent& second)
+		{
+			auto ft = first.getTimeStamp();
+			auto st = first.getTimeStamp();
+
+			if (ft < st)
+				return -1;
+			else if (ft > st)
+				return 1;
+			else return 0;
+		}
+	} sorter;
+
+	
+
+	newBuffer.sort(sorter);
+
+
+#if 0
 	if (auto mSeq = getReadPointer())
 	{
 		for (const auto& ev : *mSeq)
@@ -602,6 +659,7 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm, b
 			newBuffer.add(newEvent);
 		}
 	}
+#endif
 
 	return newBuffer;
 }
