@@ -83,7 +83,7 @@ File MarkdownLink::toFile(FileType fileType, File rootToUse) const noexcept
 
 		}
 
-		jassert(getType() == MarkdownFile || getType() == Folder);
+		jassert(getType() == MarkdownFile || getType() == Folder || getType() == Image || getType() == Icon);
 		return rootToUse.getChildFile(toString(FormattedLinkHtml, {}).substring(1).upToFirstOccurrenceOf("#", false, false));
 	}
 	case FileType::ContentFile:
@@ -387,9 +387,18 @@ bool MarkdownLink::isImageType() const noexcept
 	return type == SVGImage || type == Icon || type == Image || type == WebContent;
 }
 
-MarkdownLink MarkdownLink::withRoot(const File& rootDirectory) const
+MarkdownLink MarkdownLink::withRoot(const File& rootDirectory, bool reparseLink) const
 {
-	return MarkdownLink(rootDirectory, toString(Everything)).withPostData(postData);
+	if (reparseLink)
+	{
+		return MarkdownLink(rootDirectory, toString(Everything)).withPostData(postData);
+	}
+	else
+	{
+		auto copy = *this;
+		copy.root = rootDirectory;
+		return copy;
+	}
 }
 
 

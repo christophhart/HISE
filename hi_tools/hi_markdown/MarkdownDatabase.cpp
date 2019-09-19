@@ -182,6 +182,9 @@ hise::MarkdownDataBase::Item MarkdownDataBase::DirectoryItemGenerator::createRoo
 	Item rItem;
 	addFileRecursive(rItem, startDirectory);
 
+	if (!rItem.c.isTransparent())
+		colour = rItem.c;
+
 	applyColour(rItem);
 
 	return rItem;
@@ -550,6 +553,10 @@ void MarkdownDataBase::Item::fillMetadataFromURL()
 		tocString = header.getFirstKeyword();
 		description = header.getDescription();
 		icon = header.getIcon();
+		Colour hc = header.getColour();
+
+		if (!hc.isTransparent())
+			c = hc;
 		
 		setIndexFromHeader(header);
 		applyWeightFromHeader(header);
@@ -573,6 +580,14 @@ void MarkdownDataBase::Item::applyWeightString(const String& weightString)
 juce::File MarkdownDataBase::ItemGeneratorBase::getFolderReadmeFile(const String& folderURL)
 {
 	return MarkdownLink(rootDirectory, folderURL).getMarkdownFile({});
+}
+
+bool MarkdownDatabaseHolder::shouldUseCachedData() const
+{
+	if (forceUseCachedData)
+		return true;
+
+	return !getDatabaseRootDirectory().isDirectory();
 }
 
 void MarkdownDatabaseHolder::rebuildDatabase()

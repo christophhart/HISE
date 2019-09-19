@@ -859,7 +859,22 @@ public:
 	*	@param delta the sub-integer part between the two indexes (must be between 0.0f and 1.0f)
 	*	@returns the interpolated value.
 	*/
-	static float interpolateLinear(const float lowValue, const float highValue, const float delta);
+
+	static float interpolateLinear(const float lowValue, const float highValue, const float delta)
+	{
+		jassert(isPositiveAndNotGreaterThan(delta, 1.0f));
+
+		const float invDelta = 1.0f - delta;
+		return invDelta * lowValue + delta * highValue;
+	}
+
+	static double interpolateLinear(const double lowValue, const double highValue, const double delta)
+	{
+		jassert(isPositiveAndNotGreaterThan(delta, 1.0));
+
+		const double invDelta = 1.0 - delta;
+		return invDelta * lowValue + delta * highValue;
+	}
 
 };
 

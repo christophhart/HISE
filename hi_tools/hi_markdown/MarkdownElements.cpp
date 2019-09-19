@@ -652,7 +652,14 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		Element(parent),
 		imageName(imageName_),
 		imageURL({}, imageURL_)
-	{};
+	{
+		HyperLink link;
+		link.url = imageURL;
+		link.displayString = imageName;
+		link.valid = true;
+
+		hyperLinks.add(link);
+	};
 
 	float getHeightForWidth(float width) override
 	{
@@ -700,7 +707,9 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 	{
 		HtmlGenerator g;
 
-		return g.surroundWithTag("", "img", "src=\"" + imageURL.toString(MarkdownLink::FormattedLinkHtml) + "\"");
+		return g.surroundWithTag("", "img", "src=\"{LINK0}\"");
+
+		//return g.surroundWithTag("", "img", "src=\" " + imageURL.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 	}
 
 	Component* createComponent(int) override

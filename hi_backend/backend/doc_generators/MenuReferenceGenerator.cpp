@@ -149,7 +149,7 @@ juce::String MenuReferenceDocGenerator::Resolver::generateIconTable(const String
 void MenuReferenceDocGenerator::ItemGenerator::createMenuReference(MarkdownDataBase::Item& parent)
 {
 	MarkdownDataBase::Item wItem;
-	wItem.url = rootURL.getChildUrl("menu-reference").withRoot(rootDirectory);
+	wItem.url = rootURL.getChildUrl("menu-reference").withRoot(rootDirectory, true);
 
 	auto f = wItem.url.getMarkdownFile({});
 
@@ -246,7 +246,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspace(MarkdownDat
 
 	wItem.c = parent.c;
 	wItem.tocString = id;
-	wItem.url = parent.url.getChildUrl(id).withRoot(rootDirectory);
+	wItem.url = parent.url.getChildUrl(id).withRoot(rootDirectory, true);
 	wItem.icon = wItem.url.getHeaderFromFile({}).getIcon();
 
 

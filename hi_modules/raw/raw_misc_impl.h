@@ -57,7 +57,10 @@ hise::raw::Reference<ProcessorType>::Reference(MainController* mc, const String&
 template <class ProcessorType>
 void hise::raw::Reference<ProcessorType>::addParameterToWatch(int parameterIndex, const ParameterCallback& callbackFunction)
 {
-	watchedParameters.add({ parameterIndex, processor->getAttribute(parameterIndex), callbackFunction });
+	ParameterValue v({ parameterIndex, processor->getAttribute(parameterIndex), callbackFunction });
+	watchedParameters.add(v);
+
+	v.callbackFunction(v.lastValue);
 }
 
 template <class ProcessorType>

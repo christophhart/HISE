@@ -81,9 +81,6 @@
 #include "MacroControlledComponents.cpp"
 #include "MacroControlBroadcaster.cpp"
 #include "StandaloneProcessor.cpp"
-
-#if HI_RUN_UNIT_TESTS
-//#include "HiseEventBufferUnitTests.cpp"
-#endif
+#include "ProjectDocumentation.cpp"
 
 

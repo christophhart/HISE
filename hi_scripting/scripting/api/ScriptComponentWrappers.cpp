@@ -1915,7 +1915,7 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	auto mc = const_cast<MainController*>(dynamic_cast<const Processor*>(content->getScriptProcessor())->getMainController());
 
 	auto ft = new FloatingTile(mc, nullptr);
-
+	ft->setIsFloatingTileOnInterface();
 	component = ft;
 
 	ft->setName(floatingTile->name.toString());

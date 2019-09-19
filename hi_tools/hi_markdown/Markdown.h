@@ -412,7 +412,7 @@ protected:
 
 		virtual void prepareLinksForHtmlExport(const String& baseURL);
 
-		String generateHtmlAndResolveLinks() const
+		String generateHtmlAndResolveLinks(const File& localRoot) const
 		{
 			auto s = generateHtml();
 			
@@ -422,7 +422,20 @@ protected:
 			{
 				String linkWildcard = "{LINK" + String(index++) + "}";
 
-				s = s.replace(linkWildcard, link.url.toString(MarkdownLink::FormattedLinkHtml));
+				String resolvedLink;
+
+				if (localRoot.isDirectory())
+				{
+					auto url = link.url.withRoot(localRoot, false);
+
+					resolvedLink = url.toFile(MarkdownLink::FileType::HtmlFile).getFullPathName();
+				}
+				else
+				{
+					resolvedLink = link.url.toString(MarkdownLink::FormattedLinkHtml);
+				}
+
+				s = s.replace(linkWildcard, resolvedLink);
 			}
 
 			return s;

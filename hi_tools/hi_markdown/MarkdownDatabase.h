@@ -376,6 +376,8 @@ public:
 
 	MarkdownLink getLink(const String& link);
 
+	bool createFooter = true;
+
 private:
 
 	Array<ForumDiscussionLink> discussions;
@@ -431,10 +433,13 @@ public:
 
 	virtual Component* getRootComponent() { return nullptr; };
 
+
+	virtual void registerContentProcessor(MarkdownContentProcessor* processor) = 0;
 	virtual void registerItemGenerators() = 0;
-	
 	virtual File getCachedDocFolder() const = 0;
 	virtual File getDatabaseRootDirectory() const = 0;
+
+	virtual bool shouldUseCachedData() const;
 
 	void setForceCachedDataUse(bool shouldUseCachedData, bool rebuild=true)
 	{
@@ -449,13 +454,7 @@ public:
 		}
 	}
 
-	virtual bool shouldUseCachedData() const 
-	{ 
-		if (forceUseCachedData)
-			return true;
-
-		return !getDatabaseRootDirectory().isDirectory(); 
-	}
+	
 
 	File rootFile;
 	MarkdownDataBase db;
@@ -502,7 +501,7 @@ public:
 
 	bool nothingInHere() const { return nothingToShow; }
 
-	virtual void registerContentProcessor(MarkdownContentProcessor* processor) = 0;
+	
 
 private:
 

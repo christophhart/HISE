@@ -319,7 +319,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 			if (getHolder().shouldAbort())
 				return;
 
-			auto l = imgUrl.withRoot(getHolder().getDatabaseRootDirectory());
+			auto l = imgUrl.withRoot(getHolder().getDatabaseRootDirectory(), true);
 			auto existingChild = imageTree.getChildWithProperty(MarkdownContentIds::URL, l.toString(MarkdownLink::UrlFull));
 
 			if (existingChild.isValid())
@@ -395,7 +395,7 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 
 	auto type = (MarkdownLink::Type)(int)v.getProperty(MarkdownContentIds::LinkType, (int)MarkdownLink::Type::Invalid);
 
-	auto url = item.url.withRoot(templateDirectory);
+	auto url = item.url.withRoot(templateDirectory, true);
 	url.setType(type);
 
 

@@ -343,6 +343,8 @@ public:
 		return false;
 	}
 
+	UndoManager* getUndoManager() { return &undoManager; }
+
 private:
 
 	float currentY;

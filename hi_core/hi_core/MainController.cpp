@@ -131,6 +131,20 @@ void MainController::notifyShutdownToRegisteredObjects()
 	registeredObjects.clear();
 }
 
+hise::ProjectDocDatabaseHolder* MainController::getProjectDocHolder()
+{
+	if (projectDocHolder == nullptr)
+	{
+		projectDocHolder = new ProjectDocDatabaseHolder(this);
+#if USE_FRONTEND
+		projectDocHolder->setForceCachedDataUse(true);
+		projectDocHolder->rebuildDatabase();
+#endif
+	}
+
+	return projectDocHolder;
+}
+
 const CriticalSection & MainController::getLock() const
 {
 	if (getDebugLogger().isLogging() && MessageManager::getInstance()->isThisTheMessageThread())

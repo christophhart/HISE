@@ -414,35 +414,32 @@ struct MarkdownEditorPopupComponents
 		ImageCreator(MarkdownEditorPanel& parent) :
 			Base(parent)
 		{
-			if (auto globalPath = parent.preview->getTypedImageProvider<MarkdownParser::GlobalPathProvider>())
+			if (parent.updatePreview())
 			{
 				StringArray sa;
 				Array<var> values;
 
-				for (auto f : globalPath->factories->factories)
+				if (auto globalPath = parent.preview->getTypedImageProvider<MarkdownParser::GlobalPathProvider>())
 				{
-					sa.add(f->getId());
-					values.add(f->getId());
+					for (auto f : globalPath->factories->factories)
+					{
+						sa.add(f->getId());
+						values.add(f->getId());
+					}
 				}
 
 				ChoicePropertyComponent* choice = new ChoicePropertyComponent(iconFactory, "Icon Factory", sa, values);
+
+				iconSelector = new IconSelector(*parent.preview);
+				iconFactory.addListener(iconSelector);
 				
 				dropper = new FileDropper();
 				dropper->fileComponent.setDefaultBrowseTarget(parent.preview->getHolder().getDatabaseRootDirectory());
 
-				iconSelector = new IconSelector(*parent.preview);
-				iconFactory.addListener(iconSelector);
-
 				panel.addProperties({ dropper.getComponent(), new TextPropertyComponent(customFileName, "Custom file name", 255, false),
-					choice, iconSelector });
-			}
-			else
-			{
-				jassertfalse;
+						choice, iconSelector });
 			}
 
-
-			
 
 			finish();
 		}
@@ -451,54 +448,58 @@ struct MarkdownEditorPopupComponents
 
 		String getTextToInsert()
 		{
-			auto pathId = iconSelector->getPathId();
-
-			if(pathId.isNotEmpty())
+			if (parent.updatePreview())
 			{
-				auto size = ":" + iconSelector->content.sizeSelector.getText();
+				auto pathId = iconSelector->getPathId();
 
-				if (size == ":full")
-					size = {};
-
-				String s;
-
-				s << "![" << pathId << "](/images/icon_" << pathId << size << ")";
-				return s;
-			}
-
-			File fToUse;
-
-			if (auto d = dropper.getComponent())
-			{
-				auto f = d->fileComponent.getCurrentFile();
-
-				auto rootFile = parent.preview->getHolder().getDatabaseRootDirectory();
-
-				auto targetDirectory = rootFile.getChildFile("images/custom/");
-
-				if (f.isAChildOf(targetDirectory))
-					fToUse = f;
-				else
+				if (pathId.isNotEmpty())
 				{
-					auto customName = customFileName.toString();
+					auto size = ":" + iconSelector->content.sizeSelector.getText();
 
-					if (customName.isNotEmpty())
-					{
-						fToUse = targetDirectory.getChildFile(customName + ".s").withFileExtension(f.getFileExtension());
-					}
-					else
-						fToUse = targetDirectory.getChildFile(f.getFileName());
+					if (size == ":full")
+						size = {};
 
-					f.copyFileTo(fToUse);
+					String s;
+
+					s << "![" << pathId << "](/images/icon_" << pathId << size << ")";
+					return s;
 				}
 
-				auto link = MarkdownLink::Helpers::getSanitizedFilename("/" + fToUse.getRelativePathFrom(rootFile));
+				File fToUse;
 
-				String s;
+				if (auto d = dropper.getComponent())
+				{
+					auto f = d->fileComponent.getCurrentFile();
 
-				s << "![" << fToUse.getFileNameWithoutExtension() << "](" << link << ") ";
+					auto rootFile = parent.preview->getHolder().getDatabaseRootDirectory();
 
-				return s;
+					auto targetDirectory = rootFile.getChildFile("images/custom/");
+
+					if (f.isAChildOf(targetDirectory))
+						fToUse = f;
+					else
+					{
+						auto customName = customFileName.toString();
+
+						if (customName.isNotEmpty())
+						{
+							fToUse = targetDirectory.getChildFile(customName + ".s").withFileExtension(f.getFileExtension());
+						}
+						else
+							fToUse = targetDirectory.getChildFile(f.getFileName());
+
+						targetDirectory.createDirectory();
+						f.copyFileTo(fToUse);
+					}
+
+					auto link = MarkdownLink::Helpers::getSanitizedFilename("/" + fToUse.getRelativePathFrom(rootFile));
+
+					String s;
+
+					s << "![" << fToUse.getFileNameWithoutExtension() << "](" << link << ") ";
+
+					return s;
+				}
 			}
 
 			return {};
@@ -515,35 +516,38 @@ struct MarkdownEditorPopupComponents
 		LinkCreator(MarkdownEditorPanel& parent_):
 			Base(parent_)
 		{
-			linkURL = parent.preview.getComponent()->renderer.getLastLink().toString(MarkdownLink::Everything);
-
-			auto clipboard = SystemClipboard::getTextFromClipboard();
-
-			if (clipboard.isNotEmpty())
-				linkURL = clipboard;
-
-			auto text = parent.editor.getDocument().getTextBetween(parent.editor.getSelectionStart(), parent.editor.getSelectionEnd());
-
-			if (text.isNotEmpty())
-				linkName = text;
-			else
+			if (parent.updatePreview())
 			{
-				try
+				linkURL = parent.preview.getComponent()->renderer.getLastLink().toString(MarkdownLink::Everything);
+
+				auto clipboard = SystemClipboard::getTextFromClipboard();
+
+				if (clipboard.isNotEmpty())
+					linkURL = clipboard;
+
+				auto text = parent.editor.getDocument().getTextBetween(parent.editor.getSelectionStart(), parent.editor.getSelectionEnd());
+
+				if (text.isNotEmpty())
+					linkName = text;
+				else
 				{
-					auto currentKeyword = parent.preview.getComponent()->renderer.getHeader().getKeywords()[0];
-					linkName = currentKeyword.isEmpty() ? "Link" : currentKeyword;
+					try
+					{
+						auto currentKeyword = parent.preview.getComponent()->renderer.getHeader().getKeywords()[0];
+						linkName = currentKeyword.isEmpty() ? "Link" : currentKeyword;
+					}
+					catch (String&)
+					{
+						linkName = "Link";
+					}
 				}
-				catch (String& )
-				{
-					linkName = "Link";
-				}
+
+
+
+
+				panel.addProperties({ new TextPropertyComponent(linkName, "Link Name", 255, false),
+									  new TextPropertyComponent(linkURL, "Link URL", 1024, false) });
 			}
-
-			
-			
-
-			panel.addProperties({ new TextPropertyComponent(linkName, "Link Name", 255, false),
-								  new TextPropertyComponent(linkURL, "Link URL", 1024, false) });
 
 			finish(500);
 		}
@@ -566,26 +570,29 @@ struct MarkdownEditorPopupComponents
 		TableCreator(MarkdownEditorPanel& parent_):
 			Base(parent_)
 		{
-			if (auto globalPath = parent.preview->getTypedImageProvider<MarkdownParser::GlobalPathProvider>())
+			if (parent.updatePreview())
 			{
-				StringArray sa;
-				Array<var> values;
-
-				for (auto f : globalPath->factories->factories)
+				if (auto globalPath = parent.preview->getTypedImageProvider<MarkdownParser::GlobalPathProvider>())
 				{
-					sa.add(f->getId());
-					values.add(f->getId());
+					StringArray sa;
+					Array<var> values;
+
+					for (auto f : globalPath->factories->factories)
+					{
+						sa.add(f->getId());
+						values.add(f->getId());
+					}
+
+					ChoicePropertyComponent* choice = new ChoicePropertyComponent(menu, "Icon table", sa, values);
+
+					panel.addProperties({ new TextPropertyComponent(v, "Columns", 1024, true),
+									  new TextPropertyComponent(numRows, "Number of rows", 2, false),
+									  choice });
 				}
-
-				ChoicePropertyComponent* choice = new ChoicePropertyComponent(menu, "Icon table", sa, values);
-
-				panel.addProperties({ new TextPropertyComponent(v, "Columns", 1024, true),
-								  new TextPropertyComponent(numRows, "Number of rows", 2, false),
-								  choice });
+				else
+					jassertfalse;
 			}
-			else
-				jassertfalse;
-			
+
 			finish();
 		}
 			
@@ -650,7 +657,7 @@ void MarkdownEditorPanel::buttonClicked(Button* b)
 {
 	if (b == &newButton)
 	{
-		FileChooser fc("Create new file", File(), "*.md");
+		FileChooser fc("Create new file", getRootFile(), "*.md");
 
 		if (fc.browseForFileToSave(true))
 		{
@@ -668,7 +675,7 @@ void MarkdownEditorPanel::buttonClicked(Button* b)
 
 			loadFile(currentFile);
 
-			if (preview != nullptr)
+			if (updatePreview())
 			{
 				preview->getHolder().rebuildDatabase();
 			}
@@ -677,7 +684,7 @@ void MarkdownEditorPanel::buttonClicked(Button* b)
 
 	if (b == &openButton)
 	{
-		FileChooser fc("Load file", File(), "*.md");
+		FileChooser fc("Load file", getRootFile(), "*.md");
 
 		if (fc.browseForFileToOpen())
 		{
@@ -757,6 +764,11 @@ void MarkdownEditorPanel::loadFile(File file)
 
 	setCustomTitle("Editor - " + currentFile.getFileName());
 	getParentShell()->refreshRootLayout();
+}
+
+juce::File MarkdownEditorPanel::getRootFile()
+{
+	return getMainController()->getProjectDocHolder()->getDatabaseRootDirectory();
 }
 
 }
