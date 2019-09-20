@@ -1459,8 +1459,34 @@ bool MidiPlayer::stop(int timestamp)
 		if (isRecording())
 			finishRecording();
 
+		if (noteOffAtStop)
+		{
+			auto midiChain = getOwnerSynth()->midiProcessorChain.get();
+
+			bool sortAfterOp = false;
+
+			for (auto& futureEvent : midiChain->artificialEvents)
+			{
+				if (futureEvent.isNoteOff())
+				{
+					auto ts = futureEvent.getTimeStamp();
+					futureEvent.setTimeStamp(getLargestBlockSize() - 2);
+					sortAfterOp = true;
+				}
+			}
+
+			if (sortAfterOp)
+				midiChain->artificialEvents.sortTimestamps();
+		}
+
+		
+		
+
 		seq->resetPlayback();
 		playState = PlayState::Stop;
+
+		
+
 		timeStampForNextCommand = timestamp;
 		currentPosition = -1.0;
 		

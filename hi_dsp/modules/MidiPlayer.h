@@ -558,6 +558,11 @@ public:
 
 	void sendSequenceUpdateMessage(NotificationType notification);
 
+	void setNoteOffAtStop(bool shouldMoveNotesOfToStop)
+	{
+		noteOffAtStop = shouldMoveNotesOfToStop;
+	}
+
 private:
 
 	double getLoopStart() const;
@@ -571,6 +576,8 @@ private:
 	Array<HiseEvent> currentlyRecordedEvents;
 
 	std::atomic<RecordState> recordState{ RecordState::Idle};
+
+	bool noteOffAtStop = false;
 
 
 	bool isRecording() const noexcept { return getPlayState() == PlayState::Record; }

@@ -320,6 +320,7 @@ public:
 
 private:
 
+	friend class MidiPlayer;
 
 	bool allNotesOffAtNextBuffer;
 	ScopedPointer<FactoryType> midiProcessorFactory;
