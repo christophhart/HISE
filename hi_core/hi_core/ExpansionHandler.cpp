@@ -113,7 +113,8 @@ bool ExpansionHandler::Helpers::isValidExpansion(const File& directory)
 		   Expansion::Helpers::getExpansionInfoFile(directory, Expansion::Intermediate).existsAsFile() ||
 		   Expansion::Helpers::getExpansionInfoFile(directory, Expansion::Encrypted).existsAsFile();
 #else
-	return Expansion::Helpers::getExpansionInfoFile(directory, Expansion::Encrypted).existsAsFile();
+	return Expansion::Helpers::getExpansionInfoFile(directory, Expansion::Encrypted).existsAsFile() ||
+	Expansion::Helpers::getExpansionInfoFile(directory, Expansion::FileBased).existsAsFile();
 #endif
 }
 
@@ -128,6 +129,7 @@ ExpansionHandler::ExpansionHandler(MainController* mc_):
 	mc(mc_),
 	notifier(*this)
 {
+	rebuildExpansions();
 }
 
 void ExpansionHandler::createNewExpansion(const File& expansionFolder)
@@ -170,6 +172,7 @@ void ExpansionHandler::createAvailableExpansions()
 	{
 		bool exists = false;
 
+		//Check if expansion is already in expansionList
 		for (auto e : expansionList)
 		{
 			if (e->getRootFolder() == f)
