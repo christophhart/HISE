@@ -3238,9 +3238,6 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	handleDefaultDeactivatedProperties();
 
 	initInternalPropertyFromValueTreeOrDefault(Items);
-
-	
-
 }
 
 void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
@@ -3293,7 +3290,6 @@ Justification ScriptingApi::Content::ScriptedViewport::getJustification()
 
 void ScriptingApi::Content::ScriptedViewport::handleDefaultDeactivatedProperties()
 {
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::height));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 
