@@ -730,20 +730,19 @@ PresetBrowser::~PresetBrowser()
 	#endif
 }
 
-//ExpansionHandler overidden function, called when currentExpasion is changed.
 void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
-	if (currentExpansion)
+	if (currentExpansion != nullptr)
 	{
-			rootFile = currentExpansion->getSubDirectory(FileHandlerBase::UserPresets);
-			rebuildAllPresets();
+		rootFile = currentExpansion->getSubDirectory(FileHandlerBase::UserPresets);
+		rebuildAllPresets();
 
-			//Update preset browser columns
-			File cat = PresetBrowserColumn::getChildDirectory(rootFile, 2, 2);
-			File preset = PresetBrowserColumn::getChildDirectory(rootFile, 3, 3);
-			bankColumn->setNewRootDirectory(rootFile);
-			categoryColumn->setNewRootDirectory(cat);
-			presetColumn->setNewRootDirectory(preset);
+		// Update preset browser columns
+		File cat = PresetBrowserColumn::getChildDirectory(rootFile, 2, 2);
+		File preset = PresetBrowserColumn::getChildDirectory(rootFile, 3, 3);
+		bankColumn->setNewRootDirectory(rootFile);
+		categoryColumn->setNewRootDirectory(cat);
+		presetColumn->setNewRootDirectory(preset);
 	}
 }
 
