@@ -245,7 +245,7 @@ template <class T> static auto& findNode(T& t, NodePath<> empty)
 
 template <class T, int Index, int... Indexes> static auto& findNode(T& t, NodePath<Index, Indexes...> path)
 {
-	auto& obj = t.get<Index>().getObject();
+	auto& obj = t.template get<Index>().getObject();
 	NodePath<Indexes...> seq;
 	return findNode(obj, seq);
 }
