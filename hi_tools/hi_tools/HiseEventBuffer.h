@@ -411,6 +411,11 @@ public:
 		memset(eventToClear, 0, sizeof(HiseEvent) * numEvents);
 	}
 
+	bool operator< (const HiseEvent& right) const 
+	{ 
+		return getTimeStamp() < right.getTimeStamp();
+	}
+
 	/** Returns a string for debugging purposes. */
 	String toDebugString() const;
 

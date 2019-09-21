@@ -1469,6 +1469,9 @@ bool MidiPlayer::stop(int timestamp)
 			{
 				if (futureEvent.isNoteOff())
 				{
+					auto channel = futureEvent.getChannel();
+					jassert(channel == currentTrackIndex + 1);
+
 					auto ts = futureEvent.getTimeStamp();
 					futureEvent.setTimeStamp(getLargestBlockSize() - 2);
 					sortAfterOp = true;
