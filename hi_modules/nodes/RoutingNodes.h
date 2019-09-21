@@ -120,6 +120,10 @@ public:
 		valuetree::PropertyListener updater;
 	} connectionUpdater;
 
+    bool needsReinitialisation() const override
+    {
+        return connectedSource == nullptr;
+    }
 
 	NodeBase::Ptr parent;
 	WeakReference<ReceiveNode> connectedSource;

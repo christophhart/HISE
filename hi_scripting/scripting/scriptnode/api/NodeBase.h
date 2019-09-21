@@ -329,6 +329,10 @@ struct NodeBase : public ConstScriptingObject
 	String getId() const;
 	UndoManager* getUndoManager() const;
 
+    /** This will get called after restoration of the root network when the signal path is complete and can be used for tasks that require the full signal path.
+    */
+    virtual void postInit() {};
+    
 	Rectangle<int> getBoundsToDisplay(Rectangle<int> originalHeight) const;
 
 	Rectangle<int> getBoundsWithoutHelp(Rectangle<int> originalHeight) const;

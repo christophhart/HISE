@@ -76,6 +76,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	signalPath = createFromValueTree(true, data.getChild(0), true);
 
+    
 	networkParameterHandler.root = signalPath;
 
 	ADD_API_METHOD_1(processBlock);
@@ -100,6 +101,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 			changeNodeId(data, oldId, newId, getUndoManager());
 		}
 	});
+    
+    for(auto n: nodes)
+    {
+        n->postInit();
+    }
 }
 
 DspNetwork::~DspNetwork()

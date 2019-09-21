@@ -146,7 +146,11 @@ public:
 
 	bool isPolyphonic() const override { return wrapper.isPolyphonic(); }
 
-	
+	void postInit() override
+    {
+        if(wrapper.getInternalT()->needsReinitialisation())
+            wrapper.initialise(this);
+    }
 
 	Identifier getObjectName() const override { return getStaticId(); }
 

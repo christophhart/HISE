@@ -285,6 +285,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				
 				for (auto s : list)
 				{
+                    if(s->parameterToControl == nullptr)
+                        continue;
+                    
 					if (!s->parameterToControl->parent->isBodyShown())
 						continue;
 

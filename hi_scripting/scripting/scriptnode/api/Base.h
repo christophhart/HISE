@@ -130,6 +130,9 @@ public:
 
 	virtual void prepare(PrepareSpecs ) {};
 
+    /** Override this method if the node wasn't fully initialised. */
+    virtual bool needsReinitialisation() const { return false; }
+    
 	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
 
 	virtual void handleHiseEvent(HiseEvent& e)
