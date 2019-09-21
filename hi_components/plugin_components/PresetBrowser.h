@@ -38,11 +38,11 @@ namespace hise { using namespace juce;
 
 
 
-/** A UI Component that handles the user preset organisation. 
+/** A UI Component that handles the user preset organisation.
 	@ingroup hise_ui
-	
+
 	This is a configurable browser for the file-based user preset system in HISE. It features:
-	
+
 	- automatic synchronisation with the file system.
 	- a variable hierarchy based on the folder structure (up to three levels deep)
 	- a favorite system that allows the user to flag certain presets that can be filtered.
@@ -57,7 +57,8 @@ class PresetBrowser :			 public Component,
 								 public PresetBrowserColumn::ColumnListModel::Listener,
 								 public Label::Listener,
 								 public MainController::UserPresetHandler::Listener,
-								 public TagList::Listener
+								 public TagList::Listener,
+								 public ExpansionHandler::Listener
 {
 public:
 
@@ -153,7 +154,7 @@ public:
 
 	void paint(Graphics& g);
 	void resized();
-	
+
 	void tagCacheNeedsRebuilding() override {};
 	void tagSelectionChanged(const StringArray& newSelection) override;
 	void labelTextChanged(Label* l) override;
@@ -190,6 +191,10 @@ public:
 	ScopedPointer<PresetBrowserLookAndFeel> pblaf;
 
 	void setOptions(const Options& newOptions);
+
+	ExpansionHandler& expHandler;
+
+	void expansionPackLoaded(Expansion* currentExpansion);
 
 private:
 
