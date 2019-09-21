@@ -158,6 +158,8 @@ void ramp_impl<NV>::setPeriodTime(double periodTimeMs)
 
 		auto newUptimeDelta = jmax(0.0000001, inv / sr);
 
+		auto d = newUptimeDelta * 100000.0;
+
 		if (state.isVoiceRenderingActive())
 		{
 			state.get().uptimeDelta = newUptimeDelta;
@@ -261,10 +263,12 @@ void ramp_impl<NV>::process(ProcessData& d)
 {
 	auto& thisState = state.get();
 
+	double thisUptime = thisState.uptime;
+	double thisDelta = thisState.uptimeDelta;
+
 	for (int c = 0; c < d.numChannels; c++)
 	{
-		double thisUptime = thisState.uptime;
-		double thisDelta = thisState.uptimeDelta;
+		thisUptime = thisState.uptime;
 
 		for (int i = 0; i < d.size; i++)
 		{
@@ -276,8 +280,11 @@ void ramp_impl<NV>::process(ProcessData& d)
 			thisUptime += thisDelta;
 		}
 
-		thisState.uptime = thisUptime;
+		
 	}
+
+	thisState.uptime = thisUptime;
+
 
 	currentValue.get() = thisState.uptime;
 }
