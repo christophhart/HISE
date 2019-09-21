@@ -120,7 +120,7 @@ struct NodeContainer : public AssignableObject
 	NodeBase* asNode();
 	const NodeBase* asNode() const;
 
-	void prepareContainer(PrepareSpecs ps);
+	void prepareContainer(PrepareSpecs& ps);
 
 	void prepareNodes(PrepareSpecs ps);
 

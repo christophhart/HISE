@@ -64,7 +64,7 @@ const scriptnode::NodeBase* NodeContainer::asNode() const
 	return n;
 }
 
-void NodeContainer::prepareContainer(PrepareSpecs ps)
+void NodeContainer::prepareContainer(PrepareSpecs& ps)
 {
 	auto& lock = asNode()->getRootNetwork()->getConnectionLock();
 	ScopedTryLock sl(lock);
