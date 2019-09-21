@@ -49,8 +49,8 @@ void instance::createParameters(Array<ParameterData>& data)
 	auto& obj = *pimpl;
 
 	// Node Registration ===============================================================
-	registerNode(get<0>(obj), "hp");
-	registerNode(get<1>(obj), "lp");
+	registerNode(FIND_NODE(obj, 0), "hp");
+	registerNode(FIND_NODE(obj, 1), "lp");
 
 	// Parameter Initalisation =========================================================
 	setParameterDefault("hp.Frequency", 20000.0);
@@ -146,15 +146,15 @@ void instance::createParameters(Array<ParameterData>& data)
 	auto& obj = *pimpl;
 
 	// Node Registration ===============================================================
-	registerNode(get<0>(obj), "left_only");
-	registerNode(get<1>(obj), "stereo");
-	registerNode(get<2>(obj), "right_only");
-	registerNode(get<3>(obj), "tempo_sync2");
-	registerNode(get<4>(obj), "gain2");
-	registerNode(get<5, 0>(obj), "dly_fb_out");
-	registerNode(get<5, 1>(obj), "width_bandpass");
-	registerNode(get<5, 2>(obj), "fix_delay");
-	registerNode(get<5, 3>(obj), "dly_fb_in");
+	registerNode(FIND_NODE(obj, 0), "left_only");
+	registerNode(FIND_NODE(obj, 1), "stereo");
+	registerNode(FIND_NODE(obj, 2), "right_only");
+	registerNode(FIND_NODE(obj, 3), "tempo_sync2");
+	registerNode(FIND_NODE(obj, 4), "gain2");
+	registerNode(FIND_NODE(obj, 5, 0), "dly_fb_out");
+	registerNode(FIND_NODE(obj, 5, 1), "width_bandpass");
+	registerNode(FIND_NODE(obj, 5, 2), "fix_delay");
+	registerNode(FIND_NODE(obj, 5, 3), "dly_fb_in");
 
 	// Parameter Initalisation =========================================================
 	setParameterDefault("tempo_sync2.Tempo", 11.0);
@@ -186,7 +186,7 @@ void instance::createParameters(Array<ParameterData>& data)
 		};
 
 
-		setInternalModulationParameter(get<3>(obj), f);
+		setInternalModulationParameter(FIND_NODE(obj, 3), f);
 	}
 
 	// Parameter Callbacks =============================================================
@@ -297,17 +297,17 @@ void instance::createParameters(Array<ParameterData>& data)
 	auto& obj = *pimpl;
 
 	// Node Registration ===============================================================
-	registerNode(get<0>(obj), "mul");
-	registerNode(get<1, 0>(obj), "oscillator");
-	registerNode(get<1, 1, 0, 0>(obj), "stereo_tremolo");
-	registerNode(get<1, 1, 0, 1>(obj), "sig2mod");
-	registerNode(get<1, 1, 0, 2>(obj), "peak");
-	registerNode(get<1, 1, 1, 0>(obj), "mono_tremolo");
-	registerNode(get<1, 1, 1, 1>(obj), "sig2mod1");
-	registerNode(get<1, 1, 1, 2>(obj), "peak1");
-	registerNode(get<2>(obj), "mono_gain");
-	registerNode(get<3, 0>(obj), "left_gain");
-	registerNode(get<3, 1>(obj), "right_gain");
+	registerNode(FIND_NODE(obj, 0), "mul");
+	registerNode(FIND_NODE(obj, 1, 0), "oscillator");
+	registerNode(FIND_NODE(obj, 1, 1, 0, 0), "stereo_tremolo");
+	registerNode(FIND_NODE(obj, 1, 1, 0, 1), "sig2mod");
+	registerNode(FIND_NODE(obj, 1, 1, 0, 2), "peak");
+	registerNode(FIND_NODE(obj, 1, 1, 1, 0), "mono_tremolo");
+	registerNode(FIND_NODE(obj, 1, 1, 1, 1), "sig2mod1");
+	registerNode(FIND_NODE(obj, 1, 1, 1, 2), "peak1");
+	registerNode(FIND_NODE(obj, 2), "mono_gain");
+	registerNode(FIND_NODE(obj, 3, 0), "left_gain");
+	registerNode(FIND_NODE(obj, 3, 1), "right_gain");
 
 	// Parameter Initalisation =========================================================
 	setParameterDefault("mul.Value", 4.04);
@@ -345,7 +345,7 @@ void instance::createParameters(Array<ParameterData>& data)
 		};
 
 
-		setInternalModulationParameter(get<1, 1, 0, 2>(obj), f);
+		setInternalModulationParameter(FIND_NODE(obj, 1, 1, 0, 2), f);
 	}
 	{
 		auto mod_target1 = getParameter("mono_gain.Gain", { -100.0, 0.0, 0.1, 11.0 });
@@ -355,7 +355,7 @@ void instance::createParameters(Array<ParameterData>& data)
 		};
 
 
-		setInternalModulationParameter(get<1, 1, 1, 2>(obj), f);
+		setInternalModulationParameter(FIND_NODE(obj, 1, 1, 1, 2), f);
 	}
 
 	// Parameter Callbacks =============================================================
@@ -424,25 +424,27 @@ void instance::createParameters(Array<ParameterData>& data)
 {
 	auto& obj = *pimpl;
 
+	
+
 	// Node Registration ===============================================================
-	registerNode(get<0, 0, 0>(obj), "input_hp");
-	registerNode(get<0, 0, 1>(obj), "analysis_gain");
-	registerNode(get<0, 0, 2>(obj), "pow");
-	registerNode(get<0, 0, 3>(obj), "ms_decode");
-	registerNode(get<0, 0, 4, 0>(obj), "mul");
-	registerNode(get<0, 0, 4, 1>(obj), "clear");
-	registerNode(get<0, 0, 5>(obj), "ms_encode1");
-	registerNode(get<0, 0, 6>(obj), "clip1");
-	registerNode(get<0, 0, 7, 0, 0>(obj), "fast_follower");
-	registerNode(get<0, 0, 7, 1, 0>(obj), "slow_follower");
-	registerNode(get<0, 0, 7, 1, 1>(obj), "inverter");
-	registerNode(get<0, 0, 8>(obj), "ratio");
-	registerNode(get<0, 0, 9>(obj), "add");
-	registerNode(get<0, 0, 10>(obj), "clip");
-	registerNode(get<0, 0, 11>(obj), "peak");
-	registerNode(get<0, 0, 12>(obj), "analysis_clear");
-	registerNode(get<0, 1, 0>(obj), "compensate_gain");
-	registerNode(get<0, 1, 1>(obj), "dynamic_gain");
+	registerNode(FIND_NODE(obj, 0, 0, 0), "input_hp");
+	registerNode(FIND_NODE(obj, 0, 0, 1), "analysis_gain");
+	registerNode(FIND_NODE(obj, 0, 0, 2), "pow");
+	registerNode(FIND_NODE(obj, 0, 0, 3), "ms_decode");
+	registerNode(FIND_NODE(obj, 0, 0, 4, 0), "mul");
+	registerNode(FIND_NODE(obj, 0, 0, 4, 1), "clear");
+	registerNode(FIND_NODE(obj, 0, 0, 5), "ms_encode1");
+	registerNode(FIND_NODE(obj, 0, 0, 6), "clip1");
+	registerNode(FIND_NODE(obj, 0, 0, 7, 0, 0), "fast_follower");
+	registerNode(FIND_NODE(obj, 0, 0, 7, 1, 0), "slow_follower");
+	registerNode(FIND_NODE(obj, 0, 0, 7, 1, 1), "inverter");
+	registerNode(FIND_NODE(obj, 0, 0, 8), "ratio");
+	registerNode(FIND_NODE(obj, 0, 0, 9), "add");
+	registerNode(FIND_NODE(obj, 0, 0, 10), "clip");
+	registerNode(FIND_NODE(obj, 0, 0, 11), "peak");
+	registerNode(FIND_NODE(obj, 0, 0, 12), "analysis_clear");
+	registerNode(FIND_NODE(obj, 0, 1, 0), "compensate_gain");
+	registerNode(FIND_NODE(obj, 0, 1, 1), "dynamic_gain");
 
 	// Parameter Initalisation =========================================================
 	setParameterDefault("input_hp.Frequency", 93.9);
@@ -487,7 +489,7 @@ void instance::createParameters(Array<ParameterData>& data)
 		};
 
 
-		setInternalModulationParameter(get<0, 0, 11>(obj), f);
+		setInternalModulationParameter(FIND_NODE(obj, 0, 0, 11), f);
 	}
 
 	// Parameter Callbacks =============================================================

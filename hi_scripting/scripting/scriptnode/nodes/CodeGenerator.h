@@ -61,7 +61,7 @@ struct CppGen
 			case Format::ID: return "\"" + id + "\"";
 			case Format::GetMethod:
 			{
-				s << "get<";
+				s << "FIND_NODE(obj, ";
 
 				for (int i = 0; i < path.size(); i++)
 				{
@@ -71,11 +71,14 @@ struct CppGen
 						s << ", ";
 				}
 
-				s << ">(obj)";
+				s << ")";
 				return s;
 			}
 			case Format::ParameterDefinition:
 			{
+
+				
+
 				s << "registerNode(";
 				s << toString(Format::GetMethod) << ", ";
 				s << toString(Format::ID);

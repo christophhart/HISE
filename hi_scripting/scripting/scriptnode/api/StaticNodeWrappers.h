@@ -236,6 +236,21 @@ public:
 	virtual String getSnippetText() const { return ""; }
 };
 
+template<int... Indexes> using NodePath = std::integer_sequence<int, Indexes...>;
+
+template <class T> static auto& findNode(T& t, NodePath<> empty)
+{
+	return t.getObject();
+}
+
+template <class T, int Index, int... Indexes> static auto& findNode(T& t, NodePath<Index, Indexes...> path)
+{
+	auto& obj = t.get<Index>().getObject();
+	NodePath<Indexes...> seq;
+	return findNode(obj, seq);
+}
+
+#define FIND_NODE(obj, ...) &findNode(obj.getObject(), NodePath<__VA_ARGS__>())
 
 class HardcodedNode : public RestorableNode
 {
@@ -446,44 +461,10 @@ public:
 	void addPublicComponent(const String& nodeId)
 	{
 		nodesWithPublicComponent.add(nodeId);
-	}
 
-    template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, int Index7, class T> static auto* get(T& t)
-    {
-        return get<Index7>(*get<Index6>(*get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t)))))));
-    }
-    
-    template <int Index1, int Index2, int Index3, int Index4, int Index5, int Index6, class T> static auto* get(T& t)
-    {
-        return get<Index6>(*get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))))));
-    }
-    
-    template <int Index1, int Index2, int Index3, int Index4, int Index5, class T> static auto* get(T& t)
-    {
-        return get<Index5>(*get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t)))));
-    }
-    
-    template <int Index1, int Index2, int Index3, int Index4, class T> static auto* get(T& t)
-    {
-        return get<Index4>(*get<Index3>(*get<Index2>(*get<Index1>(t))));
-    }
-    
-    template <int Index1, int Index2, int Index3, class T> static auto* get(T& t)
-    {
-        return get<Index3>(*get<Index2>(*get<Index1>(t)));
-    }
-    
-    template <int Index1, int Index2, class T> static auto* get(T& t)
-    {
-        return get<Index2>(*get<Index1>(t));
-    }
-    
-    template <int Index, class T> static auto* get(T& t)
-    {
-        auto* obj1 = &t.getObject();
-        auto* obj2 = &obj1->template get<Index>();
-        return &obj2->getObject();
-    }
+
+		
+	}
     
 protected:
 

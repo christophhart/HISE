@@ -120,6 +120,9 @@ template <typename... Processors> struct multi: public container_base<Processors
 	{
 		this->handle_event_each(e, this->indexes);
 	}
+
+	auto& getObject() { return *this; };
+	const auto& getObject() const { return *this; };
 };
 
 

@@ -90,11 +90,10 @@ template <typename... Processors> struct container_base
 		reset_each(indexes);
 	}
 
-	template <int arg> auto& get() noexcept { return std::get<arg>(processors); }
-	template <int arg> const auto& get() const noexcept { return std::get<arg>(processors); }
+	template <int arg> constexpr auto& get() noexcept { return std::get<arg>(processors); }
+	
 
-	auto& getObject() { return *this; };
-	const auto& getObject() const { return *this; };
+	
 
 	std::tuple<Processors...> processors;
 	std::index_sequence_for<Processors...> indexes;

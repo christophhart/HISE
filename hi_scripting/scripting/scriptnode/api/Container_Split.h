@@ -81,6 +81,9 @@ template <typename... Processors> struct split : public container_base<Processor
 		handle_event_each_copy(copy, this->indexes);
 	}
 
+	auto& getObject() { return *this; };
+	const auto& getObject() const { return *this; };
+
 private:
 
 	template <std::size_t ...Ns>
