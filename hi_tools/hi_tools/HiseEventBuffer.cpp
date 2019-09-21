@@ -455,19 +455,17 @@ void HiseEventBuffer::addEvents(const HiseEventBuffer &otherBuffer)
 
 void HiseEventBuffer::sortTimestamps()
 {
-	int timestamp = 0;
-
-	for (int i = 0; i < numUsed; i++)
+	switch(numUsed)
 	{
-		auto thisStamp = buffer[i].getTimeStamp();
-
-		if (thisStamp < timestamp)
-		{
-			auto e = popEvent(i);
-			addEvent(e);
-		}
-
-		timestamp = thisStamp;
+		case 0: 
+		case 1: return;
+		case 2: 
+			if (buffer[1] < buffer[0]) 
+				std::swap(buffer[0], buffer[1]);
+			return;
+		default:
+			std::sort(begin(), end());
+			return;
 	}
 }
 

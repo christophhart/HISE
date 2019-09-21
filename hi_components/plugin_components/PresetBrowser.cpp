@@ -84,7 +84,7 @@ struct PresetHelpers
 		if (presetTree.isValid())
 		{
 			String compressed;
-			
+
 			compressed << "[START_PRESETS]";
 			compressed << ValueTreeConverters::convertValueTreeToBase64(presetTree, true);
 			compressed << "[END_PRESETS]";
@@ -120,7 +120,7 @@ struct PresetHelpers
 		for (int i = 0; i < presets.size(); i++)
 		{
 			const bool isNoPresetFile = presets[i].isHidden() || presets[i].getFileName().startsWith(".") || presets[i].getFileExtension() != ".preset";
-			
+
 			if (isNoPresetFile)
 			{
 				presets.remove(i--);
@@ -220,7 +220,7 @@ private:
 
 		return ValueTree();
 	};
-	
+
 };
 
 
@@ -311,10 +311,10 @@ void PresetBrowserLookAndFeel::drawTag(Graphics& g, bool blinking, bool active, 
 	g.drawRoundedRectangle(ar, 2.0f, 1.0f);
 	g.setFont(font.withHeight(14.0f));
 	g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
-    
+
     // Wow, so professional, good bug fix.
     auto nameToUse = (name == "Agressive" ? "Aggressive" : name);
-    
+
 	g.drawText(nameToUse, ar, Justification::centred);
 
 	if (selected)
@@ -611,14 +611,15 @@ void PresetBrowser::ModalWindow::confirmReplacement(const File& oldFile, const F
 
 PresetBrowser::PresetBrowser(MainController* mc, int width, int height) :
 ControlledObject(mc),
-pblaf(new PresetBrowserLookAndFeel())
+pblaf(new PresetBrowserLookAndFeel()),
+expHandler(mc->getExpansionHandler())
 {
 	setName("Preset Browser");
 
 #if USE_BACKEND
 	rootFile = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-    
+
     try
     {
         rootFile = FrontendHandler::getUserPresetDirectory();
@@ -627,11 +628,10 @@ pblaf(new PresetBrowserLookAndFeel())
     {
 		getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
-    
+
 #endif
 
 	mc->getUserPresetHandler().getTagDataBase().setRootDirectory(rootFile);
-
 
 	loadPresetDatabase(rootFile);
 
@@ -645,7 +645,7 @@ pblaf(new PresetBrowserLookAndFeel())
 
 	addAndMakeVisible(noteLabel = new BetterLabel(this));
 	noteLabel->addListener(this);
-	
+
 	noteLabel->setEditable(true, true);
 	noteLabel->setColour(Label::ColourIds::textColourId, Colours::white);
 	noteLabel->setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
@@ -670,7 +670,7 @@ pblaf(new PresetBrowserLookAndFeel())
 
 	searchBar->inputLabel->addListener(this);
 	searchBar->inputLabel->addListener(presetColumn);
-	
+
 	tagList->addTagListener(presetColumn);
 	tagList->addTagListener(this);
 	presetColumn->tagCacheNeedsRebuilding();
@@ -680,20 +680,24 @@ pblaf(new PresetBrowserLookAndFeel())
 
 	addAndMakeVisible(saveButton = new TextButton("Save Preset"));
 	saveButton->addListener(this);
-	
+
     addAndMakeVisible(manageButton = new TextButton(HiseDeviceSimulator::isMobileDevice() ? "Sync" : "More"));
 	manageButton->addListener(this);
 
 	setSize(width, height);
 
 	rebuildAllPresets();
-	
+
 	showLoadedPreset();
 
 	updateFavoriteButton();
-    
-    setOpaque(true);
+
+  setOpaque(false);
 	setLookAndFeel(pblaf);
+
+	#if HISE_ENABLE_EXPANSIONS
+		expHandler.addListener(this); //Setup expansion handler listener
+	#endif
 }
 
 PresetBrowser::~PresetBrowser()
@@ -721,9 +725,26 @@ PresetBrowser::~PresetBrowser()
 
 	pblaf = nullptr;
 
+	#if HISE_ENABLE_EXPANSIONS
+		expHandler.removeListener(this);
+	#endif
 }
 
+void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
+{
+	if (currentExpansion != nullptr)
+	{
+		rootFile = currentExpansion->getSubDirectory(FileHandlerBase::UserPresets);
+		rebuildAllPresets();
 
+		// Update preset browser columns
+		File cat = PresetBrowserColumn::getChildDirectory(rootFile, 2, 2);
+		File preset = PresetBrowserColumn::getChildDirectory(rootFile, 3, 3);
+		bankColumn->setNewRootDirectory(rootFile);
+		categoryColumn->setNewRootDirectory(cat);
+		presetColumn->setNewRootDirectory(preset);
+	}
+}
 
 void PresetBrowser::presetChanged(const File& newPreset)
 {
@@ -818,7 +839,7 @@ void PresetBrowser::resized()
 		saveButton->setBounds(ar.removeFromRight(100));
 		manageButton->setBounds(ar.removeFromLeft(100));
 		searchBar->setBounds(ar);
-		
+
 		y += 40;
 
 	}
@@ -826,7 +847,7 @@ void PresetBrowser::resized()
 	{
 		Rectangle<int> ar(3, 3 + 3, getWidth() - 6, 30);
 
-		
+
 		saveButton->setBounds(ar.removeFromRight(100));
 		manageButton->setBounds(ar.removeFromLeft(100));
 
@@ -834,14 +855,14 @@ void PresetBrowser::resized()
 
 		if(showFavoritesButton)
 			favoriteButton->setBounds(ar.removeFromLeft(30));
-		
+
 
 		ar.removeFromLeft(10);
 
 		searchBar->setBounds(ar);
 		y += 40;
 	}
-	
+
 	int x = 3;
 
 	bankColumn->setVisible(!showOnlyPresets && numColumns > 1);
@@ -876,7 +897,7 @@ void PresetBrowser::resized()
 		presetColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
 	}
 
-	
+
 }
 
 
@@ -932,7 +953,7 @@ static const unsigned char onShape[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xd
 
 	favoriteButton->setShape(path, false, true, true);
 
-	
+
 
 	presetColumn->setShowFavoritesOnly(on);
 
@@ -970,7 +991,7 @@ void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 	pblaf->font = f;
 	pblaf->highlightColour = c;
 
-	
+
 
 	favoriteButton->setColours(c.withAlpha(0.7f), c.withAlpha(0.5f), c.withAlpha(0.6f));
 
@@ -1104,7 +1125,7 @@ void PresetBrowser::setOptions(const Options& newOptions)
 void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const File& file, bool /*doubleClick*/)
 {
 	const bool showCategoryColumn = numColumns == 3;
-	
+
 	if (columnIndex == 0)
 	{
 		currentBankFile = file;
@@ -1132,7 +1153,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			bankColumn->setEditMode(false);
 			presetColumn->updateButtonVisibility();
 		}
-		
+
 		noteLabel->setText("", dontSendNotification);
 	}
 	else if (columnIndex == 1)
@@ -1140,12 +1161,12 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		currentCategoryFile = file;
 
 		presetColumn->setNewRootDirectory(currentCategoryFile);
-        
+
         presetColumn->setEditMode(false);
 		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
         bankColumn->setEditMode(false);
-        
+
 		categoryColumn->updateButtonVisibility();
 		presetColumn->updateButtonVisibility();
 
@@ -1170,16 +1191,16 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
         if(newName.isNotEmpty())
         {
             File newBank = currentBankFile.getSiblingFile(newName);
-            
+
 			if (newBank.isDirectory())
 				return;
 
             currentBankFile.moveFileTo(newBank);
-            
+
             categoryColumn->setNewRootDirectory(File());
             presetColumn->setNewRootDirectory(File());
         }
-        
+
         rebuildAllPresets();
 	}
 	else if (columnIndex == 1)
@@ -1189,16 +1210,16 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
         if(newName.isNotEmpty())
         {
             File newCategory = currentCategoryFile.getSiblingFile(newName);
-            
+
             if(newCategory.isDirectory())
 				return;
-            
+
             currentCategoryFile.moveFileTo(newCategory);
-            
+
             categoryColumn->setNewRootDirectory(currentBankFile);
             presetColumn->setNewRootDirectory(newCategory);
         }
-        
+
         rebuildAllPresets();
 	}
 	else if (columnIndex == 2)
@@ -1242,7 +1263,7 @@ void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 
 		categoryColumn->setNewRootDirectory(currentBankFile);
 		presetColumn->setNewRootDirectory(File());
-		
+
 	}
 	else if (columnIndex == 2)
 	{
@@ -1250,7 +1271,7 @@ void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 
 		presetFile.deleteFile();
 		presetColumn->setNewRootDirectory(currentCategoryFile);
-		
+
 	}
 
 	rebuildAllPresets();
@@ -1267,7 +1288,7 @@ void PresetBrowser::buttonClicked(Button* b)
 	{
 		if (getMainController()->getUserPresetHandler().getCurrentlyLoadedFile().existsAsFile())
 		{
-			
+
 
 			auto fileToBeReplaced = getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
 			File tempFile = fileToBeReplaced.getSiblingFile("tempFileBeforeMove.preset");
@@ -1301,7 +1322,7 @@ void PresetBrowser::buttonClicked(Button* b)
         if(HiseDeviceSimulator::isMobileDevice() && !categoryMode)
         {
             p.addItem(numIDs, "You have to select a category for import / export", false, false);
-            
+
         }
 		else if (HiseDeviceSimulator::isMobileDevice())
 		{
@@ -1312,12 +1333,12 @@ void PresetBrowser::buttonClicked(Button* b)
 		{
             p.addItem(ShowPresetFolder, "Show Preset Folder");
             p.addSeparator();
-            
+
             p.addItem(ImportPresetsFromClipboard, "Import " + destination + " from Clipboard");
             p.addItem(ExportPresetsToClipboard, "Export " + destination + " to Clipboard");
-            
+
             p.addSeparator();
-            
+
 			p.addItem(ImportPresetsFromFile, "Import " + destination + " from Collection");
 			p.addItem(ExportPresetsToFile, "Export " + destination + " as Collection");
 		}
@@ -1371,7 +1392,7 @@ void PresetBrowser::loadPreset(const File& f)
     {
 		UserPresetHelpers::loadUserPreset(getMainController()->getMainSynthChain(), f);
         currentlyLoadedPreset = allPresets.indexOf(f);
-        
+
 		noteLabel->setText(DataBaseHelpers::getNoteFromXml(f), dontSendNotification);
     }
 }
@@ -1507,7 +1528,7 @@ juce::String PresetBrowser::DataBaseHelpers::getNoteFromXml(const File& currentP
 bool PresetBrowser::DataBaseHelpers::matchesAvailableExpansions(MainController* mc, const File& currentPreset)
 {
 #if HISE_ENABLE_EXPANSIONS
-	
+
 	if (mc == nullptr)
 		return true;
 
