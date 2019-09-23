@@ -89,10 +89,23 @@ public:
 		/** This iterates over all sounds and locks the sound lock if desired. */
 		SoundIterator(const ModulatorSampler* s_, bool /*lock_*/=true):
 			s(const_cast<ModulatorSampler*>(s_))
-		{}
+		{
+			if (auto mm = MessageManager::getInstanceWithoutCreating())
+				messageThread = mm->currentThreadHasLockedMessageManager();
+		}
 
 		SharedPointer getNextSound()
 		{
+			if (messageThread)
+			{
+				auto& l = LockHelpers::getLockUnchecked(s->getMainController(), LockHelpers::SampleLock);
+
+				ScopedTryLock sl(l);
+
+				if (!sl.isLocked())
+					return nullptr;
+			}
+
 			while (auto sound = getSoundInternal())
 				return sound;
 
@@ -107,6 +120,8 @@ public:
 		}
 
 	private:
+
+		bool messageThread = false;
 
 		SharedPointer getSoundInternal()
 		{
