@@ -68,7 +68,7 @@ struct MidiPlayerHelpers
 
 
 
-HiseMidiSequence::SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleReadWriteLock &lock_) :
+SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleReadWriteLock &lock_) :
 	lock(lock_)
 {
 	for (int i = 20; --i >= 0;)
@@ -81,12 +81,12 @@ HiseMidiSequence::SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleRead
 	lock.numReadLocks++;
 }
 
-HiseMidiSequence::SimpleReadWriteLock::ScopedReadLock::~ScopedReadLock()
+SimpleReadWriteLock::ScopedReadLock::~ScopedReadLock()
 {
 	lock.numReadLocks--;
 }
 
-HiseMidiSequence::SimpleReadWriteLock::ScopedWriteLock::ScopedWriteLock(SimpleReadWriteLock &lock_) :
+SimpleReadWriteLock::ScopedWriteLock::ScopedWriteLock(SimpleReadWriteLock &lock_) :
 	lock(lock_)
 {
 	if (lock.isBeingWritten)
@@ -105,7 +105,7 @@ HiseMidiSequence::SimpleReadWriteLock::ScopedWriteLock::ScopedWriteLock(SimpleRe
 	lock.isBeingWritten = true;
 }
 
-HiseMidiSequence::SimpleReadWriteLock::ScopedWriteLock::~ScopedWriteLock()
+SimpleReadWriteLock::ScopedWriteLock::~ScopedWriteLock()
 {
 	lock.isBeingWritten = false;
 }
@@ -147,11 +147,6 @@ void HiseMidiSequence::restoreFromValueTree(const ValueTree &v)
 
 	if (id_.isNotEmpty())
 		id = Identifier(id_);
-
-	// This property isn't used in this class, but if you want to
-	// have any kind of connection to a pooled MidiFile, you will
-	// need to add this externally (see MidiPlayer::exportAsValueTree())
-	jassert(v.hasProperty("FileName"));
 
 	String encodedState = v.getProperty("Data");
 
@@ -864,7 +859,10 @@ void MidiPlayer::restoreFromValueTree(const ValueTree &v)
 
 void MidiPlayer::addSequence(HiseMidiSequence::Ptr newSequence, bool select)
 {
-	currentSequences.add(newSequence);
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock);
+		currentSequences.add(newSequence);
+	}
 
 	if (select)
 	{
@@ -880,10 +878,13 @@ void MidiPlayer::clearSequences(NotificationType notifyListeners)
 	if(undoManager == ownedUndoManager && undoManager != nullptr)
 		undoManager->clearUndoHistory();
 
-	currentSequences.clear();
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock);
+		currentSequences.clear();
+		currentSequenceIndex = -1;
+	}
+	
 	currentlyLoadedFiles.clear();
-
-	currentSequenceIndex = -1;
 	currentlyRecordedEvents.clear();
 	recordState.store(RecordState::Idle);
 
@@ -1277,10 +1278,13 @@ void MidiPlayer::sendSequenceUpdateMessage(NotificationType notification)
 		if (mp.get() == nullptr)
 			return;
 
-		for (auto l : mp->sequenceListeners)
+		if (auto seq = mp->getCurrentSequence())
 		{
-			if (l != nullptr)
-				l->sequenceLoaded(mp->getCurrentSequence());
+			for (auto l : mp->sequenceListeners)
+			{
+				if (l != nullptr)
+					l->sequenceLoaded(seq);
+			}
 		}
 	};
 
@@ -1301,9 +1305,11 @@ void MidiPlayer::changeTransportState(PlayState newState)
 	}
 }
 
-hise::HiseMidiSequence* MidiPlayer::getCurrentSequence() const
+hise::HiseMidiSequence::Ptr MidiPlayer::getCurrentSequence() const
 {
-    if(currentSequenceIndex != -1)
+	SimpleReadWriteLock::ScopedReadLock sl(sequenceLock);
+
+	if(currentSequenceIndex != -1)
         return currentSequences[currentSequenceIndex].get();
     else
         return nullptr;

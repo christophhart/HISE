@@ -36,6 +36,27 @@
 namespace hise {
 using namespace juce;
 
+/** A simple, non reentrant lock with read-write access. */
+struct SimpleReadWriteLock
+{
+	struct ScopedReadLock
+	{
+		ScopedReadLock(SimpleReadWriteLock &lock_);
+		~ScopedReadLock();
+		SimpleReadWriteLock& lock;
+	};
+
+	struct ScopedWriteLock
+	{
+		ScopedWriteLock(SimpleReadWriteLock &lock_);
+		~ScopedWriteLock();
+		SimpleReadWriteLock& lock;
+	};
+
+	std::atomic<int> numReadLocks{ 0 };
+	bool isBeingWritten = false;
+};
+
 /** A wrapper around a MIDI file. 
 
 	This uses the juce::MidiMessageSequence object but extends it with these capabilities:
@@ -231,26 +252,7 @@ private:
 
 	TimeSignature signature;
 
-	/** A simple, non reentrant lock with read-write access. */
-	struct SimpleReadWriteLock
-	{
-		struct ScopedReadLock
-		{
-			ScopedReadLock(SimpleReadWriteLock &lock_);
-			~ScopedReadLock();
-			SimpleReadWriteLock& lock;
-		};
-
-		struct ScopedWriteLock
-		{
-			ScopedWriteLock(SimpleReadWriteLock &lock_);
-			~ScopedWriteLock();
-			SimpleReadWriteLock& lock;
-		};
-
-        std::atomic<int> numReadLocks{0};
-		bool isBeingWritten = false;
-	};
+	
 
 	mutable SimpleReadWriteLock swapLock;
 
@@ -470,7 +472,7 @@ public:
 	int getNumSequences() const { return currentSequences.size(); }
 
 	/** Returns the currently played sequence. */
-	HiseMidiSequence* getCurrentSequence() const;
+	HiseMidiSequence::Ptr getCurrentSequence() const;
 
 	/** Returns the ID used for the given sequence. If -1 is used as index, the current sequence will be used. */
 	Identifier getSequenceId(int index=-1) const;
@@ -564,6 +566,8 @@ public:
 	}
 
 private:
+
+	mutable SimpleReadWriteLock sequenceLock;
 
 	double getLoopStart() const;
 
