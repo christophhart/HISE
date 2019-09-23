@@ -182,6 +182,7 @@ temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 ModulatorSampler::~ModulatorSampler()
 {
 	sampleMap = nullptr;
+	abortIteration = true;
 	deleteAllSounds();
 }
 
@@ -1083,6 +1084,9 @@ void ModulatorSampler::clearSampleMap(NotificationType n)
 {
 	LockHelpers::freeToGo(getMainController());
 
+	ScopedValueSetter<bool> ia(abortIteration, true);
+	ScopedLock sl(getIteratorLock());
+
 	if (sampleMap == nullptr)
 		return;
 
@@ -1097,6 +1101,9 @@ void ModulatorSampler::loadSampleMap(PoolReference ref)
 		return;
 
 	LockHelpers::freeToGo(getMainController());
+
+	ScopedValueSetter<bool> ia(abortIteration, true);
+	ScopedLock sl(getIteratorLock());
 
 	getSampleMap()->load(ref);
 }

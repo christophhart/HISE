@@ -84,27 +84,20 @@ public:
 	{
 	public:
 
-		using SharedPointer = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
+		using SharedPointer = WeakReference<ModulatorSamplerSound>;
 
 		/** This iterates over all sounds and locks the sound lock if desired. */
 		SoundIterator(const ModulatorSampler* s_, bool /*lock_*/=true):
-			s(const_cast<ModulatorSampler*>(s_))
+			s(const_cast<ModulatorSampler*>(s_)),
+			lock(s->getIteratorLock())
 		{
-			if (auto mm = MessageManager::getInstanceWithoutCreating())
-				messageThread = mm->currentThreadHasLockedMessageManager();
+			holdsLock = lock.tryEnter();
 		}
 
 		SharedPointer getNextSound()
 		{
-			if (messageThread)
-			{
-				auto& l = LockHelpers::getLockUnchecked(s->getMainController(), LockHelpers::SampleLock);
-
-				ScopedTryLock sl(l);
-
-				if (!sl.isLocked())
-					return nullptr;
-			}
+			if (!holdsLock)
+				return nullptr;
 
 			while (auto sound = getSoundInternal())
 				return sound;
@@ -112,30 +105,47 @@ public:
 			return nullptr;
 		}
 
-		~SoundIterator() {}
+		~SoundIterator()
+		{
+			if (holdsLock)
+				lock.exit();
+		}
 
 		int size() const
 		{
 			return s->getNumSounds();
 		}
 
-	private:
+		void reset()
+		{
+			index = 0;
+		}
 
-		bool messageThread = false;
+	private:
 
 		SharedPointer getSoundInternal()
 		{
 			if (index >= s->getNumSounds())
 				return nullptr;
 
-			auto synSound = s->getSoundRefCounted(index++);
-			SharedPointer rs(static_cast<ModulatorSamplerSound*>(synSound.get()));
-			synSound = nullptr;
-			return rs;
+			if (s->shouldAbortIteration())
+			{
+				if (holdsLock)
+				{
+					lock.exit();
+					holdsLock = false;
+				}
+
+				return nullptr;
+			}
+
+			return dynamic_cast<ModulatorSamplerSound*>(s->getSound(index++));
 		}
 
 		int index = 0;
 		WeakReference<ModulatorSampler> s;
+		CriticalSection& lock;
+		bool holdsLock;
 	};
 
 	void suspendStateChanged(bool shouldBeSuspended) override
@@ -368,6 +378,8 @@ public:
 	bool isNoteNumberMapped(int noteNumber) const;
 
 	CriticalSection &getSamplerLock() {	return lock; }
+
+	CriticalSection& getIteratorLock() { return iteratorLock; };
 	
 	const CriticalSection& getExportLock() const { return exportLock; }
 
@@ -582,7 +594,17 @@ public:
 	*/
 	bool callAsyncIfJobsPending(const ProcessorFunction& f);
 
+	bool shouldAbortIteration() const noexcept { return false; }
+
+	bool& getIterationFlag() { return abortIteration; };
+
 private:
+
+	CriticalSection iteratorLock;
+
+	bool abortIteration = false;
+	
+	
 
 	bool isOnSampleLoadingThread() const
 	{

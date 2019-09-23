@@ -118,6 +118,12 @@ void SampleMap::clear(NotificationType n)
 {
 	LockHelpers::freeToGo(sampler->getMainController());
 
+
+	ScopedValueSetter<bool> iterationAborter(sampler->getIterationFlag(), true);
+	ScopedLock sl(sampler->getIteratorLock());
+
+	
+
 	ScopedNotificationDelayer snd(*this);
 
 	sampleMapData.clear();
@@ -242,6 +248,8 @@ void SampleMap::setCurrentMonolith()
 void SampleMap::parseValueTree(const ValueTree &v)
 {
 	LockHelpers::freeToGo(sampler->getMainController());
+	ScopedValueSetter<bool> iterationAborter(sampler->getIterationFlag(), true);
+	ScopedLock sl(sampler->getIteratorLock());
 
 	setNewValueTree(v);
 	
@@ -737,6 +745,8 @@ void SampleMap::load(const PoolReference& reference)
 {
 	LockHelpers::freeToGo(sampler->getMainController());
 
+	ScopedValueSetter<bool> iterationAborter(sampler->getIterationFlag(), true);
+	ScopedLock sl(sampler->getIteratorLock());
 	clear(dontSendNotification);
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
@@ -762,6 +772,7 @@ void SampleMap::load(const PoolReference& reference)
 		jassertfalse;
 
 	sendSampleMapChangeMessage();
+
 }
 
 void SampleMap::loadUnsavedValueTree(const ValueTree& v)
