@@ -231,6 +231,11 @@ public:
 		setAvailableRange(lowKey, hiKey);
 	}
 
+	Rectangle<float> getRectangleForKeyPublic(int midiNoteNumber)
+	{
+		return getRectangleForKey(midiNoteNumber);
+	}
+	
 protected:
 
 	void drawWhiteNote (int midiNoteNumber, Graphics &g, Rectangle<float> area, bool isDown, bool isOver, Colour lineColour, Colour textColour) override;

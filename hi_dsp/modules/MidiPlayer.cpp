@@ -1153,6 +1153,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 			newEvent.setTimeStamp(timeStamp);
 			newEvent.setArtificial();
+			newEvent.setChannel(currentTrackIndex + 1);
 
 			if (newEvent.isNoteOn() && !isBypassed())
 			{
@@ -1174,6 +1175,8 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 					auto noteOffTimeStamp = (int)MidiPlayerHelpers::ticksToSamples(noteOffTimeStampInBuffer, getMainController()->getBpm(), getSampleRate());
 
+					newNoteOff.setChannel(currentTrackIndex + 1);
+
 					auto on_id = getMainController()->getEventHandler().getEventIdForNoteOff(newNoteOff);
 
 					jassert(newEvent.getEventId() == on_id);
@@ -1181,6 +1184,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 					newNoteOff.setEventId(on_id);
 					newNoteOff.setTimeStamp(noteOffTimeStamp);
 					newNoteOff.setTimeStamp(noteOffTimeStamp);
+					
 
 					if (noteOffTimeStamp < numSamples)
 						buffer.addEvent(newNoteOff);
@@ -1227,6 +1231,7 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 			timestampSamples += currentTimestampInBuffer;
 
 			HiseEvent copy(m);
+			copy.setChannel(currentTrackIndex + 1);
 			copy.setTimeStamp(timestampSamples);
 
 			currentlyRecordedEvents.add(copy);

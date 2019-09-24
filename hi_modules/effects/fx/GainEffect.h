@@ -194,16 +194,22 @@ public:
 	{
 		if (enabled && player != nullptr)
 		{
-			auto thisQuarter = getQuarterFromPosition();
+			if (auto seq = player->getCurrentSequence())
+			{
+				nom = seq->getTimeSignaturePtr()->nominator;
+				denom = seq->getTimeSignaturePtr()->denominator;
+			}
+
+			auto thisQuarter = getBeatFromPosition();
 
 			if (thisQuarter != lastQuarter && thisQuarter >= 0)
 			{
 				rampValue = 1.0f;
 
-				uptimeDelta = JUCE_LIVE_CONSTANT(0.1);
+				uptimeDelta = JUCE_LIVE_CONSTANT_OFF(0.1);
 				uptime = 0.0;
 
-				if (thisQuarter % 4 == 0)
+				if (thisQuarter % nom == 0)
 					uptimeDelta *= 2.0;
 
 				lastQuarter = thisQuarter;
@@ -233,7 +239,7 @@ public:
 		}
 	}
 
-	int getQuarterFromPosition()
+	int getBeatFromPosition()
 	{
 		if (player->getPlayState() == MidiPlayer::PlayState::Stop)
 			return -1;
@@ -241,7 +247,9 @@ public:
 		if (player->getCurrentSequence() == nullptr)
 			return -1;
 
-		lastPos = player->getPlaybackPosition() * player->getCurrentSequence()->getLengthInQuarters();
+		auto bf = (float)denom / 4.0f;
+
+		lastPos = player->getPlaybackPosition() * player->getCurrentSequence()->getLengthInQuarters() * bf;
 
 		return (int)std::floor(lastPos);
 	}
@@ -273,6 +281,10 @@ public:
 	double lastPos = 0.0;
 	double uptime = 0.0;
 	double uptimeDelta = 0.0;
+
+	int nom = 4;
+	int denom = 4;
+
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiMetronome);
 };
