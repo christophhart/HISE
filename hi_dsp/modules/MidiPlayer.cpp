@@ -1490,6 +1490,8 @@ bool MidiPlayer::stop(int timestamp)
 					futureEvent.setTimeStamp(getLargestBlockSize() - 2);
 					sortAfterOp = true;
 				}
+				if (futureEvent.isNoteOn())
+					futureEvent.ignoreEvent(true);
 			}
 
 			if (sortAfterOp)
