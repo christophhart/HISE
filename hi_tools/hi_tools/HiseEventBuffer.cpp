@@ -210,6 +210,11 @@ double HiseEvent::getFrequency() const
 	return freq * getPitchFactorForEvent();
 }
 
+void HiseEvent::setGain(int decibels) noexcept
+{
+	gain = (int8)jlimit<int>(-100, 36, decibels);
+}
+
 HiseEvent HiseEvent::createVolumeFade(uint16 eventId, int fadeTimeMilliseconds, int8 targetValue)
 {
 	HiseEvent e(Type::VolumeFade, 0, 0, 1);

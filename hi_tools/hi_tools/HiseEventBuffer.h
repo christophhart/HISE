@@ -204,7 +204,7 @@ public:
 	double getFrequency() const;
 
 	/** Sets the gain in decibels for this note. */
-	void setGain(int decibels) noexcept{ gain = (int8)decibels; };
+	void setGain(int decibels) noexcept;;
 
 	/** returns the gain in decibels. */
 	int getGain() const noexcept{ return gain; };
