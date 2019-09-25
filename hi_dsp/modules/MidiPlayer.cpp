@@ -765,6 +765,9 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 				if (no.isNoteOff() && no.getEventId() == e.getEventId())
 				{
 					no.setTransposeAmount(e.getTransposeAmount());
+
+					jassert(no.getNoteNumberIncludingTransposeAmount() == e.getNoteNumberIncludingTransposeAmount());
+
 					break;
 				}
 			}
@@ -1572,13 +1575,18 @@ void MidiPlayer::prepareForRecording(bool copyExistingEvents/*=true*/)
 
 void MidiPlayer::finishRecording()
 {
-	auto f = [](Processor* p)
+	if (currentlyRecordedEvents.isEmpty())
+		return;
+
+	auto finishPos = currentPosition;
+
+	auto f = [finishPos](Processor* p)
 	{
 		auto mp = static_cast<MidiPlayer*>(p);
 
 		auto l = &mp->currentlyRecordedEvents;
 
-		int lastTimestamp = (int)MidiPlayerHelpers::ticksToSamples(mp->getCurrentSequence()->getLength(), mp->getMainController()->getBpm(), mp->getSampleRate()) - 1;
+		int lastTimestamp = (int)MidiPlayerHelpers::ticksToSamples(mp->getCurrentSequence()->getLength() * finishPos, mp->getMainController()->getBpm(), mp->getSampleRate()) - 1;
 
 		for (int i = 0; i < l->size(); i++)
 		{
@@ -1606,8 +1614,6 @@ void MidiPlayer::finishRecording()
 							l->getReference(j).setNoteNumber(numberWithTranspose);
 						}
 
-						
-
 						found = true;
 						break;
 					}
@@ -1615,7 +1621,13 @@ void MidiPlayer::finishRecording()
 
 				if (!found)
 				{
+					
+
 					HiseEvent artificialNoteOff(HiseEvent::Type::NoteOff, (uint8)(currentEvent.getNoteNumber() + currentEvent.getTransposeAmount()), 1, (uint8)currentEvent.getChannel());
+
+					currentEvent.setNoteNumber(artificialNoteOff.getNoteNumber());
+					currentEvent.setTransposeAmount(0);
+
 					artificialNoteOff.setTimeStamp(lastTimestamp);
 					artificialNoteOff.setEventId(currentEvent.getEventId());
 					l->add(artificialNoteOff);
