@@ -297,7 +297,7 @@ void ModulatorSamplerSound::calculateNormalizedPeak()
 
 	if (highestPeak != 0.0f)
 	{
-		normalizedPeak = jlimit<float>(1.0f, 128.0f, 1.0f / highestPeak);
+		normalizedPeak = jlimit<float>(1.0f, 1024.0f, 1.0f / highestPeak);
 		data.setProperty(SampleIds::NormalizedPeak, normalizedPeak, nullptr);
 	}
 }
