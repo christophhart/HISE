@@ -92,8 +92,17 @@ template <typename... Processors> struct container_base
 
 	template <int arg> constexpr auto& get() noexcept { return std::get<arg>(processors); }
 	
-
-	
+    void createParameters(Array<HiseDspBase::ParameterData>& d)
+    {
+        
+    }
+    
+    int getExtraWidth() const { return 0; }
+    int getExtraHeight() const { return 0; }
+    
+    HardcodedNode* getAsHardcodedNode() { return nullptr; };
+    Component* createExtraComponent(PooledUIUpdater* updater) { return nullptr; }
+    bool isPolyphonic() const { return std::get<0>(processors).getObject().isPolyphonic(); }
 
 	std::tuple<Processors...> processors;
 	std::index_sequence_for<Processors...> indexes;
