@@ -78,7 +78,7 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
         fp->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
 	 
-	fp->getExpansionHandler().createAvailableExpansions();
+	
 
 	return fp;
 }
@@ -280,6 +280,8 @@ updater(*this)
 	getCurrentFileHandler().pool->getSampleMapPool().loadAllFilesFromDataProvider();
 	getCurrentFileHandler().pool->getMidiFilePool().loadAllFilesFromDataProvider();
 #endif
+
+	getExpansionHandler().createAvailableExpansions();
 
 	if (externalFiles != nullptr)
 	{

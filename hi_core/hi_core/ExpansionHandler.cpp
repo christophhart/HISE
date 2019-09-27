@@ -129,7 +129,7 @@ ExpansionHandler::ExpansionHandler(MainController* mc_):
 	mc(mc_),
 	notifier(*this)
 {
-	rebuildExpansions();
+	//rebuildExpansions();
 }
 
 void ExpansionHandler::createNewExpansion(const File& expansionFolder)
