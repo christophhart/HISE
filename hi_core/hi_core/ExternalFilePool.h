@@ -758,6 +758,9 @@ public:
 
 		void clear()
 		{
+			if (pool.get() == nullptr)
+				return;
+
 			if (!getRef())
 				return;
 
