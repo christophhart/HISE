@@ -300,6 +300,11 @@ void ModulatorSamplerSound::calculateNormalizedPeak()
 		normalizedPeak = jlimit<float>(1.0f, 1024.0f, 1.0f / highestPeak);
 		data.setProperty(SampleIds::NormalizedPeak, normalizedPeak, nullptr);
 	}
+	else
+	{
+		normalizedPeak = 0.0f;
+		data.setProperty(SampleIds::NormalizedPeak, 0.0f, nullptr);
+	}
 }
 
 float ModulatorSamplerSound::getNormalizedPeak() const
