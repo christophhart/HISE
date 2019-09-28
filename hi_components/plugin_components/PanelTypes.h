@@ -210,6 +210,8 @@ public:
 	void periodicCheckCallback(ToggleButtonList* list) override;
 	void toggleButtonWasClicked(ToggleButtonList* /*list*/, int index, bool value) override;
 
+	ToggleButtonList* getList() { return midiInputList; };
+
 private:
 
 	ScopedPointer<Viewport> viewport;

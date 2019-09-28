@@ -211,6 +211,7 @@ void ModulatorSampler::setReversed(bool shouldBeReversed)
 
             s->reversed = shouldBeReversed;
 
+			ScopedLock sl(s->getIteratorLock());
             ModulatorSampler::SoundIterator sIter(s);
 
             while (auto sound = sIter.getNextSound())
@@ -1125,7 +1126,9 @@ void ModulatorSampler::updateRRGroupAmountAfterMapLoad()
 {
 	int maxGroup = 1;
 
+	
 	ModulatorSampler::SoundIterator sIter(this);
+	jassert(sIter.canIterate());
 
 	while (auto sound = sIter.getNextSound())
 	{
@@ -1171,6 +1174,7 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 	allNotesOff(1, true);
 
 	ModulatorSampler::SoundIterator sIter(this);
+	jassert(sIter.canIterate());
 
 	while (auto sound = sIter.getNextSound())
 		sound->setMaxRRGroupIndex(rrGroupAmount);
@@ -1179,9 +1183,8 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 
 bool ModulatorSampler::isNoteNumberMapped(int noteNumber) const
 {
-	LockHelpers::SafeLock ss(getMainController(), LockHelpers::SampleLock);
-
 	ModulatorSampler::SoundIterator sIter(this);
+	jassert(sIter.canIterate());
 
 	while (auto sound = sIter.getNextSound())
 	{
@@ -1204,6 +1207,7 @@ bool ModulatorSampler::preloadAllSamples()
 	const bool isReversed = getAttribute(ModulatorSampler::Reversed) > 0.5f;
 
 	ModulatorSampler::SoundIterator sIter(this);
+	jassert(sIter.canIterate());
 
 	const int numToLoad = jmax<int>(1, sounds.size() * getNumMicPositions());
 	int currentIndex = 0;

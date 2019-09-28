@@ -66,7 +66,9 @@ SampleMap::FileList SampleMap::createFileList()
 	}
 
 	{
+		ScopedLock sl(sampler->getIteratorLock());
 		ModulatorSampler::SoundIterator soundIter(sampler);
+		jassert(soundIter.canIterate());
 
 		while (auto sound = soundIter.getNextSound())
 		{

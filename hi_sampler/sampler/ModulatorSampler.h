@@ -121,6 +121,11 @@ public:
 			index = 0;
 		}
 
+		bool canIterate() const
+		{
+			return holdsLock;
+		}
+
 	private:
 
 		SharedPointer getSoundInternal()

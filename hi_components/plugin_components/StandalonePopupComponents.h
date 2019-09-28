@@ -76,7 +76,7 @@ public:
 
 private:
 
-	//ToolbarButtonLookAndFeel tblaf;
+	
 
 	BlackTextButtonLookAndFeel btblaf;
 
