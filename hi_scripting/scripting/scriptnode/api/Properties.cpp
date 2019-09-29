@@ -502,11 +502,11 @@ struct ExpressionPropertyComponent : public PropertyComponent
 
 						index = jlimit(0, numToUse - 1, index);
 
-						auto value = data[index];
+						auto va = data[index];
 
 						auto xPos = roundToInt(hoverPos.getX() * (float)getWidth());
 
-						auto yNormalised = (value - range.getStart()) / range.getLength();
+						auto yNormalised = (va - range.getStart()) / range.getLength();
 
 						auto yPos = roundToInt((1.0f - yNormalised) * (float)getHeight());
 
@@ -519,7 +519,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 
 						posText << String(hoverPos.getX(), 2);
 						posText << " | ";
-						posText << CppGen::Emitter::createPrettyNumber(value, false);
+						posText << CppGen::Emitter::createPrettyNumber(va, false);
 
 						auto f = GLOBAL_BOLD_FONT();
 						auto w = f.getStringWidthFloat(posText) + 10.0f;
@@ -588,9 +588,9 @@ struct ExpressionPropertyComponent : public PropertyComponent
 
 						for (int i = 0; i < numToUse; i++)
 						{
-							auto value = data[i];
+							auto va = data[i];
 
-							if (std::isnan(value) || std::isinf(value))
+							if (std::isnan(va) || std::isinf(va))
 							{
 								ok = false;
 								p = {};

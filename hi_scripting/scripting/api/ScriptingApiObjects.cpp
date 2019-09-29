@@ -3816,6 +3816,8 @@ int ScriptingObjects::ScriptedMidiPlayer::getNumSequences()
 {
 	if (auto pl = getPlayer())
 		return pl->getNumSequences();
+
+	return 0;
 }
 
 #define DECLARE_ID(x) static Identifier x(#x);
@@ -3884,6 +3886,8 @@ int ScriptingObjects::ScriptedMidiPlayer::getNumTracks()
 		if (auto seq = pl->getCurrentSequence())
 			return seq->getNumTracks();
 	}
+
+	return 0;
 }
 
 struct ScriptingObjects::ExpansionObject::Wrapper
@@ -3925,6 +3929,7 @@ var ScriptingObjects::ExpansionObject::getSampleMapList() const
 	}
 
 	reportScriptError("Expansion was deleted");
+	RETURN_IF_NO_THROW({});
 }
 
 var ScriptingObjects::ExpansionObject::getImageList() const
@@ -3944,6 +3949,7 @@ var ScriptingObjects::ExpansionObject::getImageList() const
 	}
 
 	reportScriptError("Expansion was deleted");
+	RETURN_IF_NO_THROW({});
 }
 
 var ScriptingObjects::ExpansionObject::getAudioFileList() const
@@ -3964,6 +3970,7 @@ var ScriptingObjects::ExpansionObject::getAudioFileList() const
 	}
 
 	reportScriptError("Expansion was deleted");
+	RETURN_IF_NO_THROW({});
 }
 
 var ScriptingObjects::ExpansionObject::getMidiFileList() const
@@ -3981,6 +3988,7 @@ var ScriptingObjects::ExpansionObject::getMidiFileList() const
 	}
 
 	reportScriptError("Expansion was deleted");
+	RETURN_IF_NO_THROW({});
 }
 
 var ScriptingObjects::ExpansionObject::loadDataFile(var relativePath)

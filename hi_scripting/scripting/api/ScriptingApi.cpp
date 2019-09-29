@@ -2736,7 +2736,10 @@ bool ScriptingApi::Sampler::clearSampleMap()
 	if (auto sm = s->getSampleMap())
 	{
 		sm->clear(sendNotificationAsync);
+		return true;
 	}
+
+	return false;
 }
 
 // ====================================================================================================== Synth functions

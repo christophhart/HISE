@@ -408,7 +408,7 @@ public:
 		
 		auto& sData = preview->renderer.getStyleData();
 
-		auto boldFontName = getPropertyWithDefault(obj, SpecialPanelIds::BoldFontName).toString();
+		boldFontName = getPropertyWithDefault(obj, SpecialPanelIds::BoldFontName).toString();
 
 		sData.f = getFont();
 		sData.fontSize = getFont().getHeight();

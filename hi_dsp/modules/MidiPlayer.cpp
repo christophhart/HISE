@@ -505,7 +505,7 @@ juce::RectangleList<float> HiseMidiSequence::getRectangleList(Rectangle<float> t
 }
 
 
-Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm, bool throwOnError)
+Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 {
 	Array<HiseEvent> newBuffer;
 	newBuffer.ensureStorageAllocated(getNumEvents());
@@ -514,11 +514,7 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm, b
 
 	auto samplePerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
 
-	int16 eventIds[128];
 	int16 currentEventId = 0;
-	memset(eventIds, -1, sizeof(uint16) * 128);
-
-	
 
 	if (auto mSeq = getReadPointer())
 	{
@@ -559,7 +555,7 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm, b
 		static int compareElements(const HiseEvent& first, const HiseEvent& second)
 		{
 			auto ft = first.getTimeStamp();
-			auto st = first.getTimeStamp();
+			auto st = second.getTimeStamp();
 
 			if (ft < st)
 				return -1;
@@ -569,92 +565,7 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm, b
 		}
 	} sorter;
 
-	
-
 	newBuffer.sort(sorter);
-
-
-#if 0
-	if (auto mSeq = getReadPointer())
-	{
-		for (const auto& ev : *mSeq)
-		{
-			auto m = ev->message;
-
-			if (m.getTimeStamp() >= getLength())
-			{
-				if (m.isNoteOn())
-					continue;
-				else
-				{
-					bool skipThisNoteOff = true;
-
-					for (const auto& no : *mSeq)
-					{
-						if (no->noteOffObject == ev)
-						{
-							if (no->message.getTimeStamp() < getLength())
-								skipThisNoteOff = false;
-
-							break;
-						}
-					}
-
-					if (skipThisNoteOff)
-						continue;
-				}
-			}
-			
-			auto tToUse = jmin(getLength() - 1, m.getTimeStamp());
-
-			auto timeStamp = (int)(samplePerQuarter * tToUse / (double)HiseMidiSequence::TicksPerQuarter);
-			HiseEvent newEvent(m);
-			newEvent.setTimeStamp(timeStamp);
-
-			auto number = newEvent.getNoteNumber();
-			jassert(isPositiveAndBelow(number, 128));
-
-			if (newEvent.isNoteOn())
-			{
-				if (eventIds[number] != -1)
-				{
-					if (throwOnError)
-						throw String("Overlapping notes found in sequence");
-					else
-					{
-						jassertfalse;
-						// Just ignore this event...
-						continue;
-					}
-				}
-
-				newEvent.setEventId((uint16)currentEventId);
-				eventIds[number] = currentEventId++;
-			}
-			if (newEvent.isNoteOff())
-			{
-				auto currentIdForNote = eventIds[number];
-
-				if (currentIdForNote == -1)
-				{
-					if (throwOnError)
-						throw String("Can't find note on for note " + newEvent.toDebugString());
-					else
-					{
-						jassertfalse;
-						// Just ignore this event...
-						continue;
-					}
-				}
-
-				newEvent.setEventId((uint16)currentIdForNote);
-				eventIds[number] = -1;
-			}
-			
-			newBuffer.add(newEvent);
-		}
-	}
-#endif
 
 	return newBuffer;
 }
@@ -1114,8 +1025,6 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 			currentRange = { positionInTicks, positionInTicks + tickThisTime };
 		else
 			currentRange = { positionInTicks, jmin<double>(lengthInTicks, positionInTicks + tickThisTime) };
-
-		MidiMessage* lastEvent = nullptr;
 
 		MidiMessage* eventsInThisCallback[16];
 		memset(eventsInThisCallback, 0, sizeof(MidiMessage*) * 16);

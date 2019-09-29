@@ -121,9 +121,7 @@ void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 				if (a->getTargetVariable()->isLocalConst)
 				{
-					String s = "Replace with " + Types::Helpers::getCppValueString(value);
-
-					compiler->logMessage(BaseCompiler::ProcessMessage, s);
+					compiler->logMessage(BaseCompiler::ProcessMessage, "Replace with " + Types::Helpers::getCppValueString(value));
 				}
 			}
 		}

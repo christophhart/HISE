@@ -234,10 +234,9 @@ public:
 
 	/** Returns a list of all events of the current track converted to HiseEvents. This is used by editing operations.
 	
-		If throw on error is true, then it will throw a String if it can't match a note on to a note-off in the sequence
-		(which will result in wrong event IDs.)
+		
 	*/
-	Array<HiseEvent> getEventList(double sampleRate, double bpm, bool throwOnError=false);
+	Array<HiseEvent> getEventList(double sampleRate, double bpm);
 
 	/** Swaps the current track with the given MidiMessageSequence. */
 	void swapCurrentSequence(MidiMessageSequence* sequenceToSwap);

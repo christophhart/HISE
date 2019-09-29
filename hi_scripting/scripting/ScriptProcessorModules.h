@@ -951,6 +951,8 @@ public:
 			return modChains[Extra1].getChain();
 		if (processorIndex == ModulatorSynth::numInternalChains + 1)
 			return modChains[Extra2].getChain();
+
+		return nullptr;
 	}
 
 	const Processor* getChildProcessor(int processorIndex) const override

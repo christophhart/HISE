@@ -981,6 +981,7 @@ void MarkdownPreview::Topbar::databaseWasRebuild()
 		WeakReference<MarkdownDatabaseHolder> h(&parent.getHolder());
 		Component::SafePointer<Component> tmp = this;
 
+#if USE_BACKEND
 		auto f = [h, tmp]()
 		{
 			if (h.get() != nullptr && tmp.getComponent() != nullptr)
@@ -991,8 +992,11 @@ void MarkdownPreview::Topbar::databaseWasRebuild()
 				n->setModalBaseWindowComponent(tmp.getComponent());
 			}
 		};
-
-		MessageManager::callAsync(f);
+        
+        MessageManager::callAsync(f);
+#endif
+        
+		
 
 	}
 }

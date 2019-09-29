@@ -38,8 +38,10 @@ using namespace juce;
 using namespace asmjit;
 
 
-struct BaseCompiler
+class BaseCompiler
 {
+public:
+
 	struct DeadCodeException
 	{
 		DeadCodeException(ParserHelpers::CodeLocation l) : location(l) {};
