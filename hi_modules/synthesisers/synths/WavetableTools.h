@@ -160,6 +160,8 @@ public:
 		return getLeftTree ? leftValueTree : rightValueTree;
 	}
 
+	void renderAllWavetablesFromSingleWavetables(double& progress);
+
 	void renderAllWavetablesFromHarmonicMaps(double& progress);
 
 	AudioSampleBuffer calculateWavetableBank(const HarmonicMap& map);
@@ -223,7 +225,7 @@ private:
 	Array<HarmonicMap> harmonicMaps;
 
 
-	void storeData(int noteNumber, float* data, ValueTree& treeToSave, int length);
+	void storeData(int noteNumber, float* data, ValueTree& treeToSave, int length, int numPartsToUse=-1);
 
 	
 

@@ -133,6 +133,13 @@ int WavetableConverter::getMidiNoteNumber(const String &midiNoteName)
 
 struct ResynthesisHelpers
 {
+	struct SimpleNoteConversionData
+	{
+		File sampleFile;
+		double rootRatio;
+		int noteNumber;
+		Range<int> veloRange;
+	};
 
 	static double getRootFrequencyInBuffer(const AudioSampleBuffer &buffer, double sampleRate, double estimatedFreq)
 	{
@@ -301,6 +308,111 @@ struct ResynthesisHelpers
 
 		return sampleNumber;
 	};
+
+	static AudioSampleBuffer loadAndResampleAudioFilesForVelocity(const Array<SimpleNoteConversionData>& data, double sampleRate)
+	{
+		AudioSampleBuffer output;
+
+		if (data.isEmpty())
+			return output;
+
+		auto noteNumber = data.getFirst().noteNumber;
+
+		auto totalSize = getWavetableLength(noteNumber, sampleRate) * data.size();
+
+		output.setSize(2, totalSize);
+		output.clear();
+
+		int index = 0;
+
+		for (auto s : data)
+		{
+			auto resampled = loadAndResampleAudioFile(s.sampleFile, noteNumber, sampleRate);
+
+			int numThisTime = resampled.getNumSamples();
+
+			output.copyFrom(0, index, resampled, 0, 0, numThisTime);
+
+			if(resampled.getNumChannels() == 2)
+				output.copyFrom(1, index, resampled, 1, 0, numThisTime);
+
+			index += numThisTime;
+		}
+
+		return output;
+	}
+
+	static void interpolateLinear(const AudioSampleBuffer& input, AudioSampleBuffer& output)
+	{
+		double delta = (double)(input.getNumSamples()) / (double)output.getNumSamples();
+
+		double uptime = 0.0;
+
+		auto inputSize = input.getNumSamples();
+
+		for (int i = 0; i < output.getNumSamples(); i++)
+		{
+			int first = (int)uptime;
+			int next = first + 1;
+			auto alpha = (float)fmod(uptime, 1.0);
+
+			auto firstSample = first >= inputSize ? 0.0f : input.getSample(0, first);
+			auto nextSample = next >= inputSize ? 0.0f : input.getSample(0, next);
+
+			auto v = Interpolator::interpolateLinear(firstSample, nextSample, alpha);
+
+			output.setSample(0, i, v);
+
+			uptime += delta;
+		}
+
+		
+		jassert(std::abs(uptime - (double)input.getNumSamples()) < 0.001);
+	}
+
+	static AudioSampleBuffer loadAndResampleAudioFile(const File& f, int noteNumber, double sampleRate)
+	{
+		AudioFormatManager afm;
+		afm.registerBasicFormats();
+
+		ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(f);
+
+		AudioSampleBuffer b;
+
+		if (reader != nullptr)
+		{
+			// You'll usually don't find longer wavetables than this....
+			jassert(reader->lengthInSamples < 8192);
+
+			b.setSize(reader->numChannels, reader->lengthInSamples);
+
+			reader->read(&b, 0, b.getNumSamples(), 0, true, true);
+			AudioSampleBuffer output;
+			int outputSize = getWavetableLength(noteNumber, sampleRate);
+
+			output.setSize(b.getNumChannels(), outputSize);
+			output.clear();
+
+			for (int i = 0; i < b.getNumChannels(); i++)
+			{
+				interpolateLinear(b, output);
+
+#if 0
+				LagrangeInterpolator interpolator;
+
+				
+
+				auto ratio = (double)b.getNumSamples() / (double)outputSize;
+				int numProcessed = interpolator.process(ratio, b.getReadPointer(i), output.getWritePointer(0), outputSize, b.getNumSamples(), 0);
+#endif
+		
+			}
+
+			return output;
+		}
+
+		return b;
+	}
 
 	static void createWavetableFromHarmonicSpectrum(const float* hmx, int numHarmonics, float* data, int noteNumber, double sampleRate = 48000.0)
 	{
@@ -587,6 +699,74 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 	return result;
 }
 
+
+void SampleMapToWavetableConverter::renderAllWavetablesFromSingleWavetables(double& progress)
+{
+	using Data = ResynthesisHelpers::SimpleNoteConversionData;
+
+	for (int i = 0; i < 128; i++)
+	{
+		Array<Data> conversionData;
+
+		for (auto s : sampleMap)
+		{
+			int loKey = s.getProperty(SampleIds::LoKey, -1);
+			int hiKey = s.getProperty(SampleIds::HiKey, -1);
+			int root = s.getProperty(SampleIds::Root, -1);
+
+			if (i >= loKey && i <= hiKey)
+			{
+				auto thisFreq = MidiMessage::getMidiNoteInHertz(i);
+				auto rootFreq = MidiMessage::getMidiNoteInHertz(root);
+
+				PoolReference r(chain->getMainController(), s.getProperty(SampleIds::FileName).toString(), FileHandlerBase::Samples);
+
+				Data data;
+				data.sampleFile = r.getFile();
+				data.rootRatio = thisFreq / rootFreq;
+				data.noteNumber = i;
+				data.veloRange.setStart((int)s.getProperty(SampleIds::LoVel, 0));
+				data.veloRange.setEnd((int)s.getProperty(SampleIds::HiVel, 127) + 1);
+
+				conversionData.insert(-1, data);
+			}
+		}
+
+		progress = (double)i / 128.0;
+
+		if (conversionData.isEmpty())
+			continue;
+
+		struct DataSorter
+		{
+			int compareElements(Data& first, Data& second)
+			{
+				if (first.veloRange.getStart() < second.veloRange.getStart())
+					return -1;
+
+				if (first.veloRange.getStart() > second.veloRange.getStart())
+					return 1;
+
+				return 0;
+			}
+		};
+
+		DataSorter sorter;
+
+		conversionData.sort(sorter);
+
+
+		auto output = ResynthesisHelpers::loadAndResampleAudioFilesForVelocity(conversionData, sampleRate);
+
+		storeData(i, output.getWritePointer(0), leftValueTree, output.getNumSamples(), conversionData.size());
+
+		if (output.getNumChannels() == 2)
+		{
+			storeData(i, output.getWritePointer(1), rightValueTree, output.getNumSamples(), conversionData.size());
+		}
+	}
+}
+
 void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps(double& progress)
 {
 	for (const auto& map : harmonicMaps)
@@ -609,7 +789,6 @@ void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps(double& 
 AudioSampleBuffer SampleMapToWavetableConverter::calculateWavetableBank(const HarmonicMap &map)
 {
 	AudioSampleBuffer bank(2, map.wavetableLength * numParts);
-
 
 	bank.clear();
 
@@ -806,30 +985,15 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 	return b;
 }
 
-void SampleMapToWavetableConverter::storeData(int noteNumber, float* data, ValueTree& treeToSave, int length)
+void SampleMapToWavetableConverter::storeData(int noteNumber, float* data, ValueTree& treeToSave, int length, int numPartsToUse)
 {
-#if 0
-
-	auto name = MidiMessage::getMidiNoteName(noteNumber, true, true, 3) + ".wav";
-
-	auto f = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples).getChildFile(name);
-
-	FileOutputStream* fos = new FileOutputStream(f);
-
-	WavAudioFormat waf;
-
-	ScopedPointer<AudioFormatWriter> writer = waf.createWriterFor(fos, sampleRate, AudioChannelSet::stereo(), 16, StringPairArray(), 5);
-
-	float* channels[1] = { data };
-
-	writer->writeFromFloatArrays(channels, 1, length);
-
-#else
-
 	ValueTree child = ValueTree("wavetable");
 
+	if (numPartsToUse == -1)
+		numPartsToUse = numParts;
+
 	child.setProperty("noteNumber", noteNumber, nullptr);
-	child.setProperty("amount", numParts, nullptr);
+	child.setProperty("amount", numPartsToUse, nullptr);
 	child.setProperty("sampleRate", sampleRate, nullptr);
 
 	MemoryBlock mb(length * sizeof(float));
@@ -841,8 +1005,6 @@ void SampleMapToWavetableConverter::storeData(int noteNumber, float* data, Value
 	child.setProperty("data", binaryData, nullptr);
 
 	treeToSave.addChild(child, -1, nullptr);
-
-#endif
 }
 
 int SampleMapToWavetableConverter::getSampleIndexForNoteNumber(int noteNumber)

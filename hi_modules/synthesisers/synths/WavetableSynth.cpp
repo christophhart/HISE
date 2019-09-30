@@ -132,26 +132,26 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 	{
 		while (--numSamples >= 0)
 		{
-			// Get the two indexes for the table position
-
 			int index = (int)voiceUptime;
 
 			const int i1 = index % (tableSize);
 
 			int i2 = i1 + 1;
 
+			auto numTables = currentSound->getWavetableAmount();
+
 			if (i2 >= tableSize)
 			{
 				const float tableModValue = tableValues[startSample];
-				currentTableIndex = roundToInt(tableModValue * 63);
+				currentTableIndex = roundToInt(tableModValue * (double)(numTables-1));
 				i2 = 0;
 			}
-
+			
 			const float tableModValue = tableValues[startSample];
-			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * 63.0f;
+			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * (double)(numTables -1);
 
 			const int lowerTableIndex = (int)(tableValue);
-			const int upperTableIndex = jmin(63, lowerTableIndex + 1);
+			const int upperTableIndex = jmin(numTables-1, lowerTableIndex + 1);
 			const float tableDelta = tableValue - (float)lowerTableIndex;
 			jassert(0.0f <= tableDelta && tableDelta <= 1.0f);
 
@@ -196,31 +196,50 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 	else
 	{
 		const float tableModValue = static_cast<WavetableSynth*>(getOwnerSynth())->getConstantTableModValue();
-		currentTableIndex = roundToInt(tableModValue * 63);
-		lowerTable = currentSound->getWaveTableData(currentTableIndex);
-		float tableGainValue = currentSound->getUnnormalizedGainValue(currentTableIndex);
 
 		while (--numSamples >= 0)
 		{
-			// Get the two indexes for the table position
-
 			int index = (int)voiceUptime;
 
 			const int i1 = index % (tableSize);
 
 			int i2 = i1 + 1;
 
+			auto numTables = currentSound->getWavetableAmount();
+
 			if (i2 >= tableSize)
 			{
 				i2 = 0;
 			}
 
+			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * (double)(numTables - 1);
+
+			const int lowerTableIndex = (int)(tableValue);
+			const int upperTableIndex = jmin(numTables - 1, lowerTableIndex + 1);
+			const float tableDelta = tableValue - (float)lowerTableIndex;
+			jassert(0.0f <= tableDelta && tableDelta <= 1.0f);
+
+			lowerTable = currentSound->getWaveTableData(lowerTableIndex);
+			upperTable = currentSound->getWaveTableData(upperTableIndex);
+
+			float tableGainValue = tableGainInterpolator.interpolateLinear(currentSound->getUnnormalizedGainValue(lowerTableIndex), currentSound->getUnnormalizedGainValue(upperTableIndex), tableDelta);
+
+			tableGainValue *= getGainValue(tableModValue);
+
 			float u1 = upperTable[i1];
 			float u2 = upperTable[i2];
 
-			const float alpha = float(voiceUptime) - (float)index;
+			float l1 = lowerTable[i1];
+			float l2 = lowerTable[i2];
 
-			float sample = tableGainInterpolator.interpolateLinear(u1, u2, alpha);
+			const float alpha = float(voiceUptime) - (float)index;
+			//const float invAlpha = 1.0f - alpha;
+
+			const float upperSample = tableGainInterpolator.interpolateLinear(u1, u2, alpha);
+
+			const float lowerSample = tableGainInterpolator.interpolateLinear(l1, l2, alpha);
+
+			float sample = lowerTableIndex != upperTableIndex ? tableGainInterpolator.interpolateLinear(lowerSample, upperSample, tableDelta) : lowerSample;
 
 			sample *= tableGainValue;
 
@@ -234,6 +253,7 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 			const double delta = (uptimeDelta * (voicePitchValues == nullptr ? 1.0 : voicePitchValues[startSample]));
 
 			voiceUptime += delta;
+
 			++startSample;
 		}
 	}
@@ -268,6 +288,30 @@ int WavetableSynthVoice::getSmoothSize() const
 }
 
 
+
+void WavetableSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, SynthesiserSound* s, int /*currentPitchWheelPosition*/)
+{
+	ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
+
+	midiNoteNumber += getTransposeAmount();
+	currentSound = static_cast<WavetableSound*>(s);
+	voiceUptime = 0.0;
+
+	lowerTable = currentSound->getWaveTableData(0);
+	upperTable = lowerTable;
+
+	nextTable = lowerTable;
+	nextGainValue = getGainValue(0.0);
+	nextTableIndex = 0;
+	currentTableIndex = 0;
+
+	static_cast<WavetableSynth*>(getOwnerSynth())->lastGainIndex = -1;
+
+	tableSize = currentSound->getTableSize();
+	smoothSize = tableSize;
+	uptimeDelta = currentSound->getPitchRatio();
+	uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
+}
 
 WavetableSound::WavetableSound(const ValueTree &wavetableData)
 {

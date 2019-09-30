@@ -433,8 +433,12 @@ void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 			c = Colours::white;
 
 		g.setColour(c.withAlpha(0.6f));
-		g.drawRect(s.area, 1);
-		g.fillRect(s.area);
+
+		if (s.area.getHeight() > 0)
+		{
+			g.drawRect(s.area, 1);
+			g.fillRect(s.area);
+		}
 	}
 }
 

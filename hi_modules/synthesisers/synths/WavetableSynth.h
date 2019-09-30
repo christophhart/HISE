@@ -72,6 +72,11 @@ public:
 		return unnormalizedMaximum;
 	}
 
+	int getWavetableAmount() const
+	{
+		return wavetableAmount;
+	}
+
 	int getTableSize() const
 	{
 		return wavetableSize;
@@ -134,27 +139,7 @@ public:
 
 	int getSmoothSize() const;
 
-	void startNote (int midiNoteNumber, float /*velocity*/, SynthesiserSound* s, int /*currentPitchWheelPosition*/) override
-	{
-		ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
-
-		midiNoteNumber += getTransposeAmount();
-		currentSound = static_cast<WavetableSound*>(s);
-        voiceUptime = 0.0;
-        
-		lowerTable = currentSound->getWaveTableData(0);
-		upperTable = lowerTable;
-
-		nextTable = lowerTable;
-		nextGainValue = getGainValue(0.0);
-		nextTableIndex = 0;
-		currentTableIndex = 0;
-
-		tableSize = currentSound->getTableSize();
-		smoothSize = tableSize;
-		uptimeDelta = currentSound->getPitchRatio();
-        uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
-    };
+	void startNote (int midiNoteNumber, float /*velocity*/, SynthesiserSound* s, int /*currentPitchWheelPosition*/) override;;
 
 	const float *getTableModulationValues();
 
@@ -293,12 +278,17 @@ public:
 
 	float getGainValueFromTable(float level)
 	{
-		int index = roundToInt((float)pack->getNumSliders() * level);
-		index = jlimit<int>(0, 127, index);
+		int index = roundToInt(128 * level);
+		index = jlimit<int>(0, 127, roundToInt(128.0 * index));
 
-		pack->setDisplayedIndex(index);
+		if (lastGainIndex != index)
+		{
+			lastGainIndex = index;
+			pack->setDisplayedIndex(index);
+			lastGainValue = pack->getValue(index);
+		}
 
-		return pack->getValue(index);
+		return lastGainValue;
 	}
 
 	
@@ -456,6 +446,9 @@ public:
 
 		return sa;
 	}
+
+	int lastGainIndex = -1;
+	float lastGainValue = 1.0f;
 
 	void loadWavetableFromIndex(int index)
 	{
