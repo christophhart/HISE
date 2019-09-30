@@ -36,26 +36,7 @@
 namespace hise {
 using namespace juce;
 
-/** A simple, non reentrant lock with read-write access. */
-struct SimpleReadWriteLock
-{
-	struct ScopedReadLock
-	{
-		ScopedReadLock(SimpleReadWriteLock &lock_);
-		~ScopedReadLock();
-		SimpleReadWriteLock& lock;
-	};
 
-	struct ScopedWriteLock
-	{
-		ScopedWriteLock(SimpleReadWriteLock &lock_);
-		~ScopedWriteLock();
-		SimpleReadWriteLock& lock;
-	};
-
-	std::atomic<int> numReadLocks{ 0 };
-	bool isBeingWritten = false;
-};
 
 /** A wrapper around a MIDI file. 
 

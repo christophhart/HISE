@@ -64,7 +64,7 @@ int SliderPackData::getNumSliders() const { return values.size(); };
 
 void SliderPackData::setValue(int sliderIndex, float value, NotificationType notifySliderPack/*=dontSendNotification*/, bool useUndoManager)
 {
-	ScopedReadLock sl(arrayLock);
+	SimpleReadWriteLock::ScopedWriteLock sl(arrayLock, true);
 
 	if (sliderIndex >= 0 && sliderIndex < getNumSliders())
 	{
@@ -85,7 +85,7 @@ void SliderPackData::setValue(int sliderIndex, float value, NotificationType not
 
 float SliderPackData::getValue(int index) const
 {
-	ScopedReadLock sl(arrayLock);
+	SimpleReadWriteLock::ScopedReadLock sl(arrayLock, true);
 
 	if (index >= 0 && index < getNumSliders())
 	{
@@ -98,8 +98,6 @@ float SliderPackData::getValue(int index) const
 
 void SliderPackData::setFromFloatArray(const Array<float> &valueArray)
 {
-	ScopedReadLock sl(arrayLock);
-
 	for (int i = 0; i < valueArray.size(); i++)
 	{
 		if (i < getNumSliders())
@@ -115,6 +113,8 @@ void SliderPackData::setFromFloatArray(const Array<float> &valueArray)
 
 void SliderPackData::writeToFloatArray(Array<float> &valueArray) const
 {
+	SimpleReadWriteLock::ScopedReadLock sl(arrayLock);
+
 	valueArray.ensureStorageAllocated(getNumSliders());
 
 	for (int i = 0; i < getNumSliders(); i++)
@@ -127,14 +127,16 @@ void SliderPackData::writeToFloatArray(Array<float> &valueArray) const
 String SliderPackData::toBase64() const
 {
 	Array<float> copyData;
+	copyData.ensureStorageAllocated(getNumSliders());
 
-	for (int i = 0; i < getNumSliders(); i++)
 	{
-		copyData.add(values[i]);
+		SimpleReadWriteLock::ScopedReadLock sl(arrayLock, true);
+
+		for (int i = 0; i < getNumSliders(); i++)
+			copyData.add(values[i]);
 	}
 
 	MemoryBlock mb = MemoryBlock(copyData.getRawDataPointer(), values.size() * sizeof(float));
-
 	return mb.toBase64Encoding();
 }
 
@@ -150,14 +152,12 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 	var newArray = Array<var>();
 
-	
-
 	for (int i = 0; i < newData.size(); i++)
 	{
 		newArray.append(newData[i]);
 	}
 
-	ScopedWriteLock sl(arrayLock);
+	SimpleReadWriteLock::ScopedWriteLock sl(arrayLock);
 	values.swapWith(newArray);
 
 }
@@ -183,12 +183,12 @@ void SliderPackData::setNumSliders(int numSliders)
 
 	if(auto ar = values.getArray())
 	{
-		ScopedWriteLock sl(arrayLock);
+		SimpleReadWriteLock::ScopedWriteLock sl(arrayLock);
 		ar->swapWith(newValues);
 	}
 	else
 	{
-		ScopedWriteLock sl(arrayLock);
+		SimpleReadWriteLock::ScopedWriteLock sl(arrayLock);
 		values = var(newValues);
 	}
 

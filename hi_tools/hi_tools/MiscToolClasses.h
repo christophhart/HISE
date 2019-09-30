@@ -570,6 +570,27 @@ private:
     std::atomic<bool> currentlyWriting { false };
 };
 
+/** A simple, non reentrant lock with read-write access. */
+struct SimpleReadWriteLock
+{
+	struct ScopedReadLock
+	{
+		ScopedReadLock(SimpleReadWriteLock &lock_, bool busyWait = false);
+		~ScopedReadLock();
+		SimpleReadWriteLock& lock;
+	};
+
+	struct ScopedWriteLock
+	{
+		ScopedWriteLock(SimpleReadWriteLock &lock_, bool busyWait = false);
+		~ScopedWriteLock();
+		SimpleReadWriteLock& lock;
+	};
+
+	std::atomic<int> numReadLocks{ 0 };
+	bool isBeingWritten = false;
+};
+
 /** This is a non allocating alternative to the AsyncUpdater.
 *	@ingroup event_handling
 *

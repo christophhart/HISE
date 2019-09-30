@@ -68,49 +68,6 @@ struct MidiPlayerHelpers
 
 
 
-SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleReadWriteLock &lock_) :
-	lock(lock_)
-{
-	for (int i = 20; --i >= 0;)
-		if (!lock.isBeingWritten)
-			break;
-
-	while (lock.isBeingWritten)
-		Thread::yield();
-
-	lock.numReadLocks++;
-}
-
-SimpleReadWriteLock::ScopedReadLock::~ScopedReadLock()
-{
-	lock.numReadLocks--;
-}
-
-SimpleReadWriteLock::ScopedWriteLock::ScopedWriteLock(SimpleReadWriteLock &lock_) :
-	lock(lock_)
-{
-	if (lock.isBeingWritten)
-	{
-		// jassertfalse;
-		return;
-	}
-
-	for (int i = 100; --i >= 0;)
-		if (lock.numReadLocks == 0)
-			break;
-
-	while (lock.numReadLocks > 0)
-		Thread::yield();
-
-	lock.isBeingWritten = true;
-}
-
-SimpleReadWriteLock::ScopedWriteLock::~ScopedWriteLock()
-{
-	lock.isBeingWritten = false;
-}
-
-
 HiseMidiSequence::HiseMidiSequence()
 {
 

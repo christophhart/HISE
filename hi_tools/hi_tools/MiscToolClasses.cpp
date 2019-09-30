@@ -445,6 +445,58 @@ ScopedNoDenormals::~ScopedNoDenormals()
 }
 
 
+
+SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleReadWriteLock &lock_, bool busyWait) :
+	lock(lock_)
+{
+	for (int i = 20; --i >= 0;)
+		if (!lock.isBeingWritten)
+			break;
+
+	while (lock.isBeingWritten)
+	{
+		if(!busyWait)
+			Thread::yield();
+	}
+
+	lock.numReadLocks++;
+}
+
+SimpleReadWriteLock::ScopedReadLock::~ScopedReadLock()
+{
+	lock.numReadLocks--;
+}
+
+SimpleReadWriteLock::ScopedWriteLock::ScopedWriteLock(SimpleReadWriteLock &lock_, bool busyWait) :
+	lock(lock_)
+{
+	if (lock.isBeingWritten)
+	{
+		// oops, breaking the one-writer rule here...
+		jassertfalse;
+		return;
+	}
+
+	for (int i = 100; --i >= 0;)
+		if (lock.numReadLocks == 0)
+			break;
+
+	while (lock.numReadLocks > 0)
+	{
+		if(!busyWait)
+			Thread::yield();
+	}
+
+	lock.isBeingWritten = true;
+}
+
+SimpleReadWriteLock::ScopedWriteLock::~ScopedWriteLock()
+{
+	lock.isBeingWritten = false;
+}
+
+
+
 LockfreeAsyncUpdater::~LockfreeAsyncUpdater()
 {
 	cancelPendingUpdate();

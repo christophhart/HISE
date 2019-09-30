@@ -79,7 +79,8 @@ public:
 	void swapData(Array<var> &otherData)
 	{
 		{
-			ScopedWriteLock sl(arrayLock);
+			SimpleReadWriteLock::ScopedWriteLock sl(arrayLock);
+
 			values = var(otherData);
 		}
 		
@@ -169,8 +170,7 @@ private:
 	};
 
 	
-
-	ReadWriteLock arrayLock;
+	mutable SimpleReadWriteLock arrayLock;
 
 	UndoManager* undoManager;
 
