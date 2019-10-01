@@ -451,7 +451,9 @@ struct ResynthesisHelpers
 
 		AudioSampleBuffer three(numChannels, threeCycles);
 
-		os->processSamplesDown(dsp::AudioBlock<float>(three));
+		dsp::AudioBlock<float> b(three);
+
+		os->processSamplesDown();
 
 		AudioSampleBuffer one(numChannels, oneCycleLength);
 		
