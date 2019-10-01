@@ -68,12 +68,11 @@
 
 *******************************************************************************/
 
-#ifndef __STK_STKHEADER__
-#define __STK_STKHEADER__
+#pragma once
 
 #include "../hi_scripting/hi_scripting.h"
 
-
+#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 
 #if JUCE_LITTLE_ENDIAN && ! defined (__LITTLE_ENDIAN__)
 #define __LITTLE_ENDIAN__
@@ -192,4 +191,4 @@
 #include "hise_wrapper/stk_effect_wrapper.h"
 #include "hise_wrapper/stk_instrument_wrapper.h"
 
-#endif   // __STK_STKHEADER__
+#endif

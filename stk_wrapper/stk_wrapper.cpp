@@ -44,17 +44,10 @@
   ==============================================================================
 */
 
-#ifdef __STK_STKHEADER__
- /* When you add this cpp file to your project, you mustn't include it in a file where you've
-    already included any other headers - just put it inside a file on its own, possibly with your config
-    flags preceding it, but don't include anything else. That also includes avoiding any automatic prefix
-    header files that the compiler may be using.
- */
- #error "Incorrect use of JUCE cpp file"
-#endif
 
 #include "stk_wrapper.h"
 
+#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 
 // stops a warning with clang
 #ifdef __clang__
@@ -160,3 +153,5 @@
 #include "hise_wrapper/stk_effect_wrapper.cpp"
 #include "hise_wrapper/stk_instrument_wrapper.cpp"
 #include "hise_wrapper/stk_factory.cpp"
+
+#endif

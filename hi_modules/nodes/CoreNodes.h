@@ -36,7 +36,7 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
-
+#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 namespace container
 {
 
@@ -53,6 +53,7 @@ template <typename... Ts> using oversample16x = wrap::oversample<16, container::
 template <typename... Ts> using modchain = wrap::control_rate<chain<Ts...>>;
 
 }
+#endif
 
 namespace core
 {

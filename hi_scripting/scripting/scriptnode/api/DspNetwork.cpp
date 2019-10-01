@@ -58,14 +58,20 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new routing::Factory(this));
 	ownedFactories.add(new analyse::Factory(this));
 	ownedFactories.add(new fx::Factory(this));
-	ownedFactories.add(new filters::Factory(this));
+	
 	ownedFactories.add(new dynamics::Factory(this));
+
+#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+	ownedFactories.add(new filters::Factory(this));
 	ownedFactories.add(new stk::StkFactory(this));
+#endif
 
 	for (auto nf : ownedFactories)
 		nodeFactories.add(nf);
 
+#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 	nodeFactories.add(meta::Factory::getInstance(this));
+#endif
 
 #if HI_ENABLE_CUSTOM_NODE_LOCATION
 	nodeFactories.add(custom::Factory::getInstance(this));

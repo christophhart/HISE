@@ -50,6 +50,17 @@ END_JUCE_MODULE_DECLARATION
 
 #pragma once
 
+/** Config: INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+
+If this is true, then it will include the bigger multi-template objects in scriptnode in the
+compilation process. This will obviously slow down the compilation, so if you're in a tight
+compile / debug cycle and don't need all nodes in scriptnode you might want to turn this off during development.
+*/
+#ifndef INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 1
+#endif
+
+
 #define INCLUDE_TCC 0
 
 #define MAX_SCRIPT_HEIGHT 700
@@ -98,10 +109,13 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/scriptnode/api/Base.h"
 #include "scripting/scriptnode/api/Bypass.h"
 
+#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 #include "scripting/scriptnode/api/Containers.h"
 #include "scripting/scriptnode/api/Container_Chain.h"
 #include "scripting/scriptnode/api/Container_Split.h"
 #include "scripting/scriptnode/api/Container_Multi.h"
+#endif
+
 #include "scripting/scriptnode/api/Processors.h"
 
 #include "scripting/scriptnode/api/ModulationSourceNode.h"

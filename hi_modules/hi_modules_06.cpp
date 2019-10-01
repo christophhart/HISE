@@ -2,6 +2,8 @@
 
 #include "JuceHeader.h"
 
+#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
+
 #if USE_BACKEND
 #include "nodes/MetaNodes.h"
 #endif
@@ -32,5 +34,7 @@ DEFINE_FACTORY_FOR_NAMESPACE
 #endif
 
 }
+
+#endif
 
 #endif

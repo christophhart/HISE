@@ -40,12 +40,6 @@ using namespace hise;
 namespace container
 {
 
-template <int T> struct IsZero
-{
-	static constexpr bool value = T == 0;
-};
-
-
 template <typename... Processors> struct container_base
 {
 	template <std::size_t ...Ns>
@@ -109,35 +103,7 @@ template <typename... Processors> struct container_base
 };
 
 
-#if 0
-
-namespace impl { 
-
-template <int arg>
-struct AccessHelper
-{
-	template <typename ProcessorType>
-	static auto& get(ProcessorType& a) noexcept { return AccessHelper<arg - 1>::get(a.processors); }
-
-	template <typename ProcessorType>
-	static const auto& get(const ProcessorType& a) noexcept { return AccessHelper<arg - 1>::get(a.processors); }
-};
-
-template <>
-struct AccessHelper<0>
-{
-	template <typename ProcessorType>
-	static auto& get(ProcessorType& a) noexcept { return a.getProcessor(); }
-
-	template <typename ProcessorType>
-	static const auto& get(const ProcessorType& a) noexcept { return a.getProcessor(); }
-};
-
-}
-
-#endif
-
-
 }
 
 }
+
