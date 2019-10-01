@@ -50,21 +50,21 @@ ML("- Gain table of each analysed sample")
 END_MARKDOWN()
 
 START_MARKDOWN(ReverseWavetables)
-ML("# Reverse Wavetable order")
-ML("If this is enabled, it will store the wavetables in reversed order.  ")
+ML("## Reverse Wavetable order")
+ML("Only used in FFT Resynthesis mode. If this is enabled, it will store the wavetables in reversed order.  ")
 ML("This is useful if you have decaying samples and want to use the table index to modulate the decay process")
 END_MARKDOWN()
 
 START_MARKDOWN(WindowType)
-ML("# FFT Window Type")
-ML("This changes the window function that is applied to the signal before the FFT.  ")
+ML("## FFT Window Type")
+ML("Only used in FFT Resynthesis mode. This changes the window function that is applied to the signal before the FFT.  ")
 ML("The selection of the right window function has a drastic impact on the resulting accuracy and varies between different signal types. ")
 ML("Try out different window types and compare the results.");
 END_MARKDOWN()
 
 START_MARKDOWN(WindowSize)
-ML("# FFT Window Size")
-ML("Changes the size of the chunk that is used for the FFT.  ")
+ML("## FFT Window Size")
+ML("Only used in FFT Resynthesis mode. Changes the size of the chunk that is used for the FFT.  ")
 ML("Generally, lower values yield more accurate results (and sizes above 2048 tend to smear the wavetables because their range start to overlap).  ");
 ML("However lower frequencies can't be detected with small FFT sizes so it might not work.    ")
 ML("> The recommended approach is to choose the **lowest possible FFT size** that still creates a reasonable harmonic spectrum.");
@@ -575,10 +575,16 @@ private:
 };
 
 class WavetableConverterDialog : public DialogWindowWithBackgroundThread,
-								 public ComboBoxListener,
-								 public FilenameComponentListener
+								 public ComboBoxListener
 	
 {
+	enum Mode
+	{
+		FFTResynthesis,
+		Resample,
+		numModes
+	};
+
 	enum ButtonIds
 	{
 		Next = 5,
@@ -598,18 +604,12 @@ public:
 		r(Result::ok())
 	{
 		
-		sampleMapFile = new FilenameComponent("SampleMap", GET_PROJECT_HANDLER(chain).getWorkDirectory(), true, false, false, "*.xml", "", "Load Wavetable Conversion File");
-		sampleMapFile->addListener(this);
+		auto list = chain->getMainController()->getActiveFileHandler()->pool->getSampleMapPool().getIdList();
+
+		addComboBox("samplemap", list, "Samplemap");
+		getComboBoxComponent("samplemap")->addListener(this);
 		
-		fileHandling = new AdditionalRow(this);
-		fileHandling->addCustomComponent(sampleMapFile, "Wavetable File");
-
-		fileHandling->setInfoTextForLastComponent(WavetableHelp::FileBrowserDescription());
-
 		
-		fileHandling->setSize(512, 24+16);
-
-		addCustomComponent(fileHandling);
 
 		StringArray windows;
 		windows.add("Flat Top");
@@ -641,12 +641,13 @@ public:
 		selectors = new AdditionalRow(this);
 
 
-
+		selectors->addComboBox("mode", { "FFT Resynthesis", "Resample Wavetables" }, "Mode", 130);
 		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", 90);
 		selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
-		selectors->addComboBox("WindowType", windows, "FFT Window Type" );
+		selectors->addComboBox("WindowType", windows, "FFT Window Type", 120);
+		
 		selectors->setInfoTextForLastComponent(WavetableHelp::WindowType());
-		selectors->addComboBox("FFTSize", sizes, "FFT Size", 90);
+		selectors->addComboBox("FFTSize", sizes, "FFT Size");
 		selectors->setInfoTextForLastComponent(WavetableHelp::WindowSize());
 
 		selectors->setSize(512, 40);
@@ -709,25 +710,9 @@ public:
 
 	~WavetableConverterDialog()
 	{
-		sampleMapFile->removeListener(this);
-		sampleMapFile = nullptr;
 		fileHandling = nullptr;
 		preview = nullptr;
 		converter = nullptr;
-	}
-
-	void filenameComponentChanged(FilenameComponent* /*fileComponentThatHasChanged*/) override
-	{
-		currentFile = sampleMapFile->getCurrentFile();
-
-		if (currentFile.existsAsFile())
-		{
-			
-		}
-
-		converter->parseSampleMap(sampleMapFile->getCurrentFile());
-		converter->refreshCurrentWavetable(getProgressCounter());
-		refreshPreview();
 	}
 
 	void resultButtonClicked(const String &name)
@@ -785,6 +770,25 @@ public:
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
 	{
+		if (getComboBoxComponent("samplemap") == comboBoxThatHasChanged)
+		{
+			auto& spool = chain->getMainController()->getActiveFileHandler()->pool->getSampleMapPool();
+
+			PoolReference ref(chain->getMainController(), comboBoxThatHasChanged->getText(), FileHandlerBase::SampleMaps);
+
+			currentlyLoadedMap = ref.getFile().getFileNameWithoutExtension();
+
+			if (auto vData = spool.loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
+			{
+				converter->parseSampleMap(*vData.getData());
+				converter->refreshCurrentWavetable(getProgressCounter());
+				refreshPreview();
+			}
+		}
+		if (comboBoxThatHasChanged->getName() == "mode")
+		{
+			currentMode = (Mode)comboBoxThatHasChanged->getSelectedItemIndex();
+		}
 		if (comboBoxThatHasChanged->getName() == "WindowType")
 		{
 			converter->windowType = (SampleMapToWavetableConverter::WindowType)comboBoxThatHasChanged->getSelectedItemIndex();
@@ -811,7 +815,10 @@ public:
 
 	void run() override
 	{
-		converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
+		if (currentMode == FFTResynthesis)
+			converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
+		else
+			converter->renderAllWavetablesFromSingleWavetables(getProgressCounter());
 
 		if (threadShouldExit())
 			return;
@@ -819,8 +826,8 @@ public:
 		auto leftTree = converter->getValueTree(true);
 		auto rightTree = converter->getValueTree(false);
 
-		auto fileL = sampleMapFile->getCurrentFile().getFileName() + "_Left.hwt";
-		auto fileR = sampleMapFile->getCurrentFile().getFileName() + "_Right.hwt";
+		auto fileL = currentlyLoadedMap + "_Left.hwt";
+		auto fileR = currentlyLoadedMap + "_Right.hwt";
 
 		auto tfl = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileL);
 		auto tfr = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileR);
@@ -849,15 +856,13 @@ public:
 	ScopedPointer<SliderPackData> gainPackData;
 	ModulatorSynthChain* chain;
 	
+	Mode currentMode = FFTResynthesis;
 	ScopedPointer<AdditionalRow> fileHandling;
-
 	ScopedPointer<AdditionalRow> selectors;
-
 	ScopedPointer<AdditionalRow> additionalButtons;
-
-	Component::SafePointer<FilenameComponent> sampleMapFile;
-
 	ScopedPointer<SampleMapToWavetableConverter> converter;
+
+	String currentlyLoadedMap;
 
 	File currentFile;
 

@@ -342,6 +342,55 @@ struct ResynthesisHelpers
 		return output;
 	}
 
+    static float cubic(const float x,const float L1,const float L0,const
+                             float H0,const float H1)
+    {
+        return
+        L0 +
+        .5f*
+        x*(H0-L1 +
+           x*(H0 + L0*(-2) + L1 +
+              x*( (H0 - L0)*9 + (L1 - H1)*3 +
+                 x*((L0 - H0)*15 + (H1 -  L1)*5 +
+                    x*((H0 - L0)*6 + (L1 - H1)*2 )))));
+    }
+    
+
+    static void interpolateCubic(const dsp::AudioBlock<float>& input, dsp::AudioBlock<float>& output)
+    {
+        double delta = (double)(input.getNumSamples()) / (double)output.getNumSamples();
+        
+        double uptime = 0.0;
+        
+        auto inputSize = input.getNumSamples();
+        
+        for (int i = 0; i < output.getNumSamples(); i++)
+        {
+            int l0i = (int)uptime;
+            int h0i = (l0i + 1) % inputSize;
+            int h1i = (h0i + 1) % inputSize;
+            int l1i = (l0i - 1);
+            if(l1i < 0)
+                l1i += inputSize;
+            
+            auto alpha = (float)fmod(uptime, 1.0);
+            
+            auto l1 = input.getSample(0, l1i);
+            auto l0 = input.getSample(0, l0i);
+            auto h0 = input.getSample(0, h0i);
+            auto h1 = input.getSample(0, h1i);
+            
+            auto v = cubic(alpha, l1, l0, h0, h1);
+            
+            output.setSample(0, i, v);
+            
+            uptime += delta;
+        }
+        
+        
+        jassert(std::abs(uptime - (double)input.getNumSamples()) < 0.001);
+    }
+    
 	static void interpolateLinear(const AudioSampleBuffer& input, AudioSampleBuffer& output)
 	{
 		double delta = (double)(input.getNumSamples()) / (double)output.getNumSamples();
@@ -353,11 +402,11 @@ struct ResynthesisHelpers
 		for (int i = 0; i < output.getNumSamples(); i++)
 		{
 			int first = (int)uptime;
-			int next = first + 1;
+			int next = (first + 1) % input.getNumSamples();
 			auto alpha = (float)fmod(uptime, 1.0);
 
-			auto firstSample = first >= inputSize ? 0.0f : input.getSample(0, first);
-			auto nextSample = next >= inputSize ? 0.0f : input.getSample(0, next);
+			auto firstSample = input.getSample(0, first);
+			auto nextSample = input.getSample(0, next);
 
 			auto v = Interpolator::interpolateLinear(firstSample, nextSample, alpha);
 
@@ -368,6 +417,50 @@ struct ResynthesisHelpers
 
 		
 		jassert(std::abs(uptime - (double)input.getNumSamples()) < 0.001);
+	}
+
+	using Oversampler = juce::dsp::Oversampling<float>;
+
+	Oversampler* createOversampler(int cycleLength)
+	{
+		auto os = new Oversampler(cycleLength * 3, (int)std::log2(32), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+
+		os->initProcessing(cycleLength * 3);
+		
+		return os;
+	}
+
+	static dsp::AudioBlock<float> extendAndUpsample(Oversampler* os, const AudioSampleBuffer& oneCycle)
+	{
+		auto oneSize = oneCycle.getNumSamples();
+
+		AudioSampleBuffer three(oneCycle.getNumChannels(), oneSize * 3);
+
+		three.copyFrom(0, oneSize * 0, oneCycle, 0, 0, oneSize);
+		three.copyFrom(0, oneSize * 1, oneCycle, 0, 0, oneSize);
+		three.copyFrom(0, oneSize * 2, oneCycle, 0, 0, oneSize);
+
+		os->reset();
+
+		return os->processSamplesUp(dsp::AudioBlock<float>(three));
+	}
+
+	static AudioSampleBuffer downsampleAndChop(Oversampler* os, int numChannels, int oneCycleLength)
+	{
+		int threeCycles = oneCycleLength * 3;
+
+		AudioSampleBuffer three(numChannels, threeCycles);
+
+		os->processSamplesDown(dsp::AudioBlock<float>(three));
+
+		AudioSampleBuffer one(numChannels, oneCycleLength);
+		
+		one.copyFrom(0, 0, three, 0, oneCycleLength, oneCycleLength);
+
+		if(numChannels == 2)
+			one.copyFrom(1, 0, three, 1, oneCycleLength, oneCycleLength);
+
+		return one;
 	}
 
 	static AudioSampleBuffer loadAndResampleAudioFile(const File& f, int noteNumber, double sampleRate)
@@ -393,9 +486,11 @@ struct ResynthesisHelpers
 			output.setSize(b.getNumChannels(), outputSize);
 			output.clear();
 
+			ScopedPointer<Oversampler> os = createOversampler(outputSize);
+
 			for (int i = 0; i < b.getNumChannels(); i++)
 			{
-				interpolateLinear(b, output);
+				interpolateCubic(b, output);
 
 #if 0
 				LagrangeInterpolator interpolator;
