@@ -580,8 +580,8 @@ class WavetableConverterDialog : public DialogWindowWithBackgroundThread,
 {
 	enum Mode
 	{
-		FFTResynthesis,
 		Resample,
+		FFTResynthesis,
 		numModes
 	};
 
@@ -641,7 +641,7 @@ public:
 		selectors = new AdditionalRow(this);
 
 
-		selectors->addComboBox("mode", { "FFT Resynthesis", "Resample Wavetables" }, "Mode", 130);
+		selectors->addComboBox("mode", { "Resample Wavetables", "FFT Resynthesis"}, "Mode", 130);
 		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", 90);
 		selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
 		selectors->addComboBox("WindowType", windows, "FFT Window Type", 120);
@@ -781,13 +781,26 @@ public:
 			if (auto vData = spool.loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
 			{
 				converter->parseSampleMap(*vData.getData());
-				converter->refreshCurrentWavetable(getProgressCounter());
-				refreshPreview();
+
+				if (currentMode == FFTResynthesis)
+				{
+					converter->refreshCurrentWavetable(getProgressCounter());
+					
+				}
+
+				refreshPreview(); 
 			}
 		}
 		if (comboBoxThatHasChanged->getName() == "mode")
 		{
 			currentMode = (Mode)comboBoxThatHasChanged->getSelectedItemIndex();
+
+			if (currentMode == FFTResynthesis)
+			{
+				converter->refreshCurrentWavetable(getProgressCounter());
+				refreshPreview();
+			}
+
 		}
 		if (comboBoxThatHasChanged->getName() == "WindowType")
 		{
@@ -856,7 +869,7 @@ public:
 	ScopedPointer<SliderPackData> gainPackData;
 	ModulatorSynthChain* chain;
 	
-	Mode currentMode = FFTResynthesis;
+	Mode currentMode = Resample;
 	ScopedPointer<AdditionalRow> fileHandling;
 	ScopedPointer<AdditionalRow> selectors;
 	ScopedPointer<AdditionalRow> additionalButtons;

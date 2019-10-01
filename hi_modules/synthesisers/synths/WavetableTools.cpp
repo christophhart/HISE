@@ -356,48 +356,47 @@ struct ResynthesisHelpers
     }
     
 
-    static void interpolateCubic(const dsp::AudioBlock<float>& input, dsp::AudioBlock<float>& output)
+    static void interpolateCubic(dsp::AudioBlock<float>& upsampledBuffer, int numInputSamples, int numOutputSamples, float latencyInSamples)
     {
-        double delta = (double)(input.getNumSamples()) / (double)output.getNumSamples();
+		double delta = (double)(numInputSamples) / (double)numOutputSamples;
+        double uptime = (double)latencyInSamples;
         
-        double uptime = 0.0;
+		AudioSampleBuffer scratchBuffer(upsampledBuffer.getNumChannels(), numOutputSamples);
         
-        auto inputSize = input.getNumSamples();
-        
-        for (int i = 0; i < output.getNumSamples(); i++)
+        for (int i = 0; i < numOutputSamples; i++)
         {
             int l0i = (int)uptime;
-            int h0i = (l0i + 1) % inputSize;
-            int h1i = (h0i + 1) % inputSize;
+            int h0i = (l0i + 1) % numInputSamples;
+            int h1i = (h0i + 1) % numInputSamples;
             int l1i = (l0i - 1);
             if(l1i < 0)
-                l1i += inputSize;
+                l1i += numInputSamples;
             
             auto alpha = (float)fmod(uptime, 1.0);
             
-            auto l1 = input.getSample(0, l1i);
-            auto l0 = input.getSample(0, l0i);
-            auto h0 = input.getSample(0, h0i);
-            auto h1 = input.getSample(0, h1i);
+            auto l1 = upsampledBuffer.getSample(0, l1i);
+            auto l0 = upsampledBuffer.getSample(0, l0i);
+            auto h0 = upsampledBuffer.getSample(0, h0i);
+            auto h1 = upsampledBuffer.getSample(0, h1i);
             
             auto v = cubic(alpha, l1, l0, h0, h1);
             
-            output.setSample(0, i, v);
+			scratchBuffer.setSample(0, i, v);
             
             uptime += delta;
         }
         
-        
-        jassert(std::abs(uptime - (double)input.getNumSamples()) < 0.001);
+		upsampledBuffer.clear();
+		upsampledBuffer.copyFrom(scratchBuffer, 0, 0, numOutputSamples);
+
+        jassert(std::abs(uptime - (double)numInputSamples - (double)latencyInSamples) < 0.001);
     }
     
 	static void interpolateLinear(const AudioSampleBuffer& input, AudioSampleBuffer& output)
 	{
 		double delta = (double)(input.getNumSamples()) / (double)output.getNumSamples();
-
 		double uptime = 0.0;
 
-		auto inputSize = input.getNumSamples();
 
 		for (int i = 0; i < output.getNumSamples(); i++)
 		{
@@ -420,17 +419,18 @@ struct ResynthesisHelpers
 	}
 
 	using Oversampler = juce::dsp::Oversampling<float>;
+	static constexpr int OversamplingFactor = 16;
 
-	Oversampler* createOversampler(int cycleLength)
+	static Oversampler* createOversampler(int cycleLength)
 	{
-		auto os = new Oversampler(cycleLength * 3, (int)std::log2(32), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+		auto os = new Oversampler(1, (int)std::log2(OversamplingFactor), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
 
-		os->initProcessing(cycleLength * 3);
+		os->initProcessing(cycleLength + (int)(std::ceil(os->getLatencyInSamples())));
 		
 		return os;
 	}
 
-	static dsp::AudioBlock<float> extendAndUpsample(Oversampler* os, const AudioSampleBuffer& oneCycle)
+	static dsp::AudioBlock<float> extendAndUpsample(Oversampler* os, const AudioSampleBuffer& oneCycle, int numInputSamples)
 	{
 		auto oneSize = oneCycle.getNumSamples();
 
@@ -477,33 +477,52 @@ struct ResynthesisHelpers
 			// You'll usually don't find longer wavetables than this....
 			jassert(reader->lengthInSamples < 8192);
 
-			b.setSize(reader->numChannels, reader->lengthInSamples);
-
-			reader->read(&b, 0, b.getNumSamples(), 0, true, true);
-			AudioSampleBuffer output;
+			int inputSize = reader->lengthInSamples;
 			int outputSize = getWavetableLength(noteNumber, sampleRate);
 
-			output.setSize(b.getNumChannels(), outputSize);
-			output.clear();
-
-			ScopedPointer<Oversampler> os = createOversampler(outputSize);
-
-			for (int i = 0; i < b.getNumChannels(); i++)
-			{
-				interpolateCubic(b, output);
-
 #if 0
-				LagrangeInterpolator interpolator;
+			b.setSize(1, inputSize);
+			b.clear();
 
-				
+			reader->read(&b, 0, inputSize, 0, true, true);
 
-				auto ratio = (double)b.getNumSamples() / (double)outputSize;
-				int numProcessed = interpolator.process(ratio, b.getReadPointer(i), output.getWritePointer(0), outputSize, b.getNumSamples(), 0);
-#endif
-		
-			}
+			AudioSampleBuffer output(1, outputSize);
+
+			interpolateLinear(b, output);
 
 			return output;
+
+			
+#else
+			auto workingBufferSize = jmax<int>(outputSize, inputSize) * 3 ;
+
+			ScopedPointer<Oversampler> os = createOversampler(workingBufferSize);
+
+			auto extraSamplesForLatency = (int)std::ceilf(os->getLatencyInSamples());
+
+			b.setSize(1, workingBufferSize + extraSamplesForLatency);
+			b.clear();
+
+			reader->read(&b, 0, inputSize, 0, true, true);
+			reader->read(&b, inputSize, inputSize, 0, true, true);
+			reader->read(&b, inputSize * 2, inputSize, 0, true, true);
+			reader->read(&b, inputSize * 3, extraSamplesForLatency, 0, true, true);
+			
+
+
+			auto upsampled = os->processSamplesUp(dsp::AudioBlock<float>(b));
+
+			
+
+			interpolateCubic(upsampled, inputSize * 3 * OversamplingFactor, outputSize * 3 * OversamplingFactor, os->getLatencyInSamples());
+
+			
+
+			auto output =  downsampleAndChop(os, 1, outputSize);
+
+
+			return output;
+#endif
 		}
 
 		return b;
