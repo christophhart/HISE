@@ -43,13 +43,12 @@ ProcessorWithScriptingContent::~ProcessorWithScriptingContent()
 
 void ProcessorWithScriptingContent::suspendStateChanged(bool shouldBeSuspended)
 {
-	getScriptingContent()->suspendPanelTimers(shouldBeSuspended);
+	if(content != nullptr)
+		content->suspendPanelTimers(shouldBeSuspended);
 }
 
 void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 {
-	jassert(content.get() != nullptr);
-
 	if (content != nullptr && index < content->getNumComponents())
 	{
 		ScriptingApi::Content::ScriptComponent *c = content->getComponent(index);
