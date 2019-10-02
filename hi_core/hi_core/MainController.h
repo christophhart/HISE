@@ -1184,6 +1184,8 @@ public:
 
 	void setHostBpm(double newTempo);
 
+	bool isSyncedToHost() const;
+
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
 	

@@ -974,6 +974,11 @@ void MainController::setHostBpm(double newTempo)
 	}
 }
 
+bool MainController::isSyncedToHost() const
+{
+	return dynamic_cast<const GlobalSettingManager*>(this)->globalBPM == -1;
+}
+
 void MainController::addTempoListener(TempoListener *t)
 {
 	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
