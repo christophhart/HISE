@@ -111,12 +111,19 @@ struct PoolHelpers
 		SkipPoolSearchStrong, ///< skips the search in the pool and increases the reference count
 		DontCreateNewEntry, ///< this assumes the file is already in the pool and throws an assertion if it's not.
 		BypassAllCaches, ///< skips the entire caching and just returns the decoded data.
+		LoadIfEmbeddedWeak, ///< loads the embedded data if it's there, but doesn't throw an error if it's not
+		LoadIfEmbeddedStrong, ///< loads the embedded data if it's there, but doesn't throw an error if it's not
 		numLoadingTypes
 	};
 
 	static bool isStrong(LoadingType t)
 	{
-		return t == LoadAndCacheStrong || t == ForceReloadStrong || t == SkipPoolSearchStrong;
+		return t == LoadAndCacheStrong || t == ForceReloadStrong || t == SkipPoolSearchStrong || t == LoadIfEmbeddedStrong;
+	}
+
+	static bool throwIfNotLoaded(LoadingType t)
+	{
+		return t != LoadIfEmbeddedStrong && t != LoadIfEmbeddedWeak;
 	}
 
 	static bool shouldSearchInPool(LoadingType t)
@@ -125,7 +132,9 @@ struct PoolHelpers
 			   t == LoadAndCacheWeak || 
 			   t == ForceReloadStrong || 
 			   t == ForceReloadWeak || 
-			   t == DontCreateNewEntry;
+			   t == DontCreateNewEntry ||
+			   t == LoadIfEmbeddedStrong ||
+			   t == LoadIfEmbeddedWeak;
 	}
 
 	static bool shouldForceReload(LoadingType t)
@@ -1124,10 +1133,13 @@ public:
 			}
 			else
 			{
-				jassertfalse;
-                
-                PoolHelpers::sendErrorMessage(getMainController(), "The file " + r.getReferenceString() + " is not embedded correctly.");
-                
+				if (PoolHelpers::throwIfNotLoaded(loadingType))
+				{
+					jassertfalse;
+
+					PoolHelpers::sendErrorMessage(getMainController(), "The file " + r.getReferenceString() + " is not embedded correctly.");
+				}
+
 				return ManagedPtr();
 			}
 		}
