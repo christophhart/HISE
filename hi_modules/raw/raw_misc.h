@@ -451,6 +451,7 @@ private:
 
 
 
+
 /** This class offers a bidirectional connection between Data and its UI representation.
 
 	In order to use it, just add one of these as Member variable in your interface class:
@@ -529,6 +530,47 @@ public:
 	{
 	public:
 
+		/** This class can be used to update a processor parameter with undo support.
+
+	If you want a UI connection to be undoable, just set UIConnection::Base::setUndoManager() and
+	it will use this class for all changes.
+*/
+		class UndoableUIAction : public juce::UndoableAction
+		{
+		public:
+
+			UndoableUIAction(Base& b, const ValueType& newValue_) :
+				processor(b.getProcessor()),
+				newValue(newValue_),
+				f(b.loadFunction)
+			{
+				prevValue = b.saveFunction(processor);
+			}
+
+			bool perform() override
+			{
+				if (processor.get() == nullptr)
+					return false;
+
+				f(processor, newValue);
+			}
+
+			bool undo() override
+			{
+				if (processor.get() == nullptr)
+					return false;
+
+				f(processor, prevValue);
+			}
+
+		private:
+
+			ValueType prevValue;
+			ValueType newValue;
+			LoadFunction f;
+			WeakReference<Processor> processor;
+		};
+
 		Base(ComponentType* c, MainController* mc, const String& id);
 		virtual ~Base();
 
@@ -537,8 +579,6 @@ public:
 		{
 			loadFunction = FunctionClass::load;
 			saveFunction = FunctionClass::save;
-
-			
 
 			if (saveFunction)
 			{
@@ -559,6 +599,12 @@ public:
 		/** Returns the processor that this connection is operating on. */
 		const Processor* getProcessor() const { return processor.get(); }
 
+		/** Enables the use of an undomanager for all UI interactions. Pass in nullptr to deactivate. */
+		void setUseUndoManager(UndoManager* undoManagerToUse)
+		{
+			undoManager = undoManagerToUse;
+		}
+
 	protected:
 
 		/** Call this method from your subclass's listener callback. */
@@ -573,6 +619,8 @@ public:
 		void changeListenerCallback(SafeChangeBroadcaster* b) override;
 
 	private:
+
+		UndoManager* undoManager = nullptr;
 
 		bool useLoadingThread = false;
 
@@ -692,9 +740,9 @@ public:
 			parameterChangedFromUI(valueToUse);
 		}
 	};
-
-	
 };
+
+
 
 /** The base class for storing data as user preset. */
 class GenericStorage : public Data<juce::var>,

@@ -144,6 +144,9 @@ void hise::raw::UIConnection::Base<ComponentType, ValueType>::parameterChangedFr
 
 	if (useLoadingThread)
 	{
+		// TODO
+		jassert(undoManager == nullptr);
+
 		auto tmp = loadFunction;
 		auto f = [tmp, newValue](Processor* p)
 		{
@@ -155,7 +158,12 @@ void hise::raw::UIConnection::Base<ComponentType, ValueType>::parameterChangedFr
 	}
 	else
 	{
-		loadFunction(processor, newValue);
+		if(undoManager == nullptr)
+			loadFunction(processor, newValue);
+		else
+		{
+			undoManager->perform(new UndoableUIAction(*this, newValue));
+		}
 	}
 	
 }
