@@ -449,11 +449,11 @@ ScopedNoDenormals::~ScopedNoDenormals()
 SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleReadWriteLock &lock_, bool busyWait) :
 	lock(lock_)
 {
-	for (int i = 20; --i >= 0;)
-		if (!lock.isBeingWritten)
+	for (int i = 2000; --i >= 0;)
+		if (lock.writerThread == nullptr)
 			break;
 
-	while (lock.isBeingWritten)
+	while (lock.writerThread != nullptr)
 	{
 		if(!busyWait)
 			Thread::yield();
@@ -470,10 +470,18 @@ SimpleReadWriteLock::ScopedReadLock::~ScopedReadLock()
 SimpleReadWriteLock::ScopedWriteLock::ScopedWriteLock(SimpleReadWriteLock &lock_, bool busyWait) :
 	lock(lock_)
 {
-	if (lock.isBeingWritten)
+	if (lock.writerThread != nullptr)
 	{
-		// oops, breaking the one-writer rule here...
-		jassertfalse;
+		if (lock.writerThread == Thread::getCurrentThreadId())
+		{
+			holdsLock = false;
+		}
+		else
+		{
+			// oops, breaking the one-writer rule here...
+			jassertfalse;
+		}
+		
 		return;
 	}
 
@@ -487,15 +495,38 @@ SimpleReadWriteLock::ScopedWriteLock::ScopedWriteLock(SimpleReadWriteLock &lock_
 			Thread::yield();
 	}
 
-	lock.isBeingWritten = true;
+	lock.writerThread = Thread::getCurrentThreadId();
+	holdsLock = true;
 }
 
 SimpleReadWriteLock::ScopedWriteLock::~ScopedWriteLock()
 {
-	lock.isBeingWritten = false;
+	if (holdsLock)
+		lock.writerThread = nullptr;
 }
 
 
+SimpleReadWriteLock::ScopedTryReadLock::ScopedTryReadLock(SimpleReadWriteLock &lock_, bool busyWait /*= false*/) :
+	lock(lock_)
+{
+	if (lock.writerThread == nullptr)
+	{
+		lock.numReadLocks++;
+		is_locked = true;
+	}
+	else
+	{
+		is_locked = false;
+	}
+}
+
+
+
+SimpleReadWriteLock::ScopedTryReadLock::~ScopedTryReadLock()
+{
+	if (is_locked)
+		lock.numReadLocks--;
+}
 
 LockfreeAsyncUpdater::~LockfreeAsyncUpdater()
 {
@@ -688,5 +719,8 @@ void SafeChangeListener::handlePooledMessage(PooledUIUpdater::Broadcaster* b)
 {
 	changeListenerCallback(dynamic_cast<SafeChangeBroadcaster*>(b));
 }
+
+
+
 
 }

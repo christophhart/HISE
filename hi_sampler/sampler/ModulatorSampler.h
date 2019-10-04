@@ -91,7 +91,7 @@ public:
 			s(const_cast<ModulatorSampler*>(s_)),
 			lock(s->getIteratorLock())
 		{
-			holdsLock = lock.tryEnter();
+			holdsLock = lock.tryRead();
 		}
 
 		SharedPointer getNextSound()
@@ -108,7 +108,7 @@ public:
 		~SoundIterator()
 		{
 			if (holdsLock)
-				lock.exit();
+				lock.exitRead();
 		}
 
 		int size() const
@@ -137,7 +137,7 @@ public:
 			{
 				if (holdsLock)
 				{
-					lock.exit();
+					lock.exitRead();
 					holdsLock = false;
 				}
 
@@ -147,9 +147,11 @@ public:
 			return dynamic_cast<ModulatorSamplerSound*>(s->getSound(index++));
 		}
 
+		
+
 		int index = 0;
 		WeakReference<ModulatorSampler> s;
-		CriticalSection& lock;
+		SimpleReadWriteLock& lock;
 		bool holdsLock;
 	};
 
@@ -384,7 +386,7 @@ public:
 
 	CriticalSection &getSamplerLock() {	return lock; }
 
-	CriticalSection& getIteratorLock() { return iteratorLock; };
+	SimpleReadWriteLock& getIteratorLock() { return iteratorLock; };
 	
 	const CriticalSection& getExportLock() const { return exportLock; }
 
@@ -605,7 +607,7 @@ public:
 
 private:
 
-	CriticalSection iteratorLock;
+	SimpleReadWriteLock iteratorLock;
 
 	bool abortIteration = false;
 	

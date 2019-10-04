@@ -211,7 +211,7 @@ void ModulatorSampler::setReversed(bool shouldBeReversed)
 
             s->reversed = shouldBeReversed;
 
-			ScopedLock sl(s->getIteratorLock());
+			SimpleReadWriteLock::ScopedReadLock sl(s->getIteratorLock());
             ModulatorSampler::SoundIterator sIter(s);
 
             while (auto sound = sIter.getNextSound())
@@ -1086,7 +1086,7 @@ void ModulatorSampler::clearSampleMap(NotificationType n)
 	LockHelpers::freeToGo(getMainController());
 
 	ScopedValueSetter<bool> ia(abortIteration, true);
-	ScopedLock sl(getIteratorLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getIteratorLock());
 
 	if (sampleMap == nullptr)
 		return;
@@ -1104,7 +1104,7 @@ void ModulatorSampler::loadSampleMap(PoolReference ref)
 	LockHelpers::freeToGo(getMainController());
 
 	ScopedValueSetter<bool> ia(abortIteration, true);
-	ScopedLock sl(getIteratorLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getIteratorLock());
 
 	getSampleMap()->load(ref);
 }

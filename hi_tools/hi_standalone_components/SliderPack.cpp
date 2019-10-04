@@ -64,7 +64,7 @@ int SliderPackData::getNumSliders() const { return values.size(); };
 
 void SliderPackData::setValue(int sliderIndex, float value, NotificationType notifySliderPack/*=dontSendNotification*/, bool useUndoManager)
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(arrayLock, true);
+	
 
 	if (sliderIndex >= 0 && sliderIndex < getNumSliders())
 	{
@@ -74,7 +74,10 @@ void SliderPackData::setValue(int sliderIndex, float value, NotificationType not
 		}
 		else
 		{
-			values[sliderIndex] = value;
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(arrayLock, true);
+				values[sliderIndex] = value;
+			}
 
 			if (notifySliderPack == sendNotification)
 				sendPooledChangeMessage();

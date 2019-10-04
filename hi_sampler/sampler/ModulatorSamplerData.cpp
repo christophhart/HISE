@@ -66,7 +66,7 @@ SampleMap::FileList SampleMap::createFileList()
 	}
 
 	{
-		ScopedLock sl(sampler->getIteratorLock());
+		SimpleReadWriteLock::ScopedReadLock sl(sampler->getIteratorLock());
 		ModulatorSampler::SoundIterator soundIter(sampler);
 		jassert(soundIter.canIterate());
 
@@ -122,9 +122,7 @@ void SampleMap::clear(NotificationType n)
 
 
 	ScopedValueSetter<bool> iterationAborter(sampler->getIterationFlag(), true);
-	ScopedLock sl(sampler->getIteratorLock());
-
-	
+	SimpleReadWriteLock::ScopedWriteLock sl(sampler->getIteratorLock());
 
 	ScopedNotificationDelayer snd(*this);
 
@@ -251,7 +249,7 @@ void SampleMap::parseValueTree(const ValueTree &v)
 {
 	LockHelpers::freeToGo(sampler->getMainController());
 	ScopedValueSetter<bool> iterationAborter(sampler->getIterationFlag(), true);
-	ScopedLock sl(sampler->getIteratorLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(sampler->getIteratorLock());
 
 	setNewValueTree(v);
 	
@@ -748,7 +746,7 @@ void SampleMap::load(const PoolReference& reference)
 	LockHelpers::freeToGo(sampler->getMainController());
 
 	ScopedValueSetter<bool> iterationAborter(sampler->getIterationFlag(), true);
-	ScopedLock sl(sampler->getIteratorLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(sampler->getIteratorLock());
 	clear(dontSendNotification);
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();

@@ -850,36 +850,45 @@ void HiseAudioThumbnail::paint(Graphics& g)
 	if (isClear || rebuildOnUpdate)
 		return;
 
-	
+	ScopedTryLock sl(lock);
 
-	ScopedLock sl(lock);
-	
-	auto bounds = getLocalBounds();
-
-
-	if (leftBound > 0 || rightBound > 0)
+	if (sl.isLocked())
 	{
-		auto left = bounds.removeFromLeft(leftBound);
-		auto right = bounds.removeFromRight(rightBound);
-
-		g.saveState();
-
-		g.excludeClipRegion(left);
-		g.excludeClipRegion(right);
 
 
+		auto bounds = getLocalBounds();
 
-		drawSection(g, true);
 
-		g.restoreState();
-		g.excludeClipRegion(bounds);
+		if (leftBound > 0 || rightBound > 0)
+		{
+			auto left = bounds.removeFromLeft(leftBound);
+			auto right = bounds.removeFromRight(rightBound);
 
-		drawSection(g, false);
+			g.saveState();
+
+			g.excludeClipRegion(left);
+			g.excludeClipRegion(right);
+
+
+
+			drawSection(g, true);
+
+			g.restoreState();
+			g.excludeClipRegion(bounds);
+
+			drawSection(g, false);
+		}
+		else
+		{
+			drawSection(g, true);
+		}
 	}
 	else
 	{
-		drawSection(g, true);
+		jassertfalse;
 	}
+
+	
 
 	
 }

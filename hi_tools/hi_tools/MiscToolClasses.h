@@ -570,7 +570,8 @@ private:
     std::atomic<bool> currentlyWriting { false };
 };
 
-/** A simple, non reentrant lock with read-write access. */
+/** A simple lock with read-write access. The read lock is non-reentrant (however it will not lock itself out, but the write access is reentrant but expected to be single writer.
+*/
 struct SimpleReadWriteLock
 {
 	struct ScopedReadLock
@@ -585,10 +586,42 @@ struct SimpleReadWriteLock
 		ScopedWriteLock(SimpleReadWriteLock &lock_, bool busyWait = false);
 		~ScopedWriteLock();
 		SimpleReadWriteLock& lock;
+
+	private:
+
+		bool holdsLock = false;
 	};
 
+	struct ScopedTryReadLock
+	{
+		ScopedTryReadLock(SimpleReadWriteLock &lock_, bool busyWait = false);
+		~ScopedTryReadLock();
+
+		bool hasLock() const { return is_locked; }
+
+	private:
+		bool is_locked;
+		SimpleReadWriteLock& lock;
+	};
+
+	bool tryRead()
+	{
+		if (writerThread == nullptr || writerThread == Thread::getCurrentThreadId())
+		{
+			numReadLocks++;
+			return true;
+		}
+		
+		return false;
+	}
+
+	void exitRead()
+	{
+		numReadLocks--;
+	}
+
 	std::atomic<int> numReadLocks{ 0 };
-	bool isBeingWritten = false;
+	std::atomic<void*> writerThread = nullptr;
 };
 
 /** This is a non allocating alternative to the AsyncUpdater.
