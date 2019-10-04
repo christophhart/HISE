@@ -484,23 +484,42 @@ Processor *MainController::createProcessor(FactoryType *factory,
 
 void MainController::stopBufferToPlay()
 {
-	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
-
-	if (previewBufferIndex != -1 && !fadeOutPreviewBuffer)
+	if (previewBufferIndex != -1)
 	{
-		fadeOutPreviewBufferGain = 1.0f;
-		fadeOutPreviewBuffer = true;
+
+		{
+			LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
+			if (previewBufferIndex != -1 && !fadeOutPreviewBuffer)
+			{
+				fadeOutPreviewBufferGain = 1.0f;
+				fadeOutPreviewBuffer = true;
+			}
+		}
+
+		for (auto pl : previewListeners)
+		{
+			pl->previewStateChanged(false, previewBuffer);
+		}
 	}
 }
 
 void MainController::setBufferToPlay(const AudioSampleBuffer& buffer)
 {
-	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+	{
 
-	previewBufferIndex = 0;
-	previewBuffer = buffer;
-	fadeOutPreviewBuffer = false;
-	fadeOutPreviewBufferGain = 1.0f;
+		LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
+		previewBufferIndex = 0;
+		previewBuffer = buffer;
+		fadeOutPreviewBuffer = false;
+		fadeOutPreviewBufferGain = 1.0f;
+	}
+
+	for (auto pl : previewListeners)
+	{
+		pl->previewStateChanged(true, previewBuffer);
+	}
 }
 
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)

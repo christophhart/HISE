@@ -293,6 +293,20 @@ private:
 };
 
 
+class BufferPreviewListener
+{
+public:
+
+	virtual ~BufferPreviewListener() {}
+
+	virtual void previewStateChanged(bool isPlaying, const AudioSampleBuffer& currentBuffer) = 0;
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(BufferPreviewListener);
+};
+
+
 class OverlayMessageBroadcaster
 {
 public:

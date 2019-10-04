@@ -1207,6 +1207,17 @@ public:
 	DebugLogger& getDebugLogger() { return debugLogger; }
 	const DebugLogger& getDebugLogger() const { return debugLogger; }
     
+	void addPreviewListener(BufferPreviewListener* l)
+	{
+		previewListeners.addIfNotAlreadyThere(l);
+		l->previewStateChanged(previewBufferIndex != -1, previewBuffer);
+	}
+
+	void removePreviewListener(BufferPreviewListener* l)
+	{
+		previewListeners.removeAllInstancesOf(l);
+	}
+
 	void stopBufferToPlay();
 
 	void setBufferToPlay(const AudioSampleBuffer& buffer);
@@ -1592,6 +1603,7 @@ private:
 
     AudioProcessor* thisAsProcessor;
     
+	Array<WeakReference<BufferPreviewListener>> previewListeners;
 	Array<WeakReference<TempoListener>> tempoListeners;
 
     std::atomic<float> usagePercent;
