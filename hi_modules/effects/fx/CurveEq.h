@@ -270,6 +270,8 @@ public:
 		}
 
 		enableSpectrumAnalyser(v.getProperty("FFTEnabled", false));
+
+		sendSynchronousChangeMessage();
 	}
 
 	struct AlignedDouble
