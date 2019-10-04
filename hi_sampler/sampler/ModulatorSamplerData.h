@@ -572,7 +572,14 @@ public:
 
 	void reencode(PoolReference r);
 
+	void setReencodeSamples(bool shouldReencodeSamples)
+	{
+		reencodeSamples = shouldReencodeSamples;
+	}
+
 private:
+
+	bool reencodeSamples = true;
 
 	double wholeProgress = 0.0;
 

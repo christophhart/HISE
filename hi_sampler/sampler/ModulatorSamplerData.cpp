@@ -974,6 +974,10 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 			writeFiles(i, overwriteExistingData);
 		}
 	}
+	else
+	{
+		showStatusMessage("Skipping HLAC Reencoding");
+	}
 
 	updateSampleMap();
 
@@ -1311,7 +1315,7 @@ void BatchReencoder::reencode(PoolReference r)
 
 	sampleMapFile = r.getFile();
 
-	exportCurrentSampleMap(true, true, true);
+	exportCurrentSampleMap(true, reencodeSamples, true);
 }
 
 
