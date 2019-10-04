@@ -1453,7 +1453,7 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 	jassert(listener != nullptr);
 	jassert(thread != nullptr);
 
-#if HI_ENABLE_EXPANSION_EDITING
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 
 	bool ok = true;
 
