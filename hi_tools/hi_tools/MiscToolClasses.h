@@ -621,7 +621,7 @@ struct SimpleReadWriteLock
 	}
 
 	std::atomic<int> numReadLocks{ 0 };
-	std::atomic<void*> writerThread = nullptr;
+    std::atomic<void*> writerThread{ nullptr };
 };
 
 /** This is a non allocating alternative to the AsyncUpdater.

@@ -567,7 +567,7 @@ public:
 
 			ValueType prevValue;
 			ValueType newValue;
-			LoadFunction f;
+			typename Data<ValueType>::LoadFunction f;
 			WeakReference<Processor> processor;
 		};
 
