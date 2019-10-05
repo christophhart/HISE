@@ -148,10 +148,13 @@
 #endif
 
 
-
+#if JUCE_WINDOWS
 #include "hise_wrapper/stk_wrapper_base.cpp"
 #include "hise_wrapper/stk_effect_wrapper.cpp"
 #include "hise_wrapper/stk_instrument_wrapper.cpp"
+#endif
+
+
 #include "hise_wrapper/stk_factory.cpp"
 
 #endif

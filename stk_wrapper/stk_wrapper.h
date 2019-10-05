@@ -191,4 +191,11 @@
 #include "hise_wrapper/stk_effect_wrapper.h"
 #include "hise_wrapper/stk_instrument_wrapper.h"
 
+#if !JUCE_WINDOWS
+// For some reason clang fails to resolve the symbols with optimizations
+#include "hise_wrapper/stk_wrapper_base.cpp"
+#include "hise_wrapper/stk_effect_wrapper.cpp"
+#include "hise_wrapper/stk_instrument_wrapper.cpp"
+#endif
+
 #endif
