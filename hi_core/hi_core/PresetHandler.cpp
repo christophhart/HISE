@@ -1187,7 +1187,7 @@ File FrontendHandler::getSampleLocationForCompiledPlugin()
 		File sensibleDefaultLocation = File::getSpecialLocation(File::userMusicDirectory);
 #endif
 
-		auto newSampleLoc = sensibleDefaultLocation.getChildFile(getCompanyName()).getChildFile(getProjectName());
+		auto newSampleLoc = sensibleDefaultLocation.getChildFile(getCompanyName()).getChildFile(getProjectName()).getChildFile("Samples");
 
 		setSampleLocation(newSampleLoc);
 
