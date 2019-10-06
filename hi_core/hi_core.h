@@ -312,7 +312,7 @@ Set this to false to disable the install samples button. This might be useful if
 HR1 resource file system.
 */
 #ifndef HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
-#define HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON 0
+#define HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON 1
 #endif
 
 /** Config: HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
@@ -320,7 +320,7 @@ HR1 resource file system.
 Set this to false to not give the user the ability to set the sample location on first launch. It will use the default location in the user doc folder on windows or the music folder on macOS / Linux until the user changed the location in the settings manually.
 */
 #ifndef HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
-#define HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON 0
+#define HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON 1
 #endif
 
 
