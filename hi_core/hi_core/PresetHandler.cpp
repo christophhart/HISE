@@ -1300,6 +1300,9 @@ void FrontendHandler::setSampleLocation(const File &newLocation)
 {
 #if USE_FRONTEND
 	
+	if (newLocation.isDirectory())
+		newLocation.createDirectory();
+
 	auto linkFile = getSampleLinkFile();
 
 	linkFile.replaceWithText(newLocation.getFullPathName());
