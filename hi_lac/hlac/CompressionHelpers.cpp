@@ -1155,6 +1155,16 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 	auto targetDirectory = data.targetDirectory;
 	auto option = data.option;
 	
+	if (targetDirectory.isDirectory())
+	{
+		bool ok = targetDirectory.createDirectory();
+
+		if (!ok)
+		{
+			STATUS_LOG("Can't create target directory");
+		}
+	}
+
 	Array<File> parts;
 
 	sourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, sourceFile.getFileNameWithoutExtension() + ".*");
@@ -1230,9 +1240,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			bool ok = true;
 
-			
-
-			File tmpFlacFile = targetHlacFile.getSiblingFile("TmpFlac.flac");
+			File tmpFlacFile = targetHlacFile.getSiblingFile("TmpFlac.flac").getNonexistentSibling();
 
 			if (tmpFlacFile.existsAsFile())
 				tmpFlacFile.deleteFile();
@@ -1276,6 +1284,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			flacTempWriteStream = nullptr;
 
 			FileInputStream* flacTempInputStream = new FileInputStream(tmpFlacFile);
+
+			jassert(flacTempInputStream->openedOk());
 
 			ScopedPointer<AudioFormatReader> flacReader = flacFormat.createReaderFor(flacTempInputStream, true);
 

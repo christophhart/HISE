@@ -1174,7 +1174,12 @@ File FrontendHandler::getSampleLocationForCompiledPlugin()
 
 	if (childFile.exists())
 	{
-		return File(childFile.loadFileAsString());
+		File f(childFile.loadFileAsString());
+
+		if (!f.isDirectory())
+			f.createDirectory();
+
+		return f;
 	}
 	else
 	{

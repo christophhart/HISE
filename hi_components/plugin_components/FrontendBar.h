@@ -83,7 +83,7 @@ public:
 	{
 		
 #if !HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && !HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
-		if (false && s == SamplesNotInstalled && value)
+		if (s == SamplesNotInstalled && value)
 			return;
 #endif
 
