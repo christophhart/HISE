@@ -56,6 +56,16 @@ public:
 	File getCachedDocFolder() const override;
 	File getDatabaseRootDirectory() const override;
 	bool shouldUseCachedData() const override;
+
+	void setProjectURL(URL newProjectURL);
+
+	URL getBaseURL() const override
+	{
+		return projectURL;
+	}
+
+private:
+	URL projectURL;
 };
 
 

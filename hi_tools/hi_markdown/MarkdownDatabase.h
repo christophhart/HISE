@@ -433,6 +433,7 @@ public:
 
 	virtual Component* getRootComponent() { return nullptr; };
 
+	virtual URL getBaseURL() const;
 
 	virtual void registerContentProcessor(MarkdownContentProcessor* processor) = 0;
 	virtual void registerItemGenerators() = 0;

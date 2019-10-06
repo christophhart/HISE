@@ -36,6 +36,7 @@ namespace hise {
 using namespace juce;
 
 
+
 class DocUpdater : public DialogWindowWithBackgroundThread,
 				   public MarkdownContentProcessor,
 				   public DatabaseCrawler::Logger,
@@ -72,8 +73,6 @@ public:
 			return result |= CantResolveServer;
 		}
 
-		
-
 		static bool wasOk(int r)
 		{
 			return (r & 0b1000) == 0;
@@ -103,6 +102,11 @@ public:
 		showStatusMessage(message);
 	}
 
+	static void runSilently(MarkdownDatabaseHolder& holder)
+	{
+		DocUpdater* doc = new DocUpdater(holder, true, false);
+	}
+
 	void run() override;
 
 	void threadFinished() override;
@@ -128,6 +132,8 @@ public:
 		setProgress((double)bytesDownloaded / (double)totalLength);
 	}
 
+
+
 	void finished(URL::DownloadTask* , bool ) override
 	{
 
@@ -145,6 +151,7 @@ public:
 
 	int result = NotExecuted;
 	ScopedPointer<URL::DownloadTask> currentDownload;
+
 };
 
 

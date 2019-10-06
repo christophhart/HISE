@@ -679,11 +679,16 @@ void DocUpdater::run()
 {
 	if (fastMode)
 	{
+		
+
 		showStatusMessage("Rebuilding Documentation Index");
 		holder.setProgressCounter(&getProgressCounter());
+		updateFromServer();
 		getHolder().setForceCachedDataUse(!editingShouldBeEnabled);
 
-		addForumLinks();
+
+
+		//addForumLinks();
 	}
 	else
 	{
@@ -756,7 +761,12 @@ void DocUpdater::threadFinished()
 			break;
 		}
 
-		PresetHandler::showMessageWindow("Update finished", s, Helpers::wasOk(result) ? PresetHandler::IconType::Info : PresetHandler::IconType::Error);
+		if (!fastMode)
+		{
+
+
+			PresetHandler::showMessageWindow("Update finished", s, Helpers::wasOk(result) ? PresetHandler::IconType::Info : PresetHandler::IconType::Error);
+		}
 	}
 }
 
@@ -895,7 +905,7 @@ juce::URL DocUpdater::getCacheUrl(CacheURLType type) const
 
 juce::URL DocUpdater::getBaseURL() const
 {
-	return URL("https://docs.hise.audio/");
+	return holder.getBaseURL();
 }
 
 void DocUpdater::createLocalHtmlFiles()

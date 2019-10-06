@@ -582,6 +582,11 @@ juce::File MarkdownDataBase::ItemGeneratorBase::getFolderReadmeFile(const String
 	return MarkdownLink(rootDirectory, folderURL).getMarkdownFile({});
 }
 
+juce::URL MarkdownDatabaseHolder::getBaseURL() const
+{
+	return URL("https://docs.hise.audio/");
+}
+
 bool MarkdownDatabaseHolder::shouldUseCachedData() const
 {
 	if (forceUseCachedData)

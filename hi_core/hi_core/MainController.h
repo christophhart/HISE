@@ -1059,6 +1059,8 @@ public:
 	ProjectDocDatabaseHolder* getProjectDocHolder();
 	
 
+	void initProjectDocsWithURL(const String& projectDocURL);
+
 	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
 
 	FileHandlerBase* getActiveFileHandler()

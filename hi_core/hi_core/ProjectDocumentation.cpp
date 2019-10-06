@@ -104,4 +104,10 @@ bool ProjectDocDatabaseHolder::shouldUseCachedData() const
 #endif
 }
 
+void ProjectDocDatabaseHolder::setProjectURL(URL newProjectURL)
+{
+	projectURL = newProjectURL;
+	DocUpdater::runSilently(*this);
+}
+
 } // namespace hise

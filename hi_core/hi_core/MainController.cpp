@@ -145,6 +145,11 @@ hise::ProjectDocDatabaseHolder* MainController::getProjectDocHolder()
 	return projectDocHolder;
 }
 
+void MainController::initProjectDocsWithURL(const String& projectDocURL)
+{
+	getProjectDocHolder()->setProjectURL(URL(projectDocURL));
+}
+
 const CriticalSection & MainController::getLock() const
 {
 	if (getDebugLogger().isLogging() && MessageManager::getInstance()->isThisTheMessageThread())

@@ -375,7 +375,9 @@ void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
 		});
 	}
 
+#if USE_BACKEND
 	valueUpdater.triggerUpdateWithLambda();
+#endif
 }
 
 
