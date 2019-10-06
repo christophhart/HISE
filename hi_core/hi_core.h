@@ -203,6 +203,8 @@ Set this to 0 to deactivate the plotter data collection
 #define ENABLE_PLOTTER 1
 #endif
 
+
+
 #ifndef IS_MARKDOWN_EDITOR
 #define IS_MARKDOWN_EDITOR 0
 #endif
@@ -302,6 +304,25 @@ If your project contains a SplashScreen.png image file, it will use this as spla
 #ifndef USE_SPLASH_SCREEN
 #define USE_SPLASH_SCREEN 0
 #endif
+
+
+/** Config: HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
+
+Set this to false to disable the install samples button. This might be useful if you don't use the
+HR1 resource file system.
+*/
+#ifndef HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
+#define HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON 0
+#endif
+
+/** Config: HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+
+Set this to false to not give the user the ability to set the sample location on first launch. It will use the default location in the user doc folder on windows or the music folder on macOS / Linux until the user changed the location in the settings manually.
+*/
+#ifndef HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+#define HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON 0
+#endif
+
 
 // for iOS apps, the external files don't need to be embedded. Enable this to simulate this behaviour on desktop projects (not recommended for production)
 //#define DONT_EMBED_FILES_IN_FRONTEND 1

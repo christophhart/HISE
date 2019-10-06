@@ -86,7 +86,13 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	{
 		if (currentState[SamplesNotInstalled])
 		{
-			if (!PresetHandler::showYesNoWindow("Have you installed the samples yet", "Use this only if you have previously installed and extracted all samples from the .hr1 file.\nIf you don't have installed them yet, press cancel to open the sample install dialogue instead"))
+#if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
+			bool ask = !PresetHandler::showYesNoWindow("Have you installed the samples yet", "Use this only if you have previously installed and extracted all samples from the .hr1 file.\nIf you don't have installed them yet, press cancel to open the sample install dialogue instead");
+#else
+			bool ask = false;
+#endif
+
+			if (ask)
 			{
 #if USE_FRONTEND
 				auto fpe = findParentComponentOfClass<FrontendProcessorEditor>();
@@ -116,7 +122,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 
 				if (handler.areSampleReferencesCorrect())
 				{
-					PresetHandler::showMessageWindow("Sample Folder changed", "The sample folder was relocated, but you'll need to open a new instance of this plugin before it can be used.");
+					PresetHandler::showMessageWindow("Sample Folder changed", "The sample folder was relocated, but you might need to open a new instance of this plugin before it can be used.");
 				}
 
 				setState(SamplesNotFound, !handler.areSampleReferencesCorrect());
@@ -188,7 +194,15 @@ String DeactiveOverlay::getTextForError(State s) const
 		return "The sample directory could not be located. \nClick below to choose the sample folder.";
 		break;
 	case DeactiveOverlay::SamplesNotInstalled:
+#if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
 		return "Please click below to install the samples from the downloaded archive or point to the location where you've already installed the samples.";
+#elif HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+		return "Please click below to point to the location where you've already installed the samples.";
+#else
+		return "This should never show :)";
+		jassertfalse;
+#endif
+
 		break;
 	case DeactiveOverlay::LicenseNotFound:
 	{
@@ -302,16 +316,21 @@ void DeactiveOverlay::resized()
 		resolveLicenseButton->setVisible(false);
 		registerProductButton->setVisible(false);
 
+		auto b = getLocalBounds().withSizeKeepingCentre(200, 50);
+
+#if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
 		installSampleButton->setVisible(true);
+		installSampleButton->setBounds(b.removeFromTop(32));
+#else
+		installSampleButton->setVisible(false);
+		
+#endif
 
 		resolveSamplesButton->setVisible(true);
 		ignoreButton->setVisible(false);
 
-		installSampleButton->centreWithSize(200, 32);
-		resolveSamplesButton->centreWithSize(200, 32);
-
-		resolveSamplesButton->setTopLeftPosition(resolveSamplesButton->getX(),
-			installSampleButton->getY() + 40);
+		
+		resolveSamplesButton->setBounds(b.removeFromBottom(32));
 	}
 
 	if (currentState[LicenseNotFound] ||

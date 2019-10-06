@@ -1176,8 +1176,28 @@ File FrontendHandler::getSampleLocationForCompiledPlugin()
 	{
 		return File(childFile.loadFileAsString());
 	}
+	else
+	{
+#if !HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+		// In this case we'll silently pick a sensible default location for the samples
 
-	return File();
+#if JUCE_WINDOWS
+		File sensibleDefaultLocation = File::getSpecialLocation(File::userDocumentsDirectory);
+#else
+		File sensibleDefaultLocation = File::getSpecialLocation(File::userMusicDirectory);
+#endif
+
+		auto newSampleLoc = sensibleDefaultLocation.getChildFile(getCompanyName()).getChildFile(getProjectName());
+
+		setSampleLocation(newSampleLoc);
+
+		return newSampleLoc;
+#else
+		return File();
+#endif
+	}
+
+	
 
 #else
 	return File();

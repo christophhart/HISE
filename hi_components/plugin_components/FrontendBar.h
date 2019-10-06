@@ -81,6 +81,12 @@ public:
 
 	void setState(State s, bool value)
 	{
+		
+#if !HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && !HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+		if (false && s == SamplesNotInstalled && value)
+			return;
+#endif
+
 		currentState.setBit(s, value);
 
 		setVisible(currentState != 0);
