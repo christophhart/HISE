@@ -250,7 +250,7 @@ void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 #endif
 }
 
-void ConstExprEvaluator::addConstKeywordToSingleWriteVariables(Operations::VariableReference* v, BaseScope* s, BaseCompiler* compiler)
+void ConstExprEvaluator::addConstKeywordToSingleWriteVariables(Operations::VariableReference* , BaseScope* , BaseCompiler* )
 {
 	// This is flawed: globals, function return values, etc. need to be detected properly...
 #if 0
@@ -355,7 +355,7 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::createInvertImmediate
 #undef IS
 
 
-void Inliner::processStatementInternal(BaseCompiler* c, BaseScope* s, StatementPtr statement)
+void Inliner::processStatementInternal(BaseCompiler* , BaseScope* , StatementPtr )
 {
 #if 0
 	for (auto s : *tree)
@@ -569,7 +569,7 @@ bool BinaryOpOptimizer::swapIfBetter(ExprPtr bOp, const char* op, BaseCompiler* 
 	return false;
 }
 
-bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCompiler* compiler, BaseScope* s)
+bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCompiler* , BaseScope* )
 {
 	auto parent = l->parent;
 

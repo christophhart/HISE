@@ -244,6 +244,7 @@ template<int... Indexes> using NodePath = std::integer_sequence<int, Indexes...>
 
 template <class T> static auto& findNode(T& t, NodePath<> empty)
 {
+	ignoreUnused(empty);
 	return t.getObject();
 }
 

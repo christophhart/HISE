@@ -93,7 +93,7 @@ struct CallbackStateComponent : public Component,
 		s << "**Used Callback**: `" << getCallbackName() << "`";
 
 		r.setNewText(s);
-		r.getHeightForWidth(getWidth() + 10, true);
+		r.getHeightForWidth((float)(getWidth() + 10), true);
 		setSize(getWidth(), 130);
 
 		repaint();

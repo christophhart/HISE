@@ -2557,8 +2557,6 @@ var ScriptingApi::Sampler::importSamples(var fileNameList, bool skipExistingSamp
 
 					if(id.getIntValue() >= startIndex)
 					{
-						int noteNumber = jlimit(0, 127, refList.size());
-
 						auto obj = new ScriptingObjects::ScriptingSamplerSound(getScriptProcessor(), s, sound);
 						refList.add(var(obj));
 					}

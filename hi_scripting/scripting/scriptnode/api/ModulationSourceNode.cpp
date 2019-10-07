@@ -76,7 +76,7 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 
 ModulationSourceNode::ModulationTarget::~ModulationTarget()
 {
-	int x = 5;
+	
 }
 
 bool ModulationSourceNode::ModulationTarget::findTarget()

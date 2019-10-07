@@ -171,9 +171,7 @@ public:
 	void showHelp(ComponentWithHelp* h) override
 	{
 		auto url = h->getMarkdownHelpUrl();
-		auto doc = createOrShowDocWindow({ File(), url });
-
-		
+		createOrShowDocWindow({ File(), url });
 	}
 
 	MarkdownPreview* createOrShowDocWindow(const MarkdownLink& l);

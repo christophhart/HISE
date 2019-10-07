@@ -1837,16 +1837,16 @@ void JavascriptSynthesiser::preStartVoice(int voiceIndex, const HiseEvent& e)
 	}
 }
 
-void JavascriptSynthesiser::prepareToPlay(double sampleRate, int samplesPerBlock)
+void JavascriptSynthesiser::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-	if (sampleRate == -1.0)
+	if (newSampleRate == -1.0)
 		return;
 
 	if (auto n = getActiveNetwork())
 	{
-		n->prepareToPlay(sampleRate, (double)samplesPerBlock);
+		n->prepareToPlay(newSampleRate, (double)samplesPerBlock);
 	}
 }
 

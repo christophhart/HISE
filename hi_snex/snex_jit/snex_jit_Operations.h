@@ -130,12 +130,14 @@ struct Operations::VariableReference : public Expression
 	{
 		SyntaxTreeWalker walker(this);
 
-		VariableReference* lastOne = nullptr;
+		VariableReference* lastOne = walker.getNextStatementOfType<VariableReference>();;
 
 		bool isLast = false;
 
-		while ((lastOne = walker.getNextStatementOfType<VariableReference>()))
+		while (lastOne != nullptr)
 		{
+			lastOne = walker.getNextStatementOfType<VariableReference>();
+
 			if (lastOne->ref != ref)
 				continue;
 
@@ -298,8 +300,6 @@ struct Operations::VariableReference : public Expression
 		bool initialiseVariables = (currentPass == BaseCompiler::RegisterAllocation && parameterIndex != -1) ||
 			(currentPass == BaseCompiler::CodeGeneration && parameterIndex == -1);
 #endif
-
-		bool initialiseVariables = currentPass == BaseCompiler::CodeGeneration;
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{

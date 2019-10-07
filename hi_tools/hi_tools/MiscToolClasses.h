@@ -594,7 +594,7 @@ struct SimpleReadWriteLock
 
 	struct ScopedTryReadLock
 	{
-		ScopedTryReadLock(SimpleReadWriteLock &lock_, bool busyWait = false);
+		ScopedTryReadLock(SimpleReadWriteLock &lock_);
 		~ScopedTryReadLock();
 
 		bool hasLock() const { return is_locked; }

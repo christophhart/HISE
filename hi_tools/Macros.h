@@ -163,7 +163,7 @@ class LinuxFontHandler
 
 struct FontHelpers
 {
-	static Font getFontBoldened(Font& f)
+	static Font getFontBoldened(const Font& f)
 	{
 		if (f.isBold())
 			return f;

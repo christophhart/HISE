@@ -187,12 +187,12 @@ public:
 		sr = ps.sampleRate;
 	}
 
-	void initialise(NodeBase* n)
+	void initialise(NodeBase* )
 	{
 
 	}
 
-	Component* createExtraComponent(PooledUIUpdater* updater) override
+	Component* createExtraComponent(PooledUIUpdater* ) override
 	{
 		return T::createComponent(*this);
 	}

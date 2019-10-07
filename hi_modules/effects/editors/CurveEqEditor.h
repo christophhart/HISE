@@ -62,7 +62,7 @@ public:
 		else
 		{
 			auto p = getProcessor()->getAttribute(parameter);
-			selectButton(p);
+			selectButton((int)p);
 		}
 	}
 

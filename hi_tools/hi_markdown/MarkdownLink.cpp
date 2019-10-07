@@ -480,12 +480,6 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 	if (anchor.isNotEmpty() && anchor != "#")
 		s << anchor;
 
-	if (sanitizedURL.contains("keyboard"))
-	{
-		auto t = getType();
-		int x = 5;
-	}
-
 	return s;
 }
 

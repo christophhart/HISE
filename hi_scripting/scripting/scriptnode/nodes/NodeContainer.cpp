@@ -1176,7 +1176,7 @@ DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connection::createC
 		else
 			f = std::bind(&NodeBase::Parameter::setValueAndStoreAsync, p.get(), std::placeholders::_1);
 
-		auto expressionCode = connectionData[PropertyIds::Expression].toString();
+		expressionCode = connectionData[PropertyIds::Expression].toString();
 
 		if (expressionCode.isNotEmpty())
 		{

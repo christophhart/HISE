@@ -1060,7 +1060,7 @@ void MarkdownPreview::Topbar::showPopup()
 	}
 }
 
-void MarkdownPreview::Topbar::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel)
+void MarkdownPreview::Topbar::mouseWheelMove(const MouseEvent& , const MouseWheelDetails& )
 {
 	jassertfalse;
 }

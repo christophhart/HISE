@@ -196,8 +196,8 @@ public:
 		{
 			if (auto seq = player->getCurrentSequence())
 			{
-				nom = seq->getTimeSignaturePtr()->nominator;
-				denom = seq->getTimeSignaturePtr()->denominator;
+				nom = (int)seq->getTimeSignaturePtr()->nominator;
+				denom = (int)seq->getTimeSignaturePtr()->denominator;
 			}
 
 			auto thisQuarter = getBeatFromPosition();

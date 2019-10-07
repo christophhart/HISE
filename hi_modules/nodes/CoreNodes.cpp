@@ -158,8 +158,6 @@ void ramp_impl<NV>::setPeriodTime(double periodTimeMs)
 
 		auto newUptimeDelta = jmax(0.0000001, inv / sr);
 
-		auto d = newUptimeDelta * 100000.0;
-
 		if (state.isVoiceRenderingActive())
 		{
 			state.get().uptimeDelta = newUptimeDelta;
@@ -386,7 +384,7 @@ void scriptnode::core::oscillator_impl<NV>::reset() noexcept
 
 
 template <int NV>
-void oscillator_impl<NV>::processSingle(float* data, int numChannels)
+void oscillator_impl<NV>::processSingle(float* data, int )
 {
 	data[0] += sinTable->getInterpolatedValue(voiceData.get().tick());
 }
@@ -1032,7 +1030,7 @@ bool hise_mod::handleModulation(double& v)
 		return false;
 }
 
-void hise_mod::processSingle(float* frameData, int numChannels)
+void hise_mod::processSingle(float* , int )
 {
 	jassertfalse;
 }
@@ -1118,7 +1116,7 @@ void fm::process(ProcessData& d)
 	}
 }
 
-void fm::processSingle(float* frameData, int numChannels)
+void fm::processSingle(float* frameData, int )
 {
 	auto& od = oscData.get();
 	double modValue = (double)*frameData;

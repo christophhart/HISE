@@ -68,7 +68,7 @@ public:
 		v.setTargetValue(newTargetValue);
 	}
 
-	float next()
+	T next()
 	{
 		return v.getNextValue();
 	}

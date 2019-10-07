@@ -215,7 +215,7 @@ juce::String CppGen::Emitter::createClass(const String& content, const String& t
 
 }
 
-juce::String CppGen::Emitter::createJitClass(const String& className, const String& content)
+juce::String CppGen::Emitter::createJitClass(const String& , const String& content)
 {
 	String s;
 

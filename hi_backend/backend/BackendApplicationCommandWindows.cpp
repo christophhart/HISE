@@ -37,17 +37,6 @@ namespace hise { using namespace juce;
 
 MARKDOWN_CHAPTER(WavetableHelp)
 
-START_MARKDOWN(FileBrowserDescription)
-ML("# Wavetable Conversion File")
-ML("You can load / save configuration files that store the current settings of this dialogue.  ")
-ML("The settings will be written to the specified file when you press **OK**. In order to load a configuration, just open a previously stored file.")
-ML("## Stored information")
-ML("- Settings")
-ML("- Samplemap. ")
-ML("- Analysis progress")
-ML("- Harmonic Map of each analysed sample")
-ML("- Gain table of each analysed sample")
-END_MARKDOWN()
 
 START_MARKDOWN(ReverseWavetables)
 ML("## Reverse Wavetable order")

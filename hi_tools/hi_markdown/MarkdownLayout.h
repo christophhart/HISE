@@ -79,9 +79,7 @@ struct MarkdownLayout
 			if (useSpecialBoldFont)
 				return boldFont;
 
-            auto f = getFont();
-            
-            return FontHelpers::getFontBoldened(f);
+            return FontHelpers::getFontBoldened(getFont());
 		}
 
 		Font getFont() const { return f.withHeight(fontSize); }

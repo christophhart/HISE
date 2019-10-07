@@ -1242,15 +1242,15 @@ KeyboardPopup::PopupList::Item::Item(const Entry& entry_, bool isSelected_) :
 	p = f.createPath(icons[(int)entry.t]);
 }
 
-void KeyboardPopup::PopupList::Item::buttonClicked(Button* b)
+void KeyboardPopup::PopupList::Item::buttonClicked(Button* )
 {
-	auto list = findParentComponentOfClass<PopupList>();
+	auto plist = findParentComponentOfClass<PopupList>();
 	
-	list->network->deleteIfUnused(entry.insertString);
+	plist->network->deleteIfUnused(entry.insertString);
 
-	MessageManager::callAsync([list]()
+	MessageManager::callAsync([plist]()
 	{
-		list->rebuildItems();
+		plist->rebuildItems();
 	});
 }
 

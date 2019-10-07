@@ -1572,8 +1572,6 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*b
 
 void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWindow * bpe)
 {
-	auto mbw = dynamic_cast<ModalBaseWindow*>(bpe);
-
 	auto exporter = new SampleDataExporter(bpe->getMainController());
 
 	exporter->setModalBaseWindowComponent(bpe->mainEditor);
@@ -2590,7 +2588,7 @@ void BackendCommandTarget::Actions::showDocWindow(BackendRootWindow * bpe)
 		}
 	}
 
-	auto doc = bpe->createOrShowDocWindow(l);
+	bpe->createOrShowDocWindow(l);
 }
 
 #undef REPLACE_WILDCARD

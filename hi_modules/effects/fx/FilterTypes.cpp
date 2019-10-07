@@ -157,9 +157,9 @@ IIRCoefficients MultiChannelFilter<FilterSubType>::getApproximateCoefficients() 
 
 	auto m = cType[type];
 
-	auto f_ = targetFreq; //(double)frequency.getCurrentValue();
-	auto q_ = targetQ; //(double)q.getCurrentValue();
-	auto g_ = targetGain; //(float)gain.getCurrentValue();
+	auto f_ = (double)targetFreq; //(double)frequency.getCurrentValue();
+	auto q_ = (double)targetQ; //(double)q.getCurrentValue();
+	auto g_ = (float)targetGain; //(float)gain.getCurrentValue();
 
 	switch (m)
 	{

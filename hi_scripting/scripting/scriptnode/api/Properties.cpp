@@ -447,7 +447,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 				repaint();
 			}
 
-			void mouseExit(const MouseEvent& e)
+			void mouseExit(const MouseEvent& )
 			{
 				hoverPos = {};
 				repaint();
@@ -481,9 +481,9 @@ struct ExpressionPropertyComponent : public PropertyComponent
 
 					g.setFont(f);
 					
-					auto b = getLocalBounds();
-					auto left = b.removeFromBottom(26).removeFromLeft(sw).toFloat();
-					auto right = b.removeFromTop(26).removeFromRight(ew).toFloat();
+					b = getLocalBounds();
+					auto left = b.removeFromBottom(26).toFloat().removeFromLeft(sw);
+					auto right = b.removeFromTop(26).toFloat().removeFromRight(ew);
 
 					
 
@@ -510,7 +510,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 
 						auto yPos = roundToInt((1.0f - yNormalised) * (float)getHeight());
 
-						Rectangle<float> circle(xPos, yPos, 0.0f, 0.0f);
+						Rectangle<float> circle((float)xPos, (float)yPos, 0.0f, 0.0f);
 
 						g.setColour(Colours::red);
 						g.fillEllipse(circle.withSizeKeepingCentre(10.0f, 10.0f));
@@ -521,25 +521,24 @@ struct ExpressionPropertyComponent : public PropertyComponent
 						posText << " | ";
 						posText << CppGen::Emitter::createPrettyNumber(va, false);
 
-						auto f = GLOBAL_BOLD_FONT();
 						auto w = f.getStringWidthFloat(posText) + 10.0f;
 
-						auto b = circle.withSizeKeepingCentre(w, 20);
+						auto bf = circle.withSizeKeepingCentre(w, 20.0f);
 						if (yNormalised < 0.5)
-							b = b.translated(0.0f, -30.0f);
+							bf = bf.translated(0.0f, -30.0f);
 						else
-							b = b.translated(0.0f, 30.0f);
+							bf = bf.translated(0.0f, 30.0f);
 
-						if(b.getRight() > (float)getWidth())
-							b = b.withX((float)getWidth() - b.getWidth());
+						if(bf.getRight() > (float)getWidth())
+							bf = bf.withX((float)getWidth() - bf.getWidth());
 
-						if (b.getX() < 0.0f)
-							b = b.withX(0.0f);
+						if (bf.getX() < 0.0f)
+							bf = bf.withX(0.0f);
 
 						g.setColour(Colours::black.withAlpha(0.5f));
-						g.fillRoundedRectangle(b, 2.0f);
+						g.fillRoundedRectangle(bf, 2.0f);
 						g.setColour(Colours::white.withAlpha(0.8f));
-						g.drawText(posText, b, Justification::centred);
+						g.drawText(posText, bf, Justification::centred);
 					}
 				}
 			}
@@ -598,7 +597,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 								break;
 							}
 
-							auto yNormalised = (data[i] - minValue) / (maxValue - minValue);
+							auto yNormalised = (float)((data[i] - minValue) / (maxValue - minValue));
 
 							newPath.lineTo(((float)(i) / (float)(numToUse - 1)), 1.0f - yNormalised);
 						}
@@ -684,7 +683,7 @@ struct ExpressionPropertyComponent : public PropertyComponent
 	
 };
 
-void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& event)
+void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 {
 	Display* bigOne = new Display(value, false);
 	bigOne->setSize(300, 300);

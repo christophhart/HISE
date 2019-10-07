@@ -104,7 +104,7 @@ public:
 
 	static void runSilently(MarkdownDatabaseHolder& holder)
 	{
-		DocUpdater* doc = new DocUpdater(holder, true, false);
+		new DocUpdater(holder, true, false);
 	}
 
 	void run() override;

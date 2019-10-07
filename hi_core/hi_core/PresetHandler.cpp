@@ -691,7 +691,7 @@ struct CountedProcessorId
 
 
 
-void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEditor)
+void ProjectHandler::createNewProject(File &workingDirectory, Component* )
 {
 	if (workingDirectory.exists() && workingDirectory.isDirectory())
 	{

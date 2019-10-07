@@ -506,7 +506,7 @@ SimpleReadWriteLock::ScopedWriteLock::~ScopedWriteLock()
 }
 
 
-SimpleReadWriteLock::ScopedTryReadLock::ScopedTryReadLock(SimpleReadWriteLock &lock_, bool busyWait /*= false*/) :
+SimpleReadWriteLock::ScopedTryReadLock::ScopedTryReadLock(SimpleReadWriteLock &lock_) :
 	lock(lock_)
 {
 	if (lock.writerThread == nullptr)

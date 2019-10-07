@@ -475,8 +475,6 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 
 	if (auto mSeq = getReadPointer())
 	{
-		auto maxLength = getLength();
-
 		for (const auto& ev : *mSeq)
 		{
 			if (ev->message.isNoteOn() && ev->noteOffObject != nullptr)
@@ -1352,7 +1350,6 @@ bool MidiPlayer::stop(int timestamp)
 					auto channel = futureEvent.getChannel();
 					jassert(channel == currentTrackIndex + 1);
 
-					auto ts = futureEvent.getTimeStamp();
 					futureEvent.setTimeStamp(getLargestBlockSize() - 2);
 					sortAfterOp = true;
 				}

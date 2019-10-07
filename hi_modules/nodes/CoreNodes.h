@@ -316,7 +316,7 @@ public:
 
 	void prepare(PrepareSpecs ps);
 	void reset();
-	bool handleModulation(double& v) { return false; }
+	bool handleModulation(double& ) { return false; }
 	void process(ProcessData& d);
 	void processSingle(float* frameData, int numChannels);
 

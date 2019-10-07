@@ -219,7 +219,7 @@ public:
 				return Item::getPopupWidth();
 		}
 
-		void focusGained(FocusChangeType cause) override
+		void focusGained(FocusChangeType) override
 		{
 			repaint();
 		}
@@ -231,15 +231,13 @@ public:
 			return { File(), s };
 		}
 
-		void focusLost(FocusChangeType cause) override
+		void focusLost(FocusChangeType ) override
 		{
 			repaint();
 		}
 
 		void paintPopupBox(Graphics &g) const
 		{
-			
-
 			if (parser != nullptr)
 			{
 				auto bounds = Rectangle<float>(10.0f, 10.0f, (float)extendedWidth, (float)getPopupHeight() - 20);

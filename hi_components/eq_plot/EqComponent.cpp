@@ -168,9 +168,9 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 			float xPos;
 			
 			if (fftProperties.freq2x)
-				xPos = fftProperties.freq2x(f);
+				xPos = (float)fftProperties.freq2x((float)f);
 			else
-				xPos = log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
+				xPos = (float)log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
 
 			auto diff = xPos - lastIndex;
 
@@ -355,7 +355,7 @@ void FilterDragOverlay::paint(Graphics &g)
 	}
 }
 
-void FilterDragOverlay::changeListenerCallback(SafeChangeBroadcaster *b)
+void FilterDragOverlay::changeListenerCallback(SafeChangeBroadcaster *)
 {
 	checkEnabledBands();
 	updateFilters();
@@ -364,7 +364,7 @@ void FilterDragOverlay::changeListenerCallback(SafeChangeBroadcaster *b)
 
 void FilterDragOverlay::checkEnabledBands()
 {
-	auto numFilters = eq->getNumFilterBands();
+	numFilters = eq->getNumFilterBands();
 
 	for (int i = 0; i < numFilters; i++)
 		filterGraph.enableBand(i, eq->getFilterBand(i)->isEnabled());
@@ -550,7 +550,7 @@ void FilterDragOverlay::mouseDown(const MouseEvent &e)
 	}
 }
 
-void FilterDragOverlay::mouseUp(const MouseEvent& e)
+void FilterDragOverlay::mouseUp(const MouseEvent& )
 {
 	selectDragger(-1);
 }
@@ -654,7 +654,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 	}
 }
 
-void FilterDragOverlay::FilterDragComponent::mouseUp(const MouseEvent& e)
+void FilterDragOverlay::FilterDragComponent::mouseUp(const MouseEvent& )
 {
 	draggin = false;
 	parent.selectDragger(-1);
@@ -678,7 +678,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 
 	const double freq = jlimit<double>(20.0, 20000.0, (double)parent.filterGraph.xToFreq((float)x));
 
-	const double gain = parent.filterGraph.yToGain(y, 24.0f);
+	const double gain = parent.filterGraph.yToGain((float)y, 24.0f);
 
 	const int freqIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Freq);
 	const int gainIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Gain);

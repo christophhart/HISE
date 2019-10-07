@@ -461,16 +461,14 @@ public:
 		{
 			PoolReference ref(sampler->getMainController(), file.getFullPathName(), FileHandlerBase::SampleMaps);
 
-			auto f = [ref](Processor* p)
+			sampler->killAllVoicesAndCall([ref](Processor* p)
 			{
 				auto s = static_cast<ModulatorSampler*>(p);
 
 				s->loadSampleMap(ref);
 
 				return SafeFunctionCall::OK;
-			};
-
-			sampler->killAllVoicesAndCall(f);
+			});
 		}
 		else if (file.getFileExtension() == ".sfz")
 		{

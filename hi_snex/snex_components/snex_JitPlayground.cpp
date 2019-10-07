@@ -663,27 +663,27 @@ void Graph::paint(Graphics& g)
 
 		if (stereoMode)
 		{
-			auto l = b.removeFromTop(b.getHeight() / 2).toFloat();
-			auto r = b.toFloat();
+			auto left = b.removeFromTop(b.getHeight() / 2).toFloat();
+			auto right = b.toFloat();
 
-			auto lMax = l.removeFromTop(18);
-			auto lMin = l.removeFromBottom(18);
+			auto lMax = left.removeFromTop(18);
+			auto lMin = left.removeFromBottom(18);
 
 			g.drawText(String(leftPeaks.getStart(), 1), lMin, Justification::left);
 			g.drawText(String(leftPeaks.getEnd(), 1), lMax, Justification::left);
 
-			auto rMax = r.removeFromTop(18);
-			auto rMin = r.removeFromBottom(18);
+			auto rMax = right.removeFromTop(18);
+			auto rMin = right.removeFromBottom(18);
 
 			g.drawText(String(rightPeaks.getStart(), 1), rMin, Justification::left);
 			g.drawText(String(rightPeaks.getEnd(), 1), rMax, Justification::left);
 		}
 		else
 		{
-			auto l = b.removeFromTop(b.getHeight()).toFloat();
+			auto left = b.removeFromTop(b.getHeight()).toFloat();
 
-			auto lMax = l.removeFromTop(18);
-			auto lMin = l.removeFromBottom(18);
+			auto lMax = left.removeFromTop(18);
+			auto lMin = left.removeFromBottom(18);
 
 			g.drawText(String(leftPeaks.getStart(), 1), lMin, Justification::left);
 			g.drawText(String(leftPeaks.getEnd(), 1), lMax, Justification::left);
