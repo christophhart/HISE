@@ -100,6 +100,52 @@ DEFINE_FILTER_NODE_TEMPLATE(linkwitzriley, linkwitzriley_poly, LinkwitzRiley);
 
 #undef DEFINE_FILTER_NODE_TEMPLATE
 
+
+template <int NV> struct fir_impl : public AudioFileNodeBase
+{
+	using CoefficientType = juce::dsp::FIR::Coefficients<float>;
+	using FilterType = juce::dsp::FIR::Filter<float>;
+
+	static constexpr int NumVoices = NV;
+
+	SET_HISE_NODE_ID("fir");
+	GET_SELF_AS_OBJECT(fir_impl);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+	SET_HISE_NODE_EXTRA_WIDTH(256);
+	SET_HISE_NODE_EXTRA_HEIGHT(100);
+
+	fir_impl();;
+
+	void prepare(PrepareSpecs specs) override;
+	
+	void rebuildCoefficients();
+
+	void contentChanged() override;
+
+	void reset();
+
+	bool handleModulation(double&);
+	void process(ProcessData& d);
+
+	void processSingle(float* frameData, int numChannels);
+	
+private:
+
+	bool ok = false;
+
+	SimpleReadWriteLock coefficientLock;
+
+	CoefficientType::Ptr leftCoefficients;
+	CoefficientType::Ptr rightCoefficients;
+
+	PolyData<FilterType, NumVoices> leftFilters;
+	PolyData<FilterType, NumVoices> rightFilters;
+
+};
+
+
+DEFINE_EXTERN_NODE_TEMPLATE(fir, fir_poly, fir_impl);
+
 }
 
 }

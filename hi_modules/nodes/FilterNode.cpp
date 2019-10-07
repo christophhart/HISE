@@ -269,6 +269,128 @@ DEFINE_FILTER_NODE_TEMPIMPL(LinkwitzRiley);
 
 #undef DEFINE_FILTER_NODE_TEMPIMPL
 
+
+template <int NV>
+scriptnode::filters::fir_impl<NV>::fir_impl()
+{
+
+}
+
+template <int NV>
+void scriptnode::filters::fir_impl<NV>::rebuildCoefficients()
+{
+	if (currentBuffer->range.getNumSamples() == 0)
+		return;
+
+	auto ptrs = currentBuffer->range.getArrayOfReadPointers();
+
+	auto tapSize = jmin(128, currentBuffer->range.getNumSamples());
+
+	leftCoefficients = new CoefficientType(ptrs[0], tapSize);
+
+	if (currentBuffer->range.getNumChannels() > 1)
+		rightCoefficients = new CoefficientType(ptrs[1], tapSize);
+	else
+		rightCoefficients = leftCoefficients;
+
+	SimpleReadWriteLock::ScopedWriteLock sl(coefficientLock);
+
+	leftFilters.forEachVoice([this](FilterType& f) { f.coefficients = leftCoefficients; f.reset(); });
+	rightFilters.forEachVoice([this](FilterType& f) { f.coefficients = rightCoefficients; f.reset(); });
+
+	ok = true;
+}
+
+template <int NV>
+void scriptnode::filters::fir_impl<NV>::contentChanged()
+{
+	AudioFileNodeBase::contentChanged();
+
+	rebuildCoefficients();
+}
+
+template <int NV>
+void scriptnode::filters::fir_impl<NV>::reset()
+{
+	SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
+
+	if (leftFilters.isVoiceRenderingActive())
+	{
+		leftFilters.get().reset();
+		rightFilters.get().reset();
+	}
+
+	else
+	{
+		leftFilters.forEachVoice([](FilterType& f) { f.reset(); });
+		rightFilters.forEachVoice([](FilterType& f) { f.reset(); });
+	}
+}
+
+template <int NV>
+bool scriptnode::filters::fir_impl<NV>::handleModulation(double&)
+{
+	return false;
+}
+
+template <int NV>
+void scriptnode::filters::fir_impl<NV>::process(ProcessData& d)
+{
+	if (!ok)
+		return;
+
+	SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
+
+	dsp::AudioBlock<float> l(d.data, 1, d.size);
+	dsp::ProcessContextReplacing<float> pcrl(l);
+	leftFilters.get().process(pcrl);
+
+	if (d.numChannels > 1)
+	{
+		dsp::AudioBlock<float> r(d.data + 1, 1, d.size);
+		dsp::ProcessContextReplacing<float> pcrr(r);
+		rightFilters.get().process(pcrr);
+	}
+}
+
+template <int NV>
+void scriptnode::filters::fir_impl<NV>::processSingle(float* frameData, int numChannels)
+{
+	if (!ok)
+		return;
+
+	SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
+
+	if (numChannels == 1)
+	{
+		*frameData = leftFilters.get().processSample(*frameData);
+	}
+	else
+	{
+		frameData[0] = leftFilters.get().processSample(frameData[0]);
+		frameData[1] = rightFilters.get().processSample(frameData[1]);
+	}
+}
+
+template <int NV>
+void scriptnode::filters::fir_impl<NV>::prepare(PrepareSpecs specs)
+{
+	dsp::ProcessSpec ps;
+	ps.numChannels = 1;
+	ps.sampleRate = specs.sampleRate;
+	ps.maximumBlockSize = specs.blockSize;
+
+	leftFilters.forEachVoice([ps](FilterType& f) { f.prepare(ps); });
+	rightFilters.forEachVoice([ps](FilterType& f) { f.prepare(ps); });
+
+	leftFilters.prepare(specs);
+	rightFilters.prepare(specs);
+
+	rebuildCoefficients();
+}
+
+DEFINE_EXTERN_NODE_TEMPIMPL(fir_impl);
+
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
@@ -281,6 +403,7 @@ Factory::Factory(DspNetwork* n) :
 	registerPolyNode<allpass, allpass_poly>();
 	registerPolyNode<linkwitzriley, linkwitzriley_poly>();
 	registerNode<convolution>();
+	registerPolyNode<fir, fir_poly>();
 }
 
 
