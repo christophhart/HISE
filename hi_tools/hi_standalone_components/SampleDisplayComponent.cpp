@@ -588,7 +588,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 	var rb;
 	ScopedPointer<AudioFormatReader> reader;
 
-	bool scaleVertically = false;
+	bool sv = false;
 
 	{
 		if (parent.get() == nullptr)
@@ -596,7 +596,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 
 		ScopedLock sl(parent->lock);
 
-		scaleVertically = parent->shouldScaleVertically();
+		sv = parent->shouldScaleVertically();
 
 		bounds = parent->getBounds();
 
@@ -686,7 +686,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = l->buffer.getReadPointer(0);
 			const int numSamples = l->size;
 
-			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples, scaleVertically);
+			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples, sv);
 		}
 	}
 	else
@@ -698,7 +698,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = l->buffer.getReadPointer(0);
 			const int numSamples = l->size;
 
-			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples, scaleVertically);
+			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples, sv);
 		}
 
 		if (r != nullptr && r->size != 0)
@@ -706,7 +706,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = r->buffer.getReadPointer(0);
 			const int numSamples = r->size;
 
-			scalePathFromLevels(rPath, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples, scaleVertically);
+			scalePathFromLevels(rPath, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples, sv);
 		}
 	}
 

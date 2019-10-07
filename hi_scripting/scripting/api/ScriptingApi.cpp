@@ -1386,9 +1386,11 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 
 	return returnList;
 
+#else
+	return {};
 #endif
 
-	return {};
+	
 }
 
 int ScriptingApi::Engine::getLatencySamples() const

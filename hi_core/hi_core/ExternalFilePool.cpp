@@ -358,11 +358,16 @@ PoolHelpers::Reference::Reference(PoolBase* pool_, const String& embeddedReferen
 
 PoolHelpers::Reference PoolHelpers::Reference::withFileHandler(FileHandlerBase* handler)
 {
+	if (m == ExpansionPath)
+		return *this;
+
 	jassert(m == ProjectPath);
 
 #if HISE_ENABLE_EXPANSIONS
 	if (auto exp = dynamic_cast<Expansion*>(handler))
 	{
+		
+
 		auto path = reference.fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
 
 		return exp->createReferenceForFile(path, directoryType);

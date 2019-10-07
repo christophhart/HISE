@@ -92,6 +92,10 @@ public:
 
 		checkSubDirectories();
 
+#if HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT
+		redirectSampleDirectoryToDefault();
+#endif
+
 		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
 		pool->getMidiFilePool().loadAllFilesFromProjectFolder();
 
@@ -127,7 +131,14 @@ public:
 
 	PooledAdditionalData loadAdditionalData(const String& relativePath);
 
-	/** By default the expansion pack uses its own sample folder, but you can force this to use the default sample location. */
+	/** By default the expansion pack uses its own sample folder, but you can force this to use the default sample location. 
+	
+	    This is called automatically at initialisation of the expansion object if the preprocessor macro
+		
+		HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT
+
+		is set to true
+	*/
 	void redirectSampleDirectoryToDefault();
 
 #if 0
