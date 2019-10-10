@@ -101,8 +101,10 @@ DEFINE_FILTER_NODE_TEMPLATE(linkwitzriley, linkwitzriley_poly, LinkwitzRiley);
 #undef DEFINE_FILTER_NODE_TEMPLATE
 
 
-template <int NV> struct fir_impl : public AudioFileNodeBase
+template <int NV> class fir_impl : public AudioFileNodeBase
 {
+public:
+
 	using CoefficientType = juce::dsp::FIR::Coefficients<float>;
 	using FilterType = juce::dsp::FIR::Filter<float>;
 

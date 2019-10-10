@@ -77,6 +77,14 @@ namespace hise { using namespace juce;
 #endif
 #endif
 
+
+#if HISE_ENABLE_EXPANSIONS
+#ifndef HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT
+#define HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT 0
+#endif
+#endif
+
+
 #if USE_BACKEND
 #define BACKEND_ONLY(x) x 
 #define FRONTEND_ONLY(x)
