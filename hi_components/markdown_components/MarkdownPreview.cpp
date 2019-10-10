@@ -973,6 +973,9 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 
 	ValueTree test;
 
+    tmpFile.deleteFile();
+    tmpFile.create();
+    
 	auto r = comp.expand(tmpFile, test);
 
 	if (!r.wasOk() || !test.isValid())
