@@ -491,71 +491,9 @@ void PresetHandler::copyProcessorToClipboard(Processor *p)
 	debugToConsole(p, p->getId() + " was copied to clipboard.");
 }
 
-class MessageWithIcon : public Component
-{
-public:
-	
-	
 
-	MessageWithIcon(PresetHandler::IconType type, const String &message)
-	{
-		switch (type)
-		{
-		case PresetHandler::IconType::Info: image = ImageCache::getFromMemory(
-			BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
-			break;
-		case PresetHandler::IconType::Warning: image = ImageCache::getFromMemory(BinaryData::infoWarning_png, BinaryData::infoWarning_pngSize);
-			break;
-		case PresetHandler::IconType::Question: image = ImageCache::getFromMemory(BinaryData::infoQuestion_png, BinaryData::infoQuestion_pngSize);
-			break;
-		case PresetHandler::IconType::Error: image = ImageCache::getFromMemory(BinaryData::infoError_png, BinaryData::infoError_pngSize);
-			break;
-		case PresetHandler::IconType::numIconTypes: image = Image(); jassertfalse;
-			break;
-		default:
-			break;
-		}
 
-		Font font = GLOBAL_BOLD_FONT();
-
-		StringArray lines = StringArray::fromLines(message);
-
-		bestWidth = 0;
-
-		AttributedString s;
-		
-		s.setJustification(Justification::topLeft);
-		
-		for (int i = 0; i < lines.size(); i++)
-		{
-			bestWidth = jmax<int>(bestWidth, font.getStringWidth(lines[i]));
-			s.append(lines[i] + "\n", i == 0 ? GLOBAL_BOLD_FONT() : GLOBAL_FONT(), Colour(0xFF888888));
-		}
-
-		layout.createLayoutWithBalancedLineLengths(s, (float)bestWidth);
-		setSize(bestWidth + image.getWidth(), jmax<int>(image.getHeight(), (int)(layout.getHeight() + font.getHeight())));
-	}
-
-	void paint(Graphics &g) override
-	{
-
-		g.drawImageAt(image, 0, 0);
-		g.setColour(Colour(0xFF999999));
-		layout.draw(g, Rectangle<float>((float)image.getWidth(), 0.0f, (float)bestWidth, (float)getHeight()));
-	}
-
-private:
-	
-	
-
-private:
-
-	int bestWidth;
-	
-	TextLayout layout;
-
-	Image image;
-};
+void* PresetHandler::currentController = nullptr;
 
 String PresetHandler::getCustomName(const String &typeName, const String& thisMessage/*=String()*/)
 {
@@ -574,13 +512,15 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 		message << thisMessage;
 	}
 
-	AlertWindowLookAndFeel laf;
+	ScopedPointer<LookAndFeel> laf = createAlertWindowLookAndFeel();
 
-	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(PresetHandler::IconType::Question, message);
+
+	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(PresetHandler::IconType::Question, laf, message);
 
     ScopedPointer<AlertWindow> nameWindow = new AlertWindow(useCustomMessage ? ("Enter " + typeName) : ("Enter name for " + typeName), "", AlertWindow::AlertIconType::NoIcon);
 
-	nameWindow->setLookAndFeel(&laf);
+
+	nameWindow->setLookAndFeel(laf);
 
 	nameWindow->addCustomComponent(comp);
 
@@ -625,12 +565,12 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message, 
 
 	MessageManagerLock mm;
 
-	AlertWindowLookAndFeel laf;
-
-	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, message);
+	ScopedPointer<LookAndFeel> laf = createAlertWindowLookAndFeel();
+	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, laf, message);
+	
 	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
 
-	nameWindow->setLookAndFeel(&laf);
+	nameWindow->setLookAndFeel(laf);
 	nameWindow->addCustomComponent(comp);
 	
 	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
@@ -658,13 +598,11 @@ void PresetHandler::showMessageWindow(const String &title, const String &message
     
 #else
     
-    AlertWindowLookAndFeel laf;
-    
-    ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, message);
-    
+	ScopedPointer<LookAndFeel> laf = createAlertWindowLookAndFeel();
+    ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, laf, message);
     ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
     
-    nameWindow->setLookAndFeel(&laf);
+    nameWindow->setLookAndFeel(laf);
     nameWindow->addCustomComponent(comp);
     nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
     
@@ -2677,6 +2615,69 @@ void FileHandlerBase::loadOtherReferencedImages(ModulatorSynthChain* chainToExpo
 
 		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheStrong));
 	}
+}
+
+MessageWithIcon::MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf, const String &message) :
+	t(type),
+	r(message, nullptr)
+{
+	switch (type)
+	{
+	case PresetHandler::IconType::Info: image = ImageCache::getFromMemory(
+		BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
+		break;
+	case PresetHandler::IconType::Warning: image = ImageCache::getFromMemory(BinaryData::infoWarning_png, BinaryData::infoWarning_pngSize);
+		break;
+	case PresetHandler::IconType::Question: image = ImageCache::getFromMemory(BinaryData::infoQuestion_png, BinaryData::infoQuestion_pngSize);
+		break;
+	case PresetHandler::IconType::Error: image = ImageCache::getFromMemory(BinaryData::infoError_png, BinaryData::infoError_pngSize);
+		break;
+	case PresetHandler::IconType::numIconTypes: image = Image(); jassertfalse;
+		break;
+	default:
+		break;
+	}
+
+	auto& sd = r.getStyleData();
+
+	sd.f = laf->getAlertWindowFont();
+	sd.boldFont = laf->getAlertWindowTitleFont();
+	sd.fontSize = 14.0f;
+
+	sd.textColour = Colours::white.withAlpha(0.8f);
+
+	r.setStyleData(sd);
+
+	auto w = jmin(sd.f.getStringWidthFloat(message) + 30.0f, 600.0f);
+
+	auto height = (int)r.getHeightForWidth(w);
+
+	setSize(w + image.getWidth(), jmax(height, image.getHeight()));
+}
+
+void MessageWithIcon::paint(Graphics &g)
+{
+	if (auto alertWindow = findParentComponentOfClass<AlertWindow>())
+	{
+		if (auto lm = dynamic_cast<LookAndFeelMethods*>(&alertWindow->getLookAndFeel()))
+		{
+			lm->paintMessage(*this, g);
+			return;
+		}
+	}
+
+	defaultLaf.paintMessage(*this, g);
+}
+
+void MessageWithIcon::LookAndFeelMethods::paintMessage(MessageWithIcon& icon, Graphics& g)
+{
+	g.drawImageAt(icon.image, 0, 0);
+	g.setColour(Colour(0xFF999999));
+
+	auto b = icon.getLocalBounds();
+	b.removeFromLeft(icon.image.getWidth());
+
+	icon.r.draw(g, b.toFloat());
 }
 
 } // namespace hise

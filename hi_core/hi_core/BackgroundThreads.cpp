@@ -80,7 +80,8 @@ AlertWindow(title, String(), AlertWindow::AlertIconType::NoIcon),
 isQuasiModal(false),
 synchronous(synchronous_)
 {
-	setLookAndFeel(&laf);
+	laf = PresetHandler::createAlertWindowLookAndFeel();
+	setLookAndFeel(laf);
 
 	setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
 	setColour(AlertWindow::textColourId, Colours::white);
@@ -144,6 +145,19 @@ bool DialogWindowWithBackgroundThread::threadShouldExit() const
 
 void DialogWindowWithBackgroundThread::handleAsyncUpdate()
 {
+	if (resetCalled)
+	{
+		resetCalled = false;
+		thread = nullptr;
+		return;
+	}
+
+
+
+
+
+
+
 	threadFinished();
 
 	if (additionalFinishCallback)
@@ -223,6 +237,16 @@ void DialogWindowWithBackgroundThread::showStatusMessage(const String &message) 
 }
 
 
+
+void DialogWindowWithBackgroundThread::reset()
+{
+	resetCalled = true;
+
+	if (thread != nullptr)
+	{
+		thread->signalThreadShouldExit();
+	}
+}
 
 void DialogWindowWithBackgroundThread::runThread()
 {

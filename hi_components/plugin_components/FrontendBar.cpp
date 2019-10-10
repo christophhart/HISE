@@ -32,12 +32,17 @@
 
 namespace hise { using namespace juce;
 
-DeactiveOverlay::DeactiveOverlay() :
+DeactiveOverlay::DeactiveOverlay(MainController* mc) :
+	ControlledObject(mc),
 	currentState(0)
 {
+	alaf = PresetHandler::createAlertWindowLookAndFeel();
+
+	
+
 	addAndMakeVisible(descriptionLabel = new Label());
 
-	descriptionLabel->setFont(GLOBAL_BOLD_FONT());
+	descriptionLabel->setFont(alaf->getAlertWindowMessageFont());
 	descriptionLabel->setColour(Label::ColourIds::textColourId, Colours::white);
 	descriptionLabel->setEditable(false, false, false);
 	descriptionLabel->setJustificationType(Justification::centredTop);
@@ -51,11 +56,11 @@ DeactiveOverlay::DeactiveOverlay() :
 
 	addAndMakeVisible(ignoreButton = new TextButton("Ignore"));
 
-	resolveLicenseButton->setLookAndFeel(&alaf);
-	resolveSamplesButton->setLookAndFeel(&alaf);
-	registerProductButton->setLookAndFeel(&alaf);
-	ignoreButton->setLookAndFeel(&alaf);
-	installSampleButton->setLookAndFeel(&alaf);
+	resolveLicenseButton->setLookAndFeel(alaf);
+	resolveSamplesButton->setLookAndFeel(alaf);
+	registerProductButton->setLookAndFeel(alaf);
+	ignoreButton->setLookAndFeel(alaf);
+	installSampleButton->setLookAndFeel(alaf);
 
 	resolveLicenseButton->addListener(this);
 	resolveSamplesButton->addListener(this);
@@ -207,8 +212,14 @@ String DeactiveOverlay::getTextForError(State s) const
 	case DeactiveOverlay::LicenseNotFound:
 	{
 #if USE_COPY_PROTECTION
+#if HISE_ALLOW_OFFLINE_ACTIVATION
 		return "This computer is not registered.\nClick below to authenticate this machine using either online authorization or by loading a license key.";
-		break;
+#else
+
+		registerProductButton->triggerClick();
+
+		return "This computer is not registered.";
+#endif
 #else
 		return "";
 #endif
@@ -339,7 +350,12 @@ void DeactiveOverlay::resized()
 		currentState[UserNameNotMatching] ||
 		currentState[ProductNotMatching])
 	{
+#if HISE_ALLOW_OFFLINE_ACTIVATION
 		resolveLicenseButton->setVisible(true);
+#else
+		resolveLicenseButton->setVisible(false);
+#endif
+
 		registerProductButton->setVisible(true);
 		resolveSamplesButton->setVisible(false);
 		ignoreButton->setVisible(false);

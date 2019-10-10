@@ -236,6 +236,10 @@ struct FontHelpers
 #define SET_PANEL_NAME(x) static Identifier getPanelId() { RETURN_STATIC_IDENTIFIER(x) }; Identifier getIdentifierForBaseClass() const override { return getPanelId(); };
 #define GET_PANEL_NAME(className) className::getPanelId()	
 
+/** Override this and supply a custom implementation of HiseColourScheme::createAlertWindowLookAndFeel. */
+#ifndef HISE_USE_CUSTOM_ALERTWINDOW_LOOKANDFEEL
+#define HISE_USE_CUSTOM_ALERTWINDOW_LOOKANDFEEL 0
+#endif
 
 struct HiseColourScheme
 {
@@ -260,6 +264,9 @@ struct HiseColourScheme
 		ComponentTextColourId,
 		numColourIds
 	};
+
+	// Override this and return the look and feel to be used by all alert windows
+	static LookAndFeel* createAlertWindowLookAndFeel(void* mainController);
 
 	static Colour getColour(ColourIds id)
 	{

@@ -82,6 +82,8 @@ MainController::MainController() :
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	controlUndoManager(new UndoManager())
 {
+	PresetHandler::setCurrentMainController(this);
+
 	globalFont = GLOBAL_FONT();
 
 	BACKEND_ONLY(popupConsole = nullptr);
@@ -104,12 +106,13 @@ MainController::MainController() :
 
 MainController::~MainController()
 {
+	PresetHandler::setCurrentMainController(this);
+
 	notifyShutdownToRegisteredObjects();
 
 	javascriptThreadPool->cancelAllJobs();
 	sampleManager->cancelAllJobs();
 
-	
 	Logger::setCurrentLogger(nullptr);
 	logger = nullptr;
 	masterReference.clear();

@@ -115,8 +115,7 @@ public:
 
 	private:
 
-		AlertWindowLookAndFeel alaf;
-
+		ScopedPointer<LookAndFeel> alaf;
 		ScopedPointer<TextButton> okButton;
 		ScopedPointer<TextButton> cancelButton;
 

@@ -1234,6 +1234,9 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				targetHlacFile.deleteFile();
 		}
 
+		if (thread->threadShouldExit())
+			return false;
+
 		if (overwriteThisFile || data.debugLogMode)
 		{
 			VERBOSE_LOG("  Overwriting File ");
@@ -1278,6 +1281,9 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				currentFlag = readFlag(fis);
 			}
 
+			if (thread->threadShouldExit())
+				return false;
+
 			jassert(currentFlag == Flag::EndMonolith);
 
 			flacTempWriteStream->flush();
@@ -1310,6 +1316,9 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			const int bufferSize = 8192 * 32;
 
 			hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset(hlac::HlacEncoder::CompressorOptions::Presets::Diff);
+
+			if (thread->threadShouldExit())
+				return false;
 
 			options.applyDithering = false;
 			options.normalisationMode = data.supportFullDynamics ? 2 : 0;
@@ -1350,6 +1359,9 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 					return false;
 				}
 
+				if (thread->threadShouldExit())
+					return false;
+
 				writer = nullptr;
 			}
 
@@ -1380,6 +1392,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				bytesToSkip = fis->readInt64();
 				CHECK_FLAG(Flag::EndMonolithLength);
 
+				if (thread->threadShouldExit())
+					return false;
 
 				CHECK_FLAG(Flag::ResumeMonolith);
 				fis->skipNextBytes(bytesToSkip);

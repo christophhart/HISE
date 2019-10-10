@@ -199,6 +199,9 @@ public:
 	*/
 	virtual void threadFinished() = 0;
 
+	/** This resets the window to the state before being started. */
+	void reset();
+
 	class AdditionalRow : public Component,
 								public ButtonListener
 	{
@@ -244,8 +247,6 @@ public:
 		}
 
 		void resized() override;
-
-		AlertWindowLookAndFeel alaf;
 
 		struct Column: public Component,
 					   public ButtonListener
@@ -377,6 +378,8 @@ protected:
 
 private:
 
+	ScopedPointer<LookAndFeel> laf;
+
 	std::function<void()> additionalFinishCallback;
 
 	mutable bool recursion = false;
@@ -411,12 +414,13 @@ private:
 
 	friend class LoadingThread;
 
+	bool resetCalled = false;
+
 	const bool synchronous;
 
 	int timeoutMs = 6000;
 	
 	bool isQuasiModal;
-	AlertWindowLookAndFeel laf;
 
 	ScopedPointer<LoadingThread> thread;
 

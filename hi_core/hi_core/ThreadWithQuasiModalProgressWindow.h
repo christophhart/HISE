@@ -105,11 +105,10 @@ public:
 		int currentTaskIndex;
 		int totalTasks;
 
+		ScopedPointer<LookAndFeel> alaf;
 		Component::SafePointer<AlertWindow> window;
 
 		ScopedPointer<ProgressBar> totalProgressBar;
-
-		AlertWindowLookAndFeel alaf;
 
 		double totalProgress;
 	};

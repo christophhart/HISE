@@ -93,8 +93,6 @@ private:
 
 	ScopedPointer<TextButton> checkUpdateButton;
 
-	AlertWindowLookAndFeel alaf;
-    
     Image aboutHeader;
 };
 
@@ -703,7 +701,21 @@ public:
 	// creates a processor from the file
 	static Processor *loadProcessorFromFile(File fileName, Processor *parent);
 
+	static void setCurrentMainController(void* mc)
+	{
+		currentController = mc;
+	}
+
+	static LookAndFeel* createAlertWindowLookAndFeel()
+	{
+		return HiseColourScheme::createAlertWindowLookAndFeel(currentController);
+	}
+
 private:
+
+	static void* currentController;
+
+	
 
 	//static void handlePreset(int menuIndexDelta, Processor *p, bool createNewProcessor)
 
@@ -712,6 +724,24 @@ private:
 
 };
 
+struct MessageWithIcon : public Component
+{
+	struct LookAndFeelMethods
+	{
+		virtual void paintMessage(MessageWithIcon& icon, Graphics& g);
+	};
+
+	MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf, const String &message);
+
+	void paint(Graphics &g) override;
+
+	MarkdownRenderer r;
+
+	PresetHandler::IconType t;
+	LookAndFeelMethods defaultLaf;
+	int bestWidth;
+	Image image;
+};
 
 } // namespace hise
 

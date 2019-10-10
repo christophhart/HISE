@@ -255,7 +255,7 @@ struct MarkdownEditorPopupComponents
 		{
 			setLookAndFeel(&laf);
 			setSize(width, panel.getTotalContentHeight() + 40);
-			createButton.setLookAndFeel(&blaf);
+			createButton.setLookAndFeel(&alaf);
 			createButton.setColour(TextButton::ColourIds::textColourOnId, Colours::white);
 		}
 
@@ -268,8 +268,7 @@ struct MarkdownEditorPopupComponents
 			panel.setBounds(ar);
 		}
 
-		AlertWindowLookAndFeel blaf;
-
+		AlertWindowLookAndFeel alaf;
 		MarkdownEditorPanel& parent;
 		hise::HiPropertyPanelLookAndFeel laf;
 

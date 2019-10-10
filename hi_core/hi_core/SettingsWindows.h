@@ -114,13 +114,14 @@ private:
 
 	TabButtonLookAndFeel tblaf;
 
-	AlertWindowLookAndFeel alaf;
 	BlackTextButtonLookAndFeel blaf;
 
 	class Content;
 	void setContent(SettingList s);
 
 	ProjectHandler* handler;
+
+	ScopedPointer<LookAndFeel> alaf;
 
 	ToggleButton projectSettings;
 	ToggleButton developmentSettings;

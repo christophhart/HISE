@@ -47,11 +47,12 @@ class SampleDataImporter;
 	error message that was received.
 */
 class DeactiveOverlay : public Component,
-	public ButtonListener
+	public ButtonListener,
+	public ControlledObject
 {
 public:
 
-	DeactiveOverlay();;
+	DeactiveOverlay(MainController* mc);;
 
 	void buttonClicked(Button *b);
 
@@ -128,8 +129,7 @@ public:
 
 private:
 
-	AlertWindowLookAndFeel alaf;
-
+	ScopedPointer<LookAndFeel> alaf;
 	String customMessage;
 
 	ScopedPointer<Label> descriptionLabel;

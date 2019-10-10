@@ -37,9 +37,8 @@ ThreadWithQuasiModalProgressWindow::ThreadWithQuasiModalProgressWindow (const St
      timeOutMsWhenCancelling (cancellingTimeOutMs),
      wasCancelledByUser (false)
 {
-	AlertWindowLookAndFeel alaf;
-
-    alertWindow = alaf.createAlertWindow (title, String(),
+	ScopedPointer<LookAndFeel> alaf = PresetHandler::createAlertWindowLookAndFeel();
+    alertWindow = alaf->createAlertWindow (title, String(),
                                         cancelButtonText.isEmpty() ? TRANS("Cancel")
                                                                    : cancelButtonText,
                                         String(), String(),
@@ -118,11 +117,11 @@ ThreadWithQuasiModalProgressWindow::Overlay::Overlay() :
 	totalTasks(0),
 	totalProgress(0.0)
 {
-
+	alaf = PresetHandler::createAlertWindowLookAndFeel();
 	setInterceptsMouseClicks(true, true);
 	addAndMakeVisible(totalProgressBar = new ProgressBar(totalProgress));
 
-	totalProgressBar->setLookAndFeel(&alaf);
+	totalProgressBar->setLookAndFeel(alaf);
 	totalProgressBar->setOpaque(true);
 }
 

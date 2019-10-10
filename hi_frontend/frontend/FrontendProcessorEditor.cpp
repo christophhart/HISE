@@ -63,7 +63,7 @@ AudioProcessorEditor(fp)
 
 	fp->addOverlayListener(this);
 	
-	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
+	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay(fp));
 
 #if FRONTEND_IS_PLUGIN || HISE_IOS
     const bool searchSamples = false;

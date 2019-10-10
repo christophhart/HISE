@@ -707,8 +707,9 @@ void PooledUIUpdater::Broadcaster::sendPooledChangeMessage()
 
 	if (handler != nullptr)
 	{
-		handler.get()->pendingHandlers.push(this);
 		pending = true;
+		handler.get()->pendingHandlers.push(this);
+		
 	}
 		
 	else

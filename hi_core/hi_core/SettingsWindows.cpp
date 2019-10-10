@@ -69,6 +69,8 @@ SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
 	cancelButton("Cancel"),
 	undoButton("Undo")
 {
+	alaf = PresetHandler::createAlertWindowLookAndFeel();
+
 	dataObject.addChangeListener(this);
 
 #if !IS_MARKDOWN_EDITOR
@@ -97,17 +99,17 @@ SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
 
 	addAndMakeVisible(&applyButton);
 	applyButton.addListener(this);
-	applyButton.setLookAndFeel(&alaf);
+	applyButton.setLookAndFeel(alaf);
 	applyButton.addShortcut(KeyPress(KeyPress::returnKey));
 
 	addAndMakeVisible(&cancelButton);
 	cancelButton.addListener(this);
-	cancelButton.setLookAndFeel(&alaf);
+	cancelButton.setLookAndFeel(alaf);
 	cancelButton.addShortcut(KeyPress(KeyPress::escapeKey));
 
 	addAndMakeVisible(&undoButton);
 	undoButton.addListener(this);
-	undoButton.setLookAndFeel(&alaf);
+	undoButton.setLookAndFeel(alaf);
 	undoButton.addShortcut(KeyPress('z', ModifierKeys::commandModifier, 'Z'));
 
 	projectSettings.setRadioGroupId(1, dontSendNotification);
@@ -424,9 +426,10 @@ public:
 
 		FileNameValuePropertyComponent& parent;
 
-		AlertWindowLookAndFeel alaf;
 		TextEditor editor;
 		TextButton browseButton;
+
+		AlertWindowLookAndFeel alaf;
 	};
 
 	FileNameValuePropertyComponent(const String& name, File initialFile, Value v_) :

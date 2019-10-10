@@ -84,6 +84,11 @@ namespace hise { using namespace juce;
 #endif
 #endif
 
+#if USE_COPY_PROTECTION
+#ifndef HISE_ALLOW_OFFLINE_ACTIVATION
+#define HISE_ALLOW_OFFLINE_ACTIVATION 1
+#endif
+#endif
 
 #if USE_BACKEND
 #define BACKEND_ONLY(x) x 

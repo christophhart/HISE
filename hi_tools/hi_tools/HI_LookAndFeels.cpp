@@ -872,6 +872,14 @@ void AlertWindowLookAndFeel::drawAlertBox(Graphics &g, AlertWindow &alert, const
 	g.drawRect(0, 0, alert.getWidth(), alert.getHeight());
 }
 
+
+#if !HISE_USE_CUSTOM_ALERTWINDOW_LOOKANDFEEL
+LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController)
+{
+	return new hise::AlertWindowLookAndFeel();
+}
+#endif
+
 void ChainBarButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
 {
 

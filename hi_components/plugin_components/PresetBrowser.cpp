@@ -361,6 +361,8 @@ void PresetBrowserLookAndFeel::drawModalOverlay(Graphics& g, Rectangle<int> area
 PresetBrowser::ModalWindow::ModalWindow(PresetBrowser* p) :
 	PresetBrowserChildComponentBase(p)
 {
+	alaf = PresetHandler::createAlertWindowLookAndFeel();
+
 	addAndMakeVisible(inputLabel = new BetterLabel(p));
 	addAndMakeVisible(okButton = new TextButton("OK"));
 	addAndMakeVisible(cancelButton = new TextButton("Cancel"));
@@ -380,8 +382,8 @@ PresetBrowser::ModalWindow::ModalWindow(PresetBrowser* p) :
 	okButton->addListener(this);
 	cancelButton->addListener(this);
 
-	okButton->setLookAndFeel(&alaf);
-	cancelButton->setLookAndFeel(&alaf);
+	okButton->setLookAndFeel(alaf);
+	cancelButton->setLookAndFeel(alaf);
 
 	inputLabel->refreshWithEachKey = false;
 
