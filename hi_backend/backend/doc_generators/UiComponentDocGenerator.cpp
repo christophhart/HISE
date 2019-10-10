@@ -145,7 +145,7 @@ hise::MarkdownDataBase::Item UIComponentDatabase::ItemGenerator::createRootItem(
 	
 	item.addChild(std::move(floatingTileItem));
 
-	applyColour(item);
+	item.setDefaultColour(colour);
 
 	return item;
 }

@@ -185,7 +185,7 @@ hise::MarkdownDataBase::Item MarkdownDataBase::DirectoryItemGenerator::createRoo
 	if (!rItem.c.isTransparent())
 		colour = rItem.c;
 
-	applyColour(rItem);
+	rItem.setDefaultColour(colour);
 
 	return rItem;
 }

@@ -235,7 +235,7 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 	fx.addChild(std::move(fx2));
 	rItem.addChild(std::move(fx));
 
-	applyColour(rItem);
+	rItem.setDefaultColour(colour);
 
 	return rItem;
 }

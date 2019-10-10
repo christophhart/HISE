@@ -168,7 +168,14 @@ public:
 		ValueTree createValueTree() const;
 		void loadFromValueTree(ValueTree& v);
 
-		
+		void setDefaultColour(Colour newColour)
+		{
+			if (c.isTransparent())
+				c = newColour;
+
+			for (auto& child : children)
+				child.setDefaultColour(c);
+		}
 
 		void fillMetadataFromURL();
 
@@ -289,12 +296,6 @@ public:
 
 		virtual ~ItemGeneratorBase() {};
 		virtual Item createRootItem(MarkdownDataBase& parent) = 0;
-
-		void applyColour(Item& item)
-		{
-			Colour c_ = colour;
-			item.callForEach([c_](Item& item) { item.c = c_; return false; });
-		}
 
 		Colour colour;
 		File rootDirectory;

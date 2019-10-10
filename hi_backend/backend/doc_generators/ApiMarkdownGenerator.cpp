@@ -54,7 +54,9 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::createRootItem
 	scriptingApi.fillMetadataFromURL();
 
 	item.swapChildWithName(scriptingApi, "scripting-api");
-	applyColour(item);
+
+	item.setDefaultColour(colour);
+
 	return item;
 }
 

@@ -382,7 +382,7 @@ hise::MarkdownDataBase::Item MenuReferenceDocGenerator::ItemGenerator::createRoo
 	if (data->bp->shouldAbort())
 		return item;
 
-	applyColour(item);
+	item.setDefaultColour(colour);
 
 	return item;
 }
