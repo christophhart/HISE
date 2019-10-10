@@ -428,7 +428,7 @@ protected:
 				{
 					auto url = link.url.withRoot(localRoot, false);
 
-					resolvedLink = url.toFile(MarkdownLink::FileType::HtmlFile).getFullPathName();
+					resolvedLink = link.url.toString(MarkdownLink::FormattedLinkHtml);
 				}
 				else
 				{

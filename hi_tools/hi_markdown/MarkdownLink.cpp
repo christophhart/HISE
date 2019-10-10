@@ -83,8 +83,8 @@ File MarkdownLink::toFile(FileType fileType, File rootToUse) const noexcept
 
 		}
 
-		jassert(getType() == MarkdownFile || getType() == Folder || getType() == Image || getType() == Icon);
-		return rootToUse.getChildFile(toString(FormattedLinkHtml, {}).substring(1).upToFirstOccurrenceOf("#", false, false));
+		jassert(getType() == MarkdownFile || getType() == SVGImage || getType() == Folder || getType() == Image || getType() == Icon);
+		return rootToUse.getChildFile(toString(FormattedLinkHtml, {}).upToFirstOccurrenceOf("#", false, false));
 	}
 	case FileType::ContentFile:
 	{
@@ -480,7 +480,7 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 	if (anchor.isNotEmpty() && anchor != "#")
 		s << anchor;
 
-	return s;
+	return s.substring(1);
 }
 
 double MarkdownLink::Helpers::getSizeFromExtraData(const String& extraData)

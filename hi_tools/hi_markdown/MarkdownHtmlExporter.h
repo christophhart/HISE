@@ -155,9 +155,13 @@ public:
 		if (mode == LocalFile)
 			root = File(linkBase);
 
+		
 
 		for (auto e : elements)
+		{
 			html << e->generateHtmlAndResolveLinks(root);
+		}
+			
 
 		html << footerContent;
 
@@ -171,11 +175,10 @@ public:
 		f.replaceWithText(generateHtml(activeLink));
 	}
 
-	void setLinkMode(LinkMode m, String base)
+	void setLinkMode(LinkMode , String)
 	{
-		mode = m;
-		linkBase = base;
-
+		mode = LinkMode::URLBase;
+		
 		updateLinks();
 	}
 

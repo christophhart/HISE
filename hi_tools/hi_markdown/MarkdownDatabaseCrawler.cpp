@@ -502,11 +502,11 @@ void DatabaseCrawler::writeImagesToSubDirectory(File htmlDirectory)
 			PNGImageFormat format;
 
 			if (f.existsAsFile())
-				continue;
+				f.deleteFile();
 
-			FileOutputStream fos(f);
 			f.create();
-
+			FileOutputStream fos(f);
+			
 			if (auto mb = c.getProperty(MarkdownContentIds::Data).getBinaryData())
 			{
 				auto img = format.loadFrom(mb->getData(), mb->getSize());
@@ -515,6 +515,8 @@ void DatabaseCrawler::writeImagesToSubDirectory(File htmlDirectory)
 
 				format.writeImageToStream(img, fos);
 			}
+
+			fos.flush();
 		}
 	}
 }

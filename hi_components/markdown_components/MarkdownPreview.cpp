@@ -912,6 +912,10 @@ void DocUpdater::createLocalHtmlFiles()
 {
 	showStatusMessage("Create local HTML files");
 
+	auto templateDir = getHolder().getDatabaseRootDirectory().getChildFile("template");
+	auto templateTarget = htmlDirectory->getCurrentFile().getChildFile("template");
+	templateDir.copyDirectoryTo(templateTarget);
+
 	DatabaseCrawler::createImagesInHtmlFolder(htmlDirectory->getCurrentFile(), getHolder(), this, &getProgressCounter());
 	DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDirectory->getCurrentFile(), getHolder(), this, &getProgressCounter());
 }

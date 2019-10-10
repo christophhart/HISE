@@ -377,6 +377,11 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 	{
 		for (int i = 0; i < ar.size(); i++)
 			rows.add({ ar[i],{ ar[i], 0.0f }, links[i] });
+
+		for (const auto& r : rows)
+		{
+			hyperLinks.addArray(r.links);
+		}
 	}
 
 	void draw(Graphics& g, Rectangle<float> area) override
@@ -421,6 +426,9 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 		for (auto r : rows)
 		{
+			if (r.links.size() > 0)
+				jassert(!hyperLinks.isEmpty());
+
 			auto c = g.createFromAttributedString(r.content, linkIndex);
 			listItems << g.surroundWithTag(c, "li");
 		}
