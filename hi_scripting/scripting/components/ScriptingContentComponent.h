@@ -367,6 +367,8 @@ public:
 		ShowBack,
 		BoldFontName,
 		FixTocWidth,
+		StartURL,
+		ServerUpdateURL,
 		numSpecialPanelIds
 	};
 
@@ -382,15 +384,36 @@ public:
 		g.fillAll(findPanelColour(PanelColourId::bgColour));
 	}
 
+	void visibilityChanged() override
+	{
+		if (preview == nullptr)
+			return;
+
+		if (isVisible())
+		{
+			if (auto projectHolder = dynamic_cast<ProjectDocDatabaseHolder*>(preview->renderer.getHolder()))
+			{
+				if (URL::isProbablyAWebsiteURL(serverURL))
+				{
+					URL sUrl(serverURL);
+					projectHolder->setProjectURL(sUrl);
+				}
+			}
+		}
+	}
+
 	void fromDynamicObject(const var& obj) override
 	{
 		FloatingTileContent::fromDynamicObject(obj);
 
+		serverURL = getPropertyWithDefault(obj, SpecialPanelIds::ServerUpdateURL);
+
 		showSearch = getPropertyWithDefault(obj, SpecialPanelIds::ShowSearch);
 		showBack = getPropertyWithDefault(obj, SpecialPanelIds::ShowBack);
 		showToc = getPropertyWithDefault(obj, SpecialPanelIds::ShowToc);
+		startURL = getPropertyWithDefault(obj, SpecialPanelIds::StartURL);
 
-		int options = (int)MarkdownPreview::ViewOptions::Edit;
+		options = (int)MarkdownPreview::ViewOptions::Edit;
 		
 		if (showSearch || showBack)
 			options |= (int)MarkdownPreview::ViewOptions::Topbar;
@@ -404,35 +427,28 @@ public:
 		if (showToc)
 			options |= (int)MarkdownPreview::ViewOptions::Toc;
 
-		preview->setViewOptions(options);
-		
-		auto& sData = preview->renderer.getStyleData();
-
 		boldFontName = getPropertyWithDefault(obj, SpecialPanelIds::BoldFontName).toString();
 
-		sData.f = getFont();
-		sData.fontSize = getFont().getHeight();
+		sd.f = getFont();
+		sd.fontSize = getFont().getHeight();
 
 		if (boldFontName.isNotEmpty())
 		{
-			sData.useSpecialBoldFont = true;
-			sData.boldFont = getMainController()->getFontFromString(boldFontName, sData.fontSize);
+			sd.useSpecialBoldFont = true;
+			sd.boldFont = getMainController()->getFontFromString(boldFontName, sd.fontSize);
 		}
 
-		sData.backgroundColour = findPanelColour(PanelColourId::bgColour);
-		sData.textColour = findPanelColour(PanelColourId::textColour);
-		sData.headlineColour = findPanelColour(PanelColourId::itemColour1);
-		sData.linkColour = findPanelColour(PanelColourId::itemColour2);
+		sd.backgroundColour = findPanelColour(PanelColourId::bgColour);
+		sd.textColour = findPanelColour(PanelColourId::textColour);
+		sd.headlineColour = findPanelColour(PanelColourId::itemColour1);
+		sd.linkColour = findPanelColour(PanelColourId::itemColour2);
 		
 		fixWidth = getPropertyWithDefault(obj, SpecialPanelIds::FixTocWidth);
 
-		preview->toc.fixWidth = fixWidth;
-		preview->toc.setBgColour(findPanelColour(PanelColourId::itemColour3));
-
-		preview->renderer.setStyleData(sData);
-		preview->setStyleData(sData);
-		preview->resized();
+		initPanel();
 	}
+
+	void initPanel();
 
 	var toDynamicObject() const override
 	{
@@ -443,6 +459,8 @@ public:
 		storePropertyInObject(obj, SpecialPanelIds::ShowToc, showToc);
 		storePropertyInObject(obj, SpecialPanelIds::BoldFontName, boldFontName);
 		storePropertyInObject(obj, SpecialPanelIds::FixTocWidth, fixWidth);
+		storePropertyInObject(obj, SpecialPanelIds::StartURL, startURL);
+		storePropertyInObject(obj, SpecialPanelIds::ServerUpdateURL, serverURL);
 
 		return obj;
 	}
@@ -462,6 +480,8 @@ public:
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowBack, "ShowBack");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::BoldFontName, "BoldFontName");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FixTocWidth, "FixTocWidth");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::StartURL, "StartURL");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ServerUpdateURL, "ServerUpdateURL");
 
 		jassertfalse;
 		return{};
@@ -477,6 +497,8 @@ public:
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowBack, true);
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::BoldFontName, "");
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FixTocWidth, -1);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::StartURL, "/");
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ServerUpdateURL, "");
 
 		jassertfalse;
 		return{};
@@ -485,7 +507,8 @@ public:
 
 	void resized() override
 	{
-		preview->setBounds(getParentShell()->getContentBounds());
+		if(preview != nullptr)
+			preview->setBounds(getParentShell()->getContentBounds());
 	}
 
 	bool showSearch = true;
@@ -494,8 +517,13 @@ public:
 	int fixWidth = -1;
 	String boldFontName;
 
-	ScopedPointer<MarkdownPreview> preview;
+	MarkdownLayout::StyleData sd;
 	String contentFile;
+	String startURL;
+	String serverURL;
+	int options;
+
+	ScopedPointer<MarkdownPreview> preview;
 };
 
 

@@ -368,6 +368,7 @@ public:
 		{
 			renderer.updateCreatedComponents();
 			renderer.updateHeight();
+			renderer.jumpToCurrentAnchor();
 		}
 
 		MarkdownPreview& parent;
@@ -1347,28 +1348,7 @@ public:
 			rootItem = nullptr;
 		}
 
-		void scrollToLink(const MarkdownLink& l)
-		{
-			auto root = tree.getRootItem();
-
-			if (root == nullptr)
-				return;
-
-			bool found = false;
-
-			for (int i = 0; i < root->getNumSubItems(); i++)
-				found |= closeIfNoMatch(root->getSubItem(i), l);
-
-			if (found)
-			{
-				if (auto t = dynamic_cast<Item*>(tree.getRootItem())->selectIfURLMatches(l))
-				{
-					t->setSelected(true, true);
-					t->setOpen(true);
-					tree.scrollToKeepItemVisible(t);
-				}
-			}
-		}
+		void scrollToLink(const MarkdownLink& l);
 		
 		void databaseWasRebuild() override;
 
@@ -1455,6 +1435,7 @@ public:
 		ScopedPointer<Item> rootItem;
 		MarkdownPreview& parent;
 		MarkdownDataBase* db = nullptr;
+		MarkdownLink pendingLink;
 	};
 
 

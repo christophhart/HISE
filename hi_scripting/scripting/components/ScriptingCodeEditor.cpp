@@ -2049,6 +2049,14 @@ hise::MarkdownCodeComponentBase* MarkdownCodeComponentFactory::createInteractive
 	auto mainController = dynamic_cast<MainController*>(parent->getHolder());
 	auto parentComponent = dynamic_cast<MarkdownRenderer*>(parent)->getTargetComponent();
 
+	if (mainController == nullptr)
+	{
+		if (auto cObj = dynamic_cast<ControlledObject*>(parent->getHolder()))
+			mainController = cObj->getMainController();
+	}
+		
+	jassert(mainController != nullptr);
+	
 	return new InteractiveEditor(syntax, code, width, parent->getStyleData().fontSize, mainController, parentComponent, parent);
 }
 #endif

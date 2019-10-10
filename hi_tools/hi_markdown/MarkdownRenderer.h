@@ -351,6 +351,8 @@ private:
 
 	void scrollToY(float y)
 	{
+		currentY = y;
+
 		WeakReference<MarkdownRenderer> r = this;
 
 		auto f = [r, y]()

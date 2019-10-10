@@ -75,6 +75,9 @@ void MarkdownRenderer::parse()
 
 void MarkdownRenderer::jumpToCurrentAnchor()
 {
+	if (lastWidth == -1.0)
+		return;
+
 	auto thisAnchor = getLastLink().toString(MarkdownLink::AnchorWithHashtag);
 
 	if (thisAnchor.isEmpty())
@@ -82,7 +85,8 @@ void MarkdownRenderer::jumpToCurrentAnchor()
 		scrollToY(0.0f);
 		return;
 	}
-		
+	
+	getHeightForWidth(lastWidth, true);
 
 	for (auto e : elements)
 	{

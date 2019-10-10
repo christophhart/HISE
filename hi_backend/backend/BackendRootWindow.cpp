@@ -462,11 +462,15 @@ MarkdownPreview* BackendRootWindow::createOrShowDocWindow(const MarkdownLink& li
 
 		auto preview = FloatingTileHelpers::findTileWithId<MarkdownPreviewPanel>(docWindow->getRootFloatingTile(), "Preview");
 
+		preview->initPanel();
 		preview->preview->renderer.gotoLink(link);
 	}
 		
+	auto p = FloatingTileHelpers::findTileWithId<MarkdownPreviewPanel>(docWindow->getRootFloatingTile(), "Preview");
+	
+	p->initPanel();
 
-	return FloatingTileHelpers::findTileWithId<MarkdownPreviewPanel>(docWindow->getRootFloatingTile(), "Preview")->preview;
+	return p->preview;;
 
 	
 	

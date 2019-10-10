@@ -612,12 +612,23 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 MarkdownPreviewPanel::MarkdownPreviewPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
+	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
+	setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
+	setDefaultPanelColour(PanelColourId::itemColour2, Colours::slategrey);
+	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+	setDefaultPanelColour(PanelColourId::itemColour3, Colour(0xFF222222));
+}
+
+void MarkdownPreviewPanel::initPanel()
+{
+	if (preview != nullptr)
+		return;
 
 	MarkdownDatabaseHolder* holder;
 	bool isProjectDoc = false;
-	
+
 #if USE_BACKEND
-	if (!parent->isOnInterface() && !getMainController()->isFlakyThreadingAllowed())
+	if (!getParentShell()->isOnInterface() && !getMainController()->isFlakyThreadingAllowed())
 	{
 		holder = dynamic_cast<BackendProcessor*>(getMainController())->getDocProcessor();
 		isProjectDoc = false;
@@ -632,28 +643,29 @@ MarkdownPreviewPanel::MarkdownPreviewPanel(FloatingTile* parent) :
 	isProjectDoc = true;
 
 #endif
-		
 
 	addAndMakeVisible(preview = new MarkdownPreview(*holder));
-	
+
+	preview->setViewOptions(options);
+	preview->toc.fixWidth = fixWidth;
+	preview->toc.setBgColour(findPanelColour(PanelColourId::itemColour3));
+	preview->renderer.setCreateFooter(holder->getDatabase().createFooter);
+	preview->renderer.setStyleData(sd);
+
+	preview->setStyleData(sd);
+
+	getMainController()->setCurrentMarkdownPreview(preview);
 
 	if (isProjectDoc)
 	{
-		preview->renderer.setCreateFooter(holder->getDatabase().createFooter);
-		preview->renderer.gotoLink(MarkdownLink(holder->getDatabaseRootDirectory(), "/"));
-		BACKEND_ONLY(preview->editingEnabled = true);
 		holder->rebuildDatabase();
-	}
+		preview->renderer.gotoLink(MarkdownLink(holder->getDatabaseRootDirectory(), startURL));
+		BACKEND_ONLY(preview->editingEnabled = true);
 		
-	getMainController()->setCurrentMarkdownPreview(preview);
-	
+	}
 
-	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
-	setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
-	setDefaultPanelColour(PanelColourId::itemColour2, Colours::slategrey);
-	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
-	setDefaultPanelColour(PanelColourId::itemColour3, Colour(0xFF222222));
-	
+	visibilityChanged();
+	resized();
 }
 
 } // namespace hise

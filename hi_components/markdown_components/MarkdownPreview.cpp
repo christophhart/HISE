@@ -1164,6 +1164,38 @@ void MarkdownPreview::Topbar::resized()
 	}
 }
 
+
+void MarkdownPreview::MarkdownDatabaseTreeview::scrollToLink(const MarkdownLink& l)
+{
+	if (l.isInvalid())
+		return;
+
+	auto root = tree.getRootItem();
+
+	if (root == nullptr)
+	{
+		pendingLink = l;
+		return;
+	}
+
+	bool found = false;
+
+	for (int i = 0; i < root->getNumSubItems(); i++)
+		found |= closeIfNoMatch(root->getSubItem(i), l);
+
+	if (found)
+	{
+		if (auto t = dynamic_cast<Item*>(tree.getRootItem())->selectIfURLMatches(l))
+		{
+			t->setSelected(true, true);
+			t->setOpen(true);
+			tree.scrollToKeepItemVisible(t);
+		}
+
+		pendingLink = {};
+	}
+}
+
 void MarkdownPreview::MarkdownDatabaseTreeview::databaseWasRebuild()
 {
 	Component::SafePointer<MarkdownDatabaseTreeview> tmp(this);
@@ -1179,18 +1211,30 @@ void MarkdownPreview::MarkdownDatabaseTreeview::databaseWasRebuild()
 		{
 			t->tree.setRootItem(nullptr);
 			t->rootItem = new Item(t->parent.getHolder().getDatabase().rootItem, t->parent);
-
-
-
 			t->tree.setRootItem(t->rootItem);
-
-
-
 			t->resized();
 
 			if (t->rootItem->getNumSubItems() == 1)
-				t->rootItem->setOpenness(TreeViewItem::Openness::opennessOpen);
+			{
+				auto actualRoot = t->rootItem->getSubItem(0);
+				
+				actualRoot->setOpen(false);
+				actualRoot->setOpen(true);
+			}
 
+			auto pl = tmp->pendingLink;
+
+			if (pl.isValid())
+			{
+				// This prevents the default link from being automatically opened
+				if (pl.toString(MarkdownLink::Format::UrlFull) == "/")
+					return;
+
+				auto anchor = pl.toString(MarkdownLink::Format::AnchorWithoutHashtag);
+				tmp.getComponent()->scrollToLink(pl);
+				tmp.getComponent()->setCurrentAnchor(anchor);
+				tmp.getComponent()->repaint();
+			}
 		}
 	};
 
