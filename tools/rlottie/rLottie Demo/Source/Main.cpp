@@ -27,7 +27,12 @@ class TestDummyRLottieManager : public RLottieManager
 			.getParentDirectory()
 			.getParentDirectory();
 #else
-		jassertfalse;
+        return execFolder.getParentDirectory()
+        .getParentDirectory()
+        .getParentDirectory()
+        .getParentDirectory()
+        .getParentDirectory()
+        .getParentDirectory();
 #endif
 	}
 };

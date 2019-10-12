@@ -166,6 +166,8 @@ juce::File RLottieManager::getLibFile()
 	return root.getChildFile("rlottie_x86.dll");
 #endif
 
+#elif JUCE_MAC
+    return root.getChildFile("librlottie.dylib");
 #endif
 
 	jassertfalse;
