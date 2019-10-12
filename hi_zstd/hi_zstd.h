@@ -52,8 +52,11 @@ END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
+#pragma once
+
 #ifndef HI_ZSTD_INCLUDED
-#define HI_ZSTD_INCLUDED
+#define HI_ZSTD_INCLUDED 1
+#endif
 
 
 
@@ -71,5 +74,3 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_zstd/ZstdCompressor.h"
 #include "hi_zstd/ZstdCompressor_Impl.h"
 
-
-#endif   // HI_ZSTD_INCLUDED

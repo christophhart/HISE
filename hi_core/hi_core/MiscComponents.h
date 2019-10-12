@@ -364,6 +364,15 @@ public:
 
     void changeListenerCallback(SafeChangeBroadcaster* b);
     
+#if HISE_INCLUDE_RLOTTIE
+	void setAnimation(RLottieAnimation::Ptr newAnimation)
+	{
+		animation = newAnimation;
+	}
+
+	RLottieAnimation::Ptr animation;
+#endif
+
 	// ================================================================================================================
 
 	float borderRadius;

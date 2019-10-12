@@ -1,35 +1,14 @@
-/*  ===========================================================================
-*
-*   This file is part of HISE.
-*   Copyright 2016 Christoph Hart
-*
-*   HISE is free software: you can redistribute it and/or modify
-*   it under the terms of the GNU General Public License as published by
-*   the Free Software Foundation, either version 3 of the License, or
-*   (at your option) any later version.
-*
-*   HISE is distributed in the hope that it will be useful,
-*   but WITHOUT ANY WARRANTY; without even the implied warranty of
-*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*   GNU General Public License for more details.
-*
-*   You should have received a copy of the GNU General Public License
-*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
-*
-*   Commercial licenses for using HISE in an closed source project are
-*   available on request. Please visit the project's website to get more
-*   information about commercial licensing:
-*
-*   http://www.hise.audio/
-*
-*   HISE is based on the JUCE library,
-*   which must be separately licensed for closed source applications:
-*
-*   http://www.juce.com
-*
-*   ===========================================================================
-*/
+/** Copyright 2019 Christoph Hart
 
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+	Note: Be aware that the rLottie wrapper files are licensed under a more permissive license than the
+	rest of the HISE codebase. The MIT license only applies where stated in the header.
+*/
 
 namespace hise {
 using namespace juce;
@@ -37,7 +16,7 @@ using namespace juce;
 
 RLottieAnimation::RLottieAnimation(RLottieManager* manager, const String& data)
 {
-	animation = manager->createAnimation(data);
+	animation = manager->createAnimation(RLottieComponent::decompressIfBase64(data));
 	rf = manager->getRenderFunction();
 
 	numFrames = manager->getNumFrames(animation);
@@ -52,7 +31,16 @@ RLottieAnimation::~RLottieAnimation()
 
 void RLottieAnimation::setSize(int width, int height)
 {
-	canvas = Image(Image::ARGB, width, height, true);
+	originalWidth = width;
+	originalHeight = height;
+
+	auto newWidth = roundToInt((float)originalWidth * scaleFactor);
+	auto newHeight = roundToInt((float)originalHeight * scaleFactor);
+
+	if (newWidth != canvas.getWidth() || newHeight != canvas.getHeight())
+	{
+		canvas = Image(Image::ARGB, newWidth, newHeight, true);
+	}
 }
 
 int RLottieAnimation::getNumFrames() const
@@ -65,21 +53,50 @@ double RLottieAnimation::getFrameRate() const
 	return frameRate;
 }
 
-void RLottieAnimation::render(Graphics& g, int frame, Point<int> topLeft)
+void RLottieAnimation::render(Graphics& g, Point<int> topLeft)
 {
-	if (isValid())
+	if (isValid() && isPositiveAndBelow(currentFrame, numFrames+1) && lastFrame != currentFrame)
 	{
 		Image::BitmapData bd(canvas, Image::BitmapData::ReadWriteMode::writeOnly);
 
-		rf(animation, (size_t)frame, reinterpret_cast<uint32*>(bd.data), canvas.getWidth(), canvas.getHeight(), canvas.getWidth() * 4);
+		rf(animation, (size_t)currentFrame, reinterpret_cast<uint32*>(bd.data), canvas.getWidth(), canvas.getHeight(), canvas.getWidth() * 4);
+
+		lastFrame = currentFrame;
 	}
 
-	g.drawImageAt(canvas, topLeft.x, topLeft.y);
+	if (scaleFactor == 1.0f)
+	{
+		g.drawImageAt(canvas, topLeft.x, topLeft.y);
+	}
+	else
+	{
+		g.drawImageTransformed(canvas, AffineTransform::scale(1.0f / scaleFactor));
+	}
 }
 
 bool RLottieAnimation::isValid() const
 {
-	return rf != nullptr && animation != nullptr;
+	return rf != nullptr && animation != nullptr && canvas.isValid();
+}
+
+void RLottieAnimation::setFrame(int frameNumber)
+{
+	currentFrame = jlimit(0, numFrames, frameNumber);
+}
+
+int RLottieAnimation::getCurrentFrame() const
+{
+	return currentFrame;
+}
+
+void RLottieAnimation::setScaleFactor(float newScaleFactor)
+{
+	if (scaleFactor != newScaleFactor)
+	{
+		scaleFactor = newScaleFactor;
+
+		setSize(originalWidth, originalHeight);
+	}
 }
 
 }

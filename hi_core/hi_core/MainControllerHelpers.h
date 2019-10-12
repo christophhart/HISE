@@ -60,6 +60,32 @@ class MainController;
 
 class MPEModulator;
 
+
+#if HISE_INCLUDE_RLOTTIE
+
+class HiseRLottieManager : public RLottieManager,
+	public ControlledObject
+{
+public:
+
+	HiseRLottieManager(MainController* mc) :
+		ControlledObject(mc),
+		RLottieManager()
+	{};
+
+	File getLibraryFolder() const override
+	{
+#if USE_BACKEND
+		return ProjectHandler::getAppDataDirectory();
+#else
+		return FrontendHandler::getAppDataDirectory();
+#endif
+	}
+};
+
+#endif
+
+
 #define HI_NUM_MIDI_AUTOMATION_SLOTS 8
 
 /** This handles the MIDI automation for the frontend plugin.

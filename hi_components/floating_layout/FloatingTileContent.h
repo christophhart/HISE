@@ -618,7 +618,7 @@ public:
 			AudioAnalyser,
 			Console,
 			ApiCollection,
-
+			RLottieDevPanel,
 			ScriptWatchTable,
 			ScriptComponentEditPanel,
 			DspNetworkGraph,

@@ -62,6 +62,7 @@ private:
 	TextButton compileButton;
 	Slider frameSlider;
 	TextButton autoPlayButton;
+	TextButton exportButton;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RLottieDevComponent)
 };

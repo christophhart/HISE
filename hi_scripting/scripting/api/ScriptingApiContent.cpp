@@ -2616,6 +2616,11 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
     API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
+#if HISE_INCLUDE_RLOTTIE
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setAnimation);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setAnimationFrame);
+	API_METHOD_WRAPPER_0(ScriptPanel, getAnimationData);
+#endif
 	API_METHOD_WRAPPER_0(ScriptPanel, isVisibleAsPopup);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setIsModalPopup);
 };
@@ -2688,6 +2693,12 @@ timerRoutine(var())
 	ADD_API_METHOD_0(closeAsPopup);
 	ADD_API_METHOD_1(setIsModalPopup);
 	ADD_API_METHOD_0(isVisibleAsPopup);
+
+#if HISE_INCLUDE_RLOTTIE
+	ADD_API_METHOD_0(getAnimationData);
+	ADD_API_METHOD_1(setAnimation);
+	ADD_API_METHOD_1(setAnimationFrame);
+#endif
 }
 
 ScriptingApi::Content::ScriptPanel::~ScriptPanel()
@@ -3201,6 +3212,68 @@ void ScriptingApi::Content::ScriptPanel::repaintWrapped()
 	}
 }
 
+#if HISE_INCLUDE_RLOTTIE
+var ScriptingApi::Content::ScriptPanel::getAnimationData()
+{
+	updateAnimationData();
+	return var(animationData);
+}
+
+void ScriptingApi::Content::ScriptPanel::setAnimation(String base64LottieAnimation)
+{
+	if (base64LottieAnimation.isEmpty())
+	{
+		animation = nullptr;
+	}
+	else
+	{
+		auto rManager = getScriptProcessor()->getMainController_()->getRLottieManager();
+
+		animation = new RLottieAnimation(rManager, base64LottieAnimation);
+
+		auto pos = getPosition();
+		animation->setScaleFactor(2.0f);
+		animation->setSize(pos.getWidth(), pos.getHeight());
+	}
+
+	setAnimationFrame(0);
+}
+
+void ScriptingApi::Content::ScriptPanel::setAnimationFrame(int numFrame)
+{
+	if (animation != nullptr)
+	{
+		animation->setFrame(numFrame);
+		updateAnimationData();
+		graphics->getDrawHandler().flush();
+	}
+}
+
+void ScriptingApi::Content::ScriptPanel::updateAnimationData()
+{
+	DynamicObject::Ptr obj = animationData.getDynamicObject();  
+	
+	if(obj == nullptr)
+		obj = new DynamicObject();
+
+	obj->setProperty("active", isAnimationActive());
+
+	if (animation != nullptr)
+	{
+		obj->setProperty("currentFrame", animation->getCurrentFrame());
+		obj->setProperty("numFrames", animation->getNumFrames());
+		obj->setProperty("frameRate", animation->getFrameRate());
+	}
+	else
+	{
+		obj->setProperty("currentFrame", 0);
+		obj->setProperty("numFrames", 0);
+		obj->setProperty("frameRate", 0);
+	}
+
+	animationData = var(obj);
+}
+#endif
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
 {

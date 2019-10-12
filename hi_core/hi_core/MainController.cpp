@@ -564,6 +564,30 @@ float MainController::getVoiceAmountMultiplier() const
 	}
 }
 
+#if HISE_INCLUDE_RLOTTIE
+hise::RLottieManager::Ptr MainController::getRLottieManager()
+{
+	if (rLottieManager == nullptr)
+	{
+		rLottieManager = new HiseRLottieManager(this);
+		rLottieManager->init();
+
+		auto r = rLottieManager->getInitResult();
+
+		if (!r.wasOk())
+		{
+#if USE_BACKEND
+			debugToConsole(getMainSynthChain(), r.getErrorMessage());
+#else
+			sendOverlayMessage(DeactiveOverlay::CustomErrorMessage, r.getErrorMessage());
+#endif
+		}
+	}
+
+	return rLottieManager;
+}
+#endif
+
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
 	AudioThreadGuard audioThreadGuard(&getKillStateHandler());

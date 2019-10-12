@@ -39,10 +39,11 @@ RLottieDevComponent::RLottieDevComponent(RLottieManager::Ptr m_) :
 	manager(m_),
 	animationComponent(manager),
 	editor(doc, &tok),
-	loadButton("Load JSON from clipboard"),
-	compileButton("Load JSON from editor"),
+	loadButton("Load"),
+	compileButton("Apply changes"),
 	frameSlider("Timeline"),
-	autoPlayButton("Play")
+	autoPlayButton("Play"),
+	exportButton("Compress")
 {
 	setLookAndFeel(&alaf);
 
@@ -54,6 +55,7 @@ RLottieDevComponent::RLottieDevComponent(RLottieManager::Ptr m_) :
 	addAndMakeVisible(compileButton);
 	addAndMakeVisible(autoPlayButton);
 	addAndMakeVisible(frameSlider);
+	addAndMakeVisible(exportButton);
 
 	if (!manager->getInitResult().wasOk())
 	{
@@ -69,11 +71,35 @@ RLottieDevComponent::RLottieDevComponent(RLottieManager::Ptr m_) :
 	{
 		auto s = SystemClipboard::getTextFromClipboard();
 
+		s = RLottieComponent::decompressIfBase64(s);
+
 		auto obj = JSON::parse(s);
 
 		doc.replaceAllContent(JSON::toString(obj));
 
-		animationComponent.loadAnimation(s);
+		animationComponent.loadAnimation(s, true);
+	};
+
+	exportButton.onClick = [this]()
+	{
+		auto text = doc.getAllContent();
+
+		auto obj = JSON::parse(text);
+		auto data = JSON::toString(obj, true);
+
+		DBG("Before: " + String(data.length()));
+
+		MemoryBlock mb;
+
+		zstd::ZDefaultCompressor comp;
+		
+		comp.compress(data, mb);
+
+		auto compressed = mb.toBase64Encoding();
+
+		DBG("After: " + String(compressed.length()));
+
+		doc.replaceAllContent(compressed);
 	};
 
 	autoPlayButton.onClick = [this]()
@@ -113,6 +139,7 @@ RLottieDevComponent::RLottieDevComponent(RLottieManager::Ptr m_) :
 
 RLottieDevComponent::~RLottieDevComponent()
 {
+	
 }
 
 void RLottieDevComponent::timerCallback()
@@ -146,10 +173,12 @@ void RLottieDevComponent::resized()
 
 	auto row = b.removeFromBottom(28);
 
-	loadButton.setBounds(row.removeFromLeft(90));
+	loadButton.setBounds(row.removeFromLeft(100));
 	b.removeFromLeft(5);
-	compileButton.setBounds(row.removeFromLeft(90));
+	compileButton.setBounds(row.removeFromLeft(100));
+	exportButton.setBounds(row.removeFromRight(80));
 	autoPlayButton.setBounds(row.removeFromRight(80));
+	
 	frameSlider.setBounds(row.reduced(5, 2));
 
 	animationComponent.setBounds(b);

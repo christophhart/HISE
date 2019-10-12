@@ -1462,6 +1462,10 @@ ScriptCreatedComponentWrapper(content, index)
 
 	bp->setName(panel->name.toString());
 
+#if HISE_INCLUDE_RLOTTIE
+	bp->setAnimation(panel->getAnimation());
+#endif
+
 	bp->addMouseCallbackListener(this);
 	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
 	bp->setDragBounds(panel->getDragBounds(), this);

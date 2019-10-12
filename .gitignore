@@ -67,3 +67,6 @@ tools/snex_playground/Builds/VisualStudio2017/x64/Debug/App/jit_play.809191E7.tl
 tools/snex_playground/Builds/
 tools/snex_playground/JuceLibraryCode/
 hi_modules/nodes/CustomNodeInclude.cpp
+tools/rlottie/rLottie Demo/Builds/VisualStudio2017/resources.rc
+tools/rlottie/rLottie Demo/Builds/
+tools/rlottie/rLottie Demo/JuceLibraryCode/

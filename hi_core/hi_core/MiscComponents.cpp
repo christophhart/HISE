@@ -618,9 +618,14 @@ void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* )
 
 void BorderPanel::paint(Graphics &g)
 {
-	
+#if HISE_INCLUDE_RLOTTIE
+	if (animation != nullptr)
+	{
+		animation->render(g, { 0, 0 });
+		return;
+	}
+#endif
 
-	
 	if (isUsingCustomImage)
 	{
         SET_IMAGE_RESAMPLING_QUALITY();

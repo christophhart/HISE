@@ -1273,6 +1273,15 @@ public:
 		/** Calls the paint routine immediately. */
 		void repaintImmediately();
 
+		/** Sets an JSON animation. */
+		void setAnimation(String base64LottieAnimation);
+
+		/** Sets a frame to be displayed. */
+		void setAnimationFrame(int numFrame);
+
+		/** Returns a JSON object containing the data of the animation object. */
+		var getAnimationData();
+
 		/** Sets a paint routine (a function with one parameter). */
 		void setPaintRoutine(var paintFunction);
 
@@ -1317,6 +1326,12 @@ public:
 
 		// ========================================================================================================
 
+#if HISE_INCLUDE_RLOTTIE
+		bool isAnimationActive() const { return animation != nullptr && animation->isValid(); }
+
+		RLottieAnimation::Ptr getAnimation() { return animation; }
+#endif
+
 		void showAsModalPopup();
 
 		void forcedRepaint()
@@ -1342,6 +1357,18 @@ public:
 			}
 
 			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+#if HISE_INCLUDE_RLOTTIE
+			if (id == getIdFor((int)ScriptComponent::height) ||
+				id == getIdFor((int)ScriptComponent::width))
+			{
+				if (animation != nullptr)
+				{
+					auto pos = getPosition();
+					animation->setSize(pos.getWidth(), pos.getHeight());
+				}
+			}
+#endif
 		}
 
 		void repaintThisAndAllChildren();
@@ -1419,6 +1446,12 @@ public:
 		}
 
 	private:
+
+#if HISE_INCLUDE_RLOTTIE
+		void updateAnimationData();
+		ScopedPointer<RLottieAnimation> animation;
+		var animationData;
+#endif
 
 		bool shownAsPopup = false;
 		bool isModalPopup = false;

@@ -36,6 +36,8 @@
 #define HISE_INCLUDE_RLOTTIE 1
 #endif
 
+
+
 #if HISE_INCLUDE_RLOTTIE
 #include "include/rlottie_capi.h"
 #include "wrapper/RLottieManager.h"

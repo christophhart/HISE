@@ -35,6 +35,29 @@
 namespace hise {
 using namespace juce;
 
+#if HISE_INCLUDE_RLOTTIE
+class RLottieFloatingTile : public FloatingTileContent,
+							public Component
+{
+public:
+
+	SET_PANEL_NAME("RLottieDevPanel");
+
+	RLottieFloatingTile(FloatingTile* parent) :
+		FloatingTileContent(parent),
+		devComponent(parent->getMainController()->getRLottieManager())
+	{
+		addAndMakeVisible(devComponent);
+	}
+
+	void resized() override
+	{
+		devComponent.setBounds(getLocalBounds());
+	}
+
+	RLottieDevComponent devComponent;
+};
+#endif
 
 
 class DocUpdater : public DialogWindowWithBackgroundThread,

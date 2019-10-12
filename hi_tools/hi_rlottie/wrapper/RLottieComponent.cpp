@@ -1,35 +1,14 @@
-/*  ===========================================================================
-*
-*   This file is part of HISE.
-*   Copyright 2016 Christoph Hart
-*
-*   HISE is free software: you can redistribute it and/or modify
-*   it under the terms of the GNU General Public License as published by
-*   the Free Software Foundation, either version 3 of the License, or
-*   (at your option) any later version.
-*
-*   HISE is distributed in the hope that it will be useful,
-*   but WITHOUT ANY WARRANTY; without even the implied warranty of
-*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*   GNU General Public License for more details.
-*
-*   You should have received a copy of the GNU General Public License
-*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
-*
-*   Commercial licenses for using HISE in an closed source project are
-*   available on request. Please visit the project's website to get more
-*   information about commercial licensing:
-*
-*   http://www.hise.audio/
-*
-*   HISE is based on the JUCE library,
-*   which must be separately licensed for closed source applications:
-*
-*   http://www.juce.com
-*
-*   ===========================================================================
-*/
+/** Copyright 2019 Christoph Hart
 
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+	Note: Be aware that the rLottie wrapper files are licensed under a more permissive license than the 
+	rest of the HISE codebase. The MIT license only applies where stated in the header.
+*/
 
 namespace hise {
 using namespace juce;
@@ -80,9 +59,13 @@ void RLottieComponent::play()
 	}
 }
 
-void RLottieComponent::loadAnimation(const String& jsonCode)
+void RLottieComponent::loadAnimation(const String& jsonCode, bool useOversampling)
 {
-	currentAnimation = new RLottieAnimation(manager, jsonCode);
+	currentAnimation = new RLottieAnimation(manager, decompressIfBase64(jsonCode));
+
+	if (useOversampling)
+		currentAnimation->setScaleFactor(2.0f);
+
 	currentFrame = 0;
 
 	resized();
@@ -102,7 +85,10 @@ void RLottieComponent::paint(Graphics& g)
 	g.fillAll(bgColour);
 
 	if (currentAnimation != nullptr)
-		currentAnimation->render(g, currentFrame, { 0, 0 });
+	{
+		currentAnimation->setFrame(currentFrame);
+		currentAnimation->render(g, { 0, 0 });
+	}
 }
 
 void RLottieComponent::setBackgroundColour(Colour c)
@@ -111,6 +97,35 @@ void RLottieComponent::setBackgroundColour(Colour c)
 
 	setOpaque(c.getAlpha() == 0xff);
 }
+
+juce::String RLottieComponent::decompressIfBase64(const String& s)
+{
+#if HI_ZSTD_INCLUDED
+	if (!s.startsWithChar('{'))
+	{
+		MemoryBlock mb;
+
+		if (mb.fromBase64Encoding(s))
+		{
+			String t;
+			zstd::ZDefaultCompressor comp;
+			comp.expand(mb, t);
+			return t;
+		}
+		else
+		{
+			// Hmm, it's not a "valid" JSON but no base64 encoded thingie either...
+			jassertfalse;
+		}
+	}
+
+	return s;
+#else
+	return s;
+#endif
+}
+
+
 
 void RLottieComponent::timerCallback()
 {

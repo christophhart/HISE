@@ -1407,6 +1407,10 @@ public:
 		return currentPreview;
 	}
 
+#if HISE_INCLUDE_RLOTTIE
+	RLottieManager::Ptr getRLottieManager();
+#endif
+
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -1473,6 +1477,10 @@ protected:
 	
 
 private:
+
+#if HISE_INCLUDE_RLOTTIE
+	ScopedPointer<RLottieManager> rLottieManager;
+#endif
 
 	Array<WeakReference<ControlledObject>> registeredObjects;
 
