@@ -150,3 +150,4 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/VuMeter.h"
 #include "hi_standalone_components/SampleDisplayComponent.h"
 
+#include "hi_rlottie/hi_rlottie.h"

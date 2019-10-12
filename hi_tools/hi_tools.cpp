@@ -86,3 +86,5 @@
 #include "hi_standalone_components/Plotter.cpp"
 #include "hi_standalone_components/SliderPack.cpp"
 #include "hi_standalone_components/TableEditor.cpp"
+
+#include "hi_rlottie/hi_rlottie.cpp"
