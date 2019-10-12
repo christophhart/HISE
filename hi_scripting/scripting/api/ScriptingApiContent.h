@@ -1329,7 +1329,7 @@ public:
 #if HISE_INCLUDE_RLOTTIE
 		bool isAnimationActive() const { return animation != nullptr && animation->isValid(); }
 
-		RLottieAnimation::Ptr getAnimation() { return animation; }
+		RLottieAnimation::Ptr getAnimation() { return animation.get(); }
 #endif
 
 		void showAsModalPopup();
