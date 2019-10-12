@@ -413,20 +413,6 @@ public:
 		showToc = getPropertyWithDefault(obj, SpecialPanelIds::ShowToc);
 		startURL = getPropertyWithDefault(obj, SpecialPanelIds::StartURL);
 
-		options = (int)MarkdownPreview::ViewOptions::Edit;
-		
-		if (showSearch || showBack)
-			options |= (int)MarkdownPreview::ViewOptions::Topbar;
-
-		if (showSearch)
-			options |= (int)MarkdownPreview::ViewOptions::Search;
-
-		if (showBack)
-			options |= (int)MarkdownPreview::ViewOptions::Back;
-
-		if (showToc)
-			options |= (int)MarkdownPreview::ViewOptions::Toc;
-
 		boldFontName = getPropertyWithDefault(obj, SpecialPanelIds::BoldFontName).toString();
 
 		sd.f = getFont();

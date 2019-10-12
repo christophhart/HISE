@@ -646,6 +646,20 @@ void MarkdownPreviewPanel::initPanel()
 
 	addAndMakeVisible(preview = new MarkdownPreview(*holder));
 
+    options = (int)MarkdownPreview::ViewOptions::Edit;
+    
+    if (showSearch || showBack)
+        options |= (int)MarkdownPreview::ViewOptions::Topbar;
+    
+    if (showSearch)
+        options |= (int)MarkdownPreview::ViewOptions::Search;
+    
+    if (showBack)
+        options |= (int)MarkdownPreview::ViewOptions::Back;
+    
+    if (showToc)
+        options |= (int)MarkdownPreview::ViewOptions::Toc;
+    
 	preview->setViewOptions(options);
 	preview->toc.fixWidth = fixWidth;
 	preview->toc.setBgColour(findPanelColour(PanelColourId::itemColour3));

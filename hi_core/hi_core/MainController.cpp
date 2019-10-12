@@ -584,7 +584,7 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 		}
 	}
 
-	return rLottieManager;
+	return rLottieManager.get();
 }
 #endif
 
