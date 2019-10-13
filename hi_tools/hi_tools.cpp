@@ -59,6 +59,7 @@
 
 #include "hi_tools/MiscToolClasses.cpp"
 
+#include "hi_tools/PostGraphicsRenderer.cpp"
 #include "hi_tools/PathFactory.cpp"
 #include "hi_tools/HI_LookAndFeels.cpp"
 

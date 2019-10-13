@@ -618,6 +618,9 @@ void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* )
 
 void BorderPanel::paint(Graphics &g)
 {
+	if (recursion)
+		return;
+
 #if HISE_INCLUDE_RLOTTIE
 	if (animation != nullptr)
 	{
@@ -637,7 +640,18 @@ void BorderPanel::paint(Graphics &g)
 
 		if (it.wantsCachedImage())
 		{
-			Image cachedImg = Image(Image::ARGB, getWidth(), getHeight(), true);
+			Image cachedImg;
+
+			if (getParentComponent() != nullptr)
+			{
+				ScopedValueSetter<bool> sv(recursion, true);
+				cachedImg = getParentComponent()->createComponentSnapshot(getBoundsInParent());
+			}
+			else
+			{
+				cachedImg = Image(Image::ARGB, getWidth(), getHeight(), true);
+			}
+
 			Graphics g2(cachedImg);
 
 			while (auto action = it.getNextAction())

@@ -2689,6 +2689,13 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillPath);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawPath);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, rotate);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, gaussianBlur);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, boxBlur);
+	API_VOID_METHOD_WRAPPER_0(GraphicsObject, desaturate);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, addNoise);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyMask);
+	API_VOID_METHOD_WRAPPER_0(GraphicsObject, beginLayer);
+	API_VOID_METHOD_WRAPPER_0(GraphicsObject, endLayer);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -2719,11 +2726,157 @@ rectangleResult(Result::ok())
 	ADD_API_METHOD_2(fillPath);
 	ADD_API_METHOD_3(drawPath);
 	ADD_API_METHOD_2(rotate);
+	ADD_API_METHOD_1(gaussianBlur);
+	ADD_API_METHOD_0(beginLayer);
+	ADD_API_METHOD_1(boxBlur);
+	ADD_API_METHOD_0(desaturate);
+	ADD_API_METHOD_1(addNoise);
+	ADD_API_METHOD_3(applyMask);
+	ADD_API_METHOD_0(endLayer);
 }
+
+struct ScriptedPostDrawActions
+{
+	struct guassianBlur: public DrawActions::PostActionBase
+	{
+		guassianBlur(int b) : blurAmount(b) {};
+
+		bool needsStackData() const override { return true; }
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.gaussianBlur(blurAmount);
+		}
+
+		int blurAmount;
+	};
+
+	struct boxBlur : public DrawActions::PostActionBase
+	{
+		boxBlur(int b) : blurAmount(b) {};
+
+		bool needsStackData() const override { return true; }
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.boxBlur(blurAmount);
+		}
+
+		int blurAmount;
+	};
+
+	struct desaturate : public DrawActions::PostActionBase
+	{
+		desaturate() {};
+
+		bool needsStackData() const override { return false; }
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.desaturate();
+		}
+
+		int blurAmount;
+	};
+
+	struct addNoise : public DrawActions::PostActionBase
+	{
+		addNoise(float v) : noise(v) {};
+
+		bool needsStackData() const override { return false; }
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.addNoise(noise);
+		}
+
+		float noise;
+	};
+
+	struct applyMask : public DrawActions::PostActionBase
+	{
+		applyMask(const Path& p, bool i) : path(p), invert(i) {};
+
+		bool needsStackData() const override { return true; }
+		void perform(PostGraphicsRenderer& r) override
+		{
+			r.applyMask(path, invert);
+		}
+
+		Path path;
+		bool invert;
+	};
+};
 
 ScriptingObjects::GraphicsObject::~GraphicsObject()
 {
 	parent = nullptr;
+}
+
+void ScriptingObjects::GraphicsObject::beginLayer()
+{
+	drawActionHandler.beginLayer();
+}
+
+void ScriptingObjects::GraphicsObject::endLayer()
+{
+	drawActionHandler.endLayer();
+}
+
+void ScriptingObjects::GraphicsObject::gaussianBlur(var blurAmount)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+	{
+		cl->addPostAction(new ScriptedPostDrawActions::guassianBlur(jlimit(1, 100, (int)blurAmount)));
+	}
+	else
+		reportScriptError("You need to create a layer for gaussian blur");
+}
+
+void ScriptingObjects::GraphicsObject::boxBlur(var blurAmount)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+	{
+		cl->addPostAction(new ScriptedPostDrawActions::boxBlur(jlimit(1, 100, (int)blurAmount)));
+	}
+	else
+		reportScriptError("You need to create a layer for box blur");
+}
+
+void ScriptingObjects::GraphicsObject::addNoise(var noiseAmount)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+	{
+		cl->addPostAction(new ScriptedPostDrawActions::addNoise(jlimit(0.0f, 1.0f, (float)noiseAmount)));
+	}
+	else
+		reportScriptError("You need to create a layer for adding noise");
+}
+
+void ScriptingObjects::GraphicsObject::desaturate()
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+	{
+		cl->addPostAction(new ScriptedPostDrawActions::desaturate());
+	}
+	else
+		reportScriptError("You need to create a layer for desaturating");
+}
+
+void ScriptingObjects::GraphicsObject::applyMask(var path, var area, bool invert)
+{
+	if (auto cl = drawActionHandler.getCurrentLayer())
+	{
+		if (PathObject* pathObject = dynamic_cast<PathObject*>(path.getObject()))
+		{
+			Path p = pathObject->getPath();
+
+			Rectangle<float> r = getRectangleFromVar(area);
+			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
+
+			cl->addPostAction(new ScriptedPostDrawActions::applyMask(p, invert));
+		}
+		else
+			reportScriptError("No valid path object supplied");
+	}
+	else
+		reportScriptError("You need to create a layer for applying a mask");
 }
 
 struct ScriptedDrawActions
@@ -2921,6 +3074,8 @@ struct ScriptedDrawActions
 		DropShadow shadow;
 	};
 };
+
+
 
 void ScriptingObjects::GraphicsObject::fillAll(var colour)
 {

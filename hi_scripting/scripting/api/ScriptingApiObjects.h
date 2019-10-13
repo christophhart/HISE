@@ -1438,6 +1438,27 @@ public:
 		
 		// ============================================================================================================ API Methods
 
+		/** Starts a new Layer. */
+		void beginLayer();
+
+		/** flushes the current layer. */
+		void endLayer();
+
+		/** Applies gaussian blur to the current layer. */
+		void gaussianBlur(var blurAmount);
+
+		/** Applies a box blur to the current layer. */
+		void boxBlur(var blurAmount);
+
+		/** Adds noise to the current layer. */
+		void addNoise(var noiseAmount);
+
+		/** Removes all colour from the current layer. */
+		void desaturate();
+
+		/** Applies a mask to the current layer. */
+		void applyMask(var path, var area, bool invert);
+
 		/** Fills the whole area with the given colour. */
 		void fillAll(var colour);
 

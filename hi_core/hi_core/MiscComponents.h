@@ -230,6 +230,14 @@ private:
 
 struct DrawActions
 {
+	class PostActionBase : public ReferenceCountedObject
+	{
+	public:
+
+		virtual void perform(PostGraphicsRenderer& r) = 0;
+		virtual bool needsStackData() const { return false; }
+	};
+
 	class ActionBase: public ReferenceCountedObject
 	{
 	public:
@@ -249,6 +257,60 @@ struct DrawActions
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ActionBase);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ActionBase);
+	};
+
+	class ActionLayer : public ActionBase
+	{
+	public:
+
+		using Ptr = ReferenceCountedObjectPtr<ActionLayer>;
+
+		ActionLayer() :
+			ActionBase()
+		{};
+
+		bool wantsCachedImage() const override { return postActions.size() > 0; }
+
+		void perform(Graphics& g)
+		{
+			for (auto action : internalActions)
+			{
+				action->perform(g);
+			}
+
+			if (postActions.size() > 0)
+			{
+				PostGraphicsRenderer r(stack, cachedImage);
+				int numDataRequired = 0;
+
+				for (auto p : postActions)
+				{
+					if (p->needsStackData())
+						numDataRequired++;
+				}
+
+				r.reserveStackOperations(numDataRequired);
+
+				for (auto p : postActions)
+					p->perform(r);
+			}
+		}
+
+		void addDrawAction(ActionBase* a)
+		{
+			internalActions.add(a);
+		}
+
+		void addPostAction(PostActionBase* a)
+		{
+			postActions.add(a);
+		}
+
+	private:
+
+		OwnedArray<ActionBase> internalActions;
+		OwnedArray<PostActionBase> postActions;
+		PostGraphicsRenderer::DataStack stack;
 	};
 
 	struct Handler: private AsyncUpdater
@@ -295,15 +357,41 @@ struct DrawActions
 			currentActions.clear();
 		}
 
+		void beginLayer()
+		{
+			auto newLayer = new ActionLayer();
+
+			addDrawAction(newLayer);
+			layerStack.insert(-1, newLayer);
+		}
+
+		ActionLayer::Ptr getCurrentLayer()
+		{
+			return layerStack.getLast();
+		}
+
+		void endLayer()
+		{
+			layerStack.removeLast();
+		}
+
 		void addDrawAction(ActionBase* newDrawAction)
 		{
-			currentActions.add(newDrawAction);
+			if (layerStack.getLast() != nullptr)
+			{
+				layerStack.getLast()->addDrawAction(newDrawAction);
+			}
+			else
+			{
+				currentActions.add(newDrawAction);
+			}
 		}
 
 		void flush()
 		{
 			nextActions.swapWith(currentActions);
 			currentActions.clear();
+			layerStack.clear();
 			triggerAsyncUpdate();
 		}
 
@@ -322,6 +410,8 @@ struct DrawActions
 		}
 
 		Array<WeakReference<Listener>> listeners;
+
+		ReferenceCountedArray<ActionLayer> layerStack;
 
 		ReferenceCountedArray<ActionBase> nextActions;
 		ReferenceCountedArray<ActionBase> currentActions;
@@ -374,6 +464,8 @@ public:
 #endif
 
 	// ================================================================================================================
+
+	bool recursion = false;
 
 	float borderRadius;
 	float borderSize;
