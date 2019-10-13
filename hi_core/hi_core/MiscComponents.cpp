@@ -640,27 +640,31 @@ void BorderPanel::paint(Graphics &g)
 
 		if (it.wantsCachedImage())
 		{
-			Image cachedImg;
-
-			if (getParentComponent() != nullptr)
-			{
-				ScopedValueSetter<bool> sv(recursion, true);
-				cachedImg = getParentComponent()->createComponentSnapshot(getBoundsInParent());
-			}
-			else
-			{
-				cachedImg = Image(Image::ARGB, getWidth(), getHeight(), true);
-			}
-
-			Graphics g2(cachedImg);
-
 			while (auto action = it.getNextAction())
 			{
-				action->setCachedImage(cachedImg);
-				action->perform(g2);
-			}
+				if (action->wantsCachedImage())
+				{
+					Image cachedImg;
 
-			g.drawImageAt(cachedImg, 0, 0);
+					if (getParentComponent() != nullptr && action->wantsToDrawOnParent())
+					{
+						ScopedValueSetter<bool> sv(recursion, true);
+						cachedImg = getParentComponent()->createComponentSnapshot(getBoundsInParent());
+					}
+					else
+					{
+						cachedImg = Image(Image::ARGB, getWidth(), getHeight(), true);
+					}
+
+					Graphics g2(cachedImg);
+					action->setCachedImage(cachedImg);
+					action->perform(g2);
+
+					g.drawImageAt(cachedImg, 0, 0);
+				}
+				else
+					action->perform(g);
+			}
 		}
 		else
 		{

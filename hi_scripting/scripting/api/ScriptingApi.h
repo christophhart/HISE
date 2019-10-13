@@ -260,6 +260,9 @@ public:
 		/** Iterates the given sub-directory of the Samples folder and returns a list with all references to audio files. */
 		var getSampleFilesFromDirectory(const String& relativePathFromSampleFolder, bool recursive);
 
+		/** Creates a (or returns an existing ) script look and feel object. */
+		var createGlobalScriptLookAndFeel();
+
 		/** Returns the latency of the plugin as reported to the host. Default is 0. */
 		int getLatencySamples() const;
 

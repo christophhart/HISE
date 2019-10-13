@@ -288,6 +288,19 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 }
 
 
+var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::NativeFunctionArgs& args)
+{
+	ScopedValueSetter<bool> svs(externalFunctionPending, true);
+
+	RootObject::FunctionObject *fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject());
+
+	if (fo != nullptr)
+	{
+		return fo->invoke(RootObject::Scope(nullptr, root, root), args);;
+	}
+}
+
+
 var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/)
 {
 #if JUCE_DEBUG
@@ -304,16 +317,9 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 		if(!externalFunctionPending)
 			prepareTimeout();
 
-		ScopedValueSetter<bool> svs(externalFunctionPending, true);
-
 		if (result != nullptr) *result = Result::ok();
 
-		RootObject::FunctionObject *fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject());
-
-		if (fo != nullptr)
-		{
-			return fo->invoke(RootObject::Scope(nullptr, root, root), args);;
-		}
+		return callExternalFunctionRaw(function, args);
 	}
 	catch (String &error)
 	{

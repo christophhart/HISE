@@ -1438,8 +1438,8 @@ public:
 		
 		// ============================================================================================================ API Methods
 
-		/** Starts a new Layer. */
-		void beginLayer();
+		/** Starts a new Layer. If cre */
+		void beginLayer(bool drawOnParent);
 
 		/** flushes the current layer. */
 		void endLayer();
@@ -1550,6 +1550,86 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GraphicsObject);
 
 		// ============================================================================================================
+	};
+
+	class ScriptedLookAndFeel : public ConstScriptingObject
+	{
+	public:
+
+		struct Laf : public GlobalHiseLookAndFeel,
+					 public ControlledObject
+		{
+			Laf(MainController* mc) :
+				ControlledObject(mc)
+			{}
+
+			ScriptedLookAndFeel* get()
+			{
+				return dynamic_cast<ScriptedLookAndFeel*>(getMainController()->getCurrentScriptLookAndFeel());
+			}
+
+			Font getFont()
+			{
+				if (auto l = get())
+					return l->f;
+				else
+					return GLOBAL_BOLD_FONT();
+			}
+
+			Font getAlertWindowMessageFont() override { return getFont(); }
+			Font getAlertWindowTitleFont() override { return getFont(); }
+			Font getTextButtonFont(TextButton &, int) override { return getFont(); }
+			Font getComboBoxFont(ComboBox&) override { return getFont(); }
+			Font getPopupMenuFont() override { return getFont(); };
+			Font getAlertWindowFont() override { return getFont(); };
+
+			void drawPopupMenuBackground(Graphics& g_, int width, int height) override;
+
+			void drawPopupMenuItem(Graphics& g, const Rectangle<int>& area,
+				bool isSeparator, bool isActive,
+				bool isHighlighted, bool isTicked,
+				bool hasSubMenu, const String& text,
+				const String& shortcutKeyText,
+				const Drawable* icon, const Colour* textColourToUse);
+
+			void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
+
+			void drawButtonText(Graphics &g_, TextButton &button, bool isMouseOverButton, bool isButtonDown) override;
+
+			void drawComboBox(Graphics&, int width, int height, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, ComboBox& cb);
+
+			void positionComboBoxText(ComboBox &c, Label &labelToPosition) override;
+
+			void drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label);
+
+			void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
+				bool isMouseOverButton, bool isButtonDown) override;
+
+			bool functionDefined(const String& s);
+		};
+
+		struct Wrapper;
+
+		ScriptedLookAndFeel(ProcessorWithScriptingContent* sp);
+
+		~ScriptedLookAndFeel();
+
+		Identifier getObjectName() const override { return "ScriptLookAndFeel"; }
+
+		/** Registers a function that will be used for the custom look and feel. */
+		void registerFunction(var functionName, var function);
+
+		/** Set a global font. */
+		void setGlobalFont(const String& fontName, float fontSize);
+
+		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
+
+		Font f = GLOBAL_BOLD_FONT();
+		ReferenceCountedObjectPtr<GraphicsObject> g;
+
+		var functions;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedLookAndFeel);
 	};
 };
 

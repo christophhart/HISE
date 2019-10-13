@@ -1002,6 +1002,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, createDspNetwork);
 	API_METHOD_WRAPPER_0(Engine, getExpansionList);
 	API_METHOD_WRAPPER_1(Engine, setCurrentExpansion);
+	API_METHOD_WRAPPER_0(Engine, createGlobalScriptLookAndFeel);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
 	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
@@ -1084,6 +1085,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getFilterModeList);
+	ADD_API_METHOD_0(createGlobalScriptLookAndFeel);
 	ADD_API_METHOD_1(setAllowDuplicateSamples);
 	ADD_API_METHOD_1(isControllerUsedByAutomation);
 	ADD_API_METHOD_0(getSettingsWindowObject);
@@ -1391,6 +1393,19 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 #endif
 
 	
+}
+
+var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
+{
+	auto mc = getScriptProcessor()->getMainController_();
+
+	if (auto sc = mc->getCurrentScriptLookAndFeel())
+		return var(sc);
+	else
+	{
+		auto slaf = new ScriptingObjects::ScriptedLookAndFeel(getScriptProcessor());
+		return var(slaf);
+	}
 }
 
 int ScriptingApi::Engine::getLatencySamples() const

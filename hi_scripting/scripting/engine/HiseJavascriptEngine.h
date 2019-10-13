@@ -157,6 +157,8 @@ public:
                              Result* errorMessage = nullptr);
 
     
+	var callExternalFunctionRaw(var function, const var::NativeFunctionArgs& args);
+
 	var executeWithoutAllocation(const Identifier &function,
 		const var::NativeFunctionArgs& args,
 		Result* errorMessage = nullptr, DynamicObject *scopeToUse=nullptr);

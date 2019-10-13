@@ -1269,6 +1269,8 @@ public:
 
 	virtual const ModulatorSynthChain *getMainSynthChain() const = 0;
 
+	void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf) override;
+
 	/** Returns the time that the plugin spends in its processBlock method. */
 	float getCpuUsage() const {return usagePercent.load();};
 

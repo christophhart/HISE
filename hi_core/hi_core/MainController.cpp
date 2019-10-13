@@ -465,6 +465,12 @@ bool MainController::shouldUseSoftBypassRamps() const noexcept
 #endif
 }
 
+void MainController::setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf)
+{
+	GlobalScriptCompileBroadcaster::setCurrentScriptLookAndFeel(newLaf);
+	mainLookAndFeel = new ScriptingObjects::ScriptedLookAndFeel::Laf(this);
+}
+
 int MainController::getNumActiveVoices() const
 {
 	return getMainSynthChain()->getNumActiveVoices();
@@ -871,8 +877,9 @@ void MainController::setPlotter(Plotter *p)
 
 void MainController::skin(Component &c)
 {
-    c.setLookAndFeel(mainLookAndFeel);
+	c.setLookAndFeel(mainLookAndFeel);
     
+	c.setColour(HiseColourScheme::ComponentBackgroundColour, Colours::transparentBlack);
     c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
     c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
     c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));

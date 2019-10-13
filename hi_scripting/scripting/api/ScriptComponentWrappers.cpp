@@ -631,7 +631,7 @@ ScriptCreatedComponentWrapper(content, index)
 
 	cb->setup(getProcessor(), getIndex(), scriptComboBox->name.toString());
 	cb->addListener(this);
-	cb->setLookAndFeel(&plaf);
+	//cb->setLookAndFeel(&plaf);
 
 	component = cb;
 
@@ -838,6 +838,7 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent(int property
 
 void ScriptCreatedComponentWrappers::ButtonWrapper::updateColours(HiToggleButton * b)
 {
+	b->setColour(HiseColourScheme::ComponentTextColourId, GET_OBJECT_COLOUR(textColour));
 	b->setColour(HiseColourScheme::ComponentOutlineColourId, GET_OBJECT_COLOUR(bgColour));
 	b->setColour(HiseColourScheme::ComponentFillTopColourId, GET_OBJECT_COLOUR(itemColour));
 	b->setColour(HiseColourScheme::ComponentFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));

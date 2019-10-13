@@ -191,8 +191,17 @@ public:
 		return globalEditBroadcaster;
 	}
 
+	ReferenceCountedObject* getCurrentScriptLookAndFeel() { return currentScriptLaf.get(); }
+
+	virtual void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf)
+	{
+		currentScriptLaf = newLaf;
+	}
+
 private:
 	
+	ReferenceCountedObjectPtr<ReferenceCountedObject> currentScriptLaf;
+
 	ScopedPointer<ScriptComponentEditBroadcaster> globalEditBroadcaster;
 
     void createDummyLoader();

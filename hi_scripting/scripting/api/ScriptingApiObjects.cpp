@@ -2694,7 +2694,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, desaturate);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, addNoise);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyMask);
-	API_VOID_METHOD_WRAPPER_0(GraphicsObject, beginLayer);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, beginLayer);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, endLayer);
 };
 
@@ -2726,8 +2726,9 @@ rectangleResult(Result::ok())
 	ADD_API_METHOD_2(fillPath);
 	ADD_API_METHOD_3(drawPath);
 	ADD_API_METHOD_2(rotate);
+	
+	ADD_API_METHOD_1(beginLayer);
 	ADD_API_METHOD_1(gaussianBlur);
-	ADD_API_METHOD_0(beginLayer);
 	ADD_API_METHOD_1(boxBlur);
 	ADD_API_METHOD_0(desaturate);
 	ADD_API_METHOD_1(addNoise);
@@ -2809,9 +2810,9 @@ ScriptingObjects::GraphicsObject::~GraphicsObject()
 	parent = nullptr;
 }
 
-void ScriptingObjects::GraphicsObject::beginLayer()
+void ScriptingObjects::GraphicsObject::beginLayer(bool drawOnParent)
 {
-	drawActionHandler.beginLayer();
+	drawActionHandler.beginLayer(drawOnParent);
 }
 
 void ScriptingObjects::GraphicsObject::endLayer()
@@ -4169,5 +4170,244 @@ var ScriptingObjects::ExpansionObject::getProperties() const
 
 	return {};
 }
+
+
+struct ScriptingObjects::ScriptedLookAndFeel::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, registerFunction);
+	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, setGlobalFont);
+};
+
+
+ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptingContent* sp) :
+	ConstScriptingObject(sp, 0),
+	g(new GraphicsObject(sp, this)),
+	functions(new DynamicObject())
+{
+	ADD_API_METHOD_2(registerFunction);
+	ADD_API_METHOD_2(setGlobalFont);
+
+	getScriptProcessor()->getMainController_()->setCurrentScriptLookAndFeel(this);
+}
+
+ScriptingObjects::ScriptedLookAndFeel::~ScriptedLookAndFeel()
+{
+	
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::registerFunction(var functionName, var function)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(function))
+	{
+		functions.getDynamicObject()->setProperty(Identifier(functionName.toString()), function);
+	}
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::setGlobalFont(const String& fontName, float fontSize)
+{
+	f = getScriptProcessor()->getMainController_()->getFontFromString(fontName, fontSize);
+}
+
+bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject)
+{
+	auto f = functions.getProperty(functionname, {});
+
+	if (HiseJavascriptEngine::isJavascriptFunction(f))
+	{
+		var args[2];
+		
+		args[0] = var(g);
+		args[1] = argsObject;
+
+		var thisObject(this);
+
+		var::NativeFunctionArgs arg(thisObject, args, 2);
+
+		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+		Result r = Result::ok();
+		
+		try
+		{
+			engine->callExternalFunctionRaw(f, arg);
+		}
+		catch (String& errorMessage)
+		{
+			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
+		}
+		catch (HiseJavascriptEngine::RootObject::Error& e)
+		{
+
+		}
+		
+		g->getDrawHandler().flush();
+
+		DrawActions::Handler::Iterator iter(&g->getDrawHandler());
+
+		while (auto action = iter.getNextAction())
+		{
+			action->perform(g_);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPopupMenuBackground(Graphics& g_, int width, int height)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("width", width);
+		obj->setProperty("height", height);
+
+		if (l->callWithGraphics(g_, "drawPopupMenuBackground", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawPopupMenuBackground(g_, width, height);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPopupMenuItem(Graphics& g_, const Rectangle<int>& area, bool isSeparator, bool isActive, bool isHighlighted, bool isTicked, bool hasSubMenu, const String& text, const String& shortcutKeyText, const Drawable* icon, const Colour* textColourToUse)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
+		obj->setProperty("isSeparator", isSeparator);
+		obj->setProperty("isActive", isActive);
+		obj->setProperty("isHighlighted", isHighlighted);
+		obj->setProperty("isTicked", isTicked);
+		obj->setProperty("hasSubMenu", hasSubMenu);
+		obj->setProperty("text", text);
+
+		if (l->callWithGraphics(g_, "drawPopupMenuItem", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawPopupMenuItem(g_, area, isSeparator, isActive, isHighlighted, isTicked, hasSubMenu, text, shortcutKeyText, icon, textColourToUse);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawToggleButton(Graphics &g_, ToggleButton &b, bool isMouseOverButton, bool isButtonDown)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(b.getLocalBounds().toFloat()));
+		obj->setProperty("text", b.getButtonText());
+		obj->setProperty("over", isMouseOverButton);
+		obj->setProperty("down", isButtonDown);
+		obj->setProperty("value", b.getToggleState());
+
+		obj->setProperty("bgColour", b.findColour(HiseColourScheme::ComponentOutlineColourId).getARGB());
+
+		obj->setProperty("itemColour1", b.findColour(HiseColourScheme::ComponentFillTopColourId).getARGB());
+
+		obj->setProperty("itemColour2", b.findColour(HiseColourScheme::ComponentFillBottomColourId).getARGB());
+
+		obj->setProperty("textColour", b.findColour(HiseColourScheme::ComponentTextColourId).getARGB());
+
+		if (l->callWithGraphics(g_, "drawToggleButton", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawToggleButton(g_, b, isMouseOverButton, isButtonDown);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonText(Graphics &g_, TextButton &button, bool isMouseOverButton, bool isButtonDown)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("buttonBounds", 2);
+		obj->setProperty("isOver", isMouseOverButton);
+		obj->setProperty("isButtonDown", isButtonDown);
+
+		if (l->callWithGraphics(g_, "drawButtonText", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawButtonText(g_, button, isMouseOverButton, isButtonDown);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBox(Graphics& g_, int width, int height, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, ComboBox& cb)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(cb.getLocalBounds().toFloat()));
+
+		auto text = cb.getText();
+
+		if (text.isEmpty())
+		{
+			if (cb.getNumItems() == 0)
+				text = cb.getTextWhenNoChoicesAvailable();
+			else
+				text = cb.getTextWhenNothingSelected();
+		}
+
+		obj->setProperty("text", text);
+		obj->setProperty("active", cb.getSelectedId() != 0);
+		obj->setProperty("enabled", cb.isEnabled() && cb.getNumItems() > 0);
+
+		obj->setProperty("bgColour", cb.findColour(HiseColourScheme::ComponentOutlineColourId).getARGB());
+		obj->setProperty("itemColour1", cb.findColour(HiseColourScheme::ComponentFillTopColourId).getARGB());
+		obj->setProperty("itemColour2", cb.findColour(HiseColourScheme::ComponentFillBottomColourId).getARGB());
+		obj->setProperty("textColour", cb.findColour(HiseColourScheme::ComponentTextColourId).getARGB());
+
+		if (l->callWithGraphics(g_, "drawComboBox", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawComboBox(g_, width, height, isButtonDown, buttonX, buttonY, buttonW, buttonH, cb);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::positionComboBoxText(ComboBox &c, Label &labelToPosition)
+{
+	if (functionDefined("drawComboBox"))
+	{
+		labelToPosition.setVisible(false);
+		return;
+	}
+
+	GlobalHiseLookAndFeel::positionComboBoxText(c, labelToPosition);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label)
+{
+	if (functionDefined("drawComboBox"))
+	{
+		label.setVisible(false);
+		return;
+	}
+
+	GlobalHiseLookAndFeel::drawComboBoxTextWhenNothingSelected(g, box, label);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/, bool isMouseOverButton, bool isButtonDown)
+{
+
+}
+
+bool ScriptingObjects::ScriptedLookAndFeel::Laf::functionDefined(const String& s)
+{
+	return get() != nullptr && HiseJavascriptEngine::isJavascriptFunction(get()->functions.getProperty(Identifier(s), {}));
+}
+
+#if !HISE_USE_CUSTOM_ALERTWINDOW_LOOKANDFEEL
+LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController)
+{
+	if (auto mc = reinterpret_cast<MainController*>(mainController))
+	{
+		if (mc->getCurrentScriptLookAndFeel() != nullptr)
+			return new ScriptingObjects::ScriptedLookAndFeel::Laf(mc);
+	}
+
+	return new hise::AlertWindowLookAndFeel();
+}
+#endif
 
 } // namespace hise

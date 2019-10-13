@@ -246,6 +246,7 @@ struct DrawActions
 		virtual ~ActionBase() {};
 		virtual void perform(Graphics& g) = 0;
 		virtual bool wantsCachedImage() const { return false; };
+		virtual bool wantsToDrawOnParent() const { return false; }
 
 		void setCachedImage(Image& img) { cachedImage = img; }
 
@@ -265,18 +266,19 @@ struct DrawActions
 
 		using Ptr = ReferenceCountedObjectPtr<ActionLayer>;
 
-		ActionLayer() :
-			ActionBase()
+		ActionLayer(bool drawOnParent_) :
+			ActionBase(),
+			drawOnParent(drawOnParent_)
 		{};
 
 		bool wantsCachedImage() const override { return postActions.size() > 0; }
 
+		bool wantsToDrawOnParent() const override { return drawOnParent; };
+
 		void perform(Graphics& g)
 		{
 			for (auto action : internalActions)
-			{
 				action->perform(g);
-			}
 
 			if (postActions.size() > 0)
 			{
@@ -307,6 +309,8 @@ struct DrawActions
 		}
 
 	private:
+
+		bool drawOnParent = false;
 
 		OwnedArray<ActionBase> internalActions;
 		OwnedArray<PostActionBase> postActions;
@@ -357,9 +361,9 @@ struct DrawActions
 			currentActions.clear();
 		}
 
-		void beginLayer()
+		void beginLayer(bool drawOnParent)
 		{
-			auto newLayer = new ActionLayer();
+			auto newLayer = new ActionLayer(drawOnParent);
 
 			addDrawAction(newLayer);
 			layerStack.insert(-1, newLayer);
