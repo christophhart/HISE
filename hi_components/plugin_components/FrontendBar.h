@@ -48,7 +48,9 @@ class SampleDataImporter;
 */
 class DeactiveOverlay : public Component,
 	public ButtonListener,
-	public ControlledObject
+	public ControlledObject,
+	public Timer,
+	public AsyncUpdater
 {
 public:
 
@@ -76,13 +78,46 @@ public:
 
 	void paint(Graphics &g)
 	{
-		g.setColour(Colours::black.withAlpha(0.8f));
+		g.fillAll();
+		g.drawImageAt(img, 0, 0);
+		g.setColour(Colours::black.withAlpha(0.66f * (float)(numFramesLeft) / 10.0f));
 		g.fillAll();
 	}
+
+	void timerCallback() override
+	{
+		numFramesLeft -= 1;
+
+		if (numFramesLeft <= 0)
+		{
+			stopTimer();
+			setVisible(false);
+			originalImage = Image();
+			return;
+		}
+
+		triggerAsyncUpdate();
+	}
+
+	void fadeout()
+	{
+		numFramesLeft = 10;
+		startTimer(30);
+	}
+
+	void handleAsyncUpdate()
+	{
+		rebuildImage();
+		repaint();
+	}
+
+	void rebuildImage();
 
 	void setState(State s, bool value)
 	{
 		
+		bool wasVisible = currentState != 0;
+
 #if !HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && !HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
 		if (s == SamplesNotInstalled && value)
 			return;
@@ -90,10 +125,35 @@ public:
 
 		currentState.setBit(s, value);
 
-		setVisible(currentState != 0);
-		refreshLabel();
-		resized();
+		if (!wasVisible && currentState != 0)
+		{
+			numFramesLeft = 10;
+			setVisible(true);
+			refreshLabel();
+			resized();
+			
+			
+		}
+
+		if (wasVisible && currentState == 0)
+		{
+			refreshLabel();
+			fadeout();
+			refreshLabel();
+			resized();
+		}
+
+		if (!wasVisible && currentState == 0)
+		{
+			setVisible(false);
+			refreshLabel();
+			resized();
+		}
+		
+		
 	}
+
+	
 
     void clearAllFlags()
     {
@@ -128,6 +188,14 @@ public:
 	void resized();
 
 private:
+
+	int numFramesLeft = 0;
+	
+
+	PostGraphicsRenderer::DataStack stack;
+
+	Image originalImage;
+	Image img;
 
 	ScopedPointer<LookAndFeel> alaf;
 	String customMessage;

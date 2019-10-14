@@ -232,17 +232,20 @@ public:
 
 		void setInfoTextForLastComponent(const String& infoToShow);
 
+		void setStyleDataForMarkdownHelp(const MarkdownLayout::StyleData& sd);
+
 		template <class ComponentType> ComponentType* getComponent(const String& name)
 		{
 			for (auto c : columns)
 			{
-				if (auto typed = dynamic_cast<ComponentType*>(c))
+				if (auto typed = dynamic_cast<ComponentType*>(c->component.get()))
 				{
-					if (c->getName() == name)
+					if (typed->getName() == name)
 						return typed;
 				}
 			}
 
+			jassertfalse;
 			return nullptr;
 		}
 
@@ -366,6 +369,20 @@ protected:
 	/** Call this method in your constructor after you created all custom methods. */
 	void addBasicComponents(bool addOkButton = true);
 	
+	Button* getButton(const String& name)
+	{
+		for (int i = 0; i < getNumChildComponents(); i++)
+		{
+			if (auto b = dynamic_cast<Button*>(getChildComponent(i)))
+			{
+				if(b->getName() == name)
+					return b;
+			}
+		}
+
+		return nullptr;
+	}
+
 	void setTimeoutMs(int newTimeout)
 	{
 		timeoutMs = newTimeout;

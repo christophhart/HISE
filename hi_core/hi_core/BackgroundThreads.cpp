@@ -298,6 +298,15 @@ void DialogWindowWithBackgroundThread::AdditionalRow::setInfoTextForLastComponen
 	if (auto last = columns.getLast())
 	{
 		last->infoButton->setHelpText(infoToShow);
+		last->infoButton->setVisible(true);
+	}
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::setStyleDataForMarkdownHelp(const MarkdownLayout::StyleData& sd)
+{
+	for (auto c : columns)
+	{
+		c->infoButton->setStyleData(sd);
 	}
 }
 
@@ -1063,8 +1072,9 @@ DialogWindowWithBackgroundThread::AdditionalRow::Column::Column(Component* t, co
 	if (name.isNotEmpty())
 	{
 		addAndMakeVisible(infoButton = new MarkdownHelpButton());
-
 	}
+
+	infoButton->setVisible(false);
 }
 
 void DialogWindowWithBackgroundThread::AdditionalRow::Column::resized()

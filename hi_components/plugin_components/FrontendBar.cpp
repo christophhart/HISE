@@ -170,6 +170,41 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
 }
 
+void DeactiveOverlay::rebuildImage()
+{
+	auto rebuildFromParent = !originalImage.isValid();
+
+	if (rebuildFromParent)
+	{
+		if (auto pc = getParentComponent())
+		{
+			setVisible(false);
+			originalImage = pc->createComponentSnapshot(pc->getLocalBounds());
+			setVisible(true);
+		}
+	}
+
+	img = originalImage.createCopy();
+
+	if (img.isValid())
+	{
+		PostGraphicsRenderer r(stack, img);
+
+		if (rebuildFromParent)
+		{
+			r.addNoise(0.1f * (float)numFramesLeft / 10.0f);
+			r.gaussianBlur(6);
+		}
+
+		r.boxBlur(numFramesLeft);
+
+		if(rebuildFromParent)
+			r.addNoise(0.03f);
+	}
+}
+
+
+
 #if !USE_COPY_PROTECTION
 
 bool DeactiveOverlay::check(State s, const String &value/*=String()*/)
@@ -274,6 +309,13 @@ void DeactiveOverlay::resized()
 {
 	installSampleButton->setVisible(false);
 	
+	if (auto pc = getParentComponent())
+	{
+		if (isVisible())
+		{
+			triggerAsyncUpdate();
+		}
+	}
 
 	if (currentState != 0)
 	{
