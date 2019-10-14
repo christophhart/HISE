@@ -66,6 +66,7 @@ public:
 		parser = new MarkdownRenderer("");
 		parser->setTextColour(Colours::white);
 		parser->setDefaultTextSize(fontSizeToUse);
+		parser->setStyleData(sd);
 	}
 
 	MarkdownParser* getParser() { return parser; }
@@ -87,7 +88,7 @@ public:
 
 		parser->setNewText(markdownText);
 		parser->setImageProvider(new ProviderType(parser));
-
+		parser->setStyleData(sd);
 		parser->parse();
 	}
 
@@ -201,9 +202,22 @@ public:
 		delete this;
 	}
 
+	void setStyleData(const MarkdownLayout::StyleData& newStyleData)
+	{
+		sd = newStyleData;
+
+		if (parser != nullptr)
+		{
+			parser->setStyleData(sd);
+			parser->parse();
+		}
+	}
+
 	static Path getPath();
 
 private:
+
+	MarkdownLayout::StyleData sd;
 
 	bool ignoreKeyStrokes = false;
 	float fontSizeToUse = 17.0f;
