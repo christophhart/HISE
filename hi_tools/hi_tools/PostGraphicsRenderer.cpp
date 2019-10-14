@@ -160,12 +160,15 @@ void PostGraphicsRenderer::desaturate()
 	}
 }
 
-void PostGraphicsRenderer::applyMask(Path& path, bool invert /*= false*/)
+void PostGraphicsRenderer::applyMask(Path& path, bool invert /*= false*/, bool scale)
 {
 	auto& bf = getNextData();
 
-	Rectangle<float> area(0.0f, 0.0f, bd.width, bd.height);
-	PathFactory::scalePath(path, area);
+	if (scale)
+	{
+		Rectangle<float> area(0.0f, 0.0f, bd.width, bd.height);
+		PathFactory::scalePath(path, area);
+	}
 
 	bf.createPathImage(bd.width, bd.height);
 

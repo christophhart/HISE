@@ -118,7 +118,7 @@ struct PostGraphicsRenderer
 
 	void desaturate();
 
-	void applyMask(Path& path, bool invert = false);
+	void applyMask(Path& path, bool invert = false, bool scale=false);
 
 	void addNoise(float noiseAmount);
 

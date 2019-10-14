@@ -131,7 +131,7 @@ RLottieDevComponent::RLottieDevComponent(RLottieManager::Ptr m_) :
 		animationComponent.setFrameNormalised(frameSlider.getValue());
 	};
 
-	frameSlider.setRange(0.0, 1.0, 0.01);
+	frameSlider.setRange(0.0, 1.0, 0.001);
 	frameSlider.setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
 
 	setSize(800, 600);
