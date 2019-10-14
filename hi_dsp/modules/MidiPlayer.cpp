@@ -1211,6 +1211,17 @@ double MidiPlayer::getPlaybackPosition() const
 	return fmod(currentPosition, 1.0);
 }
 
+double MidiPlayer::getPlayPackPositionInLoop() const
+{
+	auto pos = getPlaybackPosition();
+
+	if (pos < getLoopStart())
+		return getLoopStart();
+	if (pos > getLoopEnd())
+		return getLoopStart();
+	return pos;
+}
+
 void MidiPlayer::swapCurrentSequence(MidiMessageSequence* newSequence)
 {
 	getCurrentSequence()->swapCurrentSequence(newSequence);

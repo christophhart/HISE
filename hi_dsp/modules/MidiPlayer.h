@@ -460,6 +460,9 @@ public:
 	/** Returns the current playback position from 0...1. */
 	double getPlaybackPosition() const;
 
+	/** Returns the normalised playback position inside the current loop. This will never be outside the bounds of the loop. */
+	double getPlayPackPositionInLoop() const;
+
 	void swapCurrentSequence(MidiMessageSequence* newSequence);
 	void enableInternalUndoManager(bool shouldBeEnabled);
 
@@ -545,13 +548,15 @@ public:
 		noteOffAtStop = shouldMoveNotesOfToStop;
 	}
 
+	double getLoopStart() const;
+
+	double getLoopEnd() const;
+
 private:
 
 	mutable SimpleReadWriteLock sequenceLock;
 
-	double getLoopStart() const;
-
-	double getLoopEnd() const;
+	
 
 	void sendPlaybackChangeMessage(int timestamp);
 
