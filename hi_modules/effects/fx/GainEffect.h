@@ -202,6 +202,13 @@ public:
 
 			auto thisQuarter = getBeatFromPosition();
 
+			if (thisQuarter == -1)
+			{
+				lastQuarter = -1;
+				uptimeDelta = 0.0;
+				return;
+			}
+
 			if (thisQuarter != lastQuarter && thisQuarter >= 0)
 			{
 				rampValue = 1.0f;
