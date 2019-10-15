@@ -139,7 +139,6 @@ public:
 		{
 			refreshLabel();
 			fadeout();
-			refreshLabel();
 			resized();
 		}
 
@@ -171,6 +170,11 @@ public:
 
 	void refreshLabel()
 	{
+		if (currentState == 0)
+		{
+			descriptionLabel->setText("", dontSendNotification);
+		}
+
 		for (int i = 0; i < numReasons; i++)
 		{
 			if (currentState[i])
