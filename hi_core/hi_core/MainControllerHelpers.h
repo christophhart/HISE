@@ -75,11 +75,16 @@ public:
 
 	File getLibraryFolder() const override
 	{
+#if JUCE_WINDOWS
+		return File::getSpecialLocation(File::windowsSystemDirectory);
+#else
 #if USE_BACKEND
 		return ProjectHandler::getAppDataDirectory();
 #else
 		return FrontendHandler::getAppDataDirectory();
 #endif
+#endif
+
 	}
 };
 
