@@ -73,7 +73,7 @@ void PostGraphicsRenderer::Data::createPathImage(int width, int height)
 
 bool PostGraphicsRenderer::Data::initGaussianBlur(int kernelSize, float sigma, int width, int height)
 {
-#if USE_IPP
+#if USE_IPP && JUCE_WINDOWS
 	auto thisNumPixels = width * height;
 
 	if (thisNumPixels != numPixels || kernelSize != lastKernelSize)
@@ -220,7 +220,7 @@ void PostGraphicsRenderer::addNoise(float noiseAmount)
 
 void PostGraphicsRenderer::gaussianBlur(int blur)
 {
-#if USE_IPP
+#if USE_IPP && JUCE_WINDOWS
 	auto& bf = getNextData();
 
 	blur /= 2;
