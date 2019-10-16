@@ -112,6 +112,10 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 	int numChannels = sampleMap.getChild(0).getNumChildren();
 	if (numChannels == 0) numChannels = 1;
 
+	int numSplitFiles = (int)sampleMap.getProperty("MonolithSplitAmount", 0);
+
+	numChannels = jmax(numSplitFiles, numChannels);
+
 	multiChannelSampleInformation.reserve(numChannels);
 
 	for (int i = 0; i < numChannels; i++)
@@ -140,9 +144,9 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 			info.sampleRate = sample.getProperty("SampleRate");
 			info.fileName = sample.getProperty("FileName");
 
-			
+			int splitIndex = sample.getProperty("MonolithSplitIndex", 0);
 
-			multiChannelSampleInformation[0].push_back(info);
+			multiChannelSampleInformation[splitIndex].push_back(info);
 		}
 		else
 		{

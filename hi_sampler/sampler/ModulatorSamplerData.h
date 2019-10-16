@@ -546,7 +546,7 @@ private:
 	AudioFormatWriter* createWriter(hlac::HiseLosslessAudioFormat& hlaf, const File& f, bool isMono);
 
 	/** The max monolith size is 2GB - 60MB (to guarantee to stay below 2GB for FAT32. */
-	static constexpr int maxMonolithSize = 1024 * 1024 * 1024 * 2 - 1024 * 1024 * 60;
+	constexpr static int maxMonolithSize = 2084569088;
 
 	void checkSanity();
 
