@@ -65,10 +65,15 @@ public:
 	/** You can use a temporary file instead of the memory buffer if you encode large files. */
 	void setTemporaryBufferType(bool shouldUseTemporaryFile);
 
+	/** Returns the number of written bytes for this reader. */
+	int64 getNumBytesWritten() const;
+
 private:
 
 	bool writeHeader();
 	bool writeDataFromTemp();
+
+	int64 numBytesWritten = 0;
 
 	void deleteTemp();
 

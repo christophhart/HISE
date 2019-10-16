@@ -61,7 +61,11 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 
 		if (hmaf != nullptr)
 		{
-			const int multimicIndex = isMultiMicSound ? sampleData.getParent().indexOf(sampleData) : 0;
+			int multimicIndex = isMultiMicSound ? sampleData.getParent().indexOf(sampleData) : 0;
+
+			if (sampleData.hasProperty("MonolithSplitIndex"))
+				multimicIndex = (int)sampleData.getProperty("MonolithSplitIndex");
+
 			soundArray.add(new StreamingSamplerSound(hmaf, multimicIndex, getId()));
 		}
 		else

@@ -203,9 +203,18 @@ void SampleMap::setCurrentMonolith()
 
 			Array<File> monolithFiles;
 
+			int numSingleChannelSplits = (int)data.getProperty("MonolithSplitAmount", 0);
+
 			int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
 
-			for (int i = 0; i < numChannels; i++)
+			if (numSingleChannelSplits > 0 && numChannels != 1)
+			{
+				jassertfalse;
+			}
+
+			int numMonolithsToLoad = jmax(numChannels, numSingleChannelSplits);
+
+			for (int i = 0; i < numMonolithsToLoad; i++)
 			{
 				auto path = getMonolithID().replace("/", "_");
 
@@ -227,14 +236,22 @@ void SampleMap::setCurrentMonolith()
 
 			if (!monolithFiles.isEmpty())
 			{
-				StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
+				jassertfalse;
+				if (numChannels != 1)
+				{
+					StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
 
-				micPositions.removeEmptyStrings(true);
+					micPositions.removeEmptyStrings(true);
 
-				if (micPositions.size() == numChannels)
-					sampler->setNumMicPositions(micPositions);
+					if (micPositions.size() == numChannels)
+						sampler->setNumMicPositions(micPositions);
+					else
+						sampler->setNumChannels(1);
+				}
 				else
+				{
 					sampler->setNumChannels(1);
+				}
 
 				currentMonolith = pool->loadMonolithicData(data, monolithFiles);
 
@@ -1031,6 +1048,31 @@ void MonolithExporter::threadFinished()
 	}
 }
 
+
+juce::AudioFormatWriter* MonolithExporter::createWriter(hlac::HiseLosslessAudioFormat& hlac, const File& outputFile, bool isMono)
+{
+	bool ok = outputFile.deleteFile();
+
+	jassert(ok); ignoreUnused(ok);
+
+	outputFile.create();
+
+	FileOutputStream* hlacOutput = new FileOutputStream(outputFile);
+
+	auto options = hlac::HlacEncoder::CompressorOptions::getPreset(hlac::HlacEncoder::CompressorOptions::Presets::Diff);
+
+	options.applyDithering = false;
+	options.normalisationMode = (uint8)getComboBoxComponent("normalise")->getSelectedItemIndex();
+
+	StringPairArray empty;
+
+	ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(hlacOutput, sampleRate, isMono ? 1 : 2, 16, empty, 5);
+
+	dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
+
+	return writer.release();
+}
+
 void MonolithExporter::checkSanity()
 {
 	if (filesToWrite.size() != numChannels)
@@ -1055,6 +1097,18 @@ void MonolithExporter::checkSanity()
 	}
 }
 
+File getNextMonolith(const File& f)
+{
+	auto p = f.getParentDirectory();
+	auto n = f.getFileName();
+
+	int index = n.getTrailingIntValue();
+	int nextIndex = index + 1;
+
+	auto newFileName = n.replace(".ch" + String(index), ".ch" + String(nextIndex));
+	return p.getChildFile(newFileName);
+}
+
 void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 {
 	AudioFormatManager afm;
@@ -1062,6 +1116,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 
 	Array<File>* channelList = filesToWrite[channelIndex];
+	splitData.clear();
 
 	bool isMono = false;
 
@@ -1079,27 +1134,10 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 	if (!outputFile.existsAsFile() || overwriteExistingData)
 	{
-
-		bool ok = outputFile.deleteFile();
-
-		jassert(ok); ignoreUnused(ok);
-
-		outputFile.create();
-		
 		hlac::HiseLosslessAudioFormat hlac;
+		ScopedPointer<AudioFormatWriter> writer = createWriter(hlac, outputFile, isMono);
 
-		FileOutputStream* hlacOutput = new FileOutputStream(outputFile);
-
-		auto options = hlac::HlacEncoder::CompressorOptions::getPreset(hlac::HlacEncoder::CompressorOptions::Presets::Diff);
-
-		options.applyDithering = false;
-		options.normalisationMode = (uint8)getComboBoxComponent("normalise")->getSelectedItemIndex();
-
-		StringPairArray empty;
-
-		ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(hlacOutput, sampleRate, isMono ? 1 : 2, 16, empty, 5);
-
-		dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
+		int currentSplitIndex = 0;
 
 		for (int i = 0; i < channelList->size(); i++)
 		{
@@ -1113,6 +1151,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 			if (reader != nullptr)
 			{
 				writer->writeFromAudioReader(*reader, 0, -1);
+				
 			}
 			else
 			{
@@ -1121,6 +1160,21 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 				writer = nullptr;
 
 				return;
+			}
+
+			if (dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get())->getNumBytesWritten() > maxMonolithSize)
+			{
+				// This only works with non-multimic samples
+				jassert(numChannels == 1);
+
+				writer->flush();
+				writer = nullptr;
+
+				splitData.add({ currentSplitIndex++, channelList->getUnchecked(i) });
+
+				outputFile = getNextMonolith(outputFile);
+
+				writer = createWriter(hlac, outputFile, isMono);
 			}
 		}
 
@@ -1144,6 +1198,14 @@ void MonolithExporter::updateSampleMap()
 	largestSample = 0;
 	int64 offset = 0;
 
+	bool usesSingleChannelSplit = !splitData.isEmpty();
+	int currentSplitIndex = 0;
+
+	if (usesSingleChannelSplit)
+	{
+		v.setProperty("MonolithSplitAmount", splitData.size() + 1, nullptr);
+	}
+
 	for (int i = 0; i < numSamples; i++)
 	{
 		ValueTree s = v.getChild(i);
@@ -1152,7 +1214,11 @@ void MonolithExporter::updateSampleMap()
 		{
 			File sampleFile = filesToWrite.getUnchecked(0)->getUnchecked(i);
 
+			
+
 			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(sampleFile);
+
+
 
 			if (reader != nullptr)
 			{
@@ -1172,7 +1238,16 @@ void MonolithExporter::updateSampleMap()
 				s.setProperty("MonolithLength", length, nullptr);
 				s.setProperty("SampleRate", reader->sampleRate, nullptr);
 
+				if (usesSingleChannelSplit)
+					s.setProperty("MonolithSplitIndex", currentSplitIndex, nullptr);
+
 				offset += length;
+			}
+
+			if (usesSingleChannelSplit && splitData[currentSplitIndex].lastSample == sampleFile)
+			{
+				currentSplitIndex++;
+				offset = 0;
 			}
 		}
 	}

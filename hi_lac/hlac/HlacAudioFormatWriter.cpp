@@ -125,6 +125,8 @@ bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSam
 		tempOutputStream->write(tempBlock.getData(), bytesToWrite);
 	}
 	
+	numBytesWritten = tempOutputStream->getPosition();
+
 	return true;
 }
 
@@ -158,6 +160,12 @@ void HiseLosslessAudioFormatWriter::setTemporaryBufferType(bool shouldUseTempora
 	{
 		tempOutputStream = new MemoryOutputStream();
 	}
+}
+
+
+int64 HiseLosslessAudioFormatWriter::getNumBytesWritten() const
+{
+	return numBytesWritten;
 }
 
 bool HiseLosslessAudioFormatWriter::writeHeader()
