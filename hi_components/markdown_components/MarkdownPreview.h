@@ -134,7 +134,6 @@ public:
 
 	void threadFinished() override;
 
-	void addForumLinks();
 	void updateFromServer();
 
 	void databaseWasRebuild() override

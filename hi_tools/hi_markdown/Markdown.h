@@ -184,7 +184,7 @@ public:
 		virtual ImageProvider* clone(MarkdownParser* newParent) const { return new ImageProvider(newParent); }
 		virtual Identifier getId() const { RETURN_STATIC_IDENTIFIER("EmptyImageProvider"); };
 
-		void updateWidthFromURL(const MarkdownLink& url, float& widthToUpdate)
+		static void updateWidthFromURL(const MarkdownLink& url, float& widthToUpdate)
 		{
 			auto extraData = url.getExtraData();
 
@@ -206,8 +206,6 @@ public:
 			}
 
 			widthToUpdate = jmin(widthToUpdate, widthValue);
-			
-			return;
 		}
 
 

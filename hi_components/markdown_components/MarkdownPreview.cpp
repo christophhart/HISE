@@ -597,25 +597,35 @@ DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool all
 		String nl = "\n";
 
 		help1 << "### Action" << nl;
-		help1 << "You can choose to download the latest documentation blob from the HISE doc server." << nl;
-		help1 << "> It will check the existing hash code and only download something if there is new content" << nl;
-
+        help1 << "There are three actions available here:  " << nl;
+        help1 << "- You can create the cached files from the markdown files on your system" << nl;
+        help1 << "- You can choose to download the cached files from the server." << nl;
+        help1 << "- You can create an HTML version of your documentation using the supplied templates" << nl;
+        
 		helpButton1 = MarkdownHelpButton::createAndAddToComponent(getComboBoxComponent("action"), help1);
 
 		if (!editingShouldBeEnabled)
 			getComboBoxComponent("action")->setSelectedItemIndex(1, dontSendNotification);
 
-		String help2;
-		help2 << "### Add Forum Links" << nl;
-		help2 << "This will search the subforum [Documentation Discussion](link) for matches to documentation pages and adds a link to the bottom of each page." << nl;
-
-
-		StringArray sa2 = { "Yes", "No" };
-
-		addComboBox("forum", sa2, "Add links to forum discussion");
-
-		helpButton2 = MarkdownHelpButton::createAndAddToComponent(getComboBoxComponent("forum"), help2);
-
+        
+        String help2;
+        
+        help2 << "### BaseURL" << nl;
+        help2 << "You can specify a Base URL that will be used in the generated HTML files to resolve relative links.  " << nl;
+        help2 << "If you want it to work on your local computer, leave it empty to use the html link to your specified html folder:  " << nl;
+        help2 << "`file::///{PATH}/`  " << nl;
+        help2 << "otherwise just add your root URL for the online docs, eg.:  " << nl;
+        help2 << "`https://docs.hise.audio/`  "  << nl;
+        help2 << "> Important: The Base URL **must** end with a slash (`/`), otherwise the links won't work.  " << nl;
+        help2 << "Also your template header has to have this wildcard (which will be replaced before creating the HTML files...:  " << nl << nl;
+        help2 << "```" << nl;
+        help2 << "<base href=\"{BASE_URL}\"/>" << nl;
+        help2 << "```" << nl;
+		
+        addTextEditor("baseURL", "", "Base URL");
+        
+        helpButton2 = MarkdownHelpButton::createAndAddToComponent(getTextEditor("baseURL"), help2);
+        
 		markdownRepository = new FilenameComponent("Markdown Repository", holder.getDatabaseRootDirectory(), false, true, false, {}, {}, "No markdown repository specified");
 		markdownRepository->setSize(400, 32);
 
@@ -698,8 +708,6 @@ void DocUpdater::run()
 		{
 			showStatusMessage("Rebuilding index");
 			holder.setForceCachedDataUse(false);
-			
-			addForumLinks();
 
 			showStatusMessage("Create Content cache");
 
@@ -770,62 +778,6 @@ void DocUpdater::threadFinished()
 	}
 }
 
-void DocUpdater::addForumLinks()
-{
-	if (fastMode || getComboBoxComponent("forum")->getSelectedItemIndex() == 1)
-		return;
-
-	showStatusMessage("Adding forum links to pages");
-
-	URL baseUrl("https://forum.hise.audio");
-	auto forumUrl = baseUrl.getChildURL("api/category/13/");
-	auto itemList = holder.getDatabase().getFlatList();
-
-	setTimeoutMs(-1);
-
-	auto response = forumUrl.readEntireTextStream(false);
-
-	setTimeoutMs(6000);
-
-	if (threadShouldExit())
-	{
-		result = UserCancelled;
-		return;
-	}
-
-	auto v = JSON::parse(response);
-
-	int numFound = 0;
-
-	if (auto postList = v.getProperty("topics", {}).getArray())
-	{
-		for (auto p : *postList)
-		{
-			auto title = p.getProperty("title", {}).toString();
-
-			if (title.isNotEmpty())
-			{
-				for (const auto& item : itemList)
-				{
-					if (item.tocString == title)
-					{
-						auto slug = p.getProperty("slug", {}).toString();
-						auto topicUrl = baseUrl.getChildURL("topic/" + slug);
-
-						MarkdownLink forumLink({}, topicUrl.toString(false));
-
-						numFound++;
-
-						showStatusMessage("Found " + String(numFound) + " links");
-
-						holder.getDatabase().addForumDiscussion({ item.url, forumLink });
-					}
-				}
-			}
-		}
-	}
-}
-
 void DocUpdater::updateFromServer()
 {
 	showStatusMessage("Fetching hash from server");
@@ -862,7 +814,7 @@ void DocUpdater::updateFromServer()
 	auto localContentHash = (int64)contentHash.getProperty("content-hash", {});
 	auto localImageHash = (int64)contentHash.getProperty("image-hash", {});
 
-	if (webContentHash != localContentHash)
+	if (webContentHash != localContentHash || !localFile.getSiblingFile("content.dat").existsAsFile())
 		downloadAndTestFile("content.dat");
 	
 	if (threadShouldExit())
@@ -872,7 +824,7 @@ void DocUpdater::updateFromServer()
 	}
 		
 
-	if (webImageHash != localImageHash)
+	if (webImageHash != localImageHash || localFile.getSiblingFile("images.dat").existsAsFile())
 		downloadAndTestFile("images.dat");
 
 	if (threadShouldExit())
@@ -882,8 +834,6 @@ void DocUpdater::updateFromServer()
 	}
 
 	localFile.replaceWithText(JSON::toString(webHash));
-
-	addForumLinks();
 
 	showStatusMessage("Rebuilding indexes");
 	
@@ -912,19 +862,56 @@ void DocUpdater::createLocalHtmlFiles()
 {
 	showStatusMessage("Create local HTML files");
 
+    auto htmlDir = htmlDirectory->getCurrentFile();
+    
+    String htmlBaseLink = getTextEditorContents("baseURL");
+    
+    if(htmlBaseLink.isEmpty())
+    {
+        htmlBaseLink << "file:///" << htmlDir.getFullPathName();
+        
+        htmlBaseLink = htmlBaseLink.replace("\\", "/");
+        
+        if(!htmlBaseLink.endsWith("/"))
+            htmlBaseLink << "/";
+    }
+    
+    if(!htmlBaseLink.endsWith("/"))
+    {
+        showStatusMessage("The base URL needs to end with a slash!");
+        reset();
+        setProgress(0.0);
+        return;
+
+    }
+    
+    
 	auto templateDir = getHolder().getDatabaseRootDirectory().getChildFile("template");
-	auto templateTarget = htmlDirectory->getCurrentFile().getChildFile("template");
+	auto templateTarget = htmlDir.getChildFile("template");
 	templateDir.copyDirectoryTo(templateTarget);
 
-	DatabaseCrawler::createImagesInHtmlFolder(htmlDirectory->getCurrentFile(), getHolder(), this, &getProgressCounter());
-	DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDirectory->getCurrentFile(), getHolder(), this, &getProgressCounter());
+    auto headerFile = templateTarget.getChildFile("header.html");
+    
+    auto headerContent = headerFile.loadFileAsString();
+    
+    if(!headerContent.contains("{BASE_URL}"))
+    {
+        showStatusMessage("Your header file doesn't contain the {BASE_URL} wildcard");
+        reset();
+        setProgress(0.0);
+        return;
+    }
+    
+    headerContent = headerContent.replace("{BASE_URL}", htmlBaseLink);
+    headerFile.replaceWithText(headerContent);
+    
+	DatabaseCrawler::createImagesInHtmlFolder(htmlDir, getHolder(), this, &getProgressCounter());
+	DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDir, getHolder(), this, &getProgressCounter());
 }
 
 void DocUpdater::downloadAndTestFile(const String& targetFileName)
 {
-	URL base("http://hise.audio/manual/");
-
-	showStatusMessage("Downloading " + targetFileName);
+    showStatusMessage("Downloading " + targetFileName);
 
 	auto contentURL = getBaseURL().getChildURL("cache/" + targetFileName);
 
@@ -973,8 +960,8 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 
 	ValueTree test;
 
-    tmpFile.deleteFile();
-    tmpFile.create();
+    //tmpFile.deleteFile();
+    //tmpFile.create();
     
 	auto r = comp.expand(tmpFile, test);
 

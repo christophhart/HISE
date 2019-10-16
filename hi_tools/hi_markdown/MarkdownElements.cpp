@@ -715,8 +715,34 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 	{
 		HtmlGenerator g;
 
-		return g.surroundWithTag("", "img", "src=\"{LINK0}\"");
-
+        float width = 2000.0f;
+        
+        MarkdownParser::ImageProvider::updateWidthFromURL(imageURL, width);
+        
+        
+        
+        String s;
+        
+        if(width == 2000.0f)
+        {
+            
+        }
+        else if(width <= 1.0f)
+        {
+            s << "style=\"max-width:" << String(roundToInt(width*100.0f)) << "%;\" ";
+        }
+        else
+        {
+            s << "style=\"max-width:" << String(roundToInt(width)) << "px;\" ";
+        }
+        
+        
+        s << "src=\"{LINK0}\"";
+        
+        return g.surroundWithTag("", "img", s);
+        
+        
+        
 		//return g.surroundWithTag("", "img", "src=\" " + imageURL.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 	}
 
