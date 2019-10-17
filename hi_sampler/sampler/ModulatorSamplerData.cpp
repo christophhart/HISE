@@ -236,7 +236,6 @@ void SampleMap::setCurrentMonolith()
 
 			if (!monolithFiles.isEmpty())
 			{
-				jassertfalse;
 				if (numChannels != 1)
 				{
 					StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");

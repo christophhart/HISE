@@ -22,7 +22,10 @@ class RLottieManager
 {
 public:
 
-	~RLottieManager() {};
+	virtual ~RLottieManager()
+    {
+        dynLib = nullptr;
+    };
 
 	/** A handy shortcut to keep references to this object. */
 	using Ptr = WeakReference<RLottieManager>;
