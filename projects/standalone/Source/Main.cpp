@@ -125,9 +125,12 @@ public:
 		print("Cleans the Binaries folder of the given project.");
 		print("-p:PATH - the path to the project folder.");
 		print("");
-		print("create-win-installer [-noaax]" );
+        print("create-win-installer [-a:x64|x86] [-noaax] [-rlottie]" );
 		print("Creates a template install script for Inno Setup for the project" );
 		print("Add the -noaax flag to not include the AAX build");
+        print("Add the -rlottie flag to include the .dlls for RLottie.");
+        print("(You'll need to put them into the AdditionalSourceCode directory");
+        print("Add the -a:x64 or -a:x86 flag to just create an installer for the specified platform");
 
 		exit(0);
 	}
@@ -140,8 +143,12 @@ public:
 		ScopedPointer<MainController> mc = dynamic_cast<MainController*>(sp->createProcessor());
 
 		const bool includeAAX = !args.contains("-noaax");
+        
+        const bool includeRlottie = args.contains("-rlottie");
+        const bool include32 = !args.contains("a:x64");
+        const bool include64 = !args.contains("a:x86");
 
-		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX);
+		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64, includeRlottie);
 
 		auto root = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getWorkDirectory();
 

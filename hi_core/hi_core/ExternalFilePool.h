@@ -1135,9 +1135,9 @@ public:
 			{
 				if (PoolHelpers::throwIfNotLoaded(loadingType))
 				{
-					jassertfalse;
+					//jassertfalse;
 
-					PoolHelpers::sendErrorMessage(getMainController(), "The file " + r.getReferenceString() + " is not embedded correctly.");
+					//PoolHelpers::sendErrorMessage(getMainController(), "The file " + r.getReferenceString() + " is not embedded correctly.");
 				}
 
 				return ManagedPtr();
