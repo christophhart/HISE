@@ -3,6 +3,13 @@ using namespace juce;
 
 #define LINE(x) x "\r\n"
 
+// Wildcards to replace:
+// %32%: if 32bit plugins are included
+// %64%: if 64bit plugins are included
+// %AAX%: if AAX pluginsa are included
+// %RLOTTIE%: if the rlottie .dll files should be installed
+// %ARCHITECTURE% if the installer doesn't contain both 32/64 bit, this will be a ` x86` or ` x64`suffix.
+    
 static const unsigned char winInstallerTemplate_lines[] =
 LINE(R"([Setup])")
 LINE(R"(#define AppName "%PRODUCT%")")
@@ -14,7 +21,7 @@ LINE(R"(Compression=lzma2)")
 LINE(R"(SolidCompression=yes)")
 LINE(R"(OutputDir=.\build)")
 LINE(R"(ArchitecturesInstallIn64BitMode=x64)")
-LINE(R"(OutputBaseFilename={#AppName} Installer %VERSION%)")
+LINE(R"(OutputBaseFilename={#AppName} Installer %VERSION%%ARCHITECTURE%)")
 LINE(R"(LicenseFile=EULA.txt)")
 LINE(R"(PrivilegesRequired=admin)")
 LINE(R"()")
@@ -29,9 +36,11 @@ LINE(R"([Dirs])")
 LINE(R"(Name: "{app}\"; Permissions: users-modify powerusers-modify admins-modify system-modify)")
 LINE(R"()")
 LINE(R"([Components])")
+    
+LINE(R"(%RLOTTIE%Name: "libs"; Description: "{#AppName} Additional Libraries"; Types: full custom; Flags: fixed)")
 LINE(R"(Name: "app"; Description: "{#AppName} Standalone application"; Types: full custom;)")
-LINE(R"(Name: "vst2_32"; Description: "{#AppName} 32-bit VSTi Plugin"; Types: full custom;)")
-LINE(R"(Name: "vst2_64"; Description: "{#AppName} 64-bit VSTi Plugin"; Types: full custom; Check: Is64BitInstallMode;)")
+LINE(R"(%32%Name: "vst2_32"; Description: "{#AppName} 32-bit VSTi Plugin"; Types: full custom;)")
+LINE(R"(%64%Name: "vst2_64"; Description: "{#AppName} 64-bit VSTi Plugin"; Types: full custom; Check: Is64BitInstallMode;)")
 LINE(R"(;BEGIN_AAX)")
 LINE(R"(%AAXONLY%Name: "aax"; Description: "{#AppName} AAX Plugin"; Types: full custom;)")
 LINE(R"(;END_AAX)")
@@ -39,22 +48,24 @@ LINE(R"()")
 LINE(R"([Files])")
 LINE(R"()")
 LINE(R"(; Standalone)")
-LINE(R"(Source: "build\App\{#AppName} x86.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: app; Check: not Is64BitInstallMode)")
-LINE(R"(Source: "build\App\{#AppName} x64.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: app; Check: Is64BitInstallMode)")
+LINE(R"(%32%Source: "build\App\{#AppName} x86.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: app; Check: not Is64BitInstallMode)")
+LINE(R"(%64%Source: "build\App\{#AppName} x64.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: app; Check: Is64BitInstallMode)")
 LINE(R"()")
 LINE(R"(; VST)")
-LINE(R"(Source: "build\VST\{#AppName} x86.dll"; DestDir: "{code:GetVST2Dir_32}"; Flags: ignoreversion; Components: vst2_32; Check: not Is64BitInstallMode)")
+LINE(R"(%32%Source: "build\VST\{#AppName} x86.dll"; DestDir: "{code:GetVST2Dir_32}"; Flags: ignoreversion; Components: vst2_32; Check: not Is64BitInstallMode)")
 LINE(R"()")
-LINE(R"(Source: "build\VST\{#AppName} x86.dll"; DestDir: "{code:GetVST2Dir_32}"; Flags: ignoreversion; Components: vst2_32; Check: Is64BitInstallMode)")
-LINE(R"(Source: "build\VST\{#AppName} x64.dll"; DestDir: "{code:GetVST2Dir_64}"; Flags: ignoreversion; Components: vst2_64; Check: Is64BitInstallMode)")
+LINE(R"(%32%Source: "build\VST\{#AppName} x86.dll"; DestDir: "{code:GetVST2Dir_32}"; Flags: ignoreversion; Components: vst2_32; Check: Is64BitInstallMode)")
+LINE(R"(%64%Source: "build\VST\{#AppName} x64.dll"; DestDir: "{code:GetVST2Dir_64}"; Flags: ignoreversion; Components: vst2_64; Check: Is64BitInstallMode)")
+LINE(R"(%RLOTTIE%Source: "AdditionalSourceCode/rlottie_x64.dll"; DestDir: "{win}\system32"; Flags: ignoreversion; Components: libs)")
+LINE(R"(%RLOTTIE%Source: "AdditionalSourceCode/rlottie_x86.dll"; DestDir: "{win}\system32"; Flags: ignoreversion; Components: libs)")
 LINE(R"()")
 LINE(R"(;BEGIN_AAX)")
 LINE(R"(%AAXONLY%Source: "build\AAX\{#AppName}.aaxplugin\*.*"; DestDir: "{cf}\Avid\Audio\Plug-Ins\{#AppName}.aaxplugin\"; Flags: ignoreversion recursesubdirs; Components: aax)")
 LINE(R"(;END_AAX)")
 LINE(R"()")
 LINE(R"([Icons])")
-LINE(R"(Name: "{group}\{#AppName}"; Filename: "{app}\{#AppName} x64.exe"; Check: Is64BitInstallMode)")
-LINE(R"(Name: "{group}\{#AppName}"; Filename: "{app}\{#AppName} x86.exe"; Check: not Is64BitInstallMode)")
+LINE(R"(%64%Name: "{group}\{#AppName}"; Filename: "{app}\{#AppName} x64.exe"; Check: Is64BitInstallMode)")
+LINE(R"(%32%Name: "{group}\{#AppName}"; Filename: "{app}\{#AppName} x86.exe"; Check: not Is64BitInstallMode)")
 LINE(R"(Name: "{group}\Uninstall {#AppName}"; Filename: "{app}\unins000.exe")")
 LINE(R"()")
 LINE(R"([Code])")
