@@ -60,7 +60,7 @@ LINE(R"(%RLOTTIE%Source: "AdditionalSourceCode/rlottie_x64.dll"; DestDir: "{win}
 LINE(R"(%RLOTTIE%Source: "AdditionalSourceCode/rlottie_x86.dll"; DestDir: "{win}\system32"; Flags: ignoreversion; Components: libs)")
 LINE(R"()")
 LINE(R"(;BEGIN_AAX)")
-LINE(R"(%AAXONLY%Source: "build\AAX\{#AppName}.aaxplugin\*.*"; DestDir: "{cf}\Avid\Audio\Plug-Ins\{#AppName}.aaxplugin\"; Flags: ignoreversion recursesubdirs; Components: aax)")
+LINE(R"(%AAX%Source: "build\AAX\{#AppName}.aaxplugin\*.*"; DestDir: "{cf}\Avid\Audio\Plug-Ins\{#AppName}.aaxplugin\"; Flags: ignoreversion recursesubdirs; Components: aax)")
 LINE(R"(;END_AAX)")
 LINE(R"()")
 LINE(R"([Icons])")
