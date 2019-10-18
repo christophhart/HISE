@@ -145,8 +145,8 @@ public:
 		const bool includeAAX = !args.contains("-noaax");
         
         const bool includeRlottie = args.contains("-rlottie");
-        const bool include32 = !args.contains("a:x64");
-        const bool include64 = !args.contains("a:x86");
+        const bool include32 = !args.contains("-a:x64");
+        const bool include64 = !args.contains("-a:x86");
 
 		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64, includeRlottie);
 
