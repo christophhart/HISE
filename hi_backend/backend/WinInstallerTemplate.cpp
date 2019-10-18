@@ -42,7 +42,7 @@ LINE(R"(Name: "app"; Description: "{#AppName} Standalone application"; Types: fu
 LINE(R"(%32%Name: "vst2_32"; Description: "{#AppName} 32-bit VSTi Plugin"; Types: full custom;)")
 LINE(R"(%64%Name: "vst2_64"; Description: "{#AppName} 64-bit VSTi Plugin"; Types: full custom; Check: Is64BitInstallMode;)")
 LINE(R"(;BEGIN_AAX)")
-LINE(R"(%AAXONLY%Name: "aax"; Description: "{#AppName} AAX Plugin"; Types: full custom;)")
+LINE(R"(%AAX%Name: "aax"; Description: "{#AppName} AAX Plugin"; Types: full custom;)")
 LINE(R"(;END_AAX)")
 LINE(R"()")
 LINE(R"([Files])")
