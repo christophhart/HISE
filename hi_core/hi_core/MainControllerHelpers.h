@@ -78,13 +78,8 @@ public:
 #if JUCE_WINDOWS
 		return File::getSpecialLocation(File::windowsSystemDirectory);
 #else
-#if USE_BACKEND
-		return ProjectHandler::getAppDataDirectory();
-#else
-		return FrontendHandler::getAppDataDirectory();
+        return File("/usr/local/lib/");
 #endif
-#endif
-
 	}
 };
 
