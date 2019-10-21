@@ -934,6 +934,11 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 
 	auto contentURL = getBaseURL().getChildURL("cache/" + targetFileName);
 
+    auto docDir = holder.getCachedDocFolder();
+    
+    if(!docDir.isDirectory())
+        docDir.createDirectory();
+    
 	auto realFile = holder.getCachedDocFolder().getChildFile(targetFileName);
 	auto tmpFile = realFile.getSiblingFile("temp.dat");
 
