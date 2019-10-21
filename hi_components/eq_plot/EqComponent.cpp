@@ -745,14 +745,17 @@ void FilterDragOverlay::FilterDragComponent::paint(Graphics &g)
 	g.setColour(fc.withAlpha(0.3f));
 	g.fillRoundedRectangle(thisBounds, 3.0f);
 
-	const bool enabled = parent.eq->getFilterBand(index)->isEnabled();
+	if (auto b = parent.eq->getFilterBand(index))
+	{
+		const bool enabled = b->isEnabled();
 
-	g.setColour(tc.withAlpha(enabled ? 1.0f : 0.3f));
+		g.setColour(tc.withAlpha(enabled ? 1.0f : 0.3f));
 
-	g.drawRoundedRectangle(thisBounds, 3.0f, selected ? 2.0f : 1.0f);
+		g.drawRoundedRectangle(thisBounds, 3.0f, selected ? 2.0f : 1.0f);
 
-	g.setFont(parent.font);
-	g.drawText(String(index), getLocalBounds(), Justification::centred, false);
+		g.setFont(parent.font);
+		g.drawText(String(index), getLocalBounds(), Justification::centred, false);
+	}
 }
 
 void FilterDragOverlay::FilterDragComponent::setIndex(int newIndex)

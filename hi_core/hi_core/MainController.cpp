@@ -953,6 +953,11 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 		maxBufferSize = jmin<int>(samplesPerBlock, 1024);
 	}
 
+	if (samplesPerBlock % HISE_EVENT_RASTER != 0)
+	{
+		sendOverlayMessage(DeactiveOverlay::CustomErrorMessage, "The buffer size " + String(samplesPerBlock) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
+	}
+
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
     
 #if ENABLE_CONSOLE_OUTPUT && !HI_RUN_UNIT_TESTS

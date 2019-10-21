@@ -131,8 +131,6 @@ public:
 			setVisible(true);
 			refreshLabel();
 			resized();
-			
-			
 		}
 
 		if (wasVisible && currentState == 0)
@@ -142,17 +140,19 @@ public:
 			resized();
 		}
 
+		if (wasVisible && currentState != 0)
+		{
+			refreshLabel();
+			resized();
+		}
+
 		if (!wasVisible && currentState == 0)
 		{
 			setVisible(false);
 			refreshLabel();
 			resized();
 		}
-		
-		
 	}
-
-	
 
     void clearAllFlags()
     {

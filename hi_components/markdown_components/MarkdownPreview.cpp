@@ -710,7 +710,6 @@ void DocUpdater::run()
         if(!areMajorWebsitesAvailable())
             return;
         
-		showStatusMessage("Rebuilding Documentation Index");
 		holder.setProgressCounter(&getProgressCounter());
 		updateFromServer();
 		getHolder().setForceCachedDataUse(!editingShouldBeEnabled);
@@ -799,7 +798,8 @@ void DocUpdater::threadFinished()
 
 void DocUpdater::updateFromServer()
 {
-	showStatusMessage("Fetching hash from server");
+	if(!fastMode)
+		showStatusMessage("Fetching hash from server");
 
 	auto hashURL = getCacheUrl(Hash);
 
@@ -854,7 +854,8 @@ void DocUpdater::updateFromServer()
 
 	localFile.replaceWithText(JSON::toString(webHash));
 
-	showStatusMessage("Rebuilding indexes");
+	if(!fastMode)
+		showStatusMessage("Rebuilding indexes");
 	
 	holder.rebuildDatabase();
 }
@@ -930,7 +931,8 @@ void DocUpdater::createLocalHtmlFiles()
 
 void DocUpdater::downloadAndTestFile(const String& targetFileName)
 {
-    showStatusMessage("Downloading " + targetFileName);
+	if(!fastMode)
+		showStatusMessage("Downloading " + targetFileName);
 
 	auto contentURL = getBaseURL().getChildURL("cache/" + targetFileName);
 
@@ -978,7 +980,8 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 		return;
 	}
 
-	showStatusMessage("Check file integrity");
+	if(!fastMode)
+		showStatusMessage("Check file integrity");
 
 	zstd::ZDefaultCompressor comp;
 
