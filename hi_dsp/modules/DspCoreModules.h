@@ -167,15 +167,13 @@ private:
 
 		readIndex &= DELAY_BUFFER_MASK;
 		writeIndex &= DELAY_BUFFER_MASK;
-
-		
 	}
 
 	void setInternalDelayTime(int delayInSamples)
 	{
 		delayInSamples = jmin<int>(delayInSamples, DELAY_BUFFER_SIZE - 1);
 
-		if (fadeTimeSamples > 0 && fadeCounter != -1)
+		if (fadeTimeSamples > 0 && fadeCounter > 0)
 		{
 			lastIgnoredDelayTime = delayInSamples;
 			return;

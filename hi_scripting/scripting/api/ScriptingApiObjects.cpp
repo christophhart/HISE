@@ -4449,7 +4449,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int 
 		obj->setProperty("rowIndex", rowIndex);
 		obj->setProperty("text", itemName);
 		obj->setProperty("selected", rowIsSelected);
-		obj->setProperty("deleteMode", deleteMode);
 		obj->setProperty("bgColour", backgroundColour.getARGB());
 		obj->setProperty("itemColour", highlightColour.getARGB());
 		obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
