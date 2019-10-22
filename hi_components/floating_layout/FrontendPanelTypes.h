@@ -426,6 +426,7 @@ public:
 
 private:
 
+	ScopedPointer<LookAndFeel> scriptlaf;
 	PresetBrowser::Options options;
 
 	ScopedPointer<PresetBrowser> presetBrowser;

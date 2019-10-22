@@ -187,7 +187,7 @@ public:
 		static Identifier getIdForFile(const File& presetFile);
 	};
 
-	ScopedPointer<PresetBrowserLookAndFeel> pblaf;
+	
 
 	void setOptions(const Options& newOptions);
 
@@ -195,7 +195,11 @@ public:
 
 	void expansionPackLoaded(Expansion* currentExpansion);
 
+	PresetBrowserLookAndFeelMethods& getPresetBrowserLookAndFeel();
+
 private:
+
+	DefaultPresetBrowserLookAndFeel laf;
 
 	void setShowFavorites(bool shouldShowFavorites);
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);

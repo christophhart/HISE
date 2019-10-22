@@ -4320,16 +4320,11 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonText(Graphics &g_, Te
 {
 	if (auto l = get())
 	{
-		DynamicObject::Ptr obj = new DynamicObject();
-		obj->setProperty("buttonBounds", 2);
-		obj->setProperty("isOver", isMouseOverButton);
-		obj->setProperty("isButtonDown", isButtonDown);
-
-		if (l->callWithGraphics(g_, "drawButtonText", var(obj)))
+		if (functionDefined("drawDialogButton"))
 			return;
 	}
 
-	GlobalHiseLookAndFeel::drawButtonText(g_, button, isMouseOverButton, isButtonDown);
+	PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonText(g_, button, isMouseOverButton, isButtonDown);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBox(Graphics& g_, int width, int height, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, ComboBox& cb)
@@ -4387,10 +4382,169 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBoxTextWhenNothingSele
 	GlobalHiseLookAndFeel::drawComboBoxTextWhenNothingSelected(g, box, label);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/, bool isMouseOverButton, bool isButtonDown)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& g_, Button& button, const Colour& bg, bool isMouseOverButton, bool isButtonDown)
 {
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(button.getLocalBounds().toFloat()));
+		obj->setProperty("text", button.getButtonText());
+		obj->setProperty("over", isMouseOverButton);
+		obj->setProperty("down", isButtonDown);
+		obj->setProperty("value", button.getToggleState());
+		obj->setProperty("bgColour", bg.getARGB());
+		obj->setProperty("textColour", textColour.getARGB());
 
+		if (l->callWithGraphics(g_, "drawDialogButton", var(obj)))
+			return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(g_, button, bg, isMouseOverButton, isButtonDown);
 }
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Graphics& g_, PresetBrowser* p)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(p->getLocalBounds().toFloat()));
+		obj->setProperty("bgColour", backgroundColour.getARGB());
+		obj->setProperty("itemColour", highlightColour.getARGB());
+		obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
+		obj->setProperty("textColour", textColour.getARGB());
+
+		if (l->callWithGraphics(g_, "drawPresetBrowserBackground", var(obj)))
+			return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(g_, p);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawColumnBackground(Graphics& g_, Rectangle<int> listArea, const String& emptyText)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(listArea.toFloat()));
+		obj->setProperty("text", emptyText);
+		obj->setProperty("bgColour", backgroundColour.getARGB());
+		obj->setProperty("itemColour", highlightColour.getARGB());
+		obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
+		obj->setProperty("textColour", textColour.getARGB());
+
+		if (l->callWithGraphics(g_, "drawPresetBrowserColumnBackground", var(obj)))
+			return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawColumnBackground(g_, listArea, emptyText);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int columnIndex, int rowIndex, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(position.toFloat()));
+		obj->setProperty("columnIndex", columnIndex);
+		obj->setProperty("rowIndex", rowIndex);
+		obj->setProperty("text", itemName);
+		obj->setProperty("selected", rowIsSelected);
+		obj->setProperty("deleteMode", deleteMode);
+		obj->setProperty("bgColour", backgroundColour.getARGB());
+		obj->setProperty("itemColour", highlightColour.getARGB());
+		obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
+		obj->setProperty("textColour", textColour.getARGB());
+
+		if (l->callWithGraphics(g_, "drawPresetBrowserListItem", var(obj)))
+			return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawListItem(g_, columnIndex, rowIndex, itemName, position, rowIsSelected, deleteMode);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSearchBar(Graphics& g_, Rectangle<int> area)
+{
+	if (auto l = get())
+	{
+		if (functionDefined("drawPresetBrowserSearchBar"))
+		{
+			DynamicObject::Ptr obj = new DynamicObject();
+			obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
+			obj->setProperty("bgColour", backgroundColour.getARGB());
+			obj->setProperty("itemColour", highlightColour.getARGB());
+			obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
+			obj->setProperty("textColour", textColour.getARGB());
+
+			auto p = new ScriptingObjects::PathObject(l->getScriptProcessor());
+
+			var keeper(p);
+
+			static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
+		103, 67, 206, 99, 56, 68, 244, 59, 128, 67, 98, 72, 209, 112, 68, 66, 60, 134, 67, 254, 238, 144, 68, 83, 128, 238, 67, 0, 0, 144, 68, 0, 0, 48, 68, 99, 109, 0, 0, 208, 68, 0, 0, 0, 195, 98, 14, 229, 208, 68, 70, 27, 117, 195, 211, 63, 187, 68, 146, 218, 151, 195, 167, 38, 179, 68, 23, 8, 77, 195, 98, 36, 92, 165, 68, 187, 58,
+		191, 194, 127, 164, 151, 68, 251, 78, 102, 65, 0, 224, 137, 68, 0, 0, 248, 66, 98, 186, 89, 77, 68, 68, 20, 162, 194, 42, 153, 195, 67, 58, 106, 186, 193, 135, 70, 41, 67, 157, 224, 115, 67, 98, 13, 96, 218, 193, 104, 81, 235, 67, 243, 198, 99, 194, 8, 94, 78, 68, 70, 137, 213, 66, 112, 211, 134, 68, 98, 109, 211, 138, 67,
+		218, 42, 170, 68, 245, 147, 37, 68, 128, 215, 185, 68, 117, 185, 113, 68, 28, 189, 169, 68, 98, 116, 250, 155, 68, 237, 26, 156, 68, 181, 145, 179, 68, 76, 44, 108, 68, 16, 184, 175, 68, 102, 10, 33, 68, 98, 249, 118, 174, 68, 137, 199, 2, 68, 156, 78, 169, 68, 210, 27, 202, 67, 0, 128, 160, 68, 0, 128, 152, 67, 98, 163,
+		95, 175, 68, 72, 52, 56, 67, 78, 185, 190, 68, 124, 190, 133, 66, 147, 74, 205, 68, 52, 157, 96, 194, 98, 192, 27, 207, 68, 217, 22, 154, 194, 59, 9, 208, 68, 237, 54, 205, 194, 0, 0, 208, 68, 0, 0, 0, 195, 99, 101, 0, 0 };
+
+			p->getPath().loadPathFromData(searchIcon, sizeof(searchIcon));
+			p->getPath().applyTransform(AffineTransform::rotation(float_Pi));
+			p->getPath().scaleToFit(6.0f, 5.0f, 18.0f, 18.0f, true);
+
+			obj->setProperty("icon", var(p));
+
+			if (l->callWithGraphics(g_, "drawPresetBrowserSearchBar", var(obj)))
+				return;
+		}
+
+		
+	}
+
+	PresetBrowserLookAndFeelMethods::drawSearchBar(g_, area);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTag(Graphics& g_, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(position.toFloat()));
+		obj->setProperty("text", name);
+		obj->setProperty("blinking", blinking);
+		obj->setProperty("value", active);
+		obj->setProperty("selected", selected);
+		obj->setProperty("bgColour", backgroundColour.getARGB());
+		obj->setProperty("itemColour", highlightColour.getARGB());
+		obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
+		obj->setProperty("textColour", textColour.getARGB());
+
+		if (l->callWithGraphics(g_, "drawPresetBrowserTag", var(obj)))
+			return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawTag(g_, blinking, active, selected, name, position);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawModalOverlay(Graphics& g_, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
+		obj->setProperty("labelArea", ApiHelpers::getVarRectangle(labelArea.toFloat()));
+		obj->setProperty("title", title);
+		obj->setProperty("text", command);
+		obj->setProperty("bgColour", backgroundColour.getARGB());
+		obj->setProperty("itemColour", highlightColour.getARGB());
+		obj->setProperty("itemColour2", modalBackgroundColour.getARGB());
+		obj->setProperty("textColour", textColour.getARGB());
+
+		if (l->callWithGraphics(g_, "drawPresetBrowserDialog", var(obj)))
+			return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawModalOverlay(g_, area, labelArea, title, command);
+}
+
+
 
 bool ScriptingObjects::ScriptedLookAndFeel::Laf::functionDefined(const String& s)
 {

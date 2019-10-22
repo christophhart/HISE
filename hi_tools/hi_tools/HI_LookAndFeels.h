@@ -731,6 +731,67 @@ public:
 	Colour propertyBgColour = Colour(0xff3d3d3d);
 };
 
+class PresetBrowser;
+
+
+
+class PresetBrowserLookAndFeelMethods
+{
+public:
+
+	enum ColourIds
+	{
+		highlightColourId = 0xf312,
+		backgroundColourId,
+		tableBackgroundColourId
+	};
+
+	PresetBrowserLookAndFeelMethods() :
+		highlightColour(Colour(0xffffa8a8)),
+		textColour(Colours::white.withAlpha(0.9f)),
+		modalBackgroundColour(Colours::black.withAlpha(0.7f))
+	{};
+
+	virtual ~PresetBrowserLookAndFeelMethods()
+	{};
+
+	virtual void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p);
+	virtual void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText);
+	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
+	virtual void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
+	virtual void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode);
+	virtual void drawSearchBar(Graphics& g, Rectangle<int> area);
+
+	Font getFont(bool fontForTitle);
+
+	void drawPresetBrowserButtonBackground(Graphics& g, Button& button, const Colour&c, bool isOver, bool isDown);
+
+	
+
+	void drawPresetBrowserButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown);
+
+	Colour backgroundColour;
+	Colour highlightColour;
+	Colour textColour;
+	Colour modalBackgroundColour;
+	Font font;
+};
+
+class DefaultPresetBrowserLookAndFeel : public LookAndFeel_V3,
+	public PresetBrowserLookAndFeelMethods
+{
+	void drawButtonBackground(Graphics& g, Button& button, const Colour& c, bool isOver, bool isDown)
+	{
+		drawPresetBrowserButtonBackground(g, button, c, isOver, isDown);
+	}
+
+	void drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
+	{
+		drawPresetBrowserButtonText(g, button, isMouseOverButton, isButtonDown);
+	}
+};
+
+
 
 /* A Bipolar Slider. */
 class BiPolarSliderLookAndFeel: public LookAndFeel_V3

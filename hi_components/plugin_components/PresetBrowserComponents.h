@@ -35,50 +35,6 @@ using namespace juce;
 
 class PresetBrowser;
 
-class PresetBrowserLookAndFeel : public LookAndFeel_V3
-{
-public:
-
-	PresetBrowserLookAndFeel() :
-		highlightColour(Colour(0xffffa8a8)),
-		textColour(Colours::white.withAlpha(0.9f)),
-		modalBackgroundColour(Colours::black.withAlpha(0.7f))
-	{};
-
-	void drawButtonBackground(Graphics& g, Button& button, const Colour& backgroundColour,
-		bool isMouseOverButton, bool isButtonDown);
-
-	void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/);
-
-	void drawListItem(Graphics& g, int columnIndex, int rowNumber, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode);
-
-	virtual void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText);
-
-	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
-
-	virtual void drawPresetBrowserBackground(Graphics& g, PresetBrowser& p);
-
-
-	virtual void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
-
-	enum ColourIds
-	{
-		highlightColourId = 0xf312,
-		backgroundColourId,
-		tableBackgroundColourId
-	};
-
-	Font getFont(bool fontForTitle)
-	{
-		return fontForTitle ? GLOBAL_BOLD_FONT().withHeight(18.0f) : GLOBAL_BOLD_FONT();
-	}
-
-	Colour backgroundColour;
-	Colour highlightColour;
-	Colour textColour;
-	Colour modalBackgroundColour;
-	Font font;
-};
 
 
 class PresetBrowserChildComponentBase
@@ -91,7 +47,7 @@ public:
 
 	virtual void update() = 0;
 
-	PresetBrowserLookAndFeel& getPresetBrowserLookAndFeel();
+	PresetBrowserLookAndFeelMethods& getPresetBrowserLookAndFeel();
 
 protected:
 	

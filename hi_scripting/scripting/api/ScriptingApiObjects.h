@@ -1339,6 +1339,8 @@ public:
 		
 		void rightClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
+		
+
 		// ============================================================================================================ API Methods
 
 		/** Loads a path from a data array. */
@@ -1368,6 +1370,8 @@ public:
 		// ============================================================================================================
 
 		struct Wrapper;
+
+		Path& getPath() { return p; }
 
 		const Path& getPath() const { return p; }
 
@@ -1557,6 +1561,7 @@ public:
 	public:
 
 		struct Laf : public GlobalHiseLookAndFeel,
+					 public PresetBrowserLookAndFeelMethods,
 					 public ControlledObject
 		{
 			Laf(MainController* mc) :
@@ -1604,6 +1609,13 @@ public:
 
 			void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
 				bool isMouseOverButton, bool isButtonDown) override;
+
+			void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p) override;
+			void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText) override;
+			void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
+			void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
+			void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode) override;
+			void drawSearchBar(Graphics& g, Rectangle<int> area) override;
 
 			bool functionDefined(const String& s);
 		};

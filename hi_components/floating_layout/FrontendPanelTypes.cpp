@@ -553,11 +553,18 @@ PresetBrowserPanel::PresetBrowserPanel(FloatingTile* parent) :
 	setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
 
 	addAndMakeVisible(presetBrowser = new PresetBrowser(getMainController()));
+	
+	if (parent->getMainController()->getCurrentScriptLookAndFeel() != nullptr)
+	{
+		scriptlaf = HiseColourScheme::createAlertWindowLookAndFeel(parent->getMainController());
+		presetBrowser->setLookAndFeel(scriptlaf);
+	}
 }
 
 PresetBrowserPanel::~PresetBrowserPanel()
 {
 	presetBrowser = nullptr;
+	scriptlaf = nullptr;
 }
 
 var PresetBrowserPanel::toDynamicObject() const

@@ -224,7 +224,81 @@ private:
 };
 
 
-void PresetBrowserLookAndFeel::drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
+
+void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText)
+{
+	g.setColour(highlightColour.withAlpha(0.1f));
+	g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
+
+	if (emptyText.isNotEmpty())
+	{
+		g.setFont(font);
+		g.setColour(textColour.withAlpha(0.3f));
+		g.drawText(emptyText, 0, 0, listArea.getWidth(), listArea.getHeight(), Justification::centred);
+	}
+}
+
+void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
+{
+	float alpha = active ? 0.4f : 0.1f;
+	alpha += (blinking ? 0.2f : 0.0f);
+
+	auto ar = position.toFloat().reduced(1.0f);
+
+	g.setColour(highlightColour.withAlpha(alpha));
+	g.fillRoundedRectangle(ar, 2.0f);
+	g.drawRoundedRectangle(ar, 2.0f, 1.0f);
+	g.setFont(font.withHeight(14.0f));
+	g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
+
+	// Wow, so professional, good bug fix.
+	auto nameToUse = (name == "Agressive" ? "Aggressive" : name);
+
+	g.drawText(nameToUse, ar, Justification::centred);
+
+	if (selected)
+		g.drawRoundedRectangle(ar, 2.0f, 2.0f);
+}
+
+void PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(Graphics& g, PresetBrowser* p)
+{
+	if (!backgroundColour.isTransparent())
+	{
+		g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
+			backgroundColour, 0.0f, (float)p->getHeight(), false));
+
+		g.fillAll();
+	}
+}
+
+void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
+{
+	g.setColour(modalBackgroundColour);
+	g.fillAll();
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xfa212121)));
+	g.fillRoundedRectangle(area.expanded(40).toFloat(), 2.0f);
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x228e8e8e)));
+
+	if (!labelArea.isEmpty())
+		g.fillRect(labelArea);
+
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.setFont(font.withHeight(18));
+	g.drawText(title, area.getX(), labelArea.getY() - 80, area.getWidth(), 30, Justification::centredTop);
+
+	g.setFont(font);
+
+	g.drawText(command, area, Justification::centredTop);
+}
+
+juce::Font PresetBrowserLookAndFeelMethods::getFont(bool fontForTitle)
+{
+	return fontForTitle ? GLOBAL_BOLD_FONT().withHeight(18.0f) : GLOBAL_BOLD_FONT();
+}
+
+void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics& g, Button& button, const Colour&c, bool isOver, bool isDown)
 {
 	if (button.getToggleState())
 	{
@@ -235,32 +309,7 @@ void PresetBrowserLookAndFeel::drawButtonBackground(Graphics& g, Button& button,
 	}
 }
 
-void PresetBrowserLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
-{
-#if OLD_PRESET_BROWSER
-	g.setColour(highlightColour);
-	g.setFont(font.withHeight(18.0f));
-	g.drawText(button.getButtonText(), 0, 0, button.getWidth(), button.getHeight(), Justification::centred);
-
-	ignoreUnused(isMouseOverButton, isButtonDown);
-
-#else
-	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.7f));
-    g.setFont(font);
-	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
-
-	if (isMouseOverButton)
-	{
-		auto r = button.getLocalBounds();
-
-		g.setColour(highlightColour.withAlpha(0.1f));
-		g.fillRoundedRectangle(r.reduced(3, 1).toFloat(), 2.0f);
-	}
-#endif
-
-}
-
-void PresetBrowserLookAndFeel::drawListItem(Graphics& g, int columnIndex, int /*rowNumber*/, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode)
+void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode)
 {
 	g.setGradientFill(ColourGradient(highlightColour.withAlpha(0.3f), 0.0f, 0.0f,
 		highlightColour.withAlpha(0.2f), 0.0f, (float)position.getHeight(), false));
@@ -286,74 +335,19 @@ void PresetBrowserLookAndFeel::drawListItem(Graphics& g, int columnIndex, int /*
 	g.drawText(itemName, columnIndex == 2 ? 10 + 26 : 10, 0, position.getWidth() - 20, position.getHeight(), Justification::centredLeft);
 }
 
-void PresetBrowserLookAndFeel::drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText)
+void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
 {
-	g.setColour(highlightColour.withAlpha(0.1f));
-	g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
-
-	if (emptyText.isNotEmpty())
-	{
-		g.setFont(font);
-		g.setColour(textColour.withAlpha(0.3f));
-		g.drawText(emptyText, 0, 0, listArea.getWidth(), listArea.getHeight(), Justification::centred);
-	}
-}
-
-void PresetBrowserLookAndFeel::drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
-{
-	float alpha = active ? 0.4f : 0.1f;
-	alpha += (blinking ? 0.2f : 0.0f);
-
-	auto ar = position.toFloat().reduced(1.0f);
-
-	g.setColour(highlightColour.withAlpha(alpha));
-	g.fillRoundedRectangle(ar, 2.0f);
-	g.drawRoundedRectangle(ar, 2.0f, 1.0f);
-	g.setFont(font.withHeight(14.0f));
-	g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
-
-    // Wow, so professional, good bug fix.
-    auto nameToUse = (name == "Agressive" ? "Aggressive" : name);
-
-	g.drawText(nameToUse, ar, Justification::centred);
-
-	if (selected)
-		g.drawRoundedRectangle(ar, 2.0f, 2.0f);
-}
-
-void PresetBrowserLookAndFeel::drawPresetBrowserBackground(Graphics& g, PresetBrowser& p)
-{
-	if (!backgroundColour.isTransparent())
-	{
-		g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
-			backgroundColour, 0.0f, (float)p.getHeight(), false));
-
-		g.fillAll();
-	}
-
-}
-
-
-void PresetBrowserLookAndFeel::drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
-{
-	g.setColour(modalBackgroundColour);
-	g.fillAll();
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xfa212121)));
-	g.fillRoundedRectangle(area.expanded(40).toFloat(), 2.0f);
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x228e8e8e)));
-
-	if (!labelArea.isEmpty())
-		g.fillRect(labelArea);
-
-	g.setColour(Colours::white.withAlpha(0.8f));
-	g.setFont(font.withHeight(18));
-	g.drawText(title, area.getX(), labelArea.getY() - 80, area.getWidth(), 30, Justification::centredTop);
-
+	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.7f));
 	g.setFont(font);
+	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
 
-	g.drawText(command, area, Justification::centredTop);
+	if (isMouseOverButton)
+	{
+		auto r = button.getLocalBounds();
+
+		g.setColour(highlightColour.withAlpha(0.1f));
+		g.fillRoundedRectangle(r.reduced(3, 1).toFloat(), 2.0f);
+	}
 }
 
 
@@ -613,7 +607,6 @@ void PresetBrowser::ModalWindow::confirmReplacement(const File& oldFile, const F
 
 PresetBrowser::PresetBrowser(MainController* mc, int width, int height) :
 ControlledObject(mc),
-pblaf(new PresetBrowserLookAndFeel()),
 expHandler(mc->getExpansionHandler())
 {
 	setName("Preset Browser");
@@ -694,8 +687,8 @@ expHandler(mc->getExpansionHandler())
 
 	updateFavoriteButton();
 
-  setOpaque(false);
-	setLookAndFeel(pblaf);
+	setOpaque(false);
+	setLookAndFeel(&laf);
 
 	#if HISE_ENABLE_EXPANSIONS
 		expHandler.addListener(this); //Setup expansion handler listener
@@ -725,8 +718,6 @@ PresetBrowser::~PresetBrowser()
 
 	setLookAndFeel(nullptr);
 
-	pblaf = nullptr;
-
 	#if HISE_ENABLE_EXPANSIONS
 		expHandler.removeListener(this);
 	#endif
@@ -746,6 +737,14 @@ void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 		categoryColumn->setNewRootDirectory(cat);
 		presetColumn->setNewRootDirectory(preset);
 	}
+}
+
+hise::PresetBrowserLookAndFeelMethods& PresetBrowser::getPresetBrowserLookAndFeel()
+{
+	if (auto o = dynamic_cast<PresetBrowserLookAndFeelMethods*>(&getLookAndFeel()))
+		return *o;
+
+	return laf;
 }
 
 void PresetBrowser::presetChanged(const File& newPreset)
@@ -773,7 +772,7 @@ void PresetBrowser::presetListUpdated()
 
 void PresetBrowser::paint(Graphics& g)
 {
-	pblaf->drawPresetBrowserBackground(g, *this);
+	getPresetBrowserLookAndFeel().drawPresetBrowserBackground(g, this);
 }
 
 void PresetBrowser::rebuildAllPresets()
@@ -989,11 +988,11 @@ void PresetBrowser::setShowFavorites(bool shouldShowFavorites)
 
 void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 {
-	pblaf->backgroundColour = bgColour;
-	pblaf->font = f;
-	pblaf->highlightColour = c;
+	auto& laf = getPresetBrowserLookAndFeel();
 
-
+	laf.backgroundColour = bgColour;
+	laf.font = f;
+	laf.highlightColour = c;
 
 	favoriteButton->setColours(c.withAlpha(0.7f), c.withAlpha(0.5f), c.withAlpha(0.6f));
 
@@ -1106,7 +1105,8 @@ void PresetBrowser::showLoadedPreset()
 void PresetBrowser::setOptions(const Options& newOptions)
 {
 	setHighlightColourAndFont(newOptions.highlightColour, newOptions.backgroundColour, newOptions.font);
-	pblaf->textColour = newOptions.textColour;
+
+	getPresetBrowserLookAndFeel().textColour = newOptions.textColour;
 	setNumColumns(newOptions.numColumns);
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
