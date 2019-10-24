@@ -535,6 +535,12 @@ String AudioDeviceManager::setAudioDeviceSetup (const AudioDeviceSetup& newSetup
     currentSetup.sampleRate = chooseBestSampleRate (newSetup.sampleRate);
     currentSetup.bufferSize = chooseBestBufferSize (newSetup.bufferSize);
 
+	if (currentSetup.bufferSize == 441)
+	{
+		// Nope...
+		currentSetup.bufferSize = 512;
+	}
+
     error = currentAudioDevice->open (inputChannels,
                                       outputChannels,
                                       currentSetup.sampleRate,

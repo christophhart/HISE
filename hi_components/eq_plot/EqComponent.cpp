@@ -312,6 +312,8 @@ FilterDragOverlay::FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ /*= fa
 {
 	plaf = new PopupLookAndFeel();
 
+	setLookAndFeel(plaf);
+
 	if (!isInFloatingTile)
 		setColour(ColourIds::textColour, Colours::white);
 
@@ -520,7 +522,7 @@ void FilterDragOverlay::mouseDown(const MouseEvent &e)
 	if (e.mods.isRightButtonDown())
 	{
 		PopupMenu m;
-		m.setLookAndFeel(plaf);
+		m.setLookAndFeel(&getLookAndFeel());
 
 		m.addItem(1, "Delete all bands", true, false);
 		m.addItem(2, "Enable Spectrum Analyser", true, eq->getFFTBuffer().isActive());

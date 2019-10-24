@@ -185,6 +185,11 @@ public:
 		return filterBands[filterIndex];
 	}
 
+	const StereoFilter *getFilterBand(int filterIndex) const
+	{
+		return filterBands[filterIndex];
+	}
+
 	void enableSpectrumAnalyser(bool shouldBeEnabled)
 	{
 		fftBuffer.setAnalyserBufferSize(shouldBeEnabled ? 16384 : 0);
