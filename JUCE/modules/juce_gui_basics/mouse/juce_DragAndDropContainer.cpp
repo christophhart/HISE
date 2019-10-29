@@ -84,7 +84,19 @@ public:
             g.fillAll (Colours::white);
 
         g.setOpacity (1.0f);
-        g.drawImageAt (image, 0, 0);
+
+		auto scaleFactor = getScaleFactorForComponent(sourceDetails.sourceComponent);
+
+		if (scaleFactor == 1.0f)
+		{
+			g.drawImageAt(image, 0, 0);
+		}
+		else
+		{
+			g.drawImageTransformed(image, AffineTransform::scale(1.0f / scaleFactor));
+		}
+
+        
     }
 
     void mouseUp (const MouseEvent& e) override
@@ -228,9 +240,26 @@ private:
     int originalInputSourceIndex;
     MouseInputSource::InputSourceType originalInputSourceType;
 
+	static float getScaleFactorForComponent(Component* c)
+	{
+		float sf = c->getTransform().getScaleFactor();
+		auto pc = c->getParentComponent();
+
+		while (pc != nullptr)
+		{
+			sf *= pc->getTransform().getScaleFactor();
+			pc = pc->getParentComponent();
+		}
+
+		return sf;
+	}
+
     void updateSize()
     {
-        setSize (image.getWidth(), image.getHeight());
+		auto scaleFactor = getScaleFactorForComponent(sourceDetails.sourceComponent);
+
+        setSize (roundToInt(image.getWidth() * scaleFactor), 
+			     roundToInt(image.getHeight() * scaleFactor));
     }
 
     void forceMouseCursorUpdate()
