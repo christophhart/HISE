@@ -130,18 +130,20 @@ struct Operations::VariableReference : public Expression
 	{
 		SyntaxTreeWalker walker(this);
 
-		VariableReference* lastOne = walker.getNextStatementOfType<VariableReference>();;
+		auto lastOne = walker.getNextStatementOfType<VariableReference>();;
 
-		bool isLast = false;
+		bool isLast = lastOne == this;
 
 		while (lastOne != nullptr)
 		{
-			lastOne = walker.getNextStatementOfType<VariableReference>();
-
-			if (lastOne->ref != ref)
-				continue;
-
-			isLast = lastOne == this;
+            auto isOtherVariable = lastOne->ref != ref;
+            
+            lastOne = walker.getNextStatementOfType<VariableReference>();
+            
+            if(isOtherVariable)
+                continue;
+            
+            isLast = lastOne == this;
 		}
 
 		return isLast;
@@ -272,7 +274,10 @@ struct Operations::VariableReference : public Expression
 			else if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
 				if (fc->hasConstant(id.parent, id.id))
+                {
 					functionClassConstant = fc->getConstantValue(id.parent, id.id);
+                    type = functionClassConstant.getType();
+                }
 
 				if(functionClassConstant.isVoid())
 					throwError(id.parent.toString() + " does not have constant " + id.id.toString());
