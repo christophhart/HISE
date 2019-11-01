@@ -455,6 +455,8 @@ public:
     
     static void saveUserPreset(ModulatorSynthChain *chain, const String& targetFile=String(), NotificationType notify=sendNotification);
     
+	static ValueTree createUserPreset(ModulatorSynthChain* chain);
+
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
 
 	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);

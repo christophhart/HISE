@@ -84,45 +84,7 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 	
 	if (!presetFile.existsAsFile())
 	{
-		ValueTree preset;
-
-#if USE_RAW_FRONTEND
-		preset = dynamic_cast<FrontendProcessor*>(chain->getMainController())->getRawDataHolder()->exportAsValueTree();
-#else
-
-		if(auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
-		{
-			ValueTree v = sp->getScriptingContent()->exportAsValueTree();
-
-			v.setProperty("Processor", sp->getId(), nullptr);
-
-			preset = ValueTree("Preset");
-			preset.addChild(v, -1, nullptr);
-		}
-#endif
-
-		ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
-		ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
-
-		preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
-
-#if HISE_ENABLE_EXPANSIONS
-		auto& expHandler = chain->getMainController()->getExpansionHandler();
-
-			String s;
-
-			for (int i = 0; i < expHandler.getNumExpansions(); i++)
-			{
-				if (expHandler.getExpansion(i)->isActive())
-					s << expHandler.getExpansion(i)->getProperty(ExpansionIds::Name) << ";";
-			}
-
-			if(s.isNotEmpty())
-				preset.setProperty("RequiredExpansions", s, nullptr);
-#endif
-
-		preset.addChild(autoData, -1, nullptr);
-		preset.addChild(mpeData, -1, nullptr);
+		auto preset = createUserPreset(chain);
 
 		if (preset.isValid())
 		{
@@ -143,6 +105,51 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 			}
 		}
 	}
+}
+
+juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
+{
+	ValueTree preset;
+
+#if USE_RAW_FRONTEND
+	preset = dynamic_cast<FrontendProcessor*>(chain->getMainController())->getRawDataHolder()->exportAsValueTree();
+#else
+
+	if (auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
+	{
+		ValueTree v = sp->getScriptingContent()->exportAsValueTree();
+
+		v.setProperty("Processor", sp->getId(), nullptr);
+
+		preset = ValueTree("Preset");
+		preset.addChild(v, -1, nullptr);
+	}
+#endif
+
+	ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
+	ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+
+	preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
+
+#if HISE_ENABLE_EXPANSIONS
+	auto& expHandler = chain->getMainController()->getExpansionHandler();
+
+	String s;
+
+	for (int i = 0; i < expHandler.getNumExpansions(); i++)
+	{
+		if (expHandler.getExpansion(i)->isActive())
+			s << expHandler.getExpansion(i)->getProperty(ExpansionIds::Name) << ";";
+	}
+
+	if (s.isNotEmpty())
+		preset.setProperty("RequiredExpansions", s, nullptr);
+#endif
+
+	preset.addChild(autoData, -1, nullptr);
+	preset.addChild(mpeData, -1, nullptr);
+
+	return preset;
 }
 
 void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)

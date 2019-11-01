@@ -38,21 +38,27 @@ MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 	
 }
 
-
-void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v)
+void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool useUndoManagerIfEnabled)
 {
-	pendingPreset = v;
-
-	auto f = [](Processor*p) 
+	if (useUndoManagerIfEnabled && useUndoForPresetLoads)
 	{
-		p->getMainController()->getUserPresetHandler().loadUserPresetInternal(); 
-		return SafeFunctionCall::OK; 
-	};
+		mc->getControlUndoManager()->perform(new UndoableUserPresetLoad(mc, v));
+	}
+	else
+	{
+		pendingPreset = v;
 
-	// Send a note off to stop the arpeggiator etc...
-	mc->allNotesOff(false);
+		auto f = [](Processor*p)
+		{
+			p->getMainController()->getUserPresetHandler().loadUserPresetInternal();
+			return SafeFunctionCall::OK;
+		};
 
-	mc->killAndCallOnLoadingThread(f);
+		// Send a note off to stop the arpeggiator etc...
+		mc->allNotesOff(false);
+
+		mc->killAndCallOnLoadingThread(f);
+	}
 }
 
 void MainController::UserPresetHandler::loadUserPreset(const File& f)

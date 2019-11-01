@@ -530,6 +530,43 @@ public:
 	{
 	public:
 
+		struct UndoableUserPresetLoad : public ControlledObject,
+										public UndoableAction
+		{
+			UndoableUserPresetLoad(MainController* mc, ValueTree newPreset_, ValueTree forcedOld=ValueTree()):
+				ControlledObject(mc),
+				newPreset(newPreset_)
+			{
+				if (forcedOld.isValid())
+					oldPreset = forcedOld;
+				else
+					oldPreset = UserPresetHelpers::createUserPreset(mc->getMainSynthChain());
+			}
+
+			bool perform() override
+			{
+				getMainController()->getUserPresetHandler().loadUserPreset(newPreset, false);
+				return true;
+			}
+
+			bool undo() override
+			{
+				getMainController()->getUserPresetHandler().loadUserPreset(oldPreset, false);
+				return true;
+			}
+
+			UndoableAction* createCoalescedAction(UndoableAction* nextAction) override
+			{
+				if (auto upAction = dynamic_cast<UndoableUserPresetLoad*>(nextAction))
+					return new UndoableUserPresetLoad(getMainController(), upAction->newPreset, oldPreset);
+
+				return nullptr;
+			}
+
+			ValueTree oldPreset;
+			ValueTree newPreset;
+		};
+
 		struct TagDataBase
 		{
 			struct CachedTag
@@ -597,7 +634,7 @@ public:
 		*/
 		void incPreset(bool next, bool stayInSameDirectory);
 
-		void loadUserPreset(const ValueTree& v);
+		void loadUserPreset(const ValueTree& v, bool useUndoManagerIfEnabled=true);
 		void loadUserPreset(const File& f);
 
 		/** Returns the currently loaded file. Can be used to display the user preset name. */
@@ -624,7 +661,14 @@ public:
 
 		TagDataBase& getTagDataBase() const	{ return tagDataBase.get();}
 
+		void setAllowUndoAtUserPresetLoad(bool shouldAllowUndo)
+		{
+			useUndoForPresetLoads = shouldAllowUndo;
+		}
+
 	private:
+
+
 
 		SharedResourcePointer<TagDataBase> tagDataBase;
 
@@ -637,6 +681,7 @@ public:
 		ValueTree pendingPreset;
 
 		MainController* mc;
+		bool useUndoForPresetLoads = false;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetHandler);
 	};
