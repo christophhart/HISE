@@ -517,19 +517,92 @@ Point<int> FilterDragOverlay::getPosition(int index)
 		return {};
 }
 
-void FilterDragOverlay::mouseDown(const MouseEvent &e)
+void FilterDragOverlay::fillPopupMenu(PopupMenu& m, int handleIndex)
 {
-	if (e.mods.isRightButtonDown())
+	if (handleIndex != -1)
 	{
-		PopupMenu m;
-		m.setLookAndFeel(&getLookAndFeel());
+		StringArray sa = { "Low Pass", "High Pass", "Low Shelf", "High Shelf", "Peak" };
+		Factory pf;
 
+		if (auto thisBand = eq->getFilterBand(handleIndex))
+		{
+			int typeOffset = 8000;
+
+			m.addItem(9000, "Delete Band", true, false);
+			m.addItem(10000, "Enable Band", true, thisBand->isEnabled());
+			m.addSeparator();
+
+			m.addSectionHeader("Select Type");
+
+			for (int i = 0; i < sa.size(); i++)
+			{
+				bool isSelected = thisBand->getType() == i;
+
+				auto p = pf.createPath(sa[i]);
+
+				auto dp = new DrawablePath();
+				dp->setPath(p);
+
+				m.addItem(typeOffset + i, sa[i], true, isSelected, dp);
+			}
+
+			m.addSeparator();
+			m.addItem(3, "Cancel");
+		}
+	}
+	else
+	{
 		m.addItem(1, "Delete all bands", true, false);
 		m.addItem(2, "Enable Spectrum Analyser", true, eq->getFFTBuffer().isActive());
 		m.addItem(3, "Cancel");
+	}
 
-		auto result = m.show();
+	
+}
 
+
+
+void FilterDragOverlay::popupMenuAction(int result, int handleIndex)
+{
+	if (handleIndex != -1)
+	{
+		if (auto thisBand = eq->getFilterBand(handleIndex))
+		{
+			int typeOffset = 8000;
+
+			if (result == 0 || result == 3)
+				return;
+			else if (result == 9000)
+			{
+				auto tmp = this;
+				auto f = [tmp, handleIndex]()
+				{
+					tmp->removeFilter(handleIndex);
+				};
+
+				MessageManager::callAsync(f);
+			}
+			else if (result == 10000)
+			{
+				auto enabled = thisBand->isEnabled();
+
+				auto pIndex = eq->getParameterIndex(handleIndex, CurveEq::BandParameter::Enabled);
+				eq->setAttribute(pIndex, enabled ? 0.0f : 1.0f, sendNotification);
+
+				// TODO EQUNDO
+			}
+			else
+			{
+				auto t = result - typeOffset;
+				auto pIndex = eq->getParameterIndex(handleIndex, CurveEq::BandParameter::Type);
+				eq->setAttribute(pIndex, (float)t, sendNotification);
+			}
+		}
+
+		
+	}
+	else
+	{
 		if (result == 3)
 			return;
 
@@ -539,9 +612,20 @@ void FilterDragOverlay::mouseDown(const MouseEvent &e)
 				eq->removeFilterBand(0);
 		}
 		else if (result == 2)
-		{
 			eq->enableSpectrumAnalyser(!eq->getFFTBuffer().isActive());
-		}
+	}
+}
+
+void FilterDragOverlay::mouseDown(const MouseEvent &e)
+{
+	if (e.mods.isRightButtonDown())
+	{
+		PopupMenu m;
+		m.setLookAndFeel(&getLookAndFeel());
+
+		fillPopupMenu(m, -1);
+		auto result = m.show();
+		popupMenuAction(result, -1);
 	}
 	else
 	{
@@ -586,66 +670,14 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 {
 	if (e.mods.isRightButtonDown())
 	{
-		StringArray sa = { "Low Pass", "High Pass", "Low Shelf", "High Shelf", "Peak" };
-
 		PopupMenu m;
 		m.setLookAndFeel(parent.plaf);
 
-		Factory pf;
-
-		auto thisBand = parent.eq->getFilterBand(index);
-
-		int typeOffset = 8000;
-
-		m.addItem(9000, "Delete Band", true, false);
-		m.addItem(10000, "Enable Band", true, thisBand->isEnabled());
-		m.addSeparator();
-
-		m.addSectionHeader("Select Type");
-
-		for (int i = 0; i < sa.size(); i++)
-		{
-			bool isSelected = thisBand->getType() == i;
-
-			auto p = pf.createPath(sa[i]);
-
-			auto dp = new DrawablePath();
-			dp->setPath(p);
-
-			m.addItem(typeOffset + i, sa[i], true, isSelected, dp);
-		}
-
-		m.addSeparator();
-		m.addItem(3, "Cancel");
-
+		parent.fillPopupMenu(m, index);
 		auto result = m.show();
 
-		if (result == 0 || result == 3)
-			return;
-		else if (result == 9000)
-		{
-			auto tmp = &parent;
-			auto index_ = index;
-			auto f = [tmp, index_]()
-			{
-				tmp->removeFilter(index_);
-			};
-
-			MessageManager::callAsync(f);
-		}
-		else if (result == 10000)
-		{
-			auto enabled = thisBand->isEnabled();
-
-			auto pIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Enabled);
-			parent.eq->setAttribute(pIndex, enabled ? 0.0f : 1.0f, sendNotification);
-		}
-		else
-		{
-			auto t = result - typeOffset;
-			auto pIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Type);
-			parent.eq->setAttribute(pIndex, (float)t, sendNotification);
-		}
+		if(result != 0)
+			parent.popupMenuAction(result, index);
 
 
 	}

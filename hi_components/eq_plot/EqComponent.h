@@ -279,6 +279,8 @@ class FilterDragOverlay : public Component,
 {
 public:
 
+
+
 	struct Factory : public PathFactory
 	{
 		String getId() const override { return "FilterIcons"; }
@@ -309,7 +311,7 @@ public:
 	};
 
 	FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ = false);
-	~FilterDragOverlay();
+	virtual ~FilterDragOverlay();
 
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;
 	void checkEnabledBands();
@@ -329,6 +331,10 @@ public:
 	void addFilterToGraph(int filterIndex, int filterType);
 	void updatePositions(bool forceUpdate);
 	Point<int> getPosition(int index);
+
+	virtual void fillPopupMenu(PopupMenu& m, int handleIndex);
+
+	virtual void popupMenuAction(int result, int handleIndex);
 
 	Font font;
 	bool isInFloatingTile = false;
@@ -371,7 +377,7 @@ public:
 	void addListener(Listener* l);
 	void removeListener(Listener* l);
 
-private:
+protected:
 
 	CurveEq *eq;
 	int numFilters = 0;
@@ -394,10 +400,6 @@ public:
 	FilterGraph filterGraph;
 
 private:
-
-	
-
-	
 
 	Array<WeakReference<Listener>> listeners;
 
