@@ -117,7 +117,7 @@ public:
 	int diskMode = 0;
 	bool allSamplesFound = false;
 	
-	int globalBPM = -1;
+	double globalBPM = -1.0;
 
 	int voiceAmountMultiplier = 2;
 

@@ -1023,7 +1023,7 @@ void MainController::setHostBpm(double newTempo)
 {
 	if (newTempo > 0.0)
 	{
-		int nt = jlimit(32, 280, (int)newTempo);
+		auto nt = jlimit(32.0, 280.0, newTempo);
 
 		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = nt;
 		
