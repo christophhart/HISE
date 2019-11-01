@@ -1007,7 +1007,6 @@ void StateVariableFilterSubType::processSamples(AudioSampleBuffer& buffer, int s
 		}
 		break;
 	}
-
 	case NOTCH:
 	{
 		for (int c = 0; c < numChannels; c++)
@@ -1314,5 +1313,221 @@ float PhaseAllpassSubType::InternalFilter::AllpassDelay::getNextSample(float inp
 
 	return y;
 }
+
+juce::Identifier StateVariableEqSubType::getStaticId()
+{
+	RETURN_STATIC_IDENTIFIER("svf_eq");
+}
+
+hise::FilterHelpers::FilterSubType StateVariableEqSubType::getFilterType()
+{
+	return FilterHelpers::FilterSubType::StateVariableEqSubType;
+}
+
+juce::Array<hise::FilterHelpers::CoefficientType> StateVariableEqSubType::getCoefficientTypeList() const
+{
+	return
+	{
+		FilterHelpers::LowPassReso,
+		FilterHelpers::HighPass,
+		FilterHelpers::LowShelf,
+		FilterHelpers::HighShelf,
+		FilterHelpers::Peak,
+	};
+}
+
+juce::StringArray StateVariableEqSubType::getModes() const
+{
+	return 
+	{
+		"LowPass",
+		"HighPass",
+		"LowShelf",
+		"HighShelf",
+		"Peak"
+	};
+}
+
+void StateVariableEqSubType::reset(int newNumChannels)
+{
+	for (int i = 0; i < newNumChannels; i++)
+		states[i].reset();
+}
+
+void StateVariableEqSubType::setType(int newType)
+{
+	t = (Mode)newType;
+}
+
+void StateVariableEqSubType::processSamples(AudioSampleBuffer& b, int startSample, int numSamples)
+{
+	auto numChannels = b.getNumChannels();
+	auto ptrs = b.getArrayOfWritePointers();
+
+	for (int i = startSample; i < numSamples; i++)
+	{
+		coefficients.tick();
+
+		for (int c = 0; c < numChannels; c++)
+		{
+			auto v = states[c].tick(ptrs[c][i], coefficients);
+			ptrs[c][i] = v;
+		}
+	}
+}
+
+void StateVariableEqSubType::processSingle(float* frameData, int numChannels)
+{
+	coefficients.tick();
+
+	for (int c = 0; c < numChannels; c++)
+	{
+		frameData[c] = states[c].tick(frameData[c], coefficients);
+	}
+}
+
+void StateVariableEqSubType::updateCoefficients(double sampleRate, double frequency, double q, double gain)
+{
+	coefficients.setGain(Decibels::gainToDecibels(gain));
+	coefficients.update(frequency, q, t, sampleRate);
+}
+
+StateVariableEqSubType::Coefficients::Coefficients()
+{
+	memset(a, 0, sizeof(double) * 4);
+	memset(ap, 0, sizeof(double) * 4);
+	memset(m, 0, sizeof(double) * 4);
+	memset(mp, 0, sizeof(double) * 4);
+	gain = gain_sqrt = 1;
+}
+
+void StateVariableEqSubType::Coefficients::update(double freq, double q, StateVariableEqSubType::Mode type, double sampleRate)
+{
+	double g = std::tan((freq / sampleRate) * double_Pi);
+	double k = computeK(q, type == Peak);
+
+	switch (type) {
+	case LowPass:
+		m[0] = 0.0;
+		m[1] = 0.0;
+		m[2] = 1.0;
+		break;
+	case HighPass:
+		m[0] = 1.0;
+		m[1] = -k;
+		m[2] = -1.0;
+		break;
+	case Peak:
+		m[0] = 1.0;
+		m[1] = k * (gain*gain - 1.0);
+		m[2] = 0.0;
+		break;
+	case LowShelf:
+		g /= gain_sqrt;
+		m[0] = 1.0;
+		m[1] = k * (gain - 1.0);
+		m[2] = gain * gain - 1.0;
+		break;
+	case HighShelf:
+		g *= gain_sqrt;
+		m[0] = gain * gain;
+		m[1] = k * (1.0 - gain)*gain;
+		m[2] = 1.0 - gain * gain;
+		break;
+	case numModes:
+	default:
+		jassertfalse;
+	}
+
+	computeA(g, k);
+}
+
+void StateVariableEqSubType::Coefficients::setGain(double gainDb)
+{
+	gain = std::pow(10.0, gainDb / 40.0);
+	gain_sqrt = std::sqrt(gain);
+}
+
+double StateVariableEqSubType::Coefficients::computeK(double q, bool useGain /*= false*/)
+{
+	return 1.f / (useGain ? (q*gain) : q);
+}
+
+void StateVariableEqSubType::Coefficients::computeA(double g, double k)
+{
+	a[0] = 1 / (1 + g * (g + k));
+	a[1] = g * a[0];
+	a[2] = g * a[1];
+}
+
+void StateVariableEqSubType::Coefficients::tick()
+{
+	const double gain = 0.99;
+	const double invGain = 1.0 - gain;
+
+#if HI_ENABLE_LEGACY_CPU_SUPPORT
+
+	mp[0] *= gain;
+	mp[1] *= gain;
+	mp[2] *= gain;
+
+	mp[0] += m[0] * invGain;
+	mp[1] += m[1] * invGain;
+	mp[2] += m[2] * invGain;
+
+	ap[0] *= gain;
+	ap[1] *= gain;
+	ap[2] *= gain;
+
+	ap[0] += a[0] * invGain;
+	ap[1] += a[1] * invGain;
+	ap[2] += a[2] * invGain;
+
+#else
+	const auto gain_ = _mm256_set1_pd(gain);
+	const auto invGain_ = _mm256_set1_pd(invGain);
+
+	auto _mp_ = _mm256_load_pd(mp);
+	auto _m_ = _mm256_load_pd(m);
+	auto _ap_ = _mm256_load_pd(ap);
+	auto _a_ = _mm256_load_pd(a);
+
+	_mp_ = _mm256_mul_pd(_mp_, gain_);
+	_m_ = _mm256_mul_pd(_m_, invGain_);
+	_mp_ = _mm256_add_pd(_mp_, _m_);
+	_mm256_store_pd(mp, _mp_);
+
+	_ap_ = _mm256_mul_pd(_ap_, gain_);
+	_a_ = _mm256_mul_pd(_a_, invGain_);
+	_ap_ = _mm256_add_pd(_ap_, _a_);
+	_mm256_store_pd(ap, _ap_);
+#endif
+}
+
+StateVariableEqSubType::State::State()
+{
+	reset();
+}
+
+void StateVariableEqSubType::State::reset()
+{
+	memset(v, 0, sizeof(double) * 4);
+	_ic1eq = _ic2eq = 0.0;
+}
+
+float StateVariableEqSubType::State::tick(float inp, const Coefficients& c)
+{
+	v[0] = (double)inp;
+
+	v[3] = v[0] - _ic2eq;
+	v[1] = c.ap[0]*_ic1eq + c.ap[1]* v[3];
+	v[2] = _ic2eq + c.ap[1]*_ic1eq + c.ap[2]* v[3];
+	_ic1eq = 2 * v[1] - _ic1eq;
+	_ic2eq = 2 * v[2] - _ic2eq;
+
+	return (float)(c.mp[0] * v[0] + c.mp[1] * v[1] + c.mp[2] * v[2]);
+}
+
+DEFINE_MULTI_CHANNEL_FILTER(StateVariableEqSubType);
 
 }

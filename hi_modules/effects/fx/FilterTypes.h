@@ -90,6 +90,7 @@ public:
 		MoogFilterSubType,
 		LadderSubType,
 		StateVariableFilterSubType,
+		StateVariableEqSubType,
 		StaticBiquadSubType,
 		SimpleOnePoleSubType,
 		PhaseAllpassSubType,
@@ -531,10 +532,87 @@ private:
 FORWARD_DECLARE_MULTI_CHANNEL_FILTER(LadderSubType);
 using Ladder = MultiChannelFilter<LadderSubType>;
 
+
+
+
+/** A SVF Filter replacement for the eq filters. */
+class StateVariableEqSubType 
+{
+public:
+	
+	enum Mode
+	{
+		LowPass,
+		HighPass,
+		LowShelf,
+		HighShelf,
+		Peak,
+		numModes
+	};
+
+	static Identifier getStaticId();
+	static FilterHelpers::FilterSubType getFilterType();
+	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;;
+	StringArray getModes() const;
+
+protected:
+
+	void reset(int newNumChannels);
+	void setType(int newType);
+	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples);
+	void processSingle(float* frameData, int numChannels);
+	void updateCoefficients(double sampleRate, double frequency, double q, double gain);
+
+private:
+
+	Mode t = Mode::LowPass;
+
+	struct Coefficients 
+	{
+		Coefficients();
+
+		void update(double freq, double q, Mode type, double samplerate);
+		void setGain(double gainDb);
+		double computeK(double q, bool useGain = false);
+		void computeA(double g, double k);
+		void tick();
+
+	private:
+
+		double gain;
+		double gain_sqrt;
+		double m[4];
+		double a[4];
+
+	public:
+
+		double mp[4];
+		double ap[4];
+
+	} coefficients;
+
+	struct State
+	{
+		State();
+		void reset();
+		float tick(float inp, const Coefficients& _coef);
+
+	private:
+
+		double _ic1eq;
+		double _ic2eq;
+
+		double v[4];
+	};
+
+	State states[NUM_MAX_CHANNELS];
+};
+
+FORWARD_DECLARE_MULTI_CHANNEL_FILTER(StateVariableEqSubType);
+
+
 class StateVariableFilterSubType
 {
-
-
 public:
 
 	static FilterHelpers::FilterSubType getFilterType();

@@ -96,6 +96,7 @@ DEFINE_FILTER_NODE_TEMPLATE(ring_mod, ring_mod_poly, RingmodFilterSubType);
 DEFINE_FILTER_NODE_TEMPLATE(allpass, allpass_poly, PhaseAllpassSubType);
 DEFINE_FILTER_NODE_TEMPLATE(ladder, ladder_poly, LadderSubType);
 DEFINE_FILTER_NODE_TEMPLATE(moog, moog_poly, MoogFilterSubType);
+DEFINE_FILTER_NODE_TEMPLATE(svf_eq, svf_eq_poly, StateVariableEqSubType);
 DEFINE_FILTER_NODE_TEMPLATE(linkwitzriley, linkwitzriley_poly, LinkwitzRiley);
 
 #undef DEFINE_FILTER_NODE_TEMPLATE

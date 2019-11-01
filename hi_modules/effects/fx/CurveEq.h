@@ -39,6 +39,15 @@ namespace hise { using namespace juce;
 
 #define OLD_EQ_FFT 0
 
+/** Set this to true to use the new SVF EQs which sound better when modulated. 
+
+	By default it uses the stock biquad filters from JUCE for backward-compatibility but this value might be changed
+	some time in the future
+*/
+#ifndef HISE_USE_SVF_FOR_CURVE_EQ
+#define HISE_USE_SVF_FOR_CURVE_EQ 0
+#endif
+
 /** A parametriq equalizer with unlimited bands and FFT display. 
 *	@ingroup effectTypes
 *
@@ -76,7 +85,13 @@ public:
 		numBandParameters
 	};
 
-	struct StereoFilter : public MultiChannelFilter<StaticBiquadSubType>
+#if HISE_USE_SVF_FOR_CURVE_EQ
+	using FilterTypeForEq = StateVariableEqSubType;
+#else
+	using FilterTypeForEq = StaticBiquadSubType;
+#endif
+
+	struct StereoFilter : public MultiChannelFilter<FilterTypeForEq>
 	{
 		StereoFilter()
 		{

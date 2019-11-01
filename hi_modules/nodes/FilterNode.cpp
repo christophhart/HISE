@@ -265,6 +265,7 @@ DEFINE_FILTER_NODE_TEMPIMPL(RingmodFilterSubType);
 DEFINE_FILTER_NODE_TEMPIMPL(PhaseAllpassSubType);
 DEFINE_FILTER_NODE_TEMPIMPL(LadderSubType);
 DEFINE_FILTER_NODE_TEMPIMPL(MoogFilterSubType);
+DEFINE_FILTER_NODE_TEMPIMPL(StateVariableEqSubType);
 DEFINE_FILTER_NODE_TEMPIMPL(LinkwitzRiley);
 
 #undef DEFINE_FILTER_NODE_TEMPIMPL
@@ -396,6 +397,7 @@ Factory::Factory(DspNetwork* n) :
 {
 	registerPolyNode<one_pole, one_pole_poly>();
 	registerPolyNode<svf, svf_poly>();
+	registerPolyNode<svf_eq, svf_eq_poly>();
 	registerPolyNode<biquad, biquad_poly>();
 	registerPolyNode<ladder, ladder_poly>();
 	registerPolyNode<ring_mod, ring_mod_poly>();
