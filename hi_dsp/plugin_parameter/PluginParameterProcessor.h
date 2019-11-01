@@ -87,7 +87,13 @@ auto busProp = BusesProperties();
 		if (getWrapperTypeBeingCreated() == wrapperType_AAX)
 			busProp = busProp.withInput("Input", AudioChannelSet::stereo());
 		
-		for (int i = 0; i < HISE_NUM_PLUGIN_CHANNELS; i += 2)
+#if IS_STANDALONE_FRONTEND
+		constexpr int numChannels = 2;
+#else
+		constexpr int numChannels = HISE_NUM_PLUGIN_CHANNELS;
+#endif
+
+		for (int i = 0; i < numChannels; i += 2)
 			busProp = busProp.withOutput("Channel " + String(i + 1) + "+" + String(i + 2), AudioChannelSet::stereo());
 
 		return busProp;
