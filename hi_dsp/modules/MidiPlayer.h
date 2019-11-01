@@ -133,6 +133,8 @@ public:
 	/** This object is ref-counted so this can be used as reference pointer. */
 	using Ptr = ReferenceCountedObjectPtr<HiseMidiSequence>;
 
+	using List = ReferenceCountedArray<HiseMidiSequence>;
+
 	/** Creates an empty new sequence object. */
 	HiseMidiSequence();
 
@@ -165,6 +167,14 @@ public:
 
 	/** Uses a time signature object to set the length. */
 	void setLengthFromTimeSignature(TimeSignature s);
+
+	/** Clones this sequence into a new object. */
+	HiseMidiSequence::Ptr clone() const
+	{
+		HiseMidiSequence::Ptr newSeq = new HiseMidiSequence();
+		newSeq->restoreFromValueTree(exportAsValueTree());
+		return newSeq;
+	}
 
 	/** Creates a temporary MIDI file with the content of this sequence.
 		
@@ -332,43 +342,79 @@ public:
 		Identifier sequenceId;
 	};
 
+	/** An undoable operation that exchanges the entire sequence set. */
+	class SequenceListAction : public UndoableAction
+	{
+	public:
+
+		SequenceListAction(MidiPlayer* p, HiseMidiSequence::List newList_, int newSeqIndex):
+			player(p),
+			oldList(p->createListOfCurrentSequences()),
+			newList(newList_),
+			newIndex(newSeqIndex)
+		{
+			oldIndex = oldList.indexOf(p->getCurrentSequence());
+		}
+
+		bool perform() override
+		{
+			if (player == nullptr)
+				return false;
+
+			player->swapSequenceListWithIndex(newList, newIndex);
+			return true;
+		}
+
+		bool undo() override
+		{
+			if (player == nullptr)
+				return false;
+
+			player->swapSequenceListWithIndex(oldList, oldIndex);
+			return true;
+		}
+
+	private:
+
+		WeakReference<MidiPlayer> player;
+
+		HiseMidiSequence::List oldList;
+		HiseMidiSequence::List newList;
+
+		int oldIndex = -1;
+		int newIndex;
+	};
+
 
 	struct TimesigUndo : public UndoableAction
 	{
 		TimesigUndo(MidiPlayer* player_, HiseMidiSequence::TimeSignature newSig_) :
 			player(player_),
-			sequence(player_->getCurrentSequence()),
-			oldSig(sequence->getTimeSignature()),
 			newSig(newSig_)
-		{}
+		{
+			if (auto seq = player->getCurrentSequence())
+				oldSig = seq->getTimeSignature();
+		}
 
 		bool perform() override
 		{
-			if (sequence != nullptr)
-			{
-				sequence->setLengthFromTimeSignature(newSig);
-				player->sendSequenceUpdateMessage(sendNotification);
+			if (player == nullptr)
+				return false;
 
-				return true;
-			}
-				
-			return false;
+			player->setLength(newSig, false);
+			return true;
 		}
 
 		bool undo() override
 		{
-			if (sequence != nullptr)
-			{
-				sequence->setLengthFromTimeSignature(oldSig);
-				player->sendSequenceUpdateMessage(sendNotification);
-				return true;
-			}
-				
-			return false;
+			if (player == nullptr)
+				return false;
+
+			player->setLength(oldSig, false);
+			return true;
 		}
 
 		WeakReference<MidiPlayer> player;
-		WeakReference<HiseMidiSequence> sequence;
 		HiseMidiSequence::TimeSignature oldSig;
 		HiseMidiSequence::TimeSignature newSig;
 	};
@@ -477,6 +523,8 @@ public:
 	/** Clears the current sequence and any recorded events. */
 	void clearCurrentSequence();
 
+	void removeSequence(int sequenceIndex);
+
 	/** Returns the undo manager used for all editing operations. 
 	
 		This differs from the default undo manager for parameter changes because edits might
@@ -552,6 +600,10 @@ public:
 
 	double getLoopEnd() const;
 
+	HiseMidiSequence::List createListOfCurrentSequences();
+
+	void swapSequenceListWithIndex(HiseMidiSequence::List listToSwapWith, int newSequenceIndex);
+
 private:
 
 	mutable SimpleReadWriteLock sequenceLock;
@@ -581,13 +633,19 @@ private:
 	Array<WeakReference<SequenceListener>> sequenceListeners;
 	void changeTransportState(PlayState newState);
 
+	double getPlaybackPositionFromTicksSinceStart() const;
+
 	void updatePositionInCurrentSequence();
 
 	int lastBlockSize = -1;
 
-	ReferenceCountedArray<HiseMidiSequence> currentSequences;
+	HiseMidiSequence::List currentSequences;
 
 	PlayState playState = PlayState::Stop;
+
+	double ticksSincePlaybackStart = 0.0;
+
+	void addNoteOffsToPendingNoteOns();
 
 	bool flushRecordedEvents = true;
 	double currentPosition = -1.0;

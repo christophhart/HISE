@@ -442,7 +442,8 @@ juce::RectangleList<float> HiseMidiSequence::getRectangleList(Rectangle<float> t
 				auto x = (float)(e->message.getTimeStamp() / getLength());
 				auto w = (float)(e->noteOffObject->message.getTimeStamp() / getLength()) - x;
 
-				jassert(x < 1.0f);
+				if (x >= 1.0)
+					break;
 
 				auto y = (float)(127 - e->message.getNoteNumber()) / 128.0f;
 				auto h = 1.0f / 128.0f;
@@ -839,32 +840,12 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 	}
 	case CurrentSequence:		
 	{
-		Range<double> lastLoopRange;
-
-
-		if (auto seq = getCurrentSequence())
-			lastLoopRange = seq->getTimeSignature().normalisedLoopRange;
-
-		auto posInLoop = (getPlaybackPosition() - lastLoopRange.getStart()) / lastLoopRange.getLength();
-
 		currentSequenceIndex = jlimit<int>(-1, currentSequences.size()-1, (int)(newAmount - 1)); 
 
 		currentlyRecordedEvents.clear();
 		recordState.store(RecordState::Idle);
 
-		if (auto seq = getCurrentSequence())
-		{
-			if (posInLoop != 0.0)
-			{
-				auto newLoopRange = seq->getTimeSignature().normalisedLoopRange;
-
-				auto newPos = newLoopRange.getStart() + posInLoop * newLoopRange.getLength();
-
-				currentPosition = newPos;
-				updatePositionInCurrentSequence();
-			}
-		}
-
+		updatePositionInCurrentSequence();
 		break;
 	}
 	case CurrentTrack:			
@@ -932,26 +913,42 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 	if (currentSequenceIndex >= 0 && currentPosition != -1.0)
 	{
-		if (currentPosition > 1.0 && !loopEnabled)
+		auto loopStart = getLoopStart();
+		auto loopEnd = getLoopEnd();
+
+		if (currentPosition > loopEnd && (!loopEnabled || isRecording()))
 		{
+			if (isRecording())
+				finishRecording();
+
 			stop();
 			return;
 		}
 
+#if 0
 		if (isRecording() && (currentPosition - recordStart) > 1.0)
 		{
-			finishRecording();
+			//finishRecording();
 			playState = PlayState::Play;
 			sendAllocationFreeChangeMessage();
 		}
-
-		
+#endif
 
 		auto seq = getCurrentSequence();
+
+		if (playState == PlayState::Stop)
+		{
+			seq->resetPlayback();
+			playState = PlayState::Stop;
+			timeStampForNextCommand = 0;
+			currentPosition = -1.0;
+			return;
+		}
+
+		
 		seq->setCurrentTrackIndex(currentTrackIndex);
 
-		auto loopStart = getLoopStart();
-		auto loopEnd = getLoopEnd();
+		
 
 		if (currentPosition < loopStart)
 		{
@@ -1061,8 +1058,11 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 			}
 		}
 
+
+
 		timeStampForNextCommand = 0;
 		currentPosition += delta;
+		ticksSincePlaybackStart += tickThisTime;
 	}
 }
 
@@ -1078,7 +1078,9 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 		stop(m.getTimeStamp());
 	}
 
-	if (isRecording() && !m.isArtificial() && recordState == RecordState::Prepared)
+	bool artificial = m.isArtificial();
+
+	if (isRecording() && !artificial && recordState == RecordState::Prepared)
 	{
 		if (auto seq = getCurrentSequence())
 		{
@@ -1132,6 +1134,30 @@ double MidiPlayer::getLoopEnd() const
 	return 1.0;
 }
 
+juce::ReferenceCountedArray<hise::HiseMidiSequence> MidiPlayer::createListOfCurrentSequences()
+{
+	ReferenceCountedArray<HiseMidiSequence> newList;
+
+	for (auto s : currentSequences)
+		newList.add(s);
+
+	return newList;
+}
+
+void MidiPlayer::swapSequenceListWithIndex(HiseMidiSequence::List listToSwapWith, int newSequenceIndex)
+{
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock);
+		currentSequences.swapWithArray(listToSwapWith);
+	}
+
+	for (auto s : currentSequences)
+		s->setCurrentTrackIndex(currentTrackIndex);
+
+	setAttribute(CurrentSequence, newSequenceIndex + 1, sendNotification);
+	sendSequenceUpdateMessage(sendNotificationAsync);
+}
+
 void MidiPlayer::sendPlaybackChangeMessage(int timestamp)
 {
 	if (!playbackListeners.isEmpty())
@@ -1175,6 +1201,26 @@ void MidiPlayer::changeTransportState(PlayState newState)
 	case PlayState::Record: record(0);	return;
         default: return;
 	}
+}
+
+double MidiPlayer::getPlaybackPositionFromTicksSinceStart() const
+{
+	if (auto seq = getCurrentSequence())
+	{
+		auto range = seq->getTimeSignature().normalisedLoopRange;
+		auto totalTicks = seq->getLength();
+
+		auto loopLengthInTicks = range.getLength() * totalTicks;
+		auto loopStartInTicks = range.getStart() * totalTicks;
+
+		if (loopLengthInTicks > 0.0)
+		{
+			auto loopPositionTicks = fmod(ticksSincePlaybackStart, loopLengthInTicks) + loopStartInTicks;
+			return loopPositionTicks / totalTicks;
+		}
+	}
+
+	return 0.0;
 }
 
 hise::HiseMidiSequence::Ptr MidiPlayer::getCurrentSequence() const
@@ -1274,6 +1320,20 @@ void MidiPlayer::clearCurrentSequence()
 	flushEdit({});
 }
 
+void MidiPlayer::removeSequence(int sequenceIndex)
+{
+	HiseMidiSequence::Ptr seqToRemove;
+
+	if (isPositiveAndBelow(sequenceIndex, getNumSequences()))
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock, true);
+		seqToRemove = currentSequences.removeAndReturn(sequenceIndex);
+	}
+
+	setAttribute(MidiPlayer::CurrentSequence, currentSequenceIndex + 1.0f, sendNotification);
+	sendSequenceUpdateMessage(sendNotification);
+}
+
 void MidiPlayer::setLength(HiseMidiSequence::TimeSignature sig, bool useUndoManager)
 {
 	if (auto seq = getCurrentSequence())
@@ -1285,6 +1345,7 @@ void MidiPlayer::setLength(HiseMidiSequence::TimeSignature sig, bool useUndoMana
 		else
 		{
 			seq->setLengthFromTimeSignature(sig);
+			updatePositionInCurrentSequence();
 			sendSequenceUpdateMessage(sendNotification);
 		}
 	}
@@ -1332,6 +1393,7 @@ bool MidiPlayer::play(int timestamp)
 		
 		sendPlaybackChangeMessage(timestamp);
 
+		ticksSincePlaybackStart = 0.0;
 
 		return true;
 	}
@@ -1350,26 +1412,7 @@ bool MidiPlayer::stop(int timestamp)
 
 		if (noteOffAtStop)
 		{
-			auto midiChain = getOwnerSynth()->midiProcessorChain.get();
-
-			bool sortAfterOp = false;
-
-			for (auto& futureEvent : midiChain->artificialEvents)
-			{
-				if (futureEvent.isNoteOff())
-				{
-					auto channel = futureEvent.getChannel();
-					jassert(channel == currentTrackIndex + 1);
-
-					futureEvent.setTimeStamp(getLargestBlockSize() - 2);
-					sortAfterOp = true;
-				}
-				if (futureEvent.isNoteOn())
-					futureEvent.ignoreEvent(true);
-			}
-
-			if (sortAfterOp)
-				midiChain->artificialEvents.sortTimestamps();
+			addNoteOffsToPendingNoteOns();
 		}
 
 		
@@ -1399,6 +1442,7 @@ bool MidiPlayer::record(int timestamp)
 	if (playState == PlayState::Stop)
 	{
 		currentPosition = 0.0;
+		ticksSincePlaybackStart = 0.0;
 
 		if(auto seq = getCurrentSequence())
 			seq->resetPlayback();
@@ -1407,7 +1451,7 @@ bool MidiPlayer::record(int timestamp)
 	playState = PlayState::Record;
 	timeStampForNextCommand = timestamp;
 
-	currentPosition = fmod(currentPosition, 1.0);
+	updatePositionInCurrentSequence();
 
 	useNextNoteAsRecordStartPos = true;
 
@@ -1683,8 +1727,36 @@ void MidiPlayer::updatePositionInCurrentSequence()
 {
 	if (auto seq = getCurrentSequence())
 	{
-		seq->setPlaybackPosition(getPlaybackPosition());
+		auto newPos = getPlaybackPositionFromTicksSinceStart();
+		currentPosition = newPos;
+		seq->setPlaybackPosition(currentPosition);
 	}
+}
+
+void MidiPlayer::addNoteOffsToPendingNoteOns()
+{
+	auto midiChain = getOwnerSynth()->midiProcessorChain.get();
+
+	bool sortAfterOp = false;
+
+	LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+
+	for (auto& futureEvent : midiChain->artificialEvents)
+	{
+		if (futureEvent.isNoteOff())
+		{
+			auto channel = futureEvent.getChannel();
+			jassert(channel == currentTrackIndex + 1);
+
+			futureEvent.setTimeStamp(getLargestBlockSize() - 2);
+			sortAfterOp = true;
+		}
+		if (futureEvent.isNoteOn())
+			futureEvent.ignoreEvent(true);
+	}
+
+	if (sortAfterOp)
+		midiChain->artificialEvents.sortTimestamps();
 }
 
 MidiPlayerBaseType::~MidiPlayerBaseType()
