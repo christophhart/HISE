@@ -1547,8 +1547,6 @@ bool PresetBrowser::DataBaseHelpers::matchesAvailableExpansions(MainController* 
 
 		sa.removeEmptyStrings(true);
 
-		bool allFound = true;
-
 		auto& handler = mc->getExpansionHandler();
 
 		for (int i = 0; i < handler.getNumExpansions(); i++)

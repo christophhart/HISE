@@ -308,10 +308,12 @@ ss_heapsort(const unsigned char *Td, const int *PA, int *SA, int size) {
 
   for(i = m / 2 - 1; 0 <= i; --i) { ss_fixdown(Td, PA, SA, i, m); }
   if((size % 2) == 0) { SWAP(SA[0], SA[m]); ss_fixdown(Td, PA, SA, 0, m); }
-  for(i = m - 1; 0 < i; --i) {
-    t = SA[0], SA[0] = SA[i];
-    ss_fixdown(Td, PA, SA, 0, i);
-    SA[i] = t;
+  for(i = m - 1; 0 < i; --i)
+  {
+      t = SA[0];
+      SA[0] = SA[i];
+      ss_fixdown(Td, PA, SA, 0, i);
+      SA[i] = t;
   }
 }
 
@@ -542,7 +544,7 @@ void
 ss_blockswap(int *a, int *b, int n) {
   int t;
   for(; 0 < n; --n, ++a, ++b) {
-    t = *a, *a = *b, *b = t;
+      static_cast<void>(t = *a), static_cast<void>(*a = *b), *b = t;
   }
 }
 
@@ -551,32 +553,32 @@ void
 ss_rotate(int *first, int *middle, int *last) {
   int *a, *b, t;
   int l, r;
-  l = middle - first, r = last - middle;
+    static_cast<void>(l = middle - first), r = last - middle;
   for(; (0 < l) && (0 < r);) {
     if(l == r) { ss_blockswap(first, middle, l); break; }
     if(l < r) {
-      a = last - 1, b = middle - 1;
+        static_cast<void>(a = last - 1), b = middle - 1;
       t = *a;
       do {
-        *a-- = *b, *b-- = *a;
+          static_cast<void>(*a-- = *b), *b-- = *a;
         if(b < first) {
           *a = t;
           last = a;
           if((r -= l + 1) <= l) { break; }
-          a -= 1, b = middle - 1;
+            static_cast<void>(a -= 1), b = middle - 1;
           t = *a;
         }
       } while(1);
     } else {
-      a = first, b = middle;
+        static_cast<void>(a = first), b = middle;
       t = *a;
       do {
-        *a++ = *b, *b++ = *a;
+          static_cast<void>(*a++ = *b), *b++ = *a;
         if(last <= b) {
           *a = t;
           first = a + 1;
           if((l -= r + 1) <= r) { break; }
-          a += 1, b = middle;
+            static_cast<void>(a += 1), b = middle;
           t = *a;
         }
       } while(1);
@@ -652,10 +654,10 @@ ss_mergeforward(const unsigned char *T, const int *PA,
       } while(*b < 0);
     } else if(r > 0) {
       do {
-        *a++ = *c, *c++ = *a;
+          static_cast<void>(*a++ = *c), *c++ = *a;
         if(last <= c) {
-          while(b < bufend) { *a++ = *b, *b++ = *a; }
-          *a = *b, *b = t;
+            while(b < bufend) { static_cast<void>(*a++ = *b), *b++ = *a; }
+            static_cast<void>(*a = *b), *b = t;
           return;
         }
       } while(*c < 0);
@@ -668,10 +670,10 @@ ss_mergeforward(const unsigned char *T, const int *PA,
       } while(*b < 0);
 
       do {
-        *a++ = *c, *c++ = *a;
+          static_cast<void>(*a++ = *c), *c++ = *a;
         if(last <= c) {
-          while(b < bufend) { *a++ = *b, *b++ = *a; }
-          *a = *b, *b = t;
+            while(b < bufend) { static_cast<void>(*a++ = *b), *b++ = *a; }
+            static_cast<void>(*a = *b), *b = t;
           return;
         }
       } while(*c < 0);
@@ -702,32 +704,32 @@ ss_mergebackward(const unsigned char *T, const int *PA,
   for(t = *(a = last - 1), b = bufend, c = middle - 1;;) {
     r = ss_compare(T, p1, p2, depth);
     if(0 < r) {
-      if(x & 1) { do { *a-- = *b, *b-- = *a; } while(*b < 0); x ^= 1; }
+        if(x & 1) { do { static_cast<void>(*a-- = *b), *b-- = *a; } while(*b < 0); x ^= 1; }
       *a-- = *b;
       if(b <= buf) { *buf = t; break; }
       *b-- = *a;
       if(*b < 0) { p1 = PA + ~*b; x |= 1; }
       else       { p1 = PA +  *b; }
     } else if(r < 0) {
-      if(x & 2) { do { *a-- = *c, *c-- = *a; } while(*c < 0); x ^= 2; }
-      *a-- = *c, *c-- = *a;
+        if(x & 2) { do { static_cast<void>(*a-- = *c), *c-- = *a; } while(*c < 0); x ^= 2; }
+        static_cast<void>(*a-- = *c), *c-- = *a;
       if(c < first) {
-        while(buf < b) { *a-- = *b, *b-- = *a; }
-        *a = *b, *b = t;
+          while(buf < b) { static_cast<void>(*a-- = *b), *b-- = *a; }
+          static_cast<void>(*a = *b), *b = t;
         break;
       }
       if(*c < 0) { p2 = PA + ~*c; x |= 2; }
       else       { p2 = PA +  *c; }
     } else {
-      if(x & 1) { do { *a-- = *b, *b-- = *a; } while(*b < 0); x ^= 1; }
+        if(x & 1) { do { static_cast<void>(*a-- = *b), *b-- = *a; } while(*b < 0); x ^= 1; }
       *a-- = ~*b;
       if(b <= buf) { *buf = t; break; }
       *b-- = *a;
-      if(x & 2) { do { *a-- = *c, *c-- = *a; } while(*c < 0); x ^= 2; }
-      *a-- = *c, *c-- = *a;
+        if(x & 2) { do { static_cast<void>(*a-- = *c), *c-- = *a; } while(*c < 0); x ^= 2; }
+        static_cast<void>(*a-- = *c), *c-- = *a;
       if(c < first) {
-        while(buf < b) { *a-- = *b, *b-- = *a; }
-        *a = *b, *b = t;
+          while(buf < b) { static_cast<void>(*a-- = *b), *b-- = *a; }
+          static_cast<void>(*a = *b), *b = t;
         break;
       }
       if(*b < 0) { p1 = PA + ~*b; x |= 1; }
@@ -792,9 +794,9 @@ ss_swapmerge(const unsigned char *T, const int *PA,
     }
 
     if(0 < m) {
-      lm = middle - m, rm = middle + m;
+        static_cast<void>(lm = middle - m), rm = middle + m;
       ss_blockswap(lm, middle, m);
-      l = r = middle, next = 0;
+        static_cast<void>(l = r = middle), next = 0;
       if(rm < last) {
         if(*rm < 0) {
           *rm = ~*rm;
@@ -808,11 +810,11 @@ ss_swapmerge(const unsigned char *T, const int *PA,
 
       if((l - first) <= (last - r)) {
         STACK_PUSH(r, rm, last, (next & 3) | (check & 4));
-        middle = lm, last = l, check = (check & 3) | (next & 4);
+          static_cast<void>(middle = lm), static_cast<void>(last = l), check = (check & 3) | (next & 4);
       } else {
         if((next & 2) && (r == middle)) { next ^= 6; }
         STACK_PUSH(first, lm, l, (check & 3) | (next & 4));
-        first = r, middle = rm, check = (next & 3) | (check & 4);
+          static_cast<void>(first = r), static_cast<void>(middle = rm), check = (next & 3) | (check & 4);
       }
     } else {
       if(ss_compare(T, PA + GETIDX(*(middle - 1)), PA + *middle, depth) == 0) {
@@ -853,9 +855,9 @@ sssort(const unsigned char *T, const int *PA,
       (bufsize < (last - first)) &&
       (bufsize < (limit = ss_isqrt(last - first)))) {
     if(SS_BLOCKSIZE < limit) { limit = SS_BLOCKSIZE; }
-    buf = middle = last - limit, bufsize = limit;
+      static_cast<void>(buf = middle = last - limit), bufsize = limit;
   } else {
-    middle = last, limit = 0;
+      static_cast<void>(middle = last), limit = 0;
   }
   for(a = first, i = 0; SS_BLOCKSIZE < (middle - a); a += SS_BLOCKSIZE, ++i) {
 #if SS_INSERTIONSORT_THRESHOLD < SS_BLOCKSIZE
@@ -865,7 +867,7 @@ sssort(const unsigned char *T, const int *PA,
 #endif
     curbufsize = last - (a + SS_BLOCKSIZE);
     curbuf = a + SS_BLOCKSIZE;
-    if(curbufsize <= bufsize) { curbufsize = bufsize, curbuf = buf; }
+      if(curbufsize <= bufsize) { static_cast<void>(curbufsize = bufsize), curbuf = buf; }
     for(b = a, k = SS_BLOCKSIZE, j = i; j & 1; b -= k, k <<= 1, j >>= 1) {
       ss_swapmerge(T, PA, b - k, b, b + k, curbuf, curbufsize, depth);
     }
@@ -893,7 +895,7 @@ sssort(const unsigned char *T, const int *PA,
 
   if(lastsuffix != 0) {
     /* Insert last type B* suffix. */
-    int PAi[2]; PAi[0] = PA[*(first - 1)], PAi[1] = n - 2;
+      int PAi[2]; static_cast<void>(PAi[0] = PA[*(first - 1)]), PAi[1] = n - 2;
     for(a = first, i = *(first - 1);
         (a < last) && ((*a < 0) || (0 < ss_compare(T, &(PAi[0]), PA + *a, depth)));
         ++a) {
@@ -972,7 +974,7 @@ tr_heapsort(const int *ISAd, int *SA, int size) {
   for(i = m / 2 - 1; 0 <= i; --i) { tr_fixdown(ISAd, SA, i, m); }
   if((size % 2) == 0) { SWAP(SA[0], SA[m]); tr_fixdown(ISAd, SA, 0, m); }
   for(i = m - 1; 0 < i; --i) {
-    t = SA[0], SA[0] = SA[i];
+      static_cast<void>(t = SA[0]), SA[0] = SA[i];
     tr_fixdown(ISAd, SA, 0, i);
     SA[i] = t;
   }
@@ -1102,9 +1104,9 @@ tr_partition(const int *ISAd,
     for(e = first, f = b - s; 0 < s; --s, ++e, ++f) { SWAP(*e, *f); }
     if((s = d - c) > (t = last - d - 1)) { s = t; }
     for(e = b, f = last - s; 0 < s; --s, ++e, ++f) { SWAP(*e, *f); }
-    first += (b - a), last -= (d - c);
+      static_cast<void>(first += (b - a)), last -= (d - c);
   }
-  *pa = first, *pb = last;
+    static_cast<void>(*pa = first), *pb = last;
 }
 
 static
@@ -1208,25 +1210,25 @@ tr_introsort(int *ISA, const int *ISAd,
         if((a - first) <= (last - b)) {
           if(1 < (a - first)) {
             STACK_PUSH5(ISAd, b, last, tr_ilg(last - b), trlink);
-            last = a, limit = tr_ilg(a - first);
+              static_cast<void>(last = a), limit = tr_ilg(a - first);
           } else if(1 < (last - b)) {
-            first = b, limit = tr_ilg(last - b);
+              static_cast<void>(first = b), limit = tr_ilg(last - b);
           } else {
             STACK_POP5(ISAd, first, last, limit, trlink);
           }
         } else {
           if(1 < (last - b)) {
             STACK_PUSH5(ISAd, first, a, tr_ilg(a - first), trlink);
-            first = b, limit = tr_ilg(last - b);
+              static_cast<void>(first = b), limit = tr_ilg(last - b);
           } else if(1 < (a - first)) {
-            last = a, limit = tr_ilg(a - first);
+              static_cast<void>(last = a), limit = tr_ilg(a - first);
           } else {
             STACK_POP5(ISAd, first, last, limit, trlink);
           }
         }
       } else if(limit == -2) {
         /* tandem repeat copy */
-        a = stack[--ssize].b, b = stack[ssize].c;
+          static_cast<void>(a = stack[--ssize].b), b = stack[ssize].c;
         if(stack[ssize].d == 0) {
           tr_copy(ISA, SA, first, a, b, last, ISAd - ISA);
         } else {
@@ -1250,19 +1252,19 @@ tr_introsort(int *ISA, const int *ISAd,
           if(trbudget_check(budget, a - first)) {
             if((a - first) <= (last - a)) {
               STACK_PUSH5(ISAd, a, last, -3, trlink);
-              ISAd += incr, last = a, limit = next;
+                ISAd += incr, static_cast<void>(last = a), limit = next;
             } else {
               if(1 < (last - a)) {
                 STACK_PUSH5(ISAd + incr, first, a, next, trlink);
-                first = a, limit = -3;
+                  static_cast<void>(first = a), limit = -3;
               } else {
-                ISAd += incr, last = a, limit = next;
+                  static_cast<void>(ISAd += incr), static_cast<void>(last = a), limit = next;
               }
             }
           } else {
             if(0 <= trlink) { stack[trlink].d = -1; }
             if(1 < (last - a)) {
-              first = a, limit = -3;
+                static_cast<void>(first = a), limit = -3;
             } else {
               STACK_POP5(ISAd, first, last, limit, trlink);
             }
@@ -1315,7 +1317,7 @@ tr_introsort(int *ISA, const int *ISAd,
               STACK_PUSH5(ISAd + incr, a, b, next, trlink);
               first = b;
             } else {
-              ISAd += incr, first = a, last = b, limit = next;
+                static_cast<void>(ISAd += incr), first = a, static_cast<void>(last = b), limit = next;
             }
           } else if((a - first) <= (b - a)) {
             if(1 < (a - first)) {
@@ -1324,12 +1326,12 @@ tr_introsort(int *ISA, const int *ISAd,
               last = a;
             } else {
               STACK_PUSH5(ISAd, b, last, limit, trlink);
-              ISAd += incr, first = a, last = b, limit = next;
+                static_cast<void>(ISAd += incr), first = a, static_cast<void>(last = b), limit = next;
             }
           } else {
             STACK_PUSH5(ISAd, b, last, limit, trlink);
             STACK_PUSH5(ISAd, first, a, limit, trlink);
-            ISAd += incr, first = a, last = b, limit = next;
+              static_cast<void>(ISAd += incr), first = a, static_cast<void>(last = b), limit = next;
           }
         } else {
           if((a - first) <= (b - a)) {
@@ -1341,7 +1343,7 @@ tr_introsort(int *ISA, const int *ISAd,
               STACK_PUSH5(ISAd + incr, a, b, next, trlink);
               last = a;
             } else {
-              ISAd += incr, first = a, last = b, limit = next;
+                static_cast<void>(ISAd += incr), first = a, static_cast<void>(last = b), limit = next;
             }
           } else if((last - b) <= (b - a)) {
             if(1 < (last - b)) {
@@ -1350,12 +1352,12 @@ tr_introsort(int *ISA, const int *ISAd,
               first = b;
             } else {
               STACK_PUSH5(ISAd, first, a, limit, trlink);
-              ISAd += incr, first = a, last = b, limit = next;
+                static_cast<void>(ISAd += incr), static_cast<void>(first = a), static_cast<void>(last = b), limit = next;
             }
           } else {
             STACK_PUSH5(ISAd, first, a, limit, trlink);
             STACK_PUSH5(ISAd, b, last, limit, trlink);
-            ISAd += incr, first = a, last = b, limit = next;
+              ISAd += incr, static_cast<void>(first = a), static_cast<void>(last = b), limit = next;
           }
         }
       } else {
@@ -1382,7 +1384,7 @@ tr_introsort(int *ISA, const int *ISAd,
       }
     } else {
       if(trbudget_check(budget, last - first)) {
-        limit = tr_ilg(last - first), ISAd += incr;
+          static_cast<void>(limit = tr_ilg(last - first)), ISAd += incr;
       } else {
         if(0 <= trlink) { stack[trlink].d = -1; }
         STACK_POP5(ISAd, first, last, limit, trlink);
@@ -1496,10 +1498,10 @@ note:
     /* Sort the type B* suffixes by their first two characters. */
     PAb = SA + n - m; ISAb = SA + m;
     for(i = m - 2; 0 <= i; --i) {
-      t = PAb[i], c0 = T[t], c1 = T[t + 1];
+        static_cast<void>(t = PAb[i]), static_cast<void>(c0 = T[t]), c1 = T[t + 1];
       SA[--BUCKET_BSTAR(c0, c1)] = i;
     }
-    t = PAb[m - 1], c0 = T[t], c1 = T[t + 1];
+      static_cast<void>(t = PAb[m - 1]), c0 = T[t], c1 = T[t + 1];
     SA[--BUCKET_BSTAR(c0, c1)] = m - 1;
 
     /* Sort the type B* substrings using sssort. */
@@ -1853,7 +1855,7 @@ divsufsort(const unsigned char *T, int *SA, int n, int openMP) {
   if((T == NULL) || (SA == NULL) || (n < 0)) { return -1; }
   else if(n == 0) { return 0; }
   else if(n == 1) { SA[0] = 0; return 0; }
-  else if(n == 2) { m = (T[0] < T[1]); SA[m ^ 1] = 0, SA[m] = 1; return 0; }
+  else if(n == 2) { m = (T[0] < T[1]); static_cast<void>(SA[m ^ 1] = 0), SA[m] = 1; return 0; }
 
   bucket_A = (int *)malloc(BUCKET_A_SIZE * sizeof(int));
   bucket_B = (int *)malloc(BUCKET_B_SIZE * sizeof(int));

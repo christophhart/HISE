@@ -113,7 +113,7 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::editNodeProperty(*this);
 	if ((key).isKeyCode('q') || key.isKeyCode('Q'))
 		return Actions::toggleBypass(*this);
-	if ((key).isKeyCode('c') || key.isKeyCode('C') && key.getModifiers().isCommandDown())
+	if (((key).isKeyCode('c') || key.isKeyCode('C')) && key.getModifiers().isCommandDown())
 		return Actions::copyToClipboard(*this);
 	if (key == KeyPress::upKey || key == KeyPress::downKey)
 		return Actions::arrowKeyAction(*this, key);

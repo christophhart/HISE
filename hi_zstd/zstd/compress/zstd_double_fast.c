@@ -93,8 +93,8 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     ip += (dictAndPrefixLength == 0);
     if (dictMode == ZSTD_noDict) {
         U32 const maxRep = (U32)(ip - prefixLowest);
-        if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
-        if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
+        if (offset_2 > maxRep) static_cast<void>(offsetSaved = offset_2), offset_2 = 0;
+        if (offset_1 > maxRep) static_cast<void>(offsetSaved = offset_1), offset_1 = 0;
     }
     if (dictMode == ZSTD_dictMatchState) {
         /* dictMatchState repCode checks don't currently handle repCode == 0

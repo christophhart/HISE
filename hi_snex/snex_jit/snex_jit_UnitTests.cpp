@@ -581,8 +581,7 @@ private:
 		using Event2IntTest = HiseJITTestCase<HiseEvent, int>;
 
 		HiseEvent testEvent = HiseEvent(HiseEvent::Type::NoteOn, 59, 127, 1);
-		HiseEvent testEvent2 = HiseEvent(HiseEvent::Type::NoteOn, 61, 127, 1);
-
+		
 		ScopedPointer<Event2IntTest> test;
 
 		test = new Event2IntTest("int test(event in){ return in.getNoteNumber(); }", optimizations);

@@ -243,10 +243,8 @@ void PostGraphicsRenderer::boxBlur(int blur)
 
 	IppiSize maskSize = { blur,blur };
 	IppiSize srcSize = { bd.width, bd.height };
-	Ipp8u* pBuffer = NULL;
 	Ipp8u* pSrc = bd.data;
 	Ipp8u* pDst = bd.data;
-	int srcStep, dstStep;
 	int thisBufSize;
 
 	status = ippiFilterBoxBorderGetBufferSize(srcSize, maskSize, ipp8u, 4, &thisBufSize);

@@ -152,6 +152,7 @@ void ModulationSourceNode::ModulationTarget::applyValue(double value)
 	case SetValue: parameter->setValueAndStoreAsync(value); break;
 	case Multiply: parameter->multiplyModulationValue(value); break;
 	case Add:	   parameter->addModulationValue(value); break;
+        default:   break;
 	}
 }
 
@@ -288,9 +289,14 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 
 void ModulationSourceNode::logMessage(const String& s)
 {
+#if USE_BACKEND
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());
 
 	debugToConsole(p, s);
+#else
+    DBG(s);
+    ignoreUnused(s);
+#endif
 }
 
 int ModulationSourceNode::fillAnalysisBuffer(AudioSampleBuffer& b)

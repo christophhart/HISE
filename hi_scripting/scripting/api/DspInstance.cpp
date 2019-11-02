@@ -166,7 +166,11 @@ void DspInstance::processBlock(const var &data)
 			Array<var> *a = data.getArray();
 
 			float *sampleData[NUM_MAX_CHANNELS];
+            
+#if USE_BACKEND
 			const float** sampleDataForListeners = const_cast<const float**>(sampleData);
+#endif
+            
 			int numSamples = -1;
 
 			
@@ -303,7 +307,9 @@ void DspInstance::processBlock(const var &data)
 			if (b != nullptr)
 			{
 				float *sampleData[1] = { b->buffer.getWritePointer(0) };
+#if USE_BACKEND
 				const float** sampleDataForListeners = const_cast<const float**>(sampleData);
+#endif
 				const int numSamples = b->size;
 
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[0], true, numSamples);

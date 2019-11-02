@@ -308,12 +308,10 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 	{
 		returnReg = c->registerPool.getNextFreeRegister(returnType);
 		returnReg->createRegister(cc);
-		auto vv = returnReg->getRegisterForWriteOp();
 	}
 
 
 	auto l = cc.newLabel();
-
 	auto e = cc.newLabel();
 
 	// emit the code for the condition here

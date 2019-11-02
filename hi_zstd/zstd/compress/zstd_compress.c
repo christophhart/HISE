@@ -1913,7 +1913,7 @@ ZSTD_buildCTable(void* dst, size_t dstCapacity,
             return NCountSize;
         }
     }
-    default: return assert(0), ERROR(GENERIC);
+    default: return ERROR(GENERIC);
     }
 }
 
@@ -2112,9 +2112,17 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     if (nbSeq < 0x7F)
         *op++ = (BYTE)nbSeq;
     else if (nbSeq < LONGNBSEQ)
-        op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
+    {
+        op[0] = (BYTE)((nbSeq>>8) + 0x80);
+        op[1] = (BYTE)nbSeq;
+        op+=2;
+    }
     else
-        op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
+    {
+        op[0]=0xFF;
+        MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ));
+        op+=3;
+    }
     if (nbSeq==0) {
         /* Copy the old tables over as if we repeated them */
         memcpy(&nextEntropy->fse, &prevEntropy->fse, sizeof(prevEntropy->fse));
@@ -3557,7 +3565,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 if (oSize >= ZSTD_compressBound(iSize))
                     cDst = op;   /* compress into output buffer, to skip flush stage */
                 else
-                    cDst = zcs->outBuff, oSize = zcs->outBuffSize;
+                    static_cast<void>(cDst = zcs->outBuff), oSize = zcs->outBuffSize;
                 cSize = lastBlock ?
                         ZSTD_compressEnd(zcs, cDst, oSize,
                                     zcs->inBuff + zcs->inToCompress, iSize) :
@@ -3568,7 +3576,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 /* prepare next block */
                 zcs->inBuffTarget = zcs->inBuffPos + zcs->blockSize;
                 if (zcs->inBuffTarget > zcs->inBuffSize)
-                    zcs->inBuffPos = 0, zcs->inBuffTarget = zcs->blockSize;
+                    static_cast<void>(zcs->inBuffPos = 0), zcs->inBuffTarget = zcs->blockSize;
                 DEBUGLOG(5, "inBuffTarget:%u / inBuffSize:%u",
                          (U32)zcs->inBuffTarget, (U32)zcs->inBuffSize);
                 if (!lastBlock)

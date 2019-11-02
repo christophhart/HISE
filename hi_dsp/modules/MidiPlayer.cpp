@@ -1148,7 +1148,7 @@ void MidiPlayer::swapSequenceListWithIndex(HiseMidiSequence::List listToSwapWith
 {
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(sequenceLock);
-		currentSequences.swapWithArray(listToSwapWith);
+        std::swap(currentSequences, listToSwapWith);
 	}
 
 	for (auto s : currentSequences)

@@ -418,7 +418,10 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
             elt = table[u];
             /* sort : improve rank */
             while ((u>1) && (table[u-1].savings < elt.savings))
-            table[u] = table[u-1], u--;
+            {
+                table[u] = table[u-1];
+                u--;
+            }
             table[u] = elt;
             return u;
     }   }

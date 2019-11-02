@@ -298,6 +298,8 @@ var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::Nativ
 	{
 		return fo->invoke(RootObject::Scope(nullptr, root, root), args);;
 	}
+    
+    return var();
 }
 
 

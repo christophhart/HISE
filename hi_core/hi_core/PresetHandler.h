@@ -730,6 +730,8 @@ struct MessageWithIcon : public Component
 {
 	struct LookAndFeelMethods
 	{
+        virtual ~LookAndFeelMethods() {};
+        
 		virtual void paintMessage(MessageWithIcon& icon, Graphics& g);
 	};
 

@@ -553,6 +553,7 @@ public:
 					return false;
 
 				f(processor, newValue);
+                return true;
 			}
 
 			bool undo() override
@@ -561,6 +562,7 @@ public:
 					return false;
 
 				f(processor, prevValue);
+                return true;
 			}
 
 		private:
