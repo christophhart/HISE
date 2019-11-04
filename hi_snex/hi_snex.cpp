@@ -1,5 +1,6 @@
 #include "hi_snex.h"
 
+#if HISE_INCLUDE_SNEX
 #include "src/asmjit/asmjit.h"
 
 #include "snex_jit/snex_jit_TokenIterator.h"
@@ -48,5 +49,4 @@
 
 #include "snex_core/snex_CallbackCollection.cpp"
 #include "snex_components/snex_JitPlayground.cpp"
-
-
+#endif

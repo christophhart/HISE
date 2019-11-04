@@ -40,7 +40,7 @@ using namespace hise;
 struct NodeContainer : public AssignableObject
 {
 	struct MacroParameter : public NodeBase::Parameter,
-							public snex::DebugHandler
+							public SnexDebugHandler
 	{
 		struct Connection
 		{

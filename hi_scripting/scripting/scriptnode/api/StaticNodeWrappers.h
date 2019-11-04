@@ -567,7 +567,8 @@ public:
 	OwnedArray<Component> components;
 };
 
-
+#if HISE_INCLUDE_SNEX
+    
 #define SET_HISE_BLOCK_CALLBACK(s) static constexpr int BlockCallback = CallbackTypes::s;
 #define SET_HISE_FRAME_CALLBACK(s) static constexpr int FrameCallback = CallbackTypes::s;
 
@@ -603,6 +604,8 @@ struct jit_base : public RestorableNode
 
 	snex::hmath Math;
 };
+    
+#endif
 
 
 struct hardcoded_base : public HiseDspBase,

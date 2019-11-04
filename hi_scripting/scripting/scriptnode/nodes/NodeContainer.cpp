@@ -272,8 +272,10 @@ juce::String NodeContainer::createJitClasses()
 		if (auto c = dynamic_cast<NodeContainer*>(n.get()))
 			s << c->createJitClasses();
 
+#if HISE_INCLUDE_SNEX
 		if (auto j = dynamic_cast<JitNodeBase*>(n.get()))
 			s << j->convertJitCodeToCppClass(isPolyphonic() ? NUM_POLYPHONIC_VOICES : 1, false);
+#endif
 	}
 	
 
@@ -439,7 +441,9 @@ struct ClassGenerator
 			cd.isInverted = c[PropertyIds::Inverted];
 			auto opType = c[PropertyIds::OpType].toString();
 
+#if HISE_INCLUDE_SNEX
 			cd.exprString = snex::JitExpression::convertToValidCpp(c[PropertyIds::Expression].toString());
+#endif
 
 			if (!cd.exprString.isEmpty())
 				cd.isInverted = false;
@@ -595,7 +599,9 @@ struct ClassGenerator
 				cd.isInverted = m[PropertyIds::Inverted];
 				cd.opType = m[PropertyIds::OpType].toString();
 
+#if HISE_INCLUDE_SNEX
 				cd.exprString = snex::JitExpression::convertToValidCpp(m[PropertyIds::Expression].toString());
+#endif
 
 				auto modRange = RangeHelpers::getDoubleRange(m);
 
@@ -1180,6 +1186,7 @@ DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connection::createC
 
 		if (expressionCode.isNotEmpty())
 		{
+#if HISE_INCLUDE_SNEX
 			snex::JitExpression::Ptr e = new snex::JitExpression(expressionCode, parentParameter);
 
 			if (e->isValid())
@@ -1196,6 +1203,11 @@ DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connection::createC
 			}
 			else
 				return f;
+#else
+            jassertfalse;
+            return {};
+#endif
+            
 		}
 		else
 			return DspHelpers::wrapIntoConversionLambda(conversion, f, connectionRange, inverted);

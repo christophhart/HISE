@@ -366,6 +366,7 @@ struct SliderWithLimit : public PropertyComponent
 	} c;
 };
 
+#if HISE_INCLUDE_SNEX
 struct ExpressionPropertyComponent : public PropertyComponent
 {
 	ExpressionPropertyComponent(ValueTree data, const Identifier& id, UndoManager* um):
@@ -679,8 +680,6 @@ struct ExpressionPropertyComponent : public PropertyComponent
 		Display display;
 		
 	} comp;
-
-	
 };
 
 void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
@@ -694,7 +693,8 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 
 	CallOutBox::launchAsynchronously(bigOne, b, pc);
 }
-
+#endif
+    
 juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* , ValueTree& d, const Identifier& id, UndoManager* um)
 {
 	using namespace PropertyIds;
@@ -734,8 +734,11 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 
 	if (propId == LockNumChannels || propId == Enabled)
 		return new ToggleButtonPropertyComponent(d, id, um);
+    
+#if HISE_INCLUDE_SNEX
 	if (propId == Expression)
 		return new ExpressionPropertyComponent(d, id, um);
+#endif
 
 	bool isComment = id == PropertyIds::Comment;
 

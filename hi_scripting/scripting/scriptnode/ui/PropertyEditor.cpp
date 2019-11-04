@@ -69,6 +69,7 @@ bool NodePopupEditor::keyPressed(const KeyPress& key)
 	}
 	if (key.getKeyCode() == 'o' || key.getKeyCode() == 'O')
 	{
+#if HISE_INCLUDE_SNEX
 		if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
 		{
 			auto n = nc->node;
@@ -94,6 +95,9 @@ bool NodePopupEditor::keyPressed(const KeyPress& key)
 			
 			return true;
 		}
+#else
+        return false;
+#endif
 	}
 	if (key == KeyPress::tabKey)
 	{
@@ -215,9 +219,10 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 
 		valueChanged(v);
 	}
+#if HISE_INCLUDE_SNEX
 	else if (propId == PropertyIds::Code)
 	{
-		TextButton* jp = new TextButton("Edit Code");
+        TextButton* jp = new TextButton("Edit Code");
 
 		{
 			jp->onClick = [this, n]()
@@ -242,6 +247,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 
 		editor = jp;
 	}
+#endif
 	else
 	{
 		auto te = new TextEditor();

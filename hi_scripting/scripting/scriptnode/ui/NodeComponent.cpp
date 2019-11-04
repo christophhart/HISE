@@ -296,8 +296,11 @@ void NodeComponent::paint(Graphics& g)
 
 	if (node->getAsRestorableNode() != nullptr)
 		p.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+    
+#if HISE_INCLUDE_SNEX
 	else if (dynamic_cast<JitNodeBase*>(node.get()) != nullptr)
 		p.loadPathFromData(HnodeIcons::jit, sizeof(HnodeIcons::jit));
+#endif
 
 	if(!p.isEmpty())
 	{

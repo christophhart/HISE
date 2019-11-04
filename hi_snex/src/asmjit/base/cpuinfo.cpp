@@ -215,7 +215,7 @@ ASMJIT_FAVOR_SIZE static void armDetectCpuInfo(CpuInfo* cpuInfo) noexcept {
 #elif ASMJIT_OS_LINUX
   armDetectCpuInfoOnLinux(cpuInfo);
 #else
-# error "[asmjit] armDetectCpuInfo() - Unsupported OS."
+//error "[asmjit] armDetectCpuInfo() - Unsupported OS."
 #endif
 }
 #endif // ASMJIT_ARCH_ARM32 || ASMJIT_ARCH_ARM64

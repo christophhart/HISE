@@ -38,7 +38,7 @@ using namespace juce;
 using namespace hise;
 
 
-
+#if HISE_USE_SNEX
 using namespace snex;
 
 template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
@@ -325,6 +325,6 @@ public:
 	HiseDspBase* getInternalJitNode() override;
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitPolyNode(n, d); };
 };
-
+#endif
 
 }

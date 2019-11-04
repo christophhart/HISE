@@ -37,8 +37,11 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+
+
+    
 class ModulationSourceNode: public NodeBase,
-							public snex::DebugHandler
+							public SnexDebugHandler
 {
 public:
 
@@ -85,7 +88,7 @@ public:
 
 		CachedValue<bool> active;
 		OpType opType;
-		snex::JitExpression::Ptr expr;
+		SnexExpressionPtr expr;
 		SpinLock expressionLock;
 	};
 

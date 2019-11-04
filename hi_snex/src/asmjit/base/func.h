@@ -182,7 +182,13 @@ struct CallConv {
     kIdHostStdCall   = kIdHost, // Doesn't exist, redirected to host.
     kIdHostFastCall  = kIdHost  // Doesn't exist, redirected to host.
 #else
-# error "[asmjit] Couldn't determine the target's calling convention."
+    
+    kIdHost          = kIdArm32SoftFP,
+    kIdHostCDecl     = kIdHost, // Doesn't exist, redirected to host.
+    kIdHostStdCall   = kIdHost, // Doesn't exist, redirected to host.
+    kIdHostFastCall  = kIdHost  // Doesn't exist, redirected to host.
+      
+//# error "[asmjit] Couldn't determine the target's calling convention."
 #endif
   };
 

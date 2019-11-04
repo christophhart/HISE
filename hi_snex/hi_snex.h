@@ -65,21 +65,43 @@ END_JUCE_MODULE_DECLARATION
 
 #include "AppConfig.h"
 
+/** Config: HISE_INCLUDE_SNEX
+ 
+Set to 0 to disable SNEX compilation (default on iOS).
+ */
+#ifndef HISE_INCLUDE_SNEX
+#if HISE_IOS
+#define HISE_INDLUDE_SNEX 1
+#else
+#define HISE_INCLUDE_SNEX 0
+#endif
+#endif
+
+
 #include "../hi_tools/hi_tools.h"
 #include "../hi_lac/hi_lac.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 
-
+#if HISE_INCLUDE_SNEX
 #include "snex_core/snex_Types.h"
 #include "snex_core/snex_DynamicType.h"
 #include "snex_core/snex_TypeHelpers.h"
-
-
 #include "snex_jit/snex_jit_public.h"
-
 
 #include "snex_core/snex_CallbackCollection.h"
 #include "snex_components/snex_JitPlayground.h"
+#endif
 
+#if HISE_INCLUDE_SNEX
+using SnexDebugHandler = snex::DebugHandler
+using SnexExpressionPtr = snex::JitExpression::Ptr;
+#else
+struct SnexDebugHandler
+{
+    virtual ~SnexDebugHandler() {}
+    virtual void logMessage(const juce::String& s) {};
+};
 
+using SnexExpressionPtr = void*;
+#endif

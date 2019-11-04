@@ -35,6 +35,8 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+#if HISE_INCLUDE_SNEX
+    
 using namespace snex;
 
 struct JitCodeHelpers
@@ -579,6 +581,8 @@ scriptnode::HiseDspBase* JitNode::getInternalJitNode()
 {
 	return wrapper.getInternalT();
 }
+    
+#endif
 
 }
 

@@ -123,6 +123,7 @@ bool ModulationSourceNode::ModulationTarget::findTarget()
 
 void ModulationSourceNode::ModulationTarget::setExpression(const String& exprCode)
 {
+#if HISE_INCLUDE_SNEX
 	snex::JitExpression::Ptr newExpr;
 
 	if (exprCode.isEmpty())
@@ -140,6 +141,7 @@ void ModulationSourceNode::ModulationTarget::setExpression(const String& exprCod
 			std::swap(newExpr, expr);
 		}
 	}
+#endif
 }
 
 void ModulationSourceNode::ModulationTarget::applyValue(double value)
@@ -257,25 +259,25 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 
 		for (auto t : targets)
 		{
+#if HISE_INCLUDE_SNEX
 			SpinLock::ScopedLockType l(t->expressionLock);
 
 			if (t->expr != nullptr)
 			{
 				auto thisValue = t->expr->getValue(value);
-
 				t->applyValue(thisValue);
+                continue;
 			}
-			else
-			{
-				auto thisValue = value;
-
-				if (t->inverted)
-					thisValue = 1.0 - thisValue;
-
-				auto normalised = t->targetRange.convertFrom0to1(thisValue);
-
-				t->applyValue(normalised);
-			}
+#endif
+			
+            auto thisValue = value;
+            
+            if (t->inverted)
+                thisValue = 1.0 - thisValue;
+            
+            auto normalised = t->targetRange.convertFrom0to1(thisValue);
+            
+            t->applyValue(normalised);
 		}
 	}
 	else

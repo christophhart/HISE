@@ -274,7 +274,7 @@ updater(*this)
 
     
 	LOG_START("Load Midi Files");
-	restorePool(midiFileData, FileHandlerBase::MidiFiles, "MidiFiles.dat");
+	restorePool(midiFileData, FileHandlerBase::MidiFiles, "MidiFilesResources.dat");
 
 #if HI_ENABLE_EXPANSION_EDITING
 	getCurrentFileHandler().pool->getSampleMapPool().loadAllFilesFromDataProvider();
