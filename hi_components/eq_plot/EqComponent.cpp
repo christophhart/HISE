@@ -806,7 +806,7 @@ FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :
 
 void FilterDragOverlay::FFTDisplay::paint(Graphics& g)
 {
-	if (ringBuffer.isActive())
+	if (ringBuffer.isActive() && !parent.eq->isBypassed())
 		FFTDisplayBase::drawSpectrum(g);
 }
 

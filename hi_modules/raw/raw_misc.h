@@ -339,9 +339,9 @@ template <typename DataType> struct Data
 		static void load(Processor* p, const DataType& newValue)
 		{
 			if (inverted)
-				p->setBypassed(static_cast<bool>(newValue), sendNotification);
-			else
 				p->setBypassed(!static_cast<bool>(newValue), sendNotification);
+			else
+				p->setBypassed(static_cast<bool>(newValue), sendNotification);
 		}
 	};
 
