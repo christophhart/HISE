@@ -50,16 +50,13 @@ struct SampleThreadPool::Pimpl
 		}
 	}
 
+	CriticalSection clearLock;
 	Atomic<int> counter;
 
 	std::atomic<double> diskUsage;
-
 	int64 startTime, endTime;
-
 	moodycamel::ReaderWriterQueue<WeakReference<Job>> jobQueue;
-
 	std::atomic<Job*> currentlyExecutedJob;
-
 	static const String errorMessage;
 };
 
@@ -83,6 +80,16 @@ double SampleThreadPool::getDiskUsage() const noexcept
 	return pimpl->diskUsage.load();
 }
 
+void SampleThreadPool::clearPendingTasks()
+{
+	ScopedLock sl(pimpl->clearLock);
+		
+	WeakReference<Job> next;
+
+	while (pimpl->jobQueue.try_dequeue(next))
+		next->signalJobShouldExit();
+}
+
 void SampleThreadPool::addJob(Job* jobToAdd, bool unused)
 {
 	++pimpl->counter;
@@ -101,7 +108,6 @@ void SampleThreadPool::addJob(Job* jobToAdd, bool unused)
 	jobToAdd->queued.store(true);
 	pimpl->jobQueue.enqueue(jobToAdd);
 
-
 	notify();
 }
 
@@ -113,6 +119,8 @@ void SampleThreadPool::run()
 
 		if (pimpl->jobQueue.try_dequeue(next))
 		{
+			ScopedLock sl(pimpl->clearLock);
+
 			Job* j = next.get();
 
 #if ENABLE_CPU_MEASUREMENT
@@ -161,7 +169,7 @@ void SampleThreadPool::run()
 		}
 
 #if 0 // Set this to true to enable defective threading (for debugging purposes)
-		wait(500);
+		wait(2500);
 #else
 		else
 		{
@@ -174,5 +182,6 @@ void SampleThreadPool::run()
 }
 
 const String SampleThreadPool::Pimpl::errorMessage("HDD overflow");
+
 
 } // namespace hise

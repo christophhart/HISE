@@ -311,9 +311,11 @@ void MainController::SampleManager::setPreloadFlag()
 void MainController::SampleManager::triggerSamplePreloading()
 {
 	mc->getSampleManager().setPreloadFlag();
+	
 
 	if (!internalPreloadJob.isRunning() && !internalPreloadJob.isQueued())
 	{
+		mc->getSampleManager().getGlobalSampleThreadPool()->clearPendingTasks();
 		mc->getSampleManager().getGlobalSampleThreadPool()->addJob(&internalPreloadJob, false);
 	}
 }

@@ -73,6 +73,8 @@ public:
 
 		bool isQueued() const noexcept{ return queued.load(); };
 
+		
+
 	protected:
 
 		Thread* getCurrentThread() { return currentThread.load(); }
@@ -97,12 +99,15 @@ public:
 
 	double getDiskUsage() const noexcept;
 
+	void clearPendingTasks();
+
 	void addJob(Job* jobToAdd, bool unused);
 
 	void run() override;
 
 	struct Pimpl;
 
+	
 	ScopedPointer<Pimpl> pimpl;
 
 };
