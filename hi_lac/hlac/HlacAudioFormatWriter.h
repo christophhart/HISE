@@ -65,6 +65,9 @@ public:
 	/** You can use a temporary file instead of the memory buffer if you encode large files. */
 	void setTemporaryBufferType(bool shouldUseTemporaryFile);
 
+	/** Call this to preallocate the amount of memory approximately required for the extraction. */
+	void preallocateMemory(int64 numSamplesToWrite, int numChannels);
+
 	/** Returns the number of written bytes for this reader. */
 	int64 getNumBytesWritten() const;
 

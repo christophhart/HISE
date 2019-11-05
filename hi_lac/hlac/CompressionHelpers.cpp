@@ -1323,6 +1323,10 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			options.applyDithering = false;
 			options.normalisationMode = data.supportFullDynamics ? 2 : 0;
 
+			//dynamic_cast<HiseLosslessAudioFormatWriter*>(writer.get())->setTemporaryBufferType(true);
+
+			dynamic_cast<HiseLosslessAudioFormatWriter*>(writer.get())->preallocateMemory(flacReader->lengthInSamples, flacReader->numChannels);
+
 			if(!data.debugLogMode)
 				dynamic_cast<HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
 

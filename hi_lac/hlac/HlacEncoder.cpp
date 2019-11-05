@@ -196,6 +196,7 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 	jassert(block16.size == COMPRESSION_BLOCK_SIZE);
 
 	MemoryOutputStream blockMos;
+	blockMos.preallocate(COMPRESSION_BLOCK_SIZE * 2);
 
 	firstCycleLength = -1;
 	

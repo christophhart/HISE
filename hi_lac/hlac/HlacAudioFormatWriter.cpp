@@ -63,6 +63,9 @@ bool HiseLosslessAudioFormatWriter::flush()
 		return false;
 
 	tempWasFlushed = true;
+
+	tempOutputStream->flush();
+
 	deleteTemp();
 	return true;
 }
@@ -163,6 +166,26 @@ void HiseLosslessAudioFormatWriter::setTemporaryBufferType(bool shouldUseTempora
 }
 
 
+void HiseLosslessAudioFormatWriter::preallocateMemory(int64 numSamplesToWrite, int numChannels)
+{
+	if (auto mos = dynamic_cast<MemoryOutputStream*>(tempOutputStream.get()))
+	{
+		int64 b = numSamplesToWrite * numChannels * 2 * 2 / 3;
+
+		// Set the limit to 1.5GB
+		int64 limit = 1024;
+		limit *= 1024;
+		limit *= 1024;
+		limit *= 3;
+		limit /= 2;
+
+		if (b > limit)
+			setTemporaryBufferType(true);
+		else
+			mos->preallocate(b);
+	}
+}
+
 int64 HiseLosslessAudioFormatWriter::getNumBytesWritten() const
 {
 	return numBytesWritten;
@@ -224,8 +247,9 @@ void HiseLosslessAudioFormatWriter::deleteTemp()
 	// This means nothing will get written to the actual output stream...
 	jassert(tempWasFlushed);
 
-	tempFile = nullptr;
 	tempOutputStream = nullptr;
+	tempFile = nullptr;
+	
 }
 
 } // namespace hlac
