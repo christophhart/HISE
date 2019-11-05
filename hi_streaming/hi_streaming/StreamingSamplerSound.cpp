@@ -160,6 +160,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 			fileReader.openFileHandles(dontSendNotification);
 			sampleLength = (int)fileReader.getSampleLength();
 			loopLength = jmin<int>(loopLength, sampleLength);
+			loopEnd = jmin<int>(loopEnd, sampleLength);
 		}
 
 		internalPreloadSize = (int)sampleLength;
@@ -483,6 +484,13 @@ void StreamingSamplerSound::lengthChanged()
 void StreamingSamplerSound::loopChanged()
 {
 	ScopedLock sl(getSampleLock());
+
+	if (sampleEnd == MAX_SAMPLE_NUMBER && loopEnabled)
+	{
+		fileReader.openFileHandles();
+		sampleEnd = fileReader.getSampleLength();
+	}
+
 
 	loopStart = jmax<int>(loopStart, sampleStart);
 	loopEnd = jmin<int>(loopEnd, sampleEnd);

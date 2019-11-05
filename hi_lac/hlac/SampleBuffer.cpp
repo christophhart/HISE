@@ -596,6 +596,8 @@ void HiseSampleBuffer::Normaliser::copyFrom(const Normaliser& source, Range<int>
 		}
 	}
 
+	infos.ensureStorageAllocated(infos.size() + source.infos.size());
+
 	for (const auto& i : source.infos)
 	{
 		if (i.leftNormalisation == 0 && i.rightNormalisation == 0)
