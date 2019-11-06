@@ -222,6 +222,7 @@ FilterGraph::FilterGraph (int numFiltersInit, int drawType_)
 	drawType((DrawType)drawType_)
 {
 	setOpaque(true);
+	setEnablePaintProfiling("FilterGraph");
 
 	setColour(ColourIds::bgColour, Colour(0xFF333333));
 	setColour(ColourIds::lineColour, Colours::white);

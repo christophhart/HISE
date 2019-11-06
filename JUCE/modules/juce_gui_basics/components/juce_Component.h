@@ -27,6 +27,73 @@
 namespace juce
 {
 
+
+struct DummyPaintProfiler
+{
+	DummyPaintProfiler(Identifier id)
+	{
+		ignoreUnused(id);
+	}
+
+	void setIsRenderingChildComponents(bool unused)
+	{
+		ignoreUnused(unused);
+	}
+
+	static void profile(bool start) { ignoreUnused(start); }
+
+};
+
+struct RealPaintProfiler
+{
+	RealPaintProfiler(Identifier id_);
+	~RealPaintProfiler();
+
+	struct Manager: public DeletedAtShutdown
+	{
+		struct Entry
+		{
+			Identifier id;
+			double milliseconds = 0.0;
+			double millisecondsInChildCalls = 0.0;
+			int counter = 0;
+
+			String toString(double totalDuration) const;
+		};
+
+		Manager()
+		{
+			startTime = Time::getMillisecondCounterHiRes();
+		}
+
+		~Manager();
+
+		double startTime;
+		Array<Entry> entries;
+	};
+
+	void setIsRenderingChildComponents(bool renderingChildComponents);
+
+	static void profile(bool start);
+
+private:
+
+	Identifier id;
+	double startTime = 0.0;
+
+	double childStartTime = 0.0;
+	double childEndTime = 0.0;
+
+	static Manager* manager;
+
+};
+
+#if JUCE_ENABLE_REPAINT_PROFILING
+using PaintProfiler = RealPaintProfiler;
+#else
+using PaintProfiler = DummyPaintProfiler;
+#endif
+
 //==============================================================================
 /**
     The base class for all JUCE user-interface objects.
@@ -1431,6 +1498,10 @@ public:
     */
     void updateMouseCursor() const;
 
+	/** If this is true, it will use a profiler and create a list of where the most time
+	    was spend in the repainting. */
+	void setEnablePaintProfiling(Identifier id);
+
     //==============================================================================
     /** Components can override this method to draw their content.
 
@@ -2287,6 +2358,8 @@ private:
 
     friend class WeakReference<Component>;
     WeakReference<Component>::Master masterReference;
+
+	Identifier profileId;
 
     struct ComponentFlags
     {

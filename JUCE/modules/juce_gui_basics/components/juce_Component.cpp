@@ -1751,6 +1751,15 @@ void Component::updateMouseCursor() const
     Desktop::getInstance().getMainMouseSource().forceMouseCursorUpdate();
 }
 
+void Component::setEnablePaintProfiling(Identifier id)
+{
+	ignoreUnused(id);
+
+#if JUCE_ENABLE_REPAINT_PROFILING
+	profileId = id;
+#endif
+}
+
 //==============================================================================
 void Component::setRepaintsOnMouseActivity (bool shouldRepaint) noexcept
 {
@@ -1876,6 +1885,8 @@ void Component::paintWithinParentContext (Graphics& g)
 
 void Component::paintComponentAndChildren (Graphics& g)
 {
+	PaintProfiler paintProfiler(profileId);
+
     auto clipBounds = g.getClipBounds();
 
     if (flags.dontClipGraphicsFlag)
@@ -1891,6 +1902,8 @@ void Component::paintComponentAndChildren (Graphics& g)
 
         g.restoreState();
     }
+
+	paintProfiler.setIsRenderingChildComponents(true);
 
     for (int i = 0; i < childComponentList.size(); ++i)
     {
@@ -1939,6 +1952,8 @@ void Component::paintComponentAndChildren (Graphics& g)
             }
         }
     }
+
+	paintProfiler.setIsRenderingChildComponents(false);
 
     g.saveState();
     paintOverChildren (g);
@@ -2988,6 +3003,227 @@ Component::BailOutChecker::BailOutChecker (Component* component)
 bool Component::BailOutChecker::shouldBailOut() const noexcept
 {
     return safePointer == nullptr;
+}
+
+
+int getTabCount(const String& s)
+{
+	int charCount = 0;
+
+	for (int i = 0; i < s.length(); i++)
+	{
+		if (s[i] == '\t')
+		{
+			int numToNextTab = 4 - charCount % 4;
+			charCount += numToNextTab;
+		}
+		else
+			charCount++;
+	}
+
+	return charCount / 4;
+}
+
+void fillStringWithTabs(String& s, int tabIndex)
+{
+	auto tabCount = getTabCount(s);
+
+	for (int i = tabCount; i < tabIndex; i++)
+	{
+		s << "\t";
+	}
+}
+
+
+RealPaintProfiler::Manager::~Manager()
+{
+	auto endTime = Time::getMillisecondCounterHiRes();
+
+	auto delta = endTime - startTime;
+
+	auto pFile = File::getSpecialLocation(File::userDesktopDirectory).getChildFile("PaintProfiles");
+	pFile.createDirectory();
+
+	auto tFile = pFile.getNonexistentChildFile("Profile", ".log", false);
+
+	String s;
+	String nl = "\n";
+	s << "Profile results" << nl;
+	s << "---------------" << nl;
+	s << nl;
+	s << Time::getCurrentTime().toString(true, true, true, true) << nl;
+	s << "Duration of test: " << String(delta * 0.001, 2) << " seconds" << nl;
+	s << nl;
+
+	struct Sorter
+	{
+		static int compareElements(const Entry& first, const Entry& second)
+		{
+			if (first.milliseconds < second.milliseconds)
+				return 1;
+			else if (first.milliseconds > second.milliseconds)
+				return -1;
+			else
+				return 0;
+		}
+	} sorter;
+
+	entries.sort(sorter);
+
+	s << "## Sorted by total runtime ====================================================" << nl << nl;
+
+	s << "ID					Total Time		Total %		Count	Exclusive	Exclusive %	" << nl;
+	s << "-------------------------------------------------------------------------------" << nl;
+
+	for (const auto& e : entries)
+	{
+		s << e.toString(delta);
+		
+	}
+
+	s << nl;
+	s << nl;
+
+	s << "## Sorted by exclusive runtime ================================================" << nl << nl;
+
+	s << "ID					Total Time		Total %		Count	Exclusive	Exclusive %	" << nl;
+	s << "-------------------------------------------------------------------------------" << nl;
+
+	struct ExclusiveSorter
+	{
+		static int compareElements(const Entry& first, const Entry& second)
+		{
+			auto firstExclusive = first.milliseconds - first.millisecondsInChildCalls;
+			auto secondExclusive = second.milliseconds - second.millisecondsInChildCalls;
+
+			if (firstExclusive < secondExclusive)
+				return 1;
+			else if (firstExclusive > secondExclusive)
+				return -1;
+			else
+				return 0;
+		}
+	} exclusiveSorter;
+
+	entries.sort(exclusiveSorter);
+
+	for (const auto& e : entries)
+	{
+		s << e.toString(delta);
+	}
+	
+	tFile.replaceWithText(s);
+}
+
+RealPaintProfiler::Manager* RealPaintProfiler::manager = nullptr;
+
+RealPaintProfiler::RealPaintProfiler(Identifier id_) :
+	id(id_)
+{
+	if (id.isValid())
+		startTime = Time::getMillisecondCounterHiRes();
+	else
+		startTime = 0.0;
+}
+
+RealPaintProfiler::~RealPaintProfiler()
+{
+	if (!id.isValid() || manager == nullptr)
+		return;
+
+	auto endTime = Time::getMillisecondCounterHiRes();
+
+	auto delta = endTime - startTime;
+	auto childDelta = childEndTime - childStartTime;
+
+	auto& entries = manager->entries;
+
+	for (auto& e : entries)
+	{
+		if (e.id == id)
+		{
+			e.milliseconds += delta;
+			e.millisecondsInChildCalls += childDelta;
+			e.counter++;
+			return;
+		}
+	}
+
+	Manager::Entry e;
+	e.id = id;
+	e.milliseconds = delta;
+	e.millisecondsInChildCalls = childDelta;
+	e.counter = 1;
+
+	entries.add(e);
+}
+
+void RealPaintProfiler::setIsRenderingChildComponents(bool renderingChildComponents)
+{
+	if (manager != nullptr)
+	{
+		if (renderingChildComponents)
+			childStartTime = Time::getMillisecondCounterHiRes();
+		else
+			childEndTime = Time::getMillisecondCounterHiRes();
+	}
+}
+
+void RealPaintProfiler::profile(bool start)
+{
+	MessageManagerLock mm;
+
+	if (start && manager != nullptr)
+		return;
+
+	if (!start && manager == nullptr)
+		return;
+
+	if (start)
+		manager = new Manager();
+	else
+	{
+		delete manager;
+		manager = nullptr;
+	}
+		
+}
+
+juce::String RealPaintProfiler::Manager::Entry::toString(double totalDuration) const
+{
+	String s;
+
+	auto percentage = milliseconds / totalDuration * 100.0;
+
+	auto exclusive = milliseconds - millisecondsInChildCalls;
+	auto exclusiveP = exclusive / totalDuration * 100.0;
+
+	s << id;
+	
+	fillStringWithTabs(s, 5);
+
+	s << String(milliseconds, 2) << "ms";
+
+	fillStringWithTabs(s, 9);
+	
+	s << String(percentage, 1) << "%";
+	
+	fillStringWithTabs(s, 12);
+
+	s << String(counter);
+	
+	fillStringWithTabs(s, 14);
+
+	s << String(exclusive, 2) << "ms";
+
+	fillStringWithTabs(s, 17);
+
+	s << String(exclusiveP, 1) << "%";
+
+	s << "\n";
+
+	return s;
+	
 }
 
 } // namespace juce

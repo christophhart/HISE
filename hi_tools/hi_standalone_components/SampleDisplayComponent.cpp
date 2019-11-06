@@ -812,6 +812,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 HiseAudioThumbnail::HiseAudioThumbnail() :
 	loadingThread(this)
 {
+	setEnablePaintProfiling("AudioThumbnail");
 	setColour(AudioDisplayComponent::ColourIds::fillColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xffcccccc)));
 	setColour(AudioDisplayComponent::ColourIds::outlineColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xa2181818)));
 

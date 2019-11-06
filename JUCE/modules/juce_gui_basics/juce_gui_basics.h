@@ -67,6 +67,14 @@
  #define JUCE_ENABLE_REPAINT_DEBUGGING 0
 #endif
 
+/** Config: JUCE_ENABLE_REPAINT_PROFILING
+	If this option is turned on, each component that is selected for profiling will be
+	measured and a statistic of the time spent inside the paint callback will be created
+	on shutdown. */
+#ifndef JUCE_ENABLE_REPAINT_PROFILING
+#define JUCE_ENABLE_REPAINT_PROFILING 1
+#endif
+
 /** Config: JUCE_USE_XRANDR
     Enables Xrandr multi-monitor support (Linux only).
     Unless you specifically want to disable this, it's best to leave this option turned on.
