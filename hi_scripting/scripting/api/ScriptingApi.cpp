@@ -1928,6 +1928,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_1(Sampler, saveCurrentSampleMap);
 	API_METHOD_WRAPPER_2(Sampler, importSamples);
 	API_METHOD_WRAPPER_0(Sampler, clearSampleMap);
+	API_VOID_METHOD_WRAPPER_1(Sampler, setSortByRRGroup);
 };
 
 
@@ -1958,6 +1959,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(isNoteNumberMapped);
     ADD_API_METHOD_1(loadSampleForAnalysis);
 	ADD_API_METHOD_1(setUseStaticMatrix);
+	ADD_API_METHOD_1(setSortByRRGroup);
 	ADD_API_METHOD_1(createSelection);
 	ADD_API_METHOD_1(createSelectionFromIndexes);
 	ADD_API_METHOD_0(createListFromGUISelection);
@@ -2697,6 +2699,21 @@ void ScriptingApi::Sampler::setUseStaticMatrix(bool shouldUseStaticMatrix)
 	}
 
 	s->setUseStaticMatrix(shouldUseStaticMatrix);
+}
+
+void ScriptingApi::Sampler::setSortByRRGroup(bool shouldSort)
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setSortByRRGroup() only works with Samplers.");
+		RETURN_VOID_IF_NO_THROW()
+	}
+
+	s->setSortByGroup(shouldSort);
 }
 
 bool ScriptingApi::Sampler::saveCurrentSampleMap(String relativePathWithoutXml)

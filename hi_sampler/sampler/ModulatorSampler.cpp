@@ -181,6 +181,7 @@ temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 
 ModulatorSampler::~ModulatorSampler()
 {
+	soundCollector = nullptr;
 	sampleMap = nullptr;
 	abortIteration = true;
 	deleteAllSounds();
@@ -780,6 +781,19 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 	}
 }
 
+void ModulatorSampler::setSortByGroup(bool shouldSortByGroup)
+{
+	if (shouldSortByGroup != (soundCollector != nullptr))
+	{
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+
+		if (shouldSortByGroup)
+			soundCollector = new GroupedRoundRobinCollector(this);
+		else
+			soundCollector = nullptr;
+	}
+}
+
 bool ModulatorSampler::hasPendingAsyncJobs() const
 {
 	return getMainController()->getSampleManager().hasPendingFunction(const_cast<ModulatorSampler*>(this));
@@ -1306,6 +1320,79 @@ ModulatorSampler::ScopedUpdateDelayer::~ScopedUpdateDelayer()
 	sampler->refreshMemoryUsage();
 	sampler->sendChangeMessage();
 	sampler->getSampleMap()->sendSampleMapChangeMessage(sendNotificationAsync);
+}
+
+ModulatorSampler::GroupedRoundRobinCollector::GroupedRoundRobinCollector(ModulatorSampler* s):
+	sampler(s),
+	ready(false)
+{
+	sampler->getSampleMap()->addListener(this);
+	triggerAsyncUpdate();
+}
+
+ModulatorSampler::GroupedRoundRobinCollector::~GroupedRoundRobinCollector()
+{
+	if (sampler != nullptr)
+		sampler->getSampleMap()->removeListener(this);
+}
+
+void ModulatorSampler::GroupedRoundRobinCollector::collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound *>& soundsToBeStarted)
+{
+	SimpleReadWriteLock::ScopedReadLock sl(rebuildLock);
+
+	if (!ready)
+		jassertfalse;
+
+	auto currentGroup = sampler->getCurrentRRGroup() - 1;
+
+	if (isPositiveAndBelow(currentGroup, groups.size()))
+	{
+		auto& refArray = groups.getReference(currentGroup);
+
+		for (auto s : refArray)
+		{
+			if (sampler->soundCanBePlayed(s, m.getChannel(), m.getNoteNumber(), m.getFloatVelocity()))
+				soundsToBeStarted.insertWithoutSearch(s);
+		}
+	}
+}
+
+void ModulatorSampler::GroupedRoundRobinCollector::handleAsyncUpdate()
+{
+	Array<ReferenceCountedArray<ModulatorSynthSound>> newList;
+
+	auto numRRGroups = sampler->getAttribute(ModulatorSampler::RRGroupAmount);
+
+	if (numRRGroups > 0)
+	{
+		int numToStore = sampler->getNumSounds() / numRRGroups;
+
+		newList.ensureStorageAllocated(numRRGroups);
+
+		for (int i = 0; i < numRRGroups; i++)
+		{
+			ReferenceCountedArray<ModulatorSynthSound> newArray;
+			newArray.ensureStorageAllocated(numToStore);
+			newList.add(newArray);
+		}
+
+		ModulatorSampler::SoundIterator it(sampler);
+		jassert(it.canIterate());
+
+		while (auto s = it.getNextSound())
+		{
+			auto rrIndex = (int)s->getSampleProperty(SampleIds::RRGroup) - 1;
+
+			if (isPositiveAndBelow(rrIndex, newList.size()))
+			{
+				newList.getReference(rrIndex).add(static_cast<ModulatorSynthSound*>(s));
+			}
+		}
+	}
+
+	SimpleReadWriteLock::ScopedWriteLock sl(rebuildLock);
+	std::swap(groups, newList);
+	ready.store(true);
 }
 
 } // namespace hise

@@ -997,12 +997,19 @@ int ModulatorSynth::collectSoundsToBeStarted(const HiseEvent &m)
 
 	soundsToBeStarted.clearQuick();
 
-	for (auto s: sounds)
+	if (soundCollector != nullptr)
 	{
-		ModulatorSynthSound *sound = static_cast<ModulatorSynthSound*>(s);
+		soundCollector->collectSounds(m, soundsToBeStarted);
+	}
+	else
+	{
+		for (auto s : sounds)
+		{
+			ModulatorSynthSound *sound = static_cast<ModulatorSynthSound*>(s);
 
-		if (soundCanBePlayed(sound, midiChannel, transposedMidiNoteNumber, velocity))
-			soundsToBeStarted.insertWithoutSearch(sound);
+			if (soundCanBePlayed(sound, midiChannel, transposedMidiNoteNumber, velocity))
+				soundsToBeStarted.insertWithoutSearch(sound);
+		}
 	}
 
 	return soundsToBeStarted.size();

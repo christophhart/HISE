@@ -35,6 +35,8 @@
 
 namespace hise { using namespace juce;
 
+
+
 class SampleEditHandler;
 
 /** The main sampler class.
@@ -75,6 +77,52 @@ public:
 
 	private:
 		WeakReference<ModulatorSampler> sampler;
+	};
+
+	class GroupedRoundRobinCollector : public ModulatorSynth::SoundCollectorBase,
+									   public SampleMap::Listener,
+									   public AsyncUpdater
+	{
+	public:
+
+		GroupedRoundRobinCollector(ModulatorSampler* s);
+
+		~GroupedRoundRobinCollector();
+
+		void collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound *>& soundsToBeStarted) override;
+
+		void sampleMapWasChanged(PoolReference newSampleMap)
+		{
+			triggerAsyncUpdate();
+		}
+
+		void samplePropertyWasChanged(ModulatorSamplerSound* , const Identifier& id, const var& )
+		{
+			if(id == SampleIds::RRGroup)
+				triggerAsyncUpdate();
+		};
+
+		virtual void sampleAmountChanged() 
+		{
+			triggerAsyncUpdate();
+		};
+
+		virtual void sampleMapCleared()
+		{
+			triggerAsyncUpdate();
+		};
+
+	private:
+
+		SimpleReadWriteLock rebuildLock;
+
+		WeakReference<ModulatorSampler> sampler;
+
+		void handleAsyncUpdate() override;
+
+		std::atomic<bool> ready;
+
+		Array<ReferenceCountedArray<ModulatorSynthSound>> groups;
 	};
 
 	/** A small helper tool that iterates over the sound array in a thread-safe way.
@@ -303,8 +351,6 @@ public:
 
 	void resetNoteDisplay(int noteNumber);
 	void resetNotes();
-
-	
 
 	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
@@ -585,6 +631,9 @@ public:
 	}
     
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
+
+	
+	void setSortByGroup(bool shouldSortByGroup);
 
 	bool shouldDelayUpdate() const noexcept { return delayUpdate; }
 

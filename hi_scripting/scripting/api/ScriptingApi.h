@@ -564,6 +564,9 @@ public:
 		/** Disables dynamic resizing when a sample map is loaded. */
 		void setUseStaticMatrix(bool shouldUseStaticMatrix);
 
+		/** Enables a presorting of the sounds into RR groups. This might improve the performance at voice start if you have a lot of samples (> 20.000) in many RR groups. */
+		void setSortByRRGroup(bool shouldSort);
+
 		/** Saves (and loads) the current samplemap to the given path (which should be the same string as the ID). */
 		bool saveCurrentSampleMap(String relativePathWithoutXml);
 

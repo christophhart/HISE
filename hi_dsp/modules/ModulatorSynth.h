@@ -280,6 +280,14 @@ public:
 
 	void noteOn(int midiChannel, int midiNoteNumber, float velocity) final override;
 
+	struct SoundCollectorBase
+	{
+
+		virtual ~SoundCollectorBase() {};
+
+		virtual void collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound*>& soundsToBeStarted) = 0;
+	};
+
 	/** This method should go through all sounds that are playable and fill the soundsToBeStarted array. */
 	virtual int collectSoundsToBeStarted(const HiseEvent &m);
 
@@ -440,6 +448,8 @@ public:
 protected:
 
 	ModulatorChain::Collection modChains;
+
+	ScopedPointer<SoundCollectorBase> soundCollector;
 
 public:
 
