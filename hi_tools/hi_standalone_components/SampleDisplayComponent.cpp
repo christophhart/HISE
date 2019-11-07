@@ -923,9 +923,11 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 		g.setColour(fillColour);
 		g.fillPath(leftWaveform);
 
-		g.setColour(outlineColour);
-		g.strokePath(leftWaveform, PathStrokeType(1.0f));
-
+        if(!outlineColour.isTransparent())
+        {
+            g.setColour(outlineColour);
+            g.strokePath(leftWaveform, PathStrokeType(1.0f));
+        }
 	}
 	else
 	{
@@ -945,9 +947,12 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 		g.fillPath(leftWaveform);
 		g.fillPath(rightWaveform);
 
-		g.setColour(outlineColour);
-		g.strokePath(leftWaveform, PathStrokeType(1.0f));
-		g.strokePath(rightWaveform, PathStrokeType(1.0f));
+        if(!outlineColour.isTransparent())
+        {
+            g.setColour(outlineColour);
+            g.strokePath(leftWaveform, PathStrokeType(1.0f));
+            g.strokePath(rightWaveform, PathStrokeType(1.0f));
+        }
 	}
 }
 
