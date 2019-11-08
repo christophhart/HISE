@@ -46,6 +46,74 @@ class Table: public SafeChangeBroadcaster
 {
 public:
 
+	struct Updater: private SafeChangeBroadcaster,
+					private SafeChangeListener
+	{
+		struct Listener
+		{
+			virtual ~Listener() {};
+
+			/** Called when the index has been changed. */
+			virtual void indexChanged(float newIndex) = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		};
+
+		Updater(PooledUIUpdater* updater)
+		{
+			setHandler(updater);
+			addChangeListener(this);
+		}
+
+		void addListener(Listener* l)
+		{
+			listeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeListener(Listener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+
+		void sendIndexChangeMessage(float newIndex)
+		{
+			if (listeners.isEmpty())
+				return;
+
+			if (lastSendValue != newIndex)
+			{
+				jassert(SafeChangeBroadcaster::isHandlerInitialised());
+
+				valueToSend = newIndex;
+				sendPooledChangeMessage();
+			}
+		}
+
+	private:
+
+		void changeListenerCallback(SafeChangeBroadcaster *) override
+		{
+			lastSendValue = valueToSend;
+
+			for (int i = 0; i < listeners.size(); i++)
+			{
+				if (listeners[i] == nullptr)
+					listeners.remove(i--);
+			}
+
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->indexChanged(lastSendValue);
+			}
+		}
+
+		Array<WeakReference<Listener>> listeners;
+
+		float valueToSend = -1.0f;
+		float lastSendValue = -1.0f;
+	};
+
 	static String getDefaultTextValue(float input) { return String(roundToInt(input * 100.0f)) + "%"; };
 
 	using ValueTextConverter = std::function<String(float)>;

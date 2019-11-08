@@ -315,7 +315,8 @@ class Processor;
 class TableEditor : public Component,
 	public SettableTooltipClient,
 	public SafeChangeListener,
-	public CopyPasteTarget
+	public CopyPasteTarget,
+	public Table::Updater::Listener
 {
 public:
 
@@ -396,6 +397,11 @@ public:
 			createDragPoints();
 			refreshGraph();
 		}
+	}
+
+	void indexChanged(float newIndex) override
+	{
+		setDisplayedIndex(newIndex);
 	}
 
 	String getObjectTypeName() override
@@ -569,12 +575,9 @@ private:
 		{
 			if (newIndex != value)
 			{
-				if (updater.shouldUpdate())
-				{					
-					repaint();
+				value = newIndex;
 
-					value = newIndex;
-				}
+				repaint();
 			}
 		};
 
