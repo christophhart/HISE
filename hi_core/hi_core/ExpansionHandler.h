@@ -457,9 +457,14 @@ public:
     
 	void clearPools();
 
-    
+	bool& getNotifierFlag()
+	{
+		return notifier.enabled;
+	}
     
 private:
+
+	SimpleReadWriteLock expansionLock;
 
     FileHandlerBase* getFileHandler(MainController* mc);
     
@@ -493,10 +498,11 @@ private:
 			parent(parent_)
 		{};
 
-		
-
 		void sendNotification(EventType eventType, NotificationType notificationType = sendNotificationAsync)
 		{
+			if (!enabled)
+				return;
+
 			if ((int)eventType > (int)m)
 				m = eventType;
 
@@ -509,6 +515,8 @@ private:
 				handleAsyncUpdate();
 			}
 		}
+
+		bool enabled = true;
 
 	private:
 

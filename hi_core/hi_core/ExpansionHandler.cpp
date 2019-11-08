@@ -199,7 +199,10 @@ void ExpansionHandler::createAvailableExpansions()
 
 void ExpansionHandler::rebuildExpansions()
 {
-	expansionList.clear();
+	{
+		MessageManagerLock mm;
+		expansionList.clear();
+	}
 
 	createAvailableExpansions();
 }
