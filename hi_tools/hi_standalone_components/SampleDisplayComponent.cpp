@@ -772,19 +772,47 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 		p.clear();
 		p.startNewSubPath(0.0f, 0.0f);
 		
+#if HISE_USE_SYMMETRIC_WAVEFORMS
+
+		Array<float> values;
+
+		values.ensureStorageAllocated(numSamples / stride + 2);
+
+		for (int i = stride; i < numSamples; i++)
+		{
+			if (threadShouldExit())
+				return;
+
+			const int numToCheck = jmin<int>(stride, numSamples - i);
+			auto minMax = FloatVectorOperations::findMinAndMax(l_ + i, numToCheck);
+			auto value = jmax(std::abs(minMax.getStart()), std::abs(minMax.getEnd()));
+			value = jlimit<float>(0.0f, 1.0f, value);
+			values.add(value);
+
+			i += stride;
+		};
+
+		int numPoints = values.size();
+
+		for (int i = 0; i < numPoints; i++)
+			p.lineTo((float)i, values[i]);
+
+		for (int i = numPoints - 1; i >= 0; i--)
+			p.lineTo((float)i, -values[i]);
+
+#else
+
+
+
 		for (int i = stride; i < numSamples; i += stride)
 		{
 			if (threadShouldExit())
 				return;
 
 			const int numToCheck = jmin<int>(stride, numSamples - i);
-
 			auto value = jmax<float>(0.0f, FloatVectorOperations::findMaximum(l_ + i, numToCheck));
-
 			value = jlimit<float>(-1.0f, 1.0f, value);
-
 			p.lineTo((float)i, -1.0f * value);
-
 		};
 
 		for (int i = numSamples - 1; i >= 0; i -= stride)
@@ -793,13 +821,12 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 				return;
 
 			const int numToCheck = jmin<int>(stride, numSamples - i);
-
 			auto value = jmin<float>(0.0f, FloatVectorOperations::findMinimum(l_ + i, numToCheck));
-
 			value = jlimit<float>(-1.0f, 1.0f, value);
-
 			p.lineTo((float)i, -1.0f * value);
 		};
+
+#endif
 
 		p.closeSubPath();
 	}
@@ -884,13 +911,6 @@ void HiseAudioThumbnail::paint(Graphics& g)
 			drawSection(g, true);
 		}
 	}
-	else
-	{
-		jassertfalse;
-	}
-
-	
-
 	
 }
 
@@ -923,11 +943,13 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 		g.setColour(fillColour);
 		g.fillPath(leftWaveform);
 
-        if(!outlineColour.isTransparent())
-        {
-            g.setColour(outlineColour);
-            g.strokePath(leftWaveform, PathStrokeType(1.0f));
-        }
+		if (!outlineColour.isTransparent())
+		{
+			g.setColour(outlineColour);
+			g.strokePath(leftWaveform, PathStrokeType(1.0f));
+		}
+		
+
 	}
 	else
 	{
@@ -947,12 +969,12 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 		g.fillPath(leftWaveform);
 		g.fillPath(rightWaveform);
 
-        if(!outlineColour.isTransparent())
-        {
-            g.setColour(outlineColour);
-            g.strokePath(leftWaveform, PathStrokeType(1.0f));
-            g.strokePath(rightWaveform, PathStrokeType(1.0f));
-        }
+		if (!outlineColour.isTransparent())
+		{
+			g.setColour(outlineColour);
+			g.strokePath(leftWaveform, PathStrokeType(1.0f));
+			g.strokePath(rightWaveform, PathStrokeType(1.0f));
+		}
 	}
 }
 

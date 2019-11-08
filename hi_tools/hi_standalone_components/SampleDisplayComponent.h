@@ -44,6 +44,9 @@ class AudioDisplayComponent;
 
 #define EDGE_WIDTH 5
 
+#ifndef HISE_USE_SYMMETRIC_WAVEFORMS
+#define HISE_USE_SYMMETRIC_WAVEFORMS 0
+#endif
 
 
 class HiseAudioThumbnail: public Component,
