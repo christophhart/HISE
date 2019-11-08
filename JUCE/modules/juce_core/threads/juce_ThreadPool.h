@@ -167,6 +167,9 @@ public:
     */
     ThreadPool (int numberOfThreads, size_t threadStackSize = 0);
 
+	/** Creates a thread pool with a given name. */
+	ThreadPool(const String& name, int numberOfThreads);
+
     /** Creates a thread pool with one thread per CPU core.
         Once you've created a pool, you can give it some jobs by calling addJob().
         If you want to specify the number of threads, use the other constructor; this
@@ -319,6 +322,8 @@ public:
 private:
     //==============================================================================
     Array<ThreadPoolJob*> jobs;
+
+	String name;
 
     struct ThreadPoolThread;
     friend class ThreadPoolJob;

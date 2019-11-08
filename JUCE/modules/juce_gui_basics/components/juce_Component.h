@@ -88,6 +88,9 @@ private:
 
 };
 
+
+
+
 #if JUCE_ENABLE_REPAINT_PROFILING
 using PaintProfiler = RealPaintProfiler;
 #else
@@ -2456,5 +2459,172 @@ protected:
     virtual ComponentPeer* createNewPeer (int styleFlags, void* nativeWindowToAttachTo);
    #endif
 };
+
+
+/** A small helper class that will draw pixel-aligned shapes without blurrying the edges. */
+class UnblurryGraphics
+{
+public:
+
+	/** Creates an object for drawing unblurred stuff.
+
+		You need to supply the Graphics as well as the component you're about to draw onto.
+		It will calculate the ratios on construction, so if you're about to use this multiple
+		times within one paint() callback it saves a few CPU cycles.
+
+		It's intended to be used as drop-in replacement for the Graphics object:
+
+			void paint(Graphics& g) override
+			{
+				UnblurryGraphics ug(g, *this);
+
+				ug.draw1PxRect(getLocalBounds().toFloat().reduced(5.0f));
+			}
+
+		Be aware that it accepts float values as argument to each method as it tries to
+		postpone the rounding as much as possible.
+	*/
+	UnblurryGraphics(Graphics& g_, Component& componentToDrawOn) :
+		g(g_),
+		c(componentToDrawOn),
+		tl(c.getTopLevelComponent())
+	{
+		juceScaleFactor = UnblurryGraphics::getScaleFactorForComponent(&c);
+		sf = g.getInternalContext().getPhysicalPixelScaleFactor();
+		physicalScaleFactor = sf / juceScaleFactor;
+
+		// Now for some reason a small rounding error is introduced, so we make
+		// sure that the physical scale factor is a multiple of 0.25.
+		// (I am not aware of OS that use a smaller resolution for their scale factor
+		// steps).
+		physicalScaleFactor -= fmodf(physicalScaleFactor, 0.25f);
+		sf = juceScaleFactor * physicalScaleFactor;
+
+		pixelSizeInFloat = 1.0f / sf;
+
+		// On retina images, this will make sure that it draws actually px wide thingies.
+		pixelSizeInFloat *= std::floor(sf);
+
+		if (pixelSizeInFloat == 0.0f)
+			pixelSizeInFloat = 1.0f;
+
+		// For the position calculation we just need the physical scale factor
+		subOffsetDivisor = 1.0f / physicalScaleFactor;
+	}
+
+	/** Draws a 1px horizontal line without blurrying the edges. */
+	void draw1PxHorizontalLine(float y, float startX, float endX)
+	{
+		auto x = getRoundedXValue(startX);
+		auto w = getRoundedXValue(endX) - x;
+
+		g.fillRect(x,
+			getRoundedYValue(y),
+			w,
+			pixelSizeInFloat);
+	}
+
+	/** Draws a 1px thick vertical line without blurrying the edges. */
+	void draw1PxVerticalLine(float x, float startY, float endY)
+	{
+		auto y = getRoundedYValue(startY);
+		auto h = getRoundedYValue(endY) - y;
+
+		g.fillRect(getRoundedXValue(x),
+			y,
+			pixelSizeInFloat,
+			h);
+	}
+
+	/** Draws a 1px wide rectangle without blurrying the lines. */
+	void draw1PxRect(Rectangle<float> rect)
+	{
+		auto x = getRoundedXValue(rect.getX());
+		auto y = getRoundedYValue(rect.getY());
+		auto w = getRoundedXValue(rect.getRight()) - x;
+		auto h = getRoundedYValue(rect.getBottom()) - y;
+
+		if (std::isnan(x))
+		{
+			g.drawRect(rect, 1.0f);
+		}
+		else
+		{
+			g.drawRect(x, y, w, h, pixelSizeInFloat);
+		}
+	}
+
+	/* fills a float rectangle without blurrying the edges. */
+	void fillUnblurryRect(Rectangle<float> rect)
+	{
+		auto x = getRoundedXValue(rect.getX());
+		auto y = getRoundedYValue(rect.getY());
+		auto w = getRoundedXValue(rect.getRight()) - x;
+		auto h = getRoundedYValue(rect.getBottom()) - y;
+
+		g.fillRect(x, y, w, h);
+	}
+
+	/** Creates a rectangle with the given target pixel width without aliasing. */
+	Rectangle<float> getRectangleWithFixedPixelWidth(Rectangle<float> a, int pixelWidth) const
+	{
+		auto x = getRoundedXValue(a.getX());
+		auto y = a.getY();
+		auto right = x + pixelWidth * pixelSizeInFloat;
+		auto w = right - x;
+		auto h = a.getHeight();
+
+		return { x, y, w, h };
+	}
+
+	static float getScaleFactorForComponent(Component* c)
+	{
+		float sf = c->getTransform().getScaleFactor();
+		auto pc = c->getParentComponent();
+
+		while (pc != nullptr)
+		{
+			sf *= pc->getTransform().getScaleFactor();
+			pc = pc->getParentComponent();
+		}
+
+		return sf;
+	}
+
+private:
+
+
+
+	float getRoundedXValue(float xValue) const
+	{
+		// Get the point relative to the top-level component
+		// this will factor in any scale factor we've set.
+		auto xToUse = tl->getLocalPoint(&c, Point<float>(xValue, 0.0f)).getX();
+		auto tmp = roundToInt(xToUse / subOffsetDivisor);
+		auto xInTopLevel = (float)tmp * subOffsetDivisor;
+		return c.getLocalPoint(tl, Point<float>(xInTopLevel, 0.0f)).getX();
+	}
+
+	float getRoundedYValue(float yValue) const
+	{
+		// Get the point relative to the top-level component
+		// this will factor in any scale factor we've set.
+		auto yToUse = tl->getLocalPoint(&c, Point<float>(0.0f, yValue)).getY();
+		auto tmp = roundToInt(yToUse / subOffsetDivisor);
+		auto yInTopLevel = (float)tmp * subOffsetDivisor;
+		return c.getLocalPoint(tl, Point<float>(0.0f, yInTopLevel)).getY();
+	}
+
+	Graphics& g;
+	Component& c;
+	Component* tl;
+
+	float juceScaleFactor;
+	float sf;
+	float physicalScaleFactor;
+	float pixelSizeInFloat;
+	float subOffsetDivisor;
+};
+
 
 } // namespace juce
