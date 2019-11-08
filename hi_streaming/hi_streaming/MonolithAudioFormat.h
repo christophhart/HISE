@@ -38,10 +38,12 @@ namespace hise { using namespace juce;
 
 #define USE_OLD_MONOLITH_FORMAT 0
 
+#ifndef USE_FALLBACK_READERS_FOR_MONOLITH
 #if JUCE_64BIT && !JUCE_IOS
 #define USE_FALLBACK_READERS_FOR_MONOLITH 0
 #else
 #define USE_FALLBACK_READERS_FOR_MONOLITH 1
+#endif
 #endif
 
 #if USE_OLD_MONOLITH_FORMAT // Keep it around for a while

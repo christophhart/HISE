@@ -197,6 +197,8 @@ private:
 };
 
 
+
+
 /** A Component which contains multiple Sliders which support dragging & bipolar display. 
 	@ingroup hise_ui
 	
@@ -208,6 +210,13 @@ class SliderPack : public Component,
 				   public Timer
 {
 public:
+
+	struct SliderLookAndFeel : public BiPolarSliderLookAndFeel
+	{
+		void drawLinearSlider(Graphics &g, int /*x*/, int /*y*/, int width,
+			int height, float /*sliderPos*/, float /*minSliderPos*/,
+			float /*maxSliderPos*/, const Slider::SliderStyle style, Slider &s) override;
+	};
 
 	/** Inherit from this class in order to get notified about changes to the slider pack. */
 	class Listener
@@ -333,7 +342,7 @@ private:
 
 	double currentlyDraggedSliderValue;
 
-	BiPolarSliderLookAndFeel laf;
+	SliderLookAndFeel laf;
 
 	WeakReference<SliderPackData> data;
 

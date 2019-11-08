@@ -283,6 +283,11 @@ void ScriptingObjects::ScriptAudioFile::loadFile(const String& filePath)
 		update();
 		start();
 	}
+	else
+	{
+		// Can't find the path...
+		jassertfalse;
+	}
 }
 
 var ScriptingObjects::ScriptAudioFile::getContent()

@@ -40,6 +40,8 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 	displayIndex(0.0f),
 	undoManager(undoManager_)
 {
+	setEnablePaintProfiling("TableEditor");
+
 	if (editedTable == nullptr)
 		editedTable = &dummyTable;
 
@@ -324,9 +326,10 @@ void TableEditor::Ruler::paint(Graphics &g)
 
 	if (te->flatDesign)
 	{
-		
-		g.setColour(te->findColour(TableEditor::ColourIds::rulerColour));
-		g.drawLine(Line<float>(value * (float)getWidth(), 0.0f, value * (float)getWidth(), (float)getHeight()), 2.0f);
+		auto c = te->findColour(TableEditor::ColourIds::rulerColour);
+
+		g.setColour(c);
+		g.drawLine(Line<float>(value * (float)getWidth(), 0.0f, value * (float)getWidth(), (float)getHeight()), te->lineThickness);
 	}
 	else
 	{

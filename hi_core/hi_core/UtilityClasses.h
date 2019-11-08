@@ -551,11 +551,16 @@ public:
 	/** Returns the sample amount for the specified tempo. */
 	static int getTempoInSamples(double hostTempoBpm, double sampleRate, Tempo t)
 	{
+		return getTempoInSamples(hostTempoBpm, sampleRate, getTempoFactor(t));
+	};
+
+	static int getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor)
+	{
 		if (hostTempoBpm == 0.0) hostTempoBpm = 120.0;
 
-		const float seconds = (60.0f / (float)hostTempoBpm) * getTempoFactor(t);
+		const float seconds = (60.0f / (float)hostTempoBpm) * tempoFactor;
 		return (int)(seconds * (float)sampleRate);
-	};
+	}
 
 	/** Returns the time for the specified tempo in milliseconds. */
 	static float getTempoInMilliSeconds(double hostTempoBpm, Tempo t)

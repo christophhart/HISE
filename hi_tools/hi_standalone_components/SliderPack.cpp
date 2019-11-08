@@ -290,11 +290,23 @@ void SliderPack::resized()
 
     if(data != nullptr && (sliderWidths.isEmpty() || getNumSliders()+1 != (sliderWidths.size())))
     {
-        float widthPerSlider = w / (float)data->getNumSliders();
+        float widthPerSlider = (float)w / (float)data->getNumSliders();
         
+		float x = 0.0f;
+		
+
         for (int i = 0; i < sliders.size(); i++)
         {
-            sliders[i]->setBounds((int)(i * widthPerSlider), 0, (int)widthPerSlider, getHeight());
+			int thisXPos = std::floorf(x);
+
+			auto subMod = std::fmodf(x, 1.0f);
+
+			int thisWidth = std::floor(widthPerSlider + subMod) - 1;
+
+			sliders[i]->setBounds(thisXPos, 0, thisWidth, getHeight());
+
+			x += widthPerSlider;
+			
         }
     }
     else
@@ -779,6 +791,98 @@ int SliderPack::getSliderIndexForMouseEvent(const MouseEvent& e)
 SliderPack::Listener::~Listener()
 {
 	masterReference.clear();
+}
+
+void SliderPack::SliderLookAndFeel::drawLinearSlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPos*/, float /*minSliderPos*/, float /*maxSliderPos*/, const Slider::SliderStyle style, Slider &s)
+{
+	if (style == Slider::SliderStyle::LinearBarVertical)
+	{
+		const bool isBiPolar = s.getMinimum() < 0.0 && s.getMaximum() > 0.0;
+
+		float leftY;
+		float actualHeight;
+
+		const float max = (float)s.getMaximum();
+		const float min = (float)s.getMinimum();
+
+		g.fillAll(s.findColour(Slider::ColourIds::backgroundColourId));
+
+		if (isBiPolar)
+		{
+			const float value = (-1.0f * (float)s.getValue() - min) / (max - min);
+
+			leftY = (value < 0.5f ? value * (float)(height) : 0.5f * (float)(height));
+			actualHeight = fabs(0.5f - value) * (float)(height);
+		}
+		else
+		{
+			const double value = s.getValue();
+			const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
+			const double proportion = pow(normalizedValue, s.getSkewFactor());
+
+			//const float value = ((float)s.getValue() - min) / (max - min);
+
+			actualHeight = (float)proportion * (float)(height);
+			leftY = (float)height - actualHeight;
+		}
+
+		Colour c = s.findColour(Slider::ColourIds::thumbColourId);
+
+		g.setGradientFill(ColourGradient(c.withMultipliedAlpha(s.isEnabled() ? 1.0f : 0.4f),
+			0.0f, 0.0f,
+			c.withMultipliedAlpha(s.isEnabled() ? 1.0f : 0.3f).withMultipliedBrightness(0.9f),
+			0.0f, (float)height,
+			false));
+
+		g.fillRect(0.0f, leftY, (float)(width + 1), actualHeight + 1.0f);
+
+		if (width > 4)
+		{
+			//g.setColour(Colours::white.withAlpha(0.3f));
+			g.setColour(s.findColour(Slider::trackColourId));
+			g.drawRect(0.0f, leftY, (float)(width + 1), actualHeight + 1.0f, 1.0f);
+		}
+
+
+	}
+	else
+	{
+		const bool isBiPolar = s.getMinimum() < 0.0 && s.getMaximum() > 0.0;
+
+		float leftX;
+		float actualWidth;
+
+		const float max = (float)s.getMaximum();
+		const float min = (float)s.getMinimum();
+
+		g.fillAll(Colour(0xfb333333));
+
+		if (isBiPolar)
+		{
+			const float value = ((float)s.getValue() - min) / (max - min);
+
+			leftX = 2.0f + (value < 0.5f ? value * (float)(width - 2) : 0.5f * (float)(width - 2));
+			actualWidth = fabs(0.5f - value) * (float)(width - 2);
+		}
+		else
+		{
+			const double value = s.getValue();
+			const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
+			const double proportion = pow(normalizedValue, s.getSkewFactor());
+
+			//const float value = ((float)s.getValue() - min) / (max - min);
+
+			leftX = 2;
+			actualWidth = (float)proportion * (float)(width - 2);
+		}
+
+		g.setGradientFill(ColourGradient(Colour(0xff888888).withAlpha(s.isEnabled() ? 0.8f : 0.4f),
+			0.0f, 0.0f,
+			Colour(0xff666666).withAlpha(s.isEnabled() ? 0.8f : 0.4f),
+			0.0f, (float)height,
+			false));
+		g.fillRect(leftX, 2.0f, actualWidth, (float)(height - 2));
+	}
 }
 
 } // namespace hise
