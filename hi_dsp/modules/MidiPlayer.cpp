@@ -813,9 +813,17 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 	{
 	case CurrentPosition:		
 	{
-		currentPosition = jlimit<double>(0.0, 1.0, (double)newAmount); 
+		if (auto seq = getCurrentSequence())
+		{
+			newAmount = jlimit<float>((float)getLoopStart(), (float)getLoopEnd(), newAmount);
 
-		updatePositionInCurrentSequence();
+			auto lengthInQuarters = seq->getLengthInQuarters() * getPlaybackPosition();
+			auto ticks = lengthInQuarters * HiseMidiSequence::TicksPerQuarter;
+			ticksSincePlaybackStart = ticks * newAmount;
+
+			updatePositionInCurrentSequence();
+		}
+
 		break;
 	}
 	case LoopStart:
