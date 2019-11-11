@@ -141,7 +141,7 @@ void SampleLoader::reset()
 		{
 			currentSound->decreaseVoiceCount();
 			clearLoader();
-			
+
 		}
 		else
 		{
@@ -155,6 +155,8 @@ void SampleLoader::reset()
 			clearLoader();
 		}
 	}
+	else
+		clearLoader();
 }
 
 void SampleLoader::clearLoader()
@@ -162,6 +164,7 @@ void SampleLoader::clearLoader()
 	sound = nullptr;
 	diskUsage = 0.0f;
 	cancelled = true;
+	resetJob();
 }
 
 double SampleLoader::getDiskUsage() noexcept

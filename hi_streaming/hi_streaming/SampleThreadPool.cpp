@@ -38,8 +38,7 @@ struct SampleThreadPool::Pimpl
 	Pimpl() :
 		jobQueue(8192),
 		currentlyExecutedJob(nullptr),
-		diskUsage(0.0),
-		counter(0)
+		diskUsage(0.0)
 	{};
 
 	~Pimpl()
@@ -51,7 +50,6 @@ struct SampleThreadPool::Pimpl
 	}
 
 	CriticalSection clearLock;
-	Atomic<int> counter;
 
 	std::atomic<double> diskUsage;
 	int64 startTime, endTime;
@@ -87,13 +85,14 @@ void SampleThreadPool::clearPendingTasks()
 	WeakReference<Job> next;
 
 	while (pimpl->jobQueue.try_dequeue(next))
+	{
+		next->queued.store(false);
 		next->signalJobShouldExit();
+	}
 }
 
 void SampleThreadPool::addJob(Job* jobToAdd, bool unused)
 {
-	++pimpl->counter;
-
 	ignoreUnused(unused);
 
 #if ENABLE_CONSOLE_OUTPUT
@@ -144,7 +143,6 @@ void SampleThreadPool::run()
 				if (status == Job::jobHasFinished)
 				{
 					j->queued.store(false);
-					--pimpl->counter;
 				}
 				else if (status == Job::jobNeedsRunningAgain)
 				{
@@ -183,5 +181,13 @@ void SampleThreadPool::run()
 
 const String SampleThreadPool::Pimpl::errorMessage("HDD overflow");
 
+
+void SampleThreadPool::Job::resetJob()
+{
+	queued.store(false);
+	running.store(false);
+	shouldStop.store(false);
+	currentThread.store(false);
+}
 
 } // namespace hise

@@ -73,25 +73,21 @@ public:
 
 		bool isQueued() const noexcept{ return queued.load(); };
 
-		
-
 	protected:
+
+		void resetJob();
 
 		Thread* getCurrentThread() { return currentThread.load(); }
 
 	private:
 
 		friend class SampleThreadPool;
-        
         friend class WeakReference<Job>;
         WeakReference<Job>::Master masterReference;
 
 		std::atomic<bool> queued;
-
 		std::atomic<bool> running;
-
 		std::atomic<bool> shouldStop;
-
 		std::atomic<Thread*> currentThread;
 
 		const String name;
