@@ -101,7 +101,7 @@ public:
 
 	void fadeout()
 	{
-		numFramesLeft = 10;
+		numFramesLeft = 1;
 		startTimer(30);
 	}
 
