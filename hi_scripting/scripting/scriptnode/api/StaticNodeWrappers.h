@@ -844,8 +844,7 @@ static Identifier getStaticId() { return Identifier(id); };
 		JUCE_DECLARE_WEAK_REFERENCEABLE(NodeFactory);
     };
     
-    class SingletonFactory : public NodeFactory,
-    public juce::DeletedAtShutdown
+    class SingletonFactory : public NodeFactory
     {
     public:
         

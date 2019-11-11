@@ -118,7 +118,7 @@ DspNetwork::~DspNetwork()
 {
 	selectionUpdater = nullptr;
 	nodes.clear();
-	
+    nodeFactories.clear();
 }
 
 
@@ -399,6 +399,13 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 
 	for (auto nf : nodeFactories)
 	{
+        if(nf == nullptr)
+        {
+            jassertfalse;
+            continue;
+        }
+        
+        
 		nf->setNetworkToUse(this);
 		newNode = nf->createNode(d, createPolyIfAvailable);
 
