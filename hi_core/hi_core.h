@@ -274,7 +274,18 @@ If this is enabled, compiled plugins will write a startup log to the desktop for
 #define ENABLE_STARTUP_LOG 0
 #endif
 
+/** Config: HISE_MAX_PROCESSING_BLOCKSIZE
 
+This is the maximum block size that is used for the audio rendering. If the host calls the render
+callback with a bigger blocksize, it will be split up internally into chunks of the given size.
+
+Usually a bigger block size means less CPU usage, however there is a break even point where a bigger buffer
+size stops being helpful and starts wasting memory because of the internal buffer allocations (and causing
+some weird side effects in the streaming engine).
+*/
+#ifndef HISE_MAX_PROCESSING_BLOCKSIZE
+#define HISE_MAX_PROCESSING_BLOCKSIZE 512
+#endif
 
 /** Config: ENABLE_CPU_MEASUREMENT
 
