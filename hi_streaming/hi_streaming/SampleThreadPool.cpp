@@ -99,7 +99,6 @@ void SampleThreadPool::addJob(Job* jobToAdd, bool unused)
 	if (jobToAdd->isQueued())
 	{
 		Logger::writeToLog(pimpl->errorMessage);
-		Logger::writeToLog(String(pimpl->counter.get()));
 	}
 #endif
 
@@ -187,7 +186,7 @@ void SampleThreadPool::Job::resetJob()
 	queued.store(false);
 	running.store(false);
 	shouldStop.store(false);
-	currentThread.store(false);
+	currentThread.store(nullptr);
 }
 
 } // namespace hise
