@@ -96,7 +96,7 @@ AudioProcessorEditor(fp)
 	loaderOverlay->setDialog(nullptr);
 	fp->setOverlay(loaderOverlay);
 
-    addChildComponent(debugLoggerComponent = new DebugLoggerComponent(&fp->getDebugLogger()));
+    container->addChildComponent(debugLoggerComponent = new DebugLoggerComponent(&fp->getDebugLogger()));
 
 	debugLoggerComponent->setVisible(fp->getDebugLogger().isLogging());
 

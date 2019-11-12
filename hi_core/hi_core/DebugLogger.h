@@ -401,6 +401,7 @@ public:
 		addAndMakeVisible(closeAndShowFileButton = new TextButton("Stop & show file"));
 		addAndMakeVisible(performanceLevelSelector = new ComboBox("Warning Level"));
 
+		laf = HiseColourScheme::createAlertWindowLookAndFeel(logger->getMainController());
         
 #if HISE_IOS
         closeAndShowFileButton->setButtonText("Stop Logging");
@@ -411,17 +412,19 @@ public:
 		performanceLevelSelector->addItem("High", 3);
 		performanceLevelSelector->setSelectedItemIndex(2, dontSendNotification);
 
+		
+
 		performanceLevelSelector->addListener(this);
-		performanceLevelSelector->setLookAndFeel(&plaf);
+		performanceLevelSelector->setLookAndFeel(laf);
 
 		showLogFolderButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 		showLogFolderButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
-		showLogFolderButton->setLookAndFeel(&blaf);
+		showLogFolderButton->setLookAndFeel(laf);
 		showLogFolderButton->addListener(this);
 
 		closeAndShowFileButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 		closeAndShowFileButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
-		closeAndShowFileButton->setLookAndFeel(&blaf);
+		closeAndShowFileButton->setLookAndFeel(laf);
 		closeAndShowFileButton->addListener(this);
 
 		startTimer(30);
@@ -493,6 +496,8 @@ private:
 	DebugLogger* logger;
 
 	bool isFailing = false;
+
+	ScopedPointer<LookAndFeel> laf;
 
 	ScopedPointer<TextButton> showLogFolderButton;
 	ScopedPointer<TextButton> closeAndShowFileButton;

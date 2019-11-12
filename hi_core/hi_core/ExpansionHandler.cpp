@@ -199,12 +199,16 @@ void ExpansionHandler::createAvailableExpansions()
 
 void ExpansionHandler::rebuildExpansions()
 {
+	clearExpansions();
+	createAvailableExpansions();
+}
+
+void ExpansionHandler::clearExpansions()
+{
 	{
 		MessageManagerLock mm;
 		expansionList.clear();
 	}
-
-	createAvailableExpansions();
 }
 
 #if !HISE_USE_CUSTOM_EXPANSION_TYPE

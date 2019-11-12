@@ -395,6 +395,8 @@ public:
 
 	void rebuildExpansions();
 
+	void clearExpansions();
+
 	Expansion* createExpansionForFile(const File& f);
 
 	var getListOfAvailableExpansions() const;

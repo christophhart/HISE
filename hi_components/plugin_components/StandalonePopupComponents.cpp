@@ -229,11 +229,16 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 {
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
     
-	if (driver->deviceManager == nullptr)
-		return;
+	
 
     if(HiseDeviceSimulator::isStandalone())
     {
+		if (driver->deviceManager == nullptr)
+		{
+			jassertfalse;
+			return;
+		}
+
         const OwnedArray<AudioIODeviceType> *devices = &driver->deviceManager->getAvailableDeviceTypes();
         
         bufferSelector->clear(dontSendNotification);
