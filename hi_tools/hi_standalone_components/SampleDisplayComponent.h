@@ -206,9 +206,9 @@ private:
 
 		void run() override;;
 
-		void scalePathFromLevels(Path &lPath, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically);
+		void scalePathFromLevels(Path &lPath, RectangleList<float>& rects, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically);
 
-		void calculatePath(Path &p, float width, const float* l_, int numSamples);
+		void calculatePath(Path &p, float width, const float* l_, int numSamples, RectangleList<float>& rects);
 
 	private:
 
@@ -235,6 +235,8 @@ private:
 	bool drawHorizontalLines = false;
 
 	Path leftWaveform, rightWaveform;
+
+	RectangleList<float> leftPeaks, rightPeaks;
 
 	int leftBound = -1;
 	int rightBound = -1;

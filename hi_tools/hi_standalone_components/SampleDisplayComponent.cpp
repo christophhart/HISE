@@ -654,6 +654,8 @@ void HiseAudioThumbnail::LoadingThread::run()
 	Path lPath;
 	Path rPath;
 
+	RectangleList<float> lRects, rRects;
+
 	float width = (float)bounds.getWidth();
 
 
@@ -666,7 +668,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 		const float* data = l->buffer.getReadPointer(0);
 		const int numSamples = l->size;
 
-		calculatePath(lPath, width, data, numSamples);
+		calculatePath(lPath, width, data, numSamples, lRects);
 	}
 
 	if (r != nullptr && r->size != 0)
@@ -674,10 +676,10 @@ void HiseAudioThumbnail::LoadingThread::run()
 		const float* data = r->buffer.getReadPointer(0);
 		const int numSamples = r->size;
 
-		calculatePath(rPath, width, data, numSamples);
+		calculatePath(rPath, width, data, numSamples, rRects);
 	}
 	
-	const bool isMono = rPath.isEmpty();
+	const bool isMono = rPath.isEmpty() && rRects.isEmpty();
 
 	if (isMono)
 	{
@@ -686,7 +688,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = l->buffer.getReadPointer(0);
 			const int numSamples = l->size;
 
-			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples, sv);
+			scalePathFromLevels(lPath, rRects, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples, sv);
 		}
 	}
 	else
@@ -698,7 +700,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = l->buffer.getReadPointer(0);
 			const int numSamples = l->size;
 
-			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples, sv);
+			scalePathFromLevels(lPath, lRects, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples, sv);
 		}
 
 		if (r != nullptr && r->size != 0)
@@ -706,7 +708,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 			const float* data = r->buffer.getReadPointer(0);
 			const int numSamples = r->size;
 
-			scalePathFromLevels(rPath, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples, sv);
+			scalePathFromLevels(rPath, rRects, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples, sv);
 		}
 	}
 
@@ -717,6 +719,9 @@ void HiseAudioThumbnail::LoadingThread::run()
 
 			parent->leftWaveform.swapWithPath(lPath);
 			parent->rightWaveform.swapWithPath(rPath);
+			parent->leftPeaks.swapWith(lRects);
+			parent->rightPeaks.swapWith(rRects);
+
 			parent->isClear = false;
 
 			parent->refresh();
@@ -724,8 +729,19 @@ void HiseAudioThumbnail::LoadingThread::run()
 	}
 }
 
-void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically)
+void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, RectangleList<float>& rects, Rectangle<float> bounds, const float* data, const int numSamples, bool scaleVertically)
 {
+	if (!rects.isEmpty())
+	{
+		auto levels = FloatVectorOperations::findMinAndMax(data, numSamples);
+
+		auto b = rects.getBounds();
+		
+		rects.offsetAll(bounds.getX(), bounds.getY() + bounds.getHeight()*0.5f);
+
+		return;
+	}
+
 	if (p.isEmpty())
 		return;
 
@@ -762,7 +778,10 @@ void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<f
 	}
 }
 
-void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, const float* l_, int numSamples)
+#define USE_RECTS_FOR_WAVEFORM 0
+
+
+void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, const float* l_, int numSamples, RectangleList<float>& rects)
 {
 	int stride = roundToInt((float)numSamples / width);
 	stride = jmax<int>(1, stride * 2);
@@ -774,11 +793,11 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 		
 #if HISE_USE_SYMMETRIC_WAVEFORMS
 
-		Array<float> values;
+		Array<Point<float>> values;
 
 		values.ensureStorageAllocated(numSamples / stride + 2);
 
-		for (int i = stride; i < numSamples; i++)
+		for (int i = stride; i < numSamples; i+= stride)
 		{
 			if (threadShouldExit())
 				return;
@@ -786,19 +805,58 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 			const int numToCheck = jmin<int>(stride, numSamples - i);
 			auto minMax = FloatVectorOperations::findMinAndMax(l_ + i, numToCheck);
 			auto value = jmax(std::abs(minMax.getStart()), std::abs(minMax.getEnd()));
-			value = jlimit<float>(0.0f, 1.0f, value);
-			values.add(value);
 
-			i += stride;
+			value = jlimit<float>(0.0f, 1.0f, value);
+			value *= 10.f;
+			values.add({ (float)i / stride, value });
 		};
+
+		int numRemoved = 0;
+
+		float distanceThreshold = JUCE_LIVE_CONSTANT(0.01f);
+
+		bool lastWasZero = false;
+
+		for (int i = 1; i < values.size()-1; i++)
+		{
+			auto prev = values[i - 1];
+			auto next = values[i + 1];
+
+			if (values[i].y <= distanceThreshold && prev.y == 0.0f && next.y == 0.0f)
+			{
+				lastWasZero = true;
+				numRemoved++;
+				values.remove(i--);
+				continue;
+			}
+
+			if (lastWasZero)
+			{
+				Point<float> newZero(values[i].x, 0.0f);
+				values.insert(i, newZero);
+			}
+
+			lastWasZero = false;
+
+			auto distance = (next.y + prev.y) / 2.0f;
+
+			if (distance < distanceThreshold)
+			{
+				values.remove(i);
+				numRemoved++;
+			}
+		}
+
+		DBG(numRemoved);
 
 		int numPoints = values.size();
 
 		for (int i = 0; i < numPoints; i++)
-			p.lineTo((float)i, values[i]);
+			p.lineTo(values[i]);
 
 		for (int i = numPoints - 1; i >= 0; i--)
-			p.lineTo((float)i, -values[i]);
+			p.lineTo(values[i].withY(values[i].y * -1.0f));
+
 
 #else
 
@@ -941,15 +999,17 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 		}
 
 		g.setColour(fillColour);
-		g.fillPath(leftWaveform);
 
-		if (!outlineColour.isTransparent())
+		if (!leftWaveform.isEmpty())
+			g.fillPath(leftWaveform);
+		else if (!leftPeaks.isEmpty())
+			g.fillRectList(leftPeaks);
+
+		if (!outlineColour.isTransparent() && !leftWaveform.isEmpty())
 		{
 			g.setColour(outlineColour);
 			g.strokePath(leftWaveform, PathStrokeType(1.0f));
 		}
-		
-
 	}
 	else
 	{
@@ -966,8 +1026,17 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 		}
 
 		g.setColour(fillColour);
-		g.fillPath(leftWaveform);
-		g.fillPath(rightWaveform);
+
+		if (!leftWaveform.isEmpty() || !rightWaveform.isEmpty())
+		{
+			g.fillPath(leftWaveform);
+			g.fillPath(rightWaveform);
+		}
+		else if (!leftPeaks.isEmpty() || !rightPeaks.isEmpty())
+		{
+			g.fillRectList(leftPeaks);
+			g.fillRectList(rightPeaks);
+		}
 
 		if (!outlineColour.isTransparent())
 		{
