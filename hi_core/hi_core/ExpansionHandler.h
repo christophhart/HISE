@@ -393,10 +393,6 @@ public:
 	File getExpansionFolder() const;
 	void createAvailableExpansions();
 
-	void rebuildExpansions();
-
-	void clearExpansions();
-
 	Expansion* createExpansionForFile(const File& f);
 
 	var getListOfAvailableExpansions() const;
@@ -463,6 +459,8 @@ public:
 	{
 		return notifier.enabled;
 	}
+    
+    SimpleReadWriteLock& getExpansionLock() { return expansionLock; }
     
 private:
 

@@ -137,7 +137,9 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 {
 	{
 		LockHelpers::freeToGo(mc);
-
+        
+        SimpleReadWriteLock::ScopedReadLock sl(mc->getExpansionHandler().getExpansionLock());
+        
 		ValueTree userPresetToLoad = pendingPreset;
 
 #if USE_BACKEND
