@@ -281,6 +281,9 @@ public:
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
 
+		/** Adds an entire module to the user preset system. */
+		void addModuleStateToUserPreset(var moduleId);
+
 		/** Returns the uptime of the engine in seconds. */
 		double getUptime() const;
 

@@ -1003,6 +1003,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getExpansionList);
 	API_METHOD_WRAPPER_1(Engine, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(Engine, createGlobalScriptLookAndFeel);
+	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
 	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
@@ -1049,6 +1050,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getFrequencyForMidiNoteNumber);
 	ADD_API_METHOD_1(getPitchRatioFromSemitones);
 	ADD_API_METHOD_1(getSemitonesFromPitchRatio);
+	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
@@ -1120,6 +1122,48 @@ void ScriptingApi::Engine::allNotesOff()
 };
 
 
+
+void ScriptingApi::Engine::addModuleStateToUserPreset(var moduleId)
+{
+	if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
+	{
+		auto newId = moduleId.toString();
+
+		auto& ids = jmp->getListOfModuleIds();
+
+		if (newId.isEmpty())
+		{
+			ids.clear();
+			debugToConsole(getProcessor(), "Removed all stored modules");
+			return;
+		}
+
+		auto p = ProcessorHelpers::getFirstProcessorWithName(getProcessor()->getMainController()->getMainSynthChain(), newId);
+
+		if (p == nullptr)
+			reportScriptError("Can't find processor " + newId);
+
+		auto childList = ProcessorHelpers::getListOfAllProcessors<Processor>(p);
+
+		for (auto c : childList)
+		{
+			if (c == p)
+				continue;
+
+			if (dynamic_cast<Chain*>(c.get()) != nullptr)
+			{
+				reportScriptError("Can't store modules with child modules");
+				return;
+			}
+		}
+
+		if (!ids.contains(newId))
+		{
+			ids.add(newId);
+			debugToConsole(getProcessor(), "Added " + newId + " to user preset system");
+		}
+	}
+}
 
 void ScriptingApi::Engine::loadFont(const String &fileName)
 {

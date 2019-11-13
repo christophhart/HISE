@@ -46,6 +46,7 @@ class ProcessorEditorHeader  : public ProcessorEditorChildComponent,
                                public SliderListener,
 							   public LabelListener,
                                public ButtonListener,
+							   public GlobalScriptCompileListener,
 							   public Timer
 {
 public:
@@ -65,7 +66,7 @@ public:
 
 	void labelTextChanged(Label *l) override;;
     
-
+	void scriptWasCompiled(JavascriptProcessor *processor) override;
 
 	/** This sets the ProcessorEditorLookAndFeel for different ProcessorEditorTypes.
 	*
@@ -137,6 +138,7 @@ private:
 
 	AlertWindowLookAndFeel alertLaf;
 
+	bool storedInPreset = false;
 	bool isBypassedFlag;
 	bool valueFlag;
 	bool intensityFlag;

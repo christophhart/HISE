@@ -679,6 +679,7 @@ public:
 
 		File currentlyLoadedFile;
 		ValueTree pendingPreset;
+		StringArray storedModuleIds;
 
 		MainController* mc;
 		bool useUndoForPresetLoads = false;

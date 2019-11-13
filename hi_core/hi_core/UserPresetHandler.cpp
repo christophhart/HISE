@@ -165,12 +165,32 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 
 				ValueTree v;
 
-				for (int i = 0; i < userPresetToLoad.getNumChildren(); i++)
+				for (auto c: userPresetToLoad)
 				{
-					if (userPresetToLoad.getChild(i).getProperty("Processor") == sp->getId())
+					if (c.getProperty("Processor") == sp->getId())
 					{
-						v = userPresetToLoad.getChild(i);
+						v = c;
 						break;
+					}
+				}
+
+				auto modules = userPresetToLoad.getChildWithName("Modules");
+
+				if (modules.isValid())
+				{
+					for (auto m : modules)
+					{
+						auto p = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), m["ID"]);
+
+						if (p != nullptr)
+						{
+							auto copy = p->exportAsValueTree();
+
+							if (p->getType().toString() == m["Type"].toString())
+							{
+								p->restoreFromValueTree(m);
+							}
+						}
 					}
 				}
 

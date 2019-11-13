@@ -123,11 +123,31 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 
 		preset = ValueTree("Preset");
 		preset.addChild(v, -1, nullptr);
+
+		ValueTree modules("Modules");
+
+		for (auto id : sp->getListOfModuleIds())
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
+			auto mTree = p->exportAsValueTree();
+
+			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+
+			modules.addChild(mTree, -1, nullptr);
+		}
+
+		if (modules.getNumChildren() != 0)
+		{
+			preset.addChild(modules, -1, nullptr);
+		}
 	}
 #endif
 
 	ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
 	ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+
+	
 
 	preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 

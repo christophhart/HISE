@@ -40,6 +40,8 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 {
 	setLookAndFeel();
 
+	p->getProcessor()->getMainController()->addScriptListener(this);
+
 	setOpaque(true);
 
     addAndMakeVisible (valueMeter = new VuMeter());
@@ -359,6 +361,8 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 ProcessorEditorHeader::~ProcessorEditorHeader()
 {
+	getProcessor()->getMainController()->removeScriptListener(this);
+
     valueMeter = nullptr;
     idLabel = nullptr;
     typeLabel = nullptr;
@@ -432,6 +436,7 @@ void ProcessorEditorHeader::paint (Graphics& g)
     
     g.fillRect(0,0,getWidth(), 10);
     
+
     
 	Colour c = getProcessor()->getColour();
 
@@ -461,6 +466,25 @@ void ProcessorEditorHeader::paint (Graphics& g)
 	g.fillRect(0, 30, getWidth(), 30);
 
 	luf->drawBackground(g, (float)getWidth(), (float)getHeight()+5.f, getProcessor()->getEditorState(Processor::Folded));	
+
+
+	if (storedInPreset)
+	{
+		Path p;
+		static const unsigned char pShape[] = { 110,109,0,144,89,67,0,103,65,67,108,0,159,88,67,0,3,68,67,108,129,106,86,67,0,32,74,67,108,1,38,77,67,0,108,74,67,108,1,121,84,67,0,28,80,67,108,129,227,81,67,255,3,89,67,108,1,144,89,67,127,206,83,67,108,1,60,97,67,255,3,89,67,108,129,166,94,67,0,28,
+		80,67,108,129,249,101,67,0,108,74,67,108,1,181,92,67,0,32,74,67,108,1,144,89,67,0,103,65,67,99,109,0,144,89,67,1,76,71,67,108,128,73,91,67,1,21,76,67,108,0,94,96,67,129,62,76,67,108,0,90,92,67,129,92,79,67,108,128,196,93,67,129,62,84,67,108,0,144,89,
+		67,129,99,81,67,108,0,91,85,67,1,63,84,67,108,128,197,86,67,129,92,79,67,108,128,193,82,67,129,62,76,67,108,0,214,87,67,1,21,76,67,108,0,144,89,67,1,76,71,67,99,101,0,0 };
+
+		p.loadPathFromData(pShape, sizeof(pShape));
+
+		Rectangle<int> b = { foldButton->getRight() + 4, 0, getHeight(), getHeight() };
+
+		PathFactory::scalePath(p, b.toFloat().reduced(3.0f));
+
+		g.setColour(idLabel->findColour(Label::textColourId));
+		g.fillPath(p);
+	}
+
 	if(isSoloHeader)
 	{
 		g.setColour(Colours::white.withAlpha(0.2f));
@@ -520,6 +544,9 @@ void ProcessorEditorHeader::resized()
 		x += addCloseWidth + 8;
 
 	}
+
+	if (storedInPreset)
+		x += getHeight() + 5;
 
 	if (hasWorkspaceButton())
 	{
@@ -1476,6 +1503,18 @@ void ProcessorEditorHeader::labelTextChanged(Label *l)
 	}
 }
 
+
+void ProcessorEditorHeader::scriptWasCompiled(JavascriptProcessor *processor)
+{
+	if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(processor))
+	{
+		if (jmp->isFront())
+		{
+			storedInPreset = jmp->getListOfModuleIds().contains(getProcessor()->getId());
+			resized();
+		}
+	}
+}
 
 void ProcessorEditorHeader::checkFoldButton()
 {
