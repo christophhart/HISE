@@ -125,6 +125,10 @@ public:
 		return nullptr;
 	}
 
+	StringArray& getListOfModuleIds() {
+		return storedModuleIds;
+	}
+
 private:
 
 	struct DeferredExecutioner : public LockfreeAsyncUpdater
@@ -203,7 +207,7 @@ private:
 
 	bool front, deferred, deferredUpdatePending;
 
-	
+	StringArray storedModuleIds;
 };
 
 class JavascriptVoiceStartModulator : public JavascriptProcessor,

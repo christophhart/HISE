@@ -407,6 +407,18 @@ void HiseMidiSequence::setCurrentTrackIndex(int index)
 	}
 }
 
+void HiseMidiSequence::trimInactiveTracks()
+{
+	SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
+
+	auto seqToKeep = sequences.removeAndReturn(currentTrackIndex);
+
+	sequences.clear(true);
+	sequences.add(seqToKeep);
+	currentTrackIndex = 0;
+	resetPlayback();
+}
+
 void HiseMidiSequence::resetPlayback()
 {
 	lastPlayedIndex = -1;
@@ -683,6 +695,8 @@ juce::ValueTree MidiPlayer::exportAsValueTree() const
 	saveID(CurrentSequence);
 	saveID(CurrentTrack);
 	saveID(LoopEnabled);
+
+	SimpleReadWriteLock::ScopedReadLock sl(sequenceLock);
 
 	ValueTree seq("MidiFiles");
 

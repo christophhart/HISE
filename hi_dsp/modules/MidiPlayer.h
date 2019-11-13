@@ -213,6 +213,9 @@ public:
 	/** Sets the current track. */
 	void setCurrentTrackIndex(int index);
 
+	/** Removes all inactive tracks and keeps only the currently active one. */
+	void trimInactiveTracks();
+
 	/** Resets the playback position. */
 	void resetPlayback();
 
@@ -470,7 +473,9 @@ public:
 	/**@ internal */
 	void setInternalAttribute(int index, float newAmount) override;;
 
-	/** Loads the given pooled MIDI file and adds it to the end of the list. */
+	/** Loads the given pooled MIDI file and adds it to the end of the list. 
+	
+		If trackIndexToKeep is not -1, it will discard all tracks other than the given track index (zero-based!) and set the current track index to 0. */
 	void loadMidiFile(PoolReference reference);
 
 	/**@ internal */
