@@ -166,6 +166,8 @@ void ExpansionHandler::createAvailableExpansions()
 
 	getExpansionFolder().findChildFiles(folders, File::findDirectories, false);
 
+    OwnedArray<Expansion> newList;
+    
 	bool didSomething = false;
 
 	for (auto f : folders)
@@ -187,28 +189,19 @@ void ExpansionHandler::createAvailableExpansions()
 
 		if (Helpers::isValidExpansion(f))
 		{
-			expansionList.add(createExpansionForFile(f));
+			newList.add(createExpansionForFile(f));
 			didSomething = true;
 		}
 	}
-
-	if(didSomething)
-		notifier.sendNotification(Notifier::EventType::ExpansionCreated);
-}
-
-
-void ExpansionHandler::rebuildExpansions()
-{
-	clearExpansions();
-	createAvailableExpansions();
-}
-
-void ExpansionHandler::clearExpansions()
-{
-	{
-		MessageManagerLock mm;
-		expansionList.clear();
-	}
+    
+    {
+        SimpleReadWriteLock::ScopedWriteLock sl(expansionLock);
+        expansionList.clear();
+        std::swap(newList, expansionList);
+    }
+    
+    if(didSomething)
+        notifier.sendNotification(Notifier::EventType::ExpansionCreated);
 }
 
 #if !HISE_USE_CUSTOM_EXPANSION_TYPE
