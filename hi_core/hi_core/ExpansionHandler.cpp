@@ -189,16 +189,10 @@ void ExpansionHandler::createAvailableExpansions()
 
 		if (Helpers::isValidExpansion(f))
 		{
-			newList.add(createExpansionForFile(f));
+			expansionList.add(createExpansionForFile(f));
 			didSomething = true;
 		}
 	}
-    
-    {
-        SimpleReadWriteLock::ScopedWriteLock sl(expansionLock);
-        expansionList.clear();
-        std::swap(newList, expansionList);
-    }
     
     if(didSomething)
         notifier.sendNotification(Notifier::EventType::ExpansionCreated);

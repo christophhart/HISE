@@ -460,11 +460,7 @@ public:
 		return notifier.enabled;
 	}
     
-    SimpleReadWriteLock& getExpansionLock() { return expansionLock; }
-    
 private:
-
-	SimpleReadWriteLock expansionLock;
 
     FileHandlerBase* getFileHandler(MainController* mc);
     
