@@ -797,7 +797,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
 		values.ensureStorageAllocated(numSamples / stride + 2);
 
-		for (int i = stride; i < numSamples; i+= stride)
+		for (int i = 0; i < numSamples; i+= stride)
 		{
 			if (threadShouldExit())
 				return;
@@ -813,7 +813,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
 		int numRemoved = 0;
 
-		float distanceThreshold = JUCE_LIVE_CONSTANT(0.01f);
+		float distanceThreshold = JUCE_LIVE_CONSTANT_OFF(0.00f);
 
 		bool lastWasZero = false;
 
@@ -846,6 +846,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 				numRemoved++;
 			}
 		}
+
 
 		DBG(numRemoved);
 
