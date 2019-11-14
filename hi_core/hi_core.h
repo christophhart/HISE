@@ -241,6 +241,13 @@ If this is enabled, you can use expansion packs to add additional content to you
 #define ENABLE_SCRIPTING_BREAKPOINTS 0
 #endif
 
+
+/** Config: HISE_ENABLE_MIDI_INPUT_FOR_FX
+If true, then the FX plugin will have a MIDI input and the MIDI processor chain is being processed. */
+#ifndef HISE_ENABLE_MIDI_INPUT_FOR_FX
+#define HISE_ENABLE_MIDI_INPUT_FOR_FX 0
+#endif
+
 /** Config: ENABLE_ALL_PEAK_METERS
 
 Set this to 0 to deactivate peak collection for any other processor than the main synth chain

@@ -662,7 +662,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	jassert(maxBufferSize.get() >= numSamplesThisBlock);
 
-#if !FRONTEND_IS_PLUGIN
+#if !FRONTEND_IS_PLUGIN || HISE_ENABLE_MIDI_INPUT_FOR_FX
     
 	keyboardState.processNextMidiBuffer(midiMessages, 0, numSamplesThisBlock, true);
 
@@ -727,7 +727,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if !FRONTEND_IS_PLUGIN
 
-	if(replaceBufferContent) buffer.clear();
+	if(replaceBufferContent)
+		buffer.clear();
 
 	checkAllNotesOff();
 
@@ -740,7 +741,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	
 #if FRONTEND_IS_PLUGIN
-
 
     const bool isUsingMultiChannel = multiChannelBuffer.getNumChannels() > 2;
     
