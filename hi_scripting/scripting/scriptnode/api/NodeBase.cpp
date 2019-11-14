@@ -354,7 +354,7 @@ void NodeBase::Parameter::storeValue()
 
 void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
 {
-	if (value.isVoiceRenderingActive())
+	if (value.isMonophonicOrInsideVoiceRendering())
 	{
 		value.getCurrentOrFirst().value = newValue;
 
@@ -384,7 +384,7 @@ void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
 
 void NodeBase::Parameter::addModulationValue(double newValue)
 {
-	if (value.isVoiceRenderingActive())
+	if (value.isMonophonicOrInsideVoiceRendering())
 	{
 		auto& v = value.get();
 		v.modAddValue = newValue;
@@ -407,7 +407,7 @@ void NodeBase::Parameter::addModulationValue(double newValue)
 
 void NodeBase::Parameter::multiplyModulationValue(double newValue)
 {
-	if (value.isVoiceRenderingActive())
+	if (value.isMonophonicOrInsideVoiceRendering())
 	{
 		auto& v = value.get();
 		v.modMulValue = newValue;

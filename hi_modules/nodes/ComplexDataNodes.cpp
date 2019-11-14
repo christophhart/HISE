@@ -127,7 +127,7 @@ void scriptnode::seq_impl<NV>::process(ProcessData& data)
 template <int NV>
 void scriptnode::seq_impl<NV>::reset()
 {
-	if (lastIndex.isVoiceRenderingActive())
+	if (lastIndex.isMonophonicOrInsideVoiceRendering())
 	{
 		lastIndex.get() = -1;
 		modValue.get().setModValue(0.0);

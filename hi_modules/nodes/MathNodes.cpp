@@ -92,7 +92,7 @@ void scriptnode::math::OpNode<OpType, V>::setValue(double newValue)
 	}
 	else
 	{
-		if (value.isVoiceRenderingActive())
+		if (value.isMonophonicOrInsideVoiceRendering())
 		{
 			value.get() = (float)newValue;
 		}

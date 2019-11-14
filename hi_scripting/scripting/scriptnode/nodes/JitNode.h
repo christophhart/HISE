@@ -70,7 +70,7 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 
 	void reset()
 	{
-		if (obj.isVoiceRenderingActive())
+		if (obj.isMonophonicOrInsideVoiceRendering)
 			obj.get().reset();
 		else
 			obj.forEachVoice([](T& o) {o.reset(); });
@@ -173,7 +173,7 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 
 				p.db = [index, this](double newValue)
 				{
-					if (obj.isVoiceRenderingActive())
+					if (obj.isMonophonicOrInsideVoiceRendering)
 					{
 						obj.get().parameters[index].f(newValue);
 					}
@@ -252,7 +252,7 @@ public:
 	{
 		if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
 		{
-			if (cData.isVoiceRenderingActive())
+			if (cData.isMonophonicOrInsideVoiceRendering)
 				cData.get().parameters.getReference(Index).f.callVoid(newValue);
 			else
 			{

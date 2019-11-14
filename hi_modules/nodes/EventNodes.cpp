@@ -247,7 +247,7 @@ void TimerNode<NV>::setInterval(double timeMs)
 {
 	auto newTime = roundToInt(timeMs * 0.001 * sr);
 
-	if (t.isVoiceRenderingActive())
+	if (t.isMonophonicOrInsideVoiceRendering())
 	{
 		t.get().samplesBetweenCallbacks = newTime;
 	}
@@ -265,7 +265,7 @@ void TimerNode<NV>::setActive(double value)
 {
 	bool thisActive = value > 0.5;
 
-	if (t.isVoiceRenderingActive())
+	if (t.isMonophonicOrInsideVoiceRendering())
 	{
 		auto& thisInfo = t.get();
 

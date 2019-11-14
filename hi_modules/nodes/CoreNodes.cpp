@@ -158,7 +158,7 @@ void ramp_impl<NV>::setPeriodTime(double periodTimeMs)
 
 		auto newUptimeDelta = jmax(0.0000001, inv / sr);
 
-		if (state.isVoiceRenderingActive())
+		if (state.isMonophonicOrInsideVoiceRendering())
 		{
 			state.get().uptimeDelta = newUptimeDelta;
 		}
@@ -177,7 +177,7 @@ void ramp_impl<NV>::setLoopStart(double newLoopStart)
 {
 	auto v = jlimit(0.0, 1.0, newLoopStart);
 
-	if (loopStart.isVoiceRenderingActive())
+	if (loopStart.isMonophonicOrInsideVoiceRendering())
 		loopStart.get() = v;
 	else
 		loopStart.forEachVoice([v](double& d) { d = v; });
@@ -290,7 +290,7 @@ void ramp_impl<NV>::process(ProcessData& d)
 template <int NV>
 void ramp_impl<NV>::reset() noexcept
 {
-	if (state.isVoiceRenderingActive())
+	if (state.isMonophonicOrInsideVoiceRendering())
 	{
 		state.get().reset();
 		currentValue.get() = 0.0;
@@ -376,7 +376,7 @@ Component* oscillator_impl<NV>::createExtraComponent(PooledUIUpdater* updater)
 template <int NV>
 void scriptnode::core::oscillator_impl<NV>::reset() noexcept
 {
-	if (voiceData.isVoiceRenderingActive())
+	if (voiceData.isMonophonicOrInsideVoiceRendering())
 		voiceData.get().reset();
 	else
 		voiceData.forEachVoice([](OscData& s) { s.reset(); });
@@ -425,7 +425,7 @@ void oscillator_impl<NV>::setPitchMultiplier(double newMultiplier)
 {
 	auto pitchMultiplier = jlimit(0.01, 100.0, newMultiplier);
 
-	if (voiceData.isVoiceRenderingActive())
+	if (voiceData.isMonophonicOrInsideVoiceRendering())
 	{
 		voiceData.get().multiplier = pitchMultiplier;
 	}
@@ -444,7 +444,7 @@ void oscillator_impl<NV>::setFrequency(double newFrequency)
 	freqValue = newFrequency;
 	auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
 
-	if (voiceData.isVoiceRenderingActive())
+	if (voiceData.isMonophonicOrInsideVoiceRendering())
 	{
 		voiceData.get().uptimeDelta = newUptimeDelta;
 	}
@@ -531,7 +531,7 @@ void gain_impl<V>::setSmoothingTime(double smoothingTimeMs)
 
 	auto sm = smoothingTime;
 
-	if (gainer.isVoiceRenderingActive())
+	if (gainer.isMonophonicOrInsideVoiceRendering())
 	{
 		gainer.get().reset(sr, sm);
 	}
@@ -550,7 +550,7 @@ void gain_impl<V>::setGain(double newValue)
 {
 	gainValue = Decibels::decibelsToGain(newValue);
 
-	if (gainer.isVoiceRenderingActive())
+	if (gainer.isMonophonicOrInsideVoiceRendering())
 		gainer.get().setValue((float)gainValue);
 	else
 	{
@@ -616,7 +616,7 @@ void gain_impl<V>::reset() noexcept
 
 	auto rv = resetValue.getValue();
 
-	if (gainer.isVoiceRenderingActive())
+	if (gainer.isMonophonicOrInsideVoiceRendering())
 	{
 		gainer.get().reset(sr, smoothingTime);
 
@@ -694,7 +694,7 @@ void smoother_impl<NV>::setDefaultValue(double newDefaultValue)
 
 	auto d = defaultValue; auto sm = smoothingTimeMs;
 
-	if (smoother.isVoiceRenderingActive())
+	if (smoother.isMonophonicOrInsideVoiceRendering())
 		smoother.get().resetToValue((float)d, (float)sm);
 	else
 		smoother.forEachVoice([d, sm](Smoother& s) {s.resetToValue((float)d, (float)sm); });
@@ -705,7 +705,7 @@ void smoother_impl<NV>::setSmoothingTime(double newSmoothingTime)
 {
 	smoothingTimeMs = newSmoothingTime;
 
-	if (smoother.isVoiceRenderingActive())
+	if (smoother.isMonophonicOrInsideVoiceRendering())
 		smoother.get().setSmoothingTime((float)smoothingTimeMs);
 	else
 		smoother.forEachVoice([newSmoothingTime](Smoother& s) {s.setSmoothingTime((float)newSmoothingTime); });
@@ -743,7 +743,7 @@ void smoother_impl<NV>::reset()
 {
 	auto d = defaultValue;
 
-	if (smoother.isVoiceRenderingActive())
+	if (smoother.isMonophonicOrInsideVoiceRendering())
 		smoother.get().resetToValue(defaultValue, 0.0);
 	else
 		smoother.forEachVoice([d](Smoother& s) { s.resetToValue(d, 0.0); });
@@ -840,7 +840,7 @@ void ramp_envelope_impl<V>::prepare(PrepareSpecs ps)
 template <int V>
 void ramp_envelope_impl<V>::reset()
 {
-	if (gainer.isVoiceRenderingActive())
+	if (gainer.isMonophonicOrInsideVoiceRendering())
 		gainer.get().setValueWithoutSmoothing(0.0f);
 	else
 	{
@@ -911,7 +911,7 @@ void ramp_envelope_impl<V>::setRampTime(double newAttackTimeMs)
 
 	if (sr > 0.0)
 	{
-		if (gainer.isVoiceRenderingActive())
+		if (gainer.isMonophonicOrInsideVoiceRendering())
 		{
 			gainer.get().reset(sr, attackTimeSeconds);
 		}
@@ -1024,7 +1024,7 @@ void hise_mod::process(ProcessData& d)
 
 bool hise_mod::handleModulation(double& v)
 {
-	if (modValues.isVoiceRenderingActive())
+	if (modValues.isMonophonicOrInsideVoiceRendering())
 		return modValues.get().getChangedValue(v);
 	else
 		return false;
@@ -1076,7 +1076,7 @@ void hise_mod::setIndex(double index)
 
 void hise_mod::reset()
 {
-	if (modValues.isVoiceRenderingActive())
+	if (modValues.isMonophonicOrInsideVoiceRendering())
 	{
 		modValues.get().setModValue(parentProcessor->getModValueAtVoiceStart(modIndex));
 	}
@@ -1098,7 +1098,7 @@ void fm::prepare(PrepareSpecs ps)
 
 void fm::reset()
 {
-	if (oscData.isVoiceRenderingActive())
+	if (oscData.isMonophonicOrInsideVoiceRendering())
 		oscData.get().reset();
 	else
 		oscData.forEachVoice([](OscData& d) {d.reset(); });
@@ -1159,7 +1159,7 @@ void fm::handleHiseEvent(HiseEvent& e)
 
 void fm::setFreqMultiplier(double input)
 {
-	if (oscData.isVoiceRenderingActive())
+	if (oscData.isMonophonicOrInsideVoiceRendering())
 		oscData.get().multiplier = input;
 	else
 		oscData.forEachVoice([input](OscData& d) { d.multiplier = input; });
@@ -1169,7 +1169,7 @@ void fm::setModulatorGain(double newGain)
 {
 	auto newValue = newGain * sinTable->getTableSize() * 0.05;
 
-	if (modGain.isVoiceRenderingActive())
+	if (modGain.isMonophonicOrInsideVoiceRendering())
 		modGain.get() = newValue;
 	else
 		modGain.forEachVoice([newValue](double& d) {d = newValue; });
@@ -1180,7 +1180,7 @@ void fm::setFrequency(double newFrequency)
 	auto freqValue = newFrequency;
 	auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
 
-	if (oscData.isVoiceRenderingActive())
+	if (oscData.isMonophonicOrInsideVoiceRendering())
 		oscData.get().uptimeDelta = newUptimeDelta;
 	else
 		oscData.forEachVoice([newUptimeDelta](OscData& d) {d.uptimeDelta = newUptimeDelta; });

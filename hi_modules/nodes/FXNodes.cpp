@@ -50,7 +50,7 @@ void sampleandhold_impl<V>::setFactor(double value)
 {
 	auto factor = jlimit(1, 44100, roundToInt(value));
 
-	if (data.isVoiceRenderingActive())
+	if (data.isMonophonicOrInsideVoiceRendering())
 		data.get().factor = factor;
 	else
 		data.forEachVoice([factor](Data& d_) {d_.factor = factor; });
@@ -88,7 +88,7 @@ void sampleandhold_impl<V>::processSingle(float* numFrames, int numChannels)
 template <int V>
 void sampleandhold_impl<V>::reset() noexcept
 {
-	if (data.isVoiceRenderingActive())
+	if (data.isMonophonicOrInsideVoiceRendering())
 		data.get().clear(lastChannelAmount);
 	else
 		data.forEachVoice([this](Data& d_) {d_.clear(lastChannelAmount); });
@@ -155,7 +155,7 @@ void bitcrush_impl<V>::setBitDepth(double newBitDepth)
 {
 	auto v = jlimit(1.0f, 16.0f, (float)newBitDepth);
 
-	if (bitDepth.isVoiceRenderingActive())
+	if (bitDepth.isMonophonicOrInsideVoiceRendering())
 		bitDepth.get() = v;
 	else
 		bitDepth.setAll(v);
@@ -272,7 +272,7 @@ void phase_delay_impl<V>::process(ProcessData& d)
 template <int V>
 void scriptnode::fx::phase_delay_impl<V>::reset() noexcept
 {
-	if (delays[0].isVoiceRenderingActive())
+	if (delays[0].isMonophonicOrInsideVoiceRendering())
 	{
 		delays[0].get().reset();
 		delays[1].get().reset();
@@ -321,7 +321,7 @@ void phase_delay_impl<V>::setFrequency(double newFrequency)
 
 	auto coefficient = AllpassDelay::getDelayCoefficient((float)newFrequency);
 
-	if (delays[0].isVoiceRenderingActive())
+	if (delays[0].isMonophonicOrInsideVoiceRendering())
 	{
 		delays[0].get().setDelay(coefficient);
 		delays[1].get().setDelay(coefficient);
@@ -345,7 +345,7 @@ void haas_impl<V>::setPosition(double newValue)
 
 	auto d = std::abs(position) * 0.02;
 
-	if (delayL.isVoiceRenderingActive())
+	if (delayL.isMonophonicOrInsideVoiceRendering())
 	{
 		if (position == 0.0)
 		{
@@ -421,9 +421,9 @@ template <int V>
 void haas_impl<V>::reset()
 {
 
-	if (delayL.isVoiceRenderingActive())
+	if (delayL.isMonophonicOrInsideVoiceRendering())
 	{
-		jassert(delayR.isVoiceRenderingActive());
+		jassert(delayR.isMonophonicOrInsideVoiceRendering());
 
 		delayL.get().setFadeTimeSamples(0);
 		delayR.get().setFadeTimeSamples(0);

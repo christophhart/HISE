@@ -189,7 +189,7 @@ void jit_impl<NV>::handleHiseEvent(HiseEvent& e)
 {
 	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
 	{
-		if (cData.isVoiceRenderingActive())
+		if (cData.isMonophonicOrInsideVoiceRendering())
 			cData.get().eventFunction.callVoid(e);
 	}
 }
@@ -205,7 +205,7 @@ void jit_impl<NV>::reset()
 {
 	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
 	{
-		if (cData.isVoiceRenderingActive())
+		if (cData.isMonophonicOrInsideVoiceRendering())
 			cData.get().resetFunction.callVoid();
 		else
 			cData.forEachVoice([](CallbackCollection& c) {c.resetFunction.callVoid(); });

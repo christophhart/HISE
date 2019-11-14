@@ -129,6 +129,14 @@ template <typename T, int NumVoices> struct PolyData
 		}
 	}
 
+	bool isMonophonicOrInsideVoiceRendering() const
+	{
+		if (!isPolyphonic() || voicePtr == nullptr)
+			return true;
+
+		return isVoiceRenderingActive();
+	}
+
 	bool isVoiceRenderingActive() const
 	{
 		return isPolyphonic() && 

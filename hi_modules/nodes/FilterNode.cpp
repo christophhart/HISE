@@ -88,7 +88,7 @@ struct FilterNodeGraph : public HiseDspBase::ExtraComponent<CoefficientProvider>
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setMode(double newMode)
 {
-	if (filter.isVoiceRenderingActive())
+	if (filter.isMonophonicOrInsideVoiceRendering())
 		filter.get().setType((int)newMode);
 	else
 	{
@@ -102,7 +102,7 @@ void FilterNodeBase<FilterType, NV>::setMode(double newMode)
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setQ(double newQ)
 {
-	if (filter.isVoiceRenderingActive())
+	if (filter.isMonophonicOrInsideVoiceRendering())
 		filter.get().setQ(newQ);
 	else
 	{
@@ -118,7 +118,7 @@ void FilterNodeBase<FilterType, NV>::setGain(double newGain)
 {
 	auto gainValue = Decibels::decibelsToGain(newGain);
 
-	if (filter.isVoiceRenderingActive())
+	if (filter.isMonophonicOrInsideVoiceRendering())
 		filter.get().setGain(gainValue);
 	else
 	{
@@ -132,7 +132,7 @@ void FilterNodeBase<FilterType, NV>::setGain(double newGain)
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setFrequency(double newFrequency)
 {
-	if (filter.isVoiceRenderingActive())
+	if (filter.isMonophonicOrInsideVoiceRendering())
 		filter.get().setFrequency(newFrequency);
 	else
 	{
@@ -160,7 +160,7 @@ void FilterNodeBase<FilterType, NV>::process(ProcessData& d) noexcept
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::reset()
 {
-	if (filter.isVoiceRenderingActive())
+	if (filter.isMonophonicOrInsideVoiceRendering())
 		filter.get().reset();
 	else
 		filter.forEachVoice([](FilterObject& f) { f.reset(); });
@@ -242,7 +242,7 @@ void FilterNodeBase<FilterType, NV>::createParameters(Array<ParameterData>& para
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setSmoothingTime(double newSmoothingTime)
 {
-	if (filter.isVoiceRenderingActive())
+	if (filter.isMonophonicOrInsideVoiceRendering())
 		filter.get().setSmoothingTime(newSmoothingTime);
 	else
 	{
@@ -315,7 +315,7 @@ void scriptnode::filters::fir_impl<NV>::reset()
 {
 	SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
 
-	if (leftFilters.isVoiceRenderingActive())
+	if (leftFilters.isMonophonicOrInsideVoiceRendering())
 	{
 		leftFilters.get().reset();
 		rightFilters.get().reset();
