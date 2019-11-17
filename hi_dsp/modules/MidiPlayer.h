@@ -545,6 +545,17 @@ public:
 
 	void setLength(HiseMidiSequence::TimeSignature sig, bool useUndoManager=true);
 
+	double getCurrentTicksSincePlaybackStart() const
+	{
+		return ticksSincePlaybackStart;
+	}
+
+	void setPositionWithTicksFromPlaybackStart(double newPos)
+	{
+		ticksSincePlaybackStart = newPos;
+		updatePositionInCurrentSequence();
+	}
+
 	/** Resets the current sequence back to its pooled state. This operation is undo-able. */
 	void resetCurrentSequence();
 
