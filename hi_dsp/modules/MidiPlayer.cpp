@@ -831,7 +831,7 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 		{
 			newAmount = jlimit<float>((float)getLoopStart(), (float)getLoopEnd(), newAmount);
 
-			auto lengthInQuarters = seq->getLengthInQuarters() * getPlaybackPosition();
+			auto lengthInQuarters = seq->getLengthInQuarters();
 			auto ticks = lengthInQuarters * HiseMidiSequence::TicksPerQuarter;
 			ticksSincePlaybackStart = ticks * newAmount;
 

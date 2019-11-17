@@ -2591,9 +2591,6 @@ public:
 		return sf;
 	}
 
-private:
-
-
 
 	float getRoundedXValue(float xValue) const
 	{
@@ -2614,6 +2611,11 @@ private:
 		auto yInTopLevel = (float)tmp * subOffsetDivisor;
 		return c.getLocalPoint(tl, Point<float>(0.0f, yInTopLevel)).getY();
 	}
+
+private:
+
+
+
 
 	Graphics& g;
 	Component& c;
