@@ -939,7 +939,7 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 
 void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 {
-	jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread ||
+	jassert(getMainController()->getSampleManager().isNonRealtime() || getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread ||
 	LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
 
 	switch (repeatMode)
@@ -1151,6 +1151,14 @@ void ModulatorSampler::updateRRGroupAmountAfterMapLoad()
 
 	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
 
+}
+
+void ModulatorSampler::nonRealtimeModeChanged(bool isNonRealtime)
+{
+	for (auto v : voices)
+	{
+		dynamic_cast<ModulatorSamplerVoice*>(v)->setNonRealtime(isNonRealtime);
+	}
 }
 
 void ModulatorSampler::saveSampleMap() const

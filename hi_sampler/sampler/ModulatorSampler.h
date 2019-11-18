@@ -53,7 +53,8 @@ class SampleEditHandler;
 */
 class ModulatorSampler: public ModulatorSynth,
 						public LookupTableProcessor,
-						public SuspendableTimer::Manager
+						public SuspendableTimer::Manager,
+						public NonRealtimeProcessor
 {
 public:
 
@@ -399,6 +400,8 @@ public:
 	void loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous = false);
 
 	void updateRRGroupAmountAfterMapLoad();
+
+	void nonRealtimeModeChanged(bool isNonRealtime) override;
 
 #if 0
 	void loadSampleMapSync(const File &f);

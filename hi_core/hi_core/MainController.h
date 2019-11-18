@@ -84,6 +84,8 @@ public:
 	{
 	public:
 
+		
+
 		/** A class that will be notified about sample preloading changes.
 		*
 		*	This can be used to implement loading bars / progress labels when
@@ -223,8 +225,6 @@ public:
 
 		double& getPreloadProgress();
 
-
-
 		const CriticalSection& getSampleLock() const noexcept { return sampleLock; }
 
 		void cancelAllJobs();
@@ -233,7 +233,22 @@ public:
 
 		bool hasPendingFunction(Processor* p) const;
 
+		bool isNonRealtime()
+		{
+			return nonRealtime;
+		}
+
+		void handleNonRealtimeState();
+
+		void setNonRealtime(bool shouldBeNonRealtime)
+		{
+			nonRealtime = shouldBeNonRealtime;
+		}
+
 	private:
+
+		bool nonRealtime = false;
+		bool internalsSetToNonRealtime = false;
 
 		String currentPreloadMessage;
 

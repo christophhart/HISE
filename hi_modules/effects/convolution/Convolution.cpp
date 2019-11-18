@@ -149,8 +149,9 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case ProcessInput:	processingEnabled = newValue >= 0.5f;
 						enableProcessing(processingEnabled); 
 						break;
-	case UseBackgroundThread:	convolverL->setUseBackgroundThread(newValue > 0.5f);
-								convolverR->setUseBackgroundThread(newValue > 0.5f);
+	case UseBackgroundThread:	useBackgroundThread = newValue > 0.5f;
+								convolverL->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
+								convolverR->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
 								break;
 	case Predelay:		predelayMs = newValue;
 						calcPredelay();

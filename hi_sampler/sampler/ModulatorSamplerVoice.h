@@ -61,6 +61,11 @@ public:
 	void calculateBlock(int startSample, int numSamples) override;
 	void resetVoice() override;
 
+	virtual void setNonRealtime(bool isNonRealtime)
+	{
+		wrappedVoice.loader.setIsNonRealtime(isNonRealtime);
+	}
+
 	void handlePlaybackPosition(const StreamingSamplerSound * sound);
 
 	static double limitPitchDataToMaxSamplerPitch(float * pitchData, double uptimeDelta, int startSample, int numSamples);
@@ -144,6 +149,12 @@ public:
 
 	/** Resets the display value for the current note. */
 	void resetVoice() override;
+
+	void setNonRealtime(bool isNonRealtime) override
+	{
+		for(auto v: wrappedVoices)
+			v->loader.setIsNonRealtime(isNonRealtime);
+	}
 
 	// ================================================================================================================
 private:

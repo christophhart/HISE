@@ -137,6 +137,8 @@ auto busProp = BusesProperties();
 	bool isInputChannelStereoPair (int ) const {return true;};
 	bool isOutputChannelStereoPair (int ) const {return true;};
 
+	void setNonRealtime(bool isNonRealtime) noexcept override;
+
 
     //==============================================================================
 	int getNumPrograms() {return 1;};

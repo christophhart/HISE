@@ -598,6 +598,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 {
 	AudioThreadGuard audioThreadGuard(&getKillStateHandler());
 
+	getSampleManager().handleNonRealtimeState();
+
 	ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
     
 	getDebugLogger().checkAudioCallbackProperties(thisAsProcessor->getSampleRate(), numSamplesThisBlock);
@@ -1386,6 +1388,23 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	multiChannelBuffer.setSize(numNewChannels, multiChannelBuffer.getNumSamples());
 
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
+}
+
+void MainController::SampleManager::handleNonRealtimeState()
+{
+	if (isNonRealtime() != internalsSetToNonRealtime)
+	{
+		Processor::Iterator<NonRealtimeProcessor> iter(mc->getMainSynthChain());
+
+		LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+
+		
+
+		while (auto nrt = iter.getNextProcessor())
+			nrt->nonRealtimeModeChanged(isNonRealtime());
+
+		internalsSetToNonRealtime = isNonRealtime();
+	}
 }
 
 } // namespace hise

@@ -71,6 +71,13 @@ void PluginParameterAudioProcessor::addScriptedParameters()
 }
 
 
+void PluginParameterAudioProcessor::setNonRealtime(bool isNonRealtime) noexcept
+{
+	dynamic_cast<MainController*>(this)->getSampleManager().setNonRealtime(isNonRealtime);
+
+	AudioProcessor::setNonRealtime(isNonRealtime);
+}
+
 void PluginParameterAudioProcessor::handleLatencyInPrepareToPlay(double samplerate)
 {
 	if (getLatencySamples() != lastLatencySamples && getLatencySamples() != 0)

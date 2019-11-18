@@ -41,6 +41,9 @@ bool LockHelpers::freeToGo(MainController* mc)
 		return true;
 	}
 
+	if (mc->getSampleManager().isNonRealtime())
+		return true;
+
 	if (!mc->isInitialised())
 	{
 		return true;
@@ -70,7 +73,7 @@ bool LockHelpers::freeToGo(MainController* mc)
 	if (MessageManager::getInstance()->isThisTheMessageThread())
 	{
 		// you're calling this from the message thread
-		jassertfalse;
+		//jassertfalse;
 		return false;
 	}
 

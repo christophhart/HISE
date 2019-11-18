@@ -150,7 +150,12 @@ void SampleLoader::reset()
 
 			unmapper.setSoundToUnmap(currentSound);
 
-			backgroundPool->addJob(&unmapper, false);
+			if (nonRealtime)
+			{
+				unmapper.runJob();
+			}
+			else
+				backgroundPool->addJob(&unmapper, false);
 
 			clearLoader();
 		}
@@ -322,6 +327,12 @@ int SampleLoader::getNumSamplesForStreamingBuffers() const
 bool SampleLoader::requestNewData()
 {
 	cancelled = false;
+
+	if (nonRealtime)
+	{
+		runJob();
+		return true;
+	}
 
 #if KILL_VOICES_WHEN_STREAMING_IS_BLOCKED
 	if (this->isQueued())

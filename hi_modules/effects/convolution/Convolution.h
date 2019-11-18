@@ -225,7 +225,8 @@ private:
 *	but your early reflection impulses or other filter impulses will be thankful for this effect.
 */
 class ConvolutionEffect: public MasterEffectProcessor,
-						 public AudioSampleProcessor
+						 public AudioSampleProcessor,
+						 public NonRealtimeProcessor
 {
 
 	class LoadingThread : public Thread
@@ -358,9 +359,19 @@ public:
 
 	const CriticalSection& getFileLock() const override { return unusedFileLock; }
 
+	void nonRealtimeModeChanged(bool isNonRealtime) override
+	{
+		nonRealtime = isNonRealtime;
+
+		convolverL->setUseBackgroundThread(!nonRealtime && useBackgroundThread);
+		convolverR->setUseBackgroundThread(!nonRealtime && useBackgroundThread);
+	}
 	
 
 private:
+
+	bool useBackgroundThread = false;
+	bool nonRealtime = false;
 
 	bool processingEnabled = true;
 

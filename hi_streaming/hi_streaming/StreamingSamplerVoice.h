@@ -125,8 +125,20 @@ public:
 	void setLogger(DebugLogger* l) { logger = l; }
 	const CriticalSection &getLock() const { return lock; }
 
+	/** Sets a function that checks whether the streaming engine should work asynchronously or fetch the data directly
+	    in the caller thread. 
+		
+		This can be used in an offline render context to make sure that the multi-realtime render speed will not make
+		the streaming thread choke.
+	*/
+	void setIsNonRealtime(bool shouldBeNonRealtime)
+	{
+		nonRealtime = shouldBeNonRealtime;
+	}
 
 private:
+
+	bool nonRealtime = false;
 
 	friend class Unmapper;
 
