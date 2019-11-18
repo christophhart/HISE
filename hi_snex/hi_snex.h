@@ -94,7 +94,7 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #endif
 
 #if HISE_INCLUDE_SNEX
-using SnexDebugHandler = snex::DebugHandler
+using SnexDebugHandler = snex::DebugHandler;
 using SnexExpressionPtr = snex::JitExpression::Ptr;
 #else
 struct SnexDebugHandler

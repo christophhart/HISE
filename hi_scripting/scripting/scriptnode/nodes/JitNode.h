@@ -38,7 +38,7 @@ using namespace juce;
 using namespace hise;
 
 
-#if HISE_USE_SNEX
+#if HISE_INCLUDE_SNEX
 using namespace snex;
 
 template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
@@ -252,7 +252,7 @@ public:
 	{
 		if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
 		{
-			if (cData.isMonophonicOrInsideVoiceRendering)
+			if (cData.isMonophonicOrInsideVoiceRendering())
 				cData.get().parameters.getReference(Index).f.callVoid(newValue);
 			else
 			{
