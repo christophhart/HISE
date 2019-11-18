@@ -71,9 +71,9 @@ Set to 0 to disable SNEX compilation (default on iOS).
  */
 #ifndef HISE_INCLUDE_SNEX
 #if HISE_IOS
-#define HISE_INDLUDE_SNEX 1
-#else
 #define HISE_INCLUDE_SNEX 0
+#else
+#define HISE_INCLUDE_SNEX 1
 #endif
 #endif
 
