@@ -420,6 +420,17 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(DatabaseListener);
 	};
 
+	struct ServerUpdateListener
+	{
+		virtual ~ServerUpdateListener() {};
+
+		virtual void serverUpdateStateStarted() {};
+
+		virtual void serverUpdateFinished(bool successful) {};
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ServerUpdateListener);
+	};
+
     virtual ~MarkdownDatabaseHolder() {};
     
 	const MarkdownDataBase& getDatabase() const
@@ -503,7 +514,29 @@ public:
 
 	bool nothingInHere() const { return nothingToShow; }
 
+	void addServerUpdateListener(ServerUpdateListener* l)
+	{
+		serverUpdateListeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeServerUpdateListener(ServerUpdateListener* l)
+	{
+		serverUpdateListeners.removeAllInstancesOf(l);
+	}
 	
+	void sendServerUpdateMessage(bool started, bool successful)
+	{
+		for (auto l : serverUpdateListeners)
+		{
+			if (l == nullptr)
+				continue;
+
+			if (started)
+				l->serverUpdateStateStarted();
+			else
+				l->serverUpdateFinished(successful);
+		}
+	}
 
 private:
 
@@ -512,7 +545,7 @@ private:
 	double* progressCounter = nullptr;
 
 	
-
+	Array<WeakReference<ServerUpdateListener>> serverUpdateListeners;
 	Array<WeakReference<MarkdownContentProcessor>> contentProcessors;
 
 	bool forceUseCachedData = true;

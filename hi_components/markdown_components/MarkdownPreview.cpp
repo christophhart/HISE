@@ -707,9 +707,15 @@ void DocUpdater::run()
 {
 	if (fastMode)
 	{
-        if(!areMajorWebsitesAvailable())
-            return;
+		holder.sendServerUpdateMessage(true, true);
+
+		if (!areMajorWebsitesAvailable())
+		{
+			holder.sendServerUpdateMessage(false, false);
+			return;
+		}
         
+		
 		holder.setProgressCounter(&getProgressCounter());
 		updateFromServer();
 		getHolder().setForceCachedDataUse(!editingShouldBeEnabled);
@@ -809,12 +815,14 @@ void DocUpdater::updateFromServer()
 
 	if (threadShouldExit())
 	{
+		holder.sendServerUpdateMessage(false, false);
 		result = UserCancelled;
 		return;
 	}
 
 	if (content.isEmpty())
 	{
+		holder.sendServerUpdateMessage(false, false);
 		result = CantResolveServer;
 		return;
 	}
@@ -838,16 +846,18 @@ void DocUpdater::updateFromServer()
 	
 	if (threadShouldExit())
 	{
+		holder.sendServerUpdateMessage(false, false);
 		result = UserCancelled;
 		return;
 	}
 		
 
-	if (webImageHash != localImageHash || localFile.getSiblingFile("images.dat").existsAsFile())
+	if (webImageHash != localImageHash || !localFile.getSiblingFile("images.dat").existsAsFile())
 		downloadAndTestFile("images.dat");
 
 	if (threadShouldExit())
 	{
+		holder.sendServerUpdateMessage(false, false);
 		result = UserCancelled;
 		return;
 	}
@@ -858,6 +868,7 @@ void DocUpdater::updateFromServer()
 		showStatusMessage("Rebuilding indexes");
 	
 	holder.rebuildDatabase();
+	holder.sendServerUpdateMessage(false, true);
 }
 
 juce::URL DocUpdater::getCacheUrl(CacheURLType type) const
