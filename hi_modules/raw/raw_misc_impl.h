@@ -185,6 +185,7 @@ void hise::raw::UIConnection::Slider<parameterIndex>::sliderValueChanged(juce::S
 template <int parameterIndex>
 void hise::raw::UIConnection::Slider<parameterIndex>::updateUI(float newValue)
 {
+
 	getComponent().setValue(newValue, dontSendNotification);
 }
 

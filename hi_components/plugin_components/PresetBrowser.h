@@ -197,6 +197,11 @@ public:
 
 	PresetBrowserLookAndFeelMethods& getPresetBrowserLookAndFeel();
 
+	void hideManageButton()
+	{
+		manageButton->setVisible(false);
+	}
+
 private:
 
 	DefaultPresetBrowserLookAndFeel laf;
