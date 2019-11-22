@@ -620,7 +620,15 @@ public:
 
 	void swapSequenceListWithIndex(HiseMidiSequence::List listToSwapWith, int newSequenceIndex);
 
+	/** @internal. */
+	void setReferenceWithoutLoading(PoolReference r)
+	{
+		forcedReference = r;
+	}
+
 private:
+
+	PoolReference forcedReference;
 
 	mutable SimpleReadWriteLock sequenceLock;
 

@@ -1763,7 +1763,7 @@ void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination
 void CompressionHelpers::NormaliseMap::setUseStaticNormalisation(uint8 staticNormalisationAmount)
 {
 	normalisationMode = Mode::StaticNormalisation;
-	memset(preallocated, staticNormalisationAmount, 16);
+	memset(preallocated, staticNormalisationAmount, PreallocatedSize);
 }
 
 bool CompressionHelpers::NormaliseMap::writeNormalisationHeader(OutputStream& output)
@@ -1794,7 +1794,7 @@ void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, in
 	uint8* ptr = reinterpret_cast<uint8*>(&normalisedValues);
 	uint16 index = getIndexForSamplePosition(readOffset);
 
-	uint16 maxSize = allocated != nullptr ? numAllocated : 16;
+	uint16 maxSize = allocated != nullptr ? numAllocated : PreallocatedSize;
 
 	if ((index + 3) >= maxSize)
 	{
@@ -1864,7 +1864,7 @@ void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
 {
 	active = numSamples > 0;
 
-	if (numSamples <= (16 * normaliseBlockSize))
+	if (numSamples <= (PreallocatedSize * normaliseBlockSize))
 	{
 		allocated.free();
 		numAllocated = 0;
@@ -1876,7 +1876,7 @@ void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
 		if (newNumAllocated != numAllocated)
 		{
 			numAllocated = newNumAllocated;
-			memset(preallocated, 0, 16);
+			memset(preallocated, 0, PreallocatedSize);
 			allocated.realloc(numAllocated, 1);
 			allocated.clear(numAllocated);
 		}
@@ -1920,7 +1920,7 @@ void CompressionHelpers::NormaliseMap::setOffset(int offsetToUse)
 
 juce::int16 CompressionHelpers::NormaliseMap::size() const
 {
-	return allocated != nullptr ? numAllocated : 16;
+	return allocated != nullptr ? numAllocated : PreallocatedSize;
 }
 
 void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount) const
