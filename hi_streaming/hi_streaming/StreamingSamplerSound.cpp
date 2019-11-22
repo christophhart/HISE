@@ -172,6 +172,19 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		entireSampleLoaded = false;
 	}
 
+	// OK, this is the weirdest bug and the nastiest hack of all times.
+	// The problem is that the HLAC normalisation is causing issues with
+	// preload sizes over the magic number 28000 (which is 33 allocation tables)
+	// There's probably an out-of bounds issue somewhere, but until I've figured
+	// it out, this will have to do it.
+	//
+	// (looking forward to still reading that comment in 2021...)
+	if (internalPreloadSize > 28000)
+	{
+		internalPreloadSize = sampleLength;
+		entireSampleLoaded = true;
+	}
+
 	internalPreloadSize = jmax(preloadSize, internalPreloadSize, 2048);
 
 	fileReader.openFileHandles();
