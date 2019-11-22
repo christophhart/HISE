@@ -792,6 +792,8 @@ public:
 		parseVersion(newVersion, newVersion_);
 	};
 
+	bool isUpdate() const;
+
 	bool isMajorVersionUpdate() const { return newVersion.majorVersion > oldVersion.majorVersion; };
 	bool isMinorVersionUpdate() const { return newVersion.minorVersion > oldVersion.minorVersion; };
 	bool isPatchVersionUpdate() const { return newVersion.patchVersion > oldVersion.patchVersion; };
