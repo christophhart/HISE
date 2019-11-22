@@ -1389,6 +1389,9 @@ void MidiPlayer::resetCurrentSequence()
 
 hise::PoolReference MidiPlayer::getPoolReference(int index /*= -1*/)
 {
+	if (forcedReference.isValid())
+		return forcedReference;
+
 	if (index == -1)
 		index = currentSequenceIndex;
 

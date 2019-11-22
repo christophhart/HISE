@@ -848,8 +848,6 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 		}
 
 
-		DBG(numRemoved);
-
 		int numPoints = values.size();
 
 		for (int i = 0; i < numPoints; i++)

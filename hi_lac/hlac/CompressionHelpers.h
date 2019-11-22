@@ -144,12 +144,14 @@ struct CompressionHelpers
 				return preallocated;
 		}
 
+		static constexpr int PreallocatedSize = 16;
+
 		static constexpr int normaliseBlockSize = 1024;
 
 		uint8 normalisationMode = Mode::NoNormalisation;
 		int firstOffset = 0;
 
-		uint8 preallocated[16];
+		uint8 preallocated[PreallocatedSize];
 		uint16 numAllocated = 0;
 		HeapBlock<uint8> allocated;
 		bool active = false;
