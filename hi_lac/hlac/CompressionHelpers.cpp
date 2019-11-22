@@ -1307,6 +1307,9 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			if (!data.debugLogMode)
 			{
+				if (targetHlacFile.existsAsFile())
+					targetHlacFile.create();
+
 				monolithOutputStream = new FileOutputStream(targetHlacFile);
 				writer = hlacFormat.createWriterFor(monolithOutputStream, flacReader->sampleRate, flacReader->numChannels, 5, metadata, 5);
 			}
