@@ -1619,6 +1619,7 @@ void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
     else if (userPreset.existsAsFile())
 	{
 		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPreset);
+		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(userPreset);
 	}
 	else
 	{
