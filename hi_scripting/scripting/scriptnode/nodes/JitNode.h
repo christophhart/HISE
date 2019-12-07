@@ -201,8 +201,87 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 };
 
 
+
 namespace core
 {
+
+class simple_jit : public HiseDspBase
+{
+public:
+
+	SET_HISE_NODE_ID("simple_jit");
+	SET_HISE_NODE_EXTRA_HEIGHT(50);
+	SET_HISE_NODE_EXTRA_WIDTH(384);
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+	GET_SELF_AS_OBJECT(simple_jit);
+
+	simple_jit():
+		code(PropertyIds::Code, "input")
+	{
+		
+	}
+
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_MOD;
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_CREATE_PARAM;
+	
+	void initialise(NodeBase* n)
+	{
+		code.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(simple_jit::updateCode));
+		code.init(n, this);
+
+		
+
+		codeValue = n->getNodePropertyAsValue(PropertyIds::Code);
+	}
+
+	void updateCode(Identifier id, var newValue)
+	{
+		SingleWriteLockfreeMutex::ScopedWriteLock sl(compileLock);
+
+		expr = new snex::JitExpression(newValue.toString());
+	}
+
+	Component* createExtraComponent(PooledUIUpdater* updater) override;
+
+	void processSingle(float* data, int numChannels)
+	{
+		SingleWriteLockfreeMutex::ScopedReadLock sl(compileLock);
+
+		if (expr != nullptr && expr->isValid())
+		{
+			for (int i = 0; i < numChannels; i++)
+				data[i] = expr->getValueUnchecked((double)data[i]);
+		}
+	}
+
+	void process(ProcessData& data)
+	{
+		SingleWriteLockfreeMutex::ScopedReadLock sl(compileLock);
+
+		if (expr != nullptr && expr->isValid())
+		{
+			for (int c = 0; c < data.numChannels; c++)
+			{
+				auto ptr = data.data[c];
+
+				for (int i = 0; i < data.size; i++)
+				{
+					ptr[i] = expr->getValueUnchecked(ptr[i]);
+				}
+			}
+		}
+	}
+
+	hise::SingleWriteLockfreeMutex compileLock;
+
+	snex::JitExpression::Ptr expr;
+
+	NodePropertyT<String> code;
+	String lastCode;
+	Value codeValue;
+};
 
 template <int NV> class jit_impl : public HiseDspBase,
 							  public AsyncUpdater

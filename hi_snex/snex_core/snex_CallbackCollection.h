@@ -153,6 +153,9 @@ struct JitExpression : public ReferenceCountedObject
 	*/
 	double getValue(double input) const;
 
+	/** Evaluates the expression. Make sure it's valid before calling it!. */
+	double getValueUnchecked(double input) const;
+
 	/** Returns the last error message or an empty string if everything was fine. */
 	String getErrorMessage() const;
 

@@ -315,6 +315,68 @@ void jit_impl<NV>::processSingle(float* frameData, int numChannels)
 
 DEFINE_EXTERN_NODE_TEMPIMPL(jit_impl);
 
+struct SimpleJitComponent : public Component,
+							public TextEditor::Listener
+{
+	SimpleJitComponent(simple_jit* parent_) :
+		parent(parent_)
+	{
+		te.setFont(GLOBAL_MONOSPACE_FONT());
+		te.setColour(TextEditor::ColourIds::backgroundColourId, Colour(0xFF333333));
+		te.setColour(TextEditor::ColourIds::textColourId, Colours::white);
+		te.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.6f));
+		te.setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+		te.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+		te.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+		te.addListener(this);
+		addAndMakeVisible(te);
+		te.setText(parent->codeValue.toString(), dontSendNotification);
+		setSize(384, 32);
+	}
+
+	void textEditorReturnKeyPressed(TextEditor& te) override
+	{
+		parent->codeValue.setValue(te.getText());
+		repaint();
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (parent->expr != nullptr)
+		{
+			if (parent->expr->isValid())
+			{
+				g.fillAll(Colours::green.withSaturation(0.2f).withBrightness(0.4f));
+				
+			}
+			else
+			{
+				g.fillAll(Colours::red.withSaturation(0.2f).withBrightness(0.2f));
+				g.setColour(Colours::white.withAlpha(0.6f));
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.drawText(parent->expr->getErrorMessage(), getLocalBounds().removeFromBottom(26).toFloat().reduced(2.0f), Justification::left);
+			}
+		}
+		else
+		{
+			g.fillAll(Colours::white);
+		}
+	}
+	
+	void resized() override
+	{
+		te.setBounds(getLocalBounds().removeFromTop(24));
+	}
+
+	simple_jit* parent;
+	TextEditor te;
+};
+
+juce::Component* simple_jit::createExtraComponent(PooledUIUpdater* updater)
+{
+	return new SimpleJitComponent(this);
+}
+
 }
 
 

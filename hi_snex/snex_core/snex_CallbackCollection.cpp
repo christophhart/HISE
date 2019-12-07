@@ -211,9 +211,14 @@ JitExpression::JitExpression(const String& s, DebugHandler* handler) :
 double JitExpression::getValue(double input) const
 {
 	if (f)
-		return f.callUncheckedWithCopy<double>(input);
+		return getValueUnchecked(input);
 	else
 		return input;
+}
+
+double JitExpression::getValueUnchecked(double input) const
+{
+	return f.callUncheckedWithCopy<double>(input);
 }
 
 juce::String JitExpression::getErrorMessage() const
