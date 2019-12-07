@@ -36,7 +36,10 @@ FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
 #if HISE_USE_OPENGL_FOR_PLUGIN
-	context.attachTo(*this);
+	usesOpenGl = dynamic_cast<GlobalSettingManager*>(fp)->useOpenGL;
+	
+	if(usesOpenGl)
+		context.attachTo(*this);
 #endif
 
 	fp->incActiveEditors();
@@ -173,7 +176,8 @@ AudioProcessorEditor(fp)
 FrontendProcessorEditor::~FrontendProcessorEditor()
 {
 #if HISE_USE_OPENGL_FOR_PLUGIN
-	context.detach();
+	if(usesOpenGl)
+		context.detach();
 #endif
 
 	dynamic_cast<FrontendProcessor*>(getAudioProcessor())->decActiveEditors();

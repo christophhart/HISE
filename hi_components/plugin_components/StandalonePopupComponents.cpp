@@ -118,6 +118,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	ADD(SampleLocation);
 	ADD(DebugMode);
 	ADD(ScaleFactorList);
+	ADD(UseOpenGL);
     
 	setColour(ColourIds::textColour, Colours::white);
 
@@ -126,6 +127,10 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
         properties[i] = true;
     }
     
+#if !HISE_USE_OPENGL_FOR_PLUGIN
+	properties[(int)Properties::UseOpenGL] = false;
+#endif
+
 	scaleFactorList = { var(0.5), var(0.75), var(1.0), var(1.25), var(1.5), var(2.0) };
 
     addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
@@ -151,6 +156,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	bpmSelector->addListener(this);
 	bpmSelector->setLookAndFeel(&plaf);
 
+	addAndMakeVisible(openGLSelector = new ComboBox("Open GL"));
 	addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(voiceAmountMultiplier = new ComboBox("Voice Amount"));
@@ -163,6 +169,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	clearMidiLearn->addListener(this);
 	relocateButton->addListener(this);
 	debugButton->addListener(this);
+	openGLSelector->addListener(this);
 
 	voiceAmountMultiplier->addListener(this);
 	voiceAmountMultiplier->setLookAndFeel(&plaf);
@@ -205,7 +212,8 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	soundCardSelector->removeListener(this);
 	outputSelector->removeListener(this);
 	bpmSelector->removeListener(this);
-		
+	openGLSelector->removeListener(this);
+
 	clearMidiLearn->removeListener(this);
 	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
@@ -223,6 +231,7 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	relocateButton = nullptr;
 	debugButton = nullptr;
 	voiceAmountMultiplier = nullptr;
+	openGLSelector = nullptr;
 }
 
 void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDevices)
@@ -244,6 +253,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
         bufferSelector->clear(dontSendNotification);
         sampleRateSelector->clear(dontSendNotification);
         outputSelector->clear(dontSendNotification);
+		openGLSelector->addItemList({ "Yes", "No" }, 1);
         
 		bpmSelector->clear(dontSendNotification);
 		bpmSelector->addItem("Sync to Host", 1);
@@ -345,6 +355,8 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	voiceAmountMultiplier->addItem(String(NUM_POLYPHONIC_VOICES/8) + " voices", 8);
 	
 	voiceAmountMultiplier->setSelectedId(driver->voiceAmountMultiplier, dontSendNotification);
+
+	openGLSelector->setSelectedItemIndex(driver->useOpenGL ? 0 : 1, dontSendNotification);
 
 	bpmSelector->setSelectedId(driver->globalBPM > 0 ? driver->globalBPM : 1, dontSendNotification);
 
@@ -450,6 +462,11 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 		rebuildMenus(false, false);
 	}
+	else if (comboBoxThatHasChanged == openGLSelector)
+	{
+		driver->useOpenGL = comboBoxThatHasChanged->getSelectedItemIndex() == 0;
+		PresetHandler::showMessageWindow("Open GL Setting changed", "Close this window and reopen it in order to apply the changes");
+	}
 	else if (comboBoxThatHasChanged == outputSelector)
 	{
 		const String outputName = outputSelector->getText();
@@ -529,6 +546,7 @@ void CustomSettingsWindow::paint(Graphics& g)
 	DRAW_LABEL(Properties::SampleRate, "Sample Rate");
 	DRAW_LABEL(Properties::GlobalBPM, "Global BPM");
 	DRAW_LABEL(Properties::ScaleFactor, "UI Zoom Factor");
+	DRAW_LABEL(Properties::UseOpenGL, "Use OpenGL");
 	DRAW_LABEL(Properties::StreamingMode, "Streaming Mode");
 	DRAW_LABEL(Properties::VoiceAmountMultiplier, "Max Voices");
 
@@ -569,6 +587,7 @@ void CustomSettingsWindow::resized()
 	POSITION_COMBOBOX(Properties::SampleRate, sampleRateSelector);
 	POSITION_COMBOBOX(Properties::GlobalBPM, bpmSelector);
 	POSITION_COMBOBOX(Properties::ScaleFactor, scaleFactorSelector);
+	POSITION_COMBOBOX(Properties::UseOpenGL, openGLSelector);
 	POSITION_COMBOBOX(Properties::StreamingMode, diskModeSelector);
 	POSITION_COMBOBOX(Properties::VoiceAmountMultiplier, voiceAmountMultiplier);
 

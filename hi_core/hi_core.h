@@ -273,6 +273,10 @@ Set this to 0 to disable host information like tempo, playing position etc...
 #endif
 
 
+#ifndef HISE_USE_OPENGL_FOR_PLUGIN
+#define HISE_USE_OPENGL_FOR_PLUGIN 0
+#endif
+
 /** Config: ENABLE_STARTUP_LOGGER
 
 If this is enabled, compiled plugins will write a startup log to the desktop for debugging purposes

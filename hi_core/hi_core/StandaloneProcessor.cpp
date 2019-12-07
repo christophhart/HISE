@@ -313,6 +313,14 @@ GlobalSettingManager::GlobalSettingManager()
 	if (xml != nullptr)
 	{
 		scaleFactor = (float)xml->getDoubleAttribute("SCALE_FACTOR", 1.0);
+
+#if HISE_USE_OPENGL_FOR_PLUGIN
+		bool dv = true;
+#else
+		bool dv = false;
+#endif
+
+		useOpenGL = (bool)xml->getBoolAttribute("OPEN_GL", dv);
 	}
 }
 
@@ -339,6 +347,14 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 		gm->channelData = globalSettings->getIntAttribute("MIDI_CHANNELS", 1);
 
 		gm->voiceAmountMultiplier = globalSettings->getIntAttribute("VOICE_AMOUNT_MULTIPLIER", 2);
+
+#if HISE_USE_OPENGL_FOR_PLUGIN
+		bool dv = true;
+#else
+		bool dv = false;
+#endif
+
+		gm->useOpenGL = globalSettings->getBoolAttribute("OPEN_GL", dv);
 
 		LOG_START("Setting disk mode");
 
@@ -384,6 +400,8 @@ void GlobalSettingManager::saveSettingsAsXml()
 #if USE_FRONTEND
 	settings->setAttribute("SAMPLES_FOUND", allSamplesFound);
 #endif
+
+	settings->setAttribute("OPEN_GL", useOpenGL);
 
 	settings->writeToFile(getGlobalSettingsFile(), "");
 

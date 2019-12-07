@@ -124,6 +124,7 @@ public:
 		SampleLocation, /// shows the sample location
 		DebugMode, /// toggles the Debug mode
 		ScaleFactorList, ///< the list of scale factors as Array<var> containing doubles.
+		UseOpenGL,
 		numProperties
 	};
 
@@ -198,6 +199,7 @@ private:
 	ScopedPointer<ComboBox> diskModeSelector;
 	ScopedPointer<ComboBox> scaleFactorSelector;
 	ScopedPointer<ComboBox> voiceAmountMultiplier;
+	ScopedPointer<ComboBox> openGLSelector;
 	ScopedPointer<TextButton> clearMidiLearn;
 	ScopedPointer<TextButton> relocateButton;
 	ScopedPointer<TextButton> debugButton;

@@ -160,6 +160,7 @@ private:
     bool overlayToolbar;
 
 #if HISE_USE_OPENGL_FOR_PLUGIN
+	bool usesOpenGl;
 	OpenGLContext context;
 #endif
 };

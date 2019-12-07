@@ -123,6 +123,12 @@ public:
 
 	int channelData = 1;
 
+#if HISE_USE_OPENGL_FOR_PLUGIN
+	bool useOpenGL = true;
+#else
+	bool useOpenGL = false;
+#endif
+
 private:
 
 	ScopedPointer<HiseSettings::Data> dataObject;
