@@ -347,6 +347,8 @@ juce::File HiseMidiSequence::writeToTempFile()
 {
 	MidiFile f;
 
+	f.setTicksPerQuarterNote(HiseMidiSequence::TicksPerQuarter);
+
 	for (int i = 0; i < sequences.size(); i++)
 	{
 		f.addTrack(*sequences[i]);

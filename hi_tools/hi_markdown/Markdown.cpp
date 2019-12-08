@@ -813,6 +813,9 @@ juce::CodeEditorComponent::ColourScheme MarkdownParser::SnippetTokeniser::getDef
 
 juce::Image MarkdownParser::ImageProvider::getImage(const MarkdownLink& /*imageURL*/, float width)
 {
+	if (width == 0.0f)
+		return {};
+
 	Image img = Image(Image::PixelFormat::ARGB, (int)width, (int)40.0f, true);
 	Graphics g(img);
 	g.fillAll(Colours::grey);
