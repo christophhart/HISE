@@ -147,6 +147,13 @@ If set to 1, the compiled plugin will be a effect (stereo in / out). */
 #define FRONTEND_IS_PLUGIN 0
 #endif
 
+/** Config: HISE_MIDIFX_PLUGIN
+
+If set to 1, then the plugin will be a MIDI effect plugin. */
+#ifndef HISE_MIDIFX_PLUGIN
+#define HISE_MIDIFX_PLUGIN 0
+#endif
+
 /** Config: USE_CUSTOM_FRONTEND_TOOLBAR
 
 If set to 1, you can specify a customized toolbar class which will be used instead of the default one. 

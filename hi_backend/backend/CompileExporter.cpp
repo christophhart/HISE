@@ -235,6 +235,16 @@ CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsStandaloneApp
 }
 
 
+CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsMidiFx(BuildOption option)
+{
+	ErrorCodes result = exportInternal(TargetTypes::MidiEffectPlugin, option);
+
+	if (result != ErrorCodes::OK)
+		printErrorMessage("Export Error", getCompileResult(result));
+
+	return result;
+}
+
 CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String& commandLine, String& pluginFile)
 {
 
@@ -309,6 +319,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 		if (BuildOptionHelpers::isEffect(b)) result = exporter.exportMainSynthChainAsFX(b);
 		else if (BuildOptionHelpers::isInstrument(b)) result = exporter.exportMainSynthChainAsInstrument(b);
 		else if (BuildOptionHelpers::isStandalone(b)) result = exporter.exportMainSynthChainAsStandaloneApp(b);
+		else if (BuildOptionHelpers::isMidiEffect(b)) result = exporter.exportMainSynthChainAsMidiFx(b);
 		else result = ErrorCodes::BuildOptionInvalid;
 
 		if (!isUsingCIMode() && switchBack)
@@ -375,6 +386,7 @@ int CompileExporter::getBuildOptionPart(const String& argument)
 		if (typeName == "standalone") return 0x0100;
 		else if (typeName == "instrument") return 0x0200;
 		else if (typeName == "effect") return 0x0400;
+		else if (typeName == "midi") return 0x0800;
 		else return 0;
 	}
 	case 'h':
@@ -898,6 +910,11 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 		b->addItem("AAX 32bit/64bit", BuildOption::AAXWindowsx86x64);
         b->addItem("All Platforms", BuildOption::AllPluginFormatsFX);
 		break;
+	case CompileExporter::TargetTypes::MidiEffectPlugin:
+		b->addItem("VST 64bit", BuildOption::MidiFXWIndowsx64);
+		b->addItem("VST 32bit", BuildOption::MidiFXWindowsx86);
+		b->addItem("VST 32bit/64bit", BuildOption::MidiFXWindowsx64x86);
+		break;
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone 64bit", BuildOption::StandaloneWindowsx64);
 		b->addItem("Standalone 32bit", BuildOption::StandaloneWindowsx86);
@@ -923,6 +940,9 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone Linux", BuildOption::StandaloneLinux);
 		break;
+	case CompileExporter::TargetTypes::MidiEffectPlugin:
+		b->addItem("Midi FX", BuildOption::MidiFXLinux);
+		break;
 	case CompileExporter::TargetTypes::numTargetTypes:
 		break;
 	default:
@@ -944,6 +964,11 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 		b->addItem("VST", BuildOption::VSTmacOS);
 		b->addItem("VST + AU", BuildOption::VSTAUmacOS);
         b->addItem("All Platforms", BuildOption::AllPluginFormatsFX);
+		break;
+	case CompileExporter::TargetTypes::MidiEffectPlugin:
+		b->addItem("VST MidiFX", BuildOption::VSTMIDImacOS);
+		b->addItem("AU MidiFX", BuildOption::AUMIDImacOS);
+		b->addItem("VST/AU MidiFX", BuildOption::VSTAUMIDImacOS);
 		break;
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone macOS", BuildOption::StandalonemacOS);
@@ -1416,25 +1441,35 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		auto midiInputEnabled = GET_SETTING(HiseSettings::Project::EnableMidiInputFX);
 
 		REPLACE_WILDCARD_WITH_STRING("%ENABLE_MIDI_INPUT_FX%", midiInputEnabled == "1" ? "enabled" : "disabled");
-
-		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", midiInputEnabled);
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN%", midiInputEnabled);
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "0");
 
 		String monoSupport = GET_SETTING(HiseSettings::Project::SupportMonoFX) == "1" ? "enabled" : "disabled";
 
 		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", monoSupport);
-
         REPLACE_WILDCARD("%AAX_CATEGORY%", HiseSettings::Project::AAXCategoryFX);
+		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "disabled");
+	}
+	else if (type == TargetTypes::MidiEffectPlugin)
+	{
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN%", "1");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "1");
+		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
+		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "enabled");
+		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", "disabled");
 	}
 	else
 	{
 		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", "disabled");
-
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
 		REPLACE_WILDCARD_WITH_STRING("%ENABLE_MIDI_INPUT_FX%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
         REPLACE_WILDCARD_WITH_STRING("%AAX_CATEGORY%", "AAX_ePlugInCategory_SWGenerators");
+		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "disabled");
 	}
 
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "disabled");

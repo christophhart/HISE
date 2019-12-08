@@ -67,8 +67,19 @@ public:
 		
 	}
 
+#if HISE_MIDIFX_PLUGIN
+	bool isMidiEffect() const override
+	{
+		return true;
+	}
+#endif
+
 	BusesProperties getHiseBusProperties() const
 	{
+#if HISE_MIDIFX_PLUGIN
+		return BusesProperties();
+#endif
+
 #if FRONTEND_IS_PLUGIN
 #if HI_SUPPORT_MONO_CHANNEL_LAYOUT
 
@@ -103,6 +114,10 @@ auto busProp = BusesProperties();
     
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override
     {
+#if HISE_MIDIFX_PLUGIN
+		return layouts.getMainInputChannels() == 0 && layouts.getMainOutputChannels() == 0;
+#endif
+
 #if FRONTEND_IS_PLUGIN
 #if HI_SUPPORT_MONO_CHANNEL_LAYOUT
 #if HI_SUPPORT_MONO_TO_STEREO

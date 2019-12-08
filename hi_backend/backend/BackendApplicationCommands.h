@@ -111,6 +111,7 @@ public:
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
+		MenuExportFileAsMidiFXPlugin,
 		MenuExportFileAsStandaloneApp,
 		MenuExportFileAsPlayerLibrary,
         MenuExportFileAsSnippet,

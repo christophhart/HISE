@@ -72,7 +72,7 @@ public:
 	/** 0xABCD
 	*
 	*	A = OS (0 = Linux / 1 = Windows / 2 = OSX / 4 = iPad, 8=iPhone, 12 = iPad/iPhone)
-	*	B = type (1 = Standalone, 2 = Instrument, 4 = Effect)
+	*	B = type (1 = Standalone, 2 = Instrument, 4 = Effect, 8 = MidiFX)
 	*	C = platform (0 = void, 1 = VST, 2 = AU, 4 = VST / AU, 8 = AAX);
 	*	D = bit (1 = 32bit, 2 = 64bit, 4 = both) 
 	*/
@@ -82,18 +82,25 @@ public:
 		StandaloneLinux = 0x0104,
 		VSTiLinux = 0x0214,
 		VSTLinux = 0x0414,
+		MidiFXLinux = 0x0814,
 		VSTWindowsx86 = 0x1411,
 		VSTWindowsx64 = 0x1412,
 		VSTWindowsx64x86 = 0x1414,
 		VSTiWindowsx86 = 0x1211,
 		VSTiWindowsx64 = 0x1212,
 		VSTiWindowsx64x86 = 0x1214,
+		MidiFXWindowsx86 = 0x1811,
+		MidiFXWIndowsx64 = 0x1812,
+		MidiFXWindowsx64x86 = 0x1814,
 		AUmacOS = 0x2422,
 		VSTmacOS = 0x2412,
 		VSTAUmacOS = 0x2442,
 		AUimacOS = 0x2222,
 		VSTimacOS = 0x2212,
 		VSTiAUimacOS = 0x2242,
+		AUMIDImacOS = 0x2822,
+		VSTMIDImacOS = 0x2812,
+		VSTAUMIDImacOS = 0x2842,
 		AAXWindowsx86 = 0x1281,
 		AAXWindowsx64 = 0x1282,
 		AAXWindowsx86x64 = 0x1284,
@@ -109,6 +116,7 @@ public:
 		StandalonemacOS = 0x2104,
         AllPluginFormatsFX = 0x10404,
         AllPluginFormatsInstrument = 0x10204,
+		AllPluginFormatsMidiFX = 0x10804,
 		numBuildOptions
 	};
 
@@ -129,6 +137,7 @@ public:
 		static bool isInstrument(BuildOption option) { return (option & 0x0200) != 0; }
 		static bool isEffect(BuildOption option) { return (option & 0x0400) != 0; }
 		static bool isHeadlessLinuxPlugin(BuildOption option) { return isLinux(option) && (option & 0x0080) != 0; };
+		static bool isMidiEffect(BuildOption option) { return (option & 0x0800) != 0; };
 		static void runUnitTests();
 	};
 
@@ -136,6 +145,7 @@ public:
 	{
 		InstrumentPlugin,
 		EffectPlugin,
+		MidiEffectPlugin,
 		StandaloneApplication,
 		numTargetTypes
 	};
@@ -164,6 +174,7 @@ public:
 	ErrorCodes exportMainSynthChainAsInstrument(BuildOption option=BuildOption::Cancelled);
 	ErrorCodes exportMainSynthChainAsFX(BuildOption option=BuildOption::Cancelled);
 	ErrorCodes exportMainSynthChainAsStandaloneApp(BuildOption option=BuildOption::Cancelled);
+	ErrorCodes exportMainSynthChainAsMidiFx(BuildOption option=BuildOption::Cancelled);
 
 	static ErrorCodes compileFromCommandLine(const String& commandLine, String& pluginFile);
 

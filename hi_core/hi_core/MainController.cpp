@@ -769,6 +769,24 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     }
 	
 
+#elif HISE_MIDIFX_PLUGIN
+
+	synthChain->processHiseEventBuffer(masterEventBuffer, numSamplesThisBlock);
+
+	midiMessages.clear();
+
+	HiseEventBuffer::Iterator it(synthChain->eventBuffer);
+
+	while (auto e = it.getNextConstEventPointer(true, false))
+	{
+		if (e->isTimerEvent())
+			continue;
+
+		auto m = e->toMidiMesage();
+
+		midiMessages.addEvent(m, e->getTimeStamp());
+	}
+
 #else
 
 
@@ -868,7 +886,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	getDebugLogger().recordOutput(buffer);
 #endif
 
+#if !HISE_MIDIFX_PLUGIN
 	midiMessages.clear();
+#endif
 
 }
 
@@ -1041,7 +1061,11 @@ void MainController::setHostBpm(double newTempo)
 
 bool MainController::isSyncedToHost() const
 {
+#if IS_STANDALONE_FRONTEND
+	return false;
+#else
 	return dynamic_cast<const GlobalSettingManager*>(this)->globalBPM == -1;
+#endif
 }
 
 void MainController::addTempoListener(TempoListener *t)

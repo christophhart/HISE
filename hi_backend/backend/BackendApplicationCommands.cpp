@@ -112,6 +112,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
+		MenuExportFileAsMidiFXPlugin,
 		MenuExportFileAsStandaloneApp,
 		MenuExportFileAsPlayerLibrary,
 		MenuExportFileAsSnippet,
@@ -316,6 +317,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportFileAsPlayerLibrary:
 		setCommandTarget(result, "Export as HISE Player Library", true, false, 'X', false);
+		result.categoryName = "Export";
+		break;
+	case MenuExportFileAsMidiFXPlugin:
+		setCommandTarget(result, "Export as MIDI FX plugin", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsSnippet:
@@ -735,6 +740,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsPlugin:        exporter.exportMainSynthChainAsInstrument(); return true;
 	case MenuExportFileAsEffectPlugin:	exporter.exportMainSynthChainAsFX(); return true;
 	case MenuExportFileAsStandaloneApp: exporter.exportMainSynthChainAsStandaloneApp(); return true;
+	case MenuExportFileAsMidiFXPlugin:  exporter.exportMainSynthChainAsMidiFx(); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
@@ -899,6 +905,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSectionHeader("Export As");
 		ADD_DESKTOP_ONLY(MenuExportFileAsPlugin);
 		ADD_DESKTOP_ONLY(MenuExportFileAsEffectPlugin);
+		ADD_DESKTOP_ONLY(MenuExportFileAsMidiFXPlugin);
 		ADD_DESKTOP_ONLY(MenuExportFileAsStandaloneApp);
 		
 		p.addSectionHeader("Export Tools");

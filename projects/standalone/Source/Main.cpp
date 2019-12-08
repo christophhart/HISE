@@ -102,7 +102,7 @@ public:
 		print("          In standard mode, it must be an absolute path");
 		print("-h:{TEXT} sets the HISE path. Use this if you don't have compiler settings set." );
 		print("-ipp      enables Intel Performance Primitives for fast convolution." );
-		print("-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect')" );
+		print("-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect' | 'midi')" );
 		print("-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL')" );
 		print("          (Leave empty for standalone export)" );
 		print("-a:{TEXT} sets the architecture ('x86', 'x64', 'x86x64')." );

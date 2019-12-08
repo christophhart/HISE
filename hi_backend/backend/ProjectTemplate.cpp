@@ -42,7 +42,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "              buildVST3=\"%BUILD_VST3%\" buildAU=\"%BUILD_AU%\" buildAUv3=\"%BUILD_AUV3%\" buildStandalone=\"%BUILD_AUV3%\" buildRTAS=\"0\" buildAAX=\"%BUILD_AAX%\" pluginName=\"%NAME%\"\r\n"
 "              pluginDesc=\"%NAME%\" pluginManufacturer=\"%COMPANY%\" pluginManufacturerCode=\"%MC%\"\r\n"
 "              pluginCode=\"%PC%\" pluginChannelConfigs=\"%CHANNEL_CONFIG%\" pluginIsSynth=\"%PLUGINISSYNTH%\"\r\n"
-"              pluginWantsMidiIn=\"%PLUGINWANTSMIDIIN%\" pluginProducesMidiOut=\"0\" pluginIsMidiEffectPlugin=\"0\"\r\n"
+"              pluginWantsMidiIn=\"%PLUGINWANTSMIDIIN%\" pluginProducesMidiOut=\"%PLUGINISMIDIFX%\" pluginIsMidiEffectPlugin=\"%PLUGINISMIDIFX%\"\r\n"
 "              pluginEditorRequiresKeys=\"1\" pluginAUExportPrefix=\"DemoProjectAU\"\r\n"
 "              pluginRTASCategory=\"\" aaxIdentifier=\"%AAX_IDENTIFIER%\"\r\n"
 "              pluginAAXCategory=\"%AAX_CATEGORY%\" jucerVersion=\"5.2.0\"\r\n"
@@ -288,7 +288,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    <MODULE id=\"stk_wrapper\" showAllCode=\"1\" useLocalCopy=\"0\" useGlobalPath=\"0\"/>\r\n"
 "    <MODULE id=\"hi_snex\" showAllCode=\"1\" useLocalCopy=\"0\" useGlobalPath=\"0\"/>\r\n"
 "  </MODULES>\r\n"
-"  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" USE_RAW_FRONTEND=\"%USE_RAW_FRONTEND%\" HI_EXPORT_DSP_LIBRARY=\"disabled\" HISE_ENABLE_MIDI_INPUT_FOR_FX=\"%ENABLE_MIDI_INPUT_FX%\" USE_COPY_PROTECTION = \"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
+"  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" USE_RAW_FRONTEND=\"%USE_RAW_FRONTEND%\" HI_EXPORT_DSP_LIBRARY=\"disabled\" HISE_ENABLE_MIDI_INPUT_FOR_FX=\"%ENABLE_MIDI_INPUT_FX%\" HISE_MIDIFX_PLUGIN=\"%HISE_MIDIFX_PLUGIN%\" USE_COPY_PROTECTION = \"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
 "               USE_IPP=\"%USE_IPP%\" FRONTEND_IS_PLUGIN=\"%FRONTEND_IS_PLUGIN%\" USE_CUSTOM_FRONTEND_TOOLBAR=\"%USE_CUSTOM_FRONTEND_TOOLBAR%\" IS_STANDALONE_FRONTEND=\"%IS_STANDALONE_FRONTEND%\"  USE_GLITCH_DETECTION = \"enabled\" ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\""
 "               ENABLE_ALL_PEAK_METERS=\"disabled\" USE_SPLASH_SCREEN=\"%USE_SPLASH_SCREEN%\" HI_SUPPORT_MONO_CHANNEL_LAYOUT=\"%SUPPORT_MONO%\" HI_SUPPORT_FULL_DYNAMICS_HLAC=\"%SUPPORT_FULL_DYNAMICS%\" ENABLE_CONSOLE_OUTPUT=\"disabled\" HLAC_MEASURE_DECODING_PERFORMANCE=\"disabled\" HLAC_DEBUG_LOG=\"disabled\" HLAC_INCLUDE_TEST_SUITE=\"disabled\" STANDALONE_STREAMING=\"disabled\""
 

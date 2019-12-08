@@ -253,7 +253,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
         bufferSelector->clear(dontSendNotification);
         sampleRateSelector->clear(dontSendNotification);
         outputSelector->clear(dontSendNotification);
-		openGLSelector->addItemList({ "Yes", "No" }, 1);
+		
         
 		bpmSelector->clear(dontSendNotification);
 		bpmSelector->addItem("Sync to Host", 1);
@@ -356,6 +356,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	
 	voiceAmountMultiplier->setSelectedId(driver->voiceAmountMultiplier, dontSendNotification);
 
+	openGLSelector->addItemList({ "Yes", "No" }, 1);
 	openGLSelector->setSelectedItemIndex(driver->useOpenGL ? 0 : 1, dontSendNotification);
 
 	bpmSelector->setSelectedId(driver->globalBPM > 0 ? driver->globalBPM : 1, dontSendNotification);
