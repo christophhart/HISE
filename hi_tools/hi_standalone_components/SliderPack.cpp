@@ -394,8 +394,14 @@ void SliderPack::mouseDown(const MouseEvent &e)
 	int x = e.getEventRelativeTo(this).getMouseDownPosition().getX();
 	int y = e.getEventRelativeTo(this).getMouseDownPosition().getY();
 
-	if (e.mods.isLeftButtonDown())
+	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
+		Point<float> start((float)x, (float)y);
+		rightClickLine = Line<float>(start, start);
+	}
+	else
+	{
+		rightClickLine = {};
 		data->startDrag();
 
 		int sliderIndex = getSliderIndexForMouseEvent(e);
@@ -420,13 +426,6 @@ void SliderPack::mouseDown(const MouseEvent &e)
 		currentlyDraggedSliderValue = s->getValue();
 	}
 
-	else
-	{
-		Point<float> start((float)x, (float)y);
-
-		rightClickLine = Line<float>(start, start);
-	}
-
 	
 
 	repaint();
@@ -441,7 +440,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 
 	Rectangle<int> thisBounds(0, 0, getWidth(), getHeight());
 
-	if (e.mods.isLeftButtonDown())
+	if (!rightClickLine.getStart().isOrigin())
 	{
 		if (!thisBounds.contains(Point<int>(x, y)))
 		{
@@ -453,7 +452,24 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 
 			if (x < 0) x = 0;
 		}
-		
+
+		rightClickLine.setEnd((float)x, (float)y);
+
+		repaint();
+	}
+	else
+	{
+		if (!thisBounds.contains(Point<int>(x, y)))
+		{
+			if (x > getWidth()) x = getWidth();
+
+			if (y > getHeight()) y = getHeight();
+
+			if (y < 0) y = 0;
+
+			if (x < 0) x = 0;
+		}
+
 		int sliderIndex = getSliderIndexForMouseEvent(e);
 
 		if (sliderIndex < 0) sliderIndex = 0;
@@ -476,27 +492,6 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 			repaint();
 		}
 	}
-	else
-	{
-		if (!thisBounds.contains(Point<int>(x, y)))
-		{
-			if (x > getWidth()) x = getWidth();
-
-			if (y > getHeight()) y = getHeight();
-
-			if (y < 0) y = 0;
-
-			if (x < 0) x = 0;
-		}
-
-		rightClickLine.setEnd((float)x, (float)y);
-
-		repaint();
-	}
-
-	
-
-	
 }
 
 void SliderPack::mouseUp(const MouseEvent &e)
@@ -505,7 +500,7 @@ void SliderPack::mouseUp(const MouseEvent &e)
 
 	currentlyDragged = false;
 
-	if(e.mods.isRightButtonDown()) setValuesFromLine();
+	if(!rightClickLine.getStart().isOrigin()) setValuesFromLine();
 
 	
 

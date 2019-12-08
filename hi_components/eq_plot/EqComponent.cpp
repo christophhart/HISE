@@ -618,7 +618,7 @@ void FilterDragOverlay::popupMenuAction(int result, int handleIndex)
 
 void FilterDragOverlay::mouseDown(const MouseEvent &e)
 {
-	if (e.mods.isRightButtonDown())
+	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
 		PopupMenu m;
 		m.setLookAndFeel(&getLookAndFeel());
@@ -668,7 +668,7 @@ void FilterDragOverlay::selectDragger(int index)
 
 void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 {
-	if (e.mods.isRightButtonDown())
+	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
 		PopupMenu m;
 		m.setLookAndFeel(parent.plaf);

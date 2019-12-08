@@ -403,7 +403,17 @@ void TableEditor::mouseDown(const MouseEvent &e)
 
 	lastEditedPointIndex = drag_points.indexOf(dp);
 	
-	if(e.mods.isLeftButtonDown())
+	if(e.mods.isRightButtonDown() || e.mods.isCommandDown())
+	{
+		if (dp != nullptr)
+		{
+			removeDragPoint(dp);
+
+			if (editedTable.get() != nullptr)
+				editedTable->sendSynchronousChangeMessage();
+		}
+	}
+	else
 	{
 		if (dp != nullptr)
 		{
@@ -417,7 +427,7 @@ void TableEditor::mouseDown(const MouseEvent &e)
 			{
 				if (l.get() != nullptr)
 				{
-					l->pointDragStarted(dp->getPosition(), dp->getGraphPoint().x,  dp->getGraphPoint().y);
+					l->pointDragStarted(dp->getPosition(), dp->getGraphPoint().x, dp->getGraphPoint().y);
 				}
 			}
 		}
@@ -427,17 +437,7 @@ void TableEditor::mouseDown(const MouseEvent &e)
 
 			addDragPoint(x, y, 0.5f, false, false, true);
 
-			
-		}
-	}
-	else
-	{
-		if(dp != nullptr)
-		{
-			removeDragPoint(dp);
 
-			if (editedTable.get() != nullptr) 
-				editedTable->sendSynchronousChangeMessage();
 		}
 	}
 
