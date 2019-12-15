@@ -849,7 +849,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	{
 		auto& matrix = getMainSynthChain()->getMatrix();
 
-		for (int i = 0; i < matrix.getNumSourceChannels(); i++)
+        int maxNumChannelAmount = jmin(matrix.getNumSourceChannels(), buffer.getNumChannels(), thisMultiChannelBuffer.getNumChannels());
+        
+		for (int i = 0; i < maxNumChannelAmount; i++)
 		{
 			if (replaceBufferContent)
 				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), numSamplesThisBlock);
