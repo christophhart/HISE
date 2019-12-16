@@ -154,7 +154,7 @@ public:
     
     var callExternalFunction(var function,
                              const var::NativeFunctionArgs& args,
-                             Result* errorMessage = nullptr);
+                             Result* errorMessage = nullptr, bool allowMessageThread=false);
 
     
 	var callExternalFunctionRaw(var function, const var::NativeFunctionArgs& args);

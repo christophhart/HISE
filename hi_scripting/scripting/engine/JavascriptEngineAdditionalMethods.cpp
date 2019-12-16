@@ -303,14 +303,17 @@ var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::Nativ
 }
 
 
-var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/)
+var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, bool allowMessageThread)
 {
 #if JUCE_DEBUG
-	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
-	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+	if (!allowMessageThread)
+	{
+		auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+		LockHelpers::noMessageThreadBeyondInitialisation(mc);
+	}
 #endif
 
-	var returnVal(var::undefined());
+	var returnVal;
 
 	static const Identifier thisIdent("this");
 

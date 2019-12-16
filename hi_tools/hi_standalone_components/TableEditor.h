@@ -557,7 +557,12 @@ public:
 		listeners.removeAllInstancesOf(l);
 	}
 
+
+	String getPopupString(float x, float y);
+	std::function<String(float, float)> popupFunction;
+
 private:
+
 
 	class Ruler : public Component
 	{
@@ -763,6 +768,7 @@ private:
 		return nullptr;
 	}
 
+	
 
 	// Adds a new DragPoint and selects it.
 	void addDragPoint(int x, int y, float curve, bool isStart=false, bool isEnd=false, bool useUndoManager=false);
@@ -800,6 +806,8 @@ private:
 
 	int snapXValueToGrid(int x) const;
 
+	
+
 	Image snapshot;
 	bool needsRepaint;
 
@@ -813,6 +821,7 @@ private:
 
 	MidiTable dummyTable;
 
+	
 	Font fontToUse;
 
 	WeakReference<Processor> connectedProcessor;

@@ -616,6 +616,8 @@ public:
 
 		void updateConnectedTable(TableEditor * t);
 		
+		String getTextForTablePopup(float x, float y);
+
 		void pointDragStarted(Point<int> position, float index, float value) override;
 		void pointDragEnded() override;
 		void pointDragged(Point<int> position, float index, float value) override;

@@ -1004,6 +1004,7 @@ ScriptCreatedComponentWrapper(content, index)
 	TableEditor *t = new TableEditor(mc->getControlUndoManager(), table->getTable());
 
 	t->setName(table->name.toString());
+	t->popupFunction = BIND_MEMBER_FUNCTION_2(TableWrapper::getTextForTablePopup);
 
 	table->broadcaster.addChangeListener(t);
 
@@ -1054,7 +1055,8 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyI
 		PROPERTY_CASE::ScriptComponent::processorId:
 		PROPERTY_CASE::ScriptTable::Properties::TableIndex : updateConnectedTable(t); break;
 		PROPERTY_CASE::ScriptTable::Properties::customColours: t->setUseFlatDesign(newValue); break;
-		PROPERTY_CASE::ScriptComponent::parameterId: t->setSnapValues(st->snapValues); break;
+		PROPERTY_CASE::ScriptComponent::parameterId: t->setSnapValues(st->snapValues);
+													  break;
 	default:
 		break;
 	}
@@ -1074,18 +1076,44 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateConnectedTable(TableEdi
 	if (oldTable != newTable) t->setEditedTable(newTable);
 }
 
+juce::String ScriptCreatedComponentWrappers::TableWrapper::getTextForTablePopup(float x, float y)
+{
+	TableEditor *t = dynamic_cast<TableEditor*>(component.get());
+	ScriptingApi::Content::ScriptTable *st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent());
+
+	if (HiseJavascriptEngine::isJavascriptFunction(st->tableValueFunction))
+	{
+		if (auto jp = dynamic_cast<JavascriptProcessor*>(st->getScriptProcessor()))
+		{
+			var data[2] = { var(x), var(y) };
+			var::NativeFunctionArgs args(st, data, 2);
+			Result r = Result::ok();
+
+			auto text = jp->getScriptEngine()->callExternalFunction(st->tableValueFunction, args, &r, true);
+
+			if (r.wasOk())
+			{
+				return text;
+			}
+		}
+	}
+
+	return t->getPopupString(x, y);
+}
+
 void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, float pointIndex, float value)
 {
 	localPopupPosition = position.withY(position.getY() - 20);;
 
-	popupText = String(pointIndex) + " | " + String(roundToInt(value*100.0f)) + "%";
+	popupText = getTextForTablePopup(pointIndex, value);
+	//popupText = String(pointIndex) + " | " + String(roundToInt(value*100.0f)) + "%";
 
 	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
-		auto xName = st->getTable()->getXValueText(pointIndex);
-		auto yName = st->getTable()->getYValueText(value);
+		//auto xName = st->getTable()->getXValueText(pointIndex);
+		//auto yName = st->getTable()->getYValueText(value);
 
-		popupText = xName + " | " + yName;
+		//popupText = xName + " | " + yName;
 
 		showValuePopup();
 	}
@@ -1100,11 +1128,7 @@ void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> posit
 {
 	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
-		auto xName = st->getTable()->getXValueText(pointIndex);
-		auto yName = st->getTable()->getYValueText(value);
-
-		popupText = xName + " | " + yName;
-
+		popupText = getTextForTablePopup(pointIndex, value);
 		showValuePopup();
 	}
 

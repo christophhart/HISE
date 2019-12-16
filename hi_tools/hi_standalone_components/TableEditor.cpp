@@ -61,6 +61,8 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 
 	if(editedTable.get() != nullptr)
         editedTable->addChangeListener(this);
+
+	popupFunction = BIND_MEMBER_FUNCTION_2(TableEditor::getPopupString);
 }
 
 TableEditor::~TableEditor()
@@ -195,6 +197,14 @@ bool TableEditor::isInMainPanel() const
 }
 
 
+juce::String TableEditor::getPopupString(float x, float y)
+{
+	auto xName = editedTable->getXValueText(x);
+	auto yName = editedTable->getYValueText(y);
+
+	return xName + " | " + yName;
+}
+
 void TableEditor::addDragPoint(int x, int y, float curve, bool isStart/*=false*/, bool isEnd/*=false*/, bool useUndoManager/*=false*/)
 {
 	if (useUndoManager && undoManager != nullptr)
@@ -288,12 +298,7 @@ void TableEditor::paint (Graphics& g)
         
         g.setFont(fontToUse);
         
-        auto xName = editedTable->getXValueText(dp->getGraphPoint().x);
-		auto yName = editedTable->getYValueText(dp->getGraphPoint().y);
-
-        
-		String text = xName + " | " + yName;
-        
+		auto text = popupFunction(dp->getGraphPoint().x, dp->getGraphPoint().y);
 		int boxWidth = (int)fontToUse.getStringWidth(text) + 10;
 		int boxHeight = (int)fontToUse.getHeight() + 10;
         

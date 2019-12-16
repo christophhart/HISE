@@ -1877,6 +1877,7 @@ juce::StringArray ScriptingApi::Content::ScriptComboBox::getOptionsFor(const Ide
 struct ScriptingApi::Content::ScriptTable::Wrapper
 {
 	API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
+	API_VOID_METHOD_WRAPPER_1(ScriptTable, setTablePopupFunction);
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setSnapValues);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, referToData);
@@ -1910,6 +1911,7 @@ lookupTableIndex(-1)
 	ADD_API_METHOD_2(connectToOtherTable);
 	ADD_API_METHOD_1(setSnapValues);
 	ADD_API_METHOD_1(referToData);
+	ADD_API_METHOD_1(setTablePopupFunction);
 
 	broadcaster.enablePooledUpdate(base->getMainController_()->getGlobalUIUpdater());
 }
@@ -2001,6 +2003,8 @@ void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessag
 		return;
 	}
 	
+	
+
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
@@ -2044,9 +2048,10 @@ void ScriptingApi::Content::ScriptTable::setSnapValues(var snapValueArray)
 		reportScriptError("You must call setSnapValues with an array");
 
 	snapValues = snapValueArray;
-
-	// rather ugly hack, makes the wrapper update the snap values
-	setScriptObjectPropertyWithChangeMessage(getIdFor(parameterId), getScriptObjectProperty(parameterId), sendNotification);
+	
+	// hack: use the unused parameterID property to update the snap values
+	// (it will also be used for updating the text function)...
+	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
 }
 
 LookupTableProcessor * ScriptingApi::Content::ScriptTable::getTableProcessor() const
@@ -2125,6 +2130,12 @@ void ScriptingApi::Content::ScriptTable::referToData(var tableData)
 		
 		reportScriptError("Invalid table");
 	}
+}
+
+void ScriptingApi::Content::ScriptTable::setTablePopupFunction(var newFunction)
+{
+	tableValueFunction = newFunction;
+	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
 }
 
 struct ScriptingApi::Content::ScriptSliderPack::Wrapper

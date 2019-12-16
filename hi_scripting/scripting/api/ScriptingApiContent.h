@@ -1022,6 +1022,9 @@ public:
 
 		// ======================================================================================================== API Method
 
+		/** Pass a function that takes a double and returns a String in order to override the popup display text. */
+		void setTablePopupFunction(var newFunction);
+
 		/** Returns the table value from 0.0 to 1.0 according to the input value from 0 to 127. */
 		float getTableValue(int inputValue);
 
@@ -1042,8 +1045,11 @@ public:
 
 		var snapValues;
 
+		var tableValueFunction;
 
 	private:
+
+		
 
 		ScopedPointer<MidiTable> ownedTable;
 
