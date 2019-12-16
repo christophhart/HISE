@@ -99,7 +99,7 @@ int TableEditor::snapXValueToGrid(int x) const
 
 	auto snapRangeHalfWidth = 10.0f / (float)getWidth();
 
-	for (int i = 1; i < snapValues.size() - 1; i++)
+	for (int i = 0; i < snapValues.size(); i++)
 	{
 		auto snapValue = (float)snapValues[i];
 		auto snapRange = Range<float>(snapValue - snapRangeHalfWidth, snapValue + snapRangeHalfWidth);
