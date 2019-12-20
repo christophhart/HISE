@@ -151,18 +151,18 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 	preloadSize = newPreloadSize;
 
+	if (sampleLength == MAX_SAMPLE_NUMBER)
+	{
+		// this hasn't been initialised, so we need to do it here...
+
+		fileReader.openFileHandles(dontSendNotification);
+		sampleLength = (int)fileReader.getSampleLength();
+		loopLength = jmin<int>(loopLength, sampleLength);
+		loopEnd = jmin<int>(loopEnd, sampleLength);
+	}
+
 	if (newPreloadSize == -1 || (preloadSize + sampleStartMod) > sampleLength)
 	{
-		if (sampleLength == MAX_SAMPLE_NUMBER)
-		{
-			// this hasn't been initialised, so we need to do it here...
-
-			fileReader.openFileHandles(dontSendNotification);
-			sampleLength = (int)fileReader.getSampleLength();
-			loopLength = jmin<int>(loopLength, sampleLength);
-			loopEnd = jmin<int>(loopEnd, sampleLength);
-		}
-
 		internalPreloadSize = (int)sampleLength;
 		entireSampleLoaded = true;
 	}
