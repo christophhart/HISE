@@ -132,6 +132,11 @@ public:
 		
 		//synthChain->saveMacroValuesToValueTree(v);
 		
+		auto modules = UserPresetHelpers::createModuleStateTree(synthChain);
+
+		if (modules.getNumChildren() > 0)
+			v.addChild(modules, -1, nullptr);
+
 		v.addChild(getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
 
 		synthChain->saveInterfaceValues(v);
@@ -187,6 +192,8 @@ public:
 		channelData = v.getProperty("MidiChannelFilterData", -1);
 		if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
 			
+
+		UserPresetHelpers::restoreModuleStates(synthChain, v);
 
 		const String userPresetName = v.getProperty("UserPreset").toString();
 

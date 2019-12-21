@@ -174,25 +174,7 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 					}
 				}
 
-				auto modules = userPresetToLoad.getChildWithName("Modules");
-
-				if (modules.isValid())
-				{
-					for (auto m : modules)
-					{
-						auto p = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), m["ID"]);
-
-						if (p != nullptr)
-						{
-							auto copy = p->exportAsValueTree();
-
-							if (p->getType().toString() == m["Type"].toString())
-							{
-								p->restoreFromValueTree(m);
-							}
-						}
-					}
-				}
+				UserPresetHelpers::restoreModuleStates(mc->getMainSynthChain(), userPresetToLoad);
 
 				if (v.isValid())
 				{

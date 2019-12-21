@@ -457,7 +457,11 @@ public:
     
 	static ValueTree createUserPreset(ModulatorSynthChain* chain);
 
+	static ValueTree createModuleStateTree(ModulatorSynthChain* chain);
+
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
+
+	static void restoreModuleStates(ModulatorSynthChain* chain, const ValueTree& v);
 
 	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
     

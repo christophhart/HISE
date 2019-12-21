@@ -124,18 +124,7 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 		preset = ValueTree("Preset");
 		preset.addChild(v, -1, nullptr);
 
-		ValueTree modules("Modules");
-
-		for (auto id : sp->getListOfModuleIds())
-		{
-			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
-			auto mTree = p->exportAsValueTree();
-
-			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
-			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
-
-			modules.addChild(mTree, -1, nullptr);
-		}
+		auto modules = createModuleStateTree(chain);
 
 		if (modules.getNumChildren() != 0)
 		{
@@ -172,6 +161,27 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 	return preset;
 }
 
+juce::ValueTree UserPresetHelpers::createModuleStateTree(ModulatorSynthChain* chain)
+{
+	ValueTree modules("Modules");
+
+	if (auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
+	{
+		for (auto id : sp->getListOfModuleIds())
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
+			auto mTree = p->exportAsValueTree();
+
+			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+
+			modules.addChild(mTree, -1, nullptr);
+		}
+	}
+
+	return modules;
+}
+
 void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
@@ -195,6 +205,29 @@ void UserPresetHelpers::loadUserPreset(ModulatorSynthChain* chain, const ValueTr
 {
 	chain->getMainController()->loadUserPresetAsync(parent);
 
+}
+
+void UserPresetHelpers::restoreModuleStates(ModulatorSynthChain* chain, const ValueTree& v)
+{
+	auto modules = v.getChildWithName("Modules");
+
+	if (modules.isValid())
+	{
+		for (auto m : modules)
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, m["ID"]);
+
+			if (p != nullptr)
+			{
+				auto copy = p->exportAsValueTree();
+
+				if (p->getType().toString() == m["Type"].toString())
+				{
+					p->restoreFromValueTree(m);
+				}
+			}
+		}
+	}
 }
 
 #if !USE_MIDI_AUTOMATION_MIGRATION
