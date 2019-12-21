@@ -1562,6 +1562,7 @@ public:
 
 		struct Laf : public GlobalHiseLookAndFeel,
 					 public PresetBrowserLookAndFeelMethods,
+					 public TableEditor::LookAndFeelMethods,
 					 public ControlledObject
 		{
 			Laf(MainController* mc) :
@@ -1616,6 +1617,10 @@ public:
 			void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
 			void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode) override;
 			void drawSearchBar(Graphics& g, Rectangle<int> area) override;
+
+			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
+			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
+			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
 
 			bool functionDefined(const String& s);
 		};

@@ -4505,6 +4505,81 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSearchBar(Graphics& g_, Rec
 	PresetBrowserLookAndFeelMethods::drawSearchBar(g_, area);
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePath(Graphics& g_, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		auto sp = new ScriptingObjects::PathObject(l->getScriptProcessor());
+
+		var keeper(sp);
+
+		sp->getPath() = p;
+
+		obj->setProperty("path", var(sp));
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
+		obj->setProperty("lineThickness", lineThickness);
+		obj->setProperty("bgColour", te.findColour(TableEditor::ColourIds::bgColour).getARGB());
+		obj->setProperty("itemColour", te.findColour(TableEditor::ColourIds::fillColour).getARGB());
+		obj->setProperty("itemColour2", te.findColour(TableEditor::ColourIds::lineColour).getARGB());
+		obj->setProperty("textColour", te.findColour(TableEditor::ColourIds::rulerColour).getARGB());
+
+		if (l->callWithGraphics(g_, "drawTablePath", var(obj)))
+			return;
+	}
+
+	if (auto tl = dynamic_cast<TableEditor::LookAndFeelMethods*>(&te.getLookAndFeel()))
+		tl->drawTablePath(g_, te, p, area, lineThickness);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePoint(Graphics& g_, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		obj->setProperty("tablePoint", ApiHelpers::getVarRectangle(tablePoint));
+		obj->setProperty("isEdge", isEdge);
+		obj->setProperty("hover", isHover);
+		obj->setProperty("clicked", isDragged);
+		obj->setProperty("bgColour", te.findColour(TableEditor::ColourIds::bgColour).getARGB());
+		obj->setProperty("itemColour", te.findColour(TableEditor::ColourIds::fillColour).getARGB());
+		obj->setProperty("itemColour2", te.findColour(TableEditor::ColourIds::lineColour).getARGB());
+		obj->setProperty("textColour", te.findColour(TableEditor::ColourIds::rulerColour).getARGB());
+
+
+		if (l->callWithGraphics(g_, "drawTablePoint", var(obj)))
+			return;
+	}
+
+	if (auto tl = dynamic_cast<TableEditor::LookAndFeelMethods*>(&te.getLookAndFeel()))
+		tl->drawTablePoint(g_, te, tablePoint, isEdge, isHover, isDragged);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRuler(Graphics& g_, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
+		obj->setProperty("position", rulerPosition);
+		obj->setProperty("lineThickness", lineThickness);
+		obj->setProperty("bgColour", te.findColour(TableEditor::ColourIds::bgColour).getARGB());
+		obj->setProperty("itemColour", te.findColour(TableEditor::ColourIds::fillColour).getARGB());
+		obj->setProperty("itemColour2", te.findColour(TableEditor::ColourIds::lineColour).getARGB());
+		obj->setProperty("textColour", te.findColour(TableEditor::ColourIds::rulerColour).getARGB());
+
+		if (l->callWithGraphics(g_, "drawTableRuler", var(obj)))
+			return;
+	}
+
+	if (auto tl = dynamic_cast<TableEditor::LookAndFeelMethods*>(&te.getLookAndFeel()))
+		tl->drawTableRuler(g_, te, area, lineThickness, rulerPosition);
+}
+
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTag(Graphics& g_, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
 {
 	if (auto l = get())

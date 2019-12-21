@@ -320,6 +320,29 @@ class TableEditor : public Component,
 {
 public:
 
+	struct LookAndFeelMethods
+	{
+		virtual void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) = 0;
+		virtual void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) = 0;
+		virtual void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) = 0;
+	};
+
+	struct HiseTableLookAndFeel : public LookAndFeel_V3,
+		public LookAndFeelMethods
+	{
+		void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
+		void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
+		void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+	};
+
+	struct FlatTableLookAndFeel : public LookAndFeel_V3,
+								  public LookAndFeelMethods
+	{
+		void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
+		void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
+		void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+	};
+
 	/** This listener can be used to react on user interaction to display stuff.
 	*
 	*	It shouldn't be used for any kind of serious data processing though...
@@ -373,8 +396,6 @@ public:
 	explicit TableEditor(UndoManager* undoManager, Table *tableToBeEdited=nullptr);
 
 	~TableEditor();
-
-
 
 	void paint(Graphics&) override;
 
@@ -439,7 +460,14 @@ public:
 
 	void setUseFlatDesign(bool shouldUseFlatDesign)
 	{
-		flatDesign = shouldUseFlatDesign;
+		if (shouldUseFlatDesign)
+			currentLAF = new FlatTableLookAndFeel();
+		else
+			currentLAF = new HiseTableLookAndFeel();
+
+		setLookAndFeel(currentLAF.get());
+		setTableLookAndFeel(dynamic_cast<LookAndFeelMethods*>(currentLAF.get()), false);
+
 		repaint();
 	}
 
@@ -473,9 +501,6 @@ public:
 	*	A right mouse click on a point deletes it.
 	*/
 	void mouseDown(const MouseEvent &e) override;
-
-	
-
 
 	void mouseDoubleClick(const MouseEvent& event) override;
 
@@ -561,8 +586,21 @@ public:
 	String getPopupString(float x, float y);
 	std::function<String(float, float)> popupFunction;
 
+	void setTableLookAndFeel(LookAndFeelMethods* lm, bool isExternalLaf)
+	{
+		if(isExternalLaf || !externalLaf)
+		{
+			lafToUse = lm;
+			externalLaf = isExternalLaf;
+		}
+	}
+
 private:
 
+	bool externalLaf = false;
+	LookAndFeelMethods* lafToUse = nullptr;
+
+	ScopedPointer<LookAndFeel> currentLAF;
 
 	class Ruler : public Component
 	{
@@ -900,7 +938,7 @@ private:
 
 	ScopedPointer<TouchOverlay> touchOverlay;
 
-	bool flatDesign = false;
+	//bool flatDesign = false;
 
 	float lineThickness = 2.0f;
 
