@@ -208,14 +208,18 @@ public:
 			return Identifier(root->getParameter(index)->getId());
 		}
 
-		float getParameter(int index) const final override 
-		{ 
-			return (float)root->getParameter(index)->getValue();
+		float getParameter(int index) const final override
+		{
+			if(isPositiveAndBelow(index, getNumParameters()))
+				return (float)root->getParameter(index)->getValue();
+
+			return 0.0f;
 		}
 
 		void setParameter(int index, float newValue) final override
 		{
-			root->getParameter(index)->setValueAndStoreAsync((double)newValue);
+			if(isPositiveAndBelow(index, getNumParameters()))
+				root->getParameter(index)->setValueAndStoreAsync((double)newValue);
 		}
 
 		NodeBase::Ptr root;
