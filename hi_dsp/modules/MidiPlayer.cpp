@@ -354,7 +354,12 @@ juce::File HiseMidiSequence::writeToTempFile()
 		f.addTrack(*sequences[i]);
 	}
 
-	auto tmp = File::getSpecialLocation(File::SpecialLocationType::tempDirectory).getNonexistentChildFile(id.toString(), ".mid");
+	auto name = id.toString();
+
+	if (name.isEmpty())
+		name = "temp";
+
+	auto tmp = File::getSpecialLocation(File::SpecialLocationType::tempDirectory).getNonexistentChildFile(name, ".mid");
 	tmp.create();
 
 	FileOutputStream fos(tmp);

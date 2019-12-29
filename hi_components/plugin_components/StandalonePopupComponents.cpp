@@ -101,8 +101,6 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	mc(mc_),
     font(GLOBAL_BOLD_FONT())
 {
-	//auto& plaf = mc->getGlobalLookAndFeel();
-
 	PopupLookAndFeel plaf;
 
 	ADD(Driver);
