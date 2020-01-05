@@ -123,6 +123,11 @@ public:
 #if USE_RAW_FRONTEND
 		zstd::ZDefaultCompressor compressor;
 		ValueTree v = rawDataHolder->exportAsValueTree();
+
+		// This needs to be added independently from the usual plugin state because it's not supposed to be 
+		// a property of a user preset
+		v.setProperty("HostTempo", globalBPM, nullptr);
+
 		compressor.compress(v, destData);
 #else
 		MemoryOutputStream output(destData, false);
@@ -144,6 +149,8 @@ public:
 		v.setProperty("MidiChannelFilterData", getMainSynthChain()->getActiveChannelData()->exportData(), nullptr);
 
 		v.setProperty("Program", currentlyLoadedProgram, nullptr);
+
+		v.setProperty("HostTempo", globalBPM, nullptr);
 
 		v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
 
@@ -178,6 +185,8 @@ public:
 		zstd::ZDefaultCompressor compressor;
 		compressor.expand(mb, v);
 
+		globalBPM = v.getProperty("HostTempo", -1.0);
+
 		rawDataHolder->restoreFromValueTree(v);
 #else
         
@@ -191,7 +200,8 @@ public:
 
 		channelData = v.getProperty("MidiChannelFilterData", -1);
 		if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
-			
+		
+		globalBPM = v.getProperty("HostTempo", -1.0);
 
 		UserPresetHelpers::restoreModuleStates(synthChain, v);
 

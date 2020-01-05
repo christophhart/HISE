@@ -1644,6 +1644,9 @@ private:
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 
+	double fallbackBpm = -1.0;
+	double* hostBpmPointer = &fallbackBpm;
+
 	ScopedPointer<ApplicationCommandManager> mainCommandManager;
 
 	ScopedPointer<GlobalHiseLookAndFeel> mainLookAndFeel;

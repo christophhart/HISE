@@ -712,7 +712,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	if (bpmFromHost == 0.0)
 		bpmFromHost = 120.0;
 
-	auto otherBpm = dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
+	auto otherBpm = *hostBpmPointer;
 
 	if (otherBpm > 0)
 		setBpm((double)otherBpm);
@@ -971,6 +971,8 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	maxBufferSize = samplesPerBlock;
 	sampleRate = sampleRate_;
  
+	hostBpmPointer = &dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
+
 	// Prevent high buffer sizes from blowing up the 350MB limitation...
 	if (HiseDeviceSimulator::isAUv3())
 	{
