@@ -298,7 +298,7 @@ juce::Font PresetBrowserLookAndFeelMethods::getFont(bool fontForTitle)
 	return fontForTitle ? GLOBAL_BOLD_FONT().withHeight(18.0f) : GLOBAL_BOLD_FONT();
 }
 
-void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics& g, Button& button, const Colour&c, bool isOver, bool isDown)
+void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics& g, Button& button, const Colour&, bool , bool )
 {
 	if (button.getToggleState())
 	{
@@ -988,11 +988,11 @@ void PresetBrowser::setShowFavorites(bool shouldShowFavorites)
 
 void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 {
-	auto& laf = getPresetBrowserLookAndFeel();
+	auto& lf = getPresetBrowserLookAndFeel();
 
-	laf.backgroundColour = bgColour;
-	laf.font = f;
-	laf.highlightColour = c;
+	lf.backgroundColour = bgColour;
+	lf.font = f;
+	lf.highlightColour = c;
 
 	favoriteButton->setColours(c.withAlpha(0.7f), c.withAlpha(0.5f), c.withAlpha(0.6f));
 

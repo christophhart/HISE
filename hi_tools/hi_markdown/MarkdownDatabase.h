@@ -426,7 +426,7 @@ public:
 
 		virtual void serverUpdateStateStarted() {};
 
-		virtual void serverUpdateFinished(bool successful) {};
+		virtual void serverUpdateFinished(bool /*successful*/) {};
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ServerUpdateListener);
 	};

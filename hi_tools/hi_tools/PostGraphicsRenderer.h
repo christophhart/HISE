@@ -82,7 +82,7 @@ struct PostGraphicsRenderer
 		};
 
 
-		friend class PostGraphicsRenderer;
+		friend struct PostGraphicsRenderer;
 
 		Image pathImage;
 

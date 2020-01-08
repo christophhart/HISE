@@ -97,9 +97,9 @@ public:
 			triggerAsyncUpdate();
 		}
 
-		void samplePropertyWasChanged(ModulatorSamplerSound* , const Identifier& id, const var& )
+		void samplePropertyWasChanged(ModulatorSamplerSound* , const Identifier& sampleId, const var& )
 		{
-			if(id == SampleIds::RRGroup)
+			if(sampleId == SampleIds::RRGroup)
 				triggerAsyncUpdate();
 		};
 

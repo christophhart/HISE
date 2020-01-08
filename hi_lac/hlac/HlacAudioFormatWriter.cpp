@@ -166,11 +166,11 @@ void HiseLosslessAudioFormatWriter::setTemporaryBufferType(bool shouldUseTempora
 }
 
 
-void HiseLosslessAudioFormatWriter::preallocateMemory(int64 numSamplesToWrite, int numChannels)
+void HiseLosslessAudioFormatWriter::preallocateMemory(int64 numSamplesToWrite, int numChannelsToAllocate)
 {
 	if (auto mos = dynamic_cast<MemoryOutputStream*>(tempOutputStream.get()))
 	{
-		int64 b = numSamplesToWrite * numChannels * 2 * 2 / 3;
+		int64 b = numSamplesToWrite * numChannelsToAllocate * 2 * 2 / 3;
 
 		// Set the limit to 1.5GB
 		int64 limit = 1024;

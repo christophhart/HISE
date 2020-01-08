@@ -2712,7 +2712,7 @@ MessageWithIcon::MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf,
 
 	auto height = (int)r.getHeightForWidth(w);
 
-	setSize(w + image.getWidth(), jmax(height, image.getHeight()));
+	setSize((int)w + image.getWidth(), jmax(height, image.getHeight()));
 }
 
 void MessageWithIcon::paint(Graphics &g)

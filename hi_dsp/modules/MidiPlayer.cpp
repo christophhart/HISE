@@ -1183,7 +1183,7 @@ void MidiPlayer::swapSequenceListWithIndex(HiseMidiSequence::List listToSwapWith
 	for (auto s : currentSequences)
 		s->setCurrentTrackIndex(currentTrackIndex);
 
-	setAttribute(CurrentSequence, newSequenceIndex + 1, sendNotification);
+	setAttribute(CurrentSequence, (float)newSequenceIndex + 1.0f, sendNotification);
 	sendSequenceUpdateMessage(sendNotificationAsync);
 }
 

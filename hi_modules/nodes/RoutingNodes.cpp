@@ -412,6 +412,7 @@ juce::Component* Matrix::createExtraComponent(PooledUIUpdater* updater)
 #if USE_BACKEND
 	return new Editor(this, updater);
 #else
+	ignoreUnused(updater);
 	return nullptr;
 #endif
 }

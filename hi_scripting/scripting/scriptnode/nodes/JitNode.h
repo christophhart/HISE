@@ -252,7 +252,7 @@ public:
 		if (expr != nullptr && expr->isValid())
 		{
 			for (int i = 0; i < numChannels; i++)
-				data[i] = expr->getValueUnchecked((double)data[i]);
+				data[i] = (float)expr->getValueUnchecked((double)data[i]);
 		}
 	}
 
@@ -268,7 +268,7 @@ public:
 
 				for (int i = 0; i < data.size; i++)
 				{
-					ptr[i] = expr->getValueUnchecked(ptr[i]);
+					ptr[i] = (float)expr->getValueUnchecked(ptr[i]);
 				}
 			}
 		}

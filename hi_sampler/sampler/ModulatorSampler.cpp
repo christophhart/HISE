@@ -1344,7 +1344,7 @@ ModulatorSampler::GroupedRoundRobinCollector::~GroupedRoundRobinCollector()
 		sampler->getSampleMap()->removeListener(this);
 }
 
-void ModulatorSampler::GroupedRoundRobinCollector::collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound *>& soundsToBeStarted)
+void ModulatorSampler::GroupedRoundRobinCollector::collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound *>& soundsAboutToBeStarted)
 {
 	SimpleReadWriteLock::ScopedReadLock sl(rebuildLock);
 
@@ -1360,7 +1360,7 @@ void ModulatorSampler::GroupedRoundRobinCollector::collectSounds(const HiseEvent
 		for (auto s : refArray)
 		{
 			if (sampler->soundCanBePlayed(s, m.getChannel(), m.getNoteNumber(), m.getFloatVelocity()))
-				soundsToBeStarted.insertWithoutSearch(s);
+				soundsAboutToBeStarted.insertWithoutSearch(s);
 		}
 	}
 }
@@ -1369,7 +1369,7 @@ void ModulatorSampler::GroupedRoundRobinCollector::handleAsyncUpdate()
 {
 	Array<ReferenceCountedArray<ModulatorSynthSound>> newList;
 
-	auto numRRGroups = sampler->getAttribute(ModulatorSampler::RRGroupAmount);
+	auto numRRGroups = (int)sampler->getAttribute(ModulatorSampler::RRGroupAmount);
 
 	if (numRRGroups > 0)
 	{

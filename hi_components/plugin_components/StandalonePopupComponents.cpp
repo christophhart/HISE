@@ -357,7 +357,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	openGLSelector->addItemList({ "Yes", "No" }, 1);
 	openGLSelector->setSelectedItemIndex(driver->useOpenGL ? 0 : 1, dontSendNotification);
 
-	bpmSelector->setSelectedId(driver->globalBPM > 0 ? driver->globalBPM : 1, dontSendNotification);
+	bpmSelector->setSelectedId(driver->globalBPM > 0.0 ? (int)driver->globalBPM : 1, dontSendNotification);
 
 	diskModeSelector->setSelectedItemIndex(driver->diskMode, dontSendNotification);
 }
