@@ -484,6 +484,8 @@ juce::RectangleList<float> HiseMidiSequence::getRectangleList(Rectangle<float> t
 
 Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 {
+	
+
 	Array<HiseEvent> newBuffer;
 	newBuffer.ensureStorageAllocated(getNumEvents());
 
@@ -492,6 +494,8 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 	auto samplePerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
 
 	int16 currentEventId = 0;
+
+	SimpleReadWriteLock::ScopedReadLock sl(swapLock);
 
 	if (auto mSeq = getReadPointer())
 	{
