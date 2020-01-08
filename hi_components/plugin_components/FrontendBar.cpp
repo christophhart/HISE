@@ -263,7 +263,7 @@ String DeactiveOverlay::getTextForError(State s) const
 		return "The license key is invalid (wrong plugin name / version).\nClick below to locate the correct license key for this plugin / version";
 		break;
 	case DeactiveOverlay::MachineNumbersNotMatching:
-		return "The machine ID is invalid / not matching.\nClick below to load the correct license key for this computer (or request a new license key for this machine through support.";
+		return "The machine ID is invalid / not matching.\nThis might be caused by a major OS / or system hardware update which change the identification of this computer.\nIn order to solve the issue, just repeat the activation process again to register this system with the new specifications.";
 		break;
 	case DeactiveOverlay::UserNameNotMatching:
 		return "The user name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
