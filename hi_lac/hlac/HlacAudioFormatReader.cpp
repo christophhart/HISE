@@ -273,6 +273,22 @@ bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChan
 {
 	bool isStereo = numDestChannels == 2;
 
+	if (startSampleInFile < 0)
+	{
+		auto silence = (int)jmin(-startSampleInFile, (int64)numSamples);
+
+		auto numToClear = jmin(silence, buffer.getNumSamples() - startOffsetInBuffer);
+
+		buffer.clear(startOffsetInBuffer, numToClear);
+
+		startOffsetInBuffer += silence;
+		numSamples -= silence;
+		startSampleInFile = 0;
+	}
+
+	if (numSamples == 0)
+		return true;
+
 	if (startSampleInFile != decoder.getCurrentReadPosition())
 	{
 		auto byteOffset = header.getOffsetForReadPosition(startSampleInFile, useHeaderOffsetWhenSeeking);
