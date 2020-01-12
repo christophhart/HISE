@@ -308,7 +308,7 @@ core::file_player::file_player()
 
 void core::file_player::prepare(PrepareSpecs specs)
 {
-	uptimeDelta = specs.sampleRate / audioFile->getSampleRate();
+	uptimeDelta = audioFile->getSampleRate() / specs.sampleRate;
 }
 
 void core::file_player::reset()
