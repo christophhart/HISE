@@ -48,6 +48,9 @@ public:
 
 	void ensureStorageAllocated(int minNumElements)
 	{
+		if (numAllocated >= minNumElements)
+			return;
+
 		if (minNumElements <= PreallocatedSize)
 		{
 			allocatedData.free();
@@ -312,6 +315,9 @@ public:
 	void clearNormalisation(Range<int> r);
 
 	bool usesNormalisation() const noexcept;
+
+	/** Bakes in the normalisation values. This is not lossless and the operation will allocate a temporary float buffer. */
+	void burnNormalisation();
 
 	void copyNormalisationRanges(const HiseSampleBuffer& otherBuffset, int startOffsetInBuffer);
 

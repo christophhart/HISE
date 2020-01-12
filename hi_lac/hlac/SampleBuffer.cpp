@@ -289,6 +289,31 @@ bool HiseSampleBuffer::usesNormalisation() const noexcept
 	return normaliser.infos.size() != 0;
 }
 
+void HiseSampleBuffer::burnNormalisation()
+{
+	if (isFloatingPoint())
+		return;
+
+	AudioSampleBuffer fb(getNumChannels(), getNumSamples());
+	convertToFloatWithNormalisation(fb.getArrayOfWritePointers(), getNumChannels(), 0, getNumSamples());
+
+	auto l = leftIntBuffer.getWritePointer(0);
+	auto r = getNumChannels() > 1 ? rightIntBuffer.getWritePointer(0) : nullptr;
+
+	auto lr = fb.getReadPointer(0);
+	auto rr = getNumChannels() > 1 ? fb.getReadPointer(1) : nullptr;
+
+	for (int i = 0; i < fb.getNumSamples(); i++)
+	{
+		l[i] = (int16)(int)(lr[i] * INT16_MAX);
+
+		if(r != nullptr)
+			r[i] = (int16)(int)(rr[i] * INT16_MAX);
+	}
+
+	normaliser.clear();
+}
+
 void HiseSampleBuffer::copyNormalisationRanges(const HiseSampleBuffer& otherBuffer, int startOffsetInBuffer)
 {
 	Range<int> rangeToClear({ startOffsetInBuffer, startOffsetInBuffer + otherBuffer.size });
@@ -622,8 +647,8 @@ bool HiseSampleBuffer::Normaliser::NormalisationInfo::canBeJoined(const Normalis
 	bool normalisationMatches = leftNormalisation == other.leftNormalisation &&
 		rightNormalisation == other.rightNormalisation;
 
-	bool rangeAppendable = other.range.getEnd() == range.getStart() ||
-		other.range.getStart() == range.getEnd();
+	bool rangeAppendable = (other.range.getEnd() == range.getStart()) ||
+		(other.range.getStart() == range.getEnd());
 
 	return normalisationMatches && rangeAppendable;
 }

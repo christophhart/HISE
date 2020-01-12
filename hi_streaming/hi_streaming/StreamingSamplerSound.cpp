@@ -172,19 +172,6 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		entireSampleLoaded = false;
 	}
 
-	// OK, this is the weirdest bug and the nastiest hack of all times.
-	// The problem is that the HLAC normalisation is causing issues with
-	// preload sizes over the magic number 28000 (which is 33 allocation tables)
-	// There's probably an out-of bounds issue somewhere, but until I've figured
-	// it out, this will have to do it.
-	//
-	// (looking forward to still reading that comment in 2021...)
-	if (internalPreloadSize > 28000)
-	{
-		internalPreloadSize = sampleLength;
-		entireSampleLoaded = true;
-	}
-
 	internalPreloadSize = jmax(preloadSize, internalPreloadSize, 2048);
 
 	fileReader.openFileHandles();
@@ -511,7 +498,9 @@ void StreamingSamplerSound::loopChanged()
 
 	if (loopEnabled)
 	{
-		if (loopEnd < preloadBuffer.getNumSamples())
+		bool preloadContainsLoop = loopEnd < preloadBuffer.getNumSamples() - sampleStart;
+
+		if (preloadContainsLoop)
 		{
 			useSmallLoopBuffer = false;
 			smallLoopBuffer.setSize(1, 0);
@@ -538,22 +527,29 @@ void StreamingSamplerSound::loopChanged()
 
 		if (crossfadeLength != 0)
 		{
-			loopBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), 2, (int)crossfadeLength);
+			const int startCrossfade = loopStart - crossfadeLength;
 
-			hlac::HiseSampleBuffer tempBuffer(!fileReader.isMonolithic(), 2, (int)crossfadeLength);
+			if (startCrossfade < 0)
+				return;
+
+			auto isHlac = fileReader.isMonolithic();
+
+			loopBuffer = hlac::HiseSampleBuffer(!isHlac, 2, (int)crossfadeLength);
+			loopBuffer.clear();
+
+			hlac::HiseSampleBuffer tempBuffer(!isHlac, 2, (int)crossfadeLength);
 
 			// Calculate the fade in
-			const int startCrossfade = loopStart - crossfadeLength;
+			
 			tempBuffer.clear();
 
 			fileReader.openFileHandles();
+			fileReader.readFromDisk(loopBuffer, 0, (int)crossfadeLength, startCrossfade + monolithOffset, false);
 
-			fileReader.readFromDisk(tempBuffer, 0, (int)crossfadeLength, startCrossfade + monolithOffset, false);
+			loopBuffer.burnNormalisation();
 
-			tempBuffer.applyGainRamp(0, 0, (int)crossfadeLength, 0.0f, 1.0f);
-			tempBuffer.applyGainRamp(1, 0, (int)crossfadeLength, 0.0f, 1.0f);
-
-			hlac::HiseSampleBuffer::copy(loopBuffer, tempBuffer, 0, 0, (int)crossfadeLength);
+			loopBuffer.applyGainRamp(0, 0, (int)crossfadeLength, 0.0f, 1.0f);
+			loopBuffer.applyGainRamp(1, 0, (int)crossfadeLength, 0.0f, 1.0f);
 
 			// Calculate the fade out
 			tempBuffer.clear();
@@ -562,10 +558,17 @@ void StreamingSamplerSound::loopChanged()
 
 			fileReader.readFromDisk(tempBuffer, 0, (int)crossfadeLength, endCrossfade + monolithOffset, false);
 
+			tempBuffer.burnNormalisation();
 			tempBuffer.applyGainRamp(0, 0, (int)crossfadeLength, 1.0f, 0.0f);
 			tempBuffer.applyGainRamp(1, 0, (int)crossfadeLength, 1.0f, 0.0f);
-
+			
 			hlac::HiseSampleBuffer::add(loopBuffer, tempBuffer, 0, 0, crossfadeLength);
+
+			if (preloadContainsLoop)
+			{
+				auto offset = loopEnd - crossfadeLength;
+				hlac::HiseSampleBuffer::copy(preloadBuffer, loopBuffer, offset, 0, crossfadeLength);
+			}
 
 			fileReader.closeFileHandles();
 		}
@@ -730,6 +733,8 @@ void StreamingSamplerSound::fillInternal(hlac::HiseSampleBuffer &sampleBuffer, i
 		const int indexInPreloadBuffer = uptime - (int)sampleStart;
 
 		jassert(indexInPreloadBuffer >= 0);
+
+		jassert(!crossfadeArea.contains(indexInPreloadBuffer));
 
 		if (indexInPreloadBuffer + samplesToCopy < preloadBuffer.getNumSamples())
 		{
