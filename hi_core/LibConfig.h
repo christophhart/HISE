@@ -47,7 +47,7 @@
 
 
 #define NUM_GLOBAL_VARIABLES 128
-#define NUM_MIC_POSITIONS 8
+
 
 
 /** Allow the end user to right click on a knob to MIDI learn it. 

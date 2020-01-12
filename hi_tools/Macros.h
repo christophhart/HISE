@@ -43,7 +43,15 @@ using LabelListener = Label::Listener;
 
 namespace hise { using namespace juce;
 
+
+/** Change this value if you need more than 8 stereo channels in HISE routing. */
 #define NUM_MAX_CHANNELS 16
+
+#if NUM_MAX_CHANNELS % 2 != 0
+#error "The channel amount must be a multiple of 2"
+#endif
+
+#define NUM_MIC_POSITIONS NUM_MAX_CHANNELS / 2
 
 #ifndef NUM_POLYPHONIC_VOICES
 #if HISE_IOS
