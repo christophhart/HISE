@@ -79,7 +79,7 @@ template <typename T, int NumVoices> struct PolyData
 
 	void setAll(const T& value)
 	{
-		if (!isPolyphonic())
+		if (!isPolyphonic() || voicePtr == nullptr)
 		{
 			*data = value;
 		}
@@ -104,7 +104,7 @@ template <typename T, int NumVoices> struct PolyData
 
 	T& get()
 	{
-		if (!isPolyphonic())
+		if (!isPolyphonic() || voicePtr == nullptr)
 			return *data;
 		else
 			return getWithIndex(getCurrentVoiceIndex());
@@ -112,7 +112,7 @@ template <typename T, int NumVoices> struct PolyData
 
 	const T& get() const
 	{
-		if (!isPolyphonic())
+		if (!isPolyphonic() || voicePtr == nullptr)
 			return *data;
 		else
 			return getWithIndex(getCurrentVoiceIndex());
@@ -120,7 +120,7 @@ template <typename T, int NumVoices> struct PolyData
 
 	void forEachVoice(const std::function<void(T& v)>& f)
 	{
-		if (!isPolyphonic())
+		if (!isPolyphonic() || voicePtr == nullptr)
 			f(*data);
 		else
 		{
