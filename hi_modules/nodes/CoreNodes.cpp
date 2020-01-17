@@ -44,8 +44,16 @@ void tempo_sync::initialise(NodeBase* n)
 	if (auto modSource = dynamic_cast<ModulationSourceNode*>(n))
 		modSource->setScaleModulationValue(false);
 
+	useFreqDomain.init(n, this);
+
 	mc = n->getScriptProcessor()->getMainController_();
 	mc->addTempoListener(this);
+}
+
+tempo_sync::tempo_sync():
+	useFreqDomain(PropertyIds::UseFreqDomain, false)
+{
+
 }
 
 tempo_sync::~tempo_sync()
@@ -139,6 +147,9 @@ bool tempo_sync::handleModulation(double& max)
 	{
 		lastTempoMs = currentTempoMilliseconds;
 		max = currentTempoMilliseconds;
+
+		if (useFreqDomain.getValue() && max > 0.0)
+			max = 1.0 / (max * 0.001);
 
 		return true;
 	}
@@ -348,7 +359,7 @@ template <int NV> struct OscDisplay : public HiseDspBase::ExtraComponent<oscilla
 		if (this->getObject() == nullptr)
 			return;
 
-		auto thisMode = this->getObject()->currentMode;
+		auto thisMode = (int)this->getObject()->currentMode;
 
 		if (currentMode != thisMode)
 		{
@@ -386,7 +397,17 @@ void scriptnode::core::oscillator_impl<NV>::reset() noexcept
 template <int NV>
 void oscillator_impl<NV>::processSingle(float* data, int )
 {
-	data[0] += sinTable->getInterpolatedValue(voiceData.get().tick());
+	auto& d = voiceData.get();
+
+	switch (currentMode)
+	{
+	case Mode::Sine: *data += tickSine(d); break;
+	case Mode::Triangle: *data += tickTriangle(d); break;
+	case Mode::Saw: *data += tickSaw(d); break;
+	case Mode::Square: *data += tickSquare(d); break;
+	}
+
+	
 }
 
 template <int NV>
@@ -397,10 +418,77 @@ void oscillator_impl<NV>::process(ProcessData& data)
 	auto& thisData = voiceData.get();
 	auto* ptr = data.data[0];
 
-	while (--numSamples >= 0)
-		*ptr++ += sinTable->getInterpolatedValue(thisData.tick());
+	switch (currentMode)
+	{
+	case Mode::Sine:
+	{
+		while (--numSamples >= 0)
+			*ptr++ += tickSine(thisData);
+
+		break;
+	}
+	case Mode::Triangle:
+	{
+		while (--numSamples >= 0)
+			*ptr++ += tickTriangle(thisData);
+
+		break;
+	}
+	case Mode::Saw:
+	{
+		while (--numSamples >= 0)
+			*ptr++ += tickSaw(thisData);
+
+		break;
+	}
+	case Mode::Noise:
+	{
+		while (--numSamples >= 0)
+			*ptr++ += tickNoise(thisData);
+
+		break;
+	}
+	case Mode::Square:
+	{
+		while (--numSamples >= 0)
+			*ptr++ += tickSquare(thisData);
+
+		break;
+	}
+	}
 }
 
+
+template <int NV>
+float scriptnode::core::oscillator_impl<NV>::tickNoise(OscData& d)
+{
+	return r.nextFloat() * 2.0f - 1.0f;
+}
+
+template <int NV>
+float scriptnode::core::oscillator_impl<NV>::tickSaw(OscData& d)
+{
+	return 2.0f * std::fmodf(d.tick() / sinTable->getTableSize(), 1.0f) - 1.0f;
+}
+
+template <int NV>
+float scriptnode::core::oscillator_impl<NV>::tickTriangle(OscData& d)
+{
+	return (1.0f - std::abs(tickSaw(d))) * 2.0f - 1.0f;
+}
+
+template <int NV>
+float scriptnode::core::oscillator_impl<NV>::tickSine(OscData& d)
+{
+	return sinTable->getInterpolatedValue(d.tick());
+}
+
+
+template <int NV>
+float scriptnode::core::oscillator_impl<NV>::tickSquare(OscData& d)
+{
+	return (float)(1 - (int)std::signbit(tickSaw(d))) * 2.0f - 1.0f;
+}
 
 template <int NV>
 void oscillator_impl<NV>::initialise(NodeBase* n)
@@ -460,14 +548,14 @@ void oscillator_impl<NV>::setFrequency(double newFrequency)
 template <int NV>
 void oscillator_impl<NV>::setMode(double newMode)
 {
-	currentMode = (int)newMode;
+	currentMode = (Mode)(int)newMode;
 }
 
 template <int NV>
 oscillator_impl<NV>::oscillator_impl():
 	useMidi(PropertyIds::UseMidi, false)
 {
-	modes = { "Sine", "Saw", "Noise", "Square" };
+	modes = { "Sine", "Saw", "Triangle", "Square", "Noise"};
 }
 
 template <int V>

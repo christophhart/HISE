@@ -72,8 +72,9 @@ public:
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_PROCESS;
-	HISE_EMPTY_PROCESS_SINGLE
+	HISE_EMPTY_PROCESS_SINGLE;
 
+	tempo_sync();
 	~tempo_sync();
 
 	struct TempoDisplay;
@@ -100,6 +101,8 @@ public:
 	TempoSyncer::Tempo currentTempo = TempoSyncer::Tempo::Eighth;
 
 	MainController* mc = nullptr;
+
+	NodePropertyT<bool> useFreqDomain;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(tempo_sync);
 };
@@ -265,6 +268,16 @@ template <int NV> class oscillator_impl: public HiseDspBase
 {
 public:
 
+	enum class Mode
+	{
+		Sine,
+		Saw,
+		Triangle,
+		Square,
+		Noise,
+		numModes
+	};
+
 	constexpr static int NumVoices = NV;
 
 	SET_HISE_NODE_EXTRA_HEIGHT(50);
@@ -284,6 +297,12 @@ public:
 	void processSingle(float* data, int numChannels);
 	void handleHiseEvent(HiseEvent& e) override;
 
+	float tickSine(OscData& d);
+	float tickTriangle(OscData& d);
+	float tickSaw(OscData& d);
+	float tickNoise(OscData& d);
+	float tickSquare(OscData& d);
+
 	Component* createExtraComponent(PooledUIUpdater* updater);
 
 	void setMode(double newMode);
@@ -293,14 +312,17 @@ public:
 	StringArray modes;
 	double sr = 44100.0;
 	PolyData<OscData, NumVoices> voiceData;
+	Random r;
 
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;
 
 	NodePropertyT<bool> useMidi;
 
-	int currentMode = 0;
+	Mode currentMode = Mode::Sine;
 	double freqValue = 220.0;
 };
+
+
 
 DEFINE_EXTERN_NODE_TEMPLATE(oscillator, oscillator_poly, oscillator_impl);
 

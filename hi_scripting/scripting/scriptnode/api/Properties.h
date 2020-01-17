@@ -105,6 +105,7 @@ DECLARE_ID(undefined);
 DECLARE_ID(FillMode);
 DECLARE_ID(AddToSignal);
 DECLARE_ID(UseMidi);
+DECLARE_ID(UseFreqDomain);
 DECLARE_ID(ResetValue);
 DECLARE_ID(UseResetValue);
 DECLARE_ID(RoutingMatrix);

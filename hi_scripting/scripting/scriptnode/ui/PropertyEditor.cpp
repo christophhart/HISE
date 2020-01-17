@@ -189,7 +189,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 
 	Identifier propId = Identifier(d[PropertyIds::ID].toString().fromLastOccurrenceOf(".", false, false));
 
-	if (propId == PropertyIds::FillMode || propId == PropertyIds::UseMidi || propId == PropertyIds::UseResetValue)
+	if (propId == PropertyIds::FillMode || propId == PropertyIds::UseMidi || propId == PropertyIds::UseResetValue || propId == PropertyIds::UseFreqDomain)
 	{
 		TextButton* t = new TextButton();
 		t->setButtonText("Enabled");
