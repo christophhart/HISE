@@ -72,6 +72,8 @@ loadingThread(*this)
 
 ConvolutionEffect::~ConvolutionEffect()
 {
+    ScopedLock sl(getImpulseLock());
+    
 	convolverL = nullptr;
 	convolverR = nullptr;
 }
@@ -595,6 +597,9 @@ void ConvolutionEffect::LoadingThread::run()
 
 bool ConvolutionEffect::LoadingThread::reloadInternal()
 {
+    if(parent.convolverL == nullptr)
+        return true;
+    
 	if (parent.getSampleBuffer() == nullptr || parent.getSampleBuffer()->getNumChannels() == 0)
 	{
 		ScopedLock sl(parent.getImpulseLock());
@@ -635,6 +640,7 @@ bool ConvolutionEffect::LoadingThread::reloadInternal()
 
 	ScopedLock sl(parent.getImpulseLock());
 
+    
 	parent.convolverL->reset();
 	parent.convolverR->reset();
 	parent.convolverL->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);

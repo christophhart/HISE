@@ -2241,13 +2241,7 @@ int ScriptedControlAudioParameter::getNumSteps() const
 
 bool ScriptedControlAudioParameter::isMetaParameter() const
 {
-    if(type == ScriptedControlAudioParameter::Type::Button)
-    {
-        return isMeta;
-    }
-    
-    return false;
-        
+    return isMeta;
 }
     
 void ScriptedControlAudioParameter::setParameterNotifyingHost(int index, float newValue)
