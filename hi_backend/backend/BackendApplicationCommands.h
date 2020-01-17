@@ -161,7 +161,7 @@ public:
 		MenuToolsRecompile = 0x50000,
 		
 		MenuToolsCreateInterface,
-        MenuToolsCheckDuplicate,
+        MenuToolsSanityCheck,
         MenuToolsClearConsole,
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
@@ -295,7 +295,7 @@ public:
 		static void saveView(BackendRootWindow *bpe);
 		static void renameView(BackendRootWindow *bpe);
 		static void closeAllChains(BackendRootWindow *bpe);
-		static void checkDuplicateIds(BackendRootWindow *bpe);
+		static void validatePlugin(BackendRootWindow *bpe);
 		static void showAboutPage(BackendRootWindow * bpe);
 		static void checkVersion(BackendRootWindow *bpe);
 		static void setColumns(BackendRootWindow * bpe, BackendCommandTarget* target, ColumnMode columns);

@@ -1983,7 +1983,144 @@ AudioFormatReader * PresetHandler::getReaderForInputStream(InputStream *stream)
 	return afm.createReaderFor(stream);
 }
 
+bool forEachScriptComponent(ScriptingApi::Content* c, DynamicObject* obj, const std::function<bool(DynamicObject* obj, ScriptComponent*)>& f, ScriptComponent* toSkip=nullptr)
+{
+	int numComponents = c->getNumComponents();
 
+	for (int i = 0; i < numComponents; i++)
+	{
+		auto sc = c->getComponent(i);
+
+		if (sc == toSkip)
+			continue;
+
+		auto sip = (bool)sc->getScriptObjectProperty(sc->getIdFor(ScriptingApi::Content::ScriptComponent::saveInPreset));
+
+		if (!sip)
+			continue;
+
+		auto isParameter = (bool)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::isPluginParameter);
+
+		if (!isParameter)
+			continue;
+
+		if (!f(obj, sc))
+			return false;
+	}
+
+	return true;
+}
+
+void PresetHandler::checkMetaParameters(Processor* p)
+{
+	if (auto jmp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(p->getMainController()))
+	{
+		auto prevState = jmp->exportAsValueTree();
+		auto content = jmp->getContent();
+
+		try
+		{
+			StringArray existingNames;
+
+			forEachScriptComponent(content, nullptr, [&existingNames](DynamicObject* obj, ScriptComponent* c)
+			{
+				auto name = c->getScriptObjectProperty(ScriptComponent::pluginParameterName).toString();
+
+				if (name.isEmpty())
+					throw Result::fail(c->getName().toString() + " has undefined pluginParameterName property but is defined as plugin parameter");
+
+				if (existingNames.contains(name))
+					throw Result::fail(c->getName() + " has a duplicate plugin parameter ID");
+
+				existingNames.add(name);
+
+				return true;
+			});
+
+			forEachScriptComponent(content, nullptr, [content](DynamicObject* obj, ScriptComponent* c)
+			{
+				auto writeToObj = [](DynamicObject* obj, ScriptComponent* c)
+				{
+					auto id = c->getName();
+					obj->setProperty(id, c->getValue());
+					return true;
+				};
+
+				auto checkAsExpected = [](DynamicObject* obj, ScriptComponent* c)
+				{
+					auto ev = (double)obj->getProperty(c->getName());
+					auto v = (double)c->getValue();
+
+					auto expectedValue = obj->getProperty(c->getName());
+
+					if (expectedValue != c->getValue())
+						throw c->getName().toString();
+
+					return true;
+				};
+
+				auto id = c->getName();
+				NormalisableRange<double> range;
+				range.start = (double)c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
+				range.end = (double)c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
+
+				auto isMeta = (bool)c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::isMetaParameter);
+
+				if (isMeta)
+					return true;
+
+				DynamicObject::Ptr values = new DynamicObject();
+
+				forEachScriptComponent(content, values, writeToObj, c);
+
+				var newValue;
+
+				if (dynamic_cast<ScriptingApi::Content::ScriptSlider*>(c) != nullptr ||
+					dynamic_cast<ScriptingApi::Content::ScriptPanel*>(c))
+				{
+					newValue = Random::getSystemRandom().nextDouble() * range.getRange().getLength() + range.start;
+				}
+				else if (dynamic_cast<ScriptingApi::Content::ScriptButton*>(c) != nullptr)
+				{
+					newValue = 1 - (int)c->getValue();
+				}
+				else if (dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(c) != nullptr)
+				{
+					auto max = (int)c->getScriptObjectProperty(ScriptComponent::max);
+					newValue = Random::getSystemRandom().nextInt({ 1, max });
+				}
+
+				
+
+				auto index = content->getComponentIndex(id);
+				values->setProperty(id, newValue);
+				content->getScriptProcessor()->setControlValue(index, newValue);
+
+				Thread::sleep(300);
+
+				try
+				{
+					forEachScriptComponent(content, values, checkAsExpected, c);
+				}
+				catch (String& s)
+				{
+					String e;
+					e << c->getName().toString() << " changed " << s << " without being marked as meta parameter";
+					throw Result::fail(e);
+				}
+			});
+		}
+		catch (Result& r)
+		{
+			showMessageWindow("Meta Parameter Flag not set", r.getErrorMessage(), IconType::Error);
+		}
+
+		jmp->restoreFromValueTree(prevState);
+
+	}
+
+	
+}
 
 void PresetHandler::writeSampleMapsToValueTree(ValueTree &sampleMapTree, ValueTree &preset)
 {

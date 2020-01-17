@@ -180,7 +180,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuDeleteView,
         MenuRenameView,
         MenuViewSaveCurrentView,
-        MenuToolsCheckDuplicate,
+        MenuToolsSanityCheck,
 		MenuHelpShowAboutPage,
         MenuHelpCheckVersion,
 		MenuHelpShowDocumentation,
@@ -618,8 +618,8 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Show Processor in full screen", dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget.get()) != nullptr, false, 'X', false);
 		result.addDefaultKeypress(KeyPress::F11Key, ModifierKeys::noModifiers);
 		break;
-    case MenuToolsCheckDuplicate:
-        setCommandTarget(result, "Check duplicate IDs", true, false, 'X', false);
+    case MenuToolsSanityCheck:
+        setCommandTarget(result, "Validate plugin parameters", true, false, 'X', false);
 		result.categoryName = "Tools";
         break;
     case MenuToolsClearConsole:
@@ -705,7 +705,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCheckCyclicReferences:Actions::checkCyclicReferences(bpe); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
-    case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
+    case MenuToolsSanityCheck:			Actions::validatePluginParameters(bpe); return true;
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsGetMissingSampleList:	Actions::copyMissingSampleListToClipboard(bpe); return true;
@@ -920,7 +920,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSectionHeader("Scripting Tools");
 		
 		ADD_ALL_PLATFORMS(MenuToolsRecompile);
-		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
+		ADD_ALL_PLATFORMS(MenuToolsSanityCheck);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
 		ADD_DESKTOP_ONLY(MenuToolsCheckCyclicReferences);
 		
@@ -1685,8 +1685,10 @@ void BackendCommandTarget::Actions::closeAllChains(BackendRootWindow *bpe)
     }
 }
 
-void BackendCommandTarget::Actions::checkDuplicateIds(BackendRootWindow *bpe)
+void BackendCommandTarget::Actions::validatePluginParameters(BackendRootWindow *bpe)
 {
+	PresetHandler::checkMetaParameters(bpe->owner->synthChain);
+
     PresetHandler::checkProcessorIdsForDuplicates(bpe->owner->synthChain, false);
 
 }

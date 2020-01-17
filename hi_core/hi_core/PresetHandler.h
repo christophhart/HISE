@@ -631,6 +631,8 @@ public:
     
     static AudioFormatReader *getReaderForInputStream(InputStream *stream);
 
+	static void checkMetaParameters(Processor* p);
+
 	static ValueTree loadValueTreeFromData(const void* data, size_t size, bool wasCompressed)
 	{
 		if (wasCompressed)
