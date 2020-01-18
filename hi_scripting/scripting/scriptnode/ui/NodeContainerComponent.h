@@ -84,7 +84,7 @@ struct MacroPropertyEditor : public Component,
 			bool shouldBeEnabled = newValue.toString().isEmpty();
 
 			auto rangeIds = RangeHelpers::getRangeIds();
-
+			rangeIds.add(PropertyIds::Enabled);
 			cEditor.enableProperties(rangeIds, shouldBeEnabled);
 
 			findParentComponentOfClass<MacroPropertyEditor>()->resizeConnections();

@@ -284,6 +284,17 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 	{
 		for (auto t : targets)
 		{
+#if HISE_INCLUDE_SNEX
+			SpinLock::ScopedLockType l(t->expressionLock);
+
+			if (t->expr != nullptr)
+			{
+				auto thisValue = t->expr->getValue(value);
+				t->applyValue(thisValue);
+				continue;
+			}
+#endif
+
 			t->applyValue(value);
 		}
 	}
