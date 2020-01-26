@@ -57,6 +57,7 @@ public:
 
 		auto type = (int)getProcessor()->getAttribute(LfoModulator::WaveFormType);
 
+		phaseSlider->updateValue();
 
 
 		tempoSyncButton->updateValue();
