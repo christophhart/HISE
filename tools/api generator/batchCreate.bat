@@ -61,7 +61,9 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pack.xml" 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
 
-xcopy "xml\classhise_1_1scriptnode_1_1_dsp_network.xml" "xml\selection"
+xcopy "xml\classscriptnode_1_1_dsp_network.xml" "xml\selection"
+xcopy "xml\structscriptnode_1_1_node_base.xml" "xml\selection"
+
 
 
 
@@ -115,7 +117,9 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pa
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport.xml" "ScriptedViewport.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "ScriptFloatingTile.xml"
 
-ren "xml\selection\classhise_1_1scriptnode_1_1_dsp_network.xml" "DspNetwork.xml"
+ren "xml\selection\classscriptnode_1_1_dsp_network.xml" "DspNetwork.xml"
+ren "xml\selection\structscriptnode_1_1_node_base.xml" "Node.xml"
+
 
 ApiExtractor.exe xml\selection xml\selection
 

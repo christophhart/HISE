@@ -146,17 +146,20 @@ public:
 
 	// ===============================================================================
 
+	/** Defines whether the UI controls of this script control the parameters or regular script callbacks. */
+	void setForwardControlsToParameters(bool shouldForward);
+
 	/** Initialise processing of all nodes. */
 	void prepareToPlay(double sampleRate, double blockSize);
 
 	/** Process the given channel array with the node network. */
 	void processBlock(var data);
 
-	/** Creates a node. If a node with the id already exists, it returns this node. */
-	var create(String path, String id, bool createPolyNode);
+	/** Creates and returns a node with the given path (`factory.node`). If a node with the id already exists, it returns this node. */
+	var create(String path, String id);
 
 	/** Returns a reference to the node with the given id. */
-	var get(String id) const;
+	var get(var id) const;
 
 	/** Deletes the node if it is not in a signal path. */
 	bool deleteIfUnused(String id);
@@ -173,6 +176,11 @@ public:
 	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && voiceIndex != -1; }
 
 	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || voiceIndex == 0; }
+
+	bool isForwardingControlsToParameters() const
+	{
+		return forwardControls;
+	}
 
 	NodeBase* getNodeWithId(const String& id) const;
 
@@ -225,6 +233,7 @@ public:
 		NodeBase::Ptr root;
 	} networkParameterHandler;
 
+
 	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone);
 
 	void setEnableUndoManager(bool shouldBeEnabled)
@@ -266,6 +275,8 @@ private:
 	// disable undo on compiled plugins unless explicitely stated
 	bool enableUndo = false; 
 #endif
+
+	bool forwardControls = true;
 
 	UndoManager um;
 

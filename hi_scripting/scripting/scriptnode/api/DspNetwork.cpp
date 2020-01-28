@@ -40,8 +40,9 @@ struct DspNetwork::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(DspNetwork, processBlock);
 	API_VOID_METHOD_WRAPPER_2(DspNetwork, prepareToPlay);
-	API_METHOD_WRAPPER_3(DspNetwork, create);
+	API_METHOD_WRAPPER_2(DspNetwork, create);
 	API_METHOD_WRAPPER_1(DspNetwork, get);
+	API_VOID_METHOD_WRAPPER_1(DspNetwork, setForwardControlsToParameters);
 	//API_VOID_METHOD_WRAPPER_0(DspNetwork, disconnectAll);
 	//API_VOID_METHOD_WRAPPER_3(DspNetwork, injectAfter);
 };
@@ -87,8 +88,9 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	ADD_API_METHOD_1(processBlock);
 	ADD_API_METHOD_2(prepareToPlay);
-	ADD_API_METHOD_3(create);
+	ADD_API_METHOD_2(create);
 	ADD_API_METHOD_1(get);
+	ADD_API_METHOD_1(setForwardControlsToParameters);
 	//ADD_API_METHOD_0(disconnectAll);
 	//ADD_API_METHOD_3(injectAfter);
 
@@ -167,7 +169,7 @@ NodeBase::List DspNetwork::getListOfUnconnectedNodes() const
 
 	for (auto n : nodes)
 	{
-		if (!n->isConnected())
+		if (!n->isActive())
 			unconnectedNodes.add(n);
 	}
 
@@ -273,6 +275,11 @@ juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
 	return signalPath->getParameter(parameterIndex)->getId();
 }
 
+void DspNetwork::setForwardControlsToParameters(bool shouldForward)
+{
+	forwardControls = shouldForward;
+}
+
 void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 {
 	ScopedLock sl(getConnectionLock());
@@ -318,13 +325,14 @@ void DspNetwork::processBlock(var pData)
 	}
 }
 
-var DspNetwork::create(String path, String id, bool createPolyNode)
+
+var DspNetwork::create(String path, String id)
 {
 	var existing = get(id);
 
-	if (existing.isObject())
-		return existing;
-	
+	if (auto existingNode = dynamic_cast<NodeBase*>(existing.getObject()))
+		return var(existingNode);
+
 	ValueTree newNodeData(PropertyIds::Node);
 
 	if (id.isEmpty())
@@ -336,14 +344,19 @@ var DspNetwork::create(String path, String id, bool createPolyNode)
 
 	newNodeData.setProperty(PropertyIds::ID, id, nullptr);
 	newNodeData.setProperty(PropertyIds::FactoryPath, path, nullptr);
-	
-	return createFromValueTree(createPolyNode, newNodeData);
+
+	NodeBase::Ptr newNode = createFromValueTree(isPoly, newNodeData);
+
+	return var(newNode);
 }
 
-
-
-var DspNetwork::get(String id) const
+var DspNetwork::get(var idOrNode) const
 {
+	if(auto n = dynamic_cast<NodeBase*>(idOrNode.getObject()))
+		return idOrNode;
+
+	auto id = idOrNode.toString();
+
 	if (id.isEmpty())
 		return {};
 

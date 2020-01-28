@@ -177,6 +177,7 @@ struct NodeBase : public ConstScriptingObject
 		void addModulationValue(double newValue);
 		void multiplyModulationValue(double newValue);
 
+		
 		void clearModulationValues();
 
 		void addConnectionTo(var dragDetails);
@@ -251,16 +252,14 @@ struct NodeBase : public ConstScriptingObject
 	NodeBase(DspNetwork* rootNetwork, ValueTree data, int numConstants);;
 	virtual ~NodeBase() {}
 
-	/** Overwrite this method and implement the processing. */
 	virtual void process(ProcessData& data) = 0;
 
-	/** This will be called before calls to process. */
 	virtual void prepare(PrepareSpecs specs) = 0;
+
+	Identifier getObjectName() const override { return "Node"; };
 
 	void prepareParameters(PrepareSpecs specs);
 
-	/** The default implementation calls process with a sample amount of 1, but you can override
-	    this method if there's a faster way. */
 	virtual void processSingle(float* frameData, int numChannels);
 
 	virtual void handleHiseEvent(HiseEvent& e)
@@ -268,34 +267,51 @@ struct NodeBase : public ConstScriptingObject
 		ignoreUnused(e);
 	}
 
-	/** Override this to reset your node. */
+	/** Reset the node's internal state (eg. at voice start). */
 	virtual void reset() = 0;
 
-	/** Override this method and create a Cpp class. */
 	virtual String createCppClass(bool isOuterClass);
 
-	/** Override this method and return a custom component. */
 	virtual NodeComponent* createComponent();
 
-	/** Override this method and return the bounds in the canvas for the topLeft position. */
 	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;
 	
 	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
 
 	virtual RestorableNode* getAsRestorableNode() { return nullptr; }
 
+	// ============================================================================================= BEGIN NODE API
+
+	/** Bypasses the node. */
 	void setBypassed(bool shouldBeBypassed);
+
+	/** Checks if the node is bypassed. */
 	bool isBypassed() const noexcept;
 
+	/** Returns the index in the parent. */
 	int getIndexInParent() const;
 
-	bool isConnected() const { return v_data.getParent().isValid(); }
+	/** Checks if the node is inserted into the signal path. */
+	bool isActive() const { return v_data.getParent().isValid(); }
+
+	/** Sets the property of the node. */
+	void set(var id, var value);
+
+	/** Returns a property of the node. */
+	var get(var id);
+
+	/** Inserts the node into the given parent container. */
+	void setParent(var parentNode, int indexInParent);
+
+	// ============================================================================================= END NODE API
+
 	void setValueTreeProperty(const Identifier& id, const var value);
 
 	void setDefaultValue(const Identifier& id, var newValue);
 
 	void setNodeProperty(const Identifier& id, const var& newValue);
 
+	
 	var getNodeProperty(const Identifier& id) ;
 
 	Value getNodePropertyAsValue(const Identifier& id);
@@ -365,6 +381,7 @@ struct NodeBase : public ConstScriptingObject
 
 	String getCurrentId() const { return currentId; }
 
+	struct Wrapper;
 
 private:
 

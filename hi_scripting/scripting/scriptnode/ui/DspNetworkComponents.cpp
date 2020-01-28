@@ -455,7 +455,7 @@ bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
 
 	if (freezedPath.isNotEmpty())
 	{
-		auto newNode = node->getRootNetwork()->create(freezedPath, node->getId() + "_freezed", node->isPolyphonic());
+		auto newNode = node->getRootNetwork()->create(freezedPath, node->getId() + "_freezed");
 
 		if (auto nn = dynamic_cast<NodeBase*>(newNode.getObject()))
 		{
@@ -1174,7 +1174,7 @@ void KeyboardPopup::addNodeAndClose(String path)
 				newNode = network->get(path);
 
 				if(!newNode.isObject())
-					newNode = network->create(path, {}, container->isPolyphonic());
+					newNode = network->create(path, {});
 
 				container->assign(ap, newNode);
 

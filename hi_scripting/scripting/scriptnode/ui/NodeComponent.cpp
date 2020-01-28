@@ -495,7 +495,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 			newId = "wrap" + node->getId() + String(index);
 		}
 		
-		auto newNode = node->getRootNetwork()->create(path, newId, node->isPolyphonic());
+		auto newNode = node->getRootNetwork()->create(path, newId);
 
 		if (auto newContainer = dynamic_cast<NodeBase*>(newNode.getObject()))
 		{
@@ -556,7 +556,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 		auto parent = thisTree.getParent();
 		String firstId;
 
-		if (auto fn = dynamic_cast<NodeBase*>(network->create(firstNode, "", true).getObject()))
+		if (auto fn = dynamic_cast<NodeBase*>(network->create(firstNode, "").getObject()))
 		{
 			int insertIndex = parent.indexOf(thisTree);
 			parent.addChild(fn->getValueTree(), insertIndex, node->getUndoManager());
@@ -564,7 +564,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 			firstId = fn->getId();
 		}
 
-		if (auto sn = dynamic_cast<NodeBase*>(network->create(secondNode, "", true).getObject()))
+		if (auto sn = dynamic_cast<NodeBase*>(network->create(secondNode, "").getObject()))
 		{
 			int insertIndex = parent.indexOf(thisTree);
 			parent.addChild(sn->getValueTree(), insertIndex + 1, node->getUndoManager());

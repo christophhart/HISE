@@ -540,7 +540,7 @@ void ItemGenerator::addNodeItem(ValueTree nodeTree, MarkdownDataBase::Item& fact
 	
 	MessageManagerLock lock;
 
-	NodeBase::Ptr nb = dynamic_cast<NodeBase*>(data->network->create(path, "", false).getObject());;
+	NodeBase::Ptr nb = dynamic_cast<NodeBase*>(data->network->create(path, "").getObject());;
 
 	jassert(nb != nullptr);
 

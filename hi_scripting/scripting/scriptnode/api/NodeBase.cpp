@@ -35,8 +35,20 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+struct NodeBase::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_0(NodeBase, reset);
+	API_VOID_METHOD_WRAPPER_2(NodeBase, set);
+	API_VOID_METHOD_WRAPPER_1(NodeBase, setBypassed);
+	API_METHOD_WRAPPER_0(NodeBase, isBypassed);
+	API_METHOD_WRAPPER_1(NodeBase, get);
+	API_VOID_METHOD_WRAPPER_2(NodeBase, setParent);
+};
+
+
+
 NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) :
-	ConstScriptingObject(rootNetwork->getScriptProcessor(), numConstants_),
+	ConstScriptingObject(rootNetwork->getScriptProcessor(), 8),
 	parent(rootNetwork),
 	v_data(data_),
 	bypassUpdater(rootNetwork->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
@@ -50,10 +62,22 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	setDefaultValue(PropertyIds::Comment, "");
 	setDefaultValue(PropertyIds::CommentWidth, 300);
 
+	ADD_API_METHOD_0(reset);
+	ADD_API_METHOD_2(set);
+	ADD_API_METHOD_1(get);
+	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
+	ADD_API_METHOD_2(setParent);
+
 	bypassUpdater.setFunction([this]()
 	{
 		bypassed = pendingBypassState;
 	});
+
+	for (auto c : getPropertyTree())
+	{
+		addConstant(c[PropertyIds::ID].toString(), c[PropertyIds::ID]);
+	}
 }
 
 DspNetwork* NodeBase::getRootNetwork() const
@@ -111,6 +135,11 @@ void NodeBase::setNodeProperty(const Identifier& id, const var& newValue)
 
 	if (propTree.isValid())
 		propTree.setProperty(PropertyIds::Value, newValue, getUndoManager());
+}
+
+void NodeBase::set(var id, var value)
+{
+	setNodeProperty(id.toString(), value);
 }
 
 var NodeBase::getNodeProperty(const Identifier& id)
@@ -273,6 +302,33 @@ void NodeBase::addParameter(Parameter* p)
 void NodeBase::removeParameter(int index)
 {
 	parameters.remove(index);
+}
+
+var NodeBase::get(var id)
+{
+	return getNodeProperty(id.toString());
+}
+
+void NodeBase::setParent(var parentNode, int indexInParent)
+{
+	auto network = getRootNetwork();
+
+	// allow passing in the root network
+	if (parentNode.getObject() == network)
+		parentNode = var(network->getRootNode());
+
+	if (auto pNode = dynamic_cast<NodeContainer*>(network->get(parentNode).getObject()))
+		pNode->getNodeTree().addChild(getValueTree(), indexInParent, network->getUndoManager());
+	else
+	{
+		if (parentNode.toString().isNotEmpty())
+			reportScriptError("parent node " + parentNode.toString() + " not found.");
+
+		if (auto pNode = dynamic_cast<NodeContainer*>(getParentNode()))
+		{
+			pNode->getNodeTree().removeChild(getValueTree(), getUndoManager());
+		}
+	}
 }
 
 NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
