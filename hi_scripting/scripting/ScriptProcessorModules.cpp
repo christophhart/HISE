@@ -223,7 +223,7 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 	{
 	case HiseEvent::Type::NoteOn:
 	{
-		synthObject->increaseNoteCounter(currentEvent->getNoteNumber());
+		synthObject->handleNoteCounter(*currentEvent, true);
 
 		if (onNoteOnCallback->isSnippetEmpty()) return;
 
@@ -235,7 +235,7 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 	}
 	case HiseEvent::Type::NoteOff:
 	{
-		synthObject->decreaseNoteCounter(currentEvent->getNoteNumber());
+		synthObject->handleNoteCounter(*currentEvent, false);
 
 		if (onNoteOffCallback->isSnippetEmpty()) return;
 
@@ -856,11 +856,11 @@ void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 
 	if (m.isNoteOn())
 	{
-		synthObject->increaseNoteCounter(m.getNoteNumber());
+		synthObject->handleNoteCounter(m, true);
 	}
 	else if (m.isNoteOff())
 	{
-		synthObject->decreaseNoteCounter(m.getNoteNumber());
+		synthObject->handleNoteCounter(m, false);
 
 		if (!onVoiceStopCallback->isSnippetEmpty())
 		{
@@ -1020,7 +1020,7 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 
 	if (m.isNoteOn())
 	{
-		synthObject->increaseNoteCounter(m.getNoteNumber());
+		synthObject->handleNoteCounter(m, true);
 
 		if (!onNoteOnCallback->isSnippetEmpty())
 		{
@@ -1031,7 +1031,7 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 	}
 	else if (m.isNoteOff())
 	{
-		synthObject->decreaseNoteCounter(m.getNoteNumber());
+		synthObject->handleNoteCounter(m, false);
 
 		if (!onNoteOffCallback->isSnippetEmpty())
 		{

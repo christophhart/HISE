@@ -788,17 +788,26 @@ public:
 			numPressedKeys.set(0);
 		}
 
-		void increaseNoteCounter(int noteNumber) noexcept
+		void handleNoteCounter(const HiseEvent& e, bool inc) noexcept
 		{
-			++numPressedKeys;
-			keyDown.setBit(noteNumber, true);
+			if (e.isArtificial())
+				return;
+
+			if (inc)
+			{
+				++numPressedKeys;
+				keyDown.setBit(e.getNoteNumber(), true);
+			}
+			else
+			{
+				--numPressedKeys; 
+				if (numPressedKeys.get() < 0) 
+					numPressedKeys.set(0);
+
+				keyDown.setBit(e.getNoteNumber(), false);
+			}
 		}
 
-		void decreaseNoteCounter(int noteNumber)
-		{
-			--numPressedKeys; if (numPressedKeys.get() < 0) numPressedKeys.set(0);
-			keyDown.setBit(noteNumber, false);
-		}
 		void setSustainPedal(bool shouldBeDown) { sustainState = shouldBeDown; };
 
 		struct Wrapper;

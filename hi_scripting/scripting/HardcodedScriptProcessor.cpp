@@ -89,11 +89,11 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 
 		switch (m.getType())
 		{
-		case HiseEvent::Type::NoteOn: Synth.increaseNoteCounter(m.getNoteNumber());
+		case HiseEvent::Type::NoteOn: Synth.handleNoteCounter(m, true);
 			onNoteOn();
 			break;
 
-		case HiseEvent::Type::NoteOff: Synth.decreaseNoteCounter(m.getNoteNumber());
+		case HiseEvent::Type::NoteOff: Synth.handleNoteCounter(m, false);
 			onNoteOff();
 			break;
 
