@@ -278,8 +278,12 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 		}
 		else
 		{
+			newNode->node->setParent(var(node), insertPosition);
+
+#if 0
 			newTree.getParent().removeChild(newTree, node->getUndoManager());
 			container->getNodeTree().addChild(newTree, insertPosition, node->getUndoManager());
+#endif
 		}
 	}
 }

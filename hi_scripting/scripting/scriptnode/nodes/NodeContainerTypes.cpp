@@ -385,7 +385,7 @@ SerialNode(network, d)
 
 
 template <int B>
-void scriptnode::FixedBlockNode<B>::updateBypassState(Identifier, var)
+void FixedBlockNode<B>::updateBypassState(Identifier, var)
 {
 	if (originalBlockSize == 0)
 		return;

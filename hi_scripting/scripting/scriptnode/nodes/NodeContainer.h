@@ -42,26 +42,23 @@ struct NodeContainer : public AssignableObject
 	struct MacroParameter : public NodeBase::Parameter,
 							public SnexDebugHandler
 	{
-		struct Connection
+		struct Connection: public ConnectionBase
 		{
 			Connection(NodeBase* parent, MacroParameter* pp, ValueTree d);
 
 			DspHelpers::ParameterCallback createCallbackForNormalisedInput();
-			bool isValid() const { return p.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
+			bool isValid() const { return targetParameter.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
 
 			bool matchesTarget(const Parameter* target) const
 			{
-				return target == p.get();
+				return target == targetParameter.get();
 			}
-
-			Identifier getOpType() const { return opType; };
 
 		private:
 
 			void updateConnectionInTargetParameter(Identifier id, var newValue);
 
 			ValueTree targetNodeData;
-			ValueTree connectionData;
 
 			UndoManager* um = nullptr;
 			NodeBase::Ptr nodeToBeBypassed;
@@ -71,16 +68,9 @@ struct NodeContainer : public AssignableObject
 
 			valuetree::PropertyListener exprSyncer;
 			valuetree::PropertyListener opSyncer;
-			valuetree::PropertyListener idUpdater;
-
-			valuetree::RemoveListener nodeRemoveUpdater;
 
 			String expressionCode;
 			Identifier conversion = ConverterIds::Identity;
-			Identifier opType = OperatorIds::SetValue;
-			ReferenceCountedObjectPtr<Parameter> p;
-			NormalisableRange<double> connectionRange;
-			bool inverted = false;
 		};
 
 		ValueTree getConnectionTree();
@@ -93,6 +83,27 @@ struct NodeContainer : public AssignableObject
 		void updateConnectionForExpression(ValueTree v, Identifier)
 		{
 			rebuildCallback();
+		}
+
+		var addParameterTarget(NodeBase::Parameter* p)
+		{
+			for (auto c : connections)
+			{
+				if (c->matchesTarget(p))
+					return var(c);
+			}
+
+			ValueTree newC(PropertyIds::Connection);
+			newC.setProperty(PropertyIds::NodeId, p->parent->getId(), nullptr);
+			newC.setProperty(PropertyIds::ParameterId, p->getId(), nullptr);
+			newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
+			newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
+			RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(p->data), nullptr);
+			newC.setProperty(PropertyIds::Expression, "", nullptr);
+
+			getConnectionTree().addChild(newC, -1, p->parent->getUndoManager());
+
+			return var(connections.getLast());
 		}
 
 		void logMessage(const String& s) override
@@ -110,7 +121,7 @@ struct NodeContainer : public AssignableObject
 		valuetree::RecursivePropertyListener rangeListener;
 		valuetree::RecursivePropertyListener expressionListener;
 
-		OwnedArray<Connection> connections;
+		ReferenceCountedArray<Connection> connections;
 	};
 
 	NodeContainer();

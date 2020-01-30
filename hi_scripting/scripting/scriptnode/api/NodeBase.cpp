@@ -43,6 +43,7 @@ struct NodeBase::Wrapper
 	API_METHOD_WRAPPER_0(NodeBase, isBypassed);
 	API_METHOD_WRAPPER_1(NodeBase, get);
 	API_VOID_METHOD_WRAPPER_2(NodeBase, setParent);
+	API_METHOD_WRAPPER_1(NodeBase, getParameterReference);
 	API_METHOD_WRAPPER_0(NodeBase, createRingBuffer);
 	API_VOID_METHOD_WRAPPER_1(NodeBase, writeModulationSignal);
 };
@@ -72,6 +73,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_2(setParent);
 	ADD_API_METHOD_0(createRingBuffer);
 	ADD_API_METHOD_1(writeModulationSignal);
+	ADD_API_METHOD_1(getParameterReference);
 
 	bypassUpdater.setFunction([this]()
 	{
@@ -284,7 +286,7 @@ int NodeBase::getNumParameters() const
 }
 
 
-scriptnode::NodeBase::Parameter* NodeBase::getParameter(const String& id) const
+NodeBase::Parameter* NodeBase::getParameter(const String& id) const
 {
 	for (auto p : parameters)
 		if (p->getId() == id)
@@ -294,7 +296,7 @@ scriptnode::NodeBase::Parameter* NodeBase::getParameter(const String& id) const
 }
 
 
-scriptnode::NodeBase::Parameter* NodeBase::getParameter(int index) const
+NodeBase::Parameter* NodeBase::getParameter(int index) const
 {
 	if (isPositiveAndBelow(index, parameters.size()))
 	{
@@ -302,22 +304,6 @@ scriptnode::NodeBase::Parameter* NodeBase::getParameter(int index) const
 	}
     
     return nullptr;
-}
-
-
-var NodeBase::getParameter(var indexOrId) const
-{
-	Parameter* p = nullptr;
-
-	if (indexOrId.isString())
-		p = getParameter(indexOrId.toString());
-	else
-		p = getParameter((int)indexOrId);
-
-	if (p != nullptr)
-		return var(p);
-	else
-		return {};
 }
 
 void NodeBase::addParameter(Parameter* p)
@@ -345,14 +331,22 @@ void NodeBase::setParent(var parentNode, int indexInParent)
 {
 	checkValid();
 
+	ScopedValueSetter<bool> svs(isCurrentlyMoved, true);
+
 	auto network = getRootNetwork();
 
 	// allow passing in the root network
 	if (parentNode.getObject() == network)
 		parentNode = var(network->getRootNode());
 
+	if(getValueTree().getParent().isValid())
+		getValueTree().getParent().removeChild(getValueTree(), getUndoManager());
+
 	if (auto pNode = dynamic_cast<NodeContainer*>(network->get(parentNode).getObject()))
+	{
 		pNode->getNodeTree().addChild(getValueTree(), indexInParent, network->getUndoManager());
+	}
+		
 	else
 	{
 		if (parentNode.toString().isNotEmpty())
@@ -393,12 +387,29 @@ var NodeBase::createRingBuffer()
 	return var(p);
 }
 
+var NodeBase::getParameterReference(var indexOrId) const
+{
+	Parameter* p = nullptr;
+
+	if (indexOrId.isString())
+		p = getParameter(indexOrId.toString());
+	else
+		p = getParameter((int)indexOrId);
+
+	if (p != nullptr)
+		return var(p);
+	else
+		return {};
+}
+
+
+
 struct NodeBase::Parameter::Wrapper
 {
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getId);
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getValue);
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getModValue);
-	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
+	API_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
 	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueAndStoreAsync);
 };
 
@@ -437,7 +448,6 @@ NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	ADD_API_METHOD_0(getModValue);
 	ADD_API_METHOD_1(addConnectionFrom);
 	ADD_API_METHOD_1(setValueAndStoreAsync);
-	ADD_API_METHOD_1(getConnection);
 
 #define ADD_PROPERTY_ID_CONSTANT(id) addConstant(id.toString(), id.toString());
 
@@ -461,13 +471,13 @@ double NodeBase::Parameter::getValue() const
 }
 
 
-scriptnode::DspHelpers::ParameterCallback& NodeBase::Parameter::getReferenceToCallback()
+DspHelpers::ParameterCallback& NodeBase::Parameter::getReferenceToCallback()
 {
 	return db;
 }
 
 
-scriptnode::DspHelpers::ParameterCallback NodeBase::Parameter::getCallback() const
+DspHelpers::ParameterCallback NodeBase::Parameter::getCallback() const
 {
 	return db;
 }
@@ -521,11 +531,6 @@ void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
 #endif
 }
 
-
-var NodeBase::Parameter::getConnection(var connectionPath)
-{
-
-}
 
 void NodeBase::Parameter::addModulationValue(double newValue)
 {
@@ -596,16 +601,29 @@ struct DragHelpers
 
 	static String getSourceNodeId(var dragDetails)
 	{
+		if (dragDetails.isString())
+		{
+			return dragDetails.toString().upToFirstOccurrenceOf(".", false, false);
+		}
+
 		return dragDetails.getProperty(PropertyIds::ID, "").toString();
 	}
 
 	static String getSourceParameterId(var dragDetails)
 	{
+		if (dragDetails.isString())
+			return dragDetails.toString().fromFirstOccurrenceOf(".", false, true);
+
 		return dragDetails.getProperty(PropertyIds::ParameterId, "").toString();
 	}
 
 	static ModulationSourceNode* getModulationSource(NodeBase* parent, var dragDetails)
 	{
+		if (dragDetails.isString())
+		{
+			return dynamic_cast<ModulationSourceNode*>(parent->getRootNetwork()->getNodeWithId(dragDetails.toString()));
+		}
+
 		if ((bool)dragDetails.getProperty(PropertyIds::ModulationTarget, false))
 		{
 			auto sourceNodeId = getSourceNodeId(dragDetails);
@@ -661,7 +679,7 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 	}
 }
 
-void NodeBase::Parameter::addConnectionFrom(var dragDetails)
+var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 {
 	DBG(JSON::toString(dragDetails));
 
@@ -670,28 +688,24 @@ void NodeBase::Parameter::addConnectionFrom(var dragDetails)
 
 	if (auto modSource = DragHelpers::getModulationSource(parent, dragDetails))
 	{
-		modSource->addModulationTarget(this);
-		return;
+		return modSource->addModulationTarget(this);
 	}
 
 	if (sourceNodeId == parent->getId() && parameterId == getId())
-		return;
+		return {};
 
-	auto sourcePTree = DragHelpers::getValueTreeOfSourceParameter(parent, dragDetails);
-
-	if (sourcePTree.isValid())
+	if (auto sn = parent->getRootNetwork()->getNodeWithId(sourceNodeId))
 	{
-		ValueTree newC(PropertyIds::Connection);
-		newC.setProperty(PropertyIds::NodeId, parent->getId(), nullptr);
-		newC.setProperty(PropertyIds::ParameterId, getId(), nullptr);
-		newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
-		newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
-		RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(data), nullptr);
-		newC.setProperty(PropertyIds::Expression, "", nullptr);
+		if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(sn->getParameter(parameterId)))
+		{
+			return sp->addParameterTarget(this);
 
-		auto connectionTree = sourcePTree.getChildWithName(PropertyIds::Connections);
-		connectionTree.addChild(newC, -1, parent->getUndoManager());
+			
+		}
 	}
+	
+
+	return {};
 }
 
 bool NodeBase::Parameter::matchesConnection(const ValueTree& c) const
@@ -728,6 +742,61 @@ NodeBase::HelpManager::HelpManager(NodeBase& parent, ValueTree d) :
 {
 	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour, PropertyIds::CommentWidth }, valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(NodeBase::HelpManager::update));
+}
+
+struct ConnectionBase::Wrapper
+{
+	API_METHOD_WRAPPER_1(ConnectionBase, get);
+	API_VOID_METHOD_WRAPPER_2(ConnectionBase, set);
+	API_METHOD_WRAPPER_0(ConnectionBase, getLastValue);
+	API_METHOD_WRAPPER_0(ConnectionBase, isModulationConnection);
+	API_METHOD_WRAPPER_0(ConnectionBase, getTarget);
+};
+
+ConnectionBase::ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_) :
+	ConstScriptingObject(p, 6),
+	data(data_)
+{
+	addConstant(PropertyIds::Enabled.toString(), PropertyIds::Enabled.toString());
+	addConstant(PropertyIds::MinValue.toString(), PropertyIds::MinValue.toString());
+	addConstant(PropertyIds::MaxValue.toString(), PropertyIds::MaxValue.toString());
+	addConstant(PropertyIds::SkewFactor.toString(), PropertyIds::SkewFactor.toString());
+	addConstant(PropertyIds::StepSize.toString(), PropertyIds::StepSize.toString());
+	addConstant(PropertyIds::Expression.toString(), PropertyIds::Expression.toString());
+
+	opTypeListener.setCallback(data, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
+		[this](Identifier, var newValue)
+	{
+		auto id = Identifier(newValue.toString());
+
+		setOpTypeFromId(id);
+	});
+
+	ADD_API_METHOD_0(getLastValue);
+	ADD_API_METHOD_1(get);
+	ADD_API_METHOD_2(set);
+}
+
+void ConnectionBase::initRemoveUpdater(NodeBase* parent)
+{
+	auto nodeId = data[PropertyIds::NodeId].toString();
+
+	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
+	{
+		auto undoManager = parent->getUndoManager();
+		auto d = data;
+		auto n = parent->getRootNetwork();
+
+		nodeRemoveUpdater.setCallback(targetNode->getValueTree(), valuetree::AsyncMode::Synchronously, false,
+			[n, d, undoManager](ValueTree& v)
+		{
+			if (auto node = n->getNodeForValueTree(v))
+			{
+				if(!node->isBeingMoved())
+					d.getParent().removeChild(d, undoManager);
+			}
+		});
+	}
 }
 
 }

@@ -36,9 +36,8 @@ using namespace juce;
 using namespace hise;
 
 ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* parent_, ValueTree data_) :
-	ConstScriptingObject(parent_->getScriptProcessor(), 0),
+	ConnectionBase(parent_->getScriptProcessor(), data_),
 	parent(parent_),
-	data(data_),
 	active(data, PropertyIds::Enabled, parent->getUndoManager(), true)
 {
 	rangeUpdater.setCallback(data, RangeHelpers::getRangeIds(),
@@ -46,21 +45,11 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 		[this](Identifier, var)
 	{
 		inverted = RangeHelpers::checkInversion(data, &rangeUpdater, parent->getUndoManager());
-		targetRange = RangeHelpers::getDoubleRange(data);
+		connectionRange = RangeHelpers::getDoubleRange(data);
 	});
 
-	opTypeListener.setCallback(data, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
-		[this](Identifier, var newValue)
-	{
-		auto id = Identifier(newValue.toString());
-
-		if (id == OperatorIds::SetValue)
-			opType = SetValue;
-		else if (id == OperatorIds::Add)
-			opType = Add;
-		else if (id == OperatorIds::Multiply)
-			opType = Multiply;
-	});
+	
+	initRemoveUpdater(parent);
 
 	expressionUpdater.setCallback(data, { PropertyIds::Expression },
 		valuetree::AsyncMode::Synchronously,
@@ -92,23 +81,24 @@ bool ModulationSourceNode::ModulationTarget::findTarget()
 		{
 			auto enabled = n->getRootNetwork()->isInSignalPath(n);
 
-			if(!enabled)
+			if(!enabled && !n->isBeingMoved())
 				data.setProperty(PropertyIds::Enabled, false, parent->getUndoManager());
 
 			for (int i = 0; i < n->getNumParameters(); i++)
 			{
 				if (n->getParameter(i)->getId() == parameterId)
 				{
-					parameter = n->getParameter(i);
-					callback = parameter->getCallback();
+					targetParameter = n->getParameter(i);
+					callback = targetParameter->getCallback();
 
+#if 0
 					removeWatcher.setCallback(n->getValueTree(),
 						valuetree::AsyncMode::Synchronously, true,
 						[this](ValueTree&)
 					{
 						data.getParent().removeChild(data, parent->getUndoManager());
 					});
-
+#endif
 
 
 
@@ -151,9 +141,9 @@ void ModulationSourceNode::ModulationTarget::applyValue(double value)
 
 	switch (opType)
 	{
-	case SetValue: parameter->setValueAndStoreAsync(value); break;
-	case Multiply: parameter->multiplyModulationValue(value); break;
-	case Add:	   parameter->addModulationValue(value); break;
+	case SetValue: targetParameter->setValueAndStoreAsync(value); break;
+	case Multiply: targetParameter->multiplyModulationValue(value); break;
+	case Add:	   targetParameter->addModulationValue(value); break;
         default:   break;
 	}
 }
@@ -189,8 +179,8 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 			{
 				if (t->data == c)
 				{
-					if (t->parameter != nullptr)
-						t->parameter->data.removeProperty(PropertyIds::ModulationTarget, getUndoManager());
+					if (t->targetParameter != nullptr)
+						t->targetParameter->data.removeProperty(PropertyIds::ModulationTarget, getUndoManager());
 
 					targets.removeObject(t);
 					break;
@@ -202,8 +192,14 @@ ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
 	});
 }
 
-void ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
+var ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 {
+	for (auto t : targets)
+	{
+		if (t->targetParameter.get() == n)
+			return var(t);
+	}
+
 	ValueTree m(PropertyIds::ModulationTarget);
 
 	m.setProperty(PropertyIds::NodeId, n->parent->getId(), nullptr);
@@ -220,6 +216,8 @@ void ModulationSourceNode::addModulationTarget(NodeBase::Parameter* n)
 	m.setProperty(PropertyIds::Expression, "", nullptr);
 
 	getModulationTargetTree().addChild(m, -1, getUndoManager());
+
+	return var(targets.getLast());
 }
 
 juce::String ModulationSourceNode::createCppClass(bool isOuterClass)
@@ -275,7 +273,7 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
             if (t->inverted)
                 thisValue = 1.0 - thisValue;
             
-            auto normalised = t->targetRange.convertFrom0to1(thisValue);
+            auto normalised = t->connectionRange.convertFrom0to1(thisValue);
             
             t->applyValue(normalised);
 		}

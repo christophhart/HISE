@@ -42,7 +42,11 @@ class DspNetwork;
 class NodeComponent;
 class HardcodedNode;
 class RestorableNode;
+class NodeBase;
 
+
+
+/** A node in the DSP network. */
 class NodeBase : public ConstScriptingObject
 {
 public:
@@ -169,33 +173,24 @@ public:
 	using Ptr = WeakReference<NodeBase>;
 	using List = Array<WeakReference<NodeBase>>;
 
-	struct Parameter: public ConstScriptingObject
+	/** A parameter of a node. */
+	class Parameter: public ConstScriptingObject
 	{
+	public:
+
 		Identifier getObjectName() const override { return PropertyIds::Parameter; }
 
 		Parameter(NodeBase* parent_, ValueTree& data_);;
-
 		
-
-
-
 		void addModulationValue(double newValue);
 		void multiplyModulationValue(double newValue);
 
-		
 		void clearModulationValues();
 
+		// ======================================================================== API Calls
+
 		/** Adds (and/or) returns a connection from the given data. */
-		void addConnectionFrom(var connectionData);
-
-		bool matchesConnection(const ValueTree& c) const;
-
-		Array<Parameter*> getConnectedMacroParameters() const;
-
-		void prepare(PrepareSpecs specs)
-		{
-			value.prepare(specs);
-		}
+		var addConnectionFrom(var connectionData);
 
 		/** Returns the name of the parameter. */
 		String getId() const;
@@ -209,8 +204,16 @@ public:
 		/** Sets the value immediately and stores it asynchronously. */
 		void setValueAndStoreAsync(double newValue);
 
-		/** Returns the connection to another parameter. */
-		var getConnection(var connectionPath);
+		// ================================================================== End of API Calls
+
+		bool matchesConnection(const ValueTree& c) const;
+
+		Array<Parameter*> getConnectedMacroParameters() const;
+
+		void prepare(PrepareSpecs specs)
+		{
+			value.prepare(specs);
+		}
 
 		DspHelpers::ParameterCallback& getReferenceToCallback();
 		DspHelpers::ParameterCallback getCallback() const;
@@ -263,8 +266,6 @@ public:
 		};
 		
 		PolyData<ParameterValue, NUM_POLYPHONIC_VOICES> value;
-
-		
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Parameter);
 	};
@@ -328,6 +329,9 @@ public:
 
 	/** Creates a buffer object that can be used to display the modulation values. */
 	var createRingBuffer();
+	
+	/** Returns a reference to a parameter.*/
+	var getParameterReference(var indexOrId) const;
 
 	// ============================================================================================= END NODE API
 
@@ -368,13 +372,27 @@ public:
 
 	void checkValid() const;
 	
+	bool isBeingMoved() const
+	{
+		auto pNode = getParentNode();
+
+		while (pNode != nullptr)
+		{
+			if (pNode->isCurrentlyMoved)
+				return true;
+
+			pNode = pNode->getParentNode();
+		}
+
+		return isCurrentlyMoved;
+	}
+
 	NodeBase* getParentNode() const;
 	ValueTree getValueTree() const;
 	String getId() const;
 	UndoManager* getUndoManager() const;
 
-    /** This will get called after restoration of the root network when the signal path is complete and can be used for tasks that require the full signal path.
-    */
+    
     virtual void postInit() {};
     
 	Rectangle<int> getBoundsToDisplay(Rectangle<int> originalHeight) const;
@@ -395,8 +413,7 @@ public:
 	Parameter* getParameter(const String& id) const;
 	Parameter* getParameter(int index) const;
 
-	/** Returns a reference to a parameter. */
-	var getParameter(var indexOrId) const;
+	
 
 	void addParameter(Parameter* p);
 	void removeParameter(int index);
@@ -421,9 +438,13 @@ private:
 
 protected:
 
+	
+
 	ValueTree v_data;
 
 private:
+
+	bool isCurrentlyMoved = false;
 
 	String currentId;
 
@@ -439,6 +460,98 @@ private:
 	WeakReference<NodeBase> parentNode;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeBase);
+};
+
+
+/** A connection between two parameters or a parameter and a modulation source. */
+class ConnectionBase : public ConstScriptingObject
+{
+public:
+
+	enum OpType
+	{
+		SetValue,
+		Multiply,
+		Add,
+		numOpTypes
+	};
+
+	ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_);;
+
+	virtual ~ConnectionBase() {};
+
+	Identifier getObjectName() const override { return PropertyIds::Connection; };
+
+	// ============================================================================== API Calls
+
+	/** Set a property (use the constant ids of this object for valid ids). This operation is not undoable! */
+	void set(String id, var newValue)
+	{
+		data.setProperty(Identifier(id), newValue, nullptr);
+	}
+
+	/** Get a property (use the constant ids of this object for valid ids). */
+	var get(String id) const
+	{
+		return data.getProperty(Identifier(id), var());
+	}
+
+	/** Returns the last value that was sent over this connection. */
+	virtual double getLastValue() const { return 0.0; }
+
+	/** Returns the target parameter of this connection. */
+	var getTarget() const { return var(targetParameter); }
+
+	/** Returns true if this connection is between a modulation signal and a parameter. */
+	virtual bool isModulationConnection() const { return false; }
+
+	// ============================================================================== End of API Calls
+
+	void setOpTypeFromId(const Identifier& id)
+	{
+		if (id == OperatorIds::SetValue)
+			opType = SetValue;
+		else if (id == OperatorIds::Add)
+			opType = Add;
+		else if (id == OperatorIds::Multiply)
+			opType = Multiply;
+	}
+
+	Identifier getOpType() const
+	{
+		static const Identifier ids[OpType::numOpTypes] = { OperatorIds::SetValue, OperatorIds::Multiply, OperatorIds::Add };
+		return ids[opType];
+	}
+
+	bool objectDeleted() const override
+	{
+		return !data.getParent().isValid();
+	}
+
+	bool objectExists() const override
+	{
+		return data.getParent().isValid();
+	}
+
+	ValueTree data;
+
+	valuetree::PropertyListener opTypeListener;
+	valuetree::RemoveListener nodeRemoveUpdater;
+
+	OpType opType = SetValue;
+
+	NormalisableRange<double> connectionRange;
+	bool inverted = false;
+
+	ReferenceCountedObjectPtr<NodeBase::Parameter> targetParameter;
+
+protected:
+
+	struct Wrapper;
+
+	void initRemoveUpdater(NodeBase* parent);
+
+
 };
 
 

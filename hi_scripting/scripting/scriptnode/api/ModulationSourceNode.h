@@ -48,23 +48,13 @@ public:
 	static constexpr int ModulationBarHeight = 60;
 	static constexpr int RingBufferSize = 65536;
 
-	struct ModulationTarget: public ConstScriptingObject
+	struct ModulationTarget: public ConnectionBase
 	{
-		enum OpType
-		{
-			SetValue,
-			Multiply,
-			Add,
-			numOpTypes
-		};
-
 		static void nothing(double) {}
 
 		ModulationTarget(ModulationSourceNode* parent_, ValueTree data_);
 
 		~ModulationTarget();
-
-		Identifier getObjectName() const override { return PropertyIds::ModulationTarget; }
 
 		bool findTarget();
 
@@ -72,22 +62,20 @@ public:
 
 		void applyValue(double value);
 
-		valuetree::PropertyListener opTypeListener;
+		bool isModulationConnection() const override { return true; }
+
 		valuetree::PropertyListener expressionUpdater;
 		valuetree::PropertyListener rangeUpdater;
 		valuetree::RemoveListener removeWatcher;
 		
 
-		ReferenceCountedObjectPtr<NodeBase::Parameter> parameter;
 		WeakReference<ModulationSourceNode> parent;
-		ValueTree data;
 		
-		NormalisableRange<double> targetRange;
-		bool inverted = false;
+		
 		DspHelpers::ParameterCallback callback;
 
 		CachedValue<bool> active;
-		OpType opType;
+		
 		SnexExpressionPtr expr;
 		SpinLock expressionLock;
 	};
@@ -96,7 +84,7 @@ public:
 
 	ModulationSourceNode(DspNetwork* n, ValueTree d);;
 
-	void addModulationTarget(NodeBase::Parameter* n);
+	var addModulationTarget(NodeBase::Parameter* n);
 
 	String createCppClass(bool isOuterClass) override;
 	

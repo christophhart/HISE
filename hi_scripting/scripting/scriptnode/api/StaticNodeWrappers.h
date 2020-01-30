@@ -152,8 +152,6 @@ public:
             wrapper.initialise(this);
     }
 
-	Identifier getObjectName() const override { return getStaticId(); }
-
 	void prepare(PrepareSpecs specs) final override
 	{
 		ModulationSourceNode::prepare(specs);

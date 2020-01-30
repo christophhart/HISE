@@ -695,7 +695,7 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 }
 #endif
     
-juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* , ValueTree& d, const Identifier& id, UndoManager* um)
+juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* s, ValueTree& d, const Identifier& id, UndoManager* um)
 {
 	using namespace PropertyIds;
 
@@ -731,6 +731,18 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 
 	if (id == MinValue || id == MaxValue)
 		return new SliderWithLimit(d, id, um);
+
+	if (id == SoulPatch)
+	{
+		PoolReference ref(s->getMainController_(), value.toString(), FileHandlerBase::AdditionalSourceCode);
+		
+		auto file = juce::File();
+		if (ref.isValid())
+			file = ref.getFile();
+
+		return new FileNameValuePropertyComponent(id.toString(), file, value);
+	}
+		
 
 	if (propId == LockNumChannels || propId == Enabled)
 		return new ToggleButtonPropertyComponent(d, id, um);

@@ -1082,22 +1082,18 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 
 
 NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroParameter* pp, ValueTree d):
-	connectionData(d),
+	ConnectionBase(parent->getScriptProcessor(), d),
 	um(parent->getUndoManager()),
 	parentParameter(pp)
 {
+	initRemoveUpdater(parent);
 
 	auto nodeId = d[PropertyIds::NodeId].toString();
 
 	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
 	{
 		auto undoManager = um;
-		nodeRemoveUpdater.setCallback(targetNode->getValueTree(), valuetree::AsyncMode::Asynchronously, false,
-			[d, undoManager](ValueTree& )
-		{
-			d.getParent().removeChild(d, undoManager);
-		});
-
+		
 		auto parameterId = d[PropertyIds::ParameterId].toString();
 
 		if (parameterId == PropertyIds::Bypassed.toString())
@@ -1113,9 +1109,9 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 				if (targetNode->getParameter(i)->getId() == parameterId)
 				{
 
-					p = targetNode->getParameter(i);
+					targetParameter = targetNode->getParameter(i);
 
-					opSyncer.setCallback(connectionData, { PropertyIds::OpType, }, valuetree::AsyncMode::Synchronously,
+					opSyncer.setCallback(data, { PropertyIds::OpType, }, valuetree::AsyncMode::Synchronously,
 						BIND_MEMBER_FUNCTION_2(Connection::updateConnectionInTargetParameter));
 
 					break;
@@ -1125,7 +1121,7 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 	}
 	else
 	{
-		p = nullptr;
+		targetParameter = nullptr;
 		return;
 	}
 
@@ -1133,11 +1129,6 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 
 	if (converterId.isNotEmpty())
 		conversion = Identifier(converterId);
-
-	auto opTypeId = d[PropertyIds::OpType].toString();
-
-	if (opTypeId.isNotEmpty())
-		opType = Identifier(opTypeId);
 
 	connectionRange = RangeHelpers::getDoubleRange(d);
 	inverted = d[PropertyIds::Inverted];
@@ -1175,14 +1166,14 @@ DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connection::createC
 	}
 	else
 	{
-		if (opType == OperatorIds::Add)
-			f = std::bind(&NodeBase::Parameter::addModulationValue, p.get(), std::placeholders::_1);
-		else if (opType == OperatorIds::Multiply)
-			f = std::bind(&NodeBase::Parameter::multiplyModulationValue, p.get(), std::placeholders::_1);
+		if (opType == OpType::Add)
+			f = std::bind(&NodeBase::Parameter::addModulationValue, targetParameter.get(), std::placeholders::_1);
+		else if (opType == OpType::Multiply)
+			f = std::bind(&NodeBase::Parameter::multiplyModulationValue, targetParameter.get(), std::placeholders::_1);
 		else
-			f = std::bind(&NodeBase::Parameter::setValueAndStoreAsync, p.get(), std::placeholders::_1);
+			f = std::bind(&NodeBase::Parameter::setValueAndStoreAsync, targetParameter.get(), std::placeholders::_1);
 
-		expressionCode = connectionData[PropertyIds::Expression].toString();
+		expressionCode = data[PropertyIds::Expression].toString();
 
 		if (expressionCode.isNotEmpty())
 		{
@@ -1221,7 +1212,7 @@ void NodeContainer::MacroParameter::Connection::updateConnectionInTargetParamete
 {
 	if (id == PropertyIds::OpType)
 	{
-		p->clearModulationValues();
+		targetParameter->clearModulationValues();
 	}
 }
 
