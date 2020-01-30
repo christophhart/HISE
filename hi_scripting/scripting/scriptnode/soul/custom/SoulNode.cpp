@@ -166,7 +166,7 @@ void SoulNode::rebuild()
 
 			auto hasValue = oldValues->hasProperty(Identifier(pName));
 
-			nt.setProperty(PropertyIds::Value, hasValue ? oldValues->getProperty(pName) : p->initialValue, nullptr);
+			nt.setProperty(PropertyIds::Value, hasValue ? oldValues->getProperty(pName) : var(p->initialValue), nullptr);
 
 			getParameterTree().addChild(nt, -1, getUndoManager());
 
