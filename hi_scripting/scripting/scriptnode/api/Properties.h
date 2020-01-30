@@ -80,6 +80,7 @@ DECLARE_ID(UpperLimit);
 DECLARE_ID(SkewFactor);
 DECLARE_ID(ShowParameters);
 DECLARE_ID(Bypassed);
+DECLARE_ID(SoulPatch);
 DECLARE_ID(DynamicBypass);
 DECLARE_ID(BypassRampTimeMs);
 DECLARE_ID(Value);

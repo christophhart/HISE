@@ -860,4 +860,14 @@ void TableEditor::FlatTableLookAndFeel::drawTableRuler(Graphics& g, TableEditor&
 	g.drawLine(Line<float>((float)rulerPosition * area.getWidth(), 0.0f, (float)rulerPosition * area.getWidth(), area.getHeight()), lineThickness);
 }
 
+void FileNameValuePropertyComponent::MyFunkyFilenameComponent::updateFromTextEditor()
+{
+	auto t = editor.getText();
+
+	if (t.isEmpty() || (File::isAbsolutePath(t) && File(t).isDirectory()))
+	{
+		parent.v = editor.getText();
+	}
+}
+
 } // namespace hise

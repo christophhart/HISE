@@ -36,6 +36,97 @@
 
 namespace hise { using namespace juce;
 
+
+
+class FileNameValuePropertyComponent : public PropertyComponent
+{
+public:
+
+	struct MyFunkyFilenameComponent : public Component,
+		public ButtonListener,
+		public TextEditor::Listener
+	{
+		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p) :
+			parent(p),
+			browseButton("Browse")
+		{
+			addAndMakeVisible(&editor);
+			editor.addListener(this);
+			editor.setFont(GLOBAL_BOLD_FONT());
+			editor.setSelectAllWhenFocused(true);
+
+			editor.setTextToShowWhenEmpty("No folder selected", Colours::grey);
+
+			addAndMakeVisible(&browseButton);
+			browseButton.addListener(this);
+			browseButton.setLookAndFeel(&alaf);
+		}
+
+		void buttonClicked(Button*) override
+		{
+			FileChooser fileChooser("Select Folder");
+
+			if (fileChooser.browseForDirectory())
+			{
+				parent.v = fileChooser.getResult().getFullPathName();
+				parent.refresh();
+			}
+		}
+
+		void textEditorReturnKeyPressed(TextEditor&) override
+		{
+			updateFromTextEditor();
+		}
+
+		void updateFromTextEditor();
+
+		void textEditorFocusLost(TextEditor&) override
+		{
+			updateFromTextEditor();
+		}
+
+		void textEditorTextChanged(TextEditor&) override
+		{
+
+		}
+
+		void resized() override
+		{
+			auto area = getLocalBounds();
+
+			browseButton.setBounds(area.removeFromRight(60));
+			area.removeFromRight(5);
+			editor.setBounds(area);
+		}
+
+		FileNameValuePropertyComponent& parent;
+
+		TextEditor editor;
+		TextButton browseButton;
+
+		AlertWindowLookAndFeel alaf;
+	};
+
+	FileNameValuePropertyComponent(const String& name, File initialFile, Value v_) :
+		PropertyComponent(name),
+		fc(*this),
+		v(v_)
+	{
+		addAndMakeVisible(fc);
+	}
+
+	void refresh() override
+	{
+		fc.editor.setText(v.getValue().toString(), dontSendNotification);
+	}
+
+
+
+	MyFunkyFilenameComponent fc;
+	Value v;
+};
+
+
 class TableSlider: public Slider
 {
 public:

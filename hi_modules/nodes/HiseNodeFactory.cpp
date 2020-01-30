@@ -83,6 +83,8 @@ namespace core
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
+	registerNodeRaw<SoulNode>();
+
 	registerPolyNode<seq, seq_poly>();
 	registerPolyNode<ramp, ramp_poly>();
 #if HISE_INCLUDE_SNEX

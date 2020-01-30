@@ -125,6 +125,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/scriptnode/api/NodeProperty.h"
 
+#include "scripting/scriptnode/soul/soul_includes.h"
 #include "scripting/scriptnode/nodes/JitNode.h"
 
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
