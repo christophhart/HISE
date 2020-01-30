@@ -278,6 +278,9 @@ public:
 		/** Creates a Dsp node network. */
 		var createDspNetwork(String id);
 
+		/** Creates a reference to the DSP network of another script processor. */
+		var getDspNetworkReference(String processorId, String id);
+
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
 

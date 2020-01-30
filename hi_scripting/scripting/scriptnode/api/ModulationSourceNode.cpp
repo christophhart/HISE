@@ -298,6 +298,8 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 			t->applyValue(value);
 		}
 	}
+
+	lastModValue = value;
 }
 
 void ModulationSourceNode::logMessage(const String& s)

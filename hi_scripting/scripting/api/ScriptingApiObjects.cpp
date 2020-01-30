@@ -3274,6 +3274,9 @@ void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
 	{
 		Path p = pathObject->getPath();
 
+		if (p.getBounds().isEmpty())
+			return;
+
 		if (area.isArray())
 		{
 			Rectangle<float> r = getRectangleFromVar(area);

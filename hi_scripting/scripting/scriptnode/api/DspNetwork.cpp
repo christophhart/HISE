@@ -51,7 +51,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ConstScriptingObject(p, 2),
 	data(data_),
 	isPoly(poly),
-	voiceIndex(poly ? -1 : 0)
+	voiceIndex(poly ? -1 : 0),
+	parentHolder(dynamic_cast<Holder*>(p))
 {
 	ownedFactories.add(new NodeContainerFactory(this));
 	ownedFactories.add(new core::Factory(this));
@@ -277,6 +278,8 @@ juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
 
 void DspNetwork::setForwardControlsToParameters(bool shouldForward)
 {
+	checkValid();
+
 	forwardControls = shouldForward;
 }
 
@@ -328,6 +331,8 @@ void DspNetwork::processBlock(var pData)
 
 var DspNetwork::create(String path, String id)
 {
+	checkValid();
+
 	var existing = get(id);
 
 	if (auto existingNode = dynamic_cast<NodeBase*>(existing.getObject()))
@@ -352,6 +357,8 @@ var DspNetwork::create(String path, String id)
 
 var DspNetwork::get(var idOrNode) const
 {
+	checkValid();
+
 	if(auto n = dynamic_cast<NodeBase*>(idOrNode.getObject()))
 		return idOrNode;
 

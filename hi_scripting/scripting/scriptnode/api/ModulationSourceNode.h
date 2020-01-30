@@ -120,6 +120,8 @@ private:
 	double sampleRateFactor = 1.0;
 	bool prepareWasCalled = false;
 
+	double lastModValue = 0.0;
+
 	bool scaleModulationValue = true;
 
 	int ringBufferSize = 0;

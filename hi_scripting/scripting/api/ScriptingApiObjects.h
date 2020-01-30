@@ -1334,7 +1334,9 @@ public:
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Path"); }
 
 		
-		String getDebugValue() const override { return String(p.getLength(), 2); }
+		String getDebugValue() const override {
+			return p.getBounds().toString();
+		}
 		String getDebugName() const override { return "Path"; }
 		
 		void rightClickCallback(const MouseEvent &e, Component* componentToNotify) override;
