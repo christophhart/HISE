@@ -1019,6 +1019,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getSampleFilesFromDirectory);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLatencySamples);
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
+	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -1113,6 +1114,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(createDspNetwork);
 	ADD_API_METHOD_1(setLatencySamples);
 	ADD_API_METHOD_0(getLatencySamples);
+	ADD_API_METHOD_2(getDspNetworkReference);
 }
 
 
@@ -1120,8 +1122,6 @@ void ScriptingApi::Engine::allNotesOff()
 {
 	getProcessor()->getMainController()->allNotesOff();
 };
-
-
 
 void ScriptingApi::Engine::addModuleStateToUserPreset(var moduleId)
 {
@@ -1484,6 +1484,26 @@ var ScriptingApi::Engine::createDspNetwork(String id)
 
 	reportScriptError("Not available on this script processor");
 	RETURN_IF_NO_THROW({});
+}
+
+var ScriptingApi::Engine::getDspNetworkReference(String processorId, String id)
+{
+	Processor::Iterator<scriptnode::DspNetwork::Holder> iter(getScriptProcessor()->getMainController_()->getMainSynthChain());
+
+	while (auto h = iter.getNextProcessor())
+	{
+		if (dynamic_cast<Processor*>(h)->getId() == processorId)
+		{
+			if (h->getIdList().contains(id))
+			{
+				return var(h->getOrCreate(id));
+			}
+			else
+				reportScriptError("Can't find DSP network with given ID");
+		}
+	}
+
+	return var();
 }
 
 void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));}

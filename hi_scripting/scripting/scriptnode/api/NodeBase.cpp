@@ -43,6 +43,8 @@ struct NodeBase::Wrapper
 	API_METHOD_WRAPPER_0(NodeBase, isBypassed);
 	API_METHOD_WRAPPER_1(NodeBase, get);
 	API_VOID_METHOD_WRAPPER_2(NodeBase, setParent);
+	API_METHOD_WRAPPER_0(NodeBase, createRingBuffer);
+	API_VOID_METHOD_WRAPPER_1(NodeBase, writeModulationSignal);
 };
 
 
@@ -68,6 +70,8 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_2(setParent);
+	ADD_API_METHOD_0(createRingBuffer);
+	ADD_API_METHOD_1(writeModulationSignal);
 
 	bypassUpdater.setFunction([this]()
 	{
@@ -139,6 +143,8 @@ void NodeBase::setNodeProperty(const Identifier& id, const var& newValue)
 
 void NodeBase::set(var id, var value)
 {
+	checkValid();
+
 	setNodeProperty(id.toString(), value);
 }
 
@@ -180,6 +186,8 @@ juce::Rectangle<int> NodeBase::getPositionInCanvas(Point<int> topLeft) const
 
 void NodeBase::setBypassed(bool shouldBeBypassed)
 {
+	checkValid();
+
 	if (bypassed != shouldBeBypassed)
 	{
 		pendingBypassState = shouldBeBypassed;
@@ -190,12 +198,19 @@ void NodeBase::setBypassed(bool shouldBeBypassed)
 
 bool NodeBase::isBypassed() const noexcept
 {
+	checkValid();
+
 	return bypassed;
 }
 
 int NodeBase::getIndexInParent() const
 {
 	return v_data.getParent().indexOf(v_data);
+}
+
+void NodeBase::checkValid() const
+{
+	getRootNetwork()->checkValid();
 }
 
 NodeBase* NodeBase::getParentNode() const
@@ -290,6 +305,21 @@ scriptnode::NodeBase::Parameter* NodeBase::getParameter(int index) const
 }
 
 
+var NodeBase::getParameter(var indexOrId) const
+{
+	Parameter* p = nullptr;
+
+	if (indexOrId.isString())
+		p = getParameter(indexOrId.toString());
+	else
+		p = getParameter((int)indexOrId);
+
+	if (p != nullptr)
+		return var(p);
+	else
+		return {};
+}
+
 void NodeBase::addParameter(Parameter* p)
 {
 	parameters.add(p);
@@ -306,11 +336,15 @@ void NodeBase::removeParameter(int index)
 
 var NodeBase::get(var id)
 {
+	checkValid();
+
 	return getNodeProperty(id.toString());
 }
 
 void NodeBase::setParent(var parentNode, int indexInParent)
 {
+	checkValid();
+
 	auto network = getRootNetwork();
 
 	// allow passing in the root network
@@ -331,8 +365,45 @@ void NodeBase::setParent(var parentNode, int indexInParent)
 	}
 }
 
+void NodeBase::writeModulationSignal(var buffer)
+{
+	checkValid();
+
+	if (auto b = buffer.getBuffer())
+	{
+		if (b->size == ModulationSourceNode::RingBufferSize)
+		{
+			if (auto modSource = dynamic_cast<ModulationSourceNode*>(this))
+			{
+				modSource->fillAnalysisBuffer(b->buffer);
+			}
+			else
+				reportScriptError("No modulation node");
+		}
+		else
+			reportScriptError("buffer size mismatch. Expected: " + String(ModulationSourceNode::RingBufferSize));
+	}
+	else
+		reportScriptError("the argument is not a buffer.");
+}
+
+var NodeBase::createRingBuffer()
+{
+	VariantBuffer::Ptr p = new VariantBuffer(ModulationSourceNode::RingBufferSize);
+	return var(p);
+}
+
+struct NodeBase::Parameter::Wrapper
+{
+	API_METHOD_WRAPPER_0(NodeBase::Parameter, getId);
+	API_METHOD_WRAPPER_0(NodeBase::Parameter, getValue);
+	API_METHOD_WRAPPER_0(NodeBase::Parameter, getModValue);
+	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
+	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueAndStoreAsync);
+};
+
 NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
-	ConstScriptingObject(parent_->getScriptProcessor(), 0),
+	ConstScriptingObject(parent_->getScriptProcessor(), 4),
 	parent(parent_),
 	valueUpdater(parent_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	data(data_)
@@ -360,6 +431,20 @@ NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 		else
 			valueUpdater.setFunction(BIND_MEMBER_FUNCTION_0(NodeBase::Parameter::storeValue));
 	});
+
+	ADD_API_METHOD_0(getValue);
+	ADD_API_METHOD_0(getModValue);
+	ADD_API_METHOD_0(getModValue);
+	ADD_API_METHOD_1(addConnectionFrom);
+	ADD_API_METHOD_1(setValueAndStoreAsync);
+	ADD_API_METHOD_1(getConnection);
+
+#define ADD_PROPERTY_ID_CONSTANT(id) addConstant(id.toString(), id.toString());
+
+	ADD_PROPERTY_ID_CONSTANT(PropertyIds::MinValue);
+	ADD_PROPERTY_ID_CONSTANT(PropertyIds::MaxValue);
+	ADD_PROPERTY_ID_CONSTANT(PropertyIds::MidPoint);
+	ADD_PROPERTY_ID_CONSTANT(PropertyIds::StepSize);
 }
 
 
@@ -437,6 +522,10 @@ void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
 }
 
 
+var NodeBase::Parameter::getConnection(var connectionPath)
+{
+
+}
 
 void NodeBase::Parameter::addModulationValue(double newValue)
 {
@@ -572,8 +661,10 @@ void NodeBase::addConnectionToBypass(var dragDetails)
 	}
 }
 
-void NodeBase::Parameter::addConnectionTo(var dragDetails)
+void NodeBase::Parameter::addConnectionFrom(var dragDetails)
 {
+	DBG(JSON::toString(dragDetails));
+
 	auto sourceNodeId = DragHelpers::getSourceNodeId(dragDetails);
 	auto parameterId = DragHelpers::getSourceParameterId(dragDetails);
 

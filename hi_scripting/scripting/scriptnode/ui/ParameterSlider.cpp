@@ -222,7 +222,7 @@ void ParameterSlider::itemDragExit(const SourceDetails& )
 void ParameterSlider::itemDropped(const SourceDetails& dragSourceDetails)
 {
 	macroHoverIndex = -1;
-	parameterToControl->addConnectionTo(dragSourceDetails.description);
+	parameterToControl->addConnectionFrom(dragSourceDetails.description);
 	repaint();	
 }
 

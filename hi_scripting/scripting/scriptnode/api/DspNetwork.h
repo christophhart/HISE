@@ -95,6 +95,8 @@ public:
 		WeakReference<DspNetwork> activeNetwork;
 
 		ReferenceCountedArray<DspNetwork> networks;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);
 	};
 
 	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data, bool isPolyphonic);
@@ -160,6 +162,13 @@ public:
 
 	/** Returns a reference to the node with the given id. */
 	var get(var id) const;
+
+	/** Any scripting API call has to be checked using this method. */
+	void checkValid() const
+	{
+		if (parentHolder == nullptr)
+			reportScriptError("Parent of DSP Network is deleted");
+	}
 
 	/** Deletes the node if it is not in a signal path. */
 	bool deleteIfUnused(String id);
@@ -311,6 +320,8 @@ private:
 	valuetree::RecursivePropertyListener idUpdater;
 
 	CriticalSection connectLock;
+
+	WeakReference<Holder> parentHolder;
 
 	ValueTree data;
 

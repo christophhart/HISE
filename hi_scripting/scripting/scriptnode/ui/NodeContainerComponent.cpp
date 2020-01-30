@@ -975,7 +975,7 @@ void MacroPropertyEditor::buttonClicked(Button* b)
 			{
 				auto entry = mEntries[result - mOffset];
 				auto details = DragHelpers::createDescription(entry.pId, "", true);
-				parameter->addConnectionTo(details);
+				parameter->addConnectionFrom(details);
 
 			}
 
@@ -983,7 +983,7 @@ void MacroPropertyEditor::buttonClicked(Button* b)
 			{
 				auto e = pEntries[result - pOffset];
 				auto details = DragHelpers::createDescription(e.nId, e.pId, false);
-				parameter->addConnectionTo(details);
+				parameter->addConnectionFrom(details);
 			}
 		}
 	}

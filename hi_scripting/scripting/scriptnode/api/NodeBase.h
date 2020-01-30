@@ -43,8 +43,10 @@ class NodeComponent;
 class HardcodedNode;
 class RestorableNode;
 
-struct NodeBase : public ConstScriptingObject
+class NodeBase : public ConstScriptingObject
 {
+public:
+
 	struct HelpManager: ControlledObject
 	{
 		HelpManager(NodeBase& parent, ValueTree d);
@@ -173,14 +175,18 @@ struct NodeBase : public ConstScriptingObject
 
 		Parameter(NodeBase* parent_, ValueTree& data_);;
 
-		void setValueAndStoreAsync(double newValue);
+		
+
+
+
 		void addModulationValue(double newValue);
 		void multiplyModulationValue(double newValue);
 
 		
 		void clearModulationValues();
 
-		void addConnectionTo(var dragDetails);
+		/** Adds (and/or) returns a connection from the given data. */
+		void addConnectionFrom(var connectionData);
 
 		bool matchesConnection(const ValueTree& c) const;
 
@@ -191,12 +197,24 @@ struct NodeBase : public ConstScriptingObject
 			value.prepare(specs);
 		}
 
+		/** Returns the name of the parameter. */
 		String getId() const;
+
+		/** Returns the current value (without modulation). */
 		double getValue() const;
+
+		/** Returns the last value including modulation. */
+		double getModValue() const;
+
+		/** Sets the value immediately and stores it asynchronously. */
+		void setValueAndStoreAsync(double newValue);
+
+		/** Returns the connection to another parameter. */
+		var getConnection(var connectionPath);
+
 		DspHelpers::ParameterCallback& getReferenceToCallback();
 		DspHelpers::ParameterCallback getCallback() const;
 		void setCallback(const DspHelpers::ParameterCallback& newCallback);
-		double getModValue() const;
 
 		StringArray valueNames;
 		NodeBase::Ptr parent;
@@ -208,6 +226,8 @@ struct NodeBase : public ConstScriptingObject
 		}
 
 	private:
+
+		struct Wrapper;
 
 		double lastValue = 0.0;
 
@@ -303,6 +323,12 @@ struct NodeBase : public ConstScriptingObject
 	/** Inserts the node into the given parent container. */
 	void setParent(var parentNode, int indexInParent);
 
+	/** Writes the modulation signal into the given buffer. */
+	void writeModulationSignal(var buffer);
+
+	/** Creates a buffer object that can be used to display the modulation values. */
+	var createRingBuffer();
+
 	// ============================================================================================= END NODE API
 
 	void setValueTreeProperty(const Identifier& id, const var value);
@@ -340,6 +366,8 @@ struct NodeBase : public ConstScriptingObject
 	
 	ValueTree getPropertyTree() { return v_data.getOrCreateChildWithName(PropertyIds::Properties, getUndoManager()); }
 
+	void checkValid() const;
+	
 	NodeBase* getParentNode() const;
 	ValueTree getValueTree() const;
 	String getId() const;
@@ -366,6 +394,10 @@ struct NodeBase : public ConstScriptingObject
 	int getNumParameters() const;;
 	Parameter* getParameter(const String& id) const;
 	Parameter* getParameter(int index) const;
+
+	/** Returns a reference to a parameter. */
+	var getParameter(var indexOrId) const;
+
 	void addParameter(Parameter* p);
 	void removeParameter(int index);
 
