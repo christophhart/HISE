@@ -404,7 +404,7 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 				
 				if (handler.areSampleReferencesCorrect())
 				{
-					PresetHandler::showMessageWindow("Sample Folder relocated", "You need to reload the plugin to complete this step", PresetHandler::IconType::Info);
+					PresetHandler::showMessageWindow("Sample Folder relocated", "You need to close and reopen the plugin to complete this step", PresetHandler::IconType::Info);
 				}
 			}
 		}

@@ -140,8 +140,20 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 
 	preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 
+	addRequiredExpansions(chain->getMainController(), preset);
+
+	preset.addChild(autoData, -1, nullptr);
+	preset.addChild(mpeData, -1, nullptr);
+
+	return preset;
+}
+
+void UserPresetHelpers::addRequiredExpansions(const MainController* mc, ValueTree& preset)
+{
+	ignoreUnused(mc, preset);
+
 #if HISE_ENABLE_EXPANSIONS
-	auto& expHandler = chain->getMainController()->getExpansionHandler();
+	const auto& expHandler = mc->getExpansionHandler();
 
 	String s;
 
@@ -154,11 +166,29 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 	if (s.isNotEmpty())
 		preset.setProperty("RequiredExpansions", s, nullptr);
 #endif
+}
 
-	preset.addChild(autoData, -1, nullptr);
-	preset.addChild(mpeData, -1, nullptr);
+StringArray UserPresetHelpers::checkRequiredExpansions(MainController* mc, ValueTree& preset)
+{
+	StringArray missingExpansions;
 
-	return preset;
+#if HISE_ENABLE_EXPANSIONS
+
+	auto expList = preset.getProperty("RequiredExpansions", "").toString();
+	auto& expHandler = mc->getExpansionHandler();
+
+	auto sa = StringArray::fromTokens(expList, ";", "");
+	sa.removeDuplicates(true);
+	sa.removeEmptyStrings();
+
+	
+
+	for (auto s : sa)
+		if (expHandler.getExpansionFromName(s) == nullptr)
+			missingExpansions.add(s);
+#endif
+
+	return missingExpansions;
 }
 
 juce::ValueTree UserPresetHelpers::createModuleStateTree(ModulatorSynthChain* chain)
