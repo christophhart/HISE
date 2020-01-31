@@ -172,6 +172,13 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		entireSampleLoaded = false;
 	}
 
+	// And we're back...
+	if (internalPreloadSize > 28000)
+	{
+		internalPreloadSize = (int)sampleLength;
+		entireSampleLoaded = true;
+	}
+
 	internalPreloadSize = jmax(preloadSize, internalPreloadSize, 2048);
 
 	fileReader.openFileHandles();
