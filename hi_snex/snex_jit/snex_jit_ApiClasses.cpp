@@ -58,6 +58,7 @@ MathFunctions::MathFunctions() :
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::log10, double, "log10");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::exp, double, "exp");
 	HNODE_JIT_ADD_C_FUNCTION_2(double, hmath::pow, double, double, "pow");
+	HNODE_JIT_ADD_C_FUNCTION_2(double, hmath::fmod, double, double, "fmod");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sqr, double, "sqr");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sqrt, double, "sqrt");
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::ceil, double, "ceil");
@@ -89,6 +90,7 @@ MathFunctions::MathFunctions() :
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::log10, float, "log10");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::exp, float, "exp");
 	HNODE_JIT_ADD_C_FUNCTION_2(float, hmath::pow, float, float, "pow");
+	HNODE_JIT_ADD_C_FUNCTION_2(float, hmath::fmod, float, float, "fmod");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sqr, float, "sqr");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sqrt, float, "sqrt");
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::ceil, float, "ceil");

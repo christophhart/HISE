@@ -290,6 +290,7 @@ static forcedinline float range(float value, float lower, float upper) { return 
 static forcedinline float min(float value1, float value2) { return jmin<float>(value1, value2); };
 static forcedinline float max(float value1, float value2) { return jmax<float>(value1, value2); };
 static forcedinline float random() { return Random::getSystemRandom().nextFloat(); };
+static forcedinline float fmod(float x, float y) { return std::fmod(x, y); };
 
 static int round(int value) { return value; };
 static forcedinline int randInt(int low=0, int high=INT_MAX) { return  Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
@@ -315,6 +316,7 @@ static forcedinline double ceil(double a) { return std_::ceil(a); }
 static forcedinline double floor(double a) { return std_::floor(a); }
 static forcedinline double db2gain(double a) { return Decibels::decibelsToGain(a); }
 static forcedinline double gain2db(double a) { return Decibels::gainToDecibels(a); }
+static forcedinline double fmod(double x, double y) { return std::fmod(x, y); };
 
 static forcedinline float map(float normalisedInput, float start, float end) { return jmap<float>(normalisedInput, start, end); }
 static forcedinline float sin(float a) { return std_::sinf(a); }
