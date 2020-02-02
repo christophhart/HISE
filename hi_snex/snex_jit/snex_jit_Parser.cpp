@@ -317,7 +317,9 @@ BlockParser::StatementPtr NewClassParser::parseFunction()
 	{
 		auto t = matchType();
 
-		fData.args.add(t);
+		bool isAlias = matchIf(JitTokens::bitwiseAnd);
+
+		fData.args.add({ t, isAlias });
 		func->parameters.add(parseIdentifier());
 
 		matchIf(JitTokens::comma);

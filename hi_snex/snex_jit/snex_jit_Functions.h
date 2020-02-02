@@ -104,8 +104,33 @@ struct FunctionData
 	/** The return type. */
 	Types::ID returnType;
 
+	struct Argument
+	{
+		Argument() {};
+
+		
+
+		Argument(Types::ID type_, bool isAlias_=false) :
+			type(type_),
+			isAlias(isAlias_)
+		{};
+
+		bool operator==(const Types::ID& t) const
+		{
+			return t == type;
+		}
+
+		bool operator==(const Argument& other) const
+		{
+			return type == other.type && isAlias == other.isAlias;
+		}
+
+		Types::ID type = Types::ID::Dynamic;
+		bool isAlias = false;
+	};
+
 	/** The argument list. */
-	Array<Types::ID> args;
+	Array<Argument> args;
 
 	/** A pretty formatted function name for debugging purposes. */
 	String functionName;

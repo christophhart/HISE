@@ -47,7 +47,10 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 
 	for (auto arg : args)
 	{
-		s << Types::Helpers::getCppTypeName(arg);
+		s << Types::Helpers::getCppTypeName(arg.type);
+
+		if (arg.isAlias)
+			s << "&";
 
 		if (parameterIds[index].isValid())
 			s << " " << parameterIds[index].toString();
@@ -68,7 +71,7 @@ bool FunctionData::matchesArgumentTypes(const Array<Types::ID>& typeList)
 
 	for (int i = 0; i < args.size(); i++)
 	{
-		if (args[i] != typeList[i])
+		if (args[i].type != typeList[i])
 			return false;
 	}
 
@@ -86,7 +89,7 @@ bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, b
 
 	for (int i = 0; i < args.size(); i++)
 	{
-		if (args[i] != otherFunctionData.args[i])
+		if (!(args[i] == otherFunctionData.args[i]))
 			return false;
 	}
 
@@ -214,7 +217,7 @@ bool FunctionClass::fillJitFunctionPointer(FunctionData& dataWithoutPointer)
 			{
 				for (int i = 0; i < fArgs.size(); i++)
 				{
-					if (!Types::Helpers::matchesTypeLoose(fArgs[0], dArgs[0]))
+					if (!Types::Helpers::matchesTypeLoose(fArgs[0].type, dArgs[0].type))
 						return false;
 				}
 

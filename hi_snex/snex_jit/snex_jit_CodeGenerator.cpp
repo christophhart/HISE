@@ -512,6 +512,8 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 
 	call->setInlineComment(f.functionName.getCharPointer().getAddress());
 
+	
+
 	int offset = 0;
 
 	if (isMemberFunction)
@@ -522,7 +524,16 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 
 	for (int i = 0; i < parameterRegisters.size(); i++)
 	{
-		call->setArg(i + offset, parameterRegisters[i]->getRegisterForReadOp());
+		if (f.args[i].isAlias)
+		{
+			call->setArg(i + offset, parameterRegisters[i]->getRegisterForWriteOp());
+		}
+		else
+		{
+			call->setArg(i + offset, parameterRegisters[i]->getRegisterForReadOp());
+		}
+
+		
 	}
 
 	if (f.returnType != Types::ID::Void)

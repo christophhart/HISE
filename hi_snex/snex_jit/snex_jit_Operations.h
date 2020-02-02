@@ -505,6 +505,11 @@ struct Operations::FunctionCall : public Expression
 		symbol(symbol_)
 	{};
 
+	static bool canBeAliasParameter(Ptr e)
+	{
+		return dynamic_cast<VariableReference*>(e.get()) != nullptr;
+	}
+
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		Expression::process(compiler, scope);
@@ -534,8 +539,6 @@ struct Operations::FunctionCall : public Expression
 
 			if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
-
-
 				if (fc->hasFunction(symbol.parent, symbol.id))
 				{
 					fc->addMatchingFunctions(possibleMatches, symbol.parent, symbol.id);
@@ -568,6 +571,19 @@ struct Operations::FunctionCall : public Expression
 			{
 				if (f.matchesArgumentTypes(parameterTypes))
 				{
+					int numArgs = f.args.size();
+
+					for (int i = 0; i < numArgs; i++)
+					{
+						if (f.args[i].isAlias)
+						{
+							if (!canBeAliasParameter(getSubExpr(i)))
+							{
+								throwError("Can't use rvalues for reference parameters");
+							}
+						}
+					}
+
 					function = f;
 					type = function.returnType;
 					return;
@@ -585,11 +601,34 @@ struct Operations::FunctionCall : public Expression
 
 			for (int i = 0; i < getNumChildStatements(); i++)
 			{
-				auto pReg = compiler->getRegFromPool(getSubExpr(i)->getType());
+				bool isReference = function.args[i].isAlias;
 
-				auto asg = CREATE_ASM_COMPILER(type);
+				RegPtr pReg;
 
-				pReg->createRegister(asg.cc);
+				
+
+				if (isReference)
+				{
+					if (auto v = dynamic_cast<VariableReference*>(getSubExpr(i).get()))
+					{
+						v->process(compiler, scope);
+
+						pReg = v->reg;
+
+						if(pReg == nullptr)
+							pReg = compiler->registerPool.getRegisterForVariable(v->ref);
+
+						jassert(pReg != nullptr);
+					}
+					else
+						throwError("Can't assign non-variables to alias");
+				}
+				else
+				{
+					pReg = compiler->getRegFromPool(getSubExpr(i)->getType());
+					auto asg = CREATE_ASM_COMPILER(type);
+					pReg->createRegister(asg.cc);
+				}
 
 				//getSubExpr(i)->setTargetRegister(pReg, false);
 
@@ -657,8 +696,11 @@ struct Operations::FunctionCall : public Expression
 
 			asg.emitFunctionCall(reg, function, parameterRegs);
 
-			for (auto pRegs : parameterRegs)
-				pRegs->flagForReuse();
+			for (int i = 0; i < parameterRegs.size(); i++)
+			{
+				if(!function.args[i].isAlias)
+					parameterRegs[i]->flagForReuse();
+			}	
 		}
 	}
 

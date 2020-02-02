@@ -55,11 +55,11 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		for (int i = 0; i < parameters.size(); i++)
 		{
-			auto initValue = VariableStorage(data.args[i], 0);
+			auto initValue = VariableStorage(data.args[i].type, 0);
 			auto initType = initValue.getType();
 
 			ignoreUnused(initType);
-			jassert(initType == data.args[i]);
+			jassert(data.args[i] == initType);
 
 			functionScope->allocate(parameters[i], initValue);
 		}

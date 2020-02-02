@@ -57,7 +57,7 @@ protected:
 
 	virtual void registerAllObjectFunctions(GlobalScope* memory) = 0;
 
-	FunctionData* createMemberFunction(const Types::ID returnType, const Identifier& functionId, const Array<Types::ID>& args)
+	FunctionData* createMemberFunction(const Types::ID returnType, const Identifier& functionId, const Array<FunctionData::Argument>& args)
 	{
 		ScopedPointer<FunctionData> functionWrapper(new FunctionData());
 		functionWrapper->object = this;
