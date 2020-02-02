@@ -35,7 +35,7 @@ namespace jit {
 using namespace juce;
 
 
-SnexPlayground::SnexPlayground(Value externalCode) :
+SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	externalCodeValue(externalCode),
 	editor(doc, &tokeniser),
 	assembly(assemblyDoc, &assemblyTokeniser),
@@ -53,11 +53,11 @@ SnexPlayground::SnexPlayground(Value externalCode) :
 	spacerParameters("Parameters"),
 	compileButton("Compile")
 {
-	
 	memory.addOptimization(OptimizationIds::ConstantFolding);
 	memory.addOptimization(OptimizationIds::DeadCodeElimination);
 	memory.addOptimization(OptimizationIds::Inlining);
 	memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
+	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
 
 	setName("SNEX Editor");
 

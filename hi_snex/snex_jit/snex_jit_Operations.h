@@ -221,168 +221,7 @@ struct Operations::VariableReference : public Expression
 		return false;
 	}
 
-	void process(BaseCompiler* compiler, BaseScope* scope) override
-	{
-		Expression::process(compiler, scope);
-
-		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
-		{
-			// We will create the Reference to the according scope for this
-			// variable, check it's type and if it's a parameter, get the index...
-
-			if (isLocalToScope)
-			{
-				type = id.type;
-
-				if (scope->getScopeForSymbol(id) != nullptr)
-					logWarning("Declaration hides previous variable definition");
-
-				auto r = scope->allocate(id.id, VariableStorage(getType(), 0));
-
-				if (r.failed())
-					throwError(r.getErrorMessage() + id.toString());
-
-				ref = scope->get(id);
-
-				if (isLocalConst)
-					ref->isConst = true;
-			}
-			else if (auto vScope = scope->getScopeForSymbol(id))
-			{
-				ref = vScope->get(id);
-				type = ref->id.type;
-
-				if (vScope == scope)
-				{
-					isLocalToScope = true;
-					isLocalConst = ref->isConst;
-				}
-				
-				if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
-				{
-					parameterIndex = fScope->parameters.indexOf(id.id);
-
-					if (parameterIndex != -1)
-					{
-						// This might be changed by the constant folding
-						// so we have to reset it here...
-						isLocalConst = false;
-						type = fScope->data.args[parameterIndex];
-					}
-				}
-			}
-			else if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
-			{
-				if (fc->hasConstant(id.parent, id.id))
-                {
-					functionClassConstant = fc->getConstantValue(id.parent, id.id);
-                    type = functionClassConstant.getType();
-                }
-
-				if(functionClassConstant.isVoid())
-					throwError(id.parent.toString() + " does not have constant " + id.id.toString());
-				
-					
-			}
-			else
-				throwError("Can't resolve variable " + id.toString());
-
-			if (auto st = findParentStatementOfType<SyntaxTree>(this))
-				st->addVariableReference(this);
-			else
-				jassertfalse;
-
-			// Reset the ID, because we don't need it anymore...
-			id = {};
-		}
-
-		COMPILER_PASS(BaseCompiler::TypeCheck)
-		{
-			// Nothing to do...
-		}
-
-#if 0
-		bool initialiseVariables = (currentPass == BaseCompiler::RegisterAllocation && parameterIndex != -1) ||
-			(currentPass == BaseCompiler::CodeGeneration && parameterIndex == -1);
-#endif
-
-		COMPILER_PASS(BaseCompiler::RegisterAllocation)
-		{
-			if (!functionClassConstant.isVoid())
-			{
-				auto immValue = VariableStorage(parent.get()->getType(), functionClassConstant.toDouble());
-
-
-				Ptr c = new Immediate(location, immValue);
-
-				replaceInParent(c);
-
-				return;
-			}
-
-			// We need to initialise parameter registers before the rest
-			if (parameterIndex != -1)
-			{
-				reg = compiler->registerPool.getRegisterForVariable(ref);
-
-				if (isFirstReference())
-				{
-					auto asg = CREATE_ASM_COMPILER(type);
-					asg.emitParameter(reg, parameterIndex);
-				}
-				
-				return;
-			}
-		}
-
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			if (parameterIndex != -1)
-				return;
-
-			// It might already be assigned to a reused register
-			if (reg == nullptr)
-				reg = compiler->registerPool.getRegisterForVariable(ref);
-
-			if (reg->isActiveOrDirtyGlobalRegister() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
-			{
-				// the code generation has already happened before the branch so that we have the global register
-				// available in any case
-				return;
-			}
-
-			if (reg->isIteratorRegister())
-				return;
-
-			auto asg = CREATE_ASM_COMPILER(type);
-
-			if (isFirstReference())
-			{
-				auto assignmentType = getWriteAccessType();
-
-				auto* dataPointer = &ref.get()->getDataReference(assignmentType == JitTokens::assign_);
-
-				if (assignmentType != JitTokens::void_)
-				{
-					if (assignmentType != JitTokens::assign_)
-					{
-						reg->setDataPointer(dataPointer);
-						reg->loadMemoryIntoRegister(asg.cc);
-					}
-					else
-						reg->createRegister(asg.cc);
-				}
-				else
-				{
-					reg->setDataPointer(dataPointer);
-					reg->createMemoryLocation(asg.cc);
-
-					if (!isReferencedOnce())
-						reg->loadMemoryIntoRegister(asg.cc);
-				}
-			}
-		}
-	}
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
 	bool isBeingWritten()
 	{
@@ -1034,49 +873,7 @@ struct Operations::UnaryOp : public Expression
 	}
 };
 
-struct Operations::Increment : public UnaryOp
-{
-	Increment(Location l, Ptr expr, bool isPre_, bool isDecrement_) :
-		UnaryOp(l, expr),
-		isPreInc(isPre_),
-		isDecrement(isDecrement_)
-	{
-		type = Types::ID::Integer;
-	};
 
-	void process(BaseCompiler* compiler, BaseScope* scope) override
-	{
-		Expression::process(compiler, scope);
-
-		COMPILER_PASS(BaseCompiler::TypeCheck)
-		{
-			if (dynamic_cast<Increment*>(getSubExpr(0).get()) != nullptr)
-				throwError("Can't combine incrementors");
-
-			if (getSubExpr(0)->getType() != Types::ID::Integer)
-				throwError("Can't increment non integer variables.");
-		}
-
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			auto asg = CREATE_ASM_COMPILER(type);
-
-			if (isPreInc)
-			{
-				asg.emitIncrement(nullptr, getSubRegister(0), isPreInc, isDecrement);
-				reg = getSubRegister(0);
-			}
-			else
-			{
-				reg = compiler->getRegFromPool(Types::ID::Integer);
-				asg.emitIncrement(reg, getSubRegister(0), isPreInc, isDecrement);
-			}
-		}
-	}
-
-	bool isDecrement;
-	bool isPreInc;
-};
 
 struct Operations::Cast : public Expression
 {
@@ -1125,17 +922,88 @@ struct Operations::BlockAccess : public Expression
 		type = Types::ID::Float;
 	}
 
+	static Symbol isWrappedBufferReference(Statement::Ptr expr, BaseScope* scope)
+	{
+		if (auto var = dynamic_cast<Operations::VariableReference*>(expr.get()))
+		{
+			if (auto cc = dynamic_cast<FunctionClass*>(Operations::findClassScope(scope)))
+			{
+				if (auto wrappedBuffer = dynamic_cast<WrappedBufferBase*>(cc->getSubFunctionClass(var->id.id)))
+				{
+					return var->id;
+				}
+			}
+		}
+
+		return {};
+	}
+
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		Expression::process(compiler, scope);
 
+		COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+		{
+			auto wrappedSymbol = isWrappedBufferReference(getChildStatement(1), scope);
+
+			if (wrappedSymbol.id.isValid())
+			{
+				Symbol getter;
+				getter.parent = wrappedSymbol.id;
+				getter.id = "getAt";
+
+				auto indexStatement = getChildStatement(0);
+
+				bool isZero = false;
+				bool isInterpolating = indexStatement->getType() != Types::ID::Integer;
+
+				if (isInterpolating)
+				{
+					getter.id = "getInterpolated";
+				}
+				else if (auto zeroImmediate = dynamic_cast<Immediate*>(indexStatement.get()))
+				{
+					if (zeroImmediate->v.toInt() == 0)
+					{
+						getter.id = "get";
+						isZero = true;
+					}
+						
+				}
+				
+				auto fc = new FunctionCall(location, getter);
+
+				//fc->process(compiler, scope);
+
+				compiler->setCurrentPass(BaseCompiler::ResolvingSymbols);
+
+				fc->process(compiler, scope);
+
+				if (!isZero)
+					fc->addStatement(indexStatement);
+
+				compiler->setCurrentPass(BaseCompiler::TypeCheck);
+				fc->process(compiler, scope);
+				compiler->setCurrentPass(BaseCompiler::PostSymbolOptimization);
+
+				indexStatement->process(compiler, scope);
+
+				Expression::replaceInParent(fc);
+
+				return;
+			}
+		}
+
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			if (getSubExpr(0)->getType() != Types::ID::Integer)
-				throwError("subscription index must be an integer");
+			if (!isWrappedBufferReference(getChildStatement(1), scope))
+			{
+				if (getSubExpr(0)->getType() != Types::ID::Integer)
+					throwError("subscription index must be an integer");
 
-			if (getSubExpr(1)->getType() != Types::ID::Block)
-				throwError("Can't use [] on primitive types");
+				if (getSubExpr(1)->getType() != Types::ID::Block)
+					throwError("Can't use [] on primitive types");
+			}
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -1162,6 +1030,92 @@ struct Operations::BlockAccess : public Expression
 	}
 };
 
+struct Operations::Increment : public UnaryOp
+{
+	Increment(Location l, Ptr expr, bool isPre_, bool isDecrement_) :
+		UnaryOp(l, expr),
+		isPreInc(isPre_),
+		isDecrement(isDecrement_)
+	{
+		type = Types::ID::Integer;
+	};
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		Expression::process(compiler, scope);
+
+		COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+		{
+			if (removed)
+				return;
+
+			auto symbol = BlockAccess::isWrappedBufferReference(getChildStatement(0), scope);
+
+			if (symbol.id.isValid())
+			{
+				Symbol incSymbol;
+				incSymbol.parent = symbol.id;
+
+				if (isPreInc)
+					incSymbol.id = "getAndInc";
+				else
+					incSymbol.id = "getAndPostInc";
+
+				auto fc = new FunctionCall(location, incSymbol);
+
+				compiler->setCurrentPass(BaseCompiler::ResolvingSymbols);
+
+				fc->process(compiler, scope);
+				compiler->setCurrentPass(BaseCompiler::TypeCheck);
+				fc->process(compiler, scope);
+				compiler->setCurrentPass(BaseCompiler::PostSymbolOptimization);
+
+				replaceInParent(fc);
+
+				removed = true;
+
+				return;
+			}
+		}
+
+		COMPILER_PASS(BaseCompiler::TypeCheck)
+		{
+			if (BlockAccess::isWrappedBufferReference(getChildStatement(0), scope))
+			{
+				type = Types::ID::Float;
+			}
+			else
+			{
+				if (dynamic_cast<Increment*>(getSubExpr(0).get()) != nullptr)
+					throwError("Can't combine incrementors");
+
+					if (getSubExpr(0)->getType() != Types::ID::Integer)
+						throwError("Can't increment non integer variables.");
+			}
+		}
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			auto asg = CREATE_ASM_COMPILER(type);
+
+			if (isPreInc)
+			{
+				asg.emitIncrement(nullptr, getSubRegister(0), isPreInc, isDecrement);
+				reg = getSubRegister(0);
+			}
+			else
+			{
+				reg = compiler->getRegFromPool(Types::ID::Integer);
+				asg.emitIncrement(reg, getSubRegister(0), isPreInc, isDecrement);
+			}
+		}
+	}
+
+	bool isDecrement;
+	bool isPreInc;
+	bool removed = false;
+};
+
 struct Operations::BlockAssignment : public Expression
 {
 	BlockAssignment(Location l, Ptr target, TokenType opType, Ptr v) :
@@ -1174,6 +1128,59 @@ struct Operations::BlockAssignment : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
+		COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+		{
+			if (replaced)
+				return;
+
+			auto bVar = getChildStatement(1)->getChildStatement(1);
+
+			auto wrappedSymbol = BlockAccess::isWrappedBufferReference(bVar, scope);
+
+			if(wrappedSymbol.id.isValid())
+			{
+				Symbol setter;
+				setter.parent = wrappedSymbol.id;
+				setter.id = "setAt";
+
+				auto indexStateement = getChildStatement(1)->getChildStatement(0);
+				auto valueStatement = getChildStatement(0);
+
+				bool isZero = false;
+				
+				if (auto zeroImmediate = dynamic_cast<Immediate*>(indexStateement.get()))
+				{
+					if (zeroImmediate->v.toInt() == 0)
+					{
+						setter.id = "set";
+						isZero = true;
+					}
+				}
+				
+				auto fc = new FunctionCall(location, setter);
+
+				compiler->setCurrentPass(BaseCompiler::ResolvingSymbols);
+				fc->process(compiler, scope);
+
+				if (!isZero)
+					fc->addStatement(indexStateement);
+
+				fc->addStatement(valueStatement);
+
+				compiler->setCurrentPass(BaseCompiler::TypeCheck);
+				fc->process(compiler, scope);
+				compiler->setCurrentPass(BaseCompiler::PostSymbolOptimization);
+
+				indexStateement->process(compiler, scope);
+				valueStatement->process(compiler, scope);
+
+				Expression::replaceInParent(fc);
+				replaced = true;
+
+				return;
+			}
+		}
+
 		// We need to move this before the base class process()
 		// in order to prevent code generation for b[x]...
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -1224,6 +1231,8 @@ struct Operations::BlockAssignment : public Expression
 		}
 	}
 
+	bool replaced = false;
+
 	TokenType op;
 };
 
@@ -1268,6 +1277,14 @@ struct Operations::BlockLoop : public Expression,
 
 				while (auto v = w.getNextStatementOfType<VariableReference>())
 				{
+					
+					if (v->ref == nullptr)
+					{
+						jassert(BlockAccess::isWrappedBufferReference(v, scope));
+						continue;
+					}
+						
+
 					if (v->ref->id.id == iterator)
 					{
 						if (auto a = dynamic_cast<Assignment*>(v->parent.get()))
@@ -1280,6 +1297,12 @@ struct Operations::BlockLoop : public Expression,
 					}
 				}
 			}
+		}
+
+		COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+		{
+			target->process(compiler, scope);
+			b->process(compiler, scope);
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
@@ -1455,6 +1478,27 @@ struct Operations::IfStatement : public Statement,
 			acg.emitBranch(Types::ID::Void, cond, trueBranch, falseBranch, compiler, scope);
 		}
 	}
+};
+
+struct Operations::WrappedBlockDefinition : public Statement
+{
+	WrappedBlockDefinition(Location l, BaseScope::Symbol id_, Expression::Ptr expr) :
+		Statement(l),
+		id(id_)
+	{
+		if (auto im = dynamic_cast<Immediate*>(expr.get()))
+		{
+			b = im->v.toBlock();
+		}
+	};
+
+	BaseScope::Symbol id;
+	
+	block b;
+	
+	void process(BaseCompiler* compiler, BaseScope* scope);
+
+	Types::ID getType() const override { return Types::ID::Block; }
 };
 
 struct Operations::SmoothedVariableDefinition : public Statement

@@ -40,6 +40,8 @@ GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 	FunctionClass("Globals"),
 	BaseScope("Globals", nullptr, numVariables)
 {
+	bufferHandler = new BufferHandler();
+
 	auto c = new ConsoleFunctions(this);
 
 	registerObjectFunction(c);

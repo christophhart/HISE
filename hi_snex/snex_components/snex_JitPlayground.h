@@ -323,7 +323,7 @@ public:
     
     static String getDefaultCode();
     
-	SnexPlayground(Value externalCodeValue);
+	SnexPlayground(Value externalCodeValue, BufferHandler* bufferHandlerToUse=nullptr);
 
 	~SnexPlayground();
 
@@ -402,6 +402,8 @@ private:
 
 	CodeDocument doc;
 
+	
+
 	AudioSampleBuffer b;
 	Graph graph;
 	
@@ -411,6 +413,22 @@ private:
 	AssemblyTokeniser assemblyTokeniser;
 	CodeDocument assemblyDoc;
 	CodeEditorComponent assembly;
+
+	struct PlaygroundBufferHandler : public BufferHandler
+	{
+		PlaygroundBufferHandler()
+		{
+			reset();
+		}
+
+		void registerExternalItems() override
+		{
+			registerTable(0, { audioFile, 512 });
+		}
+
+		float audioFile[512];
+
+	};
 
 	Label resultLabel;
 

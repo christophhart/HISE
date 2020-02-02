@@ -69,6 +69,28 @@ struct JitCodeHelpers
 	}
 };
 
+
+void HiseBufferHandler::registerExternalItems()
+{
+	if (auto cdh = dynamic_cast<ComplexDataHolder*>(processor.get()))
+	{
+		for (int i = 0; i < cdh->getNumAudioFiles(); i++)
+		{
+			auto af = cdh->addOrReturnAudioFile(i);
+
+			auto& buffer = af->getBuffer()->range;
+
+			int numChannels = buffer.getNumChannels();
+
+			if (buffer.getNumSamples() > 0)
+			{
+				snex::block b(buffer.getWritePointer(0), buffer.getNumSamples());
+				registerAudioFile(i, b);
+			}
+		}
+	}
+}
+
 namespace core
 {
 
@@ -76,7 +98,7 @@ template <int NV>
 jit_impl<NV>::jit_impl() :
 	code(PropertyIds::Code, "")
 {
-
+	
 }
 
 template <int NV>
@@ -177,6 +199,13 @@ template <int NV>
 void jit_impl<NV>::initialise(NodeBase* n)
 {
 	node = n;
+
+	scope.addOptimization(OptimizationIds::ConstantFolding);
+	scope.addOptimization(OptimizationIds::DeadCodeElimination);
+	scope.addOptimization(OptimizationIds::Inlining);
+	scope.addOptimization(OptimizationIds::BinaryOpOptimisation);
+
+	scope.setBufferHandler(new HiseBufferHandler(dynamic_cast<Processor*>(n->getScriptProcessor())));
 
 	voiceIndexPtr = n->getRootNetwork()->getVoiceIndexPtr();
 
@@ -376,6 +405,7 @@ juce::Component* simple_jit::createExtraComponent(PooledUIUpdater* updater)
 {
 	return new SimpleJitComponent(this);
 }
+
 
 }
 

@@ -255,6 +255,7 @@ public:
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
 	struct BlockLoop;		struct IfStatement;				struct SmoothedVariableDefinition;
+	struct WrappedBlockDefinition;
 
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.

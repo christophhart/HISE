@@ -169,5 +169,195 @@ void Operations::SmoothedVariableDefinition::process(BaseCompiler* compiler, Bas
 	}
 }
 
+void Operations::WrappedBlockDefinition::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	{
+		jassert(scope->getScopeType() == BaseScope::Class);
+
+		if (auto cs = dynamic_cast<ClassScope*>(scope))
+		{
+			cs->addFunctionClass(new WrappedBuffer<BufferHandler::WrapAccessor<>>(id.id, b));
+		}
+	}
+}
+
+void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	Expression::process(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	{
+		// We will create the Reference to the according scope for this
+		// variable, check it's type and if it's a parameter, get the index...
+
+		if (isLocalToScope)
+		{
+			type = id.type;
+
+			if (scope->getScopeForSymbol(id) != nullptr)
+				logWarning("Declaration hides previous variable definition");
+
+			auto initValue = VariableStorage(getType(), 0);
+
+			if (type == Types::ID::Block)
+			{
+				auto globalScope = GlobalScope::getFromChildScope(scope);
+
+				initValue = globalScope->getBufferHandler().getData(id.id);
+			}
+
+			auto r = scope->allocate(id.id, initValue);
+
+			if (r.failed())
+				throwError(r.getErrorMessage() + id.toString());
+
+			ref = scope->get(id);
+
+			if (isLocalConst)
+				ref->isConst = true;
+		}
+		else if (auto vScope = scope->getScopeForSymbol(id))
+		{
+			ref = vScope->get(id);
+			type = ref->id.type;
+
+			if (vScope == scope)
+			{
+				isLocalToScope = true;
+				isLocalConst = ref->isConst;
+			}
+
+			if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
+			{
+				parameterIndex = fScope->parameters.indexOf(id.id);
+
+				if (parameterIndex != -1)
+				{
+					// This might be changed by the constant folding
+					// so we have to reset it here...
+					isLocalConst = false;
+					type = fScope->data.args[parameterIndex].type;
+				}
+			}
+		}
+		else if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
+		{
+			if (fc->hasConstant(id.parent, id.id))
+			{
+				functionClassConstant = fc->getConstantValue(id.parent, id.id);
+				type = functionClassConstant.getType();
+			}
+
+			// Abort further processing, it'll be resolved in PostSymbolOptimization
+			if (BlockAccess::isWrappedBufferReference(this, scope))
+				return;
+
+			if (functionClassConstant.isVoid())
+				throwError(id.parent.toString() + " does not have constant " + id.id.toString());
+		}
+		else
+			throwError("Can't resolve variable " + id.toString());
+
+		if (auto st = findParentStatementOfType<SyntaxTree>(this))
+			st->addVariableReference(this);
+		else
+			jassertfalse;
+
+		// Reset the ID, because we don't need it anymore...
+		id = {};
+	}
+
+	COMPILER_PASS(BaseCompiler::TypeCheck)
+	{
+		// Nothing to do...
+	}
+
+#if 0
+	bool initialiseVariables = (currentPass == BaseCompiler::RegisterAllocation && parameterIndex != -1) ||
+		(currentPass == BaseCompiler::CodeGeneration && parameterIndex == -1);
+#endif
+
+	COMPILER_PASS(BaseCompiler::RegisterAllocation)
+	{
+		if (!functionClassConstant.isVoid())
+		{
+			auto immValue = VariableStorage(parent.get()->getType(), functionClassConstant.toDouble());
+
+
+			Ptr c = new Immediate(location, immValue);
+
+			replaceInParent(c);
+
+			return;
+		}
+
+		// We need to initialise parameter registers before the rest
+		if (parameterIndex != -1)
+		{
+			reg = compiler->registerPool.getRegisterForVariable(ref);
+
+			if (isFirstReference())
+			{
+				auto asg = CREATE_ASM_COMPILER(type);
+				asg.emitParameter(reg, parameterIndex);
+			}
+
+			return;
+		}
+	}
+
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		if (BlockAccess::isWrappedBufferReference(this, scope))
+			return;
+
+		if (parameterIndex != -1)
+			return;
+
+		// It might already be assigned to a reused register
+		if (reg == nullptr)
+			reg = compiler->registerPool.getRegisterForVariable(ref);
+
+		if (reg->isActiveOrDirtyGlobalRegister() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
+		{
+			// the code generation has already happened before the branch so that we have the global register
+			// available in any case
+			return;
+		}
+
+		if (reg->isIteratorRegister())
+			return;
+
+		auto asg = CREATE_ASM_COMPILER(type);
+
+		if (isFirstReference())
+		{
+			auto assignmentType = getWriteAccessType();
+
+			auto* dataPointer = &ref.get()->getDataReference(assignmentType == JitTokens::assign_);
+
+			if (assignmentType != JitTokens::void_)
+			{
+				if (assignmentType != JitTokens::assign_)
+				{
+					reg->setDataPointer(dataPointer);
+					reg->loadMemoryIntoRegister(asg.cc);
+				}
+				else
+					reg->createRegister(asg.cc);
+			}
+			else
+			{
+				reg->setDataPointer(dataPointer);
+				reg->createMemoryLocation(asg.cc);
+
+				if (!isReferencedOnce())
+					reg->loadMemoryIntoRegister(asg.cc);
+			}
+		}
+	}
+}
+
 }
 }

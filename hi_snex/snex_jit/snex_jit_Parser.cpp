@@ -45,6 +45,8 @@ public:
 		FunctionClass({}),
 		BaseScope({}, &parent)
 	{
+		parent.getBufferHandler().reset();
+
 		jassert(scopeType == BaseScope::Class);
 
 		runtime = new asmjit::JitRuntime();
@@ -171,6 +173,8 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	bool isConst = matchIf(JitTokens::const_);
 
 	bool isSmoothedType = isSmoothedVariableType();
+	bool isWrappedBlType = isWrappedBlockType();
+
 	currentHnodeType = matchType();
 	
 	matchIfSymbol();
@@ -189,6 +193,12 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		{
 			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding smoothed variable " + currentSymbol.toString());
 			s = parseSmoothedVariableDefinition();
+			match(JitTokens::semicolon);
+		}
+		else if (isWrappedBlType)
+		{
+			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding wrapped block " + currentSymbol.toString());
+			s = parseWrappedBlockDefinition();
 			match(JitTokens::semicolon);
 		}
 		else
@@ -212,6 +222,62 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseSmoothedVariableDefini
 	return new Operations::SmoothedVariableDefinition(location, currentSymbol, currentHnodeType, value);
 }
 
+snex::jit::BlockParser::StatementPtr NewClassParser::parseWrappedBlockDefinition()
+{
+	StatementPtr s;
+	match(JitTokens::assign_);
+
+	auto value = parseBufferInitialiser();
+
+	return new Operations::WrappedBlockDefinition(location, currentSymbol, value);
+}
+
+snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
+{
+	if (auto cc = dynamic_cast<ClassCompiler*>(compiler.get()))
+	{
+		auto& handler = cc->memoryPool.getBufferHandler();
+		auto id = parseIdentifier();
+
+		if (id == Identifier("Buffer"))
+		{
+			match(JitTokens::dot);
+
+			auto function = parseIdentifier();
+			match(JitTokens::openParen);
+
+			auto value = parseVariableStorageLiteral().toInt();
+			match(JitTokens::closeParen);
+
+			try
+			{
+				if (function.toString() == "create")
+				{
+					return new Operations::Immediate(location, handler.create(currentSymbol.id, value));
+				}
+				else if (function.toString() == "getAudioFile")
+				{
+					return new Operations::Immediate(location, handler.getAudioFile(value, currentSymbol.id));
+				}
+				else if (function.toString() == "getTable")
+				{
+					return new Operations::Immediate(location, handler.getTable(value, currentSymbol.id));
+				}
+				else
+				{
+					throw String("Invalid buffer function");
+				}
+			}
+			catch (String& s)
+			{
+				location.throwError(s);
+			}
+		}
+		else
+			location.throwError("Expected Buffer function");
+	}
+}
+
 BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst*/)
 {
 	auto type = currentHnodeType;
@@ -219,7 +285,19 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst
 	target->isLocalToScope = true;
 
 	match(JitTokens::assign_);
-	ExprPtr expr = new Operations::Immediate(location, parseVariableStorageLiteral());
+
+
+	ExprPtr expr;
+	
+	if (type == Types::ID::Block)
+	{
+		expr = parseBufferInitialiser();
+	}
+	else
+	{
+		expr = new Operations::Immediate(location, parseVariableStorageLiteral());
+	}
+	
 	return new Operations::Assignment(location, target, JitTokens::assign_, expr);
 }
 

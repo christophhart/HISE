@@ -89,6 +89,8 @@ public:
     
 	StatementPtr parseStatement() override;
 	StatementPtr parseSmoothedVariableDefinition();
+	StatementPtr parseWrappedBlockDefinition();
+	ExprPtr parseBufferInitialiser();
 	StatementPtr parseVariableDefinition(bool isConst);
 	StatementPtr parseFunction();
 };

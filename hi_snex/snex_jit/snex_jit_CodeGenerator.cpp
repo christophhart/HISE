@@ -110,9 +110,19 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 {
 	type = target->getType();
 
-	cc.setInlineComment("Load class variable");
+	
 
 	auto data = target->getGlobalDataPointer();
+
+	IF_(block)
+	{
+		cc.setInlineComment("Load buffer pointer");
+		cc.mov(target->getRegisterForWriteOp().as<X86Gp>(), reinterpret_cast<uint64_t>(data));
+
+		return;
+	}
+
+	cc.setInlineComment("Load class variable");
 
 #if JUCE_64BIT
 	TemporaryRegister address(*this, Types::ID::Block);

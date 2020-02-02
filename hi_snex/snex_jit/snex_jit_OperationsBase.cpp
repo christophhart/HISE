@@ -404,6 +404,9 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 
 	while (auto v = w.getNextStatementOfType<VariableReference>())
 	{
+		if (BlockAccess::isWrappedBufferReference(v, s))
+			continue;
+
 		// If use a class variable, we need to create the register
 		// outside the loop
 		if (v->isClassVariable() && v->isFirstReference())

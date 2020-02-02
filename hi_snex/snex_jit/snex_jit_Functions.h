@@ -201,7 +201,20 @@ struct FunctionClass
 
 	bool injectFunctionPointer(FunctionData& dataToInject);
 
+	FunctionClass* getSubFunctionClass(const Identifier& id)
+	{
+		for (auto f : registeredClasses)
+		{
+			if (f->getClassName() == id)
+				return f;
+		}
+
+		return nullptr;
+	}
+
 	VariableStorage getConstantValue(const Identifier& classId, const Identifier& constantId) const;
+
+	
 
 protected:
 
