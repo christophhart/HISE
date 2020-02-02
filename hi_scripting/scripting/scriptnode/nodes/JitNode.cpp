@@ -50,7 +50,7 @@ struct JitCodeHelpers
 
 		for (auto a : f.args)
 		{
-			info.arguments.add(Types::Helpers::getTypeName(a));
+			info.arguments.add(Types::Helpers::getTypeName(a.type));
 		}
 
 		if(!allowExecution)

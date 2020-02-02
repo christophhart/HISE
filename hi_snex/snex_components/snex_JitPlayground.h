@@ -64,7 +64,7 @@ struct CallbackStateComponent : public Component,
 		r.draw(g, getLocalBounds().reduced(5).toFloat());
 	}
 
-	String getCallbackName() const
+	juce::String getCallbackName() const
 	{
 		switch (currentCallback)
 		{
@@ -85,10 +85,10 @@ struct CallbackStateComponent : public Component,
 
 	void rebuild()
 	{
-		String s;
-		s << "**Samplerate**: " << String(samplerate, 1) << "  ";
-		s << "**Blocksize**: " << String(blockSize) << "  ";
-		s << "**NumChannels**: " << String(numChannels) << "  ";
+		juce::String s;
+		s << "**Samplerate**: " << juce::String(samplerate, 1) << "  ";
+		s << "**Blocksize**: " << juce::String(blockSize) << "  ";
+		s << "**NumChannels**: " << juce::String(numChannels) << "  ";
 		s << "**Frame processing**: " << (frameProcessing ? "Yes" : "No") << "  ";
 		s << "**Used Callback**: `" << getCallbackName() << "`";
 
@@ -108,7 +108,7 @@ struct CallbackStateComponent : public Component,
 		rebuild();
 	}
 
-	String processSpecs;
+	juce::String processSpecs;
 
 	double samplerate = 0.0;
 	int blockSize = 0;
@@ -126,8 +126,8 @@ struct CallbackStateComponent : public Component,
 
 struct SnexPathFactory: public hise::PathFactory
 {
-    String getId() const override { return "Snex"; }
-    Path createPath(const String& id) const override;
+	juce::String getId() const override { return "Snex"; }
+    Path createPath(const juce::String& id) const override;
 };
     
 struct Graph : public Component
@@ -228,7 +228,7 @@ class SnexPlayground : public Component,
 {
 public:
 
-	void codeDocumentTextInserted(const String& , int ) override
+	void codeDocumentTextInserted(const juce::String& , int ) override
 	{
 		auto lineToShow = jmax(0, consoleContent.getNumLines() - console.getNumLinesOnScreen());
 		console.scrollToLine(lineToShow);
@@ -321,7 +321,7 @@ public:
         juce::OwnedArray<juce::Slider> sliders;
     };
     
-    static String getDefaultCode();
+    static juce::String getDefaultCode();
     
 	SnexPlayground(Value externalCodeValue, BufferHandler* bufferHandlerToUse=nullptr);
 
@@ -340,7 +340,7 @@ public:
 
 	struct Spacer : public Component
 	{
-		Spacer(const String& n) :
+		Spacer(const juce::String& n) :
 			Component(n)
 		{};
 
@@ -386,7 +386,7 @@ private:
 		}
 	} blaf;
 
-	void logMessage(const String& m) override
+	void logMessage(const juce::String& m) override
 	{
 		consoleContent.insertText(consoleContent.getNumCharacters(), m);
 		consoleContent.clearUndoHistory();
@@ -430,7 +430,7 @@ private:
 
 	};
 
-	Label resultLabel;
+	juce::Label resultLabel;
 
 	Compiler::Tokeniser consoleTokeniser;
 	CodeDocument consoleContent;

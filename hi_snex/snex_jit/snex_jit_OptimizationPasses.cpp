@@ -511,7 +511,7 @@ void BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 			{
 				if (isAssignedVariable(bOp->getSubExpr(0)))
 				{
-					a->logOptimisationMessage("Replace " + String(bOp->op) + " with self assignment");
+					a->logOptimisationMessage("Replace " + juce::String(bOp->op) + " with self assignment");
                     
 
                     a->assignmentType = bOp->op;

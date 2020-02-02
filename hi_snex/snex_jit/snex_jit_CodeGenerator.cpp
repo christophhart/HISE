@@ -47,9 +47,12 @@ using namespace asmjit;
 
 #define INT_REG_W(x) x->getRegisterForWriteOp().as<X86Gp>()
 #define INT_REG_R(x) x->getRegisterForReadOp().as<X86Gp>()
-#define INT_MEM(x) x->getImmediateIntValue()
+#define INT_IMM(x) x->getImmediateIntValue()
+#define INT_MEM(x) x->getAsMemoryLocation()
 
-#define INT_OP(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), (uint64_t)INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
+#define INT_OP_WITH_MEM(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
+
+#define INT_OP(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), (uint64_t)INT_IMM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
 
 AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_) :
 	cc(cc_),
@@ -145,6 +148,8 @@ void AsmCodeGenerator::emitParameter(RegPtr parameterRegister, int parameterInde
 	cc.setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
 }
 
+#define FLOAT_BINARY_OP(token, floatOp, doubleOp) if(op == token) { IF_(float) FP_OP(floatOp, l, r); IF_(double) FP_OP(doubleOp, l, r); return l; }
+
 #define BINARY_OP(token, intOp, floatOp, doubleOp) if(op == token) { IF_(int) INT_OP(intOp, l, r); IF_(float) FP_OP(floatOp, l, r); IF_(double) FP_OP(doubleOp, l, r); return l; }
 
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, RegPtr r)
@@ -161,7 +166,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 		if (r->isMemoryLocation())
 		{
-			auto forcedMemory = cc.newInt32Const(kConstScopeLocal, static_cast<int>(INT_MEM(r)));
+			auto forcedMemory = cc.newInt32Const(ConstPool::kScopeLocal, static_cast<int>(INT_IMM(r)));
 			cc.idiv(dummy.get(), INT_REG_W(l), forcedMemory);
 		}
 		else					   
@@ -173,10 +178,12 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 		return l;
 	}
 
+	
+
 	BINARY_OP(JitTokens::plus, cc.add, cc.addss, cc.addsd);
 	BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
 	BINARY_OP(JitTokens::times, cc.imul, cc.mulss, cc.mulsd);
-	BINARY_OP(JitTokens::divide, cc.idiv, cc.divss, cc.divsd);
+	FLOAT_BINARY_OP(JitTokens::divide, cc.divss, cc.divsd);
 
 	return l;
 }
@@ -187,14 +194,20 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 	lExpr->process(op->currentCompiler, op->currentScope);
 	auto l = lExpr->reg;
 
-	auto shortCircuit = cc.newLabel();
+	
+	
 
 	l->loadMemoryIntoRegister(cc);
 
-	int shortCircuitValue = (op->op == JitTokens::logicalAnd) ? 1 : 0;
+	auto shortCircuit = cc.newLabel();
+	int shortCircuitValue = (op->op == JitTokens::logicalAnd) ? 0 : 1;
 
-	cc.test(INT_REG_W(lExpr->reg), shortCircuitValue);
+
+	cc.cmp(INT_REG_W(lExpr->reg), shortCircuitValue);
+	cc.setInlineComment("short circuit test");
 	cc.je(shortCircuit);
+
+	
 
 	auto rExpr = op->getSubExpr(1);
 
@@ -202,25 +215,36 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 	auto r = rExpr->reg;
 	r->loadMemoryIntoRegister(cc);
 
-	cc.and_(INT_REG_W(r), 1);
+	//cc.and_(INT_REG_W(r), 1);
 
 	if (op->op == JitTokens::logicalAnd)
 	{
-		INT_OP(cc.and_, l, r);
+		INT_OP_WITH_MEM(cc.and_, l, r);
 	}
 	else
 	{
-		INT_OP(cc.or_, l, r);
+		INT_OP_WITH_MEM(cc.or_, l, r);
 	}
 
+	cc.setInlineComment("Short circuit path");
+	cc.bind(shortCircuit);
+
+	op->reg = op->currentCompiler->getRegFromPool(Types::ID::Integer);
+	op->reg->createRegister(cc);
+	INT_OP_WITH_MEM(cc.mov, op->reg, l);
+	
+
+#if 0
 	auto end = cc.newLabel();
 
 	cc.jmp(end);
+	cc.setInlineComment("Short circuit path");
 	cc.bind(shortCircuit);
 	op->reg = op->currentCompiler->getRegFromPool(Types::ID::Integer);
 	op->reg->createRegister(cc);
-	INT_OP(cc.mov, op->reg, l);
+	INT_OP_WITH_MEM(cc.mov, op->reg, l);
 	cc.bind(end);
+#endif
 }
 
 
@@ -340,6 +364,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 	else
 		cc.cmp(INT_REG_R(condition->reg), 0);
 
+	cc.setInlineComment("Branch test");
 	cc.jnz(l);
 
 	condition->reg->flagForReuseIfAnonymous();
@@ -451,7 +476,8 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 		}
 		IF_(int) // SOURCE TYPE
 		{
-			if (IS_MEM(expr)) cc.cvtsi2sd(FP_REG_W(target), INT_MEM(expr));
+			
+			if (IS_MEM(expr)) cc.cvtsi2sd(FP_REG_W(target), expr->getAsMemoryLocation());
 			else			  cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
 		}
 
@@ -484,15 +510,15 @@ void AsmCodeGenerator::emitNegation(RegPtr target, RegPtr expr)
 	IF_(int)
 		cc.neg(INT_REG_W(target));
 	IF_(float)
-		cc.mulss(FP_REG_W(target), cc.newFloatConst(kConstScopeLocal, -1.0f));
+		cc.mulss(FP_REG_W(target), cc.newFloatConst(ConstPool::kScopeLocal, -1.0f));
 	IF_(float)
-		cc.mulsd(FP_REG_W(target), cc.newDoubleConst(kConstScopeLocal, -1.0));
+		cc.mulsd(FP_REG_W(target), cc.newDoubleConst(ConstPool::kScopeLocal, -1.0));
 }
 
 
 void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f, ReferenceCountedArray<AssemblyRegister>& parameterRegisters)
 {
-	FuncSignatureX sig;
+	asmjit::FuncSignatureBuilder sig;
 
 	bool isMemberFunction = f.object != nullptr;
 	fillSignature(f, sig, isMemberFunction);
@@ -501,14 +527,16 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 
 	if (isMemberFunction)
 	{
-		cc.mov(o.get(), imm_ptr(f.object));
+		cc.mov(o.get(), imm(f.object));
 	}
+
+	
 
 	// Push the function pointer
 	X86Gp fn = cc.newIntPtr("fn");
-	cc.mov(fn, imm_ptr(f.function));
+	cc.mov(fn, imm(f.function));
 
-	CCFuncCall* call = cc.call(fn, sig);
+	FuncCallNode* call = cc.call(fn, sig);
 
 	call->setInlineComment(f.functionName.getCharPointer().getAddress());
 
@@ -526,14 +554,14 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	{
 		if (f.args[i].isAlias)
 		{
-			call->setArg(i + offset, parameterRegisters[i]->getRegisterForWriteOp());
+			auto reg = parameterRegisters[i]->getRegisterForWriteOp();
+
+			call->setArg(i + offset, reg);
 		}
 		else
 		{
 			call->setArg(i + offset, parameterRegisters[i]->getRegisterForReadOp());
 		}
-
-		
 	}
 
 	if (f.returnType != Types::ID::Void)
@@ -547,11 +575,13 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer)
 {
 
+	
+
 	if (data.returnType == Types::ID::Float) sig.setRetT<float>();
 	if (data.returnType == Types::ID::Double) sig.setRetT<double>();
 	if (data.returnType == Types::ID::Integer) sig.setRetT<uint64_t>();
-	if (data.returnType == Types::ID::Event) sig.setRet(TypeId::kIntPtr);
-	if (data.returnType == Types::ID::Block) sig.setRet(TypeId::kIntPtr);
+	if (data.returnType == Types::ID::Event) sig.setRet(asmjit::Type::kIdIntPtr);
+	if (data.returnType == Types::ID::Block) sig.setRet(asmjit::Type::kIdIntPtr);
 
 	if (createObjectPointer)
 		sig.addArgT<PointerType>();
@@ -561,8 +591,8 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 		if (p == Types::ID::Float)	 sig.addArgT<float>();
 		if (p == Types::ID::Double)  sig.addArgT<double>();
 		if (p == Types::ID::Integer) sig.addArgT<int>();
-		if (p == Types::ID::Event)   sig.addArg(TypeId::kIntPtr);
-		if (p == Types::ID::Block)   sig.addArg(TypeId::kIntPtr);
+		if (p == Types::ID::Event)   sig.addArg(asmjit::Type::kIdIntPtr);
+		if (p == Types::ID::Block)   sig.addArg(asmjit::Type::kIdIntPtr);
 	}
 }
 

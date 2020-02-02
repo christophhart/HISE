@@ -141,7 +141,7 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 		}
 		else if (scopeType == BaseScope::Global)
-			throw String("can't write to global variables");
+			throw juce::String("can't write to global variables");
 	}
 
 	jassert(reg.isValid());
@@ -152,7 +152,7 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 asmjit::X86Mem AssemblyRegister::getAsMemoryLocation()
 {
 	jassert(state == LoadedMemoryLocation);
-	jassert(type != Types::ID::Integer);
+	//jassert(type != Types::ID::Integer);
 
 	return memory;
 }
@@ -237,9 +237,9 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 	else
 	{
 		if (type == Types::ID::Float)
-			memory = cc.newFloatConst(kConstScopeLocal, memoryLocation->toFloat());
+			memory = cc.newFloatConst(ConstPool::kScopeLocal, memoryLocation->toFloat());
 		if (type == Types::ID::Double)
-			memory = cc.newDoubleConst(kConstScopeLocal, memoryLocation->toDouble());
+			memory = cc.newDoubleConst(ConstPool::kScopeLocal, memoryLocation->toDouble());
 		if (type == Types::ID::Integer)
 			immediateIntValue = memoryLocation->toInt();
 		if (type == Types::ID::Event || type == Types::ID::Block)
@@ -250,7 +250,7 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 				d[8], d[9], d[10], d[11],
 				d[12], d[13], d[14], d[15]);
 
-			memory = cc.newXmmConst(kConstScopeLocal, data);
+			memory = cc.newXmmConst(ConstPool::kScopeLocal, data);
 		}
 
 		state = State::LoadedMemoryLocation;

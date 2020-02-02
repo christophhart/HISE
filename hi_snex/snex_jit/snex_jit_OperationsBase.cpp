@@ -128,7 +128,7 @@ snex::Types::ID Operations::Expression::getType() const
 	return type;
 }
 
-void Operations::Expression::attachAsmComment(const String& message)
+void Operations::Expression::attachAsmComment(const juce::String& message)
 {
 	asmComment = message;
 }
@@ -312,19 +312,19 @@ void Operations::Statement::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 }
 
-void Operations::Statement::throwError(const String& errorMessage)
+void Operations::Statement::throwError(const juce::String& errorMessage)
 {
 	ParserHelpers::CodeLocation::Error e(location.program, location.location);
 	e.errorMessage = errorMessage;
 	throw e;
 }
 
-void Operations::Statement::logOptimisationMessage(const String& m)
+void Operations::Statement::logOptimisationMessage(const juce::String& m)
 {
 	logMessage(currentCompiler, BaseCompiler::VerboseProcessMessage, m);
 }
 
-void Operations::Statement::logWarning(const String& m)
+void Operations::Statement::logWarning(const juce::String& m)
 {
 	logMessage(currentCompiler, BaseCompiler::Warning, m);
 }
@@ -383,12 +383,12 @@ Operations::Statement::Ptr Operations::Statement::replaceChildStatement(int inde
 	return returnExpr;
 }
 
-void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message)
+void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const juce::String& message)
 {
 	if (!compiler->hasLogger())
 		return;
 
-	String m;
+	juce::String m;
 
 	m << "Line " << location.getLineNumber(location.program, location.location) << ": ";
 	m << message;

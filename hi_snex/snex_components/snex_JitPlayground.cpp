@@ -235,14 +235,14 @@ SnexPlayground::~SnexPlayground()
 
 juce::String SnexPlayground::getDefaultCode()
 {
-	auto emitCommentLine = [](String& code, const String& comment)
+	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
 	{
 		code << "/** " << comment << " */\n";
 	};
 
-	String s;
-	String nl = "\n";
-	String emptyBracket;
+	juce::String s;
+	juce::String nl = "\n";
+	juce::String emptyBracket;
 	emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
 
 	emitCommentLine(s, "Initialise the processing here.");
@@ -507,20 +507,20 @@ void SnexPlayground::recalculate()
             
             auto duration = stop - start;
             
-            String rs;
+			juce::String rs;
             
-            rs << "Compiled OK. Time: " << String(duration * 0.1, 2) << "%";
+            rs << "Compiled OK. Time: " << juce::String(duration * 0.1, 2) << "%";
             
             resultLabel.setText(rs, dontSendNotification);
             
         }
         catch (Types::OutOfBoundsException& exception)
         {
-            String error;
+			juce::String error;
             
             b.clear();
             
-            error << "Out of bounds buffer access: " << String(exception.index);
+            error << "Out of bounds buffer access: " << juce::String(exception.index);
             resultLabel.setText(error, dontSendNotification);
         }
     }
@@ -534,7 +534,7 @@ void SnexPlayground::recalculate()
 
 void SnexPlayground::recompile()
 {
-	String s;
+	juce::String s;
 	s << doc.getAllContent();
 
 	externalCodeValue.setValue(s);
@@ -669,14 +669,14 @@ void Graph::paint(Graphics& g)
 			auto lMax = left.removeFromTop(18);
 			auto lMin = left.removeFromBottom(18);
 
-			g.drawText(String(leftPeaks.getStart(), 1), lMin, Justification::left);
-			g.drawText(String(leftPeaks.getEnd(), 1), lMax, Justification::left);
+			g.drawText(juce::String(leftPeaks.getStart(), 1), lMin, Justification::left);
+			g.drawText(juce::String(leftPeaks.getEnd(), 1), lMax, Justification::left);
 
 			auto rMax = right.removeFromTop(18);
 			auto rMin = right.removeFromBottom(18);
 
-			g.drawText(String(rightPeaks.getStart(), 1), rMin, Justification::left);
-			g.drawText(String(rightPeaks.getEnd(), 1), rMax, Justification::left);
+			g.drawText(juce::String(rightPeaks.getStart(), 1), rMin, Justification::left);
+			g.drawText(juce::String(rightPeaks.getEnd(), 1), rMax, Justification::left);
 		}
 		else
 		{
@@ -685,8 +685,8 @@ void Graph::paint(Graphics& g)
 			auto lMax = left.removeFromTop(18);
 			auto lMin = left.removeFromBottom(18);
 
-			g.drawText(String(leftPeaks.getStart(), 1), lMin, Justification::left);
-			g.drawText(String(leftPeaks.getEnd(), 1), lMax, Justification::left);
+			g.drawText(juce::String(leftPeaks.getStart(), 1), lMin, Justification::left);
+			g.drawText(juce::String(leftPeaks.getEnd(), 1), lMax, Justification::left);
 		}
 	}
 
@@ -884,7 +884,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
         
     }
     
-    Path SnexPathFactory::createPath(const String& url) const
+    Path SnexPathFactory::createPath(const juce::String& url) const
     {
         Path p;
         

@@ -21,7 +21,7 @@ void Types::Helpers::convertDoubleToFloat(float* dst, const double* src, int num
 	}
 }
 
-snex::Types::ID Types::Helpers::getTypeFromTypeName(const String& cppTypeName)
+snex::Types::ID Types::Helpers::getTypeFromTypeName(const juce::String& cppTypeName)
 {
 	if (cppTypeName == "double") return Types::ID::Double;
 	if (cppTypeName == "float") return Types::ID::Float;
@@ -32,7 +32,7 @@ snex::Types::ID Types::Helpers::getTypeFromTypeName(const String& cppTypeName)
 	return Types::ID::Void;
 }
 
-snex::Types::ID Types::Helpers::getTypeFromVariableName(const String& name)
+snex::Types::ID Types::Helpers::getTypeFromVariableName(const juce::String& name)
 {
 	auto typeChar = name.toLowerCase()[0];
 
@@ -51,8 +51,8 @@ snex::Types::ID Types::Helpers::getTypeFromVariableName(const String& name)
 
 juce::String Types::Helpers::getVariableName(ID id, int index)
 {
-	String name;
-	name << getTypeChar(id) << String(index + 1);
+	juce::String name;
+	name << getTypeChar(id) << juce::String(index + 1);
 
 	return name;
 }
@@ -96,9 +96,9 @@ Colour Types::Helpers::getColourForType(ID type)
 }
 
 
-juce::String Types::Helpers::getValidCppVariableName(const String& variableToCheck)
+juce::String Types::Helpers::getValidCppVariableName(const juce::String& variableToCheck)
 {
-	String s = variableToCheck;
+	juce::String s = variableToCheck;
 
 	jassert(s.length() > 0);
 
@@ -158,16 +158,16 @@ juce::juce_wchar Types::Helpers::getTypeChar(ID id)
 
 juce::String Types::Helpers::getTypeCharAsString(ID id)
 {
-	String s;
+	juce::String s;
 
 	s << getTypeChar(id);
 
 	return s;
 }
 
-juce::Array<snex::Types::ID> Types::Helpers::getTypeListFromCode(const String& code)
+juce::Array<snex::Types::ID> Types::Helpers::getTypeListFromCode(const juce::String& code)
 {
-	String variableWildCard = R"(\b(([fbinade][\d]+\b)))";
+	juce::String variableWildCard = R"(\b(([fbinade][\d]+\b)))";
 
 	auto matches = hise::RegexFunctions::findSubstringsThatMatchWildcard(variableWildCard, code);
 
@@ -183,7 +183,7 @@ juce::Array<snex::Types::ID> Types::Helpers::getTypeListFromCode(const String& c
 
 	struct VariableNameComparator
 	{
-		int compareElements(String a, String b)
+		int compareElements(juce::String a, juce::String b)
 		{
 			auto a1 = a.substring(1).getIntValue();
 			auto a2 = b.substring(1).getIntValue();
@@ -201,7 +201,7 @@ juce::Array<snex::Types::ID> Types::Helpers::getTypeListFromCode(const String& c
 	variableNames.strings.sort(comparator, false);
 
 	if (code.contains("event_"))
-		variableNames.add("e" + String(variableNames.size()));
+		variableNames.add("e" + juce::String(variableNames.size()));
 
 	return getTypeListFromVariables(variableNames);
 }
@@ -233,7 +233,7 @@ snex::Types::ID Types::Helpers::getIdFromVar(const var& value)
 }
 
 
-String Types::Helpers::getPreciseValueString(const VariableStorage& v)
+juce::String Types::Helpers::getPreciseValueString(const VariableStorage& v)
 {
 	if (v.getType() == Types::ID::Float)
 	{
@@ -243,7 +243,7 @@ String Types::Helpers::getPreciseValueString(const VariableStorage& v)
 		
 		auto str = out.str();
 
-		return String(str.c_str());
+		return juce::String(str.c_str());
 	}
 	else if (v.getType() == Types::ID::Double)
 	{
@@ -253,7 +253,7 @@ String Types::Helpers::getPreciseValueString(const VariableStorage& v)
 
 		auto str = out.str();
 
-		return String(str.c_str());
+		return juce::String(str.c_str());
 	}
 
 	return {};
@@ -269,7 +269,7 @@ juce::String Types::Helpers::getCppValueString(const var& v, ID type)
 		double dValue = (double)v;
 
 		if (fmodf(v, 1.0f) == 0.0f)
-			value << String(static_cast<int>(dValue)) << ".0";
+			value << juce::String(static_cast<int>(dValue)) << ".0";
 		else
 		{
 			value << dValue;
@@ -283,7 +283,7 @@ juce::String Types::Helpers::getCppValueString(const var& v, ID type)
 		return value;
 	}
 	else
-		return String((int)v);
+		return juce::String((int)v);
 }
 
 
@@ -299,7 +299,7 @@ juce::String Types::Helpers::getCppValueString(const VariableStorage& v)
 		double d = v.toDouble();
 
 		if (fmod(d, 1.0) == 0.0)
-			value << String((int)d) << ".0";
+			value << juce::String((int)d) << ".0";
 		else
 		{
 			value << d;
@@ -313,12 +313,12 @@ juce::String Types::Helpers::getCppValueString(const VariableStorage& v)
 		return value;
 	}
 	else
-		return String((int)v);
+		return juce::String((int)v);
 }
 
-bool Types::Helpers::isTypeString(const String& type)
+bool Types::Helpers::isTypeString(const juce::String& type)
 {
-	return String("aeidfb").contains(type);
+	return juce::String("aeidfb").contains(type);
 }
 
 bool Types::Helpers::isFloatingPoint(ID type)
@@ -334,7 +334,7 @@ juce::String Types::Helpers::getCppTypeName(ID type)
 	return "auto";
 }
 
-snex::Types::ID Types::Helpers::getTypeFromStringValue(const String& value)
+snex::Types::ID Types::Helpers::getTypeFromStringValue(const juce::String& value)
 {
 	if (value.contains("."))
 	{
@@ -394,7 +394,7 @@ bool Types::Helpers::isNumeric(ID id)
 	return matchesType(Types::ID::Number, id);
 }
 
-bool Types::Helpers::isPinVariable(const String& name)
+bool Types::Helpers::isPinVariable(const juce::String& name)
 {
 	auto wc = R"(\b[fbinade][1-9]\b)";
 

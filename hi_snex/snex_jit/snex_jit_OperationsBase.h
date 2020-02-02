@@ -103,10 +103,10 @@ public:
 			childStatements.clear();
 		}
 
-		void throwError(const String& errorMessage);
-		void logOptimisationMessage(const String& m);
-		void logWarning(const String& m);
-		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message);
+		void throwError(const juce::String& errorMessage);
+		void logOptimisationMessage(const juce::String& m);
+		void logWarning(const juce::String& m);
+		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const juce::String& message);
 
 		Statement** begin() const { return childStatements.begin(); }
 
@@ -161,7 +161,7 @@ public:
 
 		Types::ID getType() const override;
 
-		void attachAsmComment(const String& message);
+		void attachAsmComment(const juce::String& message);
 
 		void checkAndSetType(int offset = 0, Types::ID expectedType = Types::ID::Dynamic);
 
@@ -182,7 +182,7 @@ public:
 		*/
 		RegPtr getSubRegister(int index) const;
 
-		String asmComment;
+		juce::String asmComment;
 
 		RegPtr reg;
 

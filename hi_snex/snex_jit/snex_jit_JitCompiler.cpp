@@ -60,7 +60,7 @@ juce::Result Compiler::getCompileResult()
 }
 
 
-JitObject Compiler::compileJitObject(const String& code)
+JitObject Compiler::compileJitObject(const juce::String& code)
 {
 	lastCode = code;
 	return JitObject(compiler->compileAndGetScope(code));

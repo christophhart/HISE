@@ -97,7 +97,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		ScopedPointer<asmjit::CodeHolder> ch = new asmjit::CodeHolder();
 		ch->setLogger(l);
 		ch->setErrorHandler(this);
-		ch->init(runtime->getCodeInfo());
+		ch->init(runtime->codeInfo());
 
 		//code->setErrorHandler(this);
 
@@ -132,7 +132,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		auto& as = dynamic_cast<ClassCompiler*>(compiler)->assembly;
 
 		as << "; function " << data.getSignature() << "\n";
-		as << l->getString();
+		as << l->data();
 
 		ch->setLogger(nullptr);
 		l = nullptr;

@@ -82,7 +82,7 @@ using namespace asmjit;
             {
                 auto lineNumber = d.location.getLineNumber(d.location.program, d.location.location);
                 
-                String m;
+				juce::String m;
                 m << "Skipping removed expression at Line " << lineNumber;
                 s->logOptimisationMessage(m);
             }

@@ -329,7 +329,7 @@ class ConsoleFunctions : public JitCallableObject
 		DBG(value);
 		
 		if (gs != nullptr)
-			gs->logMessage(String(value) + "\n");
+			gs->logMessage(juce::String(value) + "\n");
 
 		return value;
 	}
@@ -338,7 +338,7 @@ class ConsoleFunctions : public JitCallableObject
 		DBG(value);
 		
 		if (gs != nullptr)
-			gs->logMessage(String(value) + "\n");
+			gs->logMessage(juce::String(value) + "\n");
 
 		return value;
 	}
@@ -347,13 +347,13 @@ class ConsoleFunctions : public JitCallableObject
 		DBG(value);
 		
 		if (gs != nullptr)
-			gs->logMessage(String(value) + "\n");
+			gs->logMessage(juce::String(value) + "\n");
 
 		return value;
 	}
 	HiseEvent print(HiseEvent e)
 	{
-		String s;
+		juce::String s;
 
 		s << e.getTypeAsString();
 		s << " channel: " << e.getChannel();

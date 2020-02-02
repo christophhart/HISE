@@ -157,7 +157,7 @@ void CallbackCollection::setListener(Listener* l)
 	listener = l;
 }
 
-snex::jit::FunctionData ParameterHelpers::getFunction(const String& parameterName, JitObject& obj)
+snex::jit::FunctionData ParameterHelpers::getFunction(const juce::String& parameterName, JitObject& obj)
 {
 	Identifier id("set" + parameterName);
 
@@ -185,10 +185,10 @@ juce::StringArray ParameterHelpers::getParameterNames(JitObject& obj)
 	return sa;
 }
 
-JitExpression::JitExpression(const String& s, DebugHandler* handler) :
+JitExpression::JitExpression(const juce::String& s, DebugHandler* handler) :
 	memory(0)
 {
-	String code = "double get(double input){ return " + s + ";}";
+	juce::String code = "double get(double input){ return " + s + ";}";
 
 	
 
@@ -231,7 +231,7 @@ bool JitExpression::isValid() const
 	return (bool)f;
 }
 
-juce::String JitExpression::convertToValidCpp(String input)
+juce::String JitExpression::convertToValidCpp(juce::String input)
 {
 	return input.replace("Math.", "hmath::");
 }

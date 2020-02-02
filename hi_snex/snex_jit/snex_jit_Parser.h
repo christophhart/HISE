@@ -54,7 +54,7 @@ public:
 	using ExprPtr = Operations::Expression::Ptr;
 	using StatementPtr = Operations::Statement::Ptr;
 
-	BlockParser(BaseCompiler* c, const String::CharPointerType& code, const String::CharPointerType& wholeProgram, int length) :
+	BlockParser(BaseCompiler* c, const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length) :
 		TokenIterator(code, wholeProgram, length),
 		compiler(c)
 	{};
@@ -81,7 +81,7 @@ class NewClassParser : public BlockParser
 {
 public:
 
-	NewClassParser(BaseCompiler* c, const String& code):
+	NewClassParser(BaseCompiler* c, const juce::String& code):
 		BlockParser(c, code.getCharPointer(), code.getCharPointer(), code.length())
 	{}
 

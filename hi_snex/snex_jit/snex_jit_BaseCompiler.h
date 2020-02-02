@@ -80,7 +80,7 @@ public:
 	struct OptimizationPassBase
 	{
 		virtual ~OptimizationPassBase() {};
-		virtual String getName() const = 0;
+		virtual juce::String getName() const = 0;
 
 		/** This will get called before each statement so you can reset the state. */
 		virtual void reset() {};
@@ -93,7 +93,7 @@ public:
 
 	bool hasLogger() const { return debugHandler != nullptr; }
 
-	void logMessage(MessageType level, const String& s)
+	void logMessage(MessageType level, const juce::String& s)
 	{
 		if (!hasLogger())
 			return;
@@ -101,7 +101,7 @@ public:
 		if (level > verbosity)
 			return;
 
-		String m;
+		juce::String m;
 
 		switch (level)
 		{

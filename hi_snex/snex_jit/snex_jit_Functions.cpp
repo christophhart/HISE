@@ -39,7 +39,7 @@ using namespace asmjit;
 
 juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) const
 {
-	String s;
+	juce::String s;
 
 	s << Types::Helpers::getCppTypeName(returnType) << " " << id << "(";
 

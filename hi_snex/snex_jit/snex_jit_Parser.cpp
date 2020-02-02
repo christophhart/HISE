@@ -96,7 +96,7 @@ public:
 		return newScope->pimpl->runtime;
 	}
 
-	JitCompiledFunctionClass* compileAndGetScope(const String& code)
+	JitCompiledFunctionClass* compileAndGetScope(const juce::String& code)
 	{
 		NewClassParser parser(this, code);
 
@@ -137,7 +137,7 @@ public:
 
 	asmjit::X86Compiler* asmCompiler;
 
-	String assembly;
+	juce::String assembly;
 
 	Result lastResult;
 
@@ -265,10 +265,10 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 				}
 				else
 				{
-					throw String("Invalid buffer function");
+					throw juce::String("Invalid buffer function");
 				}
 			}
-			catch (String& s)
+			catch (juce::String& s)
 			{
 				location.throwError(s);
 			}
@@ -351,7 +351,7 @@ snex::VariableStorage BlockParser::parseVariableStorageLiteral()
 
 	auto type = Types::Helpers::getTypeFromStringValue(currentString);
 
-	String stringValue = currentString;
+	juce::String stringValue = currentString;
 	match(JitTokens::literal);
 
 	if (type == Types::ID::Integer)

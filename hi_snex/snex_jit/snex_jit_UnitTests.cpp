@@ -58,14 +58,14 @@ public:
 			optimizingScope.addOptimization(p);
 	}
 
-	void setExpressionBody(const String& body_)
+	void setExpressionBody(const juce::String& body_)
 	{
 		jassert(body_.contains("%BODY%"));
 
 		body = body_;
 	}
 
-	bool sameAssembly(const String& expressionToBeOptimised, const String& reference)
+	bool sameAssembly(const juce::String& expressionToBeOptimised, const juce::String& reference)
 	{
 		auto o = body.replace("%BODY%", expressionToBeOptimised);
 		auto r = body.replace("%BODY%", reference);
@@ -80,7 +80,7 @@ public:
 
 private:
 
-	String getAssemblyOutput(const String& t, GlobalScope& s)
+	juce::String getAssemblyOutput(const juce::String& t, GlobalScope& s)
 	{
 		Compiler c(s);
 		auto obj = c.compileJitObject(t);
@@ -96,7 +96,7 @@ private:
 		return c.getAssemblyCode();
 	}
 
-	String body;
+	juce::String body;
 	GlobalScope referenceScope;
 	GlobalScope optimizingScope;
 };
@@ -105,7 +105,7 @@ template <typename T, typename ReturnType=T> class HiseJITTestCase: public jit::
 {
 public:
 
-	HiseJITTestCase(const String& stringToTest, const Array<Identifier>& optimizationList) :
+	HiseJITTestCase(const juce::String& stringToTest, const Array<Identifier>& optimizationList) :
 		code(stringToTest)
 	{
 		for (auto o : optimizationList)
@@ -114,7 +114,7 @@ public:
 		compiler = new Compiler(memory);
 	}
 
-	void logMessage(const String& s) override
+	void logMessage(const juce::String& s) override
 	{
 		DBG(s);
 	}
@@ -170,7 +170,7 @@ public:
 		initialised = true;
 	}
 
-	String code;
+	juce::String code;
 
 	bool initialised = false;
 
@@ -186,34 +186,34 @@ class JITTestModule
 {
 public:
 
-	void setGlobals(const String& t)
+	void setGlobals(const juce::String& t)
 	{
 		globals = t;
 	}
 
-	void setInitBody(const String& body)
+	void setInitBody(const juce::String& body)
 	{
 		initBody = body;
 	};
 
-	void setPrepareToPlayBody(const String& body)
+	void setPrepareToPlayBody(const juce::String& body)
 	{
 		prepareToPlayBody = body;
 	}
 
-	void setProcessBody(const String& body)
+	void setProcessBody(const juce::String& body)
 	{
 		processBody = body;
 	}
 
-	void setCode(const String& code_)
+	void setCode(const juce::String& code_)
 	{
 		code = code_;
 	}
 
 	void merge()
 	{
-		code = String();
+		code = juce::String();
 		code << globals << "\n";
 		code << "void init() {\n\t";
 		code << initBody;
@@ -230,11 +230,11 @@ public:
 	}
 
 
-	String globals;
-	String initBody;
-	String prepareToPlayBody;
-	String processBody = "return 1.0f;";
-	String code;
+	juce::String globals;
+	juce::String initBody;
+	juce::String prepareToPlayBody;
+	juce::String processBody = "return 1.0f;";
+	juce::String code;
 
 	double executionTime;
 };
@@ -245,16 +245,16 @@ public:
 #define CREATE_TYPED_TEST(x) test = new HiseJITTestCase<T>(x, optimizations);
 #define CREATE_TEST_SETUP(x) test = new HiseJITTestCase<float>(x, optimizations); test->setup();
 
-#define EXPECT(testName, input, result) expect(test->wasOK(), String(testName) + String(" parsing")); expectAlmostEquals<float>(test->getResult(input, result), result, testName);
+#define EXPECT(testName, input, result) expect(test->wasOK(), juce::String(testName) + juce::String(" parsing")); expectAlmostEquals<float>(test->getResult(input, result), result, testName);
 
-#define EXPECT_TYPED(testName, input, result) expect(test->wasOK(), String(testName) + String(" parsing")); expectAlmostEquals<T>(test->getResult(input, result), result, testName);
+#define EXPECT_TYPED(testName, input, result) expect(test->wasOK(), juce::String(testName) + juce::String(" parsing")); expectAlmostEquals<T>(test->getResult(input, result), result, testName);
 
 #define GET_TYPE(T) Types::Helpers::getTypeNameFromTypeId<T>()
 
-#define CREATE_BOOL_TEST(x) test = new HiseJITTestCase<int>(String("int test(int input){ ") + String(x), optimizations);
+#define CREATE_BOOL_TEST(x) test = new HiseJITTestCase<int>(juce::String("int test(int input){ ") + juce::String(x), optimizations);
 
 
-#define EXPECT_BOOL(name, result) expect(test->wasOK(), String(name) + String(" parsing")); expect(test->getResult(0, result) == result, name);
+#define EXPECT_BOOL(name, result) expect(test->wasOK(), juce::String(name) + juce::String(" parsing")); expect(test->getResult(0, result) == result, name);
 #define VAR_BUFFER_TEST_SIZE 8192
 
 #define ADD_CODE_LINE(x) code << x << "\n"
@@ -278,11 +278,23 @@ public:
 
 	void runTest() override
 	{
+		beginTest("Testing logic operations");
+
+		ScopedPointer<HiseJITTestCase<int>> test;
+		using T = int;
+
+		CREATE_TYPED_TEST("int test(int i){ return (true && false) ? 3 : 2; };");
+		expectCompileOK(test->compiler);
+		EXPECT("And with parenthesis", 2.0f, 2);
+
+
+
 		testOptimizations();
 
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
+
 	}
 
 	void runTestsWithOptimisation(const Array<Identifier>& ids)
@@ -349,17 +361,15 @@ private:
 			auto refString = "(7 * 18 - (13 / 4) + (1 + 1)) / 8";
 			constexpr int value = (7 * 18 - (13 / 4) + (1 + 1)) / 8;
 
-			expect(t.sameAssembly(refString, String(value)), "Complex expression folding");
+			expect(t.sameAssembly(refString, juce::String(value)), "Complex expression folding");
 			expect(t.sameAssembly("13 % 5", "3"), "Modulo folding");
 			expect(t.sameAssembly("124 > 18", "1"), "Simple comparison folding");
 			expect(t.sameAssembly("124.0f == 18.0f", "0"), "Simple equality folding");
 
-			
-
 			auto cExpr = "190.0f != 17.0f || (((8 - 2) < 4) && (9.0f == 0.4f))";
 			constexpr int cExprValue = 190.0f != 17.0f || (((8 - 2) < 4) && (9.0f == 0.4f));
 
-			expect(t.sameAssembly(cExpr, String(cExprValue)), "Complex logical expression folding");
+			expect(t.sameAssembly(cExpr, juce::String(cExprValue)), "Complex logical expression folding");
 		}
 
 		{
@@ -433,7 +443,7 @@ private:
 	{
 	}
 
-	template <typename T> void expectAlmostEquals(T actual, T expected, const String& errorMessage)
+	template <typename T> void expectAlmostEquals(T actual, T expected, const juce::String& errorMessage)
 	{
 		if (Types::Helpers::getTypeFromTypeId<T>() == Types::ID::Integer)
 		{
@@ -803,32 +813,34 @@ private:
 
 	}
 
-	template <typename T> String getTypeName() const
+	template <typename T> juce::String getTypeName() const
 	{
 		return Types::Helpers::getTypeNameFromTypeId<T>();
 	}
 
-	template <typename T> String getTestSignature()
+	template <typename T> juce::String getTestSignature()
 	{
 		return getTypeName<T>() + " test(" + getTypeName<T>() + " input){%BODY%};";
 	}
 
-	template <typename T> String getTestFunction(const String& body)
+	template <typename T> juce::String getTestFunction(const juce::String& body)
 	{
-		String x = getTestSignature<T>();
+		auto x = getTestSignature<T>();
 		return x.replace("%BODY%", body);
 	}
 
-	template <typename T> String getLiteral(double value)
+	template <typename T> juce::String getLiteral(double value)
 	{
+		asmjit::Type::TypeData d;
+
 		VariableStorage v(Types::Helpers::getTypeFromTypeId<T>(), value);
 
 		return Types::Helpers::getCppValueString(v);
 	}
 
-	template <typename T> String getGlobalDefinition(double value)
+	template <typename T> juce::String getGlobalDefinition(double value)
 	{
-		const String valueString = getLiteral<T>(value);
+		auto valueString = getLiteral<T>(value);
 
 		return getTypeName<T>() + " x = " + valueString + ";";
 	}
@@ -957,7 +969,7 @@ private:
 		CREATE_TEST("float test(float input){ return -1.5f * Math.abs(input) + 2.0f * Math.abs(input - 1.0f);}; ");
 		EXPECT("Complex expression 2", input, -1.5f * fabsf(input) + 2.0f * fabsf(input - 1.0f));
 
-		String s;
+		juce::String s;
 		NewLine nl;
 
 		s << "float test(float in)" << nl;
@@ -1013,7 +1025,7 @@ private:
 		CREATE_TEST("int getIfTrue(int isTrue){return true ? 1 : 0;}; float test(float input) { return getIfTrue(true) == 1 ? 12.0f : 4.0f; }; ");
 		EXPECT("int parameter", 2.0f, 12.0f);
 
-		String x;
+		juce::String x;
 		NewLine nl;
 
 		x << "float x = 0.0f;" << nl;
@@ -1142,7 +1154,7 @@ private:
 	{
 		beginTest("Testing big function buffer");
 
-		String code;
+		juce::String code;
 
 		ADD_CODE_LINE("int get1() { return 1; };\n");
 		ADD_CODE_LINE("int get2() { return 1; };\n");

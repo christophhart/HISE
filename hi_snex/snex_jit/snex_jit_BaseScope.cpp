@@ -232,7 +232,7 @@ juce::String BaseScope::Symbol::toString() const
 	if (id.isNull())
 		return "undefined";
 
-	String s;
+	juce::String s;
 
 	if (parent.isValid())
 		s << parent << "." << id;

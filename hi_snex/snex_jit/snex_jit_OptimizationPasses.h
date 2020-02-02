@@ -110,7 +110,7 @@ public:
     
 #define OPTIMIZATION_FACTORY(id, x) static Identifier getStaticId() { return id; } \
 static BaseCompiler::OptimizationPassBase* create() { return new x(); } \
-String getName() const override { return getStaticId().toString(); };
+juce::String getName() const override { return getStaticId().toString(); };
 
     /** TODO: Optimizations:
      

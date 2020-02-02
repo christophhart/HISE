@@ -793,17 +793,16 @@ struct Operations::Function : public Statement,
 		parameters.clear();
 	}
 
-	bool handleError(asmjit::Error, const char* message, CodeEmitter*)
+	void handleError(asmjit::Error, const char* message, asmjit::BaseEmitter* emitter) override
 	{
-		throwError(String(message));
-		return true;
+		throwError(juce::String(message));
 	}
 
 	Types::ID getType() const override { return data.returnType; }
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
-	String::CharPointerType code;
+	juce::String::CharPointerType code;
 	int codeLength = 0;
 
 	ScopedPointer<FunctionScope> functionScope;
