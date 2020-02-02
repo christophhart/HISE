@@ -107,11 +107,7 @@ int64_t scriptnode::VirtualHiseFile::getSize()
 
 int64_t scriptnode::VirtualHiseFile::getLastModificationTime()
 {
-
-	if (isEmbeddedResource)
-		return 0;
-	else
-		return (int64_t)ref.getFile().getLastModificationTime().getMillisecondCounter();
+	return 0;
 }
 
 int64_t scriptnode::VirtualHiseFile::read(uint64_t startPositionInFile, void* targetBuffer, uint64_t bytesToRead)

@@ -42,6 +42,18 @@ class SoulNode : public WrapperNode
 {
 public:
 
+	using PatchPtr = soul::patch::PatchPlayer::Ptr;
+
+	enum class State
+	{
+		Uninitialised,
+		WaitingForPrepare,
+		Compiling,
+		CompiledOk,
+		CompileError,
+		numStates
+	};
+
 	struct SoulComponent : public Component
 	{
 		SoulComponent(SoulNode* n):
@@ -53,7 +65,17 @@ public:
 		void paint(Graphics& g) override
 		{
 			
-			auto c = parent->ok ? Colours::green : Colours::red;
+			Colour c;
+
+			switch (parent->state.load())
+			{
+			case State::Uninitialised: c = Colours::white; break;
+			case State::CompiledOk: c = Colours::green; break;
+			case State::CompileError: c = Colours::red; break;
+			case State::Compiling: c = Colours::yellow; break;
+			case State::WaitingForPrepare: c = Colours::orange; break;
+			}
+
 			c = c.withSaturation(0.2f).withBrightness(0.4f);
 
 			g.setColour(c);
@@ -66,6 +88,19 @@ public:
 
 		WeakReference<SoulNode> parent;
 	};
+
+	~SoulNode()
+	{
+		for (int i = 0; i < getNumParameters(); i++)
+			getParameter(i)->setCallback([](double) {});
+
+		patchPlayer.forEachVoice([](soul::patch::PatchPlayer::Ptr& p)
+		{
+			p = nullptr;
+		});
+
+		patch = nullptr;
+	}
 
 	int getExtraHeight() const override { return 30; }
 	int getExtraWidth() const override { return 200; }
@@ -108,38 +143,40 @@ public:
 	static Identifier getStaticId() { return "soul"; };
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new SoulNode(n, d); }
 
-	virtual ~SoulNode() {}
-
 	void process(ProcessData& data)
 	{
 		SimpleReadWriteLock::ScopedTryReadLock sl(compileLock);
 
-		if (sl.hasLock() && ok && !isBypassed())
+		if (sl.hasLock() && (state == State::CompiledOk) && !isBypassed())
 		{
 			soul::patch::PatchPlayer::RenderContext ctx;
 			ctx.inputChannels = data.data;
 			ctx.outputChannels = data.data;
 			ctx.numOutputChannels = data.numChannels;
-			ctx.numInputChannels = data.numChannels;
+			ctx.numInputChannels = duplicateLeftInput ? 1 : data.numChannels;
+			
+			// Avoid branching like a pro...
+			ctx.numInputChannels *= (int)!isInstrument;
+
 			ctx.numFrames = data.size;
 			ctx.incomingMIDI = midiBuffer;
 			ctx.numMIDIMessagesIn = midiPos;
 
-			patchPlayer->render(ctx);
+			auto result = patchPlayer.get()->render(ctx);
+
+			if (result == soul::patch::PatchPlayer::RenderResult::noProgramLoaded)
+				state = State::Uninitialised;
+
+			if (result == soul::patch::PatchPlayer::RenderResult::wrongNumberOfChannels)
+				state = State::CompileError;
 
 			midiPos = 0;
 		}
 	}
 
-	virtual void prepare(PrepareSpecs specs) override
-	{
-		lastConfig.maxFramesPerBlock = specs.blockSize;
-		lastConfig.sampleRate = specs.sampleRate;
-		channelAmount = specs.numChannels;
+	virtual void prepare(PrepareSpecs specs) override;
 
-		if (patchPlayer != nullptr && patchPlayer->needsRebuilding(lastConfig))
-			rebuild();
-	}
+	bool isPolyphonic() const { return true; }
 
 	void rebuild();
 
@@ -166,28 +203,54 @@ public:
 
 	void reset()
 	{
-		SimpleReadWriteLock::ScopedTryReadLock sl(compileLock);
+		if (!patchPlayer.isVoiceRenderingActive())
+		{
+			SimpleReadWriteLock::ScopedTryReadLock sl(compileLock);
 
-		if (sl.hasLock() && ok)
-			patchPlayer->reset();
+			if (sl.hasLock() && (state == State::CompiledOk))
+			{
+				patchPlayer.forEachVoice([](soul::patch::PatchPlayer::Ptr& p)
+				{
+					if(p != nullptr)
+						p->reset();
+				});
+			}
+		}
 	}
 
 	hise::SimpleReadWriteLock compileLock;
 
 	NodePropertyT<String> codePath;
 
+	static bool getFlagState(const soul::patch::Parameter& param, const char* flagName, bool defaultState)
+	{
+		if (auto flag = param.getProperty(flagName))
+		{
+			auto s = flag.toString<juce::String>();
+
+			return s.equalsIgnoreCase("true")
+				|| s.equalsIgnoreCase("yes")
+				|| s.getIntValue() != 0;
+		}
+
+		return defaultState;
+	}
+
 	valuetree::PropertyListener codeListener;
 
 	soul::patch::MIDIMessage midiBuffer[128];
 	int midiPos = 0;
 	int channelAmount = 0;
-	std::atomic<bool> ok = { false };
+	bool duplicateLeftInput;
+	bool isInstrument = false;
+
+	std::atomic<State> state = { State::Uninitialised };
 
 	SharedResourcePointer<SoulLibraryHolder> library;
 
 	soul::patch::CompilerCacheFolder::Ptr compilerCache;
 	soul::patch::PatchPlayerConfiguration lastConfig;
-	soul::patch::PatchPlayer::Ptr patchPlayer;
+	PolyData<soul::patch::PatchPlayer::Ptr, NUM_POLYPHONIC_VOICES> patchPlayer;
 	soul::patch::PatchInstance::Ptr patch;
 	soul::patch::VirtualFile::Ptr currentFile;
 	String currentFileName;
