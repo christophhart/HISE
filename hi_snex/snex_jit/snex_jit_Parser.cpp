@@ -45,6 +45,8 @@ public:
 		FunctionClass({}),
 		BaseScope({}, &parent)
 	{
+		parent.setCurrentClassScope(this);
+
 		parent.getBufferHandler().reset();
 
 		jassert(scopeType == BaseScope::Class);
@@ -57,6 +59,271 @@ public:
 	};
 
 	ScopedPointer<asmjit::JitRuntime> runtime;
+
+	struct FunctionDebugInfo : public DebugInformationBase
+	{
+		FunctionDebugInfo(jit::FunctionData* d):
+			type(d->returnType),
+			full(d->getSignature()),
+			name(d->id.toString())
+		{
+
+		}
+
+		int getType() const override
+		{
+			return ApiHelpers::DebugObjectTypes::LocalFunction;
+		}
+
+		juce::String getCategory() const override
+		{
+			return "Local function";
+		}
+
+		Types::ID type;
+		juce::String name;
+		juce::String full;
+
+		virtual juce::String getTextForName() const
+		{
+			return full;
+		}
+
+		virtual juce::String getTextForType() const { return "function"; }
+
+		virtual juce::String getTextForDataType() const
+		{
+			return Types::Helpers::getTypeName(type);
+		}
+
+		virtual juce::String getTextForValue() const
+		{
+			return "";
+		}
+
+		virtual juce::String getCodeToInsert() const
+		{
+			return full.fromFirstOccurrenceOf(" ", false, false);
+		}
+
+	};
+
+	struct LocalVariableInfo
+	{
+		bool isParameter;
+		Identifier id;
+		Types::ID type;
+	};
+
+	struct LocalVariableDebugObject : public DebugableObjectBase
+	{
+		LocalVariableDebugObject(LocalVariableInfo info_, GlobalScope* s_):
+			s(s_),
+			info(info_)
+		{}
+
+		GlobalScope* s = nullptr;
+		LocalVariableInfo info;
+
+		Identifier getObjectName() const override 
+		{
+			return info.id;
+		}
+
+		int getTypeNumber() const override
+		{
+			return info.type;
+		}
+
+		juce::String getDebugDataType() const override
+		{
+			return Types::Helpers::getTypeName(info.type);
+		}
+
+		juce::String getDebugValue() const override
+		{
+			if (s != nullptr)
+			{
+				auto entry = s->getBreakpointHandler().getEntry(getObjectName());
+
+				if (entry.isUsed)
+					return Types::Helpers::getCppValueString(entry.currentValue);
+				else
+					return "unknown";
+			}
+		}
+		juce::String getCategory() const override { return info.isParameter ? "Parameter" : "Local variable"; };
+	};
+
+	struct BufferDummy : public ManualDebugObject
+	{
+
+		BufferDummy():
+			ManualDebugObject()
+		{
+			childNames.add("create");
+			childNames.add("getAudioFile");
+			childNames.add("getTableData");
+			category = "API call";
+			objectName = "Buffer";
+		}
+
+		int getTypeNumber() const override { return ApiHelpers::DebugObjectTypes::ApiCall; }
+		
+		void fillInfo(SettableDebugInfo* childInfo, const juce::String& id) override
+		{
+			if (id == "create")
+			{
+				childInfo->category = "API call";
+				childInfo->codeToInsert = "Buffer.create(int size)";
+				childInfo->name = "Buffer.create(int size)";
+				childInfo->typeValue = Types::ID::Block;
+				childInfo->description.append("\nCreates a empty buffer with the given size", GLOBAL_BOLD_FONT());
+			}
+			if (id == "getAudioFile")
+			{
+				childInfo->category = "API call";
+				childInfo->codeToInsert = "Buffer.getAudioFile(int fileIndex)";
+				childInfo->name = "Buffer.getAudioFile(int fileIndex)";
+				childInfo->typeValue = Types::ID::Block;
+				childInfo->description.append("\nreturns a wrapped block for the given audio file", GLOBAL_BOLD_FONT());
+			}
+			if (id == "getTableData")
+			{
+				childInfo->category = "API call";
+				childInfo->codeToInsert = "Buffer.getTableData(int tableIndex)";
+				childInfo->name = "Buffer.getTableData(int tableIndex)";
+				childInfo->typeValue = Types::ID::Block;
+				childInfo->description.append("\nreturns a wrapped block for the given look up table", GLOBAL_BOLD_FONT());
+			}
+		}
+	};
+
+	
+
+	void addLocalVariableInfo(const LocalVariableInfo& l)
+	{
+		localVariableInfo.add(l);
+	}
+
+	juce::Array<LocalVariableInfo> localVariableInfo;
+
+	void addRegisteredFunctionClasses(OwnedArray<DebugInformationBase>& list, int typeNumber= ApiHelpers::DebugObjectTypes::ApiCall)
+	{
+		for (auto f : registeredClasses)
+			list.add(new ObjectDebugInformation(f, typeNumber));
+	}
+
+	void createDebugInfo(OwnedArray<DebugInformationBase>& list)
+	{
+		list.clear();
+
+		auto addType = [&list](const juce::String& name, const juce::String& description, Types::ID type)
+		{
+			auto wblockInfo = new SettableDebugInfo();
+			wblockInfo->codeToInsert = name;
+			wblockInfo->name = name;
+			wblockInfo->description.append("\n" + description, GLOBAL_BOLD_FONT(), Colours::black);
+			wblockInfo->dataType = name;
+			wblockInfo->value = "";
+			wblockInfo->typeValue = type;
+			wblockInfo->category = "Basic Type";
+
+			list.add(wblockInfo);
+		};
+
+		addType("int", "A 32bit integer type", Types::ID::Integer);
+		addType("bool", "A boolean type (true | false)", Types::ID::Integer);
+		addType("float", "A 32bit floating point type", Types::ID::Float);
+		addType("sfloat", "A smoothed floating point value ", Types::ID::Float);
+		addType("double", "A 64bit floating point type", Types::ID::Double);
+		addType("sdouble", "A smoothed 64bit floating point value", Types::ID::Double);
+		addType("block", "A wrapper around a array of float numbers", Types::ID::Block);
+		addType("wblock", "A buffer object with index wrapping", Types::ID::Block);
+		addType("zblock", "A buffer object with zero wrapping", Types::ID::Block);
+		addType("event", "The HISE event", Types::ID::Event);
+		
+		auto forInfo = new SettableDebugInfo();
+		forInfo->codeToInsert = "for (auto& s : channel)\n\t{\n\t\t\n\t}\n\t";;
+		forInfo->name = "for-loop";
+		forInfo->description.append("\nA range based for loop over a block", GLOBAL_BOLD_FONT(), Colours::black);
+		forInfo->dataType = "float";
+		forInfo->value = "";
+		forInfo->category = "Template";
+		forInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
+
+		auto channelInfo = new SettableDebugInfo();
+		channelInfo->codeToInsert = "void processChannel(block channel, int channelIndex)\n{\n\t\n}\n";;
+		channelInfo->name = "processChannel";
+		channelInfo->description.append("\nBlock based channel processing", GLOBAL_BOLD_FONT(), Colours::black);
+		channelInfo->value = "";
+		channelInfo->category = "Template";
+		channelInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
+
+		list.add(channelInfo);
+
+		auto sampleInfo = new SettableDebugInfo();
+		sampleInfo->codeToInsert = "float processSample(float input)\n{\n\treturn input;\n}\n";;
+		sampleInfo->name = "processSample";
+		sampleInfo->description.append("\nMono (or stateless) sample processing", GLOBAL_BOLD_FONT(), Colours::black);
+		sampleInfo->value = "";
+		sampleInfo->category = "Template";
+		sampleInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
+
+		list.add(sampleInfo);
+
+		auto setInfo = new SettableDebugInfo();
+		setInfo->codeToInsert = "void setParameterX(double value)\n{\n\t\n}\n";;
+		setInfo->name = "setParameter";
+		setInfo->description.append("\nParameter callback template", GLOBAL_BOLD_FONT(), Colours::black);
+		setInfo->value = "";
+		setInfo->category = "Template";
+		setInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
+
+		list.add(setInfo);
+
+		auto frameInfo = new SettableDebugInfo();
+		frameInfo->codeToInsert = "void processFrame(block frame)\n{\n\t\n}\n";;
+		frameInfo->name = "processFrame";
+		frameInfo->description.append("\nInterleaved frame processing callback", GLOBAL_BOLD_FONT(), Colours::black);
+		frameInfo->value = "";
+		frameInfo->category = "Template";
+		frameInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
+
+		list.add(frameInfo);
+
+		list.add(forInfo);
+
+		for (auto l : localVariableInfo)
+		{
+			if (hasVariable(l.id))
+				continue;
+
+			auto lInfo = new LocalVariableDebugObject(l, dynamic_cast<GlobalScope*>(getParent()));
+			list.add(new ObjectDebugInformation(lInfo));
+		}
+
+		for (auto f : functions)
+		{
+			list.add(new FunctionDebugInfo(f));
+		}
+
+		if (auto gs = dynamic_cast<GlobalScope*>(getParent()))
+		{
+			list.add(new ObjectDebugInformation(gs->getGlobalFunctionClass("Console"), ApiHelpers::DebugObjectTypes::ApiCall));
+		}
+
+		
+		addRegisteredFunctionClasses(list);
+		
+
+		for (auto v : referencedVariables)
+		{
+			list.add(new ObjectDebugInformation(v));
+		}
+
+		list.add(ManualDebugObject::create<BufferDummy>());
+	}
 
 private:
 

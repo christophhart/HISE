@@ -46,13 +46,27 @@ using namespace asmjit;
 #define HNODE_JIT_ADD_C_FUNCTION_3(rt, ptr, argType1, argType2, argType3, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2, argType3>(name, static_cast<rt(*)(argType1, argType2, argType3)>(ptr))));
 
 
+
+
+
 struct WrappedBufferBase: public JitCallableObject
 {
-	WrappedBufferBase(Identifier id) :
-		JitCallableObject(id)
+	WrappedBufferBase(Identifier id, block b_) :
+		JitCallableObject(id),
+		b(b_)
 	{}
 
+	block b;
+
+	int getTypeNumber() const override { return Types::ID::Block; }
+
 	
+
+	juce::String getDebugDataType() const override { return "wblock"; }
+
+	virtual int getCurrentPosition() const = 0;
+
+	void rightClickCallback(const MouseEvent&, Component*) override;
 
 	virtual ~WrappedBufferBase() {};
 
@@ -63,10 +77,27 @@ template <class WrapType> class WrappedBuffer : public WrappedBufferBase
 public:
 
 	WrappedBuffer(Identifier id, block b) :
-		WrappedBufferBase(id),
+		WrappedBufferBase(id, b),
 		accessor(b)
 	{
 		registerAllObjectFunctions(nullptr);
+	}
+
+	juce::String getDebugValue() const override
+	{
+		juce::String s;
+
+		
+		float value = *accessor;
+		VariableStorage v(Types::ID::Float, value);
+
+		s << "[" << accessor.currentIndex << "]: " << Types::Helpers::getCppValueString(v);
+		return s;
+	}
+
+	int getCurrentPosition() const override
+	{
+		return accessor.currentIndex;
 	}
 
 	float getInterpolated(double position)
@@ -84,6 +115,8 @@ public:
 	{
 		accessor[index] = value;
 	}
+
+	
 
 	float getAt(int index)
 	{
@@ -202,6 +235,7 @@ public:
 			auto f = createMemberFunction(Types::ID::Float, "getInterpolated", {Types::ID::Double});
 			f->setFunction(Wrapper::getInterpolated);
 			addFunction(f);
+			setDescription("Returns an interpolated value (same as wblock[double]", { "doubleIndexPosition" });
 		}
 	}
 
@@ -224,9 +258,47 @@ public:
 };
 
 
+
 template <typename T> class SmoothedFloat : public JitCallableObject
 {
 public:
+
+	int getTypeNumber() const override
+	{
+		return Types::Helpers::getTypeFromTypeId<T>();
+	}
+
+	juce::String getDebugDataType() const override
+	{
+		if (getTypeNumber() == Types::ID::Float)
+			return "sfloat";
+		else
+			return "sdouble";
+	}
+
+	juce::String getDebugValue() const override
+	{
+		auto id = Types::Helpers::getTypeFromTypeId<T>();
+		
+
+		auto tValue = VariableStorage(id, v.getTargetValue());
+
+		if (!v.isSmoothing())
+			return Types::Helpers::getCppValueString(tValue);
+
+		auto value = VariableStorage(id, v.getCurrentValue());
+		juce::String s;
+		
+		s << Types::Helpers::getCppValueString(value);
+		s << " -> ";
+		s << Types::Helpers::getCppValueString(tValue);
+		return s;
+	}
+
+	void rightClickCallback(const MouseEvent& e, Component* c)
+	{
+		
+	}
 
 	void reset(T initValue)
 	{
@@ -278,24 +350,28 @@ public:
 			auto f = createMemberFunction(Types::ID::Void, "reset", { valueType });
 			f->setFunction(Wrapper::reset);
 			addFunction(f);
+			setDescription("sets the value without smoothing", { "initialValue" });
 		}
 
 		{
 			auto f = createMemberFunction(Types::ID::Void, "prepare", { Types::ID::Double, Types::ID::Double });
 			f->setFunction(Wrapper::prepare);
 			addFunction(f);
+			setDescription("Initialises the smoothing time with the samplerate and the desired smoothing time in milliseconds", { "sampleRate", "smoothingTime" });
 		}
 
 		{
 			auto f = createMemberFunction(Types::ID::Void, "set", { valueType });
 			f->setFunction(Wrapper::set);
 			addFunction(f);
+			setDescription("Set the target value and start smoothing", { "targetValue" });
 		}
 
 		{
 			auto f = createMemberFunction(valueType, "next", {});
 			f->setFunction(Wrapper::next);
 			addFunction(f);
+			setDescription("Return the next smoothed value", { });
 		}
 	}
 };
@@ -323,22 +399,37 @@ class ConsoleFunctions : public JitCallableObject
 		JIT_MEMBER_WRAPPER_1(HiseEvent, ConsoleFunctions, print, HiseEvent);
 	};
 
+	struct WrapperStop
+	{
+		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, stop, bool);
+	};
+
 	
 	int print(int value)
 	{
 		DBG(value);
 		
-		if (gs != nullptr)
-			gs->logMessage(juce::String(value) + "\n");
-
+		MessageManager::callAsync([this, value]()
+		{
+			if (gs != nullptr)
+			{
+				gs->logMessage(juce::String(value) + "\n");
+			}
+		});
+			
 		return value;
 	}
 	double print(double value)
 	{
 		DBG(value);
 		
-		if (gs != nullptr)
-			gs->logMessage(juce::String(value) + "\n");
+		MessageManager::callAsync([this, value]()
+		{
+			if (gs != nullptr)
+			{
+				gs->logMessage(juce::String(value) + "\n");
+			}
+		});
 
 		return value;
 	}
@@ -346,26 +437,57 @@ class ConsoleFunctions : public JitCallableObject
 	{
 		DBG(value);
 		
-		if (gs != nullptr)
-			gs->logMessage(juce::String(value) + "\n");
+		MessageManager::callAsync([this, value]()
+		{
+			if (gs != nullptr)
+			{
+				gs->logMessage(juce::String(value) + "\n");
+			}
+		});
 
 		return value;
 	}
+
+
+	void stop(bool condition)
+	{
+		if (condition && gs != nullptr)
+		{
+			auto& handler = gs->getBreakpointHandler();
+
+			if (handler.isActive())
+			{
+				handler.breakExecution();
+
+				while (!handler.shouldResume())
+				{
+					if (handler.canWait())
+						Thread::getCurrentThread()->wait(100);
+				}
+			}
+		}
+	}
+
 	HiseEvent print(HiseEvent e)
 	{
-		juce::String s;
+		MessageManager::callAsync([this, e]()
+		{
+			juce::String s;
 
-		s << e.getTypeAsString();
-		s << " channel: " << e.getChannel();
-		s << " value: " << e.getNoteNumber();
-		s << " value2: " << e.getVelocity();
-		s << " timestamp: " << (int)e.getTimeStamp();
-		s << "\n";
+			s << e.getTypeAsString();
+			s << " channel: " << e.getChannel();
+			s << " value: " << e.getNoteNumber();
+			s << " value2: " << e.getVelocity();
+			s << " timestamp: " << (int)e.getTimeStamp();
+			s << "\n";
 
-		DBG(s);
+			DBG(s);
 
-		if(gs != nullptr)
-			gs->logMessage(s);
+			if (gs != nullptr)
+			{
+				gs->logMessage(s + "\n");
+			}
+		});
 
 		return e;
 	}
@@ -379,6 +501,7 @@ public:
 		gs(scope_)
 	{};
 
+	WeakReference<BaseScope> classScope;
 	WeakReference<GlobalScope> gs;
 };
 
@@ -414,7 +537,8 @@ public:
 
 	};
 
-	
+	bool isInternalObject() const override { return true; }
+	int getTypeNumber() const override { return Types::ID::Block; }
 
 public:
 
@@ -439,6 +563,9 @@ public:
 
 #undef WRAP_MESSAGE_FUNCTION
 	};
+
+	bool isInternalObject() const override { return true; }
+	int getTypeNumber() const override { return Types::ID::Event; }
 
 public:
 

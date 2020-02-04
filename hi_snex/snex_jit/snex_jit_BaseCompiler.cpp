@@ -48,7 +48,9 @@ using namespace asmjit;
         dynamic_cast<OptimizationPass*>(currentOptimization)->processStatementInternal(this, scope, ptr);
     }
     
-    void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
+	
+
+	void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
     {
         if (isOptimizationPass(p) && passes.isEmpty())
             return;

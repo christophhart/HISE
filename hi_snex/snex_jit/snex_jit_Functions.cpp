@@ -52,8 +52,13 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 		if (arg.isAlias)
 			s << "&";
 
-		if (parameterIds[index].isValid())
-			s << " " << parameterIds[index].toString();
+		auto pName = parameterIds[index].toString();
+
+		if (pName.isEmpty())
+			pName = arg.parameterName;
+
+		if (pName.isNotEmpty())
+			s << " " << pName;
 
 		if (++index != args.size())
 			s << ", ";

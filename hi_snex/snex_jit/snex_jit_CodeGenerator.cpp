@@ -85,12 +85,12 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 }
 
 
-void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
+void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 {
 	type = source->getType();
 
 	cc.setInlineComment("Write class variable ");
-	auto data = source->getGlobalDataPointer();
+	auto data = ptrToUse != nullptr ? ptrToUse : source->getGlobalDataPointer();
 
 #if JUCE_64BIT
 
@@ -107,6 +107,8 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source)
 	IF_(float)	ok = cc.movss(target, source->getRegisterForReadOp().as<X86Xmm>());
 	IF_(double) ok = cc.movsd(target, source->getRegisterForReadOp().as<X86Xmm>());
 }
+
+
 
 
 void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
@@ -571,6 +573,40 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	}
 }
 
+
+
+void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
+{
+	auto classScope = dynamic_cast<ClassScope*>(Operations::findClassScope(s));
+	auto globalScope = dynamic_cast<GlobalScope*>(classScope->getParent());
+	auto& bpHandler = globalScope->getBreakpointHandler();
+
+	Array<Identifier> ids;
+	
+	for (auto r : registerPool->getListOfAllNamedRegisters())
+	{
+		if (auto ref = r->getVariableId())
+		{
+			if (auto address = bpHandler.getNextFreeTable(ref))
+				emitMemoryWrite(r, address);
+		}
+	}
+
+	
+	auto data = reinterpret_cast<void*>(bpHandler.getLineNumber());
+
+#if JUCE_64BIT
+
+	TemporaryRegister ad(*this, Types::ID::Block);
+	int ok = cc.mov(ad.get(), reinterpret_cast<uint64_t>(data));
+	auto target = x86::qword_ptr(ad.get());
+#else
+	auto target = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
+
+#endif
+
+	cc.mov(target, lineNumber);
+}
 
 void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer)
 {

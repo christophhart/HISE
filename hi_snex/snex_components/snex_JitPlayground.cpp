@@ -36,8 +36,10 @@ using namespace juce;
 
 
 SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
+	memory(),
+	bpProvider(memory),
 	externalCodeValue(externalCode),
-	editor(doc, &tokeniser),
+	editor(doc, &tokeniser, this, "SnexCode"),
 	assembly(assemblyDoc, &assemblyTokeniser),
 	console(consoleContent, &consoleTokeniser),
 	snexIcon(factory.createPath("snex")),
@@ -50,22 +52,28 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	spacerSignal("Test signal"),
 	spacerConsole("Console"),
 	spacerInfo("Info"),
+	spacerTable("Variable Table"),
 	spacerParameters("Parameters"),
-	compileButton("Compile")
+	compileButton("Compile"),
+	resumeButton("Resume"),
+	showTable("Table"),
+	runThread(*this)
 {
 	memory.addOptimization(OptimizationIds::ConstantFolding);
 	memory.addOptimization(OptimizationIds::DeadCodeElimination);
 	memory.addOptimization(OptimizationIds::Inlining);
 	memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
+	memory.getBreakpointHandler().setActive(true);
 
 	setName("SNEX Editor");
 
     setLookAndFeel(&laf);
-
     
 	addAndMakeVisible(editor);
 	addAndMakeVisible(console);
+
+	watchTable.setHolder(&bpProvider);
 
 	editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(18.0f));
 	editor.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xCC38383A));
@@ -80,8 +88,6 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 		doc.replaceAllContent(externalCode.toString());
 	
 	doc.clearUndoHistory();
-
-	
 
 	editor.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
 	editor.setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFBBBBBB));
@@ -106,12 +112,12 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	console.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
 
 	console.setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFBBBBBB));
-
 	console.setReadOnly(true);
-
 	console.setLineNumbersShown(false);
 
 	CodeEditorComponent::ColourScheme scheme;
+
+	addAndMakeVisible(watchTable);
 
 	scheme.set("Error", Colour(0xffFF8888));
 	scheme.set("Comment", Colour(0xFF88CC88));
@@ -142,6 +148,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 	addAndMakeVisible(stateViewer);
 	addAndMakeVisible(showInfo);
+	addAndMakeVisible(watchTable);
 	addAndMakeVisible(showParameters);
 	addAndMakeVisible(showAssembly);
 	addAndMakeVisible(showSignal);
@@ -151,16 +158,23 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	addAndMakeVisible(spacerParameters);
 	addAndMakeVisible(spacerConsole);
 	addAndMakeVisible(spacerInfo);
+	addAndMakeVisible(spacerTable);
 	addAndMakeVisible(spacerSignal);
 	addAndMakeVisible(sliders);
 	addAndMakeVisible(compileButton);
+	addAndMakeVisible(resumeButton);
+	addAndMakeVisible(showTable);
+
+	memory.getBreakpointHandler().addListener(this);
 
 	stateViewer.setVisible(false);
 	assembly.setVisible(false);
 	console.setVisible(false);
 	graph.setVisible(false);
 	sliders.setVisible(false);
+	watchTable.setVisible(false);
 
+	showTable.setClickingTogglesState(true);
 	showInfo.setClickingTogglesState(true);
 	showAssembly.setClickingTogglesState(true);
 	showConsole.setClickingTogglesState(true);
@@ -172,7 +186,9 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	showSignal.setLookAndFeel(&blaf);
 	showConsole.setLookAndFeel(&blaf);
 	showParameters.setLookAndFeel(&blaf);
+	showTable.setLookAndFeel(&blaf);
 	compileButton.setLookAndFeel(&blaf);
+	resumeButton.setLookAndFeel(&blaf);
 
 	showInfo.onClick = [this]()
 	{
@@ -198,6 +214,12 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 		resized();
 	};
 
+	showTable.onClick = [this]()
+	{
+		watchTable.setVisible(showTable.getToggleState());
+		resized();
+	};
+
 	showAssembly.onClick = [this]()
 	{
 		assembly.setVisible(showAssembly.getToggleState());
@@ -209,8 +231,14 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 		recompile(); 
 	};
 
+	resumeButton.onClick = [this]()
+	{
+		memory.getBreakpointHandler().resume();
+	};
+
 	consoleContent.addListener(this);
 
+	watchTable.setResizeOnChange(true);
 
 	auto f = [this]()
 	{
@@ -218,7 +246,6 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 		editor.grabKeyboardFocus();
 	};
 
-    
     
 	cData.setListener(&stateViewer);
 
@@ -229,6 +256,8 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 SnexPlayground::~SnexPlayground()
 {
+	runThread.stopThread(1000);
+	memory.getBreakpointHandler().removeListener(this);
 	externalCodeValue.setValue(doc.getAllContent());
 }
 
@@ -281,11 +310,12 @@ void SnexPlayground::resized()
 {
 	auto area = getLocalBounds();
 
-    auto top = area.removeFromTop(32);
+    auto top = area.removeFromTop(28);
 
-	auto bottom = area.removeFromBottom(30);
+	auto bottom = area.removeFromBottom(24);
 
 	compileButton.setBounds(bottom.removeFromRight(128));
+	resumeButton.setBounds(bottom.removeFromRight(128));
 	bottom.removeFromRight(10);
     resultLabel.setBounds(bottom);
 
@@ -294,27 +324,29 @@ void SnexPlayground::resized()
 	bool signalVisible = graph.isVisible();
 	bool assemblyVisible = assembly.isVisible();
 	bool parametersVisible = sliders.isVisible();
+	bool tableVisible = watchTable.isVisible();
 
 	spacerSignal.setVisible(signalVisible);
+	spacerTable.setVisible(tableVisible);
 	spacerInfo.setVisible(infoVisible);
 	spacerAssembly.setVisible(assemblyVisible);
 	spacerConsole.setVisible(consoleVisible);
 	spacerParameters.setVisible(parametersVisible);
 
-	auto topRight = top.removeFromRight(480);
+	auto topRight = top.removeFromRight(500);
 
-	auto buttonWidth = topRight.getWidth() / 5;
+	auto buttonWidth = topRight.getWidth() / 6;
 
 	showInfo.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	showParameters.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	showSignal.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	showAssembly.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
-	
+	showTable.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	showConsole.setBounds(topRight.removeFromLeft(buttonWidth).reduced(4));
 	
 	top.removeFromLeft(100);
 
-	if (infoVisible || consoleVisible || signalVisible || assemblyVisible || parametersVisible)
+	if (infoVisible || consoleVisible || signalVisible || assemblyVisible || parametersVisible || tableVisible)
 	{
 		auto left = area.removeFromRight(480);
 
@@ -323,7 +355,12 @@ void SnexPlayground::resized()
 			spacerInfo.setBounds(left.removeFromTop(20));
 			stateViewer.setBounds(left.removeFromTop(stateViewer.getHeight()));
 		}
-			
+
+		if (tableVisible)
+		{
+			spacerTable.setBounds(left.removeFromTop(20));
+			watchTable.setBounds(left.removeFromTop(watchTable.getHeight()));
+		}
 
 		if (parametersVisible)
 		{
@@ -357,27 +394,27 @@ void SnexPlayground::resized()
 }
 
 
-void SnexPlayground::recalculate()
+void SnexPlayground::recalculateInternal()
 {
 	int mode = jmax(0, graph.processingMode.getSelectedItemIndex());
-
 	auto bestCallback = cData.getBestCallback(mode);
+	juce::String rs;
 
-	stateViewer.setFrameProcessing(mode);
-
-    if(bestCallback != CallbackTypes::Inactive)
-    {
+	if (bestCallback != CallbackTypes::Inactive)
+	{
 		int numChannels = jmax(1, graph.channelMode.getSelectedId());
 		int numSamples = jmax(16, graph.bufferLength.getText().getIntValue());
 
 		b.setSize(numChannels, numSamples);
 		b.clear();
 		createTestSignal();
-		
+
+		currentSampleIndex.store(0);
+
 		cData.prepare((double)numSamples, numSamples, numChannels);
-		
-        try
-        {
+
+		try
+		{
 			auto start = Time::getMillisecondCounterHiRes();
 
 			if (mode == CallbackCollection::FrameProcessing)
@@ -404,6 +441,8 @@ void SnexPlayground::recalculate()
 
 					for (int i = 0; i < b.getNumSamples(); i++)
 					{
+						currentSampleIndex.store(i);
+
 						float data[2];
 
 						data[0] = *l;
@@ -428,6 +467,7 @@ void SnexPlayground::recalculate()
 
 					for (int i = 0; i < b.getNumSamples(); i++)
 					{
+						currentSampleIndex.store(i);
 
 						float value = *l;
 						float result = cData.callbacks[CallbackTypes::Sample].callUncheckedWithCopy<float>(value);
@@ -495,45 +535,71 @@ void SnexPlayground::recalculate()
 							*ptr++ = result;
 						}
 					}
-					
+
 					break;
 				}
+				}
+
+
 			}
 
-			
-			}
-
-            auto stop = Time::getMillisecondCounterHiRes();
-            
-            auto duration = stop - start;
-            
-			juce::String rs;
-            
-            rs << "Compiled OK. Time: " << juce::String(duration * 0.1, 2) << "%";
-            
-            resultLabel.setText(rs, dontSendNotification);
-            
-        }
-        catch (Types::OutOfBoundsException& exception)
-        {
+			auto stop = Time::getMillisecondCounterHiRes();
+			auto duration = stop - start;
+			rs << "Compiled OK. Time: " << juce::String(duration * 0.1, 2) << "%";
+		}
+		catch (Types::OutOfBoundsException& exception)
+		{
 			juce::String error;
-            
-            b.clear();
-            
-            error << "Out of bounds buffer access: " << juce::String(exception.index);
-            resultLabel.setText(error, dontSendNotification);
-        }
-    }
-    else
-    {
-        resultLabel.setText("processFrame was not found.", dontSendNotification);
-    }
 
-	graph.setBuffer(b);
+			b.clear();
+
+			error << "Out of bounds buffer access: " << juce::String(exception.index);
+			rs = error;
+		}
+	}
+	else
+	{
+		rs = "processFrame was not found.";
+	}
+
+	auto f = [this, rs]()
+	{
+		resultLabel.setText(rs, dontSendNotification);
+		graph.setBuffer(b);
+	};
+
+	MessageManager::callAsync(f);
+}
+
+void SnexPlayground::recalculate()
+{
+	int mode = jmax(0, graph.processingMode.getSelectedItemIndex());
+	stateViewer.setFrameProcessing(mode);
+
+	dirty = true;
+	
+	if (!runThread.isThreadRunning())
+		runThread.startThread();
+	else
+		runThread.notify();
 }
 
 void SnexPlayground::recompile()
 {
+	if (!memory.getBreakpointHandler().isRunning())
+	{
+		memory.getBreakpointHandler().abort();
+
+		runThread.stopThread(1000);
+
+		while (runThread.isThreadRunning())
+		{
+			Thread::getCurrentThread()->wait(800);
+		}
+
+		memory.getBreakpointHandler().clearTable();
+	}
+
 	juce::String s;
 	s << doc.getAllContent();
 
@@ -561,8 +627,12 @@ void SnexPlayground::recompile()
 		assemblyDoc.replaceAllContent(cc.getAssemblyCode());
 		sliders.updateFromJitObject(cData.obj);
 
+		cData.obj.rebuildDebugInformation();
+
+		rebuild();
 		resized();
 		recalculate();
+		
 	}
 }
 
@@ -570,10 +640,15 @@ bool SnexPlayground::keyPressed(const KeyPress& k)
 {
 	if (k.getKeyCode() == KeyPress::F5Key)
 	{
-		recompile();
-
+		compileButton.triggerClick();
 		return true;
 	}
+	if (k.getKeyCode() == KeyPress::F10Key)
+	{
+		resumeButton.triggerClick();
+		return true;
+	}
+		
 
 	return false;
 }
@@ -602,6 +677,9 @@ void SnexPlayground::createTestSignal()
 
 void Graph::setBuffer(AudioSampleBuffer& b)
 {
+	if (b.getNumSamples() == 0)
+		return;
+
 	calculatePath(l, b, 0);
 
 	stereoMode = b.getNumChannels() == 2;
@@ -616,9 +694,6 @@ void Graph::setBuffer(AudioSampleBuffer& b)
 	pb.removeFromRight(60);
 
 	leftPeaks = b.findMinMax(0, 0, b.getNumSamples());
-
-	
-	
 
 	if (stereoMode)
 	{
@@ -644,6 +719,20 @@ void Graph::paint(Graphics& g)
 	g.fillAll(Colour(0x33666666));
 	
 	g.setFont(GLOBAL_BOLD_FONT());
+
+	if (currentPosition > 0 && numSamples > 0)
+	{
+		float pos = (float)currentPosition / (float)numSamples;
+
+		auto pb = getLocalBounds();
+		pb.removeFromLeft(boxWidth);
+		pb.removeFromRight(60);
+
+		pos *= (float)pb.getWidth();
+
+		g.setColour(Colours::red);
+		g.drawVerticalLine((int)pos + boxWidth, 0.0f, (float)getHeight());
+	}
 
 	if (l.isEmpty() && r.isEmpty())
 	{
@@ -699,7 +788,11 @@ void Graph::paint(Graphics& g)
 
 void Graph::calculatePath(Path& p, AudioSampleBuffer& b, int channel)
 {
+	numSamples = b.getNumSamples();
 	p.clear();
+
+	if (numSamples == 0)
+		return;
 
 	if (b.getMagnitude(channel, 0, b.getNumSamples()) > 0.0f)
 	{
@@ -892,6 +985,72 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
         
         return p;
     }
+
+	void BreakpointDataProvider::rebuild()
+	{
+		infos.clear();
+
+		for (int i = 0; i < handler.getNumEntries(); i++)
+		{
+			auto e = handler.getEntry(i);
+			auto si = new SettableDebugInfo();
+
+			si->typeValue = e.currentValue.getType();
+			si->name = e.id.toString();
+			si->dataType = e.scope == BaseScope::ScopeType::Class ? "global" : "local";
+			si->value = Types::Helpers::getCppValueString(e.currentValue);
+
+			infos.add(si);
+		}
+
+		if (auto cs = dynamic_cast<ClassScope*>(scope.getCurrentClassScope()))
+		{
+			for (auto v : cs->getAllVariables())
+			{
+				bool found = false;
+
+				for (auto existing : infos)
+				{
+					if (existing->getTextForName() == v.id.toString())
+					{
+						found = true;
+						break;
+					}
+				}
+
+				if (found)
+					continue;
+
+				auto si = new SettableDebugInfo();
+
+				if (auto va = cs->get(v))
+				{
+					auto value = va->getDataCopy();
+
+					si->typeValue = value.getType();
+					si->name = v.id.toString();
+					si->dataType = "global";
+					si->value = Types::Helpers::getCppValueString(value);
+
+					infos.add(si);
+				}
+
+
+			}
+
+			cs->addRegisteredFunctionClasses(infos, -1);
+
+			StringArray removeClasses = { "Math", "Message", "Block" };
+
+			for (int i = 0; i < infos.size(); i++)
+			{
+				if(removeClasses.contains(infos[i]->getTextForName()))
+					infos.remove(i--);
+			}
+		}
+
+		Holder::rebuild();
+	}
 
 }
 }

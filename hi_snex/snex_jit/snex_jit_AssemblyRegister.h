@@ -176,6 +176,8 @@ public:
 	void removeIfUnreferenced(AssemblyRegister::Ptr ref);
 	AssemblyRegister::Ptr getNextFreeRegister(Types::ID type);
 
+	RegList getListOfAllNamedRegisters();
+
 private:
 
 	ReferenceCountedArray<AssemblyRegister> currentRegisterPool;

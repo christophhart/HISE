@@ -377,5 +377,18 @@ AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(Types::ID type)
 	return newReg;
 }
 
+AssemblyRegisterPool::RegList AssemblyRegisterPool::getListOfAllNamedRegisters()
+{
+	RegList list;
+
+	for (auto r : currentRegisterPool)
+	{
+		if (auto ref = r->getVariableId())
+			list.add(r);
+	}
+
+	return list;
+}
+
 }
 }

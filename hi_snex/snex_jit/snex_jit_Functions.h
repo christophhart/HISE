@@ -92,6 +92,16 @@ struct FunctionData
 
 	bool matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType = true) const;
 
+	void setDescription(const juce::String& d, const StringArray& parameterNames = StringArray())
+	{
+		description = d;
+		
+		for (int i = 0; i < args.size(); i++)
+			args.getReference(i).parameterName = parameterNames[i];
+	}
+
+	juce::String description;
+
 	/** the function ID. */
 	Identifier id;
 
@@ -127,6 +137,7 @@ struct FunctionData
 
 		Types::ID type = Types::ID::Dynamic;
 		bool isAlias = false;
+		String parameterName;
 	};
 
 	/** The argument list. */
@@ -188,7 +199,7 @@ struct FunctionData
 };
 
 /** A function class is a collection of functions. */
-struct FunctionClass
+struct FunctionClass: public DebugableObjectBase
 {
 	struct Constant
 	{
@@ -205,6 +216,120 @@ struct FunctionClass
 		registeredClasses.clear();
 		functions.clear();
 	};
+
+	// =========================================================== DebugableObject overloads
+
+	static ValueTree createApiTree(FunctionClass* r)
+	{
+		ValueTree p(r->getObjectName());
+
+		for (auto f : r->functions)
+		{
+			ValueTree m("method");
+			m.setProperty("name", f->id.toString(), nullptr);
+			m.setProperty("description", f->getSignature(), nullptr);
+
+			juce::String arguments = "(";
+
+			int index = 0;
+
+			for (auto arg : f->args)
+			{
+				index++;
+
+				if (arg.type == Types::ID::Block && r->getObjectName().toString() == "Block")
+					continue;
+
+				if (arg.type == Types::ID::Event && r->getObjectName().toString() == "Message")
+					continue;
+
+				arguments << Types::Helpers::getTypeName(arg.type);
+
+				if (arg.parameterName.isNotEmpty())
+					arguments << " " << arg.parameterName;
+
+				if (index < (f->args.size()))
+					arguments << ", ";
+			}
+
+			arguments << ")";
+
+			m.setProperty("arguments", arguments, nullptr);
+			m.setProperty("returnType", Types::Helpers::getTypeName(f->returnType), nullptr);
+			m.setProperty("description", f->description, nullptr);
+			m.setProperty("typenumber", (int)f->returnType, nullptr);
+
+			p.addChild(m, -1, nullptr);
+		}
+
+		return p;
+	}
+
+	ValueTree getApiValueTree() const
+	{
+		ValueTree v("Api");
+
+		for (auto r : registeredClasses)
+		{
+			v.addChild(createApiTree(r), -1, nullptr);
+		}
+
+		return v;
+	}
+
+	juce::String getCategory() const override { return "API call"; };
+
+	Identifier getObjectName() const override { return className; }
+
+	juce::String getDebugValue() const override { return className.toString(); };
+
+	juce::String getDebugDataType() const override { return "Class"; };
+
+	void getAllFunctionNames(Array<Identifier>& functions) const 
+	{
+		functions.addArray(getFunctionIds());
+	};
+
+	void setDescription(const String& s, const StringArray& names)
+	{
+		if (auto last = functions.getLast())
+			last->setDescription(s, names);
+	}
+
+	virtual void getAllConstants(Array<Identifier>& ids) const 
+	{
+		for (auto c : constants)
+			ids.add(c.id);
+	};
+
+	DebugInformationBase* createDebugInformationForChild(const Identifier& id) override
+	{
+		for (auto& c : constants)
+		{
+			if (c.id == id)
+			{
+				auto s = new SettableDebugInfo();
+				s->codeToInsert << getInstanceName().toString() << "." << id.toString();
+				s->dataType = "Constant";
+				s->type = Types::Helpers::getTypeName(c.value.getType());
+				s->typeValue = ApiHelpers::DebugObjectTypes::Constants;
+				s->value = Types::Helpers::getCppValueString(c.value);
+				s->name = s->codeToInsert;
+				s->category = "Constant";
+
+				return s;
+			}
+		}
+
+		return nullptr;
+	}
+
+	const var getConstantValue(int index) const 
+	{ 
+		return var(constants[index].value.toDouble());
+	};
+
+	// =====================================================================================
 
 	virtual bool hasFunction(const Identifier& classId, const Identifier& functionId) const;
 

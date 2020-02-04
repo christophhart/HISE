@@ -84,15 +84,15 @@ struct ParserHelpers
 	struct CodeLocation
 	{
 		
-		CodeLocation(const String::CharPointerType& code, 
-			         const String::CharPointerType& wholeProgram) noexcept        : 
+		CodeLocation(const juce::String::CharPointerType& code,
+			         const juce::String::CharPointerType& wholeProgram) noexcept        :
 		  program(wholeProgram),
 		  location(code)
 		{};
 
 		CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location) {}
 
-		void throwError(const String& message) const
+		void throwError(const juce::String& message) const
 		{
 			Error e(program, location);
 
@@ -101,8 +101,13 @@ struct ParserHelpers
 			throw e;
 		}
 
-		static int getLineNumber(String::CharPointerType start, 
-								 String::CharPointerType end)
+		int getLine() const
+		{
+			return getLineNumber(program, location);
+		}
+
+		static int getLineNumber(juce::String::CharPointerType start, 
+			juce::String::CharPointerType end)
 		{
 			int line = 1;
 

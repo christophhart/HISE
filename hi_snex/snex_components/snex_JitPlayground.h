@@ -38,6 +38,8 @@ namespace jit {
 using namespace juce;
 
 
+
+
 struct CallbackStateComponent : public Component,
 								public CallbackCollection::Listener
 {
@@ -93,8 +95,9 @@ struct CallbackStateComponent : public Component,
 		s << "**Used Callback**: `" << getCallbackName() << "`";
 
 		r.setNewText(s);
-		r.getHeightForWidth((float)(getWidth() + 10), true);
-		setSize(getWidth(), 130);
+		auto h = r.getHeightForWidth((float)(getWidth() + 10), true);
+
+		setSize(getWidth(), h + 10);
 
 		repaint();
 	}
@@ -105,7 +108,10 @@ struct CallbackStateComponent : public Component,
 		blockSize = blockSize_;
 		numChannels = numChannels_;
 		
-		rebuild();
+		MessageManager::callAsync([this]
+		{
+			rebuild();
+		});
 	}
 
 	juce::String processSpecs;
@@ -121,6 +127,7 @@ struct CallbackStateComponent : public Component,
 	bool frameProcessing = false;
 	bool active = false;
 
+	BreakpointHandler* handler = nullptr;
 	MarkdownRenderer r;
 };
 
@@ -132,31 +139,40 @@ struct SnexPathFactory: public hise::PathFactory
     
 struct Graph : public Component
 {
+	bool barebone = false;
 	int boxWidth = 128;
 
-	Graph() :
+	
+
+	Graph(bool barebone_=false) :
 		testSignal("TestSignal"),
-		channelMode("ChannelMode")
+		channelMode("ChannelMode"),
+		barebone(barebone_),
+		boxWidth(barebone ? 0 : 128)
 	{
-		addAndMakeVisible(testSignal);
-		skin(testSignal);
-		testSignal.setTextWhenNothingSelected("Select test signal");
-		testSignal.addItemList({ "Noise", "Ramp", "Fast Ramp" }, 1);
+		if (!barebone)
+		{
+			addAndMakeVisible(testSignal);
+			skin(testSignal);
+			testSignal.setTextWhenNothingSelected("Select test signal");
+			testSignal.addItemList({ "Noise", "Ramp", "Fast Ramp" }, 1);
 
-		addAndMakeVisible(processingMode);
-		skin(processingMode);
-		processingMode.setTextWhenNothingSelected("Select processing");
-		processingMode.addItemList({ "Frame", "Block"}, 1);
+			addAndMakeVisible(processingMode);
+			skin(processingMode);
+			processingMode.setTextWhenNothingSelected("Select processing");
+			processingMode.addItemList({ "Frame", "Block" }, 1);
 
-		addAndMakeVisible(channelMode);
-		skin(channelMode);
-		channelMode.setTextWhenNothingSelected("Select channel mode");
-		channelMode.addItemList({ "Mono", "Stereo" }, 1);
+			addAndMakeVisible(channelMode);
+			skin(channelMode);
+			channelMode.setTextWhenNothingSelected("Select channel mode");
+			channelMode.addItemList({ "Mono", "Stereo" }, 1);
 
-		addAndMakeVisible(bufferLength);
-		skin(bufferLength);
-		bufferLength.setTextWhenNothingSelected("Select Buffer size");
-		bufferLength.addItemList({ "16", "512", "44100" }, 1);
+			addAndMakeVisible(bufferLength);
+			skin(bufferLength);
+			bufferLength.setTextWhenNothingSelected("Select Buffer size");
+			bufferLength.addItemList({ "16", "512", "44100" }, 1);
+		}
+		
 	}
 
 	void skin(ComboBox& b)
@@ -178,13 +194,25 @@ struct Graph : public Component
 
 	void resized() override
 	{
-		auto boxBounds = getLocalBounds().removeFromLeft(boxWidth);
+		if (!barebone)
+		{
+			auto boxBounds = getLocalBounds().removeFromLeft(boxWidth);
 
-		testSignal.setBounds(boxBounds.removeFromTop(30));
-		channelMode.setBounds(boxBounds.removeFromTop(30));
-		bufferLength.setBounds(boxBounds.removeFromTop(30));
-		processingMode.setBounds(boxBounds.removeFromTop(30));
+			testSignal.setBounds(boxBounds.removeFromTop(30));
+			channelMode.setBounds(boxBounds.removeFromTop(30));
+			bufferLength.setBounds(boxBounds.removeFromTop(30));
+			processingMode.setBounds(boxBounds.removeFromTop(30));
+		}
 	}
+
+	void setCurrentPosition(int newPos)
+	{
+		currentPosition = newPos;
+		repaint();
+	}
+
+	int numSamples = 0;
+	int currentPosition = 0;
 
 	void calculatePath(Path& p, AudioSampleBuffer& b, int channel);
 
@@ -221,17 +249,110 @@ class AssemblyTokeniser : public juce::CodeTokeniser
 	CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
 };
 
+class BreakpointDataProvider : public ApiProviderBase,
+							   public ApiProviderBase::Holder
+{
+public:
+
+	BreakpointDataProvider(GlobalScope& m) :
+		handler(m.getBreakpointHandler()),
+		scope(m)
+	{};
+
+	ApiProviderBase* getProviderBase() override { return this; }
+
+	int getNumDebugObjects() const override
+	{
+		return infos.size();
+	}
+
+	DebugInformationBase* getDebugInformation(int index)
+	{
+		return infos[index];
+	}
+
+	void getColourAndLetterForType(int type, Colour& colour, char& letter) override
+	{
+		ApiHelpers::getColourAndLetterForType(type, colour, letter);
+	}
+
+	void rebuild() override;
+
+	OwnedArray<DebugInformationBase> infos;
+	GlobalScope& scope;
+	BreakpointHandler& handler;
+};
+
 class SnexPlayground : public Component,
 	public ComboBox::Listener,
 	public DebugHandler,
-	public CodeDocument::Listener
+	public ApiProviderBase::Holder,
+	public CodeDocument::Listener,
+	public BreakpointHandler::Listener
 {
 public:
+
+	ValueTree createApiTree() override 
+	{ 
+		return cData.obj.createValueTree();
+	}
+
+	void eventHappened(BreakpointHandler* handler, BreakpointHandler::EventType type) override
+	{
+		currentBreakpointLine = *handler->getLineNumber();
+
+		if (type == BreakpointHandler::Resume)
+			currentBreakpointLine = -1;
+
+		resumeButton.setEnabled(type == BreakpointHandler::Break);
+		graph.setBuffer(b);
+		graph.setCurrentPosition(currentSampleIndex);
+
+		juce::String s;
+
+		s << "Line " << currentBreakpointLine;
+		s << ": Execution paused at ";
+
+		if (currentParameter.isNotEmpty())
+			s << "parameter callback " << currentParameter;
+		else
+			s << juce::String(currentSampleIndex.load());
+
+		resultLabel.setText(s, dontSendNotification);
+		editor.repaint();
+		bpProvider.rebuild();
+		resized();
+	}
+
+	ApiProviderBase* getProviderBase() override { return &cData.obj; }
 
 	void codeDocumentTextInserted(const juce::String& , int ) override
 	{
 		auto lineToShow = jmax(0, consoleContent.getNumLines() - console.getNumLinesOnScreen());
 		console.scrollToLine(lineToShow);
+	}
+
+	void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) override
+	{
+		if (currentBreakpointLine > 0)
+		{
+			int firstLine = editor.getFirstLineOnScreen();
+			int lastLine = firstLine + editor.getNumLinesOnScreen();
+
+			if (currentBreakpointLine >= firstLine && currentBreakpointLine <= lastLine)
+			{
+				auto lineHeight = editor.getLineHeight();
+				auto b = editor.getLocalBounds();
+
+				int x = 0;
+				int y = lineHeight * (currentBreakpointLine - firstLine - 1);
+				int w = editor.getWidth();
+				int h = lineHeight;
+
+				g.setColour(Colours::red.withAlpha(0.1f));
+				g.fillRect( x, y, w, h );
+			}
+		}
 	}
 
 	void codeDocumentTextDeleted(int , int ) override
@@ -261,6 +382,7 @@ public:
 				s->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
 				s->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 				s->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+				s->addListener(this);
 
 				functions.add(ParameterHelpers::getFunction(names[i], obj));
 
@@ -282,10 +404,16 @@ public:
 
 			if (auto f = functions[index])
 			{
-				f.callVoid(slider->getValue());
-			}
+				auto value = slider->getValue();
 
-			findParentComponentOfClass<SnexPlayground>()->recalculate();
+				auto parent = findParentComponentOfClass<SnexPlayground>();
+
+				parent->currentParameter = getName();
+				parent->pendingParam = [f, value]()
+				{
+					f.callVoid(value);
+				};
+			}
 		}
        
         
@@ -356,6 +484,53 @@ public:
 
 private:
 
+	
+
+	int currentBreakpointLine = -1;
+
+	struct RunThread : public Thread
+	{
+		RunThread(SnexPlayground& parent) :
+			Thread("SnexPlaygroundThread"),
+			p(parent)
+		{
+			setPriority(4);
+			startThread();
+		}
+
+		SnexPlayground& p;
+
+		void run() override
+		{
+			while (!threadShouldExit())
+			{
+				if (p.pendingParam)
+				{
+					p.pendingParam();
+					p.pendingParam = {};
+					p.currentParameter = "";
+					p.dirty = true;
+				}
+
+				if (p.dirty)
+				{
+					p.recalculateInternal();
+					p.dirty = false;
+				}
+
+				yield();
+			}
+		}
+
+	} runThread;
+
+	juce::String currentParameter;
+	std::function<void(void)> pendingParam;
+
+	bool dirty = false;
+
+	void recalculateInternal();
+
 	struct ButtonLaf : public LookAndFeel_V3
 	{
 		void drawButtonBackground(Graphics& g, Button& b, const Colour& , bool over, bool down)
@@ -401,15 +576,14 @@ private:
 	Value externalCodeValue;
 
 	CodeDocument doc;
-
-	
-
 	AudioSampleBuffer b;
 	Graph graph;
 	
 	juce::CPlusPlusCodeTokeniser tokeniser;
-	
-	CodeEditorComponent editor;
+	jit::GlobalScope memory;
+	BreakpointDataProvider bpProvider;
+
+	JavascriptCodeEditor editor;
 	AssemblyTokeniser assemblyTokeniser;
 	CodeDocument assemblyDoc;
 	CodeEditorComponent assembly;
@@ -435,25 +609,31 @@ private:
 	Compiler::Tokeniser consoleTokeniser;
 	CodeDocument consoleContent;
 	CodeEditorComponent console;
-    
+	ScriptWatchTable watchTable;
+
     SnexPathFactory factory;
     Path snexIcon;
 
+	TextButton showTable;
 	TextButton showAssembly;
 	TextButton showSignal;
 	TextButton showConsole;
 	TextButton showParameters;
 	TextButton compileButton;
+	TextButton resumeButton;
 	TextButton showInfo;
     
+	std::atomic<int> currentSampleIndex = { 0 };
+
 	Spacer spacerAssembly;
 	Spacer spacerInfo;
 	Spacer spacerParameters;
+	Spacer spacerTable;
 	Spacer spacerConsole;
 	Spacer spacerSignal;
 
     ParameterList sliders;
-	jit::GlobalScope memory;
+	
 	
 	CallbackCollection cData;
 	CallbackStateComponent stateViewer;

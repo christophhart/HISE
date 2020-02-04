@@ -126,5 +126,39 @@ JitObject::operator bool() const
 	return functionClass != nullptr;
 }
 
+void JitObject::rebuildDebugInformation()
+{
+	functionClass->pimpl->createDebugInfo(functionClass->debugInformation);
+}
+
+hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
+{
+	for (auto& f : functionClass->debugInformation)
+	{
+		if (token == f->getCodeToInsert())
+		{
+			if (f->getType() == Types::ID::Block)
+				return functionClass->pimpl->getSubFunctionClass("Block");
+			if (f->getType() == Types::ID::Event)
+				return functionClass->pimpl->getSubFunctionClass("Message");
+		}
+	}
+
+	return ApiProviderBase::getDebugObject(token);
+}
+
+juce::ValueTree JitObject::createValueTree()
+{
+	auto c = dynamic_cast<GlobalScope*>(functionClass->pimpl->getParent())->getGlobalFunctionClass("Console");
+	auto v = functionClass->pimpl->getApiValueTree();
+	v.addChild(FunctionClass::createApiTree(c), -1, nullptr);
+	return v;
+}
+
+void JitObject::getColourAndLetterForType(int type, Colour& colour, char& letter)
+{
+	return ApiHelpers::getColourAndLetterForType(type, colour, letter);
+}
+
 }
 }

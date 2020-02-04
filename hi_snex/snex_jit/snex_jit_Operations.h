@@ -263,6 +263,43 @@ struct Operations::VariableReference : public Expression
 	//bool isClassVariable = false;
 };
 
+
+struct Operations::Cast : public Expression
+{
+	Cast(Location l, Expression::Ptr expression, Types::ID targetType) :
+		Expression(l)
+	{
+		addStatement(expression);
+		type = targetType;
+	};
+
+	// Make sure the target type is used.
+	Types::ID getType() const override { return type; }
+
+	void process(BaseCompiler* compiler, BaseScope* scope)
+	{
+		Expression::process(compiler, scope);
+
+		COMPILER_PASS(BaseCompiler::TypeCheck)
+		{
+			auto sourceType = getSubExpr(0)->getType();
+			auto targetType = getType();
+
+			if (sourceType == targetType)
+				replaceInParent(getSubExpr(0));
+		}
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			auto asg = CREATE_ASM_COMPILER(type);
+			auto sourceType = getSubExpr(0)->getType();
+			reg = compiler->getRegFromPool(type);
+			asg.emitCast(reg, getSubRegister(0), sourceType);
+		}
+	}
+};
+
+
 struct Operations::Assignment : public Expression
 {
 	Assignment(Location l, Expression::Ptr target, TokenType assignmentType_, Expression::Ptr expr) :
@@ -279,80 +316,7 @@ struct Operations::Assignment : public Expression
 		return this == tree->getLastAssignmentForReference(getTargetVariable()->ref);
 	}
 
-	void process(BaseCompiler* compiler, BaseScope* scope) override
-	{
-		/*
-		ResolvingSymbols: check that target is not const
-		TypeCheck, = > check type match
-		DeadCodeElimination, = > remove unreferenced local variables
-		Inlining, = > make self assignment
-		CodeGeneration, = > Store or Op
-		*/
-
-		/** Assignments might use the target register, so we need to process the target first*/
-		if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
-		{
-			Statement::process(compiler, scope);
-		}
-		else
-		{
-			Expression::process(compiler, scope);
-		}
-		
-		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
-		{
-			if (getSubExpr(0)->isConstExpr() && findClassScope(scope) == scope)
-			{
-				auto& ref = getTargetVariable()->ref->getDataReference(true);
-
-				ref = getSubExpr(0)->getConstExprValue();
-			}
-
-			auto v = getTargetVariable();
-
-			if (v->isLocalConst && !v->isFirstReference())
-				throwError("Can't change constant variable");
-		}
-
-
-		COMPILER_PASS(BaseCompiler::TypeCheck)
-		{
-			auto expectedType = getTargetVariable()->getType();
-
-			checkAndSetType(0, expectedType);
-		}
-
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			auto targetV = getTargetVariable();
-
-			getSubExpr(0)->process(compiler, scope);
-
-
-			targetV->process(compiler, scope);
-
-			auto acg = CREATE_ASM_COMPILER(type);
-
-			auto value = getSubRegister(0);
-			auto tReg = getSubRegister(1);
-
-			if (assignmentType == JitTokens::assign_)
-			{
-				if (tReg != value)
-					acg.emitStore(tReg, value);
-			}
-			else
-				acg.emitBinaryOp(assignmentType, tReg, value);
-
-			
-
-			
-
-			
-
-			//getSubRegister(0)->flagForReuseIfAnonymous();
-		}
-	}
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
 	VariableReference* getTargetVariable() const
 	{
@@ -394,6 +358,20 @@ struct Operations::Compare : public Expression
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
 		Expression::process(compiler, scope);
+
+
+		COMPILER_PASS(BaseCompiler::TypeCheck)
+		{
+			auto l = getSubExpr(0);
+			auto r = getSubExpr(1);
+
+			if (l->getType() != r->getType())
+			{
+				Ptr implicitCast = new Operations::Cast(location, getSubExpr(1), l->getType());
+				logWarning("Implicit cast to float for comparison");
+				replaceChildStatement(1, implicitCast);
+			}
+		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
@@ -645,10 +623,12 @@ struct Operations::FunctionCall : public Expression
 				if (!fClass->fillJitFunctionPointer(function))
 					throwError("Can't find function pointer to JIT function " + function.functionName);
 			}
-
+			
 			auto asg = CREATE_ASM_COMPILER(type);
 
-			
+			if (function.id.toString() == "stop")
+				asg.dumpVariables(scope, location.getLine());
+
 			VariableReference::reuseAllLastReferences(this);
 
 			for (int i = 0; i < parameterRegs.size(); i++)
@@ -915,41 +895,6 @@ struct Operations::UnaryOp : public Expression
 };
 
 
-
-struct Operations::Cast : public Expression
-{
-	Cast(Location l, Expression::Ptr expression, Types::ID targetType) :
-		Expression(l)
-	{
-		addStatement(expression);
-		type = targetType;
-	};
-
-	// Make sure the target type is used.
-	Types::ID getType() const override { return type; }
-
-	void process(BaseCompiler* compiler, BaseScope* scope)
-	{
-		Expression::process(compiler, scope);
-
-		COMPILER_PASS(BaseCompiler::TypeCheck)
-		{
-			auto sourceType = getSubExpr(0)->getType();
-			auto targetType = getType();
-
-			if (sourceType == targetType)
-				replaceInParent(getSubExpr(0));
-		}
-
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			auto asg = CREATE_ASM_COMPILER(type);
-			auto sourceType = getSubExpr(0)->getType();
-			reg = compiler->getRegFromPool(type);
-			asg.emitCast(reg, getSubRegister(0), sourceType);
-		}
-	}
-};
 
 
 struct Operations::BlockAccess : public Expression

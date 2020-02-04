@@ -153,6 +153,8 @@ public:
 		}
 	}
 
+	
+
 	Pass getCurrentPass() { return currentPass; }
 
 	void executePass(Pass p, BaseScope* scope, SyntaxTree* statements);

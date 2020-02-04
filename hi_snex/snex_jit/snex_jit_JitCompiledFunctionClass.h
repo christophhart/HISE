@@ -59,16 +59,21 @@ public:
 
 	Array<Identifier> getFunctionIds() const;
 
+
 private:
 
+	OwnedArray<DebugInformationBase> debugInformation;
 	friend class ClassCompiler;
+	friend class JitObject;
 
 	ClassScope* pimpl;
 };
 
-class JitObject
+class JitObject: public ApiProviderBase
 {
 public:
+
+	
 
 	JitObject() : functionClass(nullptr) {};
 
@@ -84,7 +89,30 @@ public:
 
 	explicit operator bool() const;;
 	
+	void rebuildDebugInformation();
+
+	int getNumDebugObjects() const override
+	{
+		if(functionClass != nullptr)
+			return functionClass->debugInformation.size();
+		
+		return 0;
+	}
+
+	DebugableObjectBase* getDebugObject(const juce::String& token) override;
+
+	DebugInformationBase* getDebugInformation(int index)
+	{
+		return functionClass->debugInformation[index];
+	}
+
+	ValueTree createValueTree();
+
+	void getColourAndLetterForType(int type, Colour& colour, char& letter) override;
+
 private:
+
+	
 	JitCompiledFunctionClass::Ptr functionClass;
 };
 

@@ -96,7 +96,7 @@ struct AsmCodeGenerator
 
 	void emitStore(RegPtr target, RegPtr value);
 
-	void emitMemoryWrite(RegPtr source);
+	void emitMemoryWrite(RegPtr source, void* ptrToUse=nullptr);
 
 	void emitMemoryLoad(RegPtr reg);
 
@@ -125,6 +125,8 @@ struct AsmCodeGenerator
 	void emitNegation(RegPtr target, RegPtr expr);
 
 	void emitFunctionCall(RegPtr returnReg, const FunctionData& f, ReferenceCountedArray<AssemblyRegister>& parameterRegisters);
+
+	void dumpVariables(BaseScope* s, uint64_t lineNumber);
 
 	Compiler& cc;
 

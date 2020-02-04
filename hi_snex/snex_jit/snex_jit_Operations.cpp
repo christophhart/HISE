@@ -45,13 +45,22 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 	COMPILER_PASS(BaseCompiler::FunctionParsing)
 	{
 		functionScope = new FunctionScope(scope);
+
+		for (int i = 0; i < data.args.size(); i++)
+		{
+			data.args.getReference(i).parameterName = parameters[i].toString();
+		}
+
+
 		functionScope->data = data;
+
 		functionScope->parameters.addArray(parameters);
 		functionScope->parentFunction = dynamic_cast<ReferenceCountedObject*>(this);
 
-		dynamic_cast<ClassScope*>(scope)->addFunction(new FunctionData(data));
+		auto classData = new FunctionData(data);
 
 
+		dynamic_cast<ClassScope*>(scope)->addFunction(classData);
 
 		for (int i = 0; i < parameters.size(); i++)
 		{
@@ -62,6 +71,16 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			jassert(data.args[i] == initType);
 
 			functionScope->allocate(parameters[i], initValue);
+
+			if (auto cs = dynamic_cast<ClassScope*>(findClassScope(scope)))
+			{
+				ClassScope::LocalVariableInfo pInfo;
+				pInfo.id = parameters[i].toString();
+				pInfo.isParameter = true;
+				pInfo.type = initType;
+
+				cs->addLocalVariableInfo(pInfo);
+			}
 		}
 
 		try
@@ -356,6 +375,99 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 					reg->loadMemoryIntoRegister(asg.cc);
 			}
 		}
+	}
+}
+
+void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	/*
+	ResolvingSymbols: check that target is not const
+	TypeCheck, = > check type match
+	DeadCodeElimination, = > remove unreferenced local variables
+	Inlining, = > make self assignment
+	CodeGeneration, = > Store or Op
+	*/
+
+	/** Assignments might use the target register, so we need to process the target first*/
+	if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
+	{
+		Statement::process(compiler, scope);
+	}
+	else
+	{
+		Expression::process(compiler, scope);
+	}
+
+	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	{
+		if (getSubExpr(0)->isConstExpr() && findClassScope(scope) == scope)
+		{
+			auto& ref = getTargetVariable()->ref->getDataReference(true);
+
+			ref = getSubExpr(0)->getConstExprValue();
+		}
+
+		auto v = getTargetVariable();
+
+		if (isLocalDefinition)
+		{
+			jassertfalse;
+		}
+
+		if (v->isLocalConst && !v->isFirstReference())
+			throwError("Can't change constant variable");
+	}
+
+
+	COMPILER_PASS(BaseCompiler::TypeCheck)
+	{
+		auto expectedType = getTargetVariable()->getType();
+
+		if (getTargetVariable()->isLocalToScope && getTargetVariable()->isFirstReference())
+		{
+			if (auto sc = dynamic_cast<ClassScope*>(findClassScope(scope)))
+			{
+				ClassScope::LocalVariableInfo localInfo;
+				localInfo.isParameter = false;
+				localInfo.id = getTargetVariable()->ref->getDebugName();
+				localInfo.type = expectedType;
+
+				sc->localVariableInfo.add(localInfo);
+			}
+		}
+
+		checkAndSetType(0, expectedType);
+	}
+
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		auto targetV = getTargetVariable();
+
+		getSubExpr(0)->process(compiler, scope);
+
+
+		targetV->process(compiler, scope);
+
+		auto acg = CREATE_ASM_COMPILER(type);
+
+		auto value = getSubRegister(0);
+		auto tReg = getSubRegister(1);
+
+		if (assignmentType == JitTokens::assign_)
+		{
+			if (tReg != value)
+				acg.emitStore(tReg, value);
+		}
+		else
+			acg.emitBinaryOp(assignmentType, tReg, value);
+
+
+
+
+
+
+
+		//getSubRegister(0)->flagForReuseIfAnonymous();
 	}
 }
 

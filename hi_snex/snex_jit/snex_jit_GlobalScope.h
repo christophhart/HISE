@@ -52,13 +52,191 @@ struct DebugHandler
 
 		Be aware that this is called synchronously, so it might cause clicks.
 	*/
-	virtual void logMessage(const String& s) = 0;
+	virtual void logMessage(const juce::String& s) = 0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DebugHandler);
 };
 
 class BaseCompiler;
 
+
+class BreakpointHandler: public AsyncUpdater
+{
+public:
+
+	enum EventType
+	{
+		Break,
+		Resume,
+		numEventTypes
+	};
+
+	struct Listener
+	{
+		virtual ~Listener() {};
+
+		virtual void eventHappened(BreakpointHandler* handler, EventType type) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	struct Entry
+	{
+		juce::String toString() const
+		{
+			juce::String s;
+			s << id.toString();
+			s << " (" << Types::Helpers::getTypeName(currentValue.getType()) << "): ";
+			s << Types::Helpers::getCppValueString(currentValue);
+			s << "\n";
+		}
+
+		Identifier id;
+		VariableStorage currentValue;
+		BaseScope::ScopeType scope;
+		bool changed = false;
+		bool isUsed = false;
+	};
+
+	bool shouldResume() const
+	{
+		return abortExecution || resumeOnNextCheck;
+	}
+
+	bool isRunning() const
+	{
+		return runExection;
+	}
+
+	void breakExecution()
+	{
+		runExection.store(false);
+		resumeOnNextCheck.store(false);
+		triggerAsyncUpdate();
+	}
+
+	void resume()
+	{
+		if (!abortExecution)
+		{
+			runExection.store(true);
+			resumeOnNextCheck.store(true);
+			triggerAsyncUpdate();
+		}
+	}
+
+	bool canWait() const
+	{
+		return true;
+	}
+
+	void abort()
+	{
+		abortExecution.store(true);
+	}
+
+	void handleAsyncUpdate()
+	{
+		auto e = runExection ? EventType::Resume : EventType::Break;
+		sendMessageToListeners(e);
+	}
+
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	int getNumEntries() const 
+	{ 
+		return numEntries;
+	}
+
+	Entry getEntry(const Identifier& id) const 
+	{ 
+		for (int i = 0; i < 128; i++)
+		{
+			if (dumpTable[i].id == id)
+				return dumpTable[i];
+		}
+
+		return {};
+	}
+	Entry getEntry(int index) const { return dumpTable[index]; }
+
+	void clearTable()
+	{
+		abortExecution = false;
+
+		for (int i = 0; i < 128; i++)
+			dumpTable[i].isUsed = false;
+
+		numEntries = 0;
+	}
+
+	void* getNextFreeTable(BaseScope::RefPtr ref)
+	{
+		for (int i = 0; i < 128; i++)
+		{
+			if (!dumpTable[i].isUsed || dumpTable[i].id == ref->id.id)
+			{
+				if(!dumpTable[i].isUsed)
+					numEntries++;
+
+				dumpTable[i].isUsed = true;
+				dumpTable[i].id = ref->id.id;
+				dumpTable[i].scope = ref->scope->getScopeType();
+				dumpTable[i].currentValue = VariableStorage(ref->getType(), 0);
+
+				return dumpTable[i].currentValue.getDataPointer();
+			}
+		}
+
+		return nullptr;
+	}
+
+	uint64* getLineNumber()
+	{
+		return &lineNumber;
+	}
+	
+	bool isActive() const
+	{
+		return active;
+	}
+
+	void setActive(bool shouldBeActive)
+	{
+		active = shouldBeActive;
+	}
+
+private:
+
+	bool active = false;
+	uint64 lineNumber = 0;
+	
+	Entry dumpTable[128];
+	int numEntries = 0;
+
+	void sendMessageToListeners(EventType t)
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->eventHappened(this, t);
+		}
+	}
+
+	Array<WeakReference<Listener>> listeners;
+
+	std::atomic<bool> abortExecution = { false };
+	std::atomic<bool> runExection = { true };
+	std::atomic<bool> resumeOnNextCheck = { false };
+};
 
 
 class BufferHandler
@@ -171,6 +349,11 @@ public:
 		}
 
 		float& operator*()
+		{
+			return t[currentIndex];
+		}
+
+		const float& operator*() const
 		{
 			return t[currentIndex];
 		}
@@ -335,6 +518,7 @@ private:
 				{
 					i->allocatedSize = size;
 					i->internalData.realloc(size, sizeof(float));
+					FloatVectorOperations::clear(i->internalData, size);
 					i->b = block(i->internalData, size);
 					return i->b;
 				}
@@ -346,6 +530,7 @@ private:
 		newItem->variableName = id;
 		newItem->internalData.allocate(size, true);
 		newItem->allocatedSize = size;
+		FloatVectorOperations::clear(newItem->internalData, size);
 		newItem->b = block(newItem->internalData, size);
 		newItem->isConst = false;
 
@@ -412,6 +597,7 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ObjectDeleteListener);
 	};
 
+	
 	void registerObjectFunction(FunctionClass* objectClass);
 
 	void deregisterObject(const Identifier& id);
@@ -439,6 +625,15 @@ public:
 		}
 
 		return dynamic_cast<GlobalScope*>(scope);
+	}
+
+	FunctionClass* getGlobalFunctionClass(const Identifier& id)
+	{
+		for (auto c : objectClassesWithJitCallableFunctions)
+			if (c->getObjectName() == id)
+				return c;
+
+		return nullptr;
 	}
 	
 	void addDebugHandler(DebugHandler* handler)
@@ -478,7 +673,26 @@ public:
 		bufferHandler = newBufferHandler;
 	}
 
+	void setCurrentClassScope(BaseScope* b)
+	{
+		currentClassScope = b;
+	}
+
+	BaseScope* getCurrentClassScope()
+	{
+		return currentClassScope;
+	}
+
+	BreakpointHandler& getBreakpointHandler() { return breakPointHandler; }
+
+	
+
 private:
+
+	
+
+	BreakpointHandler breakPointHandler;
+	WeakReference<BaseScope> currentClassScope;
 
 	ScopedPointer<BufferHandler> bufferHandler;
 

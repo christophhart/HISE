@@ -80,7 +80,8 @@ public:
 		const VariableStorage v;
 	};
 
-	struct Reference : public ReferenceCountedObject
+	struct Reference : public ReferenceCountedObject,
+					   public DebugableObjectBase
 	{
 	private:
 
@@ -89,6 +90,31 @@ public:
 		Reference();
 
 		Reference(BaseScope* p, const Identifier& s, Types::ID type);;
+
+		// =================================================================== Debug methods
+
+		Identifier getObjectName() const override { return "ClassVariable"; };
+
+		Identifier getInstanceName() const override { return id.id; }
+
+		int getTypeNumber() const override
+		{
+			return (int)getType();
+		}
+
+		juce::String getCategory() const override { return "Global variable"; };
+
+		juce::String getDebugDataType() const override
+		{
+			return Types::Helpers::getTypeName(getType());
+		}
+
+		juce::String getDebugValue() const override
+		{
+			return Types::Helpers::getCppValueString(getDataCopy());
+		}
+
+		// =================================================================================
 
 	public:
 
@@ -131,6 +157,16 @@ public:
 
 	BaseScope* getScopeForSymbol(const Symbol& s);
 
+	bool hasVariable(const Identifier& id)
+	{
+		for (auto v : referencedVariables)
+		{
+			if (v->id.id == id)
+				return true;
+		}
+
+		return false;
+	}
 
 	Result deallocate(Reference v);
 
