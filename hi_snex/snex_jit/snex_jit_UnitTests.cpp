@@ -129,7 +129,9 @@ public:
 		if (!initialised)
 			setup();
 
-		if (auto f = func["test"])
+		static const Identifier t("test");
+
+		if (auto f = func[t])
 		{
 			ReturnType v = f.template call<ReturnType>(input);
 
@@ -278,14 +280,9 @@ public:
 
 	void runTest() override
 	{
-		beginTest("Testing logic operations");
+		ScopedPointer<HiseJITTestCase<float>> test;
 
-		ScopedPointer<HiseJITTestCase<int>> test;
-		using T = int;
-
-		CREATE_TYPED_TEST("int test(int i){ return (true && false) ? 3 : 2; };");
-		expectCompileOK(test->compiler);
-		EXPECT("And with parenthesis", 2.0f, 2);
+		
 
 
 
@@ -693,6 +690,10 @@ private:
 		beginTest("Testing logic operations");
 
 		ScopedPointer<HiseJITTestCase<float>> test;
+
+		CREATE_TEST("float test(float i){ if(i > 0.5) return 10.0f; else return 5.0f; };");
+		expectCompileOK(test->compiler);
+		EXPECT("Compare with cast", 0.2f, 5.0f);
 
 		CREATE_TEST("float x = 0.0f; float test(float i){ return (true && false) ? 12.0f : 4.0f; };");
 		expectCompileOK(test->compiler);
