@@ -357,8 +357,7 @@ struct ScriptingObjects::ScriptTableData::Wrapper
 };
 
 ScriptingObjects::ScriptTableData::ScriptTableData(ProcessorWithScriptingContent* pwsc):
-	ConstScriptingObject(pwsc, 0),
-	DebugableObject()
+	ConstScriptingObject(pwsc, 0)
 {
 	
 	table.setHandler(pwsc->getMainController_()->getGlobalUIUpdater());
@@ -994,7 +993,7 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent 
 
 void ScriptingObjects::ScriptingModulator::rightClickCallback(const MouseEvent& e, Component* t)
 {
-	Helpers::showProcessorEditorPopup(e, t, mod);
+	DebugableObject::Helpers::showProcessorEditorPopup(e, t, mod);
 }
 
 void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
@@ -1274,7 +1273,7 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 
 void ScriptingObjects::ScriptingEffect::rightClickCallback(const MouseEvent& e, Component* t)
 {
-	Helpers::showProcessorEditorPopup(e, t, effect.get());
+	DebugableObject::Helpers::showProcessorEditorPopup(e, t, effect.get());
 }
 
 juce::String ScriptingObjects::ScriptingEffect::getId() const
@@ -1790,7 +1789,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 
 void ScriptingObjects::ScriptingSynth::rightClickCallback(const MouseEvent& e, Component* t)
 {
-	Helpers::showProcessorEditorPopup(e, t, synth);
+	DebugableObject::Helpers::showProcessorEditorPopup(e, t, synth);
 }
 
 String ScriptingObjects::ScriptingSynth::getId() const
@@ -2049,7 +2048,7 @@ mp(mp_)
 
 void ScriptingObjects::ScriptingMidiProcessor::rightClickCallback(const MouseEvent& e, Component* t)
 {
-	Helpers::showProcessorEditorPopup(e, t, mp);
+	DebugableObject::Helpers::showProcessorEditorPopup(e, t, mp);
 }
 
 int ScriptingObjects::ScriptingMidiProcessor::getCachedIndex(const var &indexExpression) const
@@ -4645,5 +4644,15 @@ LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController
 	return new hise::AlertWindowLookAndFeel();
 }
 #endif
+
+juce::ValueTree ApiHelpers::getApiTree()
+{
+	static ValueTree v;
+
+	if (!v.isValid())
+		v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
+
+	return v;
+}
 
 } // namespace hise

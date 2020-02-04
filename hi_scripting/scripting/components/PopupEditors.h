@@ -51,7 +51,6 @@ public:
 	PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit);
 	PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback);
 	
-
 	~PopupIncludeEditor();
 
 	void timerCallback();

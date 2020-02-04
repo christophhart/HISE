@@ -4841,7 +4841,7 @@ void ScriptingApi::Content::Helpers::gotoLocation(ScriptComponent* sc)
 
 		if (info->getObject() == sc)
 		{
-			auto location = info->getLocation();
+			auto location = info->getObject()->getLocation();
 
 			DebugableObject::Helpers::gotoLocation(p, info);
 

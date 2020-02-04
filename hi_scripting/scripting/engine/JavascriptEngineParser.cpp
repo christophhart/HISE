@@ -593,7 +593,6 @@ private:
 		if (matchIf(TokenTypes::continue_))        return new ContinueStatement(location);
 		if (matchIf(TokenTypes::function))         return parseFunction();
 		if (matchIf(TokenTypes::loadJit_))		   return parseJITModule();
-		if (matchIf(TokenTypes::extern_))		   return parseExternalCFunction();
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
@@ -1330,77 +1329,6 @@ private:
 		return new Statement(location);
 	}
 
-	Statement* parseExternalCFunction()
-	{
-		match(TokenTypes::literal);
-		match(TokenTypes::openBrace);
-
-		
-
-		String::CharPointerType start = location.location;
-
-		static const Identifier void_("void");
-		const bool hasReturnType = parseIdentifier() != void_;
-		const Identifier name = parseIdentifier();
-
-		const String comment = lastComment;
-
-		match(TokenTypes::openParen);
-
-		Array<Identifier> arguments;
-
-		while (currentType != TokenTypes::closeParen)
-		{
-			match(TokenTypes::var);
-
-			arguments.add(currentValue.toString());
-			match(TokenTypes::identifier);
-
-			if (currentType != TokenTypes::closeParen)
-				match(TokenTypes::comma);
-		}
-
-		match(TokenTypes::closeParen);
-
-		skipBlock();
-
-		String::CharPointerType end = location.location;
-		String cCode = String(start, end - 1); 
-		
-
-		ScopedPointer<ExternalCFunction> functionObject = new ExternalCFunction(location, name, hasReturnType, arguments, comment, cCode);
-
-		hiseSpecialData->externalCFunctions.add(functionObject.release());
-
-		return new Statement(location);
-	}
-
-	Expression* parseExternalCFunctionCall()
-	{
-		Identifier name = parseIdentifier();
-
-		int index = hiseSpecialData->getExternalCIndex(name);
-
-		ExternalCFunction* cFunc = hiseSpecialData->externalCFunctions[index];
-
-		ScopedPointer<ExternalCFunction::FunctionCall> fCall = new ExternalCFunction::FunctionCall(location, cFunc);
-
-		match(TokenTypes::openParen);
-
-		while (currentType != TokenTypes::closeParen)
-		{
-			fCall->parameterExpressions.add(parseExpression());
-			if (currentType != TokenTypes::closeParen)
-				match(TokenTypes::comma);
-		}
-
-		if (fCall->parameterExpressions.size() != cFunc->numArguments)
-		{
-			throwError("External C function call " + name.toString() + ": parameter amount mismatch: " + String(fCall->parameterExpressions.size()) + " (Expected: " + String(cFunc->numArguments) + ")");
-		}
-
-		return matchCloseParen(fCall.release());
-	}
 
 	Statement* parseCaseStatement()
 	{
@@ -1659,7 +1587,7 @@ private:
 		int functionIndex, numArgs;
 		apiClass->getIndexAndNumArgsForFunction(functionName, functionIndex, numArgs);
 
-		const String prettyName = apiClass->getName() + "." + functionName.toString();
+		const String prettyName = apiClass->getObjectName() + "." + functionName.toString();
 
 		if (functionIndex < 0) throwError("Function / constant not found: " + prettyName); // Handle also missing constants here
 		ScopedPointer<ApiCall> s = new ApiCall(location, apiClass, numArgs, functionIndex);
@@ -1829,7 +1757,6 @@ private:
 
 				const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
 				const int globalIndex = hiseSpecialData->globals->getProperties().indexOf(id);
-				const int externalCIndex = hiseSpecialData->getExternalCIndex(id);
 				
 				if (apiClassIndex != -1)
 				{
@@ -1846,10 +1773,6 @@ private:
 					return new RootObject::NativeJIT::ScopeReference(location, compiler->compileAndReturnScope());
 				}
 #endif
-				else if (externalCIndex != -1)
-				{
-					return parseSuffixes(parseExternalCFunctionCall());
-				}
 				
 				else if (globalIndex != -1)
 				{

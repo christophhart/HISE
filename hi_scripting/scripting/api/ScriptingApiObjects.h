@@ -82,19 +82,9 @@ public:
 
 #if USE_BACKEND
 
-	static AttributedString createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour);
-	static String createCodeToInsert(const ValueTree &method, const String &className);
-	static void getColourAndCharForType(int type, char &c, Colour &colour);
 	static String getValueType(const var &v);
 
-	struct Api
-	{
-		Api();
-
-		ValueTree apiTree;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Api)
-	};
+	static ValueTree getApiTree();
 
 #endif
 };
@@ -177,7 +167,6 @@ public:
 	};
 
 	class ScriptAudioFile : public ConstScriptingObject,
-						    public DebugableObject,
 							public AsyncUpdater,
 							public PooledUIUpdater::SimpleTimer
 	{
@@ -295,8 +284,7 @@ public:
 		struct Wrapper;
 	};
 
-	class ScriptTableData : public ConstScriptingObject,
-							public DebugableObject
+	class ScriptTableData : public ConstScriptingObject
 	{
 	public:
 
@@ -341,8 +329,7 @@ public:
 		SampleLookupTable table;
 	};
 
-	class ScriptSliderPackData : public ConstScriptingObject,
-								 public DebugableObject
+	class ScriptSliderPackData : public ConstScriptingObject
 	{
 	public:
 
@@ -389,8 +376,7 @@ public:
 
 	};
 
-	class ScriptingSamplerSound : public ConstScriptingObject,
-								 public DebugableObject
+	class ScriptingSamplerSound : public ConstScriptingObject
 	{
 	public:
 
@@ -448,8 +434,7 @@ public:
 		ModulatorSamplerSound::Ptr sound;
 	};
 
-	class ScriptingMessageHolder : public ConstScriptingObject,
-								   public DebugableObject
+	class ScriptingMessageHolder : public ConstScriptingObject
 	{
 	public:
 
@@ -570,8 +555,7 @@ public:
 	/** A scripting objects that wraps an existing Modulator.
 	*/
 	class ScriptingModulator : public ConstScriptingObject,
-							   public AssignableObject,
-							   public DebugableObject
+							   public AssignableObject
 	{
 	public:
 
@@ -678,8 +662,7 @@ public:
 
 
 
-	class ScriptingEffect : public ConstScriptingObject,
-							public DebugableObject
+	class ScriptingEffect : public ConstScriptingObject
 	{
 	public:
 
@@ -779,8 +762,7 @@ public:
 	};
 
 
-	class ScriptingSlotFX : public ConstScriptingObject,
-							public DebugableObject
+	class ScriptingSlotFX : public ConstScriptingObject
 	{
 	public:
 
@@ -837,8 +819,7 @@ public:
 	};
 
 
-	class ScriptRoutingMatrix : public ConstScriptingObject,
-		public DebugableObject
+	class ScriptRoutingMatrix : public ConstScriptingObject
 	{
 	public:
 
@@ -883,8 +864,7 @@ public:
 
 
 
-	class ScriptingSynth : public ConstScriptingObject,
-						   public DebugableObject
+	class ScriptingSynth : public ConstScriptingObject
 	{
 	public:
 
@@ -973,8 +953,7 @@ public:
 
 
 	class ScriptingMidiProcessor : public ConstScriptingObject,
-								   public AssignableObject,
-								   public DebugableObject
+								   public AssignableObject
 	{
 	public:
 
@@ -1211,7 +1190,6 @@ public:
 
 	class ScriptedMidiPlayer : public MidiPlayerBaseType,
 								public ConstScriptingObject,
-							    public DebugableObject,
 								public SuspendableTimer
 	{
 	public:
@@ -1321,8 +1299,7 @@ public:
 		HiseMidiSequence* getSequence() const { return getPlayer()->getCurrentSequence(); }
 	};
 
-	class PathObject : public ConstScriptingObject,
-					   public DebugableObject
+	class PathObject : public ConstScriptingObject
 	{
 	public:
 

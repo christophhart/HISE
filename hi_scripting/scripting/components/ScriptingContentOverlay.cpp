@@ -569,11 +569,14 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				if (componentToUse != nullptr)
 				{
-					auto func = dynamic_cast<DebugableObject*>(componentToUse->getCustomControlCallback());
+					auto func = dynamic_cast<DebugableObjectBase*>(componentToUse->getCustomControlCallback());
 
+					jassertfalse;
 
+#if 0
 					if (func != nullptr)
 						func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
+#endif
 				}
 			}
 			else if (result >= editComponentOffset) // EDIT IN PANEL

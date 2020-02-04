@@ -39,33 +39,12 @@ class DebugInformation;
 class HiseJavascriptEngine;
 
 /** Overwrite this method if you want to add debugging functionality to a object. */
-class DebugableObject
+class DebugableObject: public DebugableObjectBase
 {
 public:
 
-	struct Location
-	{
-		String fileName = String();
-		int charNumber = 0;
-	};
-
     virtual ~DebugableObject() {};
     
-	/** This will be shown as value of the object. */
-	virtual String getDebugValue() const = 0;
-
-	/** This will be shown as name of the object. */
-	virtual String getDebugName() const = 0;
-
-	virtual String getDebugDataType() const { return getDebugName(); }
-
-	virtual AttributedString getDescription() const { return AttributedString(); }
-
-	/** This will be called if the user double clicks on the row. */
-	virtual void doubleClickCallback(const MouseEvent &/*e*/, Component* /*componentToNotify*/) {};
-
-	virtual void rightClickCallback(const MouseEvent& /*e*/, Component* /*componentToNotifiy*/) {};
-
 	struct Helpers
 	{
 		static AttributedString getFunctionDoc(const String &docBody, const Array<Identifier> &parameters)
@@ -87,7 +66,7 @@ public:
 
 		static void gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location);
 
-		static void gotoLocation(Processor* processor, DebugInformation* info);
+		static void gotoLocation(Processor* processor, DebugInformationBase* info);
 		
 		static void gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState);
 
@@ -99,9 +78,9 @@ public:
 
 		static var getCleanedObjectForJSONDisplay(const var& object);
 
-		static DebugInformation* getDebugInformation(HiseJavascriptEngine* engine, DebugableObject* object);
+		static DebugInformationBase* getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object);
 
-		static DebugInformation* getDebugInformation(HiseJavascriptEngine* engine, const var& v);
+		static DebugInformationBase* getDebugInformation(ApiProviderBase* engine, const var& v);
 	};
 
 };
@@ -109,7 +88,7 @@ public:
 
 
 
-class DebugInformation
+class DebugInformation: public DebugInformationBase
 {
 public:
 
@@ -121,6 +100,7 @@ public:
 		InlineFunction,
 		Globals,
 		Callback,
+		ApiClass,
 		ExternalFunction,
 		Namespace,
 		numTypes
@@ -143,9 +123,7 @@ public:
 
 	static String varArrayToString(const Array<var> &arrayToStringify);;
 
-	StringArray createTextArray();
-	
-	String getTextForType() const
+	String getTextForDataType() const override
 	{
 		switch (type)
 		{
@@ -162,57 +140,46 @@ public:
 		return "";
 	}
 
-	virtual String getTextForDataType() const = 0;
-	virtual String getTextForName() const = 0;
-	virtual String getTextForValue() const = 0;
-
 	virtual const var getVariantCopy() const { return var(); };
 
-	virtual AttributedString getDescription() const { return AttributedString(); };
+	virtual AttributedString getDescription() const override { return AttributedString(); };
 
-	virtual DebugableObject *getObject() { return nullptr; }
+	String getCodeToInsert() const override
+	{
+		return getTextForName();
+	}
 
-	virtual DebugableObject::Location getLocation() { return DebugableObject::Location(); }
+	void rightClickCallback(const MouseEvent& e, Component* componentToNotify) override
+	{
+		var v = getVariantCopy();
+
+		if (v.isObject() || v.isArray())
+		{
+			DebugableObject::Helpers::showJSONEditorForObject(e, componentToNotify, v, getTextForName());
+		}
+	}
+
+	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify);
+
+	String getTextForType() const override
+	{
+		return getVarType(getVariantCopy());
+	}
 
 	int getType() const { return (int)type; }
 
 	String getTextForRow(Row r);
 	String toString();
 
-	static String getVarType(const var &v)
-	{
-		if (v.isUndefined())	return "undefined";
-		else if (v.isArray())	return "Array";
-		else if (v.isBool())	return "bool";
-		else if (v.isInt() ||
-			v.isInt64())	return "int";
-		else if (v.isObject())
-		{
-			if (DebugableObject *d = dynamic_cast<DebugableObject*>(v.getObject()))
-			{
-				return d->getDebugDataType();
-			}
-			else return "Object";
-		}
-		else if (v.isObject()) return "Object";
-		else if (v.isDouble()) return "double";
-		else if (v.isString()) return "String";
-		else if (v.isMethod()) return "function";
-
-		return "undefined";
-	}
-
-	DebugableObject::Location location;
-
 	
+
+	//DebugableObject::Location location;
 
 protected:
-	
-	
 
 	String getVarValue(const var &v) const
 	{
-		if (DebugableObject *d = getDebugableObject(v))
+		if (DebugableObjectBase *d = getDebugableObject(v))
 		{
 			return d->getDebugValue();
 		}
@@ -223,9 +190,9 @@ protected:
 		else return v.toString();
 	}
 
-	static DebugableObject *getDebugableObject(const var &v)
+	static DebugableObjectBase *getDebugableObject(const var &v)
 	{
-		return dynamic_cast<DebugableObject*>(v.getObject());
+		return dynamic_cast<DebugableObjectBase*>(v.getObject());
 	}
 
 	private:
@@ -260,24 +227,41 @@ public:
 
 	AttributedString getDescription() const override;;
 
-	DebugableObject *getObject() override { return getDebugableObject(obj->getProperty(id)); }
+	DebugableObjectBase *getObject() override 
+	{
+		auto v = getVariantCopy();
+
+		if (auto dyn = v.getDynamicObject())
+		{
+			wrapper = new DynamicDebugableObjectWrapper(dyn, id, id);
+			return wrapper.get();
+		}
+
+		return nullptr;
+	}
 
 	DynamicObject::Ptr obj;
 	const Identifier id;
 
-	
+	ScopedPointer<DynamicDebugableObjectWrapper> wrapper;
 };
 
 
 class FixedVarPointerInformation : public DebugInformation
 {
 public:
-	FixedVarPointerInformation(const var* v, const Identifier &id_, const Identifier& namespaceId_, Type t):
+	FixedVarPointerInformation(const var* v, const Identifier &id_, const Identifier& namespaceId_, Type t, DebugableObjectBase::Location location_):
 		DebugInformation(t),
 		value(v),
 		namespaceId(namespaceId_),
-		id(id_)
+		id(id_),
+		location(location_)
 	{}
+
+	DebugableObjectBase::Location getLocation() const override
+	{
+		return location;
+	}
 
 	String getTextForDataType() const override { return getVarType(*value); }
 	
@@ -290,19 +274,19 @@ public:
 	const var getVariantCopy() const override { return var(*value); };
 
 	String getTextForValue() const override { return getVarValue(*value); }
-	DebugableObject *getObject() override { return getDebugableObject(*value); }
+	DebugableObjectBase *getObject() override { return getDebugableObject(*value); }
 
 	const var *value;
 	const Identifier id;
 	const Identifier namespaceId;
-	
+	DebugableObjectBase::Location location;
 };
 
 
 class DebugableObjectInformation : public DebugInformation
 {
 public:
-	DebugableObjectInformation(DebugableObject *object_, const Identifier &id_, Type t, const Identifier& namespaceId_=Identifier()) :
+	DebugableObjectInformation(DebugableObjectBase *object_, const Identifier &id_, Type t, const Identifier& namespaceId_=Identifier()) :
 		DebugInformation(t),
 		object(object_),
 		id(id_),
@@ -316,11 +300,11 @@ public:
 									  namespaceId.toString() + "." + object->getDebugName(); 
 	}
 	String getTextForValue() const override { return object->getDebugValue(); }
-	AttributedString getDescription() const override { return object->getDescription(); }
+	AttributedString getDescription() const override { return AttributedString(); }
 
-	DebugableObject *getObject() { return object; }
+	DebugableObjectBase *getObject() override { return object; }
 
-	DebugableObject *object;
+	DebugableObjectBase* object;
 	const Identifier id;
 	const Identifier namespaceId;
 };

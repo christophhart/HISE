@@ -128,6 +128,8 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
+
+
 #include "hi_markdown/MarkdownHeader.h"
 #include "hi_markdown/MarkdownLink.h"
 #include "hi_markdown/MarkdownDatabase.h"
@@ -141,6 +143,10 @@ END_JUCE_MODULE_DECLARATION
 
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"
+
+#include "hi_standalone_components/CodeEditorApiBase.h"
+#include "hi_standalone_components/AdvancedCodeEditor.h"
+#include "hi_standalone_components/ScriptWatchTable.h"
 
 
 #include "hi_standalone_components/Plotter.h"

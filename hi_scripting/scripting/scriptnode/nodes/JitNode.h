@@ -354,6 +354,8 @@ public:
 		}
 	}
 
+	
+
 	hise::SingleWriteLockfreeMutex lock;
 	PrepareSpecs lastSpecs;
 	snex::jit::GlobalScope scope;

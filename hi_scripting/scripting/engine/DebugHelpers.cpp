@@ -71,18 +71,22 @@ String DebugInformation::varArrayToString(const Array<var> &arrayToStringify)
 	return getArrayTextForVar(ar);
 }
 
-StringArray DebugInformation::createTextArray()
-{
-	StringArray sa;
-	
-	sa.add(getTextForType());
-	sa.add(getTextForDataType());
-	sa.add(getTextForName());
-	sa.add(getTextForValue());
-	
-	return sa;
-}
 
+void DebugInformation::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
+{
+	if (auto cso = dynamic_cast<ScriptingObject*>(getObject()))
+	{
+		auto jp = dynamic_cast<Processor*>(cso->getProcessor());
+
+		if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(getObject()))
+		{
+			auto b = jp->getMainController()->getScriptComponentEditBroadcaster();
+			b->setSelection(sc, sendNotification);
+		}
+
+		DebugableObject::Helpers::gotoLocation(jp, this);
+	}
+}
 
 String DebugInformation::getTextForRow(Row r)
 {
@@ -166,9 +170,9 @@ void DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* 
 }
 
 
-void DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformation* info)
+void DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformationBase* info)
 {
-	gotoLocationInternal(processor, info->location);
+	gotoLocationInternal(processor, info->getLocation());
 }
 
 
@@ -252,7 +256,7 @@ var DebugableObject::Helpers::getCleanedObjectForJSONDisplay(const var& object)
 
 }
 
-DebugInformation* DebugableObject::Helpers::getDebugInformation(HiseJavascriptEngine* engine, DebugableObject* object)
+DebugInformationBase* DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object)
 {
 	for (int i = 0; i < engine->getNumDebugObjects(); i++)
 	{
@@ -265,18 +269,19 @@ DebugInformation* DebugableObject::Helpers::getDebugInformation(HiseJavascriptEn
 	return nullptr;
 }
 
-DebugInformation* DebugableObject::Helpers::getDebugInformation(HiseJavascriptEngine* engine, const var& v)
+DebugInformationBase* DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, const var& v)
 {
-	if (auto obj = dynamic_cast<DebugableObject*>(v.getObject()))
+	if (auto obj = dynamic_cast<DebugableObjectBase*>(v.getObject()))
 	{
 		return getDebugInformation(engine, obj);
 	}
 
 	for (int i = 0; i < engine->getNumDebugObjects(); i++)
 	{
-		if (engine->getDebugInformation(i)->getVariantCopy() == v)
+		if(auto dbg = dynamic_cast<DebugInformation*>(engine->getDebugInformation(i)))
 		{
-			return engine->getDebugInformation(i);
+			if(dbg->getVariantCopy() == v)
+				return dbg;
 		}
 	}
 

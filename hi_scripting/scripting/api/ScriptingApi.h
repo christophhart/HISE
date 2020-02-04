@@ -63,8 +63,9 @@ public:
 		Message(ProcessorWithScriptingContent *p);;
 		~Message();
 
-		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Message"); }
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Message"); }
 		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Message"); }
+
 
 		// ============================================================================================================ API Methods
 
@@ -193,7 +194,7 @@ public:
 		Engine(ProcessorWithScriptingContent *p);
 		~Engine() {};
 
-		Identifier getName() const override  { RETURN_STATIC_IDENTIFIER("Engine"); };
+		Identifier getObjectName() const override  { RETURN_STATIC_IDENTIFIER("Engine"); };
 
 		// ============================================================================================================ API Methods
 
@@ -607,7 +608,7 @@ public:
 		Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth);
 		~Synth() { artificialNoteOns.clear(); }
 
-		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Synth"); };
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Synth"); };
 
 		typedef ScriptingObjects::ScriptingModulator ScriptModulator;
 		typedef ScriptingObjects::ScriptingEffect ScriptEffect;
@@ -852,7 +853,7 @@ public:
 
 		Console(ProcessorWithScriptingContent *p);;
 
-		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Console"); }
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Console"); }
 		static Identifier getClassName()   { RETURN_STATIC_IDENTIFIER("Console"); };
 
 		bool allowIllegalCallsOnAudioThread(int /*functionIndex*/) const override { return true; }
@@ -905,7 +906,7 @@ public:
 		ModuleIds(ModulatorSynth* s);
 
 		/** Returns the name. */
-		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("ModuleIds"); }
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ModuleIds"); }
 
 	private:
 
@@ -923,7 +924,7 @@ public:
 		Colours();
 		~Colours() {};
 
-		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Colours"); }
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Colours"); }
 
 		// ============================================================================================================ API Methods
 
@@ -948,7 +949,7 @@ public:
 
 		ModulatorApi(Modulator* mod_);
 
-		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Modulator") }
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Modulator") }
 
 		/** Sets the intensity of the modulator (raw value) */
 		void setIntensity(var newValue)
