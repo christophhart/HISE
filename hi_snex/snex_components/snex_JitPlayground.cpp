@@ -590,7 +590,7 @@ void SnexPlayground::createTestSignal()
 		{
 		case 0: d[i] = Random::getSystemRandom().nextFloat(); break;
 		case 1:	d[i] = (float)i / (float)b.getNumSamples(); break;
-		case 2:	d[i] = fmodf((float)i / (float)b.getNumSamples() * 30.0f, 1.0f); break;
+		case 2:	d[i] = fmod((float)i / (float)b.getNumSamples() * 30.0f, 1.0f); break;
 		}
 	}
 

@@ -500,7 +500,7 @@ struct ResynthesisHelpers
 
 			ScopedPointer<Oversampler> os = createOversampler(workingBufferSize);
 
-			auto extraSamplesForLatency = (int)std::ceilf(os->getLatencyInSamples());
+			auto extraSamplesForLatency = (int)std::ceil(os->getLatencyInSamples());
 
 			b.setSize(1, workingBufferSize + extraSamplesForLatency);
 			b.clear();
