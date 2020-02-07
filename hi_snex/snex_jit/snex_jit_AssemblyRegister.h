@@ -46,11 +46,7 @@ class AssemblyRegister : public ReferenceCountedObject
 {
 public:
 
-#if JUCE_64BIT
 	using IntRegisterType = X86Gpq;
-#else
-	using IntRegisterType = X86Gpd;
-#endif
 	using FloatRegisterType = X86Xmm;
 	using DoubleRegisterType = X86Xmm;
 	using FloatMemoryType = X86Mem;

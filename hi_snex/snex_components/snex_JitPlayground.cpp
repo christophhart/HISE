@@ -1049,7 +1049,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			}
 		}
 
-		Holder::rebuild();
+		ApiProviderBase::Holder::rebuild();
 	}
 
 }
