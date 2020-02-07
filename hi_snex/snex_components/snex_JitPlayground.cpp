@@ -648,7 +648,6 @@ bool SnexPlayground::keyPressed(const KeyPress& k)
 		resumeButton.triggerClick();
 		return true;
 	}
-		
 
 	return false;
 }
@@ -672,149 +671,6 @@ void SnexPlayground::createTestSignal()
 	if (b.getNumChannels() > 1)
 	{
 		FloatVectorOperations::copy(b.getWritePointer(1), b.getWritePointer(0), b.getNumSamples());
-	}
-}
-
-void Graph::setBuffer(AudioSampleBuffer& b)
-{
-	if (b.getNumSamples() == 0)
-		return;
-
-	calculatePath(l, b, 0);
-
-	stereoMode = b.getNumChannels() == 2;
-
-	if (stereoMode)
-		calculatePath(r, b, 1);
-	else
-		r.clear();
-    
-	auto pb = getLocalBounds();
-	pb.removeFromLeft(boxWidth);
-	pb.removeFromRight(60);
-
-	leftPeaks = b.findMinMax(0, 0, b.getNumSamples());
-
-	if (stereoMode)
-	{
-		auto lb = pb.removeFromTop(getHeight() / 2).toFloat();
-		auto rb = pb.toFloat();
-
-		l.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
-		r.scaleToFit(rb.getX(), rb.getY(), rb.getWidth(), rb.getHeight(), false);
-
-		rightPeaks = b.findMinMax(1, 0, b.getNumSamples());
-	}
-	else
-	{
-		auto lb = pb.toFloat();
-		l.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
-	}
-
-	repaint();
-}
-
-void Graph::paint(Graphics& g)
-{
-	g.fillAll(Colour(0x33666666));
-	
-	g.setFont(GLOBAL_BOLD_FONT());
-
-	if (currentPosition > 0 && numSamples > 0)
-	{
-		float pos = (float)currentPosition / (float)numSamples;
-
-		auto pb = getLocalBounds();
-		pb.removeFromLeft(boxWidth);
-		pb.removeFromRight(60);
-
-		pos *= (float)pb.getWidth();
-
-		g.setColour(Colours::red);
-		g.drawVerticalLine((int)pos + boxWidth, 0.0f, (float)getHeight());
-	}
-
-	if (l.isEmpty() && r.isEmpty())
-	{
-		g.setColour(Colours::white.withAlpha(0.5f));
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText("No signal to draw", getLocalBounds().toFloat(), Justification::centred);
-	}
-	else
-	{
-		g.setColour(Colours::white.withAlpha(0.8f));
-		g.fillPath(l);
-
-		if (stereoMode && !r.isEmpty())
-			g.fillPath(r);
-
-		auto b = getLocalBounds().removeFromRight(50);
-
-		if (stereoMode)
-		{
-			auto left = b.removeFromTop(b.getHeight() / 2).toFloat();
-			auto right = b.toFloat();
-
-			auto lMax = left.removeFromTop(18);
-			auto lMin = left.removeFromBottom(18);
-
-			g.drawText(juce::String(leftPeaks.getStart(), 1), lMin, Justification::left);
-			g.drawText(juce::String(leftPeaks.getEnd(), 1), lMax, Justification::left);
-
-			auto rMax = right.removeFromTop(18);
-			auto rMin = right.removeFromBottom(18);
-
-			g.drawText(juce::String(rightPeaks.getStart(), 1), rMin, Justification::left);
-			g.drawText(juce::String(rightPeaks.getEnd(), 1), rMax, Justification::left);
-		}
-		else
-		{
-			auto left = b.removeFromTop(b.getHeight()).toFloat();
-
-			auto lMax = left.removeFromTop(18);
-			auto lMin = left.removeFromBottom(18);
-
-			g.drawText(juce::String(leftPeaks.getStart(), 1), lMin, Justification::left);
-			g.drawText(juce::String(leftPeaks.getEnd(), 1), lMax, Justification::left);
-		}
-	}
-
-	
-
-	
-
-
-}
-
-void Graph::calculatePath(Path& p, AudioSampleBuffer& b, int channel)
-{
-	numSamples = b.getNumSamples();
-	p.clear();
-
-	if (numSamples == 0)
-		return;
-
-	if (b.getMagnitude(channel, 0, b.getNumSamples()) > 0.0f)
-	{
-		p.startNewSubPath(0.0f, 1.0f);
-
-		int samplesPerPixel = jmax(1, b.getNumSamples() / jmax(1, getWidth()));
-
-		for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
-		{
-			int numToDo = jmin(samplesPerPixel, b.getNumSamples() - i);
-			auto range = FloatVectorOperations::findMinAndMax(b.getWritePointer(channel, i), numToDo);
-
-			if (range.getEnd() > (-1.0f * range.getStart()))
-			{
-				p.lineTo((float)i, 1.0f - range.getEnd());
-			}
-			else
-				p.lineTo((float)i, 1.0f - range.getStart());
-		}
-
-		p.lineTo((float)(b.getNumSamples()-1), 1.0f);
-		p.closeSubPath();		
 	}
 }
 
@@ -1023,13 +879,18 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 				auto si = new SettableDebugInfo();
 
-				if (auto va = cs->get(v))
+				if (cs->rootData->contains(v))
 				{
-					auto value = va->getDataCopy();
-
+					auto value = cs->rootData->get(v);
+					
 					si->typeValue = value.getType();
 					si->name = v.id.toString();
+
 					si->dataType = "global";
+
+					if (cs->getClassName())
+						si->dataType = cs->getClassName().toString();
+
 					si->value = Types::Helpers::getCppValueString(value);
 
 					infos.add(si);
@@ -1050,6 +911,191 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 		}
 
 		Holder::rebuild();
+	}
+
+	void Graph::InternalGraph::paint(Graphics& g)
+	{
+		g.fillAll(Colour(0x33666666));
+
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		
+		if (l.isEmpty() && r.isEmpty())
+		{
+			g.setColour(Colours::white.withAlpha(0.5f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("No signal to draw", getLocalBounds().toFloat(), Justification::centred);
+		}
+		else
+		{
+			g.setColour(Colours::white.withAlpha(0.8f));
+
+			if(isHiresMode())
+				g.strokePath(l, PathStrokeType(2.0f));
+			else
+				g.fillPath(l);
+
+			if (stereoMode && !r.isEmpty())
+			{
+				if (isHiresMode())
+					g.strokePath(r, PathStrokeType(2.0f));
+				else
+					g.fillPath(r);
+			}
+		}
+
+		if (currentPosition > 0 && numSamples > 0)
+		{
+			auto pos = getPixelForSample(currentPosition);
+
+			g.setColour(Colours::red);
+			g.drawVerticalLine((int)pos, 0.0f, (float)getHeight());
+		}
+
+		if (pixelsPerSample > 20.0f)
+		{
+			for (int i = 0; i < lastBuffer.getNumSamples(); i++)
+			{
+				auto x = getPixelForSample(i);
+				g.setColour(Colours::white.withAlpha(0.3f));
+				g.drawVerticalLine(x, 0.0f, (float)getHeight());
+			}
+		}
+
+		if (!currentPoint.isOrigin())
+		{
+			float posTotal = (float)currentPoint.getX() / (float)getWidth();
+			posTotal = jlimit(0.0f, 1.0f, posTotal);
+			int samplePos = jlimit(0, lastBuffer.getNumSamples()-1, roundToInt(posTotal * (float)lastBuffer.getNumSamples()));
+
+			int x_ = (float)getPixelForSample(samplePos);
+			int y_ = (float)getYPixelForSample(samplePos);
+
+			g.fillRect(x_ - 2.0f, y_ - 2.0f, 4.0f, 4.0f);
+
+			g.setColour(Colours::white);
+			g.drawVerticalLine(x_, 0.0f, (float)getHeight());
+
+			if (!isTimerRunning())
+			{
+				bool rightChannel = stereoMode && currentPoint.getY() > (getHeight() / 2);
+
+				float value = lastBuffer.getSample(rightChannel ? 1 : 0, samplePos);
+
+				juce::String v;
+				v << "data[" << juce::String(samplePos) << "]: " << Types::Helpers::getCppValueString(value);
+
+				auto f = GLOBAL_MONOSPACE_FONT();
+
+				g.setFont(f);
+
+				juce::Rectangle<float> r(0.0f, 0.0f, f.getStringWidthFloat(v) + 10.0f, f.getHeight() + 5.0f);
+
+				auto x = ((float)currentPoint.getX() - r.getWidth()*0.5f);
+				x = jlimit(0.0f, (float)getWidth() - r.getWidth(), x);
+				r.setX(x);
+
+				auto y = (float)currentPoint.getY() - 20.0f;
+
+				y = jlimit(0.0f, (float)getHeight() - 20.0f, y);
+
+				r.setY(y);
+
+				g.setColour(Colour(0xEEAAAAAA));
+				g.fillRoundedRectangle(r, 2.0f);
+				g.setColour(Colours::black.withAlpha(0.9f));
+				g.drawRoundedRectangle(r, 2.0f, 1.0f);
+				g.drawText(v, r, Justification::centred);
+			}
+
+			
+		}
+	}
+
+	void Graph::InternalGraph::setBuffer(AudioSampleBuffer& b)
+	{
+		if (b.getNumSamples() == 0)
+			return;
+
+		if (lastBuffer.getNumChannels() == 0 || lastBuffer.getWritePointer(0) != b.getWritePointer(0))
+		{
+			lastBuffer = AudioSampleBuffer(b.getNumChannels(), b.getNumSamples());
+
+			for (int i = 0; i < lastBuffer.getNumChannels(); i++)
+				FloatVectorOperations::copy(lastBuffer.getWritePointer(i), b.getWritePointer(i), b.getNumSamples());
+		}
+
+		calculatePath(l, b, 0);
+
+		stereoMode = b.getNumChannels() == 2;
+
+		if (stereoMode)
+			calculatePath(r, b, 1);
+		else
+			r.clear();
+
+		auto pb = getLocalBounds();
+
+		leftPeaks = b.findMinMax(0, 0, b.getNumSamples());
+
+		if (stereoMode)
+		{
+			auto lb = pb.removeFromTop(getHeight() / 2).toFloat();
+			auto rb = pb.toFloat();
+
+			l.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
+			r.scaleToFit(rb.getX(), rb.getY(), rb.getWidth(), rb.getHeight(), false);
+
+			rightPeaks = b.findMinMax(1, 0, b.getNumSamples());
+		}
+		else
+		{
+			auto lb = pb.toFloat();
+			l.scaleToFit(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight(), false);
+		}
+
+		repaint();
+	}
+
+	void Graph::InternalGraph::calculatePath(Path& p, AudioSampleBuffer& b, int channel)
+	{
+		numSamples = b.getNumSamples();
+		p.clear();
+
+		if (numSamples == 0)
+			return;
+
+		if (b.getMagnitude(channel, 0, b.getNumSamples()) > 0.0f)
+		{
+			
+			
+			auto delta = (float)b.getNumSamples() / jmax(1.0f, (float)getWidth());
+
+			int samplesPerPixel = jmax(1, (int)delta);
+
+			pixelsPerSample = 1.0f / (float)delta;
+
+			p.startNewSubPath(0.0f, 1.0f);
+
+			for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
+			{
+				int numToDo = jmin(samplesPerPixel, b.getNumSamples() - i);
+				auto range = FloatVectorOperations::findMinAndMax(b.getWritePointer(channel, i), numToDo);
+
+				if (range.getEnd() > (-1.0f * range.getStart()))
+				{
+					p.lineTo((float)i, 1.0f - range.getEnd());
+				}
+				else
+					p.lineTo((float)i, 1.0f - range.getStart());
+			}
+
+			if (!isHiresMode())
+			{
+				p.lineTo((float)(b.getNumSamples() - 1), 1.0f);
+				p.closeSubPath();
+			}
+		}
 	}
 
 }

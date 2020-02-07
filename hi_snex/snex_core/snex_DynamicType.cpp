@@ -50,6 +50,12 @@ VariableStorage::VariableStorage(double d)
 	data.d.value = d;
 }
 
+VariableStorage::VariableStorage(void* objectPointer, ObjectTypeRegister& objectRegister, Identifier& objectType)
+{
+	data.p.dataType = objectRegister.getTypeIndex(objectType);
+	data.p.data = objectPointer;
+}
+
 bool VariableStorage::operator==(const VariableStorage& other) const
 {
 	if (other.getType() != getType())
@@ -126,6 +132,13 @@ void VariableStorage::set(block& b)
 void VariableStorage::set(const HiseEvent& e)
 {
 	data.e = e;
+}
+
+void VariableStorage::set(void* objectPointer, const ObjectTypeRegister& objectRegister, const Identifier& typeId)
+{
+	data.p.type = Types::ID::ObjectPointer;
+	data.p.dataType = objectRegister.getTypeIndex(typeId);
+	data.p.data = objectPointer;
 }
 
 void VariableStorage::setDouble(double newValue)
@@ -227,6 +240,19 @@ HiseEvent VariableStorage::toEvent() const
 		return data.e;
 
 	return HiseEvent();
+}
+
+void* VariableStorage::getObjectPointer(const ObjectTypeRegister& objectRegister, const Identifier& typeId) const
+{
+	if (data.p.type == Types::ID::ObjectPointer)
+	{
+		auto objectType = objectRegister.getTypeIndex(typeId);
+
+		if (objectType == data.p.dataType)
+			return data.p.data;
+	}
+
+	return nullptr;
 }
 
 snex::VariableStorage& VariableStorage::operator=(const Types::FloatBlock& s)

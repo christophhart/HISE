@@ -75,6 +75,17 @@ public:
 
 		bool equal = oAssembly.hashCode64() == rAssembly.hashCode64();
 
+		if (!equal)
+		{
+			DBG("Wrong assembly: ");
+			
+			DBG(oAssembly);
+
+			DBG("Reference assembly:");
+			DBG(rAssembly);
+
+		}
+
 		return equal;
 	}
 
@@ -280,11 +291,7 @@ public:
 
 	void runTest() override
 	{
-		ScopedPointer<HiseJITTestCase<float>> test;
-
-		
-
-
+		return;
 
 		testOptimizations();
 
@@ -330,6 +337,8 @@ public:
 		testBlocks();
 		testEventSetters();
 		testEvents();
+
+		testStructs();
 	}
 
 private:
@@ -362,11 +371,15 @@ private:
 			expect(t.sameAssembly("13 % 5", "3"), "Modulo folding");
 			expect(t.sameAssembly("124 > 18", "1"), "Simple comparison folding");
 			expect(t.sameAssembly("124.0f == 18.0f", "0"), "Simple equality folding");
+			
+
 
 			auto cExpr = "190.0f != 17.0f || (((8 - 2) < 4) && (9.0f == 0.4f))";
 			constexpr int cExprValue = 190.0f != 17.0f || (((8 - 2) < 4) && (9.0f == 0.4f));
 
 			expect(t.sameAssembly(cExpr, juce::String(cExprValue)), "Complex logical expression folding");
+
+			
 		}
 
 		{
@@ -405,6 +418,23 @@ private:
 			expect(t.sameAssembly("if(12 > 13) return 8; else return 5;", "return 5;"), "Constant else branch folding");
 		}
 
+		beginTest("Testing match constant function folding");
+
+		{
+			OptimizationTestCase t;
+			t.setOptimizations({ OptimizationIds::ConstantFolding });
+			t.setExpressionBody("float test(){ return %BODY%; }");
+
+			expect(t.sameAssembly("Math.max(2.0f, 1.0f)", "2.0f"),
+				"Math.max");
+
+			expect(t.sameAssembly("(float)Math.pow(2.0, 3.0)", "8.0f"),
+				"Math.pow with cast");
+
+			expect(t.sameAssembly("(float)Math.fmod(2.1, false ? 0.333 : 1.0)", "0.1f"),
+				"Math.pow with const ternary op");
+		}
+
 		beginTest("Testing binary op optimizations");
 
 		{
@@ -433,6 +463,20 @@ private:
 				"int x = 12; x /= 4;",
 				"int x = 12; x /= 4;"),
 				"Don't replace constant int self-assign division");
+		}
+
+		beginTest("Testing complex binary op optimizations");
+
+		{
+			OptimizationTestCase t;
+			t.setOptimizations({ OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding });
+			t.setExpressionBody("float test(){ return %BODY%; }");
+
+			expect(t.sameAssembly("Math.pow(2.0f, 1.0f + 1.0f)", "4.0f"),
+				"constant function call -> binary op");
+
+			expect(t.sameAssembly("((1.0f > 5.0f) ? 2.0f : 4.0f) + Math.pow(false ? 1.0f : 2.0f, 1.0f + 1.0f)", "8.0f"),
+				"binary op -> constant function call -> binary op");
 		}
 	}
 
@@ -784,6 +828,8 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("Global negative float definition", 2.0f, -7.0f);
 
+		CREATE_TEST("float x = 2.0f; float getX(){ return x; } float test(float input) { x = input; return getX();}")
+		EXPECT("Set global variable before function call", 5.0f, 5.0f);
 
 		CREATE_TEST_SETUP("double x = 2.0; void setup(){x = 26.0; }; float test(float i){ return (float)x;};");
 		expectCompileOK(test->compiler);
@@ -846,6 +892,61 @@ private:
 		return getTypeName<T>() + " x = " + valueString + ";";
 	}
 
+	void testStructs()
+	{
+		beginTest("Testing structs");
+
+		using T = int;
+
+		ScopedPointer<HiseJITTestCase<int>> test;
+
+		CREATE_TYPED_TEST("struct X { int value = 5; }; X x; int test(int input) { return x.value; }");
+		expectCompileOK(test->compiler);
+		EXPECT("simple struct access", 7, 5);
+
+		CREATE_TYPED_TEST("struct X { int value = 5; }; X x; int test(int input) { x.value = input * 2; return x.value; }");
+		expectCompileOK(test->compiler);
+		EXPECT("simple struct member set", 7, 14);
+
+		CREATE_TYPED_TEST("struct X { int value = 5; int getX() { return value; } }; X x; int test(int input) { return x.getX(); }");
+		expectCompileOK(test->compiler);
+		EXPECT("simple struct getter method", 7, 5);
+
+		CREATE_TYPED_TEST("struct X { int value = 5; void set(int v) { value = v; } }; X x; int test(int input) { x.set(input); return x.value * 3; }");
+		expectCompileOK(test->compiler);
+		EXPECT("simple struct setter method", 7, 21);
+
+
+		CREATE_TYPED_TEST("wblock b = Buffer.create(15); int test(int input) { b[1] = 12.0f; return (int)b[1]; }");
+		expectCompileOK(test->compiler);
+		EXPECT("wblock basic test", 7, 12);
+
+		CREATE_TYPED_TEST("struct X { wblock b = Buffer.create(15); }; X x; int test(int input) { x.b[1] = 12.0f; return (int)x.b[1]; }");
+		expectCompileOK(test->compiler);
+		EXPECT("struct block member access", 7, 12);
+
+		CREATE_TYPED_TEST("struct X { wblock b = Buffer.create(15); }; X x; int test(int input) { x.b[1] = 12.0f; return (int)x.b.getAt(1); }");
+		expectCompileOK(test->compiler);
+		EXPECT("struct wblock member function call", 7, 12);
+
+		CREATE_TYPED_TEST("struct X { struct Y { int value = 19; }; Y y; }; X x; int test(int input) { return x.y.value; }");
+		expectCompileOK(test->compiler);
+		EXPECT("nested struct member access", 7, 19);
+
+		CREATE_TYPED_TEST("struct X { struct Y { int value = 19; }; Y y; }; X x; int test(int input) { x.y.value = input + 5; int v = x.y.value; return v; }");
+		expectCompileOK(test->compiler);
+		EXPECT("nested struct member setter", 7, 12);
+
+		CREATE_TYPED_TEST("struct X { struct Y { sfloat value = 4.0f; }; Y y; }; X x; int test(int input) { return (int)x.y.value.next(); }");
+		expectCompileOK(test->compiler);
+		EXPECT("nested struct sfloat call", 7, 4);
+
+		CREATE_TYPED_TEST("struct X { int value = 3; int get() { return value; } }; X x1, x2; int test(int input) { x1.value = 8; x2.value = 9; return x1.get() + x2.get(); }");
+		expectCompileOK(test->compiler);
+		EXPECT("two instances set value", 7, 8+9);
+
+		
+	}
 
 
 	template <typename T> void testOperations()

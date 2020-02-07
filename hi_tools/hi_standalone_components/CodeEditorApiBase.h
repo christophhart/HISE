@@ -524,6 +524,20 @@ public:
 	/** Override this method and return a Colour and a (uppercase) letter to be displayed in the autocomplete window for each type. */
 	virtual void getColourAndLetterForType(int type, Colour& colour, char& letter);
 
+	/** Override this and return a string that will be displayed when you hover over a token. */
+	virtual String getHoverString(const String& token) 
+	{ 
+		if (auto obj = getDebugObject(token))
+		{
+			String s;
+
+			s << obj->getDebugDataType() << " " << obj->getDebugName() << ": " << obj->getDebugValue();
+			return s;
+		}
+
+		return "";
+	}
+
 	/** Override this method and return the object for the given token.
 
 		The default implementation checks the name and instance id of each registered debug object, but you can overload it with more complex functions.
