@@ -425,8 +425,6 @@ public:
 
 private:
 
-	class AutoCompletePopup;
-
 	// ================================================================================================================
 
 	Array<CodeRegion> highlightedSelection;

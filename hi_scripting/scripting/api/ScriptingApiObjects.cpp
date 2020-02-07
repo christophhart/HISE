@@ -4645,6 +4645,7 @@ LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController
 }
 #endif
 
+#if USE_BACKEND
 juce::ValueTree ApiHelpers::getApiTree()
 {
 	static ValueTree v;
@@ -4654,5 +4655,6 @@ juce::ValueTree ApiHelpers::getApiTree()
 
 	return v;
 }
+#endif
 
 } // namespace hise

@@ -2056,6 +2056,7 @@ void JavascriptProcessor::EditorHelpers::applyChangesFromActiveEditor(Javascript
 	if (activeEditor == nullptr)
 		return;
 
+#if USE_BACKEND
 	if (auto pe = activeEditor->findParentComponentOfClass<PopupIncludeEditor>())
 	{
 		auto f = pe->getFile();
@@ -2063,6 +2064,7 @@ void JavascriptProcessor::EditorHelpers::applyChangesFromActiveEditor(Javascript
 		if (f.existsAsFile())
 			f.replaceWithText(activeEditor->getDocument().getAllContent());
 	}
+#endif
 }
 
 hise::JavascriptCodeEditor* JavascriptProcessor::EditorHelpers::getActiveEditor(Processor* p)
