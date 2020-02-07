@@ -108,7 +108,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition(boo
 	auto type = currentHnodeType;
 	auto id = parseIdentifier();
 
-	auto target = new Operations::VariableReference(location, { {}, id, type });
+	auto target = new Operations::VariableReference(location, { {id}, type });
 	target->isLocalToScope = true;
 	target->isLocalConst = isConst;
 
@@ -124,8 +124,9 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 	match(JitTokens::auto_);
 
 	match(JitTokens::bitwiseAnd);
+	match(JitTokens::identifier);
 
-	auto variableId = parseIdentifier();
+	auto variableId = getCurrentSymbol();
 	match(JitTokens::colon);
 	
 	ExprPtr loopBlock = parseExpression();
@@ -232,8 +233,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseAssignment()
 
 Operations::Expression::Ptr FunctionParser::parseFunctionCall()
 {
-	ScopedPointer<Operations::FunctionCall> f = new Operations::FunctionCall(location, currentSymbol);
-
+	ScopedPointer<Operations::FunctionCall> f = new Operations::FunctionCall(location, getCurrentSymbol());
 
 	while (!isEOF() && currentType != JitTokens::closeParen)
 	{
@@ -485,7 +485,7 @@ BlockParser::ExprPtr FunctionParser::parseSymbolOrLiteral()
 
 BlockParser::ExprPtr FunctionParser::parseReference()
 {
-	return new Operations::VariableReference(location, currentSymbol);
+	return new Operations::VariableReference(location, getCurrentSymbol());
 }
 
 BlockParser::ExprPtr FunctionParser::parseLiteral(bool isNegative)

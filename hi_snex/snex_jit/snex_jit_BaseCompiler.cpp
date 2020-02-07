@@ -45,7 +45,10 @@ using namespace asmjit;
         
         Operations::Statement::Ptr ptr(dynamic_cast<Operations::Statement*>(statement));
         
-        dynamic_cast<OptimizationPass*>(currentOptimization)->processStatementInternal(this, scope, ptr);
+		if (dynamic_cast<OptimizationPass*>(currentOptimization)->processStatementInternal(this, scope, ptr))
+		{
+			throw BaseCompiler::OptimisationSucess();
+		}
     }
     
 	
@@ -68,13 +71,26 @@ using namespace asmjit;
                 {
                     Operations::Statement::Ptr ptr(s);
                     
-                    for(auto o: passes)
-                    {
-                        
-                        currentOptimization = o;
-                        ptr->process(this, scope);
-                    }
-                    
+					bool noMoreOptimisationsPossible = false;
+
+					while (!noMoreOptimisationsPossible)
+					{
+						try
+						{
+							for (auto o : passes)
+							{
+								currentOptimization = o;
+								ptr->process(this, scope);
+							}
+
+							noMoreOptimisationsPossible = true;
+						}
+						catch (OptimisationSucess& s)
+						{
+							logMessage(MessageType::VerboseProcessMessage, "Repeat optimizations");
+						}
+					}
+
                     ptr = nullptr;
                 }
                 else

@@ -40,6 +40,7 @@ using namespace asmjit;
 
 class SyntaxTree;
 class BlockScope;
+class BaseScope;
 
 /** A high level, reference counted assembly register. */
 class AssemblyRegister : public ReferenceCountedObject
@@ -73,11 +74,11 @@ private:
 
 public:
 
-	void setReference(BaseScope::RefPtr ref);
+	void setReference(BaseScope* scope, const Symbol& ref);
 
-	BaseScope::Reference* getVariableId() const;
+	const Symbol& getVariableId() const;
 
-	bool operator==(const BaseScope::RefPtr s) const;
+	bool operator==(const Symbol& s) const;
 
 	bool isDirtyGlobalMemory() const;
 
@@ -106,9 +107,13 @@ public:
 	/** Loads the memory into the register. */
 	void loadMemoryIntoRegister(asmjit::X86Compiler& cc);
 
+	BaseScope* getScope() const { return scope.get(); }
+
 	bool isGlobalVariableRegister() const;
 
 	bool isActive() const;
+
+	bool matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const;
 
 	bool isActiveOrDirtyGlobalRegister() const;
 
@@ -139,6 +144,8 @@ public:
 
 	void clearForReuse();
 
+	void setUndirty();
+
 private:
 
 	friend class AssemblyRegisterPool;
@@ -157,7 +164,8 @@ private:
 	asmjit::X86Mem memory;
 	asmjit::X86Reg reg;
 	VariableStorage* memoryLocation = nullptr;
-	WeakReference<BaseScope::Reference> variableId;
+	WeakReference<BaseScope> scope;
+	Symbol id;
 };
 
 class AssemblyRegisterPool
@@ -171,10 +179,10 @@ public:
 
 	void clear();
 	RegList getListOfAllDirtyGlobals();
-	RegPtr getRegisterForVariable(const BaseScope::RefPtr variableId);
+	RegPtr getRegisterForVariable(BaseScope* scope, const Symbol& variableId);
 
 	void removeIfUnreferenced(AssemblyRegister::Ptr ref);
-	AssemblyRegister::Ptr getNextFreeRegister(Types::ID type);
+	AssemblyRegister::Ptr getNextFreeRegister(BaseScope* scope, Types::ID type);
 
 	RegList getListOfAllNamedRegisters();
 

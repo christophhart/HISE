@@ -37,8 +37,8 @@ using namespace juce;
 using namespace asmjit;
 
 GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
-	FunctionClass("Globals"),
-	BaseScope("Globals", nullptr, numVariables)
+	FunctionClass(Symbol::createRootSymbol("Globals")),
+	BaseScope(Symbol::createRootSymbol("Globals"), nullptr, numVariables)
 {
 	bufferHandler = new BufferHandler();
 
@@ -60,7 +60,7 @@ void GlobalScope::registerObjectFunction(FunctionClass* objectClass)
 		jassertfalse;
 }
 
-void GlobalScope::deregisterObject(const Identifier& id)
+void GlobalScope::deregisterObject(const Symbol& id)
 {
 	bool somethingDone = false;
 
@@ -83,23 +83,23 @@ void GlobalScope::deregisterObject(const Identifier& id)
 	}
 }
 
-bool GlobalScope::hasFunction(const Identifier& classId, const Identifier& functionId) const
+bool GlobalScope::hasFunction(const Symbol& symbol) const
 {
 	for (auto of : objectClassesWithJitCallableFunctions)
 	{
-		if (of->hasFunction(classId, functionId))
+		if (of->hasFunction(symbol))
 			return true;
 	}
 
 	return false;
 }
 
-void GlobalScope::addMatchingFunctions(Array<FunctionData>& matches, const Identifier& classId, const Identifier& functionId) const
+void GlobalScope::addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const
 {
-	FunctionClass::addMatchingFunctions(matches, classId, functionId);
+	FunctionClass::addMatchingFunctions(matches, symbol);
 
 	for (auto of : objectClassesWithJitCallableFunctions)
-		of->addMatchingFunctions(matches, classId, functionId);
+		of->addMatchingFunctions(matches, symbol);
 }
 
 void GlobalScope::addObjectDeleteListener(ObjectDeleteListener* l)

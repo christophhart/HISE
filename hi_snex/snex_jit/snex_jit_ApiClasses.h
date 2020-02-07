@@ -51,7 +51,7 @@ using namespace asmjit;
 
 struct WrappedBufferBase: public JitCallableObject
 {
-	WrappedBufferBase(Identifier id, block b_) :
+	WrappedBufferBase(const Symbol& id, block b_) :
 		JitCallableObject(id),
 		b(b_)
 	{}
@@ -59,8 +59,6 @@ struct WrappedBufferBase: public JitCallableObject
 	block b;
 
 	int getTypeNumber() const override { return Types::ID::Block; }
-
-	
 
 	juce::String getDebugDataType() const override { return "wblock"; }
 
@@ -76,7 +74,7 @@ template <class WrapType> class WrappedBuffer : public WrappedBufferBase
 {
 public:
 
-	WrappedBuffer(Identifier id, block b) :
+	WrappedBuffer(const Symbol& id, block b) :
 		WrappedBufferBase(id, b),
 		accessor(b)
 	{
@@ -322,7 +320,7 @@ public:
 
 	juce::LinearSmoothedValue<T> v;
 
-	SmoothedFloat(const Identifier& id, T initialValue) :
+	SmoothedFloat(const Symbol& id, T initialValue) :
 		JitCallableObject(id)
 	{
 		registerAllObjectFunctions(nullptr);
@@ -497,7 +495,7 @@ class ConsoleFunctions : public JitCallableObject
 public:
 
 	ConsoleFunctions(GlobalScope* scope_) :
-		JitCallableObject("Console"),
+		JitCallableObject(Symbol::createRootSymbol("Console")),
 		gs(scope_)
 	{};
 

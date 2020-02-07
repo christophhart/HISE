@@ -38,6 +38,44 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+/** A Symbol is used to identifiy the data slot. */
+struct Symbol
+{
+	static Symbol createRootSymbol(const Identifier& id);
+
+	Symbol();
+
+	Symbol(const Array<Identifier>& ids, Types::ID t_);
+
+
+	bool operator==(const Symbol& other) const;
+
+	bool matchesIdAndType(const Symbol& other) const;
+
+	Symbol getParentSymbol() const;
+
+	Symbol getChildSymbol(const Identifier& id, Types::ID newType = Types::ID::Dynamic) const;
+
+	Symbol withParent(const Symbol& parent) const;
+
+	Symbol withType(const Types::ID type) const;
+
+	bool isExplicit() const { return fullIdList.size() > 1; }
+
+	juce::String toString() const;
+
+	operator bool() const;
+
+	std::string debugName;
+	// a list of identifiers...
+	Array<Identifier> fullIdList;
+	Identifier id;
+
+	Types::ID type = Types::ID::Dynamic;
+};
+
+
+
 /** A wrapper around a function. */
 struct FunctionData
 {
@@ -82,7 +120,7 @@ struct FunctionData
         function = reinterpret_cast<void*>(typedFunctionPointer);
     }
     
-	String getSignature(const Array<Identifier>& parameterIds = {}) const;
+	juce::String getSignature(const Array<Identifier>& parameterIds = {}) const;
 
 	operator bool() const noexcept { return function != nullptr; };
 
@@ -198,6 +236,8 @@ struct FunctionData
 	}
 };
 
+class BaseScope;
+
 /** A function class is a collection of functions. */
 struct FunctionClass: public DebugableObjectBase
 {
@@ -207,8 +247,8 @@ struct FunctionClass: public DebugableObjectBase
 		VariableStorage value;
 	};
 
-	FunctionClass(const Identifier& id) :
-		className(id)
+	FunctionClass(const Symbol& id) :
+		classSymbol(id)
 	{};
 
 	virtual ~FunctionClass()
@@ -279,9 +319,9 @@ struct FunctionClass: public DebugableObjectBase
 
 	juce::String getCategory() const override { return "API call"; };
 
-	Identifier getObjectName() const override { return className; }
+	Identifier getObjectName() const override { return classSymbol.id; }
 
-	juce::String getDebugValue() const override { return className.toString(); };
+	juce::String getDebugValue() const override { return classSymbol.id.toString(); };
 
 	juce::String getDebugDataType() const override { return "Class"; };
 
@@ -331,13 +371,13 @@ struct FunctionClass: public DebugableObjectBase
 
 	// =====================================================================================
 
-	virtual bool hasFunction(const Identifier& classId, const Identifier& functionId) const;
+	virtual bool hasFunction(const Symbol& s) const;
 
-	bool hasConstant(const Identifier& classId, const Identifier& constantId) const;
+	bool hasConstant(const Symbol& s) const;
 
 	void addFunctionConstant(const Identifier& constantId, VariableStorage value);
 
-	virtual void addMatchingFunctions(Array<FunctionData>& matches, const Identifier& classId, const Identifier& functionId) const;
+	virtual void addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const;
 
 	void addFunctionClass(FunctionClass* newRegisteredClass);
 
@@ -345,13 +385,13 @@ struct FunctionClass: public DebugableObjectBase
 
 	Array<Identifier> getFunctionIds() const;
 
-	Identifier getClassName() const { return className; }
+	const Symbol& getClassName() const { return classSymbol; }
 
 	bool fillJitFunctionPointer(FunctionData& dataWithoutPointer);
 
 	bool injectFunctionPointer(FunctionData& dataToInject);
 
-	FunctionClass* getSubFunctionClass(const Identifier& id)
+	FunctionClass* getSubFunctionClass(const Symbol& id)
 	{
 		for (auto f : registeredClasses)
 		{
@@ -362,15 +402,14 @@ struct FunctionClass: public DebugableObjectBase
 		return nullptr;
 	}
 
-	VariableStorage getConstantValue(const Identifier& classId, const Identifier& constantId) const;
+	VariableStorage getConstantValue(const Symbol& constantSymbol) const;
 
-	
 
 protected:
 
 	OwnedArray<FunctionClass> registeredClasses;
 
-	Identifier className;
+	Symbol classSymbol;
 	OwnedArray<FunctionData> functions;
 
 	Array<Constant> constants;

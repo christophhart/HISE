@@ -41,45 +41,30 @@ snex::jit::BaseScope::ScopeType BaseScope::getScopeType() const
 	return scopeType;
 }
 
-snex::jit::BaseScope::RefPtr BaseScope::get(const Symbol& s)
+snex::jit::GlobalScope* BaseScope::getGlobalScope()
 {
-	for (auto er : referencedVariables)
-	{
-		if (er->id == s)
-			return er;
-	}
+	BaseScope* c = this;
 
-	for (auto c : constants)
-	{
-		if (c.id == s)
-		{
-			RefPtr r = new Reference(this, s.id, c.id.type);
-			r->isConst = true;
-			referencedVariables.add(r);
-			return r;
-		}
-	}
+	while (c != nullptr && c->getScopeType() != Global)
+		c = c->getParent();
 
-	for (auto ir : allocatedVariables)
-	{
-		if (ir.id == s.id)
-		{
-			RefPtr r = new Reference(this, s.id, ir.ref.getType());
-			referencedVariables.add(r);
-			return r;
-		}
-	}
+	return dynamic_cast<GlobalScope*>(c);
+}
 
-	return nullptr;
+snex::jit::ClassScope* BaseScope::getRootClassScope() const
+{
+	BaseScope* c = const_cast<BaseScope*>(this);
+
+	while (c != nullptr && c->getParent() != nullptr && c->getParent()->getScopeType() != Global)
+		c = c->getParent();
+
+	return dynamic_cast<ClassScope*>(c);
 }
 
 bool BaseScope::addConstant(const Identifier& id, VariableStorage v)
 {
-	for (auto r : referencedVariables)
-	{
-		if (r->id.id == id)
-			return false;
-	}
+	if (getRootClassScope()->rootData->contains(scopeId.getChildSymbol(id)))
+		return false;
 
 	for (auto c : constants)
 	{
@@ -87,7 +72,7 @@ bool BaseScope::addConstant(const Identifier& id, VariableStorage v)
 			return false;
 	}
 
-	constants.add({ { {}, id, v.getType() }, v });
+	constants.add({ scopeId.getChildSymbol(id, v.getType()), v });
 	return true;
 }
 
@@ -96,7 +81,12 @@ snex::jit::BaseScope* BaseScope::getParent()
 	return parent.get();
 }
 
-BaseScope::BaseScope(const Identifier& id, BaseScope* parent_ /*= nullptr*/, int numVariables /*= 1024*/) :
+RootClassData* BaseScope::getRootData() const
+{
+	return getRootClassScope()->rootData.get();
+}
+
+BaseScope::BaseScope(const Symbol& id, BaseScope* parent_ /*= nullptr*/, int numVariables /*= 1024*/) :
 	scopeId(id),
 	parent(parent_)
 {
@@ -109,16 +99,23 @@ BaseScope::BaseScope(const Identifier& id, BaseScope* parent_ /*= nullptr*/, int
 	else
 		scopeType = Anonymous;
 
-	size = numVariables;
-	data.allocate(size, true);
+	if (parent != nullptr)
+		parent->childScopes.add(this);
 }
 
 BaseScope::~BaseScope()
 {
+	if (parent != nullptr)
+	{
+		parent->childScopes.removeAllInstancesOf(this);
+	}
 }
 
 juce::Result BaseScope::allocate(const Identifier& id, VariableStorage v)
 {
+	return getRootClassScope()->rootData->allocate(this, scopeId.getChildSymbol(id, v.getType()));
+
+#if 0
 	for (auto av : allocatedVariables)
 	{
 		if (av.id == id)
@@ -136,118 +133,138 @@ juce::Result BaseScope::allocate(const Identifier& id, VariableStorage v)
 	}
 
 	return Result::fail("Can't allocate");
+#endif
 }
 
-snex::jit::BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
+BaseScope* BaseScope::getScopeForSymbolInternal(const Symbol& s)
 {
-	if (scopeId == s.parent)
+	auto parentSymbol = s.getParentSymbol();
+
+	if (parentSymbol == scopeId)
 	{
-		for (const auto& c : constants)
-			if (c.id.matchesIdAndType(s))
-				return this;
-
-		for (const auto& v : allocatedVariables)
-			if (v == s)
-				return this;
-
-		if (scopeId.isValid())
-			return nullptr;
+		if (hasSymbol(s))
+			return this;
 	}
 
-	if (parent != nullptr)
-		return parent->getScopeForSymbol(s);
+	for (auto c : childScopes)
+	{
+		if (auto m = c->getScopeForSymbolInternal(s))
+			return m;
+	}
 
 	return nullptr;
 }
 
-juce::Result BaseScope::deallocate(Reference v)
+
+
+bool BaseScope::hasSymbol(const Symbol& s)
 {
-	for (const auto& ir : allocatedVariables)
+	for (auto& c : constants)
+		if (c.id == s)
+			return this;
+
+	if (hasVariable(s.id))
+		return this;
+
+#if 0
+	for (auto v : allocatedVariables)
+		if (v.id == s.id)
+			return this;
+#endif
+
+	if (auto fc = dynamic_cast<FunctionClass*>(this))
 	{
-		if (v.id.id == ir.id)
+		if (fc->hasFunction(s))
+			return this;
+	}
+}
+
+BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
+{
+	if (getScopeType() == Global)
+		return nullptr;
+
+	auto isExplicitSymbol = s.getParentSymbol();
+
+	if (isExplicitSymbol)
+	{
+		
+
+		if (getRootClassScope() == this)
 		{
-			ir.ref = {};
-			allocatedVariables.remove(allocatedVariables.indexOf(ir));
-			return Result::ok();
+			return getScopeForSymbolInternal(s);
+		}
+		else
+		{
+			return getRootClassScope()->getScopeForSymbol(s);
+		}
+	}
+	else
+	{
+		if (hasSymbol(s))
+			return this;
+		else
+		{
+			if (auto p = getParent())
+				return p->getScopeForSymbol(s);
+			else
+				return nullptr;
 		}
 	}
 
-	return Result::fail("Can't deallocate Variable " + v.id.toString());
+
+#if 0
+	for (auto& c : constants)
+		if (c.id == s)
+			return this;
+
+	auto parentSymbol = s.getParentSymbol();
+
+	if (hasVariable(s.id))
+		return this;
+
+	for (auto v : allocatedVariables)
+		if (v.id == s.id)
+			return this;
+
+	if (auto fc = dynamic_cast<FunctionClass*>(this))
+	{
+		if (fc->hasFunction(s))
+			return this;
+
+		if (auto match = fc->getChildScope(s))
+			return match;
+	}
+
+	if (lookInParentScope)
+	{
+		if (auto p = getParent())
+			return p->getScopeForSymbol(s);
+	}
+	
+
+	return nullptr;
+#endif
+}
+
+bool BaseScope::hasVariable(const Identifier& id) const
+{
+	auto s = scopeId.getChildSymbol(id);
+	return getRootClassScope()->rootData->contains(s);
 }
 
 juce::Array<snex::jit::BaseScope::Symbol> BaseScope::getAllVariables() const
 {
 	Array<Symbol> variableIds;
 
-	variableIds.ensureStorageAllocated(allocatedVariables.size());
-
-	for (auto v : allocatedVariables)
-		variableIds.add({ scopeId, v.id, v.ref.getType() });
+	for (const auto& td : *getRootClassScope()->rootData)
+		variableIds.add(td.s);
 
 	return variableIds;
 }
 
-snex::VariableStorage & BaseScope::getVariableReference(const Identifier& id)
-{
-	for (auto v : allocatedVariables)
-	{
-		if (v.id == id)
-			return v.ref;
-	}
 
-	jassertfalse;
-	empty = {};
-	return empty;
-}
-
-
-bool BaseScope::Symbol::operator==(const Symbol& other) const
-{
-	return parent == other.parent && id == other.id;
-}
-
-
-BaseScope::Symbol::Symbol(const Identifier& parent_, const Identifier& id_, Types::ID t_) :
-	parent(parent_),
-	id(id_),
-	type(t_)
-{
-
-}
-
-
-BaseScope::Symbol::Symbol()
-{
-
-}
-
-
-bool BaseScope::Symbol::matchesIdAndType(const Symbol& other) const
-{
-	return other == *this;// && other.type == type;
-}
-
-juce::String BaseScope::Symbol::toString() const
-{
-	if (id.isNull())
-		return "undefined";
-
-	juce::String s;
-
-	if (parent.isValid())
-		s << parent << "." << id;
-	else
-		s << id;
-
-	return s;
-}
-
-BaseScope::Symbol::operator bool() const
-{
-	return id.isValid();
-}
-
-
+#if 0
 bool BaseScope::Reference::operator==(const Reference& other) const
 {
 	return id == other.id && scope.get() == other.scope.get();
@@ -256,9 +273,8 @@ bool BaseScope::Reference::operator==(const Reference& other) const
 
 BaseScope::Reference::Reference(BaseScope* p, const Identifier& s, Types::ID type) :
 	scope(p),
-	id(p->scopeId, s, type)
+	id(p->scopeId.getChildSymbol(s, type))
 {
-
 }
 
 
@@ -274,12 +290,12 @@ int BaseScope::Reference::getNumReferences() const
 
 void* BaseScope::Reference::getDataPointer() const
 {
-	return scope.get()->getVariableReference(id.id).getDataPointer();
+	return getDataReference().getDataPointer();
 }
 
 snex::VariableStorage BaseScope::Reference::getDataCopy() const
 {
-	return VariableStorage(scope.get()->getVariableReference(id.id));
+	return VariableStorage(getDataReference());
 }
 
 snex::VariableStorage& BaseScope::Reference::getDataReference(bool allowConstInitialisation /*= false*/) const
@@ -287,35 +303,15 @@ snex::VariableStorage& BaseScope::Reference::getDataReference(bool allowConstIni
 	ignoreUnused(allowConstInitialisation);
 	jassert(!(isConst && !allowConstInitialisation));
 
-	return scope.get()->getVariableReference(id.id);
+	return scope->getRootClassScope()->rootData->get(id);
 }
 
 snex::Types::ID BaseScope::Reference::getType() const
 {
 	return id.type;
 }
+#endif
 
-
-bool BaseScope::InternalReference::operator==(const InternalReference& other) const
-{
-	return id == other.id;
-}
-
-
-bool BaseScope::InternalReference::operator==(const Symbol& s) const
-{
-	auto symbolType = s.type;
-	auto thisType = ref.getType();
-
-	return id == s.id && Types::Helpers::matchesType(symbolType, thisType);
-}
-
-BaseScope::InternalReference::InternalReference(const Identifier& id_, VariableStorage& r) :
-	id(id_),
-	ref(r)
-{
-
-}
 
 }
 }

@@ -36,25 +36,26 @@ namespace jit {
 using namespace juce;
 
 
-JitCompiledFunctionClass::JitCompiledFunctionClass(GlobalScope& memory)
+JitCompiledFunctionClass::JitCompiledFunctionClass(BaseScope* parentScope, const Symbol& classInstanceId)
 {
-	pimpl = new ClassScope(memory);
+	pimpl = new ClassScope(parentScope, classInstanceId);
 }
 
 
 JitCompiledFunctionClass::~JitCompiledFunctionClass()
 {
-	delete pimpl;
+	if(pimpl != nullptr)
+		delete pimpl;
 }
 
 
 VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 {
-	auto s = BaseScope::Symbol({}, id, Types::ID::Dynamic);
+	auto s = BaseScope::Symbol({ {}, id }, Types::ID::Dynamic);
 
-	if (auto r = pimpl->get(s))
+	if (auto r = pimpl->rootData->contains(s))
 	{
-		return r->getDataCopy();
+		return VariableStorage(pimpl->rootData->get(s));
 	}
 
 	jassertfalse;
@@ -64,10 +65,10 @@ VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 
 snex::VariableStorage* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
 {
-	auto s = BaseScope::Symbol({}, id, Types::ID::Dynamic);
+	auto s = BaseScope::Symbol({ {}, id }, Types::ID::Dynamic);
 
-	if (auto r = pimpl->get(s))
-		return &r->getDataReference(false);
+	if (pimpl->rootData->contains(s))
+		return &pimpl->rootData->get(s);
 
 	return nullptr;
 }
@@ -79,10 +80,12 @@ juce::Array<juce::Identifier> JitCompiledFunctionClass::getFunctionIds() const
 
 FunctionData JitCompiledFunctionClass::getFunction(const Identifier& functionId)
 {
-	if (pimpl->hasFunction({}, functionId))
+	auto s = pimpl->getClassName().getChildSymbol(functionId);
+
+	if (pimpl->hasFunction(s))
 	{
 		Array<FunctionData> matches;
-		pimpl->addMatchingFunctions(matches, {}, functionId);
+		pimpl->addMatchingFunctions(matches, s);
 
 		// We don't allow overloaded functions for JIT compilation anyway...
 		return matches.getFirst();
@@ -138,9 +141,9 @@ hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
 		if (token == f->getCodeToInsert())
 		{
 			if (f->getType() == Types::ID::Block)
-				return functionClass->pimpl->getSubFunctionClass("Block");
+				return functionClass->pimpl->getSubFunctionClass(Symbol::createRootSymbol("Block"));
 			if (f->getType() == Types::ID::Event)
-				return functionClass->pimpl->getSubFunctionClass("Message");
+				return functionClass->pimpl->getSubFunctionClass(Symbol::createRootSymbol("Message"));
 		}
 	}
 

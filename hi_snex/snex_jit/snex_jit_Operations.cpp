@@ -44,7 +44,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::FunctionParsing)
 	{
-		functionScope = new FunctionScope(scope);
+		functionScope = new FunctionScope(scope, functionId);
 
 		for (int i = 0; i < data.args.size(); i++)
 		{
@@ -70,12 +70,12 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			ignoreUnused(initType);
 			jassert(data.args[i] == initType);
 
-			functionScope->allocate(parameters[i], initValue);
+			//functionScope->allocate(parameters[i], initValue);
 
 			if (auto cs = dynamic_cast<ClassScope*>(findClassScope(scope)))
 			{
 				ClassScope::LocalVariableInfo pInfo;
-				pInfo.id = parameters[i].toString();
+				//pInfo.id = parameters[i].toString();
 				pInfo.isParameter = true;
 				pInfo.type = initType;
 
@@ -92,6 +92,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, statements);
 			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, statements);
 			compiler->executePass(BaseCompiler::TypeCheck, functionScope, statements);
+			compiler->executePass(BaseCompiler::SyntaxSugarReplacements, functionScope, statements);
 			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, statements);
 
 			functionScope->parentFunction = nullptr;
@@ -117,7 +118,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		ch->setLogger(l);
 		ch->setErrorHandler(this);
 		ch->init(runtime->codeInfo());
-
+		
 		//code->setErrorHandler(this);
 
 		ScopedPointer<asmjit::X86Compiler> cc = new asmjit::X86Compiler(ch);
@@ -172,9 +173,9 @@ void Operations::SmoothedVariableDefinition::process(BaseCompiler* compiler, Bas
 		if (auto cs = dynamic_cast<ClassScope*>(scope))
 		{
 			if (type == Types::ID::Float)
-				cs->addFunctionClass(new SmoothedFloat<float>(id.id, iv.toFloat()));
+				cs->addFunctionClass(new SmoothedFloat<float>(id, iv.toFloat()));
 			else if (type == Types::ID::Double)
-				cs->addFunctionClass(new SmoothedFloat<double>(id.id, iv.toDouble()));
+				cs->addFunctionClass(new SmoothedFloat<double>(id, iv.toDouble()));
 			else
 				throwError("Wrong type for smoothed value");
 		}
@@ -196,7 +197,7 @@ void Operations::WrappedBlockDefinition::process(BaseCompiler* compiler, BaseSco
 
 		if (auto cs = dynamic_cast<ClassScope*>(scope))
 		{
-			cs->addFunctionClass(new WrappedBuffer<BufferHandler::WrapAccessor<>>(id.id, b));
+			cs->addFunctionClass(new WrappedBuffer<BufferHandler::WrapAccessor<>>(id, b));
 		}
 	}
 }
@@ -207,15 +208,22 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 	{
+		// Abort further processing, it'll be resolved in PostSymbolOptimization
+		if (BlockAccess::isWrappedBufferReference(this, scope))
+			return;
+
 		// We will create the Reference to the according scope for this
 		// variable, check it's type and if it's a parameter, get the index...
 
 		if (isLocalToScope)
 		{
-			type = id.type;
-
 			if (scope->getScopeForSymbol(id) != nullptr)
 				logWarning("Declaration hides previous variable definition");
+
+			if (auto regScope = dynamic_cast<RegisterScope*>(scope))
+			{
+				regScope->localVariables.add(id);
+			}
 
 			auto initValue = VariableStorage(getType(), 0);
 
@@ -226,27 +234,20 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				initValue = globalScope->getBufferHandler().getData(id.id);
 			}
 
-			auto r = scope->allocate(id.id, initValue);
-
-			if (r.failed())
-				throwError(r.getErrorMessage() + id.toString());
-
-			ref = scope->get(id);
-
 			if (isLocalConst)
-				ref->isConst = true;
+				jassertfalse;
 		}
 		else if (auto vScope = scope->getScopeForSymbol(id))
 		{
-			ref = vScope->get(id);
-			type = ref->id.type;
-
-			if (vScope == scope)
+			if (auto rScope = dynamic_cast<RegisterScope*>(vScope))
 			{
-				isLocalToScope = true;
-				isLocalConst = ref->isConst;
-			}
+				for (const auto& l : rScope->localVariables)
+					if (l == id)
+						type = l.type;
 
+				isLocalToScope = true;
+				return;
+			}
 			if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
 			{
 				parameterIndex = fScope->parameters.indexOf(id.id);
@@ -256,24 +257,37 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 					// This might be changed by the constant folding
 					// so we have to reset it here...
 					isLocalConst = false;
+
 					type = fScope->data.args[parameterIndex].type;
+
+					if (fScope == scope)
+						isLocalToScope = true;
+
+					return;
 				}
+			}
+			
+			type = scope->getRootData()->getTypeForVariable(id);
+
+			if (vScope == scope)
+			{
+				isLocalToScope = true;
+				jassertfalse;
+				isLocalConst = false;
 			}
 		}
 		else if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 		{
-			if (fc->hasConstant(id.parent, id.id))
+			if (fc->hasConstant(id))
 			{
-				functionClassConstant = fc->getConstantValue(id.parent, id.id);
+				functionClassConstant = fc->getConstantValue(id);
 				type = functionClassConstant.getType();
 			}
 
-			// Abort further processing, it'll be resolved in PostSymbolOptimization
-			if (BlockAccess::isWrappedBufferReference(this, scope))
-				return;
+			
 
 			if (functionClassConstant.isVoid())
-				throwError(id.parent.toString() + " does not have constant " + id.id.toString());
+				throwError(id.getParentSymbol().toString() + " does not have constant " + id.id.toString());
 		}
 		else
 			throwError("Can't resolve variable " + id.toString());
@@ -282,13 +296,11 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			st->addVariableReference(this);
 		else
 			jassertfalse;
-
-		// Reset the ID, because we don't need it anymore...
-		id = {};
 	}
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
+		id = id.withType(getType());
 		// Nothing to do...
 	}
 
@@ -314,7 +326,9 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// We need to initialise parameter registers before the rest
 		if (parameterIndex != -1)
 		{
-			reg = compiler->registerPool.getRegisterForVariable(ref);
+			reg = compiler->registerPool.getRegisterForVariable(scope, id.withType(type));
+
+			//reg = compiler->registerPool.getRegisterForVariable(ref);
 
 			if (isFirstReference())
 			{
@@ -336,7 +350,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 		// It might already be assigned to a reused register
 		if (reg == nullptr)
-			reg = compiler->registerPool.getRegisterForVariable(ref);
+			reg = compiler->registerPool.getRegisterForVariable(scope, id);
 
 		if (reg->isActiveOrDirtyGlobalRegister() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
 		{
@@ -354,25 +368,30 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		{
 			auto assignmentType = getWriteAccessType();
 
-			auto* dataPointer = &ref.get()->getDataReference(assignmentType == JitTokens::assign_);
+			auto rd = scope->getRootClassScope()->rootData.get();
 
-			if (assignmentType != JitTokens::void_)
+			if (rd->contains(id))
 			{
-				if (assignmentType != JitTokens::assign_)
+				auto* dataPointer = &rd->get(id);
+
+				if (assignmentType != JitTokens::void_)
 				{
-					reg->setDataPointer(dataPointer);
-					reg->loadMemoryIntoRegister(asg.cc);
+					if (assignmentType != JitTokens::assign_)
+					{
+						reg->setDataPointer(dataPointer);
+						reg->loadMemoryIntoRegister(asg.cc);
+					}
+					else
+						reg->createRegister(asg.cc);
 				}
 				else
-					reg->createRegister(asg.cc);
-			}
-			else
-			{
-				reg->setDataPointer(dataPointer);
-				reg->createMemoryLocation(asg.cc);
+				{
+					reg->setDataPointer(dataPointer);
+					reg->createMemoryLocation(asg.cc);
 
-				if (!isReferencedOnce())
-					reg->loadMemoryIntoRegister(asg.cc);
+					if (!isReferencedOnce())
+						reg->loadMemoryIntoRegister(asg.cc);
+				}
 			}
 		}
 	}
@@ -400,11 +419,12 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 	{
-		if (getSubExpr(0)->isConstExpr() && findClassScope(scope) == scope)
+		if (getSubExpr(0)->isConstExpr())
 		{
-			auto& ref = getTargetVariable()->ref->getDataReference(true);
+			auto rd = scope->getRootClassScope()->rootData.get();
 
-			ref = getSubExpr(0)->getConstExprValue();
+			if (rd->contains(getTargetVariable()->id))
+				rd->get(getTargetVariable()->id) = getSubExpr(0)->getConstExprValue();
 		}
 
 		auto v = getTargetVariable();
@@ -429,7 +449,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			{
 				ClassScope::LocalVariableInfo localInfo;
 				localInfo.isParameter = false;
-				localInfo.id = getTargetVariable()->ref->getDebugName();
+				localInfo.id = getTargetVariable()->id;
 				localInfo.type = expectedType;
 
 				sc->localVariableInfo.add(localInfo);
@@ -461,14 +481,75 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		else
 			acg.emitBinaryOp(assignmentType, tReg, value);
 
-
-
-
-
-
+		if (scope->getRootClassScope()->rootData->contains(targetV->id))
+		{
+			acg.cc.setInlineComment("Write member variable");
+			acg.emitMemoryWrite(targetV->reg);
+		}
 
 		//getSubRegister(0)->flagForReuseIfAnonymous();
 	}
+}
+
+void Operations::ClassInstance::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	COMPILER_PASS(BaseCompiler::SubclassCompilation)
+	{
+		if (scope->hasChildClass(classId))
+		{
+			auto cLocation = location;
+			int length;
+
+			scope->getChildClassCode(classId, cLocation.location, cLocation.program, length);
+
+			for (auto instanceId : instanceIds)
+			{
+				ClassCompiler c(scope, instanceId);
+
+				c.parentRuntime = dynamic_cast<ClassCompiler*>(compiler)->getRuntime();
+
+				ScopedPointer<JitCompiledFunctionClass> classWrapper = c.compileAndGetScope(cLocation, length);
+
+				if (!c.lastResult.wasOk())
+					throwError("Error at class instantiation: " + c.lastResult.getErrorMessage());
+
+				if (auto fc = dynamic_cast<FunctionClass*>(scope))
+				{
+					auto cScope = classWrapper->releaseClassScope();
+					cScope->classTypeId = classId;
+					fc->addFunctionClass(cScope);
+				}
+				else
+					location.throwError("Illegal class instantiation");
+
+				if (auto cc = dynamic_cast<ClassCompiler*>(compiler))
+				{
+					cc->assembly << "; " << classId << " instance " << instanceId.toString() << "\n";
+					cc->assembly << c.assembly;
+				}
+			}
+		}
+	}
+}
+
+snex::jit::Symbol Operations::BlockAccess::isWrappedBufferReference(Statement::Ptr expr, BaseScope* scope)
+{
+	if (auto var = dynamic_cast<Operations::VariableReference*>(expr.get()))
+	{
+		if (auto s = scope->getScopeForSymbol(var->id))
+		{
+			if (auto cs = dynamic_cast<ClassScope*>(s))
+			{
+				if (auto wrappedBuffer = dynamic_cast<WrappedBufferBase*>(cs->getSubFunctionClass(var->id)))
+				{
+					return var->id;
+				}
+			}
+		}
+
+	}
+
+	return {};
 }
 
 }

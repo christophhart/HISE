@@ -39,7 +39,7 @@ using namespace asmjit;
 
 Compiler::Compiler(GlobalScope& memoryPool)
 {
-	compiler = new ClassCompiler(memoryPool);
+	compiler = new ClassCompiler(&memoryPool);
 }
 
 Compiler::~Compiler()
@@ -70,8 +70,7 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 void Compiler::setDebugHandler(DebugHandler* newHandler)
 {
 	compiler->setDebugHandler(newHandler);
-
-	compiler->memoryPool.addDebugHandler(newHandler);
+	compiler->parentScope->getGlobalScope()->addDebugHandler(newHandler);
 }
 
 

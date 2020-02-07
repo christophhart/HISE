@@ -57,7 +57,7 @@ using namespace juce;
 	X(void_, "void")			X(public_, "public")	X(private_, "private") \
 	X(class_, "class")			X(block_, "block")	X(event_, "event")		X(for_, "for") \
 	X(if_, "if")				X(else_, "else")	X(sfloat, "sfloat")		X(sdouble, "sdouble") \
-	X(auto_, "auto")			X(wblock, "wblock")		X(zblock, "zblock")
+	X(auto_, "auto")			X(wblock, "wblock")	X(zblock, "zblock")		X(struct_, "struct")	X(span_, "span")
 
 namespace JitTokens
 {
@@ -104,6 +104,11 @@ struct ParserHelpers
 		int getLine() const
 		{
 			return getLineNumber(program, location);
+		}
+
+		Identifier createAnonymousScopeId() const
+		{
+			return Identifier("AnonymousScopeLine" + juce::String(getLine()));
 		}
 
 		static int getLineNumber(juce::String::CharPointerType start, 
@@ -166,10 +171,11 @@ struct ParserHelpers
 
 	typedef const char* TokenType;
 
-		TokenIterator(const String::CharPointerType& code, const String::CharPointerType& wholeProgram, int length) :
+		TokenIterator(const String::CharPointerType& code, const String::CharPointerType& wholeProgram, int length, const Symbol& rootSymbol_) :
 			location(code, wholeProgram),
 			p(code),
-			endPointer(code + length)
+			endPointer(code + length),
+			rootSymbol(rootSymbol_)
 		{
 			skip(); 
 		}
@@ -189,13 +195,16 @@ struct ParserHelpers
 			skip();
 		}
 
-	
-
 		bool isEOF() const { return currentType == JitTokens::eof; }
 
 		bool matchIf(TokenType expected) { if (currentType == expected) { skip(); return true; } return false; }
 		bool matchesAny(TokenType t1, TokenType t2) const { return currentType == t1 || currentType == t2; }
 		bool matchesAny(TokenType t1, TokenType t2, TokenType t3) const { return matchesAny(t1, t2) || currentType == t3; }
+
+		Symbol getCurrentSymbol() const
+		{
+			return currentSymbol.withParent(rootSymbol).withType(currentHnodeType);
+		}
 
 		CodeLocation location;
 		TokenType currentType;
@@ -213,8 +222,6 @@ struct ParserHelpers
 
 		String::CharPointerType endPointer;
 		int length = -1;
-
-		BaseScope::Symbol currentSymbol;
 
 		TokenType currentAssignmentType;
 
@@ -237,15 +244,14 @@ struct ParserHelpers
 		{
 			if (currentType == JitTokens::identifier)
 			{
-				currentSymbol = {};
+				Array<Identifier> idList;
 
-				currentSymbol.id = parseIdentifier();
+				idList.add(parseIdentifier());
 
-				if (matchIf(JitTokens::dot))
-				{
-					currentSymbol.parent = currentSymbol.id;
-					currentSymbol.id = parseIdentifier();
-				}
+				while(matchIf(JitTokens::dot))
+					idList.add(parseIdentifier());
+
+				currentSymbol = BaseScope::Symbol(idList, Types::ID::Dynamic);
 
 				return true;
 			}
@@ -541,6 +547,11 @@ struct ParserHelpers
 			currentString = String(v);
 			return true;
 		}
+
+	private:
+
+		Symbol currentSymbol;
+		const Symbol rootSymbol;
 	};
 
 

@@ -59,6 +59,17 @@ struct DebugHandler
 
 class BaseCompiler;
 
+struct DataPool
+{
+	struct Item
+	{
+		Symbol s;
+		int offset;
+	};
+
+
+	juce::HeapBlock<char> data;
+};
 
 class BreakpointHandler: public AsyncUpdater
 {
@@ -91,7 +102,7 @@ public:
 			s << "\n";
 		}
 
-		Identifier id;
+		Symbol id;
 		VariableStorage currentValue;
 		BaseScope::ScopeType scope;
 		bool changed = false;
@@ -156,7 +167,7 @@ public:
 		return numEntries;
 	}
 
-	Entry getEntry(const Identifier& id) const 
+	Entry getEntry(const Symbol& id) const 
 	{ 
 		for (int i = 0; i < 128; i++)
 		{
@@ -178,19 +189,19 @@ public:
 		numEntries = 0;
 	}
 
-	void* getNextFreeTable(BaseScope::RefPtr ref)
+	void* getNextFreeTable(const Symbol& ref)
 	{
 		for (int i = 0; i < 128; i++)
 		{
-			if (!dumpTable[i].isUsed || dumpTable[i].id == ref->id.id)
+			if (!dumpTable[i].isUsed || dumpTable[i].id == ref)
 			{
 				if(!dumpTable[i].isUsed)
 					numEntries++;
 
 				dumpTable[i].isUsed = true;
-				dumpTable[i].id = ref->id.id;
-				dumpTable[i].scope = ref->scope->getScopeType();
-				dumpTable[i].currentValue = VariableStorage(ref->getType(), 0);
+				dumpTable[i].id = ref,
+				dumpTable[i].scope = BaseScope::Class; 
+				dumpTable[i].currentValue = VariableStorage(ref.type, 0);
 
 				return dumpTable[i].currentValue.getDataPointer();
 			}
@@ -590,7 +601,7 @@ public:
 	{
 		virtual ~ObjectDeleteListener() {};
 
-		virtual void objectWasDeleted(const Identifier& id) = 0;
+		virtual void objectWasDeleted(const Symbol& id) = 0;
 
 	private:
 
@@ -600,19 +611,14 @@ public:
 	
 	void registerObjectFunction(FunctionClass* objectClass);
 
-	void deregisterObject(const Identifier& id);
+	void deregisterObject(const Symbol& id);
 
-	bool hasFunction(const Identifier& classId, const Identifier& functionId) const override;
+	bool hasFunction(const Symbol& symbol) const override;
 
-	void addMatchingFunctions(Array<FunctionData>& matches, const Identifier& classId, const Identifier& functionId) const override;
+	void addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const override;
 
 	void addObjectDeleteListener(ObjectDeleteListener* l);
 	void removeObjectDeleteListener(ObjectDeleteListener* l);
-
-    VariableStorage& operator[](const Identifier& id)
-    {
-        return getVariableReference(id);
-    }
 
 	static GlobalScope* getFromChildScope(BaseScope* scope)
 	{

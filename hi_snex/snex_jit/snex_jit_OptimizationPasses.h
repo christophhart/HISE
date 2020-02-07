@@ -82,8 +82,11 @@ public:
      
         It will also be called only during optimization passes, so you can't
         perform anything during regular passes (eg. ResolvingSymbols).
+
+		If some optimizations were performed, return true so that this pass will be repeated.
+		This might catch subsequent optimizations.
     */
-    virtual void processStatementInternal(BaseCompiler* c, BaseScope* s, StatementPtr statement) = 0;
+    virtual bool processStatementInternal(BaseCompiler* c, BaseScope* s, StatementPtr statement) = 0;
     
     /** Call this if you want to replace a statement with a noop node.
         If the statement is not referenced anywhere else, it might be
@@ -138,7 +141,7 @@ public:
 		constantVariables.clear();
 	}
 
-	void processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement);
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement);
 
 	void addConstKeywordToSingleWriteVariables(Operations::VariableReference* v, BaseScope* s, BaseCompiler* compiler);
 
@@ -157,9 +160,11 @@ public:
 
 	static ExprPtr createInvertImmediate(ExprPtr immediate, OpType op);
 
+	static ExprPtr evalConstMathFunction(Operations::FunctionCall* functionCall);
+
 private:
 
-	ReferenceCountedArray<BaseScope::Reference> constantVariables;
+	Array<Symbol> constantVariables;
 };
 
 class BinaryOpOptimizer : public OptimizationPass
@@ -191,7 +196,7 @@ public:
 
 	OPTIMIZATION_FACTORY(OptimizationIds::BinaryOpOptimisation, BinaryOpOptimizer);
 
-	void processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 
 private:
 
@@ -203,9 +208,9 @@ private:
 
 	static Operations::BinaryOp* getFirstOp(ExprPtr e);
 
-	BaseScope::RefPtr currentlyAssignedId;
+	Symbol currentlyAssignedId;
 
-	static bool containsVariableReference(ExprPtr p, BaseScope::RefPtr refToCheck);
+	static bool containsVariableReference(ExprPtr p, const Symbol& refToCheck);
 
 	void swapBinaryOpIfPossible(ExprPtr binaryOp);
 
@@ -218,7 +223,7 @@ public:
 
 	OPTIMIZATION_FACTORY(OptimizationIds::DeadCodeElimination, DeadcodeEliminator);
 
-	void processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 };
 
 class Inliner: public OptimizationPass
@@ -229,9 +234,7 @@ public:
 
 	using TokenType = ParserHelpers::TokenType;
 
-	
-
-	void processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 
 	using ExprPtr = Operations::Expression::Ptr;
 

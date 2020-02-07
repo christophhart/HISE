@@ -247,7 +247,7 @@ bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 	{
 		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
 		{
-			if (variable->ref == dynamic_cast<Operations::VariableReference*>(v_)->ref)
+			if (variable->id == dynamic_cast<Operations::VariableReference*>(v_)->id)
 				return v == v_;
 		}
 	}
@@ -255,7 +255,7 @@ bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 	return false;
 }
 
-Operations::Statement* SyntaxTree::getLastVariableForReference(BaseScope::RefPtr ref) const
+Operations::Statement* SyntaxTree::getLastVariableForReference(const Symbol& ref) const
 {
 	Statement* lastRef = nullptr;
 
@@ -263,7 +263,7 @@ Operations::Statement* SyntaxTree::getLastVariableForReference(BaseScope::RefPtr
 	{
 		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
 		{
-			if (ref == variable->ref)
+			if (ref == variable->id)
 				lastRef = variable;
 		}
 	}
@@ -271,7 +271,7 @@ Operations::Statement* SyntaxTree::getLastVariableForReference(BaseScope::RefPtr
 	return lastRef;
 }
 
-Operations::Statement* SyntaxTree::getLastAssignmentForReference(BaseScope::RefPtr ref) const
+Operations::Statement* SyntaxTree::getLastAssignmentForReference(const Symbol& ref) const
 {
 	Statement* lastAssignment = nullptr;
 
@@ -279,7 +279,7 @@ Operations::Statement* SyntaxTree::getLastAssignmentForReference(BaseScope::RefP
 	{
 		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
 		{
-			if (ref == variable->ref)
+			if (ref == variable->id)
 			{
 				if (auto as = dynamic_cast<Operations::Assignment*>(v->parent.get()))
 				{
@@ -302,13 +302,24 @@ Operations::Statement::Statement(Location l) :
 
 void Operations::Statement::process(BaseCompiler* compiler, BaseScope* scope)
 {
+	if (parent == nullptr)
+		return;
+
 	currentCompiler = compiler;
 	currentScope = scope;
 	currentPass = compiler->getCurrentPass();
 
+
+
 	if (BaseCompiler::isOptimizationPass(currentPass))
 	{
-		compiler->executeOptimization(this, scope);
+		bool found = false;
+
+		for (int i = 0; i < parent->getNumChildStatements(); i++)
+			found |= parent->getChildStatement(i).get() == this;
+
+		if(found)
+			compiler->executeOptimization(this, scope);
 	}
 }
 
@@ -355,12 +366,13 @@ Operations::Statement::Ptr Operations::Statement::replaceInParent(Statement::Ptr
 				Ptr f(this);
 				parent->childStatements.set(i, newExpression.get());
 				newExpression->parent = parent;
+				parent = nullptr;
 				return f;
 			}
 		}
 	}
 
-	jassertfalse;
+	
 	return nullptr;
 }
 
@@ -409,7 +421,7 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 
 		// If use a class variable, we need to create the register
 		// outside the loop
-		if (v->isClassVariable() && v->isFirstReference())
+		if (v->isClassVariable(s) && v->isFirstReference())
 			v->process(c, s);
 	}
 }
