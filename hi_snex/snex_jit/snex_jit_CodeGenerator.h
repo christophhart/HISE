@@ -49,11 +49,11 @@ struct AsmCodeGenerator
 
 	struct TemporaryRegister
 	{
-		TemporaryRegister(AsmCodeGenerator& acg, Types::ID type)
+		TemporaryRegister(AsmCodeGenerator& acg, BaseScope* scope, Types::ID type)
 		{
 			if (acg.registerPool != nullptr)
 			{
-				tempReg = acg.registerPool->getNextFreeRegister(type);
+				tempReg = acg.registerPool->getNextFreeRegister(scope, type);
 				tempReg->createRegister(acg.cc);
 			}
 			else
@@ -127,6 +127,8 @@ struct AsmCodeGenerator
 	void emitFunctionCall(RegPtr returnReg, const FunctionData& f, ReferenceCountedArray<AssemblyRegister>& parameterRegisters);
 
 	void dumpVariables(BaseScope* s, uint64_t lineNumber);
+
+	
 
 	Compiler& cc;
 

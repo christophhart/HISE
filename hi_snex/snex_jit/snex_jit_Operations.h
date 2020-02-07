@@ -57,7 +57,7 @@ public:
 		if (compiler->getCurrentPass() == BaseCompiler::ResolvingSymbols)
 		{
 			if (blockScope == nullptr)
-				blockScope = new RegisterScope(scope);
+				blockScope = new RegisterScope(scope, {});
 		}
 
 		for (int i = 0; i < getNumChildStatements(); i++)
@@ -102,8 +102,9 @@ struct Operations::Immediate : public Expression
 			// assignment for immediates
 			reg = nullptr;
 
-			reg = compiler->getRegFromPool(getType());
+			reg = compiler->getRegFromPool(scope, getType());
 			reg->setDataPointer(&v);
+
 			reg->createMemoryLocation(getFunctionCompiler(compiler));
 		}
 	}
@@ -118,7 +119,9 @@ struct Operations::VariableReference : public Expression
 	VariableReference(Location l, const Symbol& id_) :
 		Expression(l),
 		id(id_)
-	{};
+	{
+		jassert(id);
+	};
 
 	/** This scans the tree and checks whether it's the last reference.
 	
@@ -136,7 +139,7 @@ struct Operations::VariableReference : public Expression
 
 		while (lastOne != nullptr)
 		{
-            auto isOtherVariable = lastOne->ref != ref;
+            auto isOtherVariable = lastOne->id != id;
             
             lastOne = walker.getNextStatementOfType<VariableReference>();
             
@@ -147,6 +150,21 @@ struct Operations::VariableReference : public Expression
 		}
 
 		return isLast;
+	}
+
+	int getNumWriteAcesses()
+	{
+		int numWriteAccesses = 0;
+
+		SyntaxTreeWalker walker(this);
+
+		while (auto v = walker.getNextStatementOfType<VariableReference>())
+		{
+			if (v->id == id && v->isBeingWritten())
+				numWriteAccesses++;
+		}
+
+		return numWriteAccesses;
 	}
 
 	/** This flags all variables that are not referenced later as ready for
@@ -201,14 +219,23 @@ struct Operations::VariableReference : public Expression
 	{
 		jassert(isLocalToScope);
 
-		return ref->getDataCopy();
+		jassertfalse;
+		return {};
 	}
 
 	bool isReferencedOnce() const
 	{
-		// The class variable definition is also a reference so we 
-		// need to take it into account.
-		return ref->getNumReferences() == (isClassVariable() ? 2 : 1);
+		SyntaxTreeWalker w(this);
+
+		int numReferences = 0;
+
+		if (auto v = w.getNextStatementOfType<VariableReference>())
+		{
+			if (v->id == id)
+				numReferences++;
+		}
+
+		return numReferences == 1;
 	}
 
 	bool isParameter(BaseScope* scope) const
@@ -230,19 +257,18 @@ struct Operations::VariableReference : public Expression
 
 	TokenType getWriteAccessType();
 
-    bool isClassVariable() const
-    {
-        jassert(ref != nullptr);
-        return ref->scope->getScopeType() == BaseScope::Class;
-    }
-    
-	bool isFirstReference()
+	bool isClassVariable(BaseScope* scope) const
+	{
+		return scope->getRootClassScope()->rootData->contains(id);
+	}
+
+    bool isFirstReference()
 	{
 		SyntaxTreeWalker walker(this);
 
 		while (auto v = walker.getNextStatementOfType<VariableReference>())
 		{
-			if (v->ref == ref)
+			if (v->id == id)
 				return v == this;
 		}
 
@@ -254,7 +280,6 @@ struct Operations::VariableReference : public Expression
 
 	int parameterIndex = -1;
 	Symbol id;					// The Symbol from the parser
-	BaseScope::RefPtr ref;		// The Reference from the resolver
 	bool isLocalToScope = false;
 	bool isLocalConst = false;
 
@@ -293,7 +318,7 @@ struct Operations::Cast : public Expression
 		{
 			auto asg = CREATE_ASM_COMPILER(type);
 			auto sourceType = getSubExpr(0)->getType();
-			reg = compiler->getRegFromPool(type);
+			reg = compiler->getRegFromPool(scope, type);
 			asg.emitCast(reg, getSubRegister(0), sourceType);
 		}
 	}
@@ -313,7 +338,7 @@ struct Operations::Assignment : public Expression
 	bool isLastAssignmentToTarget() const
 	{
 		auto tree = findParentStatementOfType<SyntaxTree>(this);
-		return this == tree->getLastAssignmentForReference(getTargetVariable()->ref);
+		return this == tree->getLastAssignmentForReference(getTargetVariable()->id);
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
@@ -381,7 +406,7 @@ struct Operations::Compare : public Expression
 				auto l = getSubExpr(0);
 				auto r = getSubExpr(1);
 
-				reg = compiler->getRegFromPool(getType());
+				reg = compiler->getRegFromPool(scope, getType());
 
 				auto tReg = getSubRegister(0);
 				auto value = getSubRegister(1);
@@ -494,43 +519,42 @@ struct Operations::FunctionCall : public Expression
 
 		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 		{
-			auto eventSymbol = BaseScope::Symbol({}, symbol.parent, Types::ID::Event);
+			auto parentSymbol = symbol.getParentSymbol();
 
-			if (auto eventScope = scope->getScopeForSymbol(eventSymbol))
+			if (auto pScope = scope->getScopeForSymbol(parentSymbol))
 			{
-				VariableReference* object = new VariableReference(location, eventSymbol);
+				if (pScope->hasVariable(parentSymbol.id))
+				{
+					auto type = symbol.type;
 
-				addStatement(object, true);
-				object->process(compiler, scope);
-				symbol.parent = "Message";
-			}
+					if (type == Types::ID::Event || type == Types::ID::Block)
+					{
+						VariableReference* object = new VariableReference(location, parentSymbol);
 
-			auto blockSymbol = BaseScope::Symbol({}, symbol.parent, Types::ID::Block);
+						addStatement(object, true);
+						object->process(compiler, scope);
 
-			if (auto blockScope = scope->getScopeForSymbol(blockSymbol))
-			{
-				VariableReference* object = new VariableReference(location, blockSymbol);
-				addStatement(object, true);
-				object->process(compiler, scope);
-				symbol.parent = "Block";
+						symbol = Symbol::createRootSymbol(type == Types::ID::Event ? "Message" : "Block").getChildSymbol(symbol.id, type);
+					}
+				}
 			}
 
 			if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
-				if (fc->hasFunction(symbol.parent, symbol.id))
+				if (fc->hasFunction(symbol))
 				{
-					fc->addMatchingFunctions(possibleMatches, symbol.parent, symbol.id);
+					fc->addMatchingFunctions(possibleMatches, symbol);
 					return;
 				}
 			}
 
-			if (auto gc = dynamic_cast<GlobalScope*>(findClassScope(scope)->getParent()))
+			if (auto gc = scope->getGlobalScope())
 			{
 				jassert(gc->getScopeType() == BaseScope::Global);
 
-				if (gc->hasFunction(symbol.parent, symbol.id))
+				if (gc->hasFunction(symbol))
 				{
-					gc->addMatchingFunctions(possibleMatches, symbol.parent, symbol.id);
+					gc->addMatchingFunctions(possibleMatches, symbol);
 					return;
 				}
 			}
@@ -573,7 +597,7 @@ struct Operations::FunctionCall : public Expression
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{
-			reg = compiler->getRegFromPool(type);
+			reg = compiler->getRegFromPool(scope, type);
 
 			//VariableReference::reuseAllLastReferences(this);
 
@@ -594,7 +618,7 @@ struct Operations::FunctionCall : public Expression
 						pReg = v->reg;
 
 						if(pReg == nullptr)
-							pReg = compiler->registerPool.getRegisterForVariable(v->ref);
+							pReg = compiler->registerPool.getRegisterForVariable(scope, v->id);
 
 						jassert(pReg != nullptr);
 					}
@@ -603,7 +627,7 @@ struct Operations::FunctionCall : public Expression
 				}
 				else
 				{
-					pReg = compiler->getRegFromPool(getSubExpr(i)->getType());
+					pReg = compiler->getRegFromPool(scope, getSubExpr(i)->getType());
 					auto asg = CREATE_ASM_COMPILER(type);
 					pReg->createRegister(asg.cc);
 				}
@@ -627,7 +651,21 @@ struct Operations::FunctionCall : public Expression
 			auto asg = CREATE_ASM_COMPILER(type);
 
 			if (function.id.toString() == "stop")
+			{
 				asg.dumpVariables(scope, location.getLine());
+
+				function.functionName = "";
+
+				function.functionName << "Line " << juce::String(location.getLine()) << " Breakpoint";
+			}
+			else
+			{
+				for (auto dv : compiler->registerPool.getListOfAllDirtyGlobals())
+				{
+					auto asg = CREATE_ASM_COMPILER(dv->getType());
+					asg.emitMemoryWrite(dv);
+				}
+			}
 
 			VariableReference::reuseAllLastReferences(this);
 
@@ -673,6 +711,9 @@ struct Operations::FunctionCall : public Expression
 				
 			}
 #endif
+
+			if(function.functionName.isEmpty())
+				function.functionName = function.getSignature({});
 
 			asg.emitFunctionCall(reg, function, parameterRegs);
 
@@ -746,7 +787,7 @@ struct Operations::ReturnStatement : public Expression
 
 			if (!isVoid())
 			{
-				reg = compiler->registerPool.getNextFreeRegister(type);
+				reg = compiler->registerPool.getNextFreeRegister(scope, type);
 			}
 
 			auto sourceReg = isVoid() ? nullptr : getSubRegister(0);
@@ -757,12 +798,68 @@ struct Operations::ReturnStatement : public Expression
 };
 
 
+struct Operations::ClassStatement : public Statement
+{
+	using Ptr = ReferenceCountedObjectPtr<ClassStatement>;
+
+	ClassStatement(Location l, Identifier& id) :
+		Statement(l),
+		endLocation(l)
+	{
+		classSymbol.id = id;
+	}
+
+	Types::ID getType() const override { return Types::ID::Void; }
+
+	void process(BaseCompiler* compiler, BaseScope* scope)
+	{
+		COMPILER_PASS(BaseCompiler::SubclassCompilation)
+		{
+			try
+			{
+				auto length = (int)(endLocation.location - location.location);
+				scope->registerClass(classSymbol.id, location.location, location.program, length);
+			}
+			catch (juce::String& s)
+			{
+				location.throwError(s);
+			}
+		}
+	}
+
+	Symbol classSymbol;
+	Location endLocation;
+};
+
+struct Operations::ClassInstance : public Statement
+{
+	ClassInstance(Location l, const Identifier& classId_, const Array<Symbol>& instanceIds_) :
+		Statement(l),
+		classId(classId_),
+		instanceIds(instanceIds_)
+	{}
+
+	Types::ID getType() const override { return Types::ID::ObjectPointer; }
+
+	void process(BaseCompiler* compiler, BaseScope* scope);
+
+	WeakReference<ClassScope> instanceScope;
+
+	Identifier classId;
+	Array<Symbol> instanceIds;
+
+	ClassStatement::Ptr classStatement;
+};
+
+
+
 struct Operations::Function : public Statement,
 	public asmjit::ErrorHandler
 {
-	Function(Location l) :
+	Function(Location l, const Identifier& id_) :
 		Statement(l),
-		code(nullptr)
+		code(nullptr),
+		functionId(id_)
 	{};
 
 	~Function()
@@ -789,6 +886,7 @@ struct Operations::Function : public Statement,
 	ScopedPointer<SyntaxTree> statements;
 	FunctionData data;
 	Array<Identifier> parameters;
+	Identifier functionId;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Function);
 };
@@ -859,7 +957,7 @@ struct Operations::BinaryOp : public Expression
 					if (reg == nullptr)
 					{
 						asg.emitComment("temp register for binary op");
-						reg = compiler->getRegFromPool(getType());
+						reg = compiler->getRegFromPool(scope, getType());
 						usesTempRegister = true;
 					}
 
@@ -908,35 +1006,20 @@ struct Operations::BlockAccess : public Expression
 		type = Types::ID::Float;
 	}
 
-	static Symbol isWrappedBufferReference(Statement::Ptr expr, BaseScope* scope)
-	{
-		if (auto var = dynamic_cast<Operations::VariableReference*>(expr.get()))
-		{
-			if (auto cc = dynamic_cast<FunctionClass*>(Operations::findClassScope(scope)))
-			{
-				if (auto wrappedBuffer = dynamic_cast<WrappedBufferBase*>(cc->getSubFunctionClass(var->id.id)))
-				{
-					return var->id;
-				}
-			}
-		}
-
-		return {};
-	}
+	static Symbol isWrappedBufferReference(Statement::Ptr expr, BaseScope* scope);
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		Expression::process(compiler, scope);
 
-		COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
 			auto wrappedSymbol = isWrappedBufferReference(getChildStatement(1), scope);
 
 			if (wrappedSymbol.id.isValid())
 			{
 				Symbol getter;
-				getter.parent = wrappedSymbol.id;
-				getter.id = "getAt";
+				getter = wrappedSymbol.getChildSymbol("getAt");
 
 				auto indexStatement = getChildStatement(0);
 
@@ -970,7 +1053,7 @@ struct Operations::BlockAccess : public Expression
 
 				compiler->setCurrentPass(BaseCompiler::TypeCheck);
 				fc->process(compiler, scope);
-				compiler->setCurrentPass(BaseCompiler::PostSymbolOptimization);
+				compiler->setCurrentPass(BaseCompiler::SyntaxSugarReplacements);
 
 				indexStatement->process(compiler, scope);
 
@@ -997,9 +1080,9 @@ struct Operations::BlockAccess : public Expression
 			if (auto cs = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
 				Array<FunctionData> matches;
-				cs->addMatchingFunctions(matches, "Block", "getSample");
+				cs->addMatchingFunctions(matches, { {"Block", "getSample"}, Types::ID::Float });
 
-				reg = compiler->getRegFromPool(type);
+				reg = compiler->getRegFromPool(scope, type);
 
 				auto asg = CREATE_ASM_COMPILER(type);
 
@@ -1030,7 +1113,7 @@ struct Operations::Increment : public UnaryOp
 	{
 		Expression::process(compiler, scope);
 
-		COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
 			if (removed)
 				return;
@@ -1040,12 +1123,11 @@ struct Operations::Increment : public UnaryOp
 			if (symbol.id.isValid())
 			{
 				Symbol incSymbol;
-				incSymbol.parent = symbol.id;
 
 				if (isPreInc)
-					incSymbol.id = "getAndInc";
+					incSymbol = symbol.getChildSymbol("getAndInc");
 				else
-					incSymbol.id = "getAndPostInc";
+					incSymbol = symbol.getChildSymbol("getAndPostInc");
 
 				auto fc = new FunctionCall(location, incSymbol);
 
@@ -1054,7 +1136,7 @@ struct Operations::Increment : public UnaryOp
 				fc->process(compiler, scope);
 				compiler->setCurrentPass(BaseCompiler::TypeCheck);
 				fc->process(compiler, scope);
-				compiler->setCurrentPass(BaseCompiler::PostSymbolOptimization);
+				compiler->setCurrentPass(BaseCompiler::SyntaxSugarReplacements);
 
 				replaceInParent(fc);
 
@@ -1091,7 +1173,7 @@ struct Operations::Increment : public UnaryOp
 			}
 			else
 			{
-				reg = compiler->getRegFromPool(Types::ID::Integer);
+				reg = compiler->getRegFromPool(scope, Types::ID::Integer);
 				asg.emitIncrement(reg, getSubRegister(0), isPreInc, isDecrement);
 			}
 		}
@@ -1114,7 +1196,7 @@ struct Operations::BlockAssignment : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
-		COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
 			if (replaced)
 				return;
@@ -1125,9 +1207,7 @@ struct Operations::BlockAssignment : public Expression
 
 			if(wrappedSymbol.id.isValid())
 			{
-				Symbol setter;
-				setter.parent = wrappedSymbol.id;
-				setter.id = "setAt";
+				auto setter = wrappedSymbol.getChildSymbol("setAt");
 
 				auto indexStateement = getChildStatement(1)->getChildStatement(0);
 				auto valueStatement = getChildStatement(0);
@@ -1155,7 +1235,7 @@ struct Operations::BlockAssignment : public Expression
 
 				compiler->setCurrentPass(BaseCompiler::TypeCheck);
 				fc->process(compiler, scope);
-				compiler->setCurrentPass(BaseCompiler::PostSymbolOptimization);
+				compiler->setCurrentPass(BaseCompiler::SyntaxSugarReplacements);
 
 				indexStateement->process(compiler, scope);
 				valueStatement->process(compiler, scope);
@@ -1193,13 +1273,10 @@ struct Operations::BlockAssignment : public Expression
 				parameters.add(vl->reg);
 
 				Array<FunctionData> matches;
-				cs->addMatchingFunctions(matches, "Block", "setSample");
-
+				cs->addMatchingFunctions(matches, { {"Block", "setSample"}, Types::ID::Float });
 
 				asg.emitFunctionCall(nullptr, matches.getFirst(), parameters);
 			}
-
-
 
 			return;
 		}
@@ -1226,7 +1303,7 @@ struct Operations::BlockAssignment : public Expression
 struct Operations::BlockLoop : public Expression,
 							   public Operations::ConditionalBranch
 {
-	BlockLoop(Location l, Identifier it_, Expression::Ptr t, Statement::Ptr b_) :
+	BlockLoop(Location l, const Symbol& it_, Expression::Ptr t, Statement::Ptr b_) :
 		Expression(l),
 		iterator(it_)
 	{
@@ -1252,8 +1329,7 @@ struct Operations::BlockLoop : public Expression,
 		{
 			target->process(compiler, scope);
 
-			b->blockScope = new RegisterScope(scope);
-			b->blockScope->allocate(iterator, VariableStorage(0.0f));
+			b->blockScope = new RegisterScope(scope, location.createAnonymousScopeId());
 
 			b->process(compiler, scope);
 
@@ -1263,15 +1339,13 @@ struct Operations::BlockLoop : public Expression,
 
 				while (auto v = w.getNextStatementOfType<VariableReference>())
 				{
-					
-					if (v->ref == nullptr)
+					if (!v->id)
 					{
 						jassert(BlockAccess::isWrappedBufferReference(v, scope));
 						continue;
 					}
-						
 
-					if (v->ref->id.id == iterator)
+					if (v->id == iterator)
 					{
 						if (auto a = dynamic_cast<Assignment*>(v->parent.get()))
 						{
@@ -1285,7 +1359,7 @@ struct Operations::BlockLoop : public Expression,
 			}
 		}
 
-		COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
+		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
 			target->process(compiler, scope);
 			b->process(compiler, scope);
@@ -1315,13 +1389,11 @@ struct Operations::BlockLoop : public Expression,
 				target->process(compiler, scope);
 				target->reg->loadMemoryIntoRegister(acg.cc);
 
-				auto endRegPtr = compiler->registerPool.getNextFreeRegister(Types::ID::Integer);
-
-				BaseScope::RefPtr r = b->blockScope->get({ {}, iterator, Types::ID::Float });
+				auto endRegPtr = compiler->registerPool.getNextFreeRegister(scope, Types::ID::Integer);
 
 				allocateDirtyGlobalVariables(b, compiler, scope);
 
-				auto itReg = compiler->registerPool.getRegisterForVariable(r);
+				auto itReg = compiler->registerPool.getRegisterForVariable(scope, iterator);
 				itReg->createRegister(acg.cc);
 				itReg->setIsIteratorRegister(true);
 
@@ -1367,7 +1439,7 @@ struct Operations::BlockLoop : public Expression,
 	}
 
 	RegPtr iteratorRegister;
-	Identifier iterator;
+	Symbol iterator;
 	Expression::Ptr target;
 	ReferenceCountedObjectPtr<StatementBlock> b;
 
@@ -1393,7 +1465,7 @@ struct Operations::Negation : public Expression
 			{
 				auto asg = CREATE_ASM_COMPILER(getType());
 
-				reg = compiler->getRegFromPool(getType());
+				reg = compiler->getRegFromPool(scope, getType());
 
 				asg.emitNegation(reg, getSubRegister(0));
 

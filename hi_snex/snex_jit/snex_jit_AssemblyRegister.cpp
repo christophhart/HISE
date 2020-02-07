@@ -44,15 +44,16 @@ AssemblyRegister::AssemblyRegister(Types::ID type_) :
 }
 
 
-void AssemblyRegister::setReference(BaseScope::RefPtr ref)
+void AssemblyRegister::setReference(BaseScope* s, const Symbol& ref)
 {
-	variableId = ref.get();
+	scope = s;
+	id = ref;
 }
 
 
-snex::jit::BaseScope::Reference* AssemblyRegister::getVariableId() const
+const Symbol& AssemblyRegister::getVariableId() const
 {
-	return variableId.get();
+	return id;
 }
 
 
@@ -64,7 +65,7 @@ bool AssemblyRegister::isDirtyGlobalMemory() const
 
 void AssemblyRegister::flagForReuseIfAnonymous()
 {
-	if (variableId == nullptr)
+	if (!id)
 		flagForReuse();
 }
 
@@ -96,21 +97,15 @@ bool AssemblyRegister::canBeReused() const
 
 void* AssemblyRegister::getGlobalDataPointer()
 {
-	if (type == Types::ID::Event)
-	{
-		auto v = variableId->getDataPointer();
-		return v;
-	}
-		
+	jassert(scope != nullptr);
 
 	if (isGlobalVariableRegister())
-		return variableId->getDataPointer();
-	
+		return scope->getRootClassScope()->rootData->get(id).getDataPointer();
+
 	// No need to fetch / write the data for non-globals
 	jassertfalse;
 	return nullptr;
 }
-
 
 asmjit::X86Reg AssemblyRegister::getRegisterForReadOp()
 {
@@ -129,16 +124,16 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 		state == ReusableRegister ||
 		state == DirtyGlobalRegister);
 
-	if (variableId != nullptr)
+	jassert(scope != nullptr);
+
+	if (id)
 	{
-		auto scopeType = variableId->scope->getScopeType();
+		auto scopeType = scope->getScopeForSymbol(id)->getScopeType();
 
 		if (scopeType == BaseScope::Class)
 		{
 			dirty = true;
-
 			state = DirtyGlobalRegister;
-
 		}
 		else if (scopeType == BaseScope::Global)
 			throw juce::String("can't write to global variables");
@@ -166,9 +161,9 @@ juce::int64 AssemblyRegister::getImmediateIntValue()
 	return immediateIntValue;
 }
 
-bool AssemblyRegister::operator==(const BaseScope::RefPtr s) const
+bool AssemblyRegister::operator==(const Symbol& s) const
 {
-	return variableId.get() == s.get();
+	return id == s;
 }
 
 void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc)
@@ -208,13 +203,17 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc)
 
 bool AssemblyRegister::isGlobalVariableRegister() const
 {
-	return variableId != nullptr && variableId->scope->getScopeType() == BaseScope::Class;
+	return scope->getRootClassScope()->rootData->contains(id);
 }
-
 
 bool AssemblyRegister::isActive() const
 {
 	return state == ActiveRegister;
+}
+
+bool AssemblyRegister::matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const
+{
+	return scopeToCheck == scope && symbol == id;
 }
 
 bool AssemblyRegister::isActiveOrDirtyGlobalRegister() const
@@ -226,7 +225,10 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 {
 	jassert(memoryLocation != nullptr);
 
-	if (isGlobalVariableRegister() && !variableId->isConst)
+	bool isConst = false;
+	jassertfalse;
+
+	if (isGlobalVariableRegister() && !isConst)
 	{
 		// We can't use the value as constant memory location because it might be changed
 		// somewhere else.
@@ -307,12 +309,20 @@ void AssemblyRegister::clearForReuse()
 	reusable = false;
 	immediateIntValue = 0;
 	memoryLocation = nullptr;
-	variableId = {};
+	scope = nullptr;
+	id = {};
+}
+
+void AssemblyRegister::setUndirty()
+{
+	jassert(state == DirtyGlobalRegister);
+
+	dirty = false;
+	state = ActiveRegister;
 }
 
 AssemblyRegisterPool::AssemblyRegisterPool()
 {
-
 }
 
 
@@ -336,16 +346,16 @@ snex::jit::AssemblyRegisterPool::RegList AssemblyRegisterPool::getListOfAllDirty
 }
 
 
-snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterForVariable(const BaseScope::RefPtr variableId)
+snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterForVariable(BaseScope* scope, const Symbol& s)
 {
 	for (const auto r : currentRegisterPool)
 	{
-		if (r->getVariableId() == variableId.get())
+		if (r->matchesScopeAndSymbol(scope, s))
 			return r;
 	}
 
-	auto newReg = getNextFreeRegister(variableId->id.type);
-	newReg->setReference(variableId);
+	auto newReg = getNextFreeRegister(scope, s.type);
+	newReg->setReference(scope, s);
 	return newReg;
 }
 
@@ -359,19 +369,21 @@ void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
 }
 
 
-AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(Types::ID type)
+AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope, Types::ID type)
 {
 	for (auto r : currentRegisterPool)
 	{
 		if (r->getType() == type && r->canBeReused())
 		{
 			r->clearForReuse();
+			r->scope = scope;
 			return r;
 		}
 	}
 
 	RegPtr newReg = new AssemblyRegister(type);
-	
+	newReg->scope = scope;
+
 	currentRegisterPool.add(newReg);
 
 	return newReg;

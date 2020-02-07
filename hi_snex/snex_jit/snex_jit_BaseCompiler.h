@@ -42,6 +42,11 @@ class BaseCompiler
 {
 public:
 
+	struct OptimisationSucess
+	{
+		juce::String message;
+	};
+
 	struct DeadCodeException
 	{
 		DeadCodeException(ParserHelpers::CodeLocation l) : location(l) {};
@@ -65,10 +70,12 @@ public:
 	enum Pass
 	{
 		Parsing,
+		SubclassCompilation,
 		PreSymbolOptimization,
 		ResolvingSymbols,
 		TypeCheck,
 		PostSymbolOptimization,
+		SyntaxSugarReplacements,
 		FunctionParsing,
 		FunctionCompilation,
 		PreCodeGenerationOptimization,
@@ -166,9 +173,9 @@ public:
 		passes.add(newPass);
 	}
 
-	AssemblyRegister::Ptr getRegFromPool(Types::ID type)
+	AssemblyRegister::Ptr getRegFromPool(BaseScope* scope, Types::ID type)
 	{
-		return registerPool.getNextFreeRegister(type);
+		return registerPool.getNextFreeRegister(scope, type);
 	}
 
 	AssemblyRegisterPool registerPool;

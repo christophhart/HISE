@@ -54,8 +54,8 @@ public:
 	using ExprPtr = Operations::Expression::Ptr;
 	using StatementPtr = Operations::Statement::Ptr;
 
-	BlockParser(BaseCompiler* c, const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length) :
-		TokenIterator(code, wholeProgram, length),
+	BlockParser(BaseCompiler* c, const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length, const Symbol& rootSymbol) :
+		TokenIterator(code, wholeProgram, length, rootSymbol),
 		compiler(c)
 	{};
     
@@ -81,8 +81,12 @@ class NewClassParser : public BlockParser
 {
 public:
 
-	NewClassParser(BaseCompiler* c, const juce::String& code):
-		BlockParser(c, code.getCharPointer(), code.getCharPointer(), code.length())
+	NewClassParser(BaseCompiler* c, const juce::String& code, const Symbol& rootSymbol):
+		BlockParser(c, code.getCharPointer(), code.getCharPointer(), code.length(), rootSymbol)
+	{}
+
+	NewClassParser(BaseCompiler* c, const ParserHelpers::CodeLocation& l, int codeLength, const Symbol& rootSymbol) :
+		BlockParser(c, l.location, l.program, codeLength, rootSymbol)
 	{}
 
     virtual ~NewClassParser() {};
@@ -93,6 +97,7 @@ public:
 	ExprPtr parseBufferInitialiser();
 	StatementPtr parseVariableDefinition(bool isConst);
 	StatementPtr parseFunction();
+	StatementPtr parseSubclass();
 };
 
 

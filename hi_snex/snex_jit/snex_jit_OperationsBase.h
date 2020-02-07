@@ -54,7 +54,6 @@ public:
 
 	static asmjit::Runtime* getRuntime(BaseCompiler* c);
 
-	using Symbol = BaseScope::Symbol;
 	using Location = ParserHelpers::CodeLocation;
 	using TokenType = ParserHelpers::TokenType;
 
@@ -255,7 +254,7 @@ public:
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
 	struct BlockLoop;		struct IfStatement;				struct SmoothedVariableDefinition;
-	struct WrappedBlockDefinition;
+	struct WrappedBlockDefinition;	struct ClassStatement;	struct ClassInstance;
 
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.
@@ -308,8 +307,8 @@ public:
 	void addVariableReference(Operations::Statement* s);
 	bool isFirstReference(Operations::Statement* v) const;
 
-	Operations::Statement* getLastVariableForReference(BaseScope::RefPtr ref) const;
-	Operations::Statement* getLastAssignmentForReference(BaseScope::RefPtr ref) const;
+	Operations::Statement* getLastVariableForReference(const Symbol& ref) const;
+	Operations::Statement* getLastAssignmentForReference(const Symbol& ref) const;
 	
 private:
 

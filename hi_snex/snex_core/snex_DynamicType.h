@@ -17,6 +17,32 @@ namespace snex
 #define CONVERT_TO_DOUBLE_WITH_OP(op) { data.d.type = Types::Double; data.d.value op other.toDouble(); }
 #define CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(op) { CALC_IF_FLOAT(op) else CONVERT_TO_DOUBLE_WITH_OP(op ) }
 
+
+class ObjectTypeRegister
+{
+public:
+
+	int registerType(const Identifier& id)
+	{
+		auto index = getTypeIndex(id);
+
+		if (index != -1)
+			return index;
+
+		entries.add(id);
+		return entries.size() - 1;
+	}
+
+	int getTypeIndex(const Identifier& id) const
+	{
+		return entries.indexOf(id);
+	}
+
+private:
+
+	Array<Identifier> entries;
+};
+
 class VariableStorage
 {
 public:
@@ -34,6 +60,8 @@ public:
 	VariableStorage(const Types::FloatBlock& b);
 	VariableStorage(HiseEvent& m);
 
+	VariableStorage(void* objectPointer, ObjectTypeRegister& objectRegister, Identifier& objectType);
+
 	VariableStorage& operator =(FloatType s);
 	VariableStorage& operator =(const Types::FloatBlock& s);
 
@@ -47,6 +75,7 @@ public:
 	void set(block&& s);;
 	void set(block& b);
 	void set(const HiseEvent& e);
+	void set(void* objectPointer, const ObjectTypeRegister& objectRegister, const Identifier& typeId);
 
 	void clear();
 
@@ -182,6 +211,8 @@ public:
 	HiseEvent toEvent() const;
 	bool isVoid() const noexcept { return getType() == Types::ID::Void; }
 
+	void* getObjectPointer(const ObjectTypeRegister& objectRegister, const Identifier& typeId) const;
+
 	template <Types::ID TypeID> auto toType() const
 	{
 		IF_CONSTEXPR (TypeID == Types::ID::Float || TypeID == Types::ID::Float)
@@ -237,6 +268,13 @@ private:
 		int unused2;
 	};
 
+	struct PointerData
+	{
+		int type;
+		int dataType;
+		void* data;
+	};
+
 	union Data
 	{
 		Data()
@@ -254,6 +292,7 @@ private:
 		IntData i;
 		FloatData f;
 		HiseEvent e;
+		PointerData p;
 	};
 
 	Data data;
@@ -267,6 +306,9 @@ private:
 	Types::ID type;
 #endif
 };
+
+
+
 
 
 

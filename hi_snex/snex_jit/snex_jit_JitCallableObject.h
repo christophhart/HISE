@@ -44,7 +44,7 @@ JIT function needs to be revalidated.
 */
 struct JitCallableObject : public FunctionClass
 {
-	JitCallableObject(const Identifier& id);;
+	JitCallableObject(const Symbol& id);;
 
 	virtual ~JitCallableObject();;
 
@@ -87,7 +87,7 @@ public:
 
 	/** Create a class. The id will be used as first element in the dot operator. */
 	JitTestObject(Identifier id) :
-		JitCallableObject(id)
+		JitCallableObject(Symbol::createRootSymbol(id))
 	{};
 
 	/** A member function. */

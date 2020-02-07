@@ -42,7 +42,7 @@ class FunctionParser : public BlockParser
 public:
 
 	FunctionParser(BaseCompiler* c, Operations::Function& f) :
-		BlockParser(c, f.code, f.location.program, f.codeLength)
+		BlockParser(c, f.code, f.location.program, f.codeLength, {})
 	{};
     
     virtual ~FunctionParser() {}

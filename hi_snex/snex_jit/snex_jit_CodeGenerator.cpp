@@ -94,7 +94,7 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 
 #if JUCE_64BIT
 
-	TemporaryRegister ad(*this, Types::ID::Block);
+	TemporaryRegister ad(*this, source->getScope(), Types::ID::Block);
 	int ok = cc.mov(ad.get(), reinterpret_cast<uint64_t>(data));
 	auto target = x86::qword_ptr(ad.get());
 #else
@@ -106,6 +106,10 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 	IF_(int)	ok = cc.mov(target, source->getRegisterForReadOp().as<X86Gp>());
 	IF_(float)	ok = cc.movss(target, source->getRegisterForReadOp().as<X86Xmm>());
 	IF_(double) ok = cc.movsd(target, source->getRegisterForReadOp().as<X86Xmm>());
+
+	// Don't undirty it when debugging...
+	if(ptrToUse == nullptr)
+		source->setUndirty();
 }
 
 
@@ -130,7 +134,7 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 	cc.setInlineComment("Load class variable");
 
 #if JUCE_64BIT
-	TemporaryRegister address(*this, Types::ID::Block);
+	TemporaryRegister address(*this, target->getScope(), Types::ID::Block);
 
 	cc.mov(address.get(), reinterpret_cast<uint64_t>(data));
 	auto source = x86::qword_ptr(address.get());
@@ -160,9 +164,8 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 	if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 	{
-		TemporaryRegister dummy(*this, Types::ID::Integer);
+		TemporaryRegister dummy(*this, l->getScope(), Types::ID::Integer);
 		
-
 		cc.xor_(dummy.get(), dummy.get());
 		cc.cdq(dummy.get(), INT_REG_W(l));
 
@@ -231,7 +234,7 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 	cc.setInlineComment("Short circuit path");
 	cc.bind(shortCircuit);
 
-	op->reg = op->currentCompiler->getRegFromPool(Types::ID::Integer);
+	op->reg = op->currentCompiler->getRegFromPool(op->currentScope, Types::ID::Integer);
 	op->reg->createRegister(cc);
 	INT_OP_WITH_MEM(cc.mov, op->reg, l);
 	
@@ -282,7 +285,7 @@ void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
 
 #define FLOAT_COMPARE(token, command) if (op == token) command(INT_REG_R(target), condReg.get());
 
-	TemporaryRegister condReg(*this, Types::ID::Block);
+	TemporaryRegister condReg(*this, target->getScope(), Types::ID::Block);
 
 	cc.mov(INT_REG_W(target), 0);
 	cc.mov(condReg.get(), 1);
@@ -342,7 +345,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 
 	if (returnType != Types::ID::Void)
 	{
-		returnReg = c->registerPool.getNextFreeRegister(returnType);
+		returnReg = c->registerPool.getNextFreeRegister(s, returnType);
 		returnReg->createRegister(cc);
 	}
 
@@ -355,7 +358,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 
 	if (condition->reg->isMemoryLocation())
 	{
-		auto dummy = c->registerPool.getNextFreeRegister(Types::ID::Integer);
+		auto dummy = c->registerPool.getNextFreeRegister(s, Types::ID::Integer);
 		dummy->createRegister(cc);
 
 		cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), (uint64_t)condition->reg->getImmediateIntValue());
@@ -525,14 +528,12 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	bool isMemberFunction = f.object != nullptr;
 	fillSignature(f, sig, isMemberFunction);
 
-	TemporaryRegister o(*this, Types::ID::Block);
+	TemporaryRegister o(*this, returnReg->getScope(), Types::ID::Block);
 
 	if (isMemberFunction)
 	{
 		cc.mov(o.get(), imm(f.object));
 	}
-
-	
 
 	// Push the function pointer
 	X86Gp fn = cc.newIntPtr("fn");
@@ -577,8 +578,7 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 
 void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 {
-	auto classScope = dynamic_cast<ClassScope*>(Operations::findClassScope(s));
-	auto globalScope = dynamic_cast<GlobalScope*>(classScope->getParent());
+	auto globalScope = s->getGlobalScope();
 	auto& bpHandler = globalScope->getBreakpointHandler();
 
 	Array<Identifier> ids;
@@ -597,7 +597,7 @@ void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 
 #if JUCE_64BIT
 
-	TemporaryRegister ad(*this, Types::ID::Block);
+	TemporaryRegister ad(*this, s, Types::ID::Block);
 	int ok = cc.mov(ad.get(), reinterpret_cast<uint64_t>(data));
 	auto target = x86::qword_ptr(ad.get());
 #else

@@ -36,26 +36,5 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-JitCallableObject::JitCallableObject(const Symbol& id) :
-	FunctionClass(id)
-{
-
-}
-
-JitCallableObject::~JitCallableObject()
-{
-	if (globalScope.get() != nullptr)
-	{
-		globalScope->deregisterObject(classSymbol);
-	}
-}
-
-void JitCallableObject::registerToMemoryPool(GlobalScope* m)
-{
-	globalScope = m;
-
-	registerAllObjectFunctions(m);
-}
-
 }
 }

@@ -37,6 +37,112 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
+
+
+bool Symbol::operator==(const Symbol& other) const
+{
+	if (other.fullIdList.size() == fullIdList.size())
+	{
+		for (int i = 0; i < fullIdList.size(); i++)
+		{
+			if (fullIdList[i] != other.fullIdList[i])
+				return false;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+
+snex::jit::Symbol Symbol::createRootSymbol(const Identifier& id)
+{
+	return Symbol({ id }, Types::ID::Dynamic);
+}
+
+Symbol::Symbol(const Array<Identifier>& list, Types::ID t_) :
+	fullIdList(list),
+	id(list.getLast()),
+	type(t_)
+{
+	debugName = toString().toStdString();
+}
+
+
+Symbol::Symbol()
+{
+	debugName = toString().toStdString();
+}
+
+bool Symbol::matchesIdAndType(const Symbol& other) const
+{
+	return other == *this;// && other.type == type;
+}
+
+Symbol Symbol::getParentSymbol() const
+{
+	Array<Identifier> parentList;
+
+	for (int i = 0; i < fullIdList.size() - 1; i++)
+		parentList.add(fullIdList[i]);
+
+	if (parentList.isEmpty())
+		return {};
+
+	return Symbol(parentList, type);
+}
+
+snex::jit::Symbol Symbol::getChildSymbol(const Identifier& id, Types::ID newType) const
+{
+	Array<Identifier> childList;
+
+	childList.addArray(fullIdList);
+	childList.add(id);
+	return Symbol(childList, newType != Types::ID::Dynamic ? newType : type);
+}
+
+snex::jit::Symbol Symbol::withParent(const Symbol& parent) const
+{
+	Array<Identifier> newList;
+
+	newList.addArray(parent.fullIdList);
+	newList.addArray(fullIdList);
+
+	return Symbol(newList, type);
+}
+
+Symbol Symbol::withType(const Types::ID type) const
+{
+	auto s = *this;
+	s.type = type;
+	return s;
+}
+
+juce::String Symbol::toString() const
+{
+	if (id.isNull())
+		return "undefined";
+
+	juce::String s;
+
+	for (int i = 0; i < fullIdList.size() - 1; i++)
+	{
+		s << fullIdList[i].toString() << ".";
+	}
+
+	s << id;
+
+	return s;
+}
+
+Symbol::operator bool() const
+{
+	return id.isValid();
+}
+
+
+
 juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) const
 {
 	juce::String s;
@@ -110,44 +216,48 @@ bool FunctionData::matchesArgumentTypes(Types::ID r, const Array<Types::ID>& arg
 	return matchesArgumentTypes(argsList);
 }
 
-bool FunctionClass::hasFunction(const Identifier& classId, const Identifier& functionId) const
+bool FunctionClass::hasFunction(const Symbol& s) const
 {
-	if (classId != className)
-	{
-		for (auto c : registeredClasses)
-		{
-			if (c->hasFunction(classId, functionId))
-				return true;
-		}
+	if (getClassName() == s)
+		return true;
 
-		return false;
+	auto parent = s.getParentSymbol();
+
+	if (parent == classSymbol)
+	{
+		for (auto f : functions)
+			if (f->id == s.id)
+				return true;
 	}
 
-
-	for (auto f : functions)
-		if (f->id == functionId)
+	for (auto c : registeredClasses)
+	{
+		if (c->hasFunction(s))
 			return true;
+
+		
+	}
 
 	return false;
 }
 
 
-bool FunctionClass::hasConstant(const Identifier& classId, const Identifier& constantId) const
+bool FunctionClass::hasConstant(const Symbol& s) const
 {
-	if (classId != className)
-	{
-		for (auto c : registeredClasses)
-		{
-			if (c->hasConstant(classId, constantId))
-				return true;
-		}
+	auto parent = s.getParentSymbol();
 
-		return false;
+	if (parent == classSymbol)
+	{
+		for (auto& c : constants)
+			if (c.id == s.id)
+				return true;
 	}
 
-	for (auto& c : constants)
-		if (c.id == constantId)
+	for (auto c : registeredClasses)
+	{
+		if (c->hasConstant(s))
 			return true;
+	}
 
 	return false;
 }
@@ -157,20 +267,22 @@ void FunctionClass::addFunctionConstant(const Identifier& constantId, VariableSt
 	constants.add({ constantId, value });
 }
 
-void FunctionClass::addMatchingFunctions(Array<FunctionData>& matches, const Identifier& classId, const Identifier& functionId) const
+void FunctionClass::addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const
 {
-	if (classId != className)
+	auto parent = symbol.getParentSymbol();
+
+	if (parent == classSymbol)
+	{
+		for (auto f : functions)
+		{
+			if (f->id == symbol.id)
+				matches.add(*f);
+		}
+	}
+	else
 	{
 		for (auto c : registeredClasses)
-			c->addMatchingFunctions(matches, classId, functionId);
-
-		return;
-	}
-
-	for (auto f : functions)
-	{
-		if (f->id == functionId)
-			matches.add(*f);
+			c->addMatchingFunctions(matches, symbol);
 	}
 }
 
@@ -250,25 +362,25 @@ bool FunctionClass::injectFunctionPointer(FunctionData& dataToInject)
 	return false;
 }
 
-snex::VariableStorage FunctionClass::getConstantValue(const Identifier& classId, const Identifier& constantId) const
+snex::VariableStorage FunctionClass::getConstantValue(const Symbol& s) const
 {
-	if (className != classId)
+	auto parent = s.getParentSymbol();
+
+	if (parent == classSymbol)
 	{
-		for (auto r : registeredClasses)
+		for (auto& c : constants)
 		{
-			auto v = r->getConstantValue(classId, constantId);
-
-			if (!v.isVoid())
-				return v;
+			if (c.id == s.id)
+				return c.value;
 		}
-
-		return {};
 	}
 
-	for (auto& c : constants)
+	for (auto r : registeredClasses)
 	{
-		if (c.id == constantId)
-			return c.value;
+		auto v = r->getConstantValue(s);
+
+		if (!v.isVoid())
+			return v;
 	}
 
 	return {};

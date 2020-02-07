@@ -196,6 +196,9 @@ public:
 
 	void setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue);
 
+
+	String getHoverString(const String& token);
+
 	DebugInformationBase* getDebugInformation(int index);
 
 #if 0

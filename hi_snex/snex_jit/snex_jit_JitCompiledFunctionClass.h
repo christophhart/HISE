@@ -47,7 +47,7 @@ public:
 
 	using Ptr = ReferenceCountedObjectPtr<JitCompiledFunctionClass>;
 
-	JitCompiledFunctionClass(GlobalScope& memory);
+	JitCompiledFunctionClass(BaseScope* parentScope, const Symbol& classInstanceId);
 
 	~JitCompiledFunctionClass();
 
@@ -59,6 +59,12 @@ public:
 
 	Array<Identifier> getFunctionIds() const;
 
+	ClassScope* releaseClassScope()
+	{
+		auto c = pimpl;
+		pimpl = nullptr;
+		return c;
+	}
 
 private:
 
