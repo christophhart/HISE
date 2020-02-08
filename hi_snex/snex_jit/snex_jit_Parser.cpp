@@ -224,14 +224,14 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 
 	currentHnodeType = matchType();
 	
-	matchIfSymbol();
+	matchIfSymbol(isConst);
 
 	StatementPtr s;
 
 	
 	if (matchIf(JitTokens::openParen))
 	{
-		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + getCurrentSymbol().toString());
+		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + getCurrentSymbol(true).toString());
 		s = parseFunction();
 		matchIf(JitTokens::semicolon);
 	}
@@ -239,19 +239,19 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	{
 		if (isSmoothedType)
 		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding smoothed variable " + getCurrentSymbol().toString());
+			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding smoothed variable " + getCurrentSymbol(true).toString());
 			s = parseSmoothedVariableDefinition();
 			match(JitTokens::semicolon);
 		}
 		else if (isWrappedBlType)
 		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding wrapped block " + getCurrentSymbol().toString());
+			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding wrapped block " + getCurrentSymbol(true).toString());
 			s = parseWrappedBlockDefinition();
 			match(JitTokens::semicolon);
 		}
 		else
 		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + getCurrentSymbol().toString());
+			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + getCurrentSymbol(true).toString());
 			s = parseVariableDefinition(isConst);
 			match(JitTokens::semicolon);
 		}
@@ -267,7 +267,7 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseSmoothedVariableDefini
 	match(JitTokens::assign_);
 	auto value = parseVariableStorageLiteral();
 
-	return new Operations::SmoothedVariableDefinition(location, getCurrentSymbol(), currentHnodeType, value);
+	return new Operations::SmoothedVariableDefinition(location, getCurrentSymbol(true), currentHnodeType, value);
 }
 
 snex::jit::BlockParser::StatementPtr NewClassParser::parseWrappedBlockDefinition()
@@ -277,7 +277,7 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseWrappedBlockDefinition
 
 	auto value = parseBufferInitialiser();
 
-	return new Operations::WrappedBlockDefinition(location, getCurrentSymbol(), value);
+	return new Operations::WrappedBlockDefinition(location, getCurrentSymbol(true), value);
 }
 
 snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
@@ -301,15 +301,15 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 			{
 				if (function.toString() == "create")
 				{
-					return new Operations::Immediate(location, handler.create(getCurrentSymbol().id, value));
+					return new Operations::Immediate(location, handler.create(getCurrentSymbol(false).id, value));
 				}
 				else if (function.toString() == "getAudioFile")
 				{
-					return new Operations::Immediate(location, handler.getAudioFile(value, getCurrentSymbol().id));
+					return new Operations::Immediate(location, handler.getAudioFile(value, getCurrentSymbol(false).id));
 				}
 				else if (function.toString() == "getTable")
 				{
-					return new Operations::Immediate(location, handler.getTable(value, getCurrentSymbol().id));
+					return new Operations::Immediate(location, handler.getTable(value, getCurrentSymbol(false).id));
 				}
 				else
 				{
@@ -330,8 +330,8 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst
 {
 	auto type = currentHnodeType;
 
-	auto target = new Operations::VariableReference(location, getCurrentSymbol().withType(type));
-	target->isLocalToScope = true;
+	auto target = new Operations::VariableReference(location, getCurrentSymbol(true));
+	//target->isLocalToScope = true;
 
 	match(JitTokens::assign_);
 
@@ -351,13 +351,13 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst
 
 BlockParser::StatementPtr NewClassParser::parseFunction()
 {
-	auto func = new Operations::Function(location, getCurrentSymbol().id);
+	auto func = new Operations::Function(location, getCurrentSymbol(false).id);
 
 	StatementPtr newStatement = func;
 
 	auto& fData = func->data;
 
-	fData.id = getCurrentSymbol().id;
+	fData.id = getCurrentSymbol(false).id;
 	fData.returnType = currentHnodeType;
 	fData.object = nullptr;
 

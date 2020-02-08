@@ -143,9 +143,9 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 
 		if (auto v = dynamic_cast<VariableReference*>(e.get()))
 		{
-			if (!v->functionClassConstant.isVoid())
+			if (v->isConstExpr() && expectedType != v->getConstExprValue().getType())
 			{
-				v->type = expectedType;
+				v->id.constExprValue = VariableStorage(expectedType, v->id.constExprValue.toDouble());
 				continue;
 			}
 		}

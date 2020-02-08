@@ -193,11 +193,14 @@ public:
 
 	virtual ~BaseScope();;
 
-	Result allocate(const Identifier& id, VariableStorage v);
+	Result allocate(const Symbol& s);
 
 	BaseScope* getScopeForSymbol(const Symbol& s);
 
 	virtual bool hasVariable(const Identifier& id) const;
+
+	/** Override this and update the symbol type and constness. */
+	virtual bool updateSymbol(Symbol& symbolToBeUpdated);
 
 	Array<Symbol> getAllVariables() const;
 
@@ -278,7 +281,7 @@ struct RootClassData
 		data.allocate(1024, true);
 	}
 	
-	struct TableEntry
+	struct TableEntry: public ReferenceCountedObject
 	{
 		Symbol s;
 		VariableStorage* data;
@@ -293,6 +296,20 @@ struct RootClassData
 	TableEntry* end() const
 	{
 		return symbolTable.end();
+	}
+
+	bool updateSymbol(Symbol& toBeUpdated)
+	{
+		for (const auto& td : *this)
+		{
+			if (td.s == toBeUpdated)
+			{
+				toBeUpdated = td.s;
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	Result allocate(BaseScope* scope, const Symbol& s)

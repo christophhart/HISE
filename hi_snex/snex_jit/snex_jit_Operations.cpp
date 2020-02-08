@@ -85,7 +85,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		try
 		{
-			FunctionParser p(compiler, *this);
+			FunctionParser p(compiler, scope->getScopeSymbol().getChildSymbol(functionId), *this);
 
 			statements = p.parseStatementList();
 			
@@ -202,6 +202,19 @@ void Operations::WrappedBlockDefinition::process(BaseCompiler* compiler, BaseSco
 	}
 }
 
+Operations::TokenType Operations::VariableReference::getWriteAccessType()
+{
+	if (auto as = dynamic_cast<Assignment*>(parent.get()))
+	{
+		if (as->getSubExpr(1).get() == this)
+			return as->assignmentType;
+	}
+	else if (auto inc = dynamic_cast<Operations::Increment*>(parent.get()))
+		return inc->isDecrement ? JitTokens::minus : JitTokens::plus;
+
+	return JitTokens::void_;
+}
+
 void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	Expression::process(compiler, scope);
@@ -215,6 +228,42 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// We will create the Reference to the according scope for this
 		// variable, check it's type and if it's a parameter, get the index...
 
+		if (auto vScope = scope->getScopeForSymbol(id))
+		{
+			if (!vScope->updateSymbol(id))
+				location.throwError("Can't update symbol " + id.toString());
+
+			if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
+				parameterIndex = fScope->parameters.indexOf(id.id);
+		}
+		else if(auto rScope = dynamic_cast<RegisterScope*>(scope))
+		{
+			// This will be a definition of a local variable.
+
+			if (id.type == Types::ID::Dynamic)
+				location.throwError("Use of undefined variable " + id.toString());
+
+			
+			// The type must have been set
+			jassert(id.type != Types::ID::Dynamic);
+
+			rScope->localVariables.add(id);
+		}
+		else if (auto cScope = dynamic_cast<ClassScope*>(scope))
+		{
+			if (id.type == Types::ID::Dynamic)
+				location.throwError("Use of undefined variable " + id.toString());
+
+			cScope->allocate(id);
+		}
+		else
+		{
+			location.throwError("Can't resolve symbol " + id.toString());
+		}
+
+		
+
+#if 0
 		if (isLocalToScope)
 		{
 			if (scope->getScopeForSymbol(id) != nullptr)
@@ -271,7 +320,6 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 			if (vScope == scope)
 			{
-				isLocalToScope = true;
 				jassertfalse;
 				isLocalConst = false;
 			}
@@ -284,13 +332,12 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				type = functionClassConstant.getType();
 			}
 
-			
-
 			if (functionClassConstant.isVoid())
 				throwError(id.getParentSymbol().toString() + " does not have constant " + id.id.toString());
 		}
 		else
 			throwError("Can't resolve variable " + id.toString());
+#endif
 
 		if (auto st = findParentStatementOfType<SyntaxTree>(this))
 			st->addVariableReference(this);
@@ -300,7 +347,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		id = id.withType(getType());
+		
 		// Nothing to do...
 	}
 
@@ -311,22 +358,17 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
-		if (!functionClassConstant.isVoid())
+		if (isConstExpr())
 		{
-			auto immValue = VariableStorage(parent.get()->getType(), functionClassConstant.toDouble());
-
-
-			Ptr c = new Immediate(location, immValue);
-
+			Ptr c = new Immediate(location, getConstExprValue());
 			replaceInParent(c);
-
 			return;
 		}
 
 		// We need to initialise parameter registers before the rest
 		if (parameterIndex != -1)
 		{
-			reg = compiler->registerPool.getRegisterForVariable(scope, id.withType(type));
+			reg = compiler->registerPool.getRegisterForVariable(scope, id);
 
 			//reg = compiler->registerPool.getRegisterForVariable(ref);
 
@@ -364,7 +406,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 		auto asg = CREATE_ASM_COMPILER(type);
 
-		if (isFirstReference())
+		if ((!reg->isActiveOrDirtyGlobalRegister() && !reg->isMemoryLocation()) || isFirstReference())
 		{
 			auto assignmentType = getWriteAccessType();
 
@@ -419,22 +461,26 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 	{
-		if (getSubExpr(0)->isConstExpr())
+		if (getSubExpr(0)->isConstExpr() && scope->getScopeType() == BaseScope::Class)
 		{
 			auto rd = scope->getRootClassScope()->rootData.get();
 
 			if (rd->contains(getTargetVariable()->id))
-				rd->get(getTargetVariable()->id) = getSubExpr(0)->getConstExprValue();
+			{
+				auto& result = rd->get(getTargetVariable()->id);
+				auto left = rd->get(getTargetVariable()->id);
+				auto right = getSubExpr(0)->getConstExprValue();
+
+				if (assignmentType == JitTokens::assign_)
+					result = right;
+			}
+			else
+				throwError("Weirdness 2000");
 		}
 
 		auto v = getTargetVariable();
 
-		if (isLocalDefinition)
-		{
-			jassertfalse;
-		}
-
-		if (v->isLocalConst && !v->isFirstReference())
+		if (v->id.isConst() && (scope->getScopeForSymbol(v->id) != scope || !v->isFirstReference()))
 			throwError("Can't change constant variable");
 	}
 
@@ -442,19 +488,6 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
 		auto expectedType = getTargetVariable()->getType();
-
-		if (getTargetVariable()->isLocalToScope && getTargetVariable()->isFirstReference())
-		{
-			if (auto sc = dynamic_cast<ClassScope*>(findClassScope(scope)))
-			{
-				ClassScope::LocalVariableInfo localInfo;
-				localInfo.isParameter = false;
-				localInfo.id = getTargetVariable()->id;
-				localInfo.type = expectedType;
-
-				sc->localVariableInfo.add(localInfo);
-			}
-		}
 
 		checkAndSetType(0, expectedType);
 	}
@@ -481,13 +514,13 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		else
 			acg.emitBinaryOp(assignmentType, tReg, value);
 
+#if 0
 		if (scope->getRootClassScope()->rootData->contains(targetV->id))
 		{
 			acg.cc.setInlineComment("Write member variable");
 			acg.emitMemoryWrite(targetV->reg);
 		}
-
-		//getSubRegister(0)->flagForReuseIfAnonymous();
+#endif
 	}
 }
 

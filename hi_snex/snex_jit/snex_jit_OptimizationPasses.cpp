@@ -75,13 +75,13 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 	{
 		if (auto v = as<Operations::VariableReference>(statement))
 		{
-			if (!v->functionClassConstant.isVoid())
+			if (v->isConstExpr())
 			{
 				auto parentType = v->parent.get()->getType();
 
-				v->logOptimisationMessage("Replace function constant");
+				v->logOptimisationMessage("Replace constant with immediate value");
 
-				replaceWithImmediate(v, VariableStorage(parentType, v->functionClassConstant.toDouble()));
+				replaceWithImmediate(v, v->getConstExprValue());
 				return true;
 			}
 		}
@@ -138,13 +138,9 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 				{
 					int numWriteAccesses = target->getNumWriteAcesses();
 
-					if (numWriteAccesses == 1 && target->isLocalToScope)
+					if (numWriteAccesses == 1 && !target->id.isConst())
 					{
-						if (!target->isLocalConst || target->id)
-						{
-							a->logWarning("const value is declared as non-const");
-							return false;
-						}
+						a->logWarning("const value is declared as non-const");
 					}
 				}
 			}

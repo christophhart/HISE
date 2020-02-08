@@ -45,7 +45,7 @@ struct Symbol
 
 	Symbol();
 
-	Symbol(const Array<Identifier>& ids, Types::ID t_);
+	Symbol(const Array<Identifier>& ids, Types::ID t_, bool isConst_);
 
 
 	bool operator==(const Symbol& other) const;
@@ -54,13 +54,15 @@ struct Symbol
 
 	Symbol getParentSymbol() const;
 
-	Symbol getChildSymbol(const Identifier& id, Types::ID newType = Types::ID::Dynamic) const;
+	Symbol getChildSymbol(const Identifier& id, Types::ID newType=Types::ID::Dynamic, bool isConst_=false) const;
 
 	Symbol withParent(const Symbol& parent) const;
 
 	Symbol withType(const Types::ID type) const;
 
 	bool isExplicit() const { return fullIdList.size() > 1; }
+
+	bool isConst() const { return const_; }
 
 	juce::String toString() const;
 
@@ -70,6 +72,8 @@ struct Symbol
 	// a list of identifiers...
 	Array<Identifier> fullIdList;
 	Identifier id;
+	bool const_ = false;
+	VariableStorage constExprValue = {};
 
 	Types::ID type = Types::ID::Dynamic;
 };

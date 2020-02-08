@@ -111,9 +111,9 @@ BaseScope::~BaseScope()
 	}
 }
 
-juce::Result BaseScope::allocate(const Identifier& id, VariableStorage v)
+juce::Result BaseScope::allocate(const Symbol& s)
 {
-	return getRootClassScope()->rootData->allocate(this, scopeId.getChildSymbol(id, v.getType()));
+	return getRootClassScope()->rootData->allocate(this, s);
 
 #if 0
 	for (auto av : allocatedVariables)
@@ -150,6 +150,17 @@ BaseScope* BaseScope::getScopeForSymbolInternal(const Symbol& s)
 	{
 		if (auto m = c->getScopeForSymbolInternal(s))
 			return m;
+	}
+
+	if (auto fc = dynamic_cast<FunctionClass*>(this))
+	{
+		if (auto c = fc->getSubFunctionClass(parentSymbol))
+		{
+			if (auto cs = dynamic_cast<BaseScope*>(c))
+				return cs;
+			else
+				return this;
+		}
 	}
 
 	return nullptr;
@@ -250,7 +261,43 @@ BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
 bool BaseScope::hasVariable(const Identifier& id) const
 {
 	auto s = scopeId.getChildSymbol(id);
-	return getRootClassScope()->rootData->contains(s);
+	return getRootData()->contains(s);
+}
+
+bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
+{
+	jassert(getScopeForSymbol(symbolToBeUpdated) == this);
+
+	for (auto c : constants)
+	{
+		if (c.id == symbolToBeUpdated)
+		{
+			symbolToBeUpdated.type = c.v.getType();
+			symbolToBeUpdated.const_ = true;
+			symbolToBeUpdated.constExprValue = c.v;
+			return true;
+		}
+	}
+
+	if (getRootData()->contains(symbolToBeUpdated))
+	{
+		return getRootData()->updateSymbol(symbolToBeUpdated);
+	}
+
+	if (auto fc = dynamic_cast<FunctionClass*>(this))
+	{
+		if (auto c = fc->getSubFunctionClass(symbolToBeUpdated.getParentSymbol()))
+		{
+			auto v = c->getConstantValue(symbolToBeUpdated);
+			symbolToBeUpdated.constExprValue = v;
+			symbolToBeUpdated.type = v.getType();
+			symbolToBeUpdated.const_ = true;
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 juce::Array<snex::jit::BaseScope::Symbol> BaseScope::getAllVariables() const

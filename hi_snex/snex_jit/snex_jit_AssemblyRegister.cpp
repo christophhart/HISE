@@ -46,7 +46,7 @@ AssemblyRegister::AssemblyRegister(Types::ID type_) :
 
 void AssemblyRegister::setReference(BaseScope* s, const Symbol& ref)
 {
-	scope = s;
+	scope = s->getScopeForSymbol(ref);
 	id = ref;
 }
 
@@ -128,7 +128,11 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 	if (id)
 	{
-		auto scopeType = scope->getScopeForSymbol(id)->getScopeType();
+		auto sToUse = scope->getScopeForSymbol(id);
+
+		jassert(sToUse != nullptr);
+
+		auto scopeType = sToUse->getScopeType();
 
 		if (scopeType == BaseScope::Class)
 		{
@@ -213,7 +217,10 @@ bool AssemblyRegister::isActive() const
 
 bool AssemblyRegister::matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const
 {
-	return scopeToCheck == scope && symbol == id;
+	auto scopeMatches = scopeToCheck->getScopeForSymbol(symbol) == scope;
+	auto symbolMatches = symbol == id;
+
+	return scopeMatches && symbolMatches;
 }
 
 bool AssemblyRegister::isActiveOrDirtyGlobalRegister() const
@@ -225,10 +232,7 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 {
 	jassert(memoryLocation != nullptr);
 
-	bool isConst = false;
-	jassertfalse;
-
-	if (isGlobalVariableRegister() && !isConst)
+	if (isGlobalVariableRegister() && !id.isConst())
 	{
 		// We can't use the value as constant memory location because it might be changed
 		// somewhere else.

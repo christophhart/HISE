@@ -58,13 +58,14 @@ bool Symbol::operator==(const Symbol& other) const
 
 snex::jit::Symbol Symbol::createRootSymbol(const Identifier& id)
 {
-	return Symbol({ id }, Types::ID::Dynamic);
+	return Symbol({ id }, Types::ID::Dynamic, true);
 }
 
-Symbol::Symbol(const Array<Identifier>& list, Types::ID t_) :
+Symbol::Symbol(const Array<Identifier>& list, Types::ID t_, bool isConst_) :
 	fullIdList(list),
 	id(list.getLast()),
-	type(t_)
+	type(t_),
+	const_(isConst_)
 {
 	debugName = toString().toStdString();
 }
@@ -90,16 +91,16 @@ Symbol Symbol::getParentSymbol() const
 	if (parentList.isEmpty())
 		return {};
 
-	return Symbol(parentList, type);
+	return Symbol(parentList, type, true);
 }
 
-snex::jit::Symbol Symbol::getChildSymbol(const Identifier& id, Types::ID newType) const
+snex::jit::Symbol Symbol::getChildSymbol(const Identifier& id, Types::ID newType, bool isConst_) const
 {
 	Array<Identifier> childList;
 
 	childList.addArray(fullIdList);
 	childList.add(id);
-	return Symbol(childList, newType != Types::ID::Dynamic ? newType : type);
+	return Symbol(childList, newType != Types::ID::Dynamic ? newType : type, isConst_);
 }
 
 snex::jit::Symbol Symbol::withParent(const Symbol& parent) const
@@ -109,7 +110,7 @@ snex::jit::Symbol Symbol::withParent(const Symbol& parent) const
 	newList.addArray(parent.fullIdList);
 	newList.addArray(fullIdList);
 
-	return Symbol(newList, type);
+	return Symbol(newList, type, const_);
 }
 
 Symbol Symbol::withType(const Types::ID type) const
@@ -125,6 +126,9 @@ juce::String Symbol::toString() const
 		return "undefined";
 
 	juce::String s;
+
+	if (const_)
+		s << "const ";
 
 	for (int i = 0; i < fullIdList.size() - 1; i++)
 	{

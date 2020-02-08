@@ -51,7 +51,7 @@ JitCompiledFunctionClass::~JitCompiledFunctionClass()
 
 VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 {
-	auto s = BaseScope::Symbol({ {}, id }, Types::ID::Dynamic);
+	auto s = Symbol::createRootSymbol(id);
 
 	if (auto r = pimpl->rootData->contains(s))
 	{
@@ -65,7 +65,7 @@ VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 
 snex::VariableStorage* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
 {
-	auto s = BaseScope::Symbol({ {}, id }, Types::ID::Dynamic);
+	auto s = Symbol::createRootSymbol(id);
 
 	if (pimpl->rootData->contains(s))
 		return &pimpl->rootData->get(s);

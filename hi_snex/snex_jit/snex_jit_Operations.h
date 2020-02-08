@@ -57,7 +57,7 @@ public:
 		if (compiler->getCurrentPass() == BaseCompiler::ResolvingSymbols)
 		{
 			if (blockScope == nullptr)
-				blockScope = new RegisterScope(scope, {});
+				blockScope = new RegisterScope(scope, location.createAnonymousScopeId());
 		}
 
 		for (int i = 0; i < getNumChildStatements(); i++)
@@ -209,18 +209,12 @@ struct Operations::VariableReference : public Expression
 
 	bool isConstExpr() const override
 	{
-		if (parameterIndex != -1)
-			return false;
-
-		return isLocalConst;
+		return !id.constExprValue.isVoid();
 	}
 
 	VariableStorage getConstExprValue() const override
 	{
-		jassert(isLocalToScope);
-
-		jassertfalse;
-		return {};
+		return id.constExprValue;
 	}
 
 	bool isReferencedOnce() const
@@ -247,6 +241,8 @@ struct Operations::VariableReference : public Expression
 
 		return false;
 	}
+
+	
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
@@ -276,16 +272,10 @@ struct Operations::VariableReference : public Expression
 		return true;
 	}
 
-	//bool isFirstReference = false;
+	Types::ID getType() const override { return id.type; }
 
 	int parameterIndex = -1;
-	Symbol id;					// The Symbol from the parser
-	bool isLocalToScope = false;
-	bool isLocalConst = false;
-
-	VariableStorage functionClassConstant;
-
-	//bool isClassVariable = false;
+	Symbol id;					
 };
 
 
@@ -350,21 +340,11 @@ struct Operations::Assignment : public Expression
 	}
 
 	TokenType assignmentType;
-	bool isLocalDefinition = false;
 };
 
 
 
-Operations::TokenType Operations::VariableReference::getWriteAccessType()
-{
-	if (auto as = dynamic_cast<Assignment*>(parent.get()))
-	{
-		if (as->getSubExpr(1).get() == this)
-			return as->assignmentType;
-	}
 
-	return JitTokens::void_;
-}
 
 
 struct Operations::Compare : public Expression
@@ -534,7 +514,7 @@ struct Operations::FunctionCall : public Expression
 						addStatement(object, true);
 						object->process(compiler, scope);
 
-						symbol = Symbol::createRootSymbol(type == Types::ID::Event ? "Message" : "Block").getChildSymbol(symbol.id, type);
+						symbol = Symbol::createRootSymbol(type == Types::ID::Event ? "Message" : "Block").getChildSymbol(symbol.id, type, true);
 					}
 				}
 			}
@@ -1080,7 +1060,7 @@ struct Operations::BlockAccess : public Expression
 			if (auto cs = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
 				Array<FunctionData> matches;
-				cs->addMatchingFunctions(matches, { {"Block", "getSample"}, Types::ID::Float });
+				cs->addMatchingFunctions(matches, { {"Block", "getSample"}, Types::ID::Float, true });
 
 				reg = compiler->getRegFromPool(scope, type);
 
@@ -1273,7 +1253,7 @@ struct Operations::BlockAssignment : public Expression
 				parameters.add(vl->reg);
 
 				Array<FunctionData> matches;
-				cs->addMatchingFunctions(matches, { {"Block", "setSample"}, Types::ID::Float });
+				cs->addMatchingFunctions(matches, { {"Block", "setSample"}, Types::ID::Float , false });
 
 				asg.emitFunctionCall(nullptr, matches.getFirst(), parameters);
 			}
@@ -1330,9 +1310,7 @@ struct Operations::BlockLoop : public Expression,
 			target->process(compiler, scope);
 
 			b->blockScope = new RegisterScope(scope, location.createAnonymousScopeId());
-
 			b->process(compiler, scope);
-
 			
 			{
 				SyntaxTreeWalker w(b, false);

@@ -201,9 +201,20 @@ struct ParserHelpers
 		bool matchesAny(TokenType t1, TokenType t2) const { return currentType == t1 || currentType == t2; }
 		bool matchesAny(TokenType t1, TokenType t2, TokenType t3) const { return matchesAny(t1, t2) || currentType == t3; }
 
-		Symbol getCurrentSymbol() const
+		Symbol getCurrentSymbol(bool includeRootAndSetType) const
 		{
-			return currentSymbol.withParent(rootSymbol).withType(currentHnodeType);
+			if (includeRootAndSetType)
+			{
+				auto currentParent = rootSymbol;
+
+				for (const auto& asid : anonymousScopeIds)
+					currentParent = currentParent.getChildSymbol(asid);
+
+				return currentSymbol.withParent(currentParent).withType(currentHnodeType);
+			}
+				
+			else
+				return currentSymbol;
 		}
 
 		CodeLocation location;
@@ -240,7 +251,7 @@ struct ParserHelpers
 				currentSideEffect = Nothing;
 		}
 
-		bool matchIfSymbol()
+		bool matchIfSymbol(bool isConst)
 		{
 			if (currentType == JitTokens::identifier)
 			{
@@ -251,7 +262,7 @@ struct ParserHelpers
 				while(matchIf(JitTokens::dot))
 					idList.add(parseIdentifier());
 
-				currentSymbol = BaseScope::Symbol(idList, Types::ID::Dynamic);
+				currentSymbol = BaseScope::Symbol(idList, Types::ID::Dynamic, isConst);
 
 				return true;
 			}
@@ -548,8 +559,20 @@ struct ParserHelpers
 			return true;
 		}
 
+		void pushAnonymousScopeId()
+		{
+			anonymousScopeIds.add(location.createAnonymousScopeId());
+		}
+
+		void popAnonymousScopeId()
+		{
+			jassert(!anonymousScopeIds.isEmpty());
+			anonymousScopeIds.removeLast();
+		}
+
 	private:
 
+		Array<Identifier> anonymousScopeIds;
 		Symbol currentSymbol;
 		const Symbol rootSymbol;
 	};

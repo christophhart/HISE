@@ -37,7 +37,7 @@ using namespace juce;
 using namespace asmjit;
 
 MathFunctions::MathFunctions() :
-	FunctionClass({ {"Math"}, Types::ID::Void })
+	FunctionClass(Symbol::createRootSymbol("Math"))
 {
 	addFunctionConstant("PI", hmath::PI);
 	addFunctionConstant("E", hmath::E);
@@ -132,7 +132,7 @@ MathFunctions::MathFunctions() :
 }
 
 MessageFunctions::MessageFunctions() :
-	FunctionClass({ {"Message"}, Types::ID::Void })
+	FunctionClass(Symbol::createRootSymbol("Message"))
 {
 	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getNoteNumber, HiseEvent, "getNoteNumber");
 	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getVelocity, HiseEvent, "getVelocity");
@@ -141,7 +141,7 @@ MessageFunctions::MessageFunctions() :
 }
 
 BlockFunctions::BlockFunctions() :
-	FunctionClass({ {"Block"}, Types::ID::Void })
+	FunctionClass(Symbol::createRootSymbol("Block"))
 {
 	HNODE_JIT_ADD_C_FUNCTION_2(float, Wrapper::getSample, block, int, "getSample");
 	setDescription("Returns the sample at the given index", { "internal", "sampleIndex" });

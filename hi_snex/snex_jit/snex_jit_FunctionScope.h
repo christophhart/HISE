@@ -51,6 +51,22 @@ struct RegisterScope : public BaseScope
 
 	bool hasVariable(const Identifier& id) const override;
  
+	bool updateSymbol(Symbol& symbolToBeUpdated) override
+	{
+		jassert(getScopeForSymbol(symbolToBeUpdated) == this);
+
+		for (auto l : localVariables)
+		{
+			if (l.id == symbolToBeUpdated.id)
+			{
+				symbolToBeUpdated = l;
+				return true;
+			}
+		}
+
+		return BaseScope::updateSymbol(symbolToBeUpdated);
+	}
+
 	Array<Symbol> localVariables;
 
 private:
@@ -76,6 +92,21 @@ public:
 			return true;
 
 		return RegisterScope::hasVariable(id);
+	}
+
+	bool updateSymbol(Symbol& symbolToBeUpdated) override
+	{
+		jassert(getScopeForSymbol(symbolToBeUpdated) == this);
+
+		auto index = parameters.indexOf(symbolToBeUpdated.id);
+
+		if (index != -1)
+		{
+			symbolToBeUpdated.type = data.args[index].type;
+			return true;
+		}
+
+		return RegisterScope::updateSymbol(symbolToBeUpdated);
 	}
 
 	AssemblyRegister* getRegister(const Symbol& ref)
