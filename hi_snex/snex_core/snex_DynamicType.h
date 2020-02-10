@@ -60,7 +60,7 @@ public:
 	VariableStorage(const Types::FloatBlock& b);
 	VariableStorage(HiseEvent& m);
 
-	VariableStorage(void* objectPointer, ObjectTypeRegister& objectRegister, Identifier& objectType);
+	VariableStorage(int objectType, void* objectPointer, bool isReallyAPointer);
 
 	VariableStorage& operator =(FloatType s);
 	VariableStorage& operator =(const Types::FloatBlock& s);
@@ -210,6 +210,7 @@ public:
 	block toBlock() const;
 	HiseEvent toEvent() const;
 	bool isVoid() const noexcept { return getType() == Types::ID::Void; }
+	size_t getSizeInBytes() const noexcept;
 
 	void* getObjectPointer(const ObjectTypeRegister& objectRegister, const Identifier& typeId) const;
 
@@ -229,6 +230,8 @@ public:
 
 	void* getDataPointer()
 	{
+		if (getTypeValue() == Types::ID::Pointer)
+			return data.p.data;
 		if (getTypeValue() == Types::ID::Float ||
 			getTypeValue() == Types::ID::Double ||
 			getTypeValue() == Types::ID::Integer)
@@ -238,6 +241,8 @@ public:
 		else
 			return &data;
 	}
+
+	int getPointerType() const;
 
 private:
 	 

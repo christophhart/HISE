@@ -44,7 +44,9 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::FunctionParsing)
 	{
-		functionScope = new FunctionScope(scope, functionId);
+		jassert(scope->getScopeSymbol() == id.getParentSymbol());
+
+		functionScope = new FunctionScope(scope, id.id);
 
 		for (int i = 0; i < data.args.size(); i++)
 		{
@@ -58,7 +60,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		functionScope->parentFunction = dynamic_cast<ReferenceCountedObject*>(this);
 
 		auto classData = new FunctionData(data);
-
 
 		dynamic_cast<ClassScope*>(scope)->addFunction(classData);
 
@@ -85,7 +86,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		try
 		{
-			FunctionParser p(compiler, scope->getScopeSymbol().getChildSymbol(functionId), *this);
+			FunctionParser p(compiler, id, *this);
 
 			statements = p.parseStatementList();
 			
@@ -94,8 +95,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			compiler->executePass(BaseCompiler::TypeCheck, functionScope, statements);
 			compiler->executePass(BaseCompiler::SyntaxSugarReplacements, functionScope, statements);
 			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, statements);
-
-			functionScope->parentFunction = nullptr;
 
 			compiler->setCurrentPass(BaseCompiler::FunctionParsing);
 		}
@@ -125,12 +124,22 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		FuncSignatureX sig;
 
-		AsmCodeGenerator::fillSignature(data, sig, false);
+		hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class;
+
+		AsmCodeGenerator::fillSignature(data, sig, hasObjectPtr);
 		cc->addFunc(sig);
 
 		dynamic_cast<ClassCompiler*>(compiler)->setFunctionCompiler(cc);
 
 		compiler->registerPool.clear();
+
+		if (hasObjectPtr)
+		{
+			objectPtr = compiler->registerPool.getNextFreeRegister(functionScope, Types::ID::Pointer);
+
+			auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
+			asg.emitParameter(this, objectPtr, -1);
+		}
 
 		compiler->executePass(BaseCompiler::PreCodeGenerationOptimization, functionScope, statements);
 		compiler->executePass(BaseCompiler::RegisterAllocation, functionScope, statements);
@@ -238,28 +247,31 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		}
 		else if(auto rScope = dynamic_cast<RegisterScope*>(scope))
 		{
-			// This will be a definition of a local variable.
-
-			if (id.type == Types::ID::Dynamic)
+			// The type must have been set or it is a undefined variable
+			if (getType() == Types::ID::Dynamic)
 				location.throwError("Use of undefined variable " + id.toString());
 
-			
-			// The type must have been set
 			jassert(id.type != Types::ID::Dynamic);
 
+			// This will be a definition of a local variable.
 			rScope->localVariables.add(id);
 		}
 		else if (auto cScope = dynamic_cast<ClassScope*>(scope))
 		{
-			if (id.type == Types::ID::Dynamic)
+			if (getType() == Types::ID::Dynamic)
 				location.throwError("Use of undefined variable " + id.toString());
 
-			cScope->allocate(id);
+			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
+				memberOffset = subClassType->getMemberOffset(id.id);
+			else
+				cScope->allocate(id);
 		}
 		else
 		{
 			location.throwError("Can't resolve symbol " + id.toString());
 		}
+
+		
 
 		
 
@@ -370,12 +382,13 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		{
 			reg = compiler->registerPool.getRegisterForVariable(scope, id);
 
-			//reg = compiler->registerPool.getRegisterForVariable(ref);
-
 			if (isFirstReference())
 			{
-				auto asg = CREATE_ASM_COMPILER(type);
-				asg.emitParameter(reg, parameterIndex);
+				if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
+				{
+					auto asg = CREATE_ASM_COMPILER(type);
+					asg.emitParameter(dynamic_cast<Function*>(fScope->parentFunction), reg, parameterIndex);
+				}
 			}
 
 			return;
@@ -392,8 +405,11 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 		// It might already be assigned to a reused register
 		if (reg == nullptr)
+		{
 			reg = compiler->registerPool.getRegisterForVariable(scope, id);
-
+			reg->setOffset(memberOffset);
+		}
+			
 		if (reg->isActiveOrDirtyGlobalRegister() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
 		{
 			// the code generation has already happened before the branch so that we have the global register
@@ -406,15 +422,38 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 		auto asg = CREATE_ASM_COMPILER(type);
 
-		if ((!reg->isActiveOrDirtyGlobalRegister() && !reg->isMemoryLocation()) || isFirstReference())
+		isFirstWrite = (!reg->isActiveOrDirtyGlobalRegister() && !reg->isMemoryLocation()) || isFirstReference();
+
+		if (isFirstWrite)
 		{
 			auto assignmentType = getWriteAccessType();
 
+			if (id.isReference() && assignmentType == JitTokens::assign_)
+			{
+				reg->createRegister(asg.cc);
+				return;
+			}
+
 			auto rd = scope->getRootClassScope()->rootData.get();
+
+			if (auto cScope = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(id)))
+			{
+				if (cScope->typePtr != nullptr)
+				{
+					if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
+					{
+						dynamic_cast<Function*>(fScope->parentFunction)->objectPtr;
+
+						jassertfalse;
+
+						return;
+					}
+				}
+			}
 
 			if (rd->contains(id))
 			{
-				auto* dataPointer = &rd->get(id);
+				auto dataPointer = rd->getDataPointer(id);
 
 				if (assignmentType != JitTokens::void_)
 				{
@@ -465,14 +504,18 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			auto rd = scope->getRootClassScope()->rootData.get();
 
-			if (rd->contains(getTargetVariable()->id))
-			{
-				auto& result = rd->get(getTargetVariable()->id);
-				auto left = rd->get(getTargetVariable()->id);
-				auto right = getSubExpr(0)->getConstExprValue();
+			auto target = getTargetVariable()->id;
+			auto initValue = getSubExpr(0)->getConstExprValue();
 
-				if (assignmentType == JitTokens::assign_)
-					result = right;
+			if (auto complexType = dynamic_cast<ClassScope*>(scope)->typePtr)
+			{
+				rd->initMemberData(complexType, target.id, initValue);
+			}
+			else if (rd->contains(getTargetVariable()->id))
+			{
+				auto target = getTargetVariable()->id;
+				auto initValue = getSubExpr(0)->getConstExprValue();
+				rd->initGlobalData(target, initValue);
 			}
 			else
 				throwError("Weirdness 2000");
@@ -480,8 +523,17 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto v = getTargetVariable();
 
-		if (v->id.isConst() && (scope->getScopeForSymbol(v->id) != scope || !v->isFirstReference()))
+		if (v->id.isConst() && !isFirstAssignment)
 			throwError("Can't change constant variable");
+
+		if (getTargetVariable()->id.isReference() && isFirstAssignment)
+		{
+			auto source = getSubExpr(0);
+			auto pRef = new PointerReference(location);
+			source->replaceInParent(pRef);
+			pRef->addStatement(source);
+			pRef->process(compiler, scope);
+		}
 	}
 
 
@@ -489,19 +541,32 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		auto expectedType = getTargetVariable()->getType();
 
-		checkAndSetType(0, expectedType);
+		
+		if (!(isFirstAssignment && getTargetVariable()->id.isReference()))
+			checkAndSetType(0, expectedType);
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		auto targetV = getTargetVariable();
 
+		auto acg = CREATE_ASM_COMPILER(type);
+
+		if (isFirstAssignment && targetV->id.isReference())
+		{
+			targetV->process(compiler, scope);
+			getSubExpr(0)->process(compiler, scope);
+
+			auto tReg = targetV->reg;
+			auto vReg = getSubRegister(0);
+
+			acg.copyPointerAddress(tReg, vReg);
+			return;
+		}
+		
 		getSubExpr(0)->process(compiler, scope);
 
-
 		targetV->process(compiler, scope);
-
-		auto acg = CREATE_ASM_COMPILER(type);
 
 		auto value = getSubRegister(0);
 		auto tReg = getSubRegister(1);
@@ -514,6 +579,10 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		else
 			acg.emitBinaryOp(assignmentType, tReg, value);
 
+		if (tReg->isDirtyGlobalMemory())
+		{
+			acg.emitMemoryWrite(tReg);
+		}
 #if 0
 		if (scope->getRootClassScope()->rootData->contains(targetV->id))
 		{
@@ -521,47 +590,6 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			acg.emitMemoryWrite(targetV->reg);
 		}
 #endif
-	}
-}
-
-void Operations::ClassInstance::process(BaseCompiler* compiler, BaseScope* scope)
-{
-	COMPILER_PASS(BaseCompiler::SubclassCompilation)
-	{
-		if (scope->hasChildClass(classId))
-		{
-			auto cLocation = location;
-			int length;
-
-			scope->getChildClassCode(classId, cLocation.location, cLocation.program, length);
-
-			for (auto instanceId : instanceIds)
-			{
-				ClassCompiler c(scope, instanceId);
-
-				c.parentRuntime = dynamic_cast<ClassCompiler*>(compiler)->getRuntime();
-
-				ScopedPointer<JitCompiledFunctionClass> classWrapper = c.compileAndGetScope(cLocation, length);
-
-				if (!c.lastResult.wasOk())
-					throwError("Error at class instantiation: " + c.lastResult.getErrorMessage());
-
-				if (auto fc = dynamic_cast<FunctionClass*>(scope))
-				{
-					auto cScope = classWrapper->releaseClassScope();
-					cScope->classTypeId = classId;
-					fc->addFunctionClass(cScope);
-				}
-				else
-					location.throwError("Illegal class instantiation");
-
-				if (auto cc = dynamic_cast<ClassCompiler*>(compiler))
-				{
-					cc->assembly << "; " << classId << " instance " << instanceId.toString() << "\n";
-					cc->assembly << c.assembly;
-				}
-			}
-		}
 	}
 }
 
@@ -583,6 +611,49 @@ snex::jit::Symbol Operations::BlockAccess::isWrappedBufferReference(Statement::P
 	}
 
 	return {};
+}
+
+void Operations::PointerReference::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	Expression::process(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	{
+		if (auto v = dynamic_cast<VariableReference*>(getSubExpr(0).get()))
+		{
+			auto vScope = scope->getScopeForSymbol(v->id);
+
+			if (vScope->getScopeType() == BaseScope::Class)
+			{
+				VariableStorage ptr((int)v->getType(), vScope->getRootData()->getDataPointer(v->id), true);
+				auto n = new Immediate(location, ptr);
+				v->replaceInParent(n);
+			}
+			else
+				throwError("Can't take reference to local variable");
+		}
+		if (auto tOp = dynamic_cast<TernaryOp*>(getSubExpr(0).get()))
+		{
+			auto tb = tOp->getSubExpr(1);
+			auto fb = tOp->getSubExpr(2);
+
+			auto ptb = new PointerReference(location);
+			tb->replaceInParent(ptb);
+			ptb->addStatement(tb);
+
+			auto pfb = new PointerReference(location);
+			fb->replaceInParent(pfb);
+			pfb->addStatement(fb);
+
+			pfb->process(compiler, scope);
+			ptb->process(compiler, scope);
+		}
+	}
+
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		reg = getSubRegister(0);
+	}
 }
 
 }

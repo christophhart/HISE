@@ -21,7 +21,7 @@ namespace Types
 enum ID
 {
 	Void =			0b00000000,
-	ObjectPointer = 0b10001111,
+	Pointer = 0b10001111,
 	Event =			0b00001000,
 	Float =			0b00010000,
 	Double =		0b00100000,
@@ -256,7 +256,129 @@ struct FunctionType
 	
 };
 
+
+struct Throw
+{
+	struct Exception
+	{
+		int index;
+		int maxSize;
+	};
+
+	template <typename T, int MaxLimit> static T& get(T* data, int index)
+	{
+		if (isPositiveAndBelow(index, MaxLimit))
+			return data[index];
+		else
+			throw Exception({ index, MaxLimit });
+
+		static T empty = T();
+		return empty;
+	}
+
+	template <typename T, int MaxLimit> static const T& get(const T* data, int index)
+	{
+		return index % MaxLimit;
+	}
+
+	template <typename T> static T& get(T* data, int index, int maxLimit)
+	{
+		return index % maxLimit;
+	}
+
+	template <typename T> static const T& get(const T* data, int index, int maxLimit)
+	{
+		return index % maxLimit;
+	}
+};
+
+struct Wrap
+{
+	template <typename T, int MaxLimit> static T& get(T* data, int index)
+	{
+		return index % MaxLimit;
+	}
+
+	template <typename T, int MaxLimit> static const T& get(const T* data, int index)
+	{
+		return index % MaxLimit;
+	}
+
+	template <typename T> static T& get(T* data, int index, int maxLimit)
+	{
+		return index % maxLimit;
+	}
+
+	template <typename T> static const T& get(const T* data, int index, int maxLimit)
+	{
+		return index % maxLimit;
+	}
+};
+
+struct Zero
+{
+	template <typename T, int MaxLimit> static T& get(T* data, int index)
+	{
+		if (!isPositiveAndBelow(index, MaxLimit))
+		{
+			static T empty = T(0);
+			return empty;
+		}
+
+		return data[index];
+	}
+
+	template <typename T, int MaxLimit> static const T& get(const T* data, int index)
+	{
+		if (!isPositiveAndBelow(index, MaxLimit))
+		{
+			static T empty = T(0);
+			return empty;
+		}
+
+		return data[index];
+	}
+};
+
+template <class T, int MaxSize, class IndexAccess> struct span
+{
+	T& operator[](int index)
+	{
+		return IndexAccess::get<MaxSize>(index);
+	}
+
+	const T& operator[](int index) const
+	{
+		return IndexAccess::get<MaxSize>(index);
+	}
+
+	T* begin() const
+	{
+		return data;
+	}
+
+	T* end() const
+	{
+		return data + MaxSize;
+	}
+
+	void fill(const T& value)
+	{
+		for (auto& v : *this)
+			v = value;
+	}
+
+	constexpr int size()
+	{
+		return MaxSize;
+	}
+
+	T data[MaxSize];
+};
+
 }
+
+
 
 using block = Types::FloatBlock;
 using event = hise::HiseEvent;
@@ -293,6 +415,8 @@ static forcedinline float max(float value1, float value2) { return jmax<float>(v
 static forcedinline float random() { return Random::getSystemRandom().nextFloat(); };
 static forcedinline float fmod(float x, float y) { return std::fmod(x, y); };
 
+static forcedinline int min(int value1, int value2) { return jmin<int>(value1, value2); };
+static forcedinline int max(int value1, int value2) { return jmax<int>(value1, value2); };
 static int round(int value) { return value; };
 static forcedinline int randInt(int low=0, int high=INT_MAX) { return  Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
 

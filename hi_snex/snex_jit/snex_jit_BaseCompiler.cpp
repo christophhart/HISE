@@ -60,17 +60,17 @@ using namespace asmjit;
         
         setCurrentPass(p);
         
-        for (auto s : *statements)
-        {
-            try
-            {
-                for (auto o : passes)
-                    o->reset();
-                
-                if(isOptimizationPass(p))
-                {
-                    Operations::Statement::Ptr ptr(s);
-                    
+		if (isOptimizationPass(p))
+		{
+			for (auto s : *statements)
+			{
+				for (auto o : passes)
+					o->reset();
+
+				if (isOptimizationPass(p))
+				{
+					Operations::Statement::Ptr ptr(s);
+
 					bool noMoreOptimisationsPossible = false;
 
 					while (!noMoreOptimisationsPossible)
@@ -91,20 +91,12 @@ using namespace asmjit;
 						}
 					}
 
-                    ptr = nullptr;
-                }
-                else
-                    s->process(this, scope);
-            }
-            catch (DeadCodeException& d)
-            {
-                auto lineNumber = d.location.getLineNumber(d.location.program, d.location.location);
-                
-				juce::String m;
-                m << "Skipping removed expression at Line " << lineNumber;
-                s->logOptimisationMessage(m);
-            }
-        }
+					ptr = nullptr;
+				}
+			}
+		}
+		else
+			statements->process(this, scope);
     }
     
 }

@@ -38,7 +38,7 @@ using namespace juce;
 
 JitCompiledFunctionClass::JitCompiledFunctionClass(BaseScope* parentScope, const Symbol& classInstanceId)
 {
-	pimpl = new ClassScope(parentScope, classInstanceId);
+	pimpl = new ClassScope(parentScope, classInstanceId, nullptr);
 }
 
 
@@ -55,7 +55,7 @@ VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 
 	if (auto r = pimpl->rootData->contains(s))
 	{
-		return VariableStorage(pimpl->rootData->get(s));
+		return pimpl->rootData->getDataCopy(s);
 	}
 
 	jassertfalse;
@@ -63,12 +63,12 @@ VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 }
 
 
-snex::VariableStorage* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
+void* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
 {
 	auto s = Symbol::createRootSymbol(id);
 
 	if (pimpl->rootData->contains(s))
-		return &pimpl->rootData->get(s);
+		return pimpl->rootData->getDataPointer(s);
 
 	return nullptr;
 }
@@ -94,13 +94,7 @@ FunctionData JitCompiledFunctionClass::getFunction(const Identifier& functionId)
 	return {};
 }
 
-snex::VariableStorage* JitObject::getVariablePtr(const Identifier& id) const
-{
-	if (*this)
-		return functionClass->getVariablePtr(id);
 
-	return nullptr;
-}
 
 snex::jit::FunctionData JitObject::operator[](const Identifier& functionId) const
 {

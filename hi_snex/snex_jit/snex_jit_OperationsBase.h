@@ -80,6 +80,8 @@ public:
 
 		virtual bool hasSideEffect() const { return false; }
 
+		virtual size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const { return 0; }
+
 		Ptr getChildStatement(int index) const
 		{
 			return childStatements[index];
@@ -173,6 +175,8 @@ public:
 
 		bool hasSubExpr(int index) const;
 
+		virtual VariableStorage getPointerValue() const;
+
 		Ptr getSubExpr(int index) const;
 
 		/** Returns a pointer to the register of this expression.
@@ -255,6 +259,9 @@ public:
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
 	struct BlockLoop;		struct IfStatement;				struct SmoothedVariableDefinition;
 	struct WrappedBlockDefinition;	struct ClassStatement;	struct ClassInstance;
+	struct PointerReference;
+
+	struct SpanDefinition;	struct SpanReference; struct SpanAssignment;
 
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.
@@ -263,7 +270,18 @@ public:
 	{
 		void allocateDirtyGlobalVariables(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
 
+		
+
 		virtual ~ConditionalBranch() {}
+	};
+
+	struct TypeDefinitionBase
+	{
+		virtual ~TypeDefinitionBase() {};
+
+		virtual Identifier getInstanceId() const = 0;
+		virtual ComplexType::Ptr getTypePtr() const = 0;
+		virtual Types::ID getNativeType() const = 0;
 	};
 
 	struct BranchingStatement
@@ -297,6 +315,10 @@ public:
 	static Expression* findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope);
 };
 
+/** A syntax tree is a list of statements without a parent (so that the SyntaxTreeWalker will look deeper than that. 
+
+It's used by either class definitions or function definition (so that each function has its own syntax tree).
+*/
 class SyntaxTree : public Operations::Statement
 {
 public:
@@ -304,12 +326,31 @@ public:
 	SyntaxTree(ParserHelpers::CodeLocation l);;
 	Types::ID getType() const { return Types::ID::Void; }
 
+	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const
+	{
+		size_t s = 0;
+
+		for (int i = 0; i < getNumChildStatements(); i++)
+			s += getChildStatement(i)->getRequiredByteSize(compiler, scope);
+
+		return s;
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		Statement::process(compiler, scope);
+
+		for (int i = 0; i < getNumChildStatements(); i++)
+			getChildStatement(i)->process(compiler, scope);
+	}
+
 	void addVariableReference(Operations::Statement* s);
 	bool isFirstReference(Operations::Statement* v) const;
 
 	Operations::Statement* getLastVariableForReference(const Symbol& ref) const;
 	Operations::Statement* getLastAssignmentForReference(const Symbol& ref) const;
 	
+
 private:
 
 	Array<WeakReference<Statement>> variableReferences;

@@ -92,7 +92,9 @@ public:
 		{
 			setCurrentPass(BaseCompiler::Parsing);
 			syntaxTree = parser.parseStatementList();
-			executePass(SubclassCompilation, newScope->pimpl, syntaxTree);
+
+			executePass(ComplexTypeParsing, newScope->pimpl, syntaxTree);
+			executePass(DataAllocation, newScope->pimpl, syntaxTree);
 			executePass(PreSymbolOptimization, newScope->pimpl, syntaxTree);
 			executePass(ResolvingSymbols, newScope->pimpl, syntaxTree);
 			executePass(TypeCheck, newScope->pimpl, syntaxTree);
@@ -173,7 +175,10 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	if (currentType == JitTokens::identifier)
 	{
 		auto loc = location;
-		auto classId = parseIdentifier();
+
+		matchIfSymbol(false);
+
+		auto classId = getCurrentSymbol(true);
 
 		Symbol rootSymbol;
 
@@ -197,33 +202,24 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 
 	bool isConst = matchIf(JitTokens::const_);
 
-	if (matchIf(JitTokens::span_))
-	{
-		match(JitTokens::lessThan);
-		
-		parseDecimalLiteral();
-
-		int size = (int)currentValue;
-
-		if (size > 65536)
-			location.throwError("Span size can't exceed 65536");
-
-		match(JitTokens::comma);
-
-		auto type = matchType();
-
-		juce::String spanClassType;
-
-		spanClassType << "span_" << size << "_" << Types::Helpers::getTypeName(type);
-
-		jassertfalse;
-	}
 
 	bool isSmoothedType = isSmoothedVariableType();
 	bool isWrappedBlType = isWrappedBlockType();
 
 	currentHnodeType = matchType();
 	
+	if (currentHnodeType == Types::ID::Pointer)
+	{
+		auto spanTypeSymbol = parseSpanType();
+
+		if (!matchIfSymbol(false))
+			location.throwError("Expected symbol");
+
+		match(JitTokens::semicolon);
+
+		return new Operations::SpanDefinition(location, spanTypeSymbol, getCurrentSymbol(true));
+	}
+
 	matchIfSymbol(isConst);
 
 	StatementPtr s;
@@ -329,9 +325,12 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst*/)
 {
 	auto type = currentHnodeType;
+	
 
 	auto target = new Operations::VariableReference(location, getCurrentSymbol(true));
 	//target->isLocalToScope = true;
+
+	
 
 	match(JitTokens::assign_);
 
@@ -346,18 +345,18 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst
 		expr = new Operations::Immediate(location, parseVariableStorageLiteral());
 	}
 	
-	return new Operations::Assignment(location, target, JitTokens::assign_, expr);
+	return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
 }
 
 BlockParser::StatementPtr NewClassParser::parseFunction()
 {
-	auto func = new Operations::Function(location, getCurrentSymbol(false).id);
+	auto func = new Operations::Function(location, getCurrentSymbol(true));
 
 	StatementPtr newStatement = func;
 
 	auto& fData = func->data;
 
-	fData.id = getCurrentSymbol(false).id;
+	fData.id = func->id.id;
 	fData.returnType = currentHnodeType;
 	fData.object = nullptr;
 
@@ -395,8 +394,24 @@ BlockParser::StatementPtr NewClassParser::parseFunction()
 
 snex::jit::BlockParser::StatementPtr NewClassParser::parseSubclass()
 {
-	auto classId = parseIdentifier();
+	if (!matchIfSymbol(false))
+		location.throwError("Expected class ID");
 
+	auto classSymbol = getCurrentSymbol(true);
+
+	auto p = new StructType(classSymbol);
+
+	compiler->complexTypes.add(p);
+
+	ScopedChildRoot scs(*this, classSymbol.id);
+
+	auto list = parseStatementList();
+
+	match(JitTokens::semicolon);
+
+	return new Operations::ClassStatement(location, p, list);
+
+#if 0
 	auto c = new Operations::ClassStatement(location, classId);
 	auto classStart = location.location;
 
@@ -413,9 +428,8 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseSubclass()
 	match(JitTokens::semicolon);
 
 	c->endLocation = location;
-
 	return c;
-
+#endif
 }
 
 snex::VariableStorage BlockParser::parseVariableStorageLiteral()
@@ -444,7 +458,65 @@ snex::VariableStorage BlockParser::parseVariableStorageLiteral()
 		return {};
 }
 
+SpanType::Ptr BlockParser::parseSpanType()
+{
+	match(JitTokens::lessThan);
 
+	Types::ID type;
+	SpanType::Ptr child;
+
+	if (matchIfSymbol(false))
+	{
+		type = Types::ID::Pointer;
+
+		auto classSymbol = getCurrentSymbol(false);
+
+		for (auto ct : compiler->complexTypes)
+		{
+			if (auto st = dynamic_cast<StructType*>(ct))
+			{
+				if (st->id == classSymbol)
+				{
+					child = st;
+					break;
+				}
+			}
+		}
+
+		if (child == nullptr)
+			location.throwError("Undefined type " + classSymbol.toString());
+		
+	}
+	else
+	{
+		type = matchType();
+
+		if (type == Types::ID::Pointer)
+			child = parseSpanType();
+	}
+
+	match(JitTokens::comma);
+
+	auto sizeValue = parseVariableStorageLiteral();
+
+	int size = (int)sizeValue;
+
+	if (size > 65536)
+		location.throwError("Span size can't exceed 65536");
+
+	match(JitTokens::greaterThan);
+
+	SpanType::Ptr newType;
+
+	if (child != nullptr)
+		newType = new SpanType(child, size);
+	else
+		newType = new SpanType(type, size);
+
+	compiler->complexTypes.add(newType);
+
+	return newType;
+}
 
 }
 }

@@ -143,7 +143,10 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 
 		if (auto v = dynamic_cast<VariableReference*>(e.get()))
 		{
-			if (v->isConstExpr() && expectedType != v->getConstExprValue().getType())
+			bool isDifferentType = expectedType != Types::ID::Dynamic && expectedType != v->getConstExprValue().getType();
+
+
+			if (v->isConstExpr() && isDifferentType)
 			{
 				v->id.constExprValue = VariableStorage(expectedType, v->id.constExprValue.toDouble());
 				continue;
@@ -152,7 +155,7 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 
 		auto thisType = e->getType();
 
-		if (!Types::Helpers::matchesTypeStrict(thisType, exprType))
+		if (!Types::Helpers::matchesTypeStrict(exprType, thisType))
 		{
 			logWarning("Implicit cast, possible lost of data");
 
@@ -206,6 +209,12 @@ snex::VariableStorage Operations::Expression::getConstExprValue() const
 bool Operations::Expression::hasSubExpr(int index) const
 {
 	return isPositiveAndBelow(index, getNumChildStatements());
+}
+
+snex::VariableStorage Operations::Expression::getPointerValue() const
+{
+	location.throwError("Can't use address of temporary register");
+	return {};
 }
 
 Operations::Expression::Ptr Operations::Expression::getSubExpr(int index) const
@@ -347,6 +356,8 @@ bool Operations::Statement::isConstExpr() const
 
 void Operations::Statement::addStatement(Statement* b, bool addFirst/*=false*/)
 {
+	
+
 	if (addFirst)
 		childStatements.insert(0, b);
 	else

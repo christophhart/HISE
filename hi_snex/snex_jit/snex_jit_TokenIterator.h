@@ -201,7 +201,7 @@ struct ParserHelpers
 		bool matchesAny(TokenType t1, TokenType t2) const { return currentType == t1 || currentType == t2; }
 		bool matchesAny(TokenType t1, TokenType t2, TokenType t3) const { return matchesAny(t1, t2) || currentType == t3; }
 
-		Symbol getCurrentSymbol(bool includeRootAndSetType) const
+		Symbol getCurrentSymbol(bool includeRootAndSetType)
 		{
 			if (includeRootAndSetType)
 			{
@@ -253,6 +253,8 @@ struct ParserHelpers
 
 		bool matchIfSymbol(bool isConst)
 		{
+			auto isReference = matchIf(JitTokens::bitwiseAnd);
+
 			if (currentType == JitTokens::identifier)
 			{
 				Array<Identifier> idList;
@@ -262,7 +264,7 @@ struct ParserHelpers
 				while(matchIf(JitTokens::dot))
 					idList.add(parseIdentifier());
 
-				currentSymbol = BaseScope::Symbol(idList, Types::ID::Dynamic, isConst);
+				currentSymbol = BaseScope::Symbol(idList, Types::ID::Dynamic, isConst, isReference);
 
 				return true;
 			}
@@ -328,6 +330,7 @@ struct ParserHelpers
 			if (matchIf(JitTokens::sdouble)) return Types::ID::Double;
 			if (matchIf(JitTokens::zblock)) return Types::ID::Block;
 			if (matchIf(JitTokens::wblock)) return Types::ID::Block;
+			if (matchIf(JitTokens::span_))  return Types::ID::Pointer;
 
 			throwTokenMismatch("Type");
 
@@ -570,11 +573,27 @@ struct ParserHelpers
 			anonymousScopeIds.removeLast();
 		}
 
+		struct ScopedChildRoot
+		{
+			ScopedChildRoot(TokenIterator& iter, const Identifier& id):
+				p(iter)
+			{
+				p.rootSymbol = p.rootSymbol.getChildSymbol(id);
+			}
+
+			~ScopedChildRoot()
+			{
+				p.rootSymbol = p.rootSymbol.getParentSymbol();
+			}
+
+			TokenIterator& p;
+		};
+
 	private:
 
 		Array<Identifier> anonymousScopeIds;
 		Symbol currentSymbol;
-		const Symbol rootSymbol;
+		Symbol rootSymbol;
 	};
 
 

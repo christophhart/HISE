@@ -55,7 +55,7 @@ public:
 
 	VariableStorage getVariable(const Identifier& id);
 
-	VariableStorage* getVariablePtr(const Identifier& id);
+	void* getVariablePtr(const Identifier& id);
 
 	Array<Identifier> getFunctionIds() const;
 
@@ -87,7 +87,11 @@ public:
 		functionClass(f)
 	{};
 
-	VariableStorage* getVariablePtr(const Identifier& id) const;
+
+	template <typename T> T* getVariablePtr(const Identifier& id)
+	{
+		return reinterpret_cast<T*>(functionClass->getVariablePtrInternal(id));
+	}
 
 	FunctionData operator[](const Identifier& functionId) const;
 
@@ -118,6 +122,8 @@ public:
 
 private:
 
+	
+	
 	
 	JitCompiledFunctionClass::Ptr functionClass;
 };

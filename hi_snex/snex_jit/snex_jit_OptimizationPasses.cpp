@@ -73,18 +73,7 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 	if(compiler->getCurrentPass() == BaseCompiler::PostSymbolOptimization ||
 	   compiler->getCurrentPass() == BaseCompiler::PreSymbolOptimization)
 	{
-		if (auto v = as<Operations::VariableReference>(statement))
-		{
-			if (v->isConstExpr())
-			{
-				auto parentType = v->parent.get()->getType();
-
-				v->logOptimisationMessage("Replace constant with immediate value");
-
-				replaceWithImmediate(v, v->getConstExprValue());
-				return true;
-			}
-		}
+		
 
 		if (auto fc = as<Operations::FunctionCall>(statement))
 		{

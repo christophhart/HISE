@@ -127,7 +127,7 @@ public:
 
 	ReferenceCountedArray<AssemblyRegister> allocatedRegisters;
 
-	ReferenceCountedObjectPtr<ReferenceCountedObject> parentFunction;
+	ReferenceCountedObject* parentFunction = nullptr;
 	FunctionData data;
 	Array<Identifier> parameters;
 

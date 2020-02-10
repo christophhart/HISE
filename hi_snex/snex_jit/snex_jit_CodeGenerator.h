@@ -104,7 +104,11 @@ struct AsmCodeGenerator
 	
 	void emitLogicOp(Operations::BinaryOp* op);
 
-	void emitParameter(RegPtr parameterRegister, int parameterIndex);
+	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index);
+
+	void emitSpanWrite(RegPtr address, RegPtr index, RegPtr value);
+
+	void emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex);
 
 	RegPtr emitBinaryOp(OpType op, RegPtr l, RegPtr r);
 
@@ -126,6 +130,13 @@ struct AsmCodeGenerator
 
 	void emitFunctionCall(RegPtr returnReg, const FunctionData& f, ReferenceCountedArray<AssemblyRegister>& parameterRegisters);
 
+	void copyPointerAddress(RegPtr targetReg, RegPtr pointerAddress);
+
+	void writeToPointerAddress(RegPtr target, RegPtr value);
+
+
+	
+
 	void dumpVariables(BaseScope* s, uint64_t lineNumber);
 
 	
@@ -135,6 +146,8 @@ struct AsmCodeGenerator
 	static void fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer);
 
 private:
+
+	X86Mem createPointerAddress(RegPtr address, RegPtr index);
 
 	AssemblyRegisterPool* registerPool;
 

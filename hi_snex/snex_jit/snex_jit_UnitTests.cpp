@@ -148,8 +148,15 @@ public:
 
 			if (!(v == expected))
 			{
-				DBG("Failed assembly");
+				DBG("Expected: " + juce::String(expected));
+				DBG("Actual: " + juce::String(v));
+
+				DBG("Failed assembly: ");
+				
 				DBG(compiler->getAssemblyCode());
+				DBG("Failed code: ");
+				DBG(compiler->getLastCompiledCode());
+
 			}
 
 			return v;
@@ -291,14 +298,15 @@ public:
 
 	void runTest() override
 	{
-		return;
+		testSpan<int>();
+		testSpan<double>();
+		testSpan<float>();
 
 		testOptimizations();
 
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
-
 	}
 
 	void runTestsWithOptimisation(const Array<Identifier>& ids)
@@ -321,6 +329,10 @@ public:
 		testCompareOperators<int>();
 		testCompareOperators<float>();
 
+		testPointerVariables<int>();
+		testPointerVariables<double>();
+		testPointerVariables<float>();
+
 		testTernaryOperator();
 		testIfStatement();
 
@@ -334,14 +346,107 @@ public:
 		testBigFunctionBuffer();
 		testLogicalOperations();
 		testScopes();
-		testBlocks();
+		//testBlocks();
 		testEventSetters();
 		testEvents();
 
-		testStructs();
+		testSpan<int>();
+		testSpan<float>();
+		testSpan<double>();
+
+		//testStructs();
 	}
 
 private:
+
+	template <typename T> void testSpan()
+	{
+		auto type = Types::Helpers::getTypeFromTypeId<T>();
+
+		beginTest("Testing span operations for " + Types::Helpers::getTypeName(type));
+
+		Random r;
+		int size = r.nextInt({ 1, 100 });
+		int index = r.nextInt({ 0, size - 1 });
+		double a = (double)r.nextInt(25) *(r.nextBool() ? 1.0 : -1.0);
+		double b = (double)r.nextInt(62) *(r.nextBool() ? 1.0 : -1.0);
+
+		if (b == 0.0) b = 55.0;
+
+		float d[12];
+
+		ScopedPointer<HiseJITTestCase<T>> test;
+
+		juce::String code;
+
+
+#define NEW_CODE_TEXT() code = {};
+#define DECLARE_SPAN(name) ADD_CODE_LINE("span<$T, $size> " + juce::String(name) + ";")
+#define FINALIZE_CODE() code = code.replace("$T", getTypeName<T>()); code = code.replace("$size", juce::String(size)); code = code.replace("$index", juce::String(index));
+
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[$index] = input;");
+			ADD_CODE_LINE("    return input;}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " span set and return", T(a), T(a));
+		}
+		
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
+			ADD_CODE_LINE("void other($T input){");
+			ADD_CODE_LINE("    data[$index] = input;}");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    other(input);");
+			ADD_CODE_LINE("    return data[$index];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " span set in different function", T(a), T(a));
+		}
+
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[0] = 4.0;");
+			ADD_CODE_LINE("    return data[0];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " span set with implicit cast", T(index), T(4.0));
+		}
+		
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[(int)input] = 4.0;");
+			ADD_CODE_LINE("    return data[(int)input];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " span set with index cast", T(index), T(4.0));
+		}
+
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    int i = Math.min($size, (int)input + 3);");
+			ADD_CODE_LINE("    data[i] = ($T)4.0;");
+			ADD_CODE_LINE("    return data[i];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
+		}
+	}
 
 	void expectCompileOK(Compiler* compiler)
 	{
@@ -661,6 +766,8 @@ private:
 
 		ScopedPointer<HiseJITTestCase<int>> test;
 
+		
+
 		test = new HiseJITTestCase<int>("int test(int input) { int x = 5; int y = x; int z = y + 12; return z; }", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("reuse double assignment", 0, 17);
@@ -948,6 +1055,36 @@ private:
 		
 	}
 
+	template <typename T> void testPointerVariables()
+	{
+		auto type = Types::Helpers::getTypeFromTypeId<T>();
+
+		beginTest("Testing pointer variables for " + Types::Helpers::getTypeName(type));
+
+		Random r;
+
+		double a = (double)r.nextInt(25) *(r.nextBool() ? 1.0 : -1.0);
+		double b = (double)r.nextInt(25) *(r.nextBool() ? 1.0 : -1.0);
+
+		ScopedPointer<HiseJITTestCase<T>> test;
+
+#define CREATE_POINTER_FUNCTION_TEMPLATE(codeAfterRefDefiniton) CREATE_TYPED_TEST(getGlobalDefinition<T>(a) + getTypeName<T>() + " test(" + getTypeName<T>() + " input){" + getTypeName<T>() + "& ref = x; " + codeAfterRefDefiniton + "}");
+
+		CREATE_POINTER_FUNCTION_TEMPLATE("ref = input; return x;");
+		EXPECT_TYPED(GET_TYPE(T) + " Setting reference variable", a, a);
+
+
+		CREATE_POINTER_FUNCTION_TEMPLATE("ref += input; return x;");
+		EXPECT_TYPED(GET_TYPE(T) + " Adding input to reference variable", b, a + b);
+
+		CREATE_POINTER_FUNCTION_TEMPLATE("ref += input; return ref;");
+		EXPECT_TYPED(GET_TYPE(T) + " Adding input to reference variable", b, a + b);
+
+		CREATE_POINTER_FUNCTION_TEMPLATE("ref += input; return x;");
+		EXPECT_TYPED(GET_TYPE(T) + " Adding input to reference variable", b, a + b);
+
+#undef CREATE_POINTER_FUNCTION_TEMPLATE
+	}
 
 	template <typename T> void testOperations()
 	{

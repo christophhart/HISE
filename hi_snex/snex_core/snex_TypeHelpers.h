@@ -86,6 +86,9 @@ struct Helpers
 
 	static String getTypeIDName(ID Type);
 
+	static size_t getSizeForType(ID type);
+
+	static bool pointerTypeMatches(const VariableStorage& v1, const VariableStorage& v2);
 
 	static bool matchesTypeLoose(ID expected, ID actual);
 	static bool matchesTypeStrict(ID expected, ID actual);
@@ -123,6 +126,8 @@ struct Helpers
 			return Types::ID::Event;
 		if (std::is_same<T, block>())
 			return Types::ID::Block;
+		if (std::is_same<T, void*>())
+			return Types::ID::Pointer;
 
 		return Types::ID::Void;
 	};

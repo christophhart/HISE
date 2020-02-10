@@ -65,7 +65,7 @@ public:
 
 	int getTypeNumber() const override
 	{
-		return Types::ID::ObjectPointer;
+		return Types::ID::Pointer;
 	}
 
 	DebugInformationBase* createDebugInformationForChild(const Identifier& id)
@@ -83,9 +83,10 @@ public:
 			ids.add(l.id);
 	}
 
-	ClassScope(BaseScope* parent, const Symbol& id) :
+	ClassScope(BaseScope* parent, const Symbol& id, ComplexType::Ptr typePtr_) :
 		FunctionClass(id),
-		BaseScope(id, parent)
+		BaseScope(id, parent),
+		typePtr(typePtr_)
 	{
 		if (auto gs = dynamic_cast<GlobalScope*>(parent))
 		{
@@ -94,11 +95,11 @@ public:
 
 			runtime = new asmjit::JitRuntime();
 			rootData = new RootClassData();
-		}
 
-		addFunctionClass(new MessageFunctions());
-		addFunctionClass(new MathFunctions());
-		addFunctionClass(new BlockFunctions());
+			addFunctionClass(new MessageFunctions());
+			addFunctionClass(new MathFunctions());
+			addFunctionClass(new BlockFunctions());
+		}
 
 		if (id)
 			scopeType = BaseScope::Class;
@@ -131,6 +132,7 @@ public:
 
 	ScopedPointer<asmjit::JitRuntime> runtime;
 	ScopedPointer<RootClassData> rootData;
+	ComplexType::Ptr typePtr;
 
 	struct FunctionDebugInfo : public DebugInformationBase
 	{
@@ -276,6 +278,22 @@ public:
 	void addLocalVariableInfo(const LocalVariableInfo& l)
 	{
 		localVariableInfo.add(l);
+	}
+
+	bool hasVariable(const Identifier& id) const override
+	{
+		if (auto st = dynamic_cast<StructType*>(typePtr.get()))
+			return st->hasMember(id);
+
+		return BaseScope::hasVariable(id);
+	}
+
+	bool updateSymbol(Symbol& symbolToBeUpdated) override
+	{
+		if (auto st = dynamic_cast<StructType*>(typePtr.get()))
+			return st->updateSymbol(symbolToBeUpdated);
+
+		return BaseScope::updateSymbol(symbolToBeUpdated);
 	}
 
 	juce::Array<LocalVariableInfo> localVariableInfo;

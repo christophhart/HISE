@@ -46,6 +46,10 @@ MathFunctions::MathFunctions() :
 
 #define DESCRIPTION(type, x) setDescription(juce::String("Calculates the ") + #type + " " + #x + " value", { "input" }); 
 
+
+	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::min, int, int, "min");		DESCRIPTION(int, smaller);
+	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::max, int, int, "max");		DESCRIPTION(int, bigger);
+
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sin, double, "sin");		DESCRIPTION(double, sin);
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::asin, double, "asin");	DESCRIPTION(double, asin);
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::cos, double, "cos");		DESCRIPTION(double, cos);

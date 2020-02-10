@@ -70,7 +70,8 @@ public:
 	enum Pass
 	{
 		Parsing,
-		SubclassCompilation,
+		ComplexTypeParsing,
+		DataAllocation,
 		PreSymbolOptimization,
 		ResolvingSymbols,
 		TypeCheck,
@@ -179,6 +180,8 @@ public:
 	}
 
 	AssemblyRegisterPool registerPool;
+
+	ReferenceCountedArray<ComplexType> complexTypes;
 
 private:
 

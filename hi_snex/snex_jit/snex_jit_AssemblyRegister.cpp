@@ -97,10 +97,19 @@ bool AssemblyRegister::canBeReused() const
 
 void* AssemblyRegister::getGlobalDataPointer()
 {
+	if (addressPointer != nullptr)
+		return addressPointer->getGlobalDataPointer();
+
+	if (getType() == Types::ID::Pointer)
+	{
+		jassert(memoryLocation != nullptr);
+		return memoryLocation;
+	}
+
 	jassert(scope != nullptr);
 
 	if (isGlobalVariableRegister())
-		return scope->getRootClassScope()->rootData->get(id).getDataPointer();
+		return scope->getRootClassScope()->rootData->getDataPointer(id);
 
 	// No need to fetch / write the data for non-globals
 	jassertfalse;
@@ -134,7 +143,7 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 		auto scopeType = sToUse->getScopeType();
 
-		if (scopeType == BaseScope::Class)
+		if (scopeType == BaseScope::Class || id.isReference())
 		{
 			dirty = true;
 			state = DirtyGlobalRegister;
@@ -243,11 +252,11 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 	else
 	{
 		if (type == Types::ID::Float)
-			memory = cc.newFloatConst(ConstPool::kScopeLocal, memoryLocation->toFloat());
+			memory = cc.newFloatConst(ConstPool::kScopeLocal, *reinterpret_cast<float*>(memoryLocation));
 		if (type == Types::ID::Double)
-			memory = cc.newDoubleConst(ConstPool::kScopeLocal, memoryLocation->toDouble());
+			memory = cc.newDoubleConst(ConstPool::kScopeLocal, *reinterpret_cast<double*>(memoryLocation));
 		if (type == Types::ID::Integer)
-			immediateIntValue = memoryLocation->toInt();
+			immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
 		if (type == Types::ID::Event || type == Types::ID::Block)
 		{
 			uint8* d = reinterpret_cast<uint8*>(memoryLocation);
@@ -257,6 +266,10 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 				d[12], d[13], d[14], d[15]);
 
 			memory = cc.newXmmConst(ConstPool::kScopeLocal, data);
+		}
+		if (type == Types::ID::Pointer)
+		{
+			memoryLocation = reinterpret_cast<VariableStorage*>(memoryLocation)->getDataPointer();
 		}
 
 		state = State::LoadedMemoryLocation;
@@ -284,9 +297,9 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 		reg = cc.newXmmSd();
 	if (type == Types::ID::Integer)
 		reg = cc.newGpd();
-	if (type == Types::Event || type == Types::Block)
+	if (type == Types::Event || type == Types::Block || type == Types::Pointer)
 		reg = cc.newIntPtr();
-
+	
 	state = ActiveRegister;
 }
 
@@ -297,7 +310,7 @@ bool AssemblyRegister::isMemoryLocation() const
 }
 
 
-void AssemblyRegister::setDataPointer(VariableStorage* memLoc)
+void AssemblyRegister::setDataPointer(void* memLoc)
 {
 	memoryLocation = memLoc;
 	reg = {};
@@ -323,6 +336,11 @@ void AssemblyRegister::setUndirty()
 
 	dirty = false;
 	state = ActiveRegister;
+}
+
+void AssemblyRegister::setAddressPointer(AssemblyRegister::Ptr addressPointer_)
+{
+	addressPointer = addressPointer_;
 }
 
 AssemblyRegisterPool::AssemblyRegisterPool()

@@ -72,6 +72,8 @@ public:
 
 	VariableStorage parseVariableStorageLiteral();
 
+	SpanType::Ptr parseSpanType();
+
 	WeakReference<BaseCompiler> compiler;
 };
 

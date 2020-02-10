@@ -82,6 +82,22 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 		cc.mov(INT_REG_W(target), INT_REG_R(value));
 
 	}
+	IF_(void*)
+	{
+		target->createRegister(cc);
+
+		X86Mem ptr;
+
+		if (value->isMemoryLocation())
+		{
+			cc.mov(INT_REG_R(target), (uint64_t)value->getGlobalDataPointer());
+		}
+		else
+		{
+			cc.mov(INT_REG_R(target), INT_REG_R(value));
+		}
+	}
+	
 }
 
 
@@ -89,19 +105,33 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 {
 	type = source->getType();
 
+
+
 	cc.setInlineComment("Write class variable ");
+
+	X86Mem target;
+
+	int ok;
+
+	if (auto address = source->getAddressPointer())
+	{
+		if (address->isActive())
+		{
+			auto ptr = x86::qword_ptr(INT_REG_R(address));
+
+			IF_(int)	ok = cc.mov(ptr, source->getRegisterForReadOp().as<X86Gp>());
+			IF_(float)	ok = cc.movss(ptr, source->getRegisterForReadOp().as<X86Xmm>());
+			IF_(double) ok = cc.movsd(ptr, source->getRegisterForReadOp().as<X86Xmm>());
+			source->setUndirty();
+			return;
+		}
+	}
+
 	auto data = ptrToUse != nullptr ? ptrToUse : source->getGlobalDataPointer();
 
-#if JUCE_64BIT
-
 	TemporaryRegister ad(*this, source->getScope(), Types::ID::Block);
-	int ok = cc.mov(ad.get(), reinterpret_cast<uint64_t>(data));
-	auto target = x86::qword_ptr(ad.get());
-#else
-	auto target = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
-    
-    int ok = 0;
-#endif
+	ok = cc.mov(ad.get(), reinterpret_cast<uint64_t>(data));
+	target = x86::qword_ptr(ad.get());
 
 	IF_(int)	ok = cc.mov(target, source->getRegisterForReadOp().as<X86Gp>());
 	IF_(float)	ok = cc.movss(target, source->getRegisterForReadOp().as<X86Xmm>());
@@ -133,14 +163,16 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 
 	cc.setInlineComment("Load class variable");
 
-#if JUCE_64BIT
+	IF_(void*)
+	{
+		cc.mov(INT_REG_R(target), (uint64_t)data);
+		return;
+	}
+
 	TemporaryRegister address(*this, target->getScope(), Types::ID::Block);
 
 	cc.mov(address.get(), reinterpret_cast<uint64_t>(data));
 	auto source = x86::qword_ptr(address.get());
-#else
-	auto source = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
-#endif
 
 	// We use the REG_R ones to avoid flagging it dirty
 	IF_(int)	cc.mov(INT_REG_R(target), source);
@@ -148,23 +180,40 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 	IF_(double) cc.movsd(FP_REG_R(target), source);
 }
 
-void AsmCodeGenerator::emitParameter(RegPtr parameterRegister, int parameterIndex)
+void AsmCodeGenerator::emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex)
 {
+	if (f->hasObjectPtr)
+		parameterIndex += 1;
+
 	parameterRegister->createRegister(cc);
 	cc.setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
 }
 
-#define FLOAT_BINARY_OP(token, floatOp, doubleOp) if(op == token) { IF_(float) FP_OP(floatOp, l, r); IF_(double) FP_OP(doubleOp, l, r); return l; }
+#define FLOAT_BINARY_OP(token, floatOp, doubleOp) if(op == token) { IF_(float) FP_OP(floatOp, l, r); IF_(double) FP_OP(doubleOp, l, r); }
 
-#define BINARY_OP(token, intOp, floatOp, doubleOp) if(op == token) { IF_(int) INT_OP(intOp, l, r); IF_(float) FP_OP(floatOp, l, r); IF_(double) FP_OP(doubleOp, l, r); return l; }
+#define BINARY_OP(token, intOp, floatOp, doubleOp) if(op == token) { IF_(int) INT_OP(intOp, l, r); IF_(float) FP_OP(floatOp, l, r); IF_(double) FP_OP(doubleOp, l, r); }
 
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, RegPtr r)
 {
 	jassert(l != nullptr && r != nullptr);
 
+	TemporaryRegister tempAddressRegister(*this, r->getScope(), r->getType());
+	RegPtr ptrRegister;
+
+	if (l->getType() == Types::ID::Pointer)
+	{
+		if (l->isMemoryLocation())
+			cc.mov(tempAddressRegister.get(), l->getAsMemoryLocation());
+		else
+			cc.mov(tempAddressRegister.get(), qword_ptr(l->getRegisterForReadOp().as<X86Gpq>()));
+
+		ptrRegister = l;
+		l = tempAddressRegister.tempReg;
+	}
+
 	if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 	{
-		TemporaryRegister dummy(*this, l->getScope(), Types::ID::Integer);
+		TemporaryRegister dummy(*this, r->getScope(), Types::ID::Integer);
 		
 		cc.xor_(dummy.get(), dummy.get());
 		cc.cdq(dummy.get(), INT_REG_W(l));
@@ -189,6 +238,12 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 	BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
 	BINARY_OP(JitTokens::times, cc.imul, cc.mulss, cc.mulsd);
 	FLOAT_BINARY_OP(JitTokens::divide, cc.divss, cc.divsd);
+
+	if (ptrRegister != nullptr)
+	{
+		writeToPointerAddress(ptrRegister, l);
+		l = ptrRegister;
+	}
 
 	return l;
 }
@@ -252,7 +307,98 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 #endif
 }
 
+asmjit::X86Mem AsmCodeGenerator::createPointerAddress(RegPtr address, RegPtr index)
+{
+	jassert(address->getType() == Types::ID::Pointer);
+	jassert(index->getType() == Types::ID::Integer);
+	jassert(Types::Helpers::isFixedType(type));
 
+	X86Mem ptr;
+	auto rawDataSize = Types::Helpers::getSizeForType(type);
+
+	bool isDoubleWord = rawDataSize == 4;
+	auto pointerOffset = isDoubleWord ? rawDataSize / 4 : rawDataSize / 8;
+
+	if (index->isMemoryLocation())
+	{
+		if (address->isMemoryLocation())
+		{
+			auto b = address->getGlobalDataPointer();
+			auto o = (uint64_t)index->getImmediateIntValue() * rawDataSize;
+			auto a = (uint64_t)(b)+o;
+			ptr = isDoubleWord ? x86::dword_ptr(a) : x86::qword_ptr(a);
+		}
+		else
+		{
+			auto b = INT_REG_R(address);
+			auto o = (uint64_t)index->getImmediateIntValue();
+			ptr = isDoubleWord ? x86::dword_ptr(b, o) : x86::qword_ptr(b, o);
+		}
+	}
+	else
+	{
+		TemporaryRegister reg(*this, index->getScope(), Types::ID::Integer);
+
+		X86Gp o;
+
+		if (pointerOffset != 1)
+		{
+			cc.mov(reg.get(), INT_REG_R(index));
+			cc.imul(reg.get(), (uint64_t)pointerOffset);
+
+			o = reg.get();
+		}
+		else
+		{
+			o = INT_REG_R(index);
+		}
+
+		if (address->isMemoryLocation())
+		{
+			auto b = (uint64_t)address->getGlobalDataPointer();
+			ptr = isDoubleWord ? x86::dword_ptr(b, o) : x86::qword_ptr(b, o);
+		}
+		else
+		{
+			auto b = INT_REG_R(address);
+			ptr = isDoubleWord ? x86::dword_ptr(b, o) : x86::qword_ptr(b, o);
+		}
+	}
+
+	return ptr;
+}
+
+
+
+void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr index)
+{
+	jassert(address->getType() == Types::ID::Pointer);
+	jassert(index->getType() == Types::ID::Integer);
+
+	auto ptr = createPointerAddress(address, index);
+	target->createRegister(cc);
+
+	// We use the REG_R ones to avoid flagging it dirty
+	IF_(int)	cc.mov(INT_REG_R(target), ptr);
+	IF_(float)	cc.movss(FP_REG_R(target), ptr);
+	IF_(double) cc.movsd(FP_REG_R(target), ptr);
+}
+
+void AsmCodeGenerator::emitSpanWrite(RegPtr address, RegPtr index, RegPtr value)
+{
+	jassert(value->getType() == type);
+
+	auto ptr = createPointerAddress(address, index);
+
+	// Can't copy memory to memory so we need to load it into a register
+	if (value->isMemoryLocation())
+		value->loadMemoryIntoRegister(cc);
+
+	// We use the REG_R ones to avoid flagging it dirty
+	IF_(int)	cc.mov(ptr, INT_REG_R(value));
+	IF_(float)	cc.movss(ptr, FP_REG_R(value));
+	IF_(double) cc.movsd(ptr, FP_REG_R(value));
+}
 
 void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
 {
@@ -318,6 +464,7 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 
 	for (auto reg : dirtyGlobalList)
 	{
+		
 		emitMemoryWrite(reg);
 	}
 
@@ -574,7 +721,63 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	}
 }
 
+void AsmCodeGenerator::copyPointerAddress(RegPtr target, RegPtr pointerAddress)
+{
+	type = target->getType();
 
+	target->createRegister(cc);
+
+	X86Mem ptr;
+
+	cc.setInlineComment("Load pointer reference");
+
+	if (pointerAddress->isMemoryLocation())
+	{
+		auto ptr = x86::qword_ptr((uint64_t)pointerAddress->getGlobalDataPointer());
+
+		IF_(int) cc.mov(INT_REG_R(target), ptr);
+		IF_(float) cc.movss(FP_REG_R(target), ptr);
+		IF_(double) cc.movsd(FP_REG_R(target), ptr);
+	}
+	else
+	{
+		auto ptr = x86::qword_ptr(INT_REG_R(pointerAddress));
+
+		IF_(int) cc.mov(INT_REG_R(target), ptr);
+		IF_(float) cc.movss(FP_REG_R(target), ptr);
+		IF_(double) cc.movsd(FP_REG_R(target), ptr);
+	}
+	
+
+	target->setAddressPointer(pointerAddress);
+}
+
+
+void AsmCodeGenerator::writeToPointerAddress(RegPtr targetPointer, RegPtr source)
+{
+	type = source->getType();
+
+	auto target = x86::qword_ptr(targetPointer->getRegisterForReadOp().as<X86Gpq>());
+
+	cc.setInlineComment("Write to reference address");
+
+	bool ok;
+
+	if (source->isMemoryLocation())
+	{
+		IF_(int)	ok = cc.mov(target, source->getImmediateIntValue());
+		//IF_(float)	ok = cc.movss(target, source->getAsMemoryLocation());
+		//IF_(double) ok = cc.movsd(target, FP_MEM(source));
+	}
+	else
+	{
+		IF_(int)	ok = cc.mov(target, INT_REG_R(source));
+		IF_(float)	ok = cc.movss(target, FP_REG_R(source));
+		IF_(double) ok = cc.movsd(target, FP_REG_R(source));
+	}
+
+	
+}
 
 void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 {
@@ -610,9 +813,6 @@ void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 
 void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer)
 {
-
-	
-
 	if (data.returnType == Types::ID::Float) sig.setRetT<float>();
 	if (data.returnType == Types::ID::Double) sig.setRetT<double>();
 	if (data.returnType == Types::ID::Integer) sig.setRetT<uint64_t>();

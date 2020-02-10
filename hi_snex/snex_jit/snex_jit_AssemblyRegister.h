@@ -70,6 +70,8 @@ private:
 
 public:
 
+	
+
 	void setReference(BaseScope* scope, const Symbol& ref);
 
 	const Symbol& getVariableId() const;
@@ -120,11 +122,16 @@ public:
 
 	bool isMemoryLocation() const;
 
-	void setDataPointer(VariableStorage* memLoc);
+	void setDataPointer(void* memLoc);
 
 	void setIsIteratorRegister(bool isIterator)
 	{
 		isIter = isIterator;
+	}
+
+	void setOffset(size_t offsetInBytes)
+	{
+		offsetInBytesFromObjectStart = offsetInBytes;
 	}
 
 	bool isIteratorRegister() const
@@ -142,6 +149,12 @@ public:
 
 	void setUndirty();
 
+	// If this register was assigned to a dynamic reference, it will contain the address where it needs
+	// to write back the data...
+	void setAddressPointer(Ptr addressPointer_);
+
+	Ptr getAddressPointer() { return addressPointer; }
+
 private:
 
 	friend class AssemblyRegisterPool;
@@ -149,8 +162,10 @@ private:
 	X86Reg partReg1;
 	X86Reg partReg2;
 
+	Ptr addressPointer;
 	bool isIter = false;
 
+	size_t offsetInBytesFromObjectStart = 0;
 	State state = State::InactiveRegister;
 	bool initialised = false;
 	bool dirty = false;
@@ -159,7 +174,7 @@ private:
 	Types::ID type;
 	asmjit::X86Mem memory;
 	asmjit::X86Reg reg;
-	VariableStorage* memoryLocation = nullptr;
+	void* memoryLocation = nullptr;
 	WeakReference<BaseScope> scope;
 	Symbol id;
 };

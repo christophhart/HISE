@@ -116,7 +116,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition(boo
 	
 	match(JitTokens::assign_);
 	ExprPtr expr = parseExpression();
-	return new Operations::Assignment(location, target, JitTokens::assign_, expr);
+	return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
 }
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
@@ -219,13 +219,13 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseAssignment()
 		auto t = currentAssignmentType;
 		ExprPtr right = parseExpression();
 
-		if (auto ba = dynamic_cast<Operations::BlockAccess*>(left.get()))
+		if (auto ba = dynamic_cast<Operations::SpanReference*>(left.get()))
 		{
-			return new Operations::BlockAssignment(location, left, t, right);
+			return new Operations::SpanAssignment(location, left, right);
 		}
 		else
 		{
-			return new Operations::Assignment(location, left, t, right);
+			return new Operations::Assignment(location, left, t, right, false);
 		}
 		
 	}
@@ -473,7 +473,9 @@ BlockParser::ExprPtr FunctionParser::parseSymbolOrLiteral()
 
 				match(JitTokens::closeBracket);
 
-				return new Operations::BlockAccess(location, expr, idx);
+				return new Operations::SpanReference(location, expr, idx);
+
+				//return new Operations::BlockAccess(location, expr, idx);
 			}
 
 			return expr;

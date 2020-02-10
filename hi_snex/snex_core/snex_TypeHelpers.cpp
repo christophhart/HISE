@@ -70,6 +70,7 @@ juce::String Types::Helpers::getTypeName(ID id)
 	case Types::ID::Block:			return "block";
 	case Types::ID::Signal:			return "signal";
 	case Types::ID::Number:			return "number";
+	case Types::ID::Pointer:		return "pointer";
 	case Types::ID::Dynamic:		return "any";
 	}
 
@@ -89,6 +90,7 @@ Colour Types::Helpers::getColourForType(ID type)
 	case Types::ID::Event:			return Colour(0xFFC65638);
 	case Types::ID::Signal:			return Colours::violet;
 	case Types::ID::Number:			return Colours::green;
+	case Types::ID::Pointer:		return Colours::aqua;
 	case Types::ID::Dynamic:		return Colours::white;
 	}
 
@@ -141,10 +143,37 @@ juce::String Types::Helpers::getTypeIDName(ID type)
 	case Types::ID::Signal:			return "Types::ID::Signal";
 	case Types::ID::Number:			return "Types::ID::Number";
 	case Types::ID::Dynamic:		return "Types::ID::Dynamic";
+	case Types::ID::Pointer:		return "Types::ID::Pointer";
 	default:						return "Types::ID::numIds";
 	}
 }
 
+
+size_t Types::Helpers::getSizeForType(ID type)
+{
+	switch (type)
+	{
+	case Types::ID::Integer: return sizeof(int);
+	case Types::ID::Float: return sizeof(float);
+	case Types::ID::Double: return sizeof(double);
+	case Types::ID::Block: return sizeof(HiseEvent);
+	case Types::ID::Event: return sizeof(block);
+	case Types::ID::Pointer: return sizeof(int*);
+	}
+
+	jassertfalse;
+	return 0;
+}
+
+bool Types::Helpers::pointerTypeMatches(const VariableStorage& v1, const VariableStorage& v2)
+{
+	if (v1.getType() != ID::Pointer)
+		return false;
+	if (v2.getType() != ID::Pointer)
+		return false;
+
+	return v1.getPointerType() == v2.getPointerType();
+}
 
 bool Types::Helpers::matchesTypeLoose(ID expected, ID actual)
 {
@@ -228,6 +257,8 @@ snex::Types::ID Types::Helpers::getIdFromVar(const var& value)
 		return Types::ID::Double;
 	else if (value.isBuffer())
 		return Types::ID::Block;
+	else
+		jassertfalse;
 
 	return Types::Void;
 }
@@ -323,7 +354,7 @@ bool Types::Helpers::isTypeString(const juce::String& type)
 
 bool Types::Helpers::isFloatingPoint(ID type)
 {
-	return type & Types::ID::FpNumber;
+	return type == Types::ID::Float || type == Types::ID::Double;
 }
 
 juce::String Types::Helpers::getCppTypeName(ID type)
@@ -350,7 +381,7 @@ snex::Types::ID Types::Helpers::getTypeFromStringValue(const juce::String& value
 
 bool Types::Helpers::matchesTypeStrict(ID expected, ID actual)
 {
-	return (int)expected & (int)actual || (expected == actual);
+	return expected == Dynamic || expected == actual;
 }
 
 
@@ -371,7 +402,8 @@ bool Types::Helpers::isFixedType(ID type)
 			type == ID::Float ||
 			type == ID::Void ||
 			type == ID::Double ||
-			type == ID::Event;
+			type == ID::Event ||
+			type == ID::Pointer;
 }
 
 Types::ID Types::Helpers::getMoreRestrictiveType(ID typeA, ID typeB)
@@ -405,6 +437,9 @@ bool Types::Helpers::isPinVariable(const juce::String& name)
 
 bool Types::Helpers::binaryOpAllowed(ID left, ID right)
 {
+	if (left == Types::Pointer || right == Types::Pointer)
+		return false;
+
 	if (left == right)
 		return true;
 

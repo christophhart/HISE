@@ -268,6 +268,11 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 {
 	jassert(getScopeForSymbol(symbolToBeUpdated) == this);
 
+	if (symbolToBeUpdated.getParentSymbol() != scopeId)
+	{
+		symbolToBeUpdated = symbolToBeUpdated.withParent(scopeId);
+	}
+
 	for (auto c : constants)
 	{
 		if (c.id == symbolToBeUpdated)
@@ -302,12 +307,7 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 
 juce::Array<snex::jit::BaseScope::Symbol> BaseScope::getAllVariables() const
 {
-	Array<Symbol> variableIds;
-
-	for (const auto& td : *getRootClassScope()->rootData)
-		variableIds.add(td.s);
-
-	return variableIds;
+	return getRootData()->getAllVariables();
 }
 
 

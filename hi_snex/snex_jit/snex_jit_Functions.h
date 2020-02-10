@@ -38,6 +38,24 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+
+/**
+ * 
+ TODO:
+
+- //make ClassInstance process() method allocate the required data and the symbol as base class OK
+- add the function pointer to all functions in a (sub?)class (omit as optimization if no member is used) TeilweiseOK
+- replace VariableReferences in subclasses with a pointer to baseclass + member offset
+- make FunctionCall::process() replace the instance symbol with the class symbol (or find a way to resolve this good).
+
+
+
+OPTIMIZATIONS:
+
+- align struct member types correctly
+
+ */
+
 /** A Symbol is used to identifiy the data slot. */
 struct Symbol
 {
@@ -45,7 +63,7 @@ struct Symbol
 
 	Symbol();
 
-	Symbol(const Array<Identifier>& ids, Types::ID t_, bool isConst_);
+	Symbol(const Array<Identifier>& ids, Types::ID t_, bool isConst_, bool isRef_);
 
 
 	bool operator==(const Symbol& other) const;
@@ -54,7 +72,7 @@ struct Symbol
 
 	Symbol getParentSymbol() const;
 
-	Symbol getChildSymbol(const Identifier& id, Types::ID newType=Types::ID::Dynamic, bool isConst_=false) const;
+	Symbol getChildSymbol(const Identifier& id, Types::ID newType = Types::ID::Dynamic, bool isConst_ = false, bool isReference = false) const;
 
 	Symbol withParent(const Symbol& parent) const;
 
@@ -64,6 +82,15 @@ struct Symbol
 
 	bool isConst() const { return const_; }
 
+	Types::ID getRegisterType() const
+	{
+		return isReference() ? Types::Pointer : type;
+	}
+
+	Identifier getId() const { return id; }
+
+	bool isReference() const { return ref_; };
+
 	juce::String toString() const;
 
 	operator bool() const;
@@ -72,11 +99,233 @@ struct Symbol
 	// a list of identifiers...
 	Array<Identifier> fullIdList;
 	Identifier id;
+
 	bool const_ = false;
+	bool ref_ = false;
 	VariableStorage constExprValue = {};
 
 	Types::ID type = Types::ID::Dynamic;
 };
+
+struct ComplexType : public ReferenceCountedObject
+{
+	using Ptr = ReferenceCountedObjectPtr<ComplexType>;
+
+	/** Override this and return the size of the object. It will be used by the allocator to create the memory. */
+	virtual size_t getRequiredByteSize() const = 0;
+
+	/** Override this and create a string representation. This must be "unique" in a sense that pointers to types with the same string can be interchanged. */
+	virtual juce::String toString() const = 0;
+
+	/** Override this and return the actual data type that this type operates on. */
+	virtual Types::ID getDataType() const = 0;
+
+	/** Override this and optimise the alignment. After this call the data structure must not be changed. */
+	virtual void finaliseAlignment() { finalised = true; };
+
+	bool isFinalised() const { return finalised; }
+
+	bool operator ==(const ComplexType& other) const
+	{
+		return hash() == other.hash();
+	}
+
+	int hash() const
+	{
+		return (int)toString().hash();
+	}
+
+private:
+
+	bool finalised = false;
+};
+
+struct StructType : public ComplexType
+{
+	StructType(const Symbol& s) :
+		id(s)
+	{};
+
+	size_t getRequiredByteSize() const override
+	{
+		size_t s = 0;
+
+		for (auto m : memberData)
+			s += m->size;
+
+		return s;
+	}
+
+	virtual juce::String toString() const override
+	{
+		return id.toString();
+	}
+
+	void finaliseAlignment()
+	{
+		size_t offset = 0;
+
+		for (auto m : memberData)
+		{
+			if (m->typePtr != nullptr)
+			{
+				m->typePtr->finaliseAlignment();
+				m->size = m->typePtr->getRequiredByteSize();
+			}
+			
+			m->offset = offset;
+			offset += m->size;
+		}
+
+		jassert(offset == getRequiredByteSize());
+
+		ComplexType::finaliseAlignment();
+	}
+
+	bool updateSymbol(Symbol& s) const
+	{
+		for (auto m : memberData)
+		{
+			if (m->id == s.id)
+			{
+				s.type = m->nativeMemberType;
+				s.const_ = false;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool hasMember(const Identifier& id) const
+	{
+		for (auto m : memberData)
+			if (m->id == id)
+				return true;
+
+		return false;
+	}
+
+	size_t getMemberOffset(const Identifier& id) const
+	{
+		for (auto m : memberData)
+		{
+			if (m->id == id)
+				return m->offset;
+		}
+
+		jassertfalse;
+		return 0;
+	}
+
+	virtual Types::ID getDataType() const override
+	{
+		return Types::ID::Pointer;
+	}
+
+	void addNativeMember(const Identifier& id, Types::ID type)
+	{
+		auto nm = new Member();
+		nm->size = Types::Helpers::getSizeForType(type);
+		nm->id = id;
+		nm->nativeMemberType = type;
+
+		memberData.add(nm);
+	}
+
+	void addComplexMember(const Identifier& id, ComplexType::Ptr typePtr)
+	{
+		auto nm = new Member();
+		nm->size = typePtr->getRequiredByteSize();
+		nm->id = id;
+		nm->typePtr = typePtr;
+
+		memberData.add(nm);
+	}
+
+	Symbol id;
+
+private:
+
+	struct Member
+	{
+		size_t offset = 0;
+		size_t size = 0;
+		Identifier id;
+		Types::ID nativeMemberType = Types::ID::Dynamic;
+		ComplexType::Ptr typePtr;
+	};
+
+	OwnedArray<Member> memberData;
+
+};
+
+struct SpanType: public ComplexType
+{
+	/** Creates a simple one-dimensional span. */
+	SpanType(Types::ID dataType_, int size_):
+		typeName(Types::Helpers::getTypeName(dataType_)),
+		dataType(dataType_),
+		size(size_)
+	{
+
+	}
+
+	/** Creates a SpanType with another ComplexType as element type. */
+	SpanType(ComplexType::Ptr childToBeOwned, int size_):
+		dataType(Types::ID::Pointer),
+		size(size_),
+		typeName(juce::String()),
+		childType(childToBeOwned)
+	{
+
+	}
+	
+	Types::ID getDataType() const
+	{
+		if (childType != nullptr)
+			return childType->getDataType();
+		else
+			return dataType;
+	}
+
+	size_t getRequiredByteSize() const
+	{
+		if (childType != nullptr)
+			return childType->getRequiredByteSize() * size;
+
+		return Types::Helpers::getSizeForType(dataType) * size;
+	}
+
+	juce::String toString() const
+	{
+		juce::String s = "span<";
+
+		if (childType == nullptr)
+		{
+			s << typeName;
+		}
+		else
+			s << childType->toString();
+
+		s << ", " << size << ">";
+
+		return s;
+	}
+
+private:
+
+	Types::ID dataType = Types::ID::Dynamic;
+	juce::String typeName;
+	int size;
+
+	Ptr childType;
+};
+
+
+
+
+
 
 
 
@@ -323,9 +572,9 @@ struct FunctionClass: public DebugableObjectBase
 
 	juce::String getCategory() const override { return "API call"; };
 
-	Identifier getObjectName() const override { return classSymbol.id; }
+	Identifier getObjectName() const override { return classSymbol.getId(); }
 
-	juce::String getDebugValue() const override { return classSymbol.id.toString(); };
+	juce::String getDebugValue() const override { return classSymbol.toString(); };
 
 	juce::String getDebugDataType() const override { return "Class"; };
 
