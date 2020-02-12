@@ -176,15 +176,13 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	{
 		auto loc = location;
 
-		matchIfSymbol(false);
-
+		matchSymbol();
 		auto classId = getCurrentSymbol(true);
 
 		Symbol rootSymbol;
 
 		if (auto cc = dynamic_cast<ClassCompiler*>(compiler.get()))
 			rootSymbol = cc->instanceId;
-
 
 		Array<Symbol> instanceIds;
 
@@ -212,15 +210,14 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	{
 		auto spanTypeSymbol = parseSpanType();
 
-		if (!matchIfSymbol(false))
-			location.throwError("Expected symbol");
-
+		matchSymbol();
 		match(JitTokens::semicolon);
 
 		return new Operations::SpanDefinition(location, spanTypeSymbol, getCurrentSymbol(true));
 	}
 
-	matchIfSymbol(isConst);
+	clearSymbol();
+	addSymbolChild(parseIdentifier());
 
 	StatementPtr s;
 
@@ -394,8 +391,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction()
 
 snex::jit::BlockParser::StatementPtr NewClassParser::parseSubclass()
 {
-	if (!matchIfSymbol(false))
-		location.throwError("Expected class ID");
+	match(JitTokens::identifier);
 
 	auto classSymbol = getCurrentSymbol(true);
 
@@ -465,9 +461,11 @@ SpanType::Ptr BlockParser::parseSpanType()
 	Types::ID type;
 	SpanType::Ptr child;
 
-	if (matchIfSymbol(false))
+	if (currentType == JitTokens::identifier)
 	{
 		type = Types::ID::Pointer;
+
+		matchSymbol();
 
 		auto classSymbol = getCurrentSymbol(false);
 

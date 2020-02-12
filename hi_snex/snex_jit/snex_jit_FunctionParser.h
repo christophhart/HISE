@@ -73,9 +73,9 @@ public:
 	ExprPtr parseUnary();
 	ExprPtr parseFactor();
 	ExprPtr parseSymbolOrLiteral();
-	ExprPtr parseReference();
+	ExprPtr parseReference(const Identifier& id);
 	ExprPtr parseLiteral(bool isNegative=false);
-	ExprPtr parseFunctionCall();
+	ExprPtr parseFunctionCall(const Identifier& id);
 };
 
 

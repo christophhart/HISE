@@ -109,8 +109,16 @@ BlockParser::StatementPtr FunctionParser::parseReturnStatement()
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition(bool isConst)
 {
-	if (!matchIfSymbol(isConst))
+	clearSymbol();
+
+	if (currentType != JitTokens::identifier)
 		location.throwError("Expected symbol");
+
+	while (currentType == JitTokens::identifier)
+	{
+		addSymbolChild(parseIdentifier());
+		matchIf(JitTokens::dot);
+	}
 
 	auto target = new Operations::VariableReference(location, getCurrentSymbol(true));
 	
@@ -233,13 +241,14 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseAssignment()
 	return left;
 }
 
-Operations::Expression::Ptr FunctionParser::parseFunctionCall()
+Operations::Expression::Ptr FunctionParser::parseFunctionCall(const Identifier& id)
 {
-	ScopedPointer<Operations::FunctionCall> f = new Operations::FunctionCall(location, getCurrentSymbol(false));
+	addSymbolChild(id);
+	ScopedPointer<Operations::FunctionCall> f = new Operations::FunctionCall(location, getCurrentSymbol(true));
 
 	while (!isEOF() && currentType != JitTokens::closeParen)
 	{
-		f->addStatement(parseExpression());
+		f->addArgument(parseExpression());
 		matchIf(JitTokens::comma);
 	};
 
@@ -247,6 +256,7 @@ Operations::Expression::Ptr FunctionParser::parseFunctionCall()
 
 	return f.release();
 }
+
 
 Operations::Expression::Ptr FunctionParser::parseExpression()
 {
@@ -426,16 +436,16 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseUnary()
 
 BlockParser::ExprPtr FunctionParser::parseFactor()
 {
+	clearSymbol();
+
 	if (matchIf(JitTokens::plusplus))
 	{
-		matchIfSymbol(false);
-		ExprPtr expr = parseReference();
+		ExprPtr expr = parseReference(parseIdentifier());
 		return new Operations::Increment(location, expr, true, false);
 	}
 	if (matchIf(JitTokens::minusminus))
 	{
-		matchIfSymbol(false);
-		ExprPtr expr = parseReference();
+		ExprPtr expr = parseReference(parseIdentifier());
 		return new Operations::Increment(location, expr, true, true);
 	}
 	if (matchIf(JitTokens::minus))
@@ -449,47 +459,55 @@ BlockParser::ExprPtr FunctionParser::parseFactor()
 		}
 	}
 	else
-		return parseSymbolOrLiteral();
+	{
+		ExprPtr expr = parseSymbolOrLiteral();
+
+		while(matchIf(JitTokens::dot))
+		{
+			auto c = parseSymbolOrLiteral();
+
+			expr = new Operations::DotOperator(location, expr, c);
+		}
+
+
+		return expr;
+	}
 }
 
 
 BlockParser::ExprPtr FunctionParser::parseSymbolOrLiteral()
 {
-	if (matchIfSymbol(false))
+	if (currentType == JitTokens::identifier)
 	{
-		if (matchIf(JitTokens::openParen))
-			return parseFunctionCall();
-		else
+		auto id = parseIdentifier();
+
+		if (matchIf(JitTokens::plusplus))
+			return new Operations::Increment(location, parseReference(id), false, false);
+		if (matchIf(JitTokens::minusminus))
+			return new Operations::Increment(location, parseReference(id), false, true);
+		if (matchIf(JitTokens::openBracket))
 		{
-			ExprPtr expr = parseReference();
-
-			if (matchIf(JitTokens::plusplus))
-				return new Operations::Increment(location, expr, false, false);
-			if (matchIf(JitTokens::minusminus))
-				return new Operations::Increment(location, expr, false, true);
-			if (matchIf(JitTokens::openBracket))
-			{
-				ExprPtr idx = parseExpression();
-
-				match(JitTokens::closeBracket);
-
-				return new Operations::SpanReference(location, expr, idx);
-
-				//return new Operations::BlockAccess(location, expr, idx);
-			}
-
-			return expr;
+			auto expr = parseReference(id);
+			ExprPtr idx = parseExpression();
+			match(JitTokens::closeBracket);
+			return new Operations::SpanReference(location, expr, idx);
 		}
-			
+		if (matchIf(JitTokens::openParen))
+		{
+			return parseFunctionCall(id);
+		}
+
+		return parseReference(id);	
 	}
 	else
 		return parseLiteral();
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseReference()
+BlockParser::ExprPtr FunctionParser::parseReference(const Identifier& id)
 {
-	return new Operations::VariableReference(location, getCurrentSymbol(false));
+	addSymbolChild(id);
+	return new Operations::VariableReference(location, getCurrentSymbol(true));
 }
 
 BlockParser::ExprPtr FunctionParser::parseLiteral(bool isNegative)

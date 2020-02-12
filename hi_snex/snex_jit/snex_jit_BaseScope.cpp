@@ -138,19 +138,30 @@ juce::Result BaseScope::allocate(const Symbol& s)
 
 BaseScope* BaseScope::getScopeForSymbolInternal(const Symbol& s)
 {
-	auto parentSymbol = s.getParentSymbol();
+	Symbol sToUse = s;
+	auto parentSymbol = sToUse.getParentSymbol();
+
+	// Here we exchange the member variable ID with the class ID
+	if (auto ct = dynamic_cast<StructType*>(getRootData()->getComplexTypeForVariable(parentSymbol).get()))
+	{
+		sToUse = s.relocate(ct->id);
+		parentSymbol = sToUse.getParentSymbol();
+	}
 
 	if (parentSymbol == scopeId)
 	{
-		if (hasSymbol(s))
+		if (hasSymbol(sToUse))
 			return this;
 	}
 
+
 	for (auto c : childScopes)
 	{
-		if (auto m = c->getScopeForSymbolInternal(s))
+		if (auto m = c->getScopeForSymbolInternal(sToUse))
 			return m;
 	}
+
+	
 
 	if (auto fc = dynamic_cast<FunctionClass*>(this))
 	{
@@ -193,7 +204,10 @@ bool BaseScope::hasSymbol(const Symbol& s)
 BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
 {
 	if (getScopeType() == Global)
-		return nullptr;
+	{
+		if (auto fc = getGlobalScope()->getGlobalFunctionClass(s.id))
+			return this;
+	}
 
 	auto isExplicitSymbol = s.getParentSymbol();
 
@@ -268,7 +282,9 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 {
 	jassert(getScopeForSymbol(symbolToBeUpdated) == this);
 
-	if (symbolToBeUpdated.getParentSymbol() != scopeId)
+
+
+	if (!(symbolToBeUpdated.getParentSymbol() == scopeId))
 	{
 		symbolToBeUpdated = symbolToBeUpdated.withParent(scopeId);
 	}
@@ -291,8 +307,14 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 
 	if (auto fc = dynamic_cast<FunctionClass*>(this))
 	{
+		if (fc->hasFunction(symbolToBeUpdated))
+			return true;
+
 		if (auto c = fc->getSubFunctionClass(symbolToBeUpdated.getParentSymbol()))
 		{
+			if (c->hasFunction(symbolToBeUpdated))
+				return true;
+
 			auto v = c->getConstantValue(symbolToBeUpdated);
 			symbolToBeUpdated.constExprValue = v;
 			symbolToBeUpdated.type = v.getType();

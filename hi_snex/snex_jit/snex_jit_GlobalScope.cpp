@@ -42,9 +42,7 @@ GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 {
 	bufferHandler = new BufferHandler();
 
-	auto c = new ConsoleFunctions(this);
-
-	registerObjectFunction(c);
+	objectClassesWithJitCallableFunctions.add(new ConsoleFunctions(this));
 
 	jassert(scopeType == BaseScope::Global);
 }

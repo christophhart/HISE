@@ -373,77 +373,79 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::createInvertImmediate
 
 snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(Operations::FunctionCall* functionCall)
 {
-	Array<FunctionData> matches;
-
-	MathFunctions m;
-	m.addMatchingFunctions(matches, functionCall->symbol);
-
-	if (!matches.isEmpty())
+	if (auto symbol = functionCall->id)
 	{
-		Array<VariableStorage> constArgs;
-		Array<Types::ID> argTypes;
+		Array<FunctionData> matches;
 
-		for (int i = 0; i < functionCall->getNumChildStatements(); i++)
+		MathFunctions m;
+		m.addMatchingFunctions(matches, symbol);
+
+		if (!matches.isEmpty())
 		{
-			if (functionCall->getSubExpr(i)->isConstExpr())
+			Array<VariableStorage> constArgs;
+			Array<Types::ID> argTypes;
+
+			for (int i = 0; i < functionCall->getNumArguments(); i++)
 			{
-				auto value = functionCall->getSubExpr(i)->getConstExprValue();
-				constArgs.add(value);
-				argTypes.add(value.getType());
+				if (functionCall->getArgument(i)->isConstExpr())
+				{
+					auto value = functionCall->getArgument(i)->getConstExprValue();
+					constArgs.add(value);
+					argTypes.add(value.getType());
+				}
+
+				else
+					return nullptr;
 			}
-				
-			else
-				return nullptr;
-		}
 
-		for (auto& match : matches)
-		{
-			// Don't constexpr the random function...
-			if (match.id.toString().contains("rand"))
-				continue;
-
-			if (match.matchesArgumentTypes(argTypes))
+			for (auto& match : matches)
 			{
-				VariableStorage result;
+				// Don't constexpr the random function...
+				if (match.id.toString().contains("rand"))
+					continue;
+
+				if (match.matchesArgumentTypes(argTypes))
+				{
+					VariableStorage result;
 
 #define RETURN_T(x) match.returnType == Types::Helpers::getTypeFromTypeId<x>()
 #define ARG_T(i, x) argTypes[i] == Types::Helpers::getTypeFromTypeId<x>()
 
-				if (argTypes.size() == 1)
-				{
+					if (argTypes.size() == 1)
+					{
 #define CALL_IF(x) if (RETURN_T(x) && ARG_T(0, x)) result = match.call<x, x>((x)constArgs[0])
-					CALL_IF(int);
-					CALL_IF(float);
-					CALL_IF(double);
+						CALL_IF(int);
+						CALL_IF(float);
+						CALL_IF(double);
 #undef CALL_IF
-				}
+					}
 
-				if (argTypes.size() == 2)
-				{
+					if (argTypes.size() == 2)
+					{
 #define CALL_IF(x) if (RETURN_T(x) && ARG_T(0, x) && ARG_T(1, x)) result = match.call<x, x, x>((x)constArgs[0], (x)constArgs[1])
-					CALL_IF(int);
-					CALL_IF(float);
-					CALL_IF(double);
+						CALL_IF(int);
+						CALL_IF(float);
+						CALL_IF(double);
 #undef CALL_IF
-				}
-				if (argTypes.size() == 2)
-				{
+					}
+					if (argTypes.size() == 2)
+					{
 #define CALL_IF(x) if (RETURN_T(x) && ARG_T(0, x) && ARG_T(1, x) && ARG_T(2, x)) result = match.call<x, x, x>((x)constArgs[0], (x)constArgs[1], (x)constArgs[2])
-					CALL_IF(int);
-					CALL_IF(float);
-					CALL_IF(double);
+						CALL_IF(int);
+						CALL_IF(float);
+						CALL_IF(double);
 #undef CALL_IF
-				}
+					}
 #undef RETURN_T
 #undef ARG_T
-				
-				return new Operations::Immediate(functionCall->location, result);
+
+					return new Operations::Immediate(functionCall->location, result);
+				}
 			}
 		}
 	}
 
 	return nullptr;
-
 }
 
 #undef IS

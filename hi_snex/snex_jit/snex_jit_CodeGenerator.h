@@ -128,7 +128,7 @@ struct AsmCodeGenerator
 
 	void emitNegation(RegPtr target, RegPtr expr);
 
-	void emitFunctionCall(RegPtr returnReg, const FunctionData& f, ReferenceCountedArray<AssemblyRegister>& parameterRegisters);
+	void emitFunctionCall(RegPtr returnReg, const FunctionData& f, RegPtr objectAddress, ReferenceCountedArray<AssemblyRegister>& parameterRegisters);
 
 	void copyPointerAddress(RegPtr targetReg, RegPtr pointerAddress);
 

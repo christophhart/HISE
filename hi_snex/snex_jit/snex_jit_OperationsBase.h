@@ -173,6 +173,14 @@ public:
 
 		virtual VariableStorage getConstExprValue() const;
 
+		virtual ComplexType::Ptr getComplexType() const
+		{
+			// you return a pointer, you return a complex type...
+			jassert(getType() != Types::ID::Pointer);
+
+			return nullptr;
+		}
+
 		bool hasSubExpr(int index) const;
 
 		virtual VariableStorage getPointerValue() const;
@@ -259,7 +267,7 @@ public:
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
 	struct BlockLoop;		struct IfStatement;				struct SmoothedVariableDefinition;
 	struct WrappedBlockDefinition;	struct ClassStatement;	struct ClassInstance;
-	struct PointerReference;
+	struct PointerReference;	struct DotOperator;
 
 	struct SpanDefinition;	struct SpanReference; struct SpanAssignment;
 

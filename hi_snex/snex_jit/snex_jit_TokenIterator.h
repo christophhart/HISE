@@ -201,20 +201,23 @@ struct ParserHelpers
 		bool matchesAny(TokenType t1, TokenType t2) const { return currentType == t1 || currentType == t2; }
 		bool matchesAny(TokenType t1, TokenType t2, TokenType t3) const { return matchesAny(t1, t2) || currentType == t3; }
 
+		void matchSymbol()
+		{
+			if (currentType != JitTokens::identifier)
+				location.throwError("Expected symbol");
+
+			clearSymbol();
+
+			while (currentType == JitTokens::identifier)
+			{
+				addSymbolChild(parseIdentifier());
+				matchIf(JitTokens::dot);
+			}
+		}
+
 		Symbol getCurrentSymbol(bool includeRootAndSetType)
 		{
-			if (includeRootAndSetType)
-			{
-				auto currentParent = rootSymbol;
-
-				for (const auto& asid : anonymousScopeIds)
-					currentParent = currentParent.getChildSymbol(asid);
-
-				return currentSymbol.withParent(currentParent).withType(currentHnodeType);
-			}
-				
-			else
-				return currentSymbol;
+			return currentSymbol.withType(currentHnodeType);
 		}
 
 		CodeLocation location;
@@ -251,6 +254,7 @@ struct ParserHelpers
 				currentSideEffect = Nothing;
 		}
 
+#if 0
 		bool matchIfSymbol(bool isConst)
 		{
 			auto isReference = matchIf(JitTokens::bitwiseAnd);
@@ -271,6 +275,7 @@ struct ParserHelpers
 
 			return false;
 		}
+#endif
 
 		static bool isIdentifierStart(const juce_wchar c) noexcept { return CharacterFunctions::isLetter(c) || c == '_'; }
 		static bool isIdentifierBody(const juce_wchar c) noexcept { return CharacterFunctions::isLetterOrDigit(c) || c == '_'; }
@@ -589,9 +594,20 @@ struct ParserHelpers
 			TokenIterator& p;
 		};
 
+		void clearSymbol()
+		{
+			currentSymbol = {};
+		}
+
+		void addSymbolChild(const Identifier& id)
+		{
+			currentSymbol = currentSymbol.getChildSymbol(id);
+		}
+
 	private:
 
 		Array<Identifier> anonymousScopeIds;
+		
 		Symbol currentSymbol;
 		Symbol rootSymbol;
 	};

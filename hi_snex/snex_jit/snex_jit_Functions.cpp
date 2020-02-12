@@ -121,6 +121,11 @@ Symbol Symbol::withType(const Types::ID type) const
 	return s;
 }
 
+Symbol Symbol::relocate(const Symbol& newParent) const
+{
+	return newParent.getChildSymbol(id, type, const_, ref_);
+}
+
 juce::String Symbol::toString() const
 {
 	if (id.isNull())

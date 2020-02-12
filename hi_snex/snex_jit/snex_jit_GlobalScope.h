@@ -691,11 +691,9 @@ public:
 
 	BreakpointHandler& getBreakpointHandler() { return breakPointHandler; }
 
-	
-
 private:
 
-	
+	ScopedPointer<FunctionClass> consoleFunctions;
 
 	BreakpointHandler breakPointHandler;
 	WeakReference<BaseScope> currentClassScope;

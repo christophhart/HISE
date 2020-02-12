@@ -227,6 +227,19 @@ struct Operations::VariableReference : public Expression
 		return !id.constExprValue.isVoid();
 	}
 
+	ComplexType::Ptr getComplexType() const override
+	{
+		return typePtr;
+	}
+
+	FunctionClass* getFunctionClassForSymbol(BaseScope* scope) const
+	{
+		if(auto gfc = scope->getGlobalScope()->getGlobalFunctionClass(id.id))
+			return gfc;
+
+		return scope->getRootClassScope()->getSubFunctionClass(id);
+	}
+
 	VariableStorage getConstExprValue() const override
 	{
 		return id.constExprValue;
@@ -271,6 +284,10 @@ struct Operations::VariableReference : public Expression
 		return scope->getRootClassScope()->rootData->contains(id);
 	}
 
+	bool isApiClass(BaseScope* s) const;
+
+
+
     bool isFirstReference()
 	{
 		SyntaxTreeWalker walker(this);
@@ -292,6 +309,7 @@ struct Operations::VariableReference : public Expression
 	Symbol id;
 	bool isFirstWrite = false;
 	size_t memberOffset = 0;
+	ComplexType::Ptr typePtr;
 };
 
 
@@ -330,6 +348,54 @@ struct Operations::Cast : public Expression
 	}
 };
 
+struct Operations::DotOperator : public Expression
+{
+	DotOperator(Location l, Ptr parent, Ptr child):
+		Expression(l)
+	{
+		addStatement(parent);
+		addStatement(child);
+	}
+
+	Ptr getDotParent() const
+	{
+		return getSubExpr(0);
+	}
+
+	Ptr getDotChild() const
+	{
+		return getSubExpr(1);
+	}
+
+	Types::ID getType() const override
+	{
+		return getDotChild()->getType();
+	}
+
+#if 0
+	Symbol getSymbol()
+	{
+		Symbol p;
+
+		if (auto vp = dynamic_cast<VariableReference*>(getDotParent().get()))
+		{
+			p = vp->id;
+		}
+
+		if (auto pDot = dynamic_cast<DotOperator*>(getDotChild().get()))
+			return pDot->getSymbol().withParent(p);
+		else if (auto vc = dynamic_cast<VariableReference*>(getDotChild().get()))
+			return vc->id.withParent(p);
+		else if (auto fc = dynamic_cast<FunctionCall*>(getDotChild().get()))
+			return dynamic_cast<VariableReference*>(fc->getSubExpr(0).get())->id.withParent(p);
+		else
+			return p;
+	}
+#endif
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
+};
+						
 
 struct Operations::Assignment : public Expression,
 								public TypeDefinitionBase
@@ -518,10 +584,31 @@ private:
 
 struct Operations::FunctionCall : public Expression
 {
-	FunctionCall(Location l, const Symbol& symbol_) :
+	FunctionCall(Location l, const Symbol& id_) :
 		Expression(l),
-		symbol(symbol_)
-	{};
+		id(id_)
+	{
+	};
+
+	Symbol getSymbol() const
+	{
+		return id;
+	}
+
+	void addArgument(Ptr arg)
+	{
+		addStatement(arg);
+	}
+
+	Expression* getArgument(int index)
+	{
+		return getSubExpr(index);
+	}
+
+	int getNumArguments() const
+	{
+		return getNumChildStatements();
+	}
 
 	static bool canBeAliasParameter(Ptr e)
 	{
@@ -534,10 +621,20 @@ struct Operations::FunctionCall : public Expression
 
 		COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 		{
-			auto parentSymbol = symbol.getParentSymbol();
+			auto parentSymbol = id.getParentSymbol();
 
 			if (auto pScope = scope->getScopeForSymbol(parentSymbol))
 			{
+				if (pScope->getScopeType() == BaseScope::Global)
+				{
+					if (auto fc = scope->getGlobalScope()->getGlobalFunctionClass(id.getParentSymbol().id))
+					{
+						fc->addMatchingFunctions(possibleMatches, id);
+					}
+
+					return;
+				}
+
 				if (pScope->updateSymbol(parentSymbol))
 				{
 					auto type = parentSymbol.type;
@@ -549,16 +646,26 @@ struct Operations::FunctionCall : public Expression
 						addStatement(object, true);
 						object->process(compiler, scope);
 
-						symbol = Symbol::createRootSymbol(type == Types::ID::Event ? "Message" : "Block").getChildSymbol(symbol.id, type, true);
+						id = id.withParent(Symbol::createRootSymbol(type == Types::ID::Event ? "Message" : "Block"))
+							   .withType(type);
+					}
+				}
+
+				if (auto fc = dynamic_cast<FunctionClass*>(pScope))
+				{
+					if (fc->hasFunction(id))
+					{
+						fc->addMatchingFunctions(possibleMatches, id);
+						return;
 					}
 				}
 			}
 
 			if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
-				if (fc->hasFunction(symbol))
+				if (fc->hasFunction(id))
 				{
-					fc->addMatchingFunctions(possibleMatches, symbol);
+					fc->addMatchingFunctions(possibleMatches, id);
 					return;
 				}
 			}
@@ -567,22 +674,22 @@ struct Operations::FunctionCall : public Expression
 			{
 				jassert(gc->getScopeType() == BaseScope::Global);
 
-				if (gc->hasFunction(symbol))
+				if (gc->hasFunction(id))
 				{
-					gc->addMatchingFunctions(possibleMatches, symbol);
+					gc->addMatchingFunctions(possibleMatches, id);
 					return;
 				}
 			}
 
-			throwError("Can't find function " + symbol.toString());
+			throwError("Can't find function " + id.toString());
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
 			Array<Types::ID> parameterTypes;
 
-			for (int i = 0; i < getNumChildStatements(); i++)
-				parameterTypes.add(getSubExpr(i)->getType());
+			for (int i = 0; i < getNumArguments(); i++)
+				parameterTypes.add(getArgument(i)->getType());
 
 			for (auto& f : possibleMatches)
 			{
@@ -594,7 +701,7 @@ struct Operations::FunctionCall : public Expression
 					{
 						if (f.args[i].isAlias)
 						{
-							if (!canBeAliasParameter(getSubExpr(i)))
+							if (!canBeAliasParameter(getArgument(i)))
 							{
 								throwError("Can't use rvalues for reference parameters");
 							}
@@ -607,7 +714,7 @@ struct Operations::FunctionCall : public Expression
 				}
 			}
 
-			throwError("Wrong argument types for function call " + symbol.toString());
+			throwError("Wrong argument types for function call");
 		}
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
@@ -616,17 +723,15 @@ struct Operations::FunctionCall : public Expression
 
 			//VariableReference::reuseAllLastReferences(this);
 
-			for (int i = 0; i < getNumChildStatements(); i++)
+			for (int i = 0; i < getNumArguments(); i++)
 			{
 				bool isReference = function.args[i].isAlias;
 
 				RegPtr pReg;
 
-				
-
 				if (isReference)
 				{
-					if (auto v = dynamic_cast<VariableReference*>(getSubExpr(i).get()))
+					if (auto v = dynamic_cast<VariableReference*>(getArgument(i)))
 					{
 						v->process(compiler, scope);
 
@@ -642,12 +747,10 @@ struct Operations::FunctionCall : public Expression
 				}
 				else
 				{
-					pReg = compiler->getRegFromPool(scope, getSubExpr(i)->getType());
+					pReg = compiler->getRegFromPool(scope, getArgument(i)->getType());
 					auto asg = CREATE_ASM_COMPILER(type);
 					pReg->createRegister(asg.cc);
 				}
-
-				//getSubExpr(i)->setTargetRegister(pReg, false);
 
 				parameterRegs.add(pReg);
 			}
@@ -686,19 +789,19 @@ struct Operations::FunctionCall : public Expression
 
 			for (int i = 0; i < parameterRegs.size(); i++)
 			{
-				auto existingReg = getSubExpr(i)->reg;
+				auto arg = getArgument(i);
+
+				auto existingReg = arg->reg;
 
 				auto pReg = parameterRegs[i];
 
 				if (existingReg != pReg)
 				{
-					auto pType = getSubExpr(i)->getType();
+					auto pType = arg->getType();
 					auto typedAcg = CREATE_ASM_COMPILER(pType);
 					typedAcg.emitComment("Parameter Save");
 					typedAcg.emitStore(pReg, existingReg);
 				}
-
-				
 			}
 			
 #if 0
@@ -730,7 +833,15 @@ struct Operations::FunctionCall : public Expression
 			if(function.functionName.isEmpty())
 				function.functionName = function.getSignature({});
 
-			asg.emitFunctionCall(reg, function, parameterRegs);
+			RegPtr objectPointer;
+
+			if (auto dp = dynamic_cast<DotOperator*>(parent.get()))
+			{
+				jassert(dp->getDotParent()->getType() == Types::ID::Pointer);
+				objectPointer = dp->getDotParent()->reg;
+			}
+
+			asg.emitFunctionCall(reg, function, objectPointer, parameterRegs);
 
 			for (int i = 0; i < parameterRegs.size(); i++)
 			{
@@ -741,9 +852,9 @@ struct Operations::FunctionCall : public Expression
 	}
 
 
-	Symbol symbol;
 	Array<FunctionData> possibleMatches;
 	FunctionData function;
+	Symbol id;
 
 	ReferenceCountedArray<AssemblyRegister> parameterRegs;
 };
@@ -913,44 +1024,8 @@ struct Operations::ClassInstance : public Statement,
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
-			if (scope->hasChildClass(classId.id))
-			{
-				auto cLocation = location;
-				int length;
-
-				scope->getChildClassCode(classId.id, cLocation.location, cLocation.program, length);
-
-				for (auto instanceId : instanceIds)
-				{
-					scope->getRootClassScope()->rootData->allocateComplexType(scope, instanceId, typePtr);
-
-#if 0
-					ClassCompiler c(scope, instanceId);
-
-					c.parentRuntime = dynamic_cast<ClassCompiler*>(compiler)->getRuntime();
-
-					ScopedPointer<JitCompiledFunctionClass> classWrapper = c.compileAndGetScope(cLocation, length);
-
-					if (!c.lastResult.wasOk())
-						throwError("Error at class instantiation: " + c.lastResult.getErrorMessage());
-
-					if (auto fc = dynamic_cast<FunctionClass*>(scope))
-					{
-						auto cScope = classWrapper->releaseClassScope();
-						cScope->classTypeId = classId.id;
-						fc->addFunctionClass(cScope);
-					}
-					else
-						location.throwError("Illegal class instantiation");
-
-					if (auto cc = dynamic_cast<ClassCompiler*>(compiler))
-					{
-						cc->assembly << "; " << classId.toString() << " instance " << instanceId.toString() << "\n";
-						cc->assembly << c.assembly;
-					}
-#endif
-				}
-			}
+			for (auto instanceId : instanceIds)
+				scope->getRootClassScope()->rootData->allocateComplexType(scope, instanceId.withType(Types::ID::Pointer), typePtr);
 		}
 	}
 
@@ -1140,6 +1215,8 @@ struct Operations::BlockAccess : public Expression
 
 		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
+			jassertfalse; // neu denken
+#if 0
 			auto wrappedSymbol = isWrappedBufferReference(getChildStatement(1), scope);
 
 			if (wrappedSymbol.id.isValid())
@@ -1187,6 +1264,7 @@ struct Operations::BlockAccess : public Expression
 
 				return;
 			}
+#endif
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
@@ -1205,6 +1283,8 @@ struct Operations::BlockAccess : public Expression
 		{
 			if (auto cs = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
+				jassertfalse; // neu denken...
+#if 0
 				Array<FunctionData> matches;
 				cs->addMatchingFunctions(matches, { {"Block", "getSample"}, Types::ID::Float, true, false });
 
@@ -1220,6 +1300,7 @@ struct Operations::BlockAccess : public Expression
 				parameters.add(getSubRegister(0));
 
 				asg.emitFunctionCall(reg, matches[0], parameters);
+#endif
 			}
 		}
 	}
@@ -1241,6 +1322,9 @@ struct Operations::Increment : public UnaryOp
 
 		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
+			
+
+
 			if (removed)
 				return;
 
@@ -1248,6 +1332,9 @@ struct Operations::Increment : public UnaryOp
 
 			if (symbol.id.isValid())
 			{
+				jassertfalse; // neu denken
+
+#if 0
 				Symbol incSymbol;
 
 				if (isPreInc)
@@ -1269,7 +1356,9 @@ struct Operations::Increment : public UnaryOp
 				removed = true;
 
 				return;
+#endif
 			}
+
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
@@ -1324,6 +1413,9 @@ struct Operations::BlockAssignment : public Expression
 	{
 		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
+			jassertfalse; // neu denken
+
+#if 0
 			if (replaced)
 				return;
 
@@ -1371,6 +1463,7 @@ struct Operations::BlockAssignment : public Expression
 
 				return;
 			}
+#endif
 		}
 
 		// We need to move this before the base class process()
@@ -1379,6 +1472,9 @@ struct Operations::BlockAssignment : public Expression
 		{
 			if (auto cs = dynamic_cast<FunctionClass*>(findClassScope(scope)))
 			{
+
+				jassertfalse; // neu denken
+#if 0
 				Ptr index = getSubExpr(1)->getSubExpr(0);
 				Ptr bl = getSubExpr(1)->getSubExpr(1);
 				Ptr vl = getSubExpr(0);
@@ -1402,6 +1498,7 @@ struct Operations::BlockAssignment : public Expression
 				cs->addMatchingFunctions(matches, { {"Block", "setSample"}, Types::ID::Float , false, false});
 
 				asg.emitFunctionCall(nullptr, matches.getFirst(), parameters);
+#endif
 			}
 
 			return;

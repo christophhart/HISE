@@ -45,9 +45,11 @@ using namespace juce;
 
 - //make ClassInstance process() method allocate the required data and the symbol as base class OK
 - add the function pointer to all functions in a (sub?)class (omit as optimization if no member is used) TeilweiseOK
-- replace VariableReferences in subclasses with a pointer to baseclass + member offset
-- make FunctionCall::process() replace the instance symbol with the class symbol (or find a way to resolve this good).
+- replace VariableReferences in subclasses with a pointer to baseclass + member offset OK
+- make FunctionCall::process() replace the instance symbol with the class symbol (or find a way to resolve this good). OK
 
+
+- make the dot operator work
 
 
 OPTIMIZATIONS:
@@ -77,6 +79,8 @@ struct Symbol
 	Symbol withParent(const Symbol& parent) const;
 
 	Symbol withType(const Types::ID type) const;
+
+	Symbol relocate(const Symbol& newParent) const;
 
 	bool isExplicit() const { return fullIdList.size() > 1; }
 
@@ -206,6 +210,18 @@ struct StructType : public ComplexType
 		return false;
 	}
 
+	ComplexType::Ptr getMemberComplexType(const Identifier& id) const
+	{
+		for (auto m : memberData)
+		{
+			if (m->id == id)
+			{
+				jassert(m->typePtr != nullptr);
+				return m->typePtr;
+			}
+		}
+	}
+
 	size_t getMemberOffset(const Identifier& id) const
 	{
 		for (auto m : memberData)
@@ -238,6 +254,7 @@ struct StructType : public ComplexType
 		auto nm = new Member();
 		nm->size = typePtr->getRequiredByteSize();
 		nm->id = id;
+		nm->nativeMemberType = Types::ID::Pointer;
 		nm->typePtr = typePtr;
 
 		memberData.add(nm);
@@ -492,7 +509,8 @@ struct FunctionData
 class BaseScope;
 
 /** A function class is a collection of functions. */
-struct FunctionClass: public DebugableObjectBase
+struct FunctionClass: public DebugableObjectBase,
+					  public ReferenceCountedObject
 {
 	struct Constant
 	{
@@ -660,7 +678,7 @@ struct FunctionClass: public DebugableObjectBase
 
 protected:
 
-	OwnedArray<FunctionClass> registeredClasses;
+	ReferenceCountedArray<FunctionClass> registeredClasses;
 
 	Symbol classSymbol;
 	OwnedArray<FunctionData> functions;

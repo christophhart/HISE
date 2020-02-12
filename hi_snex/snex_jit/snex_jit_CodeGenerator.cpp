@@ -668,50 +668,44 @@ void AsmCodeGenerator::emitNegation(RegPtr target, RegPtr expr)
 }
 
 
-void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f, ReferenceCountedArray<AssemblyRegister>& parameterRegisters)
+void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f, RegPtr objectAddress,  ReferenceCountedArray<AssemblyRegister>& parameterRegisters)
 {
 	asmjit::FuncSignatureBuilder sig;
 
-	bool isMemberFunction = f.object != nullptr;
+	bool isMemberFunction = objectAddress != nullptr;
 	fillSignature(f, sig, isMemberFunction);
 
 	TemporaryRegister o(*this, returnReg->getScope(), Types::ID::Block);
 
-	if (isMemberFunction)
+	if (!isMemberFunction && f.object != nullptr)
 	{
+		cc.setInlineComment("Push function object");
 		cc.mov(o.get(), imm(f.object));
+		objectAddress = o.tempReg;
 	}
 
 	// Push the function pointer
 	X86Gp fn = cc.newIntPtr("fn");
+	cc.setInlineComment("FunctionPointer");
 	cc.mov(fn, imm(f.function));
 
 	FuncCallNode* call = cc.call(fn, sig);
 
 	call->setInlineComment(f.functionName.getCharPointer().getAddress());
 
-	
-
 	int offset = 0;
 
-	if (isMemberFunction)
+	
+
+	if (objectAddress != nullptr)
 	{
-		call->setArg(0, o.get());
+		call->setArg(0, objectAddress->getRegisterForReadOp().as<X86Gp>());
 		offset = 1;
 	}
-
+	
 	for (int i = 0; i < parameterRegisters.size(); i++)
 	{
-		if (f.args[i].isAlias)
-		{
-			auto reg = parameterRegisters[i]->getRegisterForWriteOp();
-
-			call->setArg(i + offset, reg);
-		}
-		else
-		{
-			call->setArg(i + offset, parameterRegisters[i]->getRegisterForReadOp());
-		}
+		call->setArg(i + offset, parameterRegisters[i]->getRegisterForReadOp());
 	}
 
 	if (f.returnType != Types::ID::Void)

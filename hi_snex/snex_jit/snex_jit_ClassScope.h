@@ -291,7 +291,11 @@ public:
 	bool updateSymbol(Symbol& symbolToBeUpdated) override
 	{
 		if (auto st = dynamic_cast<StructType*>(typePtr.get()))
-			return st->updateSymbol(symbolToBeUpdated);
+		{
+			if (st->updateSymbol(symbolToBeUpdated))
+				return true;
+		}
+			
 
 		return BaseScope::updateSymbol(symbolToBeUpdated);
 	}

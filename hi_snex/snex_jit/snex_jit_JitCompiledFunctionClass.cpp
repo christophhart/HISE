@@ -130,6 +130,7 @@ void JitObject::rebuildDebugInformation()
 
 hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
 {
+#if 0
 	for (auto& f : functionClass->debugInformation)
 	{
 		if (token == f->getCodeToInsert())
@@ -140,6 +141,7 @@ hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
 				return functionClass->pimpl->getSubFunctionClass(Symbol::createRootSymbol("Message"));
 		}
 	}
+#endif
 
 	return ApiProviderBase::getDebugObject(token);
 }

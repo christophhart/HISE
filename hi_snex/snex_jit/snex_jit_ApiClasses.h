@@ -379,7 +379,11 @@ class ConsoleFunctions : public JitCallableObject
 {
 	struct WrapperInt
 	{
-		JIT_MEMBER_WRAPPER_1(int, ConsoleFunctions, print, int);
+		static int print(void* o, int a1) 
+		{ 
+ 			return static_cast<ConsoleFunctions*>(o)->print(a1); 
+		};
+
 	};
 
 	struct WrapperDouble
@@ -497,7 +501,14 @@ public:
 	ConsoleFunctions(GlobalScope* scope_) :
 		JitCallableObject(Symbol::createRootSymbol("Console")),
 		gs(scope_)
-	{};
+	{
+		registerAllObjectFunctions(gs);
+	};
+
+	~ConsoleFunctions()
+	{
+		int x = 5;
+	}
 
 	WeakReference<BaseScope> classScope;
 	WeakReference<GlobalScope> gs;

@@ -234,6 +234,45 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		if (BlockAccess::isWrappedBufferReference(this, scope))
 			return;
 
+
+		if (auto f = getFunctionClassForSymbol(scope))
+		{
+			id.type = Types::ID::Pointer;
+			id.const_ = true;
+			return;
+		}
+
+		// walk up the dot operators to get the proper symbol...
+		if (auto dp = dynamic_cast<DotOperator*>(parent.get()))
+		{
+			if (auto pPointer = dp->getDotParent()->getComplexType())
+			{
+				if (auto sType = dynamic_cast<StructType*>(pPointer.get()))
+				{
+					memberOffset = sType->getMemberOffset(id.id);
+					id.type = sType->getDataType();
+					typePtr = sType->getMemberComplexType(id.id);
+					return;
+				}
+			}
+		}
+
+		if (auto typePtr = scope->getRootData()->getComplexTypeForVariable(id))
+		{
+			jassertfalse; // neu denken
+#if 0
+			ComplexType = cScope->
+
+			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
+
+			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
+				memberOffset = subClassType->getMemberOffset(id.id);
+			else
+				cScope->allocate(id);
+#endif
+		}
+
+
 		// We will create the Reference to the according scope for this
 		// variable, check it's type and if it's a parameter, get the index...
 
@@ -403,6 +442,9 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		if (parameterIndex != -1)
 			return;
 
+		if (isApiClass(scope))
+			return;
+
 		// It might already be assigned to a reused register
 		if (reg == nullptr)
 		{
@@ -475,6 +517,14 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				}
 			}
 		}
+	}
+}
+
+bool Operations::VariableReference::isApiClass(BaseScope* s) const
+{
+	if (auto fc = getFunctionClassForSymbol(s))
+	{
+		return dynamic_cast<ClassScope*>(fc) == nullptr;
 	}
 }
 
@@ -653,6 +703,27 @@ void Operations::PointerReference::process(BaseCompiler* compiler, BaseScope* sc
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		reg = getSubRegister(0);
+	}
+}
+
+void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	Statement::process(compiler, scope);
+
+	getDotParent()->process(compiler, scope);
+	getDotChild()->process(compiler, scope);
+
+
+	COMPILER_PASS(BaseCompiler::TypeCheck)
+	{
+		if (auto fc = dynamic_cast<FunctionCall*>(getDotChild().get()))
+		{
+			bool isPointer = getDotParent()->getType() == Types::ID::Pointer;
+
+			if (!isPointer)
+				throwError("Can't call non-object");
+		}
+
 	}
 }
 

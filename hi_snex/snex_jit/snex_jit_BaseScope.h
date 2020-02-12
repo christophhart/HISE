@@ -395,6 +395,17 @@ public:
 		return Types::ID::Dynamic;
 	}
 
+	ComplexType::Ptr getComplexTypeForVariable(const Symbol& s) const
+	{
+		for (const auto& ts : symbolTable)
+		{
+			if (ts.s == s)
+				return ts.typePtr;
+		}
+
+		return nullptr;
+	}
+
 	Array<Symbol> getAllVariables() const
 	{
 		Array<Symbol> list;
