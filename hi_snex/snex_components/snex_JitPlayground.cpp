@@ -35,6 +35,7 @@ namespace jit {
 using namespace juce;
 
 
+
 SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	memory(),
 	bpProvider(memory),
@@ -60,7 +61,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	runThread(*this)
 {
 	memory.addOptimization(OptimizationIds::ConstantFolding);
-	memory.addOptimization(OptimizationIds::DeadCodeElimination);
+	//memory.addOptimization(OptimizationIds::DeadCodeElimination);
 	memory.addOptimization(OptimizationIds::Inlining);
 	memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
@@ -881,7 +882,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 				if (cs->rootData->contains(v))
 				{
-					auto value = cs->rootData->get(v);
+					auto value = cs->rootData->getDataCopy(v);
 					
 					si->typeValue = value.getType();
 					si->name = v.id.toString();
@@ -895,8 +896,6 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 					infos.add(si);
 				}
-
-
 			}
 
 			cs->addRegisteredFunctionClasses(infos, -1);
@@ -918,7 +917,6 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 		g.fillAll(Colour(0x33666666));
 
 		g.setFont(GLOBAL_BOLD_FONT());
-
 		
 		if (l.isEmpty() && r.isEmpty())
 		{
