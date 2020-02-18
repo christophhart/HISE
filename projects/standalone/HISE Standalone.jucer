@@ -85,7 +85,7 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
-        <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -129,7 +129,7 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
-        <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -191,7 +191,7 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
-        <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=1&#10;&#10;"
@@ -234,7 +234,7 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
-        <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
