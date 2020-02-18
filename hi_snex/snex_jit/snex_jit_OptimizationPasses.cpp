@@ -667,7 +667,8 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 
 			if (a->targetType == Operations::Assignment::TargetType::Variable)
 			{
-				currentlyAssignedId = a->getTargetVariable()->id;
+				currentlyAssignedId.s = a->getTargetVariable()->id;
+				currentlyAssignedId.scope = a->getTargetVariable()->variableScope;
 
 				a->getSubExpr(0)->process(compiler, s);
 
@@ -789,7 +790,7 @@ bool BinaryOpOptimizer::isAssignedVariable(ExprPtr e) const
 {
 	if (auto v = dynamic_cast<Operations::VariableReference*>(e.get()))
 	{
-		return v->id == currentlyAssignedId;
+		return SymbolWithScope({ v->id, v->variableScope}) == currentlyAssignedId;
 	}
 	else
 	{

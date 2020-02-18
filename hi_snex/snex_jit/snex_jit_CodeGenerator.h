@@ -44,6 +44,19 @@ struct AsmCodeGenerator
 	using RegPtr = AssemblyRegister::Ptr;
 	using Compiler = asmjit::X86Compiler;
 	using OpType = const char*;
+	using AddressType = uint64_t;
+
+
+	AddressType void2ptr(void* d)
+	{
+		return reinterpret_cast<AddressType>(d);
+	}
+
+	AddressType imm2ptr(int64 t)
+	{
+		return static_cast<AddressType>(t);
+	}
+
 
 	struct LoopEmitterBase
 	{

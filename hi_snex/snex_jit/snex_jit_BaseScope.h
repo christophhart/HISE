@@ -209,6 +209,22 @@ protected:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BaseScope);
 };
 
+struct SymbolWithScope
+{
+	bool operator==(const SymbolWithScope& other) const
+	{
+		return s == other.s && scope == other.scope;
+	}
+
+	operator bool() const
+	{
+		return s && scope.get() != nullptr;
+	}
+
+	Symbol s;
+	WeakReference<BaseScope> scope;
+};
+
 
 class RootClassData
 {

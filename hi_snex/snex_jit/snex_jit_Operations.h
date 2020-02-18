@@ -290,7 +290,7 @@ struct Operations::VariableReference : public Expression
 
 		while (auto v = walker.getNextStatementOfType<VariableReference>())
 		{
-			if (v->id == id)
+			if (v->id == id && v->variableScope == variableScope)
 				return v == this;
 		}
 
@@ -333,6 +333,7 @@ struct Operations::VariableReference : public Expression
 	}
 
 	int parameterIndex = -1;
+
 	Symbol id;
 	WeakReference<BaseScope> variableScope;
 	bool isFirstOccurence = false;

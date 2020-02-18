@@ -62,7 +62,7 @@ using namespace asmjit;
 
 #define INT_OP(op, l, r) { if(IS_REG(r))    op(INT_REG_W(l), INT_REG_R(r)); \
 					  else if(IS_CMEM(r))   op(INT_REG_W(l), INT_MEM(r)); \
-					  else if(IS_MEM(r))    op(INT_REG_W(l), (uint64_t)INT_IMM(r)); \
+					  else if(IS_MEM(r))    op(INT_REG_W(l), static_cast<int>(INT_IMM(r))); \
 					  else op(INT_REG_W(l), INT_REG_R(r)); }
 
 AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_) :
@@ -140,12 +140,12 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 	else
 	{
 		auto data = ptrToUse != nullptr ? ptrToUse : source->getGlobalDataPointer();
-		target = x86::qword_ptr(reinterpret_cast<uint64_t>(data));
+		target = x86::qword_ptr(void2ptr(data));
 	}
 
-	IF_(int)	ok = cc.mov(target, source->getRegisterForReadOp().as<X86Gp>());
-	IF_(float)	ok = cc.movss(target, source->getRegisterForReadOp().as<X86Xmm>());
-	IF_(double) ok = cc.movsd(target, source->getRegisterForReadOp().as<X86Xmm>());
+	IF_(int)	ok = cc.mov(target, INT_REG_R(source));
+	IF_(float)	ok = cc.movss(target, FP_REG_R(source));
+	IF_(double) ok = cc.movsd(target, FP_REG_R(source));
 
 	// Don't undirty it when debugging...
 	if (ptrToUse == nullptr)
@@ -164,7 +164,7 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 	IF_(block)
 	{
 		cc.setInlineComment("Load buffer pointer");
-		cc.mov(target->getRegisterForWriteOp().as<X86Gp>(), reinterpret_cast<uint64_t>(data));
+		cc.mov(target->getRegisterForWriteOp().as<X86Gp>(), void2ptr(data));
 
 		return;
 	}
@@ -178,11 +178,11 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 
 	IF_(void*)
 	{
-		cc.mov(INT_REG_R(target), (uint64_t)data);
+		cc.mov(INT_REG_R(target), void2ptr(data));
 		return;
 	}
 
-	auto source = x86::ptr(reinterpret_cast<uint64_t>(data));
+	auto source = x86::ptr(void2ptr(data));
 
 	// We use the REG_R ones to avoid flagging it dirty
 	IF_(int)	cc.mov(INT_REG_R(target), source);
@@ -252,7 +252,8 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 	{
 		TemporaryRegister dummy(*this, r->getScope(), Types::ID::Integer);
 		
-		cc.xor_(dummy.get(), dummy.get());
+		//cc.xor_(dummy.get(), dummy.get());
+		
 		cc.cdq(dummy.get(), INT_REG_W(l));
 
 		if (r->isMemoryLocation())
@@ -376,15 +377,15 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		int shift = (int)log2(elementSizeInBytes);
 		bool canUseShift = isPowerOfTwo(elementSizeInBytes) && shift < 4;
 
-		X86Gpq indexReg;
+		x86::Gpd indexReg;
 
 		if (!index->isMemoryLocation())
 		{
-			indexReg = index->getRegisterForReadOp().as<X86Gpq>();
+			indexReg = index->getRegisterForReadOp().as<x86::Gpd>();
 
 			if (index->getVariableId())
 			{
-				auto newIndexReg = cc.newGpq().as<X86Gpq>();
+				auto newIndexReg = cc.newGpd().as<x86::Gpd>();
 				cc.mov(newIndexReg, indexReg);
 				indexReg = newIndexReg;
 			}
@@ -407,7 +408,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 			auto ptr = address->getAsMemoryLocation();
 
 			if (index->isMemoryLocation())
-				p = ptr.cloneAdjusted((uint64_t)(INT_IMM(index) * elementSizeInBytes));
+				p = ptr.cloneAdjusted(imm2ptr(INT_IMM(index) * elementSizeInBytes));
 			else
 			{
 				// for some reason uint64_t base + index reg doesn't create a 64bit address...
@@ -425,7 +426,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		else
 		{
 			if (index->isMemoryLocation())
-				p = x86::ptr(INT_REG_R(address), INT_IMM(index) * elementSizeInBytes);
+				p = x86::ptr(INT_REG_R(address), imm2ptr(INT_IMM(index) * elementSizeInBytes));
 			else
 			{
 				p = x86::ptr(INT_REG_R(address), indexReg, shift);
@@ -623,7 +624,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 		auto dummy = c->registerPool.getNextFreeRegister(s, Types::ID::Integer);
 		dummy->createRegister(cc);
 
-		cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), (uint64_t)condition->reg->getImmediateIntValue());
+		cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), imm2ptr(condition->reg->getImmediateIntValue()));
 		cc.cmp(dummy->getRegisterForReadOp().as<X86Gp>(), 0);
 
 		dummy->flagForReuse(true);
@@ -894,7 +895,7 @@ void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 #if JUCE_64BIT
 
 	TemporaryRegister ad(*this, s, Types::ID::Block);
-	int ok = cc.mov(ad.get(), reinterpret_cast<uint64_t>(data));
+	int ok = cc.mov(ad.get(), void2ptr(data));
 	auto target = x86::qword_ptr(ad.get());
 #else
 	auto target = x86::dword_ptr(reinterpret_cast<uint64_t>(data));
@@ -908,7 +909,7 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 {
 	if (data.returnType == Types::ID::Float) sig.setRetT<float>();
 	if (data.returnType == Types::ID::Double) sig.setRetT<double>();
-	if (data.returnType == Types::ID::Integer) sig.setRetT<uint64_t>();
+	if (data.returnType == Types::ID::Integer) sig.setRetT<int>();
 	if (data.returnType == Types::ID::Event) sig.setRet(asmjit::Type::kIdIntPtr);
 	if (data.returnType == Types::ID::Block) sig.setRet(asmjit::Type::kIdIntPtr);
 

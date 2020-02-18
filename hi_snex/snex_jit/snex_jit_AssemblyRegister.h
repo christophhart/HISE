@@ -47,11 +47,14 @@ class AssemblyRegister : public ReferenceCountedObject
 {
 public:
 
-	using IntRegisterType = X86Gpq;
+	using IntRegisterType = x86::Gpd;
+	
 	using FloatRegisterType = X86Xmm;
 	using DoubleRegisterType = X86Xmm;
 	using FloatMemoryType = X86Mem;
 	using Ptr = ReferenceCountedObjectPtr<AssemblyRegister>;
+
+
 
 	enum State
 	{

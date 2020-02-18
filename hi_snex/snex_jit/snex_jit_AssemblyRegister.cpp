@@ -179,7 +179,7 @@ juce::int64 AssemblyRegister::getImmediateIntValue()
 	jassert(type == Types::ID::Integer);
 	jassert(!hasCustomMem);
 
-	return immediateIntValue;
+	return static_cast<int64>(immediateIntValue);
 }
 
 bool AssemblyRegister::operator==(const Symbol& s) const
@@ -215,7 +215,7 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 		if (hasCustomMem)
 			e = cc.mov(reg.as<IntRegisterType>(), memory);
 		else
-			e = cc.mov(reg.as<IntRegisterType>(), immediateIntValue);
+			e = cc.mov(reg.as<IntRegisterType>(), static_cast<int64_t>(immediateIntValue));
 	}
 	else if (type == Types::ID::Block || type == Types::ID::Event)
 		e = cc.mov(reg.as<X86Gpq>(), memory);

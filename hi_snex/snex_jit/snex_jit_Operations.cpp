@@ -267,9 +267,12 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			}
 		}
 
-		if (id.isReference() && isLocalDefinition)
+		if (id.isReference() || isLocalDefinition)
 		{
 			variableScope = scope;
+
+			if (!variableScope->updateSymbol(id))
+				location.throwError("Can't update symbol" + id.toString());
 		}
 		else if (auto vScope = scope->getScopeForSymbol(id))
 		{
@@ -483,6 +486,10 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		Expression::process(compiler, scope);
 	}
 
+	auto e = getSubExpr(0);
+
+
+
 	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
 	{
 		if (targetType == TargetType::Variable && isFirstAssignment && scope->getRootClassScope() == scope)
@@ -648,6 +655,8 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		auto acg = CREATE_ASM_COMPILER(type);
+
+		
 
 		getSubExpr(0)->process(compiler, scope);
 		getSubExpr(1)->process(compiler, scope);

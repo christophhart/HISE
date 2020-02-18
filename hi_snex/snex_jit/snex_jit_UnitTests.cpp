@@ -137,14 +137,6 @@ public:
 
 	void dump()
 	{
-		DBG("code: ");
-		DBG(compiler->getLastCompiledCode());
-		DBG("assembly: ");
-		DBG(compiler->getAssemblyCode());
-		DBG("Data dump before call:");
-		DBG(before);
-		DBG("Data dump after call:");
-		DBG(func.dumpTable());
 		breakBeforeCall = true;
 	}
 
@@ -159,7 +151,19 @@ public:
 		{
 			before = func.dumpTable();
 
-			jassert(breakBeforeCall);
+			if (breakBeforeCall)
+			{
+				DBG("code: ");
+				DBG(compiler->getLastCompiledCode());
+				DBG("assembly: ");
+				DBG(compiler->getAssemblyCode());
+				DBG("Data dump before call:");
+				DBG(before);
+				
+
+				jassertfalse; // there you go...
+			}
+
 			ReturnType v = f.template call<ReturnType>(input);
 
 			if (!(v == expected))
@@ -313,34 +317,7 @@ public:
 
 	void runTest() override
 	{
-		optimizations = { OptimizationIds::ConstantFolding };
-
-		testComplexExpressions();
-		testComplexExpressions();
-		testComplexExpressions();
-		testComplexExpressions();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-		testSpan<double>();
-
-		return;
-
 		testOptimizations();
-		
-		
 
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
@@ -407,12 +384,9 @@ private:
 
 		Random r;
 		int size = r.nextInt({ 1, 100 });
-		int index = r.nextInt({ 0, size - 1 });
+		int index = size > 1 ? r.nextInt({ 0, size - 1 }) : 0;
 		double a = (double)r.nextInt(25) *(r.nextBool() ? 1.0 : -1.0);
 		double b = (double)r.nextInt(62) *(r.nextBool() ? 1.0 : -1.0);
-
-		DBG("Size: " + juce::String(size));
-		DBG("index: " + juce::String(index));
 
 		if (b == 0.0) b = 55.0;
 
@@ -439,20 +413,37 @@ private:
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    int i = Math.min($size, (int)input + 3);");
+			ADD_CODE_LINE("    int i = (int)input + 2;");
+			ADD_CODE_LINE("    i = i > $size ? ($size -1 ) : i;");
+			//ADD_CODE_LINE("    Console.print(i);");
 			ADD_CODE_LINE("    data[i] = ($T)4.0;");
-			ADD_CODE_LINE("    Console.print(i);");
 			ADD_CODE_LINE("    return data[i];}");
 			FINALIZE_CODE();
 
 			
 			CREATE_TYPED_TEST(code);
+			//test->dump();
+			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
+		}
+
+
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
+			ADD_CODE_LINE("int clamp(int i) { return i > $size ? ($size -1 ) : i; };");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    int i = clamp((int)input + 2);");
+			ADD_CODE_LINE("    Math.random();");
+			ADD_CODE_LINE("    data[i] = ($T)4.0;");
+			ADD_CODE_LINE("    return data[i];}");
+			FINALIZE_CODE();
+
+
+			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
 		}
 
 		juce::String tdi;
-
-		
 
 		tdi << "{ " << im(1) << ", " << im(2) << ", " << im(3) << "};";
 
@@ -560,25 +551,6 @@ private:
 		
 		
 		
-		
-
-		tdi = {};
-		tdi << "{ { " << im(1) << ", " << im(2) << " }, { " << im(3) << ", " << im(4) << "}, {" << im(5) << ", " << im(6) << "} };";
-
-		{
-			NEW_CODE_TEXT();
-			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    $T sum = data[0][0] + data[0][1] + data[1][0] + data[1][1] + data[2][0] + data[2][1];");
-			ADD_CODE_LINE("    return sum;}");
-			FINALIZE_CODE();
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED(GET_TYPE(T) + " sum two dimensional array", 0, 1 + 2 + 3 + 4 + 5 + 6);
-		}
-
-		return;
-
 		// ============================================================================================= 2D span tests
 
 		tdi = {};
@@ -1113,8 +1085,6 @@ private:
 
 		auto t = reinterpret_cast<uint64_t>(b.getWritePointer(0));
 
-		DBG(t);
-		
 
 		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
 		test->setup();
@@ -1286,7 +1256,9 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
-
+		CREATE_TEST("float test(float in) { float x = 8.0f; float y = 0.0f; { float x = x + 9.0f; y = x; } return y; }");
+		expectCompileOK(test->compiler);
+		EXPECT("Save scoped variable to local variable", 12.0f, 17.0f);
 
 		CREATE_TEST("float test(float in) {{return 2.0f;}}; ");
 		expectCompileOK(test->compiler);
@@ -1304,9 +1276,7 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("12 variables", 12.0f, 144.0f);
 
-		CREATE_TEST("float test(float in) { float x = 8.0f; float y = 0.0f; { float x = x + 9.0f; y = x; } return y; }");
-		expectCompileOK(test->compiler);
-		EXPECT("Save scoped variable to local variable", 12.0f, 17.0f);
+		
 	}
 
 	void testLogicalOperations()
