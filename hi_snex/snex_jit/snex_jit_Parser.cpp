@@ -94,7 +94,14 @@ public:
 			syntaxTree = parser.parseStatementList();
 
 			executePass(ComplexTypeParsing, newScope->pimpl, syntaxTree);
+			executePass(DataSizeCalculation, newScope->pimpl, syntaxTree);
+
+			newScope->pimpl->getRootData()->finalise();
+
+			auto d = (int*)newScope->pimpl->getRootData()->data.get();
+
 			executePass(DataAllocation, newScope->pimpl, syntaxTree);
+			executePass(DataInitialisation, newScope->pimpl, syntaxTree);
 			executePass(PreSymbolOptimization, newScope->pimpl, syntaxTree);
 			executePass(ResolvingSymbols, newScope->pimpl, syntaxTree);
 			executePass(TypeCheck, newScope->pimpl, syntaxTree);
@@ -148,12 +155,19 @@ SyntaxTree* BlockParser::parseStatementList()
 {
 	matchIf(JitTokens::openBrace);
 
-	compiler->logMessage(BaseCompiler::ProcessMessage, "Parsing statements");
-
 	ScopedPointer<SyntaxTree> list = new SyntaxTree(location);
+
+	list->setParentScopeStatement(getCurrentScopeStatement());
+
+	ScopedScopeStatementSetter svs(this, list);
 
 	while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 	{
+		while (matchIf(JitTokens::using_))
+		{
+			parseUsingAlias();
+		}
+
 		auto s = parseStatement();
 		list->addStatement(s);
 	}
@@ -165,12 +179,16 @@ SyntaxTree* BlockParser::parseStatementList()
 	return list.release();
 }
 
+
+
 BlockParser::StatementPtr NewClassParser::parseStatement()
 {
 	if (matchIf(JitTokens::struct_))
 	{
 		return parseSubclass();
 	}
+
+	bool isConst = matchIf(JitTokens::const_);
 
 	if (currentType == JitTokens::identifier)
 	{
@@ -179,27 +197,23 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		matchSymbol();
 		auto classId = getCurrentSymbol(true);
 
-		Symbol rootSymbol;
+		auto cs = getCurrentScopeStatement();
+		jassert(cs != nullptr);
 
-		if (auto cc = dynamic_cast<ClassCompiler*>(compiler.get()))
-			rootSymbol = cc->instanceId;
-
-		Array<Symbol> instanceIds;
-
-		instanceIds.add(rootSymbol.getChildSymbol(parseIdentifier()));
-
-		while (matchIf(JitTokens::comma))
+		if (cs = cs->getScopedStatementForAlias(classId.id))
 		{
-			instanceIds.add(rootSymbol.getChildSymbol(parseIdentifier()));
+			if (auto cPtr = cs->getAliasComplexType(classId.id))
+				return parseComplexTypeDefinition(cPtr);
+			else
+			{
+				matchSymbol();
+				return parseDefinition(isConst, cs->getAliasNativeType(classId.id), false, false);
+			}
+				
 		}
-
-		match(JitTokens::semicolon);
-
-		return new Operations::ClassInstance(loc, classId, instanceIds);
+		else
+			return parseComplexTypeDefinition(compiler->getComplexTypeForAlias(classId.id));
 	}
-
-	bool isConst = matchIf(JitTokens::const_);
-
 
 	bool isSmoothedType = isSmoothedVariableType();
 	bool isWrappedBlType = isWrappedBlockType();
@@ -210,18 +224,38 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	{
 		auto spanTypeSymbol = parseSpanType();
 
+		return parseComplexTypeDefinition(spanTypeSymbol);
+
+#if 0
 		matchSymbol();
+
+		InitialiserList::Ptr p;
+
+		if(matchIf(JitTokens::assign_))
+		{
+			p = parseInitialiserList();
+		}
+
 		match(JitTokens::semicolon);
 
-		return new Operations::SpanDefinition(location, spanTypeSymbol, getCurrentSymbol(true));
+		return new Operations::SpanDefinition(location, spanTypeSymbol, getCurrentSymbol(true), p);
+#endif
 	}
 
 	clearSymbol();
 	addSymbolChild(parseIdentifier());
 
-	StatementPtr s;
+	return parseDefinition(isConst, currentHnodeType, isWrappedBlType, isSmoothedType);
 
 	
+}
+
+
+BlockParser::StatementPtr NewClassParser::parseDefinition(bool isConst, Types::ID type, bool isWrappedBuffer, bool isSmoothedVariable)
+{
+	StatementPtr s;
+	currentHnodeType = type;
+
 	if (matchIf(JitTokens::openParen))
 	{
 		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + getCurrentSymbol(true).toString());
@@ -230,13 +264,13 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	}
 	else
 	{
-		if (isSmoothedType)
+		if (isSmoothedVariable)
 		{
 			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding smoothed variable " + getCurrentSymbol(true).toString());
 			s = parseSmoothedVariableDefinition();
 			match(JitTokens::semicolon);
 		}
-		else if (isWrappedBlType)
+		else if (isWrappedBuffer)
 		{
 			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding wrapped block " + getCurrentSymbol(true).toString());
 			s = parseWrappedBlockDefinition();
@@ -248,10 +282,13 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 			s = parseVariableDefinition(isConst);
 			match(JitTokens::semicolon);
 		}
+
 	}
 
 	return s;
 }
+
+
 
 snex::jit::BlockParser::StatementPtr NewClassParser::parseSmoothedVariableDefinition()
 {
@@ -391,7 +428,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction()
 
 snex::jit::BlockParser::StatementPtr NewClassParser::parseSubclass()
 {
-	match(JitTokens::identifier);
+	matchSymbol();
 
 	auto classSymbol = getCurrentSymbol(true);
 
@@ -428,6 +465,37 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseSubclass()
 #endif
 }
 
+BlockParser::StatementPtr NewClassParser::parseComplexTypeDefinition(ComplexType::Ptr p)
+{
+	Symbol rootSymbol;
+
+	if (auto cc = dynamic_cast<ClassCompiler*>(compiler.get()))
+		rootSymbol = cc->instanceId;
+
+	auto loc = location;
+
+	Array<Symbol> instanceIds;
+
+	instanceIds.add(rootSymbol.getChildSymbol(parseIdentifier()));
+
+	while (matchIf(JitTokens::comma))
+		instanceIds.add(rootSymbol.getChildSymbol(parseIdentifier()));
+
+	InitialiserList::Ptr initList;
+
+	if (matchIf(JitTokens::assign_))
+	{
+		initList = parseInitialiserList();
+	}
+
+	match(JitTokens::semicolon);
+
+	if (auto st = dynamic_cast<StructType*>(p.get()))
+		return new Operations::ClassInstance(loc, st->id, instanceIds, initList);
+	else if (auto sp = dynamic_cast<SpanType*>(p.get()))
+		return new Operations::SpanDefinition(loc, sp, instanceIds.getFirst(), initList);
+}
+
 snex::VariableStorage BlockParser::parseVariableStorageLiteral()
 {
 	bool isMinus = matchIf(JitTokens::minus);
@@ -454,6 +522,29 @@ snex::VariableStorage BlockParser::parseVariableStorageLiteral()
 		return {};
 }
 
+InitialiserList::Ptr BlockParser::parseInitialiserList()
+{
+	match(JitTokens::openBrace);
+
+	InitialiserList::Ptr root = new InitialiserList();
+
+	bool next = true;
+
+	while (next)
+	{
+		if (currentType == JitTokens::openBrace)
+			root->addChildList(parseInitialiserList());
+		else
+			root->addImmediateValue(parseVariableStorageLiteral());
+
+		next = matchIf(JitTokens::comma);
+	}
+
+	match(JitTokens::closeBrace);
+
+	return root;
+}
+
 SpanType::Ptr BlockParser::parseSpanType()
 {
 	match(JitTokens::lessThan);
@@ -463,27 +554,37 @@ SpanType::Ptr BlockParser::parseSpanType()
 
 	if (currentType == JitTokens::identifier)
 	{
-		type = Types::ID::Pointer;
-
 		matchSymbol();
-
 		auto classSymbol = getCurrentSymbol(false);
 
-		for (auto ct : compiler->complexTypes)
+		auto cs = getCurrentScopeStatement();
+
+		if (cs = cs->getScopedStatementForAlias(classSymbol.id))
 		{
-			if (auto st = dynamic_cast<StructType*>(ct))
+			child = cs->getAliasComplexType(classSymbol.id);
+
+			if (child == nullptr)
+				type = cs->getAliasNativeType(classSymbol.id);
+		}
+		else
+		{
+			type = Types::ID::Pointer;
+
+			for (auto ct : compiler->complexTypes)
 			{
-				if (st->id == classSymbol)
+				if (auto st = dynamic_cast<StructType*>(ct))
 				{
-					child = st;
-					break;
+					if (st->id == classSymbol)
+					{
+						child = st;
+						break;
+					}
 				}
 			}
-		}
 
-		if (child == nullptr)
-			location.throwError("Undefined type " + classSymbol.toString());
-		
+			if (child == nullptr)
+				location.throwError("Undefined type " + classSymbol.toString());
+		}
 	}
 	else
 	{
@@ -514,6 +615,41 @@ SpanType::Ptr BlockParser::parseSpanType()
 	compiler->complexTypes.add(newType);
 
 	return newType;
+}
+
+void BlockParser::parseUsingAlias()
+{
+	auto s = Symbol::createRootSymbol(parseIdentifier());
+
+	match(JitTokens::assign_);
+
+	if (matchIf(JitTokens::span_))
+	{
+		auto cType = parseSpanType();
+		cType->setAlias(s.id);
+		s = s.withComplexType(cType);
+	}
+	else if (matchIfTypeToken())
+	{
+		s.type = currentHnodeType;
+	}
+	else if (currentType == JitTokens::identifier)
+	{
+		if (auto c = compiler->getComplexTypeForAlias(s.id))
+		{
+			s = s.withComplexType(c);
+			c->setAlias(s.id);
+		}
+		else if (auto c = compiler->getStructType(Symbol::createRootSymbol(parseIdentifier())))
+		{
+			s = s.withComplexType(c);
+			c->setAlias(s.id);
+		}
+	}
+
+	match(JitTokens::semicolon);
+
+	getCurrentScopeStatement()->addAlias(s);
 }
 
 }

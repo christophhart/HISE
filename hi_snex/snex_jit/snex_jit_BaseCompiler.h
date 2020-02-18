@@ -71,7 +71,9 @@ public:
 	{
 		Parsing,
 		ComplexTypeParsing,
+		DataSizeCalculation,
 		DataAllocation,
+		DataInitialisation,
 		PreSymbolOptimization,
 		ResolvingSymbols,
 		TypeCheck,
@@ -83,6 +85,24 @@ public:
 		RegisterAllocation,
 		CodeGeneration,
 		numPasses
+	};
+
+	struct ScopedPassSwitcher
+	{
+		ScopedPassSwitcher(BaseCompiler* compiler, Pass newPass):
+			c(compiler)
+		{
+			oldPass = c->getCurrentPass();
+			c->setCurrentPass(newPass);
+		}
+
+		~ScopedPassSwitcher()
+		{
+			c->setCurrentPass(oldPass);
+		}
+
+		WeakReference<BaseCompiler> c;
+		BaseCompiler::Pass oldPass = numPasses;
 	};
 
 	struct OptimizationPassBase
@@ -115,8 +135,8 @@ public:
 		{
 		case Error:  m << "ERROR: "; break;
 		case Warning:  m << "WARNING: "; break;
-		case PassMessage:  m << "PASS: "; break;
-		case ProcessMessage: m << "- "; break;
+		case PassMessage: return;// m << "PASS: "; break;
+		case ProcessMessage: return;// m << "- "; break;
 		case VerboseProcessMessage: m << "-- "; break;
         default: break;
 		}
@@ -182,6 +202,31 @@ public:
 	AssemblyRegisterPool registerPool;
 
 	ReferenceCountedArray<ComplexType> complexTypes;
+
+	ComplexType::Ptr getComplexTypeForAlias(const Identifier& id)
+	{
+		for (auto c : complexTypes)
+		{
+			if (c->matchesId(id))
+				return c;
+		}
+
+		return nullptr;
+	}
+
+	StructType* getStructType(const Symbol& id)
+	{
+		for (auto t : complexTypes)
+		{
+			if (auto st = dynamic_cast<StructType*>(t))
+			{
+				if (st->id == id)
+					return st;
+			}
+		}
+
+		return nullptr;
+	}
 
 private:
 

@@ -100,10 +100,12 @@ public:
 
 	X86Mem getAsMemoryLocation();
 
+	X86Mem getMemoryLocationForReference();
+
 	int64 getImmediateIntValue();
 
 	/** Loads the memory into the register. */
-	void loadMemoryIntoRegister(asmjit::X86Compiler& cc);
+	void loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forceLoad=false);
 
 	BaseScope* getScope() const { return scope.get(); }
 
@@ -122,16 +124,13 @@ public:
 
 	bool isMemoryLocation() const;
 
+	void setCustomMemoryLocation(X86Mem newLocation);
+
 	void setDataPointer(void* memLoc);
 
 	void setIsIteratorRegister(bool isIterator)
 	{
 		isIter = isIterator;
-	}
-
-	void setOffset(size_t offsetInBytes)
-	{
-		offsetInBytesFromObjectStart = offsetInBytes;
 	}
 
 	bool isIteratorRegister() const
@@ -149,11 +148,10 @@ public:
 
 	void setUndirty();
 
-	// If this register was assigned to a dynamic reference, it will contain the address where it needs
-	// to write back the data...
-	void setAddressPointer(Ptr addressPointer_);
-
-	Ptr getAddressPointer() { return addressPointer; }
+	bool hasCustomMemoryLocation() const noexcept 
+	{
+		return hasCustomMem;
+	}
 
 private:
 
@@ -162,10 +160,9 @@ private:
 	X86Reg partReg1;
 	X86Reg partReg2;
 
-	Ptr addressPointer;
+	bool hasCustomMem = false;
 	bool isIter = false;
 
-	size_t offsetInBytesFromObjectStart = 0;
 	State state = State::InactiveRegister;
 	bool initialised = false;
 	bool dirty = false;
@@ -191,6 +188,8 @@ public:
 	void clear();
 	RegList getListOfAllDirtyGlobals();
 	RegPtr getRegisterForVariable(BaseScope* scope, const Symbol& variableId);
+
+	RegPtr getActiveRegisterForCustomMem(RegPtr regWithCustomMem);
 
 	void removeIfUnreferenced(AssemblyRegister::Ptr ref);
 	AssemblyRegister::Ptr getNextFreeRegister(BaseScope* scope, Types::ID type);

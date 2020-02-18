@@ -124,6 +124,20 @@ public:
 				s->process(compiler, scope);
 		}
 
+		bool forEachRecursive(const std::function<bool(Ptr)>& f)
+		{
+			if (f(this))
+				return true;
+
+			for (auto c : *this)
+			{
+				if (c->forEachRecursive(f))
+					return true;
+			}
+
+			return false;
+		}
+
 		virtual bool isConstExpr() const;
 
 		Location location;
@@ -170,6 +184,8 @@ public:
 		void process(BaseCompiler* compiler, BaseScope* scope) override;
 
 		bool isAnonymousStatement() const;
+
+		
 
 		virtual VariableStorage getConstExprValue() const;
 
@@ -265,11 +281,70 @@ public:
 	struct TernaryOp;		struct LogicalNot;				struct Cast;
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
-	struct BlockLoop;		struct IfStatement;				struct SmoothedVariableDefinition;
+	struct Loop;		struct IfStatement;				struct SmoothedVariableDefinition;
 	struct WrappedBlockDefinition;	struct ClassStatement;	struct ClassInstance;
-	struct PointerReference;	struct DotOperator;
+	struct PointerReference;	struct DotOperator;			struct UsingStatement;
 
-	struct SpanDefinition;	struct SpanReference; struct SpanAssignment;
+	struct SpanDefinition;	struct Subscript; struct SpanAssignment;
+
+
+	struct ScopeStatementBase
+	{
+		virtual ~ScopeStatementBase() {};
+
+		void addAlias(const Symbol& s)
+		{
+			aliases.add(s);
+		}
+
+		Types::ID getAliasNativeType(const Identifier& id) const
+		{
+			for (auto a : aliases)
+			{
+				if (a.id == id)
+					return a.type;
+			}
+
+			return Types::ID::Void;
+		}
+
+		ComplexType::Ptr getAliasComplexType(const Identifier& id) const
+		{
+			for (auto a : aliases)
+			{
+				if (a.id == id)
+					return a.typePtr;
+			}
+
+			return nullptr;
+		}
+
+		ScopeStatementBase* getScopedStatementForAlias(const Identifier& id)
+		{
+			for (auto a : aliases)
+			{
+				if (a.id == id)
+					return this;
+			}
+
+			if (parentScopeStatement != nullptr)
+				return parentScopeStatement->getScopedStatementForAlias(id);
+
+			return nullptr;
+		}
+
+		void setParentScopeStatement(ScopeStatementBase* parent)
+		{
+			parentScopeStatement = parent;
+		}
+
+	private:
+
+		WeakReference<ScopeStatementBase> parentScopeStatement;
+		Array<Symbol> aliases;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScopeStatementBase);
+	};
 
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.
@@ -327,7 +402,8 @@ public:
 
 It's used by either class definitions or function definition (so that each function has its own syntax tree).
 */
-class SyntaxTree : public Operations::Statement
+class SyntaxTree : public Operations::Statement,
+				   public Operations::ScopeStatementBase
 {
 public:
 
@@ -358,8 +434,21 @@ public:
 	Operations::Statement* getLastVariableForReference(const Symbol& ref) const;
 	Operations::Statement* getLastAssignmentForReference(const Symbol& ref) const;
 	
+	void addAlias(const Identifier& id, const juce::String& typeString)
+	{
+		registeredAliases.add({ id, typeString });
+
+	}
 
 private:
+
+	struct UsingAliases
+	{
+		Identifier id;
+		juce::String aliasContent;
+	};
+
+	Array<UsingAliases> registeredAliases;
 
 	Array<WeakReference<Statement>> variableReferences;
 

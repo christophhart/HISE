@@ -613,6 +613,20 @@ public:
 
 	void deregisterObject(const Symbol& id);
 
+	bool hasVariable(const Identifier& id) const override
+	{
+		for (auto f : objectClassesWithJitCallableFunctions)
+			if (f->getObjectName() == id)
+				return true;
+
+		return false;
+	}
+
+	bool updateSymbol(Symbol& symbolToBeUpdated) override
+	{
+		return false;
+	}
+
 	bool hasFunction(const Symbol& symbol) const override;
 
 	void addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const override;

@@ -198,6 +198,8 @@ bool Operations::Expression::isAnonymousStatement() const
 		isStatementType<SyntaxTree>(parent);
 }
 
+
+
 snex::VariableStorage Operations::Expression::getConstExprValue() const
 {
 	if (isConstExpr())
@@ -252,6 +254,17 @@ void SyntaxTree::addVariableReference(Operations::Statement* s)
 
 bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 {
+#if 0
+	SyntaxTreeWalker m(v_);
+
+	if(auto v = m.getNextStatementOfType<Operations::VariableReference>())
+	{
+		return v == v_;
+	}
+
+	return false;
+#endif
+	
 	for (auto v : variableReferences)
 	{
 		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
@@ -311,6 +324,8 @@ Operations::Statement::Statement(Location l) :
 
 void Operations::Statement::process(BaseCompiler* compiler, BaseScope* scope)
 {
+	jassert(scope != nullptr);
+
 	if (parent == nullptr)
 		return;
 

@@ -280,6 +280,14 @@ public:
 		localVariableInfo.add(l);
 	}
 
+	bool addVariable(const Symbol& s) override
+	{
+		if (typePtr != nullptr)
+			return true;
+
+		return getRootData()->allocate(this, s).wasOk();
+	}
+
 	bool hasVariable(const Identifier& id) const override
 	{
 		if (auto st = dynamic_cast<StructType*>(typePtr.get()))

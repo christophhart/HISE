@@ -44,8 +44,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::FunctionParsing)
 	{
-		jassert(scope->getScopeSymbol() == id.getParentSymbol());
-
 		functionScope = new FunctionScope(scope, id.id);
 
 		for (int i = 0; i < data.args.size(); i++)
@@ -88,9 +86,16 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			FunctionParser p(compiler, id, *this);
 
+			BlockParser::ScopedScopeStatementSetter svs(&p, findParentStatementOfType<ScopeStatementBase>(this));
+
 			statements = p.parseStatementList();
 			
 			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, statements);
+			// add this when using stack...
+			//compiler->executePass(BaseCompiler::DataSizeCalculation, functionScope, statements);
+			compiler->executePass(BaseCompiler::DataAllocation, functionScope, statements);
+			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, statements);
+			
 			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, statements);
 			compiler->executePass(BaseCompiler::TypeCheck, functionScope, statements);
 			compiler->executePass(BaseCompiler::SyntaxSugarReplacements, functionScope, statements);
@@ -228,13 +233,8 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 {
 	Expression::process(compiler, scope);
 
-	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
-		// Abort further processing, it'll be resolved in PostSymbolOptimization
-		if (BlockAccess::isWrappedBufferReference(this, scope))
-			return;
-
-
 		if (auto f = getFunctionClassForSymbol(scope))
 		{
 			id.type = Types::ID::Pointer;
@@ -249,146 +249,54 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			{
 				if (auto sType = dynamic_cast<StructType*>(pPointer.get()))
 				{
-					memberOffset = sType->getMemberOffset(id.id);
-					id.type = sType->getDataType();
-					typePtr = sType->getMemberComplexType(id.id);
+					objectPointer = dp->getDotParent();
+
+					id.type = sType->getMemberDataType(id.id);
+					auto byteSize = Types::Helpers::getSizeForType(id.type);
+
+					if (byteSize == 0)
+						location.throwError("Can't deduce type size");
+
+					memberOffset = VariableStorage((int)(sType->getMemberOffset(id.id)));
+
+					if(id.type == Types::ID::Pointer)
+						id = id.withComplexType(sType->getMemberComplexType(id.id));
+
 					return;
 				}
 			}
 		}
 
-		if (auto typePtr = scope->getRootData()->getComplexTypeForVariable(id))
+		if (id.isReference() && isLocalDefinition)
 		{
-			jassertfalse; // neu denken
-#if 0
-			ComplexType = cScope->
-
-			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
-
-			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
-				memberOffset = subClassType->getMemberOffset(id.id);
-			else
-				cScope->allocate(id);
-#endif
+			variableScope = scope;
 		}
-
-
-		// We will create the Reference to the according scope for this
-		// variable, check it's type and if it's a parameter, get the index...
-
-		if (auto vScope = scope->getScopeForSymbol(id))
+		else if (auto vScope = scope->getScopeForSymbol(id))
 		{
 			if (!vScope->updateSymbol(id))
 				location.throwError("Can't update symbol " + id.toString());
 
 			if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
 				parameterIndex = fScope->parameters.indexOf(id.id);
+
+			variableScope = vScope;
 		}
-		else if(auto rScope = dynamic_cast<RegisterScope*>(scope))
+		else if (id.typePtr = scope->getRootData()->getComplexTypeForVariable(id))
 		{
-			// The type must have been set or it is a undefined variable
-			if (getType() == Types::ID::Dynamic)
-				location.throwError("Use of undefined variable " + id.toString());
-
-			jassert(id.type != Types::ID::Dynamic);
-
-			// This will be a definition of a local variable.
-			rScope->localVariables.add(id);
+			dataPointer = VariableStorage(Types::ID::Pointer, scope->getRootData()->getDataPointer(id), true);
+			id.type = Types::ID::Pointer;
 		}
-		else if (auto cScope = dynamic_cast<ClassScope*>(scope))
+		else
+			location.throwError("Can't resolve symbol " + id.toString());
+
+		if (auto cScope = dynamic_cast<ClassScope*>(variableScope.get()))
 		{
 			if (getType() == Types::ID::Dynamic)
 				location.throwError("Use of undefined variable " + id.toString());
 
 			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
-				memberOffset = subClassType->getMemberOffset(id.id);
-			else
-				cScope->allocate(id);
+				memberOffset = VariableStorage((int)subClassType->getMemberOffset(id.id));
 		}
-		else
-		{
-			location.throwError("Can't resolve symbol " + id.toString());
-		}
-
-		
-
-		
-
-#if 0
-		if (isLocalToScope)
-		{
-			if (scope->getScopeForSymbol(id) != nullptr)
-				logWarning("Declaration hides previous variable definition");
-
-			if (auto regScope = dynamic_cast<RegisterScope*>(scope))
-			{
-				regScope->localVariables.add(id);
-			}
-
-			auto initValue = VariableStorage(getType(), 0);
-
-			if (type == Types::ID::Block)
-			{
-				auto globalScope = GlobalScope::getFromChildScope(scope);
-
-				initValue = globalScope->getBufferHandler().getData(id.id);
-			}
-
-			if (isLocalConst)
-				jassertfalse;
-		}
-		else if (auto vScope = scope->getScopeForSymbol(id))
-		{
-			if (auto rScope = dynamic_cast<RegisterScope*>(vScope))
-			{
-				for (const auto& l : rScope->localVariables)
-					if (l == id)
-						type = l.type;
-
-				isLocalToScope = true;
-				return;
-			}
-			if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
-			{
-				parameterIndex = fScope->parameters.indexOf(id.id);
-
-				if (parameterIndex != -1)
-				{
-					// This might be changed by the constant folding
-					// so we have to reset it here...
-					isLocalConst = false;
-
-					type = fScope->data.args[parameterIndex].type;
-
-					if (fScope == scope)
-						isLocalToScope = true;
-
-					return;
-				}
-			}
-			
-			type = scope->getRootData()->getTypeForVariable(id);
-
-			if (vScope == scope)
-			{
-				jassertfalse;
-				isLocalConst = false;
-			}
-		}
-		else if (auto fc = dynamic_cast<FunctionClass*>(findClassScope(scope)))
-		{
-			if (fc->hasConstant(id))
-			{
-				functionClassConstant = fc->getConstantValue(id);
-				type = functionClassConstant.getType();
-			}
-
-			if (functionClassConstant.isVoid())
-				throwError(id.getParentSymbol().toString() + " does not have constant " + id.id.toString());
-		}
-		else
-			throwError("Can't resolve variable " + id.toString());
-#endif
 
 		if (auto st = findParentStatementOfType<SyntaxTree>(this))
 			st->addVariableReference(this);
@@ -398,14 +306,9 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		
-		// Nothing to do...
+		if (objectPointer != nullptr && objectPointer->getType() != Types::ID::Pointer)
+			objectPointer->location.throwError("expression must have class type");
 	}
-
-#if 0
-	bool initialiseVariables = (currentPass == BaseCompiler::RegisterAllocation && parameterIndex != -1) ||
-		(currentPass == BaseCompiler::CodeGeneration && parameterIndex == -1);
-#endif
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
@@ -448,8 +351,43 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// It might already be assigned to a reused register
 		if (reg == nullptr)
 		{
-			reg = compiler->registerPool.getRegisterForVariable(scope, id);
-			reg->setOffset(memberOffset);
+			if (objectPointer == nullptr && memberOffset.getType() != Types::ID::Void)
+			{
+				if (auto fs = scope->getParentScopeOfType<FunctionScope>())
+				{
+					if (auto pf = dynamic_cast<Function*>(fs->parentFunction))
+					{
+						reg = compiler->registerPool.getNextFreeRegister(scope, getType());
+						reg->setReference(scope, id);
+						auto acg = CREATE_ASM_COMPILER(getType());
+						acg.emitThisMemberAccess(reg, pf->objectPtr, memberOffset);
+						return;
+					}
+				}
+			}
+
+			if (!dataPointer.isVoid())
+			{
+				auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
+				reg = compiler->registerPool.getNextFreeRegister(scope, Types::ID::Pointer);
+				reg->setDataPointer(dataPointer.getDataPointer());
+				reg->createMemoryLocation(asg.cc);
+				return;
+			}
+			if (objectPointer != nullptr)
+			{
+				// in this case we'll just store the offset as an integer register.
+				auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
+				reg = compiler->registerPool.getNextFreeRegister(scope, Types::ID::Integer);
+				reg->setDataPointer(memberOffset.getDataPointer());
+				reg->createMemoryLocation(asg.cc);
+				return;
+			}
+			else
+			{
+				jassert(variableScope != nullptr);
+				reg = compiler->registerPool.getRegisterForVariable(variableScope, id);
+			}
 		}
 			
 		if (reg->isActiveOrDirtyGlobalRegister() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
@@ -464,17 +402,11 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 		auto asg = CREATE_ASM_COMPILER(type);
 
-		isFirstWrite = (!reg->isActiveOrDirtyGlobalRegister() && !reg->isMemoryLocation()) || isFirstReference();
+		isFirstOccurence = (!reg->isActiveOrDirtyGlobalRegister() && !reg->isMemoryLocation()) || isFirstReference();
 
-		if (isFirstWrite)
+		if (isFirstOccurence)
 		{
 			auto assignmentType = getWriteAccessType();
-
-			if (id.isReference() && assignmentType == JitTokens::assign_)
-			{
-				reg->createRegister(asg.cc);
-				return;
-			}
 
 			auto rd = scope->getRootClassScope()->rootData.get();
 
@@ -484,8 +416,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				{
 					if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
 					{
-						dynamic_cast<Function*>(fScope->parentFunction)->objectPtr;
-
+						auto ptr = dynamic_cast<Function*>(fScope->parentFunction)->objectPtr;
 						jassertfalse;
 
 						return;
@@ -538,8 +469,12 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 	CodeGeneration, = > Store or Op
 	*/
 
-	/** Assignments might use the target register, so we need to process the target first*/
-	if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
+	
+
+	/** Assignments might use the target register OR have the same symbol from another scope
+	    so we need to customize the execution order in these passes... */
+	if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration ||
+		compiler->getCurrentPass() == BaseCompiler::DataAllocation)
 	{
 		Statement::process(compiler, scope);
 	}
@@ -548,99 +483,244 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		Expression::process(compiler, scope);
 	}
 
-	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
 	{
-		if (getSubExpr(0)->isConstExpr() && scope->getScopeType() == BaseScope::Class)
+		if (targetType == TargetType::Variable && isFirstAssignment && scope->getRootClassScope() == scope)
 		{
-			auto rd = scope->getRootClassScope()->rootData.get();
+			auto typeToAllocate = getTargetVariable()->getType();
 
-			auto target = getTargetVariable()->id;
-			auto initValue = getSubExpr(0)->getConstExprValue();
+			if (typeToAllocate == Types::ID::Dynamic)
+			{
+				int x = 12;
 
-			if (auto complexType = dynamic_cast<ClassScope*>(scope)->typePtr)
-			{
-				rd->initMemberData(complexType, target.id, initValue);
+				typeToAllocate = getSubExpr(0)->getType();
+
+				if (!Types::Helpers::isFixedType(typeToAllocate))
+				{
+					location.throwError("Can't deduce type");
+
+				}
+
+				getTargetVariable()->id.type = typeToAllocate;
 			}
-			else if (rd->contains(getTargetVariable()->id))
+
+			scope->getRootData()->enlargeAllocatedSize(Types::Helpers::getSizeForType(typeToAllocate));
+		}
+	}
+
+	COMPILER_PASS(BaseCompiler::DataAllocation)
+	{
+		getSubExpr(0)->process(compiler, scope);
+
+		if ((targetType == TargetType::Variable || targetType == TargetType::Reference) && isFirstAssignment)
+		{
+			auto type = getTargetVariable()->getType();
+
+			if (!Types::Helpers::isFixedType(type))
 			{
-				auto target = getTargetVariable()->id;
-				auto initValue = getSubExpr(0)->getConstExprValue();
-				rd->initGlobalData(target, initValue);
+				type = getSubExpr(0)->getType();
+
+				if (!Types::Helpers::isFixedType(type))
+				{
+					BaseCompiler::ScopedPassSwitcher rs(compiler, BaseCompiler::ResolvingSymbols);
+					getSubExpr(0)->process(compiler, scope);
+
+					BaseCompiler::ScopedPassSwitcher tc(compiler, BaseCompiler::TypeCheck);
+					getSubExpr(0)->process(compiler, scope);
+
+					type = getSubExpr(0)->getType();
+
+					if (!Types::Helpers::isFixedType(type))
+						location.throwError("Can't deduce auto type");
+				}
+
+				getTargetVariable()->id.type = type;
+#if 0
+
+				Array<Types::ID> types;
+				getSubExpr(0)->forEachRecursive([&types, compiler, scope](Statement::Ptr p)
+				{
+
+
+					if (auto tOp = dynamic_cast<TernaryOp*>(p.get()))
+					{
+						auto tt = tOp->getTrueBranch()->getType();
+
+						if (Types::Helpers::isFixedType(tt))
+							types.addIfNotAlreadyThere(tt);
+
+						auto ft = tOp->getFalseBranch()->getType();
+
+						if (Types::Helpers::isFixedType(ft))
+							types.addIfNotAlreadyThere(ft);
+
+						return true;
+					}
+					if (auto fc = dynamic_cast<FunctionCall*>(p.get()))
+					{
+						BaseCompiler::ScopedPassSwitcher rs(compiler, BaseCompiler::ResolvingSymbols);
+						fc->process(compiler, scope);
+
+						BaseCompiler::ScopedPassSwitcher tc(compiler, BaseCompiler::TypeCheck);
+						fc->process(compiler, scope);
+
+						types.clear();
+						types.add(fc->function.returnType);
+
+						return true;
+					}
+
+
+					auto t = p->getType();
+
+					if (Types::Helpers::isFixedType(t))
+						types.addIfNotAlreadyThere(t);
+
+					return false;
+				});
+
+				types.add(Types::ID::Dynamic);
+
+				type = types.getFirst();
+
+
+				if (types.size() == 1)
+					location.throwError("Can't deduce auto type");
+
+				if (types.size() > 2)
+				{
+					logWarning("Imprecise type deduction: " + Types::Helpers::getTypeName(types.getFirst()));
+					type = types.getFirst();
+				}
+
+				getTargetVariable()->id.type = type;
+#endif
 			}
-			else
-				throwError("Weirdness 2000");
+
+			getTargetVariable()->isLocalDefinition = true;
+			scope->addVariable(getTargetVariable()->id);
 		}
 
-		auto v = getTargetVariable();
+		getSubExpr(1)->process(compiler, scope);
+	}
 
-		if (v->id.isConst() && !isFirstAssignment)
-			throwError("Can't change constant variable");
+	COMPILER_PASS(BaseCompiler::DataInitialisation)
+	{
+		if (isFirstAssignment)
+			initClassMembers(compiler, scope);
+	}
 
-		if (getTargetVariable()->id.isReference() && isFirstAssignment)
+	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	{
+		switch (targetType)
 		{
-			auto source = getSubExpr(0);
-			auto pRef = new PointerReference(location);
-			source->replaceInParent(pRef);
-			pRef->addStatement(source);
-			pRef->process(compiler, scope);
+		case TargetType::Variable:
+		{
+			auto v = getTargetVariable();
+
+			if (v->id.isConst() && !isFirstAssignment)
+				throwError("Can't change constant variable");
+		}
+		case TargetType::Reference:
+		{
+			break;
+		}
+		case TargetType::ClassMember:
+		{
+			//...
+			break;
+		}
+		case TargetType::Span:
+		{
+			// nothing to do...
+			break;
+		}
 		}
 	}
 
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		auto expectedType = getTargetVariable()->getType();
-
-		
-		if (!(isFirstAssignment && getTargetVariable()->id.isReference()))
-			checkAndSetType(0, expectedType);
+		auto expected = getSubExpr(1)->getType();
+		checkAndSetType(0, expected);
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		auto targetV = getTargetVariable();
-
 		auto acg = CREATE_ASM_COMPILER(type);
 
-		if (isFirstAssignment && targetV->id.isReference())
-		{
-			targetV->process(compiler, scope);
-			getSubExpr(0)->process(compiler, scope);
-
-			auto tReg = targetV->reg;
-			auto vReg = getSubRegister(0);
-
-			acg.copyPointerAddress(tReg, vReg);
-			return;
-		}
-		
 		getSubExpr(0)->process(compiler, scope);
+		getSubExpr(1)->process(compiler, scope);
 
-		targetV->process(compiler, scope);
+		// jassertfalse;
+		// here you should do something with the reference...
 
 		auto value = getSubRegister(0);
 		auto tReg = getSubRegister(1);
 
-		if (assignmentType == JitTokens::assign_)
+		if (targetType == TargetType::Reference && isFirstAssignment)
 		{
-			if (tReg != value)
-				acg.emitStore(tReg, value);
+			jassert(value->hasCustomMemoryLocation() || value->isMemoryLocation());
+
+
+
+			tReg->setCustomMemoryLocation(value->getMemoryLocationForReference());
 		}
 		else
-			acg.emitBinaryOp(assignmentType, tReg, value);
+		{
+			if (assignmentType == JitTokens::assign_)
+			{
+				if (tReg != value)
+					acg.emitStore(tReg, value);
+			}
+			else
+				acg.emitBinaryOp(assignmentType, tReg, value);
 
-		if (tReg->isDirtyGlobalMemory())
-		{
-			acg.emitMemoryWrite(tReg);
-		}
 #if 0
-		if (scope->getRootClassScope()->rootData->contains(targetV->id))
-		{
-			acg.cc.setInlineComment("Write member variable");
-			acg.emitMemoryWrite(targetV->reg);
-		}
+			if (tReg->isDirtyGlobalMemory())
+			{
+				acg.emitMemoryWrite(tReg);
+			}
 #endif
+		}
+
+		
 	}
+}
+
+void Operations::Assignment::initClassMembers(BaseCompiler* compiler, BaseScope* scope)
+{
+	if (getSubExpr(0)->isConstExpr() && scope->getScopeType() == BaseScope::Class)
+	{
+		// this will initialise the class members to constant values...
+		auto rd = scope->getRootClassScope()->rootData.get();
+
+		auto target = getTargetVariable()->id;
+		auto initValue = getSubExpr(0)->getConstExprValue();
+
+		auto ok = rd->initData(scope, target, InitialiserList::makeSingleList(initValue));
+
+		if (!ok.wasOk())
+			location.throwError(ok.getErrorMessage());
+	}
+}
+
+Operations::Assignment::Assignment(Location l, Expression::Ptr target, TokenType assignmentType_, Expression::Ptr expr, bool firstAssignment_) :
+	Expression(l),
+	assignmentType(assignmentType_),
+	isFirstAssignment(firstAssignment_)
+{
+	if (auto v = dynamic_cast<VariableReference*>(target.get()))
+	{
+		targetType = v->id.isReference() ? TargetType::Reference : TargetType::Variable;
+	}
+	else if (dynamic_cast<DotOperator*>(target.get()))
+		targetType = TargetType::ClassMember;
+	else if (dynamic_cast<Subscript*>(target.get()))
+		targetType = TargetType::Span;
+
+	addStatement(expr);
+	addStatement(target); // the target must be evaluated after the expression
 }
 
 snex::jit::Symbol Operations::BlockAccess::isWrappedBufferReference(Statement::Ptr expr, BaseScope* scope)
@@ -708,22 +788,83 @@ void Operations::PointerReference::process(BaseCompiler* compiler, BaseScope* sc
 
 void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	Statement::process(compiler, scope);
+	Expression::process(compiler, scope);
 
-	getDotParent()->process(compiler, scope);
-	getDotChild()->process(compiler, scope);
-
-
+	if (getDotChild()->isConstExpr())
+	{
+		replaceInParent(new Immediate(location, getDotChild()->getConstExprValue()));
+		return;
+	}
+		
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
 		if (auto fc = dynamic_cast<FunctionCall*>(getDotChild().get()))
 		{
+			jassertfalse;
 			bool isPointer = getDotParent()->getType() == Types::ID::Pointer;
 
 			if (!isPointer)
 				throwError("Can't call non-object");
 		}
+	}
 
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+
+
+		if (auto vp = dynamic_cast<VariableReference*>(getDotChild().get()))
+		{
+			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
+			reg->setReference(scope, vp->id);
+			auto acg = CREATE_ASM_COMPILER(getType());
+			acg.emitMemberAcess(reg, getSubRegister(0), getSubRegister(1));
+		}
+		else
+		{
+			jassertfalse;
+
+			// just steal the register from the child...
+			reg = getSubRegister(1);
+			return;
+		}
+	}
+}
+
+
+
+void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	if (subClass == nullptr)
+		subClass = new ClassScope(scope, getStructType()->id, classType);
+
+	Statement::process(compiler, subClass);
+
+	getChildStatement(0)->process(compiler, subClass);
+
+	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
+	{
+		for (auto s : *getChildStatement(0))
+		{
+			if (auto td = dynamic_cast<TypeDefinitionBase*>(s))
+			{
+				if (auto ctPtr = td->getTypePtr())
+					getStructType()->addComplexMember(td->getInstanceId(), ctPtr);
+				else
+				{
+					auto type = td->getNativeType();
+
+					if (!Types::Helpers::isFixedType(type))
+						location.throwError("Can't use auto on member variables");
+
+					getStructType()->addNativeMember(td->getInstanceId(), type);
+				}
+			}
+		}
+	}
+
+	COMPILER_PASS(BaseCompiler::DataAllocation)
+	{
+		getStructType()->finaliseAlignment();
 	}
 }
 

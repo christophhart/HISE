@@ -54,6 +54,24 @@ public:
 	using ExprPtr = Operations::Expression::Ptr;
 	using StatementPtr = Operations::Statement::Ptr;
 
+	struct ScopedScopeStatementSetter // Scoped...
+	{
+		ScopedScopeStatementSetter(BlockParser* p_, Operations::ScopeStatementBase* current):
+			p(p_)
+		{
+			old = p->currentScopeStatement;
+			p->currentScopeStatement = current;
+		}
+
+		~ScopedScopeStatementSetter()
+		{
+			p->currentScopeStatement = old;
+		}
+
+		BlockParser* p;
+		WeakReference<Operations::ScopeStatementBase> old;
+	};
+
 	BlockParser(BaseCompiler* c, const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length, const Symbol& rootSymbol) :
 		TokenIterator(code, wholeProgram, length, rootSymbol),
 		compiler(c)
@@ -70,11 +88,66 @@ public:
 		ignoreUnused(tree);
 	}
 
+	Types::ID matchType() override
+	{
+		if (currentType == JitTokens::identifier)
+		{
+			auto cs = getCurrentScopeStatement();
+
+			auto id = parseIdentifier();
+
+			Types::ID type = Types::ID::Void;
+
+			if (cs = cs->getScopedStatementForAlias(id))
+			{
+				type = cs->getAliasNativeType(id);
+			}
+
+			if (type == Types::ID::Void)
+				throwTokenMismatch("Type");
+
+			return type;
+		}
+
+		return TokenIterator::matchType();
+	}
+
+	bool matchIfTypeToken() override
+	{
+		if (currentType == JitTokens::identifier)
+		{
+			auto id = Identifier(currentValue.toString());
+
+			auto cs = getCurrentScopeStatement();
+
+			if (cs = cs->getScopedStatementForAlias(id))
+			{
+				match(JitTokens::identifier);
+				currentHnodeType = cs->getAliasNativeType(id);
+				return true;
+			}
+		}
+
+		return TokenIterator::matchIfTypeToken();
+	}
+
 	VariableStorage parseVariableStorageLiteral();
+
+	InitialiserList::Ptr parseInitialiserList();
 
 	SpanType::Ptr parseSpanType();
 
 	WeakReference<BaseCompiler> compiler;
+
+	Operations::ScopeStatementBase* getCurrentScopeStatement() { return currentScopeStatement; }
+
+	void parseUsingAlias();
+
+
+
+private:
+
+	WeakReference<Operations::ScopeStatementBase> currentScopeStatement;
 };
 
 
@@ -100,6 +173,11 @@ public:
 	StatementPtr parseVariableDefinition(bool isConst);
 	StatementPtr parseFunction();
 	StatementPtr parseSubclass();
+	
+	StatementPtr parseComplexTypeDefinition(ComplexType::Ptr p);
+
+	StatementPtr parseDefinition(bool isConst, Types::ID type, bool isWrappedBuffer, bool isSmoothedVariable);
+
 };
 
 

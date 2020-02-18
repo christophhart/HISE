@@ -379,11 +379,7 @@ class ConsoleFunctions : public JitCallableObject
 {
 	struct WrapperInt
 	{
-		static int print(void* o, int a1) 
-		{ 
- 			return static_cast<ConsoleFunctions*>(o)->print(a1); 
-		};
-
+		JIT_MEMBER_WRAPPER_1(int, ConsoleFunctions, print, int);
 	};
 
 	struct WrapperDouble
@@ -406,6 +402,10 @@ class ConsoleFunctions : public JitCallableObject
 		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, stop, bool);
 	};
 
+	struct WrapperDump
+	{
+		JIT_MEMBER_WRAPPER_0(void, ConsoleFunctions, dump);
+	};
 	
 	int print(int value)
 	{
@@ -450,6 +450,21 @@ class ConsoleFunctions : public JitCallableObject
 		return value;
 	}
 
+	void dump()
+	{
+		if (gs != nullptr)
+		{
+			auto s = gs->getCurrentClassScope()->getRootData()->dumpTable();
+
+			MessageManager::callAsync([this, s]()
+			{
+				if (gs != nullptr)
+				{
+					gs->logMessage(s + "\n");
+				}
+			});
+		}
+	}
 
 	void stop(bool condition)
 	{

@@ -50,7 +50,7 @@ void SyntaxTreeWalker::add(Operations::Statement* s)
 		for (auto s_ : st->list)
 			add(s_);
 	}
-	else if (auto bl = dynamic_cast<Operations::BlockLoop*>(s))
+	else if (auto bl = dynamic_cast<Operations::Loop*>(s))
 	{
 		// the statement block is not a "real" sub expr (because it shouldn't
 		// be subject to the usual codegen)

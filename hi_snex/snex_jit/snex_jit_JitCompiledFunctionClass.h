@@ -57,6 +57,8 @@ public:
 
 	void* getVariablePtr(const Identifier& id);
 
+	juce::String dumpTable();
+
 	Array<Identifier> getFunctionIds() const;
 
 	ClassScope* releaseClassScope()
@@ -119,6 +121,14 @@ public:
 	ValueTree createValueTree();
 
 	void getColourAndLetterForType(int type, Colour& colour, char& letter) override;
+
+	juce::String dumpTable()
+	{
+		if(functionClass != nullptr)
+			return functionClass->dumpTable();
+
+		return {};
+	}
 
 private:
 

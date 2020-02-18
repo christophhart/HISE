@@ -111,31 +111,6 @@ BaseScope::~BaseScope()
 	}
 }
 
-juce::Result BaseScope::allocate(const Symbol& s)
-{
-	return getRootClassScope()->rootData->allocate(this, s);
-
-#if 0
-	for (auto av : allocatedVariables)
-	{
-		if (av.id == id)
-			return Result::fail("already exists");
-	};
-
-	for (int i = 0; i < size; i++)
-	{
-		if (data[i].getType() == Types::ID::Void)
-		{
-			data[i] = v;
-			allocatedVariables.add({ id, *(data + i) });
-			return Result::ok();
-		}
-	}
-
-	return Result::fail("Can't allocate");
-#endif
-}
-
 BaseScope* BaseScope::getScopeForSymbolInternal(const Symbol& s)
 {
 	Symbol sToUse = s;
@@ -293,9 +268,12 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 	{
 		if (c.id == symbolToBeUpdated)
 		{
+			jassert(Types::Helpers::isFixedType((c.v.getType())));
+
 			symbolToBeUpdated.type = c.v.getType();
 			symbolToBeUpdated.const_ = true;
 			symbolToBeUpdated.constExprValue = c.v;
+			symbolToBeUpdated.typePtr = nullptr;
 			return true;
 		}
 	}
@@ -381,6 +359,75 @@ snex::Types::ID BaseScope::Reference::getType() const
 }
 #endif
 
+
+juce::String RootClassData::dumpTable() const
+{
+	
+	juce::String s;
+	juce::String nl("\n");
+
+	s << "Dumping root data table" << nl;
+
+
+	for (const auto& st : symbolTable)
+	{
+		if (st.s.typePtr != nullptr)
+		{
+			int il = 0;
+
+			s << st.s.typePtr->toString() << " ";
+				
+			s << st.s.toString() << "\n";
+			st.s.typePtr->dumpTable(s, il, data.get(), st.data);
+		}
+		else
+		{
+			Types::Helpers::dumpNativeData(s, 0, st.s.toString(), data.get(), st.data, Types::Helpers::getSizeForType(st.s.type), st.s.type);
+		}
+	}
+
+	return s;
+}
+
+juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues)
+{
+	if (scope == scope->getRootClassScope())
+	{
+		for (const auto& ts : symbolTable)
+		{
+			if (ts.s == s)
+			{
+				if (ts.s.typePtr == nullptr)
+				{
+					VariableStorage initValue;
+					initValues->getValue(0, initValue);
+
+					if (ts.s.type == initValue.getType())
+					{
+						ComplexType::writeNativeMemberType(ts.data, 0, initValue);
+						return Result::ok();
+					}
+
+					return Result::fail("type mismatch");
+				}
+				else
+				{
+					return ts.s.typePtr->initialise(ts.data, initValues);
+				}
+			}
+		}
+	}
+	
+	if (auto cs = dynamic_cast<ClassScope*>(scope))
+	{
+		if (cs->typePtr != nullptr)
+		{
+			return initSubClassMembers(cs->typePtr, s.id, initValues);
+		}
+	}
+
+	return Result::fail("not found");
+}
 
 }
 }

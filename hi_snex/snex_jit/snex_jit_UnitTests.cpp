@@ -135,6 +135,19 @@ public:
 		
 	}
 
+	void dump()
+	{
+		DBG("code: ");
+		DBG(compiler->getLastCompiledCode());
+		DBG("assembly: ");
+		DBG(compiler->getAssemblyCode());
+		DBG("Data dump before call:");
+		DBG(before);
+		DBG("Data dump after call:");
+		DBG(func.dumpTable());
+		breakBeforeCall = true;
+	}
+
 	ReturnType getResult(T input, ReturnType expected)
 	{
 		if (!initialised)
@@ -144,19 +157,17 @@ public:
 
 		if (auto f = func[t])
 		{
+			before = func.dumpTable();
+
+			jassert(breakBeforeCall);
 			ReturnType v = f.template call<ReturnType>(input);
 
 			if (!(v == expected))
 			{
+				dump();
+
 				DBG("Expected: " + juce::String(expected));
 				DBG("Actual: " + juce::String(v));
-
-				DBG("Failed assembly: ");
-				
-				DBG(compiler->getAssemblyCode());
-				DBG("Failed code: ");
-				DBG(compiler->getLastCompiledCode());
-
 			}
 
 			return v;
@@ -164,6 +175,10 @@ public:
 
 		return ReturnType();
 	};
+
+
+	juce::String before;
+	bool breakBeforeCall = false;
 
 	bool wasOK()
 	{
@@ -298,10 +313,35 @@ public:
 
 	void runTest() override
 	{
+		optimizations = { OptimizationIds::ConstantFolding };
+
+		testComplexExpressions();
+		testComplexExpressions();
+		testComplexExpressions();
+		testComplexExpressions();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+		testSpan<double>();
+
 		return;
-		
+
 		testOptimizations();
 		
+		
+
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
@@ -343,16 +383,18 @@ public:
 		testDoubleFunctionCalls();
 		testBigFunctionBuffer();
 		testLogicalOperations();
+		
 		testScopes();
-		//testBlocks();
+		
 		//testEventSetters();
 		//testEvents();
 
+		testBlocks();
 		testSpan<int>();
 		testSpan<float>();
 		testSpan<double>();
-
-		//testStructs();
+		testStructs();
+		testUsingAliases();
 	}
 
 private:
@@ -369,6 +411,9 @@ private:
 		double a = (double)r.nextInt(25) *(r.nextBool() ? 1.0 : -1.0);
 		double b = (double)r.nextInt(62) *(r.nextBool() ? 1.0 : -1.0);
 
+		DBG("Size: " + juce::String(size));
+		DBG("index: " + juce::String(index));
+
 		if (b == 0.0) b = 55.0;
 
 		float d[12];
@@ -377,10 +422,55 @@ private:
 
 		juce::String code;
 
+		
 
 #define NEW_CODE_TEXT() code = {};
 #define DECLARE_SPAN(name) ADD_CODE_LINE("span<$T, $size> " + juce::String(name) + ";")
 #define FINALIZE_CODE() code = code.replace("$T", getTypeName<T>()); code = code.replace("$size", juce::String(size)); code = code.replace("$index", juce::String(index));
+
+		auto im = [](T v)
+		{
+			auto type = Types::Helpers::getTypeFromTypeId<T>();
+			VariableStorage v_(type, var(v));
+			return Types::Helpers::getCppValueString(v_);
+		};
+
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    int i = Math.min($size, (int)input + 3);");
+			ADD_CODE_LINE("    data[i] = ($T)4.0;");
+			ADD_CODE_LINE("    Console.print(i);");
+			ADD_CODE_LINE("    return data[i];}");
+			FINALIZE_CODE();
+
+			
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
+		}
+
+		juce::String tdi;
+
+		
+
+		tdi << "{ " << im(1) << ", " << im(2) << ", " << im(3) << "};";
+
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<$T, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    for(auto& s: data)");
+			ADD_CODE_LINE("        input += s;");
+			ADD_CODE_LINE("    return input;}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " iterator: sum elements", 0, 6);
+		}
+
+		
 
 		{
 			NEW_CODE_TEXT();
@@ -422,6 +512,41 @@ private:
 		
 		{
 			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<$T, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    for(auto& s: data)");
+			ADD_CODE_LINE("        s = 4;");
+			ADD_CODE_LINE("    for(auto& s2: data)");
+			ADD_CODE_LINE("        input += s2;");
+
+			ADD_CODE_LINE("    return input;}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " iterator: sum elements after set", 0, 12);
+		}
+
+		{
+			NEW_CODE_TEXT();
+
+			juce::String st;
+			st << "struct X { double unused = 2.0; $T value = " << im(2) << "; };";
+
+			ADD_CODE_LINE(st);
+			ADD_CODE_LINE("span<X, 3> data;");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    for(auto& s: data)");
+			ADD_CODE_LINE("        input += s.value;");
+
+			ADD_CODE_LINE("    return input;}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " iterator with struct element type ", 0, 6);
+		}
+
+		{
+			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    data[(int)input] = 4.0;");
@@ -432,18 +557,183 @@ private:
 			EXPECT_TYPED(GET_TYPE(T) + " span set with index cast", T(index), T(4.0));
 		}
 
+		
+		
+		
+		
+
+		tdi = {};
+		tdi << "{ { " << im(1) << ", " << im(2) << " }, { " << im(3) << ", " << im(4) << "}, {" << im(5) << ", " << im(6) << "} };";
+
 		{
 			NEW_CODE_TEXT();
-			DECLARE_SPAN("data");
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    int i = Math.min($size, (int)input + 3);");
-			ADD_CODE_LINE("    data[i] = ($T)4.0;");
-			ADD_CODE_LINE("    return data[i];}");
+			ADD_CODE_LINE("    $T sum = data[0][0] + data[0][1] + data[1][0] + data[1][1] + data[2][0] + data[2][1];");
+			ADD_CODE_LINE("    return sum;}");
 			FINALIZE_CODE();
 
 			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
+			EXPECT_TYPED(GET_TYPE(T) + " sum two dimensional array", 0, 1 + 2 + 3 + 4 + 5 + 6);
 		}
+
+		return;
+
+		// ============================================================================================= 2D span tests
+
+		tdi = {};
+		tdi << "{ { " << im(1) << ", " << im(2) << " }, { " << im(3) << ", " << im(4) << "}, {" << im(5) << ", " << im(6) << "} };";
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    $T sum = data[0][0] + data[0][1] + data[1][0] + data[1][1] + data[2][0] + data[2][1];");
+			ADD_CODE_LINE("    return sum;}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " sum two dimensional array", 0, 1+2+3+4+5+6);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    return data[1][1];}");
+
+			FINALIZE_CODE();
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " return 2D span element with immediates", 0, 4);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    return data[(int)1.2][(int)2.2 - 1];}");
+
+			FINALIZE_CODE();
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " return 2D span element with i && j index cast", 0, 4);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    return data[(int)1.2][0];}");
+
+			FINALIZE_CODE();
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " return 2D span element with i index cast", 0, 3);
+		}
+
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    return data[2][(int)1.8f];}");
+
+			FINALIZE_CODE();
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " return 2D span element with j index cast", 0, 6);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[0][0] = data[0][0] + data[0][1];");
+			ADD_CODE_LINE("    return data[0][0];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " sum span element to itself", 0, 3);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("void other(){");
+			ADD_CODE_LINE("    $T tempValue = data[1][1] + data[2][0];");
+			ADD_CODE_LINE("    data[0][0] = tempValue;");
+			ADD_CODE_LINE("}");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    other();");
+			ADD_CODE_LINE("    return data[0][0] + input;}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " change 2D span in other function", 2, 11);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[0][0] = data[(int)input][0];");
+			ADD_CODE_LINE("    return data[0][0];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " 2D-span with dynamic i-index", 2, 5);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[0][0] = data[1][(int)input];");
+			ADD_CODE_LINE("    return data[0][0];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " 2D-span with dynamic j-index", 1, 4);
+		}
+
+		tdi = {};
+		tdi << "{ { " << im(1) << ", " << im(2) << ", " << im(3) << "} , {" << im(4) << ", " << im(5) << ", " << im(6) << "} };";
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[0][0] = data[(int)input][0];");
+			ADD_CODE_LINE("    return data[0][0];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " 2D-span with 3 elements with dynamic i-index", 1, 4);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[0][0] = data[1][(int)input];");
+			ADD_CODE_LINE("    return data[0][0];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " 2D-span with 3 elements dynamic j-index", 1, 5);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    data[0][0] = data[(int)input][0];");
+			ADD_CODE_LINE("    return input;}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " don't change input register", 1, 1);
+		}
+
+		
+
 	}
 
 	void expectCompileOK(Compiler* compiler)
@@ -453,8 +743,27 @@ private:
 		expect(r.wasOk(), r.getErrorMessage() + "\nFunction Code:\n\n" + compiler->getLastCompiledCode());
 	}
 
+	
+
 	void testOptimizations()
 	{
+		beginTest("Testing match constant function folding");
+
+		{
+			OptimizationTestCase t;
+			t.setOptimizations({ OptimizationIds::ConstantFolding });
+			t.setExpressionBody("float test(){ return %BODY%; }");
+
+			expect(t.sameAssembly("(float)Math.pow(2.0, 3.0)", "8.0f"),
+				"Math.pow with cast");
+
+			expect(t.sameAssembly("Math.max(2.0f, 1.0f)", "2.0f"),
+				"Math.max");
+
+			expect(t.sameAssembly("(float)Math.fmod(2.1, false ? 0.333 : 1.0)", "0.1f"),
+				"Math.pow with const ternary op");
+		}
+
 		beginTest("Testing Constant folding");
 
 		{
@@ -521,22 +830,7 @@ private:
 			expect(t.sameAssembly("if(12 > 13) return 8; else return 5;", "return 5;"), "Constant else branch folding");
 		}
 
-		beginTest("Testing match constant function folding");
-
-		{
-			OptimizationTestCase t;
-			t.setOptimizations({ OptimizationIds::ConstantFolding });
-			t.setExpressionBody("float test(){ return %BODY%; }");
-
-			expect(t.sameAssembly("Math.max(2.0f, 1.0f)", "2.0f"),
-				"Math.max");
-
-			expect(t.sameAssembly("(float)Math.pow(2.0, 3.0)", "8.0f"),
-				"Math.pow with cast");
-
-			expect(t.sameAssembly("(float)Math.fmod(2.1, false ? 0.333 : 1.0)", "0.1f"),
-				"Math.pow with const ternary op");
-		}
+		
 
 		beginTest("Testing binary op optimizations");
 
@@ -626,6 +920,175 @@ private:
 		CREATE_TYPED_TEST("event test(event in){in.setNoteNumber(80); return in; }");
 	}
 
+	void testAuto()
+	{
+		beginTest("Testing auto declarations");
+		using T = int;
+		ScopedPointer<HiseJITTestCase<T>> test;
+
+		CREATE_TYPED_TEST("struct X { double v = 2.0; }; X x; int test(int input) { auto y = x.v; return (int)y; };");
+		EXPECT_TYPED("auto declaration with struct member", 3, 2);
+
+		CREATE_TYPED_TEST("int test(int input) { auto x = Math.abs((float)input); return (int)x; };");
+		EXPECT_TYPED("auto declaration with parameter cast", -3, 3);
+
+		CREATE_TYPED_TEST("int test(int input) { auto x = input > 12 ? 1.6f : 2.2f; return (int)x; };");
+		EXPECT_TYPED("auto declaration with ternary op - true", 3, 2);
+		EXPECT_TYPED("auto declaration with ternary op - false", 31, 1);
+
+		CREATE_TYPED_TEST("auto x = 12; int test(int input) { return x; };");
+		EXPECT_TYPED("class auto declaration", 1, 12);
+
+		CREATE_TYPED_TEST("int test(int input) { auto x = 12; return x; };");
+		EXPECT_TYPED("local auto declaration", 1, 12);
+
+		CREATE_TYPED_TEST("int test(int input) { auto x = 12 + 1; return x; };");
+		EXPECT_TYPED("local auto declaration with binary-op", 1, 13);
+
+		CREATE_TYPED_TEST("int test(int input) { auto x = input; return x; };");
+		EXPECT_TYPED("auto declaration with parameter", 4, 4);
+
+		CREATE_TYPED_TEST("int test(int input) { auto x = (float)input; return (int)x; };");
+		EXPECT_TYPED("auto declaration with parameter cast", 3, 3);
+
+		CREATE_TYPED_TEST("int test(int input) { auto x = (float)input + 3.0f; return (int)x; };");
+		EXPECT_TYPED("auto declaration with parameter cast and addition", 3, 6);
+
+		CREATE_TYPED_TEST("span<float, 2> data = { 12.0f, 19.0f}; int test(int input) { auto x = data[1]; return (int)x; };");
+		EXPECT_TYPED("auto declaration with span subscript", 3, 19);
+
+		
+	}
+
+	void testUsingAliases()
+	{
+		using T = int;
+
+		beginTest("Testing using alias");
+
+		ScopedPointer<HiseJITTestCase<T>> test;
+
+		
+
+
+		CREATE_TYPED_TEST("using T = int; int test(int input){ float x = 2.0f; return (T)x; };");
+		EXPECT_TYPED("cast with alias", 6, 2);
+
+		CREATE_TYPED_TEST("using T = int; T test(T input){ return input; };");
+		EXPECT_TYPED("native type using for function parameters", 6, 6);
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("int get(double input){ return 3;}");
+			ADD_CODE_LINE("int get(float input){ return 9;}");
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("    using T = float;");
+			ADD_CODE_LINE("    T v = (T)input;");
+			ADD_CODE_LINE("    return get(v);");
+			ADD_CODE_LINE("}");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("function overload with local alias", 4, 9);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("int get(double input){ return 3;}");
+			ADD_CODE_LINE("int get(float input){ return 9;}");
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("    using T = float;");
+			ADD_CODE_LINE("    T v = (T)input;");
+			ADD_CODE_LINE("    if(input > 2)");
+			ADD_CODE_LINE("    {");
+			ADD_CODE_LINE("        using T = double;");
+			ADD_CODE_LINE("        T v = (T)input;");
+			ADD_CODE_LINE("        return get(v);");
+			ADD_CODE_LINE("    }");
+			ADD_CODE_LINE("    return get(v);");
+			ADD_CODE_LINE("}");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("function overload with anonymous scope alias", 4, 3);
+			EXPECT_TYPED("function overload with anonymous scope alias", 1, 9);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("struct X { int v = 12; };");
+			ADD_CODE_LINE("using T = X;");
+			ADD_CODE_LINE("T obj = { 18 };");
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("    return obj.v;");
+			ADD_CODE_LINE("}");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("struct using alias", 4, 18);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("using T = span<int, 8>;");
+			ADD_CODE_LINE("T data = { 1, 2, 3, 4, 5, 6, 7, 8};");
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("    return data[3];");
+			ADD_CODE_LINE("}");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("span using alias", 1, 4);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("using T = int;");
+			ADD_CODE_LINE("using S = span<T, 8>;");
+			ADD_CODE_LINE("S data = { 1, 2, 3, 4, 5, 6, 7, 8};");
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("    return data[3];");
+			ADD_CODE_LINE("}");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("span using alias with type alias", 1, 4);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("using T = span<int, 2>;");
+			ADD_CODE_LINE("using S = span<T, 2>;");
+			ADD_CODE_LINE("S data = { {1,2} , {3,4} };");
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("    return data[1][0];");
+			ADD_CODE_LINE("}");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("span using alias with type alias", 1, 3);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("struct X {");
+			ADD_CODE_LINE("    using T = int;");
+			ADD_CODE_LINE("    T value = 12;");
+			ADD_CODE_LINE("};");
+
+			ADD_CODE_LINE("using C = X;");
+			ADD_CODE_LINE("C x;");
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("    return x.value;");
+			ADD_CODE_LINE("}");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("struct local using alias", 1, 12);
+		}
+	}
+
+
 	void testBlocks()
 	{
 		using T = block;
@@ -647,30 +1110,32 @@ private:
 		{
 			b.setSample(0, i, (float)(i + 1));
 		}
+
+		auto t = reinterpret_cast<uint64_t>(b.getWritePointer(0));
+
+		DBG(t);
 		
+
+		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
+		test->setup();
+		test->func["test"].call<float>(bl);
+		expectEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
+
+		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
+
+
+
 		CREATE_TYPED_TEST("float v = 0.0f; float test(block in) { for(auto& s: in) v = s; return v; }");
 		test->setup();
 		auto numSamples3 = test->func["test"].call<float>(bl);
 		expectEquals<int>(numSamples3, (float)bl.size(), "read block value into global variable");
+
 
 		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v = s; return v; }");
 		test->setup();
 		auto numSamples4 = test->func["test"].call<int>(bl);
 		expectEquals<int>(numSamples4, bl.size(), "read block value with cast");
 
-#if 0
-		double uptime = 0.0;
-
-		/** Multichannel processing callback */
-		void processFrame(block frame)
-		{
-			loop_block(s: frame)
-			{
-				s = (float)Math.sin(uptime);
-				uptime += 0.001;
-			}
-		}
-#endif
 		b.clear();
 
         CREATE_TYPED_TEST("float test(block in){ in[1] = Math.abs(in, 124.0f); return 1.0f; };");
@@ -764,15 +1229,25 @@ private:
 
 		ScopedPointer<HiseJITTestCase<int>> test;
 
+		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { x++; return x; }", optimizations);
+		expectCompileOK(test->compiler);
+		EXPECT("post int increment", 0, 13);
+
+		test = new HiseJITTestCase<int>("int x = 0; int test(int input){ x = input; return x;};", optimizations);
+		expectCompileOK(test->compiler);
+		EXPECT("int assignment", 6, 6);
 		
+		test = new HiseJITTestCase<int>("int other() { return 2; }; int test(int input) { return other(); }", optimizations);
+		expectCompileOK(test->compiler);
+		EXPECT("reuse double assignment", 0, 2);
 
 		test = new HiseJITTestCase<int>("int test(int input) { int x = 5; int y = x; int z = y + 12; return z; }", optimizations);
 		expectCompileOK(test->compiler);
 		EXPECT("reuse double assignment", 0, 17);
 
-		test = new HiseJITTestCase<int>("int x = 0; int test(int input){ x = input; return x;};", optimizations);
+		test = new HiseJITTestCase<int>("int test(int input){ input += 3; return input;};", optimizations);
 		expectCompileOK(test->compiler);
-		EXPECT("int assignment", 6, 6);
+		EXPECT("add-assign to input parameter", 2, 5);
 
 		test = new HiseJITTestCase<int>("int test(int input){ int x = 6; return x;};", optimizations);
 		expectCompileOK(test->compiler);
@@ -790,9 +1265,7 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("negative int assignment", 0, -5);
 
-		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { x++; return x; }", optimizations);
-		expectCompileOK(test->compiler);
-		EXPECT("post int increment", 0, 13);
+		
 
 		test = new HiseJITTestCase<int>("int x = 12; int test(int in) { return x++; }", optimizations);
 		expectCompileOK(test->compiler);
@@ -812,6 +1285,8 @@ private:
 		beginTest("Testing variable scopes");
 
 		ScopedPointer<HiseJITTestCase<float>> test;
+
+
 
 		CREATE_TEST("float test(float in) {{return 2.0f;}}; ");
 		expectCompileOK(test->compiler);
@@ -839,6 +1314,11 @@ private:
 		beginTest("Testing logic operations");
 
 		ScopedPointer<HiseJITTestCase<float>> test;
+
+		
+		CREATE_TEST("float x = 1.0f; int change() { x = 5.0f; return 1; } float test(float in){ int c = change(); 0 && c; return x;}");
+		expectCompileOK(test->compiler);
+		EXPECT("Don't short circuit variable expression with &&", 12.0f, 5.0f);
 
 		CREATE_TEST("float test(float i){ if(i > 0.5) return 10.0f; else return 5.0f; };");
 		expectCompileOK(test->compiler);
@@ -876,9 +1356,7 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("Short circuit of || operation", 12.0f, 1.0f);
 
-		CREATE_TEST("float x = 1.0f; int change() { x = 5.0f; return 1; } float test(float in){ int c = change(); 0 && c; return x;}");
-		expectCompileOK(test->compiler);
-		EXPECT("Don't short circuit variable expression with &&", 12.0f, 5.0f);
+		
 
 		CREATE_TEST("float x = 1.0f; int change() { x = 5.0f; return 1; } float test(float in){ int c = change(); 1 || c; return x;}");
 		expectCompileOK(test->compiler);
@@ -1005,6 +1483,53 @@ private:
 
 		ScopedPointer<HiseJITTestCase<int>> test;
 
+		CREATE_TYPED_TEST("struct X { int value = 3; int get() { return value; } }; X x1, x2; int test(int input) { x1.value = 8; x2.value = 9; return x1.get() + x2.get(); }");
+		expectCompileOK(test->compiler);
+		EXPECT("two instances set value", 7, 8 + 9);
+
+		CREATE_TYPED_TEST("struct X { span<int, 2> data = {7, 9}; }; X x; int test(int input) { return x.data[0] + input; };");
+		expectCompileOK(test->compiler);
+		EXPECT("span member access", 7, 14);
+
+		
+
+		CREATE_TYPED_TEST("struct X { int x = 3; int getX() { return x; } }; X x; int test(int input) { return x.getX(); };");
+		expectCompileOK(test->compiler);
+		EXPECT("member variable with instance id", 0, 3);
+
+
+		CREATE_TYPED_TEST("struct X { int u = 2; int v = 3; int getX() { return v; } }; X x; int test(int input) { return x.getX(); };");
+		expectCompileOK(test->compiler);
+		EXPECT("member variable", 0, 3);
+
+		
+
+		
+
+		CREATE_TYPED_TEST("struct X { double z = 12.0; int value = 3; }; X x1; X x2; int test(int input) { X& ref = x2; return ref.value; };");
+		expectCompileOK(test->compiler);
+		EXPECT("struct ref", 7, 3);
+
+		CREATE_TYPED_TEST("struct X { int x = 3; }; span<X, 3> d; int test(int input) { return d[0].x + input; };");
+		expectCompileOK(test->compiler);
+		EXPECT("span of structs", 7, 10);
+		
+		
+
+		
+
+		CREATE_TYPED_TEST("struct X { struct Y{ span<int, 2> data = {7, 9};}; Y y; }; X x; int test(int input) { return x.y.data[0] + input; };");
+		expectCompileOK(test->compiler);
+		EXPECT("span member access", 7, 14);
+
+		CREATE_TYPED_TEST("struct X { int value = 3; double v2 = 8.0; }; X x; int test(int input) { return (int)x.v2 + input; };");
+		expectCompileOK(test->compiler);
+		EXPECT("unaligned double member access", 7, 15);
+
+		CREATE_TYPED_TEST("struct X { int value = 5; int getX() { return value; } }; X x; int test(int input) { return x.getX(); }");
+		expectCompileOK(test->compiler);
+		EXPECT("simple struct getter method", 7, 5);
+
 		CREATE_TYPED_TEST("struct X { int value = 5; }; X x; int test(int input) { return x.value; }");
 		expectCompileOK(test->compiler);
 		EXPECT("simple struct access", 7, 5);
@@ -1013,26 +1538,9 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("simple struct member set", 7, 14);
 
-		CREATE_TYPED_TEST("struct X { int value = 5; int getX() { return value; } }; X x; int test(int input) { return x.getX(); }");
-		expectCompileOK(test->compiler);
-		EXPECT("simple struct getter method", 7, 5);
-
 		CREATE_TYPED_TEST("struct X { int value = 5; void set(int v) { value = v; } }; X x; int test(int input) { x.set(input); return x.value * 3; }");
 		expectCompileOK(test->compiler);
 		EXPECT("simple struct setter method", 7, 21);
-
-
-		CREATE_TYPED_TEST("wblock b = Buffer.create(15); int test(int input) { b[1] = 12.0f; return (int)b[1]; }");
-		expectCompileOK(test->compiler);
-		EXPECT("wblock basic test", 7, 12);
-
-		CREATE_TYPED_TEST("struct X { wblock b = Buffer.create(15); }; X x; int test(int input) { x.b[1] = 12.0f; return (int)x.b[1]; }");
-		expectCompileOK(test->compiler);
-		EXPECT("struct block member access", 7, 12);
-
-		CREATE_TYPED_TEST("struct X { wblock b = Buffer.create(15); }; X x; int test(int input) { x.b[1] = 12.0f; return (int)x.b.getAt(1); }");
-		expectCompileOK(test->compiler);
-		EXPECT("struct wblock member function call", 7, 12);
 
 		CREATE_TYPED_TEST("struct X { struct Y { int value = 19; }; Y y; }; X x; int test(int input) { return x.y.value; }");
 		expectCompileOK(test->compiler);
@@ -1042,13 +1550,7 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("nested struct member setter", 7, 12);
 
-		CREATE_TYPED_TEST("struct X { struct Y { sfloat value = 4.0f; }; Y y; }; X x; int test(int input) { return (int)x.y.value.next(); }");
-		expectCompileOK(test->compiler);
-		EXPECT("nested struct sfloat call", 7, 4);
-
-		CREATE_TYPED_TEST("struct X { int value = 3; int get() { return value; } }; X x1, x2; int test(int input) { x1.value = 8; x2.value = 9; return x1.get() + x2.get(); }");
-		expectCompileOK(test->compiler);
-		EXPECT("two instances set value", 7, 8+9);
+		
 
 		
 	}
@@ -1068,12 +1570,14 @@ private:
 
 #define CREATE_POINTER_FUNCTION_TEMPLATE(codeAfterRefDefiniton) CREATE_TYPED_TEST(getGlobalDefinition<T>(a) + getTypeName<T>() + " test(" + getTypeName<T>() + " input){" + getTypeName<T>() + "& ref = x; " + codeAfterRefDefiniton + "}");
 
+		CREATE_POINTER_FUNCTION_TEMPLATE("ref += input; return x;");
+		EXPECT_TYPED(GET_TYPE(T) + " Adding input to reference variable", b, a + b);
+
 		CREATE_POINTER_FUNCTION_TEMPLATE("ref = input; return x;");
 		EXPECT_TYPED(GET_TYPE(T) + " Setting reference variable", a, a);
 
 
-		CREATE_POINTER_FUNCTION_TEMPLATE("ref += input; return x;");
-		EXPECT_TYPED(GET_TYPE(T) + " Adding input to reference variable", b, a + b);
+		
 
 		CREATE_POINTER_FUNCTION_TEMPLATE("ref += input; return ref;");
 		EXPECT_TYPED(GET_TYPE(T) + " Adding input to reference variable", b, a + b);
@@ -1098,6 +1602,9 @@ private:
 		if (b == 0.0) b = 55.0;
 
 		ScopedPointer<HiseJITTestCase<T>> test;
+
+		CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " > " T_B " ? " T_1 ":" T_0 ";"));
+		EXPECT_TYPED(GET_TYPE(T) + " Conditional", T(), (T)(a > b ? 1 : 0));
 
 		CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " + " T_B ";"));
 		EXPECT_TYPED(GET_TYPE(T) + " Addition", T(), (T)(a + b));
@@ -1239,6 +1746,33 @@ private:
 		beginTest("Function Calls");
 
 		ScopedPointer<HiseJITTestCase<float>> test;
+
+		CREATE_TEST("float other(float input) { return input * 2.0f; } float test(float input) { return other(input); }");
+		EXPECT("root class function call", 8.0f, 16.0f);
+
+		CREATE_TEST("float test(float input) { return Math.abs(input); }");
+		EXPECT("simple math API call", -5.0f, 5.0f);
+
+		CREATE_TEST("struct X { int u = 8; float v = 12.0f; float getV() { return v; }}; X x; float test(float input){ return x.getV() + input;");
+		EXPECT("struct member call", 8.0f, 20.0f);
+
+		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; }}; Y y; }; X x; float test(float input){ return x.y.getV() + input;");
+		EXPECT("inner struct member call", 8.0f, 20.0f);
+
+		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; } }; Y y; float getY() { return y.getV();} }; X x; float test(float input){ return x.getY() + input;");
+		EXPECT("nested struct member call", 8.0f, 20.0f);
+
+		CREATE_TEST("struct X { int u = 8; float v = 12.0f; float getV() { return v; }}; span<X, 3> d; float test(float input){ return d[1].getV() + input;");
+		EXPECT("span of structs struct member call", 8.0f, 20.0f);
+		
+		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; }}; Y y; }; span<X, 3> d; float test(float input){ return d[1].y.getV() + input;");
+		EXPECT("span of structs inner struct member call", 8.0f, 20.0f);
+
+		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; }}; span<Y, 3> y; }; X x; float test(float input){ return x.y[1].getV() + input;");
+		EXPECT("struct inner span member call", 8.0f, 20.0f);
+
+		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; }}; span<Y, 3> y; }; span<X, 3> d; float test(float input){ return d[1].y[1].getV() + input;");
+		EXPECT("struct inner span member call", 8.0f, 20.0f);
 
         CREATE_TEST("float ov(int a){ return 9.0f; } float ov(double a) { return 14.0f; } float test(float input) { return ov(5); }");
         EXPECT("function overloading", 2.0f, 9.0f);

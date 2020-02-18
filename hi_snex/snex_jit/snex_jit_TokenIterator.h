@@ -57,7 +57,8 @@ using namespace juce;
 	X(void_, "void")			X(public_, "public")	X(private_, "private") \
 	X(class_, "class")			X(block_, "block")	X(event_, "event")		X(for_, "for") \
 	X(if_, "if")				X(else_, "else")	X(sfloat, "sfloat")		X(sdouble, "sdouble") \
-	X(auto_, "auto")			X(wblock, "wblock")	X(zblock, "zblock")		X(struct_, "struct")	X(span_, "span")
+	X(auto_, "auto")			X(wblock, "wblock")	X(zblock, "zblock")		X(struct_, "struct")	X(span_, "span") \
+	X(using_, "using")			
 
 namespace JitTokens
 {
@@ -77,6 +78,8 @@ namespace JitTokens
 
 struct ParserHelpers
 {
+	
+
 	using TokenType = const char*;
 
 	static String getTokenName(TokenType t) { return t[0] == '$' ? String(t + 1) : ("'" + String(t) + "'"); }
@@ -208,10 +211,12 @@ struct ParserHelpers
 
 			clearSymbol();
 
-			while (currentType == JitTokens::identifier)
+			bool repeat = true;
+
+			while (currentType == JitTokens::identifier && repeat)
 			{
 				addSymbolChild(parseIdentifier());
-				matchIf(JitTokens::dot);
+				repeat = matchIf(JitTokens::dot);
 			}
 		}
 
@@ -254,6 +259,8 @@ struct ParserHelpers
 				currentSideEffect = Nothing;
 		}
 
+		
+
 #if 0
 		bool matchIfSymbol(bool isConst)
 		{
@@ -280,7 +287,7 @@ struct ParserHelpers
 		static bool isIdentifierStart(const juce_wchar c) noexcept { return CharacterFunctions::isLetter(c) || c == '_'; }
 		static bool isIdentifierBody(const juce_wchar c) noexcept { return CharacterFunctions::isLetterOrDigit(c) || c == '_'; }
 
-		bool matchIfTypeToken()
+		virtual bool matchIfTypeToken()
 		{
 			if (matchIf(JitTokens::float_))		  currentHnodeType = Types::ID::Float;
 			else if (matchIf(JitTokens::int_))	  currentHnodeType = Types::ID::Integer;
@@ -288,6 +295,7 @@ struct ParserHelpers
 			else if (matchIf(JitTokens::event_))  currentHnodeType = Types::ID::Event;
 			else if (matchIf(JitTokens::block_))  currentHnodeType = Types::ID::Block;
 			else if (matchIf(JitTokens::void_))	  currentHnodeType = Types::ID::Void;
+			else if (matchIf(JitTokens::auto_)) { currentHnodeType = Types::ID::Dynamic; return true; }
 			else								  currentHnodeType = Types::ID::Dynamic;
 			
 			return currentHnodeType != Types::ID::Dynamic;
@@ -323,7 +331,7 @@ struct ParserHelpers
 			return false;
 		}
 
-		Types::ID matchType()
+		virtual Types::ID matchType()
 		{
 			if (matchIf(JitTokens::float_)) return Types::ID::Float;
 			if (matchIf(JitTokens::int_))	return Types::ID::Integer;
@@ -336,6 +344,7 @@ struct ParserHelpers
 			if (matchIf(JitTokens::zblock)) return Types::ID::Block;
 			if (matchIf(JitTokens::wblock)) return Types::ID::Block;
 			if (matchIf(JitTokens::span_))  return Types::ID::Pointer;
+			if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
 
 			throwTokenMismatch("Type");
 
@@ -438,6 +447,8 @@ struct ParserHelpers
 			if (r.failed()) location.throwError(r.getErrorMessage());
 			return true;
 		}
+
+
 
 		Identifier parseIdentifier()
 		{
@@ -603,6 +614,8 @@ struct ParserHelpers
 		{
 			currentSymbol = currentSymbol.getChildSymbol(id);
 		}
+
+		
 
 	private:
 

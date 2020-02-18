@@ -67,6 +67,31 @@ struct VOps
 #undef VAR_OP_INT
 };
 
+ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalDotOperator(BaseScope* s, Operations::DotOperator* dot)
+{
+	if (auto pv = dynamic_cast<Operations::VariableReference*>(dot->getDotParent().get()))
+	{
+		if (auto fc = pv->getFunctionClassForSymbol(s))
+		{
+			if (auto cv = dynamic_cast<Operations::VariableReference*>(dot->getDotChild().get()))
+			{
+				if (fc->hasConstant(cv->id))
+				{
+					return new Operations::Immediate(dot->location, fc->getConstantValue(cv->id));
+				}
+			}
+			if (auto cf = dynamic_cast<Operations::FunctionCall*>(dot->getDotChild().get()))
+			{
+				return evalConstMathFunction(cf);
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+
+
 bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
 	// run both times, since something could become constexpr during symbol resolving...
@@ -80,6 +105,16 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			if (auto constResult = evalConstMathFunction(fc))
 			{
 				statement->logOptimisationMessage("Remove const Math function call");
+				replaceExpression(statement, constResult);
+				return true;
+			}
+		}
+
+		if (auto dot = as<Operations::DotOperator>(statement))
+		{
+			if (auto constResult = evalDotOperator(s, dot))
+			{
+				statement->logOptimisationMessage("Remove const dot operator");
 				replaceExpression(statement, constResult);
 				return true;
 			}
@@ -111,6 +146,15 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			}
 		}
 
+		if (auto c = as<Operations::Cast>(statement))
+		{
+			if (auto imm = evalCast(c->getSubExpr(0), c->getType()))
+			{
+				replaceExpression(c, imm);
+				return true;
+			}
+		}
+
 		if (auto a = as<Operations::Assignment>(statement))
 		{
 			a->getSubExpr(0)->process(compiler, s);
@@ -121,15 +165,18 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 				a->getSubExpr(1)->process(compiler, s);
 
-				auto target = a->getTargetVariable();
-
-				if (target != nullptr)
+				if (a->targetType == Operations::Assignment::TargetType::Variable)
 				{
-					int numWriteAccesses = target->getNumWriteAcesses();
+					auto target = a->getTargetVariable();
 
-					if (numWriteAccesses == 1 && !target->id.isConst())
+					if (target != nullptr)
 					{
-						a->logWarning("const value is declared as non-const");
+						int numWriteAccesses = target->getNumWriteAcesses();
+
+						if (numWriteAccesses == 1 && !target->id.isConst())
+						{
+							a->logWarning("const value is declared as non-const");
+						}
 					}
 				}
 			}
@@ -373,11 +420,19 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::createInvertImmediate
 
 snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(Operations::FunctionCall* functionCall)
 {
-	if (auto symbol = functionCall->id)
+	if (functionCall->callType == Operations::FunctionCall::ApiFunction)
 	{
-		Array<FunctionData> matches;
-
 		MathFunctions m;
+
+		if (auto t = dynamic_cast<Operations::VariableReference*>(functionCall->objExpr.get()))
+		{
+			if (t->id != m.getClassName())
+				return nullptr;
+		}
+
+		Array<FunctionData> matches;
+		auto symbol = m.getClassName().getChildSymbol(functionCall->function.id);
+
 		m.addMatchingFunctions(matches, symbol);
 
 		if (!matches.isEmpty())
@@ -610,32 +665,31 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 		{
 			simplifyOp(a->getSubExpr(1), a->getSubExpr(0), a->assignmentType, compiler, s);
 
-			
-			currentlyAssignedId = a->getTargetVariable()->id;
-
-			a->getSubExpr(0)->process(compiler, s);
-
-			if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
+			if (a->targetType == Operations::Assignment::TargetType::Variable)
 			{
-				if (isAssignedVariable(bOp->getSubExpr(0)))
+				currentlyAssignedId = a->getTargetVariable()->id;
+
+				a->getSubExpr(0)->process(compiler, s);
+
+				if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
 				{
-					a->logOptimisationMessage("Replace " + juce::String(bOp->op) + " with self assignment");
-                    
+					if (isAssignedVariable(bOp->getSubExpr(0)))
+					{
+						a->logOptimisationMessage("Replace " + juce::String(bOp->op) + " with self assignment");
 
-                    a->assignmentType = bOp->op;
-                    
-                    auto right = bOp->getSubExpr(1);
-                    
-                    replaceExpression(bOp, right);
-					return true;
+
+						a->assignmentType = bOp->op;
+
+						auto right = bOp->getSubExpr(1);
+
+						replaceExpression(bOp, right);
+						return true;
+					}
 				}
+
+				currentlyAssignedId = {};
 			}
-
-			currentlyAssignedId = {};
-
 		}
-
-		
 	}
 
 	return false;

@@ -196,6 +196,13 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 		addFunction(f);
 		setDescription("Breaks the execution if condition is true and dumps all variables", { "condition"});
 	}
+
+	{
+		auto f = createMemberFunction(Types::ID::Void, "dump", { });
+		f->setFunction(WrapperDump::dump);
+		addFunction(f);
+		setDescription("Dumps the current state of the class data", { });
+	}
 }
 
 void WrappedBufferBase::rightClickCallback(const MouseEvent& e, Component* c)

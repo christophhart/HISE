@@ -79,102 +79,6 @@ public:
 		int typeIndex;
 	};
 
-#if 0
-	struct Reference : public ReferenceCountedObject,
-					   public DebugableObjectBase
-	{
-	private:
-
-		friend class BaseScope;
-
-		Reference();
-
-		Reference(BaseScope* p, const Identifier& s, Types::ID type);;
-
-		// =================================================================== Debug methods
-
-		Identifier getObjectName() const override { return "ClassVariable"; };
-
-		Identifier getInstanceName() const override 
-		{ 
-			return id.toString();
-		}
-
-		int getTypeNumber() const override
-		{
-			return (int)getType();
-		}
-
-		juce::String getCategory() const override { return "Global variable"; };
-
-		juce::String getDebugDataType() const override
-		{
-			return Types::Helpers::getTypeName(getType());
-		}
-
-		juce::String getDebugValue() const override
-		{
-			return Types::Helpers::getCppValueString(getDataCopy());
-		}
-
-		// =================================================================================
-
-	public:
-
-		int getNumReferences() const;;
-
-		bool operator==(const Reference& other) const;
-
-		WeakReference<BaseScope> scope;
-		Symbol id;
-		bool isConst = false;
-
-		void* getDataPointer() const;
-
-		VariableStorage getDataCopy() const;
-
-		VariableStorage& getDataReference(bool allowConstInitialisation = false) const;
-
-		Types::ID getType() const;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Reference);
-	};
-
-
-	using RefPtr = ReferenceCountedObjectPtr<Reference>;
-
-	RefPtr get(const Symbol& s);
-
-
-	snex::jit::BaseScope::RefPtr get(const Symbol& s)
-	{
-		for (auto er : referencedVariables)
-		{
-			if (er->id == s)
-				return er;
-		}
-
-		for (auto c : constants)
-		{
-			if (c.id == s)
-			{
-				RefPtr r = new Reference(this, s.id, c.id.type);
-				r->isConst = true;
-				referencedVariables.add(r);
-				return r;
-			}
-		}
-
-		auto& v = getRootClassScope()->rootData->get(s);
-
-		RefPtr r = new Reference(this, s.id, v.getType());
-		referencedVariables.add(r);
-		return r;
-
-		return nullptr;
-	}
-#endif
-
 	ScopeType getScopeType() const;;
 
 	GlobalScope* getGlobalScope();
@@ -206,9 +110,14 @@ public:
 
 	virtual ~BaseScope();;
 
-	Result allocate(const Symbol& s);
-
 	BaseScope* getScopeForSymbol(const Symbol& s);
+
+	/** Override this, allocate the variable and return true if success. */
+	virtual bool addVariable(const Symbol& s)
+	{
+		jassertfalse;
+		return false;
+	}
 
 	virtual bool hasVariable(const Identifier& id) const;
 
@@ -252,6 +161,20 @@ public:
 		return scopeType == Class && scopeId;
 	}
 
+	BaseScope* getChildScope(const Symbol& s) const
+	{
+		if (s == scopeId)
+			return const_cast<BaseScope*>(this);
+
+		for (auto cs : childScopes)
+		{
+			if (auto bs = cs->getChildScope(s))
+				return bs;
+		}
+
+		return nullptr;
+	}
+
 	int getNumChildScopes() const
 	{
 		return childScopes.size();
@@ -293,17 +216,15 @@ class RootClassData
 	{
 		Symbol s;
 		void* data;
-		size_t size;
-		int type;
-		ComplexType::Ptr typePtr;
 		WeakReference<BaseScope> scope;
 	};
 
 public:
 
+	juce::String dumpTable() const;
+
 	RootClassData()
 	{
-		data.allocate(1024, true);
 	}
 
 	bool updateSymbol(Symbol& toBeUpdated)
@@ -320,60 +241,52 @@ public:
 		return false;
 	}
 
-	Result allocateComplexType(BaseScope* scope, const Symbol& s, ComplexType::Ptr typePtr)
+	void enlargeAllocatedSize(size_t bytesToAllocate)
 	{
-		jassert(scope->getScopeType() == BaseScope::Class);
-		jassert(s.type == Types::ID::Pointer);
+		jassert(data == nullptr);
+		allocatedSize += bytesToAllocate;
+	}
 
-		if (contains(s))
-			return Result::fail(s.toString() + "already exists");
+	void finalise()
+	{
+		if (allocatedSize % 16 != 0)
+		{
+			allocatedSize += 16 - (allocatedSize % 16);
+		}
 
-		TableEntry newEntry;
-
-		auto alignment = Types::Helpers::getSizeForType(typePtr->getDataType());
-
-		jassert(((uint64_t)data.get() + numUsed) % alignment == 0);
-
-		newEntry.s = s;
-		newEntry.typePtr = typePtr;
-		newEntry.size = typePtr->getRequiredByteSize();
-		newEntry.type = (int)typePtr->getDataType();
-		newEntry.data = data + numUsed;
-		newEntry.scope = scope;
-
-		memset(newEntry.data, 0, newEntry.size);
-
-		numUsed += newEntry.size;
-		symbolTable.add(newEntry);
-
-		return Result::ok();
+		data.allocate(allocatedSize, true);
 	}
 
 	Result allocate(BaseScope* scope, const Symbol& s)
 	{
-		jassert(scope->getScopeType() == BaseScope::Class);
-
-		// This is the last time you'll get the chance to set the type...
-		jassert(s.type != Types::ID::Dynamic);
-
-		if (contains(s))
-			return Result::fail(s.toString() + "already exists");
-
-		TableEntry newEntry;
-		newEntry.s = s;
-		newEntry.type = s.type;
-		newEntry.size = Types::Helpers::getSizeForType(s.type);
-		newEntry.data = data + numUsed;
-
-		numUsed += newEntry.size;
-
-		memset(newEntry.data, 0, newEntry.size);
-
-		newEntry.scope = scope;
-
-		symbolTable.add(newEntry);
-		return Result::ok();
+		if (s.typePtr != nullptr)
+			return allocateComplexType(scope, s);
+		else
+			return allocateNativeType(scope, s);
 	}
+
+	bool zeroPadAlign(size_t alignment)
+	{
+		if (alignment == 0)
+		{
+			return Result::fail("No data size specified");
+		}
+
+		int unAligned = (numUsed % alignment);
+
+		if (unAligned != 0)
+		{
+			auto numToPad = alignment - unAligned;
+
+			memset(data + numUsed, 0, numToPad);
+			numUsed += numToPad;
+			return true;
+		}
+
+		return false;
+	}
+
+	
 
 	bool contains(const Symbol& s) const
 	{
@@ -389,10 +302,38 @@ public:
 		for (const auto& ts : symbolTable)
 		{
 			if (ts.s == s)
-				return (Types::ID)ts.type;
+				return ts.s.type;
 		}
 
 		return Types::ID::Dynamic;
+	}
+
+	bool checkSubClassMembers(const TableEntry& ts, const Symbol& s, const std::function<void(StructType* sc, const Identifier& id)>& f) const
+	{
+		if (ts.s.isParentOf(s) && ts.s.typePtr != nullptr)
+		{
+			auto path = s.getPath();
+			path.remove(0);
+
+			auto tp = ts.s.typePtr.get();
+
+			for (int i = 0; i < path.size(); i++)
+			{
+				auto thisMember = path[i];
+				auto st = dynamic_cast<StructType*>(tp);
+
+				if (st == nullptr)
+					break;
+
+				f(st, thisMember);
+
+				tp = st->getMemberComplexType(thisMember).get();
+			}
+
+			return true;
+		}
+
+		return false;
 	}
 
 	ComplexType::Ptr getComplexTypeForVariable(const Symbol& s) const
@@ -400,7 +341,15 @@ public:
 		for (const auto& ts : symbolTable)
 		{
 			if (ts.s == s)
-				return ts.typePtr;
+				return ts.s.typePtr;
+
+			ComplexType::Ptr p;
+
+			if(checkSubClassMembers(ts, s, [&p](StructType* c, const Identifier& id)
+			{
+				p = c->getMemberComplexType(id);
+			}))
+				return p;
 		}
 
 		return nullptr;
@@ -416,49 +365,69 @@ public:
 		return list;
 	}
 
-	void initMemberData(ComplexType::Ptr type, Identifier& memberId, VariableStorage initValue)
+	Result initSubClassMembers(ComplexType::Ptr type, const Identifier& memberId, InitialiserList::Ptr initList)
 	{
 		for (const auto& ts : symbolTable)
 		{
-			if (ts.typePtr == type)
+			if (ts.s.typePtr != nullptr)
 			{
-				if (auto st = dynamic_cast<StructType*>(type.get()))
+				ts.s.typePtr->forEach([memberId, initList](ComplexType::Ptr p, void* dataPointer)
 				{
-					auto dp_raw = ((uint8*)(ts.data) + st->getMemberOffset(memberId));
-					auto dataPointer = reinterpret_cast<VariableStorage*>(dp_raw);
-					*dataPointer = initValue;
-				}
+					if (auto structType = dynamic_cast<StructType*>(p.get()))
+					{
+						auto offset = structType->getMemberOffset(memberId);
+
+						if (structType->isNativeMember(memberId))
+						{
+							VariableStorage initValue;
+
+							jassert(initList->size() == 1);
+
+							initList->getValue(0, initValue);
+
+							ComplexType::writeNativeMemberType(dataPointer, offset, initValue);
+							return false;
+						}
+						else
+						{
+							auto memberType = structType->getMemberComplexType(memberId);
+							auto ptr = ComplexType::getPointerWithOffset(dataPointer, offset);
+							memberType->initialise(ptr, initList);
+							return false;
+						}
+					}
+
+					p->initialise(dataPointer, initList);
+
+					return false;
+				}, type, ts.data);
 			}
 		}
+
+		return Result::ok();
 	}
 
-	void initGlobalData(const Symbol& s, VariableStorage initValue)
-	{
-		for (const auto& ts : symbolTable)
-		{
-			if (ts.s == s)
-			{
-				jassert(ts.s.type == initValue.getType());
 
-				switch (ts.s.type)
-				{
-				case Types::ID::Integer: *reinterpret_cast<int*>(ts.data) = initValue.toInt(); break;
-				case Types::ID::Float: *reinterpret_cast<float*>(ts.data) = initValue.toFloat(); break;
-				case Types::ID::Double: *reinterpret_cast<double*>(ts.data) = initValue.toDouble(); break;
-				case Types::ID::Event: *reinterpret_cast<HiseEvent*>(ts.data) = initValue.toEvent(); break;
-				case Types::ID::Block: *reinterpret_cast<block*>(ts.data) = initValue.toBlock(); break;
-				}
-			}
-		}
-	}
+	Result initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues);
 
 	void* getDataPointer(const Symbol& s) const
 	{
 		for (const auto& ts : symbolTable)
+		{
 			if (ts.s == s)
 				return ts.data;
 
+			uint64_t data = reinterpret_cast<uint64_t>(ts.data);
+			
+			if(checkSubClassMembers(ts, s, [&data](StructType* sc, const Identifier& id)
+			{
+				 data += sc->getMemberOffset(id);
+			}))
+				return (void*)data;
+		}
+			
 		jassertfalse;
+		return nullptr;
 	}
 
 	VariableStorage getDataCopy(const Symbol& s) const
@@ -482,8 +451,72 @@ public:
 		return {};
 	}
 
+	HeapBlock<char> data;
+
 private:
 
+	Result allocateNativeType(BaseScope* scope, const Symbol& s)
+	{
+		jassert(scope->getScopeType() == BaseScope::Class);
+
+		// This is the last time you'll get the chance to set the type...
+		jassert(s.type != Types::ID::Dynamic);
+
+		if (contains(s))
+			return Result::fail(s.toString() + "already exists");
+
+		auto requiredAlignment = Types::Helpers::getSizeForType(s.type);
+
+		zeroPadAlign(requiredAlignment);
+
+		auto size = Types::Helpers::getSizeForType(s.type);
+
+		TableEntry newEntry;
+		newEntry.s = s;
+		newEntry.data = data + numUsed;
+
+		numUsed += size;
+		memset(newEntry.data, 0, size);
+		newEntry.scope = scope;
+
+		jassert(numUsed < allocatedSize);
+
+		symbolTable.add(newEntry);
+		return Result::ok();
+	}
+
+	Result allocateComplexType(BaseScope* scope, const Symbol& s)
+	{
+		jassert(scope->getScopeType() == BaseScope::Class);
+		jassert(s.type == Types::ID::Pointer);
+		jassert(s.typePtr != nullptr);
+
+		if (contains(s))
+			return Result::fail(s.toString() + "already exists");
+
+		TableEntry newEntry;
+
+		auto alignment = s.typePtr->getRequiredAlignment();
+
+		zeroPadAlign(alignment);
+
+		//jassert(((uint64_t)data.get() + numUsed) % alignment == 0);
+
+		auto size = s.typePtr->getRequiredByteSize();
+
+		newEntry.s = s;
+		newEntry.data = data + numUsed;
+		newEntry.scope = scope;
+
+		memset(newEntry.data, 0, size);
+
+		numUsed += size;
+		symbolTable.add(newEntry);
+
+		jassert(numUsed <= allocatedSize);
+
+		return Result::ok();
+	}
 	
 	TableEntry* begin() const
 	{
@@ -496,9 +529,9 @@ private:
 	}
 
 	Array<TableEntry> symbolTable;
-	HeapBlock<char> data;
+	
 	int numUsed = 0;
-	int allocatedSize;
+	int allocatedSize = 0;
 };
 
 

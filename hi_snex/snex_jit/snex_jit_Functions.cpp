@@ -121,9 +121,29 @@ Symbol Symbol::withType(const Types::ID type) const
 	return s;
 }
 
+Symbol Symbol::withComplexType(ComplexType::Ptr typePtr) const
+{
+	auto s = *this;
+	s.type = Types::ID::Pointer;
+	s.typePtr = typePtr;
+
+	return s;
+}
+
 Symbol Symbol::relocate(const Symbol& newParent) const
 {
 	return newParent.getChildSymbol(id, type, const_, ref_);
+}
+
+bool Symbol::isParentOf(const Symbol& otherSymbol) const
+{
+	for (int i = 0; i < fullIdList.size(); i++)
+	{
+		if (otherSymbol.fullIdList[i] != fullIdList[i])
+			return false;
+	}
+
+	return true;
 }
 
 juce::String Symbol::toString() const
@@ -141,7 +161,8 @@ juce::String Symbol::toString() const
 	if (ref_)
 		s << "&";
 
-	s << " ";
+	if(s.isNotEmpty())
+		s << " ";
 
 	for (int i = 0; i < fullIdList.size() - 1; i++)
 	{

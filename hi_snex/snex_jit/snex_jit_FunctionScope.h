@@ -51,6 +51,15 @@ struct RegisterScope : public BaseScope
 
 	bool hasVariable(const Identifier& id) const override;
  
+	bool addVariable(const Symbol& s) override
+	{
+		if (localVariables.contains(s))
+			return false;
+
+		localVariables.add(s);
+		return true;
+	}
+
 	bool updateSymbol(Symbol& symbolToBeUpdated) override
 	{
 		jassert(getScopeForSymbol(symbolToBeUpdated) == this);

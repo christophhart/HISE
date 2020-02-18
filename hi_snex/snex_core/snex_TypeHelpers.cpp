@@ -129,6 +129,49 @@ juce::String Types::Helpers::getValidCppVariableName(const juce::String& variabl
 	return s;
 }
 
+juce::String Types::Helpers::getIntendation(int level)
+{
+	juce::String intent;
+
+	for (int i = 0; i < level; i++)
+		intent << "  ";
+	return intent;
+
+}
+
+void Types::Helpers::dumpNativeData(juce::String& s, int intendationLevel, const juce::String& symbol, void* dataStart, void* dataPointer, size_t byteSize, Types::ID type)
+{
+	juce::String nl("\n");
+
+	auto intent = getIntendation(intendationLevel);
+
+	size_t byteOffset = (uint8*)dataPointer - (uint8*)dataStart;
+
+	auto getValueString = [](Types::ID type, void* data)
+	{
+		var v;
+
+		switch (type)
+		{
+		case Types::ID::Integer: v = var(*reinterpret_cast<int*>(data)); break;
+		case Types::ID::Double: v = var(*reinterpret_cast<double*>(data)); break;
+		case Types::ID::Float: v = var(*reinterpret_cast<float*>(data)); break;
+		default: jassertfalse;
+		}
+
+		return Types::Helpers::getCppValueString(VariableStorage(type, v));
+	};
+
+	s << intent << Types::Helpers::getCppTypeName((Types::ID)type) << " " << symbol;
+	s << "{ Value: " << getValueString(type, dataPointer);
+	s << ", Size: " << juce::String(byteSize);
+	s << ", Offset: " << juce::String(byteOffset);
+	s << ", Absolute: " << juce::String((uint64_t)dataPointer) << " }" << nl;
+
+	if (byteOffset % byteSize != 0)
+		s << " (Unaligned!)";
+}
+
 juce::String Types::Helpers::getTypeIDName(ID type)
 {
 	switch (type)

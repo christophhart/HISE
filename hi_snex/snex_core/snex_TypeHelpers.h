@@ -108,6 +108,12 @@ struct Helpers
 
 	static String getValidCppVariableName(const String& variableToCheck);
 
+	static juce::String getIntendation(int level);
+
+	static void dumpNativeData(juce::String& s, int intendationLevel, const juce::String& symbol, void* dataStart, void* dataPointer, size_t byteSize, Types::ID type);
+
+
+
 	template <typename T> static String getTypeNameFromTypeId()
 	{
 		auto type = getTypeFromTypeId<T>();

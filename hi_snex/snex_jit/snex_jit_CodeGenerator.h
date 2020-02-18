@@ -41,11 +41,52 @@ using namespace asmjit;
 
 struct AsmCodeGenerator
 {
-	
-
 	using RegPtr = AssemblyRegister::Ptr;
 	using Compiler = asmjit::X86Compiler;
 	using OpType = const char*;
+
+	struct LoopEmitterBase
+	{
+		LoopEmitterBase(const Symbol& iterator_, RegPtr loopTarget_, Operations::StatementBlock* loopBody_, bool loadIterator_) :
+			iterator(iterator_),
+			loopTarget(loopTarget_),
+			loadIterator(loadIterator_),
+			loopBody(loopBody_),
+			type(iterator.type)
+		{};
+
+		virtual ~LoopEmitterBase() {};
+
+		virtual void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) = 0;
+
+	protected:
+
+		Operations::StatementBlock* loopBody;
+		Symbol iterator;
+		RegPtr loopTarget;
+		Types::ID type;
+		bool loadIterator;
+	};
+
+	struct ScopedTypeSetter
+	{
+		ScopedTypeSetter(AsmCodeGenerator& p, Types::ID newType):
+			parent(p)
+		{
+			oldType = parent.type;
+			parent.type = newType;
+		}
+
+		~ScopedTypeSetter()
+		{
+			parent.type = oldType;
+		}
+
+		Types::ID oldType;
+		AsmCodeGenerator& parent;
+	};
+
+	
 
 	struct TemporaryRegister
 	{
@@ -100,13 +141,17 @@ struct AsmCodeGenerator
 
 	void emitMemoryLoad(RegPtr reg);
 
+	void emitThisMemberAccess(RegPtr target, RegPtr parent, VariableStorage memberOffset);
+
+	void emitMemberAcess(RegPtr target, RegPtr parent, RegPtr child);
+
 	void emitImmediate(RegPtr target, VariableStorage value);
 	
 	void emitLogicOp(Operations::BinaryOp* op);
 
-	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index);
+	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes);
 
-	void emitSpanWrite(RegPtr address, RegPtr index, RegPtr value);
+	void emitSpanIteration(BaseCompiler* c, BaseScope* s, const Symbol& iterator, SpanType* typePtr, RegPtr spanTarget, Operations::Statement* loopBody, bool loadIterator);
 
 	void emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex);
 
@@ -130,8 +175,6 @@ struct AsmCodeGenerator
 
 	void emitFunctionCall(RegPtr returnReg, const FunctionData& f, RegPtr objectAddress, ReferenceCountedArray<AssemblyRegister>& parameterRegisters);
 
-	void copyPointerAddress(RegPtr targetReg, RegPtr pointerAddress);
-
 	void writeToPointerAddress(RegPtr target, RegPtr value);
 
 
@@ -147,12 +190,31 @@ struct AsmCodeGenerator
 
 private:
 
-	X86Mem createPointerAddress(RegPtr address, RegPtr index);
-
 	AssemblyRegisterPool* registerPool;
 
 	static void createRegistersForArguments(X86Compiler& cc, ReferenceCountedArray<AssemblyRegister>& parameters, const FunctionData& f);
 	Types::ID type;
+};
+
+struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
+{
+	SpanLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(s, t, body, l)
+	{};
+
+	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
+
+	SpanType* typePtr = nullptr;
+};
+
+struct BlockLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
+{
+	BlockLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(s, t, body, l)
+	{};
+
+	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
+
 };
 
 }

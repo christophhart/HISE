@@ -73,6 +73,11 @@ void* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
 	return nullptr;
 }
 
+juce::String JitCompiledFunctionClass::dumpTable()
+{
+	return pimpl->getRootData()->dumpTable();
+}
+
 juce::Array<juce::Identifier> JitCompiledFunctionClass::getFunctionIds() const
 {
 	return pimpl->getFunctionIds();

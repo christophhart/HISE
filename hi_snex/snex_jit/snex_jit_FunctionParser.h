@@ -51,7 +51,7 @@ public:
 	StatementPtr parseStatement();
 	StatementPtr parseAssignment();
 	StatementPtr parseReturnStatement();
-	StatementPtr parseVariableDefinition(bool isConst);
+	StatementPtr parseVariableDefinition(bool isConst, ComplexType::Ptr complexType=nullptr);
 	StatementPtr parseLoopStatement();
 	StatementPtr parseIfStatement();
 	
@@ -73,9 +73,12 @@ public:
 	ExprPtr parseUnary();
 	ExprPtr parseFactor();
 	ExprPtr parseSymbolOrLiteral();
+	ExprPtr parseDotOperator(ExprPtr p);
+	ExprPtr parseSubscript(ExprPtr p);
+	ExprPtr parseCall(ExprPtr p);
+	ExprPtr parsePostSymbol();
 	ExprPtr parseReference(const Identifier& id);
 	ExprPtr parseLiteral(bool isNegative=false);
-	ExprPtr parseFunctionCall(const Identifier& id);
 };
 
 

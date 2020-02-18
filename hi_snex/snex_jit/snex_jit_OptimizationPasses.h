@@ -162,6 +162,8 @@ public:
 
 	static ExprPtr evalConstMathFunction(Operations::FunctionCall* functionCall);
 
+	static ExprPtr evalDotOperator(BaseScope* s, Operations::DotOperator* dot);
+
 private:
 
 	Array<Symbol> constantVariables;

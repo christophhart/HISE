@@ -42,7 +42,8 @@ using namespace asmjit;
 #define FP_REG_R(x) x->getRegisterForReadOp().as<X86Xmm>()
 #define FP_MEM(x) x->getAsMemoryLocation()
 #define IS_MEM(x) x->isMemoryLocation()
-#define FP_OP(op, l, r) { if(IS_MEM(r)) op(FP_REG_W(l), FP_MEM(r)); else op(FP_REG_W(l), FP_REG_R(r)); }
+#define IS_CMEM(x) x->hasCustomMemoryLocation()
+#define IS_REG(x)  x->isActive()
 
 
 #define INT_REG_W(x) x->getRegisterForWriteOp().as<X86Gp>()
@@ -50,16 +51,26 @@ using namespace asmjit;
 #define INT_IMM(x) x->getImmediateIntValue()
 #define INT_MEM(x) x->getAsMemoryLocation()
 
+
+
 #define INT_OP_WITH_MEM(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
 
-#define INT_OP(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), (uint64_t)INT_IMM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
+
+#define FP_OP(op, l, r) { if(IS_REG(r)) op(FP_REG_W(l), FP_REG_R(r)); \
+					 else if(IS_MEM(r)) op(FP_REG_W(l), FP_MEM(r)); \
+					               else op(FP_REG_W(l), FP_REG_R(r)); }
+
+#define INT_OP(op, l, r) { if(IS_REG(r))    op(INT_REG_W(l), INT_REG_R(r)); \
+					  else if(IS_CMEM(r))   op(INT_REG_W(l), INT_MEM(r)); \
+					  else if(IS_MEM(r))    op(INT_REG_W(l), (uint64_t)INT_IMM(r)); \
+					  else op(INT_REG_W(l), INT_REG_R(r)); }
 
 AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_) :
 	cc(cc_),
 	type(type_),
 	registerPool(pool)
 {
-
+	
 }
 
 void AsmCodeGenerator::emitComment(const char* m)
@@ -69,33 +80,44 @@ void AsmCodeGenerator::emitComment(const char* m)
 
 void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 {
-	target->createRegister(cc);
-
-	IF_(void) jassertfalse;
-	IF_(float)  FP_OP(cc.movss, target, value);
-	IF_(double) FP_OP(cc.movsd, target, value);
-	IF_(int)   INT_OP(cc.mov, target, value);
-	IF_(HiseEvent) INT_OP(cc.mov, target, value);
-	IF_(block)
+	if (target->hasCustomMemoryLocation())
 	{
-		value->createRegister(cc);
-		cc.mov(INT_REG_W(target), INT_REG_R(value));
+		value->loadMemoryIntoRegister(cc);
 
+		IF_(int)		cc.mov(INT_MEM(target), INT_REG_R(value));
+		IF_(float)		cc.movss(FP_MEM(target), FP_REG_R(value));
+		IF_(double)		cc.movsd(FP_MEM(target), FP_REG_R(value));
+		IF_(HiseEvent)  cc.mov(INT_MEM(target), INT_REG_R(value));
 	}
+	else
+	{
+		target->createRegister(cc);
+
+		IF_(void) jassertfalse;
+		IF_(float)  FP_OP(cc.movss, target, value);
+		IF_(double) FP_OP(cc.movsd, target, value);
+		IF_(int)   INT_OP(cc.mov, target, value);
+		IF_(HiseEvent) INT_OP(cc.mov, target, value);
+		IF_(block)
+		{
+			value->createRegister(cc);
+			cc.mov(INT_REG_W(target), INT_REG_R(value));
+		}
+	}
+	
 	IF_(void*)
 	{
+		jassertfalse;
+#if 0
 		target->createRegister(cc);
 
 		X86Mem ptr;
 
 		if (value->isMemoryLocation())
-		{
 			cc.mov(INT_REG_R(target), (uint64_t)value->getGlobalDataPointer());
-		}
 		else
-		{
 			cc.mov(INT_REG_R(target), INT_REG_R(value));
-		}
+#endif
 	}
 	
 }
@@ -103,42 +125,30 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 
 void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 {
-	type = source->getType();
-
-
-
-	cc.setInlineComment("Write class variable ");
+	ScopedTypeSetter st(*this, source->getType());
 
 	X86Mem target;
 
+	cc.setInlineComment("Write class variable ");
+
 	int ok;
 
-	if (auto address = source->getAddressPointer())
+	if (source->hasCustomMemoryLocation())
 	{
-		if (address->isActive())
-		{
-			auto ptr = x86::qword_ptr(INT_REG_R(address));
-
-			IF_(int)	ok = cc.mov(ptr, source->getRegisterForReadOp().as<X86Gp>());
-			IF_(float)	ok = cc.movss(ptr, source->getRegisterForReadOp().as<X86Xmm>());
-			IF_(double) ok = cc.movsd(ptr, source->getRegisterForReadOp().as<X86Xmm>());
-			source->setUndirty();
-			return;
-		}
+		target = source->getMemoryLocationForReference();
 	}
-
-	auto data = ptrToUse != nullptr ? ptrToUse : source->getGlobalDataPointer();
-
-	TemporaryRegister ad(*this, source->getScope(), Types::ID::Block);
-	ok = cc.mov(ad.get(), reinterpret_cast<uint64_t>(data));
-	target = x86::qword_ptr(ad.get());
+	else
+	{
+		auto data = ptrToUse != nullptr ? ptrToUse : source->getGlobalDataPointer();
+		target = x86::qword_ptr(reinterpret_cast<uint64_t>(data));
+	}
 
 	IF_(int)	ok = cc.mov(target, source->getRegisterForReadOp().as<X86Gp>());
 	IF_(float)	ok = cc.movss(target, source->getRegisterForReadOp().as<X86Xmm>());
 	IF_(double) ok = cc.movsd(target, source->getRegisterForReadOp().as<X86Xmm>());
 
 	// Don't undirty it when debugging...
-	if(ptrToUse == nullptr)
+	if (ptrToUse == nullptr)
 		source->setUndirty();
 }
 
@@ -147,9 +157,7 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 
 void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 {
-	type = target->getType();
-
-	
+	ScopedTypeSetter st(*this, target->getType());
 
 	auto data = target->getGlobalDataPointer();
 
@@ -161,7 +169,12 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 		return;
 	}
 
-	cc.setInlineComment("Load class variable");
+	static char loadComment[128];
+	memset(loadComment, 0, 40);
+	auto name = "load " + target->getVariableId().toString();
+	memcpy(loadComment, name.getCharPointer().getAddress(), name.length());
+
+	cc.setInlineComment(loadComment);
 
 	IF_(void*)
 	{
@@ -169,15 +182,46 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 		return;
 	}
 
-	TemporaryRegister address(*this, target->getScope(), Types::ID::Block);
-
-	cc.mov(address.get(), reinterpret_cast<uint64_t>(data));
-	auto source = x86::qword_ptr(address.get());
+	auto source = x86::ptr(reinterpret_cast<uint64_t>(data));
 
 	// We use the REG_R ones to avoid flagging it dirty
 	IF_(int)	cc.mov(INT_REG_R(target), source);
 	IF_(float)	cc.movss(FP_REG_R(target), source);
 	IF_(double) cc.movsd(FP_REG_R(target), source);
+}
+
+void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, VariableStorage memberOffset)
+{
+	jassert(memberOffset.getType() == Types::ID::Integer);
+	jassert(target->getType() == type);
+	jassert(parent->getType() == Types::ID::Pointer);
+
+
+	if (parent->isMemoryLocation())
+	{
+		auto ptr = parent->getAsMemoryLocation();
+		target->setCustomMemoryLocation(ptr.cloneAdjusted(memberOffset.toInt()));
+	}
+	else
+	{
+		auto ptr = x86::ptr(INT_REG_R(parent), memberOffset.toInt());
+		target->setCustomMemoryLocation(ptr);
+	}
+}
+
+void AsmCodeGenerator::emitMemberAcess(RegPtr target, RegPtr parent, RegPtr child)
+{
+	jassert(target->getType() == type);					// the target register with the final type
+	jassert(child->getType() == Types::ID::Integer);	// the index register containing the member offset in pointer sizes
+	jassert(parent->getType() == Types::ID::Pointer);   // the pointer register containing the data slot pointer.
+
+	// the child is always an immediate...
+	jassert(child->isMemoryLocation() && !child->hasCustomMemoryLocation());
+
+	auto immValue = VariableStorage((int)INT_IMM(child));
+
+	emitThisMemberAccess(target, parent, immValue);
+
 }
 
 void AsmCodeGenerator::emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex)
@@ -196,20 +240,13 @@ void AsmCodeGenerator::emitParameter(Operations::Function* f, RegPtr parameterRe
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, RegPtr r)
 {
 	jassert(l != nullptr && r != nullptr);
+	jassert(l->getType() != Types::ID::Pointer);
 
 	TemporaryRegister tempAddressRegister(*this, r->getScope(), r->getType());
 	RegPtr ptrRegister;
 
-	if (l->getType() == Types::ID::Pointer)
-	{
-		if (l->isMemoryLocation())
-			cc.mov(tempAddressRegister.get(), l->getAsMemoryLocation());
-		else
-			cc.mov(tempAddressRegister.get(), qword_ptr(l->getRegisterForReadOp().as<X86Gpq>()));
-
-		ptrRegister = l;
-		l = tempAddressRegister.tempReg;
-	}
+	l->loadMemoryIntoRegister(cc);
+	
 
 	if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 	{
@@ -231,8 +268,6 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 		return l;
 	}
-
-	
 
 	BINARY_OP(JitTokens::plus, cc.add, cc.addss, cc.addsd);
 	BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
@@ -307,102 +342,169 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 #endif
 }
 
-asmjit::X86Mem AsmCodeGenerator::createPointerAddress(RegPtr address, RegPtr index)
+
+
+void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes)
 {
-	jassert(address->getType() == Types::ID::Pointer);
 	jassert(index->getType() == Types::ID::Integer);
-	jassert(Types::Helpers::isFixedType(type));
 
-	X86Mem ptr;
-	auto rawDataSize = Types::Helpers::getSizeForType(type);
-
-	bool isDoubleWord = rawDataSize == 4;
-	auto pointerOffset = isDoubleWord ? rawDataSize / 4 : rawDataSize / 8;
-
-	if (index->isMemoryLocation())
+	if (address->getType() == Types::ID::Block)
 	{
-		if (address->isMemoryLocation())
-		{
-			auto b = address->getGlobalDataPointer();
-			auto o = (uint64_t)index->getImmediateIntValue() * rawDataSize;
-			auto a = (uint64_t)(b)+o;
-			ptr = isDoubleWord ? x86::dword_ptr(a) : x86::qword_ptr(a);
-		}
+		address->loadMemoryIntoRegister(cc);
+		auto blockAddress = INT_REG_R(address);
+
+		auto bptr = x86::ptr(blockAddress).cloneAdjusted(8);
+
+		TemporaryRegister fptr(*this, target->getScope(), Types::ID::Pointer);
+		cc.mov(fptr.get(), bptr);
+
+		X86Mem ptr;
+
+		if (index->isMemoryLocation())
+			ptr = x86::ptr(fptr.get(), index->getImmediateIntValue() * sizeof(float));
 		else
-		{
-			auto b = INT_REG_R(address);
-			auto o = (uint64_t)index->getImmediateIntValue();
-			ptr = isDoubleWord ? x86::dword_ptr(b, o) : x86::qword_ptr(b, o);
-		}
+			ptr = x86::ptr(fptr.get(), INT_REG_R(index), sizeof(float));
+
+		target->setCustomMemoryLocation(ptr);
 	}
 	else
 	{
-		TemporaryRegister reg(*this, index->getScope(), Types::ID::Integer);
+		jassert(address->getType() == Types::ID::Pointer);
+		jassert(index->getType() == Types::ID::Integer);
+		jassert(address->getType() == Types::ID::Pointer || address->isMemoryLocation());
 
-		X86Gp o;
+		int shift = (int)log2(elementSizeInBytes);
+		bool canUseShift = isPowerOfTwo(elementSizeInBytes) && shift < 4;
 
-		if (pointerOffset != 1)
+		X86Gpq indexReg;
+
+		if (!index->isMemoryLocation())
 		{
-			cc.mov(reg.get(), INT_REG_R(index));
-			cc.imul(reg.get(), (uint64_t)pointerOffset);
+			indexReg = index->getRegisterForReadOp().as<X86Gpq>();
 
-			o = reg.get();
+			if (index->getVariableId())
+			{
+				auto newIndexReg = cc.newGpq().as<X86Gpq>();
+				cc.mov(newIndexReg, indexReg);
+				indexReg = newIndexReg;
+			}
+
+			if (!canUseShift)
+			{
+				if (isPowerOfTwo(elementSizeInBytes))
+					cc.sal(indexReg, shift);
+				else
+					cc.imul(indexReg, elementSizeInBytes);
+
+				shift = 0;
+			}
 		}
-		else
-		{
-			o = INT_REG_R(index);
-		}
+
+		X86Mem p;
 
 		if (address->isMemoryLocation())
 		{
-			auto b = (uint64_t)address->getGlobalDataPointer();
-			ptr = isDoubleWord ? x86::dword_ptr(b, o) : x86::qword_ptr(b, o);
+			auto ptr = address->getAsMemoryLocation();
+
+			if (index->isMemoryLocation())
+				p = ptr.cloneAdjusted((uint64_t)(INT_IMM(index) * elementSizeInBytes));
+			else
+			{
+				// for some reason uint64_t base + index reg doesn't create a 64bit address...
+				// so we need to use a register for the base
+				auto b_ = cc.newGpq();
+
+				if (ptr.hasBaseReg())
+					cc.mov(b_, ptr.baseReg().as<X86Gpq>());
+				else
+					cc.mov(b_, ptr.offset());
+
+				p = x86::ptr(b_, indexReg, shift);
+			}
 		}
 		else
 		{
-			auto b = INT_REG_R(address);
-			ptr = isDoubleWord ? x86::dword_ptr(b, o) : x86::qword_ptr(b, o);
+			if (index->isMemoryLocation())
+				p = x86::ptr(INT_REG_R(address), INT_IMM(index) * elementSizeInBytes);
+			else
+			{
+				p = x86::ptr(INT_REG_R(address), indexReg, shift);
+			}
 		}
+
+		if (type == Types::ID::Pointer)
+		{
+			target->createRegister(cc);
+			cc.lea(INT_REG_W(target), p);
+		}
+		else
+			target->setCustomMemoryLocation(p);
 	}
 
-	return ptr;
+	
 }
 
-
-
-void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr index)
+void AsmCodeGenerator::emitSpanIteration(BaseCompiler* c, BaseScope* s, const Symbol& iterator, SpanType* typePtr, RegPtr spanTarget, Operations::Statement* loopBody, bool loadIterator)
 {
-	jassert(address->getType() == Types::ID::Pointer);
-	jassert(index->getType() == Types::ID::Integer);
+	
 
-	auto ptr = createPointerAddress(address, index);
-	target->createRegister(cc);
+#if 0
+	auto acg = CREATE_ASM_COMPILER(Types::ID::Float);
 
-	// We use the REG_R ones to avoid flagging it dirty
-	IF_(int)	cc.mov(INT_REG_R(target), ptr);
-	IF_(float)	cc.movss(FP_REG_R(target), ptr);
-	IF_(double) cc.movsd(FP_REG_R(target), ptr);
-}
+	target->process(compiler, scope);
+	target->reg->loadMemoryIntoRegister(acg.cc);
 
-void AsmCodeGenerator::emitSpanWrite(RegPtr address, RegPtr index, RegPtr value)
-{
-	jassert(value->getType() == type);
+	auto endRegPtr = compiler->registerPool.getNextFreeRegister(scope, Types::ID::Integer);
 
-	auto ptr = createPointerAddress(address, index);
+	allocateDirtyGlobalVariables(getLoopBlock(), compiler, scope);
 
-	// Can't copy memory to memory so we need to load it into a register
-	if (value->isMemoryLocation())
-		value->loadMemoryIntoRegister(cc);
+	auto itReg = compiler->registerPool.getRegisterForVariable(scope, iterator);
+	itReg->createRegister(acg.cc);
+	itReg->setIsIteratorRegister(true);
 
-	// We use the REG_R ones to avoid flagging it dirty
-	IF_(int)	cc.mov(ptr, INT_REG_R(value));
-	IF_(float)	cc.movss(ptr, FP_REG_R(value));
-	IF_(double) cc.movsd(ptr, FP_REG_R(value));
+	auto& cc = getFunctionCompiler(compiler);
+
+	auto blockAddress = target->reg->getRegisterForReadOp().as<X86Gp>();
+
+	endRegPtr->createRegister(acg.cc);
+
+	auto wpReg = acg.cc.newIntPtr();
+	auto endReg = endRegPtr->getRegisterForWriteOp().as<X86Gp>();
+
+	auto sizeAddress = x86::dword_ptr(blockAddress, 4);
+	auto writePointerAddress = x86::dword_ptr(blockAddress, 8);
+
+	cc.setInlineComment("block size");
+	cc.mov(endReg, sizeAddress);
+	cc.setInlineComment("block data ptr");
+	cc.mov(wpReg, writePointerAddress);
+
+	auto loopStart = cc.newLabel();
+
+	cc.setInlineComment("loop_block {");
+	cc.bind(loopStart);
+
+	auto adress = x86::dword_ptr(wpReg);
+
+	if (loadIterator)
+		cc.movss(itReg->getRegisterForWriteOp().as<X86Xmm>(), adress);
+
+	getLoopBlock()->process(compiler, scope);
+
+	cc.movss(adress, itReg->getRegisterForReadOp().as<X86Xmm>());
+	cc.add(wpReg, 4);
+	cc.dec(endReg);
+	cc.setInlineComment("loop_block }");
+	cc.jnz(loopStart);
+	itReg->flagForReuse(true);
+	target->reg->flagForReuse(true);
+	endRegPtr->flagForReuse(true);
+#endif
 }
 
 void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
 {
-	type = l->getType();
+	ScopedTypeSetter st(*this, l->getType());
 
 	l->loadMemoryIntoRegister(cc);
 	target->createRegister(cc);
@@ -452,21 +554,34 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 
 	RegPtr rToUse;
 
+	auto dirtyGlobalList = c->registerPool.getListOfAllDirtyGlobals();
+
+	
+
+	for (auto reg : dirtyGlobalList)
+	{
+		emitMemoryWrite(reg);
+	}
+
+
+
 	if (expr != nullptr && (expr->isMemoryLocation() || expr->isDirtyGlobalMemory()))
 	{
-		emitStore(target, expr);
-		rToUse = target;
+		if (auto am = c->registerPool.getActiveRegisterForCustomMem(expr))
+		{
+			rToUse = expr;
+			expr->loadMemoryIntoRegister(cc);
+		}
+		else
+		{
+			emitStore(target, expr);
+			rToUse = target;
+		}
 	}
 	else
 		rToUse = expr;
 
-	auto dirtyGlobalList = c->registerPool.getListOfAllDirtyGlobals();
-
-	for (auto reg : dirtyGlobalList)
-	{
-		
-		emitMemoryWrite(reg);
-	}
+	
 
 	dirtyGlobalList.clear();
 
@@ -602,7 +717,7 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 
 	IF_(int) // TARGET TYPE
 	{
-		type = sourceType;
+		ScopedTypeSetter st(*this, sourceType);
 
 		IF_(float) // SOURCE TYPE
 		{
@@ -619,7 +734,7 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 	}
 	IF_(double) // TARGET TYPE
 	{
-		type = sourceType;
+		ScopedTypeSetter st(*this, sourceType);
 
 		IF_(float) // SOURCE TYPE
 		{
@@ -637,7 +752,7 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 	}
 	IF_(float) // TARGET TYPE
 	{
-		type = sourceType;
+		ScopedTypeSetter st(*this, sourceType);
 
 		IF_(double) // SOURCE TYPE
 		{
@@ -673,77 +788,61 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	asmjit::FuncSignatureBuilder sig;
 
 	bool isMemberFunction = objectAddress != nullptr;
-	fillSignature(f, sig, isMemberFunction);
+	fillSignature(f, sig, isMemberFunction || f.object != nullptr);
+
+	if(objectAddress != nullptr)
+		objectAddress->loadMemoryIntoRegister(cc);
+	
+#if 0
+	// Push the function pointer
+	X86Gp fn = cc.newIntPtr("fn");
+	cc.setInlineComment("FunctionPointer");
+	cc.mov(fn, imm(f.function));
+#endif
 
 	TemporaryRegister o(*this, returnReg->getScope(), Types::ID::Block);
+	bool useTempReg = false;
 
 	if (!isMemberFunction && f.object != nullptr)
 	{
 		cc.setInlineComment("Push function object");
 		cc.mov(o.get(), imm(f.object));
-		objectAddress = o.tempReg;
+		useTempReg = true;
 	}
 
-	// Push the function pointer
-	X86Gp fn = cc.newIntPtr("fn");
-	cc.setInlineComment("FunctionPointer");
-	cc.mov(fn, imm(f.function));
+	for (auto pr : parameterRegisters)
+	{
+		jassert(pr != nullptr);
 
-	FuncCallNode* call = cc.call(fn, sig);
+		pr->loadMemoryIntoRegister(cc);
+	}
+
+	FuncCallNode* call = cc.call((uint64_t)f.function, sig);
 
 	call->setInlineComment(f.functionName.getCharPointer().getAddress());
 
 	int offset = 0;
 
-	
-
-	if (objectAddress != nullptr)
+	if (useTempReg)
 	{
+		call->setArg(0, o.get());
+		offset = 1;
+	}
+	else if (objectAddress != nullptr)
+	{
+		
 		call->setArg(0, objectAddress->getRegisterForReadOp().as<X86Gp>());
 		offset = 1;
 	}
 	
-	for (int i = 0; i < parameterRegisters.size(); i++)
-	{
+	for(int i = 0; i < parameterRegisters.size(); i++)
 		call->setArg(i + offset, parameterRegisters[i]->getRegisterForReadOp());
-	}
 
 	if (f.returnType != Types::ID::Void)
 	{
 		returnReg->createRegister(cc);
 		call->setRet(0, returnReg->getRegisterForWriteOp());
 	}
-}
-
-void AsmCodeGenerator::copyPointerAddress(RegPtr target, RegPtr pointerAddress)
-{
-	type = target->getType();
-
-	target->createRegister(cc);
-
-	X86Mem ptr;
-
-	cc.setInlineComment("Load pointer reference");
-
-	if (pointerAddress->isMemoryLocation())
-	{
-		auto ptr = x86::qword_ptr((uint64_t)pointerAddress->getGlobalDataPointer());
-
-		IF_(int) cc.mov(INT_REG_R(target), ptr);
-		IF_(float) cc.movss(FP_REG_R(target), ptr);
-		IF_(double) cc.movsd(FP_REG_R(target), ptr);
-	}
-	else
-	{
-		auto ptr = x86::qword_ptr(INT_REG_R(pointerAddress));
-
-		IF_(int) cc.mov(INT_REG_R(target), ptr);
-		IF_(float) cc.movss(FP_REG_R(target), ptr);
-		IF_(double) cc.movsd(FP_REG_R(target), ptr);
-	}
-	
-
-	target->setAddressPointer(pointerAddress);
 }
 
 
@@ -826,6 +925,181 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 	}
 }
 
+
+void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)
+{
+	jassert(loopTarget->getType() == Types::ID::Pointer);
+	jassert(typePtr != nullptr);
+	jassert(iterator.type == typePtr->getElementType());
+
+	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), Types::ID::Pointer);
+
+	auto& cc = gen.cc;
+
+	loopTarget->loadMemoryIntoRegister(cc, true);
+
+	auto offset = typePtr->getElementSize() * (typePtr->getNumElements());
+
+	cc.lea(end.get(), x86::ptr(INT_REG_R(loopTarget), offset));
+
+	auto loopStart = cc.newLabel();
+	auto itScope = loopBody->blockScope.get();
+
+	auto itReg = compiler->registerPool.getRegisterForVariable(itScope, iterator);
+	itReg->createRegister(cc);
+	itReg->setIsIteratorRegister(true);
+
+	cc.setInlineComment("loop_span {");
+	cc.bind(loopStart);
+
+	if (loadIterator)
+	{
+		IF_(int)    cc.mov(INT_REG_W(itReg), x86::ptr(INT_REG_R(loopTarget)));
+		IF_(float)  cc.movss(FP_REG_W(itReg), x86::ptr(INT_REG_R(loopTarget)));
+		IF_(double) cc.movsd(FP_REG_W(itReg), x86::ptr(INT_REG_R(loopTarget)));
+		IF_(void*)  cc.mov(INT_REG_W(itReg), INT_REG_R(loopTarget));
+	}
+
+	itReg->setUndirty();
+
+	loopBody->process(compiler, scope);
+
+	if (itReg->isDirtyGlobalMemory())
+	{
+		IF_(int)    cc.mov(x86::ptr(INT_REG_R(loopTarget)), INT_REG_R(itReg));
+		IF_(float)  cc.movss(x86::ptr(INT_REG_R(loopTarget)), FP_REG_R(itReg));
+		IF_(double) cc.movsd(x86::ptr(INT_REG_R(loopTarget)), FP_REG_W(itReg));
+		// no storing needed for pointer iterators...
+	}
+
+	cc.add(INT_REG_W(loopTarget), typePtr->getElementSize());
+	cc.cmp(INT_REG_R(loopTarget), end.get());
+	cc.setInlineComment("loop_span }");
+	cc.jne(loopStart);
+
+	itReg->setUndirty();
+	itReg->flagForReuse(true);
+}
+
+void BlockLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)
+{
+	jassert(loopTarget->getType() == Types::ID::Block);
+	jassert(iterator.type == Types::ID::Float);
+	auto& cc = gen.cc;
+
+
+	loopTarget->loadMemoryIntoRegister(cc);
+	auto blockAddress = INT_REG_R(loopTarget);
+
+	AsmCodeGenerator::TemporaryRegister beg(gen, loopTarget->getScope(), Types::ID::Pointer);
+	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), Types::ID::Pointer);
+
+	
+
+	cc.mov(beg.get(), x86::ptr(blockAddress).cloneAdjusted(8));
+	cc.mov(end.get(), x86::ptr(blockAddress).cloneAdjusted(4));
+	cc.and_(end.get(), 0xFFFFFFF);
+	cc.imul(end.get(), sizeof(float));
+	cc.add(end.get(), beg.get());
+
+	auto loopStart = cc.newLabel();
+	auto itScope = loopBody->blockScope.get();
+
+	auto itReg = compiler->registerPool.getRegisterForVariable(itScope, iterator);
+	itReg->createRegister(cc);
+	itReg->setIsIteratorRegister(true);
+
+	cc.setInlineComment("loop_block {");
+	cc.bind(loopStart);
+
+	if (loadIterator)
+		cc.movss(FP_REG_W(itReg), x86::ptr(beg.get()));
+
+	itReg->setUndirty();
+
+	loopBody->process(compiler, scope);
+
+	if (itReg->isDirtyGlobalMemory())
+		cc.movss(x86::ptr(beg.get()), FP_REG_R(itReg));
+
+	cc.add(beg.get(), sizeof(float));
+	cc.cmp(beg.get(), end.get());
+	cc.setInlineComment("loop_block }");
+	cc.jne(loopStart);
+
+	itReg->setUndirty();
+	itReg->flagForReuse(true);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
+	loopTarget->loadMemoryIntoRegister(gen.cc, true);
+
+	auto endRegPtr = compiler->registerPool.getNextFreeRegister(scope, Types::ID::Integer);
+
+	allocateDirtyGlobalVariables(getLoopBlock(), compiler, scope);
+
+	auto itReg = compiler->registerPool.getRegisterForVariable(scope, iterator);
+	itReg->createRegister(acg.cc);
+	itReg->setIsIteratorRegister(true);
+
+	auto& cc = getFunctionCompiler(compiler);
+
+	
+
+	endRegPtr->createRegister(acg.cc);
+
+	auto wpReg = acg.cc.newIntPtr();
+	auto endReg = endRegPtr->getRegisterForWriteOp().as<X86Gp>();
+
+	
+
+	cc.setInlineComment("block size");
+	cc.mov(endReg, sizeAddress);
+	cc.setInlineComment("block data ptr");
+	cc.mov(wpReg, writePointerAddress);
+
+	auto loopStart = cc.newLabel();
+
+	cc.setInlineComment("loop_block {");
+	cc.bind(loopStart);
+
+	auto adress = x86::dword_ptr(wpReg);
+
+	if (loadIterator)
+		cc.movss(itReg->getRegisterForWriteOp().as<X86Xmm>(), adress);
+
+	getLoopBlock()->process(compiler, scope);
+
+	cc.movss(adress, itReg->getRegisterForReadOp().as<X86Xmm>());
+	cc.add(wpReg, 4);
+	cc.dec(endReg);
+	cc.setInlineComment("loop_block }");
+	cc.jnz(loopStart);
+	itReg->flagForReuse(true);
+	target->reg->flagForReuse(true);
+	endRegPtr->flagForReuse(true);
+
+#endif
+
+}
 
 }
 
