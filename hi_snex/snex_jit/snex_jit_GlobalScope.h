@@ -100,6 +100,8 @@ public:
 			s << " (" << Types::Helpers::getTypeName(currentValue.getType()) << "): ";
 			s << Types::Helpers::getCppValueString(currentValue);
 			s << "\n";
+            
+            return s;
 		}
 
 		Symbol id;
@@ -199,7 +201,7 @@ public:
 					numEntries++;
 
 				dumpTable[i].isUsed = true;
-				dumpTable[i].id = ref,
+                dumpTable[i].id = ref;
 				dumpTable[i].scope = BaseScope::Class; 
 				dumpTable[i].currentValue = VariableStorage(ref.type, 0);
 
@@ -411,7 +413,7 @@ public:
 
 	block create(int size)
 	{
-		Identifier id("internal" + registeredItems.size());
+        Identifier id("internal" + juce::String(registeredItems.size()));
 		return registerInternalData(id, size);
 	}
 

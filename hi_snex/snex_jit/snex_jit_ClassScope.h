@@ -117,7 +117,7 @@ public:
 		if (isRootClass())
 			return this;
 
-		BaseScope* c;
+        BaseScope* c = this;
 
 		while (c->getParent()->getScopeType() != BaseScope::Global)
 		{
@@ -225,6 +225,8 @@ public:
 				else
 					return "unknown";
 			}
+            
+            return {};
 		}
 		juce::String getCategory() const override { return info.isParameter ? "Parameter" : "Local variable"; };
 	};

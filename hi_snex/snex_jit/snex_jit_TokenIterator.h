@@ -183,6 +183,8 @@ struct ParserHelpers
 			skip(); 
 		}
 
+        virtual ~TokenIterator() {};
+        
 		void skip()
 		{
 			skipWhitespaceAndComments();

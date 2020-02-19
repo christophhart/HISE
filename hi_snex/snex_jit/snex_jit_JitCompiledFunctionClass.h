@@ -92,7 +92,7 @@ public:
 
 	template <typename T> T* getVariablePtr(const Identifier& id)
 	{
-		return reinterpret_cast<T*>(functionClass->getVariablePtrInternal(id));
+		return reinterpret_cast<T*>(functionClass->getVariablePtr(id));
 	}
 
 	FunctionData operator[](const Identifier& functionId) const;

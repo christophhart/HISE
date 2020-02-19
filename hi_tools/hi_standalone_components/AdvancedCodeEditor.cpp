@@ -318,7 +318,7 @@ juce::String JavascriptCodeEditor::getCurrentToken() const
 	return getTokenForPosition(getCaretPos());
 }
 
-String JavascriptCodeEditor::getTokenForPosition(CodeDocument::Position& pos) const
+String JavascriptCodeEditor::getTokenForPosition(const CodeDocument::Position& pos) const
 {
 	CodeDocument::Position start = pos;
 	CodeDocument::Position end = start;

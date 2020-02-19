@@ -158,22 +158,18 @@ bool BaseScope::hasSymbol(const Symbol& s)
 {
 	for (auto& c : constants)
 		if (c.id == s)
-			return this;
+			return true;
 
 	if (hasVariable(s.id))
-		return this;
-
-#if 0
-	for (auto v : allocatedVariables)
-		if (v.id == s.id)
-			return this;
-#endif
+		return true;
 
 	if (auto fc = dynamic_cast<FunctionClass*>(this))
 	{
 		if (fc->hasFunction(s))
-			return this;
+			return true;
 	}
+    
+    return false;
 }
 
 BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)

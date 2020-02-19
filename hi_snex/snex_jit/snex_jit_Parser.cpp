@@ -77,11 +77,6 @@ public:
 
 	asmjit::Runtime* parentRuntime = nullptr;
 
-	ClassScope* compileSubClass()
-	{
-
-	}
-
 	JitCompiledFunctionClass* compileAndGetScope(const ParserHelpers::CodeLocation& classStart, int length)
 	{
 		NewClassParser parser(this, classStart, length, instanceId);
@@ -494,6 +489,9 @@ BlockParser::StatementPtr NewClassParser::parseComplexTypeDefinition(ComplexType
 		return new Operations::ClassInstance(loc, st->id, instanceIds, initList);
 	else if (auto sp = dynamic_cast<SpanType*>(p.get()))
 		return new Operations::SpanDefinition(loc, sp, instanceIds.getFirst(), initList);
+    
+    location.throwError("Can't deduce complex type");
+    return nullptr;
 }
 
 snex::VariableStorage BlockParser::parseVariableStorageLiteral()

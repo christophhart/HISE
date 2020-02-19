@@ -241,7 +241,7 @@ public:
 
 	String getCurrentToken() const;
 
-	String getTokenForPosition(CodeDocument::Position& pos) const;
+	String getTokenForPosition(const CodeDocument::Position& pos) const;
 
 	void showAutoCompleteNew();
 	void closeAutoCompleteNew(String returnString);
@@ -427,7 +427,8 @@ public:
 	void mouseMove(const MouseEvent& e) override
 	{
 		auto pos = e.getPosition();
-		auto token = getTokenForPosition(getPositionAt(pos.x, pos.y));
+        auto pos2 = getPositionAt(pos.x, pos.y); 
+		auto token = getTokenForPosition(pos2);
 
 		if (token != hoverManager.lastToken)
 		{

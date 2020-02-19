@@ -395,7 +395,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 				if (isPowerOfTwo(elementSizeInBytes))
 					cc.sal(indexReg, shift);
 				else
-					cc.imul(indexReg, elementSizeInBytes);
+					cc.imul(indexReg, (uint64_t)elementSizeInBytes);
 
 				shift = 0;
 			}
@@ -593,7 +593,7 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 		if (type == Types::ID::Float || type == Types::ID::Double)
 			cc.ret(rToUse->getRegisterForWriteOp().as<X86Xmm>());
 		else if (type == Types::ID::Integer)
-			cc.ret(rToUse->getRegisterForWriteOp().as<AssemblyRegister::IntRegisterType>());
+			cc.ret(rToUse->getRegisterForWriteOp().as<X86Gpd>());
 		else if (type == Types::ID::Event)
 			cc.ret(rToUse->getRegisterForWriteOp().as<X86Gpq>());
 		else if (type == Types::ID::Block)
@@ -973,7 +973,7 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 		// no storing needed for pointer iterators...
 	}
 
-	cc.add(INT_REG_W(loopTarget), typePtr->getElementSize());
+	cc.add(INT_REG_W(loopTarget), (int64_t)typePtr->getElementSize());
 	cc.cmp(INT_REG_R(loopTarget), end.get());
 	cc.setInlineComment("loop_span }");
 	cc.jne(loopStart);
@@ -1000,7 +1000,7 @@ void BlockLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, B
 	cc.mov(beg.get(), x86::ptr(blockAddress).cloneAdjusted(8));
 	cc.mov(end.get(), x86::ptr(blockAddress).cloneAdjusted(4));
 	cc.and_(end.get(), 0xFFFFFFF);
-	cc.imul(end.get(), sizeof(float));
+	cc.imul(end.get(), (uint64_t)sizeof(float));
 	cc.add(end.get(), beg.get());
 
 	auto loopStart = cc.newLabel();
@@ -1023,8 +1023,8 @@ void BlockLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, B
 	if (itReg->isDirtyGlobalMemory())
 		cc.movss(x86::ptr(beg.get()), FP_REG_R(itReg));
 
-	cc.add(beg.get(), sizeof(float));
-	cc.cmp(beg.get(), end.get());
+    cc.add(beg.get().as<x86::Gpd>(), (uint64_t)sizeof(float));
+	cc.cmp(beg.get().as<x86::Gpd>(), end.get());
 	cc.setInlineComment("loop_block }");
 	cc.jne(loopStart);
 

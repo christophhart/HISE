@@ -460,6 +460,8 @@ bool Operations::VariableReference::isApiClass(BaseScope* s) const
 	{
 		return dynamic_cast<ClassScope*>(fc) == nullptr;
 	}
+    
+    return false;
 }
 
 void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)

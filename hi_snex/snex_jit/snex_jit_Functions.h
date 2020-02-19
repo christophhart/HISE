@@ -892,7 +892,7 @@ struct StructType : public ComplexType
 		return 0;
 	}
 
-	void finaliseAlignment()
+	void finaliseAlignment() override
 	{
 		size_t offset = 0;
 
@@ -962,6 +962,9 @@ struct StructType : public ComplexType
 				return m->nativeMemberType;
 			}
 		}
+        
+        jassertfalse;
+        return Types::ID::Void;
 	}
 
 	ComplexType::Ptr getMemberComplexType(const Identifier& id) const
@@ -974,6 +977,9 @@ struct StructType : public ComplexType
 				return m->typePtr;
 			}
 		}
+        
+        jassertfalse;
+        return nullptr;
 	}
 
 	size_t getMemberOffset(const Identifier& id) const

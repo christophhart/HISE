@@ -330,6 +330,8 @@ struct Operations::VariableReference : public Expression
 		// The type must have been set or it is a undefined variable
 		if (getType() == Types::ID::Dynamic)
 			location.throwError("Use of undefined variable " + id.toString());
+        
+        return true;
 	}
 
 	int parameterIndex = -1;
@@ -667,15 +669,19 @@ struct Operations::FunctionCall : public Expression
 
 	template <class T> bool checkFunctionClass(T* obj)
 	{
+        jassertfalse;
+        
+#if 0
 		if (auto possibleMatch = dynamic_cast<FunctionClass*>(obj))
 		{
-			if (possibleMatch->hasFunction(fId))
+			if (possibleMatch->hasFunction(function.id))
 			{
-				possibleMatch->addMatchingFunctions(possibleMatches, fId);
+				possibleMatch->addMatchingFunctions(possibleMatches, function.id);
 				fc = possibleMatch;
 				return true;
 			}
 		}
+#endif
 
 		return false;
 	}

@@ -176,6 +176,10 @@ public:
 
 			return v;
 		}
+        else
+        {
+            DBG(compiler->getCompileResult().getErrorMessage());
+        }
 
 		return ReturnType();
 	};
@@ -195,6 +199,8 @@ public:
 
 		func = compiler->compileJitObject(code);
 
+        
+        
 #if JUCE_DEBUG
 		if (!wasOK())
 		{
@@ -317,6 +323,10 @@ public:
 
 	void runTest() override
 	{
+        testMacOSRelocation();
+        
+        return;
+        
 		testOptimizations();
 
 		runTestsWithOptimisation({});
@@ -932,6 +942,56 @@ private:
 		
 	}
 
+    void testMacOSRelocation()
+    {
+        using namespace asmjit;
+        
+        int ok = 0;
+        
+        JitRuntime rt;
+        CodeHolder ch;
+        
+        ok = ch.init(rt.codeInfo());
+        
+        
+        X86Compiler cc(&ch);
+        
+        FuncSignatureX sig;
+        sig.setRetT<float>();
+        sig.addArgT<float>();
+        
+        cc.addFunc(sig);
+        
+        // a dummy external data location
+        float x = 18.0f;
+        auto xPtr = (void*)(&x);
+        
+        auto r1 = cc.newXmmSs();
+        auto mem = x86::ptr(reinterpret_cast<uint64_t>(xPtr));
+        //auto mem = cc.newFloatConst(ConstPool::kScopeLocal, 18.0f);
+        
+        ok = cc.setArg(0, r1);
+        ok = cc.movss(r1, mem);
+        cc.ret(r1);
+        
+        ok = cc.endFunc();
+        ok = cc.finalize();
+        
+        void* f = nullptr;
+        
+        ok = rt.add(&f, &ch);
+        
+        expect(f != nullptr);
+        
+        using signature = float(*)(float);
+        
+        auto func = (signature)f;
+        auto returnValue = func(19.0f);
+        
+        expect(returnValue == 18.0f);
+        
+    }
+    
 	void testUsingAliases()
 	{
 		using T = int;
@@ -1573,6 +1633,12 @@ private:
 
 		ScopedPointer<HiseJITTestCase<T>> test;
 
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " * " T_B ";"));
+        EXPECT_TYPED(GET_TYPE(T) + " Multiplication", T(), (T)a*(T)b);
+        
+        CREATE_TYPED_TEST(getGlobalDefinition<T>(a) + getTypeName<T>() + " test(" + getTypeName<T>() + " input){ x *= " T_B "; return x;};");
+        EXPECT_TYPED(GET_TYPE(T) + " *= operator", T(), (T)a * (T)b);
+        
 		CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " > " T_B " ? " T_1 ":" T_0 ";"));
 		EXPECT_TYPED(GET_TYPE(T) + " Conditional", T(), (T)(a > b ? 1 : 0));
 
@@ -1582,8 +1648,7 @@ private:
 		CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " - " T_B ";"));
 		EXPECT_TYPED(GET_TYPE(T) + " Subtraction", T(), (T)(a - b));
 
-		CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " * " T_B ";"));
-		EXPECT_TYPED(GET_TYPE(T) + " Multiplication", T(), (T)a*(T)b);
+		
 
 		if (Types::Helpers::getTypeFromTypeId<T>() == Types::Integer)
 		{
@@ -1616,11 +1681,10 @@ private:
 		CREATE_TYPED_TEST(getTestFunction<T>("return (" T_A " + " T_B ") * " T_A ";"));
 		EXPECT_TYPED(GET_TYPE(T) + " Parenthesis", T(), ((T)a + (T)b)*(T)a);
 
-		CREATE_TYPED_TEST(getGlobalDefinition<T>(a) + getTypeName<T>() + " test(" + getTypeName<T>() + " input){ x *= " T_B "; return x;};");
-		EXPECT_TYPED(GET_TYPE(T) + " *= operator", T(), (T)a * (T)b);
+		
 
 		CREATE_TYPED_TEST(getGlobalDefinition<T>(a) + getTypeName<T>() + " test(" + getTypeName<T>() + " input){ x /= " T_B "; return x;};");
-		EXPECT_TYPED(GET_TYPE(T) + " /= operator", T(), (T)a / (T)b);
+        EXPECT_TYPED(GET_TYPE(T) + " /= operator", T(), (T)a / (T)b);
 
 		CREATE_TYPED_TEST(getGlobalDefinition<T>(a) + getTypeName<T>() + " test(" + getTypeName<T>() + " input){ x += " T_B "; return x;};");
 		EXPECT_TYPED(GET_TYPE(T) + " += operator", T(), (T)a + (T)b);
