@@ -141,7 +141,7 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 	{
 		auto data = ptrToUse != nullptr ? ptrToUse : source->getGlobalDataPointer();
         
-        x86::Gp r;
+        x86::Gp r = cc.newGpq();
         cc.mov(r, void2ptr(data));
         
 		target = x86::qword_ptr(r);
@@ -186,7 +186,7 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 		return;
 	}
 
-    x86::Gpq r;
+	auto r = cc.newGpq();
     cc.mov(r, void2ptr(data));
     auto source = x86::ptr(r);
     

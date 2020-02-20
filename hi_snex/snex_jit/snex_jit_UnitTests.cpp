@@ -323,10 +323,7 @@ public:
 
 	void runTest() override
 	{
-        testGlobals();
-        return;
-        
-        testMacOSRelocation();
+		testMacOSRelocation();
         
         testOptimizations();
 
@@ -451,6 +448,9 @@ private:
 
 
 			CREATE_TYPED_TEST(code);
+
+			test->dump();
+
 			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
 		}
 
@@ -967,12 +967,20 @@ private:
         float x = 18.0f;
         auto xPtr = (void*)(&x);
         
-        auto rg = cc.newGpq();
         
+		
+
+#if 1
+		auto rg = cc.newGpq();
         cc.mov(rg, reinterpret_cast<uint64_t>(xPtr));
-        
+		auto mem = x86::ptr(rg);
+#else
+		auto mem = x86::ptr(reinterpret_cast<uint64_t>(xPtr));
+#endif
+
+
         auto r1 = cc.newXmmSs();
-        auto mem = x86::ptr(rg);
+        
         //auto mem = cc.newFloatConst(ConstPool::kScopeLocal, 18.0f);
         
         ok = cc.setArg(0, r1);
@@ -1270,6 +1278,7 @@ private:
 
 		test = new HiseJITTestCase<int>("int x = 0; int test(int input){ x = input; return x;};", optimizations);
 		expectCompileOK(test->compiler);
+
 		EXPECT("int assignment", 6, 6);
 		
 		test = new HiseJITTestCase<int>("int other() { return 2; }; int test(int input) { return other(); }", optimizations);
