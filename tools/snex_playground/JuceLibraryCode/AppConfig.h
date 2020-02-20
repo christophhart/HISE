@@ -87,6 +87,13 @@
 #endif
 
 //==============================================================================
+// hi_snex flags:
+
+#ifndef    HISE_INCLUDE_SNEX
+ //#define HISE_INCLUDE_SNEX 0
+#endif
+
+//==============================================================================
 // juce_audio_devices flags:
 
 #ifndef    JUCE_USE_WINRT_MIDI
@@ -249,6 +256,10 @@
 
 #ifndef    JUCE_ENABLE_REPAINT_DEBUGGING
  //#define JUCE_ENABLE_REPAINT_DEBUGGING 0
+#endif
+
+#ifndef    JUCE_ENABLE_REPAINT_PROFILING
+ //#define JUCE_ENABLE_REPAINT_PROFILING 1
 #endif
 
 #ifndef    JUCE_USE_XRANDR

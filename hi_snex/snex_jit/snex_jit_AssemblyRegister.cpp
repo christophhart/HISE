@@ -269,17 +269,14 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 			type == Types::ID::Block ||
 			type == Types::ID::Pointer);
 
-		memory = useQword ? x86::qword_ptr((uint64_t)memoryLocation) : x86::dword_ptr((uint64_t)memoryLocation);
+        
+        auto r = cc.newGpq();
+        
+        cc.mov(r, (uint64_t)memoryLocation);
+        
+		memory = useQword ? x86::qword_ptr(r) : x86::dword_ptr(r);
 		hasCustomMem = true;
 		state = State::LoadedMemoryLocation;
-
-#if 0
-		// We can't use the value as constant memory location because it might be changed
-		// somewhere else.
-		AsmCodeGenerator acg(cc, nullptr, type);
-		createRegister(cc);
-		acg.emitMemoryLoad(this);
-#endif
 	}
 	else
 	{

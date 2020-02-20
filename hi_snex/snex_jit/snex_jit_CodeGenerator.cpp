@@ -140,7 +140,11 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 	else
 	{
 		auto data = ptrToUse != nullptr ? ptrToUse : source->getGlobalDataPointer();
-		target = x86::qword_ptr(void2ptr(data));
+        
+        x86::Gp r;
+        cc.mov(r, void2ptr(data));
+        
+		target = x86::qword_ptr(r);
 	}
 
 	IF_(int)	ok = cc.mov(target, INT_REG_R(source));
@@ -182,8 +186,10 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 		return;
 	}
 
-	auto source = x86::ptr(void2ptr(data));
-
+    x86::Gpq r;
+    cc.mov(r, void2ptr(data));
+    auto source = x86::ptr(r);
+    
 	// We use the REG_R ones to avoid flagging it dirty
 	IF_(int)	cc.mov(INT_REG_R(target), source);
 	IF_(float)	cc.movss(FP_REG_R(target), source);
@@ -593,7 +599,7 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 		if (type == Types::ID::Float || type == Types::ID::Double)
 			cc.ret(rToUse->getRegisterForWriteOp().as<X86Xmm>());
 		else if (type == Types::ID::Integer)
-			cc.ret(rToUse->getRegisterForWriteOp().as<X86Gpd>());
+            cc.ret(rToUse->getRegisterForWriteOp().as<x86::Gpd>());
 		else if (type == Types::ID::Event)
 			cc.ret(rToUse->getRegisterForWriteOp().as<X86Gpq>());
 		else if (type == Types::ID::Block)

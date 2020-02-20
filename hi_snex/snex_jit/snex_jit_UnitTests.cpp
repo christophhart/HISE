@@ -323,11 +323,12 @@ public:
 
 	void runTest() override
 	{
-        testMacOSRelocation();
-        
+        testGlobals();
         return;
         
-		testOptimizations();
+        testMacOSRelocation();
+        
+        testOptimizations();
 
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
@@ -966,8 +967,12 @@ private:
         float x = 18.0f;
         auto xPtr = (void*)(&x);
         
+        auto rg = cc.newGpq();
+        
+        cc.mov(rg, reinterpret_cast<uint64_t>(xPtr));
+        
         auto r1 = cc.newXmmSs();
-        auto mem = x86::ptr(reinterpret_cast<uint64_t>(xPtr));
+        auto mem = x86::ptr(rg);
         //auto mem = cc.newFloatConst(ConstPool::kScopeLocal, 18.0f);
         
         ok = cc.setArg(0, r1);
@@ -1413,6 +1418,10 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
+        CREATE_TEST("float x=2.0f; void setup() { x = 5.0f; } float test(float i){return x;};")
+        expectCompileOK(test->compiler);
+        EXPECT("Global set in other function", 2.0f, 5.0f);
+        
 
 		{
 			float delta = 0.0f;
