@@ -55,30 +55,9 @@ public:
 	StatementPtr parseLoopStatement();
 	StatementPtr parseIfStatement();
 	
-
 	void finaliseSyntaxTree(SyntaxTree* tree) override;
 
-	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, TokenType op);
-
-	ExprPtr parseExpression();
-	ExprPtr parseTernaryOperator();
-	ExprPtr parseBool();
-	ExprPtr parseLogicOperation();
-	ExprPtr parseComparation();
-	ExprPtr parseSum();
-	ExprPtr parseDifference();
-	ExprPtr parseProduct();
-	ExprPtr parseTerm();
-	ExprPtr parseCast(Types::ID type);
-	ExprPtr parseUnary();
-	ExprPtr parseFactor();
-	ExprPtr parseSymbolOrLiteral();
-	ExprPtr parseDotOperator(ExprPtr p);
-	ExprPtr parseSubscript(ExprPtr p);
-	ExprPtr parseCall(ExprPtr p);
-	ExprPtr parsePostSymbol();
-	ExprPtr parseReference(const Identifier& id);
-	ExprPtr parseLiteral(bool isNegative=false);
+	
 };
 
 

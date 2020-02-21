@@ -37,8 +37,8 @@ using namespace juce;
 using namespace asmjit;
 
 GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
-	FunctionClass(Symbol::createRootSymbol("Globals")),
-	BaseScope(Symbol::createRootSymbol("Globals"), nullptr, numVariables)
+	FunctionClass({}),
+	BaseScope({}, nullptr, numVariables)
 {
 	bufferHandler = new BufferHandler();
 

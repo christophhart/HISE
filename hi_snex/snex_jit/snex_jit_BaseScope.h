@@ -504,7 +504,7 @@ private:
 	Result allocateComplexType(BaseScope* scope, const Symbol& s)
 	{
 		jassert(scope->getScopeType() == BaseScope::Class);
-		jassert(s.type == Types::ID::Pointer);
+		jassert(s.type == Types::ID::Pointer || dynamic_cast<WrapType*>(s.typePtr.get()) != nullptr);
 		jassert(s.typePtr != nullptr);
 
 		if (contains(s))

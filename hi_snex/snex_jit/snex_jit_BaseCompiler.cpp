@@ -53,6 +53,52 @@ using namespace asmjit;
     
 	
 
+	void BaseCompiler::optimize(ReferenceCountedObject* statement, BaseScope* scope, bool useExistingPasses)
+	{
+		OwnedArray<OptimizationPassBase> constExprPasses;
+
+		OwnedArray<OptimizationPassBase>* toUse = nullptr;
+
+		if (useExistingPasses)
+		{
+			toUse = &passes;
+		}
+		else
+		{
+			OptimizationFactory f;
+
+			Array<Identifier> optList = { OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding };
+
+			for (const auto& id : optList)
+				constExprPasses.add(f.createOptimization(id));
+
+			toUse = &constExprPasses;
+		}
+
+		Operations::Statement::Ptr ptr(dynamic_cast<Operations::Statement*>(statement));
+
+		bool noMoreOptimisationsPossible = false;
+
+		while (!noMoreOptimisationsPossible)
+		{
+			try
+			{
+				for (auto o : *toUse)
+				{
+					currentOptimization = o;
+					ptr->process(this, scope);
+				}
+
+				noMoreOptimisationsPossible = true;
+			}
+			catch (OptimisationSucess& s)
+			{
+				if(useExistingPasses)
+					logMessage(MessageType::VerboseProcessMessage, "Repeat optimizations");
+			}
+		}
+	}
+
 	void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
     {
         if (isOptimizationPass(p) && passes.isEmpty())
@@ -69,6 +115,9 @@ using namespace asmjit;
 
 				if (isOptimizationPass(p))
 				{
+					optimize(s, scope, true);
+
+#if 0
 					Operations::Statement::Ptr ptr(s);
 
 					bool noMoreOptimisationsPossible = false;
@@ -92,6 +141,7 @@ using namespace asmjit;
 					}
 
 					ptr = nullptr;
+#endif
 				}
 			}
 		}

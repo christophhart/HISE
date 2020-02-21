@@ -88,6 +88,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			BlockParser::ScopedScopeStatementSetter svs(&p, findParentStatementOfType<ScopeStatementBase>(this));
 
+			p.currentScope = functionScope;
 			statements = p.parseStatementList();
 			
 			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, statements);
@@ -302,11 +303,6 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
 				memberOffset = VariableStorage((int)subClassType->getMemberOffset(id.id));
 		}
-
-		if (auto st = findParentStatementOfType<SyntaxTree>(this))
-			st->addVariableReference(this);
-		else
-			jassertfalse;
 	}
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
@@ -546,66 +542,6 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 				}
 
 				getTargetVariable()->id.type = type;
-#if 0
-
-				Array<Types::ID> types;
-				getSubExpr(0)->forEachRecursive([&types, compiler, scope](Statement::Ptr p)
-				{
-
-
-					if (auto tOp = dynamic_cast<TernaryOp*>(p.get()))
-					{
-						auto tt = tOp->getTrueBranch()->getType();
-
-						if (Types::Helpers::isFixedType(tt))
-							types.addIfNotAlreadyThere(tt);
-
-						auto ft = tOp->getFalseBranch()->getType();
-
-						if (Types::Helpers::isFixedType(ft))
-							types.addIfNotAlreadyThere(ft);
-
-						return true;
-					}
-					if (auto fc = dynamic_cast<FunctionCall*>(p.get()))
-					{
-						BaseCompiler::ScopedPassSwitcher rs(compiler, BaseCompiler::ResolvingSymbols);
-						fc->process(compiler, scope);
-
-						BaseCompiler::ScopedPassSwitcher tc(compiler, BaseCompiler::TypeCheck);
-						fc->process(compiler, scope);
-
-						types.clear();
-						types.add(fc->function.returnType);
-
-						return true;
-					}
-
-
-					auto t = p->getType();
-
-					if (Types::Helpers::isFixedType(t))
-						types.addIfNotAlreadyThere(t);
-
-					return false;
-				});
-
-				types.add(Types::ID::Dynamic);
-
-				type = types.getFirst();
-
-
-				if (types.size() == 1)
-					location.throwError("Can't deduce auto type");
-
-				if (types.size() > 2)
-				{
-					logWarning("Imprecise type deduction: " + Types::Helpers::getTypeName(types.getFirst()));
-					type = types.getFirst();
-				}
-
-				getTargetVariable()->id.type = type;
-#endif
 			}
 
 			getTargetVariable()->isLocalDefinition = true;
@@ -660,8 +596,6 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		auto acg = CREATE_ASM_COMPILER(type);
 
-		
-
 		getSubExpr(0)->process(compiler, scope);
 		getSubExpr(1)->process(compiler, scope);
 
@@ -689,15 +623,14 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			else
 				acg.emitBinaryOp(assignmentType, tReg, value);
 
-#if 0
-			if (tReg->isDirtyGlobalMemory())
+			if (targetType == TargetType::Variable)
 			{
-				acg.emitMemoryWrite(tReg);
+				if (auto wt = dynamic_cast<WrapType*>(getTargetVariable()->id.typePtr.get()))
+				{
+					acg.emitWrap(wt, tReg, WrapType::OpType::Set);
+				}
 			}
-#endif
 		}
-
-		
 	}
 }
 

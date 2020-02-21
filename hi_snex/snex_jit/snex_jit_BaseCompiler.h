@@ -189,6 +189,8 @@ public:
 
 	void executeOptimization(ReferenceCountedObject* statement, BaseScope* scope);
 	
+	void optimize(ReferenceCountedObject* statement, BaseScope* scope, bool useExistingPasses=true);
+
 	void addOptimization(OptimizationPassBase* newPass)
 	{
 		passes.add(newPass);
@@ -209,6 +211,20 @@ public:
 		{
 			if (c->matchesId(id))
 				return c;
+		}
+
+		return nullptr;
+	}
+
+	WrapType* getWrapType(int size)
+	{
+		for (auto t : complexTypes)
+		{
+			if (auto wt = dynamic_cast<WrapType*>(t))
+			{
+				if (wt->size == size)
+					return wt;
+			}
 		}
 
 		return nullptr;

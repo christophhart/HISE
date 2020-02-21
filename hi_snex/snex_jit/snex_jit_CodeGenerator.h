@@ -190,8 +190,11 @@ struct AsmCodeGenerator
 
 	void writeToPointerAddress(RegPtr target, RegPtr value);
 
-
+	void emitInlinedMathAssembly(Identifier id, RegPtr target, const ReferenceCountedArray<AssemblyRegister>& args);
 	
+	void emitWrap(WrapType* t, RegPtr target, WrapType::OpType op);
+
+	static Array<Identifier> getInlineableMathFunctions();
 
 	void dumpVariables(BaseScope* s, uint64_t lineNumber);
 
@@ -202,6 +205,10 @@ struct AsmCodeGenerator
 	static void fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer);
 
 private:
+
+	X86Mem createStack(Types::ID type);
+	X86Mem createFpuMem(RegPtr ptr);
+	void writeMemToReg(RegPtr target, X86Mem);
 
 	AssemblyRegisterPool* registerPool;
 

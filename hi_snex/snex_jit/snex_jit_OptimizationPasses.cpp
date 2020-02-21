@@ -506,8 +506,16 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 #undef IS
 
 
-bool Inliner::processStatementInternal(BaseCompiler* , BaseScope* , StatementPtr )
+bool Inliner::processStatementInternal(BaseCompiler* compiler, BaseScope* scope, StatementPtr s)
 {
+	if (auto f = dynamic_cast<Operations::FunctionCall*>(s.get()))
+	{
+		if (inlineMathFunction(compiler, scope, f))
+			return true;
+
+		
+	}
+
 	return false;
 
 #if 0
@@ -553,6 +561,23 @@ bool Inliner::processStatementInternal(BaseCompiler* , BaseScope* , StatementPtr
 #endif
 }
 
+
+bool Inliner::inlineMathFunction(BaseCompiler* compiler, BaseScope* s, Operations::FunctionCall* f)
+{
+	if (f->callType == Operations::FunctionCall::ApiFunction && f->fc->getObjectName() == Identifier("Math"))
+	{
+		if (AsmCodeGenerator::getInlineableMathFunctions().contains(f->function.id))
+		{
+			auto inlinedFunction = new Operations::InlinedExternalCall(f);
+
+			replaceExpression(f, inlinedFunction);
+			return true;
+		}
+	}
+
+	
+	return false;
+}
 
 bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {

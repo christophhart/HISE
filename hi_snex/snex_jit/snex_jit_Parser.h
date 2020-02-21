@@ -44,15 +44,30 @@ using namespace juce;
 #define SKIP_IF_CONSTEXPR if(isConstExpr()) return;
 
 
-
-
-
 class BlockParser : public ParserHelpers::TokenIterator
 {
 public:
 
 	using ExprPtr = Operations::Expression::Ptr;
 	using StatementPtr = Operations::Statement::Ptr;
+
+	struct ScopedTemplateArgParser
+	{
+		ScopedTemplateArgParser(BlockParser& p_, bool isTemplateArgument):
+			p(p_)
+		{
+			wasTemplateArgument = p.isParsingTemplateArgument;
+			p.isParsingTemplateArgument = isTemplateArgument;
+		}
+
+		~ScopedTemplateArgParser()
+		{
+			p.isParsingTemplateArgument = wasTemplateArgument;
+		}
+
+		bool wasTemplateArgument;
+		BlockParser& p;
+	};
 
 	struct ScopedScopeStatementSetter // Scoped...
 	{
@@ -133,9 +148,15 @@ public:
 
 	VariableStorage parseVariableStorageLiteral();
 
+	VariableStorage parseConstExpression(bool isTemplateArgument);
+
+
+
 	InitialiserList::Ptr parseInitialiserList();
 
 	SpanType::Ptr parseSpanType();
+
+	WeakReference<BaseScope> currentScope;
 
 	WeakReference<BaseCompiler> compiler;
 
@@ -143,9 +164,29 @@ public:
 
 	void parseUsingAlias();
 
-
+	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, TokenType op);
+	ExprPtr parseExpression();
+	ExprPtr parseTernaryOperator();
+	ExprPtr parseBool();
+	ExprPtr parseLogicOperation();
+	ExprPtr parseComparation();
+	ExprPtr parseSum();
+	ExprPtr parseDifference();
+	ExprPtr parseProduct();
+	ExprPtr parseTerm();
+	ExprPtr parseCast(Types::ID type);
+	ExprPtr parseUnary();
+	ExprPtr parseFactor();
+	ExprPtr parseDotOperator(ExprPtr p);
+	ExprPtr parseSubscript(ExprPtr p);
+	ExprPtr parseCall(ExprPtr p);
+	ExprPtr parsePostSymbol();
+	ExprPtr parseReference(const Identifier& id);
+	ExprPtr parseLiteral(bool isNegative = false);
 
 private:
+
+	bool isParsingTemplateArgument = false;
 
 	WeakReference<Operations::ScopeStatementBase> currentScopeStatement;
 };
@@ -173,10 +214,13 @@ public:
 	StatementPtr parseVariableDefinition(bool isConst);
 	StatementPtr parseFunction();
 	StatementPtr parseSubclass();
+	StatementPtr parseWrapDefinition();
 	
 	StatementPtr parseComplexTypeDefinition(ComplexType::Ptr p);
 
 	StatementPtr parseDefinition(bool isConst, Types::ID type, bool isWrappedBuffer, bool isSmoothedVariable);
+
+	
 
 };
 

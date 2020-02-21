@@ -285,8 +285,13 @@ public:
 	struct WrappedBlockDefinition;	struct ClassStatement;	struct ClassInstance;
 	struct PointerReference;	struct DotOperator;			struct UsingStatement;
 
+
 	struct SpanDefinition;	struct Subscript; struct SpanAssignment;
 
+	struct WrapDefinition;
+
+
+	struct InlinedExternalCall;
 
 	struct ScopeStatementBase
 	{
@@ -428,12 +433,8 @@ public:
 			getChildStatement(i)->process(compiler, scope);
 	}
 
-	void addVariableReference(Operations::Statement* s);
 	bool isFirstReference(Operations::Statement* v) const;
 
-	Operations::Statement* getLastVariableForReference(const Symbol& ref) const;
-	Operations::Statement* getLastAssignmentForReference(const Symbol& ref) const;
-	
 	void addAlias(const Identifier& id, const juce::String& typeString)
 	{
 		registeredAliases.add({ id, typeString });
@@ -449,8 +450,6 @@ private:
 	};
 
 	Array<UsingAliases> registeredAliases;
-
-	Array<WeakReference<Statement>> variableReferences;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SyntaxTree);
 };

@@ -240,6 +240,7 @@ public:
 
 	using ExprPtr = Operations::Expression::Ptr;
 
+	bool inlineMathFunction(BaseCompiler* compiler, BaseScope* s, Operations::FunctionCall* f);
 	
 
 };

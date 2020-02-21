@@ -58,7 +58,7 @@ using namespace juce;
 	X(class_, "class")			X(block_, "block")	X(event_, "event")		X(for_, "for") \
 	X(if_, "if")				X(else_, "else")	X(sfloat, "sfloat")		X(sdouble, "sdouble") \
 	X(auto_, "auto")			X(wblock, "wblock")	X(zblock, "zblock")		X(struct_, "struct")	X(span_, "span") \
-	X(using_, "using")			
+	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")
 
 namespace JitTokens
 {
@@ -345,6 +345,7 @@ struct ParserHelpers
 			if (matchIf(JitTokens::sdouble)) return Types::ID::Double;
 			if (matchIf(JitTokens::zblock)) return Types::ID::Block;
 			if (matchIf(JitTokens::wblock)) return Types::ID::Block;
+			if (matchIf(JitTokens::wrap))   return Types::ID::Integer;
 			if (matchIf(JitTokens::span_))  return Types::ID::Pointer;
 			if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
 

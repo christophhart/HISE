@@ -48,6 +48,8 @@ using namespace asmjit;
 #pragma warning( push )
 #pragma warning( disable : 4244)
 
+
+
 class OptimizationTestCase
 {
 public:
@@ -166,7 +168,9 @@ public:
 
 			ReturnType v = f.template call<ReturnType>(input);
 
-			if (!(v == expected))
+			auto diff = std::abs(v - expected);
+
+			if (diff > 0.000001)
 			{
 				dump();
 
@@ -323,6 +327,16 @@ public:
 
 	void runTest() override
 	{
+
+		
+		
+
+		testStaticConst();
+		
+		testWrap();
+
+		return;
+
 		testMacOSRelocation();
         
         testOptimizations();
@@ -330,6 +344,7 @@ public:
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
+		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 	}
 
 	void runTestsWithOptimisation(const Array<Identifier>& ids)
@@ -340,6 +355,11 @@ public:
 			logMessage("--- " + o.toString());
 
 		optimizations = ids;
+
+		testFpu();
+
+		testMathInlining<double>();
+		testMathInlining<float>();
 
 		testParser();
 		testSimpleIntOperations();
@@ -420,6 +440,24 @@ private:
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
+			ADD_CODE_LINE("int clamp(int i) { return i > $size ? ($size -1 ) : i; };");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    int i = clamp((int)input + 2);");
+			ADD_CODE_LINE("    Math.random();");
+			ADD_CODE_LINE("    data[i] = ($T)4.0;");
+			ADD_CODE_LINE("    return data[i];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+
+			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
+		}
+
+		return;
+
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    int i = (int)input + 2;");
 			ADD_CODE_LINE("    i = i > $size ? ($size -1 ) : i;");
@@ -435,24 +473,7 @@ private:
 		}
 
 
-		{
-			NEW_CODE_TEXT();
-			DECLARE_SPAN("data");
-			ADD_CODE_LINE("int clamp(int i) { return i > $size ? ($size -1 ) : i; };");
-			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    int i = clamp((int)input + 2);");
-			ADD_CODE_LINE("    Math.random();");
-			ADD_CODE_LINE("    data[i] = ($T)4.0;");
-			ADD_CODE_LINE("    return data[i];}");
-			FINALIZE_CODE();
-
-
-			CREATE_TYPED_TEST(code);
-
-			test->dump();
-
-			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
-		}
+		
 
 		juce::String tdi;
 
@@ -714,10 +735,9 @@ private:
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED(GET_TYPE(T) + " don't change input register", 1, 1);
 		}
-
-		
-
 	}
+
+	
 
 	void expectCompileOK(Compiler* compiler)
 	{
@@ -726,7 +746,263 @@ private:
 		expect(r.wasOk(), r.getErrorMessage() + "\nFunction Code:\n\n" + compiler->getLastCompiledCode());
 	}
 
-	
+	void testStaticConst()
+	{
+		beginTest("Testing static const");
+
+		using T = int;
+
+		ScopedPointer<HiseJITTestCase<T>> test;
+		
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("int test(int input) { static const int x = 4; return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("static const variable in function", 5, 4);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const int x = BLOCK_SIZE / 2;");
+
+			ADD_CODE_LINE("int test(int input) { return x; }");
+
+			CREATE_TYPED_TEST(code);
+			test->memory.addConstant("BLOCK_SIZE", VariableStorage(512));
+			
+			EXPECT_TYPED("test static const variable with global constant", 10, 256);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const float x = Math.abs(-8.0f);");
+			ADD_CODE_LINE("int test(int input) { return (int)x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("static const variable with constexpr Math call", 5, 8);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const int x = 4 + 9;");
+			ADD_CODE_LINE("int test(int input) { return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("static const variable with binary op", 5, 13);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const int x = 4;");
+			ADD_CODE_LINE("int test(int input) { return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("static const variable", 5, 4);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const int x = 49;");
+			ADD_CODE_LINE("static const int y = x > 50 ? 87 : 83;");
+			ADD_CODE_LINE("int test(int input) { return y; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("static const variable with ternary op", 5, 83);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const int x = 4;");
+			ADD_CODE_LINE("span<int, x> data = { 1, 2, 3, 4 };");
+			ADD_CODE_LINE("int test(int input) { return data[input]; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("test static const variable in span size argument", 1, 2);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const int x = 4;");
+			ADD_CODE_LINE("span<int, 2> data = { 1, x + 90 };");
+			ADD_CODE_LINE("int test(int input) { return data[1]; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("test static const variable in span initialiser list", 1, 94);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("using T = int;");
+			ADD_CODE_LINE("static const T x = 4;");
+			ADD_CODE_LINE("int test(int input) { return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("test static const variable with using alias", 1, 4);
+		}
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const int x = 2;");
+			ADD_CODE_LINE("static const int y = x-1;");
+			ADD_CODE_LINE("span<int, x> data = { y, x };");
+			ADD_CODE_LINE("int test(int input) { return data[x-2]; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("test static const variable in span initialiser list", 10, 1);
+		}
+	}
+
+	void testWrap()
+	{
+		beginTest("Testing wrap type");
+
+		using T = int;
+
+		ScopedPointer<HiseJITTestCase<T>> test;
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("static const int size = 4;");
+			ADD_CODE_LINE("wrap<size> x = {5};");
+			ADD_CODE_LINE("int test(int input) { return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("wrap with const variable", 5, 1);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("wrap<5> x = {3};");
+			ADD_CODE_LINE("int test(int input) { return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("simple", 5, 3);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("wrap<4> x = {5};");
+			ADD_CODE_LINE("int test(int input) { return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("wrap at initialisation", 5, 1);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("wrap<4> x = {2};");
+			ADD_CODE_LINE("int test(int input) { x = input; return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("wrap assign", 5, 1);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("wrap<4> x = {2};");
+			ADD_CODE_LINE("int test(int input) { return x++; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("wrap post-inc", 5, 2);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("wrap<4> x = {2};");
+			ADD_CODE_LINE("int test(int input) { return ++x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("wrap pre-inc", 5, 3);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("wrap<4> x = {3};");
+			ADD_CODE_LINE("int test(int input) { return ++x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("wrap pre-inc with wrap", 5, 0);
+		}
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("wrap<4> x = {3};");
+			ADD_CODE_LINE("int test(int input) { return x++; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("wrap post-inc with wrap", 5, 3);
+		}
+		
+	}
+
+	template <typename T> void testMathInlining()
+	{
+		auto type = Types::Helpers::getTypeFromTypeId<T>();
+		beginTest(juce::String("Testing inlining of math operations for ") + juce::String(Types::Helpers::getTypeName(type)));
+
+		optimizations = { OptimizationIds::Inlining };
+
+		auto v1 = getLiteral<T>(18);
+		auto v2 = getLiteral<T>(39);
+
+		ScopedPointer<HiseJITTestCase<T>> test;
+
+		CREATE_TYPED_TEST(getTestFunction<T>("return Math.abs(input);"));
+		EXPECT_TYPED("Math.abs", T(-25.0), T(25.0));
+
+		
+
+		CREATE_TYPED_TEST(getTestFunction<T>(juce::String("return Math.max(input, ") + v1 + ");"));
+		EXPECT_TYPED("Math.max 1", T(121.0), T(121.0));
+		EXPECT_TYPED("Math.max 2", T(13.0), T(18.0));
+
+		CREATE_TYPED_TEST(getTestFunction<T>(juce::String("return Math.min(input, ") + v1 + ");"));
+		EXPECT_TYPED("Math.min 1", T(121.0), T(18.0));
+		EXPECT_TYPED("Math.min 2", T(13.0), T(13.0));
+
+		CREATE_TYPED_TEST(getTestFunction<T>(juce::String("return Math.range(input, ") + v1 + ", " + v2 + ");"));
+		EXPECT_TYPED("Math.range 1", T(12), T(18.0));
+		EXPECT_TYPED("Math.range 2", T(29.0), T(29.0));
+		EXPECT_TYPED("Math.range 3", T(112.0), T(39.0));
+
+		
+
+		CREATE_TYPED_TEST(getTestFunction<T>("return Math.sign(input);"));
+
+		EXPECT_TYPED("Math.sign", T(25.0), T(1.0));
+		EXPECT_TYPED("Math.sign", T(-25.0), T(-1.0));
+
+		auto i1 = getLiteral<T>(4);
+		auto i2 = getLiteral<T>(8);
+		
+		CREATE_TYPED_TEST(getTestFunction<T>(juce::String("return Math.map(input, ") + i1 + ", " + i2 + ");"));
+		EXPECT_TYPED("Math.map 1", T(0), T(4));
+		EXPECT_TYPED("Math.map 2", T(0.5), T(6));
+		EXPECT_TYPED("Math.map 3", T(1.0), T(8));
+
+
+		auto one = getLiteral<T>(1);
+
+		CREATE_TYPED_TEST(getTestFunction<T>(juce::String("return Math.fmod(input, ") + one + ");"));
+		EXPECT_TYPED("Math.fmod 1", T(3.7), T(0.7));
+		EXPECT_TYPED("Math.fmod 2", T(0.2), T(0.2));
+		
+		CREATE_TYPED_TEST(getTestFunction<T>(juce::String("return Math.sin(input);")));
+		EXPECT_TYPED("Math.sin 1", T(3.7), T(std::sin(3.7)));
+		EXPECT_TYPED("Math.sin 2", T(0.2), T(std::sin(0.2)));
+
+
+	}
 
 	void testOptimizations()
 	{
@@ -941,6 +1217,60 @@ private:
 		EXPECT_TYPED("auto declaration with span subscript", 3, 19);
 
 		
+	}
+
+	void testFpu()
+	{
+		using namespace asmjit;
+
+		int ok = 0;
+
+		JitRuntime rt;
+		CodeHolder ch;
+
+		ok = ch.init(rt.codeInfo());
+
+
+		X86Compiler cc(&ch);
+
+		FuncSignatureX sig;
+		sig.setRetT<double>();
+		sig.addArgT<double>();
+
+		cc.addFunc(sig);
+
+		auto r1 = cc.newXmmSd();
+		
+		auto st = cc.newStack(8, 16);
+		
+		st.setSize(8);
+
+		cc.setArg(0, r1);
+
+		cc.movsd(st, r1);
+		cc.fld(st);
+		cc.fsqrt();
+		cc.fstp(st);
+		cc.movsd(r1, st);
+		cc.ret(r1);
+
+		ok = cc.endFunc();
+		ok = cc.finalize();
+
+		
+
+		void* f = nullptr;
+
+		ok = rt.add(&f, &ch);
+
+		expect(f != nullptr);
+
+		using signature = double(*)(double);
+
+		auto func = (signature)f;
+		auto returnValue = func(144.0f);
+
+		expect(returnValue == 12.0f);
 	}
 
     void testMacOSRelocation()

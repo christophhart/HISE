@@ -879,6 +879,242 @@ void AsmCodeGenerator::writeToPointerAddress(RegPtr targetPointer, RegPtr source
 	
 }
 
+juce::Array<juce::Identifier> AsmCodeGenerator::getInlineableMathFunctions()
+{
+	Array<Identifier> ids;
+
+	ids.add("abs");
+	ids.add("sin");
+	ids.add("cos");
+	ids.add("min");
+	ids.add("max");
+	ids.add("map");
+	ids.add("range");
+	ids.add("sign");
+	ids.add("fmod");
+
+	return ids;
+}
+
+void AsmCodeGenerator::emitInlinedMathAssembly(Identifier id, RegPtr target, const ReferenceCountedArray<AssemblyRegister>& args)
+{
+	auto isQword = type == Types::ID::Double;
+
+	jassert(getInlineableMathFunctions().contains(id));
+
+	target->createRegister(cc);
+
+#define IF_FUNCTION(x) if(id.toString() == #x)
+
+	IF_FUNCTION(abs)
+	{
+		IF_(float)
+		{
+			auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU32(0x7fffffff));
+			cc.movss(FP_REG_W(target), FP_REG_R(args[0]));
+			cc.andps(FP_REG_W(target), c);
+		}
+		IF_(double)
+		{
+			auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU64(0x7fffffffffffffff));
+			cc.movsd(FP_REG_W(target), FP_REG_R(args[0]));
+			cc.andps(FP_REG_W(target), c);
+		}
+	}
+	IF_FUNCTION(max)
+	{
+		IF_(float)
+		{
+			FP_OP(cc.movss, target, args[0]);
+			FP_OP(cc.maxss, target, args[1]);
+		}
+		IF_(double)
+		{
+			FP_OP(cc.movsd, target, args[0]);
+			FP_OP(cc.maxsd, target, args[1]);
+		}
+	}
+	IF_FUNCTION(min)
+	{
+		IF_(float)
+		{
+			FP_OP(cc.movss, target, args[0]);
+			FP_OP(cc.minss, target, args[1]);
+		}
+		IF_(double)
+		{
+			FP_OP(cc.movsd, target, args[0]);
+			FP_OP(cc.minsd, target, args[1]);
+		}
+	}
+	IF_FUNCTION(range)
+	{
+		IF_(float)
+		{
+			FP_OP(cc.movss, target, args[0]);
+			FP_OP(cc.maxss, target, args[1]);
+			FP_OP(cc.minss, target, args[2]);
+			
+		}
+		IF_(double)
+		{
+			FP_OP(cc.movsd, target, args[0]);
+			FP_OP(cc.maxsd, target, args[1]);
+			FP_OP(cc.minsd, target, args[2]);
+		}
+	}
+	IF_FUNCTION(sign)
+	{
+		args[0]->loadMemoryIntoRegister(cc);
+
+		auto pb = cc.newLabel();
+		auto nb = cc.newLabel();
+
+		IF_(float)
+		{
+			auto input = FP_REG_R(args[0]);
+			auto t = FP_REG_W(target);
+			auto mem = cc.newMmConst(ConstPool::kScopeGlobal, Data64::fromF32(-1.0f, 1.0f));
+			auto i = cc.newGpq();
+			auto r2 = cc.newGpq();
+			auto zero = cc.newXmmSs();
+
+			cc.xorps(zero, zero);
+			cc.xor_(i, i);
+			cc.ucomiss(input, zero);
+			cc.seta(i.r8());
+			cc.lea(r2, mem);
+			cc.movss(t, x86::ptr(r2, i, 2, 0, 4));
+		}
+		IF_(double)
+		{
+			auto input = FP_REG_R(args[0]); 
+			auto t = FP_REG_W(target); 
+			auto mem = cc.newXmmConst(ConstPool::kScopeGlobal, Data128::fromF64(-1.0, 1.0));
+			auto i = cc.newGpq();
+			auto r2 = cc.newGpq();
+			auto zero = cc.newXmmSd();
+
+			cc.xorps(zero, zero);
+			cc.xor_(i, i);
+			cc.ucomisd(input, zero);
+			cc.seta(i.r8());
+			cc.lea(r2, mem);
+			cc.movsd(t, x86::ptr(r2, i, 3, 0, 8));
+		}
+	}
+	IF_FUNCTION(map)
+	{
+		IF_(float)
+		{
+			FP_OP(cc.movss, target, args[2]);
+			FP_OP(cc.subss, target, args[1]);
+			FP_OP(cc.mulss, target, args[0]);
+			FP_OP(cc.addss, target, args[1]);
+		}
+		IF_(double)
+		{
+			FP_OP(cc.movsd, target, args[2]);
+			FP_OP(cc.subsd, target, args[1]);
+			FP_OP(cc.mulsd, target, args[0]);
+			FP_OP(cc.addsd, target, args[1]);
+		}
+	}
+	IF_FUNCTION(fmod)
+	{
+		X86Mem x = createFpuMem(args[0]);
+		X86Mem y = createFpuMem(args[1]);
+		auto u = createStack(target->getType());
+
+		cc.fld(y);
+		cc.fld(x);
+		cc.fprem();
+		cc.fstp(x);
+		cc.fstp(u);
+
+		writeMemToReg(target, x);
+	}
+	IF_FUNCTION(sin)
+	{
+		X86Mem x = createFpuMem(args[0]);
+
+		cc.fld(x);
+		cc.fsin();
+		cc.fstp(x);
+
+		writeMemToReg(target, x);
+	}
+
+	IF_FUNCTION(cos)
+	{
+		X86Mem x = createFpuMem(args[0]);
+
+		cc.fld(x);
+		cc.fcos();
+		cc.fstp(x);
+
+		writeMemToReg(target, x);
+	}
+}
+
+void AsmCodeGenerator::emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op)
+{
+	switch (op)
+	{
+	case WrapType::OpType::Set:
+	{
+		auto d = cc.newGpd();
+		auto t = INT_REG_W(target);
+		auto s = cc.newInt32Const(ConstPool::kScopeLocal, wt->size);
+
+		cc.cdq(d, t);
+		cc.idiv(d, t, s);
+		cc.mov(t, d);
+	}
+	case WrapType::OpType::Inc:
+	{
+		auto t = INT_REG_W(target);
+		auto temp = cc.newGpd();
+
+		cc.mov(temp, 0);
+		cc.cmp(t, wt->size);
+		cc.cmovge(t, temp);
+	}
+	}
+}
+
+
+
+asmjit::X86Mem AsmCodeGenerator::createFpuMem(RegPtr ptr)
+{
+	auto qword = ptr->getType() == Types::ID::Double;
+	X86Mem x;
+
+	if (ptr->isMemoryLocation())
+		x = FP_MEM(ptr);
+	else
+	{
+		x = createStack(ptr->getType());
+
+		if (qword)
+			cc.movsd(x, FP_REG_R(ptr));
+		else
+			cc.movss(x, FP_REG_R(ptr));
+	}
+
+	return x;
+}
+
+
+
+void AsmCodeGenerator::writeMemToReg(RegPtr target, X86Mem mem)
+{
+	if (target->getType() == Types::ID::Double)
+		cc.movsd(FP_REG_W(target), mem);
+	else
+		cc.movss(FP_REG_W(target), mem);
+}
+
 void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 {
 	auto globalScope = s->getGlobalScope();
@@ -932,6 +1168,15 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 	}
 }
 
+
+asmjit::X86Mem AsmCodeGenerator::createStack(Types::ID t)
+{
+	auto s = Types::Helpers::getSizeForType(t);
+
+	auto st = cc.newStack(s, s);
+	st.setSize(s);
+	return st;
+}
 
 void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)
 {

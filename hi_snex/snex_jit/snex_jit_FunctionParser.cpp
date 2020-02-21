@@ -65,6 +65,21 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
 
 BlockParser::StatementPtr FunctionParser::parseStatement()
 {
+	if (matchIf(JitTokens::static_))
+	{
+		match(JitTokens::const_);
+		
+		currentHnodeType = matchType();
+
+		auto id = parseIdentifier();
+
+		match(JitTokens::assign_);
+
+		currentScope->addConstant(id, parseConstExpression(false));
+		match(JitTokens::semicolon);
+		return parseStatement();
+	}
+
 	bool isConst = matchIf(JitTokens::const_);
 
 	StatementPtr statement;
@@ -260,7 +275,7 @@ void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
 	tree->addStatement(new Operations::ReturnStatement(location, nullptr));
 }
 
-BlockParser::ExprPtr FunctionParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenType op)
+BlockParser::ExprPtr BlockParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenType op)
 {
 	return new Operations::BinaryOp(location, l, r, op);
 }
@@ -283,12 +298,12 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseAssignment()
 }
 
 
-Operations::Expression::Ptr FunctionParser::parseExpression()
+Operations::Expression::Ptr BlockParser::parseExpression()
 {
 	return parseTernaryOperator();
 }
 
-BlockParser::ExprPtr FunctionParser::parseTernaryOperator()
+BlockParser::ExprPtr BlockParser::parseTernaryOperator()
 {
 	ExprPtr condition = parseBool();
 
@@ -304,7 +319,7 @@ BlockParser::ExprPtr FunctionParser::parseTernaryOperator()
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseBool()
+BlockParser::ExprPtr BlockParser::parseBool()
 {
 	const bool isInverted = matchIf(JitTokens::logicalNot);
 	ExprPtr result = parseLogicOperation();
@@ -316,7 +331,7 @@ BlockParser::ExprPtr FunctionParser::parseBool()
 }
 
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseLogicOperation()
+BlockParser::ExprPtr BlockParser::parseLogicOperation()
 {
 	ExprPtr left = parseComparation();
 
@@ -334,7 +349,7 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseLogicOperation()
 		return left;
 }
 
-BlockParser::ExprPtr FunctionParser::parseComparation()
+BlockParser::ExprPtr BlockParser::parseComparation()
 {
 	ExprPtr left = parseSum();
 
@@ -345,6 +360,11 @@ BlockParser::ExprPtr FunctionParser::parseComparation()
 		currentType == JitTokens::equals ||
 		currentType == JitTokens::notEquals)
 	{
+		// If this is true, we are parsing a template argument 
+		// and don't want to consume the '>' token...
+		if (isParsingTemplateArgument)
+			return left;
+
 		TokenType op = currentType;
 		skip();
 		ExprPtr right = parseSum();
@@ -355,7 +375,7 @@ BlockParser::ExprPtr FunctionParser::parseComparation()
 }
 
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseSum()
+BlockParser::ExprPtr BlockParser::parseSum()
 {
 	ExprPtr left(parseDifference());
 
@@ -370,7 +390,7 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseSum()
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseProduct()
+BlockParser::ExprPtr BlockParser::parseProduct()
 {
 	ExprPtr left(parseTerm());
 
@@ -388,7 +408,7 @@ BlockParser::ExprPtr FunctionParser::parseProduct()
 
 
 
-BlockParser::ExprPtr FunctionParser::parseDifference()
+BlockParser::ExprPtr BlockParser::parseDifference()
 {
 	ExprPtr left(parseProduct());
 
@@ -402,7 +422,7 @@ BlockParser::ExprPtr FunctionParser::parseDifference()
 		return left;
 }
 
-BlockParser::ExprPtr FunctionParser::parseTerm()
+BlockParser::ExprPtr BlockParser::parseTerm()
 {
 	if (matchIf(JitTokens::openParen))
 	{
@@ -420,7 +440,7 @@ BlockParser::ExprPtr FunctionParser::parseTerm()
 }
 
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseCast(Types::ID type)
+BlockParser::ExprPtr BlockParser::parseCast(Types::ID type)
 {
 	match(JitTokens::closeParen);
 	ExprPtr source(parseTerm());
@@ -428,7 +448,7 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseCast(Types::ID type)
 }
 
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseUnary()
+BlockParser::ExprPtr BlockParser::parseUnary()
 {
 	if (currentType == JitTokens::identifier ||
 		currentType == JitTokens::literal ||
@@ -459,7 +479,7 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseUnary()
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseFactor()
+BlockParser::ExprPtr BlockParser::parseFactor()
 {
 	clearSymbol();
 
@@ -479,7 +499,7 @@ BlockParser::ExprPtr FunctionParser::parseFactor()
 			return parseLiteral(true);
 		else
 		{
-			ExprPtr expr = parseSymbolOrLiteral();
+			ExprPtr expr = parseReference(parseIdentifier());
 			return new Operations::Negation(location, expr);
 		}
 	}
@@ -493,7 +513,7 @@ BlockParser::ExprPtr FunctionParser::parseFactor()
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseDotOperator(ExprPtr p)
+BlockParser::ExprPtr BlockParser::parseDotOperator(ExprPtr p)
 {
 	while(matchIf(JitTokens::dot))
 	{
@@ -505,7 +525,7 @@ BlockParser::ExprPtr FunctionParser::parseDotOperator(ExprPtr p)
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseSubscript(ExprPtr p)
+BlockParser::ExprPtr BlockParser::parseSubscript(ExprPtr p)
 {
 	bool found = false;
 
@@ -521,7 +541,7 @@ BlockParser::ExprPtr FunctionParser::parseSubscript(ExprPtr p)
 	return found ? parseDotOperator(p) : parseCall(p);
 }
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseCall(ExprPtr p)
+BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 {
 	bool found = false;
 
@@ -544,7 +564,7 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseCall(ExprPtr p)
 	return found ? parseDotOperator(p) : p;
 }
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parsePostSymbol()
+BlockParser::ExprPtr BlockParser::parsePostSymbol()
 {
 	auto id = parseIdentifier();
 	auto expr = parseReference(id);
@@ -560,61 +580,15 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parsePostSymbol()
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseSymbolOrLiteral()
-{
-	jassertfalse;
-	return nullptr;
-
-	// old
-
-#if 0
-	if (currentType == JitTokens::identifier)
-	{
-		auto id = parseIdentifier();
-
-		if (matchIf(JitTokens::plusplus))
-			return new Operations::Increment(location, parseReference(id), false, false);
-		if (matchIf(JitTokens::minusminus))
-			return new Operations::Increment(location, parseReference(id), false, true);
-		if (matchIf(JitTokens::openBracket))
-		{
-			ExprPtr parent = parseReference(id);
-			ExprPtr idx = parseExpression();
-			match(JitTokens::closeBracket);
-
-			parent = new Operations::Subscript(location, parent, idx);
-
-			while (matchIf(JitTokens::openBracket))
-			{
-				idx = parseExpression();
-				parent = new Operations::Subscript(location, parent, idx);
-				match(JitTokens::closeBracket);
-			}
-
-			return parent;
-		}
-		if (matchIf(JitTokens::openParen))
-		{
-			return parseFunctionCall(id);
-		}
-
-		return parseReference(id);	
-	}
-	else
-		return parseLiteral();
-#endif
-}
 
 
-
-
-BlockParser::ExprPtr FunctionParser::parseReference(const Identifier& id)
+BlockParser::ExprPtr BlockParser::parseReference(const Identifier& id)
 {
 	addSymbolChild(id);
 	return new Operations::VariableReference(location, getCurrentSymbol(true));
 }
 
-BlockParser::ExprPtr FunctionParser::parseLiteral(bool isNegative)
+BlockParser::ExprPtr BlockParser::parseLiteral(bool isNegative)
 {
 	auto v = parseVariableStorageLiteral();
 
@@ -628,41 +602,6 @@ BlockParser::ExprPtr FunctionParser::parseLiteral(bool isNegative)
 	return new Operations::Immediate(location, v);
 }
 
-#if 0
-
-	if (matchIfSymbol())
-	{
-		ExprPtr left;
-
-		
-
-		if (matchIf(JitTokens::plus))
-		{
-			ExprPtr right = parseExpression();
-
-			return new Operations::BinaryOp(location, left, right);
-		}
-
-		return left;
-	}
-
-	if (currentType == JitTokens::literal)
-	{
-		auto v = parseVariableStorageLiteral();
-		return new Operations::Immediate(location, v);
-	}
-
-	String expression;
-
-	while (currentType != JitTokens::eof && currentType != JitTokens::semicolon)
-	{
-		expression << currentType;
-		skip();
-	}
-
-	return new Operations::DummyExpression(location, expression);
-}
-#endif
 
 
 }

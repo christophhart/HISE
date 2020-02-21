@@ -149,6 +149,68 @@ private:
 
 
 
+struct WrapType : public ComplexType
+{
+	enum OpType
+	{
+		Inc,
+		Dec,
+		Set,
+		numOpTypes
+	};
+
+	WrapType(int size_) :
+		size(size_)
+	{};
+
+	size_t getRequiredByteSize() const override { return 4; }
+
+	/** Override this and return the actual data type that this type operates on. */
+	virtual Types::ID getDataType() const override { return Types::ID::Integer; }
+
+	virtual size_t getRequiredAlignment() const override { return 4; }
+
+	/** Override this and optimise the alignment. After this call the data structure must not be changed. */
+	virtual void finaliseAlignment() { ComplexType::finaliseAlignment(); };
+
+	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const
+	{
+		auto v = juce::String(*reinterpret_cast<int*>(complexTypeStartPointer));
+
+		s << v << "\n";
+	}
+
+	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
+	{
+		if (initValues->size() != 1)
+			return Result::fail("Can't initialise with more than one value");
+
+		VariableStorage v;
+		initValues->getValue(0, v);
+
+		*reinterpret_cast<int*>(dataPointer) = v.toInt();
+
+		return Result::ok();
+	}
+
+	/** Override this, check if the type matches and call the function for itself and each member recursively and abort if t returns true. */
+	bool forEach(const TypeFunction& , Ptr , void* ) override
+	{
+		return false;
+	}
+
+	juce::String toStringInternal() const override
+	{
+		juce::String w;
+		w << "wrap<" << juce::String(size) << ">";
+		return w;
+	}
+
+	int size;
+};
+
+
+
 /** A Symbol is used to identifiy the data slot. */
 struct Symbol
 {

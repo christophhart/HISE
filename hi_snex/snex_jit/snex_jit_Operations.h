@@ -235,6 +235,9 @@ struct Operations::VariableReference : public Expression
 		if(auto gfc = scope->getGlobalScope()->getGlobalFunctionClass(id.id))
 			return gfc;
 
+		if (scope->getScopeType() == BaseScope::Global)
+			return nullptr;
+
 		return scope->getRootClassScope()->getSubFunctionClass(id);
 	}
 
@@ -445,14 +448,6 @@ struct Operations::Assignment : public Expression,
 		}
 		
 		return 0;
-	}
-
-	
-
-	bool isLastAssignmentToTarget() const
-	{
-		auto tree = findParentStatementOfType<SyntaxTree>(this);
-		return this == tree->getLastAssignmentForReference(getTargetVariable()->id);
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
@@ -1430,6 +1425,11 @@ struct Operations::Increment : public UnaryOp
 				reg = compiler->getRegFromPool(scope, Types::ID::Integer);
 				asg.emitIncrement(reg, getSubRegister(0), isPreInc, isDecrement);
 			}
+
+			if (auto wt = dynamic_cast<WrapType*>(getSubExpr(0)->getComplexType().get()))
+			{
+				asg.emitWrap(wt, reg, isDecrement ? WrapType::OpType::Dec : WrapType::OpType::Inc);
+			}
 		}
 	}
 
@@ -1952,6 +1952,68 @@ struct Operations::WrappedBlockDefinition : public Statement
 	Types::ID getType() const override { return Types::ID::Block; }
 };
 
+struct Operations::WrapDefinition : public Statement,
+									public TypeDefinitionBase
+{
+	WrapDefinition(Location l, const Symbol& s, InitialiserList::Ptr initList):
+		Statement(l),
+		id(s),
+		initValue(initList)
+	{
+		jassert(id.type == Types::ID::Integer);
+		jassert(id.typePtr != nullptr);
+	}
+
+	Types::ID getType() const { return id.type; }
+	
+	Types::ID getNativeType() const override { return id.type; }
+	ComplexType::Ptr getTypePtr() const override { return id.typePtr; }
+	Identifier getInstanceId() const override { return id.id; }
+
+	void process(BaseCompiler* compiler, BaseScope* scope)
+	{
+		if (scope->getScopeType() != BaseScope::Class)
+			throwError("Can't define spans in functions");
+
+		COMPILER_PASS(BaseCompiler::DataSizeCalculation)
+		{
+			if (scope->getRootClassScope() == scope)
+				scope->getRootData()->enlargeAllocatedSize(id.typePtr->getRequiredByteSize());
+		}
+
+		COMPILER_PASS(BaseCompiler::DataAllocation)
+		{
+			if (scope->getRootClassScope() == scope)
+				scope->getRootData()->allocate(scope, id);
+		}
+
+		COMPILER_PASS(BaseCompiler::DataInitialisation)
+		{
+			if (initValue != nullptr)
+			{
+				VariableStorage v;
+
+				initValue->getValue(0, v);
+
+				auto wt = dynamic_cast<WrapType*>(id.typePtr.get());
+
+				auto actualValue = v.toInt() % wt->size;
+
+				initValue = new InitialiserList();
+				initValue->addImmediateValue(VariableStorage(actualValue));
+
+				auto r = scope->getRootData()->initData(scope, id, initValue);
+
+				if (!r.wasOk())
+					location.throwError(r.getErrorMessage());
+			}
+		}
+	}
+
+	Symbol id;
+	InitialiserList::Ptr initValue;
+};
+
 struct Operations::SmoothedVariableDefinition : public Statement
 {
 	SmoothedVariableDefinition(Location l, BaseScope::Symbol id_, Types::ID t, VariableStorage initialValue) :
@@ -1971,6 +2033,46 @@ struct Operations::SmoothedVariableDefinition : public Statement
 	Types::ID getType() const override { return type; }
 
 	Types::ID type;
+};
+
+struct Operations::InlinedExternalCall : public Expression
+{
+	InlinedExternalCall(FunctionCall* functionCallToBeReplaced):
+		Expression(functionCallToBeReplaced->location),
+		f(functionCallToBeReplaced->function)
+	{
+		for (int i = 0; i < functionCallToBeReplaced->getNumArguments(); i++)
+		{
+			addStatement(functionCallToBeReplaced->getArgument(i));
+		}
+	}
+
+	Types::ID getType() const override
+	{
+		return f.returnType;
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope)
+	{
+		Expression::process(compiler, scope);
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			auto acg = CREATE_ASM_COMPILER(getType());
+
+			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
+
+			ReferenceCountedArray<AssemblyRegister> args;
+
+			for (int i = 0; i < getNumChildStatements(); i++)
+				args.add(getSubExpr(i)->reg);
+
+			acg.emitInlinedMathAssembly(f.id, reg, args);
+		}
+	}
+
+	FunctionData f;
+	
 };
 
 }

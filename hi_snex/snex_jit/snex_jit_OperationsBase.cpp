@@ -247,14 +247,8 @@ SyntaxTree::SyntaxTree(ParserHelpers::CodeLocation l) :
 
 }
 
-void SyntaxTree::addVariableReference(Operations::Statement* s)
-{
-	variableReferences.add(s);
-}
-
 bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 {
-#if 0
 	SyntaxTreeWalker m(v_);
 
 	if(auto v = m.getNextStatementOfType<Operations::VariableReference>())
@@ -263,56 +257,6 @@ bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 	}
 
 	return false;
-#endif
-	
-	for (auto v : variableReferences)
-	{
-		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
-		{
-			if (variable->id == dynamic_cast<Operations::VariableReference*>(v_)->id)
-				return v == v_;
-		}
-	}
-
-	return false;
-}
-
-Operations::Statement* SyntaxTree::getLastVariableForReference(const Symbol& ref) const
-{
-	Statement* lastRef = nullptr;
-
-	for (auto v : variableReferences)
-	{
-		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
-		{
-			if (ref == variable->id)
-				lastRef = variable;
-		}
-	}
-
-	return lastRef;
-}
-
-Operations::Statement* SyntaxTree::getLastAssignmentForReference(const Symbol& ref) const
-{
-	Statement* lastAssignment = nullptr;
-
-	for (auto v : variableReferences)
-	{
-		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
-		{
-			if (ref == variable->id)
-			{
-				if (auto as = dynamic_cast<Operations::Assignment*>(v->parent.get()))
-				{
-					if (as->getTargetVariable() == variable)
-						lastAssignment = as;
-				}
-			}
-		}
-	}
-
-	return lastAssignment;
 }
 
 
@@ -371,8 +315,6 @@ bool Operations::Statement::isConstExpr() const
 
 void Operations::Statement::addStatement(Statement* b, bool addFirst/*=false*/)
 {
-	
-
 	if (addFirst)
 		childStatements.insert(0, b);
 	else

@@ -63,7 +63,7 @@ snex::jit::ClassScope* BaseScope::getRootClassScope() const
 
 bool BaseScope::addConstant(const Identifier& id, VariableStorage v)
 {
-	if (getRootClassScope()->rootData->contains(scopeId.getChildSymbol(id)))
+	if (scopeType != Global && getRootClassScope()->rootData->contains(scopeId.getChildSymbol(id)))
 		return false;
 
 	for (auto c : constants)
@@ -72,7 +72,7 @@ bool BaseScope::addConstant(const Identifier& id, VariableStorage v)
 			return false;
 	}
 
-	constants.add({ scopeId.getChildSymbol(id, v.getType()), v });
+	constants.add({ Symbol::createRootSymbol(id).withType(v.getType()), v });
 	return true;
 }
 
@@ -178,6 +178,9 @@ BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
 	{
 		if (auto fc = getGlobalScope()->getGlobalFunctionClass(s.id))
 			return this;
+
+		if (hasSymbol(s))
+			return this;
 	}
 
 	auto isExplicitSymbol = s.getParentSymbol();
@@ -253,13 +256,6 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 {
 	jassert(getScopeForSymbol(symbolToBeUpdated) == this);
 
-
-
-	if (!(symbolToBeUpdated.getParentSymbol() == scopeId))
-	{
-		symbolToBeUpdated = symbolToBeUpdated.withParent(scopeId);
-	}
-
 	for (auto c : constants)
 	{
 		if (c.id == symbolToBeUpdated)
@@ -274,7 +270,7 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 		}
 	}
 
-	if (getRootData()->contains(symbolToBeUpdated))
+	if (getScopeType() != Global && getRootData()->contains(symbolToBeUpdated))
 	{
 		return getRootData()->updateSymbol(symbolToBeUpdated);
 	}

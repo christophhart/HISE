@@ -624,10 +624,7 @@ public:
 		return false;
 	}
 
-	bool updateSymbol(Symbol& symbolToBeUpdated) override
-	{
-		return false;
-	}
+	
 
 	bool hasFunction(const Symbol& symbol) const override;
 

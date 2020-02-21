@@ -85,6 +85,8 @@ public:
 			newScope = new JitCompiledFunctionClass(parentScope, instanceId);
 		try
 		{
+			parser.currentScope = newScope->pimpl;
+
 			setCurrentPass(BaseCompiler::Parsing);
 			syntaxTree = parser.parseStatementList();
 
@@ -183,7 +185,30 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		return parseSubclass();
 	}
 
+	if (matchIf(JitTokens::wrap))
+	{
+		return parseWrapDefinition();
+	}
+	
+	bool isStatic = matchIf(JitTokens::static_);
 	bool isConst = matchIf(JitTokens::const_);
+
+	if (isStatic && !isConst)
+		location.throwError("Can't define non-const static variables");
+
+	if (isStatic)
+	{
+		currentHnodeType = matchType();
+
+		matchSymbol();
+		auto s = getCurrentSymbol(true);
+
+		match(JitTokens::assign_);
+		currentScope->addConstant(s.id, parseConstExpression(false));
+
+		match(JitTokens::semicolon);
+		return parseStatement();
+	}
 
 	if (currentType == JitTokens::identifier)
 	{
@@ -460,6 +485,40 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseSubclass()
 #endif
 }
 
+snex::jit::BlockParser::StatementPtr NewClassParser::parseWrapDefinition()
+{
+	match(JitTokens::lessThan);
+
+	auto size = parseConstExpression(true).toInt();
+	auto wt = compiler->getWrapType(size);
+
+	if (wt == nullptr)
+	{
+		wt = new WrapType(size);
+		compiler->complexTypes.add(wt);
+	}
+	
+	match(JitTokens::greaterThan);
+
+	matchSymbol();
+
+	auto s = getCurrentSymbol(true).withComplexType(wt);
+	s.type = Types::ID::Integer;
+
+	InitialiserList::Ptr l;
+
+	if (matchIf(JitTokens::assign_))
+	{
+		l = parseInitialiserList();
+	}
+
+	
+
+	match(JitTokens::semicolon);
+
+	return new Operations::WrapDefinition(location, s, l);
+}
+
 BlockParser::StatementPtr NewClassParser::parseComplexTypeDefinition(ComplexType::Ptr p)
 {
 	Symbol rootSymbol;
@@ -520,6 +579,37 @@ snex::VariableStorage BlockParser::parseVariableStorageLiteral()
 		return {};
 }
 
+snex::VariableStorage BlockParser::parseConstExpression(bool isTemplateArgument)
+{
+	ScopedTemplateArgParser s(*this, isTemplateArgument);
+
+	auto expr = parseExpression();
+
+	SyntaxTree bl(location);
+	bl.addStatement(expr);
+
+
+	BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);
+	compiler->executePass(BaseCompiler::DataAllocation, currentScope, &bl);
+
+	BaseCompiler::ScopedPassSwitcher sp2(compiler, BaseCompiler::PreSymbolOptimization);
+	compiler->optimize(expr, currentScope, false);
+
+	BaseCompiler::ScopedPassSwitcher sp3(compiler, BaseCompiler::ResolvingSymbols);
+	compiler->executePass(BaseCompiler::ResolvingSymbols, currentScope, &bl);
+
+
+	BaseCompiler::ScopedPassSwitcher sp4(compiler, BaseCompiler::PostSymbolOptimization);
+	compiler->optimize(expr, currentScope, false);
+
+	expr = dynamic_cast<Operations::Expression*>(bl.getChildStatement(0).get());
+
+	if (!expr->isConstExpr())
+		location.throwError("Can't assign static constant to a dynamic expression");
+
+	return expr->getConstExprValue();
+}
+
 InitialiserList::Ptr BlockParser::parseInitialiserList()
 {
 	match(JitTokens::openBrace);
@@ -533,7 +623,7 @@ InitialiserList::Ptr BlockParser::parseInitialiserList()
 		if (currentType == JitTokens::openBrace)
 			root->addChildList(parseInitialiserList());
 		else
-			root->addImmediateValue(parseVariableStorageLiteral());
+			root->addImmediateValue(parseConstExpression(false));
 
 		next = matchIf(JitTokens::comma);
 	}
@@ -594,7 +684,7 @@ SpanType::Ptr BlockParser::parseSpanType()
 
 	match(JitTokens::comma);
 
-	auto sizeValue = parseVariableStorageLiteral();
+	auto sizeValue = parseConstExpression(true);;
 
 	int size = (int)sizeValue;
 
