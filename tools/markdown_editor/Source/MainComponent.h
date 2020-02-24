@@ -18,8 +18,8 @@
     your controls and content.
 */
 class MainContentComponent   : public Component,
-							   public hise::ComponentWithBackendConnection,
-							   public hise::ModalBaseWindow
+							   public MarkdownDatabaseHolder,
+							   public CodeDocument::Listener
 {
 public:
     //==============================================================================
@@ -29,30 +29,39 @@ public:
     void paint (Graphics&) override;
     void resized() override;
 
+	void registerContentProcessor(MarkdownContentProcessor* processor) {}
+	void registerItemGenerators() {}
+
+	File getCachedDocFolder() const override {
+		return File();
+	}
+	File getDatabaseRootDirectory() const
+	{
+		return File();
+	}
+
+	bool shouldUseCachedData() const override { return false; }
 	
-	MainController* getMainControllerToUse() override { return bp.getDocProcessor(); }
-	const MainController* getMainControllerToUse() const override { return bp.getDocProcessor(); }
+	/** Called by a CodeDocument when text is added. */
+	virtual void codeDocumentTextInserted(const String& newText, int insertIndex)
+	{
+		preview.setNewText(doc.getAllContent(), {});
+	}
 
-	BackendRootWindow* getBackendRootWindow() { return b; }
-
-	const BackendRootWindow* getBackendRootWindow() const { return b; }
-
-	FloatingTile* getRootFloatingTile() { return &ft; }
+	/** Called by a CodeDocument when text is deleted. */
+	virtual void codeDocumentTextDeleted(int startIndex, int endIndex)
+	{
+		preview.setNewText(doc.getAllContent(), {});
+	}
 
 private:
 
-	mutable BackendProcessor bp;
-	BackendProcessor* docProcessor = nullptr;
-	Component::SafePointer<BackendRootWindow> b;
-	FloatingTile ft;
-
-	MarkdownDataBase database;
+	CodeDocument doc;
+	MarkdownParser::Tokeniser tok;
+	MarkdownEditor editor;
+	MarkdownPreview preview;
 
 	hise::GlobalHiseLookAndFeel laf;
-
-	juce::TooltipWindow tooltip;
-
-	
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
