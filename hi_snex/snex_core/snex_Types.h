@@ -340,26 +340,171 @@ struct Zero
 	}
 };
 
-template <class T, int MaxSize, class IndexAccess> struct span
+template <int S> struct wrap
 {
-	T& operator[](int index)
+	wrap<S>& operator= (int v)
 	{
-		return IndexAccess::get<MaxSize>(index);
+		value = v % S;
+		return *this;
 	}
 
-	const T& operator[](int index) const
+	wrap<S>& operator++()
 	{
-		return IndexAccess::get<MaxSize>(index);
+		int rt = value;
+
+		if (value++ >= S)
+			value = 0;
+
+		return rt;
+	}
+
+	int value = 0;
+};
+
+
+
+template <class T, int MaxSize> struct span
+{
+	using Type = span<T, MaxSize>;
+
+
+	static constexpr int s = MaxSize;
+
+	T& operator[](int&& index)
+	{
+		return data[index];
+	}
+
+	span()
+	{
+		memset(data, 0, sizeof(T)*MaxSize);
+	}
+
+	span(const std::initializer_list<T>& l)
+	{
+		jassert(l.size() == MaxSize);
+		memcpy(data, l.begin(), sizeof(T)*MaxSize);
+	}
+
+	static constexpr size_t getSimdSize()
+	{
+		static_assert(isSIMDable(), "not SIMDable");
+		
+		if (std::is_same<T, float>())
+			return 4;
+		else
+			return 2;
+	}
+
+	Type& operator=(const T& t)
+	{
+		static_assert(isSIMDable(), "Can't add non SIMDable types");
+
+		constexpr int numLoop = MaxSize / getSimdSize();
+		int i = 0;
+
+		if (std::is_same<T, float>())
+		{
+			auto dst = (float*)data;
+
+			for (int i = 0; i < numLoop; i++)
+			{
+				auto v = _mm_load_ps1(&(float)t);
+				_mm_store_ps(dst, v);
+
+				dst += getSimdSize();
+			}
+		}
+
+		return *this;
+	}
+
+	Type& operator +=(const Type& other)
+	{
+		static_assert(isSIMDable(), "Can't add non SIMDable types");
+		
+		constexpr int numLoop = MaxSize / getSimdSize();
+		int i = 0;
+
+		if (std::is_same<T, float>())
+		{
+			auto dst = (float*)data;
+			auto src = (float*)other.data;
+
+			for(int i = 0; i < numLoop; i++)
+			{
+				auto v = _mm_load_ps(dst);
+				auto r = _mm_add_ps(v, _mm_load_ps(src));
+				_mm_store_ps(dst, r);
+
+				dst += getSimdSize();
+				src += getSimdSize();
+			}
+		}
+		else
+		{
+			auto dst = (double*)data;
+			auto src = (double*)other.data;
+
+			for(int i = 0; i < numLoop; i++)
+			{
+				auto v = _mm_load_pd(dst);
+				auto r = _mm_add_pd(v, _mm_load_pd(src));
+				_mm_store_pd(dst, r);
+
+				dst += getSimdSize();
+				src += getSimdSize();
+			}
+		}
+		
+		return *this;
+	}
+
+	static constexpr bool isSIMDType()
+	{
+		return (std::is_same<T, float>() && MaxSize == 4) ||
+			(std::is_same<T, double>() && MaxSize == 2);
+	}
+
+	static constexpr bool isSIMDable()
+	{
+		return (std::is_same<T, float>() && MaxSize % 4 == 0) ||
+			(std::is_same<T, double>() && MaxSize % 2 == 0);
+	}
+
+	bool isAlignedTo16Byte() const
+	{
+		return reinterpret_cast<uint64_t>(data) % 16 == 0;
+	}
+
+	auto toSIMD()
+	{
+		static_assert(isSIMDable(), "is not SIMDable");
+		jassert(isAlignedTo16Byte());
+
+		return split<4>();
+	}
+
+	template <int SliceLength> span<span<T, SliceLength>, MaxSize / SliceLength>& split()
+	{
+		static_assert(MaxSize % SliceLength == 0, "Can't split with slice length ");
+
+		return *reinterpret_cast<span<span<T, SliceLength>, MaxSize / SliceLength>*>(this);
+	}
+
+	const T& operator[](int&& index) const
+	{
+		return data[index];
 	}
 
 	T* begin() const
 	{
-		return data;
+		return const_cast<T*>(data);
 	}
 
 	T* end() const
 	{
-		return data + MaxSize;
+		return const_cast<T*>(data + MaxSize);
 	}
 
 	void fill(const T& value)

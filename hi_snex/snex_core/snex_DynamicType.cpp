@@ -284,6 +284,23 @@ snex::VariableStorage& VariableStorage::operator=(FloatType s)
 	return *this;
 }
 
+snex::VariableStorage& VariableStorage::operator=(int s)
+{
+	data.i.value = (int64)s;
+	data.i.type = Types::ID::Integer;
+
+	return *this;
+}
+
+snex::VariableStorage& VariableStorage::operator=(double s)
+{
+	data.d.value = (int64)s;
+	data.d.type = Types::ID::Double;
+
+	return *this;
+}
+
+
 VariableStorage::operator Types::FloatBlock() const
 {
 	jassert(getTypeValue() == Types::ID::Block);

@@ -680,6 +680,11 @@ public:
 		optimizationPasses.addIfNotAlreadyThere(passId);
 	}
 
+	void clearOptimizations()
+	{
+		optimizationPasses.clear();
+	}
+
 	const Array<Identifier>& getOptimizationPassList() const
 	{
 		return optimizationPasses;

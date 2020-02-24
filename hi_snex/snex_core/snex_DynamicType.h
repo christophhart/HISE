@@ -62,7 +62,9 @@ public:
 
 	VariableStorage(int objectType, void* objectPointer, bool isReallyAPointer);
 
+	VariableStorage& operator =(int s);
 	VariableStorage& operator =(FloatType s);
+	VariableStorage& operator =(double s);
 	VariableStorage& operator =(const Types::FloatBlock& s);
 
 	bool operator==(const VariableStorage& other) const;

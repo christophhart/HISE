@@ -372,6 +372,12 @@ struct Operations::Cast : public Expression
 			auto sourceType = getSubExpr(0)->getType();
 			auto targetType = getType();
 
+			if (sourceType == Types::ID::Block)
+				throwError("Can't cast from block to other type");
+
+			if (targetType == Types::ID::Block)
+				throwError("Can't cast to block from other type");
+
 			if (sourceType == targetType)
 				replaceInParent(getSubExpr(0));
 		}
@@ -660,25 +666,6 @@ struct Operations::FunctionCall : public Expression
 	static bool canBeAliasParameter(Ptr e)
 	{
 		return dynamic_cast<VariableReference*>(e.get()) != nullptr;
-	}
-
-	template <class T> bool checkFunctionClass(T* obj)
-	{
-        jassertfalse;
-        
-#if 0
-		if (auto possibleMatch = dynamic_cast<FunctionClass*>(obj))
-		{
-			if (possibleMatch->hasFunction(function.id))
-			{
-				possibleMatch->addMatchingFunctions(possibleMatches, function.id);
-				fc = possibleMatch;
-				return true;
-			}
-		}
-#endif
-
-		return false;
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
@@ -1894,6 +1881,12 @@ struct Operations::Subscript : public Expression
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
+			if (getSubExpr(1)->getType() != Types::ID::Integer)
+				throwError("index must be an integer value");
+			
+			
+
+				
 			if (spanType == nullptr)
 			{
 				if (getSubExpr(0)->getType() == Types::ID::Block)
@@ -1901,9 +1894,31 @@ struct Operations::Subscript : public Expression
 				else
 					location.throwError("Can't use []-operator");
 			}
+			else
+			{
+				auto size = spanType->getNumElements();
 
-			if (getSubExpr(1)->getType() != Types::ID::Integer)
-				throwError("index must be an integer value");
+				if (getSubExpr(1)->isConstExpr())
+				{
+					int index = getSubExpr(1)->getConstExprValue().toInt();
+					
+
+					if (!isPositiveAndBelow(index, size))
+						throwError("constant index out of bounds");
+				}
+				else
+				{
+					auto wt = dynamic_cast<WrapType*>(getSubExpr(1)->getComplexType().get());
+
+					if (wt == nullptr)
+						throwError("Can't use non-constant or non-wrapped index");
+
+					if (!isPositiveAndBelow(wt->size-1, size))
+						throwError("wrap limit exceeds span size");
+				}
+			}
+
+			
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -1930,7 +1945,7 @@ struct Operations::Subscript : public Expression
 };
 
 
-
+#if 0
 struct Operations::WrappedBlockDefinition : public Statement
 {
 	WrappedBlockDefinition(Location l, BaseScope::Symbol id_, Expression::Ptr expr) :
@@ -1951,6 +1966,7 @@ struct Operations::WrappedBlockDefinition : public Statement
 
 	Types::ID getType() const override { return Types::ID::Block; }
 };
+#endif
 
 struct Operations::WrapDefinition : public Statement,
 									public TypeDefinitionBase

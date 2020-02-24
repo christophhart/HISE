@@ -206,6 +206,7 @@ void Operations::SmoothedVariableDefinition::process(BaseCompiler* compiler, Bas
 	}
 }
 
+#if 0
 void Operations::WrappedBlockDefinition::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
@@ -218,6 +219,7 @@ void Operations::WrappedBlockDefinition::process(BaseCompiler* compiler, BaseSco
 		}
 	}
 }
+#endif
 
 Operations::TokenType Operations::VariableReference::getWriteAccessType()
 {

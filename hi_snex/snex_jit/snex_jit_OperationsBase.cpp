@@ -157,6 +157,14 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 
 		if (!Types::Helpers::matchesTypeStrict(exprType, thisType))
 		{
+			if (thisType == Types::ID::Block)
+				throwError(juce::String("Cannot convert from block to ") + Types::Helpers::getTypeName(exprType));
+
+			
+
+			if (exprType == Types::ID::Block)
+				throwError(juce::String("Cannot convert to block from ") + Types::Helpers::getTypeName(thisType));
+
 			logWarning("Implicit cast, possible lost of data");
 
 			if (e->isConstExpr())

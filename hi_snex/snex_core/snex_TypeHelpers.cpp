@@ -27,6 +27,7 @@ snex::Types::ID Types::Helpers::getTypeFromTypeName(const juce::String& cppTypeN
 	if (cppTypeName == "float") return Types::ID::Float;
 	if (cppTypeName == "int") return Types::ID::Integer;
 	if (cppTypeName == "bool") return Types::ID::Integer;
+	if (cppTypeName == "block") return Types::ID::Block;
 	
 	jassertfalse;
 	return Types::ID::Void;

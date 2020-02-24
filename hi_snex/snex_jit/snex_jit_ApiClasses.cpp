@@ -153,7 +153,7 @@ BlockFunctions::BlockFunctions() :
 	setDescription("Sets the sample at the given index", { "internal", "sampleIndex", "value" });
 
 	//HNODE_JIT_ADD_C_FUNCTION_1(AddressType, Wrapper::getWritePointer, block, "getWritePointer");
-	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::size, block, "size");
+	HNODE_JIT_ADD_C_FUNCTION_0(int, Wrapper::size, "size");
 	setDescription("returns the size of the buffer", { "internal" });
 }
 

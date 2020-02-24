@@ -290,12 +290,6 @@ BlockParser::StatementPtr NewClassParser::parseDefinition(bool isConst, Types::I
 			s = parseSmoothedVariableDefinition();
 			match(JitTokens::semicolon);
 		}
-		else if (isWrappedBuffer)
-		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding wrapped block " + getCurrentSymbol(true).toString());
-			s = parseWrappedBlockDefinition();
-			match(JitTokens::semicolon);
-		}
 		else
 		{
 			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + getCurrentSymbol(true).toString());
@@ -318,16 +312,6 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseSmoothedVariableDefini
 	auto value = parseVariableStorageLiteral();
 
 	return new Operations::SmoothedVariableDefinition(location, getCurrentSymbol(true), currentHnodeType, value);
-}
-
-snex::jit::BlockParser::StatementPtr NewClassParser::parseWrappedBlockDefinition()
-{
-	StatementPtr s;
-	match(JitTokens::assign_);
-
-	auto value = parseBufferInitialiser();
-
-	return new Operations::WrappedBlockDefinition(location, getCurrentSymbol(true), value);
 }
 
 snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()

@@ -1063,13 +1063,24 @@ void AsmCodeGenerator::emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op
 	{
 	case WrapType::OpType::Set:
 	{
-		auto d = cc.newGpd();
 		auto t = INT_REG_W(target);
-		auto s = cc.newInt32Const(ConstPool::kScopeLocal, wt->size);
 
-		cc.cdq(d, t);
-		cc.idiv(d, t, s);
-		cc.mov(t, d);
+		if (isPowerOfTwo(wt->size))
+		{
+			cc.and_(t, wt->size - 1);
+		}
+		else
+		{
+			auto d = cc.newGpd();
+			
+			auto s = cc.newInt32Const(ConstPool::kScopeLocal, wt->size);
+
+			cc.cdq(d, t);
+			cc.idiv(d, t, s);
+			cc.mov(t, d);
+		}
+
+		
 	}
 	case WrapType::OpType::Inc:
 	{
