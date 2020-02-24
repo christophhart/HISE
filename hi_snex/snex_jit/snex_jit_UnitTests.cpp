@@ -137,6 +137,15 @@ public:
 		
 	}
 
+	bool compileFailWithMessage(const juce::String& errorMessage)
+	{
+		func = compiler->compileJitObject(code);
+
+		//DBG(compiler->getCompileResult().getErrorMessage());
+
+		return compiler->getCompileResult().getErrorMessage() == errorMessage;
+	}
+
 	void dump()
 	{
 		breakBeforeCall = true;
@@ -199,12 +208,9 @@ public:
 
 	void setup()
 	{
-		
 
 		func = compiler->compileJitObject(code);
 
-        
-        
 #if JUCE_DEBUG
 		if (!wasOK())
 		{
@@ -227,8 +233,495 @@ public:
 	ScopedPointer<Compiler> compiler;
 	JitObject func;
 
+};
+
+class JitFileTestCase
+{
+public:
+
+	JitFileTestCase(UnitTest* t_, GlobalScope& memory_, const File& f):
+		code(f.loadFileAsString()),
+		file(f),
+		r(Result::ok()),
+		t(t_),
+		memory(memory_)
+	{
+		parseFunctionData();
+	}
+
+	JitFileTestCase(GlobalScope& memory_, const juce::String& s) :
+		code(s),
+		r(Result::ok()),
+		t(nullptr),
+		memory(memory_)
+	{
+		parseFunctionData();
+	}
+
+	~JitFileTestCase()
+	{
+	}
+
+	static File getTestFileDirectory()
+	{
+		auto p = File::getSpecialLocation(File::currentApplicationFile);
+
+#if JUCE_WINDOWS
+		p = p.getParentDirectory();
+		p = p.getParentDirectory();
+		p = p.getParentDirectory();
+		p = p.getParentDirectory();
+		p = p.getParentDirectory();
+		p = p.getParentDirectory();
+#else
+		jassertfalse;
+#endif
+
+		return p.getChildFile("test_files");
+	}
+
+	
+
+	Result test()
+	{
+		if (r.failed())
+			return r;
+
+		Compiler c(memory);
+		c.setDebugHandler(debugHandler);
+		
+		auto obj = c.compileJitObject(code);
+
+		r = c.getCompileResult();
+
+		if (r.failed() && expectedFail.isNotEmpty())
+			return expectCompileFail(expectedFail);
+
+		assembly = c.getAssemblyCode();
+
+		auto compiledF = obj[function.id];
+		
+		if (!compiledF.matchesArgumentTypes(function))
+		{
+			r = Result::fail("Compiled function doesn't match test data");
+			return r;
+		}
+
+		function = compiledF;
+		
+		switch (function.returnType)
+		{
+		case Types::ID::Integer: actualResult = call<int>(); break;
+		case Types::ID::Float:   actualResult = call<float>(); break;
+		case Types::ID::Double:  actualResult = call<double>(); break;
+		case Types::ID::Block:   actualResult = call<block>(); break;
+		default: jassertfalse;
+		}
+
+		if (expectedFail.isNotEmpty())
+			return expectCompileFail(expectedFail);
+		else
+			return expectValueMatch();
+	}
+
+	juce::String assembly;
+	DebugHandler* debugHandler = nullptr;
+	GlobalScope& memory;
+
+private:
+
+	void parseFunctionData()
+	{
+		static const juce::String BEGIN_TEST_DATA("BEGIN_TEST_DATA");
+		static const Identifier f("f");
+		static const Identifier ret("ret");
+		static const Identifier args("args");
+		static const Identifier input("input");
+		static const Identifier output("output");
+		static const Identifier error("error");
+		static const Identifier filename("filename");
+		static const juce::String END_TEST_DATA("END_TEST_DATA");
+
+		/** BEGIN_TEST_DATA
+			f: test
+			ret: int
+			args: int
+			input: 12
+			output: 12
+			error: "Line 12: expected result"
+			END_TEST_DATA
+		*/
+
+		try
+		{
+			auto metadata = code.fromFirstOccurrenceOf(BEGIN_TEST_DATA, false, false)
+				.upToFirstOccurrenceOf(END_TEST_DATA, false, false);
+
+			auto lines = Helpers::getStringArray(metadata);
+
+			if (lines.isEmpty())
+				throwError("Can't find metadata");
+
+			NamedValueSet s;
+
+			for (auto l : lines)
+			{
+				auto t = Helpers::getStringArray(l, ":");
+
+				if (t.size() != 2)
+					throwError(l + ": Illegal line");
+
+				auto key = Identifier(t[0].trim());
+				auto value = t[1].trim();
+
+				s.set(key, var(value));
+			}
+
+			{
+				// Parse function id
+
+				function.id = s[f].toString();
+			}
+			{
+				// Parse return type
+
+				function.returnType = Types::Helpers::getTypeFromTypeName(s[ret]);
+
+				if (function.returnType == Types::ID::Void)
+					throwError("Can't find return type in metadata");
+			}
+			{
+				// Parse arguments
+
+				auto arg = Helpers::getStringArray(s[args], " ");
+
+				for (auto a : arg)
+				{
+					auto type = Types::Helpers::getTypeFromTypeName(a.trim());
+
+					if (type == Types::ID::Void)
+						throwError("Can't parse argument type " + a);
+
+					function.args.add({ type, false });
+				}
+			}
+			{
+				// Parse inputs
+
+				auto inp = Helpers::getStringArray(s[input], " ");
+
+				if (inp.size() != function.args.size())
+					throwError("Input amount mismatch");
+
+				for (int i = 0; i < inp.size(); i++)
+				{
+					auto v = inp[i];
+					auto t = function.args[i].type;
+
+					switch (t)
+					{
+					case Types::ID::Integer: inputs.add(v.getIntValue());    break;
+					case Types::ID::Float:   inputs.add(v.getFloatValue());  break;
+					case Types::ID::Double:  inputs.add(v.getDoubleValue()); break;
+					case Types::ID::Block:   
+					{
+						auto b = Helpers::loadFile(v);
+						inputs.add(block(b.getWritePointer(0), b.getNumSamples()));
+						inputBuffers.add(std::move(b));
+						break;
+					}
+					case Types::ID::Event:
+					default:				 jassertfalse;
+					}
+				}
+			}
+
+			{
+				// Parse error
+				expectedFail = Helpers::parseQuotedString(s[error]);
+			}
 
 
+			if (!file.existsAsFile())
+			{
+				// Parse output file
+
+				auto outputFileName = Helpers::parseQuotedString(s[filename]);
+
+				if (outputFileName.isNotEmpty())
+				{
+					if (outputFileName.contains("."))
+						throwError("Don't append file extension in output file name");
+
+					fileToBeWritten = getTestFileDirectory().getChildFile(outputFileName).withFileExtension("h");
+
+					fileToBeWritten.replaceWithText(code);
+				}
+
+				
+			}
+
+			if (expectedFail.isEmpty())
+			{
+				// Parse output
+
+				auto v = Helpers::parseQuotedString(s[output]);
+				auto t = function.returnType;
+
+				switch (t)
+				{
+				case Types::ID::Integer: expectedResult = v.getIntValue();    break;
+				case Types::ID::Float:   expectedResult = v.getFloatValue();  break;
+				case Types::ID::Double:  expectedResult = v.getDoubleValue(); break;
+				case Types::ID::Block:   
+				{
+					try
+					{
+						outputBuffer = Helpers::loadFile(v);
+						expectedResult = block(outputBuffer.getWritePointer(0), outputBuffer.getNumSamples());
+					}
+					catch (juce::String& s)
+					{
+						if (inputBuffers.isEmpty())
+							throwError("Must supply input buffer");
+
+						auto size = inputBuffers.getLast().getNumSamples();
+						outputBufferFile = Helpers::getAudioFile(v);
+					}
+					break;
+				}
+				case Types::ID::Event:
+				default:				 jassertfalse;
+				}
+			}
+		}
+		catch (juce::String& m)
+		{
+			r = Result::fail(m);
+		}
+	}
+
+	struct Helpers
+	{
+		static File getAudioFile(const var& v)
+		{
+			auto filename = parseQuotedString(v);
+			return getTestFileDirectory().getChildFile("wave_files").getChildFile(filename);
+		}
+
+		static AudioSampleBuffer loadFile(const var& v)
+		{
+			auto f = getAudioFile(v);
+
+			double s = 0.0;
+			auto b = hlac::CompressionHelpers::loadFile(f, s);
+			return b;
+		}
+
+		static Result compareBlocks(const VariableStorage expected, const VariableStorage& actual)
+		{
+			if (expected.getType() != Types::ID::Block)
+				return Result::fail("Expected type not a block");
+
+			if (actual.getType() != Types::ID::Block)
+				return Result::fail("Actual type not a block");
+
+			auto e = expected.toBlock();
+			auto a = actual.toBlock();
+
+			if (e.size() != a.size())
+				return Result::fail(juce::String("size mismatch. Expected: ") + juce::String(e.size()) + ", Actual: " + juce::String(a.size()));
+
+			for (int i = 0; i < e.size(); i++)
+			{
+				auto ev = e[i];
+				auto av = a[i];
+
+				auto error = Decibels::gainToDecibels(std::abs(ev - av));
+
+				if (error > -80.0f)
+				{
+					juce::String e;
+					e << "Delta at [" << juce::String(i) << "]: " << juce::String(error, 1) << " dB. ";
+					e << "Actual value: " << juce::String(av, 4) << ", ";
+					e << "Expected value: " << juce::String(ev, 4);
+					return Result::fail(e);
+				}
+			}
+
+			return Result::ok();
+		}
+
+		static juce::String parseQuotedString(const var& s)
+		{
+			return s.toString().trim().trimCharactersAtEnd("\"").trimCharactersAtStart("\"");
+		}
+
+		static StringArray getStringArray(const juce::String& s, const juce::String& token = juce::String())
+		{
+			StringArray sa;
+
+			if (token.isEmpty())
+				sa = StringArray::fromLines(s);
+			else
+				sa = StringArray::fromTokens(s, token, "\"");
+
+			sa.removeEmptyStrings();
+			return sa;
+		}
+	};
+
+	
+
+	
+
+	Result expectValueMatch()
+	{
+		if (t != nullptr)
+		{
+			if (actualResult.getType() == Types::ID::Block)
+			{
+				if (outputBufferFile != File())
+				{
+					hlac::CompressionHelpers::dump(inputBuffers.getLast(), outputBufferFile.getFullPathName());
+					return r;
+				}
+
+				auto r = Helpers::compareBlocks(expectedResult, actualResult);
+				t->expect(r.wasOk(), file.getFileName() + ": " + r.getErrorMessage());
+			}
+			else
+			{
+				t->expectEquals(Types::Helpers::getCppValueString(actualResult), Types::Helpers::getCppValueString(expectedResult), file.getFileName());
+			}
+			
+			return r;
+		}
+		else
+		{
+			if (r.failed())
+				return r;
+
+			if (actualResult.getType() == Types::ID::Block)
+			{
+				if (outputBufferFile != File())
+				{
+					hlac::CompressionHelpers::dump(inputBuffers.getLast(), outputBufferFile.getFullPathName());
+					return Result::fail(outputBufferFile.getFullPathName() + " was created");
+				}
+
+				return Helpers::compareBlocks(expectedResult, actualResult);
+			}
+			else
+			{
+				if (!(actualResult == expectedResult))
+				{
+					juce::String e;
+
+					e << "FAIL: Expected: " << Types::Helpers::getCppValueString(expectedResult);
+					e << ", Actual: " << Types::Helpers::getCppValueString(actualResult);
+					return Result::fail(e);
+				}
+			}
+
+			
+
+			return Result::ok();
+		}
+	}
+
+	Result expectCompileFail(const juce::String& errorMessage)
+	{
+		if (t != nullptr)
+		{
+			t->expectEquals(r.getErrorMessage(), errorMessage, file.getFileName());
+			return r;
+		}
+		else
+		{
+			if (r.getErrorMessage() != errorMessage)
+			{
+				juce::String e;
+
+				e << "FAIL: Expected message: " << errorMessage << "\n";
+				e << "Actual message: " << r.getErrorMessage();
+				
+				if (r.wasOk())
+					e << "[No error message]";
+
+				return Result::fail(e);
+			}
+
+			return Result::ok();
+		}
+	}
+
+	template <typename R> R call()
+	{
+		switch (function.args.size())
+		{
+		case 0: return function.call<R>();
+		case 1: return call1<R>();
+		case 2: return call2<R>();
+		default: jassertfalse; return R();
+		}
+	}
+
+	template <typename R> R call1()
+	{
+		switch (function.args[0].type)
+		{
+		case Types::ID::Integer: return function.call<R>(inputs[0].toInt()); break;
+		case Types::ID::Float:   return function.call<R>(inputs[0].toFloat()); break;
+		case Types::ID::Double:  return function.call<R>(inputs[0].toDouble()); break;
+		case Types::ID::Block:	 return function.call<R>(inputs[0].toBlock()); break;
+		default: jassertfalse; return R();
+		}
+	}
+
+	template <typename R> R call2()
+	{
+		switch (function.args[0].type)
+		{
+		case Types::ID::Integer: return call2With1<R, int>(inputs[0].toInt()); break;
+		case Types::ID::Float:   return call2With1<R, float>(inputs[0].toFloat()); break;
+		case Types::ID::Double:  return call2With1<R, double>(inputs[0].toDouble()); break;
+		default: jassertfalse; return R();
+		}
+	}
+
+	template <typename R, typename A1> R call2With1(A1 arg1)
+	{
+		switch (function.args[1].type)
+		{
+		case Types::ID::Integer: return function.call<R>(arg1, inputs[1].toInt()); break;
+		case Types::ID::Float:   return function.call<R>(arg1, inputs[1].toFloat()); break;
+		case Types::ID::Double:  return function.call<R>(arg1, inputs[1].toDouble()); break;
+		default: jassertfalse; return R();
+		}
+	}
+
+	void throwError(const juce::String& s)
+	{
+		throw s;
+	}
+	
+	File file;
+	File fileToBeWritten;
+	Result r;
+	juce::String code;
+	FunctionData function;
+
+	UnitTest* t;
+	Array<VariableStorage> inputs;
+	VariableStorage expectedResult;
+	VariableStorage actualResult;
+	juce::String expectedFail;
+
+	Array<AudioSampleBuffer> inputBuffers;
+	AudioSampleBuffer outputBuffer;
+	File outputBufferFile;
+	
 };
 
 class JITTestModule
@@ -293,6 +786,7 @@ public:
 #define CREATE_TEST(x) test = new HiseJITTestCase<float>(x, optimizations);
 #define CREATE_TYPED_TEST(x) test = new HiseJITTestCase<T>(x, optimizations);
 #define CREATE_TEST_SETUP(x) test = new HiseJITTestCase<float>(x, optimizations); test->setup();
+#define EXPECT_COMPILE_FAIL(x) expect(test->compileFailWithMessage(x));
 
 #define EXPECT(testName, input, result) expect(test->wasOK(), juce::String(testName) + juce::String(" parsing")); expectAlmostEquals<float>(test->getResult(input, result), result, testName);
 
@@ -327,15 +821,14 @@ public:
 
 	void runTest() override
 	{
+		runTestFiles();
+		return;
 
-		
-		
-
+		testSpan<int>();
+		testBlocks();
 		testStaticConst();
 		
 		testWrap();
-
-		return;
 
 		testMacOSRelocation();
         
@@ -345,6 +838,28 @@ public:
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
+	}
+
+	void runTestFiles()
+	{
+		beginTest("Testing files from test directory");
+
+		
+
+		auto fileList = JitFileTestCase::getTestFileDirectory().findChildFiles(File::findFiles, true, "*.h");
+
+		logMessage("Found" + juce::String(fileList.size()) + " files to test");
+
+		GlobalScope memory;
+		
+		for (auto o : optimizations)
+			memory.addOptimization(o);
+
+		for (auto f : fileList)
+		{
+			JitFileTestCase t(this, memory, f);
+			t.test();
+		}
 	}
 
 	void runTestsWithOptimisation(const Array<Identifier>& ids)
@@ -440,12 +955,13 @@ private:
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
+			ADD_CODE_LINE("wrap<$size> index = {0};");
 			ADD_CODE_LINE("int clamp(int i) { return i > $size ? ($size -1 ) : i; };");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    int i = clamp((int)input + 2);");
+			ADD_CODE_LINE("    index = clamp((int)input + 2);");
 			ADD_CODE_LINE("    Math.random();");
-			ADD_CODE_LINE("    data[i] = ($T)4.0;");
-			ADD_CODE_LINE("    return data[i];}");
+			ADD_CODE_LINE("    data[index] = ($T)4.0;");
+			ADD_CODE_LINE("    return data[index];}");
 			FINALIZE_CODE();
 
 			CREATE_TYPED_TEST(code);
@@ -453,17 +969,16 @@ private:
 			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
 		}
 
-		return;
-
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
+			ADD_CODE_LINE("wrap<$size> index = {0};");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    int i = (int)input + 2;");
 			ADD_CODE_LINE("    i = i > $size ? ($size -1 ) : i;");
-			//ADD_CODE_LINE("    Console.print(i);");
-			ADD_CODE_LINE("    data[i] = ($T)4.0;");
-			ADD_CODE_LINE("    return data[i];}");
+			ADD_CODE_LINE("    index = i;");
+			ADD_CODE_LINE("    data[index] = ($T)4.0;");
+			ADD_CODE_LINE("    return data[index];}");
 			FINALIZE_CODE();
 
 			
@@ -473,12 +988,35 @@ private:
 		}
 
 
-		
 
 		juce::String tdi;
 
 		tdi << "{ " << im(1) << ", " << im(2) << ", " << im(3) << "};";
 
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<$T, 3> data = " + tdi);
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    return data[4];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_COMPILE_FAIL("Line 3: constant index out of bounds");
+
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<$T, 3> data = " + tdi);
+			ADD_CODE_LINE("wrap<5> i;");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    i = (int)input;");
+			ADD_CODE_LINE("    return data[i];}");
+			FINALIZE_CODE();
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_COMPILE_FAIL("Line 5: wrap limit exceeds span size");
+		}
 
 		{
 			NEW_CODE_TEXT();
@@ -492,6 +1030,8 @@ private:
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED(GET_TYPE(T) + " iterator: sum elements", 0, 6);
 		}
+
+		
 
 		
 
@@ -571,9 +1111,11 @@ private:
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
+			ADD_CODE_LINE("wrap<$size> index;");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    data[(int)input] = 4.0;");
-			ADD_CODE_LINE("    return data[(int)input];}");
+			ADD_CODE_LINE("    index = (int)input;");
+			ADD_CODE_LINE("    data[index] = 4.0;");
+			ADD_CODE_LINE("    return data[index];}");
 			FINALIZE_CODE();
 
 			CREATE_TYPED_TEST(code);
@@ -613,9 +1155,13 @@ private:
 
 		{
 			NEW_CODE_TEXT();
+			ADD_CODE_LINE("wrap<3> i;");
+			ADD_CODE_LINE("wrap<2> j;");
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    return data[(int)1.2][(int)2.2 - 1];}");
+			ADD_CODE_LINE("    i = (int)1.2;");
+			ADD_CODE_LINE("    j = (int)1.2;");
+			ADD_CODE_LINE("    return data[i][j]; }");
 
 			FINALIZE_CODE();
 			CREATE_TYPED_TEST(code);
@@ -625,8 +1171,10 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("wrap<3> i;");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    return data[(int)1.2][0];}");
+			ADD_CODE_LINE("    i = (int)1.2;");
+			ADD_CODE_LINE("    return data[i][0];}");
 
 			FINALIZE_CODE();
 			CREATE_TYPED_TEST(code);
@@ -637,8 +1185,10 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("wrap<2> j;");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    return data[2][(int)1.8f];}");
+			ADD_CODE_LINE("    j = (int)1.8f;");
+			ADD_CODE_LINE("    return data[2][j];}");
 
 			FINALIZE_CODE();
 			CREATE_TYPED_TEST(code);
@@ -676,8 +1226,10 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("wrap<3> i;");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    data[0][0] = data[(int)input][0];");
+			ADD_CODE_LINE("    i = (int)input;");
+			ADD_CODE_LINE("    data[0][0] = data[i][0];");
 			ADD_CODE_LINE("    return data[0][0];}");
 			FINALIZE_CODE();
 
@@ -688,8 +1240,10 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("wrap<2> j;");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    data[0][0] = data[1][(int)input];");
+			ADD_CODE_LINE("    j = (int)input;");
+			ADD_CODE_LINE("    data[0][0] = data[1][j];");
 			ADD_CODE_LINE("    return data[0][0];}");
 			FINALIZE_CODE();
 
@@ -703,32 +1257,23 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
+			ADD_CODE_LINE("wrap<2> i;");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    data[0][0] = data[(int)input][0];");
+			ADD_CODE_LINE("    i = (int)input;");
+			ADD_CODE_LINE("    data[0][0] = data[i][0];");
 			ADD_CODE_LINE("    return data[0][0];}");
 			FINALIZE_CODE();
 
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED(GET_TYPE(T) + " 2D-span with 3 elements with dynamic i-index", 1, 4);
 		}
-
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
+			ADD_CODE_LINE("wrap<2> i;");
 			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    data[0][0] = data[1][(int)input];");
-			ADD_CODE_LINE("    return data[0][0];}");
-			FINALIZE_CODE();
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED(GET_TYPE(T) + " 2D-span with 3 elements dynamic j-index", 1, 5);
-		}
-
-		{
-			NEW_CODE_TEXT();
-			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
-			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    data[0][0] = data[(int)input][0];");
+			ADD_CODE_LINE("    i = (int)input;");
+			ADD_CODE_LINE("    data[0][0] = data[i][0];");
 			ADD_CODE_LINE("    return input;}");
 			FINALIZE_CODE();
 
@@ -815,8 +1360,10 @@ private:
 			juce::String code;
 
 			ADD_CODE_LINE("static const int x = 4;");
+			
 			ADD_CODE_LINE("span<int, x> data = { 1, 2, 3, 4 };");
-			ADD_CODE_LINE("int test(int input) { return data[input]; }");
+			ADD_CODE_LINE("wrap<x> index = {0};");
+			ADD_CODE_LINE("int test(int input) { index = input; return data[index]; }");
 
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED("test static const variable in span size argument", 1, 2);
@@ -847,7 +1394,8 @@ private:
 			ADD_CODE_LINE("static const int x = 2;");
 			ADD_CODE_LINE("static const int y = x-1;");
 			ADD_CODE_LINE("span<int, x> data = { y, x };");
-			ADD_CODE_LINE("int test(int input) { return data[x-2]; }");
+			ADD_CODE_LINE("wrap<x> index = { x - 2};");
+			ADD_CODE_LINE("int test(int input) { return data[index]; }");
 
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED("test static const variable in span initialiser list", 10, 1);
@@ -1476,6 +2024,11 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
+		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
+		test->setup();
+		test->func["test"].call<float>(bl);
+		expectEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
+
 		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v += 1; return v; }");
 		test->setup();
 		auto numSamples2 = test->func["test"].call<int>(bl);
@@ -1488,15 +2041,23 @@ private:
 
 		auto t = reinterpret_cast<uint64_t>(b.getWritePointer(0));
 
-
-		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
+		CREATE_TYPED_TEST("int test(block in){ return in.size(); };");
 		test->setup();
-		test->func["test"].call<float>(bl);
-		expectEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
+		auto s_ = test->func["test"].call<int>(bl);
+
+		expectEquals( s_, 512, "size() operator");
+
+
+		
 
 		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
 
-
+		CREATE_TYPED_TEST("float test(block in){ in[4] = 124.0f; return 1.0f; };");
+		test->setup();
+		
+		test->func["test"].call<float>(bl);
+		
+		expectEquals<float>(bl[4], 124.0f, "Setting block value");
 
 		CREATE_TYPED_TEST("float v = 0.0f; float test(block in) { for(auto& s: in) v = s; return v; }");
 		test->setup();
@@ -1543,6 +2104,8 @@ private:
 		test->func["test"].call<float>(bl);
 		expectEquals<float>(bl[1], 124.0f, "Setting block value");
         
+		
+
         CREATE_TYPED_TEST("float l = 1.94f; float test(block in){ for(auto& s: in) s = 2.4f; for(auto& s: in) l = s; return l; }");
         test->setup();
         auto shouldBe24 = test->func["test"].call<float>(bl);
@@ -1892,10 +2455,6 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("span of structs", 7, 10);
 		
-		
-
-		
-
 		CREATE_TYPED_TEST("struct X { struct Y{ span<int, 2> data = {7, 9};}; Y y; }; X x; int test(int input) { return x.y.data[0] + input; };");
 		expectCompileOK(test->compiler);
 		EXPECT("span member access", 7, 14);

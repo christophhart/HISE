@@ -84,7 +84,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	editor.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0x33FFFFFF));
 
 	if (externalCode.toString().isEmpty())
-		doc.replaceAllContent(getDefaultCode());
+		doc.replaceAllContent(getDefaultCode(testMode));
 	else
 		doc.replaceAllContent(externalCode.toString());
 	
@@ -263,7 +263,7 @@ SnexPlayground::~SnexPlayground()
 }
 
 
-juce::String SnexPlayground::getDefaultCode()
+juce::String SnexPlayground::getDefaultCode(bool getTestcode)
 {
 	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
 	{
@@ -275,25 +275,46 @@ juce::String SnexPlayground::getDefaultCode()
 	juce::String emptyBracket;
 	emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
 
-	emitCommentLine(s, "Initialise the processing here.");
-	s << "void prepare(double sampleRate, int blockSize, int numChannels)" << nl;
-	s << emptyBracket;
+	if (getTestcode)
+	{
+		s << "/*" << nl;
+		s << "BEGIN_TEST_DATA" << nl;
+		s << "  f: main" << nl;
+		s << "  ret: int" << nl;
+		s << "  args: int" << nl;
+		s << "  input: 12" << nl;
+		s << "  output: 12" << nl;
+		s << "  error: \"\"" << nl;
+		s << "  filename: \"\"" << nl;
+		s << "END_TEST_DATA" << nl;
+		s << "*/" << nl;
 
-	emitCommentLine(s, "Reset the processing pipeline");
-	s << "void reset()" << nl;
-	s << emptyBracket;
+		s << nl;
+		s << "int main(int input)" << nl;
+		s << emptyBracket;
+	}
+	else
+	{
+		emitCommentLine(s, "Initialise the processing here.");
+		s << "void prepare(double sampleRate, int blockSize, int numChannels)" << nl;
+		s << emptyBracket;
 
-	emitCommentLine(s, "Mono sample processing callback");
-	s << "void processChannel(block channel, int channelIndex)" << nl;
-	s << emptyBracket;
+		emitCommentLine(s, "Reset the processing pipeline");
+		s << "void reset()" << nl;
+		s << emptyBracket;
 
-	emitCommentLine(s, "Mono sample processing callback");
-	s << "float processSample(float input)" << nl;
-	s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
+		emitCommentLine(s, "Mono sample processing callback");
+		s << "void processChannel(block channel, int channelIndex)" << nl;
+		s << emptyBracket;
 
-	emitCommentLine(s, "Interleaved processing callback");
-	s << "void processFrame(block frame)" << nl;
-	s << emptyBracket;
+		emitCommentLine(s, "Mono sample processing callback");
+		s << "float processSample(float input)" << nl;
+		s << "{" << nl << "\treturn input;" << nl << "}" << nl << nl;
+
+		emitCommentLine(s, "Interleaved processing callback");
+		s << "void processFrame(block frame)" << nl;
+		s << emptyBracket;
+	}
 
 	return s;
 }
@@ -587,6 +608,23 @@ void SnexPlayground::recalculate()
 
 void SnexPlayground::recompile()
 {
+	if (testMode)
+	{
+		JitFileTestCase tc(memory, doc.getAllContent());
+		tc.debugHandler = this;
+
+		auto r = tc.test();
+
+		assemblyDoc.replaceAllContent(tc.assembly);
+
+		if (r.failed())
+			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
+		else
+			resultLabel.setText("Test passed OK", dontSendNotification);
+
+		return;
+	}
+
 	if (!memory.getBreakpointHandler().isRunning())
 	{
 		memory.getBreakpointHandler().abort();

@@ -12,8 +12,6 @@
 MainComponent::MainComponent():
     playground(v)
 {
-	
-
 	addAndMakeVisible(playground);
     setSize (1024, 768);
 }

@@ -582,7 +582,7 @@ public:
         juce::OwnedArray<juce::Slider> sliders;
     };
     
-    static juce::String getDefaultCode();
+    static juce::String getDefaultCode(bool getTestCode=false);
     
 	SnexPlayground(Value externalCodeValue, BufferHandler* bufferHandlerToUse=nullptr);
 
@@ -755,6 +755,8 @@ private:
 	TextButton compileButton;
 	TextButton resumeButton;
 	TextButton showInfo;
+
+	bool testMode = false;
     
 	std::atomic<int> currentSampleIndex = { 0 };
 
