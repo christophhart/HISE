@@ -829,7 +829,7 @@ public:
 
 	void runTest() override
 	{
-		//runTestFiles("local_struct_mask_global.h");
+		//runTestFiles("set_from_other_function.h");
 		//return;
 
 		testOptimizations();

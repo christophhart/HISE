@@ -346,7 +346,6 @@ struct ParserHelpers
 			if (matchIf(JitTokens::zblock)) return Types::ID::Block;
 			if (matchIf(JitTokens::wblock)) return Types::ID::Block;
 			if (matchIf(JitTokens::wrap))   return Types::ID::Integer;
-			if (matchIf(JitTokens::span_))  return Types::ID::Pointer;
 			if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
 
 			throwTokenMismatch("Type");

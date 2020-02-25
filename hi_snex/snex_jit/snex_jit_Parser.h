@@ -149,7 +149,12 @@ public:
 		}
 		else if (matchIf(JitTokens::span_))
 		{
-			currentComplexType = parseSpanType();
+			currentComplexType = parseSpanType(true);
+			return true;
+		}
+		else if (matchIf(JitTokens::wrap))
+		{
+			currentComplexType = parseSpanType(false);
 			return true;
 		}
 
@@ -166,6 +171,9 @@ public:
 
 			if (cs = cs->getScopedStatementForAlias(id))
 			{
+				if (auto ptr = cs->getAliasComplexType(id))
+					return false;
+
 				match(JitTokens::identifier);
 				currentHnodeType = cs->getAliasNativeType(id);
 				return true;
@@ -188,7 +196,7 @@ public:
 
 	InitialiserList::Ptr parseInitialiserList();
 
-	SpanType::Ptr parseSpanType();
+	ComplexType::Ptr parseSpanType(bool isSpan);
 
 	WeakReference<BaseScope> currentScope;
 
@@ -246,7 +254,7 @@ public:
 	StatementPtr parseSmoothedVariableDefinition();
 	ExprPtr parseBufferInitialiser();
 	StatementPtr parseVariableDefinition(bool isConst);
-	StatementPtr parseFunction();
+	StatementPtr parseFunction(const Symbol& s);
 	StatementPtr parseSubclass();
 	//StatementPtr parseWrapDefinition();
 	

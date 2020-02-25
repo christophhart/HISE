@@ -198,6 +198,8 @@ struct InitialiserList : public ReferenceCountedObject
 		{
 			return child->createChildList();
 		}
+
+		return nullptr;
 	}
 
 	Ptr getChild(int index)

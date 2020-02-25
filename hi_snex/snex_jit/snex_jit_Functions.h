@@ -195,7 +195,7 @@ struct WrapType : public ComplexType
 		VariableStorage v;
 		initValues->getValue(0, v);
 
-		*reinterpret_cast<int*>(dataPointer) = v.toInt();
+		*reinterpret_cast<int*>(dataPointer) = v.toInt() % size;
 
 		return Result::ok();
 	}
@@ -213,7 +213,7 @@ struct WrapType : public ComplexType
 		return w;
 	}
 
-	int size;
+	const int size;
 };
 
 
@@ -656,6 +656,8 @@ struct SpanType : public ComplexType
 
 	Types::ID getDataType() const
 	{
+		return Types::ID::Pointer;
+
 		if (childType != nullptr)
 			return Types::ID::Pointer;
 		else
@@ -748,7 +750,7 @@ struct SpanType : public ComplexType
 	{
 		intendLevel++;
 
-		for (uint32 i = 0; i < size; i++)
+		for (int i = 0; i < size; i++)
 		{
 			juce::String symbol;
 

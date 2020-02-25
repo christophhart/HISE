@@ -209,14 +209,17 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	if (matchIfTypeToken())
 	{
 		auto s = parseVariableDefinition(isConst);
-		match(JitTokens::semicolon);
 		return s;
 	}
 
 	if (matchIfComplexType())
 	{
+
 		return parseComplexStackDefinition(isConst);
 	}
+
+	location.throwError("Can't parse statement");
+	return nullptr;
 }
 
 
@@ -228,7 +231,7 @@ BlockParser::StatementPtr NewClassParser::parseDefinition(bool isConst, Types::I
 	if (matchIf(JitTokens::openParen))
 	{
 		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + getCurrentSymbol(true).toString());
-		s = parseFunction();
+		s = parseFunction(getCurrentSymbol(true));
 		matchIf(JitTokens::semicolon);
 	}
 	else
@@ -316,31 +319,38 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst
 	clearSymbol();
 	matchSymbol();
 
+	auto s = getCurrentSymbol(true);
 
-	auto target = new Operations::VariableReference(location, getCurrentSymbol(true));
-	//target->isLocalToScope = true;
-
-	
-
-	match(JitTokens::assign_);
-
-	ExprPtr expr;
-	
-	if (type == Types::ID::Block)
+	if (matchIf(JitTokens::openParen))
 	{
-		expr = parseBufferInitialiser();
+		auto st = parseFunction(s);
+
+		matchIf(JitTokens::semicolon);
+
+		return st;
 	}
 	else
 	{
-		expr = new Operations::Immediate(location, parseVariableStorageLiteral());
+		auto target = new Operations::VariableReference(location, s);
+
+		match(JitTokens::assign_);
+
+		ExprPtr expr;
+
+		if (type == Types::ID::Block)
+			expr = parseBufferInitialiser();
+		else
+			expr = new Operations::Immediate(location, parseVariableStorageLiteral());
+
+		match(JitTokens::semicolon);
+
+		return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
 	}
-	
-	return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
 }
 
-BlockParser::StatementPtr NewClassParser::parseFunction()
+BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 {
-	auto func = new Operations::Function(location, getCurrentSymbol(true));
+	auto func = new Operations::Function(location, s);
 
 	StatementPtr newStatement = func;
 
@@ -567,74 +577,95 @@ InitialiserList::Ptr BlockParser::parseInitialiserList()
 	return root;
 }
 
-SpanType::Ptr BlockParser::parseSpanType()
+ComplexType::Ptr BlockParser::parseSpanType(bool isSpan)
 {
 	match(JitTokens::lessThan);
 
-	Types::ID type;
-	SpanType::Ptr child;
+	ComplexType::Ptr newType;
 
-	if (currentType == JitTokens::identifier)
+	if (isSpan)
 	{
-		matchSymbol();
-		auto classSymbol = getCurrentSymbol(false);
+		Types::ID type = Types::ID::Dynamic;
+		ComplexType::Ptr child;
 
-		auto cs = getCurrentScopeStatement();
-
-		if (cs = cs->getScopedStatementForAlias(classSymbol.id))
+		if (currentType == JitTokens::identifier)
 		{
-			child = cs->getAliasComplexType(classSymbol.id);
+			matchSymbol();
+			auto classSymbol = getCurrentSymbol(false);
 
-			if (child == nullptr)
-				type = cs->getAliasNativeType(classSymbol.id);
+			auto cs = getCurrentScopeStatement();
+
+			if (cs = cs->getScopedStatementForAlias(classSymbol.id))
+			{
+				child = cs->getAliasComplexType(classSymbol.id);
+
+				if (child == nullptr)
+					type = cs->getAliasNativeType(classSymbol.id);
+			}
+			else
+			{
+				type = Types::ID::Pointer;
+
+				for (auto ct : compiler->complexTypes)
+				{
+					if (auto st = dynamic_cast<StructType*>(ct))
+					{
+						if (st->id == classSymbol)
+						{
+							child = st;
+							break;
+						}
+					}
+				}
+
+				if (child == nullptr)
+					location.throwError("Undefined type " + classSymbol.toString());
+			}
 		}
 		else
 		{
-			type = Types::ID::Pointer;
-
-			for (auto ct : compiler->complexTypes)
+			if (currentType == JitTokens::span_ || currentType == JitTokens::wrap)
 			{
-				if (auto st = dynamic_cast<StructType*>(ct))
-				{
-					if (st->id == classSymbol)
-					{
-						child = st;
-						break;
-					}
-				}
+				type = Types::ID::Pointer;
+				auto isSpan = currentType == JitTokens::span_;
+				skip();
+				child = parseSpanType(isSpan);
 			}
-
-			if (child == nullptr)
-				location.throwError("Undefined type " + classSymbol.toString());
+			else
+				type = matchType();
 		}
+
+		match(JitTokens::comma);
+
+		auto sizeValue = parseConstExpression(true);
+
+		int size = (int)sizeValue;
+
+		if (size > 65536)
+			location.throwError("Span size can't exceed 65536");
+
+		match(JitTokens::greaterThan);
+
+		if (child != nullptr)
+			newType = new SpanType(child, size);
+		else
+			newType = new SpanType(type, size);
 	}
 	else
 	{
-		type = matchType();
+		auto sizeValue = parseConstExpression(true);
 
-		if (type == Types::ID::Pointer)
-			child = parseSpanType();
+		int size = (int)sizeValue;
+
+		if (size > 65536)
+			location.throwError("Span size can't exceed 65536");
+
+		newType = new WrapType(size);
+
+		match(JitTokens::greaterThan);
 	}
 
-	match(JitTokens::comma);
-
-	auto sizeValue = parseConstExpression(true);;
-
-	int size = (int)sizeValue;
-
-	if (size > 65536)
-		location.throwError("Span size can't exceed 65536");
-
-	match(JitTokens::greaterThan);
-
-	SpanType::Ptr newType;
-
-	if (child != nullptr)
-		newType = new SpanType(child, size);
-	else
-		newType = new SpanType(type, size);
-
-	compiler->complexTypes.add(newType);
+	compiler->complexTypes.addIfNotAlreadyThere(newType);
 
 	return newType;
 }
@@ -647,7 +678,7 @@ void BlockParser::parseUsingAlias()
 
 	if (matchIf(JitTokens::span_))
 	{
-		auto cType = parseSpanType();
+		auto cType = parseSpanType(true);
 		cType->setAlias(s.id);
 		s = s.withComplexType(cType);
 	}

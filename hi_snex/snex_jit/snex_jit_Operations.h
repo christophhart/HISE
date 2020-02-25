@@ -2181,7 +2181,10 @@ struct Operations::ComplexStackDefinition : public Expression,
 
 		for (auto id : ids)
 		{
-			symbols.add(Symbol::createRootSymbol(id).withComplexType(typePtr));
+			auto s = Symbol::createRootSymbol(id).withComplexType(typePtr);
+			s.const_ = false;
+			s.type = typePtr->getDataType();
+			symbols.add(s);
 		}
 
 		return symbols;

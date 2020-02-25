@@ -357,6 +357,8 @@ struct ManualDebugObject : public DebugableObjectBase
 
 			return i;
 		}
+
+		return nullptr;
 	}
 
 protected:
