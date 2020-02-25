@@ -147,6 +147,11 @@ public:
 		return false;
 	}
 
+	bool isSimd4Float() const
+	{
+		return id.typePtr != nullptr && id.typePtr->hasAlias() && id.typePtr->toString() == "float4";
+	}
+
 	void clearForReuse();
 
 	void setUndirty();
@@ -154,6 +159,11 @@ public:
 	bool hasCustomMemoryLocation() const noexcept 
 	{
 		return hasCustomMem;
+	}
+
+	bool isZero() const
+	{
+		return isZeroValue;
 	}
 
 private:
@@ -165,6 +175,7 @@ private:
 
 	bool hasCustomMem = false;
 	bool isIter = false;
+	bool isZeroValue = false;
 
 	State state = State::InactiveRegister;
 	bool initialised = false;

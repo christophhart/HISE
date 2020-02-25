@@ -65,6 +65,13 @@ public:
 		numMessageTypes
 	};
 
+	BaseCompiler()
+	{
+		auto float4Type = new SpanType(Types::ID::Float, 4);
+		float4Type->setAlias("float4");
+		complexTypes.add(float4Type);
+	}
+
 	virtual ~BaseCompiler() {};
 
 	enum Pass

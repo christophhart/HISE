@@ -324,6 +324,14 @@ public:
 			return expectValueMatch();
 	}
 
+	void save()
+	{
+		if (!fileToBeWritten.existsAsFile() || AlertWindow::showYesNoCancelBox(AlertWindow::QuestionIcon, "Replace test file", "Do you want to replace the test file " + fileToBeWritten.getFullPathName()))
+		{
+			fileToBeWritten.replaceWithText(code);
+		}
+	}
+
 	juce::String assembly;
 	DebugHandler* debugHandler = nullptr;
 	GlobalScope& memory;
@@ -454,8 +462,6 @@ private:
 						throwError("Don't append file extension in output file name");
 
 					fileToBeWritten = getTestFileDirectory().getChildFile(outputFileName).withFileExtension("h");
-
-					fileToBeWritten.replaceWithText(code);
 				}
 
 				
@@ -500,6 +506,8 @@ private:
 			r = Result::fail(m);
 		}
 	}
+
+	
 
 	struct Helpers
 	{
@@ -821,18 +829,10 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles();
-		return;
+		//runTestFiles("local_struct_mask_global.h");
+		//return;
 
-		testSpan<int>();
-		testBlocks();
-		testStaticConst();
-		
-		testWrap();
-
-		testMacOSRelocation();
-        
-        testOptimizations();
+		testOptimizations();
 
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
@@ -840,8 +840,10 @@ public:
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 	}
 
-	void runTestFiles()
+	void runTestFiles(const juce::String& soloTest = {})
 	{
+		
+
 		beginTest("Testing files from test directory");
 
 		
@@ -857,6 +859,9 @@ public:
 
 		for (auto f : fileList)
 		{
+			if (soloTest.isNotEmpty() && f.getFileName() != soloTest)
+				continue;
+
 			JitFileTestCase t(this, memory, f);
 			t.test();
 		}
@@ -871,6 +876,7 @@ public:
 
 		optimizations = ids;
 
+		runTestFiles();
 		testFpu();
 
 		testMathInlining<double>();
@@ -915,6 +921,10 @@ public:
 		testSpan<double>();
 		testStructs();
 		testUsingAliases();
+
+		testStaticConst();
+		testWrap();
+		testMacOSRelocation();
 	}
 
 private:
@@ -1561,14 +1571,16 @@ private:
 			t.setOptimizations({ OptimizationIds::ConstantFolding });
 			t.setExpressionBody("float test(){ return %BODY%; }");
 
+			expect(t.sameAssembly("(float)Math.fmod(2.1, false ? 0.333 : 1.0)", "0.1f"),
+				"Math.pow with const ternary op");
+
 			expect(t.sameAssembly("(float)Math.pow(2.0, 3.0)", "8.0f"),
 				"Math.pow with cast");
 
 			expect(t.sameAssembly("Math.max(2.0f, 1.0f)", "2.0f"),
 				"Math.max");
 
-			expect(t.sameAssembly("(float)Math.fmod(2.1, false ? 0.333 : 1.0)", "0.1f"),
-				"Math.pow with const ternary op");
+			
 		}
 
 		beginTest("Testing Constant folding");
@@ -2424,15 +2436,13 @@ private:
 
 		ScopedPointer<HiseJITTestCase<int>> test;
 
-		CREATE_TYPED_TEST("struct X { int value = 3; int get() { return value; } }; X x1, x2; int test(int input) { x1.value = 8; x2.value = 9; return x1.get() + x2.get(); }");
-		expectCompileOK(test->compiler);
-		EXPECT("two instances set value", 7, 8 + 9);
-
 		CREATE_TYPED_TEST("struct X { span<int, 2> data = {7, 9}; }; X x; int test(int input) { return x.data[0] + input; };");
 		expectCompileOK(test->compiler);
 		EXPECT("span member access", 7, 14);
 
-		
+		CREATE_TYPED_TEST("struct X { int value = 3; int get() { return value; } }; X x1, x2; int test(int input) { x1.value = 8; x2.value = 9; return x1.get() + x2.get(); }");
+		expectCompileOK(test->compiler);
+		EXPECT("two instances set value", 7, 8 + 9);
 
 		CREATE_TYPED_TEST("struct X { int x = 3; int getX() { return x; } }; X x; int test(int input) { return x.getX(); };");
 		expectCompileOK(test->compiler);
@@ -2443,13 +2453,11 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("member variable", 0, 3);
 
-		
-
-		
-
+#if 0
 		CREATE_TYPED_TEST("struct X { double z = 12.0; int value = 3; }; X x1; X x2; int test(int input) { X& ref = x2; return ref.value; };");
 		expectCompileOK(test->compiler);
 		EXPECT("struct ref", 7, 3);
+#endif
 
 		CREATE_TYPED_TEST("struct X { int x = 3; }; span<X, 3> d; int test(int input) { return d[0].x + input; };");
 		expectCompileOK(test->compiler);
@@ -2687,6 +2695,9 @@ private:
 		beginTest("Function Calls");
 
 		ScopedPointer<HiseJITTestCase<float>> test;
+
+		CREATE_TEST("struct X { int u = 8; float v = 12.0f; float getV() { return v; }}; span<X, 3> d; float test(float input){ return d[1].getV() + input;");
+		EXPECT("span of structs struct member call", 8.0f, 20.0f);
 
 		CREATE_TEST("float other(float input) { return input * 2.0f; } float test(float input) { return other(input); }");
 		EXPECT("root class function call", 8.0f, 16.0f);

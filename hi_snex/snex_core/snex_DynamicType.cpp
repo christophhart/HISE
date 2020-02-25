@@ -294,7 +294,7 @@ snex::VariableStorage& VariableStorage::operator=(int s)
 
 snex::VariableStorage& VariableStorage::operator=(double s)
 {
-	data.d.value = (int64)s;
+	data.d.value = s;
 	data.d.type = Types::ID::Double;
 
 	return *this;

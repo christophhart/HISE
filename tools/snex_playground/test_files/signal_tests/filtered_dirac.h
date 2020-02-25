@@ -7,7 +7,7 @@ BEGIN_TEST_DATA
   input: "dirac.wav"
   output: "filtered_dirac"
   error: ""
-  filename: "filtered_dirac"
+  filename: "signal_tests/filtered_dirac"
 END_TEST_DATA
 */
 

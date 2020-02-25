@@ -185,17 +185,13 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		return parseSubclass();
 	}
 
-	if (matchIf(JitTokens::wrap))
-	{
-		return parseWrapDefinition();
-	}
-	
 	bool isStatic = matchIf(JitTokens::static_);
 	bool isConst = matchIf(JitTokens::const_);
 
 	if (isStatic && !isConst)
 		location.throwError("Can't define non-const static variables");
 
+	
 	if (isStatic)
 	{
 		currentHnodeType = matchType();
@@ -210,64 +206,17 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		return parseStatement();
 	}
 
-	if (currentType == JitTokens::identifier)
+	if (matchIfTypeToken())
 	{
-		auto loc = location;
-
-		matchSymbol();
-		auto classId = getCurrentSymbol(true);
-
-		auto cs = getCurrentScopeStatement();
-		jassert(cs != nullptr);
-
-		if (cs = cs->getScopedStatementForAlias(classId.id))
-		{
-			if (auto cPtr = cs->getAliasComplexType(classId.id))
-				return parseComplexTypeDefinition(cPtr);
-			else
-			{
-				matchSymbol();
-				return parseDefinition(isConst, cs->getAliasNativeType(classId.id), false, false);
-			}
-				
-		}
-		else
-			return parseComplexTypeDefinition(compiler->getComplexTypeForAlias(classId.id));
-	}
-
-	bool isSmoothedType = isSmoothedVariableType();
-	bool isWrappedBlType = isWrappedBlockType();
-
-	currentHnodeType = matchType();
-	
-	if (currentHnodeType == Types::ID::Pointer)
-	{
-		auto spanTypeSymbol = parseSpanType();
-
-		return parseComplexTypeDefinition(spanTypeSymbol);
-
-#if 0
-		matchSymbol();
-
-		InitialiserList::Ptr p;
-
-		if(matchIf(JitTokens::assign_))
-		{
-			p = parseInitialiserList();
-		}
-
+		auto s = parseVariableDefinition(isConst);
 		match(JitTokens::semicolon);
-
-		return new Operations::SpanDefinition(location, spanTypeSymbol, getCurrentSymbol(true), p);
-#endif
+		return s;
 	}
 
-	clearSymbol();
-	addSymbolChild(parseIdentifier());
-
-	return parseDefinition(isConst, currentHnodeType, isWrappedBlType, isSmoothedType);
-
-	
+	if (matchIfComplexType())
+	{
+		return parseComplexStackDefinition(isConst);
+	}
 }
 
 
@@ -363,7 +312,10 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst*/)
 {
 	auto type = currentHnodeType;
-	
+
+	clearSymbol();
+	matchSymbol();
+
 
 	auto target = new Operations::VariableReference(location, getCurrentSymbol(true));
 	//target->isLocalToScope = true;
@@ -469,6 +421,7 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseSubclass()
 #endif
 }
 
+#if 0
 snex::jit::BlockParser::StatementPtr NewClassParser::parseWrapDefinition()
 {
 	match(JitTokens::lessThan);
@@ -502,40 +455,7 @@ snex::jit::BlockParser::StatementPtr NewClassParser::parseWrapDefinition()
 
 	return new Operations::WrapDefinition(location, s, l);
 }
-
-BlockParser::StatementPtr NewClassParser::parseComplexTypeDefinition(ComplexType::Ptr p)
-{
-	Symbol rootSymbol;
-
-	if (auto cc = dynamic_cast<ClassCompiler*>(compiler.get()))
-		rootSymbol = cc->instanceId;
-
-	auto loc = location;
-
-	Array<Symbol> instanceIds;
-
-	instanceIds.add(rootSymbol.getChildSymbol(parseIdentifier()));
-
-	while (matchIf(JitTokens::comma))
-		instanceIds.add(rootSymbol.getChildSymbol(parseIdentifier()));
-
-	InitialiserList::Ptr initList;
-
-	if (matchIf(JitTokens::assign_))
-	{
-		initList = parseInitialiserList();
-	}
-
-	match(JitTokens::semicolon);
-
-	if (auto st = dynamic_cast<StructType*>(p.get()))
-		return new Operations::ClassInstance(loc, st->id, instanceIds, initList);
-	else if (auto sp = dynamic_cast<SpanType*>(p.get()))
-		return new Operations::SpanDefinition(loc, sp, instanceIds.getFirst(), initList);
-    
-    location.throwError("Can't deduce complex type");
-    return nullptr;
-}
+#endif
 
 snex::VariableStorage BlockParser::parseVariableStorageLiteral()
 {
@@ -592,6 +512,36 @@ snex::VariableStorage BlockParser::parseConstExpression(bool isTemplateArgument)
 		location.throwError("Can't assign static constant to a dynamic expression");
 
 	return expr->getConstExprValue();
+}
+
+snex::jit::BlockParser::StatementPtr BlockParser::parseComplexStackDefinition(bool isConst)
+{
+	jassert(getCurrentComplexType() != nullptr);
+
+	Array<Identifier> ids;
+
+	auto typePtr = getCurrentComplexType();
+
+	ids.add(parseIdentifier());
+	
+	while (matchIf(JitTokens::comma))
+		ids.add(parseIdentifier());
+
+	auto n = new Operations::ComplexStackDefinition(location, ids, typePtr);
+
+	if (matchIf(JitTokens::assign_))
+	{
+		if (currentType == JitTokens::openBrace)
+		{
+			n->initValues = parseInitialiserList();
+		}
+		else
+			n->addStatement(parseExpression());
+	}
+
+	match(JitTokens::semicolon);
+
+	return n;
 }
 
 InitialiserList::Ptr BlockParser::parseInitialiserList()

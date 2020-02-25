@@ -272,8 +272,6 @@ bool FunctionClass::hasFunction(const Symbol& s) const
 	{
 		if (c->hasFunction(s))
 			return true;
-
-		
 	}
 
 	return false;

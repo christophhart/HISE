@@ -180,6 +180,8 @@ public:
 
 		void checkAndSetType(int offset = 0, Types::ID expectedType = Types::ID::Dynamic);
 
+		Types::ID setTypeForChild(int childIndex, Types::ID expectedType);
+
 		/** Processes all sub expressions. Call this from your base class. */
 		void process(BaseCompiler* compiler, BaseScope* scope) override;
 
@@ -282,16 +284,14 @@ public:
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct BlockAccess;				struct BlockAssignment;
 	struct Loop;		struct IfStatement;				struct SmoothedVariableDefinition;
-	struct WrappedBlockDefinition;	struct ClassStatement;	struct ClassInstance;
+	struct WrappedBlockDefinition;	struct ClassStatement;	
 	struct PointerReference;	struct DotOperator;			struct UsingStatement;
+	struct CastedSimd;      struct InlinedExternalCall;
+	struct Subscript; struct SpanAssignment;
+	
+	struct ComplexStackDefinition;
 
-
-	struct SpanDefinition;	struct Subscript; struct SpanAssignment;
-
-	struct WrapDefinition;
-
-
-	struct InlinedExternalCall;
+	
 
 	struct ScopeStatementBase
 	{

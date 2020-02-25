@@ -109,6 +109,10 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 		statement = parseVariableDefinition(isConst);
 		match(JitTokens::semicolon);
 	}
+	else if (matchIfComplexType())
+	{
+		return parseComplexStackDefinition(isConst);
+	}
 	else
 	{
 		if (currentType == JitTokens::identifier)

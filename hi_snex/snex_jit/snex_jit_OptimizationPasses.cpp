@@ -483,7 +483,7 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 						CALL_IF(double);
 #undef CALL_IF
 					}
-					if (argTypes.size() == 2)
+					if (argTypes.size() == 3)
 					{
 #define CALL_IF(x) if (RETURN_T(x) && ARG_T(0, x) && ARG_T(1, x) && ARG_T(2, x)) result = match.call<x, x, x>((x)constArgs[0], (x)constArgs[1], (x)constArgs[2])
 						CALL_IF(int);
@@ -699,7 +699,7 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 
 				if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
 				{
-					if (isAssignedVariable(bOp->getSubExpr(0)))
+					if (isAssignedVariable(bOp->getSubExpr(0)) && !SpanType::isSimdType(a->getSubExpr(1)->getComplexType()))
 					{
 						a->logOptimisationMessage("Replace " + juce::String(bOp->op) + " with self assignment");
 

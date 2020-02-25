@@ -89,6 +89,8 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual Result initialise(void* dataPointer, InitialiserList::Ptr initValues) = 0;
 
+	virtual InitialiserList::Ptr makeDefaultInitialiserList() const = 0;
+
 	/** Override this, check if the type matches and call the function for itself and each member recursively and abort if t returns true. */
 	virtual bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) = 0;
 
@@ -178,6 +180,11 @@ struct WrapType : public ComplexType
 		auto v = juce::String(*reinterpret_cast<int*>(complexTypeStartPointer));
 
 		s << v << "\n";
+	}
+
+	InitialiserList::Ptr makeDefaultInitialiserList() const override
+	{
+		return InitialiserList::makeSingleList(VariableStorage(0));
 	}
 
 	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
@@ -655,6 +662,21 @@ struct SpanType : public ComplexType
 			return dataType;
 	}
 
+	static bool isSimdType(ComplexType::Ptr t)
+	{
+		if (auto st = dynamic_cast<SpanType*>(t.get()))
+		{
+			if (st->getElementType() == Types::ID::Float && st->getNumElements() == 4)
+			{
+				jassert(st->hasAlias());
+				jassert(st->toString() == "float4");
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	void finaliseAlignment() override
 	{
 		if (childType != nullptr)
@@ -706,6 +728,20 @@ struct SpanType : public ComplexType
 			return childType->getRequiredAlignment();
 		else
 			return Types::Helpers::getSizeForType(dataType);
+	}
+
+	InitialiserList::Ptr makeDefaultInitialiserList() const override
+	{
+		if (childType != nullptr)
+		{
+			auto c = childType->makeDefaultInitialiserList();
+
+			InitialiserList::Ptr n = new InitialiserList();
+			n->addChildList(c);
+			return n;
+		}
+		else
+			return InitialiserList::makeSingleList(VariableStorage(getElementType(), var(0.0)));
 	}
 
 	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override
@@ -978,6 +1014,22 @@ struct StructType : public ComplexType
 		ComplexType::finaliseAlignment();
 	}
 
+	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList)
+	{
+		jassert(hasMember(id));
+
+		for (auto& m : memberData)
+		{
+			if (m->id == id)
+			{
+				m->defaultList = defaultList;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	bool updateSymbol(Symbol& s) const
 	{
 		for (auto m : memberData)
@@ -994,22 +1046,26 @@ struct StructType : public ComplexType
 		return false;
 	}
 
+	InitialiserList::Ptr makeDefaultInitialiserList() const override
+	{
+		InitialiserList::Ptr n = new InitialiserList();
+
+		for (auto m : memberData)
+		{
+			if (m->typePtr != nullptr && m->defaultList == nullptr)
+				n->addChildList(m->typePtr->makeDefaultInitialiserList());
+			else
+				n->addChildList(m->defaultList);
+		}
+
+		return n;
+	}
+
 	bool hasMember(const Identifier& id) const
 	{
 		for (auto m : memberData)
 			if (m->id == id)
 				return true;
-
-		return false;
-	}
-
-	bool isNativeMember(const Identifier& id) const
-	{
-		for (auto m : memberData)
-		{
-			if (m->id == id)
-				return m->typePtr == nullptr;
-		}
 
 		return false;
 	}
@@ -1027,6 +1083,17 @@ struct StructType : public ComplexType
         
         jassertfalse;
         return Types::ID::Void;
+	}
+
+	bool isNativeMember(const Identifier& id) const
+	{
+		for (auto m : memberData)
+		{
+			if (m->id == id)
+				return m->typePtr == nullptr;
+		}
+
+		return false;
 	}
 
 	ComplexType::Ptr getMemberComplexType(const Identifier& id) const
@@ -1094,6 +1161,7 @@ private:
 		Identifier id;
 		Types::ID nativeMemberType = Types::ID::Dynamic;
 		ComplexType::Ptr typePtr;
+		InitialiserList::Ptr defaultList;
 	};
 
 	static void* getMemberPointer(Member* m, void* dataPointer)

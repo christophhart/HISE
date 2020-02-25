@@ -60,10 +60,10 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	showTable("Table"),
 	runThread(*this)
 {
-	memory.addOptimization(OptimizationIds::ConstantFolding);
+	//memory.addOptimization(OptimizationIds::ConstantFolding);
 	//memory.addOptimization(OptimizationIds::DeadCodeElimination);
-	memory.addOptimization(OptimizationIds::Inlining);
-	memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
+	//memory.addOptimization(OptimizationIds::Inlining);
+	//memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
 	memory.getBreakpointHandler().setActive(true);
 
@@ -613,6 +613,9 @@ void SnexPlayground::recompile()
 		JitFileTestCase tc(memory, doc.getAllContent());
 		tc.debugHandler = this;
 
+		if (saveTest)
+			tc.save();
+
 		auto r = tc.test();
 
 		assemblyDoc.replaceAllContent(tc.assembly);
@@ -679,6 +682,7 @@ bool SnexPlayground::keyPressed(const KeyPress& k)
 {
 	if (k.getKeyCode() == KeyPress::F5Key)
 	{
+		saveTest = k.getModifiers().isShiftDown();
 		compileButton.triggerClick();
 		return true;
 	}

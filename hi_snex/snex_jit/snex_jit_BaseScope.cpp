@@ -167,6 +167,9 @@ bool BaseScope::hasSymbol(const Symbol& s)
 	{
 		if (fc->hasFunction(s))
 			return true;
+
+		if (fc->hasConstant(s))
+			return true;
 	}
     
     return false;
@@ -183,12 +186,29 @@ BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
 			return this;
 	}
 
-	auto isExplicitSymbol = s.getParentSymbol();
+	if (auto pSymbol = s.getParentSymbol())
+	{
+		if (auto pScope = getScopeForSymbol(pSymbol))
+		{
+			return pScope;
+		}
+	}
+
+	if (hasSymbol(s))
+		return this;
+	else
+	{
+		if (auto p = getParent())
+			return p->getScopeForSymbol(s);
+		else
+			return nullptr;
+	}
+
+#if 0
+	auto isExplicitSymbol = (bool)s.getParentSymbol();
 
 	if (isExplicitSymbol)
 	{
-		
-
 		if (getRootClassScope() == this)
 		{
 			return getScopeForSymbolInternal(s);
@@ -210,39 +230,6 @@ BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
 				return nullptr;
 		}
 	}
-
-
-#if 0
-	for (auto& c : constants)
-		if (c.id == s)
-			return this;
-
-	auto parentSymbol = s.getParentSymbol();
-
-	if (hasVariable(s.id))
-		return this;
-
-	for (auto v : allocatedVariables)
-		if (v.id == s.id)
-			return this;
-
-	if (auto fc = dynamic_cast<FunctionClass*>(this))
-	{
-		if (fc->hasFunction(s))
-			return this;
-
-		if (auto match = fc->getChildScope(s))
-			return match;
-	}
-
-	if (lookInParentScope)
-	{
-		if (auto p = getParent())
-			return p->getScopeForSymbol(s);
-	}
-	
-
-	return nullptr;
 #endif
 }
 

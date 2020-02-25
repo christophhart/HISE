@@ -47,6 +47,9 @@ AssemblyRegister::AssemblyRegister(Types::ID type_) :
 void AssemblyRegister::setReference(BaseScope* s, const Symbol& ref)
 {
 	scope = s->getScopeForSymbol(ref);
+
+	//jassert(scope != nullptr);
+
 	id = ref;
 }
 
@@ -221,10 +224,26 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 		e = cc.mov(reg.as<X86Gpq>(), memory);
 	else if (type == Types::ID::Pointer)
 	{
-		if (memory.hasOffset() && !memory.hasBaseOrIndex())
-			e = cc.mov(reg.as<X86Gpq>(), memory.offset());
+		if (isSimd4Float())
+		{
+			jassert(reg.isXmm());
+			
+
+			e = cc.movaps(reg.as<X86Xmm>(), memory);
+		}
 		else
-			e = cc.mov(reg.as<X86Gpq>(), memory.baseReg().as<X86Gpq>());
+		{
+			if (hasCustomMem)
+			{
+				e = cc.lea(reg.as<X86Gpq>(), memory);
+			}
+			else if (memory.hasOffset() && !memory.hasBaseOrIndex())
+				e = cc.mov(reg.as<X86Gpq>(), memory.offset());
+			else
+				e = cc.mov(reg.as<X86Gpq>(), memory.baseReg().as<X86Gpq>());
+		}
+
+		
 	}
 		
 	else
@@ -281,11 +300,24 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 	else
 	{
 		if (type == Types::ID::Float)
-			memory = cc.newFloatConst(ConstPool::kScopeLocal, *reinterpret_cast<float*>(memoryLocation));
+		{
+			auto v = *reinterpret_cast<float*>(memoryLocation);
+			isZeroValue = v == 0.0f;
+			
+			memory = cc.newFloatConst(ConstPool::kScopeLocal, v);
+		}
 		if (type == Types::ID::Double)
-			memory = cc.newDoubleConst(ConstPool::kScopeLocal, *reinterpret_cast<double*>(memoryLocation));
+		{
+			auto v = *reinterpret_cast<double*>(memoryLocation);
+			isZeroValue = v == 0.0;
+
+			memory = cc.newDoubleConst(ConstPool::kScopeLocal, v);
+		}
 		if (type == Types::ID::Integer)
+		{
 			immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
+			isZeroValue = immediateIntValue == 0;
+		}
 		if (type == Types::ID::Event || type == Types::ID::Block)
 		{
 			uint8* d = reinterpret_cast<uint8*>(memoryLocation);
@@ -297,8 +329,10 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 			memory = cc.newXmmConst(ConstPool::kScopeLocal, data);
 		}
 		if (type == Types::ID::Pointer)
+		{
 			memory = x86::qword_ptr((uint64_t)reinterpret_cast<VariableStorage*>(memoryLocation)->getDataPointer());
-
+		}
+			
 		state = State::LoadedMemoryLocation;
 		jassert(memory.isMem());
 	}
@@ -327,7 +361,13 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 	if (type == Types::Event || type == Types::Block)
 		reg = cc.newGpq();
 	if (type == Types::Pointer)
-		reg = cc.newGpq();
+	{
+		if (isSimd4Float())
+			reg = cc.newXmmPs();
+		else
+			reg = cc.newGpq();
+	}
+		
 	
 	state = ActiveRegister;
 }

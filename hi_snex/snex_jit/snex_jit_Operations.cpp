@@ -240,6 +240,9 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
+		if (variableScope != nullptr)
+			return;
+
 		if (auto f = getFunctionClassForSymbol(scope))
 		{
 			id.type = Types::ID::Pointer;
@@ -427,7 +430,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				}
 			}
 
-			if (rd->contains(id))
+			if (variableScope->getScopeType() == BaseScope::Class && rd->contains(id))
 			{
 				auto dataPointer = rd->getDataPointer(id);
 
@@ -590,8 +593,24 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		auto expected = getSubExpr(1)->getType();
-		checkAndSetType(0, expected);
+		auto targetIsSimd = SpanType::isSimdType(getSubExpr(1)->getComplexType());
+
+		if (targetIsSimd)
+		{
+			type = Types::ID::Pointer;
+
+			auto valueIsSimd = SpanType::isSimdType(getSubExpr(0)->getComplexType());
+
+			if (!valueIsSimd)
+				setTypeForChild(0, Types::ID::Float);
+
+			
+		}
+		else
+		{
+			checkAndSetType(0, getSubExpr(1)->getType());
+		}
+		
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -640,16 +659,26 @@ void Operations::Assignment::initClassMembers(BaseCompiler* compiler, BaseScope*
 {
 	if (getSubExpr(0)->isConstExpr() && scope->getScopeType() == BaseScope::Class)
 	{
-		// this will initialise the class members to constant values...
-		auto rd = scope->getRootClassScope()->rootData.get();
-
 		auto target = getTargetVariable()->id;
 		auto initValue = getSubExpr(0)->getConstExprValue();
 
-		auto ok = rd->initData(scope, target, InitialiserList::makeSingleList(initValue));
+		if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
+		{
+			auto ok = st->setDefaultValue(target.id, InitialiserList::makeSingleList(initValue));
 
-		if (!ok.wasOk())
-			location.throwError(ok.getErrorMessage());
+			if (!ok)
+				throwError("Can't initialise default value");
+		}
+		else
+		{
+			// this will initialise the class members to constant values...
+			auto rd = scope->getRootClassScope()->rootData.get();
+
+			auto ok = rd->initData(scope, target, InitialiserList::makeSingleList(initValue));
+
+			if (!ok.wasOk())
+				location.throwError(ok.getErrorMessage());
+		}
 	}
 }
 
@@ -691,48 +720,6 @@ snex::jit::Symbol Operations::BlockAccess::isWrappedBufferReference(Statement::P
 	return {};
 }
 
-void Operations::PointerReference::process(BaseCompiler* compiler, BaseScope* scope)
-{
-	Expression::process(compiler, scope);
-
-	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
-	{
-		if (auto v = dynamic_cast<VariableReference*>(getSubExpr(0).get()))
-		{
-			auto vScope = scope->getScopeForSymbol(v->id);
-
-			if (vScope->getScopeType() == BaseScope::Class)
-			{
-				VariableStorage ptr((int)v->getType(), vScope->getRootData()->getDataPointer(v->id), true);
-				auto n = new Immediate(location, ptr);
-				v->replaceInParent(n);
-			}
-			else
-				throwError("Can't take reference to local variable");
-		}
-		if (auto tOp = dynamic_cast<TernaryOp*>(getSubExpr(0).get()))
-		{
-			auto tb = tOp->getSubExpr(1);
-			auto fb = tOp->getSubExpr(2);
-
-			auto ptb = new PointerReference(location);
-			tb->replaceInParent(ptb);
-			ptb->addStatement(tb);
-
-			auto pfb = new PointerReference(location);
-			fb->replaceInParent(pfb);
-			pfb->addStatement(fb);
-
-			pfb->process(compiler, scope);
-			ptb->process(compiler, scope);
-		}
-	}
-
-	COMPILER_PASS(BaseCompiler::CodeGeneration)
-	{
-		reg = getSubRegister(0);
-	}
-}
 
 void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 {
@@ -764,6 +751,7 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
 			reg->setReference(scope, vp->id);
+			
 			auto acg = CREATE_ASM_COMPILER(getType());
 			acg.emitMemberAcess(reg, getSubRegister(0), getSubRegister(1));
 		}
@@ -775,44 +763,6 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 			reg = getSubRegister(1);
 			return;
 		}
-	}
-}
-
-
-
-void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scope)
-{
-	if (subClass == nullptr)
-		subClass = new ClassScope(scope, getStructType()->id, classType);
-
-	Statement::process(compiler, subClass);
-
-	getChildStatement(0)->process(compiler, subClass);
-
-	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
-	{
-		for (auto s : *getChildStatement(0))
-		{
-			if (auto td = dynamic_cast<TypeDefinitionBase*>(s))
-			{
-				if (auto ctPtr = td->getTypePtr())
-					getStructType()->addComplexMember(td->getInstanceId(), ctPtr);
-				else
-				{
-					auto type = td->getNativeType();
-
-					if (!Types::Helpers::isFixedType(type))
-						location.throwError("Can't use auto on member variables");
-
-					getStructType()->addNativeMember(td->getInstanceId(), type);
-				}
-			}
-		}
-	}
-
-	COMPILER_PASS(BaseCompiler::DataAllocation)
-	{
-		getStructType()->finaliseAlignment();
 	}
 }
 

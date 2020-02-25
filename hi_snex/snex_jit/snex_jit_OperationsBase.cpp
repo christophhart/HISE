@@ -139,48 +139,7 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 
 	for (int i = offset; i < getNumChildStatements(); i++)
 	{
-		auto e = getSubExpr(i);
-
-		if (auto v = dynamic_cast<VariableReference*>(e.get()))
-		{
-			bool isDifferentType = expectedType != Types::ID::Dynamic && expectedType != v->getConstExprValue().getType();
-
-
-			if (v->isConstExpr() && isDifferentType)
-			{
-				v->id.constExprValue = VariableStorage(expectedType, v->id.constExprValue.toDouble());
-				continue;
-			}
-		}
-
-		auto thisType = e->getType();
-
-		if (!Types::Helpers::matchesTypeStrict(exprType, thisType))
-		{
-			if (thisType == Types::ID::Block)
-				throwError(juce::String("Cannot convert from block to ") + Types::Helpers::getTypeName(exprType));
-
-			
-
-			if (exprType == Types::ID::Block)
-				throwError(juce::String("Cannot convert to block from ") + Types::Helpers::getTypeName(thisType));
-
-			logWarning("Implicit cast, possible lost of data");
-
-			if (e->isConstExpr())
-			{
-				replaceChildStatement(i, ConstExprEvaluator::evalCast(e.get(), exprType).get());
-			}
-			else
-			{
-				Ptr implCast = new Operations::Cast(e->location, e, exprType);
-				implCast->attachAsmComment("Implicit cast");
-
-				replaceChildStatement(i, implCast);
-			}
-		}
-		else
-			exprType = Types::Helpers::getMoreRestrictiveType(exprType, thisType);
+		exprType = setTypeForChild(i, exprType);
 	}
 
 	type = exprType;
@@ -188,6 +147,55 @@ void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expec
 
 
 
+
+Types::ID Operations::Expression::setTypeForChild(int childIndex, Types::ID expectedType)
+{
+	auto e = getSubExpr(childIndex);
+
+	if (auto v = dynamic_cast<VariableReference*>(e.get()))
+	{
+		bool isDifferentType = expectedType != Types::ID::Dynamic && expectedType != v->getConstExprValue().getType();
+
+		if (v->isConstExpr() && isDifferentType)
+		{
+			v->id.constExprValue = VariableStorage(expectedType, v->id.constExprValue.toDouble());
+			return expectedType;
+		}
+	}
+
+	auto thisType = e->getType();
+
+	if (!Types::Helpers::matchesTypeStrict(expectedType, thisType))
+	{
+		if (thisType == Types::ID::Block)
+			throwError(juce::String("Cannot convert from block to ") + Types::Helpers::getTypeName(expectedType));
+
+		if (expectedType == Types::ID::Block)
+			throwError(juce::String("Cannot convert to block from ") + Types::Helpers::getTypeName(thisType));
+
+
+		if (expectedType == Types::ID::Pointer)
+			throwError(juce::String("Can't cast ") + Types::Helpers::getCppTypeName(e->getType()) + " to pointer");
+
+		logWarning("Implicit cast, possible lost of data");
+
+		if (e->isConstExpr())
+		{
+			replaceChildStatement(childIndex, ConstExprEvaluator::evalCast(e.get(), expectedType).get());
+		}
+		else
+		{
+			Ptr implCast = new Operations::Cast(e->location, e, expectedType);
+			implCast->attachAsmComment("Implicit cast");
+
+			replaceChildStatement(childIndex, implCast);
+		}
+	}
+	else
+		expectedType = Types::Helpers::getMoreRestrictiveType(expectedType, thisType);
+
+	return expectedType;
+}
 
 void Operations::Expression::process(BaseCompiler* compiler, BaseScope* scope)
 {

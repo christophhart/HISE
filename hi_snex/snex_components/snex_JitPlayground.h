@@ -720,6 +720,7 @@ private:
 	AssemblyTokeniser assemblyTokeniser;
 	CodeDocument assemblyDoc;
 	CodeEditorComponent assembly;
+	bool saveTest = false;
 
 	struct PlaygroundBufferHandler : public BufferHandler
 	{
@@ -756,7 +757,7 @@ private:
 	TextButton resumeButton;
 	TextButton showInfo;
 
-	bool testMode = false;
+	bool testMode = true;
     
 	std::atomic<int> currentSampleIndex = { 0 };
 

@@ -382,13 +382,21 @@ template <class T, int MaxSize> struct span
 
 	span(const std::initializer_list<T>& l)
 	{
-		jassert(l.size() == MaxSize);
-		memcpy(data, l.begin(), sizeof(T)*MaxSize);
+		if (l.size() == 1)
+		{
+			for (int i = 0; i < MaxSize; i++)
+			{
+				data[i] = *l.begin();
+			}
+		}
+		else
+			memcpy(data, l.begin(), sizeof(T)*MaxSize);
+		
 	}
 
 	static constexpr size_t getSimdSize()
 	{
-		static_assert(isSIMDable(), "not SIMDable");
+		static_assert(isSimdable(), "not SIMDable");
 		
 		if (std::is_same<T, float>())
 			return 4;
@@ -398,7 +406,7 @@ template <class T, int MaxSize> struct span
 
 	Type& operator=(const T& t)
 	{
-		static_assert(isSIMDable(), "Can't add non SIMDable types");
+		static_assert(isSimdable(), "Can't add non SIMDable types");
 
 		constexpr int numLoop = MaxSize / getSimdSize();
 		int i = 0;
@@ -419,54 +427,112 @@ template <class T, int MaxSize> struct span
 		return *this;
 	}
 
+	Type& operator+=(const T& scalar)
+	{
+		*this + scalar;
+		return *this;
+	}
+
+	Type& operator+(const T& scalar)
+	{
+		static_assert(isSimdable(), "Can't add non SIMDable types");
+
+		constexpr int numLoop = MaxSize / getSimdSize();
+		auto dst = (float*)data;
+		auto v = _mm_load_ps1(&(float)scalar);
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto r = _mm_add_ps(_mm_load_ps(dst), v);
+			_mm_store_ps(dst, r);
+
+			dst += getSimdSize();
+		}
+
+		return *this;
+	}
+
+	Type& operator=(const Type& other)
+	{
+		static_assert(isSimdable(), "Can't add non SIMDable types");
+
+		constexpr int numLoop = MaxSize / getSimdSize();
+		auto src = (float*)other.data;
+		auto dst = (float*)data;
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto v = _mm_load_ps((float*)src);
+			_mm_store_ps(dst, v);
+
+			src += getSimdSize();
+			dst += getSimdSize();
+		}
+
+		return *this;
+	}
+
+	Type& operator+ (const Type& other)
+	{
+		auto dst = (float*)data;
+		auto src = (float*)other.data;
+		constexpr int numLoop = MaxSize / getSimdSize();
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto v = _mm_load_ps(dst);
+			auto r = _mm_add_ps(v, _mm_load_ps(src));
+			_mm_store_ps(dst, r);
+
+			dst += getSimdSize();
+			src += getSimdSize();
+		}
+
+		return *this;
+	}
+
 	Type& operator +=(const Type& other)
 	{
-		static_assert(isSIMDable(), "Can't add non SIMDable types");
+		static_assert(isSimdable(), "Can't add non SIMDable types");
 		
 		constexpr int numLoop = MaxSize / getSimdSize();
 		int i = 0;
 
-		if (std::is_same<T, float>())
+		auto dst = (float*)data;
+		auto src = (float*)other.data;
+
+		for (int i = 0; i < numLoop; i++)
 		{
-			auto dst = (float*)data;
-			auto src = (float*)other.data;
+			auto v = _mm_load_ps(dst);
+			auto r = _mm_add_ps(v, _mm_load_ps(src));
+			_mm_store_ps(dst, r);
 
-			for(int i = 0; i < numLoop; i++)
-			{
-				auto v = _mm_load_ps(dst);
-				auto r = _mm_add_ps(v, _mm_load_ps(src));
-				_mm_store_ps(dst, r);
-
-				dst += getSimdSize();
-				src += getSimdSize();
-			}
-		}
-		else
-		{
-			auto dst = (double*)data;
-			auto src = (double*)other.data;
-
-			for(int i = 0; i < numLoop; i++)
-			{
-				auto v = _mm_load_pd(dst);
-				auto r = _mm_add_pd(v, _mm_load_pd(src));
-				_mm_store_pd(dst, r);
-
-				dst += getSimdSize();
-				src += getSimdSize();
-			}
+			dst += getSimdSize();
+			src += getSimdSize();
 		}
 		
 		return *this;
 	}
 
-	static constexpr bool isSIMDType()
+	T accumulate() const
+	{
+		T v = T(0);
+
+		for (int i = 0; i < MaxSize; i++)
+		{
+			v += data[i];
+		}
+
+		return v;
+	}
+
+	static constexpr bool isSimdType()
 	{
 		return (std::is_same<T, float>() && MaxSize == 4) ||
 			(std::is_same<T, double>() && MaxSize == 2);
 	}
 
-	static constexpr bool isSIMDable()
+	static constexpr bool isSimdable()
 	{
 		return (std::is_same<T, float>() && MaxSize % 4 == 0) ||
 			(std::is_same<T, double>() && MaxSize % 2 == 0);
@@ -477,9 +543,9 @@ template <class T, int MaxSize> struct span
 		return reinterpret_cast<uint64_t>(data) % 16 == 0;
 	}
 
-	auto toSIMD()
+	auto& toSimd()
 	{
-		static_assert(isSIMDable(), "is not SIMDable");
+		static_assert(isSimdable(), "is not SIMDable");
 		jassert(isAlignedTo16Byte());
 
 		return split<4>();
@@ -518,7 +584,7 @@ template <class T, int MaxSize> struct span
 		return MaxSize;
 	}
 
-	T data[MaxSize];
+	alignas(16) T data[MaxSize];
 };
 
 }
@@ -560,6 +626,10 @@ static forcedinline float max(float value1, float value2) { return jmax<float>(v
 static forcedinline float random() { return Random::getSystemRandom().nextFloat(); };
 static forcedinline float fmod(float x, float y) { return std::fmod(x, y); };
 
+template <class SpanT> static auto sumSpan(const SpanT& t) { return t.accumulate(); };
+
+
+
 static forcedinline int min(int value1, int value2) { return jmin<int>(value1, value2); };
 static forcedinline int max(int value1, int value2) { return jmax<int>(value1, value2); };
 static int round(int value) { return value; };
@@ -586,7 +656,10 @@ static forcedinline double ceil(double a) { return std_::ceil(a); }
 static forcedinline double floor(double a) { return std_::floor(a); }
 static forcedinline double db2gain(double a) { return Decibels::decibelsToGain(a); }
 static forcedinline double gain2db(double a) { return Decibels::gainToDecibels(a); }
-static forcedinline double fmod(double x, double y) { return std::fmod(x, y); };
+static forcedinline double fmod(double x, double y) 
+{ 
+	return std::fmod(x, y); 
+};
 
 static forcedinline float map(float normalisedInput, float start, float end) { return jmap<float>(normalisedInput, start, end); }
 static forcedinline float sin(float a) { return std_::sinf(a); }

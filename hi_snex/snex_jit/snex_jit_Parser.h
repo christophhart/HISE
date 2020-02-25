@@ -127,6 +127,35 @@ public:
 		return TokenIterator::matchType();
 	}
 
+	bool matchIfComplexType()
+	{
+		if (currentType == JitTokens::identifier)
+		{
+			auto id = Identifier(currentValue.toString());
+
+			Symbol s = Symbol::createRootSymbol(id);
+
+			if (currentComplexType = compiler->getComplexTypeForAlias(id))
+			{
+				match(JitTokens::identifier);
+				return true;
+			}
+
+			if (currentComplexType = compiler->getStructType(s))
+			{
+				match(JitTokens::identifier);
+				return true;
+			}
+		}
+		else if (matchIf(JitTokens::span_))
+		{
+			currentComplexType = parseSpanType();
+			return true;
+		}
+
+		return false;
+	}
+
 	bool matchIfTypeToken() override
 	{
 		if (currentType == JitTokens::identifier)
@@ -149,6 +178,11 @@ public:
 	VariableStorage parseVariableStorageLiteral();
 
 	VariableStorage parseConstExpression(bool isTemplateArgument);
+
+	ComplexType::Ptr getCurrentComplexType() const { return currentComplexType; }
+
+
+	StatementPtr parseComplexStackDefinition(bool isConst);
 
 
 
@@ -189,6 +223,7 @@ private:
 	bool isParsingTemplateArgument = false;
 
 	WeakReference<Operations::ScopeStatementBase> currentScopeStatement;
+	ComplexType::Ptr currentComplexType;
 };
 
 
@@ -213,10 +248,8 @@ public:
 	StatementPtr parseVariableDefinition(bool isConst);
 	StatementPtr parseFunction();
 	StatementPtr parseSubclass();
-	StatementPtr parseWrapDefinition();
+	//StatementPtr parseWrapDefinition();
 	
-	StatementPtr parseComplexTypeDefinition(ComplexType::Ptr p);
-
 	StatementPtr parseDefinition(bool isConst, Types::ID type, bool isWrappedBuffer, bool isSmoothedVariable);
 
 	
