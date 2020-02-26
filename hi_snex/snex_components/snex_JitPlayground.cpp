@@ -567,7 +567,12 @@ void SnexPlayground::recalculateInternal()
 
 			auto stop = Time::getMillisecondCounterHiRes();
 			auto duration = stop - start;
-			rs << "Compiled OK. Time: " << juce::String(duration * 0.1, 2) << "%";
+
+			auto signalLength = (double)b.getNumSamples() / 44100.0 * 1000.0;
+
+			auto speedFactor = signalLength / duration;
+
+			rs << "Compiled OK. Speed: " << juce::String(speedFactor, 1) << "x realtime";
 		}
 		catch (Types::OutOfBoundsException& exception)
 		{
