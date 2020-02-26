@@ -61,27 +61,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		dynamic_cast<ClassScope*>(scope)->addFunction(classData);
 
-		for (int i = 0; i < parameters.size(); i++)
-		{
-			auto initValue = VariableStorage(data.args[i].type, 0);
-			auto initType = initValue.getType();
-
-			ignoreUnused(initType);
-			jassert(data.args[i] == initType);
-
-			//functionScope->allocate(parameters[i], initValue);
-
-			if (auto cs = dynamic_cast<ClassScope*>(findClassScope(scope)))
-			{
-				ClassScope::LocalVariableInfo pInfo;
-				//pInfo.id = parameters[i].toString();
-				pInfo.isParameter = true;
-				pInfo.type = initType;
-
-				cs->addLocalVariableInfo(pInfo);
-			}
-		}
-
 		try
 		{
 			FunctionParser p(compiler, id, *this);

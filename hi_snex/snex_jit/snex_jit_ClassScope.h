@@ -277,11 +277,6 @@ public:
 
 	Identifier classTypeId;
 
-	void addLocalVariableInfo(const LocalVariableInfo& l)
-	{
-		localVariableInfo.add(l);
-	}
-
 	bool addVariable(const Symbol& s) override
 	{
 		if (typePtr != nullptr)
@@ -310,7 +305,6 @@ public:
 		return BaseScope::updateSymbol(symbolToBeUpdated);
 	}
 
-	juce::Array<LocalVariableInfo> localVariableInfo;
 
 	void addRegisteredFunctionClasses(OwnedArray<DebugInformationBase>& list, int typeNumber = ApiHelpers::DebugObjectTypes::ApiCall)
 	{
@@ -397,15 +391,6 @@ public:
 		list.add(frameInfo);
 
 		list.add(forInfo);
-
-		for (auto l : localVariableInfo)
-		{
-			if (hasVariable(l.id.id))
-				continue;
-
-			auto lInfo = new LocalVariableDebugObject(l, dynamic_cast<GlobalScope*>(getParent()));
-			list.add(new ObjectDebugInformation(lInfo));
-		}
 
 		for (auto f : functions)
 		{
