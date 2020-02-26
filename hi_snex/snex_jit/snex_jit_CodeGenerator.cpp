@@ -51,6 +51,9 @@ using namespace asmjit;
 #define INT_IMM(x) x->getImmediateIntValue()
 #define INT_MEM(x) x->getAsMemoryLocation()
 
+#define PTR_REG_W(x) x->getRegisterForWriteOp().as<X86Gpq>()
+#define PTR_REG_R(x) x->getRegisterForReadOp().as<X86Gpq>()
+
 
 
 #define INT_OP_WITH_MEM(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
@@ -137,6 +140,13 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 				
 				cc.shufps(FP_REG_W(target), FP_REG_R(target), 0);
 			}
+		}
+		else
+		{
+			if (value->isMemoryLocation())
+				cc.lea(PTR_REG_W(target), value->getAsMemoryLocation());
+			else
+				cc.lea(PTR_REG_W(target), x86::ptr(PTR_REG_R(value)));
 		}
 	}
 	
@@ -256,7 +266,17 @@ void AsmCodeGenerator::emitParameter(Operations::Function* f, RegPtr parameterRe
 		parameterIndex += 1;
 
 	parameterRegister->createRegister(cc);
-	cc.setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
+
+	auto useParameterAsAdress = f->data.args[parameterIndex].isAlias && parameterRegister->getType() != Types::ID::Pointer;
+
+	if (useParameterAsAdress)
+	{
+		auto aReg = cc.newGpq();
+		cc.setArg(parameterIndex, aReg);
+		parameterRegister->setCustomMemoryLocation(x86::ptr(aReg));
+	}
+	else
+		cc.setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
 }
 
 #define FLOAT_BINARY_OP(token, floatOp, doubleOp) if(op == token) { IF_(float) FP_OP(floatOp, l, r); IF_(double) FP_OP(doubleOp, l, r); }
@@ -1006,11 +1026,34 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 }
 
 
+void AsmCodeGenerator::emitFunctionParameterReference(RegPtr sourceReg, RegPtr parameterReg)
+{
+	jassert(parameterReg->getType() == Types::ID::Pointer);
+
+	auto mem = sourceReg->getMemoryLocationForReference();
+	auto isStackVariable = !(sourceReg->getScope()->getScopeType() == BaseScope::Class);
+
+	if (isStackVariable)
+	{
+		auto byteSize = Types::Helpers::getSizeForType(type);
+		mem = cc.newStack(byteSize, 0);
+
+		IF_(int) cc.mov(mem, INT_REG_R(sourceReg));
+		IF_(float) cc.movss(mem, FP_REG_R(sourceReg));
+		IF_(double) cc.movsd(mem, FP_REG_R(sourceReg));
+
+		sourceReg->setCustomMemoryLocation(mem);
+	}
+
+
+	cc.lea(INT_REG_R(parameterReg), mem);
+}
+
 void AsmCodeGenerator::writeToPointerAddress(RegPtr targetPointer, RegPtr source)
 {
 	type = source->getType();
 
-	auto target = x86::qword_ptr(targetPointer->getRegisterForReadOp().as<X86Gpq>());
+	auto target = x86::qword_ptr(PTR_REG_R(targetPointer));
 
 	cc.setInlineComment("Write to reference address");
 
@@ -1329,6 +1372,7 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 		if (p == Types::ID::Integer) sig.addArgT<int>();
 		if (p == Types::ID::Event)   sig.addArg(asmjit::Type::kIdIntPtr);
 		if (p == Types::ID::Block)   sig.addArg(asmjit::Type::kIdIntPtr);
+		if (p == Types::ID::Pointer) sig.addArg(asmjit::Type::kIdIntPtr);
 	}
 }
 

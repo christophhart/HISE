@@ -381,6 +381,7 @@ struct FunctionData
 		Types::ID type = Types::ID::Dynamic;
 		bool isAlias = false;
 		String parameterName;
+		ComplexType::Ptr typePtr;
 	};
 
 	/** The argument list. */

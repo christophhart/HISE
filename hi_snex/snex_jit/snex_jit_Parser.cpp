@@ -362,13 +362,25 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 	while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
 	{
-		auto t = matchType();
+		FunctionData::Argument a;
 
-		bool isAlias = matchIf(JitTokens::bitwiseAnd);
+		if (matchIfTypeToken())
+		{
+			a.type = currentHnodeType;
+		}
+		else if (matchIfComplexType())
+		{
+			a.typePtr = getCurrentComplexType();
+			a.type = Types::ID::Pointer;
+		}
 
-		fData.args.add({ t, isAlias });
+		a.isAlias = matchIf(JitTokens::bitwiseAnd);
+		
+		
+
+		fData.args.add(a);
 		func->parameters.add(parseIdentifier());
-
+		
 		matchIf(JitTokens::comma);
 	}
 

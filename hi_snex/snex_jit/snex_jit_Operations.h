@@ -845,8 +845,6 @@ struct Operations::FunctionCall : public Expression
 
 			for (int i = 0; i < getNumArguments(); i++)
 			{
-				bool isReference = function.args[i].isAlias;
-
 				if (auto subReg = getSubRegister(i))
 				{
 					if (!subReg->getVariableId())
@@ -856,7 +854,11 @@ struct Operations::FunctionCall : public Expression
 					}
 				}
 
-				auto pReg = compiler->getRegFromPool(scope, getArgument(i)->getType());
+				auto isReference = function.args[i].isAlias;
+
+				auto pType = isReference ? Types::ID::Pointer : getArgument(i)->getType();
+
+				auto pReg = compiler->getRegFromPool(scope, pType);
 				auto asg = CREATE_ASM_COMPILER(type);
 				pReg->createRegister(asg.cc);
 				parameterRegs.add(pReg);
@@ -881,7 +883,6 @@ struct Operations::FunctionCall : public Expression
 				asg.dumpVariables(scope, location.getLine());
 
 				function.functionName = "";
-
 				function.functionName << "Line " << juce::String(location.getLine()) << " Breakpoint";
 			}
 			else
@@ -898,21 +899,25 @@ struct Operations::FunctionCall : public Expression
 			for (int i = 0; i < parameterRegs.size(); i++)
 			{
 				auto arg = getArgument(i);
-
 				auto existingReg = arg->reg;
-
 				auto pReg = parameterRegs[i];
+				auto isReference = function.args[i].isAlias;
+				auto acg = CREATE_ASM_COMPILER(arg->getType());
 
-				if (existingReg != nullptr && existingReg != pReg && existingReg->getVariableId())
+				if (isReference)
 				{
-					auto pType = arg->getType();
-					auto typedAcg = CREATE_ASM_COMPILER(pType);
-					typedAcg.emitComment("Parameter Save");
-					typedAcg.emitStore(pReg, existingReg);
+					acg.emitComment("arg reference -> stack");
+					acg.emitFunctionParameterReference(existingReg, pReg);
 				}
 				else
 				{
-					parameterRegs.set(i, existingReg);
+					if (existingReg != nullptr && existingReg != pReg && existingReg->getVariableId())
+					{
+						acg.emitComment("Parameter Save");
+						acg.emitStore(pReg, existingReg);
+					}
+					else
+						parameterRegs.set(i, existingReg);
 				}
 			}
 			

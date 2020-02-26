@@ -313,7 +313,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			{
 				if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
 				{
-					auto asg = CREATE_ASM_COMPILER(type);
+					auto asg = CREATE_ASM_COMPILER(getType());
 					asg.emitParameter(dynamic_cast<Function*>(fScope->parentFunction), reg, parameterIndex);
 				}
 			}
