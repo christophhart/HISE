@@ -636,6 +636,16 @@ struct FunctionData
 
 	template <typename ReturnType, typename... Parameters> ReturnType call(Parameters... ps) const
 	{
+		if(object != nullptr)
+			return callInternal<ReturnType>(object, ps...);
+		else
+			return callInternal<ReturnType>(ps...);
+	}
+
+private:
+
+	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callInternal(Parameters... ps) const
+	{
 		// You must not call this method if you return an event or a block.
 		// Use callWithReturnCopy instead...
 
@@ -655,6 +665,8 @@ struct FunctionData
 				return ReturnType();
 		}
 	}
+
+
 };
 
 
@@ -1072,6 +1084,13 @@ private:
 
 struct StructType : public ComplexType
 {
+	struct MemberFunctions : public FunctionClass
+	{
+		MemberFunctions(StructType& parent) :
+			FunctionClass(parent.id)
+		{};
+	};
+
 	StructType(const Symbol& s) :
 		id(s)
 	{};
@@ -1323,20 +1342,68 @@ struct StructType : public ComplexType
 		return Types::ID::Pointer;
 	}
 
-	void addMember(const Identifier& id, const TypeInfo& typeInfo)
+	template <class ObjectType, typename ArgumentType> void addExternalComplexMember(const Identifier& id, ComplexType::Ptr p, ObjectType& obj, ArgumentType& defaultValue)
+	{
+		auto nm = new Member();
+		nm->id = id;
+		nm->typeInfo = TypeInfo(p);
+		nm->offset = reinterpret_cast<uint64>(&defaultValue) - reinterpret_cast<uint64>(&obj);
+		nm->defaultList = p->makeDefaultInitialiserList();
+
+		memberData.add(nm);
+		isExternalDefinition = true;
+	}
+
+	template <class ObjectType, typename ArgumentType> void addExternalMember(const Identifier& id, ObjectType& obj, ArgumentType& defaultValue)
+	{
+		auto type = Types::Helpers::getTypeFromTypeId<ArgumentType>();
+		auto nm = new Member();
+		nm->id = id;
+		nm->typeInfo = TypeInfo(type);
+		nm->offset = reinterpret_cast<uint64>(&defaultValue) - reinterpret_cast<uint64>(&obj);
+		nm->defaultList = InitialiserList::makeSingleList(VariableStorage(type, var(defaultValue)));
+
+		memberData.add(nm);
+		isExternalDefinition = true;
+	}
+
+	void addMember(const Identifier& id, const TypeInfo& typeInfo, size_t offset=0)
 	{
 		jassert(!isFinalised());
 
 		auto nm = new Member();
 		nm->id = id;
 		nm->typeInfo = typeInfo;
+		nm->offset = 0;
 
 		memberData.add(nm);
 	}
 
 	Symbol id;
 
+	void addExternalMemberFunction(const Identifier& id, void* func)
+	{
+		if (memberFunctions == nullptr)
+			memberFunctions = new MemberFunctions(*this);
+
+		
+		FunctionData f;
+		
+		f.id = id;
+		f.returnType = TypeInfo(Types::ID::Integer);
+		f.function = func;
+
+		memberFunctions->addFunction(new FunctionData(f));
+	}
+
+	FunctionClass* getExternalMemberFunctions()
+	{
+		return memberFunctions;
+	}
+
 private:
+
+	ScopedPointer<FunctionClass> memberFunctions;
 
 	struct Member
 	{
@@ -1359,8 +1426,14 @@ private:
 	}
 
 	OwnedArray<Member> memberData;
+	bool isExternalDefinition = false;
 };
 
+#define CREATE_SNEX_STRUCT(x) new StructType(Symbol::createRootSymbol(Identifier(#x)));
+#define ADD_SNEX_STRUCT_MEMBER(structType, object, member) structType->addExternalMember(#member, object, object.member);
+#define ADD_SNEX_STRUCT_COMPLEX(structType, typePtr, object, member) structType->addExternalComplexMember(#member, typePtr, object, object.member);
+
+#define ADD_SNEX_STRUCT_METHOD(structType, obj, name) structType->addExternalMemberFunction(#name, obj::Wrapper::name);
 
 
 } // end namespace jit

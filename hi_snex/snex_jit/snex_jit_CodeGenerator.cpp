@@ -703,80 +703,100 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 }
 
 
-void AsmCodeGenerator::emitInitialiserList(RegPtr target, ComplexType::Ptr typePtr, InitialiserList::Ptr list)
+void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list)
 {
 	jassert(target->hasCustomMemoryLocation());
-	
-	HeapBlock<uint8> data;
-	data.allocate(typePtr->getRequiredByteSize() + typePtr->getRequiredAlignment(), true);
+	jassert(typePtr != nullptr);
+	jassert(list == nullptr || expr == nullptr);
+	jassert(expr == nullptr || expr->getType() == target->getType());
 
-	auto start = data + typePtr->getRequiredAlignment();
-	auto end = start + typePtr->getRequiredByteSize();
-	int numBytesToInitialise = end - start;
-
-	typePtr->initialise(start, list);
-
-	float* d = reinterpret_cast<float*>(start);
-
-	if (numBytesToInitialise % 16 == 0)
+	if (list != nullptr)
 	{
-		uint64_t* s = reinterpret_cast<uint64_t*>(start);
-		auto dst = target->getAsMemoryLocation().clone();
+		HeapBlock<uint8> data;
+		data.allocate(typePtr->getRequiredByteSize() + typePtr->getRequiredAlignment(), true);
 
-		auto d = Data128::fromU64(s[0], s[1]);
-		auto c = cc.newXmmConst(ConstPool::kScopeLocal, d);
+		auto start = data + typePtr->getRequiredAlignment();
+		auto end = start + typePtr->getRequiredByteSize();
+		int numBytesToInitialise = end - start;
 
-		auto r = cc.newXmm();
+		typePtr->initialise(start, list);
 
-		auto useAsmLoop = numBytesToInitialise >= 128;
+		float* d = reinterpret_cast<float*>(start);
 
-		if (useAsmLoop)
+		if (numBytesToInitialise % 16 == 0)
 		{
-			jassertfalse;
+			uint64_t* s = reinterpret_cast<uint64_t*>(start);
+			auto dst = target->getAsMemoryLocation().clone();
 
-			auto index = cc.newGpd();
-			cc.mov(index, numBytesToInitialise / 16);
-			auto l = cc.newLabel();
+			auto d = Data128::fromU64(s[0], s[1]);
+			auto c = cc.newXmmConst(ConstPool::kScopeLocal, d);
 
-			cc.bind(l);
+			auto r = cc.newXmm();
 
-			cc.movaps(r, c);
-			cc.movaps(dst, r);
+			auto useAsmLoop = numBytesToInitialise >= 128;
 
-			dst.addOffset(16);
-
-			cc.dec(index);
-			cc.cmp(index, 0);
-			cc.jne(l);
-		}
-		else
-		{
-			for (int i = 0; i < numBytesToInitialise; i += 16)
+			if (useAsmLoop)
 			{
+				jassertfalse;
+
+				auto index = cc.newGpd();
+				cc.mov(index, numBytesToInitialise / 16);
+				auto l = cc.newLabel();
+
+				cc.bind(l);
+
 				cc.movaps(r, c);
 				cc.movaps(dst, r);
 
 				dst.addOffset(16);
 
-				s += 2;
+				cc.dec(index);
+				cc.cmp(index, 0);
+				cc.jne(l);
+			}
+			else
+			{
+				for (int i = 0; i < numBytesToInitialise; i += 16)
+				{
+					cc.movaps(r, c);
+					cc.movaps(dst, r);
+
+					dst.addOffset(16);
+
+					s += 2;
+				}
 			}
 		}
-
-		
-	}
-	else if (numBytesToInitialise % 4 == 0)
-	{
-		int* s = reinterpret_cast<int*>(start);
-		auto dst = target->getAsMemoryLocation().clone();
-		dst.setSize(4);
-
-		auto r = cc.newGpd();
-
-		for (int i = 0; i < numBytesToInitialise; i += 4)
+		else if (numBytesToInitialise % 4 == 0)
 		{
-			cc.mov(dst, *s);
-			dst.addOffset(4);
-			s++;
+			int* s = reinterpret_cast<int*>(start);
+			auto dst = target->getAsMemoryLocation().clone();
+			dst.setSize(4);
+
+			auto r = cc.newGpd();
+
+			for (int i = 0; i < numBytesToInitialise; i += 4)
+			{
+				cc.mov(dst, *s);
+				dst.addOffset(4);
+				s++;
+			}
+		}
+	}
+	else
+	{
+		if (typePtr->getDataType() == Types::ID::Pointer)
+		{
+			auto numBytesToWrite = typePtr->getRequiredByteSize();
+			jassertfalse;
+		}
+		else
+		{
+			expr->loadMemoryIntoRegister(cc);
+
+			IF_(int) cc.mov(INT_MEM(target), INT_REG_R(expr));
+			IF_(double) cc.movsd(FP_MEM(target), FP_REG_R(expr));
+			IF_(float) cc.movss(FP_MEM(target), FP_REG_R(expr));
 		}
 	}
 }
@@ -1259,6 +1279,10 @@ void AsmCodeGenerator::emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op
 	{
 	case WrapType::OpType::Set:
 	{
+		bool wasMem = target->hasCustomMemoryLocation() && target->isMemoryLocation();;
+
+		target->loadMemoryIntoRegister(cc);
+
 		auto t = INT_REG_W(target);
 
 		if (isPowerOfTwo(wt->size))
@@ -1274,6 +1298,14 @@ void AsmCodeGenerator::emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op
 			cc.cdq(d, t);
 			cc.idiv(d, t, s);
 			cc.mov(t, d);
+		}
+
+		if (wasMem)
+		{
+			auto mem = target->getMemoryLocationForReference();
+
+			cc.mov(mem, INT_REG_R(target));
+			target->setCustomMemoryLocation(mem);
 		}
 
 		break;

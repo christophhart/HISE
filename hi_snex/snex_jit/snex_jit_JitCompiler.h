@@ -127,9 +127,11 @@ public:
 	juce::String dumpSyntaxTree() const;
 	juce::String getLastCompiledCode() { return lastCode; }
 
+	void registerExternalComplexType(ComplexType::Ptr t);
+
 private:
 
-	String lastCode;
+	juce::String lastCode;
 	ClassCompiler* compiler;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Compiler);

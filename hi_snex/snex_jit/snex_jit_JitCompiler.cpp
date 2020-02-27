@@ -105,6 +105,11 @@ juce::String Compiler::dumpSyntaxTree() const
 	return {};
 }
 
+void Compiler::registerExternalComplexType(ComplexType::Ptr t)
+{
+	compiler->complexTypes.add(t);
+}
+
 juce::Result Compiler::getCompileResult()
 {
 	return compiler->getLastResult();

@@ -382,6 +382,7 @@ bool AssemblyRegister::isMemoryLocation() const
 void AssemblyRegister::setCustomMemoryLocation(X86Mem newLocation)
 {
 	memory = newLocation;
+	dirty = false;
 	reg = {};
 	jassert(memory.isMem());
 	state = LoadedMemoryLocation;

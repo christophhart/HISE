@@ -174,7 +174,7 @@ struct AsmCodeGenerator
 
 	void emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr);
 
-	void emitInitialiserList(RegPtr target, ComplexType::Ptr typePtr, InitialiserList::Ptr list);
+	void emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list);
 
 	RegPtr emitBranch(Types::ID returnType, Operations::Expression* cond, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s);
 

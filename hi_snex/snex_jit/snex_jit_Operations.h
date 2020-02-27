@@ -826,6 +826,12 @@ struct Operations::FunctionCall : public Expression
 					fc->addMatchingFunctions(possibleMatches, id);
 					callType = MemberFunction;
 				}
+				else if (fc = cptr->getExternalMemberFunctions())
+				{
+					auto id = cptr->id.getChildSymbol(function.id);
+					fc->addMatchingFunctions(possibleMatches, id);
+					callType = MemberFunction;
+				}
 			}
 			else if (auto pv = dynamic_cast<VariableReference*>(objExpr.get()))
 			{
@@ -1863,6 +1869,11 @@ struct Operations::ComplexTypeDefinition : public Expression,
 				initValues = type.makeDefaultInitialiserList();
 			}
 
+			if (getNumChildStatements() == 1 && getSubExpr(0)->isConstExpr())
+			{
+				jassertfalse;
+			}
+
 			if (!isStackDefinition(scope))
 			{
 				for (auto s : getSymbols())
@@ -1904,8 +1915,19 @@ struct Operations::ComplexTypeDefinition : public Expression,
 			{
 				auto acg = CREATE_ASM_COMPILER(getType());
 
-				for(auto s: stackLocations)
-					acg.emitInitialiserList(s, type.getComplexType(), initValues);
+				for (auto s : stackLocations)
+				{
+					RegPtr expr;
+
+					if(getNumChildStatements() > 0)
+						expr = getSubRegister(0);
+
+					acg.emitStackInitialisation(s, type.getComplexType(), expr, initValues);
+
+					if (auto wt = type.getTypedIfComplexType<WrapType>())
+						acg.emitWrap(wt, s, WrapType::OpType::Set);
+				}
+					
 			}
 		}
 	}

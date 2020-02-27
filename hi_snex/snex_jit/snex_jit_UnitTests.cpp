@@ -284,7 +284,7 @@ public:
 
 	
 
-	Result test()
+	Result test(bool dumpBeforeTest=false)
 	{
 		if (r.failed())
 			return r;
@@ -307,6 +307,17 @@ public:
 		{
 			r = Result::fail("Compiled function doesn't match test data");
 			return r;
+		}
+
+		if (dumpBeforeTest)
+		{
+			DBG("code");
+			DBG(code);
+			DBG(c.dumpSyntaxTree());
+			DBG("assembly");
+			DBG(c.getAssemblyCode());
+			DBG("data dump");
+			DBG(obj.dumpTable());
 		}
 
 		function = compiledF;
@@ -609,7 +620,7 @@ private:
 			{
 				t->expectEquals(Types::Helpers::getCppValueString(actualResult), Types::Helpers::getCppValueString(expectedResult), file.getFileName());
 			}
-			
+
 			return r;
 		}
 		else
@@ -836,9 +847,10 @@ public:
 
 	void runTest() override
 	{
+		testExternalStructDefinition();
 
-		runTestFiles("function_ref.h");
-		//return;
+		runTestFiles("wrap_local_definition.h");
+		return;
 
 		testOptimizations();
 
@@ -871,7 +883,7 @@ public:
 				continue;
 
 			JitFileTestCase t(this, memory, f);
-			auto r = t.test();
+			auto r = t.test(soloTest.isNotEmpty());
 		}
 	}
 
@@ -1575,6 +1587,90 @@ private:
 		EXPECT_TYPED("Math.sin 2", T(0.2), T(std::sin(0.2)));
 
 
+	}
+
+	void testExternalStructDefinition()
+	{
+		using namespace Types;
+
+		beginTest("Testing external struct definition");
+
+		snex::GlobalScope memory;
+		snex::Compiler c(memory);
+
+		{
+			struct OtherStruct
+			{
+				int v1 = 95;
+				int v2 = 1;
+			};
+
+			struct TestStruct
+			{
+				int sum()
+				{
+					return m1 + (int)f2;
+				}
+
+				int m1 = 8;
+				float f2 = 90.0f;
+				span<float, 19> data;
+				OtherStruct os;
+
+				struct Wrapper
+				{
+					static int sum(void* t) { return reinterpret_cast<TestStruct*>(t)->sum(); }
+				};
+			};
+
+			OtherStruct otherObj;
+
+			auto os = CREATE_SNEX_STRUCT(OtherStruct);
+			ADD_SNEX_STRUCT_MEMBER(os, otherObj, v1);
+			ADD_SNEX_STRUCT_MEMBER(os, otherObj, v2);
+
+			TestStruct obj;
+
+			auto ts = CREATE_SNEX_STRUCT(TestStruct);
+			ADD_SNEX_STRUCT_MEMBER(ts, obj, m1);
+			ADD_SNEX_STRUCT_MEMBER(ts, obj, f2);
+			ADD_SNEX_STRUCT_COMPLEX(ts, new SpanType(Types::ID::Float, 19), obj, data);
+			ADD_SNEX_STRUCT_COMPLEX(ts, os, obj, os);
+			
+			ts->addExternalMemberFunction("sum", TestStruct::Wrapper::sum);
+
+			c.registerExternalComplexType(ts);
+		}
+		
+		{
+			auto obj = c.compileJitObject("TestStruct t; int test() { return t.m1; };");
+			auto result = obj["test"].call<int>();
+			expectEquals(result, 8, "External object initialisation");
+		}
+
+		{
+			auto obj = c.compileJitObject("TestStruct t; float test() { return t.f2; };");
+			auto result = obj["test"].call<float>();
+			expectEquals(result, 90.0f, "float value");
+		}
+
+		{
+			auto obj = c.compileJitObject("TestStruct t; int test() { return t.os.v1; };");
+			auto result = obj["test"].call<int>();
+			expectEquals(result, 95, "float value");
+		}
+		
+		{
+			auto obj = c.compileJitObject("TestStruct t; float test() { t.data[2] = t.f2; return t.data[2]; };");
+			auto result = obj["test"].call<float>();
+			expectEquals(result, 90.0f, "float value");
+		}
+
+		{
+			auto obj = c.compileJitObject("TestStruct t; int test() { return t.sum(); };");
+			auto result = obj["test"].call<int>();
+			expectEquals(result, 98, "float value");
+		}
 	}
 
 	void testOptimizations()
