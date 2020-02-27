@@ -251,7 +251,6 @@ public:
     virtual ~NewClassParser() {};
     
 	StatementPtr parseStatement() override;
-	StatementPtr parseSmoothedVariableDefinition();
 	ExprPtr parseBufferInitialiser();
 	StatementPtr parseVariableDefinition(bool isConst);
 	StatementPtr parseFunction(const Symbol& s);

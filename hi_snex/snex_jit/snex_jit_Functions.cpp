@@ -108,7 +108,7 @@ snex::jit::Symbol Symbol::getChildSymbol(const Identifier& id, const TypeInfo& t
 	childList.addArray(fullIdList);
 	childList.add(id);
 
-	return Symbol(childList, t ? t : typeInfo);
+	return Symbol(childList, t.isValid() ? t : typeInfo);
 }
 
 snex::jit::Symbol Symbol::withParent(const Symbol& parent) const
@@ -158,17 +158,11 @@ juce::String Symbol::toString() const
 
 	juce::String s;
 
-	if (!constExprValue.isVoid())
-		s << "constexpr";
-	else if (isConst())
-		s << "const";
+	s << typeInfo.toString();
 
-	if (isReference())
-		s << "&";
-
-	if(s.isNotEmpty())
+	if (s.isNotEmpty())
 		s << " ";
-
+		
 	for (int i = 0; i < fullIdList.size() - 1; i++)
 	{
 		s << fullIdList[i].toString() << ".";
@@ -225,20 +219,27 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 	return s;
 }
 
-bool FunctionData::matchesArgumentTypes(const Array<Types::ID>& typeList)
+bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 {
 	if (args.size() != typeList.size())
 		return false;
 
 	for (int i = 0; i < args.size(); i++)
 	{
-		if (args[i].typeInfo.getType() != typeList[i])
+		if (args[i].typeInfo != typeList[i])
 			return false;
 	}
 
 	return true;
 }
 
+bool FunctionData::matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList) const
+{
+	if (r.getType() != returnType)
+		return false;
+
+	return matchesArgumentTypes(argsList);
+}
 
 bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType /*= true*/) const
 {
@@ -261,12 +262,16 @@ bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, b
 }
 
 
-bool FunctionData::matchesArgumentTypes(Types::ID r, const Array<Types::ID>& argsList)
-{
-	if (r != returnType)
-		return false;
 
-	return matchesArgumentTypes(argsList);
+
+bool FunctionData::matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID>& nativeArgList) const
+{
+	Array<TypeInfo> t;
+
+	for (auto n : nativeArgList)
+		t.add(TypeInfo(n));
+
+	return matchesArgumentTypes(TypeInfo(r), t);
 }
 
 bool FunctionClass::hasFunction(const Symbol& s) const

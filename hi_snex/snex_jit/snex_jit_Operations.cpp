@@ -158,48 +158,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 }
 
-void Operations::SmoothedVariableDefinition::process(BaseCompiler* compiler, BaseScope* scope)
-{
-	Statement::process(compiler, scope);
-
-	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
-	{
-		jassert(scope->getScopeType() == BaseScope::Class);
-
-		if (auto cs = dynamic_cast<ClassScope*>(scope))
-		{
-			if (type == Types::ID::Float)
-				cs->addFunctionClass(new SmoothedFloat<float>(id, iv.toFloat()));
-			else if (type == Types::ID::Double)
-				cs->addFunctionClass(new SmoothedFloat<double>(id, iv.toDouble()));
-			else
-				throwError("Wrong type for smoothed value");
-		}
-
-	}
-
-	COMPILER_PASS(BaseCompiler::TypeCheck)
-	{
-		if (type != iv.getType())
-			logWarning("Type mismatch at smoothed value");
-	}
-}
-
-#if 0
-void Operations::WrappedBlockDefinition::process(BaseCompiler* compiler, BaseScope* scope)
-{
-	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
-	{
-		jassert(scope->getScopeType() == BaseScope::Class);
-
-		if (auto cs = dynamic_cast<ClassScope*>(scope))
-		{
-			cs->addFunctionClass(new WrappedBuffer<BufferHandler::WrapAccessor<>>(id, b));
-		}
-	}
-}
-#endif
-
 Operations::TokenType Operations::VariableReference::getWriteAccessType()
 {
 	if (auto as = dynamic_cast<Assignment*>(parent.get()))
@@ -231,21 +189,18 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// walk up the dot operators to get the proper symbol...
 		if (auto dp = dynamic_cast<DotOperator*>(parent.get()))
 		{
-			if (auto pPointer = dp->getDotParent()->getComplexType())
+			if (auto sType = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
 			{
-				if (auto sType = dynamic_cast<StructType*>(pPointer.get()))
-				{
-					objectPointer = dp->getDotParent();
+				objectPointer = dp->getDotParent();
 
-					id.typeInfo = sType->getMemberTypeInfo(id.id);
-					auto byteSize = id.typeInfo.getRequiredByteSize();
+				id.typeInfo = sType->getMemberTypeInfo(id.id);
+				auto byteSize = id.typeInfo.getRequiredByteSize();
 
-					if (byteSize == 0)
-						location.throwError("Can't deduce type size");
+				if (byteSize == 0)
+					location.throwError("Can't deduce type size");
 
-					memberOffset = VariableStorage((int)(sType->getMemberOffset(id.id)));
-					return;
-				}
+				memberOffset = VariableStorage((int)(sType->getMemberOffset(id.id)));
+				return;
 			}
 		}
 
@@ -310,7 +265,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			{
 				if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
 				{
-					auto asg = CREATE_ASM_COMPILER(getType());
+					AsmCodeGenerator asg(getFunctionCompiler(compiler), &compiler->registerPool, getType());
 					asg.emitParameter(dynamic_cast<Function*>(fScope->parentFunction), reg, parameterIndex);
 				}
 			}
@@ -321,9 +276,6 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		if (BlockAccess::isWrappedBufferReference(this, scope))
-			return;
-
 		if (parameterIndex != -1)
 			return;
 
@@ -382,7 +334,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		if (reg->isIteratorRegister())
 			return;
 
-		auto asg = CREATE_ASM_COMPILER(type);
+		auto asg = CREATE_ASM_COMPILER(getType());
 
 		isFirstOccurence = (!reg->isActiveOrDirtyGlobalRegister() && !reg->isMemoryLocation()) || isFirstReference();
 
@@ -475,24 +427,19 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		if (targetType == TargetType::Variable && isFirstAssignment && scope->getRootClassScope() == scope)
 		{
-			auto typeToAllocate = getTargetVariable()->getType();
+			auto typeToAllocate = getTargetVariable()->getTypeInfo();
 
-			if (typeToAllocate == Types::ID::Dynamic)
+			if (typeToAllocate.isInvalid())
 			{
-				int x = 12;
+				typeToAllocate = getSubExpr(0)->getTypeInfo();
 
-				typeToAllocate = getSubExpr(0)->getType();
-
-				if (!Types::Helpers::isFixedType(typeToAllocate))
-				{
+				if (typeToAllocate.isInvalid())
 					location.throwError("Can't deduce type");
 
-				}
-
-				getTargetVariable()->id.typeInfo.setType(typeToAllocate);
+				getTargetVariable()->id.typeInfo = typeToAllocate;
 			}
 
-			scope->getRootData()->enlargeAllocatedSize(Types::Helpers::getSizeForType(typeToAllocate));
+			scope->getRootData()->enlargeAllocatedSize(getTargetVariable()->getTypeInfo());
 		}
 	}
 
@@ -569,29 +516,25 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		auto targetIsSimd = SpanType::isSimdType(getSubExpr(1)->getComplexType());
+		auto targetIsSimd = SpanType::isSimdType(getSubExpr(1)->getTypeInfo());
 
 		if (targetIsSimd)
 		{
-			type = Types::ID::Pointer;
-
-			auto valueIsSimd = SpanType::isSimdType(getSubExpr(0)->getComplexType());
+			auto valueIsSimd = SpanType::isSimdType(getSubExpr(0)->getTypeInfo());
 
 			if (!valueIsSimd)
-				setTypeForChild(0, Types::ID::Float);
-
-			
+				setTypeForChild(0, TypeInfo(Types::ID::Float));
 		}
 		else
 		{
-			checkAndSetType(0, getSubExpr(1)->getType());
+			checkAndSetType(0, getSubExpr(1)->getTypeInfo());
 		}
 		
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		auto acg = CREATE_ASM_COMPILER(type);
+		auto acg = CREATE_ASM_COMPILER(getType());
 
 		getSubExpr(0)->process(compiler, scope);
 		getSubExpr(1)->process(compiler, scope);
@@ -605,9 +548,6 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		if (targetType == TargetType::Reference && isFirstAssignment)
 		{
 			jassert(value->hasCustomMemoryLocation() || value->isMemoryLocation());
-
-
-
 			tReg->setCustomMemoryLocation(value->getMemoryLocationForReference());
 		}
 		else
@@ -622,7 +562,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (targetType == TargetType::Variable)
 			{
-				if (auto wt = dynamic_cast<WrapType*>(getTargetVariable()->getComplexType().get()))
+				if (auto wt = getTargetVariable()->getTypeInfo().getTypedIfComplexType<WrapType>())
 				{
 					acg.emitWrap(wt, tReg, WrapType::OpType::Set);
 				}
@@ -674,26 +614,6 @@ Operations::Assignment::Assignment(Location l, Expression::Ptr target, TokenType
 
 	addStatement(expr);
 	addStatement(target); // the target must be evaluated after the expression
-}
-
-snex::jit::Symbol Operations::BlockAccess::isWrappedBufferReference(Statement::Ptr expr, BaseScope* scope)
-{
-	if (auto var = dynamic_cast<Operations::VariableReference*>(expr.get()))
-	{
-		if (auto s = scope->getScopeForSymbol(var->id))
-		{
-			if (auto cs = dynamic_cast<ClassScope*>(s))
-			{
-				if (auto wrappedBuffer = dynamic_cast<WrappedBufferBase*>(cs->getSubFunctionClass(var->id)))
-				{
-					return var->id;
-				}
-			}
-		}
-
-	}
-
-	return {};
 }
 
 

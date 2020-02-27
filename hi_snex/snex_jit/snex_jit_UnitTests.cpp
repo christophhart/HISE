@@ -166,11 +166,13 @@ public:
 			{
 				DBG("code: ");
 				DBG(compiler->getLastCompiledCode());
+				DBG(compiler->dumpSyntaxTree());
 				DBG("assembly: ");
 				DBG(compiler->getAssemblyCode());
 				DBG("Data dump before call:");
 				DBG(before);
 				
+
 
 				jassertfalse; // there you go...
 			}
@@ -834,9 +836,9 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles("set_from_other_function.h");
 
-		
+		runTestFiles("function_ref.h");
+		return;
 
 		testOptimizations();
 
@@ -968,6 +970,27 @@ private:
 			return Types::Helpers::getCppValueString(v_);
 		};
 
+		juce::String tdi;
+
+		tdi << "{ " << im(1) << ", " << im(2) << ", " << im(3) << "};";
+
+		{
+			NEW_CODE_TEXT();
+			DECLARE_SPAN("data");
+			ADD_CODE_LINE("wrap<$size> index = {0};");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    int i = (int)input + 2;");
+			ADD_CODE_LINE("    i = i > $size ? ($size -1 ) : i;");
+			ADD_CODE_LINE("    index = i;");
+			ADD_CODE_LINE("    data[index] = ($T)4.0;");
+			ADD_CODE_LINE("    return data[index];}");
+			FINALIZE_CODE();
+
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
+		}
+
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
@@ -985,29 +1008,11 @@ private:
 			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
 		}
 
-		{
-			NEW_CODE_TEXT();
-			DECLARE_SPAN("data");
-			ADD_CODE_LINE("wrap<$size> index = {0};");
-			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    int i = (int)input + 2;");
-			ADD_CODE_LINE("    i = i > $size ? ($size -1 ) : i;");
-			ADD_CODE_LINE("    index = i;");
-			ADD_CODE_LINE("    data[index] = ($T)4.0;");
-			ADD_CODE_LINE("    return data[index];}");
-			FINALIZE_CODE();
-
-			
-			CREATE_TYPED_TEST(code);
-			//test->dump();
-			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
-		}
+		
 
 
 
-		juce::String tdi;
-
-		tdi << "{ " << im(1) << ", " << im(2) << ", " << im(3) << "};";
+		
 
 		{
 			NEW_CODE_TEXT();
@@ -1149,6 +1154,21 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
+			ADD_CODE_LINE("wrap<2> j;");
+			ADD_CODE_LINE("$T test($T input){");
+			ADD_CODE_LINE("    j = (int)1.8f;");
+			ADD_CODE_LINE("    return data[2][j];}");
+
+			FINALIZE_CODE();
+			
+			CREATE_TYPED_TEST(code);
+			//test->dump();
+			EXPECT_TYPED(GET_TYPE(T) + " return 2D span element with j index cast", 0, 6);
+		}
+
+		{
+			NEW_CODE_TEXT();
+			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    $T sum = data[0][0] + data[0][1] + data[1][0] + data[1][1] + data[2][0] + data[2][1];");
 			ADD_CODE_LINE("    return sum;}");
@@ -1198,18 +1218,7 @@ private:
 		}
 
 
-		{
-			NEW_CODE_TEXT();
-			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("wrap<2> j;");
-			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    j = (int)1.8f;");
-			ADD_CODE_LINE("    return data[2][j];}");
-
-			FINALIZE_CODE();
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED(GET_TYPE(T) + " return 2D span element with j index cast", 0, 6);
-		}
+		
 
 		{
 			NEW_CODE_TEXT();

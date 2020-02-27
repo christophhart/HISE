@@ -182,7 +182,7 @@ private:
 
 struct ParameterHelpers
 {
-	static FunctionData getFunction(const String& parameterName, JitObject& obj);
+	static FunctionData getFunction(const juce::String& parameterName, JitObject& obj);
 
 	static StringArray getParameterNames(JitObject& obj);
 };

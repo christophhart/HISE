@@ -236,34 +236,12 @@ BlockParser::StatementPtr NewClassParser::parseDefinition(bool isConst, Types::I
 	}
 	else
 	{
-		if (isSmoothedVariable)
-		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding smoothed variable " + getCurrentSymbol(true).toString());
-			s = parseSmoothedVariableDefinition();
-			match(JitTokens::semicolon);
-		}
-		else
-		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + getCurrentSymbol(true).toString());
-			s = parseVariableDefinition(isConst);
-			match(JitTokens::semicolon);
-		}
-
+		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + getCurrentSymbol(true).toString());
+		s = parseVariableDefinition(isConst);
+		match(JitTokens::semicolon);
 	}
 
 	return s;
-}
-
-
-
-snex::jit::BlockParser::StatementPtr NewClassParser::parseSmoothedVariableDefinition()
-{
-	StatementPtr s;
-
-	match(JitTokens::assign_);
-	auto value = parseVariableStorageLiteral();
-
-	return new Operations::SmoothedVariableDefinition(location, getCurrentSymbol(true), currentHnodeType, value);
 }
 
 snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
@@ -561,7 +539,7 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(boo
 	while (matchIf(JitTokens::comma))
 		ids.add(parseIdentifier());
 
-	auto n = new Operations::ComplexTypeDefinition(location, ids, typePtr);
+	auto n = new Operations::ComplexTypeDefinition(location, ids, TypeInfo(typePtr, isConst));
 
 	if (matchIf(JitTokens::assign_))
 	{

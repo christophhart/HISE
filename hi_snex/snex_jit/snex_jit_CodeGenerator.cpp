@@ -1276,7 +1276,7 @@ void AsmCodeGenerator::emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op
 			cc.mov(t, d);
 		}
 
-		
+		break;
 	}
 	case WrapType::OpType::Inc:
 	{

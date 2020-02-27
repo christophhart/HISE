@@ -123,9 +123,9 @@ public:
 
 	Result getCompileResult();
 
-	String getAssemblyCode();
-
-	String getLastCompiledCode() { return lastCode; }
+	juce::String getAssemblyCode();
+	juce::String dumpSyntaxTree() const;
+	juce::String getLastCompiledCode() { return lastCode; }
 
 private:
 

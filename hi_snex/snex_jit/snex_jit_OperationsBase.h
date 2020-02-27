@@ -39,6 +39,8 @@ using namespace asmjit;
 
 class FunctionScope;
 
+#define SET_EXPRESSION_ID(x) Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER(#x); }
+
 /** This class has a variable pool that will not exceed the lifetime of the compilation. */
 class Operations
 {
@@ -49,6 +51,8 @@ public:
 	static FunctionCompiler& getFunctionCompiler(BaseCompiler* c);
 	static BaseScope* findClassScope(BaseScope* scope);
 	static BaseScope* findFunctionScope(BaseScope* scope);
+
+	
 
 	using RegPtr = AssemblyRegister::Ptr;
 
@@ -73,9 +77,11 @@ public:
 			return dynamic_cast<const T*>(this) != nullptr;
 		}
 
+		
+
 		virtual ~Statement() {};
 
-		virtual Types::ID getType() const = 0;
+		virtual TypeInfo getTypeInfo() const = 0;
 		virtual void process(BaseCompiler* compiler, BaseScope* scope);
 
 		virtual bool hasSideEffect() const { return false; }
@@ -102,6 +108,20 @@ public:
 			jassert(currentPass >= BaseCompiler::CodeGeneration);
 
 			childStatements.clear();
+		}
+
+		virtual Identifier getStatementId() const = 0;
+
+		virtual ValueTree toValueTree() const
+		{
+			ValueTree v(getStatementId());
+
+			v.setProperty("Line", location.getLine(), nullptr);
+
+			for (auto s : *this)
+				v.addChild(s->toValueTree(), -1, nullptr);
+
+			return v;
 		}
 
 		void throwError(const juce::String& errorMessage);
@@ -174,30 +194,23 @@ public:
 
 		virtual ~Expression() {};
 
-		Types::ID getType() const override;
-
 		void attachAsmComment(const juce::String& message);
 
-		void checkAndSetType(int offset = 0, Types::ID expectedType = Types::ID::Dynamic);
+		TypeInfo checkAndSetType(int offset, TypeInfo expectedType);
 
-		Types::ID setTypeForChild(int childIndex, Types::ID expectedType);
+		TypeInfo setTypeForChild(int childIndex, TypeInfo expectedType);
 
 		/** Processes all sub expressions. Call this from your base class. */
 		void process(BaseCompiler* compiler, BaseScope* scope) override;
 
 		bool isAnonymousStatement() const;
 
-		
+		Types::ID getType() const
+		{
+			return getTypeInfo().getType();
+		}
 
 		virtual VariableStorage getConstExprValue() const;
-
-		virtual ComplexType::Ptr getComplexType() const
-		{
-			// you return a pointer, you return a complex type...
-			jassert(getType() != Types::ID::Pointer);
-
-			return nullptr;
-		}
 
 		bool hasSubExpr(int index) const;
 
@@ -228,19 +241,11 @@ public:
 			if (clearRegister)
 			{
 				jassert(targetToUse->canBeReused());
-
 				targetToUse->clearForReuse();
-
-				
 			}
 
 			reg = targetToUse;
 		}
-
-
-	protected:
-
-		Types::ID type;
 
 	private:
 
@@ -366,10 +371,7 @@ public:
 	struct TypeDefinitionBase
 	{
 		virtual ~TypeDefinitionBase() {};
-
-		virtual Identifier getInstanceId() const = 0;
-		virtual ComplexType::Ptr getTypePtr() const = 0;
-		virtual Types::ID getNativeType() const = 0;
+		virtual Array<Identifier> getInstanceIds() const = 0;
 	};
 
 	struct BranchingStatement
@@ -413,7 +415,7 @@ class SyntaxTree : public Operations::Statement,
 public:
 
 	SyntaxTree(ParserHelpers::CodeLocation l);;
-	Types::ID getType() const { return Types::ID::Void; }
+	TypeInfo getTypeInfo() const { return {}; }
 
 	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const
 	{
@@ -424,6 +426,8 @@ public:
 
 		return s;
 	}
+
+	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("SyntaxTree"); }
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{

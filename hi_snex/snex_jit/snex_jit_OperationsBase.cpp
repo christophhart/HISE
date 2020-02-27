@@ -46,12 +46,12 @@ snex::jit::Operations::FunctionCompiler& Operations::getFunctionCompiler(BaseCom
 BaseScope* Operations::findClassScope(BaseScope* scope)
 {
 	if (scope == nullptr)
-		return nullptr;
+return nullptr;
 
-	if (scope->getScopeType() == BaseScope::Class)
-		return scope;
-	else
-		return findClassScope(scope->getParent());
+if (scope->getScopeType() == BaseScope::Class)
+return scope;
+else
+return findClassScope(scope->getParent());
 }
 
 snex::jit::BaseScope* Operations::findFunctionScope(BaseScope* scope)
@@ -89,66 +89,34 @@ Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr va
 			if (isStatementType<Assignment>(s))
 				return dynamic_cast<Expression*>(s);
 		}
-
-		return nullptr;
-	}
-	else
-	{
-		return nullptr;
 	}
 
-
-
-#if 0
-	if (auto fScope = dynamic_cast<FunctionScope*>(findFunctionScope(scope)))
-	{
-		auto pf = dynamic_cast<Function*>(fScope->parentFunction.get());
-
-		auto vPtr = dynamic_cast<VariableReference*>(variable.get());
-
-		for (auto s : *pf->statements)
-		{
-			if (auto as = dynamic_cast<Assignment*>(s))
-			{
-				auto tv = dynamic_cast<VariableReference*>(as->getSubExpr(0).get());
-
-				if (tv->ref == vPtr->ref)
-					return as;
-			}
-		}
-
-		return nullptr;
-	}
-#endif
+	return nullptr;
 }
 
 
-snex::Types::ID Operations::Expression::getType() const
-{
-	return type;
-}
 
 void Operations::Expression::attachAsmComment(const juce::String& message)
 {
 	asmComment = message;
 }
 
-void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expectedType)
+TypeInfo Operations::Expression::checkAndSetType(int offset, TypeInfo expectedType)
 {
-	Types::ID exprType = expectedType;
+	TypeInfo exprType = expectedType;
 
 	for (int i = offset; i < getNumChildStatements(); i++)
 	{
 		exprType = setTypeForChild(i, exprType);
 	}
 
-	type = exprType;
+	return exprType;
 }
 
 
 
 
-Types::ID Operations::Expression::setTypeForChild(int childIndex, Types::ID expectedType)
+TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expectedType)
 {
 	auto e = getSubExpr(childIndex);
 
@@ -158,41 +126,54 @@ Types::ID Operations::Expression::setTypeForChild(int childIndex, Types::ID expe
 
 		if (v->isConstExpr() && isDifferentType)
 		{
-			v->id.constExprValue = VariableStorage(expectedType, v->id.constExprValue.toDouble());
+			// Internal cast of a constexpr variable...
+			v->id.constExprValue = VariableStorage(expectedType.getType(), v->id.constExprValue.toDouble());
 			return expectedType;
 		}
 	}
 
-	auto thisType = e->getType();
+	auto thisType = e->getTypeInfo();
 
-	if (!Types::Helpers::matchesTypeStrict(expectedType, thisType))
+	if (expectedType.isInvalid())
 	{
-		if (thisType == Types::ID::Block)
-			throwError(juce::String("Cannot convert from block to ") + Types::Helpers::getTypeName(expectedType));
+		return thisType;
+	}
 
-		if (expectedType == Types::ID::Block)
-			throwError(juce::String("Cannot convert to block from ") + Types::Helpers::getTypeName(thisType));
+	if (!thisType.isComplexType() && (thisType == expectedType.getType()))
+	{
+		// the expected complex type can be implicitely casted to the native type
+		return expectedType;
+	}
 
+	if (!expectedType.isComplexType() && expectedType == thisType.getType())
+	{
+		// this type can be implicitely casted to the native expected type;
+		return thisType;
+	}
+		
 
-		if (expectedType == Types::ID::Pointer)
-			throwError(juce::String("Can't cast ") + Types::Helpers::getCppTypeName(e->getType()) + " to pointer");
+	if (expectedType != thisType)
+	{
+		auto expIsPointer = expectedType == Types::ID::Pointer || expectedType == Types::ID::Block;
+		auto thisIsPointer = thisType == Types::ID::Pointer || thisType == Types::ID::Block;
+
+		if(expIsPointer || thisIsPointer)
+			throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
 
 		logWarning("Implicit cast, possible lost of data");
 
 		if (e->isConstExpr())
 		{
-			replaceChildStatement(childIndex, ConstExprEvaluator::evalCast(e.get(), expectedType).get());
+			replaceChildStatement(childIndex, ConstExprEvaluator::evalCast(e.get(), expectedType.getType()).get());
 		}
 		else
 		{
-			Ptr implCast = new Operations::Cast(e->location, e, expectedType);
+			Ptr implCast = new Operations::Cast(e->location, e, expectedType.getType());
 			implCast->attachAsmComment("Implicit cast");
 
 			replaceChildStatement(childIndex, implCast);
 		}
 	}
-	else
-		expectedType = Types::Helpers::getMoreRestrictiveType(expectedType, thisType);
 
 	return expectedType;
 }
@@ -400,9 +381,6 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 
 	while (auto v = w.getNextStatementOfType<VariableReference>())
 	{
-		if (BlockAccess::isWrappedBufferReference(v, s))
-			continue;
-
 		// If use a class variable, we need to create the register
 		// outside the loop
 		if (v->isClassVariable(s) && v->isFirstReference())

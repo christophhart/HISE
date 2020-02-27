@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 19: Cannot convert from block to int"
+  error: "Line 19: Can't cast block to int"
   filename: "illegal/castfromblock"
 END_TEST_DATA
 */

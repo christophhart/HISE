@@ -395,6 +395,8 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalNegation(ExprPtr 
 
 ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalCast(ExprPtr expression, Types::ID targetType)
 {
+	jassert(targetType != Types::ID::Dynamic);
+
 	if (expression->isConstExpr())
 	{
 		auto value = expression->getConstExprValue();
@@ -438,7 +440,7 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 		if (!matches.isEmpty())
 		{
 			Array<VariableStorage> constArgs;
-			Array<Types::ID> argTypes;
+			Array<TypeInfo> argTypes;
 
 			for (int i = 0; i < functionCall->getNumArguments(); i++)
 			{
@@ -446,7 +448,7 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 				{
 					auto value = functionCall->getArgument(i)->getConstExprValue();
 					constArgs.add(value);
-					argTypes.add(value.getType());
+					argTypes.add(TypeInfo(value.getType()));
 				}
 
 				else
@@ -699,7 +701,7 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 
 				if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
 				{
-					if (isAssignedVariable(bOp->getSubExpr(0)) && !SpanType::isSimdType(a->getSubExpr(1)->getComplexType()))
+					if (isAssignedVariable(bOp->getSubExpr(0)) && !SpanType::isSimdType(a->getSubExpr(1)->getTypeInfo()))
 					{
 						a->logOptimisationMessage("Replace " + juce::String(bOp->op) + " with self assignment");
 

@@ -257,10 +257,10 @@ public:
 		return false;
 	}
 
-	void enlargeAllocatedSize(size_t bytesToAllocate)
+	void enlargeAllocatedSize(const TypeInfo& t)
 	{
 		jassert(data == nullptr);
-		allocatedSize += bytesToAllocate;
+		allocatedSize += t.getRequiredByteSize();
 	}
 
 	void finalise()

@@ -62,32 +62,32 @@ void CallbackCollection::setupCallbacks()
 
 	prepareFunction = obj["prepare"];
 
-	if (!prepareFunction.matchesArgumentTypes(ID::Void, { ID::Double, ID::Integer, ID::Integer }))
+	if (!prepareFunction.matchesNativeArgumentTypes(ID::Void, { ID::Double, ID::Integer, ID::Integer }))
 		prepareFunction = {};
 
 	resetFunction = obj["reset"];
 
-	if (!resetFunction.matchesArgumentTypes(ID::Void, {}))
+	if (!resetFunction.matchesNativeArgumentTypes(ID::Void, {}))
 		resetFunction = {};
 
 	eventFunction = obj["handleEvent"];
 
-	if (!eventFunction.matchesArgumentTypes(ID::Void, { ID::Event }))
+	if (!eventFunction.matchesNativeArgumentTypes(ID::Void, { ID::Event }))
 		eventFunction = {};
 
 	callbacks[CallbackTypes::Sample] = obj[cIds[CallbackTypes::Sample]];
 
-	if (!callbacks[CallbackTypes::Sample].matchesArgumentTypes(ID::Float, { ID::Float }))
+	if (!callbacks[CallbackTypes::Sample].matchesNativeArgumentTypes(ID::Float, { ID::Float }))
 		callbacks[CallbackTypes::Sample] = {};
 
 	callbacks[CallbackTypes::Frame] = obj[cIds[CallbackTypes::Frame]];
 
-	if (!callbacks[CallbackTypes::Frame].matchesArgumentTypes(ID::Void, { ID::Block }))
+	if (!callbacks[CallbackTypes::Frame].matchesNativeArgumentTypes(ID::Void, { ID::Block }))
 		callbacks[CallbackTypes::Frame] = {};
 
 	callbacks[CallbackTypes::Channel] = obj[cIds[CallbackTypes::Channel]];
 
-	if (!callbacks[CallbackTypes::Channel].matchesArgumentTypes(ID::Void, { ID::Block, ID::Integer }))
+	if (!callbacks[CallbackTypes::Channel].matchesNativeArgumentTypes(ID::Void, { ID::Block, ID::Integer }))
 		callbacks[CallbackTypes::Channel] = {};
 
 	bestCallback[FrameProcessing] = getBestCallback(FrameProcessing);
@@ -101,7 +101,7 @@ void CallbackCollection::setupCallbacks()
 	{
 		auto pFunction = ParameterHelpers::getFunction(n, obj);
 
-		if (!pFunction.matchesArgumentTypes(ID::Void, { ID::Double }))
+		if (!pFunction.matchesNativeArgumentTypes(ID::Void, { ID::Double }))
 			pFunction = {};
 
 		parameters.add({ n, pFunction });
@@ -163,7 +163,7 @@ snex::jit::FunctionData ParameterHelpers::getFunction(const juce::String& parame
 
 	auto f = obj[id];
 
-	if (f.matchesArgumentTypes(Types::ID::Void, { Types::ID::Double }))
+	if (f.matchesNativeArgumentTypes(Types::ID::Void, { Types::ID::Double }))
 		return f;
 
 	return {};

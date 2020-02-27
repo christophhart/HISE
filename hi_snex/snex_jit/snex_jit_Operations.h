@@ -41,15 +41,13 @@ using namespace asmjit;
 struct Operations::StatementBlock : public Statement,
 							        public ScopeStatementBase
 {
-public:
+	SET_EXPRESSION_ID(StatementBlock);
 
 	StatementBlock(Location l) :
 		Statement(l)
 	{}
 
-	Types::ID getType() const override { return Types::ID::Void; };
-
-	
+	TypeInfo getTypeInfo() const override { return {}; };
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
@@ -63,11 +61,12 @@ public:
 	}
 
 	ScopedPointer<RegisterScope> blockScope;
-
 };
 
 struct Operations::Noop : public Expression
 {
+	SET_EXPRESSION_ID(Noop);
+
 	Noop(Location l) :
 		Expression(l)
 	{}
@@ -77,18 +76,27 @@ struct Operations::Noop : public Expression
 		Statement::process(compiler, scope);
 	}
 
-	Types::ID getType() const override { return Types::ID::Void; };
+	TypeInfo getTypeInfo() const override { return {}; };
 };
 
 
 struct Operations::Immediate : public Expression
 {
+	SET_EXPRESSION_ID(Immediate);
+
 	Immediate(Location loc, VariableStorage value) :
 		Expression(loc),
 		v(value)
 	{};
 
-	Types::ID getType() const override { return v.getType(); }
+	TypeInfo getTypeInfo() const override { return TypeInfo(v.getType(), true, false); }
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+		t.setProperty("Value", var(Types::Helpers::getCppValueString(v)), nullptr);
+		return t;
+	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
@@ -113,12 +121,21 @@ struct Operations::Immediate : public Expression
 
 struct Operations::VariableReference : public Expression
 {
+	SET_EXPRESSION_ID(VariableReference);
+
 	VariableReference(Location l, const Symbol& id_) :
 		Expression(l),
 		id(id_)
 	{
 		jassert(id);
 	};
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+		t.setProperty("Symbol", id.toString(), nullptr);
+		return t;
+	}
 
 	/** This scans the tree and checks whether it's the last reference.
 	
@@ -209,12 +226,9 @@ struct Operations::VariableReference : public Expression
 		return !id.constExprValue.isVoid();
 	}
 
-	ComplexType::Ptr getComplexType() const override
+	TypeInfo getTypeInfo() const override
 	{
-		if(id.typeInfo.isComplexType())
-			return id.typeInfo.getComplexType();
-
-		return nullptr;
+		return id.typeInfo;
 	}
 
 	FunctionClass* getFunctionClassForSymbol(BaseScope* scope) const
@@ -288,8 +302,6 @@ struct Operations::VariableReference : public Expression
 		return true;
 	}
 
-	Types::ID getType() const override { return id.typeInfo.getType(); }
-
 	bool validateLocalDefinition(BaseCompiler* compiler, BaseScope* scope)
 	{
 		jassert(isLocalDefinition);
@@ -340,15 +352,30 @@ struct Operations::VariableReference : public Expression
 
 struct Operations::Cast : public Expression
 {
-	Cast(Location l, Expression::Ptr expression, Types::ID targetType) :
+	SET_EXPRESSION_ID(Cast);
+
+	Cast(Location l, Expression::Ptr expression, Types::ID targetType_) :
 		Expression(l)
 	{
 		addStatement(expression);
-		type = targetType;
+		targetType = TypeInfo(targetType_);
 	};
 
+	
+
+	ValueTree toValueTree() const override
+	{
+		auto sourceType = getSubExpr(0)->getType();
+		auto targetType = getType();
+
+		auto t = Expression::toValueTree();
+		t.setProperty("Source", Types::Helpers::getTypeName(sourceType), nullptr);
+		t.setProperty("Target", Types::Helpers::getTypeName(targetType), nullptr);
+		return t;
+	}
+
 	// Make sure the target type is used.
-	Types::ID getType() const override { return type; }
+	TypeInfo getTypeInfo() const override { return targetType; }
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
@@ -371,12 +398,14 @@ struct Operations::Cast : public Expression
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			auto asg = CREATE_ASM_COMPILER(type);
+			auto asg = CREATE_ASM_COMPILER(getType());
 			auto sourceType = getSubExpr(0)->getType();
-			reg = compiler->getRegFromPool(scope, type);
+			reg = compiler->getRegFromPool(scope, getType());
 			asg.emitCast(reg, getSubRegister(0), sourceType);
 		}
 	}
+
+	TypeInfo targetType;
 };
 
 struct Operations::DotOperator : public Expression
@@ -388,6 +417,8 @@ struct Operations::DotOperator : public Expression
 		addStatement(child);
 	}
 
+	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("Dot"); }
+
 	Ptr getDotParent() const
 	{
 		return getSubExpr(0);
@@ -398,16 +429,9 @@ struct Operations::DotOperator : public Expression
 		return getSubExpr(1);
 	}
 
-	Types::ID getType() const override
+	TypeInfo getTypeInfo() const override
 	{
-		return getDotChild()->getType();
-	}
-
-	
-
-	ComplexType::Ptr getComplexType() const override
-	{
-		return getDotChild()->getComplexType();
+		return getDotChild()->getTypeInfo();
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
@@ -428,12 +452,27 @@ struct Operations::Assignment : public Expression,
 
 	Assignment(Location l, Expression::Ptr target, TokenType assignmentType_, Expression::Ptr expr, bool firstAssignment_);
 
-	ComplexType::Ptr getTypePtr() const override { return nullptr; }
-	Identifier getInstanceId() const override { return getTargetVariable()->id.id; };
-	Types::ID getNativeType() const override { return getTargetVariable()->getType(); }
+	Array<Identifier> getInstanceIds() const override { return { getTargetVariable()->id.id }; };
+
+	TypeInfo getTypeInfo() const override { return getSubExpr(1)->getTypeInfo(); }
+
+	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("Assignment"); }
+
+	ValueTree toValueTree() const override
+	{
+		auto sourceType = getSubExpr(0)->getType();
+		auto targetType = getType();
+
+		auto t = Expression::toValueTree();
+		t.setProperty("First", isFirstAssignment, nullptr);
+		t.setProperty("AssignmentType", assignmentType, nullptr);
+		
+		return t;
+	}
 
 	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const override
 	{
+		
 		if (scope->getScopeType() == BaseScope::Class && isFirstAssignment)
 		{
 			jassert(getSubExpr(0)->isConstExpr());
@@ -448,7 +487,8 @@ struct Operations::Assignment : public Expression,
 	VariableReference* getTargetVariable() const
 	{
 		jassert(targetType == TargetType::Variable || targetType == TargetType::Reference);
-		return dynamic_cast<VariableReference*>(getSubExpr(1).get());
+		auto v = getSubExpr(1).get();
+		return dynamic_cast<VariableReference*>(v);
 	}
 
 	DotOperator* getMemberTarget() const
@@ -465,27 +505,34 @@ struct Operations::Assignment : public Expression,
 };
 
 
-
-
-
-
 struct Operations::Compare : public Expression
 {
 	Compare(Location location, Expression::Ptr l, Expression::Ptr r, TokenType op_) :
 		Expression(location),
 		op(op_)
 	{
-		type = Types::Integer;
 		addStatement(l);
 		addStatement(r);
 	};
 
-	Types::ID getType() const override { return Types::Integer; }
+	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("Comparison"); }
+
+	ValueTree toValueTree() const override
+	{
+		auto sourceType = getSubExpr(0)->getType();
+		auto targetType = getType();
+
+		auto t = Expression::toValueTree();
+		t.setProperty("OpType", op, nullptr);
+
+		return t;
+	}
+
+	TypeInfo getTypeInfo() const override { return TypeInfo(Types::Integer); }
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
 		Expression::process(compiler, scope);
-
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
@@ -495,7 +542,7 @@ struct Operations::Compare : public Expression
 			if (l->getType() != r->getType())
 			{
 				Ptr implicitCast = new Operations::Cast(location, getSubExpr(1), l->getType());
-				logWarning("Implicit cast to float for comparison");
+				logWarning("Implicit cast to int for comparison");
 				replaceChildStatement(1, implicitCast);
 			}
 		}
@@ -524,23 +571,24 @@ struct Operations::Compare : public Expression
 	}
 
 	TokenType op;
+
 };
 
 struct Operations::LogicalNot : public Expression
 {
+	SET_EXPRESSION_ID(LogicalNot);
+
 	LogicalNot(Location l, Ptr expr) :
 		Expression(l)
 	{
 		addStatement(expr);
 	};
 
-	Types::ID getType() const override { return Types::ID::Integer; }
+	TypeInfo getTypeInfo() const override { return TypeInfo(Types::ID::Integer); }
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		Expression::process(compiler, scope);
-
-
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
@@ -550,11 +598,9 @@ struct Operations::LogicalNot : public Expression
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			auto asg = CREATE_ASM_COMPILER(Types::ID::Integer);
+			auto asg = CREATE_ASM_COMPILER(getType());
 
 			reg = asg.emitLogicalNot(getSubRegister(0));
-
-			//getSubRegister(0)->flagForReuseIfAnonymous();
 		}
 	}
 };
@@ -564,6 +610,8 @@ struct Operations::TernaryOp : public Expression,
 {
 public:
 
+	SET_EXPRESSION_ID(TernaryOp);
+
 	TernaryOp(Location l, Expression::Ptr c, Expression::Ptr t, Expression::Ptr f) :
 		Expression(l)
 	{
@@ -572,7 +620,7 @@ public:
 		addStatement(f);
 	}
 
-	Types::ID getType() const override
+	TypeInfo getTypeInfo() const override
 	{
 		return type;
 	}
@@ -588,7 +636,7 @@ public:
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			checkAndSetType(1);
+			type = checkAndSetType(1, type);
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -600,18 +648,21 @@ public:
 
 private:
 
+	TypeInfo type;
 
 };
 
 struct Operations::CastedSimd : public Expression
 {
+	SET_EXPRESSION_ID(CastedSimd);
+
 	CastedSimd(Location l, Ptr original) :
 		Expression(l)
 	{
 		addStatement(original);
 	}
 
-	ComplexType::Ptr getComplexType() const override
+	TypeInfo getTypeInfo() const override
 	{
 		return simdSpanType;
 	}
@@ -622,12 +673,12 @@ struct Operations::CastedSimd : public Expression
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
-			if (auto ost = dynamic_cast<SpanType*>(getSubExpr(0)->getComplexType().get()))
+			if (auto ost = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<SpanType>())
 			{
 				int numSimd = ost->getNumElements() / 4;
 
-				simdSpanType = new SpanType(compiler->getComplexTypeForAlias("float4"), numSimd);
-				compiler->complexTypes.add(simdSpanType);
+				simdSpanType = TypeInfo(new SpanType(compiler->getComplexTypeForAlias("float4"), numSimd));
+				compiler->complexTypes.add(simdSpanType.getComplexType());
 			}
 			else
 				throwError("Can't convert non-span to SIMD span");
@@ -635,7 +686,7 @@ struct Operations::CastedSimd : public Expression
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			if (auto ost = dynamic_cast<SpanType*>(getSubExpr(0)->getComplexType().get()))
+			if (auto ost = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<SpanType>())
 			{
 				if (ost->getElementType() != Types::ID::Float)
 					throwError("Can't convert non-float to SIMD");
@@ -653,11 +704,13 @@ struct Operations::CastedSimd : public Expression
 		}
 	}
 
-	ComplexType::Ptr simdSpanType;
+	TypeInfo simdSpanType;
 };
 
 struct Operations::FunctionCall : public Expression
 {
+	SET_EXPRESSION_ID(FunctionCall);
+
 	enum CallType
 	{
 		Unresolved,
@@ -682,6 +735,19 @@ struct Operations::FunctionCall : public Expression
 		}
 	};
 
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+
+		t.setProperty("Signature", function.getSignature(), nullptr);
+
+		const StringArray resolveNames = { "Unresolved", "MemberFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall" };
+
+		t.setProperty("CallType", resolveNames[(int)callType], nullptr);
+
+		return t;
+	}
+
 	void addArgument(Ptr arg)
 	{
 		addStatement(arg);
@@ -704,6 +770,11 @@ struct Operations::FunctionCall : public Expression
 	static bool canBeAliasParameter(Ptr e)
 	{
 		return dynamic_cast<VariableReference*>(e.get()) != nullptr;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return TypeInfo(function.returnType);
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
@@ -747,7 +818,7 @@ struct Operations::FunctionCall : public Expression
 					callType = GlobalFunction;
 				}
 			}
-			else if (auto cptr = dynamic_cast<StructType*>(objExpr->getComplexType().get()))
+			else if (auto cptr = objExpr->getTypeInfo().getTypedIfComplexType<StructType>())
 			{
 				if (fc = dynamic_cast<FunctionClass*>(scope->getRootClassScope()->getChildScope(cptr->id)))
 				{
@@ -758,12 +829,13 @@ struct Operations::FunctionCall : public Expression
 			}
 			else if (auto pv = dynamic_cast<VariableReference*>(objExpr.get()))
 			{
-				auto pType = pv->getType();
+				auto pType = pv->getTypeInfo();
+				auto pNativeType = pType.getType();
 
-				if (pType == Types::ID::Event || pType == Types::ID::Block)
+				if (pNativeType == Types::ID::Event || pNativeType == Types::ID::Block)
 				{
-					// substite the parent id with the Message or Block API class to resolve the pointers
-					auto id = Symbol::createRootSymbol(type == Types::ID::Event ? "Message" : "Block").getChildSymbol(function.id, TypeInfo(pType, pv->id.isConst()));
+					// substitute the parent id with the Message or Block API class to resolve the pointers
+					auto id = Symbol::createRootSymbol(pNativeType == Types::ID::Event ? "Message" : "Block").getChildSymbol(function.id, pType);
 
 					fc = scope->getRootClassScope()->getSubFunctionClass(id.getParentSymbol());
 					fc->addMatchingFunctions(possibleMatches, id);
@@ -788,14 +860,13 @@ struct Operations::FunctionCall : public Expression
 
 					callType = pv->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
 				}
-				else if (auto st = dynamic_cast<SpanType*>(pv->getComplexType().get()))
+				else if (auto st = pv->getTypeInfo().getTypedIfComplexType<SpanType>())
 				{
 					if (function.id == Identifier("size"))
 					{
 						replaceInParent(new Immediate(location, VariableStorage((int)st->getNumElements())));
 						return;
 					}
-					
 				}
 			}
 			
@@ -807,10 +878,10 @@ struct Operations::FunctionCall : public Expression
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			Array<Types::ID> parameterTypes;
+			Array<TypeInfo> parameterTypes;
 
 			for (int i = 0; i < getNumArguments(); i++)
-				parameterTypes.add(getArgument(i)->getType());
+				parameterTypes.add(getArgument(i)->getTypeInfo());
 
 			for (auto& f : possibleMatches)
 			{
@@ -832,7 +903,6 @@ struct Operations::FunctionCall : public Expression
 					}
 
 					function = f;
-					type = function.returnType;
 					return;
 				}
 			}
@@ -842,7 +912,7 @@ struct Operations::FunctionCall : public Expression
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{
-			reg = compiler->getRegFromPool(scope, type);
+			reg = compiler->getRegFromPool(scope, getType());
 
 			//VariableReference::reuseAllLastReferences(this);
 
@@ -859,7 +929,7 @@ struct Operations::FunctionCall : public Expression
 
 				auto pType = function.args[i].isReference() ? Types::ID::Pointer : getArgument(i)->getType();
 				auto pReg = compiler->getRegFromPool(scope, pType);
-				auto asg = CREATE_ASM_COMPILER(type);
+				auto asg = CREATE_ASM_COMPILER(getType());
 				pReg->createRegister(asg.cc);
 				parameterRegs.add(pReg);
 			}
@@ -876,7 +946,7 @@ struct Operations::FunctionCall : public Expression
 					throwError("Can't find function pointer to JIT function " + function.functionName);
 			}
 			
-			auto asg = CREATE_ASM_COMPILER(type);
+			auto asg = CREATE_ASM_COMPILER(getType());
 
 			if (function.id.toString() == "stop")
 			{
@@ -901,7 +971,7 @@ struct Operations::FunctionCall : public Expression
 				auto arg = getArgument(i);
 				auto existingReg = arg->reg;
 				auto pReg = parameterRegs[i];
-				auto acg = CREATE_ASM_COMPILER(arg->getType());
+				auto acg = CREATE_ASM_COMPILER(arg->getTypeInfo().getType());
 
 				if (function.args[i].isReference() && function.args[i].typeInfo.getType() != Types::ID::Pointer)
 				{
@@ -945,6 +1015,8 @@ struct Operations::FunctionCall : public Expression
 
 struct Operations::ReturnStatement : public Expression
 {
+	SET_EXPRESSION_ID(ReturnStatement);
+
 	ReturnStatement(Location l, Expression::Ptr expr) :
 		Expression(l)
 	{
@@ -957,9 +1029,16 @@ struct Operations::ReturnStatement : public Expression
 			type = Types::ID::Void;
 	}
 
-	Types::ID getType() const override
+	ValueTree toValueTree() const override
 	{
-		return type;
+		auto t = Expression::toValueTree();
+		t.setProperty("Type", Types::Helpers::getTypeName(type), nullptr);
+		return t;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return TypeInfo(type);
 	}
 
 	bool isVoid() const
@@ -985,7 +1064,7 @@ struct Operations::ReturnStatement : public Expression
 				if (!isVoid() && expectedType == Types::ID::Void)
 					throwError("Can't return a value from a void function.");
 
-				checkAndSetType(0, expectedType);
+				checkAndSetType(0, TypeInfo(expectedType));
 			}
 			else
 				throwError("Can't deduce return type.");
@@ -1005,11 +1084,15 @@ struct Operations::ReturnStatement : public Expression
 			asg.emitReturn(compiler, reg, sourceReg);
 		}
 	}
+
+	Types::ID type;
 };
 
 
 struct Operations::ClassStatement : public Statement
 {
+	SET_EXPRESSION_ID(ClassStatement)
+
 	using Ptr = ReferenceCountedObjectPtr<ClassStatement>;
 
 	ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock) :
@@ -1019,7 +1102,14 @@ struct Operations::ClassStatement : public Statement
 		addStatement(classBlock);
 	}
 
-	Types::ID getType() const override { return Types::ID::Void; }
+	ValueTree toValueTree() const override
+	{
+		auto t = toValueTree();
+		t.setProperty("Type", classType->toString(), nullptr);
+		return t;
+	}
+
+	TypeInfo getTypeInfo() const override { return {}; }
 
 	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const override
 	{
@@ -1042,17 +1132,11 @@ struct Operations::ClassStatement : public Statement
 			{
 				if (auto td = dynamic_cast<TypeDefinitionBase*>(s))
 				{
-					if (auto ctPtr = td->getTypePtr())
-						getStructType()->addMember(td->getInstanceId(), TypeInfo(ctPtr));
-					else
-					{
-						auto type = td->getNativeType();
+					if (s->getTypeInfo().isInvalid())
+						location.throwError("Can't use auto on member variables");
 
-						if (!Types::Helpers::isFixedType(type))
-							location.throwError("Can't use auto on member variables");
-
-						getStructType()->addMember(td->getInstanceId(), TypeInfo(type));
-					}
+					for(auto& id: td->getInstanceIds())
+						getStructType()->addMember(id, s->getTypeInfo());
 				}
 			}
 
@@ -1080,6 +1164,8 @@ struct Operations::ClassStatement : public Statement
 struct Operations::Function : public Statement,
 	public asmjit::ErrorHandler
 {
+	SET_EXPRESSION_ID(Function);
+
 	Function(Location l, const Symbol& id_) :
 		Statement(l),
 		code(nullptr),
@@ -1094,12 +1180,22 @@ struct Operations::Function : public Statement,
 		parameters.clear();
 	}
 
+	ValueTree toValueTree() const override
+	{
+		auto t = Statement::toValueTree();
+		t.setProperty("Signature", data.getSignature(parameters), nullptr);
+
+		t.addChild(statements->toValueTree(), -1, nullptr);
+
+		return t;
+	}
+
 	void handleError(asmjit::Error, const char* message, asmjit::BaseEmitter* emitter) override
 	{
 		throwError(juce::String(message));
 	}
 
-	Types::ID getType() const override { return data.returnType; }
+	TypeInfo getTypeInfo() const override { return TypeInfo(data.returnType); }
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
@@ -1119,6 +1215,8 @@ struct Operations::Function : public Statement,
 
 struct Operations::BinaryOp : public Expression
 {
+	SET_EXPRESSION_ID(BinaryOp);
+	
 	BinaryOp(Location l, Expression::Ptr left, Expression::Ptr right, TokenType opType) :
 		Expression(l),
 		op(opType)
@@ -1127,7 +1225,21 @@ struct Operations::BinaryOp : public Expression
 		addStatement(right);
 	};
 
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+		
+		t.setProperty("OpType", op, nullptr);
+		t.setProperty("UseTempRegister", usesTempRegister, nullptr);
+		return t;
+	}
+
 	bool isLogicOp() const { return op == JitTokens::logicalOr || op == JitTokens::logicalAnd; }
+
+	TypeInfo getTypeInfo() const override
+	{
+		return getSubExpr(0)->getTypeInfo();
+	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
@@ -1144,10 +1256,10 @@ struct Operations::BinaryOp : public Expression
 			if (op == JitTokens::logicalAnd ||
 				op == JitTokens::logicalOr)
 			{
-				checkAndSetType(0, Types::ID::Integer);
+				checkAndSetType(0, TypeInfo(Types::ID::Integer));
 			}
 			else
-				checkAndSetType();
+				checkAndSetType(0, {});
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -1169,9 +1281,6 @@ struct Operations::BinaryOp : public Expression
 				}
 
 				usesTempRegister = false;
-
-				
-				
 
 				if (l->canBeReused())
 				{
@@ -1195,8 +1304,6 @@ struct Operations::BinaryOp : public Expression
 				VariableReference::reuseAllLastReferences(getChildStatement(0));
 				VariableReference::reuseAllLastReferences(getChildStatement(1));
 			}
-
-
 		}
 	}
 
@@ -1220,126 +1327,31 @@ struct Operations::UnaryOp : public Expression
 
 
 
-
-struct Operations::BlockAccess : public Expression
-{
-	BlockAccess(Location l, Ptr target, Ptr index) :
-		Expression(l)
-	{
-		addStatement(index);
-		addStatement(target);
-
-		type = Types::ID::Float;
-	}
-
-	static Symbol isWrappedBufferReference(Statement::Ptr expr, BaseScope* scope);
-
-	void process(BaseCompiler* compiler, BaseScope* scope)
-	{
-		Expression::process(compiler, scope);
-
-		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
-		{
-			jassertfalse; // neu denken
-#if 0
-			auto wrappedSymbol = isWrappedBufferReference(getChildStatement(1), scope);
-
-			if (wrappedSymbol.id.isValid())
-			{
-				Symbol getter;
-				getter = wrappedSymbol.getChildSymbol("getAt");
-
-				auto indexStatement = getChildStatement(0);
-
-				bool isZero = false;
-				bool isInterpolating = indexStatement->getType() != Types::ID::Integer;
-
-				if (isInterpolating)
-				{
-					getter.id = "getInterpolated";
-				}
-				else if (auto zeroImmediate = dynamic_cast<Immediate*>(indexStatement.get()))
-				{
-					if (zeroImmediate->v.toInt() == 0)
-					{
-						getter.id = "get";
-						isZero = true;
-					}
-						
-				}
-				
-				auto fc = new FunctionCall(location, getter);
-
-				//fc->process(compiler, scope);
-
-				compiler->setCurrentPass(BaseCompiler::ResolvingSymbols);
-
-				fc->process(compiler, scope);
-
-				if (!isZero)
-					fc->addStatement(indexStatement);
-
-				compiler->setCurrentPass(BaseCompiler::TypeCheck);
-				fc->process(compiler, scope);
-				compiler->setCurrentPass(BaseCompiler::SyntaxSugarReplacements);
-
-				indexStatement->process(compiler, scope);
-
-				Expression::replaceInParent(fc);
-
-				return;
-			}
-#endif
-		}
-
-		COMPILER_PASS(BaseCompiler::TypeCheck)
-		{
-			if (!isWrappedBufferReference(getChildStatement(1), scope))
-			{
-				if (getSubExpr(0)->getType() != Types::ID::Integer)
-					throwError("subscription index must be an integer");
-
-				if (getSubExpr(1)->getType() != Types::ID::Block)
-					throwError("Can't use [] on primitive types");
-			}
-		}
-
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			if (auto cs = dynamic_cast<FunctionClass*>(findClassScope(scope)))
-			{
-				jassertfalse; // neu denken...
-#if 0
-				Array<FunctionData> matches;
-				cs->addMatchingFunctions(matches, { {"Block", "getSample"}, Types::ID::Float, true, false });
-
-				reg = compiler->getRegFromPool(scope, type);
-
-				auto asg = CREATE_ASM_COMPILER(type);
-
-				ReferenceCountedArray<AssemblyRegister> parameters;
-
-				getSubRegister(0)->loadMemoryIntoRegister(asg.cc);
-
-				parameters.add(getSubRegister(1));
-				parameters.add(getSubRegister(0));
-
-				asg.emitFunctionCall(reg, matches[0], parameters);
-#endif
-			}
-		}
-	}
-};
-
 struct Operations::Increment : public UnaryOp
 {
+	SET_EXPRESSION_ID(Increment);
+
 	Increment(Location l, Ptr expr, bool isPre_, bool isDecrement_) :
 		UnaryOp(l, expr),
 		isPreInc(isPre_),
 		isDecrement(isDecrement_)
 	{
-		type = Types::ID::Integer;
 	};
+
+	TypeInfo getTypeInfo() const override
+	{
+		return getSubExpr(0)->getTypeInfo();
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+
+		t.setProperty("IsPre", isPreInc, nullptr);
+		t.setProperty("IsDec", isDecrement, nullptr);
+
+		return t;
+	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
@@ -1347,64 +1359,22 @@ struct Operations::Increment : public UnaryOp
 
 		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
-			
-
-
 			if (removed)
 				return;
-
-			auto symbol = BlockAccess::isWrappedBufferReference(getChildStatement(0), scope);
-
-			if (symbol.id.isValid())
-			{
-				jassertfalse; // neu denken
-
-#if 0
-				Symbol incSymbol;
-
-				if (isPreInc)
-					incSymbol = symbol.getChildSymbol("getAndInc");
-				else
-					incSymbol = symbol.getChildSymbol("getAndPostInc");
-
-				auto fc = new FunctionCall(location, incSymbol);
-
-				compiler->setCurrentPass(BaseCompiler::ResolvingSymbols);
-
-				fc->process(compiler, scope);
-				compiler->setCurrentPass(BaseCompiler::TypeCheck);
-				fc->process(compiler, scope);
-				compiler->setCurrentPass(BaseCompiler::SyntaxSugarReplacements);
-
-				replaceInParent(fc);
-
-				removed = true;
-
-				return;
-#endif
-			}
-
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			if (BlockAccess::isWrappedBufferReference(getChildStatement(0), scope))
-			{
-				type = Types::ID::Float;
-			}
-			else
-			{
-				if (dynamic_cast<Increment*>(getSubExpr(0).get()) != nullptr)
-					throwError("Can't combine incrementors");
+			if (dynamic_cast<Increment*>(getSubExpr(0).get()) != nullptr)
+				throwError("Can't combine incrementors");
 
-					if (getSubExpr(0)->getType() != Types::ID::Integer)
-						throwError("Can't increment non integer variables.");
-			}
+			if (getType() != Types::ID::Integer)
+				throwError("Can't increment non integer variables.");
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			auto asg = CREATE_ASM_COMPILER(type);
+			auto asg = CREATE_ASM_COMPILER(getType());
 
 			if (isPreInc)
 			{
@@ -1417,10 +1387,8 @@ struct Operations::Increment : public UnaryOp
 				asg.emitIncrement(reg, getSubRegister(0), isPreInc, isDecrement);
 			}
 
-			if (auto wt = dynamic_cast<WrapType*>(getSubExpr(0)->getComplexType().get()))
-			{
+			if (auto wt = getTypeInfo().getTypedIfComplexType<WrapType>())
 				asg.emitWrap(wt, reg, isDecrement ? WrapType::OpType::Dec : WrapType::OpType::Inc);
-			}
 		}
 	}
 
@@ -1429,133 +1397,11 @@ struct Operations::Increment : public UnaryOp
 	bool removed = false;
 };
 
-struct Operations::BlockAssignment : public Expression
-{
-	BlockAssignment(Location l, Ptr target, TokenType opType, Ptr v) :
-		Expression(l),
-		op(opType)
-	{
-		addStatement(v);
-		addStatement(target);
-	}
-
-	void process(BaseCompiler* compiler, BaseScope* scope)
-	{
-		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
-		{
-			jassertfalse; // neu denken
-
-#if 0
-			if (replaced)
-				return;
-
-			auto bVar = getChildStatement(1)->getChildStatement(1);
-
-			auto wrappedSymbol = BlockAccess::isWrappedBufferReference(bVar, scope);
-
-			if(wrappedSymbol.id.isValid())
-			{
-				auto setter = wrappedSymbol.getChildSymbol("setAt");
-
-				auto indexStateement = getChildStatement(1)->getChildStatement(0);
-				auto valueStatement = getChildStatement(0);
-
-				bool isZero = false;
-				
-				if (auto zeroImmediate = dynamic_cast<Immediate*>(indexStateement.get()))
-				{
-					if (zeroImmediate->v.toInt() == 0)
-					{
-						setter.id = "set";
-						isZero = true;
-					}
-				}
-				
-				auto fc = new FunctionCall(location, setter);
-
-				compiler->setCurrentPass(BaseCompiler::ResolvingSymbols);
-				fc->process(compiler, scope);
-
-				if (!isZero)
-					fc->addStatement(indexStateement);
-
-				fc->addStatement(valueStatement);
-
-				compiler->setCurrentPass(BaseCompiler::TypeCheck);
-				fc->process(compiler, scope);
-				compiler->setCurrentPass(BaseCompiler::SyntaxSugarReplacements);
-
-				indexStateement->process(compiler, scope);
-				valueStatement->process(compiler, scope);
-
-				Expression::replaceInParent(fc);
-				replaced = true;
-
-				return;
-			}
-#endif
-		}
-
-		// We need to move this before the base class process()
-		// in order to prevent code generation for b[x]...
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			if (auto cs = dynamic_cast<FunctionClass*>(findClassScope(scope)))
-			{
-
-				jassertfalse; // neu denken
-#if 0
-				Ptr index = getSubExpr(1)->getSubExpr(0);
-				Ptr bl = getSubExpr(1)->getSubExpr(1);
-				Ptr vl = getSubExpr(0);
-
-				index->process(compiler, scope);
-				bl->process(compiler, scope);
-				vl->process(compiler, scope);
-
-				auto asg = CREATE_ASM_COMPILER(Types::ID::Void);
-
-				index->reg->loadMemoryIntoRegister(asg.cc);
-				bl->reg->loadMemoryIntoRegister(asg.cc);
-				vl->reg->loadMemoryIntoRegister(asg.cc);
-
-				ReferenceCountedArray<AssemblyRegister> parameters;
-				parameters.add(bl->reg);
-				parameters.add(index->reg);
-				parameters.add(vl->reg);
-
-				Array<FunctionData> matches;
-				cs->addMatchingFunctions(matches, { {"Block", "setSample"}, Types::ID::Float , false, false});
-
-				asg.emitFunctionCall(nullptr, matches.getFirst(), parameters);
-#endif
-			}
-
-			return;
-		}
-
-		Expression::process(compiler, scope);
-
-		COMPILER_PASS(BaseCompiler::TypeCheck)
-		{
-			if (getSubExpr(0)->getType() != Types::ID::Float)
-			{
-				Ptr implicitCast = new Operations::Cast(location, getSubExpr(0), Types::ID::Float);
-				logWarning("Implicit cast to float for []-operation");
-				replaceChildStatement(0, implicitCast);
-			}
-		}
-	}
-
-	bool replaced = false;
-
-	TokenType op;
-};
-
-
 struct Operations::Loop : public Expression,
 							   public Operations::ConditionalBranch
 {
+	SET_EXPRESSION_ID(Loop);
+
 	enum LoopTargetType
 	{
 		Undefined,
@@ -1582,8 +1428,21 @@ struct Operations::Loop : public Expression,
 			b = b_;
 
 		addStatement(b);
-
 	};
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+
+		static const StringArray loopTypes = { "Undefined", "Span", "Block", "CustomObject" };
+		t.setProperty("LoopType", loopTypes[loopTargetType], nullptr);
+		t.setProperty("LoadIterator", loadIterator, nullptr);
+		t.setProperty("Iterator", iterator.toString(), nullptr);
+		
+		return t;
+	}
+
+	TypeInfo getTypeInfo() const override { return {}; }
 
 	Expression::Ptr getTarget()
 	{
@@ -1612,14 +1471,14 @@ struct Operations::Loop : public Expression,
 		{
 			getTarget()->process(compiler, scope);
 
-			if (auto sp = dynamic_cast<SpanType*>(getTarget()->getComplexType().get()))
+			if (auto sp = getTarget()->getTypeInfo().getTypedIfComplexType<SpanType>())
 			{
 				loopTargetType = Span;
 
-				if (iterator.typeInfo.getType() == Types::ID::Dynamic)
+				if (iterator.typeInfo.isInvalid())
 					iterator.typeInfo = sp->getElementType();
-				else if (iterator.typeInfo.getType() != sp->getElementType())
-					location.throwError("iterator type mismatch: " + Types::Helpers::getTypeName(iterator.typeInfo.getType()) + " expected: " + sp->getElementType().toString());
+				else if (iterator.typeInfo != sp->getElementType())
+					location.throwError("iterator type mismatch: " + iterator.typeInfo.toString() + " expected: " + sp->getElementType().toString());
 
 			}
 			else if (getTarget()->getType() == Types::ID::Block)
@@ -1689,7 +1548,7 @@ struct Operations::Loop : public Expression,
 
 			if (loopTargetType == Span)
 			{
-				auto sp = dynamic_cast<SpanType*>(getTarget()->getComplexType().get());
+				auto sp = dynamic_cast<SpanType*>(getTarget()->getTypeInfo().getComplexType().get());
 					
 				jassert(sp != nullptr);
 
@@ -1705,11 +1564,6 @@ struct Operations::Loop : public Expression,
 
 			if(loopEmitter != nullptr)
 				loopEmitter->emitLoop(acg, compiler, scope);
-
-
-#if 0		// the codegen for the block iteration, add later in a subclass
-			
-#endif
 		}
 	}
 
@@ -1726,11 +1580,18 @@ struct Operations::Loop : public Expression,
 
 struct Operations::Negation : public Expression
 {
+	SET_EXPRESSION_ID(Negation);
+
 	Negation(Location l, Expression::Ptr e) :
 		Expression(l)
 	{
 		addStatement(e);
 	};
+
+	TypeInfo getTypeInfo() const override
+	{
+		return getSubExpr(0)->getTypeInfo();
+	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
@@ -1748,6 +1609,11 @@ struct Operations::Negation : public Expression
 
 				getSubRegister(0)->flagForReuseIfAnonymous();
 			}
+			else
+			{
+				// supposed to be optimized away by now...
+				jassertfalse;
+			}
 		}
 	}
 };
@@ -1756,6 +1622,8 @@ struct Operations::IfStatement : public Statement,
 								 public Operations::ConditionalBranch,
 								 public Operations::BranchingStatement
 {
+	SET_EXPRESSION_ID(IfStatement);
+
 	IfStatement(Location loc, Expression::Ptr cond, Ptr trueBranch, Ptr falseBranch):
 		Statement(loc)
 	{
@@ -1766,7 +1634,7 @@ struct Operations::IfStatement : public Statement,
 			addStatement(falseBranch);
 	}
 
-	Types::ID getType() const override { return Types::ID::Void; }
+	TypeInfo getTypeInfo() const override { return {}; }
 
 	bool hasFalseBranch() const { return getNumChildStatements() > 2; }
 	
@@ -1781,7 +1649,7 @@ struct Operations::IfStatement : public Statement,
 		{
 			processAllChildren(compiler, scope);
 
-			if (getCondition()->getType() != Types::ID::Integer)
+			if (getCondition()->getTypeInfo() != Types::ID::Integer)
 				throwError("Condition must be boolean expression");
 		}
 
@@ -1809,6 +1677,8 @@ struct Operations::IfStatement : public Statement,
 
 struct Operations::Subscript : public Expression
 {
+	SET_EXPRESSION_ID(Subscript);
+
 	enum SubscriptType
 	{
 		Undefined,
@@ -1825,17 +1695,20 @@ struct Operations::Subscript : public Expression
 		addStatement(index);
 	}
 
-	Types::ID getType() const override
+	TypeInfo getTypeInfo() const override
 	{
-		return elementType.getType();
+		return elementType;
 	}
 
-	ComplexType::Ptr getComplexType() const override
+	ValueTree toValueTree() const override
 	{
-		if (elementType.isComplexType())
-			return elementType.getComplexType();
-		
-		return nullptr;
+		auto t = Expression::toValueTree();
+
+		t.setProperty("Write", isWriteAccess, nullptr);
+		t.setProperty("ElementType", elementType.toString(), nullptr);
+		t.setProperty("ParentType", getSubExpr(0)->getTypeInfo().toString(), nullptr);
+
+		return t;
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
@@ -1844,16 +1717,12 @@ struct Operations::Subscript : public Expression
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
-			spanType = dynamic_cast<SpanType*>(getSubExpr(0)->getComplexType().get());
+			spanType = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<SpanType>();
 
 			if (spanType != nullptr)
 			{
 				subscriptType = Span;
-
 				elementType = spanType->getElementType();
-
-				type = elementType.getType();
-					
 			}
 		}
 
@@ -1862,9 +1731,6 @@ struct Operations::Subscript : public Expression
 			if (getSubExpr(1)->getType() != Types::ID::Integer)
 				throwError("index must be an integer value");
 			
-			
-
-				
 			if (spanType == nullptr)
 			{
 				if (getSubExpr(0)->getType() == Types::ID::Block)
@@ -1879,14 +1745,13 @@ struct Operations::Subscript : public Expression
 				if (getSubExpr(1)->isConstExpr())
 				{
 					int index = getSubExpr(1)->getConstExprValue().toInt();
-					
 
 					if (!isPositiveAndBelow(index, size))
 						throwError("constant index out of bounds");
 				}
 				else
 				{
-					auto wt = dynamic_cast<WrapType*>(getSubExpr(1)->getComplexType().get());
+					auto wt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<WrapType>();
 
 					if (wt == nullptr)
 						throwError("Can't use non-constant or non-wrapped index");
@@ -1895,22 +1760,15 @@ struct Operations::Subscript : public Expression
 						throwError("wrap limit exceeds span size");
 				}
 			}
-
-			
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			reg = compiler->registerPool.getNextFreeRegister(scope, type);
+			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
 			
-			auto acg = CREATE_ASM_COMPILER(type);
-			acg.emitSpanReference(reg, getSubRegister(0), getSubRegister(1), getElementSize());
+			auto acg = CREATE_ASM_COMPILER(getType());
+			acg.emitSpanReference(reg, getSubRegister(0), getSubRegister(1), elementType.getRequiredByteSize());
 		}
-	}
-
-	size_t getElementSize() const
-	{
-		return elementType.getRequiredByteSize();
 	}
 
 	SubscriptType subscriptType = Undefined;
@@ -1920,279 +1778,52 @@ struct Operations::Subscript : public Expression
 };
 
 
-#if 0
-struct Operations::WrappedBlockDefinition : public Statement
-{
-	WrappedBlockDefinition(Location l, BaseScope::Symbol id_, Expression::Ptr expr) :
-		Statement(l),
-		id(id_)
-	{
-		if (auto im = dynamic_cast<Immediate*>(expr.get()))
-		{
-			b = im->v.toBlock();
-		}
-	};
-
-	BaseScope::Symbol id;
-	
-	block b;
-	
-	void process(BaseCompiler* compiler, BaseScope* scope);
-
-	Types::ID getType() const override { return Types::ID::Block; }
-};
-#endif
-
-#if 0
-struct Operations::ClassInstance : public Statement,
-	public TypeDefinitionBase
-{
-	ClassInstance(Location l, const Symbol& classId_, const Array<Symbol>& instanceIds_, InitialiserList::Ptr initList_) :
-		Statement(l),
-		classId(classId_),
-		instanceIds(instanceIds_),
-		initList(initList_)
-	{}
-
-	Types::ID getType() const override { return Types::ID::Pointer; }
-
-	Types::ID getNativeType() const override { return Types::ID::Dynamic; };
-
-	Identifier getInstanceId() const override { return instanceIds.getFirst().id; };
-
-	ComplexType::Ptr getTypePtr() const override { return typePtr; };
-
-	void process(BaseCompiler* compiler, BaseScope* scope)
-	{
-		COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
-		{
-			StructType t(classId);
-
-			for (auto ct : compiler->complexTypes)
-			{
-				if (ct->getActualTypeString() == t.getActualTypeString())
-				{
-					typePtr = ct;
-					break;
-				}
-			}
-
-			if (typePtr == nullptr)
-				throwError("Use of undefined type " + classId.toString());
-		}
-
-		COMPILER_PASS(BaseCompiler::DataSizeCalculation)
-		{
-			if (scope->getRootClassScope() == scope)
-			{
-				scope->getRootData()->enlargeAllocatedSize(typePtr->getRequiredByteSize());
-			}
-		}
-
-		COMPILER_PASS(BaseCompiler::DataAllocation)
-		{
-			if (scope->getRootClassScope() == scope)
-			{
-				for (auto instanceId : instanceIds)
-				{
-					scope->getRootClassScope()->rootData->allocate(scope, instanceId.withComplexType(typePtr));
-				}
-			}
-		}
-
-		COMPILER_PASS(BaseCompiler::DataInitialisation)
-		{
-			if (initList == nullptr)
-				initList = typePtr->makeDefaultInitialiserList();
-
-			for (auto id : instanceIds)
-			{
-				auto ok = scope->getRootData()->initData(scope, id, initList);
-
-				if (!ok.wasOk())
-					location.throwError(ok.getErrorMessage());
-			}
-		}
-	}
-
-	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const override
-	{
-		if (typePtr != nullptr)
-			return typePtr->getRequiredByteSize();
-		else
-		{
-			jassertfalse;
-			return 0;
-		}
-
-	}
-
-	WeakReference<ClassScope> instanceScope;
-
-	Symbol classId;
-	Array<Symbol> instanceIds;
-
-	ClassStatement::Ptr classStatement;
-	ComplexType::Ptr typePtr;
-	InitialiserList::Ptr initList;
-};
-
-struct Operations::WrapDefinition : public Statement,
-									public TypeDefinitionBase
-{
-	WrapDefinition(Location l, const Symbol& s, InitialiserList::Ptr initList):
-		Statement(l),
-		id(s),
-		initValue(initList)
-	{
-		jassert(id.type == Types::ID::Integer);
-		jassert(id.typePtr != nullptr);
-	}
-
-	Types::ID getType() const { return id.type; }
-	
-	Types::ID getNativeType() const override { return id.type; }
-	ComplexType::Ptr getTypePtr() const override { return id.typePtr; }
-	Identifier getInstanceId() const override { return id.id; }
-
-	void process(BaseCompiler* compiler, BaseScope* scope)
-	{
-		if (scope->getScopeType() != BaseScope::Class)
-			throwError("Can't define spans in functions");
-
-		COMPILER_PASS(BaseCompiler::DataSizeCalculation)
-		{
-			if (scope->getRootClassScope() == scope)
-				scope->getRootData()->enlargeAllocatedSize(id.typePtr->getRequiredByteSize());
-		}
-
-		COMPILER_PASS(BaseCompiler::DataAllocation)
-		{
-			if (scope->getRootClassScope() == scope)
-				scope->getRootData()->allocate(scope, id);
-		}
-
-		COMPILER_PASS(BaseCompiler::DataInitialisation)
-		{
-			if (initValue != nullptr)
-			{
-				VariableStorage v;
-
-				initValue->getValue(0, v);
-
-				auto wt = dynamic_cast<WrapType*>(id.typePtr.get());
-
-				auto actualValue = v.toInt() % wt->size;
-
-				initValue = new InitialiserList();
-				initValue->addImmediateValue(VariableStorage(actualValue));
-
-				auto r = scope->getRootData()->initData(scope, id, initValue);
-
-				if (!r.wasOk())
-					location.throwError(r.getErrorMessage());
-			}
-		}
-	}
-
-	Symbol id;
-	InitialiserList::Ptr initValue;
-};
-
-struct Operations::SpanDefinition : public Statement,
-	public TypeDefinitionBase
-{
-	SpanDefinition(Location l, SpanType::Ptr spanType_, const Symbol& s, InitialiserList::Ptr initValues_) :
-		Statement(l),
-		id(s.withType(Types::ID::Pointer)),
-		spanType(spanType_),
-		initValues(initValues_)
-	{
-	}
-
-	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* s) const override
-	{
-		return spanType->getRequiredByteSize();
-	}
-
-	Types::ID getNativeType() const override { return Types::ID::Dynamic; }
-	ComplexType::Ptr getTypePtr() const override { return spanType; }
-	Identifier getInstanceId() const override { return id.id; }
-
-	Types::ID getType() const override
-	{
-		return Types::ID::Pointer;
-	}
-
-	void process(BaseCompiler* compiler, BaseScope* scope) override
-	{
-		if (scope->getScopeType() != BaseScope::Class)
-			throwError("Can't define spans in functions");
-
-		COMPILER_PASS(BaseCompiler::DataSizeCalculation)
-		{
-			if (scope->getRootClassScope() == scope)
-				scope->getRootData()->enlargeAllocatedSize(spanType->getRequiredByteSize());
-		}
-
-		COMPILER_PASS(BaseCompiler::DataAllocation)
-		{
-			if (scope->getRootClassScope() == scope)
-				scope->getRootData()->allocate(scope, id.withComplexType(spanType));
-		}
-
-		COMPILER_PASS(BaseCompiler::DataInitialisation)
-		{
-			if (initValues == nullptr)
-				initValues = spanType->makeDefaultInitialiserList();
-
-			if (scope->getRootClassScope() == scope)
-			{
-				auto r = scope->getRootData()->initData(scope, id, initValues);
-
-				if (!r.wasOk())
-					location.throwError(r.getErrorMessage());
-			}
-			else if (auto cScope = dynamic_cast<ClassScope*>(scope))
-			{
-				if (auto st = dynamic_cast<StructType*>(cScope->typePtr.get()))
-				{
-					st->setDefaultValue(id.id, initValues);
-				}
-			}
-		}
-	}
-
-	Symbol id;
-	SpanType::Ptr spanType;
-	InitialiserList::Ptr initValues;
-};
-#endif
-
 struct Operations::ComplexTypeDefinition : public Expression,
 											public TypeDefinitionBase
 {
-	ComplexTypeDefinition(Location l, const Array<Identifier>& ids_, ComplexType::Ptr typePtr_) :
+	SET_EXPRESSION_ID(ComplexTypeDefinition);
+
+	ComplexTypeDefinition(Location l, const Array<Identifier>& ids_, TypeInfo type_) :
 		Expression(l),
 		ids(ids_),
-		typePtr(typePtr_)
+		type(type_)
 	{
 
 	}
 
-	Types::ID getNativeType() const override { return Types::ID::Pointer; }
-	ComplexType::Ptr getTypePtr() const override { return getComplexType(); }
-	Identifier getInstanceId() const override { return ids.getFirst(); }
+	Array<Identifier> getInstanceIds() const override { return ids; }
+
+	TypeInfo getTypeInfo() const override
+	{
+		return type;
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+
+		juce::String names;
+
+		for (auto id : ids)
+			names << id.toString() << ",";
+
+		t.setProperty("Type", type.toString(), nullptr);
+
+		t.setProperty("Ids", names, nullptr);
+		
+		if (initValues != nullptr)
+			t.setProperty("InitValues", initValues->toString(), nullptr);
+
+		return t;
+	}
 
 	Array<Symbol> getSymbols() const
 	{
 		Array<Symbol> symbols;
 
-		TypeInfo t(typePtr, false);
-
 		for (auto id : ids)
 		{
-			symbols.add(Symbol({ id }, t));
+			symbols.add(Symbol({ id }, getTypeInfo()));
 		}
 
 		return symbols;
@@ -2204,12 +1835,13 @@ struct Operations::ComplexTypeDefinition : public Expression,
 
 		COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 		{
-			getComplexType()->finaliseAlignment();
+			if(type.isComplexType())
+				type.getComplexType()->finaliseAlignment();
 		}
 		COMPILER_PASS(BaseCompiler::DataSizeCalculation)
 		{
 			if (!isStackDefinition(scope))
-				scope->getRootData()->enlargeAllocatedSize(getComplexType()->getRequiredByteSize());
+				scope->getRootData()->enlargeAllocatedSize(type);
 		}
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
@@ -2228,7 +1860,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		{
 			if (getNumChildStatements() == 0 && initValues == nullptr)
 			{
-				initValues = getComplexType()->makeDefaultInitialiserList();
+				initValues = type.makeDefaultInitialiserList();
 			}
 
 			if (!isStackDefinition(scope))
@@ -2254,13 +1886,11 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		{
 			if (isStackDefinition(scope))
 			{
-				auto t = getComplexType();
-
 				auto acg = CREATE_ASM_COMPILER(getType());
 
 				for (auto s : getSymbols())
 				{
-					auto c = acg.cc.newStack(t->getRequiredByteSize(), t->getRequiredAlignment(), "funky");
+					auto c = acg.cc.newStack(type.getRequiredByteSize(), type.getRequiredAlignment(), "funky");
 
 					auto reg = compiler->registerPool.getRegisterForVariable(scope, s);
 					reg->setCustomMemoryLocation(c);
@@ -2275,7 +1905,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 				auto acg = CREATE_ASM_COMPILER(getType());
 
 				for(auto s: stackLocations)
-					acg.emitInitialiserList(s, getComplexType(), initValues);
+					acg.emitInitialiserList(s, type.getComplexType(), initValues);
 			}
 		}
 	}
@@ -2285,47 +1915,19 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		return dynamic_cast<RegisterScope*>(scope) != nullptr;
 	}
 
-	ComplexType::Ptr getComplexType() const override
-	{
-		return typePtr;
-	}
-
-	Types::ID getType() const override
-	{
-		return Types::ID::Pointer;
-	}
-
 	Array<Identifier> ids;
-	ComplexType::Ptr typePtr;
+	TypeInfo type;
 
 	InitialiserList::Ptr initValues;
 
 	ReferenceCountedArray<AssemblyRegister> stackLocations;
 };
 
-struct Operations::SmoothedVariableDefinition : public Statement
-{
-	SmoothedVariableDefinition(Location l, BaseScope::Symbol id_, Types::ID t, VariableStorage initialValue) :
-		Statement(l),
-		type(t),
-		id(id_),
-		iv(initialValue)
-	{
-		
-	}
-
-	void process(BaseCompiler* compiler, BaseScope* scope);
-
-	BaseScope::Symbol id;
-	VariableStorage iv;
-
-	Types::ID getType() const override { return type; }
-
-	Types::ID type;
-};
 
 struct Operations::InlinedExternalCall : public Expression
 {
+	SET_EXPRESSION_ID(InlinedExternalCall);
+
 	InlinedExternalCall(FunctionCall* functionCallToBeReplaced):
 		Expression(functionCallToBeReplaced->location),
 		f(functionCallToBeReplaced->function)
@@ -2336,9 +1938,16 @@ struct Operations::InlinedExternalCall : public Expression
 		}
 	}
 
-	Types::ID getType() const override
+	TypeInfo getTypeInfo() const override
 	{
-		return f.returnType;
+		return TypeInfo(f.returnType);
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = toValueTree();
+		t.setProperty("Function", f.getSignature(), nullptr);
+		return t;
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
@@ -2361,7 +1970,6 @@ struct Operations::InlinedExternalCall : public Expression
 	}
 
 	FunctionData f;
-	
 };
 
 }

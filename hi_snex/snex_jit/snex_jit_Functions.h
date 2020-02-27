@@ -242,10 +242,16 @@ struct TypeInfo
 		type = Types::ID::Pointer;
 	}
 
-	operator bool() const noexcept
+	bool isValid() const noexcept
 	{
-		return type != Types::ID::Dynamic;
+		return !isInvalid();
 	}
+	
+	bool isInvalid() const noexcept
+	{
+		return type == Types::ID::Void || type == Types::ID::Dynamic;
+	}
+
 
 	bool operator!=(const TypeInfo& other) const
 	{
@@ -262,7 +268,7 @@ struct TypeInfo
 			return false;
 		}
 
-		return type == other.type;
+		return getType() == other.type;
 	}
 
 	bool operator==(const Types::ID other) const
@@ -293,10 +299,38 @@ struct TypeInfo
 
 	juce::String toString() const
 	{
+		juce::String s;
+
+		if (isConst())
+			s << "const ";
+
 		if (isComplexType())
-			return typePtr->toString();
+			s << typePtr->toString();
 		else
-			return Types::Helpers::getTypeName(type);
+		{
+			s << Types::Helpers::getTypeName(type);
+			if (isRef())
+				s << "&";
+			
+		}
+
+		
+
+		return s;
+	}
+
+	InitialiserList::Ptr makeDefaultInitialiserList() const
+	{
+		if (isComplexType())
+			return getComplexType()->makeDefaultInitialiserList();
+		else
+		{
+			jassert(getType() != Types::ID::Pointer);
+			InitialiserList::Ptr p = new InitialiserList();
+			p->addImmediateValue(VariableStorage(getType(), 0.0));
+
+			return p;
+		}
 	}
 
 	void setType(Types::ID newType)
@@ -311,6 +345,23 @@ struct TypeInfo
 			return getComplexType()->getDataType();
 
 		return type;
+	}
+
+	template <class CType> CType* getTypedComplexType() const
+	{
+		static_assert(std::is_base_of<ComplexType, CType>(), "Not a base class");
+
+		return dynamic_cast<CType*>(getComplexType().get());
+	}
+
+	template <class CType> CType* getTypedIfComplexType() const
+	{
+		static_assert(std::is_base_of<ComplexType, CType>(), "Not a base class");
+
+		if(isComplexType())
+			return dynamic_cast<CType*>(getComplexType().get());
+
+		return nullptr;
 	}
 
 	bool isConst() const noexcept
@@ -484,11 +535,13 @@ struct FunctionData
 
 	operator bool() const noexcept { return function != nullptr; };
 
-	bool matchesArgumentTypes(Types::ID returnType, const Array<Types::ID>& argsList);
+	bool matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList) const;
 
-	bool matchesArgumentTypes(const Array<Types::ID>& typeList);
+	bool matchesArgumentTypes(const Array<TypeInfo>& typeList) const;
 
 	bool matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType = true) const;
+
+	bool matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID>& nativeArgList) const;
 
 	void setDescription(const juce::String& d, const StringArray& parameterNames = StringArray())
 	{
@@ -818,9 +871,9 @@ struct SpanType : public ComplexType
 		return Types::ID::Pointer;
 	}
 
-	static bool isSimdType(ComplexType::Ptr t)
+	static bool isSimdType(const TypeInfo& t)
 	{
-		if (auto st = dynamic_cast<SpanType*>(t.get()))
+		if(auto st = t.getTypedIfComplexType<SpanType>())
 		{
 			if (st->getElementType() == Types::ID::Float && st->getNumElements() == 4)
 			{
@@ -1041,6 +1094,9 @@ struct StructType : public ComplexType
 	virtual Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
 	{
 		int index = 0;
+
+
+
 
 		for (auto m : memberData)
 		{
