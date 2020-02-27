@@ -513,7 +513,7 @@ struct FunctionData
 		FunctionData d;
 
 		d.id = id;
-		d.returnType = Types::Helpers::getTypeFromTypeId<ReturnType>();
+		d.returnType = TypeInfo(Types::Helpers::getTypeFromTypeId<ReturnType>());
 		d.function = reinterpret_cast<void*>(ptr);
 
 		return d;
@@ -566,7 +566,7 @@ struct FunctionData
 	void* function = nullptr;
 
 	/** The return type. */
-	Types::ID returnType;
+	TypeInfo returnType;
 
 	using Argument = Symbol;
 
@@ -725,9 +725,9 @@ struct FunctionClass: public DebugableObjectBase,
 			arguments << ")";
 
 			m.setProperty("arguments", arguments, nullptr);
-			m.setProperty("returnType", Types::Helpers::getTypeName(f->returnType), nullptr);
+			m.setProperty("returnType", f->returnType.toString(), nullptr);
 			m.setProperty("description", f->description, nullptr);
-			m.setProperty("typenumber", (int)f->returnType, nullptr);
+			m.setProperty("typenumber", (int)f->returnType.getType(), nullptr);
 
 			p.addChild(m, -1, nullptr);
 		}

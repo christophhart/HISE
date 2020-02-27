@@ -190,7 +190,7 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 {
 	juce::String s;
 
-	s << Types::Helpers::getCppTypeName(returnType) << " " << id << "(";
+	s << returnType.toString() << " " << id << "(";
 
 	int index = 0;
 
@@ -235,7 +235,7 @@ bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 
 bool FunctionData::matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList) const
 {
-	if (r.getType() != returnType)
+	if (r != returnType)
 		return false;
 
 	return matchesArgumentTypes(argsList);
@@ -243,7 +243,7 @@ bool FunctionData::matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsL
 
 bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType /*= true*/) const
 {
-	if (checkReturnType && !Types::Helpers::matchesType(returnType, otherFunctionData.returnType))
+	if (checkReturnType && otherFunctionData.returnType != returnType)
 		return false;
 
 	if (args.size() != otherFunctionData.args.size())

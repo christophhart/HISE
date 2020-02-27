@@ -311,7 +311,7 @@ public:
 
 		function = compiledF;
 		
-		switch (function.returnType)
+		switch (function.returnType.getType())
 		{
 		case Types::ID::Integer: actualResult = call<int>(); break;
 		case Types::ID::Float:   actualResult = call<float>(); break;
@@ -395,7 +395,7 @@ private:
 			{
 				// Parse return type
 
-				function.returnType = Types::Helpers::getTypeFromTypeName(s[ret]);
+				function.returnType = TypeInfo(Types::Helpers::getTypeFromTypeName(s[ret]));
 
 				if (function.returnType == Types::ID::Void)
 					throwError("Can't find return type in metadata");
@@ -479,7 +479,7 @@ private:
 				// Parse output
 
 				auto v = Helpers::parseQuotedString(s[output]);
-				auto t = function.returnType;
+				auto t = function.returnType.getType();
 
 				switch (t)
 				{
@@ -838,7 +838,7 @@ public:
 	{
 
 		runTestFiles("function_ref.h");
-		return;
+		//return;
 
 		testOptimizations();
 

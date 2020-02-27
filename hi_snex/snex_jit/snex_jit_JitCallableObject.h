@@ -67,7 +67,7 @@ protected:
 		for (int i = 0; i < argTypes.size(); i++)
 			functionWrapper->args.add(Symbol::createIndexedSymbol(i, argTypes[i]));
 
-		functionWrapper->returnType = returnType;
+		functionWrapper->returnType = TypeInfo(returnType);
 
 		return functionWrapper.release();
 	}

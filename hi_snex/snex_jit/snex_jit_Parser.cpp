@@ -335,7 +335,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	auto& fData = func->data;
 
 	fData.id = func->id.id;
-	fData.returnType = currentHnodeType;
+	fData.returnType = TypeInfo(currentHnodeType);
 	fData.object = nullptr;
 
 	while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)

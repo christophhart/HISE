@@ -137,7 +137,7 @@ public:
 	struct FunctionDebugInfo : public DebugInformationBase
 	{
 		FunctionDebugInfo(jit::FunctionData* d) :
-			type(d->returnType),
+			type(d->returnType.getType()),
 			full(d->getSignature()),
 			name(d->id.toString())
 		{
