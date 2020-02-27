@@ -203,7 +203,7 @@ public:
 				dumpTable[i].isUsed = true;
                 dumpTable[i].id = ref;
 				dumpTable[i].scope = BaseScope::Class; 
-				dumpTable[i].currentValue = VariableStorage(ref.type, 0);
+				dumpTable[i].currentValue = VariableStorage(ref.typeInfo.getType(), 0);
 
 				return dumpTable[i].currentValue.getDataPointer();
 			}

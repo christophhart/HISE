@@ -57,13 +57,16 @@ protected:
 
 	virtual void registerAllObjectFunctions(GlobalScope* memory) = 0;
 
-	FunctionData* createMemberFunction(const Types::ID returnType, const Identifier& functionId, const Array<FunctionData::Argument>& args)
+	FunctionData* createMemberFunction(const Types::ID returnType, const Identifier& functionId, const Array<Types::ID>& argTypes)
 	{
 		ScopedPointer<FunctionData> functionWrapper(new FunctionData());
 		functionWrapper->object = this;
 		functionWrapper->id = functionId;
 		functionWrapper->functionName << objectId << "." << functionId << "()";
-		functionWrapper->args = args;
+
+		for (int i = 0; i < argTypes.size(); i++)
+			functionWrapper->args.add(Symbol::createIndexedSymbol(i, argTypes[i]));
+
 		functionWrapper->returnType = returnType;
 
 		return functionWrapper.release();
@@ -126,12 +129,7 @@ public:
 		}
 
 		{
-			auto f = createMemberFunction(Integer,
-				"get5",
-				{ Float, Float, Float, Float, Float });
-			f->function = reinterpret_cast<void*>(Wrappers::get5);
-
-			addFunction(f);
+			
 		}
 	}
 

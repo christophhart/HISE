@@ -267,7 +267,7 @@ void AsmCodeGenerator::emitParameter(Operations::Function* f, RegPtr parameterRe
 
 	parameterRegister->createRegister(cc);
 
-	auto useParameterAsAdress = f->data.args[parameterIndex].isAlias && parameterRegister->getType() != Types::ID::Pointer;
+	auto useParameterAsAdress = f->data.args[parameterIndex].isReference() && parameterRegister->getType() != Types::ID::Pointer;
 
 	if (useParameterAsAdress)
 	{
@@ -1367,12 +1367,14 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 
 	for (auto p : data.args)
 	{
-		if (p == Types::ID::Float)	 sig.addArgT<float>();
-		if (p == Types::ID::Double)  sig.addArgT<double>();
-		if (p == Types::ID::Integer) sig.addArgT<int>();
-		if (p == Types::ID::Event)   sig.addArg(asmjit::Type::kIdIntPtr);
-		if (p == Types::ID::Block)   sig.addArg(asmjit::Type::kIdIntPtr);
-		if (p == Types::ID::Pointer) sig.addArg(asmjit::Type::kIdIntPtr);
+		auto t = p.typeInfo.getType();
+
+		if (t == Types::ID::Float)	 sig.addArgT<float>();
+		if (t == Types::ID::Double)  sig.addArgT<double>();
+		if (t == Types::ID::Integer) sig.addArgT<int>();
+		if (t == Types::ID::Event)   sig.addArg(asmjit::Type::kIdIntPtr);
+		if (t == Types::ID::Block)   sig.addArg(asmjit::Type::kIdIntPtr);
+		if (t == Types::ID::Pointer) sig.addArg(asmjit::Type::kIdIntPtr);
 	}
 }
 
@@ -1391,7 +1393,7 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	jassert(loopTarget->getType() == Types::ID::Pointer);
 	jassert(loopTarget->getScope() != nullptr);
 	jassert(typePtr != nullptr);
-	jassert(iterator.type == typePtr->getElementType());
+	jassert(iterator.typeInfo == typePtr->getElementType());
 
 	int numLoops = typePtr->getNumElements();
 	auto unrollLoop = numLoops <= 4;
@@ -1468,7 +1470,7 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 void BlockLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)
 {
 	jassert(loopTarget->getType() == Types::ID::Block);
-	jassert(iterator.type == Types::ID::Float);
+	jassert(iterator.typeInfo.getType() == Types::ID::Float);
 	auto& cc = gen.cc;
 
 

@@ -64,15 +64,21 @@ snex::jit::Symbol Symbol::createRootSymbol(const Identifier& id)
 Symbol::Symbol(const Array<Identifier>& list, Types::ID t_, bool isConst_, bool isRef_) :
 	fullIdList(list),
 	id(list.getLast()),
-	type(t_),
-	const_(isConst_),
-	ref_(isRef_)
+	typeInfo(t_, isConst_, isRef_)
 {
 	debugName = toString().toStdString();
 }
 
 
 Symbol::Symbol()
+{
+	debugName = toString().toStdString();
+}
+
+Symbol::Symbol(const Array<Identifier>& ids, const TypeInfo& info):
+	fullIdList(ids),
+	id(ids.getLast()),
+	typeInfo(info)
 {
 	debugName = toString().toStdString();
 }
@@ -92,16 +98,17 @@ Symbol Symbol::getParentSymbol() const
 	if (parentList.isEmpty())
 		return {};
 
-	return Symbol(parentList, type, true, false);
+	return Symbol(parentList, typeInfo.getType(), true, false);
 }
 
-snex::jit::Symbol Symbol::getChildSymbol(const Identifier& id, Types::ID newType, bool isConst_, bool isReference_) const
+snex::jit::Symbol Symbol::getChildSymbol(const Identifier& id, const TypeInfo& t) const
 {
 	Array<Identifier> childList;
 
 	childList.addArray(fullIdList);
 	childList.add(id);
-	return Symbol(childList, newType != Types::ID::Dynamic ? newType : type, isConst_, isReference_);
+
+	return Symbol(childList, t ? t : typeInfo);
 }
 
 snex::jit::Symbol Symbol::withParent(const Symbol& parent) const
@@ -111,28 +118,26 @@ snex::jit::Symbol Symbol::withParent(const Symbol& parent) const
 	newList.addArray(parent.fullIdList);
 	newList.addArray(fullIdList);
 
-	return Symbol(newList, type, const_, ref_);
+	return Symbol(newList, typeInfo);
 }
 
 Symbol Symbol::withType(const Types::ID type) const
 {
 	auto s = *this;
-	s.type = type;
+	s.typeInfo = TypeInfo(type, isConst(), isReference());
 	return s;
 }
 
 Symbol Symbol::withComplexType(ComplexType::Ptr typePtr) const
 {
 	auto s = *this;
-	s.type = Types::ID::Pointer;
-	s.typePtr = typePtr;
-
+	s.typeInfo = TypeInfo(typePtr, isConst());
 	return s;
 }
 
 Symbol Symbol::relocate(const Symbol& newParent) const
 {
-	return newParent.getChildSymbol(id, type, const_, ref_);
+	return newParent.getChildSymbol(id, typeInfo);
 }
 
 bool Symbol::isParentOf(const Symbol& otherSymbol) const
@@ -155,10 +160,10 @@ juce::String Symbol::toString() const
 
 	if (!constExprValue.isVoid())
 		s << "constexpr";
-	else if (const_)
+	else if (isConst())
 		s << "const";
 
-	if (ref_)
+	if (isReference())
 		s << "&";
 
 	if(s.isNotEmpty())
@@ -179,6 +184,12 @@ Symbol::operator bool() const
 	return id.isValid();
 }
 
+Symbol Symbol::createIndexedSymbol(int index, Types::ID type)
+{
+	Identifier id(juce::String("s") + juce::String(index));
+
+	return Symbol::createRootSymbol(id).withType(type);
+}
 
 
 juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) const
@@ -191,15 +202,16 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 
 	for (auto arg : args)
 	{
-		s << Types::Helpers::getCppTypeName(arg.type);
+		
+		s << arg.typeInfo.toString();
 
-		if (arg.isAlias)
+		if (arg.isReference())
 			s << "&";
 
 		auto pName = parameterIds[index].toString();
 
 		if (pName.isEmpty())
-			pName = arg.parameterName;
+			pName = arg.id.toString();
 
 		if (pName.isNotEmpty())
 			s << " " << pName;
@@ -220,7 +232,7 @@ bool FunctionData::matchesArgumentTypes(const Array<Types::ID>& typeList)
 
 	for (int i = 0; i < args.size(); i++)
 	{
-		if (args[i].type != typeList[i])
+		if (args[i].typeInfo.getType() != typeList[i])
 			return false;
 	}
 
@@ -238,7 +250,10 @@ bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, b
 
 	for (int i = 0; i < args.size(); i++)
 	{
-		if (!(args[i] == otherFunctionData.args[i]))
+		auto thisType = args[i].typeInfo;
+		auto otherType = otherFunctionData.args[i].typeInfo;
+
+		if (thisType != otherType)
 			return false;
 	}
 
@@ -370,7 +385,10 @@ bool FunctionClass::fillJitFunctionPointer(FunctionData& dataWithoutPointer)
 			{
 				for (int i = 0; i < fArgs.size(); i++)
 				{
-					if (!Types::Helpers::matchesTypeLoose(fArgs[0].type, dArgs[0].type))
+					// neu denken
+					jassertfalse;
+
+					if (!Types::Helpers::matchesTypeLoose(fArgs[0].typeInfo.getType(), dArgs[0].typeInfo.getType()))
 						return false;
 				}
 

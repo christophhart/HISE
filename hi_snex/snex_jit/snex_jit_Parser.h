@@ -149,19 +149,19 @@ public:
 		}
 		else if (matchIf(JitTokens::span_))
 		{
-			currentComplexType = parseSpanType(true);
+			currentComplexType = parseComplexType(true);
 			return true;
 		}
 		else if (matchIf(JitTokens::wrap))
 		{
-			currentComplexType = parseSpanType(false);
+			currentComplexType = parseComplexType(false);
 			return true;
 		}
 
 		return false;
 	}
 
-	bool matchIfTypeToken() override
+	bool matchIfSimpleType() override
 	{
 		if (currentType == JitTokens::identifier)
 		{
@@ -180,7 +180,7 @@ public:
 			}
 		}
 
-		return TokenIterator::matchIfTypeToken();
+		return TokenIterator::matchIfSimpleType();
 	}
 
 	VariableStorage parseVariableStorageLiteral();
@@ -190,13 +190,13 @@ public:
 	ComplexType::Ptr getCurrentComplexType() const { return currentComplexType; }
 
 
-	StatementPtr parseComplexStackDefinition(bool isConst);
+	StatementPtr parseComplexTypeDefinition(bool isConst);
 
 
 
 	InitialiserList::Ptr parseInitialiserList();
 
-	ComplexType::Ptr parseSpanType(bool isSpan);
+	ComplexType::Ptr parseComplexType(bool isSpan);
 
 	WeakReference<BaseScope> currentScope;
 

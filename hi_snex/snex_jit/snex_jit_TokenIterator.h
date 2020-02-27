@@ -289,7 +289,7 @@ struct ParserHelpers
 		static bool isIdentifierStart(const juce_wchar c) noexcept { return CharacterFunctions::isLetter(c) || c == '_'; }
 		static bool isIdentifierBody(const juce_wchar c) noexcept { return CharacterFunctions::isLetterOrDigit(c) || c == '_'; }
 
-		virtual bool matchIfTypeToken()
+		virtual bool matchIfSimpleType()
 		{
 			if (matchIf(JitTokens::float_))		  currentHnodeType = Types::ID::Float;
 			else if (matchIf(JitTokens::int_))	  currentHnodeType = Types::ID::Integer;

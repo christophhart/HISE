@@ -289,7 +289,7 @@ public:
 	struct CastedSimd;      struct InlinedExternalCall;
 	struct Subscript; struct SpanAssignment;
 	
-	struct ComplexStackDefinition;
+	struct ComplexTypeDefinition;
 
 	
 
@@ -307,7 +307,7 @@ public:
 			for (auto a : aliases)
 			{
 				if (a.id == id)
-					return a.type;
+					return a.typeInfo.getType();
 			}
 
 			return Types::ID::Void;
@@ -317,8 +317,8 @@ public:
 		{
 			for (auto a : aliases)
 			{
-				if (a.id == id)
-					return a.typePtr;
+				if (a.id == id && a.typeInfo.isComplexType())
+					return a.typeInfo.getComplexType();
 			}
 
 			return nullptr;

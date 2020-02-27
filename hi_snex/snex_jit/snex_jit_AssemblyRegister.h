@@ -149,7 +149,7 @@ public:
 
 	bool isSimd4Float() const
 	{
-		return id.typePtr != nullptr && id.typePtr->hasAlias() && id.typePtr->toString() == "float4";
+		return id.typeInfo.isComplexType() && id.typeInfo.toString() == "float4";
 	}
 
 	void clearForReuse();

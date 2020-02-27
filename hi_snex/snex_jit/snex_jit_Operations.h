@@ -211,7 +211,10 @@ struct Operations::VariableReference : public Expression
 
 	ComplexType::Ptr getComplexType() const override
 	{
-		return id.typePtr;
+		if(id.typeInfo.isComplexType())
+			return id.typeInfo.getComplexType();
+
+		return nullptr;
 	}
 
 	FunctionClass* getFunctionClassForSymbol(BaseScope* scope) const
@@ -285,7 +288,7 @@ struct Operations::VariableReference : public Expression
 		return true;
 	}
 
-	Types::ID getType() const override { return id.type; }
+	Types::ID getType() const override { return id.typeInfo.getType(); }
 
 	bool validateLocalDefinition(BaseCompiler* compiler, BaseScope* scope)
 	{
@@ -760,7 +763,7 @@ struct Operations::FunctionCall : public Expression
 				if (pType == Types::ID::Event || pType == Types::ID::Block)
 				{
 					// substite the parent id with the Message or Block API class to resolve the pointers
-					auto id = Symbol::createRootSymbol(type == Types::ID::Event ? "Message" : "Block").getChildSymbol(function.id, pType);
+					auto id = Symbol::createRootSymbol(type == Types::ID::Event ? "Message" : "Block").getChildSymbol(function.id, TypeInfo(pType, pv->id.isConst()));
 
 					fc = scope->getRootClassScope()->getSubFunctionClass(id.getParentSymbol());
 					fc->addMatchingFunctions(possibleMatches, id);
@@ -819,7 +822,7 @@ struct Operations::FunctionCall : public Expression
 
 					for (int i = 0; i < numArgs; i++)
 					{
-						if (f.args[i].isAlias)
+						if (f.args[i].isReference())
 						{
 							if (!canBeAliasParameter(getArgument(i)))
 							{
@@ -854,10 +857,7 @@ struct Operations::FunctionCall : public Expression
 					}
 				}
 
-				auto isReference = function.args[i].isAlias;
-
-				auto pType = isReference ? Types::ID::Pointer : getArgument(i)->getType();
-
+				auto pType = function.args[i].isReference() ? Types::ID::Pointer : getArgument(i)->getType();
 				auto pReg = compiler->getRegFromPool(scope, pType);
 				auto asg = CREATE_ASM_COMPILER(type);
 				pReg->createRegister(asg.cc);
@@ -901,10 +901,9 @@ struct Operations::FunctionCall : public Expression
 				auto arg = getArgument(i);
 				auto existingReg = arg->reg;
 				auto pReg = parameterRegs[i];
-				auto isReference = function.args[i].isAlias;
 				auto acg = CREATE_ASM_COMPILER(arg->getType());
 
-				if (isReference)
+				if (function.args[i].isReference() && function.args[i].typeInfo.getType() != Types::ID::Pointer)
 				{
 					acg.emitComment("arg reference -> stack");
 					acg.emitFunctionParameterReference(existingReg, pReg);
@@ -928,7 +927,7 @@ struct Operations::FunctionCall : public Expression
 
 			for (int i = 0; i < parameterRegs.size(); i++)
 			{
-				if(!function.args[i].isAlias)
+				if(!function.args[i].isReference())
 					parameterRegs[i]->flagForReuse();
 			}	
 		}
@@ -1044,7 +1043,7 @@ struct Operations::ClassStatement : public Statement
 				if (auto td = dynamic_cast<TypeDefinitionBase*>(s))
 				{
 					if (auto ctPtr = td->getTypePtr())
-						getStructType()->addComplexMember(td->getInstanceId(), ctPtr);
+						getStructType()->addMember(td->getInstanceId(), TypeInfo(ctPtr));
 					else
 					{
 						auto type = td->getNativeType();
@@ -1052,10 +1051,12 @@ struct Operations::ClassStatement : public Statement
 						if (!Types::Helpers::isFixedType(type))
 							location.throwError("Can't use auto on member variables");
 
-						getStructType()->addNativeMember(td->getInstanceId(), type);
+						getStructType()->addMember(td->getInstanceId(), TypeInfo(type));
 					}
 				}
 			}
+
+			getStructType()->finaliseAlignment();
 		}
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
@@ -1615,19 +1616,17 @@ struct Operations::Loop : public Expression,
 			{
 				loopTargetType = Span;
 
-				if (iterator.type == Types::ID::Dynamic)
-					iterator.type = sp->getElementType();
-				else if (iterator.type != sp->getElementType())
-					location.throwError("iterator type mismatch: " + Types::Helpers::getTypeName(iterator.type) + " expected: " + Types::Helpers::getTypeName(sp->getElementType()));
+				if (iterator.typeInfo.getType() == Types::ID::Dynamic)
+					iterator.typeInfo = sp->getElementType();
+				else if (iterator.typeInfo.getType() != sp->getElementType())
+					location.throwError("iterator type mismatch: " + Types::Helpers::getTypeName(iterator.typeInfo.getType()) + " expected: " + sp->getElementType().toString());
 
-				if (iterator.type == Types::ID::Pointer)
-					iterator = iterator.withComplexType(sp->getComplexElementType());
 			}
 			else if (getTarget()->getType() == Types::ID::Block)
 			{
 				loopTargetType = Block;
 
-				iterator.type = Types::ID::Float;
+				iterator.typeInfo.setType(Types::ID::Float);
 			}
 			
 			if (getLoopBlock()->blockScope == nullptr)
@@ -1678,7 +1677,7 @@ struct Operations::Loop : public Expression,
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			auto acg = CREATE_ASM_COMPILER(iterator.type);
+			auto acg = CREATE_ASM_COMPILER(iterator.typeInfo.getType());
 
 			getTarget()->process(compiler, scope);
 
@@ -1826,9 +1825,17 @@ struct Operations::Subscript : public Expression
 		addStatement(index);
 	}
 
+	Types::ID getType() const override
+	{
+		return elementType.getType();
+	}
+
 	ComplexType::Ptr getComplexType() const override
 	{
-		return elementType;
+		if (elementType.isComplexType())
+			return elementType.getComplexType();
+		
+		return nullptr;
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
@@ -1843,10 +1850,10 @@ struct Operations::Subscript : public Expression
 			{
 				subscriptType = Span;
 
-				if (elementType = spanType->getComplexElementType())
-					type = Types::ID::Pointer;
-				else
-					type = spanType->getElementType();
+				elementType = spanType->getElementType();
+
+				type = elementType.getType();
+					
 			}
 		}
 
@@ -1861,7 +1868,7 @@ struct Operations::Subscript : public Expression
 			if (spanType == nullptr)
 			{
 				if (getSubExpr(0)->getType() == Types::ID::Block)
-					type = Types::ID::Float;
+					elementType = TypeInfo(Types::ID::Float, false, true);
 				else
 					location.throwError("Can't use []-operator");
 			}
@@ -1903,16 +1910,13 @@ struct Operations::Subscript : public Expression
 
 	size_t getElementSize() const
 	{
-		if (elementType != nullptr)
-			return elementType->getRequiredByteSize();
-		else
-			return Types::Helpers::getSizeForType(type);
+		return elementType.getRequiredByteSize();
 	}
 
 	SubscriptType subscriptType = Undefined;
 	bool isWriteAccess = false;
 	SpanType* spanType = nullptr;
-	ComplexType::Ptr elementType;
+	TypeInfo elementType;
 };
 
 
@@ -2165,10 +2169,10 @@ struct Operations::SpanDefinition : public Statement,
 };
 #endif
 
-struct Operations::ComplexStackDefinition : public Expression,
+struct Operations::ComplexTypeDefinition : public Expression,
 											public TypeDefinitionBase
 {
-	ComplexStackDefinition(Location l, const Array<Identifier>& ids_, ComplexType::Ptr typePtr_) :
+	ComplexTypeDefinition(Location l, const Array<Identifier>& ids_, ComplexType::Ptr typePtr_) :
 		Expression(l),
 		ids(ids_),
 		typePtr(typePtr_)
@@ -2184,12 +2188,11 @@ struct Operations::ComplexStackDefinition : public Expression,
 	{
 		Array<Symbol> symbols;
 
+		TypeInfo t(typePtr, false);
+
 		for (auto id : ids)
 		{
-			auto s = Symbol::createRootSymbol(id).withComplexType(typePtr);
-			s.const_ = false;
-			s.type = typePtr->getDataType();
-			symbols.add(s);
+			symbols.add(Symbol({ id }, t));
 		}
 
 		return symbols;
@@ -2199,26 +2202,10 @@ struct Operations::ComplexStackDefinition : public Expression,
 	{
 		Expression::process(compiler, scope);
 
-#if 0
 		COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 		{
-			
-
-			StructType t(id);
-
-			for (auto ct : compiler->complexTypes)
-			{
-				if (ct->getActualTypeString() == t.getActualTypeString())
-				{
-					id = id.withComplexType(ct);
-					break;
-				}
-			}
-
-			if (getComplexType() == nullptr)
-				throwError("Use of undefined type " + id.toString());
+			getComplexType()->finaliseAlignment();
 		}
-#endif
 		COMPILER_PASS(BaseCompiler::DataSizeCalculation)
 		{
 			if (!isStackDefinition(scope))

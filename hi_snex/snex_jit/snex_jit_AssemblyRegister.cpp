@@ -450,7 +450,7 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterForVari
 			return r;
 	}
 
-	auto newReg = getNextFreeRegister(scope, s.type);
+	auto newReg = getNextFreeRegister(scope, s.typeInfo.getType());
 	newReg->setReference(scope, s);
 	return newReg;
 }

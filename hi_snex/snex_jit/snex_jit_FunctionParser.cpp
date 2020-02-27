@@ -104,14 +104,14 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 		statement = parseLoopStatement();
 	}
 
-	else if (matchIfTypeToken())
+	else if (matchIfSimpleType())
 	{
 		statement = parseVariableDefinition(isConst);
 		match(JitTokens::semicolon);
 	}
 	else if (matchIfComplexType())
 	{
-		return parseComplexStackDefinition(isConst);
+		return parseComplexTypeDefinition(isConst);
 	}
 	else
 	{
@@ -174,10 +174,13 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition(boo
 	}
 
 	auto s = getCurrentSymbol(true);
-	s.ref_ = isRef;
+
+	s.typeInfo = TypeInfo(currentHnodeType, isConst, isRef);
+
+	
 
 	if (type != nullptr)
-		s = s.withComplexType(type);
+		s.typeInfo = TypeInfo(type, isConst);
 
 	auto target = new Operations::VariableReference(location, s);
 	
@@ -200,10 +203,9 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 	addSymbolChild(parseIdentifier());
 
 	auto variableId = getCurrentSymbol(true);
-	variableId.const_ = isConst;
-	variableId.ref_ = isRef;
-	variableId.type = type;
-	
+
+	variableId.typeInfo = TypeInfo(type, isConst, isRef);
+
 	match(JitTokens::colon);
 	
 	ExprPtr loopBlock = parseExpression();
@@ -430,7 +432,7 @@ BlockParser::ExprPtr BlockParser::parseTerm()
 {
 	if (matchIf(JitTokens::openParen))
 	{
-		if (matchIfTypeToken()) 
+		if (matchIfSimpleType()) 
 			return parseCast(currentHnodeType);
 		else
 		{

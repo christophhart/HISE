@@ -48,7 +48,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		for (int i = 0; i < data.args.size(); i++)
 		{
-			data.args.getReference(i).parameterName = parameters[i].toString();
+			data.args.getReference(i).id = parameters[i];
 		}
 
 
@@ -224,8 +224,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 		if (auto f = getFunctionClassForSymbol(scope))
 		{
-			id.type = Types::ID::Pointer;
-			id.const_ = true;
+			id.typeInfo = TypeInfo(Types::ID::Pointer, true);
 			return;
 		}
 
@@ -238,17 +237,13 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				{
 					objectPointer = dp->getDotParent();
 
-					id.type = sType->getMemberDataType(id.id);
-					auto byteSize = Types::Helpers::getSizeForType(id.type);
+					id.typeInfo = sType->getMemberTypeInfo(id.id);
+					auto byteSize = id.typeInfo.getRequiredByteSize();
 
 					if (byteSize == 0)
 						location.throwError("Can't deduce type size");
 
 					memberOffset = VariableStorage((int)(sType->getMemberOffset(id.id)));
-
-					if(id.type == Types::ID::Pointer)
-						id = id.withComplexType(sType->getMemberComplexType(id.id));
-
 					return;
 				}
 			}
@@ -271,10 +266,12 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 			variableScope = vScope;
 		}
-		else if (id.typePtr = scope->getRootData()->getComplexTypeForVariable(id))
+		else if (auto typePtr = scope->getRootData()->getComplexTypeForVariable(id))
 		{
 			dataPointer = VariableStorage(Types::ID::Pointer, scope->getRootData()->getDataPointer(id), true);
-			id.type = Types::ID::Pointer;
+
+			id.typeInfo = TypeInfo(typePtr, id.isConst());
+			id.typeInfo.setType(Types::ID::Pointer);
 		}
 		else
 			location.throwError("Can't resolve symbol " + id.toString());
@@ -492,7 +489,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 				}
 
-				getTargetVariable()->id.type = typeToAllocate;
+				getTargetVariable()->id.typeInfo.setType(typeToAllocate);
 			}
 
 			scope->getRootData()->enlargeAllocatedSize(Types::Helpers::getSizeForType(typeToAllocate));
@@ -525,7 +522,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 						location.throwError("Can't deduce auto type");
 				}
 
-				getTargetVariable()->id.type = type;
+				getTargetVariable()->id.typeInfo.setType(type);
 			}
 
 			getTargetVariable()->isLocalDefinition = true;
@@ -625,7 +622,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (targetType == TargetType::Variable)
 			{
-				if (auto wt = dynamic_cast<WrapType*>(getTargetVariable()->id.typePtr.get()))
+				if (auto wt = dynamic_cast<WrapType*>(getTargetVariable()->getComplexType().get()))
 				{
 					acg.emitWrap(wt, tReg, WrapType::OpType::Set);
 				}

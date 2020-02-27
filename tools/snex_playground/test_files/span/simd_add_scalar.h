@@ -4,13 +4,13 @@ BEGIN_TEST_DATA
   ret: float
   args: float
   input: 0.0f
-  output: 32.0f
+  output: 52.0f
   error: ""
   filename: "span/simd_add_scalar"
 END_TEST_DATA
 */
 
-span<float, 8> d = { 1.0f, 2.0f, 3.0f, 4.0f };
+span<float, 8> d = { 1.0f, 2.0f, 3.0f, 4.0f, 1.0f, 2.0f, 3.0f, 4.0f };
 
 float4 x = { 1.0f, 2.0f, 3.0f, 4.0f };
 

@@ -206,7 +206,7 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		return parseStatement();
 	}
 
-	if (matchIfTypeToken())
+	if (matchIfSimpleType())
 	{
 		auto s = parseVariableDefinition(isConst);
 		return s;
@@ -215,7 +215,7 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	if (matchIfComplexType())
 	{
 
-		return parseComplexStackDefinition(isConst);
+		return parseComplexTypeDefinition(isConst);
 	}
 
 	location.throwError("Can't parse statement");
@@ -362,24 +362,36 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 	while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
 	{
-		FunctionData::Argument a;
+		TypeInfo t;
 
-		if (matchIfTypeToken())
+		Types::ID type;
+		ComplexType::Ptr typePtr;
+
+		bool isConst = matchIf(JitTokens::const_);
+
+		if (matchIfSimpleType())
 		{
-			a.type = currentHnodeType;
+			type = currentHnodeType;
 		}
 		else if (matchIfComplexType())
 		{
-			a.typePtr = getCurrentComplexType();
-			a.type = Types::ID::Pointer;
+			typePtr = getCurrentComplexType();
+			type = Types::ID::Pointer;
 		}
 
-		a.isAlias = matchIf(JitTokens::bitwiseAnd);
-		
-		
+		bool isRef = matchIf(JitTokens::bitwiseAnd);
 
-		fData.args.add(a);
-		func->parameters.add(parseIdentifier());
+		if (typePtr != nullptr)
+			t = TypeInfo(typePtr, isConst);
+		else
+			t = TypeInfo(type, isConst, isRef);
+
+		auto id = parseIdentifier();
+
+		auto s = Symbol({ id }, t);
+
+		fData.args.add(s);
+		func->parameters.add(id);
 		
 		matchIf(JitTokens::comma);
 	}
@@ -536,7 +548,7 @@ snex::VariableStorage BlockParser::parseConstExpression(bool isTemplateArgument)
 	return expr->getConstExprValue();
 }
 
-snex::jit::BlockParser::StatementPtr BlockParser::parseComplexStackDefinition(bool isConst)
+snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(bool isConst)
 {
 	jassert(getCurrentComplexType() != nullptr);
 
@@ -549,7 +561,7 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexStackDefinition(bo
 	while (matchIf(JitTokens::comma))
 		ids.add(parseIdentifier());
 
-	auto n = new Operations::ComplexStackDefinition(location, ids, typePtr);
+	auto n = new Operations::ComplexTypeDefinition(location, ids, typePtr);
 
 	if (matchIf(JitTokens::assign_))
 	{
@@ -589,7 +601,7 @@ InitialiserList::Ptr BlockParser::parseInitialiserList()
 	return root;
 }
 
-ComplexType::Ptr BlockParser::parseSpanType(bool isSpan)
+ComplexType::Ptr BlockParser::parseComplexType(bool isSpan)
 {
 	match(JitTokens::lessThan);
 
@@ -641,7 +653,7 @@ ComplexType::Ptr BlockParser::parseSpanType(bool isSpan)
 				type = Types::ID::Pointer;
 				auto isSpan = currentType == JitTokens::span_;
 				skip();
-				child = parseSpanType(isSpan);
+				child = parseComplexType(isSpan);
 			}
 			else
 				type = matchType();
@@ -690,13 +702,13 @@ void BlockParser::parseUsingAlias()
 
 	if (matchIf(JitTokens::span_))
 	{
-		auto cType = parseSpanType(true);
+		auto cType = parseComplexType(true);
 		cType->setAlias(s.id);
 		s = s.withComplexType(cType);
 	}
-	else if (matchIfTypeToken())
+	else if (matchIfSimpleType())
 	{
-		s.type = currentHnodeType;
+		s.typeInfo.setType(currentHnodeType);
 	}
 	else if (currentType == JitTokens::identifier)
 	{

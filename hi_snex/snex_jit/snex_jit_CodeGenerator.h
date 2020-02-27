@@ -65,7 +65,7 @@ struct AsmCodeGenerator
 			loopTarget(loopTarget_),
 			loadIterator(loadIterator_),
 			loopBody(loopBody_),
-			type(iterator.type)
+			type(iterator.typeInfo.getType())
 		{};
 
 		virtual ~LoopEmitterBase() {};

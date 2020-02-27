@@ -273,14 +273,6 @@ public:
 		data.allocate(allocatedSize, true);
 	}
 
-	Result allocate(BaseScope* scope, const Symbol& s)
-	{
-		if (s.typePtr != nullptr)
-			return allocateComplexType(scope, s);
-		else
-			return allocateNativeType(scope, s);
-	}
-
 	bool zeroPadAlign(size_t alignment)
 	{
 		if (alignment == 0)
@@ -318,7 +310,7 @@ public:
 		for (const auto& ts : symbolTable)
 		{
 			if (ts.s == s)
-				return ts.s.type;
+				return ts.s.typeInfo.getType();
 		}
 
 		return Types::ID::Dynamic;
@@ -326,17 +318,17 @@ public:
 
 	bool checkSubClassMembers(const TableEntry& ts, const Symbol& s, const std::function<void(StructType* sc, const Identifier& id)>& f) const
 	{
-		if (ts.s.isParentOf(s) && ts.s.typePtr != nullptr)
+		if (ts.s.isParentOf(s) && ts.s.typeInfo.isComplexType())
 		{
 			auto path = s.getPath();
 			path.remove(0);
 
-			auto tp = ts.s.typePtr.get();
+			auto tp = ts.s.typeInfo.getComplexType();
 
 			for (int i = 0; i < path.size(); i++)
 			{
 				auto thisMember = path[i];
-				auto st = dynamic_cast<StructType*>(tp);
+				auto st = dynamic_cast<StructType*>(tp.get());
 
 				if (st == nullptr)
 					break;
@@ -357,7 +349,7 @@ public:
 		for (const auto& ts : symbolTable)
 		{
 			if (ts.s == s)
-				return ts.s.typePtr;
+				return ts.s.typeInfo.getComplexType();
 
 			ComplexType::Ptr p;
 
@@ -385,9 +377,9 @@ public:
 	{
 		for (const auto& ts : symbolTable)
 		{
-			if (ts.s.typePtr != nullptr)
+			if (ts.s.typeInfo.isComplexType())
 			{
-				ts.s.typePtr->forEach([memberId, initList](ComplexType::Ptr p, void* dataPointer)
+				ts.s.typeInfo.getComplexType()->forEach([memberId, initList](ComplexType::Ptr p, void* dataPointer)
 				{
 					if (auto structType = dynamic_cast<StructType*>(p.get()))
 					{
@@ -452,7 +444,7 @@ public:
 		{
 			if (ts.s == s)
 			{
-				switch (ts.s.type)
+				switch (ts.s.typeInfo.getType())
 				{
 				case Types::ID::Integer: return VariableStorage(*(int*)ts.data);
 				case Types::ID::Float: return VariableStorage(*(float*)ts.data);
@@ -467,25 +459,21 @@ public:
 		return {};
 	}
 
-	HeapBlock<char> data;
-
-private:
-
-	Result allocateNativeType(BaseScope* scope, const Symbol& s)
+	Result allocate(BaseScope* scope, const Symbol& s)
 	{
 		jassert(scope->getScopeType() == BaseScope::Class);
 
 		// This is the last time you'll get the chance to set the type...
-		jassert(s.type != Types::ID::Dynamic);
+		jassert(s.typeInfo.getType() != Types::ID::Dynamic);
 
 		if (contains(s))
 			return Result::fail(s.toString() + "already exists");
 
-		auto requiredAlignment = Types::Helpers::getSizeForType(s.type);
+		auto requiredAlignment = s.typeInfo.getRequiredAlignment();
 
 		zeroPadAlign(requiredAlignment);
 
-		auto size = Types::Helpers::getSizeForType(s.type);
+		auto size = s.typeInfo.getRequiredByteSize();
 
 		TableEntry newEntry;
 		newEntry.s = s;
@@ -494,46 +482,19 @@ private:
 		numUsed += size;
 		memset(newEntry.data, 0, size);
 		newEntry.scope = scope;
-
-		jassert(numUsed < allocatedSize);
-
-		symbolTable.add(newEntry);
-		return Result::ok();
-	}
-
-	Result allocateComplexType(BaseScope* scope, const Symbol& s)
-	{
-		jassert(scope->getScopeType() == BaseScope::Class);
-		jassert(s.type == Types::ID::Pointer || dynamic_cast<WrapType*>(s.typePtr.get()) != nullptr);
-		jassert(s.typePtr != nullptr);
-
-		if (contains(s))
-			return Result::fail(s.toString() + "already exists");
-
-		TableEntry newEntry;
-
-		auto alignment = s.typePtr->getRequiredAlignment();
-
-		zeroPadAlign(alignment);
-
-		//jassert(((uint64_t)data.get() + numUsed) % alignment == 0);
-
-		auto size = s.typePtr->getRequiredByteSize();
-
-		newEntry.s = s;
-		newEntry.data = data + numUsed;
-		newEntry.scope = scope;
-
-		memset(newEntry.data, 0, size);
-
-		numUsed += size;
-		symbolTable.add(newEntry);
 
 		jassert(numUsed <= allocatedSize);
 
+		symbolTable.add(newEntry);
 		return Result::ok();
 	}
+
+	HeapBlock<char> data;
+
+private:
+
 	
+
 	TableEntry* begin() const
 	{
 		return symbolTable.begin();

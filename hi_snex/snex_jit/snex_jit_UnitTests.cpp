@@ -294,7 +294,7 @@ public:
 
 		r = c.getCompileResult();
 
-		if (r.failed() && expectedFail.isNotEmpty())
+		if (r.failed())
 			return expectCompileFail(expectedFail);
 
 		assembly = c.getAssemblyCode();
@@ -403,6 +403,8 @@ private:
 
 				auto arg = Helpers::getStringArray(s[args], " ");
 
+				int index = 1;
+
 				for (auto a : arg)
 				{
 					auto type = Types::Helpers::getTypeFromTypeName(a.trim());
@@ -410,7 +412,10 @@ private:
 					if (type == Types::ID::Void)
 						throwError("Can't parse argument type " + a);
 
-					function.args.add({ type, false });
+					Identifier id(juce::String("p") + juce::String(index));
+					Symbol s({ id }, type, false, false);
+
+					function.args.add(s);
 				}
 			}
 			{
@@ -424,7 +429,7 @@ private:
 				for (int i = 0; i < inp.size(); i++)
 				{
 					auto v = inp[i];
-					auto t = function.args[i].type;
+					auto t = function.args[i].typeInfo.getType();
 
 					switch (t)
 					{
@@ -677,7 +682,7 @@ private:
 
 	template <typename R> R call1()
 	{
-		switch (function.args[0].type)
+		switch (function.args[0].typeInfo.getType())
 		{
 		case Types::ID::Integer: return function.call<R>(inputs[0].toInt()); break;
 		case Types::ID::Float:   return function.call<R>(inputs[0].toFloat()); break;
@@ -689,7 +694,7 @@ private:
 
 	template <typename R> R call2()
 	{
-		switch (function.args[0].type)
+		switch (function.args[0].typeInfo.getType())
 		{
 		case Types::ID::Integer: return call2With1<R, int>(inputs[0].toInt()); break;
 		case Types::ID::Float:   return call2With1<R, float>(inputs[0].toFloat()); break;
@@ -700,7 +705,7 @@ private:
 
 	template <typename R, typename A1> R call2With1(A1 arg1)
 	{
-		switch (function.args[1].type)
+		switch (function.args[1].typeInfo.getType())
 		{
 		case Types::ID::Integer: return function.call<R>(arg1, inputs[1].toInt()); break;
 		case Types::ID::Float:   return function.call<R>(arg1, inputs[1].toFloat()); break;
@@ -829,8 +834,9 @@ public:
 
 	void runTest() override
 	{
-		//runTestFiles("set_from_other_function.h");
-		//return;
+		runTestFiles("set_from_other_function.h");
+
+		
 
 		testOptimizations();
 
@@ -863,7 +869,7 @@ public:
 				continue;
 
 			JitFileTestCase t(this, memory, f);
-			t.test();
+			auto r = t.test();
 		}
 	}
 
@@ -2695,6 +2701,9 @@ private:
 		beginTest("Function Calls");
 
 		ScopedPointer<HiseJITTestCase<float>> test;
+
+		CREATE_TEST("float ov(int a){ return 9.0f; } float ov(double a) { return 14.0f; } float test(float input) { return ov(5); }");
+		EXPECT("function overloading", 2.0f, 9.0f);
 
 		CREATE_TEST("struct X { int u = 8; float v = 12.0f; float getV() { return v; }}; span<X, 3> d; float test(float input){ return d[1].getV() + input;");
 		EXPECT("span of structs struct member call", 8.0f, 20.0f);

@@ -163,7 +163,9 @@ struct WrapType : public ComplexType
 
 	WrapType(int size_) :
 		size(size_)
-	{};
+	{
+		finaliseAlignment();
+	};
 
 	size_t getRequiredByteSize() const override { return 4; }
 
@@ -217,16 +219,165 @@ struct WrapType : public ComplexType
 };
 
 
+struct TypeInfo
+{
+	TypeInfo():
+		type(Types::ID::Dynamic)
+	{}
+
+	explicit TypeInfo(Types::ID type_, bool isConst_=false, bool isRef_=false):
+		type(type_),
+		const_(isConst_),
+		ref_(isRef_)
+	{
+		jassert(type != Types::ID::Pointer || isConst_);
+	}
+
+	explicit TypeInfo(ComplexType::Ptr p, bool isConst_ = false) :
+		typePtr(p),
+		const_(isConst_),
+		ref_(true)
+	{
+		jassert(p != nullptr);
+		type = Types::ID::Pointer;
+	}
+
+	operator bool() const noexcept
+	{
+		return type != Types::ID::Dynamic;
+	}
+
+	bool operator!=(const TypeInfo& other) const
+	{
+		return !(*this == other);
+	}
+
+	bool operator==(const TypeInfo& other) const
+	{
+		if (typePtr != nullptr)
+		{
+			if (other.typePtr != nullptr)
+				return *typePtr == *other.typePtr;
+
+			return false;
+		}
+
+		return type == other.type;
+	}
+
+	bool operator==(const Types::ID other) const
+	{
+		return getType() == other;
+	}
+
+	bool operator!=(const Types::ID other) const
+	{
+		return getType() != other;
+	}
+
+	size_t getRequiredByteSize() const
+	{
+		if (isComplexType())
+			return typePtr->getRequiredByteSize();
+		else
+			return Types::Helpers::getSizeForType(type);
+	}
+
+	size_t getRequiredAlignment() const
+	{
+		if (isComplexType())
+			return typePtr->getRequiredAlignment();
+		else
+			return Types::Helpers::getSizeForType(type);
+	}
+
+	juce::String toString() const
+	{
+		if (isComplexType())
+			return typePtr->toString();
+		else
+			return Types::Helpers::getTypeName(type);
+	}
+
+	void setType(Types::ID newType)
+	{
+		jassert(newType != Types::ID::Pointer);
+		type = newType;
+	}
+
+	Types::ID getType() const noexcept
+	{
+		if (isComplexType())
+			return getComplexType()->getDataType();
+
+		return type;
+	}
+
+	bool isConst() const noexcept
+	{
+		return const_;
+	}
+
+	bool isRef() const noexcept
+	{
+		return ref_;
+	}
+
+	ComplexType::Ptr getComplexType() const
+	{
+		jassert(type == Types::ID::Pointer);
+		jassert(typePtr != nullptr);
+		jassert(isRef());
+
+		return typePtr;
+	}
+
+	bool isComplexType() const
+	{
+		return typePtr != nullptr;
+	}
+
+	TypeInfo asConst()
+	{
+		auto t = *this;
+		t.const_ = true;
+		return t;
+	}
+
+	TypeInfo asNonConst()
+	{
+		auto t = *this;
+		t.const_ = false;
+		return t;
+	}
+
+private:
+
+	bool const_ = false;
+	bool ref_ = false;
+	Types::ID type = Types::ID::Dynamic;
+	ComplexType::Ptr typePtr;
+};
+
 
 /** A Symbol is used to identifiy the data slot. */
 struct Symbol
 {
 	static Symbol createRootSymbol(const Identifier& id);
 
+	static Symbol createIndexedSymbol(int index, Types::ID type);
+
 	Symbol();
 
 	Symbol(const Array<Identifier>& ids, Types::ID t_, bool isConst_, bool isRef_);
 
+	Symbol(const Array<Identifier>& ids, const TypeInfo& info);
+
+	bool operator==(Types::ID t) const
+	{
+		jassertfalse;
+		return false;
+	}
 
 	bool operator==(const Symbol& other) const;
 
@@ -234,7 +385,7 @@ struct Symbol
 
 	Symbol getParentSymbol() const;
 
-	Symbol getChildSymbol(const Identifier& id, Types::ID newType = Types::ID::Dynamic, bool isConst_ = false, bool isReference = false) const;
+	Symbol getChildSymbol(const Identifier& id, const TypeInfo& t = {}) const;
 
 	Symbol withParent(const Symbol& parent) const;
 
@@ -248,7 +399,7 @@ struct Symbol
 
 	bool isExplicit() const { return fullIdList.size() > 1; }
 
-	bool isConst() const { return const_; }
+	bool isConst() const { return typeInfo.isConst(); }
 
 	bool isParentOf(const Symbol& otherSymbol) const;
 
@@ -256,12 +407,12 @@ struct Symbol
 
 	Types::ID getRegisterType() const
 	{
-		return isReference() ? Types::Pointer : type;
+		return typeInfo.isRef() ? Types::Pointer : typeInfo.getType();
 	}
 
 	Identifier getId() const { return id; }
 
-	bool isReference() const { return ref_; };
+	bool isReference() const { return typeInfo.isRef(); };
 
 	juce::String toString() const;
 
@@ -272,12 +423,16 @@ struct Symbol
 	Array<Identifier> fullIdList;
 	Identifier id;
 
-	bool const_ = false;
-	bool ref_ = false;
 	VariableStorage constExprValue = {};
 
+	TypeInfo typeInfo;
+
+#if 0
+	bool const_ = false;
+	bool ref_ = false;
 	Types::ID type = Types::ID::Dynamic;
 	ComplexType::Ptr typePtr;
+#endif
 };
 
 
@@ -286,20 +441,20 @@ struct FunctionData
 {
 	template <typename T> void addArgs()
 	{
-		args.add(Types::Helpers::getTypeFromTypeId<T>());
+		args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T>()));
 	}
 
 	template <typename T1, typename T2> void addArgs()
 	{
-		args.add(Types::Helpers::getTypeFromTypeId<T1>());
-		args.add(Types::Helpers::getTypeFromTypeId<T2>());
+		args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+		args.add(Symbol::createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
 	}
 
 	template <typename T1, typename T2, typename T3> void addArgs()
 	{
-		args.add(Types::Helpers::getTypeFromTypeId<T1>());
-		args.add(Types::Helpers::getTypeFromTypeId<T2>());
-		args.add(Types::Helpers::getTypeFromTypeId<T3>());
+		args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+		args.add(Symbol::createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
+		args.add(Symbol::createIndexedSymbol(2, Types::Helpers::getTypeFromTypeId<T3>()));
 	}
 
 	template <typename ReturnType> static FunctionData createWithoutParameters(const Identifier& id, void* ptr = nullptr)
@@ -340,7 +495,10 @@ struct FunctionData
 		description = d;
 
 		for (int i = 0; i < args.size(); i++)
-			args.getReference(i).parameterName = parameterNames[i];
+		{
+			if(parameterNames[i].isNotEmpty())
+				args.getReference(i).id = parameterNames[i];
+		}
 	}
 
 	juce::String description;
@@ -357,6 +515,9 @@ struct FunctionData
 	/** The return type. */
 	Types::ID returnType;
 
+	using Argument = Symbol;
+
+#if 0
 	struct Argument
 	{
 		Argument() {};
@@ -383,6 +544,7 @@ struct FunctionData
 		String parameterName;
 		ComplexType::Ptr typePtr;
 	};
+#endif
 
 	/** The argument list. */
 	Array<Argument> args;
@@ -492,16 +654,16 @@ struct FunctionClass: public DebugableObjectBase,
 			{
 				index++;
 
-				if (arg.type == Types::ID::Block && r->getObjectName().toString() == "Block")
+				if (arg.typeInfo.getType() == Types::ID::Block && r->getObjectName().toString() == "Block")
 					continue;
 
-				if (arg.type == Types::ID::Event && r->getObjectName().toString() == "Message")
+				if (arg.typeInfo.getType() == Types::ID::Event && r->getObjectName().toString() == "Message")
 					continue;
 
-				arguments << Types::Helpers::getTypeName(arg.type);
+				arguments << Types::Helpers::getTypeName(arg.typeInfo.getType());
 
-				if (arg.parameterName.isNotEmpty())
-					arguments << " " << arg.parameterName;
+				if (arg.id.isValid())
+					arguments << " " << arg.id;
 
 				if (index < (f->args.size()))
 					arguments << ", ";
@@ -637,32 +799,23 @@ protected:
 struct SpanType : public ComplexType
 {
 	/** Creates a simple one-dimensional span. */
-	SpanType(Types::ID dataType_, int size_) :
-		typeName(Types::Helpers::getTypeName(dataType_)),
-		dataType(dataType_),
+	SpanType(Types::ID dataType, int size_) :
+		elementType(TypeInfo(dataType)),
 		size(size_)
 	{
-
+		finaliseAlignment();
 	}
 
 	/** Creates a SpanType with another ComplexType as element type. */
 	SpanType(ComplexType::Ptr childToBeOwned, int size_) :
-		dataType(Types::ID::Pointer),
-		size(size_),
-		typeName(juce::String()),
-		childType(childToBeOwned)
+		elementType(TypeInfo(childToBeOwned)),
+		size(size_)
 	{
-
 	}
 
 	Types::ID getDataType() const
 	{
 		return Types::ID::Pointer;
-
-		if (childType != nullptr)
-			return Types::ID::Pointer;
-		else
-			return dataType;
 	}
 
 	static bool isSimdType(ComplexType::Ptr t)
@@ -682,13 +835,15 @@ struct SpanType : public ComplexType
 
 	void finaliseAlignment() override
 	{
-		if (childType != nullptr)
-			childType->finaliseAlignment();
+		if (elementType.isComplexType())
+			elementType.getComplexType()->finaliseAlignment();
+
+		ComplexType::finaliseAlignment();
 	}
 
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override
 	{
-		if (childType != nullptr)
+		if (elementType.isComplexType())
 		{
 			// must be aligned already...
 			jassert((uint64_t)dataPointer % getRequiredAlignment() == 0);
@@ -697,7 +852,7 @@ struct SpanType : public ComplexType
 			{
 				auto mPtr = ComplexType::getPointerWithOffset(dataPointer, getElementSize() * i);
 
-				if (childType->forEach(t, typePtr, mPtr))
+				if (elementType.getComplexType()->forEach(t, typePtr, mPtr))
 					return true;
 			}
 		}
@@ -705,19 +860,14 @@ struct SpanType : public ComplexType
 		return false;
 	}
 
-	Types::ID getElementType() const
+	TypeInfo getElementType() const
 	{
-		return dataType;
+		return elementType;
 	}
 
 	int getNumElements() const
 	{
 		return size;
-	}
-
-	ComplexType::Ptr getComplexElementType() const
-	{
-		return childType;
 	}
 
 	size_t getRequiredByteSize() const override
@@ -727,24 +877,21 @@ struct SpanType : public ComplexType
 
 	size_t getRequiredAlignment() const override
 	{
-		if (childType != nullptr)
-			return childType->getRequiredAlignment();
-		else
-			return Types::Helpers::getSizeForType(dataType);
+		return elementType.getRequiredAlignment();
 	}
 
 	InitialiserList::Ptr makeDefaultInitialiserList() const override
 	{
-		if (childType != nullptr)
+		if (elementType.isComplexType())
 		{
-			auto c = childType->makeDefaultInitialiserList();
+			auto c = elementType.getComplexType()->makeDefaultInitialiserList();
 
 			InitialiserList::Ptr n = new InitialiserList();
 			n->addChildList(c);
 			return n;
 		}
 		else
-			return InitialiserList::makeSingleList(VariableStorage(getElementType(), var(0.0)));
+			return InitialiserList::makeSingleList(VariableStorage(getElementType().getType(), var(0.0)));
 	}
 
 	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override
@@ -755,13 +902,9 @@ struct SpanType : public ComplexType
 		{
 			juce::String symbol;
 
-			
-
-			
-
 			auto address = ComplexType::getPointerWithOffset(complexTypeStartPointer, i * getElementSize());
 
-			if (childType != nullptr)
+			if (elementType.isComplexType())
 			{
 				symbol << Types::Helpers::getIntendation(intendLevel);
 
@@ -773,13 +916,13 @@ struct SpanType : public ComplexType
 				symbol << "[" << juce::String(i) << "]: \n";
 
 				s << symbol;
-				childType->dumpTable(s, intendLevel, dataStart, address);
+				elementType.getComplexType()->dumpTable(s, intendLevel, dataStart, address);
 			}
 			else
 			{
 				symbol << "[" << juce::String(i) << "]";
 
-				Types::Helpers::dumpNativeData(s, intendLevel, symbol, dataStart, address, getElementSize(), dataType);
+				Types::Helpers::dumpNativeData(s, intendLevel, symbol, dataStart, address, getElementSize(), elementType.getType());
 			}
 		}
 
@@ -790,13 +933,7 @@ struct SpanType : public ComplexType
 	{
 		juce::String s = "span<";
 
-		if (childType == nullptr)
-		{
-			s << typeName;
-		}
-		else
-			s << childType->toString();
-
+		s << elementType.toString();
 		s << ", " << size << ">";
 
 		return s;
@@ -819,11 +956,11 @@ struct SpanType : public ComplexType
 		{
 			auto indexToUse = initValues->size() == 1 ? 0 : i;
 
-			if (childType != nullptr)
+			if (elementType.isComplexType())
 			{
 				auto childList = initValues->createChildList(indexToUse);
 
-				auto ok = childType->initialise(getPointerWithOffset(dataPointer, getElementSize() * i), childList);
+				auto ok = elementType.getComplexType()->initialise(getPointerWithOffset(dataPointer, getElementSize() * i), childList);
 
 				if (!ok.wasOk())
 					return ok;
@@ -836,7 +973,7 @@ struct SpanType : public ComplexType
 				if (!ok.wasOk())
 					return ok;
 
-				if (valueToUse.getType() != dataType)
+				if (valueToUse.getType() != elementType.getType())
 				{
 					e << "type mismatch at index " + juce::String(i) << ": " << Types::Helpers::getTypeName(valueToUse.getType());
 					return Result::fail(e);
@@ -851,10 +988,12 @@ struct SpanType : public ComplexType
 
 	size_t getElementSize() const
 	{
-		if (childType != nullptr)
+		if (elementType.isComplexType())
 		{
-			auto alignment = childType->getRequiredAlignment();
-			int childSize = childType->getRequiredByteSize();
+			jassert(elementType.getComplexType()->isFinalised());
+
+			auto alignment = elementType.getRequiredAlignment();
+			int childSize = elementType.getRequiredByteSize();
 			size_t elementPadding = 0;
 
 			if (childSize % alignment != 0)
@@ -865,18 +1004,16 @@ struct SpanType : public ComplexType
 			return childSize + elementPadding;
 		}
 		else
-			return Types::Helpers::getSizeForType(dataType);
+			return elementType.getRequiredByteSize();
 	}
 
 private:
 
 
+	TypeInfo elementType;
 
-	Types::ID dataType = Types::ID::Dynamic;
 	juce::String typeName;
 	int size;
-
-	Ptr childType;
 };
 
 
@@ -891,7 +1028,7 @@ struct StructType : public ComplexType
 		size_t s = 0;
 
 		for (auto m : memberData)
-			s += (m->size + m->padding);
+			s += (m->typeInfo.getRequiredByteSize() + m->padding);
 
 		return s;
 	}
@@ -911,10 +1048,10 @@ struct StructType : public ComplexType
 			{
 				auto mPtr = getMemberPointer(m, dataPointer);
 
-				if (m->typePtr != nullptr)
+				if (m->typeInfo.isComplexType())
 				{
 					auto childList = initValues->createChildList(index);
-					auto ok = m->typePtr->initialise(mPtr, childList);
+					auto ok = m->typeInfo.getComplexType()->initialise(mPtr, childList);
 
 					if (!ok.wasOk())
 						return ok;
@@ -924,7 +1061,7 @@ struct StructType : public ComplexType
 					VariableStorage childValue;
 					initValues->getValue(index, childValue);
 
-					if (m->nativeMemberType != childValue.getType())
+					if (m->typeInfo.getType() != childValue.getType())
 						return Result::fail("type mismatch at index " + juce::String(index));
 
 					ComplexType::writeNativeMemberType(mPtr, 0, childValue);
@@ -946,11 +1083,11 @@ struct StructType : public ComplexType
 
 		for (auto m : memberData)
 		{
-			if (m->typePtr != nullptr)
+			if (m->typeInfo.isComplexType())
 			{
 				auto mPtr = getMemberPointer(m, dataPointer);
 
-				if (m->typePtr->forEach(t, typePtr, mPtr))
+				if (m->typeInfo.getComplexType()->forEach(t, typePtr, mPtr))
 					return true;
 			}
 		}
@@ -965,14 +1102,14 @@ struct StructType : public ComplexType
 
 		for (auto m : memberData)
 		{
-			if (m->typePtr != nullptr)
+			if (m->typeInfo.isComplexType())
 			{
 				s << Types::Helpers::getIntendation(intendLevel) << id.toString() << " " << m->id << "\n";
-				m->typePtr->dumpTable(s, intendLevel, dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id));
+				m->typeInfo.getComplexType()->dumpTable(s, intendLevel, dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id));
 			}
 			else
 			{
-				Types::Helpers::dumpNativeData(s, intendLevel, id.getChildSymbol(m->id).toString(), dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id), m->size, m->nativeMemberType);
+				Types::Helpers::dumpNativeData(s, intendLevel, id.getChildSymbol(m->id).toString(), dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id), m->typeInfo.getRequiredByteSize(), m->typeInfo.getType());
 			}
 		}
 		intendLevel--;
@@ -982,12 +1119,7 @@ struct StructType : public ComplexType
 	{
 		if (auto f = memberData.getFirst())
 		{
-			if (f->typePtr != nullptr)
-			{
-				return f->typePtr->getRequiredAlignment();
-			}
-			else
-				return f->size;
+			return f->typeInfo.getRequiredAlignment();
 		}
 
 		return 0;
@@ -995,21 +1127,21 @@ struct StructType : public ComplexType
 
 	void finaliseAlignment() override
 	{
+		if (isFinalised())
+			return;
+
 		size_t offset = 0;
 
 		for (auto m : memberData)
 		{
-			if (m->typePtr != nullptr)
-			{
-				m->typePtr->finaliseAlignment();
-				m->size = m->typePtr->getRequiredByteSize();
-			}
+			if (m->typeInfo.isComplexType())
+				m->typeInfo.getComplexType()->finaliseAlignment();
 
 			m->offset = offset;
 
 			auto alignment = getRequiredAlignment(m);
 			m->padding = offset % alignment;
-			offset += m->padding + m->size;
+			offset += m->padding + m->typeInfo.getRequiredByteSize();
 		}
 
 		jassert(offset == getRequiredByteSize());
@@ -1039,9 +1171,7 @@ struct StructType : public ComplexType
 		{
 			if (m->id == s.id)
 			{
-				s.type = m->nativeMemberType;
-				s.typePtr = m->typePtr;
-				s.const_ = false;
+				s.typeInfo = m->typeInfo;
 				return true;
 			}
 		}
@@ -1055,8 +1185,8 @@ struct StructType : public ComplexType
 
 		for (auto m : memberData)
 		{
-			if (m->typePtr != nullptr && m->defaultList == nullptr)
-				n->addChildList(m->typePtr->makeDefaultInitialiserList());
+			if (m->typeInfo.isComplexType() && m->defaultList == nullptr)
+				n->addChildList(m->typeInfo.getComplexType()->makeDefaultInitialiserList());
 			else
 				n->addChildList(m->defaultList);
 		}
@@ -1073,15 +1203,24 @@ struct StructType : public ComplexType
 		return false;
 	}
 
+	TypeInfo getMemberTypeInfo(const Identifier& id) const
+	{
+		for (auto m : memberData)
+		{
+			if (m->id == id)
+				return m->typeInfo;
+		}
+
+		jassertfalse;
+		return {};
+	}
+
 	Types::ID getMemberDataType(const Identifier& id) const
 	{
 		for (auto m : memberData)
 		{
 			if (m->id == id)
-			{
-				jassert(m->nativeMemberType == Types::ID::Pointer || m->typePtr == nullptr);
-				return m->nativeMemberType;
-			}
+				m->typeInfo.getType();
 		}
         
         jassertfalse;
@@ -1093,7 +1232,7 @@ struct StructType : public ComplexType
 		for (auto m : memberData)
 		{
 			if (m->id == id)
-				return m->typePtr == nullptr;
+				return !m->typeInfo.isComplexType();
 		}
 
 		return false;
@@ -1104,10 +1243,7 @@ struct StructType : public ComplexType
 		for (auto m : memberData)
 		{
 			if (m->id == id)
-			{
-				jassert(m->typePtr != nullptr);
-				return m->typePtr;
-			}
+				return m->typeInfo.getComplexType();
 		}
         
         jassertfalse;
@@ -1131,23 +1267,13 @@ struct StructType : public ComplexType
 		return Types::ID::Pointer;
 	}
 
-	void addNativeMember(const Identifier& id, Types::ID type)
+	void addMember(const Identifier& id, const TypeInfo& typeInfo)
 	{
-		auto nm = new Member();
-		nm->size = Types::Helpers::getSizeForType(type);
-		nm->id = id;
-		nm->nativeMemberType = type;
+		jassert(!isFinalised());
 
-		memberData.add(nm);
-	}
-
-	void addComplexMember(const Identifier& id, ComplexType::Ptr typePtr)
-	{
 		auto nm = new Member();
-		nm->size = typePtr->getRequiredByteSize();
 		nm->id = id;
-		nm->nativeMemberType = Types::ID::Pointer;
-		nm->typePtr = typePtr;
+		nm->typeInfo = typeInfo;
 
 		memberData.add(nm);
 	}
@@ -1159,11 +1285,9 @@ private:
 	struct Member
 	{
 		size_t offset = 0;
-		size_t size = 0;
 		size_t padding = 0;
 		Identifier id;
-		Types::ID nativeMemberType = Types::ID::Dynamic;
-		ComplexType::Ptr typePtr;
+		TypeInfo typeInfo;
 		InitialiserList::Ptr defaultList;
 	};
 
@@ -1175,10 +1299,7 @@ private:
 
 	static size_t getRequiredAlignment(Member* m)
 	{
-		if (m->typePtr != nullptr)
-			return m->typePtr->getRequiredAlignment();
-		else
-			return Types::Helpers::getSizeForType(m->nativeMemberType);
+		return m->typeInfo.getRequiredAlignment();
 	}
 
 	OwnedArray<Member> memberData;

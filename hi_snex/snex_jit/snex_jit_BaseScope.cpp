@@ -249,10 +249,8 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 		{
 			jassert(Types::Helpers::isFixedType((c.v.getType())));
 
-			symbolToBeUpdated.type = c.v.getType();
-			symbolToBeUpdated.const_ = true;
+			symbolToBeUpdated.typeInfo = TypeInfo(c.v.getType(), true, false);
 			symbolToBeUpdated.constExprValue = c.v;
-			symbolToBeUpdated.typePtr = nullptr;
 			return true;
 		}
 	}
@@ -274,8 +272,7 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 
 			auto v = c->getConstantValue(symbolToBeUpdated);
 			symbolToBeUpdated.constExprValue = v;
-			symbolToBeUpdated.type = v.getType();
-			symbolToBeUpdated.const_ = true;
+			symbolToBeUpdated.typeInfo = TypeInfo(v.getType(), true);
 
 			return true;
 		}
@@ -350,18 +347,18 @@ juce::String RootClassData::dumpTable() const
 
 	for (const auto& st : symbolTable)
 	{
-		if (st.s.typePtr != nullptr)
+		if (st.s.typeInfo.isComplexType())
 		{
 			int il = 0;
 
-			s << st.s.typePtr->toString() << " ";
+			s << st.s.typeInfo.getComplexType()->toString() << " ";
 				
 			s << st.s.toString() << "\n";
-			st.s.typePtr->dumpTable(s, il, data.get(), st.data);
+			st.s.typeInfo.getComplexType()->dumpTable(s, il, data.get(), st.data);
 		}
 		else
 		{
-			Types::Helpers::dumpNativeData(s, 0, st.s.toString(), data.get(), st.data, Types::Helpers::getSizeForType(st.s.type), st.s.type);
+			Types::Helpers::dumpNativeData(s, 0, st.s.toString(), data.get(), st.data, Types::Helpers::getSizeForType(st.s.typeInfo.getType()), st.s.typeInfo.getType());
 		}
 	}
 
@@ -376,22 +373,22 @@ juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, Initiali
 		{
 			if (ts.s == s)
 			{
-				if (ts.s.typePtr == nullptr)
+				if (ts.s.typeInfo.isComplexType())
+				{
+					return ts.s.typeInfo.getComplexType()->initialise(ts.data, initValues);
+				}
+				else
 				{
 					VariableStorage initValue;
 					initValues->getValue(0, initValue);
 
-					if (ts.s.type == initValue.getType())
+					if (ts.s.typeInfo.getType() == initValue.getType())
 					{
 						ComplexType::writeNativeMemberType(ts.data, 0, initValue);
 						return Result::ok();
 					}
 
 					return Result::fail("type mismatch");
-				}
-				else
-				{
-					return ts.s.typePtr->initialise(ts.data, initValues);
 				}
 			}
 		}

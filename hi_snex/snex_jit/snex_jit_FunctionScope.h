@@ -111,9 +111,7 @@ public:
 
 		if (index != -1)
 		{
-			symbolToBeUpdated.type = data.args[index].type;
-			symbolToBeUpdated.typePtr = data.args[index].typePtr;
-			symbolToBeUpdated.ref_ = data.args[index].isAlias;
+			symbolToBeUpdated = data.args[index];
 			return true;
 		}
 
