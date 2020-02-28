@@ -287,16 +287,10 @@ public:
 	struct Function;		struct BinaryOp;				struct VariableReference;
 	struct TernaryOp;		struct LogicalNot;				struct Cast;
 	struct Negation;		struct Compare;					struct UnaryOp;
-	struct Increment;		struct BlockAccess;				struct BlockAssignment;
-	struct Loop;		struct IfStatement;				struct SmoothedVariableDefinition;
-	struct WrappedBlockDefinition;	struct ClassStatement;	
-	struct PointerReference;	struct DotOperator;			struct UsingStatement;
-	struct CastedSimd;      struct InlinedExternalCall;
-	struct Subscript; struct SpanAssignment;
-	
-	struct ComplexTypeDefinition;
-
-	
+	struct Increment;		struct DotOperator;				struct Loop;		
+	struct IfStatement;		struct ClassStatement;			struct UsingStatement;
+	struct CastedSimd;      struct InlinedExternalCall;		struct Subscript;		
+	struct ComplexTypeDefinition;						    struct ControlFlowStatement;
 
 	struct ScopeStatementBase
 	{

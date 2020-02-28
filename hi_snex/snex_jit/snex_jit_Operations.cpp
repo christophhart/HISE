@@ -199,7 +199,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				if (byteSize == 0)
 					location.throwError("Can't deduce type size");
 
-				memberOffset = VariableStorage((int)(sType->getMemberOffset(id.id)));
+				objectAdress = VariableStorage((int)(sType->getMemberOffset(id.id)));
 				return;
 			}
 		}
@@ -223,10 +223,9 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		}
 		else if (auto typePtr = scope->getRootData()->getComplexTypeForVariable(id))
 		{
-			dataPointer = VariableStorage(Types::ID::Pointer, scope->getRootData()->getDataPointer(id), true);
+			objectAdress = VariableStorage(Types::ID::Pointer, scope->getRootData()->getDataPointer(id), true);
 
 			id.typeInfo = TypeInfo(typePtr, id.isConst());
-			id.typeInfo.setType(Types::ID::Pointer);
 		}
 		else
 			location.throwError("Can't resolve symbol " + id.toString());
@@ -237,7 +236,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				location.throwError("Use of undefined variable " + id.toString());
 
 			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
-				memberOffset = VariableStorage((int)subClassType->getMemberOffset(id.id));
+				objectAdress = VariableStorage((int)subClassType->getMemberOffset(id.id));
 		}
 	}
 
@@ -285,7 +284,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// It might already be assigned to a reused register
 		if (reg == nullptr)
 		{
-			if (objectPointer == nullptr && memberOffset.getType() != Types::ID::Void)
+			if (objectPointer == nullptr && objectAdress.getType() == Types::ID::Integer)
 			{
 				if (auto fs = scope->getParentScopeOfType<FunctionScope>())
 				{
@@ -294,26 +293,22 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 						reg = compiler->registerPool.getNextFreeRegister(scope, getType());
 						reg->setReference(scope, id);
 						auto acg = CREATE_ASM_COMPILER(getType());
-						acg.emitThisMemberAccess(reg, pf->objectPtr, memberOffset);
+						acg.emitThisMemberAccess(reg, pf->objectPtr, objectAdress);
 						return;
 					}
 				}
 			}
 
-			if (!dataPointer.isVoid())
+			if (!objectAdress.isVoid() || objectPointer != nullptr)
 			{
+				// the object address is either the pointer to the object or a offset to the
+				// given objectPointer
+				jassert((objectAdress.getType() == Types::ID::Pointer && objectPointer == nullptr) || 
+					    (objectAdress.getType() == Types::ID::Integer && objectPointer != nullptr));
+
 				auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
-				reg = compiler->registerPool.getNextFreeRegister(scope, Types::ID::Pointer);
-				reg->setDataPointer(dataPointer.getDataPointer());
-				reg->createMemoryLocation(asg.cc);
-				return;
-			}
-			if (objectPointer != nullptr)
-			{
-				// in this case we'll just store the offset as an integer register.
-				auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
-				reg = compiler->registerPool.getNextFreeRegister(scope, Types::ID::Integer);
-				reg->setDataPointer(memberOffset.getDataPointer());
+				reg = compiler->registerPool.getNextFreeRegister(scope, objectAdress.getType());
+				reg->setDataPointer(objectAdress.getDataPointer());
 				reg->createMemoryLocation(asg.cc);
 				return;
 			}
@@ -341,22 +336,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		if (isFirstOccurence)
 		{
 			auto assignmentType = getWriteAccessType();
-
 			auto rd = scope->getRootClassScope()->rootData.get();
-
-			if (auto cScope = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(id)))
-			{
-				if (cScope->typePtr != nullptr)
-				{
-					if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
-					{
-						auto ptr = dynamic_cast<Function*>(fScope->parentFunction)->objectPtr;
-						jassertfalse;
-
-						return;
-					}
-				}
-			}
 
 			if (variableScope->getScopeType() == BaseScope::Class && rd->contains(id))
 			{

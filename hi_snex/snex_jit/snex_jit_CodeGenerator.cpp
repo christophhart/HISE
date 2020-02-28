@@ -97,25 +97,28 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 	{
 		target->createRegister(cc);
 
-#if 0
 		if (value->isZero())
 		{
+			// Will be a nullptr call...
+			jassert(type != Types::ID::Pointer);
+
 			IF_(float)  FP_OP(cc.xorps, target, target);
 			IF_(double) FP_OP(cc.xorps, target, target);
 			IF_(int)    INT_OP(cc.xor_, target, target);
 			return;
 		}
-#endif
-		
-		IF_(void) jassertfalse;
-		IF_(float)  FP_OP(cc.movss, target, value);
-		IF_(double) FP_OP(cc.movsd, target, value);
-		IF_(int)   INT_OP(cc.mov, target, value);
-		IF_(HiseEvent) INT_OP(cc.mov, target, value);
-		IF_(block)
+		else
 		{
-			value->createRegister(cc);
-			cc.mov(INT_REG_W(target), INT_REG_R(value));
+			IF_(void) jassertfalse;
+			IF_(float)  FP_OP(cc.movss, target, value);
+			IF_(double) FP_OP(cc.movsd, target, value);
+			IF_(int)   INT_OP(cc.mov, target, value);
+			IF_(HiseEvent) INT_OP(cc.mov, target, value);
+			IF_(block)
+			{
+				value->createRegister(cc);
+				cc.mov(INT_REG_W(target), INT_REG_R(value));
+			}
 		}
 	}
 	
@@ -231,7 +234,6 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 	jassert(memberOffset.getType() == Types::ID::Integer);
 	jassert(target->getType() == type);
 	jassert(parent->getType() == Types::ID::Pointer);
-
 
 	if (parent->isMemoryLocation())
 	{
@@ -993,13 +995,6 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	if(objectAddress != nullptr)
 		objectAddress->loadMemoryIntoRegister(cc);
 	
-#if 0
-	// Push the function pointer
-	X86Gp fn = cc.newIntPtr("fn");
-	cc.setInlineComment("FunctionPointer");
-	cc.mov(fn, imm(f.function));
-#endif
-
 	TemporaryRegister o(*this, returnReg->getScope(), Types::ID::Block);
 	bool useTempReg = false;
 
@@ -1067,32 +1062,6 @@ void AsmCodeGenerator::emitFunctionParameterReference(RegPtr sourceReg, RegPtr p
 
 
 	cc.lea(INT_REG_R(parameterReg), mem);
-}
-
-void AsmCodeGenerator::writeToPointerAddress(RegPtr targetPointer, RegPtr source)
-{
-	type = source->getType();
-
-	auto target = x86::qword_ptr(PTR_REG_R(targetPointer));
-
-	cc.setInlineComment("Write to reference address");
-
-	bool ok;
-
-	if (source->isMemoryLocation())
-	{
-		IF_(int)	ok = cc.mov(target, source->getImmediateIntValue());
-		//IF_(float)	ok = cc.movss(target, source->getAsMemoryLocation());
-		//IF_(double) ok = cc.movsd(target, FP_MEM(source));
-	}
-	else
-	{
-		IF_(int)	ok = cc.mov(target, INT_REG_R(source));
-		IF_(float)	ok = cc.movss(target, FP_REG_R(source));
-		IF_(double) ok = cc.movsd(target, FP_REG_R(source));
-	}
-
-	
 }
 
 juce::Array<juce::Identifier> AsmCodeGenerator::getInlineableMathFunctions()

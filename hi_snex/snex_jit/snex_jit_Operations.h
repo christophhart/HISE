@@ -342,8 +342,9 @@ struct Operations::VariableReference : public Expression
 	WeakReference<BaseScope> variableScope;
 	bool isFirstOccurence = false;
 	bool isLocalDefinition = false;
-	VariableStorage dataPointer;
-	VariableStorage memberOffset;
+
+	// can be either the data pointer or the member offset
+	VariableStorage objectAdress;
 
 	// Contains the expression that leads to the pointer of the member object
 	Ptr objectPointer;

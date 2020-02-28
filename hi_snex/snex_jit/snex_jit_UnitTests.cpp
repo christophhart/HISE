@@ -847,9 +847,9 @@ public:
 
 	void runTest() override
 	{
-		testExternalStructDefinition();
+		runTestFiles("zero2sine.h");
 
-		runTestFiles("wrap_local_definition.h");
+		testExternalStructDefinition();
 		testOptimizations();
 
 		runTestsWithOptimisation({});

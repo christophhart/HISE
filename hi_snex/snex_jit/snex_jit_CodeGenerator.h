@@ -192,8 +192,6 @@ struct AsmCodeGenerator
 
 	void emitFunctionParameterReference(RegPtr sourceReg, RegPtr parameterReg);
 
-	void writeToPointerAddress(RegPtr target, RegPtr value);
-
 	void emitInlinedMathAssembly(Identifier id, RegPtr target, const ReferenceCountedArray<AssemblyRegister>& args);
 	
 	void emitWrap(WrapType* t, RegPtr target, WrapType::OpType op);
