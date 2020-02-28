@@ -850,8 +850,6 @@ public:
 		testExternalStructDefinition();
 
 		runTestFiles("wrap_local_definition.h");
-		return;
-
 		testOptimizations();
 
 		runTestsWithOptimisation({});

@@ -490,20 +490,25 @@ struct Symbol
 /** A wrapper around a function. */
 struct FunctionData
 {
-	template <typename T> void addArgs()
+	template <typename T> void addArgs(bool omitObjPtr=false)
 	{
-		args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T>()));
+		if(!omitObjPtr || !std::is_same<T, void*>())
+			args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T>()));
 	}
 
-	template <typename T1, typename T2> void addArgs()
+	template <typename T1, typename T2> void addArgs(bool omitObjPtr = false)
 	{
-		args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+		if (!omitObjPtr || !std::is_same<T1, void*>())
+			args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+
 		args.add(Symbol::createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
 	}
 
-	template <typename T1, typename T2, typename T3> void addArgs()
+	template <typename T1, typename T2, typename T3> void addArgs(bool omitObjPtr = false)
 	{
-		args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+		if (!omitObjPtr || !std::is_same<T2, void*>())
+			args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+
 		args.add(Symbol::createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
 		args.add(Symbol::createIndexedSymbol(2, Types::Helpers::getTypeFromTypeId<T3>()));
 	}
@@ -519,10 +524,10 @@ struct FunctionData
 		return d;
 	}
 
-	template <typename ReturnType, typename...Parameters> static FunctionData create(const Identifier& id, ReturnType(*ptr)(Parameters...) = nullptr)
+	template <typename ReturnType, typename...Parameters> static FunctionData create(const Identifier& id, ReturnType(*ptr)(Parameters...) = nullptr, bool omitObjectPtr=false)
 	{
 		FunctionData d = createWithoutParameters<ReturnType>(id, reinterpret_cast<void*>(ptr));
-		d.addArgs<Parameters...>();
+		d.addArgs<Parameters...>(omitObjectPtr);
 		return d;
 	}
 
@@ -1381,17 +1386,14 @@ struct StructType : public ComplexType
 
 	Symbol id;
 
-	void addExternalMemberFunction(const Identifier& id, void* func)
+	template <typename ReturnType, typename... Parameters>void addExternalMemberFunction(const Identifier& id, ReturnType(*ptr)(Parameters...))
 	{
 		if (memberFunctions == nullptr)
 			memberFunctions = new MemberFunctions(*this);
 
-		
-		FunctionData f;
-		
+		FunctionData f = FunctionData::create(id, ptr, true);
 		f.id = id;
-		f.returnType = TypeInfo(Types::ID::Integer);
-		f.function = func;
+		f.function = ptr;
 
 		memberFunctions->addFunction(new FunctionData(f));
 	}
