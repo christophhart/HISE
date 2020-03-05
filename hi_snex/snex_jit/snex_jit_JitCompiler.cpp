@@ -53,53 +53,13 @@ juce::String Compiler::getAssemblyCode()
 	return compiler->assembly;
 }
 
-void dump(int intLevel, juce::String& s, ValueTree& v)
-{
-	auto lineNumber = (int)v["Line"];
-	if (lineNumber < 10)
-		s << "0";
-	s << juce::String(lineNumber) << " ";
 
-	for (int i = 0; i < intLevel; i++)
-	{
-		s << "-";
-	}
-
-	intLevel++;
-
-	s << v.getType() << ": ";
-
-	for (int i = 0; i < v.getNumProperties(); i++)
-	{
-		auto id = v.getPropertyName(i);
-
-		if (id == Identifier("Line"))
-			continue;
-
-		s << id << "=" << v[id].toString();
-
-		if (i != v.getNumProperties() - 1)
-			s << ", ";
-	}
-
-	s << "\n";
-
-	for (auto& c : v)
-		dump(intLevel, s, c);
-
-};
 
 juce::String Compiler::dumpSyntaxTree() const
 {
 	if (compiler->syntaxTree != nullptr)
 	{
-		auto v = compiler->syntaxTree->toValueTree();
-
-		juce::String s;
-
-		dump(0, s, v);
-
-		return s;
+		return dynamic_cast<SyntaxTree*>(compiler->syntaxTree.get())->dump();
 	}
 
 	return {};

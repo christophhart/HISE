@@ -39,7 +39,6 @@ using namespace asmjit;
 
 void OptimizationPass::replaceWithNoop(StatementPtr s)
 {
-	s->logOptimisationMessage("Remove statement");
 	replaceExpression(s, new Operations::Noop(s->location));
 }
 
@@ -508,77 +507,171 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 #undef IS
 
 
+
+
 bool Inliner::processStatementInternal(BaseCompiler* compiler, BaseScope* scope, StatementPtr s)
 {
-	if (auto f = dynamic_cast<Operations::FunctionCall*>(s.get()))
+	if (auto is = dynamic_cast<Operations::IfStatement*>(s.get()))
 	{
-		if (inlineMathFunction(compiler, scope, f))
-			return true;
+		bool hasReturnStatement = is->getTrueBranch()->forEachRecursive([](StatementPtr p)
+		{
+			if (dynamic_cast<Operations::ReturnStatement*>(p.get()) != nullptr)
+				return true;
+		});
 
-		
+		bool hasNoFalseBranch = is->getFalseBranch() == nullptr;
+
+		if (hasReturnStatement && hasNoFalseBranch)
+		{
+			Operations::Statement::Ptr newFalseBranch;
+
+			bool moveIntoNewFalseBranch = false;
+
+			for (int i = 0; i < is->parent->getNumChildStatements(); i++)
+			{
+				auto s = is->parent->getChildStatement(i);
+
+				if (s.get() == is)
+				{
+					moveIntoNewFalseBranch = true;
+
+					continue;
+				}
+
+				if (moveIntoNewFalseBranch)
+				{
+					if(newFalseBranch == nullptr)
+						newFalseBranch = new Operations::StatementBlock(s->location);
+
+					replaceWithNoop(s);
+					newFalseBranch->addStatement(s);
+				}
+			}
+
+			is->addStatement(newFalseBranch);
+
+			return true;
+		}
+	}
+
+	if (auto fc = dynamic_cast<Operations::FunctionCall*>(s.get()))
+	{
+		if (compiler->getCurrentPass() == BaseCompiler::PreSymbolOptimization)
+			return false;
+
+		auto rd = fc->fc;
+
+		jassert(rd != nullptr);
+
+		auto s = rd->getClassName().getChildSymbol(fc->function.id);
+
+		if (rd->hasFunction(s))
+		{
+
+			Array<FunctionData> matches;
+			rd->addMatchingFunctions(matches, s);
+
+			FunctionData toUse;
+
+			if (matches.size() > 1)
+			{
+				BaseCompiler::ScopedPassSwitcher sps2(compiler, BaseCompiler::ResolvingSymbols);
+				fc->process(compiler, scope);
+				BaseCompiler::ScopedPassSwitcher sps3(compiler, BaseCompiler::TypeCheck);
+				fc->process(compiler, scope);
+
+				toUse = fc->function;
+			}
+			else
+				toUse = matches.getFirst();
+
+			auto s = dynamic_cast<ClassCompiler*>(compiler)->syntaxTree.get();
+
+			SyntaxTreeWalker w(s);
+
+			while (auto f = w.getNextStatementOfType<Operations::Function>())
+			{
+				auto& ofd = f->data;
+
+				if (toUse.id == ofd.id && toUse.matchesArgumentTypes(ofd, true))
+					return inlineRootFunction(compiler, scope, f, fc);
+			}
+		}
 	}
 
 	return false;
-
-#if 0
-	for (auto s : *tree)
-	{
-		if (auto v = as<Operations::VariableReference>(s))
-		{
-#if 0
-			bool canBeInlined = v->ref->getNumReferences() == 2 && // single usage
-				!v->isFirstReference() &&		  // not the definition
-				!v->isClassVariable();			  // not a class variable
-
-			if (canBeInlined)
-			{
-				if (auto as = v->findAssignmentForVariable(this, scope))
-				{
-					bool isNoSelfAssignment = !as->isOpAssignment(as);
-					bool isSameLine = dynamic_cast<Operations::VariableReference*>(as->getSubExpr(0).get())->ref == v->ref;
-
-					if (isNoSelfAssignment && !isSameLine && v->parameterIndex == -1) // Self assignments shouldn't be inlined
-					{
-						v->logOptimisationMessage("Inline variable " + v->ref->id.toString());
-
-						ExprPtr replacement = as->getSubExpr(1);
-						as->optimizeAway();
-						v->replaceInParent(replacement);
-					}
-				}
-			}
-#endif
-		}
-		else if (auto a = as<Operations::Assignment>(s))
-		{
-			createSelfAssignmentFromBinaryOp(a);
-		}
-		else if (auto b = as<Operations::BinaryOp>(s))
-		{
-			// Move into seperate pass
-			swapBinaryOpIfPossible(b);
-		}
-	}
-
-#endif
 }
 
 
-bool Inliner::inlineMathFunction(BaseCompiler* compiler, BaseScope* s, Operations::FunctionCall* f)
+bool Inliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scope, Operations::Function* f, Operations::FunctionCall* fc)
 {
-	if (f->callType == Operations::FunctionCall::ApiFunction && f->fc->getObjectName() == Identifier("Math"))
-	{
-		if (AsmCodeGenerator::getInlineableMathFunctions().contains(f->function.id))
-		{
-			auto inlinedFunction = new Operations::InlinedExternalCall(f);
+	auto clone = f->statements->clone(fc->location);
+	auto cs = dynamic_cast<Operations::StatementBlock*>(clone.get());
 
-			replaceExpression(f, inlinedFunction);
-			return true;
-		}
+	cs->setReturnType(f->data.returnType);
+
+	if (fc->callType == Operations::FunctionCall::MemberFunction)
+	{
+		jassert(fc->objExpr != nullptr);
+
+		auto thisSymbol = Symbol::createRootSymbol("this");
+
+		Operations::Expression::Ptr e = as<Operations::Expression>(fc->objExpr->clone(fc->location).get());
+
+		cs->addInlinedParameter(-1, thisSymbol, e);
+
+		auto st = fc->objExpr->getTypeInfo().getTypedIfComplexType<StructType>();
+
+		jassert(st != nullptr);
+
+		clone->forEachRecursive([st, e](Operations::Statement::Ptr p)
+		{
+			if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
+			{
+				if (st->hasMember(v->id.id))
+				{
+					auto newParent = e->clone(v->location);
+					auto newChild = v->clone(v->location);
+
+					auto newDot = new Operations::DotOperator(v->location, 
+						dynamic_cast<Operations::Expression*>(newParent.get()),
+						dynamic_cast<Operations::Expression*>(newChild.get()));
+
+					v->replaceInParent(newDot);
+				}
+					
+			}
+
+			return false;
+		});
+
 	}
 
-	
-	return false;
+	for (int i = 0; i < fc->getNumArguments(); i++)
+	{
+		auto pVarSymbol = Symbol::createRootSymbol(f->parameters[i]);
+		pVarSymbol.setTypeInfo(f->data.args[i].typeInfo);
+
+		Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
+
+		cs->addInlinedParameter(i, pVarSymbol, e);
+	}
+
+	replaceExpression(fc, clone);
+
+	{
+		BaseCompiler::ScopedPassSwitcher s1(compiler, BaseCompiler::DataSizeCalculation);
+		clone->process(compiler, scope);
+		BaseCompiler::ScopedPassSwitcher s2(compiler, BaseCompiler::DataAllocation);
+		clone->process(compiler, scope);
+		BaseCompiler::ScopedPassSwitcher s3(compiler, BaseCompiler::DataInitialisation);
+		clone->process(compiler, scope);
+		BaseCompiler::ScopedPassSwitcher s4(compiler, BaseCompiler::ResolvingSymbols);
+		clone->process(compiler, scope);
+		BaseCompiler::ScopedPassSwitcher s5(compiler, BaseCompiler::TypeCheck);
+		clone->process(compiler, scope);
+	}
+	return true;
 }
 
 bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)

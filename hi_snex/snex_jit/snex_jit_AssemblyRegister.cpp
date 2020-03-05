@@ -227,23 +227,15 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 		if (isSimd4Float())
 		{
 			jassert(reg.isXmm());
-			
-
 			e = cc.movaps(reg.as<X86Xmm>(), memory);
 		}
 		else
 		{
 			if (hasCustomMem)
-			{
 				e = cc.lea(reg.as<X86Gpq>(), memory);
-			}
 			else if (memory.hasOffset() && !memory.hasBaseOrIndex())
 				e = cc.mov(reg.as<X86Gpq>(), memory.offset());
-			else
-				e = cc.mov(reg.as<X86Gpq>(), memory.baseReg().as<X86Gpq>());
 		}
-
-		
 	}
 		
 	else
@@ -253,6 +245,11 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 	jassert(e == 0);
 }
 
+
+bool AssemblyRegister::isValid() const
+{
+	return state == ActiveRegister && reg.isValid();
+}
 
 bool AssemblyRegister::isGlobalVariableRegister() const
 {
@@ -341,6 +338,8 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 
 void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 {
+	jassert(type != Types::ID::Dynamic);
+
 	if (reg.isValid())
 	{
 		// From now on we can use it just like a regular register

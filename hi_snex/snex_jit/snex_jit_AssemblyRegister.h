@@ -53,8 +53,8 @@ public:
 	using DoubleRegisterType = X86Xmm;
 	using FloatMemoryType = X86Mem;
 	using Ptr = ReferenceCountedObjectPtr<AssemblyRegister>;
-
-
+	using List = ReferenceCountedArray<AssemblyRegister>;
+	
 
 	enum State
 	{
@@ -111,6 +111,8 @@ public:
 	void loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forceLoad=false);
 
 	BaseScope* getScope() const { return scope.get(); }
+
+	bool isValid() const;
 
 	bool isGlobalVariableRegister() const;
 

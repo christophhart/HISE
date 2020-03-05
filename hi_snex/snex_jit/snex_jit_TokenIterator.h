@@ -56,9 +56,10 @@ using namespace juce;
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
 	X(void_, "void")			X(public_, "public")	X(private_, "private") \
 	X(class_, "class")			X(block_, "block")	X(event_, "event")		X(for_, "for") \
-	X(if_, "if")				X(else_, "else")	X(sfloat, "sfloat")		X(sdouble, "sdouble") \
-	X(auto_, "auto")			X(wblock, "wblock")	X(zblock, "zblock")		X(struct_, "struct")	X(span_, "span") \
-	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")
+	X(if_, "if")				X(else_, "else")	\
+	X(auto_, "auto")			X(struct_, "struct")	X(span_, "span") \
+	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")	X(break_, "break") \
+	X(continue_, "continue")	X(dyn_, "dyn")
 
 namespace JitTokens
 {
@@ -313,25 +314,9 @@ struct ParserHelpers
 			location.throwError(s);
 		}
 
-		bool isWrappedBlockType() const
-		{
-			if (currentType == JitTokens::wblock)
-				return true;
-			if (currentType == JitTokens::zblock)
-				return true;
+		
 
-			return false;
-		}
-
-		bool isSmoothedVariableType() const
-		{
-			if (currentType == JitTokens::sfloat)
-				return true;
-			if (currentType == JitTokens::sdouble)
-				return true;
-
-			return false;
-		}
+		
 
 		virtual Types::ID matchType()
 		{
@@ -341,10 +326,6 @@ struct ParserHelpers
 			if (matchIf(JitTokens::event_))	return Types::ID::Event;
 			if (matchIf(JitTokens::block_))	return Types::ID::Block;
 			if (matchIf(JitTokens::void_))	return Types::ID::Void;
-			if (matchIf(JitTokens::sfloat)) return Types::ID::Float;
-			if (matchIf(JitTokens::sdouble)) return Types::ID::Double;
-			if (matchIf(JitTokens::zblock)) return Types::ID::Block;
-			if (matchIf(JitTokens::wblock)) return Types::ID::Block;
 			if (matchIf(JitTokens::wrap))   return Types::ID::Integer;
 			if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
 

@@ -61,8 +61,51 @@ public:
 	using Location = ParserHelpers::CodeLocation;
 	using TokenType = ParserHelpers::TokenType;
 
+	static juce::String toSyntaxTreeString(const ValueTree& v, int intLevel)
+	{
+		juce::String s;
+
+		auto lineNumber = (int)v["Line"];
+		if (lineNumber < 10)
+			s << "0";
+		s << juce::String(lineNumber) << " ";
+
+		for (int i = 0; i < intLevel; i++)
+		{
+			s << "-";
+		}
+
+
+
+		s << v.getType() << ": ";
+
+		for (int i = 0; i < v.getNumProperties(); i++)
+		{
+			auto id = v.getPropertyName(i);
+
+			if (id == Identifier("Line"))
+				continue;
+
+			s << id << "=" << v[id].toString();
+
+			if (i != v.getNumProperties() - 1)
+				s << ", ";
+		}
+
+		s << "\n";
+
+		return s;
+	}
+
 	struct Statement : public ReferenceCountedObject
 	{
+		enum class TextFormat
+		{
+			SyntaxTree,
+			CppCode,
+			numTextFormat
+		};
+
 		using Ptr = ReferenceCountedObjectPtr<Statement>;
 
 		Statement(Location l);;
@@ -77,7 +120,11 @@ public:
 			return dynamic_cast<const T*>(this) != nullptr;
 		}
 
-		
+		virtual juce::String toString(TextFormat t) const
+		{
+			jassertfalse;
+			return {};
+		}
 
 		virtual ~Statement() {};
 
@@ -87,6 +134,14 @@ public:
 		virtual bool hasSideEffect() const { return false; }
 
 		virtual size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const { return 0; }
+
+		void cloneChildren(Ptr newClone) const
+		{
+			for (auto s : *this)
+				newClone->addStatement(s->clone(newClone->location));
+		}
+
+		virtual Ptr clone(Location l) const = 0;
 
 		Ptr getChildStatement(int index) const
 		{
@@ -149,8 +204,10 @@ public:
 			if (f(this))
 				return true;
 
-			for (auto c : *this)
+			for (int i = 0; i < getNumChildStatements(); i++)
 			{
+				auto c = getChildStatement(i);
+
 				if (c->forEachRecursive(f))
 					return true;
 			}
@@ -289,11 +346,16 @@ public:
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct DotOperator;				struct Loop;		
 	struct IfStatement;		struct ClassStatement;			struct UsingStatement;
-	struct CastedSimd;      struct InlinedExternalCall;		struct Subscript;		
+	struct CastedSimd;      struct Subscript;				struct InlinedParameter;
 	struct ComplexTypeDefinition;						    struct ControlFlowStatement;
+	struct InlinedArgument;
 
 	struct ScopeStatementBase
 	{
+		ScopeStatementBase() :
+			returnType(Types::ID::Dynamic)
+		{};
+
 		virtual ~ScopeStatementBase() {};
 
 		void addAlias(const Symbol& s)
@@ -337,10 +399,56 @@ public:
 			return nullptr;
 		}
 
+		void allocateReturnRegister(BaseCompiler* c, BaseScope* s)
+		{
+			jassert(hasReturnType());
+			returnRegister = c->registerPool.getNextFreeRegister(s, getReturnType().getType());
+		}
+
 		void setParentScopeStatement(ScopeStatementBase* parent)
 		{
 			parentScopeStatement = parent;
 		}
+
+		void setReturnType(TypeInfo t)
+		{
+			returnType = t;
+		}
+
+		TypeInfo getReturnType() const
+		{
+			return returnType;
+		}
+
+		static ScopeStatementBase* getStatementListWithReturnType(Statement* s)
+		{
+			if (s == nullptr)
+				return nullptr;
+
+			if (auto ss = dynamic_cast<ScopeStatementBase*>(s))
+			{
+				if (ss->hasReturnType())
+					return ss;
+			}
+
+			return getStatementListWithReturnType(s->parent);
+		}
+
+		RegPtr getReturnRegister()
+		{
+			jassert(hasReturnType());
+			return returnRegister;
+		}
+
+		bool hasReturnType() const
+		{
+			return returnType.getType() != Types::ID::Dynamic;
+		}
+
+	protected:
+
+		RegPtr returnRegister;
+		TypeInfo returnType;
 
 	private:
 
@@ -366,6 +474,13 @@ public:
 	{
 		virtual ~TypeDefinitionBase() {};
 		virtual Array<Identifier> getInstanceIds() const = 0;
+	};
+
+	struct SymbolStatement
+	{
+		virtual ~SymbolStatement() {}
+
+		virtual Symbol getSymbol() const = 0;
 	};
 
 	struct BranchingStatement
@@ -408,8 +523,15 @@ class SyntaxTree : public Operations::Statement,
 {
 public:
 
-	SyntaxTree(ParserHelpers::CodeLocation l);;
-	TypeInfo getTypeInfo() const { return {}; }
+	SyntaxTree(ParserHelpers::CodeLocation l);
+	TypeInfo getTypeInfo() const { return returnType; }
+
+	
+
+	~SyntaxTree()
+	{
+		int x = 5;
+	}
 
 	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const
 	{
@@ -421,6 +543,31 @@ public:
 		return s;
 	}
 
+	juce::String toString(TextFormat t) const override
+	{
+		switch (t)
+		{
+		case Operations::Statement::TextFormat::SyntaxTree: return dump();
+		case Operations::Statement::TextFormat::CppCode:
+		{
+			juce::String s;
+			juce::String nl;
+			s << "{";
+
+			for (auto c : *this)
+			{
+				s << c->toString(t) << ";\n";
+			}
+
+			s << "}";
+
+			return s;
+		}
+		default:
+			return {};
+		}
+	}
+
 	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("SyntaxTree"); }
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
@@ -429,6 +576,11 @@ public:
 
 		for (int i = 0; i < getNumChildStatements(); i++)
 			getChildStatement(i)->process(compiler, scope);
+
+		if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation && hasReturnType())
+		{
+			allocateReturnRegister(compiler, scope);
+		}
 	}
 
 	bool isFirstReference(Operations::Statement* v) const;
@@ -436,10 +588,34 @@ public:
 	void addAlias(const Identifier& id, const juce::String& typeString)
 	{
 		registeredAliases.add({ id, typeString });
-
 	}
 
+	juce::String dump() const
+	{
+		auto v = toValueTree();
+		juce::String s;
+		dumpInternal(0, s, v);
+		return s;
+	}
+
+	
+
+	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override;
+
 private:
+
+	
+
+	static void dumpInternal(int intLevel, juce::String& s, ValueTree& v)
+	{
+		intLevel++;
+
+		s << Operations::toSyntaxTreeString(v, intLevel);
+
+		for (auto& c : v)
+			dumpInternal(intLevel, s, c);
+
+	};
 
 	struct UsingAliases
 	{

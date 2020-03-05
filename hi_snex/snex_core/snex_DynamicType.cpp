@@ -18,6 +18,10 @@ VariableStorage::VariableStorage(Types::ID type_, const var& value)
 		data.d.value = static_cast<double>(value);
 	else if (type_ == Types::ID::Event)
 		data.e = HiseEvent(HiseEvent::Type::Controller, 0, 0, 0);
+	else if (type_ == Types::ID::Pointer)
+	{
+		jassertfalse;
+	}
 	else
 		data.b = block();
 }
@@ -50,13 +54,11 @@ VariableStorage::VariableStorage(double d)
 	data.d.value = d;
 }
 
-VariableStorage::VariableStorage(int objectType, void* objectPointer, bool isReallyAPointer)
+VariableStorage::VariableStorage(void* objectPointer, int objectSize)
 {
-	ignoreUnused(isReallyAPointer);
-
 	data.p.type = Types::Pointer;
 	data.p.data = objectPointer;
-	data.p.dataType = objectType;
+	data.p.size = objectSize;
 }
 
 bool VariableStorage::operator==(const VariableStorage& other) const
@@ -74,6 +76,8 @@ bool VariableStorage::operator==(const VariableStorage& other) const
 		return data.e == (HiseEvent)other;
 	if (getType() == Types::ID::Block)
 		return data.b.getData() == ((block)other).getData();
+	if (getType() == Types::ID::Pointer)
+		return data.p.data == other.data.p.data && data.p.size == other.data.p.size;
 	if (getType() == Types::ID::Void)
 		return true;
 
@@ -137,11 +141,11 @@ void VariableStorage::set(const HiseEvent& e)
 	data.e = e;
 }
 
-void VariableStorage::set(void* objectPointer, const ObjectTypeRegister& objectRegister, const Identifier& typeId)
+void VariableStorage::set(void* objectPointer, int newSize)
 {
 	data.p.type = Types::ID::Pointer;
-	data.p.dataType = objectRegister.getTypeIndex(typeId);
 	data.p.data = objectPointer;
+	data.p.size = newSize;
 }
 
 void VariableStorage::setDouble(double newValue)
@@ -188,6 +192,12 @@ VariableStorage::operator HiseEvent() const
 {
 	jassert(getTypeValue() < (int)HiseEvent::Type::numTypes);
 	return data.e;
+}
+
+VariableStorage::operator void*() const
+{
+	jassert(getTypeValue() == Types::ID::Pointer);
+	return data.p.data;
 }
 
 double VariableStorage::toDouble() const
@@ -250,24 +260,11 @@ size_t VariableStorage::getSizeInBytes() const noexcept
 	return Types::Helpers::getSizeForType(getType());
 }
 
-void* VariableStorage::getObjectPointer(const ObjectTypeRegister& objectRegister, const Identifier& typeId) const
-{
-	if (data.p.type == Types::ID::Pointer)
-	{
-		auto objectType = objectRegister.getTypeIndex(typeId);
-
-		if (objectType == data.p.dataType)
-			return data.p.data;
-	}
-
-	return nullptr;
-}
-
-int VariableStorage::getPointerType() const
+int VariableStorage::getPointerSize() const
 {
 	jassert(getType() == Types::ID::Pointer);
 
-	return data.p.dataType;
+	return data.p.size;
 }
 
 snex::VariableStorage& VariableStorage::operator=(const Types::FloatBlock& s)

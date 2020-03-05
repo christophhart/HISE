@@ -37,7 +37,37 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
+#define IF_(typeName) if(type == Types::Helpers::getTypeFromTypeId<typeName>())
+#define FP_REG_W(x) x->getRegisterForWriteOp().as<X86Xmm>()
+#define FP_REG_R(x) x->getRegisterForReadOp().as<X86Xmm>()
+#define FP_MEM(x) x->getAsMemoryLocation()
+#define IS_MEM(x) x->isMemoryLocation()
+#define IS_CMEM(x) x->hasCustomMemoryLocation()
+#define IS_REG(x)  x->isActive()
 
+
+#define INT_REG_W(x) x->getRegisterForWriteOp().as<X86Gp>()
+#define INT_REG_R(x) x->getRegisterForReadOp().as<X86Gp>()
+#define INT_IMM(x) x->getImmediateIntValue()
+#define INT_MEM(x) x->getAsMemoryLocation()
+
+#define PTR_REG_W(x) x->getRegisterForWriteOp().as<X86Gpq>()
+#define PTR_REG_R(x) x->getRegisterForReadOp().as<X86Gpq>()
+
+#define MEMBER_PTR(x) base.cloneAdjustedAndResized(obj->getMemberOffset(#x), obj->getMemberTypeInfo(#x).getRequiredByteSize())
+
+#define INT_OP_WITH_MEM(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
+
+
+#define FP_OP(op, l, r) { if(IS_REG(r)) op(FP_REG_W(l), FP_REG_R(r)); \
+					 else if(IS_CMEM(r)) op(FP_REG_W(l), FP_MEM(r)); \
+					 else if(IS_MEM(r)) op(FP_REG_W(l), FP_MEM(r)); \
+					               else op(FP_REG_W(l), FP_REG_R(r)); }
+
+#define INT_OP(op, l, r) { if(IS_REG(r))    op(INT_REG_W(l), INT_REG_R(r)); \
+					  else if(IS_CMEM(r))   op(INT_REG_W(l), INT_MEM(r)); \
+					  else if(IS_MEM(r))    op(INT_REG_W(l), static_cast<int>(INT_IMM(r))); \
+					  else op(INT_REG_W(l), INT_REG_R(r)); }
 
 struct AsmCodeGenerator
 {
@@ -72,7 +102,15 @@ struct AsmCodeGenerator
 
 		virtual void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) = 0;
 
+		asmjit::Label getLoopPoint(bool getContinue) const
+		{
+			return getContinue ? continuePoint : loopEnd;
+		}
+
 	protected:
+
+		asmjit::Label continuePoint;
+		asmjit::Label loopEnd;
 
 		Operations::StatementBlock* loopBody;
 		Symbol iterator;
@@ -200,17 +238,19 @@ struct AsmCodeGenerator
 
 	void dumpVariables(BaseScope* s, uint64_t lineNumber);
 
-	
+	void emitLoopControlFlow(Operations::Loop* parentLoop, bool isBreak);
 
 	Compiler& cc;
 
 	static void fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer);
 
-private:
-
 	X86Mem createStack(Types::ID type);
 	X86Mem createFpuMem(RegPtr ptr);
 	void writeMemToReg(RegPtr target, X86Mem);
+
+private:
+
+	
 
 	AssemblyRegisterPool* registerPool;
 
@@ -227,6 +267,17 @@ struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
 
 	SpanType* typePtr = nullptr;
+};
+
+struct DynLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
+{
+	DynLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(s, t, body, l)
+	{};
+
+	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
+
+	DynType* typePtr = nullptr;
 };
 
 struct BlockLoopEmitter : public AsmCodeGenerator::LoopEmitterBase

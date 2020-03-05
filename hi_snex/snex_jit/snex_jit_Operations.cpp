@@ -59,7 +59,23 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto classData = new FunctionData(data);
 
-		dynamic_cast<ClassScope*>(scope)->addFunction(classData);
+		if (scope->getRootClassScope() == scope)
+		{
+			functionClass = scope->getRootData();
+		}
+		else if (auto cs = dynamic_cast<ClassScope*>(scope))
+		{
+			jassert(cs->typePtr != nullptr);
+
+			functionClass = cs->typePtr->getFunctionClass();
+
+			jassert(functionClass != nullptr);
+		}
+		else
+			location.throwError("Can't define function at this location");
+
+
+		functionClass->addFunction(classData);
 
 		try
 		{
@@ -69,17 +85,21 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			p.currentScope = functionScope;
 			statements = p.parseStatementList();
-			
-			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, statements);
+
+			auto sTree = dynamic_cast<SyntaxTree*>(statements.get());
+
+			sTree->setReturnType(classData->returnType);
+
+			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, sTree);
 			// add this when using stack...
 			//compiler->executePass(BaseCompiler::DataSizeCalculation, functionScope, statements);
-			compiler->executePass(BaseCompiler::DataAllocation, functionScope, statements);
-			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, statements);
+			compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
+			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
 			
-			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, statements);
-			compiler->executePass(BaseCompiler::TypeCheck, functionScope, statements);
-			compiler->executePass(BaseCompiler::SyntaxSugarReplacements, functionScope, statements);
-			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, statements);
+			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
+			compiler->executePass(BaseCompiler::TypeCheck, functionScope, sTree);
+			compiler->executePass(BaseCompiler::SyntaxSugarReplacements, functionScope, sTree);
+			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, sTree);
 
 			compiler->setCurrentPass(BaseCompiler::FunctionParsing);
 		}
@@ -126,9 +146,11 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			asg.emitParameter(this, objectPtr, -1);
 		}
 
-		compiler->executePass(BaseCompiler::PreCodeGenerationOptimization, functionScope, statements);
-		compiler->executePass(BaseCompiler::RegisterAllocation, functionScope, statements);
-		compiler->executePass(BaseCompiler::CodeGeneration, functionScope, statements);
+		auto sTree = dynamic_cast<SyntaxTree*>(statements.get());
+
+		compiler->executePass(BaseCompiler::PreCodeGenerationOptimization, functionScope, sTree);
+		compiler->executePass(BaseCompiler::RegisterAllocation, functionScope, sTree);
+		compiler->executePass(BaseCompiler::CodeGeneration, functionScope, sTree);
 
 		cc->endFunc();
 		cc->finalize();
@@ -138,9 +160,8 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
         jassert(data.function != nullptr);
         
-		auto fClass = dynamic_cast<FunctionClass*>(scope);
 
-		bool success = fClass->injectFunctionPointer(data);
+		bool success = functionClass->injectFunctionPointer(data);
 
 		ignoreUnused(success);
 		jassert(success);
@@ -173,6 +194,8 @@ Operations::TokenType Operations::VariableReference::getWriteAccessType()
 
 void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* scope)
 {
+	jassert(parent != nullptr);
+
 	Expression::process(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
@@ -186,25 +209,52 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			return;
 		}
 
+		
+
+		if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(this, id))
+		{
+			auto n = new InlinedParameter(location, ie->getSymbol(), ie->getSubExpr(0));
+
+			replaceInParent(n);
+			n->process(compiler, scope);
+			return;
+		}
+
+		if (auto f = getFunctionClassForParentSymbol(scope))
+		{
+			if (f->hasConstant(id))
+			{
+				id.constExprValue = f->getConstantValue(id);
+				variableScope = scope->getRootClassScope();
+				return;
+			}
+		}
+
 		// walk up the dot operators to get the proper symbol...
 		if (auto dp = dynamic_cast<DotOperator*>(parent.get()))
 		{
 			if (auto sType = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
 			{
-				objectPointer = dp->getDotParent();
+				if (dp->getDotParent().get() != this)
+				{
+					objectPointer = dp->getDotParent();
 
-				id.typeInfo = sType->getMemberTypeInfo(id.id);
-				auto byteSize = id.typeInfo.getRequiredByteSize();
+					if (objectPointer.get() == this)
+						jassertfalse;
 
-				if (byteSize == 0)
-					location.throwError("Can't deduce type size");
+					id.typeInfo = sType->getMemberTypeInfo(id.id);
+					auto byteSize = id.typeInfo.getRequiredByteSize();
 
-				objectAdress = VariableStorage((int)(sType->getMemberOffset(id.id)));
-				return;
+					if (byteSize == 0)
+						location.throwError("Can't deduce type size");
+
+					objectAdress = VariableStorage((int)(sType->getMemberOffset(id.id)));
+					return;
+				}
 			}
 		}
 
-		if (id.isReference() || isLocalDefinition)
+		if (isLocalDefinition)
 		{
 			variableScope = scope;
 
@@ -223,7 +273,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		}
 		else if (auto typePtr = scope->getRootData()->getComplexTypeForVariable(id))
 		{
-			objectAdress = VariableStorage(Types::ID::Pointer, scope->getRootData()->getDataPointer(id), true);
+			objectAdress = VariableStorage(scope->getRootData()->getDataPointer(id), typePtr->getRequiredByteSize());
 
 			id.typeInfo = TypeInfo(typePtr, id.isConst());
 		}
@@ -244,6 +294,8 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 	{
 		if (objectPointer != nullptr && objectPointer->getType() != Types::ID::Pointer)
 			objectPointer->location.throwError("expression must have class type");
+
+		
 	}
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
@@ -369,7 +421,7 @@ bool Operations::VariableReference::isApiClass(BaseScope* s) const
 {
 	if (auto fc = getFunctionClassForSymbol(s))
 	{
-		return dynamic_cast<ClassScope*>(fc) == nullptr;
+		return dynamic_cast<ComplexType*>(fc) == nullptr;
 	}
     
     return false;
@@ -525,6 +577,12 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		auto value = getSubRegister(0);
 		auto tReg = getSubRegister(1);
 
+		if (auto dt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<DynType>())
+		{
+			acg.emitStackInitialisation(tReg, dt, value, nullptr);
+			return;
+		}
+
 		if (targetType == TargetType::Reference && isFirstAssignment)
 		{
 			jassert(value->hasCustomMemoryLocation() || value->isMemoryLocation());
@@ -623,13 +681,17 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 
 
-		if (auto vp = dynamic_cast<VariableReference*>(getDotChild().get()))
+		if (auto vp = dynamic_cast<SymbolStatement*>(getDotChild().get()))
 		{
 			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
-			reg->setReference(scope, vp->id);
+			reg->setReference(scope, vp->getSymbol());
 			
 			auto acg = CREATE_ASM_COMPILER(getType());
-			acg.emitMemberAcess(reg, getSubRegister(0), getSubRegister(1));
+
+			auto p = getSubRegister(0);
+			auto c = getSubRegister(1);
+
+			acg.emitMemberAcess(reg, p, c);
 		}
 		else
 		{
@@ -640,6 +702,296 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 			return;
 		}
 	}
+}
+
+void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	Expression::process(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::DataAllocation)
+	{
+		if (objExpr != nullptr && function.id == Identifier("toSimd"))
+		{
+			auto sc = new CastedSimd(location, objExpr);
+
+			replaceInParent(sc);
+			sc->process(compiler, scope);
+			return;
+		}
+	}
+
+	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	{
+		if (callType != Unresolved)
+			return;
+
+		if (objExpr == nullptr)
+		{
+			// Functions without parent
+
+			auto id = scope->getRootData()->getClassName().getChildSymbol(function.id);
+
+			if (scope->getRootData()->hasFunction(id))
+			{
+				fc = scope->getRootData();
+				fc->addMatchingFunctions(possibleMatches, id);
+				callType = RootFunction;
+				return;
+
+			}
+			else if (scope->getGlobalScope()->hasFunction(id))
+			{
+				fc = scope->getGlobalScope();
+				fc->addMatchingFunctions(possibleMatches, id);
+				callType = GlobalFunction;
+				return;
+			}
+		}
+
+		if (objExpr->getTypeInfo().isComplexType())
+		{
+			if (fc = objExpr->getTypeInfo().getComplexType()->getFunctionClass())
+			{
+				auto id = fc->getClassName().getChildSymbol(function.id);
+				fc->addMatchingFunctions(possibleMatches, id);
+				callType = MemberFunction;
+				return;
+			}
+		}
+
+		if (auto pv = dynamic_cast<VariableReference*>(objExpr.get()))
+		{
+			auto pType = pv->getTypeInfo();
+			auto pNativeType = pType.getType();
+
+			if (pNativeType == Types::ID::Event || pNativeType == Types::ID::Block)
+			{
+				// substitute the parent id with the Message or Block API class to resolve the pointers
+				auto id = Symbol::createRootSymbol(pNativeType == Types::ID::Event ? "Message" : "Block").getChildSymbol(function.id, pType);
+
+				fc = scope->getRootData()->getSubFunctionClass(id.getParentSymbol());
+				fc->addMatchingFunctions(possibleMatches, id);
+				callType = NativeTypeCall;
+				return;
+			}
+
+			if (fc = scope->getRootData()->getSubFunctionClass(pv->id))
+			{
+				// Function with registered parent object (either API class or JIT callable object)
+
+				auto id = fc->getClassName().getChildSymbol(function.id);
+				fc->addMatchingFunctions(possibleMatches, id);
+
+				callType = pv->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
+				return;
+			}
+
+			else if (auto st = pv->getTypeInfo().getTypedIfComplexType<SpanType>())
+			{
+				if (function.id == Identifier("size"))
+				{
+					replaceInParent(new Immediate(location, VariableStorage((int)st->getNumElements())));
+					return;
+				}
+			}
+			if (scope->getGlobalScope()->hasFunction(pv->id))
+			{
+				// Function with globally registered object (either API class or JIT callable object)
+				fc = scope->getGlobalScope()->getGlobalFunctionClass(pv->id.id);
+
+				auto id = fc->getClassName().getChildSymbol(function.id);
+				fc->addMatchingFunctions(possibleMatches, id);
+
+				callType = pv->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
+				return;
+			}
+
+		}
+
+		location.throwError("Can't resolve function call " + function.getSignature());
+	}
+
+	COMPILER_PASS(BaseCompiler::TypeCheck)
+	{
+		Array<TypeInfo> parameterTypes;
+
+		for (int i = 0; i < getNumArguments(); i++)
+			parameterTypes.add(getArgument(i)->getTypeInfo());
+
+		for (auto& f : possibleMatches)
+		{
+			jassert(function.id == f.id);
+
+			if (f.matchesArgumentTypes(parameterTypes))
+			{
+				int numArgs = f.args.size();
+
+				for (int i = 0; i < numArgs; i++)
+				{
+					if (f.args[i].isReference())
+					{
+						if (!canBeAliasParameter(getArgument(i)))
+						{
+							throwError("Can't use rvalues for reference parameters");
+						}
+					}
+				}
+
+				function = f;
+				return;
+			}
+		}
+
+		throwError("Wrong argument types for function call");
+	}
+
+	COMPILER_PASS(BaseCompiler::RegisterAllocation)
+	{
+		reg = compiler->getRegFromPool(scope, getType());
+
+		//VariableReference::reuseAllLastReferences(this);
+
+		if (shouldInlineFunctionCall(compiler, scope))
+		{
+			return;
+		}
+		else
+		{
+			for (int i = 0; i < getNumArguments(); i++)
+			{
+				if (auto subReg = getSubRegister(i))
+				{
+					if (!subReg->getVariableId())
+					{
+						parameterRegs.add(subReg);
+						continue;
+					}
+				}
+
+				auto pType = function.args[i].isReference() ? Types::ID::Pointer : getArgument(i)->getType();
+				auto pReg = compiler->getRegFromPool(scope, pType);
+				auto asg = CREATE_ASM_COMPILER(getType());
+				pReg->createRegister(asg.cc);
+				parameterRegs.add(pReg);
+			}
+		}
+	}
+
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		auto asg = CREATE_ASM_COMPILER(getType());
+
+		if (shouldInlineFunctionCall(compiler, scope))
+		{
+			InlineData d(asg);
+			d.target = reg;
+			d.object = objExpr != nullptr ? objExpr->reg : nullptr;
+
+			for (int i = 0; i < getNumArguments(); i++)
+			{
+				d.args.add(getArgument(i)->reg);
+			}
+
+			auto r = fc->inlineFunctionCall(function.id, &d);
+
+			if (!r.wasOk())
+				throwError(r.getErrorMessage());
+
+			return;
+		}
+
+		if (!function)
+		{
+			if (fc == nullptr)
+				throwError("Can't resolve function class");
+
+			if (!fc->fillJitFunctionPointer(function))
+				throwError("Can't find function pointer to JIT function " + function.functionName);
+		}
+
+
+
+		if (function.id.toString() == "stop")
+		{
+			asg.dumpVariables(scope, location.getLine());
+
+			function.functionName = "";
+			function.functionName << "Line " << juce::String(location.getLine()) << " Breakpoint";
+		}
+		else
+		{
+			for (auto dv : compiler->registerPool.getListOfAllDirtyGlobals())
+			{
+				auto asg = CREATE_ASM_COMPILER(dv->getType());
+				asg.emitMemoryWrite(dv);
+			}
+		}
+
+		VariableReference::reuseAllLastReferences(this);
+
+		for (int i = 0; i < parameterRegs.size(); i++)
+		{
+			auto arg = getArgument(i);
+			auto existingReg = arg->reg;
+			auto pReg = parameterRegs[i];
+			auto acg = CREATE_ASM_COMPILER(arg->getTypeInfo().getType());
+
+			if (function.args[i].isReference() && function.args[i].typeInfo.getType() != Types::ID::Pointer)
+			{
+				acg.emitComment("arg reference -> stack");
+				acg.emitFunctionParameterReference(existingReg, pReg);
+			}
+			else
+			{
+				if (existingReg != nullptr && existingReg != pReg && existingReg->getVariableId())
+				{
+					acg.emitComment("Parameter Save");
+					acg.emitStore(pReg, existingReg);
+				}
+				else
+					parameterRegs.set(i, existingReg);
+			}
+		}
+
+		if (function.functionName.isEmpty())
+			function.functionName = function.getSignature({});
+
+		asg.emitFunctionCall(reg, function, objExpr != nullptr ? objExpr->reg : nullptr, parameterRegs);
+
+		for (int i = 0; i < parameterRegs.size(); i++)
+		{
+			if (!function.args[i].isReference())
+				parameterRegs[i]->flagForReuse();
+		}
+	}
+}
+
+bool Operations::FunctionCall::shouldInlineFunctionCall(BaseCompiler* compiler, BaseScope* scope) const
+{
+	if (!fc->isInlineable(function.id))
+		return false;
+
+	return scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::Inlining);
+}
+
+bool Operations::StatementBlock::isRealStatement(Statement* s)
+{
+	if (dynamic_cast<InlinedArgument*>(s) != nullptr)
+		return false;
+
+	if (dynamic_cast<Noop*>(s) != nullptr)
+		return false;
+
+	if (dynamic_cast<VariableReference*>(s) != nullptr)
+		return false;
+
+	return true;
+}
+
+snex::jit::Operations::Statement::Ptr Operations::InlinedParameter::clone(Location l) const
+{
+	// This will get resolved to an inlined parameter later again...
+	return new VariableReference(l, s);
 }
 
 }

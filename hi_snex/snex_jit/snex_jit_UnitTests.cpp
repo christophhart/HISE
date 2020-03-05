@@ -292,9 +292,22 @@ public:
 		Compiler c(memory);
 		c.setDebugHandler(debugHandler);
 		
+		SnexObjectDatabase::registerObjects(c);
+
 		auto obj = c.compileJitObject(code);
 
 		r = c.getCompileResult();
+
+		if (dumpBeforeTest)
+		{
+			DBG("code");
+			DBG(code);
+			DBG(c.dumpSyntaxTree());
+			DBG("assembly");
+			DBG(c.getAssemblyCode());
+			DBG("data dump");
+			DBG(obj.dumpTable());
+		}
 
 		if (r.failed())
 			return expectCompileFail(expectedFail);
@@ -309,16 +322,6 @@ public:
 			return r;
 		}
 
-		if (dumpBeforeTest)
-		{
-			DBG("code");
-			DBG(code);
-			DBG(c.dumpSyntaxTree());
-			DBG("assembly");
-			DBG(c.getAssemblyCode());
-			DBG("data dump");
-			DBG(obj.dumpTable());
-		}
 
 		function = compiledF;
 		
@@ -827,6 +830,7 @@ public:
 #define VAR_BUFFER_TEST_SIZE 8192
 
 #define ADD_CODE_LINE(x) code << x << "\n"
+#define FINALIZE_CODE() code = code.replace("$T", getTypeName<T>()); code = code.replace("$size", juce::String(size)); code = code.replace("$index", juce::String(index));
 
 #define T_A + getLiteral<T>(a) +
 #define T_B + getLiteral<T>(b) +
@@ -847,10 +851,29 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles("zero2sine.h");
+		
+		testInlinedMathPerformance();
+		testExternalTypeDatabase<float>();
+		testExternalTypeDatabase<double>();
 
-		testExternalStructDefinition();
+		optimizations = { OptimizationIds::Inlining };
+	
+		testInlinedMathPerformance();
+		testExternalTypeDatabase<float>();
+		testExternalTypeDatabase<double>();
+
+		return;
+		
+		//runTestFiles("member_set_function.h");
+
+		
+		//return;
+
+
+		
+
 		testOptimizations();
+		testInlining();
 
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
@@ -885,6 +908,16 @@ public:
 		}
 	}
 
+	void testInlining()
+	{
+		optimizations = { OptimizationIds::Inlining };
+
+		testMathInlining<double>();
+		testMathInlining<float>();
+		testFunctionInlining();
+		testInlinedMathPerformance();
+	}
+
 	void runTestsWithOptimisation(const Array<Identifier>& ids)
 	{
 		logMessage("OPTIMIZATIONS");
@@ -896,9 +929,6 @@ public:
 
 		runTestFiles();
 		testFpu();
-
-		testMathInlining<double>();
-		testMathInlining<float>();
 
 		testParser();
 		testSimpleIntOperations();
@@ -918,6 +948,7 @@ public:
 		testTernaryOperator();
 		testIfStatement();
 
+		
 		testMathConstants<float>();
 		testMathConstants<double>();
         
@@ -928,6 +959,10 @@ public:
 		testBigFunctionBuffer();
 		testLogicalOperations();
 		
+		testExternalStructDefinition();
+		testExternalTypeDatabase<float>();
+		testExternalTypeDatabase<double>();
+
 		testScopes();
 		
 		//testEventSetters();
@@ -946,6 +981,307 @@ public:
 	}
 
 private:
+
+	void trimNoopFromSyntaxTree(juce::String& s)
+	{
+		auto sa = StringArray::fromLines(s);
+
+		for (int i = 0; i < sa.size(); i++)
+		{
+			if (sa[i].contains("Noop"))
+				sa.remove(i--);
+		}
+
+		s = sa.joinIntoString("\n");
+		s.trim();
+	}
+
+	void expectedEqualSyntaxTree(juce::String& firstTree, juce::String& secondTree, const juce::String& errorMessage)
+	{
+		trimNoopFromSyntaxTree(firstTree);
+		trimNoopFromSyntaxTree(secondTree);
+
+#if 0
+		for (int i = 0; i < firstTree.length(); i++)
+		{
+			if (firstTree[i] != secondTree[i])
+			{
+				DBG(firstTree.substring(i));
+			}
+		}
+#endif
+
+		auto match = firstTree.compare(secondTree);
+
+		if (match != 0)
+		{
+			DBG(firstTree);
+			DBG(secondTree);
+		}
+
+		expectEquals(match, 0, errorMessage);
+	}
+
+	void testFunctionInlining()
+	{
+		beginTest("Test function inlining");
+		juce::String size, index, code;
+
+		GlobalScope m;
+		m.addOptimization(OptimizationIds::Inlining);
+		Compiler c(m);
+		
+		{
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("    if(input == 2) {return input;}");
+			ADD_CODE_LINE("    return input * 2;");
+			ADD_CODE_LINE("}");
+
+			c.compileJitObject(code);
+			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
+		}
+
+		auto firstTree = c.dumpSyntaxTree();
+		
+		{
+			code = {};
+
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("    if(input == 2) {return input;}");
+			ADD_CODE_LINE("    else { return input * 2; }");
+			ADD_CODE_LINE("}");
+
+			c.compileJitObject(code);
+			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
+
+			expectedEqualSyntaxTree(firstTree, c.dumpSyntaxTree(), "added false branch");
+		}
+		
+		{
+			code = {};
+
+			ADD_CODE_LINE("int other(int o) { return o * o; };");
+			ADD_CODE_LINE("int test(int input) { return other(input) + 2; };");
+
+			auto obj = c.compileJitObject(code);
+			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
+
+			auto firstTree = c.dumpSyntaxTree();
+
+			auto v = obj["test"].call<int>(4);
+
+			expect(!c.getAssemblyCode().contains("call"), "Inlining didn't work");
+			expectEquals(v, 4 * 4 + 2, "Wrong value");
+		}
+	}
+
+	void testHiseEventExternalType()
+	{
+		juce::String size, index, code;
+
+		beginTest("Test external HiseEvent type");
+
+		GlobalScope m;
+
+		for (auto o : optimizations)
+			m.addOptimization(o);
+
+		
+		HiseEvent e(HiseEvent::Type::NoteOn, 75, 125, 3);
+
+		{
+			Compiler c(m);
+
+			SnexObjectDatabase::registerObjects(c);
+
+			auto en = e.getNoteNumber();
+			auto ev = (int)e.getVelocity();
+			auto ec = e.getChannel();
+
+			ADD_CODE_LINE("int test(int s, HiseEvent e) {");
+			ADD_CODE_LINE("    if(s == 0) return e.getNoteNumber();");
+			ADD_CODE_LINE("    if(s == 1) return e.getVelocity();");
+			ADD_CODE_LINE("    if(s == 2) return e.getChannel();");
+			ADD_CODE_LINE("    return 0;");
+			ADD_CODE_LINE("}");
+
+			auto obj = c.compileJitObject(code);
+
+			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
+
+			auto f = obj["test"];
+
+			auto an = f.call<int>(0, &e);
+			auto av = f.call<int>(1, &e);
+			auto ac = f.call<int>(2, &e);
+
+			expectEquals(av, ev, "velocity mismatch");
+			expectEquals(ac, ec, "channel mismatch");
+			expectEquals(an, en, "note number mismatch");
+		}
+
+		{
+			Compiler c(m);
+
+			SnexObjectDatabase::registerObjects(c);
+
+			HiseEvent e(HiseEvent::Type::NoteOn, 75, 125, 3);
+
+			code = {};
+
+			ADD_CODE_LINE("void test(HiseEvent& e, int n, int v, int c) {");
+			ADD_CODE_LINE("    e.setVelocity(v);");
+			ADD_CODE_LINE("    e.setNoteNumber(n);");
+			ADD_CODE_LINE("    e.setChannel(c);");
+			
+			ADD_CODE_LINE("}");
+
+			auto obj = c.compileJitObject(code);
+
+			DBG(c.getAssemblyCode());
+
+			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
+
+			auto f = obj["test"];
+
+			f.callVoid(&e, 13, 80, 9);
+
+			expectEquals(e.getNoteNumber(), 13, "set: note number mismatch");
+			expectEquals((int)e.getVelocity(), 80, "set: velocity mismatch");
+			expectEquals(e.getChannel(), 9, "set: channel mismatch");
+		}
+	}
+
+	void testInlinedMathPerformance()
+	{
+		beginTest("Testing inline math performance");
+
+		juce::String size, index, code;
+
+		ADD_CODE_LINE("span<float, 441000> data;");
+		ADD_CODE_LINE("float test(float input) {");
+		ADD_CODE_LINE("{");
+		ADD_CODE_LINE("    for(auto& s: data)");
+		ADD_CODE_LINE("        input += Math.max(Math.abs(input), Math.min(1.0f, input * 0.5f));");
+		ADD_CODE_LINE("    return input;");
+		ADD_CODE_LINE("}");
+
+		GlobalScope m;
+		for (auto o : optimizations)
+			m.addOptimization(o);
+
+		Compiler c(m);
+
+		auto obj = c.compileJitObject(code);
+
+		expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
+
+		auto f = obj["test"];
+
+		juce::String mem;
+		mem << "Testing inline math performance";
+
+		for (auto o : optimizations)
+			mem << " with " << o;
+
+		PerformanceCounter pc(mem);
+		pc.start();
+		f.call<float>(12.0f);
+		pc.stop();
+	}
+
+	template <typename T> void testExternalTypeDatabase()
+	{
+		juce::String size, index, code;
+
+		beginTest("Test external type database");
+
+		GlobalScope m;
+
+		for (auto o : optimizations)
+			m.addOptimization(o);
+		
+		Compiler c(m);
+		
+		SnexObjectDatabase::registerObjects(c);
+
+		{
+			_ramp<T> d;
+
+			d.prepare(4000.0, 100.0);
+			d.set(T(1));
+			d.advance();
+			T temp = d.get();
+			d.reset();
+			d.advance();
+			d.set(T(0.5));
+			auto e = temp + d.get() + d.advance();
+
+			code = {};
+
+			ADD_CODE_LINE("s$T d;");
+			ADD_CODE_LINE("$T test() {");
+			ADD_CODE_LINE("    d.prepare(4000.0, 100.0);");
+			ADD_CODE_LINE("    d.set(($T)1.0);");
+			ADD_CODE_LINE("    d.advance();");
+			ADD_CODE_LINE("    $T temp = d.get();");
+			ADD_CODE_LINE("    d.advance();");
+			ADD_CODE_LINE("    d.set(($T)0.5);");
+			ADD_CODE_LINE("    return temp + d.get() + d.advance();");
+			ADD_CODE_LINE("}");
+
+			FINALIZE_CODE();
+
+			auto obj = c.compileJitObject(code);
+
+			//expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
+
+			auto a = obj["test"].call<T>();
+
+			//expectEquals(a, e, "value mismatch");
+		}
+
+		{
+			juce::String mes;
+
+			mes << "testing s" << Types::Helpers::getTypeName(Types::Helpers::getTypeFromTypeId<T>()) << " performance";
+
+			for (auto o : optimizations)
+				mes << " with " << o;
+
+			PerformanceCounter pc(mes);
+
+			code = {};
+			ADD_CODE_LINE("span<$T, 441000> data;");
+			ADD_CODE_LINE("s$T d;");
+			ADD_CODE_LINE("$T test($T input) {");
+			ADD_CODE_LINE("    d.prepare(44100.0, 5000.0);");
+			ADD_CODE_LINE("    d.reset();");
+			ADD_CODE_LINE("    d.set(input);");
+			ADD_CODE_LINE("    for(auto& s: data)");
+			ADD_CODE_LINE("    {");
+			ADD_CODE_LINE("        s = d.advance();");
+			ADD_CODE_LINE("    }");
+			ADD_CODE_LINE("    return data[12];");
+			ADD_CODE_LINE("}");
+			
+			FINALIZE_CODE();
+
+			auto obj = c.compileJitObject(code);
+
+			//DBG(c.getAssemblyCode());
+
+			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
+
+			auto f = obj["test"];
+
+			pc.start();
+			f.call<T>(2.0f);
+			pc.stop();
+		}
+	}
 
 	template <typename T> void testSpan()
 	{
@@ -971,7 +1307,7 @@ private:
 
 #define NEW_CODE_TEXT() code = {};
 #define DECLARE_SPAN(name) ADD_CODE_LINE("span<$T, $size> " + juce::String(name) + ";")
-#define FINALIZE_CODE() code = code.replace("$T", getTypeName<T>()); code = code.replace("$size", juce::String(size)); code = code.replace("$index", juce::String(index));
+
 
 		auto im = [](T v)
 		{
@@ -1533,8 +1869,6 @@ private:
 		auto type = Types::Helpers::getTypeFromTypeId<T>();
 		beginTest(juce::String("Testing inlining of math operations for ") + juce::String(Types::Helpers::getTypeName(type)));
 
-		optimizations = { OptimizationIds::Inlining };
-
 		auto v1 = getLiteral<T>(18);
 		auto v2 = getLiteral<T>(39);
 
@@ -1573,7 +1907,6 @@ private:
 		EXPECT_TYPED("Math.map 2", T(0.5), T(6));
 		EXPECT_TYPED("Math.map 3", T(1.0), T(8));
 
-
 		auto one = getLiteral<T>(1);
 
 		CREATE_TYPED_TEST(getTestFunction<T>(juce::String("return Math.fmod(input, ") + one + ");"));
@@ -1583,8 +1916,6 @@ private:
 		CREATE_TYPED_TEST(getTestFunction<T>(juce::String("return Math.sin(input);")));
 		EXPECT_TYPED("Math.sin 1", T(3.7), T(std::sin(3.7)));
 		EXPECT_TYPED("Math.sin 2", T(0.2), T(std::sin(0.2)));
-
-
 	}
 
 	void testExternalStructDefinition()
@@ -1617,7 +1948,7 @@ private:
 
 				struct Wrapper
 				{
-					static int sum(void* t) { return reinterpret_cast<TestStruct*>(t)->sum(); }
+					JIT_MEMBER_WRAPPER_0(int, TestStruct, sum);
 				};
 			};
 
@@ -2012,30 +2343,6 @@ private:
 
 		ScopedPointer<HiseJITTestCase<T>> test;
 
-		
-
-
-		CREATE_TYPED_TEST("using T = int; int test(int input){ float x = 2.0f; return (T)x; };");
-		EXPECT_TYPED("cast with alias", 6, 2);
-
-		CREATE_TYPED_TEST("using T = int; T test(T input){ return input; };");
-		EXPECT_TYPED("native type using for function parameters", 6, 6);
-
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("int get(double input){ return 3;}");
-			ADD_CODE_LINE("int get(float input){ return 9;}");
-			ADD_CODE_LINE("int test(int input){");
-			ADD_CODE_LINE("    using T = float;");
-			ADD_CODE_LINE("    T v = (T)input;");
-			ADD_CODE_LINE("    return get(v);");
-			ADD_CODE_LINE("}");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("function overload with local alias", 4, 9);
-		}
-
 		{
 			juce::String code;
 
@@ -2054,9 +2361,32 @@ private:
 			ADD_CODE_LINE("}");
 
 			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("function overload with anonymous scope alias", 4, 3);
-			EXPECT_TYPED("function overload with anonymous scope alias", 1, 9);
+			EXPECT_TYPED("function overload with anonymous scope alias true branch", 4, 3);
+			EXPECT_TYPED("function overload with anonymous scope alias false branch", 1, 9);
 		}
+
+		CREATE_TYPED_TEST("using T = int; int test(int input){ float x = 2.0f; return (T)x; };");
+		EXPECT_TYPED("cast with alias", 6, 2);
+
+		CREATE_TYPED_TEST("using T = int; T test(T input){ return input; };");
+		EXPECT_TYPED("native type using for function parameters", 6, 6);
+
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("int get(double input){ return 3;}");
+			ADD_CODE_LINE("int get(float input){ return 9;}");
+			ADD_CODE_LINE("int test(int input){");
+			ADD_CODE_LINE("    using T = float;");
+			ADD_CODE_LINE("    float v = (float)input;");
+			ADD_CODE_LINE("    return get(v);");
+			ADD_CODE_LINE("}");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("function overload with local alias", 4, 9);
+		}
+
+		
 
 		{
 			juce::String code;
@@ -2805,6 +3135,12 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
+		CREATE_TEST("float t2(float a){ return a * 2.0f; } float t1(float a){ return t2(a); } float test(float input) { return t1(input); }");
+		EXPECT("nested function call", 2.0f, 9.0f);
+
+		CREATE_TEST("int sumThemAll(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8){ return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8; } float test(float in) { return (float)sumThemAll(1, 2, 3, 4, 5, 6, 7, 8); }");
+		EXPECT("Function call with 8 parameters", 20.0f, 36.0f);
+
 		CREATE_TEST("float ov(int a){ return 9.0f; } float ov(double a) { return 14.0f; } float test(float input) { return ov(5); }");
 		EXPECT("function overloading", 2.0f, 9.0f);
 
@@ -2874,9 +3210,7 @@ private:
 		CREATE_TEST_SETUP(x);
 		EXPECT("JIT function call with global parameter", 0.0f, 8.0f);
 
-		CREATE_TEST("int sumThemAll(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8){ return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8; } float test(float in) { return (float)sumThemAll(1, 2, 3, 4, 5, 6, 7, 8); }");
-
-		EXPECT("Function call with 8 parameters", 20.0f, 36.0f);
+		
 
 	}
 

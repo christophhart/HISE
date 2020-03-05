@@ -18,31 +18,6 @@ namespace snex
 #define CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(op) { CALC_IF_FLOAT(op) else CONVERT_TO_DOUBLE_WITH_OP(op ) }
 
 
-class ObjectTypeRegister
-{
-public:
-
-	int registerType(const Identifier& id)
-	{
-		auto index = getTypeIndex(id);
-
-		if (index != -1)
-			return index;
-
-		entries.add(id);
-		return entries.size() - 1;
-	}
-
-	int getTypeIndex(const Identifier& id) const
-	{
-		return entries.indexOf(id);
-	}
-
-private:
-
-	Array<Identifier> entries;
-};
-
 class VariableStorage
 {
 public:
@@ -60,7 +35,21 @@ public:
 	VariableStorage(const Types::FloatBlock& b);
 	VariableStorage(HiseEvent& m);
 
-	VariableStorage(int objectType, void* objectPointer, bool isReallyAPointer);
+	template <class T> VariableStorage(T* ptr)
+	{
+		data.p.type = Types::ID::Pointer;
+		data.p.data = ptr;
+		data.p.size = sizeof(T);
+	}
+
+	template <class T> VariableStorage& operator =(T* ptr)
+	{
+		data.p.type = Types::ID::Pointer;
+		data.p.data = ptr;
+		data.p.size = sizeof(T);
+	}
+
+	VariableStorage(void* objectPointer, int objectSize);
 
 	VariableStorage& operator =(int s);
 	VariableStorage& operator =(FloatType s);
@@ -77,7 +66,7 @@ public:
 	void set(block&& s);;
 	void set(block& b);
 	void set(const HiseEvent& e);
-	void set(void* objectPointer, const ObjectTypeRegister& objectRegister, const Identifier& typeId);
+	void set(void* objectPointer, int newSize);
 
 	void clear();
 
@@ -86,6 +75,7 @@ public:
 	explicit operator int() const;
 	explicit operator Types::FloatBlock() const;
 	explicit operator HiseEvent() const;
+	explicit operator void*() const;
 
 	template <Types::ID expectedType> VariableStorage& store(const VariableStorage& other)
 	{
@@ -214,8 +204,6 @@ public:
 	bool isVoid() const noexcept { return getType() == Types::ID::Void; }
 	size_t getSizeInBytes() const noexcept;
 
-	void* getObjectPointer(const ObjectTypeRegister& objectRegister, const Identifier& typeId) const;
-
 	template <Types::ID TypeID> auto toType() const
 	{
 		IF_CONSTEXPR (TypeID == Types::ID::Float || TypeID == Types::ID::Float)
@@ -244,7 +232,7 @@ public:
 			return &data;
 	}
 
-	int getPointerType() const;
+	int getPointerSize() const;
 
 private:
 	 
@@ -278,7 +266,7 @@ private:
 	struct PointerData
 	{
 		int type;
-		int dataType;
+		int size;
 		void* data;
 	};
 
@@ -303,15 +291,6 @@ private:
 	};
 
 	Data data;
-
-#if 0
-	double doubleValue;
-	HiseEvent m;
-	int intValue;
-	block blockValue;
-
-	Types::ID type;
-#endif
 };
 
 

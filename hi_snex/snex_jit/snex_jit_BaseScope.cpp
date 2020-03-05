@@ -260,12 +260,12 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 		return getRootData()->updateSymbol(symbolToBeUpdated);
 	}
 
-	if (auto fc = dynamic_cast<FunctionClass*>(this))
+	if (getRootClassScope() == this)
 	{
-		if (fc->hasFunction(symbolToBeUpdated))
+		if (getRootData()->hasFunction(symbolToBeUpdated))
 			return true;
 
-		if (auto c = fc->getSubFunctionClass(symbolToBeUpdated.getParentSymbol()))
+		if (auto c = getRootData()->getSubFunctionClass(symbolToBeUpdated.getParentSymbol()))
 		{
 			if (c->hasFunction(symbolToBeUpdated))
 				return true;
@@ -363,6 +363,14 @@ juce::String RootClassData::dumpTable() const
 	}
 
 	return s;
+}
+
+RootClassData::RootClassData() :
+	FunctionClass(Symbol::createRootSymbol("Root"))
+{
+	addFunctionClass(new MathFunctions());
+	addFunctionClass(new MessageFunctions());
+	addFunctionClass(new BlockFunctions());
 }
 
 juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues)

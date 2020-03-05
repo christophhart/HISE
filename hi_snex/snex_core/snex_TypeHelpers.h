@@ -88,8 +88,6 @@ struct Helpers
 
 	static size_t getSizeForType(ID type);
 
-	static bool pointerTypeMatches(const VariableStorage& v1, const VariableStorage& v2);
-
 	static bool matchesTypeLoose(ID expected, ID actual);
 	static bool matchesTypeStrict(ID expected, ID actual);
 	static bool matchesType(ID expected, ID actual);
@@ -141,10 +139,6 @@ struct Helpers
 
 
 }
-
-using sfloat = Types::SmoothedFloatCpp<float>;
-using sdouble = Types::SmoothedFloatCpp<double>;
-
 
 struct InitialiserList : public ReferenceCountedObject
 {

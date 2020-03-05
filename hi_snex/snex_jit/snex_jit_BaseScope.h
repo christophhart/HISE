@@ -126,6 +126,7 @@ public:
 
 	Array<Symbol> getAllVariables() const;
 
+#if 0
 	void getChildClassCode(const Identifier& classId, juce::String::CharPointerType& start, juce::String::CharPointerType& wholeProgram, int& length) const
 	{
 		if (!hasChildClass(classId))
@@ -155,6 +156,7 @@ public:
 
 		childClasses.add({ start, whole, classId,  length, classTypes.registerType(classId) });
 	}
+#endif
 
 	bool isClassObjectScope() const
 	{
@@ -182,13 +184,11 @@ public:
 
 protected:
 
-	ObjectTypeRegister classTypes;
-
 	Symbol scopeId;
 	WeakReference<BaseScope> parent;
 	VariableStorage empty;
 
-	Array<ChildClass> childClasses;
+	//Array<ChildClass> childClasses;
 
 	ScopeType scopeType;
 	Array<Constant> constants;
@@ -226,7 +226,7 @@ struct SymbolWithScope
 };
 
 
-class RootClassData
+class RootClassData: public FunctionClass
 {
 	struct TableEntry : public ReferenceCountedObject
 	{
@@ -239,9 +239,7 @@ public:
 
 	juce::String dumpTable() const;
 
-	RootClassData()
-	{
-	}
+	RootClassData();
 
 	bool updateSymbol(Symbol& toBeUpdated)
 	{

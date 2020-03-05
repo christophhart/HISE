@@ -209,16 +209,6 @@ size_t Types::Helpers::getSizeForType(ID type)
 	return 0;
 }
 
-bool Types::Helpers::pointerTypeMatches(const VariableStorage& v1, const VariableStorage& v2)
-{
-	if (v1.getType() != ID::Pointer)
-		return false;
-	if (v2.getType() != ID::Pointer)
-		return false;
-
-	return v1.getPointerType() == v2.getPointerType();
-}
-
 bool Types::Helpers::matchesTypeLoose(ID expected, ID actual)
 {
 	return expected == actual || (isNumeric(expected) && isNumeric(actual));

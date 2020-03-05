@@ -157,8 +157,25 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 		auto expIsPointer = expectedType == Types::ID::Pointer || expectedType == Types::ID::Block;
 		auto thisIsPointer = thisType == Types::ID::Pointer || thisType == Types::ID::Block;
 
-		if(expIsPointer || thisIsPointer)
+		if (expIsPointer || thisIsPointer)
+		{
+			if (auto st = thisType.getTypedIfComplexType<SpanType>())
+			{
+				if (auto dn = expectedType.getTypedIfComplexType<DynType>())
+				{
+					if (dn->elementType == st->getElementType())
+					{
+						return expectedType;
+						
+					}
+
+					
+				}
+			}
+
 			throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
+		}
+			
 
 		logWarning("Implicit cast, possible lost of data");
 
@@ -239,9 +256,9 @@ snex::jit::Operations::RegPtr Operations::Expression::getSubRegister(int index) 
 
 
 SyntaxTree::SyntaxTree(ParserHelpers::CodeLocation l) :
-	Statement(l)
+	Statement(l),
+	ScopeStatementBase()
 {
-
 }
 
 bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
@@ -256,6 +273,15 @@ bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 	return false;
 }
 
+
+snex::jit::Operations::Statement::Ptr SyntaxTree::clone(ParserHelpers::CodeLocation l) const
+{
+	Statement::Ptr c = new Operations::StatementBlock(l);
+	dynamic_cast<Operations::StatementBlock*>(c.get())->isInlinedFunction = true;
+
+	cloneChildren(c);
+	return c;
+}
 
 Operations::Statement::Statement(Location l) :
 	location(l)
@@ -331,7 +357,7 @@ Operations::Statement::Ptr Operations::Statement::replaceInParent(Statement::Ptr
 				Ptr f(this);
 				parent->childStatements.set(i, newExpression.get());
 				newExpression->parent = parent;
-				parent = nullptr;
+				//parent = nullptr;
 				return f;
 			}
 		}

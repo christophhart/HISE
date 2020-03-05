@@ -340,6 +340,7 @@ struct Zero
 	}
 };
 
+
 template <int S> struct wrap
 {
 	wrap<S>& operator= (int v)
@@ -362,18 +363,57 @@ template <int S> struct wrap
 };
 
 
+template <class T, int Size> struct ref_span
+{
+	template <class Other> ref_span(Other& o) :
+		data(o.begin())
+	{
+		auto otherSize = o.end() - o.begin();
+		jassert(otherSize == Size);
+	}
+
+	T& operator[](int index)
+	{
+		return *data + index;
+	}
+
+	const T& operator[](int index) const
+	{
+		return *data + index;
+	}
+
+	T* begin() const
+	{
+		return const_cast<T*>(data);
+	}
+
+#if 0
+	ref_span<float4, Size / 4>& toSimd() const
+	{
+		jassert(float4::isAlignedTo16Byte(data));
+		static_assert(Size % 4 == 0, "Not Simdable");
+		static_assert(std::is_same<T, float>(), "Not float");
+
+		return *reinterpret_cast<ref_span<float4, Size / 4>*>(this);
+	}
+#endif
+
+	T* end() const
+	{
+		return const_cast<T*>(data) + Size;
+	}
+
+private:
+
+	const T* data;
+};
 
 template <class T, int MaxSize> struct span
 {
+	using DataType = T;
 	using Type = span<T, MaxSize>;
 
-
 	static constexpr int s = MaxSize;
-
-	T& operator[](int&& index)
-	{
-		return data[index];
-	}
 
 	span()
 	{
@@ -540,25 +580,50 @@ template <class T, int MaxSize> struct span
 
 	bool isAlignedTo16Byte() const
 	{
-		return reinterpret_cast<uint64_t>(data) % 16 == 0;
+		return isAlignedTo16Byte(*this);
 	}
 
-	auto& toSimd()
+	template <int SliceLength> ref_span<T, SliceLength> slice()
 	{
-		static_assert(isSimdable(), "is not SIMDable");
-		jassert(isAlignedTo16Byte());
-
-		return split<4>();
+		return ref_span<T, SliceLength>(*this);
 	}
 
-	template <int SliceLength> span<span<T, SliceLength>, MaxSize / SliceLength>& split()
+
+
+	template <class T> static bool isAlignedTo16Byte(T& d)
 	{
-		static_assert(MaxSize % SliceLength == 0, "Can't split with slice length ");
-
-		return *reinterpret_cast<span<span<T, SliceLength>, MaxSize / SliceLength>*>(this);
+		return reinterpret_cast<uint64_t>(d.begin()) % 16 == 0;
 	}
 
-	const T& operator[](int&& index) const
+	
+
+	ref_span<T, MaxSize> getRef() const
+	{
+		return ref_span<T, MaxSize>(*this);
+	}
+
+	template <int ChannelAmount> span<span<T, MaxSize/ChannelAmount>, ChannelAmount>& split()
+	{
+		static_assert(MaxSize % ChannelAmount == 0, "Can't split with slice length ");
+
+		return *reinterpret_cast<span<span<T, MaxSize / ChannelAmount>, ChannelAmount>*>(this);
+	}
+
+	auto& interleave_dyn()
+	{
+		using ElementType = T::DataType;
+
+		dyn<span<ElementType, MaxSize>> d;
+
+		return d;
+	}
+
+	const T& operator[](int index) const
+	{
+		return data[index];
+	}
+
+	T& operator[](int index)
 	{
 		return data[index];
 	}
@@ -584,8 +649,218 @@ template <class T, int MaxSize> struct span
 		return MaxSize;
 	}
 
-	alignas(16) T data[MaxSize];
+	static constexpr int alignment()
+	{
+		if (MaxSize * sizeof(T) > 16)
+			return 16;
+		else
+			return MaxSize * sizeof(T);
+	}
+
+	alignas(alignment()) T data[MaxSize];
 };
+
+using float4 = span<float, 4>;
+
+template <class T> struct dyn
+{
+	using DataType = T;
+	
+	dyn() :
+		data(nullptr),
+		size(0)
+	{}
+
+
+	template<class Other> dyn(Other& o) :
+		data(o.begin()),
+		size(o.end() - o.begin())
+	{}
+
+	template<class Other> dyn(Other& o, size_t size_) :
+		data(o.begin()),
+		size(size_)
+	{}
+
+	template<class T> dyn(T* data_, size_t size_) :
+		data(data_),
+		size(size_)
+	{}
+
+	template<class Other> dyn(Other& o, size_t size_, size_t offset) :
+		data(o.begin() + offset),
+		size(size_)
+	{
+		auto fullSize = o.end() - o.begin();
+		jassert(offset + size < fullSize);
+	}
+
+	template <int NumChannels> span<dyn<T>, NumChannels> split()
+	{
+		span<dyn<T>, NumChannels> r;
+
+		int newSize = size / NumChannels;
+
+		T* d = data;
+
+		for (auto& e : r)
+		{
+			e = dyn<T>(d, newSize);
+			d += newSize;
+		}
+
+		return r;
+	}
+
+	const T& operator[](int index) const
+	{
+		return data[index];
+	}
+
+	T& operator[](int index)
+	{
+		return data[index];
+	}
+
+	T* begin() const
+	{
+		return const_cast<T*>(data);
+	}
+
+	T* end() const
+	{
+		return const_cast<T*>(data) + size;
+	}
+
+	T* data;
+	size_t size = 0;
+};
+
+namespace Interleaver
+{
+	template <class T, int NumChannels> static auto interleave(span<dyn<T>, NumChannels>& t)
+	{
+		jassert(isContinousMemory(t));
+
+		int numFrames = t[0].size;
+
+		static_assert(std::is_same<float, T>(), "must be float");
+
+		// [ [ptr, size], [ptr, size] ]
+		// => [ ptr, size ] 
+
+		using FrameType = span<T, NumChannels>;
+
+		
+		auto src = reinterpret_cast<float*>(t[0].begin());
+		interleave(src, numFrames, NumChannels);
+
+		return dyn<FrameType>(reinterpret_cast<FrameType*>(src), numFrames);
+	}
+
+	/** Interleaves the float data from a dynamic array of frames. 
+	
+		dyn_span<T>(numChannels) => span<dyn_span<T>, NumChannels> 
+	*/
+	template <class T, int NumChannels> static auto interleave(dyn<span<T, NumChannels>>& t)
+	{
+		jassert(isContinousMemory(t));
+
+		int numFrames = t.size;
+
+		span<dyn<T>, NumChannels> d;
+
+		float* src = t.begin()->begin();
+
+
+		interleave(src, NumChannels, numFrames);
+
+		for (auto& r : d)
+		{
+			r = dyn<T>(src, numFrames);
+			src += numFrames;
+		}
+
+		return d;
+	}
+
+
+	template <class T, int NumFrames, int NumChannels> static auto& interleave(span<span<T, NumFrames>, NumChannels>& t)
+	{
+		static_assert(std::is_same<float, T>(), "must be float");
+		jassert(isContinousMemory(t));
+
+		using ChannelType = span<T, NumChannels>;
+
+		int s1 = sizeof(span<ChannelType, NumFrames>);
+		int s2 = sizeof(span<span<T, NumFrames>, NumChannels>);
+
+		
+
+		auto src = reinterpret_cast<float*>(t.begin());
+		interleave(src, NumFrames, NumChannels);
+		return *reinterpret_cast<span<ChannelType, NumFrames>*>(&t);
+	}
+
+	template <class T> static bool isContinousMemory(const T& t)
+	{
+		using ElementType = T::DataType;
+
+		auto ptr = t.begin();
+		auto e = t.end();
+
+		auto elementSize = sizeof(ElementType);
+
+		auto size = (e - ptr) * elementSize;
+
+		auto realSize = reinterpret_cast<uint64_t>(e) - reinterpret_cast<uint64_t>(ptr);
+
+		return realSize == size;
+	}
+
+	static auto simd(const dyn<float>& t)
+	{
+		return dyn<float4>(reinterpret_cast<float4*>(t.begin()), t.size / 4);
+	}
+
+	template <int C> static auto& simd(span<float, C>& t)
+	{
+		static_assert(t.isSimdable(), "is not SIMDable");
+		jassert(t.isAlignedTo16Byte());
+
+		static_assert(C % 4 == 0, "Can't split with slice length ");
+
+		return *reinterpret_cast<span<float4, C / 4>*>(&t);
+	}
+
+	static void interleave(float* src, int numFrames, int numChannels)
+	{
+		size_t numBytes = sizeof(float) * numChannels * numFrames;
+
+		float* dst = (float*)alloca(numBytes);
+
+		for (int i = 0; i < numFrames; i++)
+		{
+			for (int j = 0; j < numChannels; j++)
+			{
+				auto targetIndex = i * numChannels + j;
+				auto sourceIndex = j * numFrames + i;
+
+				dst[targetIndex] = src[sourceIndex];
+			}
+		}
+
+		memcpy(src, dst, numBytes);
+	}
+
+	template <int C, class T> static auto split(T& t)
+	{
+		return t.split<C>();
+	}
+};
+
+
+
 
 }
 

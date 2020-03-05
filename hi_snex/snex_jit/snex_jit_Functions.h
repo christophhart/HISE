@@ -38,7 +38,7 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
-
+class FunctionClass;
 
 struct ComplexType : public ReferenceCountedObject
 {
@@ -93,6 +93,9 @@ struct ComplexType : public ReferenceCountedObject
 
 	/** Override this, check if the type matches and call the function for itself and each member recursively and abort if t returns true. */
 	virtual bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) = 0;
+
+	/** Override this and return a function class object containing methods that are performed on this type. */
+	virtual FunctionClass* getFunctionClass() { return nullptr; };
 
 	bool isFinalised() const { return finalised; }
 
@@ -356,8 +359,6 @@ struct TypeInfo
 
 	template <class CType> CType* getTypedIfComplexType() const
 	{
-		static_assert(std::is_base_of<ComplexType, CType>(), "Not a base class");
-
 		if(isComplexType())
 			return dynamic_cast<CType*>(getComplexType().get());
 
@@ -446,6 +447,12 @@ struct Symbol
 
 	Symbol relocate(const Symbol& newParent) const;
 
+	void setTypeInfo(const TypeInfo& other)
+	{
+		typeInfo = other;
+		debugName = toString().toStdString();
+	}
+
 	Array<Identifier> getPath() const { return fullIdList; };
 
 	bool isExplicit() const { return fullIdList.size() > 1; }
@@ -506,7 +513,7 @@ struct FunctionData
 
 	template <typename T1, typename T2, typename T3> void addArgs(bool omitObjPtr = false)
 	{
-		if (!omitObjPtr || !std::is_same<T2, void*>())
+		if (!omitObjPtr || !std::is_same<T1, void*>())
 			args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
 
 		args.add(Symbol::createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
@@ -684,10 +691,33 @@ private:
 
 class BaseScope;
 
+struct InlineData;
+
 /** A function class is a collection of functions. */
 struct FunctionClass: public DebugableObjectBase,
 					  public ReferenceCountedObject
 {
+	using Ptr = ReferenceCountedObjectPtr<FunctionClass>;
+
+	struct Inliner
+	{
+		using Func = std::function<Result(InlineData* d)>;
+
+		Inliner(const Identifier& id, const Func& f_) :
+			functionId(id),
+			f(f_)
+		{};
+
+		Result inlineFunction(InlineData* d)
+		{
+			if (f)
+				return f(d);
+		}
+
+		const Identifier functionId;
+		const Func f;
+	};
+
 	struct Constant
 	{
 		Identifier id;
@@ -816,6 +846,8 @@ struct FunctionClass: public DebugableObjectBase,
 		return var(constants[index].value.toDouble());
 	};
 
+	VariableStorage getConstantValue(const Symbol& s) const;
+
 	// =====================================================================================
 
 	virtual bool hasFunction(const Symbol& s) const;
@@ -849,10 +881,41 @@ struct FunctionClass: public DebugableObjectBase,
 		return nullptr;
 	}
 
-	VariableStorage getConstantValue(const Symbol& constantSymbol) const;
+	bool isInlineable(const Identifier& id) const
+	{
+		for (auto i : inliners)
+			if (i->functionId == id)
+				return true;
 
+		return false;
+	}
+
+	Result inlineFunctionCall(const Identifier& id, InlineData* d)
+	{
+		jassert(isInlineable(id));
+
+		for (auto i : inliners)
+		{
+			if (i->functionId == id)
+			{
+				return i->inlineFunction(d);
+			}
+		}
+
+		return Result::fail("Can't inline function " + id.toString());
+	}
+
+	void addInliner(const Identifier& id, const Inliner::Func& s)
+	{
+		if (isInlineable(id))
+			return;
+
+		inliners.add(new Inliner(id, s));
+	}
 
 protected:
+
+	OwnedArray<Inliner> inliners;
 
 	ReferenceCountedArray<FunctionClass> registeredClasses;
 
@@ -1086,16 +1149,74 @@ private:
 	int size;
 };
 
+struct DynType : public ComplexType
+{
+	DynType(const TypeInfo& elementType_):
+		elementType(elementType_)
+	{
+
+	}
+
+	Types::ID getDataType() const override
+	{
+		return Types::ID::Pointer;
+	}
+
+	size_t getRequiredByteSize() const override { return sizeof(VariableStorage); }
+
+	virtual size_t getRequiredAlignment() const override { return 8; }
+
+	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const
+	{
+		jassertfalse;
+	}
+
+	InitialiserList::Ptr makeDefaultInitialiserList() const override
+	{
+		InitialiserList::Ptr n = new InitialiserList();
+
+		n->addImmediateValue(VariableStorage(nullptr, 0));
+		n->addImmediateValue(VariableStorage(0));
+
+		return n;
+	}
+
+	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
+	{
+		VariableStorage ptr;
+		initValues->getValue(0, ptr);
+
+		jassert(ptr.getType() == Types::ID::Pointer);
+		auto data = ptr.getDataPointer();
+
+		VariableStorage s;
+		initValues->getValue(1, s);
+
+		memset(dataPointer, 0, 4);
+
+		ComplexType::writeNativeMemberType(dataPointer, 8, ptr);
+		ComplexType::writeNativeMemberType(dataPointer, 4, s);
+
+		return Result::ok();
+	}
+
+	bool forEach(const TypeFunction&, Ptr, void*) override
+	{
+		return false;
+	}
+
+	juce::String toStringInternal() const override
+	{
+		juce::String w;
+		w << "dyn<" << elementType.toString() << ">";
+		return w;
+	}
+
+	TypeInfo elementType;
+};
 
 struct StructType : public ComplexType
 {
-	struct MemberFunctions : public FunctionClass
-	{
-		MemberFunctions(StructType& parent) :
-			FunctionClass(parent.id)
-		{};
-	};
-
 	StructType(const Symbol& s) :
 		id(s)
 	{};
@@ -1115,12 +1236,17 @@ struct StructType : public ComplexType
 		return id.toString();
 	}
 
+	FunctionClass* getFunctionClass() override
+	{
+		if (memberFunctions == nullptr)
+			memberFunctions = new FunctionClass(id);
+
+		return memberFunctions;
+	}
+
 	virtual Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
 	{
 		int index = 0;
-
-
-
 
 		for (auto m : memberData)
 		{
@@ -1388,24 +1514,16 @@ struct StructType : public ComplexType
 
 	template <typename ReturnType, typename... Parameters>void addExternalMemberFunction(const Identifier& id, ReturnType(*ptr)(Parameters...))
 	{
-		if (memberFunctions == nullptr)
-			memberFunctions = new MemberFunctions(*this);
-
 		FunctionData f = FunctionData::create(id, ptr, true);
 		f.id = id;
 		f.function = ptr;
 
-		memberFunctions->addFunction(new FunctionData(f));
-	}
-
-	FunctionClass* getExternalMemberFunctions()
-	{
-		return memberFunctions;
+		getFunctionClass()->addFunction(new FunctionData(f));
 	}
 
 private:
 
-	ScopedPointer<FunctionClass> memberFunctions;
+	FunctionClass::Ptr memberFunctions;
 
 	struct Member
 	{
@@ -1437,6 +1555,11 @@ private:
 
 #define ADD_SNEX_STRUCT_METHOD(structType, obj, name) structType->addExternalMemberFunction(#name, obj::Wrapper::name);
 
+#define ADD_INLINER(x, f) obj->getFunctionClass()->addInliner(#x, [obj](InlineData* d)f);
+
+
+
+#define SETUP_INLINER(X) auto& cc = d->gen.cc; auto base = x86::ptr(PTR_REG_R(d->object)); auto type = Types::Helpers::getTypeFromTypeId<X>();
 
 } // end namespace jit
 } // end namespace snex

@@ -90,31 +90,32 @@ public:
 			setCurrentPass(BaseCompiler::Parsing);
 			syntaxTree = parser.parseStatementList();
 
-			executePass(ComplexTypeParsing, newScope->pimpl, syntaxTree);
-			executePass(DataSizeCalculation, newScope->pimpl, syntaxTree);
+			auto sTree = dynamic_cast<SyntaxTree*>(syntaxTree.get());
+
+			executePass(ComplexTypeParsing, newScope->pimpl, sTree);
+			executePass(DataSizeCalculation, newScope->pimpl, sTree);
 
 			newScope->pimpl->getRootData()->finalise();
 
 			auto d = (int*)newScope->pimpl->getRootData()->data.get();
 
-			executePass(DataAllocation, newScope->pimpl, syntaxTree);
-			executePass(DataInitialisation, newScope->pimpl, syntaxTree);
-			executePass(PreSymbolOptimization, newScope->pimpl, syntaxTree);
-			executePass(ResolvingSymbols, newScope->pimpl, syntaxTree);
-			executePass(TypeCheck, newScope->pimpl, syntaxTree);
-			executePass(SyntaxSugarReplacements, newScope->pimpl, syntaxTree);
-			executePass(PostSymbolOptimization, newScope->pimpl, syntaxTree);
-			executePass(FunctionParsing, newScope->pimpl, syntaxTree);
+			executePass(DataAllocation, newScope->pimpl, sTree);
+			executePass(DataInitialisation, newScope->pimpl, sTree);
+			executePass(PreSymbolOptimization, newScope->pimpl, sTree);
+			executePass(ResolvingSymbols, newScope->pimpl, sTree);
+			executePass(TypeCheck, newScope->pimpl, sTree);
+			executePass(SyntaxSugarReplacements, newScope->pimpl, sTree);
+			executePass(PostSymbolOptimization, newScope->pimpl, sTree);
+			executePass(FunctionParsing, newScope->pimpl, sTree);
 
 			// Optimize now
 
-			executePass(FunctionCompilation, newScope->pimpl, syntaxTree);
+			executePass(FunctionCompilation, newScope->pimpl, sTree);
 
 			lastResult = Result::ok();
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
-
 			syntaxTree = nullptr;
 
 			logMessage(BaseCompiler::Error, e.toString());
@@ -144,15 +145,17 @@ public:
 	BaseScope* parentScope;
 	Symbol instanceId;
 
-	ScopedPointer<SyntaxTree> syntaxTree;
+	Operations::Statement::Ptr syntaxTree;
 };
 
 
-SyntaxTree* BlockParser::parseStatementList()
+BlockParser::StatementPtr BlockParser::parseStatementList()
 {
 	matchIf(JitTokens::openBrace);
 
-	ScopedPointer<SyntaxTree> list = new SyntaxTree(location);
+	auto list = new SyntaxTree(location);
+
+	StatementPtr p = list;
 
 	list->setParentScopeStatement(getCurrentScopeStatement());
 
@@ -173,7 +176,7 @@ SyntaxTree* BlockParser::parseStatementList()
 
 	finaliseSyntaxTree(list);
 
-	return list.release();
+	return p;
 }
 
 
@@ -394,7 +397,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	return newStatement;
 }
 
-snex::jit::BlockParser::StatementPtr NewClassParser::parseSubclass()
+BlockParser::StatementPtr NewClassParser::parseSubclass()
 {
 	matchSymbol();
 
@@ -579,13 +582,13 @@ InitialiserList::Ptr BlockParser::parseInitialiserList()
 	return root;
 }
 
-ComplexType::Ptr BlockParser::parseComplexType(bool isSpan)
+ComplexType::Ptr BlockParser::parseComplexType(const juce::String& token)
 {
 	match(JitTokens::lessThan);
 
 	ComplexType::Ptr newType;
 
-	if (isSpan)
+	if (token == JitTokens::span_)
 	{
 		Types::ID type = Types::ID::Dynamic;
 		ComplexType::Ptr child;
@@ -626,12 +629,12 @@ ComplexType::Ptr BlockParser::parseComplexType(bool isSpan)
 		}
 		else
 		{
-			if (currentType == JitTokens::span_ || currentType == JitTokens::wrap)
+			if (currentType == JitTokens::span_ || currentType == JitTokens::wrap || currentType == JitTokens::dyn_)
 			{
 				type = Types::ID::Pointer;
-				auto isSpan = currentType == JitTokens::span_;
+				auto pt = currentType;
 				skip();
-				child = parseComplexType(isSpan);
+				child = parseComplexType(pt);
 			}
 			else
 				type = matchType();
@@ -643,8 +646,10 @@ ComplexType::Ptr BlockParser::parseComplexType(bool isSpan)
 
 		int size = (int)sizeValue;
 
-		if (size > 65536)
-			location.throwError("Span size can't exceed 65536");
+		int spanLimit = 1024 * 1024;
+
+		if (size > spanLimit)
+			location.throwError("Span size can't exceed 1M");
 
 		match(JitTokens::greaterThan);
 
@@ -653,16 +658,37 @@ ComplexType::Ptr BlockParser::parseComplexType(bool isSpan)
 		else
 			newType = new SpanType(type, size);
 	}
-	else
+	else if(token == JitTokens::wrap)
 	{
 		auto sizeValue = parseConstExpression(true);
 
 		int size = (int)sizeValue;
 
-		if (size > 65536)
-			location.throwError("Span size can't exceed 65536");
+		int spanLimit = 1024 * 1024;
+
+		if (size > spanLimit)
+			location.throwError("Span size can't exceed 1M");
 
 		newType = new WrapType(size);
+
+		match(JitTokens::greaterThan);
+	}
+	else if (token == JitTokens::dyn_)
+	{
+		TypeInfo t;
+
+		auto isConst = matchIf(JitTokens::const_);
+
+		if (matchIfComplexType())
+		{
+			t = TypeInfo(getCurrentComplexType(), isConst);
+		}
+		else if (matchIfSimpleType())
+		{
+			t = TypeInfo(currentHnodeType, isConst);
+		}
+
+		newType = new DynType(t);
 
 		match(JitTokens::greaterThan);
 	}
@@ -680,7 +706,7 @@ void BlockParser::parseUsingAlias()
 
 	if (matchIf(JitTokens::span_))
 	{
-		auto cType = parseComplexType(true);
+		auto cType = parseComplexType(JitTokens::span_);
 		cType->setAlias(s.id);
 		s = s.withComplexType(cType);
 	}

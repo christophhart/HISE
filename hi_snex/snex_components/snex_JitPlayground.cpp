@@ -60,10 +60,10 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	showTable("Table"),
 	runThread(*this)
 {
-	//memory.addOptimization(OptimizationIds::ConstantFolding);
-	//memory.addOptimization(OptimizationIds::DeadCodeElimination);
-	//memory.addOptimization(OptimizationIds::Inlining);
-	//memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
+	memory.addOptimization(OptimizationIds::ConstantFolding);
+	memory.addOptimization(OptimizationIds::DeadCodeElimination);
+	memory.addOptimization(OptimizationIds::Inlining);
+	memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
 	memory.getBreakpointHandler().setActive(true);
 
@@ -933,19 +933,12 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 					
 					si->typeValue = value.getType();
 					si->name = v.id.toString();
-
 					si->dataType = "global";
-
-					if (cs->getClassName())
-						si->dataType = cs->getClassName().toString();
-
 					si->value = Types::Helpers::getCppValueString(value);
 
 					infos.add(si);
 				}
 			}
-
-			cs->addRegisteredFunctionClasses(infos, -1);
 
 			StringArray removeClasses = { "Math", "Message", "Block" };
 

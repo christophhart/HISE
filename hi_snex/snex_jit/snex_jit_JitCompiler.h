@@ -112,8 +112,6 @@ public:
 		}
 	};
 
-	
-
 	~Compiler();
 	Compiler(GlobalScope& memoryPool);
 
@@ -127,6 +125,11 @@ public:
 	juce::String dumpSyntaxTree() const;
 	juce::String getLastCompiledCode() { return lastCode; }
 
+	/** This registers an external object as complex type.
+
+	If you want to register multiple objects, consider using the ExternalTypeDatabase
+	helper class instead. 
+	*/
 	void registerExternalComplexType(ComplexType::Ptr t);
 
 private:

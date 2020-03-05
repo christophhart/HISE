@@ -24,11 +24,12 @@ int sumX(X& x)
 }
 
 
-
 int main(int input)
 {
 	X x;
 	
-	return sumX(x);
+  return sumX(x);
 }
+
+
 

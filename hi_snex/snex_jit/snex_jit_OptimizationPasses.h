@@ -238,10 +238,9 @@ public:
 
 	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 
-	using ExprPtr = Operations::Expression::Ptr;
+	bool inlineRootFunction(BaseCompiler* compiler, BaseScope* scope, Operations::Function* f, Operations::FunctionCall* fc);
 
-	bool inlineMathFunction(BaseCompiler* compiler, BaseScope* s, Operations::FunctionCall* f);
-	
+	using ExprPtr = Operations::Expression::Ptr;
 
 };
 

@@ -94,7 +94,7 @@ public:
     
     virtual ~BlockParser() {};
 
-	SyntaxTree* parseStatementList();
+	StatementPtr parseStatementList();
 
 	virtual StatementPtr parseStatement() = 0;
 
@@ -149,12 +149,17 @@ public:
 		}
 		else if (matchIf(JitTokens::span_))
 		{
-			currentComplexType = parseComplexType(true);
+			currentComplexType = parseComplexType(JitTokens::span_);
+			return true;
+		}
+		else if (matchIf(JitTokens::dyn_))
+		{
+			currentComplexType = parseComplexType(JitTokens::dyn_);
 			return true;
 		}
 		else if (matchIf(JitTokens::wrap))
 		{
-			currentComplexType = parseComplexType(false);
+			currentComplexType = parseComplexType(JitTokens::wrap);
 			return true;
 		}
 
@@ -196,7 +201,7 @@ public:
 
 	InitialiserList::Ptr parseInitialiserList();
 
-	ComplexType::Ptr parseComplexType(bool isSpan);
+	ComplexType::Ptr parseComplexType(const juce::String& token);
 
 	WeakReference<BaseScope> currentScope;
 

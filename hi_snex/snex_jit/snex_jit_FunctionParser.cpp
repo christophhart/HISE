@@ -99,6 +99,16 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 		statement = parseReturnStatement();
 		match(JitTokens::semicolon);
 	}
+	else if (matchIf(JitTokens::break_))
+	{
+		statement = new Operations::ControlFlowStatement(location, true);
+		match(JitTokens::semicolon);
+	}
+	else if (matchIf(JitTokens::continue_))
+	{
+		statement = new Operations::ControlFlowStatement(location, false);
+		match(JitTokens::semicolon);
+	}
 	else if (matchIf(JitTokens::for_))
 	{
 		statement = parseLoopStatement();
@@ -219,6 +229,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
 {
+	auto loc = location;
 	match(JitTokens::openParen);
 
 	ExprPtr cond = parseBool();
@@ -234,7 +245,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
 		falseBranch = parseStatement();
 	}
 
-	return new Operations::IfStatement(location, cond, trueBranch, falseBranch);
+	return new Operations::IfStatement(loc, cond, trueBranch, falseBranch);
 }
 
 void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
@@ -260,24 +271,28 @@ void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
 		auto lastTrueStatement = is->getTrueBranch();
 		auto lastFalseStatement = is->getFalseBranch();
 
-		while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastTrueStatement.get()))
-			lastTrueStatement = bl->getLastStatement();
-		
-		while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastTrueStatement.get()))
-			lastTrueStatement = bl->getLastStatement();
+		auto hasReturn = [](Operations::Statement::Ptr p)
+		{
+			if(dynamic_cast<Operations::ReturnStatement*>(p.get()))
+				return true;
 
+			return false;
+		};
 
-		auto lastTrueStatementOK = isReturn(lastTrueStatement);
-		auto lastFalseStatementOK = isReturn(lastFalseStatement);
+		if (!lastTrueStatement->forEachRecursive(hasReturn))
+			lastTrueStatement->addStatement(new Operations::ReturnStatement(location, nullptr));
+
+		if (lastFalseStatement != nullptr)
+		{
+			if (!lastFalseStatement->forEachRecursive(hasReturn))
+			{
+				lastFalseStatement->addStatement(new Operations::ReturnStatement(location, nullptr));
+			}
 		
-		if (lastFalseStatementOK && lastTrueStatementOK)
 			return;
-
-		is->getTrueBranch()->addStatement(new Operations::ReturnStatement(location, nullptr));
-		is->getFalseBranch()->addStatement(new Operations::ReturnStatement(location, nullptr));
+		}
 	}
 
-	
 	tree->addStatement(new Operations::ReturnStatement(location, nullptr));
 }
 

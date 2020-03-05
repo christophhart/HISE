@@ -274,6 +274,18 @@ bool FunctionData::matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID
 	return matchesArgumentTypes(TypeInfo(r), t);
 }
 
+struct InlineData
+{
+	InlineData(AsmCodeGenerator& gen_) :
+		gen(gen_)
+	{};
+
+	AsmCodeGenerator& gen;
+	AssemblyRegister::Ptr target;
+	AssemblyRegister::Ptr object;
+	AssemblyRegister::List args;
+};
+
 bool FunctionClass::hasFunction(const Symbol& s) const
 {
 	if (getClassName() == s)
@@ -296,6 +308,7 @@ bool FunctionClass::hasFunction(const Symbol& s) const
 
 	return false;
 }
+
 
 
 bool FunctionClass::hasConstant(const Symbol& s) const

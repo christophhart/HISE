@@ -236,4 +236,249 @@ juce::String JitExpression::convertToValidCpp(juce::String input)
 	return input.replace("Math.", "hmath::");
 }
 
+
+
+template <typename T>
+ComplexType::Ptr snex::_ramp<T>::createComplexType(const Identifier& id)
+{
+	Type s;
+	
+	auto obj = new StructType(Symbol::createRootSymbol(Identifier(id)));
+
+	ADD_SNEX_STRUCT_MEMBER(obj, s, value);
+	ADD_SNEX_STRUCT_MEMBER(obj, s, targetValue);
+	ADD_SNEX_STRUCT_MEMBER(obj, s, delta);
+	ADD_SNEX_STRUCT_MEMBER(obj, s, stepDivider);
+	ADD_SNEX_STRUCT_MEMBER(obj, s, numSteps);
+	ADD_SNEX_STRUCT_MEMBER(obj, s, stepsToDo);
+
+	ADD_SNEX_STRUCT_METHOD(obj, Type, reset);
+	ADD_SNEX_STRUCT_METHOD(obj, Type, set);
+	ADD_SNEX_STRUCT_METHOD(obj, Type, advance);
+	ADD_SNEX_STRUCT_METHOD(obj, Type, get);
+	ADD_SNEX_STRUCT_METHOD(obj, Type, prepare);
+
+	ADD_INLINER(set, {
+		SETUP_INLINER(T);
+		
+		auto skipSmooth = cc.newLabel();
+		auto end = cc.newLabel();
+		auto numSteps = cc.newGpd();
+		d->args[0]->loadMemoryIntoRegister(cc);
+		auto newTargetValue = FP_REG_R(d->args[0]);
+		x86::Xmm dl;
+
+		IF_(float)  dl = cc.newXmmSs();
+		IF_(double) dl = cc.newXmmSd();
+		
+		cc.setInlineComment("Inlined sfloat::set");
+		cc.mov(numSteps, MEMBER_PTR(numSteps));
+		cc.test(numSteps, numSteps);
+		cc.je(skipSmooth);
+
+		// if(numSteps != 0)
+		{
+			IF_(float)
+			{
+				cc.movss(dl, newTargetValue);
+				cc.subss(dl, MEMBER_PTR(value));
+				cc.mulss(dl, MEMBER_PTR(stepDivider));
+				cc.movss(MEMBER_PTR(delta), dl);
+				cc.movss(MEMBER_PTR(targetValue), newTargetValue);
+			}
+			IF_(double)
+			{
+				cc.movsd(dl, newTargetValue);
+				cc.subsd(dl, MEMBER_PTR(value));
+				cc.mulsd(dl, MEMBER_PTR(stepDivider));
+				cc.movsd(MEMBER_PTR(delta), dl);
+				cc.movsd(MEMBER_PTR(targetValue), newTargetValue);
+			}
+			
+			cc.mov(MEMBER_PTR(stepsToDo), numSteps);
+			cc.jmp(end);
+		}
+		// else
+		{
+			cc.bind(skipSmooth);
+			
+			IF_(float) cc.movss(MEMBER_PTR(value), newTargetValue);
+			IF_(double) cc.movsd(MEMBER_PTR(value), newTargetValue);
+			
+			cc.mov(MEMBER_PTR(stepsToDo), 0);
+		}
+
+		cc.bind(end);
+
+		return Result::ok();
+	});
+
+	ADD_INLINER(get,
+	{
+		SETUP_INLINER(T);
+		d->target->createRegister(cc);
+		auto ret = FP_REG_W(d->target);
+		
+		cc.setInlineComment("inline get()");
+		IF_(float) cc.movss(ret, MEMBER_PTR(value));
+		IF_(double) cc.movsd(ret, MEMBER_PTR(value));
+
+		return Result::ok();
+	});
+
+	ADD_INLINER(advance,
+	{
+		/*
+		T advance()
+		{
+			auto v = value;
+
+			if (stepsToDo <= 0)
+				return v;
+
+			value += delta;
+			stepsToDo--;
+
+			return v;
+		}
+		*/
+
+		SETUP_INLINER(T);
+
+		d->target->createRegister(cc);
+		auto ret = FP_REG_W(d->target);
+		auto end = cc.newLabel();
+		auto stepsToDo = cc.newGpd();
+
+		cc.setInlineComment("inline advance()");
+		IF_(float) cc.movss(ret, MEMBER_PTR(value));
+		IF_(double) cc.movsd(ret, MEMBER_PTR(value));
+
+		cc.mov(stepsToDo, MEMBER_PTR(stepsToDo));
+		cc.cmp(stepsToDo, 0);
+		cc.jle(end);
+
+		// if (stepsToDo > 0
+		{
+			IF_(float)
+			{
+				auto tmp = cc.newXmmSs();
+				cc.movss(tmp, ret);
+				cc.addss(tmp, MEMBER_PTR(delta));
+				cc.movss(MEMBER_PTR(value), tmp);
+			}
+			IF_(double)
+			{
+				auto tmp = cc.newXmmSd();
+				cc.movsd(tmp, ret);
+				cc.addsd(tmp, MEMBER_PTR(delta));
+				cc.movsd(MEMBER_PTR(value), tmp);
+			}
+
+			cc.dec(stepsToDo);
+			cc.mov(MEMBER_PTR(stepsToDo), stepsToDo);
+		}
+
+		cc.bind(end);
+		return Result::ok();
+	});
+
+	return obj;
+}
+
+snex::jit::ComplexType::Ptr EventWrapper::createComplexType(const Identifier& id)
+{
+	auto obj = new StructType(Symbol::createRootSymbol(Identifier(id)));
+
+	HiseEvent e;
+	int* ptr = reinterpret_cast<int*>(&e);
+
+	obj->addExternalMember("dword1", e, ptr[0]);
+	obj->addExternalMember("dword2", e, ptr[1]);
+	obj->addExternalMember("dword3", e, ptr[2]);
+	obj->addExternalMember("dword4", e, ptr[3]);
+
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getNoteNumber);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getVelocity);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getChannel);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, setChannel);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, setVelocity);
+	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, setNoteNumber);
+
+	ADD_INLINER(getChannel,
+	{
+		SETUP_INLINER(int);
+		d->target->createRegister(cc);
+		auto n = base.cloneAdjustedAndResized(0x01, 1);
+		cc.movsx(INT_REG_W(d->target), n);
+		return Result::ok();
+	});
+
+	ADD_INLINER(getNoteNumber,
+	{
+		SETUP_INLINER(int);
+		d->target->createRegister(cc);
+		auto n = base.cloneAdjustedAndResized(0x02, 1);
+		cc.movsx(INT_REG_W(d->target), n);
+		return Result::ok();
+	});
+
+	ADD_INLINER(getVelocity,
+	{
+		SETUP_INLINER(int);
+		d->target->createRegister(cc);
+		auto n = base.cloneAdjustedAndResized(0x03, 1);
+		cc.movsx(INT_REG_W(d->target), n);
+		return Result::ok();
+	});
+
+	ADD_INLINER(setChannel,
+	{
+		SETUP_INLINER(int);
+		auto n = base.cloneAdjustedAndResized(0x01, 1);
+
+		auto v = d->args[0];
+		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		else cc.mov(n, INT_REG_R(v));
+
+		return Result::ok();
+	});
+
+	ADD_INLINER(setNoteNumber,
+	{
+		SETUP_INLINER(int);
+		auto n = base.cloneAdjustedAndResized(0x02, 1);
+		
+		auto v = d->args[0];
+		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		else cc.mov(n, INT_REG_R(v));
+
+		return Result::ok();
+	});
+
+	ADD_INLINER(setVelocity,
+	{
+		SETUP_INLINER(int);
+		auto n = base.cloneAdjustedAndResized(0x03, 1);
+		
+		auto v = d->args[0];
+		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		else cc.mov(n, INT_REG_R(v));
+
+		return Result::ok();
+	});
+
+	return obj;
+}
+
+
+void SnexObjectDatabase::registerObjects(Compiler& c)
+{
+	c.registerExternalComplexType(sfloat::createComplexType("sfloat"));
+	c.registerExternalComplexType(sdouble::createComplexType("sdouble"));
+	c.registerExternalComplexType(EventWrapper::createComplexType("HiseEvent"));
+}
+
+
+
 }

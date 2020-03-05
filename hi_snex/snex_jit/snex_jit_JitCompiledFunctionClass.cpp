@@ -80,17 +80,17 @@ juce::String JitCompiledFunctionClass::dumpTable()
 
 juce::Array<juce::Identifier> JitCompiledFunctionClass::getFunctionIds() const
 {
-	return pimpl->getFunctionIds();
+	return pimpl->getRootData()->getFunctionIds();
 }
 
 FunctionData JitCompiledFunctionClass::getFunction(const Identifier& functionId)
 {
-	auto s = pimpl->getClassName().getChildSymbol(functionId);
+	auto s = Symbol::createRootSymbol("Root").getChildSymbol(functionId);
 
-	if (pimpl->hasFunction(s))
+	if (pimpl->getRootData()->hasFunction(s))
 	{
 		Array<FunctionData> matches;
-		pimpl->addMatchingFunctions(matches, s);
+		pimpl->getRootData()->addMatchingFunctions(matches, s);
 
 		// We don't allow overloaded functions for JIT compilation anyway...
 		return matches.getFirst();
@@ -154,7 +154,7 @@ hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
 juce::ValueTree JitObject::createValueTree()
 {
 	auto c = dynamic_cast<GlobalScope*>(functionClass->pimpl->getParent())->getGlobalFunctionClass("Console");
-	auto v = functionClass->pimpl->getApiValueTree();
+	auto v = functionClass->pimpl->getRootData()->getApiValueTree();
 	v.addChild(FunctionClass::createApiTree(c), -1, nullptr);
 	return v;
 }

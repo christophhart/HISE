@@ -133,6 +133,213 @@ MathFunctions::MathFunctions() :
 	setDescription("returns the bigger value", { "firstValue", "secondValue" });
 	HNODE_JIT_ADD_C_FUNCTION_0(float, hmath::random, "random");
 	setDescription("returns a 32bit floating point random value", {});
+
+#define FP_TARGET FP_REG_W(d->target)
+#define ARGS(i) d->args[i]
+#define SETUP_MATH_INLINE(name) auto& cc = d->gen.cc; auto type = d->target->getType(); d->target->createRegister(cc); cc.setInlineComment(name);
+
+	addInliner("abs", [](InlineData* d)
+	{
+		SETUP_MATH_INLINE("inline abs");
+
+		IF_(float)
+		{
+			auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU32(0x7fffffff));
+			cc.movss(FP_TARGET, FP_REG_R(ARGS(0)));
+			cc.andps(FP_TARGET, c);
+		}
+		IF_(double)
+		{
+			auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU64(0x7fffffffffffffff));
+			cc.movsd(FP_TARGET, FP_REG_R(ARGS(0)));
+			cc.andps(FP_TARGET, c);
+		}
+
+		return Result::ok();
+	});
+
+	addInliner("max", [](InlineData* d)
+	{
+		SETUP_MATH_INLINE("inline max");
+
+		IF_(float)
+		{
+			FP_OP(cc.movss, d->target, ARGS(0));
+			FP_OP(cc.maxss, d->target, ARGS(1));
+		}
+		IF_(double)
+		{
+			FP_OP(cc.movsd, d->target, ARGS(0));
+			FP_OP(cc.maxsd, d->target, ARGS(1));
+		}
+
+		return Result::ok();
+	});
+
+
+	addInliner("min", [](InlineData* d)
+	{
+		SETUP_MATH_INLINE("inline min");
+
+		IF_(float)
+		{
+			FP_OP(cc.movss, d->target, ARGS(0));
+			FP_OP(cc.minss, d->target, ARGS(1));
+		}
+		IF_(double)
+		{
+			FP_OP(cc.movsd, d->target, ARGS(0));
+			FP_OP(cc.minsd, d->target, ARGS(1));
+		}
+
+		return Result::ok();
+	});
+
+	addInliner("range", [](InlineData* d)
+	{
+		SETUP_MATH_INLINE("inline range");
+
+		IF_(float)
+		{
+			FP_OP(cc.movss, d->target, ARGS(0));
+			FP_OP(cc.maxss, d->target, ARGS(1));
+			FP_OP(cc.minss, d->target, ARGS(2));
+
+		}
+		IF_(double)
+		{
+			FP_OP(cc.movsd, d->target, ARGS(0));
+			FP_OP(cc.maxsd, d->target, ARGS(1));
+			FP_OP(cc.minsd, d->target, ARGS(2));
+		}
+
+		return Result::ok();
+	});
+
+	addInliner("sign", [](InlineData* d)
+	{
+		SETUP_MATH_INLINE("inline sign");
+
+		ARGS(0)->loadMemoryIntoRegister(cc);
+
+		auto pb = cc.newLabel();
+		auto nb = cc.newLabel();
+
+		IF_(float)
+		{
+			auto input = FP_REG_R(ARGS(0));
+			auto t = FP_REG_W(d->target);
+			auto mem = cc.newMmConst(ConstPool::kScopeGlobal, Data64::fromF32(-1.0f, 1.0f));
+			auto i = cc.newGpq();
+			auto r2 = cc.newGpq();
+			auto zero = cc.newXmmSs();
+
+			cc.xorps(zero, zero);
+			cc.xor_(i, i);
+			cc.ucomiss(input, zero);
+			cc.seta(i.r8());
+			cc.lea(r2, mem);
+			cc.movss(t, x86::ptr(r2, i, 2, 0, 4));
+		}
+		IF_(double)
+		{
+			auto input = FP_REG_R(ARGS(0));
+			auto t = FP_REG_W(d->target);
+			auto mem = cc.newXmmConst(ConstPool::kScopeGlobal, Data128::fromF64(-1.0, 1.0));
+			auto i = cc.newGpq();
+			auto r2 = cc.newGpq();
+			auto zero = cc.newXmmSd();
+
+			cc.xorps(zero, zero);
+			cc.xor_(i, i);
+			cc.ucomisd(input, zero);
+			cc.seta(i.r8());
+			cc.lea(r2, mem);
+			cc.movsd(t, x86::ptr(r2, i, 3, 0, 8));
+		}
+
+		return Result::ok();
+	});
+
+	addInliner("map", [](InlineData* d)
+	{
+		SETUP_MATH_INLINE("inline map");
+
+		IF_(float)
+		{
+			FP_OP(cc.movss, d->target, ARGS(2));
+			FP_OP(cc.subss, d->target, ARGS(1));
+			FP_OP(cc.mulss, d->target, ARGS(0));
+			FP_OP(cc.addss, d->target, ARGS(1));
+		}
+		IF_(double)
+		{
+			FP_OP(cc.movsd, d->target, ARGS(2));
+			FP_OP(cc.subsd, d->target, ARGS(1));
+			FP_OP(cc.mulsd, d->target, ARGS(0));
+			FP_OP(cc.addsd, d->target, ARGS(1));
+		}
+
+		return Result::ok();
+	});
+
+	addInliner("fmod", [](InlineData* d)
+	{
+		SETUP_MATH_INLINE("inline fmod");
+
+		X86Mem x = d->gen.createFpuMem(ARGS(0));
+		X86Mem y = d->gen.createFpuMem(ARGS(1));
+		auto u = d->gen.createStack(d->target->getType());
+
+		cc.fld(y);
+		cc.fld(x);
+		cc.fprem();
+		cc.fstp(x);
+		cc.fstp(u);
+
+		d->gen.writeMemToReg(d->target, x);
+
+		return Result::ok();
+	});
+
+#if 0
+	IF_FUNCTION(sin)
+	{
+		X86Mem x = createFpuMem(args[0]);
+
+		cc.fld(x);
+		cc.fsin();
+		cc.fstp(x);
+
+		writeMemToReg(target, x);
+	}
+
+	IF_FUNCTION(cos)
+	{
+		X86Mem x = createFpuMem(args[0]);
+
+		cc.fld(x);
+		cc.fcos();
+		cc.fstp(x);
+
+		writeMemToReg(target, x);
+	}
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 MessageFunctions::MessageFunctions() :

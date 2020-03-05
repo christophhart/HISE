@@ -46,11 +46,11 @@ struct JitCodeHelpers
 		CppGen::MethodInfo info;
 
 		info.name = f.id.toString();
-		info.returnType = Types::Helpers::getTypeName(f.returnType);
+		info.returnType = f.returnType.toString();
 
 		for (auto a : f.args)
 		{
-			info.arguments.add(Types::Helpers::getTypeName(a.type));
+			info.arguments.add(a.toString());
 		}
 
 		if(!allowExecution)
@@ -58,7 +58,7 @@ struct JitCodeHelpers
 
 		if (f.returnType != Types::ID::Void)
 		{
-			info.body << "return " << Types::Helpers::getCppValueString(VariableStorage(f.returnType, 0.0)) << ";\n";
+			info.body << "return " << Types::Helpers::getCppValueString(VariableStorage(f.returnType.getType(), 0.0)) << ";\n";
 		}
 		
 		String emptyFunction;
@@ -468,7 +468,7 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 	if (!cc.resetFunction)
 	{
 		f.id = "reset";
-		f.returnType = Types::ID::Void;
+		f.returnType = TypeInfo(Types::ID::Void, false);
 		f.args = {};
 
 		missingFunctions << JitCodeHelpers::createEmptyFunction(f, true);
@@ -477,8 +477,8 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 	if (!cc.eventFunction)
 	{
 		f.id = "handleEvent";
-		f.returnType = Types::ID::Void;
-		f.args = {Types::ID::Event};
+		f.returnType = TypeInfo(Types::ID::Void, false);
+		f.args.add( Symbol::createRootSymbol("e").withType(Types::ID::Event));
 
 		missingFunctions << JitCodeHelpers::createEmptyFunction(f, true);
 	}
@@ -486,8 +486,11 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 	if (!cc.prepareFunction)
 	{
 		f.id = "prepare";
-		f.returnType = Types::ID::Void;
-		f.args = { Types::ID::Double, Types::ID::Integer, Types::ID::Integer };
+		f.returnType = TypeInfo(Types::ID::Void, false);
+		f.args = { Symbol::createRootSymbol("sampleRate").withType(Types::ID::Double),
+			Symbol::createRootSymbol("blockSize").withType(Types::ID::Integer),
+			Symbol::createRootSymbol("numChannels").withType(Types::ID::Integer)
+		};
 
 		missingFunctions << JitCodeHelpers::createEmptyFunction(f, true);
 	}
@@ -495,17 +498,19 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 	if (!cc.callbacks[CallbackTypes::Channel])
 	{
 		f.id = "processChannel";
-		f.returnType = Types::ID::Void;
-		f.args = { Types::ID::Block, Types::ID::Integer };
+		f.returnType = TypeInfo(Types::ID::Void, false);
+		f.args = { Symbol::createRootSymbol("channelData").withType(Types::ID::Block),
+			Symbol::createRootSymbol("channelIndex").withType(Types::ID::Integer)};
 
 		missingFunctions << JitCodeHelpers::createEmptyFunction(f, false);
 	}
 
+#if 0
 	if (!cc.callbacks[CallbackTypes::Frame])
 	{
 		f.id = "processFrame";
-		f.returnType = Types::ID::Void;
-		f.args = { Types::ID::Block };
+		f.returnType = TypeInfo(Types::ID::Void, false);
+		f.args = { TypeInfo(Types::ID::Block) };
 
 		missingFunctions << JitCodeHelpers::createEmptyFunction(f, false);
 	}
@@ -513,11 +518,12 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 	if (!cc.callbacks[CallbackTypes::Sample])
 	{
 		f.id = "processSample";
-		f.returnType = Types::ID::Float;
-		f.args = { Types::ID::Float };
+		f.returnType = TypeInfo(Types::ID::Float, false);
+		f.args = { TypeInfo(Types::ID::Float) };
 
 		missingFunctions << JitCodeHelpers::createEmptyFunction(f, false);
 	}
+#endif
 
 	CppGen::Emitter::emitCommentLine(missingFunctions, 0, "Parameter & Freeze functions");
 

@@ -38,35 +38,18 @@ using namespace juce;
 using namespace asmjit;
 
 
-class ClassScope : public FunctionClass,
-	public BaseScope
+class ClassScope : public BaseScope
 {
 public:
 
-	juce::String getDebugDataType() const override
+	struct x
 	{
-		return classTypeId.toString();
-	}
+		static int getX()
+		{
+			return 2;
+		}
+	};
 
-	juce::String getDebugName() const override
-	{
-		return scopeId.toString();
-	}
-
-	Identifier getObjectName() const override
-	{
-		return scopeId.id;
-	}
-
-	juce::String getCategory() const override
-	{
-		return "Object instance";
-	}
-
-	int getTypeNumber() const override
-	{
-		return Types::ID::Pointer;
-	}
 
 	DebugInformationBase* createDebugInformationForChild(const Identifier& id)
 	{
@@ -75,16 +58,8 @@ public:
 		return nullptr;
 	}
 
-	void getAllConstants(Array<Identifier>& ids) const override
-	{
-		auto list = BaseScope::getAllVariables();
-
-		for (auto l : list)
-			ids.add(l.id);
-	}
 
 	ClassScope(BaseScope* parent, const Symbol& id, ComplexType::Ptr typePtr_) :
-		FunctionClass(id),
 		BaseScope(id, parent),
 		typePtr(typePtr_)
 	{
@@ -95,11 +70,9 @@ public:
 
 			runtime = new asmjit::JitRuntime();
 			rootData = new RootClassData();
-
-			addFunctionClass(new MessageFunctions());
-			addFunctionClass(new MathFunctions());
-			addFunctionClass(new BlockFunctions());
 		}
+		else
+			jassert(typePtr != nullptr);
 
 		if (id)
 			scopeType = BaseScope::Class;
@@ -109,7 +82,9 @@ public:
 
 	bool isRootClass()
 	{
-		return getParent()->getScopeType() == BaseScope::Global;
+		auto isRoot = getParent()->getScopeType() == BaseScope::Global;
+		jassert(isRoot == (typePtr == nullptr));
+		return isRoot;
 	}
 
 	ClassScope* getRootClass()
@@ -131,7 +106,7 @@ public:
 	}
 
 	ScopedPointer<asmjit::JitRuntime> runtime;
-	ScopedPointer<RootClassData> rootData;
+	ReferenceCountedObjectPtr<RootClassData> rootData;
 	ComplexType::Ptr typePtr;
 
 	struct FunctionDebugInfo : public DebugInformationBase
@@ -306,11 +281,6 @@ public:
 	}
 
 
-	void addRegisteredFunctionClasses(OwnedArray<DebugInformationBase>& list, int typeNumber = ApiHelpers::DebugObjectTypes::ApiCall)
-	{
-		for (auto f : registeredClasses)
-			list.add(new ObjectDebugInformation(f, typeNumber));
-	}
 
 	void createDebugInfo(OwnedArray<DebugInformationBase>& list)
 	{
@@ -392,18 +362,20 @@ public:
 
 		list.add(forInfo);
 
-		for (auto f : functions)
-		{
-			list.add(new FunctionDebugInfo(f));
-		}
+		
 
 		if (auto gs = dynamic_cast<GlobalScope*>(getParent()))
 		{
 			list.add(new ObjectDebugInformation(gs->getGlobalFunctionClass("Console"), ApiHelpers::DebugObjectTypes::ApiCall));
 		}
 
-
+#if 0
+		for (auto f : functions)
+		{
+			list.add(new FunctionDebugInfo(f));
+		}
 		addRegisteredFunctionClasses(list);
+#endif
 
 
 		list.add(ManualDebugObject::create<BufferDummy>());
