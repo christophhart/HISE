@@ -138,6 +138,48 @@ private:
 	JitCompiledFunctionClass::Ptr functionClass;
 };
 
+/** This class can be used as base class to create C++ classes that call
+    member functions defined in the JIT compiled code. 
+	
+	In order to use it, pass the code and the class identifier (either class name
+	or alias) into Compiler::compileJitClass<T>(). Then subclass this class and
+	add member functions that call the defined member functions of this class.
+	*/
+struct JitCompiledClassBase
+{
+	JitCompiledClassBase(JitObject&& o_, ComplexType::Ptr p) :
+		o(o_),
+		classType(p),
+		memberFunctions(classType->getFunctionClass())
+	{
+		data.allocate(classType->getRequiredAlignment() + classType->getRequiredByteSize(), true);
+
+		thisPtr = reinterpret_cast<void*>(data.get() + classType->getRequiredAlignment());
+
+		classType->initialise(thisPtr, classType->makeDefaultInitialiserList());
+	}
+
+protected:
+
+	FunctionData getFunction(const Identifier& id)
+	{
+		Array<FunctionData> matches;
+		auto s = dynamic_cast<StructType*>(classType.get())->id.getChildSymbol(id);
+		memberFunctions->addMatchingFunctions(matches, s);
+
+		if (matches.size() == 1)
+			return matches[0];
+
+		return {};
+	}
+
+	void* thisPtr = nullptr;
+
+	JitObject o;
+	ComplexType::Ptr classType;
+	FunctionClass::Ptr memberFunctions;
+	HeapBlock<uint8> data;
+};
 
 }
 }

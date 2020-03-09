@@ -458,5 +458,134 @@ snex::VariableStorage FunctionClass::getConstantValue(const Symbol& s) const
 	return {};
 }
 
+snex::jit::FunctionClass* WrapType::getFunctionClass()
+{
+	auto wrapOperators = new FunctionClass(Symbol::createRootSymbol("WrapOperators"));
+
+	auto wrapSize = size;
+
+	auto assignOperator = new FunctionData();
+	assignOperator->returnType = TypeInfo(this);
+	assignOperator->addArgs("current", TypeInfo(this));
+	assignOperator->addArgs("newValue", TypeInfo(Types::ID::Integer));
+	assignOperator->id = wrapOperators->getSpecialSymbol(FunctionClass::AssignOverload);
+	assignOperator->inliner = new Inliner(assignOperator->id, [wrapSize](InlineData* d)
+	{
+		auto target = d->target;
+		auto& cc = d->gen.cc;
+
+		bool wasMem = target->hasCustomMemoryLocation() && target->isMemoryLocation();;
+
+		target->loadMemoryIntoRegister(cc);
+
+		auto t = INT_REG_W(target);
+
+		if (isPowerOfTwo(wrapSize))
+		{
+			cc.and_(t, wrapSize - 1);
+		}
+		else
+		{
+			auto d = cc.newGpd();
+			auto s = cc.newInt32Const(ConstPool::kScopeLocal, wrapSize);
+			cc.cdq(d, t);
+			cc.idiv(d, t, s);
+			cc.mov(t, d);
+		}
+
+		if (wasMem)
+		{
+			auto mem = target->getMemoryLocationForReference();
+			cc.mov(mem, INT_REG_R(target));
+			target->setCustomMemoryLocation(mem);
+		}
+
+		return Result::ok();
+	});
+
+	wrapOperators->addFunction(assignOperator);
+
+	return wrapOperators;
+}
+
+bool ComplexType::isValidCastSource(Types::ID nativeType, ComplexType::Ptr p) const
+{
+	if (p == this)
+		return true;
+
+	return false;
+}
+
+bool ComplexType::isValidCastTarget(Types::ID nativeType, ComplexType::Ptr p) const
+{
+	if (p == this)
+		return true;
+
+	return false;
+}
+
+snex::jit::FunctionClass* VariadicTypeBase::getFunctionClass()
+{
+	auto fc = new FunctionClass(Symbol::createRootSymbol(type->variadicId));
+
+	ReferenceCountedArray<FunctionClass> childFunctions;
+
+	for (auto c : types)
+	{
+		childFunctions.add(c->getFunctionClass());
+	}
+
+	for (auto& f : type->functions)
+	{
+		uint8 offset = 0;
+
+		FunctionData* toAdd = new FunctionData(f);
+
+		struct FunctionWithOffset
+		{
+			FunctionData f;
+			size_t offset = 0;
+		};
+
+		Array<FunctionWithOffset> functions;
+
+		for (int i = 0; i < types.size(); i++)
+		{
+			FunctionWithOffset fo;
+			fo.f = f;
+			fo.offset = offset;
+
+			if (childFunctions[i]->injectFunctionPointer(fo.f))
+				functions.add(fo);
+
+			offset += types[i]->getRequiredByteSize();
+		}
+
+		toAdd->inliner = new Inliner(f.id, [functions](InlineData* d)
+		{
+			auto& cc = d->gen.cc;
+			auto start = cc.newGpq();
+
+			d->args[0]->loadMemoryIntoRegister(cc);
+
+			cc.mov(start, INT_REG_R(d->args[0]));
+
+			for (auto f : functions)
+			{
+				d->gen.emitFunctionCall(d->target, f.f, nullptr, d->args);
+				cc.add(PTR_REG_W(d->args[0]), (int64)f.offset);
+			}
+
+			cc.mov(PTR_REG_W(d->args[0]), start);
+
+			return Result::ok();
+		});
+
+		fc->addFunction(toAdd);
+	}
+
+	return fc;
+}
+
 } // end namespace jit
 } // end namespace snex

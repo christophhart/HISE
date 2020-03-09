@@ -117,7 +117,15 @@ public:
 
 	void setDebugHandler(DebugHandler* newHandler);
 
-	JitObject compileJitObject(const String& code);
+	JitObject compileJitObject(const juce::String& code);
+
+	/** Compile a class that you want to use from C++. */
+	template <class T> T* compileJitClass(const juce::String& code, const Identifier& classId)
+	{
+		auto obj = compileJitObject(code);
+		auto typePtr = getComplexType(Symbol::createRootSymbol(classId));
+		return new T(std::move(obj), typePtr);
+	};
 
 	Result getCompileResult();
 
@@ -131,6 +139,10 @@ public:
 	helper class instead. 
 	*/
 	void registerExternalComplexType(ComplexType::Ptr t);
+
+	ComplexType::Ptr getComplexType(const Symbol& s);
+
+	void registerVariadicType(VariadicSubType::Ptr p);
 
 private:
 

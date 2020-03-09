@@ -474,6 +474,17 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(const Identifier& id
 
 void SnexObjectDatabase::registerObjects(Compiler& c)
 {
+	VariadicSubType::Ptr chainType = new VariadicSubType();
+	chainType->variadicId = "chain";
+
+	FunctionData process;
+	process.returnType = TypeInfo(Types::Void);
+	process.addArgs("input", TypeInfo(Types::ID::Integer));
+
+	chainType->functions.add(process);
+
+	c.registerVariadicType(chainType);
+
 	c.registerExternalComplexType(sfloat::createComplexType("sfloat"));
 	c.registerExternalComplexType(sdouble::createComplexType("sdouble"));
 	c.registerExternalComplexType(EventWrapper::createComplexType("HiseEvent"));

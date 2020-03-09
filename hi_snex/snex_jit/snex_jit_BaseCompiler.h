@@ -212,6 +212,8 @@ public:
 
 	ReferenceCountedArray<ComplexType> complexTypes;
 
+	ReferenceCountedArray<VariadicSubType> variadicTypes;
+
 	ComplexType::Ptr getComplexTypeForAlias(const Identifier& id)
 	{
 		for (auto c : complexTypes)
@@ -222,6 +224,8 @@ public:
 
 		return nullptr;
 	}
+
+	VariadicSubType::Ptr getVariadicTypeForId(const Identifier& id) const;
 
 	WrapType* getWrapType(int size)
 	{

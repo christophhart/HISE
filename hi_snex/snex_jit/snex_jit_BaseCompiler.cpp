@@ -99,6 +99,15 @@ using namespace asmjit;
 		}
 	}
 
+	snex::jit::VariadicSubType::Ptr BaseCompiler::getVariadicTypeForId(const Identifier& id) const
+	{
+		for (auto vt : variadicTypes)
+			if (vt->variadicId == id)
+				return vt;
+
+		return nullptr;
+	}
+
 	void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
     {
         if (isOptimizationPass(p) && passes.isEmpty())

@@ -753,6 +753,8 @@ struct Operations::Assignment : public Expression,
 		return t;
 	}
 
+	TargetType getTargetType() const;
+
 	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const override
 	{
 		
@@ -769,6 +771,7 @@ struct Operations::Assignment : public Expression,
 
 	VariableReference* getTargetVariable() const
 	{
+		auto targetType = getTargetType();
 		jassert(targetType == TargetType::Variable || targetType == TargetType::Reference);
 		auto v = getSubExpr(1).get();
 		return dynamic_cast<VariableReference*>(v);
@@ -776,7 +779,7 @@ struct Operations::Assignment : public Expression,
 
 	DotOperator* getMemberTarget() const
 	{
-		jassert(targetType == TargetType::ClassMember);
+		jassert(getTargetType() == TargetType::ClassMember);
 		return dynamic_cast<DotOperator*>(getSubExpr(1).get());
 	}
 
@@ -784,7 +787,7 @@ struct Operations::Assignment : public Expression,
 
 	TokenType assignmentType;
 	bool isFirstAssignment = false;
-	TargetType targetType;
+	FunctionData overloadedAssignOperator;
 };
 
 

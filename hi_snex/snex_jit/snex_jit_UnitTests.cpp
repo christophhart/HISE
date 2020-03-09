@@ -851,26 +851,11 @@ public:
 
 	void runTest() override
 	{
-		
-		testInlinedMathPerformance();
-		testExternalTypeDatabase<float>();
-		testExternalTypeDatabase<double>();
-
-		optimizations = { OptimizationIds::Inlining };
-	
-		testInlinedMathPerformance();
-		testExternalTypeDatabase<float>();
-		testExternalTypeDatabase<double>();
-
+		//testWrap();
 		return;
-		
+		//optimizations = { OptimizationIds::Inlining };
 		//runTestFiles("member_set_function.h");
-
-		
 		//return;
-
-
-		
 
 		testOptimizations();
 		testInlining();
@@ -1784,6 +1769,16 @@ private:
 		{
 			juce::String code;
 
+			ADD_CODE_LINE("wrap<4> x = {2};");
+			ADD_CODE_LINE("int test(int input) { x = input; return x; }");
+
+			CREATE_TYPED_TEST(code);
+			EXPECT_TYPED("wrap assign", 5, 1);
+		}
+
+		{
+			juce::String code;
+
 			ADD_CODE_LINE("static const int size = 4;");
 			ADD_CODE_LINE("wrap<size> x = {5};");
 			ADD_CODE_LINE("int test(int input) { return x; }");
@@ -1812,15 +1807,7 @@ private:
 			EXPECT_TYPED("wrap at initialisation", 5, 1);
 		}
 
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("wrap<4> x = {2};");
-			ADD_CODE_LINE("int test(int input) { x = input; return x; }");
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_TYPED("wrap assign", 5, 1);
-		}
+		
 
 		{
 			juce::String code;
@@ -3135,7 +3122,7 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
-		CREATE_TEST("float t2(float a){ return a * 2.0f; } float t1(float a){ return t2(a); } float test(float input) { return t1(input); }");
+		CREATE_TEST("float t2(float a){ return a * 2.0f; } float t1(float a){ return t2(a) + 5.0f; } float test(float input) { return t1(input); }");
 		EXPECT("nested function call", 2.0f, 9.0f);
 
 		CREATE_TEST("int sumThemAll(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8){ return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8; } float test(float in) { return (float)sumThemAll(1, 2, 3, 4, 5, 6, 7, 8); }");

@@ -127,6 +127,27 @@ public:
 		return TokenIterator::matchType();
 	}
 
+	ComplexType::Ptr matchVariadicType()
+	{
+		auto id = parseIdentifier();
+
+		auto vId = compiler->getVariadicTypeForId(id);
+
+		auto newType = new VariadicTypeBase(vId);
+
+		match(JitTokens::lessThan);
+
+		while (matchIfComplexType())
+		{
+			newType->addType(currentComplexType);
+			matchIf(JitTokens::comma);
+		}
+
+		match(JitTokens::greaterThan);
+
+		return newType;
+	}
+
 	bool matchIfComplexType()
 	{
 		if (currentType == JitTokens::identifier)
@@ -134,6 +155,12 @@ public:
 			auto id = Identifier(currentValue.toString());
 
 			Symbol s = Symbol::createRootSymbol(id);
+
+			if (auto vId = compiler->getVariadicTypeForId(id))
+			{
+				currentComplexType = matchVariadicType();
+				return true;
+			}
 
 			if (currentComplexType = compiler->getComplexTypeForAlias(id))
 			{

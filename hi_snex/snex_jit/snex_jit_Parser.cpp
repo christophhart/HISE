@@ -170,6 +170,11 @@ BlockParser::StatementPtr BlockParser::parseStatementList()
 
 		auto s = parseStatement();
 		list->addStatement(s);
+
+		while (matchIf(JitTokens::using_))
+		{
+			parseUsingAlias();
+		}
 	}
 
 	matchIf(JitTokens::closeBrace);
@@ -220,6 +225,8 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 
 		return parseComplexTypeDefinition(isConst);
 	}
+
+	
 
 	location.throwError("Can't parse statement");
 	return nullptr;

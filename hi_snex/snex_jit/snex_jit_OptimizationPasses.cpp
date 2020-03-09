@@ -164,7 +164,8 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 				a->getSubExpr(1)->process(compiler, s);
 
-				if (a->targetType == Operations::Assignment::TargetType::Variable)
+
+				if (a->getTargetType() == Operations::Assignment::TargetType::Variable)
 				{
 					auto target = a->getTargetVariable();
 
@@ -509,7 +510,7 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 
 
 
-bool Inliner::processStatementInternal(BaseCompiler* compiler, BaseScope* scope, StatementPtr s)
+bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope* scope, StatementPtr s)
 {
 	if (auto is = dynamic_cast<Operations::IfStatement*>(s.get()))
 	{
@@ -603,7 +604,7 @@ bool Inliner::processStatementInternal(BaseCompiler* compiler, BaseScope* scope,
 }
 
 
-bool Inliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scope, Operations::Function* f, Operations::FunctionCall* fc)
+bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scope, Operations::Function* f, Operations::FunctionCall* fc)
 {
 	auto clone = f->statements->clone(fc->location);
 	auto cs = dynamic_cast<Operations::StatementBlock*>(clone.get());
@@ -785,7 +786,7 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 		{
 			simplifyOp(a->getSubExpr(1), a->getSubExpr(0), a->assignmentType, compiler, s);
 
-			if (a->targetType == Operations::Assignment::TargetType::Variable)
+			if (a->getTargetType() == Operations::Assignment::TargetType::Variable)
 			{
 				currentlyAssignedId.s = a->getTargetVariable()->id;
 				currentlyAssignedId.scope = a->getTargetVariable()->variableScope;

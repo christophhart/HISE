@@ -70,6 +70,25 @@ void Compiler::registerExternalComplexType(ComplexType::Ptr t)
 	compiler->complexTypes.add(t);
 }
 
+ComplexType::Ptr Compiler::getComplexType(const Symbol& s)
+{
+	for (auto c : compiler->complexTypes)
+	{
+		auto thisId = Identifier(c->toString());
+		auto otherId = s.id;
+
+			if (thisId == otherId)
+				return c;
+	}
+
+	return nullptr;
+}
+
+void Compiler::registerVariadicType(VariadicSubType::Ptr p)
+{
+	compiler->variadicTypes.add(p);
+}
+
 juce::Result Compiler::getCompileResult()
 {
 	return compiler->getLastResult();

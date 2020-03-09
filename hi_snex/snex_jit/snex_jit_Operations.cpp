@@ -175,6 +175,13 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		l = nullptr;
 		ch = nullptr;
 
+		jassert(scope->getScopeType() == BaseScope::Class);
+
+		if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
+		{
+			st->addJitCompiledMemberFunction(data);
+		}
+
 		compiler->setCurrentPass(BaseCompiler::FunctionCompilation);
 	}
 }
@@ -457,7 +464,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
 	{
-		if (targetType == TargetType::Variable && isFirstAssignment && scope->getRootClassScope() == scope)
+		if (getTargetType() == TargetType::Variable && isFirstAssignment && scope->getRootClassScope() == scope)
 		{
 			auto typeToAllocate = getTargetVariable()->getTypeInfo();
 
@@ -478,6 +485,8 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
 		getSubExpr(0)->process(compiler, scope);
+
+		auto targetType = getTargetType();
 
 		if ((targetType == TargetType::Variable || targetType == TargetType::Reference) && isFirstAssignment)
 		{
@@ -519,10 +528,11 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 	{
-		switch (targetType)
+		switch (getTargetType())
 		{
 		case TargetType::Variable:
 		{
+			auto e = getSubExpr(1);
 			auto v = getTargetVariable();
 
 			if (v->id.isConst() && !isFirstAssignment)
@@ -559,8 +569,37 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		else
 		{
+			if (auto ct = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<ComplexType>())
+			{
+				FunctionClass::Ptr fc = ct->getFunctionClass();
+
+				if (fc != nullptr && fc->hasSpecialFunction(FunctionClass::AssignOverload))
+				{
+					Array<TypeInfo> argTypes;
+
+					argTypes.add(getSubExpr(1)->getTypeInfo());
+					argTypes.add(getSubExpr(0)->getTypeInfo());
+
+					Array<FunctionData> matches;
+
+					fc->addSpecialFunctions(FunctionClass::AssignOverload, matches);
+
+					for (auto& m : matches)
+					{
+						if (m.matchesArgumentTypes(getSubExpr(1)->getTypeInfo(), argTypes))
+						{
+							overloadedAssignOperator = m;
+							return;
+						}
+					}
+				}
+			}
+
+
+
 			checkAndSetType(0, getSubExpr(1)->getTypeInfo());
 		}
+		
 		
 	}
 
@@ -571,11 +610,23 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		getSubExpr(0)->process(compiler, scope);
 		getSubExpr(1)->process(compiler, scope);
 
+		auto value = getSubRegister(0);
+		auto tReg = getSubRegister(1);
+
+		if (overloadedAssignOperator)
+		{
+			AssemblyRegister::List l;
+			l.add(tReg);
+			l.add(value);
+
+			acg.emitFunctionCall(tReg, overloadedAssignOperator, tReg, l);
+			return;
+		}
+
 		// jassertfalse;
 		// here you should do something with the reference...
 
-		auto value = getSubRegister(0);
-		auto tReg = getSubRegister(1);
+		
 
 		if (auto dt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<DynType>())
 		{
@@ -583,7 +634,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			return;
 		}
 
-		if (targetType == TargetType::Reference && isFirstAssignment)
+		if (getTargetType() == TargetType::Reference && isFirstAssignment)
 		{
 			jassert(value->hasCustomMemoryLocation() || value->isMemoryLocation());
 			tReg->setCustomMemoryLocation(value->getMemoryLocationForReference());
@@ -598,12 +649,11 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			else
 				acg.emitBinaryOp(assignmentType, tReg, value);
 
-			if (targetType == TargetType::Variable)
+
+			if (auto wt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<WrapType>())
 			{
-				if (auto wt = getTargetVariable()->getTypeInfo().getTypedIfComplexType<WrapType>())
-				{
-					acg.emitWrap(wt, tReg, WrapType::OpType::Set);
-				}
+				jassertfalse;
+				acg.emitWrap(wt, tReg, WrapType::OpType::Set);
 			}
 		}
 	}
@@ -641,19 +691,26 @@ Operations::Assignment::Assignment(Location l, Expression::Ptr target, TokenType
 	assignmentType(assignmentType_),
 	isFirstAssignment(firstAssignment_)
 {
-	if (auto v = dynamic_cast<VariableReference*>(target.get()))
-	{
-		targetType = v->id.isReference() ? TargetType::Reference : TargetType::Variable;
-	}
-	else if (dynamic_cast<DotOperator*>(target.get()))
-		targetType = TargetType::ClassMember;
-	else if (dynamic_cast<Subscript*>(target.get()))
-		targetType = TargetType::Span;
-
 	addStatement(expr);
 	addStatement(target); // the target must be evaluated after the expression
 }
 
+Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
+{
+	auto target = getSubExpr(1);
+
+	if (auto v = dynamic_cast<VariableReference*>(target.get()))
+	{
+		return v->id.isReference() ? TargetType::Reference : TargetType::Variable;
+	}
+	else if (dynamic_cast<DotOperator*>(target.get()))
+		return TargetType::ClassMember;
+	else if (dynamic_cast<Subscript*>(target.get()))
+		return TargetType::Span;
+
+	jassertfalse;
+	return TargetType::numTargetTypes;
+}
 
 void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 {
@@ -679,8 +736,6 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-
-
 		if (auto vp = dynamic_cast<SymbolStatement*>(getDotChild().get()))
 		{
 			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
@@ -805,7 +860,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				callType = pv->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
 				return;
 			}
-
 		}
 
 		location.throwError("Can't resolve function call " + function.getSignature());
@@ -888,11 +942,9 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			d.object = objExpr != nullptr ? objExpr->reg : nullptr;
 
 			for (int i = 0; i < getNumArguments(); i++)
-			{
 				d.args.add(getArgument(i)->reg);
-			}
 
-			auto r = fc->inlineFunctionCall(function.id, &d);
+			auto r = function.inliner->f(&d);
 
 			if (!r.wasOk())
 				throwError(r.getErrorMessage());
@@ -908,8 +960,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			if (!fc->fillJitFunctionPointer(function))
 				throwError("Can't find function pointer to JIT function " + function.functionName);
 		}
-
-
 
 		if (function.id.toString() == "stop")
 		{
@@ -968,7 +1018,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 bool Operations::FunctionCall::shouldInlineFunctionCall(BaseCompiler* compiler, BaseScope* scope) const
 {
-	if (!fc->isInlineable(function.id))
+	if (function.inliner == nullptr)
 		return false;
 
 	return scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::Inlining);

@@ -758,48 +758,51 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 	}
 	else
 	{
-		if (typePtr->getDataType() == Types::ID::Pointer)
+		if (auto dt = dynamic_cast<DynType*>(typePtr.get()))
 		{
-			if (auto dt = dynamic_cast<DynType*>(typePtr.get()))
+			auto numBytesToWrite = typePtr->getRequiredByteSize();
+
+			auto sourceInfo = expr->getVariableId().typeInfo;
+
+			jassert(sourceInfo.isComplexType());
+
+			if (auto st = sourceInfo.getTypedIfComplexType<SpanType>())
 			{
-				auto numBytesToWrite = typePtr->getRequiredByteSize();
+				X86Mem dst;
 
-				auto sourceInfo = expr->getVariableId().typeInfo;
-
-				jassert(sourceInfo.isComplexType());
-
-				if (auto st = sourceInfo.getTypedIfComplexType<SpanType>())
-				{
-					X86Mem dst;
-
-					if (target->hasCustomMemoryLocation())
-						dst = target->getAsMemoryLocation().clone();
-					else
-						dst = x86::ptr(PTR_REG_R(target));
-
-					dst.setSize(4);
-
-					expr->loadMemoryIntoRegister(cc);
-					cc.setInlineComment("zero first 4 bytes");
-					cc.mov(dst, 0);
-					auto sizeDst = dst.cloneAdjusted(4);
-					cc.setInlineComment("size");
-					cc.mov(sizeDst, (int64)st->getNumElements());
-
-					auto ptrDst = dst.cloneAdjusted(8);
-					ptrDst.setSize(8);
-					cc.setInlineComment("object ptr");
-					cc.mov(ptrDst, PTR_REG_R(expr));
-				}
+				if (target->hasCustomMemoryLocation())
+					dst = target->getAsMemoryLocation().clone();
 				else
-				{
-					jassertfalse;
-				}
+					dst = x86::ptr(PTR_REG_R(target));
+
+				dst.setSize(4);
+
+				expr->loadMemoryIntoRegister(cc);
+				cc.setInlineComment("zero first 4 bytes");
+				cc.mov(dst, 0);
+				auto sizeDst = dst.cloneAdjusted(4);
+				cc.setInlineComment("size");
+				cc.mov(sizeDst, (int64)st->getNumElements());
+
+				auto ptrDst = dst.cloneAdjusted(8);
+				ptrDst.setSize(8);
+				cc.setInlineComment("object ptr");
+				cc.mov(ptrDst, PTR_REG_R(expr));
 			}
 			else
 			{
 				jassertfalse;
 			}
+		}
+		else
+		{
+			jassertfalse;
+		}
+
+#if 0
+		if (typePtr->getDataType() == Types::ID::Pointer)
+		{
+			
 
 			
 		}
@@ -811,6 +814,7 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 			IF_(double) cc.movsd(FP_MEM(target), FP_REG_R(expr));
 			IF_(float) cc.movss(FP_MEM(target), FP_REG_R(expr));
 		}
+#endif
 	}
 }
 
@@ -998,6 +1002,19 @@ void AsmCodeGenerator::emitNegation(RegPtr target, RegPtr expr)
 
 void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f, RegPtr objectAddress,  ReferenceCountedArray<AssemblyRegister>& parameterRegisters)
 {
+	if (f.inliner != nullptr)
+	{
+		InlineData d(*this);
+		d.args = parameterRegisters;
+		d.target = returnReg;
+		d.object = objectAddress;
+
+		jassert(f.object == nullptr);
+
+		f.inliner->f(&d);
+		return;
+	}
+
 	asmjit::FuncSignatureBuilder sig;
 
 	bool isMemberFunction = objectAddress != nullptr;
@@ -1283,7 +1300,6 @@ void AsmCodeGenerator::emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op
 		if (wasMem)
 		{
 			auto mem = target->getMemoryLocationForReference();
-
 			cc.mov(mem, INT_REG_R(target));
 			target->setCustomMemoryLocation(mem);
 		}

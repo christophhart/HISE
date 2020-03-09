@@ -154,27 +154,19 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 
 	if (expectedType != thisType)
 	{
-		auto expIsPointer = expectedType == Types::ID::Pointer || expectedType == Types::ID::Block;
-		auto thisIsPointer = thisType == Types::ID::Pointer || thisType == Types::ID::Block;
-
-		if (expIsPointer || thisIsPointer)
+		if (auto targetType = expectedType.getTypedIfComplexType<ComplexType>())
 		{
-			if (auto st = thisType.getTypedIfComplexType<SpanType>())
-			{
-				if (auto dn = expectedType.getTypedIfComplexType<DynType>())
-				{
-					if (dn->elementType == st->getElementType())
-					{
-						return expectedType;
-						
-					}
-
-					
-				}
-			}
-
-			throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
+			if(!targetType->isValidCastSource(thisType.getType(), thisType.getTypedIfComplexType<ComplexType>()))
+				throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
 		}
+
+		if (auto sourceType = thisType.getTypedIfComplexType<ComplexType>())
+		{
+			if (!sourceType->isValidCastTarget(expectedType.getType(), expectedType.getTypedIfComplexType<ComplexType>()))
+				throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
+		}
+
+		
 			
 
 		logWarning("Implicit cast, possible lost of data");

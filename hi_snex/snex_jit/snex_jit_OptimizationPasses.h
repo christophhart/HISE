@@ -228,11 +228,11 @@ public:
 	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 };
 
-class Inliner: public OptimizationPass
+class FunctionInliner: public OptimizationPass
 {
 public:
 
-	OPTIMIZATION_FACTORY(OptimizationIds::Inlining, Inliner);
+	OPTIMIZATION_FACTORY(OptimizationIds::Inlining, FunctionInliner);
 
 	using TokenType = ParserHelpers::TokenType;
 
@@ -251,7 +251,7 @@ struct OptimizationFactory
 
 	OptimizationFactory()
 	{
-		registerOptimization<Inliner>();
+		registerOptimization<FunctionInliner>();
 		registerOptimization<DeadcodeEliminator>();
 		registerOptimization<BinaryOpOptimizer>();
 		registerOptimization<ConstExprEvaluator>();
