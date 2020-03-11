@@ -560,6 +560,12 @@ bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope
 		if (compiler->getCurrentPass() == BaseCompiler::PreSymbolOptimization)
 			return false;
 
+		if (fc->function.canBeInlined(true))
+		{
+			jassertfalse;
+		}
+
+#if 0
 		auto rd = fc->fc;
 
 		jassert(rd != nullptr);
@@ -598,6 +604,7 @@ bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope
 					return inlineRootFunction(compiler, scope, f, fc);
 			}
 		}
+#endif
 	}
 
 	return false;
@@ -621,30 +628,33 @@ bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scop
 
 		cs->addInlinedParameter(-1, thisSymbol, e);
 
-		auto st = fc->objExpr->getTypeInfo().getTypedIfComplexType<StructType>();
-
-		jassert(st != nullptr);
-
-		clone->forEachRecursive([st, e](Operations::Statement::Ptr p)
+		if (auto st = fc->objExpr->getTypeInfo().getTypedIfComplexType<StructType>())
 		{
-			if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
+			clone->forEachRecursive([st, e](Operations::Statement::Ptr p)
 			{
-				if (st->hasMember(v->id.id))
+				if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
 				{
-					auto newParent = e->clone(v->location);
-					auto newChild = v->clone(v->location);
+					if (st->hasMember(v->id.id))
+					{
+						auto newParent = e->clone(v->location);
+						auto newChild = v->clone(v->location);
 
-					auto newDot = new Operations::DotOperator(v->location, 
-						dynamic_cast<Operations::Expression*>(newParent.get()),
-						dynamic_cast<Operations::Expression*>(newChild.get()));
+						auto newDot = new Operations::DotOperator(v->location,
+							dynamic_cast<Operations::Expression*>(newParent.get()),
+							dynamic_cast<Operations::Expression*>(newChild.get()));
 
-					v->replaceInParent(newDot);
+						v->replaceInParent(newDot);
+					}
+
 				}
-					
-			}
 
+				return false;
+			});
+		}
+		else
 			return false;
-		});
+		
+
 
 	}
 
@@ -691,9 +701,20 @@ bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
         
 		if (auto a = as<Operations::Assignment>(statement))
 		{
+			if (a->getTargetType() != Operations::Assignment::TargetType::Variable)
+				return false;
+
+			
+
 			auto v = a->getTargetVariable();
 
 			if (v->isClassVariable(s))
+				return false;
+
+			if (v->objectPtr != nullptr)
+				return false;
+
+			if (Operations::findParentStatementOfType<Operations::MemoryReference>(v) != nullptr)
 				return false;
 
 			if (v->isParameter(s))
@@ -768,7 +789,9 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 	{
 		if (auto bOp = as<Operations::BinaryOp>(statement))
 		{
-			simplifyOp(bOp->getSubExpr(0), bOp->getSubExpr(1), bOp->op, compiler, s);
+			if (simplifyOp(bOp->getSubExpr(0), bOp->getSubExpr(1), bOp->op, compiler, s))
+				return true;
+
 			if (swapIfBetter(bOp, bOp->op, compiler, s))
 				return true;
 		}
@@ -784,7 +807,8 @@ bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 
 		if (auto a = as<Operations::Assignment>(statement))
 		{
-			simplifyOp(a->getSubExpr(1), a->getSubExpr(0), a->assignmentType, compiler, s);
+			if (simplifyOp(a->getSubExpr(1), a->getSubExpr(0), a->assignmentType, compiler, s))
+				return true;
 
 			if (a->getTargetType() == Operations::Assignment::TargetType::Variable)
 			{
@@ -868,6 +892,7 @@ bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCom
 			a->assignmentType = o;
 	};
 
+	
 	if (op == JitTokens::minus)
 	{
 		if (r->isConstExpr())

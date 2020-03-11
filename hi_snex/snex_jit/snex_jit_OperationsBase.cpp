@@ -105,6 +105,19 @@ TypeInfo Operations::Expression::checkAndSetType(int offset, TypeInfo expectedTy
 {
 	TypeInfo exprType = expectedType;
 
+	if (expectedType.isInvalid())
+	{
+		// Native types have precedence so that the complex types can call their cast operators...
+		for (int i = offset; i < getNumChildStatements(); i++)
+		{
+			auto thisType = getChildStatement(i)->getTypeInfo();
+			if (thisType.isComplexType())
+				continue;
+
+			exprType = thisType;
+		}
+	}
+
 	for (int i = offset; i < getNumChildStatements(); i++)
 	{
 		exprType = setTypeForChild(i, exprType);

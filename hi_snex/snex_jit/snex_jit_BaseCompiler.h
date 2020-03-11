@@ -72,7 +72,7 @@ public:
 		complexTypes.add(float4Type);
 	}
 
-	virtual ~BaseCompiler() {};
+	virtual ~BaseCompiler();
 
 	enum Pass
 	{
@@ -192,7 +192,7 @@ public:
 
 	Pass getCurrentPass() { return currentPass; }
 
-	void executePass(Pass p, BaseScope* scope, SyntaxTree* statements);
+	void executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement);
 
 	void executeOptimization(ReferenceCountedObject* statement, BaseScope* scope);
 	
@@ -203,7 +203,7 @@ public:
 		passes.add(newPass);
 	}
 
-	AssemblyRegister::Ptr getRegFromPool(BaseScope* scope, Types::ID type)
+	AssemblyRegister::Ptr getRegFromPool(BaseScope* scope, TypeInfo type)
 	{
 		return registerPool.getNextFreeRegister(scope, type);
 	}
@@ -226,6 +226,8 @@ public:
 	}
 
 	VariadicSubType::Ptr getVariadicTypeForId(const Identifier& id) const;
+
+	bool isTemplatedMethod(const Identifier& functionId) const;
 
 	WrapType* getWrapType(int size)
 	{

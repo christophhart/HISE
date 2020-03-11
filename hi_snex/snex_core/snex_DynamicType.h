@@ -218,7 +218,7 @@ public:
 		return 0;
 	}
 
-	void* getDataPointer()
+	void* getDataPointer() const
 	{
 		if (getTypeValue() == Types::ID::Pointer)
 			return data.p.data;
@@ -226,10 +226,10 @@ public:
 			getTypeValue() == Types::ID::Double ||
 			getTypeValue() == Types::ID::Integer)
 		{
-			return &data.d.value;
+			return const_cast<void*>((const void*)&data.d.value);
 		}
 		else
-			return &data;
+			return const_cast<void*>((const void*)&data);
 	}
 
 	int getPointerSize() const;

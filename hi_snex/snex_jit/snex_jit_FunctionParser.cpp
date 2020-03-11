@@ -566,9 +566,18 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 {
 	bool found = false;
 
+	Array<TemplateParameter> templateParameters;
+
+	auto fSymbol = getCurrentSymbol(false);
+
+	if (currentType == JitTokens::lessThan && compiler->isTemplatedMethod(fSymbol.id))
+	{
+		templateParameters = parseTemplateParameters();
+	}
+
 	while (matchIf(JitTokens::openParen))
 	{
-		auto f = new Operations::FunctionCall(location, p, getCurrentSymbol(false));
+		auto f = new Operations::FunctionCall(location, p, getCurrentSymbol(false), templateParameters);
 
 		while (!isEOF() && currentType != JitTokens::closeParen)
 		{

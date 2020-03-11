@@ -69,7 +69,7 @@ public:
 
 private:
 
-	AssemblyRegister(Types::ID type_);
+	AssemblyRegister(TypeInfo type_);
 
 public:
 
@@ -87,9 +87,13 @@ public:
 
 	void flagForReuse(bool forceReuse=false);
 
+	void removeReuseFlag();
+
 	bool canBeReused() const;
 
-	Types::ID getType() const { return type; }
+	Types::ID getType() const { return type.getType(); }
+
+	TypeInfo getTypeInfo() const { return type; }
 
 	void* getGlobalDataPointer();
 
@@ -111,6 +115,12 @@ public:
 	void loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forceLoad=false);
 
 	BaseScope* getScope() const { return scope.get(); }
+
+	void changeComplexType(ComplexType::Ptr newTypePtr)
+	{
+		jassert(type.isComplexType());
+		type = TypeInfo(newTypePtr);
+	}
 
 	bool isValid() const;
 
@@ -151,7 +161,7 @@ public:
 
 	bool isSimd4Float() const
 	{
-		return id.typeInfo.isComplexType() && id.typeInfo.toString() == "float4";
+		return type.isComplexType() && type.toString() == "float4";
 	}
 
 	void clearForReuse();
@@ -184,7 +194,7 @@ private:
 	bool dirty = false;
 	bool reusable = false;
 	int immediateIntValue = 0;
-	Types::ID type;
+	TypeInfo type;
 	asmjit::X86Mem memory;
 	asmjit::X86Reg reg;
 	void* memoryLocation = nullptr;
@@ -208,7 +218,7 @@ public:
 	RegPtr getActiveRegisterForCustomMem(RegPtr regWithCustomMem);
 
 	void removeIfUnreferenced(AssemblyRegister::Ptr ref);
-	AssemblyRegister::Ptr getNextFreeRegister(BaseScope* scope, Types::ID type);
+	AssemblyRegister::Ptr getNextFreeRegister(BaseScope* scope, TypeInfo type);
 
 	RegList getListOfAllNamedRegisters();
 

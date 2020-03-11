@@ -37,7 +37,7 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-AssemblyRegister::AssemblyRegister(Types::ID type_) :
+AssemblyRegister::AssemblyRegister(TypeInfo type_) :
 	type(type_)
 {
 
@@ -47,10 +47,8 @@ AssemblyRegister::AssemblyRegister(Types::ID type_) :
 void AssemblyRegister::setReference(BaseScope* s, const Symbol& ref)
 {
 	scope = s->getScopeForSymbol(ref);
-
-	//jassert(scope != nullptr);
-
 	id = ref;
+	jassert(id.typeInfo == type);
 }
 
 
@@ -91,6 +89,12 @@ void AssemblyRegister::flagForReuse(bool forceReuse)
 	state = ReusableRegister;
 }
 
+
+void AssemblyRegister::removeReuseFlag()
+{
+	reusable = false;
+	state = ActiveRegister;
+}
 
 bool AssemblyRegister::canBeReused() const
 {
@@ -179,7 +183,7 @@ asmjit::X86Mem AssemblyRegister::getMemoryLocationForReference()
 juce::int64 AssemblyRegister::getImmediateIntValue()
 {
 	jassert(state == LoadedMemoryLocation);
-	jassert(type == Types::ID::Integer);
+	jassert(getType() == Types::ID::Integer);
 	jassert(!hasCustomMem);
 
 	return static_cast<int64>(immediateIntValue);
@@ -209,20 +213,22 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 
 	asmjit::Error e = asmjit::kErrorOk;
 
-	if (type == Types::ID::Float)
-		e = cc.movss(reg.as<X86Xmm>(), memory);
-	else if (type == Types::ID::Double)
-		e = cc.movsd(reg.as<X86Xmm>(), memory);
-	else if (type == Types::ID::Integer)
+	switch (getType())
+	{
+	case Types::ID::Float: e = cc.movss(reg.as<X86Xmm>(), memory); break;
+	case Types::ID::Double: e = cc.movsd(reg.as<X86Xmm>(), memory); break;
+	case Types::ID::Block:
+	case Types::ID::Event:  e = cc.mov(reg.as<X86Gpq>(), memory); break;
+	case Types::ID::Integer:
 	{
 		if (hasCustomMem)
 			e = cc.mov(reg.as<IntRegisterType>(), memory);
 		else
 			e = cc.mov(reg.as<IntRegisterType>(), static_cast<int64_t>(immediateIntValue));
+
+		break;
 	}
-	else if (type == Types::ID::Block || type == Types::ID::Event)
-		e = cc.mov(reg.as<X86Gpq>(), memory);
-	else if (type == Types::ID::Pointer)
+	case Types::ID::Pointer:
 	{
 		if (isSimd4Float())
 		{
@@ -236,11 +242,12 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 			else if (memory.hasOffset() && !memory.hasBaseOrIndex())
 				e = cc.mov(reg.as<X86Gpq>(), memory.offset());
 		}
-	}
-		
-	else
-		jassertfalse;
 
+		break;
+	}
+	default: jassertfalse;
+	}
+	
 	state = ActiveRegister;
 	jassert(e == 0);
 }
@@ -278,14 +285,15 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 {
 	jassert(memoryLocation != nullptr);
 
-	if (isGlobalVariableRegister() && !id.isConst())
+	if (getType() != Types::ID::Pointer && isGlobalVariableRegister() && !id.isConst())
 	{
-		bool useQword = (type == Types::ID::Double ||
-			type == Types::ID::Event ||
-			type == Types::ID::Block ||
-			type == Types::ID::Pointer);
+		auto t = getType();
 
-        
+		bool useQword = (t == Types::ID::Double ||
+			t == Types::ID::Event ||
+			t == Types::ID::Block ||
+			t == Types::ID::Pointer);
+
         auto r = cc.newGpq();
         
         cc.mov(r, (uint64_t)memoryLocation);
@@ -296,26 +304,26 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 	}
 	else
 	{
-		if (type == Types::ID::Float)
+		if (getType() == Types::ID::Float)
 		{
 			auto v = *reinterpret_cast<float*>(memoryLocation);
 			isZeroValue = v == 0.0f;
 			
 			memory = cc.newFloatConst(ConstPool::kScopeLocal, v);
 		}
-		if (type == Types::ID::Double)
+		if (getType() == Types::ID::Double)
 		{
 			auto v = *reinterpret_cast<double*>(memoryLocation);
 			isZeroValue = v == 0.0;
 
 			memory = cc.newDoubleConst(ConstPool::kScopeLocal, v);
 		}
-		if (type == Types::ID::Integer)
+		if (getType() == Types::ID::Integer)
 		{
 			immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
 			isZeroValue = immediateIntValue == 0;
 		}
-		if (type == Types::ID::Event || type == Types::ID::Block)
+		if (getType() == Types::ID::Event || type == Types::ID::Block)
 		{
 			uint8* d = reinterpret_cast<uint8*>(memoryLocation);
 			asmjit::Data128 data = asmjit::Data128::fromU8(d[0], d[1], d[2], d[3],
@@ -325,7 +333,7 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 
 			memory = cc.newXmmConst(ConstPool::kScopeLocal, data);
 		}
-		if (type == Types::ID::Pointer)
+		if (getType() == Types::ID::Pointer)
 		{
 			memory = x86::qword_ptr((uint64_t)reinterpret_cast<VariableStorage*>(memoryLocation)->getDataPointer());
 		}
@@ -338,7 +346,7 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 
 void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 {
-	jassert(type != Types::ID::Dynamic);
+	jassert(getType() != Types::ID::Dynamic);
 
 	if (reg.isValid())
 	{
@@ -351,15 +359,15 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 		return;
 	}
 
-	if (type == Types::ID::Float)
+	if (getType() == Types::ID::Float)
 		reg = cc.newXmmSs();
-	if (type == Types::ID::Double)
+	if (getType() == Types::ID::Double)
 		reg = cc.newXmmSd();
-	if (type == Types::ID::Integer)
+	if (getType() == Types::ID::Integer)
 		reg = cc.newGpd();
-	if (type == Types::Event || type == Types::Block)
+	if (getType() == Types::Event || type == Types::Block)
 		reg = cc.newGpq();
-	if (type == Types::Pointer)
+	if (getType() == Types::Pointer)
 	{
 		if (isSimd4Float())
 			reg = cc.newXmmPs();
@@ -450,7 +458,7 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterForVari
 			return r;
 	}
 
-	auto newReg = getNextFreeRegister(scope, s.typeInfo.getType());
+	auto newReg = getNextFreeRegister(scope, s.typeInfo);
 	newReg->setReference(scope, s);
 	return newReg;
 }
@@ -481,14 +489,15 @@ void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
 }
 
 
-AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope, Types::ID type)
+AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope, TypeInfo type)
 {
 	for (auto r : currentRegisterPool)
 	{
-		if (r->getType() == type && r->canBeReused())
+		if (r->getType() == type.getType() && r->canBeReused())
 		{
 			r->clearForReuse();
 			r->scope = scope;
+			r->type = type;
 			return r;
 		}
 	}

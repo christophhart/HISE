@@ -44,10 +44,14 @@ class FunctionClass;
 
 struct ComplexType : public ReferenceCountedObject
 {
-	ComplexType()
-	{};
+	static int numInstances;
 
-	virtual ~ComplexType() {};
+	ComplexType()
+	{
+		numInstances++;
+	};
+
+	virtual ~ComplexType() { numInstances--; };
 
 	static void* getPointerWithOffset(void* data, size_t byteOffset)
 	{
@@ -76,6 +80,7 @@ struct ComplexType : public ReferenceCountedObject
 	}
 
 	using Ptr = ReferenceCountedObjectPtr<ComplexType>;
+	using WeakPtr = WeakReference<ComplexType>;
 
 	using TypeFunction = std::function<bool(Ptr, void* dataPointer)>;
 
@@ -107,9 +112,9 @@ struct ComplexType : public ReferenceCountedObject
 		return hash() == other.hash();
 	}
 
-	virtual bool isValidCastSource(Types::ID nativeType, ComplexType::Ptr p) const;
+	virtual bool isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const;
 
-	virtual bool isValidCastTarget(Types::ID nativeType, ComplexType::Ptr p) const;
+	virtual bool isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const;
 
 	int hash() const
 	{
@@ -159,6 +164,7 @@ private:
 	Identifier usingAlias;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ComplexType);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ComplexType);
 };
 
 
@@ -166,6 +172,8 @@ private:
 
 struct TypeInfo
 {
+	using List = Array<TypeInfo>;
+
 	TypeInfo():
 		type(Types::ID::Dynamic)
 	{}
@@ -323,7 +331,7 @@ struct TypeInfo
 		jassert(typePtr != nullptr);
 		jassert(isRef());
 
-		return typePtr;
+		return typePtr.get();
 	}
 
 	bool isComplexType() const
@@ -353,6 +361,15 @@ private:
 	ComplexType::Ptr typePtr;
 };
 
+
+
+struct TemplateParameter
+{
+	using List = Array<TemplateParameter>;
+
+	TypeInfo type;
+	int constant;
+};
 
 /** A Symbol is used to identifiy the data slot. */
 struct Symbol
@@ -427,35 +444,61 @@ struct Symbol
 
 	TypeInfo typeInfo;
 
-#if 0
-	bool const_ = false;
-	bool ref_ = false;
-	Types::ID type = Types::ID::Dynamic;
-	ComplexType::Ptr typePtr;
-#endif
 };
 
-struct InlineData;
+struct SyntaxTreeInlineData;
+struct AsmInlineData;
+
+struct InlineData
+{
+	virtual ~InlineData() {};
+
+	virtual bool isHighlevel() const = 0;
+
+	SyntaxTreeInlineData* toSyntaxTreeData() const;
+	AsmInlineData* toAsmInlineData() const;
+
+	Array<TemplateParameter> templateParameters;
+};
 
 struct Inliner : public ReferenceCountedObject
 {
 	using Ptr = ReferenceCountedObjectPtr<Inliner>;
-
 	using Func = std::function<Result(InlineData* d)>;
 
-	Inliner(const Identifier& id, const Func& f_) :
+	Inliner(const Identifier& id, const Func& asm_, const Func& highLevel_) :
 		functionId(id),
-		f(f_)
+		asmFunc(asm_),
+		highLevelFunc(highLevel_)
 	{};
 
-	Result inlineFunction(InlineData* d)
+	static Inliner* createHighLevelInliner(const Identifier& id, const Func& highLevelFunc)
 	{
-		if (f)
-			return f(d);
+		return new Inliner(id, [](InlineData* b)
+		{
+			jassert(!b->isHighlevel());
+			return Result::fail("must be inlined on higher level");
+		}, highLevelFunc);
 	}
 
+	bool hasHighLevelInliner() const
+	{
+		return (bool)highLevelFunc;
+	}
+
+	bool hasAsmInliner() const
+	{
+		return (bool)asmFunc;
+	}
+
+	Result process(InlineData* d) const;
+
 	const Identifier functionId;
-	const Func f;
+	const Func asmFunc;
+	const Func highLevelFunc;
+
+	// Optional: returns a TypeInfo
+	Func returnTypeFunction;
 };
 
 /** A wrapper around a function. */
@@ -558,36 +601,9 @@ struct FunctionData
 	/** The return type. */
 	TypeInfo returnType;
 
+	Array<TemplateParameter> templateParameters;
+
 	using Argument = Symbol;
-
-#if 0
-	struct Argument
-	{
-		Argument() {};
-
-
-
-		Argument(Types::ID type_, bool isAlias_ = false) :
-			type(type_),
-			isAlias(isAlias_)
-		{};
-
-		bool operator==(const Types::ID& t) const
-		{
-			return t == type;
-		}
-
-		bool operator==(const Argument& other) const
-		{
-			return type == other.type && isAlias == other.isAlias;
-		}
-
-		Types::ID type = Types::ID::Dynamic;
-		bool isAlias = false;
-		String parameterName;
-		ComplexType::Ptr typePtr;
-	};
-#endif
 
 	/** The argument list. */
 	Array<Argument> args;
@@ -597,6 +613,30 @@ struct FunctionData
 
 	/** A wrapped lambda containing the assembly generation code for that function. */
 	Inliner::Ptr inliner;
+
+	bool canBeInlined(bool highLevelInlining) const
+	{
+		if (inliner == nullptr)
+			return false;
+
+		if (!highLevelInlining && inliner->hasAsmInliner())
+			return true;
+
+		if (highLevelInlining && inliner->hasHighLevelInliner())
+			return true;
+
+		return false;
+	}
+
+	Result inlineFunction(InlineData* d) const
+	{
+		jassert(canBeInlined(d->isHighlevel()));
+
+		if (inliner != nullptr)
+			return inliner->process(d);
+
+		return Result::fail("Can't inline");
+	}
 
 	template <typename... Parameters> void callVoid(Parameters... ps) const
 	{
@@ -681,6 +721,16 @@ class BaseScope;
 
 struct InlineData;
 
+struct VariadicSubType : public ReferenceCountedObject
+{
+	using Ptr = ReferenceCountedObjectPtr<VariadicSubType>;
+
+	ComplexType::WeakPtr variadicType;
+	Identifier variadicId;
+	Array<FunctionData> functions;
+};
+
+
 /** A function class is a collection of functions. */
 struct FunctionClass: public DebugableObjectBase,
 					  public ReferenceCountedObject
@@ -690,6 +740,8 @@ struct FunctionClass: public DebugableObjectBase,
 	enum SpecialSymbols
 	{
 		AssignOverload = 0,
+		NativeTypeCast,
+		Subscript,
 		numOperatorOverloads
 	};
 
@@ -697,25 +749,27 @@ struct FunctionClass: public DebugableObjectBase,
 	{
 		switch (s)
 		{
-		case AssignOverload: "operator=";
+		case AssignOverload: return "operator=";
+		case NativeTypeCast: return "type_cast";
+		case Subscript:		 return "operator[]";
 		}
 
 		return {};
 	}
 
-	bool hasSpecialFunction(SpecialSymbols s)
+	bool hasSpecialFunction(SpecialSymbols s) const
 	{
 		auto id = getClassName().getChildSymbol(getSpecialSymbol(s));
 		return hasFunction(id);
 	}
 
-	void addSpecialFunctions(SpecialSymbols s, Array<FunctionData>& possibleMatches)
+	void addSpecialFunctions(SpecialSymbols s, Array<FunctionData>& possibleMatches) const
 	{
 		auto id = getClassName().getChildSymbol(getSpecialSymbol(s));
 		addMatchingFunctions(possibleMatches, id);
 	}
 
-	
+	FunctionData getSpecialFunction(SpecialSymbols s, TypeInfo returnType, const TypeInfo::List& args) const;
 
 	struct Constant
 	{
@@ -791,6 +845,15 @@ struct FunctionClass: public DebugableObjectBase,
 		}
 
 		return v;
+	}
+
+	FunctionData& createSpecialFunction(SpecialSymbols s)
+	{
+		auto f = new FunctionData();
+		f->id = getSpecialSymbol(s);
+		
+		addFunction(f);
+		return *f;
 	}
 
 	juce::String getCategory() const override { return "API call"; };
@@ -917,7 +980,7 @@ struct FunctionClass: public DebugableObjectBase,
 	}
 #endif
 
-	void addInliner(const Identifier& id, const Inliner::Func& s)
+	void addInliner(const Identifier& id, const Inliner::Func& asmFunc)
 	{
 		if (isInlineable(id))
 			return;
@@ -925,7 +988,7 @@ struct FunctionClass: public DebugableObjectBase,
 		for (auto& f : functions)
 		{
 			if (f->id == id)
-				f->inliner = new Inliner(id, s);
+				f->inliner = new Inliner(id, asmFunc, {});
 		}
 	}
 
@@ -944,839 +1007,6 @@ protected:
 
 
 
-struct WrapType : public ComplexType
-{
-	enum OpType
-	{
-		Inc,
-		Dec,
-		Set,
-		numOpTypes
-	};
-
-	WrapType(int size_) :
-		ComplexType(),
-		size(size_)
-	{
-		finaliseAlignment();
-	};
-
-	~WrapType()
-	{
-		
-	}
-
-	size_t getRequiredByteSize() const override { return 4; }
-
-	virtual size_t getRequiredAlignment() const override { return 4; }
-
-	/** Override this and optimise the alignment. After this call the data structure must not be changed. */
-	virtual void finaliseAlignment() { ComplexType::finaliseAlignment(); };
-
-	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const
-	{
-		auto v = juce::String(*reinterpret_cast<int*>(complexTypeStartPointer));
-
-		s << v << "\n";
-	}
-
-	static int assign(void* unused, int newValue)
-	{
-		return newValue % 4;
-	}
-
-	FunctionClass* getFunctionClass() override;
-
-	InitialiserList::Ptr makeDefaultInitialiserList() const override
-	{
-		return InitialiserList::makeSingleList(VariableStorage(0));
-	}
-
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
-	{
-		if (initValues->size() != 1)
-			return Result::fail("Can't initialise with more than one value");
-
-		VariableStorage v;
-		initValues->getValue(0, v);
-
-		*reinterpret_cast<int*>(dataPointer) = v.toInt() % size;
-
-		return Result::ok();
-	}
-
-	/** Override this, check if the type matches and call the function for itself and each member recursively and abort if t returns true. */
-	bool forEach(const TypeFunction&, Ptr, void*) override
-	{
-		return false;
-	}
-
-	juce::String toStringInternal() const override
-	{
-		juce::String w;
-		w << "wrap<" << juce::String(size) << ">";
-		return w;
-	}
-
-	const int size;
-};
-
-struct SpanType : public ComplexType
-{
-	/** Creates a simple one-dimensional span. */
-	SpanType(Types::ID dataType, int size_) :
-		elementType(TypeInfo(dataType)),
-		size(size_)
-	{
-		finaliseAlignment();
-	}
-
-	/** Creates a SpanType with another ComplexType as element type. */
-	SpanType(ComplexType::Ptr childToBeOwned, int size_) :
-		elementType(TypeInfo(childToBeOwned)),
-		size(size_)
-	{
-	}
-
-	Types::ID getDataType() const
-	{
-		return Types::ID::Pointer;
-	}
-
-	static bool isSimdType(const TypeInfo& t)
-	{
-		if(auto st = t.getTypedIfComplexType<SpanType>())
-		{
-			if (st->getElementType() == Types::ID::Float && st->getNumElements() == 4)
-			{
-				jassert(st->hasAlias());
-				jassert(st->toString() == "float4");
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	void finaliseAlignment() override
-	{
-		if (elementType.isComplexType())
-			elementType.getComplexType()->finaliseAlignment();
-
-		ComplexType::finaliseAlignment();
-	}
-
-	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override
-	{
-		if (elementType.isComplexType())
-		{
-			// must be aligned already...
-			jassert((uint64_t)dataPointer % getRequiredAlignment() == 0);
-
-			for (size_t i = 0; i < size; i++)
-			{
-				auto mPtr = ComplexType::getPointerWithOffset(dataPointer, getElementSize() * i);
-
-				if (elementType.getComplexType()->forEach(t, typePtr, mPtr))
-					return true;
-			}
-		}
-
-		return false;
-	}
-
-	TypeInfo getElementType() const
-	{
-		return elementType;
-	}
-
-	int getNumElements() const
-	{
-		return size;
-	}
-
-	size_t getRequiredByteSize() const override
-	{
-		return getElementSize() * size;
-	}
-
-	size_t getRequiredAlignment() const override
-	{
-		return elementType.getRequiredAlignment();
-	}
-
-	InitialiserList::Ptr makeDefaultInitialiserList() const override
-	{
-		if (elementType.isComplexType())
-		{
-			auto c = elementType.getComplexType()->makeDefaultInitialiserList();
-
-			InitialiserList::Ptr n = new InitialiserList();
-			n->addChildList(c);
-			return n;
-		}
-		else
-			return InitialiserList::makeSingleList(VariableStorage(getElementType().getType(), var(0.0)));
-	}
-
-	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override
-	{
-		intendLevel++;
-
-		for (int i = 0; i < size; i++)
-		{
-			juce::String symbol;
-
-			auto address = ComplexType::getPointerWithOffset(complexTypeStartPointer, i * getElementSize());
-
-			if (elementType.isComplexType())
-			{
-				symbol << Types::Helpers::getIntendation(intendLevel);
-
-				if (hasAlias())
-					symbol << toString();
-				else
-					symbol << "Span";
-
-				symbol << "[" << juce::String(i) << "]: \n";
-
-				s << symbol;
-				elementType.getComplexType()->dumpTable(s, intendLevel, dataStart, address);
-			}
-			else
-			{
-				symbol << "[" << juce::String(i) << "]";
-
-				Types::Helpers::dumpNativeData(s, intendLevel, symbol, dataStart, address, getElementSize(), elementType.getType());
-			}
-		}
-
-		intendLevel--;
-	}
-
-	juce::String toStringInternal() const
-	{
-		juce::String s = "span<";
-
-		s << elementType.toString();
-		s << ", " << size << ">";
-
-		return s;
-	}
-
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues)
-	{
-		juce::String e;
-
-		if (initValues->size() != size && initValues->size() != 1)
-		{
-
-			e << "initialiser list size mismatch. Expected: " << juce::String(size);
-			e << ", Actual: " << juce::String(initValues->size());
-
-			return Result::fail(e);
-		}
-
-		for (int i = 0; i < size; i++)
-		{
-			auto indexToUse = initValues->size() == 1 ? 0 : i;
-
-			if (elementType.isComplexType())
-			{
-				auto childList = initValues->createChildList(indexToUse);
-
-				auto ok = elementType.getComplexType()->initialise(getPointerWithOffset(dataPointer, getElementSize() * i), childList);
-
-				if (!ok.wasOk())
-					return ok;
-			}
-			else
-			{
-				VariableStorage valueToUse;
-				auto ok = initValues->getValue(indexToUse, valueToUse);
-
-				if (!ok.wasOk())
-					return ok;
-
-				if (valueToUse.getType() != elementType.getType())
-				{
-					e << "type mismatch at index " + juce::String(i) << ": " << Types::Helpers::getTypeName(valueToUse.getType());
-					return Result::fail(e);
-				}
-
-				ComplexType::writeNativeMemberType(dataPointer, getElementSize() * i, valueToUse);
-			}
-		}
-
-		return Result::ok();
-	}
-
-	size_t getElementSize() const
-	{
-		if (elementType.isComplexType())
-		{
-			jassert(elementType.getComplexType()->isFinalised());
-
-			auto alignment = elementType.getRequiredAlignment();
-			int childSize = elementType.getRequiredByteSize();
-			size_t elementPadding = 0;
-
-			if (childSize % alignment != 0)
-			{
-				elementPadding = alignment - childSize % alignment;
-			}
-
-			return childSize + elementPadding;
-		}
-		else
-			return elementType.getRequiredByteSize();
-	}
-
-private:
-
-
-	TypeInfo elementType;
-
-	juce::String typeName;
-	int size;
-};
-
-struct DynType : public ComplexType
-{
-	DynType(const TypeInfo& elementType_):
-		elementType(elementType_)
-	{
-
-	}
-
-	size_t getRequiredByteSize() const override { return sizeof(VariableStorage); }
-
-	virtual size_t getRequiredAlignment() const override { return 8; }
-
-	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const
-	{
-		jassertfalse;
-	}
-
-	InitialiserList::Ptr makeDefaultInitialiserList() const override
-	{
-		InitialiserList::Ptr n = new InitialiserList();
-
-		n->addImmediateValue(VariableStorage(nullptr, 0));
-		n->addImmediateValue(VariableStorage(0));
-
-		return n;
-	}
-
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
-	{
-		VariableStorage ptr;
-		initValues->getValue(0, ptr);
-
-		jassert(ptr.getType() == Types::ID::Pointer);
-		auto data = ptr.getDataPointer();
-
-		VariableStorage s;
-		initValues->getValue(1, s);
-
-		memset(dataPointer, 0, 4);
-
-		ComplexType::writeNativeMemberType(dataPointer, 8, ptr);
-		ComplexType::writeNativeMemberType(dataPointer, 4, s);
-
-		return Result::ok();
-	}
-
-	bool forEach(const TypeFunction&, Ptr, void*) override
-	{
-		return false;
-	}
-
-	juce::String toStringInternal() const override
-	{
-		juce::String w;
-		w << "dyn<" << elementType.toString() << ">";
-		return w;
-	}
-
-	TypeInfo elementType;
-};
-
-struct StructType : public ComplexType
-{
-	StructType(const Symbol& s) :
-		id(s)
-	{};
-
-	size_t getRequiredByteSize() const override
-	{
-		size_t s = 0;
-
-		for (auto m : memberData)
-			s += (m->typeInfo.getRequiredByteSize() + m->padding);
-
-		return s;
-	}
-
-	virtual juce::String toStringInternal() const override
-	{
-		return id.id.toString();
-	}
-
-	FunctionClass* getFunctionClass() override
-	{
-		auto mf = new FunctionClass(id);
-
-		for (const auto& f : memberFunctions)
-		{
-			mf->addFunction(new FunctionData(f));
-		}
-
-		return mf;
-	}
-
-	virtual Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
-	{
-		int index = 0;
-
-		for (auto m : memberData)
-		{
-			if (isPositiveAndBelow(index, initValues->size()))
-			{
-				auto mPtr = getMemberPointer(m, dataPointer);
-
-				if (m->typeInfo.isComplexType())
-				{
-					auto childList = initValues->createChildList(index);
-					auto ok = m->typeInfo.getComplexType()->initialise(mPtr, childList);
-
-					if (!ok.wasOk())
-						return ok;
-				}
-				else
-				{
-					VariableStorage childValue;
-					initValues->getValue(index, childValue);
-
-					if (m->typeInfo.getType() != childValue.getType())
-						return Result::fail("type mismatch at index " + juce::String(index));
-
-					ComplexType::writeNativeMemberType(mPtr, 0, childValue);
-				}
-			}
-
-			index++;
-		}
-
-		return Result::ok();
-	}
-
-	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override
-	{
-		if (typePtr.get() == this)
-		{
-			return t(this, dataPointer);
-		}
-
-		for (auto m : memberData)
-		{
-			if (m->typeInfo.isComplexType())
-			{
-				auto mPtr = getMemberPointer(m, dataPointer);
-
-				if (m->typeInfo.getComplexType()->forEach(t, typePtr, mPtr))
-					return true;
-			}
-		}
-
-		return false;
-	}
-
-	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override
-	{
-		size_t offset = 0;
-		intendLevel++;
-
-		for (auto m : memberData)
-		{
-			if (m->typeInfo.isComplexType())
-			{
-				s << Types::Helpers::getIntendation(intendLevel) << id.toString() << " " << m->id << "\n";
-				m->typeInfo.getComplexType()->dumpTable(s, intendLevel, dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id));
-			}
-			else
-			{
-				Types::Helpers::dumpNativeData(s, intendLevel, id.getChildSymbol(m->id).toString(), dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id), m->typeInfo.getRequiredByteSize(), m->typeInfo.getType());
-			}
-		}
-		intendLevel--;
-	}
-
-	size_t getRequiredAlignment() const override
-	{
-		if (auto f = memberData.getFirst())
-		{
-			return f->typeInfo.getRequiredAlignment();
-		}
-
-		return 0;
-	}
-
-	void finaliseAlignment() override
-	{
-		if (isFinalised())
-			return;
-
-		size_t offset = 0;
-
-		for (auto m : memberData)
-		{
-			if (m->typeInfo.isComplexType())
-				m->typeInfo.getComplexType()->finaliseAlignment();
-
-			m->offset = offset;
-
-			auto alignment = getRequiredAlignment(m);
-			m->padding = offset % alignment;
-			offset += m->padding + m->typeInfo.getRequiredByteSize();
-		}
-
-		jassert(offset == getRequiredByteSize());
-
-		ComplexType::finaliseAlignment();
-	}
-
-	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList)
-	{
-		jassert(hasMember(id));
-
-		for (auto& m : memberData)
-		{
-			if (m->id == id)
-			{
-				m->defaultList = defaultList;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool updateSymbol(Symbol& s) const
-	{
-		for (auto m : memberData)
-		{
-			if (m->id == s.id)
-			{
-				s.typeInfo = m->typeInfo;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	InitialiserList::Ptr makeDefaultInitialiserList() const override
-	{
-		InitialiserList::Ptr n = new InitialiserList();
-
-		for (auto m : memberData)
-		{
-			if (m->typeInfo.isComplexType() && m->defaultList == nullptr)
-				n->addChildList(m->typeInfo.getComplexType()->makeDefaultInitialiserList());
-			else
-				n->addChildList(m->defaultList);
-		}
-
-		return n;
-	}
-
-	bool hasMember(const Identifier& id) const
-	{
-		for (auto m : memberData)
-			if (m->id == id)
-				return true;
-
-		return false;
-	}
-
-	TypeInfo getMemberTypeInfo(const Identifier& id) const
-	{
-		for (auto m : memberData)
-		{
-			if (m->id == id)
-				return m->typeInfo;
-		}
-
-		jassertfalse;
-		return {};
-	}
-
-	Types::ID getMemberDataType(const Identifier& id) const
-	{
-		for (auto m : memberData)
-		{
-			if (m->id == id)
-				m->typeInfo.getType();
-		}
-        
-        jassertfalse;
-        return Types::ID::Void;
-	}
-
-	bool isNativeMember(const Identifier& id) const
-	{
-		for (auto m : memberData)
-		{
-			if (m->id == id)
-				return !m->typeInfo.isComplexType();
-		}
-
-		return false;
-	}
-
-	ComplexType::Ptr getMemberComplexType(const Identifier& id) const
-	{
-		for (auto m : memberData)
-		{
-			if (m->id == id)
-				return m->typeInfo.getComplexType();
-		}
-        
-        jassertfalse;
-        return nullptr;
-	}
-
-	size_t getMemberOffset(const Identifier& id) const
-	{
-		for (auto m : memberData)
-		{
-			if (m->id == id)
-				return m->padding + m->offset;
-		}
-
-		jassertfalse;
-		return 0;
-	}
-
-	template <class ObjectType, typename ArgumentType> void addExternalComplexMember(const Identifier& id, ComplexType::Ptr p, ObjectType& obj, ArgumentType& defaultValue)
-	{
-		auto nm = new Member();
-		nm->id = id;
-		nm->typeInfo = TypeInfo(p);
-		nm->offset = reinterpret_cast<uint64>(&defaultValue) - reinterpret_cast<uint64>(&obj);
-		nm->defaultList = p->makeDefaultInitialiserList();
-
-		memberData.add(nm);
-		isExternalDefinition = true;
-	}
-
-	template <class ObjectType, typename ArgumentType> void addExternalMember(const Identifier& id, ObjectType& obj, ArgumentType& defaultValue)
-	{
-		auto type = Types::Helpers::getTypeFromTypeId<ArgumentType>();
-		auto nm = new Member();
-		nm->id = id;
-		nm->typeInfo = TypeInfo(type);
-		nm->offset = reinterpret_cast<uint64>(&defaultValue) - reinterpret_cast<uint64>(&obj);
-		nm->defaultList = InitialiserList::makeSingleList(VariableStorage(type, var(defaultValue)));
-
-		memberData.add(nm);
-		isExternalDefinition = true;
-	}
-
-	void addMember(const Identifier& id, const TypeInfo& typeInfo, size_t offset=0)
-	{
-		jassert(!isFinalised());
-		auto nm = new Member();
-		nm->id = id;
-		nm->typeInfo = typeInfo;
-		nm->offset = 0;
-		memberData.add(nm);
-	}
-
-	Symbol id;
-
-	template <typename ReturnType, typename... Parameters>void addExternalMemberFunction(const Identifier& id, ReturnType(*ptr)(Parameters...))
-	{
-		FunctionData f = FunctionData::create(id, ptr, true);
-		f.id = id;
-		f.function = ptr;
-
-		memberFunctions.add(f);
-	}
-
-	void addJitCompiledMemberFunction(const FunctionData& f)
-	{
-		memberFunctions.add(f);
-	}
-
-private:
-
-	Array<FunctionData> memberFunctions;
-
-	struct Member
-	{
-		size_t offset = 0;
-		size_t padding = 0;
-		Identifier id;
-		TypeInfo typeInfo;
-		InitialiserList::Ptr defaultList;
-	};
-
-	static void* getMemberPointer(Member* m, void* dataPointer)
-	{
-		jassert(dataPointer != nullptr);
-		return ComplexType::getPointerWithOffset(dataPointer, m->offset + m->padding);
-	}
-
-	static size_t getRequiredAlignment(Member* m)
-	{
-		return m->typeInfo.getRequiredAlignment();
-	}
-
-	OwnedArray<Member> memberData;
-	bool isExternalDefinition = false;
-};
-
-
-struct VariadicSubType : public ReferenceCountedObject
-{
-	using Ptr = ReferenceCountedObjectPtr<VariadicSubType>;
-
-	Identifier variadicId;
-	Array<FunctionData> functions;
-};
-
-struct VariadicTypeBase : public ComplexType
-{
-	
-
-	VariadicTypeBase(VariadicSubType::Ptr subType): type(subType) {};
-
-	virtual ~VariadicTypeBase() {};
-
-	size_t getRequiredByteSize() const override
-	{
-		size_t s = 0;
-
-		for (auto t : types)
-			s += t->getRequiredByteSize();
-
-		return s;
-	}
-
-	size_t getRequiredAlignment() const override
-	{
-		if (types.isEmpty())
-			return 0;
-		else
-			types.getFirst()->getRequiredAlignment();
-	}
-	
-	void finaliseAlignment() override
-	{ 
-		for (auto t : types)
-			t->finaliseAlignment();
-
-		ComplexType::finaliseAlignment();
-	};
-
-	void addType(ComplexType::Ptr newType)
-	{
-		types.add(newType);
-	}
-
-	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const override
-	{
-		jassertfalse;
-	}
-
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override
-	{
-		uint8* bytePtr = reinterpret_cast<uint8*>(dataPointer);
-
-		if (initValues->size() != types.size())
-			return Result::fail("initialiser amount mismatch.");
-
-		for (int i = 0; i < types.size(); i++)
-		{
-			auto childType = types[i];
-			auto childInitialiser = initValues->getChild(i);
-
-			auto r = childType->initialise(bytePtr, childInitialiser);
-			
-			if (!r.wasOk())
-				return r;
-
-			bytePtr += childType->getRequiredByteSize();
-		}
-
-		return Result::ok();
-	}
-
-	InitialiserList::Ptr makeDefaultInitialiserList() const override
-	{
-		InitialiserList::Ptr p = new InitialiserList();
-
-		for (auto t : types)
-			p->addChildList(t->makeDefaultInitialiserList());
-
-		return p;
-	}
-
-	bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) override
-	{
-		if (typePtr.get() == this)
-			return t(typePtr, dataPointer);
-
-		for (auto childType : types)
-		{
-			if (childType->forEach(t, typePtr, dataPointer))
-				return true;
-		}
-			
-		return false;
-	}
-
-	FunctionClass* getFunctionClass() override;
-	
-
-private:
-
-	VariadicSubType::Ptr type;
-
-	juce::String toStringInternal() const override
-	{
-		juce::String s;
-		s << type->variadicId.toString() << "<";
-
-		for (auto t : types)
-		{
-			s << t->toString();
-
-			if (t == types.getLast().get())
-				s << ">";
-			else
-				s << ",";
-		}
-		
-		return s;
-	};
-
-	ReferenceCountedArray<ComplexType> types;
-};
-
-#define CREATE_SNEX_STRUCT(x) new StructType(Symbol::createRootSymbol(Identifier(#x)));
-#define ADD_SNEX_STRUCT_MEMBER(structType, object, member) structType->addExternalMember(#member, object, object.member);
-#define ADD_SNEX_STRUCT_COMPLEX(structType, typePtr, object, member) structType->addExternalComplexMember(#member, typePtr, object, object.member);
-
-#define ADD_SNEX_STRUCT_METHOD(structType, obj, name) structType->addExternalMemberFunction(#name, obj::Wrapper::name);
-
-#define ADD_INLINER(x, f) obj->getFunctionClass()->addInliner(#x, [obj](InlineData* d)f);
-
-
-
-#define SETUP_INLINER(X) auto& cc = d->gen.cc; auto base = x86::ptr(PTR_REG_R(d->object)); auto type = Types::Helpers::getTypeFromTypeId<X>();
 
 } // end namespace jit
 } // end namespace snex

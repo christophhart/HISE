@@ -377,6 +377,10 @@ juce::String Types::Helpers::getCppValueString(const VariableStorage& v)
 
 		return value;
 	}
+	else if (type == Types::ID::Pointer)
+	{
+		return juce::String(reinterpret_cast<uint64_t>(v.getDataPointer()));
+	}
 	else
 		return juce::String((int)v);
 }

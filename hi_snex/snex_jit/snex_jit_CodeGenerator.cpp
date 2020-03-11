@@ -286,7 +286,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 	if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 	{
-		TemporaryRegister dummy(*this, r->getScope(), Types::ID::Integer);
+		TemporaryRegister dummy(*this, r->getScope(), TypeInfo(Types::ID::Integer));
 		cc.cdq(dummy.get(), INT_REG_W(l));
 
 		if (r->isMemoryLocation())
@@ -352,7 +352,7 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 	cc.setInlineComment("Short circuit path");
 	cc.bind(shortCircuit);
 
-	op->reg = op->currentCompiler->getRegFromPool(op->currentScope, Types::ID::Integer);
+	op->reg = op->currentCompiler->getRegFromPool(op->currentScope, TypeInfo(Types::ID::Integer));
 	op->reg->createRegister(cc);
 	INT_OP_WITH_MEM(cc.mov, op->reg, l);
 	
@@ -374,6 +374,8 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 
 void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes)
 {
+	
+
 	jassert(index->getType() == Types::ID::Integer);
 
 	if (address->isSimd4Float() && address->isActive())
@@ -422,8 +424,6 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		}
 	}
 
-	
-
 	if (address->getType() == Types::ID::Block)
 	{
 		address->loadMemoryIntoRegister(cc);
@@ -431,7 +431,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 
 		auto bptr = x86::ptr(blockAddress).cloneAdjusted(8);
 
-		TemporaryRegister fptr(*this, target->getScope(), Types::ID::Pointer);
+		TemporaryRegister fptr(*this, target->getScope(), TypeInfo(Types::ID::Block));
 		cc.mov(fptr.get(), bptr);
 
 		X86Mem ptr;
@@ -453,6 +453,11 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		bool canUseShift = isPowerOfTwo(elementSizeInBytes) && shift < 4;
 
 		x86::Gpd indexReg;
+
+		if (index->hasCustomMemoryLocation())
+		{
+			index->loadMemoryIntoRegister(cc);
+		}
 
 		if (!index->isMemoryLocation())
 		{
@@ -501,7 +506,10 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		else
 		{
 			if (index->isMemoryLocation())
+			{
 				p = x86::ptr(INT_REG_R(address), imm2ptr(INT_IMM(index) * elementSizeInBytes));
+			}
+				
 			else
 			{
 				p = x86::ptr(INT_REG_R(address), indexReg, shift);
@@ -609,7 +617,7 @@ void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
 
 #define FLOAT_COMPARE(token, command) if (op == token) command(INT_REG_R(target), condReg.get());
 
-	TemporaryRegister condReg(*this, target->getScope(), Types::ID::Block);
+	TemporaryRegister condReg(*this, target->getScope(), TypeInfo(Types::ID::Block));
 
 	cc.mov(INT_REG_W(target), 0);
 	cc.mov(condReg.get(), 1);
@@ -758,6 +766,7 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 	}
 	else
 	{
+		jassertfalse;
 		if (auto dt = dynamic_cast<DynType*>(typePtr.get()))
 		{
 			auto numBytesToWrite = typePtr->getRequiredByteSize();
@@ -799,26 +808,10 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 			jassertfalse;
 		}
 
-#if 0
-		if (typePtr->getDataType() == Types::ID::Pointer)
-		{
-			
-
-			
-		}
-		else
-		{
-			expr->loadMemoryIntoRegister(cc);
-
-			IF_(int) cc.mov(INT_MEM(target), INT_REG_R(expr));
-			IF_(double) cc.movsd(FP_MEM(target), FP_REG_R(expr));
-			IF_(float) cc.movss(FP_MEM(target), FP_REG_R(expr));
-		}
-#endif
 	}
 }
 
-AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Operations::Expression* condition, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s)
+AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Operations::Expression* condition, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s)
 {
 	RegPtr returnReg;
 
@@ -837,7 +830,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 
 	if (condition->reg->isMemoryLocation())
 	{
-		auto dummy = c->registerPool.getNextFreeRegister(s, Types::ID::Integer);
+		auto dummy = c->registerPool.getNextFreeRegister(s, TypeInfo(Types::ID::Integer));
 		dummy->createRegister(cc);
 
 		cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), imm2ptr(condition->reg->getImmediateIntValue()));
@@ -892,7 +885,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(Types::ID returnType, Oper
 
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitTernaryOp(Operations::TernaryOp* tOp, BaseCompiler* c, BaseScope* s)
 {
-	return emitBranch(tOp->getType(), tOp->getSubExpr(0).get(), tOp->getSubExpr(1).get(), tOp->getSubExpr(2).get(), c, s);
+	return emitBranch(tOp->getTypeInfo(), tOp->getSubExpr(0).get(), tOp->getSubExpr(1).get(), tOp->getSubExpr(2).get(), c, s);
 }
 
 
@@ -1000,19 +993,18 @@ void AsmCodeGenerator::emitNegation(RegPtr target, RegPtr expr)
 }
 
 
-void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f, RegPtr objectAddress,  ReferenceCountedArray<AssemblyRegister>& parameterRegisters)
+Result AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f, RegPtr objectAddress,  ReferenceCountedArray<AssemblyRegister>& parameterRegisters)
 {
-	if (f.inliner != nullptr)
+	if (f.canBeInlined(false))
 	{
-		InlineData d(*this);
+		AsmInlineData d(*this);
 		d.args = parameterRegisters;
 		d.target = returnReg;
 		d.object = objectAddress;
 
 		jassert(f.object == nullptr);
 
-		f.inliner->f(&d);
-		return;
+		return f.inlineFunction(&d);
 	}
 
 	asmjit::FuncSignatureBuilder sig;
@@ -1023,7 +1015,7 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 	if(objectAddress != nullptr)
 		objectAddress->loadMemoryIntoRegister(cc);
 	
-	TemporaryRegister o(*this, returnReg->getScope(), Types::ID::Block);
+	TemporaryRegister o(*this, returnReg->getScope(), TypeInfo(Types::ID::Block));
 	bool useTempReg = false;
 
 	if (!isMemberFunction && f.object != nullptr)
@@ -1066,6 +1058,8 @@ void AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& f,
 		returnReg->createRegister(cc);
 		call->setRet(0, returnReg->getRegisterForWriteOp());
 	}
+
+	return Result::ok();
 }
 
 
@@ -1270,54 +1264,6 @@ void AsmCodeGenerator::emitInlinedMathAssembly(Identifier id, RegPtr target, con
 	}
 }
 
-void AsmCodeGenerator::emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op)
-{
-	switch (op)
-	{
-	case WrapType::OpType::Set:
-	{
-		bool wasMem = target->hasCustomMemoryLocation() && target->isMemoryLocation();;
-
-		target->loadMemoryIntoRegister(cc);
-
-		auto t = INT_REG_W(target);
-
-		if (isPowerOfTwo(wt->size))
-		{
-			cc.and_(t, wt->size - 1);
-		}
-		else
-		{
-			auto d = cc.newGpd();
-			
-			auto s = cc.newInt32Const(ConstPool::kScopeLocal, wt->size);
-
-			cc.cdq(d, t);
-			cc.idiv(d, t, s);
-			cc.mov(t, d);
-		}
-
-		if (wasMem)
-		{
-			auto mem = target->getMemoryLocationForReference();
-			cc.mov(mem, INT_REG_R(target));
-			target->setCustomMemoryLocation(mem);
-		}
-
-		break;
-	}
-	case WrapType::OpType::Inc:
-	{
-		auto t = INT_REG_W(target);
-		auto temp = cc.newGpd();
-
-		cc.mov(temp, 0);
-		cc.cmp(t, wt->size);
-		cc.cmovge(t, temp);
-	}
-	}
-}
-
 
 
 asmjit::X86Mem AsmCodeGenerator::createFpuMem(RegPtr ptr)
@@ -1371,7 +1317,7 @@ void AsmCodeGenerator::dumpVariables(BaseScope* s, uint64_t lineNumber)
 
 #if JUCE_64BIT
 
-	TemporaryRegister ad(*this, s, Types::ID::Block);
+	TemporaryRegister ad(*this, s, TypeInfo(Types::ID::Block));
 	int ok = cc.mov(ad.get(), void2ptr(data));
 	auto target = x86::qword_ptr(ad.get());
 #else
@@ -1438,7 +1384,7 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	
 	
 
-	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), Types::ID::Pointer);
+	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
 
 	auto& cc = gen.cc;
 
@@ -1522,8 +1468,8 @@ void BlockLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, B
 	loopTarget->loadMemoryIntoRegister(cc);
 	auto blockAddress = INT_REG_R(loopTarget);
 
-	AsmCodeGenerator::TemporaryRegister beg(gen, loopTarget->getScope(), Types::ID::Pointer);
-	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), Types::ID::Pointer);
+	AsmCodeGenerator::TemporaryRegister beg(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
+	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
 
 	
 
@@ -1575,15 +1521,15 @@ void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Bas
 	jassert(typePtr != nullptr);
 	jassert(iterator.typeInfo == typePtr->elementType);
 
-	AsmCodeGenerator::TemporaryRegister beg(gen, loopTarget->getScope(), Types::ID::Pointer);
-	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), Types::ID::Pointer);
+	AsmCodeGenerator::TemporaryRegister beg(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
+	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
 
 	auto& cc = gen.cc;
 
 	X86Mem fatPointerAddress;
 	
 	
-	if (loopTarget->hasCustomMemoryLocation())
+	if (loopTarget->hasCustomMemoryLocation() || loopTarget->isMemoryLocation())
 		fatPointerAddress = loopTarget->getMemoryLocationForReference();
 	else
 		fatPointerAddress = x86::ptr(PTR_REG_R(loopTarget));

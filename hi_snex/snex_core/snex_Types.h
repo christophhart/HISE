@@ -467,6 +467,12 @@ template <class T, int MaxSize> struct span
 		return *this;
 	}
 
+	operator DataType()
+	{
+		if (MaxSize == 1)
+			return *begin();
+	}
+
 	Type& operator+=(const T& scalar)
 	{
 		*this + scalar;

@@ -190,7 +190,29 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 {
 	juce::String s;
 
-	s << returnType.toString() << " " << id << "(";
+	s << returnType.toString() << " " << id;
+	
+	if (!templateParameters.isEmpty())
+	{
+		s << "<";
+
+		for(int i = 0; i < templateParameters.size(); i++)
+		{
+			auto t = templateParameters[i];
+
+			if (t.type.isValid())
+				s << t.type.toString();
+			else
+				s << juce::String(t.constant);
+
+			if (i == (templateParameters.size() - 1))
+				s << ">";
+			else
+				s << ", ";
+		}
+	}
+	
+	s << "(";
 
 	int index = 0;
 
@@ -226,7 +248,13 @@ bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 
 	for (int i = 0; i < args.size(); i++)
 	{
-		if (args[i].typeInfo != typeList[i])
+		auto thisArgs = args[i].typeInfo;
+		auto otherArgs = typeList[i];
+
+		if (thisArgs.isInvalid())
+			continue;
+
+		if (thisArgs != otherArgs)
 			return false;
 	}
 
@@ -274,17 +302,104 @@ bool FunctionData::matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID
 	return matchesArgumentTypes(TypeInfo(r), t);
 }
 
-struct InlineData
+
+
+struct SyntaxTreeInlineData: public InlineData
 {
-	InlineData(AsmCodeGenerator& gen_) :
+	SyntaxTreeInlineData(Operations::Statement::Ptr e_):
+		expression(e_),
+		location(e_->location)
+	{
+
+	}
+
+	bool isHighlevel() const override
+	{
+		return true;
+	}
+
+	bool replaceIfSuccess()
+	{
+		if (target != nullptr)
+		{
+			expression->replaceInParent(target);
+
+			auto c = expression->currentCompiler;
+			auto s = expression->currentScope;
+
+			if (auto t = dynamic_cast<Operations::StatementBlock*>(target.get()))
+				s = t->createOrGetBlockScope(s);
+
+			for (int i = 0; i <= expression->currentPass; i++)
+			{
+				auto thisPass = (BaseCompiler::Pass)i;
+
+				BaseCompiler::ScopedPassSwitcher svs(c, thisPass);
+
+				c->executePass(thisPass, s, target.get());
+			};
+
+			return true;
+		}
+			
+		return false;
+	}
+
+	ParserHelpers::CodeLocation location;
+	Operations::Statement::Ptr expression;
+	Operations::Statement::Ptr target;
+	Operations::Statement::Ptr object;
+	ReferenceCountedArray<Operations::Expression> args;
+};
+
+struct AsmInlineData: public InlineData
+{
+	AsmInlineData(AsmCodeGenerator& gen_) :
 		gen(gen_)
 	{};
+
+	bool isHighlevel() const override
+	{
+		return false;
+	}
 
 	AsmCodeGenerator& gen;
 	AssemblyRegister::Ptr target;
 	AssemblyRegister::Ptr object;
 	AssemblyRegister::List args;
 };
+
+struct ReturnTypeInlineData : public InlineData
+{
+	ReturnTypeInlineData(FunctionData& f_) :
+		f(f_)
+	{
+		templateParameters = f.templateParameters;
+	};
+
+	bool isHighlevel() const override { return true; }
+
+	Operations::Expression::Ptr object;
+	FunctionData& f;
+};
+
+
+bool ComplexType::isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const
+{
+	if (complexSourceType == this)
+		return true;
+
+	return false;
+}
+
+bool ComplexType::isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const
+{
+	if (complexTargetType == this)
+		return true;
+
+	return false;
+}
+
 
 bool FunctionClass::hasFunction(const Symbol& s) const
 {
@@ -434,6 +549,24 @@ bool FunctionClass::injectFunctionPointer(FunctionData& dataToInject)
 	return false;
 }
 
+FunctionData FunctionClass::getSpecialFunction(SpecialSymbols s, TypeInfo returnType, const TypeInfo::List& argTypes) const
+{
+	if (hasSpecialFunction(s))
+	{
+		Array<FunctionData> matches;
+
+		addSpecialFunctions(s, matches);
+
+		for (auto& m : matches)
+		{
+			if (m.matchesArgumentTypes(returnType, argTypes))
+				return m;
+		}
+	}
+
+	return {};
+}
+
 snex::VariableStorage FunctionClass::getConstantValue(const Symbol& s) const
 {
 	auto parent = s.getParentSymbol();
@@ -458,133 +591,35 @@ snex::VariableStorage FunctionClass::getConstantValue(const Symbol& s) const
 	return {};
 }
 
-snex::jit::FunctionClass* WrapType::getFunctionClass()
+int ComplexType::numInstances = 0;
+
+SyntaxTreeInlineData* InlineData::toSyntaxTreeData() const
 {
-	auto wrapOperators = new FunctionClass(Symbol::createRootSymbol("WrapOperators"));
+	jassert(isHighlevel());
+	return dynamic_cast<SyntaxTreeInlineData*>(const_cast<InlineData*>(this));
+}
 
-	auto wrapSize = size;
+AsmInlineData* InlineData::toAsmInlineData() const
+{
+	jassert(!isHighlevel());
 
-	auto assignOperator = new FunctionData();
-	assignOperator->returnType = TypeInfo(this);
-	assignOperator->addArgs("current", TypeInfo(this));
-	assignOperator->addArgs("newValue", TypeInfo(Types::ID::Integer));
-	assignOperator->id = wrapOperators->getSpecialSymbol(FunctionClass::AssignOverload);
-	assignOperator->inliner = new Inliner(assignOperator->id, [wrapSize](InlineData* d)
+	return dynamic_cast<AsmInlineData*>(const_cast<InlineData*>(this));
+}
+
+juce::Result Inliner::process(InlineData* d) const
+{
+	if (dynamic_cast<ReturnTypeInlineData*>(d))
 	{
-		auto target = d->target;
-		auto& cc = d->gen.cc;
-
-		bool wasMem = target->hasCustomMemoryLocation() && target->isMemoryLocation();;
-
-		target->loadMemoryIntoRegister(cc);
-
-		auto t = INT_REG_W(target);
-
-		if (isPowerOfTwo(wrapSize))
-		{
-			cc.and_(t, wrapSize - 1);
-		}
-		else
-		{
-			auto d = cc.newGpd();
-			auto s = cc.newInt32Const(ConstPool::kScopeLocal, wrapSize);
-			cc.cdq(d, t);
-			cc.idiv(d, t, s);
-			cc.mov(t, d);
-		}
-
-		if (wasMem)
-		{
-			auto mem = target->getMemoryLocationForReference();
-			cc.mov(mem, INT_REG_R(target));
-			target->setCustomMemoryLocation(mem);
-		}
-
-		return Result::ok();
-	});
-
-	wrapOperators->addFunction(assignOperator);
-
-	return wrapOperators;
-}
-
-bool ComplexType::isValidCastSource(Types::ID nativeType, ComplexType::Ptr p) const
-{
-	if (p == this)
-		return true;
-
-	return false;
-}
-
-bool ComplexType::isValidCastTarget(Types::ID nativeType, ComplexType::Ptr p) const
-{
-	if (p == this)
-		return true;
-
-	return false;
-}
-
-snex::jit::FunctionClass* VariadicTypeBase::getFunctionClass()
-{
-	auto fc = new FunctionClass(Symbol::createRootSymbol(type->variadicId));
-
-	ReferenceCountedArray<FunctionClass> childFunctions;
-
-	for (auto c : types)
-	{
-		childFunctions.add(c->getFunctionClass());
+		return returnTypeFunction(d);
 	}
 
-	for (auto& f : type->functions)
-	{
-		uint8 offset = 0;
+	if (d->isHighlevel() && highLevelFunc)
+		return highLevelFunc(d);
 
-		FunctionData* toAdd = new FunctionData(f);
+	if (!d->isHighlevel() && asmFunc)
+		return asmFunc(d);
 
-		struct FunctionWithOffset
-		{
-			FunctionData f;
-			size_t offset = 0;
-		};
-
-		Array<FunctionWithOffset> functions;
-
-		for (int i = 0; i < types.size(); i++)
-		{
-			FunctionWithOffset fo;
-			fo.f = f;
-			fo.offset = offset;
-
-			if (childFunctions[i]->injectFunctionPointer(fo.f))
-				functions.add(fo);
-
-			offset += types[i]->getRequiredByteSize();
-		}
-
-		toAdd->inliner = new Inliner(f.id, [functions](InlineData* d)
-		{
-			auto& cc = d->gen.cc;
-			auto start = cc.newGpq();
-
-			d->args[0]->loadMemoryIntoRegister(cc);
-
-			cc.mov(start, INT_REG_R(d->args[0]));
-
-			for (auto f : functions)
-			{
-				d->gen.emitFunctionCall(d->target, f.f, nullptr, d->args);
-				cc.add(PTR_REG_W(d->args[0]), (int64)f.offset);
-			}
-
-			cc.mov(PTR_REG_W(d->args[0]), start);
-
-			return Result::ok();
-		});
-
-		fc->addFunction(toAdd);
-	}
-
-	return fc;
+	return Result::fail("Can't inline function");
 }
 
 } // end namespace jit

@@ -373,6 +373,25 @@ RootClassData::RootClassData() :
 	addFunctionClass(new BlockFunctions());
 }
 
+snex::jit::ComplexType::Ptr RootClassData::getComplexTypeForVariable(const Symbol& s) const
+{
+	for (const auto& ts : symbolTable)
+	{
+		if (ts.s == s)
+			return ts.s.typeInfo.getComplexType();
+
+		ComplexType::Ptr p;
+
+		if (checkSubClassMembers(ts, s, [&p](StructType* c, const Identifier& id)
+		{
+			p = c->getMemberComplexType(id);
+		}))
+			return p;
+	}
+
+	return nullptr;
+}
+
 juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues)
 {
 	if (scope == scope->getRootClassScope())
@@ -406,11 +425,101 @@ juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, Initiali
 	{
 		if (cs->typePtr != nullptr)
 		{
-			return initSubClassMembers(cs->typePtr, s.id, initValues);
+			return initSubClassMembers(cs->typePtr.get(), s.id, initValues);
 		}
 	}
 
 	return Result::fail("not found");
+}
+
+void* RootClassData::getDataPointer(const Symbol& s) const
+{
+	for (const auto& ts : symbolTable)
+	{
+		if (ts.s == s)
+			return ts.data;
+
+		uint64_t data = reinterpret_cast<uint64_t>(ts.data);
+
+		if (checkSubClassMembers(ts, s, [&data](StructType* sc, const Identifier& id)
+		{
+			data += sc->getMemberOffset(id);
+		}))
+			return (void*)data;
+	}
+
+	jassertfalse;
+	return nullptr;
+}
+
+juce::Result RootClassData::initSubClassMembers(ComplexType::Ptr type, const Identifier& memberId, InitialiserList::Ptr initList)
+{
+	for (const auto& ts : symbolTable)
+	{
+		if (ts.s.typeInfo.isComplexType())
+		{
+			ts.s.typeInfo.getComplexType()->forEach([memberId, initList](ComplexType::Ptr p, void* dataPointer)
+			{
+				if (auto structType = dynamic_cast<StructType*>(p.get()))
+				{
+					auto offset = structType->getMemberOffset(memberId);
+
+					if (structType->isNativeMember(memberId))
+					{
+						VariableStorage initValue;
+
+						jassert(initList->size() == 1);
+
+						initList->getValue(0, initValue);
+
+						ComplexType::writeNativeMemberType(dataPointer, offset, initValue);
+						return false;
+					}
+					else
+					{
+						auto memberType = structType->getMemberComplexType(memberId);
+						auto ptr = ComplexType::getPointerWithOffset(dataPointer, offset);
+						memberType->initialise(ptr, initList);
+						return false;
+					}
+				}
+
+				p->initialise(dataPointer, initList);
+
+				return false;
+			}, type, ts.data);
+		}
+	}
+
+	return Result::ok();
+}
+
+bool RootClassData::checkSubClassMembers(const TableEntry& ts, const Symbol& s, const std::function<void(StructType* sc, const Identifier& id)>& f) const
+{
+	if (ts.s.isParentOf(s) && ts.s.typeInfo.isComplexType())
+	{
+		auto path = s.getPath();
+		path.remove(0);
+
+		auto tp = ts.s.typeInfo.getComplexType();
+
+		for (int i = 0; i < path.size(); i++)
+		{
+			auto thisMember = path[i];
+			auto st = dynamic_cast<StructType*>(tp.get());
+
+			if (st == nullptr)
+				break;
+
+			f(st, thisMember);
+
+			tp = st->getMemberComplexType(thisMember).get();
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 }

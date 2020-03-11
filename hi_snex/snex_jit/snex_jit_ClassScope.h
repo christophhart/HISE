@@ -61,7 +61,7 @@ public:
 
 	ClassScope(BaseScope* parent, const Symbol& id, ComplexType::Ptr typePtr_) :
 		BaseScope(id, parent),
-		typePtr(typePtr_)
+		typePtr(typePtr_.get())
 	{
 		if (auto gs = dynamic_cast<GlobalScope*>(parent))
 		{
@@ -107,7 +107,7 @@ public:
 
 	ScopedPointer<asmjit::JitRuntime> runtime;
 	ReferenceCountedObjectPtr<RootClassData> rootData;
-	ComplexType::Ptr typePtr;
+	ComplexType::WeakPtr typePtr;
 
 	struct FunctionDebugInfo : public DebugInformationBase
 	{

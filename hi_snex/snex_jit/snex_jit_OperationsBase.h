@@ -348,7 +348,7 @@ public:
 	struct IfStatement;		struct ClassStatement;			struct UsingStatement;
 	struct CastedSimd;      struct Subscript;				struct InlinedParameter;
 	struct ComplexTypeDefinition;						    struct ControlFlowStatement;
-	struct InlinedArgument;
+	struct InlinedArgument; struct MemoryReference;
 
 	struct ScopeStatementBase
 	{
@@ -372,6 +372,12 @@ public:
 			}
 
 			return Types::ID::Void;
+		}
+
+		void cloneScopeProperties(ScopeStatementBase* newClone) const
+		{
+			newClone->returnType = returnType;
+			newClone->aliases.addArray(aliases);
 		}
 
 		ComplexType::Ptr getAliasComplexType(const Identifier& id) const
@@ -402,7 +408,7 @@ public:
 		void allocateReturnRegister(BaseCompiler* c, BaseScope* s)
 		{
 			jassert(hasReturnType());
-			returnRegister = c->registerPool.getNextFreeRegister(s, getReturnType().getType());
+			returnRegister = c->registerPool.getNextFreeRegister(s, getReturnType());
 		}
 
 		void setParentScopeStatement(ScopeStatementBase* parent)

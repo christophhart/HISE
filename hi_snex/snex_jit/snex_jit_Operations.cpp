@@ -102,6 +102,76 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, sTree);
 
 			compiler->setCurrentPass(BaseCompiler::FunctionParsing);
+
+			Statement::Ptr statementCopy = statements;
+
+			auto classDataCopy = FunctionData(*classData);
+
+			auto createInliner = scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::Inlining);
+
+			if (createInliner)
+			{
+				classData->inliner = Inliner::createHighLevelInliner(id.id, [statementCopy, classDataCopy](InlineData* b)
+				{
+					auto d = b->toSyntaxTreeData();
+
+					DBG("Inlining function with syntax tree");
+					DBG(dynamic_cast<SyntaxTree*>(statementCopy.get())->dump());
+
+					auto fc = dynamic_cast<Operations::FunctionCall*>(d->expression.get());
+					jassert(fc != nullptr);
+					d->target = statementCopy->clone(d->location);
+					auto cs = dynamic_cast<Operations::StatementBlock*>(d->target.get());
+					cs->setReturnType(classDataCopy.returnType);
+
+					if (d->object != nullptr)
+					{
+						auto thisSymbol = Symbol::createRootSymbol("this");
+						auto e = d->object->clone(d->location);
+						cs->addInlinedParameter(-1, thisSymbol, dynamic_cast<Operations::Expression*>(e.get()));
+
+						if (auto st = e->getTypeInfo().getTypedIfComplexType<StructType>())
+						{
+							d->target->forEachRecursive([st, e](Operations::Statement::Ptr p)
+							{
+								if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
+								{
+									if (st->hasMember(v->id.id))
+									{
+										auto newParent = e->clone(v->location);
+										auto newChild = v->clone(v->location);
+
+										auto newDot = new Operations::DotOperator(v->location,
+											dynamic_cast<Operations::Expression*>(newParent.get()),
+											dynamic_cast<Operations::Expression*>(newChild.get()));
+
+										v->replaceInParent(newDot);
+									}
+								}
+
+								return false;
+							});
+						}
+					}
+
+					for (int i = 0; i < fc->getNumArguments(); i++)
+					{
+						auto pVarSymbol = Symbol::createRootSymbol(classDataCopy.args[i].id);
+						pVarSymbol.setTypeInfo(classDataCopy.args[i].typeInfo);
+
+						Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
+
+						cs->addInlinedParameter(i, pVarSymbol, e);
+					}
+
+					return Result::ok();
+				});
+			}
+
+			if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
+			{
+				st->addJitCompiledMemberFunction(*classData);
+			}
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
@@ -140,7 +210,9 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (hasObjectPtr)
 		{
-			objectPtr = compiler->registerPool.getNextFreeRegister(functionScope, Types::ID::Pointer);
+			TypeInfo objectType(dynamic_cast<ClassScope*>(scope)->typePtr.get());
+
+			objectPtr = compiler->registerPool.getNextFreeRegister(functionScope, objectType);
 
 			auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
 			asg.emitParameter(this, objectPtr, -1);
@@ -179,7 +251,8 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
 		{
-			st->addJitCompiledMemberFunction(data);
+			if (!st->injectMemberFunctionPointer(data, data.function))
+				location.throwError("Can't inject function pointer to member function");
 		}
 
 		compiler->setCurrentPass(BaseCompiler::FunctionCompilation);
@@ -216,14 +289,15 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			return;
 		}
 
-		
-
 		if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(this, id))
 		{
 			auto n = new InlinedParameter(location, ie->getSymbol(), ie->getSubExpr(0));
 
 			replaceInParent(n);
 			n->process(compiler, scope);
+			
+
+			
 			return;
 		}
 
@@ -240,23 +314,31 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// walk up the dot operators to get the proper symbol...
 		if (auto dp = dynamic_cast<DotOperator*>(parent.get()))
 		{
-			if (auto sType = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
+			if (dp->getDotParent()->getTypeInfo().isComplexType())
 			{
 				if (dp->getDotParent().get() != this)
 				{
-					objectPointer = dp->getDotParent();
+					//
 
-					if (objectPointer.get() == this)
+					objectExpression = dp->getDotParent();
+
+					if (objectExpression.get() == this)
 						jassertfalse;
 
-					id.typeInfo = sType->getMemberTypeInfo(id.id);
-					auto byteSize = id.typeInfo.getRequiredByteSize();
+					if (auto sType = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
+					{
+						id.typeInfo = sType->getMemberTypeInfo(id.id);
+						auto byteSize = id.typeInfo.getRequiredByteSize();
 
-					if (byteSize == 0)
-						location.throwError("Can't deduce type size");
+						if (byteSize == 0)
+							location.throwError("Can't deduce type size");
 
-					objectAdress = VariableStorage((int)(sType->getMemberOffset(id.id)));
-					return;
+						objectAdress = VariableStorage((int)(sType->getMemberOffset(id.id)));
+						objectPtr = sType;
+						return;
+					}
+
+					
 				}
 			}
 		}
@@ -281,6 +363,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		else if (auto typePtr = scope->getRootData()->getComplexTypeForVariable(id))
 		{
 			objectAdress = VariableStorage(scope->getRootData()->getDataPointer(id), typePtr->getRequiredByteSize());
+			objectPtr = typePtr;
 
 			id.typeInfo = TypeInfo(typePtr, id.isConst());
 		}
@@ -293,14 +376,18 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				location.throwError("Use of undefined variable " + id.toString());
 
 			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
+			{
 				objectAdress = VariableStorage((int)subClassType->getMemberOffset(id.id));
+				objectPtr = subClassType;
+			}
+				
 		}
 	}
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
-		if (objectPointer != nullptr && objectPointer->getType() != Types::ID::Pointer)
-			objectPointer->location.throwError("expression must have class type");
+		if (objectExpression != nullptr && objectExpression->getType() != Types::ID::Pointer)
+			objectExpression->location.throwError("expression must have class type");
 
 		
 	}
@@ -343,13 +430,13 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// It might already be assigned to a reused register
 		if (reg == nullptr)
 		{
-			if (objectPointer == nullptr && objectAdress.getType() == Types::ID::Integer)
+			if (objectExpression == nullptr && objectAdress.getType() == Types::ID::Integer)
 			{
 				if (auto fs = scope->getParentScopeOfType<FunctionScope>())
 				{
 					if (auto pf = dynamic_cast<Function*>(fs->parentFunction))
 					{
-						reg = compiler->registerPool.getNextFreeRegister(scope, getType());
+						reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
 						reg->setReference(scope, id);
 						auto acg = CREATE_ASM_COMPILER(getType());
 						acg.emitThisMemberAccess(reg, pf->objectPtr, objectAdress);
@@ -358,15 +445,25 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				}
 			}
 
-			if (!objectAdress.isVoid() || objectPointer != nullptr)
+			if (!objectAdress.isVoid() || objectExpression != nullptr)
 			{
 				// the object address is either the pointer to the object or a offset to the
 				// given objectPointer
-				jassert((objectAdress.getType() == Types::ID::Pointer && objectPointer == nullptr) || 
-					    (objectAdress.getType() == Types::ID::Integer && objectPointer != nullptr));
+				jassert((objectAdress.getType() == Types::ID::Pointer && objectExpression == nullptr) || 
+					    (objectAdress.getType() == Types::ID::Integer && objectExpression != nullptr));
+
+				if (objectPtr == nullptr)
+				{
+					if (objectExpression == nullptr)
+						location.throwError("Can't resolve object pointer");
+
+					objectPtr = objectExpression->getTypeInfo().getComplexType();
+				}
+					
+				auto regType = objectAdress.getType() == Types::ID::Pointer ? TypeInfo(objectPtr) : TypeInfo(Types::ID::Integer);
 
 				auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
-				reg = compiler->registerPool.getNextFreeRegister(scope, objectAdress.getType());
+				reg = compiler->registerPool.getNextFreeRegister(scope, regType);
 				reg->setDataPointer(objectAdress.getDataPointer());
 				reg->createMemoryLocation(asg.cc);
 				return;
@@ -403,11 +500,10 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 				if (assignmentType != JitTokens::void_)
 				{
+					reg->setDataPointer(dataPointer);
+
 					if (assignmentType != JitTokens::assign_)
-					{
-						reg->setDataPointer(dataPointer);
 						reg->loadMemoryIntoRegister(asg.cc);
-					}
 					else
 						reg->createRegister(asg.cc);
 				}
@@ -571,36 +667,22 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			if (auto ct = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<ComplexType>())
 			{
-				FunctionClass::Ptr fc = ct->getFunctionClass();
-
-				if (fc != nullptr && fc->hasSpecialFunction(FunctionClass::AssignOverload))
+				if (FunctionClass::Ptr fc = ct->getFunctionClass())
 				{
-					Array<TypeInfo> argTypes;
+					auto targetType = getSubExpr(1)->getTypeInfo();
+					
+					TypeInfo::List args = { targetType, getSubExpr(0)->getTypeInfo() };
 
-					argTypes.add(getSubExpr(1)->getTypeInfo());
-					argTypes.add(getSubExpr(0)->getTypeInfo());
+					overloadedAssignOperator = fc->getSpecialFunction(FunctionClass::AssignOverload, targetType, args);
 
-					Array<FunctionData> matches;
-
-					fc->addSpecialFunctions(FunctionClass::AssignOverload, matches);
-
-					for (auto& m : matches)
-					{
-						if (m.matchesArgumentTypes(getSubExpr(1)->getTypeInfo(), argTypes))
-						{
-							overloadedAssignOperator = m;
-							return;
-						}
-					}
+					if (overloadedAssignOperator.isResolved())
+						return;
 				}
+					
 			}
-
-
 
 			checkAndSetType(0, getSubExpr(1)->getTypeInfo());
 		}
-		
-		
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -613,13 +695,17 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		auto value = getSubRegister(0);
 		auto tReg = getSubRegister(1);
 
-		if (overloadedAssignOperator)
+		if (overloadedAssignOperator.isResolved())
 		{
 			AssemblyRegister::List l;
 			l.add(tReg);
 			l.add(value);
 
-			acg.emitFunctionCall(tReg, overloadedAssignOperator, tReg, l);
+			auto r = acg.emitFunctionCall(tReg, overloadedAssignOperator, tReg, l);
+
+			if (!r.wasOk())
+				location.throwError(r.getErrorMessage());
+
 			return;
 		}
 
@@ -648,13 +734,6 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 			else
 				acg.emitBinaryOp(assignmentType, tReg, value);
-
-
-			if (auto wt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<WrapType>())
-			{
-				jassertfalse;
-				acg.emitWrap(wt, tReg, WrapType::OpType::Set);
-			}
 		}
 	}
 }
@@ -699,9 +778,9 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 {
 	auto target = getSubExpr(1);
 
-	if (auto v = dynamic_cast<VariableReference*>(target.get()))
+	if (auto v = dynamic_cast<SymbolStatement*>(target.get()))
 	{
-		return v->id.isReference() ? TargetType::Reference : TargetType::Variable;
+		return v->getSymbol().isReference() ? TargetType::Reference : TargetType::Variable;
 	}
 	else if (dynamic_cast<DotOperator*>(target.get()))
 		return TargetType::ClassMember;
@@ -738,7 +817,7 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		if (auto vp = dynamic_cast<SymbolStatement*>(getDotChild().get()))
 		{
-			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
+			reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
 			reg->setReference(scope, vp->getSymbol());
 			
 			auto acg = CREATE_ASM_COMPILER(getType());
@@ -765,6 +844,28 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
+		if (function.returnType.getType() == Types::ID::Dynamic && objExpr != nullptr)
+		{
+			if (auto vt = objExpr->getTypeInfo().getTypedIfComplexType<VariadicTypeBase>())
+			{
+				FunctionClass::Ptr fc = vt->getFunctionClass();
+
+				Array<FunctionData> matches;
+
+				auto id = fc->getClassName().getChildSymbol(function.id);
+
+				fc->addMatchingFunctions(matches, id);
+
+				if (matches.size() == 1)
+				{
+					auto tempParameters = function.templateParameters;
+					function = matches[0];
+					function.templateParameters = tempParameters;
+					return;
+				}
+			}
+		}
+
 		if (objExpr != nullptr && function.id == Identifier("toSimd"))
 		{
 			auto sc = new CastedSimd(location, objExpr);
@@ -807,6 +908,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			if (fc = objExpr->getTypeInfo().getComplexType()->getFunctionClass())
 			{
+				ownedFc = fc.get();
+
 				auto id = fc->getClassName().getChildSymbol(function.id);
 				fc->addMatchingFunctions(possibleMatches, id);
 				callType = MemberFunction;
@@ -840,15 +943,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				callType = pv->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
 				return;
 			}
-
-			else if (auto st = pv->getTypeInfo().getTypedIfComplexType<SpanType>())
-			{
-				if (function.id == Identifier("size"))
-				{
-					replaceInParent(new Immediate(location, VariableStorage((int)st->getNumElements())));
-					return;
-				}
-			}
 			if (scope->getGlobalScope()->hasFunction(pv->id))
 			{
 				// Function with globally registered object (either API class or JIT callable object)
@@ -865,6 +959,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		location.throwError("Can't resolve function call " + function.getSignature());
 	}
 
+	
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
 		Array<TypeInfo> parameterTypes;
@@ -880,6 +975,25 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			{
 				int numArgs = f.args.size();
 
+				if (f.canBeInlined(true))
+				{
+					SyntaxTreeInlineData d(this);
+					d.object = objExpr;
+					
+					for (int i = 0; i < getNumArguments(); i++)
+						d.args.add(getArgument(i));
+
+					d.templateParameters = function.templateParameters;
+
+					auto r = f.inlineFunction(&d);
+
+					if (!r.wasOk())
+						location.throwError(r.getErrorMessage());
+
+					d.replaceIfSuccess();
+					return;
+				}
+
 				for (int i = 0; i < numArgs; i++)
 				{
 					if (f.args[i].isReference())
@@ -891,7 +1005,16 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 					}
 				}
 
-				function = f;
+				if (function.templateParameters.size() != 0)
+				{
+					auto tempParameters = function.templateParameters;
+					function = f;
+					function.templateParameters = tempParameters;
+					function.returnType = getTypeInfo();
+				}
+				else
+					function = f;
+
 				return;
 			}
 		}
@@ -901,7 +1024,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
-		reg = compiler->getRegFromPool(scope, getType());
+		reg = compiler->getRegFromPool(scope, getTypeInfo());
 
 		//VariableReference::reuseAllLastReferences(this);
 
@@ -922,7 +1045,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 					}
 				}
 
-				auto pType = function.args[i].isReference() ? Types::ID::Pointer : getArgument(i)->getType();
+				auto pType = function.args[i].isReference() ? TypeInfo(Types::ID::Pointer, true) : getArgument(i)->getTypeInfo();
 				auto pReg = compiler->getRegFromPool(scope, pType);
 				auto asg = CREATE_ASM_COMPILER(getType());
 				pReg->createRegister(asg.cc);
@@ -935,22 +1058,34 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		auto asg = CREATE_ASM_COMPILER(getType());
 
+		if (callType == MemberFunction)
+		{
+			// It might be possible that the JIT compiled member function
+			// might not have been injected into the old function class yet
+
+			if (!function)
+				fc->fillJitFunctionPointer(function);
+
+			if (!function)
+			{
+				fc = objExpr->getTypeInfo().getComplexType()->getFunctionClass();
+				ownedFc = fc;
+			}
+				
+		}
+
+		if (!function)
+			fc->fillJitFunctionPointer(function);
+
+
 		if (shouldInlineFunctionCall(compiler, scope))
 		{
-			InlineData d(asg);
-			d.target = reg;
-			d.object = objExpr != nullptr ? objExpr->reg : nullptr;
-
-			for (int i = 0; i < getNumArguments(); i++)
-				d.args.add(getArgument(i)->reg);
-
-			auto r = function.inliner->f(&d);
-
-			if (!r.wasOk())
-				throwError(r.getErrorMessage());
+			inlineFunctionCall(asg);
 
 			return;
 		}
+
+		
 
 		if (!function)
 		{
@@ -958,7 +1093,15 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				throwError("Can't resolve function class");
 
 			if (!fc->fillJitFunctionPointer(function))
-				throwError("Can't find function pointer to JIT function " + function.functionName);
+			{
+				if (function.inliner != nullptr)
+				{
+					inlineFunctionCall(asg);
+					return;
+				}
+				else
+					throwError("Can't find function pointer to JIT function " + function.functionName);
+			}
 		}
 
 		if (function.id.toString() == "stop")
@@ -1006,7 +1149,10 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		if (function.functionName.isEmpty())
 			function.functionName = function.getSignature({});
 
-		asg.emitFunctionCall(reg, function, objExpr != nullptr ? objExpr->reg : nullptr, parameterRegs);
+		auto r = asg.emitFunctionCall(reg, function, objExpr != nullptr ? objExpr->reg : nullptr, parameterRegs);
+
+		if (!r.wasOk())
+			location.throwError(r.getErrorMessage());
 
 		for (int i = 0; i < parameterRegs.size(); i++)
 		{
@@ -1022,6 +1168,44 @@ bool Operations::FunctionCall::shouldInlineFunctionCall(BaseCompiler* compiler, 
 		return false;
 
 	return scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::Inlining);
+}
+
+void Operations::FunctionCall::inlineFunctionCall(AsmCodeGenerator& asg)
+{
+	AsmInlineData d(asg);
+	d.target = reg;
+	d.object = objExpr != nullptr ? objExpr->reg : nullptr;
+	d.templateParameters = function.templateParameters;
+
+	for (int i = 0; i < getNumArguments(); i++)
+		d.args.add(getArgument(i)->reg);
+
+	auto r = function.inlineFunction(&d);
+
+	if (!r.wasOk())
+		throwError(r.getErrorMessage());
+}
+
+snex::jit::TypeInfo Operations::FunctionCall::getTypeInfo() const
+{
+	if (function.returnType.getType() == Types::ID::Dynamic)
+	{
+		if (function.inliner != nullptr)
+		{
+			ReturnTypeInlineData rt(function);
+			rt.object = objExpr;
+
+			auto r = function.inliner->process(&rt);
+
+			if (!r.wasOk())
+				location.throwError(r.getErrorMessage());
+		}
+
+		if (function.returnType.getType() == Types::ID::Dynamic)
+			location.throwError("Can't deduce auto return type for function");
+	}
+
+	return TypeInfo(function.returnType);
 }
 
 bool Operations::StatementBlock::isRealStatement(Statement* s)
@@ -1042,6 +1226,167 @@ snex::jit::Operations::Statement::Ptr Operations::InlinedParameter::clone(Locati
 {
 	// This will get resolved to an inlined parameter later again...
 	return new VariableReference(l, s);
+}
+
+void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	Expression::process(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
+	{
+		if (type.isComplexType())
+			type.getComplexType()->finaliseAlignment();
+	}
+	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
+	{
+		if (!isStackDefinition(scope))
+			scope->getRootData()->enlargeAllocatedSize(type);
+	}
+	COMPILER_PASS(BaseCompiler::DataAllocation)
+	{
+		for (auto s : getSymbols())
+		{
+			if (isStackDefinition(scope))
+			{
+				if (!scope->addVariable(s))
+					throwError("Can't allocate variable " + s.toString());
+			}
+			else
+				scope->getRootData()->allocate(scope, s);
+		}
+	}
+	COMPILER_PASS(BaseCompiler::DataInitialisation)
+	{
+		if (getNumChildStatements() == 0 && initValues == nullptr)
+		{
+			initValues = type.makeDefaultInitialiserList();
+		}
+
+		if (getNumChildStatements() == 1 && getSubExpr(0)->isConstExpr())
+		{
+			jassertfalse;
+		}
+
+		if (!isStackDefinition(scope))
+		{
+			for (auto s : getSymbols())
+			{
+				if (scope->getRootClassScope() == scope)
+				{
+					auto r = scope->getRootData()->initData(scope, s, initValues);
+
+					if (!r.wasOk())
+						location.throwError(r.getErrorMessage());
+				}
+				else if (auto cScope = dynamic_cast<ClassScope*>(scope))
+				{
+					if (auto st = dynamic_cast<StructType*>(cScope->typePtr.get()))
+						st->setDefaultValue(s.id, initValues);
+				}
+			}
+		}
+	}
+	COMPILER_PASS(BaseCompiler::RegisterAllocation)
+	{
+		if (isStackDefinition(scope))
+		{
+			auto acg = CREATE_ASM_COMPILER(getType());
+
+			for (auto s : getSymbols())
+			{
+				auto c = acg.cc.newStack(type.getRequiredByteSize(), type.getRequiredAlignment(), "funky");
+
+				auto reg = compiler->registerPool.getRegisterForVariable(scope, s);
+				reg->setCustomMemoryLocation(c);
+				stackLocations.add(reg);
+			}
+		}
+	}
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		if (isStackDefinition(scope))
+		{
+			auto acg = CREATE_ASM_COMPILER(getType());
+
+			FunctionData overloadedAssignOp;
+
+			if (FunctionClass::Ptr fc = getNumChildStatements() > 0 ? type.getComplexType()->getFunctionClass() : nullptr)
+			{
+				overloadedAssignOp = fc->getSpecialFunction(FunctionClass::AssignOverload, type, { type, getSubExpr(0)->getTypeInfo() });
+			}
+
+			for (auto s : stackLocations)
+			{
+				if (initValues != nullptr)
+				{
+					acg.emitStackInitialisation(s, type.getComplexType(), nullptr, initValues);
+				}
+				else if (overloadedAssignOp.canBeInlined(false))
+				{
+					AsmInlineData d(acg);
+
+					d.object = s;
+					d.target = s;
+					d.args.add(s);
+					d.args.add(getSubRegister(0));
+
+					auto r = overloadedAssignOp.inlineFunction(&d);
+
+					if (!r.wasOk())
+						location.throwError(r.getErrorMessage());
+				}
+			}
+
+		}
+	}
+}
+
+void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	Expression::process(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::TypeCheck)
+	{
+		auto sourceType = getSubExpr(0)->getTypeInfo();
+		auto targetType = getTypeInfo();
+
+		if (sourceType == targetType)
+		{
+			replaceInParent(getSubExpr(0));
+			return;
+		}
+
+	}
+
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		auto sourceType = getSubExpr(0)->getTypeInfo();
+
+		if (sourceType.isComplexType())
+		{
+			FunctionClass::Ptr fc = sourceType.getComplexType()->getFunctionClass();
+			complexCastFunction = fc->getSpecialFunction(FunctionClass::NativeTypeCast, targetType, {});
+		}
+
+		auto asg = CREATE_ASM_COMPILER(getType());
+		reg = compiler->getRegFromPool(scope, getTypeInfo());
+
+		if (complexCastFunction.isResolved())
+		{
+			AssemblyRegister::List l;
+			auto r = asg.emitFunctionCall(reg, complexCastFunction, getSubRegister(0), l);
+
+			if (!r.wasOk())
+			{
+				location.throwError(r.getErrorMessage());
+			}
+		}
+		else
+		{
+			auto sourceType = getSubExpr(0)->getType();
+			asg.emitCast(reg, getSubRegister(0), sourceType);
+		}
+	}
 }
 
 }

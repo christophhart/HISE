@@ -129,9 +129,11 @@ struct Operations::StatementBlock : public Expression,
 	{
 		Statement::Ptr c = new StatementBlock(l);
 
-		// Can't clone after the scope has been populated...
-		jassert(blockScope == nullptr || blockScope->getAllVariables().isEmpty());
-
+		auto b = dynamic_cast<StatementBlock*>(c.get());
+		
+		b->isInlinedFunction = isInlinedFunction;
+		
+		cloneScopeProperties(b);
 		cloneChildren(c);
 
 		return c;
@@ -173,10 +175,13 @@ struct Operations::StatementBlock : public Expression,
 		if (p == nullptr)
 			return nullptr;
 
-		bool isInInlineArgument = findParentStatementOfType<InlinedArgument>(p);
+		if (auto parentInlineArgument = findParentStatementOfType<InlinedArgument>(p))
+		{
+			auto parentBlock = findParentStatementOfType<StatementBlock>(parentInlineArgument);
 
-		if (isInInlineArgument)
-			return nullptr;
+			return findInlinedParameterInParentBlocks(parentBlock->parent, s);
+		}
+			
 
 		if (auto sb = dynamic_cast<StatementBlock*>(p))
 		{
@@ -203,12 +208,19 @@ struct Operations::StatementBlock : public Expression,
 		return nullptr;
 	}
 
-	void process(BaseCompiler* compiler, BaseScope* scope)
+	BaseScope* createOrGetBlockScope(BaseScope* parent)
 	{
 		if (blockScope == nullptr)
-			blockScope = new RegisterScope(scope, location.createAnonymousScopeId());
+			blockScope = new RegisterScope(parent, location.createAnonymousScopeId());
 
-		Expression::process(compiler, blockScope);
+		return blockScope;
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope)
+	{
+		auto bs = createOrGetBlockScope(scope);
+
+		Expression::process(compiler, bs);
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{
@@ -216,7 +228,7 @@ struct Operations::StatementBlock : public Expression,
 			{
 				if (!isInlinedFunction)
 				{
-					allocateReturnRegister(compiler, blockScope);
+					allocateReturnRegister(compiler, bs);
 				}
 			}
 
@@ -283,7 +295,7 @@ struct Operations::Immediate : public Expression
 			// assignment for immediates
 			reg = nullptr;
 
-			reg = compiler->getRegFromPool(scope, getType());
+			reg = compiler->getRegFromPool(scope, getTypeInfo());
 			reg->setDataPointer(v.getDataPointer());
 
 			reg->createMemoryLocation(getFunctionCompiler(compiler));
@@ -609,9 +621,10 @@ struct Operations::VariableReference : public Expression,
 
 	// can be either the data pointer or the member offset
 	VariableStorage objectAdress;
+	ComplexType::Ptr objectPtr;
 
 	// Contains the expression that leads to the pointer of the member object
-	Ptr objectPointer;
+	Ptr objectExpression;
 };
 
 
@@ -646,34 +659,9 @@ struct Operations::Cast : public Expression
 	// Make sure the target type is used.
 	TypeInfo getTypeInfo() const override { return targetType; }
 
-	void process(BaseCompiler* compiler, BaseScope* scope)
-	{
-		Expression::process(compiler, scope);
+	void process(BaseCompiler* compiler, BaseScope* scope);
 
-		COMPILER_PASS(BaseCompiler::TypeCheck)
-		{
-			auto sourceType = getSubExpr(0)->getType();
-			auto targetType = getType();
-
-			if (sourceType == Types::ID::Block)
-				throwError("Can't cast from block to other type");
-
-			if (targetType == Types::ID::Block)
-				throwError("Can't cast to block from other type");
-
-			if (sourceType == targetType)
-				replaceInParent(getSubExpr(0));
-		}
-
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			auto asg = CREATE_ASM_COMPILER(getType());
-			auto sourceType = getSubExpr(0)->getType();
-			reg = compiler->getRegFromPool(scope, getType());
-			asg.emitCast(reg, getSubRegister(0), sourceType);
-		}
-	}
-
+	FunctionData complexCastFunction;
 	TypeInfo targetType;
 };
 
@@ -848,7 +836,7 @@ struct Operations::Compare : public Expression
 				auto l = getSubExpr(0);
 				auto r = getSubExpr(1);
 
-				reg = compiler->getRegFromPool(scope, getType());
+				reg = compiler->getRegFromPool(scope, getTypeInfo());
 
 				auto tReg = getSubRegister(0);
 				auto value = getSubRegister(1);
@@ -1037,18 +1025,24 @@ struct Operations::FunctionCall : public Expression
 		numCallTypes
 	};
 
-	FunctionCall(Location l, Ptr f, const Symbol& id_) :
+	FunctionCall(Location l, Ptr f, const Symbol& id_, const Array<TemplateParameter>& tp) :
 		Expression(l),
 		cloneId(id_)
 	{
 		function.id = id_.id;
+		function.templateParameters = tp;
 
 		if (auto dp = dynamic_cast<DotOperator*>(f.get()))
 		{
-			objExpr = dp->getDotParent();
-			addStatement(objExpr.get(), true);
+			setObjectExpression(dp->getDotParent());
 		}
 	};
+
+	void setObjectExpression(Ptr e)
+	{
+		objExpr = e;
+		addStatement(e.get(), true);
+	}
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
@@ -1059,10 +1053,10 @@ struct Operations::FunctionCall : public Expression
 
 			auto cf = f->clone(l);
 
-			return new FunctionCall(l, dynamic_cast<Expression*>(cf.get()), cloneId);
+			return new FunctionCall(l, dynamic_cast<Expression*>(cf.get()), cloneId, function.templateParameters);
 		}
 
-		return new FunctionCall(l, new Noop(l), cloneId);
+		return new FunctionCall(l, new Noop(l), cloneId, function.templateParameters);
 	}
 
 	ValueTree toValueTree() const override
@@ -1104,22 +1098,79 @@ struct Operations::FunctionCall : public Expression
 		return dynamic_cast<VariableReference*>(e.get()) != nullptr;
 	}
 
-	TypeInfo getTypeInfo() const override
-	{
-		return TypeInfo(function.returnType);
-	}
+	void inlineFunctionCall(AsmCodeGenerator& acg);
+
+	TypeInfo getTypeInfo() const override;
 
 	void process(BaseCompiler* compiler, BaseScope* scope);
 
 	Symbol cloneId;
 	CallType callType = Unresolved;
 	Array<FunctionData> possibleMatches;
-	FunctionData function;
+	mutable FunctionData function;
 	WeakReference<FunctionClass> fc;
+	FunctionClass::Ptr ownedFc;
 	
 	Ptr objExpr;
 
 	ReferenceCountedArray<AssemblyRegister> parameterRegs;
+};
+
+struct Operations::MemoryReference : public Expression
+{
+	SET_EXPRESSION_ID(MemoryReference);
+
+	MemoryReference(Location l, Ptr base, const TypeInfo& type_, int offsetInBytes_):
+		Expression(l),
+		offsetInBytes(offsetInBytes_),
+		type(type_)
+	{
+		addStatement(base);
+	}
+
+	Statement::Ptr clone(Location l) const
+	{
+		Statement::Ptr p = getSubExpr(0)->clone(l);
+		return new MemoryReference(l, dynamic_cast<Expression*>(p.get()), type, offsetInBytes);
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return type;
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto v = Expression::toValueTree();
+		v.setProperty("Offset", offsetInBytes, nullptr);
+		return v;
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		Expression::process(compiler, scope);
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			reg = compiler->registerPool.getNextFreeRegister(scope, type);
+			
+			auto baseReg = getSubRegister(0);
+
+			X86Mem ptr;
+
+			if (baseReg->isMemoryLocation())
+				ptr = baseReg->getAsMemoryLocation().cloneAdjustedAndResized(offsetInBytes, 8);
+			else if (baseReg->isGlobalVariableRegister())
+				ptr = x86::qword_ptr(reinterpret_cast<uint64_t>(baseReg->getGlobalDataPointer()) + offsetInBytes);
+			else
+				ptr = x86::ptr(PTR_REG_W(baseReg)).cloneAdjustedAndResized(offsetInBytes, 8);
+
+			reg->setCustomMemoryLocation(ptr);
+		}
+	}
+
+	int offsetInBytes = 0;
+	TypeInfo type;
 };
 
 struct Operations::ReturnStatement : public Expression
@@ -1484,6 +1535,7 @@ struct Operations::BinaryOp : public Expression
 				if (l->canBeReused())
 				{
 					reg = l;
+					reg->removeReuseFlag();
 					jassert(!reg->isMemoryLocation());
 				}
 				else
@@ -1491,7 +1543,7 @@ struct Operations::BinaryOp : public Expression
 					if (reg == nullptr)
 					{
 						asg.emitComment("temp register for binary op");
-						reg = compiler->getRegFromPool(scope, getType());
+						reg = compiler->getRegFromPool(scope, getTypeInfo());
 						usesTempRegister = true;
 					}
 
@@ -1592,12 +1644,15 @@ struct Operations::Increment : public UnaryOp
 			}
 			else
 			{
-				reg = compiler->getRegFromPool(scope, Types::ID::Integer);
+				reg = compiler->getRegFromPool(scope, TypeInfo(Types::ID::Integer));
 				asg.emitIncrement(reg, getSubRegister(0), isPreInc, isDecrement);
 			}
 
 			if (auto wt = getTypeInfo().getTypedIfComplexType<WrapType>())
-				asg.emitWrap(wt, reg, isDecrement ? WrapType::OpType::Dec : WrapType::OpType::Inc);
+			{
+				jassertfalse;
+				//asg.emitWrap(wt, reg, isDecrement ? WrapType::OpType::Dec : WrapType::OpType::Inc);
+			}
 		}
 	}
 
@@ -1904,7 +1959,7 @@ struct Operations::Negation : public Expression
 			{
 				auto asg = CREATE_ASM_COMPILER(getType());
 
-				reg = compiler->getRegFromPool(scope, getType());
+				reg = compiler->getRegFromPool(scope, getTypeInfo());
 
 				asg.emitNegation(reg, getSubRegister(0));
 
@@ -1976,7 +2031,7 @@ struct Operations::IfStatement : public Statement,
 			auto trueBranch = getTrueBranch();
 			auto falseBranch = getFalseBranch();
 
-			acg.emitBranch(Types::ID::Void, cond, trueBranch, falseBranch, compiler, scope);
+			acg.emitBranch(TypeInfo(Types::ID::Void), cond, trueBranch, falseBranch, compiler, scope);
 		}
 	}
 };
@@ -2010,7 +2065,11 @@ struct Operations::Subscript : public Expression
 		auto c1 = getSubExpr(0)->clone(l);
 		auto c2 = getSubExpr(1)->clone(l);
 
-		return new Subscript(l, dynamic_cast<Expression*>(c1.get()), dynamic_cast<Expression*>(c2.get()));
+		auto newSubscript = new Subscript(l, dynamic_cast<Expression*>(c1.get()), dynamic_cast<Expression*>(c2.get()));
+		newSubscript->elementType = elementType;
+		newSubscript->isWriteAccess = isWriteAccess;
+		
+		return newSubscript;
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -2046,7 +2105,9 @@ struct Operations::Subscript : public Expression
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			if (getSubExpr(1)->getType() != Types::ID::Integer)
+			auto indexType = getSubExpr(1)->getTypeInfo();
+
+			if (indexType.getType() != Types::ID::Integer && indexType.getTypedIfComplexType<WrapType>() == 0)
 				throwError("index must be an integer value");
 			
 			if (spanType == nullptr)
@@ -2069,7 +2130,7 @@ struct Operations::Subscript : public Expression
 				}
 				else
 				{
-					auto wt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<WrapType>();
+					auto wt = indexType.getTypedIfComplexType<WrapType>();
 
 					if (wt == nullptr)
 						throwError("Can't use non-constant or non-wrapped index");
@@ -2082,10 +2143,49 @@ struct Operations::Subscript : public Expression
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
+			reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
 			
 			auto acg = CREATE_ASM_COMPILER(getType());
-			acg.emitSpanReference(reg, getSubRegister(0), getSubRegister(1), elementType.getRequiredByteSize());
+
+			auto cType = getSubRegister(0)->getTypeInfo().getTypedIfComplexType<ComplexType>();
+
+			FunctionData subscriptOperator;
+
+			if (cType != nullptr)
+			{
+				if(FunctionClass::Ptr fc = cType->getFunctionClass())
+				{
+					subscriptOperator = fc->getSpecialFunction(FunctionClass::Subscript, getTypeInfo(), { getSubRegister(1)->getTypeInfo() });
+				}
+			}
+
+			if (subscriptOperator.isResolved())
+			{
+				AssemblyRegister::List l;
+				l.add(getSubRegister(1));
+				auto r = acg.emitFunctionCall(reg, subscriptOperator, getSubRegister(0), l);
+
+				if (!r.wasOk())
+					location.throwError(r.getErrorMessage());
+			}
+
+			RegPtr indexReg;
+
+			if (auto wt = getSubRegister(1)->getTypeInfo().getTypedIfComplexType<WrapType>())
+			{
+				auto fc = wt->getFunctionClass();
+				auto fData = fc->getSpecialFunction(FunctionClass::NativeTypeCast, TypeInfo(Types::ID::Integer), {});
+
+				indexReg = compiler->registerPool.getNextFreeRegister(scope, TypeInfo(Types::ID::Integer));
+
+				AssemblyRegister::List l;
+				acg.emitFunctionCall(indexReg, fData, getSubRegister(1), l);
+			}
+			else
+				indexReg = getSubRegister(1);
+
+
+			acg.emitSpanReference(reg, getSubRegister(0), indexReg, elementType.getRequiredByteSize());
 		}
 	}
 
@@ -2159,102 +2259,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		return symbols;
 	}
 
-	void process(BaseCompiler* compiler, BaseScope* scope) override
-	{
-		Expression::process(compiler, scope);
-
-		COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
-		{
-			if(type.isComplexType())
-				type.getComplexType()->finaliseAlignment();
-		}
-		COMPILER_PASS(BaseCompiler::DataSizeCalculation)
-		{
-			if (!isStackDefinition(scope))
-				scope->getRootData()->enlargeAllocatedSize(type);
-		}
-		COMPILER_PASS(BaseCompiler::DataAllocation)
-		{
-			for (auto s : getSymbols())
-			{
-				if (isStackDefinition(scope))
-				{
-					if (!scope->addVariable(s))
-						throwError("Can't allocate variable " + s.toString());
-				}
-				else
-					scope->getRootData()->allocate(scope, s);
-			}
-		}
-		COMPILER_PASS(BaseCompiler::DataInitialisation)
-		{
-			if (getNumChildStatements() == 0 && initValues == nullptr)
-			{
-				initValues = type.makeDefaultInitialiserList();
-			}
-
-			if (getNumChildStatements() == 1 && getSubExpr(0)->isConstExpr())
-			{
-				jassertfalse;
-			}
-
-			if (!isStackDefinition(scope))
-			{
-				for (auto s : getSymbols())
-				{
-					if (scope->getRootClassScope() == scope)
-					{
-						auto r = scope->getRootData()->initData(scope, s, initValues);
-
-						if (!r.wasOk())
-							location.throwError(r.getErrorMessage());
-					}
-					else if (auto cScope = dynamic_cast<ClassScope*>(scope))
-					{
-						if (auto st = dynamic_cast<StructType*>(cScope->typePtr.get()))
-							st->setDefaultValue(s.id, initValues);
-					}
-				}
-			}
-		}
-		COMPILER_PASS(BaseCompiler::RegisterAllocation)
-		{
-			if (isStackDefinition(scope))
-			{
-				auto acg = CREATE_ASM_COMPILER(getType());
-
-				for (auto s : getSymbols())
-				{
-					auto c = acg.cc.newStack(type.getRequiredByteSize(), type.getRequiredAlignment(), "funky");
-
-					auto reg = compiler->registerPool.getRegisterForVariable(scope, s);
-					reg->setCustomMemoryLocation(c);
-					stackLocations.add(reg);
-				}
-			}
-		}
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			if (isStackDefinition(scope))
-			{
-				auto acg = CREATE_ASM_COMPILER(getType());
-
-				for (auto s : stackLocations)
-				{
-					RegPtr expr;
-
-					if(getNumChildStatements() > 0)
-						expr = getSubRegister(0);
-
-					acg.emitStackInitialisation(s, type.getComplexType(), expr, initValues);
-
-					if (auto wt = type.getTypedIfComplexType<WrapType>())
-						acg.emitWrap(wt, s, WrapType::OpType::Set);
-				}
-					
-			}
-		}
-	}
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
 	bool isStackDefinition(BaseScope* scope) const
 	{

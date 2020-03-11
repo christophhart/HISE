@@ -334,6 +334,12 @@ public:
 		default: jassertfalse;
 		}
 
+		if (dumpBeforeTest)
+		{
+			DBG("data dump after execution");
+			DBG(obj.dumpTable());
+		}
+
 		if (expectedFail.isNotEmpty())
 			return expectCompileFail(expectedFail);
 		else
@@ -851,11 +857,9 @@ public:
 
 	void runTest() override
 	{
-		//testWrap();
+		optimizations = { OptimizationIds::Inlining };
+		runTestFiles("chain processing of structs.h");
 		return;
-		//optimizations = { OptimizationIds::Inlining };
-		//runTestFiles("member_set_function.h");
-		//return;
 
 		testOptimizations();
 		testInlining();
@@ -863,16 +867,13 @@ public:
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
+		return;
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 	}
 
 	void runTestFiles(const juce::String& soloTest = {})
 	{
-		
-
 		beginTest("Testing files from test directory");
-
-		
 
 		auto fileList = JitFileTestCase::getTestFileDirectory().findChildFiles(File::findFiles, true, "*.h");
 
@@ -888,8 +889,22 @@ public:
 			if (soloTest.isNotEmpty() && f.getFileName() != soloTest)
 				continue;
 
-			JitFileTestCase t(this, memory, f);
-			auto r = t.test(soloTest.isNotEmpty());
+			int numInstances = ComplexType::numInstances;
+
+			{
+				JitFileTestCase t(this, memory, f);
+				auto r = t.test(soloTest.isNotEmpty());
+			}
+
+			int numInstancesAfter = ComplexType::numInstances;
+
+			if (numInstances != numInstancesAfter)
+			{
+				juce::String s;
+				s << f.getFileName() << " leaked " << juce::String(numInstancesAfter - numInstances) << " complex types";
+				expect(false, s);
+			}
+				
 		}
 	}
 
@@ -954,14 +969,14 @@ public:
 		//testEvents();
 
 		testBlocks();
-		testSpan<int>();
-		testSpan<float>();
-		testSpan<double>();
+		//testSpan<int>();
+		//testSpan<float>();
+		//testSpan<double>();
 		testStructs();
 		testUsingAliases();
 
-		testStaticConst();
-		testWrap();
+		//testStaticConst();
+		//testWrap();
 		testMacOSRelocation();
 	}
 
@@ -2758,20 +2773,23 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
+		{
+			float delta = 0.0f;
+			const float x = 200.0f;
+			const float y = x / 44100.0f;
+			delta = 2.0f * 3.14f * y;
+
+			CREATE_TEST("float delta = 0.0f; float test(float input) { float y = 200.0f / 44100.0f; delta = 2.0f * 3.14f * y; return delta; }");
+
+			EXPECT("Reusing of local variable", 0.0f, delta);
+		}
+
         CREATE_TEST("float x=2.0f; void setup() { x = 5.0f; } float test(float i){return x;};")
         expectCompileOK(test->compiler);
         EXPECT("Global set in other function", 2.0f, 5.0f);
         
 
-		{
-			float delta = 0.0f;
-			const float x = 200.0f; 
-			const float y = x / 44100.0f; 
-			delta = 2.0f * 3.14f * y;
-
-			CREATE_TEST("float delta = 0.0f; float test(float input) { float y = 200.0f / 44100.0f; delta = 2.0f * 3.14f * y; return delta; }");
-			EXPECT("Reusing of local variable", 0.0f, delta);
-		}
+		
 		
 
 		CREATE_TEST("float x=2.0f; void setup() { x = 5; } float test(float i){return x;};")
@@ -3122,7 +3140,10 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
-		CREATE_TEST("float t2(float a){ return a * 2.0f; } float t1(float a){ return t2(a) + 5.0f; } float test(float input) { return t1(input); }");
+		CREATE_TEST("struct X { int u = 8; float v = 12.0f; float getV() { return v; }}; span<X, 3> d; float test(float input){ return d[1].getV() + input;");
+		EXPECT("span of structs struct member call", 8.0f, 20.0f);
+
+		CREATE_TEST("float t2(float a){ return a * 2.0f; } float t1(float b){ return t2(b) + 5.0f; } float test(float input) { return t1(input); }");
 		EXPECT("nested function call", 2.0f, 9.0f);
 
 		CREATE_TEST("int sumThemAll(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8){ return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8; } float test(float in) { return (float)sumThemAll(1, 2, 3, 4, 5, 6, 7, 8); }");
@@ -3131,8 +3152,7 @@ private:
 		CREATE_TEST("float ov(int a){ return 9.0f; } float ov(double a) { return 14.0f; } float test(float input) { return ov(5); }");
 		EXPECT("function overloading", 2.0f, 9.0f);
 
-		CREATE_TEST("struct X { int u = 8; float v = 12.0f; float getV() { return v; }}; span<X, 3> d; float test(float input){ return d[1].getV() + input;");
-		EXPECT("span of structs struct member call", 8.0f, 20.0f);
+		
 
 		CREATE_TEST("float other(float input) { return input * 2.0f; } float test(float input) { return other(input); }");
 		EXPECT("root class function call", 8.0f, 16.0f);

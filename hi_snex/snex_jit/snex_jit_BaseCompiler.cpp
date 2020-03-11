@@ -99,7 +99,7 @@ using namespace asmjit;
 		}
 	}
 
-	snex::jit::VariadicSubType::Ptr BaseCompiler::getVariadicTypeForId(const Identifier& id) const
+	VariadicSubType::Ptr BaseCompiler::getVariadicTypeForId(const Identifier& id) const
 	{
 		for (auto vt : variadicTypes)
 			if (vt->variadicId == id)
@@ -108,8 +108,22 @@ using namespace asmjit;
 		return nullptr;
 	}
 
-	void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
+	bool BaseCompiler::isTemplatedMethod(const Identifier& functionId) const
+	{
+		for (auto vt : variadicTypes)
+		{
+			for (const auto& f : vt->functions)
+				if (f.id == functionId)
+					return true;
+		}
+
+		return false;
+	}
+
+	void BaseCompiler::executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement)
     {
+		auto st = dynamic_cast<Operations::Statement*>(statement);
+
         if (isOptimizationPass(p) && passes.isEmpty())
             return;
         
@@ -117,7 +131,7 @@ using namespace asmjit;
         
 		if (isOptimizationPass(p))
 		{
-			for (auto s : *statements)
+			for (auto s : *st)
 			{
 				for (auto o : passes)
 					o->reset();
@@ -125,38 +139,17 @@ using namespace asmjit;
 				if (isOptimizationPass(p))
 				{
 					optimize(s, scope, true);
-
-#if 0
-					Operations::Statement::Ptr ptr(s);
-
-					bool noMoreOptimisationsPossible = false;
-
-					while (!noMoreOptimisationsPossible)
-					{
-						try
-						{
-							for (auto o : passes)
-							{
-								currentOptimization = o;
-								ptr->process(this, scope);
-							}
-
-							noMoreOptimisationsPossible = true;
-						}
-						catch (OptimisationSucess& s)
-						{
-							logMessage(MessageType::VerboseProcessMessage, "Repeat optimizations");
-						}
-					}
-
-					ptr = nullptr;
-#endif
 				}
 			}
 		}
 		else
-			statements->process(this, scope);
+			st->process(this, scope);
     }
-    
+
+	BaseCompiler::~BaseCompiler()
+	{
+		complexTypes.clear();
+		variadicTypes.clear();
+	}
 }
 }

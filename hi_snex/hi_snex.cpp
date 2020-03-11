@@ -21,6 +21,7 @@ using String = juce::String;
 
 #include "snex_jit/snex_jit_TokenIterator.h"
 
+#include "snex_jit/snex_jit_ComplexTypeLibrary.h"
 #include "snex_jit/snex_jit_ApiClasses.h"
 #include "snex_jit/snex_jit_ClassScope.h"
 #include "snex_jit/snex_jit_AssemblyRegister.h"
@@ -40,6 +41,7 @@ using String = juce::String;
 
 
 #include "snex_jit/snex_jit_Functions.cpp"
+#include "snex_jit/snex_jit_ComplexTypeLibrary.cpp"
 #include "snex_jit/snex_jit_ApiClasses.cpp"
 #include "snex_jit/snex_jit_AssemblyRegister.cpp"
 #include "snex_jit/snex_jit_FunctionScope.cpp"

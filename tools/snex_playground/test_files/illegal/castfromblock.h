@@ -5,14 +5,14 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 19: Can't cast block to int"
+  error: "Line 19: Can't cast span<float, 2> to int"
   filename: "illegal/castfromblock"
 END_TEST_DATA
 */
 
 static const int s = 5;
 
-span<block, s> d;
+span<span<float, 2>, s> d;
 
 int main(int input)
 {

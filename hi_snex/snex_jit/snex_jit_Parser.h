@@ -143,7 +143,12 @@ public:
 			matchIf(JitTokens::comma);
 		}
 
-		match(JitTokens::greaterThan);
+		// Two `>` characters might get parsed into a shift token
+		// so we need to fix this manually here...
+		if (currentType == JitTokens::rightShift)
+			currentType = JitTokens::greaterThan;
+		else
+			match(JitTokens::greaterThan);
 
 		return newType;
 	}
@@ -221,6 +226,7 @@ public:
 
 	ComplexType::Ptr getCurrentComplexType() const { return currentComplexType; }
 
+	Array<TemplateParameter> parseTemplateParameters();
 
 	StatementPtr parseComplexTypeDefinition(bool isConst);
 

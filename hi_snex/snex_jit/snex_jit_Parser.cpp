@@ -61,6 +61,12 @@ public:
 		newScope = new JitCompiledFunctionClass(parentScope, classInstanceId);
 	};
 
+	~ClassCompiler()
+	{
+		syntaxTree = nullptr;
+
+	}
+
 
 	void setFunctionCompiler(asmjit::X86Compiler* cc)
 	{
@@ -534,6 +540,48 @@ snex::VariableStorage BlockParser::parseConstExpression(bool isTemplateArgument)
 		location.throwError("Can't assign static constant to a dynamic expression");
 
 	return expr->getConstExprValue();
+}
+
+juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters()
+{
+	Array<TemplateParameter> parameters;
+
+	match(JitTokens::lessThan);
+
+	while (currentType != JitTokens::greaterThan)
+	{
+		if (currentType == JitTokens::literal)
+		{
+			auto v = parseVariableStorageLiteral();
+
+			if (v.getType() == Types::ID::Integer)
+			{
+				TemplateParameter tp;
+				tp.constant = v.toInt();
+				parameters.add(tp);
+			}
+		}
+		else if (matchIfSimpleType())
+		{
+			TemplateParameter tp;
+			tp.type = TypeInfo(currentHnodeType);
+			parameters.add(tp);
+		}
+		else if (matchIfComplexType())
+		{
+			TemplateParameter tp;
+			tp.type = TypeInfo(currentComplexType);
+			parameters.add(tp);
+		}
+		else
+			location.throwError("Invalid template parameter: " + juce::String(currentType));
+
+		matchIf(JitTokens::comma);
+	}
+
+	match(JitTokens::greaterThan);
+
+	return parameters;
 }
 
 snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(bool isConst)

@@ -164,5 +164,17 @@ void JitObject::getColourAndLetterForType(int type, Colour& colour, char& letter
 	return ApiHelpers::getColourAndLetterForType(type, colour, letter);
 }
 
+snex::jit::FunctionData JitCompiledClassBase::getFunction(const Identifier& id)
+{
+	Array<FunctionData> matches;
+	auto s = dynamic_cast<StructType*>(classType.get())->id.getChildSymbol(id);
+	memberFunctions->addMatchingFunctions(matches, s);
+
+	if (matches.size() == 1)
+		return matches[0];
+
+	return {};
+}
+
 }
 }

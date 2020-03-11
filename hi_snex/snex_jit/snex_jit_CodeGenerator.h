@@ -59,6 +59,7 @@ using namespace asmjit;
 #define INT_OP_WITH_MEM(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
 
 
+
 #define FP_OP(op, l, r) { if(IS_REG(r)) op(FP_REG_W(l), FP_REG_R(r)); \
 					 else if(IS_CMEM(r)) op(FP_REG_W(l), FP_MEM(r)); \
 					 else if(IS_MEM(r)) op(FP_REG_W(l), FP_MEM(r)); \
@@ -141,7 +142,7 @@ struct AsmCodeGenerator
 
 	struct TemporaryRegister
 	{
-		TemporaryRegister(AsmCodeGenerator& acg, BaseScope* scope, Types::ID type)
+		TemporaryRegister(AsmCodeGenerator& acg, BaseScope* scope, TypeInfo type)
 		{
 			if (acg.registerPool != nullptr)
 			{
@@ -150,7 +151,7 @@ struct AsmCodeGenerator
 			}
 			else
 			{
-				switch (type)
+				switch (type.getType())
 				{
 				case Types::ID::Float:	 uncountedReg = acg.cc.newXmmSs(); break;
 				case Types::ID::Double:	 uncountedReg = acg.cc.newXmmSd(); break;
@@ -167,8 +168,6 @@ struct AsmCodeGenerator
 			if (tempReg != nullptr)
 				tempReg->flagForReuse(true);
 		}
-
-		
 
 		X86Gp get()
 		{
@@ -214,7 +213,7 @@ struct AsmCodeGenerator
 
 	void emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list);
 
-	RegPtr emitBranch(Types::ID returnType, Operations::Expression* cond, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s);
+	RegPtr emitBranch(TypeInfo returnType, Operations::Expression* cond, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s);
 
 	RegPtr emitTernaryOp(Operations::TernaryOp* op, BaseCompiler* c, BaseScope* s);
 
@@ -226,13 +225,61 @@ struct AsmCodeGenerator
 
 	void emitNegation(RegPtr target, RegPtr expr);
 
-	void emitFunctionCall(RegPtr returnReg, const FunctionData& f, RegPtr objectAddress, ReferenceCountedArray<AssemblyRegister>& parameterRegisters);
+	Result emitFunctionCall(RegPtr returnReg, const FunctionData& f, RegPtr objectAddress, ReferenceCountedArray<AssemblyRegister>& parameterRegisters);
 
 	void emitFunctionParameterReference(RegPtr sourceReg, RegPtr parameterReg);
 
 	void emitInlinedMathAssembly(Identifier id, RegPtr target, const ReferenceCountedArray<AssemblyRegister>& args);
 	
-	void emitWrap(WrapType* t, RegPtr target, WrapType::OpType op);
+#if 0
+	void emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op)
+	{
+		switch (op)
+		{
+		case WrapType::OpType::Set:
+		{
+			bool wasMem = target->hasCustomMemoryLocation() && target->isMemoryLocation();;
+
+			target->loadMemoryIntoRegister(cc);
+
+			auto t = INT_REG_W(target);
+
+			if (isPowerOfTwo(wt->size))
+			{
+				cc.and_(t, wt->size - 1);
+			}
+			else
+			{
+				auto d = cc.newGpd();
+
+				auto s = cc.newInt32Const(ConstPool::kScopeLocal, wt->size);
+
+				cc.cdq(d, t);
+				cc.idiv(d, t, s);
+				cc.mov(t, d);
+			}
+
+			if (wasMem)
+			{
+				auto mem = target->getMemoryLocationForReference();
+				cc.mov(mem, INT_REG_R(target));
+				target->setCustomMemoryLocation(mem);
+			}
+
+			break;
+		}
+		case WrapType::OpType::Inc:
+		{
+			auto t = INT_REG_W(target);
+			auto temp = cc.newGpd();
+
+			cc.mov(temp, 0);
+			cc.cmp(t, wt->size);
+			cc.cmovge(t, temp);
+		}
+		}
+	}
+#endif
 
 	static Array<Identifier> getInlineableMathFunctions();
 
@@ -248,11 +295,13 @@ struct AsmCodeGenerator
 	X86Mem createFpuMem(RegPtr ptr);
 	void writeMemToReg(RegPtr target, X86Mem);
 
+	AssemblyRegisterPool* registerPool;
+
 private:
 
 	
 
-	AssemblyRegisterPool* registerPool;
+	
 
 	static void createRegistersForArguments(X86Compiler& cc, ReferenceCountedArray<AssemblyRegister>& parameters, const FunctionData& f);
 	Types::ID type;

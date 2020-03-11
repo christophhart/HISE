@@ -136,9 +136,9 @@ MathFunctions::MathFunctions() :
 
 #define FP_TARGET FP_REG_W(d->target)
 #define ARGS(i) d->args[i]
-#define SETUP_MATH_INLINE(name) auto& cc = d->gen.cc; auto type = d->target->getType(); d->target->createRegister(cc); cc.setInlineComment(name);
+#define SETUP_MATH_INLINE(name) auto d = d_->toAsmInlineData(); auto& cc = d->gen.cc; auto type = d->target->getType(); d->target->createRegister(cc); cc.setInlineComment(name);
 
-	addInliner("abs", [](InlineData* d)
+	addInliner("abs", [](InlineData* d_)
 	{
 		SETUP_MATH_INLINE("inline abs");
 
@@ -158,7 +158,7 @@ MathFunctions::MathFunctions() :
 		return Result::ok();
 	});
 
-	addInliner("max", [](InlineData* d)
+	addInliner("max", [](InlineData* d_)
 	{
 		SETUP_MATH_INLINE("inline max");
 
@@ -177,7 +177,7 @@ MathFunctions::MathFunctions() :
 	});
 
 
-	addInliner("min", [](InlineData* d)
+	addInliner("min", [](InlineData* d_)
 	{
 		SETUP_MATH_INLINE("inline min");
 
@@ -195,7 +195,7 @@ MathFunctions::MathFunctions() :
 		return Result::ok();
 	});
 
-	addInliner("range", [](InlineData* d)
+	addInliner("range", [](InlineData* d_)
 	{
 		SETUP_MATH_INLINE("inline range");
 
@@ -216,7 +216,7 @@ MathFunctions::MathFunctions() :
 		return Result::ok();
 	});
 
-	addInliner("sign", [](InlineData* d)
+	addInliner("sign", [](InlineData* d_)
 	{
 		SETUP_MATH_INLINE("inline sign");
 
@@ -261,7 +261,7 @@ MathFunctions::MathFunctions() :
 		return Result::ok();
 	});
 
-	addInliner("map", [](InlineData* d)
+	addInliner("map", [](InlineData* d_)
 	{
 		SETUP_MATH_INLINE("inline map");
 
@@ -283,7 +283,7 @@ MathFunctions::MathFunctions() :
 		return Result::ok();
 	});
 
-	addInliner("fmod", [](InlineData* d)
+	addInliner("fmod", [](InlineData* d_)
 	{
 		SETUP_MATH_INLINE("inline fmod");
 
@@ -301,45 +301,6 @@ MathFunctions::MathFunctions() :
 
 		return Result::ok();
 	});
-
-#if 0
-	IF_FUNCTION(sin)
-	{
-		X86Mem x = createFpuMem(args[0]);
-
-		cc.fld(x);
-		cc.fsin();
-		cc.fstp(x);
-
-		writeMemToReg(target, x);
-	}
-
-	IF_FUNCTION(cos)
-	{
-		X86Mem x = createFpuMem(args[0]);
-
-		cc.fld(x);
-		cc.fcos();
-		cc.fstp(x);
-
-		writeMemToReg(target, x);
-	}
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
 MessageFunctions::MessageFunctions() :
