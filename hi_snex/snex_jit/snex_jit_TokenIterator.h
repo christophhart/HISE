@@ -59,7 +59,7 @@ using namespace juce;
 	X(if_, "if")				X(else_, "else")	\
 	X(auto_, "auto")			X(struct_, "struct")	X(span_, "span") \
 	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")	X(break_, "break") \
-	X(continue_, "continue")	X(dyn_, "dyn")
+	X(continue_, "continue")	X(dyn_, "dyn")		
 
 namespace JitTokens
 {

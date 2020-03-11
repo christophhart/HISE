@@ -97,6 +97,26 @@ struct Operations::InlinedArgument : public Expression,
 		{
 			scope->addVariable(s);
 		}
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			if (s.typeInfo.isComplexType() && !s.isReference())
+			{
+				auto acg = CREATE_ASM_COMPILER(getTypeInfo().getType());
+				
+				auto stackPtr = acg.cc.newStack(s.typeInfo.getRequiredByteSize(), s.typeInfo.getRequiredAlignment());
+
+				auto target = compiler->getRegFromPool(scope, s.typeInfo);
+
+				target->setCustomMemoryLocation(stackPtr);
+
+				auto source = getSubRegister(0);
+
+				acg.emitComplexTypeCopy(target, source, s.typeInfo.getComplexType());
+
+				getSubExpr(0)->reg = target;
+			}
+		}
 	}
 
 	int argIndex;
@@ -621,7 +641,7 @@ struct Operations::VariableReference : public Expression,
 
 	// can be either the data pointer or the member offset
 	VariableStorage objectAdress;
-	ComplexType::Ptr objectPtr;
+	ComplexType::WeakPtr objectPtr;
 
 	// Contains the expression that leads to the pointer of the member object
 	Ptr objectExpression;
@@ -1046,17 +1066,15 @@ struct Operations::FunctionCall : public Expression
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
+		auto newFC = new FunctionCall(l, nullptr, cloneId, function.templateParameters);
+
 		if (objExpr != nullptr)
 		{
-			auto f = dynamic_cast<DotOperator*>(objExpr->parent.get());
-			jassert(f != nullptr);
-
-			auto cf = f->clone(l);
-
-			return new FunctionCall(l, dynamic_cast<Expression*>(cf.get()), cloneId, function.templateParameters);
+			auto clonedObject = objExpr->clone(l);
+			newFC->setObjectExpression(dynamic_cast<Expression*>(clonedObject.get()));
 		}
 
-		return new FunctionCall(l, new Noop(l), cloneId, function.templateParameters);
+		return newFC;
 	}
 
 	ValueTree toValueTree() const override
@@ -1326,6 +1344,12 @@ struct Operations::ClassStatement : public Statement
 		classType(classType_)
 	{
 		addStatement(classBlock);
+	}
+
+	~ClassStatement()
+	{
+		classType = nullptr;
+		int x = 5;
 	}
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override

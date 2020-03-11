@@ -199,6 +199,112 @@ void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 	IF_(double) cc.movsd(FP_REG_R(target), source);
 }
 
+
+void AsmCodeGenerator::emitComplexTypeCopy(RegPtr target, RegPtr source, ComplexType::Ptr type)
+{
+	jassert(target->hasCustomMemoryLocation());
+	jassert(type != nullptr);
+	jassert(source->getTypeInfo().getComplexType() == type);
+
+	cc.setInlineComment("Copy complex type argument");
+
+	auto ptr = target->getAsMemoryLocation();
+	auto numBytesToCopy = type->getRequiredByteSize();
+
+	auto canUse128bitForCopy = numBytesToCopy % 16 == 0;
+
+	int wordSize = 0;
+
+	if (numBytesToCopy % 16 == 0)
+		wordSize = 16;
+	else if (numBytesToCopy % 8 == 0)
+		wordSize = 8;
+	else if (numBytesToCopy % 4 == 0)
+		wordSize = 4;
+	else
+		jassertfalse;
+
+	auto numIterations = numBytesToCopy / wordSize;
+	bool shouldUnroll = numIterations <= 8;
+
+	X86Reg tempReg;
+
+	if (wordSize == 16) tempReg = cc.newXmm();
+	if (wordSize == 8) tempReg = cc.newGpq();
+	if (wordSize == 4) tempReg = cc.newGpd();
+
+	if (shouldUnroll)
+	{
+		X86Mem srcBegin;
+
+		if (source->isMemoryLocation())
+			srcBegin = source->getAsMemoryLocation();
+		else
+			srcBegin = x86::ptr(PTR_REG_R(source));
+
+		auto dstBegin = ptr;
+
+		
+
+		for (int i = 0; i < numIterations; i++)
+		{
+			auto src = srcBegin.cloneAdjustedAndResized(i * wordSize, wordSize);
+			auto dst = dstBegin.cloneAdjustedAndResized(i * wordSize, wordSize);
+
+			switch (wordSize)
+			{
+			case 16: cc.movaps(tempReg.as<X86Xmm>(), src);
+					 cc.movaps(dst, tempReg.as<X86Xmm>());
+					 break;
+			case 8:  cc.mov(tempReg.as<X86Gpq>(), src);
+					 cc.mov(dst, tempReg.as<X86Gpq>());
+					 break;
+			case 4:  cc.mov(tempReg.as<x86::Gpd>(), src);
+					 cc.mov(dst, tempReg.as<x86::Gpd>());
+					 break;
+			}
+		}
+	}
+	else
+	{
+		auto src = cc.newGpq();
+		auto dst = cc.newGpq();
+		auto srcEnd = cc.newGpq();
+
+		cc.lea(dst, ptr);
+
+		if (source->isMemoryLocation())
+			cc.lea(src, source->getAsMemoryLocation());
+		else
+			cc.mov(src, PTR_REG_R(source));
+
+		cc.lea(srcEnd, x86::ptr(src).cloneAdjustedAndResized(numBytesToCopy, wordSize));
+
+		auto startLabel = cc.newLabel();
+
+		cc.bind(startLabel);
+
+		switch (wordSize)
+		{
+		case 16: cc.movaps(tempReg.as<X86Xmm>(), x86::ptr(src));
+				 cc.movaps(x86::ptr(dst), tempReg.as<X86Xmm>());
+				 break;
+		case 8:  cc.mov(tempReg.as<X86Gpq>(), x86::ptr(src));
+				 cc.mov(x86::ptr(dst), tempReg.as<X86Gpq>());
+				 break;
+		case 4:  cc.mov(tempReg.as<x86::Gpd>(), x86::ptr(src));
+				 cc.mov(x86::ptr(dst), tempReg.as<x86::Gpd>());
+				 break;
+		}
+
+		cc.add(src, wordSize);
+		cc.add(dst, wordSize);
+		cc.cmp(src, srcEnd);
+		cc.jne(startLabel);
+	}
+
+}
+
 void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, VariableStorage memberOffset)
 {
 	jassert(memberOffset.getType() == Types::ID::Integer);
@@ -709,43 +815,17 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 			uint64_t* s = reinterpret_cast<uint64_t*>(start);
 			auto dst = target->getAsMemoryLocation().clone();
 
-			auto d = Data128::fromU64(s[0], s[1]);
-			auto c = cc.newXmmConst(ConstPool::kScopeLocal, d);
-
 			auto r = cc.newXmm();
 
-			auto useAsmLoop = numBytesToInitialise >= 128;
-
-			if (useAsmLoop)
+			for (int i = 0; i < numBytesToInitialise; i += 16)
 			{
-				jassertfalse;
-
-				auto index = cc.newGpd();
-				cc.mov(index, numBytesToInitialise / 16);
-				auto l = cc.newLabel();
-
-				cc.bind(l);
+				auto d = Data128::fromU64(s[0], s[1]);
+				auto c = cc.newXmmConst(ConstPool::kScopeLocal, d);
 
 				cc.movaps(r, c);
 				cc.movaps(dst, r);
-
 				dst.addOffset(16);
-
-				cc.dec(index);
-				cc.cmp(index, 0);
-				cc.jne(l);
-			}
-			else
-			{
-				for (int i = 0; i < numBytesToInitialise; i += 16)
-				{
-					cc.movaps(r, c);
-					cc.movaps(dst, r);
-
-					dst.addOffset(16);
-
-					s += 2;
-				}
+				s += 2;
 			}
 		}
 		else if (numBytesToInitialise % 4 == 0)

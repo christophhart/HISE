@@ -376,7 +376,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 		bool isRef = matchIf(JitTokens::bitwiseAnd);
 
 		if (typePtr != nullptr)
-			t = TypeInfo(typePtr, isConst);
+			t = TypeInfo(typePtr, isConst, isRef);
 		else
 			t = TypeInfo(type, isConst, isRef);
 

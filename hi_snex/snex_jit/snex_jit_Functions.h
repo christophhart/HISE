@@ -186,10 +186,10 @@ struct TypeInfo
 		jassert(type != Types::ID::Pointer || isConst_);
 	}
 
-	explicit TypeInfo(ComplexType::Ptr p, bool isConst_ = false) :
+	explicit TypeInfo(ComplexType::Ptr p, bool isConst_=false, bool isRef_=true) :
 		typePtr(p),
 		const_(isConst_),
-		ref_(true)
+		ref_(isRef_)
 	{
 		jassert(p != nullptr);
 		type = Types::ID::Pointer;
@@ -329,7 +329,6 @@ struct TypeInfo
 	{
 		jassert(type == Types::ID::Pointer);
 		jassert(typePtr != nullptr);
-		jassert(isRef());
 
 		return typePtr.get();
 	}

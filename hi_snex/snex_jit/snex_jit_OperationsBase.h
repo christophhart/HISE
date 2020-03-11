@@ -612,13 +612,13 @@ private:
 
 	
 
-	static void dumpInternal(int intLevel, juce::String& s, ValueTree& v)
+	static void dumpInternal(int intLevel, juce::String& s, const ValueTree& v)
 	{
 		intLevel++;
 
 		s << Operations::toSyntaxTreeString(v, intLevel);
 
-		for (auto& c : v)
+		for (const auto& c : v)
 			dumpInternal(intLevel, s, c);
 
 	};

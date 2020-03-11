@@ -210,9 +210,9 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (hasObjectPtr)
 		{
-			TypeInfo objectType(dynamic_cast<ClassScope*>(scope)->typePtr.get());
+			//TypeInfo objectType(dynamic_cast<ClassScope*>(scope)->typePtr.get());
 
-			objectPtr = compiler->registerPool.getNextFreeRegister(functionScope, objectType);
+			objectPtr = compiler->registerPool.getNextFreeRegister(functionScope, TypeInfo(Types::ID::Pointer, true));
 
 			auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
 			asg.emitParameter(this, objectPtr, -1);
@@ -460,7 +460,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 					objectPtr = objectExpression->getTypeInfo().getComplexType();
 				}
 					
-				auto regType = objectAdress.getType() == Types::ID::Pointer ? TypeInfo(objectPtr) : TypeInfo(Types::ID::Integer);
+				auto regType = objectAdress.getType() == Types::ID::Pointer ? TypeInfo(objectPtr.get()) : TypeInfo(Types::ID::Integer);
 
 				auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
 				reg = compiler->registerPool.getNextFreeRegister(scope, regType);
@@ -654,6 +654,14 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
+		if (auto dot = dynamic_cast<DotOperator*>(getSubExpr(1).get()))
+		{
+			jassert(getTargetType() == TargetType::ClassMember);
+
+			if (dot->getSubExpr(0)->getTypeInfo().isConst())
+				location.throwError("Can't modify const object");
+		}
+
 		auto targetIsSimd = SpanType::isSimdType(getSubExpr(1)->getTypeInfo());
 
 		if (targetIsSimd)
@@ -1046,10 +1054,21 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				}
 
 				auto pType = function.args[i].isReference() ? TypeInfo(Types::ID::Pointer, true) : getArgument(i)->getTypeInfo();
-				auto pReg = compiler->getRegFromPool(scope, pType);
 				auto asg = CREATE_ASM_COMPILER(getType());
-				pReg->createRegister(asg.cc);
-				parameterRegs.add(pReg);
+
+				if (pType.isComplexType())
+				{
+					auto objCopy = asg.cc.newStack(pType.getRequiredByteSize(), pType.getRequiredAlignment());
+					auto pReg = compiler->getRegFromPool(scope, TypeInfo(Types::ID::Pointer, true));
+					pReg->setCustomMemoryLocation(objCopy);
+					parameterRegs.add(pReg);
+				}
+				else
+				{
+					auto pReg = compiler->getRegFromPool(scope, pType);
+					pReg->createRegister(asg.cc);
+					parameterRegs.add(pReg);
+				}
 			}
 		}
 	}
@@ -1136,7 +1155,17 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 			else
 			{
-				if (existingReg != nullptr && existingReg != pReg && existingReg->getVariableId())
+				if (pReg->hasCustomMemoryLocation())
+				{
+					acg.emitComplexTypeCopy(pReg, existingReg, getArgument(i)->getTypeInfo().getComplexType());
+
+					auto ptr = pReg->getAsMemoryLocation();
+					pReg->createRegister(acg.cc);
+					acg.cc.lea(PTR_REG_W(pReg), ptr);
+
+					parameterRegs.set(i, pReg);
+				}
+				else if (existingReg != nullptr && existingReg != pReg && existingReg->getVariableId())
 				{
 					acg.emitComment("Parameter Save");
 					acg.emitStore(pReg, existingReg);

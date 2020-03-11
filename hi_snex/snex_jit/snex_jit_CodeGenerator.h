@@ -191,6 +191,8 @@ struct AsmCodeGenerator
 
 	void emitMemoryLoad(RegPtr reg);
 
+	void emitComplexTypeCopy(RegPtr target, RegPtr source, ComplexType::Ptr type);
+
 	void emitThisMemberAccess(RegPtr target, RegPtr parent, VariableStorage memberOffset);
 
 	void emitMemberAcess(RegPtr target, RegPtr parent, RegPtr child);

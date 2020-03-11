@@ -713,7 +713,7 @@ size_t VariadicTypeBase::getRequiredAlignment() const
 	if (types.isEmpty())
 		return 0;
 	else
-		types.getFirst()->getRequiredAlignment();
+		return types.getFirst()->getRequiredAlignment();
 }
 
 
@@ -912,8 +912,10 @@ snex::InitialiserList::Ptr StructType::makeDefaultInitialiserList() const
 	{
 		if (m->typeInfo.isComplexType() && m->defaultList == nullptr)
 			n->addChildList(m->typeInfo.getComplexType()->makeDefaultInitialiserList());
-		else
+		else if (m->defaultList != nullptr)
 			n->addChildList(m->defaultList);
+		else
+			jassertfalse;
 	}
 
 	return n;

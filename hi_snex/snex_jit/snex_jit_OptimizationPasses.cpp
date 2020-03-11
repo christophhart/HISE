@@ -173,7 +173,7 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 					{
 						int numWriteAccesses = target->getNumWriteAcesses();
 
-						if (numWriteAccesses == 1 && !target->id.isConst())
+						if (s->getScopeType() != BaseScope::Class && numWriteAccesses == 1 && !target->id.isConst())
 						{
 							a->logWarning("const value is declared as non-const");
 						}
@@ -518,6 +518,8 @@ bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope
 		{
 			if (dynamic_cast<Operations::ReturnStatement*>(p.get()) != nullptr)
 				return true;
+
+			return false;
 		});
 
 		bool hasNoFalseBranch = is->getFalseBranch() == nullptr;

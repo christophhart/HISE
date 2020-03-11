@@ -857,10 +857,8 @@ public:
 
 	void runTest() override
 	{
-		optimizations = { OptimizationIds::Inlining };
-		runTestFiles("chain processing of structs.h");
-		return;
-
+		//optimizations = { OptimizationIds::Inlining };
+		runTestFiles("function_const_ref.h");
 		testOptimizations();
 		testInlining();
 

@@ -503,6 +503,25 @@ struct ProcessSingleData
 	}
 };
 
+struct PrepareSpecs
+{
+	static ComplexType::Ptr createComplexType(const Identifier& id)
+	{
+		PrepareSpecs obj;
+
+		auto st = new StructType(Symbol::createRootSymbol(id));
+		ADD_SNEX_STRUCT_MEMBER(st, obj, sampleRate);
+		ADD_SNEX_STRUCT_MEMBER(st, obj, blockSize);
+		ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
+
+		return st;
+	}
+
+	double sampleRate = 0.0;
+	int blockSize = 0;
+	int numChannels = 0;
+};
+
 struct PrepareData
 {
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("prepare"); }
@@ -513,25 +532,7 @@ struct PrepareData
 
 		auto st = dynamic_cast<StructType*>(c.getComplexType(prepareSpecId).get());
 
-		if (st == nullptr)
-		{
-			struct PrepareSpecs
-			{
-				double sampleRate;
-				int blockSize;
-				int numChannels;
-				
-			};
-
-			PrepareSpecs obj;
-
-			st = CREATE_SNEX_STRUCT("PrepareSpecs");
-			ADD_SNEX_STRUCT_MEMBER(st, obj, sampleRate);
-			ADD_SNEX_STRUCT_MEMBER(st, obj, blockSize);
-			ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
-
-			c.registerExternalComplexType(st);
-		}
+		jassert(st != nullptr);
 
 		d.returnType = TypeInfo(Types::ID::Void);
 		d.addArgs("ps", TypeInfo(st));
@@ -674,8 +675,16 @@ template <class FunctionType> struct VariadicFunctionInliner
 	}
 };
 
+#define REGISTER_CPP_CLASS(compiler, className) c.registerExternalComplexType(className::createComplexType(#className));
+
 void SnexObjectDatabase::registerObjects(Compiler& c)
 {
+	REGISTER_CPP_CLASS(c, sfloat);
+	REGISTER_CPP_CLASS(c, sdouble);
+	REGISTER_CPP_CLASS(c, PrepareSpecs);
+
+	c.registerExternalComplexType(EventWrapper::createComplexType("HiseEvent"));
+
 	VariadicSubType::Ptr chainType = new VariadicSubType();
 	chainType->variadicId = "chain";
 
@@ -745,9 +754,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 
 	c.registerVariadicType(chainType);
 
-	c.registerExternalComplexType(sfloat::createComplexType("sfloat"));
-	c.registerExternalComplexType(sdouble::createComplexType("sdouble"));
-	c.registerExternalComplexType(EventWrapper::createComplexType("HiseEvent"));
+	
 }
 
 
