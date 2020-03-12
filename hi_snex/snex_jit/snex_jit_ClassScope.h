@@ -260,10 +260,10 @@ public:
 		return getRootData()->allocate(this, s).wasOk();
 	}
 
-	bool hasVariable(const Identifier& id) const override
+	bool hasVariable(const NamespacedIdentifier& id) const override
 	{
 		if (auto st = dynamic_cast<StructType*>(typePtr.get()))
-			return st->hasMember(id);
+			return st->hasMember(id.getIdentifier());
 
 		return BaseScope::hasVariable(id);
 	}
@@ -366,7 +366,7 @@ public:
 
 		if (auto gs = dynamic_cast<GlobalScope*>(getParent()))
 		{
-			list.add(new ObjectDebugInformation(gs->getGlobalFunctionClass("Console"), ApiHelpers::DebugObjectTypes::ApiCall));
+			list.add(new ObjectDebugInformation(gs->getGlobalFunctionClass(NamespacedIdentifier("Console")), ApiHelpers::DebugObjectTypes::ApiCall));
 		}
 
 #if 0

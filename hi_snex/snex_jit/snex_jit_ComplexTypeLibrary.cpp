@@ -50,13 +50,7 @@ void WrapType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, voi
 	s << v << "\n";
 }
 
-struct WrapTypeOperators
-{
-	static Result assign(InlineData* d)
-	{
 
-	}
-};
 
 snex::jit::FunctionClass* WrapType::getFunctionClass()
 {
@@ -257,9 +251,9 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 	}, {});
 
 	auto sizeFunction = new FunctionData();
-	sizeFunction->id = "size";
+	sizeFunction->id = NamespacedIdentifier("size");
 	sizeFunction->returnType = TypeInfo(Types::ID::Integer);
-	sizeFunction->inliner = new Inliner("size", {}, [numElements](InlineData* d)
+	sizeFunction->inliner = new Inliner(sizeFunction->id, {}, [numElements](InlineData* d)
 	{
 		auto s = d->toSyntaxTreeData();
 		auto value = VariableStorage(Types::ID::Integer, numElements);
@@ -470,15 +464,28 @@ void DynType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void
 	intentLevel--;
 }
 
+
+
+struct AssignOperator
+{
+	static FunctionData* create(ComplexType::Ptr p)
+	{
+		auto f = new FunctionData();
+		f->id = FunctionClass::getSpecialSymbol(FunctionClass::AssignOverload);
+		f->returnType = TypeInfo(p);
+		f->addArgs("current", TypeInfo(p));
+		f->addArgs("target", TypeInfo(Types::ID::Dynamic));
+		return f;
+	}
+
+	
+};
+
 snex::jit::FunctionClass* DynType::getFunctionClass()
 {
 	auto dynOperators = new FunctionClass(Symbol::createRootSymbol("DynFunctions"));
 
-	auto assignFunction = new FunctionData();
-	assignFunction->returnType = TypeInfo(this);
-	assignFunction->addArgs("current", TypeInfo(this));
-	assignFunction->addArgs("target", TypeInfo(Types::ID::Dynamic));
-	assignFunction->id = dynOperators->getSpecialSymbol(FunctionClass::AssignOverload);
+	auto assignFunction = AssignOperator::create(this);
 	assignFunction->inliner = new Inliner(assignFunction->id, [](InlineData* d_)
 	{
 		auto d = d_->toAsmInlineData();
@@ -486,7 +493,6 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 		auto value = d->args[1];
 		auto valueType = value->getTypeInfo();
 		auto thisObj = d->target;
-		
 
 		auto& cc = d->gen.cc;
 
@@ -527,10 +533,10 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 	dynOperators->addFunction(assignFunction);
 
 	auto sizeFunction = new FunctionData();
-	sizeFunction->id = "size";
+	sizeFunction->id = NamespacedIdentifier("size");
 	sizeFunction->returnType = TypeInfo(Types::ID::Integer);
 	
-	sizeFunction->inliner = new Inliner("size", [](InlineData* d_)
+	sizeFunction->inliner = new Inliner(sizeFunction->id, [](InlineData* d_)
 	{
 		auto d = d_->toAsmInlineData();
 		auto& cc = d->gen.cc;
@@ -898,7 +904,7 @@ void StructType::dumpTable(juce::String& s, int& intendLevel, void* dataStart, v
 		}
 		else
 		{
-			Types::Helpers::dumpNativeData(s, intendLevel, id.getChildSymbol(m->id).toString(), dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id), m->typeInfo.getRequiredByteSize(), m->typeInfo.getType());
+			Types::Helpers::dumpNativeData(s, intendLevel, id.getChildSymbol(NamespacedIdentifier(m->id)).toString(), dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id), m->typeInfo.getRequiredByteSize(), m->typeInfo.getType());
 		}
 	}
 	intendLevel--;
@@ -941,7 +947,7 @@ bool StructType::updateSymbol(Symbol& s) const
 {
 	for (auto m : memberData)
 	{
-		if (m->id == s.id)
+		if (m->id == s.getName())
 		{
 			s.typeInfo = m->typeInfo;
 			return true;

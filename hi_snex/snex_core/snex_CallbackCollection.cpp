@@ -552,7 +552,7 @@ template <class FunctionType> struct VariadicFunctionInliner
 		return d;
 	}
 
-	static Identifier getId() { return FunctionType::getId(); }
+	static NamespacedIdentifier getId() { return NamespacedIdentifier(FunctionType::getId()); }
 
 	static juce::Result asmInline(InlineData* d_)
 	{
@@ -607,7 +607,7 @@ template <class FunctionType> struct VariadicFunctionInliner
 				if (matches.isEmpty())
 				{
 					juce::String s;
-					s << childType->toString() << " does not have method " << getId();
+					s << childType->toString() << " does not have method " << getId().toString();
 					return Result::fail(s);
 				}
 			}
@@ -645,7 +645,7 @@ template <class FunctionType> struct VariadicFunctionInliner
 				if (matches.isEmpty())
 				{
 					juce::String s;
-					s << type.toString() << " does not have a method " << getId();
+					s << type.toString() << " does not have a method " << getId().toString();
 					return Result::fail(s);
 				}
 
@@ -686,7 +686,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 	c.registerExternalComplexType(EventWrapper::createComplexType("HiseEvent"));
 
 	VariadicSubType::Ptr chainType = new VariadicSubType();
-	chainType->variadicId = "chain";
+	chainType->variadicId = NamespacedIdentifier::fromString("chain");
 
 	{
 		chainType->functions.add(VariadicFunctionInliner<ResetData>::create(c));
@@ -696,9 +696,9 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 
 	{
 		FunctionData getFunction;
-		getFunction.id = "get";
+		getFunction.id = NamespacedIdentifier("get");
 
-		getFunction.inliner = Inliner::createHighLevelInliner("get", [](InlineData* b)
+		getFunction.inliner = Inliner::createHighLevelInliner(getFunction.id, [](InlineData* b)
 		{
 			auto d = b->toSyntaxTreeData();
 

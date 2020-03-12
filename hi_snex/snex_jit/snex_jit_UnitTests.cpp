@@ -410,7 +410,7 @@ private:
 			{
 				// Parse function id
 
-				function.id = s[f].toString();
+				function.id = NamespacedIdentifier::fromString(s[f].toString());
 			}
 			{
 				// Parse return type
@@ -857,8 +857,8 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles("simple_namespace.h");
-		return;
+		//runTestFiles("namespaced_var", false);
+		//return;
 		//optimizations = { OptimizationIds::Inlining };
 		
 		testOptimizations();
@@ -871,11 +871,26 @@ public:
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 	}
 
-	void runTestFiles(const juce::String& soloTest = {})
+	void runTestFiles(juce::String soloTest = {}, bool isFolder=false)
 	{
+
+		if (soloTest.isNotEmpty() && !isFolder && !soloTest.endsWith(".h"))
+		{
+			soloTest.append(".h", 2);
+		}
+
 		beginTest("Testing files from test directory");
 
-		auto fileList = JitFileTestCase::getTestFileDirectory().findChildFiles(File::findFiles, true, "*.h");
+		File f = JitFileTestCase::getTestFileDirectory();
+
+		if (isFolder)
+		{
+			jassert(soloTest.isNotEmpty());
+			f = f.getChildFile(soloTest);
+		}
+			
+
+		auto fileList = f.findChildFiles(File::findFiles, true, "*.h");
 
 		logMessage("Found" + juce::String(fileList.size()) + " files to test");
 
@@ -1686,7 +1701,7 @@ private:
 			ADD_CODE_LINE("int test(int input) { return x; }");
 
 			CREATE_TYPED_TEST(code);
-			test->memory.addConstant("BLOCK_SIZE", VariableStorage(512));
+			test->memory.addConstant(NamespacedIdentifier("BLOCK_SIZE"), VariableStorage(512));
 			
 			EXPECT_TYPED("test static const variable with global constant", 10, 256);
 		}

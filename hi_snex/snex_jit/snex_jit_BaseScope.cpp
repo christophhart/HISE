@@ -61,7 +61,7 @@ snex::jit::ClassScope* BaseScope::getRootClassScope() const
 	return dynamic_cast<ClassScope*>(c);
 }
 
-bool BaseScope::addConstant(const Identifier& id, VariableStorage v)
+bool BaseScope::addConstant(const NamespacedIdentifier& id, VariableStorage v)
 {
 	if (scopeType != Global && getRootClassScope()->rootData->contains(scopeId.getChildSymbol(id)))
 		return false;
@@ -233,7 +233,7 @@ BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
 #endif
 }
 
-bool BaseScope::hasVariable(const Identifier& id) const
+bool BaseScope::hasVariable(const NamespacedIdentifier& id) const
 {
 	auto s = scopeId.getChildSymbol(id);
 	return getRootData()->contains(s);
@@ -425,7 +425,7 @@ juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, Initiali
 	{
 		if (cs->typePtr != nullptr)
 		{
-			return initSubClassMembers(cs->typePtr.get(), s.id, initValues);
+			return initSubClassMembers(cs->typePtr.get(), s.id.getIdentifier(), initValues);
 		}
 	}
 

@@ -196,7 +196,7 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 {
 	if (matchIf(JitTokens::namespace_))
 	{
-		pushNamespace(parseIdentifier());
+		compiler->namespaceHandler.pushNamespace(parseIdentifier());
 		match(JitTokens::openBrace);
 
 		auto sb = new Operations::StatementBlock(location);
@@ -207,6 +207,11 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		}
 
 		match(JitTokens::closeBrace);
+
+		auto r = compiler->namespaceHandler.popNamespace();
+
+		if (!r.wasOk())
+			location.throwError(r.getErrorMessage());
 
 		return sb;
 
@@ -243,8 +248,6 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		match(JitTokens::semicolon);
 		return parseStatement();
 	}
-
-	parseNamespacePrefix();
 
 	if (matchIfSimpleType())
 	{
@@ -305,9 +308,11 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 
 			try
 			{
+				throw juce::String("Invalid buffer function");
+#if 0
 				if (function.toString() == "create")
 				{
-					return new Operations::Immediate(location, handler.create(getCurrentSymbol(false).id, value));
+					return new Operations::Immediate(location, handler.create(getCurrentSymbol(false).getName(), value));
 				}
 				else if (function.toString() == "getAudioFile")
 				{
@@ -319,8 +324,9 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 				}
 				else
 				{
-					throw juce::String("Invalid buffer function");
+					
 				}
+#endif
 			}
 			catch (juce::String& s)
 			{
@@ -614,14 +620,14 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(boo
 {
 	jassert(getCurrentComplexType() != nullptr);
 
-	Array<Identifier> ids;
+	Array<NamespacedIdentifier> ids;
 
 	auto typePtr = getCurrentComplexType();
 
-	ids.add(parseIdentifier());
+	ids.add(parseNamedSpacedIdentifier());
 	
 	while (matchIf(JitTokens::comma))
-		ids.add(parseIdentifier());
+		ids.add(parseNamedSpacedIdentifier());
 
 	auto n = new Operations::ComplexTypeDefinition(location, ids, TypeInfo(typePtr, isConst));
 
@@ -811,9 +817,7 @@ void BlockParser::parseUsingAlias()
 
 	match(JitTokens::semicolon);
 
-	s.namespaces.addArray(getCurrentNamespaceList());
-
-	DBG(s.toString());
+	//s.namespaces.addArray(compiler->namespaceHandler.getCurrentNamespaceList());
 
 	getCurrentScopeStatement()->addAlias(s);
 }

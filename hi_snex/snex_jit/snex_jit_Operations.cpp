@@ -48,7 +48,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		for (int i = 0; i < data.args.size(); i++)
 		{
-			data.args.getReference(i).id = parameters[i];
+			data.args.getReference(i).id = NamespacedIdentifier(parameters[i]);
 		}
 
 
@@ -136,7 +136,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 							{
 								if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
 								{
-									if (st->hasMember(v->id.id))
+									if (st->hasMember(v->id.id.getIdentifier()))
 									{
 										auto newParent = e->clone(v->location);
 										auto newChild = v->clone(v->location);
@@ -327,13 +327,13 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 					if (auto sType = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
 					{
-						id.typeInfo = sType->getMemberTypeInfo(id.id);
+						id.typeInfo = sType->getMemberTypeInfo(id.id.getIdentifier());
 						auto byteSize = id.typeInfo.getRequiredByteSize();
 
 						if (byteSize == 0)
 							location.throwError("Can't deduce type size");
 
-						objectAdress = VariableStorage((int)(sType->getMemberOffset(id.id)));
+						objectAdress = VariableStorage((int)(sType->getMemberOffset(id.id.getIdentifier())));
 						objectPtr = sType;
 						return;
 					}
@@ -356,7 +356,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				location.throwError("Can't update symbol " + id.toString());
 
 			if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
-				parameterIndex = fScope->parameters.indexOf(id.id);
+				parameterIndex = fScope->parameters.indexOf(id.id.getIdentifier());
 
 			variableScope = vScope;
 		}
@@ -377,7 +377,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
 			{
-				objectAdress = VariableStorage((int)subClassType->getMemberOffset(id.id));
+				objectAdress = VariableStorage((int)subClassType->getMemberOffset(id.getName()));
 				objectPtr = subClassType;
 			}
 				
@@ -755,7 +755,7 @@ void Operations::Assignment::initClassMembers(BaseCompiler* compiler, BaseScope*
 
 		if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
 		{
-			auto ok = st->setDefaultValue(target.id, InitialiserList::makeSingleList(initValue));
+			auto ok = st->setDefaultValue(target.id.getIdentifier(), InitialiserList::makeSingleList(initValue));
 
 			if (!ok)
 				throwError("Can't initialise default value");
@@ -874,7 +874,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 		}
 
-		if (objExpr != nullptr && function.id == Identifier("toSimd"))
+		if (objExpr != nullptr && function.id == NamespacedIdentifier("toSimd"))
 		{
 			auto sc = new CastedSimd(location, objExpr);
 
@@ -1310,7 +1310,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 				else if (auto cScope = dynamic_cast<ClassScope*>(scope))
 				{
 					if (auto st = dynamic_cast<StructType*>(cScope->typePtr.get()))
-						st->setDefaultValue(s.id, initValues);
+						st->setDefaultValue(s.id.getIdentifier(), initValues);
 				}
 			}
 		}

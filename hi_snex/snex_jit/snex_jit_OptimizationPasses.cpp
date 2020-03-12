@@ -636,7 +636,7 @@ bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scop
 			{
 				if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
 				{
-					if (st->hasMember(v->id.id))
+					if (st->hasMember(v->id.id.getIdentifier()))
 					{
 						auto newParent = e->clone(v->location);
 						auto newChild = v->clone(v->location);

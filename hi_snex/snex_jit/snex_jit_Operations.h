@@ -554,7 +554,7 @@ struct Operations::VariableReference : public Expression,
 	{
 		if (auto fScope = dynamic_cast<FunctionScope*>(scope->getScopeForSymbol(id)))
 		{
-			return fScope->parameters.contains(id.id);
+			return fScope->parameters.contains(id.getName());
 		}
 
 		return false;
@@ -736,7 +736,7 @@ struct Operations::Assignment : public Expression,
 
 	Assignment(Location l, Expression::Ptr target, TokenType assignmentType_, Expression::Ptr expr, bool firstAssignment_);
 
-	Array<Identifier> getInstanceIds() const override { return { getTargetVariable()->id.id }; };
+	Array<NamespacedIdentifier> getInstanceIds() const override { return { getTargetVariable()->id.id }; };
 
 	TypeInfo getTypeInfo() const override { return getSubExpr(1)->getTypeInfo(); }
 
@@ -999,7 +999,7 @@ struct Operations::CastedSimd : public Expression
 			{
 				int numSimd = ost->getNumElements() / 4;
 
-				simdSpanType = TypeInfo(new SpanType(compiler->getComplexTypeForAlias("float4"), numSimd));
+				simdSpanType = TypeInfo(new SpanType(compiler->getComplexTypeForAlias(NamespacedIdentifier("float4")), numSimd));
 				compiler->complexTypes.add(simdSpanType.getComplexType());
 			}
 			else
@@ -1392,7 +1392,7 @@ struct Operations::ClassStatement : public Statement
 						location.throwError("Can't use auto on member variables");
 
 					for(auto& id: td->getInstanceIds())
-						getStructType()->addMember(id, s->getTypeInfo());
+						getStructType()->addMember(id.getIdentifier(), s->getTypeInfo());
 				}
 			}
 
@@ -2225,7 +2225,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 {
 	SET_EXPRESSION_ID(ComplexTypeDefinition);
 
-	ComplexTypeDefinition(Location l, const Array<Identifier>& ids_, TypeInfo type_) :
+	ComplexTypeDefinition(Location l, const Array<NamespacedIdentifier>& ids_, TypeInfo type_) :
 		Expression(l),
 		ids(ids_),
 		type(type_)
@@ -2233,7 +2233,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 
 	}
 
-	Array<Identifier> getInstanceIds() const override { return ids; }
+	Array<NamespacedIdentifier> getInstanceIds() const override { return ids; }
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
@@ -2277,7 +2277,11 @@ struct Operations::ComplexTypeDefinition : public Expression,
 
 		for (auto id : ids)
 		{
-			symbols.add(Symbol({ id }, getTypeInfo()));
+			Symbol s;
+			s.id = id;
+			s.typeInfo = getTypeInfo();
+
+			symbols.add(s);
 		}
 
 		return symbols;
@@ -2290,7 +2294,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		return dynamic_cast<RegisterScope*>(scope) != nullptr;
 	}
 
-	Array<Identifier> ids;
+	Array<NamespacedIdentifier> ids;
 	TypeInfo type;
 
 	InitialiserList::Ptr initValues;

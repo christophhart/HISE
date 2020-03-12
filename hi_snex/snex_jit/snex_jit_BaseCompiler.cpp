@@ -99,7 +99,7 @@ using namespace asmjit;
 		}
 	}
 
-	VariadicSubType::Ptr BaseCompiler::getVariadicTypeForId(const Identifier& id) const
+	VariadicSubType::Ptr BaseCompiler::getVariadicTypeForId(const NamespacedIdentifier& id) const
 	{
 		for (auto vt : variadicTypes)
 			if (vt->variadicId == id)
@@ -108,7 +108,7 @@ using namespace asmjit;
 		return nullptr;
 	}
 
-	bool BaseCompiler::isTemplatedMethod(const Identifier& functionId) const
+	bool BaseCompiler::isTemplatedMethod(const NamespacedIdentifier& functionId) const
 	{
 		for (auto vt : variadicTypes)
 		{

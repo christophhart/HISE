@@ -81,6 +81,7 @@ struct ParserHelpers
 {
 	
 
+
 	using TokenType = const char*;
 
 	static String getTokenName(TokenType t) { return t[0] == '$' ? String(t + 1) : ("'" + String(t) + "'"); }
@@ -110,9 +111,9 @@ struct ParserHelpers
 			return getLineNumber(program, location);
 		}
 
-		Identifier createAnonymousScopeId() const
+		NamespacedIdentifier createAnonymousScopeId() const
 		{
-			return Identifier("AnonymousScopeLine" + juce::String(getLine()));
+			return NamespacedIdentifier(Identifier("AnonymousScopeLine" + juce::String(getLine())));
 		}
 
 		static int getLineNumber(juce::String::CharPointerType start, 
@@ -213,12 +214,13 @@ struct ParserHelpers
 				location.throwError("Expected symbol");
 
 			clearSymbol();
+			
 
 			bool repeat = true;
 
 			while (currentType == JitTokens::identifier && repeat)
 			{
-				addSymbolChild(parseIdentifier());
+				addSymbolChild(parseNamedSpacedIdentifier());
 				repeat = matchIf(JitTokens::dot);
 			}
 		}
@@ -314,9 +316,48 @@ struct ParserHelpers
 			location.throwError(s);
 		}
 
-		
+		NamespacedIdentifier parseNamedSpacedIdentifier()
+		{
+			return getCurrentNamespacedIdentifier(parseIdentifier());
+		}
 
-		
+		NamespacedIdentifier getCurrentNamespacedIdentifier(const Identifier& childId = {}) const
+		{
+			if (childId.isValid())
+				return currentNamespacePrefix.withId(childId);
+
+			return currentNamespacePrefix;
+		}
+
+
+		bool parseNamespacePrefix(NamespaceHandler& nHandler)
+		{
+			currentNamespacePrefix = {};
+
+			if (currentType == JitTokens::identifier)
+			{
+				auto id = Identifier(currentValue.toString());
+
+				currentNamespacePrefix.add(id);
+
+				while (nHandler.isNamespace(currentNamespacePrefix))
+				{
+					parseIdentifier();
+					match(JitTokens::colon);
+					match(JitTokens::colon);
+
+					id = Identifier(currentValue.toString());
+
+					currentNamespacePrefix.add(id);
+				}
+
+				currentNamespacePrefix.pop();
+
+				return currentNamespacePrefix.isValid();
+			}
+
+			return false;
+		}
 
 		virtual Types::ID matchType()
 		{
@@ -557,24 +598,15 @@ struct ParserHelpers
 			}
 
 			currentValue = v;
-			currentString = String(v);
+			currentString = juce::String(v);
 			return true;
 		}
 
-		void pushAnonymousScopeId()
-		{
-			anonymousScopeIds.add(location.createAnonymousScopeId());
-		}
-
-		void popAnonymousScopeId()
-		{
-			jassert(!anonymousScopeIds.isEmpty());
-			anonymousScopeIds.removeLast();
-		}
+		
 
 		struct ScopedChildRoot
 		{
-			ScopedChildRoot(TokenIterator& iter, const Identifier& id):
+			ScopedChildRoot(TokenIterator& iter, const NamespacedIdentifier& id):
 				p(iter)
 			{
 				p.rootSymbol = p.rootSymbol.getChildSymbol(id);
@@ -591,35 +623,22 @@ struct ParserHelpers
 		void clearSymbol()
 		{
 			currentSymbol = {};
+			currentNamespacePrefix = {};
 		}
 
-		void pushNamespace(const Identifier& id)
+		void pushAnonymousScopeId()
 		{
-			currentNamespaces.add(id);
-
-			Symbol s(currentNamespaces, Types::ID::Void, false, false);
-			existingNamespaces.add(s);
+			anonymousScopeIds.add(location.createAnonymousScopeId());
 		}
 
-		bool isNamespace(const Symbol& possibleNamespace) const
+		void popAnonymousScopeId()
 		{
-			return existingNamespaces.contains(possibleNamespace);
+			jassert(!anonymousScopeIds.isEmpty());
+			anonymousScopeIds.removeLast();
 		}
 
-		void popNamespace()
-		{
-			if (currentNamespaces.size() == 0)
-				location.throwError("illegal `}` character");
 
-			currentNamespaces.removeLast();
-		}
-
-		Array<Identifier> getCurrentNamespaceList() const
-		{
-			return currentNamespaces;
-		}
-
-		void addSymbolChild(const Identifier& id)
+		void addSymbolChild(const NamespacedIdentifier& id)
 		{
 			currentSymbol = currentSymbol.getChildSymbol(id);
 		}
@@ -628,10 +647,10 @@ struct ParserHelpers
 
 	private:
 
-		Array<Identifier> currentNamespaces;
-		Array<Symbol> existingNamespaces;
+		NamespacedIdentifier currentNamespacePrefix;
+		
 
-		Array<Identifier> anonymousScopeIds;
+		Array<NamespacedIdentifier> anonymousScopeIds;
 		
 		Symbol currentSymbol;
 		Symbol rootSymbol;

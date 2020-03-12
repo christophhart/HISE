@@ -40,7 +40,7 @@ using namespace asmjit;
 
 struct RegisterScope : public BaseScope
 {
-	RegisterScope(BaseScope* parentScope, const Identifier& id) :
+	RegisterScope(BaseScope* parentScope, const NamespacedIdentifier& id) :
 		BaseScope({}, parentScope)
 	{
 		jassert(id.isValid());
@@ -49,7 +49,7 @@ struct RegisterScope : public BaseScope
 		jassert(getScopeType() >= BaseScope::Function);
 	}
 
-	bool hasVariable(const Identifier& id) const override;
+	bool hasVariable(const NamespacedIdentifier& id) const override;
  
 	bool addVariable(const Symbol& s) override
 	{
@@ -87,7 +87,7 @@ private:
 class FunctionScope : public RegisterScope
 {
 public:
-	FunctionScope(BaseScope* parent, const Identifier& functionName) :
+	FunctionScope(BaseScope* parent, const NamespacedIdentifier& functionName) :
 		RegisterScope(parent, functionName)
 	{
 		scopeType = BaseScope::Function;
@@ -95,9 +95,9 @@ public:
 
 	~FunctionScope() {}
 
-	bool hasVariable(const Identifier& id) const override
+	bool hasVariable(const NamespacedIdentifier& id) const override
 	{
-		if (parameters.contains(id))
+		if (parameters.contains(id.getIdentifier()))
 			return true;
 
 		return RegisterScope::hasVariable(id);
@@ -107,7 +107,7 @@ public:
 	{
 		jassert(getScopeForSymbol(symbolToBeUpdated) == this);
 
-		auto index = parameters.indexOf(symbolToBeUpdated.id);
+		auto index = parameters.indexOf(symbolToBeUpdated.id.getIdentifier());
 
 		if (index != -1)
 		{

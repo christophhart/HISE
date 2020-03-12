@@ -87,7 +87,7 @@ public:
 
 	Symbol getScopeSymbol() const { return scopeId; }
 
-	bool addConstant(const Identifier& id, VariableStorage v);
+	bool addConstant(const NamespacedIdentifier& id, VariableStorage v);
 
 	BaseScope* getParent();
 
@@ -119,7 +119,7 @@ public:
 		return false;
 	}
 
-	virtual bool hasVariable(const Identifier& id) const;
+	virtual bool hasVariable(const NamespacedIdentifier& id) const;
 
 	/** Override this and update the symbol type and constness. */
 	virtual bool updateSymbol(Symbol& symbolToBeUpdated);

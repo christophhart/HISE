@@ -61,7 +61,7 @@ protected:
 	{
 		ScopedPointer<FunctionData> functionWrapper(new FunctionData());
 		functionWrapper->object = this;
-		functionWrapper->id = functionId;
+		functionWrapper->id = NamespacedIdentifier(functionId);
 		functionWrapper->functionName << objectId << "." << functionId << "()";
 
 		for (int i = 0; i < argTypes.size(); i++)

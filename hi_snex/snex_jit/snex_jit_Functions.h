@@ -41,6 +41,142 @@ using namespace juce;
 class FunctionClass;
 
 
+struct NamespacedIdentifier
+{
+	explicit NamespacedIdentifier(const Identifier& id)
+	{
+		add(id);
+	}
+
+	static NamespacedIdentifier fromString(const juce::String& s)
+	{
+		auto sa = StringArray::fromTokens(s, "::", "");
+
+		NamespacedIdentifier c;
+		for (auto s : sa)
+			c.add(Identifier(s));
+
+		return c;
+	}
+
+
+	NamespacedIdentifier()
+	{}
+
+	std::string debugName;
+	Array<Identifier> namespaces;
+	Identifier id;
+
+	bool isValid() const
+	{
+		return id.isValid();
+	}
+
+	bool isInGlobalNamespace() const
+	{
+		return namespaces.isEmpty();
+	}
+
+	Identifier getIdentifier() const
+	{
+		jassert(namespaces.isEmpty());
+		return id;
+	}
+
+	bool operator==(const NamespacedIdentifier& other) const
+	{
+		if (id != other.id)
+			return false;
+
+		if (namespaces.size() == other.namespaces.size())
+		{
+			for (int i = 0; i < namespaces.size(); i++)
+			{
+				if (namespaces[i] != other.namespaces[i])
+					return false;
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	NamespacedIdentifier withId(const Identifier& id) const
+	{
+		auto c = *this;
+		c.add(id);
+		return c;
+	}
+
+	juce::String toString() const
+	{
+		juce::String s;
+
+		for (auto n : namespaces)
+			s << n << "::";
+
+		s << id;
+
+		return s;
+	}
+
+	void add(const Identifier& newId)
+	{
+		if (id.isValid())
+			namespaces.add(id);
+
+		id = newId;
+
+		debugName = toString().toStdString();
+	}
+
+	Result pop()
+	{
+		if (id.isNull())
+			return Result::fail("Can't pop namespace");
+
+		id = namespaces.getLast();
+		namespaces.removeLast();
+
+		debugName = toString().toStdString();
+
+		return Result::ok();
+	}
+};
+
+
+struct NamespaceHandler
+{
+	void pushNamespace(const Identifier& id)
+	{
+		currentNamespace.add(id);
+
+		existingNamespaces.add(currentNamespace);
+	}
+
+	bool isNamespace(const NamespacedIdentifier& possibleNamespace) const
+	{
+		return existingNamespaces.contains(possibleNamespace);
+	}
+
+	Result popNamespace()
+	{
+		return currentNamespace.pop();
+	}
+
+	NamespacedIdentifier getCurrentNamespaceIdentifier() const
+	{
+		return currentNamespace;
+	}
+
+private:
+
+	NamespacedIdentifier currentNamespace;
+
+	Array<NamespacedIdentifier> existingNamespaces;
+
+};
 
 struct ComplexType : public ReferenceCountedObject
 {
@@ -121,7 +257,7 @@ struct ComplexType : public ReferenceCountedObject
 		return (int)toString().hash();
 	}
 
-	void setAlias(const Identifier& newAlias)
+	void setAlias(const NamespacedIdentifier& newAlias)
 	{
 		usingAlias = newAlias;
 	}
@@ -139,12 +275,12 @@ struct ComplexType : public ReferenceCountedObject
 		return usingAlias.isValid(); 
 	}
 
-	bool matchesId(const Identifier& id) const
+	bool matchesId(const NamespacedIdentifier& id) const
 	{
 		if (id == usingAlias)
 			return true;
 
-		if (Identifier(toStringInternal()) == id)
+		if (toStringInternal() == id.toString())
 			return true;
 
 		return false;
@@ -161,13 +297,11 @@ private:
 	virtual juce::String toStringInternal() const = 0;
 
 	bool finalised = false;
-	Identifier usingAlias;
+	NamespacedIdentifier usingAlias;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ComplexType);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ComplexType);
 };
-
-
 
 
 struct TypeInfo
@@ -375,6 +509,8 @@ struct Symbol
 {
 	static Symbol createRootSymbol(const Identifier& id);
 
+	static Symbol createRootSymbol(const NamespacedIdentifier& id);
+
 	static Symbol createIndexedSymbol(int index, Types::ID type);
 
 	Symbol();
@@ -393,11 +529,9 @@ struct Symbol
 
 	bool matchesIdAndType(const Symbol& other) const;
 
-	bool matchesNamespaces(const Array<Identifier>& namespaces) const;
-
 	Symbol getParentSymbol() const;
 
-	Symbol getChildSymbol(const Identifier& id, const TypeInfo& t = {}) const;
+	Symbol getChildSymbol(const NamespacedIdentifier& id, const TypeInfo& t = {}) const;
 
 	Symbol withParent(const Symbol& parent) const;
 
@@ -406,6 +540,11 @@ struct Symbol
 	Symbol withComplexType(ComplexType::Ptr typePtr) const;
 
 	Symbol relocate(const Symbol& newParent) const;
+
+	Identifier getName() const
+	{
+		return id.getIdentifier();
+	}
 
 	void setTypeInfo(const TypeInfo& other)
 	{
@@ -428,7 +567,7 @@ struct Symbol
 		return typeInfo.isRef() ? Types::Pointer : typeInfo.getType();
 	}
 
-	Identifier getId() const { return id; }
+	NamespacedIdentifier getId() const { return id; }
 
 	bool isReference() const { return typeInfo.isRef(); };
 
@@ -436,16 +575,21 @@ struct Symbol
 
 	operator bool() const;
 
-	std::string debugName;
-	// a list of identifiers...
-	Array<Identifier> fullIdList;
-	Identifier id;
+	
+
+	NamespacedIdentifier id;
 
 	VariableStorage constExprValue = {};
 
 	TypeInfo typeInfo;
 
-	Array<Identifier> namespaces;
+private:
+
+	// a list of identifiers...
+	Array<Identifier> fullIdList;
+
+	std::string debugName;
+
 };
 
 struct SyntaxTreeInlineData;
@@ -468,13 +612,13 @@ struct Inliner : public ReferenceCountedObject
 	using Ptr = ReferenceCountedObjectPtr<Inliner>;
 	using Func = std::function<Result(InlineData* d)>;
 
-	Inliner(const Identifier& id, const Func& asm_, const Func& highLevel_) :
+	Inliner(const NamespacedIdentifier& id, const Func& asm_, const Func& highLevel_) :
 		functionId(id),
 		asmFunc(asm_),
 		highLevelFunc(highLevel_)
 	{};
 
-	static Inliner* createHighLevelInliner(const Identifier& id, const Func& highLevelFunc)
+	static Inliner* createHighLevelInliner(const NamespacedIdentifier& id, const Func& highLevelFunc)
 	{
 		return new Inliner(id, [](InlineData* b)
 		{
@@ -495,7 +639,7 @@ struct Inliner : public ReferenceCountedObject
 
 	Result process(InlineData* d) const;
 
-	const Identifier functionId;
+	const NamespacedIdentifier functionId;
 	const Func asmFunc;
 	const Func highLevelFunc;
 
@@ -542,7 +686,7 @@ struct FunctionData
 	{
 		FunctionData d;
 
-		d.id = id;
+		d.id = NamespacedIdentifier(id);
 		d.returnType = TypeInfo(Types::Helpers::getTypeFromTypeId<ReturnType>());
 		d.function = reinterpret_cast<void*>(ptr);
 
@@ -585,14 +729,14 @@ struct FunctionData
 		for (int i = 0; i < args.size(); i++)
 		{
 			if(parameterNames[i].isNotEmpty())
-				args.getReference(i).id = parameterNames[i];
+				args.getReference(i).id = NamespacedIdentifier(parameterNames[i]);
 		}
 	}
 
 	juce::String description;
 
 	/** the function ID. */
-	Identifier id;
+	NamespacedIdentifier id;
 
 	/** If this is not null, the function will be a member function for the given object. */
 	void* object = nullptr;
@@ -728,7 +872,7 @@ struct VariadicSubType : public ReferenceCountedObject
 	using Ptr = ReferenceCountedObjectPtr<VariadicSubType>;
 
 	ComplexType::WeakPtr variadicType;
-	Identifier variadicId;
+	NamespacedIdentifier variadicId;
 	Array<FunctionData> functions;
 };
 
@@ -747,13 +891,13 @@ struct FunctionClass: public DebugableObjectBase,
 		numOperatorOverloads
 	};
 
-	Identifier getSpecialSymbol(SpecialSymbols s) const
+	static NamespacedIdentifier getSpecialSymbol(SpecialSymbols s)
 	{
 		switch (s)
 		{
-		case AssignOverload: return "operator=";
-		case NativeTypeCast: return "type_cast";
-		case Subscript:		 return "operator[]";
+		case AssignOverload: return NamespacedIdentifier("operator=");
+		case NativeTypeCast: return NamespacedIdentifier("type_cast");
+		case Subscript:		 return NamespacedIdentifier("operator[]");
 		}
 
 		return {};
@@ -818,7 +962,7 @@ struct FunctionClass: public DebugableObjectBase,
 				arguments << Types::Helpers::getTypeName(arg.typeInfo.getType());
 
 				if (arg.id.isValid())
-					arguments << " " << arg.id;
+					arguments << " " << arg.id.toString();
 
 				if (index < (f->args.size()))
 					arguments << ", ";
@@ -860,13 +1004,13 @@ struct FunctionClass: public DebugableObjectBase,
 
 	juce::String getCategory() const override { return "API call"; };
 
-	Identifier getObjectName() const override { return classSymbol.getId(); }
+	Identifier getObjectName() const override { return classSymbol.getId().toString(); }
 
 	juce::String getDebugValue() const override { return classSymbol.toString(); };
 
 	juce::String getDebugDataType() const override { return "Class"; };
 
-	void getAllFunctionNames(Array<Identifier>& functions) const 
+	void getAllFunctionNames(Array<NamespacedIdentifier>& functions) const 
 	{
 		functions.addArray(getFunctionIds());
 	};
@@ -926,7 +1070,7 @@ struct FunctionClass: public DebugableObjectBase,
 
 	void addFunction(FunctionData* newData);
 
-	Array<Identifier> getFunctionIds() const;
+	Array<NamespacedIdentifier> getFunctionIds() const;
 
 	const Symbol& getClassName() const { return classSymbol; }
 
@@ -945,7 +1089,7 @@ struct FunctionClass: public DebugableObjectBase,
 		return nullptr;
 	}
 
-	bool isInlineable(const Identifier& id) const
+	bool isInlineable(const NamespacedIdentifier& id) const
 	{
 		for (auto& f : functions)
 			if (f->id == id)
@@ -954,7 +1098,7 @@ struct FunctionClass: public DebugableObjectBase,
 		return false;
 	}
 
-	Inliner::Ptr getInliner(const Identifier& id) const
+	Inliner::Ptr getInliner(const NamespacedIdentifier& id) const
 	{
 		for (auto f : functions)
 		{
@@ -984,13 +1128,15 @@ struct FunctionClass: public DebugableObjectBase,
 
 	void addInliner(const Identifier& id, const Inliner::Func& asmFunc)
 	{
-		if (isInlineable(id))
+		auto nId = NamespacedIdentifier(id);
+
+		if (isInlineable(nId))
 			return;
 
 		for (auto& f : functions)
 		{
-			if (f->id == id)
-				f->inliner = new Inliner(id, asmFunc, {});
+			if (f->id == nId)
+				f->inliner = new Inliner(nId, asmFunc, {});
 		}
 	}
 

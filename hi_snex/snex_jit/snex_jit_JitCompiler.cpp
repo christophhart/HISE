@@ -74,11 +74,11 @@ ComplexType::Ptr Compiler::getComplexType(const Symbol& s)
 {
 	for (auto c : compiler->complexTypes)
 	{
-		auto thisId = Identifier(c->toString());
+		auto thisId =  NamespacedIdentifier::fromString(c->toString());
 		auto otherId = s.id;
 
-			if (thisId == otherId)
-				return c;
+		if (thisId == otherId)
+			return c;
 	}
 
 	return nullptr;

@@ -615,10 +615,10 @@ public:
 
 	void deregisterObject(const Symbol& id);
 
-	bool hasVariable(const Identifier& id) const override
+	bool hasVariable(const NamespacedIdentifier& id) const override
 	{
 		for (auto f : objectClassesWithJitCallableFunctions)
-			if (f->getObjectName() == id)
+			if (f->getClassName().id == id)
 				return true;
 
 		return false;
@@ -646,10 +646,10 @@ public:
 		return dynamic_cast<GlobalScope*>(scope);
 	}
 
-	FunctionClass* getGlobalFunctionClass(const Identifier& id)
+	FunctionClass* getGlobalFunctionClass(const NamespacedIdentifier& id)
 	{
 		for (auto c : objectClassesWithJitCallableFunctions)
-			if (c->getObjectName() == id)
+			if (c->getClassName().id == id)
 				return c;
 
 		return nullptr;

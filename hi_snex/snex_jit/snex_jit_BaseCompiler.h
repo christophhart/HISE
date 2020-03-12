@@ -68,7 +68,7 @@ public:
 	BaseCompiler()
 	{
 		auto float4Type = new SpanType(Types::ID::Float, 4);
-		float4Type->setAlias("float4");
+		float4Type->setAlias(NamespacedIdentifier("float4"));
 		complexTypes.add(float4Type);
 	}
 
@@ -214,7 +214,9 @@ public:
 
 	ReferenceCountedArray<VariadicSubType> variadicTypes;
 
-	ComplexType::Ptr getComplexTypeForAlias(const Identifier& id)
+	NamespaceHandler namespaceHandler;
+
+	ComplexType::Ptr getComplexTypeForAlias(const NamespacedIdentifier& id)
 	{
 		for (auto c : complexTypes)
 		{
@@ -225,9 +227,9 @@ public:
 		return nullptr;
 	}
 
-	VariadicSubType::Ptr getVariadicTypeForId(const Identifier& id) const;
+	VariadicSubType::Ptr getVariadicTypeForId(const NamespacedIdentifier& id) const;
 
-	bool isTemplatedMethod(const Identifier& functionId) const;
+	bool isTemplatedMethod(const NamespacedIdentifier& functionId) const;
 
 	WrapType* getWrapType(int size)
 	{
@@ -268,6 +270,8 @@ private:
 	Pass currentPass;
 
 	WeakReference<DebugHandler> debugHandler;
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BaseCompiler)
 };

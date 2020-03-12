@@ -109,7 +109,7 @@ public:
 		{
 			auto cs = getCurrentScopeStatement();
 
-			auto id = parseIdentifier();
+			auto id = getCurrentNamespacedIdentifier(parseIdentifier());
 
 			Types::ID type = Types::ID::Void;
 
@@ -131,7 +131,7 @@ public:
 	{
 		auto id = parseIdentifier();
 
-		auto vId = compiler->getVariadicTypeForId(id);
+		auto vId = compiler->getVariadicTypeForId(getCurrentNamespacedIdentifier(id));
 
 		auto newType = new VariadicTypeBase(vId);
 
@@ -157,11 +157,11 @@ public:
 	{
 		// use this whenever this call isn't preceded by a matchIfSimpleType() call...
 		if (parseNamespace)
-			parseNamespacePrefix();
+			parseNamespacePrefix(compiler->namespaceHandler);
 
 		if (currentType == JitTokens::identifier)
 		{
-			auto id = Identifier(currentValue.toString());
+			auto id = getCurrentNamespacedIdentifier(currentValue.toString());
 
 			Symbol s = Symbol::createRootSymbol(id);
 
@@ -202,48 +202,19 @@ public:
 		return false;
 	}
 
-	bool parseNamespacePrefix()
-	{
-		currentNamespacePrefix = {};
-
-		if (currentType == JitTokens::identifier)
-		{
-			auto id = Identifier(currentValue.toString());
-
-			Array<Identifier> namespaces;
-
-			auto s = Symbol::createRootSymbol(id);
-
-			while (isNamespace(s))
-			{
-				parseIdentifier();
-				match(JitTokens::colon);
-				match(JitTokens::colon);
-
-				id = Identifier(currentValue.toString());
-
-				s = s.getChildSymbol(id);
-			}
-
-			currentNamespacePrefix = s.getParentSymbol();
-
-			return !currentNamespacePrefix.fullIdList.isEmpty();
-		}
-
-		return false;
-	}
+	
 
 	bool matchIfSimpleType() override
 	{
-		parseNamespacePrefix();
+		parseNamespacePrefix(compiler->namespaceHandler);
 
 		if (currentType == JitTokens::identifier)
 		{
-			auto id = Identifier(currentValue.toString());
+			auto id = getCurrentNamespacedIdentifier(Identifier(currentValue.toString()));
 
 			auto cs = getCurrentScopeStatement();
 
-			if (cs = cs->getScopedStatementForAlias(id, currentNamespacePrefix.fullIdList))
+			if (cs = cs->getScopedStatementForAlias(id))
 			{
 				if (auto ptr = cs->getAliasComplexType(id))
 					return false;
@@ -267,7 +238,7 @@ public:
 
 	StatementPtr parseComplexTypeDefinition(bool isConst);
 
-
+	
 
 	InitialiserList::Ptr parseInitialiserList();
 
@@ -279,6 +250,7 @@ public:
 
 	Operations::ScopeStatementBase* getCurrentScopeStatement() { return currentScopeStatement; }
 
+	
 	void parseUsingAlias();
 
 	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, TokenType op);
@@ -298,7 +270,7 @@ public:
 	ExprPtr parseSubscript(ExprPtr p);
 	ExprPtr parseCall(ExprPtr p);
 	ExprPtr parsePostSymbol();
-	ExprPtr parseReference(const Identifier& id);
+	ExprPtr parseReference(const NamespacedIdentifier& id);
 	ExprPtr parseLiteral(bool isNegative = false);
 
 private:
@@ -307,7 +279,7 @@ private:
 
 	WeakReference<Operations::ScopeStatementBase> currentScopeStatement;
 	ComplexType::Ptr currentComplexType;
-	Symbol currentNamespacePrefix;
+	
 };
 
 

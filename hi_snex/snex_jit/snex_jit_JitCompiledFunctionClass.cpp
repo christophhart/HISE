@@ -78,12 +78,12 @@ juce::String JitCompiledFunctionClass::dumpTable()
 	return pimpl->getRootData()->dumpTable();
 }
 
-juce::Array<juce::Identifier> JitCompiledFunctionClass::getFunctionIds() const
+Array<NamespacedIdentifier> JitCompiledFunctionClass::getFunctionIds() const
 {
 	return pimpl->getRootData()->getFunctionIds();
 }
 
-FunctionData JitCompiledFunctionClass::getFunction(const Identifier& functionId)
+FunctionData JitCompiledFunctionClass::getFunction(const NamespacedIdentifier& functionId)
 {
 	auto s = Symbol::createRootSymbol("Root").getChildSymbol(functionId);
 
@@ -101,7 +101,7 @@ FunctionData JitCompiledFunctionClass::getFunction(const Identifier& functionId)
 
 
 
-snex::jit::FunctionData JitObject::operator[](const Identifier& functionId) const
+snex::jit::FunctionData JitObject::operator[](const NamespacedIdentifier& functionId) const
 {
 	if (*this)
 	{
@@ -113,7 +113,12 @@ snex::jit::FunctionData JitObject::operator[](const Identifier& functionId) cons
 }
 
 
-juce::Array<juce::Identifier> JitObject::getFunctionIds() const
+FunctionData JitObject::operator[](const Identifier& functionId) const
+{
+	return operator[](NamespacedIdentifier(functionId));
+}
+
+Array<NamespacedIdentifier> JitObject::getFunctionIds() const
 {
 	if (*this)
 	{
@@ -153,7 +158,7 @@ hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
 
 juce::ValueTree JitObject::createValueTree()
 {
-	auto c = dynamic_cast<GlobalScope*>(functionClass->pimpl->getParent())->getGlobalFunctionClass("Console");
+	auto c = dynamic_cast<GlobalScope*>(functionClass->pimpl->getParent())->getGlobalFunctionClass(NamespacedIdentifier("Console"));
 	auto v = functionClass->pimpl->getRootData()->getApiValueTree();
 	v.addChild(FunctionClass::createApiTree(c), -1, nullptr);
 	return v;
@@ -164,7 +169,7 @@ void JitObject::getColourAndLetterForType(int type, Colour& colour, char& letter
 	return ApiHelpers::getColourAndLetterForType(type, colour, letter);
 }
 
-snex::jit::FunctionData JitCompiledClassBase::getFunction(const Identifier& id)
+snex::jit::FunctionData JitCompiledClassBase::getFunction(const NamespacedIdentifier& id)
 {
 	Array<FunctionData> matches;
 	auto s = dynamic_cast<StructType*>(classType.get())->id.getChildSymbol(id);

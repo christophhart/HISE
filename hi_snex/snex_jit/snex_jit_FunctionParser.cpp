@@ -75,7 +75,9 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 
 		match(JitTokens::assign_);
 
-		currentScope->addConstant(id, parseConstExpression(false));
+		auto nId = compiler->namespaceHandler.getCurrentNamespaceIdentifier().withId(id);
+
+		currentScope->addConstant(nId, parseConstExpression(false));
 		match(JitTokens::semicolon);
 		return parseStatement();
 	}
@@ -127,9 +129,11 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 	{
 		if (currentType == JitTokens::identifier)
 		{
-			auto id = Identifier(currentValue.toString());
+			auto id = getCurrentNamespacedIdentifier(currentValue.toString());
 
-			if (auto st = compiler->getStructType(Symbol::createRootSymbol(id)))
+			auto s = Symbol::createRootSymbol(id);
+
+			if (auto st = compiler->getStructType(s))
 			{
 				match(JitTokens::identifier);
 				currentHnodeType = Types::ID::Pointer;
@@ -179,7 +183,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition(boo
 
 	while (currentType == JitTokens::identifier)
 	{
-		addSymbolChild(parseIdentifier());
+		addSymbolChild(parseNamedSpacedIdentifier());
 		matchIf(JitTokens::dot);
 	}
 
@@ -210,7 +214,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 	auto isRef = matchIf(JitTokens::bitwiseAnd);
 
 	clearSymbol();
-	addSymbolChild(parseIdentifier());
+	addSymbolChild(parseNamedSpacedIdentifier());
 
 	auto variableId = getCurrentSymbol(true);
 
@@ -503,15 +507,16 @@ BlockParser::ExprPtr BlockParser::parseUnary()
 BlockParser::ExprPtr BlockParser::parseFactor()
 {
 	clearSymbol();
+	parseNamespacePrefix(compiler->namespaceHandler);
 
 	if (matchIf(JitTokens::plusplus))
 	{
-		ExprPtr expr = parseReference(parseIdentifier());
+		ExprPtr expr = parseReference(parseNamedSpacedIdentifier());
 		return new Operations::Increment(location, expr, true, false);
 	}
 	if (matchIf(JitTokens::minusminus))
 	{
-		ExprPtr expr = parseReference(parseIdentifier());
+		ExprPtr expr = parseReference(parseNamedSpacedIdentifier());
 		return new Operations::Increment(location, expr, true, true);
 	}
 	if (matchIf(JitTokens::minus))
@@ -520,7 +525,7 @@ BlockParser::ExprPtr BlockParser::parseFactor()
 			return parseLiteral(true);
 		else
 		{
-			ExprPtr expr = parseReference(parseIdentifier());
+			ExprPtr expr = parseReference(parseNamedSpacedIdentifier());
 			return new Operations::Negation(location, expr);
 		}
 	}
@@ -538,7 +543,7 @@ BlockParser::ExprPtr BlockParser::parseDotOperator(ExprPtr p)
 {
 	while(matchIf(JitTokens::dot))
 	{
-		auto id = parseIdentifier();
+		auto id = parseNamedSpacedIdentifier();
 		p = new Operations::DotOperator(location, p, parseReference(id));
 	}
 	
@@ -596,7 +601,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 BlockParser::ExprPtr BlockParser::parsePostSymbol()
 {
-	auto id = parseIdentifier();
+	auto id = parseNamedSpacedIdentifier();
 	auto expr = parseReference(id);
 
 	expr = parseDotOperator(expr);
@@ -612,10 +617,14 @@ BlockParser::ExprPtr BlockParser::parsePostSymbol()
 
 
 
-BlockParser::ExprPtr BlockParser::parseReference(const Identifier& id)
+BlockParser::ExprPtr BlockParser::parseReference(const NamespacedIdentifier& id)
 {
 	addSymbolChild(id);
-	return new Operations::VariableReference(location, getCurrentSymbol(true));
+
+	auto s = getCurrentSymbol(true);
+	
+
+	return new Operations::VariableReference(location, s);
 }
 
 BlockParser::ExprPtr BlockParser::parseLiteral(bool isNegative)

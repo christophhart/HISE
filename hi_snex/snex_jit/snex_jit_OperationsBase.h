@@ -363,7 +363,7 @@ public:
 			aliases.add(s);
 		}
 
-		Types::ID getAliasNativeType(const Identifier& id) const
+		Types::ID getAliasNativeType(const NamespacedIdentifier& id) const
 		{
 			for (auto a : aliases)
 			{
@@ -380,7 +380,7 @@ public:
 			newClone->aliases.addArray(aliases);
 		}
 
-		ComplexType::Ptr getAliasComplexType(const Identifier& id) const
+		ComplexType::Ptr getAliasComplexType(const NamespacedIdentifier& id) const
 		{
 			for (auto a : aliases)
 			{
@@ -391,14 +391,13 @@ public:
 			return nullptr;
 		}
 
-		ScopeStatementBase* getScopedStatementForAlias(const Identifier& id, const Array<Identifier>& namespaces = {})
+		ScopeStatementBase* getScopedStatementForAlias(const NamespacedIdentifier& id)
 		{
 			for (auto a : aliases)
 			{
 				if (a.id == id)
 				{
-					if(a.matchesNamespaces(namespaces))
-						return this;
+					return this;
 				}
 					
 			}
@@ -483,7 +482,7 @@ public:
 	struct TypeDefinitionBase
 	{
 		virtual ~TypeDefinitionBase() {};
-		virtual Array<Identifier> getInstanceIds() const = 0;
+		virtual Array<NamespacedIdentifier> getInstanceIds() const = 0;
 	};
 
 	struct SymbolStatement

@@ -183,7 +183,6 @@ struct StructType : public ComplexType
 	template <typename ReturnType, typename... Parameters>void addExternalMemberFunction(const Identifier& id, ReturnType(*ptr)(Parameters...))
 	{
 		FunctionData f = FunctionData::create(id, ptr, true);
-		f.id = id;
 		f.function = ptr;
 
 		memberFunctions.add(f);

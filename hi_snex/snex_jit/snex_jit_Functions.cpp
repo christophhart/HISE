@@ -56,9 +56,17 @@ bool Symbol::operator==(const Symbol& other) const
 }
 
 
-snex::jit::Symbol Symbol::createRootSymbol(const Identifier& id)
+Symbol Symbol::createRootSymbol(const Identifier& id)
 {
 	return Symbol({ id }, Types::ID::Dynamic, true, false);
+}
+
+Symbol Symbol::createRootSymbol(const NamespacedIdentifier& id)
+{
+	Symbol s;
+	s.fullIdList.add(id.getIdentifier());
+	s.id = id;
+	return s;
 }
 
 Symbol::Symbol(const Array<Identifier>& list, Types::ID t_, bool isConst_, bool isRef_) :
@@ -88,22 +96,6 @@ bool Symbol::matchesIdAndType(const Symbol& other) const
 	return other == *this;// && other.type == type;
 }
 
-bool Symbol::matchesNamespaces(const Array<Identifier>& other) const
-{
-	if (namespaces.size() == other.size())
-	{
-		for (int i = 0; i < namespaces.size(); i++)
-		{
-			if (namespaces[i] != other[i])
-				return false;
-		}
-
-		return true;
-	}
-
-	return false;
-}
-
 Symbol Symbol::getParentSymbol() const
 {
 	Array<Identifier> parentList;
@@ -117,17 +109,23 @@ Symbol Symbol::getParentSymbol() const
 	return Symbol(parentList, typeInfo.getType(), true, false);
 }
 
-snex::jit::Symbol Symbol::getChildSymbol(const Identifier& id, const TypeInfo& t) const
+Symbol Symbol::getChildSymbol(const NamespacedIdentifier& childId, const TypeInfo& t) const
 {
-	Array<Identifier> childList;
+	
+	
 
-	childList.addArray(fullIdList);
-	childList.add(id);
+	auto c = *this;
 
-	return Symbol(childList, t.isValid() ? t : typeInfo);
+	c.fullIdList.add(c.id.id);
+	c.id = childId;
+
+	if(t.isValid())
+		c.typeInfo = t;
+
+	return c;
 }
 
-snex::jit::Symbol Symbol::withParent(const Symbol& parent) const
+Symbol Symbol::withParent(const Symbol& parent) const
 {
 	Array<Identifier> newList;
 
@@ -169,7 +167,7 @@ bool Symbol::isParentOf(const Symbol& otherSymbol) const
 
 juce::String Symbol::toString() const
 {
-	if (id.isNull())
+	if (!id.isValid())
 		return "undefined";
 
 	juce::String s;
@@ -179,15 +177,12 @@ juce::String Symbol::toString() const
 	if (s.isNotEmpty())
 		s << " ";
 		
-	for (auto ns : namespaces)
-		s << ns << "::";
-
 	for (int i = 0; i < fullIdList.size() - 1; i++)
 	{
 		s << fullIdList[i].toString() << ".";
 	}
 
-	s << id;
+	s << id.toString();
 
 	return s;
 }
@@ -209,7 +204,7 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 {
 	juce::String s;
 
-	s << returnType.toString() << " " << id;
+	s << returnType.toString() << " " << id.toString();
 	
 	if (!templateParameters.isEmpty())
 	{
@@ -452,7 +447,7 @@ bool FunctionClass::hasConstant(const Symbol& s) const
 	if (parent == classSymbol)
 	{
 		for (auto& c : constants)
-			if (c.id == s.id)
+			if (c.id == s.getName())
 				return true;
 	}
 
@@ -502,9 +497,9 @@ void FunctionClass::addFunction(FunctionData* newData)
 }
 
 
-juce::Array<juce::Identifier> FunctionClass::getFunctionIds() const
+Array<NamespacedIdentifier> FunctionClass::getFunctionIds() const
 {
-	Array<Identifier> ids;
+	Array<NamespacedIdentifier> ids;
 
 	for (auto r : functions)
 		ids.add(r->id);
@@ -594,7 +589,7 @@ snex::VariableStorage FunctionClass::getConstantValue(const Symbol& s) const
 	{
 		for (auto& c : constants)
 		{
-			if (c.id == s.id)
+			if (c.id == s.getName())
 				return c.value;
 		}
 	}

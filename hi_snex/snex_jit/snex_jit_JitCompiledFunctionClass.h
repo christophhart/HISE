@@ -51,7 +51,7 @@ public:
 
 	~JitCompiledFunctionClass();
 
-	FunctionData getFunction(const Identifier& functionId);
+	FunctionData getFunction(const NamespacedIdentifier& functionId);
 
 	VariableStorage getVariable(const Identifier& id);
 
@@ -59,7 +59,7 @@ public:
 
 	juce::String dumpTable();
 
-	Array<Identifier> getFunctionIds() const;
+	Array<NamespacedIdentifier> getFunctionIds() const;
 
 	ClassScope* releaseClassScope()
 	{
@@ -97,7 +97,9 @@ public:
 
 	FunctionData operator[](const Identifier& functionId) const;
 
-	Array<Identifier> getFunctionIds() const;
+	FunctionData operator[](const NamespacedIdentifier& functionId) const;
+
+	Array<NamespacedIdentifier> getFunctionIds() const;
 
 	explicit operator bool() const;;
 	
@@ -161,7 +163,7 @@ struct JitCompiledClassBase
 
 protected:
 
-	FunctionData getFunction(const Identifier& id);
+	FunctionData getFunction(const NamespacedIdentifier& id);
 
 	void* thisPtr = nullptr;
 
