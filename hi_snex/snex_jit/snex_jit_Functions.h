@@ -393,6 +393,8 @@ struct Symbol
 
 	bool matchesIdAndType(const Symbol& other) const;
 
+	bool matchesNamespaces(const Array<Identifier>& namespaces) const;
+
 	Symbol getParentSymbol() const;
 
 	Symbol getChildSymbol(const Identifier& id, const TypeInfo& t = {}) const;
@@ -443,6 +445,7 @@ struct Symbol
 
 	TypeInfo typeInfo;
 
+	Array<Identifier> namespaces;
 };
 
 struct SyntaxTreeInlineData;

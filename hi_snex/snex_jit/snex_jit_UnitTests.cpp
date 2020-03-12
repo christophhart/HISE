@@ -857,8 +857,10 @@ public:
 
 	void runTest() override
 	{
+		runTestFiles("simple_namespace.h");
+		return;
 		//optimizations = { OptimizationIds::Inlining };
-		runTestFiles("function_const_ref.h");
+		
 		testOptimizations();
 		testInlining();
 

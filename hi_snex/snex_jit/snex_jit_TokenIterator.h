@@ -59,7 +59,7 @@ using namespace juce;
 	X(if_, "if")				X(else_, "else")	\
 	X(auto_, "auto")			X(struct_, "struct")	X(span_, "span") \
 	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")	X(break_, "break") \
-	X(continue_, "continue")	X(dyn_, "dyn")		
+	X(continue_, "continue")	X(dyn_, "dyn")		X(namespace_, "namespace")  X(double_colon, "::")
 
 namespace JitTokens
 {
@@ -593,6 +593,32 @@ struct ParserHelpers
 			currentSymbol = {};
 		}
 
+		void pushNamespace(const Identifier& id)
+		{
+			currentNamespaces.add(id);
+
+			Symbol s(currentNamespaces, Types::ID::Void, false, false);
+			existingNamespaces.add(s);
+		}
+
+		bool isNamespace(const Symbol& possibleNamespace) const
+		{
+			return existingNamespaces.contains(possibleNamespace);
+		}
+
+		void popNamespace()
+		{
+			if (currentNamespaces.size() == 0)
+				location.throwError("illegal `}` character");
+
+			currentNamespaces.removeLast();
+		}
+
+		Array<Identifier> getCurrentNamespaceList() const
+		{
+			return currentNamespaces;
+		}
+
 		void addSymbolChild(const Identifier& id)
 		{
 			currentSymbol = currentSymbol.getChildSymbol(id);
@@ -601,6 +627,9 @@ struct ParserHelpers
 		
 
 	private:
+
+		Array<Identifier> currentNamespaces;
+		Array<Symbol> existingNamespaces;
 
 		Array<Identifier> anonymousScopeIds;
 		

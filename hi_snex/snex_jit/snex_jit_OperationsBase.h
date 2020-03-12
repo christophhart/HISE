@@ -391,12 +391,16 @@ public:
 			return nullptr;
 		}
 
-		ScopeStatementBase* getScopedStatementForAlias(const Identifier& id)
+		ScopeStatementBase* getScopedStatementForAlias(const Identifier& id, const Array<Identifier>& namespaces = {})
 		{
 			for (auto a : aliases)
 			{
 				if (a.id == id)
-					return this;
+				{
+					if(a.matchesNamespaces(namespaces))
+						return this;
+				}
+					
 			}
 
 			if (parentScopeStatement != nullptr)

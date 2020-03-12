@@ -88,6 +88,22 @@ bool Symbol::matchesIdAndType(const Symbol& other) const
 	return other == *this;// && other.type == type;
 }
 
+bool Symbol::matchesNamespaces(const Array<Identifier>& other) const
+{
+	if (namespaces.size() == other.size())
+	{
+		for (int i = 0; i < namespaces.size(); i++)
+		{
+			if (namespaces[i] != other[i])
+				return false;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 Symbol Symbol::getParentSymbol() const
 {
 	Array<Identifier> parentList;
@@ -163,6 +179,9 @@ juce::String Symbol::toString() const
 	if (s.isNotEmpty())
 		s << " ";
 		
+	for (auto ns : namespaces)
+		s << ns << "::";
+
 	for (int i = 0; i < fullIdList.size() - 1; i++)
 	{
 		s << fullIdList[i].toString() << ".";

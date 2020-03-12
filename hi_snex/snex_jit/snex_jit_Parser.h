@@ -137,7 +137,7 @@ public:
 
 		match(JitTokens::lessThan);
 
-		while (matchIfComplexType())
+		while (matchIfComplexType(true))
 		{
 			newType->addType(currentComplexType);
 			matchIf(JitTokens::comma);
@@ -153,8 +153,12 @@ public:
 		return newType;
 	}
 
-	bool matchIfComplexType()
+	bool matchIfComplexType(bool parseNamespace=false)
 	{
+		// use this whenever this call isn't preceded by a matchIfSimpleType() call...
+		if (parseNamespace)
+			parseNamespacePrefix();
+
 		if (currentType == JitTokens::identifier)
 		{
 			auto id = Identifier(currentValue.toString());
@@ -198,15 +202,48 @@ public:
 		return false;
 	}
 
+	bool parseNamespacePrefix()
+	{
+		currentNamespacePrefix = {};
+
+		if (currentType == JitTokens::identifier)
+		{
+			auto id = Identifier(currentValue.toString());
+
+			Array<Identifier> namespaces;
+
+			auto s = Symbol::createRootSymbol(id);
+
+			while (isNamespace(s))
+			{
+				parseIdentifier();
+				match(JitTokens::colon);
+				match(JitTokens::colon);
+
+				id = Identifier(currentValue.toString());
+
+				s = s.getChildSymbol(id);
+			}
+
+			currentNamespacePrefix = s.getParentSymbol();
+
+			return !currentNamespacePrefix.fullIdList.isEmpty();
+		}
+
+		return false;
+	}
+
 	bool matchIfSimpleType() override
 	{
+		parseNamespacePrefix();
+
 		if (currentType == JitTokens::identifier)
 		{
 			auto id = Identifier(currentValue.toString());
 
 			auto cs = getCurrentScopeStatement();
 
-			if (cs = cs->getScopedStatementForAlias(id))
+			if (cs = cs->getScopedStatementForAlias(id, currentNamespacePrefix.fullIdList))
 			{
 				if (auto ptr = cs->getAliasComplexType(id))
 					return false;
@@ -270,6 +307,7 @@ private:
 
 	WeakReference<Operations::ScopeStatementBase> currentScopeStatement;
 	ComplexType::Ptr currentComplexType;
+	Symbol currentNamespacePrefix;
 };
 
 

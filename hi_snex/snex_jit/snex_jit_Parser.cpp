@@ -194,6 +194,30 @@ BlockParser::StatementPtr BlockParser::parseStatementList()
 
 BlockParser::StatementPtr NewClassParser::parseStatement()
 {
+	if (matchIf(JitTokens::namespace_))
+	{
+		pushNamespace(parseIdentifier());
+		match(JitTokens::openBrace);
+
+		auto sb = new Operations::StatementBlock(location);
+
+		while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
+		{
+			sb->addStatement(parseStatement());
+		}
+
+		match(JitTokens::closeBrace);
+
+		return sb;
+
+	}
+	
+	if (matchIf(JitTokens::using_))
+	{
+		parseUsingAlias();
+		return new Operations::Noop(location);
+	}
+
 	if (matchIf(JitTokens::struct_))
 	{
 		return parseSubclass();
@@ -219,6 +243,8 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		match(JitTokens::semicolon);
 		return parseStatement();
 	}
+
+	parseNamespacePrefix();
 
 	if (matchIfSimpleType())
 	{
@@ -734,13 +760,13 @@ ComplexType::Ptr BlockParser::parseComplexType(const juce::String& token)
 
 		auto isConst = matchIf(JitTokens::const_);
 
-		if (matchIfComplexType())
-		{
-			t = TypeInfo(getCurrentComplexType(), isConst);
-		}
-		else if (matchIfSimpleType())
+		if (matchIfSimpleType())
 		{
 			t = TypeInfo(currentHnodeType, isConst);
+		}
+		else if (matchIfComplexType())
+		{
+			t = TypeInfo(getCurrentComplexType(), isConst);
 		}
 
 		newType = new DynType(t);
@@ -784,6 +810,10 @@ void BlockParser::parseUsingAlias()
 	}
 
 	match(JitTokens::semicolon);
+
+	s.namespaces.addArray(getCurrentNamespaceList());
+
+	DBG(s.toString());
 
 	getCurrentScopeStatement()->addAlias(s);
 }
