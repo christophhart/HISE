@@ -239,7 +239,7 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	{
 		currentHnodeType = matchType();
 
-		matchSymbol();
+		matchSymbol(compiler->namespaceHandler);
 		auto s = getCurrentSymbol(true);
 
 		match(JitTokens::assign_);
@@ -343,7 +343,7 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst
 	auto type = currentHnodeType;
 
 	clearSymbol();
-	matchSymbol();
+	matchSymbol(compiler->namespaceHandler);
 
 	auto s = getCurrentSymbol(true);
 
@@ -444,7 +444,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 BlockParser::StatementPtr NewClassParser::parseSubclass()
 {
-	matchSymbol();
+	matchSymbol(compiler->namespaceHandler);
 
 	auto classSymbol = getCurrentSymbol(true);
 
@@ -620,6 +620,8 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(boo
 {
 	jassert(getCurrentComplexType() != nullptr);
 
+	parseNamespacePrefix(compiler->namespaceHandler);
+
 	Array<NamespacedIdentifier> ids;
 
 	auto typePtr = getCurrentComplexType();
@@ -682,7 +684,7 @@ ComplexType::Ptr BlockParser::parseComplexType(const juce::String& token)
 
 		if (currentType == JitTokens::identifier)
 		{
-			matchSymbol();
+			matchSymbol(compiler->namespaceHandler);
 			auto classSymbol = getCurrentSymbol(false);
 
 			auto cs = getCurrentScopeStatement();
@@ -787,7 +789,9 @@ ComplexType::Ptr BlockParser::parseComplexType(const juce::String& token)
 
 void BlockParser::parseUsingAlias()
 {
-	auto s = Symbol::createRootSymbol(parseIdentifier());
+	auto nId = compiler->namespaceHandler.getCurrentNamespaceIdentifier().withId(parseIdentifier());
+
+	auto s =  Symbol::createRootSymbol(nId);
 
 	match(JitTokens::assign_);
 

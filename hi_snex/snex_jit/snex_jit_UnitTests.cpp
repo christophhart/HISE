@@ -857,10 +857,6 @@ public:
 
 	void runTest() override
 	{
-		//runTestFiles("namespaced_var", false);
-		//return;
-		//optimizations = { OptimizationIds::Inlining };
-		
 		testOptimizations();
 		testInlining();
 

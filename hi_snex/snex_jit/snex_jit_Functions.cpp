@@ -49,7 +49,7 @@ bool Symbol::operator==(const Symbol& other) const
 				return false;
 		}
 
-		return true;
+		return other.id == id;
 	}
 
 	return false;
@@ -111,12 +111,21 @@ Symbol Symbol::getParentSymbol() const
 
 Symbol Symbol::getChildSymbol(const NamespacedIdentifier& childId, const TypeInfo& t) const
 {
-	
-	
+	if (!id.isValid())
+	{
+		auto s = createRootSymbol(childId);
+
+		if(t.isValid())
+			s.typeInfo = t;
+
+		return s;
+	}
 
 	auto c = *this;
 
-	c.fullIdList.add(c.id.id);
+	if(c.id.id.isValid())
+		c.fullIdList.add(c.id.id);
+
 	c.id = childId;
 
 	if(t.isValid())

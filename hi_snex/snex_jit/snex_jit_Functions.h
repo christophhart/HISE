@@ -79,7 +79,6 @@ struct NamespacedIdentifier
 
 	Identifier getIdentifier() const
 	{
-		jassert(namespaces.isEmpty());
 		return id;
 	}
 

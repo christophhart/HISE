@@ -20,7 +20,7 @@ namespace Objects
 }
 
 
-Objects::MyObject s;
+MyObject s;
 
 int main(int input)
 {

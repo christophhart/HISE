@@ -208,14 +208,14 @@ struct ParserHelpers
 		bool matchesAny(TokenType t1, TokenType t2) const { return currentType == t1 || currentType == t2; }
 		bool matchesAny(TokenType t1, TokenType t2, TokenType t3) const { return matchesAny(t1, t2) || currentType == t3; }
 
-		void matchSymbol()
+		void matchSymbol(NamespaceHandler& namespaceHandler)
 		{
 			if (currentType != JitTokens::identifier)
 				location.throwError("Expected symbol");
 
 			clearSymbol();
+			parseNamespacePrefix(namespaceHandler);
 			
-
 			bool repeat = true;
 
 			while (currentType == JitTokens::identifier && repeat)
@@ -353,10 +353,12 @@ struct ParserHelpers
 
 				currentNamespacePrefix.pop();
 
-				return currentNamespacePrefix.isValid();
+				if (currentNamespacePrefix.isValid())
+					return true;
 			}
 
-			return false;
+			currentNamespacePrefix = nHandler.getCurrentNamespaceIdentifier();
+			return currentNamespacePrefix.isValid();
 		}
 
 		virtual Types::ID matchType()

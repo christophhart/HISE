@@ -230,6 +230,9 @@ struct Operations::StatementBlock : public Expression,
 
 	BaseScope* createOrGetBlockScope(BaseScope* parent)
 	{
+		if (parent->getScopeType() == BaseScope::Class)
+			return parent;
+
 		if (blockScope == nullptr)
 			blockScope = new RegisterScope(parent, location.createAnonymousScopeId());
 
@@ -2277,8 +2280,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 
 		for (auto id : ids)
 		{
-			Symbol s;
-			s.id = id;
+			auto s = Symbol::createRootSymbol(id);
 			s.typeInfo = getTypeInfo();
 
 			symbols.add(s);
