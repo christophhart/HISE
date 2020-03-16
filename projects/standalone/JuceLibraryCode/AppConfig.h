@@ -106,7 +106,7 @@
 #endif
 
 #ifndef    USE_IPP
- #define   USE_IPP 0
+ #define   USE_IPP 1
 #endif
 
 #ifndef    USE_VDSP_FFT
@@ -158,7 +158,7 @@
 #endif
 
 #ifndef    HISE_ENABLE_EXPANSIONS
- //#define HISE_ENABLE_EXPANSIONS 0
+ #define   HISE_ENABLE_EXPANSIONS 1
 #endif
 
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS
@@ -166,7 +166,7 @@
 #endif
 
 #ifndef    HISE_ENABLE_MIDI_INPUT_FOR_FX
- //#define HISE_ENABLE_MIDI_INPUT_FOR_FX 0
+ #define   HISE_ENABLE_MIDI_INPUT_FOR_FX 1
 #endif
 
 #ifndef    ENABLE_ALL_PEAK_METERS
