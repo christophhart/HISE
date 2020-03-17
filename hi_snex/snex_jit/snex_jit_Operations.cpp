@@ -79,12 +79,26 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		try
 		{
-			FunctionParser p(compiler, id, *this);
+			FunctionParser p(compiler, *this);
 
-			BlockParser::ScopedScopeStatementSetter svs(&p, findParentStatementOfType<ScopeStatementBase>(this));
+			auto ssb = findParentStatementOfType<ScopeStatementBase>(this);
+
+			BlockParser::ScopedScopeStatementSetter svs(&p, ssb);
 
 			p.currentScope = functionScope;
-			statements = p.parseStatementList();
+
+			compiler->namespaceHandler.pushNamespace(id.id.getIdentifier());
+
+			auto fNamespace = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+
+			for (auto arg : classData->args)
+			{
+				compiler->namespaceHandler.addSymbol(fNamespace.getChildId(arg.id.id), arg.typeInfo, NamespaceHandler::Variable);
+			}
+
+			statements = p.parseStatementList(fNamespace, false);
+
+			compiler->namespaceHandler.popNamespace();
 
 			auto sTree = dynamic_cast<SyntaxTree*>(statements.get());
 
@@ -126,7 +140,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 					if (d->object != nullptr)
 					{
-						auto thisSymbol = Symbol::createRootSymbol("this");
+						auto thisSymbol = Symbol("this");
 						auto e = d->object->clone(d->location);
 						cs->addInlinedParameter(-1, thisSymbol, dynamic_cast<Operations::Expression*>(e.get()));
 
@@ -156,8 +170,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 					for (int i = 0; i < fc->getNumArguments(); i++)
 					{
-						auto pVarSymbol = Symbol::createRootSymbol(classDataCopy.args[i].id);
-						pVarSymbol.setTypeInfo(classDataCopy.args[i].typeInfo);
+						auto pVarSymbol = classDataCopy.args[i];
 
 						Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
 
@@ -296,17 +309,15 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			replaceInParent(n);
 			n->process(compiler, scope);
 			
-
-			
 			return;
 		}
 
 		if (auto f = getFunctionClassForParentSymbol(scope))
 		{
-			if (f->hasConstant(id))
+			if (f->hasConstant(id.id))
 			{
-				id.constExprValue = f->getConstantValue(id);
-				variableScope = scope->getRootClassScope();
+				id.constExprValue = f->getConstantValue(id.id);
+				variableScope = scope;
 				return;
 			}
 		}
@@ -316,53 +327,36 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		{
 			if (dp->getDotParent()->getTypeInfo().isComplexType())
 			{
-				if (dp->getDotParent().get() != this)
+				if (auto st = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
 				{
-					//
+					jassert(!id.resolved);
 
-					objectExpression = dp->getDotParent();
-
-					if (objectExpression.get() == this)
-						jassertfalse;
-
-					if (auto sType = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
-					{
-						id.typeInfo = sType->getMemberTypeInfo(id.id.getIdentifier());
-						auto byteSize = id.typeInfo.getRequiredByteSize();
-
-						if (byteSize == 0)
-							location.throwError("Can't deduce type size");
-
-						objectAdress = VariableStorage((int)(sType->getMemberOffset(id.id.getIdentifier())));
-						objectPtr = sType;
-						return;
-					}
-
-					
+					id = Symbol(st->id.getChildId(id.getName()), st->getMemberTypeInfo(id.getName()));
+					variableScope = scope;
+					objectAdress = VariableStorage((int)(st->getMemberOffset(id.id.getIdentifier())));
+					objectPtr = st;
+					return;
 				}
 			}
 		}
 
+
+		jassert(id.resolved);
+
 		if (isLocalDefinition)
 		{
 			variableScope = scope;
-
-			if (!variableScope->updateSymbol(id))
-				location.throwError("Can't update symbol" + id.toString());
 		}
-		else if (auto vScope = scope->getScopeForSymbol(id))
+		else if (auto vScope = scope->getScopeForSymbol(id.id))
 		{
-			if (!vScope->updateSymbol(id))
-				location.throwError("Can't update symbol " + id.toString());
-
 			if (auto fScope = dynamic_cast<FunctionScope*>(vScope))
 				parameterIndex = fScope->parameters.indexOf(id.id.getIdentifier());
 
 			variableScope = vScope;
 		}
-		else if (auto typePtr = scope->getRootData()->getComplexTypeForVariable(id))
+		else if (auto typePtr = compiler->namespaceHandler.getVariableType(id.id).getTypedIfComplexType<ComplexType>())
 		{
-			objectAdress = VariableStorage(scope->getRootData()->getDataPointer(id), typePtr->getRequiredByteSize());
+			objectAdress = VariableStorage(scope->getRootData()->getDataPointer(id.id), typePtr->getRequiredByteSize());
 			objectPtr = typePtr;
 
 			id.typeInfo = TypeInfo(typePtr, id.isConst());
@@ -494,9 +488,9 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			auto assignmentType = getWriteAccessType();
 			auto rd = scope->getRootClassScope()->rootData.get();
 
-			if (variableScope->getScopeType() == BaseScope::Class && rd->contains(id))
+			if (variableScope->getScopeType() == BaseScope::Class && rd->contains(id.id))
 			{
-				auto dataPointer = rd->getDataPointer(id);
+				auto dataPointer = rd->getDataPointer(id.id);
 
 				if (assignmentType != JitTokens::void_)
 				{
@@ -518,16 +512,6 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			}
 		}
 	}
-}
-
-bool Operations::VariableReference::isApiClass(BaseScope* s) const
-{
-	if (auto fc = getFunctionClassForSymbol(s))
-	{
-		return dynamic_cast<ComplexType*>(fc) == nullptr;
-	}
-    
-    return false;
 }
 
 void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
@@ -610,7 +594,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 
 			getTargetVariable()->isLocalDefinition = true;
-			scope->addVariable(getTargetVariable()->id);
+			
 		}
 
 		getSubExpr(1)->process(compiler, scope);
@@ -852,17 +836,14 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
+		// variadic types may have function with auto return types so we need to resolve them first...
 		if (function.returnType.getType() == Types::ID::Dynamic && objExpr != nullptr)
 		{
 			if (auto vt = objExpr->getTypeInfo().getTypedIfComplexType<VariadicTypeBase>())
 			{
 				FunctionClass::Ptr fc = vt->getFunctionClass();
-
 				Array<FunctionData> matches;
-
-				auto id = fc->getClassName().getChildSymbol(function.id);
-
-				fc->addMatchingFunctions(matches, id);
+				fc->addMatchingFunctions(matches, function.id);
 
 				if (matches.size() == 1)
 				{
@@ -893,7 +874,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			// Functions without parent
 
-			auto id = scope->getRootData()->getClassName().getChildSymbol(function.id);
+			auto id = scope->getRootData()->getClassName().getChildId(function.id.getIdentifier());
 
 			if (scope->getRootData()->hasFunction(id))
 			{
@@ -918,48 +899,40 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			{
 				ownedFc = fc.get();
 
-				auto id = fc->getClassName().getChildSymbol(function.id);
+				jassert(function.id.isExplicit());
+
+				auto id = fc->getClassName().getChildId(function.id.getIdentifier());
 				fc->addMatchingFunctions(possibleMatches, id);
 				callType = MemberFunction;
 				return;
 			}
 		}
 
-		if (auto pv = dynamic_cast<VariableReference*>(objExpr.get()))
+		if (auto ss = dynamic_cast<SymbolStatement*>(objExpr.get()))
 		{
-			auto pType = pv->getTypeInfo();
-			auto pNativeType = pType.getType();
+			auto symbol = ss->getSymbol();
 
-			if (pNativeType == Types::ID::Event || pNativeType == Types::ID::Block)
-			{
-				// substitute the parent id with the Message or Block API class to resolve the pointers
-				auto id = Symbol::createRootSymbol(pNativeType == Types::ID::Event ? "Message" : "Block").getChildSymbol(function.id, pType);
-
-				fc = scope->getRootData()->getSubFunctionClass(id.getParentSymbol());
-				fc->addMatchingFunctions(possibleMatches, id);
-				callType = NativeTypeCall;
-				return;
-			}
-
-			if (fc = scope->getRootData()->getSubFunctionClass(pv->id))
+			if (fc = scope->getRootData()->getSubFunctionClass(symbol.id))
 			{
 				// Function with registered parent object (either API class or JIT callable object)
 
-				auto id = fc->getClassName().getChildSymbol(function.id);
+				auto id = function.id;
 				fc->addMatchingFunctions(possibleMatches, id);
 
-				callType = pv->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
+				callType = ss->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
 				return;
 			}
-			if (scope->getGlobalScope()->hasFunction(pv->id))
+			if (scope->getGlobalScope()->hasFunction(symbol.id))
 			{
-				// Function with globally registered object (either API class or JIT callable object)
-				fc = scope->getGlobalScope()->getGlobalFunctionClass(pv->id.id);
+				jassert(function.id.isExplicit());
 
-				auto id = fc->getClassName().getChildSymbol(function.id);
+				// Function with globally registered object (either API class or JIT callable object)
+				fc = scope->getGlobalScope()->getGlobalFunctionClass(symbol.id);
+
+				auto id = fc->getClassName().getChildId(function.id.getIdentifier());
 				fc->addMatchingFunctions(possibleMatches, id);
 
-				callType = pv->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
+				callType = ss->isApiClass(scope) ? ApiFunction : ExternalObjectFunction;
 				return;
 			}
 		}
@@ -985,7 +958,9 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 				if (f.canBeInlined(true))
 				{
-					SyntaxTreeInlineData d(this);
+					auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
+
+					SyntaxTreeInlineData d(this, path);
 					d.object = objExpr;
 					
 					for (int i = 0; i < getNumArguments(); i++)

@@ -67,10 +67,7 @@ struct WrapType : public ComplexType
 struct SpanType : public ComplexType
 {
 	/** Creates a simple one-dimensional span. */
-	SpanType(Types::ID dataType, int size_);
-
-	/** Creates a SpanType with another ComplexType as element type. */
-	SpanType(ComplexType::Ptr childToBeOwned, int size_);
+	SpanType(const TypeInfo& dataType, int size_);
 
 	void finaliseAlignment() override;
 	size_t getRequiredByteSize() const override;
@@ -121,7 +118,7 @@ private:
 
 struct StructType : public ComplexType
 {
-	StructType(const Symbol& s);;
+	StructType(const NamespacedIdentifier& s);;
 
 	size_t getRequiredByteSize() const override;
 	size_t getRequiredAlignment() const override;
@@ -134,7 +131,23 @@ struct StructType : public ComplexType
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
 	
 	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList);
-	bool updateSymbol(Symbol& s) const;
+
+#if 0
+	bool updateSymbol(Symbol& s) const
+	{
+		for (auto m : memberData)
+		{
+			if (m->id == s.getName())
+			{
+				s.typeInfo = m->typeInfo;
+				return true;
+			}
+		}
+
+		return false;
+	}
+#endif
+
 	bool hasMember(const Identifier& id) const;
 	TypeInfo getMemberTypeInfo(const Identifier& id) const;
 	Types::ID getMemberDataType(const Identifier& id) const;
@@ -188,7 +201,7 @@ struct StructType : public ComplexType
 		memberFunctions.add(f);
 	}
 
-	Symbol id;
+	NamespacedIdentifier id;
 
 private:
 
@@ -245,7 +258,11 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VariadicTypeBase);
 };
 
-#define CREATE_SNEX_STRUCT(x) new StructType(Symbol::createRootSymbol(Identifier(#x)));
+
+
+
+
+#define CREATE_SNEX_STRUCT(x) new StructType(NamespacedIdentifier(#x));
 #define ADD_SNEX_STRUCT_MEMBER(structType, object, member) structType->addExternalMember(#member, object, object.member);
 #define ADD_SNEX_STRUCT_COMPLEX(structType, typePtr, object, member) structType->addExternalComplexMember(#member, typePtr, object, object.member);
 
@@ -254,6 +271,9 @@ private:
 #define ADD_INLINER(x, f) fc->addInliner(#x, [obj](InlineData* d_)f);
 
 #define SETUP_INLINER(X) auto d = d_->toAsmInlineData(); auto& cc = d->gen.cc; auto base = x86::ptr(PTR_REG_R(d->object)); auto type = Types::Helpers::getTypeFromTypeId<X>();
+
+
+
 
 }
 }

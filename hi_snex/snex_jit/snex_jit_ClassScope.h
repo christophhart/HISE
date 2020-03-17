@@ -42,27 +42,18 @@ class ClassScope : public BaseScope
 {
 public:
 
-	struct x
-	{
-		static int getX()
-		{
-			return 2;
-		}
-	};
-
-
 	DebugInformationBase* createDebugInformationForChild(const Identifier& id)
 	{
 		jassertfalse;
-		
 		return nullptr;
 	}
 
-
-	ClassScope(BaseScope* parent, const Symbol& id, ComplexType::Ptr typePtr_) :
+	ClassScope(BaseScope* parent, const NamespacedIdentifier& id, ComplexType::Ptr typePtr_) :
 		BaseScope(id, parent),
 		typePtr(typePtr_.get())
 	{
+		jassert(id.isValid() == (typePtr != nullptr));
+
 		if (auto gs = dynamic_cast<GlobalScope*>(parent))
 		{
 			gs->setCurrentClassScope(this);
@@ -74,7 +65,7 @@ public:
 		else
 			jassert(typePtr != nullptr);
 
-		if (id)
+		if (id.isValid())
 			scopeType = BaseScope::Class;
 
 		jassert(scopeType == BaseScope::Class);
@@ -95,9 +86,7 @@ public:
         BaseScope* c = this;
 
 		while (c->getParent()->getScopeType() != BaseScope::Global)
-		{
 			c = c->getParent();
-		}
 
 		auto rs = dynamic_cast<ClassScope*>(c);
 		jassert(rs != nullptr);
@@ -263,11 +252,15 @@ public:
 	bool hasVariable(const NamespacedIdentifier& id) const override
 	{
 		if (auto st = dynamic_cast<StructType*>(typePtr.get()))
-			return st->hasMember(id.getIdentifier());
+		{
+			if(st->id == id.getParent())
+				return st->hasMember(id.getIdentifier());
+		}
 
 		return BaseScope::hasVariable(id);
 	}
 
+#if 0
 	bool updateSymbol(Symbol& symbolToBeUpdated) override
 	{
 		if (auto st = dynamic_cast<StructType*>(typePtr.get()))
@@ -279,8 +272,7 @@ public:
 
 		return BaseScope::updateSymbol(symbolToBeUpdated);
 	}
-
-
+#endif
 
 	void createDebugInfo(OwnedArray<DebugInformationBase>& list)
 	{
@@ -368,15 +360,6 @@ public:
 		{
 			list.add(new ObjectDebugInformation(gs->getGlobalFunctionClass(NamespacedIdentifier("Console")), ApiHelpers::DebugObjectTypes::ApiCall));
 		}
-
-#if 0
-		for (auto f : functions)
-		{
-			list.add(new FunctionDebugInfo(f));
-		}
-		addRegisteredFunctionClasses(list);
-#endif
-
 
 		list.add(ManualDebugObject::create<BufferDummy>());
 	}

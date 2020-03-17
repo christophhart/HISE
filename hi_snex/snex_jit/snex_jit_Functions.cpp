@@ -38,176 +38,30 @@ using namespace juce;
 using namespace asmjit;
 
 
-
-bool Symbol::operator==(const Symbol& other) const
+snex::jit::Symbol Symbol::getParentSymbol(NamespaceHandler* handler) const
 {
-	if (other.fullIdList.size() == fullIdList.size())
+	auto p = id.getParent();
+
+	if (p.isValid())
 	{
-		for (int i = 0; i < fullIdList.size(); i++)
-		{
-			if (fullIdList[i] != other.fullIdList[i])
-				return false;
-		}
-
-		return other.id == id;
+		auto t = handler->getVariableType(id);
+		return Symbol(p, t);
 	}
-
-	return false;
+	else
+		return Symbol(Identifier());
 }
 
-
-Symbol Symbol::createRootSymbol(const Identifier& id)
+snex::jit::Symbol Symbol::getChildSymbol(const Identifier& childName, NamespaceHandler* handler) const
 {
-	return Symbol({ id }, Types::ID::Dynamic, true, false);
-}
-
-Symbol Symbol::createRootSymbol(const NamespacedIdentifier& id)
-{
-	Symbol s;
-	s.fullIdList.add(id.getIdentifier());
-	s.id = id;
-	return s;
-}
-
-Symbol::Symbol(const Array<Identifier>& list, Types::ID t_, bool isConst_, bool isRef_) :
-	fullIdList(list),
-	id(list.getLast()),
-	typeInfo(t_, isConst_, isRef_)
-{
-	debugName = toString().toStdString();
-}
-
-
-Symbol::Symbol()
-{
-	debugName = toString().toStdString();
-}
-
-Symbol::Symbol(const Array<Identifier>& ids, const TypeInfo& info):
-	fullIdList(ids),
-	id(ids.getLast()),
-	typeInfo(info)
-{
-	debugName = toString().toStdString();
-}
-
-bool Symbol::matchesIdAndType(const Symbol& other) const
-{
-	return other == *this;// && other.type == type;
-}
-
-Symbol Symbol::getParentSymbol() const
-{
-	Array<Identifier> parentList;
-
-	for (int i = 0; i < fullIdList.size() - 1; i++)
-		parentList.add(fullIdList[i]);
-
-	if (parentList.isEmpty())
-		return {};
-
-	return Symbol(parentList, typeInfo.getType(), true, false);
-}
-
-Symbol Symbol::getChildSymbol(const NamespacedIdentifier& childId, const TypeInfo& t) const
-{
-	if (!id.isValid())
-	{
-		auto s = createRootSymbol(childId);
-
-		if(t.isValid())
-			s.typeInfo = t;
-
-		return s;
-	}
-
-	auto c = *this;
-
-	if(c.id.id.isValid())
-		c.fullIdList.add(c.id.id);
-
-	c.id = childId;
-
-	if(t.isValid())
-		c.typeInfo = t;
-
-	return c;
-}
-
-Symbol Symbol::withParent(const Symbol& parent) const
-{
-	Array<Identifier> newList;
-
-	newList.addArray(parent.fullIdList);
-	newList.addArray(fullIdList);
-
-	return Symbol(newList, typeInfo);
-}
-
-Symbol Symbol::withType(const Types::ID type) const
-{
-	auto s = *this;
-	s.typeInfo = TypeInfo(type, isConst(), isReference());
-	return s;
-}
-
-Symbol Symbol::withComplexType(ComplexType::Ptr typePtr) const
-{
-	auto s = *this;
-	s.typeInfo = TypeInfo(typePtr, isConst());
-	return s;
-}
-
-Symbol Symbol::relocate(const Symbol& newParent) const
-{
-	return newParent.getChildSymbol(id, typeInfo);
-}
-
-bool Symbol::isParentOf(const Symbol& otherSymbol) const
-{
-	for (int i = 0; i < fullIdList.size(); i++)
-	{
-		if (otherSymbol.fullIdList[i] != fullIdList[i])
-			return false;
-	}
-
-	return true;
-}
-
-juce::String Symbol::toString() const
-{
-	if (!id.isValid())
-		return "undefined";
-
-	juce::String s;
-
-	s << typeInfo.toString();
-
-	if (s.isNotEmpty())
-		s << " ";
-		
-	for (int i = 0; i < fullIdList.size() - 1; i++)
-	{
-		s << fullIdList[i].toString() << ".";
-	}
-
-	s << id.toString();
-
-	return s;
+	auto cId = id.getChildId(childName);
+	auto t = handler->getVariableType(cId);
+	return Symbol(cId, t);
 }
 
 Symbol::operator bool() const
 {
-	return id.isValid();
+	return !id.isNull() && id.isValid();
 }
-
-Symbol Symbol::createIndexedSymbol(int index, Types::ID type)
-{
-	Identifier id(juce::String("s") + juce::String(index));
-
-	return Symbol::createRootSymbol(id).withType(type);
-}
-
 
 juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) const
 {
@@ -241,11 +95,7 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 
 	for (auto arg : args)
 	{
-		
 		s << arg.typeInfo.toString();
-
-		if (arg.isReference())
-			s << "&";
 
 		auto pName = parameterIds[index].toString();
 
@@ -329,9 +179,10 @@ bool FunctionData::matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID
 
 struct SyntaxTreeInlineData: public InlineData
 {
-	SyntaxTreeInlineData(Operations::Statement::Ptr e_):
+	SyntaxTreeInlineData(Operations::Statement::Ptr e_, const NamespacedIdentifier& path_):
 		expression(e_),
-		location(e_->location)
+		location(e_->location),
+		path(path_)
 	{
 
 	}
@@ -373,6 +224,7 @@ struct SyntaxTreeInlineData: public InlineData
 	Operations::Statement::Ptr target;
 	Operations::Statement::Ptr object;
 	ReferenceCountedArray<Operations::Expression> args;
+	NamespacedIdentifier path;
 };
 
 struct AsmInlineData: public InlineData
@@ -424,17 +276,17 @@ bool ComplexType::isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr
 }
 
 
-bool FunctionClass::hasFunction(const Symbol& s) const
+bool FunctionClass::hasFunction(const NamespacedIdentifier& s) const
 {
 	if (getClassName() == s)
 		return true;
 
-	auto parent = s.getParentSymbol();
+	auto parent = s.getParent();
 
 	if (parent == classSymbol)
 	{
 		for (auto f : functions)
-			if (f->id == s.id)
+			if (f->id == s)
 				return true;
 	}
 
@@ -449,14 +301,14 @@ bool FunctionClass::hasFunction(const Symbol& s) const
 
 
 
-bool FunctionClass::hasConstant(const Symbol& s) const
+bool FunctionClass::hasConstant(const NamespacedIdentifier& s) const
 {
-	auto parent = s.getParentSymbol();
+	auto parent = s.getParent();
 
 	if (parent == classSymbol)
 	{
 		for (auto& c : constants)
-			if (c.id == s.getName())
+			if (c.id == s.getIdentifier())
 				return true;
 	}
 
@@ -474,15 +326,15 @@ void FunctionClass::addFunctionConstant(const Identifier& constantId, VariableSt
 	constants.add({ constantId, value });
 }
 
-void FunctionClass::addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const
+void FunctionClass::addMatchingFunctions(Array<FunctionData>& matches, const NamespacedIdentifier& symbol) const
 {
-	auto parent = symbol.getParentSymbol();
+	auto parent = symbol.getParent();
 
 	if (parent == classSymbol)
 	{
 		for (auto f : functions)
 		{
-			if (f->id == symbol.id)
+			if (f->id == symbol)
 				matches.add(*f);
 		}
 	}
@@ -590,15 +442,15 @@ FunctionData FunctionClass::getSpecialFunction(SpecialSymbols s, TypeInfo return
 	return {};
 }
 
-snex::VariableStorage FunctionClass::getConstantValue(const Symbol& s) const
+snex::VariableStorage FunctionClass::getConstantValue(const NamespacedIdentifier& s) const
 {
-	auto parent = s.getParentSymbol();
+	auto parent = s.getParent();
 
 	if (parent == classSymbol)
 	{
 		for (auto& c : constants)
 		{
-			if (c.id == s.getName())
+			if (c.id == s.getIdentifier())
 				return c.value;
 		}
 	}

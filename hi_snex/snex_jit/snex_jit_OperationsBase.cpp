@@ -260,9 +260,9 @@ snex::jit::Operations::RegPtr Operations::Expression::getSubRegister(int index) 
 }
 
 
-SyntaxTree::SyntaxTree(ParserHelpers::CodeLocation l) :
+SyntaxTree::SyntaxTree(ParserHelpers::CodeLocation l, const NamespacedIdentifier& ns) :
 	Statement(l),
-	ScopeStatementBase()
+	ScopeStatementBase(ns)
 {
 }
 
@@ -281,7 +281,7 @@ bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 
 snex::jit::Operations::Statement::Ptr SyntaxTree::clone(ParserHelpers::CodeLocation l) const
 {
-	Statement::Ptr c = new Operations::StatementBlock(l);
+	Statement::Ptr c = new Operations::StatementBlock(l, getPath());
 	dynamic_cast<Operations::StatementBlock*>(c.get())->isInlinedFunction = true;
 
 	cloneChildren(c);
@@ -417,6 +417,11 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 		if (v->isClassVariable(s) && v->isFirstReference())
 			v->process(c, s);
 	}
+}
+
+Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Location l) const
+{
+	return new StatementBlock(l, l.createAnonymousScopeId(getPath()));
 }
 
 }

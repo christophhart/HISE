@@ -38,11 +38,12 @@ using namespace asmjit;
 
 GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 	FunctionClass({}),
-	BaseScope({}, nullptr, numVariables)
+	BaseScope({}, nullptr)
 {
 	bufferHandler = new BufferHandler();
 
 	objectClassesWithJitCallableFunctions.add(new ConsoleFunctions(this));
+	addFunctionClass(new MathFunctions());
 
 	jassert(scopeType == BaseScope::Global);
 }
@@ -58,7 +59,7 @@ void GlobalScope::registerObjectFunction(FunctionClass* objectClass)
 		jassertfalse;
 }
 
-void GlobalScope::deregisterObject(const Symbol& id)
+void GlobalScope::deregisterObject(const NamespacedIdentifier& id)
 {
 	bool somethingDone = false;
 
@@ -81,7 +82,22 @@ void GlobalScope::deregisterObject(const Symbol& id)
 	}
 }
 
-bool GlobalScope::hasFunction(const Symbol& symbol) const
+void GlobalScope::registerFunctionsToNamespaceHandler(NamespaceHandler& handler)
+{
+	handler.pushNamespace({});
+
+	for (auto of : objectClassesWithJitCallableFunctions)
+	{
+		handler.addSymbol(of->getClassName(), TypeInfo(Types::ID::Pointer, true), NamespaceHandler::StaticFunctionClass);
+	}
+
+	for (auto rc : registeredClasses)
+	{
+		handler.addSymbol(rc->getClassName(), TypeInfo(Types::ID::Pointer, true), NamespaceHandler::StaticFunctionClass);
+	}
+}
+
+bool GlobalScope::hasFunction(const NamespacedIdentifier& symbol) const
 {
 	for (auto of : objectClassesWithJitCallableFunctions)
 	{
@@ -89,10 +105,16 @@ bool GlobalScope::hasFunction(const Symbol& symbol) const
 			return true;
 	}
 
+	for (auto rc : registeredClasses)
+	{
+		if (rc->hasFunction(symbol))
+			return true;
+	}
+
 	return false;
 }
 
-void GlobalScope::addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const
+void GlobalScope::addMatchingFunctions(Array<FunctionData>& matches, const NamespacedIdentifier& symbol) const
 {
 	FunctionClass::addMatchingFunctions(matches, symbol);
 

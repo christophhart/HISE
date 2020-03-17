@@ -131,16 +131,17 @@ public:
 
 	juce::String getAssemblyCode();
 	juce::String dumpSyntaxTree() const;
+	juce::String dumpNamespaceTree() const;
 	juce::String getLastCompiledCode() { return lastCode; }
 
 	/** This registers an external object as complex type.
 
-	If you want to register multiple objects, consider using the ExternalTypeDatabase
-	helper class instead. 
-	*/
-	void registerExternalComplexType(ComplexType::Ptr t);
+	If a similar type already exists, it returns the pointer to this type object,
+	so make sure you use the return value of this function for further processing. */
+	ComplexType::Ptr registerExternalComplexType(ComplexType::Ptr t);
 
-	ComplexType::Ptr getComplexType(const Symbol& s);
+	ComplexType::Ptr getComplexType(const NamespacedIdentifier& s);
+
 
 	void registerVariadicType(VariadicSubType::Ptr p);
 

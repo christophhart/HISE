@@ -37,7 +37,7 @@ using namespace juce;
 using namespace asmjit;
 
 MathFunctions::MathFunctions() :
-	FunctionClass(Symbol::createRootSymbol("Math"))
+	FunctionClass(NamespacedIdentifier("Math"))
 {
 	addFunctionConstant("PI", hmath::PI);
 	addFunctionConstant("E", hmath::E);
@@ -303,28 +303,6 @@ MathFunctions::MathFunctions() :
 	});
 }
 
-MessageFunctions::MessageFunctions() :
-	FunctionClass(Symbol::createRootSymbol("Message"))
-{
-	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getNoteNumber, HiseEvent, "getNoteNumber");
-	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getVelocity, HiseEvent, "getVelocity");
-	HNODE_JIT_ADD_C_FUNCTION_1(int, Wrapper::getChannel, HiseEvent, "getChannel");
-	HNODE_JIT_ADD_C_FUNCTION_1(double, Wrapper::getFrequency, HiseEvent, "getFrequency");
-}
-
-BlockFunctions::BlockFunctions() :
-	FunctionClass(Symbol::createRootSymbol("Block"))
-{
-	HNODE_JIT_ADD_C_FUNCTION_2(float, Wrapper::getSample, block, int, "getSample");
-	setDescription("Returns the sample at the given index", { "internal", "sampleIndex" });
-	HNODE_JIT_ADD_C_FUNCTION_3(void, Wrapper::setSample, block, int, float, "setSample");
-	setDescription("Sets the sample at the given index", { "internal", "sampleIndex", "value" });
-
-	//HNODE_JIT_ADD_C_FUNCTION_1(AddressType, Wrapper::getWritePointer, block, "getWritePointer");
-	HNODE_JIT_ADD_C_FUNCTION_0(int, Wrapper::size, "size");
-	setDescription("returns the size of the buffer", { "internal" });
-}
-
 
 void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 {
@@ -371,26 +349,6 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 		addFunction(f);
 		setDescription("Dumps the current state of the class data", { });
 	}
-}
-
-void WrappedBufferBase::rightClickCallback(const MouseEvent& e, Component* c)
-{
-	auto* g = new Graph(true);
-
-	AudioSampleBuffer bf;
-	auto f = b.getData();
-
-	bf.setDataToReferTo(&f, 1, b.size());
-
-	g->setSize(300, 300);
-	g->setBuffer(bf);
-	g->setCurrentPosition(getCurrentPosition());
-
-
-	auto top = c->getTopLevelComponent();
-
-	CallOutBox::launchAsynchronously(g, {12, 12, 50, 50}, top);
-
 }
 
 }

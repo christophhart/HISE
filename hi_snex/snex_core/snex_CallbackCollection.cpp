@@ -243,7 +243,7 @@ ComplexType::Ptr snex::_ramp<T>::createComplexType(const Identifier& id)
 {
 	Type s;
 	
-	auto obj = new StructType(Symbol::createRootSymbol(Identifier(id)));
+	auto obj = new StructType(NamespacedIdentifier(id));
 
 	ADD_SNEX_STRUCT_MEMBER(obj, s, value);
 	ADD_SNEX_STRUCT_MEMBER(obj, s, targetValue);
@@ -390,7 +390,7 @@ ComplexType::Ptr snex::_ramp<T>::createComplexType(const Identifier& id)
 
 snex::jit::ComplexType::Ptr EventWrapper::createComplexType(const Identifier& id)
 {
-	auto obj = new StructType(Symbol::createRootSymbol(Identifier(id)));
+	auto obj = new StructType(NamespacedIdentifier(id));
 
 	HiseEvent e;
 	int* ptr = reinterpret_cast<int*>(&e);
@@ -491,11 +491,11 @@ struct ProcessSingleData
 
 	static void fillSignature(Compiler& c, FunctionData& d)
 	{
-		auto st = c.getComplexType(Symbol::createRootSymbol("span<float, 2"));
+		auto st = c.getComplexType(NamespacedIdentifier("span<float, 2"));
 
 		if (st == nullptr)
 		{
-			st = new SpanType(Types::ID::Float, 2);
+			st = new SpanType(TypeInfo(Types::ID::Float), 2);
 			c.registerExternalComplexType(st);
 		}
 
@@ -509,7 +509,7 @@ struct PrepareSpecs
 	{
 		PrepareSpecs obj;
 
-		auto st = new StructType(Symbol::createRootSymbol(id));
+		auto st = new StructType(NamespacedIdentifier(id));
 		ADD_SNEX_STRUCT_MEMBER(st, obj, sampleRate);
 		ADD_SNEX_STRUCT_MEMBER(st, obj, blockSize);
 		ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
@@ -528,7 +528,7 @@ struct PrepareData
 
 	static void fillSignature(Compiler& c, FunctionData& d)
 	{
-		auto prepareSpecId = Symbol::createRootSymbol("PrepareSpecs");
+		auto prepareSpecId = NamespacedIdentifier("PrepareSpecs");
 
 		auto st = dynamic_cast<StructType*>(c.getComplexType(prepareSpecId).get());
 
@@ -581,7 +581,7 @@ template <class FunctionType> struct VariadicFunctionInliner
 
 				if (FunctionClass::Ptr sfc = childType->getFunctionClass())
 				{
-					sfc->addMatchingFunctions(matches, sfc->getClassName().getChildSymbol(getId()));
+					sfc->addMatchingFunctions(matches, sfc->getClassName().getChildId(getId().id));
 
 					if (matches.size() == 1)
 					{
@@ -624,7 +624,7 @@ template <class FunctionType> struct VariadicFunctionInliner
 
 		if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(b))
 		{
-			ScopedPointer<Operations::StatementBlock> sb = new Operations::StatementBlock(d->location);
+			ScopedPointer<Operations::StatementBlock> sb = new Operations::StatementBlock(d->location, d->path);
 
 			for (int i = 0; i < vt->getNumSubTypes(); i++)
 			{
@@ -637,7 +637,9 @@ template <class FunctionType> struct VariadicFunctionInliner
 
 				FunctionClass::Ptr fc = type.getComplexType()->getFunctionClass();
 
-				auto id = fc->getClassName().getChildSymbol(getId());
+				auto id = fc->getClassName().getChildId(getId().getIdentifier());
+				TypeInfo t;
+				
 
 				Array<FunctionData> matches;
 				fc->addMatchingFunctions(matches, id);
@@ -648,8 +650,12 @@ template <class FunctionType> struct VariadicFunctionInliner
 					s << type.toString() << " does not have a method " << getId().toString();
 					return Result::fail(s);
 				}
+				if (matches.size() == 1)
+				{
+					t = matches.getFirst().returnType;
+				}
 
-				auto f = new Operations::FunctionCall(d->location, nullptr, id, {});
+				auto f = new Operations::FunctionCall(d->location, nullptr, Symbol(id, t), {});
 
 				Operations::Expression::Ptr obj = new Operations::MemoryReference(d->location, dynamic_cast<Operations::Expression*>(clonedBase.get()), type, offset);
 

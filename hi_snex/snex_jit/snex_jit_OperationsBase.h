@@ -352,60 +352,18 @@ public:
 
 	struct ScopeStatementBase
 	{
-		ScopeStatementBase() :
-			returnType(Types::ID::Dynamic)
+		ScopeStatementBase(const NamespacedIdentifier& id) :
+			returnType(Types::ID::Dynamic),
+			path(id)
 		{};
 
 		virtual ~ScopeStatementBase() {};
 
-		void addAlias(const Symbol& s)
-		{
-			aliases.add(s);
-		}
-
-		Types::ID getAliasNativeType(const NamespacedIdentifier& id) const
-		{
-			for (auto a : aliases)
-			{
-				if (a.id == id)
-					return a.typeInfo.getType();
-			}
-
-			return Types::ID::Void;
-		}
+		Statement::Ptr createChildBlock(Location l) const;
 
 		void cloneScopeProperties(ScopeStatementBase* newClone) const
 		{
 			newClone->returnType = returnType;
-			newClone->aliases.addArray(aliases);
-		}
-
-		ComplexType::Ptr getAliasComplexType(const NamespacedIdentifier& id) const
-		{
-			for (auto a : aliases)
-			{
-				if (a.id == id && a.typeInfo.isComplexType())
-					return a.typeInfo.getComplexType();
-			}
-
-			return nullptr;
-		}
-
-		ScopeStatementBase* getScopedStatementForAlias(const NamespacedIdentifier& id)
-		{
-			for (auto a : aliases)
-			{
-				if (a.id == id)
-				{
-					return this;
-				}
-					
-			}
-
-			if (parentScopeStatement != nullptr)
-				return parentScopeStatement->getScopedStatementForAlias(id);
-
-			return nullptr;
 		}
 
 		void allocateReturnRegister(BaseCompiler* c, BaseScope* s)
@@ -454,6 +412,8 @@ public:
 			return returnType.getType() != Types::ID::Dynamic;
 		}
 
+		NamespacedIdentifier getPath() const { return path; }
+
 	protected:
 
 		RegPtr returnRegister;
@@ -461,8 +421,8 @@ public:
 
 	private:
 
+		NamespacedIdentifier path;
 		WeakReference<ScopeStatementBase> parentScopeStatement;
-		Array<Symbol> aliases;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScopeStatementBase);
 	};
@@ -488,6 +448,27 @@ public:
 	struct SymbolStatement
 	{
 		virtual ~SymbolStatement() {}
+
+		bool isApiClass(BaseScope* s) const
+		{
+			if (auto fc = getFunctionClassForSymbol(s))
+			{
+				return dynamic_cast<ComplexType*>(fc) == nullptr;
+			}
+
+			return false;
+		}
+
+		FunctionClass* getFunctionClassForSymbol(BaseScope* scope) const
+		{
+			if (auto gfc = scope->getGlobalScope()->getGlobalFunctionClass(getSymbol().id))
+				return gfc;
+
+			if (scope->getScopeType() == BaseScope::Global)
+				return nullptr;
+
+			return scope->getRootData()->getSubFunctionClass(getSymbol().id);
+		}
 
 		virtual Symbol getSymbol() const = 0;
 	};
@@ -532,7 +513,7 @@ class SyntaxTree : public Operations::Statement,
 {
 public:
 
-	SyntaxTree(ParserHelpers::CodeLocation l);
+	SyntaxTree(ParserHelpers::CodeLocation l, const NamespacedIdentifier& ns);
 	TypeInfo getTypeInfo() const { return returnType; }
 
 	

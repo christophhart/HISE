@@ -47,7 +47,7 @@ public:
 
 	using Ptr = ReferenceCountedObjectPtr<JitCompiledFunctionClass>;
 
-	JitCompiledFunctionClass(BaseScope* parentScope, const Symbol& classInstanceId);
+	JitCompiledFunctionClass(BaseScope* parentScope, const NamespacedIdentifier& classInstanceId);
 
 	~JitCompiledFunctionClass();
 

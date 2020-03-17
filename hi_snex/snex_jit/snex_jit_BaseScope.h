@@ -54,8 +54,6 @@ class BaseScope
 {
 public:
 
-	using Symbol = snex::jit::Symbol;
-
 	enum ScopeType
 	{
 		Global,		// The global memory pool
@@ -64,30 +62,13 @@ public:
 		Anonymous	// the variables of the current block
 	};
 
-	struct Constant
-	{
-		Symbol id;
-		const VariableStorage v;
-	};
-
-	struct ChildClass
-	{
-		juce::String::CharPointerType classStart;
-		juce::String::CharPointerType wholeProgram;
-		Identifier id;
-		int length;
-		int typeIndex;
-	};
-
 	ScopeType getScopeType() const;;
 
 	GlobalScope* getGlobalScope();
 
 	ClassScope* getRootClassScope() const;
 
-	Symbol getScopeSymbol() const { return scopeId; }
-
-	bool addConstant(const NamespacedIdentifier& id, VariableStorage v);
+	NamespacedIdentifier getScopeSymbol() const { return scopeId; }
 
 	BaseScope* getParent();
 
@@ -106,11 +87,11 @@ public:
 
 public:
 
-	BaseScope(const Symbol& s, BaseScope* parent_ = nullptr, int numVariables = 1024);;
+	BaseScope(const NamespacedIdentifier& s, BaseScope* parent_ = nullptr);;
 
 	virtual ~BaseScope();;
 
-	BaseScope* getScopeForSymbol(const Symbol& s);
+	BaseScope* getScopeForSymbol( const NamespacedIdentifier& s);
 
 	/** Override this, allocate the variable and return true if success. */
 	virtual bool addVariable(const Symbol& s)
@@ -122,48 +103,17 @@ public:
 	virtual bool hasVariable(const NamespacedIdentifier& id) const;
 
 	/** Override this and update the symbol type and constness. */
-	virtual bool updateSymbol(Symbol& symbolToBeUpdated);
+	//virtual bool updateSymbol(Symbol& symbolToBeUpdated);
+
 
 	Array<Symbol> getAllVariables() const;
 
-#if 0
-	void getChildClassCode(const Identifier& classId, juce::String::CharPointerType& start, juce::String::CharPointerType& wholeProgram, int& length) const
-	{
-		if (!hasChildClass(classId))
-			jassertfalse;
-
-		for (auto& c : childClasses)
-		{
-			if (c.id == classId)
-			{
-				start = c.classStart;
-				wholeProgram = c.wholeProgram;
-				length = c.length;
-				return;
-			}
-		}
-	}
-
-	bool hasChildClass(const Identifier& classId) const
-	{
-		return classTypes.getTypeIndex(classId) != -1;
-	}
-
-	void registerClass(const Identifier& classId, const juce::String::CharPointerType& start, const juce::String::CharPointerType& whole, int length)
-	{
-		if (hasChildClass(classId))
-			throw juce::String("Already defined");
-
-		childClasses.add({ start, whole, classId,  length, classTypes.registerType(classId) });
-	}
-#endif
-
 	bool isClassObjectScope() const
 	{
-		return scopeType == Class && scopeId;
+		return scopeType == Class && scopeId.isValid();
 	}
 
-	BaseScope* getChildScope(const Symbol& s) const
+	BaseScope* getChildScope(const NamespacedIdentifier& s) const
 	{
 		if (s == scopeId)
 			return const_cast<BaseScope*>(this);
@@ -184,26 +134,19 @@ public:
 
 protected:
 
-	Symbol scopeId;
+	NamespacedIdentifier scopeId;
 	WeakReference<BaseScope> parent;
 	VariableStorage empty;
 
-	//Array<ChildClass> childClasses;
-
 	ScopeType scopeType;
-	Array<Constant> constants;
 
-	//ReferenceCountedArray<Reference> referencedVariables;
-
-	//Array<InternalReference> allocatedVariables;
-
-	private:
+private:
 
 	Array<WeakReference<BaseScope>> childScopes;
 
-	BaseScope* getScopeForSymbolInternal(const Symbol& s);
+	BaseScope* getScopeForSymbolInternal(const NamespacedIdentifier& s);
 	
-	bool hasSymbol(const Symbol& s);
+	bool hasSymbol(const NamespacedIdentifier& s);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BaseScope);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BaseScope);
@@ -241,19 +184,7 @@ public:
 
 	RootClassData();
 
-	bool updateSymbol(Symbol& toBeUpdated)
-	{
-		for (const auto& td : *this)
-		{
-			if (td.s == toBeUpdated)
-			{
-				toBeUpdated = td.s;
-				return true;
-			}
-		}
-
-		return false;
-	}
+	
 
 	void enlargeAllocatedSize(const TypeInfo& t)
 	{
@@ -292,31 +223,16 @@ public:
 		return false;
 	}
 
-	
-
-	bool contains(const Symbol& s) const
+	bool contains(const NamespacedIdentifier& s) const
 	{
 		for (const auto& ts : symbolTable)
-			if (ts.s == s)
+			if (ts.s.id == s)
 				return true;
 
 		return false;
 	}
 
-	Types::ID getTypeForVariable(const Symbol& s) const
-	{
-		for (const auto& ts : symbolTable)
-		{
-			if (ts.s == s)
-				return ts.s.typeInfo.getType();
-		}
-
-		return Types::ID::Dynamic;
-	}
-
-	bool checkSubClassMembers(const TableEntry& ts, const Symbol& s, const std::function<void(StructType* sc, const Identifier& id)>& f) const;
-
-	ComplexType::Ptr getComplexTypeForVariable(const Symbol& s) const;
+	bool checkSubClassMembers(const TableEntry& ts, const NamespacedIdentifier& s, const std::function<void(StructType* sc, const Identifier& id)>& f) const;
 
 	Array<Symbol> getAllVariables() const
 	{
@@ -330,16 +246,15 @@ public:
 
 	Result initSubClassMembers(ComplexType::Ptr type, const Identifier& memberId, InitialiserList::Ptr initList);
 
-
 	Result initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues);
 
-	void* getDataPointer(const Symbol& s) const;
+	void* getDataPointer(const NamespacedIdentifier& s) const;
 
-	VariableStorage getDataCopy(const Symbol& s) const
+	VariableStorage getDataCopy(const NamespacedIdentifier& s) const
 	{
 		for (const auto& ts : symbolTable)
 		{
-			if (ts.s == s)
+			if (ts.s.id == s)
 			{
 				switch (ts.s.typeInfo.getType())
 				{
@@ -363,7 +278,7 @@ public:
 		// This is the last time you'll get the chance to set the type...
 		jassert(s.typeInfo.getType() != Types::ID::Dynamic);
 
-		if (contains(s))
+		if (contains(s.id))
 			return Result::fail(s.toString() + "already exists");
 
 		auto requiredAlignment = s.typeInfo.getRequiredAlignment();
@@ -389,8 +304,6 @@ public:
 	HeapBlock<char> data;
 
 private:
-
-	
 
 	TableEntry* begin() const
 	{

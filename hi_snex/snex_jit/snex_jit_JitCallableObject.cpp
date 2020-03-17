@@ -36,7 +36,7 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-JitCallableObject::JitCallableObject(const Symbol& id) :
+JitCallableObject::JitCallableObject(const NamespacedIdentifier& id) :
 	FunctionClass(id)
 {
 

@@ -54,7 +54,8 @@ void WrapType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, voi
 
 snex::jit::FunctionClass* WrapType::getFunctionClass()
 {
-	auto wrapOperators = new FunctionClass(Symbol::createRootSymbol("WrapOperators"));
+	auto wId = NamespacedIdentifier("WrapOperators");
+	auto wrapOperators = new FunctionClass(wId);
 
 	auto wrapSize = size;
 
@@ -62,7 +63,7 @@ snex::jit::FunctionClass* WrapType::getFunctionClass()
 	assignOperator->returnType = TypeInfo(this);
 	assignOperator->addArgs("current", TypeInfo(this));
 	assignOperator->addArgs("newValue", TypeInfo(Types::ID::Integer));
-	assignOperator->id = wrapOperators->getSpecialSymbol(FunctionClass::AssignOverload);
+	assignOperator->id = wId.getChildId(wrapOperators->getSpecialSymbol(FunctionClass::AssignOverload));
 
 	auto assign_asm = [wrapSize](InlineData* d_)
 	{
@@ -113,7 +114,7 @@ snex::jit::FunctionClass* WrapType::getFunctionClass()
 	wrapOperators->addFunction(assignOperator);
 
 	auto castOperator = new FunctionData();
-	castOperator->id = wrapOperators->getSpecialSymbol(FunctionClass::NativeTypeCast);
+	castOperator->id = wId.getChildId(wrapOperators->getSpecialSymbol(FunctionClass::NativeTypeCast));
 	castOperator->returnType = TypeInfo(Types::ID::Integer);
 	castOperator->inliner = new Inliner(castOperator->id, [](InlineData* b)
 	{
@@ -175,21 +176,14 @@ bool WrapType::isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr co
 	return ComplexType::isValidCastTarget(nativeTargetType, complexTargetType);
 }
 
-SpanType::SpanType(Types::ID dataType, int size_) :
-	elementType(TypeInfo(dataType)),
+SpanType::SpanType(const TypeInfo& t, int size_) :
+	elementType(t),
 	size(size_)
 {
-	finaliseAlignment();
+	if(!t.isComplexType())
+		finaliseAlignment();
 }
 
-
-
-SpanType::SpanType(ComplexType::Ptr childToBeOwned, int size_) :
-	elementType(TypeInfo(childToBeOwned)),
-	size(size_)
-{
-
-}
 
 bool SpanType::isSimdType(const TypeInfo& t)
 {
@@ -235,7 +229,8 @@ bool SpanType::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* da
 
 snex::jit::FunctionClass* SpanType::getFunctionClass()
 {
-	auto st = new FunctionClass(Symbol::createRootSymbol("SpanFunctions"));
+	NamespacedIdentifier sId("SpanFunctions");
+	auto st = new FunctionClass(sId);
 
 	auto byteSize = getElementSize();
 	int numElements = getNumElements();
@@ -466,27 +461,13 @@ void DynType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void
 
 
 
-struct AssignOperator
-{
-	static FunctionData* create(ComplexType::Ptr p)
-	{
-		auto f = new FunctionData();
-		f->id = FunctionClass::getSpecialSymbol(FunctionClass::AssignOverload);
-		f->returnType = TypeInfo(p);
-		f->addArgs("current", TypeInfo(p));
-		f->addArgs("target", TypeInfo(Types::ID::Dynamic));
-		return f;
-	}
-
-	
-};
 
 snex::jit::FunctionClass* DynType::getFunctionClass()
 {
-	auto dynOperators = new FunctionClass(Symbol::createRootSymbol("DynFunctions"));
+	auto dynOperators = new FunctionClass(NamespacedIdentifier("DynFunctions"));
 
-	auto assignFunction = AssignOperator::create(this);
-	assignFunction->inliner = new Inliner(assignFunction->id, [](InlineData* d_)
+	auto assignFunction = dynOperators->createSpecialFunction(FunctionClass::AssignOverload);
+	assignFunction.inliner = new Inliner(assignFunction.id, [](InlineData* d_)
 	{
 		auto d = d_->toAsmInlineData();
 
@@ -530,10 +511,8 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 		}
 	}, {});
 
-	dynOperators->addFunction(assignFunction);
-
 	auto sizeFunction = new FunctionData();
-	sizeFunction->id = NamespacedIdentifier("size");
+	sizeFunction->id = dynOperators->getClassName().getChildId("size");
 	sizeFunction->returnType = TypeInfo(Types::ID::Integer);
 	
 	sizeFunction->inliner = new Inliner(sizeFunction->id, [](InlineData* d_)
@@ -686,7 +665,7 @@ size_t VariadicTypeBase::getOffsetForSubType(int index) const
 
 snex::jit::FunctionClass* VariadicTypeBase::getFunctionClass()
 {
-	auto fc = new FunctionClass(Symbol::createRootSymbol(type->variadicId));
+	auto fc = new FunctionClass(type->variadicId);
 
 	for (const auto& f : type->functions)
 	{
@@ -800,7 +779,7 @@ snex::jit::ComplexType::Ptr VariadicTypeBase::getSubType(int index) const
 	return types[index];
 }
 
-StructType::StructType(const Symbol& s) :
+StructType::StructType(const NamespacedIdentifier& s) :
 	id(s)
 {
 
@@ -818,7 +797,7 @@ size_t StructType::getRequiredByteSize() const
 
 juce::String StructType::toStringInternal() const
 {
-	return id.id.toString();
+	return id.toString();
 }
 
 snex::jit::FunctionClass* StructType::getFunctionClass()
@@ -904,7 +883,7 @@ void StructType::dumpTable(juce::String& s, int& intendLevel, void* dataStart, v
 		}
 		else
 		{
-			Types::Helpers::dumpNativeData(s, intendLevel, id.getChildSymbol(NamespacedIdentifier(m->id)).toString(), dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id), m->typeInfo.getRequiredByteSize(), m->typeInfo.getType());
+			Types::Helpers::dumpNativeData(s, intendLevel, id.getChildId(m->id).toString(), dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id), m->typeInfo.getRequiredByteSize(), m->typeInfo.getType());
 		}
 	}
 	intendLevel--;
@@ -936,20 +915,6 @@ bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defa
 		if (m->id == id)
 		{
 			m->defaultList = defaultList;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool StructType::updateSymbol(Symbol& s) const
-{
-	for (auto m : memberData)
-	{
-		if (m->id == s.getName())
-		{
-			s.typeInfo = m->typeInfo;
 			return true;
 		}
 	}

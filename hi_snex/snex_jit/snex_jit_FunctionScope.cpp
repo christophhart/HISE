@@ -36,6 +36,7 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
+#if 0
 bool RegisterScope::hasVariable(const NamespacedIdentifier& id) const
 {
 	for (auto v : localVariables)
@@ -44,6 +45,7 @@ bool RegisterScope::hasVariable(const NamespacedIdentifier& id) const
 
 	return false;
 }
+#endif
 
 }
 }

@@ -41,6 +41,7 @@ using String = juce::String;
 
 
 #include "snex_jit/snex_jit_Functions.cpp"
+#include "snex_jit/snex_jit_NamespaceHandler.cpp"
 #include "snex_jit/snex_jit_ComplexTypeLibrary.cpp"
 #include "snex_jit/snex_jit_ApiClasses.cpp"
 #include "snex_jit/snex_jit_AssemblyRegister.cpp"

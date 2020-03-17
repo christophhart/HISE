@@ -99,26 +99,6 @@ using namespace asmjit;
 		}
 	}
 
-	VariadicSubType::Ptr BaseCompiler::getVariadicTypeForId(const NamespacedIdentifier& id) const
-	{
-		for (auto vt : variadicTypes)
-			if (vt->variadicId == id)
-				return vt;
-
-		return nullptr;
-	}
-
-	bool BaseCompiler::isTemplatedMethod(const NamespacedIdentifier& functionId) const
-	{
-		for (auto vt : variadicTypes)
-		{
-			for (const auto& f : vt->functions)
-				if (f.id == functionId)
-					return true;
-		}
-
-		return false;
-	}
 
 	void BaseCompiler::executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement)
     {
@@ -146,10 +126,5 @@ using namespace asmjit;
 			st->process(this, scope);
     }
 
-	BaseCompiler::~BaseCompiler()
-	{
-		complexTypes.clear();
-		variadicTypes.clear();
-	}
 }
 }

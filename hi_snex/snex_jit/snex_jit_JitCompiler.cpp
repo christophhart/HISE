@@ -40,6 +40,9 @@ using namespace asmjit;
 Compiler::Compiler(GlobalScope& memoryPool)
 {
 	compiler = new ClassCompiler(&memoryPool);
+
+	memoryPool.registerFunctionsToNamespaceHandler(compiler->namespaceHandler);
+
 }
 
 Compiler::~Compiler()
@@ -65,28 +68,25 @@ juce::String Compiler::dumpSyntaxTree() const
 	return {};
 }
 
-void Compiler::registerExternalComplexType(ComplexType::Ptr t)
+juce::String Compiler::dumpNamespaceTree() const
 {
-	compiler->complexTypes.add(t);
+	return compiler->namespaceHandler.dump();
 }
 
-ComplexType::Ptr Compiler::getComplexType(const Symbol& s)
+ComplexType::Ptr Compiler::registerExternalComplexType(ComplexType::Ptr t)
 {
-	for (auto c : compiler->complexTypes)
-	{
-		auto thisId =  NamespacedIdentifier::fromString(c->toString());
-		auto otherId = s.id;
+	return compiler->namespaceHandler.registerComplexTypeOrReturnExisting(t);
+}
 
-		if (thisId == otherId)
-			return c;
-	}
-
+ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s)
+{
+	return compiler->namespaceHandler.getComplexType(s);
 	return nullptr;
 }
 
 void Compiler::registerVariadicType(VariadicSubType::Ptr p)
 {
-	compiler->variadicTypes.add(p);
+	compiler->namespaceHandler.addVariadicType(p);
 }
 
 juce::Result Compiler::getCompileResult()

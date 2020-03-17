@@ -41,8 +41,8 @@ class FunctionParser : public BlockParser
 {
 public:
 
-	FunctionParser(BaseCompiler* c, const Symbol& scopeRootSymbol, Operations::Function& f) :
-		BlockParser(c, f.code, f.location.program, f.codeLength, scopeRootSymbol)
+	FunctionParser(BaseCompiler* c, Operations::Function& f) :
+		BlockParser(c, f.code, f.location.program, f.codeLength)
 	{};
     
     virtual ~FunctionParser() {}
@@ -51,13 +51,11 @@ public:
 	StatementPtr parseStatement();
 	StatementPtr parseAssignment();
 	StatementPtr parseReturnStatement();
-	StatementPtr parseVariableDefinition(bool isConst, ComplexType::Ptr complexType=nullptr);
+	StatementPtr parseVariableDefinition();
 	StatementPtr parseLoopStatement();
 	StatementPtr parseIfStatement();
 	
 	void finaliseSyntaxTree(SyntaxTree* tree) override;
-
-	
 };
 
 

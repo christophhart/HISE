@@ -167,6 +167,7 @@ public:
 				DBG("code: ");
 				DBG(compiler->getLastCompiledCode());
 				DBG(compiler->dumpSyntaxTree());
+				DBG(compiler->dumpNamespaceTree());
 				DBG("assembly: ");
 				DBG(compiler->getAssemblyCode());
 				DBG("Data dump before call:");
@@ -303,6 +304,8 @@ public:
 			DBG("code");
 			DBG(code);
 			DBG(c.dumpSyntaxTree());
+			DBG("symbol tree");
+			DBG(c.dumpNamespaceTree());
 			DBG("assembly");
 			DBG(c.getAssemblyCode());
 			DBG("data dump");
@@ -435,9 +438,7 @@ private:
 						throwError("Can't parse argument type " + a);
 
 					Identifier id(juce::String("p") + juce::String(index));
-					Symbol s({ id }, type, false, false);
-
-					function.args.add(s);
+					function.addArgs(id, TypeInfo(type));
 				}
 			}
 			{
@@ -857,6 +858,9 @@ public:
 
 	void runTest() override
 	{
+		runTestFiles("zero2fastramp");
+		runTestFiles();
+		//return;
 		testOptimizations();
 		testInlining();
 
@@ -1697,7 +1701,10 @@ private:
 			ADD_CODE_LINE("int test(int input) { return x; }");
 
 			CREATE_TYPED_TEST(code);
-			test->memory.addConstant(NamespacedIdentifier("BLOCK_SIZE"), VariableStorage(512));
+
+			
+
+			//test->memory.addConstant(NamespacedIdentifier("BLOCK_SIZE"), VariableStorage(512));
 			
 			EXPECT_TYPED("test static const variable with global constant", 10, 256);
 		}
@@ -1976,7 +1983,7 @@ private:
 			auto ts = CREATE_SNEX_STRUCT(TestStruct);
 			ADD_SNEX_STRUCT_MEMBER(ts, obj, m1);
 			ADD_SNEX_STRUCT_MEMBER(ts, obj, f2);
-			ADD_SNEX_STRUCT_COMPLEX(ts, new SpanType(Types::ID::Float, 19), obj, data);
+			ADD_SNEX_STRUCT_COMPLEX(ts, new SpanType(TypeInfo(Types::ID::Float), 19), obj, data);
 			ADD_SNEX_STRUCT_COMPLEX(ts, os, obj, os);
 			
 			ts->addExternalMemberFunction("sum", TestStruct::Wrapper::sum);

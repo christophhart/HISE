@@ -40,13 +40,11 @@ using namespace asmjit;
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
 {
-	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(location);
+	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
 
 	b->setParentScopeStatement(getCurrentScopeStatement());
 
 	ScopedScopeStatementSetter svs(this, b.get());
-
-	pushAnonymousScopeId();
 
 	while (!isEOF() && currentType != JitTokens::closeBrace)
 	{
@@ -55,8 +53,6 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
 
 		b->addStatement(parseStatement().get());
 	}
-
-	popAnonymousScopeId();
 
 	match(JitTokens::closeBrace);
 
@@ -68,94 +64,49 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 	if (matchIf(JitTokens::static_))
 	{
 		match(JitTokens::const_);
-		
-		currentHnodeType = matchType();
 
-		auto id = parseIdentifier();
+		if (!matchIfType())
+			location.throwError("Expected type");
+
+		if (currentTypeInfo.isComplexType())
+			location.throwError("Can't define static const complex types");
+
+		auto s = parseNewSymbol(NamespaceHandler::Constant);
 
 		match(JitTokens::assign_);
 
-		auto nId = compiler->namespaceHandler.getCurrentNamespaceIdentifier().withId(id);
+		auto value = parseConstExpression(false);
 
-		currentScope->addConstant(nId, parseConstExpression(false));
+		compiler->namespaceHandler.addConstant(s.id, value);
+
 		match(JitTokens::semicolon);
 		return parseStatement();
 	}
 
-	bool isConst = matchIf(JitTokens::const_);
-
-	StatementPtr statement;
+	
 
 	if (matchIf(JitTokens::if_))
-	{
-		statement = parseIfStatement();
-	}
+		return(parseIfStatement());
 	else if (matchIf(JitTokens::openBrace))
-	{
-		statement = parseStatementBlock();
-		
-		matchIf(JitTokens::semicolon);
-	}
+		return matchIfSemicolonAndReturn(parseStatementBlock());
 	else if (matchIf(JitTokens::return_))
-	{
-		statement = parseReturnStatement();
-		match(JitTokens::semicolon);
-	}
+		return matchSemicolonAndReturn(parseReturnStatement());
 	else if (matchIf(JitTokens::break_))
-	{
-		statement = new Operations::ControlFlowStatement(location, true);
-		match(JitTokens::semicolon);
-	}
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, true));
 	else if (matchIf(JitTokens::continue_))
-	{
-		statement = new Operations::ControlFlowStatement(location, false);
-		match(JitTokens::semicolon);
-	}
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, false));
 	else if (matchIf(JitTokens::for_))
-	{
-		statement = parseLoopStatement();
-	}
+		return parseLoopStatement();
 
-	else if (matchIfSimpleType())
+	if (matchIfType())
 	{
-		statement = parseVariableDefinition(isConst);
-		match(JitTokens::semicolon);
-	}
-	else if (matchIfComplexType())
-	{
-		return parseComplexTypeDefinition(isConst);
+		if (currentTypeInfo.isComplexType())
+			return parseComplexTypeDefinition();
+		else
+			return matchSemicolonAndReturn(parseVariableDefinition());
 	}
 	else
-	{
-		if (currentType == JitTokens::identifier)
-		{
-			auto id = getCurrentNamespacedIdentifier(currentValue.toString());
-
-			auto s = Symbol::createRootSymbol(id);
-
-			if (auto st = compiler->getStructType(s))
-			{
-				match(JitTokens::identifier);
-				currentHnodeType = Types::ID::Pointer;
-				statement = parseVariableDefinition(isConst, st);
-				match(JitTokens::semicolon);
-			}
-			else if (auto cs = getCurrentScopeStatement()->getScopedStatementForAlias(id))
-			{
-				currentHnodeType = matchType();
-				statement = parseVariableDefinition(isConst);
-				match(JitTokens::semicolon);
-			}
-		}
-		
-		if (statement == nullptr)
-		{
-			statement = parseAssignment();
-			match(JitTokens::semicolon);
-		}
-	}
-		
-	return statement;
+		return matchSemicolonAndReturn(parseAssignment());
 }
 
 BlockParser::StatementPtr FunctionParser::parseReturnStatement()
@@ -169,37 +120,18 @@ BlockParser::StatementPtr FunctionParser::parseReturnStatement()
 
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition(bool isConst, ComplexType::Ptr type)
+snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition()
 {
-	clearSymbol();
+	jassert(currentTypeInfo.isValid());
 
-	bool isRef = matchIf(JitTokens::bitwiseAnd);
+	SymbolParser sp(*this, compiler->namespaceHandler);
 
-	if (type != nullptr && !isRef)
-		location.throwError("Can't declare non-references to complex types in this scope.");
-
-	if (currentType != JitTokens::identifier)
-		location.throwError("Expected symbol");
-
-	while (currentType == JitTokens::identifier)
-	{
-		addSymbolChild(parseNamedSpacedIdentifier());
-		matchIf(JitTokens::dot);
-	}
-
-	auto s = getCurrentSymbol(true);
-
-	s.typeInfo = TypeInfo(currentHnodeType, isConst, isRef);
-
-	
-
-	if (type != nullptr)
-		s.typeInfo = TypeInfo(type, isConst);
-
+	auto s = sp.parseNewSymbol(NamespaceHandler::Variable);
 	auto target = new Operations::VariableReference(location, s);
 	
 	match(JitTokens::assign_);
 	ExprPtr expr = parseExpression();
+	
 	return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
 }
 
@@ -207,18 +139,12 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 {
 	match(JitTokens::openParen);
 
-	auto isConst = matchIf(JitTokens::const_);
+	matchType();
 
-	auto type = matchType();
-
-	auto isRef = matchIf(JitTokens::bitwiseAnd);
-
-	clearSymbol();
-	addSymbolChild(parseNamedSpacedIdentifier());
-
-	auto variableId = getCurrentSymbol(true);
-
-	variableId.typeInfo = TypeInfo(type, isConst, isRef);
+	// has to be done manually because the normal symbol parser consumes the ':' token...
+	auto iteratorId = compiler->namespaceHandler.getCurrentNamespaceIdentifier().getChildId(parseIdentifier());
+	Symbol variableId(iteratorId, currentTypeInfo);
+	compiler->namespaceHandler.addSymbol(iteratorId, currentTypeInfo, NamespaceHandler::Variable);
 
 	match(JitTokens::colon);
 	
@@ -228,7 +154,11 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 	
 	StatementPtr block = parseStatement();
 
-	return new Operations::Loop(location, variableId, loopBlock.get(), block.get());
+	auto newLoop = new Operations::Loop(location, variableId, loopBlock.get());
+
+	newLoop->addBody(block, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
+
+	return newLoop;
 }
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
@@ -241,7 +171,6 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
 	match(JitTokens::closeParen);
 
 	StatementPtr trueBranch = parseStatement();
-
 	StatementPtr falseBranch;
 
 	if (matchIf(JitTokens::else_))
@@ -308,7 +237,6 @@ BlockParser::ExprPtr BlockParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenTy
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseAssignment()
 {
-	
 	ExprPtr left = parseExpression();
 
 	if (matchIfAssignmentType())
@@ -451,8 +379,13 @@ BlockParser::ExprPtr BlockParser::parseTerm()
 {
 	if (matchIf(JitTokens::openParen))
 	{
-		if (matchIfSimpleType()) 
-			return parseCast(currentHnodeType);
+		if (matchIfType())
+		{
+			if (currentTypeInfo.isComplexType())
+				location.throwError("Can't cast to " + currentTypeInfo.toString());
+
+			return parseCast(currentTypeInfo.getType());
+		}
 		else
 		{
 			auto result = parseExpression();
@@ -506,17 +439,14 @@ BlockParser::ExprPtr BlockParser::parseUnary()
 
 BlockParser::ExprPtr BlockParser::parseFactor()
 {
-	clearSymbol();
-	parseNamespacePrefix(compiler->namespaceHandler);
-
 	if (matchIf(JitTokens::plusplus))
 	{
-		ExprPtr expr = parseReference(parseNamedSpacedIdentifier());
+		ExprPtr expr = parseReference();
 		return new Operations::Increment(location, expr, true, false);
 	}
 	if (matchIf(JitTokens::minusminus))
 	{
-		ExprPtr expr = parseReference(parseNamedSpacedIdentifier());
+		ExprPtr expr = parseReference();
 		return new Operations::Increment(location, expr, true, true);
 	}
 	if (matchIf(JitTokens::minus))
@@ -525,7 +455,7 @@ BlockParser::ExprPtr BlockParser::parseFactor()
 			return parseLiteral(true);
 		else
 		{
-			ExprPtr expr = parseReference(parseNamedSpacedIdentifier());
+			ExprPtr expr = parseReference();
 			return new Operations::Negation(location, expr);
 		}
 	}
@@ -543,8 +473,8 @@ BlockParser::ExprPtr BlockParser::parseDotOperator(ExprPtr p)
 {
 	while(matchIf(JitTokens::dot))
 	{
-		auto id = parseNamedSpacedIdentifier();
-		p = new Operations::DotOperator(location, p, parseReference(id));
+		auto e = parseReference(false);
+		p = new Operations::DotOperator(location, p, e);
 	}
 	
 	return parseSubscript(p);
@@ -573,16 +503,38 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 	Array<TemplateParameter> templateParameters;
 
-	auto fSymbol = getCurrentSymbol(false);
+	auto fSymbol = getCurrentSymbol();
 
-	if (currentType == JitTokens::lessThan && compiler->isTemplatedMethod(fSymbol.id))
+	if (currentType == JitTokens::lessThan && compiler->namespaceHandler.isTemplatedMethod(fSymbol.id))
 	{
 		templateParameters = parseTemplateParameters();
 	}
 
 	while (matchIf(JitTokens::openParen))
 	{
-		auto f = new Operations::FunctionCall(location, p, getCurrentSymbol(false), templateParameters);
+		if (auto dot = dynamic_cast<Operations::DotOperator*>(p.get()))
+		{
+			if (auto s = dynamic_cast<Operations::SymbolStatement*>(dot->getDotParent().get()))
+			{
+				auto symbol = s->getSymbol();
+				auto parentSymbol = symbol.id;
+
+				if (compiler->namespaceHandler.isStaticFunctionClass(parentSymbol))
+				{
+					fSymbol.id = parentSymbol.getChildId(fSymbol.id.getIdentifier());
+					fSymbol.resolved = false;
+					p = nullptr;
+				}
+
+				if (symbol.resolved)
+				{
+					fSymbol = symbol.getChildSymbol(fSymbol.id.getIdentifier(), &compiler->namespaceHandler);
+					p = nullptr;
+				}
+			}
+		}
+
+		auto f = new Operations::FunctionCall(location, p, fSymbol, templateParameters);
 
 		while (!isEOF() && currentType != JitTokens::closeParen)
 		{
@@ -601,8 +553,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 BlockParser::ExprPtr BlockParser::parsePostSymbol()
 {
-	auto id = parseNamedSpacedIdentifier();
-	auto expr = parseReference(id);
+	auto expr = parseReference();
 
 	expr = parseDotOperator(expr);
 
@@ -617,14 +568,17 @@ BlockParser::ExprPtr BlockParser::parsePostSymbol()
 
 
 
-BlockParser::ExprPtr BlockParser::parseReference(const NamespacedIdentifier& id)
+BlockParser::ExprPtr BlockParser::parseReference(bool mustBeResolvedAtCompileTime)
 {
-	addSymbolChild(id);
+	if (mustBeResolvedAtCompileTime)
+		parseExistingSymbol();
+	else
+	{
+		currentTypeInfo = {};
+		currentSymbol = Symbol(parseIdentifier());
+	}
 
-	auto s = getCurrentSymbol(true);
-	
-
-	return new Operations::VariableReference(location, s);
+	return new Operations::VariableReference(location, getCurrentSymbol());
 }
 
 BlockParser::ExprPtr BlockParser::parseLiteral(bool isNegative)

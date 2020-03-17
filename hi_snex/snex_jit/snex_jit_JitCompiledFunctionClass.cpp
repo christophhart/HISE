@@ -36,7 +36,7 @@ namespace jit {
 using namespace juce;
 
 
-JitCompiledFunctionClass::JitCompiledFunctionClass(BaseScope* parentScope, const Symbol& classInstanceId)
+JitCompiledFunctionClass::JitCompiledFunctionClass(BaseScope* parentScope, const NamespacedIdentifier& classInstanceId)
 {
 	pimpl = new ClassScope(parentScope, classInstanceId, nullptr);
 }
@@ -51,7 +51,7 @@ JitCompiledFunctionClass::~JitCompiledFunctionClass()
 
 VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 {
-	auto s = Symbol::createRootSymbol(id);
+	auto s = pimpl->rootData->getClassName().getChildId(id);
 
 	if (auto r = pimpl->rootData->contains(s))
 	{
@@ -65,7 +65,7 @@ VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 
 void* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
 {
-	auto s = Symbol::createRootSymbol(id);
+	auto s = pimpl->rootData->getClassName().getChildId(id);
 
 	if (pimpl->rootData->contains(s))
 		return pimpl->rootData->getDataPointer(s);
@@ -85,7 +85,7 @@ Array<NamespacedIdentifier> JitCompiledFunctionClass::getFunctionIds() const
 
 FunctionData JitCompiledFunctionClass::getFunction(const NamespacedIdentifier& functionId)
 {
-	auto s = Symbol::createRootSymbol("Root").getChildSymbol(functionId);
+	auto s = pimpl->getRootData()->getClassName().getChildId(functionId.getIdentifier());
 
 	if (pimpl->getRootData()->hasFunction(s))
 	{
@@ -172,8 +172,11 @@ void JitObject::getColourAndLetterForType(int type, Colour& colour, char& letter
 snex::jit::FunctionData JitCompiledClassBase::getFunction(const NamespacedIdentifier& id)
 {
 	Array<FunctionData> matches;
-	auto s = dynamic_cast<StructType*>(classType.get())->id.getChildSymbol(id);
-	memberFunctions->addMatchingFunctions(matches, s);
+
+	auto typePtr = dynamic_cast<StructType*>(classType.get());
+	auto sId = typePtr->id.getChildId(id.getIdentifier());
+
+	memberFunctions->addMatchingFunctions(matches, sId);
 
 	if (matches.size() == 1)
 		return matches[0];

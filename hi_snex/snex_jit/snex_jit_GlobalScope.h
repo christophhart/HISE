@@ -603,7 +603,7 @@ public:
 	{
 		virtual ~ObjectDeleteListener() {};
 
-		virtual void objectWasDeleted(const Symbol& id) = 0;
+		virtual void objectWasDeleted(const NamespacedIdentifier& id) = 0;
 
 	private:
 
@@ -613,22 +613,23 @@ public:
 	
 	void registerObjectFunction(FunctionClass* objectClass);
 
-	void deregisterObject(const Symbol& id);
+	void deregisterObject(const NamespacedIdentifier& id);
 
 	bool hasVariable(const NamespacedIdentifier& id) const override
 	{
 		for (auto f : objectClassesWithJitCallableFunctions)
-			if (f->getClassName().id == id)
+			if (f->getClassName() == id)
 				return true;
 
 		return false;
 	}
 
 	
+	void registerFunctionsToNamespaceHandler(NamespaceHandler& handler);
 
-	bool hasFunction(const Symbol& symbol) const override;
+	bool hasFunction(const NamespacedIdentifier& id) const override;
 
-	void addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const override;
+	void addMatchingFunctions(Array<FunctionData>& matches, const NamespacedIdentifier& symbol) const override;
 
 	void addObjectDeleteListener(ObjectDeleteListener* l);
 	void removeObjectDeleteListener(ObjectDeleteListener* l);
@@ -649,7 +650,7 @@ public:
 	FunctionClass* getGlobalFunctionClass(const NamespacedIdentifier& id)
 	{
 		for (auto c : objectClassesWithJitCallableFunctions)
-			if (c->getClassName().id == id)
+			if (c->getClassName() == id)
 				return c;
 
 		return nullptr;

@@ -38,10 +38,338 @@ namespace jit
 using namespace juce;
 
 
+namespace NamespaceResolver
+{
+
+struct CanExist
+{
+	static void resolve(NamespaceHandler& n, NamespacedIdentifier& c, const ParserHelpers::CodeLocation& l)
+	{
+		auto r = n.resolve(c, true);
+
+		if (!r.wasOk())
+			l.throwError(r.getErrorMessage());
+	}
+};
+
+struct MustExist
+{
+	static void resolve(NamespaceHandler& n, NamespacedIdentifier& c, const ParserHelpers::CodeLocation& l)
+	{
+		auto r = n.resolve(c);
+
+		if (!r.wasOk())
+			l.throwError(r.getErrorMessage());
+	}
+};
+
+struct MustBeNew
+{
+	static void resolve(NamespaceHandler& n, NamespacedIdentifier& c, const ParserHelpers::CodeLocation& l)
+	{
+
+	}
+};
+}
+
 #define PROCESS_IF_NOT_NULL(expr) if (expr != nullptr) expr->process(compiler, scope);
 #define COMPILER_PASS(x) if (compiler->getCurrentPass() == x)
 #define CREATE_ASM_COMPILER(type) AsmCodeGenerator(getFunctionCompiler(compiler), &compiler->registerPool, type);
 #define SKIP_IF_CONSTEXPR if(isConstExpr()) return;
+
+class SymbolParser : public ParserHelpers::TokenIterator
+{
+public:
+
+	SymbolParser(ParserHelpers::TokenIterator& other_, NamespaceHandler& handler_) :
+		ParserHelpers::TokenIterator(other_),
+		handler(handler_),
+		other(other_)
+	{};
+
+	TokenIterator& other;
+
+	Symbol parseExistingSymbol(bool needsStaticTyping)
+	{
+		parseNamespacedIdentifier<NamespaceResolver::MustExist>();
+
+		auto type = handler.getVariableType(currentNamespacedIdentifier);
+		auto s = Symbol(currentNamespacedIdentifier, type);
+
+		if (needsStaticTyping && s.typeInfo.isDynamic())
+			location.throwError("Can't resolve symbol type");
+
+		return s;
+	}
+
+	Symbol parseNewSymbol(NamespaceHandler::SymbolType t)
+	{
+		auto type = other.currentTypeInfo;
+
+		parseNamespacedIdentifier<NamespaceResolver::MustBeNew>();
+		
+		auto s = Symbol(currentNamespacedIdentifier, type);
+
+		handler.addSymbol(s.id, type, t);
+
+		if (s.typeInfo.isDynamic())
+			location.throwError("Can't resolve symbol type");
+
+		return s;
+	}
+	
+
+	template <class T> void parseNamespacedIdentifier()
+	{
+		auto c = handler.getCurrentNamespaceIdentifier();
+
+		auto id = parseIdentifier();
+
+		auto isExplicit = currentType == JitTokens::colon;
+
+		if (isExplicit)
+		{
+			// reset the namespace or it will stack up...
+			c = NamespacedIdentifier();
+		}
+
+		c = c.getChildId(id);
+
+		while (matchIf(JitTokens::colon))
+		{
+			match(JitTokens::colon);
+			c = c.getChildId(parseIdentifier());
+		}
+
+		T::resolve(handler, c, location);
+		currentNamespacedIdentifier = c;
+
+		other.seek(*this);
+	}
+
+	NamespacedIdentifier currentNamespacedIdentifier;
+	NamespaceHandler& handler;
+};
+
+class TypeParser : public ParserHelpers::TokenIterator
+{
+public:
+
+	TypeParser(TokenIterator& other_, NamespaceHandler& handler) :
+		ParserHelpers::TokenIterator(other_),
+		namespaceHandler(handler),
+		other(other_),
+		nId(NamespacedIdentifier::null())
+	{
+		
+	};
+
+	TokenIterator& other;
+
+	void matchType()
+	{
+		if (!matchIfType())
+			throwTokenMismatch("Type");
+	}
+
+	bool matchIfType()
+	{
+		auto isConst = matchIf(JitTokens::const_);
+
+		if (matchIfTypeInternal())
+		{
+			auto isRef = matchIf(JitTokens::bitwiseAnd);
+			currentTypeInfo = currentTypeInfo.withModifiers(isConst, isRef);
+			other.seek(*this);
+			return true;
+		}
+
+		return false;
+	}
+
+private:
+
+	VariableStorage parseConstExpression(bool canBeTemplateParameter);
+
+	bool matchIfTypeInternal()
+	{
+		if (currentType == JitTokens::identifier)
+		{
+			SymbolParser p(*this, namespaceHandler);
+			p.parseNamespacedIdentifier<NamespaceResolver::CanExist>();
+			nId = p.currentNamespacedIdentifier;
+		}
+
+		if (!nId.isNull())
+		{
+			auto t = namespaceHandler.getAliasType(nId);
+
+			if (t.isValid())
+			{
+				currentTypeInfo = t;
+				return true;
+			}
+		}
+
+		if (matchIfSimpleType())
+			return true;
+		else if (matchIfComplexType())
+			return true;
+
+		return false;
+	}
+
+	bool matchIfSimpleType()
+	{
+		Types::ID t;
+
+		if (matchIf(JitTokens::float_))		  t = Types::ID::Float;
+		else if (matchIf(JitTokens::int_))	  t = Types::ID::Integer;
+		else if (matchIf(JitTokens::double_)) t = Types::ID::Double;
+		else if (matchIf(JitTokens::event_))  t = Types::ID::Event;
+		else if (matchIf(JitTokens::block_))  t = Types::ID::Block;
+		else if (matchIf(JitTokens::void_))	  t = Types::ID::Void;
+		else if (matchIf(JitTokens::auto_))	  t = Types::ID::Dynamic;
+		else
+		{
+			currentTypeInfo = {};
+			return false;
+		}
+
+		currentTypeInfo = TypeInfo(t);
+		return true;
+	}
+
+	bool matchIfComplexType()
+	{
+		if (matchIf(JitTokens::span_))
+		{
+			currentTypeInfo = TypeInfo(parseComplexType(JitTokens::span_));
+			return true;
+		}
+		else if (matchIf(JitTokens::dyn_))
+		{
+			currentTypeInfo = TypeInfo(parseComplexType(JitTokens::dyn_));
+			return true;
+		}
+		else if (matchIf(JitTokens::wrap))
+		{
+			currentTypeInfo = TypeInfo(parseComplexType(JitTokens::wrap));
+			return true;
+		}
+		else if (nId.isValid())
+		{
+			if (auto vId = namespaceHandler.getVariadicTypeForId(nId))
+			{
+				auto newType = new VariadicTypeBase(vId);
+
+				match(JitTokens::lessThan);
+
+				while (matchIfComplexType())
+				{
+					newType->addType(currentTypeInfo.getComplexType());
+					matchIf(JitTokens::comma);
+				}
+
+				// Two `>` characters might get parsed into a shift token
+				// so we need to fix this manually here...
+				if (currentType == JitTokens::rightShift)
+					currentType = JitTokens::greaterThan;
+				else
+					match(JitTokens::greaterThan);
+
+				currentTypeInfo = TypeInfo(namespaceHandler.registerComplexTypeOrReturnExisting(newType));
+				return true;
+			}
+				
+			if (auto typePtr = namespaceHandler.getComplexType(nId))
+			{
+				currentTypeInfo = TypeInfo(typePtr);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	ComplexType::Ptr parseComplexType(const juce::String& token)
+	{
+		match(JitTokens::lessThan);
+
+		ComplexType::Ptr newType;
+
+		if (token == JitTokens::span_)
+		{
+			TypeInfo elementType;
+
+			if (matchIfType())
+				elementType = currentTypeInfo;
+			else
+				location.throwError("Expected type for span element");
+
+			match(JitTokens::comma);
+
+			auto sizeValue = parseConstExpression(true);
+			int size = (int)sizeValue;
+			int spanLimit = 1024 * 1024;
+
+			if (size > spanLimit)
+				location.throwError("Span size can't exceed 1M");
+
+			match(JitTokens::greaterThan);
+
+			newType = new SpanType(elementType, size);
+		}
+		else if (token == JitTokens::wrap)
+		{
+			auto sizeValue = parseConstExpression(true);
+
+			int size = (int)sizeValue;
+
+			int spanLimit = 1024 * 1024;
+
+			if (size > spanLimit)
+				location.throwError("Span size can't exceed 1M");
+
+			newType = new WrapType(size);
+
+			match(JitTokens::greaterThan);
+		}
+		else if (token == JitTokens::dyn_)
+		{
+			TypeInfo t;
+
+			if (!matchIfType())
+				location.throwError("Expected type");
+
+			newType = new DynType(currentTypeInfo);
+			match(JitTokens::greaterThan);
+		}
+
+		return namespaceHandler.registerComplexTypeOrReturnExisting(newType);
+	}
+
+	Types::ID matchTypeId()
+	{
+		if (matchIf(JitTokens::float_)) return Types::ID::Float;
+		if (matchIf(JitTokens::int_))	return Types::ID::Integer;
+		if (matchIf(JitTokens::double_)) return Types::ID::Double;
+		if (matchIf(JitTokens::event_))	return Types::ID::Event;
+		if (matchIf(JitTokens::block_))	return Types::ID::Block;
+		if (matchIf(JitTokens::void_))	return Types::ID::Void;
+		if (matchIf(JitTokens::wrap))   return Types::ID::Integer;
+		if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
+
+		throwTokenMismatch("Type");
+
+		RETURN_IF_NO_THROW(Types::ID::Void);
+	}
+
+	private:
+
+	NamespacedIdentifier nId;
+	NamespaceHandler& namespaceHandler;
+};
 
 
 class BlockParser : public ParserHelpers::TokenIterator
@@ -71,178 +399,134 @@ public:
 
 	struct ScopedScopeStatementSetter // Scoped...
 	{
-		ScopedScopeStatementSetter(BlockParser* p_, Operations::ScopeStatementBase* current):
-			p(p_)
+		ScopedScopeStatementSetter(BlockParser* p_, Operations::ScopeStatementBase* current, bool pushNamespace_=true):
+			p(p_),
+			pushNamespace(pushNamespace_)
 		{
 			old = p->currentScopeStatement;
 			p->currentScopeStatement = current;
+
+			if(pushNamespace)
+				p->compiler->namespaceHandler.pushNamespace(current->getPath().id);
 		}
 
 		~ScopedScopeStatementSetter()
 		{
 			p->currentScopeStatement = old;
+
+			if(pushNamespace)
+				p->compiler->namespaceHandler.popNamespace();
 		}
 
 		BlockParser* p;
 		WeakReference<Operations::ScopeStatementBase> old;
+		bool pushNamespace = true;
 	};
 
-	BlockParser(BaseCompiler* c, const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length, const Symbol& rootSymbol) :
-		TokenIterator(code, wholeProgram, length, rootSymbol),
+	BlockParser(BaseCompiler* c, const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length) :
+		TokenIterator(code, wholeProgram, length),
 		compiler(c)
 	{};
     
     virtual ~BlockParser() {};
 
-	StatementPtr parseStatementList();
+	StatementPtr parseStatementList(const NamespacedIdentifier& scopeId, bool createNamespaceScope = true);
 
 	virtual StatementPtr parseStatement() = 0;
+
+	Symbol parseNewSymbol(NamespaceHandler::SymbolType t)
+	{
+		SymbolParser p(*this, compiler->namespaceHandler);
+		currentSymbol = p.parseNewSymbol(t);
+		return currentSymbol;
+	}
+
+	Symbol parseExistingSymbol()
+	{
+		SymbolParser p(*this, compiler->namespaceHandler);
+
+		currentSymbol = p.parseExistingSymbol(false);
+		return currentSymbol;
+	}
+
+	Symbol getCurrentSymbol()
+	{
+		return currentSymbol;
+	}
 
 	virtual void finaliseSyntaxTree(SyntaxTree* tree) 
 	{
 		ignoreUnused(tree);
 	}
 
-	Types::ID matchType() override
+	void matchType()
 	{
-		if (currentType == JitTokens::identifier)
-		{
-			auto cs = getCurrentScopeStatement();
-
-			auto id = getCurrentNamespacedIdentifier(parseIdentifier());
-
-			Types::ID type = Types::ID::Void;
-
-			if (cs = cs->getScopedStatementForAlias(id))
-			{
-				type = cs->getAliasNativeType(id);
-			}
-
-			if (type == Types::ID::Void)
-				throwTokenMismatch("Type");
-
-			return type;
-		}
-
-		return TokenIterator::matchType();
+		if (!matchIfType())
+			throwTokenMismatch("Type");
 	}
 
-	ComplexType::Ptr matchVariadicType()
+	bool matchIfType()
 	{
-		auto id = parseIdentifier();
+		TypeParser t(*this, compiler->namespaceHandler);
 
-		auto vId = compiler->getVariadicTypeForId(getCurrentNamespacedIdentifier(id));
-
-		auto newType = new VariadicTypeBase(vId);
-
-		match(JitTokens::lessThan);
-
-		while (matchIfComplexType(true))
+		if (t.matchIfType())
 		{
-			newType->addType(currentComplexType);
-			matchIf(JitTokens::comma);
-		}
-
-		// Two `>` characters might get parsed into a shift token
-		// so we need to fix this manually here...
-		if (currentType == JitTokens::rightShift)
-			currentType = JitTokens::greaterThan;
-		else
-			match(JitTokens::greaterThan);
-
-		return newType;
-	}
-
-	bool matchIfComplexType(bool parseNamespace=false)
-	{
-		// use this whenever this call isn't preceded by a matchIfSimpleType() call...
-		if (parseNamespace)
-			parseNamespacePrefix(compiler->namespaceHandler);
-
-		if (currentType == JitTokens::identifier)
-		{
-			auto id = getCurrentNamespacedIdentifier(currentValue.toString());
-
-			Symbol s = Symbol::createRootSymbol(id);
-
-			if (auto vId = compiler->getVariadicTypeForId(id))
-			{
-				currentComplexType = matchVariadicType();
-				return true;
-			}
-
-			if (currentComplexType = compiler->getComplexTypeForAlias(id))
-			{
-				match(JitTokens::identifier);
-				return true;
-			}
-
-			if (currentComplexType = compiler->getStructType(s))
-			{
-				match(JitTokens::identifier);
-				return true;
-			}
-		}
-		else if (matchIf(JitTokens::span_))
-		{
-			currentComplexType = parseComplexType(JitTokens::span_);
-			return true;
-		}
-		else if (matchIf(JitTokens::dyn_))
-		{
-			currentComplexType = parseComplexType(JitTokens::dyn_);
-			return true;
-		}
-		else if (matchIf(JitTokens::wrap))
-		{
-			currentComplexType = parseComplexType(JitTokens::wrap);
+			currentTypeInfo = t.currentTypeInfo;
 			return true;
 		}
 
 		return false;
 	}
 
-	
-
-	bool matchIfSimpleType() override
+	VariableStorage parseConstExpression(bool isTemplateArgument)
 	{
-		parseNamespacePrefix(compiler->namespaceHandler);
+		ScopedTemplateArgParser s(*this, isTemplateArgument);
 
-		if (currentType == JitTokens::identifier)
-		{
-			auto id = getCurrentNamespacedIdentifier(Identifier(currentValue.toString()));
+		auto expr = parseExpression();
 
-			auto cs = getCurrentScopeStatement();
+		SyntaxTree bl(location, location.createAnonymousScopeId(compiler->namespaceHandler.getCurrentNamespaceIdentifier()));
+		bl.addStatement(expr);
 
-			if (cs = cs->getScopedStatementForAlias(id))
-			{
-				if (auto ptr = cs->getAliasComplexType(id))
-					return false;
+		BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);
+		compiler->executePass(BaseCompiler::DataAllocation, currentScope, &bl);
 
-				match(JitTokens::identifier);
-				currentHnodeType = cs->getAliasNativeType(id);
-				return true;
-			}
-		}
+		BaseCompiler::ScopedPassSwitcher sp2(compiler, BaseCompiler::PreSymbolOptimization);
+		compiler->optimize(expr, currentScope, false);
 
-		return TokenIterator::matchIfSimpleType();
+		BaseCompiler::ScopedPassSwitcher sp3(compiler, BaseCompiler::ResolvingSymbols);
+		compiler->executePass(BaseCompiler::ResolvingSymbols, currentScope, &bl);
+
+
+		BaseCompiler::ScopedPassSwitcher sp4(compiler, BaseCompiler::PostSymbolOptimization);
+		compiler->optimize(expr, currentScope, false);
+
+		expr = dynamic_cast<Operations::Expression*>(bl.getChildStatement(0).get());
+
+		if (!expr->isConstExpr())
+			location.throwError("Can't assign static constant to a dynamic expression");
+
+		return expr->getConstExprValue();
 	}
 
-	VariableStorage parseVariableStorageLiteral();
-
-	VariableStorage parseConstExpression(bool isTemplateArgument);
-
-	ComplexType::Ptr getCurrentComplexType() const { return currentComplexType; }
+	ComplexType::Ptr getCurrentComplexType() const { return currentTypeInfo.getTypedIfComplexType<ComplexType>(); }
 
 	Array<TemplateParameter> parseTemplateParameters();
 
-	StatementPtr parseComplexTypeDefinition(bool isConst);
+	StatementPtr parseComplexTypeDefinition();
 
-	
+	StatementPtr matchIfSemicolonAndReturn(StatementPtr p)
+	{
+		matchIf(JitTokens::semicolon);
+		return p;
+	}
+
+	StatementPtr matchSemicolonAndReturn(StatementPtr p)
+	{
+		match(JitTokens::semicolon);
+		return p;
+	}
 
 	InitialiserList::Ptr parseInitialiserList();
-
-	ComplexType::Ptr parseComplexType(const juce::String& token);
 
 	WeakReference<BaseScope> currentScope;
 
@@ -270,15 +554,16 @@ public:
 	ExprPtr parseSubscript(ExprPtr p);
 	ExprPtr parseCall(ExprPtr p);
 	ExprPtr parsePostSymbol();
-	ExprPtr parseReference(const NamespacedIdentifier& id);
+	ExprPtr parseReference(bool mustBeValidRootSymbol=true);
 	ExprPtr parseLiteral(bool isNegative = false);
 
 private:
 
+	Symbol currentSymbol;
+
 	bool isParsingTemplateArgument = false;
 
 	WeakReference<Operations::ScopeStatementBase> currentScopeStatement;
-	ComplexType::Ptr currentComplexType;
 	
 };
 
@@ -288,24 +573,24 @@ class NewClassParser : public BlockParser
 {
 public:
 
-	NewClassParser(BaseCompiler* c, const juce::String& code, const Symbol& rootSymbol):
-		BlockParser(c, code.getCharPointer(), code.getCharPointer(), code.length(), rootSymbol)
+	NewClassParser(BaseCompiler* c, const juce::String& code):
+		BlockParser(c, code.getCharPointer(), code.getCharPointer(), code.length())
 	{}
 
-	NewClassParser(BaseCompiler* c, const ParserHelpers::CodeLocation& l, int codeLength, const Symbol& rootSymbol) :
-		BlockParser(c, l.location, l.program, codeLength, rootSymbol)
+	NewClassParser(BaseCompiler* c, const ParserHelpers::CodeLocation& l, int codeLength) :
+		BlockParser(c, l.location, l.program, codeLength)
 	{}
 
     virtual ~NewClassParser() {};
     
 	StatementPtr parseStatement() override;
 	ExprPtr parseBufferInitialiser();
-	StatementPtr parseVariableDefinition(bool isConst);
+	StatementPtr parseVariableDefinition();
 	StatementPtr parseFunction(const Symbol& s);
 	StatementPtr parseSubclass();
 	//StatementPtr parseWrapDefinition();
 	
-	StatementPtr parseDefinition(bool isConst, Types::ID type, bool isWrappedBuffer, bool isSmoothedVariable);
+	StatementPtr parseDefinition();
 
 	
 

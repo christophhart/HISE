@@ -46,7 +46,7 @@ AssemblyRegister::AssemblyRegister(TypeInfo type_) :
 
 void AssemblyRegister::setReference(BaseScope* s, const Symbol& ref)
 {
-	scope = s->getScopeForSymbol(ref);
+	scope = s->getScopeForSymbol(ref.id);
 	id = ref;
 	jassert(id.typeInfo == type);
 }
@@ -113,7 +113,7 @@ void* AssemblyRegister::getGlobalDataPointer()
 	jassert(scope != nullptr);
 
 	if (isGlobalVariableRegister())
-		return scope->getRootClassScope()->rootData->getDataPointer(id);
+		return scope->getRootClassScope()->rootData->getDataPointer(id.id);
 
 	// No need to fetch / write the data for non-globals
 	jassertfalse;
@@ -144,7 +144,7 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 		if (isIter)
 			dirty = true;
 
-		auto sToUse = scope->getScopeForSymbol(id);
+		auto sToUse = scope->getScopeForSymbol(id.id);
 
 		jassert(sToUse != nullptr);
 
@@ -260,7 +260,7 @@ bool AssemblyRegister::isValid() const
 
 bool AssemblyRegister::isGlobalVariableRegister() const
 {
-	return scope->getRootClassScope()->rootData->contains(id);
+	return scope->getRootClassScope()->rootData->contains(id.id);
 }
 
 bool AssemblyRegister::isActive() const
@@ -270,7 +270,7 @@ bool AssemblyRegister::isActive() const
 
 bool AssemblyRegister::matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const
 {
-	auto scopeMatches = scopeToCheck->getScopeForSymbol(symbol) == scope;
+	auto scopeMatches = scopeToCheck->getScopeForSymbol(symbol.id) == scope;
 	auto symbolMatches = symbol == id;
 
 	return scopeMatches && symbolMatches;

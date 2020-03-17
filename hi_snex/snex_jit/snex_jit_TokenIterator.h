@@ -79,9 +79,6 @@ namespace JitTokens
 
 struct ParserHelpers
 {
-	
-
-
 	using TokenType = const char*;
 
 	static String getTokenName(TokenType t) { return t[0] == '$' ? String(t + 1) : ("'" + String(t) + "'"); }
@@ -111,9 +108,14 @@ struct ParserHelpers
 			return getLineNumber(program, location);
 		}
 
-		NamespacedIdentifier createAnonymousScopeId() const
+		NamespacedIdentifier createAnonymousScopeId(const NamespacedIdentifier& parent = {}) const
 		{
-			return NamespacedIdentifier(Identifier("AnonymousScopeLine" + juce::String(getLine())));
+			auto id = Identifier("AnonymousScopeLine" + juce::String(getLine()));
+
+			if (parent.isValid())
+				return parent.getChildId(id);
+				
+			return NamespacedIdentifier(id);
 		}
 
 		static int getLineNumber(juce::String::CharPointerType start, 
@@ -161,6 +163,8 @@ struct ParserHelpers
 		String::CharPointerType location;
 	};
 
+	
+
 	struct TokenIterator
 	{
 
@@ -176,17 +180,36 @@ struct ParserHelpers
 
 	typedef const char* TokenType;
 
-		TokenIterator(const String::CharPointerType& code, const String::CharPointerType& wholeProgram, int length, const Symbol& rootSymbol_) :
+		TokenIterator(const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length) :
 			location(code, wholeProgram),
 			p(code),
-			endPointer(code + length),
-			rootSymbol(rootSymbol_)
+			endPointer(code + length)
 		{
 			skip(); 
 		}
 
         virtual ~TokenIterator() {};
         
+		void seek(TokenIterator& other)
+		{
+			if (other.location.program != location.program)
+				location.throwError("Can't skip different locations");
+
+			while (location.location != other.location.location && !isEOF())
+				skip();
+		}
+
+		bool seekAndReturnTrue(TokenIterator* parentToSeek)
+		{
+			if (parentToSeek == this)
+				return true;
+
+			if (parentToSeek != nullptr)
+				parentToSeek->seek(*this);
+
+			return true;
+		}
+
 		void skip()
 		{
 			skipWhitespaceAndComments();
@@ -208,28 +231,6 @@ struct ParserHelpers
 		bool matchesAny(TokenType t1, TokenType t2) const { return currentType == t1 || currentType == t2; }
 		bool matchesAny(TokenType t1, TokenType t2, TokenType t3) const { return matchesAny(t1, t2) || currentType == t3; }
 
-		void matchSymbol(NamespaceHandler& namespaceHandler)
-		{
-			if (currentType != JitTokens::identifier)
-				location.throwError("Expected symbol");
-
-			clearSymbol();
-			parseNamespacePrefix(namespaceHandler);
-			
-			bool repeat = true;
-
-			while (currentType == JitTokens::identifier && repeat)
-			{
-				addSymbolChild(parseNamedSpacedIdentifier());
-				repeat = matchIf(JitTokens::dot);
-			}
-		}
-
-		Symbol getCurrentSymbol(bool includeRootAndSetType)
-		{
-			return currentSymbol.withType(currentHnodeType);
-		}
-
 		CodeLocation location;
 		TokenType currentType;
 		var currentValue; // TODO make VariableStorage
@@ -238,8 +239,8 @@ struct ParserHelpers
 
 		String currentString;
 
-		Types::ID currentHnodeType;
-		
+		TypeInfo currentTypeInfo;
+
 		int offset = 0;
 
 		String::CharPointerType p;
@@ -264,47 +265,9 @@ struct ParserHelpers
 				currentSideEffect = Nothing;
 		}
 
-		
-
-#if 0
-		bool matchIfSymbol(bool isConst)
-		{
-			auto isReference = matchIf(JitTokens::bitwiseAnd);
-
-			if (currentType == JitTokens::identifier)
-			{
-				Array<Identifier> idList;
-
-				idList.add(parseIdentifier());
-
-				while(matchIf(JitTokens::dot))
-					idList.add(parseIdentifier());
-
-				currentSymbol = BaseScope::Symbol(idList, Types::ID::Dynamic, isConst, isReference);
-
-				return true;
-			}
-
-			return false;
-		}
-#endif
-
 		static bool isIdentifierStart(const juce_wchar c) noexcept { return CharacterFunctions::isLetter(c) || c == '_'; }
 		static bool isIdentifierBody(const juce_wchar c) noexcept { return CharacterFunctions::isLetterOrDigit(c) || c == '_'; }
 
-		virtual bool matchIfSimpleType()
-		{
-			if (matchIf(JitTokens::float_))		  currentHnodeType = Types::ID::Float;
-			else if (matchIf(JitTokens::int_))	  currentHnodeType = Types::ID::Integer;
-			else if (matchIf(JitTokens::double_)) currentHnodeType = Types::ID::Double;
-			else if (matchIf(JitTokens::event_))  currentHnodeType = Types::ID::Event;
-			else if (matchIf(JitTokens::block_))  currentHnodeType = Types::ID::Block;
-			else if (matchIf(JitTokens::void_))	  currentHnodeType = Types::ID::Void;
-			else if (matchIf(JitTokens::auto_)) { currentHnodeType = Types::ID::Dynamic; return true; }
-			else								  currentHnodeType = Types::ID::Dynamic;
-			
-			return currentHnodeType != Types::ID::Dynamic;
-		}
 
 		void throwTokenMismatch(const char* expected)
 		{
@@ -314,67 +277,6 @@ struct ParserHelpers
 			s << "Actual: " << currentType;
 
 			location.throwError(s);
-		}
-
-		NamespacedIdentifier parseNamedSpacedIdentifier()
-		{
-			return getCurrentNamespacedIdentifier(parseIdentifier());
-		}
-
-		NamespacedIdentifier getCurrentNamespacedIdentifier(const Identifier& childId = {}) const
-		{
-			if (childId.isValid())
-				return currentNamespacePrefix.withId(childId);
-
-			return currentNamespacePrefix;
-		}
-
-
-		bool parseNamespacePrefix(NamespaceHandler& nHandler)
-		{
-			currentNamespacePrefix = {};
-
-			if (currentType == JitTokens::identifier)
-			{
-				auto id = Identifier(currentValue.toString());
-
-				currentNamespacePrefix.add(id);
-
-				while (nHandler.isNamespace(currentNamespacePrefix))
-				{
-					parseIdentifier();
-					match(JitTokens::colon);
-					match(JitTokens::colon);
-
-					id = Identifier(currentValue.toString());
-
-					currentNamespacePrefix.add(id);
-				}
-
-				currentNamespacePrefix.pop();
-
-				if (currentNamespacePrefix.isValid())
-					return true;
-			}
-
-			currentNamespacePrefix = nHandler.getCurrentNamespaceIdentifier();
-			return currentNamespacePrefix.isValid();
-		}
-
-		virtual Types::ID matchType()
-		{
-			if (matchIf(JitTokens::float_)) return Types::ID::Float;
-			if (matchIf(JitTokens::int_))	return Types::ID::Integer;
-			if (matchIf(JitTokens::double_)) return Types::ID::Double;
-			if (matchIf(JitTokens::event_))	return Types::ID::Event;
-			if (matchIf(JitTokens::block_))	return Types::ID::Block;
-			if (matchIf(JitTokens::void_))	return Types::ID::Void;
-			if (matchIf(JitTokens::wrap))   return Types::ID::Integer;
-			if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
-
-			throwTokenMismatch("Type");
-
-			RETURN_IF_NO_THROW(Types::ID::Void);
 		}
 
 		bool matchIfAssignmentType()
@@ -474,8 +376,6 @@ struct ParserHelpers
 			return true;
 		}
 
-
-
 		Identifier parseIdentifier()
 		{
 			Identifier i;
@@ -505,6 +405,34 @@ struct ParserHelpers
 			currentString = String(v);
 			return true;
 		}
+
+		VariableStorage parseVariableStorageLiteral()
+		{
+			bool isMinus = matchIf(JitTokens::minus);
+
+			auto type = Types::Helpers::getTypeFromStringValue(currentString);
+
+			juce::String stringValue = currentString;
+			match(JitTokens::literal);
+
+			if (type == Types::ID::Integer)
+				return VariableStorage(stringValue.getIntValue() * (!isMinus ? 1 : -1));
+			else if (type == Types::ID::Float)
+				return VariableStorage(stringValue.getFloatValue() * (!isMinus ? 1.0f : -1.0f));
+			else if (type == Types::ID::Double)
+				return VariableStorage(stringValue.getDoubleValue() * (!isMinus ? 1.0 : -1.0));
+			else if (type == Types::ID::Event)
+			{
+				HiseEvent e;
+				return VariableStorage(e);
+			}
+			else if (type == Types::ID::Block)
+				return block();
+			else
+				return {};
+		}
+
+
 
 		static String getSideEffectDescription(AssignSideEffectType s)
 		{
@@ -603,59 +531,6 @@ struct ParserHelpers
 			currentString = juce::String(v);
 			return true;
 		}
-
-		
-
-		struct ScopedChildRoot
-		{
-			ScopedChildRoot(TokenIterator& iter, const NamespacedIdentifier& id):
-				p(iter)
-			{
-				p.rootSymbol = p.rootSymbol.getChildSymbol(id);
-			}
-
-			~ScopedChildRoot()
-			{
-				p.rootSymbol = p.rootSymbol.getParentSymbol();
-			}
-
-			TokenIterator& p;
-		};
-
-		void clearSymbol()
-		{
-			currentSymbol = {};
-			currentNamespacePrefix = {};
-		}
-
-		void pushAnonymousScopeId()
-		{
-			anonymousScopeIds.add(location.createAnonymousScopeId());
-		}
-
-		void popAnonymousScopeId()
-		{
-			jassert(!anonymousScopeIds.isEmpty());
-			anonymousScopeIds.removeLast();
-		}
-
-
-		void addSymbolChild(const NamespacedIdentifier& id)
-		{
-			currentSymbol = currentSymbol.getChildSymbol(id);
-		}
-
-		
-
-	private:
-
-		NamespacedIdentifier currentNamespacePrefix;
-		
-
-		Array<NamespacedIdentifier> anonymousScopeIds;
-		
-		Symbol currentSymbol;
-		Symbol rootSymbol;
 	};
 
 

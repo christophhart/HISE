@@ -139,15 +139,16 @@ struct Operations::StatementBlock : public Expression,
 		}
 	}
 
-	StatementBlock(Location l) :
-		Expression(l)
+	StatementBlock(Location l, const NamespacedIdentifier& ns) :
+		Expression(l),
+		ScopeStatementBase(ns)
 	{}
 
 	TypeInfo getTypeInfo() const override { return returnType; };
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
-		Statement::Ptr c = new StatementBlock(l);
+		Statement::Ptr c = new StatementBlock(l, getPath());
 
 		auto b = dynamic_cast<StatementBlock*>(c.get());
 		
@@ -512,22 +513,13 @@ struct Operations::VariableReference : public Expression,
 		return id.typeInfo;
 	}
 
-	FunctionClass* getFunctionClassForSymbol(BaseScope* scope) const
-	{
-		if(auto gfc = scope->getGlobalScope()->getGlobalFunctionClass(id.id))
-			return gfc;
-
-		if (scope->getScopeType() == BaseScope::Global)
-			return nullptr;
-
-		return scope->getRootData()->getSubFunctionClass(id);
-	}
+	
 
 	FunctionClass* getFunctionClassForParentSymbol(BaseScope* scope) const
 	{
-		if (id.getParentSymbol())
+		if (id.id.getParent().isValid())
 		{
-			return scope->getRootData()->getSubFunctionClass(id.getParentSymbol());
+			return scope->getRootData()->getSubFunctionClass(id.id.getParent());
 		}
 
 		return nullptr;
@@ -555,7 +547,7 @@ struct Operations::VariableReference : public Expression,
 
 	bool isParameter(BaseScope* scope) const
 	{
-		if (auto fScope = dynamic_cast<FunctionScope*>(scope->getScopeForSymbol(id)))
+		if (auto fScope = dynamic_cast<FunctionScope*>(scope->getScopeForSymbol(id.id)))
 		{
 			return fScope->parameters.contains(id.getName());
 		}
@@ -579,10 +571,8 @@ struct Operations::VariableReference : public Expression,
 
 	bool isClassVariable(BaseScope* scope) const
 	{
-		return scope->getRootClassScope()->rootData->contains(id);
+		return scope->getRootClassScope()->rootData->contains(id.id);
 	}
-
-	bool isApiClass(BaseScope* s) const;
 
     bool isFirstReference()
 	{
@@ -602,7 +592,7 @@ struct Operations::VariableReference : public Expression,
 	{
 		jassert(isLocalDefinition);
 		
-		if (auto es = scope->getScopeForSymbol(id))
+		if (auto es = scope->getScopeForSymbol(id.id))
 		{
 			bool isAlreadyDefinedSubClassMember = false;
 
@@ -1002,8 +992,11 @@ struct Operations::CastedSimd : public Expression
 			{
 				int numSimd = ost->getNumElements() / 4;
 
-				simdSpanType = TypeInfo(new SpanType(compiler->getComplexTypeForAlias(NamespacedIdentifier("float4")), numSimd));
-				compiler->complexTypes.add(simdSpanType.getComplexType());
+				auto float4Type = compiler->namespaceHandler.getComplexType(NamespacedIdentifier("float4"));
+
+				jassert(float4Type != nullptr);
+				auto s = new SpanType(TypeInfo(float4Type), numSimd);
+				simdSpanType = TypeInfo(compiler->namespaceHandler.registerComplexTypeOrReturnExisting(s));
 			}
 			else
 				throwError("Can't convert non-span to SIMD span");
@@ -1048,11 +1041,11 @@ struct Operations::FunctionCall : public Expression
 		numCallTypes
 	};
 
-	FunctionCall(Location l, Ptr f, const Symbol& id_, const Array<TemplateParameter>& tp) :
-		Expression(l),
-		cloneId(id_)
+	FunctionCall(Location l, Ptr f, const Symbol& id, const Array<TemplateParameter>& tp) :
+		Expression(l)
 	{
-		function.id = id_.id;
+		function.id = id.id;
+		function.returnType = id.typeInfo;
 		function.templateParameters = tp;
 
 		if (auto dp = dynamic_cast<DotOperator*>(f.get()))
@@ -1069,7 +1062,7 @@ struct Operations::FunctionCall : public Expression
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
-		auto newFC = new FunctionCall(l, nullptr, cloneId, function.templateParameters);
+		auto newFC = new FunctionCall(l, nullptr, Symbol(function.id, function.returnType), function.templateParameters);
 
 		if (objExpr != nullptr)
 		{
@@ -1125,7 +1118,6 @@ struct Operations::FunctionCall : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope);
 
-	Symbol cloneId;
 	CallType callType = Unresolved;
 	Array<FunctionData> possibleMatches;
 	mutable FunctionData function;
@@ -1708,27 +1700,32 @@ struct Operations::Loop : public Expression,
 		auto c1 = getSubExpr(0)->clone(l);
 		auto c2 = getSubExpr(1)->clone(l);
 
-		return new Loop(l, iterator, dynamic_cast<Expression*>(c1.get()), dynamic_cast<Expression*>(c2.get()));
+		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
+
+		auto newLoop = new Loop(l, iterator, dynamic_cast<Expression*>(c1.get()));
+
+		newLoop->addBody(c2, path);
+		return newLoop;
 	}
 
-	Loop(Location l, const Symbol& it_, Expression::Ptr t, Statement::Ptr b_) :
+	Loop(Location l, const Symbol& it_, Expression::Ptr t) :
 		Expression(l),
 		iterator(it_)
 	{
 		addStatement(t);
-		
-		Statement::Ptr b;
+	};
 
-		if (dynamic_cast<StatementBlock*>(b_.get()) == nullptr)
+	void addBody(Statement::Ptr b, const NamespacedIdentifier& scopePath)
+	{
+		if (dynamic_cast<StatementBlock*>(b.get()) == nullptr)
 		{
-			b = new StatementBlock(b_->location);
-			b->addStatement(b_);
+			auto sb = new StatementBlock(location, scopePath);
+			sb->addStatement(b);
+			addStatement(sb);
 		}
 		else
-			b = b_;
-
-		addStatement(b);
-	};
+			addStatement(b);
+	}
 
 	ValueTree toValueTree() const override
 	{
@@ -2280,10 +2277,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 
 		for (auto id : ids)
 		{
-			auto s = Symbol::createRootSymbol(id);
-			s.typeInfo = getTypeInfo();
-
-			symbols.add(s);
+			symbols.add({ id, getTypeInfo() });
 		}
 
 		return symbols;

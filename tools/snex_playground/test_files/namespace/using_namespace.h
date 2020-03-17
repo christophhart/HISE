@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 31
+  output: 13
   error: ""
   filename: "namespace/using_namespace"
 END_TEST_DATA
@@ -18,8 +18,8 @@ namespace N1
 
 namespace N2
 {
-    using namespace N1;
-    
+	using namespace N1;
+	
     Type x = 13;
 }
 

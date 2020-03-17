@@ -927,9 +927,9 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 				auto si = new SettableDebugInfo();
 
-				if (cs->rootData->contains(v))
+				if (cs->rootData->contains(v.id))
 				{
-					auto value = cs->rootData->getDataCopy(v);
+					auto value = cs->rootData->getDataCopy(v.id);
 					
 					si->typeValue = value.getType();
 					si->name = v.id.toString();

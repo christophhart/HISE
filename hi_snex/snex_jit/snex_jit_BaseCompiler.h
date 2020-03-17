@@ -67,12 +67,12 @@ public:
 
 	BaseCompiler()
 	{
-		auto float4Type = new SpanType(Types::ID::Float, 4);
+		auto float4Type = new SpanType(TypeInfo(Types::ID::Float), 4);
 		float4Type->setAlias(NamespacedIdentifier("float4"));
-		complexTypes.add(float4Type);
+		namespaceHandler.registerComplexTypeOrReturnExisting(float4Type);
 	}
 
-	virtual ~BaseCompiler();
+	virtual ~BaseCompiler() {};
 
 	enum Pass
 	{
@@ -210,54 +210,11 @@ public:
 
 	AssemblyRegisterPool registerPool;
 
-	ReferenceCountedArray<ComplexType> complexTypes;
-
-	ReferenceCountedArray<VariadicSubType> variadicTypes;
+	
 
 	NamespaceHandler namespaceHandler;
 
-	ComplexType::Ptr getComplexTypeForAlias(const NamespacedIdentifier& id)
-	{
-		for (auto c : complexTypes)
-		{
-			if (c->matchesId(id))
-				return c;
-		}
-
-		return nullptr;
-	}
-
-	VariadicSubType::Ptr getVariadicTypeForId(const NamespacedIdentifier& id) const;
-
-	bool isTemplatedMethod(const NamespacedIdentifier& functionId) const;
-
-	WrapType* getWrapType(int size)
-	{
-		for (auto t : complexTypes)
-		{
-			if (auto wt = dynamic_cast<WrapType*>(t))
-			{
-				if (wt->size == size)
-					return wt;
-			}
-		}
-
-		return nullptr;
-	}
-
-	StructType* getStructType(const Symbol& id)
-	{
-		for (auto t : complexTypes)
-		{
-			if (auto st = dynamic_cast<StructType*>(t))
-			{
-				if (st->id == id)
-					return st;
-			}
-		}
-
-		return nullptr;
-	}
+	
 
 private:
 

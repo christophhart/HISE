@@ -117,6 +117,7 @@ struct ApiHelpers
 
 
 #include "snex_jit_Functions.h"
+#include "snex_jit_NamespaceHandler.h"
 #include "snex_jit_BaseScope.h"
 #include "snex_jit_GlobalScope.h"
 #include "snex_jit_JitCallableObject.h"

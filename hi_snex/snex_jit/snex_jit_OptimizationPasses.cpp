@@ -74,9 +74,9 @@ ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalDotOperator(BaseScope* s, Op
 		{
 			if (auto cv = dynamic_cast<Operations::VariableReference*>(dot->getDotChild().get()))
 			{
-				if (fc->hasConstant(cv->id))
+				if (fc->hasConstant(cv->id.id))
 				{
-					return new Operations::Immediate(dot->location, fc->getConstantValue(cv->id));
+					return new Operations::Immediate(dot->location, fc->getConstantValue(cv->id.id));
 				}
 			}
 			if (auto cf = dynamic_cast<Operations::FunctionCall*>(dot->getDotChild().get()))
@@ -428,12 +428,12 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 
 		if (auto t = dynamic_cast<Operations::VariableReference*>(functionCall->objExpr.get()))
 		{
-			if (t->id != m.getClassName())
+			if (!(t->id.id == m.getClassName()))
 				return nullptr;
 		}
 
 		Array<FunctionData> matches;
-		auto symbol = m.getClassName().getChildSymbol(functionCall->function.id);
+		auto symbol = m.getClassName().getChildId(functionCall->function.id.id);
 
 		m.addMatchingFunctions(matches, symbol);
 
@@ -543,9 +543,13 @@ bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope
 
 				if (moveIntoNewFalseBranch)
 				{
-					if(newFalseBranch == nullptr)
-						newFalseBranch = new Operations::StatementBlock(s->location);
+					if (newFalseBranch == nullptr)
+					{
+						auto base = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(s);
 
+						newFalseBranch = new Operations::StatementBlock(s->location, s->location.createAnonymousScopeId(base->getPath()));
+					}
+						
 					replaceWithNoop(s);
 					newFalseBranch->addStatement(s);
 				}
@@ -624,7 +628,7 @@ bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scop
 	{
 		jassert(fc->objExpr != nullptr);
 
-		auto thisSymbol = Symbol::createRootSymbol("this");
+		auto thisSymbol = Symbol("this");
 
 		Operations::Expression::Ptr e = as<Operations::Expression>(fc->objExpr->clone(fc->location).get());
 
@@ -662,8 +666,7 @@ bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scop
 
 	for (int i = 0; i < fc->getNumArguments(); i++)
 	{
-		auto pVarSymbol = Symbol::createRootSymbol(f->parameters[i]);
-		pVarSymbol.setTypeInfo(f->data.args[i].typeInfo);
+		auto pVarSymbol = f->data.args[i];
 
 		Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
 

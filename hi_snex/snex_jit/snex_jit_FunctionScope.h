@@ -44,11 +44,12 @@ struct RegisterScope : public BaseScope
 		BaseScope({}, parentScope)
 	{
 		jassert(id.isValid());
-		scopeId = parentScope->getScopeSymbol().getChildSymbol(id);
-
+		scopeId = id;
+		jassert(parentScope->getScopeSymbol() == id.getParent());
 		jassert(getScopeType() >= BaseScope::Function);
 	}
 
+#if 0
 	bool hasVariable(const NamespacedIdentifier& id) const override;
  
 	bool addVariable(const Symbol& s) override
@@ -75,6 +76,7 @@ struct RegisterScope : public BaseScope
 
 		return BaseScope::updateSymbol(symbolToBeUpdated);
 	}
+#endif
 
 	Array<Symbol> localVariables;
 
@@ -95,6 +97,7 @@ public:
 
 	~FunctionScope() {}
 
+#if 0
 	bool hasVariable(const NamespacedIdentifier& id) const override
 	{
 		if (parameters.contains(id.getIdentifier()))
@@ -117,6 +120,7 @@ public:
 
 		return RegisterScope::updateSymbol(symbolToBeUpdated);
 	}
+#endif
 
 	AssemblyRegister* getRegister(const Symbol& ref)
 	{

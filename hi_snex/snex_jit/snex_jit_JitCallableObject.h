@@ -44,7 +44,7 @@ JIT function needs to be revalidated.
 */
 struct JitCallableObject : public FunctionClass
 {
-	JitCallableObject(const Symbol& id);;
+	JitCallableObject(const NamespacedIdentifier& id);;
 
 	virtual ~JitCallableObject();;
 
@@ -59,13 +59,19 @@ protected:
 
 	FunctionData* createMemberFunction(const Types::ID returnType, const Identifier& functionId, const Array<Types::ID>& argTypes)
 	{
+		auto fId = getClassName().getChildId(functionId);
+
 		ScopedPointer<FunctionData> functionWrapper(new FunctionData());
 		functionWrapper->object = this;
-		functionWrapper->id = NamespacedIdentifier(functionId);
+		functionWrapper->id = fId;
 		functionWrapper->functionName << objectId << "." << functionId << "()";
 
 		for (int i = 0; i < argTypes.size(); i++)
-			functionWrapper->args.add(Symbol::createIndexedSymbol(i, argTypes[i]));
+		{
+			juce::String s("Param");
+			s << juce::String(i);
+			functionWrapper->addArgs(Identifier(s), TypeInfo(argTypes[i]));
+		}
 
 		functionWrapper->returnType = TypeInfo(returnType);
 
@@ -90,7 +96,7 @@ public:
 
 	/** Create a class. The id will be used as first element in the dot operator. */
 	JitTestObject(Identifier id) :
-		JitCallableObject(Symbol::createRootSymbol(id))
+		JitCallableObject(NamespacedIdentifier(id))
 	{};
 
 	/** A member function. */

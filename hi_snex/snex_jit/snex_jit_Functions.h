@@ -59,9 +59,27 @@ struct NamespacedIdentifier
 		return c;
 	}
 
+	static NamespacedIdentifier null()
+	{
+		static const NamespacedIdentifier n("null");
+		return n;
+	}
+
+	bool isNull() const
+	{
+		return null() == *this;
+	}
 
 	NamespacedIdentifier()
 	{}
+
+	Array<Identifier> getIdList() const
+	{
+		Array<Identifier> l;
+		l.addArray(namespaces);
+		l.add(id);
+		return l;
+	}
 
 	std::string debugName;
 	Array<Identifier> namespaces;
@@ -77,9 +95,31 @@ struct NamespacedIdentifier
 		return namespaces.isEmpty();
 	}
 
+	bool isExplicit() const
+	{
+		return isInGlobalNamespace();
+	}
+
 	Identifier getIdentifier() const
 	{
 		return id;
+	}
+
+	NamespacedIdentifier getChildId(const Identifier& id) const
+	{
+		auto c = *this;
+		c.add(id);
+		return c;
+	}
+
+	NamespacedIdentifier getParent() const
+	{
+		if (namespaces.isEmpty())
+			return {};
+
+		auto c = *this;
+		c.pop();
+		return c;
 	}
 
 	bool operator==(const NamespacedIdentifier& other) const
@@ -145,37 +185,6 @@ struct NamespacedIdentifier
 };
 
 
-struct NamespaceHandler
-{
-	void pushNamespace(const Identifier& id)
-	{
-		currentNamespace.add(id);
-
-		existingNamespaces.add(currentNamespace);
-	}
-
-	bool isNamespace(const NamespacedIdentifier& possibleNamespace) const
-	{
-		return existingNamespaces.contains(possibleNamespace);
-	}
-
-	Result popNamespace()
-	{
-		return currentNamespace.pop();
-	}
-
-	NamespacedIdentifier getCurrentNamespaceIdentifier() const
-	{
-		return currentNamespace;
-	}
-
-private:
-
-	NamespacedIdentifier currentNamespace;
-
-	Array<NamespacedIdentifier> existingNamespaces;
-
-};
 
 struct ComplexType : public ReferenceCountedObject
 {
@@ -274,6 +283,17 @@ struct ComplexType : public ReferenceCountedObject
 		return usingAlias.isValid(); 
 	}
 
+	bool matchesOtherType(ComplexType::Ptr other) const
+	{
+		if (usingAlias.isValid() && other->usingAlias == usingAlias)
+			return true;
+
+		if (toStringInternal() == other->toStringInternal())
+			return true;
+
+		return false;
+	}
+
 	bool matchesId(const NamespacedIdentifier& id) const
 	{
 		if (id == usingAlias)
@@ -303,6 +323,8 @@ private:
 };
 
 
+
+
 struct TypeInfo
 {
 	using List = Array<TypeInfo>;
@@ -326,6 +348,11 @@ struct TypeInfo
 	{
 		jassert(p != nullptr);
 		type = Types::ID::Pointer;
+	}
+
+	bool isDynamic() const noexcept
+	{
+		return type == Types::ID::Dynamic;
 	}
 
 	bool isValid() const noexcept
@@ -381,6 +408,14 @@ struct TypeInfo
 			return typePtr->getRequiredAlignment();
 		else
 			return Types::Helpers::getSizeForType(type);
+	}
+
+	TypeInfo withModifiers(bool isConst_, bool isRef_) const
+	{
+		auto c = *this;
+		c.const_ = isConst_;
+		c.ref_ = isRef_;
+		return c;
 	}
 
 	juce::String toString() const
@@ -493,7 +528,7 @@ private:
 	ComplexType::Ptr typePtr;
 };
 
-
+class NamespaceHandler;
 
 struct TemplateParameter
 {
@@ -503,63 +538,57 @@ struct TemplateParameter
 	int constant;
 };
 
-/** A Symbol is used to identifiy the data slot. */
+/** A Symbol is used to identify the data slot. */
 struct Symbol
 {
-	static Symbol createRootSymbol(const Identifier& id);
+	Symbol(const Identifier& singleId):
+		id(NamespacedIdentifier(singleId)),
+		resolved(false),
+		typeInfo({})
+	{}
 
-	static Symbol createRootSymbol(const NamespacedIdentifier& id);
+	Symbol():
+		id(NamespacedIdentifier::null()),
+		resolved(false),
+		typeInfo({})
+	{}
 
-	static Symbol createIndexedSymbol(int index, Types::ID type);
+	Symbol(const NamespacedIdentifier& id_, const TypeInfo& t) :
+		id(id_),
+		typeInfo(t),
+		resolved(!t.isDynamic())
+	{};
+	
 
-	Symbol();
-
-	Symbol(const Array<Identifier>& ids, Types::ID t_, bool isConst_, bool isRef_);
-
-	Symbol(const Array<Identifier>& ids, const TypeInfo& info);
-
-	bool operator==(Types::ID t) const
+	bool operator==(const Symbol& other) const
 	{
-		jassertfalse;
-		return false;
+		return id == other.id;
 	}
 
-	bool operator==(const Symbol& other) const;
+	bool matchesIdAndType(const Symbol& other) const
+	{
+		return id == other.id && typeInfo == other.typeInfo;
+	}
 
-	bool matchesIdAndType(const Symbol& other) const;
+	Symbol getParentSymbol(NamespaceHandler* handler) const;
 
-	Symbol getParentSymbol() const;
-
-	Symbol getChildSymbol(const NamespacedIdentifier& id, const TypeInfo& t = {}) const;
-
-	Symbol withParent(const Symbol& parent) const;
-
-	Symbol withType(const Types::ID type) const;
-
-	Symbol withComplexType(ComplexType::Ptr typePtr) const;
-
-	Symbol relocate(const Symbol& newParent) const;
+	Symbol getChildSymbol(const Identifier& childName, NamespaceHandler* handler) const;
 
 	Identifier getName() const
 	{
+		jassert(!resolved);
 		return id.getIdentifier();
 	}
 
-	void setTypeInfo(const TypeInfo& other)
+	bool isParentOf(const Symbol& otherSymbol) const
 	{
-		typeInfo = other;
-		debugName = toString().toStdString();
+		return otherSymbol.id.getParent() == id;
 	}
-
-	Array<Identifier> getPath() const { return fullIdList; };
-
-	bool isExplicit() const { return fullIdList.size() > 1; }
 
 	bool isConst() const { return typeInfo.isConst(); }
 
-	bool isParentOf(const Symbol& otherSymbol) const;
+	bool isConstExpr() const { return !constExprValue.isVoid(); }
 
-	int getNumParents() const { return fullIdList.size() - 1; };
 
 	Types::ID getRegisterType() const
 	{
@@ -570,24 +599,28 @@ struct Symbol
 
 	bool isReference() const { return typeInfo.isRef(); };
 
-	juce::String toString() const;
+	juce::String toString() const
+	{
+		juce::String s;
+
+		if (resolved)
+			s << typeInfo.toString() << " ";
+		else
+			s << "unresolved ";
+
+		s << id.toString();
+
+		return s;
+	}
 
 	operator bool() const;
 
-	
-
 	NamespacedIdentifier id;
-
+	bool resolved = false;
 	VariableStorage constExprValue = {};
-
 	TypeInfo typeInfo;
 
 private:
-
-	// a list of identifiers...
-	Array<Identifier> fullIdList;
-
-	std::string debugName;
 
 };
 
@@ -652,33 +685,31 @@ struct FunctionData
 	template <typename T> void addArgs(bool omitObjPtr=false)
 	{
 		if(!omitObjPtr || !std::is_same<T, void*>())
-			args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T>()));
+			args.add(createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T>()));
 	}
 
 	template <typename T1, typename T2> void addArgs(bool omitObjPtr = false)
 	{
 		if (!omitObjPtr || !std::is_same<T1, void*>())
-			args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+			args.add(createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
 
-		args.add(Symbol::createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
+		args.add(createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
 	}
 
 	template <typename T1, typename T2, typename T3> void addArgs(bool omitObjPtr = false)
 	{
 		if (!omitObjPtr || !std::is_same<T1, void*>())
-			args.add(Symbol::createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
+			args.add(createIndexedSymbol(0, Types::Helpers::getTypeFromTypeId<T1>()));
 
-		args.add(Symbol::createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
-		args.add(Symbol::createIndexedSymbol(2, Types::Helpers::getTypeFromTypeId<T3>()));
+		args.add(createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
+		args.add(createIndexedSymbol(2, Types::Helpers::getTypeFromTypeId<T3>()));
 	}
 
 	
 
-	void addArgs(const Identifier& id, const TypeInfo& t)
+	void addArgs(const Identifier& argName, const TypeInfo& t)
 	{
-		auto s = Symbol::createRootSymbol(id);
-		s.typeInfo = t;
-		args.add(s);
+		args.add(Symbol(id.getChildId(argName), t));
 	}
 
 	template <typename ReturnType> static FunctionData createWithoutParameters(const Identifier& id, void* ptr = nullptr)
@@ -691,6 +722,13 @@ struct FunctionData
 
 		return d;
 	}
+
+	Symbol createIndexedSymbol(int index, Types::ID t)
+	{
+		Identifier pId("Param" + juce::String(index));
+		return { id.getChildId(pId), TypeInfo(t) };
+	}
+
 
 	template <typename ReturnType, typename...Parameters> static FunctionData create(const Identifier& id, ReturnType(*ptr)(Parameters...) = nullptr, bool omitObjectPtr=false)
 	{
@@ -754,7 +792,7 @@ struct FunctionData
 	Array<Argument> args;
 
 	/** A pretty formatted function name for debugging purposes. */
-	String functionName;
+	juce::String functionName;
 
 	/** A wrapped lambda containing the assembly generation code for that function. */
 	Inliner::Ptr inliner;
@@ -856,14 +894,9 @@ private:
 
 
 
-
-
-
-
-
-
 class BaseScope;
-
+class NamespaceHandler;
+ 
 struct InlineData;
 
 struct VariadicSubType : public ReferenceCountedObject
@@ -890,13 +923,13 @@ struct FunctionClass: public DebugableObjectBase,
 		numOperatorOverloads
 	};
 
-	static NamespacedIdentifier getSpecialSymbol(SpecialSymbols s)
+	static Identifier getSpecialSymbol(SpecialSymbols s)
 	{
 		switch (s)
 		{
-		case AssignOverload: return NamespacedIdentifier("operator=");
-		case NativeTypeCast: return NamespacedIdentifier("type_cast");
-		case Subscript:		 return NamespacedIdentifier("operator[]");
+		case AssignOverload: return "operator=";
+		case NativeTypeCast: return "type_cast";
+		case Subscript:		 return "operator[]";
 		}
 
 		return {};
@@ -904,13 +937,13 @@ struct FunctionClass: public DebugableObjectBase,
 
 	bool hasSpecialFunction(SpecialSymbols s) const
 	{
-		auto id = getClassName().getChildSymbol(getSpecialSymbol(s));
+		auto id = getClassName().getChildId(getSpecialSymbol(s));
 		return hasFunction(id);
 	}
 
 	void addSpecialFunctions(SpecialSymbols s, Array<FunctionData>& possibleMatches) const
 	{
-		auto id = getClassName().getChildSymbol(getSpecialSymbol(s));
+		auto id = getClassName().getChildId(getSpecialSymbol(s));
 		addMatchingFunctions(possibleMatches, id);
 	}
 
@@ -922,7 +955,7 @@ struct FunctionClass: public DebugableObjectBase,
 		VariableStorage value;
 	};
 
-	FunctionClass(const Symbol& id) :
+	FunctionClass(const NamespacedIdentifier& id) :
 		classSymbol(id)
 	{};
 
@@ -995,7 +1028,7 @@ struct FunctionClass: public DebugableObjectBase,
 	FunctionData& createSpecialFunction(SpecialSymbols s)
 	{
 		auto f = new FunctionData();
-		f->id = getSpecialSymbol(s);
+		f->id = getClassName().getChildId(getSpecialSymbol(s));
 		
 		addFunction(f);
 		return *f;
@@ -1003,7 +1036,7 @@ struct FunctionClass: public DebugableObjectBase,
 
 	juce::String getCategory() const override { return "API call"; };
 
-	Identifier getObjectName() const override { return classSymbol.getId().toString(); }
+	Identifier getObjectName() const override { return classSymbol.toString(); }
 
 	juce::String getDebugValue() const override { return classSymbol.toString(); };
 
@@ -1014,7 +1047,7 @@ struct FunctionClass: public DebugableObjectBase,
 		functions.addArray(getFunctionIds());
 	};
 
-	void setDescription(const String& s, const StringArray& names)
+	void setDescription(const juce::String& s, const StringArray& names)
 	{
 		if (auto last = functions.getLast())
 			last->setDescription(s, names);
@@ -1053,17 +1086,17 @@ struct FunctionClass: public DebugableObjectBase,
 		return var(constants[index].value.toDouble());
 	};
 
-	VariableStorage getConstantValue(const Symbol& s) const;
+	VariableStorage getConstantValue(const NamespacedIdentifier& s) const;
 
 	// =====================================================================================
 
-	virtual bool hasFunction(const Symbol& s) const;
+	virtual bool hasFunction(const NamespacedIdentifier& s) const;
 
-	bool hasConstant(const Symbol& s) const;
+	bool hasConstant(const NamespacedIdentifier& s) const;
 
 	void addFunctionConstant(const Identifier& constantId, VariableStorage value);
 
-	virtual void addMatchingFunctions(Array<FunctionData>& matches, const Symbol& symbol) const;
+	virtual void addMatchingFunctions(Array<FunctionData>& matches, const NamespacedIdentifier& symbol) const;
 
 	void addFunctionClass(FunctionClass* newRegisteredClass);
 
@@ -1071,13 +1104,13 @@ struct FunctionClass: public DebugableObjectBase,
 
 	Array<NamespacedIdentifier> getFunctionIds() const;
 
-	const Symbol& getClassName() const { return classSymbol; }
+	const NamespacedIdentifier& getClassName() const { return classSymbol; }
 
 	bool fillJitFunctionPointer(FunctionData& dataWithoutPointer);
 
 	bool injectFunctionPointer(FunctionData& dataToInject);
 
-	FunctionClass* getSubFunctionClass(const Symbol& id)
+	FunctionClass* getSubFunctionClass(const NamespacedIdentifier& id)
 	{
 		for (auto f : registeredClasses)
 		{
@@ -1108,23 +1141,6 @@ struct FunctionClass: public DebugableObjectBase,
 		return nullptr;
 	}
 
-#if 0
-	Result inlineFunctionCall(const Identifier& id, InlineData* d)
-	{
-		jassert(isInlineable(id));
-
-		for (auto i : inliners)
-		{
-			if (i->functionId == id)
-			{
-				return i->inlineFunction(d);
-			}
-		}
-
-		return Result::fail("Can't inline function " + id.toString());
-	}
-#endif
-
 	void addInliner(const Identifier& id, const Inliner::Func& asmFunc)
 	{
 		auto nId = NamespacedIdentifier(id);
@@ -1143,7 +1159,7 @@ protected:
 
 	ReferenceCountedArray<FunctionClass> registeredClasses;
 
-	Symbol classSymbol;
+	NamespacedIdentifier classSymbol;
 	OwnedArray<FunctionData> functions;
 
 	Array<Constant> constants;
