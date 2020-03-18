@@ -123,7 +123,7 @@ public:
 	template <class T> T* compileJitClass(const juce::String& code, const Identifier& classId)
 	{
 		auto obj = compileJitObject(code);
-		auto typePtr = getComplexType(Symbol::createRootSymbol(classId));
+		auto typePtr = getComplexType(NamespacedIdentifier(classId));
 		return new T(std::move(obj), typePtr);
 	};
 
@@ -147,6 +147,7 @@ public:
 
 private:
 
+	NamespaceHandler handler;
 	juce::String lastCode;
 	ClassCompiler* compiler;
 

@@ -94,9 +94,14 @@ public:
 		return rs;
 	}
 
+	
+
 	ScopedPointer<asmjit::JitRuntime> runtime;
 	ReferenceCountedObjectPtr<RootClassData> rootData;
 	ComplexType::WeakPtr typePtr;
+	NamespaceHandler* handler = nullptr;
+
+	Array<NamespacedIdentifier> rootNamespaceIds;
 
 	struct FunctionDebugInfo : public DebugInformationBase
 	{
@@ -241,24 +246,9 @@ public:
 
 	Identifier classTypeId;
 
-	bool addVariable(const Symbol& s) override
-	{
-		if (typePtr != nullptr)
-			return true;
+	
 
-		return getRootData()->allocate(this, s).wasOk();
-	}
 
-	bool hasVariable(const NamespacedIdentifier& id) const override
-	{
-		if (auto st = dynamic_cast<StructType*>(typePtr.get()))
-		{
-			if(st->id == id.getParent())
-				return st->hasMember(id.getIdentifier());
-		}
-
-		return BaseScope::hasVariable(id);
-	}
 
 #if 0
 	bool updateSymbol(Symbol& symbolToBeUpdated) override

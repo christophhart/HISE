@@ -39,8 +39,8 @@ class ClassCompiler final: public BaseCompiler
 {
 public:
 
-	ClassCompiler(BaseScope* parentScope_, const NamespacedIdentifier& classInstanceId = {}) :
-		BaseCompiler(),
+	ClassCompiler(BaseScope* parentScope_, NamespaceHandler& handler, const NamespacedIdentifier& classInstanceId = {}) :
+		BaseCompiler(handler),
 		instanceId(classInstanceId),
 		parentScope(parentScope_),
 		lastResult(Result::ok())
@@ -64,9 +64,7 @@ public:
 	~ClassCompiler()
 	{
 		syntaxTree = nullptr;
-
 	}
-
 
 	void setFunctionCompiler(asmjit::X86Compiler* cc)
 	{
@@ -88,7 +86,12 @@ public:
 		NewClassParser parser(this, classStart, length);
 
 		if (newScope == nullptr)
+		{
 			newScope = new JitCompiledFunctionClass(parentScope, instanceId);
+		}
+
+		newScope->pimpl->handler = &namespaceHandler;
+
 		try
 		{
 			parser.currentScope = newScope->pimpl;
@@ -218,6 +221,8 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		}
 
 		match(JitTokens::closeBrace);
+
+		
 
 		auto r = compiler->namespaceHandler.popNamespace();
 
@@ -533,6 +538,8 @@ InitialiserList::Ptr BlockParser::parseInitialiserList()
 
 	return root;
 }
+
+
 
 
 void BlockParser::parseUsingAlias()

@@ -499,6 +499,7 @@ struct ProcessSingleData
 			c.registerExternalComplexType(st);
 		}
 
+		d.returnType = TypeInfo(Types::ID::Void);
 		d.addArgs("frameData", TypeInfo(st, false));
 	}
 };
@@ -702,7 +703,8 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 
 	{
 		FunctionData getFunction;
-		getFunction.id = NamespacedIdentifier("get");
+		getFunction.id = chainType->variadicId.getChildId("get");
+		getFunction.returnType = TypeInfo(Types::ID::Dynamic, false, true);
 
 		getFunction.inliner = Inliner::createHighLevelInliner(getFunction.id, [](InlineData* b)
 		{

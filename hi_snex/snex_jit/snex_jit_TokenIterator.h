@@ -39,7 +39,7 @@ using namespace juce;
 #define HNODE_JIT_OPERATORS(X) \
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
     X(openParen,     "(")        X(closeParen,   ")")       X(openBrace,    "{")    X(closeBrace, "}") \
-    X(openBracket,   "[")        X(closeBracket, "]")       X(colon,        ":")    X(question,   "?") \
+    X(openBracket,   "[")        X(closeBracket, "]")       X(double_colon, "::")   X(colon,        ":")    X(question,   "?") \
     X(typeEquals,    "===")      X(equals,       "==")      X(assign_,       "=") \
     X(typeNotEquals, "!==")      X(notEquals,    "!=")      X(logicalNot,   "!") \
     X(plusEquals,    "+=")       X(plusplus,     "++")      X(plus,         "+") \
@@ -59,7 +59,7 @@ using namespace juce;
 	X(if_, "if")				X(else_, "else")	\
 	X(auto_, "auto")			X(struct_, "struct")	X(span_, "span") \
 	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")	X(break_, "break") \
-	X(continue_, "continue")	X(dyn_, "dyn")		X(namespace_, "namespace")  X(double_colon, "::")
+	X(continue_, "continue")	X(dyn_, "dyn")		X(namespace_, "namespace")  
 
 namespace JitTokens
 {

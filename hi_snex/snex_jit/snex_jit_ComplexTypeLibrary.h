@@ -109,6 +109,9 @@ struct DynType : public ComplexType
 	bool forEach(const TypeFunction&, Ptr, void*) override { return false; }
 	juce::String toStringInternal() const override;
 
+	
+
+
 	TypeInfo elementType;
 
 private:
@@ -130,23 +133,9 @@ struct StructType : public ComplexType
 	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override;
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
 	
+	void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
+
 	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList);
-
-#if 0
-	bool updateSymbol(Symbol& s) const
-	{
-		for (auto m : memberData)
-		{
-			if (m->id == s.getName())
-			{
-				s.typeInfo = m->typeInfo;
-				return true;
-			}
-		}
-
-		return false;
-	}
-#endif
 
 	bool hasMember(const Identifier& id) const;
 	TypeInfo getMemberTypeInfo(const Identifier& id) const;
@@ -249,6 +238,8 @@ struct VariadicTypeBase : public ComplexType
 	bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) override;
 	FunctionClass* getFunctionClass() override;
 	juce::String toStringInternal() const override;;
+
+	NamespacedIdentifier getVariadicId() const { return type->variadicId; }
 
 private:
 

@@ -93,11 +93,6 @@ struct Operations::InlinedArgument : public Expression,
 
 		Expression::process(compiler, scope);
 
-		if (compiler->getCurrentPass() == BaseCompiler::DataAllocation)
-		{
-			scope->addVariable(s);
-		}
-
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
 			if (s.typeInfo.isComplexType() && !s.isReference())
@@ -235,7 +230,7 @@ struct Operations::StatementBlock : public Expression,
 			return parent;
 
 		if (blockScope == nullptr)
-			blockScope = new RegisterScope(parent, location.createAnonymousScopeId());
+			blockScope = new RegisterScope(parent, location.createAnonymousScopeId(parent->getScopeSymbol()));
 
 		return blockScope;
 	}
@@ -1041,6 +1036,8 @@ struct Operations::FunctionCall : public Expression
 		numCallTypes
 	};
 
+
+
 	FunctionCall(Location l, Ptr f, const Symbol& id, const Array<TemplateParameter>& tp) :
 		Expression(l)
 	{
@@ -1702,30 +1699,19 @@ struct Operations::Loop : public Expression,
 
 		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
 
-		auto newLoop = new Loop(l, iterator, dynamic_cast<Expression*>(c1.get()));
-
-		newLoop->addBody(c2, path);
+		auto newLoop = new Loop(l, iterator, dynamic_cast<Expression*>(c1.get()), c2);
 		return newLoop;
 	}
 
-	Loop(Location l, const Symbol& it_, Expression::Ptr t) :
+	Loop(Location l, const Symbol& it_, Expression::Ptr t, Statement::Ptr body) :
 		Expression(l),
 		iterator(it_)
 	{
 		addStatement(t);
-	};
+		addStatement(body);
 
-	void addBody(Statement::Ptr b, const NamespacedIdentifier& scopePath)
-	{
-		if (dynamic_cast<StatementBlock*>(b.get()) == nullptr)
-		{
-			auto sb = new StatementBlock(location, scopePath);
-			sb->addStatement(b);
-			addStatement(sb);
-		}
-		else
-			addStatement(b);
-	}
+		jassert(dynamic_cast<StatementBlock*>(body.get()) != nullptr);
+	};
 
 	ValueTree toValueTree() const override
 	{
@@ -1768,21 +1754,26 @@ struct Operations::Loop : public Expression,
 		{
 			getTarget()->process(compiler, scope);
 
+			jassert(getLoopBlock()->blockScope == nullptr);
+
+			jassert(iterator.id.getParent().getParent() == scope->getScopeSymbol());
+
+			getLoopBlock()->blockScope = new RegisterScope(scope, iterator.id.getParent());
+
 			if (auto sp = getTarget()->getTypeInfo().getTypedIfComplexType<SpanType>())
 			{
 				loopTargetType = Span;
 
-				if (iterator.typeInfo.isInvalid())
+				if (iterator.typeInfo.isDynamic())
 					iterator.typeInfo = sp->getElementType();
 				else if (iterator.typeInfo != sp->getElementType())
 					location.throwError("iterator type mismatch: " + iterator.typeInfo.toString() + " expected: " + sp->getElementType().toString());
-
 			}
 			else if (auto dt = getTarget()->getTypeInfo().getTypedIfComplexType<DynType>())
 			{
 				loopTargetType = Dyn;
 
-				if (iterator.typeInfo.isInvalid())
+				if (iterator.typeInfo.isDynamic())
 					iterator.typeInfo = dt->elementType;
 				else if (iterator.typeInfo != dt->elementType)
 					location.throwError("iterator type mismatch: " + iterator.typeInfo.toString() + " expected: " + sp->getElementType().toString());
@@ -1791,15 +1782,14 @@ struct Operations::Loop : public Expression,
 			{
 				loopTargetType = Block;
 
-				iterator.typeInfo.setType(Types::ID::Float);
+				if (iterator.typeInfo.isDynamic())
+					iterator.typeInfo = TypeInfo(Types::ID::Float, iterator.isConst(), iterator.isReference());
+				else if (iterator.typeInfo.getType() != Types::ID::Float)
+					location.throwError("Illegal iterator type");
 			}
 			
-			if (getLoopBlock()->blockScope == nullptr)
-			{
-				getLoopBlock()->blockScope = new RegisterScope(scope, location.createAnonymousScopeId());
-			}
-
-			getLoopBlock()->blockScope->addVariable(iterator);
+			compiler->namespaceHandler.setTypeInfo(iterator.id, NamespaceHandler::Variable, iterator.typeInfo);
+			
 			getLoopBlock()->process(compiler, scope);
 
 			SyntaxTreeWalker w(getLoopBlock(), false);
@@ -1877,7 +1867,7 @@ struct Operations::Loop : public Expression,
 
 	RegPtr iteratorRegister;
 	Symbol iterator;
-
+	
 	bool loadIterator = true;
 
 	LoopTargetType loopTargetType;

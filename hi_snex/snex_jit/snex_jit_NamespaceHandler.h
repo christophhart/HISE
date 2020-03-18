@@ -42,6 +42,7 @@ struct NamespaceHandler
 {
 	enum SymbolType
 	{
+		Unknown,
 		Struct,
 		Function,
 		Variable,
@@ -118,6 +119,10 @@ public:
 	{
 		variadicTypes.add(p);
 	}
+
+	bool rootHasNamespace(const NamespacedIdentifier& id) const;
+
+	SymbolType getSymbolType(const NamespacedIdentifier& id) const;
 
 	TypeInfo getAliasType(const NamespacedIdentifier& aliasId) const;
 

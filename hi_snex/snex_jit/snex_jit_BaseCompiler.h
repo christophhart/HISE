@@ -65,7 +65,8 @@ public:
 		numMessageTypes
 	};
 
-	BaseCompiler()
+	BaseCompiler(NamespaceHandler& handler):
+		namespaceHandler(handler)
 	{
 		auto float4Type = new SpanType(TypeInfo(Types::ID::Float), 4);
 		float4Type->setAlias(NamespacedIdentifier("float4"));
@@ -212,7 +213,7 @@ public:
 
 	
 
-	NamespaceHandler namespaceHandler;
+	NamespaceHandler& namespaceHandler;
 
 	
 

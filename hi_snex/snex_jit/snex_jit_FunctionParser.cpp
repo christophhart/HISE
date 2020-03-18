@@ -38,13 +38,39 @@ using namespace juce;
 using namespace asmjit;
 
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
+TypeInfo BlockParser::getDotParentType(ExprPtr e)
+{
+	if (auto dp = dynamic_cast<Operations::DotOperator*>(e.get()))
+	{
+		return dp->getDotParent()->getTypeInfo();
+	}
+
+	return {};
+}
+
+snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementToBlock(const NamespacedIdentifier& scopeIdToUse)
+{
+	jassert(compiler->namespaceHandler.getCurrentNamespaceIdentifier() == scopeIdToUse);
+
+	if (matchIf(JitTokens::openBrace))
+	{
+		return parseStatementBlock(false);
+	}
+	else
+	{
+		auto body = new Operations::StatementBlock(location, scopeIdToUse);
+		body->addStatement(parseStatement());
+		return body;
+	}
+}
+
+snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock(bool createNamespace)
 {
 	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
 
 	b->setParentScopeStatement(getCurrentScopeStatement());
 
-	ScopedScopeStatementSetter svs(this, b.get());
+	ScopedScopeStatementSetter svs(this, b.get(), createNamespace);
 
 	while (!isEOF() && currentType != JitTokens::closeBrace)
 	{
@@ -141,10 +167,10 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 
 	matchType();
 
+	auto iteratorType = currentTypeInfo;
+
 	// has to be done manually because the normal symbol parser consumes the ':' token...
-	auto iteratorId = compiler->namespaceHandler.getCurrentNamespaceIdentifier().getChildId(parseIdentifier());
-	Symbol variableId(iteratorId, currentTypeInfo);
-	compiler->namespaceHandler.addSymbol(iteratorId, currentTypeInfo, NamespaceHandler::Variable);
+	auto iteratorId = parseIdentifier();
 
 	match(JitTokens::colon);
 	
@@ -152,11 +178,20 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 
 	match(JitTokens::closeParen);
 	
-	StatementPtr block = parseStatement();
+	auto id = location.createAnonymousScopeId(compiler->namespaceHandler.getCurrentNamespaceIdentifier());
 
-	auto newLoop = new Operations::Loop(location, variableId, loopBlock.get());
+	Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
 
-	newLoop->addBody(block, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
+	compiler->namespaceHandler.pushNamespace(id.getIdentifier());
+	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), {}, NamespaceHandler::Variable);
+	
+	StatementPtr body = parseStatementToBlock(id);
+
+	
+
+	compiler->namespaceHandler.popNamespace();
+
+	auto newLoop = new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
 
 	return newLoop;
 }
@@ -503,11 +538,38 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 	Array<TemplateParameter> templateParameters;
 
-	auto fSymbol = getCurrentSymbol();
+    auto fSymbol = getCurrentSymbol();
 
-	if (currentType == JitTokens::lessThan && compiler->namespaceHandler.isTemplatedMethod(fSymbol.id))
+	auto pType = getDotParentType(p);
+	
+	if (auto vt = pType.getTypedIfComplexType<VariadicTypeBase>())
 	{
-		templateParameters = parseTemplateParameters();
+		if(currentType == JitTokens::lessThan)
+			templateParameters = parseTemplateParameters();
+
+		auto mId = vt->getVariadicId().getChildId(fSymbol.getName());
+
+		FunctionClass::Ptr vfc = vt->getFunctionClass();
+		Array<FunctionData> matches;
+		vfc->addMatchingFunctions(matches, mId);
+		
+		auto f = matches.getFirst();
+
+		if (auto il = f.inliner)
+		{
+			if (il->returnTypeFunction)
+			{
+				ReturnTypeInlineData rt(f);
+				rt.object = dynamic_cast<Operations::DotOperator*>(p.get())->getDotParent();
+				rt.templateParameters = templateParameters;
+
+				il->process(&rt);
+			}
+		}
+
+		fSymbol = Symbol(f.id, f.returnType);
+
+		jassert(fSymbol.resolved);
 	}
 
 	while (matchIf(JitTokens::openParen))
@@ -523,12 +585,6 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 				{
 					fSymbol.id = parentSymbol.getChildId(fSymbol.id.getIdentifier());
 					fSymbol.resolved = false;
-					p = nullptr;
-				}
-
-				if (symbol.resolved)
-				{
-					fSymbol = symbol.getChildSymbol(fSymbol.id.getIdentifier(), &compiler->namespaceHandler);
 					p = nullptr;
 				}
 			}

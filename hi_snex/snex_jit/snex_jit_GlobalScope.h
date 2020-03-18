@@ -615,16 +615,6 @@ public:
 
 	void deregisterObject(const NamespacedIdentifier& id);
 
-	bool hasVariable(const NamespacedIdentifier& id) const override
-	{
-		for (auto f : objectClassesWithJitCallableFunctions)
-			if (f->getClassName() == id)
-				return true;
-
-		return false;
-	}
-
-	
 	void registerFunctionsToNamespaceHandler(NamespaceHandler& handler);
 
 	bool hasFunction(const NamespacedIdentifier& id) const override;

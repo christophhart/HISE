@@ -112,7 +112,7 @@ public:
 
 		handler.addSymbol(s.id, type, t);
 
-		if (s.typeInfo.isDynamic())
+		if (s.typeInfo.isDynamic() && t != NamespaceHandler::UsingAlias)
 			location.throwError("Can't resolve symbol type");
 
 		return s;
@@ -125,7 +125,7 @@ public:
 
 		auto id = parseIdentifier();
 
-		auto isExplicit = currentType == JitTokens::colon;
+		auto isExplicit = currentType == JitTokens::double_colon;
 
 		if (isExplicit)
 		{
@@ -135,9 +135,8 @@ public:
 
 		c = c.getChildId(id);
 
-		while (matchIf(JitTokens::colon))
+		while (matchIf(JitTokens::double_colon))
 		{
-			match(JitTokens::colon);
 			c = c.getChildId(parseIdentifier());
 		}
 
@@ -191,16 +190,22 @@ private:
 
 	VariableStorage parseConstExpression(bool canBeTemplateParameter);
 
-	bool matchIfTypeInternal()
+	bool parseNamespacedIdentifier()
 	{
 		if (currentType == JitTokens::identifier)
 		{
 			SymbolParser p(*this, namespaceHandler);
 			p.parseNamespacedIdentifier<NamespaceResolver::CanExist>();
 			nId = p.currentNamespacedIdentifier;
+			return true;
 		}
 
-		if (!nId.isNull())
+		return false;
+	}
+
+	bool matchIfTypeInternal()
+	{
+		if (parseNamespacedIdentifier())
 		{
 			auto t = namespaceHandler.getAliasType(nId);
 
@@ -265,9 +270,13 @@ private:
 
 				match(JitTokens::lessThan);
 
-				while (matchIfComplexType())
+				while (parseNamespacedIdentifier())
 				{
+					if (!matchIfComplexType())
+						location.throwError("Can't use non-complex types as variadic argument");
+
 					newType->addType(currentTypeInfo.getComplexType());
+
 					matchIf(JitTokens::comma);
 				}
 
@@ -533,6 +542,8 @@ public:
 	WeakReference<BaseCompiler> compiler;
 
 	Operations::ScopeStatementBase* getCurrentScopeStatement() { return currentScopeStatement; }
+
+	TypeInfo getDotParentType(ExprPtr e);
 
 	
 	void parseUsingAlias();

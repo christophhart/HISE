@@ -466,7 +466,11 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 {
 	auto dynOperators = new FunctionClass(NamespacedIdentifier("DynFunctions"));
 
-	auto assignFunction = dynOperators->createSpecialFunction(FunctionClass::AssignOverload);
+	auto& assignFunction = dynOperators->createSpecialFunction(FunctionClass::AssignOverload);
+	assignFunction.addArgs("this", TypeInfo(this));
+	assignFunction.addArgs("other", TypeInfo(Types::ID::Pointer, true));
+	assignFunction.returnType = TypeInfo(this);
+
 	assignFunction.inliner = new Inliner(assignFunction.id, [](InlineData* d_)
 	{
 		auto d = d_->toAsmInlineData();
@@ -640,6 +644,7 @@ snex::jit::VariadicTypeBase* VariadicTypeBase::getVariadicObjectFromInlineData(I
 		return t;
 	}
 }
+
 
 int VariadicTypeBase::getNumSubTypes() const
 {
@@ -904,6 +909,55 @@ snex::InitialiserList::Ptr StructType::makeDefaultInitialiserList() const
 	}
 
 	return n;
+}
+
+void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
+{
+	if (isExternalDefinition)
+	{
+		handler->addSymbol(id, TypeInfo(this), NamespaceHandler::Struct);
+
+		handler->pushNamespace(id.getIdentifier());
+
+		Array<TypeInfo> subList;
+
+		for (auto m : memberData)
+		{
+			if (auto subClass = m->typeInfo.getTypedIfComplexType<StructType>())
+			{
+				subClass->registerExternalAtNamespaceHandler(handler);
+			}
+		}
+
+		for (auto m : memberData)
+		{
+			auto mId = id.getChildId(m->id);
+			auto mType = m->typeInfo;
+			handler->addSymbol(mId, mType, NamespaceHandler::Variable);
+		}
+
+		FunctionClass::Ptr fc = getFunctionClass();
+
+		for (auto fId : fc->getFunctionIds())
+		{
+			Array<FunctionData> data;
+			fc->addMatchingFunctions(data, fId);
+
+			for (auto d : data)
+			{
+				handler->addSymbol(d.id, d.returnType, NamespaceHandler::Function);
+			}
+		}
+
+		
+
+		handler->popNamespace();
+
+
+
+	}
+
+	ComplexType::registerExternalAtNamespaceHandler(handler);
 }
 
 bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList)

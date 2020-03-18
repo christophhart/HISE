@@ -259,6 +259,15 @@ struct ReturnTypeInlineData : public InlineData
 };
 
 
+void ComplexType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
+{
+	if (hasAlias())
+	{
+		jassert(getAlias().isExplicit());
+		handler->addSymbol(getAlias(), TypeInfo(this), NamespaceHandler::UsingAlias);
+	}
+}
+
 bool ComplexType::isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const
 {
 	if (complexSourceType == this)
@@ -354,6 +363,11 @@ void FunctionClass::addFunctionClass(FunctionClass* newRegisteredClass)
 
 void FunctionClass::addFunction(FunctionData* newData)
 {
+	if (newData->id.isExplicit())
+	{
+		newData->id = getClassName().getChildId(newData->id.getIdentifier());
+	}
+
 	functions.add(newData);
 }
 

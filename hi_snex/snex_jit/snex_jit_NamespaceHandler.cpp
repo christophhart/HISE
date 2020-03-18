@@ -125,6 +125,11 @@ snex::jit::ComplexType::Ptr NamespaceHandler::registerComplexTypeOrReturnExistin
 			return c;
 	}
 
+	if (currentNamespace == nullptr)
+		pushNamespace(Identifier());
+
+	ptr->registerExternalAtNamespaceHandler(this);
+	
 	complexTypes.add(ptr);
 	return ptr;
 }
@@ -160,7 +165,7 @@ bool NamespaceHandler::isTemplatedMethod(NamespacedIdentifier functionId) const
 	for (auto vt : variadicTypes)
 	{
 		for (const auto& f : vt->functions)
-			if (f.id == functionId)
+			if (f.id.getIdentifier() == functionId.getIdentifier())
 				return true;
 	}
 
@@ -387,6 +392,28 @@ juce::Result NamespaceHandler::setTypeInfo(const NamespacedIdentifier& id, Symbo
 	}
 
 	return Result::fail("Can't find namespace");
+}
+
+bool NamespaceHandler::rootHasNamespace(const NamespacedIdentifier& id) const
+{
+	auto type = getSymbolType(id);
+	auto ns = get(id);
+	
+	return type == Unknown || type == Struct && ns != nullptr;
+}
+
+NamespaceHandler::SymbolType NamespaceHandler::getSymbolType(const NamespacedIdentifier& id) const
+{
+	if (auto p = get(id.getParent()))
+	{
+		for (const auto& a : p->aliases)
+		{
+			if (a.id == id)
+				return a.symbolType;
+		}
+	}
+
+	return NamespaceHandler::SymbolType::Unknown;
 }
 
 TypeInfo NamespaceHandler::getAliasType(const NamespacedIdentifier& aliasId) const

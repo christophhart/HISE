@@ -61,9 +61,16 @@ snex::jit::ClassScope* BaseScope::getRootClassScope() const
 	return dynamic_cast<ClassScope*>(c);
 }
 
-snex::jit::BaseScope* BaseScope::getParent()
+BaseScope* BaseScope::getParent()
 {
 	return parent.get();
+}
+
+NamespaceHandler& BaseScope::getNamespaceHandler()
+{
+	auto h = getRootClassScope()->handler;
+	jassert(h != nullptr);
+	return *h;
 }
 
 RootClassData* BaseScope::getRootData() const
@@ -94,6 +101,26 @@ BaseScope::~BaseScope()
 	{
 		parent->childScopes.removeAllInstancesOf(this);
 	}
+}
+
+snex::jit::BaseScope* BaseScope::findScopeWithId(const NamespacedIdentifier& id)
+{
+	if (scopeId == id)
+		return this;
+
+	for (auto cs : childScopes)
+	{
+		if (auto found = cs->findScopeWithId(id))
+			return found;
+	}
+
+	if (getRootClassScope() == this)
+	{
+		if (getNamespaceHandler().rootHasNamespace(id))
+			return this;
+	}
+
+	return nullptr;
 }
 
 BaseScope* BaseScope::getScopeForSymbolInternal(const NamespacedIdentifier& s)
@@ -131,19 +158,11 @@ BaseScope* BaseScope::getScopeForSymbolInternal(const NamespacedIdentifier& s)
 
 bool BaseScope::hasSymbol(const NamespacedIdentifier& s)
 {
-	if (hasVariable(s))
-		return true;
+	jassert(s.getParent() == scopeId || getNamespaceHandler().rootHasNamespace(s.getParent()));
 
-	if (auto fc = dynamic_cast<FunctionClass*>(this))
-	{
-		if (fc->hasFunction(s))
-			return true;
+	auto type = getNamespaceHandler().getSymbolType(s);
 
-		if (fc->hasConstant(s))
-			return true;
-	}
-    
-    return false;
+	return type != NamespaceHandler::Unknown;
 }
 
 BaseScope* BaseScope::getScopeForSymbol(const NamespacedIdentifier& s)
@@ -157,29 +176,13 @@ BaseScope* BaseScope::getScopeForSymbol(const NamespacedIdentifier& s)
 			return this;
 	}
 
-	if (s.getParent().isValid())
-	{
-		if (auto pScope = getScopeForSymbol(s.getParent()))
-		{
-			return pScope;
-		}
-	}
+	auto bs = getRootClassScope()->findScopeWithId(s.getParent());
 
-	if (hasSymbol(s))
-		return this;
-	else
-	{
-		if (auto p = getParent())
-			return p->getScopeForSymbol(s);
-		else
-			return nullptr;
-	}
+	jassert(bs->hasSymbol(s));
+
+	return bs;
 }
 
-bool BaseScope::hasVariable(const NamespacedIdentifier& id) const
-{
-	return getRootData()->contains(id);
-}
 
 #if 0
 bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
@@ -225,15 +228,6 @@ bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 }
 #endif
 
-
-juce::Array<Symbol> BaseScope::getAllVariables() const
-{
-	return getRootData()->getAllVariables();
-}
-
-
-
-
 juce::String RootClassData::dumpTable() const
 {
 	
@@ -264,7 +258,7 @@ juce::String RootClassData::dumpTable() const
 }
 
 RootClassData::RootClassData() :
-	FunctionClass(NamespacedIdentifier("Root"))
+	FunctionClass(NamespacedIdentifier(Identifier()))
 {
 	
 }

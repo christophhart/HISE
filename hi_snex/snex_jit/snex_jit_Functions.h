@@ -184,7 +184,7 @@ struct NamespacedIdentifier
 	}
 };
 
-
+class NamespaceHandler;
 
 struct ComplexType : public ReferenceCountedObject
 {
@@ -242,6 +242,8 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual InitialiserList::Ptr makeDefaultInitialiserList() const = 0;
 
+	virtual void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
+
 	/** Override this, check if the type matches and call the function for itself and each member recursively and abort if t returns true. */
 	virtual bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) = 0;
 
@@ -268,6 +270,12 @@ struct ComplexType : public ReferenceCountedObject
 	void setAlias(const NamespacedIdentifier& newAlias)
 	{
 		usingAlias = newAlias;
+	}
+
+	NamespacedIdentifier getAlias() const
+	{
+		jassert(hasAlias());
+		return usingAlias;
 	}
 
 	juce::String toString() const

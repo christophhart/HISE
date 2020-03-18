@@ -907,6 +907,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			infos.add(si);
 		}
 
+#if 0
 		if (auto cs = dynamic_cast<ClassScope*>(scope.getCurrentClassScope()))
 		{
 			for (auto v : cs->getAllVariables())
@@ -948,6 +949,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 					infos.remove(i--);
 			}
 		}
+#endif
 
 		ApiProviderBase::Holder::rebuild();
 	}

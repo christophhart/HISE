@@ -325,9 +325,13 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// walk up the dot operators to get the proper symbol...
 		if (auto dp = dynamic_cast<DotOperator*>(parent.get()))
 		{
-			if (dp->getDotParent()->getTypeInfo().isComplexType())
+			if (auto st = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
 			{
-				if (auto st = dp->getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
+				if (dp->getDotParent().get() == this)
+				{
+					jassert(id.resolved);
+				}
+				else
 				{
 					jassert(!id.resolved);
 
@@ -335,11 +339,47 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 					variableScope = scope;
 					objectAdress = VariableStorage((int)(st->getMemberOffset(id.id.getIdentifier())));
 					objectPtr = st;
+					objectExpression = dp->getDotParent();
 					return;
 				}
 			}
+			if (auto ss = dynamic_cast<SymbolStatement*>(dp->getDotParent().get()))
+			{
+				if (compiler->namespaceHandler.isStaticFunctionClass(ss->getSymbol().id))
+				{
+					if (ss == this)
+						return;
+
+					jassert(id.id.isExplicit());
+					jassert(!id.resolved);
+
+					auto cId = ss->getSymbol().id.getChildId(id.getName());
+
+					auto fc = scope->getGlobalScope()->getSubFunctionClass(ss->getSymbol().id);
+
+					id.constExprValue = fc->getConstantValue(cId);
+
+
+					// will be replaced with a constant soon...
+					return;
+				}
+			}
+			
 		}
 
+
+		if (!id.resolved)
+		{
+			if (compiler->namespaceHandler.getSymbolType(id.id) == NamespaceHandler::Unknown)
+				throwError("Can't find symbol" + id.toString());
+
+			auto type = compiler->namespaceHandler.getVariableType(id.id);
+
+			id = Symbol(id.id, type);
+
+			if(!id.resolved)
+				throwError("Can't find symbol" + id.toString());
+		}
 
 		jassert(id.resolved);
 
@@ -371,7 +411,11 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 			if (auto subClassType = dynamic_cast<StructType*>(cScope->typePtr.get()))
 			{
-				objectAdress = VariableStorage((int)subClassType->getMemberOffset(id.getName()));
+				jassert(subClassType->id == id.id.getParent());
+
+				auto memberId = id.id.getIdentifier();
+
+				objectAdress = VariableStorage((int)subClassType->getMemberOffset(memberId));
 				objectPtr = subClassType;
 			}
 				
@@ -594,7 +638,11 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 
 			getTargetVariable()->isLocalDefinition = true;
-			
+
+			if (scope->getRootClassScope() == scope)
+			{
+				scope->getRootData()->allocate(scope, getTargetVariable()->id);
+			}
 		}
 
 		getSubExpr(1)->process(compiler, scope);
@@ -836,25 +884,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
-		// variadic types may have function with auto return types so we need to resolve them first...
-		if (function.returnType.getType() == Types::ID::Dynamic && objExpr != nullptr)
-		{
-			if (auto vt = objExpr->getTypeInfo().getTypedIfComplexType<VariadicTypeBase>())
-			{
-				FunctionClass::Ptr fc = vt->getFunctionClass();
-				Array<FunctionData> matches;
-				fc->addMatchingFunctions(matches, function.id);
-
-				if (matches.size() == 1)
-				{
-					auto tempParameters = function.templateParameters;
-					function = matches[0];
-					function.templateParameters = tempParameters;
-					return;
-				}
-			}
-		}
-
 		if (objExpr != nullptr && function.id == NamespacedIdentifier("toSimd"))
 		{
 			auto sc = new CastedSimd(location, objExpr);
@@ -884,13 +913,15 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				return;
 
 			}
-			else if (scope->getGlobalScope()->hasFunction(id))
+			else if (scope->getGlobalScope()->hasFunction(function.id))
 			{
 				fc = scope->getGlobalScope();
-				fc->addMatchingFunctions(possibleMatches, id);
-				callType = GlobalFunction;
+				fc->addMatchingFunctions(possibleMatches, function.id);
+				callType = ApiFunction;
 				return;
 			}
+			else
+				throwError("Fuuck");
 		}
 
 		if (objExpr->getTypeInfo().isComplexType())
@@ -899,10 +930,12 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			{
 				ownedFc = fc.get();
 
-				jassert(function.id.isExplicit());
+				if (function.id.isExplicit())
+				{
+					function.id = fc->getClassName().getChildId(function.id.getIdentifier());
+				}
 
-				auto id = fc->getClassName().getChildId(function.id.getIdentifier());
-				fc->addMatchingFunctions(possibleMatches, id);
+				fc->addMatchingFunctions(possibleMatches, function.id);
 				callType = MemberFunction;
 				return;
 			}
@@ -1192,23 +1225,6 @@ void Operations::FunctionCall::inlineFunctionCall(AsmCodeGenerator& asg)
 
 snex::jit::TypeInfo Operations::FunctionCall::getTypeInfo() const
 {
-	if (function.returnType.getType() == Types::ID::Dynamic)
-	{
-		if (function.inliner != nullptr)
-		{
-			ReturnTypeInlineData rt(function);
-			rt.object = objExpr;
-
-			auto r = function.inliner->process(&rt);
-
-			if (!r.wasOk())
-				location.throwError(r.getErrorMessage());
-		}
-
-		if (function.returnType.getType() == Types::ID::Dynamic)
-			location.throwError("Can't deduce auto return type for function");
-	}
-
 	return TypeInfo(function.returnType);
 }
 
@@ -1252,8 +1268,8 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 		{
 			if (isStackDefinition(scope))
 			{
-				if (!scope->addVariable(s))
-					throwError("Can't allocate variable " + s.toString());
+				if (scope->getScopeForSymbol(s.id) != scope)
+					jassertfalse;
 			}
 			else
 				scope->getRootData()->allocate(scope, s);

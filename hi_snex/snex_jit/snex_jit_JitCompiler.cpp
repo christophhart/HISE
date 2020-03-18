@@ -39,10 +39,8 @@ using namespace asmjit;
 
 Compiler::Compiler(GlobalScope& memoryPool)
 {
-	compiler = new ClassCompiler(&memoryPool);
-
-	memoryPool.registerFunctionsToNamespaceHandler(compiler->namespaceHandler);
-
+	compiler = new ClassCompiler(&memoryPool, handler);
+	memoryPool.registerFunctionsToNamespaceHandler(handler);
 }
 
 Compiler::~Compiler()

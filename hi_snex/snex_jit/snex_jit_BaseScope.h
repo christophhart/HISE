@@ -72,6 +72,8 @@ public:
 
 	BaseScope* getParent();
 
+	NamespaceHandler& getNamespaceHandler();
+
 	RootClassData* getRootData() const;
 
 	template <class T> T* getParentScopeOfType()
@@ -92,21 +94,6 @@ public:
 	virtual ~BaseScope();;
 
 	BaseScope* getScopeForSymbol( const NamespacedIdentifier& s);
-
-	/** Override this, allocate the variable and return true if success. */
-	virtual bool addVariable(const Symbol& s)
-	{
-		jassertfalse;
-		return false;
-	}
-
-	virtual bool hasVariable(const NamespacedIdentifier& id) const;
-
-	/** Override this and update the symbol type and constness. */
-	//virtual bool updateSymbol(Symbol& symbolToBeUpdated);
-
-
-	Array<Symbol> getAllVariables() const;
 
 	bool isClassObjectScope() const
 	{
@@ -141,6 +128,8 @@ protected:
 	ScopeType scopeType;
 
 private:
+
+	BaseScope* findScopeWithId(const NamespacedIdentifier& id);
 
 	Array<WeakReference<BaseScope>> childScopes;
 

@@ -858,9 +858,7 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles("zero2fastramp");
-		runTestFiles();
-		//return;
+		
 		testOptimizations();
 		testInlining();
 
