@@ -46,9 +46,6 @@ using namespace asmjit;
 #define HNODE_JIT_ADD_C_FUNCTION_3(rt, ptr, argType1, argType2, argType3, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2, argType3>(name, static_cast<rt(*)(argType1, argType2, argType3)>(ptr))));
 
 
-
-
-
 class ConsoleFunctions : public JitCallableObject
 {
 	struct WrapperInt

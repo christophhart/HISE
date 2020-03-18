@@ -90,6 +90,31 @@ private:
 
 public:
 
+	struct ScopedNamespaceSetter
+	{
+		ScopedNamespaceSetter(NamespaceHandler& h, const NamespacedIdentifier& id):
+			handler(h),
+			prevNamespace(handler.getCurrentNamespaceIdentifier())
+		{
+			h.pushNamespace(id);
+		}
+
+		ScopedNamespaceSetter(NamespaceHandler& h, const Identifier& id) :
+			handler(h),
+			prevNamespace(handler.getCurrentNamespaceIdentifier())
+		{
+			h.pushNamespace(prevNamespace.getChildId(id));
+		}
+
+		~ScopedNamespaceSetter()
+		{
+			handler.pushNamespace(prevNamespace);
+		}
+
+		NamespaceHandler& handler;
+		NamespacedIdentifier prevNamespace;
+	};
+
 	NamespaceHandler() = default;
 
 	ComplexType::Ptr registerComplexTypeOrReturnExisting(ComplexType::Ptr ptr);
@@ -98,9 +123,6 @@ public:
 	bool isTemplatedMethod(NamespacedIdentifier functionId) const;
 
 	bool changeSymbolType(NamespacedIdentifier id, SymbolType newType);
-
-	void pushNamespace(const Identifier& id);
-	Result popNamespace();
 
 	NamespacedIdentifier getRootId() const;
 	bool isNamespace(const NamespacedIdentifier& possibleNamespace) const;
@@ -132,9 +154,13 @@ public:
 
 	bool isStaticFunctionClass(const NamespacedIdentifier& classId) const;
 
+	Result switchToExistingNamespace(const NamespacedIdentifier& id);
+
 private:
 
-	
+	void pushNamespace(const Identifier& childId);
+	void pushNamespace(const NamespacedIdentifier& id);
+	Result popNamespace();
 
 	TypeInfo getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const;
 

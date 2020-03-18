@@ -191,6 +191,29 @@ bool NamespaceHandler::changeSymbolType(NamespacedIdentifier id, SymbolType newT
 	return false;
 }
 
+void NamespaceHandler::pushNamespace(const NamespacedIdentifier& namespaceId)
+{
+	if (auto e = get(namespaceId))
+	{
+		currentNamespace = e;
+		currentParent = e->parent;
+		return;
+	}
+
+	if (namespaceId.isExplicit())
+	{
+		pushNamespace(namespaceId.getIdentifier());
+		return;
+	}
+		
+	jassert(!namespaceId.isExplicit());
+
+	auto p = namespaceId.getParent();
+
+	pushNamespace(p);
+	pushNamespace(namespaceId.getIdentifier());
+}
+
 void NamespaceHandler::pushNamespace(const Identifier& id)
 {
 	if (currentNamespace == nullptr)

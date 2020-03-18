@@ -584,7 +584,7 @@ struct Symbol
 
 	Identifier getName() const
 	{
-		jassert(!resolved);
+		//jassert(!resolved);
 		return id.getIdentifier();
 	}
 

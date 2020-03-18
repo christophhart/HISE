@@ -14,7 +14,7 @@ END_TEST_DATA
 block main(block input)
 {
     float v = -1.0f;
-    float delta = 2.0f / (float)(input.size() - 1);
+    float delta = 2.0f / (float)(1024 - 1);
 
     for(auto& s: input)
     {

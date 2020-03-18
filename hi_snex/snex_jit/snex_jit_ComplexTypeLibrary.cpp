@@ -913,11 +913,13 @@ snex::InitialiserList::Ptr StructType::makeDefaultInitialiserList() const
 
 void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 {
+	if (handler->getComplexType(id))
+		return;
+
 	if (isExternalDefinition)
 	{
 		handler->addSymbol(id, TypeInfo(this), NamespaceHandler::Struct);
-
-		handler->pushNamespace(id.getIdentifier());
+		NamespaceHandler::ScopedNamespaceSetter sns(*handler, id);
 
 		Array<TypeInfo> subList;
 
@@ -948,13 +950,6 @@ void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 				handler->addSymbol(d.id, d.returnType, NamespaceHandler::Function);
 			}
 		}
-
-		
-
-		handler->popNamespace();
-
-
-
 	}
 
 	ComplexType::registerExternalAtNamespaceHandler(handler);

@@ -48,29 +48,38 @@ TypeInfo BlockParser::getDotParentType(ExprPtr e)
 	return {};
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementToBlock(const NamespacedIdentifier& scopeIdToUse)
+snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementToBlock()
 {
-	jassert(compiler->namespaceHandler.getCurrentNamespaceIdentifier() == scopeIdToUse);
-
 	if (matchIf(JitTokens::openBrace))
 	{
-		return parseStatementBlock(false);
+		return parseStatementBlock();
 	}
 	else
 	{
+		auto scopeIdToUse = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
 		auto body = new Operations::StatementBlock(location, scopeIdToUse);
 		body->addStatement(parseStatement());
 		return body;
 	}
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock(bool createNamespace)
+snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
 {
-	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
+	auto parentPath = getCurrentScopeStatement()->getPath();
+	auto scopePath = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+
+	if (parentPath == scopePath)
+	{
+		scopePath = location.createAnonymousScopeId(parentPath);
+	}
+
+	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, scopePath);
+
+	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(location, scopePath);
 
 	b->setParentScopeStatement(getCurrentScopeStatement());
 
-	ScopedScopeStatementSetter svs(this, b.get(), createNamespace);
+	ScopedScopeStatementSetter svs(this, b.get());
 
 	while (!isEOF() && currentType != JitTokens::closeBrace)
 	{
@@ -152,12 +161,14 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition()
 
 	SymbolParser sp(*this, compiler->namespaceHandler);
 
-	auto s = sp.parseNewSymbol(NamespaceHandler::Variable);
+	auto s = sp.parseNewSymbol(NamespaceHandler::Unknown);
 	auto target = new Operations::VariableReference(location, s);
 	
 	match(JitTokens::assign_);
 	ExprPtr expr = parseExpression();
 	
+	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Variable);
+
 	return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
 }
 
@@ -182,18 +193,12 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 
 	Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
 
-	compiler->namespaceHandler.pushNamespace(id.getIdentifier());
+	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, id);
+
 	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), {}, NamespaceHandler::Variable);
+	StatementPtr body = parseStatementToBlock();
 	
-	StatementPtr body = parseStatementToBlock(id);
-
-	
-
-	compiler->namespaceHandler.popNamespace();
-
-	auto newLoop = new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
-
-	return newLoop;
+	return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
 }
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()

@@ -84,7 +84,7 @@ void GlobalScope::deregisterObject(const NamespacedIdentifier& id)
 
 void GlobalScope::registerFunctionsToNamespaceHandler(NamespaceHandler& handler)
 {
-	handler.pushNamespace({});
+	NamespaceHandler::ScopedNamespaceSetter sns(handler, NamespacedIdentifier());
 
 	for (auto of : objectClassesWithJitCallableFunctions)
 	{

@@ -110,7 +110,8 @@ public:
 		
 		auto s = Symbol(currentNamespacedIdentifier, type);
 
-		handler.addSymbol(s.id, type, t);
+		if(t != NamespaceHandler::Unknown)
+			handler.addSymbol(s.id, type, t);
 
 		if (s.typeInfo.isDynamic() && t != NamespaceHandler::UsingAlias)
 			location.throwError("Can't resolve symbol type");
@@ -408,23 +409,16 @@ public:
 
 	struct ScopedScopeStatementSetter // Scoped...
 	{
-		ScopedScopeStatementSetter(BlockParser* p_, Operations::ScopeStatementBase* current, bool pushNamespace_=true):
-			p(p_),
-			pushNamespace(pushNamespace_)
+		ScopedScopeStatementSetter(BlockParser* p_, Operations::ScopeStatementBase* current):
+			p(p_)
 		{
 			old = p->currentScopeStatement;
 			p->currentScopeStatement = current;
-
-			if(pushNamespace)
-				p->compiler->namespaceHandler.pushNamespace(current->getPath().id);
 		}
 
 		~ScopedScopeStatementSetter()
 		{
 			p->currentScopeStatement = old;
-
-			if(pushNamespace)
-				p->compiler->namespaceHandler.popNamespace();
 		}
 
 		BlockParser* p;
@@ -439,7 +433,7 @@ public:
     
     virtual ~BlockParser() {};
 
-	StatementPtr parseStatementList(const NamespacedIdentifier& scopeId, bool createNamespaceScope = true);
+	StatementPtr parseStatementList();
 
 	virtual StatementPtr parseStatement() = 0;
 

@@ -230,7 +230,7 @@ struct Operations::StatementBlock : public Expression,
 			return parent;
 
 		if (blockScope == nullptr)
-			blockScope = new RegisterScope(parent, location.createAnonymousScopeId(parent->getScopeSymbol()));
+			blockScope = new RegisterScope(parent, getPath());
 
 		return blockScope;
 	}
@@ -1754,11 +1754,23 @@ struct Operations::Loop : public Expression,
 		{
 			getTarget()->process(compiler, scope);
 
-			jassert(getLoopBlock()->blockScope == nullptr);
+#if 0
+			auto b = getLoopBlock()->blockScope.get();
+			
+			if (b != nullptr)
+			{
+				jassert(b->localVariables.isEmpty());
+				jassert(iterator.id.getParent() == b->getScopeSymbol());
+			}
+			else
+			{
+				getLoopBlock()->blockScope = new RegisterScope(scope, iterator.id.getParent());
+			}
+#endif
 
 			jassert(iterator.id.getParent().getParent() == scope->getScopeSymbol());
 
-			getLoopBlock()->blockScope = new RegisterScope(scope, iterator.id.getParent());
+			
 
 			if (auto sp = getTarget()->getTypeInfo().getTypedIfComplexType<SpanType>())
 			{

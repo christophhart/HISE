@@ -46,11 +46,12 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		functionScope = new FunctionScope(scope, id.id);
 
-		for (int i = 0; i < data.args.size(); i++)
 		{
-			data.args.getReference(i).id = NamespacedIdentifier(parameters[i]);
-		}
+			NamespaceHandler::ScopedNamespaceSetter(compiler->namespaceHandler, id.id);
 
+			for (int i = 0; i < data.args.size(); i++)
+				data.args.getReference(i).id = id.id.getChildId(parameters[i]);
+		}
 
 		functionScope->data = data;
 
@@ -87,18 +88,19 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			p.currentScope = functionScope;
 
-			compiler->namespaceHandler.pushNamespace(id.id.getIdentifier());
-
-			auto fNamespace = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
-
-			for (auto arg : classData->args)
 			{
-				compiler->namespaceHandler.addSymbol(fNamespace.getChildId(arg.id.id), arg.typeInfo, NamespaceHandler::Variable);
+				NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, id.id);
+
+				auto fNamespace = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+
+				for (auto arg : classData->args)
+				{
+					compiler->namespaceHandler.addSymbol(fNamespace.getChildId(arg.id.id), arg.typeInfo, NamespaceHandler::Variable);
+				}
+
+				statements = p.parseStatementList();
 			}
-
-			statements = p.parseStatementList(fNamespace, false);
-
-			compiler->namespaceHandler.popNamespace();
+			
 
 			auto sTree = dynamic_cast<SyntaxTree*>(statements.get());
 
@@ -333,7 +335,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				}
 				else
 				{
-					jassert(!id.resolved);
+					//jassert(!id.resolved);
 
 					id = Symbol(st->id.getChildId(id.getName()), st->getMemberTypeInfo(id.getName()));
 					variableScope = scope;
@@ -420,6 +422,8 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			}
 				
 		}
+
+		jassert(variableScope != nullptr);
 	}
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)

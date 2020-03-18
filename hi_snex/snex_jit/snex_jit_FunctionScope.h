@@ -44,39 +44,20 @@ struct RegisterScope : public BaseScope
 		BaseScope({}, parentScope)
 	{
 		jassert(id.isValid());
-		scopeId = id;
-		jassert(parentScope->getScopeSymbol() == id.getParent());
+
+		if (!(parentScope->getScopeSymbol() == id.getParent()))
+			scopeId = parentScope->getScopeSymbol().getChildId(id.getIdentifier());
+		else
+			scopeId = id;
+
+		//jassert();
 		jassert(getScopeType() >= BaseScope::Function);
 	}
 
-#if 0
-	bool hasVariable(const NamespacedIdentifier& id) const override;
- 
-	bool addVariable(const Symbol& s) override
+	~RegisterScope()
 	{
-		if (localVariables.contains(s))
-			return false;
-
-		localVariables.add(s);
-		return true;
-	}
-
-	bool updateSymbol(Symbol& symbolToBeUpdated) override
-	{
-		jassert(getScopeForSymbol(symbolToBeUpdated) == this);
-
-		for (auto l : localVariables)
-		{
-			if (l.id == symbolToBeUpdated.id)
-			{
-				symbolToBeUpdated = l;
-				return true;
-			}
-		}
-
-		return BaseScope::updateSymbol(symbolToBeUpdated);
-	}
-#endif
+		int x = 5;
+	};
 
 	Array<Symbol> localVariables;
 
@@ -96,31 +77,6 @@ public:
 	}
 
 	~FunctionScope() {}
-
-#if 0
-	bool hasVariable(const NamespacedIdentifier& id) const override
-	{
-		if (parameters.contains(id.getIdentifier()))
-			return true;
-
-		return RegisterScope::hasVariable(id);
-	}
-
-	bool updateSymbol(Symbol& symbolToBeUpdated) override
-	{
-		jassert(getScopeForSymbol(symbolToBeUpdated) == this);
-
-		auto index = parameters.indexOf(symbolToBeUpdated.id.getIdentifier());
-
-		if (index != -1)
-		{
-			symbolToBeUpdated = data.args[index];
-			return true;
-		}
-
-		return RegisterScope::updateSymbol(symbolToBeUpdated);
-	}
-#endif
 
 	AssemblyRegister* getRegister(const Symbol& ref)
 	{

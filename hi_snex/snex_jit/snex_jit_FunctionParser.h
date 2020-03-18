@@ -48,8 +48,8 @@ public:
     virtual ~FunctionParser() {}
 
 
-	StatementPtr parseStatementToBlock(const NamespacedIdentifier& scopeIdToUse);
-	StatementPtr parseStatementBlock(bool createNamespace=true);
+	StatementPtr parseStatementToBlock();
+	StatementPtr parseStatementBlock();
 	StatementPtr parseStatement();
 	StatementPtr parseAssignment();
 	StatementPtr parseReturnStatement();

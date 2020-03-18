@@ -97,7 +97,10 @@ public:
 			parser.currentScope = newScope->pimpl;
 
 			setCurrentPass(BaseCompiler::Parsing);
-			syntaxTree = parser.parseStatementList({});
+
+			NamespaceHandler::ScopedNamespaceSetter sns(namespaceHandler, Identifier());
+
+			syntaxTree = parser.parseStatementList();
 
 			auto sTree = dynamic_cast<SyntaxTree*>(syntaxTree.get());
 
@@ -158,28 +161,17 @@ public:
 };
 
 
-BlockParser::StatementPtr BlockParser::parseStatementList(const NamespacedIdentifier& scopeId, bool createNamespaceScope)
+BlockParser::StatementPtr BlockParser::parseStatementList()
 {
 	matchIf(JitTokens::openBrace);
 
-	if (!createNamespaceScope)
-		jassert(!scopeId.isNull());
-	
-	auto currentId = scopeId;
-
-	if (currentId.isNull())
-	{
-		currentId = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
-		currentId = location.createAnonymousScopeId(currentId);
-	}
-
-	auto list = new SyntaxTree(location, currentId);
+	auto list = new SyntaxTree(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
 
 	StatementPtr p = list;
 
 	list->setParentScopeStatement(getCurrentScopeStatement());
 
-	ScopedScopeStatementSetter svs(this, list, createNamespaceScope);
+	ScopedScopeStatementSetter svs(this, list);
 
 	while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 	{
@@ -210,7 +202,8 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 {
 	if (matchIf(JitTokens::namespace_))
 	{
-		compiler->namespaceHandler.pushNamespace(parseIdentifier());
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, parseIdentifier());
+
 		match(JitTokens::openBrace);
 
 		auto sb = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
@@ -221,13 +214,6 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		}
 
 		match(JitTokens::closeBrace);
-
-		
-
-		auto r = compiler->namespaceHandler.popNamespace();
-
-		if (!r.wasOk())
-			location.throwError(r.getErrorMessage());
 
 		return sb;
 	}
@@ -389,20 +375,20 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 	jassert(compiler->namespaceHandler.getCurrentNamespaceIdentifier() == s.id.getParent());
 
-	compiler->namespaceHandler.pushNamespace(s.id.getIdentifier());
-
-	while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
 	{
-		matchType();
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, s.id);
 
-		auto s = parseNewSymbol(NamespaceHandler::Variable);
-		fData.args.add(s);
-		func->parameters.add(s.id.id);
-		
-		matchIf(JitTokens::comma);
+		while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
+		{
+			matchType();
+
+			auto s = parseNewSymbol(NamespaceHandler::Variable);
+			fData.args.add(s);
+			func->parameters.add(s.id.id);
+
+			matchIf(JitTokens::comma);
+		}
 	}
-
-	compiler->namespaceHandler.popNamespace();
 
 	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
 
@@ -439,7 +425,9 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 	compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct);
 	compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
 
-	auto list = parseStatementList(classId);
+	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
+
+	auto list = parseStatementList();
 
 	match(JitTokens::semicolon);
 

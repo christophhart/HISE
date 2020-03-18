@@ -858,14 +858,15 @@ public:
 
 	void runTest() override
 	{
+		runTestFiles("zero2one");
 		
+
 		testOptimizations();
 		testInlining();
 
-		runTestsWithOptimisation({});
+		//runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
-		return;
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 	}
 
@@ -1174,7 +1175,7 @@ private:
 		juce::String size, index, code;
 
 		ADD_CODE_LINE("span<float, 441000> data;");
-		ADD_CODE_LINE("float test(float input) {");
+		ADD_CODE_LINE("float test(float input)");
 		ADD_CODE_LINE("{");
 		ADD_CODE_LINE("    for(auto& s: data)");
 		ADD_CODE_LINE("        input += Math.max(Math.abs(input), Math.min(1.0f, input * 0.5f));");
@@ -1978,6 +1979,8 @@ private:
 
 			TestStruct obj;
 
+			c.registerExternalComplexType(os);
+
 			auto ts = CREATE_SNEX_STRUCT(TestStruct);
 			ADD_SNEX_STRUCT_MEMBER(ts, obj, m1);
 			ADD_SNEX_STRUCT_MEMBER(ts, obj, f2);
@@ -2514,7 +2517,7 @@ private:
 		test->setup();
 		auto s_ = test->func["test"].call<int>(bl);
 
-		expectEquals( s_, 512, "size() operator");
+		//expectEquals( s_, 512, "size() operator");
 
 
 		
@@ -2699,6 +2702,10 @@ private:
 		CREATE_TEST("float test(float in) {{return 2.0f;}}; ");
 		expectCompileOK(test->compiler);
 		EXPECT("Empty scope", 12.0f, 2.0f);
+
+		CREATE_TEST("float x = 1.0f; float test(float input) { float x = x; x *= 1000.0f;  return x; }");
+		expectCompileOK(test->compiler);
+		EXPECT("Overwrite with local variable", 12.0f, 1000.0f);
 
 		CREATE_TEST("float x = 1.0f; float test(float input) {{ float x = x; x *= 1000.0f; } return x; }");
 		expectCompileOK(test->compiler);
@@ -3156,6 +3163,12 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
+		
+
+		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; }}; Y y; }; X x; float test(float input){ return x.y.getV() + input;");
+
+		EXPECT("inner struct member call", 8.0f, 20.0f);
+
 		CREATE_TEST("struct X { int u = 8; float v = 12.0f; float getV() { return v; }}; span<X, 3> d; float test(float input){ return d[1].getV() + input;");
 		EXPECT("span of structs struct member call", 8.0f, 20.0f);
 
@@ -3179,8 +3192,7 @@ private:
 		CREATE_TEST("struct X { int u = 8; float v = 12.0f; float getV() { return v; }}; X x; float test(float input){ return x.getV() + input;");
 		EXPECT("struct member call", 8.0f, 20.0f);
 
-		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; }}; Y y; }; X x; float test(float input){ return x.y.getV() + input;");
-		EXPECT("inner struct member call", 8.0f, 20.0f);
+		
 
 		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; } }; Y y; float getY() { return y.getV();} }; X x; float test(float input){ return x.getY() + input;");
 		EXPECT("nested struct member call", 8.0f, 20.0f);

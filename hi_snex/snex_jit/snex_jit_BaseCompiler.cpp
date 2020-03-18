@@ -36,8 +36,6 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-    
-    
     void BaseCompiler::executeOptimization(ReferenceCountedObject* statement, BaseScope* scope)
     {
         if(currentOptimization == nullptr)
@@ -50,8 +48,6 @@ using namespace asmjit;
 			throw BaseCompiler::OptimisationSucess();
 		}
     }
-    
-	
 
 	void BaseCompiler::optimize(ReferenceCountedObject* statement, BaseScope* scope, bool useExistingPasses)
 	{
@@ -125,6 +121,5 @@ using namespace asmjit;
 		else
 			st->process(this, scope);
     }
-
 }
 }
