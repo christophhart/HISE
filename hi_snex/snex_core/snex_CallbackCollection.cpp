@@ -72,9 +72,6 @@ void CallbackCollection::setupCallbacks()
 
 	eventFunction = obj["handleEvent"];
 
-	if (!eventFunction.matchesNativeArgumentTypes(ID::Void, { ID::Event }))
-		eventFunction = {};
-
 	callbacks[CallbackTypes::Sample] = obj[cIds[CallbackTypes::Sample]];
 
 	if (!callbacks[CallbackTypes::Sample].matchesNativeArgumentTypes(ID::Float, { ID::Float }))
@@ -567,11 +564,11 @@ template <class FunctionType> struct VariadicFunctionInliner
 			auto childPtr = d->gen.registerPool->getNextFreeRegister(d->object->getScope(), TypeInfo(vt));
 
 			if (d->object->isMemoryLocation())
-				childPtr->setCustomMemoryLocation(d->object->getAsMemoryLocation());
+				childPtr->setCustomMemoryLocation(d->object->getAsMemoryLocation(), false);
 			else
 			{
 				auto mem = x86::ptr(PTR_REG_R(d->object));
-				childPtr->setCustomMemoryLocation(mem);
+				childPtr->setCustomMemoryLocation(mem, false);
 			}
 
 			for (int i = 0; i < vt->getNumSubTypes(); i++)
@@ -601,7 +598,7 @@ template <class FunctionType> struct VariadicFunctionInliner
 
 						auto childSize = childType->getRequiredByteSize();
 						auto mem = childPtr->getMemoryLocationForReference().cloneAdjusted(childSize);
-						childPtr->setCustomMemoryLocation(mem);
+						childPtr->setCustomMemoryLocation(mem, false);
 					}
 				}
 
@@ -693,7 +690,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 	c.registerExternalComplexType(EventWrapper::createComplexType("HiseEvent"));
 
 	VariadicSubType::Ptr chainType = new VariadicSubType();
-	chainType->variadicId = NamespacedIdentifier::fromString("chain");
+	chainType->variadicId = NamespacedIdentifier("container").getChildId("chain");
 
 	{
 		chainType->functions.add(VariadicFunctionInliner<ResetData>::create(c));

@@ -232,7 +232,6 @@ private:
 		if (matchIf(JitTokens::float_))		  t = Types::ID::Float;
 		else if (matchIf(JitTokens::int_))	  t = Types::ID::Integer;
 		else if (matchIf(JitTokens::double_)) t = Types::ID::Double;
-		else if (matchIf(JitTokens::event_))  t = Types::ID::Event;
 		else if (matchIf(JitTokens::block_))  t = Types::ID::Block;
 		else if (matchIf(JitTokens::void_))	  t = Types::ID::Void;
 		else if (matchIf(JitTokens::auto_))	  t = Types::ID::Dynamic;
@@ -364,7 +363,6 @@ private:
 		if (matchIf(JitTokens::float_)) return Types::ID::Float;
 		if (matchIf(JitTokens::int_))	return Types::ID::Integer;
 		if (matchIf(JitTokens::double_)) return Types::ID::Double;
-		if (matchIf(JitTokens::event_))	return Types::ID::Event;
 		if (matchIf(JitTokens::block_))	return Types::ID::Block;
 		if (matchIf(JitTokens::void_))	return Types::ID::Void;
 		if (matchIf(JitTokens::wrap))   return Types::ID::Integer;

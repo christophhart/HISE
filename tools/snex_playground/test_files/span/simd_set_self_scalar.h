@@ -22,8 +22,10 @@ float main(float input)
         s = s[1];
     }
     
+    
     for(auto& s: d)
         sum += s;
+        
     
         
     return sum;

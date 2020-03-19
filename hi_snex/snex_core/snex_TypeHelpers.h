@@ -16,40 +16,6 @@ namespace snex
 namespace Types
 {
 
-template <typename T> class SmoothedFloatCpp
-{
-public:
-
-	void reset(T initValue)
-	{
-		v.setValueWithoutSmoothing(initValue);
-	}
-
-	void prepare(double samplerate, double milliSeconds)
-	{
-		v.reset(samplerate, milliSeconds * 0.001);
-	}
-
-	void set(T newTargetValue)
-	{
-		v.setTargetValue(newTargetValue);
-	}
-
-	float next()
-	{
-		return v.getNextValue();
-	}
-
-
-
-	SmoothedFloatCpp(T initialValue)
-	{
-		reset(initialValue);
-	};
-
-	juce::LinearSmoothedValue<T> v;
-};
-
 using namespace juce;
 
 
@@ -100,8 +66,6 @@ struct Helpers
 
 	static bool binaryOpAllowed(ID left, ID right);
 
-	static FunctionType getFunctionPrototype(const Identifier& id);
-
 	static Colour getColourForType(ID type);
 
 	static String getValidCppVariableName(const String& variableToCheck);
@@ -126,8 +90,6 @@ struct Helpers
 			return Types::ID::Double;
 		if (std::is_same<T, int>())
 			return Types::ID::Integer;
-		if (std::is_same<T, HiseEvent>())
-			return Types::ID::Event;
 		if (std::is_same<T, block>())
 			return Types::ID::Block;
 		if (std::is_same<T, void*>())
@@ -136,7 +98,6 @@ struct Helpers
 		return Types::ID::Void;
 	};
 };
-
 
 }
 

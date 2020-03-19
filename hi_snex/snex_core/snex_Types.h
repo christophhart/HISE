@@ -22,14 +22,10 @@ enum ID
 {
 	Void =			0b00000000,
 	Pointer = 0b10001111,
-	Event =			0b00001000,
 	Float =			0b00010000,
 	Double =		0b00100000,
-	FpNumber=		0b00110000,
 	Integer =		0b01000000,
 	Block =			0b10000000,
-	Number =		0b01110000,
-	Signal =		0b10110000,
 	Dynamic =		0b11111111
 };
 

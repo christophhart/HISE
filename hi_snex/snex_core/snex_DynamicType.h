@@ -190,8 +190,6 @@ public:
 		
 		if (t == 0)
 			return Types::ID::Void;
-		else if (t < (int)HiseEvent::Type::numTypes)
-			return Types::ID::Event;
 		else
 			return (Types::ID)t;
 	}

@@ -289,9 +289,6 @@ public:
 		addType("double", "A 64bit floating point type", Types::ID::Double);
 		addType("sdouble", "A smoothed 64bit floating point value", Types::ID::Double);
 		addType("block", "A wrapper around a array of float numbers", Types::ID::Block);
-		addType("wblock", "A buffer object with index wrapping", Types::ID::Block);
-		addType("zblock", "A buffer object with zero wrapping", Types::ID::Block);
-		addType("event", "The HISE event", Types::ID::Event);
 
 		auto forInfo = new SettableDebugInfo();
 		forInfo->codeToInsert = "for (auto& s : channel)\n\t{\n\t\t\n\t}\n\t";;

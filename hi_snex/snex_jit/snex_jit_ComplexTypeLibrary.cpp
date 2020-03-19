@@ -128,12 +128,10 @@ snex::jit::FunctionClass* WrapType::getFunctionClass()
 
 		//target->createRegister(cc);
 
-		
-
 		if (source->isMemoryLocation())
-			target->setCustomMemoryLocation(source->getAsMemoryLocation());
+			target->setCustomMemoryLocation(source->getAsMemoryLocation(), source->isGlobalMemory());
 		else
-			target->setCustomMemoryLocation(x86::ptr(PTR_REG_R(source)));
+			target->setCustomMemoryLocation(x86::ptr(PTR_REG_R(source)), source->isGlobalMemory());
 
 		return Result::ok();
 	}, {});

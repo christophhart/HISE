@@ -37,12 +37,39 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
+static int counter = 0;
+
 AssemblyRegister::AssemblyRegister(TypeInfo type_) :
 	type(type_)
 {
-
+	debugId = counter++;
 }
 
+bool AssemblyRegister::matchesMemoryLocation(Ptr other) const
+{
+	auto bothAreMemory = hasCustomMemoryLocation() &&
+		other->hasCustomMemoryLocation();
+
+	auto typeMatch = other->getTypeInfo() == getTypeInfo();
+
+	if (typeMatch && bothAreMemory)
+	{
+		auto m = other->getAsMemoryLocation();
+		return m == memory;
+	}
+
+	return false;
+}
+
+bool AssemblyRegister::isGlobalMemory() const
+{
+	return (hasCustomMem && globalMemory) || isGlobalVariableRegister() || id.isReference();
+}
+
+bool AssemblyRegister::shouldLoadMemoryIntoRegister() const
+{
+	return numMemoryReferences > 0;
+}
 
 void AssemblyRegister::setReference(BaseScope* s, const Symbol& ref)
 {
@@ -139,6 +166,9 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 	jassert(scope != nullptr);
 
+	if (isGlobalMemory())
+		dirty = true;
+
 	if (id)
 	{
 		if (isIter)
@@ -218,7 +248,6 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 	case Types::ID::Float: e = cc.movss(reg.as<X86Xmm>(), memory); break;
 	case Types::ID::Double: e = cc.movsd(reg.as<X86Xmm>(), memory); break;
 	case Types::ID::Block:
-	case Types::ID::Event:  e = cc.mov(reg.as<X86Gpq>(), memory); break;
 	case Types::ID::Integer:
 	{
 		if (hasCustomMem)
@@ -290,7 +319,6 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 		auto t = getType();
 
 		bool useQword = (t == Types::ID::Double ||
-			t == Types::ID::Event ||
 			t == Types::ID::Block ||
 			t == Types::ID::Pointer);
 
@@ -323,8 +351,10 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 			immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
 			isZeroValue = immediateIntValue == 0;
 		}
-		if (getType() == Types::ID::Event || type == Types::ID::Block)
+		if (type == Types::ID::Block)
 		{
+			jassertfalse;
+#if 0
 			uint8* d = reinterpret_cast<uint8*>(memoryLocation);
 			asmjit::Data128 data = asmjit::Data128::fromU8(d[0], d[1], d[2], d[3],
 				d[4], d[5], d[6], d[7],
@@ -332,6 +362,7 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 				d[12], d[13], d[14], d[15]);
 
 			memory = cc.newXmmConst(ConstPool::kScopeLocal, data);
+#endif
 		}
 		if (getType() == Types::ID::Pointer)
 		{
@@ -365,7 +396,7 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 		reg = cc.newXmmSd();
 	if (getType() == Types::ID::Integer)
 		reg = cc.newGpd();
-	if (getType() == Types::Event || type == Types::Block)
+	if (type == Types::Block)
 		reg = cc.newGpq();
 	if (getType() == Types::Pointer)
 	{
@@ -386,10 +417,11 @@ bool AssemblyRegister::isMemoryLocation() const
 }
 
 
-void AssemblyRegister::setCustomMemoryLocation(X86Mem newLocation)
+void AssemblyRegister::setCustomMemoryLocation(X86Mem newLocation, bool isGlobalMemory_)
 {
 	memory = newLocation;
 	dirty = false;
+	globalMemory = isGlobalMemory_;
 	reg = {};
 	jassert(memory.isMem());
 	state = LoadedMemoryLocation;
@@ -419,7 +451,7 @@ void AssemblyRegister::clearForReuse()
 
 void AssemblyRegister::setUndirty()
 {
-	jassert(state == DirtyGlobalRegister || isIter);
+	jassert(state == DirtyGlobalRegister || isIter || isGlobalMemory());
 
 	dirty = false;
 	state = ActiveRegister;
@@ -508,6 +540,31 @@ AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope
 	currentRegisterPool.add(newReg);
 
 	return newReg;
+}
+
+snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterWithMemory(RegPtr other)
+{
+	if (!other->hasCustomMemoryLocation())
+		return other;
+
+	for (auto r : currentRegisterPool)
+	{
+		if (!r->isMemoryLocation())
+			continue;
+
+		if (r == other.get())
+			continue;
+
+		if (r->matchesMemoryLocation(other))
+		{
+			other->clearForReuse();
+			r->numMemoryReferences++;
+			return r;
+		}
+			
+	}
+
+	return other;
 }
 
 AssemblyRegisterPool::RegList AssemblyRegisterPool::getListOfAllNamedRegisters()

@@ -246,7 +246,7 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		compiler->namespaceHandler.addConstant(s.id, v);
 
 		match(JitTokens::semicolon);
-		return parseStatement();
+		return new Operations::Noop(location);
 	}
 
 	if (matchIfType())

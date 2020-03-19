@@ -260,6 +260,14 @@ public:
 		/** Processes all sub expressions. Call this from your base class. */
 		void process(BaseCompiler* compiler, BaseScope* scope) override;
 
+		void processChildrenIfNotCodeGen(BaseCompiler* compiler, BaseScope* scope);
+
+		bool isCodeGenPass(BaseCompiler* compiler) const;
+
+		bool preprocessCodeGenForChildStatements(BaseCompiler* compiler, BaseScope* scope, const std::function<bool()>& abortFunction);
+
+		void replaceMemoryWithExistingReference(BaseCompiler* compiler);
+
 		bool isAnonymousStatement() const;
 
 		Types::ID getType() const

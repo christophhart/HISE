@@ -125,6 +125,8 @@ public:
 			memory.addOptimization(o);
 
 		compiler = new Compiler(memory);
+
+		SnexObjectDatabase::registerObjects(*compiler);
 	}
 
 	void logMessage(const juce::String& s) override
@@ -466,7 +468,6 @@ private:
 						inputBuffers.add(std::move(b));
 						break;
 					}
-					case Types::ID::Event:
 					default:				 jassertfalse;
 					}
 				}
@@ -524,7 +525,6 @@ private:
 					}
 					break;
 				}
-				case Types::ID::Event:
 				default:				 jassertfalse;
 				}
 			}
@@ -858,13 +858,14 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles("zero2one");
+		runTestFiles("double_member_2");
+		return;
+		testEvents();
 		
-
 		testOptimizations();
 		testInlining();
 
-		//runTestsWithOptimisation({});
+		runTestsWithOptimisation({});
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
@@ -2605,20 +2606,38 @@ private:
 	{
 		beginTest("Testing HiseEvents in JIT");
 
-		using Event2IntTest = HiseJITTestCase<HiseEvent, int>;
+		using Event2IntTest = HiseJITTestCase<HiseEvent*, int>;
 
 		HiseEvent testEvent = HiseEvent(HiseEvent::Type::NoteOn, 59, 127, 1);
 		
 		ScopedPointer<Event2IntTest> test;
 
-		test = new Event2IntTest("int test(event in){ return in.getNoteNumber(); }", optimizations);
-		EXPECT("getNoteNumber", testEvent, 59);
+		test = new Event2IntTest("int test(HiseEvent& in){ return in.getNoteNumber(); }", optimizations);
+		EXPECT("getNoteNumber", &testEvent, 59);
 
-		test = new Event2IntTest("int test(event in){ return in.getNoteNumber() > 64 ? 17 : 13; }", optimizations);
-		EXPECT("getNoteNumber arithmetic", testEvent, 13);
+		test = new Event2IntTest("int test(HiseEvent& in){ return in.getNoteNumber() > 64 ? 17 : 13; }", optimizations);
+		EXPECT("getNoteNumber arithmetic", &testEvent, 13);
 
-		test = new Event2IntTest("int test(event in1, event in2){ return in1.getNoteNumber() > in2.getNoteNumber() ? 17 : 13; }", optimizations);
+		test = new Event2IntTest("int test(HiseEvent& in1, HiseEvent& in2){ return in1.getNoteNumber() > in2.getNoteNumber() ? 17 : 13; }", optimizations);
 
+		{
+			juce::String code;
+
+			ADD_CODE_LINE("void change(HiseEvent& e) { e.setVelocity(40); };");
+			ADD_CODE_LINE("int test(HiseEvent& in){ change(in); return in.getVelocity();}");
+
+			test = new Event2IntTest(code, optimizations);
+
+			HiseEvent testEvent2 = HiseEvent(HiseEvent::Type::NoteOn, 59, 127, 1);
+
+			test->getResult(&testEvent2, 40);
+
+			EXPECT("change velocity in function", &testEvent2, 40);
+
+			expectEquals<int>(testEvent2.getVelocity(), 40, "reference change worked");
+
+			int x = 5;
+		}
 	}
 
 	void testParser()

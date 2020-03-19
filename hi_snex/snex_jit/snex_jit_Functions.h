@@ -213,7 +213,6 @@ struct ComplexType : public ReferenceCountedObject
 		case Types::ID::Double:  *reinterpret_cast<double*>(dp_raw) = (double)initValue; break;
 		case Types::ID::Float:	 *reinterpret_cast<float*>(dp_raw) = (float)initValue; break;
 		case Types::ID::Pointer: *((void**)dp_raw) = copy.getDataPointer(); break;
-		case Types::ID::Event:	 *reinterpret_cast<HiseEvent*>(dp_raw) = initValue.toEvent(); break;
 		case Types::ID::Block:	 *reinterpret_cast<block*>(dp_raw) = initValue.toBlock(); break;
 		default:				 jassertfalse;
 		}
@@ -880,8 +879,7 @@ private:
 		// You must not call this method if you return an event or a block.
 		// Use callWithReturnCopy instead...
 
-		if (Types::Helpers::getTypeFromTypeId<ReturnType>() == Types::ID::Event ||
-			Types::Helpers::getTypeFromTypeId<ReturnType>() == Types::ID::Block)
+		if (Types::Helpers::getTypeFromTypeId<ReturnType>() == Types::ID::Block)
 		{
 			if (function != nullptr)
 				return callUnchecked<ReturnType, Parameters...>(ps...);
@@ -994,9 +992,6 @@ struct FunctionClass: public DebugableObjectBase,
 				index++;
 
 				if (arg.typeInfo.getType() == Types::ID::Block && r->getObjectName().toString() == "Block")
-					continue;
-
-				if (arg.typeInfo.getType() == Types::ID::Event && r->getObjectName().toString() == "Message")
 					continue;
 
 				arguments << Types::Helpers::getTypeName(arg.typeInfo.getType());

@@ -211,6 +211,52 @@ void Operations::Expression::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 }
 
+void Operations::Expression::processChildrenIfNotCodeGen(BaseCompiler* compiler, BaseScope* scope)
+{
+	if (isCodeGenPass(compiler))
+		Statement::process(compiler, scope);
+	else
+		Expression::process(compiler, scope);
+}
+
+bool Operations::Expression::isCodeGenPass(BaseCompiler* compiler) const
+{
+	return compiler->getCurrentPass() == BaseCompiler::RegisterAllocation ||
+		   compiler->getCurrentPass() == BaseCompiler::CodeGeneration;
+}
+
+bool Operations::Expression::preprocessCodeGenForChildStatements(BaseCompiler* compiler, BaseScope* scope, const std::function<bool()>& abortFunction)
+{
+	if (reg != nullptr)
+		return false;
+
+	if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation)
+	{
+		BaseCompiler::ScopedPassSwitcher svs(compiler, BaseCompiler::RegisterAllocation);
+		getSubExpr(0)->process(compiler, scope);
+		getSubExpr(1)->process(compiler, scope);
+
+		if (!abortFunction())
+			return false;;
+	}
+
+	BaseCompiler::ScopedPassSwitcher svs(compiler, BaseCompiler::CodeGeneration);
+	getSubExpr(0)->process(compiler, scope);
+	getSubExpr(1)->process(compiler, scope);
+
+	return true;
+}
+
+void Operations::Expression::replaceMemoryWithExistingReference(BaseCompiler* compiler)
+{
+	jassert(reg != nullptr);
+
+	auto prevReg = compiler->registerPool.getRegisterWithMemory(reg);
+
+	if (prevReg != reg)
+		reg = prevReg;
+}
+
 bool Operations::Expression::isAnonymousStatement() const
 {
 	return isStatementType<StatementBlock>(parent) ||

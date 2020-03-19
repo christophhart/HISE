@@ -55,7 +55,7 @@ using namespace juce;
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
 	X(void_, "void")			X(public_, "public")	X(private_, "private") \
-	X(class_, "class")			X(block_, "block")	X(event_, "event")		X(for_, "for") \
+	X(class_, "class")			X(block_, "block")	X(for_, "for") \
 	X(if_, "if")				X(else_, "else")	\
 	X(auto_, "auto")			X(struct_, "struct")	X(span_, "span") \
 	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")	X(break_, "break") \
@@ -421,11 +421,6 @@ struct ParserHelpers
 				return VariableStorage(stringValue.getFloatValue() * (!isMinus ? 1.0f : -1.0f));
 			else if (type == Types::ID::Double)
 				return VariableStorage(stringValue.getDoubleValue() * (!isMinus ? 1.0 : -1.0));
-			else if (type == Types::ID::Event)
-			{
-				HiseEvent e;
-				return VariableStorage(e);
-			}
 			else if (type == Types::ID::Block)
 				return block();
 			else

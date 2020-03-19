@@ -17,7 +17,7 @@ struct X
     span<float, 4> data = { 2.0f, 0.5f, 1.0f, 9.2f };
 };
 
-chain<X, chain<X, X>> c;
+container::chain<X, container::chain<X, X>> c;
 
 int main(int input)
 {

@@ -330,13 +330,6 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 	}
 
 	{
-		auto f = createMemberFunction(Event, "print", { Event });
-		f->setFunction(WrapperEvent::print);
-		setDescription("prints an event text representation to the console", { "value" });
-		addFunction(f);
-	}
-
-	{
 		auto f = createMemberFunction(Types::ID::Void, "stop", { Types::ID::Integer});
 		f->setFunction(WrapperStop::stop);
 		addFunction(f);

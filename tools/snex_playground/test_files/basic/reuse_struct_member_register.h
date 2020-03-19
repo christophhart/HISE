@@ -6,23 +6,21 @@ BEGIN_TEST_DATA
   input: 12
   output: 12
   error: ""
-  filename: "variadic/simple_variadic_test"
+  filename: "basic/reuse_struct_member_register"
 END_TEST_DATA
 */
 
 struct X
 {
     int v = 0;
-    
-    void process(int input)
-    {
-        v = input;
-    }
 };
 
-container::chain<X, X> c;
+X x;
 
 int main(int input)
 {
-    return 12;
+    x.v = 13;
+	x.v = 12;
+	return x.v;
 }
+

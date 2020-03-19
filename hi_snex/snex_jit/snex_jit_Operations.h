@@ -103,7 +103,7 @@ struct Operations::InlinedArgument : public Expression,
 
 				auto target = compiler->getRegFromPool(scope, s.typeInfo);
 
-				target->setCustomMemoryLocation(stackPtr);
+				target->setCustomMemoryLocation(stackPtr, false);
 
 				auto source = getSubRegister(0);
 
@@ -375,9 +375,17 @@ struct Operations::InlinedParameter : public Expression,
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
+			if (source->currentPass != BaseCompiler::CodeGeneration)
+			{
+				source->process(compiler, scope);
+			}
+
+
+
 			if (reg == nullptr)
 				reg = source->reg;
 
+			
 			
 			jassert(reg != nullptr);
 		}
@@ -1175,7 +1183,9 @@ struct Operations::MemoryReference : public Expression
 			else
 				ptr = x86::ptr(PTR_REG_W(baseReg)).cloneAdjustedAndResized(offsetInBytes, 8);
 
-			reg->setCustomMemoryLocation(ptr);
+			reg->setCustomMemoryLocation(ptr, true);
+
+			reg = compiler->registerPool.getRegisterWithMemory(reg);
 		}
 	}
 
@@ -2116,7 +2126,7 @@ struct Operations::Subscript : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
-		Expression::process(compiler, scope);
+		processChildrenIfNotCodeGen(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
@@ -2126,6 +2136,12 @@ struct Operations::Subscript : public Expression
 			{
 				subscriptType = Span;
 				elementType = spanType->getElementType();
+			}
+
+			if (getSubExpr(0)->getType() == Types::ID::Block)
+			{
+				subscriptType = Block;
+				elementType = TypeInfo(Types::ID::Float, false, true);
 			}
 		}
 
@@ -2167,10 +2183,31 @@ struct Operations::Subscript : public Expression
 			}
 		}
 
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		
+		if(isCodeGenPass(compiler))
 		{
+			auto abortFunction = [this]()
+			{
+				if (!getSubExpr(1)->isConstExpr())
+					return false;
+
+				if (dynamic_cast<InlinedParameter*>(getSubExpr(0).get()) != nullptr)
+					return false;
+
+				if (SpanType::isSimdType(getSubExpr(0)->getTypeInfo()))
+					return false;
+
+				if (subscriptType == Block)
+					return false;
+
+				return true;
+			};
+
+			if (!preprocessCodeGenForChildStatements(compiler, scope, abortFunction))
+				return;
+
 			reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
-			
+
 			auto acg = CREATE_ASM_COMPILER(getType());
 
 			auto cType = getSubRegister(0)->getTypeInfo().getTypedIfComplexType<ComplexType>();
@@ -2197,7 +2234,7 @@ struct Operations::Subscript : public Expression
 
 			RegPtr indexReg;
 
-			if (auto wt = getSubRegister(1)->getTypeInfo().getTypedIfComplexType<WrapType>())
+			if (auto wt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<WrapType>())
 			{
 				auto fc = wt->getFunctionClass();
 				auto fData = fc->getSpecialFunction(FunctionClass::NativeTypeCast, TypeInfo(Types::ID::Integer), {});
@@ -2210,8 +2247,9 @@ struct Operations::Subscript : public Expression
 			else
 				indexReg = getSubRegister(1);
 
-
 			acg.emitSpanReference(reg, getSubRegister(0), indexReg, elementType.getRequiredByteSize());
+
+			replaceMemoryWithExistingReference(compiler);
 		}
 	}
 
@@ -2220,6 +2258,9 @@ struct Operations::Subscript : public Expression
 	SpanType* spanType = nullptr;
 	TypeInfo elementType;
 };
+
+
+
 
 
 struct Operations::ComplexTypeDefinition : public Expression,

@@ -16,8 +16,6 @@ VariableStorage::VariableStorage(Types::ID type_, const var& value)
 		data.f.value = (float)value;
 	else if (type_ == Types::ID::Double)
 		data.d.value = static_cast<double>(value);
-	else if (type_ == Types::ID::Event)
-		data.e = HiseEvent(HiseEvent::Type::Controller, 0, 0, 0);
 	else if (type_ == Types::ID::Pointer)
 	{
 		jassertfalse;
@@ -72,8 +70,6 @@ bool VariableStorage::operator==(const VariableStorage& other) const
 		return std::abs(data.d.value - (double)other) < 1e-4;
 	if (getType() == Types::ID::Integer)
 		return data.i.value == (int)other;
-	if (getType() == Types::ID::Event)
-		return data.e == (HiseEvent)other;
 	if (getType() == Types::ID::Block)
 		return data.b.getData() == ((block)other).getData();
 	if (getType() == Types::ID::Pointer)

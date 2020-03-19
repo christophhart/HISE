@@ -56,12 +56,25 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 {
 	if (target->hasCustomMemoryLocation())
 	{
-		value->loadMemoryIntoRegister(cc);
+		if (target->shouldLoadMemoryIntoRegister())
+		{
+			target->createRegister(cc);
 
-		IF_(int)		cc.mov(INT_MEM(target), INT_REG_R(value));
-		IF_(float)		cc.movss(FP_MEM(target), FP_REG_R(value));
-		IF_(double)		cc.movsd(FP_MEM(target), FP_REG_R(value));
-		IF_(HiseEvent)  cc.mov(INT_MEM(target), INT_REG_R(value));
+			IF_(int)   INT_OP(cc.mov, target, value);
+			IF_(float) FP_OP(cc.movss, target, value);
+			IF_(double) FP_OP(cc.movsd, target, value);
+		}
+		else
+		{
+			value->loadMemoryIntoRegister(cc);
+
+			IF_(int)		cc.mov(INT_MEM(target), INT_REG_R(value));
+			IF_(float)		cc.movss(FP_MEM(target), FP_REG_R(value));
+			IF_(double)		cc.movsd(FP_MEM(target), FP_REG_R(value));
+			IF_(HiseEvent)  cc.mov(INT_MEM(target), INT_REG_R(value));
+		}
+
+		
 	}
 	else
 	{
@@ -314,12 +327,12 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 	if (parent->isMemoryLocation())
 	{
 		auto ptr = parent->getAsMemoryLocation();
-		target->setCustomMemoryLocation(ptr.cloneAdjusted(memberOffset.toInt()));
+		target->setCustomMemoryLocation(ptr.cloneAdjusted(memberOffset.toInt()), true);
 	}
 	else
 	{
 		auto ptr = x86::ptr(INT_REG_R(parent), memberOffset.toInt());
-		target->setCustomMemoryLocation(ptr);
+		target->setCustomMemoryLocation(ptr, true);
 	}
 }
 
@@ -351,7 +364,7 @@ void AsmCodeGenerator::emitParameter(Operations::Function* f, RegPtr parameterRe
 	{
 		auto aReg = cc.newGpq();
 		cc.setArg(parameterIndex, aReg);
-		parameterRegister->setCustomMemoryLocation(x86::ptr(aReg));
+		parameterRegister->setCustomMemoryLocation(x86::ptr(aReg), true);
 	}
 	else
 		cc.setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
@@ -480,12 +493,12 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 
 void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes)
 {
-	
-
 	jassert(index->getType() == Types::ID::Integer);
 
-	if (address->isSimd4Float() && address->isActive())
+	if (address->isSimd4Float() && !address->isMemoryLocation())
 	{
+		address->loadMemoryIntoRegister(cc);
+
 		jassert(target->getType() == Types::ID::Float);
 
 		target->createRegister(cc);
@@ -547,7 +560,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		else
 			ptr = x86::ptr(fptr.get(), INT_REG_R(index), sizeof(float));
 
-		target->setCustomMemoryLocation(ptr);
+		target->setCustomMemoryLocation(ptr, true);
 	}
 	else
 	{
@@ -611,6 +624,8 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		}
 		else
 		{
+			address->loadMemoryIntoRegister(cc);
+
 			if (index->isMemoryLocation())
 			{
 				p = x86::ptr(INT_REG_R(address), imm2ptr(INT_IMM(index) * elementSizeInBytes));
@@ -628,7 +643,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 			cc.lea(INT_REG_W(target), p);
 		}
 		else
-			target->setCustomMemoryLocation(p);
+			target->setCustomMemoryLocation(p, address->isGlobalMemory());
 	}
 
 	
@@ -783,8 +798,6 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 			cc.ret(rToUse->getRegisterForWriteOp().as<X86Xmm>());
 		else if (type == Types::ID::Integer)
             cc.ret(rToUse->getRegisterForWriteOp().as<x86::Gpd>());
-		else if (type == Types::ID::Event)
-			cc.ret(rToUse->getRegisterForWriteOp().as<X86Gpq>());
 		else if (type == Types::ID::Block)
 			cc.ret(rToUse->getRegisterForWriteOp().as<X86Gpq>());
 	}
@@ -1159,7 +1172,7 @@ void AsmCodeGenerator::emitFunctionParameterReference(RegPtr sourceReg, RegPtr p
 		IF_(float) cc.movss(mem, FP_REG_R(sourceReg));
 		IF_(double) cc.movsd(mem, FP_REG_R(sourceReg));
 
-		sourceReg->setCustomMemoryLocation(mem);
+		sourceReg->setCustomMemoryLocation(mem, false);
 	}
 
 
@@ -1423,7 +1436,6 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 	if (data.returnType == Types::ID::Float) sig.setRetT<float>();
 	if (data.returnType == Types::ID::Double) sig.setRetT<double>();
 	if (data.returnType == Types::ID::Integer) sig.setRetT<int>();
-	if (data.returnType == Types::ID::Event) sig.setRet(asmjit::Type::kIdIntPtr);
 	if (data.returnType == Types::ID::Block) sig.setRet(asmjit::Type::kIdIntPtr);
 
 	if (createObjectPointer)
@@ -1436,7 +1448,6 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 		if (t == Types::ID::Float)	 sig.addArgT<float>();
 		if (t == Types::ID::Double)  sig.addArgT<double>();
 		if (t == Types::ID::Integer) sig.addArgT<int>();
-		if (t == Types::ID::Event)   sig.addArg(asmjit::Type::kIdIntPtr);
 		if (t == Types::ID::Block)   sig.addArg(asmjit::Type::kIdIntPtr);
 		if (t == Types::ID::Pointer) sig.addArg(asmjit::Type::kIdIntPtr);
 	}

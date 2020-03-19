@@ -31,7 +31,7 @@ struct Y
     }
 };
 
-chain<X, Y> c;
+container::chain<X, Y> c;
 
 
 int main(int input)

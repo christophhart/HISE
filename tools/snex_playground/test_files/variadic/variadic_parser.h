@@ -20,7 +20,7 @@ struct X
     }
 };
 
-chain<X, chain<X, X>> c;
+container::chain<X, container::chain<X, X>> c;
 
 int main(int input)
 {

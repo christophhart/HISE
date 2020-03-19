@@ -42,9 +42,7 @@ snex::Types::ID Types::Helpers::getTypeFromVariableName(const juce::String& name
 	case 'b':	return Types::ID::Block;
 	case 'f':	return Types::ID::Float;
 	case 'd':	return Types::ID::Double;
-	case 'e':	return Types::ID::Event;
 	case 'i':	return Types::ID::Integer;
-	case 'n':	return Types::ID::Number;
 	case 'a':	return Types::ID::Dynamic;
 	default:	jassertfalse; return Types::ID::Void;
 	}
@@ -66,11 +64,7 @@ juce::String Types::Helpers::getTypeName(ID id)
 	case Types::ID::Integer:		return "int";
 	case Types::ID::Float:			return "float";
 	case Types::ID::Double:			return "double";
-	case Types::ID::FpNumber:		return "double";
-	case Types::ID::Event:			return "event";
 	case Types::ID::Block:			return "block";
-	case Types::ID::Signal:			return "signal";
-	case Types::ID::Number:			return "number";
 	case Types::ID::Pointer:		return "pointer";
 	case Types::ID::Dynamic:		return "any";
 	}
@@ -86,11 +80,7 @@ Colour Types::Helpers::getColourForType(ID type)
 	case Types::ID::Integer:		return Colour(0xffbe952c);
 	case Types::ID::Float:			
 	case Types::ID::Double:			
-	case Types::ID::FpNumber:		return Colour(0xff3a6666);
 	case Types::ID::Block:			return Colour(0xff7559a4);
-	case Types::ID::Event:			return Colour(0xFFC65638);
-	case Types::ID::Signal:			return Colours::violet;
-	case Types::ID::Number:			return Colours::green;
 	case Types::ID::Pointer:		return Colours::aqua;
 	case Types::ID::Dynamic:		return Colours::white;
 	}
@@ -181,11 +171,7 @@ juce::String Types::Helpers::getTypeIDName(ID type)
 	case Types::ID::Integer:		return "Types::ID::Integer";
 	case Types::ID::Float:			return "Types::ID::Float";
 	case Types::ID::Double:			return "Types::ID::Double";
-	case Types::ID::FpNumber:		return "Types::ID::FpNumber";
-	case Types::ID::Event:			return "Types::ID::Event";
 	case Types::ID::Block:			return "Types::ID::Block";
-	case Types::ID::Signal:			return "Types::ID::Signal";
-	case Types::ID::Number:			return "Types::ID::Number";
 	case Types::ID::Dynamic:		return "Types::ID::Dynamic";
 	case Types::ID::Pointer:		return "Types::ID::Pointer";
 	default:						return "Types::ID::numIds";
@@ -200,8 +186,7 @@ size_t Types::Helpers::getSizeForType(ID type)
 	case Types::ID::Integer: return sizeof(int);
 	case Types::ID::Float: return sizeof(float);
 	case Types::ID::Double: return sizeof(double);
-	case Types::ID::Block: return sizeof(HiseEvent);
-	case Types::ID::Event: return sizeof(block);
+	case Types::ID::Block: return sizeof(block);
 	case Types::ID::Pointer: return sizeof(int*);
 	}
 
@@ -440,7 +425,6 @@ bool Types::Helpers::isFixedType(ID type)
 			type == ID::Float ||
 			type == ID::Void ||
 			type == ID::Double ||
-			type == ID::Event ||
 			type == ID::Pointer;
 }
 
@@ -461,7 +445,7 @@ Types::ID Types::Helpers::getMoreRestrictiveType(ID typeA, ID typeB)
 
 bool Types::Helpers::isNumeric(ID id)
 {
-	return matchesType(Types::ID::Number, id);
+	return id == Integer || id == Float || id == Double;
 }
 
 bool Types::Helpers::isPinVariable(const juce::String& name)
@@ -491,59 +475,5 @@ bool Types::Helpers::binaryOpAllowed(ID left, ID right)
 }
 
 #define ADD_TYPE(returnType, name, ...) types.add({ Float, Identifier(#name), {__VA_ARGS__} });
-
-snex::Types::FunctionType Types::Helpers::getFunctionPrototype(const Identifier& id)
-{
-	static Array<FunctionType> types;
-
-	if (types.isEmpty())
-	{
-		ADD_TYPE(Float, sin, Float);
-		ADD_TYPE(Float, sign, Float);
-		ADD_TYPE(Float, abs, Float);
-		ADD_TYPE(Float, round, Float);
-		ADD_TYPE(Float, random);
-		ADD_TYPE(Integer, randInt, Integer, Integer);
-		ADD_TYPE(Number, range, Number, Number, Number);
-		ADD_TYPE(Number, min, Number, Number);
-		ADD_TYPE(Number, max, Number, Number);
-
-		ADD_TYPE(Number, round, Number);
-
-		ADD_TYPE(Float, sin, Float);
-		ADD_TYPE(Float, asin, Float);
-		ADD_TYPE(Float, cos, Float);
-		ADD_TYPE(Float, acos, Float);
-		ADD_TYPE(Float, sinh, Float);
-		ADD_TYPE(Float, cosh, Float);
-		ADD_TYPE(Float, tan, Float);
-		ADD_TYPE(Float, tanh, Float);
-		ADD_TYPE(Float, atan, Float);
-		ADD_TYPE(Float, log, Float);
-		ADD_TYPE(Float, log10, Float);
-		ADD_TYPE(Float, exp, Float);
-		ADD_TYPE(Float, pow, Float, Float);
-		ADD_TYPE(Float, sqr, Float);
-		ADD_TYPE(Float, sqrt, Float);
-		ADD_TYPE(Float, ceil, Float);
-		ADD_TYPE(Float, floor, Float);
-
-		ADD_TYPE(Block, vmul, Block, Block);
-		ADD_TYPE(Block, vadd, Block, Block);
-		ADD_TYPE(Block, vsub, Block, Block);
-		ADD_TYPE(Block, vcopy, Block, Block);
-		ADD_TYPE(Block, vset, Block, Float);
-		ADD_TYPE(Block, vmuls, Block, Float);
-		ADD_TYPE(Block, vadds, Block, Float);
-	}
-
-	for (auto pt : types)
-	{
-		if (pt.functionName == id)
-			return pt;
-	}
-
-	return {};
-}
 
 }

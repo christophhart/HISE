@@ -304,6 +304,15 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			return;
 		}
 
+
+
+		if (compiler->namespaceHandler.getSymbolType(id.id) == NamespaceHandler::Constant)
+		{
+			auto n = new Immediate(location, compiler->namespaceHandler.getConstantValue(id.id));
+			replaceInParent(n);
+			return;
+		}
+
 		if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(this, id))
 		{
 			auto n = new InlinedParameter(location, ie->getSymbol(), ie->getSubExpr(0));
@@ -767,7 +776,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		if (getTargetType() == TargetType::Reference && isFirstAssignment)
 		{
 			jassert(value->hasCustomMemoryLocation() || value->isMemoryLocation());
-			tReg->setCustomMemoryLocation(value->getMemoryLocationForReference());
+			tReg->setCustomMemoryLocation(value->getMemoryLocationForReference(), true);
 		}
 		else
 		{
@@ -830,6 +839,8 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 		return TargetType::ClassMember;
 	else if (dynamic_cast<Subscript*>(target.get()))
 		return TargetType::Span;
+	else if (dynamic_cast<MemoryReference*>(target.get()))
+		return TargetType::Reference;
 
 	jassertfalse;
 	return TargetType::numTargetTypes;
@@ -837,7 +848,7 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 
 void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	Expression::process(compiler, scope);
+	Expression::processChildrenIfNotCodeGen(compiler, scope);
 
 	if (getDotChild()->isConstExpr())
 	{
@@ -857,8 +868,16 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 	}
 
-	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	if(isCodeGenPass(compiler))
 	{
+		auto abortFunction = []()
+		{
+			return true;
+		};
+
+		if (!Expression::preprocessCodeGenForChildStatements(compiler, scope, abortFunction))
+			return;
+
 		if (auto vp = dynamic_cast<SymbolStatement*>(getDotChild().get()))
 		{
 			reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
@@ -870,14 +889,17 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 			auto c = getSubRegister(1);
 
 			acg.emitMemberAcess(reg, p, c);
+
+			auto prevReg = compiler->registerPool.getRegisterWithMemory(reg);
+
+			if (prevReg != reg)
+				reg = prevReg;
+
+			Expression::replaceMemoryWithExistingReference(compiler);
 		}
 		else
 		{
 			jassertfalse;
-
-			// just steal the register from the child...
-			reg = getSubRegister(1);
-			return;
 		}
 	}
 }
@@ -1072,7 +1094,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				{
 					auto objCopy = asg.cc.newStack(pType.getRequiredByteSize(), pType.getRequiredAlignment());
 					auto pReg = compiler->getRegFromPool(scope, TypeInfo(Types::ID::Pointer, true));
-					pReg->setCustomMemoryLocation(objCopy);
+					pReg->setCustomMemoryLocation(objCopy, false);
 					parameterRegs.add(pReg);
 				}
 				else
@@ -1321,7 +1343,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 				auto c = acg.cc.newStack(type.getRequiredByteSize(), type.getRequiredAlignment(), "funky");
 
 				auto reg = compiler->registerPool.getRegisterForVariable(scope, s);
-				reg->setCustomMemoryLocation(c);
+				reg->setCustomMemoryLocation(c, false);
 				stackLocations.add(reg);
 			}
 		}

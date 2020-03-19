@@ -54,7 +54,6 @@ public:
 	using FloatMemoryType = X86Mem;
 	using Ptr = ReferenceCountedObjectPtr<AssemblyRegister>;
 	using List = ReferenceCountedArray<AssemblyRegister>;
-	
 
 	enum State
 	{
@@ -71,9 +70,20 @@ private:
 
 	AssemblyRegister(TypeInfo type_);
 
+	
 public:
 
-	
+	~AssemblyRegister()
+	{
+		int x = 5;
+	}
+
+
+	bool matchesMemoryLocation(Ptr other) const;
+
+	bool isGlobalMemory() const;
+
+	bool shouldLoadMemoryIntoRegister() const;
 
 	void setReference(BaseScope* scope, const Symbol& ref);
 
@@ -139,7 +149,7 @@ public:
 
 	bool isMemoryLocation() const;
 
-	void setCustomMemoryLocation(X86Mem newLocation);
+	void setCustomMemoryLocation(X86Mem newLocation, bool isGlobalMemory);
 
 	void setDataPointer(void* memLoc);
 
@@ -180,12 +190,16 @@ public:
 
 private:
 
+	int numMemoryReferences = 0;
+
+	int debugId = 0;
 	friend class AssemblyRegisterPool;
 
 	X86Reg partReg1;
 	X86Reg partReg2;
 
 	bool hasCustomMem = false;
+	bool globalMemory = false;
 	bool isIter = false;
 	bool isZeroValue = false;
 
@@ -218,7 +232,9 @@ public:
 	RegPtr getActiveRegisterForCustomMem(RegPtr regWithCustomMem);
 
 	void removeIfUnreferenced(AssemblyRegister::Ptr ref);
-	AssemblyRegister::Ptr getNextFreeRegister(BaseScope* scope, TypeInfo type);
+	RegPtr getNextFreeRegister(BaseScope* scope, TypeInfo type);
+
+	RegPtr getRegisterWithMemory(RegPtr other);
 
 	RegList getListOfAllNamedRegisters();
 

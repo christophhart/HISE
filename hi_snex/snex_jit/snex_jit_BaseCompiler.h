@@ -71,6 +71,9 @@ public:
 		auto float4Type = new SpanType(TypeInfo(Types::ID::Float), 4);
 		float4Type->setAlias(NamespacedIdentifier("float4"));
 		namespaceHandler.registerComplexTypeOrReturnExisting(float4Type);
+
+		
+
 	}
 
 	virtual ~BaseCompiler() {};
