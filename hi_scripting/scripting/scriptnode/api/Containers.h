@@ -40,8 +40,48 @@ using namespace hise;
 namespace container
 {
 
-template <typename... Processors> struct container_base
+struct ContainerParameter
 {
+	using FuncPointer = void(*)(void*, double);
+
+	Identifier name;
+
+	
+
+	void* obj;
+	FuncPointer f = nullptr;
+
+	//std::function<void(double)> f;
+};
+
+template <class T> struct Accessor
+{
+	template <class T> Accessor(T& obj_) :
+		obj(obj_)
+	{}
+
+	template <class Obj, int I> static auto& get_(Obj& o, std::index_sequence<I> path)
+	{
+		return o.get<I>();
+	}
+
+	template <class Obj, int I, int... Is> static auto& get_(Obj& o, std::index_sequence<I, Is...> path)
+	{
+		return get_(o.get<I>(), std::index_sequence<Is...>());
+	}
+
+	template <size_t... Path> auto& get() const
+	{
+		return get_(obj, std::index_sequence<Path...>());
+	}
+
+	T& obj;
+};
+
+template <class ParameterClass, typename... Processors> struct container_base
+{
+	using Type = container_base<ParameterClass, Processors...>;
+
 	template <std::size_t ...Ns>
 	void init_each(NodeBase* b, std::index_sequence<Ns...>) {
 		using swallow = int[];
@@ -84,13 +124,36 @@ template <typename... Processors> struct container_base
 		reset_each(indexes);
 	}
 
-	template <int arg> constexpr auto& get() noexcept { return std::get<arg>(processors); }
+	template <size_t arg> constexpr auto& get() noexcept { return std::get<arg>(processors); }
 	
+	template <size_t arg, size_t... args> constexpr auto& getFunky() noexcept
+	{
+		Accessor<Type> a(*this);
+		return a.get<arg, args...>();
+	}
+
+	template <size_t... args> constexpr auto& getParameter() noexcept
+	{
+		Accessor<ParameterClass> a(parameters);
+		return a.get<args...>();
+	}
+
     void createParameters(Array<HiseDspBase::ParameterData>& d)
     {
         
     }
     
+	template <int P> static void setParameter(void* obj, double v)
+	{
+		static_cast<Type*>(obj)->setParameter<P>(v);
+	}
+
+	template <int P> void setParameter(double v)
+	{
+		parameters.call<P>(v);
+	}
+	
+
     int getExtraWidth() const { return 0; }
     int getExtraHeight() const { return 0; }
     
@@ -100,6 +163,8 @@ template <typename... Processors> struct container_base
 
 	std::tuple<Processors...> processors;
 	std::index_sequence_for<Processors...> indexes;
+
+	ParameterClass parameters;
 };
 
 

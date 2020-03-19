@@ -654,6 +654,94 @@ struct hardcoded_base : public HiseDspBase,
 	int extraWidth = -1;
 };
 
+template <class Initialiser, class T> struct cpp_node : public SingleWrapper<T>
+{
+	static constexpr bool isModulationSource = T::isModulationSource;
+
+	void initialise(NodeBase* n) override
+	{
+		Initialiser init(obj);
+		obj.initialise(n);
+	}
+
+	template <int I, int Limit> struct ParameterAdder
+	{
+		struct Below
+		{
+			static constexpr int value = I < Limit;
+		};
+
+		ParameterAdder(cpp_node& p, Array<ParameterData>& d)
+		{
+			add_(p, d, std::integral_constant<bool, Below::value>{});
+		}
+
+		void add_(cpp_node& obj, Array<ParameterData>& d, std::true_type)
+		{
+			obj.addParameter<I>(d);
+		}
+
+		void add_(cpp_node& obj, Array<ParameterData>& d, std::false_type)
+		{
+
+		}
+	};
+
+	forcedinline void process(ProcessData& data) noexcept
+	{
+		obj.process(data);
+	}
+
+	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	{
+		obj.processSingle(frameData, numChannels);
+	}
+
+	constexpr bool allowsModulation()
+	{
+		return obj.isModulationSource;
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		obj.prepare(ps);
+	}
+
+	forcedinline void reset() noexcept { obj.reset(); }
+
+	forcedinline bool handleModulation(double& value) noexcept
+	{
+		return obj.handleModulation(value);
+	}
+
+
+	void createParameters(Array<ParameterData>& data) override
+	{
+		static constexpr int NumParameters = obj.parameters.size;
+
+#define ADD_PARAMETER(x) ParameterAdder<x, NumParameters>(*this, data)
+
+		ADD_PARAMETER(0); ADD_PARAMETER(1); ADD_PARAMETER(2); ADD_PARAMETER(3);
+		ADD_PARAMETER(4); ADD_PARAMETER(5); ADD_PARAMETER(6); ADD_PARAMETER(7);
+
+		ADD_PARAMETER(8); ADD_PARAMETER(9); ADD_PARAMETER(10); ADD_PARAMETER(11);
+		ADD_PARAMETER(12); ADD_PARAMETER(13); ADD_PARAMETER(14); ADD_PARAMETER(15);
+
+#undef ADD_PARAMETER
+	}
+
+	template <int P> void addParameter(Array<ParameterData>& data)
+	{
+		ParameterData p("Gain", { 0.0, 1.0, 0.01 });
+		p.db = [this](double v)
+		{
+			obj.setParameter<P>(v);
+		};
+
+		data.add(p);
+	}
+};
+
 struct hardcoded_pimpl : public hardcoded_base
 {
 	virtual ~hardcoded_pimpl() {};
@@ -755,6 +843,17 @@ static Identifier getStaticId() { return Identifier(id); };
 
 				monoNodes.add(newItem);
 			}
+		}
+
+		template <class T> void registerAnonymousNode(const Identifier& id)
+		{
+			using WrappedT = HiseDspNodeBase<T>;
+
+			Item newItem;
+			newItem.cb = WrappedT::createNode;
+			newItem.id = [id]() { return id; };
+			
+			monoNodes.add(newItem);
 		}
 
         template <class T> void registerNodeRaw(const PostCreateCallback& cb = {})

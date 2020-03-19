@@ -37,6 +37,230 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+struct SnexExpressionBase {
+	snex::hmath Math;
+
+	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(0.0, 1.0); };
+};
+
+template <typename T> struct RangeBase
+{
+	static constexpr T from0To1(T min, T max, T value)
+	{
+		return hmath::map(value, min, max);
+	}
+
+	static constexpr T to0To1(T min, T max, T value)
+	{
+		return (value - min) / (max - min);
+	}
+
+	static constexpr T from0To1Skew(T min, T max, T skew, T value)
+	{
+		auto v = hmath::pow(value, skew);
+		return from0To1(min, max, value);
+	}
+
+	static constexpr T to0To1Skew(T min, T max, T skew, T value)
+	{
+		auto v = to0To1(min, max, value);
+		return hmath::pow(v, skew);
+	}
+
+	static constexpr T from0To1Step(T min, T max, T step, T value)
+	{
+		auto v = from0To1(min, max, value);
+		return v - hmath::fmod(v, step);
+	}
+
+	static constexpr T to0To1Step(T min, T max, T step, T value)
+	{
+		auto v = value - hmath::fmod(value, step);
+		return to0To1(min, max, v);
+	}
+
+	static constexpr T from0To1StepSkew(T min, T max, T step, T skew, T value)
+	{
+		auto v = from0To1(min, max, skew, value);
+		return v - hmath::fmod(v, step);
+	}
+
+	static constexpr T to0To1StepSkew(T min, T max, T step, T skew, T value)
+	{
+		auto v = value - hmath::fmod(value, step);
+		return to0To1(min, max, skew, v);
+	}
+};
+
+struct Identity
+{
+	static constexpr double from0To1(double input) { return input; };
+	static constexpr double to0To1(double input) { return input; };
+	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(0.0, 1.0); };
+};
+
+#define DECLARE_PARAMETER_EXPRESSION(name, x) struct name : public SnexExpressionBase { \
+double operator()(double input) { return x; } \
+};
+
+#define DECLARE_PARAMETER_RANGE(name, min, max) struct name { \
+	static constexpr double to0To1(double input) { return RangeBase<double>::to0To1(min, max, input); } \
+	static constexpr double from0To1(double input){ return RangeBase<double>::from0To1(min, max, input); };\
+	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max); } };
+
+#define DECLARE_STEP_PARAMETER_RANGE(name, min, max, step) struct name {\
+	static constexpr double to0To1(double input) {  return RangeBase<double>::to0To1Step(min, max, step, input); } \
+	static constexpr double from0To1(double input){ return RangeBase<double>::from0To1Step(min, max, step, input);} \
+	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, step); } };
+
+
+#define DECLARE_SKEW_PARAMETER_RANGE(name, min, max, skew) struct name {\
+	static constexpr double to0To1(double input) {  return RangeBase<double>::to0To1Skew(min, max, skew, input); }\
+	static constexpr double from0To1(double input){ return RangeBase<double>::from0To1Skew(min, max, skew, input);} \
+	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, 0.0, skew); } };
+
+#define DECLARE_STEP_SKEW_PARAMETER_RANGE(name, min, max, step, skew)struct name {\
+	static constexpr double to0To1(double input) {  return RangeBase<double>::to0To1StepSkew(min, max, step, skew, input); } \
+	static constexpr double from0To1(double input){ return RangeBase<double>::from0To1StepSkew(min, max, step, skew, input);} \
+	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, step, skew); } };
+
+namespace parameter
+{
+
+template <class T, int P> struct single_base
+{
+	static constexpr int size = 1;
+
+	struct Caller
+	{
+		void operator()(void* obj, double v)
+		{
+			T::setParameter<P>(obj, v);
+		}
+	} f;
+
+	void connect(T& o)
+	{
+		obj = reinterpret_cast<void*>(&o);
+	}
+
+	template <int P> constexpr auto& get() noexcept
+	{
+		static_assert(P == 0, "not zero");
+		return *this;
+	}
+
+	void* obj = nullptr;
+};
+
+template <class T, int P> struct plain: public single_base<T, P>
+{
+	template <int P_> void call(double v)
+	{
+		static_assert(P_ == 0, "not zero");
+
+		jassert(obj != nullptr);
+		f(obj, v);
+	}
+};
+
+template <class T, int P, class Expression> struct expression: public single_base<T, P>
+{
+	template <int P_> void call(double v)
+	{
+		static_assert(P_ == 0, "not zero");
+		jassert(obj != nullptr);
+
+		f(obj, Expression()(v));
+	}
+};
+
+template <class T, int P, class RangeType> struct from0to1: public single_base<T, P>
+{
+	template <int P_> void call(double v)
+	{
+		static_assert(P_ == 0, "not zero");
+		jassert(obj != nullptr);
+
+		f(obj, RangeType::from0to1(v));
+	}
+};
+
+template <class T, int P, class RangeType> struct to0to1 : public single_base<T, P>
+{
+	template <int P_> void call(double v)
+	{
+		static_assert(P_ == 0, "not zero");
+		jassert(obj != nullptr);
+
+		f(obj, RangeType::to0to1(v));
+	}
+};
+
+template <class InputRange, class... Others> struct chain
+{
+	static constexpr int size = 1;
+
+	template <int P> void call(double v)
+	{
+		v = InputRange::to0To1(v);
+
+		static_assert(P == 0, "not zero");
+		call_each(v, indexes);
+	}
+
+	template <std::size_t ...Ns>
+	void call_each(double v, std::index_sequence<Ns...>) {
+		using swallow = int[];
+		(void)swallow {
+			1, (std::get<Ns>(others).call(v), void(), int{})...
+		};
+	}
+
+	template <size_t arg> constexpr auto& get() noexcept
+	{
+		return std::get<arg>(others);
+	}
+
+	std::index_sequence_for<Others...> indexes;
+	std::tuple<Others...> others;
+};
+
+template <class... Parameters> struct list
+{
+	static constexpr int size = sizeof...(Parameters);
+
+	template<int P> void call(double v)
+	{
+		std::get<P>(others).call<0>(v);
+	}
+
+	template <size_t P> constexpr auto& get() noexcept
+	{
+		return std::get<P>(others);
+	}
+
+	std::tuple<Parameters...> others;
+};
+
+struct empty
+{
+	static constexpr int size = 0;
+
+	template<int P> void call(double v)
+	{
+		static_assert(false, "Trying to call a parameter from a empty list");
+	}
+
+	template <size_t P> constexpr auto& get() noexcept
+	{
+		static_assert(false, "Trying to get a parameter from a empty list");
+		return *this;
+	}
+};
+
+}
+
 
 template <int NumChannels, class T> class fix
 {
@@ -589,7 +813,7 @@ public:
 };
 
 
-template <class T> struct mod: public SingleWrapper<T>
+template <class T, class ParameterClass> struct mod: public SingleWrapper<T>
 {
 	GET_SELF_AS_OBJECT(mod);
 
@@ -614,7 +838,9 @@ template <class T> struct mod: public SingleWrapper<T>
 		this->obj.processSingle(frameData, numChannels);
 
 		if (this->obj.handleModulation(modValue))
-			db(modValue);
+		{
+			p.call<0>(modValue);
+		}
 	}
 
 	void createParameters(Array<HiseDspBase::ParameterData>& data) override
@@ -632,13 +858,19 @@ template <class T> struct mod: public SingleWrapper<T>
 		return false;
 	}
 
+	template <int I, class T> void connect(T& t)
+	{
+		p.get<I>().connect(t);
+	}
+
+#if 0
 	void setCallback(const DspHelpers::ParameterCallback& c)
 	{
 		db = c;
 	}
+#endif
 
-	//auto& getObject() { return obj.getObject(); }
-	//const auto& getObject() const { return obj.getObject(); }
+	ParameterClass p;
 
 	DspHelpers::ParameterCallback db;
 	double modValue = 0.0;

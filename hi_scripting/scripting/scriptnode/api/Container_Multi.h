@@ -41,7 +41,7 @@ namespace container
 {
 
 
-template <typename... Processors> struct multi: public container_base<Processors...>
+template <class ParameterClass, typename... Processors> struct multi: public container_base<ParameterClass, Processors...>
 {
 	static constexpr bool isModulationSource = false;
 

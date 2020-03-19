@@ -110,6 +110,11 @@ public:
 	void createParameters(Array<ParameterData>&) override;
 	void connectTo(HiseDspBase* s);
 
+	void connect(ReceiveNode& r)
+	{
+		connectTo(&r);
+	}
+
 	struct ConnectionNodeProperty : public NodeProperty
 	{
 		ConnectionNodeProperty(SendNode& parent);

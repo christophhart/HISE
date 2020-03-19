@@ -40,17 +40,15 @@ using namespace hise;
 namespace container
 {
 
-template <typename... Ts> using frame1_block = wrap::frame<1, container::chain<Ts...>>;
-template <typename... Ts> using frame2_block = wrap::frame<2, container::chain<Ts...>>;
-template <typename... Ts> using frame4_block = wrap::frame<4, container::chain<Ts...>>;
-template <typename... Ts> using framex_block = wrap::frame_x<container::chain<Ts...>>;
-
-template <typename... Ts> using oversample2x = wrap::oversample<2, container::chain<Ts...>>;
-template <typename... Ts> using oversample4x = wrap::oversample<4, container::chain<Ts...>>;
-template <typename... Ts> using oversample8x = wrap::oversample<8, container::chain<Ts...>>;
-template <typename... Ts> using oversample16x = wrap::oversample<16, container::chain<Ts...>>;
-
-template <typename... Ts> using modchain = wrap::control_rate<chain<Ts...>>;
+template <class P, typename... Ts> using frame1_block = wrap::frame<1, container::chain<P, Ts...>>;
+template <class P, typename... Ts> using frame2_block = wrap::frame<2, container::chain<P, Ts...>>;
+template <class P, typename... Ts> using frame4_block = wrap::frame<4, container::chain<P, Ts...>>;
+template <class P, typename... Ts> using framex_block = wrap::frame_x< container::chain<P, Ts...>>;
+template <class P, typename... Ts> using oversample2x = wrap::oversample<2,   container::chain<P, Ts...>>;
+template <class P, typename... Ts> using oversample4x = wrap::oversample<4,   container::chain<P, Ts...>>;
+template <class P, typename... Ts> using oversample8x = wrap::oversample<8,   container::chain<P, Ts...>>;
+template <class P, typename... Ts> using oversample16x = wrap::oversample<16, container::chain<P, Ts...>>;
+template <class P, typename... Ts> using modchain = wrap::control_rate<chain<P, Ts...>>;
 
 }
 #endif
@@ -365,6 +363,12 @@ template <int V> class gain_impl : public HiseDspBase
 {
 public:
 
+	enum Parameter
+	{
+		Gain,
+		SmoothingTime
+	};
+
 	static constexpr int NumVoices = V;
 
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
@@ -381,6 +385,12 @@ public:
 	void processSingle(float* numFrames, int numChannels);
 	bool handleModulation(double&) noexcept { return false; };
 	void createParameters(Array<ParameterData>& data) override;
+
+	HISE_STATIC_PARAMETER_TEMPLATE
+	{
+		TEMPLATE_PARAMETER_CALLBACK(Gain, setGain);
+		TEMPLATE_PARAMETER_CALLBACK(SmoothingTime, setSmoothingTime);
+	}
 
 	void setGain(double newValue);
 	void setSmoothingTime(double smoothingTimeMs);

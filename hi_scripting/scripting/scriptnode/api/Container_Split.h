@@ -40,7 +40,7 @@ using namespace hise;
 namespace container
 {
 
-template <typename... Processors> struct split : public container_base<Processors...>
+template <class ParameterClass, typename... Processors> struct split : public container_base<ParameterClass, Processors...>
 {
 	static constexpr bool isModulationSource = false;
 

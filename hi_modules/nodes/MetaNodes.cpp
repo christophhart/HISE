@@ -34,13 +34,14 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+#if 0
 namespace meta
 {
 
 namespace width_bandpass_impl
 {
 
-using width_bandpass_ = container::chain<filters::svf, filters::svf>;
+using width_bandpass_ = container::chain<2, filters::svf, filters::svf>;
 
 DSP_METHODS_PIMPL_IMPL(width_bandpass_);
 
@@ -131,8 +132,8 @@ namespace filter_delay_impl
 {
 
 // Template Alias Definition =======================================================
-using frame2_block2_ = container::frame2_block<routing::receive, meta::width_bandpass, core::fix_delay, routing::send>;
-using filter_delay_ = container::chain<bypass::yes<routing::matrix>, bypass::yes<routing::matrix>, bypass::yes<routing::matrix>, wrap::mod<core::tempo_sync>, core::gain, frame2_block2_>;
+using frame2_block2_ = container::frame2_block<0, routing::receive, meta::width_bandpass, core::fix_delay, routing::send>;
+using filter_delay_ = container::chain<0, bypass::yes<routing::matrix>, bypass::yes<routing::matrix>, bypass::yes<routing::matrix>, wrap::mod<core::tempo_sync>, core::gain, frame2_block2_>;
 
 DSP_METHODS_PIMPL_IMPL(filter_delay_);
 
@@ -278,12 +279,12 @@ REGISTER_MONO;
 namespace tremolo_impl
 {
 // Template Alias Definition =======================================================
-using stereo_ctrl_ = container::chain<math::mul, math::sig2mod, wrap::mod<core::peak>>;
-using mono_ctrl_ = container::chain<math::mul, math::sig2mod, wrap::mod<core::peak>>;
-using split_ = container::split<stereo_ctrl_, mono_ctrl_>;
-using modchain_ = container::modchain<core::oscillator, split_>;
-using multi_ = container::multi<fix<1, core::gain>, fix<1, core::gain>>;
-using tremolo_ = container::chain<math::mul, modchain_, core::gain, multi_>;
+using stereo_ctrl_ = container::chain<parameter::empty, math::mul, math::sig2mod, wrap::mod<core::peak>>;
+using mono_ctrl_ = container::chain<parameter::empty, math::mul, math::sig2mod, wrap::mod<core::peak>>;
+using split_ = container::split<parameter::empty, stereo_ctrl_, mono_ctrl_>;
+using modchain_ = container::modchain<parameter::empty, core::oscillator, split_>;
+using multi_ = container::multi<parameter::empty, fix<1, core::gain>, fix<1, core::gain>>;
+using tremolo_ = container::chain<parameter::empty, math::mul, modchain_, core::gain, multi_>;
 
 DSP_METHODS_PIMPL_IMPL(tremolo_);
 
@@ -404,14 +405,14 @@ REGISTER_MONO;
 namespace transient_designer_impl
 {
 // Template Alias Definition =======================================================
-using convert_to_mono_ = container::multi<fix<1, math::mul>, fix<1, math::clear>>;
-using fast_envelope_ = container::chain<dynamics::envelope_follower>;
-using slow_envelope_ = container::chain<dynamics::envelope_follower, math::mul>;
-using split_ = container::split<fast_envelope_, slow_envelope_>;
-using analysis_ = container::chain<filters::one_pole, core::gain, math::pow, routing::ms_decode, convert_to_mono_, routing::ms_encode, math::clip, split_, math::mul, math::add, math::clip, wrap::mod<core::peak>, math::clear>;
-using signal_ = container::chain<skip<core::gain>, core::gain>;
-using spolitter_ = container::split<analysis_, signal_>;
-using transient_designer_ = container::frame2_block<spolitter_>;
+using convert_to_mono_ = container::multi<0, fix<1, math::mul>, fix<1, math::clear>>;
+using fast_envelope_ = container::chain<0, dynamics::envelope_follower>;
+using slow_envelope_ = container::chain<0, dynamics::envelope_follower, math::mul>;
+using split_ = container::split<0, fast_envelope_, slow_envelope_>;
+using analysis_ = container::chain<0, filters::one_pole, core::gain, math::pow, routing::ms_decode, convert_to_mono_, routing::ms_encode, math::clip, split_, math::mul, math::add, math::clip, wrap::mod<core::peak>, math::clear>;
+using signal_ = container::chain<0, skip<core::gain>, core::gain>;
+using spolitter_ = container::split<0, analysis_, signal_>;
+using transient_designer_ = container::frame2_block<0, spolitter_>;
 
 DSP_METHODS_PIMPL_IMPL(transient_designer_);
 
@@ -560,5 +561,6 @@ REGISTER_MONO;
 DEFINE_FACTORY_FOR_NAMESPACE
 
 }
+#endif
 
 }

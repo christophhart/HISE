@@ -176,6 +176,13 @@ public:
 	void createParameters(Array<ParameterData>& data) override;
 	void setValue(double newValue);
 
+	
+
+	template <int P> static void setParameter(void* obj, double v)
+	{
+		static_cast<OpNode*>(obj)->setValue(v);
+	}
+
 	PolyData<float, NumVoices> value = OpType::defaultValue;
 };
 

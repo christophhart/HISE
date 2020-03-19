@@ -72,7 +72,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 		nodeFactories.add(nf);
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
-	nodeFactories.add(meta::Factory::getInstance(this));
+	//nodeFactories.add(meta::Factory::getInstance(this));
 #endif
 
 #if HI_ENABLE_CUSTOM_NODE_LOCATION

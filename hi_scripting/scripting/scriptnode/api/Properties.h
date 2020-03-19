@@ -209,6 +209,12 @@ struct PropertyHelpers
 #define GET_OBJECT_FROM_CONTAINER(index) &obj.getObject().get<index>()
 #define GET_SELF_AS_OBJECT(className) className& getObject() { return *this;} const className& getObject() const { return *this; }
 
+#define HISE_STATIC_PARAMETER_TEMPLATE template <int P> static void setParameter(void* obj, double value) \
+{ static_cast<gain_impl<V>*>(obj)->setParameter<P>(value); } \
+template <int ParameterIndex> void setParameter(double value)
+
+#define TEMPLATE_PARAMETER_CALLBACK(id, method) if (ParameterIndex == id) method(value);
+
 #define HISE_EMPTY_RESET void reset() {}
 #define HISE_EMPTY_PREPARE void prepare(PrepareSpecs) {}
 #define HISE_EMPTY_PROCESS void process(ProcessData&) {}
