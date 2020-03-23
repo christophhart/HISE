@@ -16,5 +16,6 @@ int main(int input)
 {
     d[3] = 5;
 	d[input] = 2;
+	return 12;
 }
 

@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: float
   args: float
   input: 0.0f
-  output: 0.125f
+  output: 1.25f
   error: ""
   filename: "variadic/process_single_test"
 END_TEST_DATA
@@ -18,7 +18,15 @@ struct X
     }
 };
 
-container::chain<X, X, X> c;
+struct Y
+{
+    void processSingle(span<float, 2>& data)
+    {
+        data[0] += 2.0f;
+    }
+};
+
+container::chain<X, Y, X> c;
 
 span<float, 2> d = { 1.0f, 1.0f };
 
