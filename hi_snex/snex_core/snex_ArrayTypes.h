@@ -732,10 +732,7 @@ template <int Start, int Size, class DataType, int MaxSize> static span<DataType
 	return *reinterpret_cast<SpanType*>(src.begin() + Start);
 }
 
-template <int C, class T> static auto split(T& t)
-{
-	return t.split<C>();
-}
+
 };
 
 
