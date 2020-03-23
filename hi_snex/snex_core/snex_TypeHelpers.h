@@ -105,6 +105,26 @@ struct InitialiserList : public ReferenceCountedObject
 {
 	using Ptr = ReferenceCountedObjectPtr<InitialiserList>;
 
+	struct ChildBase : public ReferenceCountedObject
+	{
+		using List = ReferenceCountedArray<ChildBase>;
+
+		virtual bool getValue(VariableStorage& v) const = 0;
+
+		virtual InitialiserList::Ptr createChildList() const = 0;
+
+		virtual ~ChildBase() {};
+
+		virtual bool forEach(const std::function<bool(ChildBase*)>& func)
+		{
+			return func(this);
+		}
+
+		virtual juce::String toString() const = 0;
+	};
+
+	
+
 	juce::String toString() const
 	{
 		juce::String s;
@@ -126,13 +146,20 @@ struct InitialiserList : public ReferenceCountedObject
 
 	void addChildList(const InitialiserList* other)
 	{
-		root.add(new ListChild(other->root));
+		addChild(new ListChild(other->root));
 	}
 
 	void addImmediateValue(const VariableStorage& v)
 	{
-		root.add(new ImmediateChild(v));
+		addChild(new ImmediateChild(v));
 	}
+
+	void addChild(ChildBase* b)
+	{
+		root.add(b);
+	}
+
+	ReferenceCountedObject* getExpression(int index);
 
 	Result getValue(int index, VariableStorage& v)
 	{
@@ -174,21 +201,20 @@ struct InitialiserList : public ReferenceCountedObject
 		return root.size();
 	}
 
-private:
-
-	struct ChildBase : public ReferenceCountedObject
+	bool forEach(const std::function<bool(ChildBase*)>& func)
 	{
-		using Ptr = ReferenceCountedObjectPtr<ChildBase>;
-		using List = ReferenceCountedArray<ChildBase>;
+		for (auto l : root)
+		{
+			if (l->forEach(func))
+				return true;
+		}
+			
+		return false;
+	}
 
-		virtual bool getValue(VariableStorage& v) const = 0;
+	struct ExpressionChild;
 
-		virtual InitialiserList::Ptr createChildList() const = 0;
-
-		virtual ~ChildBase() {};
-
-		virtual juce::String toString() const = 0;
-	};
+private:
 
 	struct ImmediateChild : public ChildBase
 	{
@@ -217,6 +243,8 @@ private:
 		VariableStorage v;
 	};
 
+	
+
 	struct ListChild : public ChildBase
 	{
 		ListChild(const ChildBase::List& l) :
@@ -235,6 +263,17 @@ private:
 			if (list.size() == 1)
 				return list[0]->getValue(target);
 			
+			return false;
+		}
+
+		bool forEach(const std::function<bool(ChildBase *)>& func) override
+		{
+			for (auto l : list)
+			{
+				if (l->forEach(func))
+					return true;
+			}
+
 			return false;
 		}
 

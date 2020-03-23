@@ -218,6 +218,8 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 				{
 					auto lValue = bOp->getSubExpr(0)->getConstExprValue();
 
+					auto r = bOp->getSubExpr(1);
+
 					if (bOp->op == JitTokens::logicalAnd && lValue.toInt() == 0)
 					{
 						statement->logOptimisationMessage("short-circuit constant && op");
@@ -719,8 +721,17 @@ bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			if (v->objectPtr != nullptr)
 				return false;
 
+			if (a->getSubExpr(0)->hasSideEffect())
+				return false;
+
 			if (Operations::findParentStatementOfType<Operations::MemoryReference>(v) != nullptr)
 				return false;
+
+			if (auto ls = Operations::findParentStatementOfType<Operations::Loop>(v))
+			{
+				if (ls->iterator == v->id)
+					return false;
+			}
 
 			if (v->isParameter(s))
 				return false;

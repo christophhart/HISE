@@ -434,6 +434,25 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 	return new Operations::ClassStatement(location, p, list);
 }
 
+snex::VariableStorage BlockParser::parseConstExpression(bool isTemplateArgument)
+{
+	ScopedTemplateArgParser s(*this, isTemplateArgument);
+
+	auto expr = parseExpression();
+
+	expr->currentCompiler = compiler;
+	expr->currentScope = currentScope;
+
+	expr = Operations::evalConstExpr(expr);
+
+	if (!expr->isConstExpr())
+		location.throwError("Can't assign static constant to a dynamic expression");
+
+	return expr->getConstExprValue();
+}
+
+
+
 juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters()
 {
 	Array<TemplateParameter> parameters;
@@ -494,7 +513,7 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 	if (matchIf(JitTokens::assign_))
 	{
 		if (currentType == JitTokens::openBrace)
-			n->initValues = parseInitialiserList();
+			n->addInitValues(parseInitialiserList());
 		else
 			n->addStatement(parseExpression());
 	}
@@ -517,7 +536,15 @@ InitialiserList::Ptr BlockParser::parseInitialiserList()
 		if (currentType == JitTokens::openBrace)
 			root->addChildList(parseInitialiserList());
 		else
-			root->addImmediateValue(parseConstExpression(false));
+		{
+			auto exp = parseExpression();
+
+			if (exp->isConstExpr())
+				root->addImmediateValue(exp->getConstExprValue());
+			else
+				root->addChild(new InitialiserList::ExpressionChild(exp));
+		}
+			
 
 		next = matchIf(JitTokens::comma);
 	}
@@ -529,6 +556,19 @@ InitialiserList::Ptr BlockParser::parseInitialiserList()
 
 
 
+
+snex::jit::NamespacedIdentifier BlockParser::getDotParentName(ExprPtr e)
+{
+	if (auto dp = dynamic_cast<Operations::DotOperator*>(e.get()))
+	{
+		if (auto ss = dynamic_cast<Operations::SymbolStatement*>(dp->getDotParent().get()))
+		{
+			return ss->getSymbol().id;
+		}
+	}
+
+	return {};
+}
 
 void BlockParser::parseUsingAlias()
 {

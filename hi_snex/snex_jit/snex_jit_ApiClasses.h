@@ -204,6 +204,18 @@ class MathFunctions : public FunctionClass
 {
 public:
 
+	struct Intrinsics
+	{
+		static void range(x86::Compiler& cc, x86::Gp rv, x86::Gp v, x86::Gp l, x86::Gp u)
+		{
+			cc.lea(rv, x86::ptr(u).cloneAdjustedAndResized(-1, 4));
+			cc.cmp(v, u);
+			cc.cmovl(rv, v);
+			cc.cmp(v, l);
+			cc.cmovl(rv, l);
+		}
+	};
+
 	MathFunctions();;
 };
 

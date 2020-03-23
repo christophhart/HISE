@@ -122,6 +122,11 @@ struct NamespacedIdentifier
 		return c;
 	}
 
+	bool operator !=(const NamespacedIdentifier& other) const
+	{
+		return !(*this == other);
+	}
+
 	bool operator==(const NamespacedIdentifier& other) const
 	{
 		if (id != other.id)
@@ -186,9 +191,18 @@ struct NamespacedIdentifier
 
 class NamespaceHandler;
 
+struct AssemblyMemory;
+
 struct ComplexType : public ReferenceCountedObject
 {
 	static int numInstances;
+
+	struct InitData
+	{
+		AssemblyMemory* asmPtr = nullptr;
+		void* dataPointer = nullptr;
+		InitialiserList::Ptr initValues;
+	};
 
 	ComplexType()
 	{
@@ -201,6 +215,8 @@ struct ComplexType : public ReferenceCountedObject
 	{
 		return reinterpret_cast<void*>((uint8*)data + byteOffset);
 	}
+
+	static void writeNativeMemberTypeToAsmStack(const ComplexType::InitData& d, int initIndex, int offsetInBytes, int size);
 
 	static void writeNativeMemberType(void* dataPointer, int byteOffset, const VariableStorage& initValue)
 	{
@@ -237,11 +253,13 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const = 0;
 
-	virtual Result initialise(void* dataPointer, InitialiserList::Ptr initValues) = 0;
+	virtual Result initialise(InitData d) = 0;
 
 	virtual InitialiserList::Ptr makeDefaultInitialiserList() const = 0;
 
 	virtual void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
+
+	virtual Types::ID getRegisterType() const { return Types::ID::Pointer; }
 
 	/** Override this, check if the type matches and call the function for itself and each member recursively and abort if t returns true. */
 	virtual bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) = 0;
@@ -260,6 +278,8 @@ struct ComplexType : public ReferenceCountedObject
 	virtual bool isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const;
 
 	virtual bool isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const;
+
+	virtual ComplexType::Ptr createSubType(const NamespacedIdentifier& id) { return nullptr; }
 
 	int hash() const
 	{
@@ -467,6 +487,14 @@ struct TypeInfo
 		type = newType;
 	}
 
+	Types::ID getRegisterType() const noexcept
+	{
+		if (isComplexType())
+			return getComplexType()->getRegisterType();
+
+		return getType();
+	}
+
 	Types::ID getType() const noexcept
 	{
 		if (isComplexType())
@@ -664,6 +692,11 @@ struct Inliner : public ReferenceCountedObject
 			jassert(!b->isHighlevel());
 			return Result::fail("must be inlined on higher level");
 		}, highLevelFunc);
+	}
+
+	static Inliner* createAsmInliner(const NamespacedIdentifier& id, const Func& asmFunc)
+	{
+		return new Inliner(id, asmFunc, {});
 	}
 
 	bool hasHighLevelInliner() const
@@ -924,6 +957,7 @@ struct FunctionClass: public DebugableObjectBase,
 	enum SpecialSymbols
 	{
 		AssignOverload = 0,
+		IncOverload,
 		NativeTypeCast,
 		Subscript,
 		numOperatorOverloads
@@ -935,6 +969,7 @@ struct FunctionClass: public DebugableObjectBase,
 		{
 		case AssignOverload: return "operator=";
 		case NativeTypeCast: return "type_cast";
+		case IncOverload:    return "operator++";
 		case Subscript:		 return "operator[]";
 		}
 
@@ -954,6 +989,23 @@ struct FunctionClass: public DebugableObjectBase,
 	}
 
 	FunctionData getSpecialFunction(SpecialSymbols s, TypeInfo returnType, const TypeInfo::List& args) const;
+
+	FunctionData getNonOverloadedFunction(NamespacedIdentifier id) const
+	{
+		if (id.getParent() != getClassName())
+		{
+			id = getClassName().getChildId(id.getIdentifier());
+		}
+
+		Array<FunctionData> matches;
+
+		addMatchingFunctions(matches, id);
+
+		if (matches.size() == 1)
+			return matches.getFirst();
+
+		return {};
+	}
 
 	struct Constant
 	{
@@ -1146,7 +1198,7 @@ struct FunctionClass: public DebugableObjectBase,
 
 	void addInliner(const Identifier& id, const Inliner::Func& asmFunc)
 	{
-		auto nId = NamespacedIdentifier(id);
+		auto nId = getClassName().getChildId(id);
 
 		if (isInlineable(nId))
 			return;

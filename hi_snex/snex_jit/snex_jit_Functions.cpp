@@ -127,8 +127,14 @@ bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 		if (thisArgs.isInvalid())
 			continue;
 
+		if (otherArgs.getRegisterType() == thisArgs.getRegisterType())
+			continue;
+
 		if (thisArgs != otherArgs)
+		{
 			return false;
+		}
+			
 	}
 
 	return true;
@@ -405,14 +411,7 @@ bool FunctionClass::fillJitFunctionPointer(FunctionData& dataWithoutPointer)
 
 			if (fArgs.size() == dArgs.size())
 			{
-				for (int i = 0; i < fArgs.size(); i++)
-				{
-					// neu denken
-					jassertfalse;
-
-					if (!Types::Helpers::matchesTypeLoose(fArgs[0].typeInfo.getType(), dArgs[0].typeInfo.getType()))
-						return false;
-				}
+				
 
 				dataWithoutPointer.function = f->function;
 				return true;
@@ -481,6 +480,50 @@ snex::VariableStorage FunctionClass::getConstantValue(const NamespacedIdentifier
 }
 
 int ComplexType::numInstances = 0;
+
+void ComplexType::writeNativeMemberTypeToAsmStack(const ComplexType::InitData& d, int initIndex, int offsetInBytes, int size)
+{
+	auto& cc = GET_COMPILER_FROM_INIT_DATA(d);
+	auto mem = d.asmPtr->memory.cloneAdjustedAndResized(offsetInBytes, size);
+
+	if (auto expr = dynamic_cast<Operations::Expression*>(d.initValues->getExpression(initIndex)))
+	{
+		auto source = expr->reg;
+		source->loadMemoryIntoRegister(cc);
+		auto type = source->getType();
+
+		IF_(int) cc.mov(mem, INT_REG_R(source));
+		IF_(double) cc.movsd(mem, FP_REG_R(source));
+		IF_(float) cc.movss(mem, FP_REG_R(source));
+		IF_(void*) cc.mov(mem, INT_REG_R(source));
+	}
+	else
+	{
+		VariableStorage v;
+		d.initValues->getValue(initIndex, v);
+
+		auto type = v.getType();
+		
+		IF_(int)
+		{
+			cc.mov(mem, v.toInt());
+		}
+		IF_(float)
+		{
+			auto t = cc.newFloatConst(ConstPool::kScopeLocal, v.toFloat());
+			auto temp = cc.newXmmPs();
+			cc.movss(temp, t);
+			cc.movss(mem, temp);
+		}
+		IF_(double)
+		{
+			auto t = cc.newDoubleConst(ConstPool::kScopeLocal, v.toDouble());
+			auto temp = cc.newXmmPd();
+			cc.movsd(temp, t);
+			cc.movsd(mem, temp);
+		}
+	}
+}
 
 SyntaxTreeInlineData* InlineData::toSyntaxTreeData() const
 {

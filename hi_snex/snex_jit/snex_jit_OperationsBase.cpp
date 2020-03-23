@@ -80,6 +80,32 @@ bool Operations::isOpAssignment(Expression::Ptr p)
 	return false;
 }
 
+snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr expr)
+{
+	auto compiler = expr->currentCompiler;
+	auto scope = expr->currentScope;
+
+	jassert(compiler != nullptr);
+	jassert(scope != nullptr);
+
+	SyntaxTree bl(expr->location, expr->location.createAnonymousScopeId(compiler->namespaceHandler.getCurrentNamespaceIdentifier()));
+	bl.addStatement(expr.get());
+
+	BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);
+	compiler->executePass(BaseCompiler::DataAllocation, scope, &bl);
+
+	BaseCompiler::ScopedPassSwitcher sp2(compiler, BaseCompiler::PreSymbolOptimization);
+	compiler->optimize(expr, scope, false);
+
+	BaseCompiler::ScopedPassSwitcher sp3(compiler, BaseCompiler::ResolvingSymbols);
+	compiler->executePass(BaseCompiler::ResolvingSymbols, scope, &bl);
+
+	BaseCompiler::ScopedPassSwitcher sp4(compiler, BaseCompiler::PostSymbolOptimization);
+	compiler->optimize(expr, scope, false);
+
+	return dynamic_cast<Operations::Expression*>(bl.getChildStatement(0).get());
+}
+
 Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr variable, BaseScope*)
 {
 	if (auto sBlock = findParentStatementOfType<SyntaxTree>(variable.get()))
@@ -163,7 +189,6 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 		// this type can be implicitely casted to the native expected type;
 		return thisType;
 	}
-		
 
 	if (expectedType != thisType)
 	{
@@ -233,16 +258,18 @@ bool Operations::Expression::preprocessCodeGenForChildStatements(BaseCompiler* c
 	if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation)
 	{
 		BaseCompiler::ScopedPassSwitcher svs(compiler, BaseCompiler::RegisterAllocation);
-		getSubExpr(0)->process(compiler, scope);
-		getSubExpr(1)->process(compiler, scope);
+
+		for (int i = 0; i < getNumChildStatements(); i++)
+			getChildStatement(i)->process(compiler, scope);
 
 		if (!abortFunction())
 			return false;;
 	}
 
 	BaseCompiler::ScopedPassSwitcher svs(compiler, BaseCompiler::CodeGeneration);
-	getSubExpr(0)->process(compiler, scope);
-	getSubExpr(1)->process(compiler, scope);
+	
+	for (int i = 0; i < getNumChildStatements(); i++)
+		getChildStatement(i)->process(compiler, scope);
 
 	return true;
 }

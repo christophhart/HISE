@@ -136,6 +136,8 @@ using sdouble = _ramp<double>;
 struct SnexObjectDatabase
 {
 	static void registerObjects(Compiler& c);
+
+	static void addVariadicGet(VariadicSubType* variadicType);
 };
 
 

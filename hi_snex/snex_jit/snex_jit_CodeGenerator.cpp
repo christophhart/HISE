@@ -511,8 +511,6 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 
 			auto x = cc.newXmmPs();
 
-			
-
 			switch (idx)
 			{
 			case 0: cc.movss(FP_REG_W(target), FP_REG_R(address));;
@@ -539,7 +537,16 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		}
 		else
 		{
-			jassertfalse;
+			auto m = cc.newStack(address->getTypeInfo().getRequiredByteSize(), address->getTypeInfo().getRequiredAlignment());
+
+			cc.movaps(m, FP_REG_R(address));
+
+			auto c = cc.newGpq();
+			cc.lea(c, m);
+			auto p = x86::ptr(c, INT_REG_R(index), 2, 0, 4);
+
+			target->setCustomMemoryLocation(p, false);
+			return;
 		}
 	}
 
@@ -574,15 +581,13 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		x86::Gpd indexReg;
 
 		if (index->hasCustomMemoryLocation())
-		{
 			index->loadMemoryIntoRegister(cc);
-		}
 
 		if (!index->isMemoryLocation())
 		{
 			indexReg = index->getRegisterForReadOp().as<x86::Gpd>();
 
-			if (index->getVariableId())
+			if (!canUseShift && index->getVariableId())
 			{
 				auto newIndexReg = cc.newGpd().as<x86::Gpd>();
 				cc.mov(newIndexReg, indexReg);
@@ -602,39 +607,85 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 
 		X86Mem p;
 
-		if (address->isMemoryLocation())
+		if (true)
 		{
-			auto ptr = address->getAsMemoryLocation();
+			bool isDyn = address->getTypeInfo().getTypedComplexType<DynType>();
 
-			if (index->isMemoryLocation())
-				p = ptr.cloneAdjusted(imm2ptr(INT_IMM(index) * elementSizeInBytes));
+			cc.setInlineComment("aaa");
+
+			if (address->isMemoryLocation())
+			{
+				auto ptr = address->getAsMemoryLocation();
+
+				if (isDyn)
+				{
+					auto b_ = cc.newGpq();
+					cc.mov(b_, ptr.cloneAdjustedAndResized(8, 8));
+					ptr = x86::ptr(b_);
+				}
+
+				if (index->isMemoryLocation())
+					p = ptr.cloneAdjusted(imm2ptr(INT_IMM(index) * elementSizeInBytes));
+				else
+				{
+					// for some reason uint64_t base + index reg doesn't create a 64bit address...
+					// so we need to use a register for the base
+					auto b_ = cc.newGpq();
+
+					cc.lea(b_, ptr);
+
+					p = x86::ptr(b_, indexReg, shift);
+				}
+			}
 			else
 			{
-				// for some reason uint64_t base + index reg doesn't create a 64bit address...
-				// so we need to use a register for the base
-				auto b_ = cc.newGpq();
+				address->loadMemoryIntoRegister(cc);
 
-				if (ptr.hasBaseReg())
-					cc.mov(b_, ptr.baseReg().as<X86Gpq>());
+				X86Gp adToUse = PTR_REG_R(address);
+
+				
+				if (isDyn)
+				{
+					adToUse = cc.newGpq();
+					cc.mov(adToUse, x86::ptr(PTR_REG_R(address)).cloneAdjustedAndResized(8, 8));
+				}
+
+				if (index->isMemoryLocation())
+					p = x86::ptr(adToUse, imm2ptr(INT_IMM(index) * elementSizeInBytes));
 				else
-					cc.mov(b_, ptr.offset());
-
-				p = x86::ptr(b_, indexReg, shift);
+					p = x86::ptr(adToUse, indexReg, shift);
 			}
 		}
 		else
 		{
-			address->loadMemoryIntoRegister(cc);
+#if 0
+			TemporaryRegister tmp(*this, address->getScope(), TypeInfo(Types::ID::Pointer, true));
 
-			if (index->isMemoryLocation())
+			if (address->isMemoryLocation())
 			{
-				p = x86::ptr(INT_REG_R(address), imm2ptr(INT_IMM(index) * elementSizeInBytes));
-			}
+				if (index->isMemoryLocation())
+				{
+					auto offset = INT_IMM(index) * elementSizeInBytes + 8;
+					cc.mov(tmp.get(), address->getAsMemoryLocation().cloneAdjustedAndResized(offset, 8));
+				}
+				else
+				{
+					auto b_ = cc.newGpq();
+					cc.mov(b_, address->getAsMemoryLocation());
+					p = x86::ptr(b_, INT_REG_R(index), shift);
+
+				}
+
 				
+			}
 			else
 			{
-				p = x86::ptr(INT_REG_R(address), indexReg, shift);
+				auto ptr = x86::ptr(PTR_REG_R(address)).cloneAdjustedAndResized(0, 8);
+				cc.mov(tmp.get(), ptr);
 			}
+
+			p = x86::ptr(tmp.get());
+#endif
 		}
 
 		if (type == Types::ID::Pointer)
@@ -812,94 +863,85 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 
 	if (list != nullptr)
 	{
-		HeapBlock<uint8> data;
-		data.allocate(typePtr->getRequiredByteSize() + typePtr->getRequiredAlignment(), true);
+		using InitElement = InitialiserList::ChildBase;
+		using ExprElement = InitialiserList::ExpressionChild;
 
-		auto start = data + typePtr->getRequiredAlignment();
-		auto end = start + typePtr->getRequiredByteSize();
-		int numBytesToInitialise = end - start;
-
-		typePtr->initialise(start, list);
-
-		float* d = reinterpret_cast<float*>(start);
-
-		if (numBytesToInitialise % 16 == 0)
+		auto listHasExpressions = list->forEach([](InitElement* b)
 		{
-			uint64_t* s = reinterpret_cast<uint64_t*>(start);
-			auto dst = target->getAsMemoryLocation().clone();
+			return dynamic_cast<ExprElement*>(b) != nullptr;
+		});
+		
+		if (listHasExpressions)
+		{
+			AssemblyMemory m;
+			m.cc = &cc;
+			m.memory = target->getAsMemoryLocation().clone();
 
-			auto r = cc.newXmm();
+			ComplexType::InitData d;
+			d.asmPtr = &m;
+			d.initValues = list;
 
-			for (int i = 0; i < numBytesToInitialise; i += 16)
+			typePtr->initialise(d);
+		}
+		else
+		{
+			HeapBlock<uint8> data;
+			data.allocate(typePtr->getRequiredByteSize() + typePtr->getRequiredAlignment(), true);
+
+			auto start = data + typePtr->getRequiredAlignment();
+			auto end = start + typePtr->getRequiredByteSize();
+			int numBytesToInitialise = end - start;
+
+			ComplexType::InitData initData;
+			initData.dataPointer = start;
+			initData.initValues = list;
+
+			typePtr->initialise(initData);
+
+			float* d = reinterpret_cast<float*>(start);
+
+			if (numBytesToInitialise % 16 == 0)
 			{
-				auto d = Data128::fromU64(s[0], s[1]);
-				auto c = cc.newXmmConst(ConstPool::kScopeLocal, d);
+				uint64_t* s = reinterpret_cast<uint64_t*>(start);
+				auto dst = target->getAsMemoryLocation().clone();
 
-				cc.movaps(r, c);
-				cc.movaps(dst, r);
-				dst.addOffset(16);
-				s += 2;
+				auto r = cc.newXmm();
+
+				for (int i = 0; i < numBytesToInitialise; i += 16)
+				{
+					auto d = Data128::fromU64(s[0], s[1]);
+					auto c = cc.newXmmConst(ConstPool::kScopeLocal, d);
+
+					cc.movaps(r, c);
+					cc.movaps(dst, r);
+					dst.addOffset(16);
+					s += 2;
+				}
+			}
+			else if (numBytesToInitialise % 4 == 0)
+			{
+				int* s = reinterpret_cast<int*>(start);
+				auto dst = target->getAsMemoryLocation().clone();
+				dst.setSize(4);
+
+				auto r = cc.newGpd();
+
+				for (int i = 0; i < numBytesToInitialise; i += 4)
+				{
+					cc.mov(dst, *s);
+					dst.addOffset(4);
+					s++;
+				}
 			}
 		}
-		else if (numBytesToInitialise % 4 == 0)
-		{
-			int* s = reinterpret_cast<int*>(start);
-			auto dst = target->getAsMemoryLocation().clone();
-			dst.setSize(4);
 
-			auto r = cc.newGpd();
 
-			for (int i = 0; i < numBytesToInitialise; i += 4)
-			{
-				cc.mov(dst, *s);
-				dst.addOffset(4);
-				s++;
-			}
-		}
+		
 	}
 	else
 	{
 		jassertfalse;
-		if (auto dt = dynamic_cast<DynType*>(typePtr.get()))
-		{
-			auto numBytesToWrite = typePtr->getRequiredByteSize();
-
-			auto sourceInfo = expr->getVariableId().typeInfo;
-
-			jassert(sourceInfo.isComplexType());
-
-			if (auto st = sourceInfo.getTypedIfComplexType<SpanType>())
-			{
-				X86Mem dst;
-
-				if (target->hasCustomMemoryLocation())
-					dst = target->getAsMemoryLocation().clone();
-				else
-					dst = x86::ptr(PTR_REG_R(target));
-
-				dst.setSize(4);
-
-				expr->loadMemoryIntoRegister(cc);
-				cc.setInlineComment("zero first 4 bytes");
-				cc.mov(dst, 0);
-				auto sizeDst = dst.cloneAdjusted(4);
-				cc.setInlineComment("size");
-				cc.mov(sizeDst, (int64)st->getNumElements());
-
-				auto ptrDst = dst.cloneAdjusted(8);
-				ptrDst.setSize(8);
-				cc.setInlineComment("object ptr");
-				cc.mov(ptrDst, PTR_REG_R(expr));
-			}
-			else
-			{
-				jassertfalse;
-			}
-		}
-		else
-		{
-			jassertfalse;
-		}
+		
 
 	}
 }
@@ -1093,6 +1135,7 @@ Result AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& 
 		AsmInlineData d(*this);
 		d.args = parameterRegisters;
 		d.target = returnReg;
+		d.templateParameters = f.templateParameters;
 		d.object = objectAddress;
 
 		jassert(f.object == nullptr);
@@ -1358,6 +1401,57 @@ void AsmCodeGenerator::emitInlinedMathAssembly(Identifier id, RegPtr target, con
 }
 
 
+
+Result AsmCodeGenerator::emitSimpleToComplexTypeCopy(RegPtr target, InitialiserList::Ptr initValues, RegPtr source)
+{
+	
+	jassert(type == target->getType());
+	jassert(source == nullptr || type == source->getType());
+
+	target->createRegister(cc);
+
+	if (source != nullptr)
+	{
+		IF_(int) INT_OP(cc.mov, target, source);
+		IF_(float) FP_OP(cc.movss, target, source);
+		IF_(double) FP_OP(cc.movsd, target, source);
+
+		return Result::ok();
+	}
+	else if (initValues != nullptr)
+	{
+		VariableStorage v;
+		auto r = initValues->getValue(0, v);
+
+		if (r.failed())
+			return r;
+
+		if (v.getType() != type)
+			return Result::fail("Type mismatch");
+
+
+		IF_(int) cc.mov(INT_REG_W(target), v.toInt());
+		IF_(float)
+		{
+			auto c = cc.newFloatConst(asmjit::ConstPool::kScopeLocal, v.toFloat());
+			cc.movss(FP_REG_W(target), c);
+		}
+		IF_(double)
+		{
+			auto c = cc.newFloatConst(asmjit::ConstPool::kScopeLocal, v.toDouble());
+			cc.movsd(FP_REG_W(target), c);
+		}
+		
+
+		return Result::ok();
+	}
+	else
+	{
+		return Result::fail("not found");
+	}
+
+
+}
 
 asmjit::X86Mem AsmCodeGenerator::createFpuMem(RegPtr ptr)
 {
@@ -1692,7 +1786,7 @@ void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Bas
 	cc.add(beg.get(), (int64_t)elementSize);
 	cc.cmp(beg.get(), end.get());
 	cc.setInlineComment("loop_span }");
-	cc.jne(loopStart);
+	cc.jl(loopStart);
 
 	cc.bind(loopEnd);
 

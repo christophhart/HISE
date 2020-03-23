@@ -48,7 +48,7 @@ TypeInfo BlockParser::getDotParentType(ExprPtr e)
 	return {};
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementToBlock()
+snex::jit::BlockParser::StatementPtr CodeParser::parseStatementToBlock()
 {
 	if (matchIf(JitTokens::openBrace))
 	{
@@ -63,7 +63,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementToBlock()
 	}
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
+snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 {
 	auto parentPath = getCurrentScopeStatement()->getPath();
 	auto scopePath = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
@@ -94,7 +94,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
 	return b.release();
 }
 
-BlockParser::StatementPtr FunctionParser::parseStatement()
+BlockParser::StatementPtr CodeParser::parseStatement()
 {
 	if (matchIf(JitTokens::static_))
 	{
@@ -144,7 +144,7 @@ BlockParser::StatementPtr FunctionParser::parseStatement()
 		return matchSemicolonAndReturn(parseAssignment());
 }
 
-BlockParser::StatementPtr FunctionParser::parseReturnStatement()
+BlockParser::StatementPtr CodeParser::parseReturnStatement()
 {
 	ExprPtr rt;
 
@@ -155,24 +155,54 @@ BlockParser::StatementPtr FunctionParser::parseReturnStatement()
 
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition()
+snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 {
-	jassert(currentTypeInfo.isValid());
-
 	SymbolParser sp(*this, compiler->namespaceHandler);
 
-	auto s = sp.parseNewSymbol(NamespaceHandler::Unknown);
-	auto target = new Operations::VariableReference(location, s);
+	ExprPtr target;
+	Symbol s;
+
+	if (currentTypeInfo.isDynamic())
+		s = sp.parseNewDynamicSymbolSymbol(NamespaceHandler::Unknown);
+	else
+		s = sp.parseNewSymbol(NamespaceHandler::Unknown);
+
+	auto varLocation = location;
+
 	
+
+	
+
+	
+
 	match(JitTokens::assign_);
 	ExprPtr expr = parseExpression();
-	
+
+	if (s.typeInfo.isDynamic())
+	{
+		expr->tryToResolveType();
+		bool isConst = s.isConst();
+		bool isRef = s.isReference();
+
+		s.typeInfo = expr->getTypeInfo().withModifiers(isConst, isRef);
+	}
+
 	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Variable);
 
-	return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
+	if (s.typeInfo.isComplexType())
+	{
+		target = new Operations::ComplexTypeDefinition(location, { s.id }, s.typeInfo);
+		target->addStatement(expr);
+		return target;
+	}
+	else
+	{
+		target = new Operations::VariableReference(varLocation, s);
+		return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
+	}
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
+snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 {
 	match(JitTokens::openParen);
 
@@ -201,7 +231,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 	return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
+snex::jit::BlockParser::StatementPtr CodeParser::parseIfStatement()
 {
 	auto loc = location;
 	match(JitTokens::openParen);
@@ -221,7 +251,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
 	return new Operations::IfStatement(loc, cond, trueBranch, falseBranch);
 }
 
-void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
+void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 {
 	auto lastStatement = tree->getLastStatement().get();
 
@@ -275,7 +305,7 @@ BlockParser::ExprPtr BlockParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenTy
 }
 
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseAssignment()
+snex::jit::BlockParser::StatementPtr CodeParser::parseAssignment()
 {
 	ExprPtr left = parseExpression();
 
@@ -514,7 +544,17 @@ BlockParser::ExprPtr BlockParser::parseDotOperator(ExprPtr p)
 	while(matchIf(JitTokens::dot))
 	{
 		auto e = parseReference(false);
-		p = new Operations::DotOperator(location, p, e);
+
+		auto dp = new Operations::DotOperator(location, p, e);
+
+		dp->tryToResolveType();
+
+		
+
+		
+		
+		p = dp;
+			
 	}
 	
 	return parseSubscript(p);
@@ -547,14 +587,18 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 	auto pType = getDotParentType(p);
 	
-	if (auto vt = pType.getTypedIfComplexType<VariadicTypeBase>())
+
+
+	if (auto ct = pType.getTypedIfComplexType<ComplexType>())
 	{
 		if(currentType == JitTokens::lessThan)
 			templateParameters = parseTemplateParameters();
 
-		auto mId = vt->getVariadicId().getChildId(fSymbol.getName());
+		FunctionClass::Ptr vfc = ct->getFunctionClass();
 
-		FunctionClass::Ptr vfc = vt->getFunctionClass();
+		auto mId = vfc->getClassName().getChildId(fSymbol.getName());
+
+		
 		Array<FunctionData> matches;
 		vfc->addMatchingFunctions(matches, mId);
 		
@@ -570,11 +614,30 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 				il->process(&rt);
 			}
+
+			fSymbol = Symbol(f.id, f.returnType);
+
+			jassert(fSymbol.resolved);
 		}
+	}
+	
+	auto nf = compiler->getInbuiltFunctionClass()->getNonOverloadedFunction(fSymbol.id);
 
-		fSymbol = Symbol(f.id, f.returnType);
+	// Template type deduction...
+	bool resolveAfterArgumentParsing = false;
 
-		jassert(fSymbol.resolved);
+	if (nf.isResolved())
+	{
+		if (nf.returnType.isDynamic())
+		{
+			if (nf.inliner == nullptr || !nf.inliner->returnTypeFunction)
+				location.throwError("Can't deduce return type");
+
+			if (templateParameters.isEmpty())
+				resolveAfterArgumentParsing = true;
+			else
+				jassertfalse;
+		}
 	}
 
 	while (matchIf(JitTokens::openParen))
@@ -603,11 +666,30 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 			matchIf(JitTokens::comma);
 		};
 
-		match(JitTokens::closeParen);
-
 		p = f;
 		found = true;
+
+		if (resolveAfterArgumentParsing)
+		{
+			
+
+
+			ReturnTypeInlineData rt(nf);
+			rt.object = f;
+			rt.templateParameters = templateParameters;
+
+			nf.inliner->process(&rt);
+
+			f->function = nf;
+
+		}
+
+		match(JitTokens::closeParen);
+
+		
 	}
+
+	
 
 	return found ? parseDotOperator(p) : p;
 }

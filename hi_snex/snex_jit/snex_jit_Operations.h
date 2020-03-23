@@ -91,10 +91,13 @@ struct Operations::InlinedArgument : public Expression,
 	{
 		jassert(scope->getScopeType() == BaseScope::Anonymous);
 
-		Expression::process(compiler, scope);
+		Expression::processChildrenIfNotCodeGen(compiler, scope);
 
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		if(isCodeGenPass(compiler))
 		{
+			if (!preprocessCodeGenForChildStatements(compiler, scope, []() {return true; }))
+				return;
+
 			if (s.typeInfo.isComplexType() && !s.isReference())
 			{
 				auto acg = CREATE_ASM_COMPILER(getTypeInfo().getType());
@@ -110,6 +113,8 @@ struct Operations::InlinedArgument : public Expression,
 				acg.emitComplexTypeCopy(target, source, s.typeInfo.getComplexType());
 
 				getSubExpr(0)->reg = target;
+
+				reg = getSubRegister(0);
 			}
 		}
 	}
@@ -168,6 +173,11 @@ struct Operations::StatementBlock : public Expression,
 		}
 
 		return true;
+	}
+
+	bool hasSideEffect() const override
+	{
+		return isInlinedFunction;
 	}
 
 	VariableStorage getConstExprValue() const override
@@ -413,6 +423,7 @@ struct Operations::VariableReference : public Expression,
 		return new VariableReference(l, id);
 	}
 
+
 	Symbol getSymbol() const override { return id; };
 
 	ValueTree toValueTree() const override
@@ -420,6 +431,11 @@ struct Operations::VariableReference : public Expression,
 		auto t = Expression::toValueTree();
 		t.setProperty("Symbol", id.toString(), nullptr);
 		return t;
+	}
+
+	juce::String toString(Statement::TextFormat f) const override
+	{
+		return id.id.toString();
 	}
 
 	/** This scans the tree and checks whether it's the last reference.
@@ -709,12 +725,42 @@ struct Operations::DotOperator : public Expression
 		return getSubExpr(1);
 	}
 
+	bool tryToResolveType() override
+	{
+		if (Statement::tryToResolveType())
+			return true;
+
+		if (getDotChild()->getTypeInfo().isInvalid())
+		{
+			if (auto st = getDotParent()->getTypeInfo().getTypedIfComplexType<StructType>())
+			{
+				if (auto ss = dynamic_cast<Operations::SymbolStatement*>(getDotChild().get()))
+				{
+					auto id = ss->getSymbol().getName();
+
+					if (st->hasMember(id))
+					{
+						resolvedType = st->getMemberTypeInfo(id);
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
 	TypeInfo getTypeInfo() const override
 	{
+		if (resolvedType.isValid())
+			return resolvedType;
+
 		return getDotChild()->getTypeInfo();
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
+
+	TypeInfo resolvedType;
 };
 						
 
@@ -982,7 +1028,7 @@ struct Operations::CastedSimd : public Expression
 
 	TypeInfo getTypeInfo() const override
 	{
-		return simdSpanType;
+		return simdComplexType;
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
@@ -991,15 +1037,25 @@ struct Operations::CastedSimd : public Expression
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
-			if (auto ost = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<SpanType>())
+			auto originalType = getSubExpr(0)->getTypeInfo();
+
+			auto float4Type = compiler->namespaceHandler.getComplexType(NamespacedIdentifier("float4"));
+			jassert(float4Type != nullptr);
+
+			if (auto sp = originalType.getTypedIfComplexType<SpanType>())
 			{
-				int numSimd = ost->getNumElements() / 4;
+				int numSimd = sp->getNumElements() / 4;
 
-				auto float4Type = compiler->namespaceHandler.getComplexType(NamespacedIdentifier("float4"));
 
-				jassert(float4Type != nullptr);
 				auto s = new SpanType(TypeInfo(float4Type), numSimd);
-				simdSpanType = TypeInfo(compiler->namespaceHandler.registerComplexTypeOrReturnExisting(s));
+				simdComplexType = TypeInfo(compiler->namespaceHandler.registerComplexTypeOrReturnExisting(s));
+			}
+			else if (auto dt = originalType.getTypedComplexType<DynType>())
+			{
+				
+
+				auto d = new DynType(TypeInfo(float4Type));
+				simdComplexType = TypeInfo(compiler->namespaceHandler.registerComplexTypeOrReturnExisting(d));
 			}
 			else
 				throwError("Can't convert non-span to SIMD span");
@@ -1007,25 +1063,72 @@ struct Operations::CastedSimd : public Expression
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			if (auto ost = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<SpanType>())
+			auto originalType = getSubExpr(0)->getTypeInfo();
+
+			if (auto ost = originalType.getTypedIfComplexType<SpanType>())
 			{
 				if (ost->getElementType() != Types::ID::Float)
-					throwError("Can't convert non-float to SIMD");
+					throwError("SIMD source must have float element type");
 
 				if (ost->getNumElements() % 4 != 0)
 					throwError("Span needs to be multiple of 4 to be convertible to SIMD");
+			}
+			else if (auto odt = originalType.getTypedIfComplexType<DynType>())
+			{
+				if (odt->elementType != Types::ID::Float)
+					throwError("SIMD source must have float element type");
 			}
 			else
 				throwError("Can't convert non-span to SIMD span");
 		}
 
+		COMPILER_PASS(BaseCompiler::RegisterAllocation)
+		{
+			if (simdComplexType.getTypedIfComplexType<DynType>())
+			{
+				reg = compiler->registerPool.getNextFreeRegister(scope, simdComplexType);
+			}
+		}
+
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			reg = getSubRegister(0);
+			if (simdComplexType.getTypedIfComplexType<DynType>())
+			{
+				auto acg = CREATE_ASM_COMPILER(getType());
+
+				auto mem = acg.cc.newStack(simdComplexType.getRequiredByteSize(), simdComplexType.getRequiredAlignment());
+
+				acg.cc.setInlineComment("funky");
+
+				auto target = getSubRegister(0);
+
+				
+
+				auto dataReg = acg.cc.newGpq();
+				auto sizeReg = acg.cc.newGpd();
+				
+				if (target->isMemoryLocation())
+					acg.cc.lea(dataReg, target->getAsMemoryLocation());
+				else
+					acg.cc.mov(dataReg, PTR_REG_R(target));
+
+				acg.cc.mov(sizeReg, x86::ptr(dataReg).cloneAdjustedAndResized(4, 4));
+				acg.cc.sar(sizeReg, 2);
+				acg.cc.mov(mem.cloneAdjustedAndResized(4, 4), sizeReg);
+
+				acg.cc.mov(dataReg, x86::ptr(dataReg).cloneAdjustedAndResized(8, 8));
+				acg.cc.mov(mem.cloneAdjustedAndResized(8, 8), dataReg);
+
+				reg->setCustomMemoryLocation(mem, false);
+			}
+			else
+			{
+				reg = getSubRegister(0);
+			}
 		}
 	}
 
-	TypeInfo simdSpanType;
+	TypeInfo simdComplexType;
 };
 
 struct Operations::FunctionCall : public Expression
@@ -1035,6 +1138,7 @@ struct Operations::FunctionCall : public Expression
 	enum CallType
 	{
 		Unresolved,
+		InbuiltFunction,
 		MemberFunction,
 		ExternalObjectFunction,
 		RootFunction,
@@ -1084,7 +1188,7 @@ struct Operations::FunctionCall : public Expression
 
 		t.setProperty("Signature", function.getSignature(), nullptr);
 
-		const StringArray resolveNames = { "Unresolved", "MemberFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall" };
+		const StringArray resolveNames = { "Unresolved", "InbuiltFunction", "MemberFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall" };
 
 		t.setProperty("CallType", resolveNames[(int)callType], nullptr);
 
@@ -1108,6 +1212,11 @@ struct Operations::FunctionCall : public Expression
 			return getNumChildStatements();
 		else
 			return getNumChildStatements() - 1;
+	}
+
+	bool hasSideEffect() const override
+	{
+		return true;
 	}
 
 	bool shouldInlineFunctionCall(BaseCompiler* compiler, BaseScope* scope) const;
@@ -1527,6 +1636,18 @@ struct Operations::BinaryOp : public Expression
 		else
 			Statement::process(compiler, scope);
 
+		if (isLogicOp() && getSubExpr(0)->isConstExpr())
+		{
+			bool isOr1 = op == JitTokens::logicalOr && getSubExpr(0)->getConstExprValue().toInt() == 1;
+			bool isAnd0 = op == JitTokens::logicalAnd && getSubExpr(0)->getConstExprValue().toInt() == 0;
+
+			if (isOr1 || isAnd0)
+			{
+				replaceInParent(getSubExpr(0));
+				return;
+			}
+		}
+
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
 			if (op == JitTokens::logicalAnd ||
@@ -1640,6 +1761,11 @@ struct Operations::Increment : public UnaryOp
 		return t;
 	}
 
+	bool hasSideEffect() const override
+	{
+		return true;
+	}
+
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
 		Expression::process(compiler, scope);
@@ -1655,7 +1781,7 @@ struct Operations::Increment : public UnaryOp
 			if (dynamic_cast<Increment*>(getSubExpr(0).get()) != nullptr)
 				throwError("Can't combine incrementors");
 
-			if (getType() != Types::ID::Integer)
+			if(getTypeInfo().getRegisterType() != Types::ID::Integer)
 				throwError("Can't increment non integer variables.");
 		}
 
@@ -1663,22 +1789,58 @@ struct Operations::Increment : public UnaryOp
 		{
 			auto asg = CREATE_ASM_COMPILER(getType());
 
-			if (isPreInc)
-			{
-				asg.emitIncrement(nullptr, getSubRegister(0), isPreInc, isDecrement);
-				reg = getSubRegister(0);
-			}
-			else
-			{
-				reg = compiler->getRegFromPool(scope, TypeInfo(Types::ID::Integer));
-				asg.emitIncrement(reg, getSubRegister(0), isPreInc, isDecrement);
-			}
+			RegPtr valueReg;
+			RegPtr dataReg = getSubRegister(0);
 
-			if (auto wt = getTypeInfo().getTypedIfComplexType<WrapType>())
+			if (!isPreInc)
+				valueReg = compiler->getRegFromPool(scope, TypeInfo(Types::ID::Integer));
+
+			bool done = false;
+
+			if (getTypeInfo().isComplexType())
 			{
-				jassertfalse;
-				//asg.emitWrap(wt, reg, isDecrement ? WrapType::OpType::Dec : WrapType::OpType::Inc);
+				FunctionClass::Ptr fc = getTypeInfo().getComplexType()->getFunctionClass();
+				auto f = fc->getSpecialFunction(FunctionClass::IncOverload, getTypeInfo(), {TypeInfo(Types::ID::Integer, false, true)});
+
+				if (f.canBeInlined(false))
+				{
+					getOrSetIncProperties(f.templateParameters, isPreInc, isDecrement);
+					AssemblyRegister::List l;
+
+					l.add(valueReg);
+					asg.emitFunctionCall(dataReg, f, nullptr, l);
+					done = true;
+				}
 			}
+			
+			if(!done)
+				asg.emitIncrement(valueReg, dataReg, isPreInc, isDecrement);
+
+			if (isPreInc)
+				reg = dataReg;
+			else
+				reg = valueReg;
+
+			jassert(reg != nullptr);
+		}
+	}
+
+	static void getOrSetIncProperties(Array<TemplateParameter>& tp, bool& isPre, bool& isDec)
+	{
+		if (tp.isEmpty())
+		{
+			TemplateParameter d;
+			d.constant = (int)isDec;
+			TemplateParameter p;
+			p.constant = (int)isPre;
+
+			tp.add(d);
+			tp.add(p);
+		}
+		else
+		{
+			isDec = tp[0].constant;
+			isPre = tp[1].constant;
 		}
 	}
 
@@ -1764,25 +1926,14 @@ struct Operations::Loop : public Expression,
 		{
 			getTarget()->process(compiler, scope);
 
-#if 0
-			auto b = getLoopBlock()->blockScope.get();
-			
-			if (b != nullptr)
-			{
-				jassert(b->localVariables.isEmpty());
-				jassert(iterator.id.getParent() == b->getScopeSymbol());
-			}
-			else
-			{
-				getLoopBlock()->blockScope = new RegisterScope(scope, iterator.id.getParent());
-			}
-#endif
 
 			jassert(iterator.id.getParent().getParent() == scope->getScopeSymbol());
 
-			
+			getTarget()->tryToResolveType();
 
-			if (auto sp = getTarget()->getTypeInfo().getTypedIfComplexType<SpanType>())
+			auto targetType = getTarget()->getTypeInfo();
+
+			if (auto sp = targetType.getTypedIfComplexType<SpanType>())
 			{
 				loopTargetType = Span;
 
@@ -1791,7 +1942,7 @@ struct Operations::Loop : public Expression,
 				else if (iterator.typeInfo != sp->getElementType())
 					location.throwError("iterator type mismatch: " + iterator.typeInfo.toString() + " expected: " + sp->getElementType().toString());
 			}
-			else if (auto dt = getTarget()->getTypeInfo().getTypedIfComplexType<DynType>())
+			else if (auto dt = targetType.getTypedIfComplexType<DynType>())
 			{
 				loopTargetType = Dyn;
 
@@ -1800,7 +1951,7 @@ struct Operations::Loop : public Expression,
 				else if (iterator.typeInfo != dt->elementType)
 					location.throwError("iterator type mismatch: " + iterator.typeInfo.toString() + " expected: " + sp->getElementType().toString());
 			}
-			else if (getTarget()->getType() == Types::ID::Block)
+			else if (targetType.getType() == Types::ID::Block)
 			{
 				loopTargetType = Block;
 
@@ -1809,6 +1960,8 @@ struct Operations::Loop : public Expression,
 				else if (iterator.typeInfo.getType() != Types::ID::Float)
 					location.throwError("Illegal iterator type");
 			}
+			else
+				throwError("Can't deduce loop target type");
 			
 			compiler->namespaceHandler.setTypeInfo(iterator.id, NamespaceHandler::Variable, iterator.typeInfo);
 			
@@ -2084,6 +2237,7 @@ struct Operations::Subscript : public Expression
 	{
 		Undefined,
 		Span,
+		Dyn,
 		Block,
 		CustomObject,
 		numSubscriptTypes
@@ -2124,42 +2278,67 @@ struct Operations::Subscript : public Expression
 		return t;
 	}
 
+	bool tryToResolveType() override
+	{
+		Statement::tryToResolveType();
+
+		auto parentType = getSubExpr(0)->getTypeInfo();
+
+		if (spanType = parentType.getTypedIfComplexType<SpanType>())
+		{
+			subscriptType = Span;
+			elementType = spanType->getElementType();
+			return true;
+		}
+		else if (dynType = parentType.getTypedIfComplexType<DynType>())
+		{
+			subscriptType = Dyn;
+			elementType = dynType->elementType;
+			return true;
+		}
+
+		if (getSubExpr(0)->getType() == Types::ID::Block)
+		{
+			subscriptType = Block;
+			elementType = TypeInfo(Types::ID::Float, false, true);
+			return true;
+		}
+
+		return false;
+	}
+
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		processChildrenIfNotCodeGen(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
-			spanType = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<SpanType>();
-
-			if (spanType != nullptr)
-			{
-				subscriptType = Span;
-				elementType = spanType->getElementType();
-			}
-
-			if (getSubExpr(0)->getType() == Types::ID::Block)
-			{
-				subscriptType = Block;
-				elementType = TypeInfo(Types::ID::Float, false, true);
-			}
+			tryToResolveType();
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
+			getSubExpr(1)->tryToResolveType();
 			auto indexType = getSubExpr(1)->getTypeInfo();
 
-			if (indexType.getType() != Types::ID::Integer && indexType.getTypedIfComplexType<WrapType>() == 0)
-				throwError("index must be an integer value");
-			
-			if (spanType == nullptr)
+			if (indexType.getType() != Types::ID::Integer)
 			{
-				if (getSubExpr(0)->getType() == Types::ID::Block)
-					elementType = TypeInfo(Types::ID::Float, false, true);
+				if (auto it = indexType.getTypedIfComplexType<IndexBase>())
+				{
+					auto parentType = getSubExpr(0)->getTypeInfo();
+
+					if (TypeInfo(it->parentType.get()) != parentType)
+						throwError("index type mismatch");
+				}
 				else
-					location.throwError("Can't use []-operator");
+					throwError("illegal index type");
 			}
-			else
+			else if (!getSubExpr(1)->isConstExpr())
+			{
+				throwError("Can't use non-constant or non-wrapped index");
+			}
+			
+			if (spanType != nullptr)
 			{
 				auto size = spanType->getNumElements();
 
@@ -2170,16 +2349,18 @@ struct Operations::Subscript : public Expression
 					if (!isPositiveAndBelow(index, size))
 						throwError("constant index out of bounds");
 				}
+			}
+			else if (dynType != nullptr)
+			{
+				// nothing to do here...
+				return;
+			}
+			else
+			{
+				if (getSubExpr(0)->getType() == Types::ID::Block)
+					elementType = TypeInfo(Types::ID::Float, false, true);
 				else
-				{
-					auto wt = indexType.getTypedIfComplexType<WrapType>();
-
-					if (wt == nullptr)
-						throwError("Can't use non-constant or non-wrapped index");
-
-					if (!isPositiveAndBelow(wt->size-1, size))
-						throwError("wrap limit exceeds span size");
-				}
+					location.throwError("Can't use []-operator");
 			}
 		}
 
@@ -2188,10 +2369,16 @@ struct Operations::Subscript : public Expression
 		{
 			auto abortFunction = [this]()
 			{
+				if(dynamic_cast<SymbolStatement*>(getSubExpr(0).get()) == nullptr)
+					return false;
+
 				if (!getSubExpr(1)->isConstExpr())
 					return false;
 
-				if (dynamic_cast<InlinedParameter*>(getSubExpr(0).get()) != nullptr)
+				if (getSubExpr(1)->getTypeInfo().isComplexType())
+					return false;
+
+				if (subscriptType == Dyn)
 					return false;
 
 				if (SpanType::isSimdType(getSubExpr(0)->getTypeInfo()))
@@ -2218,34 +2405,28 @@ struct Operations::Subscript : public Expression
 			{
 				if(FunctionClass::Ptr fc = cType->getFunctionClass())
 				{
-					subscriptOperator = fc->getSpecialFunction(FunctionClass::Subscript, getTypeInfo(), { getSubRegister(1)->getTypeInfo() });
+					subscriptOperator = fc->getSpecialFunction(FunctionClass::Subscript, elementType,{ getSubRegister(0)->getTypeInfo(), getSubRegister(1)->getTypeInfo() });
 				}
 			}
 
 			if (subscriptOperator.isResolved())
 			{
 				AssemblyRegister::List l;
+				l.add(getSubRegister(0));
 				l.add(getSubRegister(1));
-				auto r = acg.emitFunctionCall(reg, subscriptOperator, getSubRegister(0), l);
+
+				auto r = acg.emitFunctionCall(reg, subscriptOperator, nullptr, l);
 
 				if (!r.wasOk())
 					location.throwError(r.getErrorMessage());
+
+				return;
 			}
 
 			RegPtr indexReg;
 
-			if (auto wt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<WrapType>())
-			{
-				auto fc = wt->getFunctionClass();
-				auto fData = fc->getSpecialFunction(FunctionClass::NativeTypeCast, TypeInfo(Types::ID::Integer), {});
-
-				indexReg = compiler->registerPool.getNextFreeRegister(scope, TypeInfo(Types::ID::Integer));
-
-				AssemblyRegister::List l;
-				acg.emitFunctionCall(indexReg, fData, getSubRegister(1), l);
-			}
-			else
-				indexReg = getSubRegister(1);
+			indexReg = getSubRegister(1);
+			jassert(indexReg->getType() == Types::ID::Integer);
 
 			acg.emitSpanReference(reg, getSubRegister(0), indexReg, elementType.getRequiredByteSize());
 
@@ -2256,6 +2437,7 @@ struct Operations::Subscript : public Expression
 	SubscriptType subscriptType = Undefined;
 	bool isWriteAccess = false;
 	SpanType* spanType = nullptr;
+	DynType* dynType = nullptr;
 	TypeInfo elementType;
 };
 
@@ -2273,7 +2455,22 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		ids(ids_),
 		type(type_)
 	{
+		
+	}
 
+	void addInitValues(InitialiserList::Ptr l)
+	{
+		initValues = l;
+
+		initValues->forEach([this](InitialiserList::ChildBase* b)
+		{
+			if (auto ec = dynamic_cast<InitialiserList::ExpressionChild*>(b))
+			{
+				this->addStatement(ec->expression);
+			}
+
+			return false;
+		});
 	}
 
 	Array<NamespacedIdentifier> getInstanceIds() const override { return ids; }
@@ -2333,8 +2530,12 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		return dynamic_cast<RegisterScope*>(scope) != nullptr;
 	}
 
+private:
+
 	Array<NamespacedIdentifier> ids;
 	TypeInfo type;
+
+
 
 	InitialiserList::Ptr initValues;
 

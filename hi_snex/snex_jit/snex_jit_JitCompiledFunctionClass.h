@@ -158,7 +158,11 @@ struct JitCompiledClassBase
 
 		thisPtr = reinterpret_cast<void*>(data.get() + classType->getRequiredAlignment());
 
-		classType->initialise(thisPtr, classType->makeDefaultInitialiserList());
+		ComplexType::InitData d;
+		d.dataPointer = thisPtr;
+		d.initValues = classType->makeDefaultInitialiserList();
+
+		classType->initialise(d);
 	}
 
 protected:

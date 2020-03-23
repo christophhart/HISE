@@ -37,16 +37,15 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-class FunctionParser : public BlockParser
+class CodeParser : public BlockParser
 {
 public:
 
-	FunctionParser(BaseCompiler* c, Operations::Function& f) :
-		BlockParser(c, f.code, f.location.program, f.codeLength)
+	CodeParser(BaseCompiler* c, const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length) :
+		BlockParser(c, code, wholeProgram, length)
 	{};
-    
-    virtual ~FunctionParser() {}
 
+	virtual ~CodeParser() {};
 
 	StatementPtr parseStatementToBlock();
 	StatementPtr parseStatementBlock();
@@ -56,9 +55,22 @@ public:
 	StatementPtr parseVariableDefinition();
 	StatementPtr parseLoopStatement();
 	StatementPtr parseIfStatement();
-	
+
 	void finaliseSyntaxTree(SyntaxTree* tree) override;
 };
+
+class FunctionParser : public CodeParser
+{
+public:
+
+	FunctionParser(BaseCompiler* c, Operations::Function& f) :
+		CodeParser(c, f.code, f.location.program, f.codeLength)
+	{};
+    
+    virtual ~FunctionParser() {}
+};
+
+
 
 
 }

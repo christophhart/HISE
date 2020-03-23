@@ -129,6 +129,17 @@ bool AssemblyRegister::canBeReused() const
 }
 
 
+
+snex::Types::ID AssemblyRegister::getType() const
+{
+	if (auto ct = type.getTypedIfComplexType<ComplexType>())
+	{
+		return ct->getRegisterType();
+	}
+
+	return type.getType();
+}
+
 void* AssemblyRegister::getGlobalDataPointer()
 {
 	if (getType() == Types::ID::Pointer)
@@ -312,7 +323,7 @@ bool AssemblyRegister::isActiveOrDirtyGlobalRegister() const
 
 void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 {
-	jassert(memoryLocation != nullptr);
+	jassert(memoryLocation != nullptr || getType() == Types::ID::Integer);
 
 	if (getType() != Types::ID::Pointer && isGlobalVariableRegister() && !id.isConst())
 	{
@@ -348,7 +359,9 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 		}
 		if (getType() == Types::ID::Integer)
 		{
-			immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
+			if(memoryLocation != nullptr)
+				immediateIntValue = *reinterpret_cast<int*>(memoryLocation);
+
 			isZeroValue = immediateIntValue == 0;
 		}
 		if (type == Types::ID::Block)
@@ -437,6 +450,17 @@ void AssemblyRegister::setDataPointer(void* memLoc)
 }
 
 
+void AssemblyRegister::setImmediateValue(int64 value)
+{
+	jassert(getType() == Types::ID::Integer);
+
+	immediateIntValue = value;
+	state = UnloadedMemoryLocation;
+	memoryLocation = nullptr;
+	reg = {};
+	hasCustomMem = false;
+}
+
 void AssemblyRegister::clearForReuse()
 {
 	isIter = false;
@@ -523,9 +547,11 @@ void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
 
 AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope, TypeInfo type)
 {
+	
+
 	for (auto r : currentRegisterPool)
 	{
-		if (r->getType() == type.getType() && r->canBeReused())
+		if (r->getType() == type.getRegisterType() && r->canBeReused())
 		{
 			r->clearForReuse();
 			r->scope = scope;

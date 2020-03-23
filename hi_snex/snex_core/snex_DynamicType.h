@@ -210,8 +210,6 @@ public:
 			return toInt();
 		else IF_CONSTEXPR (TypeID == Types::ID::Block)
 			return toBlock();
-		else IF_CONSTEXPR (TypeID == Types::ID::Event)
-			return toEvent();
 		
 		return 0;
 	}

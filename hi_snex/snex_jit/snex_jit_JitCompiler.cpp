@@ -41,6 +41,8 @@ Compiler::Compiler(GlobalScope& memoryPool)
 {
 	compiler = new ClassCompiler(&memoryPool, handler);
 	memoryPool.registerFunctionsToNamespaceHandler(handler);
+
+	
 }
 
 Compiler::~Compiler()

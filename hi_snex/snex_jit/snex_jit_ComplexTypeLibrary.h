@@ -54,7 +54,7 @@ struct WrapType : public ComplexType
 	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const override;
 	FunctionClass* getFunctionClass() override;
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override;
+	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction&, Ptr, void*) override { return false; }
 	juce::String toStringInternal() const override;
 
@@ -64,8 +64,86 @@ struct WrapType : public ComplexType
 	const int size;
 };
 
-struct SpanType : public ComplexType
+struct IndexBase : public ComplexType
 {
+	IndexBase(const TypeInfo& parentType);
+
+	virtual Identifier getIndexName() const = 0;
+
+	virtual Inliner::Func getAsmFunction(FunctionClass::SpecialSymbols s);
+
+	virtual int getInitValue(int input) const { return input; }
+
+	FunctionData* createOperator(FunctionClass* f, FunctionClass::SpecialSymbols s)
+	{
+		if (auto asmFunc = getAsmFunction(s))
+		{
+			auto op = new FunctionData();
+			op->returnType = TypeInfo(this);
+			op->id = f->getClassName().getChildId(f->getSpecialSymbol(s));
+			op->inliner = new Inliner(op->id, asmFunc, {});
+			f->addFunction(op);
+
+			return op;
+		}
+
+		return nullptr;
+	}
+
+	size_t getRequiredByteSize() const override { return 4; }
+	size_t getRequiredAlignment() const override { return 0; };
+
+	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
+
+	bool isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const override;
+	bool isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const override;
+
+	Types::ID getRegisterType() const override { return Types::ID::Integer; }
+
+	InitialiserList::Ptr makeDefaultInitialiserList() const override;
+
+	FunctionClass* getFunctionClass() override;
+
+	Result initialise(InitData data) override;
+
+	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override;
+
+	juce::String toStringInternal() const override;
+
+	ComplexType::WeakPtr parentType;
+};
+
+struct ArrayTypeBase : public ComplexType
+{
+	virtual ~ArrayTypeBase() {}
+
+	virtual TypeInfo getElementType() const = 0;
+};
+
+struct SpanType : public ArrayTypeBase
+{
+	struct Wrapped : public IndexBase
+	{
+		Wrapped(TypeInfo p) :
+			IndexBase(p)
+		{};
+
+		Identifier getIndexName() const override { RETURN_STATIC_IDENTIFIER("wrapped"); }
+		Inliner::Func getAsmFunction(FunctionClass::SpecialSymbols s) override;
+		
+		int getInitValue(int input) const { return input % getSpanSize(); }
+		int getSpanSize() const { return dynamic_cast<SpanType*>(parentType.get())->getNumElements(); }
+	};
+
+	struct Unsafe : public IndexBase
+	{
+		Unsafe(TypeInfo p):
+			IndexBase(p)
+		{}
+
+		Identifier getIndexName() const override { RETURN_STATIC_IDENTIFIER("unsafe"); };
+	};
+
 	/** Creates a simple one-dimensional span. */
 	SpanType(const TypeInfo& dataType, int size_);
 
@@ -75,17 +153,16 @@ struct SpanType : public ComplexType
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
 	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override;
 	juce::String toStringInternal() const override;
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override;
+	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
 
 	FunctionClass* getFunctionClass() override;
-
-	TypeInfo getElementType() const;
-
+	TypeInfo getElementType() const override;
 	int getNumElements() const;
-	
 	static bool isSimdType(const TypeInfo& t);
 	size_t getElementSize() const;
+
+	ComplexType::Ptr createSubType(const NamespacedIdentifier& id) override;
 
 private:
 
@@ -96,21 +173,51 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SpanType);
 };
 
-struct DynType : public ComplexType
+struct DynType : public ArrayTypeBase
 {
+	enum class IndexType
+	{
+		W,
+		C,
+		Z,
+		U,
+		numIndexTypes
+	};
+
+	struct Wrapped : public IndexBase
+	{
+		Wrapped(TypeInfo p) :
+			IndexBase(p)
+		{};
+
+		Identifier getIndexName() const override { RETURN_STATIC_IDENTIFIER("wrapped"); }
+	};
+
+	struct Unsafe : public IndexBase
+	{
+		Unsafe(TypeInfo p) :
+			IndexBase(p)
+		{}
+
+		Identifier getIndexName() const override { RETURN_STATIC_IDENTIFIER("unsafe"); };
+	};
+
 	DynType(const TypeInfo& elementType_);
+
+	static IndexType getIndexType(const TypeInfo& t);
+
+	TypeInfo getElementType() const override { return elementType; }
 
 	size_t getRequiredByteSize() const override;
 	virtual size_t getRequiredAlignment() const override;
 	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const;
 	FunctionClass* getFunctionClass() override;
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override;
+	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction&, Ptr, void*) override { return false; }
 	juce::String toStringInternal() const override;
 
-	
-
+	ComplexType::Ptr createSubType(const NamespacedIdentifier& id) override;
 
 	TypeInfo elementType;
 
@@ -128,7 +235,7 @@ struct StructType : public ComplexType
 	void finaliseAlignment() override;
 	juce::String toStringInternal() const override;
 	FunctionClass* getFunctionClass() override;
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override;
+	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
 	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override;
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
@@ -233,7 +340,7 @@ struct VariadicTypeBase : public ComplexType
 	size_t getRequiredAlignment() const override;
 	void finaliseAlignment() override;;
 	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const override;
-	Result initialise(void* dataPointer, InitialiserList::Ptr initValues) override;
+	Result initialise(InitData data) override;
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
 	bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) override;
 	FunctionClass* getFunctionClass() override;

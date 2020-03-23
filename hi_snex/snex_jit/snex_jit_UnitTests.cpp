@@ -240,6 +240,50 @@ public:
 
 };
 
+class ProcessTestCase
+{
+public:
+
+	ProcessTestCase(UnitTest* test, GlobalScope& memory, const juce::String& code)
+	{
+		HiseEventBuffer b;
+
+		HiseEvent on(HiseEvent::Type::NoteOn, 36, 127, 1);
+		on.setTimeStamp(24);
+		HiseEvent off(HiseEvent::Type::NoteOff, 36, 127, 1);
+		off.setTimeStamp(56);
+
+		b.addEvent(on);
+		b.addEvent(off);
+
+		memset(data, 0, sizeof(float) * 128);
+
+		d.data[0] = { data, 64 };
+		d.data[1] = { data + 64, 64 };
+		d.events = { b.begin(), (size_t)b.getNumUsed() };
+		d.voiceIndex = {};
+
+		using T = void;
+
+		Compiler c(memory);
+		SnexObjectDatabase::registerObjects(c);
+
+		auto obj = c.compileJitObject(code);
+
+		test->expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile fail");
+
+		DBG(c.getAssemblyCode());
+
+		auto f = obj["test"];
+
+		v = f.call<int>(&d);
+	}
+
+	ProcessData d;
+	float data[128];
+	int v;
+};
+
 class JitFileTestCase
 {
 public:
@@ -342,7 +386,7 @@ public:
 		if (dumpBeforeTest)
 		{
 			DBG("data dump after execution");
-			DBG(obj.dumpTable());
+			//DBG(obj.dumpTable());
 		}
 
 		if (expectedFail.isNotEmpty())
@@ -858,17 +902,20 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles("double_member_2");
-		return;
+		testProcessData();
 		testEvents();
 		
 		testOptimizations();
 		testInlining();
 
 		runTestsWithOptimisation({});
+		runTestsWithOptimisation({ OptimizationIds::Inlining });
+		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination });
+		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
+		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination });
 	}
 
 	void runTestFiles(juce::String soloTest = {}, bool isFolder=false)
@@ -984,14 +1031,14 @@ public:
 		//testEvents();
 
 		testBlocks();
-		//testSpan<int>();
-		//testSpan<float>();
-		//testSpan<double>();
+		testSpan<int>();
+		testSpan<float>();
+		testSpan<double>();
 		testStructs();
 		testUsingAliases();
 
-		//testStaticConst();
-		//testWrap();
+		testStaticConst();
+		testWrap();
 		testMacOSRelocation();
 	}
 
@@ -1338,7 +1385,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
-			ADD_CODE_LINE("wrap<$size> index = {0};");
+			ADD_CODE_LINE("span<$T, $size>::wrapped index = {0};");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    int i = (int)input + 2;");
 			ADD_CODE_LINE("    i = i > $size ? ($size -1 ) : i;");
@@ -1355,7 +1402,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
-			ADD_CODE_LINE("wrap<$size> index = {0};");
+			ADD_CODE_LINE("span<$T, $size>::wrapped index = {0};");
 			ADD_CODE_LINE("int clamp(int i) { return i > $size ? ($size -1 ) : i; };");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    index = clamp((int)input + 2);");
@@ -1387,18 +1434,7 @@ private:
 
 		}
 
-		{
-			NEW_CODE_TEXT();
-			ADD_CODE_LINE("span<$T, 3> data = " + tdi);
-			ADD_CODE_LINE("wrap<5> i;");
-			ADD_CODE_LINE("$T test($T input){");
-			ADD_CODE_LINE("    i = (int)input;");
-			ADD_CODE_LINE("    return data[i];}");
-			FINALIZE_CODE();
-
-			CREATE_TYPED_TEST(code);
-			EXPECT_COMPILE_FAIL("Line 5: wrap limit exceeds span size");
-		}
+		
 
 		{
 			NEW_CODE_TEXT();
@@ -1493,7 +1529,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
-			ADD_CODE_LINE("wrap<$size> index;");
+			ADD_CODE_LINE("span<$T, $size>::wrapped index;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    index = (int)input;");
 			ADD_CODE_LINE("    data[index] = 4.0;");
@@ -1515,7 +1551,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("wrap<2> j;");
+			ADD_CODE_LINE("span<$T, 2>::wrapped j;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    j = (int)1.8f;");
 			ADD_CODE_LINE("    return data[2][j];}");
@@ -1552,8 +1588,8 @@ private:
 
 		{
 			NEW_CODE_TEXT();
-			ADD_CODE_LINE("wrap<3> i;");
-			ADD_CODE_LINE("wrap<2> j;");
+			ADD_CODE_LINE("span<span<$T, 2>, 3>::wrapped i;");
+			ADD_CODE_LINE("span<$T, 2>::wrapped j;");
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)1.2;");
@@ -1568,7 +1604,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("wrap<3> i;");
+			ADD_CODE_LINE("span<span<$T, 2>, 3>::wrapped i;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)1.2;");
 			ADD_CODE_LINE("    return data[i][0];}");
@@ -1612,7 +1648,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("wrap<3> i;");
+			ADD_CODE_LINE("span<span<$T, 2>, 3>::wrapped i;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)input;");
 			ADD_CODE_LINE("    data[0][0] = data[i][0];");
@@ -1626,7 +1662,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 2>, 3> data = " + tdi);
-			ADD_CODE_LINE("wrap<2> j;");
+			ADD_CODE_LINE("span<$T, 2>::wrapped j;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    j = (int)input;");
 			ADD_CODE_LINE("    data[0][0] = data[1][j];");
@@ -1643,7 +1679,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
-			ADD_CODE_LINE("wrap<2> i;");
+			ADD_CODE_LINE("span<span<$T, 3>, 2>::wrapped i;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)input;");
 			ADD_CODE_LINE("    data[0][0] = data[i][0];");
@@ -1656,7 +1692,7 @@ private:
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<span<$T, 3>, 2> data = " + tdi);
-			ADD_CODE_LINE("wrap<2> i;");
+			ADD_CODE_LINE("span<span<$T, 3>, 2>::wrapped i;");
 			ADD_CODE_LINE("$T test($T input){");
 			ADD_CODE_LINE("    i = (int)input;");
 			ADD_CODE_LINE("    data[0][0] = data[i][0];");
@@ -1677,6 +1713,60 @@ private:
 		expect(r.wasOk(), r.getErrorMessage() + "\nFunction Code:\n\n" + compiler->getLastCompiledCode());
 	}
 
+	void testProcessData()
+	{
+		beginTest("Testing ProcessData struct");
+
+		GlobalScope memory;
+
+		{
+			juce::String code;
+			ADD_CODE_LINE("int test(ProcessData& d)");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("auto fd = interleave(d.data);");
+			ADD_CODE_LINE("for(auto& s: fd){");
+			ADD_CODE_LINE("    s[0] = 1.0f;}");
+			ADD_CODE_LINE("interleave(fd);");
+			ADD_CODE_LINE(" return 0;}");
+
+			ProcessTestCase test(this, memory, code);
+
+			int x = 5;
+		}
+		{
+			ProcessTestCase test(this, memory, "int test(ProcessData& d) {dyn<float>::wrapped i; d.data[0][i] = 19.0f; d.data[1][i.moved(3)] = 24.0f; return 2;}");
+
+			auto actual = test.d.data[0][0];
+			auto actual2 = test.d.data[1][3];
+
+			expectEquals<float>(actual, 19.0f, "first");
+			expectEquals<float>(actual2, 24.0f, "second");
+			expectEquals<int>(test.v, 2, "value");
+		}
+		{
+			juce::String code;
+			ADD_CODE_LINE("int test(ProcessData& d)");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("int x = 0;");
+			ADD_CODE_LINE("for(auto& e: d.events)");
+			ADD_CODE_LINE("    x += e.getNoteNumber();");
+			ADD_CODE_LINE("return x;}");
+
+			ProcessTestCase test(this, memory, code);
+
+			expectEquals<int>(test.v, 72, "event iterator");
+		}
+		
+		
+
+		
+		
+
+		int x = 5;
+		
+		
+	}
+
 	void testStaticConst()
 	{
 		beginTest("Testing static const");
@@ -1693,21 +1783,7 @@ private:
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED("static const variable in function", 5, 4);
 		}
-		{
-			juce::String code;
-
-			ADD_CODE_LINE("static const int x = BLOCK_SIZE / 2;");
-
-			ADD_CODE_LINE("int test(int input) { return x; }");
-
-			CREATE_TYPED_TEST(code);
-
-			
-
-			//test->memory.addConstant(NamespacedIdentifier("BLOCK_SIZE"), VariableStorage(512));
-			
-			EXPECT_TYPED("test static const variable with global constant", 10, 256);
-		}
+		
 		{
 			juce::String code;
 
@@ -1751,7 +1827,7 @@ private:
 			ADD_CODE_LINE("static const int x = 4;");
 			
 			ADD_CODE_LINE("span<int, x> data = { 1, 2, 3, 4 };");
-			ADD_CODE_LINE("wrap<x> index = {0};");
+			ADD_CODE_LINE("span<int, x>::wrapped index = {0};");
 			ADD_CODE_LINE("int test(int input) { index = input; return data[index]; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1783,7 +1859,7 @@ private:
 			ADD_CODE_LINE("static const int x = 2;");
 			ADD_CODE_LINE("static const int y = x-1;");
 			ADD_CODE_LINE("span<int, x> data = { y, x };");
-			ADD_CODE_LINE("wrap<x> index = { x - 2};");
+			ADD_CODE_LINE("span<int, x>::wrapped index = { x - 2};");
 			ADD_CODE_LINE("int test(int input) { return data[index]; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1802,7 +1878,7 @@ private:
 		{
 			juce::String code;
 
-			ADD_CODE_LINE("wrap<4> x = {2};");
+			ADD_CODE_LINE("span<int, 4>::wrapped x = {2};");
 			ADD_CODE_LINE("int test(int input) { x = input; return x; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1813,7 +1889,7 @@ private:
 			juce::String code;
 
 			ADD_CODE_LINE("static const int size = 4;");
-			ADD_CODE_LINE("wrap<size> x = {5};");
+			ADD_CODE_LINE("span<int, size>::wrapped x = {5};");
 			ADD_CODE_LINE("int test(int input) { return x; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1823,7 +1899,7 @@ private:
 		{
 			juce::String code;
 
-			ADD_CODE_LINE("wrap<5> x = {3};");
+			ADD_CODE_LINE("span<int, 5>::wrapped x = {3};");
 			ADD_CODE_LINE("int test(int input) { return x; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1833,7 +1909,7 @@ private:
 		{
 			juce::String code;
 
-			ADD_CODE_LINE("wrap<4> x = {5};");
+			ADD_CODE_LINE("span<int, 4>::wrapped x = {5};");
 			ADD_CODE_LINE("int test(int input) { return x; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1845,7 +1921,7 @@ private:
 		{
 			juce::String code;
 
-			ADD_CODE_LINE("wrap<4> x = {2};");
+			ADD_CODE_LINE("span<int, 4>::wrapped x = {2};");
 			ADD_CODE_LINE("int test(int input) { return x++; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1855,7 +1931,7 @@ private:
 		{
 			juce::String code;
 
-			ADD_CODE_LINE("wrap<4> x = {2};");
+			ADD_CODE_LINE("span<int, 4>::wrapped x = {2};");
 			ADD_CODE_LINE("int test(int input) { return ++x; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1865,7 +1941,7 @@ private:
 		{
 			juce::String code;
 
-			ADD_CODE_LINE("wrap<4> x = {3};");
+			ADD_CODE_LINE("span<int, 4>::wrapped x = {3};");
 			ADD_CODE_LINE("int test(int input) { return ++x; }");
 
 			CREATE_TYPED_TEST(code);
@@ -1875,7 +1951,7 @@ private:
 		{
 			juce::String code;
 
-			ADD_CODE_LINE("wrap<4> x = {3};");
+			ADD_CODE_LINE("span<int, 4>::wrapped x = {3};");
 			ADD_CODE_LINE("int test(int input) { return x++; }");
 
 			CREATE_TYPED_TEST(code);
@@ -2609,6 +2685,8 @@ private:
 		using Event2IntTest = HiseJITTestCase<HiseEvent*, int>;
 
 		HiseEvent testEvent = HiseEvent(HiseEvent::Type::NoteOn, 59, 127, 1);
+		HiseEvent testEvent2 = HiseEvent(HiseEvent::Type::NoteOff, 59, 127, 1);
+		testEvent2.setTimeStamp(32);
 		
 		ScopedPointer<Event2IntTest> test;
 
@@ -2637,6 +2715,34 @@ private:
 			expectEquals<int>(testEvent2.getVelocity(), 40, "reference change worked");
 
 			int x = 5;
+		}
+
+		{
+			HiseEventBuffer buffer;
+
+			buffer.addEvent(testEvent);
+			buffer.addEvent(testEvent2);
+
+			Types::dyn<HiseEvent> d = { buffer.begin(), (size_t)buffer.getNumUsed() };
+
+			juce::String code;
+
+			ADD_CODE_LINE("int test(dyn<HiseEvent>& in){ int x = 0; for(auto& e: in) x += e.getNoteNumber(); return x;}");
+
+			GlobalScope memory;
+			Compiler c(memory);
+			SnexObjectDatabase::registerObjects(c);
+
+			auto obj = c.compileJitObject(code);
+
+			DBG(c.getAssemblyCode());
+
+			auto result = obj["test"].call<int>(&d);
+
+			expectEquals<int>(result, 118, "event buffer iteration");
+
+			int x = 5;
+
 		}
 	}
 

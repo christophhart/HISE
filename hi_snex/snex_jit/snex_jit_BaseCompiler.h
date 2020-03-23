@@ -72,8 +72,7 @@ public:
 		float4Type->setAlias(NamespacedIdentifier("float4"));
 		namespaceHandler.registerComplexTypeOrReturnExisting(float4Type);
 
-		
-
+		inbuildFunctions = new InbuiltFunctions(this);
 	}
 
 	virtual ~BaseCompiler() {};
@@ -192,7 +191,10 @@ public:
 		}
 	}
 
-	
+	FunctionClass* getInbuiltFunctionClass()
+	{
+		return inbuildFunctions;
+	}
 
 	Pass getCurrentPass() { return currentPass; }
 
@@ -221,6 +223,8 @@ public:
 	
 
 private:
+
+	FunctionClass::Ptr inbuildFunctions;
 
     OptimizationPassBase* currentOptimization = nullptr;
     

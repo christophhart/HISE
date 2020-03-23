@@ -42,7 +42,7 @@ using namespace asmjit;
 #define FP_REG_R(x) x->getRegisterForReadOp().as<X86Xmm>()
 #define FP_MEM(x) x->getAsMemoryLocation()
 #define IS_MEM(x) x->isMemoryLocation()
-#define IS_CMEM(x) x->hasCustomMemoryLocation()
+#define IS_CMEM(x) x->hasCustomMemoryLocation() && !x->isActiveOrDirtyGlobalRegister()
 #define IS_REG(x)  x->isActive()
 
 
@@ -232,6 +232,8 @@ struct AsmCodeGenerator
 
 	void emitInlinedMathAssembly(Identifier id, RegPtr target, const ReferenceCountedArray<AssemblyRegister>& args);
 	
+	Result emitSimpleToComplexTypeCopy(RegPtr target, InitialiserList::Ptr initValues, RegPtr source);
+
 #if 0
 	void emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op)
 	{

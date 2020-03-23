@@ -501,6 +501,47 @@ struct ProcessSingleData
 	}
 };
 
+struct ProcessData
+{
+	static Identifier getId() { RETURN_STATIC_IDENTIFIER("process"); };
+
+	static void fillSignature(Compiler& c, FunctionData& d)
+	{
+		auto pId = NamespacedIdentifier("ProcessData");
+		auto st = c.getComplexType(pId);
+
+		if (st == nullptr)
+		{
+			
+			auto dataType = c.getComplexType(NamespacedIdentifier("ChannelData"));
+
+			auto eventType = c.getComplexType(NamespacedIdentifier("HiseEvent"));
+			auto eventBufferType = new DynType(TypeInfo(eventType));
+
+			ProcessData obj;
+
+			jassert(offsetof(ProcessData, data) == 0);
+
+			auto pType = new StructType(pId);
+
+			ADD_SNEX_STRUCT_COMPLEX(pType, dataType, obj, data);
+			ADD_SNEX_STRUCT_COMPLEX(pType, eventBufferType, obj, events);
+			ADD_SNEX_STRUCT_MEMBER(pType, obj, voiceIndex);
+			ADD_SNEX_STRUCT_MEMBER(pType, obj, shouldReset);
+
+			st = c.registerExternalComplexType(pType);
+		}
+
+		d.returnType = TypeInfo(Types::ID::Void);
+		d.addArgs("data", TypeInfo(st, false, true));
+	}
+
+	Types::span<Types::dyn<float>, 2> data;
+	Types::dyn<HiseEvent> events;
+	int voiceIndex = -1;
+	int shouldReset = 0;
+};
+
 struct PrepareSpecs
 {
 	static ComplexType::Ptr createComplexType(const Identifier& id)
@@ -689,79 +730,183 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 
 	c.registerExternalComplexType(EventWrapper::createComplexType("HiseEvent"));
 
-	VariadicSubType::Ptr chainType = new VariadicSubType();
-	chainType->variadicId = NamespacedIdentifier("container").getChildId("chain");
-
 	{
-		chainType->functions.add(VariadicFunctionInliner<ResetData>::create(c));
-		chainType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c));
-		chainType->functions.add(VariadicFunctionInliner<PrepareData>::create(c));
+		VariadicSubType::Ptr chainType = new VariadicSubType();
+		chainType->variadicId = NamespacedIdentifier("container").getChildId("chain");
+
+		{
+			chainType->functions.add(VariadicFunctionInliner<ResetData>::create(c));
+			chainType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c));
+			chainType->functions.add(VariadicFunctionInliner<PrepareData>::create(c));
+			chainType->functions.add(VariadicFunctionInliner<ProcessData>::create(c));
+		}
+
+		{
+			addVariadicGet(chainType);
+		}
+
+
+		c.registerVariadicType(chainType);
 	}
 
 	{
-		FunctionData getFunction;
-		getFunction.id = chainType->variadicId.getChildId("get");
-		getFunction.returnType = TypeInfo(Types::ID::Dynamic, false, true);
+		auto frameType = new VariadicSubType();
+		frameType->variadicId = NamespacedIdentifier("wrapp").getChildId("frame");
 
-		getFunction.inliner = Inliner::createHighLevelInliner(getFunction.id, [](InlineData* b)
+		frameType->functions.add(VariadicFunctionInliner<ResetData>::create(c));
+		frameType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c));
+		frameType->functions.add(VariadicFunctionInliner<PrepareData>::create(c));
+
+		addVariadicGet(frameType);
+
+		auto processFunction = FunctionData();
+		processFunction.id = frameType->variadicId.getChildId("process");
+		processFunction.returnType = TypeInfo(Types::ID::Void);
+		processFunction.addArgs("data", TypeInfo(c.getComplexType(NamespacedIdentifier("ProcessData"))));
+		processFunction.inliner = Inliner::createHighLevelInliner(processFunction.id, [&c](InlineData* b)
 		{
 			auto d = b->toSyntaxTreeData();
 
-			if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(b))
+			auto compiler = d->expression->currentCompiler;
+			auto scope = d->expression->currentScope;
+			auto root = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(d->expression.get());
+
+
+			auto scopeId = scope->getScopeSymbol();
+
+			
+
+			juce::String code;
+			juce::String nl = "\n";
+
+			auto channelCode = d->args[0]->toString(Operations::Statement::TextFormat::CppCode);
+			auto objCode = d->object->toString(Operations::Statement::TextFormat::CppCode);
+
+			code << "{" << nl;
+			code << "    auto& fd = interleave(" << channelCode << ".data);" << nl;
+			code << "    for(auto& f: fd)" << nl;
+			code << "    {" << nl;
+			code << "         " << objCode << ".get<0>().processSingle(f);" << nl;
+			code << "    }" << nl;
+			code << "    interleave(fd);" << nl;
+			code << "}";
+
+			
+
+			CodeParser p(compiler, code.getCharPointer(), code.getCharPointer(), code.length());
+			
+			NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, scopeId);
+			BlockParser::ScopedScopeStatementSetter ssss(&p, root);
+
+			try
 			{
-				auto index = b->templateParameters[0].constant;
+				d->target = p.parseStatement();
 
-				auto type = TypeInfo(vt->getSubType(index));
-				auto offset = (int)vt->getOffsetForSubType(index);
-
-				auto base = dynamic_cast<Operations::Expression*>(d->object.get());
-
-				d->target = new Operations::MemoryReference(d->location, base, type, offset);
-				return Result::ok();
+				d->target->forEachRecursive([d](Operations::Statement::Ptr s)
+				{
+					s->location = d->location;
+					return false;
+				});
+			}
+			catch (ParserHelpers::CodeLocation::Error& e)
+			{
+				jassertfalse;
 			}
 
-			return Result::fail("Can't find variadic type");
+#if 0
+			auto s = new Operations::StatementBlock(d->location, d->location.createAnonymousScopeId(scopeId));
+
+			
+			
+
+			auto frameData = c.getComplexType(NamespacedIdentifier("FrameData"));
+			auto blockData = c.getComplexType(NamespacedIdentifier("ChannelData"));
+			
+			auto fdSymbol = s->getPath().getChildId("fd");
+
+			d->expression->currentCompiler->namespaceHandler.addSymbol(fdSymbol, TypeInfo(frameData), NamespaceHandler::Variable);
+
+			auto def = new Operations::ComplexTypeDefinition(d->location, fdSymbol, TypeInfo(frameData));
+
+			auto fId = Symbol(NamespacedIdentifier("interleave"), TypeInfo(blockData, false, true));
+			auto f = new Operations::FunctionCall(d->location, nullptr, fId, {});
+
+			def->addStatement(f);
+
+			s->addStatement(def);
+
+			d->target = s;
+#endif
+
+			
+			return Result::ok();
 		});
 
-		getFunction.inliner->returnTypeFunction = [](InlineData* b)
-		{
-			auto d = dynamic_cast<ReturnTypeInlineData*>(b);
-			
-			if (d->templateParameters.size() != 1)
-				return Result::fail("template amount mismatch. Expected 1");
+		frameType->functions.add(processFunction);
 
-			if (d->templateParameters[0].type.isValid())
-				return Result::fail("template type mismatch. Expected integer value");
-
-			auto index = d->templateParameters[0].constant;
-
-			if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(b))
-			{
-				if (auto st = vt->getSubType(index))
-				{
-					d->f.returnType = TypeInfo(st);
-					return Result::ok();
-				}
-				else
-				{
-					return Result::fail("Can't find subtype with index " + juce::String(index));
-				}
-			}
-			else
-				return Result::fail("Can't call get on non-variadic templates");
-
-			return Result::ok();
-		};
-
-		chainType->functions.add(getFunction);
+		c.registerVariadicType(frameType);
 	}
-	
-
-	c.registerVariadicType(chainType);
-
-	
 }
 
 
+
+void SnexObjectDatabase::addVariadicGet(VariadicSubType* variadicType)
+{
+	FunctionData getFunction;
+	getFunction.id = variadicType->variadicId.getChildId("get");
+	getFunction.returnType = TypeInfo(Types::ID::Dynamic, false, true);
+
+	getFunction.inliner = Inliner::createHighLevelInliner(getFunction.id, [](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+
+		if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(b))
+		{
+			auto index = b->templateParameters[0].constant;
+
+			auto type = TypeInfo(vt->getSubType(index));
+			auto offset = (int)vt->getOffsetForSubType(index);
+
+			auto base = dynamic_cast<Operations::Expression*>(d->object.get());
+
+			d->target = new Operations::MemoryReference(d->location, base, type, offset);
+			return Result::ok();
+		}
+
+		return Result::fail("Can't find variadic type");
+	});
+
+	getFunction.inliner->returnTypeFunction = [](InlineData* b)
+	{
+		auto d = dynamic_cast<ReturnTypeInlineData*>(b);
+
+		if (d->templateParameters.size() != 1)
+			return Result::fail("template amount mismatch. Expected 1");
+
+		if (d->templateParameters[0].type.isValid())
+			return Result::fail("template type mismatch. Expected integer value");
+
+		auto index = d->templateParameters[0].constant;
+
+		if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(b))
+		{
+			if (auto st = vt->getSubType(index))
+			{
+				d->f.returnType = TypeInfo(st);
+				return Result::ok();
+			}
+			else
+			{
+				return Result::fail("Can't find subtype with index " + juce::String(index));
+			}
+		}
+		else
+			return Result::fail("Can't call get on non-variadic templates");
+
+		return Result::ok();
+	};
+
+	variadicType->functions.add(getFunction);
+}
 
 }

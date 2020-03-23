@@ -102,6 +102,14 @@ public:
 		return s;
 	}
 
+	Symbol parseNewDynamicSymbolSymbol(NamespaceHandler::SymbolType t)
+	{
+		jassert(other.currentTypeInfo.isDynamic());
+		parseNamespacedIdentifier<NamespaceResolver::MustBeNew>();
+		auto s = Symbol(currentNamespacedIdentifier, other.currentTypeInfo);
+		return s;
+	}
+
 	Symbol parseNewSymbol(NamespaceHandler::SymbolType t)
 	{
 		auto type = other.currentTypeInfo;
@@ -215,14 +223,52 @@ private:
 				currentTypeInfo = t;
 				return true;
 			}
+
+			auto p = nId;
+
+			while (p.isValid())
+			{
+				auto id = NamespacedIdentifier(p.getIdentifier());
+				p = p.getParent();
+
+				t = namespaceHandler.getAliasType(p);
+
+				if (t.isValid() && t.isComplexType())
+				{
+					if (auto st = t.getComplexType()->createSubType(id))
+					{
+						currentTypeInfo = TypeInfo(st, currentTypeInfo.isConst(), currentTypeInfo.isRef());
+						return true;
+					}
+				}
+			}
 		}
 
 		if (matchIfSimpleType())
 			return true;
 		else if (matchIfComplexType())
+		{
+			parseSubType();
 			return true;
+		}
 
 		return false;
+	}
+
+	void parseSubType()
+	{
+		while (matchIf(JitTokens::double_colon))
+		{
+			auto parentType = currentTypeInfo;
+
+			if (!parseNamespacedIdentifier())
+				location.throwError("funky");
+
+			if (auto subType = parentType.getComplexType()->createSubType(nId))
+			{
+				currentTypeInfo = TypeInfo(subType, parentType.isConst(), parentType.isRef());
+			}
+		}
 	}
 
 	bool matchIfSimpleType()
@@ -479,35 +525,7 @@ public:
 		return false;
 	}
 
-	VariableStorage parseConstExpression(bool isTemplateArgument)
-	{
-		ScopedTemplateArgParser s(*this, isTemplateArgument);
-
-		auto expr = parseExpression();
-
-		SyntaxTree bl(location, location.createAnonymousScopeId(compiler->namespaceHandler.getCurrentNamespaceIdentifier()));
-		bl.addStatement(expr);
-
-		BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);
-		compiler->executePass(BaseCompiler::DataAllocation, currentScope, &bl);
-
-		BaseCompiler::ScopedPassSwitcher sp2(compiler, BaseCompiler::PreSymbolOptimization);
-		compiler->optimize(expr, currentScope, false);
-
-		BaseCompiler::ScopedPassSwitcher sp3(compiler, BaseCompiler::ResolvingSymbols);
-		compiler->executePass(BaseCompiler::ResolvingSymbols, currentScope, &bl);
-
-
-		BaseCompiler::ScopedPassSwitcher sp4(compiler, BaseCompiler::PostSymbolOptimization);
-		compiler->optimize(expr, currentScope, false);
-
-		expr = dynamic_cast<Operations::Expression*>(bl.getChildStatement(0).get());
-
-		if (!expr->isConstExpr())
-			location.throwError("Can't assign static constant to a dynamic expression");
-
-		return expr->getConstExprValue();
-	}
+	VariableStorage parseConstExpression(bool isTemplateArgument);
 
 	ComplexType::Ptr getCurrentComplexType() const { return currentTypeInfo.getTypedIfComplexType<ComplexType>(); }
 
@@ -537,6 +555,7 @@ public:
 
 	TypeInfo getDotParentType(ExprPtr e);
 
+	NamespacedIdentifier getDotParentName(ExprPtr e);
 	
 	void parseUsingAlias();
 
@@ -569,6 +588,8 @@ private:
 	WeakReference<Operations::ScopeStatementBase> currentScopeStatement;
 	
 };
+
+
 
 
 

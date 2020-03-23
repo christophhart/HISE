@@ -273,7 +273,11 @@ juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, Initiali
 			{
 				if (ts.s.typeInfo.isComplexType())
 				{
-					return ts.s.typeInfo.getComplexType()->initialise(ts.data, initValues);
+					ComplexType::InitData d;
+					d.dataPointer = ts.data;
+					d.initValues = initValues;
+
+					return ts.s.typeInfo.getComplexType()->initialise(d);
 				}
 				else
 				{
@@ -351,13 +355,21 @@ juce::Result RootClassData::initSubClassMembers(ComplexType::Ptr type, const Ide
 					else
 					{
 						auto memberType = structType->getMemberComplexType(memberId);
-						auto ptr = ComplexType::getPointerWithOffset(dataPointer, offset);
-						memberType->initialise(ptr, initList);
+
+						ComplexType::InitData d;
+						d.dataPointer = ComplexType::getPointerWithOffset(dataPointer, offset);
+						d.initValues = initList;
+
+						memberType->initialise(d);
 						return false;
 					}
 				}
 
-				p->initialise(dataPointer, initList);
+				ComplexType::InitData d;
+				d.dataPointer = dataPointer;
+				d.initValues = initList;
+
+				p->initialise(d);
 
 				return false;
 			}, type, ts.data);

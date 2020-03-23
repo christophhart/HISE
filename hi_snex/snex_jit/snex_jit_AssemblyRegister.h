@@ -42,6 +42,23 @@ class SyntaxTree;
 class BlockScope;
 class BaseScope;
 
+struct AssemblyMemory
+{
+	AssemblyMemory cloneWithOffset(int offset)
+	{
+		AssemblyMemory c;
+		c.cc = cc;
+		c.memory = memory.cloneAdjusted(offset);
+		return c;
+	}
+
+	X86Mem memory;
+	void* cc = nullptr;
+};
+
+#define GET_COMPILER_FROM_INIT_DATA(initData) *static_cast<asmjit::X86Compiler*>(initData.asmPtr->cc);
+
+
 /** A high level, reference counted assembly register. */
 class AssemblyRegister : public ReferenceCountedObject
 {
@@ -101,7 +118,7 @@ public:
 
 	bool canBeReused() const;
 
-	Types::ID getType() const { return type.getType(); }
+	Types::ID getType() const;
 
 	TypeInfo getTypeInfo() const { return type; }
 
@@ -152,6 +169,8 @@ public:
 	void setCustomMemoryLocation(X86Mem newLocation, bool isGlobalMemory);
 
 	void setDataPointer(void* memLoc);
+
+	void setImmediateValue(int64 value);
 
 	void setIsIteratorRegister(bool isIterator)
 	{

@@ -51,9 +51,20 @@ END_JUCE_MODULE_DECLARATION
 ******************************************************************************/
 
 
-/* TODO Rewrite:
+/* TODO Roadmap:
 
-- update readme
+
+- make 'wrap_index', 'zero_index', 'clamp_index' and 'unsafe_index' types: OK
+- make small objects fit into register (maybe ComplexType::getRegisterType()) (small_object_register.h)
+- remove Types::ID::Block (or replace with Dyn)
+
+
+- make good API for syntax replacements
+
+- fix processSingle stuff
+
+- make parameter stuff
+- add more native functions (simd(), slice, interleave)
 
 */
 
@@ -85,11 +96,13 @@ Set to 0 to disable SNEX compilation (default on iOS).
 
 #if HISE_INCLUDE_SNEX
 #include "snex_core/snex_Types.h"
+#include "snex_core/snex_ArrayTypes.h"
 #include "snex_core/snex_DynamicType.h"
 #include "snex_core/snex_TypeHelpers.h"
 #include "snex_jit/snex_jit_public.h"
 
 #include "snex_core/snex_CallbackCollection.h"
+#include "snex_jit/snex_jit_NativeDspFunctions.h"
 #include "snex_components/snex_JitPlayground.h"
 #endif
 

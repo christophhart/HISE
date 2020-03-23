@@ -97,6 +97,8 @@ public:
 		return s;
 	}
 
+	
+
 	struct Statement : public ReferenceCountedObject
 	{
 		enum class TextFormat
@@ -122,7 +124,6 @@ public:
 
 		virtual juce::String toString(TextFormat t) const
 		{
-			jassertfalse;
 			return {};
 		}
 
@@ -131,7 +132,16 @@ public:
 		virtual TypeInfo getTypeInfo() const = 0;
 		virtual void process(BaseCompiler* compiler, BaseScope* scope);
 
-		virtual bool hasSideEffect() const { return false; }
+		virtual bool hasSideEffect() const 
+		{ 
+			for (auto s : *this)
+			{
+				if (s->hasSideEffect())
+					return true;
+			}
+
+			return false; 
+		}
 
 		virtual size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const { return 0; }
 
@@ -164,6 +174,15 @@ public:
 
 			childStatements.clear();
 		}
+
+		virtual bool tryToResolveType()
+		{
+			for (auto s : *this)
+				s->tryToResolveType();
+
+			if (getTypeInfo().isValid())
+				return true;
+		};
 
 		virtual Identifier getStatementId() const = 0;
 
@@ -346,6 +365,7 @@ public:
 
 	static bool isOpAssignment(Expression::Ptr p);
 
+	static Expression::Ptr evalConstExpr(Expression::Ptr expr);
 
 	struct Assignment;		struct Immediate;				struct Noop;
 	struct FunctionCall;	struct ReturnStatement;			struct StatementBlock;
@@ -512,6 +532,8 @@ public:
 	static Expression* findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope);
 };
 
+
+
 /** A syntax tree is a list of statements without a parent (so that the SyntaxTreeWalker will look deeper than that. 
 
 It's used by either class definitions or function definition (so that each function has its own syntax tree).
@@ -627,4 +649,57 @@ private:
 };
 
 }
+
+struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
+{
+	ExpressionChild(Operations::Expression* e) :
+		expression(e)
+	{};
+
+	juce::String toString() const override
+	{
+		return expression->toString(Operations::Statement::TextFormat::CppCode);
+	}
+
+	InitialiserList::Ptr createChildList() const override
+	{
+		auto p = new InitialiserList();
+
+		auto e = new ExpressionChild(expression);
+		p->addChild(e);
+		return p;
+	}
+
+	bool getValue(VariableStorage& v) const override
+	{
+		auto cExpression = Operations::evalConstExpr(expression);
+
+		if (cExpression->isConstExpr())
+		{
+			v = cExpression->getConstExprValue();
+			return true;
+		}
+
+		jassertfalse;
+		return false;
+	}
+
+	Operations::Expression::Ptr expression;
+};
+
+juce::ReferenceCountedObject* InitialiserList::getExpression(int index)
+{
+	if (auto child = root[index])
+	{
+		if (auto ec = dynamic_cast<ExpressionChild*>(child.get()))
+		{
+			return ec->expression;
+		}
+	}
+
+	return nullptr;
+}
+
+
+
 }

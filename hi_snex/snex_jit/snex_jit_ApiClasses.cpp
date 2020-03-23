@@ -49,6 +49,7 @@ MathFunctions::MathFunctions() :
 
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::min, int, int, "min");		DESCRIPTION(int, smaller);
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::max, int, int, "max");		DESCRIPTION(int, bigger);
+	HNODE_JIT_ADD_C_FUNCTION_3(int, hmath::range, int, int, int, "range");		DESCRIPTION(int, clamped);
 
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sin, double, "sin");		DESCRIPTION(double, sin);
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::asin, double, "asin");	DESCRIPTION(double, asin);
@@ -172,6 +173,10 @@ MathFunctions::MathFunctions() :
 			FP_OP(cc.movsd, d->target, ARGS(0));
 			FP_OP(cc.maxsd, d->target, ARGS(1));
 		}
+		IF_(int)
+		{
+			jassertfalse;
+		}
 
 		return Result::ok();
 	});
@@ -190,6 +195,10 @@ MathFunctions::MathFunctions() :
 		{
 			FP_OP(cc.movsd, d->target, ARGS(0));
 			FP_OP(cc.minsd, d->target, ARGS(1));
+		}
+		IF_(int)
+		{
+			jassertfalse;
 		}
 
 		return Result::ok();
@@ -211,6 +220,20 @@ MathFunctions::MathFunctions() :
 			FP_OP(cc.movsd, d->target, ARGS(0));
 			FP_OP(cc.maxsd, d->target, ARGS(1));
 			FP_OP(cc.minsd, d->target, ARGS(2));
+		}
+		IF_(int)
+		{
+			auto v = ARGS(0);
+			auto l = ARGS(1);
+			auto u = ARGS(2);
+			auto rv = d->target;
+			rv->createRegister(cc);
+
+			v->loadMemoryIntoRegister(cc);
+			l->loadMemoryIntoRegister(cc);
+			u->loadMemoryIntoRegister(cc);
+
+			Intrinsics::range(cc, INT_REG_W(rv), INT_REG_R(v), INT_REG_R(l), INT_REG_R(u));
 		}
 
 		return Result::ok();
