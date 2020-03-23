@@ -303,11 +303,6 @@ private:
 			currentTypeInfo = TypeInfo(parseComplexType(JitTokens::dyn_));
 			return true;
 		}
-		else if (matchIf(JitTokens::wrap))
-		{
-			currentTypeInfo = TypeInfo(parseComplexType(JitTokens::wrap));
-			return true;
-		}
 		else if (nId.isValid())
 		{
 			if (auto vId = namespaceHandler.getVariadicTypeForId(nId))
@@ -375,21 +370,6 @@ private:
 
 			newType = new SpanType(elementType, size);
 		}
-		else if (token == JitTokens::wrap)
-		{
-			auto sizeValue = parseConstExpression(true);
-
-			int size = (int)sizeValue;
-
-			int spanLimit = 1024 * 1024;
-
-			if (size > spanLimit)
-				location.throwError("Span size can't exceed 1M");
-
-			newType = new WrapType(size);
-
-			match(JitTokens::greaterThan);
-		}
 		else if (token == JitTokens::dyn_)
 		{
 			TypeInfo t;
@@ -411,7 +391,6 @@ private:
 		if (matchIf(JitTokens::double_)) return Types::ID::Double;
 		if (matchIf(JitTokens::block_))	return Types::ID::Block;
 		if (matchIf(JitTokens::void_))	return Types::ID::Void;
-		if (matchIf(JitTokens::wrap))   return Types::ID::Integer;
 		if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
 
 		throwTokenMismatch("Type");

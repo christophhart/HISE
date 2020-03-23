@@ -12,7 +12,7 @@ END_TEST_DATA
 
 int main(int input)
 {
-	wrap<5> d = input;
+	span<int, 5>::wrapped d = input;
 	return d;
 }
 

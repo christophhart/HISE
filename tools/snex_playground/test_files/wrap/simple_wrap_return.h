@@ -10,7 +10,7 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-wrap<8> data = { 13 };
+span<int, 8>::wrapped data = { 13 };
 
 
 int main(int input)

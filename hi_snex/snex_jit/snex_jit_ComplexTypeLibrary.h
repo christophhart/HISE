@@ -36,34 +36,6 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
-
-struct WrapType : public ComplexType
-{
-	enum OpType
-	{
-		Inc,
-		Dec,
-		Set,
-		numOpTypes
-	};
-
-	WrapType(int size_);
-
-	size_t getRequiredByteSize() const override { return 4; }
-	virtual size_t getRequiredAlignment() const override { return 0; }
-	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const override;
-	FunctionClass* getFunctionClass() override;
-	InitialiserList::Ptr makeDefaultInitialiserList() const override;
-	Result initialise(InitData data) override;
-	bool forEach(const TypeFunction&, Ptr, void*) override { return false; }
-	juce::String toStringInternal() const override;
-
-
-	bool isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const override;
-
-	const int size;
-};
-
 struct IndexBase : public ComplexType
 {
 	IndexBase(const TypeInfo& parentType);

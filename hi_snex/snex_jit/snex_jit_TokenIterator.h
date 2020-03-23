@@ -58,7 +58,7 @@ using namespace juce;
 	X(class_, "class")			X(block_, "block")	X(for_, "for") \
 	X(if_, "if")				X(else_, "else")	\
 	X(auto_, "auto")			X(struct_, "struct")	X(span_, "span") \
-	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")	X(break_, "break") \
+	X(using_, "using")		    X(static_, "static")	X(break_, "break") \
 	X(continue_, "continue")	X(dyn_, "dyn")		X(namespace_, "namespace")  
 
 namespace JitTokens
