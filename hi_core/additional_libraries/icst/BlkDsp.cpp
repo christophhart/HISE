@@ -559,7 +559,7 @@ float VectorFunctions::sine(float* d, int size, float periods, float phase,
 						bool center)
 {
 	if (center) {phase -= 0.5f*periods;}
-	float endphase = phase + periods; endphase -= floorf(endphase);
+	float endphase = phase + periods; endphase -= floor(endphase);
 	if (size == 1) {d[0] = sinf(2.0f*M_PI_FLOAT*phase); return endphase;}
 	double temp = 2.0*M_PI_DOUBLE*static_cast<double>(phase);
 	double re2, re = cos(temp), im = sin(temp);
@@ -587,7 +587,7 @@ float VectorFunctions::sine(float* d, int size, float periods, float phase,
 float VectorFunctions::chirp(float* d, int size, float startpd, float endpd, 
 					float phase)
 {
-	float endphase = phase + 0.5f*(startpd+endpd); endphase -= floorf(endphase);
+	float endphase = phase + 0.5f*(startpd+endpd); endphase -= floor(endphase);
 	if (size == 1) {d[0] = sinf(2.0f*M_PI_FLOAT*phase); return endphase;}
 	double temp = 1.0/static_cast<double>(size-1);
 	double alpha = 2.0*M_PI_DOUBLE*static_cast<double>(startpd)*temp;
@@ -653,7 +653,7 @@ float VectorFunctions::cpxphasor(float* d, int size, float periods, float phase,
 						bool center)
 {
 	if (center) {phase -= 0.5f*periods;}
-	float endphase = phase + periods; endphase -= floorf(endphase);
+	float endphase = phase + periods; endphase -= floor(endphase);
 	double temp = 2.0*M_PI_DOUBLE*static_cast<double>(phase);
 	double re2, re = cos(temp), im = sin(temp);
 	if (size == 1) {
@@ -688,8 +688,8 @@ float VectorFunctions::saw(float* d, int size, float periods, float symmetry,
 					float phase, bool center)
 {
 	if (center) {phase -= 0.5f*periods;}
-	phase -= floorf(phase);
-	float endphase = phase + periods; endphase -= floorf(endphase);
+	phase -= floor(phase);
+	float endphase = phase + periods; endphase -= floor(endphase);
 	double dx=0, x = 2.0*static_cast<double>(phase);
 	if (size > 1) {
 		dx = 2.0*static_cast<double>(periods)/static_cast<double>(size-1);
@@ -4953,7 +4953,7 @@ void VectorFunctions::unwrap(float* d, int size)
 			}
 		}
 		else {
-			tmp = TWOPI*floorf((tmp + M_PI_FLOAT)/TWOPI*(1.0f - FLT_EPSILON));
+			tmp = TWOPI*floor((tmp + M_PI_FLOAT)/TWOPI*(1.0f - FLT_EPSILON));
 			if (delta > M_PI_FLOAT) {
 				offset -= tmp; delta -= tmp;
 				if (delta > M_PI_FLOAT) {offset -= TWOPI; delta -= TWOPI;}

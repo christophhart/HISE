@@ -2747,6 +2747,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getSampler);
 	API_METHOD_WRAPPER_1(Synth, getSlotFX);
 	API_METHOD_WRAPPER_1(Synth, getEffect);
+	API_METHOD_WRAPPER_1(Synth, getAllEffects);
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
 	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
@@ -2815,6 +2816,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getSampler);
 	ADD_API_METHOD_1(getSlotFX);
 	ADD_API_METHOD_1(getEffect);
+	ADD_API_METHOD_1(getAllEffects);
 	ADD_API_METHOD_1(getRoutingMatrix);
 	ADD_API_METHOD_1(getMidiProcessor);
 	ADD_API_METHOD_1(getChildSynth);
@@ -3384,6 +3386,31 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 		reportIllegalCall("getEffect()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptEffect(getScriptProcessor(), nullptr))
 	}
+}
+
+
+var ScriptingApi::Synth::getAllEffects(String regex)
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
+	if(getScriptProcessor()->objectsCanBeCreated())
+	{
+	    Array<var> list;
+	    
+		Processor::Iterator<EffectProcessor> it(owner);
+
+		EffectProcessor *fx;
+
+		while((fx = it.getNextProcessor()) != nullptr)
+		{
+			if (RegexFunctions::matchesWildcard(regex, fx->getId()))
+			{
+				list.add(new ScriptEffect(getScriptProcessor(), fx));
+			}
+		}
+
+        return var(list);
+    }
 }
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)

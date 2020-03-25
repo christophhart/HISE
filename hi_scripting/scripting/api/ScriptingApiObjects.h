@@ -993,6 +993,9 @@ public:
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
+        /** Returns the ID of the attribute with the given index. */
+		String getAttributeId(int index);
+		
 		/** Bypasses the MidiProcessor. */
 		void setBypassed(bool shouldBeBypassed);;
 

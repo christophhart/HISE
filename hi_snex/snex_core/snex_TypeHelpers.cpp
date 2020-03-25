@@ -268,8 +268,13 @@ juce::String Types::Helpers::getCppValueString(const var& v, ID type)
 
 		double dValue = (double)v;
 
-		if (fmodf(v, 1.0f) == 0.0f)
+<<<<<<< HEAD
+		if (fmod(v, 1.0f) == 0.0f)
 			value << juce::String(static_cast<int>(dValue)) << ".0";
+=======
+		if (fmod(v, 1.0f) == 0.0f)
+			value << String(static_cast<int>(dValue)) << ".0";
+>>>>>>> getAllFunctions
 		else
 		{
 			value << dValue;

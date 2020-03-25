@@ -2004,6 +2004,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptingMidiProcessor, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingMidiProcessor, getAttribute);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getNumAttributes);
+	API_METHOD_WRAPPER_1(ScriptingMidiProcessor, getAttributeId);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
@@ -2043,6 +2044,7 @@ mp(mp_)
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
+	ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_0(asMidiPlayer);
 }
 
@@ -2110,6 +2112,14 @@ int ScriptingObjects::ScriptingMidiProcessor::getNumAttributes() const
 	}
 
 	return 0;
+}
+
+String ScriptingObjects::ScriptingMidiProcessor::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return mp->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
 }
 
 void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed)
