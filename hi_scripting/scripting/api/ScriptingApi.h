@@ -746,6 +746,9 @@ public:
 
 		/** Returns the Effect with the supplied name. Can only be called in onInit(). It looks also in all child processors. */
 		ScriptEffect *getEffect(const String &name);
+	
+        /** Returns an array of all effects that match the given regex. */
+        var getAllEffects(String regex);
 
 		/** Returns the MidiProcessor with the supplied name. Can not be the own name! */
 		ScriptMidiProcessor * getMidiProcessor(const String &name);
