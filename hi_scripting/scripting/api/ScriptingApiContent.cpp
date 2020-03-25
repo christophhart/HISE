@@ -3790,6 +3790,7 @@ colour(Colour(0xff777777))
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
 	setMethod("setName", Wrapper::setName);
 	setMethod("getComponent", Wrapper::getComponent);
+	setMethod("getAllComponents", Wrapper::getAllComponents);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("setValuePopupData", Wrapper::setValuePopupData);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
@@ -3841,7 +3842,6 @@ const ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getCompone
 	return nullptr;
 }
 
-
 int ScriptingApi::Content::getComponentIndex(const Identifier &componentName) const
 {
 	for (int i = 0; i < getNumComponents(); i++)
@@ -3854,7 +3854,6 @@ int ScriptingApi::Content::getComponentIndex(const Identifier &componentName) co
 
 	return -1;
 }
-
 
 ScriptingApi::Content::ScriptComboBox *ScriptingApi::Content::addComboBox(Identifier boxName, int x, int y)
 {
@@ -3940,6 +3939,21 @@ var ScriptingApi::Content::getComponent(var componentName)
 	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
 
 	return var();
+}
+
+var ScriptingApi::Content::getAllComponents(String regex)
+{
+	Array<var> list;
+
+	for (int i = 0; i < getNumComponents(); i++)
+	{	    
+		if (RegexFunctions::matchesWildcard(regex, components[i]->getName().toString()))
+		{
+			list.add(var(components[i]));
+		}
+	}
+
+	return var(list);
 }
 
 void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentName, const var &jsonData)
