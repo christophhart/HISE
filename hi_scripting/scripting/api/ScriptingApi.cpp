@@ -1983,6 +1983,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapList);
     API_METHOD_WRAPPER_0(Sampler, getCurrentSampleMapId);
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
+    API_METHOD_WRAPPER_0(Sampler, getNumAttributes);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
     API_METHOD_WRAPPER_1(Sampler, getAttributeId);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setUseStaticMatrix);
@@ -2020,6 +2021,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(loadSampleMap);
     ADD_API_METHOD_0(getCurrentSampleMapId);
 	ADD_API_METHOD_0(getSampleMapList);
+	ADD_API_METHOD_0(getNumAttributes);
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_1(getAttributeId);
     ADD_API_METHOD_2(setAttribute);
@@ -2725,6 +2727,18 @@ var ScriptingApi::Sampler::getSampleMapList() const
 
 
 	return sampleMapNames;
+}
+
+int ScriptingApi::Sampler::getNumAttributes() const
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (checkValidObject())
+	{
+		return s->getNumParameters();
+	}
+
+	return 0;
 }
 
 var ScriptingApi::Sampler::getAttribute(int index) const

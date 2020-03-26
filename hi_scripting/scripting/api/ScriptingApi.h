@@ -560,6 +560,9 @@ public:
         /** Returns the currently loaded sample map. */
         String getCurrentSampleMapId() const;
 
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
+
         /** Gets the attribute with the given index (use the constants for clearer code). */
         var getAttribute(int index) const;
         
