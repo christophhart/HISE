@@ -611,6 +611,9 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+        /** Returns the ID of the attribute with the given index. */
+        String getAttributeId(int index);
+        
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
