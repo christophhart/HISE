@@ -1229,6 +1229,7 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingEffect, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingEffect, getAttribute);
+    API_METHOD_WRAPPER_1(ScriptingEffect, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingEffect, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingEffect, exportState);
@@ -1268,6 +1269,7 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
@@ -1311,6 +1313,14 @@ float ScriptingObjects::ScriptingEffect::getAttribute(int parameterIndex)
     }
 
 	return 0.0f;
+}
+
+String ScriptingObjects::ScriptingEffect::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return effect->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
 }
 
 int ScriptingObjects::ScriptingEffect::getNumAttributes() const
