@@ -551,7 +551,6 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
-
 		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
 		var importSamples(var fileNameList, bool skipExistingSamples);
 
@@ -563,6 +562,9 @@ public:
 
         /** Gets the attribute with the given index (use the constants for clearer code). */
         var getAttribute(int index) const;
+        
+        /** Returns the ID of the attribute with the given index. */
+		String getAttributeId(int index);
 
         /** Sets a attribute to the given value. */
         void setAttribute(int index, var newValue);
