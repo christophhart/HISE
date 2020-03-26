@@ -926,6 +926,9 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
 
+        /** Returns the attribute with the given index. */
+        String getAttributeId(int index);
+
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
         
@@ -1077,6 +1080,9 @@ public:
 
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
+
+        /** Returns the attribute with the given index. */
+        String getAttributeId(int index);
         
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;

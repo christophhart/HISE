@@ -1754,6 +1754,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingSynth, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingSynth, getAttribute);
+    API_METHOD_WRAPPER_1(ScriptingSynth, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingSynth, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, setBypassed);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getChildSynthByIndex);
@@ -1793,6 +1794,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_1(getChildSynthByIndex);
 	ADD_API_METHOD_1(getCurrentLevel);
@@ -1837,6 +1839,14 @@ float ScriptingObjects::ScriptingSynth::getAttribute(int parameterIndex)
     }
 
 	return 0.0f;
+}
+
+String ScriptingObjects::ScriptingSynth::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return synth->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
 }
 
 int ScriptingObjects::ScriptingSynth::getNumAttributes() const
@@ -2215,6 +2225,7 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAttribute);
+    API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleLength);
@@ -2243,6 +2254,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_0(getNumAttributes);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(getSampleLength);
@@ -2268,6 +2280,14 @@ float ScriptingObjects::ScriptingAudioSampleProcessor::getAttribute(int paramete
     }
 
 	return 0.0f;
+}
+
+String ScriptingObjects::ScriptingAudioSampleProcessor::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return audioSampleProcessor->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
 }
 
 int ScriptingObjects::ScriptingAudioSampleProcessor::getNumAttributes() const
