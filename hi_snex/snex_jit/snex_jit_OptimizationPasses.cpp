@@ -428,7 +428,7 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 	{
 		MathFunctions m;
 
-		if (auto t = dynamic_cast<Operations::VariableReference*>(functionCall->objExpr.get()))
+		if (auto t = dynamic_cast<Operations::VariableReference*>(functionCall->getObjectExpression().get()))
 		{
 			if (!(t->id.id == m.getClassName()))
 				return nullptr;
@@ -628,15 +628,17 @@ bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scop
 
 	if (fc->callType == Operations::FunctionCall::MemberFunction)
 	{
-		jassert(fc->objExpr != nullptr);
+		auto fObjectExpr = fc->getObjectExpression();
+
+		jassert(fObjectExpr != nullptr);
 
 		auto thisSymbol = Symbol("this");
 
-		Operations::Expression::Ptr e = as<Operations::Expression>(fc->objExpr->clone(fc->location).get());
+		Operations::Expression::Ptr e = as<Operations::Expression>(fObjectExpr->clone(fc->location).get());
 
 		cs->addInlinedParameter(-1, thisSymbol, e);
 
-		if (auto st = fc->objExpr->getTypeInfo().getTypedIfComplexType<StructType>())
+		if (auto st = fObjectExpr->getTypeInfo().getTypedIfComplexType<StructType>())
 		{
 			clone->forEachRecursive([st, e](Operations::Statement::Ptr p)
 			{
@@ -1071,6 +1073,119 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 			}
 		}
 	}
+}
+
+bool LoopOptimiser::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
+{
+	if (auto l = as<Operations::Loop>(statement))
+	{
+		COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
+		{
+			if (unroll(l))
+			{
+				l = nullptr;
+
+				return true;
+			}
+
+		}
+	}
+
+	
+
+	return false;
+}
+
+bool LoopOptimiser::unroll(Operations::Loop* l)
+{
+	auto hasControlFlow = l->forEachRecursive([](Ptr p)
+	{
+		return as<Operations::ControlFlowStatement>(p) != nullptr;
+	});
+		
+	if (hasControlFlow)
+		return false;
+
+
+
+	auto t = l->getTarget();
+	
+	t->tryToResolveType();
+
+	if (auto st = l->getTarget()->getTypeInfo().getTypedIfComplexType<SpanType>())
+	{
+		int numLoops = st->getNumElements();
+
+		if (SpanType::isSimdType(st->getElementType()))
+		{
+			return false;
+		}
+
+		
+
+		if (numLoops <= 8)
+		{
+			Ptr lp = new Operations::StatementBlock(l->location, l->location.createAnonymousScopeId());
+			Ptr target = l->getTarget();
+
+			for (int i = 0; i < numLoops; i++)
+			{
+				auto cb = l->getLoopBlock()->clone(l->location);
+
+				auto iteratorSymbol = l->iterator;
+
+				auto thisIndex = i;
+
+				cb->forEachRecursive([this, iteratorSymbol, thisIndex, target](Ptr f)
+				{
+					
+
+					if (auto v = as<Operations::VariableReference>(f))
+					{
+						if (v->id == iteratorSymbol)
+						{
+							auto imm = new Operations::Immediate(f->location, VariableStorage(thisIndex));
+							auto sus = new Operations::Subscript(f->location, target, imm);
+							f->replaceInParent(sus);
+						}
+					}
+
+					
+
+					return false;
+				});
+
+				cb->forEachRecursive([this, iteratorSymbol, thisIndex, target](Ptr f)
+				{
+					if (auto sl = as<Operations::Loop>(f))
+					{
+						unroll(sl);
+					}
+
+					return false;
+				});
+
+				
+
+				lp->addStatement(cb);
+
+				
+
+			}
+
+			replaceExpression(l, lp);
+
+			l->parent = nullptr;
+
+			return true;
+		}
+
+		return false;
+
+		
+	}
+
+	return false;
 }
 
 }

@@ -39,8 +39,9 @@ using namespace asmjit;
 
 static int counter = 0;
 
-AssemblyRegister::AssemblyRegister(TypeInfo type_) :
-	type(type_)
+AssemblyRegister::AssemblyRegister(BaseCompiler* compiler_, TypeInfo type_) :
+	type(type_),
+	compiler(compiler_)
 {
 	debugId = counter++;
 }
@@ -132,12 +133,7 @@ bool AssemblyRegister::canBeReused() const
 
 snex::Types::ID AssemblyRegister::getType() const
 {
-	if (auto ct = type.getTypedIfComplexType<ComplexType>())
-	{
-		return ct->getRegisterType();
-	}
-
-	return type.getType();
+	return compiler->getRegisterType(type);
 }
 
 void* AssemblyRegister::getGlobalDataPointer()
@@ -178,7 +174,11 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 	jassert(scope != nullptr);
 
 	if (isGlobalMemory())
+	{
 		dirty = true;
+		state = DirtyGlobalRegister;
+	}
+		
 
 	if (id)
 	{
@@ -191,7 +191,7 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 		auto scopeType = sToUse->getScopeType();
 
-		if (!isIter && (scopeType == BaseScope::Class || id.isReference()))
+		if (!isIter && (sToUse->getRootClassScope() == sToUse || id.isReference()))
 		{
 			dirty = true;
 			state = DirtyGlobalRegister;
@@ -481,7 +481,8 @@ void AssemblyRegister::setUndirty()
 	state = ActiveRegister;
 }
 
-AssemblyRegisterPool::AssemblyRegisterPool()
+AssemblyRegisterPool::AssemblyRegisterPool(BaseCompiler* c):
+	compiler(c)
 {
 }
 
@@ -533,7 +534,7 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getActiveRegisterF
 		}
 	}
 
-	return nullptr;
+	return regWithCustomMem;
 }
 
 void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
@@ -547,11 +548,9 @@ void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
 
 AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope, TypeInfo type)
 {
-	
-
 	for (auto r : currentRegisterPool)
 	{
-		if (r->getType() == type.getRegisterType() && r->canBeReused())
+		if (r->getType() == compiler->getRegisterType(type) && r->canBeReused())
 		{
 			r->clearForReuse();
 			r->scope = scope;
@@ -560,7 +559,7 @@ AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope
 		}
 	}
 
-	RegPtr newReg = new AssemblyRegister(type);
+	RegPtr newReg = new AssemblyRegister(compiler, type);
 	newReg->scope = scope;
 
 	currentRegisterPool.add(newReg);
@@ -604,6 +603,11 @@ AssemblyRegisterPool::RegList AssemblyRegisterPool::getListOfAllNamedRegisters()
 	}
 
 	return list;
+}
+
+snex::Types::ID AssemblyRegisterPool::getRegisterType(const TypeInfo& t) const
+{
+	return compiler->getRegisterType(t);
 }
 
 }

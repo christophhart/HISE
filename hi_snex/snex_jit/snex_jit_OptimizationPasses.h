@@ -103,17 +103,19 @@ public:
 	}
 
     /** Short helper tool to check Types. */
-    template <class T> T* as(StatementPtr obj)
+    template <class T> static T* as(StatementPtr obj)
     {
         return dynamic_cast<T*>(obj.get());
     }
 };
 
-    
+  
+
     
 #define OPTIMIZATION_FACTORY(id, x) static Identifier getStaticId() { return id; } \
 static BaseCompiler::OptimizationPassBase* create() { return new x(); } \
 juce::String getName() const override { return getStaticId().toString(); };
+
 
     /** TODO: Optimizations:
      
@@ -228,6 +230,19 @@ public:
 	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 };
 
+class LoopOptimiser : public OptimizationPass
+{
+	using Ptr = Operations::Statement::Ptr;
+
+public:
+
+	OPTIMIZATION_FACTORY(OptimizationIds::LoopOptimisation, LoopOptimiser);
+
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+
+	bool unroll(Operations::Loop* l);
+};
+
 class FunctionInliner: public OptimizationPass
 {
 public:
@@ -255,6 +270,7 @@ struct OptimizationFactory
 		registerOptimization<DeadcodeEliminator>();
 		registerOptimization<BinaryOpOptimizer>();
 		registerOptimization<ConstExprEvaluator>();
+		registerOptimization<LoopOptimiser>();
 	}
 
 	struct Entry

@@ -259,7 +259,11 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
 
-	virtual Types::ID getRegisterType() const { return Types::ID::Pointer; }
+	virtual Types::ID getRegisterType(bool allowSmallObjectOptimisation) const 
+	{ 
+		ignoreUnused(allowSmallObjectOptimisation);
+		return Types::ID::Pointer; 
+	}
 
 	/** Override this, check if the type matches and call the function for itself and each member recursively and abort if t returns true. */
 	virtual bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) = 0;
@@ -487,10 +491,10 @@ struct TypeInfo
 		type = newType;
 	}
 
-	Types::ID getRegisterType() const noexcept
+	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const noexcept
 	{
 		if (isComplexType())
-			return getComplexType()->getRegisterType();
+			return getComplexType()->getRegisterType(allowSmallObjectOptimisation);
 
 		return getType();
 	}
@@ -864,7 +868,13 @@ struct FunctionData
 	template <typename... Parameters> void callVoid(Parameters... ps) const
 	{
 		if (function != nullptr)
-			callVoidUnchecked(ps...);
+		{
+			if (object != nullptr)
+				callVoidUnchecked(object, ps...);
+			else
+				callVoidUnchecked(ps...);
+		}
+			
 	}
 
 	template <typename... Parameters> forcedinline void callVoidUnchecked(Parameters... ps) const

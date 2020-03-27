@@ -54,7 +54,7 @@ void AsmCodeGenerator::emitComment(const char* m)
 
 void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 {
-	if (target->hasCustomMemoryLocation())
+	if (target->hasCustomMemoryLocation() && !target->isActive())
 	{
 		if (target->shouldLoadMemoryIntoRegister())
 		{
@@ -73,8 +73,6 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 			IF_(double)		cc.movsd(FP_MEM(target), FP_REG_R(value));
 			IF_(HiseEvent)  cc.mov(INT_MEM(target), INT_REG_R(value));
 		}
-
-		
 	}
 	else
 	{
@@ -340,15 +338,27 @@ void AsmCodeGenerator::emitMemberAcess(RegPtr target, RegPtr parent, RegPtr chil
 {
 	jassert(target->getType() == type);					// the target register with the final type
 	jassert(child->getType() == Types::ID::Integer);	// the index register containing the member offset in pointer sizes
-	jassert(parent->getType() == Types::ID::Pointer);   // the pointer register containing the data slot pointer.
+
+	if (parent->getType() == Types::ID::Pointer)
+	{
+		jassert(parent->getType() == Types::ID::Pointer);   // the pointer register containing the data slot pointer.
 
 	// the child is always an immediate...
-	jassert(child->isMemoryLocation() && !child->hasCustomMemoryLocation());
+		jassert(child->isMemoryLocation() && !child->hasCustomMemoryLocation());
 
-	auto immValue = VariableStorage((int)INT_IMM(child));
+		auto immValue = VariableStorage((int)INT_IMM(child));
 
-	emitThisMemberAccess(target, parent, immValue);
+		emitThisMemberAccess(target, parent, immValue);
+	}
+	else
+	{
+		jassert(target->getType() == parent->getType());
+		target->createRegister(cc);
 
+		IF_(int) INT_OP(cc.mov, target, parent);
+		IF_(float) FP_OP(cc.movss, target, parent);
+		IF_(double) FP_OP(cc.movsd, target, parent);
+	}
 }
 
 void AsmCodeGenerator::emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex)
@@ -611,8 +621,6 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		{
 			bool isDyn = address->getTypeInfo().getTypedComplexType<DynType>();
 
-			cc.setInlineComment("aaa");
-
 			if (address->isMemoryLocation())
 			{
 				auto ptr = address->getAsMemoryLocation();
@@ -810,15 +818,7 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 
 	RegPtr rToUse;
 
-	auto dirtyGlobalList = c->registerPool.getListOfAllDirtyGlobals();
-
-	
-
-	for (auto reg : dirtyGlobalList)
-	{
-		emitMemoryWrite(reg);
-	}
-
+	writeDirtyGlobals(c);
 
 
 	if (expr != nullptr && (expr->isMemoryLocation() || expr->isDirtyGlobalMemory()))
@@ -839,7 +839,7 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 
 	
 
-	dirtyGlobalList.clear();
+	
 
 	if (expr == nullptr || target == nullptr)
 		cc.ret();
@@ -854,6 +854,18 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 	}
 }
 
+
+void AsmCodeGenerator::writeDirtyGlobals(BaseCompiler* c)
+{
+	auto dirtyGlobalList = c->registerPool.getListOfAllDirtyGlobals();
+
+	for (auto reg : dirtyGlobalList)
+	{
+		emitMemoryWrite(reg);
+	}
+
+	dirtyGlobalList.clear();
+}
 
 void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list)
 {
@@ -1146,7 +1158,9 @@ Result AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& 
 	asmjit::FuncSignatureBuilder sig;
 
 	bool isMemberFunction = objectAddress != nullptr;
-	fillSignature(f, sig, isMemberFunction || f.object != nullptr);
+	auto objectType = isMemberFunction ? objectAddress->getType() : Types::ID::Void;
+
+	fillSignature(f, sig, objectType);
 
 	if(objectAddress != nullptr)
 		objectAddress->loadMemoryIntoRegister(cc);
@@ -1525,15 +1539,21 @@ void AsmCodeGenerator::emitLoopControlFlow(Operations::Loop* parentLoop, bool is
 	cc.jmp(l);
 }
 
-void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer)
+void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& sig, Types::ID objectType)
 {
 	if (data.returnType == Types::ID::Float) sig.setRetT<float>();
 	if (data.returnType == Types::ID::Double) sig.setRetT<double>();
 	if (data.returnType == Types::ID::Integer) sig.setRetT<int>();
 	if (data.returnType == Types::ID::Block) sig.setRet(asmjit::Type::kIdIntPtr);
 
-	if (createObjectPointer)
-		sig.addArgT<PointerType>();
+	if (objectType != Types::ID::Void)
+	{
+		if(objectType == Types::ID::Integer) sig.addArgT<int>();
+		if (objectType == Types::ID::Float) sig.addArgT<float>();
+		if (objectType == Types::ID::Double) sig.addArgT<double>();
+		if (objectType == Types::ID::Pointer) sig.addArgT<PointerType>();
+	}
+		
 
 	for (auto p : data.args)
 	{
@@ -1568,17 +1588,19 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	auto unrollLoop = numLoops <= 4;
 	
 	
-
+	AsmCodeGenerator::TemporaryRegister start(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
 	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
 
 	auto& cc = gen.cc;
 
-	cc.setInlineComment("funky");
-	loopTarget->loadMemoryIntoRegister(cc, true);
-
 	auto offset = typePtr->getElementSize() * (typePtr->getNumElements());
 
-	cc.lea(end.get(), x86::ptr(PTR_REG_R(loopTarget), offset));
+	if (loopTarget->isMemoryLocation())
+		cc.lea(start.get(), loopTarget->getAsMemoryLocation());
+	else
+		cc.mov(start.get(), PTR_REG_R(loopTarget));
+	
+	cc.lea(end.get(), x86::ptr(start.get(), offset));
 
 	auto loopStart = cc.newLabel();
 	continuePoint = cc.newLabel();
@@ -1592,17 +1614,19 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	cc.setInlineComment("loop_span {");
 	cc.bind(loopStart);
 
+	
 	if (loadIterator)
 	{
-		IF_(int)    cc.mov(INT_REG_W(itReg), x86::ptr(PTR_REG_R(loopTarget)));
-		IF_(float)  cc.movss(FP_REG_W(itReg), x86::ptr(PTR_REG_R(loopTarget)));
-		IF_(double) cc.movsd(FP_REG_W(itReg), x86::ptr(PTR_REG_R(loopTarget)));
+
+		IF_(int)    cc.mov(INT_REG_W(itReg), x86::ptr(start.get()));
+		IF_(float)  cc.movss(FP_REG_W(itReg), x86::ptr(start.get()));
+		IF_(double) cc.movsd(FP_REG_W(itReg), x86::ptr(start.get()));
 		IF_(void*)
 		{
 			if (itReg->isSimd4Float())
-				cc.movaps(FP_REG_W(itReg), x86::ptr(PTR_REG_R(loopTarget)));
+				cc.movaps(FP_REG_W(itReg), x86::ptr(start.get()));
 			else
-				cc.mov(PTR_REG_W(itReg), PTR_REG_R(loopTarget));
+				cc.mov(PTR_REG_W(itReg), start.get());
 		}
 	}
 
@@ -1614,13 +1638,13 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 
 	if (itReg->isDirtyGlobalMemory())
 	{
-		IF_(int)    cc.mov(x86::ptr(INT_REG_R(loopTarget)), INT_REG_R(itReg));
-		IF_(float)  cc.movss(x86::ptr(INT_REG_R(loopTarget)), FP_REG_R(itReg));
-		IF_(double) cc.movsd(x86::ptr(INT_REG_R(loopTarget)), FP_REG_R(itReg));
+		IF_(int)    cc.mov(x86::ptr(start.get()), INT_REG_R(itReg));
+		IF_(float)  cc.movss(x86::ptr(start.get()), FP_REG_R(itReg));
+		IF_(double) cc.movsd(x86::ptr(start.get()), FP_REG_R(itReg));
 		IF_(void*)
 		{
 			if (itReg->isSimd4Float())
-				cc.movaps(x86::ptr(INT_REG_R(loopTarget)), FP_REG_R(itReg));
+				cc.movaps(x86::ptr(start.get()), FP_REG_R(itReg));
 			else
 				jassertfalse; // cc.mov(x86::ptr(INT_REG_R(loopTarget), INT_REG_W(itReg));
 		}
@@ -1629,8 +1653,8 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 		// no storing needed for pointer iterators...
 	}
 
-	cc.add(INT_REG_W(loopTarget), (int64_t)typePtr->getElementSize());
-	cc.cmp(INT_REG_R(loopTarget), end.get());
+	cc.add(start.get(), (int64_t)typePtr->getElementSize());
+	cc.cmp(start.get(), end.get());
 	cc.setInlineComment("loop_span }");
 	cc.jne(loopStart);
 
@@ -1638,9 +1662,6 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 
 	itReg->setUndirty();
 	itReg->flagForReuse(true);
-
-	if(loopTarget->isDirtyGlobalMemory())
-		loopTarget->setUndirty();
 }
 
 void BlockLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)

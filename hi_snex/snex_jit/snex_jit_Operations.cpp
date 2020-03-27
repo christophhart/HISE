@@ -40,7 +40,7 @@ using namespace asmjit;
 
 void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	Statement::process(compiler, scope);
+	processBaseWithoutChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::FunctionParsing)
 	{
@@ -131,9 +131,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 				{
 					auto d = b->toSyntaxTreeData();
 
-					DBG("Inlining function with syntax tree");
-					DBG(dynamic_cast<SyntaxTree*>(statementCopy.get())->dump());
-
 					auto fc = dynamic_cast<Operations::FunctionCall*>(d->expression.get());
 					jassert(fc != nullptr);
 					d->target = statementCopy->clone(d->location);
@@ -216,7 +213,9 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class;
 
-		AsmCodeGenerator::fillSignature(data, sig, hasObjectPtr);
+		auto objectType = hasObjectPtr ? compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get())) : Types::ID::Void;
+
+		AsmCodeGenerator::fillSignature(data, sig, objectType);
 		cc->addFunc(sig);
 
 		dynamic_cast<ClassCompiler*>(compiler)->setFunctionCompiler(cc);
@@ -225,11 +224,9 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (hasObjectPtr)
 		{
-			//TypeInfo objectType(dynamic_cast<ClassScope*>(scope)->typePtr.get());
-
-			objectPtr = compiler->registerPool.getNextFreeRegister(functionScope, TypeInfo(Types::ID::Pointer, true));
-
-			auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
+			auto rType = compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get()));
+			objectPtr = compiler->registerPool.getNextFreeRegister(functionScope, TypeInfo(rType, true));
+			auto asg = CREATE_ASM_COMPILER(rType);
 			asg.emitParameter(this, objectPtr, -1);
 		}
 
@@ -291,7 +288,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 {
 	jassert(parent != nullptr);
 
-	Expression::process(compiler, scope);
+	processBaseWithChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
@@ -439,8 +436,6 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 	{
 		if (objectExpression != nullptr && objectExpression->getType() != Types::ID::Pointer)
 			objectExpression->location.throwError("expression must have class type");
-
-		
 	}
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
@@ -487,9 +482,24 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				{
 					if (auto pf = dynamic_cast<Function*>(fs->parentFunction))
 					{
+						if (auto cs = dynamic_cast<ClassScope*>(variableScope.get()))
+						{
+							if (cs->typePtr != nullptr && compiler->fitsIntoNativeRegister(cs->typePtr))
+							{
+								auto ot = pf->objectPtr->getType();
+								auto dt = compiler->getRegisterType(TypeInfo(cs->typePtr.get()));
+								jassert(ot == dt);
+								reg = pf->objectPtr;
+								return;
+							}
+						}
+
 						reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
 						reg->setReference(scope, id);
 						auto acg = CREATE_ASM_COMPILER(getType());
+
+						
+
 						acg.emitThisMemberAccess(reg, pf->objectPtr, objectAdress);
 						return;
 					}
@@ -498,6 +508,16 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 			if (!objectAdress.isVoid() || objectExpression != nullptr)
 			{
+				if (objectExpression != nullptr && compiler->fitsIntoNativeRegister(objectExpression->getTypeInfo().getComplexType()))
+				{
+					auto t = compiler->getRegisterType(getTypeInfo());
+					auto ot = compiler->getRegisterType(objectExpression->getTypeInfo());
+
+					jassert(ot == t);
+
+					return;
+				}
+				
 				// the object address is either the pointer to the object or a offset to the
 				// given objectPointer
 				jassert((objectAdress.getType() == Types::ID::Pointer && objectExpression == nullptr) || 
@@ -588,11 +608,11 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 	if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration ||
 		compiler->getCurrentPass() == BaseCompiler::DataAllocation)
 	{
-		Statement::process(compiler, scope);
+		processBaseWithoutChildren(compiler, scope);
 	}
 	else
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 	}
 
 	auto e = getSubExpr(0);
@@ -850,7 +870,7 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 
 void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	Expression::processChildrenIfNotCodeGen(compiler, scope);
+	processChildrenIfNotCodeGen(compiler, scope);
 
 	if (getDotChild()->isConstExpr())
 	{
@@ -872,8 +892,6 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 
 	if(isCodeGenPass(compiler))
 	{
-
-
 		auto abortFunction = []()
 		{
 
@@ -885,17 +903,25 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (auto vp = dynamic_cast<SymbolStatement*>(getDotChild().get()))
 		{
-			reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
-			reg->setReference(scope, vp->getSymbol());
+			if (compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType()))
+				reg = getSubRegister(0);
+			else
+			{
+				reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
+				reg->setReference(scope, vp->getSymbol());
+
+				auto acg = CREATE_ASM_COMPILER(getType());
+
+				auto p = getSubRegister(0);
+				auto c = getSubRegister(1);
+
+				acg.emitMemberAcess(reg, p, c);
+
+				Expression::replaceMemoryWithExistingReference(compiler);
+			}
+
 			
-			auto acg = CREATE_ASM_COMPILER(getType());
-
-			auto p = getSubRegister(0);
-			auto c = getSubRegister(1);
-
-			acg.emitMemberAcess(reg, p, c);
-
-			Expression::replaceMemoryWithExistingReference(compiler);
+			
 		}
 		else
 		{
@@ -906,13 +932,13 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 
 void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	Expression::process(compiler, scope);
+	processBaseWithChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
-		if (objExpr != nullptr && function.id == NamespacedIdentifier("toSimd"))
+		if (hasObjectExpression && function.id == NamespacedIdentifier("toSimd"))
 		{
-			auto sc = new CastedSimd(location, objExpr);
+			auto sc = new CastedSimd(location, getObjectExpression());
 
 			replaceInParent(sc);
 			sc->process(compiler, scope);
@@ -925,7 +951,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		if (callType != Unresolved)
 			return;
 
-		if (objExpr == nullptr)
+		if (!hasObjectExpression)
 		{
 			// Functions without parent
 
@@ -957,9 +983,9 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				throwError("Fuuck");
 		}
 
-		if (objExpr->getTypeInfo().isComplexType())
+		if (getObjectExpression()->getTypeInfo().isComplexType())
 		{
-			if (fc = objExpr->getTypeInfo().getComplexType()->getFunctionClass())
+			if (fc = getObjectExpression()->getTypeInfo().getComplexType()->getFunctionClass())
 			{
 				ownedFc = fc.get();
 
@@ -970,11 +996,12 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 				fc->addMatchingFunctions(possibleMatches, function.id);
 				callType = MemberFunction;
+
 				return;
 			}
 		}
 
-		if (auto ss = dynamic_cast<SymbolStatement*>(objExpr.get()))
+		if (auto ss = dynamic_cast<SymbolStatement*>(getObjectExpression().get()))
 		{
 			auto symbol = ss->getSymbol();
 
@@ -1019,7 +1046,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		Array<TypeInfo> parameterTypes;
 
 		for (int i = 0; i < getNumArguments(); i++)
-			parameterTypes.add(getArgument(i)->getTypeInfo());
+			parameterTypes.add(compiler->convertToNativeTypeIfPossible(getArgument(i)->getTypeInfo()));
 
 		for (auto& f : possibleMatches)
 		{
@@ -1034,7 +1061,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 					auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
 
 					SyntaxTreeInlineData d(this, path);
-					d.object = objExpr;
+					d.object = getObjectExpression();
 					
 					for (int i = 0; i < getNumArguments(); i++)
 						d.args.add(getArgument(i));
@@ -1140,7 +1167,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (!function)
 			{
-				fc = objExpr->getTypeInfo().getComplexType()->getFunctionClass();
+				fc = getObjectExpression()->getTypeInfo().getComplexType()->getFunctionClass();
 				ownedFc = fc;
 			}
 				
@@ -1231,7 +1258,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		if (function.functionName.isEmpty())
 			function.functionName = function.getSignature({});
 
-		auto r = asg.emitFunctionCall(reg, function, objExpr != nullptr ? objExpr->reg : nullptr, parameterRegs);
+		auto r = asg.emitFunctionCall(reg, function, hasObjectExpression ? getObjectExpression()->reg : nullptr, parameterRegs);
 
 		if (!r.wasOk())
 			location.throwError(r.getErrorMessage());
@@ -1259,7 +1286,7 @@ void Operations::FunctionCall::inlineFunctionCall(AsmCodeGenerator& asg)
 {
 	AsmInlineData d(asg);
 	d.target = reg;
-	d.object = objExpr != nullptr ? objExpr->reg : nullptr;
+	d.object = hasObjectExpression ? getObjectExpression()->reg : nullptr;
 	d.templateParameters = function.templateParameters;
 
 	for (int i = 0; i < getNumArguments(); i++)
@@ -1298,7 +1325,7 @@ snex::jit::Operations::Statement::Ptr Operations::InlinedParameter::clone(Locati
 
 void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	Expression::process(compiler, scope);
+	processBaseWithChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 	{
@@ -1399,7 +1426,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 			}
 			else
 			{
-				auto acg = CREATE_ASM_COMPILER(type.getRegisterType());
+				auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(type));
 
 				FunctionData overloadedAssignOp;
 
@@ -1450,7 +1477,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 
 void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	Expression::process(compiler, scope);
+	processBaseWithChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
@@ -1471,7 +1498,7 @@ void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (sourceType.isComplexType())
 		{
-			if (sourceType.getComplexType()->getRegisterType() == getType())
+			if (compiler->getRegisterType(sourceType) == getType())
 			{
 				reg = getSubRegister(0);
 				return;

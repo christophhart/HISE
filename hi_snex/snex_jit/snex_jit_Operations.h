@@ -78,7 +78,7 @@ struct Operations::InlinedArgument : public Expression,
 	Statement::Ptr clone(Location l) const override
 	{
 		auto c1 = getSubExpr(0)->clone(l);
-		auto n = new InlinedArgument(l, argIndex, s, dynamic_cast<Expression*>(c1.get()));
+		auto n = new InlinedArgument(l, argIndex, s, c1);
 		return n;
 	}
 
@@ -91,7 +91,7 @@ struct Operations::InlinedArgument : public Expression,
 	{
 		jassert(scope->getScopeType() == BaseScope::Anonymous);
 
-		Expression::processChildrenIfNotCodeGen(compiler, scope);
+		processChildrenIfNotCodeGen(compiler, scope);
 
 		if(isCodeGenPass(compiler))
 		{
@@ -249,7 +249,7 @@ struct Operations::StatementBlock : public Expression,
 	{
 		auto bs = createOrGetBlockScope(scope);
 
-		Expression::process(compiler, bs);
+		processBaseWithChildren(compiler, bs);
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{
@@ -284,7 +284,7 @@ struct Operations::Noop : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
-		Statement::process(compiler, scope);
+		processBaseWithoutChildren(compiler, scope);
 	}
 
 	TypeInfo getTypeInfo() const override { return {}; };
@@ -316,7 +316,7 @@ struct Operations::Immediate : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithoutChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
@@ -376,7 +376,7 @@ struct Operations::InlinedParameter : public Expression,
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::RegisterAllocation)
 		{
@@ -428,7 +428,7 @@ struct Operations::VariableReference : public Expression,
 
 	ValueTree toValueTree() const override
 	{
-		auto t = Expression::toValueTree();
+		auto t = Statement::toValueTree();
 		t.setProperty("Symbol", id.toString(), nullptr);
 		return t;
 	}
@@ -674,7 +674,7 @@ struct Operations::Cast : public Expression
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		auto cc = getSubExpr(0)->clone(l);
-		return new Cast(l, dynamic_cast<Expression*>(cc.get()), targetType.getType());
+		return new Cast(l, cc, targetType.getType());
 	}
 
 	ValueTree toValueTree() const override
@@ -710,7 +710,7 @@ struct Operations::DotOperator : public Expression
 	{
 		auto cp = getSubExpr(0)->clone(l);
 		auto cc = getSubExpr(1)->clone(l);
-		return new DotOperator(l, dynamic_cast<Expression*>(cp.get()), dynamic_cast<Expression*>(cc.get()));
+		return new DotOperator(l, cp, cc);
 	}
 
 	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("Dot"); }
@@ -788,7 +788,7 @@ struct Operations::Assignment : public Expression,
 	{
 		auto ce = getSubExpr(0)->clone(l);
 		auto ct = getSubExpr(1)->clone(l);
-		return new Assignment(l, dynamic_cast<Expression*>(ct.get()), assignmentType, dynamic_cast<Expression*>(ce.get()), isFirstAssignment);
+		return new Assignment(l, ct, assignmentType, ce, isFirstAssignment);
 	}
 
 	ValueTree toValueTree() const override
@@ -855,7 +855,7 @@ struct Operations::Compare : public Expression
 	{
 		auto c1 = getSubExpr(0)->clone(l);
 		auto c2 = getSubExpr(1)->clone(l);
-		return new Compare(l, dynamic_cast<Expression*>(c1.get()), dynamic_cast<Expression*>(c2.get()), op);
+		return new Compare(l, c1, c2, op);
 	}
 
 	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("Comparison"); }
@@ -875,7 +875,7 @@ struct Operations::Compare : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
@@ -937,7 +937,7 @@ struct Operations::LogicalNot : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
@@ -961,7 +961,7 @@ public:
 
 	SET_EXPRESSION_ID(TernaryOp);
 
-	TernaryOp(Location l, Expression::Ptr c, Expression::Ptr t, Expression::Ptr f) :
+	TernaryOp(Location l, Ptr c, Ptr t, Ptr f) :
 		Expression(l)
 	{
 		addStatement(c);
@@ -974,7 +974,7 @@ public:
 		auto c1 = getSubExpr(0)->clone(l);
 		auto c2 = getSubExpr(1)->clone(l);
 		auto c3 = getSubExpr(2)->clone(l);
-		return new TernaryOp(l, dynamic_cast<Expression*>(c1.get()), dynamic_cast<Expression*>(c2.get()), dynamic_cast<Expression*>(c3.get()));
+		return new TernaryOp(l, c1, c2, c3);
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -987,9 +987,9 @@ public:
 		// We need to have precise control over the code generation
 		// for the subexpressions to avoid execution of both branches
 		if (compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
-			Statement::process(compiler, scope);
+			processBaseWithoutChildren(compiler, scope);
 		else
-			Expression::process(compiler, scope);
+			processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
@@ -1033,7 +1033,7 @@ struct Operations::CastedSimd : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
@@ -1098,11 +1098,7 @@ struct Operations::CastedSimd : public Expression
 
 				auto mem = acg.cc.newStack(simdComplexType.getRequiredByteSize(), simdComplexType.getRequiredAlignment());
 
-				acg.cc.setInlineComment("funky");
-
 				auto target = getSubRegister(0);
-
-				
 
 				auto dataReg = acg.cc.newGpq();
 				auto sizeReg = acg.cc.newGpd();
@@ -1165,18 +1161,31 @@ struct Operations::FunctionCall : public Expression
 
 	void setObjectExpression(Ptr e)
 	{
-		objExpr = e;
+		hasObjectExpression = true;
 		addStatement(e.get(), true);
+	}
+
+	Ptr getObjectExpression() const
+	{
+		if (hasObjectExpression)
+			return getSubExpr(0);
+
+		return nullptr;
 	}
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		auto newFC = new FunctionCall(l, nullptr, Symbol(function.id, function.returnType), function.templateParameters);
 
-		if (objExpr != nullptr)
+		if (getObjectExpression())
 		{
-			auto clonedObject = objExpr->clone(l);
+			auto clonedObject = getObjectExpression()->clone(l);
 			newFC->setObjectExpression(dynamic_cast<Expression*>(clonedObject.get()));
+		}
+
+		for (int i = 0; i < getNumArguments(); i++)
+		{
+			newFC->addArgument(getArgument(i)->clone(l));
 		}
 
 		return newFC;
@@ -1200,15 +1209,14 @@ struct Operations::FunctionCall : public Expression
 		addStatement(arg);
 	}
 
-	Expression* getArgument(int index)
+	Expression* getArgument(int index) const
 	{
-
-		return getSubExpr(objExpr == nullptr ? index : (index + 1));
+		return getSubExpr(!hasObjectExpression ? index : (index + 1));
 	}
 
 	int getNumArguments() const
 	{
-		if (objExpr == nullptr)
+		if (!hasObjectExpression)
 			return getNumChildStatements();
 		else
 			return getNumChildStatements() - 1;
@@ -1238,7 +1246,7 @@ struct Operations::FunctionCall : public Expression
 	WeakReference<FunctionClass> fc;
 	FunctionClass::Ptr ownedFc;
 	
-	Ptr objExpr;
+	bool hasObjectExpression = false;
 
 	ReferenceCountedArray<AssemblyRegister> parameterRegs;
 };
@@ -1275,13 +1283,19 @@ struct Operations::MemoryReference : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
+
+		
+
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			reg = compiler->registerPool.getNextFreeRegister(scope, type);
-			
+			auto registerType = compiler->getRegisterType(type);
+
+
 			auto baseReg = getSubRegister(0);
+
+			reg = compiler->registerPool.getNextFreeRegister(scope, type);
 
 			X86Mem ptr;
 
@@ -1358,7 +1372,7 @@ struct Operations::ReturnStatement : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
@@ -1416,6 +1430,10 @@ struct Operations::ReturnStatement : public Expression
 				auto sourceReg = isVoid() ? nullptr : getSubRegister(0);
 
 				asg.emitReturn(compiler, reg, sourceReg);
+			}
+			else
+			{
+				asg.writeDirtyGlobals(compiler);
 			}
 		}
 	}
@@ -1489,9 +1507,7 @@ struct Operations::ClassStatement : public Statement
 		if (subClass == nullptr)
 			subClass = new ClassScope(scope, getStructType()->id, classType);
 
-		Statement::process(compiler, subClass);
-
-		getChildStatement(0)->process(compiler, subClass);
+		processBaseWithChildren(compiler, subClass);
 
 		COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 		{
@@ -1607,7 +1623,7 @@ struct Operations::BinaryOp : public Expression
 		auto c1 = getSubExpr(0)->clone(l);
 		auto c2 = getSubExpr(1)->clone(l);
 
-		return new BinaryOp(l, dynamic_cast<Expression*>(c1.get()), dynamic_cast<Expression*>(c2.get()), op);
+		return new BinaryOp(l, c1, c2, op);
 	}
 
 	ValueTree toValueTree() const override
@@ -1632,9 +1648,9 @@ struct Operations::BinaryOp : public Expression
 		bool processChildren = !(isLogicOp() && (compiler->getCurrentPass() == BaseCompiler::CodeGeneration));
 
 		if (processChildren)
-			Expression::process(compiler, scope);
+			processBaseWithChildren(compiler, scope);
 		else
-			Statement::process(compiler, scope);
+			processBaseWithoutChildren(compiler, scope);
 
 		if (isLogicOp() && getSubExpr(0)->isConstExpr())
 		{
@@ -1722,7 +1738,7 @@ struct Operations::UnaryOp : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 	}
 };
 
@@ -1743,7 +1759,7 @@ struct Operations::Increment : public UnaryOp
 	{
 		auto c1 = getSubExpr(0)->clone(l);
 
-		return new Increment(l, dynamic_cast<Expression*>(c1.get()), isPreInc, isDecrement);
+		return new Increment(l, c1, isPreInc, isDecrement);
 	}
 
 	TypeInfo getTypeInfo() const override
@@ -1768,7 +1784,7 @@ struct Operations::Increment : public UnaryOp
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
 		{
@@ -1781,7 +1797,7 @@ struct Operations::Increment : public UnaryOp
 			if (dynamic_cast<Increment*>(getSubExpr(0).get()) != nullptr)
 				throwError("Can't combine incrementors");
 
-			if(getTypeInfo().getRegisterType() != Types::ID::Integer)
+			if(compiler->getRegisterType(getTypeInfo()) != Types::ID::Integer)
 				throwError("Can't increment non integer variables.");
 		}
 
@@ -1871,7 +1887,7 @@ struct Operations::Loop : public Expression,
 
 		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
 
-		auto newLoop = new Loop(l, iterator, dynamic_cast<Expression*>(c1.get()), c2);
+		auto newLoop = new Loop(l, iterator, c1, c2);
 		return newLoop;
 	}
 
@@ -1884,6 +1900,11 @@ struct Operations::Loop : public Expression,
 
 		jassert(dynamic_cast<StatementBlock*>(body.get()) != nullptr);
 	};
+
+	~Loop()
+	{
+		int x = 5;
+	}
 
 	ValueTree toValueTree() const override
 	{
@@ -1913,7 +1934,7 @@ struct Operations::Loop : public Expression,
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
-		Statement::process(compiler, scope);
+		processBaseWithoutChildren(compiler, scope);
 
 		if (compiler->getCurrentPass() != BaseCompiler::DataAllocation &&
 			compiler->getCurrentPass() != BaseCompiler::CodeGeneration)
@@ -1925,9 +1946,6 @@ struct Operations::Loop : public Expression,
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
 			getTarget()->process(compiler, scope);
-
-
-			jassert(iterator.id.getParent().getParent() == scope->getScopeSymbol());
 
 			getTarget()->tryToResolveType();
 
@@ -2007,7 +2025,7 @@ struct Operations::Loop : public Expression,
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			auto acg = CREATE_ASM_COMPILER(iterator.typeInfo.getType());
+			auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(iterator.typeInfo));
 
 			getTarget()->process(compiler, scope);
 
@@ -2019,19 +2037,19 @@ struct Operations::Loop : public Expression,
 
 			if (loopTargetType == Span)
 			{
-				auto le = new SpanLoopEmitter(iterator, getTarget()->reg, getLoopBlock(), loadIterator);
+				auto le = new SpanLoopEmitter(compiler, iterator, getTarget()->reg, getLoopBlock(), loadIterator);
 				le->typePtr = getTarget()->getTypeInfo().getTypedComplexType<SpanType>();
 				loopEmitter = le;
 			}
 			else if (loopTargetType == Dyn)
 			{
-				auto le = new DynLoopEmitter(iterator, getTarget()->reg, getLoopBlock(), loadIterator);
+				auto le = new DynLoopEmitter(compiler, iterator, getTarget()->reg, getLoopBlock(), loadIterator);
 				le->typePtr = getTarget()->getTypeInfo().getTypedComplexType<DynType>();
 				loopEmitter = le;
 			}
 			else if (loopTargetType == Block)
 			{
-				auto le = new BlockLoopEmitter(iterator, getTarget()->reg, getLoopBlock(), loadIterator);
+				auto le = new BlockLoopEmitter(compiler, iterator, getTarget()->reg, getLoopBlock(), loadIterator);
 				loopEmitter = le;
 			}
 
@@ -2090,7 +2108,7 @@ struct Operations::ControlFlowStatement : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
@@ -2140,7 +2158,7 @@ struct Operations::Negation : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
@@ -2194,7 +2212,7 @@ struct Operations::IfStatement : public Statement,
 	
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Statement::process(compiler, scope);
+		processBaseWithoutChildren(compiler, scope);
 
 		if (compiler->getCurrentPass() != BaseCompiler::CodeGeneration)
 			processAllChildren(compiler, scope);
@@ -2369,6 +2387,14 @@ struct Operations::Subscript : public Expression
 		{
 			auto abortFunction = [this]()
 			{
+				
+				if (auto fc = dynamic_cast<FunctionCall*>(parent.get()))
+				{
+					if (fc->getObjectExpression().get() == this)
+						return false;
+				}
+
+
 				if(dynamic_cast<SymbolStatement*>(getSubExpr(0).get()) == nullptr)
 					return false;
 
@@ -2393,9 +2419,15 @@ struct Operations::Subscript : public Expression
 			if (!preprocessCodeGenForChildStatements(compiler, scope, abortFunction))
 				return;
 
+			if (subscriptType != Block && compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType()))
+			{
+				reg = getSubRegister(0);
+				return;
+			}
+
 			reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
 
-			auto acg = CREATE_ASM_COMPILER(getType());
+			auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(getTypeInfo()));
 
 			auto cType = getSubRegister(0)->getTypeInfo().getTypedIfComplexType<ComplexType>();
 
@@ -2542,55 +2574,6 @@ private:
 	ReferenceCountedArray<AssemblyRegister> stackLocations;
 };
 
-#if 0 // REMOVE INLINE_MATH
-struct Operations::InlinedExternalCall : public Expression
-{
-	SET_EXPRESSION_ID(InlinedExternalCall);
-
-	InlinedExternalCall(FunctionCall* functionCallToBeReplaced):
-		Expression(functionCallToBeReplaced->location),
-		f(functionCallToBeReplaced->function)
-	{
-		for (int i = 0; i < functionCallToBeReplaced->getNumArguments(); i++)
-		{
-			addStatement(functionCallToBeReplaced->getArgument(i));
-		}
-	}
-
-	TypeInfo getTypeInfo() const override
-	{
-		return TypeInfo(f.returnType);
-	}
-
-	ValueTree toValueTree() const override
-	{
-		auto t = toValueTree();
-		t.setProperty("Function", f.getSignature(), nullptr);
-		return t;
-	}
-
-	void process(BaseCompiler* compiler, BaseScope* scope)
-	{
-		Expression::process(compiler, scope);
-
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			auto acg = CREATE_ASM_COMPILER(getType());
-
-			reg = compiler->registerPool.getNextFreeRegister(scope, getType());
-
-			ReferenceCountedArray<AssemblyRegister> args;
-
-			for (int i = 0; i < getNumChildStatements(); i++)
-				args.add(getSubExpr(i)->reg);
-
-			acg.emitInlinedMathAssembly(f.id, reg, args);
-		}
-	}
-
-	FunctionData f;
-};
-#endif
 
 }
 }

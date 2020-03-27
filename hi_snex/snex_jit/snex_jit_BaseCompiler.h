@@ -66,7 +66,8 @@ public:
 	};
 
 	BaseCompiler(NamespaceHandler& handler):
-		namespaceHandler(handler)
+		namespaceHandler(handler),
+		registerPool(this)
 	{
 		auto float4Type = new SpanType(TypeInfo(Types::ID::Float), 4);
 		float4Type->setAlias(NamespacedIdentifier("float4"));
@@ -207,6 +208,7 @@ public:
 	void addOptimization(OptimizationPassBase* newPass)
 	{
 		passes.add(newPass);
+		optimisationIds.add(newPass->getName());
 	}
 
 	AssemblyRegister::Ptr getRegFromPool(BaseScope* scope, TypeInfo type)
@@ -220,7 +222,13 @@ public:
 
 	NamespaceHandler& namespaceHandler;
 
-	
+	Types::ID getRegisterType(const TypeInfo& t) const;
+
+	TypeInfo convertToNativeTypeIfPossible(const TypeInfo& t) const;
+
+	bool fitsIntoNativeRegister(ComplexType* t) const;
+
+	bool allowSmallObjectOptimisation() const;
 
 private:
 
@@ -229,6 +237,7 @@ private:
     OptimizationPassBase* currentOptimization = nullptr;
     
 	OwnedArray<OptimizationPassBase> passes;
+	Array<Identifier> optimisationIds;
 
 	MessageType verbosity = numMessageTypes;
 

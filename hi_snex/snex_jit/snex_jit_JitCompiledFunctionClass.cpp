@@ -63,6 +63,24 @@ VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 }
 
 
+snex::jit::ComplexType::Ptr JitCompiledFunctionClass::getMainObjectType()
+{
+	auto symbols = pimpl->rootData->getAllVariables();
+
+	for (auto s : symbols)
+	{
+		if (s.id == getMainId())
+			return s.typeInfo.getTypedIfComplexType<ComplexType>();
+	}
+
+	return nullptr;
+}
+
+void* JitCompiledFunctionClass::getMainObjectPtr()
+{
+	return pimpl->rootData->getDataPointer(getMainId());
+}
+
 void* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
 {
 	auto s = pimpl->rootData->getClassName().getChildId(id);
@@ -81,6 +99,11 @@ juce::String JitCompiledFunctionClass::dumpTable()
 Array<NamespacedIdentifier> JitCompiledFunctionClass::getFunctionIds() const
 {
 	return pimpl->getRootData()->getFunctionIds();
+}
+
+snex::jit::NamespacedIdentifier JitCompiledFunctionClass::getMainId()
+{
+	return NamespacedIdentifier("instance");
 }
 
 FunctionData JitCompiledFunctionClass::getFunction(const NamespacedIdentifier& functionId)

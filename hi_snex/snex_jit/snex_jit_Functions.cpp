@@ -127,7 +127,7 @@ bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 		if (thisArgs.isInvalid())
 			continue;
 
-		if (otherArgs.getRegisterType() == thisArgs.getRegisterType())
+		if (otherArgs.getType() == thisArgs.getType())
 			continue;
 
 		if (thisArgs != otherArgs)

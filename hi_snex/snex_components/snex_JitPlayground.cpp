@@ -64,6 +64,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	memory.addOptimization(OptimizationIds::DeadCodeElimination);
 	memory.addOptimization(OptimizationIds::Inlining);
 	memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
+	memory.addOptimization(OptimizationIds::LoopOptimisation);
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
 	memory.getBreakpointHandler().setActive(true);
 

@@ -25,7 +25,7 @@ public:
     //==============================================================================
     void initialise (const String& commandLine) override
     {
-		UnitTestRunner runner;
+		
 		runner.setAssertOnFailure(true);
 		runner.runAllTests();
 
@@ -103,6 +103,7 @@ public:
 
 private:
     std::unique_ptr<MainWindow> mainWindow;
+	UnitTestRunner runner;
 };
 
 //==============================================================================

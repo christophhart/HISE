@@ -91,12 +91,12 @@ struct AsmCodeGenerator
 
 	struct LoopEmitterBase
 	{
-		LoopEmitterBase(const Symbol& iterator_, RegPtr loopTarget_, Operations::StatementBlock* loopBody_, bool loadIterator_) :
+		LoopEmitterBase(BaseCompiler* c, const Symbol& iterator_, RegPtr loopTarget_, Operations::StatementBlock* loopBody_, bool loadIterator_) :
 			iterator(iterator_),
 			loopTarget(loopTarget_),
 			loadIterator(loadIterator_),
 			loopBody(loopBody_),
-			type(iterator.typeInfo.getType())
+			type(c->getRegisterType(iterator.typeInfo))
 		{};
 
 		virtual ~LoopEmitterBase() {};
@@ -212,6 +212,8 @@ struct AsmCodeGenerator
 
 	void emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr);
 
+	void writeDirtyGlobals(BaseCompiler* c);
+
 	void emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list);
 
 	RegPtr emitBranch(TypeInfo returnType, Operations::Expression* cond, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s);
@@ -233,6 +235,8 @@ struct AsmCodeGenerator
 	void emitInlinedMathAssembly(Identifier id, RegPtr target, const ReferenceCountedArray<AssemblyRegister>& args);
 	
 	Result emitSimpleToComplexTypeCopy(RegPtr target, InitialiserList::Ptr initValues, RegPtr source);
+
+	
 
 #if 0
 	void emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op)
@@ -292,7 +296,7 @@ struct AsmCodeGenerator
 
 	Compiler& cc;
 
-	static void fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer);
+	static void fillSignature(const FunctionData& data, FuncSignatureX& sig, Types::ID objectType);
 
 	X86Mem createStack(Types::ID type);
 	X86Mem createFpuMem(RegPtr ptr);
@@ -312,8 +316,8 @@ private:
 
 struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 {
-	SpanLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
-		LoopEmitterBase(s, t, body, l)
+	SpanLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(c, s, t, body, l)
 	{};
 
 	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
@@ -323,8 +327,8 @@ struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 
 struct DynLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 {
-	DynLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
-		LoopEmitterBase(s, t, body, l)
+	DynLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(c, s, t, body, l)
 	{};
 
 	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
@@ -334,8 +338,8 @@ struct DynLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 
 struct BlockLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 {
-	BlockLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
-		LoopEmitterBase(s, t, body, l)
+	BlockLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(c, s, t, body, l)
 	{};
 
 	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;

@@ -175,7 +175,11 @@ MathFunctions::MathFunctions() :
 		}
 		IF_(int)
 		{
-			jassertfalse;
+			ARGS(0)->loadMemoryIntoRegister(cc);
+
+			INT_OP(cc.mov, d->target, ARGS(0));
+			INT_OP(cc.cmp, ARGS(0), ARGS(1));
+			INT_OP_WITH_MEM(cc.cmovl, d->target, ARGS(1));
 		}
 
 		return Result::ok();
@@ -198,7 +202,11 @@ MathFunctions::MathFunctions() :
 		}
 		IF_(int)
 		{
-			jassertfalse;
+			ARGS(0)->loadMemoryIntoRegister(cc);
+
+			INT_OP(cc.mov, d->target, ARGS(0));
+			INT_OP(cc.cmp, ARGS(0), ARGS(1));
+			INT_OP_WITH_MEM(cc.cmovg, d->target, ARGS(1));
 		}
 
 		return Result::ok();

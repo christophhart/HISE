@@ -126,7 +126,7 @@ public:
 
 		compiler = new Compiler(memory);
 
-		SnexObjectDatabase::registerObjects(*compiler);
+		Types::SnexObjectDatabase::registerObjects(*compiler);
 	}
 
 	void logMessage(const juce::String& s) override
@@ -266,7 +266,7 @@ public:
 		using T = void;
 
 		Compiler c(memory);
-		SnexObjectDatabase::registerObjects(c);
+		Types:: SnexObjectDatabase::registerObjects(c);
 
 		auto obj = c.compileJitObject(code);
 
@@ -279,7 +279,7 @@ public:
 		v = f.call<int>(&d);
 	}
 
-	ProcessData d;
+	Types::ProcessData d;
 	float data[128];
 	int v;
 };
@@ -339,7 +339,7 @@ public:
 		Compiler c(memory);
 		c.setDebugHandler(debugHandler);
 		
-		SnexObjectDatabase::registerObjects(c);
+		Types::SnexObjectDatabase::registerObjects(c);
 
 		auto obj = c.compileJitObject(code);
 
@@ -386,7 +386,7 @@ public:
 		if (dumpBeforeTest)
 		{
 			DBG("data dump after execution");
-			//DBG(obj.dumpTable());
+			DBG(obj.dumpTable());
 		}
 
 		if (expectedFail.isNotEmpty())
@@ -902,6 +902,11 @@ public:
 
 	void runTest() override
 	{
+		optimizations = { OptimizationIds::BinaryOpOptimisation, OptimizationIds::LoopOptimisation };
+
+		testAllOptimizations();
+		return;
+
 		testProcessData();
 		testEvents();
 		
@@ -909,6 +914,7 @@ public:
 		testInlining();
 
 		runTestsWithOptimisation({});
+		
 		runTestsWithOptimisation({ OptimizationIds::Inlining });
 		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination });
 		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining });
@@ -917,6 +923,75 @@ public:
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination });
 	}
+
+	using OpList = Array<Identifier>;
+
+	void addRecursive(Array<OpList>& combinations, const OpList all)
+	{
+		if (all.isEmpty())
+			return;
+
+		combinations.addIfNotAlreadyThere(all);
+
+
+
+		for (int i = 0; i < all.size(); i++)
+		{
+			OpList less;
+			less.addArray(all);
+
+
+			less.remove(i);
+			less.sort();
+			addRecursive(combinations, less);
+		}
+	}
+
+	void testAllOptimizations()
+	{
+		
+
+		OpList allIds = { OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding, OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining, OptimizationIds::LoopOptimisation };
+
+		allIds.sort();
+
+		Array<OpList> combinations;
+
+		addRecursive(combinations, allIds);
+
+		struct SizeSorter
+		{
+			static int compareElements(const OpList& a, const OpList& b)
+			{
+				if (a.size() > b.size())
+					return 1;
+				else if (a.size() < b.size())
+					return -1;
+				else
+					return 0;
+			}
+		};
+
+		SizeSorter sorter;
+		combinations.sort(sorter);
+
+		juce::String s;
+
+		for (auto c : combinations)
+		{
+			runTestsWithOptimisation(c);
+
+			for (auto id : c)
+				s << id.toString() << " ";
+
+			s << "\n";
+		}
+
+		DBG(s);
+	}
+
+
+
 
 	void runTestFiles(juce::String soloTest = {}, bool isFolder=false)
 	{
@@ -1156,7 +1231,7 @@ private:
 		{
 			Compiler c(m);
 
-			SnexObjectDatabase::registerObjects(c);
+			Types::SnexObjectDatabase::registerObjects(c);
 
 			auto en = e.getNoteNumber();
 			auto ev = (int)e.getVelocity();
@@ -1187,7 +1262,7 @@ private:
 		{
 			Compiler c(m);
 
-			SnexObjectDatabase::registerObjects(c);
+			Types::SnexObjectDatabase::registerObjects(c);
 
 			HiseEvent e(HiseEvent::Type::NoteOn, 75, 125, 3);
 
@@ -1267,10 +1342,10 @@ private:
 		
 		Compiler c(m);
 		
-		SnexObjectDatabase::registerObjects(c);
+		Types::SnexObjectDatabase::registerObjects(c);
 
 		{
-			_ramp<T> d;
+			Types::_ramp<T> d;
 
 			d.prepare(4000.0, 100.0);
 			d.set(T(1));
@@ -2731,7 +2806,7 @@ private:
 
 			GlobalScope memory;
 			Compiler c(memory);
-			SnexObjectDatabase::registerObjects(c);
+			Types::SnexObjectDatabase::registerObjects(c);
 
 			auto obj = c.compileJitObject(code);
 

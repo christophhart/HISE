@@ -70,7 +70,11 @@ struct IndexBase : public ComplexType
 	bool isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const override;
 	bool isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const override;
 
-	Types::ID getRegisterType() const override { return Types::ID::Integer; }
+	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override 
+	{ 
+		ignoreUnused(allowSmallObjectOptimisation);
+		return Types::ID::Integer; 
+	}
 
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
 
@@ -127,6 +131,13 @@ struct SpanType : public ArrayTypeBase
 	juce::String toStringInternal() const override;
 	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
+
+
+	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override 
+	{ 
+		return (allowSmallObjectOptimisation && size == 1) ? elementType.getRegisterType(allowSmallObjectOptimisation) : Types::ID::Pointer; 
+	};
+
 
 	FunctionClass* getFunctionClass() override;
 	TypeInfo getElementType() const override;
@@ -204,6 +215,17 @@ struct StructType : public ComplexType
 
 	size_t getRequiredByteSize() const override;
 	size_t getRequiredAlignment() const override;
+
+
+	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override
+	{
+		if (allowSmallObjectOptimisation && memberData.size() == 1)
+			return memberData.getFirst()->typeInfo.getRegisterType(allowSmallObjectOptimisation);
+
+		return Types::ID::Pointer;
+	}
+
+
 	void finaliseAlignment() override;
 	juce::String toStringInternal() const override;
 	FunctionClass* getFunctionClass() override;
@@ -310,6 +332,34 @@ struct VariadicTypeBase : public ComplexType
 
 	size_t getRequiredByteSize() const override;
 	size_t getRequiredAlignment() const override;
+
+
+	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override
+	{
+		if (!allowSmallObjectOptimisation)
+			return ComplexType::getRegisterType(false);
+
+		int numSubTypesWithData = 0;
+
+		for (auto t : types)
+		{
+			if (t->getRequiredByteSize() != 0)
+				numSubTypesWithData++;
+		}
+
+		if (numSubTypesWithData != 1)
+			return ComplexType::getRegisterType(false);
+
+		for (auto t : types)
+		{
+			if (t->getRequiredByteSize() != 0)
+				return t->getRegisterType(allowSmallObjectOptimisation);
+		}
+
+		jassertfalse;
+		return ComplexType::getRegisterType(false);
+	}
+
 	void finaliseAlignment() override;;
 	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const override;
 	Result initialise(InitData data) override;

@@ -55,6 +55,9 @@ public:
 
 	VariableStorage getVariable(const Identifier& id);
 
+	ComplexType::Ptr getMainObjectType();
+	void* getMainObjectPtr();
+
 	void* getVariablePtr(const Identifier& id);
 
 	juce::String dumpTable();
@@ -69,6 +72,8 @@ public:
 	}
 
 private:
+
+	static NamespacedIdentifier getMainId();
 
 	OwnedArray<DebugInformationBase> debugInformation;
 	friend class ClassCompiler;
@@ -113,11 +118,22 @@ public:
 		return 0;
 	}
 
+
 	DebugableObjectBase* getDebugObject(const juce::String& token) override;
 
 	DebugInformationBase* getDebugInformation(int index)
 	{
 		return functionClass->debugInformation[index];
+	}
+
+	ComplexType::Ptr getMainObjectType()
+	{
+		return functionClass->getMainObjectType();
+	}
+
+	void* getMainObjectPtr()
+	{
+		return functionClass->getMainObjectPtr();
 	}
 
 	ValueTree createValueTree();
@@ -134,9 +150,6 @@ public:
 
 private:
 
-	
-	
-	
 	JitCompiledFunctionClass::Ptr functionClass;
 };
 

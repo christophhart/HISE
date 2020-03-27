@@ -108,6 +108,8 @@ public:
 			numTextFormat
 		};
 
+		
+
 		using Ptr = ReferenceCountedObjectPtr<Statement>;
 
 		Statement(Location l);;
@@ -130,7 +132,7 @@ public:
 		virtual ~Statement() {};
 
 		virtual TypeInfo getTypeInfo() const = 0;
-		virtual void process(BaseCompiler* compiler, BaseScope* scope);
+		virtual void process(BaseCompiler* compiler, BaseScope* scope) = 0;
 
 		virtual bool hasSideEffect() const 
 		{ 
@@ -144,6 +146,11 @@ public:
 		}
 
 		virtual size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const { return 0; }
+
+		Types::ID getType() const
+		{
+			return getTypeInfo().getType();
+		}
 
 		void cloneChildren(Ptr newClone) const
 		{
@@ -182,6 +189,8 @@ public:
 
 			if (getTypeInfo().isValid())
 				return true;
+
+			return false;
 		};
 
 		virtual Identifier getStatementId() const = 0;
@@ -249,27 +258,6 @@ public:
 		Ptr replaceInParent(Ptr newExpression);
 		Ptr replaceChildStatement(int index, Ptr newExpr);
 
-	private:
-
-		ReferenceCountedArray<Statement> childStatements;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Statement);
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement);
-	};
-
-	/** A high level node in the syntax tree that is used by the optimization passes
-		to simplify the code.
-	*/
-	struct Expression : public Statement
-	{
-		using Ptr = ReferenceCountedObjectPtr<Expression>;
-
-		Expression(Location loc) :
-			Statement(loc)
-		{};
-
-		virtual ~Expression() {};
-
 		void attachAsmComment(const juce::String& message);
 
 		TypeInfo checkAndSetType(int offset, TypeInfo expectedType);
@@ -277,9 +265,38 @@ public:
 		TypeInfo setTypeForChild(int childIndex, TypeInfo expectedType);
 
 		/** Processes all sub expressions. Call this from your base class. */
-		void process(BaseCompiler* compiler, BaseScope* scope) override;
+		
 
 		void processChildrenIfNotCodeGen(BaseCompiler* compiler, BaseScope* scope);
+
+		void processBaseWithoutChildren(BaseCompiler* compiler, BaseScope* scope)
+		{
+			jassert(scope != nullptr);
+
+			if (parent == nullptr)
+				return;
+
+			currentCompiler = compiler;
+			currentScope = scope;
+			currentPass = compiler->getCurrentPass();
+
+			if (BaseCompiler::isOptimizationPass(currentPass))
+			{
+				bool found = false;
+
+				for (int i = 0; i < parent->getNumChildStatements(); i++)
+					found |= parent->getChildStatement(i).get() == this;
+
+				if (found)
+					compiler->executeOptimization(this, scope);
+			}
+		}
+
+		void processBaseWithChildren(BaseCompiler* compiler, BaseScope* scope)
+		{
+			processBaseWithoutChildren(compiler, scope);
+			processAllChildren(compiler, scope);
+		}
 
 		bool isCodeGenPass(BaseCompiler* compiler) const;
 
@@ -288,11 +305,6 @@ public:
 		void replaceMemoryWithExistingReference(BaseCompiler* compiler);
 
 		bool isAnonymousStatement() const;
-
-		Types::ID getType() const
-		{
-			return getTypeInfo().getType();
-		}
 
 		virtual VariableStorage getConstExprValue() const;
 
@@ -317,7 +329,7 @@ public:
 			reg = nullptr;
 		}
 
-		void setTargetRegister(RegPtr targetToUse, bool clearRegister=true)
+		void setTargetRegister(RegPtr targetToUse, bool clearRegister = true)
 		{
 			if (reg != nullptr)
 				return;
@@ -333,8 +345,13 @@ public:
 
 	private:
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Expression);
+		ReferenceCountedArray<Statement> childStatements;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Statement);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement);
 	};
+
+	using Expression = Statement;
 
 	template <class T> static bool isStatementType(const Statement* t)
 	{
@@ -363,6 +380,8 @@ public:
 		return nullptr;
 	}
 
+	
+
 	static bool isOpAssignment(Expression::Ptr p);
 
 	static Expression::Ptr evalConstExpr(Expression::Ptr expr);
@@ -373,7 +392,7 @@ public:
 	struct TernaryOp;		struct LogicalNot;				struct Cast;
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct DotOperator;				struct Loop;		
-	struct IfStatement;		struct ClassStatement;			struct UsingStatement;
+	struct IfStatement;		struct ClassStatement;			
 	struct CastedSimd;      struct Subscript;				struct InlinedParameter;
 	struct ComplexTypeDefinition;						    struct ControlFlowStatement;
 	struct InlinedArgument; struct MemoryReference;
@@ -592,11 +611,8 @@ public:
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Statement::process(compiler, scope);
-
-		for (int i = 0; i < getNumChildStatements(); i++)
-			getChildStatement(i)->process(compiler, scope);
-
+		processBaseWithChildren(compiler, scope);
+		
 		if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation && hasReturnType())
 		{
 			allocateReturnRegister(compiler, scope);
@@ -624,8 +640,6 @@ public:
 
 private:
 
-	
-
 	static void dumpInternal(int intLevel, juce::String& s, const ValueTree& v)
 	{
 		intLevel++;
@@ -652,7 +666,7 @@ private:
 
 struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 {
-	ExpressionChild(Operations::Expression* e) :
+	ExpressionChild(Operations::Expression::Ptr e) :
 		expression(e)
 	{};
 

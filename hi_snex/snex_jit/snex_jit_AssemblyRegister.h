@@ -85,7 +85,7 @@ public:
 
 private:
 
-	AssemblyRegister(TypeInfo type_);
+	AssemblyRegister(BaseCompiler* compiler, TypeInfo type_);
 
 	
 public:
@@ -232,6 +232,7 @@ private:
 	asmjit::X86Reg reg;
 	void* memoryLocation = nullptr;
 	WeakReference<BaseScope> scope;
+	WeakReference<BaseCompiler> compiler;
 	Symbol id;
 };
 
@@ -242,7 +243,7 @@ public:
 	using RegPtr = AssemblyRegister::Ptr;
 	using RegList = ReferenceCountedArray<AssemblyRegister>;
 
-	AssemblyRegisterPool();
+	AssemblyRegisterPool(BaseCompiler* c);
 
 	void clear();
 	RegList getListOfAllDirtyGlobals();
@@ -257,9 +258,12 @@ public:
 
 	RegList getListOfAllNamedRegisters();
 
+	Types::ID getRegisterType(const TypeInfo& t) const;
+
 private:
 
 	ReferenceCountedArray<AssemblyRegister> currentRegisterPool;
+	BaseCompiler* compiler;
 };
 
 }

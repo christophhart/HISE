@@ -922,6 +922,20 @@ size_t StructType::getRequiredByteSize() const
 	for (auto m : memberData)
 		s += (m->typeInfo.getRequiredByteSize() + m->padding);
 
+	auto alignment = getRequiredAlignment();
+
+	if (alignment > 0)
+	{
+		auto missingBytesForAlignment = s % alignment;
+
+		if (missingBytesForAlignment != 0)
+		{
+			s += (alignment - missingBytesForAlignment);
+		}
+	}
+
+	
+
 	return s;
 }
 
@@ -1181,6 +1195,18 @@ void StructType::finaliseAlignment()
 		offset += m->padding + m->typeInfo.getRequiredByteSize();
 	}
 
+	auto alignment = getRequiredAlignment();
+
+	if (alignment != 0)
+	{
+		auto missingBytesForAlignment = offset % getRequiredAlignment();
+
+		if (missingBytesForAlignment != 0)
+		{
+			offset += (getRequiredAlignment() - missingBytesForAlignment);
+		}
+	}
+	
 	jassert(offset == getRequiredByteSize());
 
 	ComplexType::finaliseAlignment();
@@ -1295,7 +1321,7 @@ bool IndexBase::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* d
 
 bool IndexBase::isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const
 {
-	if (complexSourceType != nullptr && complexSourceType->getRegisterType() == Types::ID::Integer)
+	if (complexSourceType != nullptr && complexSourceType->getRegisterType(false) == Types::ID::Integer)
 		return true;
 
 	if (nativeSourceType == Types::ID::Integer)
@@ -1306,7 +1332,7 @@ bool IndexBase::isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr c
 
 bool IndexBase::isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const
 {
-	if (complexTargetType != nullptr && complexTargetType->getRegisterType() == Types::ID::Integer)
+	if (complexTargetType != nullptr && complexTargetType->getRegisterType(false) == Types::ID::Integer)
 		return true;
 
 	if (nativeTargetType == Types::ID::Integer)

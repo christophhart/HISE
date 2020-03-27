@@ -225,23 +225,13 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 	return expectedType;
 }
 
-void Operations::Expression::process(BaseCompiler* compiler, BaseScope* scope)
-{
-	Statement::process(compiler, scope);
-
-	for (int i = 0; i < getNumChildStatements(); i++)
-	{
-		if (getChildStatement(i) != nullptr)
-			getChildStatement(i)->process(compiler, scope);
-	}
-}
 
 void Operations::Expression::processChildrenIfNotCodeGen(BaseCompiler* compiler, BaseScope* scope)
 {
 	if (isCodeGenPass(compiler))
-		Statement::process(compiler, scope);
+		processBaseWithoutChildren(compiler, scope);
 	else
-		Expression::process(compiler, scope);
+		processBaseWithChildren(compiler, scope);
 }
 
 bool Operations::Expression::isCodeGenPass(BaseCompiler* compiler) const
@@ -365,31 +355,6 @@ Operations::Statement::Statement(Location l) :
 	location(l)
 {
 
-}
-
-void Operations::Statement::process(BaseCompiler* compiler, BaseScope* scope)
-{
-	jassert(scope != nullptr);
-
-	if (parent == nullptr)
-		return;
-
-	currentCompiler = compiler;
-	currentScope = scope;
-	currentPass = compiler->getCurrentPass();
-
-
-
-	if (BaseCompiler::isOptimizationPass(currentPass))
-	{
-		bool found = false;
-
-		for (int i = 0; i < parent->getNumChildStatements(); i++)
-			found |= parent->getChildStatement(i).get() == this;
-
-		if(found)
-			compiler->executeOptimization(this, scope);
-	}
 }
 
 void Operations::Statement::throwError(const juce::String& errorMessage)

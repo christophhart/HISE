@@ -89,6 +89,9 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #endif
 
 
+
+
+
 #include "../hi_tools/hi_tools.h"
 #include "../hi_lac/hi_lac.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
@@ -102,6 +105,7 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #include "snex_jit/snex_jit_public.h"
 
 #include "snex_core/snex_CallbackCollection.h"
+#include "snex_core/snex_ExternalObjects.h"
 #include "snex_jit/snex_jit_NativeDspFunctions.h"
 #include "snex_components/snex_JitPlayground.h"
 #endif

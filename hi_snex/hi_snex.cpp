@@ -51,7 +51,6 @@ using String = juce::String;
 #include "snex_jit/snex_jit_ClassScope.cpp"
 #include "snex_jit/snex_jit_BaseCompiler.cpp"
 
-
 #include "snex_jit/snex_jit_Parser.cpp"
 #include "snex_jit/snex_jit_OperationsBase.cpp"
 #include "snex_jit/snex_jit_BaseScope.cpp"
@@ -71,6 +70,7 @@ using String = juce::String;
 
 
 #include "snex_core/snex_CallbackCollection.cpp"
+#include "snex_core/snex_ExternalObjects.cpp"
 
 
 #include "snex_jit/snex_jit_UnitTests.cpp"

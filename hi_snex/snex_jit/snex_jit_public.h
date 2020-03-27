@@ -51,6 +51,7 @@ DECLARE_ID(ConstantFolding);
 DECLARE_ID(Inlining);
 DECLARE_ID(DeadCodeElimination);
 DECLARE_ID(BinaryOpOptimisation);
+DECLARE_ID(LoopOptimisation);
 }
 
 #undef DECLARE_ID

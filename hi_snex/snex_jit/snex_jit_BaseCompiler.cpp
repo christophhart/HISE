@@ -89,12 +89,44 @@ using namespace asmjit;
 			}
 			catch (OptimisationSucess& s)
 			{
+				if (ptr->parent == nullptr)
+				{
+					return;
+				}
+
 				if(useExistingPasses)
 					logMessage(MessageType::VerboseProcessMessage, "Repeat optimizations");
 			}
 		}
 	}
 
+
+	snex::Types::ID BaseCompiler::getRegisterType(const TypeInfo& t) const
+	{
+
+		return t.getRegisterType(allowSmallObjectOptimisation());
+	}
+
+	snex::jit::TypeInfo BaseCompiler::convertToNativeTypeIfPossible(const TypeInfo& t) const
+	{
+		auto nt = t.getRegisterType(allowSmallObjectOptimisation());
+
+		if (nt == Types::ID::Pointer)
+			return t;
+		else
+			return TypeInfo(nt, t.isConst(), t.isRef());
+	}
+
+	bool BaseCompiler::fitsIntoNativeRegister(ComplexType* t) const
+	{
+		TypeInfo info(t);
+		return getRegisterType(info) != Types::ID::Pointer;
+	}
+
+	bool BaseCompiler::allowSmallObjectOptimisation() const
+	{
+		return optimisationIds.contains(OptimizationIds::Inlining);
+	}
 
 	void BaseCompiler::executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement)
     {
