@@ -26,6 +26,6 @@ int main(int input)
 {
 	c.reset();
 	
-	return c.get<1>().v + c.get<2>().v;
+  return c.get<1>().v + c.get<2>().v;
 }
 

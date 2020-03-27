@@ -19,13 +19,16 @@ float main(float input)
     
     float sum = 0.0f;
     
+    
     for(auto& s: d.toSimd())
     {
         s *= v;
     }
     
+    
     for(auto& s: d)
         sum += s;
+        
     
     return sum;
 }
