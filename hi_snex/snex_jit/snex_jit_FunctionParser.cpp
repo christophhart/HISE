@@ -180,7 +180,7 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 
 	if (s.typeInfo.isDynamic())
 	{
-		expr->tryToResolveType();
+		expr->tryToResolveType(compiler);
 		bool isConst = s.isConst();
 		bool isRef = s.isReference();
 
@@ -547,7 +547,7 @@ BlockParser::ExprPtr BlockParser::parseDotOperator(ExprPtr p)
 
 		auto dp = new Operations::DotOperator(location, p, e);
 
-		dp->tryToResolveType();
+		dp->tryToResolveType(compiler);
 
 		
 
@@ -610,6 +610,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 			{
 				ReturnTypeInlineData rt(f);
 				rt.object = dynamic_cast<Operations::DotOperator*>(p.get())->getDotParent();
+				rt.object->currentCompiler = compiler;
 				rt.templateParameters = templateParameters;
 
 				il->process(&rt);
@@ -671,17 +672,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 		if (resolveAfterArgumentParsing)
 		{
-			
-
-
-			ReturnTypeInlineData rt(nf);
-			rt.object = f;
-			rt.templateParameters = templateParameters;
-
-			nf.inliner->process(&rt);
-
-			f->function = nf;
-
+			f->tryToResolveType(compiler);
 		}
 
 		match(JitTokens::closeParen);

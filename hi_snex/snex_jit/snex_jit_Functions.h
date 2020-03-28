@@ -105,6 +105,45 @@ struct NamespacedIdentifier
 		return id;
 	}
 
+	bool isParentOf(const NamespacedIdentifier& other) const
+	{
+		auto otherName = other.toString();
+		auto thisName = toString();
+		return otherName.startsWith(thisName);
+	}
+
+	void relocateSelf(const NamespacedIdentifier& oldParent, const NamespacedIdentifier& newParent)
+	{
+		jassert(oldParent.isParentOf(*this));
+
+		NamespacedIdentifier s(newParent);
+
+		auto opl = oldParent.getIdList();
+		auto ids = getIdList();
+
+		for (int i = 0; i < ids.size(); i++)
+		{
+			if (opl[i] != ids[i])
+			{
+				s = s.getChildId(ids[i]);
+			}
+		}
+
+		jassert(newParent.isParentOf(s));
+
+		debugName = s.debugName;
+		namespaces = s.namespaces;
+		id = s.id;
+	}
+
+	NamespacedIdentifier relocate(const NamespacedIdentifier& oldParent, const NamespacedIdentifier& newParent) const
+	{
+		NamespacedIdentifier s(*this);
+
+		s.relocateSelf(oldParent, newParent);
+		return s;
+	}
+
 	NamespacedIdentifier getChildId(const Identifier& id) const
 	{
 		auto c = *this;
@@ -970,6 +1009,7 @@ struct FunctionClass: public DebugableObjectBase,
 		IncOverload,
 		NativeTypeCast,
 		Subscript,
+		ToSimdOp,
 		numOperatorOverloads
 	};
 
@@ -981,6 +1021,7 @@ struct FunctionClass: public DebugableObjectBase,
 		case NativeTypeCast: return "type_cast";
 		case IncOverload:    return "operator++";
 		case Subscript:		 return "operator[]";
+		case ToSimdOp:		 return "toSimd";
 		}
 
 		return {};

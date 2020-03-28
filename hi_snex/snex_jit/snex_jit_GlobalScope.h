@@ -659,7 +659,11 @@ public:
 	void logMessage(const String& message)
 	{
 		for (auto dh : debugHandlers)
-			dh->logMessage(message);
+		{
+			if(dh != nullptr)
+				dh->logMessage(message);
+		}
+			
 	}
 
 	/** Add an optimization pass ID that will be added to each compiler that uses this scope. 
@@ -702,8 +706,6 @@ public:
 
 private:
 
-	ScopedPointer<FunctionClass> consoleFunctions;
-
 	BreakpointHandler breakPointHandler;
 	WeakReference<BaseScope> currentClassScope;
 
@@ -715,7 +717,7 @@ private:
 
 	Array<WeakReference<ObjectDeleteListener>> deleteListeners;
 
-	OwnedArray<FunctionClass> objectClassesWithJitCallableFunctions;
+	ReferenceCountedArray<FunctionClass> objectClassesWithJitCallableFunctions;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlobalScope);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalScope);

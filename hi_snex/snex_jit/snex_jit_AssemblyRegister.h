@@ -118,6 +118,8 @@ public:
 
 	bool canBeReused() const;
 
+	void reinterpretCast(const TypeInfo& newType);
+
 	Types::ID getType() const;
 
 	TypeInfo getTypeInfo() const { return type; }

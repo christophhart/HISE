@@ -81,43 +81,19 @@ class ConsoleFunctions : public JitCallableObject
 	int print(int value)
 	{
 		DBG(value);
-		
-		MessageManager::callAsync([this, value]()
-		{
-			if (gs != nullptr)
-			{
-				gs->logMessage(juce::String(value) + "\n");
-			}
-		});
-			
+		logAsyncIfNecessary(juce::String(value));
 		return value;
 	}
 	double print(double value)
 	{
 		DBG(value);
-		
-		MessageManager::callAsync([this, value]()
-		{
-			if (gs != nullptr)
-			{
-				gs->logMessage(juce::String(value) + "\n");
-			}
-		});
-
+		logAsyncIfNecessary(juce::String(value));
 		return value;
 	}
 	float print(float value)
 	{
 		DBG(value);
-		
-		MessageManager::callAsync([this, value]()
-		{
-			if (gs != nullptr)
-			{
-				gs->logMessage(juce::String(value) + "\n");
-			}
-		});
-
+		logAsyncIfNecessary(juce::String(value));
 		return value;
 	}
 
@@ -126,15 +102,24 @@ class ConsoleFunctions : public JitCallableObject
 		if (gs != nullptr)
 		{
 			auto s = gs->getCurrentClassScope()->getRootData()->dumpTable();
-
-			MessageManager::callAsync([this, s]()
-			{
-				if (gs != nullptr)
-				{
-					gs->logMessage(s + "\n");
-				}
-			});
+			logAsyncIfNecessary(s);
 		}
+	}
+
+	void logAsyncIfNecessary(const juce::String& s)
+	{
+		auto f = [this, s]()
+		{
+			if (gs != nullptr)
+				gs->logMessage(s + "\n");
+		};
+
+		if (MessageManager::getInstance()->isThisTheMessageThread())
+		{
+			f();
+		}
+		else
+			MessageManager::callAsync(f);
 	}
 
 	void stop(bool condition)

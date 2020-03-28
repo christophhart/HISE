@@ -131,6 +131,11 @@ bool AssemblyRegister::canBeReused() const
 
 
 
+void AssemblyRegister::reinterpretCast(const TypeInfo& newType)
+{
+	type = newType;
+}
+
 snex::Types::ID AssemblyRegister::getType() const
 {
 	return compiler->getRegisterType(type);

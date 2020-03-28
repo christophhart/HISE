@@ -173,6 +173,71 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 		st->addFunction(indexFunction);
 	}
 
+	{
+		auto numElements = getNumElements();
+
+		auto isSimdableFunc = new FunctionData();
+		isSimdableFunc->id = st->getClassName().getChildId("isSimdable");
+		isSimdableFunc->returnType = TypeInfo(Types::ID::Integer);
+		isSimdableFunc->inliner = Inliner::createHighLevelInliner(isSimdableFunc->id, [numElements](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+			auto isSimd = (int)(numElements % 4 == 0);
+
+			auto value = VariableStorage(Types::ID::Integer, isSimd);
+			d->target = new Operations::Immediate(d->expression->location, value);
+			return Result::ok();
+		});
+
+		st->addFunction(isSimdableFunc);
+	}
+
+	{
+		auto& toSimdFunction = st->createSpecialFunction(FunctionClass::ToSimdOp);
+
+		toSimdFunction.returnType = TypeInfo(Types::ID::Dynamic, false, true);
+		toSimdFunction.inliner = Inliner::createAsmInliner(toSimdFunction.id, [](InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+
+
+			auto& cc = d->gen.cc;
+
+			
+
+			if (d->object->isMemoryLocation())
+				d->target->setCustomMemoryLocation(d->object->getAsMemoryLocation(), d->object->isGlobalMemory());
+			else
+			{
+				d->target->createRegister(cc);
+				cc.mov(PTR_REG_W(d->target), PTR_REG_R(d->object));
+			}
+				
+
+			return Result::ok();
+		});
+
+		toSimdFunction.inliner->returnTypeFunction = [this](InlineData* d)
+		{
+			auto rt = dynamic_cast<ReturnTypeInlineData*>(d);
+
+			auto& handler = rt->object->currentCompiler->namespaceHandler;
+
+			auto float4Type = handler.getAliasType(NamespacedIdentifier("float4"));
+
+			if (getNumElements() % 4 != 0)
+				return Result::fail("Can't convert to SIMD");
+
+			int numSimdElements = getNumElements() / 4;
+
+			ComplexType::Ptr simdArrayType = new SpanType(float4Type, numSimdElements);
+			simdArrayType = handler.registerComplexTypeOrReturnExisting(simdArrayType);
+			rt->f.returnType = TypeInfo(simdArrayType, false, true);
+
+			return Result::ok();
+		};
+	}
+
 	return st;
 }
 
@@ -568,6 +633,96 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 	}
 
 	{
+		auto& toSimdFunction = dynOperators->createSpecialFunction(FunctionClass::ToSimdOp);
+		
+		toSimdFunction.inliner = Inliner::createAsmInliner(toSimdFunction.id, [this](InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+
+			auto& cc = d->gen.cc;
+
+			auto mem = cc.newStack(getRequiredByteSize(), getRequiredAlignment());
+
+			auto dataReg = cc.newGpq();
+			auto sizeReg = cc.newGpd();
+
+			if (d->object->isMemoryLocation())
+				cc.lea(dataReg, d->object->getAsMemoryLocation());
+			else
+				cc.mov(dataReg, PTR_REG_R(d->object));
+
+			cc.mov(sizeReg, x86::ptr(dataReg).cloneAdjustedAndResized(4, 4));
+			cc.sar(sizeReg, 2);
+			cc.mov(mem.cloneAdjustedAndResized(4, 4), sizeReg);
+			cc.mov(dataReg, x86::ptr(dataReg).cloneAdjustedAndResized(8, 8));
+			cc.mov(mem.cloneAdjustedAndResized(8, 8), dataReg);
+
+			d->target->setCustomMemoryLocation(mem, false);
+
+			return Result::ok();
+		});
+
+		toSimdFunction.inliner->returnTypeFunction = [](InlineData* d)
+		{
+			auto rt = dynamic_cast<ReturnTypeInlineData*>(d);
+
+			auto& handler = rt->object->currentCompiler->namespaceHandler;
+			auto float4Type = handler.getAliasType(NamespacedIdentifier("float4"));
+			ComplexType::Ptr dynType = new DynType(float4Type);
+			dynType = handler.registerComplexTypeOrReturnExisting(dynType);
+			rt->f.returnType = TypeInfo(dynType, false, true);
+			
+			return Result::ok();
+		};
+	}
+
+	{
+		
+
+		auto isSimdableFunc = new FunctionData();
+		isSimdableFunc->id = dynOperators->getClassName().getChildId("isSimdable");
+		isSimdableFunc->returnType = TypeInfo(Types::ID::Integer);
+		isSimdableFunc->inliner = Inliner::createAsmInliner(isSimdableFunc->id, [](InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+
+			auto& cc = d->gen.cc;
+			
+			d->target->createRegister(cc);
+
+			auto sizeReg = cc.newGpd();
+			auto dataReg = cc.newGpq();
+			
+			auto target = INT_REG_W(d->target);
+
+			if (d->object->isMemoryLocation())
+			{
+				cc.mov(sizeReg, d->object->getAsMemoryLocation().cloneAdjustedAndResized(4, 4));
+				cc.mov(dataReg, d->object->getAsMemoryLocation().cloneAdjustedAndResized(8, 8));
+			}
+			else
+			{
+				cc.mov(sizeReg, x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(4, 4));
+				cc.mov(dataReg, x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(8, 8));
+			}
+
+			auto dTarget = cc.newGpd();
+			cc.xor_(dTarget, dTarget);
+			cc.test(dataReg.r8(), 15);
+			cc.sete(dTarget.r8());
+
+			cc.xor_(target, target);
+			cc.test(sizeReg.r8(), 3);
+			cc.sete(target.r8());
+			cc.and_(target, dTarget);
+
+			return Result::ok();
+		});
+
+		dynOperators->addFunction(isSimdableFunc);
+	}
+
+	{
 		auto& subscriptFunction = dynOperators->createSpecialFunction(FunctionClass::Subscript);
 		subscriptFunction.returnType = elementType;
 		subscriptFunction.addArgs("this", TypeInfo(this));
@@ -627,12 +782,8 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			return Result::ok();
 		});
-
 	}
 
-	
-
-	
 	return dynOperators;
 }
 

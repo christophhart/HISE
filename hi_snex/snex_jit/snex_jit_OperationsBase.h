@@ -182,10 +182,10 @@ public:
 			childStatements.clear();
 		}
 
-		virtual bool tryToResolveType()
+		virtual bool tryToResolveType(BaseCompiler* compiler)
 		{
 			for (auto s : *this)
-				s->tryToResolveType();
+				s->tryToResolveType(compiler);
 
 			if (getTypeInfo().isValid())
 				return true;
@@ -384,6 +384,11 @@ public:
 
 	static bool isOpAssignment(Expression::Ptr p);
 
+	template <class T> static T* as(Statement::Ptr p)
+	{
+		return dynamic_cast<T*>(p.get());
+	}
+
 	static Expression::Ptr evalConstExpr(Expression::Ptr expr);
 
 	struct Assignment;		struct Immediate;				struct Noop;
@@ -392,9 +397,8 @@ public:
 	struct TernaryOp;		struct LogicalNot;				struct Cast;
 	struct Negation;		struct Compare;					struct UnaryOp;
 	struct Increment;		struct DotOperator;				struct Loop;		
-	struct IfStatement;		struct ClassStatement;			
-	struct CastedSimd;      struct Subscript;				struct InlinedParameter;
-	struct ComplexTypeDefinition;						    struct ControlFlowStatement;
+	struct IfStatement;		struct ClassStatement;			struct Subscript;				
+	struct InlinedParameter;struct ComplexTypeDefinition;	struct ControlFlowStatement;
 	struct InlinedArgument; struct MemoryReference;
 
 	struct ScopeStatementBase
@@ -461,6 +465,8 @@ public:
 
 		NamespacedIdentifier getPath() const { return path; }
 
+		void setNewPath(BaseCompiler* c, const NamespacedIdentifier& newPath);
+
 	protected:
 
 		RegPtr returnRegister;
@@ -473,6 +479,8 @@ public:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScopeStatementBase);
 	};
+
+	
 
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.

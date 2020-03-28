@@ -1077,17 +1077,24 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 bool LoopOptimiser::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
+	if (auto fc = as<Operations::FunctionCall>(statement))
+	{
+		fc->tryToResolveType(compiler);
+		return false;
+	}
 	if (auto l = as<Operations::Loop>(statement))
 	{
 		COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
 		{
-			if (unroll(l))
+			if (convertToSimd(compiler, l))
 			{
-				l = nullptr;
-
 				return true;
 			}
 
+			if (unroll(compiler, s, l))
+			{
+				return true;
+			}
 		}
 	}
 
@@ -1096,7 +1103,7 @@ bool LoopOptimiser::processStatementInternal(BaseCompiler* compiler, BaseScope* 
 	return false;
 }
 
-bool LoopOptimiser::unroll(Operations::Loop* l)
+bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 {
 	auto hasControlFlow = l->forEachRecursive([](Ptr p)
 	{
@@ -1106,71 +1113,65 @@ bool LoopOptimiser::unroll(Operations::Loop* l)
 	if (hasControlFlow)
 		return false;
 
-
-
-	auto t = l->getTarget();
-	
-	t->tryToResolveType();
+	l->tryToResolveType(c);
 
 	if (auto st = l->getTarget()->getTypeInfo().getTypedIfComplexType<SpanType>())
 	{
 		int numLoops = st->getNumElements();
 
-		if (SpanType::isSimdType(st->getElementType()))
-		{
-			return false;
-		}
-
-		
-
 		if (numLoops <= 8)
 		{
-			Ptr lp = new Operations::StatementBlock(l->location, l->location.createAnonymousScopeId());
+			auto loopParent = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(l);
+
+			jassert(loopParent != nullptr);
+			
+
+			Ptr lp = new Operations::StatementBlock(l->location, l->location.createAnonymousScopeId(loopParent->getPath()));
 			Ptr target = l->getTarget();
+
+			auto isSimdLoop = SpanType::isSimdType(st->getElementType());
 
 			for (int i = 0; i < numLoops; i++)
 			{
+				Identifier uId("Unroll" + juce::String(i));
+
 				auto cb = l->getLoopBlock()->clone(l->location);
 
-				auto iteratorSymbol = l->iterator;
+				auto newParentScopeId = as<Operations::StatementBlock>(lp)->getPath().getChildId(uId);
 
-				auto thisIndex = i;
+				auto clb = as<Operations::StatementBlock>(cb);
+				clb->setNewPath(c, newParentScopeId);
 
-				cb->forEachRecursive([this, iteratorSymbol, thisIndex, target](Ptr f)
-				{
-					
+				auto iteratorSymbol = Symbol(clb->getPath().getChildId(l->iterator.getName()), l->iterator.typeInfo);
 
-					if (auto v = as<Operations::VariableReference>(f))
-					{
-						if (v->id == iteratorSymbol)
-						{
-							auto imm = new Operations::Immediate(f->location, VariableStorage(thisIndex));
-							auto sus = new Operations::Subscript(f->location, target, imm);
-							f->replaceInParent(sus);
-						}
-					}
+				jassert(l->iterator.resolved);
 
-					
+				NamespaceHandler::ScopedNamespaceSetter sns(c->namespaceHandler, iteratorSymbol.id.getParent());
 
-					return false;
-				});
+				c->namespaceHandler.addSymbol(iteratorSymbol.id, iteratorSymbol.typeInfo, NamespaceHandler::Variable);
 
-				cb->forEachRecursive([this, iteratorSymbol, thisIndex, target](Ptr f)
+				iteratorSymbol.typeInfo = iteratorSymbol.typeInfo.withModifiers(iteratorSymbol.isConst(), true);
+
+				auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
+				auto imm = new Operations::Immediate(l->location, VariableStorage(i));
+				auto sus = new Operations::Subscript(l->location, target, imm);
+				auto ia = new Operations::Assignment(l->location, iv, JitTokens::assign_, sus, true);
+				
+				cb->addStatement(ia, true);
+
+				jassert(iteratorSymbol.resolved);
+
+				cb->forEachRecursive([this, c, s](Ptr f)
 				{
 					if (auto sl = as<Operations::Loop>(f))
 					{
-						unroll(sl);
+						unroll(c, s, sl);
 					}
 
 					return false;
 				});
 
-				
-
 				lp->addStatement(cb);
-
-				
-
 			}
 
 			replaceExpression(l, lp);
@@ -1183,6 +1184,112 @@ bool LoopOptimiser::unroll(Operations::Loop* l)
 		return false;
 
 		
+	}
+
+	return false;
+}
+
+bool LoopOptimiser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
+{
+	auto t = l->getTarget();
+
+	if (auto at = t->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>())
+	{
+		bool isFloat = at->getElementType().getType() == Types::ID::Float;
+
+		if (!isFloat)
+			return false;
+
+		auto isUnSimdable = l->getLoopBlock()->forEachRecursive(isUnSimdableOperation);
+
+		if (isUnSimdable)
+			return false;
+
+		if (auto asSpan = dynamic_cast<SpanType*>(at))
+		{
+			bool isNonSimdableSpan = (asSpan->getNumElements() % 4 != 0);
+
+			if (isNonSimdableSpan)
+				return false;
+
+			changeIteratorTargetToSimd(l);
+			
+			return true;
+		}
+		if (auto asDyn = dynamic_cast<DynType*>(at))
+		{
+			NamespacedIdentifier i("isSimdable");
+
+			auto cond = new Operations::FunctionCall(l->location, nullptr, { i, TypeInfo(Types::ID::Integer) }, {});
+			cond->setObjectExpression(t);
+
+			auto oldPath = l->getLoopBlock()->getPath();
+
+			auto fallbackPath = oldPath.getChildId("Fallback");
+			auto simdPath = oldPath.getChildId("SimdPath");
+
+			auto trueBranch = l->clone(l->location);
+
+			auto simdLoop = as<Operations::Loop>(trueBranch);
+
+			simdLoop->iterator.id.relocateSelf(oldPath, simdPath);
+			simdLoop->getLoopBlock()->setNewPath(c, simdPath);
+			changeIteratorTargetToSimd(simdLoop);
+
+			auto falseBranch = l->clone(l->location);
+
+			auto fallbackLoop = as<Operations::Loop>(falseBranch);
+
+			fallbackLoop->iterator.id.relocateSelf(oldPath, fallbackPath);
+			fallbackLoop->getLoopBlock()->setNewPath(c, fallbackPath);
+
+			auto ifs = new Operations::IfStatement(l->location, cond, trueBranch, falseBranch);
+
+			replaceExpression(l, ifs);
+			l->parent = nullptr;
+
+			
+
+			return false;
+		}
+	}
+
+	return false;
+}
+
+juce::Result LoopOptimiser::changeIteratorTargetToSimd(Operations::Loop* l)
+{
+	auto t = l->getTarget();
+
+	auto newCall = new Operations::FunctionCall(t->location, nullptr, { NamespacedIdentifier("toSimd"), TypeInfo(Types::ID::Dynamic) }, {});
+
+	newCall->setObjectExpression(t->clone(t->location));
+	replaceExpression(t, newCall);
+	return Result::ok();
+}
+
+bool LoopOptimiser::isUnSimdableOperation(Ptr s)
+{
+	auto parentLoop = Operations::findParentStatementOfType<Operations::Loop>(s);
+
+	if (auto cf = as<Operations::ControlFlowStatement>(s))
+		return true;
+
+	if (auto cf = as<Operations::FunctionCall>(s))
+		return true;
+
+	if (auto cf = as<Operations::Increment>(s))
+		return true;
+
+	if (auto v = as<Operations::VariableReference>(s))
+	{
+		auto writeType = v->getWriteAccessType();
+
+		if (writeType != JitTokens::void_)
+		{
+			if (!(parentLoop->iterator == v->id))
+				return true;
+		}
 	}
 
 	return false;

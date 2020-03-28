@@ -4,21 +4,22 @@ BEGIN_TEST_DATA
   ret: float
   args: float
   input: 0.0f
-  output: 32.0f
+  output: 48.0f
   error: ""
   filename: "span/simd_set_scalar"
 END_TEST_DATA
 */
 
-span<float, 8> d = { 2.0f };
+span<float, 12> d = { 2.0f };
 
-float4 x = { 1.0f, 2.0f, 3.0f, 4.0f };
+
 
 float main(float input)
 {
     for(auto& v: d.toSimd())
     {
-        v = 4.0f;
+        float x = 4.0f;
+        v = x;
     }
     
     float sum = 0.0f;
@@ -27,5 +28,6 @@ float main(float input)
         sum += s;
     
     return sum;
+}
 }
 

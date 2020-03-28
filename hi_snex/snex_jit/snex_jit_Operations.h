@@ -160,6 +160,13 @@ struct Operations::StatementBlock : public Expression,
 		return c;
 	}
 
+	ValueTree toValueTree() const override
+	{
+		auto v = Statement::toValueTree();
+		v.setProperty("ScopeId", getPath().toString(), nullptr);
+		return v;
+	}
+
 	static bool isRealStatement(Statement* s);
 
 	bool isConstExpr() const override
@@ -522,6 +529,19 @@ struct Operations::VariableReference : public Expression,
 		}
 	}
 
+	bool tryToResolveType(BaseCompiler* c) override
+	{
+		if (id.resolved)
+			return true;
+
+		auto newType = c->namespaceHandler.getVariableType(id.id);
+
+		if (!newType.isDynamic())
+			id = { id.id, newType };
+
+		return id.resolved;
+	}
+
 	bool isConstExpr() const override
 	{
 		return !id.constExprValue.isVoid();
@@ -725,9 +745,9 @@ struct Operations::DotOperator : public Expression
 		return getSubExpr(1);
 	}
 
-	bool tryToResolveType() override
+	bool tryToResolveType(BaseCompiler* compiler) override
 	{
-		if (Statement::tryToResolveType())
+		if (Statement::tryToResolveType(compiler))
 			return true;
 
 		if (getDotChild()->getTypeInfo().isInvalid())
@@ -1010,122 +1030,6 @@ private:
 
 };
 
-struct Operations::CastedSimd : public Expression
-{
-	SET_EXPRESSION_ID(CastedSimd);
-
-	CastedSimd(Location l, Ptr original) :
-		Expression(l)
-	{
-		addStatement(original);
-	}
-
-	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
-	{
-		jassertfalse;
-		return nullptr;
-	}
-
-	TypeInfo getTypeInfo() const override
-	{
-		return simdComplexType;
-	}
-
-	void process(BaseCompiler* compiler, BaseScope* scope) override
-	{
-		processBaseWithChildren(compiler, scope);
-
-		COMPILER_PASS(BaseCompiler::DataAllocation)
-		{
-			auto originalType = getSubExpr(0)->getTypeInfo();
-
-			auto float4Type = compiler->namespaceHandler.getComplexType(NamespacedIdentifier("float4"));
-			jassert(float4Type != nullptr);
-
-			if (auto sp = originalType.getTypedIfComplexType<SpanType>())
-			{
-				int numSimd = sp->getNumElements() / 4;
-
-
-				auto s = new SpanType(TypeInfo(float4Type), numSimd);
-				simdComplexType = TypeInfo(compiler->namespaceHandler.registerComplexTypeOrReturnExisting(s));
-			}
-			else if (auto dt = originalType.getTypedComplexType<DynType>())
-			{
-				
-
-				auto d = new DynType(TypeInfo(float4Type));
-				simdComplexType = TypeInfo(compiler->namespaceHandler.registerComplexTypeOrReturnExisting(d));
-			}
-			else
-				throwError("Can't convert non-span to SIMD span");
-		}
-
-		COMPILER_PASS(BaseCompiler::TypeCheck)
-		{
-			auto originalType = getSubExpr(0)->getTypeInfo();
-
-			if (auto ost = originalType.getTypedIfComplexType<SpanType>())
-			{
-				if (ost->getElementType() != Types::ID::Float)
-					throwError("SIMD source must have float element type");
-
-				if (ost->getNumElements() % 4 != 0)
-					throwError("Span needs to be multiple of 4 to be convertible to SIMD");
-			}
-			else if (auto odt = originalType.getTypedIfComplexType<DynType>())
-			{
-				if (odt->elementType != Types::ID::Float)
-					throwError("SIMD source must have float element type");
-			}
-			else
-				throwError("Can't convert non-span to SIMD span");
-		}
-
-		COMPILER_PASS(BaseCompiler::RegisterAllocation)
-		{
-			if (simdComplexType.getTypedIfComplexType<DynType>())
-			{
-				reg = compiler->registerPool.getNextFreeRegister(scope, simdComplexType);
-			}
-		}
-
-		COMPILER_PASS(BaseCompiler::CodeGeneration)
-		{
-			if (simdComplexType.getTypedIfComplexType<DynType>())
-			{
-				auto acg = CREATE_ASM_COMPILER(getType());
-
-				auto mem = acg.cc.newStack(simdComplexType.getRequiredByteSize(), simdComplexType.getRequiredAlignment());
-
-				auto target = getSubRegister(0);
-
-				auto dataReg = acg.cc.newGpq();
-				auto sizeReg = acg.cc.newGpd();
-				
-				if (target->isMemoryLocation())
-					acg.cc.lea(dataReg, target->getAsMemoryLocation());
-				else
-					acg.cc.mov(dataReg, PTR_REG_R(target));
-
-				acg.cc.mov(sizeReg, x86::ptr(dataReg).cloneAdjustedAndResized(4, 4));
-				acg.cc.sar(sizeReg, 2);
-				acg.cc.mov(mem.cloneAdjustedAndResized(4, 4), sizeReg);
-
-				acg.cc.mov(dataReg, x86::ptr(dataReg).cloneAdjustedAndResized(8, 8));
-				acg.cc.mov(mem.cloneAdjustedAndResized(8, 8), dataReg);
-
-				reg->setCustomMemoryLocation(mem, false);
-			}
-			else
-			{
-				reg = getSubRegister(0);
-			}
-		}
-	}
-
-	TypeInfo simdComplexType;
-};
 
 struct Operations::FunctionCall : public Expression
 {
@@ -1175,12 +1079,14 @@ struct Operations::FunctionCall : public Expression
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
+		
+
 		auto newFC = new FunctionCall(l, nullptr, Symbol(function.id, function.returnType), function.templateParameters);
 
 		if (getObjectExpression())
 		{
 			auto clonedObject = getObjectExpression()->clone(l);
-			newFC->setObjectExpression(dynamic_cast<Expression*>(clonedObject.get()));
+			newFC->setObjectExpression(clonedObject);
 		}
 
 		for (int i = 0; i < getNumArguments(); i++)
@@ -1188,8 +1094,13 @@ struct Operations::FunctionCall : public Expression
 			newFC->addArgument(getArgument(i)->clone(l));
 		}
 
+		if (function.isResolved())
+			newFC->function = function;
+
 		return newFC;
 	}
+
+	bool tryToResolveType(BaseCompiler* compiler) override;
 
 	ValueTree toValueTree() const override
 	{
@@ -1932,6 +1843,29 @@ struct Operations::Loop : public Expression,
 		return dynamic_cast<StatementBlock*>(b.get());
 	}
 
+	bool tryToResolveType(BaseCompiler* compiler) override
+	{
+		getTarget()->tryToResolveType(compiler);
+
+		auto tt = getTarget()->getTypeInfo();
+
+		if (auto targetType = tt.getTypedIfComplexType<ArrayTypeBase>())
+		{
+			auto r = compiler->namespaceHandler.setTypeInfo(iterator.id, NamespaceHandler::Variable, targetType->getElementType());
+
+			auto iteratorType = targetType->getElementType().withModifiers(iterator.isConst(), iterator.isReference());
+			
+			iterator = { iterator.id, iteratorType };
+
+			if (r.failed())
+				throwError(r.getErrorMessage());
+		}
+
+		Statement::tryToResolveType(compiler);
+
+		return true;
+	}
+
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		processBaseWithoutChildren(compiler, scope);
@@ -1945,9 +1879,11 @@ struct Operations::Loop : public Expression,
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
-			getTarget()->process(compiler, scope);
+			
 
-			getTarget()->tryToResolveType();
+			tryToResolveType(compiler);
+
+			getTarget()->process(compiler, scope);
 
 			auto targetType = getTarget()->getTypeInfo();
 
@@ -2028,6 +1964,8 @@ struct Operations::Loop : public Expression,
 			auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(iterator.typeInfo));
 
 			getTarget()->process(compiler, scope);
+
+			auto t = getTarget();
 
 			auto r = getTarget()->reg;
 
@@ -2296,9 +2234,9 @@ struct Operations::Subscript : public Expression
 		return t;
 	}
 
-	bool tryToResolveType() override
+	bool tryToResolveType(BaseCompiler* compiler) override
 	{
-		Statement::tryToResolveType();
+		Statement::tryToResolveType(compiler);
 
 		auto parentType = getSubExpr(0)->getTypeInfo();
 
@@ -2331,12 +2269,12 @@ struct Operations::Subscript : public Expression
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
-			tryToResolveType();
+			tryToResolveType(compiler);
 		}
 
 		COMPILER_PASS(BaseCompiler::TypeCheck)
 		{
-			getSubExpr(1)->tryToResolveType();
+			getSubExpr(1)->tryToResolveType(compiler);
 			auto indexType = getSubExpr(1)->getTypeInfo();
 
 			if (indexType.getType() != Types::ID::Integer)
@@ -2387,7 +2325,8 @@ struct Operations::Subscript : public Expression
 		{
 			auto abortFunction = [this]()
 			{
-				
+				return false;
+
 				if (auto fc = dynamic_cast<FunctionCall*>(parent.get()))
 				{
 					if (fc->getObjectExpression().get() == this)

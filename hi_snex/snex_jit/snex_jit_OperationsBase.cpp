@@ -462,5 +462,50 @@ Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Loca
 	return new StatementBlock(l, l.createAnonymousScopeId(getPath()));
 }
 
+
+void Operations::ScopeStatementBase::setNewPath(BaseCompiler* c, const NamespacedIdentifier& newPath)
+{
+	auto oldPath = path;
+
+	path = newPath;
+
+	auto asStatement = dynamic_cast<Statement*>(this);
+
+	asStatement->forEachRecursive([c, oldPath, newPath](Statement::Ptr p)
+	{
+		if (auto b = as<ScopeStatementBase>(p))
+		{
+			auto scopePath = b->getPath();
+			if (oldPath.isParentOf(scopePath))
+			{
+				auto newScopePath = scopePath.relocate(oldPath, newPath);
+				b->path = newScopePath;
+			}
+		}
+
+		if (auto l = as<Operations::Loop>(p))
+		{
+			if (oldPath.isParentOf(l->iterator.id))
+			{
+				auto newIterator = l->iterator.id.relocate(oldPath, newPath);
+
+				l->iterator.id = newIterator;
+			}
+		}
+		if (auto v = as<Operations::VariableReference>(p))
+		{
+			if (oldPath.isParentOf(v->id.id))
+			{
+				auto newId = v->id.id.relocate(oldPath, newPath);
+				NamespaceHandler::ScopedNamespaceSetter sns(c->namespaceHandler, newId.getParent());
+				c->namespaceHandler.addSymbol(newId, v->id.typeInfo, NamespaceHandler::Variable);
+				v->id.id = newId;
+			}
+		}
+
+		return false;
+	});
+}
+
 }
 }

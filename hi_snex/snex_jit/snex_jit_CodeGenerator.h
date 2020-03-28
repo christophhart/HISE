@@ -202,8 +202,6 @@ struct AsmCodeGenerator
 
 	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes);
 
-	void emitSpanIteration(BaseCompiler* c, BaseScope* s, const Symbol& iterator, SpanType* typePtr, RegPtr spanTarget, Operations::Statement* loopBody, bool loadIterator);
-
 	void emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex);
 
 	RegPtr emitBinaryOp(OpType op, RegPtr l, RegPtr r);

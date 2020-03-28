@@ -166,7 +166,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 		{
 			auto rd = dynamic_cast<ReturnTypeInlineData*>(d);
 
-			rd->object->tryToResolveType();
+			
 
 			auto inType = rd->object->getSubExpr(0)->getTypeInfo();
 

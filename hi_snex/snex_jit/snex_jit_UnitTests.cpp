@@ -902,12 +902,7 @@ public:
 
 	void runTest() override
 	{
-		optimizations = { OptimizationIds::BinaryOpOptimisation, OptimizationIds::LoopOptimisation };
-
-		testAllOptimizations();
-		return;
-
-		testProcessData();
+		
 		testEvents();
 		
 		testOptimizations();
@@ -915,13 +910,19 @@ public:
 
 		runTestsWithOptimisation({});
 		
+		runTestsWithOptimisation({ OptimizationIds::LoopOptimisation });
+		runTestsWithOptimisation({ OptimizationIds::Inlining, OptimizationIds::LoopOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::Inlining });
+		
+		return;
+
 		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination });
 		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination });
+		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination, OptimizationIds::LoopOptimisation });
 	}
 
 	using OpList = Array<Identifier>;
@@ -1111,6 +1112,7 @@ public:
 		testSpan<double>();
 		testStructs();
 		testUsingAliases();
+		testProcessData();
 
 		testStaticConst();
 		testWrap();

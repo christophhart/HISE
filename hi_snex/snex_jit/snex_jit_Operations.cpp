@@ -434,6 +434,8 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
+		jassert(variableScope != nullptr);
+
 		if (objectExpression != nullptr && objectExpression->getType() != Types::ID::Pointer)
 			objectExpression->location.throwError("expression must have class type");
 	}
@@ -808,7 +810,10 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 					acg.emitStore(tReg, value);
 			}
 			else
+			{
 				acg.emitBinaryOp(assignmentType, tReg, value);
+
+			}
 		}
 	}
 }
@@ -934,6 +939,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithChildren(compiler, scope);
 
+#if 0
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
 		if (hasObjectExpression && function.id == NamespacedIdentifier("toSimd"))
@@ -945,9 +951,12 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			return;
 		}
 	}
+#endif
 
 	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 	{
+		tryToResolveType(compiler);
+
 		if (callType != Unresolved)
 			return;
 
@@ -1103,6 +1112,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				else
 					function = f;
 
+				tryToResolveType(compiler);
+
 				return;
 			}
 		}
@@ -1112,6 +1123,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
+		auto t = getTypeInfo();
+
 		reg = compiler->getRegFromPool(scope, getTypeInfo());
 
 		//VariableReference::reuseAllLastReferences(this);
@@ -1294,6 +1307,8 @@ void Operations::FunctionCall::inlineFunctionCall(AsmCodeGenerator& asg)
 
 	auto r = function.inlineFunction(&d);
 
+	reg = d.target;
+
 	if (!r.wasOk())
 		throwError(r.getErrorMessage());
 }
@@ -1301,6 +1316,47 @@ void Operations::FunctionCall::inlineFunctionCall(AsmCodeGenerator& asg)
 snex::jit::TypeInfo Operations::FunctionCall::getTypeInfo() const
 {
 	return TypeInfo(function.returnType);
+}
+
+bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
+{
+	bool ok = Statement::tryToResolveType(compiler);
+
+
+	if (function.returnType.isDynamic())
+	{
+		auto prevTemplateParameters = function.templateParameters;
+
+		if (hasObjectExpression)
+		{
+			auto objectType = getObjectExpression()->getTypeInfo().getComplexType();
+			FunctionClass::Ptr objectFunctions = objectType->getFunctionClass();
+			function = objectFunctions->getNonOverloadedFunction(function.id);
+		}
+		else
+		{
+			function = compiler->getInbuiltFunctionClass()->getNonOverloadedFunction(function.id);
+
+			jassert(function.inliner != nullptr);
+		}
+
+		if (function.returnType.isDynamic() && function.inliner != nullptr)
+		{
+			ReturnTypeInlineData rData(function);
+			rData.object = this;
+			rData.object->currentCompiler = compiler;
+			rData.templateParameters = prevTemplateParameters;
+			rData.f = function;
+			
+			function.inliner->process(&rData);
+		}
+
+		return function.returnType.isDynamic();
+	}
+
+	
+
+	return ok;
 }
 
 bool Operations::StatementBlock::isRealStatement(Statement* s)
@@ -1385,7 +1441,9 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 				if (auto s = getSubExpr(0))
 				{
 					reg = s->reg;
-					reg->setReference(scope, getSymbols().getFirst());
+					
+					if(reg != nullptr)
+						reg->setReference(scope, getSymbols().getFirst());
 				}
 			}
 			else
@@ -1415,9 +1473,6 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 		{
 			if (type.isRef())
 			{
-				if (reg != nullptr)
-					return;
-
 				if (auto s = getSubExpr(0))
 				{
 					reg = s->reg;

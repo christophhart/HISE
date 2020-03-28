@@ -107,6 +107,17 @@ public:
     {
         return dynamic_cast<T*>(obj.get());
     }
+
+	template <class StatementType, class... StatementTypes> static bool is(StatementPtr obj)
+	{
+		return as<StatementType>(obj) != nullptr && is<StatementTypes...>(obj);
+	}
+
+	template <class StatementType> static bool is(StatementPtr obj)
+	{
+		return as<StatementType>(obj) != nullptr;
+	}
+
 };
 
   
@@ -240,7 +251,15 @@ public:
 
 	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
 
-	bool unroll(Operations::Loop* l);
+private:
+
+	bool unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l);
+
+	bool convertToSimd(BaseCompiler* c, Operations::Loop* l);
+
+	Result changeIteratorTargetToSimd(Operations::Loop* l);
+
+	static bool isUnSimdableOperation(Ptr s);
 };
 
 class FunctionInliner: public OptimizationPass
