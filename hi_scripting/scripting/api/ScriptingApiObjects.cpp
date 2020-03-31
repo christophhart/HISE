@@ -1232,6 +1232,7 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
     API_METHOD_WRAPPER_1(ScriptingEffect, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingEffect, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingEffect, isBypassed);
 	API_METHOD_WRAPPER_0(ScriptingEffect, exportState);
 	API_METHOD_WRAPPER_1(ScriptingEffect, getCurrentLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, restoreState);
@@ -1268,6 +1269,7 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_1(getCurrentLevel);
@@ -1342,7 +1344,15 @@ void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
 	}
 }
 
+bool ScriptingObjects::ScriptingEffect::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return effect->isBypassed();
+	}
 
+	return false;
+}
 
 String ScriptingObjects::ScriptingEffect::exportState()
 {

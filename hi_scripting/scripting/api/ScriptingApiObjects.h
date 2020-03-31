@@ -740,6 +740,9 @@ public:
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
 
+		/** Checks if the effect is bypassed. */
+		bool isBypassed() const;
+
 		/** Exports the state as base64 string. */
 		String exportState();
 
