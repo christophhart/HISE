@@ -935,8 +935,11 @@ public:
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
         
-		/** Bypasses the effect. */
+		/** Bypasses the synth. */
 		void setBypassed(bool shouldBeBypassed);
+		
+		/** Checks if the synth is bypassed. */
+		bool isBypassed() const;
 
 		/** Returns the child synth with the given index. */
 		ScriptingSynth* getChildSynthByIndex(int index);
@@ -1030,7 +1033,10 @@ public:
 		String getAttributeId(int index);
 		
 		/** Bypasses the MidiProcessor. */
-		void setBypassed(bool shouldBeBypassed);;
+		void setBypassed(bool shouldBeBypassed);
+		
+		/** Checks if the MidiProcessor is bypassed. */
+		bool isBypassed() const;
 
 		/** Exports the state as base64 string. */
 		String exportState();
@@ -1090,8 +1096,11 @@ public:
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
-		/** Bypasses the effect. */
+		/** Bypasses the audio sample player. */
 		void setBypassed(bool shouldBeBypassed);
+
+		/** Checks if the audio sample player is bypassed. */
+		bool isBypassed() const;
 
 		/** loads the file. You can use the wildcard {PROJECT_FOLDER} to get the audio file folder for the current project. */
 		void setFile(String fileName);

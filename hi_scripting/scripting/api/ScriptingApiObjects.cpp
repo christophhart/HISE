@@ -1767,6 +1767,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
     API_METHOD_WRAPPER_1(ScriptingSynth, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingSynth, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingSynth, isBypassed);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getChildSynthByIndex);
 	API_METHOD_WRAPPER_0(ScriptingSynth, exportState);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getCurrentLevel);
@@ -1806,6 +1807,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_1(getChildSynthByIndex);
 	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
@@ -1876,6 +1878,16 @@ void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
 		synth->setBypassed(shouldBeBypassed, sendNotification);
 		synth->sendChangeMessage();
 	}
+}
+
+bool ScriptingObjects::ScriptingSynth::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return synth->isBypassed();
+	}
+
+	return false;
 }
 
 ScriptingObjects::ScriptingSynth* ScriptingObjects::ScriptingSynth::getChildSynthByIndex(int index)
@@ -2047,6 +2059,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getNumAttributes);
 	API_METHOD_WRAPPER_1(ScriptingMidiProcessor, getAttributeId);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, isBypassed);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreScriptControls);
@@ -2079,6 +2092,7 @@ mp(mp_)
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
 	ADD_API_METHOD_0(getId);
@@ -2172,6 +2186,16 @@ void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed
 	}
 }
 
+bool ScriptingObjects::ScriptingMidiProcessor::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return mp->isBypassed();
+	}
+
+	return false;
+}
+
 String ScriptingObjects::ScriptingMidiProcessor::exportState()
 {
 	if (checkValidObject())
@@ -2238,6 +2262,7 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
     API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, isBypassed);
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleLength);
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setSampleRange);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setFile);
@@ -2267,6 +2292,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
     ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_0(getNumAttributes);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_0(getSampleLength);
 	ADD_API_METHOD_2(setSampleRange);
 	ADD_API_METHOD_1(setFile);
@@ -2319,6 +2345,15 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setBypassed(bool shouldBeB
 	}
 }
 
+bool ScriptingObjects::ScriptingAudioSampleProcessor::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return audioSampleProcessor->isBypassed();
+	}
+
+	return false;
+}
 
 void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 {
