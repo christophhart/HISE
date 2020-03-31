@@ -507,5 +507,33 @@ void Operations::ScopeStatementBase::setNewPath(BaseCompiler* c, const Namespace
 	});
 }
 
+void Operations::ClassDefinitionBase::addMembersFromStatementBlock(StructType* t, Statement::Ptr bl)
+{
+	for (auto s : *bl)
+	{
+		if (auto td = dynamic_cast<TypeDefinitionBase*>(s))
+		{
+			auto type = s->getTypeInfo();
+
+			if (type.isDynamic())
+				s->location.throwError("Can't use auto on member variables");
+
+			for (auto& id : td->getInstanceIds())
+			{
+				t->addMember(id.getIdentifier(), type);
+
+				if (type.isTemplateType())
+				{
+					InitialiserList::Ptr dv = new InitialiserList();
+					dv->addImmediateValue(s->getSubExpr(0)->getConstExprValue());
+					t->setDefaultValue(id.getIdentifier(), dv);
+				}
+			}
+		}
+	}
+
+	t->finaliseAlignment();
+}
+
 }
 }

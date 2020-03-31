@@ -219,6 +219,8 @@ struct SyntaxTreeInlineData: public InlineData
 				c->executePass(thisPass, s, target.get());
 			};
 
+			jassert(target->currentPass == expression->currentPass);
+
 			return true;
 		}
 			
@@ -552,6 +554,77 @@ juce::Result Inliner::process(InlineData* d) const
 		return asmFunc(d);
 
 	return Result::fail("Can't inline function");
+}
+
+juce::String TemplateParameter::createParameterListString(const List& l)
+{
+	if (l.isEmpty())
+		return {};
+
+	juce::String s;
+
+	s << "<";
+
+	for (int i = 0; i < l.size(); i++)
+	{
+		auto& t = l[i];
+
+		if (t.isTemplateArgument())
+		{
+			if (t.t == TypeTemplateArgument)
+			{
+				s << "typename " << t.argumentId.getIdentifier();
+
+				if (t.type.isValid())
+					s << "=" << t.type.toString();
+			}
+			else
+			{
+				s << "int " << t.argumentId.getIdentifier();
+
+				if (t.constant != 0)
+					s << "=" << juce::String(t.constant);
+			}
+			
+		}
+		else
+		{
+			if (t.type.isValid())
+				s << t.type.toString();
+			else
+				s << juce::String(t.constant);
+		}
+
+		
+
+		if (i != l.size()-1)
+			s << ", ";
+	}
+
+	s << ">";
+
+	return s;
+}
+
+snex::jit::ComplexType::Ptr TemplatedComplexType::createSubType(const NamespacedIdentifier& id)
+{
+	ComplexType::Ptr parentType = this;
+
+	TemplateClass s;
+	s.id = id.relocate(id.getParent(), c.id);
+	s.f = [parentType, id](const TemplateClass::ConstructData& sc)
+	{
+		auto parent = dynamic_cast<TemplatedComplexType*>(parentType.get());
+
+		auto parentType = parent->createTemplatedInstance(sc.tp, *sc.r);
+		parentType = sc.handler->registerComplexTypeOrReturnExisting(parentType);
+
+		auto childType = parentType->createSubType(id);
+
+		return childType;
+	};
+
+	return new TemplatedComplexType(s, d);
 }
 
 } // end namespace jit

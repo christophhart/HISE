@@ -54,10 +54,7 @@ END_JUCE_MODULE_DECLARATION
 /* TODO Roadmap:
 
 
-- make 'wrap_index', 'zero_index', 'clamp_index' and 'unsafe_index' types: OK
-- make small objects fit into register (maybe ComplexType::getRegisterType()) (small_object_register.h)
-- remove Types::ID::Block (or replace with Dyn)
-
+- use more TEMPLATE_PARAMETER parsing
 
 - make good API for syntax replacements
 
@@ -99,7 +96,9 @@ Set to 0 to disable SNEX compilation (default on iOS).
 
 #if HISE_INCLUDE_SNEX
 #include "snex_core/snex_Types.h"
+
 #include "snex_core/snex_ArrayTypes.h"
+#include "snex_core/snex_Math.h"
 #include "snex_core/snex_DynamicType.h"
 #include "snex_core/snex_TypeHelpers.h"
 #include "snex_jit/snex_jit_public.h"

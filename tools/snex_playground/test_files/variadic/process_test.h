@@ -17,14 +17,14 @@ span<float, 16> c2 = { 3.0f };
 
 int main(int input)
 {
-    ProcessData data;// = { c1, c2 };
+    ProcessData<2> d;// = { c1, c2 };
     
-    data.data[0] = c1;
-    data.data[1] = c2;
+    d.data[0] = c1;
+    d.data[1] = c2;
 
     float z = 0.0f;
     
-    for(auto& ch: data.data)
+    for(auto& ch: d.data)
     {
         for(auto& s: ch)
         {

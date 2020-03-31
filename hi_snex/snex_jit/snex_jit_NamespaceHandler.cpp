@@ -111,6 +111,9 @@ juce::String NamespaceHandler::Alias::toString() const
 	case UsingAlias:	   s << "using " << id.toString() << " = " << type.toString(); break;
 	case Constant: s << "static " << type.toString() << " " << id.toString() << " = " << Types::Helpers::getCppValueString(constantValue); break;
 	case StaticFunctionClass: s << "Function class " << id.toString(); break;
+	case TemplateType: s << "typename " << id.toString() << (!type.isDynamic() ? (" " + type.toString()) : ""); break;
+	case TemplateConstant: s << "template int " << id.toString(); break;
+	case TemplatedClass: s << "template struct " << id.toString(); break;
 	default: jassertfalse;
 	}
 
@@ -119,9 +122,12 @@ juce::String NamespaceHandler::Alias::toString() const
 
 snex::jit::ComplexType::Ptr NamespaceHandler::registerComplexTypeOrReturnExisting(ComplexType::Ptr ptr)
 {
+	if (ptr == nullptr)
+		return nullptr;
+
 	for (auto c : complexTypes)
 	{
-		if (c->matchesOtherType(ptr))
+		if (c->matchesOtherType(*ptr))
 			return c;
 	}
 
@@ -417,6 +423,88 @@ juce::Result NamespaceHandler::setTypeInfo(const NamespacedIdentifier& id, Symbo
 	return Result::fail("Can't find namespace");
 }
 
+bool NamespaceHandler::isTemplateTypeArgument(NamespacedIdentifier classId) const
+{
+	resolve(classId);
+
+	if (auto p = get(classId.getParent()))
+	{
+		for (const auto& a : p->aliases)
+		{
+			if (a.id == classId)
+				return a.symbolType == SymbolType::TemplateType;
+		}
+	}
+
+	return false;
+}
+
+bool NamespaceHandler::isTemplateConstantArgument(NamespacedIdentifier classId) const
+{
+	resolve(classId);
+
+	if (auto p = get(classId.getParent()))
+	{
+		for (const auto& a : p->aliases)
+		{
+			if (a.id == classId)
+				return a.symbolType == SymbolType::TemplateConstant;
+		}
+	}
+
+	return false;
+}
+
+snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
+{
+	NamespacedIdentifier copy(id);
+
+	jassert(isTemplateClass(copy));
+
+	bool createTemplatedComplexType = false;
+
+	for (const auto& p : tp)
+	{
+		if (p.type.isTemplateType())
+		{
+			createTemplatedComplexType = true;
+			break;
+		}
+	}
+
+	for (auto c : templateClassIds)
+	{
+		if (c.id == id)
+		{
+			TemplateClass::ConstructData d;
+			d.handler = this;
+			d.tp = tp;
+			d.id = c.id;
+			d.r = &r;
+			
+			ComplexType::Ptr ptr;
+
+			if (createTemplatedComplexType)
+				ptr = new TemplatedComplexType(c, d);
+			else
+				ptr = c.f(d);
+
+			if (!r.wasOk())
+				return ptr;
+
+			r = Result::ok();
+
+			ptr = registerComplexTypeOrReturnExisting(ptr);
+
+			return ptr;
+		}
+	}
+
+	r = Result::fail("Can't find template class");
+
+	return nullptr;
+}
+
 bool NamespaceHandler::rootHasNamespace(const NamespacedIdentifier& id) const
 {
 	auto type = getSymbolType(id);
@@ -441,12 +529,12 @@ NamespaceHandler::SymbolType NamespaceHandler::getSymbolType(const NamespacedIde
 
 TypeInfo NamespaceHandler::getAliasType(const NamespacedIdentifier& aliasId) const
 {
-	return getTypeInfo(aliasId, { SymbolType::Struct, SymbolType::UsingAlias });
+	return getTypeInfo(aliasId, { SymbolType::Struct, SymbolType::UsingAlias, SymbolType::TemplateType });
 }
 
 TypeInfo NamespaceHandler::getVariableType(const NamespacedIdentifier& variableId) const
 {
-	return getTypeInfo(variableId, { SymbolType::Variable, SymbolType::Constant, SymbolType::Function });
+	return getTypeInfo(variableId, { SymbolType::TemplateConstant, SymbolType::Variable, SymbolType::Constant, SymbolType::Function });
 }
 
 snex::VariableStorage NamespaceHandler::getConstantValue(const NamespacedIdentifier& variableId) const
@@ -479,6 +567,24 @@ bool NamespaceHandler::isStaticFunctionClass(const NamespacedIdentifier& classId
 	}
 
 	return false;
+}
+
+void NamespaceHandler::addTemplateClass(const TemplateClass& s)
+{
+	if (currentNamespace == nullptr)
+		pushNamespace(Identifier());
+
+	if (auto p = get(s.id.getParent()))
+	{
+		Alias a;
+		a.id = s.id;
+		a.symbolType = TemplatedClass;
+		
+		p->aliases.add(a);
+	}
+
+
+	templateClassIds.addIfNotAlreadyThere(s);
 }
 
 TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const

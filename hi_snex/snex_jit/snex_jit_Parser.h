@@ -197,6 +197,8 @@ public:
 
 private:
 
+	Array<TemplateParameter> parseTemplateParameters();
+
 	VariableStorage parseConstExpression(bool canBeTemplateParameter);
 
 	bool parseNamespacedIdentifier()
@@ -216,7 +218,51 @@ private:
 	{
 		if (parseNamespacedIdentifier())
 		{
+			if (namespaceHandler.isTemplateTypeArgument(nId))
+			{
+				currentTypeInfo = TypeInfo(nId);
+				return true;
+			}
+
 			auto t = namespaceHandler.getAliasType(nId);
+
+			if (namespaceHandler.isTemplateClass(nId))
+			{
+				auto tp = parseTemplateParameters();
+
+				Result r = Result::ok();
+
+				auto s = namespaceHandler.createTemplateInstantiation(nId, tp, r);
+
+				if (!r.wasOk())
+					location.throwError(r.getErrorMessage());
+
+				currentTypeInfo = TypeInfo(s);
+				parseSubType();
+				return true;
+			}
+
+			if (auto vId = namespaceHandler.getVariadicTypeForId(nId))
+			{
+				auto newType = new VariadicTypeBase(vId);
+
+				auto tp = parseTemplateParameters();
+
+				for (auto p : tp)
+					newType->addType(p.type.getComplexType());
+
+				currentTypeInfo = TypeInfo(namespaceHandler.registerComplexTypeOrReturnExisting(newType));
+
+				parseSubType();
+				return true;
+			}
+
+			if (auto typePtr = namespaceHandler.getComplexType(nId))
+			{
+				currentTypeInfo = TypeInfo(typePtr);
+				parseSubType();
+				return true;
+			}
 
 			if (t.isValid())
 			{
@@ -230,7 +276,6 @@ private:
 			{
 				auto id = NamespacedIdentifier(p.getIdentifier());
 				p = p.getParent();
-
 				t = namespaceHandler.getAliasType(p);
 
 				if (t.isValid() && t.isComplexType())
@@ -278,7 +323,6 @@ private:
 		if (matchIf(JitTokens::float_))		  t = Types::ID::Float;
 		else if (matchIf(JitTokens::int_))	  t = Types::ID::Integer;
 		else if (matchIf(JitTokens::double_)) t = Types::ID::Double;
-		else if (matchIf(JitTokens::block_))  t = Types::ID::Block;
 		else if (matchIf(JitTokens::void_))	  t = Types::ID::Void;
 		else if (matchIf(JitTokens::auto_))	  t = Types::ID::Dynamic;
 		else
@@ -293,50 +337,9 @@ private:
 
 	bool matchIfComplexType()
 	{
-		if (matchIf(JitTokens::span_))
+		if (nId.isValid())
 		{
-			currentTypeInfo = TypeInfo(parseComplexType(JitTokens::span_));
-			return true;
-		}
-		else if (matchIf(JitTokens::dyn_))
-		{
-			currentTypeInfo = TypeInfo(parseComplexType(JitTokens::dyn_));
-			return true;
-		}
-		else if (nId.isValid())
-		{
-			if (auto vId = namespaceHandler.getVariadicTypeForId(nId))
-			{
-				auto newType = new VariadicTypeBase(vId);
-
-				match(JitTokens::lessThan);
-
-				while (parseNamespacedIdentifier())
-				{
-					if (!matchIfComplexType())
-						location.throwError("Can't use non-complex types as variadic argument");
-
-					newType->addType(currentTypeInfo.getComplexType());
-
-					matchIf(JitTokens::comma);
-				}
-
-				// Two `>` characters might get parsed into a shift token
-				// so we need to fix this manually here...
-				if (currentType == JitTokens::rightShift)
-					currentType = JitTokens::greaterThan;
-				else
-					match(JitTokens::greaterThan);
-
-				currentTypeInfo = TypeInfo(namespaceHandler.registerComplexTypeOrReturnExisting(newType));
-				return true;
-			}
-				
-			if (auto typePtr = namespaceHandler.getComplexType(nId))
-			{
-				currentTypeInfo = TypeInfo(typePtr);
-				return true;
-			}
+			
 		}
 
 		return false;
@@ -344,44 +347,8 @@ private:
 
 	ComplexType::Ptr parseComplexType(const juce::String& token)
 	{
-		match(JitTokens::lessThan);
-
-		ComplexType::Ptr newType;
-
-		if (token == JitTokens::span_)
-		{
-			TypeInfo elementType;
-
-			if (matchIfType())
-				elementType = currentTypeInfo;
-			else
-				location.throwError("Expected type for span element");
-
-			match(JitTokens::comma);
-
-			auto sizeValue = parseConstExpression(true);
-			int size = (int)sizeValue;
-			int spanLimit = 1024 * 1024;
-
-			if (size > spanLimit)
-				location.throwError("Span size can't exceed 1M");
-
-			match(JitTokens::greaterThan);
-
-			newType = new SpanType(elementType, size);
-		}
-		else if (token == JitTokens::dyn_)
-		{
-			TypeInfo t;
-
-			if (!matchIfType())
-				location.throwError("Expected type");
-
-			newType = new DynType(currentTypeInfo);
-			match(JitTokens::greaterThan);
-		}
-
-		return namespaceHandler.registerComplexTypeOrReturnExisting(newType);
+		jassertfalse;
+		return nullptr;
 	}
 
 	Types::ID matchTypeId()
@@ -389,7 +356,6 @@ private:
 		if (matchIf(JitTokens::float_)) return Types::ID::Float;
 		if (matchIf(JitTokens::int_))	return Types::ID::Integer;
 		if (matchIf(JitTokens::double_)) return Types::ID::Double;
-		if (matchIf(JitTokens::block_))	return Types::ID::Block;
 		if (matchIf(JitTokens::void_))	return Types::ID::Void;
 		if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
 
@@ -458,6 +424,12 @@ public:
 
 	StatementPtr parseStatementList();
 
+	virtual StatementPtr parseFunction(const Symbol& s)
+	{
+		location.throwError("Can't parse function");
+		return nullptr;
+	}
+
 	virtual StatementPtr parseStatement() = 0;
 
 	Symbol parseNewSymbol(NamespaceHandler::SymbolType t)
@@ -508,7 +480,7 @@ public:
 
 	ComplexType::Ptr getCurrentComplexType() const { return currentTypeInfo.getTypedIfComplexType<ComplexType>(); }
 
-	Array<TemplateParameter> parseTemplateParameters();
+	Array<TemplateParameter> parseTemplateParameters(bool parseTemplateDefinition);
 
 	StatementPtr parseComplexTypeDefinition();
 
@@ -586,10 +558,12 @@ public:
 
     virtual ~NewClassParser() {};
     
+	TemplateParameter::List templateArguments;
+
 	StatementPtr parseStatement() override;
 	ExprPtr parseBufferInitialiser();
 	StatementPtr parseVariableDefinition();
-	StatementPtr parseFunction(const Symbol& s);
+	StatementPtr parseFunction(const Symbol& s) override;
 	StatementPtr parseSubclass();
 	//StatementPtr parseWrapDefinition();
 	

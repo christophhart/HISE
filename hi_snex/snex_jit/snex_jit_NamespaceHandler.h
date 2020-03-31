@@ -49,6 +49,9 @@ struct NamespaceHandler
 		UsingAlias,
 		Constant,
 		StaticFunctionClass,
+		TemplatedClass,
+		TemplateType,
+		TemplateConstant,
 		numSymbolTypes
 	};
 
@@ -142,6 +145,25 @@ public:
 		variadicTypes.add(p);
 	}
 
+	bool isTemplateTypeArgument(NamespacedIdentifier classId) const;
+
+	bool isTemplateConstantArgument(NamespacedIdentifier classId) const;
+
+	bool isTemplateClass(NamespacedIdentifier& classId) const
+	{
+		resolve(classId, true);
+		
+		for (auto& t : templateClassIds)
+		{
+			if (t.id == classId)
+				return true;
+		}
+			
+		return false;
+	}
+
+	ComplexType::Ptr createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
+
 	bool rootHasNamespace(const NamespacedIdentifier& id) const;
 
 	SymbolType getSymbolType(const NamespacedIdentifier& id) const;
@@ -156,6 +178,8 @@ public:
 
 	Result switchToExistingNamespace(const NamespacedIdentifier& id);
 
+	void addTemplateClass(const TemplateClass& s);
+
 private:
 
 	void pushNamespace(const Identifier& childId);
@@ -166,6 +190,7 @@ private:
 
 	ReferenceCountedArray<ComplexType> complexTypes;
 	ReferenceCountedArray<VariadicSubType> variadicTypes;
+	Array<TemplateClass> templateClassIds;
 
 	Namespace::WeakPtr getRoot() const;
 	Namespace::Ptr get(const NamespacedIdentifier& id) const;

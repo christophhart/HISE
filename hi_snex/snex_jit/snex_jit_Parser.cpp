@@ -118,6 +118,7 @@ public:
 			executePass(TypeCheck, newScope->pimpl, sTree);
 			executePass(SyntaxSugarReplacements, newScope->pimpl, sTree);
 			executePass(PostSymbolOptimization, newScope->pimpl, sTree);
+			executePass(FunctionTemplateParsing, newScope->pimpl, sTree);
 			executePass(FunctionParsing, newScope->pimpl, sTree);
 
 			// Optimize now
@@ -200,6 +201,11 @@ BlockParser::StatementPtr BlockParser::parseStatementList()
 
 BlockParser::StatementPtr NewClassParser::parseStatement()
 {
+	if (matchIf(JitTokens::template_))
+		templateArguments = parseTemplateParameters(true);
+	else
+		templateArguments = {};
+
 	if (matchIf(JitTokens::namespace_))
 	{
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, parseIdentifier());
@@ -350,14 +356,26 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 	{
 		auto target = new Operations::VariableReference(location, s);
 
-		match(JitTokens::assign_);
+		if (matchIf(JitTokens::assign_))
+		{
+			ExprPtr expr;
 
-		ExprPtr expr;
+			expr = new Operations::Immediate(location, parseConstExpression(false));
+			match(JitTokens::semicolon);
 
-		expr = new Operations::Immediate(location, parseVariableStorageLiteral());
-		match(JitTokens::semicolon);
+			return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
+		}
 
-		return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
+		if (!s.typeInfo.isTemplateType())
+		{
+			location.throwError("Expected initialiser for non-templated member");
+		}
+		else
+		{
+			match(JitTokens::semicolon);
+			return new Operations::ComplexTypeDefinition(location, s.id, s.typeInfo);
+
+		}
 	}
 }
 
@@ -369,7 +387,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 	auto& fData = func->data;
 
-	fData.id = func->id.id;
+	fData.id = func->data.id;
 	fData.returnType = currentTypeInfo;
 	fData.object = nullptr;
 
@@ -420,47 +438,191 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 
 	auto classId = sp.currentNamespacedIdentifier;
 
-	auto p = new StructType(classId);
+	
 
-	compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct);
-	compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
+	if (templateArguments.isEmpty())
+	{
+		auto p = new StructType(classId, templateArguments);
 
-	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
+		compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct);
+		compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
 
-	auto list = parseStatementList();
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
 
-	match(JitTokens::semicolon);
+		auto list = parseStatementList();
 
-	return new Operations::ClassStatement(location, p, list);
+		match(JitTokens::semicolon);
+
+		return new Operations::ClassStatement(location, p, list);
+	}
+	else
+	{
+		auto classTemplateArguments = templateArguments;
+
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
+
+		for (auto& tp : classTemplateArguments)
+		{
+			jassert(tp.isTemplateArgument());
+			jassert(tp.argumentId.isExplicit());
+
+			tp.argumentId = classId.getChildId(tp.argumentId.getIdentifier());
+
+			jassert(tp.argumentId.getParent() == classId);
+
+			if (tp.t == TemplateParameter::TypeTemplateArgument)
+			{
+				compiler->namespaceHandler.addSymbol(tp.argumentId, tp.type, NamespaceHandler::TemplateType);
+			}
+			else
+			{
+				compiler->namespaceHandler.addSymbol(tp.argumentId, TypeInfo(Types::ID::Integer), NamespaceHandler::TemplateConstant);
+
+				compiler->namespaceHandler.addConstant(tp.argumentId, tp.constant);
+			}
+		}
+
+		auto list = parseStatementList();
+
+		match(JitTokens::semicolon);
+
+		auto tcs = new Operations::TemplateDefinition(location, classId, classTemplateArguments, list);
+
+		TemplateClass tc;
+		tc.id = classId;
+		tc.f = std::bind(&Operations::TemplateDefinition::createTemplate, tcs, std::placeholders::_1);
+
+		compiler->namespaceHandler.addTemplateClass(tc);
+		return tcs;
+	}
 }
 
 snex::VariableStorage BlockParser::parseConstExpression(bool isTemplateArgument)
 {
-	ScopedTemplateArgParser s(*this, isTemplateArgument);
+	if (currentScope == nullptr)
+	{
+		if (currentType == JitTokens::identifier)
+		{
+			SymbolParser sp(*this, compiler->namespaceHandler);
+			auto id = sp.parseExistingSymbol(true);
+			return compiler->namespaceHandler.getConstantValue(id.id);
+		}
 
-	auto expr = parseExpression();
+		return parseVariableStorageLiteral();
+	}
+	else
+	{
+		ScopedTemplateArgParser s(*this, isTemplateArgument);
 
-	expr->currentCompiler = compiler;
-	expr->currentScope = currentScope;
+		auto expr = parseExpression();
 
-	expr = Operations::evalConstExpr(expr);
+		expr->currentCompiler = compiler;
+		expr->currentScope = currentScope;
 
-	if (!expr->isConstExpr())
-		location.throwError("Can't assign static constant to a dynamic expression");
+		expr = Operations::evalConstExpr(expr);
 
-	return expr->getConstExprValue();
+		if (!expr->isConstExpr())
+			location.throwError("Can't assign static constant to a dynamic expression");
+
+		return expr->getConstExprValue();
+	}
 }
 
 
 
-juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters()
+juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(bool parseTemplateDefinition)
 {
+	Array<TemplateParameter> parameters;
+
+	match(JitTokens::lessThan);
+
+	bool parseNextParameter = true;
+
+	while (currentType != JitTokens::greaterThan && !isEOF())
+	{
+		TemplateParameter::ParameterType parameterType;
+
+		if (parseTemplateDefinition)
+		{
+			if (matchIf(JitTokens::int_))
+			{
+				auto templateId = NamespacedIdentifier(parseIdentifier());
+
+				int defaultValue = 0;
+				bool defined = false;
+
+				if (matchIf(JitTokens::assign_))
+				{
+					defaultValue = parseConstExpression(true).toInt();
+					defined = true;
+				}
+					
+
+				parameters.add(TemplateParameter(templateId, defaultValue, defined));
+			}
+			else
+			{
+				match(JitTokens::typename_);
+
+				auto templateId = NamespacedIdentifier(parseIdentifier());
+
+				TypeInfo defaultType;
+
+				if (matchIf(JitTokens::assign_))
+				{
+					TypeParser tp(*this, compiler->namespaceHandler);
+					tp.matchType();
+					defaultType = tp.currentTypeInfo;
+				}
+
+				parameters.add(TemplateParameter(templateId, defaultType));
+			}
+		}
+		else
+		{
+			TypeParser tp(*this, compiler->namespaceHandler);
+
+			if (tp.matchIfType())
+			{
+				TemplateParameter p;
+				p.type = tp.currentTypeInfo;
+				parameters.add(p);
+			}
+			else
+			{
+				auto e = parseConstExpression(true);
+
+				if (e.getType() != Types::ID::Integer)
+					location.throwError("Can't use non-integers as template argument");
+
+				TemplateParameter tp;
+				tp.constant = e.toInt();
+
+				parameters.add(tp);
+			}
+		}
+
+		matchIf(JitTokens::comma);
+	}
+
+	match(JitTokens::greaterThan);
+
+	return parameters;
+
+#if 0
 	Array<TemplateParameter> parameters;
 
 	match(JitTokens::lessThan);
 
 	while (currentType != JitTokens::greaterThan)
 	{
+		if (matchIfType())
+		{
+			TemplateParameter tp;
+			tp.type = currentTypeInfo;
+			parameters.add(tp);
+		}
+
 		if (currentType == JitTokens::literal)
 		{
 			auto v = parseVariableStorageLiteral();
@@ -474,12 +636,7 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters()
 			else
 				location.throwError("Can't use non-integers as template argument");
 		}
-		else if (matchIfType())
-		{
-			TemplateParameter tp;
-			tp.type = currentTypeInfo;
-			parameters.add(tp);
-		}
+		
 		else
 			location.throwError("Invalid template parameter: " + juce::String(currentType));
 
@@ -489,6 +646,7 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters()
 	match(JitTokens::greaterThan);
 
 	return parameters;
+#endif
 }
 
 snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
@@ -497,30 +655,51 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 
 	Array<NamespacedIdentifier> ids;
 
+	auto t = currentTypeInfo;
+
 	auto typePtr = getCurrentComplexType();
 	auto rootId = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
 
 	ids.add(rootId.getChildId(parseIdentifier()));
-	
-	while (matchIf(JitTokens::comma))
-		ids.add(rootId.getChildId(parseIdentifier()));
 
-	auto n = new Operations::ComplexTypeDefinition(location, ids, currentTypeInfo);
-
-	for (auto id : ids)
-		compiler->namespaceHandler.addSymbol(id, currentTypeInfo, NamespaceHandler::Variable);
-
-	if (matchIf(JitTokens::assign_))
+	if (matchIf(JitTokens::openParen))
 	{
-		if (currentType == JitTokens::openBrace)
-			n->addInitValues(parseInitialiserList());
-		else
-			n->addStatement(parseExpression());
+		Symbol s(ids.getFirst(), t);
+
+		compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
+
+		auto st = parseFunction(s);
+
+		matchIf(JitTokens::semicolon);
+
+		return st;
+	}
+	else
+	{
+		while (matchIf(JitTokens::comma))
+			ids.add(rootId.getChildId(parseIdentifier()));
+
+		auto n = new Operations::ComplexTypeDefinition(location, ids, currentTypeInfo);
+
+		for (auto id : ids)
+			compiler->namespaceHandler.addSymbol(id, currentTypeInfo, NamespaceHandler::Variable);
+
+		if (matchIf(JitTokens::assign_))
+		{
+			if (currentType == JitTokens::openBrace)
+				n->addInitValues(parseInitialiserList());
+			else
+				n->addStatement(parseExpression());
+		}
+
+		match(JitTokens::semicolon);
+
+		return n;
 	}
 
-	match(JitTokens::semicolon);
+	
 
-	return n;
+	
 }
 
 InitialiserList::Ptr BlockParser::parseInitialiserList()
@@ -609,6 +788,61 @@ void BlockParser::parseUsingAlias()
 		match(JitTokens::semicolon);
 		compiler->namespaceHandler.setTypeInfo(s.id, NamespaceHandler::UsingAlias, s.typeInfo);
 	}
+}
+
+juce::Array<snex::jit::TemplateParameter> TypeParser::parseTemplateParameters()
+{
+	Array<TemplateParameter> parameters;
+
+	match(JitTokens::lessThan);
+
+	bool parseNextParameter = true;
+
+	while (currentType != JitTokens::greaterThan && !isEOF())
+	{
+		TypeParser tp(*this, namespaceHandler);
+
+		if (tp.matchIfType())
+		{
+			TemplateParameter p(tp.currentTypeInfo);
+			
+			
+			parameters.add(p);
+		}
+		else
+		{
+			if (currentType == JitTokens::identifier)
+			{
+				auto cId = namespaceHandler.getCurrentNamespaceIdentifier().getChildId(Identifier(currentValue.toString()));
+
+				if (namespaceHandler.isTemplateConstantArgument(cId))
+				{
+					TemplateParameter tp(cId, 0, false);
+					parameters.add(tp);
+
+					match(JitTokens::identifier);
+					matchIf(JitTokens::comma);
+					continue;
+				}
+
+			}
+
+			auto e = parseConstExpression(true);
+
+			if (e.getType() != Types::ID::Integer)
+				location.throwError("Can't use non-integers as template argument");
+
+			TemplateParameter tp(e.toInt());
+
+			parameters.add(tp);
+		}
+		
+		matchIf(JitTokens::comma);
+	}
+
+	match(JitTokens::greaterThan);
+
+	return parameters;
 }
 
 snex::VariableStorage TypeParser::parseConstExpression(bool canBeTemplateParameter)

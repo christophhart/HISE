@@ -16,7 +16,7 @@ struct Test
     {
     }
     
-    void process(ProcessData& d)
+    void process(ProcessData<NumChannels>& d)
     {
         
     }
@@ -33,7 +33,7 @@ wrapp::frame<Test> w;
 span<float, 16> c1 = { 1.0f };
 span<float, 16> c2 = { 52.0f };
 
-ProcessData d;
+ProcessData<NumChannels> d;
 
 void setup()
 {

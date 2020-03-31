@@ -62,6 +62,8 @@ struct IndexBase : public ComplexType
 		return nullptr;
 	}
 
+	
+
 	size_t getRequiredByteSize() const override { return 4; }
 	size_t getRequiredAlignment() const override { return 0; };
 
@@ -132,6 +134,22 @@ struct SpanType : public ArrayTypeBase
 	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
 
+
+	bool matchesOtherType(const ComplexType& other) const override
+	{
+		if (auto otherSpan = dynamic_cast<const SpanType*>(&other))
+		{
+			if (otherSpan->getElementType() != getElementType())
+				return false;
+
+			if (otherSpan->getNumElements() != getNumElements())
+				return false;
+
+			return true;
+		}
+
+		return false;
+	}
 
 	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override 
 	{ 
@@ -211,11 +229,10 @@ private:
 
 struct StructType : public ComplexType
 {
-	StructType(const NamespacedIdentifier& s);;
+	StructType(const NamespacedIdentifier& s, const Array<TemplateParameter>& templateParameters = {});;
 
 	size_t getRequiredByteSize() const override;
 	size_t getRequiredAlignment() const override;
-
 
 	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override
 	{
@@ -224,7 +241,6 @@ struct StructType : public ComplexType
 
 		return Types::ID::Pointer;
 	}
-
 
 	void finaliseAlignment() override;
 	juce::String toStringInternal() const override;
@@ -246,7 +262,27 @@ struct StructType : public ComplexType
 	size_t getMemberOffset(const Identifier& id) const;
 	void addJitCompiledMemberFunction(const FunctionData& f);
 
+	Symbol getMemberSymbol(const Identifier& id) const;
+
 	bool injectMemberFunctionPointer(const FunctionData& f, void* fPointer);
+
+	void finaliseExternalDefinition()
+	{
+		isExternalDefinition = true;
+
+		for (auto m : memberData)
+		{
+			if (m->typeInfo.isComplexType())
+			{
+				if (!m->typeInfo.getComplexType()->isFinalised())
+					return;
+			}
+		}
+
+		finaliseAlignment();
+	}
+
+	void addWrappedMemberMethod(const Identifier& memberId, FunctionData wrapperFunction);
 
 	template <class ObjectType, typename ArgumentType> void addExternalComplexMember(const Identifier& id, ComplexType::Ptr p, ObjectType& obj, ArgumentType& defaultValue)
 	{
@@ -276,9 +312,26 @@ struct StructType : public ComplexType
 	void addMember(const Identifier& id, const TypeInfo& typeInfo, size_t offset = 0)
 	{
 		jassert(!isFinalised());
+
+		TypeInfo toUse = typeInfo;
+
+		if (toUse.isTemplateType())
+		{
+			for (int i = 0; i < templateParameters.size(); i++)
+			{
+				if (templateParameters[i].matchesTemplateType(typeInfo))
+				{
+					toUse = templateParameters[i].type;
+					break;
+				}
+			}
+		}
+		
+		
+
 		auto nm = new Member();
 		nm->id = id;
-		nm->typeInfo = typeInfo;
+		nm->typeInfo = toUse;
 		nm->offset = 0;
 		memberData.add(nm);
 	}
@@ -291,10 +344,17 @@ struct StructType : public ComplexType
 		memberFunctions.add(f);
 	}
 
+	TemplateParameter::List getTemplateInstanceParameters() const
+	{
+		return templateParameters;
+	}
+
 	NamespacedIdentifier id;
 
 private:
 
+	TemplateParameter::List templateParameters;
+	
 	Array<FunctionData> memberFunctions;
 
 	struct Member
@@ -332,7 +392,6 @@ struct VariadicTypeBase : public ComplexType
 
 	size_t getRequiredByteSize() const override;
 	size_t getRequiredAlignment() const override;
-
 
 	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override
 	{

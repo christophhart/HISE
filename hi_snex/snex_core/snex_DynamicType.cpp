@@ -36,7 +36,7 @@ VariableStorage::VariableStorage(int s)
 	data.i.value = (int64)s;
 }
 
-VariableStorage::VariableStorage(const Types::FloatBlock& b)
+VariableStorage::VariableStorage(const block& b)
 {
 	data.b = b;
 }
@@ -71,7 +71,7 @@ bool VariableStorage::operator==(const VariableStorage& other) const
 	if (getType() == Types::ID::Integer)
 		return data.i.value == (int)other;
 	if (getType() == Types::ID::Block)
-		return data.b.getData() == ((block)other).getData();
+		return (data.b.begin() == other.data.b.begin()) && (data.b.size() == other.data.b.size());
 	if (getType() == Types::ID::Pointer)
 		return data.p.data == other.data.p.data && data.p.size == other.data.p.size;
 	if (getType() == Types::ID::Void)
@@ -128,7 +128,7 @@ void VariableStorage::set(block&& s)
 void VariableStorage::set(block& b)
 {
 	data.i.type = Types::ID::Block;
-	data.b.referTo(b);
+	data.b = b;
 }
 
 
@@ -263,7 +263,7 @@ int VariableStorage::getPointerSize() const
 	return data.p.size;
 }
 
-snex::VariableStorage& VariableStorage::operator=(const Types::FloatBlock& s)
+snex::VariableStorage& VariableStorage::operator=(const block& s)
 {
 	data.b = s;
 	return *this;
@@ -294,7 +294,7 @@ snex::VariableStorage& VariableStorage::operator=(double s)
 }
 
 
-VariableStorage::operator Types::FloatBlock() const
+VariableStorage::operator block() const
 {
 	jassert(getTypeValue() == Types::ID::Block);
 	return data.b;

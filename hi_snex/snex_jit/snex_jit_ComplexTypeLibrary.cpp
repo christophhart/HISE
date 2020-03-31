@@ -1060,10 +1060,15 @@ snex::jit::ComplexType::Ptr VariadicTypeBase::getSubType(int index) const
 	return types[index];
 }
 
-StructType::StructType(const NamespacedIdentifier& s) :
-	id(s)
+StructType::StructType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp) :
+	id(s),
+	templateParameters(tp)
 {
-
+	for (auto& p : templateParameters)
+	{
+		jassert(!p.isTemplateArgument());
+		jassert(p.argumentId.isValid());
+	}
 }
 
 size_t StructType::getRequiredByteSize() const
@@ -1092,7 +1097,11 @@ size_t StructType::getRequiredByteSize() const
 
 juce::String StructType::toStringInternal() const
 {
-	return id.toString();
+	juce::String s;
+
+	s << id.toString() << TemplateParameter::createParameterListString(templateParameters);
+
+	return s;
 }
 
 snex::jit::FunctionClass* StructType::getFunctionClass()
@@ -1232,8 +1241,10 @@ void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 
 	if (isExternalDefinition)
 	{
+		NamespaceHandler::ScopedNamespaceSetter sns(*handler, id.getParent());
+
 		handler->addSymbol(id, TypeInfo(this), NamespaceHandler::Struct);
-		NamespaceHandler::ScopedNamespaceSetter sns(*handler, id);
+		NamespaceHandler::ScopedNamespaceSetter sns2(*handler, id);
 
 		Array<TypeInfo> subList;
 
@@ -1277,6 +1288,24 @@ bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defa
 	{
 		if (m->id == id)
 		{
+			if (!m->typeInfo.isComplexType())
+			{
+				VariableStorage dv;
+				defaultList->getValue(0, dv);
+
+
+				auto memberType = m->typeInfo.getType();
+				auto defaultType = dv.getType();
+
+				if (memberType != defaultType)
+				{
+					dv = VariableStorage(memberType, dv.toDouble());
+
+					defaultList = new InitialiserList();
+					defaultList->addImmediateValue(dv);
+				}
+			}
+
 			m->defaultList = defaultList;
 			return true;
 		}
@@ -1342,7 +1371,10 @@ void StructType::finaliseAlignment()
 		m->offset = offset;
 
 		auto alignment = getRequiredAlignment(m);
-		m->padding = offset % alignment;
+
+		if(alignment != 0)
+			m->padding = offset % alignment;
+
 		offset += m->padding + m->typeInfo.getRequiredByteSize();
 	}
 
@@ -1417,6 +1449,16 @@ void StructType::addJitCompiledMemberFunction(const FunctionData& f)
 	memberFunctions.add(f);
 }
 
+snex::jit::Symbol StructType::getMemberSymbol(const Identifier& mId) const
+{
+	if (hasMember(mId))
+	{
+		return Symbol(id.getChildId(mId), getMemberTypeInfo(mId));
+	}
+
+	return {};
+}
+
 bool StructType::injectMemberFunctionPointer(const FunctionData& f, void* fPointer)
 {
 	for (auto& m : memberFunctions)
@@ -1429,6 +1471,50 @@ bool StructType::injectMemberFunctionPointer(const FunctionData& f, void* fPoint
 	}
 
 	return false;
+}
+
+void StructType::addWrappedMemberMethod(const Identifier& memberId, FunctionData wrapperFunction)
+{
+	auto functionId = wrapperFunction.id.getIdentifier();
+
+	wrapperFunction.id = id.getChildId(functionId);
+
+	if (wrapperFunction.inliner == nullptr)
+	{
+		wrapperFunction.inliner = Inliner::createHighLevelInliner(wrapperFunction.id, [this, memberId, functionId](InlineData* b)
+		{
+			using namespace Operations;
+
+			auto d = b->toSyntaxTreeData();
+
+			auto newCall = d->expression->clone(d->location);
+
+			auto p = d->expression->getSubExpr(0)->clone(d->location);
+			auto c = new VariableReference(d->location, getMemberSymbol(memberId));
+			auto dot = new DotOperator(d->location, p, c);
+			auto nf = dynamic_cast<FunctionCall*>(newCall.get());
+
+			nf->setObjectExpression(dot);
+
+			FunctionClass::Ptr fc = getMemberComplexType(memberId)->getFunctionClass();
+
+			if (!fc->hasFunction(fc->getClassName().getChildId(functionId)))
+			{
+				juce::String s;
+				s << getMemberComplexType(memberId)->toString() << " does not have function " << functionId;
+				return Result::fail(s);
+			}
+				
+
+			nf->function = fc->getNonOverloadedFunction(NamespacedIdentifier(functionId));
+
+			d->target = newCall;
+
+			return Result::ok();
+		});
+	}
+
+	memberFunctions.add(wrapperFunction);
 }
 
 IndexBase::IndexBase(const TypeInfo& parentType_) :
@@ -1623,7 +1709,7 @@ snex::jit::Inliner::Func SpanType::Wrapped::getAsmFunction(FunctionClass::Specia
 			auto thisObj = d->target;
 			auto value = d->args[1];
 
-			jassert(thisObj->getTypeInfo().getTypedComplexType<SpanType::Wrapped>() != nullptr);
+			jassert(thisObj->getType() == Types::ID::Integer || thisObj->getTypeInfo().getTypedComplexType<SpanType::Wrapped>() != nullptr);
 			jassert(value->getType() == Types::ID::Integer);
 
 			thisObj->loadMemoryIntoRegister(cc);

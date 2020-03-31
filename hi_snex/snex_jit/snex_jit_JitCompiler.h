@@ -140,10 +140,17 @@ public:
 	so make sure you use the return value of this function for further processing. */
 	ComplexType::Ptr registerExternalComplexType(ComplexType::Ptr t);
 
-	ComplexType::Ptr getComplexType(const NamespacedIdentifier& s);
+	ComplexType::Ptr getComplexType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp = {});
 
+	void addConstant(const NamespacedIdentifier& s, const VariableStorage& v);
+
+	void addTemplateClass(const TemplateClass& c);
 
 	void registerVariadicType(VariadicSubType::Ptr p);
+
+	void initInbuildFunctions();
+
+	static int compileCount;
 
 private:
 

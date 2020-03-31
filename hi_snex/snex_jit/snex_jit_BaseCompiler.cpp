@@ -128,6 +128,61 @@ using namespace asmjit;
 		return optimisationIds.contains(OptimizationIds::Inlining);
 	}
 
+	void BaseCompiler::setInbuildFunctions()
+	{
+		inbuildFunctions = new InbuiltFunctions(this);
+	}
+
+	BaseCompiler::BaseCompiler(NamespaceHandler& handler) :
+		namespaceHandler(handler),
+		registerPool(this)
+	{
+		TemplateClass spanClass;
+		spanClass.id = NamespacedIdentifier("span");
+		spanClass.f = [](const TemplateClass::ConstructData& d)
+		{
+			ComplexType::Ptr p;
+
+			if (!d.expectTemplateParameterAmount(2))
+				return p;
+
+			if (!d.expectType(0))
+				return p;
+
+			if (!d.expectIsNumber(1))
+				return p;
+
+			p = new SpanType(d.tp[0].type, d.tp[1].constant);
+
+			return p;
+		};
+		namespaceHandler.addTemplateClass(spanClass);
+
+		TemplateClass dynClass;
+		dynClass.id = NamespacedIdentifier("dyn");
+		dynClass.f = [](const TemplateClass::ConstructData& d)
+		{
+			ComplexType::Ptr p;
+
+			if (!d.expectTemplateParameterAmount(1))
+				return p;
+
+			if (!d.expectType(0))
+				return p;
+
+			p = new DynType(d.tp[0].type);
+
+			return p;
+		};
+		namespaceHandler.addTemplateClass(dynClass);
+
+
+
+		auto float4Type = new SpanType(TypeInfo(Types::ID::Float), 4);
+		float4Type->setAlias(NamespacedIdentifier("float4"));
+		namespaceHandler.registerComplexTypeOrReturnExisting(float4Type);
+	}
+
 	void BaseCompiler::executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement)
     {
 		auto st = dynamic_cast<Operations::Statement*>(statement);

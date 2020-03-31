@@ -42,9 +42,9 @@ class FunctionScope;
 #define SET_EXPRESSION_ID(x) Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER(#x); }
 
 /** This class has a variable pool that will not exceed the lifetime of the compilation. */
-class Operations
+namespace Operations
 {
-public:
+
 
 	using FunctionCompiler = asmjit::X86Compiler;
 
@@ -205,6 +205,20 @@ public:
 				v.addChild(s->toValueTree(), -1, nullptr);
 
 			return v;
+		}
+
+		void processAllPassesUpTo(BaseCompiler::Pass p, BaseScope* s)
+		{
+			jassert(currentCompiler != nullptr);
+
+			for (int i = 0; i <= (int)p; i++)
+			{
+				auto p = (BaseCompiler::Pass)i;
+				BaseCompiler::ScopedPassSwitcher sps(currentCompiler, p);
+				currentCompiler->executePass(p, s, this);
+			}
+
+			jassert(currentPass == p);
 		}
 
 		void throwError(const juce::String& errorMessage);
@@ -399,7 +413,8 @@ public:
 	struct Increment;		struct DotOperator;				struct Loop;		
 	struct IfStatement;		struct ClassStatement;			struct Subscript;				
 	struct InlinedParameter;struct ComplexTypeDefinition;	struct ControlFlowStatement;
-	struct InlinedArgument; struct MemoryReference;
+	struct InlinedArgument; struct MemoryReference;			struct TemplateDefinition; 
+	struct TemplatedTypeDef;
 
 	struct ScopeStatementBase
 	{
@@ -526,6 +541,32 @@ public:
 		}
 
 		virtual Symbol getSymbol() const = 0;
+	};
+
+	struct ArrayStatementBase
+	{
+		enum ArrayType
+		{
+			Undefined,
+			Span,
+			Dyn,
+			CustomObject,
+			numSubscriptTypes
+		};
+
+		virtual ~ArrayStatementBase() {};
+
+		virtual ArrayType getArrayType() const = 0;
+	};
+
+
+	struct ClassDefinitionBase
+	{
+		virtual ~ClassDefinitionBase() {};
+
+		virtual bool isTemplate() const = 0;
+
+		void addMembersFromStatementBlock(StructType* t, Statement::Ptr bl);
 	};
 
 	struct BranchingStatement

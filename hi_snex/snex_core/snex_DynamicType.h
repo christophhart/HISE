@@ -32,7 +32,7 @@ public:
 	VariableStorage(FloatType s);
 	VariableStorage(double d);
 	VariableStorage(int s);
-	VariableStorage(const Types::FloatBlock& b);
+	VariableStorage(const block& b);
 	VariableStorage(HiseEvent& m);
 
 	template <class T> VariableStorage(T* ptr)
@@ -54,7 +54,7 @@ public:
 	VariableStorage& operator =(int s);
 	VariableStorage& operator =(FloatType s);
 	VariableStorage& operator =(double s);
-	VariableStorage& operator =(const Types::FloatBlock& s);
+	VariableStorage& operator =(const block& s);
 
 	bool operator==(const VariableStorage& other) const;
 
@@ -73,7 +73,7 @@ public:
 	explicit operator FloatType() const noexcept;
 	explicit operator double() const noexcept;
 	explicit operator int() const;
-	explicit operator Types::FloatBlock() const;
+	explicit operator block() const;
 	explicit operator HiseEvent() const;
 	explicit operator void*() const;
 

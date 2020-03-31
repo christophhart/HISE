@@ -13,7 +13,7 @@ END_TEST_DATA
 
 block main(block input)
 {
-	input[0] = 1.0f;
+	  input[input.index<block::unsafe>(0)] = 1.0f;
 	
     return input;
 }

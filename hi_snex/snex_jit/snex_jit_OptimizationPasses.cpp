@@ -147,6 +147,9 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 		if (auto c = as<Operations::Cast>(statement))
 		{
+			if (c->getTypeInfo().isTemplateType())
+				jassertfalse;
+
 			if (auto imm = evalCast(c->getSubExpr(0), c->getType()))
 			{
 				replaceExpression(c, imm);

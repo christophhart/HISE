@@ -315,7 +315,7 @@ struct ComplexType : public ReferenceCountedObject
 
 	bool operator ==(const ComplexType& other) const
 	{
-		return hash() == other.hash();
+		return matchesOtherType(other);
 	}
 
 	virtual bool isValidCastSource(Types::ID nativeSourceType, ComplexType::Ptr complexSourceType) const;
@@ -353,12 +353,12 @@ struct ComplexType : public ReferenceCountedObject
 		return usingAlias.isValid(); 
 	}
 
-	bool matchesOtherType(ComplexType::Ptr other) const
+	virtual bool matchesOtherType(const ComplexType& other) const
 	{
-		if (usingAlias.isValid() && other->usingAlias == usingAlias)
+		if (usingAlias.isValid() && other.usingAlias == usingAlias)
 			return true;
 
-		if (toStringInternal() == other->toStringInternal())
+		if (toStringInternal() == other.toStringInternal())
 			return true;
 
 		return false;
@@ -394,7 +394,6 @@ private:
 
 
 
-
 struct TypeInfo
 {
 	using List = Array<TypeInfo>;
@@ -420,21 +419,33 @@ struct TypeInfo
 		type = Types::ID::Pointer;
 	}
 
+	explicit TypeInfo(const NamespacedIdentifier& templateTypeId_, bool isConst_ = false, bool isRef_ = false):
+		templateTypeId(templateTypeId_),
+		const_(isConst_),
+		ref_(isRef_)
+	{
+
+	}
+
 	bool isDynamic() const noexcept
 	{
-		return type == Types::ID::Dynamic;
+		return !isTemplateType() && type == Types::ID::Dynamic;
 	}
 
 	bool isValid() const noexcept
 	{
 		return !isInvalid();
 	}
+
+	bool isTemplateType() const noexcept
+	{
+		return templateTypeId.isValid();
+	}
 	
 	bool isInvalid() const noexcept
 	{
 		return type == Types::ID::Void || type == Types::ID::Dynamic;
 	}
-
 
 	bool operator!=(const TypeInfo& other) const
 	{
@@ -479,6 +490,8 @@ struct TypeInfo
 		else
 			return Types::Helpers::getSizeForType(type);
 	}
+
+	NamespacedIdentifier getTemplateId() const { return templateTypeId; }
 
 	TypeInfo withModifiers(bool isConst_, bool isRef_) const
 	{
@@ -604,17 +617,311 @@ private:
 	bool ref_ = false;
 	Types::ID type = Types::ID::Dynamic;
 	ComplexType::Ptr typePtr;
+	NamespacedIdentifier templateTypeId;
 };
 
 class NamespaceHandler;
 
 struct TemplateParameter
 {
+	enum ParameterType
+	{
+		Empty,
+		ConstantInteger,
+		Type,
+		IntegerTemplateArgument,
+		TypeTemplateArgument,
+		numTypes
+	};
+
+	TemplateParameter() :
+		t(Empty),
+		type({}),
+		constant(0),
+		constantDefined(false)
+	{};
+
+	TemplateParameter(const NamespacedIdentifier& id, int value, bool defined):
+		t(IntegerTemplateArgument),
+		type({}),
+		argumentId(id),
+		constant(value),
+		constantDefined(defined)
+	{
+		jassert(isTemplateArgument());
+	}
+
+	TemplateParameter(const NamespacedIdentifier& id, const TypeInfo& defaultType = {}) :
+		t(TypeTemplateArgument),
+		type(defaultType),
+		argumentId(id),
+		constant(0)
+	{
+		jassert(isTemplateArgument());
+	}
+
+
+	TemplateParameter(int c) :
+		type(TypeInfo()),
+		constant(c),
+		t(ParameterType::ConstantInteger),
+		constantDefined(true)
+	{
+		jassert(!isTemplateArgument());
+	};
+
+	TemplateParameter(const TypeInfo& t) :
+		type(t),
+		constant(0),
+		t(ParameterType::Type)
+	{
+		jassert(!isTemplateArgument());
+	};
+
+	bool isTemplateArgument() const
+	{
+		return t == IntegerTemplateArgument || t == TypeTemplateArgument;
+	}
+
+	bool matchesTemplateType(const TypeInfo& t) const
+	{
+		jassert(argumentId.isValid());
+		return t.getTemplateId() == argumentId;
+	}
+
+	bool isResolved() const
+	{
+		jassert(!isTemplateArgument());
+
+		if (t == Type)
+			return type.isValid();
+		else
+			return constantDefined;
+	}
+
 	using List = Array<TemplateParameter>;
+
+	static juce::String createParameterListString(const List& l);
 
 	TypeInfo type;
 	int constant;
+	bool constantDefined = false;
+	ParameterType t;
+	NamespacedIdentifier argumentId;
 };
+
+struct TemplateClass
+{
+	struct ConstructData
+	{
+		bool expectTemplateParameterAmount(int expectedSize) const
+		{
+			if (tp.size() != expectedSize)
+			{
+				juce::String s;
+
+				s << "template amount mismatch: ";
+				s << juce::String(tp.size());
+				s << ", expected: " << juce::String(expectedSize);
+
+				*r = Result::fail(s);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool expectIsComplexType(int argIndex) const
+		{
+			auto& t = tp[argIndex];
+
+			if (!t.type.isComplexType())
+			{
+				juce::String s;
+				s << "template parameter mismatch: ";
+				s << t.type.toString();
+				s << " expected: complex type";
+				*r = Result::fail(s);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool expectType(int argIndex) const
+		{
+			auto& t = tp[argIndex];
+
+			if (t.type.isInvalid())
+			{
+				juce::String s;
+				s << "template parameter mismatch: expected type";
+				*r = Result::fail(s);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool expectIsNumber(int argIndex) const
+		{
+			auto& t = tp[argIndex];
+
+			if (t.type.isValid())
+			{
+				juce::String s;
+				s << "template parameter mismatch: ";
+				s << t.type.toString();
+				s << " expected: integer literal";
+				*r = Result::fail(s);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool expectNotIntegerValue(int argIndex, int illegalNumber) const
+		{
+			if (!expectIsNumber(argIndex))
+				return false;
+
+			auto& t = tp[argIndex];
+
+			if (t.constant == illegalNumber)
+			{
+				*r = Result::fail("Illegal template argument: " + juce::String(illegalNumber));
+				return false;
+			}
+
+			return true;
+		}
+
+		NamespaceHandler* handler;
+		NamespacedIdentifier id;
+		Array<TemplateParameter> tp;
+		juce::Result* r;
+	};
+
+	using Constructor = std::function<ComplexType::Ptr(const ConstructData&)>;
+
+	bool operator==(const TemplateClass& other) const
+	{
+		return id == other.id;
+	}
+
+	
+
+	NamespacedIdentifier id;
+	Constructor f;
+};
+
+
+
+struct TemplatedComplexType : public ComplexType
+{
+	TemplatedComplexType(const TemplateClass& c_, const TemplateClass::ConstructData& d_) :
+		c(c_),
+		d(d_)
+	{
+
+	}
+
+	ComplexType::Ptr createTemplatedInstance(const TemplateParameter::List& suppliedTemplateParameters, juce::Result& r)
+	{
+		TemplateParameter::List instanceParameters;
+
+		for (const auto& p : d.tp)
+		{
+			if (p.type.isTemplateType())
+			{
+				for (const auto& sp : suppliedTemplateParameters)
+				{
+					if (sp.argumentId == p.type.getTemplateId())
+					{
+						if (sp.t == TemplateParameter::ConstantInteger)
+						{
+							TemplateParameter ip(sp.constant);
+							ip.argumentId = sp.argumentId;
+							instanceParameters.add(ip);
+						}
+						else
+						{
+							TemplateParameter ip(sp.type);
+							ip.argumentId = sp.argumentId;
+							instanceParameters.add(ip);
+						}
+					}
+				}
+			}
+			else if (p.isTemplateArgument())
+			{
+				for (const auto& sp : suppliedTemplateParameters)
+				{
+					if (sp.argumentId == p.argumentId)
+					{
+						jassert(sp.isResolved());
+						TemplateParameter ip = sp;
+						instanceParameters.add(ip);
+					}
+				}
+			}
+			else
+			{
+				jassert(p.isResolved());
+				instanceParameters.add(p);
+			}
+		}
+
+		for (auto& p : instanceParameters)
+		{
+			jassert(p.isResolved());
+		}
+		
+		TemplateClass::ConstructData instanceData = d;
+		instanceData.tp = instanceParameters;
+
+		instanceData.r = &r;
+
+		ComplexType::Ptr p = c.f(instanceData);
+
+		
+
+		return p;
+	}
+
+	size_t getRequiredByteSize() const override { return 0; }
+
+	size_t getRequiredAlignment() const override { return 0; }
+
+	void dumpTable(juce::String&, int&, void*, void*) const override {}
+
+	Result initialise(InitData d) { return Result::ok(); };
+
+	InitialiserList::Ptr makeDefaultInitialiserList() const { return nullptr; }
+
+	ComplexType::Ptr createSubType(const NamespacedIdentifier& id) override;
+
+	void registerExternalAtNamespaceHandler(NamespaceHandler* handler)
+	{
+		
+	}
+
+	bool forEach(const TypeFunction&, Ptr, void*) { return false; }
+
+	juce::String toStringInternal() const override
+	{
+		return "template " + c.id.toString();
+	}
+
+private:
+
+	TemplateClass c;
+	TemplateClass::ConstructData d;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TemplatedComplexType);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TemplatedComplexType);
+};
+
 
 /** A Symbol is used to identify the data slot. */
 struct Symbol
@@ -762,6 +1069,51 @@ struct Inliner : public ReferenceCountedObject
 	Func returnTypeFunction;
 };
 
+namespace FunctionValidators
+{
+
+
+
+
+template <typename Arg1>
+static constexpr bool isValidParameterType(const Arg1& a)
+{
+	auto ok = !Types::Helpers::isPointerType<Arg1>() || std::is_pointer<Arg1>();
+	jassert(ok);
+	return ok;
+}
+
+template <typename Arg1, typename Arg2> 
+static constexpr bool isValidParameterType(const Arg1& a1, const Arg2& a2)
+{
+	return isValidParameterType(a1) && isValidParameterType(a2);
+}
+
+template <typename Arg1, typename Arg2, typename Arg3> 
+static constexpr bool isValidParameterType(const Arg1& a1, const Arg2& a2, const Arg3& a3)
+{
+	return isValidParameterType(a1) && 
+		   isValidParameterType(a2) && 
+		   isValidParameterType(a3);
+}
+
+
+template <typename Arg1, typename Arg2, typename Arg3, typename Arg4> 
+static constexpr bool isValidParameterType(const Arg1& a1, const Arg2& a2, const Arg3& a3, const Arg4& a4)
+{
+	return isValidParameterType(a1) && isValidParameterType(a3) &&
+		isValidParameterType(a2) && isValidParameterType(a4);
+}
+
+template <typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5> 
+static constexpr bool isValidParameterType(const Arg1& a1, const Arg2& a2, const Arg3& a3, const Arg4& a4, const Arg5& a5)
+{
+	return isValidParameterType(a1) && isValidParameterType(a2) &&
+		isValidParameterType(a3) && isValidParameterType(a4) && isValidParameterType(a5);
+}
+
+}
+
 /** A wrapper around a function. */
 struct FunctionData
 {
@@ -787,8 +1139,6 @@ struct FunctionData
 		args.add(createIndexedSymbol(1, Types::Helpers::getTypeFromTypeId<T2>()));
 		args.add(createIndexedSymbol(2, Types::Helpers::getTypeFromTypeId<T3>()));
 	}
-
-	
 
 	void addArgs(const Identifier& argName, const TypeInfo& t)
 	{
@@ -933,14 +1283,6 @@ struct FunctionData
 
 	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUnchecked(Parameters... ps) const
 	{
-		using signature = ReturnType & (*)(Parameters...);
-		auto f_ = (signature)function;
-		auto& r = f_(ps...);
-		return ReturnType(r);
-	}
-
-	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUncheckedWithCopy(Parameters... ps) const
-	{
 		using signature = ReturnType(*)(Parameters...);
 		auto f_ = (signature)function;
 		return static_cast<ReturnType>(f_(ps...));
@@ -948,6 +1290,12 @@ struct FunctionData
 
 	template <typename ReturnType, typename... Parameters> ReturnType call(Parameters... ps) const
 	{
+		// return type must be pointer for complex objects
+		jassert(FunctionValidators::isValidParameterType(ReturnType()));
+
+		// arguments must be pointer for complex objects...
+		jassert(FunctionValidators::isValidParameterType(ReturnType(), ps...));
+
 		if(object != nullptr)
 			return callInternal<ReturnType>(object, ps...);
 		else
@@ -958,23 +1306,10 @@ private:
 
 	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callInternal(Parameters... ps) const
 	{
-		// You must not call this method if you return an event or a block.
-		// Use callWithReturnCopy instead...
-
-		if (Types::Helpers::getTypeFromTypeId<ReturnType>() == Types::ID::Block)
-		{
-			if (function != nullptr)
-				return callUnchecked<ReturnType, Parameters...>(ps...);
-			else
-				return ReturnType();
-		}
+		if (function != nullptr)
+			return callUnchecked<ReturnType, Parameters...>(ps...);
 		else
-		{
-			if (function != nullptr)
-				return callUncheckedWithCopy<ReturnType, Parameters...>(ps...);
-			else
-				return ReturnType();
-		}
+			return ReturnType();
 	}
 
 
@@ -994,6 +1329,7 @@ struct VariadicSubType : public ReferenceCountedObject
 	ComplexType::WeakPtr variadicType;
 	NamespacedIdentifier variadicId;
 	Array<FunctionData> functions;
+	bool isTemplateClass = false;
 };
 
 

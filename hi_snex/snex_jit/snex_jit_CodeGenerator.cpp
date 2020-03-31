@@ -80,11 +80,23 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 		if (value->isZero())
 		{
 			// Will be a nullptr call...
-			jassert(type != Types::ID::Pointer);
+			
 
 			IF_(float)  FP_OP(cc.xorps, target, target);
 			IF_(double) FP_OP(cc.xorps, target, target);
 			IF_(int)    INT_OP(cc.xor_, target, target);
+			IF_(void*)
+			{
+				if (target->isSimd4Float())
+				{
+					FP_OP(cc.xorps, target, target);
+				}
+				else
+				{
+					jassert(type != Types::ID::Pointer);
+					jassertfalse;
+				}
+			}
 			return;
 		}
 		else
@@ -581,125 +593,100 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 		}
 	}
 
-	if (address->getType() == Types::ID::Block)
+	jassert(address->getType() == Types::ID::Pointer);
+	jassert(index->getType() == Types::ID::Integer);
+	jassert(address->getType() == Types::ID::Pointer || address->isMemoryLocation());
+
+	int shift = (int)log2(elementSizeInBytes);
+	bool canUseShift = isPowerOfTwo(elementSizeInBytes) && shift < 4;
+
+	x86::Gpd indexReg;
+
+	if (index->hasCustomMemoryLocation())
+		index->loadMemoryIntoRegister(cc);
+
+	if (!index->isMemoryLocation())
 	{
-		address->loadMemoryIntoRegister(cc);
-		auto blockAddress = INT_REG_R(address);
+		indexReg = index->getRegisterForReadOp().as<x86::Gpd>();
 
-		auto bptr = x86::ptr(blockAddress).cloneAdjusted(8);
+		if (!canUseShift && index->getVariableId())
+		{
+			auto newIndexReg = cc.newGpd().as<x86::Gpd>();
+			cc.mov(newIndexReg, indexReg);
+			indexReg = newIndexReg;
+		}
 
-		TemporaryRegister fptr(*this, target->getScope(), TypeInfo(Types::ID::Block));
-		cc.mov(fptr.get(), bptr);
+		if (!canUseShift)
+		{
+			if (isPowerOfTwo(elementSizeInBytes))
+				cc.sal(indexReg, shift);
+			else
+				cc.imul(indexReg, (uint64_t)elementSizeInBytes);
 
-		X86Mem ptr;
+			shift = 0;
+		}
+	}
+
+	X86Mem p;
+
+	bool isDyn = address->getTypeInfo().getTypedComplexType<DynType>();
+
+	if (address->isMemoryLocation())
+	{
+		auto ptr = address->getAsMemoryLocation();
+
+		if (isDyn)
+		{
+			auto b_ = cc.newGpq();
+			cc.mov(b_, ptr.cloneAdjustedAndResized(8, 8));
+			ptr = x86::ptr(b_);
+		}
 
 		if (index->isMemoryLocation())
-			ptr = x86::ptr(fptr.get(), index->getImmediateIntValue() * sizeof(float));
+			p = ptr.cloneAdjusted(imm2ptr(INT_IMM(index) * elementSizeInBytes));
 		else
-			ptr = x86::ptr(fptr.get(), INT_REG_R(index), sizeof(float));
+		{
+			// for some reason uint64_t base + index reg doesn't create a 64bit address...
+			// so we need to use a register for the base
+			auto b_ = cc.newGpq();
 
-		target->setCustomMemoryLocation(ptr, true);
+			cc.lea(b_, ptr);
+
+			p = x86::ptr(b_, indexReg, shift);
+		}
 	}
 	else
 	{
-		jassert(address->getType() == Types::ID::Pointer);
-		jassert(index->getType() == Types::ID::Integer);
-		jassert(address->getType() == Types::ID::Pointer || address->isMemoryLocation());
+		address->loadMemoryIntoRegister(cc);
 
-		int shift = (int)log2(elementSizeInBytes);
-		bool canUseShift = isPowerOfTwo(elementSizeInBytes) && shift < 4;
+		X86Gp adToUse = PTR_REG_R(address);
 
-		x86::Gpd indexReg;
 
-		if (index->hasCustomMemoryLocation())
-			index->loadMemoryIntoRegister(cc);
-
-		if (!index->isMemoryLocation())
+		if (isDyn)
 		{
-			indexReg = index->getRegisterForReadOp().as<x86::Gpd>();
-
-			if (!canUseShift && index->getVariableId())
-			{
-				auto newIndexReg = cc.newGpd().as<x86::Gpd>();
-				cc.mov(newIndexReg, indexReg);
-				indexReg = newIndexReg;
-			}
-
-			if (!canUseShift)
-			{
-				if (isPowerOfTwo(elementSizeInBytes))
-					cc.sal(indexReg, shift);
-				else
-					cc.imul(indexReg, (uint64_t)elementSizeInBytes);
-
-				shift = 0;
-			}
+			adToUse = cc.newGpq();
+			cc.mov(adToUse, x86::ptr(PTR_REG_R(address)).cloneAdjustedAndResized(8, 8));
 		}
 
-		X86Mem p;
+		if (index->isMemoryLocation())
+			p = x86::ptr(adToUse, imm2ptr(INT_IMM(index) * elementSizeInBytes));
+		else
+			p = x86::ptr(adToUse, indexReg, shift);
+	}
 
-		if (true)
-		{
-			bool isDyn = address->getTypeInfo().getTypedComplexType<DynType>();
 
-			if (address->isMemoryLocation())
-			{
-				auto ptr = address->getAsMemoryLocation();
-
-				if (isDyn)
-				{
-					auto b_ = cc.newGpq();
-					cc.mov(b_, ptr.cloneAdjustedAndResized(8, 8));
-					ptr = x86::ptr(b_);
-				}
-
-				if (index->isMemoryLocation())
-					p = ptr.cloneAdjusted(imm2ptr(INT_IMM(index) * elementSizeInBytes));
-				else
-				{
-					// for some reason uint64_t base + index reg doesn't create a 64bit address...
-					// so we need to use a register for the base
-					auto b_ = cc.newGpq();
-
-					cc.lea(b_, ptr);
-
-					p = x86::ptr(b_, indexReg, shift);
-				}
-			}
-			else
-			{
-				address->loadMemoryIntoRegister(cc);
-
-				X86Gp adToUse = PTR_REG_R(address);
-
-				
-				if (isDyn)
-				{
-					adToUse = cc.newGpq();
-					cc.mov(adToUse, x86::ptr(PTR_REG_R(address)).cloneAdjustedAndResized(8, 8));
-				}
-
-				if (index->isMemoryLocation())
-					p = x86::ptr(adToUse, imm2ptr(INT_IMM(index) * elementSizeInBytes));
-				else
-					p = x86::ptr(adToUse, indexReg, shift);
-			}
-		}
-		
-
-		target->setCustomMemoryLocation(p, address->isGlobalMemory());
+	target->setCustomMemoryLocation(p, address->isGlobalMemory());
 
 #if 0
-		if (type == Types::ID::Pointer)
-		{
-			
-			target->createRegister(cc);
-			cc.lea(INT_REG_W(target), p);
-		}
-		else
-			target->setCustomMemoryLocation(p, address->isGlobalMemory());
-#endif
+	if (type == Types::ID::Pointer)
+	{
+
+		target->createRegister(cc);
+		cc.lea(INT_REG_W(target), p);
 	}
+	else
+		target->setCustomMemoryLocation(p, address->isGlobalMemory());
+#endif
 
 	
 }
@@ -787,7 +774,7 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 			cc.ret(rToUse->getRegisterForWriteOp().as<X86Xmm>());
 		else if (type == Types::ID::Integer)
             cc.ret(rToUse->getRegisterForWriteOp().as<x86::Gpd>());
-		else if (type == Types::ID::Block)
+		else if (type == Types::ID::Block || type == Types::ID::Pointer)
 			cc.ret(rToUse->getRegisterForWriteOp().as<X86Gpq>());
 	}
 }
@@ -1479,7 +1466,8 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 	if (data.returnType == Types::ID::Float) sig.setRetT<float>();
 	if (data.returnType == Types::ID::Double) sig.setRetT<double>();
 	if (data.returnType == Types::ID::Integer) sig.setRetT<int>();
-	if (data.returnType == Types::ID::Block) sig.setRet(asmjit::Type::kIdIntPtr);
+	if (data.returnType == Types::ID::Block) sig.setRetT<PointerType>();
+	if (data.returnType == Types::ID::Pointer) sig.setRetT<PointerType>();
 
 	if (objectType != Types::ID::Void)
 	{
@@ -1497,8 +1485,8 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 		if (t == Types::ID::Float)	 sig.addArgT<float>();
 		if (t == Types::ID::Double)  sig.addArgT<double>();
 		if (t == Types::ID::Integer) sig.addArgT<int>();
-		if (t == Types::ID::Block)   sig.addArg(asmjit::Type::kIdIntPtr);
-		if (t == Types::ID::Pointer) sig.addArg(asmjit::Type::kIdIntPtr);
+		if (t == Types::ID::Block)   sig.addArgT<PointerType>();
+		if (t == Types::ID::Pointer) sig.addArgT<PointerType>();
 	}
 }
 
@@ -1520,8 +1508,6 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	jassert(iterator.typeInfo == typePtr->getElementType());
 
 	int numLoops = typePtr->getNumElements();
-	auto unrollLoop = numLoops <= 4;
-	
 	
 	AsmCodeGenerator::TemporaryRegister start(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
 	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
@@ -1595,60 +1581,6 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	itReg->flagForReuse(true);
 }
 
-void BlockLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)
-{
-	jassert(loopTarget->getType() == Types::ID::Block);
-	jassert(iterator.typeInfo.getType() == Types::ID::Float);
-	auto& cc = gen.cc;
-
-
-	loopTarget->loadMemoryIntoRegister(cc);
-	auto blockAddress = INT_REG_R(loopTarget);
-
-	AsmCodeGenerator::TemporaryRegister beg(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
-	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
-
-	
-
-	cc.mov(beg.get(), x86::ptr(blockAddress).cloneAdjusted(8));
-	cc.mov(end.get(), x86::ptr(blockAddress).cloneAdjusted(4));
-	cc.and_(end.get(), 0xFFFFFFF);
-	cc.imul(end.get(), (uint64_t)sizeof(float));
-	cc.add(end.get(), beg.get());
-
-	auto loopStart = cc.newLabel();
-	loopEnd = cc.newLabel();
-	continuePoint = cc.newLabel();
-	auto itScope = loopBody->blockScope.get();
-
-	auto itReg = compiler->registerPool.getRegisterForVariable(itScope, iterator);
-	itReg->createRegister(cc);
-	itReg->setIsIteratorRegister(true);
-
-	cc.setInlineComment("loop_block {");
-	cc.bind(loopStart);
-
-	if (loadIterator)
-		cc.movss(FP_REG_W(itReg), x86::ptr(beg.get()));
-
-	itReg->setUndirty();
-
-	loopBody->process(compiler, scope);
-
-	cc.bind(continuePoint);
-
-	if (itReg->isDirtyGlobalMemory())
-		cc.movss(x86::ptr(beg.get()), FP_REG_R(itReg));
-
-    cc.add(beg.get().as<x86::Gpd>(), (uint64_t)sizeof(float));
-	cc.cmp(beg.get().as<x86::Gpd>(), end.get());
-	cc.setInlineComment("loop_block }");
-	cc.jne(loopStart);
-	cc.bind(loopEnd);
-
-	itReg->setUndirty();
-	itReg->flagForReuse(true);
-}
 
 void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)
 {

@@ -160,6 +160,12 @@ template <class T, int MaxSize> struct span
 
 	}
 
+	static Type& fromExternalData(T* data, int numElements)
+	{
+		jassert(numElements <= MaxSize);
+		return *reinterpret_cast<Type*>(data);
+	}
+
 	static constexpr size_t getSimdSize()
 	{
 		static_assert(isSimdable(), "not SIMDable");
@@ -417,7 +423,7 @@ template <class T> struct dyn
 
 		int get(const dyn<T>& obj) const
 		{
-			auto i = value % obj.size;
+			auto i = value % obj.size();
 			return i;
 		}
 
@@ -433,7 +439,7 @@ template <class T> struct dyn
 
 		int get(const dyn<T>& obj) const
 		{
-			if (isPositiveAndBelow(value, obj.size))
+			if (isPositiveAndBelow(value, obj.size()))
 				return value;
 
 			return 0;
@@ -452,7 +458,7 @@ template <class T> struct dyn
 
 		int get(const dyn<T>& obj) const
 		{
-			return jlimit(0, obj.size, value);
+			return jlimit(0, obj.size(), value);
 		}
 
 		int value = 0;
@@ -474,37 +480,39 @@ template <class T> struct dyn
 		int value = 0;
 	};
 
-
-
 	dyn() :
 		data(nullptr),
-		size(0)
+		size_(0)
 	{}
 
 
 	template<class Other> dyn(Other& o) :
 		data(o.begin()),
-		size(o.end() - o.begin())
+		size_(o.end() - o.begin())
 	{}
 
-	template<class Other> dyn(Other& o, size_t size_) :
+	template<class Other> dyn(Other& o, size_t s_) :
 		data(o.begin()),
-		size(size_)
+		size_(s_)
 	{}
 
-	dyn(T* data_, size_t size_) :
+	dyn(juce::HeapBlock<T>& d, size_t s_):
+		data(d.get()),
+		size_(s_)
+	{}
+
+	dyn(T* data_, size_t s_) :
 		data(data_),
-		size(size_)
+		size_(s_)
 	{}
 
-	template<class Other> dyn(Other& o, size_t size_, size_t offset) :
+	template<class Other> dyn(Other& o, size_t s_, size_t offset) :
 		data(o.begin() + offset),
-		size(size_)
+		size_(s_)
 	{
 		auto fullSize = o.end() - o.begin();
-		jassert(offset + size < fullSize);
+		jassert(offset + size() < fullSize);
 	}
-
 
 	dyn<float4> toSimd() const
 	{
@@ -513,7 +521,7 @@ template <class T> struct dyn
 		jassert(size % 4 == 0);
 
 		rt.data = reinterpret_cast<float4*>(begin());
-		rt.size = size / 4;
+		rt.size = size() / 4;
 
 		return rt;
 	}
@@ -522,7 +530,7 @@ template <class T> struct dyn
 	{
 		span<dyn<T>, NumChannels> r;
 
-		int newSize = size / NumChannels;
+		int newSize = size() / NumChannels;
 
 		T* d = data;
 
@@ -569,11 +577,13 @@ template <class T> struct dyn
 
 	T* end() const
 	{
-		return const_cast<T*>(data) + size;
+		return const_cast<T*>(data) + size();
 	}
 
-	int unused = 0;
-	int size = 0;
+	int size() const noexcept { return size_; }
+
+	int unused = Types::ID::Block;
+	int size_ = 0;
 	T* data;
 
 };
@@ -716,7 +726,7 @@ template <class DataType, int MaxSize> static dyn<DataType> slice(const span<Dat
 
 	dyn<DataType> c;
 	c.data = src.begin() + clampedStart.get(src);
-	c.size = clampedSize.get(src) - clampedStart.get(src);
+	c.size_ = clampedSize.get(src) - clampedStart.get(src);
 	return c;
 }
 

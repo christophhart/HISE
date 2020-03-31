@@ -36,13 +36,13 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
+ int Compiler::compileCount = 0;
 
 Compiler::Compiler(GlobalScope& memoryPool)
 {
 	compiler = new ClassCompiler(&memoryPool, handler);
-	memoryPool.registerFunctionsToNamespaceHandler(handler);
 
-	
+	memoryPool.registerFunctionsToNamespaceHandler(handler);
 }
 
 Compiler::~Compiler()
@@ -78,15 +78,38 @@ ComplexType::Ptr Compiler::registerExternalComplexType(ComplexType::Ptr t)
 	return compiler->namespaceHandler.registerComplexTypeOrReturnExisting(t);
 }
 
-ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s)
+ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp)
 {
-	return compiler->namespaceHandler.getComplexType(s);
-	return nullptr;
+	if (tp.isEmpty())
+	{
+		return compiler->namespaceHandler.getComplexType(s);
+	}
+	else
+	{
+		auto r = Result::ok();
+		return compiler->namespaceHandler.createTemplateInstantiation(s, tp, r);
+	}
+}
+
+void Compiler::addConstant(const NamespacedIdentifier& s, const VariableStorage& v)
+{
+	compiler->namespaceHandler.addSymbol(s, TypeInfo(v.getType(), true, false), NamespaceHandler::Constant);
+	compiler->namespaceHandler.addConstant(s, v);
+}
+
+void Compiler::addTemplateClass(const TemplateClass& c)
+{
+	compiler->namespaceHandler.addTemplateClass(c);
 }
 
 void Compiler::registerVariadicType(VariadicSubType::Ptr p)
 {
 	compiler->namespaceHandler.addVariadicType(p);
+}
+
+void Compiler::initInbuildFunctions()
+{
+	compiler->setInbuildFunctions();
 }
 
 juce::Result Compiler::getCompileResult()
@@ -97,6 +120,7 @@ juce::Result Compiler::getCompileResult()
 
 JitObject Compiler::compileJitObject(const juce::String& code)
 {
+	compileCount++;
 	lastCode = code;
 	return JitObject(compiler->compileAndGetScope(code));
 }

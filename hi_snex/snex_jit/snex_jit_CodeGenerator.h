@@ -156,8 +156,9 @@ struct AsmCodeGenerator
 				case Types::ID::Float:	 uncountedReg = acg.cc.newXmmSs(); break;
 				case Types::ID::Double:	 uncountedReg = acg.cc.newXmmSd(); break;
 				case Types::ID::Integer: uncountedReg = acg.cc.newGpd(); break;
-				case Types::ID::Block:	 uncountedReg = acg.cc.newIntPtr(); break;
-                default:                 break;
+				case Types::ID::Block:	 
+				case Types::ID::Pointer: uncountedReg = acg.cc.newIntPtr(); break;
+				default:                 jassertfalse; break;
 				}
 			}
 		}
@@ -334,15 +335,6 @@ struct DynLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 	DynType* typePtr = nullptr;
 };
 
-struct BlockLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
-{
-	BlockLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
-		LoopEmitterBase(c, s, t, body, l)
-	{};
-
-	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
-
-};
 
 }
 }

@@ -74,9 +74,15 @@ bool AssemblyRegister::shouldLoadMemoryIntoRegister() const
 
 void AssemblyRegister::setReference(BaseScope* s, const Symbol& ref)
 {
-	scope = s->getScopeForSymbol(ref.id);
+	auto refScope = s->getScopeForSymbol(ref.id);
+
+	if (refScope != nullptr)
+		scope = refScope;
+	else
+		scope = s;
+
 	id = ref;
-	jassert(id.typeInfo == type);
+	jassert(compiler->getRegisterType(id.typeInfo) == getType());
 }
 
 

@@ -48,18 +48,18 @@ using namespace juce;
     X(moduloEquals,  "%=")       X(modulo,       "%")       X(xorEquals,    "^=")   X(bitwiseXor, "^") \
     X(andEquals,     "&=")       X(logicalAnd,   "&&")      X(bitwiseAnd,   "&") \
     X(orEquals,      "|=")       X(logicalOr,    "||")      X(bitwiseOr,    "|") \
-    X(leftShiftEquals,    "<<=") X(lessThanOrEqual,  "<=")  X(leftShift,    "<<")   X(lessThan,   "<") \
-    X(rightShiftUnsigned, ">>>") X(rightShiftEquals, ">>=") X(rightShift,   ">>")   X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")
+     X(lessThanOrEqual,  "<=")  X(lessThan,   "<") \
+      X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")
 
 #define HNODE_JIT_KEYWORDS(X) \
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
 	X(void_, "void")			X(public_, "public")	X(private_, "private") \
-	X(class_, "class")			X(block_, "block")	X(for_, "for") \
+	X(class_, "class")			X(for_, "for") \
 	X(if_, "if")				X(else_, "else")	\
-	X(auto_, "auto")			X(struct_, "struct")	X(span_, "span") \
-	X(using_, "using")		    X(static_, "static")	X(break_, "break") \
-	X(continue_, "continue")	X(dyn_, "dyn")		X(namespace_, "namespace")  
+	X(auto_, "auto")			X(struct_, "struct")	\
+	X(using_, "using")		    X(static_, "static")	X(break_, "break") X(continue_, "continue")			X(namespace_, "namespace") \
+	X(template_, "template")    X(typename_, "typename")
 
 namespace JitTokens
 {
@@ -194,6 +194,8 @@ struct ParserHelpers
 		{
 			if (other.location.program != location.program)
 				location.throwError("Can't skip different locations");
+
+			
 
 			while (location.location != other.location.location && !isEOF())
 				skip();
@@ -421,8 +423,6 @@ struct ParserHelpers
 				return VariableStorage(stringValue.getFloatValue() * (!isMinus ? 1.0f : -1.0f));
 			else if (type == Types::ID::Double)
 				return VariableStorage(stringValue.getDoubleValue() * (!isMinus ? 1.0 : -1.0));
-			else if (type == Types::ID::Block)
-				return block();
 			else
 				return {};
 		}

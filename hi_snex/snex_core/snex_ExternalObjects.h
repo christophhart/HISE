@@ -98,7 +98,7 @@ template <typename T> struct _ramp
 			stepDivider = T(1) / (T)numSteps;
 	}
 
-	static ComplexType::Ptr createComplexType(const Identifier& id);
+	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
 
 	T value = T(0);
 	T targetValue = T(0);
@@ -123,7 +123,24 @@ struct EventWrapper
 
 	};
 
-	static ComplexType::Ptr createComplexType(const Identifier& id);
+	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
+};
+
+struct ScriptnodeCallbacks
+{
+	enum ID
+	{
+		ResetFunction,
+		ProcessFunction,
+		ProcessSingleFunction,
+		PrepareFunction,
+		HandleEventFunction,
+		numFunctions
+	};
+
+	static Array<FunctionData> getAllPrototypes(Compiler& c, int numChannels);
+
+	static jit::FunctionData getPrototype(Compiler& c, ID id, int numChannels);
 };
 
 template struct _ramp<float>;
@@ -132,11 +149,72 @@ template struct _ramp<double>;
 using sfloat = _ramp<float>;
 using sdouble = _ramp<double>;
 
+using namespace Types;
+
+template <int NumChannels> struct ProcessDataFix
+{
+	dyn<float>* begin() const
+	{
+		return data.begin();
+	}
+
+	dyn<float>* end() const
+	{
+		return data.end();
+	}
+
+	Types::span<Types::dyn<float>, NumChannels> data;
+	Types::dyn<HiseEvent> events;
+	int voiceIndex = -1;
+	int shouldReset = 0;
+};
+
+struct ProcessDataDyn
+{
+	float* channelData[NUM_MAX_CHANNELS];
+	HiseEventBuffer* b;
+	int numChannels = 0;
+	int numSamples;
+	int voiceIndex = -1;
+	int shouldReset = 0;
+
+	template <int NumChannels, int Offset = 0> ProcessDataFix<NumChannels> toFix()
+	{
+		jassert(Offset + NumChannels <= numChannels);
+
+		ProcessDataFix<NumChannels> f;
+		f.events = dyn<HiseEvent>(b->begin(), b->getNumUsed());
+		f.voiceIndex = voiceIndex;
+		f.shouldReset = shouldReset;
+
+		for (int i = 0; i < NumChannels; i++)
+		{
+			f.data[i] = block(channelData[i + Offset], numSamples);
+		}
+
+		return f;
+	}
+};
+
+struct PrepareSpecs
+{
+	double sampleRate = 0.0;
+	int blockSize = 0;
+	int numChannels = 0;
+
+	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
+};
+
+
+
+
 struct SnexObjectDatabase
 {
-	static void registerObjects(Compiler& c);
+	static void registerObjects(Compiler& c, int numChannels);
 
 	static void addVariadicGet(VariadicSubType* variadicType);
+
+	static void createProcessData(Compiler& c, const TypeInfo& eventType);
 };
 
 

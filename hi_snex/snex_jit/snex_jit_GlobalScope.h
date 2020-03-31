@@ -532,7 +532,7 @@ private:
 					i->allocatedSize = size;
 					i->internalData.realloc(size, sizeof(float));
 					FloatVectorOperations::clear(i->internalData, size);
-					i->b = block(i->internalData, size);
+					i->b = block(i->internalData.get(), size);
 					return i->b;
 				}
 			}

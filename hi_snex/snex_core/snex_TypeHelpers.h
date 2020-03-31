@@ -60,6 +60,8 @@ struct Helpers
 	static bool isFixedType(ID type);
 	static ID getMoreRestrictiveType(ID typeA, ID typeB);
 
+
+
 	static bool isNumeric(ID id);
 
 	static bool isPinVariable(const String& name);
@@ -80,6 +82,12 @@ struct Helpers
 	{
 		auto type = getTypeFromTypeId<T>();
 		return getTypeName(type);
+	}
+
+	template <typename T> constexpr static bool isPointerType()
+	{
+		auto t = getTypeFromTypeId<T>();
+		return t == Types::ID::Pointer || t == Types::ID::Block || t == Types::ID::Void;
 	}
 
 	template <typename T> constexpr static Types::ID getTypeFromTypeId()
@@ -133,7 +141,7 @@ struct InitialiserList : public ReferenceCountedObject
 		for (auto l : root)
 			s << l->toString();
 
-		s << "}";
+		s << " }";
 		return s;
 	}
 
@@ -285,7 +293,7 @@ private:
 			for (auto l : list)
 				s << l->toString();
 
-			s << "}";
+			s << " }";
 			return s;
 		}
 

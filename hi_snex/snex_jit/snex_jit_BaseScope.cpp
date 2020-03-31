@@ -178,8 +178,6 @@ BaseScope* BaseScope::getScopeForSymbol(const NamespacedIdentifier& s)
 
 	auto bs = getRootClassScope()->findScopeWithId(s.getParent());
 
-	jassert(bs->hasSymbol(s));
-
 	return bs;
 }
 

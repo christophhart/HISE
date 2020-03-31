@@ -451,6 +451,12 @@ BlockParser::ExprPtr BlockParser::parseTerm()
 	{
 		if (matchIfType())
 		{
+			if (currentTypeInfo.isTemplateType())
+			{
+				match(JitTokens::closeParen);
+				return parseExpression();
+			}
+
 			if (currentTypeInfo.isComplexType())
 				location.throwError("Can't cast to " + currentTypeInfo.toString());
 
@@ -592,7 +598,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 	if (auto ct = pType.getTypedIfComplexType<ComplexType>())
 	{
 		if(currentType == JitTokens::lessThan)
-			templateParameters = parseTemplateParameters();
+			templateParameters = parseTemplateParameters(false);
 
 		FunctionClass::Ptr vfc = ct->getFunctionClass();
 
@@ -622,7 +628,12 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 		}
 	}
 	
-	auto nf = compiler->getInbuiltFunctionClass()->getNonOverloadedFunction(fSymbol.id);
+	FunctionData nf;
+
+	if (auto nfc = compiler->getInbuiltFunctionClass())
+	{
+		nf = compiler->getInbuiltFunctionClass()->getNonOverloadedFunction(fSymbol.id);
+	}
 
 	// Template type deduction...
 	bool resolveAfterArgumentParsing = false;

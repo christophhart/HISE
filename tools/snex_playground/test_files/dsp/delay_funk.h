@@ -10,9 +10,8 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-using DelayBuffer = span<float, 32768>;
+using DelayBuffer = span<float, 1024>;
 using WrappedIndex = DelayBuffer::wrapped;
-static const int NumChannels = 1;
 
 span<DelayBuffer, NumChannels> buffer;
 WrappedIndex readBuffer;

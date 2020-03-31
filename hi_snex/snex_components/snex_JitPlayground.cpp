@@ -493,13 +493,13 @@ void SnexPlayground::recalculateInternal()
 						currentSampleIndex.store(i);
 
 						float value = *l;
-						float result = cData.callbacks[CallbackTypes::Sample].callUncheckedWithCopy<float>(value);
+						float result = cData.callbacks[CallbackTypes::Sample].callUnchecked<float>(value);
 						*l++ = result;
 
 						if (r != nullptr)
 						{
 							value = *r;
-							result = cData.callbacks[CallbackTypes::Sample].callUncheckedWithCopy<float>(value);
+							result = cData.callbacks[CallbackTypes::Sample].callUnchecked<float>(value);
 							*r++ = result;
 						}
 					}
@@ -554,7 +554,7 @@ void SnexPlayground::recalculateInternal()
 						for (int i = 0; i < b.getNumSamples(); i++)
 						{
 							float value = *ptr;
-							float result = cData.callbacks[CallbackTypes::Sample].callUncheckedWithCopy<float>(value);
+							float result = cData.callbacks[CallbackTypes::Sample].callUnchecked<float>(value);
 							*ptr++ = result;
 						}
 					}

@@ -39,16 +39,13 @@ using namespace asmjit;
 InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 	FunctionClass(NamespacedIdentifier(Identifier()))
 {
-	auto floatType = TypeInfo(Types::ID::Float);
-	auto float2 = new SpanType(floatType, 2);
-	auto dynFloat = new DynType(floatType);
-	ComplexType::Ptr blockType = new SpanType(TypeInfo(dynFloat), 2);
-	ComplexType::Ptr frameType = new DynType(TypeInfo(float2));
-	blockType->setAlias(NamespacedIdentifier("ChannelData"));
-	frameType->setAlias(NamespacedIdentifier("FrameData"));
 
-	compiler->namespaceHandler.registerComplexTypeOrReturnExisting(blockType);
-	compiler->namespaceHandler.registerComplexTypeOrReturnExisting(frameType);
+
+	auto frameType = compiler->namespaceHandler.getComplexType(NamespacedIdentifier("FrameData"));
+	auto blockType = compiler->namespaceHandler.getComplexType(NamespacedIdentifier("ChannelData"));
+
+	jassert(frameType != nullptr);
+	jassert(blockType != nullptr);
 
 	{
 		auto il = new FunctionData();
@@ -71,8 +68,8 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 
 			iData.function = Types::Interleaver::interleaveRaw;
 
-			bool isFrame = d->args[0]->getTypeInfo().getComplexType() == frameType;
-			bool isBlock = d->args[0]->getTypeInfo().getComplexType() == blockType;
+			bool isFrame = *d->args[0]->getTypeInfo().getComplexType() == *frameType;
+			bool isBlock = *d->args[0]->getTypeInfo().getComplexType() == *blockType;
 
 			jassert(isFrame || isBlock);
 
@@ -166,17 +163,17 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 		{
 			auto rd = dynamic_cast<ReturnTypeInlineData*>(d);
 
-			
+			auto& handler = rd->object->currentCompiler->namespaceHandler;
 
 			auto inType = rd->object->getSubExpr(0)->getTypeInfo();
 
-			if (inType.getComplexType() == blockType)
+			if (inType.getComplexType()->matchesOtherType(*blockType))
 			{
 				rd->f.returnType = TypeInfo(frameType, false);
 				rd->f.args.getReference(0).typeInfo = TypeInfo(blockType, false, true);
 				return Result::ok();
 			}
-			else if (inType.getComplexType() == frameType)
+			else if (inType.getComplexType()->matchesOtherType(*frameType))
 			{
 				rd->f.returnType = TypeInfo(blockType, false);
 				rd->f.args.getReference(0).typeInfo = TypeInfo(frameType, false, true);

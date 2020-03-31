@@ -38,7 +38,7 @@ using namespace asmjit;
 
 
 template <typename T>
-jit::ComplexType::Ptr _ramp<T>::createComplexType(const Identifier& id)
+jit::ComplexType::Ptr _ramp<T>::createComplexType(Compiler& c, const Identifier& id)
 {
 	Type s;
 
@@ -187,7 +187,7 @@ jit::ComplexType::Ptr _ramp<T>::createComplexType(const Identifier& id)
 	return obj;
 }
 
-snex::jit::ComplexType::Ptr EventWrapper::createComplexType(const Identifier& id)
+snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const Identifier& id)
 {
 	auto obj = new StructType(NamespacedIdentifier(id));
 
@@ -278,7 +278,7 @@ struct ResetData
 {
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("reset"); }
 
-	static void fillSignature(Compiler&, FunctionData& d)
+	static void fillSignature(Compiler&, FunctionData& d, const TemplateParameter::List& tp)
 	{
 		d.returnType = TypeInfo(Types::ID::Void);
 	}
@@ -288,86 +288,42 @@ struct ProcessSingleData
 {
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("processSingle"); }
 
-	static void fillSignature(Compiler& c, FunctionData& d)
+	static void fillSignature(Compiler& c, FunctionData& d, const TemplateParameter::List& tp)
 	{
-		auto st = c.getComplexType(NamespacedIdentifier("span<float, 2"));
-
-		if (st == nullptr)
-		{
-			st = new SpanType(TypeInfo(Types::ID::Float), 2);
-			c.registerExternalComplexType(st);
-		}
+		ComplexType::Ptr st = new SpanType(TypeInfo(Types::ID::Float), tp[0].constant);
+		c.registerExternalComplexType(st);
 
 		d.returnType = TypeInfo(Types::ID::Void);
 		d.addArgs("frameData", TypeInfo(st, false));
 	}
 };
 
-struct ProcessData
+
+
+struct ProcessFunctionData
 {
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("process"); };
 
-	static void fillSignature(Compiler& c, FunctionData& d)
+	static void fillSignature(Compiler& c, FunctionData& d, const TemplateParameter::List& tp)
 	{
 		auto pId = NamespacedIdentifier("ProcessData");
-		auto st = c.getComplexType(pId);
+		auto st =  c.getComplexType(pId, tp);
 
-		if (st == nullptr)
-		{
-
-			auto dataType = c.getComplexType(NamespacedIdentifier("ChannelData"));
-
-			auto eventType = c.getComplexType(NamespacedIdentifier("HiseEvent"));
-			auto eventBufferType = new DynType(TypeInfo(eventType));
-
-			ProcessData obj;
-
-			jassert(offsetof(ProcessData, data) == 0);
-
-			auto pType = new StructType(pId);
-
-			ADD_SNEX_STRUCT_COMPLEX(pType, dataType, obj, data);
-			ADD_SNEX_STRUCT_COMPLEX(pType, eventBufferType, obj, events);
-			ADD_SNEX_STRUCT_MEMBER(pType, obj, voiceIndex);
-			ADD_SNEX_STRUCT_MEMBER(pType, obj, shouldReset);
-
-			st = c.registerExternalComplexType(pType);
-		}
+		jassert(st != nullptr);
+		
 
 		d.returnType = TypeInfo(Types::ID::Void);
 		d.addArgs("data", TypeInfo(st, false, true));
 	}
-
-	Types::span<Types::dyn<float>, 2> data;
-	Types::dyn<HiseEvent> events;
-	int voiceIndex = -1;
-	int shouldReset = 0;
 };
 
-struct PrepareSpecs
-{
-	static ComplexType::Ptr createComplexType(const Identifier& id)
-	{
-		PrepareSpecs obj;
 
-		auto st = new StructType(NamespacedIdentifier(id));
-		ADD_SNEX_STRUCT_MEMBER(st, obj, sampleRate);
-		ADD_SNEX_STRUCT_MEMBER(st, obj, blockSize);
-		ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
-
-		return st;
-	}
-
-	double sampleRate = 0.0;
-	int blockSize = 0;
-	int numChannels = 0;
-};
 
 struct PrepareData
 {
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("prepare"); }
 
-	static void fillSignature(Compiler& c, FunctionData& d)
+	static void fillSignature(Compiler& c, FunctionData& d, const TemplateParameter::List& tp)
 	{
 		auto prepareSpecId = NamespacedIdentifier("PrepareSpecs");
 
@@ -378,17 +334,19 @@ struct PrepareData
 		d.returnType = TypeInfo(Types::ID::Void);
 		d.addArgs("ps", TypeInfo(st));
 	}
+
+	
 };
 
 template <class FunctionType> struct VariadicFunctionInliner
 {
-	static FunctionData create(Compiler& c)
+	static FunctionData create(Compiler& c, const TemplateParameter::List& tp)
 	{
 		FunctionData d;
 
 		d.id = getId();
 		d.inliner = new Inliner(getId(), asmInline, highLevelInline);
-		FunctionType::fillSignature(c, d);
+		FunctionType::fillSignature(c, d, tp);
 
 		return d;
 	}
@@ -522,25 +480,103 @@ template <class FunctionType> struct VariadicFunctionInliner
 	}
 };
 
-#define REGISTER_CPP_CLASS(compiler, className) c.registerExternalComplexType(className::createComplexType(#className));
+#define REGISTER_CPP_CLASS(compiler, className) c.registerExternalComplexType(className::createComplexType(c, #className));
 
-void SnexObjectDatabase::registerObjects(Compiler& c)
+
+void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 {
+	{
+		c.addConstant(NamespacedIdentifier("NumChannels"), numChannels);
+		
+		auto blockType = new DynType(TypeInfo(Types::ID::Float));
+		blockType->setAlias(NamespacedIdentifier("block"));
+		c.registerExternalComplexType(blockType);
+
+		auto floatType = TypeInfo(Types::ID::Float);
+		auto float2 = new SpanType(floatType, numChannels);
+
+		ComplexType::Ptr channelType = new SpanType(TypeInfo(blockType), numChannels);
+		ComplexType::Ptr frameType = new DynType(TypeInfo(float2));
+		channelType->setAlias(NamespacedIdentifier("ChannelData"));
+		frameType->setAlias(NamespacedIdentifier("FrameData"));
+
+		c.registerExternalComplexType(channelType);
+		c.registerExternalComplexType(frameType);
+	}
+
 	REGISTER_CPP_CLASS(c, sfloat);
 	REGISTER_CPP_CLASS(c, sdouble);
 	REGISTER_CPP_CLASS(c, PrepareSpecs);
+	c.registerExternalComplexType(EventWrapper::createComplexType(c, "HiseEvent"));
 
-	c.registerExternalComplexType(EventWrapper::createComplexType("HiseEvent"));
+	{
+		auto dataType = c.getComplexType(NamespacedIdentifier("ChannelData"));
+
+		auto eventType = c.getComplexType(NamespacedIdentifier("HiseEvent"));
+		auto eventBufferType = new DynType(TypeInfo(eventType));
+
+		c.registerExternalComplexType(eventBufferType);
+
+		createProcessData(c, TypeInfo(eventBufferType));
+	}
+
+	c.initInbuildFunctions();
+	
+	TemplateParameter ct;
+	ct.constant = numChannels;
+	ct.argumentId = NamespacedIdentifier("NumChannels");
+
+	auto prototypes = ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
+
+	{
+		TemplateClass midi;
+		midi.id = NamespacedIdentifier("wrap").getChildId("midi");
+
+		midi.f = [prototypes](const TemplateClass::ConstructData& d)
+		{
+			ComplexType::Ptr ptr;
+
+			if (!d.expectTemplateParameterAmount(1))
+				return ptr;
+
+			if (!d.expectIsComplexType(0))
+				return ptr;
+			
+
+			auto T = d.tp[0];
+			T.argumentId = d.id.getChildId("T");
+
+			auto st = new StructType(d.id, T);
+
+			st->addMember("obj", d.tp[0].type, 0);
+			st->finaliseExternalDefinition();
+
+			for (auto p : prototypes)
+			{
+				st->addWrappedMemberMethod("obj", p);
+			}
+			
+			ptr = st;
+
+			return ptr;
+		};
+
+		c.addTemplateClass(midi);
+	}
+
 
 	{
 		VariadicSubType::Ptr chainType = new VariadicSubType();
 		chainType->variadicId = NamespacedIdentifier("container").getChildId("chain");
 
 		{
-			chainType->functions.add(VariadicFunctionInliner<ResetData>::create(c));
-			chainType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c));
-			chainType->functions.add(VariadicFunctionInliner<PrepareData>::create(c));
-			chainType->functions.add(VariadicFunctionInliner<ProcessData>::create(c));
+
+			
+
+			chainType->functions.add(VariadicFunctionInliner<ResetData>::create(c, {}));
+			chainType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c, {ct}));
+			chainType->functions.add(VariadicFunctionInliner<PrepareData>::create(c, {ct}));
+			chainType->functions.add(VariadicFunctionInliner<ProcessFunctionData>::create(c, {ct}));
 		}
 
 		{
@@ -555,16 +591,16 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 		auto frameType = new VariadicSubType();
 		frameType->variadicId = NamespacedIdentifier("wrapp").getChildId("frame");
 
-		frameType->functions.add(VariadicFunctionInliner<ResetData>::create(c));
-		frameType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c));
-		frameType->functions.add(VariadicFunctionInliner<PrepareData>::create(c));
+		frameType->functions.add(VariadicFunctionInliner<ResetData>::create(c, {}));
+		frameType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c, {ct}));
+		frameType->functions.add(VariadicFunctionInliner<PrepareData>::create(c, {}));
 
 		addVariadicGet(frameType);
 
 		auto processFunction = FunctionData();
 		processFunction.id = frameType->variadicId.getChildId("process");
 		processFunction.returnType = TypeInfo(Types::ID::Void);
-		processFunction.addArgs("data", TypeInfo(c.getComplexType(NamespacedIdentifier("ProcessData"))));
+		processFunction.addArgs("data", TypeInfo(c.getComplexType(NamespacedIdentifier("ProcessData"), ct)));
 		processFunction.inliner = Inliner::createHighLevelInliner(processFunction.id, [&c](InlineData* b)
 		{
 			auto d = b->toSyntaxTreeData();
@@ -709,6 +745,142 @@ void SnexObjectDatabase::addVariadicGet(VariadicSubType* variadicType)
 	};
 
 	variadicType->functions.add(getFunction);
+}
+
+void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventType)
+{
+	TemplateClass ptc;
+
+	ptc.id = NamespacedIdentifier("ProcessData");
+	ptc.f = [eventType](const TemplateClass::ConstructData& c)
+	{
+		ComplexType::Ptr p;
+
+		if (!c.expectTemplateParameterAmount(1))
+			return p;
+
+		if (!c.expectNotIntegerValue(0, 0))
+			return p;
+
+		NamespacedIdentifier pId("ProcessData");
+
+		TemplateParameter::List l;
+		l.add(c.tp[0]);
+		l.getReference(0).argumentId = pId.getChildId("NumChannels");
+
+		jassert(l.getReference(0).argumentId.isValid());
+
+		auto pType = new StructType(pId, l);
+		auto o = 0;
+		auto blockType = c.handler->getComplexType(NamespacedIdentifier("block"));
+		auto channelType = new SpanType(TypeInfo(blockType), c.tp[0].constant);
+
+		pType->addMember("data", TypeInfo(channelType), o);
+
+		o += channelType->getRequiredByteSize();
+
+		pType->addMember("events", TypeInfo(eventType), o);
+
+		o += eventType.getRequiredByteSize();
+
+		pType->addMember("voiceIndex", TypeInfo(Types::ID::Integer), o);
+
+		o += 4;
+
+		pType->addMember("shouldReset", TypeInfo(Types::ID::Integer), o);
+		
+
+		auto vDefault = new InitialiserList();
+		vDefault->addImmediateValue(0);
+
+		auto sDefault = new InitialiserList();
+		sDefault->addImmediateValue(0);
+
+		pType->setDefaultValue("voiceIndex", vDefault);
+		pType->setDefaultValue("shouldReset", sDefault);
+
+		pType->finaliseExternalDefinition();
+
+		p = pType;
+
+		return p;
+	};
+
+	c.addTemplateClass(ptc);
+}
+
+snex::jit::ComplexType::Ptr PrepareSpecs::createComplexType(Compiler& c, const Identifier& id)
+{
+	PrepareSpecs obj;
+
+	auto st = new StructType(NamespacedIdentifier(id));
+	ADD_SNEX_STRUCT_MEMBER(st, obj, sampleRate);
+	ADD_SNEX_STRUCT_MEMBER(st, obj, blockSize);
+	ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
+
+	return c.registerExternalComplexType(st);
+}
+
+juce::Array<snex::jit::FunctionData> ScriptnodeCallbacks::getAllPrototypes(Compiler& c, int numChannels)
+{
+	Array<FunctionData> f;
+
+	for (int i = 0; i < numFunctions; i++)
+	{
+		f.add(getPrototype(c, (ID)i, numChannels));
+	}
+
+	return f;
+}
+
+snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, int numChannels)
+{
+	FunctionData f;
+
+	switch (id)
+	{
+	case PrepareFunction: 
+		f.id = NamespacedIdentifier("prepare");
+		f.returnType = TypeInfo(Types::ID::Void);
+		f.addArgs("specs", TypeInfo(c.getComplexType(NamespacedIdentifier("PrepareSpecs"), {})));
+		break;
+	case ProcessFunction:
+	{
+		f.id = NamespacedIdentifier("process");
+		f.returnType = TypeInfo(Types::ID::Void);
+
+		NamespacedIdentifier pId("ProcessData");
+
+		TemplateParameter ct;
+		ct.constant = numChannels;
+		ct.argumentId = pId.getChildId("NumChannels");
+		f.addArgs("data", TypeInfo(c.getComplexType(pId, ct), false, true));
+		break;
+	}
+	case ResetFunction:
+		f.id = NamespacedIdentifier("reset");
+		f.returnType = TypeInfo(Types::ID::Void);
+		break;
+	case ProcessSingleFunction:
+	{
+		f.id = NamespacedIdentifier("processFrame");
+		f.returnType = TypeInfo(Types::ID::Void);
+
+		auto t = new SpanType(TypeInfo(Types::ID::Float), numChannels);
+		f.addArgs("frame", TypeInfo(c.registerExternalComplexType(t), false, true));
+		break;
+	}
+	case HandleEventFunction:
+	{
+		f.id = NamespacedIdentifier("handleEvent");
+		f.returnType = TypeInfo(Types::ID::Void);
+		f.addArgs("e", TypeInfo(c.getComplexType(NamespacedIdentifier("HiseEvent"), {}), false, true));
+		break;
+	}
+		
+	}
+
+	return f;
 }
 
 }

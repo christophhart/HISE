@@ -10,12 +10,16 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
+
+
 struct X
 {
     int v = 5;
     double x = 2.0;
     span<float, 4> data = { 2.0f, 0.5f, 1.0f, 9.2f };
 };
+
+
 
 container::chain<X, container::chain<X, X>> c;
 

@@ -39,6 +39,10 @@ using namespace juce;
 
 
 
+
+
+
+
 /** A callback collection is a high-level structure which handles the usage of SNEX within HISE.
 
 	It automatically grabs all callbacks, checks their type and creates a list of parameter functions.
@@ -99,7 +103,7 @@ struct CallbackCollection
 
 	snex::jit::JitObject obj;
 
-	FunctionData callbacks[CallbackTypes::NumCallbackTypes];
+	jit::FunctionData callbacks[CallbackTypes::NumCallbackTypes];
 
 	FunctionData resetFunction;
 	FunctionData prepareFunction;

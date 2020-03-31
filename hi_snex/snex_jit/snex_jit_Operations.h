@@ -1065,8 +1065,15 @@ struct Operations::FunctionCall : public Expression
 
 	void setObjectExpression(Ptr e)
 	{
-		hasObjectExpression = true;
-		addStatement(e.get(), true);
+		if (hasObjectExpression)
+		{
+			getObjectExpression()->replaceInParent(e);
+		}
+		else
+		{
+			hasObjectExpression = true;
+			addStatement(e.get(), true);
+		}
 	}
 
 	Ptr getObjectExpression() const
@@ -1372,12 +1379,10 @@ struct Operations::ReturnStatement : public Expression
 
 };
 
-
-struct Operations::ClassStatement : public Statement
+struct Operations::ClassStatement : public Statement,
+									public Operations::ClassDefinitionBase
 {
 	SET_EXPRESSION_ID(ClassStatement)
-
-	using Ptr = ReferenceCountedObjectPtr<ClassStatement>;
 
 	ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock) :
 		Statement(l),
@@ -1401,9 +1406,14 @@ struct Operations::ClassStatement : public Statement
 	ValueTree toValueTree() const override
 	{
 		auto t = Statement::toValueTree();
+
 		t.setProperty("Type", classType->toString(), nullptr);
+
+		
 		return t;
 	}
+
+	bool isTemplate() const override { return false; }
 
 	TypeInfo getTypeInfo() const override { return {}; }
 
@@ -1422,19 +1432,7 @@ struct Operations::ClassStatement : public Statement
 
 		COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 		{
-			for (auto s : *getChildStatement(0))
-			{
-				if (auto td = dynamic_cast<TypeDefinitionBase*>(s))
-				{
-					if (s->getTypeInfo().isInvalid())
-						location.throwError("Can't use auto on member variables");
-
-					for(auto& id: td->getInstanceIds())
-						getStructType()->addMember(id.getIdentifier(), s->getTypeInfo());
-				}
-			}
-
-			getStructType()->finaliseAlignment();
+			addMembersFromStatementBlock(getStructType(), getChildStatement(0));
 		}
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
@@ -1453,6 +1451,203 @@ struct Operations::ClassStatement : public Statement
 };
 
 
+struct Operations::TemplateDefinition : public Statement,
+										public ClassDefinitionBase
+{
+	struct Resolver
+	{
+		Resolver(const TemplateParameter::List& tp_):
+			tp(tp_)
+		{
+			for (const auto& p : tp)
+			{
+				jassert(p.t != TemplateParameter::Empty);
+				jassert(!p.isTemplateArgument());
+				jassert(p.argumentId.isValid());
+
+				if (p.t == TemplateParameter::Type)
+					jassert(p.type.isValid());
+				else
+					jassert(p.type.isInvalid());
+			}
+		};
+
+		Result process(Ptr p);
+		
+		Result processType(TypeInfo& t) const
+		{
+			if (auto tct = t.getTypedIfComplexType<TemplatedComplexType>())
+			{
+				auto r = Result::ok();
+				auto newType = tct->createTemplatedInstance(tp, r);
+
+				if (!r.wasOk())
+					return r;
+
+				auto nt = TypeInfo(newType, t.isConst(), t.isRef());
+				t = nt;
+
+				return r;
+			}
+
+			if (!t.isTemplateType())
+				return Result::ok();
+
+			for (const auto& p : tp)
+			{
+				if (p.argumentId == t.getTemplateId())
+				{
+					t = p.type;
+					jassert(!t.isTemplateType());
+					jassert(!t.isDynamic());
+					return Result::ok();
+				}
+			}
+
+			return Result::fail("Can't resolve template type " + t.toString());
+		}
+
+		TemplateParameter::List tp;
+	};
+
+	SET_EXPRESSION_ID(TemplateDefinition);
+
+	TemplateDefinition(Location l, const NamespacedIdentifier& classId, const TemplateParameter::List& tp_, Statement::Ptr statements_) :
+		Statement(l),
+		templateClassId(classId),
+		tp(tp_),
+		statements(statements_)
+	{
+		for (const auto& p : tp)
+		{
+			jassert(p.isTemplateArgument());
+		}
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		auto cp = compiler->getCurrentPass();
+
+		if (cp == BaseCompiler::ComplexTypeParsing || cp == BaseCompiler::FunctionParsing)
+		{
+			Statement::processBaseWithoutChildren(compiler, scope);
+
+			for (auto c : *this)
+			{
+				auto tip = as<ClassStatement>(c)->getStructType()->getTemplateInstanceParameters();
+				Resolver resolver(tip);
+				auto r = resolver.process(c);
+
+				if (!r.wasOk())
+					throwError(r.getErrorMessage());
+			}
+
+			Statement::processAllChildren(compiler, scope);
+		}
+		else
+			Statement::processBaseWithChildren(compiler, scope);
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Statement::toValueTree();
+
+		juce::String s;
+		s << templateClassId.toString();
+		s << TemplateParameter::createParameterListString(tp);
+
+		t.setProperty("Type", s, nullptr);
+
+		return t;
+	}
+
+	bool isTemplate() const override
+	{
+		return true;
+	}
+
+	Statement::Ptr clone(Location l) const override
+	{
+		auto cs = statements->clone(l);
+
+		auto s = new TemplateDefinition(l, templateClassId, tp, cs);
+		return s;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return {};
+	}
+
+	ComplexType::Ptr createTemplate(const TemplateClass::ConstructData& d)
+	{
+		TemplateParameter::List instanceParameters;
+
+		auto numArgs = tp.size();
+		auto numDefinedParameters = d.tp.size();
+
+		if (numDefinedParameters > numArgs)
+		{
+			*d.r = Result::fail("Too many template parameters");
+			return nullptr;
+		}
+
+		for (int i = 0; i < numArgs; i++)
+		{
+			if (isPositiveAndBelow(i, numDefinedParameters))
+			{
+				TemplateParameter p = d.tp[i];
+				p.argumentId = tp[i].argumentId;
+				instanceParameters.add(p);
+			}
+			else
+			{
+				TemplateParameter p = tp[i];
+				jassert(p.argumentId.isValid());
+
+				if (p.t == TemplateParameter::TypeTemplateArgument)
+				{
+					jassert(p.type.isValid());
+					p.t = TemplateParameter::ParameterType::Type;
+				}
+				else
+					p.t = TemplateParameter::ParameterType::ConstantInteger;
+
+				instanceParameters.add(p);
+			}
+		}
+
+		for (auto& p : instanceParameters)
+		{
+			if (!p.isResolved())
+			{
+				*d.r = Result::fail("Missing template specialisation for " + p.argumentId.toString());
+				return nullptr;
+			}
+		}
+
+		auto p = new StructType(templateClassId, instanceParameters);
+
+		
+
+		Ptr cb = new SyntaxTree(location, as<SyntaxTree>(statements)->getPath());
+
+		statements->cloneChildren(cb);
+
+		auto c = new ClassStatement(location, p, cb);
+
+		addStatement(c);
+
+		return d.handler->registerComplexTypeOrReturnExisting(p);
+	}
+
+	NamespacedIdentifier templateClassId;
+	TemplateParameter::List tp;
+
+	Statement::Ptr statements;
+	
+};
+
 
 
 struct Operations::Function : public Statement,
@@ -1462,9 +1657,11 @@ struct Operations::Function : public Statement,
 
 	Function(Location l, const Symbol& id_) :
 		Statement(l),
-		code(nullptr),
-		id(id_)
-	{};
+		code(nullptr)
+	{
+		data.id = id_.id;
+		data.returnType = id_.typeInfo;
+	};
 
 	~Function()
 	{
@@ -1476,8 +1673,20 @@ struct Operations::Function : public Statement,
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
-		jassertfalse;
-		return nullptr;
+		jassert(functionScope == nullptr);
+		jassert(functionClass == nullptr);
+		jassert(statements == nullptr);
+		jassert(objectPtr == nullptr);
+		
+		auto c = new Function(l, { data.id, data.returnType });
+
+		c->data = data;
+
+		c->code = code;
+		c->codeLength = codeLength;
+		c->parameters = parameters;
+
+		return c;
 	}
 
 	ValueTree toValueTree() const override
@@ -1510,9 +1719,10 @@ struct Operations::Function : public Statement,
 	FunctionData data;
 	
 	Array<Identifier> parameters;
-	Symbol id;
+	//Symbol id;
 	RegPtr objectPtr;
 	bool hasObjectPtr;
+	FunctionData* classData = nullptr;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Function);
 };
@@ -1777,20 +1987,12 @@ struct Operations::Increment : public UnaryOp
 };
 
 struct Operations::Loop : public Expression,
-							   public Operations::ConditionalBranch
+					      public Operations::ConditionalBranch,
+						  public Operations::ArrayStatementBase
 {
 	SET_EXPRESSION_ID(Loop);
 
-	enum LoopTargetType
-	{
-		Undefined,
-		Span,
-		Dyn,
-		Block,
-		CustomObject,
-		numLoopTargetTypes
-	};
-
+	
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		auto c1 = getSubExpr(0)->clone(l);
@@ -1800,6 +2002,11 @@ struct Operations::Loop : public Expression,
 
 		auto newLoop = new Loop(l, iterator, c1, c2);
 		return newLoop;
+	}
+
+	ArrayType getArrayType() const override
+	{
+		return loopTargetType;
 	}
 
 	Loop(Location l, const Symbol& it_, Expression::Ptr t, Statement::Ptr body) :
@@ -1879,8 +2086,6 @@ struct Operations::Loop : public Expression,
 
 		COMPILER_PASS(BaseCompiler::DataAllocation)
 		{
-			
-
 			tryToResolveType(compiler);
 
 			getTarget()->process(compiler, scope);
@@ -1907,7 +2112,7 @@ struct Operations::Loop : public Expression,
 			}
 			else if (targetType.getType() == Types::ID::Block)
 			{
-				loopTargetType = Block;
+				loopTargetType = Dyn;
 
 				if (iterator.typeInfo.isDynamic())
 					iterator.typeInfo = TypeInfo(Types::ID::Float, iterator.isConst(), iterator.isReference());
@@ -1985,12 +2190,7 @@ struct Operations::Loop : public Expression,
 				le->typePtr = getTarget()->getTypeInfo().getTypedComplexType<DynType>();
 				loopEmitter = le;
 			}
-			else if (loopTargetType == Block)
-			{
-				auto le = new BlockLoopEmitter(compiler, iterator, getTarget()->reg, getLoopBlock(), loadIterator);
-				loopEmitter = le;
-			}
-
+			
 			if(loopEmitter != nullptr)
 				loopEmitter->emitLoop(acg, compiler, scope);
 		}
@@ -2001,7 +2201,7 @@ struct Operations::Loop : public Expression,
 	
 	bool loadIterator = true;
 
-	LoopTargetType loopTargetType;
+	ArrayType loopTargetType;
 
 	asmjit::Label loopStart;
 	asmjit::Label loopEnd;
@@ -2185,19 +2385,10 @@ struct Operations::IfStatement : public Statement,
 
 
 
-struct Operations::Subscript : public Expression
+struct Operations::Subscript : public Expression,
+							   public ArrayStatementBase
 {
 	SET_EXPRESSION_ID(Subscript);
-
-	enum SubscriptType
-	{
-		Undefined,
-		Span,
-		Dyn,
-		Block,
-		CustomObject,
-		numSubscriptTypes
-	};
 
 	Subscript(Location l, Ptr expr, Ptr index):
 		Expression(l)
@@ -2221,6 +2412,11 @@ struct Operations::Subscript : public Expression
 	TypeInfo getTypeInfo() const override
 	{
 		return elementType;
+	}
+
+	ArrayType getArrayType() const override
+	{
+		return subscriptType;
 	}
 
 	ValueTree toValueTree() const override
@@ -2255,7 +2451,7 @@ struct Operations::Subscript : public Expression
 
 		if (getSubExpr(0)->getType() == Types::ID::Block)
 		{
-			subscriptType = Block;
+			subscriptType = Dyn;
 			elementType = TypeInfo(Types::ID::Float, false, true);
 			return true;
 		}
@@ -2284,7 +2480,17 @@ struct Operations::Subscript : public Expression
 					auto parentType = getSubExpr(0)->getTypeInfo();
 
 					if (TypeInfo(it->parentType.get()) != parentType)
-						throwError("index type mismatch");
+					{
+						juce::String s;
+
+						s << "index type mismatch: ";
+						s << indexType.toString();
+						s << " for target ";
+						s << parentType.toString();
+
+						throwError(s);
+					}
+						
 				}
 				else
 					throwError("illegal index type");
@@ -2349,16 +2555,13 @@ struct Operations::Subscript : public Expression
 				if (SpanType::isSimdType(getSubExpr(0)->getTypeInfo()))
 					return false;
 
-				if (subscriptType == Block)
-					return false;
-
 				return true;
 			};
 
 			if (!preprocessCodeGenForChildStatements(compiler, scope, abortFunction))
 				return;
 
-			if (subscriptType != Block && compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType()))
+			if (subscriptType == Span && compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType()))
 			{
 				reg = getSubRegister(0);
 				return;
@@ -2405,7 +2608,7 @@ struct Operations::Subscript : public Expression
 		}
 	}
 
-	SubscriptType subscriptType = Undefined;
+	ArrayType subscriptType = Undefined;
 	bool isWriteAccess = false;
 	SpanType* spanType = nullptr;
 	DynType* dynType = nullptr;
@@ -2425,9 +2628,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		Expression(l),
 		ids(ids_),
 		type(type_)
-	{
-		
-	}
+	{}
 
 	void addInitValues(InitialiserList::Ptr l)
 	{
@@ -2446,14 +2647,14 @@ struct Operations::ComplexTypeDefinition : public Expression,
 
 	Array<NamespacedIdentifier> getInstanceIds() const override { return ids; }
 
-	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
+	Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
-		auto n = new ComplexTypeDefinition(l, ids, type);
+		Ptr n = new ComplexTypeDefinition(l, ids, type);
 
 		cloneChildren(n);
 
 		if (initValues != nullptr)
-			n->initValues = initValues;
+			as<ComplexTypeDefinition>(n)->initValues = initValues;
 
 		return n;
 	}
@@ -2501,7 +2702,7 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		return dynamic_cast<RegisterScope*>(scope) != nullptr;
 	}
 
-private:
+
 
 	Array<NamespacedIdentifier> ids;
 	TypeInfo type;

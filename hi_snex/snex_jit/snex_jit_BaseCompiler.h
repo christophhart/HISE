@@ -65,16 +65,7 @@ public:
 		numMessageTypes
 	};
 
-	BaseCompiler(NamespaceHandler& handler):
-		namespaceHandler(handler),
-		registerPool(this)
-	{
-		auto float4Type = new SpanType(TypeInfo(Types::ID::Float), 4);
-		float4Type->setAlias(NamespacedIdentifier("float4"));
-		namespaceHandler.registerComplexTypeOrReturnExisting(float4Type);
-
-		inbuildFunctions = new InbuiltFunctions(this);
-	}
+	BaseCompiler(NamespaceHandler& handler);
 
 	virtual ~BaseCompiler() {};
 
@@ -90,6 +81,7 @@ public:
 		TypeCheck,
 		PostSymbolOptimization,
 		SyntaxSugarReplacements,
+		FunctionTemplateParsing,
 		FunctionParsing,
 		FunctionCompilation,
 		PreCodeGenerationOptimization,
@@ -229,6 +221,8 @@ public:
 	bool fitsIntoNativeRegister(ComplexType* t) const;
 
 	bool allowSmallObjectOptimisation() const;
+
+	void setInbuildFunctions();
 
 private:
 

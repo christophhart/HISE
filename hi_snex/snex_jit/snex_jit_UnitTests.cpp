@@ -126,7 +126,7 @@ public:
 
 		compiler = new Compiler(memory);
 
-		Types::SnexObjectDatabase::registerObjects(*compiler);
+		Types::SnexObjectDatabase::registerObjects(*compiler, 2);
 	}
 
 	void logMessage(const juce::String& s) override
@@ -244,6 +244,8 @@ class ProcessTestCase
 {
 public:
 
+	static constexpr int NumChannels = 2;
+
 	ProcessTestCase(UnitTest* test, GlobalScope& memory, const juce::String& code)
 	{
 		HiseEventBuffer b;
@@ -256,17 +258,21 @@ public:
 		b.addEvent(on);
 		b.addEvent(off);
 
-		memset(data, 0, sizeof(float) * 128);
+		memset(data, 0, sizeof(float) * 64 * NumChannels);
 
-		d.data[0] = { data, 64 };
-		d.data[1] = { data + 64, 64 };
+		for (int i = 0; i < NumChannels; i++)
+		{
+			d.data[i] = block(data + 64 * i, 64);
+		}
+
+		
 		d.events = { b.begin(), (size_t)b.getNumUsed() };
 		d.voiceIndex = {};
 
 		using T = void;
 
 		Compiler c(memory);
-		Types:: SnexObjectDatabase::registerObjects(c);
+		Types:: SnexObjectDatabase::registerObjects(c, NumChannels);
 
 		auto obj = c.compileJitObject(code);
 
@@ -279,7 +285,7 @@ public:
 		v = f.call<int>(&d);
 	}
 
-	Types::ProcessData d;
+	Types::ProcessDataFix<NumChannels> d;
 	float data[128];
 	int v;
 };
@@ -339,7 +345,7 @@ public:
 		Compiler c(memory);
 		c.setDebugHandler(debugHandler);
 		
-		Types::SnexObjectDatabase::registerObjects(c);
+		Types::SnexObjectDatabase::registerObjects(c, 2);
 
 		auto obj = c.compileJitObject(code);
 
@@ -379,7 +385,7 @@ public:
 		case Types::ID::Integer: actualResult = call<int>(); break;
 		case Types::ID::Float:   actualResult = call<float>(); break;
 		case Types::ID::Double:  actualResult = call<double>(); break;
-		case Types::ID::Block:   actualResult = call<block>(); break;
+		case Types::ID::Block:   actualResult = *call<block*>(); break;
 		default: jassertfalse;
 		}
 
@@ -754,7 +760,7 @@ private:
 		case Types::ID::Integer: return function.call<R>(inputs[0].toInt()); break;
 		case Types::ID::Float:   return function.call<R>(inputs[0].toFloat()); break;
 		case Types::ID::Double:  return function.call<R>(inputs[0].toDouble()); break;
-		case Types::ID::Block:	 return function.call<R>(inputs[0].toBlock()); break;
+		case Types::ID::Block: { auto b = inputs[0].toBlock(); return function.call<R>(&b); break; }
 		default: jassertfalse; return R();
 		}
 	}
@@ -902,6 +908,13 @@ public:
 
 	void runTest() override
 	{
+		runTestFiles("simple_template12");
+		
+		
+		testEvents();
+
+		testProcessData();
+
 		
 		testEvents();
 		
@@ -910,11 +923,20 @@ public:
 
 		runTestsWithOptimisation({});
 		
+		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination, OptimizationIds::LoopOptimisation });
+
+		juce::String s;
+		s << "Compile count: ";
+		s << juce::String(Compiler::compileCount);
+
+		logMessage(s);
+
+		return;
+
 		runTestsWithOptimisation({ OptimizationIds::LoopOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::Inlining, OptimizationIds::LoopOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::Inlining });
 		
-		return;
 
 		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination });
 		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining });
@@ -922,7 +944,7 @@ public:
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination });
-		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination, OptimizationIds::LoopOptimisation });
+		
 	}
 
 	using OpList = Array<Identifier>;
@@ -1058,12 +1080,16 @@ public:
 
 	void runTestsWithOptimisation(const Array<Identifier>& ids)
 	{
+		PerformanceCounter pc("run of all tests with optimisations");
+
 		logMessage("OPTIMIZATIONS");
 
 		for (auto o : ids)
 			logMessage("--- " + o.toString());
 
 		optimizations = ids;
+
+		pc.start();
 
 		runTestFiles();
 		testFpu();
@@ -1117,6 +1143,8 @@ public:
 		testStaticConst();
 		testWrap();
 		testMacOSRelocation();
+
+		pc.stop();
 	}
 
 private:
@@ -1233,7 +1261,7 @@ private:
 		{
 			Compiler c(m);
 
-			Types::SnexObjectDatabase::registerObjects(c);
+			Types::SnexObjectDatabase::registerObjects(c, 1);
 
 			auto en = e.getNoteNumber();
 			auto ev = (int)e.getVelocity();
@@ -1264,7 +1292,7 @@ private:
 		{
 			Compiler c(m);
 
-			Types::SnexObjectDatabase::registerObjects(c);
+			Types::SnexObjectDatabase::registerObjects(c, 1);
 
 			HiseEvent e(HiseEvent::Type::NoteOn, 75, 125, 3);
 
@@ -1344,7 +1372,7 @@ private:
 		
 		Compiler c(m);
 		
-		Types::SnexObjectDatabase::registerObjects(c);
+		Types::SnexObjectDatabase::registerObjects(c, 2);
 
 		{
 			Types::_ramp<T> d;
@@ -1798,7 +1826,7 @@ private:
 
 		{
 			juce::String code;
-			ADD_CODE_LINE("int test(ProcessData& d)");
+			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
 			ADD_CODE_LINE("{");
 			ADD_CODE_LINE("auto fd = interleave(d.data);");
 			ADD_CODE_LINE("for(auto& s: fd){");
@@ -1811,7 +1839,7 @@ private:
 			int x = 5;
 		}
 		{
-			ProcessTestCase test(this, memory, "int test(ProcessData& d) {dyn<float>::wrapped i; d.data[0][i] = 19.0f; d.data[1][i.moved(3)] = 24.0f; return 2;}");
+			ProcessTestCase test(this, memory, "int test(ProcessData<NumChannels>& d) {block::wrapped i; d.data[0][i] = 19.0f; d.data[1][i.moved(3)] = 24.0f; return 2;}");
 
 			auto actual = test.d.data[0][0];
 			auto actual2 = test.d.data[1][3];
@@ -1822,7 +1850,7 @@ private:
 		}
 		{
 			juce::String code;
-			ADD_CODE_LINE("int test(ProcessData& d)");
+			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
 			ADD_CODE_LINE("{");
 			ADD_CODE_LINE("int x = 0;");
 			ADD_CODE_LINE("for(auto& e: d.events)");
@@ -2650,14 +2678,24 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
-		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
+		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
+
 		test->setup();
-		test->func["test"].call<float>(bl);
+
+		auto rb = test->func["test"].call<block*>(
+			9, &bl);
+
+		expectEquals<uint64>(reinterpret_cast<uint64>(bl.begin()), reinterpret_cast<uint64>(rb->begin()), "simple block return");
+
+
+		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[in.index<block::unsafe>(1)] = Math.sin(x); return 1.0f; };");
+		test->setup();
+		test->func["test"].call<float>(&bl);
 		expectEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
 
 		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v += 1; return v; }");
 		test->setup();
-		auto numSamples2 = test->func["test"].call<int>(bl);
+		auto numSamples2 = test->func["test"].call<int>(&bl);
 		expectEquals<int>(numSamples2, bl.size(), "Counting samples in block");
 
 		for (int i = 0; i < b.getNumSamples(); i++)
@@ -2669,7 +2707,7 @@ private:
 
 		CREATE_TYPED_TEST("int test(block in){ return in.size(); };");
 		test->setup();
-		auto s_ = test->func["test"].call<int>(bl);
+		auto s_ = test->func["test"].call<int>(&bl);
 
 		//expectEquals( s_, 512, "size() operator");
 
@@ -2678,68 +2716,61 @@ private:
 
 		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
 
-		CREATE_TYPED_TEST("float test(block in){ in[4] = 124.0f; return 1.0f; };");
+		CREATE_TYPED_TEST("float test(block in){ in[in.index<block::unsafe>(4)] = 124.0f; return 1.0f; };");
 		test->setup();
 		
-		test->func["test"].call<float>(bl);
+		test->func["test"].call<float>(&bl);
 		
 		expectEquals<float>(bl[4], 124.0f, "Setting block value");
 
 		CREATE_TYPED_TEST("float v = 0.0f; float test(block in) { for(auto& s: in) v = s; return v; }");
 		test->setup();
-		auto numSamples3 = test->func["test"].call<float>(bl);
+		auto numSamples3 = test->func["test"].call<float>(&bl);
 		expectEquals<int>(numSamples3, (float)bl.size(), "read block value into global variable");
 
 
 		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v = s; return v; }");
 		test->setup();
-		auto numSamples4 = test->func["test"].call<int>(bl);
+		auto numSamples4 = test->func["test"].call<int>(&bl);
 		expectEquals<int>(numSamples4, bl.size(), "read block value with cast");
 
 		b.clear();
 
-        CREATE_TYPED_TEST("float test(block in){ in[1] = Math.abs(in, 124.0f); return 1.0f; };");
+        CREATE_TYPED_TEST("float test(block in){ in[in.index<block::unsafe>(1)] = Math.abs(in, 124.0f); return 1.0f; };");
         test->setup();
-        test->func["test"].call<float>(bl);
+        test->func["test"].call<float>(&bl);
         expectEquals<float>(bl[1], 0.0f, "Calling function with wrong signature as block assignment");
 
-        CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[1] = Math.sin(x); return 1.0f; };");
+        CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[in.index<block::unsafe>(1)] = Math.sin(x); return 1.0f; };");
         test->setup();
-        test->func["test"].call<float>(bl);
+        test->func["test"].call<float>(&bl);
         expectEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
         
-		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
-
-		test->setup();
-
-		auto rb = test->func["test"].call<block>(2, bl);
-
-		expectEquals<uint64>(reinterpret_cast<uint64>(bl.getData()), reinterpret_cast<uint64>(rb.getData()), "simple block return");
-
+		
 		bl[0] = 0.86f;
 		bl2[128] = 0.92f;
 
-		CREATE_TYPED_TEST("float test(block in, block in2){ return in[0] + in2[128]; };");
+		CREATE_TYPED_TEST("float test(block in, block in2){ block::unsafe idx; return in[idx] + in2[idx.moved(128)]; };");
 
 		test->setup();
-		auto rb2 = test->func["test"].call<float>(bl, bl2);
+		auto rb2 = test->func["test"].call<float>(&bl, &bl2);
 		expectEquals<float>(rb2, 0.86f + 0.92f, "Adding two block values");
 
-		CREATE_TYPED_TEST("float test(block in){ in[1] = 124.0f; return 1.0f; };");
+		CREATE_TYPED_TEST("float test(block in){ in[in.index<block::unsafe>(1)] = 124.0f; return 1.0f; };");
 		test->setup();
-		test->func["test"].call<float>(bl);
+		test->func["test"].call<float>(&bl);
 		expectEquals<float>(bl[1], 124.0f, "Setting block value");
         
 		
 
         CREATE_TYPED_TEST("float l = 1.94f; float test(block in){ for(auto& s: in) s = 2.4f; for(auto& s: in) l = s; return l; }");
         test->setup();
-        auto shouldBe24 = test->func["test"].call<float>(bl);
+        auto shouldBe24 = test->func["test"].call<float>(&bl);
         expectEquals<float>(shouldBe24, 2.4f, "Setting global variable in block loop");
         
 		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v += 1; return v; }");
 		test->setup();
-		auto numSamples = test->func["test"].call<int>(bl);
+		auto numSamples = test->func["test"].call<int>(&bl);
 		expectEquals<int>(numSamples, bl.size(), "Counting samples in block");
         
 		CREATE_TYPED_TEST("void test(block in){ for(auto& sample: in){ sample = 2.0f; }}");
@@ -2808,7 +2839,7 @@ private:
 
 			GlobalScope memory;
 			Compiler c(memory);
-			Types::SnexObjectDatabase::registerObjects(c);
+			Types::SnexObjectDatabase::registerObjects(c, 2);
 
 			auto obj = c.compileJitObject(code);
 
