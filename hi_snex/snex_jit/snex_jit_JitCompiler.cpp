@@ -107,6 +107,11 @@ void Compiler::registerVariadicType(VariadicSubType::Ptr p)
 	compiler->namespaceHandler.addVariadicType(p);
 }
 
+snex::jit::NamespaceHandler& Compiler::getNamespaceHandler()
+{
+	return compiler->namespaceHandler;
+}
+
 void Compiler::initInbuildFunctions()
 {
 	compiler->setInbuildFunctions();

@@ -138,7 +138,14 @@ using namespace asmjit;
 		registerPool(this)
 	{
 		TemplateObject spanClass;
-		spanClass.id = NamespacedIdentifier("span");
+		auto sId = NamespacedIdentifier("span");
+
+		NamespaceHandler::InternalSymbolSetter iss(handler);
+
+		spanClass.id = sId;
+		spanClass.argList.add(TemplateParameter(sId.getChildId("DataType")));
+		spanClass.argList.add(TemplateParameter(sId.getChildId("NumElements"), 0, false));
+
 		spanClass.makeClassType = [](const TemplateObject::ConstructData& d)
 		{
 			ComplexType::Ptr p;
@@ -159,7 +166,10 @@ using namespace asmjit;
 		namespaceHandler.addTemplateClass(spanClass);
 
 		TemplateObject dynClass;
-		dynClass.id = NamespacedIdentifier("dyn");
+		auto dId = NamespacedIdentifier("dyn");
+		dynClass.id = dId;
+		dynClass.argList.add(TemplateParameter(dId.getChildId("DataType")));
+
 		dynClass.makeClassType = [](const TemplateObject::ConstructData& d)
 		{
 			ComplexType::Ptr p;

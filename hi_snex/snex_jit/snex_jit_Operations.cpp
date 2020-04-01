@@ -103,6 +103,12 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
+			if (auto st = as<SyntaxTree>(statements))
+			{
+				DBG("DUMPING SYNTAX TREE");
+				DBG(st->dump());
+			}
+
 			statements = nullptr;
 			functionScope = nullptr;
 
@@ -138,6 +144,8 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			compiler->setCurrentPass(BaseCompiler::FunctionParsing);
 
 			Statement::Ptr statementCopy = statements;
+
+			classData->templateParameters = data.templateParameters;
 
 			auto classDataCopy = FunctionData(*classData);
 
@@ -205,6 +213,12 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
+			if (auto st = as<SyntaxTree>(statements))
+			{
+				DBG("DUMPING SYNTAX TREE");
+				DBG(st->dump());
+			}
+
 			statements = nullptr;
 			functionScope = nullptr;
 
@@ -519,7 +533,12 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 						auto regType = compiler->getRegisterType(getTypeInfo());
 
-						reg = compiler->registerPool.getNextFreeRegister(scope, TypeInfo(regType, true));
+						if(regType == Types::ID::Pointer)
+							reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
+						else
+							reg = compiler->registerPool.getNextFreeRegister(scope, TypeInfo(regType, true));
+
+						
 						reg->setReference(scope, id);
 						auto acg = CREATE_ASM_COMPILER(regType);
 
@@ -822,7 +841,17 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (getTargetType() == TargetType::Reference && isFirstAssignment)
 		{
-			jassert(value->hasCustomMemoryLocation() || value->isMemoryLocation());
+			if (value->getTypeInfo().isNativePointer())
+			{
+				auto ptr = x86::ptr(PTR_REG_R(value));
+				tReg->setCustomMemoryLocation(ptr, value->isGlobalMemory());
+				return;
+			}
+			else if (!(value->hasCustomMemoryLocation() || value->isMemoryLocation()))
+			{
+				location.throwError("Can't create reference to rvalue");
+			}
+
 			tReg->setCustomMemoryLocation(value->getMemoryLocationForReference(), true);
 		}
 		else
@@ -962,20 +991,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithChildren(compiler, scope);
 
-#if 0
-	COMPILER_PASS(BaseCompiler::DataAllocation)
-	{
-		if (hasObjectExpression && function.id == NamespacedIdentifier("toSimd"))
-		{
-			auto sc = new CastedSimd(location, getObjectExpression());
-
-			replaceInParent(sc);
-			sc->process(compiler, scope);
-			return;
-		}
-	}
-#endif
-
 	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 	{
 		tryToResolveType(compiler);
@@ -1014,8 +1029,34 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				callType = ApiFunction;
 				return;
 			}
-			else
-				throwError("Fuuck");
+			else if(!function.id.isExplicit())
+			{
+				auto scopeId = scope->getScopeSymbol();
+				auto fP = function.id.getParent();
+
+				if (fP.isParentOf(scopeId))
+				{
+					if (auto cs = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(function.id)))
+					{
+						fc = cs->typePtr->getFunctionClass();
+						ownedFc = fc;
+						fc->addMatchingFunctions(possibleMatches, function.id);
+						callType = MemberFunction;
+
+						TypeInfo thisType(cs->typePtr.get());
+
+						setObjectExpression(new ThisPointer(location, thisType));
+
+						return;
+					}
+				}
+				
+
+
+				
+			}
+			
+			throwError("Fuuck");
 		}
 
 		if (getObjectExpression()->getTypeInfo().isComplexType())
@@ -1071,6 +1112,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 	
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
+		jassert(fc != nullptr);
+
 		if (callType == InbuiltFunction)
 		{
 			// Will be done at parser level
@@ -1085,9 +1128,23 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		for (auto& f : possibleMatches)
 		{
+			if (TemplateParameter::isArgumentList(f.templateParameters))
+			{
+				// Externally defined functions don't have a specialised instantiation, so we
+				// need to resolve the template parameters here...
+				jassert(TemplateParameter::isParameterList(function.templateParameters));
+
+				auto r = Result::ok();
+				f.templateParameters = TemplateParameter::mergeList(f.templateParameters, function.templateParameters, r);
+				location.test(r);
+			}
+
+			for (auto& a: f.args)
+				a.typeInfo = compiler->convertToNativeTypeIfPossible(a.typeInfo);
+
 			jassert(function.id == f.id);
 
-			if (f.matchesArgumentTypes(parameterTypes))
+			if (f.matchesArgumentTypes(parameterTypes) && f.matchesTemplateArguments(function.templateParameters))
 			{
 				int numArgs = f.args.size();
 
@@ -1133,7 +1190,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 					function = f;
 					function.templateParameters = tempParameters;
-					function.returnType = !t.isDynamic() ? t : getTypeInfo();
+					function.returnType = t.getType() != Types::ID::Dynamic ? t : getTypeInfo();
 				}
 				else
 					function = f;
@@ -1149,9 +1206,11 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
-		auto t = getTypeInfo();
+		jassert(fc != nullptr);
 
-		reg = compiler->getRegFromPool(scope, getTypeInfo());
+		auto t = getTypeInfo().toPointerIfNativeRef();
+
+		reg = compiler->getRegFromPool(scope, t);
 
 		//VariableReference::reuseAllLastReferences(this);
 
@@ -1194,7 +1253,9 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		auto asg = CREATE_ASM_COMPILER(getType());
+		auto t = getTypeInfo();
+
+		auto asg = CREATE_ASM_COMPILER(reg->getType());
 
 		if (callType == MemberFunction)
 		{
@@ -1222,8 +1283,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 			return;
 		}
-
-		
 
 		if (!function)
 		{
@@ -1612,6 +1671,83 @@ void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			auto sourceType = getSubExpr(0)->getType();
 			asg.emitCast(reg, getSubRegister(0), sourceType);
+		}
+	}
+}
+
+void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	
+
+	if (subClass == nullptr)
+		subClass = new ClassScope(scope, getStructType()->id, classType);
+
+	processBaseWithChildren(compiler, subClass);
+
+#if 0
+	if (auto st = as<SyntaxTree>(getSubExpr(0)))
+	{
+		DBG(st->dump());
+	}
+#endif
+
+
+	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
+	{
+		auto cType = getStructType();
+
+		forEachRecursive([cType](Ptr p)
+		{
+			if (auto f = as<Function>(p))
+			{
+				cType->addJitCompiledMemberFunction(f->data);
+			}
+
+			if (auto tf = as<TemplatedFunction>(p))
+			{
+				auto fData = tf->data;
+				fData.templateParameters = tf->templateParameters;
+
+				cType->addJitCompiledMemberFunction(fData);
+			}
+
+			return false;
+		});
+
+
+		addMembersFromStatementBlock(getStructType(), getChildStatement(0));
+	}
+
+	COMPILER_PASS(BaseCompiler::DataAllocation)
+	{
+		getStructType()->finaliseAlignment();
+	}
+}
+
+void Operations::ThisPointer::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	processBaseWithoutChildren(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		DBG(findParentStatementOfType<SyntaxTree>(this)->dump());
+
+		// Fix inlining:
+		// the scope will fuck up the object pointer of the function
+		// check the object pointer from the inlined function (arg is -1)
+		jassertfalse;
+
+		
+
+		if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
+		{
+			if (auto f = dynamic_cast<Function*>(fScope->parentFunction))
+			{
+				auto objReg = f->objectPtr;
+
+				jassert(objReg->getTypeInfo() == getTypeInfo());
+				reg = objReg;
+			}
 		}
 	}
 }

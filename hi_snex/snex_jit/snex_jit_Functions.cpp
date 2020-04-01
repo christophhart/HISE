@@ -114,6 +114,21 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 	return s;
 }
 
+bool FunctionData::matchIdArgs(const FunctionData& other) const
+{
+	auto idMatch = id == other.id;
+	auto argMatch = matchesArgumentTypes(other);
+	return idMatch && argMatch;
+}
+
+bool FunctionData::matchIdArgsAndTemplate(const FunctionData& other) const
+{
+	auto idArgMatch = matchIdArgs(other);
+	auto templateMatch = matchesTemplateArguments(other.templateParameters);
+
+	return idArgMatch && templateMatch;
+}
+
 bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 {
 	if (args.size() != typeList.size())
@@ -182,6 +197,20 @@ bool FunctionData::matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID
 }
 
 
+
+bool FunctionData::matchesTemplateArguments(const TemplateParameter::List& l) const
+{
+	if (l.size() != templateParameters.size())
+		return false;
+
+	for (int i = 0; i < l.size(); i++)
+	{
+		if (l[i] != templateParameters[i])
+			return false;
+	}
+
+	return true;
+}
 
 struct SyntaxTreeInlineData: public InlineData
 {
@@ -395,18 +424,19 @@ bool FunctionClass::fillJitFunctionPointer(FunctionData& dataWithoutPointer)
 	// first check strict typing
 	for (auto f : functions)
 	{
-		if (f->id == dataWithoutPointer.id && f->matchesArgumentTypes(dataWithoutPointer, false))
+		if (f->matchIdArgsAndTemplate(dataWithoutPointer))
 		{
 			dataWithoutPointer.function = f->function;
-
 			return dataWithoutPointer.function != nullptr;
-
 		}
 	}
 
 	for (auto f : functions)
 	{
-		if (f->id == dataWithoutPointer.id)
+		bool idMatch = f->id == dataWithoutPointer.id;
+		auto templateMatch = f->matchesTemplateArguments(dataWithoutPointer.templateParameters);
+
+		if (idMatch && templateMatch)
 		{
 			auto& fArgs = f->args;
 			auto& dArgs = dataWithoutPointer.args;
@@ -429,7 +459,7 @@ bool FunctionClass::injectFunctionPointer(FunctionData& dataToInject)
 {
 	for (auto f : functions)
 	{
-		if (f->id == dataToInject.id && f->matchesArgumentTypes(dataToInject, true))
+		if (f->matchIdArgsAndTemplate(dataToInject))
 		{
 			f->function = dataToInject.function;
 			return true;
@@ -608,6 +638,9 @@ juce::String TemplateParameter::createParameterListString(const List& l)
 
 snex::jit::TemplateParameter::List TemplateParameter::mergeList(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r)
 {
+	if (arguments.isEmpty() && parameters.isEmpty())
+		return parameters;
+
 	for (auto& a : arguments)
 	{
 		// The argument array must contain Template arguments only...
@@ -666,6 +699,43 @@ snex::jit::TemplateParameter::List TemplateParameter::mergeList(const TemplatePa
 	}
 
 	return instanceParameters;
+}
+
+TemplateParameter::List TemplateParameter::mergeWithCallParameters(const TemplateParameter::List& existing, const TypeInfo::List& originalFunctionArguments, const TypeInfo::List& callParameterTypes, Result& r)
+{
+	jassert(existing.isEmpty() || isParameterList(existing));
+
+	List tp = existing;
+
+	jassert(callParameterTypes.size() == originalFunctionArguments.size());
+
+	for (int i = 0; i < originalFunctionArguments.size(); i++)
+	{
+		auto& o = originalFunctionArguments[i];
+
+		if (o.isTemplateType())
+		{
+			auto typeTouse = callParameterTypes[i].withModifiers(o.isConst(), o.isRef());
+			TemplateParameter tId(typeTouse);
+			tId.argumentId = o.getTemplateId();
+
+			for (auto& existing : tp)
+			{
+				if (existing.argumentId == tId.argumentId)
+				{
+					if (existing != tId)
+					{
+						r = Result::fail("Can't deduce template type from arguments");
+						return {};
+					}
+				}
+			}
+
+			tp.addIfNotAlreadyThere(tId);
+		}
+	}
+
+	return tp;
 }
 
 snex::jit::ComplexType::Ptr TemplatedComplexType::createSubType(const NamespacedIdentifier& id)

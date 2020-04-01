@@ -535,6 +535,10 @@ void Operations::ClassDefinitionBase::addMembersFromStatementBlock(StructType* t
 	t->finaliseAlignment();
 }
 
+
+
+
+
 Operations::TemplateParameterResolver::TemplateParameterResolver(const TemplateParameter::List& tp_) :
 	tp(tp_)
 {
@@ -559,6 +563,11 @@ juce::Result Operations::TemplateParameterResolver::process(Statement::Ptr p)
 	{
 		r = processType(f->data.returnType);
 
+		if (f->data.returnType.isTemplateType())
+		{
+			r = Result::fail("Can't resolve template return type " + f->data.returnType.getTemplateId().toString());
+		}
+
 		if (!r.wasOk())
 			return r;
 
@@ -576,6 +585,15 @@ juce::Result Operations::TemplateParameterResolver::process(Statement::Ptr p)
 			r = process(f->statements);
 
 		if (!r.wasOk())
+			return r;
+	}
+	if (auto fc = as<FunctionCall>(p))
+	{
+		auto& function = fc->function;
+
+		auto r = process(function);
+
+		if (r.failed())
 			return r;
 	}
 	if (auto v = as<VariableReference>(p))
@@ -634,6 +652,29 @@ juce::Result Operations::TemplateParameterResolver::process(Statement::Ptr p)
 	return r;
 }
 
+juce::Result Operations::TemplateParameterResolver::process(FunctionData& f) const
+{
+	auto r = resolveIds(f);
+
+	if (r.failed())
+		return r;
+
+	r = processType(f.returnType);
+
+	if (r.failed())
+		return r;
+
+	for (auto& a : f.args)
+	{
+		r = processType(a.typeInfo);
+
+		if (r.failed())
+			return r;
+	}
+
+	return r;
+}
+
 juce::Result Operations::TemplateParameterResolver::processType(TypeInfo& t) const
 {
 	if (auto tct = t.getTypedIfComplexType<TemplatedComplexType>())
@@ -657,7 +698,7 @@ juce::Result Operations::TemplateParameterResolver::processType(TypeInfo& t) con
 	{
 		if (p.argumentId == t.getTemplateId())
 		{
-			t = p.type;
+			t = p.type.withModifiers(t.isConst(), t.isRef());
 			jassert(!t.isTemplateType());
 			jassert(!t.isDynamic());
 			return Result::ok();
@@ -667,6 +708,46 @@ juce::Result Operations::TemplateParameterResolver::processType(TypeInfo& t) con
 	return Result::fail("Can't resolve template type " + t.toString());
 }
 
+
+juce::Result Operations::TemplateParameterResolver::resolveIds(FunctionData& d) const
+{
+	auto r = resolveIdForType(d.returnType);
+
+	if (r.failed())
+		return r;
+
+	for (auto& a : d.args)
+	{
+		r = resolveIdForType(a.typeInfo);
+
+		if (r.failed())
+			return r;
+	}
+
+	return Result::ok();
+}
+
+juce::Result Operations::TemplateParameterResolver::resolveIdForType(TypeInfo& t) const
+{
+	if (t.isTemplateType())
+	{
+		for (const auto& p : tp)
+		{
+			auto rId = t.getTemplateId();
+
+			if (rId.getIdentifier() == p.argumentId.getIdentifier())
+			{
+				jassert(rId.isExplicit() || rId == p.argumentId);
+
+				auto nt = TypeInfo(p.argumentId);
+				nt = nt.withModifiers(t.isConst(), t.isRef());
+				t = nt;
+			}
+		}
+	}
+
+	return Result::ok();
+}
 
 }
 }

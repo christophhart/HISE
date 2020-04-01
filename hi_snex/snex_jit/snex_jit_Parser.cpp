@@ -206,7 +206,7 @@ void NewClassParser::registerTemplateArguments(TemplateParameter::List& template
 	for (auto& tp : templateList)
 	{
 		jassert(tp.isTemplateArgument());
-		jassert(tp.argumentId.isExplicit());
+		jassert(tp.argumentId.isExplicit() || tp.argumentId.getParent() == scopeId);
 
 		tp.argumentId = scopeId.getChildId(tp.argumentId.getIdentifier());
 
@@ -264,7 +264,7 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 
 	if (matchIf(JitTokens::static_))
 	{
-		if (!matchIfType())
+		if (!matchIfType(templateArguments))
 			location.throwError("Expected type");
 
 		if (!currentTypeInfo.isConst())
@@ -282,7 +282,7 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		return new Operations::Noop(location);
 	}
 
-	if (matchIfType())
+	if (matchIfType(templateArguments))
 	{
 		if (currentTypeInfo.isComplexType())
 			return parseComplexTypeDefinition();
@@ -440,7 +440,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 		while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
 		{
-			matchType();
+			matchType(templateArguments);
 
 			auto s = parseNewSymbol(NamespaceHandler::Variable);
 			fData.args.add(s);
@@ -454,7 +454,18 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	{
 		TemplateObject f;
 		f.id = s.id;
+		f.argList = as<TemplatedFunction>(newStatement)->templateParameters;
 		f.makeFunction = std::bind(&TemplatedFunction::createFunction, as<TemplatedFunction>(newStatement), std::placeholders::_1);
+
+		TypeInfo::List callParameters;
+
+		for (auto& a : fData.args)
+			callParameters.add(a.typeInfo);
+
+		f.functionArgs = [callParameters]()
+		{
+			return callParameters;
+		};
 
 		compiler->namespaceHandler.addTemplateFunction(f);
 	}
@@ -529,6 +540,7 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 		TemplateObject tc;
 		tc.id = classId;
 		tc.makeClassType = std::bind(&Operations::TemplateDefinition::createTemplate, tcs, std::placeholders::_1);
+		tc.argList = classTemplateArguments;
 
 		compiler->namespaceHandler.addTemplateClass(tc);
 		return tcs;
@@ -608,7 +620,7 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 
 				if (matchIf(JitTokens::assign_))
 				{
-					TypeParser tp(*this, compiler->namespaceHandler);
+					TypeParser tp(*this, compiler->namespaceHandler, {});
 					tp.matchType();
 					defaultType = tp.currentTypeInfo;
 				}
@@ -618,7 +630,7 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 		}
 		else
 		{
-			TypeParser tp(*this, compiler->namespaceHandler);
+			TypeParser tp(*this, compiler->namespaceHandler, {});
 
 			if (tp.matchIfType())
 			{
@@ -814,7 +826,7 @@ void BlockParser::parseUsingAlias()
 
 		match(JitTokens::assign_);
 
-		if (!matchIfType())
+		if (!matchIfType({}))
 			location.throwError("Expected type");
 
 		if (currentTypeInfo.isComplexType())
@@ -836,7 +848,7 @@ juce::Array<snex::jit::TemplateParameter> TypeParser::parseTemplateParameters()
 
 	while (currentType != JitTokens::greaterThan && !isEOF())
 	{
-		TypeParser tp(*this, namespaceHandler);
+		TypeParser tp(*this, namespaceHandler, {});
 
 		if (tp.matchIfType())
 		{

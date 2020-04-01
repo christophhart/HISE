@@ -485,6 +485,8 @@ template <class FunctionType> struct VariadicFunctionInliner
 
 void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 {
+	NamespaceHandler::InternalSymbolSetter iss(c.getNamespaceHandler());
+
 	{
 		c.addConstant(NamespacedIdentifier("NumChannels"), numChannels);
 		
@@ -530,7 +532,9 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 	{
 		TemplateObject midi;
-		midi.id = NamespacedIdentifier("wrap").getChildId("midi");
+		auto mId = NamespacedIdentifier("wrap").getChildId("midi");
+		midi.id = mId;
+		midi.argList.add(TemplateParameter(mId.getChildId("T")));
 
 		midi.makeClassType = [prototypes](const TemplateObject::ConstructData& d)
 		{
@@ -691,10 +695,14 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 void SnexObjectDatabase::addVariadicGet(VariadicSubType* variadicType)
 {
 	FunctionData getFunction;
-	getFunction.id = variadicType->variadicId.getChildId("get");
-	getFunction.returnType = TypeInfo(Types::ID::Dynamic, false, true);
 
-	getFunction.inliner = Inliner::createHighLevelInliner(getFunction.id, [](InlineData* b)
+	auto gId = variadicType->variadicId.getChildId("get");
+
+	getFunction.id = gId;
+	getFunction.returnType = TypeInfo(Types::ID::Dynamic, false, true);
+	getFunction.templateParameters.add(TemplateParameter(gId.getChildId("Index")));
+
+	getFunction.inliner = Inliner::createHighLevelInliner(gId, [](InlineData* b)
 	{
 		auto d = b->toSyntaxTreeData();
 
@@ -751,7 +759,10 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 {
 	TemplateObject ptc;
 
-	ptc.id = NamespacedIdentifier("ProcessData");
+	NamespacedIdentifier pId("ProcessData");
+	ptc.id = pId;
+	ptc.argList.add(TemplateParameter(pId.getChildId("NumChannels"), 0, false));
+
 	ptc.makeClassType = [eventType](const TemplateObject::ConstructData& c)
 	{
 		ComplexType::Ptr p;

@@ -161,7 +161,7 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 		indexFunction->inliner->returnTypeFunction = [](InlineData* d)
 		{
 			auto r = dynamic_cast<ReturnTypeInlineData*>(d);
-
+			
 			if (r->templateParameters.size() != 1)
 				return Result::fail("template argument mismatch");
 
@@ -586,11 +586,14 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 	{
 		auto indexFunction = new FunctionData();
 
-		indexFunction->id = dynOperators->getClassName().getChildId("index");
+		auto iid = dynOperators->getClassName().getChildId("index");
+
+		indexFunction->id = iid;
 		indexFunction->returnType = TypeInfo(Types::ID::Dynamic);
 		indexFunction->addArgs("value", TypeInfo(Types::ID::Integer));
+		indexFunction->templateParameters.add(TemplateParameter(iid.getChildId("IndexType")));
 
-		indexFunction->inliner = new Inliner(indexFunction->id, [](InlineData* b)
+		indexFunction->inliner = new Inliner(iid, [](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
 
@@ -1353,7 +1356,7 @@ size_t StructType::getRequiredAlignment() const
 
 size_t StructType::getRequiredAlignment(Member* m)
 {
-	return m->typeInfo.getRequiredAlignment();
+return m->typeInfo.getRequiredAlignment();
 }
 
 void StructType::finaliseAlignment()
@@ -1372,7 +1375,7 @@ void StructType::finaliseAlignment()
 
 		auto alignment = getRequiredAlignment(m);
 
-		if(alignment != 0)
+		if (alignment != 0)
 			m->padding = offset % alignment;
 
 		offset += m->padding + m->typeInfo.getRequiredByteSize();
@@ -1389,7 +1392,7 @@ void StructType::finaliseAlignment()
 			offset += (getRequiredAlignment() - missingBytesForAlignment);
 		}
 	}
-	
+
 	jassert(offset == getRequiredByteSize());
 
 	ComplexType::finaliseAlignment();
@@ -1444,7 +1447,32 @@ size_t StructType::getMemberOffset(const Identifier& id) const
 
 void StructType::addJitCompiledMemberFunction(const FunctionData& f)
 {
+	for (auto& existing : memberFunctions)
+	{
+		if (existing.matchIdArgsAndTemplate(f))
+		{
+			existing = f;
+			return;
+		}
+			
+	}
+
 	jassert(f.function == nullptr);
+
+	if (TemplateParameter::isParameterList(f.templateParameters))
+	{
+		for (auto& existing : memberFunctions)
+		{
+			if (existing.matchIdArgs(f))
+			{
+				if (TemplateParameter::isArgumentList(existing.templateParameters))
+				{
+					existing = f;
+					return;
+				}
+			}
+		}
+	}
 
 	memberFunctions.add(f);
 }
@@ -1463,7 +1491,7 @@ bool StructType::injectMemberFunctionPointer(const FunctionData& f, void* fPoint
 {
 	for (auto& m : memberFunctions)
 	{
-		if (m.matchesArgumentTypes(f, true))
+		if (m.matchIdArgsAndTemplate(f))
 		{
 			m.function = fPointer;
 			return true;

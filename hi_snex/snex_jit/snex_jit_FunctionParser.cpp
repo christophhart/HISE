@@ -100,7 +100,7 @@ BlockParser::StatementPtr CodeParser::parseStatement()
 	{
 		match(JitTokens::const_);
 
-		if (!matchIfType())
+		if (!matchIfType({}))
 			location.throwError("Expected type");
 
 		if (currentTypeInfo.isComplexType())
@@ -118,8 +118,6 @@ BlockParser::StatementPtr CodeParser::parseStatement()
 		return parseStatement();
 	}
 
-	
-
 	if (matchIf(JitTokens::if_))
 		return(parseIfStatement());
 	else if (matchIf(JitTokens::openBrace))
@@ -133,7 +131,7 @@ BlockParser::StatementPtr CodeParser::parseStatement()
 	else if (matchIf(JitTokens::for_))
 		return parseLoopStatement();
 
-	if (matchIfType())
+	if (matchIfType({}))
 	{
 		if (currentTypeInfo.isComplexType())
 			return parseComplexTypeDefinition();
@@ -206,7 +204,7 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 {
 	match(JitTokens::openParen);
 
-	matchType();
+	matchType({});
 
 	auto iteratorType = currentTypeInfo;
 
@@ -269,7 +267,13 @@ void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 	if (auto is = dynamic_cast<Operations::IfStatement*>(lastStatement))
 	{
 		if (!is->hasFalseBranch())
-			is->throwError("Not all paths return a value");
+		{
+			auto returnType = tree->getReturnType();
+
+			if(returnType.isValid())
+				is->throwError("Not all paths return a value");
+		}
+			
 
 		auto lastTrueStatement = is->getTrueBranch();
 		auto lastFalseStatement = is->getFalseBranch();
@@ -449,7 +453,7 @@ BlockParser::ExprPtr BlockParser::parseTerm()
 {
 	if (matchIf(JitTokens::openParen))
 	{
-		if (matchIfType())
+		if (matchIfType({}))
 		{
 			if (currentTypeInfo.isTemplateType())
 			{
@@ -585,26 +589,41 @@ BlockParser::ExprPtr BlockParser::parseSubscript(ExprPtr p)
 
 BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 {
+	using namespace Operations;
+
 	bool found = false;
+	auto r = Result::ok();
 
 	Array<TemplateParameter> templateParameters;
 
     auto fSymbol = getCurrentSymbol();
 
 	
-	
 	if (currentType == JitTokens::lessThan)
 	{
-		if (compiler->namespaceHandler.isTemplateFunction(fSymbol.id))
-		{
-			templateParameters = parseTemplateParameters(false);
-			auto r = Result::ok();
-			compiler->namespaceHandler.createTemplateFunction(fSymbol.id, templateParameters, r);
+		auto tId = fSymbol.id;
 
-			if (!r.wasOk())
-				location.throwError(r.getErrorMessage());
+		if (auto ct = getDotParentType(p).getTypedIfComplexType<ComplexType>())
+		{
+			FunctionClass::Ptr vfc = ct->getFunctionClass();
+
+			tId = vfc->getClassName().getChildId(fSymbol.getName());
+		}
+
+		if (compiler->namespaceHandler.isTemplateFunction(tId))
+		{
+			auto to = compiler->namespaceHandler.getTemplateObject(tId);
+
+			templateParameters = parseTemplateParameters(false);
+
+			if (templateParameters.size() == to.argList.size())
+			{
+				compiler->namespaceHandler.createTemplateFunction(tId, templateParameters, r);
+				location.test(r);
+			}
 		}
 	}
+	
 
 	if (auto ct = getDotParentType(p).getTypedIfComplexType<ComplexType>())
 	{
@@ -617,16 +636,13 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 		
 		auto f = matches.getFirst();
 
-		if (!f.templateParameters.isEmpty())
+		if (!f.templateParameters.isEmpty() && templateParameters.isEmpty())
 		{
 			templateParameters = parseTemplateParameters(false);
-			
-			auto r = Result::ok();
-			templateParameters = TemplateParameter::mergeList(f.templateParameters, templateParameters, r);
-
-			if (!r.wasOk())
-				location.throwError(r.getErrorMessage());
 		}
+
+		templateParameters = TemplateParameter::mergeList(f.templateParameters, templateParameters, r);
+		location.test(r);
 
 		if (auto il = f.inliner)
 		{
@@ -638,13 +654,23 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 				rt.templateParameters = templateParameters;
 
 				il->process(&rt);
+
+				f.templateParameters = TemplateParameter::mergeList(f.templateParameters, templateParameters, r);
+				location.test(r);
 			}
 
-			fSymbol = Symbol(f.id, f.returnType);
+			
+		}
 
+		if (!f.returnType.isDynamic())
+		{
+			fSymbol = Symbol(f.id, f.returnType);
 			jassert(fSymbol.resolved);
 		}
+			
 	}
+
+	
 	
 	FunctionData nf;
 
@@ -674,9 +700,9 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 	while (matchIf(JitTokens::openParen))
 	{
-		if (auto dot = dynamic_cast<Operations::DotOperator*>(p.get()))
+		if (auto dot = as<DotOperator>(p))
 		{
-			if (auto s = dynamic_cast<Operations::SymbolStatement*>(dot->getDotParent().get()))
+			if (auto s = as<SymbolStatement>(dot->getDotParent()))
 			{
 				auto symbol = s->getSymbol();
 				auto parentSymbol = symbol.id;
@@ -690,7 +716,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 			}
 		}
 
-		auto f = new Operations::FunctionCall(location, p, fSymbol, templateParameters);
+		auto f = new FunctionCall(location, p, fSymbol, templateParameters);
 
 		while (!isEOF() && currentType != JitTokens::closeParen)
 		{
@@ -706,15 +732,47 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 			f->tryToResolveType(compiler);
 		}
 
-		match(JitTokens::closeParen);
+		match(JitTokens::closeParen);		
+	}
+
+
+	if (auto f = as<FunctionCall>(p))
+	{
+		auto fId = f->function.id;
+
+		if (compiler->namespaceHandler.isTemplateFunction(fId))
+		{
+			auto to = compiler->namespaceHandler.getTemplateObject(fId);
+			
+			if (f->function.templateParameters.size() != to.argList.size())
+			{
+				TypeInfo::List callParameters;
+				for (int i = 0; i < f->getNumArguments(); i++)
+					callParameters.add(f->getArgument(i)->getTypeInfo());
+
+				auto originalList = to.functionArgs();
+
+				templateParameters = TemplateParameter::mergeWithCallParameters(templateParameters, originalList, callParameters, r);
+
+				templateParameters = TemplateParameter::mergeList(to.argList, templateParameters, r);
+				location.test(r);
+
+				f->function.templateParameters = templateParameters;
+
+				compiler->namespaceHandler.createTemplateFunction(fSymbol.id, templateParameters, r);
+				location.test(r);
+			}
+		}
 
 		
 	}
+		
 
-	
 
 	return found ? parseDotOperator(p) : p;
 }
+
+
 
 BlockParser::ExprPtr BlockParser::parsePostSymbol()
 {

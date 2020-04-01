@@ -101,6 +101,12 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 		}
 		else
 		{
+			if (value->getTypeInfo().isNativePointer())
+			{
+				auto ptr = x86::ptr(PTR_REG_R(value));
+				value->setCustomMemoryLocation(ptr, value->isGlobalMemory());
+			}
+
 			IF_(void) jassertfalse;
 			IF_(float)  FP_OP(cc.movss, target, value);
 			IF_(double) FP_OP(cc.movsd, target, value);
@@ -745,6 +751,22 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 
 	writeDirtyGlobals(c);
 
+	if (target != nullptr && target->getTypeInfo().isNativePointer())
+	{
+		jassert(expr != nullptr);
+
+		auto mem = expr->getMemoryLocationForReference();
+
+		if(mem.isNone())
+			jassertfalse;
+		else
+		{
+			target->createRegister(cc);
+			cc.lea(PTR_REG_W(target), mem);
+			cc.ret(PTR_REG_W(target));
+			return;
+		}
+	}
 
 	if (expr != nullptr && (expr->isMemoryLocation() || expr->isDirtyGlobalMemory()))
 	{
@@ -1463,11 +1485,20 @@ void AsmCodeGenerator::emitLoopControlFlow(Operations::Loop* parentLoop, bool is
 
 void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& sig, Types::ID objectType)
 {
-	if (data.returnType == Types::ID::Float) sig.setRetT<float>();
-	if (data.returnType == Types::ID::Double) sig.setRetT<double>();
-	if (data.returnType == Types::ID::Integer) sig.setRetT<int>();
-	if (data.returnType == Types::ID::Block) sig.setRetT<PointerType>();
-	if (data.returnType == Types::ID::Pointer) sig.setRetT<PointerType>();
+	if (data.returnType.isRef())
+	{
+		sig.setRetT<PointerType>();
+	}
+	else
+	{
+		if (data.returnType == Types::ID::Float) sig.setRetT<float>();
+		if (data.returnType == Types::ID::Double) sig.setRetT<double>();
+		if (data.returnType == Types::ID::Integer) sig.setRetT<int>();
+		if (data.returnType == Types::ID::Block) sig.setRetT<PointerType>();
+		if (data.returnType == Types::ID::Pointer) sig.setRetT<PointerType>();
+	}
+
+	
 
 	if (objectType != Types::ID::Void)
 	{

@@ -148,6 +148,8 @@ public:
 
 	void registerVariadicType(VariadicSubType::Ptr p);
 
+	NamespaceHandler& getNamespaceHandler();
+
 	void initInbuildFunctions();
 
 	static int compileCount;

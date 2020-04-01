@@ -54,6 +54,9 @@ juce::String NamespaceHandler::Namespace::dump(int level)
 {
 	juce::String s;
 
+	if (internalSymbol)
+		return s;
+
 	auto idName = id.isValid() ? id.toString() : "root";
 
 	s << getIntendLevel(level) << "namespace " << idName << "\n";
@@ -67,6 +70,9 @@ juce::String NamespaceHandler::Namespace::dump(int level)
 
 	for (auto a : aliases)
 	{
+		if (a.internalSymbol)
+			continue;
+
 		s << getIntendLevel(level);
 		s << a.toString() << "\n";
 	}
@@ -97,6 +103,7 @@ void NamespaceHandler::Namespace::addSymbol(const NamespacedIdentifier& aliasId,
 		return;
 
 	aliases.add({ aliasId, type, symbolType });
+	aliases.getReference(aliases.size() - 1).internalSymbol = internalSymbol;
 }
 
 juce::String NamespaceHandler::Alias::toString() const
@@ -253,6 +260,7 @@ void NamespaceHandler::pushNamespace(const Identifier& id)
 	{
 		currentNamespace = new Namespace();
 		currentNamespace->id = newId;
+		currentNamespace->internalSymbol = internalSymbolMode;
 		currentNamespace->parent = currentParent;
 		existingNamespace.add(currentNamespace);
 
@@ -380,6 +388,7 @@ void NamespaceHandler::addSymbol(const NamespacedIdentifier& id, const TypeInfo&
 {
 	jassert(id.getParent() == currentNamespace->id);
 
+	currentNamespace->internalSymbol = internalSymbolMode;
 	currentNamespace->addSymbol(id, t, symbolType);
 }
 
@@ -507,7 +516,7 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 	return nullptr;
 }
 
-void NamespaceHandler::createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
+FunctionData NamespaceHandler::createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
 {
 	for (const auto& f : templateFunctionIds)
 	{
@@ -519,12 +528,12 @@ void NamespaceHandler::createTemplateFunction(const NamespacedIdentifier& id, co
 			d.handler = this;
 			d.tp = tp;
 
-			f.makeFunction(d);
-			return;
+			return f.makeFunction(d);
 		}
 	}
 
 	r = Result::fail("Can't instantiate function template " + id.toString());
+	return {};
 }
 
 bool NamespaceHandler::rootHasNamespace(const NamespacedIdentifier& id) const
@@ -593,6 +602,11 @@ bool NamespaceHandler::isStaticFunctionClass(const NamespacedIdentifier& classId
 
 void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 {
+	jassert(TemplateParameter::isArgumentList(s.argList));
+	jassert(s.makeClassType);
+	jassert(!s.makeFunction);
+	jassert(!s.functionArgs);
+
 	if (currentNamespace == nullptr)
 		pushNamespace(Identifier());
 
@@ -601,7 +615,8 @@ void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 		Alias a;
 		a.id = s.id;
 		a.symbolType = TemplatedClass;
-		
+		a.internalSymbol = internalSymbolMode;
+
 		p->aliases.add(a);
 	}
 
@@ -611,6 +626,11 @@ void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 
 void NamespaceHandler::addTemplateFunction(const TemplateObject& f)
 {
+	jassert(TemplateParameter::isArgumentList(f.argList));
+	jassert(!f.makeClassType);
+	jassert(f.makeFunction);
+	jassert(f.functionArgs);
+
 	if (currentNamespace == nullptr)
 		pushNamespace(Identifier());
 
@@ -618,11 +638,29 @@ void NamespaceHandler::addTemplateFunction(const TemplateObject& f)
 	{
 		Alias a;
 		a.id = f.id;
+		a.internalSymbol = internalSymbolMode;
 		a.symbolType = TemplatedFunction;
 		p->aliases.add(a);
 	}
 
 	templateFunctionIds.addIfNotAlreadyThere(f);
+}
+
+TemplateObject NamespaceHandler::getTemplateObject(const NamespacedIdentifier& id) const
+{
+	for (const auto& c : templateClassIds)
+	{
+		if (c.id == id)
+			return c;
+	}
+
+	for (const auto& f : templateFunctionIds)
+	{
+		if (f.id == id)
+			return f;
+	}
+
+	return {};
 }
 
 TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const

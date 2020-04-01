@@ -64,6 +64,7 @@ private:
 		TypeInfo type;
 		SymbolType symbolType;
 		VariableStorage constantValue;
+		bool internalSymbol = false;
 		
 		juce::String toString() const;
 	};
@@ -88,11 +89,23 @@ private:
 		ReferenceCountedArray<Namespace> usedNamespaces;
 		ReferenceCountedArray<Namespace> childNamespaces;
 		WeakPtr parent;
+		bool internalSymbol = false;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Namespace);
 	};
 
 public:
+
+	struct InternalSymbolSetter
+	{
+		InternalSymbolSetter(NamespaceHandler& h_):
+			h(h_),
+			s(h.internalSymbolMode, true)
+		{}
+
+		NamespaceHandler& h;
+		ScopedValueSetter<bool> s;
+	};
 
 	struct ScopedNamespaceSetter
 	{
@@ -178,7 +191,7 @@ public:
 
 	ComplexType::Ptr createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
-	void createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
+	FunctionData createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
 	bool rootHasNamespace(const NamespacedIdentifier& id) const;
 
@@ -198,7 +211,11 @@ public:
 
 	void addTemplateFunction(const TemplateObject& f);
 
+	TemplateObject getTemplateObject(const NamespacedIdentifier& id) const;
+
 private:
+
+	bool internalSymbolMode = false;
 
 	void pushNamespace(const Identifier& childId);
 	void pushNamespace(const NamespacedIdentifier& id);

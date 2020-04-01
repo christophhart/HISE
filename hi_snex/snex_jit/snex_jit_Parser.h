@@ -163,10 +163,11 @@ class TypeParser : public ParserHelpers::TokenIterator
 {
 public:
 
-	TypeParser(TokenIterator& other_, NamespaceHandler& handler) :
+	TypeParser(TokenIterator& other_, NamespaceHandler& handler, const TemplateParameter::List& tp) :
 		ParserHelpers::TokenIterator(other_),
 		namespaceHandler(handler),
 		other(other_),
+		previouslyParsedArguments(tp),
 		nId(NamespacedIdentifier::null())
 	{
 		
@@ -218,6 +219,18 @@ private:
 	{
 		if (parseNamespacedIdentifier())
 		{
+			for (const auto& p : previouslyParsedArguments)
+			{
+				if (p.argumentId == nId)
+				{
+					if (p.t == TemplateParameter::TypeTemplateArgument)
+					{
+						currentTypeInfo = TypeInfo(nId);
+						return true;
+					}
+				}
+			}
+
 			if (namespaceHandler.isTemplateTypeArgument(nId))
 			{
 				currentTypeInfo = TypeInfo(nId);
@@ -368,6 +381,7 @@ private:
 
 	NamespacedIdentifier nId;
 	NamespaceHandler& namespaceHandler;
+	TemplateParameter::List previouslyParsedArguments;
 };
 
 
@@ -457,15 +471,15 @@ public:
 		ignoreUnused(tree);
 	}
 
-	void matchType()
+	void matchType(const TemplateParameter::List& previouslyParsedArguments)
 	{
-		if (!matchIfType())
+		if (!matchIfType(previouslyParsedArguments))
 			throwTokenMismatch("Type");
 	}
 
-	bool matchIfType()
+	bool matchIfType(const TemplateParameter::List& previouslyParsedArguments)
 	{
-		TypeParser t(*this, compiler->namespaceHandler);
+		TypeParser t(*this, compiler->namespaceHandler, previouslyParsedArguments);
 
 		if (t.matchIfType())
 		{

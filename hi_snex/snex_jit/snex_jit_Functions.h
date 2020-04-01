@@ -543,6 +543,19 @@ struct TypeInfo
 		type = newType;
 	}
 
+	bool isNativePointer() const
+	{
+		return !isComplexType() && type == Types::ID::Pointer;
+	}
+
+	TypeInfo toPointerIfNativeRef() const
+	{
+		if (!isComplexType() && isRef())
+			return TypeInfo(Types::ID::Pointer, true);
+
+		return *this;
+	}
+
 	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const noexcept
 	{
 		if (isComplexType())
@@ -683,6 +696,20 @@ struct TemplateParameter
 		return t == IntegerTemplateArgument || t == TypeTemplateArgument;
 	}
 
+	bool operator !=(const TemplateParameter& other) const
+	{
+		return !(*this == other);
+	}
+
+	bool operator==(const TemplateParameter& other) const
+	{
+		bool tMatch = t == other.t;
+		bool typeMatch = type == other.type;
+		bool cMatch = constant == other.constant;
+		bool cdMatch = constantDefined == other.constantDefined;
+		return tMatch && typeMatch && cMatch && cdMatch;
+	}
+
 	bool matchesTemplateType(const TypeInfo& t) const
 	{
 		jassert(argumentId.isValid());
@@ -703,9 +730,34 @@ struct TemplateParameter
 
 	static juce::String createParameterListString(const List& l);
 
-	static TemplateParameter::List mergeList(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r);
+	static List mergeList(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r);
 
+	static List mergeWithCallParameters(const List& existing, const TypeInfo::List& originalFunctionArguments, const TypeInfo::List& callParameterTypes, Result& r);
 
+	static bool isParameterList(const TemplateParameter::List& l)
+	{
+		for (const auto& p : l)
+		{
+			if (!p.isTemplateArgument())
+				return true;
+		}
+
+		return false;
+	}
+
+	static bool isArgumentList(const TemplateParameter::List& l)
+	{
+		for (const auto& p : l)
+		{
+			if (p.isTemplateArgument())
+			{
+				jassert(!isParameterList(l));
+				return true;
+			}
+		}
+
+		return false;
+	}
 
 	TypeInfo type;
 	int constant;
@@ -715,217 +767,8 @@ struct TemplateParameter
 };
 
 
-struct TemplateObject
-{
-	struct ConstructData
-	{
-		bool expectTemplateParameterAmount(int expectedSize) const
-		{
-			if (tp.size() != expectedSize)
-			{
-				juce::String s;
-
-				s << "template amount mismatch: ";
-				s << juce::String(tp.size());
-				s << ", expected: " << juce::String(expectedSize);
-
-				*r = Result::fail(s);
-				return false;
-			}
-
-			return true;
-		}
-
-		bool expectIsComplexType(int argIndex) const
-		{
-			auto& t = tp[argIndex];
-
-			if (!t.type.isComplexType())
-			{
-				juce::String s;
-				s << "template parameter mismatch: ";
-				s << t.type.toString();
-				s << " expected: complex type";
-				*r = Result::fail(s);
-				return false;
-			}
-
-			return true;
-		}
-
-		bool expectType(int argIndex) const
-		{
-			auto& t = tp[argIndex];
-
-			if (t.type.isInvalid())
-			{
-				juce::String s;
-				s << "template parameter mismatch: expected type";
-				*r = Result::fail(s);
-				return false;
-			}
-
-			return true;
-		}
-
-		bool expectIsNumber(int argIndex) const
-		{
-			auto& t = tp[argIndex];
-
-			if (t.type.isValid())
-			{
-				juce::String s;
-				s << "template parameter mismatch: ";
-				s << t.type.toString();
-				s << " expected: integer literal";
-				*r = Result::fail(s);
-				return false;
-			}
-
-			return true;
-		}
-
-		bool expectNotIntegerValue(int argIndex, int illegalNumber) const
-		{
-			if (!expectIsNumber(argIndex))
-				return false;
-
-			auto& t = tp[argIndex];
-
-			if (t.constant == illegalNumber)
-			{
-				*r = Result::fail("Illegal template argument: " + juce::String(illegalNumber));
-				return false;
-			}
-
-			return true;
-		}
-
-		NamespaceHandler* handler;
-		NamespacedIdentifier id;
-		Array<TemplateParameter> tp;
-		juce::Result* r;
-	};
-
-	using ClassConstructor = std::function<ComplexType::Ptr(const ConstructData&)>;
-	using FunctionConstructor = std::function<void(const ConstructData&)>;
-
-	bool operator==(const TemplateObject& other) const
-	{
-		return id == other.id;
-	}
-
-	NamespacedIdentifier id;
-	ClassConstructor makeClassType;
-	FunctionConstructor makeFunction;
-};
 
 
-
-struct TemplatedComplexType : public ComplexType
-{
-	TemplatedComplexType(const TemplateObject& c_, const TemplateObject::ConstructData& d_) :
-		c(c_),
-		d(d_)
-	{
-
-	}
-
-	ComplexType::Ptr createTemplatedInstance(const TemplateParameter::List& suppliedTemplateParameters, juce::Result& r)
-	{
-		TemplateParameter::List instanceParameters;
-
-		for (const auto& p : d.tp)
-		{
-			if (p.type.isTemplateType())
-			{
-				for (const auto& sp : suppliedTemplateParameters)
-				{
-					if (sp.argumentId == p.type.getTemplateId())
-					{
-						if (sp.t == TemplateParameter::ConstantInteger)
-						{
-							TemplateParameter ip(sp.constant);
-							ip.argumentId = sp.argumentId;
-							instanceParameters.add(ip);
-						}
-						else
-						{
-							TemplateParameter ip(sp.type);
-							ip.argumentId = sp.argumentId;
-							instanceParameters.add(ip);
-						}
-					}
-				}
-			}
-			else if (p.isTemplateArgument())
-			{
-				for (const auto& sp : suppliedTemplateParameters)
-				{
-					if (sp.argumentId == p.argumentId)
-					{
-						jassert(sp.isResolved());
-						TemplateParameter ip = sp;
-						instanceParameters.add(ip);
-					}
-				}
-			}
-			else
-			{
-				jassert(p.isResolved());
-				instanceParameters.add(p);
-			}
-		}
-
-		for (auto& p : instanceParameters)
-		{
-			jassert(p.isResolved());
-		}
-		
-		TemplateObject::ConstructData instanceData = d;
-		instanceData.tp = instanceParameters;
-
-		instanceData.r = &r;
-
-		ComplexType::Ptr p = c.makeClassType(instanceData);
-
-		
-
-		return p;
-	}
-
-	size_t getRequiredByteSize() const override { return 0; }
-
-	size_t getRequiredAlignment() const override { return 0; }
-
-	void dumpTable(juce::String&, int&, void*, void*) const override {}
-
-	Result initialise(InitData d) { return Result::ok(); };
-
-	InitialiserList::Ptr makeDefaultInitialiserList() const { return nullptr; }
-
-	ComplexType::Ptr createSubType(const NamespacedIdentifier& id) override;
-
-	void registerExternalAtNamespaceHandler(NamespaceHandler* handler)
-	{
-		
-	}
-
-	bool forEach(const TypeFunction&, Ptr, void*) { return false; }
-
-	juce::String toStringInternal() const override
-	{
-		return "template " + c.id.toString();
-	}
-
-private:
-
-	TemplateObject c;
-	TemplateObject::ConstructData d;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TemplatedComplexType);
-	JUCE_DECLARE_WEAK_REFERENCEABLE(TemplatedComplexType);
-};
 
 
 /** A Symbol is used to identify the data slot. */
@@ -1189,6 +1032,10 @@ struct FunctionData
 		return function != nullptr || inliner != nullptr;
 	}
 
+	bool matchIdArgs(const FunctionData& other) const;
+
+	bool matchIdArgsAndTemplate(const FunctionData& other) const;
+
 	bool matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList) const;
 
 	bool matchesArgumentTypes(const Array<TypeInfo>& typeList) const;
@@ -1196,6 +1043,8 @@ struct FunctionData
 	bool matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType = true) const;
 
 	bool matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID>& nativeArgList) const;
+
+	bool matchesTemplateArguments(const TemplateParameter::List& l) const;
 
 	void setDescription(const juce::String& d, const StringArray& parameterNames = StringArray())
 	{
@@ -1321,6 +1170,220 @@ private:
 };
 
 
+
+struct TemplateObject
+{
+	struct ConstructData
+	{
+		bool expectTemplateParameterAmount(int expectedSize) const
+		{
+			if (tp.size() != expectedSize)
+			{
+				juce::String s;
+
+				s << "template amount mismatch: ";
+				s << juce::String(tp.size());
+				s << ", expected: " << juce::String(expectedSize);
+
+				*r = Result::fail(s);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool expectIsComplexType(int argIndex) const
+		{
+			auto& t = tp[argIndex];
+
+			if (!t.type.isComplexType())
+			{
+				juce::String s;
+				s << "template parameter mismatch: ";
+				s << t.type.toString();
+				s << " expected: complex type";
+				*r = Result::fail(s);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool expectType(int argIndex) const
+		{
+			auto& t = tp[argIndex];
+
+			if (t.type.isInvalid())
+			{
+				juce::String s;
+				s << "template parameter mismatch: expected type";
+				*r = Result::fail(s);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool expectIsNumber(int argIndex) const
+		{
+			auto& t = tp[argIndex];
+
+			if (t.type.isValid())
+			{
+				juce::String s;
+				s << "template parameter mismatch: ";
+				s << t.type.toString();
+				s << " expected: integer literal";
+				*r = Result::fail(s);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool expectNotIntegerValue(int argIndex, int illegalNumber) const
+		{
+			if (!expectIsNumber(argIndex))
+				return false;
+
+			auto& t = tp[argIndex];
+
+			if (t.constant == illegalNumber)
+			{
+				*r = Result::fail("Illegal template argument: " + juce::String(illegalNumber));
+				return false;
+			}
+
+			return true;
+		}
+
+		NamespaceHandler* handler;
+		NamespacedIdentifier id;
+		Array<TemplateParameter> tp;
+		juce::Result* r;
+	};
+
+	using ClassConstructor = std::function<ComplexType::Ptr(const ConstructData&)>;
+	using FunctionConstructor = std::function<FunctionData(const ConstructData&)>;
+	using FunctionArgumentCollector = std::function<TypeInfo::List(void)>;
+
+	bool operator==(const TemplateObject& other) const
+	{
+		return id == other.id;
+	}
+
+	NamespacedIdentifier id;
+	ClassConstructor makeClassType;
+	FunctionConstructor makeFunction;
+	FunctionArgumentCollector functionArgs;
+	TemplateParameter::List argList;
+};
+
+
+struct TemplatedComplexType : public ComplexType
+{
+	TemplatedComplexType(const TemplateObject& c_, const TemplateObject::ConstructData& d_) :
+		c(c_),
+		d(d_)
+	{
+
+	}
+
+	ComplexType::Ptr createTemplatedInstance(const TemplateParameter::List& suppliedTemplateParameters, juce::Result& r)
+	{
+		TemplateParameter::List instanceParameters;
+
+		for (const auto& p : d.tp)
+		{
+			if (p.type.isTemplateType())
+			{
+				for (const auto& sp : suppliedTemplateParameters)
+				{
+					if (sp.argumentId == p.type.getTemplateId())
+					{
+						if (sp.t == TemplateParameter::ConstantInteger)
+						{
+							TemplateParameter ip(sp.constant);
+							ip.argumentId = sp.argumentId;
+							instanceParameters.add(ip);
+						}
+						else
+						{
+							TemplateParameter ip(sp.type);
+							ip.argumentId = sp.argumentId;
+							instanceParameters.add(ip);
+						}
+					}
+				}
+			}
+			else if (p.isTemplateArgument())
+			{
+				for (const auto& sp : suppliedTemplateParameters)
+				{
+					if (sp.argumentId == p.argumentId)
+					{
+						jassert(sp.isResolved());
+						TemplateParameter ip = sp;
+						instanceParameters.add(ip);
+					}
+				}
+			}
+			else
+			{
+				jassert(p.isResolved());
+				instanceParameters.add(p);
+			}
+		}
+
+		for (auto& p : instanceParameters)
+		{
+			jassert(p.isResolved());
+		}
+
+		TemplateObject::ConstructData instanceData = d;
+		instanceData.tp = instanceParameters;
+
+		instanceData.r = &r;
+
+		ComplexType::Ptr p = c.makeClassType(instanceData);
+
+
+
+		return p;
+	}
+
+	size_t getRequiredByteSize() const override { return 0; }
+
+	size_t getRequiredAlignment() const override { return 0; }
+
+	void dumpTable(juce::String&, int&, void*, void*) const override {}
+
+	Result initialise(InitData d) { return Result::ok(); };
+
+	InitialiserList::Ptr makeDefaultInitialiserList() const { return nullptr; }
+
+	ComplexType::Ptr createSubType(const NamespacedIdentifier& id) override;
+
+	void registerExternalAtNamespaceHandler(NamespaceHandler* handler)
+	{
+
+	}
+
+	bool forEach(const TypeFunction&, Ptr, void*) { return false; }
+
+	juce::String toStringInternal() const override
+	{
+		return "template " + c.id.toString();
+	}
+
+private:
+
+	TemplateObject c;
+	TemplateObject::ConstructData d;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TemplatedComplexType);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TemplatedComplexType);
+};
 
 class BaseScope;
 class NamespaceHandler;

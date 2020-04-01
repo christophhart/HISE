@@ -111,6 +111,7 @@ namespace Operations
 		
 
 		using Ptr = ReferenceCountedObjectPtr<Statement>;
+		using List = ReferenceCountedArray<Statement>;
 
 		Statement(Location l);;
 
@@ -414,7 +415,7 @@ namespace Operations
 	struct IfStatement;		struct ClassStatement;			struct Subscript;				
 	struct InlinedParameter;struct ComplexTypeDefinition;	struct ControlFlowStatement;
 	struct InlinedArgument; struct MemoryReference;			struct TemplateDefinition; 
-	struct TemplatedTypeDef; struct TemplatedFunction;
+	struct TemplatedTypeDef; struct TemplatedFunction;		struct ThisPointer;
 
 	struct ScopeStatementBase
 	{
@@ -435,7 +436,8 @@ namespace Operations
 		void allocateReturnRegister(BaseCompiler* c, BaseScope* s)
 		{
 			jassert(hasReturnType());
-			returnRegister = c->registerPool.getNextFreeRegister(s, getReturnType());
+
+			returnRegister = c->registerPool.getNextFreeRegister(s, getReturnType().toPointerIfNativeRef());
 		}
 
 		void setParentScopeStatement(ScopeStatementBase* parent)
@@ -623,9 +625,12 @@ namespace Operations
 	{
 		TemplateParameterResolver(const TemplateParameter::List& tp_);;
 
+		Result process(FunctionData& f) const;
 		Result process(Statement::Ptr p);
-
 		Result processType(TypeInfo& t) const;
+
+		Result resolveIds(FunctionData& d) const;
+		Result resolveIdForType(TypeInfo& t) const;
 
 		TemplateParameter::List tp;
 	};

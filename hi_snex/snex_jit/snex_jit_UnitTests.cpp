@@ -909,7 +909,8 @@ public:
 	void runTest() override
 	{
 		
-		runTestFiles("simple_template13");
+		optimizations = { OptimizationIds::Inlining };
+		runTestFiles("nested_member_call");
 		return;
 		
 

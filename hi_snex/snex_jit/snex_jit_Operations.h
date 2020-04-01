@@ -1225,6 +1225,39 @@ private:
 
 };
 
+struct Operations::ThisPointer : public Statement
+{
+	SET_EXPRESSION_ID(ThisPointer);
+
+	ThisPointer(Location l, TypeInfo t) :
+		Statement(l),
+		type(t)
+	{
+
+	}
+
+	Statement::Ptr clone(Location l) const
+	{
+		return new ThisPointer(l, type);
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return type;
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto v = Expression::toValueTree();
+		v.setProperty("Type", type.toString(), nullptr);
+		return v;
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
+
+	TypeInfo type;
+};
+
 struct Operations::MemoryReference : public Expression
 {
 	SET_EXPRESSION_ID(MemoryReference);
@@ -1374,7 +1407,9 @@ struct Operations::ReturnStatement : public Expression
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
-			auto asg = CREATE_ASM_COMPILER(getType());
+			auto t = getTypeInfo().toPointerIfNativeRef();
+
+			auto asg = CREATE_ASM_COMPILER(t.getType());
 
 			bool isFunctionReturn = true;
 
@@ -1452,6 +1487,7 @@ struct Operations::ClassStatement : public Statement,
 		classType(classType_)
 	{
 		addStatement(classBlock);
+
 	}
 
 	~ClassStatement()
@@ -1486,23 +1522,7 @@ struct Operations::ClassStatement : public Statement,
 		return classType->getRequiredByteSize();
 	}
 
-	void process(BaseCompiler* compiler, BaseScope* scope)
-	{
-		if (subClass == nullptr)
-			subClass = new ClassScope(scope, getStructType()->id, classType);
-
-		processBaseWithChildren(compiler, subClass);
-
-		COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
-		{
-			addMembersFromStatementBlock(getStructType(), getChildStatement(0));
-		}
-
-		COMPILER_PASS(BaseCompiler::DataAllocation)
-		{
-			getStructType()->finaliseAlignment();
-		}
-	}
+	void process(BaseCompiler* compiler, BaseScope* scope);
 
 	StructType* getStructType()
 	{
@@ -1517,8 +1537,6 @@ struct Operations::ClassStatement : public Statement,
 struct Operations::TemplateDefinition : public Statement,
 										public ClassDefinitionBase
 {
-	
-
 	SET_EXPRESSION_ID(TemplateDefinition);
 
 	TemplateDefinition(Location l, const NamespacedIdentifier& classId, const TemplateParameter::List& tp_, Statement::Ptr statements_) :
@@ -1580,6 +1598,7 @@ struct Operations::TemplateDefinition : public Statement,
 		auto cs = statements->clone(l);
 
 		auto s = new TemplateDefinition(l, templateClassId, tp, cs);
+
 		return s;
 	}
 
@@ -1612,7 +1631,6 @@ struct Operations::TemplateDefinition : public Statement,
 	TemplateParameter::List tp;
 
 	Statement::Ptr statements;
-	
 };
 
 
@@ -1699,23 +1717,35 @@ struct Operations::TemplatedFunction : public Statement,
 		FunctionDefinitionBase(s),
 		templateParameters(tp)
 	{
-		for (const auto& l : templateParameters)
+		for (auto& l : templateParameters)
 		{
 			jassert(l.isTemplateArgument());
+
+			if (!s.id.isParentOf(l.argumentId))
+			{
+				jassert(l.argumentId.isExplicit());
+				l.argumentId = s.id.getChildId(l.argumentId.getIdentifier());
+			}
 		}
 	}
 
-	void createFunction(const TemplateObject::ConstructData& d)
+	FunctionData createFunction(const TemplateObject::ConstructData& d)
 	{
-		// Continue here, create a child function as child statement 
-		// and do the same things as the template class..
+		for (auto c : clones)
+		{
+			as<TemplatedFunction>(c)->createFunction(d);
+		}
 		
 		Result r = Result::ok();
 		auto instanceParameters = TemplateParameter::mergeList(templateParameters, d.tp, r);
+		TemplateParameterResolver resolve(instanceParameters);
 
 		location.test(r);
 
 		FunctionData fData = data;
+
+		resolve.resolveIds(fData);
+
 		fData.templateParameters = instanceParameters;
 
 		auto newF = new Function(location, {});
@@ -1726,13 +1756,31 @@ struct Operations::TemplatedFunction : public Statement,
 		
 		addStatement(newF);
 
-		newF->currentCompiler = currentCompiler;
-		newF->processAllPassesUpTo(currentPass, currentScope);
+		
+		auto ok = resolve.process(newF);
+		location.test(ok);
+
+		if (currentCompiler != nullptr)
+		{
+			newF->currentCompiler = currentCompiler;
+			newF->processAllPassesUpTo(currentPass, currentScope);
+		}
+		
+		return fData;
 	}
 
 	Ptr clone(Location l) const override
 	{
-		return nullptr;
+		Ptr f = new TemplatedFunction(l, { data.id, data.returnType }, templateParameters);
+		as<TemplatedFunction>(f)->parameters = parameters;
+		as<TemplatedFunction>(f)->code = code;
+		as<TemplatedFunction>(f)->codeLength = codeLength;
+		
+		cloneChildren(f);
+
+		clones.add(f);
+
+		return f;
 	}
 
 	ValueTree toValueTree() const override
@@ -1750,6 +1798,8 @@ struct Operations::TemplatedFunction : public Statement,
 	}
 
 	TemplateParameter::List templateParameters;
+
+	mutable Statement::List clones;
 };
 
 struct Operations::BinaryOp : public Expression
@@ -2594,9 +2644,13 @@ struct Operations::Subscript : public Expression,
 
 			reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
 
+			auto tReg = getSubRegister(0);
+
 			auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(getTypeInfo()));
 
 			auto cType = getSubRegister(0)->getTypeInfo().getTypedIfComplexType<ComplexType>();
+
+			
 
 			FunctionData subscriptOperator;
 
