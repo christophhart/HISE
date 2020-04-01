@@ -54,6 +54,12 @@ END_JUCE_MODULE_DECLARATION
 /* TODO Roadmap:
 
 
+- Templated functions: mirror class style:
+1. Register template function with complete symbol at namespace handler
+2. Call TemplatedFunction::create() callback when the parser finds a templated function call (watch out for </> stuff...
+3. Add function as child statements to the templated function statement and proceed like with the class
+
+
 - use more TEMPLATE_PARAMETER parsing
 
 - make good API for syntax replacements

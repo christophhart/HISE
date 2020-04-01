@@ -137,9 +137,9 @@ using namespace asmjit;
 		namespaceHandler(handler),
 		registerPool(this)
 	{
-		TemplateClass spanClass;
+		TemplateObject spanClass;
 		spanClass.id = NamespacedIdentifier("span");
-		spanClass.f = [](const TemplateClass::ConstructData& d)
+		spanClass.makeClassType = [](const TemplateObject::ConstructData& d)
 		{
 			ComplexType::Ptr p;
 
@@ -158,9 +158,9 @@ using namespace asmjit;
 		};
 		namespaceHandler.addTemplateClass(spanClass);
 
-		TemplateClass dynClass;
+		TemplateObject dynClass;
 		dynClass.id = NamespacedIdentifier("dyn");
-		dynClass.f = [](const TemplateClass::ConstructData& d)
+		dynClass.makeClassType = [](const TemplateObject::ConstructData& d)
 		{
 			ComplexType::Ptr p;
 

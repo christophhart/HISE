@@ -49,6 +49,7 @@ struct NamespaceHandler
 		UsingAlias,
 		Constant,
 		StaticFunctionClass,
+		TemplatedFunction,
 		TemplatedClass,
 		TemplateType,
 		TemplateConstant,
@@ -149,6 +150,19 @@ public:
 
 	bool isTemplateConstantArgument(NamespacedIdentifier classId) const;
 
+	bool isTemplateFunction(NamespacedIdentifier functionId) const
+	{
+		resolve(functionId, true);
+
+		for (auto& t : templateFunctionIds)
+		{
+			if (t.id == functionId)
+				return true;
+		}
+
+		return false;
+	}
+
 	bool isTemplateClass(NamespacedIdentifier& classId) const
 	{
 		resolve(classId, true);
@@ -164,6 +178,8 @@ public:
 
 	ComplexType::Ptr createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
+	void createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
+
 	bool rootHasNamespace(const NamespacedIdentifier& id) const;
 
 	SymbolType getSymbolType(const NamespacedIdentifier& id) const;
@@ -178,7 +194,9 @@ public:
 
 	Result switchToExistingNamespace(const NamespacedIdentifier& id);
 
-	void addTemplateClass(const TemplateClass& s);
+	void addTemplateClass(const TemplateObject& s);
+
+	void addTemplateFunction(const TemplateObject& f);
 
 private:
 
@@ -190,7 +208,8 @@ private:
 
 	ReferenceCountedArray<ComplexType> complexTypes;
 	ReferenceCountedArray<VariadicSubType> variadicTypes;
-	Array<TemplateClass> templateClassIds;
+	Array<TemplateObject> templateClassIds;
+	Array<TemplateObject> templateFunctionIds;
 
 	Namespace::WeakPtr getRoot() const;
 	Namespace::Ptr get(const NamespacedIdentifier& id) const;

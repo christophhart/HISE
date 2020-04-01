@@ -535,5 +535,138 @@ void Operations::ClassDefinitionBase::addMembersFromStatementBlock(StructType* t
 	t->finaliseAlignment();
 }
 
+Operations::TemplateParameterResolver::TemplateParameterResolver(const TemplateParameter::List& tp_) :
+	tp(tp_)
+{
+	for (const auto& p : tp)
+	{
+		jassert(p.t != TemplateParameter::Empty);
+		jassert(!p.isTemplateArgument());
+		jassert(p.argumentId.isValid());
+
+		if (p.t == TemplateParameter::Type)
+			jassert(p.type.isValid());
+		else
+			jassert(p.type.isInvalid());
+	}
+}
+
+juce::Result Operations::TemplateParameterResolver::process(Statement::Ptr p)
+{
+	Result r = Result::ok();
+
+	if (auto f = as<Function>(p))
+	{
+		r = processType(f->data.returnType);
+
+		if (!r.wasOk())
+			return r;
+
+		for (auto& a : f->data.args)
+		{
+			r = processType(a.typeInfo);
+
+			if (!r.wasOk())
+				return r;
+		}
+
+		// The statement is not a "real child" so we have to 
+		// call it manually...
+		if (r.wasOk() && f->statements != nullptr)
+			r = process(f->statements);
+
+		if (!r.wasOk())
+			return r;
+	}
+	if (auto v = as<VariableReference>(p))
+	{
+		r = processType(v->id.typeInfo);
+
+		if (!r.wasOk())
+			return r;
+
+		for (auto& p : tp)
+		{
+			if (p.argumentId == v->id.id)
+			{
+				jassert(p.t == TemplateParameter::ConstantInteger);
+
+				auto value = VariableStorage(p.constant);
+				auto imm = new Immediate(v->location, value);
+
+				v->replaceInParent(imm);
+			}
+		}
+	}
+	if (auto cd = as<ComplexTypeDefinition>(p))
+	{
+		auto r = processType(cd->type);
+
+		if (!r.wasOk())
+			return r;
+
+		if (!cd->type.isComplexType())
+		{
+			VariableStorage zero(cd->type.getType(), 0);
+
+			for (auto s : cd->getSymbols())
+			{
+				auto v = new Operations::VariableReference(cd->location, s);
+				auto imm = new Immediate(cd->location, zero);
+				auto a = new Assignment(cd->location, v, JitTokens::assign_, imm, true);
+
+				cd->replaceInParent(a);
+
+			}
+
+			return r;
+		}
+	}
+
+	for (auto c : *p)
+	{
+		r = process(c);
+
+		if (!r.wasOk())
+			return r;
+	}
+
+	return r;
+}
+
+juce::Result Operations::TemplateParameterResolver::processType(TypeInfo& t) const
+{
+	if (auto tct = t.getTypedIfComplexType<TemplatedComplexType>())
+	{
+		auto r = Result::ok();
+		auto newType = tct->createTemplatedInstance(tp, r);
+
+		if (!r.wasOk())
+			return r;
+
+		auto nt = TypeInfo(newType, t.isConst(), t.isRef());
+		t = nt;
+
+		return r;
+	}
+
+	if (!t.isTemplateType())
+		return Result::ok();
+
+	for (const auto& p : tp)
+	{
+		if (p.argumentId == t.getTemplateId())
+		{
+			t = p.type;
+			jassert(!t.isTemplateType());
+			jassert(!t.isDynamic());
+			return Result::ok();
+		}
+	}
+
+	return Result::fail("Can't resolve template type " + t.toString());
+}
+
+
 }
 }

@@ -908,9 +908,11 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles("simple_template12");
 		
+		runTestFiles("simple_template13");
+		return;
 		
+
 		testEvents();
 
 		testProcessData();

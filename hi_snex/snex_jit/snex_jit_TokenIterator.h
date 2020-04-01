@@ -103,6 +103,12 @@ struct ParserHelpers
 			throw e;
 		}
 
+		void test(const Result& r) const
+		{
+			if (!r.wasOk())
+				throwError(r.getErrorMessage());
+		}
+
 		int getLine() const
 		{
 			return getLineNumber(program, location);

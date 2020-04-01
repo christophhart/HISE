@@ -414,7 +414,7 @@ namespace Operations
 	struct IfStatement;		struct ClassStatement;			struct Subscript;				
 	struct InlinedParameter;struct ComplexTypeDefinition;	struct ControlFlowStatement;
 	struct InlinedArgument; struct MemoryReference;			struct TemplateDefinition; 
-	struct TemplatedTypeDef;
+	struct TemplatedTypeDef; struct TemplatedFunction;
 
 	struct ScopeStatementBase
 	{
@@ -509,6 +509,28 @@ namespace Operations
 		virtual ~ConditionalBranch() {}
 	};
 
+	struct FunctionDefinitionBase
+	{
+		FunctionDefinitionBase(const Symbol& s) :
+			code(nullptr)
+		{
+			data.id = s.id;
+			data.returnType = s.typeInfo;
+		}
+
+		virtual ~FunctionDefinitionBase()
+		{
+			data = {};
+		}
+
+		FunctionData data;
+		juce::String::CharPointerType code;
+		int codeLength = 0;
+		Statement::Ptr statements;
+
+		Array<Identifier> parameters;
+	};
+
 	struct TypeDefinitionBase
 	{
 		virtual ~TypeDefinitionBase() {};
@@ -595,6 +617,17 @@ namespace Operations
 		{
 			return dynamic_cast<Statement*>(this);
 		}
+	};
+
+	struct TemplateParameterResolver
+	{
+		TemplateParameterResolver(const TemplateParameter::List& tp_);;
+
+		Result process(Statement::Ptr p);
+
+		Result processType(TypeInfo& t) const;
+
+		TemplateParameter::List tp;
 	};
 
 	static Expression* findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope);

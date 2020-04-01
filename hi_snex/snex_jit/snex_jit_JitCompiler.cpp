@@ -97,7 +97,7 @@ void Compiler::addConstant(const NamespacedIdentifier& s, const VariableStorage&
 	compiler->namespaceHandler.addConstant(s, v);
 }
 
-void Compiler::addTemplateClass(const TemplateClass& c)
+void Compiler::addTemplateClass(const TemplateObject& c)
 {
 	compiler->namespaceHandler.addTemplateClass(c);
 }

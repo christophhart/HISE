@@ -121,6 +121,10 @@ struct Operations::InlinedArgument : public Expression,
 
 	int argIndex;
 	Symbol s;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(InlinedArgument);
 };
 
 
@@ -274,6 +278,10 @@ struct Operations::StatementBlock : public Expression,
 
 	ScopedPointer<RegisterScope> blockScope;
 	bool isInlinedFunction = false;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatementBlock);
 };
 
 struct Operations::Noop : public Expression
@@ -295,6 +303,9 @@ struct Operations::Noop : public Expression
 	}
 
 	TypeInfo getTypeInfo() const override { return {}; };
+
+private:
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Noop);
 };
 
 
@@ -339,6 +350,10 @@ struct Operations::Immediate : public Expression
 	}
 
 	VariableStorage v;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Immediate);
 };
 
 
@@ -410,6 +425,10 @@ struct Operations::InlinedParameter : public Expression,
 
 	Symbol s;
 	Ptr source;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(InlinedParameter);
 };
 
 struct Operations::VariableReference : public Expression,
@@ -677,6 +696,12 @@ struct Operations::VariableReference : public Expression,
 
 	// Contains the expression that leads to the pointer of the member object
 	Ptr objectExpression;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VariableReference);
+
+
 };
 
 
@@ -715,6 +740,10 @@ struct Operations::Cast : public Expression
 
 	FunctionData complexCastFunction;
 	TypeInfo targetType;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Cast);
 };
 
 struct Operations::DotOperator : public Expression
@@ -781,6 +810,10 @@ struct Operations::DotOperator : public Expression
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
 	TypeInfo resolvedType;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DotOperator);
 };
 						
 
@@ -858,6 +891,10 @@ struct Operations::Assignment : public Expression,
 	TokenType assignmentType;
 	bool isFirstAssignment = false;
 	FunctionData overloadedAssignOperator;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Assignment);
 };
 
 
@@ -935,6 +972,9 @@ struct Operations::Compare : public Expression
 
 	TokenType op;
 
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Compare);
 };
 
 struct Operations::LogicalNot : public Expression
@@ -972,6 +1012,10 @@ struct Operations::LogicalNot : public Expression
 			reg = asg.emitLogicalNot(getSubRegister(0));
 		}
 	}
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LogicalNot);
 };
 
 struct Operations::TernaryOp : public Expression,
@@ -1028,6 +1072,8 @@ private:
 
 	TypeInfo type;
 
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TernaryOp);
+
 };
 
 
@@ -1053,6 +1099,11 @@ struct Operations::FunctionCall : public Expression
 	FunctionCall(Location l, Ptr f, const Symbol& id, const Array<TemplateParameter>& tp) :
 		Expression(l)
 	{
+		for (auto& p : tp)
+		{
+			jassert(!p.isTemplateArgument());
+		}
+
 		function.id = id.id;
 		function.returnType = id.typeInfo;
 		function.templateParameters = tp;
@@ -1167,6 +1218,11 @@ struct Operations::FunctionCall : public Expression
 	bool hasObjectExpression = false;
 
 	ReferenceCountedArray<AssemblyRegister> parameterRegs;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionCall);
+
 };
 
 struct Operations::MemoryReference : public Expression
@@ -1232,6 +1288,10 @@ struct Operations::MemoryReference : public Expression
 
 	int offsetInBytes = 0;
 	TypeInfo type;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MemoryReference);
 };
 
 struct Operations::ReturnStatement : public Expression
@@ -1377,6 +1437,9 @@ struct Operations::ReturnStatement : public Expression
 		return nullptr;
 	};
 
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ReturnStatement);
 };
 
 struct Operations::ClassStatement : public Statement,
@@ -1454,61 +1517,7 @@ struct Operations::ClassStatement : public Statement,
 struct Operations::TemplateDefinition : public Statement,
 										public ClassDefinitionBase
 {
-	struct Resolver
-	{
-		Resolver(const TemplateParameter::List& tp_):
-			tp(tp_)
-		{
-			for (const auto& p : tp)
-			{
-				jassert(p.t != TemplateParameter::Empty);
-				jassert(!p.isTemplateArgument());
-				jassert(p.argumentId.isValid());
-
-				if (p.t == TemplateParameter::Type)
-					jassert(p.type.isValid());
-				else
-					jassert(p.type.isInvalid());
-			}
-		};
-
-		Result process(Ptr p);
-		
-		Result processType(TypeInfo& t) const
-		{
-			if (auto tct = t.getTypedIfComplexType<TemplatedComplexType>())
-			{
-				auto r = Result::ok();
-				auto newType = tct->createTemplatedInstance(tp, r);
-
-				if (!r.wasOk())
-					return r;
-
-				auto nt = TypeInfo(newType, t.isConst(), t.isRef());
-				t = nt;
-
-				return r;
-			}
-
-			if (!t.isTemplateType())
-				return Result::ok();
-
-			for (const auto& p : tp)
-			{
-				if (p.argumentId == t.getTemplateId())
-				{
-					t = p.type;
-					jassert(!t.isTemplateType());
-					jassert(!t.isDynamic());
-					return Result::ok();
-				}
-			}
-
-			return Result::fail("Can't resolve template type " + t.toString());
-		}
-
-		TemplateParameter::List tp;
-	};
+	
 
 	SET_EXPRESSION_ID(TemplateDefinition);
 
@@ -1535,7 +1544,7 @@ struct Operations::TemplateDefinition : public Statement,
 			for (auto c : *this)
 			{
 				auto tip = as<ClassStatement>(c)->getStructType()->getTemplateInstanceParameters();
-				Resolver resolver(tip);
+				TemplateParameterResolver resolver(tip);
 				auto r = resolver.process(c);
 
 				if (!r.wasOk())
@@ -1579,56 +1588,14 @@ struct Operations::TemplateDefinition : public Statement,
 		return {};
 	}
 
-	ComplexType::Ptr createTemplate(const TemplateClass::ConstructData& d)
+	ComplexType::Ptr createTemplate(const TemplateObject::ConstructData& d)
 	{
-		TemplateParameter::List instanceParameters;
+		auto instanceParameters = TemplateParameter::mergeList(tp, d.tp, *d.r);
 
-		auto numArgs = tp.size();
-		auto numDefinedParameters = d.tp.size();
-
-		if (numDefinedParameters > numArgs)
-		{
-			*d.r = Result::fail("Too many template parameters");
-			return nullptr;
-		}
-
-		for (int i = 0; i < numArgs; i++)
-		{
-			if (isPositiveAndBelow(i, numDefinedParameters))
-			{
-				TemplateParameter p = d.tp[i];
-				p.argumentId = tp[i].argumentId;
-				instanceParameters.add(p);
-			}
-			else
-			{
-				TemplateParameter p = tp[i];
-				jassert(p.argumentId.isValid());
-
-				if (p.t == TemplateParameter::TypeTemplateArgument)
-				{
-					jassert(p.type.isValid());
-					p.t = TemplateParameter::ParameterType::Type;
-				}
-				else
-					p.t = TemplateParameter::ParameterType::ConstantInteger;
-
-				instanceParameters.add(p);
-			}
-		}
-
-		for (auto& p : instanceParameters)
-		{
-			if (!p.isResolved())
-			{
-				*d.r = Result::fail("Missing template specialisation for " + p.argumentId.toString());
-				return nullptr;
-			}
-		}
+		if (d.r->failed())
+			throwError(d.r->getErrorMessage());
 
 		auto p = new StructType(templateClassId, instanceParameters);
-
-		
 
 		Ptr cb = new SyntaxTree(location, as<SyntaxTree>(statements)->getPath());
 
@@ -1651,16 +1618,16 @@ struct Operations::TemplateDefinition : public Statement,
 
 
 struct Operations::Function : public Statement,
-	public asmjit::ErrorHandler
+	public asmjit::ErrorHandler,
+	public Operations::FunctionDefinitionBase
 {
 	SET_EXPRESSION_ID(Function);
 
 	Function(Location l, const Symbol& id_) :
 		Statement(l),
-		code(nullptr)
+		FunctionDefinitionBase(id_)
 	{
-		data.id = id_.id;
-		data.returnType = id_.typeInfo;
+		
 	};
 
 	~Function()
@@ -1708,23 +1675,81 @@ struct Operations::Function : public Statement,
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
-	juce::String::CharPointerType code;
-	int codeLength = 0;
-
+	
 
 	FunctionClass::Ptr functionClass;
 
 	ScopedPointer<FunctionScope> functionScope;
-	Statement::Ptr statements;
-	FunctionData data;
 	
-	Array<Identifier> parameters;
 	//Symbol id;
 	RegPtr objectPtr;
 	bool hasObjectPtr;
 	FunctionData* classData = nullptr;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Function);
+};
+
+struct Operations::TemplatedFunction : public Statement,
+								       public FunctionDefinitionBase
+{
+	SET_EXPRESSION_ID(TemplatedFunction);
+
+	TemplatedFunction(Location l, const Symbol& s, const TemplateParameter::List& tp):
+		Statement(l),
+		FunctionDefinitionBase(s),
+		templateParameters(tp)
+	{
+		for (const auto& l : templateParameters)
+		{
+			jassert(l.isTemplateArgument());
+		}
+	}
+
+	void createFunction(const TemplateObject::ConstructData& d)
+	{
+		// Continue here, create a child function as child statement 
+		// and do the same things as the template class..
+		
+		Result r = Result::ok();
+		auto instanceParameters = TemplateParameter::mergeList(templateParameters, d.tp, r);
+
+		location.test(r);
+
+		FunctionData fData = data;
+		fData.templateParameters = instanceParameters;
+
+		auto newF = new Function(location, {});
+		newF->code = code;
+		newF->codeLength = codeLength;
+		newF->data = fData;
+		newF->parameters = parameters;
+		
+		addStatement(newF);
+
+		newF->currentCompiler = currentCompiler;
+		newF->processAllPassesUpTo(currentPass, currentScope);
+	}
+
+	Ptr clone(Location l) const override
+	{
+		return nullptr;
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto v = Statement::toValueTree();
+
+		return v;
+	}
+
+	TypeInfo getTypeInfo() const override { return {}; }
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		Statement::processBaseWithChildren(compiler, scope);
+	}
+
+	TemplateParameter::List templateParameters;
 };
 
 struct Operations::BinaryOp : public Expression

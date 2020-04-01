@@ -703,6 +703,10 @@ struct TemplateParameter
 
 	static juce::String createParameterListString(const List& l);
 
+	static TemplateParameter::List mergeList(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r);
+
+
+
 	TypeInfo type;
 	int constant;
 	bool constantDefined = false;
@@ -710,7 +714,8 @@ struct TemplateParameter
 	NamespacedIdentifier argumentId;
 };
 
-struct TemplateClass
+
+struct TemplateObject
 {
 	struct ConstructData
 	{
@@ -802,24 +807,24 @@ struct TemplateClass
 		juce::Result* r;
 	};
 
-	using Constructor = std::function<ComplexType::Ptr(const ConstructData&)>;
+	using ClassConstructor = std::function<ComplexType::Ptr(const ConstructData&)>;
+	using FunctionConstructor = std::function<void(const ConstructData&)>;
 
-	bool operator==(const TemplateClass& other) const
+	bool operator==(const TemplateObject& other) const
 	{
 		return id == other.id;
 	}
 
-	
-
 	NamespacedIdentifier id;
-	Constructor f;
+	ClassConstructor makeClassType;
+	FunctionConstructor makeFunction;
 };
 
 
 
 struct TemplatedComplexType : public ComplexType
 {
-	TemplatedComplexType(const TemplateClass& c_, const TemplateClass::ConstructData& d_) :
+	TemplatedComplexType(const TemplateObject& c_, const TemplateObject::ConstructData& d_) :
 		c(c_),
 		d(d_)
 	{
@@ -877,12 +882,12 @@ struct TemplatedComplexType : public ComplexType
 			jassert(p.isResolved());
 		}
 		
-		TemplateClass::ConstructData instanceData = d;
+		TemplateObject::ConstructData instanceData = d;
 		instanceData.tp = instanceParameters;
 
 		instanceData.r = &r;
 
-		ComplexType::Ptr p = c.f(instanceData);
+		ComplexType::Ptr p = c.makeClassType(instanceData);
 
 		
 
@@ -915,8 +920,8 @@ struct TemplatedComplexType : public ComplexType
 
 private:
 
-	TemplateClass c;
-	TemplateClass::ConstructData d;
+	TemplateObject c;
+	TemplateObject::ConstructData d;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TemplatedComplexType);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(TemplatedComplexType);

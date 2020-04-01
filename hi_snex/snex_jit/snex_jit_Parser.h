@@ -560,6 +560,9 @@ public:
     
 	TemplateParameter::List templateArguments;
 
+
+	void registerTemplateArguments(TemplateParameter::List& templateList, const NamespacedIdentifier& scopeId);
+
 	StatementPtr parseStatement() override;
 	ExprPtr parseBufferInitialiser();
 	StatementPtr parseVariableDefinition();

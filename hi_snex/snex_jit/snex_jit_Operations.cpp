@@ -108,6 +108,12 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			throw e;
 		}
+
+		if (!data.templateParameters.isEmpty())
+		{
+			TemplateParameterResolver resolver(data.templateParameters);
+			resolver.process(statements);
+		}
 	}
 
 	COMPILER_PASS(BaseCompiler::FunctionParsing)
@@ -1608,89 +1614,6 @@ void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 			asg.emitCast(reg, getSubRegister(0), sourceType);
 		}
 	}
-}
-
-Result Operations::TemplateDefinition::Resolver::process(Ptr p)
-{
-	Result r = Result::ok();
-
-	if (auto f = as<Function>(p))
-	{
-		r = processType(f->data.returnType);
-	
-		if (!r.wasOk())
-			return r;
-
-		for (auto& a : f->data.args)
-		{
-			r = processType(a.typeInfo);
-
-			if (!r.wasOk())
-				return r;
-		}
-
-		// The statement is not a "real child" so we have to 
-		// call it manually...
-		if (r.wasOk() && f->statements != nullptr)
-			r = process(f->statements);
-
-		if (!r.wasOk())
-			return r;
-	}
-	if (auto v = as<VariableReference>(p))
-	{
-		r = processType(v->id.typeInfo);
-
-		if (!r.wasOk())
-			return r;
-
-		for (auto& p : tp)
-		{
-			if (p.argumentId == v->id.id)
-			{
-				jassert(p.t == TemplateParameter::ConstantInteger);
-
-				auto value = VariableStorage(p.constant);
-				auto imm = new Immediate(v->location, value);
-
-				v->replaceInParent(imm);
-			}
-		}
-	}
-	if (auto cd = as<ComplexTypeDefinition>(p))
-	{
-		auto r = processType(cd->type);
-
-		if (!r.wasOk())
-			return r;
-
-		if (!cd->type.isComplexType())
-		{
-			VariableStorage zero(cd->type.getType(), 0);
-
-			for (auto s : cd->getSymbols())
-			{
-				auto v = new Operations::VariableReference(cd->location, s);
-				auto imm = new Immediate(cd->location, zero);
-				auto a = new Assignment(cd->location, v, JitTokens::assign_, imm, true);
-
-				cd->replaceInParent(a);
-				
-			}
-
-			return r;
-		}
-	}
-	
-	for (auto c : *p)
-	{
-		r = process(c);
-
-		if (!r.wasOk())
-			return r;
-	}
-
-	return r;
 }
 
 }

@@ -144,7 +144,7 @@ public:
 
 	void addConstant(const NamespacedIdentifier& s, const VariableStorage& v);
 
-	void addTemplateClass(const TemplateClass& c);
+	void addTemplateClass(const TemplateObject& c);
 
 	void registerVariadicType(VariadicSubType::Ptr p);
 

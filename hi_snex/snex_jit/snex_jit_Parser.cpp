@@ -199,6 +199,33 @@ BlockParser::StatementPtr BlockParser::parseStatementList()
 
 
 
+void NewClassParser::registerTemplateArguments(TemplateParameter::List& templateList, const NamespacedIdentifier& scopeId)
+{
+	jassert(compiler->namespaceHandler.getCurrentNamespaceIdentifier() == scopeId);
+
+	for (auto& tp : templateList)
+	{
+		jassert(tp.isTemplateArgument());
+		jassert(tp.argumentId.isExplicit());
+
+		tp.argumentId = scopeId.getChildId(tp.argumentId.getIdentifier());
+
+		jassert(tp.argumentId.getParent() == scopeId);
+
+		if (tp.t == TemplateParameter::TypeTemplateArgument)
+		{
+			compiler->namespaceHandler.addSymbol(tp.argumentId, tp.type, NamespaceHandler::TemplateType);
+		}
+		else
+		{
+			compiler->namespaceHandler.addSymbol(tp.argumentId, TypeInfo(Types::ID::Integer), NamespaceHandler::TemplateConstant);
+
+			if(tp.constantDefined)
+				compiler->namespaceHandler.addConstant(tp.argumentId, tp.constant);
+		}
+	}
+}
+
 BlockParser::StatementPtr NewClassParser::parseStatement()
 {
 	if (matchIf(JitTokens::template_))
@@ -354,10 +381,12 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 	}
 	else
 	{
-		auto target = new Operations::VariableReference(location, s);
+		
 
 		if (matchIf(JitTokens::assign_))
 		{
+			auto target = new Operations::VariableReference(location, s);
+
 			ExprPtr expr;
 
 			expr = new Operations::Immediate(location, parseConstExpression(false));
@@ -381,9 +410,19 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 
 BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 {
-	auto func = new Operations::Function(location, s);
+	using namespace Operations;
 
-	StatementPtr newStatement = func;
+	FunctionDefinitionBase* func;
+
+	bool isTemplateFunction = !templateArguments.isEmpty();
+
+	if (isTemplateFunction)
+		func = new TemplatedFunction(location, s, templateArguments);
+	else
+		func = new Function(location, s);
+		
+
+	StatementPtr newStatement = dynamic_cast<Statement*>(func);
 
 	auto& fData = func->data;
 
@@ -395,6 +434,9 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 	{
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, s.id);
+
+		if(isTemplateFunction)
+			 registerTemplateArguments(as<TemplatedFunction>(newStatement)->templateParameters, s.id);
 
 		while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
 		{
@@ -408,7 +450,18 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 		}
 	}
 
-	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
+	if (isTemplateFunction)
+	{
+		TemplateObject f;
+		f.id = s.id;
+		f.makeFunction = std::bind(&TemplatedFunction::createFunction, as<TemplatedFunction>(newStatement), std::placeholders::_1);
+
+		compiler->namespaceHandler.addTemplateFunction(f);
+	}
+	else
+	{
+		compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
+	}
 
 	match(JitTokens::closeParen);
 
@@ -429,6 +482,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	
 	return newStatement;
 }
+
 
 BlockParser::StatementPtr NewClassParser::parseSubclass()
 {
@@ -459,28 +513,12 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 	{
 		auto classTemplateArguments = templateArguments;
 
+
+
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
 
-		for (auto& tp : classTemplateArguments)
-		{
-			jassert(tp.isTemplateArgument());
-			jassert(tp.argumentId.isExplicit());
-
-			tp.argumentId = classId.getChildId(tp.argumentId.getIdentifier());
-
-			jassert(tp.argumentId.getParent() == classId);
-
-			if (tp.t == TemplateParameter::TypeTemplateArgument)
-			{
-				compiler->namespaceHandler.addSymbol(tp.argumentId, tp.type, NamespaceHandler::TemplateType);
-			}
-			else
-			{
-				compiler->namespaceHandler.addSymbol(tp.argumentId, TypeInfo(Types::ID::Integer), NamespaceHandler::TemplateConstant);
-
-				compiler->namespaceHandler.addConstant(tp.argumentId, tp.constant);
-			}
-		}
+		registerTemplateArguments(classTemplateArguments, classId);
+		
 
 		auto list = parseStatementList();
 
@@ -488,9 +526,9 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 
 		auto tcs = new Operations::TemplateDefinition(location, classId, classTemplateArguments, list);
 
-		TemplateClass tc;
+		TemplateObject tc;
 		tc.id = classId;
-		tc.f = std::bind(&Operations::TemplateDefinition::createTemplate, tcs, std::placeholders::_1);
+		tc.makeClassType = std::bind(&Operations::TemplateDefinition::createTemplate, tcs, std::placeholders::_1);
 
 		compiler->namespaceHandler.addTemplateClass(tc);
 		return tcs;
@@ -584,8 +622,7 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 
 			if (tp.matchIfType())
 			{
-				TemplateParameter p;
-				p.type = tp.currentTypeInfo;
+				TemplateParameter p(tp.currentTypeInfo);
 				parameters.add(p);
 			}
 			else
@@ -595,8 +632,7 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 				if (e.getType() != Types::ID::Integer)
 					location.throwError("Can't use non-integers as template argument");
 
-				TemplateParameter tp;
-				tp.constant = e.toInt();
+				TemplateParameter tp(e.toInt());
 
 				parameters.add(tp);
 			}

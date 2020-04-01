@@ -114,7 +114,9 @@ juce::String NamespaceHandler::Alias::toString() const
 	case TemplateType: s << "typename " << id.toString() << (!type.isDynamic() ? (" " + type.toString()) : ""); break;
 	case TemplateConstant: s << "template int " << id.toString(); break;
 	case TemplatedClass: s << "template struct " << id.toString(); break;
-	default: jassertfalse;
+	case TemplatedFunction: s << "template function " << id.toString(); break;
+	default:
+		jassertfalse;
 	}
 
 	return s;
@@ -476,7 +478,7 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 	{
 		if (c.id == id)
 		{
-			TemplateClass::ConstructData d;
+			TemplateObject::ConstructData d;
 			d.handler = this;
 			d.tp = tp;
 			d.id = c.id;
@@ -487,7 +489,7 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 			if (createTemplatedComplexType)
 				ptr = new TemplatedComplexType(c, d);
 			else
-				ptr = c.f(d);
+				ptr = c.makeClassType(d);
 
 			if (!r.wasOk())
 				return ptr;
@@ -503,6 +505,26 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 	r = Result::fail("Can't find template class");
 
 	return nullptr;
+}
+
+void NamespaceHandler::createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
+{
+	for (const auto& f : templateFunctionIds)
+	{
+		if (f.id == id)
+		{
+			TemplateObject::ConstructData d;
+			d.id = id;
+			d.r = &r;
+			d.handler = this;
+			d.tp = tp;
+
+			f.makeFunction(d);
+			return;
+		}
+	}
+
+	r = Result::fail("Can't instantiate function template " + id.toString());
 }
 
 bool NamespaceHandler::rootHasNamespace(const NamespacedIdentifier& id) const
@@ -569,7 +591,7 @@ bool NamespaceHandler::isStaticFunctionClass(const NamespacedIdentifier& classId
 	return false;
 }
 
-void NamespaceHandler::addTemplateClass(const TemplateClass& s)
+void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 {
 	if (currentNamespace == nullptr)
 		pushNamespace(Identifier());
@@ -585,6 +607,22 @@ void NamespaceHandler::addTemplateClass(const TemplateClass& s)
 
 
 	templateClassIds.addIfNotAlreadyThere(s);
+}
+
+void NamespaceHandler::addTemplateFunction(const TemplateObject& f)
+{
+	if (currentNamespace == nullptr)
+		pushNamespace(Identifier());
+
+	if (auto p = get(f.id.getParent()))
+	{
+		Alias a;
+		a.id = f.id;
+		a.symbolType = TemplatedFunction;
+		p->aliases.add(a);
+	}
+
+	templateFunctionIds.addIfNotAlreadyThere(f);
 }
 
 TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const

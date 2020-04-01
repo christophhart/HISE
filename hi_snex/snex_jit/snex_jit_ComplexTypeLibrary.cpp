@@ -125,17 +125,17 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 	{
 		auto indexFunction = new FunctionData();
 
-		indexFunction->id = st->getClassName().getChildId("index");
+		auto iid = st->getClassName().getChildId("index");
+
+		indexFunction->id = iid;
 		indexFunction->returnType = TypeInfo(Types::ID::Dynamic);
 		indexFunction->addArgs("value", TypeInfo(Types::ID::Integer));
-
+		indexFunction->templateParameters.add(TemplateParameter(iid.getChildId("IndexType")));
 		indexFunction->inliner = new Inliner(indexFunction->id, [](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
 			auto& cc = d->gen.cc;
 			auto indexType = d->target->getTypeInfo().getTypedIfComplexType<IndexBase>();
-
-			
 
 			jassert(d->target->getType() == Types::ID::Integer);
 			jassert(indexType != nullptr);

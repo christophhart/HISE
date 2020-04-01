@@ -529,10 +529,10 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	auto prototypes = ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
 
 	{
-		TemplateClass midi;
+		TemplateObject midi;
 		midi.id = NamespacedIdentifier("wrap").getChildId("midi");
 
-		midi.f = [prototypes](const TemplateClass::ConstructData& d)
+		midi.makeClassType = [prototypes](const TemplateObject::ConstructData& d)
 		{
 			ComplexType::Ptr ptr;
 
@@ -749,10 +749,10 @@ void SnexObjectDatabase::addVariadicGet(VariadicSubType* variadicType)
 
 void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventType)
 {
-	TemplateClass ptc;
+	TemplateObject ptc;
 
 	ptc.id = NamespacedIdentifier("ProcessData");
-	ptc.f = [eventType](const TemplateClass::ConstructData& c)
+	ptc.makeClassType = [eventType](const TemplateObject::ConstructData& c)
 	{
 		ComplexType::Ptr p;
 

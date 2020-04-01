@@ -591,24 +591,42 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
     auto fSymbol = getCurrentSymbol();
 
-	auto pType = getDotParentType(p);
 	
-
-
-	if (auto ct = pType.getTypedIfComplexType<ComplexType>())
+	
+	if (currentType == JitTokens::lessThan)
 	{
-		if(currentType == JitTokens::lessThan)
+		if (compiler->namespaceHandler.isTemplateFunction(fSymbol.id))
+		{
 			templateParameters = parseTemplateParameters(false);
+			auto r = Result::ok();
+			compiler->namespaceHandler.createTemplateFunction(fSymbol.id, templateParameters, r);
 
+			if (!r.wasOk())
+				location.throwError(r.getErrorMessage());
+		}
+	}
+
+	if (auto ct = getDotParentType(p).getTypedIfComplexType<ComplexType>())
+	{
 		FunctionClass::Ptr vfc = ct->getFunctionClass();
 
 		auto mId = vfc->getClassName().getChildId(fSymbol.getName());
 
-		
 		Array<FunctionData> matches;
 		vfc->addMatchingFunctions(matches, mId);
 		
 		auto f = matches.getFirst();
+
+		if (!f.templateParameters.isEmpty())
+		{
+			templateParameters = parseTemplateParameters(false);
+			
+			auto r = Result::ok();
+			templateParameters = TemplateParameter::mergeList(f.templateParameters, templateParameters, r);
+
+			if (!r.wasOk())
+				location.throwError(r.getErrorMessage());
+		}
 
 		if (auto il = f.inliner)
 		{
@@ -651,6 +669,8 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 				jassertfalse;
 		}
 	}
+
+	
 
 	while (matchIf(JitTokens::openParen))
 	{

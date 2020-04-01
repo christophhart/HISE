@@ -606,13 +606,75 @@ juce::String TemplateParameter::createParameterListString(const List& l)
 	return s;
 }
 
+snex::jit::TemplateParameter::List TemplateParameter::mergeList(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r)
+{
+	for (auto& a : arguments)
+	{
+		// The argument array must contain Template arguments only...
+		jassert(a.isTemplateArgument());
+	}
+
+	for (auto& p : parameters)
+	{
+		// the parameter array must contain template parameters only
+		// (ParameterType::Type or ParameterType::Constant)
+		jassert(!p.isTemplateArgument());
+	}
+
+	TemplateParameter::List instanceParameters;
+
+	auto numArgs = arguments.size();
+	auto numDefinedParameters = parameters.size();
+
+	if (numDefinedParameters > numArgs)
+	{
+		r = Result::fail("Too many template parameters");
+		return instanceParameters;
+	}
+
+	for (int i = 0; i < numArgs; i++)
+	{
+		if (isPositiveAndBelow(i, numDefinedParameters))
+		{
+			TemplateParameter p = parameters[i];
+			p.argumentId = arguments[i].argumentId;
+			instanceParameters.add(p);
+		}
+		else
+		{
+			TemplateParameter p = arguments[i];
+			jassert(p.argumentId.isValid());
+
+			if (p.t == TemplateParameter::TypeTemplateArgument)
+			{
+				jassert(p.type.isValid());
+				p.t = TemplateParameter::ParameterType::Type;
+			}
+			else
+				p.t = TemplateParameter::ParameterType::ConstantInteger;
+
+			instanceParameters.add(p);
+		}
+	}
+
+	for (auto& p : instanceParameters)
+	{
+		if (!p.isResolved())
+		{
+			r = Result::fail("Missing template specialisation for " + p.argumentId.toString());
+		}
+	}
+
+	return instanceParameters;
+}
+
 snex::jit::ComplexType::Ptr TemplatedComplexType::createSubType(const NamespacedIdentifier& id)
 {
 	ComplexType::Ptr parentType = this;
 
-	TemplateClass s;
+	TemplateObject s;
 	s.id = id.relocate(id.getParent(), c.id);
-	s.f = [parentType, id](const TemplateClass::ConstructData& sc)
+	s.makeClassType = [parentType, id](const TemplateObject::ConstructData& sc)
 	{
 		auto parent = dynamic_cast<TemplatedComplexType*>(parentType.get());
 
