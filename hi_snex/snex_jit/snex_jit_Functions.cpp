@@ -477,6 +477,12 @@ FunctionData FunctionClass::getSpecialFunction(SpecialSymbols s, TypeInfo return
 
 		addSpecialFunctions(s, matches);
 
+		if (returnType.isInvalid() && argTypes.isEmpty())
+		{
+			if (matches.size() == 1)
+				return matches.getFirst();
+		}
+
 		for (auto& m : matches)
 		{
 			if (m.matchesArgumentTypes(returnType, argTypes))
@@ -586,7 +592,73 @@ juce::Result Inliner::process(InlineData* d) const
 	return Result::fail("Can't inline function");
 }
 
-juce::String TemplateParameter::createParameterListString(const List& l)
+bool TemplateParameter::ListOps::isParameter(const TemplateParameter::List& l)
+{
+	for (const auto& p : l)
+	{
+		if (!p.isTemplateArgument())
+			return true;
+	}
+
+	return false;
+}
+
+bool TemplateParameter::ListOps::isArgument(const TemplateParameter::List& l)
+{
+	for (const auto& p : l)
+	{
+		if (p.isTemplateArgument())
+		{
+			jassert(!isParameter(l));
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool TemplateParameter::ListOps::isArgumentOrEmpty(const List& l)
+{
+	if (l.isEmpty())
+		return true;
+
+	return isArgument(l);
+}
+
+bool TemplateParameter::ListOps::match(const List& first, const List& second)
+{
+	if (first.size() != second.size())
+		return false;
+
+	for (int i = 0; i < first.size(); i++)
+	{
+		auto f = first[i];
+		auto s = second[i];
+
+		if (f != s)
+			return false;
+	}
+
+	return true;
+}
+
+bool TemplateParameter::ListOps::isNamed(const List& l)
+{
+	for (auto& p : l)
+	{
+		if (!p.argumentId.isValid())
+			return false;
+	}
+
+	return true;
+}
+
+bool TemplateParameter::ListOps::readyToResolve(const List& l)
+{
+	return isNamed(l) && isParameter(l);
+}
+
+juce::String TemplateParameter::ListOps::toString(const List& l)
 {
 	if (l.isEmpty())
 		return {};
@@ -636,7 +708,20 @@ juce::String TemplateParameter::createParameterListString(const List& l)
 	return s;
 }
 
-snex::jit::TemplateParameter::List TemplateParameter::mergeList(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r)
+TemplateParameter::List TemplateParameter::ListOps::filter(const List& l, const NamespacedIdentifier& id)
+{
+	List r;
+
+	for (auto& p : l)
+	{
+		if (p.argumentId.getParent() == id)
+			r.add(p);
+	}
+
+	return r;
+}
+
+TemplateParameter::List TemplateParameter::ListOps::merge(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r)
 {
 	if (arguments.isEmpty() && parameters.isEmpty())
 		return parameters;
@@ -701,9 +786,40 @@ snex::jit::TemplateParameter::List TemplateParameter::mergeList(const TemplatePa
 	return instanceParameters;
 }
 
-TemplateParameter::List TemplateParameter::mergeWithCallParameters(const TemplateParameter::List& existing, const TypeInfo::List& originalFunctionArguments, const TypeInfo::List& callParameterTypes, Result& r)
+TemplateParameter::List TemplateParameter::ListOps::sort(const List& arguments, const List& parameters, juce::Result& r)
 {
-	jassert(existing.isEmpty() || isParameterList(existing));
+	jassert(isArgumentOrEmpty(arguments));
+	jassert(isParameter(parameters) || parameters.isEmpty());
+
+	if (arguments.size() != parameters.size())
+		return parameters;
+
+	for (auto& p : parameters)
+	{
+		if (!p.argumentId.isValid())
+			return parameters;
+	}
+
+	TemplateParameter::List tp;
+
+	for (int i = 0; i < arguments.size(); i++)
+	{
+		for (int j = 0; j < parameters.size(); j++)
+		{
+			if (arguments[i].argumentId == parameters[j].argumentId)
+			{
+				tp.add(parameters[j]);
+				break;
+			}
+		}
+	}
+
+	return tp;
+}
+
+TemplateParameter::List TemplateParameter::ListOps::mergeWithCallParameters(const List& argumentList, const List& existing, const TypeInfo::List& originalFunctionArguments, const TypeInfo::List& callParameterTypes, Result& r)
+{
+	jassert(existing.isEmpty() || isParameter(existing));
 
 	List tp = existing;
 
@@ -712,10 +828,12 @@ TemplateParameter::List TemplateParameter::mergeWithCallParameters(const Templat
 	for (int i = 0; i < originalFunctionArguments.size(); i++)
 	{
 		auto& o = originalFunctionArguments[i];
+		auto &cp = callParameterTypes[i];
 
 		if (o.isTemplateType())
 		{
-			auto typeTouse = callParameterTypes[i].withModifiers(o.isConst(), o.isRef());
+			// Check if the type is directly used...
+			auto typeTouse = cp.withModifiers(o.isConst(), o.isRef());
 			TemplateParameter tId(typeTouse);
 			tId.argumentId = o.getTemplateId();
 
@@ -733,25 +851,137 @@ TemplateParameter::List TemplateParameter::mergeWithCallParameters(const Templat
 
 			tp.addIfNotAlreadyThere(tId);
 		}
+		else if (auto ctd = o.getTypedIfComplexType<TemplatedComplexType>())
+		{
+			// check if the type can be deducted by the template parameters...
+
+			auto pt = cp.getTypedIfComplexType<ComplexTypeWithTemplateParameters>();
+
+			jassert(pt != nullptr);
+
+			auto fArgTemplates = ctd->getTemplateInstanceParameters();
+			auto fParTemplates = pt->getTemplateInstanceParameters();
+
+			jassert(fArgTemplates.size() == fParTemplates.size());
+
+			for (int i = 0; i < fArgTemplates.size(); i++)
+			{
+				auto& fa = fArgTemplates[i];
+				auto& fp = fParTemplates[i];
+
+				if (fa.type.isTemplateType())
+				{
+					auto fpId = fa.type.getTemplateId();
+
+					for (auto& a : argumentList)
+					{
+						if (a.argumentId == fpId)
+						{
+							TemplateParameter tId = fp;
+							tId.argumentId = fpId;
+
+							tp.addIfNotAlreadyThere(tId);
+						}
+					}
+				}
+			}
+		}
 	}
 
-	return tp;
+	return sort(argumentList, tp, r);
 }
 
-snex::jit::ComplexType::Ptr TemplatedComplexType::createSubType(const NamespacedIdentifier& id)
+snex::jit::ComplexType::Ptr TemplatedComplexType::createTemplatedInstance(const TemplateParameter::List& suppliedTemplateParameters, juce::Result& r)
 {
+	TemplateParameter::List instanceParameters;
+
+	for (const auto& p : d.tp)
+	{
+		if (p.type.isTemplateType())
+		{
+			for (const auto& sp : suppliedTemplateParameters)
+			{
+				if (sp.argumentId == p.type.getTemplateId())
+				{
+					if (sp.t == TemplateParameter::ConstantInteger)
+					{
+						TemplateParameter ip(sp.constant);
+						ip.argumentId = sp.argumentId;
+						instanceParameters.add(ip);
+					}
+					else
+					{
+						TemplateParameter ip(sp.type);
+						ip.argumentId = sp.argumentId;
+						instanceParameters.add(ip);
+					}
+				}
+			}
+		}
+		else if (p.isTemplateArgument())
+		{
+			for (const auto& sp : suppliedTemplateParameters)
+			{
+				if (sp.argumentId == p.argumentId)
+				{
+					jassert(sp.isResolved());
+					TemplateParameter ip = sp;
+					instanceParameters.add(ip);
+				}
+			}
+		}
+		else
+		{
+			jassert(p.isResolved());
+			instanceParameters.add(p);
+		}
+	}
+
+	for (auto& p : instanceParameters)
+	{
+		jassert(p.isResolved());
+	}
+
+	TemplateObject::ConstructData instanceData = d;
+	instanceData.tp = instanceParameters;
+
+	instanceData.r = &r;
+
+	ComplexType::Ptr p = c.makeClassType(instanceData);
+
+	p = instanceData.handler->registerComplexTypeOrReturnExisting(p);
+
+	return p;
+}
+
+snex::jit::ComplexType::Ptr TemplatedComplexType::createSubType(SubTypeConstructData* sd)
+{
+
+
+	auto id = sd->id;
+	auto sl = sd->l;
+
 	ComplexType::Ptr parentType = this;
 
 	TemplateObject s;
 	s.id = id.relocate(id.getParent(), c.id);
-	s.makeClassType = [parentType, id](const TemplateObject::ConstructData& sc)
+	s.makeClassType = [parentType, id, sl](const TemplateObject::ConstructData& sc)
 	{
 		auto parent = dynamic_cast<TemplatedComplexType*>(parentType.get());
 
 		auto parentType = parent->createTemplatedInstance(sc.tp, *sc.r);
+
+		if (!sc.r->wasOk())
+			return parentType;
+
 		parentType = sc.handler->registerComplexTypeOrReturnExisting(parentType);
 
-		auto childType = parentType->createSubType(id);
+		SubTypeConstructData nsd;
+		nsd.id = id;
+		nsd.l = sl;
+		nsd.handler = sc.handler;
+
+		auto childType = parentType->createSubType(&nsd);
 
 		return childType;
 	};

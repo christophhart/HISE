@@ -122,6 +122,7 @@ juce::String NamespaceHandler::Alias::toString() const
 	case TemplateConstant: s << "template int " << id.toString(); break;
 	case TemplatedClass: s << "template struct " << id.toString(); break;
 	case TemplatedFunction: s << "template function " << id.toString(); break;
+	case PreprocessorConstant: s << "#define " << id.toString() << "=" << Types::Helpers::getCppValueString(constantValue); break;
 	default:
 		jassertfalse;
 	}
@@ -434,6 +435,11 @@ juce::Result NamespaceHandler::setTypeInfo(const NamespacedIdentifier& id, Symbo
 	return Result::fail("Can't find namespace");
 }
 
+bool NamespaceHandler::isConstantSymbol(SymbolType t)
+{
+	return t == TemplateConstant || t == PreprocessorConstant || t == Constant;
+}
+
 bool NamespaceHandler::isTemplateTypeArgument(NamespacedIdentifier classId) const
 {
 	resolve(classId);
@@ -507,6 +513,16 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 
 			ptr = registerComplexTypeOrReturnExisting(ptr);
 
+			if (auto typed = dynamic_cast<ComplexTypeWithTemplateParameters*>(ptr.get()))
+			{
+				jassert(TemplateParameter::ListOps::isParameter(typed->getTemplateInstanceParameters()));
+			}
+			else
+			{
+				jassertfalse;
+			}
+				
+
 			return ptr;
 		}
 	}
@@ -516,7 +532,7 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 	return nullptr;
 }
 
-FunctionData NamespaceHandler::createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
+void NamespaceHandler::createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
 {
 	for (const auto& f : templateFunctionIds)
 	{
@@ -528,12 +544,13 @@ FunctionData NamespaceHandler::createTemplateFunction(const NamespacedIdentifier
 			d.handler = this;
 			d.tp = tp;
 
-			return f.makeFunction(d);
+			f.makeFunction(d);
+			return;
 		}
 	}
 
 	r = Result::fail("Can't instantiate function template " + id.toString());
-	return {};
+	return;// {};
 }
 
 bool NamespaceHandler::rootHasNamespace(const NamespacedIdentifier& id) const
@@ -576,7 +593,7 @@ snex::VariableStorage NamespaceHandler::getConstantValue(const NamespacedIdentif
 	{
 		for (auto a : existing->aliases)
 		{
-			if (a.id == variableId && a.symbolType == Constant)
+			if (a.id == variableId && isConstantSymbol(a.symbolType))
 				return a.constantValue;
 		}
 	}
@@ -602,10 +619,22 @@ bool NamespaceHandler::isStaticFunctionClass(const NamespacedIdentifier& classId
 
 void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 {
-	jassert(TemplateParameter::isArgumentList(s.argList));
+	jassert(TemplateParameter::ListOps::isArgumentOrEmpty(s.argList));
 	jassert(s.makeClassType);
 	jassert(!s.makeFunction);
 	jassert(!s.functionArgs);
+
+	for (auto& tc : templateClassIds)
+	{
+		if (s.id.isParentOf(tc.id))
+		{
+			TemplateParameter::List newList;
+			newList.addArray(s.argList);
+			newList.addArray(tc.argList);
+
+			tc.argList = newList;
+		}
+	}
 
 	if (currentNamespace == nullptr)
 		pushNamespace(Identifier());
@@ -626,7 +655,7 @@ void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 
 void NamespaceHandler::addTemplateFunction(const TemplateObject& f)
 {
-	jassert(TemplateParameter::isArgumentList(f.argList));
+	jassert(TemplateParameter::ListOps::isArgument(f.argList));
 	jassert(!f.makeClassType);
 	jassert(f.makeFunction);
 	jassert(f.functionArgs);

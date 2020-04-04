@@ -20,6 +20,7 @@ using CodeEmitter = x86::Emitter;
 using String = juce::String;
 
 #include "snex_jit/snex_jit_TokenIterator.h"
+#include "snex_jit/snex_jit_PreProcessor.h"
 
 #include "snex_jit/snex_jit_ComplexTypeLibrary.h"
 #include "snex_jit/snex_jit_ApiClasses.h"
@@ -51,6 +52,7 @@ using String = juce::String;
 #include "snex_jit/snex_jit_ClassScope.cpp"
 #include "snex_jit/snex_jit_BaseCompiler.cpp"
 
+#include "snex_jit/snex_jit_PreProcessor.cpp"
 #include "snex_jit/snex_jit_Parser.cpp"
 #include "snex_jit/snex_jit_OperationsBase.cpp"
 #include "snex_jit/snex_jit_BaseScope.cpp"

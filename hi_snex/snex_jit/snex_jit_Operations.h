@@ -960,7 +960,7 @@ struct Operations::Compare : public Expression
 				auto tReg = getSubRegister(0);
 				auto value = getSubRegister(1);
 
-				asg.emitCompare(op, reg, l->reg, r->reg);
+				asg.emitCompare(useAsmFlag, op, reg, l->reg, r->reg);
 
 				VariableReference::reuseAllLastReferences(this);
 
@@ -971,6 +971,7 @@ struct Operations::Compare : public Expression
 	}
 
 	TokenType op;
+	bool useAsmFlag = false;
 
 private:
 
@@ -1231,31 +1232,31 @@ struct Operations::ThisPointer : public Statement
 
 	ThisPointer(Location l, TypeInfo t) :
 		Statement(l),
-		type(t)
+		type(t.getComplexType().get())
 	{
 
 	}
 
 	Statement::Ptr clone(Location l) const
 	{
-		return new ThisPointer(l, type);
+		return new ThisPointer(l, getTypeInfo());
 	}
 
 	TypeInfo getTypeInfo() const override
 	{
-		return type;
+		return TypeInfo(type.get());
 	}
 
 	ValueTree toValueTree() const override
 	{
 		auto v = Expression::toValueTree();
-		v.setProperty("Type", type.toString(), nullptr);
+		v.setProperty("Type", getTypeInfo().toString(), nullptr);
 		return v;
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
-	TypeInfo type;
+	ComplexType::WeakPtr type;
 };
 
 struct Operations::MemoryReference : public Expression
@@ -1347,7 +1348,7 @@ struct Operations::ReturnStatement : public Expression
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		Statement::Ptr p = !isVoid() ? getSubExpr(0)->clone(l) : nullptr;
-		return new ReturnStatement(l, dynamic_cast<Expression*>(p.get()));
+		return new ReturnStatement(l, p);
 	}
 
 	bool isConstExpr() const override
@@ -1539,13 +1540,13 @@ struct Operations::TemplateDefinition : public Statement,
 {
 	SET_EXPRESSION_ID(TemplateDefinition);
 
-	TemplateDefinition(Location l, const NamespacedIdentifier& classId, const TemplateParameter::List& tp_, Statement::Ptr statements_) :
+	TemplateDefinition(Location l, const NamespacedIdentifier& classId, NamespaceHandler& handler_, Statement::Ptr statements_) :
 		Statement(l),
 		templateClassId(classId),
-		tp(tp_),
-		statements(statements_)
+		statements(statements_),
+		handler(handler_)
 	{
-		for (const auto& p : tp)
+		for (const auto& p : getTemplateArguments())
 		{
 			jassert(p.isTemplateArgument());
 		}
@@ -1555,24 +1556,22 @@ struct Operations::TemplateDefinition : public Statement,
 	{
 		auto cp = compiler->getCurrentPass();
 
+		Statement::processBaseWithoutChildren(compiler, scope);
+
 		if (cp == BaseCompiler::ComplexTypeParsing || cp == BaseCompiler::FunctionParsing)
 		{
-			Statement::processBaseWithoutChildren(compiler, scope);
-
 			for (auto c : *this)
 			{
-				auto tip = as<ClassStatement>(c)->getStructType()->getTemplateInstanceParameters();
+				auto tip = collectParametersFromParentClass(c, {});
 				TemplateParameterResolver resolver(tip);
 				auto r = resolver.process(c);
 
 				if (!r.wasOk())
 					throwError(r.getErrorMessage());
 			}
-
-			Statement::processAllChildren(compiler, scope);
 		}
-		else
-			Statement::processBaseWithChildren(compiler, scope);
+
+		Statement::processAllChildren(compiler, scope);
 	}
 
 	ValueTree toValueTree() const override
@@ -1581,7 +1580,7 @@ struct Operations::TemplateDefinition : public Statement,
 
 		juce::String s;
 		s << templateClassId.toString();
-		s << TemplateParameter::createParameterListString(tp);
+		s << TemplateParameter::ListOps::toString(getTemplateArguments());
 
 		t.setProperty("Type", s, nullptr);
 
@@ -1593,11 +1592,19 @@ struct Operations::TemplateDefinition : public Statement,
 		return true;
 	}
 
+	TemplateParameter::List getTemplateArguments() const
+	{
+		
+		return handler.getTemplateObject(templateClassId).argList;
+	}
+
 	Statement::Ptr clone(Location l) const override
 	{
 		auto cs = statements->clone(l);
 
-		auto s = new TemplateDefinition(l, templateClassId, tp, cs);
+		auto s = new TemplateDefinition(l, templateClassId, handler, cs);
+
+		clones.add(s);
 
 		return s;
 	}
@@ -1609,14 +1616,34 @@ struct Operations::TemplateDefinition : public Statement,
 
 	ComplexType::Ptr createTemplate(const TemplateObject::ConstructData& d)
 	{
-		auto instanceParameters = TemplateParameter::mergeList(tp, d.tp, *d.r);
+		auto instanceParameters = TemplateParameter::ListOps::merge(getTemplateArguments(), d.tp, *d.r);
+
+		for (auto es : *this)
+		{
+			if (auto ecs = as<ClassStatement>(es))
+			{
+				auto tp = ecs->getStructType()->getTemplateInstanceParameters();
+
+				if (TemplateParameter::ListOps::match(instanceParameters, tp))
+				{
+					return ecs->getStructType();
+				}
+			}
+		}
+
+		for (auto c : clones)
+		{
+			auto p = as<TemplateDefinition>(c)->createTemplate(d);
+		}
 
 		if (d.r->failed())
 			throwError(d.r->getErrorMessage());
 
-		auto p = new StructType(templateClassId, instanceParameters);
+		ComplexType::Ptr p = new StructType(templateClassId, instanceParameters);
 
-		Ptr cb = new SyntaxTree(location, as<SyntaxTree>(statements)->getPath());
+		p = handler.registerComplexTypeOrReturnExisting(p);
+
+		Ptr cb = new SyntaxTree(location, as<ScopeStatementBase>(statements)->getPath());
 
 		statements->cloneChildren(cb);
 
@@ -1624,13 +1651,24 @@ struct Operations::TemplateDefinition : public Statement,
 
 		addStatement(c);
 
+		if (currentCompiler != nullptr)
+		{
+			TemplateParameterResolver resolver(instanceParameters);
+			resolver.process(c);
+
+			c->currentCompiler = currentCompiler;
+			c->processAllPassesUpTo(currentPass, currentScope);
+		}
+
 		return d.handler->registerComplexTypeOrReturnExisting(p);
 	}
 
 	NamespacedIdentifier templateClassId;
-	TemplateParameter::List tp;
+	NamespaceHandler& handler;
 
 	Statement::Ptr statements;
+
+	mutable List clones;
 };
 
 
@@ -1679,7 +1717,14 @@ struct Operations::Function : public Statement,
 		auto t = Statement::toValueTree();
 		t.setProperty("Signature", data.getSignature(parameters), nullptr);
 
-		t.addChild(statements->toValueTree(), -1, nullptr);
+		if (classData != nullptr && classData->function != nullptr)
+		{
+			t.setProperty("FuncPointer", reinterpret_cast<int64>(classData->function), nullptr);
+		}
+			
+
+		if(statements != nullptr)
+			t.addChild(statements->toValueTree(), -1, nullptr);
 
 		return t;
 	}
@@ -1729,19 +1774,28 @@ struct Operations::TemplatedFunction : public Statement,
 		}
 	}
 
-	FunctionData createFunction(const TemplateObject::ConstructData& d)
+	void createFunction(const TemplateObject::ConstructData& d)
 	{
-		for (auto c : clones)
-		{
-			as<TemplatedFunction>(c)->createFunction(d);
-		}
-		
 		Result r = Result::ok();
-		auto instanceParameters = TemplateParameter::mergeList(templateParameters, d.tp, r);
-		TemplateParameterResolver resolve(instanceParameters);
-
+		auto instanceParameters = TemplateParameter::ListOps::merge(templateParameters, d.tp, r);
 		location.test(r);
 
+		TemplateParameterResolver resolve(collectParametersFromParentClass(this, instanceParameters));
+
+		for (auto e : *this)
+		{
+			if (auto ef = as<Function>(e))
+			{
+				auto fParameters = ef->data.templateParameters;
+
+				if (TemplateParameter::ListOps::match(fParameters, instanceParameters))
+					return;// ef->data;
+			}
+		}
+
+		for (auto c : clones)
+			as<TemplatedFunction>(c)->createFunction(d);
+		
 		FunctionData fData = data;
 
 		resolve.resolveIds(fData);
@@ -1756,9 +1810,16 @@ struct Operations::TemplatedFunction : public Statement,
 		
 		addStatement(newF);
 
+		auto isInClass = findParentStatementOfType<ClassStatement>(this) != nullptr;
 		
 		auto ok = resolve.process(newF);
-		location.test(ok);
+
+		if (isInClass)
+		{
+			
+			location.test(ok);
+		}
+		
 
 		if (currentCompiler != nullptr)
 		{
@@ -1766,7 +1827,7 @@ struct Operations::TemplatedFunction : public Statement,
 			newF->processAllPassesUpTo(currentPass, currentScope);
 		}
 		
-		return fData;
+		return;// fData;
 	}
 
 	Ptr clone(Location l) const override
@@ -2061,6 +2122,133 @@ struct Operations::Increment : public UnaryOp
 	bool removed = false;
 };
 
+struct Operations::WhileLoop : public Statement,
+	public Operations::ConditionalBranch
+{
+	SET_EXPRESSION_ID(WhileLoop);
+
+	WhileLoop(Location l, Ptr condition, Ptr body):
+		Statement(l)
+	{
+		addStatement(condition);
+		addStatement(body);
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto v = Statement::toValueTree();
+
+		return v;
+	}
+
+	Statement::Ptr clone(Location l) const override
+	{
+		auto c = getSubExpr(0)->clone(l);
+		auto b = getSubExpr(1)->clone(l);
+
+		auto w = new WhileLoop(l, c, b);
+
+		return w;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		jassertfalse;
+		return {};
+	}
+
+	Compare* getCompareCondition()
+	{
+		if (auto cp = as<Compare>(getSubExpr(0)))
+			return cp;
+
+		if (auto sb = as<StatementBlock>(getSubExpr(0)))
+		{
+			for (auto s : *sb)
+			{
+				if (auto cb = as<ConditionalBranch>(s))
+					return nullptr;
+
+				if (auto rt = as<ReturnStatement>(s))
+				{
+					return as<Compare>(rt->getSubExpr(0));
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		if(compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
+			Statement::processBaseWithoutChildren(compiler, scope);
+		else
+			Statement::processBaseWithChildren(compiler, scope);
+
+		COMPILER_PASS(BaseCompiler::TypeCheck)
+		{
+			if (getSubExpr(0)->isConstExpr())
+			{
+				auto v = getSubExpr(0)->getConstExprValue();
+
+				if (v.toInt() != 0)
+				{
+					throwError("Endless loop detected");
+				}
+			}
+		}
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
+
+			auto cond = acg.cc.newLabel();
+			auto exit = acg.cc.newLabel();
+
+			auto why = acg.cc.newGpd();
+			acg.cc.nop();
+
+			acg.cc.bind(cond);
+			
+			auto cp = getCompareCondition();
+
+			if (cp != nullptr)
+				cp->useAsmFlag = true;
+
+			getSubExpr(0)->process(compiler, scope);
+			auto cReg = getSubRegister(0);
+
+			dumpSyntaxTree(this);
+
+			if (cp != nullptr)
+			{
+#define INT_COMPARE(token, command) if (cp->op == token) command(exit);
+
+				INT_COMPARE(JitTokens::greaterThan, acg.cc.jle);
+				INT_COMPARE(JitTokens::lessThan, acg.cc.jge);
+				INT_COMPARE(JitTokens::lessThanOrEqual, acg.cc.jg);
+				INT_COMPARE(JitTokens::greaterThanOrEqual, acg.cc.jl);
+				INT_COMPARE(JitTokens::equals, acg.cc.jne);
+				INT_COMPARE(JitTokens::notEquals, acg.cc.je);
+
+#undef INT_COMPARE
+			}
+			else
+			{
+				acg.cc.setInlineComment("check condition");
+				acg.cc.cmp(INT_REG_R(cReg), 0);
+				acg.cc.je(exit);
+			}
+
+			getSubExpr(1)->process(compiler, scope);
+
+			acg.cc.jmp(cond);
+			acg.cc.bind(exit);
+		}
+	}
+};
+
 struct Operations::Loop : public Expression,
 					      public Operations::ConditionalBranch,
 						  public Operations::ArrayStatementBase
@@ -2072,8 +2260,6 @@ struct Operations::Loop : public Expression,
 	{
 		auto c1 = getSubExpr(0)->clone(l);
 		auto c2 = getSubExpr(1)->clone(l);
-
-		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
 
 		auto newLoop = new Loop(l, iterator, c1, c2);
 		return newLoop;
@@ -2523,12 +2709,23 @@ struct Operations::Subscript : public Expression,
 			elementType = dynType->elementType;
 			return true;
 		}
-
-		if (getSubExpr(0)->getType() == Types::ID::Block)
+		else if (getSubExpr(0)->getType() == Types::ID::Block)
 		{
 			subscriptType = Dyn;
 			elementType = TypeInfo(Types::ID::Float, false, true);
 			return true;
+		}
+		else if (auto st = parentType.getTypedIfComplexType<StructType>())
+		{
+			FunctionClass::Ptr fc = st->getFunctionClass();
+
+			if (fc->hasSpecialFunction(FunctionClass::Subscript))
+			{
+				subscriptOperator = fc->getSpecialFunction(FunctionClass::Subscript);
+				subscriptType = CustomObject;
+				elementType = subscriptOperator.returnType;
+				return true;
+			}
 		}
 
 		return false;
@@ -2592,6 +2789,11 @@ struct Operations::Subscript : public Expression,
 				// nothing to do here...
 				return;
 			}
+			else if (subscriptType == CustomObject)
+			{
+				// nothing to do here, the type check will be done in the function itself...
+				return;
+			}
 			else
 			{
 				if (getSubExpr(0)->getType() == Types::ID::Block)
@@ -2624,7 +2826,7 @@ struct Operations::Subscript : public Expression,
 				if (getSubExpr(1)->getTypeInfo().isComplexType())
 					return false;
 
-				if (subscriptType == Dyn)
+				if (subscriptType == Dyn || subscriptType == ArrayStatementBase::CustomObject)
 					return false;
 
 				if (SpanType::isSimdType(getSubExpr(0)->getTypeInfo()))
@@ -2648,17 +2850,16 @@ struct Operations::Subscript : public Expression,
 
 			auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(getTypeInfo()));
 
-			auto cType = getSubRegister(0)->getTypeInfo().getTypedIfComplexType<ComplexType>();
-
-			
-
-			FunctionData subscriptOperator;
-
-			if (cType != nullptr)
+			if (!subscriptOperator.isResolved())
 			{
-				if(FunctionClass::Ptr fc = cType->getFunctionClass())
+				auto cType = getSubRegister(0)->getTypeInfo().getTypedIfComplexType<ComplexType>();
+
+				if (cType != nullptr)
 				{
-					subscriptOperator = fc->getSpecialFunction(FunctionClass::Subscript, elementType,{ getSubRegister(0)->getTypeInfo(), getSubRegister(1)->getTypeInfo() });
+					if (FunctionClass::Ptr fc = cType->getFunctionClass())
+					{
+						subscriptOperator = fc->getSpecialFunction(FunctionClass::Subscript, elementType, { getSubRegister(0)->getTypeInfo(), getSubRegister(1)->getTypeInfo() });
+					}
 				}
 			}
 
@@ -2692,6 +2893,7 @@ struct Operations::Subscript : public Expression,
 	SpanType* spanType = nullptr;
 	DynType* dynType = nullptr;
 	TypeInfo elementType;
+	FunctionData subscriptOperator;
 };
 
 

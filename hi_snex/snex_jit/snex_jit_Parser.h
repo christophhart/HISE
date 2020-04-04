@@ -246,9 +246,7 @@ private:
 				Result r = Result::ok();
 
 				auto s = namespaceHandler.createTemplateInstantiation(nId, tp, r);
-
-				if (!r.wasOk())
-					location.throwError(r.getErrorMessage());
+				location.test(r);
 
 				currentTypeInfo = TypeInfo(s);
 				parseSubType();
@@ -293,7 +291,11 @@ private:
 
 				if (t.isValid() && t.isComplexType())
 				{
-					if (auto st = t.getComplexType()->createSubType(id))
+					SubTypeConstructData sd;
+					sd.id = id;
+					sd.handler = &namespaceHandler;
+
+					if (auto st = t.getComplexType()->createSubType(&sd))
 					{
 						currentTypeInfo = TypeInfo(st, currentTypeInfo.isConst(), currentTypeInfo.isRef());
 						return true;
@@ -322,7 +324,16 @@ private:
 			if (!parseNamespacedIdentifier())
 				location.throwError("funky");
 
-			if (auto subType = parentType.getComplexType()->createSubType(nId))
+			SubTypeConstructData sd;
+			sd.id = nId;
+			sd.handler = &namespaceHandler;
+			
+			if (currentType == JitTokens::lessThan)
+			{
+				sd.l = parseTemplateParameters();
+			}
+
+			if (auto subType = parentType.getComplexType()->createSubType(&sd))
 			{
 				currentTypeInfo = TypeInfo(subType, parentType.isConst(), parentType.isRef());
 			}

@@ -59,7 +59,7 @@ using namespace juce;
 	X(if_, "if")				X(else_, "else")	\
 	X(auto_, "auto")			X(struct_, "struct")	\
 	X(using_, "using")		    X(static_, "static")	X(break_, "break") X(continue_, "continue")			X(namespace_, "namespace") \
-	X(template_, "template")    X(typename_, "typename")
+	X(template_, "template")    X(typename_, "typename") X(while_, "while")
 
 namespace JitTokens
 {
@@ -194,6 +194,14 @@ struct ParserHelpers
 			skip(); 
 		}
 
+		TokenIterator(const juce::String& c) :
+			location(c.getCharPointer(), c.getCharPointer()),
+			p(c.getCharPointer()),
+			endPointer(c.getCharPointer() + c.length())
+		{
+			skip();
+		}
+
         virtual ~TokenIterator() {};
         
 		void seek(TokenIterator& other)
@@ -231,6 +239,12 @@ struct ParserHelpers
 				location.throwError("Found " + getTokenName(currentType) + " when expecting " + getTokenName(expected));
 
 			skip();
+		}
+
+		void skipWithoutWhitespace()
+		{
+			location.location = p;
+			currentType = matchNextToken();
 		}
 
 		bool isEOF() const { return currentType == JitTokens::eof; }
@@ -276,6 +290,64 @@ struct ParserHelpers
 		static bool isIdentifierStart(const juce_wchar c) noexcept { return CharacterFunctions::isLetter(c) || c == '_'; }
 		static bool isIdentifierBody(const juce_wchar c) noexcept { return CharacterFunctions::isLetterOrDigit(c) || c == '_'; }
 
+		StringArray parsePreprocessorParameterList()
+		{
+			match(JitTokens::openParen);
+
+			StringArray parameters;
+
+			while (!isEOF() && currentType != JitTokens::closeParen)
+			{
+				auto newP = parsePreprocessorParameter();
+				parameters.add(newP);
+				matchIf(JitTokens::comma);
+			}
+
+			match(JitTokens::closeParen);
+
+			return parameters;
+		}
+
+		String parsePreprocessorParameter()
+		{
+			juce::String s;
+
+			int numOpen = 0;
+
+			while (!isEOF())
+			{
+				auto breakAtEnd = false;
+
+				if (currentType == JitTokens::openParen)
+					numOpen++;
+				if (currentType == JitTokens::closeParen)
+				{
+					numOpen--;
+
+					if (numOpen == -1)
+						return s;
+
+					if (numOpen == 0)
+						breakAtEnd = true;
+				}
+				if (currentType == JitTokens::comma)
+				{
+					if (numOpen == 0)
+						return s;
+				}
+				
+				auto prev = location.location;
+				skip();
+				auto now = location.location;
+
+				s << juce::String(prev, now);
+
+				if (breakAtEnd)
+					return s;
+			}
+
+			return s;
+		}
 
 		void throwTokenMismatch(const char* expected)
 		{
@@ -347,6 +419,12 @@ struct ParserHelpers
 		{
 			if (p.compareUpTo(CharPointer_ASCII(name), (int)len) != 0) return false;
 			p += (int)len;  return true;
+		}
+
+		void throwIf(TokenType name)
+		{
+			if (currentType == name)
+				throwTokenMismatch(name);
 		}
 
 		void skipWhitespaceAndComments()

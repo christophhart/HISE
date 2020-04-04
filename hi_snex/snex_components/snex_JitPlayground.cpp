@@ -58,7 +58,8 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	compileButton("Compile"),
 	resumeButton("Resume"),
 	showTable("Table"),
-	runThread(*this)
+	runThread(*this),
+	conditionUpdater(*this)
 {
 	memory.addOptimization(OptimizationIds::ConstantFolding);
 	memory.addOptimization(OptimizationIds::DeadCodeElimination);
@@ -1137,6 +1138,16 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 				p.closeSubPath();
 			}
 		}
+	}
+
+	void SnexPlayground::PreprocessorUpdater::timerCallback()
+	{
+		snex::jit::Preprocessor pp(parent.doc.getAllContent());
+
+		lastRange = pp.getDeactivatedLines();
+
+		parent.repaint();
+		stopTimer();
 	}
 
 }

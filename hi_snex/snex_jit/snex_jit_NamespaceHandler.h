@@ -47,6 +47,7 @@ struct NamespaceHandler
 		Function,
 		Variable,
 		UsingAlias,
+		PreprocessorConstant,
 		Constant,
 		StaticFunctionClass,
 		TemplatedFunction,
@@ -159,6 +160,8 @@ public:
 		variadicTypes.add(p);
 	}
 
+	static bool isConstantSymbol(SymbolType t);
+
 	bool isTemplateTypeArgument(NamespacedIdentifier classId) const;
 
 	bool isTemplateConstantArgument(NamespacedIdentifier classId) const;
@@ -191,7 +194,7 @@ public:
 
 	ComplexType::Ptr createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
-	FunctionData createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
+	void createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
 	bool rootHasNamespace(const NamespacedIdentifier& id) const;
 

@@ -61,6 +61,8 @@ namespace Operations
 	using Location = ParserHelpers::CodeLocation;
 	using TokenType = ParserHelpers::TokenType;
 
+	
+
 	static juce::String toSyntaxTreeString(const ValueTree& v, int intLevel)
 	{
 		juce::String s;
@@ -373,6 +375,8 @@ namespace Operations
 		return dynamic_cast<const T*>(t) != nullptr;
 	}
 
+	TemplateParameter::List collectParametersFromParentClass(Statement::Ptr p, const TemplateParameter::List& instanceParameters);
+
 	template <class T> static T* findParentStatementOfType(Operations::Statement* e)
 	{
 		if (auto p = dynamic_cast<T*>(e))
@@ -395,7 +399,27 @@ namespace Operations
 		return nullptr;
 	}
 
-	
+
+	static void dumpSyntaxTreeRecursive(Statement::Ptr p, juce::String& s, int& intLevel)
+	{
+		s << Operations::toSyntaxTreeString(p->toValueTree(), intLevel);
+
+		intLevel++;
+
+		for (const auto& c : *p)
+			dumpSyntaxTreeRecursive(c, s, intLevel);
+
+		intLevel--;
+	}
+
+
+	static void dumpSyntaxTree(Statement::Ptr p)
+	{
+		juce::String s;
+		int level = 0;
+		dumpSyntaxTreeRecursive(p, s, level);
+		DBG(s);
+	}
 
 	static bool isOpAssignment(Expression::Ptr p);
 
@@ -416,6 +440,7 @@ namespace Operations
 	struct InlinedParameter;struct ComplexTypeDefinition;	struct ControlFlowStatement;
 	struct InlinedArgument; struct MemoryReference;			struct TemplateDefinition; 
 	struct TemplatedTypeDef; struct TemplatedFunction;		struct ThisPointer;
+	struct WhileLoop;
 
 	struct ScopeStatementBase
 	{
@@ -496,8 +521,6 @@ namespace Operations
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScopeStatementBase);
 	};
-
-	
 
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.

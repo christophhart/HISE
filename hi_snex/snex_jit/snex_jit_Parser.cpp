@@ -111,6 +111,8 @@ public:
 
 			auto d = (int*)newScope->pimpl->getRootData()->data.get();
 
+
+
 			executePass(DataAllocation, newScope->pimpl, sTree);
 			executePass(DataInitialisation, newScope->pimpl, sTree);
 			executePass(PreSymbolOptimization, newScope->pimpl, sTree);
@@ -118,6 +120,7 @@ public:
 			executePass(TypeCheck, newScope->pimpl, sTree);
 			executePass(SyntaxSugarReplacements, newScope->pimpl, sTree);
 			executePass(PostSymbolOptimization, newScope->pimpl, sTree);
+			
 			executePass(FunctionTemplateParsing, newScope->pimpl, sTree);
 			executePass(FunctionParsing, newScope->pimpl, sTree);
 
@@ -140,6 +143,8 @@ public:
 
 	JitCompiledFunctionClass* compileAndGetScope(const juce::String& code)
 	{
+		
+
 		ParserHelpers::CodeLocation loc(code.getCharPointer(), code.getCharPointer());
 
 		return compileAndGetScope(loc, code.length());
@@ -219,9 +224,6 @@ void NewClassParser::registerTemplateArguments(TemplateParameter::List& template
 		else
 		{
 			compiler->namespaceHandler.addSymbol(tp.argumentId, TypeInfo(Types::ID::Integer), NamespaceHandler::TemplateConstant);
-
-			if(tp.constantDefined)
-				compiler->namespaceHandler.addConstant(tp.argumentId, tp.constant);
 		}
 	}
 }
@@ -435,8 +437,12 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	{
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, s.id);
 
-		if(isTemplateFunction)
-			 registerTemplateArguments(as<TemplatedFunction>(newStatement)->templateParameters, s.id);
+		if (isTemplateFunction)
+		{
+			registerTemplateArguments(as<TemplatedFunction>(newStatement)->templateParameters, s.id);
+			templateArguments = as<TemplatedFunction>(newStatement)->templateParameters;
+		}
+			 
 
 		while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
 		{
@@ -535,7 +541,7 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 
 		match(JitTokens::semicolon);
 
-		auto tcs = new Operations::TemplateDefinition(location, classId, classTemplateArguments, list);
+		auto tcs = new Operations::TemplateDefinition(location, classId, compiler->namespaceHandler, list);
 
 		TemplateObject tc;
 		tc.id = classId;
@@ -865,7 +871,9 @@ juce::Array<snex::jit::TemplateParameter> TypeParser::parseTemplateParameters()
 
 				if (namespaceHandler.isTemplateConstantArgument(cId))
 				{
-					TemplateParameter tp(cId, 0, false);
+					TypeInfo tti(cId);
+
+					TemplateParameter tp(tti);
 					parameters.add(tp);
 
 					match(JitTokens::identifier);

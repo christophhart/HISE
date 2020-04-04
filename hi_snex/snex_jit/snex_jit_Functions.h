@@ -232,9 +232,13 @@ class NamespaceHandler;
 
 struct AssemblyMemory;
 
+struct SubTypeConstructData;
+
 struct ComplexType : public ReferenceCountedObject
 {
 	static int numInstances;
+
+	
 
 	struct InitData
 	{
@@ -322,7 +326,7 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual bool isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const;
 
-	virtual ComplexType::Ptr createSubType(const NamespacedIdentifier& id) { return nullptr; }
+	virtual ComplexType::Ptr createSubType(SubTypeConstructData* ) { return nullptr; }
 
 	int hash() const
 	{
@@ -716,6 +720,16 @@ struct TemplateParameter
 		return t.getTemplateId() == argumentId;
 	}
 
+	TemplateParameter withId(const NamespacedIdentifier& id) const
+	{
+		// only valid with parameters...
+		jassert(!isTemplateArgument());
+
+		auto c = *this;
+		c.argumentId = id;
+		return c;
+	}
+
 	bool isResolved() const
 	{
 		jassert(!isTemplateArgument());
@@ -728,36 +742,40 @@ struct TemplateParameter
 
 	using List = Array<TemplateParameter>;
 
-	static juce::String createParameterListString(const List& l);
+	
 
-	static List mergeList(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r);
-
-	static List mergeWithCallParameters(const List& existing, const TypeInfo::List& originalFunctionArguments, const TypeInfo::List& callParameterTypes, Result& r);
-
-	static bool isParameterList(const TemplateParameter::List& l)
+	struct ListOps
 	{
-		for (const auto& p : l)
-		{
-			if (!p.isTemplateArgument())
-				return true;
-		}
+		static juce::String toString(const List& l);
 
-		return false;
-	}
+		static List filter(const List& l, const NamespacedIdentifier& id);
 
-	static bool isArgumentList(const TemplateParameter::List& l)
-	{
-		for (const auto& p : l)
-		{
-			if (p.isTemplateArgument())
-			{
-				jassert(!isParameterList(l));
-				return true;
-			}
-		}
+		static List merge(const List& arguments, const List& parameters, juce::Result& r);
 
-		return false;
-	}
+		static List sort(const List& arguments, const List& parameters, juce::Result& r);
+
+		static List mergeWithCallParameters(const List& argumentList, const List& existing, const TypeInfo::List& originalFunctionArguments, const TypeInfo::List& callParameterTypes, Result& r);
+
+		static bool isParameter(const List& l);
+
+		static bool isArgument(const List& l);
+
+		static bool isArgumentOrEmpty(const List& l);
+
+		static bool match(const List& first, const List& second);
+
+		static bool isNamed(const List& l);
+
+		static bool readyToResolve(const List& l);
+	};
+
+	
+
+	
+
+	
+
+	
 
 	TypeInfo type;
 	int constant;
@@ -767,7 +785,13 @@ struct TemplateParameter
 };
 
 
-
+struct SubTypeConstructData
+{
+	NamespaceHandler* handler;
+	NamespacedIdentifier id;
+	TemplateParameter::List l;
+	Result r = Result::ok();
+};
 
 
 
@@ -1165,8 +1189,6 @@ private:
 		else
 			return ReturnType();
 	}
-
-
 };
 
 
@@ -1264,7 +1286,7 @@ struct TemplateObject
 	};
 
 	using ClassConstructor = std::function<ComplexType::Ptr(const ConstructData&)>;
-	using FunctionConstructor = std::function<FunctionData(const ConstructData&)>;
+	using FunctionConstructor = std::function<void(const ConstructData&)>;
 	using FunctionArgumentCollector = std::function<TypeInfo::List(void)>;
 
 	bool operator==(const TemplateObject& other) const
@@ -1279,8 +1301,15 @@ struct TemplateObject
 	TemplateParameter::List argList;
 };
 
+struct ComplexTypeWithTemplateParameters
+{
+	virtual ~ComplexTypeWithTemplateParameters() {};
 
-struct TemplatedComplexType : public ComplexType
+	virtual TemplateParameter::List getTemplateInstanceParameters() const = 0;
+};
+
+struct TemplatedComplexType : public ComplexType,
+						      public ComplexTypeWithTemplateParameters
 {
 	TemplatedComplexType(const TemplateObject& c_, const TemplateObject::ConstructData& d_) :
 		c(c_),
@@ -1289,68 +1318,7 @@ struct TemplatedComplexType : public ComplexType
 
 	}
 
-	ComplexType::Ptr createTemplatedInstance(const TemplateParameter::List& suppliedTemplateParameters, juce::Result& r)
-	{
-		TemplateParameter::List instanceParameters;
-
-		for (const auto& p : d.tp)
-		{
-			if (p.type.isTemplateType())
-			{
-				for (const auto& sp : suppliedTemplateParameters)
-				{
-					if (sp.argumentId == p.type.getTemplateId())
-					{
-						if (sp.t == TemplateParameter::ConstantInteger)
-						{
-							TemplateParameter ip(sp.constant);
-							ip.argumentId = sp.argumentId;
-							instanceParameters.add(ip);
-						}
-						else
-						{
-							TemplateParameter ip(sp.type);
-							ip.argumentId = sp.argumentId;
-							instanceParameters.add(ip);
-						}
-					}
-				}
-			}
-			else if (p.isTemplateArgument())
-			{
-				for (const auto& sp : suppliedTemplateParameters)
-				{
-					if (sp.argumentId == p.argumentId)
-					{
-						jassert(sp.isResolved());
-						TemplateParameter ip = sp;
-						instanceParameters.add(ip);
-					}
-				}
-			}
-			else
-			{
-				jassert(p.isResolved());
-				instanceParameters.add(p);
-			}
-		}
-
-		for (auto& p : instanceParameters)
-		{
-			jassert(p.isResolved());
-		}
-
-		TemplateObject::ConstructData instanceData = d;
-		instanceData.tp = instanceParameters;
-
-		instanceData.r = &r;
-
-		ComplexType::Ptr p = c.makeClassType(instanceData);
-
-
-
-		return p;
-	}
+	ComplexType::Ptr createTemplatedInstance(const TemplateParameter::List& suppliedTemplateParameters, juce::Result& r);
 
 	size_t getRequiredByteSize() const override { return 0; }
 
@@ -1362,7 +1330,7 @@ struct TemplatedComplexType : public ComplexType
 
 	InitialiserList::Ptr makeDefaultInitialiserList() const { return nullptr; }
 
-	ComplexType::Ptr createSubType(const NamespacedIdentifier& id) override;
+	ComplexType::Ptr createSubType(SubTypeConstructData* sd) override;
 
 	void registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 	{
@@ -1374,6 +1342,11 @@ struct TemplatedComplexType : public ComplexType
 	juce::String toStringInternal() const override
 	{
 		return "template " + c.id.toString();
+	}
+
+	TemplateParameter::List getTemplateInstanceParameters() const override
+	{
+		return d.tp;
 	}
 
 private:
@@ -1443,7 +1416,7 @@ struct FunctionClass: public DebugableObjectBase,
 		addMatchingFunctions(possibleMatches, id);
 	}
 
-	FunctionData getSpecialFunction(SpecialSymbols s, TypeInfo returnType, const TypeInfo::List& args) const;
+	FunctionData getSpecialFunction(SpecialSymbols s, TypeInfo returnType = {}, const TypeInfo::List& args = {}) const;
 
 	FunctionData getNonOverloadedFunction(NamespacedIdentifier id) const
 	{

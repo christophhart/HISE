@@ -127,7 +127,20 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 {
 	compileCount++;
 	lastCode = code;
-	return JitObject(compiler->compileAndGetScope(code));
+	
+	
+	try
+	{
+		Preprocessor p(lastCode);
+		preprocessedCode = p.process();
+	}
+	catch (juce::String& e)
+	{
+		compiler->lastResult = Result::fail(e);
+		return {};
+	}
+	
+	return JitObject(compiler->compileAndGetScope(preprocessedCode));
 }
 
 

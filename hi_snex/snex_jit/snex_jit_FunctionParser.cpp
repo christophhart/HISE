@@ -128,6 +128,8 @@ BlockParser::StatementPtr CodeParser::parseStatement()
 		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, true));
 	else if (matchIf(JitTokens::continue_))
 		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, false));
+	else if (matchIf(JitTokens::while_))
+		return parseWhileLoop();
 	else if (matchIf(JitTokens::for_))
 		return parseLoopStatement();
 
@@ -227,6 +229,21 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 	StatementPtr body = parseStatementToBlock();
 	
 	return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
+}
+
+snex::jit::BlockParser::StatementPtr CodeParser::parseWhileLoop()
+{
+	auto loc = location;
+
+	match(JitTokens::openParen);
+
+	ExprPtr cond = parseBool();
+
+	match(JitTokens::closeParen);
+
+	auto body = parseStatement();
+
+	return new Operations::WhileLoop(loc, cond, body);
 }
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseIfStatement()
@@ -641,7 +658,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 			templateParameters = parseTemplateParameters(false);
 		}
 
-		templateParameters = TemplateParameter::mergeList(f.templateParameters, templateParameters, r);
+		templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, templateParameters, r);
 		location.test(r);
 
 		if (auto il = f.inliner)
@@ -655,7 +672,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 				il->process(&rt);
 
-				f.templateParameters = TemplateParameter::mergeList(f.templateParameters, templateParameters, r);
+				f.templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, templateParameters, r);
 				location.test(r);
 			}
 
@@ -752,9 +769,9 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 				auto originalList = to.functionArgs();
 
-				templateParameters = TemplateParameter::mergeWithCallParameters(templateParameters, originalList, callParameters, r);
+				templateParameters = TemplateParameter::ListOps::mergeWithCallParameters(to.argList, templateParameters, originalList, callParameters, r);
 
-				templateParameters = TemplateParameter::mergeList(to.argList, templateParameters, r);
+				templateParameters = TemplateParameter::ListOps::merge(to.argList, templateParameters, r);
 				location.test(r);
 
 				f->function.templateParameters = templateParameters;

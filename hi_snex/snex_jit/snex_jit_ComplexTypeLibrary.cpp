@@ -49,12 +49,19 @@ bool SpanType::isSimdType(const TypeInfo& t)
 {
 	if (auto st = t.getTypedIfComplexType<SpanType>())
 	{
-		if (st->getElementType() == Types::ID::Float && st->getNumElements() == 4)
-		{
-			jassert(st->hasAlias());
-			jassert(st->toString() == "float4");
-			return true;
-		}
+		return st->isSimd();
+	}
+
+	return false;
+}
+
+bool SpanType::isSimd() const
+{
+	if (getElementType() == Types::ID::Float && getNumElements() == 4)
+	{
+		jassert(hasAlias());
+		jassert(toString() == "float4");
+		return true;
 	}
 
 	return false;
@@ -258,6 +265,11 @@ size_t SpanType::getRequiredByteSize() const
 
 size_t SpanType::getRequiredAlignment() const
 {
+	if (isSimd())
+	{
+		return 16;
+	}
+
 	return elementType.getRequiredAlignment();
 }
 
@@ -410,9 +422,10 @@ size_t SpanType::getElementSize() const
 		return elementType.getRequiredByteSize();
 }
 
-
-snex::jit::ComplexType::Ptr SpanType::createSubType(const NamespacedIdentifier& id)
+snex::jit::ComplexType::Ptr SpanType::createSubType(SubTypeConstructData* sd)
 {
+	auto id = sd->id;
+
 	if (id.getIdentifier() == Identifier("wrapped"))
 	{
 		return new Wrapped(TypeInfo(this));
@@ -844,8 +857,10 @@ juce::String DynType::toStringInternal() const
 	return w;
 }
 
-snex::jit::ComplexType::Ptr DynType::createSubType(const NamespacedIdentifier& id)
+snex::jit::ComplexType::Ptr DynType::createSubType(SubTypeConstructData* sd)
 {
+	auto id = sd->id;
+
 	if (id.getIdentifier() == Identifier("wrapped"))
 	{
 		return new Wrapped(TypeInfo(this));
@@ -1102,7 +1117,27 @@ juce::String StructType::toStringInternal() const
 {
 	juce::String s;
 
-	s << id.toString() << TemplateParameter::createParameterListString(templateParameters);
+
+	auto parts = id.getIdList();
+
+	NamespacedIdentifier current;
+
+	for (int i = 0; i < parts.size(); i++)
+	{
+		current = current.getChildId(parts[i]);
+
+		s << parts[i];
+
+		auto filtered = TemplateParameter::ListOps::filter(templateParameters, current);
+
+		if (!filtered.isEmpty())
+		{
+			s << TemplateParameter::ListOps::toString(filtered);
+		}
+
+		if (i != (parts.size() - 1))
+			s << "::";
+	}
 
 	return s;
 }
@@ -1317,6 +1352,37 @@ bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defa
 	return false;
 }
 
+snex::jit::ComplexType::Ptr StructType::createSubType(SubTypeConstructData* sd)
+{
+	
+
+	auto cId = sd->id;
+
+	if (cId.isExplicit())
+		cId = id.getChildId(cId.getIdentifier());
+
+	auto st = sd->handler->getSymbolType(cId);
+
+	if (st == NamespaceHandler::Struct || st == NamespaceHandler::TemplatedClass)
+	{
+		if (st == NamespaceHandler::Struct)
+		{
+			jassertfalse;
+			ComplexType::Ptr p = new StructType(cId, {});
+			p = sd->handler->registerComplexTypeOrReturnExisting(p);
+			return p;
+		}
+		else
+		{
+			TemplateParameter::List l = getTemplateInstanceParameters();
+			l.addArray(sd->l);
+			return sd->handler->createTemplateInstantiation(cId, l, sd->r);
+		}
+	}
+
+	return {};
+}
+
 bool StructType::hasMember(const Identifier& id) const
 {
 	for (auto m : memberData)
@@ -1459,13 +1525,13 @@ void StructType::addJitCompiledMemberFunction(const FunctionData& f)
 
 	jassert(f.function == nullptr);
 
-	if (TemplateParameter::isParameterList(f.templateParameters))
+	if (TemplateParameter::ListOps::isParameter(f.templateParameters))
 	{
 		for (auto& existing : memberFunctions)
 		{
 			if (existing.matchIdArgs(f))
 			{
-				if (TemplateParameter::isArgumentList(existing.templateParameters))
+				if (TemplateParameter::ListOps::isArgument(existing.templateParameters))
 				{
 					existing = f;
 					return;

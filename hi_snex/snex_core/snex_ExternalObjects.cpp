@@ -625,6 +625,10 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 			auto objCode = d->object->toString(Operations::Statement::TextFormat::CppCode);
 
 			code << "{" << nl;
+			code << "    auto& fd = " << channelCode << ".toFrameData();" << nl;
+			
+#if 0
+			code << "{" << nl;
 			code << "    auto& fd = interleave(" << channelCode << ".data);" << nl;
 			code << "    for(auto& f: fd)" << nl;
 			code << "    {" << nl;
@@ -632,7 +636,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 			code << "    }" << nl;
 			code << "    interleave(fd);" << nl;
 			code << "}";
-
+#endif
 
 
 			CodeParser p(compiler, code.getCharPointer(), code.getCharPointer(), code.length());
@@ -757,9 +761,11 @@ void SnexObjectDatabase::addVariadicGet(VariadicSubType* variadicType)
 
 void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventType)
 {
+	NamespacedIdentifier pId("ProcessData");
+
 	TemplateObject ptc;
 
-	NamespacedIdentifier pId("ProcessData");
+	
 	ptc.id = pId;
 	ptc.argList.add(TemplateParameter(pId.getChildId("NumChannels"), 0, false));
 
@@ -810,6 +816,229 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		pType->setDefaultValue("voiceIndex", vDefault);
 		pType->setDefaultValue("shouldReset", sDefault);
 
+		{
+			auto fId = pId.getChildId("FrameProcessor");
+			
+			auto ftp = c.tp;
+			ftp.getReference(0).argumentId = pId.getChildId("NumChannels");
+
+			ComplexType::Ptr frameClass = new StructType(fId, ftp);
+
+			frameClass = c.handler->registerComplexTypeOrReturnExisting(frameClass);
+
+			if (!frameClass->isFinalised())
+			{
+				auto fc = dynamic_cast<StructType*>(frameClass.get());
+
+
+				int numChannels = ftp[0].constant;
+				ComplexType::Ptr frameData = new SpanType(TypeInfo(Types::ID::Float), numChannels);
+				c.handler->registerComplexTypeOrReturnExisting(frameData);
+
+				ComplexType::Ptr channelData = new SpanType(TypeInfo(Types::ID::Pointer, true), numChannels);
+				c.handler->registerComplexTypeOrReturnExisting(channelData);
+
+				fc->addMember("channels", TypeInfo(channelData));
+				fc->addMember("frameData", TypeInfo(frameData));
+				fc->addMember("limit", TypeInfo(Types::ID::Integer));
+				fc->addMember("index", TypeInfo(Types::ID::Integer));
+
+				fc->setDefaultValue("index", InitialiserList::makeSingleList(-1));
+				fc->setDefaultValue("limit", InitialiserList::makeSingleList(0));
+
+				auto subId = fId.getChildId(FunctionClass::getSpecialSymbol(jit::FunctionClass::Subscript));
+
+				FunctionData subscript;
+				subscript.id = subId;
+				subscript.returnType = TypeInfo(Types::Float, false, true);
+				subscript.addArgs("index", TypeInfo(Types::ID::Dynamic));
+				subscript.inliner = Inliner::createAsmInliner(subId, [fc](InlineData* b)
+				{
+					auto d = b->toAsmInlineData();
+
+					auto offset = fc->getMemberOffset("frameData");
+
+					d->gen.emitSpanReference(d->target, d->args[0], d->args[1], sizeof(float), offset);
+					
+					return Result::ok();
+				});
+
+				fc->addJitCompiledMemberFunction(subscript);
+
+				auto nextFrame = FunctionData();
+				nextFrame.id = fId.getChildId("next");
+				nextFrame.returnType = TypeInfo(Types::ID::Integer);
+
+#define F(channels) if (numChannels == channels) nextFrame.function = ProcessDataFix<channels>::nextFrame;
+
+				F(1); F(2); F(3); F(4);
+				F(5); F(6); F(7); F(8);
+				F(9); F(10); F(11); F(12);
+				F(13); F(14); F(15); F(16);
+				
+#undef F
+				
+
+#if 0
+				nextFrame.inliner = Inliner::createAsmInliner(nextFrame.id, [fc, numChannels](InlineData* b)
+				{
+					auto d = b->toAsmInlineData();
+					auto& cc = d->gen.cc;
+					d->target->createRegister(cc);
+					auto retValue = INT_REG_W(d->target);
+
+					auto exit = cc.newLabel();
+					auto L2 = cc.newLabel();
+					auto L3 = cc.newLabel();
+					auto mem = d->object->getAsMemoryLocation();
+					auto frameOffset = fc->getMemberOffset("frameData");
+					
+					/* check first type
+					if (frameIndex == 0)
+					{
+						++frameIndex;
+						return frameLimit;
+					}
+					*/
+
+					cc.nop();
+
+					auto limitMem = mem.cloneAdjustedAndResized(fc->getMemberOffset("index"), 4);
+					auto limit = cc.newGpd();
+					cc.mov(limit, limitMem);
+					cc.test(limit, limit);
+					cc.jnz(L2);
+					cc.inc(limit);
+					cc.mov(limitMem, limit);
+					cc.mov(retValue, mem.cloneAdjustedAndResized(fc->getMemberOffset("limit"), 4));
+					cc.jmp(exit);
+					cc.bind(L2);
+
+					/* write last frame
+
+					for (int i = 0; i < NumChannels; i++)
+						parent.data[i][frameIndex - 1] = frameData[i];
+					*/
+
+					
+
+					for (int i = 0; i < numChannels; i++)
+					{
+						auto ptr = mem.cloneAdjustedAndResized(i * 8, 8);
+						auto dataPtr = cc.newGpq();
+						cc.mov(dataPtr, ptr);
+						cc.sub(dataPtr, 4);
+						auto dst = x86::dword_ptr(dataPtr);
+						auto src = mem.cloneAdjustedAndResized(frameOffset + i * 4, 4);
+						auto tmp = cc.newXmmSs();
+						cc.movss(tmp, src);
+						cc.movss(dst, tmp);
+					}
+
+					/*
+					auto ok = frameIndex < frameLimit;
+
+					if (ok == 0)
+						return ok;
+					*/
+
+					auto indexReg = cc.newGpd();
+					cc.mov(indexReg, mem.cloneAdjustedAndResized(fc->getMemberOffset("index"), 4));
+					cc.cmp(limitMem, indexReg);
+					cc.jb(L3);
+					cc.mov(retValue, 0);
+					cc.jmp(exit);
+					cc.bind(L3);
+
+					/*
+					for (int i = 0; i < NumChannels; i++)
+						frameData[i] = parent.data[i][frameIndex];
+
+					++frameIndex;
+					return 1;
+					*/
+
+					for (int i = 0; i < numChannels; i++)
+					{
+						auto ptr = mem.cloneAdjustedAndResized(i * 8, 8);
+						auto dataPtr = cc.newGpq();
+						cc.mov(dataPtr, ptr);
+						auto src = x86::dword_ptr(dataPtr);
+						auto dst = mem.cloneAdjustedAndResized(frameOffset + i * 4, 4);
+						auto tmp = cc.newXmmSs();
+						cc.movss(tmp, src);
+						cc.movss(dst, tmp);
+					}
+
+					cc.mov(retValue, 1);
+					cc.bind(exit);
+
+					return Result::ok();
+				});
+#endif
+
+				fc->addExternalMemberFunction(nextFrame);
+
+	
+
+				fc->finaliseExternalDefinition();
+
+				
+
+				auto toFrame = FunctionData();
+				toFrame.id = pId.getChildId("toFrameData");
+
+				toFrame.inliner = Inliner::createAsmInliner(toFrame.id, [numChannels, fc](InlineData* b)
+				{
+					auto d = b->toAsmInlineData();
+
+					auto& cc = d->gen.cc;
+
+					auto mem = cc.newStack(fc->getRequiredByteSize(), fc->getRequiredAlignment());
+
+					auto channelPtr = mem.cloneAdjustedAndResized(fc->getMemberOffset("channels"), 8);
+					auto limit = mem.cloneAdjustedAndResized(fc->getMemberOffset("limit"), 4);
+					auto index = mem.cloneAdjustedAndResized(fc->getMemberOffset("index"), 4);
+					auto dst = mem.cloneAdjustedAndResized(fc->getMemberOffset("frameData"), 4);
+
+					d->object->loadMemoryIntoRegister(cc);
+					auto src = PTR_REG_R(d->object);
+
+					for (int i = 0; i < numChannels; i++)
+					{
+						auto dynPtr = x86::qword_ptr(src).cloneAdjusted(8 + i * 16);
+						auto c = cc.newGpq();
+						cc.mov(c, dynPtr);
+						cc.mov(channelPtr.cloneAdjusted(8 * i), c);
+						auto d = cc.newXmmSs();
+						cc.movss(d, x86::dword_ptr(c));
+						cc.movss(dst.cloneAdjusted(i * 4), d);
+					}
+
+					{
+						auto tmp = cc.newGpd();
+						cc.mov(tmp, x86::ptr(src).cloneAdjustedAndResized(4, 4));
+						cc.mov(limit, tmp);
+					}
+
+					cc.mov(index, 0);
+
+					d->target->setCustomMemoryLocation(mem, false);
+
+					return Result::ok();
+				});
+
+				auto handler = c.handler;
+
+				toFrame.returnType = TypeInfo(frameClass, false, true);
+
+				pType->addJitCompiledMemberFunction(toFrame);
+			}
+				
+
+			
+		}
+
 		pType->finaliseExternalDefinition();
 
 		p = pType;
@@ -818,6 +1047,8 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 	};
 
 	c.addTemplateClass(ptc);
+
+	
 }
 
 snex::jit::ComplexType::Ptr PrepareSpecs::createComplexType(Compiler& c, const Identifier& id)
@@ -862,8 +1093,8 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 
 		NamespacedIdentifier pId("ProcessData");
 
-		TemplateParameter ct;
-		ct.constant = numChannels;
+		TemplateParameter ct(numChannels);
+
 		ct.argumentId = pId.getChildId("NumChannels");
 		f.addArgs("data", TypeInfo(c.getComplexType(pId, ct), false, true));
 		break;

@@ -908,17 +908,11 @@ public:
 
 	void runTest() override
 	{
-		
-		optimizations = { OptimizationIds::Inlining };
-		runTestFiles("nested_member_call");
+		runTestFiles("nested_endif");
 		return;
 		
-
 		testEvents();
-
 		testProcessData();
-
-		
 		testEvents();
 		
 		testOptimizations();

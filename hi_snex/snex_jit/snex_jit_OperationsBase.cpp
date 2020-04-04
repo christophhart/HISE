@@ -72,6 +72,39 @@ asmjit::Runtime* Operations::getRuntime(BaseCompiler* c)
 
 
 
+snex::jit::TemplateParameter::List Operations::collectParametersFromParentClass(Statement::Ptr p, const TemplateParameter::List& instanceParameters)
+{
+	TemplateParameter::List list;
+
+	if (auto fc = as<FunctionCall>(p))
+	{
+		if (auto p = fc->getObjectExpression())
+		{
+			if (auto st = p->getTypeInfo().getTypedIfComplexType<StructType>())
+			{
+				list.addArray(st->getTemplateInstanceParameters());
+			}
+		}
+	}
+	else if (auto td = as<TemplateDefinition>(p))
+	{
+		
+
+		
+	}
+	else
+	{
+		while (auto cs = findParentStatementOfType<ClassStatement>(p))
+		{
+			list.addArray(cs->getStructType()->getTemplateInstanceParameters());
+			p = cs->parent;
+		}
+	}
+
+	list.addArray(instanceParameters);
+	return list;
+}
+
 bool Operations::isOpAssignment(Expression::Ptr p)
 {
 	if (auto as = dynamic_cast<Assignment*>(p.get()))

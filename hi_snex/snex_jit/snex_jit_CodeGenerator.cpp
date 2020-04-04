@@ -540,12 +540,14 @@ void AsmCodeGenerator::emitLogicOp(Operations::BinaryOp* op)
 
 
 
-void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes)
+void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes, int additionalOffsetInBytes)
 {
 	jassert(index->getType() == Types::ID::Integer);
 
 	if (address->isSimd4Float() && !address->isMemoryLocation())
 	{
+		jassert(additionalOffsetInBytes == 0);
+
 		address->loadMemoryIntoRegister(cc);
 
 		jassert(target->getType() == Types::ID::Float);
@@ -680,6 +682,10 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 			p = x86::ptr(adToUse, indexReg, shift);
 	}
 
+	if (additionalOffsetInBytes != 0)
+	{
+		p = p.cloneAdjusted(additionalOffsetInBytes);
+	}
 
 	target->setCustomMemoryLocation(p, address->isGlobalMemory());
 
@@ -697,7 +703,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 	
 }
 
-void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
+void AsmCodeGenerator::emitCompare(bool useAsmFlags, OpType op, RegPtr target, RegPtr l, RegPtr r)
 {
 	ScopedTypeSetter st(*this, l->getType());
 
@@ -708,18 +714,22 @@ void AsmCodeGenerator::emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r)
 	{
 		INT_OP(cc.cmp, l, r);
 
+		if (!useAsmFlags)
+		{
+
 #define INT_COMPARE(token, command) if (op == token) command(INT_REG_W(target));
 
-		INT_COMPARE(JitTokens::greaterThan, cc.setg);
-		INT_COMPARE(JitTokens::lessThan, cc.setl);
-		INT_COMPARE(JitTokens::lessThanOrEqual, cc.setle);
-		INT_COMPARE(JitTokens::greaterThanOrEqual, cc.setge);
-		INT_COMPARE(JitTokens::equals, cc.sete);
-		INT_COMPARE(JitTokens::notEquals, cc.setne);
+			INT_COMPARE(JitTokens::greaterThan, cc.setg);
+			INT_COMPARE(JitTokens::lessThan, cc.setl);
+			INT_COMPARE(JitTokens::lessThanOrEqual, cc.setle);
+			INT_COMPARE(JitTokens::greaterThanOrEqual, cc.setge);
+			INT_COMPARE(JitTokens::equals, cc.sete);
+			INT_COMPARE(JitTokens::notEquals, cc.setne);
 
 #undef INT_COMPARE
 
-		cc.and_(INT_REG_W(target), 1);
+			cc.and_(INT_REG_W(target), 1);
+		}
 
 		return;
 	}

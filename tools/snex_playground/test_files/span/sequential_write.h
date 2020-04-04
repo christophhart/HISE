@@ -10,23 +10,22 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-span<int, 3> d = { 1, 2, 3};
+int z = 8;
+double v = 9.0;
+span<float, 3> d = { 1.0f, 2.0f, 3.0f};
 
 int main(int input)
 {
     {
 	    auto& s = d[0];
-	    s += 8;
+	    s += 8.0f;
     }
     
     
     {
         auto& s = d[0];
-        input += s;
+        input += (int)s;
     }
-    
-    
-    
     
     
 	

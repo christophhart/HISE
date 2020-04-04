@@ -91,7 +91,8 @@ struct IndexBase : public ComplexType
 	ComplexType::WeakPtr parentType;
 };
 
-struct ArrayTypeBase : public ComplexType
+struct ArrayTypeBase : public ComplexType,
+					   public ComplexTypeWithTemplateParameters
 {
 	virtual ~ArrayTypeBase() {}
 
@@ -156,14 +157,27 @@ struct SpanType : public ArrayTypeBase
 		return (allowSmallObjectOptimisation && size == 1) ? elementType.getRegisterType(allowSmallObjectOptimisation) : Types::ID::Pointer; 
 	};
 
+	TemplateParameter::List getTemplateInstanceParameters() const override
+	{
+		NamespacedIdentifier sId("span");
+		TemplateParameter::List l;
+
+		l.add(TemplateParameter(elementType).withId(sId.getChildId("DataType")));
+		l.add(TemplateParameter(getNumElements()).withId(sId.getChildId("NumElements")));
+
+		return l;
+	}
 
 	FunctionClass* getFunctionClass() override;
 	TypeInfo getElementType() const override;
 	int getNumElements() const;
 	static bool isSimdType(const TypeInfo& t);
+
+	bool isSimd() const;
+
 	size_t getElementSize() const;
 
-	ComplexType::Ptr createSubType(const NamespacedIdentifier& id) override;
+	ComplexType::Ptr createSubType(SubTypeConstructData* sd) override;
 
 private:
 
@@ -218,7 +232,15 @@ struct DynType : public ArrayTypeBase
 	bool forEach(const TypeFunction&, Ptr, void*) override { return false; }
 	juce::String toStringInternal() const override;
 
-	ComplexType::Ptr createSubType(const NamespacedIdentifier& id) override;
+	TemplateParameter::List getTemplateInstanceParameters() const override
+	{
+		TemplateParameter::List l;
+		auto dId = NamespacedIdentifier("dyn");
+		l.add(TemplateParameter(elementType).withId(dId.getChildId("DataType")));
+		return l;
+	}
+
+	ComplexType::Ptr createSubType(SubTypeConstructData* sd) override;
 
 	TypeInfo elementType;
 
@@ -227,7 +249,8 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DynType);
 };
 
-struct StructType : public ComplexType
+struct StructType : public ComplexType,
+					public ComplexTypeWithTemplateParameters
 {
 	StructType(const NamespacedIdentifier& s, const Array<TemplateParameter>& templateParameters = {});;
 
@@ -253,6 +276,8 @@ struct StructType : public ComplexType
 	void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
 
 	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList);
+
+	ComplexType::Ptr createSubType(SubTypeConstructData* sd) override;
 
 	bool hasMember(const Identifier& id) const;
 	TypeInfo getMemberTypeInfo(const Identifier& id) const;
@@ -336,6 +361,12 @@ struct StructType : public ComplexType
 		memberData.add(nm);
 	}
 
+	void addExternalMemberFunction(const FunctionData& data)
+	{
+		jassert(data.function != nullptr);
+		memberFunctions.add(data);
+	}
+
 	template <typename ReturnType, typename... Parameters>void addExternalMemberFunction(const Identifier& id, ReturnType(*ptr)(Parameters...))
 	{
 		FunctionData f = FunctionData::create(id, ptr, true);
@@ -344,7 +375,7 @@ struct StructType : public ComplexType
 		memberFunctions.add(f);
 	}
 
-	TemplateParameter::List getTemplateInstanceParameters() const
+	TemplateParameter::List getTemplateInstanceParameters() const 
 	{
 		return templateParameters;
 	}

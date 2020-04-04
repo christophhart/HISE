@@ -201,13 +201,13 @@ struct AsmCodeGenerator
 	
 	void emitLogicOp(Operations::BinaryOp* op);
 
-	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes);
+	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes, int additionalOffsetInBytes=0);
 
 	void emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex);
 
 	RegPtr emitBinaryOp(OpType op, RegPtr l, RegPtr r);
 
-	void emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r);
+	void emitCompare(bool useAsmFlags, OpType op, RegPtr target, RegPtr l, RegPtr r);
 
 	void emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr);
 

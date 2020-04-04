@@ -103,12 +103,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
-			if (auto st = as<SyntaxTree>(statements))
-			{
-				DBG("DUMPING SYNTAX TREE");
-				DBG(st->dump());
-			}
-
 			statements = nullptr;
 			functionScope = nullptr;
 
@@ -117,7 +111,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (!data.templateParameters.isEmpty())
 		{
-			TemplateParameterResolver resolver(data.templateParameters);
+			TemplateParameterResolver resolver(collectParametersFromParentClass(this,  data.templateParameters));
 			resolver.process(statements);
 		}
 	}
@@ -171,25 +165,31 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 						if (auto st = e->getTypeInfo().getTypedIfComplexType<StructType>())
 						{
-							d->target->forEachRecursive([st, e](Operations::Statement::Ptr p)
+							if (!as<ThisPointer>(e))
 							{
-								if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
+								d->target->forEachRecursive([st, e](Operations::Statement::Ptr p)
 								{
-									if (st->hasMember(v->id.id.getIdentifier()))
+									if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
 									{
-										auto newParent = e->clone(v->location);
-										auto newChild = v->clone(v->location);
+										auto canBeMember = st->id == v->id.id.getParent();
+										auto hasMember = canBeMember && st->hasMember(v->id.id.getIdentifier());
 
-										auto newDot = new Operations::DotOperator(v->location,
-											dynamic_cast<Operations::Expression*>(newParent.get()),
-											dynamic_cast<Operations::Expression*>(newChild.get()));
+										if (hasMember)
+										{
+											auto newParent = e->clone(v->location);
+											auto newChild = v->clone(v->location);
 
-										v->replaceInParent(newDot);
+											auto newDot = new Operations::DotOperator(v->location,
+												dynamic_cast<Operations::Expression*>(newParent.get()),
+												dynamic_cast<Operations::Expression*>(newChild.get()));
+
+											v->replaceInParent(newDot);
+										}
 									}
-								}
 
-								return false;
-							});
+									return false;
+								});
+							}
 						}
 					}
 
@@ -213,12 +213,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
-			if (auto st = as<SyntaxTree>(statements))
-			{
-				DBG("DUMPING SYNTAX TREE");
-				DBG(st->dump());
-			}
-
 			statements = nullptr;
 			functionScope = nullptr;
 
@@ -284,8 +278,23 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto& as = dynamic_cast<ClassCompiler*>(compiler)->assembly;
 
-		as << "; function " << data.getSignature() << "\n";
+		juce::String fName = data.getSignature();
+
+		if (auto cs = findParentStatementOfType<ClassStatement>(this))
+		{
+			if (auto st = cs->getStructType())
+			{
+				auto name = st->id.toString();
+				auto templated = st->toString();
+
+				fName = fName.replace(name, templated);
+			}
+		}
+
+		as << "; function " << fName << "\n";
 		as << l->data();
+
+
 
 		ch->setLogger(nullptr);
 		l = nullptr;
@@ -338,7 +347,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		// Should have been replaced by the resolver...
 		jassert(nSymbolType != NamespaceHandler::TemplateConstant);
 
-		if (nSymbolType == NamespaceHandler::Constant)
+		if (NamespaceHandler::isConstantSymbol(nSymbolType))
 		{
 			auto n = new Immediate(location, compiler->namespaceHandler.getConstantValue(id.id));
 			replaceInParent(n);
@@ -960,6 +969,16 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (auto vp = dynamic_cast<SymbolStatement*>(getDotChild().get()))
 		{
+			if (auto st = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<StructType>())
+			{
+				auto classId = st->id;
+				auto childId = vp->getSymbol();
+
+				// If this happens, the inliner shouldn't have replaced the variable
+				// with a dot operation...
+ 				jassert(childId.id.getParent() == classId);
+			}
+
 			if (compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType()))
 				reg = getSubRegister(0);
 			else
@@ -982,6 +1001,7 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		else
 		{
+			auto c = getDotChild();
 			jassertfalse;
 		}
 	}
@@ -1128,14 +1148,14 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		for (auto& f : possibleMatches)
 		{
-			if (TemplateParameter::isArgumentList(f.templateParameters))
+			if (TemplateParameter::ListOps::isArgument(f.templateParameters))
 			{
-				// Externally defined functions don't have a specialised instantiation, so we
+				// Externally defined functions don't have a specialized instantiation, so we
 				// need to resolve the template parameters here...
-				jassert(TemplateParameter::isParameterList(function.templateParameters));
+				jassert(TemplateParameter::ListOps::isParameter(function.templateParameters));
 
 				auto r = Result::ok();
-				f.templateParameters = TemplateParameter::mergeList(f.templateParameters, function.templateParameters, r);
+				f.templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, function.templateParameters, r);
 				location.test(r);
 			}
 
@@ -1407,6 +1427,17 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 {
 	bool ok = Statement::tryToResolveType(compiler);
 
+	if (function.returnType.isTemplateType())
+	{
+		if (TemplateParameter::ListOps::readyToResolve(function.templateParameters))
+		{
+			auto l = collectParametersFromParentClass(this, function.templateParameters);
+
+			TemplateParameterResolver resolver(l);
+			auto r = resolver.process(function);
+			location.test(r);
+		}
+	}
 
 	if (function.returnType.isDynamic())
 	{
@@ -1473,15 +1504,17 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 
 	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 	{
-		// Must be resolved by now...
-		jassert(type.getTypedComplexType<TemplatedComplexType>() == nullptr);
+		if (auto tcd = type.getTypedComplexType<TemplatedComplexType>())
+		{
+			jassertfalse;
+		}
 
 		if (type.isComplexType())
 			type.getComplexType()->finaliseAlignment();
 	}
 	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
 	{
-		if (!isStackDefinition(scope))
+		if (!isStackDefinition(scope) && scope->getRootClassScope() == scope)
 			scope->getRootData()->enlargeAllocatedSize(type);
 	}
 	COMPILER_PASS(BaseCompiler::DataAllocation)
@@ -1493,7 +1526,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 				if (scope->getScopeForSymbol(s.id) != scope)
 					jassertfalse;
 			}
-			else
+			else if (scope->getRootClassScope() == scope)
 				scope->getRootData()->allocate(scope, s);
 		}
 	}
@@ -1680,7 +1713,9 @@ void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scop
 	
 
 	if (subClass == nullptr)
+	{
 		subClass = new ClassScope(scope, getStructType()->id, classType);
+	}
 
 	processBaseWithChildren(compiler, subClass);
 
@@ -1730,25 +1765,26 @@ void Operations::ThisPointer::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		DBG(findParentStatementOfType<SyntaxTree>(this)->dump());
+		auto fScope = scope->getParentScopeOfType<FunctionScope>();
+
+		jassert(fScope != nullptr);
+
+		Symbol thisSymbol(NamespacedIdentifier("this"), getTypeInfo());
+
+		if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(this, thisSymbol))
+			reg = ie->getSubRegister(0);
+		else if (auto f = dynamic_cast<Function*>(fScope->parentFunction))
+			reg = f->objectPtr;
+		else
+			location.throwError("can't resolve this pointer");
+		
+		auto objType = compiler->getRegisterType(reg->getTypeInfo());
+		auto thisType = compiler->getRegisterType(getTypeInfo());
+		jassert(objType == thisType);
 
 		// Fix inlining:
 		// the scope will fuck up the object pointer of the function
-		// check the object pointer from the inlined function (arg is -1)
-		jassertfalse;
-
-		
-
-		if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
-		{
-			if (auto f = dynamic_cast<Function*>(fScope->parentFunction))
-			{
-				auto objReg = f->objectPtr;
-
-				jassert(objReg->getTypeInfo() == getTypeInfo());
-				reg = objReg;
-			}
-		}
+		// check the object pointer from the inlined function (arg is -1)		
 	}
 }
 

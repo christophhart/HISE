@@ -398,10 +398,10 @@ template <class T, int MaxSize> struct span
 
 	static constexpr int alignment()
 	{
-		if (MaxSize * sizeof(T) > 16)
-			return 16;
+		if (MaxSize < 4)
+			return sizeof(T);
 		else
-			return MaxSize * sizeof(T);
+			return 16;
 	}
 
 	alignas(alignment()) T data[MaxSize];
@@ -421,6 +421,23 @@ template <class T> struct dyn
 		wrapped(int v) : value(v) {};
 		wrapped& operator=(int v) { value = v; return *this; }
 
+		wrapped moved(int delta) const
+		{
+			wrapped t;
+			t.value = value + delta;
+			return t;
+		}
+
+		bool valid(dyn<T>& obj) const
+		{
+			return get(obj) == value;
+		}
+
+		int operator++()
+		{
+			return value++;
+		}
+
 		int get(const dyn<T>& obj) const
 		{
 			auto i = value % obj.size();
@@ -437,12 +454,22 @@ template <class T> struct dyn
 		zeroed(int v) : value(v) {};
 		zeroed& operator=(int v) { value = v; return *this; }
 
+		bool valid(dyn<T>& obj) const
+		{
+			return get(obj) == value;
+		}
+
 		int get(const dyn<T>& obj) const
 		{
 			if (isPositiveAndBelow(value, obj.size()))
 				return value;
 
 			return 0;
+		}
+
+		int operator++()
+		{
+			return value++;
 		}
 
 		int value = 0;
@@ -456,9 +483,19 @@ template <class T> struct dyn
 		clamped(int v) : value(v) {};
 		clamped& operator=(int v) { value = v; return *this; }
 
+		bool valid(dyn<T>& obj) const
+		{
+			return get(obj) == value;
+		}
+
 		int get(const dyn<T>& obj) const
 		{
 			return jlimit(0, obj.size(), value);
+		}
+
+		int operator++()
+		{
+			return value++;
 		}
 
 		int value = 0;
@@ -472,9 +509,19 @@ template <class T> struct dyn
 		unsafe(int v) : value(v) {};
 		unsafe& operator=(int v) { value = v; return *this; }
 
+		bool valid(dyn<T>& obj) const
+		{
+			return get(obj) == value;
+		}
+
 		int get(const dyn<T>& obj) const
 		{
 			return value;
+		}
+
+		int operator++()
+		{
+			return value++;
 		}
 
 		int value = 0;
@@ -563,6 +610,11 @@ template <class T> struct dyn
 	const T& operator[](int index) const
 	{
 		return data[index];
+	}
+
+	template <class T> bool valid(T& t)
+	{
+		return t.valid(*this);
 	}
 
 	T& operator[](int index)

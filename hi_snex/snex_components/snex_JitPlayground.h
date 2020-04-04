@@ -425,6 +425,37 @@ class SnexPlayground : public Component,
 {
 public:
 
+	struct PreprocessorUpdater: public Timer,
+								public CodeDocument::Listener
+	{
+		PreprocessorUpdater(SnexPlayground& parent_):
+			parent(parent_)
+		{
+			parent.doc.addListener(this);
+		}
+
+		void timerCallback() override;
+
+		void codeDocumentTextInserted(const juce::String&, int) override
+		{
+			startTimer(500);
+		}
+
+		void codeDocumentTextDeleted(int, int) override
+		{
+			startTimer(500);
+		}
+
+		~PreprocessorUpdater()
+		{
+			parent.doc.removeListener(this);
+		}
+
+		SparseSet<int> lastRange;
+
+		SnexPlayground& parent;
+	};
+
 	ValueTree createApiTree() override 
 	{ 
 		return cData.obj.createValueTree();
@@ -465,26 +496,47 @@ public:
 		console.scrollToLine(lineToShow);
 	}
 
+	void fillLine(Graphics& g, int lineToPaint, Colour c)
+	{
+		int firstLine = editor.getFirstLineOnScreen();
+		int lastLine = firstLine + editor.getNumLinesOnScreen();
+
+		if (lineToPaint >= firstLine && lineToPaint <= lastLine)
+		{
+			auto lineHeight = editor.getLineHeight();
+			auto b = editor.getLocalBounds();
+
+			int x = editor.getGutterComponent()->getWidth();
+			int y = lineHeight * (lineToPaint - firstLine - 1);
+			int w = editor.getWidth();
+			int h = lineHeight;
+
+			g.setColour(c);
+			g.fillRect(x, y, w, h);
+		}
+	}
+
 	void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) override
 	{
+		auto disabledRows = conditionUpdater.lastRange;
+
+		if (!disabledRows.isEmpty())
+		{
+			auto total = disabledRows.getTotalRange();
+
+			for (int i = total.getStart(); i < total.getEnd(); i++)
+			{
+				if (disabledRows.contains(i))
+				{
+					fillLine(g, i, Colour(0x8838383A));
+				}
+			}
+			
+		}
+
 		if (currentBreakpointLine > 0)
 		{
-			int firstLine = editor.getFirstLineOnScreen();
-			int lastLine = firstLine + editor.getNumLinesOnScreen();
-
-			if (currentBreakpointLine >= firstLine && currentBreakpointLine <= lastLine)
-			{
-				auto lineHeight = editor.getLineHeight();
-				auto b = editor.getLocalBounds();
-
-				int x = 0;
-				int y = lineHeight * (currentBreakpointLine - firstLine - 1);
-				int w = editor.getWidth();
-				int h = lineHeight;
-
-				g.setColour(Colours::red.withAlpha(0.1f));
-				g.fillRect( x, y, w, h );
-			}
+			fillLine(g, currentBreakpointLine, Colours::red.withAlpha(0.1f));
 		}
 	}
 
@@ -709,6 +761,9 @@ private:
 	Value externalCodeValue;
 
 	CodeDocument doc;
+
+	PreprocessorUpdater conditionUpdater;
+
 	AudioSampleBuffer b;
 	Graph graph;
 	
