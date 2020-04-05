@@ -108,7 +108,7 @@ void Arpeggiator::onInit()
 
 	numStepSlider->set("text", "Num Steps");
 	numStepSlider->set("min", 1);
-	numStepSlider->set("max", 32);
+	numStepSlider->set("max", 128);
 	numStepSlider->set("stepSize", "1");
 	numStepSlider->set("defaultValue", "4");
 
@@ -117,7 +117,7 @@ void Arpeggiator::onInit()
 	stepReset = Content.addKnob("StepReset", 10, 170);
 
 	stepReset->set("text", "Step Reset");
-	stepReset->set("max", 32);
+	stepReset->set("max", 128);
 	stepReset->set("stepSize", "1");
 
 	parameterNames.add("StepReset");
@@ -411,7 +411,7 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 {
 	if (c == numStepSlider)
 	{
-		int newNumber = jlimit<int>(1, 32, (int)value);
+		int newNumber = jlimit<int>(1, 128, (int)value);
 
 		lengthSliderPack->set("sliderAmount", newNumber);
 		velocitySliderPack->set("sliderAmount", newNumber);
