@@ -3548,7 +3548,6 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	setDefaultValue(ScriptComponent::Properties::width, 200);
 	setDefaultValue(ScriptComponent::Properties::height, 100);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
-	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Properties::updateAfterInit, true);
 	setDefaultValue(Properties::ContentType, EmptyComponent::getPanelId().toString());
 	setDefaultValue(Properties::Font, "Default");
