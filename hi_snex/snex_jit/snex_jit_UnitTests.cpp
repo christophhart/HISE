@@ -329,7 +329,11 @@ public:
 		p = p.getParentDirectory();
 		p = p.getParentDirectory();
 #else
-		jassertfalse;
+        p = p.getParentDirectory();
+        p = p.getParentDirectory();
+        p = p.getParentDirectory();
+        p = p.getParentDirectory();
+        p = p.getParentDirectory();
 #endif
 
 		return p.getChildFile("test_files");
@@ -908,8 +912,6 @@ public:
 
 	void runTest() override
 	{
-		runTestFiles("nested_endif");
-		return;
 		
 		testEvents();
 		testProcessData();
@@ -1043,9 +1045,13 @@ public:
 
 		for (auto f : fileList)
 		{
+
+            
 			if (soloTest.isNotEmpty() && f.getFileName() != soloTest)
 				continue;
 
+            DBG(f.getFileName());
+            
 			int numInstances = ComplexType::numInstances;
 
 			{
@@ -1160,7 +1166,7 @@ private:
 		s.trim();
 	}
 
-	void expectedEqualSyntaxTree(juce::String& firstTree, juce::String& secondTree, const juce::String& errorMessage)
+	void expectedEqualSyntaxTree(juce::String firstTree, juce::String secondTree, const juce::String& errorMessage)
 	{
 		trimNoopFromSyntaxTree(firstTree);
 		trimNoopFromSyntaxTree(secondTree);
@@ -1220,6 +1226,7 @@ private:
 			c.compileJitObject(code);
 			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
 
+            
 			expectedEqualSyntaxTree(firstTree, c.dumpSyntaxTree(), "added false branch");
 		}
 		
@@ -2775,7 +2782,7 @@ private:
 
 		auto f = test->func["test"];
 		
-		f.callVoid(bl);
+		f.callVoid(&bl);
 
 		for (int i = 0; i < bl.size(); i++)
 		{
@@ -3393,9 +3400,10 @@ private:
 
 		ScopedPointer<HiseJITTestCase<float>> test;
 
-		
 
-		CREATE_TEST("struct X { struct Y { int u = 8; float v = 12.0f; float getV() { return v; }}; Y y; }; X x; float test(float input){ return x.y.getV() + input;");
+        
+
+		CREATE_TEST("struct X { struct Y { int u = 8; int v = 12; int getV() { return v; }}; Y y; }; X x; float test(float input){ return x.y.getV() + input;");
 
 		EXPECT("inner struct member call", 8.0f, 20.0f);
 

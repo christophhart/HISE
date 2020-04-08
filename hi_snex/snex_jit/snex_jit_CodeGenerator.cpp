@@ -143,7 +143,7 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 				cc.shufps(v, v, 0);
 
 				if (target->hasCustomMemoryLocation())
-					cc.movaps(target->getAsMemoryLocation(), v);
+					cc.movaps(target->getMemoryLocationForReference(), v);
 				else
 					cc.movaps(FP_REG_W(target), v);
 			}
@@ -347,6 +347,8 @@ void AsmCodeGenerator::emitComplexTypeCopy(RegPtr target, RegPtr source, Complex
 
 }
 
+    
+    
 void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, VariableStorage memberOffset)
 {
 	jassert(memberOffset.getType() == Types::ID::Integer);
@@ -357,13 +359,11 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 
 	if (parent->isMemoryLocation())
 	{
-		
-		auto ptr = parent->getAsMemoryLocation();
-		target->setCustomMemoryLocation(ptr.cloneAdjustedAndResized(memberOffset.toInt(), byteSize), true);
+        auto p = createValid64BitPointer(cc, parent->getAsMemoryLocation(), memberOffset.toInt(), byteSize);
+        target->setCustomMemoryLocation(p, true);
 	}
 	else
 	{
-
 		int byteSize = target->getTypeInfo().getRequiredByteSize();
 		auto ptr = x86::ptr(INT_REG_R(parent), memberOffset.toInt());
 		target->setCustomMemoryLocation(ptr.cloneResized(byteSize), true);
@@ -473,7 +473,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 		FLOAT_BINARY_OP(JitTokens::divide, cc.divss, cc.divsd);
 	}
 	
-	if (l->getTypeInfo().isRef() && l->hasCustomMemoryLocation())
+	if (l->getTypeInfo().isRef() || l->hasCustomMemoryLocation())
 	{
 		auto target = l->getMemoryLocationForReference();
 		
@@ -486,7 +486,8 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 			cc.movaps(target, FP_REG_R(l));
 		}
 		
-		l->setUndirty();
+        if(l->isDirtyGlobalMemory())
+            l->setUndirty();
 	}
 
 	return l;
@@ -650,8 +651,13 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 			ptr = x86::ptr(b_);
 		}
 
+
+        
+        
 		if (index->isMemoryLocation())
-			p = ptr.cloneAdjusted(imm2ptr(INT_IMM(index) * elementSizeInBytes));
+        {
+            p = ptr.cloneAdjustedAndResized(imm2ptr(INT_IMM(index) * elementSizeInBytes), elementSizeInBytes);
+        }
 		else
 		{
 			// for some reason uint64_t base + index reg doesn't create a 64bit address...
@@ -689,18 +695,28 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 
 	target->setCustomMemoryLocation(p, address->isGlobalMemory());
 
-#if 0
 	if (type == Types::ID::Pointer)
 	{
 
-		target->createRegister(cc);
-		cc.lea(INT_REG_W(target), p);
+        if(target->isSimd4Float())
+        {
+            target->createRegister(cc);
+            cc.movaps(FP_REG_W(target), p);
+        }
+        else
+        {
+            target->createRegister(cc);
+            cc.lea(INT_REG_W(target), p);
+        }
+        
+		
 	}
 	else
-		target->setCustomMemoryLocation(p, address->isGlobalMemory());
-#endif
+    {
+        target->setCustomMemoryLocation(p, address->isGlobalMemory());
+    }
 
-	
+
 }
 
 void AsmCodeGenerator::emitCompare(bool useAsmFlags, OpType op, RegPtr target, RegPtr l, RegPtr r)
@@ -1548,71 +1564,116 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	jassert(typePtr != nullptr);
 	jassert(iterator.typeInfo == typePtr->getElementType());
 
+
+    
 	int numLoops = typePtr->getNumElements();
-	
-	AsmCodeGenerator::TemporaryRegister start(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
-	AsmCodeGenerator::TemporaryRegister end(gen, loopTarget->getScope(), loopTarget->getTypeInfo());
+
 
 	auto& cc = gen.cc;
+    
+    
+    auto start = cc.newGpq();
+    auto end = cc.newGpq();
 
 	auto offset = typePtr->getElementSize() * (typePtr->getNumElements());
 
-	if (loopTarget->isMemoryLocation())
-		cc.lea(start.get(), loopTarget->getAsMemoryLocation());
-	else
-		cc.mov(start.get(), PTR_REG_R(loopTarget));
-	
-	cc.lea(end.get(), x86::ptr(start.get(), offset));
+    if(loopTarget->isSimd4Float())
+    {
+        auto ptr = loopTarget->getMemoryLocationForReference();
+        
+        int e = 0;
+        
+        
+        if(!ptr.hasBaseReg())
+        {
+            int64_t startOffset = ptr.offset();
+            int64_t endOffset = startOffset + offset;
+            e = cc.mov(start, startOffset);
+        
+            e = cc.mov(end, endOffset);
+        }
+        else
+        {
+            auto startMem = AsmCodeGenerator::createValid64BitPointer(cc, ptr, 0, typePtr->getElementSize());
+            auto endMem = AsmCodeGenerator::createValid64BitPointer(cc, ptr, offset, typePtr->getElementSize());
+            
+            cc.lea(start, startMem);
+            cc.lea(end, endMem);
 
+        }
+        
+        jassert(e == 0);
+    }
+    else
+    {
+        if (loopTarget->isMemoryLocation())
+            cc.lea(start, loopTarget->getAsMemoryLocation());
+        else
+            cc.mov(start, PTR_REG_R(loopTarget));
+        
+        cc.lea(end, x86::ptr(start, offset));
+    }
+    
 	auto loopStart = cc.newLabel();
 	continuePoint = cc.newLabel();
 	loopEnd = cc.newLabel();
 	auto itScope = loopBody->blockScope.get();
 
 	auto itReg = compiler->registerPool.getRegisterForVariable(itScope, iterator);
-	itReg->createRegister(cc);
+
 	itReg->setIsIteratorRegister(true);
 
 	cc.setInlineComment("loop_span {");
 	cc.bind(loopStart);
 
+    itReg->setCustomMemoryLocation(x86::ptr(start), false);
+
 	if (loadIterator)
 	{
-		IF_(int)    cc.mov(INT_REG_W(itReg), x86::ptr(start.get()));
-		IF_(float)  cc.movss(FP_REG_W(itReg), x86::ptr(start.get()));
-		IF_(double) cc.movsd(FP_REG_W(itReg), x86::ptr(start.get()));
+        itReg->loadMemoryIntoRegister(cc);
+        
+#if 0
+		IF_(int)    cc.mov(INT_REG_W(itReg), x86::dword_ptr(start));
+		IF_(float)  cc.movss(FP_REG_W(itReg), x86::dword_ptr(start));
+		IF_(double) cc.movsd(FP_REG_W(itReg), x86::qword_ptr(start));
 		IF_(void*)
 		{
 			if (itReg->isSimd4Float())
-				cc.movaps(FP_REG_W(itReg), x86::ptr(start.get()));
+				cc.movaps(FP_REG_W(itReg), x86::ptr(start));
 			else
-				cc.mov(PTR_REG_W(itReg), start.get());
+				cc.mov(PTR_REG_W(itReg), start);
 		}
+#endif
+
 	}
 
 	itReg->setUndirty();
 
 	loopBody->process(compiler, scope);
 
+
+    
 	cc.bind(continuePoint);
 
 	if (itReg->isDirtyGlobalMemory())
 	{
-		IF_(int)    cc.mov(x86::ptr(start.get()), INT_REG_R(itReg));
-		IF_(float)  cc.movss(x86::ptr(start.get()), FP_REG_R(itReg));
-		IF_(double) cc.movsd(x86::ptr(start.get()), FP_REG_R(itReg));
+		IF_(int)    cc.mov(x86::ptr(start), INT_REG_R(itReg));
+		IF_(float)  cc.movss(x86::ptr(start), FP_REG_R(itReg));
+		IF_(double) cc.movsd(x86::ptr(start), FP_REG_R(itReg));
 		IF_(void*)
 		{
 			if (itReg->isSimd4Float())
-				cc.movaps(x86::ptr(start.get()), FP_REG_R(itReg));
+				cc.movaps(x86::ptr(start), FP_REG_R(itReg));
 			else
 				jassertfalse; // cc.mov(x86::ptr(INT_REG_R(loopTarget), INT_REG_W(itReg));
 		}
 		// no storing needed for pointer iterators...
 	}
 
-	cc.add(start.get(), (int64_t)typePtr->getElementSize());
-	cc.cmp(start.get(), end.get());
+
+    
+	cc.add(start, (int64_t)typePtr->getElementSize());
+	cc.cmp(start, end);
 	cc.setInlineComment("loop_span }");
 	cc.jne(loopStart);
 
@@ -1620,6 +1681,7 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 
 	itReg->setUndirty();
 	itReg->flagForReuse(true);
+    
 }
 
 
@@ -1712,6 +1774,7 @@ void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Bas
 
 	itReg->setUndirty();
 	itReg->flagForReuse(true);
+    
 }
 
 }

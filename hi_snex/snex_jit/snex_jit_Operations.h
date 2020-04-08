@@ -594,7 +594,7 @@ struct Operations::VariableReference : public Expression,
 
 		int numReferences = 0;
 
-		if (auto v = w.getNextStatementOfType<VariableReference>())
+		while(auto v = w.getNextStatementOfType<VariableReference>())
 		{
 			if (v->id == id)
 				numReferences++;
@@ -880,6 +880,17 @@ struct Operations::Assignment : public Expression,
 		return dynamic_cast<VariableReference*>(v);
 	}
 
+    bool loadDataBeforeAssignment() const
+    {
+        if(assignmentType != JitTokens::assign_)
+            return true;
+        
+        if(overloadedAssignOperator.isResolved())
+            return true;
+        
+        return false;
+    }
+    
 	DotOperator* getMemberTarget() const
 	{
 		jassert(getTargetType() == TargetType::ClassMember);
@@ -1310,10 +1321,19 @@ struct Operations::MemoryReference : public Expression
 			if (baseReg->isMemoryLocation())
 				ptr = baseReg->getAsMemoryLocation().cloneAdjustedAndResized(offsetInBytes, 8);
 			else if (baseReg->isGlobalVariableRegister())
-				ptr = x86::qword_ptr(reinterpret_cast<uint64_t>(baseReg->getGlobalDataPointer()) + offsetInBytes);
+            {
+                auto acg = CREATE_ASM_COMPILER(Types::ID::Pointer);
+                auto b_ = acg.cc.newGpq();
+                
+                acg.cc.mov(b_, reinterpret_cast<int64_t>(baseReg->getGlobalDataPointer()) + (int64_t)offsetInBytes);
+                
+				ptr = x86::qword_ptr(b_);
+            }
 			else
 				ptr = x86::ptr(PTR_REG_W(baseReg)).cloneAdjustedAndResized(offsetInBytes, 8);
 
+            
+            
 			reg->setCustomMemoryLocation(ptr, true);
 
 			reg = compiler->registerPool.getRegisterWithMemory(reg);
@@ -2769,7 +2789,7 @@ struct Operations::Subscript : public Expression,
 			}
 			else if (!getSubExpr(1)->isConstExpr())
 			{
-				throwError("Can't use non-constant or non-wrapped index");
+                throwError("Can't use non-constant or non-wrapped index");
 			}
 			
 			if (spanType != nullptr)

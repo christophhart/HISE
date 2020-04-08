@@ -590,6 +590,9 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				reg = compiler->registerPool.getNextFreeRegister(scope, regType);
 				reg->setDataPointer(objectAdress.getDataPointer());
 				reg->createMemoryLocation(asg.cc);
+                
+
+                
 				return;
 			}
 			else
@@ -626,7 +629,10 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				{
 					reg->setDataPointer(dataPointer);
 
-					if (assignmentType != JitTokens::assign_)
+                    auto ass = findParentStatementOfType<Assignment>(this);
+                    
+                    
+                    if (assignmentType != JitTokens::assign_ || ass == nullptr || ass->loadDataBeforeAssignment())
 						reg->loadMemoryIntoRegister(asg.cc);
 					else
 						reg->createRegister(asg.cc);
@@ -636,8 +642,14 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 					reg->setDataPointer(dataPointer);
 					reg->createMemoryLocation(asg.cc);
 
+                    if(reg->getType() == Types::ID::Pointer)
+                        reg->loadMemoryIntoRegister(asg.cc);
+                    
+                    
+#if 0
 					if (!isReferencedOnce())
 						reg->loadMemoryIntoRegister(asg.cc);
+#endif
 				}
 			}
 		}

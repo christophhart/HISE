@@ -525,14 +525,19 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 		if (auto st = valueType.getTypedIfComplexType<SpanType>())
 		{
-			if (thisObj->isGlobalVariableRegister())
-				thisObj->createMemoryLocation(cc);
+			
 
 			value->loadMemoryIntoRegister(cc);
 
+            
+            
+            if (thisObj->isGlobalVariableRegister())
+                thisObj->loadMemoryIntoRegister(cc);
+            
 			auto size = (int)st->getNumElements();
 
 			X86Mem ptr;
+
 
 			if (thisObj->isMemoryLocation())
 				ptr = thisObj->getAsMemoryLocation();

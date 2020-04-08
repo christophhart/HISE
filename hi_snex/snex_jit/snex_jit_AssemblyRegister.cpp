@@ -55,7 +55,7 @@ bool AssemblyRegister::matchesMemoryLocation(Ptr other) const
 
 	if (typeMatch && bothAreMemory)
 	{
-		auto m = other->getAsMemoryLocation();
+        auto m = other->getMemoryLocationForReference();
 		return m == memory;
 	}
 
@@ -64,7 +64,7 @@ bool AssemblyRegister::matchesMemoryLocation(Ptr other) const
 
 bool AssemblyRegister::isGlobalMemory() const
 {
-	return (hasCustomMem && globalMemory) || isGlobalVariableRegister() || id.isReference();
+    return (hasCustomMem && globalMemory) || isGlobalVariableRegister();// || id.isReference();
 }
 
 bool AssemblyRegister::shouldLoadMemoryIntoRegister() const
@@ -204,8 +204,11 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 		if (!isIter && (sToUse->getRootClassScope() == sToUse || id.isReference()))
 		{
-			dirty = true;
-			state = DirtyGlobalRegister;
+            if(memoryLocation != nullptr)
+            {
+                dirty = true;
+                state = DirtyGlobalRegister;
+            }
 		}
 		else if (scopeType == BaseScope::Global)
 			throw juce::String("can't write to global variables");
@@ -283,8 +286,10 @@ void AssemblyRegister::loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forc
 	{
 		if (isSimd4Float())
 		{
+            auto p = AsmCodeGenerator::createValid64BitPointer(cc, memory, 0, 16);
+            
+            cc.movaps(reg.as<X86Xmm>(), p);
 			jassert(reg.isXmm());
-			e = cc.movaps(reg.as<X86Xmm>(), memory);
 		}
 		else
 		{

@@ -303,6 +303,24 @@ struct AsmCodeGenerator
 
 	AssemblyRegisterPool* registerPool;
 
+    
+    static X86Mem createValid64BitPointer(X86Compiler& cc, X86Mem source, int offset, int byteSize)
+    {
+        if (source.hasBaseReg())
+        {
+            return source.cloneAdjustedAndResized(offset, byteSize);
+        }
+        else
+        {
+            auto memReg = cc.newGpq();
+            
+            int64_t address = source.offset() + (int64_t)offset;
+            cc.mov(memReg, address);
+            
+            return x86::ptr(memReg).cloneResized(byteSize);
+        }
+    }
+    
 private:
 
 	
