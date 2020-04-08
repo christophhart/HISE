@@ -10,8 +10,9 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-span<float, 8> d = { 2.0f };
+//span<float, 8> d = { 2.0f };
 
+span<float, 8> d = { 2.0f };
 float4 x = { 1.0f, 2.0f, 3.0f, 4.0f };
 
 float main(float input)
@@ -22,10 +23,10 @@ float main(float input)
     {
         v += x;
     }
-    
+
     for(auto& v: d)
         sum += v;
-    
+
     return sum;
 }
 

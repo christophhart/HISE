@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 0
-  output: 13
+  output: 12
   error: ""
   filename: "loop/while1"
 END_TEST_DATA
