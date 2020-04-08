@@ -451,9 +451,11 @@ template <class T, int MaxSize> struct span
 		{
 			auto dst = (float*)data;
 
+            auto v_ = (float)t;
+            
 			for (int i = 0; i < numLoop; i++)
 			{
-				auto v = _mm_load_ps1(&(float)t);
+				auto v = _mm_load_ps1(&v_);
 				_mm_store_ps(dst, v);
 
 				dst += getSimdSize();
@@ -481,7 +483,9 @@ template <class T, int MaxSize> struct span
 
 		constexpr int numLoop = MaxSize / getSimdSize();
 		auto dst = (float*)data;
-		auto v = _mm_load_ps1(&(float)scalar);
+        auto v_ = (float)scalar;
+        
+		auto v = _mm_load_ps1(&v_);
 
 		for (int i = 0; i < numLoop; i++)
 		{
@@ -592,7 +596,7 @@ template <class T, int MaxSize> struct span
 
 
 
-	template <class T> static bool isAlignedTo16Byte(T& d)
+	template <class Other> static bool isAlignedTo16Byte(Other& d)
 	{
 		return reinterpret_cast<uint64_t>(d.begin()) % 16 == 0;
 	}
@@ -609,15 +613,6 @@ template <class T, int MaxSize> struct span
 		static_assert(MaxSize % ChannelAmount == 0, "Can't split with slice length ");
 
 		return *reinterpret_cast<span<span<T, MaxSize / ChannelAmount>, ChannelAmount>*>(this);
-	}
-
-	auto& interleave_dyn()
-	{
-		using ElementType = T::DataType;
-
-		dyn<span<ElementType, MaxSize>> d;
-
-		return d;
 	}
 
 	const T& operator[](int index) const
@@ -684,7 +679,7 @@ template <class T> struct dyn
 		size(size_)
 	{}
 
-	template<class T> dyn(T* data_, size_t size_) :
+	template<class Other> dyn(Other* data_, size_t size_) :
 		data(data_),
 		size(size_)
 	{}
@@ -740,78 +735,13 @@ template <class T> struct dyn
 
 namespace Interleaver
 {
-	template <class T, int NumChannels> static auto interleave(span<dyn<T>, NumChannels>& t)
-	{
-		jassert(isContinousMemory(t));
-
-		int numFrames = t[0].size;
-
-		static_assert(std::is_same<float, T>(), "must be float");
-
-		// [ [ptr, size], [ptr, size] ]
-		// => [ ptr, size ] 
-
-		using FrameType = span<T, NumChannels>;
-
-		
-		auto src = reinterpret_cast<float*>(t[0].begin());
-		interleave(src, numFrames, NumChannels);
-
-		return dyn<FrameType>(reinterpret_cast<FrameType*>(src), numFrames);
-	}
-
-	/** Interleaves the float data from a dynamic array of frames. 
-	
-		dyn_span<T>(numChannels) => span<dyn_span<T>, NumChannels> 
-	*/
-	template <class T, int NumChannels> static auto interleave(dyn<span<T, NumChannels>>& t)
-	{
-		jassert(isContinousMemory(t));
-
-		int numFrames = t.size;
-
-		span<dyn<T>, NumChannels> d;
-
-		float* src = t.begin()->begin();
-
-
-		interleave(src, NumChannels, numFrames);
-
-		for (auto& r : d)
-		{
-			r = dyn<T>(src, numFrames);
-			src += numFrames;
-		}
-
-		return d;
-	}
-
-
-	template <class T, int NumFrames, int NumChannels> static auto& interleave(span<span<T, NumFrames>, NumChannels>& t)
-	{
-		static_assert(std::is_same<float, T>(), "must be float");
-		jassert(isContinousMemory(t));
-
-		using ChannelType = span<T, NumChannels>;
-
-		int s1 = sizeof(span<ChannelType, NumFrames>);
-		int s2 = sizeof(span<span<T, NumFrames>, NumChannels>);
-
-		
-
-		auto src = reinterpret_cast<float*>(t.begin());
-		interleave(src, NumFrames, NumChannels);
-		return *reinterpret_cast<span<ChannelType, NumFrames>*>(&t);
-	}
 
 	template <class T> static bool isContinousMemory(const T& t)
 	{
-		using ElementType = T::DataType;
-
 		auto ptr = t.begin();
 		auto e = t.end();
 
-		auto elementSize = sizeof(ElementType);
+		auto elementSize = sizeof(T::DataType);
 
 		auto size = (e - ptr) * elementSize;
 
@@ -833,31 +763,6 @@ namespace Interleaver
 		static_assert(C % 4 == 0, "Can't split with slice length ");
 
 		return *reinterpret_cast<span<float4, C / 4>*>(&t);
-	}
-
-	static void interleave(float* src, int numFrames, int numChannels)
-	{
-		size_t numBytes = sizeof(float) * numChannels * numFrames;
-
-		float* dst = (float*)alloca(numBytes);
-
-		for (int i = 0; i < numFrames; i++)
-		{
-			for (int j = 0; j < numChannels; j++)
-			{
-				auto targetIndex = i * numChannels + j;
-				auto sourceIndex = j * numFrames + i;
-
-				dst[targetIndex] = src[sourceIndex];
-			}
-		}
-
-		memcpy(src, dst, numBytes);
-	}
-
-	template <int C, class T> static auto split(T& t)
-	{
-		return t.split<C>();
 	}
 };
 
