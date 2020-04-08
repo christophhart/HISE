@@ -181,6 +181,8 @@ hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
 
 juce::ValueTree JitObject::createValueTree()
 {
+    return {};
+    
 	auto c = dynamic_cast<GlobalScope*>(functionClass->pimpl->getParent())->getGlobalFunctionClass(NamespacedIdentifier("Console"));
 	auto v = functionClass->pimpl->getRootData()->getApiValueTree();
 	v.addChild(FunctionClass::createApiTree(c), -1, nullptr);

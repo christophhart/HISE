@@ -94,15 +94,7 @@ public:
 			data.i.value += (int)other;
 		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(+=)
-		else IF_CONSTEXPR (expectedType == Types::ID::Block)
-			data.b + (block)other;
-		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
-		{
-			if (other.getTypeValue() == Types::ID::Block)
-				data.b + (block)other;
-			else
-				data.b + (FloatType)other;
-		}
+
 
 		return *this;
 	}
@@ -137,15 +129,7 @@ public:
 			data.i.value -= (int)other;
 		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(-=)
-		else IF_CONSTEXPR (expectedType == Types::ID::Block)
-			data.b - (block)other;
-		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
-		{
-			if (other.getTypeValue() == Types::ID::Block)
-				data.b - (block)other;
-			else
-				data.b - (FloatType)other;
-		}
+
 
 		return *this;
 	}
@@ -156,11 +140,6 @@ public:
 			data.i.value /= (int)other;
 		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(/=)
-		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
-		{
-			if (other.getTypeValue() == Types::ID::Double)
-				data.b * (FloatType)(1.0 / (double)other);
-		}
 
 		return *this;
 	}
@@ -171,15 +150,7 @@ public:
 			data.i.value *= (int)other;
 		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(*=)
-		else IF_CONSTEXPR (expectedType == Types::ID::Block)
-			data.b * (block)other;
-		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
-		{
-			if (other.getTypeValue() == Types::ID::Block)
-				data.b * other.data.b;
-			else
-				data.b * (FloatType)other;
-		}
+
 
 		return *this;
 	}

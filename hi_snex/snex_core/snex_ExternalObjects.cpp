@@ -869,7 +869,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 				nextFrame.id = fId.getChildId("next");
 				nextFrame.returnType = TypeInfo(Types::ID::Integer);
 
-#define F(channels) if (numChannels == channels) nextFrame.function = ProcessDataFix<channels>::nextFrame;
+#define F(channels) if (numChannels == channels) nextFrame.function = reinterpret_cast<void*>(ProcessDataFix<channels>::nextFrame);
 
 				F(1); F(2); F(3); F(4);
 				F(5); F(6); F(7); F(8);

@@ -669,7 +669,7 @@ juce::String TemplateParameter::ListOps::toString(const List& l)
 
 	for (int i = 0; i < l.size(); i++)
 	{
-		auto& t = l[i];
+		auto t = l[i];
 
 		if (t.isTemplateArgument())
 		{
@@ -827,8 +827,8 @@ TemplateParameter::List TemplateParameter::ListOps::mergeWithCallParameters(cons
 
 	for (int i = 0; i < originalFunctionArguments.size(); i++)
 	{
-		auto& o = originalFunctionArguments[i];
-		auto &cp = callParameterTypes[i];
+		auto o = originalFunctionArguments[i];
+		auto cp = callParameterTypes[i];
 
 		if (o.isTemplateType())
 		{
@@ -866,8 +866,8 @@ TemplateParameter::List TemplateParameter::ListOps::mergeWithCallParameters(cons
 
 			for (int i = 0; i < fArgTemplates.size(); i++)
 			{
-				auto& fa = fArgTemplates[i];
-				auto& fp = fParTemplates[i];
+				auto fa = fArgTemplates[i];
+				auto fp = fParTemplates[i];
 
 				if (fa.type.isTemplateType())
 				{

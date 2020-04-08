@@ -951,7 +951,7 @@ template <typename Arg1>
 static constexpr bool isValidParameterType(const Arg1& a)
 {
 	auto ok = !Types::Helpers::isPointerType<Arg1>() || std::is_pointer<Arg1>();
-	jassert(ok);
+
 	return ok;
 }
 
@@ -1216,7 +1216,7 @@ struct TemplateObject
 
 		bool expectIsComplexType(int argIndex) const
 		{
-			auto& t = tp[argIndex];
+			auto t = tp[argIndex];
 
 			if (!t.type.isComplexType())
 			{
@@ -1233,7 +1233,7 @@ struct TemplateObject
 
 		bool expectType(int argIndex) const
 		{
-			auto& t = tp[argIndex];
+			auto t = tp[argIndex];
 
 			if (t.type.isInvalid())
 			{
@@ -1248,7 +1248,7 @@ struct TemplateObject
 
 		bool expectIsNumber(int argIndex) const
 		{
-			auto& t = tp[argIndex];
+			auto t = tp[argIndex];
 
 			if (t.type.isValid())
 			{
@@ -1268,7 +1268,7 @@ struct TemplateObject
 			if (!expectIsNumber(argIndex))
 				return false;
 
-			auto& t = tp[argIndex];
+			auto t = tp[argIndex];
 
 			if (t.constant == illegalNumber)
 			{

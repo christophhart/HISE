@@ -33,7 +33,7 @@
 #pragma once
 
 #include <cstring>
-#include <malloc.h>
+
 #include <type_traits>
 #include <initializer_list>
 #include <nmmintrin.h>
@@ -350,7 +350,7 @@ template <class T, int MaxSize> struct span
 		static_assert(isSimdable(), "is not SIMDable");
 		jassert(isAlignedTo16Byte());
 
-		return *reinterpret_castspan<Type*>(this);
+		return *reinterpret_cast<Type*>(this);
 	}
 
 	template <class IndexType> const T& operator[](const IndexType& i) const
@@ -565,10 +565,10 @@ template <class T> struct dyn
 	{
 		dyn<float4> rt;
 
-		jassert(size % 4 == 0);
+		jassert(size() % 4 == 0);
 
 		rt.data = reinterpret_cast<float4*>(begin());
-		rt.size = size() / 4;
+		rt.size_ = size() / 4;
 
 		return rt;
 	}
@@ -612,7 +612,7 @@ template <class T> struct dyn
 		return data[index];
 	}
 
-	template <class T> bool valid(T& t)
+	template <class Other> bool valid(Other& t)
 	{
 		return t.valid(*this);
 	}

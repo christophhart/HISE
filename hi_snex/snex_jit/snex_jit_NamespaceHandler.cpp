@@ -710,7 +710,7 @@ TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, cons
 
 snex::jit::NamespaceHandler::Namespace::WeakPtr NamespaceHandler::getRoot() const
 {
-	Namespace::WeakPtr r = existingNamespace.getFirst();
+	Namespace::WeakPtr r = existingNamespace.getFirst().get();
 
 	if (r == nullptr)
 		return nullptr;

@@ -66,7 +66,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 			iData.addArgs("numFrames", TypeInfo(Types::ID::Integer));
 			iData.addArgs("numChannels", TypeInfo(Types::ID::Integer));
 
-			iData.function = Types::Interleaver::interleaveRaw;
+			iData.function = reinterpret_cast<void*>(Types::Interleaver::interleaveRaw);
 
 			bool isFrame = *d->args[0]->getTypeInfo().getComplexType() == *frameType;
 			bool isBlock = *d->args[0]->getTypeInfo().getComplexType() == *blockType;
@@ -202,10 +202,10 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 			auto d = b->toAsmInlineData();
 
 			auto& cc = d->gen.cc;
-			auto& dst = d->target;
-			auto& src = d->args[0];
-			auto& start = d->args[1];
-			auto& size = d->args[2];
+			auto dst = d->target;
+			auto src = d->args[0];
+			auto start = d->args[1];
+			auto size = d->args[2];
 
 			jassert(dst->getTypeInfo().getTypedIfComplexType<DynType>() != nullptr);
 			jassert(src->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>() != nullptr);
