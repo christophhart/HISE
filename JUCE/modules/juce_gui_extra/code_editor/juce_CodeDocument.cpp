@@ -752,6 +752,30 @@ void CodeDocument::findLineContaining  (const Position& pos, Position& s, Positi
     e.setLineAndIndex (pos.getLineNumber() + 1, 0);
 }
 
+bool CodeDocument::endsWithNewLine(int lineIndex) const noexcept
+{
+	if (isPositiveAndBelow(lineIndex, lines.size()))
+	{
+		return lines[lineIndex]->endsWithLineBreak();
+	}
+
+	return false;
+}
+
+String CodeDocument::getLineWithoutLinebreak(int lineIndex) const noexcept
+{
+	if (isPositiveAndBelow(lineIndex, lines.size()))
+	{
+		auto l = lines[lineIndex];
+
+		auto start = l->line.getCharPointer();
+		auto end = start + l->lineLengthWithoutNewLines;
+		return String(start, end);
+	}
+
+	return {};
+}
+
 void CodeDocument::checkLastLineStatus()
 {
     while (lines.size() > 0

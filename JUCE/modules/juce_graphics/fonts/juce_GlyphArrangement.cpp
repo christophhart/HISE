@@ -181,10 +181,38 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& t
 {
     if (text.isNotEmpty())
     {
-        Array<int> newGlyphs;
+		Array<int> newGlyphs;
         Array<float> xOffsets;
         font.getGlyphPositions (text, newGlyphs, xOffsets);
+
         auto textLen = newGlyphs.size();
+
+		constexpr int numSpacePerTab = 4;
+
+		auto spaceWidth = font.getStringWidthFloat(" ");
+
+		int column = 0;
+
+		for (int i = 0; i < textLen; i++)
+		{
+			if (text[i] == '\t')
+			{
+				int width = numSpacePerTab - column % 4;
+				auto numToAdd = (width - 1) * spaceWidth;
+
+				for (int j = i+1; j < textLen+1; j++)
+					xOffsets.set(j, xOffsets[j] + numToAdd);
+
+				column += width;
+			}
+			else
+			{
+				column++;
+			}
+			
+			
+		}
+
         glyphs.ensureStorageAllocated (glyphs.size() + textLen);
 
         auto t = text.getCharPointer();
