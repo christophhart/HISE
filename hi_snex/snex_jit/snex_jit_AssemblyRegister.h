@@ -126,6 +126,19 @@ public:
 
 	void* getGlobalDataPointer();
 
+	template <typename T> bool getImmediateValue(T& v)
+	{
+		if (memoryLocation != nullptr)
+		{
+			jassert(Types::Helpers::getTypeFromTypeId<T>() == getType());
+
+			v = *reinterpret_cast<T*>(memoryLocation);
+			return true;
+		}
+
+		return false;
+	}
+
 	X86Reg getRegisterForReadOp();
 
 	/** Returns the register and flags global registers as dirty. 
@@ -178,6 +191,8 @@ public:
 	{
 		isIter = isIterator;
 	}
+
+	void invalidateRegisterForCustomMemory();
 
 	bool isIteratorRegister() const
 	{

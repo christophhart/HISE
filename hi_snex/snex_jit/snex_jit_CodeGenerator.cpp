@@ -126,26 +126,53 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 		{
 			if (value->isSimd4Float())
 			{
-				if (value->isActive() && target->isMemoryLocation())
+				if (target->hasCustomMemoryLocation())
+				{
+					value->loadMemoryIntoRegister(cc);
+
+					target->invalidateRegisterForCustomMemory();
 					cc.movaps(target->getAsMemoryLocation(), FP_REG_R(value));
+
+				}
 				else
+				{
+					jassert(!target->isMemoryLocation());
+
 					FP_OP(cc.movaps, target, value);
+				}
 			}
 			else
 			{
+				float immValue;
 				X86Xmm v = cc.newXmm();
 
-				if (value->isMemoryLocation())
-					cc.movss(v, value->getAsMemoryLocation());
-				else
-					v = FP_REG_R(value);
+				if (value->getImmediateValue(immValue))
+				{
+					auto d = Data128::fromF32(immValue);
+					auto mem = cc.newXmmConst(ConstPool::kScopeGlobal, d);
 
-				cc.shufps(v, v, 0);
-
-				if (target->hasCustomMemoryLocation())
-					cc.movaps(target->getMemoryLocationForReference(), v);
+					if (target->hasCustomMemoryLocation())
+					{
+						cc.movaps(v, mem);
+						cc.movaps(target->getMemoryLocationForReference(), v);
+					}
+					else
+						cc.movaps(FP_REG_W(target), mem);
+				}
 				else
-					cc.movaps(FP_REG_W(target), v);
+				{
+					if (value->isMemoryLocation())
+						cc.movss(v, value->getAsMemoryLocation());
+					else
+						v = FP_REG_R(value);
+
+					cc.shufps(v, v, 0);
+
+					if (target->hasCustomMemoryLocation())
+						cc.movaps(target->getMemoryLocationForReference(), v);
+					else
+						cc.movaps(FP_REG_W(target), v);
+				}
 			}
 		}
 		else

@@ -170,6 +170,7 @@ private:
 		return dynamic_cast<T*>(p.get());
 	}
 
+
 	struct TextBlock
 	{
 		TextBlock(String::CharPointerType program_, String::CharPointerType start_);;
@@ -263,6 +264,10 @@ private:
 		String processedCode;
 
 	};
+
+	static juce::String toString(const Array<TextBlock>& blocks);
+
+	Array<TextBlock> parseTextBlocks();
 
 	void parseDefinition(TextBlock& b);
 

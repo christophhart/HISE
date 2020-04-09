@@ -477,6 +477,14 @@ void AssemblyRegister::setImmediateValue(int64 value)
 	hasCustomMem = false;
 }
 
+void AssemblyRegister::invalidateRegisterForCustomMemory()
+{
+	jassert(hasCustomMemoryLocation());
+	dirty = false;
+	reg = {};
+	state = LoadedMemoryLocation;
+}
+
 void AssemblyRegister::clearForReuse()
 {
 	isIter = false;

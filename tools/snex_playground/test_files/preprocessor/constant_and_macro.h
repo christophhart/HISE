@@ -11,7 +11,7 @@ END_TEST_DATA
 */
 
 #define VALUE 2
-#define MUL(x, y) x * VALUE
+#define MUL(x) x * VALUE
 
 int main(int input)
 {

@@ -1128,11 +1128,15 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 
 			jassert(loopParent != nullptr);
 			
+			
+
 
 			Ptr lp = new Operations::StatementBlock(l->location, l->location.createAnonymousScopeId(loopParent->getPath()));
 			Ptr target = l->getTarget();
 
 			auto isSimdLoop = SpanType::isSimdType(st->getElementType());
+
+			
 
 			for (int i = 0; i < numLoops; i++)
 			{
@@ -1140,10 +1144,17 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 
 				auto cb = l->getLoopBlock()->clone(l->location);
 
+				juce::String comment;
+				comment << "unroll " << target->getTypeInfo().toString() << "[" << juce::String(i) << "]";
+
+				
+
 				auto newParentScopeId = as<Operations::StatementBlock>(lp)->getPath().getChildId(uId);
 
 				auto clb = as<Operations::StatementBlock>(cb);
 				clb->setNewPath(c, newParentScopeId);
+
+				clb->attachAsmComment(comment);
 
 				auto iteratorSymbol = Symbol(clb->getPath().getChildId(l->iterator.getName()), l->iterator.typeInfo);
 
@@ -1155,13 +1166,16 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 
 				iteratorSymbol.typeInfo = iteratorSymbol.typeInfo.withModifiers(iteratorSymbol.isConst(), true);
 
-				auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
-				auto imm = new Operations::Immediate(l->location, VariableStorage(i));
-				auto sus = new Operations::Subscript(l->location, target, imm);
-				auto ia = new Operations::Assignment(l->location, iv, JitTokens::assign_, sus, true);
-				
-				cb->addStatement(ia, true);
+				if (l->evaluateIteratorLoad())
+				{
+					auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
+					auto imm = new Operations::Immediate(l->location, VariableStorage(i));
+					auto sus = new Operations::Subscript(l->location, target, imm);
+					auto ia = new Operations::Assignment(l->location, iv, JitTokens::assign_, sus, true);
 
+					cb->addStatement(ia, true);
+				}
+				
 				jassert(iteratorSymbol.resolved);
 
 				cb->forEachRecursive([this, c, s](Ptr f)
@@ -1175,6 +1189,16 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 				});
 
 				lp->addStatement(cb);
+
+				if (l->evaluateIteratorStore())
+				{
+					auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
+					auto imm = new Operations::Immediate(l->location, VariableStorage(i));
+					auto sus = new Operations::Subscript(l->location, target, imm);
+					auto ia = new Operations::Assignment(l->location, sus, JitTokens::assign_, iv, false);
+
+					cb->addStatement(ia, false);
+				}
 			}
 
 			replaceExpression(l, lp);

@@ -912,7 +912,6 @@ public:
 
 	void runTest() override
 	{
-		
 		testEvents();
 		testProcessData();
 		testEvents();

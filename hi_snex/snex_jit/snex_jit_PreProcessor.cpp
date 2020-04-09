@@ -142,55 +142,9 @@ Preprocessor::Preprocessor(const juce::String& code_) :
 
 String Preprocessor::process()
 {
-	Array<TextBlock> blocks;
+	auto blocks = parseTextBlocks();
 
-	auto end = code.getCharPointer() + code.length();
-	auto start = code.getCharPointer();
-	auto currentLine = start;
-	auto defaultNewLine = NewLine::getDefault();
-
-	while (start != end)
-	{
-		while (start != end)
-		{
-			if (CharacterFunctions::isWhitespace(*start))
-				start++;
-			else
-				break;
-		}
-
-		TextBlock currentBlock(code.getCharPointer(), start);
-		
-		bool isPreprocessor = *start == '#';
-		
-		auto breakCharacter = isPreprocessor ? '\n' : '#';
-
-		while (start != end)
-		{
-			start++;
-			
-			if (isPreprocessor && *start == '\\')
-			{
-				start++;
-
-				while (start != end && CharacterFunctions::isWhitespace(*start))
-				{
-					start++;
-				}
-			}
-
-			if (*start == breakCharacter)
-			{
-				if (isPreprocessor) // go to next line
-					start++;
-
-				break;
-			}
-		}
-
-		currentBlock.flush(start);
-		blocks.add(currentBlock);
-	}
+	parseTextBlocks();
 
 	Array<bool> conditions;
 	
@@ -202,11 +156,9 @@ String Preprocessor::process()
 		{
 			if (!isConditionToken(b))
 			{
+				// doesn't matter, always false...
 				if (b.is(PreprocessorTokens::if_))
-				{
-					// doesn't matter, always false...
 					conditions.add(false);
-				}
 
 				bool deactivate = true;
 
@@ -232,13 +184,10 @@ String Preprocessor::process()
 				done = evaluate(b);
 
 			if (b.is(PreprocessorTokens::define_))
-			{
 				parseDefinition(b);
-			}
 			if (b.is(PreprocessorTokens::if_))
 			{
 				auto value = parseCondition(b);
-
 				conditions.add(value);
 			}
 			if (b.is(PreprocessorTokens::elif_))
@@ -247,9 +196,12 @@ String Preprocessor::process()
 					b.throwError("Can't use #elif without #if");
 
 				auto value = parseCondition(b);
-
 				conditions.removeLast();
 				conditions.add(value);
+			}
+			if (b.is(PreprocessorTokens::endif_))
+			{
+				conditions.removeLast();
 			}
 			if (b.is(PreprocessorTokens::else_))
 			{
@@ -271,32 +223,16 @@ String Preprocessor::process()
 			}
 		}
 	}
-	
+
 	if (!conditionMode && !conditions.isEmpty()) 
 	{
-		ParserHelpers::CodeLocation::Error e(code.getCharPointer(), start);
-		
+		ParserHelpers::CodeLocation::Error e(code.getCharPointer(), code.getCharPointer() + code.length());
 		e.errorMessage = "missing #endif";
-
 		throw e.toString();
 	}
 
-	String s;
-
-	for (const auto& b : blocks)
-	{
-		if(!b.isPreprocessorDirective())
-			s << b.toString();
-	}
-
-	return s;
+	return toString(blocks);
 }
-
-#define X(x) x;
-
-#define Y(y) y;
-
-#define HALLO X(Y(2));
 
 void Preprocessor::parseDefinition(TextBlock& b)
 {
@@ -398,6 +334,72 @@ bool Preprocessor::parseCondition(TextBlock& b)
 bool Preprocessor::isConditionToken(const TextBlock& b)
 {
 	return b.is(PreprocessorTokens::else_) || b.is(PreprocessorTokens::elif_);
+}
+
+Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
+{
+	Array<TextBlock> blocks;
+
+	auto end = code.getCharPointer() + code.length();
+	auto start = code.getCharPointer();
+	auto currentLine = start;
+	auto defaultNewLine = NewLine::getDefault();
+
+	while (start != end)
+	{
+		while (start != end)
+		{
+			if (CharacterFunctions::isWhitespace(*start))
+				start++;
+			else
+				break;
+		}
+
+		TextBlock currentBlock(code.getCharPointer(), start);
+		bool isPreprocessor = *start == '#';
+		auto breakCharacter = isPreprocessor ? '\n' : '#';
+
+		while (start != end)
+		{
+			start++;
+
+			if (isPreprocessor && *start == '\\')
+			{
+				start++;
+
+				while (start != end && CharacterFunctions::isWhitespace(*start))
+					start++;
+			}
+
+			if (*start == breakCharacter)
+			{
+				if (isPreprocessor) // go to next line
+					start++;
+
+				break;
+			}
+		}
+
+		currentBlock.flush(start);
+		blocks.add(currentBlock);
+	}
+
+	
+
+	return blocks;
+}
+
+juce::String Preprocessor::toString(const Array<TextBlock>& blocks)
+{
+	String s;
+
+	for (const auto& b : blocks)
+	{
+		if (!b.isPreprocessorDirective())
+			s << b.toString();
+	}
+
+	return s;
 }
 
 }

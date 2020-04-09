@@ -307,6 +307,11 @@ namespace Operations
 				if (found)
 					compiler->executeOptimization(this, scope);
 			}
+
+			if (currentPass == BaseCompiler::CodeGeneration && asmComment.isNotEmpty())
+			{
+				getFunctionCompiler(compiler).setInlineComment(asmComment.getCharPointer().getAddress());
+			}
 		}
 
 		void processBaseWithChildren(BaseCompiler* compiler, BaseScope* scope)

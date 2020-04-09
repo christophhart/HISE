@@ -856,6 +856,11 @@ struct Operations::Assignment : public Expression,
 		return t;
 	}
 
+	bool hasSideEffect() const override
+	{
+		return true;
+	}
+
 	TargetType getTargetType() const;
 
 	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const override
@@ -2354,6 +2359,79 @@ struct Operations::Loop : public Expression,
 		return true;
 	}
 
+	bool evaluateIteratorStore()
+	{
+		if (storeIterator)
+			return true;
+
+		SyntaxTreeWalker w(getLoopBlock(), false);
+
+		while (auto v = w.getNextStatementOfType<VariableReference>())
+		{
+			if (v->id == iterator)
+			{
+				if (v->parent->hasSideEffect())
+				{
+					if (auto a = as<Assignment>(v->parent.get()))
+					{
+						if (a->getSubExpr(0).get() == v)
+							continue;
+					}
+
+					storeIterator = true;
+					break;
+				}
+			}
+		}
+
+		return storeIterator;
+	}
+
+	bool evaluateIteratorLoad()
+	{
+		if (!loadIterator)
+			return false;
+
+		SyntaxTreeWalker w(getLoopBlock(), false);
+
+		while (auto v = w.getNextStatementOfType<VariableReference>())
+		{
+			if (v->id == iterator)
+			{
+				if (auto a = findParentStatementOfType<Assignment>(v))
+				{
+					if (a->getSubExpr(1).get() == v && a->assignmentType == JitTokens::assign_)
+					{
+						auto sId = v->id;
+
+						bool isSelfAssign = a->getSubExpr(0)->forEachRecursive([sId](Operations::Statement::Ptr p)
+						{
+							if (auto v = dynamic_cast<VariableReference*>(p.get()))
+							{
+								if (v->id == sId)
+									return true;
+							}
+
+							return false;
+						});
+
+						loadIterator = isSelfAssign;
+					}
+
+					if (a->assignmentType != JitTokens::assign_)
+						loadIterator = true;
+
+					if (a->getSubExpr(1).get() != v)
+						loadIterator = true;
+				}
+
+				break;
+			}
+		}
+
+		return loadIterator;
+	}
+
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		processBaseWithoutChildren(compiler, scope);
@@ -2407,42 +2485,7 @@ struct Operations::Loop : public Expression,
 			
 			getLoopBlock()->process(compiler, scope);
 
-			SyntaxTreeWalker w(getLoopBlock(), false);
-
-			while (auto v = w.getNextStatementOfType<VariableReference>())
-			{
-				if (v->id == iterator)
-				{
-					if (auto a = findParentStatementOfType<Assignment>(v))
-					{
-						if (a->getSubExpr(1).get() == v && a->assignmentType == JitTokens::assign_)
-						{
-							auto sId = v->id;
-
-							bool isSelfAssign = a->getSubExpr(0)->forEachRecursive([sId](Operations::Statement::Ptr p)
-							{
-								if (auto v = dynamic_cast<VariableReference*>(p.get()))
-								{
-									if (v->id == sId)
-										return true;
-								}
-
-								return false;
-							});
-
-							loadIterator = isSelfAssign;
-						}
-
-						if (a->assignmentType != JitTokens::assign_)
-							loadIterator = true;
-
-						if (a->getSubExpr(1).get() != v)
-							loadIterator = true;
-					}
-
-					break;
-				}
-			}
+			evaluateIteratorLoad();
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -2481,6 +2524,7 @@ struct Operations::Loop : public Expression,
 	Symbol iterator;
 	
 	bool loadIterator = true;
+	bool storeIterator = false;
 
 	ArrayType loopTargetType;
 
