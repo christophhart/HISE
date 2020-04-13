@@ -2518,7 +2518,7 @@ void BackendCommandTarget::Actions::copyMissingSampleListToClipboard(BackendRoot
 
 	if (missingSounds.isEmpty())
 	{
-		PresetHandler::showMessageWindow("No missing samples founr", "All samples could be found", PresetHandler::IconType::Info);
+		PresetHandler::showMessageWindow("No missing samples found", "All samples could be found", PresetHandler::IconType::Info);
 	}
 	else
 	{
