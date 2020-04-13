@@ -370,6 +370,11 @@ int CompileExporter::getBuildOptionPart(const String& argument)
         useIpp = true;
         return 0;
     }
+    case 'l':
+    {
+        legacyCpuSupport = true;
+        return 0;
+    }
 	case 'a':
 	{
 		const String architectureName = argument.fromFirstOccurrenceOf("-a:", false, true);
@@ -442,7 +447,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	const auto& data = dynamic_cast<GlobalSettingManager*>(chainToExport->getMainController())->getSettingsObject();
 
 	if (!useIpp) useIpp = data.getSetting(HiseSettings::Compiler::UseIPP);
-    
+	
+	if (!legacyCpuSupport) legacyCpuSupport = data.getSetting(HiseSettings::Compiler::LegacyCPUSupport);
+	    
 	if(!hisePath.isDirectory()) 
 		hisePath = data.getSetting(HiseSettings::Compiler::HisePath);
 
@@ -1679,6 +1686,8 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	
     REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "enabled" : "disabled");
     REPLACE_WILDCARD_WITH_STRING("%IPP_WIN_SETTING%", exporter->useIpp ? "Sequential" : String());
+    
+    REPLACE_WILDCARD_WITH_STRING("%LEGACY_CPU_SUPPORT%", exporter->legacyCpuSupport ? "enabled" : "disabled");
     
     REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString());
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString());
