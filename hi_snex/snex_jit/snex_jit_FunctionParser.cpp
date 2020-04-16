@@ -571,17 +571,9 @@ BlockParser::ExprPtr BlockParser::parseDotOperator(ExprPtr p)
 	while(matchIf(JitTokens::dot))
 	{
 		auto e = parseReference(false);
-
 		auto dp = new Operations::DotOperator(location, p, e);
-
-		dp->tryToResolveType(compiler);
-
-		
-
-		
-		
 		p = dp;
-			
+		dp->tryToResolveType(compiler);
 	}
 	
 	return parseSubscript(p);

@@ -1470,6 +1470,8 @@ snex::jit::TypeInfo Operations::FunctionCall::getTypeInfo() const
 
 bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 {
+	location.test(compiler->namespaceHandler.checkVisiblity(function.id));
+
 	bool ok = Statement::tryToResolveType(compiler);
 
 	if (function.returnType.isTemplateType())

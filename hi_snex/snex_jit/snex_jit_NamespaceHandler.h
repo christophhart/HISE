@@ -40,6 +40,14 @@ using namespace juce;
 
 struct NamespaceHandler
 {
+	enum class Visibility
+	{
+		Public = 0,
+		Protected,
+		Private,
+		numVisibilities
+	};
+
 	enum SymbolType
 	{
 		Unknown,
@@ -65,6 +73,7 @@ private:
 	{
 		NamespacedIdentifier id;
 		TypeInfo type;
+		Visibility visibility = Visibility::Public;
 		SymbolType symbolType;
 		VariableStorage constantValue;
 		bool internalSymbol = false;
@@ -85,7 +94,7 @@ private:
 
 		static juce::String getIntendLevel(int level);
 
-		void addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType);
+		void addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType, Visibility v);
 
 		NamespacedIdentifier id;
 		Array<Alias> aliases;
@@ -108,6 +117,23 @@ public:
 
 		NamespaceHandler& h;
 		ScopedValueSetter<bool> s;
+	};
+
+	struct ScopedVisibilityState
+	{
+		ScopedVisibilityState(NamespaceHandler& h):
+			handler(h)
+		{
+			state = h.currentVisibility;
+		}
+
+		~ScopedVisibilityState()
+		{
+			handler.setVisiblity(state);
+		}
+
+		NamespaceHandler& handler;
+		Visibility state;
 	};
 
 	struct ScopedNamespaceSetter
@@ -220,6 +246,13 @@ public:
 
 	TemplateObject getTemplateObject(const NamespacedIdentifier& id) const;
 
+	Result checkVisiblity(const NamespacedIdentifier& id) const;
+
+	void setVisiblity(Visibility newVisibility)
+	{
+		currentVisibility = newVisibility;
+	}
+
 private:
 
 	bool internalSymbolMode = false;
@@ -240,6 +273,8 @@ private:
 	Namespace::List existingNamespace;
 	Namespace::WeakPtr currentNamespace;
 	Namespace::WeakPtr currentParent;
+
+	Visibility currentVisibility = Visibility::Public;
 };
 
 

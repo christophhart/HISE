@@ -789,6 +789,10 @@ struct Operations::DotOperator : public Expression
 
 					if (st->hasMember(id))
 					{
+						auto fullId = st->id.getChildId(id);
+						
+						location.test(compiler->namespaceHandler.checkVisiblity(fullId));
+
 						resolvedType = st->getMemberTypeInfo(id);
 						return true;
 					}

@@ -231,6 +231,9 @@ void NewClassParser::registerTemplateArguments(TemplateParameter::List& template
 
 BlockParser::StatementPtr NewClassParser::parseStatement()
 {
+	if (auto noop = parseVisibility())
+		return noop;
+
 	if (matchIf(JitTokens::template_))
 		templateArguments = parseTemplateParameters(true);
 	else
@@ -262,7 +265,12 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 
 	if (matchIf(JitTokens::struct_))
 	{
-		return parseSubclass();
+		return parseSubclass(NamespaceHandler::Visibility::Public);
+	}
+
+	if (matchIf(JitTokens::class_))
+	{
+		return parseSubclass(NamespaceHandler::Visibility::Private);
 	}
 
 	if (matchIfType(templateArguments))
@@ -480,8 +488,12 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 }
 
 
-BlockParser::StatementPtr NewClassParser::parseSubclass()
+BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibility defaultVisibility)
 {
+	NamespaceHandler::ScopedVisibilityState vs(compiler->namespaceHandler);
+
+	
+
 	SymbolParser sp(*this, compiler->namespaceHandler);
 
 	sp.parseNamespacedIdentifier<NamespaceResolver::MustBeNew>();
@@ -498,6 +510,7 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 		compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
 
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
+		compiler->namespaceHandler.setVisiblity(defaultVisibility);
 
 		auto list = parseStatementList();
 
@@ -512,11 +525,18 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 
 
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
+		
 
 		registerTemplateArguments(classTemplateArguments, classId);
 		
+		StatementPtr list;
 
-		auto list = parseStatementList();
+		{
+			NamespaceHandler::ScopedVisibilityState vs(compiler->namespaceHandler);
+			compiler->namespaceHandler.setVisiblity(defaultVisibility);
+			list = parseStatementList();
+		}
+		
 
 		match(JitTokens::semicolon);
 
@@ -530,6 +550,21 @@ BlockParser::StatementPtr NewClassParser::parseSubclass()
 		compiler->namespaceHandler.addTemplateClass(tc);
 		return tcs;
 	}
+}
+
+NewClassParser::StatementPtr NewClassParser::parseVisibility()
+{
+	if (matchIf(JitTokens::public_))
+		compiler->namespaceHandler.setVisiblity(NamespaceHandler::Visibility::Public);
+	else if (matchIf(JitTokens::private_))
+		compiler->namespaceHandler.setVisiblity(NamespaceHandler::Visibility::Private);
+	else if (matchIf(JitTokens::protected_))
+		compiler->namespaceHandler.setVisiblity(NamespaceHandler::Visibility::Protected);
+	else
+		return nullptr;
+
+	match(JitTokens::colon);
+	return new Operations::Noop(location);
 }
 
 snex::VariableStorage BlockParser::parseConstExpression(bool isTemplateArgument)

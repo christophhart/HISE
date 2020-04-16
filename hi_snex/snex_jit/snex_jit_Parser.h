@@ -94,6 +94,9 @@ public:
 		parseNamespacedIdentifier<NamespaceResolver::MustExist>();
 
 		auto type = handler.getVariableType(currentNamespacedIdentifier);
+
+		location.test(handler.checkVisiblity(currentNamespacedIdentifier));
+
 		auto s = Symbol(currentNamespacedIdentifier, type);
 
 		if (needsStaticTyping && s.typeInfo.isDynamic())
@@ -192,6 +195,10 @@ public:
 		{
 			auto isRef = matchIf(JitTokens::bitwiseAnd);
 			currentTypeInfo = currentTypeInfo.withModifiers(isConst, isRef, isStatic);
+
+			if (auto st = currentTypeInfo.getTypedIfComplexType<StructType>())
+				location.test(namespaceHandler.checkVisiblity(st->id));
+
 			other.seek(*this);
 			return true;
 		}
@@ -597,9 +604,9 @@ public:
 	ExprPtr parseBufferInitialiser();
 	StatementPtr parseVariableDefinition();
 	StatementPtr parseFunction(const Symbol& s) override;
-	StatementPtr parseSubclass();
-	//StatementPtr parseWrapDefinition();
+	StatementPtr parseSubclass(NamespaceHandler::Visibility defaultVisibility);
 	
+	StatementPtr parseVisibility();
 };
 
 

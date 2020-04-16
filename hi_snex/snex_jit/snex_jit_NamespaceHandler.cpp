@@ -95,20 +95,27 @@ juce::String NamespaceHandler::Namespace::getIntendLevel(int level)
 	return s;
 }
 
-void NamespaceHandler::Namespace::addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType)
+void NamespaceHandler::Namespace::addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType, Visibility v)
 {
 	jassert(aliasId.getParent() == id);
 
 	if (contains(aliasId))
 		return;
 
-	aliases.add({ aliasId, type, symbolType });
+	aliases.add({ aliasId, type, v, symbolType });
 	aliases.getReference(aliases.size() - 1).internalSymbol = internalSymbol;
 }
 
 juce::String NamespaceHandler::Alias::toString() const
 {
 	juce::String s;
+
+	switch (visibility)
+	{
+	case Visibility::Public:    s << "public "; break;
+	case Visibility::Private:   s << "private "; break;
+	case Visibility::Protected: s << "protected "; break;
+	}
 
 	switch (symbolType)
 	{
@@ -401,7 +408,7 @@ void NamespaceHandler::addSymbol(const NamespacedIdentifier& id, const TypeInfo&
 	jassert(id.getParent() == currentNamespace->id);
 
 	currentNamespace->internalSymbol = internalSymbolMode;
-	currentNamespace->addSymbol(id, t, symbolType);
+	currentNamespace->addSymbol(id, t, symbolType, currentVisibility);
 }
 
 Result NamespaceHandler::addConstant(const NamespacedIdentifier& id, const VariableStorage& v)
@@ -674,6 +681,7 @@ void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 		Alias a;
 		a.id = s.id;
 		a.symbolType = TemplatedClass;
+		a.visibility = currentVisibility;
 		a.internalSymbol = internalSymbolMode;
 
 		p->aliases.add(a);
@@ -720,6 +728,34 @@ TemplateObject NamespaceHandler::getTemplateObject(const NamespacedIdentifier& i
 	}
 
 	return {};
+}
+
+juce::Result NamespaceHandler::checkVisiblity(const NamespacedIdentifier& id) const
+{
+	auto parent = id.getParent();
+
+	if (auto existing = get(parent))
+	{
+		for (const auto& a : existing->aliases)
+		{
+			if (a.id == id)
+			{
+				if (a.visibility == Visibility::Public)
+					return Result::ok();
+
+				auto currentId = getCurrentNamespaceIdentifier();
+
+				if (parent.isParentOf(currentId) || parent == currentId)
+					return Result::ok();
+				else
+				{
+					return Result::fail(a.toString() + " is not accessible");
+				}
+			}
+		}
+	}
+
+	return Result::ok();
 }
 
 TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const

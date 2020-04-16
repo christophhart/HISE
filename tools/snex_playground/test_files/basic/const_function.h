@@ -4,8 +4,8 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 12
-  error: "Line 20(1): Can't assign to target"
+  output: 18
+  error: ""
   filename: "basic/const_function"
 END_TEST_DATA
 */
