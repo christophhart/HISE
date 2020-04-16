@@ -171,7 +171,7 @@ String Preprocessor::process()
 				if(deactivate)
 					deactivatedLines.addRange(b.getLineRange());
 
-				blocks.remove(i--);
+				blocks.getReference(i).replaceWithEmptyLines();
 				continue;
 			}
 		}
@@ -397,6 +397,8 @@ juce::String Preprocessor::toString(const Array<TextBlock>& blocks)
 	{
 		if (!b.isPreprocessorDirective())
 			s << b.toString();
+		else
+			s << "\n";
 	}
 
 	return s;

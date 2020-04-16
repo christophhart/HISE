@@ -211,6 +211,18 @@ private:
 		void flush(String::CharPointerType location);
 		String toString() const;
 
+		void replaceWithEmptyLines()
+		{
+			auto l = StringArray::fromLines(toString());
+
+			String s; 
+
+			for (int i = 0; i < l.size(); i++)
+				s << "\n";
+
+			setProcessedCode(s);
+		}
+
 		String subString(String::CharPointerType location) const;
 
 		String::CharPointerType getEnd() const;
