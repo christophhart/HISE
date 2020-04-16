@@ -65,7 +65,6 @@ public:
 	void set(int s);;
 	void set(block&& s);;
 	void set(block& b);
-	void set(const HiseEvent& e);
 	void set(void* objectPointer, int newSize);
 
 	void clear();

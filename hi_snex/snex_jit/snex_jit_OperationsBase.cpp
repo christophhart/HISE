@@ -240,7 +240,7 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 		
 			
 
-		logWarning("Implicit cast, possible lost of data");
+		e->logWarning("Implicit cast, possible lost of data");
 
 		if (e->isConstExpr())
 		{
@@ -469,12 +469,14 @@ void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::Mes
 
 	juce::String m;
 
-	m << "Line " << location.getLineNumber(location.program, location.location) << ": ";
-	m << message;
+	ParserHelpers::CodeLocation::Error e(location.program, location.location);
+	e.errorMessage = message;
 
-	DBG(m);
+	DBG(e.toString());
 
-	compiler->logMessage(type, m);
+	
+
+	compiler->logMessage(type, e.toString());
 }
 
 void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr statementToSearchFor, BaseCompiler* c, BaseScope* s)

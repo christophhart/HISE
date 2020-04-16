@@ -125,7 +125,7 @@ using SnexExpressionPtr = snex::JitExpression::Ptr;
 struct SnexDebugHandler
 {
     virtual ~SnexDebugHandler() {}
-    virtual void logMessage(const juce::String& s) {};
+    virtual void logMessage(int level, const juce::String& s) {};
 };
 
 using SnexExpressionPtr = void*;

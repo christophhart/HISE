@@ -129,7 +129,7 @@ public:
 		Types::SnexObjectDatabase::registerObjects(*compiler, 2);
 	}
 
-	void logMessage(const juce::String& s) override
+	void logMessage(int level, const juce::String& s) override
 	{
 		DBG(s);
 	}
@@ -1538,7 +1538,7 @@ private:
 			FINALIZE_CODE();
 
 			CREATE_TYPED_TEST(code);
-			EXPECT_COMPILE_FAIL("Line 3: constant index out of bounds");
+			EXPECT_COMPILE_FAIL("Line 3(17): constant index out of bounds");
 
 		}
 

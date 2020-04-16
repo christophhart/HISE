@@ -600,6 +600,31 @@ void SnexPlayground::recalculateInternal()
 	MessageManager::callAsync(f);
 }
 
+void SnexPlayground::logMessage(int level, const juce::String& s)
+{
+	juce::String m;
+
+	switch (level)
+	{
+	case jit::BaseCompiler::Error:  m << "ERROR: "; break;
+	case jit::BaseCompiler::Warning:  m << "WARNING: "; break;
+	case jit::BaseCompiler::PassMessage: return;// m << "PASS: "; break;
+	case jit::BaseCompiler::ProcessMessage: return;// m << "- "; break;
+	case jit::BaseCompiler::VerboseProcessMessage: m << "-- "; break;
+	default: break;
+	}
+
+	m << s << "\n";
+
+	consoleContent.insertText(consoleContent.getNumCharacters(), m);
+	consoleContent.clearUndoHistory();
+
+	if (level == jit::BaseCompiler::Warning)
+	{
+		editor.addWarning(s);
+	}
+}
+
 void SnexPlayground::recalculate()
 {
 	int mode = jmax(0, graph.processingMode.getSelectedItemIndex());

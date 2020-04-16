@@ -746,11 +746,7 @@ private:
 		}
 	} blaf;
 
-	void logMessage(const juce::String& m) override
-	{
-		consoleContent.insertText(consoleContent.getNumCharacters(), m);
-		consoleContent.clearUndoHistory();
-	}
+	void logMessage(int level, const juce::String& s) override;
 
 	void recalculate();
 

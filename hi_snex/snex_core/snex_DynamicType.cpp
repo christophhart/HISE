@@ -132,10 +132,6 @@ void VariableStorage::set(block& b)
 }
 
 
-void VariableStorage::set(const HiseEvent& e)
-{
-	data.e = e;
-}
 
 void VariableStorage::set(void* objectPointer, int newSize)
 {

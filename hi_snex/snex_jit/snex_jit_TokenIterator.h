@@ -124,6 +124,24 @@ struct ParserHelpers
 			return NamespacedIdentifier(id);
 		}
 
+		static int getColNumber(juce::String::CharPointerType start,
+			juce::String::CharPointerType end)
+		{
+			int col = 0;
+
+			auto charactersFromStart = (end - start);
+
+			for (int i = 0; i < jmin<int>((int)charactersFromStart, (int)start.length()); i++)
+			{
+				if (start[i] == '\n')
+					col = 0;
+				else
+					col++;
+			}
+
+			return col;
+		}
+
 		static int getLineNumber(juce::String::CharPointerType start, 
 			juce::String::CharPointerType end)
 		{
@@ -154,6 +172,7 @@ struct ParserHelpers
 				String s;
 
 				s << "Line " << CodeLocation::getLineNumber(program, location);
+				s << "(" << CodeLocation::getColNumber(program, location) << ")";
 				s << ": " << errorMessage;
 
 				return s;

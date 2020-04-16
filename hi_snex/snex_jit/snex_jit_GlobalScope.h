@@ -52,7 +52,7 @@ struct DebugHandler
 
 		Be aware that this is called synchronously, so it might cause clicks.
 	*/
-	virtual void logMessage(const juce::String& s) = 0;
+	virtual void logMessage(int level, const juce::String& s) = 0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DebugHandler);
 };
@@ -661,7 +661,7 @@ public:
 		for (auto dh : debugHandlers)
 		{
 			if(dh != nullptr)
-				dh->logMessage(message);
+				dh->logMessage(0, message);
 		}
 			
 	}

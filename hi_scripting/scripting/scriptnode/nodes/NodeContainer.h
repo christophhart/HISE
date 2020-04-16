@@ -106,7 +106,7 @@ struct NodeContainer : public AssignableObject
 			return var(connections.getLast());
 		}
 
-		void logMessage(const String& s) override
+		void logMessage(int level, const String& s) override
 		{
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), s);
 		}

@@ -132,22 +132,8 @@ public:
 		if (level > verbosity)
 			return;
 
-		juce::String m;
-
-		switch (level)
-		{
-		case Error:  m << "ERROR: "; break;
-		case Warning:  m << "WARNING: "; break;
-		case PassMessage: return;// m << "PASS: "; break;
-		case ProcessMessage: return;// m << "- "; break;
-		case VerboseProcessMessage: m << "-- "; break;
-        default: break;
-		}
-
-		m << s << "\n";
-
 		if (debugHandler != nullptr)
-			debugHandler->logMessage(m);
+			debugHandler->logMessage(level, s);
 	}
 
 	void setMessageLevel(MessageType maxVerbosity)
