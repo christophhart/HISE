@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 18: Can't use non-constant or non-wrapped index"
+  error: "Line 18(8): Can't use non-constant or non-wrapped index"
   filename: "non-wrapped span access"
 END_TEST_DATA
 */

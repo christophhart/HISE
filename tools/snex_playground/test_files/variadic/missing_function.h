@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 22: X does not have a method reset"
+  error: "Line 22(12): X does not have a method reset"
   filename: "variadic/missing_function"
 END_TEST_DATA
 */

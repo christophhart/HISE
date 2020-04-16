@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 5
-  error: "Line 23: Can't parse statement"
+  error: "Line 23(0): Can't parse statement"
   filename: "namespace/missing_namespace_struct"
 END_TEST_DATA
 */

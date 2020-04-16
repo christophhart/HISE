@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 19: Can't cast span<float, 2> to int"
+  error: "Line 19(12): Can't cast span<float, 2> to int"
   filename: "illegal/castfromblock"
 END_TEST_DATA
 */

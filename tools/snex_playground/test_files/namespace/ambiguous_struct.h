@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 23
-  error: "Line 33: X is ambiguous"
+  error: "Line 33(0): X is ambiguous"
   filename: "namespace/ambiguous_struct"
 END_TEST_DATA
 */

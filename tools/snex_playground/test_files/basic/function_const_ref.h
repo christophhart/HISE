@@ -5,7 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 22: Can't modify const object"
+  error: "Line 22(14): Can't modify const object"
   filename: "basic/function_const_ref"
 END_TEST_DATA
 */
