@@ -53,24 +53,11 @@ END_JUCE_MODULE_DECLARATION
 
 /* TODO Roadmap:
 
-
-
-- add static functions
-
-
-
-
-
-
-- make good API for syntax replacements
-
-
-
-
-
-
-- make parameter stuff
-- add more native functions (simd(), slice, interleave)
+- add static functions & change console & math to static functions
+- add DECLARE_XXX macro system that creates parameters & ranges
+- add parameter variadic types
+- start replacing scriptnode ProcessData with snex type
+- add scriptnode node classes to SNEX
 
 */
 
@@ -93,7 +80,6 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #define HISE_INCLUDE_SNEX 1
 #endif
 #endif
-
 
 
 

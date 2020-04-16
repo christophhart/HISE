@@ -145,7 +145,12 @@ public:
 
 		//DBG(compiler->getCompileResult().getErrorMessage());
 
-		return compiler->getCompileResult().getErrorMessage() == errorMessage;
+		auto actual = compiler->getCompileResult().getErrorMessage();
+
+		if (actual != errorMessage)
+			jassertfalse;
+
+		return actual == errorMessage;
 	}
 
 	void dump()
@@ -731,6 +736,11 @@ private:
 		{
 			if (r.getErrorMessage() != errorMessage)
 			{
+				if (errorMessage.isEmpty())
+				{
+					return r;
+				}
+
 				juce::String e;
 
 				e << "FAIL: Expected message: " << errorMessage << "\n";
