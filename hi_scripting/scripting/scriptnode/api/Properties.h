@@ -215,6 +215,8 @@ template <int ParameterIndex> void setParameter(double value)
 
 #define TEMPLATE_PARAMETER_CALLBACK(id, method) if (ParameterIndex == id) method(value);
 
+#define STATIC_TO_MEMBER_PARAMETER(ClassType) template <int P> static void setParameter(void* obj, double v) { static_cast<ClassType*>(obj)->setParameter<P>(v); }
+
 #define HISE_EMPTY_RESET void reset() {}
 #define HISE_EMPTY_PREPARE void prepare(PrepareSpecs) {}
 #define HISE_EMPTY_PROCESS void process(ProcessData&) {}
@@ -232,6 +234,19 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #define DEFINE_EXTERN_MONO_TEMPIMPL(classWithTemplate) template class classWithTemplate;
 
 #define DEFINE_EXTERN_NODE_TEMPIMPL(className) template class className<1>; template class className<NUM_POLYPHONIC_VOICES>;
+
+#define DECLARE_SNEX_INITIALISER(nodeId) static Identifier getStaticId() { return Identifier(#nodeId);} 
+
+#define DECLARE_SNEX_NODE(ClassType) constexpr const auto& getObject() const noexcept { return *this; } \
+constexpr auto& getObject() noexcept { return *this; } \
+HardcodedNode* getAsHardcodedNode() { return nullptr; } \
+int getExtraHeight() const { return 0; }; \
+int getExtraWidth() const { return 0; }; \
+Component* createExtraComponent(PooledUIUpdater* updater) { return nullptr; } \
+void createParameters(Array<HiseDspBase::ParameterData>& d) { } \
+template <int P> static void setParameter(void* obj, double v) { static_cast<ClassType*>(obj)->setParameter<P>(v); } \
+void initialise(NodeBase* n) {} \
+snex::hmath Math;
 
 namespace UIValues
 {

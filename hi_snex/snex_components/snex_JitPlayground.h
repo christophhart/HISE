@@ -30,8 +30,11 @@
 *   ===========================================================================
 */
 
+
+
 #pragma once
 
+#if USE_BACKEND || SNEX_STANDALONE_PLAYGROUND
 
 namespace snex {
 namespace jit {
@@ -498,6 +501,7 @@ public:
 
 	void fillLine(Graphics& g, int lineToPaint, Colour c)
 	{
+#if 0
 		int firstLine = editor.getFirstLineOnScreen();
 		int lastLine = firstLine + editor.getNumLinesOnScreen();
 
@@ -514,6 +518,7 @@ public:
 			g.setColour(c);
 			g.fillRect(x, y, w, h);
 		}
+#endif
 	}
 
 	void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) override
@@ -531,7 +536,6 @@ public:
 					fillLine(g, i, Colour(0x8838383A));
 				}
 			}
-			
 		}
 
 		if (currentBreakpointLine > 0)
@@ -767,7 +771,7 @@ private:
 	jit::GlobalScope memory;
 	BreakpointDataProvider bpProvider;
 
-	JavascriptCodeEditor editor;
+	mcl::TextEditor editor;
 	AssemblyTokeniser assemblyTokeniser;
 	CodeDocument assemblyDoc;
 	CodeEditorComponent assembly;
@@ -829,3 +833,5 @@ private:
 
 }
 }
+
+#endif

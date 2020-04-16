@@ -53,6 +53,16 @@ class FilterNodeBase : public HiseDspBase,
 {
 public:
 
+	enum Parameters
+	{
+		Frequency,
+		Q,
+		Gain,
+		Smoothing,
+		Mode,
+		numParameters
+	};
+
 	using FilterObject = FilterType;
 
 	static constexpr int NumVoices = NV;
@@ -77,6 +87,20 @@ public:
 	void setQ(double newQ);
 	void setMode(double newMode);
 	void setSmoothingTime(double newSmoothingTime);
+
+	STATIC_TO_MEMBER_PARAMETER(FilterNodeBase);
+
+	template <int P> void setParameter(double newValue)
+	{
+		switch (P)
+		{
+		case Parameters::Frequency: setFrequency(newValue); break;
+		case Parameters::Gain: setGain(newValue); break;
+		case Parameters::Q: setQ(newValue); break;
+		case Parameters::Mode: setMode(newValue); break;
+		case Parameters::Smoothing: setSmoothingTime(newValue); break;
+		}
+	}
 
 	AudioSampleBuffer buffer;
 	PolyData<FilterObject, NumVoices> filter;

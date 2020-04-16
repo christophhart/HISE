@@ -137,7 +137,7 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::wrapIntoConversionLambda(c
 {
 	using namespace ConverterIds;
 
-	if (converterId == Identity || converterId.isNull())
+	if (converterId == ConverterIds::Identity || converterId.isNull())
 		return getFunctionFrom0To1ForRange(range, inverted, originalFunction);
 
 	if (converterId == SubtractFromOne)

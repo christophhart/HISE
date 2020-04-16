@@ -356,7 +356,7 @@ public:
 			v.setProperty("NumSliderPacks", sliderPacks.size(), nullptr);
 
 		if (!tables.isEmpty())
-			v.setProperty("NumTables", sliderPacks.size(), nullptr);
+			v.setProperty("NumTables", tables.size(), nullptr);
 
 		if (!audioFiles.isEmpty())
 			v.setProperty("NumAudioFiles", audioFiles.size(), nullptr);
@@ -431,7 +431,12 @@ protected:
 	ReferenceCountedArray<ScriptingObjects::ScriptSliderPackData> sliderPacks;
 	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
 	ReferenceCountedArray<ScriptingObjects::ScriptAudioFile> audioFiles;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ComplexDataHolder);
 };
+
+
+
 
 
 /** The base class for modules that can be scripted. 
@@ -1013,4 +1018,100 @@ private:
 
 
 } // namespace hise
+
+
+namespace scriptnode
+{
+using namespace juce;
+using namespace hise;
+
+namespace properties
+{
+
+template <class PropertyClass> struct table : public NodePropertyT<int>
+{
+	table() :
+		NodePropertyT<int>(PropertyClass::getId(), -1)
+	{};
+
+	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	{
+		if (n != nullptr)
+		{
+			holder = dynamic_cast<ComplexDataHolder*>(n->getScriptProcessor());
+
+			setAdditionalCallback([&r, this](Identifier id, var newValue)
+			{
+				if (id == PropertyIds::Value)
+				{
+					auto index = (int)newValue;
+					changed(r, index);
+				}
+			});
+
+			init(n, parent);
+		}
+	}
+	
+private:
+
+	template <class RootObject> void changed(RootObject& r, int index)
+	{
+		if (index == -1)
+			usedTable = &ownedTable;
+		else
+			usedTable = holder->getTable(index);
+
+		if (usedTable == nullptr)
+			usedTable = &ownedTable;
+
+		snex::Types::dyn<float> tableData(usedTable->getWritePointer(), usedTable->getTableSize());
+		PropertyClass p;
+		p.setTableData(r, tableData);
+	}
+
+	WeakReference<hise::ComplexDataHolder> holder;
+	hise::SampleLookupTable ownedTable;
+	WeakReference<hise::Table> usedTable = nullptr;
+};
+
+
+
+#if 0
+template <class PropertyClass> struct slider_pack : public complex_base<PropertyClass>,
+													public SliderPack::Listener
+{
+	// TODO: REWRITE THE FUCKING SLIDER PACK LISTENER CLASS...
+	void sliderPackChanged(SliderPack *s, int index) override
+	{
+
+	}
+
+	void changed(int index) override
+	{
+		if (index >= 0)
+		{
+			if (data = holder->getSliderPackData(index))
+			{
+				data->addPooledChangeListener(this)
+			}
+		}
+			
+		snex::Types::dyn<float> tableData(usedPack->getCachedData());
+		PropertyClass p;
+
+		p.setSliderPackData(r, tableData);
+	}
+
+	WeakReference<SliderPackData> data;
+	HeapBlock<float> dataCopy;
+};
+#endif
+
+
+
+}
+}
+
+
 #endif  // SCRIPTPROCESSOR_H_INCLUDED

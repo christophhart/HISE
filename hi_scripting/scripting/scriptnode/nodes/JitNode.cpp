@@ -281,6 +281,7 @@ void jit_impl<NV>::process(ProcessData& d)
 
 			break;
 		}
+#if 0
 		case CallbackTypes::Sample:
 		{
 			for (int c = 0; c < d.numChannels; c++)
@@ -294,6 +295,7 @@ void jit_impl<NV>::process(ProcessData& d)
 
 			break;
 		}
+#endif
 		default:
 			break;
 		}
@@ -465,6 +467,7 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 
 	snex::jit::FunctionData f;
 
+#if 0
 	if (!cc.resetFunction)
 	{
 		f.id = "reset";
@@ -474,14 +477,7 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 		missingFunctions << JitCodeHelpers::createEmptyFunction(f, true);
 	}
 
-	if (!cc.eventFunction)
-	{
-		f.id = "handleEvent";
-		f.returnType = TypeInfo(Types::ID::Void, false);
-		f.args.add( Symbol::createRootSymbol("e").withType(Types::ID::Event));
-
-		missingFunctions << JitCodeHelpers::createEmptyFunction(f, true);
-	}
+	
 
 	if (!cc.prepareFunction)
 	{
@@ -505,7 +501,6 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 		missingFunctions << JitCodeHelpers::createEmptyFunction(f, false);
 	}
 
-#if 0
 	if (!cc.callbacks[CallbackTypes::Frame])
 	{
 		f.id = "processFrame";

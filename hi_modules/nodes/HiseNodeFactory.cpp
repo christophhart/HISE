@@ -61,53 +61,12 @@ Factory::Factory(DspNetwork* network) :
 
 }
 
-
-namespace funky
-{
-
-
-DECLARE_PARAMETER_RANGE(chain0_Parameter_input, 0.0, 4.0);
-DECLARE_PARAMETER_RANGE(chain0_Parameter_connection0, 0.0, 4.0);
-
-using chain0_Connection0 = parameter::from0to1<core::gain, 0, chain0_Parameter_connection0>;
-using chain0_Parameter = parameter::chain<chain0_Parameter_input, chain0_Connection0>;
-
-//DECLARE_PARAMETER_EXPRESSION(chain0_gain1, Math.random() + 2.0);
-
-using fx_new = container::chain<chain0_Parameter, core::gain> ;
-
-struct init_base
-{
-	template <int I, class T> constexpr auto& getParameter(T& obj)
-	{
-		return obj.getParameter<I>();
-	}
-
-	template <int I, class T> constexpr auto& getNode(T& obj)
-	{
-		return obj.get<I>();
-	}
-};
-
-
-struct init: public init_base
-{
-	init(fx_new& obj)
-	{
-		auto& p1 = getParameter<0>(obj);
-		auto& gain1 = getNode<0>(obj);
-
-		p1.connect(gain1);
-	}
-};
-
-
-using test_node = cpp_node<init, funky::fx_new>;
-
-}
-
 namespace fx
 {
+
+
+
+
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
@@ -116,21 +75,26 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<haas, haas_poly>({});
 	registerPolyNode<phase_delay, phase_delay_poly>({});
 	registerNode<reverb>({});
-	
-	
-	registerAnonymousNode<funky::test_node>("my_test_node");
 }
 
 
 
+
+
 }
+
+
 
 namespace core
 {
+
+
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
+#if INCLUDE_SOUL_NODE
 	registerNodeRaw<SoulNode>();
+#endif
 
 	registerPolyNode<seq, seq_poly>();
 	registerPolyNode<ramp, ramp_poly>();
@@ -152,6 +116,9 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<timer, timer_poly>();
 	registerPolyNode<midi, midi_poly>({});
 	registerPolyNode<smoother, smoother_poly>({});
+
+	
+
 }
 }
 

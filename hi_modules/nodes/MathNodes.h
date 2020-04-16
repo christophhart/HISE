@@ -157,6 +157,8 @@ namespace Operations
 	};
 }
 
+
+
 template <class OpType, int V> class OpNode : public HiseDspBase
 {
 public:
@@ -176,11 +178,11 @@ public:
 	void createParameters(Array<ParameterData>& data) override;
 	void setValue(double newValue);
 
-	
+	STATIC_TO_MEMBER_PARAMETER(OpNode);
 
-	template <int P> static void setParameter(void* obj, double v)
+	template <int P> void setParameter(double v)
 	{
-		static_cast<OpNode*>(obj)->setValue(v);
+		setValue(v);
 	}
 
 	PolyData<float, NumVoices> value = OpType::defaultValue;

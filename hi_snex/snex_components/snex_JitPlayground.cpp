@@ -30,9 +30,12 @@
 *   ===========================================================================
 */
 
+#if USE_BACKEND || SNEX_STANDALONE_PLAYGROUND
+
 namespace snex {
 namespace jit {
 using namespace juce;
+
 
 
 
@@ -40,7 +43,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	memory(),
 	bpProvider(memory),
 	externalCodeValue(externalCode),
-	editor(doc, &tokeniser, this, "SnexCode"),
+	editor(doc),
 	assembly(assemblyDoc, &assemblyTokeniser),
 	console(consoleContent, &consoleTokeniser),
 	snexIcon(factory.createPath("snex")),
@@ -78,7 +81,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 	watchTable.setHolder(&bpProvider);
 
-	editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(18.0f));
+	//editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(16.0f));
 	editor.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xCC38383A));
 	editor.setOpaque(false);
 	editor.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white);
@@ -133,13 +136,15 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	scheme.set("Bracket", Colour(0xFFDDDDDD));
 	scheme.set("Punctuation", Colour(0xFFBBBBBB));
 	scheme.set("Preprocessor Text", Colour(0xFFBBBB88));
+	scheme.set("Deactivated", Colour(0xFF777777));
 
 	graph.testSignal.addListener(this);
 	graph.channelMode.addListener(this);
 	graph.bufferLength.addListener(this);
 	graph.processingMode.addListener(this);
 
-	editor.setColourScheme(scheme);
+	editor.colourScheme = scheme;
+	editor.setShowNavigation(false);
 
 	addAndMakeVisible(assembly);
 
@@ -245,7 +250,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 	auto f = [this]()
 	{
-		editor.moveCaretToTop(false);
+		
 		editor.grabKeyboardFocus();
 	};
 
@@ -640,6 +645,8 @@ void SnexPlayground::recalculate()
 
 void SnexPlayground::recompile()
 {
+	editor.clearWarningsAndErrors();
+
 	if (testMode)
 	{
 		JitFileTestCase tc(memory, doc.getAllContent());
@@ -651,6 +658,8 @@ void SnexPlayground::recompile()
 		auto r = tc.test();
 
 		assemblyDoc.replaceAllContent(tc.assembly);
+
+		editor.setError(r.getErrorMessage());
 
 		if (r.failed())
 			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
@@ -690,11 +699,15 @@ void SnexPlayground::recompile()
 
 	if (!cc.getCompileResult().wasOk())
 	{
+		editor.setError(cc.getCompileResult().getErrorMessage());
+
 		resultLabel.setText(cc.getCompileResult().getErrorMessage(), dontSendNotification);
 		graph.setBuffer(b);
 	}
 	else
 	{
+		editor.setError({});
+
 		cData.obj = newObject;
 		cData.setupCallbacks();
 
@@ -1171,9 +1184,12 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 		lastRange = pp.getDeactivatedLines();
 
-		parent.repaint();
+		parent.editor.setDeactivatedLines(lastRange);
+
 		stopTimer();
 	}
 
 }
 }
+
+#endif
