@@ -836,14 +836,16 @@ void StreamingSamplerVoice::setTemporaryVoiceBuffer(hlac::HiseSampleBuffer* buff
 	tvb = buffer;
 }
 
-void StreamingSamplerVoice::initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* bufferToUse, int samplesPerBlock)
+void StreamingSamplerVoice::initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* bufferToUse, int samplesPerBlock, int streamingBufferSize)
 {
 	// The channel amount must be set correctly in the constructor
 	jassert(bufferToUse->getNumChannels() > 0);
 
-	if (bufferToUse->getNumSamples() < samplesPerBlock*MAX_SAMPLER_PITCH)
+	auto numToUse = jmax<int>(streamingBufferSize, samplesPerBlock * MAX_SAMPLER_PITCH);
+
+	if (bufferToUse->getNumSamples() < numToUse)
 	{
-		bufferToUse->setSize(bufferToUse->getNumChannels(), samplesPerBlock*MAX_SAMPLER_PITCH);
+		bufferToUse->setSize(bufferToUse->getNumChannels(), numToUse);
 		bufferToUse->clear();
 	}
 }

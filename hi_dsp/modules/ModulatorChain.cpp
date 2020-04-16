@@ -510,10 +510,6 @@ void ModulatorChain::ModChainWithBuffer::applyMonophonicModulationValues(AudioSa
 {
 	if (c->hasMonophonicTimeModulationMods())
 	{
-		// You need to expand the modulation values to audio rate before calling this method.
-		// Either call setExpandAudioRate(true) in the constructor, or manually expand them
-		jassert(monoExpandChecker);
-
 		for (int i = 0; i < b.getNumSamples(); i++)
 		{
 			FloatVectorOperations::multiply(b.getWritePointer(i, startSample), modBuffer.monoValues, numSamples);
@@ -563,10 +559,6 @@ const float* ModulatorChain::ModChainWithBuffer::getMonophonicModulationValues(i
 
 	if (c->hasMonophonicTimeModulationMods())
 	{
-		// You need to expand the modulation values to audio rate before calling this method.
-		// Either call setExpandAudioRate(true) in the constructor, or manually expand them
-		jassert(monoExpandChecker);
-
 		return modBuffer.monoValues + startSample;
 	}
 

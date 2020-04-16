@@ -1510,7 +1510,6 @@ void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<Async
 
 				if (sound->isDeletePending())
 				{
-					jassertfalse;
 					continue;
 				}
 
