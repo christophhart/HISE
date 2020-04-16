@@ -123,6 +123,8 @@ juce::String NamespaceHandler::Alias::toString() const
 	case TemplatedClass: s << "template struct " << id.toString(); break;
 	case TemplatedFunction: s << "template function " << id.toString(); break;
 	case PreprocessorConstant: s << "#define " << id.toString() << "=" << Types::Helpers::getCppValueString(constantValue); break;
+	case Enum:				   s << "enum " << id.toString(); break;
+	case EnumValue:			   s << id.toString() << " = " << String(constantValue.toInt()); break;
 	default:
 		jassertfalse;
 	}
@@ -355,7 +357,16 @@ juce::Result NamespaceHandler::resolve(NamespacedIdentifier& id, bool allowZeroM
 	auto parent = id.getParent();
 	Array<NamespacedIdentifier> matches;
 
-	if (auto existing = get(parent))
+	auto existing = get(parent);
+
+	if (existing == nullptr)
+	{
+		auto subParent = parent.relocate({}, currentNamespace->id);
+
+		existing = get(subParent);
+	}
+
+	if (existing != nullptr)
 	{
 		auto possibleSymbol = existing->id.getChildId(name);
 
@@ -437,7 +448,7 @@ juce::Result NamespaceHandler::setTypeInfo(const NamespacedIdentifier& id, Symbo
 
 bool NamespaceHandler::isConstantSymbol(SymbolType t)
 {
-	return t == TemplateConstant || t == PreprocessorConstant || t == Constant;
+	return t == TemplateConstant || t == PreprocessorConstant || t == Constant || t == EnumValue;
 }
 
 bool NamespaceHandler::isTemplateTypeArgument(NamespacedIdentifier classId) const
@@ -582,7 +593,7 @@ TypeInfo NamespaceHandler::getAliasType(const NamespacedIdentifier& aliasId) con
 
 TypeInfo NamespaceHandler::getVariableType(const NamespacedIdentifier& variableId) const
 {
-	return getTypeInfo(variableId, { SymbolType::TemplateConstant, SymbolType::Variable, SymbolType::Constant, SymbolType::Function });
+	return getTypeInfo(variableId, { SymbolType::TemplateConstant, SymbolType::Variable, SymbolType::Constant, SymbolType::Function, SymbolType::EnumValue });
 }
 
 snex::VariableStorage NamespaceHandler::getConstantValue(const NamespacedIdentifier& variableId) const
@@ -611,6 +622,25 @@ bool NamespaceHandler::isStaticFunctionClass(const NamespacedIdentifier& classId
 		{
 			if (a.id == classId && a.symbolType == StaticFunctionClass)
 				return true;
+		}
+	}
+
+	return false;
+}
+
+bool NamespaceHandler::isClassEnumValue(const NamespacedIdentifier& classId) const
+{
+	if (auto e = get(classId.getParent()))
+	{
+		for (auto a : e->aliases)
+		{
+			if (a.id == classId)
+			{
+				auto isEnum = a.symbolType == SymbolType::EnumValue;
+				auto isClassEnum = a.type.isConst();
+
+				return isEnum && isClassEnum;
+			}
 		}
 	}
 

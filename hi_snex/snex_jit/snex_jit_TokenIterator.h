@@ -55,7 +55,7 @@ using namespace juce;
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
 	X(void_, "void")			X(public_, "public")	X(private_, "private") \
-	X(class_, "class")			X(for_, "for") \
+	X(class_, "class")			X(for_, "for")      X(enum_, "enum") \
 	X(if_, "if")				X(else_, "else")	\
 	X(auto_, "auto")			X(struct_, "struct")	\
 	X(using_, "using")		    X(static_, "static")	X(break_, "break") X(continue_, "continue")			X(namespace_, "namespace") \

@@ -132,6 +132,8 @@ public:
 	{
 		auto c = handler.getCurrentNamespaceIdentifier();
 
+		auto symbolLoc = location;
+
 		auto id = parseIdentifier();
 
 		auto isExplicit = currentType == JitTokens::double_colon;
@@ -149,7 +151,7 @@ public:
 			c = c.getChildId(parseIdentifier());
 		}
 
-		T::resolve(handler, c, location);
+		T::resolve(handler, c, symbolLoc);
 		currentNamespacedIdentifier = c;
 
 		other.seek(*this);
@@ -534,6 +536,8 @@ public:
 	NamespacedIdentifier getDotParentName(ExprPtr e);
 	
 	void parseUsingAlias();
+
+	void parseEnum();
 
 	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, TokenType op);
 	ExprPtr parseExpression();

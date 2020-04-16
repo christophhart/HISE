@@ -47,6 +47,8 @@ struct NamespaceHandler
 		Function,
 		Variable,
 		UsingAlias,
+		Enum,
+		EnumValue,
 		PreprocessorConstant,
 		Constant,
 		StaticFunctionClass,
@@ -207,6 +209,8 @@ public:
 	VariableStorage getConstantValue(const NamespacedIdentifier& variableId) const;
 
 	bool isStaticFunctionClass(const NamespacedIdentifier& classId) const;
+
+	bool isClassEnumValue(const NamespacedIdentifier& classId) const;
 
 	Result switchToExistingNamespace(const NamespacedIdentifier& id);
 

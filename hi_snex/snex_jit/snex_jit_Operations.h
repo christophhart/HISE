@@ -1421,10 +1421,10 @@ struct Operations::ReturnStatement : public Expression
 					actualType = first->getTypeInfo();
 
 				if (isVoid() && actualType != Types::ID::Void)
-					throwError("function must return a value");
-				if (!isVoid() && actualType == Types::ID::Void)
 					throwError("Can't return a value from a void function.");
-
+				if (!isVoid() && actualType == Types::ID::Void)
+					throwError("function must return a value");
+					
 				checkAndSetType(0, getTypeInfo());
 			}
 			else
@@ -2824,16 +2824,16 @@ struct Operations::Subscript : public Expression,
 						s << " for target ";
 						s << parentType.toString();
 
-						throwError(s);
+						getSubExpr(1)->throwError(s);
 					}
 						
 				}
 				else
-					throwError("illegal index type");
+					getSubExpr(1)->throwError("illegal index type");
 			}
 			else if (!getSubExpr(1)->isConstExpr())
 			{
-                throwError("Can't use non-constant or non-wrapped index");
+				getSubExpr(1)->throwError("Can't use non-constant or non-wrapped index");
 			}
 			
 			if (spanType != nullptr)
@@ -2845,7 +2845,7 @@ struct Operations::Subscript : public Expression,
 					int index = getSubExpr(1)->getConstExprValue().toInt();
 
 					if (!isPositiveAndBelow(index, size))
-						throwError("constant index out of bounds");
+						getSubExpr(1)->throwError("constant index out of bounds");
 				}
 			}
 			else if (dynType != nullptr)
@@ -2863,7 +2863,7 @@ struct Operations::Subscript : public Expression,
 				if (getSubExpr(0)->getType() == Types::ID::Block)
 					elementType = TypeInfo(Types::ID::Float, false, true);
 				else
-					location.throwError("Can't use []-operator");
+					getSubExpr(1)->throwError("Can't use []-operator");
 			}
 		}
 

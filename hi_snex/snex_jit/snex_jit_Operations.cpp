@@ -349,7 +349,23 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 		if (NamespaceHandler::isConstantSymbol(nSymbolType))
 		{
-			auto n = new Immediate(location, compiler->namespaceHandler.getConstantValue(id.id));
+			Ptr n = new Immediate(location, compiler->namespaceHandler.getConstantValue(id.id));
+
+			if (compiler->namespaceHandler.isClassEnumValue(id.id))
+			{
+				if (auto pCast = dynamic_cast<Cast*>(parent.get()))
+				{
+					if (pCast->targetType.getType() == Types::ID::Integer)
+					{
+						pCast->replaceInParent(n);
+						return;
+					}
+				}
+
+				throwError("Can't implicitely cast " + id.id.toString() + " to int");
+			}
+
+			
 			replaceInParent(n);
 			return;
 		}

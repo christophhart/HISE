@@ -166,22 +166,6 @@ bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 				auto value = a->getSubExpr(0)->getConstExprValue();
 
 				a->getSubExpr(1)->process(compiler, s);
-
-
-				if (a->getTargetType() == Operations::Assignment::TargetType::Variable)
-				{
-					auto target = a->getTargetVariable();
-
-					if (target != nullptr)
-					{
-						int numWriteAccesses = target->getNumWriteAcesses();
-
-						if (s->getScopeType() != BaseScope::Class && numWriteAccesses == 1 && !target->id.isConst())
-						{
-							a->logWarning("const value is declared as non-const");
-						}
-					}
-				}
 			}
 		}
 
@@ -753,7 +737,7 @@ bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 			if (numReferences == 1)
 			{
-				compiler->logMessage(BaseCompiler::Warning, "Unused variable " + v->id.toString());
+				v->logWarning("Unused variable " + v->id.toString());
 				OptimizationPass::replaceWithNoop(statement);
 				return true;
 			}

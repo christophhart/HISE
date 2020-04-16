@@ -181,18 +181,19 @@ BlockParser::StatementPtr BlockParser::parseStatementList()
 
 	while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 	{
-		while (matchIf(JitTokens::using_))
+		if(matchIf(JitTokens::using_))
 		{
 			parseUsingAlias();
+			continue;
 		}
 
-		auto s = parseStatement();
-		list->addStatement(s);
-
-		while (matchIf(JitTokens::using_))
+		if (matchIf(JitTokens::enum_))
 		{
-			parseUsingAlias();
+			parseEnum();
+			continue;
 		}
+
+		list->addStatement(parseStatement());
 	}
 
 	matchIf(JitTokens::closeBrace);
@@ -842,6 +843,90 @@ void BlockParser::parseUsingAlias()
 		match(JitTokens::semicolon);
 		compiler->namespaceHandler.setTypeInfo(s.id, NamespaceHandler::UsingAlias, s.typeInfo);
 	}
+}
+
+void BlockParser::parseEnum()
+{
+	bool isClassEnum = matchIf(JitTokens::class_);
+
+	currentTypeInfo = TypeInfo(Types::ID::Integer, true, false);
+
+	auto enumId = parseNewSymbol(NamespaceHandler::SymbolType::Enum);
+
+	int value = 0;
+
+	struct Item
+	{
+		Identifier id;
+		int value;
+	};
+
+	Array<Item> items;
+
+	match(JitTokens::openBrace);
+
+	bool expectNext = true;
+
+	enum class En
+	{
+		aas = 9
+	};
+
+	
+
+	while (!isEOF() && currentType != JitTokens::closeBrace)
+	{
+		if (!expectNext)
+			location.throwError("expected }");
+
+		auto enumId = parseIdentifier();
+
+		if (matchIf(JitTokens::assign_))
+		{
+			value = parseConstExpression(false).toInt();
+		}
+
+		items.add({ enumId, value });
+		value++;
+		expectNext = matchIf(JitTokens::comma);
+	}
+
+	auto& nh = compiler->namespaceHandler;
+
+	{
+		NamespaceHandler::ScopedNamespaceSetter sns(nh, enumId.getId());
+
+		auto currentNamespace = nh.getCurrentNamespaceIdentifier();
+
+		TypeInfo type(Types::ID::Integer, isClassEnum, false);
+
+		for (auto i : items)
+		{
+			auto idToUse = currentNamespace.getChildId(i.id);
+			nh.addSymbol(idToUse, type, NamespaceHandler::EnumValue);
+			nh.addConstant(idToUse, i.value);
+		}
+	}
+	if (!isClassEnum)
+	{
+		// now populate the parent namespace with the enum values too...
+
+		auto currentNamespace = nh.getCurrentNamespaceIdentifier();
+
+		// We'll abuse the const attribute to mark class enums so that they
+		// need to be casted to an int...
+		TypeInfo type(Types::ID::Integer, false, false);
+
+		for (auto i : items)
+		{
+			auto idToUse = currentNamespace.getChildId(i.id);
+			nh.addSymbol(idToUse, type, NamespaceHandler::EnumValue);
+			nh.addConstant(idToUse, i.value);
+		}
+	}
+
+	match(JitTokens::closeBrace);
+	match(JitTokens::semicolon);
 }
 
 juce::Array<snex::jit::TemplateParameter> TypeParser::parseTemplateParameters()
