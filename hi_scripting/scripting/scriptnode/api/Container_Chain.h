@@ -48,17 +48,17 @@ template <class ParameterClass, typename... Processors> struct chain: public con
 
 	void process(ProcessData& d)
 	{
-		process_each(d, this->indexes);
+		process_each(d, getIndexSequence());
 	}
 
 	void processSingle(float* data, int numChannels)
 	{
-		process_single_each(data, numChannels, this->indexes);
+		process_single_each(data, numChannels, getIndexSequence());
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
-		this->prepare_each(ps, this->indexes);
+		this->prepare_each(ps, getIndexSequence());
 	}
 
 	bool handleModulation(double& )
@@ -68,11 +68,12 @@ template <class ParameterClass, typename... Processors> struct chain: public con
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		this->handle_event_each(e, this->indexes);
+		this->handle_event_each(e, getIndexSequence());
 	}
 
-	auto& getObject() { return *this; };
-	const auto& getObject() const { return *this; };
+	
+	constexpr auto& getObject() { return *this; };
+	constexpr const auto& getObject() const { return *this; };
 
 private:
 

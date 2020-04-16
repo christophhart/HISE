@@ -654,14 +654,24 @@ struct hardcoded_base : public HiseDspBase,
 	int extraWidth = -1;
 };
 
-template <class Initialiser, class T> struct cpp_node : public SingleWrapper<T>
+template <class Initialiser, class T, class PropertyClass=properties::none> struct cpp_node : public SingleWrapper<T>
 {
 	static constexpr bool isModulationSource = T::isModulationSource;
 
+	static Identifier getStaticId() { return Initialiser::getStaticId(); };
+
 	void initialise(NodeBase* n) override
 	{
-		Initialiser init(obj);
+		Initialiser init;
+
+		init.initialise(obj);
 		obj.initialise(n);
+		props.initWithRoot(n, this, obj);
+	}
+
+	template <int P> static void setParameter(void* ptr, double v)
+	{
+		static_cast<cpp_node*>(ptr)->obj.setParameter<P>(v);
 	}
 
 	template <int I, int Limit> struct ParameterAdder
@@ -715,6 +725,9 @@ template <class Initialiser, class T> struct cpp_node : public SingleWrapper<T>
 	}
 
 
+	constexpr T& getObject() { return obj; }
+	constexpr const T& getObject() const { return obj; }
+
 	void createParameters(Array<ParameterData>& data) override
 	{
 		static constexpr int NumParameters = obj.parameters.size;
@@ -728,11 +741,18 @@ template <class Initialiser, class T> struct cpp_node : public SingleWrapper<T>
 		ADD_PARAMETER(12); ADD_PARAMETER(13); ADD_PARAMETER(14); ADD_PARAMETER(15);
 
 #undef ADD_PARAMETER
+
+		props.initWithRoot(nullptr, nullptr, obj);
 	}
 
 	template <int P> void addParameter(Array<ParameterData>& data)
 	{
-		ParameterData p("Gain", { 0.0, 1.0, 0.01 });
+		String pName = "Parameter";
+
+		pName << String(P);
+
+
+		ParameterData p(pName, obj.parameters.createParameterRange<P>());
 		p.db = [this](double v)
 		{
 			obj.setParameter<P>(v);
@@ -740,6 +760,8 @@ template <class Initialiser, class T> struct cpp_node : public SingleWrapper<T>
 
 		data.add(p);
 	}
+
+	PropertyClass props;
 };
 
 struct hardcoded_pimpl : public hardcoded_base

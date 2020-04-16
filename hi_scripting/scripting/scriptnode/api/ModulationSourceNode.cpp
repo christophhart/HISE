@@ -300,7 +300,7 @@ void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAna
 	lastModValue = value;
 }
 
-void ModulationSourceNode::logMessage(const String& s)
+void ModulationSourceNode::logMessage(int level, const String& s)
 {
 #if USE_BACKEND
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());

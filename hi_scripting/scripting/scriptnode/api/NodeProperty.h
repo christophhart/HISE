@@ -149,4 +149,185 @@ private:
 	valuetree::PropertyListener updater;
 };
 
+
+
+/** This namespace contains templates to declare properties in CPP.
+
+	In order to use it, pass one of the template instances to the cpp_node class as third parameter (default is properties::none).
+
+	It will automatically register and create properties for the given node that can be changed like any other scriptnode property
+	(using either the IDE or scripting calls)
+
+*/
+namespace properties
+{
+
+/** A macro that can by used inside a property class to setup the required members and methods. */
+#define DECLARE_SNEX_NATIVE_PROPERTY(className, type, initValue) using DataType = type; \
+                                                          static Identifier getId() { return Identifier(#className); } \
+                                                          static DataType getDefault() { return initValue; };
+
+#define DECLARE_SNEX_COMPLEX_PROPERTY(className) static Identifier getId() { return Identifier(#className); }
+
+/** This templates takes a class and wraps it into a property with proper data management.
+
+	The PropertyClass you pass in is supposed to meet a few standards:
+
+	- use the DECLARE_SNEX_PROPERTY() macro inside the class to define the name,
+	  data type and initial value
+	- define a set(T& obj, DataType newValue) method
+
+	A minimal example for a valid property class is:
+
+		struct MyProperty
+		{
+			DECLARE_SNEX_PROPERTY(MyProperty, double, 4.0);
+
+			void set(MyObject& obj, double newValue)
+			{
+				obj.doSomethingWith(newValue);
+			}
+		};
+
+	The set() method will be called whenever the property changes. Be aware that the MyObject class
+	is supposed to be the type of the main root object that was passed into the cpp_node template.
+	If this is a container, you can use the standard methods to access its members:
+
+		void set(MyChain& obj, double newValue)
+		{
+			obj.get<1>().setPropertyOfMember(newValue);
+		}
+
+	This allows to build up a simple property management that can change any arbitrary member node of
+	the root node.
+*/
+template <class PropertyClass> struct native : public NodePropertyT<typename PropertyClass::DataType>
+{
+	native() :
+		NodePropertyT<PropertyClass::DataType>(PropertyClass::getId(), PropertyClass::getDefault())
+	{};
+
+	/** This is being called in the initialise method of the cpp_node template class.
+		the root object needs to have the same type that is used as object type for the node.
+	*/
+	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	{
+		init(n, parent);
+		setRootObject(r);
+	}
+
+private:
+
+	/** @internal: sets up a callback that calls the set method of the given property class. */
+	template <class RootObject> void setRootObject(RootObject& r)
+	{
+		setAdditionalCallback([&r, this](Identifier id, var newValue)
+		{
+			if (id == PropertyIds::Value)
+			{
+				auto typedValue = (PropertyClass::DataType)newValue;
+				p.set(r, typedValue);
+			}
+		});
+	}
+
+	PropertyClass p;
+};
+
+/** This node property can be used to use an external file.
+	
+	The PropertyClass needs a method called setFile(T& obj, double sampleRate, span<dyn<float>, NumChannels>& data)	
+	and will be called whenever a new file is loaded.
+*/
+template <class PropertyClass, int NumChannels> struct file : public NodePropertyT<String>
+{
+	file() :
+		NodePropertyT<String>(PropertyClass::getId(), "")
+	{};
+
+	/** This is being called in the initialise method of the cpp_node template class.
+		the root object needs to have the same type that is used as object type for the node.
+	*/
+	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	{
+		if (n != nullptr)
+		{
+			mc = n->getScriptProcessor()->getMainController_();
+			init(n, parent);
+			setRootObject(r);
+		}
+	}
+
+private:
+
+	/** @internal: sets up a callback that calls the set method of the given property class. */
+	template <class RootObject> void setRootObject(RootObject& r)
+	{
+		setAdditionalCallback([&r, this](Identifier id, var newValue)
+		{
+			if (id == PropertyIds::Value)
+			{
+				auto f = newValue.toString();
+
+				PoolReference ref(mc, f, FileHandlerBase::SubDirectories::AudioFiles);
+				reference = mc->getCurrentAudioSampleBufferPool()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
+
+				auto& b = reference->data;
+				auto sampleRate = (double)reference->additionalData.getProperty("SampleRate", 0.0);
+
+				using namespace snex;
+				using namespace snex::Types;
+
+				for (int i = 0; i < b.getNumChannels(); i++)
+				{
+					dynData[i] = dyn<float>(b.getWritePointer(i), b.getNumSamples());
+				}
+
+				PropertyClass p;
+				p.setFile(r, sampleRate, dynData);
+			}
+		});
+	}
+
+	snex::Types::span<snex::Types::dyn<float>, NumChannels> dynData;
+	MainController* mc;
+	AudioSampleBufferPool::ManagedPtr reference;
+};
+
+
+/** This template is a dummy property that is being used if the node does not have any public
+	properties that you want to change dynamically.
+*/
+struct none
+{
+	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	{}
+};
+
+/** This template is being used when you have multiple properties in a node. It simply forwards the
+	calls to every child property.
+*/
+template <class... Properties> struct list
+{
+	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	{
+		std::index_sequence_for<Properties...> indexes;
+
+		init_each<RootObject>(n, parent, r, indexes);
+	}
+
+private:
+
+	template <class RootObject, std::size_t ...Ns>
+	void init_each(NodeBase* n, HiseDspBase* parent, RootObject& r, std::index_sequence<Ns...>) {
+		using swallow = int[];
+		(void)swallow {
+			1, (std::get<Ns>(props).initWithRoot(n, parent, r), void(), int{})...
+		};
+	}
+
+	std::tuple<Properties...> props;
+};
+}
+
 }

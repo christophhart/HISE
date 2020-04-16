@@ -47,7 +47,7 @@ template <class ParameterClass, typename... Processors> struct multi: public con
 
 	void initialise(NodeBase* b)
 	{
-		this->init_each(b, this->indexes);
+		this->init_each(b, getIndexSequence());
 	}
 
 	template <class T> void process_multi(T& obj, ProcessData& d, int& channelIndex)
@@ -92,23 +92,23 @@ template <class ParameterClass, typename... Processors> struct multi: public con
 	void process(ProcessData& d)
 	{
 		int channelIndex = 0;
-		process_each_multi(d, channelIndex, this->indexes);
+		process_each_multi(d, channelIndex, getIndexSequence());
 	}
 
 	void processSingle(float* data, int )
 	{
 		int channelIndex = 0;
-		process_single_each_multi(data, channelIndex, this->indexes);
+		process_single_each_multi(data, channelIndex, getIndexSequence());
 	}
 
 	void reset()
 	{
-		this->reset_each(this->indexes);
+		this->reset_each(getIndexSequence());
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
-		this->prepare_each(ps, this->indexes);
+		this->prepare_each(ps, getIndexSequence());
 	}
 
 	bool handleModulation(double& value)
@@ -118,7 +118,7 @@ template <class ParameterClass, typename... Processors> struct multi: public con
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		this->handle_event_each(e, this->indexes);
+		this->handle_event_each(e, getIndexSequence());
 	}
 
 	auto& getObject() { return *this; };

@@ -91,7 +91,7 @@ public:
 	void prepare(PrepareSpecs ps) override;
 	void sendValueToTargets(double value, int numSamplesForAnalysis);;
 
-	void logMessage(const String& s) override;
+	void logMessage(int level, const String& s) override;
 
 
 	int fillAnalysisBuffer(AudioSampleBuffer& b);

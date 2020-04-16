@@ -54,29 +54,6 @@ struct ContainerParameter
 	//std::function<void(double)> f;
 };
 
-template <class T> struct Accessor
-{
-	template <class T> Accessor(T& obj_) :
-		obj(obj_)
-	{}
-
-	template <class Obj, int I> static auto& get_(Obj& o, std::index_sequence<I> path)
-	{
-		return o.get<I>();
-	}
-
-	template <class Obj, int I, int... Is> static auto& get_(Obj& o, std::index_sequence<I, Is...> path)
-	{
-		return get_(o.get<I>(), std::index_sequence<Is...>());
-	}
-
-	template <size_t... Path> auto& get() const
-	{
-		return get_(obj, std::index_sequence<Path...>());
-	}
-
-	T& obj;
-};
 
 template <class ParameterClass, typename... Processors> struct container_base
 {
@@ -88,6 +65,11 @@ template <class ParameterClass, typename... Processors> struct container_base
 		(void)swallow {
 			1, (std::get<Ns>(processors).initialise(b), void(), int{})...
 		};
+	}
+
+	static auto getIndexSequence()
+	{
+		return std::index_sequence_for<Processors...>();
 	}
 
 	template <std::size_t ...Ns>
@@ -116,26 +98,39 @@ template <class ParameterClass, typename... Processors> struct container_base
 
 	void initialise(NodeBase* b)
 	{
-		init_each(b, indexes);
+		init_each(b, getIndexSequence());
 	}
 
 	void reset()
 	{
-		reset_each(indexes);
+		reset_each(getIndexSequence());
 	}
 
-	template <size_t arg> constexpr auto& get() noexcept { return std::get<arg>(processors); }
+	template <int ParameterIndex, class T> void connect(T& object)
+	{
+		connect<ParameterIndex, 0>(object);
+	}
+
+	template <int ParameterIndex, int ConnectionIndex, class T> constexpr void connect(T& object)
+	{
+		auto offset = reinterpret_cast<int64_t>(&object) - reinterpret_cast<int64_t>(this);
+
+		// If this fires, you are trying to connect a parameter to an object that is not part of this container...
+		jassert(isPositiveAndBelow(offset, sizeof(Type)));
+
+		auto& p = getParameter<ParameterIndex>().get<ConnectionIndex>();
+
+		
+
+		p.connect(object.getObject());
+	}
+
+	template <int arg> constexpr auto& get() noexcept { return std::get<arg>(processors).getObject(); }
+	template <int arg> constexpr const auto& get() const noexcept { return std::get<arg>(processors).getObject(); }
 	
-	template <size_t arg, size_t... args> constexpr auto& getFunky() noexcept
+	template <size_t arg> constexpr auto& getParameter() noexcept
 	{
-		Accessor<Type> a(*this);
-		return a.get<arg, args...>();
-	}
-
-	template <size_t... args> constexpr auto& getParameter() noexcept
-	{
-		Accessor<ParameterClass> a(parameters);
-		return a.get<args...>();
+		return parameters.get<arg>();
 	}
 
     void createParameters(Array<HiseDspBase::ParameterData>& d)
@@ -159,12 +154,11 @@ template <class ParameterClass, typename... Processors> struct container_base
     
     HardcodedNode* getAsHardcodedNode() { return nullptr; };
     Component* createExtraComponent(PooledUIUpdater* updater) { return nullptr; }
-    bool isPolyphonic() const { return std::get<0>(processors).getObject().isPolyphonic(); }
-
-	std::tuple<Processors...> processors;
-	std::index_sequence_for<Processors...> indexes;
+    bool isPolyphonic() const { return get<0>().isPolyphonic(); }
 
 	ParameterClass parameters;
+	std::tuple<Processors...> processors;
+	
 };
 
 

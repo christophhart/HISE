@@ -49,7 +49,7 @@ template <class ParameterClass, typename... Processors> struct split : public co
 		auto original = d.copyTo(splitBuffer, 0);
 		int channelCounter = 0;
 
-		process_split_each(d, original, channelCounter, this->indexes);
+		process_split_each(d, original, channelCounter, getIndexSequence());
 	}
 
 	void processSingle(float* data, int numChannels)
@@ -58,7 +58,7 @@ template <class ParameterClass, typename... Processors> struct split : public co
 		memcpy(original, data, sizeof(float)*numChannels);
 		int channelCounter = 0;
 
-		process_split_single_each(data, original, numChannels, channelCounter, this->indexes);
+		process_split_single_each(data, original, numChannels, channelCounter, getIndexSequence());
 	}
 
 	void prepare(PrepareSpecs ps)
@@ -78,7 +78,7 @@ template <class ParameterClass, typename... Processors> struct split : public co
 	{
         HiseEvent copy(e);
         
-		handle_event_each_copy(copy, this->indexes);
+		handle_event_each_copy(copy, getIndexSequence());
 	}
 
 	auto& getObject() { return *this; };
