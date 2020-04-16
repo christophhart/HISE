@@ -703,7 +703,7 @@ private:
 					p.dirty = false;
 				}
 
-				yield();
+				wait(1000);
 			}
 		}
 
