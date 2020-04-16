@@ -237,7 +237,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		FuncSignatureX sig;
 
-		hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class;
+		hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !classData->returnType.isStatic();
 
 		auto objectType = hasObjectPtr ? compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get())) : Types::ID::Void;
 
@@ -958,6 +958,8 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 	else if (dynamic_cast<MemoryReference*>(target.get()))
 		return TargetType::Reference;
 
+	getSubExpr(1)->throwError("Can't assign to target");
+
 	jassertfalse;
 	return TargetType::numTargetTypes;
 }
@@ -1098,11 +1100,20 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 						return;
 					}
 				}
-				
-
-
-				
 			}
+
+			if (function.returnType.isStatic())
+			{
+				if (auto cs = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(function.id)))
+				{
+					fc = cs->typePtr->getFunctionClass();
+					ownedFc = fc;
+					fc->addMatchingFunctions(possibleMatches, function.id);
+					callType = StaticFunction;
+					return;
+				}
+			}
+
 			
 			throwError("Fuuck");
 		}
@@ -1305,7 +1316,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto asg = CREATE_ASM_COMPILER(reg->getType());
 
-		if (callType == MemberFunction)
+		if (callType == MemberFunction || callType == StaticFunction)
 		{
 			// It might be possible that the JIT compiled member function
 			// might not have been injected into the old function class yet
@@ -1315,10 +1326,16 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (!function)
 			{
-				fc = getObjectExpression()->getTypeInfo().getComplexType()->getFunctionClass();
+				ComplexType::Ptr classType;
+
+				if (callType == MemberFunction)
+					classType = getObjectExpression()->getTypeInfo().getComplexType();
+				else
+					classType = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(function.id))->typePtr;
+
+				fc = classType->getFunctionClass();
 				ownedFc = fc;
 			}
-				
 		}
 
 		if (!function)

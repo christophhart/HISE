@@ -406,10 +406,11 @@ struct TypeInfo
 		type(Types::ID::Dynamic)
 	{}
 
-	explicit TypeInfo(Types::ID type_, bool isConst_=false, bool isRef_=false):
+	explicit TypeInfo(Types::ID type_, bool isConst_=false, bool isRef_=false, bool isStatic_=false):
 		type(type_),
 		const_(isConst_),
-		ref_(isRef_)
+		ref_(isRef_),
+		static_(isStatic_)
 	{
 		jassert(type != Types::ID::Pointer || isConst_);
 	}
@@ -417,7 +418,8 @@ struct TypeInfo
 	explicit TypeInfo(ComplexType::Ptr p, bool isConst_=false, bool isRef_=true) :
 		typePtr(p),
 		const_(isConst_),
-		ref_(isRef_)
+		ref_(isRef_),
+		static_(false)
 	{
 		jassert(p != nullptr);
 		type = Types::ID::Pointer;
@@ -426,7 +428,8 @@ struct TypeInfo
 	explicit TypeInfo(const NamespacedIdentifier& templateTypeId_, bool isConst_ = false, bool isRef_ = false):
 		templateTypeId(templateTypeId_),
 		const_(isConst_),
-		ref_(isRef_)
+		ref_(isRef_),
+		static_(false)
 	{
 
 	}
@@ -497,17 +500,21 @@ struct TypeInfo
 
 	NamespacedIdentifier getTemplateId() const { return templateTypeId; }
 
-	TypeInfo withModifiers(bool isConst_, bool isRef_) const
+	TypeInfo withModifiers(bool isConst_, bool isRef_, bool isStatic_=false) const
 	{
 		auto c = *this;
 		c.const_ = isConst_;
 		c.ref_ = isRef_;
+		c.static_ = isStatic_;
 		return c;
 	}
 
 	juce::String toString() const
 	{
 		juce::String s;
+
+		if (isStatic())
+			s << "static ";
 
 		if (isConst())
 			s << "const ";
@@ -601,6 +608,17 @@ struct TypeInfo
 		return ref_;
 	}
 
+	bool isStatic() const noexcept
+	{
+		if (static_)
+		{
+			jassert(!isComplexType());
+			jassert(!isRef());
+		}
+
+		return static_;
+	}
+
 	ComplexType::Ptr getComplexType() const
 	{
 		jassert(type == Types::ID::Pointer);
@@ -630,6 +648,7 @@ struct TypeInfo
 
 private:
 
+	bool static_ = false;
 	bool const_ = false;
 	bool ref_ = false;
 	Types::ID type = Types::ID::Dynamic;
@@ -1051,6 +1070,16 @@ struct FunctionData
 
 	operator bool() const noexcept { return function != nullptr; };
 
+	bool isConst() const noexcept
+	{
+		return const_;
+	}
+
+	void setConst(bool isConst_)
+	{
+		const_ = isConst_;
+	}
+
 	bool isResolved() const
 	{
 		return function != nullptr || inliner != nullptr;
@@ -1094,6 +1123,9 @@ struct FunctionData
 
 	/** The return type. */
 	TypeInfo returnType;
+
+	/** whether the function has any side effects. */
+	bool const_;
 
 	Array<TemplateParameter> templateParameters;
 

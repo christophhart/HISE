@@ -390,7 +390,7 @@ Operations::Statement::Statement(Location l) :
 
 }
 
-void Operations::Statement::throwError(const juce::String& errorMessage)
+void Operations::Statement::throwError(const juce::String& errorMessage) const
 {
 	ParserHelpers::CodeLocation::Error e(location.program, location.location);
 	e.errorMessage = errorMessage;

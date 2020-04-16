@@ -265,26 +265,6 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 		return parseSubclass();
 	}
 
-	if (matchIf(JitTokens::static_))
-	{
-		if (!matchIfType(templateArguments))
-			location.throwError("Expected type");
-
-		if (!currentTypeInfo.isConst())
-			location.throwError("Can't define non-const static variables");
-
-		auto s = parseNewSymbol(NamespaceHandler::Constant);
-
-		match(JitTokens::assign_);
-
-		auto v = parseConstExpression(false);
-
-		compiler->namespaceHandler.addConstant(s.id, v);
-
-		match(JitTokens::semicolon);
-		return new Operations::Noop(location);
-	}
-
 	if (matchIfType(templateArguments))
 	{
 		if (currentTypeInfo.isComplexType())
@@ -295,27 +275,6 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 
 	location.throwError("Can't parse statement");
 	return nullptr;
-}
-
-
-BlockParser::StatementPtr NewClassParser::parseDefinition()
-{
-	StatementPtr s;
-
-	if (matchIf(JitTokens::openParen))
-	{
-		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + getCurrentSymbol().toString());
-		s = parseFunction(getCurrentSymbol());
-		matchIf(JitTokens::semicolon);
-	}
-	else
-	{
-		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + getCurrentSymbol().toString());
-		s = parseVariableDefinition();
-		match(JitTokens::semicolon);
-	}
-
-	return s;
 }
 
 snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
@@ -384,7 +343,22 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 	}
 	else
 	{
-		
+		if (s.typeInfo.isStatic())
+		{
+			if (!s.typeInfo.isConst())
+				location.throwError("Can't define non-const static variables");
+
+			compiler->namespaceHandler.changeSymbolType(s.id, NamespaceHandler::Constant);
+
+			match(JitTokens::assign_);
+
+			auto v = parseConstExpression(false);
+
+			compiler->namespaceHandler.addConstant(s.id, v);
+
+			match(JitTokens::semicolon);
+			return new Operations::Noop(location);
+		}
 
 		if (matchIf(JitTokens::assign_))
 		{
@@ -482,6 +456,10 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	}
 
 	match(JitTokens::closeParen);
+
+	bool isConstFunction = matchIf(JitTokens::const_);
+
+	func->data.setConst(isConstFunction);
 
 	func->code = location.location;
 

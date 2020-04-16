@@ -185,12 +185,13 @@ public:
 
 	bool matchIfType()
 	{
+		auto isStatic = matchIf(JitTokens::static_);
 		auto isConst = matchIf(JitTokens::const_);
 
 		if (matchIfTypeInternal())
 		{
 			auto isRef = matchIf(JitTokens::bitwiseAnd);
-			currentTypeInfo = currentTypeInfo.withModifiers(isConst, isRef);
+			currentTypeInfo = currentTypeInfo.withModifiers(isConst, isRef, isStatic);
 			other.seek(*this);
 			return true;
 		}
@@ -599,10 +600,6 @@ public:
 	StatementPtr parseSubclass();
 	//StatementPtr parseWrapDefinition();
 	
-	StatementPtr parseDefinition();
-
-	
-
 };
 
 

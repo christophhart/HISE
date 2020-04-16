@@ -1103,6 +1103,7 @@ struct Operations::FunctionCall : public Expression
 		Unresolved,
 		InbuiltFunction,
 		MemberFunction,
+		StaticFunction,
 		ExternalObjectFunction,
 		RootFunction,
 		GlobalFunction,
