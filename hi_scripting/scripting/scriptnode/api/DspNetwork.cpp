@@ -60,7 +60,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ownedFactories.add(new routing::Factory(this));
 	ownedFactories.add(new analyse::Factory(this));
 	ownedFactories.add(new fx::Factory(this));
-	
+	ownedFactories.add(new examples::Factory(this));
+
 	ownedFactories.add(new dynamics::Factory(this));
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
