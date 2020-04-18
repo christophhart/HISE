@@ -41,7 +41,69 @@ namespace jit {
 using namespace juce;
 
 
+struct OptimizationProperties : public Component
+{
+	struct Item : public Component
+	{
+		Item(const String& id_):
+			id(id_)
+		{
 
+		}
+
+		void paint(Graphics& g) override
+		{
+			if (active)
+			{
+				g.fillAll(Colours::white.withAlpha(0.2f));
+			}
+
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white);
+			g.drawText(id, getLocalBounds().toFloat(), Justification::centred);
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			active = !active;
+
+			findParentComponentOfClass<OptimizationProperties>()->resetOptimisations();
+			repaint();
+		}
+
+		bool active = true;
+		String id;
+	};
+
+	OptimizationProperties(GlobalScope& s):
+		scope(s)
+	{
+		for (auto o : OptimizationIds::getAllIds())
+			addOptimization(o);
+
+		setSize(200, items.size() * 20);
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		for (auto i : items)
+			i->setBounds(b.removeFromTop(20));
+	}
+
+	void resetOptimisations();
+
+	void addOptimization(const String& id)
+	{
+		auto i = new Item(id);
+		addAndMakeVisible(i);
+		items.add(i);
+	}
+
+	OwnedArray<Item> items;
+	GlobalScope& scope;
+};
 
 struct CallbackStateComponent : public Component,
 								public CallbackCollection::Listener
@@ -827,7 +889,7 @@ private:
 	
 	
 	CallbackCollection cData;
-	CallbackStateComponent stateViewer;
+	ScopedPointer<Component> stateViewer;
 
 };
 

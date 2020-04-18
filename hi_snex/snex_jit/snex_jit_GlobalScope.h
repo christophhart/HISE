@@ -670,7 +670,7 @@ public:
 		
 		Use one of the IDs defined in the namespace OptimizationIds.
 	*/
-	void addOptimization(const Identifier& passId)
+	void addOptimization(const juce::String& passId)
 	{
 		optimizationPasses.addIfNotAlreadyThere(passId);
 	}
@@ -680,7 +680,7 @@ public:
 		optimizationPasses.clear();
 	}
 
-	const Array<Identifier>& getOptimizationPassList() const
+	const StringArray& getOptimizationPassList() const
 	{
 		return optimizationPasses;
 	}
@@ -711,7 +711,7 @@ private:
 
 	ScopedPointer<BufferHandler> bufferHandler;
 
-	Array<Identifier> optimizationPasses;
+	StringArray optimizationPasses;
 
 	Array<WeakReference<DebugHandler>> debugHandlers;
 

@@ -64,11 +64,14 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	runThread(*this),
 	conditionUpdater(*this)
 {
-	memory.addOptimization(OptimizationIds::ConstantFolding);
-	memory.addOptimization(OptimizationIds::DeadCodeElimination);
-	memory.addOptimization(OptimizationIds::Inlining);
-	memory.addOptimization(OptimizationIds::BinaryOpOptimisation);
-	memory.addOptimization(OptimizationIds::LoopOptimisation);
+	if (testMode)
+		stateViewer = new OptimizationProperties(memory);
+	else
+		stateViewer = new CallbackStateComponent();
+
+	for (auto o : OptimizationIds::getAllIds())
+		memory.addOptimization(o);
+
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
 	memory.getBreakpointHandler().setActive(true);
 
@@ -175,7 +178,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 	memory.getBreakpointHandler().addListener(this);
 
-	stateViewer.setVisible(false);
+	stateViewer->setVisible(false);
 	assembly.setVisible(false);
 	console.setVisible(false);
 	graph.setVisible(false);
@@ -200,7 +203,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 	showInfo.onClick = [this]()
 	{
-		stateViewer.setVisible(showInfo.getToggleState());
+		stateViewer->setVisible(showInfo.getToggleState());
 		resized();
 	};
 
@@ -250,12 +253,14 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 	auto f = [this]()
 	{
-		
 		editor.grabKeyboardFocus();
 	};
 
     
-	cData.setListener(&stateViewer);
+	if (auto c = dynamic_cast<CallbackStateComponent*>(stateViewer.get()))
+	{
+		cData.setListener(c);
+	}
 
 	recompile();
 
@@ -348,7 +353,7 @@ void SnexPlayground::resized()
 	bottom.removeFromRight(10);
     resultLabel.setBounds(bottom);
 
-	bool infoVisible = stateViewer.isVisible();
+	bool infoVisible = stateViewer->isVisible();
 	bool consoleVisible = console.isVisible();
 	bool signalVisible = graph.isVisible();
 	bool assemblyVisible = assembly.isVisible();
@@ -382,7 +387,7 @@ void SnexPlayground::resized()
 		if (infoVisible)
 		{
 			spacerInfo.setBounds(left.removeFromTop(20));
-			stateViewer.setBounds(left.removeFromTop(stateViewer.getHeight()));
+			stateViewer->setBounds(left.removeFromTop(stateViewer->getHeight()));
 		}
 
 		if (tableVisible)
@@ -633,7 +638,9 @@ void SnexPlayground::logMessage(int level, const juce::String& s)
 void SnexPlayground::recalculate()
 {
 	int mode = jmax(0, graph.processingMode.getSelectedItemIndex());
-	stateViewer.setFrameProcessing(mode);
+
+	if(auto c = dynamic_cast<CallbackStateComponent*>(stateViewer.get()))
+		c->setFrameProcessing(mode);
 
 	dirty = true;
 	
@@ -1187,6 +1194,19 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 		parent.editor.setDeactivatedLines(lastRange);
 
 		stopTimer();
+	}
+
+	void OptimizationProperties::resetOptimisations()
+	{
+		scope.clearOptimizations();
+
+		for (auto i : items)
+		{
+			if (i->active)
+				scope.addOptimization(i->id);
+		}
+
+		findParentComponentOfClass<SnexPlayground>()->keyPressed(KeyPress(KeyPress::F5Key));
 	}
 
 }

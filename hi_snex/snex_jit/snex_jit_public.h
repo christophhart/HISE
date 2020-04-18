@@ -43,7 +43,7 @@ namespace snex
 {
 namespace jit
 {
-#define DECLARE_ID(x) static const juce::Identifier x(#x);
+#define DECLARE_ID(x) static const juce::String x(#x);
 
 namespace OptimizationIds
 {
@@ -52,6 +52,12 @@ DECLARE_ID(Inlining);
 DECLARE_ID(DeadCodeElimination);
 DECLARE_ID(BinaryOpOptimisation);
 DECLARE_ID(LoopOptimisation);
+DECLARE_ID(AsmOptimisation)
+
+static StringArray getAllIds()
+{
+	return { OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding, OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining, OptimizationIds::LoopOptimisation, OptimizationIds::AsmOptimisation };
+}
 }
 
 #undef DECLARE_ID

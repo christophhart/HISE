@@ -185,8 +185,11 @@ public:
 
 	void addOptimization(OptimizationPassBase* newPass)
 	{
-		passes.add(newPass);
-		optimisationIds.add(newPass->getName());
+		if (newPass != nullptr)
+		{
+			passes.add(newPass);
+			optimisationIds.add(newPass->getName());
+		}
 	}
 
 	AssemblyRegister::Ptr getRegFromPool(BaseScope* scope, TypeInfo type)
@@ -210,7 +213,11 @@ public:
 
 	void setInbuildFunctions();
 
+	
+
 private:
+
+	
 
 	FunctionClass::Ptr inbuildFunctions;
 

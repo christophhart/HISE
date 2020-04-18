@@ -311,7 +311,7 @@ struct OptimizationFactory
 	{
 		for (auto& e : entries)
 		{
-			if (id == e.id)
+			if (id.toString() == e.id.toString())
 			{
 				return e.f();
 			}

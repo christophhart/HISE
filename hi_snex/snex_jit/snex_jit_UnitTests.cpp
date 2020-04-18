@@ -54,7 +54,7 @@ class OptimizationTestCase
 {
 public:
 
-	void setOptimizations(const Array<Identifier>& passList)
+	void setOptimizations(const StringArray& passList)
 	{
 		for (auto& p : passList)
 			optimizingScope.addOptimization(p);
@@ -118,7 +118,7 @@ template <typename T, typename ReturnType=T> class HiseJITTestCase: public jit::
 {
 public:
 
-	HiseJITTestCase(const juce::String& stringToTest, const Array<Identifier>& optimizationList) :
+	HiseJITTestCase(const juce::String& stringToTest, const StringArray& optimizationList) :
 		code(stringToTest)
 	{
 		for (auto o : optimizationList)
@@ -955,7 +955,7 @@ public:
 		
 	}
 
-	using OpList = Array<Identifier>;
+	using OpList = StringArray;
 
 	void addRecursive(Array<OpList>& combinations, const OpList all)
 	{
@@ -973,18 +973,16 @@ public:
 
 
 			less.remove(i);
-			less.sort();
+			less.sort(false);
 			addRecursive(combinations, less);
 		}
 	}
 
 	void testAllOptimizations()
 	{
-		
+		OpList allIds = OptimizationIds::getAllIds();
 
-		OpList allIds = { OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding, OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining, OptimizationIds::LoopOptimisation };
-
-		allIds.sort();
+		allIds.sort(false);
 
 		Array<OpList> combinations;
 
@@ -1013,7 +1011,7 @@ public:
 			runTestsWithOptimisation(c);
 
 			for (auto id : c)
-				s << id.toString() << " ";
+				s << id << " ";
 
 			s << "\n";
 		}
@@ -1090,14 +1088,14 @@ public:
 		testInlinedMathPerformance();
 	}
 
-	void runTestsWithOptimisation(const Array<Identifier>& ids)
+	void runTestsWithOptimisation(const StringArray& ids)
 	{
 		PerformanceCounter pc("run of all tests with optimisations");
 
 		logMessage("OPTIMIZATIONS");
 
 		for (auto o : ids)
-			logMessage("--- " + o.toString());
+			logMessage("--- " + o);
 
 		optimizations = ids;
 
@@ -3637,7 +3635,7 @@ private:
 		expectEquals(result, 9.0f, "Testing reallocation of Function buffers");
 	}
 
-	Array<Identifier> optimizations;
+	StringArray optimizations;
 };
 
 
