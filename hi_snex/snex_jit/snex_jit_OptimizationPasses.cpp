@@ -1306,5 +1306,424 @@ bool LoopOptimiser::isUnSimdableOperation(Ptr s)
 	return false;
 }
 
+namespace AsmSubPasses
+{
+
+struct Helpers
+{
+	static bool isInstruction(BaseNode* node, Array<uint32_t> ids)
+	{
+		if (node == nullptr)
+			return false;
+
+		if (node->isInst())
+		{
+			auto inst = node->as<InstNode>();
+			auto thisId = inst->baseInst().id();
+			return ids.contains(thisId);
+		}
+
+		return false;
+	}
+
+	static bool isInstructWithSameTarget(BaseNode* n1, BaseNode* n2)
+	{
+		// If it's not an instruction, it can't have the same target
+		if (!n1->isInst() || !n2->isInst())
+			return false;
+
+		auto o1 = n1->as<InstNode>()->opType(0);
+		auto o2 = n2->as<InstNode>()->opType(0);
+
+		return o1.isEqual(o2);
+	}
+
+	static bool isMemWithBaseReg(Operand o)
+	{
+		return o.isMem() && o.as<BaseMem>().hasBaseReg();
+	}
+
+	static Operand getTargetOp(InstNode* n)
+	{
+		return n->opType(0);
+	}
+
+	static Operand getSourceOp(InstNode* n)
+	{
+		return n->opType(1);
+	}
+};
+
+
+struct Lea
+{
+	using ReturnType = InstNode;
+	static bool matches(BaseNode* node)
+	{
+		using namespace x86;
+		return Helpers::isInstruction(node, { Inst::kIdLea });
+	}
+};
+
+struct Mov
+{
+	using ReturnType = InstNode;
+	static bool matches(BaseNode* node)
+	{
+		using namespace x86;
+		return Helpers::isInstruction(node, { Inst::kIdMov, Inst::kIdMovss, Inst::kIdMovsd, Inst::kIdMovaps });
+	}
+};
+
+struct MathOp
+{
+	using ReturnType = InstNode;
+	static bool matches(BaseNode* node)
+	{
+		using namespace x86;
+		return Helpers::isInstruction(node, { Inst::kIdAdd, Inst::kIdAddss, Inst::kIdAddsd,
+			Inst::kIdImul, Inst::kIdMulss, Inst::kIdMulsd,
+			Inst::kIdSub, Inst::kIdSubss, Inst::kIdSubsd 
+			});
+	}
+
+	static juce_wchar getMathOperator(BaseNode* node)
+	{
+		auto inst = node->as<InstNode>();
+		auto thisId = inst->baseInst().id();
+		using namespace x86;
+
+		switch (thisId)
+		{
+		case Inst::kIdAdd:
+		case Inst::kIdAddss:
+		case Inst::kIdAddsd:
+		case Inst::kIdSub:
+		case Inst::kIdSubss:
+		case Inst::kIdSubsd: return '+';
+		case Inst::kIdImul:
+		case Inst::kIdMulss:
+		case Inst::kIdMulsd: return '*';
+		}
+	}
+
+	static Types::ID getType(BaseNode* node)
+	{
+		auto inst = node->as<InstNode>();
+		auto thisId = inst->baseInst().id();
+		using namespace x86;
+
+		switch (thisId)
+		{
+		case Inst::kIdSub:
+		case Inst::kIdAdd:
+		case Inst::kIdImul: return Types::ID::Integer;
+		case Inst::kIdAddss:
+		case Inst::kIdMulss:
+		case Inst::kIdSubss: return Types::ID::Float;
+		case Inst::kIdAddsd:
+		case Inst::kIdSubsd: 
+		case Inst::kIdMulsd: return Types::ID::Double;
+		}
+
+	}
+
+	static int getNoopValue(BaseNode* node)
+	{
+		auto op = getMathOperator(node);
+		return op == '+' ? 0 : 1;
+	}
+
+	template <typename Type> static bool getConstPoolValue(FuncPass* parent, const Operand& op, Type& v)
+	{
+		if (op.isMem())
+		{
+			auto mem = op.as<x86::Mem>();
+
+			if (mem.hasBaseLabel())
+			{
+				for (auto l : parent->cc()->labelNodes())
+				{
+					if (!l->isConstPool())
+						continue;
+
+					auto lId = l->id();
+					auto mId = mem.id();
+
+					if (lId == mId)
+					{
+						auto c = l->as<ConstPoolNode>();
+						const auto& cp = c->constPool();
+						auto offset = mem.offset();
+						auto poolSize = cp.size();
+						auto data = reinterpret_cast<uint8_t*>(alloca(poolSize));
+						cp.fill(data);
+
+						v = *reinterpret_cast<Type*>(data + offset);
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
+struct RemoveMovToSameOp : public AsmCleanupPass::SubPass<Mov>
+{
+	RemoveMovToSameOp(FuncPass* p) :
+		SubPass<Mov>(p)
+	{};
+
+	bool run(BaseNode* n) override
+	{
+		auto it = createIterator(n);
+
+		while (auto n = it.next())
+		{
+			if (Helpers::getTargetOp(n).isEqual(Helpers::getSourceOp(n)))
+				it.removeNode(n);
+		}
+
+		return false;
+	}
+};
+
+struct RemoveLeaFromSameSource : public AsmCleanupPass::SubPass<Lea>
+{
+	RemoveLeaFromSameSource(FuncPass* p) :
+		SubPass<Lea>(p)
+	{};
+
+	bool run(BaseNode* n) override
+	{
+		auto it = createIterator(n);
+
+		while (auto n = it.next())
+		{
+			auto source = Helpers::getSourceOp(n).as<x86::Mem>();
+			auto target = Helpers::getTargetOp(n).as<x86::Reg>();
+
+			if (source.hasBaseReg() && !source.hasOffset())
+			{
+				if (source.baseReg().isEqual(target))
+					it.removeNode(n);
+			}
+		}
+
+		return false;
+	}
+};
+
+struct RemoveMathNoops : public AsmCleanupPass::SubPass<MathOp>
+{
+	RemoveMathNoops(FuncPass* p) :
+		SubPass<MathOp>(p)
+	{};
+
+	bool run(BaseNode* n) override
+	{
+		auto it = createIterator(n);
+
+		while (auto n = it.next())
+		{
+			auto noopValue = MathOp::getNoopValue(n);
+
+			auto source = Helpers::getSourceOp(n);
+
+			switch (MathOp::getType(n))
+			{
+			case Types::ID::Integer:
+			{
+				if (source.isImm() && source.as<Imm>().i32() == noopValue)
+				{
+					it.removeNode(n);
+				}
+				break;
+			}
+			case Types::ID::Float:
+			{
+				float value;
+
+				if (MathOp::getConstPoolValue(parent, source, value))
+				{
+					if (value == (float)noopValue)
+						it.removeNode(n);
+				}
+
+				break;
+			}
+			case Types::ID::Double:
+			{
+				double value;
+
+				if (MathOp::getConstPoolValue(parent, source, value))
+				{
+					if (value == (double)noopValue)
+						it.removeNode(n);
+				}
+
+				break;
+			}
+			}
+		}
+
+		return false;
+	}
+};
+
+struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
+{
+	RemoveSubsequentMovCalls(FuncPass* p) :
+		SubPass<Mov>(p)
+	{};
+
+	BaseNode* checkNextMovToSameTarget(BaseNode* current)
+	{
+		
+
+		AsmCleanupPass::Iterator<> it(parent, current->next());
+
+		while (auto sn = it.next())
+		{
+			if (Helpers::isInstructWithSameTarget(current, sn))
+			{
+				if (Mov::matches(sn))
+				{
+					auto seekedTarget = Helpers::getTargetOp(sn->as<InstNode>());
+
+					if (Helpers::isMemWithBaseReg(seekedTarget))
+						return nullptr;
+
+					auto currentSource = Helpers::getSourceOp(current->as<InstNode>());
+					auto seekedSource = Helpers::getSourceOp(sn->as<InstNode>());
+
+
+
+					if (currentSource.isEqual(seekedSource))
+						return sn;
+					else
+						return nullptr;
+				}
+					
+				else
+					return nullptr;
+			}
+		}
+
+		return nullptr;
+	}
+
+	bool run(BaseNode* n) override
+	{
+		auto it = createIterator(n);
+
+		while (auto n = it.next())
+		{
+			if (auto nextNode = it.peekNextMatch())
+			{
+				auto currentTarget = Helpers::getTargetOp(n);
+				auto nextTarget = Helpers::getTargetOp(nextNode);
+
+				if (currentTarget.isEqual(nextTarget))
+				{
+					auto nextSource = Helpers::getSourceOp(nextNode);
+
+					if (Helpers::isMemWithBaseReg(nextSource))
+						continue;
+
+					it.removeNode(n);
+					return true;
+				}
+			}
+
+			if (auto sn = checkNextMovToSameTarget(n))
+			{
+				it.removeNode(sn);
+				return true;
+			}
+				
+		}
+
+		return false;
+	}
+};
+
+struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
+{
+	RemoveUndirtyMovCallsFromSameSource(FuncPass* p) :
+		SubPass<Mov>(p)
+	{};
+
+	InstNode* getNextUndirtyMovWithSameTarget(BaseNode* current)
+	{
+		AsmCleanupPass::Iterator<AsmCleanupPass::Base> all(parent, current->next());
+
+		while (auto n = all.next())
+		{
+			if (Helpers::isInstructWithSameTarget(current, n))
+			{
+				// If the target is a pointer with a base register
+				// it might have been changed.
+
+				auto nextTarget = Helpers::getTargetOp(n->as<InstNode>());
+
+				if (Helpers::isMemWithBaseReg(nextTarget))
+					continue;
+
+				if (Mov::matches(n))
+				{
+					return n->as<InstNode>();
+				}
+				else
+				{
+					return nullptr;
+				}
+			}
+		}
+	}
+
+	/** optimizes next mov calls to the same target with the same source
+	  if the target hasn't been used in the meantime.
+	*/
+	bool run(BaseNode* n) override
+	{
+		auto it = createIterator(n);
+
+		while (auto n = it.next())
+		{
+			if (auto undirtyMov = getNextUndirtyMovWithSameTarget(n))
+			{
+				auto thisSource = Helpers::getSourceOp(n);
+				auto nextTarget = Helpers::getTargetOp(undirtyMov);
+
+				
+
+				auto nextSource = Helpers::getSourceOp(undirtyMov);
+
+				if (thisSource.isEqual(nextSource))
+				{
+					it.removeNode(undirtyMov);
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
+}
+
+AsmCleanupPass::AsmCleanupPass() :
+	FuncPass("Simple removals of redundant instructions")
+{
+	addSubPass<AsmSubPasses::RemoveLeaFromSameSource>();
+	addSubPass<AsmSubPasses::RemoveMathNoops>();
+	addSubPass<AsmSubPasses::RemoveMovToSameOp>();
+	addSubPass<AsmSubPasses::RemoveUndirtyMovCallsFromSameSource>();
+	addSubPass<AsmSubPasses::RemoveSubsequentMovCalls>();
+}
+
 }
 }

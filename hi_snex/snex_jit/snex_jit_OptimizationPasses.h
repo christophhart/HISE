@@ -278,6 +278,175 @@ public:
 
 };
 
+
+
+/** This pass tries to optimize on the lowest level just before the actual machine code is being generated.
+
+	There are a few redundant instructions that might have been created during code generation, eg. mov calls
+	to the same target or math operations with immediate values that don't have an effect. 
+	
+	Since this pass has no information about high-level concepts, it's scope is limited to clean-up tasks rather
+	than sophisticated optimization algorithms.
+
+	Note: this pass is not being executed like the other passes, however it's subclassed from the snex::OptimisationPass
+	base class for consistency.
+*/
+struct AsmCleanupPass : public OptimizationPass,
+						public asmjit::FuncPass
+{
+	OPTIMIZATION_FACTORY(OptimizationIds::AsmOptimisation, AsmCleanupPass);
+
+	AsmCleanupPass();
+
+	virtual ~AsmCleanupPass() {}
+
+	/** A default filter for the iterator that does nothing. */
+	struct Base
+	{
+		using ReturnType = BaseNode;
+		static bool matches(BaseNode* node) noexcept { return true; }
+	};
+
+	/** A node iterator that will iterate over the linked list. 
+	
+		You can give it a filter class that needs:
+
+		- a type alias called ReturnType for the desired node subclass
+		- a function `static bool matches(BaseNode*)` that performs a
+		  check on each node whether it should be returned by the iterator.
+
+		Take a look at the Base filter above for an example.
+	*/
+	template <class FilterType = Base> struct Iterator
+	{
+		using RetType = typename FilterType::ReturnType;
+
+		Iterator(FuncPass* parent, BaseNode* start) :
+			currentNode(start),
+			cc(parent->cc())
+		{}
+
+		/** Returns the next matching node. */
+		RetType* next()
+		{
+			if (currentNode == nullptr)
+				return nullptr;
+
+			auto retNode = currentNode;
+
+			currentNode = currentNode->next();
+
+			if (FilterType::matches(retNode))
+				return retNode->as<FilterType::ReturnType>();
+			else
+				return next();
+		}
+
+		/** Checks whether the direct successor to this node matches the filter. */
+		RetType* peekNextMatch()
+		{
+			if (FilterType::matches(currentNode))
+				return currentNode->as<FilterType::ReturnType>();
+		}
+
+		/** Removes the given node. */
+		void removeNode(BaseNode* n)
+		{
+			if (n->hasInlineComment())
+				n->next()->setInlineComment(n->inlineComment());
+
+			cc->removeNode(n);
+		}
+
+		/** Seeks to the next match and returns it or nullptr if there is no match left. */
+		RetType* seekToNextMatch()
+		{
+			BaseNode* n = currentNode;
+
+			while (n != nullptr)
+			{
+				if (FilterType::matches(n))
+					return currentNode->as<FilterType::ReturnType>();
+
+				n = n->next();
+			}
+
+			return nullptr;
+		}
+
+	private:
+
+		asmjit::BaseCompiler* cc;
+		BaseNode* currentNode;
+	};
+
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override
+	{
+		// This method is never being called because this pass will not be executed
+		// from the SNEX compiler, but directly by the asmjit::Compiler
+		jassertfalse;
+
+		return false;
+	}
+
+private:
+
+	struct SubPassBase
+	{
+		SubPassBase(FuncPass* p)
+		{};
+
+		/** Override this method and return true if the optimisation was successful.
+		
+			In this case it will repeat the optimisation until it returns false. */
+		virtual bool run(BaseNode* n) = 0;
+	};
+
+public:
+
+	/** Subclass any subpass from this, then override the run() method to perform the optimisation. */
+	template <typename FilterType> struct SubPass : public SubPassBase
+	{
+		SubPass(FuncPass* p):
+			SubPassBase(p),
+			parent(p)
+		{}
+
+		/** Creates a iterator with the given filter type. */
+		Iterator<FilterType> createIterator(BaseNode* n)
+		{
+			return Iterator<FilterType>(parent, n);
+		}
+
+		FuncPass* parent;
+	};
+
+	template <class T> void addSubPass()
+	{
+		auto newPass = new T(this);
+		passes.add(newPass);
+	}
+
+	Error runOnFunction(asmjit::Zone* zone, asmjit::Logger* logger, FuncNode* func) noexcept
+	{
+		for (auto p : passes)
+		{
+			while (p->run(func))
+				numOptimisations++;
+		}
+
+		return 0;
+	}
+
+private:
+
+	int numOptimisations = 0;
+
+	OwnedArray<SubPassBase> passes;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AsmCleanupPass);
+};
+
 struct OptimizationFactory
 {
 	using CreateFunction = std::function<BaseCompiler::OptimizationPassBase*(void)>;

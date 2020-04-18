@@ -235,6 +235,13 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		ScopedPointer<asmjit::X86Compiler> cc = new asmjit::X86Compiler(ch);
 
+		ScopedPointer<AsmCleanupPass> p = new AsmCleanupPass();
+
+		if (scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::AsmOptimisation))
+			cc->addPass(p.get());
+		else
+			p = nullptr;
+
 		FuncSignatureX sig;
 
 		hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !classData->returnType.isStatic();
@@ -264,6 +271,10 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		cc->endFunc();
 		cc->finalize();
+
+		if (p != nullptr)
+			cc->deletePass(p);
+
 		cc = nullptr;
 
 		runtime->add(&data.function, ch);
