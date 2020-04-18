@@ -304,7 +304,14 @@ void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 		};
 
 		if (!lastTrueStatement->forEachRecursive(hasReturn))
-			lastTrueStatement->addStatement(new Operations::ReturnStatement(location, nullptr));
+		{
+			auto ptr = new Operations::StatementBlock(lastTrueStatement->location, tree->getPath());
+			ptr->addStatement(lastTrueStatement->clone(lastTrueStatement->location));
+			ptr->addStatement(new Operations::ReturnStatement(lastTrueStatement->location, nullptr));
+
+			lastTrueStatement->replaceInParent(ptr);
+		}
+			
 
 		if (lastFalseStatement != nullptr)
 		{
@@ -621,11 +628,20 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 		if (compiler->namespaceHandler.isTemplateFunction(tId))
 		{
-			auto to = compiler->namespaceHandler.getTemplateObject(tId);
-
 			templateParameters = parseTemplateParameters(false);
 
-			if (templateParameters.size() == to.argList.size())
+			auto numProvided = templateParameters.size();
+
+			if (TemplateParameter::ListOps::isVariadicList(templateParameters))
+			{
+				auto currentParameters = compiler->namespaceHandler.getCurrentTemplateParameters();
+				TemplateParameter::ListOps::expandIfVariadicParameters(templateParameters, currentParameters);
+				numProvided = templateParameters.size();
+			}
+			
+			auto to = compiler->namespaceHandler.getTemplateObject(tId, numProvided);
+
+			if (TemplateParameter::ListOps::isValidTemplateAmount(to.argList, numProvided))
 			{
 				compiler->namespaceHandler.createTemplateFunction(tId, templateParameters, r);
 				location.test(r);
@@ -751,9 +767,37 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 		if (compiler->namespaceHandler.isTemplateFunction(fId))
 		{
-			auto to = compiler->namespaceHandler.getTemplateObject(fId);
+			auto numProvided = f->function.templateParameters.size();
+
+			auto to = compiler->namespaceHandler.getTemplateObject(fId, numProvided);
 			
-			if (f->function.templateParameters.size() != to.argList.size())
+			if (!to.id.isValid())
+			{
+				auto matches = compiler->namespaceHandler.getAllTemplateObjectsWith(fId);
+
+				if (matches.size() == 1)
+					to = matches.getFirst();
+				else
+				{
+					for (auto& m : matches)
+					{
+						if (TemplateParameter::ListOps::isValidTemplateAmount(m.argList, numProvided))
+						{
+							to = m;
+							break;
+						}
+					}
+				}
+			}
+
+			if (!to.id.isValid())
+			{
+				String s;
+				s << "Can't deduce template function" << f->function.getSignature({});
+				location.throwError(s);
+			}
+
+			if (numProvided != to.argList.size())
 			{
 				TypeInfo::List callParameters;
 				for (int i = 0; i < f->getNumArguments(); i++)
@@ -763,13 +807,16 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 				templateParameters = TemplateParameter::ListOps::mergeWithCallParameters(to.argList, templateParameters, originalList, callParameters, r);
 
-				templateParameters = TemplateParameter::ListOps::merge(to.argList, templateParameters, r);
-				location.test(r);
+				if (!templateParameters.isEmpty())
+				{
+					templateParameters = TemplateParameter::ListOps::merge(to.argList, templateParameters, r);
+					location.test(r);
 
-				f->function.templateParameters = templateParameters;
+					f->function.templateParameters = templateParameters;
 
-				compiler->namespaceHandler.createTemplateFunction(fSymbol.id, templateParameters, r);
-				location.test(r);
+					compiler->namespaceHandler.createTemplateFunction(fSymbol.id, templateParameters, r);
+					location.test(r);
+				}
 			}
 		}
 

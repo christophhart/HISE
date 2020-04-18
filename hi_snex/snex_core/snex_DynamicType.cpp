@@ -18,7 +18,7 @@ VariableStorage::VariableStorage(Types::ID type_, const var& value)
 		data.d.value = static_cast<double>(value);
 	else if (type_ == Types::ID::Pointer)
 	{
-		jassertfalse;
+		data.p.data = reinterpret_cast<void*>((int64_t)value);
 	}
 	else
 		data.b = block();

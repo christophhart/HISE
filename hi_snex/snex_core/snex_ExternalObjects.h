@@ -302,6 +302,8 @@ struct SnexObjectDatabase
 	static void addVariadicGet(VariadicSubType* variadicType);
 
 	static void createProcessData(Compiler& c, const TypeInfo& eventType);
+
+	static void registerParameterTemplate(Compiler& c);
 };
 
 

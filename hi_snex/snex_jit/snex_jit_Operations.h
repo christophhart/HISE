@@ -87,37 +87,7 @@ struct Operations::InlinedArgument : public Expression,
 		return getSubExpr(0)->getTypeInfo();
 	}
 
-	void process(BaseCompiler* compiler, BaseScope* scope) override
-	{
-		jassert(scope->getScopeType() == BaseScope::Anonymous);
-
-		processChildrenIfNotCodeGen(compiler, scope);
-
-		if(isCodeGenPass(compiler))
-		{
-			if (!preprocessCodeGenForChildStatements(compiler, scope, []() {return true; }))
-				return;
-
-			if (s.typeInfo.isComplexType() && !s.isReference())
-			{
-				auto acg = CREATE_ASM_COMPILER(getTypeInfo().getType());
-				
-				auto stackPtr = acg.cc.newStack(s.typeInfo.getRequiredByteSize(), s.typeInfo.getRequiredAlignment());
-
-				auto target = compiler->getRegFromPool(scope, s.typeInfo);
-
-				target->setCustomMemoryLocation(stackPtr, false);
-
-				auto source = getSubRegister(0);
-
-				acg.emitComplexTypeCopy(target, source, s.typeInfo.getComplexType());
-
-				getSubExpr(0)->reg = target;
-
-				reg = getSubRegister(0);
-			}
-		}
-	}
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
 	int argIndex;
 	Symbol s;
@@ -216,7 +186,11 @@ struct Operations::StatementBlock : public Expression,
 		{
 			auto parentBlock = findParentStatementOfType<StatementBlock>(parentInlineArgument);
 
-			return findInlinedParameterInParentBlocks(parentBlock->parent, s);
+			auto ipInParent = findInlinedParameterInParentBlocks(parentBlock->parent, s);
+
+			if(ipInParent != nullptr)
+				return ipInParent;
+
 		}
 			
 
@@ -412,13 +386,9 @@ struct Operations::InlinedParameter : public Expression,
 				source->process(compiler, scope);
 			}
 
-
-
 			if (reg == nullptr)
 				reg = source->reg;
 
-			
-			
 			jassert(reg != nullptr);
 		}
 	}
@@ -1358,6 +1328,64 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MemoryReference);
 };
 
+struct Operations::PointerAccess : public Expression
+{
+	SET_EXPRESSION_ID(PointerAccess);
+
+	ValueTree toValueTree() const
+	{
+		return Statement::toValueTree();
+	}
+
+	Ptr clone(Location l) const override
+	{
+		return new PointerAccess(l, getSubExpr(0)->clone(l));
+	}
+
+	TypeInfo getTypeInfo() const
+	{
+		return getSubExpr(0)->getTypeInfo();
+	}
+
+	PointerAccess(Location l, Ptr target):
+		Statement(l)
+	{
+		addStatement(target);
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* s)
+	{
+		Statement::processBaseWithChildren(compiler, s);
+
+		COMPILER_PASS(BaseCompiler::TypeCheck)
+		{
+			auto t = getTypeInfo();
+
+			if (!t.isComplexType())
+				throwError("Can't dereference non-complex type");
+		}
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			reg = compiler->registerPool.getNextFreeRegister(s, getTypeInfo());
+
+			auto acg = CREATE_ASM_COMPILER(Types::ID::Pointer);
+
+			auto obj = getSubRegister(0);
+
+			auto mem = obj->getMemoryLocationForReference();
+
+			jassert(!mem.isNone());
+
+			auto ptrReg = acg.cc.newGpq();
+			acg.cc.mov(ptrReg, mem);
+
+			reg->setCustomMemoryLocation(x86::ptr(ptrReg), obj->isGlobalMemory());
+		}
+
+	}
+};
+
 struct Operations::ReturnStatement : public Expression
 {
 	ReturnStatement(Location l, Expression::Ptr expr) :
@@ -1810,6 +1838,23 @@ struct Operations::TemplatedFunction : public Statement,
 		auto instanceParameters = TemplateParameter::ListOps::merge(templateParameters, d.tp, r);
 		location.test(r);
 
+		DBG("Creating template function " + d.id.toString() + TemplateParameter::ListOps::toString(templateParameters));
+		
+		if (currentCompiler != nullptr)
+		{
+			auto currentParameters = currentCompiler->namespaceHandler.getCurrentTemplateParameters();
+			location.test(TemplateParameter::ListOps::expandIfVariadicParameters(instanceParameters, currentParameters));
+			instanceParameters = TemplateParameter::ListOps::merge(templateParameters, instanceParameters, *d.r);
+			DBG("Resolved template parameters: " + TemplateParameter::ListOps::toString(instanceParameters));
+
+			if (instanceParameters.size() < templateParameters.size())
+			{
+				// Shouldn't happen, the parseCall() method should have resolved the template parameters 
+				// to another function already...
+				jassertfalse;
+			}
+		}
+
 		TemplateParameterResolver resolve(collectParametersFromParentClass(this, instanceParameters));
 
 		for (auto e : *this)
@@ -1853,6 +1898,7 @@ struct Operations::TemplatedFunction : public Statement,
 
 		if (currentCompiler != nullptr)
 		{
+			NamespaceHandler::ScopedTemplateParameterSetter stps(currentCompiler->namespaceHandler, instanceParameters);
 			newF->currentCompiler = currentCompiler;
 			newF->processAllPassesUpTo(currentPass, currentScope);
 		}
@@ -1883,9 +1929,115 @@ struct Operations::TemplatedFunction : public Statement,
 
 	TypeInfo getTypeInfo() const override { return {}; }
 
+	Function* getFunctionWithTemplateAmount(const NamespacedIdentifier& id, int numTemplateParameters)
+	{
+		for (auto f_ : *this)
+		{
+			auto f = as<Function>(f_);
+
+			if (id == f->data.id && f->data.templateParameters.size() == numTemplateParameters)
+				return f;
+		}
+
+		// Now we'll have to look at the parent syntax tree
+		SyntaxTreeWalker w(this);
+
+		while (auto tf = w.getNextStatementOfType<TemplatedFunction>())
+		{
+			if (tf == this)
+				continue;
+
+			if (tf->data.id == id)
+			{
+				auto list = tf->collectFunctionInstances();
+
+				for (auto f_ : list)
+				{
+					auto f = as<Function>(f_);
+
+					if (id == f->data.id && f->data.templateParameters.size() == numTemplateParameters)
+						return f;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	Statement::List collectFunctionInstances()
+	{
+		Statement::List orderedFunctions;
+
+		auto id = data.id;
+
+		for (auto f_ : *this)
+		{
+			auto f = as<Function>(f_);
+
+			int numProvided = f->data.templateParameters.size();
+			DBG("Scanning " + f->data.getSignature({}) + "for recursive function calls");
+
+			f->statements->forEachRecursive([id, numProvided, this, &orderedFunctions](Ptr p)
+			{
+				if (auto fc = as<FunctionCall>(p))
+				{
+					if (fc->function.id == id)
+					{
+						DBG("Found recursive function call " + fc->function.getSignature({}));
+						auto numThisF = fc->function.templateParameters.size();
+
+						if (auto rf = getFunctionWithTemplateAmount(id, numThisF))
+							orderedFunctions.addIfNotAlreadyThere(rf);
+					}
+				}
+
+				return false;
+			});
+
+			orderedFunctions.addIfNotAlreadyThere(f);
+		}
+
+		return orderedFunctions;
+	}
+
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
-		Statement::processBaseWithChildren(compiler, scope);
+		Statement::processBaseWithoutChildren(compiler, scope);
+
+		COMPILER_PASS(BaseCompiler::FunctionCompilation)
+		{
+			if (TemplateParameter::ListOps::isVariadicList(templateParameters))
+			{
+				auto list = collectFunctionInstances();
+
+				struct Sorter
+				{
+					static int compareElements(Ptr first, Ptr second)
+					{
+						auto f1 = as<Function>(first);
+						auto f2 = as<Function>(second);
+						auto s1 = f1->data.templateParameters.size();
+						auto s2 = f2->data.templateParameters.size();
+
+						if (s1 > s2)      return 1;
+						else if (s1 < s2) return -1;
+						else              return 0;
+					}
+				};
+
+				Sorter s;
+				list.sort(s);
+
+				for (auto l : list)
+					l->process(compiler, scope);
+
+				return;
+			}
+
+		}
+
+		Statement::processAllChildren(compiler, scope);
+		
 	}
 
 	TemplateParameter::List templateParameters;

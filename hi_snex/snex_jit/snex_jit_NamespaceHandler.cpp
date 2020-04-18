@@ -329,6 +329,9 @@ juce::Result NamespaceHandler::addUsedNamespace(const NamespacedIdentifier& used
 
 juce::Result NamespaceHandler::resolve(NamespacedIdentifier& id, bool allowZeroMatch /*= false*/) const
 {
+	if (skipResolving)
+		return Result::ok();
+
 	if (currentNamespace == nullptr)
 		return Result::fail("no namespace available");
 
@@ -371,6 +374,22 @@ juce::Result NamespaceHandler::resolve(NamespacedIdentifier& id, bool allowZeroM
 		auto subParent = parent.relocate({}, currentNamespace->id);
 
 		existing = get(subParent);
+
+		ScopedValueSetter<bool> svs(skipResolving, true);
+
+		if (isTemplateTypeArgument(subParent))
+		{
+			for (const auto& tp : getCurrentTemplateParameters())
+			{
+				if (tp.argumentId == subParent)
+				{
+					auto actualParent = tp.type.getTypedComplexType<StructType>()->id;
+					
+					existing = get(actualParent);
+					break;
+				}
+			}
+		}
 	}
 
 	if (existing != nullptr)
@@ -490,6 +509,32 @@ bool NamespaceHandler::isTemplateConstantArgument(NamespacedIdentifier classId) 
 	return false;
 }
 
+bool NamespaceHandler::isTemplateFunction(NamespacedIdentifier functionId) const
+{
+	resolve(functionId, true);
+
+	for (auto& t : templateFunctionIds)
+	{
+		if (t.id == functionId)
+			return true;
+	}
+
+	return false;
+}
+
+bool NamespaceHandler::isTemplateClass(NamespacedIdentifier& classId) const
+{
+	resolve(classId, true);
+
+	for (auto& t : templateClassIds)
+	{
+		if (t.id == classId)
+			return true;
+	}
+
+	return false;
+}
+
 snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
 {
 	NamespacedIdentifier copy(id);
@@ -554,7 +599,7 @@ void NamespaceHandler::createTemplateFunction(const NamespacedIdentifier& id, co
 {
 	for (const auto& f : templateFunctionIds)
 	{
-		if (f.id == id)
+		if (f.id == id && TemplateParameter::ListOps::isValidTemplateAmount(f.argList, tp.size()))
 		{
 			TemplateObject::ConstructData d;
 			d.id = id;
@@ -713,22 +758,42 @@ void NamespaceHandler::addTemplateFunction(const TemplateObject& f)
 	templateFunctionIds.addIfNotAlreadyThere(f);
 }
 
-TemplateObject NamespaceHandler::getTemplateObject(const NamespacedIdentifier& id) const
+TemplateObject NamespaceHandler::getTemplateObject(const NamespacedIdentifier& id, int numArgs) const
 {
 	for (const auto& c : templateClassIds)
 	{
-		if (c.id == id)
+		if (c.id == id && TemplateParameter::ListOps::isValidTemplateAmount(c.argList, numArgs))
 			return c;
 	}
 
 	for (const auto& f : templateFunctionIds)
 	{
-		if (f.id == id)
+		if (f.id == id && TemplateParameter::ListOps::isValidTemplateAmount(f.argList, numArgs))
 			return f;
 	}
 
 	return {};
 }
+
+juce::Array<snex::jit::TemplateObject> NamespaceHandler::getAllTemplateObjectsWith(const NamespacedIdentifier& id) const
+{
+	Array<TemplateObject> matches;
+
+	for (const auto& c : templateClassIds)
+	{
+		if (c.id == id)
+			matches.add(c);
+	}
+
+	for (const auto& c : templateFunctionIds)
+	{
+		if (c.id == id)
+			matches.add(c);
+	}
+
+	return matches;
+}
+
 
 juce::Result NamespaceHandler::checkVisiblity(const NamespacedIdentifier& id) const
 {

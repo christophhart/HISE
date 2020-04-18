@@ -298,9 +298,15 @@ struct ReturnTypeInlineData : public InlineData
 
 void ComplexType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 {
+	
+
 	if (hasAlias())
 	{
+		if (handler->getSymbolType(getAlias()) == NamespaceHandler::UsingAlias)
+			return;
+
 		jassert(getAlias().isExplicit());
+
 		handler->addSymbol(getAlias(), TypeInfo(this), NamespaceHandler::UsingAlias);
 	}
 }
@@ -658,6 +664,29 @@ bool TemplateParameter::ListOps::readyToResolve(const List& l)
 	return isNamed(l) && isParameter(l);
 }
 
+bool TemplateParameter::ListOps::isValidTemplateAmount(const List& argList, int numProvided)
+{
+	if (numProvided == -1)
+		return true;
+
+	int required = 0;
+
+	for (auto& a : argList)
+	{
+		if (a.constantDefined || a.type.isValid())
+			continue;
+
+		if (a.isVariadic())
+		{
+			return numProvided >= argList.size();
+		}
+
+		required++;
+	}
+
+	return required == numProvided;
+}
+
 juce::String TemplateParameter::ListOps::toString(const List& l)
 {
 	if (l.isEmpty())
@@ -675,22 +704,48 @@ juce::String TemplateParameter::ListOps::toString(const List& l)
 		{
 			if (t.t == TypeTemplateArgument)
 			{
-				s << "typename " << t.argumentId.getIdentifier();
+				s << "typename";
+					
+				if (t.isVariadic())
+					s << "...";
+
+				s << " " << t.argumentId.getIdentifier();
+
+				
 
 				if (t.type.isValid())
 					s << "=" << t.type.toString();
 			}
 			else
 			{
-				s << "int " << t.argumentId.getIdentifier();
+				s << "int";
+
+				if (t.isVariadic())
+					s << "...";
+
+				s << " " << t.argumentId.getIdentifier();
 
 				if (t.constant != 0)
 					s << "=" << juce::String(t.constant);
 			}
 			
+			
 		}
 		else
 		{
+			
+
+			if (t.isVariadic())
+			{
+				s << t.argumentId.toString() << "...";
+				continue;
+			}
+
+			if (t.argumentId.isValid())
+			{
+				s << t.argumentId.toString() << "=";
+			}
+
 			if (t.type.isValid())
 				s << t.type.toString();
 			else
@@ -743,20 +798,46 @@ TemplateParameter::List TemplateParameter::ListOps::merge(const TemplateParamete
 
 	auto numArgs = arguments.size();
 	auto numDefinedParameters = parameters.size();
+	auto lastArgIsVariadic = arguments.getLast().isVariadic();
+	auto lastParamIsVariadic = parameters.getLast().isVariadic();
 
-	if (numDefinedParameters > numArgs)
+	if (numDefinedParameters > numArgs && !lastArgIsVariadic)
 	{
 		r = Result::fail("Too many template parameters");
 		return instanceParameters;
 	}
+
+	if (lastArgIsVariadic)
+		numArgs = numDefinedParameters;
 
 	for (int i = 0; i < numArgs; i++)
 	{
 		if (isPositiveAndBelow(i, numDefinedParameters))
 		{
 			TemplateParameter p = parameters[i];
-			p.argumentId = arguments[i].argumentId;
-			instanceParameters.add(p);
+
+			if (p.isVariadic())
+			{
+				p.argumentId = arguments.getLast().argumentId;
+				instanceParameters.add(p);
+				return instanceParameters;
+			}
+
+			if (!lastArgIsVariadic || isPositiveAndBelow(i, arguments.size()))
+			{
+				p.argumentId = arguments[i].argumentId;
+				instanceParameters.add(p);
+			}
+			else
+			{
+				p.argumentId = arguments.getLast().argumentId;
+
+				//p.argumentId.id = Identifier(p.argumentId.id.toString() + String(i + 1));
+
+				instanceParameters.add(p);
+			}
+
+			
 		}
 		else
 		{
@@ -889,6 +970,64 @@ TemplateParameter::List TemplateParameter::ListOps::mergeWithCallParameters(cons
 	}
 
 	return sort(argumentList, tp, r);
+}
+
+juce::Result TemplateParameter::ListOps::expandIfVariadicParameters(List& parameterList, const List& parentParameters)
+{
+	if (parentParameters.isEmpty())
+		return Result::ok();
+
+	//DBG("EXPAND");
+	//DBG("Parameters: " + TemplateParameter::ListOps::toString(parameterList));
+	//DBG("Parent parameters: " + TemplateParameter::ListOps::toString(parentParameters));
+
+	List newList;
+
+	for (const auto& p : parameterList)
+	{
+		if (p.isVariadic())
+		{
+			auto vId = p.type.getTemplateId().toString();
+
+			for (auto& pp : parentParameters)
+			{
+				auto ppId = pp.argumentId.toString();
+				if (vId == ppId)
+					newList.add(pp);
+			}
+		}
+		else
+		{
+			newList.add(p);
+		}
+	}
+
+	std::swap(newList, parameterList);
+
+	//DBG("Expanded: " + TemplateParameter::ListOps::toString(parameterList));
+	//DBG("-----------------------------------------------------------");
+
+	return Result::ok();
+}
+
+bool TemplateParameter::ListOps::isVariadicList(const List& l)
+{
+	return l.getLast().isVariadic();
+}
+
+bool TemplateParameter::ListOps::matchesParameterAmount(const List& parameters, int expected)
+{
+	jassert(isParameter(parameters));
+
+	if (parameters.size() == expected)
+		return true;
+
+	if (parameters.getLast().isVariadic())
+	{
+		jassertfalse;
+	}
+
+	return false;
 }
 
 snex::jit::ComplexType::Ptr TemplatedComplexType::createTemplatedInstance(const TemplateParameter::List& suppliedTemplateParameters, juce::Result& r)

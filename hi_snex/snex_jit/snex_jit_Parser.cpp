@@ -616,6 +616,8 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 		{
 			if (matchIf(JitTokens::int_))
 			{
+				auto vType = parseVariadicDots();
+
 				auto templateId = NamespacedIdentifier(parseIdentifier());
 
 				int defaultValue = 0;
@@ -626,13 +628,14 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 					defaultValue = parseConstExpression(true).toInt();
 					defined = true;
 				}
-					
 
-				parameters.add(TemplateParameter(templateId, defaultValue, defined));
+				parameters.add(TemplateParameter(templateId, defaultValue, defined, vType));
 			}
 			else
 			{
 				match(JitTokens::typename_);
+
+				auto vType = parseVariadicDots();
 
 				auto templateId = NamespacedIdentifier(parseIdentifier());
 
@@ -645,7 +648,7 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 					defaultType = tp.currentTypeInfo;
 				}
 
-				parameters.add(TemplateParameter(templateId, defaultType));
+				parameters.add(TemplateParameter(templateId, defaultType, vType));
 			}
 		}
 		else
@@ -654,7 +657,9 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 
 			if (tp.matchIfType())
 			{
-				TemplateParameter p(tp.currentTypeInfo);
+				auto vType = parseVariadicDots();
+				TemplateParameter p(tp.currentTypeInfo, vType);
+
 				parameters.add(p);
 			}
 			else
@@ -956,6 +961,8 @@ juce::Array<snex::jit::TemplateParameter> TypeParser::parseTemplateParameters()
 
 		if (tp.matchIfType())
 		{
+
+
 			TemplateParameter p(tp.currentTypeInfo);
 			
 			

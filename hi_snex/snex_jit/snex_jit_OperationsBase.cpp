@@ -86,12 +86,6 @@ snex::jit::TemplateParameter::List Operations::collectParametersFromParentClass(
 			}
 		}
 	}
-	else if (auto td = as<TemplateDefinition>(p))
-	{
-		
-
-		
-	}
 	else
 	{
 		while (auto cs = findParentStatementOfType<ClassStatement>(p))

@@ -136,6 +136,23 @@ public:
 		Visibility state;
 	};
 
+	struct ScopedTemplateParameterSetter
+	{
+		ScopedTemplateParameterSetter(NamespaceHandler& h, const TemplateParameter::List& currentList):
+			handler(h)
+		{
+			jassert(TemplateParameter::ListOps::readyToResolve(currentList));
+			handler.currentTemplateParameters.add(currentList);
+		}
+
+		~ScopedTemplateParameterSetter()
+		{
+			handler.currentTemplateParameters.removeLast();
+		}
+
+		NamespaceHandler& handler;
+	};
+
 	struct ScopedNamespaceSetter
 	{
 		ScopedNamespaceSetter(NamespaceHandler& h, const NamespacedIdentifier& id):
@@ -194,31 +211,9 @@ public:
 
 	bool isTemplateConstantArgument(NamespacedIdentifier classId) const;
 
-	bool isTemplateFunction(NamespacedIdentifier functionId) const
-	{
-		resolve(functionId, true);
+	bool isTemplateFunction(NamespacedIdentifier functionId) const;
 
-		for (auto& t : templateFunctionIds)
-		{
-			if (t.id == functionId)
-				return true;
-		}
-
-		return false;
-	}
-
-	bool isTemplateClass(NamespacedIdentifier& classId) const
-	{
-		resolve(classId, true);
-		
-		for (auto& t : templateClassIds)
-		{
-			if (t.id == classId)
-				return true;
-		}
-			
-		return false;
-	}
+	bool isTemplateClass(NamespacedIdentifier& classId) const;
 
 	ComplexType::Ptr createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
@@ -244,7 +239,9 @@ public:
 
 	void addTemplateFunction(const TemplateObject& f);
 
-	TemplateObject getTemplateObject(const NamespacedIdentifier& id) const;
+	TemplateObject getTemplateObject(const NamespacedIdentifier& id, int numProvidedArguments=-1) const;
+
+	Array<TemplateObject> getAllTemplateObjectsWith(const NamespacedIdentifier& id) const;
 
 	Result checkVisiblity(const NamespacedIdentifier& id) const;
 
@@ -253,7 +250,13 @@ public:
 		currentVisibility = newVisibility;
 	}
 
+	TemplateParameter::List getCurrentTemplateParameters() const { return currentTemplateParameters.getLast(); }
+
 private:
+
+	mutable bool skipResolving = false;
+
+	Array<TemplateParameter::List> currentTemplateParameters;
 
 	bool internalSymbolMode = false;
 

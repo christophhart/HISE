@@ -35,11 +35,11 @@ using String = juce::String;
 #include "snex_jit/snex_jit_SyntaxTreeWalker.h"
 #include "snex_jit/snex_jit_Operations.h"
 #include "snex_jit/snex_jit_FunctionParser.h"
+#include "snex_jit/snex_TemplateClassBuilder.h"
 
 #include "snex_core/snex_Types.cpp"
 #include "snex_core/snex_TypeHelpers.cpp"
 #include "snex_core/snex_DynamicType.cpp"
-
 
 #include "snex_jit/snex_jit_Functions.cpp"
 #include "snex_jit/snex_jit_NativeDspFunctions.cpp"
@@ -70,8 +70,11 @@ using String = juce::String;
 #include "snex_jit/snex_jit_JitCompiler.cpp"
 
 
+#include "snex_jit/snex_TemplateClassBuilder.cpp"
+
 
 #include "snex_core/snex_CallbackCollection.cpp"
+
 #include "snex_core/snex_ExternalObjects.cpp"
 
 

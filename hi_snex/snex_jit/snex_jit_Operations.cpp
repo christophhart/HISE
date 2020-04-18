@@ -222,6 +222,14 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::FunctionCompilation)
 	{
+		if (data.function != nullptr)
+		{
+			// this function is already compiled (maybe because of reordering
+			// of variadic function calls)
+			return;
+		}
+			
+
 		ScopedPointer<asmjit::StringLogger> l = new asmjit::StringLogger();
 
 		auto runtime = getRuntime(compiler);
@@ -1831,11 +1839,16 @@ void Operations::ThisPointer::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(this, thisSymbol))
 			reg = ie->getSubRegister(0);
-		else if (auto f = dynamic_cast<Function*>(fScope->parentFunction))
-			reg = f->objectPtr;
-		else
-			location.throwError("can't resolve this pointer");
+
+		if (reg == nullptr)
+		{
+			if (auto f = dynamic_cast<Function*>(fScope->parentFunction))
+				reg = f->objectPtr;
+		}
 		
+		if (reg == nullptr)
+			location.throwError("can't resolve this pointer");
+
 		auto objType = compiler->getRegisterType(reg->getTypeInfo());
 		auto thisType = compiler->getRegisterType(getTypeInfo());
 		jassert(objType == thisType);
@@ -1843,6 +1856,51 @@ void Operations::ThisPointer::process(BaseCompiler* compiler, BaseScope* scope)
 		// Fix inlining:
 		// the scope will fuck up the object pointer of the function
 		// check the object pointer from the inlined function (arg is -1)		
+	}
+}
+
+void Operations::InlinedArgument::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	jassert(scope->getScopeType() == BaseScope::Anonymous);
+
+	processChildrenIfNotCodeGen(compiler, scope);
+
+	if (isCodeGenPass(compiler))
+	{
+		auto f = [this]()
+		{
+			auto child = getSubExpr(0);
+
+			if (auto sb = as<StatementBlock>(child))
+			{
+				jassert(sb->isInlinedFunction);
+				return false;
+			}
+
+			return true;
+		};
+
+		if (!preprocessCodeGenForChildStatements(compiler, scope, f))
+			return;
+
+		if (s.typeInfo.isComplexType() && !s.isReference())
+		{
+			auto acg = CREATE_ASM_COMPILER(getTypeInfo().getType());
+
+			auto stackPtr = acg.cc.newStack(s.typeInfo.getRequiredByteSize(), s.typeInfo.getRequiredAlignment());
+
+			auto target = compiler->getRegFromPool(scope, s.typeInfo);
+
+			target->setCustomMemoryLocation(stackPtr, false);
+
+			auto source = getSubRegister(0);
+
+			acg.emitComplexTypeCopy(target, source, s.typeInfo.getComplexType());
+
+			getSubExpr(0)->reg = target;
+
+			reg = getSubRegister(0);
+		}
 	}
 }
 

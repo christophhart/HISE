@@ -445,7 +445,7 @@ namespace Operations
 	struct InlinedParameter;struct ComplexTypeDefinition;	struct ControlFlowStatement;
 	struct InlinedArgument; struct MemoryReference;			struct TemplateDefinition; 
 	struct TemplatedTypeDef; struct TemplatedFunction;		struct ThisPointer;
-	struct WhileLoop;
+	struct WhileLoop;		struct PointerAccess;
 
 	struct ScopeStatementBase
 	{

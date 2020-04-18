@@ -511,6 +511,20 @@ struct ParserHelpers
 			return true;
 		}
 
+		TemplateParameter::VariadicType parseVariadicDots()
+		{
+			if (matchIf(JitTokens::dot))
+			{
+				match(JitTokens::dot);
+				match(JitTokens::dot);
+				return TemplateParameter::VariadicType::Variadic;
+			}
+
+			return TemplateParameter::VariadicType::Single;
+		}
+
+
+
 		VariableStorage parseVariableStorageLiteral()
 		{
 			bool isMinus = matchIf(JitTokens::minus);

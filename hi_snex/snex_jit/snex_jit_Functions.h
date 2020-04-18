@@ -660,6 +660,14 @@ class NamespaceHandler;
 
 struct TemplateParameter
 {
+
+	enum VariadicType
+	{
+		Single,
+		Variadic,
+		numVariadicTypes
+	};
+
 	enum ParameterType
 	{
 		Empty,
@@ -673,42 +681,47 @@ struct TemplateParameter
 	TemplateParameter() :
 		t(Empty),
 		type({}),
+		variadic(VariadicType::Single),
 		constant(0),
 		constantDefined(false)
 	{};
 
-	TemplateParameter(const NamespacedIdentifier& id, int value, bool defined):
+	TemplateParameter(const NamespacedIdentifier& id, int value, bool defined, VariadicType vType=VariadicType::Single):
 		t(IntegerTemplateArgument),
 		type({}),
 		argumentId(id),
 		constant(value),
-		constantDefined(defined)
+		constantDefined(defined),
+		variadic(vType)
 	{
 		jassert(isTemplateArgument());
 	}
 
-	TemplateParameter(const NamespacedIdentifier& id, const TypeInfo& defaultType = {}) :
+	TemplateParameter(const NamespacedIdentifier& id, const TypeInfo& defaultType = {}, VariadicType vType = VariadicType::Single) :
 		t(TypeTemplateArgument),
 		type(defaultType),
 		argumentId(id),
-		constant(0)
+		constant(0),
+		variadic(vType)
 	{
 		jassert(isTemplateArgument());
 	}
 
 
-	TemplateParameter(int c) :
+	TemplateParameter(int c, VariadicType vType = VariadicType::Single) :
 		type(TypeInfo()),
 		constant(c),
+		variadic(vType),
 		t(ParameterType::ConstantInteger),
 		constantDefined(true)
 	{
 		jassert(!isTemplateArgument());
 	};
 
-	TemplateParameter(const TypeInfo& t) :
+	TemplateParameter(const TypeInfo& t, VariadicType vType = VariadicType::Single) :
 		type(t),
 		constant(0),
+		variadic(vType),
 		t(ParameterType::Type)
 	{
 		jassert(!isTemplateArgument());
@@ -749,6 +762,11 @@ struct TemplateParameter
 		return c;
 	}
 
+	bool isVariadic() const
+	{
+		return variadic == VariadicType::Variadic;
+	}
+
 	bool isResolved() const
 	{
 		jassert(!isTemplateArgument());
@@ -775,6 +793,12 @@ struct TemplateParameter
 
 		static List mergeWithCallParameters(const List& argumentList, const List& existing, const TypeInfo::List& originalFunctionArguments, const TypeInfo::List& callParameterTypes, Result& r);
 
+		static Result expandIfVariadicParameters(List& parameterList, const List& parentParameters);
+
+		static bool isVariadicList(const List& l);
+
+		static bool matchesParameterAmount(const List& parameters, int expected);
+
 		static bool isParameter(const List& l);
 
 		static bool isArgument(const List& l);
@@ -786,6 +810,8 @@ struct TemplateParameter
 		static bool isNamed(const List& l);
 
 		static bool readyToResolve(const List& l);
+
+		static bool isValidTemplateAmount(const List& argList, int numProvided);
 	};
 
 	
@@ -799,6 +825,7 @@ struct TemplateParameter
 	TypeInfo type;
 	int constant;
 	bool constantDefined = false;
+	VariadicType variadic = VariadicType::Single;
 	ParameterType t;
 	NamespacedIdentifier argumentId;
 };
@@ -1231,7 +1258,7 @@ struct TemplateObject
 	{
 		bool expectTemplateParameterAmount(int expectedSize) const
 		{
-			if (tp.size() != expectedSize)
+			if (!TemplateParameter::ListOps::matchesParameterAmount(tp, expectedSize))
 			{
 				juce::String s;
 
@@ -1323,7 +1350,7 @@ struct TemplateObject
 
 	bool operator==(const TemplateObject& other) const
 	{
-		return id == other.id;
+		return id == other.id && argList.size() == other.argList.size();
 	}
 
 	NamespacedIdentifier id;

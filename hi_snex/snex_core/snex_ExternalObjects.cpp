@@ -692,6 +692,8 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 		c.registerVariadicType(frameType);
 	}
+
+	registerParameterTemplate(c);
 }
 
 
@@ -1049,6 +1051,127 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 	c.addTemplateClass(ptc);
 
 	
+}
+
+
+void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
+{
+	using PH = ParameterBuilder::Helpers;
+	using TCH = TemplateClassBuilder::Helpers;
+
+	auto plain = PH::createWithTP(c, "plain");
+	plain.addFunction([](StructType* st)
+	{
+		return PH::createCallPrototype(st, [st](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+			auto input = d->args[0]->clone(d->location);
+
+			auto targetType = TCH::getStructTypeFromTemplate(st, 0);
+			d->target       = PH::createSetParameterCall(targetType, d, input);
+
+			return Result::ok();
+		});
+	});
+
+	plain.flush();
+
+	auto expr = PH::createWithTP(c, "expression");
+	expr.addTypeTemplateParameter("ExpressionClass");
+	expr.addFunction([](StructType* st)
+	{
+		return PH::createCallPrototype(st, [st](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+			auto input = d->args[0]->clone(d->location);
+
+			auto exprType =   TCH::getStructTypeFromTemplate(st, 2);
+			auto exprCall =   TCH::createFunctionCall(exprType, d, "op", input);
+			auto targetType = TCH::getStructTypeFromTemplate(st, 0);
+			d->target =       PH::createSetParameterCall(targetType, d, exprCall);
+
+			return Result::ok();
+		});
+	});
+	expr.flush();
+
+	auto from0To1 = PH::createWithTP(c, "from0To1");
+	from0To1.addTypeTemplateParameter("RangeClass");
+	from0To1.addFunction([](StructType* st)
+	{
+		return PH::createCallPrototype(st, [st](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+			auto input = d->args[0]->clone(d->location);
+
+			auto rangeType =   TCH::getStructTypeFromTemplate(st, 2);
+			auto rangeCall =   TCH::createFunctionCall(rangeType, d, "from0To1", input);
+			auto targetType =  TCH::getStructTypeFromTemplate(st, 0);
+			d->target =        PH::createSetParameterCall(targetType, d, rangeCall);
+
+			return Result::ok();
+		});
+	});
+	from0To1.flush();
+
+	auto to0To1 = PH::createWithTP(c, "to0To1");
+	to0To1.addTypeTemplateParameter("RangeClass");
+	to0To1.addFunction([](StructType* st)
+	{
+		return PH::createCallPrototype(st, [st](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+			auto input = d->args[0]->clone(d->location);
+
+			auto rangeType = TCH::getStructTypeFromTemplate(st, 2);
+			auto rangeCall = TCH::createFunctionCall(rangeType, d, "to0To1", input);
+			auto targetType = TCH::getStructTypeFromTemplate(st, 0);
+			d->target = PH::createSetParameterCall(targetType, d, rangeCall);
+
+			return Result::ok();
+		});
+	});
+	to0To1.flush();
+
+	ParameterBuilder chainP(c, "chain");
+
+	chainP.addVariadicTypeTemplateParameter("Parameters");
+	chainP.addFunction(TemplateClassBuilder::VariadicHelpers::getFunction);
+	chainP.setInitialiseStructFunction(TemplateClassBuilder::VariadicHelpers::initVariadicMembers<0>);
+	chainP.addFunction([](StructType* st)
+	{
+		return PH::createCallPrototype(st, [st](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+			d->target = TemplateClassBuilder::VariadicHelpers::callEachMember(d, st, "call");
+
+			return Result::ok();
+		});
+	});
+	chainP.flush();
+
+	ParameterBuilder listP(c, "list");
+
+	listP.addVariadicTypeTemplateParameter("Parameters");
+	listP.addFunction(TemplateClassBuilder::VariadicHelpers::getFunction);
+	listP.setInitialiseStructFunction(TemplateClassBuilder::VariadicHelpers::initVariadicMembers<0>);
+	listP.addFunction([](StructType* st)
+	{
+		return PH::createCallPrototype(st, [st](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+
+			auto value = d->templateParameters.getFirst().constant;
+			auto targetType = TCH::getStructTypeFromTemplate(st, value);
+			auto newCall = TCH::createFunctionCall(targetType, d, "call", d->args[0]);
+			TCH::addChildObjectPtr(newCall, d, st, value);
+
+			d->target = newCall;
+
+			return Result::ok();
+		});
+	});
+	listP.flush();
 }
 
 snex::jit::ComplexType::Ptr PrepareSpecs::createComplexType(Compiler& c, const Identifier& id)
