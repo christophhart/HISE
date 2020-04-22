@@ -122,7 +122,7 @@ public:
 
 	void prepare(PrepareSpecs ps) override;
 	void reset();
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	void process(ProcessData& d);
 	bool handleModulation(double& value);
 	void createParameters(Array<ParameterData>& data) override;

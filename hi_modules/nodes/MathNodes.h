@@ -44,116 +44,233 @@ namespace Operations
 #define SET_ID(x) static Identifier getId() { RETURN_STATIC_IDENTIFIER(#x); }
 #define SET_DEFAULT(x) static constexpr float defaultValue = x;
 
+
+#define OP_BLOCK(data, value) template <typename PD> static void op(PD& data, float value)
+#define OP_SINGLE(data, value) template <typename FD> static void opSingle(FD& data, float value)
+#define OP_BLOCK2SINGLE(data, value) OP_BLOCK(data, value) { for (auto ch : data) { for (auto& s : data.toChannelData(ch)) opSingle(s, value); }}
+
 	struct mul
 	{
 		SET_ID(mul); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK(data, value)
+		{
+			for (auto ch : data)
+				hmath::vmuls(data.toChannelData(ch), value);
+		}
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s *= value;
+		}
 	};
 
 	struct add
 	{
 		SET_ID(add); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK(data, value)
+		{
+			for (auto ch : data)
+				hmath::vadds(data.toChannelData(ch), value);
+		}
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s += value;
+		}
 	};
 
 	struct clear
 	{
 		SET_ID(clear); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float);
-		static void opSingle(float* frameData, int numChannels, float);
+		OP_BLOCK(data, value)
+		{
+			for (auto ch : data)
+				hmath::vset(data.toChannelData(ch), 0.0f);
+		}
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s = 0.0f;
+		}
 	};
 
 	struct sub
 	{
 		SET_ID(sub); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK(data, value)
+		{
+			for (auto ch : data)
+				hmath::vadds(data.toChannelData(ch), -value);
+		}
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s -= value;
+		}
 	};
 
 	struct div
 	{
 		SET_ID(div); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK(data, value)
+		{
+			auto factor = value > 0.0f ? 1.0f / value : 0.0f;
+
+			for (auto ch : data)
+				hmath::vmuls(data.toChannelData(ch), factor);
+		}
+
+		OP_SINGLE(data, value)
+		{
+			auto factor = value > 0.0f ? 1.0f / value : 0.0f;
+
+			for (auto& s : data)
+				s *= factor;
+		}
 	};
+
+
 
 	struct tanh
 	{
 		SET_ID(tanh); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK2SINGLE(data, value);
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s = tanhf(s * value);
+		}
 	};
 
 	struct pi
 	{
 		SET_ID(pi); SET_DEFAULT(2.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK(data, unused)
+		{
+			for (auto ch : data)
+				hmath::vmuls(data.toChannelData(ch), float_Pi);
+		}
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s *= float_Pi;
+		}
 	};
 
 	struct sin
 	{
 		SET_ID(sin); SET_DEFAULT(2.0f);
 
-		static void op(ProcessData& d, float);
-		static void opSingle(float* frameData, int numChannels, float);
+		OP_BLOCK2SINGLE(data, unused);
+
+		OP_SINGLE(data, unused)
+		{
+			for (auto& s : data)
+				s = sinf(s);
+		}
 	};
 
 	struct sig2mod
 	{
 		SET_ID(sig2mod); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float);
-		static void opSingle(float* frameData, int numChannels, float);
+		OP_BLOCK2SINGLE(data, unused);
+
+		OP_SINGLE(data, unused)
+		{
+			for (auto& s : data)
+				s = s * 0.5f + 0.5f;
+		}
 	};
 
 	struct clip
 	{
 		SET_ID(clip); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK(data, value)
+		{
+			for (auto ch : data)
+				hmath::vclip(data.toChannelData(ch), -value, value);
+		}
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s *= jlimit(-value, value, s);
+		}
 	};
 
 	struct square
 	{
 		SET_ID(square); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK(data, value)
+		{
+			for (auto ch : data)
+				hmath::vmul(data.toChannelData(ch), data.toChannelData(ch));
+		}
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s *= s;
+		}
 	};
 
 	struct sqrt
 	{
 		SET_ID(sqrt); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK2SINGLE(data, unused);
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s = sqrtf(s);
+		}
 	};
 
 	struct pow
 	{
 		SET_ID(pow); SET_DEFAULT(1.0f);
 
-		static void op(ProcessData& d, float value);
-		static void opSingle(float* frameData, int numChannels, float value);
+		OP_BLOCK2SINGLE(data, unused);
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s = powf(s, value);
+		}
 	};
 
 	struct abs
 	{
 		SET_ID(abs); SET_DEFAULT(0.0f);
 
-		static void op(ProcessData& d, float);
-		static void opSingle(float* frameData, int numChannels, float);
+		OP_BLOCK(data, unused)
+		{
+			for (auto& ch : data)
+				hmath::vabs(data.toChannelData());
+		}
+
+		OP_SINGLE(data, value)
+		{
+			for (auto& s : data)
+				s = hmath::abs(s);
+		}
 	};
 }
 
@@ -171,8 +288,17 @@ public:
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	bool handleModulation(double&) noexcept;;
-	void process(ProcessData& d);
-	void processSingle(float* frameData, int numChannels);
+	
+	template <typename PD> void process(PD& d)
+	{
+		OpType::op<PD>(d, value.get());
+	}
+
+	template <typename FD> void processFrame(FD& d)
+	{
+		OpType::opSingle(d, value.get());
+	}
+
 	void reset() noexcept;
 	void prepare(PrepareSpecs ps);
 	void createParameters(Array<ParameterData>& data) override;

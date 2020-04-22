@@ -91,17 +91,6 @@ bool ModulationSourceNode::ModulationTarget::findTarget()
 					targetParameter = n->getParameter(i);
 					callback = targetParameter->getCallback();
 
-#if 0
-					removeWatcher.setCallback(n->getValueTree(),
-						valuetree::AsyncMode::Synchronously, true,
-						[this](ValueTree&)
-					{
-						data.getParent().removeChild(data, parent->getUndoManager());
-					});
-#endif
-
-
-
 					return true;
 				}
 			}

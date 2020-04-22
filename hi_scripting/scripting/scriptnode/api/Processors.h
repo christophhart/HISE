@@ -38,365 +38,15 @@ using namespace juce;
 using namespace hise;
 
 
-
-
-
-
-/** This namespace contains template classes that define compile-time range objects which can be passed
-	into parameter connections. It has:
-
-	- Identity - no conversion
-	- SNEX Expression range - conversion using a custom formula
-	- Complex range conversions with skew factor and step sizes
-	
-	You will most likely use the DECLARE_XXX macros instead of using the classes directly for better readability.
-*/
-namespace ranges
-{
-
-/** The base class for a connection with a custom SNEX expression. 
-
-	You will most likely never use this class directly, but create the parameter
-	using the 
-	
-	DECLARE_PARAMETER_EXPRESSION()
-	
-	macro that just contains the formula.
-*/
-struct SnexExpressionBase 
-{
-	/** Allows `Math.min(a, b)` syntax... */
-	static snex::hmath Math;
-
-	/** There's no range conversion going on so we return the identity. */
-	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(0.0, 1.0); };
-};
-
-
-/** @internal A helper class that contains the actual range calculations. 
-
-	It is used by the various range macro definitions below to create classes with compile time range conversions. */
-template <typename T> struct RangeBase
-{
-	static constexpr T from0To1(T min, T max, T value) { return hmath::map(value, min, max); }
-	static constexpr T to0To1(T min, T max, T value) { return (value - min) / (max - min); }
-	static constexpr T from0To1Skew(T min, T max, T skew, T value) { auto v = hmath::pow(value, skew); return from0To1(min, max, value); }
-	static constexpr T to0To1Skew(T min, T max, T skew, T value) { return hmath::pow(to0To1(min, max, value), skew); }
-	static constexpr T to0To1Step(T min, T max, T step, T value) { return to0To1(min, max, value - hmath::fmod(value, step)); }
-	static constexpr T to0To1StepSkew(T min, T max, T step, T skew, T value) { return to0To1(min, max, skew, value - hmath::fmod(value, step)); }
-
-	static constexpr T from0To1Step(T min, T max, T step, T value)
-	{
-		auto v = from0To1(min, max, value);
-		return v - hmath::fmod(v, step);
-	}
-	static constexpr T from0To1StepSkew(T min, T max, T step, T skew, T value)
-	{
-		auto v = from0To1(min, max, skew, value);
-		return v - hmath::fmod(v, step);
-	}
-};
-
-/** A range without any conversion.*/
-struct Identity
-{
-	static constexpr double from0To1(double input) { return input; };
-	static constexpr double to0To1(double input) { return input; };
-	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(0.0, 1.0); };
-};
-
-
-/** Declares a identity range. */
-#define DECLARE_IDENTITY_RANGE(name) struct name: public Identity {};
-
-/** A shortcut to declare an expression parameter */
-#define DECLARE_PARAMETER_EXPRESSION(name, x) struct name : public ranges::SnexExpressionBase { \
-static double op(double input) { return x; } }; 
-
-/** Declares a linear range with a custom range. */
-#define DECLARE_PARAMETER_RANGE(name, min, max) struct name { \
-	static constexpr double to0To1(double input) { return ranges::RangeBase<double>::to0To1(min, max, input); } \
-	static constexpr double from0To1(double input){ return ranges::RangeBase<double>::from0To1(min, max, input); };\
-	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max); } };
-
-/** Declares a linear range with discrete steps. */
-#define DECLARE_PARAMETER_RANGE_STEP(name, min, max, step) struct name {\
-	static constexpr double to0To1(double input) {  return ranges::RangeBase<double>::to0To1Step(min, max, step, input); } \
-	static constexpr double from0To1(double input){ return ranges::RangeBase<double>::from0To1Step(min, max, step, input);} \
-	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, step); } };
-
-/** Declares a skewed range with a settable skew factor. */
-#define DECLARE_PARAMETER_RANGE_SKEW(name, min, max, skew) struct name {\
-	static constexpr double to0To1(double input) {  return ranges::RangeBase<double>::to0To1Skew(min, max, skew, input); }\
-	static constexpr double from0To1(double input){ return ranges::RangeBase<double>::from0To1Skew(min, max, skew, input);} \
-	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, 0.0, skew); } };
-
-/** Declares a skewed range with discrete steps. */
-#define DECLARE_PARAMETER_RANGE_STEP_SKEW(name, min, max, step, skew)struct name {\
-	static constexpr double to0To1(double input) {  return ranges::RangeBase<double>::to0To1StepSkew(min, max, step, skew, input); } \
-	static constexpr double from0To1(double input){ return ranges::RangeBase<double>::from0To1StepSkew(min, max, step, skew, input);} \
-	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, step, skew); } };
-
-}
-
-/** This namespace contains different parameter templates that can be used to create compile time callbacks with the same
-	behaviour as the connections in scriptnode. 
-	
-	
-
-*/
-namespace parameter
-{
-
-/** The base class for all parameters that represent a single connection between two nodes. 
-
-	This class has two template arguments:
-
-	- T: the object that this parameter operates on
-	- I: the parameter index
-
-	Because these things are compile-time constants, the compiler should be able to resolve and
-	inline the function call to the parameter callback.
-*/
-template <class T, int P> struct single_base
-{
-	/** @internal: has to be defined for compatibility with the chained parameter types. */
-	static constexpr int size = 1;
-
-	/** A helper class that calls the setParameter function of the T object. */
-	struct Caller
-	{
-		void operator()(void* obj, double v)
-		{
-			T::setParameter<P>(obj, v);
-		}
-	} f;
-
-	/** Connects the parameter to the given object instance `o`. */
-	template <class MaybeWrapped> constexpr void connect(MaybeWrapped& o)
-	{
-		obj = reinterpret_cast<void*>(&o.getObject());
-	}
-
-	/** @internal */
-	template <int P_> constexpr auto& get() noexcept
-	{
-		static_assert(P_ == 0, "parameter index to single parameter must be zero");
-		return *this;
-	}
-
-	void* obj = nullptr;
-};
-
-/** A dummy class that can be used when the container does not have any macro parameters. 
-
-	Since every container template requires a parameter class, using this class will not generate
-	any code if the container does not need to have macro parameters. */
-struct empty
-{
-	static constexpr int size = 0;
-
-	template<int P> void call(double v)
-	{
-		static_assert(false, "Trying to call a parameter from a empty list");
-	}
-
-	template <size_t P> constexpr auto& get() noexcept
-	{
-		static_assert(false, "Trying to get a parameter from a empty list");
-		return *this;
-	}
-
-	template <int P> NormalisableRange<double> createParameterRange()
-	{
-		static_assert(P == 0, "not zero");
-		return NormalisableRange<double>();
-	}
-};
-
-/** The most simple parameter type without any range conversion. */
-template <class T, int P> struct plain: public single_base<T, P>
-{
-	template <int P_> void call(double v)
-	{
-		static_assert(P_ == 0, "not zero");
-
-		jassert(obj != nullptr);
-		f(obj, v);
-	}
-
-	template <int P_> NormalisableRange<double> createParameterRange()
-	{
-		static_assert(P_ == 0, "not zero");
-		return NormalisableRange<double>(0.0, 1.0);
-	}
-};
-
-/** A parameter that takes a expression class for converting the value that is passed to the parameter callback. 
-	
-	the Expression argument should be a class derived by SnexExpressionBase 
-	(and best created using the DECLARE_PARAMETER_EXPRESSION macro).
-*/
-template <class T, int P, class Expression> struct expression: public single_base<T, P>
-{
-	template <int P_> void call(double v)
-	{
-		static_assert(P_ == 0, "not zero");
-		jassert(obj != nullptr);
-
-		f(obj, Expression()(v));
-	}
-
-	template <int P_> NormalisableRange<double> createParameterRange()
-	{
-		static_assert(P_ == 0, "not zero");
-		return NormalisableRange<double>();
-	}
-};
-
-/** A parameter that converts the input from 0...1 to the given range.
-
-	The RangeType argument must be a class created by one of the 
-	
-	DECLARE_PARAMETER_RANGE_XXX
-
-	macros that define a helper class with the required function signature.
-
-	This class is usually used in connections from a macro parameter in order to
-	convert the range to the respective limits for each connection. */
-template <class T, int P, class RangeType> struct from0to1: public single_base<T, P>
-{
-	template <int P_=0> void call(double v)
-	{
-		static_assert(P_ == 0, "not zero");
-		jassert(obj != nullptr);
-
-		auto converted = RangeType::from0To1(v);
-		f(obj, converted);
-	}
-
-	template <int P_> NormalisableRange<double> createParameterRange()
-	{
-		static_assert(P_ == 0, "not zero");
-
-		// Return the default range here...
-		return NormalisableRange<double>(0.0, 1.0);
-	}
-};
-
-/** A parameter that converts the input to 0...1 from the given range.
-
-	The RangeType argument must be a class created by one of the
-
-	DECLARE_PARAMETER_RANGE_XXX
-
-	macros that define a helper class with the required function signature.
-
-	This class is usually used in macro parameters to convert the "public" knob
-	range into the normalised range that is sent to each connection.
-*/
-template <class T, int P, class RangeType> struct to0to1 : public single_base<T, P>
-{
-	template <int P_> void call(double v)
-	{
-		static_assert(P_ == 0, "not zero");
-		jassert(obj != nullptr);
-
-		f(obj, RangeType::to0to1(v));
-	}
-
-	template <int P_> NormalisableRange<double> createParameterRange()
-	{
-		static_assert(P_ == 0, "not zero");
-		return RangeType::createNormalisableRange();
-	}
-};
-
-/** A parameter chain is a list of parameter callbacks that are processed serially. 
-
-	The InputRange template argument must be a range class and will be used to convert
-	the input to 0...1 before it is processed with each parameter in the list.
-	
-	The Others... variadic template argument is a list of all parameters and can be used
-	to control multiple parameters at once.
-*/
-template <class InputRange, class... Others> struct chain
-{
-	static constexpr int size = 1;
-
-	template <int P> void call(double v)
-	{
-		v = InputRange::to0To1(v);
-
-		static_assert(P == 0, "not zero");
-		call_each(v, indexes);
-	}
-
-	template <std::size_t ...Ns>
-	void call_each(double v, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(others).call<0>(v), void(), int{})...
-		};
-	}
-
-	template <int P_> NormalisableRange<double> createParameterRange()
-	{
-		static_assert(P_ == 0, "not zero");
-		return InputRange::createNormalisableRange();
-	}
-
-	template <size_t arg> constexpr auto& get() noexcept
-	{
-		return std::get<arg>(others);
-	}
-
-	std::index_sequence_for<Others...> indexes;
-	std::tuple<Others...> others;
-};
-
-/** The parameter list is a collection of multiple parameters that can be called individually.
-
-	It can be used to add multiple macro parameters to a chain and supports nested calls.
-
-	The Parameters... argument just contains a list of parameters that will be called by their
-	index - so the first parameter can be called using list::call<0>(value).
-
-	If this class is supplied to a container node template, it will forward the calls to 
-
-	T::setParameter<I>() to the call<I>() method, so you can connect it like a hardcoded node.
-*/
-template <class... Parameters> struct list
-{
-	static constexpr int size = sizeof...(Parameters);
-
-	template<int P> void call(double v)
-	{
-		std::get<P>(others).call<0>(v);
-	}
-
-	template <int P_> NormalisableRange<double> createParameterRange()
-	{
-		return get<P_>().createParameterRange<0>();
-	}
-
-	template <size_t P> constexpr auto& get() noexcept
-	{
-		return std::get<P>(others);
-	}
-
-	std::tuple<Parameters...> others;
-};
-
-
-}
-
-
-template <int NumChannels, class T> class fix
+template <int C, class T> class fix
 {
 public:
 
+	static const int NumChannels = C;
 	static constexpr bool isModulationSource = T::isModulationSource;
+
+	using FixProcessType = snex::Types::ProcessDataFix<NumChannels>;
+	using FixFrameType = snex::Types::span<float, NumChannels>;
 
 	fix() {};
 
@@ -407,33 +57,29 @@ public:
 
 	void prepare(PrepareSpecs ps)
 	{
-		ps.numChannels = getFixChannelAmount();
+		ps.numChannels = NumChannels;
 		obj.prepare(ps);
 	}
 
 	forcedinline void reset() noexcept { obj.reset(); }
 
-	forcedinline void process(ProcessData& data) noexcept
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		auto dCopy = ProcessData(data);
-		dCopy.numChannels = getFixChannelAmount();
-
-		obj.process(dCopy);
+		jassert(data.getNumChannels() == NumChannels);
+		auto& fd = data.as<FixProcessType>();
+		this->obj.process(fd);
 	}
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		obj.handleHiseEvent(e);
+		this->obj.handleHiseEvent(e);
 	}
 
-	constexpr static int getFixChannelAmount()
+	template <typename FrameDataType> forcedinline void processFrame(FrameDataType& data) noexcept
 	{
-		return NumChannels;
-	}
-
-	forcedinline void processSingle(float* frameData, int ) noexcept
-	{
-		obj.processSingle(frameData, getFixChannelAmount());
+		jassert(numSamples == NumChannels);
+		auto& d = *reinterpret_cast<FixFrameType*>(frameData);
+		this->obj.processFrame(d);
 	}
 
 	forcedinline bool handleModulation(double& value) noexcept
@@ -467,7 +113,7 @@ public:
 
 	forcedinline void reset() noexcept {  }
 
-	forcedinline void process(ProcessData& ) noexcept
+	template <typename ProcessDataType> void process(ProcessDataType& ) noexcept
 	{
 		
 	}
@@ -477,7 +123,7 @@ public:
 		
 	}
 
-	forcedinline void processSingle(float* , int) noexcept
+	template <typename FrameDataType> void processFrame(FrameDataType& ) noexcept
 	{
 		
 	}
@@ -531,8 +177,12 @@ public:
 		obj.handleHiseEvent(e);
 	}
 
-	void process(ProcessData& d)
+	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
+		// neu denken, mit event iterator...
+		jassertfalse;
+
+#if 0
 		if (d.eventBuffer != nullptr && !d.eventBuffer->isEmpty())
 		{
 			float* ptrs[NUM_MAX_CHANNELS];
@@ -576,13 +226,14 @@ public:
 		}
 		else
 			obj.process(d);
+#endif
 	}
 
 	HardcodedNode* getAsHardcodedNode() { return obj.getAsHardcodedNode(); }
 
-	void processSingle(float* frameData, int numChannels)
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		obj.processSingle(frameData, numChannels);
+		this->obj.processFrame(data);
 	}
 
 	bool handleModulation(double& value) noexcept { return false; }
@@ -617,26 +268,19 @@ public:
 
 	forcedinline void reset() noexcept { obj.reset(); }
 
-	forcedinline void process(ProcessData& data) noexcept
-	{
-		int numToDo = data.size;
-		float* frame = (float*)alloca(data.numChannels * sizeof(float));
-		float** frameData = (float**)alloca(data.numChannels * sizeof(float*));
-		memcpy(frameData, data.data, sizeof(float*)*data.numChannels);
-		ProcessData copy(frameData, data.numChannels, data.size);
-		copy.allowPointerModification();
+	FORWARD_PROCESSDATA2FIX
 
-		while (--numToDo >= 0)
-		{
-			copy.copyToFrameDynamic(frame);
-			processSingle(frame, data.numChannels);
-			copy.copyFromFrameAndAdvanceDynamic(frame);
-		}
+	template <int C> void processFix(snex::Types::ProcessDataFix<C>& d)
+	{
+		auto fd = d.toFrameData();
+
+		while (fd.next())
+			obj.processFrame(fd);
 	}
 
-	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		obj.processSingle(frameData, numChannels);
+		this->obj.processFrame(data);
 	}
 
 	bool handleModulation(double& value)
@@ -658,6 +302,9 @@ public:
 
 	static constexpr bool isModulationSource = T::isModulationSource;
 
+	using ProcessDataType = snex::Types::ProcessDataFix<NumChannels>;
+	using FrameType = snex::Types::span<float, NumChannels>;
+
 	void initialise(NodeBase* n)
 	{
 		obj.initialise(n);
@@ -676,28 +323,27 @@ public:
 
 	forcedinline void reset() noexcept { obj.reset(); }
 
-	forcedinline void process(ProcessData& data) noexcept
+	void process(ProcessDataType& data)
 	{
-		jassert(data.numChannels == NumChannels);
+		auto fd = data.toFrameData();
 
-		int numToDo = data.size;
-		float frame[NumChannels];
-		float* frameData[NumChannels];
-		memcpy(frameData, data.data, sizeof(float*)*NumChannels);
-		ProcessData copy(frameData, NumChannels, data.size);
-		copy.allowPointerModification();
-
-		while (--numToDo >= 0)
-		{
-			copy.copyToFrame<NumChannels>(frame);
-			processSingle(frame, NumChannels);
-			copy.copyFromFrameAndAdvance<NumChannels>(frame);
-		}
+		while (fd.next())
+			processFrame(fd);
 	}
 
-	forcedinline void processSingle(float* frameData, int ) noexcept
+	forcedinline void process(ProcessData& data) noexcept
 	{
-		obj.processSingle(frameData, NumChannels);
+		jassert(data.getNumChannels() == NumChannels);
+
+		auto fd = data.toFrameData<NumChannels>();
+
+		while (fd.next())
+			processFrame(fd);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		this->obj.processFrame(data);
 	}
 
 	bool handleModulation(double& value)
@@ -761,34 +407,34 @@ public:
 		obj.handleHiseEvent(e);
 	}
 
-	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		// Applying oversampling on frame basis is stupid.
+		// shouldn't be called since the oversampling always has to happen on block level...
 		jassertfalse;
 	}
 
-	forcedinline void process(ProcessData& d) noexcept
+	FORWARD_PROCESSDATA2FIX();
+
+	template <int C> void processFix(snex::Types::ProcessDataFix<C>& c)
 	{
 		if (oversampler == nullptr)
 			return;
 
-		juce::dsp::AudioBlock<float> input(d.data, d.numChannels, d.size);
+		using FixProcessType = snex::Types::ProcessDataFix<C>;
 
-		auto output = oversampler->processSamplesUp(input);
+		auto bl = d.toAudioBlock();
+		auto output = oversampler->processSamplesUp(bl);
 
-		float* data[NUM_MAX_CHANNELS];
+		FixProcessType::ChannelDataType data;
 
-		for (int i = 0; i < d.numChannels; i++)
+		for (int i = 0; i < C; i++)
 			data[i] = output.getChannelPointer(i);
 
-		ProcessData od;
-		od.data = data;
-		od.numChannels = d.numChannels;
-		od.size = d.size * OversamplingFactor;
-
+		FixProcessType od(data, d.getNumSamples() * OversamplingFactor);
+		od.copyNonAudioDataFrom(c);
 		obj.process(od);
 
-		oversampler->processSamplesDown(input);
+		oversampler->processSamplesDown(bl);
 	}
 
 	bool handleModulation(double& value) noexcept
@@ -840,34 +486,43 @@ public:
 		obj.reset();
 	}
 
-	void process(ProcessData& d)
+	FORWARD_PROCESSDATA2FIX();
+
+	template <int NumChannels> void processFix(snex::Types::ProcessDataFix<NumChannels>& d)
 	{
-		int numToDo = d.size;
+		using FixProcessData = snex::Types::ProcessDataFix<NumChannels>;
+
+		int numToDo = d.getNumSamples();
 
 		if (numToDo < BlockSize)
 		{
-			obj.process(d);
+			this->obj.process(d);
 		}
 		else
 		{
-			float* cp[NUM_MAX_CHANNELS];
-			memcpy(cp, d.data, d.numChannels * sizeof(float*));
+			FixProcessData::ChannelDataType cp;
+
+			for (int i = 0; i < NumChannels; i++)
+				cp[i] = d[i].data;
 
 			while (numToDo > 0)
 			{
-				ProcessData copy(cp, d.numChannels, jmin(BlockSize, numToDo));
+				int numThisTime = jmin(BlockSize, numToDo);
+
+				FixProcessData copy(d, cp, numThisTime);
 				obj.process(copy);
 
-				for (int i = 0; i < d.numChannels; i++)
-					cp[i] += copy.size;
+				for (int i = 0; i < NumChannels; i++)
+					cp[i] += numThisTime;
 
-				numToDo -= copy.size;
+				numToDo -= copy.getNumSamples();
 			}
 		}
 	}
 
-	void processSingle(float* frameData, int numChannels)
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
+		// this node should never be called per frame...
 		jassertfalse;
 	}
 
@@ -891,6 +546,9 @@ template <class T> class control_rate
 {
 public:
 
+	using FrameType = snex::Types::span<float, 1>;
+	using ProcessType = snex::Types::ProcessDataFix<1>;
+
 	constexpr static bool isModulationSource = false;
 
 	void initialise(NodeBase* n)
@@ -903,6 +561,9 @@ public:
 		ps.sampleRate /= (double)HISE_EVENT_RASTER;
 		ps.blockSize /= HISE_EVENT_RASTER;
 		ps.numChannels = 1;
+
+		DspHelpers::increaseBuffer(controlBuffer);
+
 		this->obj.prepare(ps);
 	}
 
@@ -912,24 +573,29 @@ public:
 		singleCounter = 0;
 	}
 
-	void process(ProcessData& data)
+	void process(ProcessType& data)
 	{
-		int numToProcess = data.size / HISE_EVENT_RASTER;
+		int numToProcess = data.getNumSamples() / HISE_EVENT_RASTER;
 
-		auto d = ALLOCA_FLOAT_ARRAY(numToProcess);
-		CLEAR_FLOAT_ARRAY(d, numToProcess);
-		ProcessData modData = { &d, 1, numToProcess };
-		modData.eventBuffer = data.eventBuffer;
-		obj.process(modData);
+		jassert(numToProcess == controlBuffer.size());
+
+		FloatVectorOperations::clear(controlBuffer.begin(), numToProcess);
+		
+		ProcessType::ChannelDataType cd = { controlBuffer.begin() };
+		ProcessType md(data, cd);
+
+		obj.process(md);
 	}
 
-	void processSingle(float* , int )
+	template <typename OtherFrameType> void processFrame(OtherFrameType& d)
 	{
 		if (--singleCounter <= 0)
 		{
+			auto& fd = FrameType::as(d.begin());
+
 			singleCounter = HISE_EVENT_RASTER;
 			float lastValue = 0.0f;
-			obj.processSingle(&lastValue, 1);
+			obj.processFrame(fd);
 		}
 	}
 
@@ -948,6 +614,8 @@ public:
 
 	T obj;
 	int singleCounter = 0;
+
+	snex::Types::heap<float> controlBuffer;
 };
 
 
@@ -956,29 +624,31 @@ template <class T, class ParameterClass> struct mod: public SingleWrapper<T>
 	GET_SELF_AS_OBJECT(mod);
 
 	constexpr static bool isModulationSource = false;
+	constexpr static int NumChannels = T::NumChannels;
 
-	inline void process(ProcessData& data) noexcept
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
 		this->obj.process(data);
 
+		double modValue = 0.0;
+
 		if (this->obj.handleModulation(modValue))
-			p.template call<0>(modValue);
+			p.call(modValue);
 	}
 
 	forcedinline void reset() noexcept 
 	{
-		modValue = 0.0;
 		this->obj.reset();
 	}
 
-	inline void processSingle(float* frameData, int numChannels) noexcept
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		this->obj.processSingle(frameData, numChannels);
+		this->obj.processFrame(data);
+
+		double modValue = 0.0;
 
 		if (this->obj.handleModulation(modValue))
-		{
-			p.template call<0>(modValue);
-		}
+			p.call(modValue);
 	}
 
 	void createParameters(Array<HiseDspBase::ParameterData>& data) override
@@ -998,20 +668,10 @@ template <class T, class ParameterClass> struct mod: public SingleWrapper<T>
 
 	template <int I, class T> void connect(T& t)
 	{
-		p.get<I>().connect(t);
+		p.getParameter<0>().connect<I>(t);
 	}
-
-#if 0
-	void setCallback(const DspHelpers::ParameterCallback& c)
-	{
-		db = c;
-	}
-#endif
 
 	ParameterClass p;
-
-	DspHelpers::ParameterCallback db;
-	double modValue = 0.0;
 };
 
 }

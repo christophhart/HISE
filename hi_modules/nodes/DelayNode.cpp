@@ -80,22 +80,6 @@ void fix_delay::reset() noexcept
 		d->clear();
 }
 
-void fix_delay::process(ProcessData& d) noexcept
-{
-	jassert(d.numChannels == delayLines.size());
-
-	for (int i = 0; i < delayLines.size(); i++)
-	{
-		delayLines[i]->processBlock(d.data[i], d.size);
-	}
-}
-
-void fix_delay::processSingle(float* numFrames, int numChannels) noexcept
-{
-	for (int i = 0; i < numChannels; i++)
-		numFrames[i] = delayLines[i]->getDelayedValue(numFrames[i]);
-}
-
 void fix_delay::setDelayTimeMilliseconds(double newValue)
 {
 	delayTimeSeconds = newValue * 0.001;

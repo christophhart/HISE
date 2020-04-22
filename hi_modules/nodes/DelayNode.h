@@ -51,8 +51,25 @@ struct fix_delay : public HiseDspBase
 	bool handleModulation(double&) noexcept { return false; };
 	void reset() noexcept;
 
-	void process(ProcessData& d) noexcept;
-	void processSingle(float* numFrames, int numChannels) noexcept;
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+	{
+		jassert(d.getNumChannels() == delayLines.size());
+		int index = 0;
+
+		for(auto c: data)
+			delayLines[index++]->processBlock(c.getRawWritePointer(), d.getNumSamples());
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		jassert(d.size() == delayLines.size());
+
+		int index = 0;
+
+		for (auto& s: data)
+			s = delayLines[index++]->getDelayedValue(s);
+	}
+
 	void setDelayTimeMilliseconds(double newValue);
 	void setFadeTimeMilliseconds(double newValue);
 	void createParameters(Array<ParameterData>& data) override;

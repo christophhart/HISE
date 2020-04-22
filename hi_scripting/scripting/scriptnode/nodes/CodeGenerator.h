@@ -99,7 +99,7 @@ struct CppGen
 		Definitions,
 		PrepareBody,
 		ProcessBody,
-		ProcessSingleBody,
+		ProcessFrameBody,
 		PrivateMembers,
 		HandleModulationBody,
 		CreateParameters,

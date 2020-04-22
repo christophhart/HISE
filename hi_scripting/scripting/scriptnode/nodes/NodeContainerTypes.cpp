@@ -56,9 +56,9 @@ void ChainNode::process(ProcessData& data)
 }
 
 
-void ChainNode::processSingle(float* frameData, int numChannels)
+void ChainNode::processFrame(float* frameData, int numChannels)
 {
-	wrapper.processSingle(frameData, numChannels);
+	wrapper.processFrame(frameData, numChannels);
 }
 
 void ChainNode::prepare(PrepareSpecs ps)
@@ -128,6 +128,10 @@ void SplitNode::process(ProcessData& data)
 	if (isBypassed())
 		return;
 
+	// neu denken, vielleicht mit splitprocessor::Block<ProcessDataDyn> ???
+	jassertfalse;
+
+#if 0
 	auto original = data.copyTo(splitBuffer, 0);
 	int channelCounter = 0;
 
@@ -150,10 +154,11 @@ void SplitNode::process(ProcessData& data)
 			data += wd;
 		}
 	}
+#endif
 }
 
 
-void SplitNode::processSingle(float* frameData, int numChannels)
+void SplitNode::processFrame(float* frameData, int numChannels)
 {
 	if (isBypassed())
 		return;
@@ -166,14 +171,14 @@ void SplitNode::processSingle(float* frameData, int numChannels)
 	{
 		if (isFirst)
 		{
-			n->processSingle(frameData, numChannels);
+			n->processFrame(frameData, numChannels);
 			isFirst = false;
 		}
 		else
 		{
 			float wb[NUM_MAX_CHANNELS];
 			memcpy(wb, original, sizeof(float)*numChannels);
-			n->processSingle(wb, numChannels);
+			n->processFrame(wb, numChannels);
 			FloatVectorOperations::add(frameData, wb, numChannels);
 		}
 	}
@@ -191,12 +196,12 @@ ModulationChainNode::ModulationChainNode(DspNetwork* n, ValueTree t) :
 	obj.initialise(this);
 }
 
-void ModulationChainNode::processSingle(float* frameData, int ) noexcept
+void ModulationChainNode::processFrame(float* frameData, int ) noexcept
 {
 	if (isBypassed())
 		return;
 
-	obj.processSingle(frameData, 1);
+	obj.processFrame(frameData, 1);
 }
 
 void ModulationChainNode::process(ProcessData& data) noexcept
@@ -204,10 +209,9 @@ void ModulationChainNode::process(ProcessData& data) noexcept
 	if (isBypassed())
 		return;
 
-	ProcessData copy(data);
-	copy.numChannels = 1;
+	auto& sd = data.as<snex::Types::ProcessDataFix<1>>();
 
-	obj.process(copy);
+	obj.process(sd);
 	double thisValue = 0.0;
 	obj.handleModulation(thisValue);
 }
@@ -528,7 +532,7 @@ void MultiChannelNode::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void MultiChannelNode::processSingle(float* frameData, int )
+void MultiChannelNode::processFrame(float* frameData, int )
 {
 	for (int i = 0; i < nodes.size(); i++)
 	{
@@ -539,7 +543,7 @@ void MultiChannelNode::processSingle(float* frameData, int )
 
 		float* d = frameData + r.getStart();
 		int numThisThime = r.getLength();
-		nodes[i]->processSingle(d, numThisThime);
+		nodes[i]->processFrame(d, numThisThime);
 	}
 }
 
@@ -547,6 +551,10 @@ void MultiChannelNode::process(ProcessData& d)
 {
 	int channelIndex = 0;
 
+	// neu denken, vielleicht mit multiprocessor::Block<ProcessDataDyn> ???
+	jassertfalse;
+
+#if 0
 	for (auto n : nodes)
 	{
 		int numChannelsThisTime = n->getNumChannelsToProcess();
@@ -568,6 +576,7 @@ void MultiChannelNode::process(ProcessData& d)
 
 		channelIndex += numChannelsThisTime;
 	}
+#endif
 }
 
 SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :
@@ -596,9 +605,9 @@ void SingleSampleBlockX::process(ProcessData& data)
 		obj.process(data);
 }
 
-void SingleSampleBlockX::processSingle(float* frameData, int numChannels)
+void SingleSampleBlockX::processFrame(float* frameData, int numChannels)
 {
-	obj.processSingle(frameData, numChannels);
+	obj.processFrame(frameData, numChannels);
 }
 
 int SingleSampleBlockX::getBlockSizeForChildNodes() const
@@ -631,9 +640,9 @@ MidiChainNode::MidiChainNode(DspNetwork* n, ValueTree t):
 	obj.getObject().initialise(this);
 }
 
-void MidiChainNode::processSingle(float* frameData, int numChannels) noexcept
+void MidiChainNode::processFrame(float* frameData, int numChannels) noexcept
 {
-	obj.processSingle(frameData, numChannels);
+	obj.processFrame(frameData, numChannels);
 }
 
 void MidiChainNode::process(ProcessData& data) noexcept

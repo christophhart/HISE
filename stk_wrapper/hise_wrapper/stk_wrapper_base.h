@@ -163,7 +163,7 @@ public:
 	EffectWrapper();
 
 	void process(ProcessData& d);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	void handleHiseEvent(HiseEvent& ) { }
 };
 
@@ -175,7 +175,7 @@ public:
 	InstrumentWrapper();
 
 	void process(ProcessData& d);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	void handleHiseEvent(HiseEvent& e);
 };
 

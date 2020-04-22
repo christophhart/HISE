@@ -38,6 +38,8 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+#if 0
+
 /** Howto convert hardcoded node classes to pimpl nodes:
 
 1. Paste the entire class definition here.
@@ -133,6 +135,6 @@ using transient_designer = transient_designer_impl::instance;
 }
 
 
-
+#endif
 
 }

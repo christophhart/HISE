@@ -244,7 +244,7 @@ void ramp_impl<NV>::handleHiseEvent(HiseEvent& e)
 }
 
 template <int NV>
-void ramp_impl<NV>::processSingle(float* frameData, int numChannels)
+void ramp_impl<NV>::processFrame(float* frameData, int numChannels)
 {
 	auto newValue = state.get().tick();
 	
@@ -395,7 +395,7 @@ void scriptnode::core::oscillator_impl<NV>::reset() noexcept
 
 
 template <int NV>
-void oscillator_impl<NV>::processSingle(float* data, int )
+void oscillator_impl<NV>::processFrame(float* data, int )
 {
 	auto& d = voiceData.get();
 
@@ -689,7 +689,7 @@ void gain_impl<V>::initialise(NodeBase* n)
 
 
 template <int V>
-void gain_impl<V>::processSingle(float* numFrames, int numChannels)
+void gain_impl<V>::processFrame(float* numFrames, int numChannels)
 {
 	auto nextValue = gainer.get().getNextValue();
 	FloatVectorOperations::multiply(numFrames, nextValue, numChannels);
@@ -820,7 +820,7 @@ void smoother_impl<NV>::process(ProcessData& d)
 }
 
 template <int NV>
-void smoother_impl<NV>::processSingle(float* data, int)
+void smoother_impl<NV>::processFrame(float* data, int)
 {
 	*data = smoother.get().smooth(*data);
 	modValue.get().setModValue(smoother.get().getDefaultValue());
@@ -940,7 +940,7 @@ void ramp_envelope_impl<V>::reset()
 }
 
 template <int V>
-void ramp_envelope_impl<V>::processSingle(float* , int )
+void ramp_envelope_impl<V>::processFrame(float* , int )
 {
 	jassertfalse;
 }
@@ -959,8 +959,6 @@ void ramp_envelope_impl<V>::process(ProcessData& d)
 			for (int c = 0; c < d.numChannels; c++)
 				d.data[c][i] *= v;
 		}
-
-		d.shouldReset = false;
 	}
 	else
 	{
@@ -969,7 +967,8 @@ void ramp_envelope_impl<V>::process(ProcessData& d)
 			FloatVectorOperations::multiply(d.data[c], thisG.getTargetValue(), d.size);
 		}
 
-		d.shouldReset = thisG.getCurrentValue() == 0.0;
+		if (thisG.getCurrentValue() == 0.0)
+			d.setResetFlag();
 	}
 }
 
@@ -1039,7 +1038,7 @@ void peak::process(ProcessData& data)
 	max = DspHelpers::findPeak(data);
 }
 
-void peak::processSingle(float* frameData, int numChannels)
+void peak::processFrame(float* frameData, int numChannels)
 {
     if(numChannels == 1)
         max = frameData[0];
@@ -1061,11 +1060,11 @@ void peak::processSingle(float* frameData, int numChannels)
 
 void mono2stereo::process(ProcessData& data)
 {
-	if(data.numChannels >= 2)
-		FloatVectorOperations::copy(data.data[1], data.data[0], data.size);
+	if(data.getNumChannels() >= 2)
+		FloatVectorOperations::copy(data[1].data, data[0].data, data.getNumSamples());
 }
 
-void mono2stereo::processSingle(float* frameData, int numChannels)
+void mono2stereo::processFrame(float* frameData, int numChannels)
 {
 	if (numChannels >= 2)
 		frameData[1] = frameData[0];
@@ -1101,9 +1100,8 @@ void hise_mod::process(ProcessData& d)
 {
 	if (parentProcessor != nullptr)
 	{
-		auto numToDo = (double)d.size;
+		auto numToDo = (double)d.getNumSamples();
 		auto& u = uptime.get();
-
 		
 		modValues.get().setModValueIfChanged(parentProcessor->getModValueForNode(modIndex, roundToInt(u)));
 		u = fmod(u + numToDo * uptimeDelta, synthBlockSize);
@@ -1118,7 +1116,7 @@ bool hise_mod::handleModulation(double& v)
 		return false;
 }
 
-void hise_mod::processSingle(float* , int )
+void hise_mod::processFrame(float* , int )
 {
 	jassertfalse;
 }
@@ -1196,20 +1194,14 @@ void fm::process(ProcessData& d)
 {
 	auto& od = oscData.get();
 
-	for (int i = 0; i < d.size; i++)
+	auto firstChannel = d[0];
+
+	for (auto& s : firstChannel)
 	{
-		double modValue = (double)d.data[0][i];
-		d.data[0][i] = sinTable->getInterpolatedValue(od.tick());
+		double modValue = (double)s;
+		s = sinTable->getInterpolatedValue(od.tick());
 		od.uptime += modGain.get() * modValue;
 	}
-}
-
-void fm::processSingle(float* frameData, int )
-{
-	auto& od = oscData.get();
-	double modValue = (double)*frameData;
-	*frameData = sinTable->getInterpolatedValue(od.tick());
-	od.uptime += modGain.get() * modValue;
 }
 
 void fm::createParameters(Array<ParameterData>& data)

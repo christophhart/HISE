@@ -40,102 +40,67 @@ using namespace hise;
 namespace container
 {
 
-struct ContainerParameter
+namespace Helpers
 {
-	using FuncPointer = void(*)(void*, double);
+template <typename... Ps> static constexpr int getNumChannelsOfFirstElement()
+{
+	using TupleType = std::tuple<Ps...>;
+	using FirstElementType = typename std::tuple_element<0, TupleType>::type;
+	return FirstElementType::NumChannels;
+}
 
-	Identifier name;
+template <class ...Types> struct _ChannelCounter;
 
-	
-
-	void* obj;
-	FuncPointer f = nullptr;
-
-	//std::function<void(double)> f;
+template <class T> struct _ChannelCounter<T>
+{
+	constexpr int operator()() { return T::NumChannels; }
 };
+
+template <class T, class ...Types> struct _ChannelCounter<T, Types...>
+{
+	constexpr int operator()() { return T::NumChannels + _ChannelCounter<Types...>()(); }
+};
+
+template <class ...Types> static constexpr int getSummedChannels()
+{
+	return _ChannelCounter<Types...>()();
+}
+
+}
+
 
 
 template <class ParameterClass, typename... Processors> struct container_base
 {
 	using Type = container_base<ParameterClass, Processors...>;
+	static constexpr bool isModulationSource = false;
 
-	template <std::size_t ...Ns>
-	void init_each(NodeBase* b, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(processors).initialise(b), void(), int{})...
-		};
-	}
-
-	static auto getIndexSequence()
+	bool handleModulation(double& value)
 	{
-		return std::index_sequence_for<Processors...>();
-	}
-
-	template <std::size_t ...Ns>
-	void prepare_each(PrepareSpecs ps, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(processors).prepare(ps), void(), int{})...
-		};
-	}
-
-	template <std::size_t ...Ns>
-	void reset_each(std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(processors).reset(), void(), int{})...
-		};
-	}
-
-	template <std::size_t ...Ns>
-	void handle_event_each(HiseEvent& e, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(processors).handleHiseEvent(e), void(), int{})...
-		};
+		return false;
 	}
 
 	void initialise(NodeBase* b)
 	{
-		init_each(b, getIndexSequence());
+		call_tuple_iterator1(initialise, b);
 	}
 
 	void reset()
 	{
-		reset_each(getIndexSequence());
+		call_tuple_iterator0(reset);
 	}
 
-	template <int ParameterIndex, class T> void connect(T& object)
-	{
-		connect<ParameterIndex, 0>(object);
-	}
-
-	template <int ParameterIndex, int ConnectionIndex, class T> constexpr void connect(T& object)
-	{
-		auto offset = reinterpret_cast<int64_t>(&object) - reinterpret_cast<int64_t>(this);
-
-		// If this fires, you are trying to connect a parameter to an object that is not part of this container...
-		jassert(isPositiveAndBelow(offset, sizeof(Type)));
-
-		auto& p = getParameter<ParameterIndex>().get<ConnectionIndex>();
-
-		
-
-		p.connect(object.getObject());
-	}
-
-	template <int arg> constexpr auto& get() noexcept { return std::get<arg>(processors).getObject(); }
-	template <int arg> constexpr const auto& get() const noexcept { return std::get<arg>(processors).getObject(); }
+	template <int arg> constexpr auto& get() noexcept { return std::get<arg>(elements).getObject(); }
+	template <int arg> constexpr const auto& get() const noexcept { return std::get<arg>(elements).getObject(); }
 	
 	template <size_t arg> constexpr auto& getParameter() noexcept
 	{
-		return parameters.get<arg>();
+		return parameters.getParameter<arg>();
 	}
 
     void createParameters(Array<HiseDspBase::ParameterData>& d)
     {
-        
+		jassertfalse;
     }
     
 	template <int P> static void setParameter(void* obj, double v)
@@ -145,9 +110,8 @@ template <class ParameterClass, typename... Processors> struct container_base
 
 	template <int P> void setParameter(double v)
 	{
-		parameters.call<P>(v);
+		getParameter<P>().call(v);
 	}
-	
 
     int getExtraWidth() const { return 0; }
     int getExtraHeight() const { return 0; }
@@ -157,8 +121,23 @@ template <class ParameterClass, typename... Processors> struct container_base
     bool isPolyphonic() const { return get<0>().isPolyphonic(); }
 
 	ParameterClass parameters;
-	std::tuple<Processors...> processors;
+
+protected:
+
+	static constexpr auto getIndexSequence()
+	{
+		return std::index_sequence_for<Processors...>();
+	}
+
+	tuple_iterator1(prepare, PrepareSpecs, ps);
+	tuple_iterator1(handleHiseEvent, HiseEvent&, e);
 	
+	std::tuple<Processors...> elements;
+
+private:
+
+	tuple_iterator0(reset);
+	tuple_iterator1(initialise, NodeBase*, b);
 };
 
 

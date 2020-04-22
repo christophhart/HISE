@@ -98,16 +98,6 @@ void NodeBase::prepareParameters(PrepareSpecs specs)
 		getParameter(i)->prepare(specs);
 }
 
-void NodeBase::processSingle(float* frameData, int numChannels)
-{
-	ProcessData d;
-	d.data = &frameData;
-	d.numChannels = numChannels;
-	d.size = 1;
-
-	process(d);
-}
-
 
 juce::String NodeBase::createCppClass(bool isOuterClass)
 {

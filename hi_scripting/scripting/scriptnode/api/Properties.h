@@ -190,12 +190,38 @@ struct PropertyHelpers
 };
 
 
+#define FORWARD_PROCESS_DATA_SWITCH(x) case x: processFix<x>(d.as<snex::Types::ProcessDataFix<x>()); break;
+
+/** Use this macro to forward the methods to a processFix method which has the compile time channel amount. */
+#define FORWARD_PROCESSDATA2FIX() forcedinline void process(ProcessData& d) { switch (d.getNumChannels()) { \
+	FORWARD_PROCESS_DATA_SWITCH(1) \
+FORWARD_PROCESS_DATA_SWITCH(1) \
+FORWARD_PROCESS_DATA_SWITCH(2) \
+FORWARD_PROCESS_DATA_SWITCH(3) \
+FORWARD_PROCESS_DATA_SWITCH(4) \
+FORWARD_PROCESS_DATA_SWITCH(5) \
+FORWARD_PROCESS_DATA_SWITCH(6) \
+FORWARD_PROCESS_DATA_SWITCH(7) \
+FORWARD_PROCESS_DATA_SWITCH(8) \
+FORWARD_PROCESS_DATA_SWITCH(9) \
+FORWARD_PROCESS_DATA_SWITCH(10) \
+FORWARD_PROCESS_DATA_SWITCH(11) \
+FORWARD_PROCESS_DATA_SWITCH(12) \
+FORWARD_PROCESS_DATA_SWITCH(13) \
+FORWARD_PROCESS_DATA_SWITCH(14) \
+FORWARD_PROCESS_DATA_SWITCH(15) \
+FORWARD_PROCESS_DATA_SWITCH(16) }}
+
+
 
 #define ALLOCA_FLOAT_ARRAY(size) (float*)alloca(size * sizeof(float)); 
 #define CLEAR_FLOAT_ARRAY(v, size) memset(v, 0, sizeof(float)*size);
 
 #define CREATE_EXTRA_COMPONENT(className) Component* createExtraComponent(PooledUIUpdater* updater) \
 										  { return new className(updater); };
+
+
+
 
 #define SET_HISE_POLY_NODE_ID(id) SET_HISE_NODE_ID(id); bool isPolyphonic() const override { return NumVoices > 1; };
 
@@ -220,7 +246,7 @@ template <int ParameterIndex> void setParameter(double value)
 #define HISE_EMPTY_RESET void reset() {}
 #define HISE_EMPTY_PREPARE void prepare(PrepareSpecs) {}
 #define HISE_EMPTY_PROCESS void process(ProcessData&) {}
-#define HISE_EMPTY_PROCESS_SINGLE void processSingle(float*, int) {}
+#define HISE_EMPTY_PROCESS_SINGLE void processFrame(float*, int) {}
 #define HISE_EMPTY_CREATE_PARAM void createParameters(Array<ParameterData>&){}
 #define HISE_EMPTY_MOD bool handleModulation(double& ) { return false; }
 
@@ -242,6 +268,7 @@ constexpr auto& getObject() noexcept { return *this; } \
 HardcodedNode* getAsHardcodedNode() { return nullptr; } \
 int getExtraHeight() const { return 0; }; \
 int getExtraWidth() const { return 0; }; \
+static constexpr bool isModulationSource = false; \
 Component* createExtraComponent(PooledUIUpdater* updater) { return nullptr; } \
 void createParameters(Array<HiseDspBase::ParameterData>& d) { } \
 template <int P> static void setParameter(void* obj, double v) { static_cast<ClassType*>(obj)->setParameter<P>(v); } \

@@ -40,325 +40,160 @@ using namespace hise;
 namespace container
 {
 
+namespace splitprocessor
+{
+
+template <class T> static constexpr bool isSingleElement(const T& t) { return T::NumElements == 1; };
+
+template <class T> static void copy(T& dst, const T& source)
+{
+	for (int i = 0; i < dst.size(); i++)
+	{
+		dst[i] = source[i];
+	}
+}
+
+template <class ProcessDataType, int N> struct Block
+{
+	using BufferType = snex::Types::heap<float>;
+	using RefType = snex::Types::dyn<float>;
+
+	static constexpr int NumElements = N;
+	static constexpr int NumChannels = ProcessDataType::NumChannels;
+
+	Block(ProcessDataType& d_, BufferType& splitBuffer_, BufferType& workBuffer_) :
+		originalBuffer(splitBuffer_),
+		workBuffer(workBuffer_),
+		d(d_)
+	{
+		if (!isSingleElement(*this))
+		{
+			ProcessDataHelpers<NumChannels>::copyTo(d, originalBuffer);
+		}
+	}
+
+	template <class T> void operator()(T& t)
+	{
+		if (isSingleElement(*this) || channelCounter++ == 0)
+			t.process(d);
+		else
+		{
+			originalBuffer.copyTo(workBuffer);
+
+
+			auto wcd = snex::Types::ProcessDataHelpers<NumChannels>::makeChannelData(workBuffer);
+			ProcessDataType wd(d, wcd);
+			t.process(wd);
+
+			auto dPtr = d.getRawDataPointers();
+			const auto wPtr = wd.getRawDataPointers();
+
+			for (int i = 0; i < d.getNumChannels(); i++)
+				FloatVectorOperations::add(dPtr[i], wPtr[i], d.getNumSamples());
+		}
+	}
+
+	ProcessDataType& d;
+	RefType originalBuffer;
+	RefType workBuffer;
+	
+	int channelCounter = 0;
+};
+
+template <typename FrameType, int N> struct Frame
+{
+	static constexpr int NumElements = N;
+
+	Frame(FrameType& d_) :
+		d(d_),
+		channelCounter(0)
+	{
+		if (!isSingleElement(*this))
+			copy(original, d);
+	};
+
+	template <class T> void operator()(T& t)
+	{
+		if (isSingleElement(*this) || channelCounter++ == 0)
+			t.processFrame(d);
+		else
+		{
+			FrameType wb;
+			copy(wb, original);
+			t.processFrame(wb);
+
+			for (int i = 0; i < d.size(); i++)
+				d[i] += wb[i];
+		}
+	}
+
+	FrameType original;
+	FrameType& d;
+
+	int channelCounter;
+};
+}
+
 template <class ParameterClass, typename... Processors> struct split : public container_base<ParameterClass, Processors...>
 {
-	static constexpr bool isModulationSource = false;
+	GET_SELF_AS_OBJECT(split);
+	static constexpr int N = sizeof...(Processors);
 
-	void process(ProcessData& d)
-	{
-		auto original = d.copyTo(splitBuffer, 0);
-		int channelCounter = 0;
+	static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
+	static constexpr int getNumChannels() { return NumChannels; }
 
-		process_split_each(d, original, channelCounter, getIndexSequence());
-	}
+	using BlockType = snex::Types::ProcessDataFix<NumChannels>;
+	using BlockProcessor = splitprocessor::Block<BlockType, N>;
 
-	void processSingle(float* data, int numChannels)
-	{
-		float original[NUM_MAX_CHANNELS];
-		memcpy(original, data, sizeof(float)*numChannels);
-		int channelCounter = 0;
+	using FrameType = snex::Types::span<float, NumChannels>;
+	using FrameProcessor = splitprocessor::Frame<FrameType, N>;
 
-		process_split_single_each(data, original, numChannels, channelCounter, getIndexSequence());
-	}
-
+	using BufferType = snex::Types::heap<float>;
+	
 	void prepare(PrepareSpecs ps)
 	{
-		this->prepare_each(ps, this->indexes);
+		call_tuple_iterator1(prepare, ps);
 
-		ps.numChannels *= 2;
-		DspHelpers::increaseBuffer(splitBuffer, ps);
+		if (N > 1)
+		{
+			DspHelpers::increaseBuffer(originalBuffer, ps);
+			DspHelpers::increaseBuffer(workBuffer, ps);
+		}
 	}
 
-	bool handleModulation(double& value)
+	template <class ProcessDataType> void process(ProcessDataType& d)
 	{
-		return false;
+		if (N > 1)
+		{
+			// If this fires, you don't have called prepare yet...
+			jassert(!originalBuffer.isEmpty());
+			jassert(!workBuffer.isEmpty());
+		}
+
+		BlockProcessor p(d, originalBuffer, workBuffer);
+		call_tuple_iterator1(process, p);
+	}
+
+	void processFrame(FrameType& d)
+	{
+		FrameProcessor p(d);
+		call_tuple_iterator1(processFrame, p);
 	}
 
 	void handleHiseEvent(HiseEvent& e)
 	{
         HiseEvent copy(e);
-        
-		handle_event_each_copy(copy, getIndexSequence());
+		call_tuple_iterator1(handleHiseEvent, copy);
 	}
-
-	auto& getObject() { return *this; };
-	const auto& getObject() const { return *this; };
 
 private:
 
-	template <std::size_t ...Ns>
-	void handle_event_each_copy(HiseEvent& e, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(this->processors).handleHiseEvent(e), void(), int{})...
-		};
-	}
+	tuple_iterator_op(process, BlockProcessor);
+	tuple_iterator_op(processFrame, FrameProcessor);
 
-	template <class T> void process_node(T& t, float* frameData, float* original, int numChannels, int& channelCounter)
-	{
-		if (channelCounter++ == 0)
-			t.processSingle(frameData, numChannels);
-		else
-		{
-			float wb[NUM_MAX_CHANNELS];
-			memcpy(wb, original, sizeof(float)*numChannels);
-			t.processSingle(wb, numChannels);
-			FloatVectorOperations::add(frameData, wb, numChannels);
-		}
-	}
-
-	template <class T> void process_node(T& t, ProcessData& d, ProcessData& original, int& channelCounter)
-	{
-		if (channelCounter++ == 0)
-			t.process(d);
-		else
-		{
-			auto wd = original.copyTo(splitBuffer, 1);
-			t.process(wd);
-			d += wd;
-		}
-	}
-
-	template <std::size_t ...Ns>
-	void process_split_each(ProcessData& d, ProcessData& original, int& channelCounter, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (process_node(std::get<Ns>(this->processors), d, original, channelCounter), void(), int{})...
-		};
-	}
-
-	template <std::size_t ...Ns>
-	void process_split_single_each(float* frameData, float* original, int numChannels, int& channelCounter, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (process_node(std::get<Ns>(this->processors), frameData, original, numChannels, channelCounter), void(), int{})...
-		};
-	}
-
-	AudioSampleBuffer splitBuffer;
+	BufferType originalBuffer;
+	BufferType workBuffer;
 };
-
-
-#if OLD_IMPL
-
-namespace impl {
-
-template <bool IsFirst, typename Processor, typename Subclass>
-struct SplitElement
-{
-	using P = Processor;
-
-	virtual ~SplitElement() {};
-
-	void prepare(PrepareSpecs ps)
-	{
-		processor.prepare(ps);
-	}
-
-	void initialise(NodeBase* n)
-	{
-		processor.initialise(n);
-	}
-
-	bool handleModulation(double& value) noexcept
-	{
-		if (processor.isModulationSource)
-			return processor.handleModulation(value);
-
-		return false;
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		processor.handleHiseEvent(e);
-	}
-
-	void handleHiseEventWithCopy(HiseEvent& e)
-	{
-		HiseEvent c(e);
-		processor.handleHiseEvent(c);
-	}
-
-	void process(ProcessData& data) noexcept
-	{
-		processor.process(data);
-	}
-
-	void processWithCopy(ProcessData& data, ProcessData& original, AudioSampleBuffer& splitBuffer)
-	{
-		auto wd = original.copyTo(splitBuffer, 1);
-		processor.process(wd);
-		data += wd;
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		processor.processSingle(frameData, numChannels);
-	}
-
-	void processSingleWithOriginal(float* frameData, float* originalData, int numChannels)
-	{
-		float wb[NUM_MAX_CHANNELS];
-		memcpy(wb, originalData, sizeof(float)*numChannels);
-
-		processor.processSingle(wb, numChannels);
-
-		FloatVectorOperations::add(frameData, wb, numChannels);
-	}
-
-	SplitElement& getObject() { return *this; };
-	const SplitElement& getObject() const { return *this; };
-
-	void reset() { processor.reset(); }
-
-	Processor processor;
-
-	static constexpr bool isModulationSource = Processor::isModulationSource;
-
-	Processor& getProcessor() noexcept { return processor; }
-	const Processor& getProcessor() const noexcept { return processor; }
-	Subclass& getThis() noexcept { return *static_cast<Subclass*> (this); }
-	const Subclass& getThis() const noexcept { return *static_cast<const Subclass*> (this); }
-
-	template <int arg> auto& get() noexcept { return AccessHelper<arg>::get(getThis()); }
-	template <int arg> const auto& get() const noexcept { return AccessHelper<arg>::get(getThis()); }
-};
-
-template <bool IsFirst, typename FirstProcessor, typename... SubsequentProcessors>
-struct SplitBase : public SplitElement<IsFirst, FirstProcessor, SplitBase<IsFirst, FirstProcessor, SubsequentProcessors...>>
-{
-	using Base = SplitElement<IsFirst, FirstProcessor, SplitBase<IsFirst, FirstProcessor, SubsequentProcessors...>>;
-
-	void processWithCopy(ProcessData& data, ProcessData& original, AudioSampleBuffer& splitBuffer) noexcept
-	{
-		if (IsFirst)
-		{
-			Base::process(data);
-			processors.processWithCopy(data, original, splitBuffer);
-		}
-		else
-		{
-			auto wd = original.copyTo(splitBuffer, 1);
-
-			Base::process(wd);
-
-			data += wd;
-			processors.processWithCopy(data, original, splitBuffer);
-		}
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		Base::prepare(ps);
-		processors.prepare(ps);
-	}
-
-	void handleHiseEventWithCopy(HiseEvent& e)
-	{
-		Base::handleHiseEventWithCopy(e);
-		processors.handleHiseEventWithCopy(e);
-	}
-
-	void initialise(NodeBase* n)
-	{
-		Base::initialise(n);
-		processors.initialise(n);
-	}
-
-	void processSingleWithOriginal(float* frameData, float* originalData, int numChannels) noexcept
-	{
-		if (IsFirst)
-		{
-			Base::processSingle(frameData, numChannels);
-		}
-		else
-		{
-			float wb[NUM_MAX_CHANNELS];
-			memcpy(wb, originalData, sizeof(float)*numChannels);
-
-			Base::processSingle(wb, numChannels);
-			FloatVectorOperations::add(frameData, wb, numChannels);
-		}
-
-		processors.processSingleWithOriginal(frameData, originalData, numChannels);
-	}
-
-	bool handleModulation(double& value) noexcept
-	{
-		auto b = Base::handleModulation(value);
-		return processors.handleModulation(value) || b;
-	}
-
-	void reset() { Base::reset(); processors.reset(); }
-
-	SplitBase<false, SubsequentProcessors...> processors;
-};
-
-template <bool IsFirst, typename ProcessorType> struct SplitBase<IsFirst, ProcessorType> : public SplitElement<IsFirst, ProcessorType, SplitBase<IsFirst, ProcessorType>> {};
-
-
-}
-
-template <typename... Processors> struct split2
-{
-	using Type = impl::SplitBase<true, Processors...>;
-
-	static constexpr bool isModulationSource = Type::isModulationSource;
-	static constexpr bool isSingleNode = sizeof...(Processors) == 1;
-
-	void initialise(NodeBase* n)
-	{
-		static_assert(!isSingleNode, "no single split allowed");
-		obj.initialise(n);
-	}
-
-	bool handleModulation(double& value)
-	{
-		return obj.handleModulation(value);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		obj.handleHiseEventWithCopy(e);
-	}
-
-	void process(ProcessData& data)
-	{
-		auto original = data.copyTo(splitBuffer, 0);
-		obj.processWithCopy(data, original, splitBuffer);
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		float originalData[NUM_MAX_CHANNELS];
-		memcpy(originalData, frameData, sizeof(float)*numChannels);
-
-		obj.processSingleWithOriginal(frameData, originalData, numChannels);
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		obj.prepare(ps);
-		ps.numChannels *= 2;
-
-		if (!isSingleNode)
-			DspHelpers::increaseBuffer(splitBuffer, ps);
-	}
-
-	void reset()
-	{
-		obj.reset();
-	}
-
-	auto& getObject() { return obj.getObject(); }
-	const auto& getObject() const { return obj.getObject(); }
-
-	Type obj;
-	AudioSampleBuffer splitBuffer;
-};
-#endif
-
-
 
 }
 

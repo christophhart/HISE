@@ -267,7 +267,7 @@ void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 	ProcessData d(b.getArrayOfWritePointers(), b.getNumChannels(), b.getNumSamples());
 	PointerWatcher pw(d);
 
-	d.eventBuffer = e;
+	d.setEventBuffer(*e);
 
 	signalPath->process(d);
 }
@@ -306,8 +306,8 @@ void DspNetwork::processBlock(var pData)
 
 	if (auto ar = pData.getArray())
 	{
-		ProcessData d;
-		d.numChannels = ar->size();
+		int numChannelsToUse = ar->size();
+		int numSamplesToUse = 0;
 
 		int index = 0;
 
@@ -317,17 +317,16 @@ void DspNetwork::processBlock(var pData)
 			{
 				int thisSamples = bf->buffer.getNumSamples();
 
-				if (d.size == 0)
-					d.size = thisSamples;
-				else if (d.size != thisSamples)
+				if (numSamplesToUse == 0)
+					numSamplesToUse = thisSamples;
+				else if (numSamplesToUse != thisSamples)
 					reportScriptError("Buffer mismatch");
 
 				currentData[index++] = bf->buffer.getWritePointer(0);
 			}
 		}
 
-		d.data = currentData;
-
+		ProcessData d(currentData, numChannelsToUse, numSamplesToUse);
 		signalPath->process(d);
 	}
 }

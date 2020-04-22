@@ -69,7 +69,7 @@ void sampleandhold_impl<V>::createParameters(Array<ParameterData>& d)
 }
 
 template <int V>
-void sampleandhold_impl<V>::processSingle(float* numFrames, int numChannels)
+void sampleandhold_impl<V>::processFrame(float* numFrames, int numChannels)
 {
 	auto& v = data.get();
 
@@ -211,7 +211,7 @@ void bitcrush_impl<V>::process(ProcessData& d)
 
 
 template <int V>
-void bitcrush_impl<V>::processSingle(float* numFrames, int numChannels)
+void bitcrush_impl<V>::processFrame(float* numFrames, int numChannels)
 {
 	getBitcrushedValue(numFrames, numChannels, bitDepth.get());
 }
@@ -286,7 +286,7 @@ void scriptnode::fx::phase_delay_impl<V>::reset() noexcept
 }
 
 template <int V>
-void phase_delay_impl<V>::processSingle(float* numFrames, int numChannels)
+void phase_delay_impl<V>::processFrame(float* numFrames, int numChannels)
 {
 	numChannels = jmin(2, numChannels);
 
@@ -408,7 +408,7 @@ void haas_impl<V>::process(ProcessData& d)
 }
 
 template <int V>
-void haas_impl<V>::processSingle(float* data, int numChannels)
+void haas_impl<V>::processFrame(float* data, int numChannels)
 {
 	if (numChannels == 2)
 	{
@@ -492,10 +492,12 @@ void reverb::prepare(PrepareSpecs ps)
 
 void reverb::process(ProcessData& d)
 {
-	if (d.numChannels == 2)
-		r.processStereo(d.data[0], d.data[1], d.size);
-	else if (d.numChannels == 1)
-		r.processMono(d.data[0], d.size);
+	switch (d.getNumChannels())
+	{
+	case 1: r.processMono(d[0].data, d.getNumSamples()); break;
+	case 2: r.processStereo(d[0].data, d[1].data, d.getNumSamples()); break;
+	default: jassertfalse;
+	}
 }
 
 void reverb::reset() noexcept
@@ -503,7 +505,7 @@ void reverb::reset() noexcept
 	r.reset();
 }
 
-void reverb::processSingle(float* numFrames, int numChannels)
+void reverb::processFrame(float* numFrames, int numChannels)
 {
 	if (numChannels == 2)
 		r.processStereo(numFrames, numFrames + 1, 1);

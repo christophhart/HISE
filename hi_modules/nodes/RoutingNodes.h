@@ -65,7 +65,7 @@ public:
 	void process(ProcessData& data);
 	Component* createExtraComponent(PooledUIUpdater* updater) override;
 	bool handleModulation(double&) { return false; }
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	Colour getColour() const override;
 	bool isConnected() const override;
 
@@ -105,7 +105,7 @@ public:
 	Component* createExtraComponent(PooledUIUpdater* updater) override;
 	
 	void process(ProcessData& data);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	bool handleModulation(double&) { return false; }
 	void createParameters(Array<ParameterData>&) override;
 	void connectTo(HiseDspBase* s);
@@ -147,8 +147,32 @@ struct MsEncoder : public HiseDspBase
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
 	
-	void process(ProcessData& data);
-	void processSingle(float* frameData, int numChannels);
+	template <typename PD> void process(PD& data)
+	{
+		if (data.getNumChannels() == 2)
+		{
+			auto fd = data.toFrameData<2>();
+
+			while (fd.next())
+				processFrame(fd);
+		}
+	}
+
+	template <typename FD> void processFrame(FD& fd)
+	{
+		if (fd.size() == 2)
+		{
+			auto& l = fd[0];
+			auto& r = fd[1];
+
+			auto m = (l + r) * 0.5f;
+			auto s = (l - r) * 0.5f;
+
+			l = m;
+			r = s;
+		}
+	}
+
 	bool handleModulation(double&) { return false; }
 };
 
@@ -164,7 +188,7 @@ struct MsDecoder : public HiseDspBase
 	HISE_EMPTY_CREATE_PARAM;
 
 	void process(ProcessData& data);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	bool handleModulation(double&) { return false; }
 };
 
@@ -199,9 +223,26 @@ struct Matrix : public HiseDspBase,
 
 	void prepare(PrepareSpecs specs);
 	void process(ProcessData& data);;
-	void processSingle(float* frameData, int numChannels);;
+	void processFrame(float* frameData, int numChannels);;
 	bool handleModulation(double&) { return false; }
 	void createParameters(Array<ParameterData>&) override;
+
+	template <int NC> void processFrame_(ProcessData& d)
+	{
+		auto fd = d.toFrameData<NC>();
+
+		if (fd.next())
+		{
+			getMatrix().setGainValues(fd.begin(), false);
+			processFrame(fd.begin(), NC);
+			getMatrix().setGainValues(fd.begin(), true);
+		}
+
+		while (fd.next())
+		{
+			processFrame(frameData, NC);
+		}
+	}
 
 	bool recursion = false;
 	UndoManager* um = nullptr;

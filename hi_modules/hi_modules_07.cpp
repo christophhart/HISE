@@ -19,8 +19,8 @@ Factory::Factory(DspNetwork* network) :
 {
 	registerNode<hello_world>({});
 	registerNode<combined>({});
-	registerNode<event_processor>({});
-	registerNode<property_demo>({});
+	//registerNode<event_processor>({});
+	//registerNode<property_demo>({});
 }
 }
 

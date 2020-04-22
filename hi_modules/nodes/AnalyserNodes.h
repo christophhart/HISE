@@ -202,15 +202,14 @@ public:
 		buffer.internalBuffer.clear();
 	}
 
-	void process(ProcessData& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		AudioSampleBuffer b(d.data, d.numChannels, d.size);
-		buffer.pushSamples(b, 0, d.size);
+		buffer.pushSamples(data.toAudioSampleBuffer(), 0, data.getNumSamples());
 	}
 
-	void processSingle(float* frameData, int numChannels)
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		AudioSampleBuffer b(&frameData, numChannels, 1);
+		AudioSampleBuffer b(data.begin(), data.size(), 1);
 		buffer.pushSamples(b, 0, 1);
 	}
 

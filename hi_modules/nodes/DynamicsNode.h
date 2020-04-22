@@ -56,8 +56,65 @@ public:
 	bool handleModulation(double& max) noexcept;;
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;
-	void process(ProcessData& d);
-	void processSingle(float* data, int numChannels);
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		switch (d.getNumChannels())
+		{
+			FORWARD_PROCESS_DATA_SWITCH(1);
+			FORWARD_PROCESS_DATA_SWITCH(2);
+		}
+	}
+
+	template <int NumChannels> void processFix(snex::Types::ProcessDataFix<NumChannels>& data)
+	{
+		auto fd = data.toFrameData();
+
+		while (fd.next())
+			processFrame(fd);
+	}
+
+	void process(ProcessData& d)
+	{
+		if (d.numChannels >= 2)
+		{
+			for (int i = 0; i < d.size; i++)
+			{
+				double v[2] = { d.data[0][i], d.data[1][i] };
+				obj.process(v[0], v[1]);
+				d.data[0][i] = (float)v[0];
+				d.data[1][i] = (float)v[1];
+			}
+		}
+		else if (d.numChannels == 1)
+		{
+			for (int i = 0; i < d.size; i++)
+			{
+				double v[2] = { d.data[0][i], d.data[0][i] };
+				obj.process(v[0], v[1]);
+				d.data[0][i] = (float)v[0];
+			}
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		if (data.size() == 2)
+		{
+			double values[2] = { data[0], data[1] };
+			obj.process(values[0], values[1]);
+			data[0] = (float)values[0];
+			data[1] = (float)values[1];
+		}
+		else
+		{
+			jassert(data.size() == 1);
+
+			double values[2] = { data[0], data[0] };
+			obj.process(values[0], values[1]);
+			data[0] = (float)values[0];
+		}
+	}
 
 	DynamicProcessorType obj;
 };
@@ -76,11 +133,43 @@ public:
 	bool handleModulation(double&) noexcept { return false; };
 	void prepare(PrepareSpecs ps) override;
 	void reset() noexcept;
-	void process(ProcessData& d);
-	void processSingle(float* data, int numChannels);
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		switch (d.getNumChannels())
+		{
+			FORWARD_PROCESS_DATA_SWITCH(1);
+			FORWARD_PROCESS_DATA_SWITCH(2);
+			FORWARD_PROCESS_DATA_SWITCH(3);
+			FORWARD_PROCESS_DATA_SWITCH(4);
+		}
+	}
+
+	template <int NumChannels> void processFix(snex::Types::ProcessDataFix<NumChannels>& data)
+	{
+		auto fd = data.toFrameData();
+
+		while (fd.next())
+			processFrame(fd);
+	}
+
+	template <typename FrameType> void processFrame(FrameType& data)
+	{
+		float input = 0.0;
+
+		for (auto& s: data)
+			input = Math.max(Math.abs(s), input);
+
+		input = envelope.calculateValue(input);
+		
+		for (auto& s : data)
+			s = input;
+	}
+
 	void createParameters(Array<ParameterData>& data);
 
 	EnvelopeFollower::AttackRelease envelope;
+	hmath Math;
 };
 
 

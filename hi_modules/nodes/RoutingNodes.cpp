@@ -116,14 +116,21 @@ void ReceiveNode::process(ProcessData& data)
 {
 	if (connectedOK)
 	{
-		for (int i = 0; i < data.numChannels; i++)
-		{
-			if (addToSignal.getValue())
-				FloatVectorOperations::addWithMultiply(data.data[i], buffer.getReadPointer(i), gainFactor, data.size);
-			else
-				FloatVectorOperations::copyWithMultiply(data.data[i], buffer.getReadPointer(i), gainFactor, data.size);
-		}
+		bool shouldAdd = addToSignal.getValue();
+		int numSamples = data.getNumSamples();
 
+		int index = 0;
+
+		for (auto ch : data)
+		{
+			auto dst = ch.getRawWritePointer();
+			auto src = buffer.getReadPointer(index++);
+
+			if (shouldAdd)
+				FloatVectorOperations::addWithMultiply(dst, src, gainFactor, numSamples);
+			else
+				FloatVectorOperations::copyWithMultiply(dst, src, gainFactor, numSamples);
+		}
 	}
 }
 
@@ -132,7 +139,7 @@ juce::Component* ReceiveNode::createExtraComponent(PooledUIUpdater* updater)
 	return new SendBaseComponent(this, updater);
 }
 
-void ReceiveNode::processSingle(float* frameData, int numChannels)
+void ReceiveNode::processFrame(float* frameData, int numChannels)
 {
 	if (addToSignal.getValue())
 	{
@@ -233,15 +240,16 @@ void SendNode::process(ProcessData& data)
 {
 	if (connectedSource != nullptr)
 	{
-		int numChannelsToSend = jmin(connectedSource->buffer.getNumChannels(), data.numChannels);
-		int numSamplesToSend = jmin(connectedSource->buffer.getNumSamples(), data.size);
+
+		int numChannelsToSend = jmin(connectedSource->buffer.getNumChannels(), data.getNumChannels());
+		int numSamplesToSend = jmin(connectedSource->buffer.getNumSamples(), data.getNumSamples());
 
 		for (int i = 0; i < numChannelsToSend; i++)
-			connectedSource->buffer.copyFrom(i, 0, data.data[i], numSamplesToSend);
+			connectedSource->buffer.copyFrom(i, 0, data[i].begin(), numSamplesToSend);
 	}
 }
 
-void SendNode::processSingle(float* frameData, int numChannels)
+void SendNode::processFrame(float* frameData, int numChannels)
 {
 	if (connectedSource != nullptr)
 	{
@@ -294,58 +302,9 @@ void SendNode::ConnectionNodeProperty::update(Identifier, var newValue)
 	}
 }
 
-void MsEncoder::process(ProcessData& data)
-{
-	if (data.numChannels == 2)
-	{
-		auto l = data.data[0];
-		auto r = data.data[1];
 
-		for (int i = 0; i < data.size; i++)
-		{
-			auto m = (*l + *r) * 0.5f;
-			auto s = (*l - *r) * 0.5f;
 
-			*l++ = m;
-			*r++ = s;
-		}
-	}
-}
-
-void MsEncoder::processSingle(float* frameData, int numChannels)
-{
-	if (numChannels == 2)
-	{
-		auto l = frameData[0];
-		auto r = frameData[1];
-
-		auto m = (l + r) * 0.5f;
-		auto s = (l - r) * 0.5f;
-
-		frameData[0] = m;
-		frameData[1] = s;
-	}
-}
-
-void MsDecoder::process(ProcessData& data)
-{
-	if (data.numChannels == 2)
-	{
-		auto m = data.data[0];
-		auto s = data.data[1];
-
-		for (int i = 0; i < data.size; i++)
-		{
-			auto l = *m + *s; 
-			auto r = *m - *s;
-
-			*m++ = l;
-			*s++ = r;
-		}
-	}
-}
-
-void MsDecoder::processSingle(float* frameData, int numChannels)
+void MsDecoder::processFrame(float* frameData, int numChannels)
 {
 	if (numChannels == 2)
 	{
@@ -460,32 +419,28 @@ void Matrix::updateData()
 
 void Matrix::process(ProcessData& d)
 {
-	float frameData[NUM_MAX_CHANNELS];
-	float* chData[NUM_MAX_CHANNELS];
-
-	memcpy(chData, d.data, d.numChannels * sizeof(float*));
-
-	ProcessData copy(chData, d.numChannels, d.size);
-	copy.allowPointerModification();
-
-	if (d.size > 0)
+	switch (d.getNumChannels())
 	{
-		copy.copyToFrameDynamic(frameData);
-		getMatrix().setGainValues(frameData, true);
-		processSingle(frameData, d.numChannels);
-		getMatrix().setGainValues(frameData, false);
-		copy.copyFromFrameAndAdvanceDynamic(frameData);
-	}
-
-	for (int i = 1; i < d.size; i++)
-	{
-		copy.copyToFrameDynamic(frameData);
-		processSingle(frameData, d.numChannels);
-		copy.copyFromFrameAndAdvanceDynamic(frameData);
+	case 1: processFrame_<1>(d); break;
+	case 2: processFrame_<2>(d); break;
+	case 3: processFrame_<3>(d); break;
+	case 4: processFrame_<4>(d); break;
+	case 5: processFrame_<5>(d); break;
+	case 6: processFrame_<6>(d); break;
+	case 7: processFrame_<7>(d); break;
+	case 8: processFrame_<8>(d); break;
+	case 9: processFrame_<9>(d); break;
+	case 10: processFrame_<10>(d); break;
+	case 11: processFrame_<11>(d); break;
+	case 12: processFrame_<12>(d); break;
+	case 13: processFrame_<13>(d); break;
+	case 14: processFrame_<14>(d); break;
+	case 15: processFrame_<15>(d); break;
+	case 16: processFrame_<16>(d); break;
 	}
 }
 
-void Matrix::processSingle(float* frameData, int numChannels)
+void Matrix::processFrame(float* frameData, int numChannels)
 {
 	float copyData[NUM_MAX_CHANNELS + 1];
 	copyData[0] = 0.0f;

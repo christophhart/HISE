@@ -545,15 +545,18 @@ struct convolution : public AudioFileNodeBase
 
 	void process(ProcessData& d)
 	{
-		auto numToProcess = jmin(d.numChannels, convolvers.size());
+		auto numToProcess = jmin(d.getNumChannels(), convolvers.size());
 
 		SpinLock::ScopedLockType sl(impulseLock);
 
 		for (int i = 0; i < numToProcess; i++)
-			convolvers[i]->process(d.data[i], d.data[i], d.size);
+		{
+			auto ptr = d[i].begin();
+			convolvers[i]->process(ptr, ptr, d.getNumSamples());
+		}
 	}
 
-	void processSingle(float* , int )
+	void processFrame(float* , int )
 	{
 		jassertfalse;
 	}

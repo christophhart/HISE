@@ -210,61 +210,13 @@ private:
 	
 };
 
+using ProcessData = snex::Types::ProcessDataDyn;
+
+#if 0
+
 /** A lightweight object containing the data. */
 struct ProcessData
 {
-	
-
-	struct SampleIterator
-	{
-		SampleIterator() :
-			data(nullptr),
-			size(0)
-		{};
-
-		SampleIterator(float* d, int s) :
-			data(d),
-			size(s)
-		{};
-
-		float* begin() const noexcept { return data; }
-		float* end() const noexcept { return data + size; }
-		float& operator[](int index) noexcept
-		{
-			jassert(isPositiveAndBelow(index, size));
-			return *(data + index);
-		}
-
-		const float& operator[](int index) const noexcept
-		{
-			jassert(isPositiveAndBelow(index, size));
-			return *(data + index);
-		}
-
-		int getSize() const noexcept { return size; }
-
-	private:
-
-		float* data;
-		int size;
-	};
-
-	struct ChannelIterator
-	{
-		ChannelIterator(ProcessData& d):
-			numChannels(d.numChannels)
-		{
-			for (int i = 0; i < d.numChannels; i++)
-				iterators[i] = { d.data[i], d.size };
-		};
-
-		SampleIterator* begin() const { return const_cast<SampleIterator*>(iterators); }
-		SampleIterator* end() const { return begin() + numChannels; }
-
-		SampleIterator iterators[NUM_MAX_CHANNELS];
-		int numChannels;
-	};
-
 	ProcessData(float** d, int c, int s) :
 		data(d),
 		numChannels(c),
@@ -287,10 +239,6 @@ struct ProcessData
 	HiseEventBuffer* eventBuffer = nullptr;
 	bool shouldReset = false;
 
-	ChannelIterator channels()
-	{
-		return ChannelIterator(*this);
-	}
 
 	/** Iterates over the channels. */
 	float** begin() const { return data; }
@@ -336,10 +284,11 @@ struct ProcessData
 
 	bool modifyPointersAllowed = false;
 };
+#endif
 
 struct PointerWatcher
 {
-#if JUCE_DEBUG
+#if 0 && JUCE_DEBUG
 	PointerWatcher(ProcessData& data) :
 		dataToWatch(data),
 		c(data.numChannels),
@@ -437,7 +386,7 @@ struct DspHelpers
 	/** Increases the buffer size to match the process specs. */
 	static void increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& ps);
 
-	
+	static void increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& ps);
 
 	using ConverterFunction = std::function<double(double)>;
 	using ParameterCallback = std::function<void(double)>;
@@ -462,7 +411,21 @@ struct DspHelpers
 		NormalisableRange<double> range,
 		bool inverted);
 
-	static double findPeak(const ProcessData& data);
+	static double findPeak(float* data, int numSamples)
+	{
+		auto r = FloatVectorOperations::findMinAndMax(data, numSamples);
+		return jmax<float>(std::abs(r.getStart()), std::abs(r.getEnd()));
+	}
+
+	template <typename ProcessDataType> static double findPeak(const ProcessDataType& data)
+	{
+		double max = 0.0;
+
+		for (auto ch : data)
+			max = jmax(max, findPeak(ch.getRawReadPointer(), data.getNumSamples()))
+
+		return max;
+	}
 };
 
 struct CodeHelpers

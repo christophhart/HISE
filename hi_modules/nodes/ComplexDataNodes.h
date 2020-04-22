@@ -54,9 +54,45 @@ public:
 	void initialise(NodeBase* n) override;
 	bool handleModulation(double& value);
 	void reset();
-	void process(ProcessData& data);
-	void processSingle(float* frameData, int numChannels);;
 	void prepare(PrepareSpecs ps);
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		if (packData != nullptr)
+		{
+			auto peakValue = jlimit(0.0, 0.999999, DspHelpers::findPeak(data.begin(), data.size());
+			auto index = int(peakValue * (double)packData->getNumSliders());
+
+			if (lastIndex.get() != index)
+			{
+				lastIndex.get() = index;
+				modValue.get().setModValue(packData->getValue(index));
+			}
+
+			FloatVectorOperations::fill(frameData, (float)modValue.get().getModValue(), numChannels);
+		}
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+	{
+		if (packData != nullptr)
+		{
+			auto peakValue = jlimit(0.0, 0.999999, DspHelpers::findPeak(data));
+			auto index = int(peakValue * (double)(packData->getNumSliders()));
+
+			if (lastIndex.get() != index)
+			{
+				lastIndex.get() = index;
+				modValue.get().setModValue((double)packData->getValue(index));
+				packData->setDisplayedIndex(index);
+			}
+
+			for (auto c : data)
+				FloatVectorOperations::fill(c.getRawWritePointer(), (float)modValue.get().getModValue(), data.getNumSamples());
+
+			String s;
+		}
+	}
 
 	void setSliderPack(double indexAsDouble);
 
@@ -87,8 +123,41 @@ struct TableNode : public HiseDspBase
 	bool handleModulation(double& value);
 	void prepare(PrepareSpecs);
 	void reset() noexcept;
-	void process(ProcessData& data);
-	void processSingle(float* frameData, int numChannels);;
+
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+	{
+		if (tableData != nullptr)
+		{
+			auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(data));
+			auto value = tableData->getInterpolatedValue(peakValue * SAMPLE_LOOKUP_TABLE_SIZE);
+
+			changed = currentValue != value;
+
+			if (changed)
+				currentValue = value;
+
+			for (auto c : data)
+				hmath::vset(data.toChannelData(c), (float)currentValue);
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		if (tableData != nullptr)
+		{
+			auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(data.begin(), data.size()));
+			auto value = tableData->getInterpolatedValue(peakValue * SAMPLE_LOOKUP_TABLE_SIZE);
+
+			changed = currentValue != value;
+
+			if (changed)
+				currentValue = value;
+
+			for (int i = 0; i < data.size(); i++)
+				data[i] = (float)currentValue;
+		}
+	}
+
 	void setTable(double indexAsDouble);
 
 	WeakReference<LookupTableProcessor> tp;
@@ -114,8 +183,51 @@ struct file_player : public AudioFileNodeBase
 	void prepare(PrepareSpecs specs) override;
 	void reset();
 	bool handleModulation(double& modValue);
-	void process(ProcessData& d);
-	void processSingle(float* frameData, int numChannels);
+
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+	{
+		SpinLock::ScopedLockType sl(audioFile->getLock());
+
+		if (currentBuffer->clear)
+			return;
+
+		int cIndex = 0;
+
+		for (auto c : d)
+		{
+			double thisUptime = uptime;
+
+			for (auto& s : d.toChannelData(c))
+			{
+				s += getSample(thisUptime, cIndex);
+				thisUptime += uptimeDelta;
+			}
+
+			cIndex++;
+		}
+
+		uptime += (double)d.getNumSamples() * uptimeDelta;
+
+		updatePosition();
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		SpinLock::ScopedLockType sl(lock);
+
+		if (currentBuffer->clear)
+			return;
+
+		int index = 0;
+
+		for (auto& s : data)
+			s = getSample(uptime, index++);
+			
+		uptime += uptimeDelta;
+
+		updatePosition();
+	}
+
 	void updatePosition();
 
 private:

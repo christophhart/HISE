@@ -49,7 +49,7 @@ public:
 	String getCppCode(CppGen::CodeLocation location) override;
 
 	void process(ProcessData& data) final override;
-	void processSingle(float* frameData, int numChannels) final override;
+	void processFrame(FrameType& data) final override;
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override { wrapper.reset(); }
@@ -69,7 +69,7 @@ public:
 
 	ModulationChainNode(DspNetwork* n, ValueTree t);;
 
-	void processSingle(float* frameData, int numChannels) noexcept final override;
+	void processFrame(FrameType& data) noexcept final override;
 	void process(ProcessData& data) noexcept final override;
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
@@ -87,7 +87,7 @@ public:
 
 private:
 	
-	wrap::control_rate<SerialNode::DynamicSerialProcessor> obj;
+	fix<1, wrap::control_rate<SerialNode::DynamicSerialProcessor>> obj;
 };
 
 class MidiChainNode : public SerialNode
@@ -98,7 +98,7 @@ public:
 
 	MidiChainNode(DspNetwork* n, ValueTree t);
 
-	void processSingle(float* frameData, int numChannels) noexcept final override;
+	void processFrame(FrameType& data) noexcept final override;
 	void process(ProcessData& data) noexcept final override;
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
@@ -130,6 +130,7 @@ public:
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void process(ProcessData& d) noexcept final override;
+	void processFrame(FrameType& data) noexcept final override { jassertfalse; }
 
 	wrap::oversample<OversampleFactor, SerialNode::DynamicSerialProcessor> obj;
 
@@ -148,6 +149,9 @@ public:
 	FixedBlockNode(DspNetwork* network, ValueTree d);
 
 	void process(ProcessData& data) final override;
+
+	void processFrame(FrameType& data) noexcept final override { jassertfalse; }
+
 	void prepare(PrepareSpecs ps) final override;
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) final override;
@@ -182,7 +186,7 @@ public:
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void process(ProcessData& data) final override;
-	void processSingle(float* frameData, int numChannels) override;
+	void processFrame(FrameType& data) final override;
 
 	AudioSampleBuffer splitBuffer;
 };
@@ -199,8 +203,8 @@ public:
 	void prepare(PrepareSpecs ps) final override;
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) override;
-	void processSingle(float* frameData, int numChannels);
-	void process(ProcessData& d) override;
+	void processFrame(FrameType& data) final override;
+	void process(ProcessData& d) final override;
 
 	void channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange) override;
 
@@ -208,9 +212,6 @@ public:
 	Range<int> channelRanges[NUM_MAX_CHANNELS];
 	Identifier getObjectName() const override { return "MultiChannelNode"; };
 };
-
-
-
 
 class SingleSampleBlockX : public SerialNode
 {
@@ -223,7 +224,7 @@ public:
 	void prepare(PrepareSpecs ps) final override;
 	void reset() final override;
 	void process(ProcessData& data) final override;
-	void processSingle(float* frameData, int numChannels) final override;
+	void processFrame(FrameType& data) final override;
 	int getBlockSizeForChildNodes() const override;;
 	void handleHiseEvent(HiseEvent& e) override;
 
@@ -237,6 +238,9 @@ public:
 template <int NumChannels> class SingleSampleBlock : public SerialNode
 {
 public:
+
+	using FixProcessType = snex::Types::ProcessDataFix<NumChannels>;
+	using FixFrameType = snex::Types::span<float, NumChannels>;
 
 	SingleSampleBlock(DspNetwork* n, ValueTree d) :
 		SerialNode(n, d)
@@ -280,16 +284,14 @@ public:
 	void process(ProcessData& data) final override
 	{
 		if (isBypassed())
-			obj.getObject().process(data);
+			obj.getObject().process(data.as<FixProcessType>());
 		else
 		{
+			
 			float* channels[NumChannels];
-
-			int numChannels = jmin(NumChannels, data.numChannels);
-
-			memcpy(channels, data.data, numChannels * sizeof(float*));
-
-			int numLeftOverChannels = NumChannels - data.numChannels;
+			int numChannels = jmin(NumChannels, data.getNumChannels());
+			memcpy(channels, data.getRawDataPointers(), numChannels * sizeof(float*));
+			int numLeftOverChannels = NumChannels - data.getNumChannels();
 
 			if (numLeftOverChannels > 0)
 			{
@@ -299,19 +301,21 @@ public:
 				leftoverBuffer.clear();
 
 				for (int i = 0; i < numLeftOverChannels; i++)
-					channels[data.numChannels + i] = leftoverBuffer.getWritePointer(i);
+					channels[data.getNumChannels() + i] = leftoverBuffer.getWritePointer(i);
 			}
 
-			ProcessData copy(channels, NumChannels, data.size);
+			auto& cd = FixProcessType::ChannelDataType::as(channels);
+			FixProcessType copy(data, cd);
 			obj.process(copy);
 		}
 	}
 
-	void processSingle(float* frameData, int numChannels) final override
+	void processFrame(dyn<float>& d) final override
 	{
 		jassert(numChannels == NumChannels);
 
-		obj.processSingle(frameData, numChannels);
+		auto& s = FixFrameType::as(d.begin());
+		obj.processFrame(s);
 	}
 
 	void updateBypassState(Identifier, var)

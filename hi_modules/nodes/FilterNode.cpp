@@ -144,17 +144,24 @@ void FilterNodeBase<FilterType, NV>::setFrequency(double newFrequency)
 }
 
 template <class FilterType, int NV>
-void FilterNodeBase<FilterType, NV>::processSingle(float* frameData, int numChannels)
+void FilterNodeBase<FilterType, NV>::processFrame(float* frameData, int numChannels)
 {
-	filter.get().processSingle(frameData, numChannels);
+	filter.get().processFrame(frameData, numChannels);
+}
+
+
+template <class FilterType, int NV>
+void scriptnode::filters::FilterNodeBase<FilterType, NV>::processDataPointers(float** data, int numChannels, int numSamples)
+{
+	buffer.setDataToReferTo(data, numChannels, numSamples);
+	FilterHelpers::RenderData r(buffer, 0, numSamples);
+	filter.get().render(r);
 }
 
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::process(ProcessData& d) noexcept
 {
-	buffer.setDataToReferTo(d.data, d.numChannels, d.size);
-	FilterHelpers::RenderData r(buffer, 0, d.size);
-	filter.get().render(r);
+	processDataPointers(d.data, d.getNumChannels(), d.getNumSamples());
 }
 
 template <class FilterType, int NV>
@@ -342,20 +349,20 @@ void scriptnode::filters::fir_impl<NV>::process(ProcessData& d)
 
 	SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
 
-	dsp::AudioBlock<float> l(d.data, 1, d.size);
+	dsp::AudioBlock<float> l(d.data, 1, d.getNumSamples());
 	dsp::ProcessContextReplacing<float> pcrl(l);
 	leftFilters.get().process(pcrl);
 
-	if (d.numChannels > 1)
+	if (d.getNumChannels() > 1)
 	{
-		dsp::AudioBlock<float> r(d.data + 1, 1, d.size);
+		dsp::AudioBlock<float> r(d.data + 1, 1, d.getNumSamples());
 		dsp::ProcessContextReplacing<float> pcrr(r);
 		rightFilters.get().process(pcrr);
 	}
 }
 
 template <int NV>
-void scriptnode::filters::fir_impl<NV>::processSingle(float* frameData, int numChannels)
+void scriptnode::filters::fir_impl<NV>::processFrame(float* frameData, int numChannels)
 {
 	if (!ok)
 		return;

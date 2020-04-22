@@ -934,12 +934,12 @@ juce::String SerialNode::getCppCode(CppGen::CodeLocation location)
 
 		return s;
 	}
-	if (location == CppGen::CodeLocation::ProcessSingleBody)
+	if (location == CppGen::CodeLocation::ProcessFrameBody)
 	{
 		String s;
 
 		for (auto n : nodes)
-			s << n->getId() << ".processSingle(frameData, numChannels);\n";
+			s << n->getId() << ".processFrame(frameData, numChannels);\n";
 
 		return s;
 	}
@@ -976,22 +976,6 @@ void SerialNode::DynamicSerialProcessor::reset()
 void SerialNode::DynamicSerialProcessor::prepare(PrepareSpecs)
 {
 	// do nothing here, the container inits the child nodes.
-}
-
-void SerialNode::DynamicSerialProcessor::process(ProcessData& d)
-{
-	jassert(parent != nullptr);
-
-	for (auto n : parent->getNodeList())
-		n->process(d);
-}
-
-void SerialNode::DynamicSerialProcessor::processSingle(float* frameData, int numChannels)
-{
-	jassert(parent != nullptr);
-
-	for (auto n : parent->getNodeList())
-		n->processSingle(frameData, numChannels);
 }
 
 

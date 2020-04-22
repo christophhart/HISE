@@ -78,7 +78,23 @@ public:
 	void prepare(PrepareSpecs ps) noexcept;
 	void reset();
 	void process(ProcessData& d) noexcept;
-	void processSingle(float* frameData, int numChannels);
+
+	template <int FixChannelAmount> void process(snex::Types::ProcessDataFix<FixChannelAmount>& d)
+	{
+		auto ptrs = d.getRawDataPointers();
+		processDataPointers(ptrs, FixChannelAmount, d.getNumSamples());
+	}
+
+	template <int FixChannelAmount> void processFrame(snex::Types::span<float, FixChannelAmount>& d)
+	{
+		processFrame(d.begin(), d.size());
+	}
+
+	void processDataPointers(float** data, int numChannels, int numSamples);
+
+
+
+	void processFrame(float* frameData, int numChannels);
 	bool handleModulation(double&) noexcept { return false; };
 
 	IIRCoefficients getCoefficients() override;
@@ -107,6 +123,8 @@ public:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FilterNodeBase);
 };
+
+
 
 #define DEFINE_FILTER_NODE_TEMPLATE(monoName, polyName, className) extern template class FilterNodeBase<className, 1>; \
 using monoName = FilterNodeBase<hise::MultiChannelFilter<className>, 1>; \
@@ -154,7 +172,7 @@ public:
 	bool handleModulation(double&);
 	void process(ProcessData& d);
 
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	
 private:
 

@@ -77,52 +77,7 @@ void scriptnode::seq_impl<NV>::prepare(PrepareSpecs ps)
 	modValue.prepare(ps);
 }
 
-template <int NV>
-void scriptnode::seq_impl<NV>::processSingle(float* frameData, int numChannels)
-{
-	if (packData != nullptr)
-	{
-		auto peakValue = jlimit(0.0, 0.999999, DspHelpers::findPeak(ProcessData(&frameData, 1, numChannels)));
-		auto index = int(peakValue * (double)packData->getNumSliders());
 
-		if (lastIndex.get() != index)
-		{
-			lastIndex.get() = index;
-			modValue.get().setModValue(packData->getValue(index));
-		}
-
-		FloatVectorOperations::fill(frameData, (float)modValue.get().getModValue(), numChannels);
-	}
-}
-
-template <int NV>
-void scriptnode::seq_impl<NV>::process(ProcessData& data)
-{
-	if (packData != nullptr)
-	{
-		auto peakValue = jlimit(0.0, 0.999999, DspHelpers::findPeak(data));
-		auto index = int(peakValue * (double)(packData->getNumSliders()));
-
-		if (lastIndex.get() != index)
-		{
-			lastIndex.get() = index;
-
-
-			modValue.get().setModValue((double)packData->getValue(index));
-
-
-
-			packData->setDisplayedIndex(index);
-		}
-
-		for (auto c : data)
-			FloatVectorOperations::fill(c, (float)modValue.get().getModValue(), data.size);
-
-		String s;
-
-
-	}
-}
 
 template <int NV>
 void scriptnode::seq_impl<NV>::reset()
@@ -259,39 +214,6 @@ void TableNode::reset() noexcept
 	changed = true;
 }
 
-void TableNode::process(ProcessData& data)
-{
-	if (tableData != nullptr)
-	{
-		auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(data));
-		auto value = tableData->getInterpolatedValue(peakValue * SAMPLE_LOOKUP_TABLE_SIZE);
-
-		changed = currentValue != value;
-
-		if (changed)
-			currentValue = value;
-
-		for (auto c : data)
-			FloatVectorOperations::fill(c, (float)currentValue, data.size);
-	}
-}
-
-void TableNode::processSingle(float* frameData, int numChannels)
-{
-	if (tableData != nullptr)
-	{
-		auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(ProcessData(&frameData, 1, numChannels)));
-		auto value = tableData->getInterpolatedValue(peakValue * SAMPLE_LOOKUP_TABLE_SIZE);
-
-		changed = currentValue != value;
-
-		if (changed)
-			currentValue = value;
-
-		FloatVectorOperations::fill(frameData, (float)currentValue, numChannels);
-	}
-}
-
 void TableNode::setTable(double indexAsDouble)
 {
 	jassert(tp != nullptr);
@@ -319,44 +241,6 @@ void core::file_player::reset()
 bool core::file_player::handleModulation(double& )
 {
 	return false;
-}
-
-void core::file_player::process(ProcessData& d)
-{
-	SpinLock::ScopedLockType sl(audioFile->getLock());
-
-	if (currentBuffer->clear)
-		return;
-
-	for (int c = 0; c < d.numChannels; c++)
-	{
-		auto thisUptime = uptime;
-
-		for (int i = 0; i < d.size; i++)
-		{
-			d.data[c][i] += getSample(thisUptime, c);
-			thisUptime += uptimeDelta;
-		}
-	}
-
-	uptime += (double)d.size * uptimeDelta;
-
-	updatePosition();
-}
-
-void core::file_player::processSingle(float* frameData, int numChannels)
-{
-	SpinLock::ScopedLockType sl(lock);
-
-	if (currentBuffer->clear)
-		return;
-
-	for (int i = 0; i < numChannels; i++)
-		frameData[i] += getSample(uptime, i);
-
-	uptime += uptimeDelta;
-
-	updatePosition();
 }
 
 void core::file_player::updatePosition()

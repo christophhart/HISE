@@ -41,179 +41,78 @@ namespace container
 {
 
 
+namespace chainprocessor
+{
+template <typename ProcessDataType> struct Block
+{
+	Block(ProcessDataType& d_) :
+		d(d_)
+	{}
+
+	template <class T> void operator()(T& obj)
+	{
+		obj.process(d);
+	}
+
+	ProcessDataType& d;
+};
+
+template <typename FrameDataType> struct Frame
+{
+	Frame(FrameDataType& d_) :
+		d(d_)
+	{};
+
+	template <class T> void operator()(T& obj)
+	{
+		obj.processFrame(d);
+	}
+
+	FrameDataType& d;
+};
+}
 
 template <class ParameterClass, typename... Processors> struct chain: public container_base<ParameterClass, Processors...>
 {
-	static constexpr bool isModulationSource = false;
+	static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
+	static constexpr int getNumChannels() { return NumChannels; }
 
-	void process(ProcessData& d)
-	{
-		process_each(d, getIndexSequence());
-	}
+	using BlockType = snex::Types::ProcessDataFix<NumChannels>;
+	using BlockProcessor = chainprocessor::Block<BlockType>;
 
-	void processSingle(float* data, int numChannels)
-	{
-		process_single_each(data, numChannels, getIndexSequence());
-	}
+	using FrameType = snex::Types::span<float, NumChannels>;
+	using FrameProcessor = chainprocessor::Frame<FrameType>;
+
+	GET_SELF_AS_OBJECT(chain);
 
 	void prepare(PrepareSpecs ps)
 	{
-		this->prepare_each(ps, getIndexSequence());
+		call_tuple_iterator1(prepare, ps);
 	}
 
-	bool handleModulation(double& )
+	void process(BlockType& d)
 	{
-		return false;
+		BlockProcessor p(d);
+		call_tuple_iterator1(process, p);
+	}
+
+	void processFrame(FrameType& d)
+	{
+		FrameProcessor p(d);
+		call_tuple_iterator1(processFrame, p);
 	}
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		this->handle_event_each(e, getIndexSequence());
+		call_tuple_iterator1(handleHiseEvent, e);
 	}
-
-	
-	constexpr auto& getObject() { return *this; };
-	constexpr const auto& getObject() const { return *this; };
 
 private:
 
-	template <std::size_t ...Ns>
-	void process_each(ProcessData& d, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(this->processors).process(d), void(), int{})...
-		};
-	}
+	tuple_iterator_op(process, BlockProcessor);
+	tuple_iterator_op(processFrame, FrameProcessor);
 
-	template <std::size_t ...Ns>
-	void process_single_each(float* d, int numChannels, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(this->processors).processSingle(d, numChannels), void(), int{})...
-		};
-	}
 };
-
-#if OLD_IMPL
-
-namespace impl
-{
-//==============================================================================
-template <bool IsFirst, typename Processor, typename Subclass>
-struct ChainElement
-{
-	using P = Processor;
-
-	virtual ~ChainElement() {};
-
-	void prepare(PrepareSpecs ps)
-	{
-		processor.prepare(ps);
-	}
-
-	void initialise(NodeBase* n)
-	{
-		processor.initialise(n);
-	}
-
-	bool handleModulation(double& value) noexcept
-	{
-		if (processor.isModulationSource)
-			return processor.handleModulation(value);
-
-		return false;
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		processor.handleHiseEvent(e);
-	}
-
-	void process(ProcessData& data) noexcept
-	{
-		processor.process(data);
-	}
-
-	void processSingle(float* frameData, int numChannels)
-	{
-		processor.processSingle(frameData, numChannels);
-	}
-
-	ChainElement& getObject() { return *this; };
-	const ChainElement& getObject() const { return *this; };
-
-	void reset() { processor.reset(); }
-
-	Processor processor;
-
-	static constexpr bool isModulationSource = Processor::isModulationSource;
-
-	Processor& getProcessor() noexcept { return processor; }
-	const Processor& getProcessor() const noexcept { return processor; }
-	Subclass& getThis() noexcept { return *static_cast<Subclass*> (this); }
-	const Subclass& getThis() const noexcept { return *static_cast<const Subclass*> (this); }
-
-	/** dummy overrides from HiseDspBase class. */
-
-	template <int arg> auto& get() noexcept { return AccessHelper<arg>::get(getThis()); }
-	template <int arg> const auto& get() const noexcept { return AccessHelper<arg>::get(getThis()); }
-};
-
-
-//==============================================================================
-template <bool IsFirst, typename FirstProcessor, typename... SubsequentProcessors>
-struct ChainBase : public ChainElement<IsFirst, FirstProcessor, ChainBase<IsFirst, FirstProcessor, SubsequentProcessors...>>
-{
-	using Base = ChainElement<IsFirst, FirstProcessor, ChainBase<IsFirst, FirstProcessor, SubsequentProcessors...>>;
-
-	void process(ProcessData& data) noexcept
-	{
-		Base::process(data);
-		processors.process(data);
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		Base::prepare(ps);
-		processors.prepare(ps);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		Base::handleHiseEvent(e);
-		processors.handleHiseEvent(e);
-	}
-
-	void processSingle(float* frameData, int numChannels) noexcept
-	{
-		Base::processSingle(frameData, numChannels);
-		processors.processSingle(frameData, numChannels);
-	}
-
-	void initialise(NodeBase* n)
-	{
-		Base::initialise(n);
-		processors.initialise(n);
-	}
-
-	bool handleModulation(double& value) noexcept
-	{
-		auto b = Base::handleModulation(value);
-		return processors.handleModulation(value) || b;
-	}
-
-	void reset() { Base::reset(); processors.reset(); }
-
-	ChainBase<false, SubsequentProcessors...> processors;
-};
-
-template <bool IsFirst, typename ProcessorType> struct ChainBase<IsFirst, ProcessorType> : public ChainElement<IsFirst, ProcessorType, ChainBase<IsFirst, ProcessorType>> {};
-
-}
-
-template <typename... Processors> struct chain2 : impl::ChainBase<true, Processors...> {};
-#endif
-
 
 }
 

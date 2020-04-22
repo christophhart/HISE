@@ -151,7 +151,7 @@ public:
 	IIRCoefficients getApproximateCoefficients() const;
 
 	void reset(int unused=0);
-	void processSingle(float* frameData, int channels);
+	void processFrame(float* frameData, int channels);
 	StringArray getModes() const;
 	void render(FilterHelpers::RenderData& r);
 
@@ -211,7 +211,7 @@ protected:
 	void setType(int type);
 	void reset(int numChannels);
 	void processSamples(AudioSampleBuffer& buffer, int startSample, int);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	double b1co, b2co, b3co, b4co;
 
 	void updateCoefficients(double sampleRate, double frequency, double /*q*/, double /*gain*/);
@@ -283,7 +283,7 @@ protected:
 	void setType(int /*t*/);;
 	void updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/);
 	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 
 private:
 
@@ -350,7 +350,7 @@ protected:
 	void reset(int numChannels);
 	void updateCoefficients(double sampleRate, double frequency, double /*q*/, double /*gain*/);
 	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 
 private:
 
@@ -380,7 +380,7 @@ protected:
 	void reset(int /*numChannels*/);
 	void setType(int /*t*/);;
 	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 
 private:
 
@@ -421,7 +421,7 @@ protected:
 	void reset(int numNewChannels);
 	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples);
 	void updateCoefficients(double sampleRate, double frequency, double q, double gain);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 
 private:
 
@@ -448,7 +448,7 @@ public:
 protected:
 
 	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	void setType(int /**/);;
 	void updateCoefficients(double sampleRate, double frequency, double q, double gain);
 	void reset(int newNumChannels);
@@ -517,7 +517,7 @@ protected:
 	void reset(int newNumChannels);
 	void setType(int /*t*/);;
 	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	void updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/);
 
 private:
@@ -560,7 +560,7 @@ protected:
 	void reset(int newNumChannels);
 	void setType(int newType);
 	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	void updateCoefficients(double sampleRate, double frequency, double q, double gain);
 
 private:
@@ -640,7 +640,7 @@ protected:
 	void setType(int t);
 	void updateCoefficients(double sampleRate, double frequency, double q, double gain);
 	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 
 private:
 

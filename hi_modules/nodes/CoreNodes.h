@@ -121,7 +121,7 @@ public:
 	Component* createExtraComponent(PooledUIUpdater* updater);;
 	void reset() noexcept;;
 	void process(ProcessData& data);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 
 	// This is no state variable, so we don't need it to be polyphonic...
 	double max = 0.0;
@@ -142,7 +142,7 @@ public:
 	HISE_EMPTY_MOD;
 	
 	void process(ProcessData& data);
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 };
 
 class empty : public HiseDspBase
@@ -180,7 +180,7 @@ public:
 	void reset() noexcept;;
 	void process(ProcessData& d);
 	bool handleModulation(double& v);;
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 	Component* createExtraComponent(PooledUIUpdater* updater);;
 	void createParameters(Array<ParameterData>& data) override;
 	void handleHiseEvent(HiseEvent& e) final override;
@@ -227,7 +227,7 @@ public:
 	
 	void process(ProcessData& d);
 	bool handleModulation(double& v);;
-	void processSingle(float* frameData, int numChannels);
+	void processFrame(float* frameData, int numChannels);
 
 	void handleHiseEvent(HiseEvent& e) final override;
 
@@ -292,7 +292,7 @@ public:
 	void prepare(PrepareSpecs ps);
 	bool handleModulation(double&) noexcept { return false; };
 	void process(ProcessData& data);
-	void processSingle(float* data, int numChannels);
+	void processFrame(float* data, int numChannels);
 	void handleHiseEvent(HiseEvent& e) override;
 
 	float tickSine(OscData& d);
@@ -338,7 +338,14 @@ public:
 	void reset();
 	bool handleModulation(double& ) { return false; }
 	void process(ProcessData& d);
-	void processSingle(float* frameData, int numChannels);
+
+	template <typename FD> void processFrame(FD& d)
+	{
+		auto& od = oscData.get();
+		double modValue = (double)d[0];
+		d[0] = sinTable->getInterpolatedValue(od.tick());
+		od.uptime += modGain.get() * modValue;
+	}
 
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -382,7 +389,7 @@ public:
 	void prepare(PrepareSpecs ps);
 	void process(ProcessData& d);
 	void reset() noexcept;;
-	void processSingle(float* numFrames, int numChannels);
+	void processFrame(float* numFrames, int numChannels);
 	bool handleModulation(double&) noexcept { return false; };
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -428,7 +435,7 @@ public:
 	void createParameters(Array<ParameterData>& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
-	void processSingle(float* data, int numChannels);
+	void processFrame(float* data, int numChannels);
 	void process(ProcessData& d);
 	bool handleModulation(double&);
 	void handleHiseEvent(HiseEvent& e) final override;
@@ -472,7 +479,7 @@ public:
 	void createParameters(Array<ParameterData>& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
-	void processSingle(float* data, int numChannels);
+	void processFrame(float* data, int numChannels);
 	void process(ProcessData& d);
 	bool handleModulation(double&);
 	void handleHiseEvent(HiseEvent& e) final override;

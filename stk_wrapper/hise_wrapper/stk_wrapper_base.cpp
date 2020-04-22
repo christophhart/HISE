@@ -236,6 +236,14 @@ TP void EFFECT_WRAPPER::process(ProcessData& d)
 {
 	constexpr int ChannelAmount = getNumChannelsToProcess<T, NumChannels>();
 
+	auto fd = d.toFrameData<ChannelAmount>();
+
+	while (fd.next())
+	{
+		processFrame(fd.begin(), ChannelAmount);
+	}
+
+#if 0
 	float* ch[ChannelAmount];
 
 	for (int i = 0; i < ChannelAmount; i++)
@@ -250,12 +258,13 @@ TP void EFFECT_WRAPPER::process(ProcessData& d)
 	for (int i = 0; i < d.size; i++)
 	{
 		copy.copyToFrameDynamic(frameData);
-		processSingle(frameData, ChannelAmount);
+		processFrame(frameData, ChannelAmount);
 		copy.copyFromFrameAndAdvanceDynamic(frameData);
 	}
+#endif
 }
 
-TP void EFFECT_WRAPPER::processSingle(float* frameData, int numChannels)
+TP void EFFECT_WRAPPER::processFrame(float* frameData, int )
 {
 	//jassert(numChannels == getNumChannelsToProcess<T, NumChannels>() );
 
@@ -263,9 +272,9 @@ TP void EFFECT_WRAPPER::processSingle(float* frameData, int numChannels)
 
 	for (int i = 0; i < NumChannels; i++)
 	{
-		constexpr int numThisTime = getNumChannelsToProcess<T, 1>();
+		constexpr int NumThisTime = getNumChannelsToProcess<T, 1>();
 
-		for (int j = 0; j < numThisTime; j++)
+		for (int j = 0; j < NumThisTime; j++)
 		{
             auto value = *ptr;
 			*ptr++ = this->objects[i].get().getObject()->tick(value, j);
@@ -286,6 +295,16 @@ TP void INSTRUMENT_WRAPPER::process(ProcessData& d)
 {
 	constexpr int ChannelAmount = getNumChannelsToProcess<T, NumChannels>();
 
+	auto fd = d.toFrameData<ChannelAmount>(); 
+
+	while (fd.next())
+	{
+		processFrame(fd.begin(), ChannelAmount);
+	}
+
+#if 0
+
+
 	float* ch[ChannelAmount];
 
 	for (int i = 0; i < ChannelAmount; i++)
@@ -303,12 +322,13 @@ TP void INSTRUMENT_WRAPPER::process(ProcessData& d)
 	for (int i = 0; i < d.size; i++)
 	{
 		copy.copyToFrameDynamic(frameData);
-		processSingle(frameData, ChannelAmount);
+		processFrame(frameData, ChannelAmount);
 		copy.copyFromFrameAndAdvanceDynamic(frameData);
 	}
+#endif
 }
 
-TP void INSTRUMENT_WRAPPER::processSingle(float* frameData, int numChannels)
+TP void INSTRUMENT_WRAPPER::processFrame(float* frameData, int numChannels)
 {
 	//jassert(numChannels == getNumChannelsToProcess<T, NumChannels>() );
 

@@ -146,49 +146,6 @@ void dynamics_wrapper<DynamicProcessorType>::reset() noexcept
 }
 
 template <class DynamicProcessorType>
-void dynamics_wrapper<DynamicProcessorType>::process(ProcessData& d)
-{
-	if (d.numChannels >= 2)
-	{
-		for (int i = 0; i < d.size; i++)
-		{
-			double v[2] = { d.data[0][i], d.data[1][i] };
-			obj.process(v[0], v[1]);
-			d.data[0][i] = (float)v[0];
-			d.data[1][i] = (float)v[1];
-		}
-	}
-	else if (d.numChannels == 1)
-	{
-		for (int i = 0; i < d.size; i++)
-		{
-			double v[2] = { d.data[0][i], d.data[0][i] };
-			obj.process(v[0], v[1]);
-			d.data[0][i] = (float)v[0];
-
-		}
-	}
-}
-
-template <class DynamicProcessorType>
-void dynamics_wrapper<DynamicProcessorType>::processSingle(float* data, int numChannels)
-{
-	if (numChannels == 2)
-	{
-		double values[2] = { data[0], data[1] };
-		obj.process(values[0], values[1]);
-		data[0] = (float)values[0];
-		data[1] = (float)values[1];
-	}
-	else if (numChannels == 1)
-	{
-		double values[2] = { data[0], data[0] };
-		obj.process(values[0], values[1]);
-		data[0] = (float)values[0];
-	}
-}
-
-template <class DynamicProcessorType>
 dynamics_wrapper<DynamicProcessorType>::dynamics_wrapper()
 {
 
@@ -212,34 +169,6 @@ void envelope_follower::prepare(PrepareSpecs ps)
 void envelope_follower::reset() noexcept
 {
 	envelope.reset();
-}
-
-void envelope_follower::process(ProcessData& d)
-{
-	for (int i = 0; i < d.size; i++)
-	{
-		float input = 0.0;
-
-		for (int c = 0; c < d.numChannels; c++)
-			input = jmax(std::abs(d.data[c][i]), input);
-
-		input = envelope.calculateValue(input);
-
-		for (int c = 0; c < d.numChannels; c++)
-			d.data[c][i] = input;
-	}
-}
-
-void envelope_follower::processSingle(float* data, int numChannels)
-{
-	float input = 0.0;
-
-	for (int i = 0; i < numChannels; i++)
-		input = jmax(std::abs(data[i]), input);
-
-	input = envelope.calculateValue(input);
-
-	FloatVectorOperations::fill(data, input, numChannels);
 }
 
 void envelope_follower::createParameters(Array<ParameterData>& data)

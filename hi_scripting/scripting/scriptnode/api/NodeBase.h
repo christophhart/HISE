@@ -51,6 +51,8 @@ class NodeBase : public ConstScriptingObject
 {
 public:
 
+	using FrameType = snex::Types::dyn<float>;
+
 	struct HelpManager: ControlledObject
 	{
 		HelpManager(NodeBase& parent, ValueTree d);
@@ -281,8 +283,8 @@ public:
 
 	void prepareParameters(PrepareSpecs specs);
 
-	virtual void processSingle(float* frameData, int numChannels);
-
+	virtual void processFrame(FrameType& data) = 0;
+	
 	virtual void handleHiseEvent(HiseEvent& e)
 	{
 		ignoreUnused(e);

@@ -53,6 +53,16 @@ void DspHelpers::increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& specs)
 	}
 }
 
+void DspHelpers::increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& specs)
+{
+	auto numChannels = specs.numChannels;
+	auto numSamples = specs.blockSize;
+	auto numElements = numChannels * numSamples;
+
+	if (numElements > b.size())
+		b.setSize(numElements);
+}
+
 scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction)
 {
 	if (RangeHelpers::isIdentity(range))
@@ -162,100 +172,6 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::wrapIntoConversionLambda(c
 		return originalFunction;
 }
 
-
-double DspHelpers::findPeak(const ProcessData& data)
-{
-	double max = 0.0;
-
-	for (auto channel : data)
-	{
-		auto r = FloatVectorOperations::findMinAndMax(channel, data.size);
-		auto thisMax = jmax<float>(std::abs(r.getStart()), std::abs(r.getEnd()));
-		max = jmax(max, (double)thisMax);
-	}
-
-	return max;
-}
-
-void ProcessData::copyToFrameDynamic(float* frame) const
-{
-	jassert(modifyPointersAllowed);
-
-	for (int i = 0; i < numChannels; i++)
-		frame[i] = *data[i];
-}
-
-void ProcessData::copyFromFrameAndAdvanceDynamic(const float* frame)
-{
-	jassert(modifyPointersAllowed);
-
-	for (int i = 0; i < numChannels; i++)
-		*data[i]++ = frame[i];
-}
-
-void ProcessData::advanceChannelPointers(int sampleAmount/*=1*/)
-{
-	jassert(modifyPointersAllowed);
-
-	for (int i = 0; i < numChannels; i++)
-		data[i] += sampleAmount;
-}
-
-scriptnode::ProcessData ProcessData::copyToRawArray(float** channelData, float* uninitialisedData, bool clearArray/*=true*/)
-{
-	for (int i = 0; i < numChannels; i++)
-	{
-		channelData[i] = uninitialisedData;
-
-		if (clearArray)
-			memset(channelData[i], 0, sizeof(float)*size);
-
-		uninitialisedData += size;
-	}
-
-	ProcessData rd(channelData, numChannels, size);
-	rd.eventBuffer = eventBuffer;
-	return rd;
-}
-
-scriptnode::ProcessData ProcessData::copyTo(AudioSampleBuffer& buffer, int index)
-{
-	auto channelOffset = index * numChannels;
-
-	int numChannelsToCopy = jmin(buffer.getNumChannels() - channelOffset, numChannels);
-	int numSamplesToCopy = jmin(buffer.getNumSamples(), size);
-
-	for (int i = 0; i < numChannelsToCopy; i++)
-		buffer.copyFrom(i + channelOffset, 0, data[i], numSamplesToCopy);
-
-	return referTo(buffer, index);
-}
-
-
-scriptnode::ProcessData ProcessData::referTo(AudioSampleBuffer& buffer, int index) const
-{
-	ProcessData d;
-
-	auto channelOffset = index * numChannels;
-
-	d.numChannels = jmin(buffer.getNumChannels() - channelOffset, numChannels);
-	d.size = jmin(buffer.getNumSamples(), size);
-	d.data = buffer.getArrayOfWritePointers() + channelOffset;
-	d.eventBuffer = eventBuffer;
-
-	return d;
-}
-
-scriptnode::ProcessData& ProcessData::operator+=(const ProcessData& other)
-{
-	jassert(numChannels == other.numChannels);
-	jassert(size == other.size);
-
-	for (int i = 0; i < numChannels; i++)
-		FloatVectorOperations::add(data[i], other.data[i], size);
-
-	return *this;
-}
 
 juce::String CodeHelpers::createIncludeFile(File targetDirectory)
 {

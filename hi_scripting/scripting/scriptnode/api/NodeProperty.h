@@ -236,7 +236,7 @@ private:
 
 /** This node property can be used to use an external file.
 	
-	The PropertyClass needs a method called setFile(T& obj, double sampleRate, span<dyn<float>, NumChannels>& data)	
+	The PropertyClass needs a method called setFile(T& obj, file::type& file)	
 	and will be called whenever a new file is loaded.
 */
 template <class PropertyClass, int NumChannels> struct file : public NodePropertyT<String>
@@ -244,6 +244,13 @@ template <class PropertyClass, int NumChannels> struct file : public NodePropert
 	file() :
 		NodePropertyT<String>(PropertyClass::getId(), "")
 	{};
+
+	/** A POD containing the audio data and metadata for the given channel amount. */
+	struct type
+	{
+		snex::Types::span<snex::Types::dyn<float>, NumChannels> data;
+		double sampleRate = 0.0;
+	};
 
 	/** This is being called in the initialise method of the cpp_node template class.
 		the root object needs to have the same type that is used as object type for the node.
@@ -273,23 +280,23 @@ private:
 				reference = mc->getCurrentAudioSampleBufferPool()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
 
 				auto& b = reference->data;
-				auto sampleRate = (double)reference->additionalData.getProperty("SampleRate", 0.0);
+				d.sampleRate = (double)reference->additionalData.getProperty("SampleRate", 0.0);
 
 				using namespace snex;
 				using namespace snex::Types;
 
 				for (int i = 0; i < b.getNumChannels(); i++)
 				{
-					dynData[i] = dyn<float>(b.getWritePointer(i), b.getNumSamples());
+					d.data[i] = dyn<float>(b.getWritePointer(i), b.getNumSamples());
 				}
 
 				PropertyClass p;
-				p.setFile(r, sampleRate, dynData);
+				p.setFile(r, d);
 			}
 		});
 	}
 
-	snex::Types::span<snex::Types::dyn<float>, NumChannels> dynData;
+	type d;
 	MainController* mc;
 	AudioSampleBufferPool::ManagedPtr reference;
 };
@@ -307,26 +314,14 @@ struct none
 /** This template is being used when you have multiple properties in a node. It simply forwards the
 	calls to every child property.
 */
-template <class... Properties> struct list
+template <class... Properties> struct list: advanced_tuple<Properties...>
 {
+	tuple_iteratorT3(initWithRoot, RootObject, NodeBase*, n, HiseDspBase*, parent, RootObject&, r);
+
 	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
 	{
-		std::index_sequence_for<Properties...> indexes;
-
-		init_each<RootObject>(n, parent, r, indexes);
+		call_tuple_iterator3(initWithRoot, n, parent, r);
 	}
-
-private:
-
-	template <class RootObject, std::size_t ...Ns>
-	void init_each(NodeBase* n, HiseDspBase* parent, RootObject& r, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (std::get<Ns>(props).initWithRoot(n, parent, r), void(), int{})...
-		};
-	}
-
-	std::tuple<Properties...> props;
 };
 }
 

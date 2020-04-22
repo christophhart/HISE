@@ -187,7 +187,7 @@ void MultiChannelFilter<FilterSubType>::reset(int unused/*=0*/)
 }
 
 template <class FilterSubType>
-void MultiChannelFilter<FilterSubType>::processSingle(float* frameData, int channels)
+void MultiChannelFilter<FilterSubType>::processFrame(float* frameData, int channels)
 {
 	jassert(channels == numChannels);
 
@@ -197,7 +197,7 @@ void MultiChannelFilter<FilterSubType>::processSingle(float* frameData, int chan
 		updateEvery64Frame();
 	}
 
-	FilterSubType::processSingle(frameData, channels);
+	FilterSubType::processFrame(frameData, channels);
 }
 
 template <class FilterSubType>
@@ -390,7 +390,7 @@ void MoogFilterSubType::processSamples(AudioSampleBuffer& buffer, int startSampl
 	}
 }
 
-void MoogFilterSubType::processSingle(float* frameData, int numChannels)
+void MoogFilterSubType::processFrame(float* frameData, int numChannels)
 {
 	for (int c = 0; c < numChannels; c++)
 	{
@@ -434,6 +434,7 @@ Array<hise::FilterHelpers::CoefficientType> SimpleOnePoleSubType::getCoefficient
 
 SimpleOnePoleSubType::SimpleOnePoleSubType()
 {
+	onePoleType = SimpleOnePoleSubType::LP;
 	memset(lastValues, 0, sizeof(float)*NUM_MAX_CHANNELS);
 }
 
@@ -499,7 +500,7 @@ void SimpleOnePoleSubType::processSamples(AudioSampleBuffer& buffer, int startSa
 	}
 }
 
-void SimpleOnePoleSubType::processSingle(float* d, int numChannels)
+void SimpleOnePoleSubType::processFrame(float* d, int numChannels)
 {
 	switch (onePoleType)
 	{
@@ -589,7 +590,7 @@ void RingmodFilterSubType::processSamples(AudioSampleBuffer& buffer, int startSa
 	}
 }
 
-void RingmodFilterSubType::processSingle(float* d, int numChannels)
+void RingmodFilterSubType::processFrame(float* d, int numChannels)
 {
 	const float invGain = 1.0f - oscGain;
 	const float oscValue = oscGain * (float)std::sin(uptime);;
@@ -654,7 +655,7 @@ void StaticBiquadSubType::processSamples(AudioSampleBuffer& b, int startSample, 
 	}
 }
 
-void StaticBiquadSubType::processSingle(float* d, int channels)
+void StaticBiquadSubType::processFrame(float* d, int channels)
 {
 	for (int i = 0; i < channels; i++)
 	{
@@ -696,7 +697,7 @@ void PhaseAllpassSubType::processSamples(AudioSampleBuffer& b, int startSample, 
 	}
 }
 
-void PhaseAllpassSubType::processSingle(float* d, int numChannels)
+void PhaseAllpassSubType::processFrame(float* d, int numChannels)
 {
 	for (int i = 0; i < numChannels; i++)
 		d[i] = filters[i].getNextSample(d[i]);
@@ -806,7 +807,7 @@ void LadderSubType::processSamples(AudioSampleBuffer& b, int startSample, int nu
 	}
 }
 
-void LadderSubType::processSingle(float* d, int numChannels)
+void LadderSubType::processFrame(float* d, int numChannels)
 {
 	for (int c = 0; c < numChannels; c++)
 	{
@@ -1034,7 +1035,7 @@ void StateVariableFilterSubType::processSamples(AudioSampleBuffer& buffer, int s
 	}
 }
 
-void StateVariableFilterSubType::processSingle(float* d, int numChannels)
+void StateVariableFilterSubType::processFrame(float* d, int numChannels)
 {
 	switch (type)
 	{
@@ -1174,7 +1175,7 @@ void LinkwitzRiley::processSamples(AudioSampleBuffer& buffer, int startSample, i
 	}
 }
 
-void LinkwitzRiley::processSingle(float* frameData, int numChannels)
+void LinkwitzRiley::processFrame(float* frameData, int numChannels)
 {
 	for (int i = 0; i < numChannels; i++)
 	{
@@ -1376,7 +1377,7 @@ void StateVariableEqSubType::processSamples(AudioSampleBuffer& b, int startSampl
 	}
 }
 
-void StateVariableEqSubType::processSingle(float* frameData, int numChannels)
+void StateVariableEqSubType::processFrame(float* frameData, int numChannels)
 {
 	coefficients.tick();
 

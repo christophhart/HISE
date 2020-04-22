@@ -336,32 +336,30 @@ void TimerNode<NV>::process(ProcessData& d)
 		if (fillMode.getValue())
 		{
 			for (auto ch : d)
-				FloatVectorOperations::fill(ch, (float)modValue.get().getModValue(), d.size);
+				FloatVectorOperations::fill(ch.getRawWritePointer(), (float)modValue.get().getModValue(), d.getNumSamples());
 		}
 	}
-
 	else
 	{
-		const int numRemaining = d.size - thisInfo.samplesLeft;
+		const int numRemaining = d.getNumSamples() - thisInfo.samplesLeft;
 
 		if (fillMode.getValue())
 		{
 			for (auto ch : d)
-				FloatVectorOperations::fill(ch, (float)modValue.get().getModValue(), numRemaining);
+				FloatVectorOperations::fill(ch.getRawWritePointer(), (float)modValue.get().getModValue(), numRemaining);
 		}
-		
 
 		auto newValue = scriptFunction.callWithDouble(0.0);
 		modValue.get().setModValue(newValue);
 
 		ui_led = true;
 
-		const int numAfter = d.size - numRemaining;
+		const int numAfter = d.getNumSamples() - numRemaining;
 
 		if (fillMode.getValue())
 		{
 			for (auto ch : d)
-				FloatVectorOperations::fill(ch + numRemaining, (float)newValue, numAfter);
+				FloatVectorOperations::fill(ch.getRawWritePointer() + numRemaining, (float)newValue, numAfter);
 		}
 		
 		thisInfo.samplesLeft = thisInfo.samplesBetweenCallbacks + numRemaining;
@@ -369,7 +367,7 @@ void TimerNode<NV>::process(ProcessData& d)
 }
 
 template <int NV>
-void TimerNode<NV>::processSingle(float* frameData, int numChannels)
+void TimerNode<NV>::processFrame(float* frameData, int numChannels)
 {
 	auto& thisInfo = t.get();
 

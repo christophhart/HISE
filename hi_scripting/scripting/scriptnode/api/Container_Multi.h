@@ -40,289 +40,102 @@ using namespace hise;
 namespace container
 {
 
+namespace multiprocessor
+{
+template <typename ProcessDataType> struct Block
+{
+	Block(ProcessDataType& d_):
+		d(d_)
+	{}
+
+	template <class T> void operator()(T& obj)
+	{
+		constexpr int NumChannelsThisTime = T::NumChannels;
+
+		using ThisProcessType = ProcessDataFix<NumChannelsThisTime>;
+		auto cd = ProcessDataHelpers<NumChannelsThisTime>::makeChannelData(d.getRawDataPointers() + channelIndex);
+
+		ThisProcessType thisData(d, cd);
+		obj.process(thisData);
+		channelIndex += NumChannelsThisTime;
+	}
+
+	ProcessDataType& d;
+	int channelIndex = 0;
+};
+
+template <typename FrameType> struct Frame
+{
+	Frame(FrameType& frameData_):
+		frameData(frameData_)
+	{};
+
+	template <class T> void operator()(T& obj)
+	{
+		constexpr int NumChannelsThisTime = T::NumChannels;
+
+		using ThisFrameType = span<float, NumChannelsThisTime>;
+
+		auto d = reinterpret_cast<ThisFrameType*>(frameData.begin() + channelIndex);
+
+		obj.processFrame(*d);
+
+		channelIndex += NumChannelsThisTime;
+	}
+	
+	int channelIndex = 0;
+	FrameType& frameData;
+};
+}
 
 template <class ParameterClass, typename... Processors> struct multi: public container_base<ParameterClass, Processors...>
 {
-	static constexpr bool isModulationSource = false;
+	GET_SELF_AS_OBJECT(multi);
 
-	void initialise(NodeBase* b)
+	
+	constexpr static int NumChannels = Helpers::getSummedChannels<Processors...>();
+
+	using BlockType = snex::Types::ProcessDataFix<NumChannels>;
+	using BlockProcessor = multiprocessor::Block<BlockType>;
+	using FrameType = snex::Types::span<float, NumChannels>;
+	using FrameProcessor = multiprocessor::Frame<FrameType>;
+
+	static constexpr int getNumChannels()
 	{
-		this->init_each(b, getIndexSequence());
-	}
-
-	template <class T> void process_multi(T& obj, ProcessData& d, int& channelIndex)
-	{
-		constexpr int numChannelsThisTime = T::getFixChannelAmount();
-
-		float* currentChannelData[numChannelsThisTime];
-		memcpy(currentChannelData, d.data + channelIndex, sizeof(float*)*numChannelsThisTime);
-
-		ProcessData thisData(currentChannelData, numChannelsThisTime, d.size);
-		obj.process(thisData);
-
-		channelIndex += numChannelsThisTime;
-	}
-
-	template <class T> void process_single_multi(T& obj, float* frameData, int& channelIndex)
-	{
-		constexpr int numChannelsThisTime = T::getFixChannelAmount();
-
-		float* d = frameData + channelIndex;
-		obj.processSingle(d, numChannelsThisTime);
-
-		channelIndex += numChannelsThisTime;
-	}
-
-	template <std::size_t ...Ns>
-	void process_each_multi(ProcessData& d, int& channelIndex, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (process_multi(std::get<Ns>(this->processors), d, channelIndex), void(), int{})...
-		};
-	}
-
-	template <std::size_t ...Ns>
-	void process_single_each_multi(float* data, int& channelIndex, std::index_sequence<Ns...>) {
-		using swallow = int[];
-		(void)swallow {
-			1, (process_single_multi(std::get<Ns>(this->processors), data, channelIndex), void(), int{})...
-		};
-	}
-
-	void process(ProcessData& d)
-	{
-		int channelIndex = 0;
-		process_each_multi(d, channelIndex, getIndexSequence());
-	}
-
-	void processSingle(float* data, int )
-	{
-		int channelIndex = 0;
-		process_single_each_multi(data, channelIndex, getIndexSequence());
-	}
-
-	void reset()
-	{
-		this->reset_each(getIndexSequence());
+		return NumChannels;
 	}
 
 	void prepare(PrepareSpecs ps)
 	{
-		this->prepare_each(ps, getIndexSequence());
+		call_tuple_iterator1(prepare, ps);
 	}
 
-	bool handleModulation(double& value)
+	void process(BlockType& d)
 	{
-		return false;
+		BlockProcessor p(d);
+		call_tuple_iterator1(process, p);
+	}
+
+	void processFrame(FrameType& data)
+	{
+		FrameProcessor p(data);
+		call_tuple_iterator1(processFrame, p);
 	}
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		this->handle_event_each(e, getIndexSequence());
+		HiseEvent copy(e);
+		call_tuple_iterator1(handleHiseEvent, copy);
 	}
 
-	auto& getObject() { return *this; };
-	const auto& getObject() const { return *this; };
+	
+
+private:
+
+	tuple_iterator_op (process, BlockProcessor);
+	tuple_iterator_op (processFrame, FrameProcessor);
+	
 };
-
-
-#if OLD_IMPL
-
-namespace impl {
-
-//==============================================================================
-template <bool IsFirst, typename Processor, typename Subclass>
-struct MultiElement
-{
-	using P = Processor;
-
-	virtual ~MultiElement() {};
-
-	void prepare(PrepareSpecs ps)
-	{
-		processor.prepare(ps);
-	}
-
-	void initialise(NodeBase* n)
-	{
-		processor.initialise(n);
-	}
-
-	bool handleModulation(double& value) noexcept
-	{
-		if (processor.isModulationSource)
-			return processor.handleModulation(value);
-
-		return false;
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		HiseEvent c(e);
-		processor.handleHiseEvent(c);
-	}
-
-
-	void process(ProcessData& d)
-	{
-		ProcessData copy(d);
-
-		constexpr int c = Processor::getFixChannelAmount();
-
-		copy.numChannels = c;
-		d.numChannels -= c;
-		d.data += c;
-
-		jassert(d.numChannels >= 0);
-
-		processor.process(copy);
-	}
-
-	void processSingle(float* frameData, int)
-	{
-		constexpr int c = Processor::getFixChannelAmount();
-		processor.processSingle(frameData, c);
-	}
-
-	MultiElement& getObject() { return *this; };
-	const MultiElement& getObject() const { return *this; };
-
-	void reset() { processor.reset(); }
-
-	Processor processor;
-
-	static constexpr bool isModulationSource = Processor::isModulationSource;
-
-	Processor& getProcessor() noexcept { return processor; }
-	const Processor& getProcessor() const noexcept { return processor; }
-	Subclass& getThis() noexcept { return *static_cast<Subclass*> (this); }
-	const Subclass& getThis() const noexcept { return *static_cast<const Subclass*> (this); }
-
-	template <int arg> auto& get() noexcept { return AccessHelper<arg>::get(getThis()); }
-	template <int arg> const auto& get() const noexcept { return AccessHelper<arg>::get(getThis()); }
-};
-
-
-//==============================================================================
-template <bool IsFirst, typename FirstProcessor, typename... SubsequentProcessors>
-struct MultiBase : public MultiElement<IsFirst, FirstProcessor, MultiBase<IsFirst, FirstProcessor, SubsequentProcessors...>>
-{
-	using Base = MultiElement<IsFirst, FirstProcessor, MultiBase<IsFirst, FirstProcessor, SubsequentProcessors...>>;
-
-	void prepare(PrepareSpecs ps)
-	{
-		Base::prepare(ps);
-		processors.prepare(ps);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		Base::handleHiseEvent(e);
-		processors.handleHiseEvent(e);
-	}
-
-	void process(ProcessData& data) noexcept
-	{
-		if (IsFirst)
-		{
-			ProcessData copy(data);
-
-			Base::process(copy);
-			processors.process(copy);
-		}
-		else
-		{
-			Base::process(data);
-			processors.process(data);
-		}
-	}
-
-	void processSingle(float* frameData, int) noexcept
-	{
-		Base::processSingle(frameData, 0);
-
-		auto c = FirstProcessor::getFixChannelAmount();
-
-		processors.processSingle(frameData + c, 0);
-	}
-
-	void initialise(NodeBase* n)
-	{
-		Base::initialise(n);
-		processors.initialise(n);
-	}
-
-	bool handleModulation(double& value) noexcept
-	{
-		auto b = Base::handleModulation(value);
-		return processors.handleModulation(value) || b;
-	}
-
-	void reset() { Base::reset(); processors.reset(); }
-
-	MultiBase<false, SubsequentProcessors...> processors;
-};
-
-template <bool IsFirst, typename ProcessorType> struct MultiBase<IsFirst, ProcessorType> : public MultiElement<IsFirst, ProcessorType, MultiBase<IsFirst, ProcessorType>> {};
-
-
-}
-
-template <typename... Processors> struct multi : public impl::MultiBase<true, Processors...>
-{
-#if 0
-	using Type =
-		static constexpr bool isModulationSource = Type::isModulationSource;
-
-	static constexpr bool isSingleNode = sizeof...(Processors) == 1;
-
-	void initialise(NodeBase* n)
-	{
-		static_assert(!isSingleNode, "no single multi allowed");
-
-		obj.initialise(n);
-	}
-
-	bool handleModulation(double& value)
-	{
-		return obj.handleModulation(value);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		obj.handleHiseEvent(e);
-	}
-
-	void process(ProcessData& data)
-	{
-
-
-		obj.processWithFixedChannels(copy);
-	}
-
-	void processSingle(float* frameData, int)
-	{
-		obj.processSingleWithFixedChannels(&frameData);
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		obj.prepare(ps);
-	}
-
-	void reset()
-	{
-		obj.reset();
-	}
-
-	auto& getObject() { return obj.getObject(); }
-	const auto& getObject() const { return obj.getObject(); }
-
-	Type obj;
-#endif
-};
-
-#endif
 
 }
 

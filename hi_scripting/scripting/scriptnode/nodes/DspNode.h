@@ -90,7 +90,13 @@ public:
 	void process(ProcessData& data) final override
 	{
 		if (obj != nullptr)
-			obj->processBlock(data.data, data.numChannels, data.size);
+			obj->processBlock(data.getRawDataPointers(), data.getNumChannels(), data.getNumSamples());
+	}
+
+	void processFrame(FrameType& d) final override
+	{
+		if (obj != nullptr)
+			obj->processBlock(&d, 1, d.size());
 	}
 
 	~DspNode()

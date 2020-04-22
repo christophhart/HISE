@@ -211,8 +211,26 @@ public:
 		void initialise(NodeBase* p);
 		void reset();
 		void prepare(PrepareSpecs);
-		void process(ProcessData& d);
-		void processSingle(float* frameData, int numChannels);
+
+		template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+		{
+			for (auto n : parent->getNodeList())
+			{
+				auto& dd = data.as<ProcessData>();
+				n->process(dd);
+			}
+		}
+
+		template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+		{
+			jassert(parent != nullptr);
+
+			NodeBase::FrameType dd(data.begin(), data.size());
+
+			for (auto n : parent->getNodeList())
+				n->processFrame(dd);
+		}
+
 		void createParameters(Array<ParameterData>& ) override {};
 
 		DynamicSerialProcessor& getObject() { return *this; }

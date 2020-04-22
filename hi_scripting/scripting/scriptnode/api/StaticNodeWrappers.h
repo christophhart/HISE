@@ -44,6 +44,7 @@ struct ComponentHelpers
         
 };
 
+
 class WrapperNode : public ModulationSourceNode
 {
 protected:
@@ -158,9 +159,9 @@ public:
 		wrapper.prepare(specs);
 	}
 
-	void processSingle(float* frameData, int numChannels) final override
+	void processFrame(dyn<float>& data) final override
 	{
-		wrapper.processSingle(frameData, numChannels);
+		wrapper.processFrame(data);
 
 		if (wrapper.allowsModulation())
 		{
@@ -179,7 +180,7 @@ public:
 			double value = 0.0;
 
 			if (wrapper.handleModulation(value))
-				sendValueToTargets(value, data.size);
+				sendValueToTargets(value, data.getNumSamples());
 		}
 	}
 
@@ -218,12 +219,8 @@ public:
 	}
 
 	WrapperType wrapper;
-
 	valuetree::PropertyListener bypassListener;
 };
-
-
-
 
 
 class RestorableNode
@@ -238,6 +235,7 @@ public:
 	virtual String getSnippetText() const { return ""; }
 };
 
+#if OLD_SCRIPTNODE_CPP
 template<int... Indexes> using NodePath = std::integer_sequence<int, Indexes...>;
 
 template <class T> static auto& findNode(T& t, NodePath<> empty)
@@ -509,7 +507,7 @@ struct hc
 #define DEF_HANDLE_EVENT_PIMPL void handleHiseEvent(HiseEvent& e);
 #define DEF_PROCESS_PIMPL void process(ProcessData& data) noexcept;
 #define DEF_RESET_PIMPL void reset();
-#define DEF_PROCESS_SINGLE_PIMPL void processSingle(float* frameData, int numChannels) noexcept;
+#define DEF_PROCESS_SINGLE_PIMPL void processFrame(float* frameData, int numChannels) noexcept;
 
 #define DEFINE_DSP_METHODS_PIMPL DEF_CONSTRUCTOR; DEF_PIMPL; DEF_PREPARE_PIMPL; DEF_INIT_PIMPL; DEF_HANDLE_MOD_PIMPL; DEF_HANDLE_EVENT_PIMPL; DEF_PROCESS_PIMPL; DEF_RESET_PIMPL; DEF_PROCESS_SINGLE_PIMPL;
 
@@ -522,7 +520,7 @@ struct hc
 #define HANDLE_EVENT_PIMPL void instance::handleHiseEvent(HiseEvent& e) { pimpl->handleHiseEvent(e); }
 #define PROCESS_PIMPL void instance::process(ProcessData& data) noexcept { pimpl->process(data); }
 #define RESET_PIMPL void instance::reset() { pimpl->reset(); }
-#define PROCESS_SINGLE_PIMPL void instance::processSingle(float* frameData, int numChannels) noexcept { pimpl->processSingle(frameData, numChannels); }
+#define PROCESS_SINGLE_PIMPL void instance::processFrame(float* frameData, int numChannels) noexcept { pimpl->processFrame(frameData, numChannels); }
 
 #define DSP_METHODS_PIMPL_IMPL(NodeType) DEFINE_PIMPL_CLASS(NodeType); DEFINE_CONSTRUCTOR; DEFINE_DESTRUCTOR; PREPARE_PIMPL; INIT_PIMPL; HANDLE_MOD_PIMPL; HANDLE_EVENT_PIMPL; PROCESS_PIMPL; RESET_PIMPL; PROCESS_SINGLE_PIMPL;
 
@@ -564,6 +562,7 @@ public:
 
 	OwnedArray<Component> components;
 };
+#endif
 
 #if HISE_INCLUDE_SNEX
     
@@ -605,7 +604,7 @@ struct jit_base : public RestorableNode
     
 #endif
 
-
+#if OLD_SCRIPTNODE_CPP
 struct hardcoded_base : public HiseDspBase,
 	public HardcodedNode
 {
@@ -653,12 +652,19 @@ struct hardcoded_base : public HiseDspBase,
 	int extraHeight = -1;
 	int extraWidth = -1;
 };
+#endif
 
 template <class Initialiser, class T, class PropertyClass=properties::none> struct cpp_node : public SingleWrapper<T>
 {
 	static constexpr bool isModulationSource = T::isModulationSource;
+	static constexpr int NumChannels = T::NumChannels;
+
+	
 
 	static Identifier getStaticId() { return Initialiser::getStaticId(); };
+
+	using FixBlockType = snex::Types::ProcessDataFix<NumChannels>;
+	using FrameType = snex::Types::span<float, NumChannels>;
 
 	void initialise(NodeBase* n) override
 	{
@@ -667,6 +673,7 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 		init.initialise(obj);
 		obj.initialise(n);
 		props.initWithRoot(n, this, obj);
+
 	}
 
 	template <int P> static void setParameter(void* ptr, double v)
@@ -697,14 +704,22 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 		}
 	};
 
-	forcedinline void process(ProcessData& data) noexcept
+	void process(FixBlockType& d)
 	{
-		obj.process(data);
+		obj.process(d);
 	}
 
-	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	void process(ProcessData& data) noexcept
 	{
-		obj.processSingle(frameData, numChannels);
+		jassert(data.getNumChannels() == NumChannels);
+		auto& fd = data.as<FixBlockType>();
+		obj.process(fd);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		auto& fd = FrameType::as(data.begin());
+		obj.processFrame(fd);
 	}
 
 	constexpr bool allowsModulation()
@@ -724,9 +739,8 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 		return obj.handleModulation(value);
 	}
 
-
-	constexpr T& getObject() { return obj; }
-	constexpr const T& getObject() const { return obj; }
+	constexpr auto& getObject() { return *this; }
+	constexpr const auto& getObject() const { return *this; }
 
 	void createParameters(Array<ParameterData>& data) override
 	{
@@ -764,6 +778,7 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 	PropertyClass props;
 };
 
+#if OLD_SCRIPTNODE_CPP
 struct hardcoded_pimpl : public hardcoded_base
 {
 	virtual ~hardcoded_pimpl() {};
@@ -799,9 +814,9 @@ public:
 		obj.handleHiseEvent(e);
 	}
 
-	void process(ProcessData& data) noexcept
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		obj.process(data);
+		this->obj.process(data);
 	}
 
 	void reset()
@@ -809,14 +824,14 @@ public:
 		obj.reset();
 	}
 
-	void processSingle(float* frameData, int numChannels) noexcept
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		obj.processSingle(frameData, numChannels);
+		this->obj.processFrame(data);
 	}
 
 	DspProcessorType obj;
 };
-
+#endif
     
 #define SCRIPTNODE_FACTORY(x, id) static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new x(n, d); }; \
 static Identifier getStaticId() { return Identifier(id); };

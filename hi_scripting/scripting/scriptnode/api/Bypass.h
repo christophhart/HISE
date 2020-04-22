@@ -48,13 +48,23 @@ public:
 
 	static constexpr bool isModulationSource = T::isModulationSource;
 
-	forcedinline void process(ProcessData& data) noexcept
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
+		this->obj.process(data);
+
+		// neu denken...
+		jassertfalse;
+
+#if 0
 		if (shouldSmoothBypass())
 		{
 
-			for (int c = 0; c < data.numChannels; c++)
-				wetBuffer.copyFrom(c, 0, data.data[c], data.size);
+
+			for (int c = 0; c < data.getNumChannels(); c++)
+			{
+				wetBuffer.copyFrom(c, 0, data.getRawDataPointers()[c], data.size);
+			}
+				
 
 			float* wetDataPointers[NUM_MAX_CHANNELS];
 			float* dryDataPointers[NUM_MAX_CHANNELS];
@@ -99,17 +109,21 @@ public:
 
 			this->obj.process(data);
 		}
+#endif
 	}
 
-	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
+		this->obj.processFrame(data);
+
+		jassertfalse;
 		if (shouldSmoothBypass())
 		{
 			float wet[NUM_MAX_CHANNELS];
 
 			FloatVectorOperations::copy(wet, frameData, numChannels);
 
-			this->obj.processSingle(wet, numChannels);
+			this->obj.processFrame(wet, numChannels);
 
 			auto rampValue = bypassRamper.getNextValue();
 			auto invRampValue = 1.0f - rampValue;
@@ -122,7 +136,7 @@ public:
 			if (bypassed)
 				return;
 
-			this->obj.processSingle(frameData, numChannels);
+			
 		}
 	}
 
@@ -209,20 +223,19 @@ template <class T> class no
 {
 public:
 
-
 	void initialise(NodeBase* n)
 	{
-		obj.initialise(n);
+		this->obj.initialise(n);
 	}
 
-	forcedinline void process(ProcessData& data) noexcept
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		obj.process(data);
+		this->obj.process(data);
 	}
 
-	forcedinline void processSingle(float* frameData, int numChannels) noexcept
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		obj.processSingle(frameData, numChannels);
+		this->obj.processFrame(data);
 	}
 
 	constexpr bool allowsModulation()
@@ -244,7 +257,7 @@ public:
 
 	void handleHiseEvent(HiseEvent& e)
 	{
-		obj.handleHiseEvent(e);
+		this->obj.handleHiseEvent(e);
 	}
 
 	void setBypassedFromRange(double value)
@@ -278,24 +291,31 @@ public:
 
 	GET_SELF_AS_OBJECT(yes);
 
-	
-
 	static constexpr bool isModulationSource = T::isModulationSource;
+
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+	{
+		if (!bypassed)
+			this->obj.process(data);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		this->obj.processFrame(data);
+	}
 
 	void process(ProcessData& data) noexcept
 	{
-		if (bypassed)
-			return;
-
-		this->obj.process(data);
+		if (!bypassed)
+			this->obj.process(data);
 	}
 
-	void processSingle(float* frameData, int numChannels) noexcept
+	void processFrame(float* frameData, int numChannels) noexcept
 	{
 		if (bypassed)
 			return;
 
-		this->obj.processSingle(frameData, numChannels);
+		this->obj.processFrame(frameData, numChannels);
 	}
 
 	void prepare(PrepareSpecs ps)
@@ -360,85 +380,6 @@ private:
 
 	bool bypassed = false;
 };
-
-
-#if 0
-template <class T, bool AddAsParameter> class yes: public SingleWrapper<T>
-{
-public:
-
-	GET_SELF_AS_OBJECT(yes);
-
-	void initialise(NodeBase* n)
-	{
-		obj.initialise(n);
-	}
-
-	forcedinline void process(ProcessData& data) noexcept
-	{
-		if (!bypassed)
-			obj.process(data);
-	}
-
-	forcedinline void processSingle(float* frameData, int numChannels) noexcept
-	{
-		if (!bypassed)
-			obj.processSingle(frameData, numChannels);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		if(!bypassed)
-			obj.handleHiseEvent(e);
-	}
-
-	constexpr bool allowsModulation()
-	{
-		return obj.isModulationSource;
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		obj.prepare(ps);
-	}
-
-	forcedinline void reset() noexcept { obj.reset(); }
-
-	forcedinline bool handleModulation(double& value) noexcept
-	{
-		if (!bypassed)
-			return obj.handleModulation(value);
-
-		return false;
-	}
-
-	void setBypassedFromRange(double value)
-	{
-		setBypassed(activeRange.contains(value));
-	}
-
-	void setBypassed(bool shouldBeBypassed)
-	{
-		bypassed = shouldBeBypassed;
-	}
-
-	void setBypassedFromValueTreeCallback(Identifier id, var newValue)
-	{
-		if (id == PropertyIds::Bypassed)
-			bypassed = (bool)newValue;
-	}
-
-	auto& getObject() { return obj.getObject(); }
-	const auto& getObject() const { return obj.getObject(); }
-
-	Range<double> activeRange;
-	std::atomic<bool> bypassed;
-
-private:
-
-	T obj;
-};
-#endif
 
 }
 }

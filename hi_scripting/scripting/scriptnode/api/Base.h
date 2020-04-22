@@ -190,11 +190,6 @@ public:
 
 	HardcodedNode* getAsHardcodedNode() override { return obj.getAsHardcodedNode(); }
 
-    template <int Index> constexpr auto& get() noexcept
-    {
-        return obj.template get<Index>().getObject();
-    }
-    
 protected:
 
 	T obj;

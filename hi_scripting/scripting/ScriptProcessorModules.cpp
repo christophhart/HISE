@@ -1250,12 +1250,10 @@ void JavascriptEnvelopeModulator::calculateBlock(int startSample, int numSamples
 
 		scriptnode::ProcessData d(&ptr, 1, numSamples);
 
-		d.shouldReset = false;
-
 		ScopedLock sl(n->getConnectionLock());
 		n->getRootNode()->process(d);
 
-		if (d.shouldReset)
+		if (d.getResetFlag())
 			reset(polyManager.getCurrentVoice());
 			
 	}

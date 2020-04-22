@@ -81,8 +81,11 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 		return false;
 	}
 
-	void process(ProcessData& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
+		// richtig neu denken...
+		jassertfalse;
+#if 0
 		auto& o = obj.get();
 
 		if (T::BlockCallback == CallbackTypes::Channel)
@@ -120,10 +123,14 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 				}
 			}
 		}
+#endif
 	}
 
-	void processSingle(float* data, int numChannels)
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
+		// richtig neu denken...
+		jassertfalse;
+#if 0
 		auto& o = obj.get();
 
 		if (T::FrameCallback == CallbackTypes::Frame)
@@ -140,6 +147,7 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 			for (int i = 0; i < numChannels; i++)
 				data[i] = o.processSample(data[i]);
 		}
+#endif
 	}
 
 	void createParameters(Array<ParameterData>& data) override
@@ -256,31 +264,27 @@ public:
 
 	Component* createExtraComponent(PooledUIUpdater* updater) override;
 
-	void processSingle(float* data, int numChannels)
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
 		SingleWriteLockfreeMutex::ScopedReadLock sl(compileLock);
 
 		if (expr != nullptr && expr->isValid())
 		{
-			for (int i = 0; i < numChannels; i++)
-				data[i] = (float)expr->getValueUnchecked((double)data[i]);
+			for (auto& s: data)
+				s = (float)expr->getValueUnchecked((double)s);
 		}
 	}
 
-	void process(ProcessData& data)
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
 		SingleWriteLockfreeMutex::ScopedReadLock sl(compileLock);
 
 		if (expr != nullptr && expr->isValid())
 		{
-			for (int c = 0; c < data.numChannels; c++)
+			for (auto& ch : data)
 			{
-				auto ptr = data.data[c];
-
-				for (int i = 0; i < data.size; i++)
-				{
-					ptr[i] = (float)expr->getValueUnchecked(ptr[i]);
-				}
+				for (auto& s : data.toChannelData(ch))
+					s = (float)expr->getValueUnchecked((double)s);
 			}
 		}
 	}
@@ -319,8 +323,119 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override;
 	bool handleModulation(double&);
 	void reset();
-	void process(ProcessData& d);
-	void processSingle(float* frameData, int numChannels);
+
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+	{
+		if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
+		{
+			// übelst neu denken...
+			jassertfalse;
+
+#if 0
+			auto& cc = cData.get();
+
+			auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::BlockProcessing];
+
+			switch (bestCallback)
+			{
+			case CallbackTypes::Channel:
+			{
+				for (auto ch : d)
+				{
+
+				}
+
+				for (int c = 0; c < d.numChannels; c++)
+				{
+					snex::block b(d.data[c], d.size);
+					cc.callbacks[CallbackTypes::Channel].callVoidUnchecked(b, c);
+				}
+				break;
+			}
+			case CallbackTypes::Frame:
+			{
+				float frame[NUM_MAX_CHANNELS];
+				float* frameData[NUM_MAX_CHANNELS];
+				memcpy(frameData, d.data, sizeof(float*) * d.numChannels);
+				ProcessData copy(frameData, d.numChannels, d.size);
+				copy.allowPointerModification();
+
+				for (int i = 0; i < d.size; i++)
+				{
+					copy.copyToFrameDynamic(frame);
+
+					snex::block b(frame, d.numChannels);
+					cc.callbacks[CallbackTypes::Frame].callVoidUnchecked(b);
+
+					copy.copyFromFrameAndAdvanceDynamic(frame);
+				}
+
+				break;
+			}
+#if 0
+			case CallbackTypes::Sample:
+			{
+				for (int c = 0; c < d.numChannels; c++)
+				{
+					for (int i = 0; i < d.size; i++)
+					{
+						auto value = d.data[c][i];
+						d.data[c][i] = cc.callbacks[CallbackTypes::Sample].template callUncheckedWithCopy<float>(value);
+					}
+				}
+
+				break;
+			}
+#endif
+			default:
+				break;
+			}
+#endif
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+#if 0
+		if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
+		{
+			auto& cc = cData.get();
+
+			auto bestCallback = cc.bestCallback[CallbackCollection::ProcessType::FrameProcessing];
+
+			switch (bestCallback)
+			{
+			case CallbackTypes::Frame:
+			{
+				snex::block b(frameData, numChannels);
+				cc.callbacks[bestCallback].callVoidUnchecked(b);
+				break;
+			}
+			case CallbackTypes::Sample:
+			{
+				for (int i = 0; i < numChannels; i++)
+				{
+					auto v = static_cast<float>(frameData[i]);
+					auto& f = cc.callbacks[bestCallback];
+					frameData[i] = f.template callUnchecked<float>(v);
+				}
+				break;
+			}
+			case CallbackTypes::Channel:
+			{
+				for (int i = 0; i < numChannels; i++)
+				{
+					snex::block b(frameData + i, 1);
+					cc.callbacks[bestCallback].callVoidUnchecked(b);
+				}
+				break;
+			}
+			default:
+				break;
+			}
+		}
+#endif
+	}
 
 	template <int Index> bool createParameter(Array<ParameterData>& data)
 	{

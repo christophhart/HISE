@@ -56,7 +56,7 @@ public:
 	void prepare(PrepareSpecs ps);
 	void process(ProcessData& d);
 	void reset() noexcept;;
-	void processSingle(float* numFrames, int numChannels);
+	void processFrame(float* numFrames, int numChannels);
 	bool handleModulation(double&) noexcept { return false; };
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -105,7 +105,7 @@ public:
 	void prepare(PrepareSpecs ps);
 	void process(ProcessData& d);
 	void reset() noexcept;;
-	void processSingle(float* numFrames, int numChannels);
+	void processFrame(float* numFrames, int numChannels);
 	bool handleModulation(double&) noexcept;;
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -134,7 +134,7 @@ public:
 	void prepare(PrepareSpecs ps);
 	void process(ProcessData& d);
 	void reset() noexcept;;
-	void processSingle(float* numFrames, int numChannels);
+	void processFrame(float* numFrames, int numChannels);
 	bool handleModulation(double&) noexcept;;
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -163,7 +163,7 @@ public:
 	void prepare(PrepareSpecs ps);
 	void process(ProcessData& d);
 	void reset() noexcept;;
-	void processSingle(float* numFrames, int numChannels);
+	void processFrame(float* numFrames, int numChannels);
 	bool handleModulation(double&) noexcept;;
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -194,7 +194,7 @@ public:
 	void createParameters(Array<ParameterData>& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
-	void processSingle(float* data, int numChannels);
+	void processFrame(float* data, int numChannels);
 	void process(ProcessData& d);
 	bool handleModulation(double&);
 	void setPosition(double newValue);
