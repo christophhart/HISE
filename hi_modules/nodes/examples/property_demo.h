@@ -33,13 +33,15 @@ struct processor
 {
 	DECLARE_SNEX_NODE(processor);
 
+	static const int NumChannels = 2;
+
 	bool isPolyphonic() const { return false; }
 
 	void reset() {}
 	void handleHiseEvent(HiseEvent& e) {}
 	void prepare(PrepareSpecs ps) {}
-	void processSingle(float* data, int numChannels) {}
-	void process(ProcessData& d) {}
+	void processFrame(float* data, int numChannels) {}
+	void process(ProcessDataFix<NumChannels>& d) {}
 	bool handleModulation(double& v) {}
 
 	template <int P> void setParameter(double v) {}
@@ -85,6 +87,9 @@ struct initialiser
 /** This class provides a public property that can be changed in scriptnode. */
 struct ArrayFiller
 {
+	// This alias will be used below and wraps this class into a
+	// properties::native template that can be used if the property is
+	// a native type (int, double or float)...
 	using Property = properties::native<ArrayFiller>;
 
 	/** this macro defines the name, type and default value of the property. */
@@ -93,6 +98,9 @@ struct ArrayFiller
 	/** This method will be called when the property has changed. The first parameter
 		will always be the root object of the instance you've created, so you can control
 		multiple child nodes at once.
+
+		The second parameter will be the native value type defined by the
+		DECLARE_SNEX_NATIVE_PROPERTY() macro.
 	*/
 	void set(Type& obj, float newValue)
 	{
@@ -101,17 +109,23 @@ struct ArrayFiller
 };
 
 
+
+/** This property can be used to provide access to external files. */
 struct MyFile
 {
-	using FileType = span<dyn<float>, 1>;
-	using Property = properties::file<MyFile, 1>;
+	/** You need to supply a number of channels that this property expects.
+		Channel mismatches will be converted automatically if possible. */
+	static const int NumChannels = 1;
+
+	/** This alias will be used later, but it will be also used in the 
+		setFile method to shorten the second argument. */
+	using Property = properties::file<MyFile, NumChannels>;
 	
 	DECLARE_SNEX_COMPLEX_PROPERTY(MyFileProperty);
 
-	
-	void setFile(Type& obj, double sampleRate, FileType& data)
+	void setFile(Type& obj, Property::type& file)
 	{
-		obj.get<0>().copyFromFile(data[0]);
+		obj.get<0>().copyFromFile(file.data[0]);
 	}
 };
 

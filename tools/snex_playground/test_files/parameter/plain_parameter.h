@@ -21,15 +21,17 @@ struct Test
 };
 
 using ParameterType = parameter::plain<Test, 0>;
-ParameterType p;
 
-container::chain<Test, Test> c;
+container::chain<ParameterType, Test, Test> c;
 
 double main(double input)
 {
 	auto& first = c.get<0>();
-	p.connect(first);
-	p.call<0>(2.0);
+	auto& p = c.getParameter<0>();
+
+	p.connect<0>(first);
+	c.setParameter<0>(2.0);
+
 	return c.get<0>().value;
 }
 

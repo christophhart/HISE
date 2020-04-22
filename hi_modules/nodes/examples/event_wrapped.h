@@ -48,11 +48,11 @@ struct processor
 		// We'll store the maximum block amount here...
 		maxSize = ps.blockSize;
 	}
-	void processSingle(float* data, int numChannels) {}
+	void processFrame(float* data, int numChannels) {}
 
 	void process(ProcessData& d)
 	{
-		lastBufferSize = d.size;
+		lastBufferSize = d.getNumSamples();
 
 		/** The buffer will be divided by the incoming events, so the lastBufferSize 
 		    might be smaller than the full buffer*/

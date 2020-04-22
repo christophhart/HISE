@@ -10,6 +10,14 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
+struct Identity
+{
+	static double from0To1(double v)
+	{
+		return v;
+	}
+};
+
 struct Test
 {
 	template <int P> void setParameter(double v)
@@ -21,11 +29,11 @@ struct Test
 };
 
 using ParameterType = parameter::plain<Test, 0>;
+using ParameterChainType = parameter::chain<Identity, ParameterType, ParameterType>;
 
+ParameterChainType pc;
 
-parameter::chain<ParameterType, ParameterType> pc;
-
-container::chain<Test, Test> c;
+container::chain<ParameterChainType, Test, Test> c;
 
 void op()
 {
@@ -37,8 +45,8 @@ double main(double input)
 	auto& first = c.get<0>();
 	auto& second = c.get<1>();
 	
-	pc.get<0>().connect(first);
-	pc.get<1>().connect(second);
+	pc.connect<0>(first);
+	pc.connect<1>(second);
 
 	op();
 	

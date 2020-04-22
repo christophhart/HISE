@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: double
   args: double
   input: 12
-  output: 10.0
+  output: 7
   error: ""
   filename: "parameter/parameter_list"
 END_TEST_DATA
@@ -21,23 +21,26 @@ struct Test
 };
 
 using ParameterType = parameter::plain<Test, 0>;
+ using PList = parameter::list<ParameterType, ParameterType>;
 
-
-parameter::list<ParameterType, ParameterType> pc;
-
-container::chain<Test, Test> c;
+container::chain<PList, Test, Test> c;
 
 double main(double input)
 {
 	auto& first = c.get<0>();
 	auto& second = c.get<1>();
 	
-	pc.get<0>().connect(first);
-	pc.get<1>().connect(second);
+	auto& p1 = c.getParameter<0>();
+	auto& p2 = c.getParameter<1>();
 
-	pc.call<0>(2.0);
-	pc.call<1>(8.0);
-	
+	p1.connect<0>(first);
+	p2.connect<0>(second);
+
+	c.setParameter<0>(4.0);
+	c.setParameter<1>(3.0);
+
+	Console.dump();
+
 	return c.get<0>().value + c.get<1>().value;
 }
 

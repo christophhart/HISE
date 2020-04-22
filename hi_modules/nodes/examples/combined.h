@@ -11,6 +11,7 @@
 
 #pragma once
 
+
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
@@ -39,10 +40,10 @@ DECLARE_PARAMETER_RANGE(filterRange, 20.0, 2000.0);
 using FilterParameter = parameter::from0to1<filters::one_pole, filters::one_pole::Frequency, filterRange>;
 
 /** Now we'll chain these two together. */
-using Parameter = parameter::chain<ranges::Identity, HelloParameter, FilterParameter>;
+using PType = parameter::chain<ranges::Identity, HelloParameter, FilterParameter>;
 
 /** And we'll define a chain with two nodes and the parameter chain defined above. */
-using ChainType = container::chain<Parameter, hello_world, filters::one_pole>;
+using ChainType = container::split<PType, fix<2, filters::one_pole>, hello_world>;
 
 struct data
 {
@@ -50,11 +51,13 @@ struct data
 
 	void initialise(ChainType& obj)
 	{
-		auto& hw = obj.get<0>();
-		auto& filter = obj.get<1>();
+		auto& hw = obj.get<1>();
+		auto& filter = obj.get<0>();
 
-		obj.connect<0>(hw);
-		obj.connect<1>(filter);
+		auto& p1 = obj.getParameter<0>();
+		
+		p1.connect<0>(hw);
+		p1.connect<1>(filter);
 	}
 };
 

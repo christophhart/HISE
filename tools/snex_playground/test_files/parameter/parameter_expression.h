@@ -26,9 +26,11 @@ struct Test
 	double value = 2.0;
 };
 
-container::chain<Test, Test> c;
+using ParameterType = parameter::expression<Test, 0, TestExpression>;
 
-parameter::expression<Test, 0, TestExpression> p;
+container::chain<ParameterType, Test, Test> c;
+
+ParameterType p;
 
 
 double x = 5.0;
@@ -36,7 +38,7 @@ double x = 5.0;
 double main(double in)
 {
 	auto& second = c.get<1>();
-	p.connect(second);
+	p.connect<0>(second);
 	
 	p.call<0>(x);
 	

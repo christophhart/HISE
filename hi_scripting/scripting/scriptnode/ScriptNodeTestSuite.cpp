@@ -30,39 +30,30 @@
  *   ===========================================================================
  */
 
-#if HI_RUN_UNIT_TESTS
 
 #include "AppConfig.h"
 
+
+
+
+#if HI_RUN_UNIT_TESTS
+
 #include  "JuceHeader.h"
-
-
-
 
 namespace scriptnode
 {
 
 using namespace hise;
 using namespace juce;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+using namespace snex;
+using namespace snex::Types;
 
 /** This is just a simple test node that has all functions that a node is expected to have. */
 struct TestNode
 {
 	DECLARE_SNEX_NODE(TestNode);
+
+	static const int NumChannels = 2;
 
 	/** Returns whether the node is polyphonic. */
 	bool isPolyphonic() const { return false; }
@@ -79,20 +70,18 @@ struct TestNode
 		prepared = true;
 	}
 
-	void processSingle(float* data, int numChannels)
+	void processFrame(span<float, NumChannels>& data)
 	{
 		data[0] = value;
 	}
 
-	void process(ProcessData& d)
+	void process(ProcessDataFix<NumChannels>& d)
 	{
-		for (int i = 0; i < d.size; i++)
-		{
-			float data[NUM_MAX_CHANNELS];
+		auto frameData = d.toFrameData();
 
-			d.copyToFrameDynamic(data);
-			processSingle(data, d.numChannels);
-			d.copyFromFrameAndAdvanceDynamic(data);
+		while (frameData.next())
+		{
+			processFrame(frameData);
 		}
 	}
 
@@ -117,17 +106,71 @@ struct TestNode
 	const double modValue = 0.666;
 };
 
+namespace TestOps
+{
+using ProcessDataType = snex::Types::ProcessDataFix<2>;
 
+struct Add
+{
+	constexpr static float getDefaultValue() { return 0.0f; }
+	
+	static float op(float op1, float op2)
+	{
+		return op1 + op2;
+	}
+};
 
+struct Mul
+{
+	constexpr static float getDefaultValue() { return 1.0f; }
 
+	static float op(float op1, float op2)
+	{
+		return op1 * op2;
+	}
+};
 
+template <class OpClass, int C> struct Node
+{
+	DECLARE_SNEX_NODE(Node);
 
+	static const int NumChannels = C;
 
+	bool isPolyphonic() const { return false; }
 
+	void reset() {}
+	void handleHiseEvent(HiseEvent& e) {}
 
+	void prepare(PrepareSpecs ps) {}
 
+	void processFrame(span<float, NumChannels>& d)
+	{
+		for (auto& s : d)
+			s = OpClass::op(s, op2);
+	}
 
+	void process(ProcessDataFix<NumChannels>& d)
+	{
+		for (auto& c : d)
+		{
+			for (auto& s : d.toChannelData(c))
+			{
+				auto value = OpClass::op(s, op2);
+				s = value;
+			}
+		}
+	}
 
+	bool handleModulation(double& v) { return false; }
+
+	template <int P> void setParameter(double v)
+	{
+		op2 = (float)v;
+	}
+
+	float op2 = OpClass::getDefaultValue();
+};
+}
 
 struct ScriptNodeTests : public juce::UnitTest
 {
@@ -135,12 +178,54 @@ struct ScriptNodeTests : public juce::UnitTest
 		UnitTest("Scriptnode tests")
 	{};
 
+	template <int N> void testContainerWithNumSamples()
+	{
+		beginTest("Testing containers with " + String(N) + " samples");
+
+		testContainers<1, N>();
+		testContainers<2, N>();
+		testContainers<3, N>();
+		testContainers<4, N>();
+		testContainers<5, N>();
+		testContainers<6, N>();
+		testContainers<7, N>();
+		testContainers<8, N>();
+		testContainers<13, N>();
+		testContainers<16, N>();
+	}
+
 	void runTest() override
 	{
+		testContainerWithNumSamples<1>();
+		testContainerWithNumSamples<2>();
+		testContainerWithNumSamples<8>();
+		testContainerWithNumSamples<128>();
+		testContainerWithNumSamples<37>();
+		
+
+
+		testProcessData<2>(2);
+		testProcessData<3>(7);
+		testProcessData<1>(1);
+		testProcessData<1>(2);
+		testProcessData<2>(1);
+		testProcessData<2>(2);
+		testProcessData<3>(1);
+		testProcessData<3>(2);
+		testProcessData<9>(32);
+		testProcessData<11>(31);
+		testProcessData<6>(941);
+		testProcessData<12>(204);
+
+		
+
 		testRangeTemplates();
 		testParameters();
 		testModWrapper();
 		testProperties();
+		
+
+		
 	}
 
 	struct Dummy
@@ -159,6 +244,8 @@ struct ScriptNodeTests : public juce::UnitTest
 		}
 
 		GET_SELF_AS_OBJECT(Dummy);
+
+		static const int NumChannels = 2;
 
 		template <int P> constexpr static void setParameter(void* obj, double v)
 		{
@@ -215,7 +302,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			parameter::from0to1<Dummy, Dummy::First, testRange> p;
 
 			// Connect the parameter to the dummy node object
-			p.connect(d);
+			p.connect<0>(d);
 
 			// set the parameter to 0.5
 			p.call(0.5);
@@ -240,7 +327,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			auto& obj = chain.get<0>();
 
 			// Connect the chain's macro parameter to the dummy node
-			chain.connect<FirstMacro>(obj);
+			chain.getParameter<FirstMacro>().connect<0>(obj);
 
 			// Call the macro parameter of the chain
 			chain.setParameter<FirstMacro>(0.5);
@@ -266,10 +353,10 @@ struct ScriptNodeTests : public juce::UnitTest
 			auto& d = i.get<0>();
 
 			// Connect the outer chain to the inner chain's parameter
-			o.connect<0>(i);
+			o.getParameter<0>().connect<0>(i);
 
 			// Connect the inner chain's parameter to the Dummy node
-			i.connect<0>(d);
+			i.getParameter<0>().connect<0>(d);
 			
 			// Set the outer parameter and it will propagate through
 			// the nested parameter connections
@@ -307,10 +394,10 @@ struct ScriptNodeTests : public juce::UnitTest
 
 			// connect the first connection in the chain to
 			// the first node
-			c.connect<0, 0>(first);
+			c.getParameter<0>().connect<0>(first);
 
 			// connect the second one to the second node
-			c.connect<0, 1>(second);
+			c.getParameter<0>().connect<1>(second);
 
 			// now set the parameter and it will update both nodes
 			c.setParameter<0>(1.5);
@@ -337,7 +424,7 @@ struct ScriptNodeTests : public juce::UnitTest
 					auto& tn = obj.get<0>();
 
 					tn.setParameter<0>(4.0);
-					obj.connect<0>(tn);
+					obj.getParameter<0>().connect<0>(tn);
 				}
 			};
 
@@ -356,7 +443,7 @@ struct ScriptNodeTests : public juce::UnitTest
 
 			float d[2];
 
-			node.processSingle(d, 2);
+			node.processFrame(d, 2);
 
 			expectEquals<float>(d[0], 0.6f, "parameter set not working");
 		}
@@ -377,20 +464,321 @@ struct ScriptNodeTests : public juce::UnitTest
 		// Connect the modulation output to the target
 		n.connect<0>(target);
 
-		float d[2];
+		snex::Types::span<float, 2> d;
 
 		// Call one of the process methods in order to handle the
 		// modulation
-		n.processSingle(d, 2);
+		n.processFrame(d);
 
 		
 		expectEquals<float>(target.value[Dummy::Second], 0.666, "modulation connection didn't work");
+	}
+
+	
+
+	template <typename T> static void fillWithInc(T& data)
+	{
+		float v = 0.0f;
+
+		for (auto& s : data)
+		{
+			s = v;
+			v += 1.0f;
+		}
+	}
+
+	template <typename T> static float sum(const T& data)
+	{
+		float sum = 0.0f;
+		
+		for (auto& s : data)
+			sum += s;
+
+		return sum;
+	}
+
+	template <typename ProcessDataType, typename FrameDataType> float testProcessData(ProcessDataType& pd, FrameDataType& f, const String& typeName)
+	{
+		int numChannels = pd.getNumChannels();
+		int numSamples = pd.getNumSamples();
+
+		using SpanType = FrameDataType::FrameType;
+
+		expectEquals(numChannels, ((SpanType)f).size(), "frame type mismatch");
+
+		beginTest("Testing " + typeName + "<" + String(numChannels) + "> with " + String(numSamples) + " samples");
+
+		for (auto c : pd)
+			expectEquals(pd.toChannelData(c).size(), numSamples, "iterator block size");
+
+		float v = 0.0f;
+
+		int index = 0;
+
+		while (f.next())
+		{
+			auto firstElementInt = (int)f[0];
+
+			SpanType::wrapped wIndex;
+			wIndex = 9;
+
+			auto wrappedValue = f[wIndex];
+
+			expect(wrappedValue == f[9 % numChannels], "wrapped index works");
+			expect(firstElementInt == index++, "frame processing not interleaved");
+
+			for (auto& s : f)
+				v += s;
+		}
+
+		expectEquals(index, numSamples, "frame processing didn't use all samples");
+
+		return v;
+	}
+
+	template <int NumChannels> void testProcessData(int numSamples)
+	{
+		heap<float> data;
+		data.setSize(NumChannels * numSamples);
+		
+
+		testProcessDataFix<NumChannels>(data);
+		testProcessDataDyn<NumChannels>(data);
+	}
+	
+	template <int NumChannels> void testProcessDataFix(heap<float>& data)
+	{
+		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
+		int numSamples = ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
+
+		ProcessDataFix<NumChannels> pd(cd, numSamples);
+
+		{
+			fillWithInc(data);
+
+			auto f = pd.toFrameData();
+			auto v = testProcessData(pd, f, "ProcessDataFix");
+
+			expectEquals(pd.getNumSamples(), numSamples, "sample divider");
+			expectEquals(v, sum(data), "frame processing doesn't work");
+
+			heap<float> copy;
+			copy.setSize(data.size());
+			ProcessDataHelpers<NumChannels>::copyTo(pd, copy);
+
+			expectEquals<float>(sum(copy), sum(data), "copyTo doesn't work");
+		}
+
+		{
+			fillWithInc(data);
+
+			auto& dpd = pd.as<ProcessDataDyn>();
+
+			auto f = dpd.toFrameData<NumChannels>();
+			auto v = testProcessData(pd, f, "ProcessDataFix -> Dyn");
+
+			expectEquals(dpd.getNumSamples(), numSamples, "sample divider");
+			expectEquals(v, sum(data), "frame processing doesn't work");
+		}
+	
+		ProcessData;
+
+	}
+
+	template <int NumChannels> void testProcessDataDyn(heap<float>& data)
+	{
+		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
+		int numSamples = ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
+
+		ProcessDataDyn pd(cd.begin(), NumChannels, numSamples);
+
+		{
+			fillWithInc(data);
+
+			auto f = pd.toFrameData<NumChannels>();
+			auto v = testProcessData(pd, f, "ProcessDataDyn");
+
+			expectEquals(pd.getNumSamples(), numSamples, "sample divider");
+			expectEquals(v, sum(data), "frame processing doesn't work");
+		}
+
+		{
+			fillWithInc(data);
+
+			auto& fpd = pd.as<ProcessDataFix<NumChannels>>();
+			auto f = fpd.toFrameData();
+
+			auto v = testProcessData(fpd, f, "ProcessDataDyn -> Fix");
+
+			expectEquals(fpd.getNumSamples(), numSamples, "sample divider");
+			expectEquals(v, sum(data), "frame processing doesn't work");
+		}
+	}
+
+	template <int NumSamples, typename T, typename RefData> void expectContainerWorks(T& obj, const String& name, RefData& refData)
+	{
+		constexpr int NumChannels = obj.getNumChannels();
+		using ProcessType = ProcessDataFix<NumChannels>;
+
+		heap<float> data;
+
+		{
+			data.setSize(NumChannels * NumSamples);
+			fillWithInc(data);
+
+			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
+			ProcessType d(cd, NumSamples);
+			obj.process(d);
+		}
+
+		heap<float> singleData;
+
+		{
+			singleData.setSize(NumChannels * NumSamples);
+			fillWithInc(singleData);
+			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(singleData);
+			ProcessType d(cd, NumSamples);
+
+			auto frames = d.toFrameData();
+
+			while (frames.next())
+				obj.processFrame(frames);
+		}
+
+		float sum_ = sum(data);
+		float singleSum_ = sum(singleData);
+
+		int numElements = data.size();
+
+		jassert(refData.size() == numElements);
+
+		String errorName;
+		
+		errorName << String(NumChannels) + " channels: " + name;
+
+		for (int i = 0; i < numElements; i++)
+		{
+			auto pOk = refData[i] == data[i];
+			auto fOk = refData[i] == singleData[i];
+
+			if (!pOk)
+			{
+				expect(false, errorName + "::process doesn't work");
+				break;
+			}
+
+			if (!fOk)
+			{
+				expect(false, errorName + "::processFrame doesn't work");
+				break;
+			}
+		}
+	}
+
+	template <class T, int NumSamples> static T createAndConnect(float firstValue, float secondValue, float thirdValue)
+	{
+		T c;
+
+		c.get<0>().op2 = firstValue;
+		c.get<1>().op2 = secondValue;
+		c.get<2>().op2 = thirdValue;
+
+		PrepareSpecs ps;
+		ps.blockSize = NumSamples;
+		ps.numChannels = c.getNumChannels();
+		ps.sampleRate = 44100.0;
+
+		c.prepare(ps);
+		
+		return c;
+	}
+
+	template <int C, int S> span<float, C * S> makeTestSpan()
+	{
+		constexpr int NumElements = C * S;
+		span<float, NumElements> d;
+		fillWithInc(d);
+		return d;
+	}
+
+	template <int NumChannels, int NumSamples> void testContainers()
+	{
+		using AddType = TestOps::Node<TestOps::Add, NumChannels>;
+		using AddParam = parameter::plain<AddType, 0>;
+		using MulType = TestOps::Node<TestOps::Mul, NumChannels>;
+		using MulParam = parameter::plain<MulType, 0>;
+		using PType = parameter::chain<ranges::Identity, AddParam, MulParam>;
+
+		Random r;
+
+		auto v1 = r.nextFloat();
+		auto v2 = r.nextFloat();
+		auto v3 = r.nextFloat();
+
+		{
+			auto c = createAndConnect<container::chain<PType, AddType, MulType, AddType>, NumSamples>(v1, v2, v3);
+			auto v = makeTestSpan<NumChannels, NumSamples>();
+
+			for (auto& s : v)
+			{
+				s += v1;
+				s *= v2;
+				s += v3;
+			}
+
+			expectContainerWorks<NumSamples>(c, "container::chain", v);
+		}
+
+		{
+			auto c = createAndConnect<container::split<PType, AddType, MulType, AddType>, NumSamples>(v1, v2, v3);
+			auto v = makeTestSpan<NumChannels, NumSamples>();
+			
+			for (auto& s : v)
+			{
+				auto copy = s;
+				s =  copy + v1;
+				s += copy * v2;
+				s += copy + v3;
+			}
+
+			expectContainerWorks<NumSamples>(c, "container::split", v);
+		}
+
+		{
+			auto c = createAndConnect<container::multi<PType, AddType, MulType, AddType>, NumSamples>(v1, v2, v3);
+			auto v = makeTestSpan<NumChannels * 3, NumSamples>();
+			
+			constexpr int NumMultis = 3;
+
+			for(int s = 0; s < NumSamples; s++)
+			{
+				for (int c = 0; c < NumChannels; c++)
+				{
+					int cOffset = NumSamples * c;
+
+					for (int m = 0; m < NumMultis; m++)
+					{
+						int mOffset = NumSamples * NumChannels * m;
+						int posInData = s + mOffset + cOffset;
+						auto& value = v[posInData];
+
+						if (m == 0) value += v1;
+						if (m == 1) value *= v2;
+						if (m == 2) value += v3;
+					}
+				}
+			}
+
+			expectContainerWorks<NumSamples>(c, "container::multi", v);
+		}
 	}
 
 	struct PropertyDummy
 	{
 		double propertyValue = 2.0;
 	};
+
+	
 
 	void testProperties()
 	{

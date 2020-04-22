@@ -14,8 +14,12 @@
 
 
 namespace scriptnode {
+
+
 using namespace juce;
 using namespace hise;
+using namespace snex;
+using namespace snex::Types;
 
 namespace examples
 {
@@ -24,8 +28,6 @@ namespace examples
 */
 namespace hello_world_impl
 {
-
-
 
 /** Let's define a minimal class with all required callbacks. */
 struct processor
@@ -36,7 +38,7 @@ struct processor
 	*/
 	DECLARE_SNEX_NODE(processor);
 
-	
+	static const int NumChannels = 2;
 
 	/** This is optional, but since parameters are identifier by their compile time integer constant
 		we'll use the FirstParameter enum throughout this example for clarity.
@@ -44,6 +46,7 @@ struct processor
 	enum Parameters
 	{
 		FirstParameter = 0,
+		SecondParameter,
 		numParameters
 	};
 
@@ -79,16 +82,20 @@ struct processor
 	}
 
 	/** This method is being called for each signal frame. */
-	void processSingle(float* data, int numChannels)
+	void processFrame(span<float, NumChannels>& data)
 	{
 		data[0] = Math.max(value, 0.0);
 	}
 
 	/** This method is being called to calculate the signal buffer. */
-	void process(ProcessData& d)
+	void process(ProcessDataFix<NumChannels>& d)
 	{
-		// We'll just process the first mono-channel frame and add a DIRAC impulse there.
-		processSingle(d.data[0], 1);
+		auto f = d.toFrameData();
+
+		while (f.next())
+		{
+			f[0] = value;
+		}
 	}
 
 	/** This method will be called in order to calculate the modulation value.
@@ -127,10 +134,15 @@ using FirstParameter = parameter::from0to1<processor,					// the node class
 										   processor::FirstParameter,   // the parameter index
 										   firstParameterRange>;        // the range class
 
+using SecondParameter = parameter::from0to1<processor,					// the node class
+	processor::SecondParameter,   // the parameter index
+	firstParameterRange>;        // the range class
+
+using ParameterType = parameter::chain<ranges::Identity, FirstParameter, SecondParameter>;
 
 // We can't use the node directly, but wrap it into a container so that it can
 // use the properties and parameters (in this example it's a bit overkill)...
-using ChainWrapper = container::chain<FirstParameter, processor>;
+using ChainWrapper = container::chain<ParameterType, processor>;
 
 /** This class will connect the parameters to the objects and defines the ID of this node. */
 struct initialiser
@@ -149,15 +161,17 @@ struct initialiser
 		obj.initialised = true;
 
 		constexpr int processorSize = sizeof(processor);
-		constexpr int parameterSize = sizeof(FirstParameter);
+		constexpr int parameterSize = sizeof(ParameterType);
 		constexpr int chainSize = sizeof(ChainWrapper);
 
 		// As you can see, the container does not add any bytes to the actual
 		// node object...
 		static_assert(chainSize == processorSize + parameterSize , "no fat");
 
-		// Now we'll connect the first parameter to the processor node.
-		c.connect<0>(obj);
+		auto& fp = c.getParameter<0>();
+
+		fp.connect<0>(obj);
+		fp.connect<1>(obj);
 	}
 };
 

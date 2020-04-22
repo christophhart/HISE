@@ -12,7 +12,7 @@ END_TEST_DATA
 
 struct X
 {
-    void processSingle(span<float, 2>& data)
+    void processFrame(span<float, 2>& data)
     {
         data[0] *= 0.5f;
     }
@@ -20,7 +20,7 @@ struct X
 
 struct Y
 {
-    void processSingle(span<float, 2>& data)
+    void processFrame(span<float, 2>& data)
     {
         data[0] += 2.0f;
     }
@@ -32,7 +32,7 @@ span<float, 2> d = { 1.0f, 1.0f };
 
 float main(float input)
 {
-	 c.processSingle(d);
+	 c.processFrame(d);
     
     return d[0];
 }

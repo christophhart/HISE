@@ -10,6 +10,14 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
+struct MyRangeConverter
+{
+	static double from0To1(double input)
+	{
+		return input * 2.0;
+	}
+};
+
 struct OtherTest
 {
 	template <int P> void setParameter(double v)
@@ -39,20 +47,23 @@ DECLARE_PARAMETER_EXPRESSION(TestExpression,  input + 1.0);
 
 using ParameterType1 = parameter::plain<Test, 0>;
 using OtherParameter = parameter::expression<OtherTest, 1, TestExpression>;
+using ParameterChainType = parameter::chain<MyRangeConverter, ParameterType1, OtherParameter>;
 
-parameter::chain<ParameterType1, OtherParameter> pc;
 
-container::chain<Test, OtherTest> c;
+container::chain<ParameterChainType, Test, OtherTest> c;
 
 double main(double input)
 {
 	auto& first = c.get<0>();
 	auto& second = c.get<1>();
 	
-	pc.get<0>().connect(first);
-	pc.get<1>().connect(second);
+	auto& pc = c.getParameter<0>();
 
-	pc.call<0>(2.0);
+	pc.connect<0>(first);
+	pc.connect<1>(second);
+
+	c.setParameter<0>(0.2);
+
 	return c.get<0>().value + c.get<1>().o;
 }
 
