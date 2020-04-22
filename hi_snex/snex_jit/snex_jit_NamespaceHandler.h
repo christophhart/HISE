@@ -182,8 +182,6 @@ public:
 
 	ComplexType::Ptr registerComplexTypeOrReturnExisting(ComplexType::Ptr ptr);
 	ComplexType::Ptr getComplexType(NamespacedIdentifier id);
-	VariadicSubType::Ptr getVariadicTypeForId(NamespacedIdentifier id) const;
-	bool isTemplatedMethod(NamespacedIdentifier functionId) const;
 
 	bool changeSymbolType(NamespacedIdentifier id, SymbolType newType);
 
@@ -197,13 +195,7 @@ public:
 	void addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType);
 
 	Result addConstant(const NamespacedIdentifier& id, const VariableStorage& v);
-	
 	Result setTypeInfo(const NamespacedIdentifier& id, SymbolType expectedType, const TypeInfo& t);
-
-	void addVariadicType(VariadicSubType::Ptr p)
-	{
-		variadicTypes.add(p);
-	}
 
 	static bool isConstantSymbol(SymbolType t);
 
@@ -267,7 +259,7 @@ private:
 	TypeInfo getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const;
 
 	ReferenceCountedArray<ComplexType> complexTypes;
-	ReferenceCountedArray<VariadicSubType> variadicTypes;
+
 	Array<TemplateObject> templateClassIds;
 	Array<TemplateObject> templateFunctionIds;
 

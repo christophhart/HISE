@@ -285,6 +285,9 @@ struct StructType : public ComplexType,
 	bool isNativeMember(const Identifier& id) const;
 	ComplexType::Ptr getMemberComplexType(const Identifier& id) const;
 	size_t getMemberOffset(const Identifier& id) const;
+
+	size_t getMemberOffset(int index) const; 
+
 	void addJitCompiledMemberFunction(const FunctionData& f);
 
 	Symbol getMemberSymbol(const Identifier& id) const;
@@ -334,7 +337,7 @@ struct StructType : public ComplexType,
 		isExternalDefinition = true;
 	}
 
-	void addMember(const Identifier& id, const TypeInfo& typeInfo, size_t offset = 0)
+	void addMember(const Identifier& id, const TypeInfo& typeInfo)
 	{
 		jassert(!isFinalised());
 
@@ -352,8 +355,6 @@ struct StructType : public ComplexType,
 			}
 		}
 		
-		
-
 		auto nm = new Member();
 		nm->id = id;
 		nm->typeInfo = toUse;
@@ -406,70 +407,6 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StructType);
 };
-
-
-struct VariadicTypeBase : public ComplexType
-{
-	VariadicTypeBase(VariadicSubType::Ptr subType);;
-
-	virtual ~VariadicTypeBase() {};
-
-	static VariadicTypeBase* getVariadicObjectFromInlineData(InlineData* d);
-
-	int getNumSubTypes() const;
-	void addType(ComplexType::Ptr newType);
-	size_t getOffsetForSubType(int index) const;
-	ComplexType::Ptr getSubType(int index) const;
-
-	size_t getRequiredByteSize() const override;
-	size_t getRequiredAlignment() const override;
-
-	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const override
-	{
-		if (!allowSmallObjectOptimisation)
-			return ComplexType::getRegisterType(false);
-
-		int numSubTypesWithData = 0;
-
-		for (auto t : types)
-		{
-			if (t->getRequiredByteSize() != 0)
-				numSubTypesWithData++;
-		}
-
-		if (numSubTypesWithData != 1)
-			return ComplexType::getRegisterType(false);
-
-		for (auto t : types)
-		{
-			if (t->getRequiredByteSize() != 0)
-				return t->getRegisterType(allowSmallObjectOptimisation);
-		}
-
-		jassertfalse;
-		return ComplexType::getRegisterType(false);
-	}
-
-	void finaliseAlignment() override;;
-	void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const override;
-	Result initialise(InitData data) override;
-	InitialiserList::Ptr makeDefaultInitialiserList() const override;
-	bool forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer) override;
-	FunctionClass* getFunctionClass() override;
-	juce::String toStringInternal() const override;;
-
-	NamespacedIdentifier getVariadicId() const { return type->variadicId; }
-
-private:
-
-	VariadicSubType::Ptr type;
-	ReferenceCountedArray<ComplexType> types;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VariadicTypeBase);
-};
-
-
-
 
 
 #define CREATE_SNEX_STRUCT(x) new StructType(NamespacedIdentifier(#x));

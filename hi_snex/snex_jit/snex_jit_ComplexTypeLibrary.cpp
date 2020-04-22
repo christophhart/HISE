@@ -878,211 +878,6 @@ snex::jit::ComplexType::Ptr DynType::createSubType(SubTypeConstructData* sd)
 	return nullptr;
 }
 
-VariadicTypeBase::VariadicTypeBase(VariadicSubType::Ptr subType) : type(subType)
-{
-	type->variadicType = this;
-}
-
-size_t VariadicTypeBase::getRequiredByteSize() const
-{
-	size_t s = 0;
-
-	for (auto t : types)
-		s += t->getRequiredByteSize();
-
-	return s;
-}
-
-snex::jit::VariadicTypeBase* VariadicTypeBase::getVariadicObjectFromInlineData(InlineData* d)
-{
-	if (auto rt = dynamic_cast<ReturnTypeInlineData*>(d))
-	{
-		if (rt->object == nullptr)
-		{
-			jassertfalse;
-			return nullptr;
-		}
-
-		auto t = rt->object->getTypeInfo().getTypedIfComplexType<VariadicTypeBase>();
-		jassert(t != nullptr);
-		return t;
-	}
-
-	if (d->isHighlevel())
-	{
-		auto treeData = dynamic_cast<SyntaxTreeInlineData*>(d);
-
-		if (treeData->object == nullptr)
-		{
-			jassertfalse;
-			return nullptr;
-		}
-
-		auto t = treeData->object->getTypeInfo().getTypedIfComplexType<VariadicTypeBase>();
-		jassert(t != nullptr);
-		return t;
-	}
-	else
-	{
-		auto asmData = dynamic_cast<AsmInlineData*>(d);
-
-		if (asmData->object == nullptr)
-		{
-			jassertfalse;
-			return nullptr;
-		}
-
-		auto t = asmData->object.get()->getTypeInfo().getTypedIfComplexType<VariadicTypeBase>();
-		jassert(t != nullptr);
-
-		return t;
-	}
-}
-
-
-int VariadicTypeBase::getNumSubTypes() const
-{
-	return types.size();
-}
-
-void VariadicTypeBase::addType(ComplexType::Ptr newType)
-{
-	types.add(newType);
-}
-
-size_t VariadicTypeBase::getOffsetForSubType(int index) const
-{
-	size_t bytes = 0;
-
-	for (int i = 0; i < jmin(types.size(), index); i++)
-	{
-		bytes += types[i]->getRequiredByteSize();
-	}
-
-	return bytes;
-}
-
-snex::jit::FunctionClass* VariadicTypeBase::getFunctionClass()
-{
-	auto fc = new FunctionClass(type->variadicId);
-
-	for (const auto& f : type->functions)
-	{
-		fc->addFunction(new FunctionData(f));
-	}
-
-	return fc;
-}
-
-juce::String VariadicTypeBase::toStringInternal() const
-{
-	juce::String s;
-	s << type->variadicId.toString() << "<";
-
-	for (auto t : types)
-	{
-		s << t->toString();
-
-		if (t == types.getLast().get())
-			s << ">";
-		else
-			s << ",";
-	}
-
-	return s;
-}
-
-size_t VariadicTypeBase::getRequiredAlignment() const
-{
-	if (types.isEmpty())
-		return 0;
-	else
-		return types.getFirst()->getRequiredAlignment();
-}
-
-
-void VariadicTypeBase::finaliseAlignment()
-{
-	for (auto t : types)
-		t->finaliseAlignment();
-
-	ComplexType::finaliseAlignment();
-}
-
-void VariadicTypeBase::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const
-{
-	s << "variadic template " << toString() << "\n";
-
-	intentLevel++;
-
-	auto bytePtr = (uint8*)complexTypeStartPointer;
-
-	for (int i = 0; i < types.size(); i++)
-	{
-		auto thisPtr = bytePtr + getOffsetForSubType(i);
-		types[i]->dumpTable(s, intentLevel, dataStart, thisPtr);
-	}
-
-	intentLevel--;
-}
-
-juce::Result VariadicTypeBase::initialise(InitData d)
-{
-	uint8* bytePtr = reinterpret_cast<uint8*>(d.dataPointer);
-
-	if (d.initValues->size() != types.size())
-		return Result::fail("initialiser amount mismatch.");
-
-	for (int i = 0; i < types.size(); i++)
-	{
-		auto childType = types[i];
-
-		InitData c;
-
-		c.asmPtr = d.asmPtr;
-		c.dataPointer = bytePtr;
-		c.initValues = d.initValues->getChild(i);
-
-		auto r = childType->initialise(c);
-
-		if (!r.wasOk())
-			return r;
-
-		bytePtr += childType->getRequiredByteSize();
-	}
-
-	return Result::ok();
-}
-
-snex::InitialiserList::Ptr VariadicTypeBase::makeDefaultInitialiserList() const
-{
-	InitialiserList::Ptr p = new InitialiserList();
-
-	for (auto t : types)
-		p->addChildList(t->makeDefaultInitialiserList());
-
-	return p;
-}
-
-bool VariadicTypeBase::forEach(const TypeFunction& t, Ptr typePtr, void* dataPointer)
-{
-	if (typePtr.get() == this)
-		return t(typePtr, dataPointer);
-
-	for (auto childType : types)
-	{
-		if (childType->forEach(t, typePtr, dataPointer))
-			return true;
-	}
-
-	return false;
-}
-
-snex::jit::ComplexType::Ptr VariadicTypeBase::getSubType(int index) const
-{
-	return types[index];
-}
-
 StructType::StructType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp) :
 	id(s),
 	templateParameters(tp)
@@ -1510,6 +1305,18 @@ size_t StructType::getMemberOffset(const Identifier& id) const
 	{
 		if (m->id == id)
 			return m->padding + m->offset;
+	}
+
+	jassertfalse;
+	return 0;
+}
+
+size_t StructType::getMemberOffset(int index) const
+{
+	if (isPositiveAndBelow(index, memberData.size()))
+	{
+		auto m = memberData[index];
+		return m->offset + m->padding;
 	}
 
 	jassertfalse;

@@ -1422,17 +1422,6 @@ class NamespaceHandler;
  
 struct InlineData;
 
-struct VariadicSubType : public ReferenceCountedObject
-{
-	using Ptr = ReferenceCountedObjectPtr<VariadicSubType>;
-
-	ComplexType::WeakPtr variadicType;
-	NamespacedIdentifier variadicId;
-	Array<FunctionData> functions;
-	bool isTemplateClass = false;
-};
-
-
 /** A function class is a collection of functions. */
 struct FunctionClass: public DebugableObjectBase,
 					  public ReferenceCountedObject

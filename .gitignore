@@ -70,3 +70,6 @@ hi_modules/nodes/CustomNodeInclude.cpp
 tools/rlottie/rLottie Demo/Builds/VisualStudio2017/resources.rc
 tools/rlottie/rLottie Demo/Builds/
 tools/rlottie/rLottie Demo/JuceLibraryCode/
+hi_snex/html/
+hi_snex/latex/classsnex_1_1_types_1_1_channel_ptr.tex
+hi_snex/latex/

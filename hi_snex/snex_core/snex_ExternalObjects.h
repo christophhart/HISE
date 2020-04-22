@@ -132,7 +132,7 @@ struct ScriptnodeCallbacks
 	{
 		ResetFunction,
 		ProcessFunction,
-		ProcessSingleFunction,
+		ProcessFrameFunction,
 		PrepareFunction,
 		HandleEventFunction,
 		numFunctions
@@ -152,137 +152,6 @@ using sdouble = _ramp<double>;
 using namespace Types;
 
 
-template <int NumChannels> struct ProcessDataFix
-{
-	
-
-	struct FrameProcessor
-	{
-		FrameProcessor(ProcessDataFix<NumChannels>& parent)
-		{
-			frameLimit = parent.data[0].size();
-
-			for (int i = 0; i < NumChannels; i++)
-			{
-				channels[i] = parent.data[i].begin();
-			}
-
-			loadFrame();
-		}
-
-		float& operator[](int index)
-		{
-			return frameData[index];
-		}
-
-		const float& operator[](int index) const
-		{
-			return frameData[index];
-		}
-
-		int next()
-		{
-			return ProcessDataFix::nextFrame(this);
-		}
-
-	private:
-
-		friend class ProcessDataFix;
-
-		void loadFrame()
-		{
-			for (int i = 0; i < NumChannels; i++)
-			{
-				frameData[i] = channels[i][frameIndex];
-			};
-		}
-
-		void writeLastFrame()
-		{
-			jassert(frameIndex > 0);
-
-			for (int i = 0; i < NumChannels; i++)
-			{
-				channels[i][frameIndex-1] = frameData[i];
-			}
-		}
-
-		float* channels[NumChannels];
-		span<float, NumChannels> frameData;
-		int frameLimit = 0;
-		int frameIndex = 0;
-	};
-
-	static int nextFrame(void* obj)
-	{
-		auto fp = static_cast<FrameProcessor*>(obj);
-
-		if (fp->frameIndex == 0)
-		{
-			++fp->frameIndex;
-			return fp->frameLimit;
-		}
-
-		fp->writeLastFrame();
-
-		if (fp->frameIndex < fp->frameLimit)
-		{
-			fp->loadFrame();
-			++fp->frameIndex;
-			return 1;
-		}
-
-		return 0;
-	}
-
-	dyn<float>* begin() const
-	{
-		return data.begin();
-	}
-
-	dyn<float>* end() const
-	{
-		return data.end();
-	}
-
-	FrameProcessor toFrameData()
-	{
-		return FrameProcessor(*this);
-	}
-
-	Types::span<Types::dyn<float>, NumChannels> data;
-	Types::dyn<HiseEvent> events;
-	int voiceIndex = -1;
-	int shouldReset = 0;
-};
-
-struct ProcessDataDyn
-{
-	float* channelData[NUM_MAX_CHANNELS];
-	HiseEventBuffer* b;
-	int numChannels = 0;
-	int numSamples;
-	int voiceIndex = -1;
-	int shouldReset = 0;
-
-	template <int NumChannels, int Offset = 0> ProcessDataFix<NumChannels> toFix()
-	{
-		jassert(Offset + NumChannels <= numChannels);
-
-		ProcessDataFix<NumChannels> f;
-		f.events = dyn<HiseEvent>(b->begin(), b->getNumUsed());
-		f.voiceIndex = voiceIndex;
-		f.shouldReset = shouldReset;
-
-		for (int i = 0; i < NumChannels; i++)
-		{
-			f.data[i] = block(channelData[i + Offset], numSamples);
-		}
-
-		return f;
-	}
-};
-
 struct PrepareSpecs
 {
 	double sampleRate = 0.0;
@@ -298,11 +167,7 @@ struct PrepareSpecs
 struct SnexObjectDatabase
 {
 	static void registerObjects(Compiler& c, int numChannels);
-
-	static void addVariadicGet(VariadicSubType* variadicType);
-
 	static void createProcessData(Compiler& c, const TypeInfo& eventType);
-
 	static void registerParameterTemplate(Compiler& c);
 };
 

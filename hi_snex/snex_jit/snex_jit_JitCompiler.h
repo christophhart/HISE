@@ -143,10 +143,7 @@ public:
 	ComplexType::Ptr getComplexType(const NamespacedIdentifier& s, const Array<TemplateParameter>& tp = {});
 
 	void addConstant(const NamespacedIdentifier& s, const VariableStorage& v);
-
 	void addTemplateClass(const TemplateObject& c);
-
-	void registerVariadicType(VariadicSubType::Ptr p);
 
 	NamespaceHandler& getNamespaceHandler();
 

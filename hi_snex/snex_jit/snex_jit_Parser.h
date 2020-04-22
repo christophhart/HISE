@@ -263,21 +263,6 @@ private:
 				return true;
 			}
 
-			if (auto vId = namespaceHandler.getVariadicTypeForId(nId))
-			{
-				auto newType = new VariadicTypeBase(vId);
-
-				auto tp = parseTemplateParameters();
-
-				for (auto p : tp)
-					newType->addType(p.type.getComplexType());
-
-				currentTypeInfo = TypeInfo(namespaceHandler.registerComplexTypeOrReturnExisting(newType));
-
-				parseSubType();
-				return true;
-			}
-
 			if (auto typePtr = namespaceHandler.getComplexType(nId))
 			{
 				currentTypeInfo = TypeInfo(typePtr);

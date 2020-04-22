@@ -49,6 +49,7 @@ using namespace asmjit;
 struct TemplateClassBuilder
 {
 	using StatementPtr = Operations::Statement::Ptr;
+	using StatementList = Operations::Statement::List;
 
 	/** A function prototype that returns a function for the given struct type. */
 	using FunctionBuilder = std::function<FunctionData(StructType*)>;
@@ -60,7 +61,7 @@ struct TemplateClassBuilder
 	TemplateClassBuilder(Compiler& compiler, const NamespacedIdentifier& parameterName);
 
 	/** Call this to register the template class at the compiler. */
-	void flush();
+	virtual void flush();
 
 	
 	/** Adds an integer template argument with the given id. */
@@ -99,10 +100,8 @@ struct TemplateClassBuilder
 		static StatementPtr createBlock(SyntaxTreeInlineData* d);
 
 		/** Just returns a identifier for the (variadic) member called eg. "_p12". */
-		static Identifier getMemberIdFromIndex(int index);
-
 		/** Creates a function call to the member function of the given type. */
-		static StatementPtr createFunctionCall(StructType* converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementPtr input);
+		static StatementPtr createFunctionCall(StructType* converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs);
 
 		/** This adds the object pointer to the member at the given memberIndex position. */
 		static void addChildObjectPtr(StatementPtr newCall, SyntaxTreeInlineData* d, StructType* parentType, int memberIndex);
@@ -123,6 +122,15 @@ struct TemplateClassBuilder
 		*/
 		static FunctionData getFunction(StructType* st);
 
+
+		static Identifier getVariadicMemberIdFromIndex(int index)
+		{
+			String p = "_p" + String(index + 1);
+			return Identifier(p);
+		}
+
+
+
 		/** Creates members from the variadic template arguments.
 
 			If your template has some fixed arguments, you can supply the Offset to make sure that
@@ -137,18 +145,26 @@ struct TemplateClassBuilder
 					return;
 
 				auto t = cd.tp[i].type;
-				st->addMember(Helpers::getMemberIdFromIndex(i), t);
+				st->addMember(getVariadicMemberIdFromIndex(i-Offset), t);
 			}
 		}
 
 		static StatementPtr callEachMember(SyntaxTreeInlineData* d, StructType* st, const Identifier& functionId, int offset=0);
 	};
 
+	void addInitFunction(const InitialiseStructFunction& f)
+	{
+		additionalInitFunctions.add(f);
+	}
+
 protected:
 
 	TemplateObject createTemplateObject();
 	
 	InitialiseStructFunction initFunction;
+
+	Array<InitialiseStructFunction> additionalInitFunctions;
+
 	Compiler& c;
 	Array<FunctionBuilder> functionBuilders;
 	NamespacedIdentifier id;
@@ -161,7 +177,6 @@ struct ParameterBuilder : public TemplateClassBuilder
 	ParameterBuilder(Compiler& c, const Identifier& id):
 		TemplateClassBuilder(c, NamespacedIdentifier("parameter").getChildId(id))
 	{
-		functionBuilders.add(Helpers::connectFunction);
 		initFunction = Helpers::initSingleParameterStruct;
 	}
 
@@ -177,10 +192,78 @@ struct ParameterBuilder : public TemplateClassBuilder
 
 		/** This function builder creates the connect function that sets the member pointer to the given target. */
 		static FunctionData connectFunction(StructType* st);
+
+		static bool isParameterClass(const TypeInfo& type);
+
+		static void forwardToListElements(StructType* parent, const TemplateParameter::List& list, StructType** parameterType, int& index)
+		{
+			index = 0;
+			*parameterType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(parent, index);
+
+			if ((*parameterType)->id.getIdentifier() == Identifier("list"))
+			{
+				index = list[0].constant;
+				*parameterType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(*parameterType, index);
+			}
+		}
+
+		static int getParameterListOffset(StructType* container, int index)
+		{
+			auto parameterType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(container, 0);
+
+			jassert(isParameterClass(TypeInfo(parameterType)));
+
+			if (parameterType->id.getIdentifier() == Identifier("list"))
+			{
+				return parameterType->getMemberOffset(index);
+			}
+			else
+			{
+				jassert(index == 0);
+				return 0;
+			}
+		}
 	};
+
+	void setConnectFunction(const FunctionBuilder& f=Helpers::connectFunction)
+	{
+		addFunction(f);
+	}
+};
+
+
+struct ContainerNodeBuilder : public TemplateClassBuilder
+{
+	ContainerNodeBuilder(Compiler& c, const Identifier& id, int numChannels_);
+
+	void addHighLevelInliner(const Identifier& functionId, const Inliner::Func& inliner);
+
+	void addAsmInliner(const Identifier& functionId, const Inliner::Func& inliner);
+
+	void deactivateCallback(const Identifier& id);
+
+	void flush() override;
 
 	
 
+	struct Helpers
+	{
+		static Result defaultForwardInliner(InlineData* b);
+
+		static StructType* getStructTypeFromInlineData(InlineData* b);
+		static Identifier getFunctionIdFromInlineData(InlineData* b);
+
+		static FunctionData getParameterFunction(StructType* st);
+		static FunctionData setParameterFunction(StructType* st);
+	};
+
+private:
+
+
+	bool isScriptnodeCallback(const Identifier& id) const;
+
+	Array<FunctionData> callbacks;
+	int numChannels;
 };
 
 

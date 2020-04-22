@@ -251,6 +251,13 @@ public:
 
 	static constexpr int NumChannels = 2;
 
+	using ProcessType = Types::ProcessDataFix<NumChannels>;
+
+	ProcessType::ChannelDataType makeChannelData()
+	{
+		return Types::ProcessDataHelpers<NumChannels>::makeChannelData(data);
+	}
+
 	ProcessTestCase(UnitTest* test, GlobalScope& memory, const juce::String& code)
 	{
 		HiseEventBuffer b;
@@ -263,16 +270,11 @@ public:
 		b.addEvent(on);
 		b.addEvent(off);
 
-		memset(data, 0, sizeof(float) * 64 * NumChannels);
-
-		for (int i = 0; i < NumChannels; i++)
-		{
-			d.data[i] = block(data + 64 * i, 64);
-		}
-
+		auto cd = Types::ProcessDataHelpers<NumChannels>::makeChannelData(data);
+		int numSamples = Types::ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
+		ProcessType d(cd, numSamples);
 		
-		d.events = { b.begin(), (size_t)b.getNumUsed() };
-		d.voiceIndex = {};
+		d.setEventBuffer(b);
 
 		using T = void;
 
@@ -290,8 +292,7 @@ public:
 		v = f.call<int>(&d);
 	}
 
-	Types::ProcessDataFix<NumChannels> d;
-	float data[128];
+	Types::span<float, 128> data;
 	int v;
 };
 
@@ -922,6 +923,25 @@ public:
 
 	void runTest() override
 	{
+		//optimizations = OptimizationIds::getAllIds();
+
+		
+		
+
+		runTestFiles("plain_parameter_in_chain");
+
+		
+
+		runTestFiles("unroll_1");
+		runTestFiles("local_span_anonymous_scope");
+		runTestFiles("plain_parameter");
+		runTestFiles("parameter_expression");
+		runTestFiles("parameter_chain");
+		
+		runTestFiles("parameter_mixed");
+
+		return;
+
 		testEvents();
 		testProcessData();
 		testEvents();
@@ -1852,8 +1872,11 @@ private:
 		{
 			ProcessTestCase test(this, memory, "int test(ProcessData<NumChannels>& d) {block::wrapped i; d.data[0][i] = 19.0f; d.data[1][i.moved(3)] = 24.0f; return 2;}");
 
-			auto actual = test.d.data[0][0];
-			auto actual2 = test.d.data[1][3];
+
+			auto cd = test.makeChannelData();
+
+			auto actual = cd[0][0];
+			auto actual2 = cd[1][3];
 
 			expectEquals<float>(actual, 19.0f, "first");
 			expectEquals<float>(actual2, 24.0f, "second");

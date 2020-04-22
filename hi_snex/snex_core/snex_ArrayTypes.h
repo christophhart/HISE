@@ -66,6 +66,11 @@ struct DSP
 	}
 };
 
+/** A fixed-size array type for SNEX. 
+
+	The span type is an iteratable compile-time array.
+
+*/
 template <class T, int MaxSize> struct span
 {
 	using DataType = T;
@@ -370,6 +375,12 @@ template <class T, int MaxSize> struct span
 		return data[index];
 	}
 
+	/** Morphs any pointer of the data type into this type. */
+	constexpr static Type& as(T* ptr)
+	{
+		return *reinterpret_cast<Type*>(ptr);
+	}
+
 	T& operator[](int index)
 	{
 		return data[index];
@@ -536,12 +547,16 @@ template <class T> struct dyn
 	template<class Other> dyn(Other& o) :
 		data(o.begin()),
 		size_(o.end() - o.begin())
-	{}
+	{
+		static_assert(std::is_same<DataType, Other::DataType>(), "not same data type");
+	}
 
 	template<class Other> dyn(Other& o, size_t s_) :
 		data(o.begin()),
 		size_(s_)
-	{}
+	{
+		static_assert(std::is_same<DataType, Other::DataType>(), "not same data type");
+	}
 
 	dyn(juce::HeapBlock<T>& d, size_t s_):
 		data(d.get()),
@@ -632,12 +647,79 @@ template <class T> struct dyn
 		return const_cast<T*>(data) + size();
 	}
 
+	bool isEmpty() const noexcept { return size() == 0; }
+
 	int size() const noexcept { return size_; }
+
+	template <typename OtherContainer> void copyTo(OtherContainer& t)
+	{
+		jassert(size() <= t.size());
+		int numBytesToCopy = size() * sizeof(T);
+		memcpy(t.begin(), begin(), numBytesToCopy);
+	}
+
+	template <typename OtherContainer> void copyFrom(const OtherContainer& t)
+	{
+		jassert(size() >= t.size());
+		int numBytesToCopy = t.size() * sizeof(T);
+		memcpy(begin(), t.begin(), numBytesToCopy);
+	}
 
 	int unused = Types::ID::Block;
 	int size_ = 0;
 	T* data;
 
+};
+
+
+template <typename T> struct heap
+{
+	using Type = heap<T>;
+	using DataType = T;
+
+	int size() const noexcept { return size_; }
+
+	bool isEmpty() const noexcept { return size() == 0; }
+
+	void setSize(int numElements)
+	{
+		if (numElements != size())
+		{
+			data.allocate(numElements, true);
+			size_ = numElements;
+		}
+	}
+
+	T& operator[](int index)
+	{
+		return *(begin() + index);
+	}
+
+	const T& operator[](int index) const
+	{
+		return *(begin() + index);
+	}
+
+	T* begin() const { return data.get();  }
+	T* end() const { return data + size(); }
+
+	template <typename OtherContainer> void copyTo(OtherContainer& t)
+	{
+		jassert(size() <= t.size());
+		int numBytesToCopy = size() * sizeof(T);
+		memcpy(t.begin(), begin(), numBytesToCopy);
+	}
+
+	template <typename OtherContainer> void copyFrom(const OtherContainer& t)
+	{
+		jassert(size() >= t.size());
+		int numBytesToCopy = t.size() * sizeof(T);
+		memcpy(begin(), t.begin(), numBytesToCopy);
+	}
+
+	int unused = Types::ID::Block;
+	int size_ = 0;
+	juce::HeapBlock<T> data;
 };
 
 namespace Interleaver

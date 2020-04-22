@@ -274,211 +274,6 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 	return obj;
 }
 
-struct ResetData
-{
-	static Identifier getId() { RETURN_STATIC_IDENTIFIER("reset"); }
-
-	static void fillSignature(Compiler&, FunctionData& d, const TemplateParameter::List& tp)
-	{
-		d.returnType = TypeInfo(Types::ID::Void);
-	}
-};
-
-struct ProcessSingleData
-{
-	static Identifier getId() { RETURN_STATIC_IDENTIFIER("processSingle"); }
-
-	static void fillSignature(Compiler& c, FunctionData& d, const TemplateParameter::List& tp)
-	{
-		ComplexType::Ptr st = new SpanType(TypeInfo(Types::ID::Float), tp[0].constant);
-		c.registerExternalComplexType(st);
-
-		d.returnType = TypeInfo(Types::ID::Void);
-		d.addArgs("frameData", TypeInfo(st, false));
-	}
-};
-
-
-
-struct ProcessFunctionData
-{
-	static Identifier getId() { RETURN_STATIC_IDENTIFIER("process"); };
-
-	static void fillSignature(Compiler& c, FunctionData& d, const TemplateParameter::List& tp)
-	{
-		auto pId = NamespacedIdentifier("ProcessData");
-		auto st =  c.getComplexType(pId, tp);
-
-		jassert(st != nullptr);
-		
-
-		d.returnType = TypeInfo(Types::ID::Void);
-		d.addArgs("data", TypeInfo(st, false, true));
-	}
-};
-
-
-
-struct PrepareData
-{
-	static Identifier getId() { RETURN_STATIC_IDENTIFIER("prepare"); }
-
-	static void fillSignature(Compiler& c, FunctionData& d, const TemplateParameter::List& tp)
-	{
-		auto prepareSpecId = NamespacedIdentifier("PrepareSpecs");
-
-		auto st = dynamic_cast<StructType*>(c.getComplexType(prepareSpecId).get());
-
-		jassert(st != nullptr);
-
-		d.returnType = TypeInfo(Types::ID::Void);
-		d.addArgs("ps", TypeInfo(st));
-	}
-
-	
-};
-
-template <class FunctionType> struct VariadicFunctionInliner
-{
-	static FunctionData create(Compiler& c, const TemplateParameter::List& tp)
-	{
-		FunctionData d;
-
-		d.id = getId();
-		d.inliner = new Inliner(getId(), asmInline, highLevelInline);
-		FunctionType::fillSignature(c, d, tp);
-
-		return d;
-	}
-
-	static NamespacedIdentifier getId() { return NamespacedIdentifier(FunctionType::getId()); }
-
-	static juce::Result asmInline(InlineData* d_)
-	{
-		auto id = FunctionType::getId();
-
-		auto d = d_->toAsmInlineData();
-		auto& cc = d->gen.cc;
-
-		if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(d))
-		{
-			auto childPtr = d->gen.registerPool->getNextFreeRegister(d->object->getScope(), TypeInfo(vt));
-
-			if (d->object->isMemoryLocation())
-				childPtr->setCustomMemoryLocation(d->object->getAsMemoryLocation(), false);
-			else
-			{
-				auto mem = x86::ptr(PTR_REG_R(d->object));
-				childPtr->setCustomMemoryLocation(mem, false);
-			}
-
-			for (int i = 0; i < vt->getNumSubTypes(); i++)
-			{
-				Array<FunctionData> matches;
-				auto childType = vt->getSubType(i);
-				childPtr->changeComplexType(childType);
-
-				if (FunctionClass::Ptr sfc = childType->getFunctionClass())
-				{
-					sfc->addMatchingFunctions(matches, sfc->getClassName().getChildId(getId().id));
-
-					if (matches.size() == 1)
-					{
-						auto f = matches.getFirst();
-
-						if (!sfc->injectFunctionPointer(f))
-						{
-							if (!f.inliner)
-								return Result::fail("Can't resolve function call");
-						}
-
-						auto r = d->gen.emitFunctionCall(d->target, f, childPtr, d->args);
-
-						if (!r.wasOk())
-							return r;
-
-						auto childSize = childType->getRequiredByteSize();
-						auto mem = childPtr->getMemoryLocationForReference().cloneAdjusted(childSize);
-						childPtr->setCustomMemoryLocation(mem, false);
-					}
-				}
-
-				if (matches.isEmpty())
-				{
-					juce::String s;
-					s << childType->toString() << " does not have method " << getId().toString();
-					return Result::fail(s);
-				}
-			}
-
-			childPtr->flagForReuse();
-		}
-
-		return Result::ok();
-	}
-
-	static juce::Result highLevelInline(InlineData* b)
-	{
-		auto d = b->toSyntaxTreeData();
-
-		if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(b))
-		{
-			ScopedPointer<Operations::StatementBlock> sb = new Operations::StatementBlock(d->location, d->path);
-
-			for (int i = 0; i < vt->getNumSubTypes(); i++)
-			{
-				TemplateParameter tp;
-				tp.constant = i;
-
-				auto clonedBase = d->object->clone(d->location);
-				auto type = TypeInfo(vt->getSubType(i));
-				auto offset = vt->getOffsetForSubType(i);
-
-				FunctionClass::Ptr fc = type.getComplexType()->getFunctionClass();
-
-				auto id = fc->getClassName().getChildId(getId().getIdentifier());
-				TypeInfo t;
-
-
-				Array<FunctionData> matches;
-				fc->addMatchingFunctions(matches, id);
-
-				if (matches.isEmpty())
-				{
-					juce::String s;
-					s << type.toString() << " does not have a method " << getId().toString();
-					return Result::fail(s);
-				}
-				if (matches.size() == 1)
-				{
-					t = matches.getFirst().returnType;
-				}
-
-				auto f = new Operations::FunctionCall(d->location, nullptr, Symbol(id, t), {});
-
-				Operations::Expression::Ptr obj = new Operations::MemoryReference(d->location, dynamic_cast<Operations::Expression*>(clonedBase.get()), type, offset);
-
-				f->setObjectExpression(obj);
-
-				auto originalFunctionCall = dynamic_cast<Operations::FunctionCall*>(d->expression.get());
-
-				jassert(originalFunctionCall != nullptr);
-
-				for (int i = 0; i < originalFunctionCall->getNumArguments(); i++)
-				{
-					auto argClone = originalFunctionCall->getArgument(i)->clone(d->location);
-					f->addArgument(dynamic_cast<Operations::Expression*>(argClone.get()));
-				}
-
-				sb->addStatement(f);
-			}
-
-			d->target = sb.release();
-		}
-
-		return Result::ok();
-	}
-};
 
 #define REGISTER_CPP_CLASS(compiler, className) c.registerExternalComplexType(className::createComplexType(c, #className));
 
@@ -531,235 +326,38 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	auto prototypes = ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
 
 	{
-		TemplateObject midi;
 		auto mId = NamespacedIdentifier("wrap").getChildId("midi");
-		midi.id = mId;
-		midi.argList.add(TemplateParameter(mId.getChildId("T")));
+		TemplateClassBuilder midi(c, mId);
 
-		midi.makeClassType = [prototypes](const TemplateObject::ConstructData& d)
+
+		midi.addTypeTemplateParameter("T");
+		
+		midi.setInitialiseStructFunction([prototypes](const TemplateObject::ConstructData& cd, StructType* st)
 		{
-			ComplexType::Ptr ptr;
-
-			if (!d.expectTemplateParameterAmount(1))
-				return ptr;
-
-			if (!d.expectIsComplexType(0))
-				return ptr;
-			
-
-			auto T = d.tp[0];
-			T.argumentId = d.id.getChildId("T");
-
-			auto st = new StructType(d.id, T);
-
-			st->addMember("obj", d.tp[0].type, 0);
-			st->finaliseExternalDefinition();
+			st->addMember("obj", cd.tp[0].type);
 
 			for (auto p : prototypes)
-			{
 				st->addWrappedMemberMethod("obj", p);
-			}
-			
-			ptr = st;
-
-			return ptr;
-		};
-
-		c.addTemplateClass(midi);
-	}
-
-
-	{
-		VariadicSubType::Ptr chainType = new VariadicSubType();
-		chainType->variadicId = NamespacedIdentifier("container").getChildId("chain");
-
-		{
-
-			
-
-			chainType->functions.add(VariadicFunctionInliner<ResetData>::create(c, {}));
-			chainType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c, {ct}));
-			chainType->functions.add(VariadicFunctionInliner<PrepareData>::create(c, {ct}));
-			chainType->functions.add(VariadicFunctionInliner<ProcessFunctionData>::create(c, {ct}));
-		}
-
-		{
-			addVariadicGet(chainType);
-		}
-
-
-		c.registerVariadicType(chainType);
-	}
-
-	{
-		auto frameType = new VariadicSubType();
-		frameType->variadicId = NamespacedIdentifier("wrapp").getChildId("frame");
-
-		frameType->functions.add(VariadicFunctionInliner<ResetData>::create(c, {}));
-		frameType->functions.add(VariadicFunctionInliner<ProcessSingleData>::create(c, {ct}));
-		frameType->functions.add(VariadicFunctionInliner<PrepareData>::create(c, {}));
-
-		addVariadicGet(frameType);
-
-		auto processFunction = FunctionData();
-		processFunction.id = frameType->variadicId.getChildId("process");
-		processFunction.returnType = TypeInfo(Types::ID::Void);
-		processFunction.addArgs("data", TypeInfo(c.getComplexType(NamespacedIdentifier("ProcessData"), ct)));
-		processFunction.inliner = Inliner::createHighLevelInliner(processFunction.id, [&c](InlineData* b)
-		{
-			auto d = b->toSyntaxTreeData();
-
-			auto compiler = d->expression->currentCompiler;
-			auto scope = d->expression->currentScope;
-			auto root = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(d->expression.get());
-
-
-			auto scopeId = scope->getScopeSymbol();
-
-
-
-			juce::String code;
-			juce::String nl = "\n";
-
-			auto channelCode = d->args[0]->toString(Operations::Statement::TextFormat::CppCode);
-			auto objCode = d->object->toString(Operations::Statement::TextFormat::CppCode);
-
-			code << "{" << nl;
-			code << "    auto& fd = " << channelCode << ".toFrameData();" << nl;
-			
-#if 0
-			code << "{" << nl;
-			code << "    auto& fd = interleave(" << channelCode << ".data);" << nl;
-			code << "    for(auto& f: fd)" << nl;
-			code << "    {" << nl;
-			code << "         " << objCode << ".get<0>().processSingle(f);" << nl;
-			code << "    }" << nl;
-			code << "    interleave(fd);" << nl;
-			code << "}";
-#endif
-
-
-			CodeParser p(compiler, code.getCharPointer(), code.getCharPointer(), code.length());
-
-			NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, scopeId);
-			BlockParser::ScopedScopeStatementSetter ssss(&p, root);
-
-			try
-			{
-				d->target = p.parseStatement();
-
-				d->target->forEachRecursive([d](Operations::Statement::Ptr s)
-				{
-					s->location = d->location;
-					return false;
-				});
-			}
-			catch (ParserHelpers::CodeLocation::Error& e)
-			{
-				jassertfalse;
-			}
-
-#if 0
-			auto s = new Operations::StatementBlock(d->location, d->location.createAnonymousScopeId(scopeId));
-
-
-
-
-			auto frameData = c.getComplexType(NamespacedIdentifier("FrameData"));
-			auto blockData = c.getComplexType(NamespacedIdentifier("ChannelData"));
-
-			auto fdSymbol = s->getPath().getChildId("fd");
-
-			d->expression->currentCompiler->namespaceHandler.addSymbol(fdSymbol, TypeInfo(frameData), NamespaceHandler::Variable);
-
-			auto def = new Operations::ComplexTypeDefinition(d->location, fdSymbol, TypeInfo(frameData));
-
-			auto fId = Symbol(NamespacedIdentifier("interleave"), TypeInfo(blockData, false, true));
-			auto f = new Operations::FunctionCall(d->location, nullptr, fId, {});
-
-			def->addStatement(f);
-
-			s->addStatement(def);
-
-			d->target = s;
-#endif
-
-
-			return Result::ok();
 		});
+		
+		midi.flush();
+	}
 
-		frameType->functions.add(processFunction);
 
-		c.registerVariadicType(frameType);
+	{
+		ContainerNodeBuilder chain(c, "chain", numChannels);
+		chain.flush();
+
+		ContainerNodeBuilder split(c, "split", numChannels);
+		split.flush();
+
+
 	}
 
 	registerParameterTemplate(c);
 }
 
 
-
-void SnexObjectDatabase::addVariadicGet(VariadicSubType* variadicType)
-{
-	FunctionData getFunction;
-
-	auto gId = variadicType->variadicId.getChildId("get");
-
-	getFunction.id = gId;
-	getFunction.returnType = TypeInfo(Types::ID::Dynamic, false, true);
-	getFunction.templateParameters.add(TemplateParameter(gId.getChildId("Index")));
-
-	getFunction.inliner = Inliner::createHighLevelInliner(gId, [](InlineData* b)
-	{
-		auto d = b->toSyntaxTreeData();
-
-		if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(b))
-		{
-			auto index = b->templateParameters[0].constant;
-
-			auto type = TypeInfo(vt->getSubType(index));
-			auto offset = (int)vt->getOffsetForSubType(index);
-
-			auto base = dynamic_cast<Operations::Expression*>(d->object.get());
-
-			d->target = new Operations::MemoryReference(d->location, base, type, offset);
-			return Result::ok();
-		}
-
-		return Result::fail("Can't find variadic type");
-	});
-
-	getFunction.inliner->returnTypeFunction = [](InlineData* b)
-	{
-		auto d = dynamic_cast<ReturnTypeInlineData*>(b);
-
-		if (d->templateParameters.size() != 1)
-			return Result::fail("template amount mismatch. Expected 1");
-
-		if (d->templateParameters[0].type.isValid())
-			return Result::fail("template type mismatch. Expected integer value");
-
-		auto index = d->templateParameters[0].constant;
-
-		if (auto vt = VariadicTypeBase::getVariadicObjectFromInlineData(b))
-		{
-			if (auto st = vt->getSubType(index))
-			{
-				d->f.returnType = TypeInfo(st);
-				return Result::ok();
-			}
-			else
-			{
-				return Result::fail("Can't find subtype with index " + juce::String(index));
-			}
-		}
-		else
-			return Result::fail("Can't call get on non-variadic templates");
-
-		return Result::ok();
-	};
-
-	variadicType->functions.add(getFunction);
-}
 
 void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventType)
 {
@@ -790,24 +388,13 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		jassert(l.getReference(0).argumentId.isValid());
 
 		auto pType = new StructType(pId, l);
-		auto o = 0;
 		auto blockType = c.handler->getComplexType(NamespacedIdentifier("block"));
 		auto channelType = new SpanType(TypeInfo(blockType), c.tp[0].constant);
 
-		pType->addMember("data", TypeInfo(channelType), o);
-
-		o += channelType->getRequiredByteSize();
-
-		pType->addMember("events", TypeInfo(eventType), o);
-
-		o += eventType.getRequiredByteSize();
-
-		pType->addMember("voiceIndex", TypeInfo(Types::ID::Integer), o);
-
-		o += 4;
-
-		pType->addMember("shouldReset", TypeInfo(Types::ID::Integer), o);
-		
+		pType->addMember("data", TypeInfo(channelType));
+		pType->addMember("events", TypeInfo(eventType));
+		pType->addMember("voiceIndex", TypeInfo(Types::ID::Integer));
+		pType->addMember("shouldReset", TypeInfo(Types::ID::Integer));
 
 		auto vDefault = new InitialiserList();
 		vDefault->addImmediateValue(0);
@@ -871,7 +458,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 				nextFrame.id = fId.getChildId("next");
 				nextFrame.returnType = TypeInfo(Types::ID::Integer);
 
-#define F(channels) if (numChannels == channels) nextFrame.function = reinterpret_cast<void*>(ProcessDataFix<channels>::nextFrame);
+#define F(channels) if (numChannels == channels) nextFrame.function = reinterpret_cast<void*>(FrameProcessor<channels>::nextFrame);
 
 				F(1); F(2); F(3); F(4);
 				F(5); F(6); F(7); F(8);
@@ -1083,10 +670,8 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 		return PH::createCallPrototype(st, [st](InlineData* b)
 		{
 			auto d = b->toSyntaxTreeData();
-			auto input = d->args[0]->clone(d->location);
-
 			auto exprType =   TCH::getStructTypeFromTemplate(st, 2);
-			auto exprCall =   TCH::createFunctionCall(exprType, d, "op", input);
+			auto exprCall =   TCH::createFunctionCall(exprType, d, "op", d->args);
 			auto targetType = TCH::getStructTypeFromTemplate(st, 0);
 			d->target =       PH::createSetParameterCall(targetType, d, exprCall);
 
@@ -1102,10 +687,8 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 		return PH::createCallPrototype(st, [st](InlineData* b)
 		{
 			auto d = b->toSyntaxTreeData();
-			auto input = d->args[0]->clone(d->location);
-
 			auto rangeType =   TCH::getStructTypeFromTemplate(st, 2);
-			auto rangeCall =   TCH::createFunctionCall(rangeType, d, "from0To1", input);
+			auto rangeCall =   TCH::createFunctionCall(rangeType, d, "from0To1", d->args);
 			auto targetType =  TCH::getStructTypeFromTemplate(st, 0);
 			d->target =        PH::createSetParameterCall(targetType, d, rangeCall);
 
@@ -1124,7 +707,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 			auto input = d->args[0]->clone(d->location);
 
 			auto rangeType = TCH::getStructTypeFromTemplate(st, 2);
-			auto rangeCall = TCH::createFunctionCall(rangeType, d, "to0To1", input);
+			auto rangeCall = TCH::createFunctionCall(rangeType, d, "to0To1", d->args);
 			auto targetType = TCH::getStructTypeFromTemplate(st, 0);
 			d->target = PH::createSetParameterCall(targetType, d, rangeCall);
 
@@ -1135,15 +718,51 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 
 	ParameterBuilder chainP(c, "chain");
 
+	chainP.addTypeTemplateParameter("InputRange");
 	chainP.addVariadicTypeTemplateParameter("Parameters");
 	chainP.addFunction(TemplateClassBuilder::VariadicHelpers::getFunction);
-	chainP.setInitialiseStructFunction(TemplateClassBuilder::VariadicHelpers::initVariadicMembers<0>);
+	chainP.setInitialiseStructFunction(TemplateClassBuilder::VariadicHelpers::initVariadicMembers<1>);
+
+	chainP.setConnectFunction([](StructType* st)
+	{
+		auto cFunc = PH::connectFunction(st);
+
+		cFunc.inliner = Inliner::createHighLevelInliner(cFunc.id, [st](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+
+
+
+			int parameterIndex = d->templateParameters.getFirst().constant;
+			auto targetType = TCH::getStructTypeFromTemplate(st, parameterIndex + 1);
+			auto newCall = TCH::createFunctionCall(targetType, d, "connect", d->args);
+			TCH::addChildObjectPtr(newCall, d, st, parameterIndex);
+
+			d->target = newCall;
+			return Result::ok();
+		});
+
+		return cFunc;
+	});
+
+
 	chainP.addFunction([](StructType* st)
 	{
 		return PH::createCallPrototype(st, [st](InlineData* b)
 		{
 			auto d = b->toSyntaxTreeData();
-			d->target = TemplateClassBuilder::VariadicHelpers::callEachMember(d, st, "call");
+
+			auto rangeType = TCH::getStructTypeFromTemplate(st, 0);
+			auto rangeCall = TCH::createFunctionCall(rangeType, d, "from0To1", d->args);
+
+			if (rangeCall == nullptr)
+			{
+				d->location.throwError("Can't find function " + rangeType->toString() + "::from0To1(double)");
+			}
+
+			d->args[0] = rangeCall;
+
+			d->target = TemplateClassBuilder::VariadicHelpers::callEachMember(d, st, "call", 1);
 
 			return Result::ok();
 		});
@@ -1163,7 +782,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 
 			auto value = d->templateParameters.getFirst().constant;
 			auto targetType = TCH::getStructTypeFromTemplate(st, value);
-			auto newCall = TCH::createFunctionCall(targetType, d, "call", d->args[0]);
+			auto newCall = TCH::createFunctionCall(targetType, d, "call", d->args);
 			TCH::addChildObjectPtr(newCall, d, st, value);
 
 			d->target = newCall;
@@ -1226,7 +845,7 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 		f.id = NamespacedIdentifier("reset");
 		f.returnType = TypeInfo(Types::ID::Void);
 		break;
-	case ProcessSingleFunction:
+	case ProcessFrameFunction:
 	{
 		f.id = NamespacedIdentifier("processFrame");
 		f.returnType = TypeInfo(Types::ID::Void);

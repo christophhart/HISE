@@ -164,6 +164,9 @@ struct hmath
 	return b1; \
 };
 
+#define vOpScalar2A(name, vectorOp) 
+
+
 	vOpBinary(vmul, FloatVectorOperations::multiply);
 	vOpBinary(vadd, FloatVectorOperations::add);
 	vOpBinary(vsub, FloatVectorOperations::subtract);
@@ -172,6 +175,20 @@ struct hmath
 	vOpScalar(vset, FloatVectorOperations::fill);
 	vOpScalar(vmuls, FloatVectorOperations::multiply);
 	vOpScalar(vadds, FloatVectorOperations::add);
+
+	static forcedinline block& clip(block& b1, float s1, float s2) 
+	{
+		FloatVectorOperations::clip(b1.data, b1.data, s1, s2, b1.size()); 
+		return b1;
+	};
+
+	static forcedinline block& abs(block& input)
+	{
+		FloatVectorOperations::abs(input.data, input.data, input.size());
+		return input;
+	}
+
+	
 
 #undef vOpBinary
 #undef vOpScalar

@@ -76,9 +76,15 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 	auto l = tp;
 
 	auto fCopy = functionBuilders;
-	auto sCopy = initFunction;
 
-	to.makeClassType = [l, fCopy, sCopy](const TemplateObject::ConstructData& cd)
+	Array<InitialiseStructFunction> initFunctions;
+
+	if(initFunction)
+		initFunctions.add(initFunction);
+
+	initFunctions.addArray(additionalInitFunctions);
+
+	to.makeClassType = [l, fCopy, initFunctions](const TemplateObject::ConstructData& cd)
 	{
 		ComplexType::Ptr ptr;
 
@@ -106,8 +112,13 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 
 		auto st = new StructType(cd.id, ip);
 
-		if(sCopy)
-			sCopy(cd, st);
+		for (const auto& f : initFunctions)
+		{
+			f(cd, st);
+
+			if (!cd.r->wasOk())
+				return ptr;
+		}
 
 		for (const auto& f : fCopy)
 		{
@@ -127,7 +138,7 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 
 void TemplateClassBuilder::Helpers::addChildObjectPtr(StatementPtr newCall, SyntaxTreeInlineData* d, StructType* parentType, int memberIndex)
 {
-	auto pId = getMemberIdFromIndex(memberIndex);
+	auto pId = VariadicHelpers::getVariadicMemberIdFromIndex(memberIndex);
 	auto offset = parentType->getMemberOffset(pId);
 	auto childType = parentType->getMemberComplexType(pId);
 
@@ -142,13 +153,7 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::cre
 	return new Operations::StatementBlock(d->location, blPath);
 }
 
-juce::Identifier TemplateClassBuilder::Helpers::getMemberIdFromIndex(int index)
-{
-	String p = "_p" + String(index + 1);
-	return Identifier(p);
-}
-
-snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createFunctionCall(StructType* converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementPtr input)
+snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createFunctionCall(StructType* converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs)
 {
 	auto f = getFunctionFromTargetClass(converterType, functionId);
 
@@ -172,7 +177,12 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::cre
 	if (f.id.isValid())
 	{
 		auto exprCall = new Operations::FunctionCall(d->location, nullptr, { f.id, f.returnType }, tpToUse);
-		exprCall->addArgument(input->clone(d->location));
+
+		for (auto a : originalArgs)
+		{
+			exprCall->addArgument(a->clone(d->location));
+		}
+		
 		return exprCall;
 	}
 	else
@@ -195,6 +205,7 @@ snex::jit::ParameterBuilder ParameterBuilder::Helpers::createWithTP(Compiler& c,
 {
 	ParameterBuilder b(c, n);
 
+	b.setConnectFunction();
 	b.addTypeTemplateParameter("T");
 	b.addIntTemplateParameter("P");
 
@@ -228,7 +239,10 @@ void ParameterBuilder::Helpers::initSingleParameterStruct(const TemplateObject::
 
 snex::jit::Operations::Statement::Ptr ParameterBuilder::Helpers::createSetParameterCall(StructType* targetType, SyntaxTreeInlineData* d, Operations::Statement::Ptr input)
 {
-	auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(targetType, d, "setParameter", input);
+	StatementList exprArgs;
+	exprArgs.add(input);
+
+	auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(targetType, d, "setParameter", exprArgs);
 
 	// We have to manually dereference the member pointer here...
 	auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(targetType, false, true), 0);
@@ -247,6 +261,7 @@ snex::jit::FunctionData ParameterBuilder::Helpers::connectFunction(StructType* s
 
 	cFunc.id = st->id.getChildId("connect");
 	cFunc.returnType = TypeInfo(Types::ID::Void, false, false);
+	cFunc.templateParameters.add(TemplateParameter(cFunc.id.getChildId("Index"), 0, false));
 	cFunc.addArgs("target", TypeInfo(targetType, false, true));
 
 	cFunc.inliner = Inliner::createAsmInliner(cFunc.id, [targetType](InlineData* b)
@@ -271,6 +286,11 @@ snex::jit::FunctionData ParameterBuilder::Helpers::connectFunction(StructType* s
 	return cFunc;
 }
 
+bool ParameterBuilder::Helpers::isParameterClass(const TypeInfo& type)
+{
+	return type.getTypedComplexType<StructType>()->id.getParent() == NamespacedIdentifier("parameter");
+}
+
 snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(StructType* st)
 {
 	FunctionData getF;
@@ -282,7 +302,7 @@ snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(Struc
 	{
 		auto d = b->toSyntaxTreeData();
 
-		auto pId = Helpers::getMemberIdFromIndex(d->templateParameters.getFirst().constant);
+		auto pId = getVariadicMemberIdFromIndex(d->templateParameters.getFirst().constant);
 
 		auto offset = st->getMemberOffset(pId);
 		auto type = TypeInfo(st->getMemberComplexType(pId), false, true);
@@ -295,7 +315,7 @@ snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(Struc
 	getF.inliner->returnTypeFunction = [st](InlineData* b)
 	{
 		auto rt = dynamic_cast<ReturnTypeInlineData*>(b);
-		auto pId = Helpers::getMemberIdFromIndex(rt->templateParameters.getFirst().constant);
+		auto pId = getVariadicMemberIdFromIndex(rt->templateParameters.getFirst().constant);
 		auto t = st->getMemberComplexType(pId);
 
 		if (t == nullptr)
@@ -312,19 +332,302 @@ snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(Struc
 snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::VariadicHelpers::callEachMember(SyntaxTreeInlineData* d, StructType* st, const Identifier& functionId, int offset/*=0*/)
 {
 	auto pList = st->getTemplateInstanceParameters();
-	auto input = d->args[0]->clone(d->location);
+
+	Operations::Statement::List clonedArgs;
 
 	auto bl = Helpers::createBlock(d);
 
 	for (int i = offset; i < pList.size(); i++)
 	{
 		auto childParameter = pList[i].type.getTypedComplexType<StructType>();
-		auto newCall = Helpers::createFunctionCall(childParameter, d, functionId, input);
-		Helpers::addChildObjectPtr(newCall, d, st, i);
+		auto newCall = Helpers::createFunctionCall(childParameter, d, functionId, d->args);
+
+		if (newCall == nullptr)
+		{
+			String s;
+
+			s << childParameter->toString() << " does not have a method " << functionId;
+
+			d->location.throwError(s);
+		}
+
+		
+
+		Helpers::addChildObjectPtr(newCall, d, st, i-offset);
 		bl->addStatement(newCall);
 	}
 
 	return bl;
+}
+
+ContainerNodeBuilder::ContainerNodeBuilder(Compiler& c, const Identifier& id, int numChannels_) :
+	TemplateClassBuilder(c, NamespacedIdentifier("container").getChildId(id)),
+	numChannels(numChannels_)
+{
+	addTypeTemplateParameter("ParameterClass");
+	addVariadicTypeTemplateParameter("ProcessorTypes");
+	addFunction(TemplateClassBuilder::VariadicHelpers::getFunction);
+	setInitialiseStructFunction([](const TemplateObject::ConstructData& cd, StructType* st)
+	{
+		auto pType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(st, 0);
+
+		if (!ParameterBuilder::Helpers::isParameterClass(TypeInfo(pType)))
+		{
+			String s;
+			s << "Expected parameter class at Index 0: " << pType->toString();
+			*cd.r = Result::fail(s);
+		}
+
+		st->addMember("parameters", TypeInfo(pType, false, false));
+	});
+
+	addInitFunction(TemplateClassBuilder::VariadicHelpers::initVariadicMembers<1>);
+
+	addFunction(Helpers::getParameterFunction);
+	addFunction(Helpers::setParameterFunction);
+	
+
+	callbacks = snex::Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
+
+	for (auto& cf : callbacks)
+		cf.inliner = Inliner::createHighLevelInliner(cf.id, Helpers::defaultForwardInliner);
+}
+
+void ContainerNodeBuilder::addHighLevelInliner(const Identifier& functionId, const Inliner::Func& inliner)
+{
+	jassert(isScriptnodeCallback(functionId));
+
+	for (auto& cf : callbacks)
+	{
+		if (cf.id.id == functionId)
+		{
+			cf.inliner = Inliner::createHighLevelInliner(id.getChildId(functionId), inliner);
+			break;
+		}
+	}
+}
+
+void ContainerNodeBuilder::addAsmInliner(const Identifier& functionId, const Inliner::Func& inliner)
+{
+	jassert(isScriptnodeCallback(functionId));
+
+	for (auto& cf : callbacks)
+	{
+		if (cf.id.id == functionId)
+		{
+			cf.inliner = Inliner::createAsmInliner(id.getChildId(functionId), inliner);
+			break;
+		}
+	}
+}
+
+void ContainerNodeBuilder::deactivateCallback(const Identifier& id)
+{
+	addHighLevelInliner(id, [](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+		d->target = new Operations::Noop(d->location);
+		return Result::ok();
+	});
+}
+
+void ContainerNodeBuilder::flush()
+{
+	/** TODO
+	
+		- fix get<0>() offset
+		- make setParameter() && connect work.
+		- add integer template parameter to connect
+	*/
+
+	jassert(numChannels != -1);
+
+#if 0
+	addFunction([](StructType* st)
+	{
+		FunctionData cData;
+		cData.id = st->id.getChildId("connect");
+		cData.returnType = TypeInfo(Types::ID::Void);
+		cData.addArgs("obj", TypeInfo());
+		cData.templateParameters.add(TemplateParameter(cData.id.getChildId("P"), 0, false));
+
+		auto parameterClass = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(st, 0);
+
+		auto il = TemplateClassBuilder::Helpers::getFunctionFromTargetClass(parameterClass, "connect").inliner;
+
+		cData.inliner = Inliner::createAsmInliner(cData.id, [il](InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+			auto st = Helpers::getStructTypeFromInlineData(b);
+			auto pClass = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(st, 0);
+
+			AsmInlineData copy(*d);
+
+			copy.templateParameters = {};
+
+			return il->process(&copy);
+		});
+
+		return cData;
+	});
+
+	addFunction([](StructType* st)
+	{
+		FunctionData pFunc;
+		pFunc.id = st->id.getChildId("setParameter");
+		pFunc.returnType = TypeInfo(Types::ID::Void);
+		pFunc.addArgs("value", TypeInfo(Types::ID::Double));
+		pFunc.templateParameters.add(TemplateParameter(pFunc.id.getChildId("P"), 0, false));
+
+		auto parameterClass = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(st, 0);
+		auto il = TemplateClassBuilder::Helpers::getFunctionFromTargetClass(parameterClass, "setParameter").inliner;
+
+		pFunc.inliner = Inliner::createHighLevelInliner(pFunc.id, [il](InlineData* b)
+		{
+
+			jassertfalse;
+			return Result::ok();
+		});
+
+		return pFunc;
+	});
+#endif
+
+
+	for (auto cf : callbacks)
+	{
+		addFunction([cf](StructType* st)
+		{
+			return cf;
+		});
+	}
+
+	TemplateClassBuilder::flush();
+}
+
+bool ContainerNodeBuilder::isScriptnodeCallback(const Identifier& id) const
+{
+	for (auto f : callbacks)
+	{
+		if (f.id.id == id)
+			return true;
+	}
+
+	return false;
+}
+
+juce::Result ContainerNodeBuilder::Helpers::defaultForwardInliner(InlineData* b)
+{
+	auto d = b->toSyntaxTreeData();
+	auto st = getStructTypeFromInlineData(b);
+	auto id = getFunctionIdFromInlineData(b);
+
+	constexpr int ParameterOffset = 1;
+
+	d->target = TemplateClassBuilder::VariadicHelpers::callEachMember(d, st, id, ParameterOffset);
+	return Result::ok();
+}
+
+snex::jit::StructType* ContainerNodeBuilder::Helpers::getStructTypeFromInlineData(InlineData* b)
+{
+	if (b->isHighlevel())
+	{
+		auto d = b->toSyntaxTreeData();
+		return d->object->getTypeInfo().getTypedComplexType<StructType>();
+	}
+	else
+	{
+		auto d = b->toAsmInlineData();
+		return d->object->getTypeInfo().getTypedComplexType<StructType>();
+	}
+
+	
+}
+
+juce::Identifier ContainerNodeBuilder::Helpers::getFunctionIdFromInlineData(InlineData* b)
+{
+	auto d = b->toSyntaxTreeData();
+	return Operations::as<Operations::FunctionCall>(d->expression)->function.id.id;
+}
+
+snex::jit::FunctionData ContainerNodeBuilder::Helpers::getParameterFunction(StructType* st)
+{
+	FunctionData gf;
+	gf.id = st->id.getChildId("getParameter");
+	gf.returnType = TypeInfo(Types::ID::Dynamic);
+	gf.templateParameters.add(TemplateParameter(gf.id.getChildId("Index"), 0, false));
+
+	gf.inliner = Inliner::createHighLevelInliner(gf.id, [st](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+
+		int index;
+		StructType* parameterType;
+
+		ParameterBuilder::Helpers::forwardToListElements(st, d->templateParameters, &parameterType, index);
+
+		int offset = ParameterBuilder::Helpers::getParameterListOffset(st, index);
+
+		jassert(ParameterBuilder::Helpers::isParameterClass(TypeInfo(parameterType, false, true)));
+
+		
+
+		d->target = new Operations::MemoryReference(d->location, d->object, TypeInfo(parameterType, false, true), offset);
+
+		return Result::ok();
+	});
+
+	gf.inliner->returnTypeFunction = [st](InlineData* b)
+	{
+		auto rt = dynamic_cast<ReturnTypeInlineData*>(b);
+
+		int index;
+		StructType* parameterType;
+
+		ParameterBuilder::Helpers::forwardToListElements(st, rt->templateParameters, &parameterType, index);
+
+		jassert(ParameterBuilder::Helpers::isParameterClass(TypeInfo(parameterType, false, true)));
+
+		rt->f.returnType = TypeInfo(parameterType, false, true);
+		return Result::ok();
+	};
+
+	return gf;
+}
+
+snex::jit::FunctionData ContainerNodeBuilder::Helpers::setParameterFunction(StructType* st)
+{
+	FunctionData sf;
+	sf.id = st->id.getChildId("setParameter");
+	sf.returnType = TypeInfo(Types::ID::Void, false, false);
+	sf.addArgs("value", TypeInfo(Types::ID::Double));
+	sf.templateParameters.add(TemplateParameter(sf.id.getChildId("P"), 0, false));
+
+	sf.inliner = Inliner::createHighLevelInliner(sf.id, [st](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+
+		int index;
+		StructType* parameterType;
+
+		ParameterBuilder::Helpers::forwardToListElements(st, d->templateParameters, &parameterType, index);
+
+		int offset = ParameterBuilder::Helpers::getParameterListOffset(st, index);
+
+		jassert(ParameterBuilder::Helpers::isParameterClass(TypeInfo(parameterType, false, true)));
+
+		auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(parameterType, d, "call", d->args);
+
+		auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(parameterType, false, true), offset);
+
+		dynamic_cast<Operations::FunctionCall*>(newCall.get())->setObjectExpression(obj);
+
+		d->target = newCall;
+
+		return Result::ok();
+	});
+
+	return sf;
 }
 
 }

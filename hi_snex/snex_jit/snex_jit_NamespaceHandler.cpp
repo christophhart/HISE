@@ -172,31 +172,6 @@ snex::jit::ComplexType::Ptr NamespaceHandler::getComplexType(NamespacedIdentifie
 	return nullptr;
 }
 
-snex::jit::VariadicSubType::Ptr NamespaceHandler::getVariadicTypeForId(NamespacedIdentifier id) const
-{
-	resolve(id, true);
-
-	for (auto vt : variadicTypes)
-		if (vt->variadicId == id)
-			return vt;
-
-	return nullptr;
-}
-
-bool NamespaceHandler::isTemplatedMethod(NamespacedIdentifier functionId) const
-{
-	resolve(functionId, true);
-
-	for (auto vt : variadicTypes)
-	{
-		for (const auto& f : vt->functions)
-			if (f.id.getIdentifier() == functionId.getIdentifier())
-				return true;
-	}
-
-	return false;
-}
-
 bool NamespaceHandler::changeSymbolType(NamespacedIdentifier id, SymbolType newType)
 {
 	resolve(id, false);
