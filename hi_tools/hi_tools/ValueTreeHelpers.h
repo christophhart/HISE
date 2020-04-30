@@ -287,12 +287,17 @@ struct RecursiveTypedChildListener : public ChildListener
 
 	void setTypeToWatch(Identifier newParentType)
 	{
-		parentType = newParentType;
+		parentTypes = { newParentType };
+	}
+
+	void setTypesToWatch(const Array<Identifier>& newParentTypes)
+	{
+		parentTypes = newParentTypes;
 	}
 
 private:
 
-	Identifier parentType;
+	Array<Identifier> parentTypes;
 
 	void valueTreeChildAdded(ValueTree& p, ValueTree& c) override;
 	void valueTreeChildRemoved(ValueTree& p, ValueTree& c, int) override;

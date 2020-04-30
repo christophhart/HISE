@@ -48,13 +48,10 @@ struct VoiceData
 	HiseEvent noteOnEvent;
 };
 
-struct PrepareSpecs
-{
-	int numChannels = 0;
-	int blockSize = 0;
-	double sampleRate = -1.0;
-	int* voiceIndex = nullptr;
-};
+
+
+
+using PrepareSpecs = snex::Types::PrepareSpecs;
 
 template <typename T, int NumVoices> struct PolyData
 {
@@ -70,7 +67,7 @@ template <typename T, int NumVoices> struct PolyData
 
 	void prepare(PrepareSpecs sp)
 	{
-		jassert(sp.voiceIndex != nullptr);
+		jassert(!isPolyphonic() || sp.voiceIndex != nullptr);
 		jassert(isPowerOfTwo(NumVoices));
 		voicePtr = sp.voiceIndex;
 	}
@@ -118,6 +115,7 @@ template <typename T, int NumVoices> struct PolyData
 			return getWithIndex(getCurrentVoiceIndex());
 	}
 
+#if 0
 	void forEachVoice(const std::function<void(T& v)>& f)
 	{
 		if (!isPolyphonic() || voicePtr == nullptr)
@@ -127,6 +125,20 @@ template <typename T, int NumVoices> struct PolyData
 			for (int i = 0; i < NumVoices; i++)
 				f(getWithIndex(i));
 		}
+	}
+#endif
+
+	T* begin() const
+	{
+		return const_cast<T*>(data);
+	}
+
+	T* end() const
+	{
+		if (!isPolyphonic() || voicePtr == nullptr)
+			return const_cast<T*>(data) + 1;
+		else
+			return const_cast<T*>(data) + NumVoices;
 	}
 
 	bool isMonophonicOrInsideVoiceRendering() const
@@ -402,6 +414,10 @@ struct DspHelpers
 		static ConverterFunction getFunction(const Identifier& id);
 	};
 
+	static void setErrorIfFrameProcessing(const PrepareSpecs& ps);
+
+	
+
 	/** Returns a ParameterCallback with the given range. */
 	static ParameterCallback getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction);
 
@@ -411,22 +427,99 @@ struct DspHelpers
 		NormalisableRange<double> range,
 		bool inverted);
 
-	static double findPeak(float* data, int numSamples)
+	forcedinline static double findPeak(const float* data, int numSamples)
 	{
 		auto r = FloatVectorOperations::findMinAndMax(data, numSamples);
 		return jmax<float>(std::abs(r.getStart()), std::abs(r.getEnd()));
 	}
 
-	template <typename ProcessDataType> static double findPeak(const ProcessDataType& data)
+	static void validate(PrepareSpecs sp, PrepareSpecs rp);
+
+
+	template <typename ProcessDataType> forcedinline static double findPeak(const ProcessDataType& data)
 	{
 		double max = 0.0;
 
 		for (auto ch : data)
-			max = jmax(max, findPeak(ch.getRawReadPointer(), data.getNumSamples()))
+			max = jmax(max, findPeak(ch.getRawReadPointer(), data.getNumSamples()));
 
 		return max;
 	}
+
+	template <typename DspClass, typename ProcessDataType> static forcedinline void forwardToFrameMono(DspClass* ptr, ProcessDataType& data)
+	{
+		using namespace snex::Types;
+		ProcessDataHelpers<1>::processFix(ptr, data);
+	}
+
+	template <typename DspClass, typename ProcessDataType> static forcedinline void forwardToFrameStereo(DspClass* ptr, ProcessDataType& data)
+	{
+		using namespace snex::Types;
+
+		switch (data.getNumChannels())
+		{
+		case 1:   ProcessDataHelpers<1>::processFix(ptr, data); break;
+		case 2:   ProcessDataHelpers<2>::processFix(ptr, data); break;
+		}
+	}
+
+	template <typename DspClass, typename FrameDataType> static forcedinline void forwardToFixFrame16(DspClass* ptr, FrameDataType& data)
+	{
+		using namespace snex::Types;
+
+		jassert(Helpers::isRefArrayType<FrameDataType>(), "unneeded call to forwardToFrameFix");
+
+		switch (data.size())
+		{
+		case 1:   ptr->processFrame(span<float, 1>::as(data.begin())); break;
+		case 2:   ptr->processFrame(span<float, 2>::as(data.begin())); break;
+		case 3:   ptr->processFrame(span<float, 3>::as(data.begin())); break;
+		case 4:   ptr->processFrame(span<float, 4>::as(data.begin())); break;
+		case 5:   ptr->processFrame(span<float, 5>::as(data.begin())); break;
+		case 6:   ptr->processFrame(span<float, 6>::as(data.begin())); break;
+		case 7:   ptr->processFrame(span<float, 7>::as(data.begin())); break;
+		case 8:   ptr->processFrame(span<float, 8>::as(data.begin())); break;
+		case 9:   ptr->processFrame(span<float, 9>::as(data.begin())); break;
+		case 10:   ptr->processFrame(span<float, 10>::as(data.begin())); break;
+		case 11:   ptr->processFrame(span<float, 11>::as(data.begin())); break;
+		case 12:   ptr->processFrame(span<float, 12>::as(data.begin())); break;
+		case 13:   ptr->processFrame(span<float, 13>::as(data.begin())); break;
+		case 14:   ptr->processFrame(span<float, 14>::as(data.begin())); break;
+		case 15:   ptr->processFrame(span<float, 15>::as(data.begin())); break;
+		case 16:   ptr->processFrame(span<float, 16>::as(data.begin())); break;
+		}
+	}
+
+	template <typename DspClass, typename ProcessDataType> static forcedinline void forwardToFrame16(DspClass* ptr, ProcessDataType& data)
+	{
+		using namespace snex::Types;
+
+		switch (data.getNumChannels())
+		{
+		case 1:   ProcessDataHelpers<1>::processFix(ptr, data); break;
+		case 2:   ProcessDataHelpers<2>::processFix(ptr, data); break;
+		case 3:   ProcessDataHelpers<3>::processFix(ptr, data); break;
+		case 4:   ProcessDataHelpers<4>::processFix(ptr, data); break;
+		case 5:   ProcessDataHelpers<5>::processFix(ptr, data); break;
+		case 6:   ProcessDataHelpers<6>::processFix(ptr, data); break;
+		case 7:   ProcessDataHelpers<7>::processFix(ptr, data); break;
+		case 8:   ProcessDataHelpers<8>::processFix(ptr, data); break;
+		case 9:   ProcessDataHelpers<9>::processFix(ptr, data); break;
+		case 10: ProcessDataHelpers<10>::processFix(ptr, data); break;
+		case 11: ProcessDataHelpers<11>::processFix(ptr, data); break;
+		case 12: ProcessDataHelpers<12>::processFix(ptr, data); break;
+		case 13: ProcessDataHelpers<13>::processFix(ptr, data); break;
+		case 14: ProcessDataHelpers<14>::processFix(ptr, data); break;
+		case 15: ProcessDataHelpers<15>::processFix(ptr, data); break;
+		case 16: ProcessDataHelpers<16>::processFix(ptr, data); break;
+		}
+	}
+
 };
+
+
+
+
 
 struct CodeHelpers
 {

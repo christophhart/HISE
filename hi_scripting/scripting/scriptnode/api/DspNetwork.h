@@ -39,6 +39,123 @@ using namespace hise;
 
 class NodeFactory;
 
+struct Error
+{
+	enum ErrorCode
+	{
+		OK,
+		ChannelMismatch,
+		BlockSizeMismatch,
+		IllegalFrameCall,
+		IllegalBlockSize,
+		SampleRateMismatch,
+		InitialisationError,
+		numErrorCodes
+	};
+
+	ErrorCode error = ErrorCode::OK;
+	int expected = 0;
+	int actual = 0;
+};
+
+class ScriptnodeExceptionHandler
+{
+	struct Item
+	{
+		bool operator==(const Item& other) const
+		{
+			return node.get() == other.node.get();
+		}
+
+		String toString() const
+		{
+			if (node == nullptr || error.error == Error::OK)
+				return {};
+			else
+			{
+				String s;
+				s << node->getCurrentId() << " - " << getErrorMessage(error);
+				return s;
+			}
+		}
+
+		WeakReference<NodeBase> node;
+		Error error;
+	};
+
+public:
+
+	bool isOk() const noexcept
+	{
+		return items.isEmpty();
+	}
+
+	void addError(NodeBase* n, Error e)
+	{
+		for (auto& i : items)
+		{
+			if (i.node == n)
+			{
+				i.error = e;
+				return;
+			}
+				
+		}
+
+		items.add({ n, e });
+	}
+
+	void removeError(NodeBase* n)
+	{
+		Item i = { n, Error::OK };
+		items.removeAllInstancesOf(i);
+	}
+
+	static String getErrorMessage(Error e)
+	{
+		String s;
+
+		s << "**";
+
+		switch (e.error)
+		{
+		case Error::ChannelMismatch: s << "Channel amount mismatch";  break;
+		case Error::BlockSizeMismatch: s << "Blocksize mismatch"; break;
+		case Error::IllegalFrameCall: s << "Illegal call of processFrame()"; return s;
+		case Error::IllegalBlockSize: s << "Illegal block size: " << String(e.actual); return s;
+		case Error::SampleRateMismatch: s << "Samplerate mismatch"; break;
+		case Error::InitialisationError: return "Initialisation error";
+		default:
+			break;
+		}
+
+		s << "**:  \n`" << String(e.actual) << "` (expected: `" << String(e.expected) << "`)";
+
+		return s;
+	}
+
+	
+
+	
+
+
+	String getErrorMessage(NodeBase* n) const
+	{
+		for (auto& i : items)
+		{
+			if (i.node == n)
+				return i.toString();
+		}
+
+		return {};
+	}
+
+private:
+
+
+	Array<Item> items;
+};
+
 /** A network of multiple DSP objects that are connected using a graph. */
 class DspNetwork : public ConstScriptingObject,
 				   public DebugableObject,
@@ -242,7 +359,6 @@ public:
 		NodeBase::Ptr root;
 	} networkParameterHandler;
 
-
 	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone);
 
 	void setEnableUndoManager(bool shouldBeEnabled)
@@ -254,6 +370,11 @@ public:
 		}
 		else
 			stopTimer();
+	}
+
+	ScriptnodeExceptionHandler& getExceptionHandler()
+	{
+		return exceptionHandler;
 	}
 
 	int* getVoiceIndexPtr() { return &voiceIndex; }
@@ -277,6 +398,8 @@ public:
 	}
 
 private:
+
+	ScriptnodeExceptionHandler exceptionHandler;
 
 #if USE_BACKEND
 	bool enableUndo = true;
@@ -335,6 +458,8 @@ private:
 	ReferenceCountedArray<NodeBase> nodes;
 
 	ReferenceCountedObjectPtr<NodeBase> signalPath;
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetwork);
 };

@@ -41,7 +41,17 @@ using namespace hise;
 namespace core
 {
 
-template <int V> class MidiSourceNode : public HiseDspBase
+struct MidiDisplayProviderBase
+{
+	virtual ~MidiDisplayProviderBase() {};
+
+	virtual float getDisplayValue() const = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiDisplayProviderBase);
+};
+
+template <int V> class MidiSourceNode : public HiseDspBase,
+							            public MidiDisplayProviderBase
 {
 public:
 
@@ -58,8 +68,11 @@ public:
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 	SET_HISE_POLY_NODE_ID("midi");
 	GET_SELF_AS_OBJECT(MidiSourceNode);
+
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(40);
 	SET_HISE_NODE_EXTRA_WIDTH(256);
+#endif
 
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_PROCESS_SINGLE;
@@ -67,12 +80,12 @@ public:
 
 	void initialise(NodeBase* n);
 
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
-
 	void prepare(PrepareSpecs sp);;
 	void handleHiseEvent(HiseEvent& e);
 	bool handleModulation(double& value);
 	void createParameters(Array<ParameterData>& data) override;
+
+	float getDisplayValue() const override;
 
 	void setMode(double newMode)
 	{
@@ -102,28 +115,81 @@ struct TimerInfo
 	}
 };
 
-template <int NV> class TimerNode : public HiseDspBase
+struct TimerDisplayProviderBase
+{
+	virtual ~TimerDisplayProviderBase() {}
+
+	virtual bool& getActiveFlag() = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TimerDisplayProviderBase)
+};
+
+template <int NV> class TimerNode : public HiseDspBase,
+									public TimerDisplayProviderBase
 {
 public:
+
+	using FirstChannelType = snex::Types::ProcessDataFix<1>;
 
 	constexpr static int NumVoices = NV;
 
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 	SET_HISE_POLY_NODE_ID("timer");
 	GET_SELF_AS_OBJECT(TimerNode);
+
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(40);
 	SET_HISE_NODE_EXTRA_WIDTH(256);
+#endif
 
 	TimerNode();
 
 	void initialise(NodeBase* n);
 
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
-
 	void prepare(PrepareSpecs ps) override;
 	void reset();
-	void processFrame(float* frameData, int numChannels);
-	void process(ProcessData& d);
+
+	bool& getActiveFlag() override;
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		auto& thisInfo = t.get();
+
+		if (!thisInfo.active)
+			return;
+
+		if (thisInfo.tick())
+		{
+			auto newValue = scriptFunction.callWithDouble(0.0);
+
+			modValue.get().setModValue(newValue);
+
+			ui_led = true;
+			thisInfo.reset();
+		}
+
+		if (fillMode.getValue())
+		{
+			auto value = (float)modValue.get().getModValue();
+
+			for (auto& s : d)
+				s = value;
+		}
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		auto& fd = d.as<FirstChannelType>();
+
+		processFirstChannel(fd);
+
+		auto ptrs = d.getRawDataPointers();
+
+		for (int i = 1; i < d.getNumChannels(); i++)
+			FloatVectorOperations::copy(ptrs[i], ptrs[0], d.getNumSamples());
+	}
+
+	void processFirstChannel(FirstChannelType& d);
 	bool handleModulation(double& value);
 	void createParameters(Array<ParameterData>& data) override;
 

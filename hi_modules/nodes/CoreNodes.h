@@ -35,6 +35,7 @@
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
+using namespace snex;
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 namespace container
@@ -56,15 +57,19 @@ template <class P, typename... Ts> using modchain = wrap::control_rate<chain<P, 
 namespace core
 {
 
-
 class tempo_sync : public HiseDspBase,
-				   public TempoListener
+	public TempoListener
 {
 public:
 
+	enum class Parameters
+	{
+		Tempo,
+		Multiplier
+	};
+
 	SET_HISE_NODE_ID("tempo_sync");
-	GET_SELF_AS_OBJECT(tempo_sync);
-	SET_HISE_NODE_EXTRA_HEIGHT(24);
+	GET_SELF_AS_OBJECT();
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	HISE_EMPTY_PREPARE;
@@ -75,20 +80,20 @@ public:
 	tempo_sync();
 	~tempo_sync();
 
-	struct TempoDisplay;
-
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
-
 	void initialise(NodeBase* n) override;
 	void createParameters(Array<ParameterData>& data) override;
 	void tempoChanged(double newTempo) override;
-	void updateTempo(double newTempoIndex);
+	void setTempo(double newTempoIndex);
 	bool handleModulation(double& max);
 
-	void setMultiplier(double newMultiplier)
+	constexpr bool isNormalisedModulation() const { return false; }
+
+	void setMultiplier(double newMultiplier);
+
+	DEFINE_PARAMETERS
 	{
-		multiplier = jlimit(1.0, 32.0, newMultiplier);
-		updateTempo((double)(int)currentTempo);
+		DEF_PARAMETER(Tempo, tempo_sync);
+		DEF_PARAMETER(Multiplier, tempo_sync);
 	}
 
 	double currentTempoMilliseconds = 500.0;
@@ -105,26 +110,113 @@ public:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(tempo_sync);
 };
 
+
+
+template <class ParameterType> struct pma: public combined_parameter_base
+{
+	SET_HISE_NODE_ID("pma");
+	GET_SELF_AS_OBJECT();
+
+	enum class Parameters
+	{
+		Value,
+		Multiply,
+		Add
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Value, pma);
+		DEF_PARAMETER(Multiply, pma);
+		DEF_PARAMETER(Add, pma);
+	};
+
+	void setValue(double v)
+	{
+		data.value = v;
+		sendParameterChange();
+	}
+
+	void setAdd(double v)
+	{
+		data.addValue = v;
+		sendParameterChange();
+	}
+
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_PROCESS;
+	HISE_EMPTY_PROCESS_SINGLE;
+	HISE_EMPTY_HANDLE_EVENT;
+
+	void setMultiply(double v)
+	{
+		data.mulValue = v;
+		sendParameterChange();
+	}
+
+	void sendParameterChange()
+	{
+		p.call(data.getPmaValue());
+	}
+
+	void createParameters(Array<ParameterDataImpl>& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(pma, Value);
+			p.range = { 0.0, 1.0 };
+			p.defaultValue = 0.0;
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(pma, Multiply);
+			p.defaultValue = 1.0;
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(pma, Add);
+			p.defaultValue = 0.0;
+			data.add(std::move(p));
+		}
+	}
+
+	ParameterType p;
+};
+
 class peak : public HiseDspBase
 {
 public:
 
 	SET_HISE_NODE_ID("peak");
 	GET_SELF_AS_OBJECT(peak);
-	SET_HISE_NODE_EXTRA_HEIGHT(60);
+
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
 
 	bool handleModulation(double& value);
-	Component* createExtraComponent(PooledUIUpdater* updater);;
 	void reset() noexcept;;
-	void process(ProcessData& data);
-	void processFrame(float* frameData, int numChannels);
+
+	constexpr bool isNormalisedModulation() const { return true; }
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		max = DspHelpers::findPeak(data);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		max = 0.0;
+
+		for (auto& s : data)
+			max = Math.max(max, Math.abs((double)s));
+	}
 
 	// This is no state variable, so we don't need it to be polyphonic...
 	double max = 0.0;
+
+	snex::hmath Math;
 };
 
 class mono2stereo : public HiseDspBase
@@ -133,7 +225,7 @@ public:
 
 	SET_HISE_NODE_ID("mono2stereo");
 	GET_SELF_AS_OBJECT(mono2stereo);
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
+
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	HISE_EMPTY_PREPARE;
@@ -141,8 +233,19 @@ public:
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_MOD;
 	
-	void process(ProcessData& data);
-	void processFrame(float* frameData, int numChannels);
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		if (data.getNumChannels() >= 2)
+			Math.vcopy(data[1], data[0]);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		if (data.size() >= 2)
+			data[1] = data[0];
+	}
+
+	hmath Math;
 };
 
 class empty : public HiseDspBase
@@ -151,7 +254,7 @@ public:
 
 	SET_HISE_NODE_ID("empty");
 	GET_SELF_AS_OBJECT(empty);
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
+
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	HISE_EMPTY_PREPARE;
@@ -166,11 +269,18 @@ public:
 template <int NV> class ramp_impl : public HiseDspBase
 {
 public:
+
+	enum class Parameters
+	{
+		PeriodTime,
+		LoopStart,
+		numParameters
+	};
+
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("ramp");
-	GET_SELF_AS_OBJECT(ramp_impl);
-	SET_HISE_NODE_EXTRA_HEIGHT(60);
+	GET_SELF_AS_OBJECT();
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	ramp_impl();
@@ -178,10 +288,57 @@ public:
 	void initialise(NodeBase* b);
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;;
-	void process(ProcessData& d);
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(PeriodTime, ramp_impl);
+		DEF_PARAMETER(LoopStart, ramp_impl);
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		auto& thisState = state.get();
+
+		double thisUptime = thisState.uptime;
+		double thisDelta = thisState.uptimeDelta;
+
+		for (auto c : d)
+		{
+			thisUptime = thisState.uptime;
+
+			for (auto& s : d.toChannelData(c))
+			{
+				if (thisUptime > 1.0)
+					thisUptime = loopStart.get();
+
+				s += (float)thisUptime;
+
+				thisUptime += thisDelta;
+			}
+		}
+
+		thisState.uptime = thisUptime;
+		currentValue.get() = thisState.uptime;
+	}
+
 	bool handleModulation(double& v);;
-	void processFrame(float* frameData, int numChannels);
-	Component* createExtraComponent(PooledUIUpdater* updater);;
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		auto newValue = state.get().tick();
+
+		if (newValue > 1.0)
+		{
+			newValue = loopStart.get();
+			state.get().uptime = newValue;
+		}
+
+		for (auto& s : data)
+			s += (float)newValue;
+
+		currentValue.get() = newValue;
+	}
+
 	void createParameters(Array<ParameterData>& data) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 
@@ -199,9 +356,16 @@ private:
 	NodePropertyT<bool> useMidi;
 };
 
+
 class hise_mod : public HiseDspBase
 {
 public:
+
+	enum class Parameters
+	{
+		Index, 
+		numParameters
+	};
 
 	enum Index
 	{
@@ -214,27 +378,45 @@ public:
 	SET_HISE_NODE_ID("hise_mod");
 	GET_SELF_AS_OBJECT(hise_mod);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-	SET_HISE_NODE_EXTRA_HEIGHT(30);
-
-	
 
 	hise_mod();
 
 	bool isPolyphonic() const override { return true; }
 
+	bool isNormalisedModulation() const { return modIndex != ModulatorSynth::BasicChains::PitchChain; }
+
 	void initialise(NodeBase* b);
 	void prepare(PrepareSpecs ps);
 	
-	void process(ProcessData& d);
-	bool handleModulation(double& v);;
-	void processFrame(float* frameData, int numChannels);
-
-	void handleHiseEvent(HiseEvent& e) final override;
-
-	Component* createExtraComponent(PooledUIUpdater* updater)
+	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
-		return new ModulationSourceBaseComponent(updater);
+		if (parentProcessor != nullptr)
+		{
+			auto numToDo = (double)d.getNumSamples();
+			auto& u = uptime.get();
+
+			modValues.get().setModValueIfChanged(parentProcessor->getModValueForNode(modIndex, roundToInt(u)));
+			u = fmod(u + numToDo * uptimeDelta, synthBlockSize);
+		}
 	}
+
+	bool handleModulation(double& v);;
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		auto numToDo = 1.0;
+		auto& u = uptime.get();
+
+		modValues.get().setModValueIfChanged(parentProcessor->getModValueForNode(modIndex, roundToInt(u)));
+		u = Math.fmod(u + 1.0 * uptimeDelta, synthBlockSize);
+	}
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Index, hise_mod);
+	}
+
+	void handleHiseEvent(HiseEvent& e) override;
 	
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -253,19 +435,17 @@ private:
 	double uptimeDelta = 0.0;
 	double synthBlockSize = 0.0;
 
+	hmath Math;
+
 	WeakReference<JavascriptSynthesiser> parentProcessor;
 };
-
-
 
 
 DEFINE_EXTERN_NODE_TEMPLATE(ramp, ramp_poly, ramp_impl);
 
 
-template <int NV> class oscillator_impl: public HiseDspBase
+struct OscillatorDisplayProvider
 {
-public:
-
 	enum class Mode
 	{
 		Sine,
@@ -276,23 +456,48 @@ public:
 		numModes
 	};
 
+	OscillatorDisplayProvider()
+	{
+		modes = { "Sine", "Saw", "Triangle", "Square", "Noise" };
+	}
+
+	virtual ~OscillatorDisplayProvider() {};
+
+	SharedResourcePointer<SineLookupTable<2048>> sinTable;
+	StringArray modes;
+	Mode currentMode = Mode::Sine;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(OscillatorDisplayProvider);
+};
+
+
+template <int NV> class oscillator_impl: public HiseDspBase,
+										 public OscillatorDisplayProvider
+{
+public:
+
+	enum class Parameters
+	{
+		Mode,
+		Frequency,
+		PitchMultiplier
+	};
+
 	constexpr static int NumVoices = NV;
 
-	SET_HISE_NODE_EXTRA_HEIGHT(50);
 	SET_HISE_POLY_NODE_ID("oscillator");
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	GET_SELF_AS_OBJECT(oscillator_impl);
 
 	oscillator_impl();
 
-	void createParameters(Array<HiseDspBase::ParameterData>& data);
-	
 	void initialise(NodeBase* n) override;
 	void reset() noexcept;;
 	void prepare(PrepareSpecs ps);
-	bool handleModulation(double&) noexcept { return false; };
-	void process(ProcessData& data);
-	void processFrame(float* data, int numChannels);
+
+	void process(snex::Types::ProcessDataFix<1>& data);
+
+	void processFrame(snex::Types::span<float, 1>& data);
+
 	void handleHiseEvent(HiseEvent& e) override;
 
 	float tickSine(OscData& d);
@@ -301,32 +506,52 @@ public:
 	float tickNoise(OscData& d);
 	float tickSquare(OscData& d);
 
-	Component* createExtraComponent(PooledUIUpdater* updater);
+	void createParameters(Array<HiseDspBase::ParameterData>& data) override;
 
 	void setMode(double newMode);
 	void setFrequency(double newFrequency);
 	void setPitchMultiplier(double newMultiplier);
 
-	StringArray modes;
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Mode, oscillator_impl);
+		DEF_PARAMETER(Frequency, oscillator_impl);
+		DEF_PARAMETER(PitchMultiplier, oscillator_impl);
+	}
+
 	double sr = 44100.0;
 	PolyData<OscData, NumVoices> voiceData;
 	Random r;
 
-	SharedResourcePointer<SineLookupTable<2048>> sinTable;
-
 	NodePropertyT<bool> useMidi;
-
-	Mode currentMode = Mode::Sine;
+	
 	double freqValue = 220.0;
 };
 
 
+extern template class oscillator_impl<1>; 
+using oscillator = fix<1, oscillator_impl<1>>; 
+extern template class oscillator_impl<NUM_POLYPHONIC_VOICES>; 
+using oscillator_poly = fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
-DEFINE_EXTERN_NODE_TEMPLATE(oscillator, oscillator_poly, oscillator_impl);
 
 class fm : public HiseDspBase
 {
 public:
+
+	enum class Parameters
+	{
+		Frequency,
+		Modulator,
+		FreqMultiplier
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Frequency, fm);
+		DEF_PARAMETER(Modulator, fm);
+		DEF_PARAMETER(FreqMultiplier, fm);
+	}
 
 	SET_HISE_NODE_ID("fm");
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -337,9 +562,13 @@ public:
 	void prepare(PrepareSpecs ps);
 	void reset();
 	bool handleModulation(double& ) { return false; }
-	void process(ProcessData& d);
 
-	template <typename FD> void processFrame(FD& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		DspHelpers::forwardToFrameMono(this, data);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
 	{
 		auto& od = oscData.get();
 		double modValue = (double)d[0];
@@ -354,7 +583,7 @@ public:
 private:
 
 	void setFreqMultiplier(double input);
-	void setModulatorGain(double newGain);
+	void setModulator(double newGain);
 	void setFrequency(double newFrequency);
 
 	double sr = 0.0;
@@ -370,15 +599,20 @@ template <int V> class gain_impl : public HiseDspBase
 {
 public:
 
-	enum Parameter
+	enum class Parameters
 	{
 		Gain,
-		SmoothingTime
+		Smoothing
 	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Gain, gain_impl);
+		DEF_PARAMETER(Smoothing, gain_impl);
+	}
 
 	static constexpr int NumVoices = V;
 
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
 	SET_HISE_POLY_NODE_ID("gain");
 	GET_SELF_AS_OBJECT(gain_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -387,20 +621,39 @@ public:
 
 	void initialise(NodeBase* n);
 	void prepare(PrepareSpecs ps);
-	void process(ProcessData& d);
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		auto& thisGainer = gainer.get();
+
+		if (thisGainer.isSmoothing())
+			DspHelpers::forwardToFrame16(this, data);
+		else
+		{
+			auto gainFactor = thisGainer.getCurrentValue();
+
+			for (auto ch : data)
+				hmath::vmuls(data.toChannelData(ch), gainFactor);
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		auto nextValue = gainer.get().getNextValue();
+
+		for (auto& s : data)
+			s *= nextValue;
+	}
+
 	void reset() noexcept;;
-	void processFrame(float* numFrames, int numChannels);
+
 	bool handleModulation(double&) noexcept { return false; };
 	void createParameters(Array<ParameterData>& data) override;
 
-	HISE_STATIC_PARAMETER_TEMPLATE
-	{
-		TEMPLATE_PARAMETER_CALLBACK(Gain, setGain);
-		TEMPLATE_PARAMETER_CALLBACK(SmoothingTime, setSmoothingTime);
-	}
+	
 
 	void setGain(double newValue);
-	void setSmoothingTime(double smoothingTimeMs);
+	void setSmoothing(double smoothingTimeMs);
 
 	double gainValue = 1.0;
 	double sr = 0.0;
@@ -420,23 +673,43 @@ template <int NV> class smoother_impl : public HiseDspBase
 {
 public:
 
+	enum class Parameters
+	{
+		SmoothingTime,
+		DefaultValue
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(SmoothingTime, smoother_impl);
+		DEF_PARAMETER(DefaultValue, smoother_impl);
+	}
+
 	static constexpr int NumVoices = NV;
 
-	SET_HISE_NODE_EXTRA_HEIGHT(25);
 	SET_HISE_POLY_NODE_ID("smoother");
 	GET_SELF_AS_OBJECT(smoother_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	smoother_impl();
 
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
-
 	void initialise(NodeBase* n) override;
 	void createParameters(Array<ParameterData>& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
-	void processFrame(float* data, int numChannels);
-	void process(ProcessData& d);
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		data[0] = smoother.get().smooth(data[0]);
+		modValue.get().setModValue(smoother.get().getDefaultValue());
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		smoother.get().smoothBuffer(data[0].data, data.getNumSamples());
+		modValue.get().setModValue(smoother.get().getDefaultValue());
+	}
+
 	bool handleModulation(double&);
 	void handleHiseEvent(HiseEvent& e) final override;
 	
@@ -460,15 +733,24 @@ scriptnode::core::smoother_impl<NV>::smoother_impl():
 DEFINE_EXTERN_NODE_TEMPLATE(smoother, smoother_poly, smoother_impl);
 
 
-
-
 template <int V> class ramp_envelope_impl : public HiseDspBase
 {
 public:
 
+	enum class Parameters
+	{
+		Gate,
+		RampTime
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Gate, ramp_envelope_impl);
+		DEF_PARAMETER(RampTime, ramp_envelope_impl);
+	}
+
 	static constexpr int NumVoices = V;
 
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
 	SET_HISE_POLY_NODE_ID("ramp_envelope");
 	GET_SELF_AS_OBJECT(ramp_envelope_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -479,8 +761,34 @@ public:
 	void createParameters(Array<ParameterData>& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
-	void processFrame(float* data, int numChannels);
-	void process(ProcessData& d);
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		auto& thisG = gainer.get();
+		auto v = thisG.getNextValue();
+
+		for (auto& s : data)
+			s *= v;
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		auto& thisG = gainer.get();
+
+		if (thisG.isSmoothing())
+			DspHelpers::forwardToFrame16(this, data);
+		else
+		{
+			auto v = thisG.getTargetValue();
+
+			for (auto ch : data)
+				hmath::vmuls(data.toChannelData(ch), v);
+
+			if (thisG.getCurrentValue() == 0.0)
+				data.setResetFlag();
+		}
+	}
+
 	bool handleModulation(double&);
 	void handleHiseEvent(HiseEvent& e) final override;
 	void setGate(double newValue);
@@ -490,7 +798,6 @@ public:
 
 	double attackTimeSeconds = 0.01;
 	double sr = 0.0;
-
 
 	PolyData<LinearSmoothedValue<float>, NumVoices> gainer;
 };

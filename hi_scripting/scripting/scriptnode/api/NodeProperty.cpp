@@ -53,26 +53,7 @@ bool NodeProperty::init(NodeBase* n, HiseDspBase* parent)
 		parent = pendingParent;
 
 
-	if (auto hc = n->getAsHardcodedNode())
-	{
-		if (hc->getNodeId(parent).isEmpty())
-		{
-			pendingNode = n;
-			pendingParent = parent;
-			return false;
-		}
-
-		String c;
-
-		c << hc->getNodeId(parent) << ".";
-		c << baseId;
-
-		valueTreePropertyid = Identifier(c);
-	}
-	else
-	{
-		valueTreePropertyid = baseId;
-	}
+	valueTreePropertyid = baseId;
 
 	auto propTree = n->getPropertyTree();
 

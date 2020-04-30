@@ -190,27 +190,13 @@ struct PropertyHelpers
 };
 
 
-#define FORWARD_PROCESS_DATA_SWITCH(x) case x: processFix<x>(d.as<snex::Types::ProcessDataFix<x>()); break;
 
-/** Use this macro to forward the methods to a processFix method which has the compile time channel amount. */
-#define FORWARD_PROCESSDATA2FIX() forcedinline void process(ProcessData& d) { switch (d.getNumChannels()) { \
-	FORWARD_PROCESS_DATA_SWITCH(1) \
-FORWARD_PROCESS_DATA_SWITCH(1) \
-FORWARD_PROCESS_DATA_SWITCH(2) \
-FORWARD_PROCESS_DATA_SWITCH(3) \
-FORWARD_PROCESS_DATA_SWITCH(4) \
-FORWARD_PROCESS_DATA_SWITCH(5) \
-FORWARD_PROCESS_DATA_SWITCH(6) \
-FORWARD_PROCESS_DATA_SWITCH(7) \
-FORWARD_PROCESS_DATA_SWITCH(8) \
-FORWARD_PROCESS_DATA_SWITCH(9) \
-FORWARD_PROCESS_DATA_SWITCH(10) \
-FORWARD_PROCESS_DATA_SWITCH(11) \
-FORWARD_PROCESS_DATA_SWITCH(12) \
-FORWARD_PROCESS_DATA_SWITCH(13) \
-FORWARD_PROCESS_DATA_SWITCH(14) \
-FORWARD_PROCESS_DATA_SWITCH(15) \
-FORWARD_PROCESS_DATA_SWITCH(16) }}
+#define DEFINE_PARAMETERS template <int P> static void setParameter(void* obj, double value)
+
+
+#define DEF_PARAMETER(parameterName, className) if (P == (int)Parameters::parameterName) static_cast<className*>(obj)->set##parameterName(value);
+
+#define DEFINE_PARAMETERDATA(className, name) ParameterDataImpl p(#name); p.dbNew = parameter::inner<className, (int)Parameters::name>(*this);
 
 
 
@@ -228,27 +214,19 @@ FORWARD_PROCESS_DATA_SWITCH(16) }}
 #define SET_HISE_NODE_ID(id) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(id); };
 #define SET_HISE_NODE_EXTRA_HEIGHT(x) int getExtraHeight() const final override { return x; };
 #define SET_HISE_NODE_EXTRA_WIDTH(x) int getExtraWidth() const final override { return x; };
-#define SET_HISE_NODE_IS_MODULATION_SOURCE(x) static constexpr bool isModulationSource = x;
+#define SET_HISE_NODE_IS_MODULATION_SOURCE(x) //static constexpr bool isModulationSource = x;
 #define SET_HISE_EXTRA_COMPONENT(height, className) SET_HISE_NODE_EXTRA_HEIGHT(height); \
 												    CREATE_EXTRA_COMPONENT(className);
 
 #define GET_OBJECT_FROM_CONTAINER(index) &obj.getObject().get<index>()
-#define GET_SELF_AS_OBJECT(className) className& getObject() { return *this;} const className& getObject() const { return *this; }
-
-#define HISE_STATIC_PARAMETER_TEMPLATE template <int P> static void setParameter(void* obj, double value) \
-{ static_cast<gain_impl<V>*>(obj)->setParameter<P>(value); } \
-template <int ParameterIndex> void setParameter(double value)
-
-#define TEMPLATE_PARAMETER_CALLBACK(id, method) if (ParameterIndex == id) method(value);
-
-#define STATIC_TO_MEMBER_PARAMETER(ClassType) template <int P> static void setParameter(void* obj, double v) { static_cast<ClassType*>(obj)->setParameter<P>(v); }
 
 #define HISE_EMPTY_RESET void reset() {}
 #define HISE_EMPTY_PREPARE void prepare(PrepareSpecs) {}
-#define HISE_EMPTY_PROCESS void process(ProcessData&) {}
-#define HISE_EMPTY_PROCESS_SINGLE void processFrame(float*, int) {}
+#define HISE_EMPTY_PROCESS template <typename ProcessDataType> void process(ProcessDataType&) {}
+#define HISE_EMPTY_PROCESS_SINGLE template <typename FrameDataType> void processFrame(FrameDataType& ) {}
 #define HISE_EMPTY_CREATE_PARAM void createParameters(Array<ParameterData>&){}
 #define HISE_EMPTY_MOD bool handleModulation(double& ) { return false; }
+#define HISE_EMPTY_HANDLE_EVENT void handleEvent(HiseEvent& e) {};
 
 #define DEFINE_EXTERN_MONO_TEMPLATE(monoName, classWithTemplate) extern template class classWithTemplate; using monoName = classWithTemplate;
 
@@ -263,16 +241,9 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 
 #define DECLARE_SNEX_INITIALISER(nodeId) static Identifier getStaticId() { return Identifier(#nodeId);} 
 
-#define DECLARE_SNEX_NODE(ClassType) constexpr const auto& getObject() const noexcept { return *this; } \
-constexpr auto& getObject() noexcept { return *this; } \
-HardcodedNode* getAsHardcodedNode() { return nullptr; } \
-int getExtraHeight() const { return 0; }; \
-int getExtraWidth() const { return 0; }; \
-static constexpr bool isModulationSource = false; \
-Component* createExtraComponent(PooledUIUpdater* updater) { return nullptr; } \
-void createParameters(Array<HiseDspBase::ParameterData>& d) { } \
+#define DECLARE_SNEX_NODE(ClassType) GET_SELF_AS_OBJECT() \
 template <int P> static void setParameter(void* obj, double v) { static_cast<ClassType*>(obj)->setParameter<P>(v); } \
-void initialise(NodeBase* n) {} \
+void initialise(scriptnode::NodeBase* n) {} \
 snex::hmath Math;
 
 namespace UIValues

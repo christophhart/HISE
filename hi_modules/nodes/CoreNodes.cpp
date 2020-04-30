@@ -41,9 +41,6 @@ namespace core
 
 void tempo_sync::initialise(NodeBase* n)
 {
-	if (auto modSource = dynamic_cast<ModulationSourceNode*>(n))
-		modSource->setScaleModulationValue(false);
-
 	useFreqDomain.init(n, this);
 
 	mc = n->getScriptProcessor()->getMainController_();
@@ -61,13 +58,20 @@ tempo_sync::~tempo_sync()
 	mc->removeTempoListener(this);
 }
 
-struct tempo_sync::TempoDisplay: public ModulationSourceBaseComponent
+struct TempoDisplay: public ModulationSourceBaseComponent
 {
+	using ObjectType = tempo_sync;
+
 	TempoDisplay(PooledUIUpdater* updater, tempo_sync* p_) :
 		ModulationSourceBaseComponent(updater),
 		p(p_)
 	{
+		setSize(256, 40);
+	}
 
+	static Component* createExtraComponent(tempo_sync*p, PooledUIUpdater* updater)
+	{
+		return new TempoDisplay(updater, p);
 	}
 
 	void timerCallback() override
@@ -99,45 +103,33 @@ struct tempo_sync::TempoDisplay: public ModulationSourceBaseComponent
 };
 
 
-Component* tempo_sync::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new TempoDisplay(updater, this);
-}
+
+
 
 void tempo_sync::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Tempo");
-
-		StringArray sa;
-
-		for (int i = 0; i < TempoSyncer::numTempos; i++)
-			sa.add(TempoSyncer::getTempoName(i));
-
-		p.setParameterValueNames(sa);
-		p.db = BIND_MEMBER_FUNCTION_1(tempo_sync::updateTempo);
-
+		DEFINE_PARAMETERDATA(tempo_sync, Tempo);
+		p.setParameterValueNames(TempoSyncer::getTempoNames());
 		data.add(std::move(p));
 	}
 	{
-		ParameterData d("Multiplier");
-		d.range = { 1, 16, 1.0 };
-		d.defaultValue = 1.0;
-		d.db = BIND_MEMBER_FUNCTION_1(tempo_sync::setMultiplier);
-
-		data.add(std::move(d));
+		DEFINE_PARAMETERDATA(tempo_sync, Multiplier);
+		p.range = { 1, 16, 1.0 };
+		p.defaultValue = 1.0;
+		data.add(std::move(p));
 	}
 }
 
 void tempo_sync::tempoChanged(double newTempo)
 {
 	bpm = newTempo;
-	updateTempo((double)(int)currentTempo);
+	setTempo((double)(int)currentTempo);
 }
 
-void tempo_sync::updateTempo(double newTempoIndex)
+void tempo_sync::setTempo(double newTempoIndex)
 {
-	currentTempo = (TempoSyncer::Tempo)(int)newTempoIndex;
+	currentTempo = (TempoSyncer::Tempo)jlimit<int>(0, TempoSyncer::numTempos-1, (int)newTempoIndex);
 	currentTempoMilliseconds = TempoSyncer::getTempoInMilliSeconds(this->bpm, currentTempo) * multiplier;
 }
 
@@ -155,6 +147,12 @@ bool tempo_sync::handleModulation(double& max)
 	}
 
 	return false;
+}
+
+void tempo_sync::setMultiplier(double newMultiplier)
+{
+	multiplier = jlimit(1.0, 32.0, newMultiplier);
+	setTempo((double)(int)currentTempo);
 }
 
 template <int NV>
@@ -175,10 +173,8 @@ void ramp_impl<NV>::setPeriodTime(double periodTimeMs)
 		}
 		else
 		{
-			state.forEachVoice([newUptimeDelta](OscData& od)
-			{
-				od.uptimeDelta = newUptimeDelta;
-			});
+			for (auto& s : state)
+				s.uptimeDelta = newUptimeDelta;
 		}
 	}
 }
@@ -191,7 +187,10 @@ void ramp_impl<NV>::setLoopStart(double newLoopStart)
 	if (loopStart.isMonophonicOrInsideVoiceRendering())
 		loopStart.get() = v;
 	else
-		loopStart.forEachVoice([v](double& d) { d = v; });
+	{
+		for (auto& d : loopStart)
+			d = v;
+	}
 }
 
 
@@ -205,34 +204,20 @@ template <int NV>
 void ramp_impl<NV>::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("PeriodTime");
-
+		DEFINE_PARAMETERDATA(ramp_impl, PeriodTime);
 		p.range = { 0.1, 1000.0, 0.1 };
 		p.defaultValue = 100.0;
-
-		p.db = BIND_MEMBER_FUNCTION_1(ramp_impl::setPeriodTime);
-
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Loop");
-
+		DEFINE_PARAMETERDATA(ramp_impl, LoopStart);
 		p.range = { 0.0, 1.0, 0.01 };
 		p.defaultValue = 0.0;
-
-		p.db = BIND_MEMBER_FUNCTION_1(ramp_impl::setLoopStart);
-
 		data.add(std::move(p));
 	}
 
 	useMidi.init(nullptr, nullptr);
-}
-
-template <int NV>
-Component* ramp_impl<NV>::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new ModulationSourcePlotter(updater);
 }
 
 
@@ -244,58 +229,10 @@ void ramp_impl<NV>::handleHiseEvent(HiseEvent& e)
 }
 
 template <int NV>
-void ramp_impl<NV>::processFrame(float* frameData, int numChannels)
-{
-	auto newValue = state.get().tick();
-	
-	if (newValue > 1.0)
-	{
-		newValue = loopStart.get();
-		state.get().uptime = newValue;
-	}
-		
-	for (int i = 0; i < numChannels; i++)
-		frameData[i] += (float)newValue;
-
-	currentValue.get() = newValue;
-}
-
-template <int NV>
 bool ramp_impl<NV>::handleModulation(double& v)
 {
 	v = currentValue.get();
 	return true;
-}
-
-template <int NV>
-void ramp_impl<NV>::process(ProcessData& d)
-{
-	auto& thisState = state.get();
-
-	double thisUptime = thisState.uptime;
-	double thisDelta = thisState.uptimeDelta;
-
-	for (int c = 0; c < d.numChannels; c++)
-	{
-		thisUptime = thisState.uptime;
-
-		for (int i = 0; i < d.size; i++)
-		{
-			if (thisUptime > 1.0)
-				thisUptime = loopStart.get();
-
-			d.data[c][i] += (float)thisUptime;
-
-			thisUptime += thisDelta;
-		}
-
-		
-	}
-
-	thisState.uptime = thisUptime;
-
-
-	currentValue.get() = thisState.uptime;
 }
 
 template <int NV>
@@ -308,10 +245,8 @@ void ramp_impl<NV>::reset() noexcept
 	}
 	else
 	{
-		state.forEachVoice([](OscData& s)
-		{
+		for (auto& s : state)
 			s.reset();
-		});
 
 		currentValue.setAll(0.0);
 	}
@@ -337,10 +272,10 @@ ramp_impl<NV>::ramp_impl():
 
 DEFINE_EXTERN_NODE_TEMPIMPL(ramp_impl);
 
-template <int NV> struct OscDisplay : public HiseDspBase::ExtraComponent<oscillator_impl<NV>>
+struct OscDisplay : public ScriptnodeExtraComponent<OscillatorDisplayProvider>
 {
-	OscDisplay(oscillator_impl<NV>* n, PooledUIUpdater* updater) :
-		HiseDspBase::ExtraComponent<oscillator_impl<NV>>(n, updater)
+	OscDisplay(OscillatorDisplayProvider* n, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent(n, updater)
 	{
 		p = f.createPath("sine");
 		this->setSize(0, 50);
@@ -354,12 +289,17 @@ template <int NV> struct OscDisplay : public HiseDspBase::ExtraComponent<oscilla
 		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, h * 2, h, false);
 	}
 
+	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	{
+		return new OscDisplay(obj, updater);
+	}
+
 	void timerCallback() override
 	{
-		if (this->getObject() == nullptr)
+		if (getObject() == nullptr)
 			return;
 
-		auto thisMode = (int)this->getObject()->currentMode;
+		auto thisMode = (int)getObject()->currentMode;
 
 		if (currentMode != thisMode)
 		{
@@ -376,85 +316,15 @@ template <int NV> struct OscDisplay : public HiseDspBase::ExtraComponent<oscilla
 	Path p;
 };
 
-
-template <int NV>
-Component* oscillator_impl<NV>::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new OscDisplay<NV>(this, updater);
-}
-
-
 template <int NV>
 void scriptnode::core::oscillator_impl<NV>::reset() noexcept
 {
 	if (voiceData.isMonophonicOrInsideVoiceRendering())
 		voiceData.get().reset();
 	else
-		voiceData.forEachVoice([](OscData& s) { s.reset(); });
-}
-
-
-template <int NV>
-void oscillator_impl<NV>::processFrame(float* data, int )
-{
-	auto& d = voiceData.get();
-
-	switch (currentMode)
 	{
-	case Mode::Sine: *data += tickSine(d); break;
-	case Mode::Triangle: *data += tickTriangle(d); break;
-	case Mode::Saw: *data += tickSaw(d); break;
-	case Mode::Square: *data += tickSquare(d); break;
-	}
-
-	
-}
-
-template <int NV>
-void oscillator_impl<NV>::process(ProcessData& data)
-{
-	int numSamples = data.size;
-
-	auto& thisData = voiceData.get();
-	auto* ptr = data.data[0];
-
-	switch (currentMode)
-	{
-	case Mode::Sine:
-	{
-		while (--numSamples >= 0)
-			*ptr++ += tickSine(thisData);
-
-		break;
-	}
-	case Mode::Triangle:
-	{
-		while (--numSamples >= 0)
-			*ptr++ += tickTriangle(thisData);
-
-		break;
-	}
-	case Mode::Saw:
-	{
-		while (--numSamples >= 0)
-			*ptr++ += tickSaw(thisData);
-
-		break;
-	}
-	case Mode::Noise:
-	{
-		while (--numSamples >= 0)
-			*ptr++ += tickNoise(thisData);
-
-		break;
-	}
-	case Mode::Square:
-	{
-		while (--numSamples >= 0)
-			*ptr++ += tickSquare(thisData);
-
-		break;
-	}
+		for (auto& s : voiceData)
+			s.reset();
 	}
 }
 
@@ -519,10 +389,8 @@ void oscillator_impl<NV>::setPitchMultiplier(double newMultiplier)
 	}
 	else
 	{
-		voiceData.forEachVoice([pitchMultiplier](OscData& d)
-		{
+		for(auto& d: voiceData)
 			d.multiplier = pitchMultiplier;
-		});
 	}
 }
 
@@ -538,10 +406,8 @@ void oscillator_impl<NV>::setFrequency(double newFrequency)
 	}
 	else
 	{
-		voiceData.forEachVoice([newUptimeDelta](OscData& d)
-		{
+		for(auto& d: voiceData)
 			d.uptimeDelta = newUptimeDelta;
-		});
 	}
 }
 
@@ -555,7 +421,7 @@ template <int NV>
 oscillator_impl<NV>::oscillator_impl():
 	useMidi(PropertyIds::UseMidi, false)
 {
-	modes = { "Sine", "Saw", "Triangle", "Square", "Noise"};
+	
 }
 
 template <int V>
@@ -567,34 +433,58 @@ void oscillator_impl<V>::handleHiseEvent(HiseEvent& e)
     }
 }
 
-    
 template <int NV>
 void oscillator_impl<NV>::createParameters(Array<HiseDspBase::ParameterData>& data)
 {
 	{
-		HiseDspBase::ParameterData p("Mode");
+		DEFINE_PARAMETERDATA(oscillator_impl, Mode);
 		p.setParameterValueNames(modes);
-		p.db = std::bind(&oscillator_impl::setMode, this, std::placeholders::_1);
 		data.add(std::move(p));
 	}
 	{
-		HiseDspBase::ParameterData p("Frequency");
+		DEFINE_PARAMETERDATA(oscillator_impl, Frequency);
 		p.range = { 20.0, 20000.0, 0.1 };
 		p.defaultValue = 220.0;
 		p.range.setSkewForCentre(1000.0);
-		p.db = std::bind(&oscillator_impl::setFrequency, this, std::placeholders::_1);
 		data.add(std::move(p));
 	}
 	{
 		HiseDspBase::ParameterData p("Freq Ratio");
 		p.range = { 1.0, 16.0, 1.0 };
 		p.defaultValue = 1.0;
-		p.db = std::bind(&oscillator_impl::setPitchMultiplier, this, std::placeholders::_1);
+		p.dbNew = parameter::inner<oscillator_impl, (int)Parameters::PitchMultiplier>(*this);
 		data.add(std::move(p));
 	}
 
 	useMidi.init(nullptr, nullptr);
 }
+
+template <int NV>
+void oscillator_impl<NV>::processFrame(snex::Types::span<float, 1>& data)
+{
+	auto& d = voiceData.get();
+	auto& s = data[0];
+
+	switch (currentMode)
+	{
+	case Mode::Sine:	 s += tickSine(d); break;
+	case Mode::Triangle: s += tickTriangle(d); break;
+	case Mode::Saw:		 s += tickSaw(d); break;
+	case Mode::Square:	 s += tickSquare(d); break;
+	case Mode::Noise:	 s += Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
+	}
+}
+
+template <int NV>
+void oscillator_impl<NV>::process(snex::Types::ProcessDataFix<1>& data)
+{
+	auto f = data.toFrameData();
+
+	while (f.next())
+		processFrame(f.toSpan());
+}
+
+
 
 DEFINE_EXTERN_NODE_TEMPIMPL(oscillator_impl);
 
@@ -610,7 +500,7 @@ gain_impl<V>::gain_impl():
 
 
 template <int V>
-void gain_impl<V>::setSmoothingTime(double smoothingTimeMs)
+void gain_impl<V>::setSmoothing(double smoothingTimeMs)
 {
 	smoothingTime = smoothingTimeMs * 0.001;
 
@@ -626,10 +516,9 @@ void gain_impl<V>::setSmoothingTime(double smoothingTimeMs)
 	else
 	{
 		auto sr_ = sr;
-		gainer.forEachVoice([sm, sr_](LinearSmoothedValue<float>& f)
-		{
-			f.reset(sr_, sm);
-		});
+
+		for (auto& g : gainer)
+			g.reset(sr_, sm);
 	}
 }
 
@@ -643,10 +532,9 @@ void gain_impl<V>::setGain(double newValue)
 	else
 	{
 		float gf = (float)gainValue;
-		gainer.forEachVoice([gf](LinearSmoothedValue<float>& g)
-		{
+
+		for (auto& g : gainer)
 			g.setValue(gf);
-		});
 	}
 }
 
@@ -654,22 +542,17 @@ template <int V>
 void gain_impl<V>::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Gain");
-
+		DEFINE_PARAMETERDATA(gain_impl, Gain);
 		p.range = { -100.0, 0.0, 0.1 };
 		p.range.setSkewForCentre(-12.0);
 		p.defaultValue = 0.0;
-		p.db = std::bind(&gain_impl::setGain, this, std::placeholders::_1);
-
 		data.add(std::move(p));
 	}
 	{
-		ParameterData p("Smoothing");
+		DEFINE_PARAMETERDATA(gain_impl, Smoothing);
 		p.range = { 0.0, 1000.0, 0.1 };
 		p.range.setSkewForCentre(100.0);
 		p.defaultValue = 20.0;
-		p.db = std::bind(&gain_impl::setSmoothingTime, this, std::placeholders::_1);
-
 		data.add(std::move(p));
 	}
 
@@ -685,14 +568,6 @@ void gain_impl<V>::initialise(NodeBase* n)
 {
 	resetValue.init(n, this);
 	useResetValue.init(n, this);
-}
-
-
-template <int V>
-void gain_impl<V>::processFrame(float* numFrames, int numChannels)
-{
-	auto nextValue = gainer.get().getNextValue();
-	FloatVectorOperations::multiply(numFrames, nextValue, numChannels);
 }
 
 template <int V>
@@ -718,40 +593,11 @@ void gain_impl<V>::reset() noexcept
 	}
 	else
 	{
-		auto s = sr;
-		auto t = smoothingTime;
-		auto gf = gainValue;
-
-		gainer.forEachVoice([s, t, gf](LinearSmoothedValue<float>& g)
+		for (auto& g : gainer)
 		{
-			g.reset((float)s, (float)t);
-			g.setValueWithoutSmoothing((float)gf);
-		});
-	}
-}
-
-template <int V>
-void gain_impl<V>::process(ProcessData& d)
-{
-	auto& thisGainer = gainer.get();
-
-	if (thisGainer.isSmoothing())
-	{
-		jassert(d.size <= gainBuffer.getNumSamples());
-		auto gainData = gainBuffer.getWritePointer(0);
-
-		for (int i = 0; i < d.size; i++)
-			gainData[i] = thisGainer.getNextValue();
-
-		for (auto ch : d)
-			FloatVectorOperations::multiply(ch, gainData, d.size);
-	}
-	else
-	{
-		auto gainFactor = thisGainer.getCurrentValue();
-
-		for (auto ch : d)
-			FloatVectorOperations::multiply(ch, gainFactor, d.size);
+			g.reset((float)sr, (float)smoothingTime);
+			g.setValueWithoutSmoothing((float)gainValue);
+		}
 	}
 }
 
@@ -763,17 +609,11 @@ void gain_impl<V>::prepare(PrepareSpecs ps)
 
 	DspHelpers::increaseBuffer(gainBuffer, ps);
 
-	setSmoothingTime(smoothingTime * 1000.0);
+	setSmoothing(smoothingTime * 1000.0);
 }
 
 DEFINE_EXTERN_NODE_TEMPIMPL(gain_impl);
 
-
-template <int NV>
-Component* smoother_impl<NV>::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new ModulationSourceBaseComponent(updater);
-}
 
 template <int NV>
 void smoother_impl<NV>::setDefaultValue(double newDefaultValue)
@@ -785,7 +625,10 @@ void smoother_impl<NV>::setDefaultValue(double newDefaultValue)
 	if (smoother.isMonophonicOrInsideVoiceRendering())
 		smoother.get().resetToValue((float)d, (float)sm);
 	else
-		smoother.forEachVoice([d, sm](Smoother& s) {s.resetToValue((float)d, (float)sm); });
+	{
+		for (auto& s : smoother)
+			s.resetToValue((float)d, (float)sm);
+	}
 }
 
 template <int NV>
@@ -796,7 +639,10 @@ void smoother_impl<NV>::setSmoothingTime(double newSmoothingTime)
 	if (smoother.isMonophonicOrInsideVoiceRendering())
 		smoother.get().setSmoothingTime((float)smoothingTimeMs);
 	else
-		smoother.forEachVoice([newSmoothingTime](Smoother& s) {s.setSmoothingTime((float)newSmoothingTime); });
+	{
+		for(auto& s: smoother)
+			s.setSmoothingTime((float)newSmoothingTime);
+	}
 }
 
 template <int NV>
@@ -813,20 +659,6 @@ bool smoother_impl<NV>::handleModulation(double& value)
 }
 
 template <int NV>
-void smoother_impl<NV>::process(ProcessData& d)
-{
-	smoother.get().smoothBuffer(d.data[0], d.size);
-	modValue.get().setModValue(smoother.get().getDefaultValue());
-}
-
-template <int NV>
-void smoother_impl<NV>::processFrame(float* data, int)
-{
-	*data = smoother.get().smooth(*data);
-	modValue.get().setModValue(smoother.get().getDefaultValue());
-}
-
-template <int NV>
 void smoother_impl<NV>::reset()
 {
 	auto d = defaultValue;
@@ -834,7 +666,10 @@ void smoother_impl<NV>::reset()
 	if (smoother.isMonophonicOrInsideVoiceRendering())
 		smoother.get().resetToValue(defaultValue, 0.0);
 	else
-		smoother.forEachVoice([d](Smoother& s) { s.resetToValue(d, 0.0); });
+	{
+		for (auto& s : smoother)
+			s.resetToValue(d, 0.0);
+	}
 }
 
 template <int NV>
@@ -851,29 +686,28 @@ void scriptnode::core::smoother_impl<NV>::prepare(PrepareSpecs ps)
 	smoother.prepare(ps);
 	auto sr = ps.sampleRate;
 	auto sm = smoothingTimeMs;
-	smoother.forEachVoice([sr, sm](hise::Smoother& s)
+
+	for (auto& s : smoother)
 	{
 		s.prepareToPlay(sr);
 		s.setSmoothingTime((float)sm);
-	});
+	}
 }
 
 template <int NV>
 void smoother_impl<NV>::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("DefaultValue");
+		DEFINE_PARAMETERDATA(smoother_impl, DefaultValue);
 		p.range = { 0.0, 1.0, 0.01 };
 		p.defaultValue = 0.0;
-		p.db = BIND_MEMBER_FUNCTION_1(smoother_impl::setDefaultValue);
 		data.add(std::move(p));
 	}
 	{
-		ParameterData p("SmoothingTime");
+		DEFINE_PARAMETERDATA(smoother_impl, SmoothingTime);
 		p.range = { 0.0, 2000.0, 0.1 };
 		p.range.setSkewForCentre(100.0);
 		p.defaultValue = 100.0;
-		p.db = BIND_MEMBER_FUNCTION_1(smoother_impl::setSmoothingTime);
 		data.add(std::move(p));
 	}
 
@@ -894,18 +728,14 @@ template <int V>
 void ramp_envelope_impl<V>::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Gate");
+		DEFINE_PARAMETERDATA(ramp_envelope_impl, Gate);
 		p.setParameterValueNames({ "On", "Off" });
-		p.db = BIND_MEMBER_FUNCTION_1(ramp_envelope_impl::setGate);
-
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Ramp Time");
+		DEFINE_PARAMETERDATA(ramp_envelope_impl, RampTime);
 		p.range = { 0.0, 2000.0, 0.1 };
-		p.db = BIND_MEMBER_FUNCTION_1(ramp_envelope_impl::setRampTime);
-
 		data.add(std::move(p));
 	}
 }
@@ -932,43 +762,8 @@ void ramp_envelope_impl<V>::reset()
 		gainer.get().setValueWithoutSmoothing(0.0f);
 	else
 	{
-		gainer.forEachVoice([](LinearSmoothedValue<float>& v)
-		{
-			v.setValueWithoutSmoothing(0.0f);
-		});
-	}
-}
-
-template <int V>
-void ramp_envelope_impl<V>::processFrame(float* , int )
-{
-	jassertfalse;
-}
-
-template <int V>
-void ramp_envelope_impl<V>::process(ProcessData& d)
-{
-	auto& thisG = gainer.get();
-
-	if (thisG.isSmoothing())
-	{
-		for (int i = 0; i < d.size; i++)
-		{
-			auto v = thisG.getNextValue();
-
-			for (int c = 0; c < d.numChannels; c++)
-				d.data[c][i] *= v;
-		}
-	}
-	else
-	{
-		for (int c = 0; c < d.numChannels; c++)
-		{
-			FloatVectorOperations::multiply(d.data[c], thisG.getTargetValue(), d.size);
-		}
-
-		if (thisG.getCurrentValue() == 0.0)
-			d.setResetFlag();
+		for(auto& g: gainer)
+			g.setValueWithoutSmoothing(0.0f);
 	}
 }
 
@@ -1006,10 +801,9 @@ void ramp_envelope_impl<V>::setRampTime(double newAttackTimeMs)
 		{
 			auto sr_ = sr;
 			auto as = attackTimeSeconds;
-			gainer.forEachVoice([sr_, as](LinearSmoothedValue<float>& v)
-			{
-				v.reset(sr_, as);
-			});
+
+			for (auto& g : gainer)
+				g.reset(sr, attackTimeSeconds);
 		}
 	}
 }
@@ -1022,52 +816,9 @@ bool peak::handleModulation(double& value)
 	return true;
 }
 
-juce::Component* peak::createExtraComponent(PooledUIUpdater* updater)
-{
-
-	return new ModulationSourcePlotter(updater);
-}
-
 void peak::reset() noexcept
 {
 	max = 0.0;
-}
-
-void peak::process(ProcessData& data)
-{
-	max = DspHelpers::findPeak(data);
-}
-
-void peak::processFrame(float* frameData, int numChannels)
-{
-    if(numChannels == 1)
-        max = frameData[0];
-    else if (numChannels == 2)
-    {
-        max = jmax(frameData[0], frameData[1]);
-    }
-    else
-    {
-        max = 0.0;
-        
-        for (int i = 0; i < numChannels; i++)
-            max = jmax(max, std::abs((double)frameData[i]));
-    }
-	
-}
-
-
-
-void mono2stereo::process(ProcessData& data)
-{
-	if(data.getNumChannels() >= 2)
-		FloatVectorOperations::copy(data[1].data, data[0].data, data.getNumSamples());
-}
-
-void mono2stereo::processFrame(float* frameData, int numChannels)
-{
-	if (numChannels >= 2)
-		frameData[1] = frameData[0];
 }
 
 hise_mod::hise_mod()
@@ -1086,7 +837,8 @@ void hise_mod::prepare(PrepareSpecs ps)
 	modValues.prepare(ps);
 	uptime.prepare(ps);
 
-	uptime.forEachVoice([](double& d) { d = 0.0; });
+	for (auto& u : uptime)
+		u = 0.0;
 
 	if (parentProcessor != nullptr && ps.sampleRate > 0.0)
 	{
@@ -1096,29 +848,12 @@ void hise_mod::prepare(PrepareSpecs ps)
 	
 }
 
-void hise_mod::process(ProcessData& d)
-{
-	if (parentProcessor != nullptr)
-	{
-		auto numToDo = (double)d.getNumSamples();
-		auto& u = uptime.get();
-		
-		modValues.get().setModValueIfChanged(parentProcessor->getModValueForNode(modIndex, roundToInt(u)));
-		u = fmod(u + numToDo * uptimeDelta, synthBlockSize);
-	}
-}
-
 bool hise_mod::handleModulation(double& v)
 {
 	if (modValues.isMonophonicOrInsideVoiceRendering())
 		return modValues.get().getChangedValue(v);
 	else
 		return false;
-}
-
-void hise_mod::processFrame(float* , int )
-{
-	jassertfalse;
 }
 
 
@@ -1133,9 +868,8 @@ void hise_mod::handleHiseEvent(HiseEvent& e)
 void hise_mod::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Index");
+		DEFINE_PARAMETERDATA(hise_mod, Index);
 		p.setParameterValueNames({ "Pitch", "Extra 1", "Extra 2" });
-		p.db = BIND_MEMBER_FUNCTION_1(hise_mod::setIndex);
 		p.defaultValue = 0.0;
 		data.add(std::move(p));
 	}
@@ -1155,9 +889,6 @@ void hise_mod::setIndex(double index)
 
 	else if (inp == 2)
 		modIndex = JavascriptSynthesiser::ModChains::Extra2;
-
-	if (parentNode != nullptr)
-		parentNode->setScaleModulationValue(inp != 0);
 }
 
 void hise_mod::reset()
@@ -1168,10 +899,8 @@ void hise_mod::reset()
 	}
 	else
 	{
-		modValues.forEachVoice([](ModValue& v)
-		{
-			v.setModValue(1.0);
-		});
+		for (auto& m : modValues)
+			m.setModValue(1.0);
 	}
 }
 
@@ -1187,47 +916,32 @@ void fm::reset()
 	if (oscData.isMonophonicOrInsideVoiceRendering())
 		oscData.get().reset();
 	else
-		oscData.forEachVoice([](OscData& d) {d.reset(); });
-}
-
-void fm::process(ProcessData& d)
-{
-	auto& od = oscData.get();
-
-	auto firstChannel = d[0];
-
-	for (auto& s : firstChannel)
 	{
-		double modValue = (double)s;
-		s = sinTable->getInterpolatedValue(od.tick());
-		od.uptime += modGain.get() * modValue;
+		for (auto& o : oscData)
+			o.reset();
 	}
 }
 
 void fm::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Frequency");
+		DEFINE_PARAMETERDATA(fm, Frequency);
 		p.range = { 20.0, 20000.0, 0.1 };
 		p.setDefaultValue(20.0);
 		p.range.setSkewForCentre(1000.0);
-		p.db = BIND_MEMBER_FUNCTION_1(fm::setFrequency);
-
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Modulator");
+		DEFINE_PARAMETERDATA(fm, Modulator);
 		p.setDefaultValue(0.0);
-		p.db = BIND_MEMBER_FUNCTION_1(fm::setModulatorGain);
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("FreqMultiplier");
+		DEFINE_PARAMETERDATA(fm, FreqMultiplier);
 		p.range = { 1.0, 12.0, 1.0 };
 		p.defaultValue = 1.0;
-		p.db = BIND_MEMBER_FUNCTION_1(fm::setFreqMultiplier);
 		data.add(std::move(p));
 	}
 }
@@ -1242,17 +956,23 @@ void fm::setFreqMultiplier(double input)
 	if (oscData.isMonophonicOrInsideVoiceRendering())
 		oscData.get().multiplier = input;
 	else
-		oscData.forEachVoice([input](OscData& d) { d.multiplier = input; });
+	{
+		for (auto& o : oscData)
+			o.multiplier = input;
+	}
 }
 
-void fm::setModulatorGain(double newGain)
+void fm::setModulator(double newGain)
 {
 	auto newValue = newGain * sinTable->getTableSize() * 0.05;
 
 	if (modGain.isMonophonicOrInsideVoiceRendering())
 		modGain.get() = newValue;
 	else
-		modGain.forEachVoice([newValue](double& d) {d = newValue; });
+	{
+		for (auto& m : modGain)
+			m = newValue;
+	}
 }
 
 void fm::setFrequency(double newFrequency)
@@ -1263,7 +983,10 @@ void fm::setFrequency(double newFrequency)
 	if (oscData.isMonophonicOrInsideVoiceRendering())
 		oscData.get().uptimeDelta = newUptimeDelta;
 	else
-		oscData.forEachVoice([newUptimeDelta](OscData& d) {d.uptimeDelta = newUptimeDelta; });
+	{
+		for (auto& o : oscData)
+			o.uptimeDelta = newUptimeDelta;
+	}
 }
 
 } // namespace core

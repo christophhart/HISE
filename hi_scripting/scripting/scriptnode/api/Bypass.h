@@ -43,100 +43,47 @@ template <class T, bool AddAsParameter=true> class smoothed: public SingleWrappe
 {
 public:
 
-	GET_SELF_AS_OBJECT(smoothed);
-
-
-	static constexpr bool isModulationSource = T::isModulationSource;
+	GET_SELF_OBJECT(*this);
+	GET_WRAPPED_OBJECT(obj.getWrappedObject());
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		this->obj.process(data);
-
-		// neu denken...
-		jassertfalse;
-
-#if 0
 		if (shouldSmoothBypass())
-		{
-
-
-			for (int c = 0; c < data.getNumChannels(); c++)
-			{
-				wetBuffer.copyFrom(c, 0, data.getRawDataPointers()[c], data.size);
-			}
-				
-
-			float* wetDataPointers[NUM_MAX_CHANNELS];
-			float* dryDataPointers[NUM_MAX_CHANNELS];
-
-			auto bytesToCopy = data.numChannels * sizeof(float*);
-
-			memcpy(wetDataPointers, wetBuffer.getArrayOfWritePointers(), bytesToCopy);
-			memcpy(dryDataPointers, data.data, bytesToCopy);
-
-			ProcessData wetData(wetDataPointers, data.numChannels, data.size);
-			ProcessData dryData(dryDataPointers, data.numChannels, data.size);
-			
-			this->obj.process(wetData);
-
-			float wet[NUM_MAX_CHANNELS];
-			float dry[NUM_MAX_CHANNELS];
-
-			wetData.allowPointerModification();
-			dryData.allowPointerModification();
-
-			for (int i = 0; i < data.size; i++)
-			{
-				wetData.copyToFrameDynamic(wet);
-				dryData.copyToFrameDynamic(dry);
-
-				auto rampValue = bypassRamper.getNextValue();
-				auto invRampValue = 1.0f - rampValue;
-
-				FloatVectorOperations::multiply(dry, invRampValue, data.numChannels);
-				FloatVectorOperations::multiply(wet, rampValue, data.numChannels);
-				FloatVectorOperations::add(dry, wet, data.numChannels);
-
-				dryData.copyFromFrameAndAdvanceDynamic(dry);
-				wetData.advanceChannelPointers();
-			}
-
-		}
-		else
-		{
-			if (bypassed)
-				return;
-
+			DspHelpers::forwardToFrame16(this, data);
+		else if(!bypassed)
 			this->obj.process(data);
-		}
-#endif
 	}
 
-	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	void processFrame(snex::Types::dyn<float>& data) noexcept
 	{
-		this->obj.processFrame(data);
+		DspHelpers::forwardToFixFrame16(this, data);
+	}
 
-		jassertfalse;
+	template <int N> void processFrame(snex::Types::span<float, N>& data) noexcept
+	{
 		if (shouldSmoothBypass())
 		{
-			float wet[NUM_MAX_CHANNELS];
+			snex::Types::span<float, N> wet;
 
-			FloatVectorOperations::copy(wet, frameData, numChannels);
+			int index = 0;
 
-			this->obj.processFrame(wet, numChannels);
+			for (auto& s : data)
+				wet[index++] = s;
+
+			this->obj.processFrame(wet);
 
 			auto rampValue = bypassRamper.getNextValue();
 			auto invRampValue = 1.0f - rampValue;
 
-			FloatVectorOperations::multiply(frameData, invRampValue, numChannels);
-			FloatVectorOperations::addWithMultiply(frameData, wet, rampValue, numChannels);
+			index = 0;
+
+			for (auto& s : data)
+				s = s * invRampValue + rampValue * wet[index++];
 		}
 		else
 		{
-			if (bypassed)
-				return;
-
-			
+			if(!bypassed)
+				this->obj.processFrame(data);
 		}
 	}
 
@@ -156,11 +103,6 @@ public:
 		this->obj.reset(); 
 	}
 
-	constexpr bool allowsModulation()
-	{
-		return this->obj.isModulationSource;
-	}
-
 	forcedinline bool handleModulation(double& value) noexcept
 	{
 		if (!bypassed)
@@ -169,9 +111,9 @@ public:
 		return false;
 	}
 
-	void setBypassedFromRange(double value)
+	static void setBypassed(void* obj, double value)
 	{
-		setBypassed(value > 0.5);
+		static_cast<smoothed*>(obj)->setBypassed(value > 0.5);
 	}
 
 	void setBypassed(bool shouldBeBypassed)
@@ -180,37 +122,14 @@ public:
 		bypassRamper.setTargetValue(bypassed ? 0.0f : 1.0f);
 	}
 
-	void setBypassedFromValueTreeCallback(Identifier id, var newValue)
-	{
-		if (id == PropertyIds::Bypassed)
-			setBypassed((bool)newValue);
-		else
-		{
-			smoothTimeMs = jlimit(0.0, 1000.0, (double)newValue);
-			bypassRamper.reset(sr, smoothTimeMs * 0.001);
-		}
-	}
-
 	void createParameters(Array<HiseDspBase::ParameterData>& data) override
 	{
-		if (AddAsParameter)
-		{
-			HiseDspBase::ParameterData p("Bypassed");
-
-			using ThisClass = smoothed<T, AddAsParameter>;
-
-			p.defaultValue = 0.0;
-			p.db = BIND_MEMBER_FUNCTION_1(ThisClass::setBypassedFromRange);
-
-			data.add(std::move(p));
-
-		}
-		
 		this->obj.createParameters(data);
 	}
 
 private:
 
+	ValueTree data;
 	AudioSampleBuffer wetBuffer;
 
 	LinearSmoothedValue<float> bypassRamper;

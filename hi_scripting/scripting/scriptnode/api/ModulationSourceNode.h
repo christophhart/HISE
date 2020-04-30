@@ -39,14 +39,37 @@ using namespace hise;
 
 
 
+class WrapperNode : public NodeBase
+{
+protected:
+
+	WrapperNode(DspNetwork* parent, ValueTree d);;
+
+	NodeComponent* createComponent() override;
+
+	virtual Component* createExtraComponent() = 0;
+
+	Rectangle<int> getExtraComponentBounds() const;
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+	Rectangle<int> createRectangleForParameterSliders(int numColumns) const;
+
+	void initParameterData(Array<ParameterDataImpl>& pData);
+
+private:
+
+	mutable int cachedExtraWidth = -1;
+	mutable int cachedExtraHeight = -1;
+};
     
-class ModulationSourceNode: public NodeBase,
-							public SnexDebugHandler
+class ModulationSourceNode: public WrapperNode,
+							public SnexDebugHandler,
+							public PooledUIUpdater::SimpleTimer
 {
 public:
 
 	static constexpr int ModulationBarHeight = 60;
-	static constexpr int RingBufferSize = 65536;
+	
 
 	struct ModulationTarget: public ConnectionBase
 	{
@@ -58,26 +81,64 @@ public:
 
 		bool findTarget();
 
-		void setExpression(const String& exprCode);
+#if OM
+		void setExpression(const String& exprCode)
+		{
+#if HISE_INCLUDE_SNEX
+			snex::JitExpression::Ptr newExpr;
 
-		void applyValue(double value);
+			if (exprCode.isEmpty())
+			{
+				SpinLock::ScopedLockType lock(expressionLock);
+				std::swap(expr, newExpr);
+			}
+			else
+			{
+				newExpr = new snex::JitExpression(exprCode, parent);
+
+				if (newExpr->isValid())
+				{
+					SpinLock::ScopedLockType lock(expressionLock);
+					std::swap(newExpr, expr);
+				}
+			}
+#endif
+		}
+
+		void applyValue(double value)
+		{
+			if (!active)
+				return;
+
+			switch (opType)
+			{
+			case SetValue: targetParameter->setValueAndStoreAsync(value); break;
+			case Multiply: targetParameter->multiplyModulationValue(value); break;
+			case Add:	   targetParameter->addModulationValue(value); break;
+			default:   break;
+			}
+		}
+#endif
 
 		bool isModulationConnection() const override { return true; }
 
 		valuetree::PropertyListener expressionUpdater;
 		valuetree::PropertyListener rangeUpdater;
 		valuetree::RemoveListener removeWatcher;
-		
-
 		WeakReference<ModulationSourceNode> parent;
-		
-		
+
+#if OM
 		DspHelpers::ParameterCallback callback;
+#endif
 
 		CachedValue<bool> active;
 		
+		
+
+#if OM
 		SnexExpressionPtr expr;
 		SpinLock expressionLock;
+#endif
 	};
 
 	ValueTree getModulationTargetTree();;
@@ -88,20 +149,93 @@ public:
 
 	String createCppClass(bool isOuterClass) override;
 	
+	NodeBase* getTargetNode(const ValueTree& m) const;
+
+	ParameterDataImpl getParameterData(const ValueTree& m) const;
+
+	virtual bool isUsingNormalisedRange() const = 0;
+	virtual parameter::dynamic_base_holder* getParameterHolder() { return nullptr; }
+
+	parameter::dynamic_base* createDynamicParameterData(ValueTree& m);
+
+	void rebuildModulationConnections();
+
 	void prepare(PrepareSpecs ps) override;
-	void sendValueToTargets(double value, int numSamplesForAnalysis);;
+
+#if OM
+	void sendValueToTargets(double value, int numSamplesForAnalysis);
+	{
+		if (ringBuffer != nullptr &&
+			numSamplesForAnalysis > 0 &&
+			getRootNetwork()->isRenderingFirstVoice())
+		{
+			ringBuffer->write(value, (int)(jmax(1.0, sampleRateFactor * (double)numSamplesForAnalysis)));
+		}
+
+		if (scaleModulationValue)
+		{
+			value = jlimit(0.0, 1.0, value);
+
+			for (auto t : targets)
+			{
+#if HISE_INCLUDE_SNEX
+				SpinLock::ScopedLockType l(t->expressionLock);
+
+				if (t->expr != nullptr)
+				{
+					auto thisValue = t->expr->getValue(value);
+					t->applyValue(thisValue);
+					continue;
+				}
+#endif
+
+				auto thisValue = value;
+
+				if (t->inverted)
+					thisValue = 1.0 - thisValue;
+
+				auto normalised = t->connectionRange.convertFrom0to1(thisValue);
+
+				t->applyValue(normalised);
+			}
+		}
+		else
+		{
+			for (auto t : targets)
+			{
+#if HISE_INCLUDE_SNEX
+				SpinLock::ScopedLockType l(t->expressionLock);
+
+				if (t->expr != nullptr)
+				{
+					auto thisValue = t->expr->getValue(value);
+					t->applyValue(thisValue);
+					continue;
+				}
+#endif
+
+				t->applyValue(value);
+			}
+		}
+
+		lastModValue = value;
+	}
+#endif
 
 	void logMessage(int level, const String& s) override;
 
-
 	int fillAnalysisBuffer(AudioSampleBuffer& b);
-	void setScaleModulationValue(bool shouldScaleValue);
+
+#if OM
+	void setScaleModulationValue(bool shouldScaleValue)
+	{
+		scaleModulationValue = shouldScaleValue;
+	}
 
 	bool shouldScaleModulationValue() const noexcept { return scaleModulationValue; }
 
 	virtual bool isUsingModulation() const { return false; }
-
-private:
+#endif
 
 	void checkTargets();
 
@@ -114,23 +248,7 @@ private:
 
 	int ringBufferSize = 0;
 
-	struct SimpleRingBuffer
-	{
-		SimpleRingBuffer();
-
-		void clear();
-		int read(AudioSampleBuffer& b);
-		void write(double value, int numSamples);
-
-		bool isBeingWritten = false;
-
-		int numAvailable = 0;
-		int writeIndex = 0;
-		float buffer[RingBufferSize];
-	};
-
 	ScopedPointer<SimpleRingBuffer> ringBuffer;
-
 	valuetree::ChildListener targetListener;
 
 	bool ok = false;
@@ -145,6 +263,13 @@ struct ModulationSourceBaseComponent : public Component,
 {
 	ModulationSourceBaseComponent(PooledUIUpdater* updater);;
 	ModulationSourceNode* getSourceNodeFromParent() const;
+
+	using ObjectType = HiseDspBase;
+
+	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	{
+		return new ModulationSourceBaseComponent(updater);
+	}
 
 	void timerCallback() override {};
 	void paint(Graphics& g) override;
@@ -161,6 +286,13 @@ protected:
 
 struct ModulationSourcePlotter : ModulationSourceBaseComponent
 {
+	using ObjectType = HiseDspBase;
+
+	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	{
+		return new ModulationSourcePlotter(updater);
+	}
+
 	ModulationSourcePlotter(PooledUIUpdater* updater);
 
 	void timerCallback() override;

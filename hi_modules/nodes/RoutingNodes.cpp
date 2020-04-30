@@ -38,14 +38,19 @@ namespace routing
 {
 
 
-struct SendBaseComponent : public HiseDspBase::ExtraComponent<SendBase>
+struct SendBaseComponent : public ScriptnodeExtraComponent<SendBase>
 {
 	SendBaseComponent(SendBase* t, PooledUIUpdater* updater) :
-		ExtraComponent<SendBase>(t, updater)
+		ScriptnodeExtraComponent<SendBase>(t, updater)
 	{
 		timerCallback();
 		setSize(128, 5);
 	};
+
+	static Component* createExtraComponent(SendBase* obj, PooledUIUpdater* updater)
+	{
+		return new SendBaseComponent(obj, updater);
+	}
 
 	void timerCallback() override
 	{
@@ -88,9 +93,14 @@ void ReceiveNode::initialise(NodeBase* n)
 
 void ReceiveNode::prepare(PrepareSpecs ps)
 {
+	receiveSpecs = ps;
+
+	validateConnection(sendSpecs, receiveSpecs);
+
 	DspHelpers::increaseBuffer(buffer, ps);
 
 	reset();
+
 }
 
 void ReceiveNode::createParameters(Array<ParameterData>& d)
@@ -112,46 +122,7 @@ void ReceiveNode::reset()
 	buffer.clear();
 }
 
-void ReceiveNode::process(ProcessData& data)
-{
-	if (connectedOK)
-	{
-		bool shouldAdd = addToSignal.getValue();
-		int numSamples = data.getNumSamples();
 
-		int index = 0;
-
-		for (auto ch : data)
-		{
-			auto dst = ch.getRawWritePointer();
-			auto src = buffer.getReadPointer(index++);
-
-			if (shouldAdd)
-				FloatVectorOperations::addWithMultiply(dst, src, gainFactor, numSamples);
-			else
-				FloatVectorOperations::copyWithMultiply(dst, src, gainFactor, numSamples);
-		}
-	}
-}
-
-juce::Component* ReceiveNode::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new SendBaseComponent(this, updater);
-}
-
-void ReceiveNode::processFrame(float* frameData, int numChannels)
-{
-	if (addToSignal.getValue())
-	{
-		for (int i = 0; i < numChannels; i++)
-			frameData[i] += singleFrameData[i] * gainFactor;
-	}
-	else
-	{
-		for (int i = 0; i < numChannels; i++)
-			frameData[i] = singleFrameData[i] * gainFactor;
-	}
-}
 
 juce::Colour ReceiveNode::getColour() const
 {
@@ -180,15 +151,6 @@ juce::StringArray Factory::getSourceNodeList(NodeBase* n)
 	return sa;
 }
 
-Factory::Factory(DspNetwork* n) :
-	NodeFactory(n)
-{
-	registerNode<send>();
-	registerNode<receive>();
-	registerNode<ms_encode>();
-	registerNode<ms_decode>();
-	registerNode<matrix>();
-}
 
 void SendNode::initialise(NodeBase* n)
 {
@@ -213,9 +175,12 @@ SendNode::~SendNode()
 		connectedSource->connectedOK = false;
 }
 
-void SendNode::prepare(PrepareSpecs)
+void SendNode::prepare(PrepareSpecs ps)
 {
+	sendSpecs = ps;
 
+
+	validateConnection(sendSpecs, receiveSpecs);
 }
 
 juce::Colour SendNode::getColour() const
@@ -231,47 +196,28 @@ bool SendNode::isConnected() const
 	return connectedSource != nullptr;
 }
 
-juce::Component* SendNode::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new SendBaseComponent(this, updater);
-}
-
-void SendNode::process(ProcessData& data)
-{
-	if (connectedSource != nullptr)
-	{
-
-		int numChannelsToSend = jmin(connectedSource->buffer.getNumChannels(), data.getNumChannels());
-		int numSamplesToSend = jmin(connectedSource->buffer.getNumSamples(), data.getNumSamples());
-
-		for (int i = 0; i < numChannelsToSend; i++)
-			connectedSource->buffer.copyFrom(i, 0, data[i].begin(), numSamplesToSend);
-	}
-}
-
-void SendNode::processFrame(float* frameData, int numChannels)
-{
-	if (connectedSource != nullptr)
-	{
-		for (int i = 0; i < numChannels; i++)
-			connectedSource->singleFrameData[i] = frameData[i];
-	}
-}
 
 void SendNode::createParameters(Array<ParameterData>&)
 {
 	connectionUpdater.init(nullptr, nullptr);
 }
 
-void SendNode::connectTo(HiseDspBase* s)
+void SendNode::connectTo(ReceiveNode* s)
 {
 	if (connectedSource != nullptr)
 		connectedSource->connectedOK = false;
 
-	connectedSource = dynamic_cast<ReceiveNode*>(s);
+	connectedSource = s;
 
 	if (connectedSource != nullptr)
+	{
 		connectedSource->connectedOK = true;
+
+		connectedSource->sendSpecs = sendSpecs;
+		connectedSource->receiveSpecs = receiveSpecs;
+	}
+
+	validateConnection(sendSpecs, receiveSpecs);
 }
 
 SendNode::ConnectionNodeProperty::ConnectionNodeProperty(SendNode& parent) :
@@ -289,67 +235,27 @@ void SendNode::ConnectionNodeProperty::postInit(NodeBase* )
 
 void SendNode::ConnectionNodeProperty::update(Identifier, var newValue)
 {
-	if (auto hc = p.parent->getAsHardcodedNode())
-	{
-		p.connectTo(hc->getNode(newValue.toString()));
-	}
+	if (auto n = dynamic_cast<HiseDspNodeBase<ReceiveNode>*>(p.parent->getRootNetwork()->get(newValue).getObject()))
+		p.connectTo(&n->getWrappedObject());
 	else
-	{
-		if (auto n = dynamic_cast<HiseDspNodeBase<ReceiveNode>*>(p.parent->getRootNetwork()->get(newValue).getObject()))
-			p.connectTo(n->getInternalT());
-		else
-			p.connectTo(nullptr);
-	}
-}
-
-
-
-void MsDecoder::processFrame(float* frameData, int numChannels)
-{
-	if (numChannels == 2)
-	{
-		auto m = frameData[0];
-		auto s = frameData[1];
-
-		auto l = (m + s);
-		auto r = (m - s);
-
-		frameData[0] = l;
-		frameData[1] = r;
-	}
-}
-
-
-
-Matrix::Matrix() :
-	internalData(PropertyIds::EmbeddedData, "")
-{
-
-}
-
-void Matrix::initialise(NodeBase* n)
-{
-	um = n->getUndoManager();
-
-	getMatrix().init(dynamic_cast<Processor*>(n->getScriptProcessor()));
-
-
-	//ScopedValueSetter<bool> svs(recursion, true);
-
-	internalData.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(Matrix::updateFromEmbeddedData));
-	internalData.init(n, this);
+		p.connectTo(nullptr);
 }
 
 #if USE_BACKEND
-struct Matrix::Editor : public ExtraComponent<hise::RoutableProcessor>
+struct MatrixEditor : public ScriptnodeExtraComponent<matrix<dynamic_matrix>>
 {
-	Editor(RoutableProcessor* r, PooledUIUpdater* updater) :
-		ExtraComponent<hise::RoutableProcessor>(r, updater),
-		editor(&r->getMatrix())
+	MatrixEditor(matrix<dynamic_matrix>* r, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<matrix<dynamic_matrix>>(r, updater),
+		editor(&r->m.getMatrix())
 	{
 		addAndMakeVisible(editor);
 		setSize(600, 200);
 		stop();
+	}
+
+	static Component* createExtraComponent(matrix<dynamic_matrix>* obj, PooledUIUpdater* updater)
+	{
+		return new MatrixEditor(obj, updater);
 	}
 
 	void timerCallback() override
@@ -364,113 +270,477 @@ struct Matrix::Editor : public ExtraComponent<hise::RoutableProcessor>
 
 	hise::RouterComponent editor;
 };
-#endif
-
-juce::Component* Matrix::createExtraComponent(PooledUIUpdater* updater)
-{
-#if USE_BACKEND
-	return new Editor(this, updater);
 #else
-	ignoreUnused(updater);
-	return nullptr;
+using MatrixEditor = NoExtraComponent;
+#endif
+
+void SendBase::validateConnection(const PrepareSpecs& sp, const PrepareSpecs& rp)
+{
+	if (isConnected())
+	{
+		if (sp.numChannels != rp.numChannels)
+		{
+			Error e;
+			e.error = Error::ChannelMismatch;
+			e.actual = rp.numChannels;
+			e.expected = sp.numChannels;
+
+			throw e;
+		}
+
+		if (sp.blockSize != rp.blockSize)
+		{
+			Error e;
+			e.error = Error::BlockSizeMismatch;
+			e.actual = rp.blockSize;
+			e.expected = sp.blockSize;
+			throw e;
+		}
+
+		if (sp.sampleRate != rp.sampleRate)
+		{
+			Error e;
+			e.error = Error::InitialisationError;
+			throw e;
+		}
+	}
+}
+
+
+Factory::Factory(DspNetwork* n) :
+	NodeFactory(n)
+{
+	registerNode<matrix<dynamic_matrix>, MatrixEditor>();
+
+#if NOT_JUST_OSC
+	registerNode<send, SendBaseComponent>();
+	registerNode<receive, SendBaseComponent>();
+	registerNode<ms_encode>();
+	registerNode<ms_decode>();
+	
 #endif
 }
 
-void Matrix::prepare(PrepareSpecs specs)
-{
-	getMatrix().setNumSourceChannels(specs.numChannels);
-	getMatrix().setNumDestinationChannels(specs.numChannels);
 }
 
-void Matrix::updateFromEmbeddedData(Identifier id, var newValue)
+void cable::dynamic::prepare(PrepareSpecs ps)
 {
-	if (recursion)
+	currentSpecs = ps;
+
+	numChannels = ps.numChannels;
+
+	if (ps.blockSize == 1)
+	{
+		frameData = { data_, (size_t)ps.numChannels };
+		buffer.setSize(0);
+	}
+	else
+	{
+		frameData = { data_, (size_t)ps.numChannels };
+		DspHelpers::increaseBuffer(buffer, ps);
+
+		auto ptr = buffer.begin();
+
+		for (int i = 0; i < ps.numChannels; i++)
+		{
+			channels[i] = { ptr, (size_t)ps.blockSize };
+			ptr += ps.blockSize;
+		}
+	}
+
+	if (parentNode != nullptr)
+	{
+		auto pn = parentNode->getRootNetwork();
+
+		auto ids = StringArray::fromTokens(receiveIds.getValue(), ";", "");
+		ids.removeDuplicates(false);
+		ids.removeEmptyStrings(true);
+
+		auto network = parentNode->getRootNetwork();
+
+		using ReceiveType = HiseDspNodeBase<dynamic_receive, FunkySendComponent>;
+
+		auto list = network->getListOfNodesWithType<ReceiveType>(false);
+
+		for (auto n : list)
+		{
+			if (auto rn = dynamic_cast<ReceiveType*>(n.get()))
+			{
+				auto& ro = rn->getWrappedObject();
+
+				if (ids.contains(rn->getId()))
+				{
+					validate(ro.currentSpecs);
+				}
+			}
+		}
+	}
+}
+
+void cable::dynamic::restoreConnections(Identifier id, var newValue)
+{
+	WeakReference<dynamic> safePtr(this);
+
+	auto f = [safePtr, id, newValue]()
+	{
+		if (safePtr.get() == nullptr)
+			return;
+
+		if (id == PropertyIds::Value && safePtr->parentNode != nullptr)
+		{
+			auto ids = StringArray::fromTokens(newValue.toString(), ";", "");
+			ids.removeDuplicates(false);
+			ids.removeEmptyStrings(true);
+
+			auto network = safePtr->parentNode->getRootNetwork();
+
+			using ReceiveType = HiseDspNodeBase<dynamic_receive, FunkySendComponent>;
+
+			auto list = network->getListOfNodesWithType<ReceiveType>(false);
+
+			for (auto n : list)
+			{
+				if (auto rn = dynamic_cast<ReceiveType*>(n.get()))
+				{
+					auto& ro = rn->getWrappedObject();
+
+					if (ids.contains(rn->getId()))
+					{
+						ro.source = safePtr.get();
+					}
+					else
+					{
+						if (ro.source == safePtr.get())
+							ro.source = &(ro.null);
+					}
+				}
+			}
+		}
+	};
+
+	MessageManager::callAsync(f);
+}
+
+void cable::dynamic::setConnection(routing2::receive<cable::dynamic>& receiveTarget, bool addAsConnection)
+{
+	receiveTarget.source = addAsConnection ? this : &receiveTarget.null;
+
+	if (parentNode != nullptr)
+	{
+		using ReceiveType = HiseDspNodeBase<routing2::receive<cable::dynamic>, FunkySendComponent>;
+
+		auto l = parentNode->getRootNetwork()->getListOfNodesWithType<ReceiveType>(true);
+
+		for (auto n : l)
+		{
+			if (auto typed = dynamic_cast<ReceiveType*>(n.get()))
+			{
+				if (&typed->getWrappedObject() == &receiveTarget)
+				{
+					auto rIds = StringArray::fromTokens(receiveIds.getValue(), ";", "");
+
+					rIds.removeEmptyStrings(true);
+					rIds.removeDuplicates(false);
+					rIds.sort(false);
+
+					if (addAsConnection)
+						rIds.addIfNotAlreadyThere(n->getId());
+					else
+						rIds.removeString(n->getId());
+
+					receiveIds.storeValue(rIds.joinIntoString(";"), n->getUndoManager());
+				}
+			}
+		}
+	}
+}
+
+FunkySendComponent::FunkySendComponent(routing2::base* b, PooledUIUpdater* u) :
+	ScriptnodeExtraComponent<routing2::base>(b, u),
+	levelDisplay(0.0f, 0.0f, VuMeter::StereoHorizontal)
+{
+	addAndMakeVisible(levelDisplay);
+	levelDisplay.setInterceptsMouseClicks(false, false);
+
+	levelDisplay.setColour(VuMeter::backgroundColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xff383838)));
+	levelDisplay.setColour(VuMeter::ColourId::ledColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xFFAAAAAA)));
+
+	setSize(50, 18);
+	start();
+}
+
+Error FunkySendComponent::checkConnectionWhileDragging(const SourceDetails& dragSourceDetails)
+{
+	try
+	{
+		PrepareSpecs sp, rp;
+
+		auto other = dynamic_cast<FunkySendComponent*>(dragSourceDetails.sourceComponent.get());
+
+		if (auto rn = other->getAsReceiveNode())
+		{
+			if (auto sn = getAsSendNode())
+			{
+				sp = sn->cable.currentSpecs;
+				rp = rn->currentSpecs;
+			}
+		}
+		if (auto rn = getAsReceiveNode())
+		{
+			if (auto sn = other->getAsSendNode())
+			{
+				sp = sn->cable.currentSpecs;
+				rp = rn->currentSpecs;
+			}
+		}
+
+		DspHelpers::validate(sp, rp);
+	}
+	catch (Error& e)
+	{
+		return e;
+	}
+
+	return Error();
+}
+
+void FunkySendComponent::itemDragEnter(const SourceDetails& dragSourceDetails)
+{
+	dragOver = true;
+
+	currentDragError = checkConnectionWhileDragging(dragSourceDetails);
+	
+	if (currentDragError.error != Error::OK)
+	{
+		auto dd = getDragAndDropContainer();
+
+		dd->setCurrentDragImage(createDragImage(ScriptnodeExceptionHandler::getErrorMessage(currentDragError), Colours::red.withAlpha(0.7f)));
+	}
+
+	repaint();
+}
+
+void FunkySendComponent::itemDragExit(const SourceDetails& dragSourceDetails)
+{
+	getDragAndDropContainer()->setCurrentDragImage(createDragImage("Drag to connect", Colours::transparentBlack));
+
+	dragOver = false;
+	repaint();
+}
+
+
+void FunkySendComponent::paintOverChildren(Graphics& g)
+{
+	if (dragMode)
+	{
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(.2f));
+		g.fillAll();
+
+		Path p;
+
+		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+		p.scaleToFit(2.0f, 2.0f, (float)getHeight()-4.0f, (float)getHeight()-4.0f, true);
+
+		g.setColour(Colours::white);
+		g.fillPath(p);
+	}
+
+	if (isMouseOver(true))
+	{
+		if (auto rn = getAsReceiveNode())
+		{
+			if (rn->isConnected())
+			{
+				g.setColour(Colours::red.withAlpha(0.2f));
+				g.fillAll();
+			}
+		}
+	}
+}
+
+void FunkySendComponent::timerCallback()
+{
+	cable::dynamic* c = nullptr;
+	float feedbackValue = 1.0f;
+
+	if (auto sn = getAsSendNode())
+		c = &sn->cable;
+
+	if (auto rn = getAsReceiveNode())
+	{
+		c = rn->source;
+		feedbackValue = rn->feedback;
+	}
+		
+	if (c == nullptr)
+	{
+		levelDisplay.setPeak(0.0f, 0.0f);
 		return;
+	}
 
-	auto base64Data = newValue.toString();
+	int numChannels = c->getNumChannels();
 
-	if (base64Data.isNotEmpty())
+	
+	if (c->frameData.size() != 0)
 	{
-		auto matrixData = ValueTreeConverters::convertBase64ToValueTree(newValue.toString(), true);
-		getMatrix().restoreFromValueTree(matrixData);
+		auto l = c->frameData[0];
+		auto r = numChannels == 2 ? c->frameData[1] : l;
+
+		levelDisplay.setPeak(l * feedbackValue, r * feedbackValue);
+	}
+	else
+	{
+		int numSamples = c->channels[0].size();
+
+		float l = DspHelpers::findPeak(c->channels[0].begin(), numSamples);
+		float r = numChannels == 2 ? DspHelpers::findPeak(c->channels[1].begin(), numSamples) : l;
+
+		levelDisplay.setPeak(l * feedbackValue, r * feedbackValue);
 	}
 }
 
-void Matrix::updateData()
+juce::DragAndDropContainer* FunkySendComponent::getDragAndDropContainer()
 {
-	if (recursion)
-		return;
+	auto c = findParentComponentOfClass<NodeComponent>();
+	DragAndDropContainer* dd = nullptr;
 
-	ScopedValueSetter<bool> svs(recursion, true);
-
-	auto matrixData = ValueTreeConverters::convertValueTreeToBase64(getMatrix().exportAsValueTree(), true);
-
-	internalData.storeValue(matrixData, um);
-
-	memset(channelRouting, -1, NUM_MAX_CHANNELS);
-	memset(sendRouting, -1, NUM_MAX_CHANNELS);
-
-	for (int i = 0; i < getMatrix().getNumSourceChannels(); i++)
+	while (c != nullptr)
 	{
-		channelRouting[i] = (int8)getMatrix().getConnectionForSourceChannel(i);
-		sendRouting[i] = (int8)getMatrix().getSendForSourceChannel(i);
+		c = c->findParentComponentOfClass<NodeComponent>();
+
+		if (auto thisDD = dynamic_cast<DragAndDropContainer*>(c))
+			dd = thisDD;
 	}
+
+	return dd;
 }
 
-void Matrix::process(ProcessData& d)
+juce::Image FunkySendComponent::createDragImage(const String& m, Colour bgColour)
 {
-	switch (d.getNumChannels())
-	{
-	case 1: processFrame_<1>(d); break;
-	case 2: processFrame_<2>(d); break;
-	case 3: processFrame_<3>(d); break;
-	case 4: processFrame_<4>(d); break;
-	case 5: processFrame_<5>(d); break;
-	case 6: processFrame_<6>(d); break;
-	case 7: processFrame_<7>(d); break;
-	case 8: processFrame_<8>(d); break;
-	case 9: processFrame_<9>(d); break;
-	case 10: processFrame_<10>(d); break;
-	case 11: processFrame_<11>(d); break;
-	case 12: processFrame_<12>(d); break;
-	case 13: processFrame_<13>(d); break;
-	case 14: processFrame_<14>(d); break;
-	case 15: processFrame_<15>(d); break;
-	case 16: processFrame_<16>(d); break;
-	}
+	Path p;
+
+	float margin = 10.0f;
+
+	p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+	p.scaleToFit(5.0f, 5.0f, 15.0f, 15.0f, true);
+
+	MarkdownRenderer mp(m, nullptr);
+
+	mp.getStyleData().fontSize = 13.0f;
+
+	mp.parse();
+	auto height = (int)mp.getHeightForWidth(200.0f, true);
+
+	Rectangle<float> b(0.0f, 0.0f, 240.0f, (float)height + 2 * margin);
+
+	Image img(Image::ARGB, 240, height + 2 * margin, true);
+
+	Graphics g(img);
+	g.setColour(bgColour);
+	g.fillRoundedRectangle(b, 3.0f);
+	g.setColour(Colours::white);
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	g.fillPath(p);
+
+	mp.draw(g, b.reduced(margin));
+
+	return img;
 }
 
-void Matrix::processFrame(float* frameData, int numChannels)
+template <typename T> static void callForEach(Component* root, const std::function<void(T*)>& f)
 {
-	float copyData[NUM_MAX_CHANNELS + 1];
-	copyData[0] = 0.0f;
-	float* chData = copyData + 1;
-
-	for (int i = 0; i < numChannels; i++)
+	if (auto typed = dynamic_cast<T*>(root))
 	{
-		chData[i] = frameData[i];
-		frameData[i] = 0.0f;
+		f(typed);
 	}
 
-	for (int i = 0; i < numChannels; i++)
+	for (int i = 0; i < root->getNumChildComponents(); i++)
 	{
-		auto index = channelRouting[i];
-
-		if (index != -1)
-			frameData[index] += chData[i];
-
-		auto sendIndex = sendRouting[i];
-
-		if (sendIndex != -1)
-			frameData[sendIndex] += chData[i];
+		callForEach(root->getChildComponent(i), f);
 	}
 }
 
-void Matrix::createParameters(Array<ParameterData>&)
+
+void FunkySendComponent::itemDropped(const SourceDetails& dragSourceDetails)
 {
-	internalData.init(nullptr, this);
+	auto src = dynamic_cast<FunkySendComponent*>(dragSourceDetails.sourceComponent.get());
+
+	jassert(src != nullptr);
+
+	if (auto thisAsCable = getAsSendNode())
+	{
+		if (auto srcAsReceive = src->getAsReceiveNode())
+			thisAsCable->connect(*srcAsReceive);
+	}
+	if (auto thisAsReceive = getAsReceiveNode())
+	{
+		if (auto srcAsSend = src->getAsSendNode())
+			srcAsSend->connect(*thisAsReceive);
+	}
+
+	dynamic_cast<Component*>(getDragAndDropContainer())->repaint();
+
+	dragOver = false;
+	repaint();
 }
 
+void FunkySendComponent::mouseDown(const MouseEvent& e)
+{
+	if (e.mods.isRightButtonDown())
+	{
+		if (auto rn = getAsReceiveNode())
+		{
+			if (rn->isConnected())
+			{
+				rn->source->setConnection(*rn, false);
+
+				dynamic_cast<Component*>(getDragAndDropContainer())->repaint();
+			}
+		}
+	}
+	else
+	{
+		auto dd = getDragAndDropContainer();
+
+		auto img = createDragImage("Drag to connect", Colours::transparentBlack);
+
+		Point<int> offset(-15, -13);
+
+		dd->startDragging(var(), this, img, false, &offset);
+
+		auto f = [this](FunkySendComponent* fc)
+		{
+			if (fc->isValidDragTarget(this))
+			{
+				fc->dragMode = true;
+				fc->repaint();
+			}
+		};
+
+		auto root = dynamic_cast<Component*>(getDragAndDropContainer());
+		callForEach<FunkySendComponent>(root, f);
+	}
+}
+
+void FunkySendComponent::mouseUp(const MouseEvent& e)
+{
+	auto root = dynamic_cast<Component*>(getDragAndDropContainer());
+
+	callForEach<FunkySendComponent>(root, [](FunkySendComponent* fc)
+	{
+		fc->dragMode = false;
+		fc->repaint();
+	});
+}
+
+void FunkySendComponent::paint(Graphics& g)
+{
+	if (dragOver)
+	{
+		g.setColour(Colour(SIGNAL_COLOUR));
+		g.drawRect(getLocalBounds().toFloat(), 1.0f);
+	}
 }
 
 }

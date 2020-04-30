@@ -47,7 +47,7 @@ namespace Operations
 
 #define OP_BLOCK(data, value) template <typename PD> static void op(PD& data, float value)
 #define OP_SINGLE(data, value) template <typename FD> static void opSingle(FD& data, float value)
-#define OP_BLOCK2SINGLE(data, value) OP_BLOCK(data, value) { for (auto ch : data) { for (auto& s : data.toChannelData(ch)) opSingle(s, value); }}
+#define OP_BLOCK2SINGLE(data, value) OP_BLOCK(data, value) { for (auto ch : data) { opSingle(data.toChannelData(ch), value); }}
 
 	struct mul
 	{
@@ -263,7 +263,7 @@ namespace Operations
 		OP_BLOCK(data, unused)
 		{
 			for (auto& ch : data)
-				hmath::vabs(data.toChannelData());
+				hmath::vabs(data.toChannelData(ch));
 		}
 
 		OP_SINGLE(data, value)
@@ -280,10 +280,15 @@ template <class OpType, int V> class OpNode : public HiseDspBase
 {
 public:
 
+	enum class Parameters
+	{
+		Value
+	};
+
 	constexpr static int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID(OpType::getId());
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
+
 	GET_SELF_AS_OBJECT(OpNode);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
@@ -304,11 +309,9 @@ public:
 	void createParameters(Array<ParameterData>& data) override;
 	void setValue(double newValue);
 
-	STATIC_TO_MEMBER_PARAMETER(OpNode);
-
-	template <int P> void setParameter(double v)
+	DEFINE_PARAMETERS
 	{
-		setValue(v);
+		DEF_PARAMETER(Value, OpNode);
 	}
 
 	PolyData<float, NumVoices> value = OpType::defaultValue;

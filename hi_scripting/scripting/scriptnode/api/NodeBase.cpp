@@ -54,9 +54,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ConstScriptingObject(rootNetwork->getScriptProcessor(), 8),
 	parent(rootNetwork),
 	v_data(data_),
-	bypassUpdater(rootNetwork->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
-	bypassed(v_data, PropertyIds::Bypassed, getUndoManager(), false),
-	helpManager(*this, data_),
+	helpManager(this, data_),
 	currentId(v_data[PropertyIds::ID].toString())
 {
 	setDefaultValue(PropertyIds::NumChannels, 2);
@@ -75,9 +73,12 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_1(writeModulationSignal);
 	ADD_API_METHOD_1(getParameterReference);
 
-	bypassUpdater.setFunction([this]()
+	bypassListener.setCallback(v_data, { PropertyIds::Bypassed }, valuetree::AsyncMode::Synchronously, [this](Identifier id, var newValue)
 	{
-		bypassed = pendingBypassState;
+		if (id == PropertyIds::Bypassed)
+		{
+			setBypassed((bool)newValue);
+		}
 	});
 
 	for (auto c : getPropertyTree())
@@ -92,11 +93,7 @@ DspNetwork* NodeBase::getRootNetwork() const
 }
 
 
-void NodeBase::prepareParameters(PrepareSpecs specs)
-{
-	for (int i = 0; i < getNumParameters(); i++)
-		getParameter(i)->prepare(specs);
-}
+
 
 
 juce::String NodeBase::createCppClass(bool isOuterClass)
@@ -179,20 +176,14 @@ juce::Rectangle<int> NodeBase::getPositionInCanvas(Point<int> topLeft) const
 void NodeBase::setBypassed(bool shouldBeBypassed)
 {
 	checkValid();
-
-	if (bypassed != shouldBeBypassed)
-	{
-		pendingBypassState = shouldBeBypassed;
-		bypassUpdater.triggerUpdateWithLambda();
-	}
+	bypassState = shouldBeBypassed;
 }
 
 
 bool NodeBase::isBypassed() const noexcept
 {
 	checkValid();
-
-	return bypassed;
+	return bypassState;
 }
 
 int NodeBase::getIndexInParent() const
@@ -301,7 +292,7 @@ void NodeBase::addParameter(Parameter* p)
 	parameters.add(p);
 	auto& f = p->getReferenceToCallback();
 	
-	if(f) f(p->getValue());
+	f.call(p->getValue());
 }
 
 
@@ -355,7 +346,7 @@ void NodeBase::writeModulationSignal(var buffer)
 
 	if (auto b = buffer.getBuffer())
 	{
-		if (b->size == ModulationSourceNode::RingBufferSize)
+		if (b->size == SimpleRingBuffer::RingBufferSize)
 		{
 			if (auto modSource = dynamic_cast<ModulationSourceNode*>(this))
 			{
@@ -365,7 +356,7 @@ void NodeBase::writeModulationSignal(var buffer)
 				reportScriptError("No modulation node");
 		}
 		else
-			reportScriptError("buffer size mismatch. Expected: " + String(ModulationSourceNode::RingBufferSize));
+			reportScriptError("buffer size mismatch. Expected: " + String(SimpleRingBuffer::RingBufferSize));
 	}
 	else
 		reportScriptError("the argument is not a buffer.");
@@ -373,7 +364,7 @@ void NodeBase::writeModulationSignal(var buffer)
 
 var NodeBase::createRingBuffer()
 {
-	VariantBuffer::Ptr p = new VariantBuffer(ModulationSourceNode::RingBufferSize);
+	VariantBuffer::Ptr p = new VariantBuffer(SimpleRingBuffer::RingBufferSize);
 	return var(p);
 }
 
@@ -394,48 +385,26 @@ var NodeBase::getParameterReference(var indexOrId) const
 
 
 
-struct NodeBase::Parameter::Wrapper
+struct Parameter::Wrapper
 {
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getId);
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getValue);
-	API_METHOD_WRAPPER_0(NodeBase::Parameter, getModValue);
 	API_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
 	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueAndStoreAsync);
 };
 
-NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
+Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	ConstScriptingObject(parent_->getScriptProcessor(), 4),
 	parent(parent_),
-	valueUpdater(parent_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	data(data_)
 {
 	auto initialValue = (double)data[PropertyIds::Value];
-
-	value.forEachVoice([initialValue](ParameterValue& v)
-	{
-		v.value = initialValue;
-	});
-
 	auto weakThis = WeakReference<Parameter>(this);
 
-	valueUpdater.setFunction(BIND_MEMBER_FUNCTION_0(NodeBase::Parameter::storeValue));
-	
 	valuePropertyUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
 		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
 
-	modulationStorageBypasser.setCallback(data, {PropertyIds::ModulationTarget},
-		valuetree::AsyncMode::Synchronously,
-		[this](Identifier, var newValue)
-	{
-		if ((bool)newValue)
-			this->valueUpdater.setFunction({});
-		else
-			valueUpdater.setFunction(BIND_MEMBER_FUNCTION_0(NodeBase::Parameter::storeValue));
-	});
-
 	ADD_API_METHOD_0(getValue);
-	ADD_API_METHOD_0(getModValue);
-	ADD_API_METHOD_0(getModValue);
 	ADD_API_METHOD_1(addConnectionFrom);
 	ADD_API_METHOD_1(setValueAndStoreAsync);
 
@@ -445,135 +414,32 @@ NodeBase::Parameter::Parameter(NodeBase* parent_, ValueTree& data_) :
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::MaxValue);
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::MidPoint);
 	ADD_PROPERTY_ID_CONSTANT(PropertyIds::StepSize);
+
+	setValueAndStoreAsync(initialValue);
 }
 
 
 
-juce::String NodeBase::Parameter::getId() const
+juce::String Parameter::getId() const
 {
 	return data[PropertyIds::ID].toString();
 }
 
 
-double NodeBase::Parameter::getValue() const
+double Parameter::getValue() const
 {
-	return value.getCurrentOrFirst().value;
+	return dbNew.lastValue;
 }
 
-
-DspHelpers::ParameterCallback& NodeBase::Parameter::getReferenceToCallback()
-{
-	return db;
-}
-
-
-DspHelpers::ParameterCallback NodeBase::Parameter::getCallback() const
-{
-	return db;
-}
-
-void NodeBase::Parameter::setCallback(const DspHelpers::ParameterCallback& newCallback)
+void Parameter::setCallbackNew(parameter::dynamic_base* ownedNew)
 {
 	ScopedLock sl(parent->getRootNetwork()->getConnectionLock());
-
-	if (!newCallback)
-		db = nothing;
-	else
-		db = newCallback;
+	dbNew.setParameter(ownedNew);
 }
 
-
-double NodeBase::Parameter::getModValue() const
+void Parameter::setValueAndStoreAsync(double newValue)
 {
-	return value.getCurrentOrFirst().getModValue();
-}
-
-void NodeBase::Parameter::storeValue()
-{
-	data.setProperty(PropertyIds::Value, getValue(), parent->getUndoManager());
-}
-
-void NodeBase::Parameter::setValueAndStoreAsync(double newValue)
-{
-	if (value.isMonophonicOrInsideVoiceRendering())
-	{
-		value.getCurrentOrFirst().value = newValue;
-
-		lastValue = getModValue();
-
-		if (db)
-			db(lastValue);
-		else
-			jassertfalse;
-	}
-	else
-	{
-		value.forEachVoice([this, newValue](ParameterValue& v)
-		{
-			v.value = newValue;
-			if (v.updateLastValue() && db)
-				db(v.lastValue);
-		});
-	}
-
-#if USE_BACKEND
-	valueUpdater.triggerUpdateWithLambda();
-#endif
-}
-
-
-void NodeBase::Parameter::addModulationValue(double newValue)
-{
-	if (value.isMonophonicOrInsideVoiceRendering())
-	{
-		auto& v = value.get();
-		v.modAddValue = newValue;
-		
-		if (v.updateLastValue() && db)
-			db(v.lastValue);
-	}
-	else
-	{
-		value.forEachVoice([this, newValue](ParameterValue& v)
-		{
-			v.modAddValue = newValue;
-
-			if (v.updateLastValue())
-				db(v.lastValue);
-		});
-	}
-}
-
-
-void NodeBase::Parameter::multiplyModulationValue(double newValue)
-{
-	if (value.isMonophonicOrInsideVoiceRendering())
-	{
-		auto& v = value.get();
-		v.modMulValue = newValue;
-
-		if (v.updateLastValue() && db)
-			db(v.lastValue);
-	}
-	else
-	{
-		value.forEachVoice([this, newValue](ParameterValue& v)
-		{
-			v.modMulValue = newValue;
-
-			if (v.updateLastValue())
-				db(v.lastValue);
-		});
-	}
-}
-
-void NodeBase::Parameter::clearModulationValues()
-{
-	value.forEachVoice([](ParameterValue& v)
-	{
-		v.modAddValue = 0.0;
-		v.modMulValue = 1.0;
-	});
+	dbNew.call(newValue);
 }
 
 struct DragHelpers
@@ -727,11 +593,96 @@ juce::Array<NodeBase::Parameter*> NodeBase::Parameter::getConnectedMacroParamete
 	return list;
 }
 
-NodeBase::HelpManager::HelpManager(NodeBase& parent, ValueTree d) :
-	ControlledObject(parent.getScriptProcessor()->getMainController_())
+HelpManager::HelpManager(NodeBase* parent, ValueTree d) :
+	ControlledObject(parent->getScriptProcessor()->getMainController_())
 {
 	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour, PropertyIds::CommentWidth }, valuetree::AsyncMode::Asynchronously,
-		BIND_MEMBER_FUNCTION_2(NodeBase::HelpManager::update));
+		BIND_MEMBER_FUNCTION_2(HelpManager::update));
+}
+
+void HelpManager::update(Identifier id, var newValue)
+{
+	if (id == PropertyIds::NodeColour)
+	{
+		highlightColour = PropertyHelpers::getColourFromVar(newValue);
+		if (highlightColour.isTransparent())
+			highlightColour = Colour(SIGNAL_COLOUR);
+
+		if (helpRenderer != nullptr)
+		{
+			helpRenderer->getStyleData().headlineColour = highlightColour;
+
+			helpRenderer->setNewText(lastText);
+
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->repaintHelp();
+			}
+		}
+	}
+	else if (id == PropertyIds::Comment)
+	{
+		lastText = newValue.toString();
+		rebuild();
+	}
+	else if (id == PropertyIds::CommentWidth)
+	{
+		lastWidth = (float)newValue;
+
+		rebuild();
+	}
+}
+
+void HelpManager::render(Graphics& g, Rectangle<float> area)
+{
+	if (helpRenderer != nullptr && !area.isEmpty())
+	{
+		area.removeFromLeft(10.0f);
+		g.setColour(Colours::black.withAlpha(0.1f));
+		g.fillRoundedRectangle(area, 2.0f);
+		helpRenderer->draw(g, area.reduced(10.0f));
+	}
+}
+
+void HelpManager::addHelpListener(Listener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+	l->helpChanged(lastWidth + 30.0f, lastHeight + 20.0f);
+}
+
+void HelpManager::removeHelpListener(Listener* l)
+{
+	listeners.removeAllInstancesOf(l);
+}
+
+juce::Rectangle<float> HelpManager::getHelpSize() const
+{
+	return { 0.0f, 0.0f, lastHeight > 0.0f ? lastWidth + 30.0f : 0.0f, lastHeight + 20.0f };
+}
+
+void HelpManager::rebuild()
+{
+	if (lastText.isNotEmpty())
+	{
+		helpRenderer = new MarkdownRenderer(lastText);
+		helpRenderer->setDatabaseHolder(dynamic_cast<MarkdownDatabaseHolder*>(getMainController()));
+		helpRenderer->getStyleData().headlineColour = highlightColour;
+		helpRenderer->setDefaultTextSize(15.0f);
+		helpRenderer->parse();
+		lastHeight = helpRenderer->getHeightForWidth(lastWidth);
+	}
+	else
+	{
+		helpRenderer = nullptr;
+		lastHeight = 0.0f;
+	}
+
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->helpChanged(lastWidth + 30.0f, lastHeight);
+	}
 }
 
 struct ConnectionBase::Wrapper
@@ -753,14 +704,6 @@ ConnectionBase::ConnectionBase(ProcessorWithScriptingContent* p, ValueTree data_
 	addConstant(PropertyIds::SkewFactor.toString(), PropertyIds::SkewFactor.toString());
 	addConstant(PropertyIds::StepSize.toString(), PropertyIds::StepSize.toString());
 	addConstant(PropertyIds::Expression.toString(), PropertyIds::Expression.toString());
-
-	opTypeListener.setCallback(data, { PropertyIds::OpType }, valuetree::AsyncMode::Asynchronously,
-		[this](Identifier, var newValue)
-	{
-		auto id = Identifier(newValue.toString());
-
-		setOpTypeFromId(id);
-	});
 
 	ADD_API_METHOD_0(getLastValue);
 	ADD_API_METHOD_1(get);

@@ -43,58 +43,37 @@ template <class DynamicProcessorType> class dynamics_wrapper : public HiseDspBas
 {
 public:
 
+	enum class Parameters
+	{
+		Threshhold,
+		Attack,
+		Release,
+		Ratio
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Threshhold, dynamics_wrapper);
+		DEF_PARAMETER(Attack, dynamics_wrapper);
+		DEF_PARAMETER(Release, dynamics_wrapper);
+		DEF_PARAMETER(Ratio, dynamics_wrapper);
+	}
+
 	static Identifier getStaticId();
 
-	SET_HISE_NODE_EXTRA_HEIGHT(30);
-	GET_SELF_AS_OBJECT(dynamics_wrapper<DynamicProcessorType>);
+	GET_SELF_AS_OBJECT();
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	dynamics_wrapper();
 
 	void createParameters(Array<ParameterData>& data);
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
 	bool handleModulation(double& max) noexcept;;
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;
 
-	template <typename ProcessDataType> void process(ProcessDataType& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		switch (d.getNumChannels())
-		{
-			FORWARD_PROCESS_DATA_SWITCH(1);
-			FORWARD_PROCESS_DATA_SWITCH(2);
-		}
-	}
-
-	template <int NumChannels> void processFix(snex::Types::ProcessDataFix<NumChannels>& data)
-	{
-		auto fd = data.toFrameData();
-
-		while (fd.next())
-			processFrame(fd);
-	}
-
-	void process(ProcessData& d)
-	{
-		if (d.numChannels >= 2)
-		{
-			for (int i = 0; i < d.size; i++)
-			{
-				double v[2] = { d.data[0][i], d.data[1][i] };
-				obj.process(v[0], v[1]);
-				d.data[0][i] = (float)v[0];
-				d.data[1][i] = (float)v[1];
-			}
-		}
-		else if (d.numChannels == 1)
-		{
-			for (int i = 0; i < d.size; i++)
-			{
-				double v[2] = { d.data[0][i], d.data[0][i] };
-				obj.process(v[0], v[1]);
-				d.data[0][i] = (float)v[0];
-			}
-		}
+		DspHelpers::forwardToFrameStereo(this, data);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
@@ -116,16 +95,33 @@ public:
 		}
 	}
 
+	void setThreshhold(double v);
+	void setAttack(double v);
+	void setRelease(double v);
+	void setRatio(double v);
+
 	DynamicProcessorType obj;
 };
+
 
 class envelope_follower : public HiseDspBase
 {
 public:
 
+	enum class Parameters
+	{
+		Attack,
+		Release
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Attack, envelope_follower);
+		DEF_PARAMETER(Release, envelope_follower);
+	}
+
 	SET_HISE_NODE_ID("envelope_follower");
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-	GET_SELF_AS_OBJECT(envelope_follower);
+	GET_SELF_AS_OBJECT();
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	envelope_follower();
@@ -134,23 +130,9 @@ public:
 	void prepare(PrepareSpecs ps) override;
 	void reset() noexcept;
 
-	template <typename ProcessDataType> void process(ProcessDataType& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		switch (d.getNumChannels())
-		{
-			FORWARD_PROCESS_DATA_SWITCH(1);
-			FORWARD_PROCESS_DATA_SWITCH(2);
-			FORWARD_PROCESS_DATA_SWITCH(3);
-			FORWARD_PROCESS_DATA_SWITCH(4);
-		}
-	}
-
-	template <int NumChannels> void processFix(snex::Types::ProcessDataFix<NumChannels>& data)
-	{
-		auto fd = data.toFrameData();
-
-		while (fd.next())
-			processFrame(fd);
+		DspHelpers::forwardToFrameStereo(this, data);
 	}
 
 	template <typename FrameType> void processFrame(FrameType& data)
@@ -165,6 +147,9 @@ public:
 		for (auto& s : data)
 			s = input;
 	}
+
+	void setAttack(double v);
+	void setRelease(double v);
 
 	void createParameters(Array<ParameterData>& data);
 

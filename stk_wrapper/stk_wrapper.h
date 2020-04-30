@@ -89,8 +89,6 @@
 
 //=============================================================================
 
-
-
 #include "stk/ADSR.h"
 #include "stk/Asymp.h"
 #include "stk/BandedWG.h"

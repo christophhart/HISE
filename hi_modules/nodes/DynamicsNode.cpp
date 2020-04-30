@@ -68,62 +68,66 @@ Identifier dynamics_wrapper<DynamicProcessorType>::getStaticId()
 	return DynamicHelpers::getId(t);
 }
 
+
+template <class DynamicProcessorType>
+void dynamics_wrapper<DynamicProcessorType>::setRatio(double v)
+{
+	auto ratio = (v != 0.0) ? 1.0 / v : 1.0;
+	obj.setRatio(ratio);
+}
+
+template <class DynamicProcessorType>
+void dynamics_wrapper<DynamicProcessorType>::setRelease(double v)
+{
+	obj.setRelease(v);
+}
+
+template <class DynamicProcessorType>
+void dynamics_wrapper<DynamicProcessorType>::setAttack(double v)
+{
+	obj.setAttack(v);
+}
+
+template <class DynamicProcessorType>
+void dynamics_wrapper<DynamicProcessorType>::setThreshhold(double v)
+{
+	obj.setThresh(v);
+}
+
 template <class DynamicProcessorType>
 void dynamics_wrapper<DynamicProcessorType>::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Threshhold");
+		DEFINE_PARAMETERDATA(dynamics_wrapper, Threshhold);
 		p.range = { -100.0, 0.0, 0.1 };
 		p.range.setSkewForCentre(-12.0);
 		p.defaultValue = 0.0;
-
-		p.db = std::bind(&DynamicProcessorType::setThresh, &obj, std::placeholders::_1);
-
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Attack");
+		DEFINE_PARAMETERDATA(dynamics_wrapper, Attack);
 		p.range = { 0.0, 250.0, 0.1 };
 		p.range.setSkewForCentre(50.0);
 		p.defaultValue = 50.0;
-
-		p.db = std::bind(&DynamicProcessorType::setAttack, &obj, std::placeholders::_1);
-
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Release");
+		DEFINE_PARAMETERDATA(dynamics_wrapper, Release);
 		p.range = { 0.0, 250.0, 0.1 };
 		p.range.setSkewForCentre(50.0);
 		p.defaultValue = 50.0;
-
-		p.db = std::bind(&DynamicProcessorType::setRelease, &obj, std::placeholders::_1);
-
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Ratio");
+		DEFINE_PARAMETERDATA(dynamics_wrapper, Ratio);
 		p.range = { 1.0, 32.0, 0.1 };
 		p.range.setSkewForCentre(4.0);
 		p.defaultValue = 1.0;
-
-		p.db = [this](double newValue)
-		{
-			auto ratio = (newValue != 0.0) ? 1.0 / newValue : 1.0;
-			obj.setRatio(ratio);
-		};
-
 		data.add(std::move(p));
 	}
-}
-
-template <class DynamicProcessorType>
-Component* dynamics_wrapper<DynamicProcessorType>::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new ModulationSourcePlotter(updater);
 }
 
 template <class DynamicProcessorType>
@@ -171,26 +175,36 @@ void envelope_follower::reset() noexcept
 	envelope.reset();
 }
 
+void envelope_follower::setAttack(double v)
+{
+	envelope.setAttackDouble(v);
+}
+
+void envelope_follower::setRelease(double v)
+{
+	envelope.setReleaseDouble(v);
+}
+
 void envelope_follower::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Attack");
+		DEFINE_PARAMETERDATA(envelope_follower, Attack);
 		p.range = { 0.0, 1000.0, 0.1 };
 		p.range.setSkewForCentre(50.0);
 		p.defaultValue = 20.0;
 
-		p.db = std::bind(&EnvelopeFollower::AttackRelease::setAttackDouble, &envelope, std::placeholders::_1);
+		//p.db = std::bind(&EnvelopeFollower::AttackRelease::setAttackDouble, &envelope, std::placeholders::_1);
 
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Release");
+		DEFINE_PARAMETERDATA(envelope_follower, Release);
 		p.range = { 0.0, 1000.0, 0.1 };
 		p.range.setSkewForCentre(50.0);
 		p.defaultValue = 50.0;
 
-		p.db = std::bind(&EnvelopeFollower::AttackRelease::setReleaseDouble, &envelope, std::placeholders::_1);
+		//p.db = std::bind(&EnvelopeFollower::AttackRelease::setReleaseDouble, &envelope, std::placeholders::_1);
 
 		data.add(std::move(p));
 	}

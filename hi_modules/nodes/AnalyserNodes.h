@@ -164,8 +164,7 @@ template <class T> class analyse_base : public HiseDspBase,
 public:
 
 	SET_HISE_NODE_ID(T::getStaticId());
-	SET_HISE_NODE_EXTRA_WIDTH(T::width);
-	SET_HISE_NODE_EXTRA_HEIGHT(T::height);
+
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
     GET_SELF_AS_OBJECT(analyse_base);
     
@@ -192,11 +191,6 @@ public:
 
 	}
 
-	Component* createExtraComponent(PooledUIUpdater* ) override
-	{
-		return T::createComponent(*this);
-	}
-
 	void reset()
 	{
 		buffer.internalBuffer.clear();
@@ -209,7 +203,9 @@ public:
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		AudioSampleBuffer b(data.begin(), data.size(), 1);
+		AudioSampleBuffer b;
+		float* cpy[1] = { data.begin() };
+		b.setDataToReferTo(cpy, data.size(), 1);
 		buffer.pushSamples(b, 0, 1);
 	}
 

@@ -42,20 +42,20 @@ using namespace hise;
 
 
 
-HiseDspBase::ParameterData::ParameterData(const String& id_) :
+ParameterDataImpl::ParameterDataImpl(const String& id_) :
 	id(id_)
 {
 
 }
 
-HiseDspBase::ParameterData::ParameterData(const String& id_, NormalisableRange<double> r) :
+ParameterDataImpl::ParameterDataImpl(const String& id_, NormalisableRange<double> r) :
 	id(id_),
 	range(r)
 {
 
 }
 
-juce::ValueTree HiseDspBase::ParameterData::createValueTree() const
+juce::ValueTree ParameterDataImpl::createValueTree() const
 {
 	ValueTree p(PropertyIds::Parameter);
 
@@ -67,44 +67,25 @@ juce::ValueTree HiseDspBase::ParameterData::createValueTree() const
 	return p;
 }
 
-scriptnode::HiseDspBase::ParameterData HiseDspBase::ParameterData::withRange(NormalisableRange<double> r)
+ParameterDataImpl ParameterDataImpl::withRange(NormalisableRange<double> r)
 {
-	ParameterData copy(*this);
+	ParameterDataImpl copy(*this);
 	copy.range = r;
 	copy.isUsingRange = !RangeHelpers::isIdentity(r);
 	return copy;
 }
 
-void HiseDspBase::ParameterData::operator()(double newValue) const
+#if 0
+void ParameterDataImpl::operator()(double newValue) const
 {
 	if (isUsingRange)
 		callWithRange(newValue);
 	else
 		callUnscaled(newValue);
 }
+#endif
 
-void HiseDspBase::ParameterData::setBypass(double newValue) const
-{
-	db(range.getRange().contains(newValue) ? 0.0 : 1.0);
-}
-
-void HiseDspBase::ParameterData::callWithRange(double value) const
-{
-	db(range.convertFrom0to1(value));
-}
-
-void HiseDspBase::ParameterData::callUnscaled(double newValue) const
-{
-	db(newValue);
-}
-
-void HiseDspBase::ParameterData::addConversion(const Identifier& converterId)
-{
-	db = DspHelpers::wrapIntoConversionLambda(converterId, db, range, false);
-	range = {};
-}
-
-void HiseDspBase::ParameterData::setParameterValueNames(const StringArray& valueNames)
+void ParameterDataImpl::setParameterValueNames(const StringArray& valueNames)
 {
 	parameterNames = valueNames;
 

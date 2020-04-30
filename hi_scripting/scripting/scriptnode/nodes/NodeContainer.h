@@ -40,13 +40,13 @@ using namespace hise;
 struct NodeContainer : public AssignableObject
 {
 	struct MacroParameter : public NodeBase::Parameter,
-							public SnexDebugHandler
+							public SnexDebugHandler,
+							public PooledUIUpdater::SimpleTimer
 	{
 		struct Connection: public ConnectionBase
 		{
 			Connection(NodeBase* parent, MacroParameter* pp, ValueTree d);
 
-			DspHelpers::ParameterCallback createCallbackForNormalisedInput();
 			bool isValid() const { return targetParameter.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
 
 			bool matchesTarget(const Parameter* target) const
@@ -54,20 +54,19 @@ struct NodeContainer : public AssignableObject
 				return target == targetParameter.get();
 			}
 
-		private:
+			NodeBase::Ptr nodeToBeBypassed;
 
-			void updateConnectionInTargetParameter(Identifier id, var newValue);
+		private:
 
 			ValueTree targetNodeData;
 
 			UndoManager* um = nullptr;
-			NodeBase::Ptr nodeToBeBypassed;
+			
 			double rangeMultiplerForBypass = 1.0;
 
 			MacroParameter* parentParameter = nullptr;
 
 			valuetree::PropertyListener exprSyncer;
-			valuetree::PropertyListener opSyncer;
 
 			String expressionCode;
 			Identifier conversion = ConverterIds::Identity;
@@ -83,6 +82,11 @@ struct NodeContainer : public AssignableObject
 		void updateConnectionForExpression(ValueTree v, Identifier)
 		{
 			rebuildCallback();
+		}
+
+		void timerCallback() override
+		{
+			getReferenceToCallback().updateUI();
 		}
 
 		var addParameterTarget(NodeBase::Parameter* p)
@@ -111,9 +115,8 @@ struct NodeContainer : public AssignableObject
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), s);
 		}
 
-		Identifier getOpTypeForParameter(Parameter* target) const;
-
 		bool matchesTarget(const Parameter* target) const;
+
 
 		NormalisableRange<double> inputRange;
 
@@ -203,8 +206,7 @@ public:
 	{
 	public:
 
-		SET_HISE_NODE_EXTRA_HEIGHT(0);
-		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+		GET_SELF_AS_OBJECT();
 
 		bool handleModulation(double&);
 		void handleHiseEvent(HiseEvent& e) final override;
@@ -232,9 +234,6 @@ public:
 		}
 
 		void createParameters(Array<ParameterData>& ) override {};
-
-		DynamicSerialProcessor& getObject() { return *this; }
-		const DynamicSerialProcessor& getObject() const { return *this; }
 
 		NodeContainer* parent;
 	};

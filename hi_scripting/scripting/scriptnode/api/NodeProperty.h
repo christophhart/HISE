@@ -107,6 +107,12 @@ struct ScriptFunctionManager : public hise::GlobalScriptCompileListener,
 	MainController* mc;
 };
 
+template <class T, int Value> struct StaticProperty
+{
+	constexpr T getValue() const { return Value; }
+
+};
+
 template <class T> struct NodePropertyT : public NodeProperty
 {
 	NodePropertyT(const Identifier& id, T defaultValue) :
@@ -124,6 +130,8 @@ template <class T> struct NodePropertyT : public NodeProperty
 	{
 		if(getPropertyTree().isValid())
 			getPropertyTree().setPropertyExcludingListener(&updater, PropertyIds::Value, newValue, um);
+
+		value = newValue;
 	}
 
 	void update(Identifier id, var newValue)

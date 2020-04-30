@@ -38,11 +38,13 @@ using namespace hise;
 
 namespace analyse
 {
-Factory::Factory(DspNetwork* network):
+Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
+#if NOT_JUST_OSC
 	registerNode<fft>({});
 	registerNode<oscilloscope>({});
+#endif
 }
 
 }
@@ -53,10 +55,12 @@ namespace dynamics
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerNode<gate>();
-	registerNode<comp>();
-	registerNode<limiter>();
-	registerNode<envelope_follower>();
+#if NOT_JUST_OSC
+	registerNode<gate, ModulationSourcePlotter>();
+	registerNode<comp, ModulationSourcePlotter>();
+	registerNode<limiter, ModulationSourcePlotter>();
+	registerNode<envelope_follower, ModulationSourcePlotter>();
+#endif
 }
 
 }
@@ -64,26 +68,19 @@ Factory::Factory(DspNetwork* network) :
 namespace fx
 {
 
-
-
-
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
+#if NOT_JUST_OSC
 	registerPolyNode<sampleandhold, sampleandhold_poly>({});
 	registerPolyNode<bitcrush, bitcrush_poly>({});
-	registerPolyNode<haas, haas_poly>({});
+	registerPolyNode<fix<2, haas>, fix<2, haas_poly>>({});
 	registerPolyNode<phase_delay, phase_delay_poly>({});
 	registerNode<reverb>({});
+#endif
 }
 
-
-
-
-
 }
-
-
 
 namespace core
 {
@@ -92,12 +89,13 @@ namespace core
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
+#if NOT_JUST_OSC
 #if INCLUDE_SOUL_NODE
 	registerNodeRaw<SoulNode>();
 #endif
 
 	registerPolyNode<seq, seq_poly>();
-	registerPolyNode<ramp, ramp_poly>();
+	
 #if HISE_INCLUDE_SNEX
 	registerPolyNodeRaw<JitNode, JitPolyNode>();
 	registerNode<core::simple_jit>({});
@@ -106,18 +104,98 @@ Factory::Factory(DspNetwork* network) :
 	registerNode<table>();
 	registerNode<fix_delay>();
 	registerNode<file_player>();
-	registerNode<hise_mod>();
+	
 	registerNode<fm>();
-	registerPolyNode<oscillator, oscillator_poly>();
-	registerPolyNode<ramp_envelope, ramp_envelope_poly>();
+	
+	registerPolyNode<ramp_envelope, ramp_envelope_poly, ModulationSourcePlotter>();
 	registerPolyNode<gain, gain_poly>();
-	registerNode<peak>();
-	registerNode<tempo_sync>();
-	registerPolyNode<timer, timer_poly>();
-	registerPolyNode<midi, midi_poly>({});
+	
+	
+	registerPolyNode<timer, timer_poly, TimerDisplay>();
+	registerPolyNode<midi, midi_poly, MidiDisplay>({});
 	registerPolyNode<smoother, smoother_poly>({});
+#endif
+
+	registerNodeRaw<ParameterMultiplyAddNode<core::pma<parameter::dynamic_base_holder>>>();
+
+	registerModNode<hise_mod>();
+
+	registerModNode<tempo_sync, TempoDisplay>();
+
+	registerNode<routing2::send<cable::dynamic>, FunkySendComponent>();
+	registerNode<routing2::receive<cable::dynamic>, FunkySendComponent>();
+
+	registerModNode<peak>();
+	registerPolyNode<ramp, ramp_poly>();
+
+#if 0
+
+	oscillator_impl<1> o;
+
+	void* obj = &o;
+
+	parameter::data_pool pool;
 
 	
+
+	parameter::dynamic_chain chain;
+
+	Array<ParameterDataImpl> data;
+
+	o.createParameters(data);
+
+	auto& fp = data.getReference(0);
+
+
+
+	chain.addParameter(new parameter::dynamic_from0to1(fp.dbNew, pool.create(fp.range)));
+	
+	String code = "Math.max(input, 0.5) * 1041.0";
+
+	chain.addParameter(new parameter::dynamic_expression(data.getReference(1).dbNew, pool.create(code)));
+
+	chain(1.0);
+
+	parameter::dynamic wrappedChain;
+
+	
+
+
+
+	wrappedChain = std::move(chain);
+
+	parameter::dynamic_to0to1 normaliser(wrappedChain, pool.create(NormalisableRange<double>(20.0, 40.0)));
+
+	parameter::dynamic wrappedNormaliser;
+
+	wrappedNormaliser = std::move(normaliser);
+
+	constexpr int funky3 = sizeof(chain);
+	constexpr int funky = sizeof(normaliser);
+
+	wrappedNormaliser(30.0);
+
+	
+
+	//using bo = bypass::smoothed<oscillator>;
+
+	//bo o;
+
+	//parameter::bypass<bo> p;
+
+	//p.connect<0>(o);
+
+	//p.call(0.7);
+
+	using A = HiseDspNodeBase<oscillator, OscDisplay>;
+	using B = HiseDspNodeBase<oscillator_poly, OscDisplay>;
+	
+	//A o(network, {});
+	//B o2(network, {});
+#endif
+
+
+	registerPolyNode<oscillator, oscillator_poly, OscDisplay>();
 
 }
 }

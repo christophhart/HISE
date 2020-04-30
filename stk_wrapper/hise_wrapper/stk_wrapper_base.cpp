@@ -109,7 +109,10 @@ TP WRAPPER_BASE::WrapperBase()
 TP void WRAPPER_BASE::clearObjects(bool deleteObjects/*=true*/)
 {
 	for (int i = 0; i < NumChannels; i++)
-		objects[i].forEachVoice([](ObjectType& o) {o.deleteObject(); });
+	{
+		for (auto& o : objects[i])
+			o.deleteObject();
+	}
 }
 
 
@@ -119,7 +122,10 @@ TP void WRAPPER_BASE::reset()
 		for (auto& o : *this) o.get().getObject()->clear();
 	else
 		for (auto& o : *this)
-			o.forEachVoice([](ObjectType& ob) { ob.getObject()->clear(); });
+		{
+			for (auto& ob : o)
+				ob.getObject()->clear();
+		}
 }
 
 
@@ -135,8 +141,13 @@ TP void WRAPPER_BASE::setParameter0(double newValue)
 	if (voiceRenderingActive())
 		for (auto& o : *this) T::template setParameter<0>(o.get(), newValue);
 	else
+	{
 		for (auto& o : *this)
-			o.forEachVoice([newValue](ObjectType& ob) { T::template setParameter<0>(ob, newValue); });
+		{
+			for (auto& ob : o)
+				T::template setParameter<0>(ob, newValue);
+		}
+	}
 }
 
 TP void WRAPPER_BASE::setParameter1(double newValue)
@@ -146,8 +157,13 @@ TP void WRAPPER_BASE::setParameter1(double newValue)
 	if (voiceRenderingActive())
 		for (auto& o : *this) T::template setParameter<1>(o.get(), newValue);
 	else
+	{
 		for (auto& o : *this)
-			o.forEachVoice([newValue](ObjectType& ob) { T::template setParameter<1>(ob, newValue); });
+		{
+			for (auto& ob : o)
+				T::template setParameter<1>(ob, newValue);
+		}
+	}
 }
 
 TP void WRAPPER_BASE::setParameter2(double newValue)
@@ -157,8 +173,13 @@ TP void WRAPPER_BASE::setParameter2(double newValue)
 	if (voiceRenderingActive())
 		for (auto& o : *this) T::template setParameter<2>(o.get(), newValue);
 	else
+		{
 		for (auto& o : *this)
-			o.forEachVoice([newValue](ObjectType& ob) { T::template setParameter<2>(ob, newValue); });
+		{
+			for (auto& ob : o)
+				T::template setParameter<2>(ob, newValue);
+		}
+	}
 }
 
 TP void WRAPPER_BASE::setParameter3(double newValue)
@@ -168,8 +189,13 @@ TP void WRAPPER_BASE::setParameter3(double newValue)
 	if (voiceRenderingActive())
 		for (auto& o : *this) T::template setParameter<3>(o.get(), newValue);
 	else
+	{
 		for (auto& o : *this)
-			o.forEachVoice([newValue](ObjectType& ob) { T::template setParameter<3>(ob, newValue); });
+		{
+			for (auto& ob : o)
+				T::template setParameter<3>(ob, newValue);
+		}
+	}
 }
 
 
@@ -200,10 +226,8 @@ TP void WRAPPER_BASE::prepare(PrepareSpecs ps)
 
 	for (int i = 0; i < NumChannels; i++)
 	{
-		objects[i].forEachVoice([s](ObjectType& t)
-		{
+		for(auto& t: objects[i])
 			t.setNewWithSampleRate(T::create(t.getDataPtr()), s);
-		});
 
 		objects[i].prepare(ps);
 	}
@@ -234,6 +258,10 @@ TP EFFECT_WRAPPER::EffectWrapper():
 
 TP void EFFECT_WRAPPER::process(ProcessData& d)
 {
+	
+
+#if 0
+
 	constexpr int ChannelAmount = getNumChannelsToProcess<T, NumChannels>();
 
 	auto fd = d.toFrameData<ChannelAmount>();
@@ -243,7 +271,6 @@ TP void EFFECT_WRAPPER::process(ProcessData& d)
 		processFrame(fd.begin(), ChannelAmount);
 	}
 
-#if 0
 	float* ch[ChannelAmount];
 
 	for (int i = 0; i < ChannelAmount; i++)
@@ -264,7 +291,8 @@ TP void EFFECT_WRAPPER::process(ProcessData& d)
 #endif
 }
 
-TP void EFFECT_WRAPPER::processFrame(float* frameData, int )
+#if 0
+TP void EFFECT_WRAPPER::processFrame(snex::Types::span<float, NumChannels>& data)
 {
 	//jassert(numChannels == getNumChannelsToProcess<T, NumChannels>() );
 
@@ -281,6 +309,7 @@ TP void EFFECT_WRAPPER::processFrame(float* frameData, int )
 		}
 	}
 }
+#endif
 
 #undef EFFECT_WRAPPER
 
@@ -293,18 +322,19 @@ TP INSTRUMENT_WRAPPER::InstrumentWrapper()
 
 TP void INSTRUMENT_WRAPPER::process(ProcessData& d)
 {
-	constexpr int ChannelAmount = getNumChannelsToProcess<T, NumChannels>();
-
-	auto fd = d.toFrameData<ChannelAmount>(); 
-
-	while (fd.next())
-	{
-		processFrame(fd.begin(), ChannelAmount);
-	}
 
 #if 0
 
 
+
+	constexpr int ChannelAmount = getNumChannelsToProcess<T, NumChannels>();
+
+	auto fd = d.toFrameData<ChannelAmount>();
+
+	while (fd.next())
+	{
+		processFrame(fd);
+	}
 	float* ch[ChannelAmount];
 
 	for (int i = 0; i < ChannelAmount; i++)
@@ -328,9 +358,14 @@ TP void INSTRUMENT_WRAPPER::process(ProcessData& d)
 #endif
 }
 
-TP void INSTRUMENT_WRAPPER::processFrame(float* frameData, int numChannels)
+#if 0
+TP void INSTRUMENT_WRAPPER::processFrame(snex::Types::span<float, NumChannels>& data)
 {
 	//jassert(numChannels == getNumChannelsToProcess<T, NumChannels>() );
+
+	jassertfalse;
+
+#if 0
 
 	float* ptr = frameData;
 
@@ -341,7 +376,9 @@ TP void INSTRUMENT_WRAPPER::processFrame(float* frameData, int numChannels)
 		for (int j = 0; j < numThisTime; j++)
 			*ptr++ += this->objects[i].get().getObject()->tick(j);
 	}
+#endif
 }
+#endif
 
 
 TP void INSTRUMENT_WRAPPER::handleHiseEvent(HiseEvent& e)

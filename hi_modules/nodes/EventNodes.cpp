@@ -39,12 +39,12 @@ using namespace hise;
 namespace core
 {
 
-template <int NV> class MidiDisplay : public HiseDspBase::ExtraComponent<MidiSourceNode<NV>>
+class MidiDisplay : public ScriptnodeExtraComponent<MidiDisplayProviderBase>
 {
 public:
 
-	MidiDisplay(MidiSourceNode<NV>* t, PooledUIUpdater* updater) :
-      HiseDspBase::ExtraComponent<MidiSourceNode<NV>>(t, updater),
+	MidiDisplay(MidiDisplayProviderBase* t, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<MidiDisplayProviderBase>(t, updater),
 		dragger(updater)
 	{
 		meter.setColour(VuMeter::backgroundColour, Colour(0xFF333333));
@@ -56,6 +56,11 @@ public:
 		this->addAndMakeVisible(dragger);
 
 		this->setSize(256, 40);
+	}
+
+	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	{
+		return new MidiDisplay(obj, updater);
 	}
 
 	void resized() override
@@ -70,14 +75,19 @@ public:
 		if (this->getObject() == nullptr)
 			return;
 
-		meter.setPeak((float)this->getObject()->modValue.getCurrentOrFirst().getModValue());
+		meter.setPeak(this->getObject()->getDisplayValue());
 	}
 
 	ModulationSourceBaseComponent dragger;
 	VuMeter meter;
 };
 
-DEFINE_EXTERN_NODE_TEMPIMPL(MidiDisplay);
+template <int V>
+float scriptnode::core::MidiSourceNode<V>::getDisplayValue() const
+{
+	return (float)modValue.getCurrentOrFirst().getModValue();
+}
+
 
 template <int V>
 void MidiSourceNode<V>::createParameters(Array<ParameterData>& data)
@@ -165,13 +175,6 @@ void MidiSourceNode<V>::prepare(PrepareSpecs sp)
 
 
 template <int V>
-Component* MidiSourceNode<V>::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new MidiDisplay<V>(this, updater);
-}
-
-
-template <int V>
 void MidiSourceNode<V>::initialise(NodeBase* n)
 {
 	scriptFunction.init(n, this);
@@ -180,17 +183,22 @@ void MidiSourceNode<V>::initialise(NodeBase* n)
 DEFINE_EXTERN_NODE_TEMPIMPL(MidiSourceNode);
 
 
-template <int NV> class TimerDisplay : public HiseDspBase::ExtraComponent<TimerNode<NV>>
+class TimerDisplay : public ScriptnodeExtraComponent<TimerDisplayProviderBase>
 {
 public:
 
-	TimerDisplay(TimerNode<NV>* t, PooledUIUpdater* updater) :
-      HiseDspBase::ExtraComponent<TimerNode<NV>>(t, updater),
+	TimerDisplay(TimerDisplayProviderBase* t, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<TimerDisplayProviderBase>(t, updater),
 		dragger(updater)
 	{
 		this->addAndMakeVisible(dragger);
 
 		this->setSize(256, 40);
+	}
+
+	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	{
+		return new TimerDisplay(obj, updater);
 	}
 
 	void resized() override
@@ -210,35 +218,44 @@ public:
 
 	void timerCallback() override
 	{
-		if (this->getObject() == nullptr)
+		if (getObject() == nullptr)
+		{
+			stop();
 			return;
+		}
 
 		float lastAlpha = alpha;
 
-		if (this->getObject()->ui_led)
+		auto& ui_led = getObject()->getActiveFlag();
+
+		if (ui_led)
 		{
 			alpha = 1.0f;
-			this->getObject()->ui_led = false;
+			ui_led = false;
 		}
 		else
 			alpha = jmax(0.0f, alpha - 0.1f);
 
 		if (lastAlpha != alpha)
-			this->repaint();
+			repaint();
 	}
 
 	float alpha = 0.0f;
 	ModulationSourceBaseComponent dragger;
 };
 
-DEFINE_EXTERN_NODE_TEMPIMPL(TimerDisplay);
-
-
 template <int NV>
 TimerNode<NV>::TimerNode():
 	fillMode(PropertyIds::FillMode, true)
 {
 
+}
+
+
+template <int NV>
+bool& TimerNode<NV>::getActiveFlag()
+{
+	return ui_led;
 }
 
 
@@ -253,10 +270,8 @@ void TimerNode<NV>::setInterval(double timeMs)
 	}
 	else
 	{
-		t.forEachVoice([newTime](TimerInfo& ti)
-		{
+		for(auto& ti: t)
 			ti.samplesBetweenCallbacks = newTime;
-		});
 	}
 }
 
@@ -277,11 +292,11 @@ void TimerNode<NV>::setActive(double value)
 	}
 	else
 	{
-		t.forEachVoice([thisActive](TimerInfo& ti)
+		for (auto& ti : t)
 		{
 			ti.active = thisActive;
 			ti.reset();
-		});
+		}
 	}
 
 }
@@ -320,28 +335,28 @@ bool TimerNode<NV>::handleModulation(double& value)
 }
 
 template <int NV>
-void TimerNode<NV>::process(ProcessData& d)
+void TimerNode<NV>::processFirstChannel(snex::Types::ProcessDataFix<1>& d)
 {
 	auto& thisInfo = t.get();
 
 	if (!thisInfo.active)
-	{
 		return;
-	}
 
-	if (d.size < thisInfo.samplesLeft)
+	const int numSamples = d.getNumSamples();
+
+	if (numSamples < thisInfo.samplesLeft)
 	{
-		thisInfo.samplesLeft -= d.size;
+		thisInfo.samplesLeft -= numSamples;
 
 		if (fillMode.getValue())
 		{
 			for (auto ch : d)
-				FloatVectorOperations::fill(ch.getRawWritePointer(), (float)modValue.get().getModValue(), d.getNumSamples());
+				FloatVectorOperations::fill(ch.getRawWritePointer(), (float)modValue.get().getModValue(), numSamples);
 		}
 	}
 	else
 	{
-		const int numRemaining = d.getNumSamples() - thisInfo.samplesLeft;
+		const int numRemaining = numSamples - thisInfo.samplesLeft;
 
 		if (fillMode.getValue())
 		{
@@ -354,7 +369,7 @@ void TimerNode<NV>::process(ProcessData& d)
 
 		ui_led = true;
 
-		const int numAfter = d.getNumSamples() - numRemaining;
+		const int numAfter = numSamples - numRemaining;
 
 		if (fillMode.getValue())
 		{
@@ -364,28 +379,6 @@ void TimerNode<NV>::process(ProcessData& d)
 		
 		thisInfo.samplesLeft = thisInfo.samplesBetweenCallbacks + numRemaining;
 	}
-}
-
-template <int NV>
-void TimerNode<NV>::processFrame(float* frameData, int numChannels)
-{
-	auto& thisInfo = t.get();
-
-	if (!thisInfo.active)
-		return;
-
-	if (thisInfo.tick())
-	{
-		auto newValue = scriptFunction.callWithDouble(0.0);
-
-		modValue.get().setModValue(newValue);
-
-		ui_led = true;
-		thisInfo.reset();
-	}
-
-	if(fillMode.getValue())
-		FloatVectorOperations::fill(frameData, (float)modValue.get().getModValue(), numChannels);
 }
 
 template <int NV>
@@ -401,12 +394,6 @@ void TimerNode<NV>::prepare(PrepareSpecs ps)
 
 	t.prepare(ps);
 	modValue.prepare(ps);
-}
-
-template <int NV>
-Component* TimerNode<NV>::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new TimerDisplay<NV>(this, updater);
 }
 
 template <int NV>

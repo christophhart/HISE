@@ -111,11 +111,6 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 			changeNodeId(data, oldId, newId, getUndoManager());
 		}
 	});
-    
-    for(auto n: nodes)
-    {
-        n->postInit();
-    }
 }
 
 DspNetwork::~DspNetwork()
@@ -264,12 +259,13 @@ void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 {
 	ScopedLock sl(getConnectionLock());
 
-	ProcessData d(b.getArrayOfWritePointers(), b.getNumChannels(), b.getNumSamples());
-	PointerWatcher pw(d);
+	if (exceptionHandler.isOk())
+	{
+		ProcessData d(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels());
+		d.setEventBuffer(*e);
 
-	d.setEventBuffer(*e);
-
-	signalPath->process(d);
+		signalPath->process(d);
+	}
 }
 
 juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
@@ -304,30 +300,34 @@ void DspNetwork::processBlock(var pData)
 {
 	ScopedLock sl(getConnectionLock());
 
-	if (auto ar = pData.getArray())
+	if (exceptionHandler.isOk())
 	{
-		int numChannelsToUse = ar->size();
-		int numSamplesToUse = 0;
-
-		int index = 0;
-
-		for (const auto& v : *ar)
+		if (auto ar = pData.getArray())
 		{
-			if (auto bf = v.getBuffer())
+			int numChannelsToUse = ar->size();
+			int numSamplesToUse = 0;
+
+			int index = 0;
+
+			for (const auto& v : *ar)
 			{
-				int thisSamples = bf->buffer.getNumSamples();
+				if (auto bf = v.getBuffer())
+				{
+					int thisSamples = bf->buffer.getNumSamples();
 
-				if (numSamplesToUse == 0)
-					numSamplesToUse = thisSamples;
-				else if (numSamplesToUse != thisSamples)
-					reportScriptError("Buffer mismatch");
+					if (numSamplesToUse == 0)
+						numSamplesToUse = thisSamples;
+					else if (numSamplesToUse != thisSamples)
+						reportScriptError("Buffer mismatch");
 
-				currentData[index++] = bf->buffer.getWritePointer(0);
+					currentData[index++] = bf->buffer.getWritePointer(0);
+				}
 			}
-		}
 
-		ProcessData d(currentData, numChannelsToUse, numSamplesToUse);
-		signalPath->process(d);
+			ProcessData d(currentData, numSamplesToUse, numChannelsToUse);
+			signalPath->process(d);
+
+		}
 	}
 }
 

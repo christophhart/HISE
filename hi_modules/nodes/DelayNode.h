@@ -41,7 +41,9 @@ namespace core
 struct fix_delay : public HiseDspBase
 {
 	SET_HISE_NODE_ID("fix_delay");
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+#endif
 	GET_SELF_AS_OBJECT(fix_delay);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
@@ -53,16 +55,16 @@ struct fix_delay : public HiseDspBase
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		jassert(d.getNumChannels() == delayLines.size());
+		jassert(data.getNumChannels() == delayLines.size());
 		int index = 0;
 
 		for(auto c: data)
-			delayLines[index++]->processBlock(c.getRawWritePointer(), d.getNumSamples());
+			delayLines[index++]->processBlock(c.getRawWritePointer(), data.getNumSamples());
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		jassert(d.size() == delayLines.size());
+		jassert(data.size() == delayLines.size());
 
 		int index = 0;
 

@@ -50,6 +50,10 @@ public:
 
 	void process(ProcessData& data) final override;
 	void processFrame(FrameType& data) final override;
+
+	void processMonoFrame(MonoFrameType& data) final override;
+	void processStereoFrame(StereoFrameType& data) final override;
+
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override { wrapper.reset(); }
@@ -186,7 +190,54 @@ public:
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void process(ProcessData& data) final override;
-	void processFrame(FrameType& data) final override;
+
+	void processFrame(FrameType& data) final override
+	{
+		if (data.size() == 1) processFrame(MonoFrameType::as(data.begin()));
+		else if (data.size() == 2) processFrame(StereoFrameType::as(data.begin()));
+	}
+
+	template <typename int C> void processFrame(snex::Types::span<float, C>& data)
+	{
+		if (isBypassed())
+			return;
+
+		using ThisFrameType = snex::Types::span<float, C>;
+
+		ThisFrameType original;
+		data.copyTo(original);
+
+		bool isFirst = true;
+
+		for (auto n : nodes)
+		{
+			if (isFirst)
+			{
+				if (C == 1)
+					n->processMonoFrame(MonoFrameType::as(data.begin()));
+				if (C == 2)
+					n->processStereoFrame(StereoFrameType::as(data.begin()));
+					
+
+				isFirst = false;
+			}
+			else
+			{
+				ThisFrameType wb;
+				original.copyTo(wb);
+
+				if (C == 1)
+					n->processMonoFrame(MonoFrameType::as(data.begin()));
+				if (C == 2)
+					n->processStereoFrame(StereoFrameType::as(data.begin()));
+
+				wb.addTo(data);
+			}
+		}
+	}
+
+	void processMonoFrame(MonoFrameType& data) final override;
+	void processStereoFrame(StereoFrameType& data) final override;
 
 	AudioSampleBuffer splitBuffer;
 };
@@ -305,14 +356,15 @@ public:
 			}
 
 			auto& cd = FixProcessType::ChannelDataType::as(channels);
-			FixProcessType copy(data, cd);
+			FixProcessType copy(cd.begin(), data.getNumSamples());
+			copy.copyNonAudioDataFrom(data);
 			obj.process(copy);
 		}
 	}
 
-	void processFrame(dyn<float>& d) final override
+	void processFrame(FrameType& d) final override
 	{
-		jassert(numChannels == NumChannels);
+		jassert(d.size() == NumChannels);
 
 		auto& s = FixFrameType::as(d.begin());
 		obj.processFrame(s);

@@ -63,6 +63,16 @@ void DspHelpers::increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs&
 		b.setSize(numElements);
 }
 
+void DspHelpers::setErrorIfFrameProcessing(const PrepareSpecs& ps)
+{
+	if (ps.blockSize == 1)
+	{
+		Error e;
+		e.error = Error::IllegalFrameCall;
+		throw e;
+	}
+}
+
 scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction)
 {
 	if (RangeHelpers::isIdentity(range))
@@ -172,6 +182,45 @@ scriptnode::DspHelpers::ParameterCallback DspHelpers::wrapIntoConversionLambda(c
 		return originalFunction;
 }
 
+
+void DspHelpers::validate(PrepareSpecs sp, PrepareSpecs rp)
+{
+	auto isIdle = [](const PrepareSpecs& p)
+	{
+		return p.numChannels == 0 && p.sampleRate == 0.0 && p.blockSize == 0;
+	};
+
+	if (isIdle(sp) || isIdle(rp))
+		return;
+
+	if (sp.numChannels != rp.numChannels)
+	{
+		Error e;
+		e.error = Error::ChannelMismatch;
+		e.actual = rp.numChannels;
+		e.expected = sp.numChannels;
+
+		throw e;
+	}
+
+	if (sp.sampleRate != rp.sampleRate)
+	{
+		Error e;
+		e.error = Error::SampleRateMismatch;
+		e.actual = (int)rp.sampleRate;
+		e.expected = (int)sp.sampleRate;
+		throw e;
+	}
+
+	if (sp.blockSize != rp.blockSize)
+	{
+		Error e;
+		e.error = Error::BlockSizeMismatch;
+		e.actual = rp.blockSize;
+		e.expected = sp.blockSize;
+		throw e;
+	}
+}
 
 juce::String CodeHelpers::createIncludeFile(File targetDirectory)
 {

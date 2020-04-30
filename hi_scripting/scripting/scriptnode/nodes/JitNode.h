@@ -37,6 +37,8 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+#if OLD_JIT_STUFF
+
 
 #if HISE_INCLUDE_SNEX
 using namespace snex;
@@ -46,8 +48,11 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 {
 	constexpr static int NumVoices = NV;
 
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
 	SET_HISE_NODE_EXTRA_WIDTH(0);
+#endif
+
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	SET_HISE_POLY_NODE_ID(T::getStaticId());
 
@@ -229,8 +234,12 @@ class simple_jit : public HiseDspBase
 public:
 
 	SET_HISE_NODE_ID("simple_jit");
+
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(50);
 	SET_HISE_NODE_EXTRA_WIDTH(384);
+#endif
+
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	GET_SELF_AS_OBJECT(simple_jit);
 
@@ -261,8 +270,6 @@ public:
 
 		expr = new snex::JitExpression(newValue.toString());
 	}
-
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
@@ -298,6 +305,9 @@ public:
 	Value codeValue;
 };
 
+
+#if NOT_JUST_OSC
+
 template <int NV> class jit_impl : public HiseDspBase,
 							  public AsyncUpdater
 {
@@ -306,8 +316,12 @@ public:
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("jit");
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
-	GET_SELF_AS_OBJECT(jit_impl);
+#endif
+	GET_SELF_AS_OBJECT();
+
+
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	jit_impl();
@@ -317,6 +331,8 @@ public:
 	void updateCode(Identifier id, var newValue);
 
 	void prepare(PrepareSpecs specs);
+
+	Array<PDataNewCheckCheck> createParameterDataNewFunkFunk() { return {}; }
 
 	void createParameters(Array<ParameterData>& data) override;
 	void initialise(NodeBase* n);
@@ -328,7 +344,7 @@ public:
 	{
 		if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
 		{
-			// übelst neu denken...
+			// ï¿½belst neu denken...
 			jassertfalse;
 
 #if 0
@@ -439,6 +455,7 @@ public:
 
 	template <int Index> bool createParameter(Array<ParameterData>& data)
 	{
+#if 0
 		auto& c = cData.getFirst();
         auto cp = c.parameters[Index];
 
@@ -451,6 +468,12 @@ public:
 		}
 
 		return false;
+#endif
+	}
+
+	template <int Index> static void setParameter(void* obj, double value)
+	{
+		jassertfalse;
 	}
 
 	template<int Index> void setParameter(double newValue)
@@ -461,10 +484,8 @@ public:
 				cData.get().parameters.getReference(Index).f.callVoid(newValue);
 			else
 			{
-				cData.forEachVoice([newValue](CallbackCollection& cc)
-				{
-					cc.parameters.getReference(Index).f.callVoid(newValue);
-				});
+				for(auto& c: cData)
+					c.parameters.getReference(Index).f.callVoid(newValue);
 			}
 		}
 	}
@@ -484,6 +505,7 @@ public:
 
 DEFINE_EXTERN_NODE_TEMPLATE(jit, jit_poly, jit_impl);
 
+#endif
 
 }
 
@@ -503,11 +525,14 @@ public:
 	virtual HiseDspBase* getInternalJitNode() = 0;
 	void updateParameters(Identifier id, var newValue);
 
+	
+
 private:
 
 	valuetree::PropertyListener parameterUpdater;
 
 };
+
 
 class JitNode : public HiseDspNodeBase<core::jit>,
 				public JitNodeBase
@@ -517,7 +542,13 @@ public:
 
 	JitNode(DspNetwork* parent, ValueTree d);
 	String createCppClass(bool isOuterClass) override;
-	HiseDspBase* getInternalJitNode() override;
+
+
+	HiseDspBase* getInternalJitNode() override
+	{
+		return &wrapper.getWrappedObject();
+	}
+
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitNode(n, d); };
 };
 
@@ -529,12 +560,19 @@ public:
 
 	JitPolyNode(DspNetwork* parent, ValueTree d);
 	String createCppClass(bool isOuterClass) override;
-	HiseDspBase* getInternalJitNode() override;
+
+	HiseDspBase* getInternalJitNode() override
+	{
+		return &wrapper.getWrappedObject();
+	}
+
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitPolyNode(n, d); };
 };
+
+
 #endif
 
-
+#endif
 
 
 

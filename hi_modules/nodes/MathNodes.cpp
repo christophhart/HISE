@@ -50,6 +50,14 @@ void scriptnode::math::OpNode<OpType, V>::prepare(PrepareSpecs ps)
 	value.prepare(ps);
 }
 
+
+template <class OpType, int V>
+bool scriptnode::math::OpNode<OpType, V>::handleModulation(double&) noexcept
+{
+	return false;
+}
+
+
 template <class OpType, int V>
 void scriptnode::math::OpNode<OpType, V>::createParameters(Array<ParameterData>& data)
 {
@@ -57,8 +65,7 @@ void scriptnode::math::OpNode<OpType, V>::createParameters(Array<ParameterData>&
 	p.range = { 0.0, 1.0, 0.01 };
 	p.defaultValue = OpType::defaultValue;
 
-	p.db = BIND_MEMBER_FUNCTION_1(OpNode::setValue);
-
+	p.dbNew = parameter::inner<OpNode, (int)Parameters::Value>(*this);
 	data.add(std::move(p));
 }
 
@@ -81,10 +88,9 @@ void scriptnode::math::OpNode<OpType, V>::setValue(double newValue)
 		else
 		{
 			auto nv = (float)newValue;
-			value.forEachVoice([nv](float& v)
-			{
+
+			for (auto& v : value)
 				v = nv;
-			});
 		}
 	}
 }
@@ -109,8 +115,12 @@ DEFINE_MONO_OP_NODE_IMPL(pow);
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
-	registerPolyNode<mul, mul_poly>();
+	
 	registerPolyNode<add, add_poly>();
+
+#if NOT_JUST_OSC
+	registerPolyNode<mul, mul_poly>();
+	
 	registerNode<clear>();
 	registerPolyNode<sub, sub_poly>();
 	registerPolyNode<div, div_poly>();
@@ -123,6 +133,7 @@ Factory::Factory(DspNetwork* n) :
 	registerNode<square>();
 	registerNode<sqrt>();
 	registerNode<pow>();
+#endif
 
 	sortEntries();
 }

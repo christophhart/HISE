@@ -45,11 +45,14 @@ struct CoefficientProvider
 	virtual IIRCoefficients getCoefficients() = 0;
 
 	double sr = 44100.0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CoefficientProvider);
 };
+
 
 template <class FilterType, int NV> 
 class FilterNodeBase : public HiseDspBase,
-					   public CoefficientProvider
+	public CoefficientProvider
 {
 public:
 
@@ -68,54 +71,40 @@ public:
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID(FilterType::getFilterTypeId());
-	SET_HISE_NODE_EXTRA_HEIGHT(60);
-	GET_SELF_AS_OBJECT(FilterNodeBase);
+
+	GET_SELF_AS_OBJECT();
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	void createParameters(Array<ParameterData>& parameters) override;
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
-
-	void prepare(PrepareSpecs ps) noexcept;
+	void prepare(PrepareSpecs ps);
 	void reset();
-	void process(ProcessData& d) noexcept;
 
-	template <int FixChannelAmount> void process(snex::Types::ProcessDataFix<FixChannelAmount>& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto ptrs = d.getRawDataPointers();
-		processDataPointers(ptrs, FixChannelAmount, d.getNumSamples());
+		auto b = data.toAudioSampleBuffer();
+		FilterHelpers::RenderData r(b, 0, data.getNumSamples());
+		filter.get().render(r);
 	}
 
-	template <int FixChannelAmount> void processFrame(snex::Types::span<float, FixChannelAmount>& d)
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		processFrame(d.begin(), d.size());
+		filter.get().processFrame(data.begin(), data.size());
 	}
-
-	void processDataPointers(float** data, int numChannels, int numSamples);
-
-
-
-	void processFrame(float* frameData, int numChannels);
-	bool handleModulation(double&) noexcept { return false; };
 
 	IIRCoefficients getCoefficients() override;
 	void setFrequency(double newFrequency);
 	void setGain(double newGain);
 	void setQ(double newQ);
 	void setMode(double newMode);
-	void setSmoothingTime(double newSmoothingTime);
+	void setSmoothing(double newSmoothingTime);
 
-	STATIC_TO_MEMBER_PARAMETER(FilterNodeBase);
-
-	template <int P> void setParameter(double newValue)
+	DEFINE_PARAMETERS
 	{
-		switch (P)
-		{
-		case Parameters::Frequency: setFrequency(newValue); break;
-		case Parameters::Gain: setGain(newValue); break;
-		case Parameters::Q: setQ(newValue); break;
-		case Parameters::Mode: setMode(newValue); break;
-		case Parameters::Smoothing: setSmoothingTime(newValue); break;
-		}
+		DEF_PARAMETER(Frequency, FilterNodeBase);
+		DEF_PARAMETER(Gain, FilterNodeBase);
+		DEF_PARAMETER(Q, FilterNodeBase);
+		DEF_PARAMETER(Mode, FilterNodeBase);
+		DEF_PARAMETER(Smoothing, FilterNodeBase);
 	}
 
 	AudioSampleBuffer buffer;
@@ -143,21 +132,16 @@ DEFINE_FILTER_NODE_TEMPLATE(linkwitzriley, linkwitzriley_poly, LinkwitzRiley);
 
 #undef DEFINE_FILTER_NODE_TEMPLATE
 
-
-template <int NV> class fir_impl : public AudioFileNodeBase
+template <int NV> struct fir_impl : public AudioFileNodeBase
 {
-public:
-
 	using CoefficientType = juce::dsp::FIR::Coefficients<float>;
 	using FilterType = juce::dsp::FIR::Filter<float>;
 
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_NODE_ID("fir");
-	GET_SELF_AS_OBJECT(fir_impl);
+	GET_SELF_AS_OBJECT();
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-	SET_HISE_NODE_EXTRA_WIDTH(256);
-	SET_HISE_NODE_EXTRA_HEIGHT(100);
 
 	fir_impl();;
 
@@ -170,9 +154,37 @@ public:
 	void reset();
 
 	bool handleModulation(double&);
-	void process(ProcessData& d);
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		if (!ok)
+			return;
 
-	void processFrame(float* frameData, int numChannels);
+		SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
+
+		dsp::AudioBlock<float> l(d.getRawDataPointers(), 1, d.getNumSamples());
+		dsp::ProcessContextReplacing<float> pcrl(l);
+		leftFilters.get().process(pcrl);
+		
+		if (d.getNumChannels() > 1)
+		{
+			dsp::AudioBlock<float> r(d.getRawDataPointers() + 1, 1, d.getNumSamples());
+			dsp::ProcessContextReplacing<float> pcrr(r);
+			rightFilters.get().process(pcrr);
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		if (!ok)
+			return;
+
+		SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
+
+		data[0] = leftFilters.get().processSample(data[0]);
+
+		if (data.size() > 1)
+			data[1] = rightFilters.get().processSample(data[1]);
+	}
 	
 private:
 
@@ -187,7 +199,6 @@ private:
 	PolyData<FilterType, NumVoices> rightFilters;
 
 };
-
 
 DEFINE_EXTERN_NODE_TEMPLATE(fir, fir_poly, fir_impl);
 

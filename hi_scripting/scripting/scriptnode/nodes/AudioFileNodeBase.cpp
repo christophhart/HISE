@@ -142,11 +142,6 @@ void AudioFileNodeBase::createParameters(Array<ParameterData>& )
 	internalReference.init(nullptr, this);
 }
 
-juce::Component* AudioFileNodeBase::createExtraComponent(PooledUIUpdater* )
-{
-	return new WrappedDisplay(this);
-}
-
 void AudioFileNodeBase::addListener(Listener* l)
 {
 	listeners.addIfNotAlreadyThere(l);

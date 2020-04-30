@@ -70,7 +70,7 @@ public:
 		{
 			HiseDspBase::ParameterData p("Delay");
 			p.range = { 0.0, 10.0, 0.0 };
-			p.db = cb;
+			//p.db = cb;
 			data.add(std::move(p));
 		}
 	}
@@ -102,7 +102,7 @@ public:
 		{
 			HiseDspBase::ParameterData p("Delay");
 			p.range = { 0.0, 10.0, 0.0 };
-			p.db = cb;
+			//p.db = cb;
 			data.add(std::move(p));
 		}
 	}
@@ -131,7 +131,7 @@ public:
 		{
 			HiseDspBase::ParameterData p("Reverb Time");
 			p.range = { 0.0, 10.0, 0.0 };
-			p.db = cb;
+			//p.db = cb;
 			data.add(std::move(p));
 		}
 	}

@@ -40,7 +40,7 @@ using namespace hise;
 using RefBufferPtr = ScriptingObjects::ScriptAudioFile::RefCountedBuffer::Ptr;
 
 class AudioFileNodeBase : public HiseDspBase,
-	public ScriptingObjects::ScriptAudioFile::Listener
+						  public ScriptingObjects::ScriptAudioFile::Listener
 {
 public:
 
@@ -63,8 +63,6 @@ public:
 	void updateIndex(Identifier id, var newValue);
 
 	void createParameters(Array<ParameterData>& data) override;
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
-
 	void addListener(Listener* l);
 	void removeListener(Listener* l);
 

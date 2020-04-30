@@ -167,7 +167,7 @@ void DspNode::initialise()
 				}
 
 				auto newP = new Parameter(this, parameterData);
-				newP->setCallback(pf);
+				jassertfalse;
 
 				addParameter(newP);
 			}

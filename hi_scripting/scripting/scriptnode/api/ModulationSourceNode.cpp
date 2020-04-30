@@ -45,6 +45,8 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 		[this](Identifier, var)
 	{
 		inverted = RangeHelpers::checkInversion(data, &rangeUpdater, parent->getUndoManager());
+		parent->rebuildModulationConnections();
+		
 		connectionRange = RangeHelpers::getDoubleRange(data);
 	});
 
@@ -55,10 +57,8 @@ ModulationSourceNode::ModulationTarget::ModulationTarget(ModulationSourceNode* p
 		valuetree::AsyncMode::Synchronously,
 		[this](Identifier, var newValue)
 	{
-		setExpression(newValue.toString());
+		parent->rebuildModulationConnections();
 	});
-
-	callback = nothing;
 }
 
 
@@ -89,8 +89,6 @@ bool ModulationSourceNode::ModulationTarget::findTarget()
 				if (n->getParameter(i)->getId() == parameterId)
 				{
 					targetParameter = n->getParameter(i);
-					callback = targetParameter->getCallback();
-
 					return true;
 				}
 			}
@@ -98,43 +96,6 @@ bool ModulationSourceNode::ModulationTarget::findTarget()
 	}
 
 	return false;
-}
-
-void ModulationSourceNode::ModulationTarget::setExpression(const String& exprCode)
-{
-#if HISE_INCLUDE_SNEX
-	snex::JitExpression::Ptr newExpr;
-
-	if (exprCode.isEmpty())
-	{
-		SpinLock::ScopedLockType lock(expressionLock);
-		std::swap(expr, newExpr);
-	}
-	else
-	{
-		newExpr = new snex::JitExpression(exprCode, parent);
-
-		if (newExpr->isValid())
-		{
-			SpinLock::ScopedLockType lock(expressionLock);
-			std::swap(newExpr, expr);
-		}
-	}
-#endif
-}
-
-void ModulationSourceNode::ModulationTarget::applyValue(double value)
-{
-	if (!active)
-		return;
-
-	switch (opType)
-	{
-	case SetValue: targetParameter->setValueAndStoreAsync(value); break;
-	case Multiply: targetParameter->multiplyModulationValue(value); break;
-	case Add:	   targetParameter->addModulationValue(value); break;
-        default:   break;
-	}
 }
 
 juce::ValueTree ModulationSourceNode::getModulationTargetTree()
@@ -150,13 +111,19 @@ juce::ValueTree ModulationSourceNode::getModulationTargetTree()
 	return vt;
 }
 
+
 ModulationSourceNode::ModulationSourceNode(DspNetwork* n, ValueTree d) :
-	NodeBase(n, d, 0)
+	WrapperNode(n, d),
+	SimpleTimer(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
 {
+	ringBuffer = new SimpleRingBuffer();
+
 	targetListener.setCallback(getModulationTargetTree(),
 		valuetree::AsyncMode::Synchronously,
 		[this](ValueTree c, bool wasAdded)
 	{
+		rebuildModulationConnections();
+
 		if (wasAdded)
 		{
 			ValueTree newTree(c);
@@ -219,74 +186,69 @@ juce::String ModulationSourceNode::createCppClass(bool isOuterClass)
 		return s;
 }
 
+scriptnode::NodeBase* ModulationSourceNode::getTargetNode(const ValueTree& m) const
+{
+	jassert(m.getType() == PropertyIds::ModulationTarget);
+	return getRootNetwork()->getNodeWithId(m[PropertyIds::NodeId].toString());
+}
+
+scriptnode::ParameterDataImpl ModulationSourceNode::getParameterData(const ValueTree& m) const
+{
+	if (auto targetNode = getTargetNode(m))
+	{
+		auto pList = targetNode->createInternalParameterList();
+
+		for (auto& p : pList)
+		{
+			if (p.id == m[PropertyIds::ParameterId].toString())
+				return p;
+		}
+	}
+	
+	return ParameterDataImpl("");
+}
+
+scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParameterData(ValueTree& m)
+{
+	auto allowRangeConversion = isUsingNormalisedRange();
+
+	auto range = RangeHelpers::getDoubleRange(m);
+
+	auto targetNode = getTargetNode(m);
+	auto expression = m[PropertyIds::Expression].toString();
+
+	if (auto p = getParameterData(m))
+	{
+		ScopedPointer<parameter::dynamic_base> np;
+
+		if (expression.isNotEmpty())
+			np = new parameter::dynamic_expression(p.dbNew, new JitExpression(expression, this));
+		else if (allowRangeConversion & !RangeHelpers::isIdentity(range))
+			np = new parameter::dynamic_from0to1(p.dbNew, range);
+		else
+			np = new parameter::dynamic_base(p.dbNew);
+
+		double* lValue = &targetNode->getParameter(p.id)->getReferenceToCallback().lastValue;
+
+		np->displayValuePointer = lValue;
+
+
+		//np->setDataTree(targetNode->getParameter(p.id)->data);
+
+		return np.release();
+	}
+
+	return nullptr;
+}
+
 void ModulationSourceNode::prepare(PrepareSpecs ps)
 {
-	ringBuffer = new SimpleRingBuffer();
-
 	if (ps.sampleRate > 0.0)
 		sampleRateFactor = 32768.0 / ps.sampleRate;
 
 	prepareWasCalled = true;
 
 	checkTargets();
-}
-
-void ModulationSourceNode::sendValueToTargets(double value, int numSamplesForAnalysis)
-{
-	if (ringBuffer != nullptr && 
-		numSamplesForAnalysis > 0 &&
-		getRootNetwork()->isRenderingFirstVoice())
-	{
-		ringBuffer->write(value, (int)(jmax(1.0, sampleRateFactor * (double)numSamplesForAnalysis)));
-	}
-
-	if (scaleModulationValue)
-	{
-		value = jlimit(0.0, 1.0, value);
-
-		for (auto t : targets)
-		{
-#if HISE_INCLUDE_SNEX
-			SpinLock::ScopedLockType l(t->expressionLock);
-
-			if (t->expr != nullptr)
-			{
-				auto thisValue = t->expr->getValue(value);
-				t->applyValue(thisValue);
-                continue;
-			}
-#endif
-			
-            auto thisValue = value;
-            
-            if (t->inverted)
-                thisValue = 1.0 - thisValue;
-            
-            auto normalised = t->connectionRange.convertFrom0to1(thisValue);
-            
-            t->applyValue(normalised);
-		}
-	}
-	else
-	{
-		for (auto t : targets)
-		{
-#if HISE_INCLUDE_SNEX
-			SpinLock::ScopedLockType l(t->expressionLock);
-
-			if (t->expr != nullptr)
-			{
-				auto thisValue = t->expr->getValue(value);
-				t->applyValue(thisValue);
-				continue;
-			}
-#endif
-
-			t->applyValue(value);
-		}
-	}
-
-	lastModValue = value;
 }
 
 void ModulationSourceNode::logMessage(int level, const String& s)
@@ -301,17 +263,45 @@ void ModulationSourceNode::logMessage(int level, const String& s)
 #endif
 }
 
+void ModulationSourceNode::rebuildModulationConnections()
+{
+	auto modTree = getModulationTargetTree();
+
+	auto p = getParameterHolder();
+
+	if (p == nullptr)
+		return;
+
+	if (modTree.getNumChildren() == 0)
+	{
+		p->setParameter(nullptr);
+		stop();
+		return;
+	}
+
+	start();
+
+	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
+
+	for (auto& m : modTree)
+	{
+		if (auto c = createDynamicParameterData(m))
+			chain->addParameter(c);
+	}
+
+	if (auto s = chain->getFirstIfSingle())
+
+		p->setParameter(s);
+	else
+		p->setParameter(chain.release());
+}
+
 int ModulationSourceNode::fillAnalysisBuffer(AudioSampleBuffer& b)
 {
 	if (ringBuffer != nullptr)
 		return ringBuffer->read(b);
 
 	return 0;
-}
-
-void ModulationSourceNode::setScaleModulationValue(bool shouldScaleValue)
-{
-	scaleModulationValue = shouldScaleValue;
 }
 
 void ModulationSourceNode::checkTargets()
@@ -324,72 +314,6 @@ void ModulationSourceNode::checkTargets()
 	{
 		if (!targets[i]->findTarget())
 			targets.remove(i--);
-	}
-}
-
-ModulationSourceNode::SimpleRingBuffer::SimpleRingBuffer()
-{
-	clear();
-}
-
-void ModulationSourceNode::SimpleRingBuffer::clear()
-{
-	memset(buffer, 0, sizeof(float) * RingBufferSize);
-}
-
-int ModulationSourceNode::SimpleRingBuffer::read(AudioSampleBuffer& b)
-{
-	while (isBeingWritten) // busy wait, but OK
-	{
-		return 0;
-	}
-
-	jassert(b.getNumSamples() == RingBufferSize && b.getNumChannels() == 1);
-
-	auto dst = b.getWritePointer(0);
-	int thisWriteIndex = writeIndex;
-	int numBeforeIndex = thisWriteIndex;
-	int offsetBeforeIndex = RingBufferSize - numBeforeIndex;
-
-	FloatVectorOperations::copy(dst + offsetBeforeIndex, buffer, numBeforeIndex);
-	FloatVectorOperations::copy(dst, buffer + thisWriteIndex, offsetBeforeIndex);
-
-	int numToReturn = numAvailable;
-	numAvailable = 0;
-	return numToReturn;
-}
-
-void ModulationSourceNode::SimpleRingBuffer::write(double value, int numSamples)
-{
-	ScopedValueSetter<bool> svs(isBeingWritten, true);
-
-	if (numSamples == 1)
-	{
-		buffer[writeIndex++] = (float)value;
-
-		if (writeIndex >= RingBufferSize)
-			writeIndex = 0;
-
-		numAvailable++;
-		return;
-	}
-	else
-	{
-		int numBeforeWrap = jmin(numSamples, RingBufferSize - writeIndex);
-		int numAfterWrap = numSamples - numBeforeWrap;
-
-		if (numBeforeWrap > 0)
-			FloatVectorOperations::fill(buffer + writeIndex, (float)value, numBeforeWrap);
-
-		writeIndex += numBeforeWrap;
-
-		if (numAfterWrap > 0)
-		{
-			FloatVectorOperations::fill(buffer, (float)value, numAfterWrap);
-			writeIndex = numAfterWrap;
-		}
-
-		numAvailable += numSamples;
 	}
 }
 
@@ -473,6 +397,7 @@ scriptnode::ModulationSourceNode* ModulationSourceBaseComponent::getSourceNodeFr
 		if (auto pc = findParentComponentOfClass<NodeComponent>())
 		{
 			sourceNode = dynamic_cast<ModulationSourceNode*>(pc->node.get());
+			jassert(sourceNode != nullptr);
 		}
 	}
 
@@ -484,8 +409,9 @@ ModulationSourcePlotter::ModulationSourcePlotter(PooledUIUpdater* updater) :
 	ModulationSourceBaseComponent(updater)
 {
 	setOpaque(true);
-	setSize(0, ModulationSourceNode::ModulationBarHeight);
-	buffer.setSize(1, ModulationSourceNode::RingBufferSize);
+	setSize(256, ModulationSourceNode::ModulationBarHeight);
+
+	buffer.setSize(1, SimpleRingBuffer::RingBufferSize);
 }
 
 void ModulationSourcePlotter::timerCallback()
@@ -561,8 +487,123 @@ int ModulationSourcePlotter::getSamplesPerPixel() const
 
 	auto width = (float)getWidth() - 2.0f * offset;
 
-	int samplesPerPixel = ModulationSourceNode::RingBufferSize / jmax((int)(width / rectangleWidth), 1);
+	int samplesPerPixel = SimpleRingBuffer::RingBufferSize / jmax((int)(width / rectangleWidth), 1);
 	return samplesPerPixel;
+}
+
+SimpleRingBuffer::SimpleRingBuffer()
+{
+	clear();
+}
+
+void SimpleRingBuffer::clear()
+{
+	memset(buffer, 0, sizeof(float) * RingBufferSize);
+}
+
+int SimpleRingBuffer::read(AudioSampleBuffer& b)
+{
+	while (isBeingWritten) // busy wait, but OK
+	{
+		return 0;
+	}
+
+	jassert(b.getNumSamples() == RingBufferSize && b.getNumChannels() == 1);
+
+	auto dst = b.getWritePointer(0);
+	int thisWriteIndex = writeIndex;
+	int numBeforeIndex = thisWriteIndex;
+	int offsetBeforeIndex = RingBufferSize - numBeforeIndex;
+
+	FloatVectorOperations::copy(dst + offsetBeforeIndex, buffer, numBeforeIndex);
+	FloatVectorOperations::copy(dst, buffer + thisWriteIndex, offsetBeforeIndex);
+
+	int numToReturn = numAvailable;
+	numAvailable = 0;
+	return numToReturn;
+}
+
+void SimpleRingBuffer::write(double value, int numSamples)
+{
+	ScopedValueSetter<bool> svs(isBeingWritten, true);
+
+	if (numSamples == 1)
+	{
+		buffer[writeIndex++] = (float)value;
+
+		if (writeIndex >= RingBufferSize)
+			writeIndex = 0;
+
+		numAvailable++;
+		return;
+	}
+	else
+	{
+		int numBeforeWrap = jmin(numSamples, RingBufferSize - writeIndex);
+		int numAfterWrap = numSamples - numBeforeWrap;
+
+		if (numBeforeWrap > 0)
+			FloatVectorOperations::fill(buffer + writeIndex, (float)value, numBeforeWrap);
+
+		writeIndex += numBeforeWrap;
+
+		if (numAfterWrap > 0)
+		{
+			FloatVectorOperations::fill(buffer, (float)value, numAfterWrap);
+			writeIndex = numAfterWrap;
+		}
+
+		numAvailable += numSamples;
+	}
+}
+
+juce::Rectangle<int> WrapperNode::getExtraComponentBounds() const
+{
+	if (cachedExtraHeight == -1)
+	{
+		ScopedPointer<Component> c = const_cast<WrapperNode*>(this)->createExtraComponent();
+
+		if (c != nullptr)
+		{
+			cachedExtraWidth = c->getWidth();
+			cachedExtraHeight = c->getHeight();
+		}
+		else
+		{
+			cachedExtraWidth = 0;
+			cachedExtraHeight = 0;
+		}
+
+	}
+
+	return { 0, 0, cachedExtraWidth, cachedExtraHeight };
+}
+
+void WrapperNode::initParameterData(Array<ParameterDataImpl>& pData)
+{
+	auto d = getValueTree();
+
+	d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
+
+	for (auto p : pData)
+	{
+		auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.id);
+
+		if (!existingChild.isValid())
+		{
+			existingChild = p.createValueTree();
+			getParameterTree().addChild(existingChild, -1, getUndoManager());
+		}
+
+		auto newP = new Parameter(this, existingChild);
+
+		auto ndb = new parameter::dynamic_base(p.dbNew);
+
+		newP->setCallbackNew(ndb);
+		newP->valueNames = p.parameterNames;
+
+		addParameter(newP);
+	}
 }
 
 }

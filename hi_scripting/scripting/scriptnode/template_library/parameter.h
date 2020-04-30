@@ -123,11 +123,9 @@ protected:
 #define tuple_iteratorT2(name, ta, t1, a1, t2, a2)			_pre_tupleT_(name, ta) t1 a1, t2 a2, _post_tuple_(name(a1, a2))
 #define tuple_iteratorT3(name, ta, t1, a1, t2, a2, t3, a3)	_pre_tupleT_(name, ta) t1 a1, t2 a2, t3 a3, _post_tuple_(name(a1, a2, a3))
 
-/** This namespace contains different parameter templates that can be used to create compile time callbacks with the same
-	behaviour as the connections in scriptnode.
-*/
 namespace parameter
 {
+
 
 #define PARAMETER_SPECS(parameterType, parameterAmount) static constexpr int size = parameterAmount; static constexpr ParameterType type = parameterType; static constexpr bool isRange() { return false; };
 
@@ -137,6 +135,101 @@ enum class ParameterType
 	Chain,
 	List
 };
+
+struct dynamic
+{
+	PARAMETER_SPECS(ParameterType::Single, 1);
+
+	using Function = void(*)(void*, double);
+
+	static constexpr int MaxSize = 32;
+
+	dynamic() :
+		f(nullptr),
+		obj(nullptr)
+	{}
+
+	template <typename T> dynamic& operator=(T&& other)
+	{
+		obj = other.getObjectPtr();
+		f = typename T::callStatic;
+
+		return *this;
+	}
+
+	void call(double v) const
+	{
+		if (f != nullptr && obj != nullptr)
+			f(getObjectPtr(), v);
+	}
+
+	void referTo(void* p, Function f_)
+	{
+		f = f_;
+		obj = p;
+	}
+
+	void operator()(double v) const
+	{
+		call(v);
+	}
+
+	void* getObjectPtr() const
+	{
+		return obj;
+	}
+
+	Function getFunction() { return f; }
+
+private:
+
+	void* obj = nullptr;
+	Function f = nullptr;
+};
+
+}
+
+struct ParameterDataImpl
+{
+	ParameterDataImpl(const String& id_);;
+	ParameterDataImpl(const String& id_, NormalisableRange<double> r);
+	ParameterDataImpl withRange(NormalisableRange<double> r);
+
+	ValueTree createValueTree() const;
+
+	void setDefaultValue(double newDefaultValue)
+	{
+		defaultValue = newDefaultValue;
+	}
+
+	operator bool() const
+	{
+		return id.isNotEmpty();
+	}
+
+	void setParameterValueNames(const StringArray& valueNames);
+	void init();
+
+	String id;
+	NormalisableRange<double> range;
+	double defaultValue = 0.0;
+
+	std::function<void(double)> db;
+	parameter::dynamic dbNew;
+
+	StringArray parameterNames;
+
+	double lastValue = 0.0;
+	bool isUsingRange = true;
+};
+
+
+/** This namespace contains different parameter templates that can be used to create compile time callbacks with the same
+	behaviour as the connections in scriptnode.
+*/
+namespace parameter
+{
+
 
 /** The base class for all parameters that represent a single connection between two nodes.
 
@@ -152,20 +245,6 @@ template <class T, int P> struct single_base
 {
 	PARAMETER_SPECS(ParameterType::Single, 1);
 
-	/** A helper class that calls the setParameter function of the T object. */
-	struct Caller
-	{
-		void operator()(void* obj, double v)
-		{
-			T::setParameter<P>(obj, v);
-		}
-	} f;
-
-	void* getObjectPtr() const
-	{
-		return obj;
-	}
-
 	template <int Index, class OtherType> void connect(OtherType& element)
 	{
 		static_assert(Index == 0, "Index must be zero");
@@ -173,6 +252,10 @@ template <class T, int P> struct single_base
 
 		obj = reinterpret_cast<void*>(&element);
 	}
+
+	void* getObjectPtr() { return obj; }
+
+protected:
 
 	void* obj;
 };
@@ -190,6 +273,13 @@ struct empty
 		
 	}
 
+	static void callStatic(void*, double) {};
+
+	void addToList(Array<ParameterDataImpl>& data)
+	{
+		
+	}
+
 	template <int P> auto& getParameter()
 	{
 		return *this;
@@ -202,12 +292,23 @@ struct empty
 	}
 };
 
-/** The most simple parameter type without any range conversion. */
-template <class T, int P> struct plain : public single_base<T, P>
+template <typename T> struct bypass : public single_base<T, 999>
 {
+	PARAMETER_SPECS(ParameterType::Single, 1);
+
 	void call(double v)
 	{
-		f(getObjectPtr(), v);
+		callStatic(obj, v);
+	}
+
+	void addToList(Array<ParameterDataImpl>& data)
+	{
+
+	}
+
+	static void callStatic(void*  obj, double v)
+	{
+		T::setBypassed(obj, v);
 	}
 
 	template <int P> auto& getParameter()
@@ -215,12 +316,250 @@ template <class T, int P> struct plain : public single_base<T, P>
 		return *this;
 	}
 
-	template <int P_> NormalisableRange<double> createParameterRange()
+	template <int P> NormalisableRange<double> createParameterRange()
 	{
-		static_assert(P_ == 0, "not zero");
 		return NormalisableRange<double>(0.0, 1.0);
 	}
 };
+
+
+template <typename T, int P> struct inner
+{
+	PARAMETER_SPECS(ParameterType::Single, 1);
+
+	inner(T& obj_) :
+		obj(&obj_)
+	{}
+
+	void call(double v)
+	{
+		callStatic(obj, v);
+	}
+
+	static void callStatic(void* obj_, double v)
+	{
+		//auto target = &static_cast<inner*>(obj_)->obj;
+		T::setParameter<P>(obj_, v);
+	}
+
+	void* getObjectPtr() { return obj; }
+
+	void* obj;
+};
+
+
+struct dynamic_base
+{
+	PARAMETER_SPECS(ParameterType::Single, 1);
+
+	dynamic_base(parameter::dynamic& obj_) :
+		obj(obj_.getObjectPtr()),
+		f(obj_.getFunction())
+	{};
+
+	dynamic_base():
+		obj(nullptr),
+		f(nullptr)
+	{}
+
+	virtual void call(double value)
+	{
+		lastValue = value;
+		f(obj, lastValue);
+	}
+
+	virtual void updateUI()
+	{
+		if (displayValuePointer != nullptr)
+			*displayValuePointer = lastValue;
+
+		if (dataTree.isValid())
+			dataTree.setProperty(PropertyIds::Value, lastValue, nullptr);
+	};
+
+	void setDataTree(ValueTree d) { dataTree = d; }
+
+	parameter::dynamic::Function f;
+	void* obj;
+
+	ValueTree dataTree;
+	double lastValue = 0.0;
+	double* displayValuePointer = nullptr;
+};
+
+
+struct dynamic_base_holder
+{
+	PARAMETER_SPECS(ParameterType::Single, 1);
+
+	void call(double v)
+	{
+		lastValue = v;
+
+		if (base != nullptr)
+			base->call(v);
+
+		if (buffer != nullptr)
+			buffer->write(lastValue, numSamples);
+	}
+
+	void setRingBuffer(SimpleRingBuffer* r)
+	{
+		buffer = r;
+	}
+
+	void setSamplesToWrite(int numSamplesThisTime)
+	{
+		numSamples = numSamplesThisTime;
+	}
+
+	void updateUI()
+	{
+		if (base != nullptr)
+			base->updateUI();
+	}
+
+	void setParameter(dynamic_base* b)
+	{
+		base = b;
+	}
+
+	ScopedPointer<dynamic_base> base;
+	
+	SimpleRingBuffer* buffer = nullptr;
+	int numSamples = 1;
+	double lastValue = 0.0f;
+};
+
+
+
+struct dynamic_from0to1 : public dynamic_base
+{
+	dynamic_from0to1(parameter::dynamic& obj, const NormalisableRange<double>& r) :
+		dynamic_base(obj),
+		range(r)
+	{}
+
+	void call(double v) final override
+	{
+		lastValue = range.convertFrom0to1(v);
+		f(obj, lastValue);
+	}
+
+	const NormalisableRange<double> range;
+	
+};
+
+struct dynamic_to0to1 : public dynamic_base
+{
+	dynamic_to0to1(parameter::dynamic& obj, const NormalisableRange<double>& r) :
+		dynamic_base(obj),
+		range(r)
+	{}
+
+	void call(double v) final override
+	{
+		lastValue = range.convertTo0to1(v);
+		f(obj, lastValue);
+	}
+
+	const NormalisableRange<double> range;
+};
+
+struct dynamic_expression : public dynamic_base
+{
+	dynamic_expression(parameter::dynamic& obj, snex::JitExpression* p_) :
+		dynamic_base(obj),
+		p(p_)
+	{
+		if (!p->isValid())
+			p = nullptr;
+	}
+
+	void call(double v) final override
+	{
+		if (p != nullptr)
+		{
+			lastValue = p->getValueUnchecked(v);
+			f(obj, lastValue);
+		}
+		else
+		{
+			lastValue = v;
+			f(obj, lastValue);
+		}
+	}
+
+	snex::JitExpression::Ptr p;
+};
+
+struct dynamic_chain: public dynamic_base
+{
+	dynamic_chain() :
+		dynamic_base()
+	{};
+
+	bool isEmpty() const { return targets.isEmpty(); }
+
+	void addParameter(dynamic_base* p)
+	{
+		targets.add(p);
+	}
+
+	dynamic_base* getFirstIfSingle()
+	{
+		if (targets.size() == 1)
+			return targets.removeAndReturn(0);
+		
+		return nullptr;
+	}
+
+	void call(double v)
+	{
+		for (auto& t : targets)
+			t->call(v);
+	}
+
+	void updateUI() override
+	{
+		for (auto& t : targets)
+			t->updateUI();
+	}
+
+	OwnedArray<dynamic_base> targets;
+};
+
+
+
+/** The most simple parameter type without any range conversion. */
+template <class T, int P> struct plain : public single_base<T, P>
+{
+	void call(double v)
+	{
+		callStatic(obj, v);
+	}
+
+	static void callStatic(void* o, double v)
+	{
+		T::setParameter<P>(o, v);
+	}
+
+	void addToList(Array<ParameterDataImpl>& data)
+	{
+		ParameterDataImpl p("plainUnNamed");
+		p.dbNew.referTo(this, callStatic);
+		p.range = NormalisableRange<double>(0.0, 1.0);
+		data.add(p);
+	}
+
+	template <int P> auto& getParameter()
+	{
+		return *this;
+	}
+};
+
+
+
 
 /** A parameter that takes a expression class for converting the value that is passed to the parameter callback.
 
@@ -237,10 +576,17 @@ template <class T, int P, class Expression> struct expression : public single_ba
 		f(obj, Expression()(v));
 	}
 
-	template <int P_> NormalisableRange<double> createParameterRange()
+	void operator()(double v)
 	{
-		static_assert(P_ == 0, "not zero");
-		return NormalisableRange<double>();
+		call(v);
+	}
+
+	void addToList(Array<ParameterDataImpl>& data)
+	{
+		ParameterDataImpl p("exprUnNamed");
+		p.dbNew.referTo(this, callStatic);
+		p.range = NormalisableRange<double>();
+		data.add(p);
 	}
 
 	template <int P> auto& getParameter()
@@ -269,16 +615,28 @@ template <class T, int P, class RangeType> struct from0to1 : public single_base<
 {
 	void call(double v)
 	{
-		auto converted = RangeType::from0To1(v);
-		f(getObjectPtr(), converted);
+		callStatic(obj, v);
 	}
 
-	template <int P_> NormalisableRange<double> createParameterRange()
+	static void callStatic(void* obj_, double v)
 	{
-		static_assert(P_ == 0, "not zero");
+		auto converted = RangeType::from0To1(v);
+		T::setParameter<P>(obj_, converted);
+	}
 
-		// Return the default range here...
-		return NormalisableRange<double>(0.0, 1.0);
+	void operator()(double v)
+	{
+		call(v);
+	}
+
+	void addToList(Array<ParameterDataImpl>& data)
+	{
+		ParameterDataImpl p("plainUnNamed");
+		p.dbNew.referTo(this, callStatic);
+
+		// use the default range here...
+		p.range = NormalisableRange<double>(0.0, 1.0);
+		data.add(p);
 	}
 
 	template <int P> auto& getParameter()
@@ -314,10 +672,12 @@ template <class T, int P, class RangeType> struct to0to1 : public single_base<T,
 		f(obj, RangeType::to0to1(v));
 	}
 
-	template <int P_> NormalisableRange<double> createParameterRange()
+	void addToList(Array<ParameterDataImpl>& data)
 	{
-		static_assert(P_ == 0, "not zero");
-		return RangeType::createNormalisableRange();
+		ParameterDataImpl p("plainUnNamed");
+		p.dbNew.referTo(this, callStatic);
+		p.range = RangeType::createNormalisableRange();
+		data.add(p);
 	}
 
 	template <int P> auto& getParameter()
@@ -351,6 +711,13 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 		return *this;
 	}
 
+	static void callStatic(void* obj, double value)
+	{
+		static_cast<chain*>(obj)->call(value);
+	}
+
+	void* getObjectPtr() { return this; }
+
 	tuple_iterator1(call, double, v);
 
 	void call(double v)
@@ -360,16 +727,17 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 		call_tuple_iterator1(call, v);
 	}
 
+	void addToList(Array<ParameterDataImpl>& data)
+	{
+		ParameterDataImpl p("plainUnNamed");
+		p.dbNew.referTo(this, callStatic);
+		p.range = InputRange::createNormalisableRange();
+		data.add(p);
+	}
+
 	template <int Index, class Target> void connect(Target& t)
 	{
 		get<Index>().connect<0>(t);
-	}
-	
-	template <int P_> NormalisableRange<double> createParameterRange()
-	{
-		static_assert(InputRange::isRange(), "first template parameter is not a range");
-		static_assert(P_ == 0, "not zero");
-		return InputRange::createNormalisableRange();
 	}
 };
 
@@ -395,14 +763,16 @@ template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 		return get<P>();
 	}
 
+	tuple_iterator1(addToList, Array<ParameterDataImpl>&, d);
+
+	void addToList(Array<ParameterDataImpl>& data)
+	{
+		call_tuple_iterator1(addToList, data);
+	}
+
 	template <int Index, class Target> void connect(Target& t)
 	{
 		static_assert(false, "Can't connect to list");
-	}
-
-	template <int P> NormalisableRange<double> createParameterRange()
-	{
-		return get<P>().createParameterRange<0>();
 	}
 };
 

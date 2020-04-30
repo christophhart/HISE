@@ -95,14 +95,26 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 
 #include "scripting/scriptnode/api/Properties.h"
+
+
 #include "scripting/scriptnode/api/RangeHelpers.h"
+
+
+
+#include "scripting/scriptnode/template_library/parameter.h"
+#include "scripting/scriptnode/template_library/parameter_impl.h"
+
 #include "scripting/scriptnode/api/DspHelpers.h"
+
+
 #include "scripting/scriptnode/api/NodeBase.h"
 
 
 
 
 #include "scripting/scriptnode/api/DspNetwork.h"
+
+
 
 
 #include "scripting/scriptnode/ui/NodeComponent.h"
@@ -115,8 +127,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/template_library/container_base.h"
 #include "scripting/scriptnode/template_library/container_base_impl.h"
 
-#include "scripting/scriptnode/template_library/parameter.h"
-#include "scripting/scriptnode/template_library/parameter_impl.h"
+
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 #include "scripting/scriptnode/api/Containers.h"

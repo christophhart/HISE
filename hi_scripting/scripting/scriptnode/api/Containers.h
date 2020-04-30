@@ -113,10 +113,11 @@ template <class ParameterClass, typename... Processors> struct container_base
 		getParameter<P>().call(v);
 	}
 
+#if RE
     int getExtraWidth() const { return 0; }
     int getExtraHeight() const { return 0; }
+#endif
     
-    HardcodedNode* getAsHardcodedNode() { return nullptr; };
     Component* createExtraComponent(PooledUIUpdater* updater) { return nullptr; }
     bool isPolyphonic() const { return get<0>().isPolyphonic(); }
 

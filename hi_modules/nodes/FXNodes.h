@@ -35,6 +35,8 @@
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
+using namespace snex;
+using namespace snex::Types;
 
 namespace fx
 {
@@ -45,7 +47,10 @@ public:
 
 	static constexpr int NumVoices = V;
 
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+#endif
+
 	SET_HISE_POLY_NODE_ID("sampleandhold");
 	GET_SELF_AS_OBJECT(sampleandhold_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -54,9 +59,49 @@ public:
 
 	void initialise(NodeBase* n);
 	void prepare(PrepareSpecs ps);
-	void process(ProcessData& d);
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		Data& v = data.get();
+
+		if (v.counter > d.getNumSamples())
+		{
+			int i = 0;
+
+			for (auto c : d)
+				hmath::vset(d.toChannelData(c), v.currentValues[i++]);
+
+			v.counter -= d.getNumSamples();
+		}
+		else
+			DspHelpers::forwardToFrame16(this, d);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		auto& v = data.get();
+		int i = 0;
+
+		if (v.counter == 0)
+		{
+			for (auto& s : d)
+				v.currentValues[i++] = s;
+				
+			v.counter = v.factor;
+		}
+		else
+		{
+			for (auto& s : d)
+				s = v.currentValues[i++];
+
+			v.counter--;
+		}
+	}
+
+
 	void reset() noexcept;;
-	void processFrame(float* numFrames, int numChannels);
+
+	
 	bool handleModulation(double&) noexcept { return false; };
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -73,13 +118,17 @@ private:
 
 		void clear(int numChannelsToClear = NUM_MAX_CHANNELS)
 		{
-			memset(currentValues, 0, sizeof(float) * numChannelsToClear);
+			currentValues = 0.0f;
+			
+			for (auto& s : currentValues)
+				s = 0.0f;
+
 			counter = 0;
 		}
 
 		int factor = 1;
 		int counter = 0;
-		float currentValues[NUM_MAX_CHANNELS];
+		span<float, NUM_MAX_CHANNELS> currentValues;
 	};
 
 	PolyData<Data, NumVoices> data;
@@ -88,13 +137,25 @@ private:
 
 DEFINE_EXTERN_NODE_TEMPLATE(sampleandhold, sampleandhold_poly, sampleandhold_impl);
 
+template <typename T> static void getBitcrushedValue(T& data, float bitDepth)
+{
+	const float invStepSize = hmath::pow(2.0f, bitDepth);
+	const float stepSize = 1.0f / invStepSize;
+
+	for(auto& s: data)
+		s = (stepSize * ceil(s * invStepSize) - 0.5f * stepSize);
+}
+
 template <int V> class bitcrush_impl : public HiseDspBase
 {
 public:
 
 	static constexpr int NumVoices = V;
 
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+#endif
+
 	SET_HISE_POLY_NODE_ID("bitcrush");
 	GET_SELF_AS_OBJECT(bitcrush_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -103,9 +164,20 @@ public:
 
 	void initialise(NodeBase* n);
 	void prepare(PrepareSpecs ps);
-	void process(ProcessData& d);
+
+	// ======================================================================================================
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		for (auto ch : d)
+			getBitcrushedValue(d.toChannelData(ch), bitDepth.get());
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		getBitcrushedValue(data, bitDepth.get());
+	}
+
 	void reset() noexcept;;
-	void processFrame(float* numFrames, int numChannels);
 	bool handleModulation(double&) noexcept;;
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -114,16 +186,19 @@ public:
 private:
 
 	PolyData<float, NumVoices> bitDepth;
-
 };
 
 template <int V> class phase_delay_impl : public HiseDspBase
 {
 public:
 
-	static constexpr int NumVoices = V;
 
+	static constexpr int NumVoices = V;
+	using Delays = span<PolyData<AllpassDelay, NumVoices>, 2>;
+
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+#endif
 	SET_HISE_POLY_NODE_ID("phase_delay");
 	GET_SELF_AS_OBJECT(phase_delay_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -132,15 +207,36 @@ public:
 
 	void initialise(NodeBase* n);
 	void prepare(PrepareSpecs ps);
-	void process(ProcessData& d);
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		auto i = IndexType::clamped(delays);
+
+		for (auto ch : data)
+		{
+			auto& dl = delays[i++].get();
+
+			for (auto& s : data.toChannelData(ch))
+				s = dl.getNextSample(s);
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		auto i = IndexType::clamped(delays);
+
+		for (auto& s : data)
+			s = delays[i++].get().getNextSample(s);
+	}
+
 	void reset() noexcept;;
-	void processFrame(float* numFrames, int numChannels);
+	
 	bool handleModulation(double&) noexcept;;
 	void createParameters(Array<ParameterData>& data) override;
 
 	void setFrequency(double frequency);
 
-	PolyData<AllpassDelay, NumVoices> delays[2];
+	Delays delays;
 	double sr = 44100.0;
 };
 
@@ -152,7 +248,10 @@ class reverb : public HiseDspBase
 {
 public:
 
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+#endif
+
 	SET_HISE_NODE_ID("reverb");
 	GET_SELF_AS_OBJECT(reverb);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -161,9 +260,24 @@ public:
 
 	void initialise(NodeBase* n);
 	void prepare(PrepareSpecs ps);
-	void process(ProcessData& d);
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		if (d.getNumChannels() == 1)
+			r.processMono(d[0].data, d.getNumSamples());
+		else
+			r.processStereo(d[0].data, d[1].data, d.getNumSamples());
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		if (d.size() == 1)
+			r.processMono(d.begin(), 1);
+		else
+			r.processStereo(d.begin(), d.begin() + 1, 1);
+	}
+
 	void reset() noexcept;;
-	void processFrame(float* numFrames, int numChannels);
 	bool handleModulation(double&) noexcept;;
 	void createParameters(Array<ParameterData>& data) override;
 
@@ -182,11 +296,17 @@ template <int V> class haas_impl : public HiseDspBase
 {
 public:
 
-	using DelayType = DelayLine<2048, DummyCriticalSection>;
+	static const int NumChannels = 2;
+	using DelayType = span<DelayLine<2048, DummyCriticalSection>, NumChannels>;
+	using FrameType = span<float, NumChannels>;
+	using ProcessType = ProcessDataFix<NumChannels>;
 
 	static constexpr int NumVoices = V;
 
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+#endif
+
 	SET_HISE_POLY_NODE_ID("haas");
 	GET_SELF_AS_OBJECT(haas_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
@@ -194,14 +314,16 @@ public:
 	void createParameters(Array<ParameterData>& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
-	void processFrame(float* data, int numChannels);
-	void process(ProcessData& d);
+
+	void processFrame(FrameType& data);
+
+	void process(ProcessType& d);
+
 	bool handleModulation(double&);
 	void setPosition(double newValue);
 
 	double position = 0.0;
-	PolyData<DelayType, NumVoices> delayL;
-	PolyData<DelayType, NumVoices> delayR;
+	PolyData<DelayType, NumVoices> delay;
 };
 
 DEFINE_EXTERN_NODE_TEMPLATE(haas, haas_poly, haas_impl);

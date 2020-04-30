@@ -42,13 +42,17 @@ template <int C, class T> class fix
 {
 public:
 
+	GET_SELF_OBJECT(obj.getObject());
+	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+
 	static const int NumChannels = C;
-	static constexpr bool isModulationSource = T::isModulationSource;
 
 	using FixProcessType = snex::Types::ProcessDataFix<NumChannels>;
 	using FixFrameType = snex::Types::span<float, NumChannels>;
 
 	fix() {};
+
+	static Identifier getStaticId() { return T::getStaticId(); }
 
 	void initialise(NodeBase* n)
 	{
@@ -65,7 +69,7 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		jassert(data.getNumChannels() == NumChannels);
+		jassert(data.getNumChannels() >= NumChannels);
 		auto& fd = data.as<FixProcessType>();
 		this->obj.process(fd);
 	}
@@ -77,29 +81,30 @@ public:
 
 	template <typename FrameDataType> forcedinline void processFrame(FrameDataType& data) noexcept
 	{
-		jassert(numSamples == NumChannels);
-		auto& d = *reinterpret_cast<FixFrameType*>(frameData);
+		jassert(data.size() >= NumChannels);
+		auto& d = FixFrameType::as(data.begin());
 		this->obj.processFrame(d);
 	}
 
-	forcedinline bool handleModulation(double& value) noexcept
+	void createParameters(Array<HiseDspBase::ParameterData>& data)
 	{
-		return obj.handleModulation(value);
+		this->obj.createParameters(data);
 	}
-
-	auto& getObject() { return obj.getObject(); }
-	const auto& getObject() const { return obj.getObject(); }
 
 private:
 
 	T obj;
 };
 
+
+
+
 template <class T> class skip
 {
 public:
 
-	static constexpr bool isModulationSource = T::isModulationSource;
+	GET_SELF_OBJECT(obj);
+	GET_WRAPPED_OBJECT(obj);
 
 	void initialise(NodeBase* n)
 	{
@@ -111,7 +116,7 @@ public:
 		
 	}
 
-	forcedinline void reset() noexcept {  }
+	void reset() noexcept {  }
 
 	template <typename ProcessDataType> void process(ProcessDataType& ) noexcept
 	{
@@ -128,14 +133,6 @@ public:
 		
 	}
 
-	forcedinline bool handleModulation(double& ) noexcept
-	{
-		return false;
-	}
-
-	auto& getObject() { return obj.getObject(); }
-	const auto& getObject() const { return obj.getObject(); }
-
 private:
 
 	T obj;
@@ -149,6 +146,7 @@ template <class T> class event
 {
 public:
 
+	
 	static constexpr bool isModulationSource = false;
 
 	bool isPolyphonic() const { return obj.isPolyphonic(); }
@@ -229,8 +227,6 @@ public:
 #endif
 	}
 
-	HardcodedNode* getAsHardcodedNode() { return obj.getAsHardcodedNode(); }
-
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
 		this->obj.processFrame(data);
@@ -249,8 +245,6 @@ template <class T> class frame_x
 {
 public:
 
-	static constexpr bool isModulationSource = T::isModulationSource;
-
 	void initialise(NodeBase* n)
 	{
 		obj.initialise(n);
@@ -268,24 +262,14 @@ public:
 
 	forcedinline void reset() noexcept { obj.reset(); }
 
-	FORWARD_PROCESSDATA2FIX
-
-	template <int C> void processFix(snex::Types::ProcessDataFix<C>& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto fd = d.toFrameData();
-
-		while (fd.next())
-			obj.processFrame(fd);
+		DspHelpers::forwardToFrame16(&obj, data);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
 		this->obj.processFrame(data);
-	}
-
-	bool handleModulation(double& value)
-	{
-		return obj.handleModulation(value);
 	}
 
 	auto& getObject() { return obj.getObject(); }
@@ -300,9 +284,10 @@ template <int NumChannels, class T> class frame
 {
 public:
 
-	static constexpr bool isModulationSource = T::isModulationSource;
+	GET_SELF_OBJECT(obj);
+	GET_WRAPPED_OBJECT(obj);
 
-	using ProcessDataType = snex::Types::ProcessDataFix<NumChannels>;
+	using FixProcessType = snex::Types::ProcessDataFix<NumChannels>;
 	using FrameType = snex::Types::span<float, NumChannels>;
 
 	void initialise(NodeBase* n)
@@ -323,36 +308,15 @@ public:
 
 	forcedinline void reset() noexcept { obj.reset(); }
 
-	void process(ProcessDataType& data)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto fd = data.toFrameData();
-
-		while (fd.next())
-			processFrame(fd);
-	}
-
-	forcedinline void process(ProcessData& data) noexcept
-	{
-		jassert(data.getNumChannels() == NumChannels);
-
-		auto fd = data.toFrameData<NumChannels>();
-
-		while (fd.next())
-			processFrame(fd);
+		snex::Types::ProcessDataHelpers<NumChannels>::processFix(&obj, data);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
 		this->obj.processFrame(data);
 	}
-
-	bool handleModulation(double& value)
-	{
-		return obj.handleModulation(value);
-	}
-
-	auto& getObject() { return obj.getObject(); }
-	const auto& getObject() const { return obj.getObject(); }
 
 private:
 
@@ -365,8 +329,6 @@ private:
 template <int OversamplingFactor, class T> class oversample
 {
 public:
-
-	static constexpr bool isModulationSource = T::isModulationSource;
 
 	using Oversampler = juce::dsp::Oversampling<float>;
 
@@ -413,33 +375,25 @@ public:
 		jassertfalse;
 	}
 
-	FORWARD_PROCESSDATA2FIX();
-
-	template <int C> void processFix(snex::Types::ProcessDataFix<C>& c)
+	template <typename ProcessDataType>  void process(ProcessDataType& data)
 	{
 		if (oversampler == nullptr)
 			return;
 
-		using FixProcessType = snex::Types::ProcessDataFix<C>;
-
-		auto bl = d.toAudioBlock();
+		auto bl = data.toAudioBlock();
 		auto output = oversampler->processSamplesUp(bl);
 
-		FixProcessType::ChannelDataType data;
+		float* tmp[NUM_MAX_CHANNELS];
 
-		for (int i = 0; i < C; i++)
-			data[i] = output.getChannelPointer(i);
+		for (int i = 0; i < data.getNumChannels(); i++)
+			tmp[i] = output.getChannelPointer(i);
 
-		FixProcessType od(data, d.getNumSamples() * OversamplingFactor);
-		od.copyNonAudioDataFrom(c);
+		ProcessDataType od(tmp, data.getNumSamples() * OversamplingFactor, data.getNumChannels());
+
+		od.copyNonAudioDataFrom(data);
 		obj.process(od);
 
 		oversampler->processSamplesDown(bl);
-	}
-
-	bool handleModulation(double& value) noexcept
-	{
-		return obj.handleModulation(value);
 	}
 
 	void initialise(NodeBase* n)
@@ -486,36 +440,34 @@ public:
 		obj.reset();
 	}
 
-	FORWARD_PROCESSDATA2FIX();
-
-	template <int NumChannels> void processFix(snex::Types::ProcessDataFix<NumChannels>& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		using FixProcessData = snex::Types::ProcessDataFix<NumChannels>;
-
-		int numToDo = d.getNumSamples();
+		int numToDo = data.getNumSamples();
 
 		if (numToDo < BlockSize)
 		{
-			this->obj.process(d);
+			this->obj.process(data);
 		}
 		else
 		{
-			FixProcessData::ChannelDataType cp;
+			float* tmp[NUM_MAX_CHANNELS];
 
-			for (int i = 0; i < NumChannels; i++)
-				cp[i] = d[i].data;
+			for (int i = 0; i < data.getNumChannels(); i++)
+				tmp[i] = data[i].data;
 
 			while (numToDo > 0)
 			{
 				int numThisTime = jmin(BlockSize, numToDo);
 
-				FixProcessData copy(d, cp, numThisTime);
+				ProcessDataType copy(tmp, numThisTime, data.getNumChannels());
+				copy.copyNonAudioDataFrom(data);
+
 				obj.process(copy);
 
-				for (int i = 0; i < NumChannels; i++)
-					cp[i] += numThisTime;
+				for (int i = 0; i < data.getNumChannels(); i++)
+					tmp[i] += numThisTime;
 
-				numToDo -= copy.getNumSamples();
+				numToDo -= numThisTime;
 			}
 		}
 	}
@@ -562,7 +514,7 @@ public:
 		ps.blockSize /= HISE_EVENT_RASTER;
 		ps.numChannels = 1;
 
-		DspHelpers::increaseBuffer(controlBuffer);
+		DspHelpers::increaseBuffer(controlBuffer, ps);
 
 		this->obj.prepare(ps);
 	}
@@ -581,21 +533,22 @@ public:
 
 		FloatVectorOperations::clear(controlBuffer.begin(), numToProcess);
 		
-		ProcessType::ChannelDataType cd = { controlBuffer.begin() };
-		ProcessType md(data, cd);
+		float* d[1] = { controlBuffer.begin() };
+
+		ProcessDataFix<1> md(d, numToProcess, 1);
+		md.copyNonAudioDataFrom(data);
 
 		obj.process(md);
 	}
 
-	template <typename OtherFrameType> void processFrame(OtherFrameType& d)
+	// must always be wrapped into a fix<1> node...
+	void processFrame(FrameType& d)
 	{
 		if (--singleCounter <= 0)
 		{
-			auto& fd = FrameType::as(d.begin());
-
 			singleCounter = HISE_EVENT_RASTER;
 			float lastValue = 0.0f;
-			obj.processFrame(fd);
+			obj.processFrame(d);
 		}
 	}
 
@@ -619,41 +572,53 @@ public:
 };
 
 
-template <class T, class ParameterClass> struct mod: public SingleWrapper<T>
+template <class T, class ParameterClass> struct mod
 {
-	GET_SELF_AS_OBJECT(mod);
+	GET_SELF_OBJECT(*this);
+	GET_WRAPPED_OBJECT(this->obj.getWrappedObject());
 
 	constexpr static bool isModulationSource = false;
-	constexpr static int NumChannels = T::NumChannels;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
 		this->obj.process(data);
+		checkModValue();
+	}
 
+	void reset() noexcept 
+	{
+		this->obj.reset();
+		checkModValue();
+	}
+
+	void checkModValue()
+	{
 		double modValue = 0.0;
 
 		if (this->obj.handleModulation(modValue))
 			p.call(modValue);
-	}
-
-	forcedinline void reset() noexcept 
-	{
-		this->obj.reset();
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
 		this->obj.processFrame(data);
-
-		double modValue = 0.0;
-
-		if (this->obj.handleModulation(modValue))
-			p.call(modValue);
+		checkModValue();
 	}
 
-	void createParameters(Array<HiseDspBase::ParameterData>& data) override
+	inline void initialise(NodeBase* n)
 	{
-		this->obj.createParameters(data);
+		obj.initialise(n);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+		checkModValue();
+	}
+
+	bool isPolyphonic() const
+	{
+		return obj.isPolyphonic();
 	}
 
 	void prepare(PrepareSpecs ps)
@@ -672,6 +637,7 @@ template <class T, class ParameterClass> struct mod: public SingleWrapper<T>
 	}
 
 	ParameterClass p;
+	T obj;
 };
 
 }

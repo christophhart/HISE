@@ -97,7 +97,7 @@ void HardcodedNode::setParameterDefault(const String& parameterId, double value)
 		if (parameter.id == parameterId)
 		{
 			parameter.setDefaultValue(value);
-			parameter.db(value);
+			parameter.dbNew(value);
 			break;
 		}
 	}
@@ -140,14 +140,9 @@ scriptnode::HiseDspBase* HardcodedNode::getNode(const String& id) const
 	return nullptr;
 }
 
-bool HiseDspBase::isHardcoded() const
-{
-	return dynamic_cast<const HardcodedNode*>(this) != nullptr;
-}
-
 
 WrapperNode::WrapperNode(DspNetwork* parent, ValueTree d) :
-	ModulationSourceNode(parent, d)
+	NodeBase(parent, d, 0)
 {
 
 }
@@ -158,7 +153,6 @@ scriptnode::NodeComponent* WrapperNode::createComponent()
 
 	if (auto extra = createExtraComponent())
 	{
-		extra->setSize(getExtraWidth(), getExtraHeight());
 		ComponentHelpers::addExtraComponentToDefault(nc, extra);
 	}
 
@@ -188,7 +182,10 @@ juce::Rectangle<int> WrapperNode::getPositionInCanvas(Point<int> topLeft) const
 juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColumns) const
 {
 	int h = UIValues::HeaderHeight;
-	h += getExtraHeight();
+	
+	auto eb = getExtraComponentBounds();
+
+	h += eb.getHeight();
 
 	int w = 0;
 
@@ -203,10 +200,105 @@ juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColu
 		w = jmin(numColumns * 100, numParameters * 100);
 	}
 
-	w = jmax(w, getExtraWidth());
+
+	w = jmax(w, eb.getWidth());
 
 	auto b = Rectangle<int>(0, 0, w, h);
 	return getBoundsToDisplay(b.expanded(UIValues::NodeMargin));
+}
+
+void CombinedParameterDisplay::paint(Graphics& g)
+{
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	auto r = obj->currentRange;
+
+	String start, mid, end;
+
+	int numDigits = jmax<int>(1, -1 * roundToInt(log10(r.interval)));
+
+	start = String(r.start, numDigits);
+
+	mid = String(r.convertFrom0to1(0.5), numDigits);
+
+	end = String(r.end, numDigits);
+
+	auto b = getLocalBounds().toFloat();
+
+	float w = JUCE_LIVE_CONSTANT_OFF(55.0f);
+
+	auto midCircle = b.withSizeKeepingCentre(w, w).translated(0.0f, 5.0f);
+
+	float r1 = JUCE_LIVE_CONSTANT_OFF(3.0f);
+	float r2 = JUCE_LIVE_CONSTANT_OFF(5.0f);
+	
+	float startArc = JUCE_LIVE_CONSTANT_OFF(-2.5f);
+	float endArc = JUCE_LIVE_CONSTANT_OFF(2.5f);
+
+	Colour trackColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF888888));
+	
+	auto createArc = [startArc, endArc](Rectangle<float> b, float startNormalised, float endNormalised)
+	{
+		Path p;
+
+		auto s = startArc + jmin(startNormalised, endNormalised) * (endArc - startArc);
+		auto e = startArc + jmax(startNormalised, endNormalised) * (endArc - startArc);
+
+		s = jlimit(startArc, endArc, s);
+		e = jlimit(startArc, endArc, e);
+
+		p.addArc(b.getX(), b.getY(), b.getWidth(), b.getHeight(), s, e, true);
+
+		return p;
+	};
+
+	auto oc = midCircle;
+	auto mc = midCircle.reduced(5.0f);
+	auto ic = midCircle.reduced(10.0f);
+
+	auto outerTrack = createArc(oc, 0.0f, 1.0f);
+	auto midTrack =   createArc(mc, 0.0f, 1.0f);
+	auto innerTrack = createArc(ic, 0.0f, 1.0f);
+
+	g.setColour(trackColour);
+
+	g.strokePath(outerTrack, PathStrokeType(r1));
+	g.strokePath(midTrack, PathStrokeType(r2));
+	g.strokePath(innerTrack, PathStrokeType(r1));
+	
+	auto data = obj->data;
+
+	auto nrm = [r](double v)
+	{
+		return r.convertTo0to1(v);
+	};
+
+	auto mulValue = nrm(data.value * data.mulValue);
+	auto totalValue = nrm(data.getPmaValue());
+
+	auto outerRing = createArc(oc, mulValue, totalValue);
+	auto midRing =   createArc(mc, 0.0f, totalValue);
+	auto innerRing = createArc(ic, 0.0f, mulValue);
+	auto valueRing = createArc(ic, 0.0f, nrm(data.value));
+
+	g.setColour(Colour(0xFF0051FF));
+	g.strokePath(outerRing, PathStrokeType(r1));
+	g.setColour(Colours::white);
+	g.strokePath(midRing, PathStrokeType(r2));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x88ff7277)));
+	g.strokePath(valueRing, PathStrokeType(r1));
+	g.setColour(Colour(0xFFE5353C));
+	g.strokePath(innerRing, PathStrokeType(r1));
+
+	b.removeFromTop(18.0f);
+
+	g.setColour(Colours::white.withAlpha(0.7f));
+
+	Rectangle<float> t((float)getWidth() / 2.0f - 35.0f, 0.0f, 70.0f, 15.0f);
+
+	g.drawText(start, t.translated(-50.0f, 60.0f), Justification::centred);
+	g.drawText(mid, t, Justification::centred);
+	g.drawText(end, t.translated(50.0f, 60.0f), Justification::centred);
 }
 
 }

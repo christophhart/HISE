@@ -562,6 +562,8 @@ public:
 		return (int)(seconds * (float)sampleRate);
 	}
 
+	static const StringArray& getTempoNames() { return tempoNames; };
+
 	/** Returns the time for the specified tempo in milliseconds. */
 	static float getTempoInMilliSeconds(double hostTempoBpm, Tempo t)
 	{
@@ -661,8 +663,6 @@ public:
 	};
 
 private:
-
-	
 
 	static StringArray tempoNames;
 	static float tempoFactors[numTempos];

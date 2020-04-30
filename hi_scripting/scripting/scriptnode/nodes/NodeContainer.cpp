@@ -86,9 +86,19 @@ void NodeContainer::prepareNodes(PrepareSpecs ps)
 
 	for (auto n : nodes)
 	{
-		n->prepare(ps);
-		n->prepareParameters(ps);
-		n->reset();
+		auto& eHandler = asNode()->getRootNetwork()->getExceptionHandler();
+
+		eHandler.removeError(n);
+
+		try
+		{
+			n->prepare(ps);
+			n->reset();
+		}
+		catch (Error& e)
+		{
+			eHandler.addError(n, e);
+		}
 	}
 }
 
@@ -129,6 +139,7 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 			int insertIndex = getNodeTree().indexOf(child);
 
 			ScopedLock sl(n->getRootNetwork()->getConnectionLock());
+
 			nodes.insert(insertIndex, nodeToProcess);
 			updateChannels(n->getValueTree(), PropertyIds::NumChannels);
 		}
@@ -272,7 +283,7 @@ juce::String NodeContainer::createJitClasses()
 		if (auto c = dynamic_cast<NodeContainer*>(n.get()))
 			s << c->createJitClasses();
 
-#if HISE_INCLUDE_SNEX
+#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
 		if (auto j = dynamic_cast<JitNodeBase*>(n.get()))
 			s << j->convertJitCodeToCppClass(isPolyphonic() ? NUM_POLYPHONIC_VOICES : 1, false);
 #endif
@@ -576,6 +587,11 @@ struct ClassGenerator
 
 	String createModulation(NodeBase* n)
 	{
+		// neu denken..
+		jassertfalse;
+
+
+#if 0
 		if (auto modSource = dynamic_cast<ModulationSourceNode*>(n))
 		{
 			if (modSource->getModulationTargetTree().getNumChildren() == 0)
@@ -672,6 +688,9 @@ struct ClassGenerator
 
 			return CppGen::Emitter::surroundWithBrackets(mCode);
 		}
+
+		return {};
+#endif
 
 		return {};
 	}
@@ -1092,12 +1111,7 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 			{
 				if (targetNode->getParameter(i)->getId() == parameterId)
 				{
-
 					targetParameter = targetNode->getParameter(i);
-
-					opSyncer.setCallback(data, { PropertyIds::OpType, }, valuetree::AsyncMode::Synchronously,
-						BIND_MEMBER_FUNCTION_2(Connection::updateConnectionInTargetParameter));
-
 					break;
 				}
 			}
@@ -1119,86 +1133,7 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 }
 
 
-DspHelpers::ParameterCallback NodeContainer::MacroParameter::Connection::createCallbackForNormalisedInput()
-{
-	DspHelpers::ParameterCallback f;
 
-	if (nodeToBeBypassed != nullptr)
-	{
-		auto n = nodeToBeBypassed;
-		auto r = connectionRange.getRange();
-		auto m = rangeMultiplerForBypass;
-
-		if (inverted)
-		{
-			f = [n, r, m](double newValue)
-			{
-				if (n != nullptr)
-					n.get()->setBypassed(r.contains(newValue*m));
-			};
-		}
-		else
-		{
-			f = [n, r, m](double newValue)
-			{
-				if (n != nullptr)
-					n.get()->setBypassed(!r.contains(newValue*m));
-			};
-		}
-
-		return f;
-	}
-	else
-	{
-		if (opType == OpType::Add)
-			f = std::bind(&NodeBase::Parameter::addModulationValue, targetParameter.get(), std::placeholders::_1);
-		else if (opType == OpType::Multiply)
-			f = std::bind(&NodeBase::Parameter::multiplyModulationValue, targetParameter.get(), std::placeholders::_1);
-		else
-			f = std::bind(&NodeBase::Parameter::setValueAndStoreAsync, targetParameter.get(), std::placeholders::_1);
-
-		expressionCode = data[PropertyIds::Expression].toString();
-
-		if (expressionCode.isNotEmpty())
-		{
-#if HISE_INCLUDE_SNEX
-			snex::JitExpression::Ptr e = new snex::JitExpression(expressionCode, parentParameter);
-
-			if (e->isValid())
-			{
-				auto r = connectionRange;
-
-				auto fWithExpression = [e, f](double input)
-				{
-					input = e->getValue(input);
-					f(input);
-				};
-
-				return fWithExpression;
-			}
-			else
-				return f;
-#else
-            jassertfalse;
-            return {};
-#endif
-            
-		}
-		else
-			return DspHelpers::wrapIntoConversionLambda(conversion, f, connectionRange, inverted);
-	}
-
-
-}
-
-
-void NodeContainer::MacroParameter::Connection::updateConnectionInTargetParameter(Identifier id, var newValue)
-{
-	if (id == PropertyIds::OpType)
-	{
-		targetParameter->clearModulationValues();
-	}
-}
 
 juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()
 {
@@ -1215,7 +1150,8 @@ juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()
 
 
 NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree data_) :
-	Parameter(parentNode, data_)
+	Parameter(parentNode, data_),
+	SimpleTimer(parentNode->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
 {
 	rangeListener.setCallback(getConnectionTree(),
 		RangeHelpers::getRangeIds(),
@@ -1227,11 +1163,7 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 		valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(MacroParameter::updateRangeForConnection));
 
-	for (auto c : getConnectionTree())
-	{
-		auto targetId = c[PropertyIds::NodeId].toString();
-	}
-
+	
 	connectionListener.setCallback(getConnectionTree(),
 		valuetree::AsyncMode::Synchronously,
 		[this](ValueTree child, bool wasAdded)
@@ -1250,6 +1182,9 @@ NodeContainer::MacroParameter::MacroParameter(NodeBase* parentNode, ValueTree da
 
 		rebuildCallback();
 	});
+
+	auto initialValue = (double)data[PropertyIds::Value];
+	getReferenceToCallback().call(initialValue);
 }
 
 void NodeContainer::MacroParameter::rebuildCallback()
@@ -1272,6 +1207,7 @@ void NodeContainer::MacroParameter::rebuildCallback()
 		}
 	}
 
+#if 0
 	if (connections.size() > 0)
 	{
 		Array<DspHelpers::ParameterCallback> connectionCallbacks;
@@ -1303,6 +1239,56 @@ void NodeContainer::MacroParameter::rebuildCallback()
 	{
 		setCallback({});
 	}
+#endif
+
+	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
+
+	for (auto c : connections)
+	{
+		if (c->nodeToBeBypassed != nullptr)
+		{
+			auto r = RangeHelpers::getDoubleRange(c->data).getRange();
+
+			chain->addParameter(new NodeBase::DynamicBypassParameter(c->nodeToBeBypassed, r));
+		}
+		else
+		{
+			auto pList = c->targetParameter->parent->createInternalParameterList();
+
+			for (auto p : pList)
+			{
+				if (p.id == c->targetParameter->getId())
+				{
+					ScopedPointer<parameter::dynamic_base> b;
+
+					auto r = RangeHelpers::getDoubleRange(c->data);
+					auto e = c->data[PropertyIds::Expression].toString();
+
+					if (e.isNotEmpty())
+						b = new parameter::dynamic_expression(p.dbNew, new snex::JitExpression(e));
+					else if (!RangeHelpers::isIdentity(r))
+						b = new parameter::dynamic_from0to1(p.dbNew, r);
+					else
+						b = new parameter::dynamic_base(p.dbNew);
+
+					b->setDataTree(c->targetParameter->data);
+
+					chain->addParameter(b.release());
+				}
+			}
+		}
+
+		
+	}
+
+	if (auto s = chain->getFirstIfSingle())
+		setCallbackNew(s);
+	else if (!chain->isEmpty())
+		setCallbackNew(chain.release());
+	else
+		setCallbackNew(nullptr);
+
+	start();
 }
 
 
@@ -1310,19 +1296,6 @@ void NodeContainer::MacroParameter::updateRangeForConnection(ValueTree v, Identi
 {
 	RangeHelpers::checkInversion(v, &rangeListener, parent->getUndoManager());
 	rebuildCallback();
-}
-
-juce::Identifier NodeContainer::MacroParameter::getOpTypeForParameter(Parameter* target) const
-{
-	for (auto c : connections)
-	{
-		if (c->matchesTarget(target))
-		{
-			return c->getOpType();
-		}
-	}
-
-	return Identifier();
 }
 
 bool NodeContainer::MacroParameter::matchesTarget(const Parameter* target) const

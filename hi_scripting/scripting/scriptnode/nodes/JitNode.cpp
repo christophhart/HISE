@@ -35,6 +35,8 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+#if OLD_JIT_STUFF
+
 #if HISE_INCLUDE_SNEX
     
 using namespace snex;
@@ -106,7 +108,7 @@ void jit_impl<NV>::handleAsyncUpdate()
 {
 	if (auto l = SingleWriteLockfreeMutex::ScopedWriteLock(lock))
 	{
-		auto compileEachVoice = [this](CallbackCollection& c)
+		for(auto& c: cData)
 		{
 			snex::jit::Compiler compiler(scope);
 
@@ -119,8 +121,6 @@ void jit_impl<NV>::handleAsyncUpdate()
 				c.prepare(lastSpecs.sampleRate, lastSpecs.blockSize, lastSpecs.numChannels);
 			}
 		};
-
-		cData.forEachVoice(compileEachVoice);
 	}
 	else
 	{
@@ -152,10 +152,8 @@ void jit_impl<NV>::prepare(PrepareSpecs specs)
 
 	if (auto l = SingleWriteLockfreeMutex::ScopedReadLock(lock))
 	{
-		cData.forEachVoice([specs](CallbackCollection& c)
-		{
+		for(auto& c: cData)
 			c.prepare(specs.sampleRate, specs.blockSize, specs.numChannels);
-		});
 	}
 }
 
@@ -237,7 +235,10 @@ void jit_impl<NV>::reset()
 		if (cData.isMonophonicOrInsideVoiceRendering())
 			cData.get().resetFunction.callVoid();
 		else
-			cData.forEachVoice([](CallbackCollection& c) {c.resetFunction.callVoid(); });
+		{
+			for (auto& c : cData)
+				c.resetFunction.callVoid();
+		}
 	}
 }
 
@@ -300,10 +301,7 @@ struct SimpleJitComponent : public Component,
 	TextEditor te;
 };
 
-juce::Component* simple_jit::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new SimpleJitComponent(this);
-}
+
 
 
 }
@@ -535,7 +533,8 @@ void JitNodeBase::updateParameters(Identifier id, var newValue)
 JitPolyNode::JitPolyNode(DspNetwork* parent, ValueTree d) :
 	HiseDspNodeBase<core::jit_poly>(parent, d)
 {
-	dynamic_cast<core::jit_poly*>(getInternalT())->scope.addDebugHandler(this);
+
+	wrapper.getWrappedObject().scope.addDebugHandler(this);
 	initUpdater();
 }
 
@@ -547,15 +546,10 @@ juce::String JitPolyNode::createCppClass(bool isOuterClass)
 		return getId();
 }
 
-scriptnode::HiseDspBase* JitPolyNode::getInternalJitNode()
-{
-	return wrapper.getInternalT();
-}
-
 JitNode::JitNode(DspNetwork* parent, ValueTree d) :
 	HiseDspNodeBase<core::jit>(parent, d)
 {
-	dynamic_cast<core::jit*>(getInternalT())->scope.addDebugHandler(this);
+	wrapper.getWrappedObject().scope.addDebugHandler(this);
 	initUpdater();
 }
 
@@ -567,11 +561,9 @@ juce::String JitNode::createCppClass(bool isOuterClass)
 		return getId();
 }
 
-scriptnode::HiseDspBase* JitNode::getInternalJitNode()
-{
-	return wrapper.getInternalT();
-}
-    
+
+#endif
+
 #endif
 
 }

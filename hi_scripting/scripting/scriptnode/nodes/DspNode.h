@@ -96,7 +96,7 @@ public:
 	void processFrame(FrameType& d) final override
 	{
 		if (obj != nullptr)
-			obj->processBlock(&d, 1, d.size());
+			obj->processBlock(&d.data, 1, d.size());
 	}
 
 	~DspNode()

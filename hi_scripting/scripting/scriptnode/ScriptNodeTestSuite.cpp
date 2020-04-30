@@ -48,6 +48,15 @@ using namespace juce;
 using namespace snex;
 using namespace snex::Types;
 
+
+
+
+
+
+
+
+
+
 /** This is just a simple test node that has all functions that a node is expected to have. */
 struct TestNode
 {
@@ -172,6 +181,31 @@ template <class OpClass, int C> struct Node
 };
 }
 
+
+namespace matrixtypes
+{
+template <int C> struct identity
+{
+	static constexpr bool isFixedChannelMatrix() { return true; }
+	static constexpr int getNumChannels() { return C; }
+	static constexpr int getChannel(int index) { return index; }
+	static constexpr int getSendChannel(int index) { return -1; }
+};
+
+template <int Index, int C> struct one2all
+{
+	static constexpr bool isFixedChannelMatrix() { return true; }
+	static constexpr int getNumChannels() { return C; }
+	static constexpr int getChannel(int index) { return Index; }
+	static constexpr int getSendChannel(int index) { return -1; }
+};
+
+
+
+
+
+}
+
 struct ScriptNodeTests : public juce::UnitTest
 {
 	ScriptNodeTests() :
@@ -196,13 +230,14 @@ struct ScriptNodeTests : public juce::UnitTest
 
 	void runTest() override
 	{
+		testSendReceive();
+		testMatrixNode();
+
 		testContainerWithNumSamples<1>();
 		testContainerWithNumSamples<2>();
 		testContainerWithNumSamples<8>();
 		testContainerWithNumSamples<128>();
 		testContainerWithNumSamples<37>();
-		
-
 
 		testProcessData<2>(2);
 		testProcessData<3>(7);
@@ -217,15 +252,10 @@ struct ScriptNodeTests : public juce::UnitTest
 		testProcessData<6>(941);
 		testProcessData<12>(204);
 
-		
-
 		testRangeTemplates();
 		testParameters();
 		testModWrapper();
 		testProperties();
-		
-
-		
 	}
 
 	struct Dummy
@@ -430,7 +460,7 @@ struct ScriptNodeTests : public juce::UnitTest
 
 			cpp_node<handler, ChainType> node;
 
-			Array<HiseDspBase::ParameterData> p;
+			Array<scriptnode::ParameterDataImpl> p;
 
 			node.initialise(nullptr);
 			node.createParameters(p);
@@ -438,12 +468,12 @@ struct ScriptNodeTests : public juce::UnitTest
 			expect(p.size() == 1, "not one parameter");
 			
 			if (p.size() == 1)
-				p.getReference(0)(0.6);
+				p.getReference(0).dbNew.call(0.6);
 
 
-			float d[2];
+			span<float, 2> d;
 
-			node.processFrame(d, 2);
+			node.processFrame(d);
 
 			expectEquals<float>(d[0], 0.6f, "parameter set not working");
 		}
@@ -474,7 +504,277 @@ struct ScriptNodeTests : public juce::UnitTest
 		expectEquals<float>(target.value[Dummy::Second], 0.666, "modulation connection didn't work");
 	}
 
-	
+	template <typename S, typename R> void initSendReceive(S& sender, R& receiver, int numChannels, int blockSize)
+	{
+		receiver.setFeedback(0.5f);
+		sender.connect(receiver);
+
+		PrepareSpecs ps;
+		ps.numChannels = numChannels;
+		ps.blockSize = blockSize;
+		ps.sampleRate = 44100.0;
+
+		sender.prepare(ps);
+		receiver.prepare(ps);
+	}
+
+	template <typename R, typename S, int NumChannels> auto* createSendReceiveChain(int numSamples)
+	{
+		using rType = fix<NumChannels, R>;
+		using sType = S;
+		using ChainType = container::chain<parameter::empty, rType, math::add, sType>;
+
+		auto* chain = new ChainType();
+
+		auto& receiver = chain->get<0>();
+		auto& adder = chain->get<1>();
+		auto& sender = chain->get<2>();
+
+		adder.setValue(1.0f);
+		receiver.setFeedback(0.5f);
+		sender.connect(receiver);
+
+		PrepareSpecs ps;
+		ps.numChannels = NumChannels;
+		ps.blockSize = numSamples;
+		ps.sampleRate = 44100.0;
+
+		try
+		{
+			chain->prepare(ps);
+		}
+		catch (scriptnode::Error& e)
+		{
+			jassertfalse;
+		}
+		
+
+		return chain;
+	}
+
+	template <typename CableType, int NumChannels> void testSendReceiveFrame()
+	{
+		using SpanType = span<float, NumChannels>;
+		using SenderType = routing2::send<CableType>;
+		using ReceiverType = routing2::receive<CableType>;
+		
+		{
+			SenderType sender;
+			ReceiverType receiver;
+
+			initSendReceive(sender, receiver, NumChannels, 1);
+
+			
+			SpanType original, originalE;
+			CableType::FrameType d(original);
+
+			fillWithInc(d);
+
+			for (auto&v : d)
+				v += 1.0f;
+
+			CableType::FrameType e(originalE);
+
+			receiver.processFrame(e);
+			expectEquals<float>(e[0], 0.0f, "unconnected receiver start value");
+			sender.connect(receiver);
+
+			receiver.processFrame(e);
+			expectEquals<float>(e[0], 0.0f, "receiver start value");
+
+			sender.processFrame(d);
+			receiver.processFrame(e);
+			expectEquals<float>(sum(e), sum(d) * 0.5f, "receive doesn't work");
+
+			clear(e);
+
+			sender.reset();
+			receiver.processFrame(e);
+
+			expectEquals<float>(e[0], 0.0f, "sender::reset() doesn't work");
+		}
+		{
+			auto chain = createSendReceiveChain<ReceiverType, SenderType, NumChannels>(1);
+
+			SpanType data;
+			chain->processFrame(data);
+			expectEquals(sum(data), NumChannels * 1.0f, "chain processing 1");
+			clear(data);
+			chain->processFrame(data);
+			expectEquals(sum(data), NumChannels * 1.5f, "chain processing 2");
+
+			// ugly, but we don't care about a proper copy constructor for nodes...
+			delete chain;
+		}
+	}
+
+	template <typename CableType, int NumChannels> void testSendReceiveBlock(int numSamples)
+	{
+		heap<float> buffer;
+
+		buffer.setSize(NumChannels * numSamples);
+
+		using SenderType = routing2::send<CableType>;
+		using ReceiverType = routing2::receive<CableType>;
+		
+
+		{
+			bool addsToSignal = CableType().addToSignal();
+
+			auto chain = createSendReceiveChain<ReceiverType, SenderType, NumChannels>(numSamples);
+
+			for (auto& v : buffer)
+				v = 3.0f;
+
+			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
+			ProcessDataFix<NumChannels> data(cd.begin(), numSamples);
+
+			chain->process(data);
+
+			float expected;
+
+			const float bufferSize = (float)buffer.size();
+
+			if (addsToSignal)
+				expected = bufferSize * (3.0f + 1.0f);
+			else
+				expected = bufferSize * (0.0f + 1.0f);
+
+			expectEquals(sum(buffer), expected, "first round");
+
+			for (auto& v : buffer)
+				v = 9.0f;
+
+			chain->process(data);
+
+			if (addsToSignal)
+				expected = bufferSize * (9.0f + 2.0f + 1.0f);
+			else
+				expected = bufferSize * (1.0f + 1.0f);
+
+			expectEquals(sum(buffer), expected, "second round");
+
+			delete chain;
+		}
+		
+		clear(buffer);
+		fillWithInc(buffer);
+
+		{
+			using sType = fix<NumChannels, SenderType>;
+			using rType = ReceiverType;
+
+			using ChainType = container::chain<parameter::empty, fix<NumChannels, sType>, math::clear, wrap::fix_block<rType, 16>>;
+
+			ChainType chain;
+
+			auto& sender = chain.get<0>();
+			auto& receiver = chain.get<2>();
+
+			sender.connect(receiver);
+			receiver.setFeedback(1.0f);
+			
+			PrepareSpecs ps;
+			ps.numChannels = NumChannels;
+			ps.blockSize = numSamples;
+			ps.sampleRate = 44100.0;
+
+			chain.prepare(ps);
+
+			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
+			ProcessDataFix<NumChannels> data(cd.begin(), numSamples);
+
+			chain.process(data);
+
+			float i = 0.0f;
+
+			for (auto& s : buffer)
+			{
+				if (s != i)
+				{
+					expect(false, "mismatch");
+					break;
+				}
+
+				i += 1.0f;
+			}
+
+			
+		}
+	}
+
+	void testSendReceive()
+	{
+		beginTest("Testing send / receive connections");
+
+		testSendReceiveBlock<cable::block<1, true>, 1>(512);
+		testSendReceiveBlock<cable::block<1, false>, 1>(512);
+		testSendReceiveBlock<cable::block<2, true>, 2>(300);
+		testSendReceiveBlock<cable::block<2, false>, 2>(491);
+		testSendReceiveBlock<cable::dynamic, 1>(491);
+		testSendReceiveBlock<cable::dynamic, 2>(491);
+		testSendReceiveFrame<cable::frame<1, false>, 1>();
+		testSendReceiveFrame<cable::frame<2, false>, 2>();
+		testSendReceiveFrame<cable::frame<7, true>, 7>();
+		testSendReceiveFrame<cable::dynamic, 1>();
+		testSendReceiveFrame<cable::dynamic, 2>();
+		testSendReceiveFrame<cable::dynamic, 7>();
+	}
+
+	void testMatrixNode()
+	{
+		constexpr int NumChannels = 2;
+		int numSamples = 512;
+
+		beginTest("Testing matrix nodes");
+
+		
+
+		PrepareSpecs ps;
+		ps.blockSize = numSamples;
+		ps.numChannels = NumChannels;
+
+		heap<float> buffer;
+		DspHelpers::increaseBuffer(buffer, ps);
+		
+		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
+		ProcessDataFix<NumChannels> d(cd.begin(), numSamples, NumChannels);
+
+		clear(buffer);
+
+		for (auto& s : d[0])
+			s = 2.0f;
+
+		{
+			routing::matrix<matrixtypes::identity<NumChannels>> matrix;
+
+			matrix.process(d);
+
+			auto frame = d.toFrameData();
+
+			while (frame.next())
+				expect(frame[0] = 2.0f && frame[1] == 0.0f, "mismatch");
+		}
+
+		clear(buffer);
+
+		for (auto& s : d[0])
+			s = 2.0f;
+
+		{
+			routing::matrix<matrixtypes::one2all<0, NumChannels>> matrix;
+
+			matrix.process(d);
+
+			auto frame = d.toFrameData();
+
+			while (frame.next())
+				expect(frame[0] = 2.0f && frame[1] == 2.0f, "mismatch");
+		}
+
+		clear(buffer);
+
+	}
 
 	template <typename T> static void fillWithInc(T& data)
 	{
@@ -485,6 +785,12 @@ struct ScriptNodeTests : public juce::UnitTest
 			s = v;
 			v += 1.0f;
 		}
+	}
+
+	template <typename T> static void clear(const T& data)
+	{
+		for (auto& s : data)
+			s = 0.0f;
 	}
 
 	template <typename T> static float sum(const T& data)
@@ -519,7 +825,8 @@ struct ScriptNodeTests : public juce::UnitTest
 		{
 			auto firstElementInt = (int)f[0];
 
-			SpanType::wrapped wIndex;
+			auto wIndex = IndexType::wrapped(f.toSpan());
+
 			wIndex = 9;
 
 			auto wrappedValue = f[wIndex];
@@ -551,7 +858,7 @@ struct ScriptNodeTests : public juce::UnitTest
 		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
 		int numSamples = ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
 
-		ProcessDataFix<NumChannels> pd(cd, numSamples);
+		ProcessDataFix<NumChannels> pd(cd.begin(), numSamples);
 
 		{
 			fillWithInc(data);
@@ -580,9 +887,6 @@ struct ScriptNodeTests : public juce::UnitTest
 			expectEquals(dpd.getNumSamples(), numSamples, "sample divider");
 			expectEquals(v, sum(data), "frame processing doesn't work");
 		}
-	
-		ProcessData;
-
 	}
 
 	template <int NumChannels> void testProcessDataDyn(heap<float>& data)
@@ -590,7 +894,7 @@ struct ScriptNodeTests : public juce::UnitTest
 		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
 		int numSamples = ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
 
-		ProcessDataDyn pd(cd.begin(), NumChannels, numSamples);
+		ProcessDataDyn pd(cd.begin(), numSamples, NumChannels);
 
 		{
 			fillWithInc(data);
@@ -627,7 +931,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			fillWithInc(data);
 
 			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
-			ProcessType d(cd, NumSamples);
+			ProcessType d(cd.begin(), NumSamples);
 			obj.process(d);
 		}
 
@@ -637,7 +941,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			singleData.setSize(NumChannels * NumSamples);
 			fillWithInc(singleData);
 			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(singleData);
-			ProcessType d(cd, NumSamples);
+			ProcessType d(cd.begin(), NumSamples);
 
 			auto frames = d.toFrameData();
 

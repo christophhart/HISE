@@ -36,10 +36,10 @@ using namespace juce;
 using namespace hise;
 
 
-struct SequencerInterface : public HiseDspBase::ExtraComponent<SliderPackData>
+struct SequencerInterface : public ScriptnodeExtraComponent<SliderPackData>
 {
 	SequencerInterface(PooledUIUpdater* updater, SliderPackData* s) :
-		ExtraComponent(s, updater),
+		ScriptnodeExtraComponent(s, updater),
 		pack(s),
 		dragger(updater)
 	{
@@ -90,7 +90,9 @@ void scriptnode::seq_impl<NV>::reset()
 	else
 	{
 		lastIndex.setAll(-1);
-		modValue.forEachVoice([](ModValue& mv) { mv.setModValue(0.0); });
+
+		for(auto& mv: modValue)
+			mv.setModValue(0.0);
 	}
 }
 
@@ -123,19 +125,12 @@ void scriptnode::seq_impl<NV>::createParameters(Array<ParameterData>& data)
 	}
 }
 
-
-template <int NV>
-Component* scriptnode::seq_impl<NV>::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new SequencerInterface(updater, packData.get());
-}
-
 DEFINE_EXTERN_NODE_TEMPIMPL(seq_impl);
 
-struct TableNode::TableInterface : public HiseDspBase::ExtraComponent<TableNode>
+struct TableNode::TableInterface : public ScriptnodeExtraComponent<TableNode>
 {
 	TableInterface(PooledUIUpdater* updater, TableNode* t) :
-		ExtraComponent(t, updater),
+		ScriptnodeExtraComponent(t, updater),
 		editor(nullptr, t->tableData),
 		dragger(updater)
 	{
@@ -164,11 +159,6 @@ struct TableNode::TableInterface : public HiseDspBase::ExtraComponent<TableNode>
 	hise::TableEditor editor;
 	ComboBox selector;
 };
-
-juce::Component* TableNode::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new TableInterface(updater, this);
-}
 
 void TableNode::createParameters(Array<ParameterData>& data)
 {

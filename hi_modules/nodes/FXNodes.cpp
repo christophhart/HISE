@@ -53,7 +53,10 @@ void sampleandhold_impl<V>::setFactor(double value)
 	if (data.isMonophonicOrInsideVoiceRendering())
 		data.get().factor = factor;
 	else
-		data.forEachVoice([factor](Data& d_) {d_.factor = factor; });
+	{
+		for (auto& d : data)
+			d.factor = factor;
+	}
 }
 
 template <int V>
@@ -69,61 +72,14 @@ void sampleandhold_impl<V>::createParameters(Array<ParameterData>& d)
 }
 
 template <int V>
-void sampleandhold_impl<V>::processFrame(float* numFrames, int numChannels)
-{
-	auto& v = data.get();
-
-	if (v.counter == 0)
-	{
-		FloatVectorOperations::copy(v.currentValues, numFrames, numChannels);
-		v.counter = v.factor;
-	}
-	else
-	{
-		FloatVectorOperations::copy(numFrames, v.currentValues, numChannels);
-		v.counter--;
-	}
-}
-
-template <int V>
 void sampleandhold_impl<V>::reset() noexcept
 {
 	if (data.isMonophonicOrInsideVoiceRendering())
 		data.get().clear(lastChannelAmount);
 	else
-		data.forEachVoice([this](Data& d_) {d_.clear(lastChannelAmount); });
-}
-
-template <int V>
-void sampleandhold_impl<V>::process(ProcessData& d)
-{
-	Data& v = data.get();
-
-	if (v.counter > d.size)
 	{
-		for (int i = 0; i < d.numChannels; i++)
-			FloatVectorOperations::fill(d.data[i], v.currentValues[i], d.size);
-
-		v.counter -= d.size;
-	}
-	else
-	{
-		for (int i = 0; i < d.size; i++)
-		{
-			if (v.counter == 0)
-			{
-				for (int c = 0; c < d.numChannels; c++)
-				{
-					v.currentValues[c] = d.data[c][i];
-					v.counter = v.factor + 1;
-				}
-			}
-
-			for (int c = 0; c < d.numChannels; c++)
-				d.data[c][i] = v.currentValues[c];
-
-			v.counter--;
-		}
+		for (auto& d : data)
+			d.clear(lastChannelAmount);
 	}
 }
 
@@ -187,35 +143,6 @@ void bitcrush_impl<V>::reset() noexcept
 
 }
 
-
-
-// ======================================================================================================
-
-void getBitcrushedValue(float* data, int numSamples, float bitDepth)
-{
-	const float invStepSize = pow(2.0f, bitDepth);
-	const float stepSize = 1.0f / invStepSize;
-
-	for (int i = 0; i < numSamples; i++)
-		data[i] = (stepSize * ceil(data[i] * invStepSize) - 0.5f * stepSize);
-}
-
-// ======================================================================================================
-
-template <int V>
-void bitcrush_impl<V>::process(ProcessData& d)
-{
-	for (auto ch : d)
-		getBitcrushedValue(ch, d.size, bitDepth.get());
-}
-
-
-template <int V>
-void bitcrush_impl<V>::processFrame(float* numFrames, int numChannels)
-{
-	getBitcrushedValue(numFrames, numChannels, bitDepth.get());
-}
-
 template <int V>
 void bitcrush_impl<V>::prepare(PrepareSpecs ps)
 {
@@ -251,25 +178,6 @@ void phase_delay_impl<V>::prepare(PrepareSpecs ps)
 }
 
 template <int V>
-void phase_delay_impl<V>::process(ProcessData& d)
-{
-	int numChannels = jmin(2, d.numChannels);
-
-	for (int c = 0; c < numChannels; c++)
-	{
-		auto ptr = d.data[c];
-		auto& dl = delays[c].get();
-
-		for (int i = 0; i < d.size; i++)
-        {
-            auto v = *ptr;
-            *ptr++ = dl.getNextSample(v);
-        }
-			
-	}
-}
-
-template <int V>
 void scriptnode::fx::phase_delay_impl<V>::reset() noexcept
 {
 	if (delays[0].isMonophonicOrInsideVoiceRendering())
@@ -279,20 +187,15 @@ void scriptnode::fx::phase_delay_impl<V>::reset() noexcept
 	}
 	else
 	{
-		auto f = [](AllpassDelay& d) { d.reset(); };
-		delays[0].forEachVoice(f);
-		delays[1].forEachVoice(f);
+		for (auto& ds : delays)
+		{
+			for (auto& d : ds)
+				d.reset();
+		}
 	}
 }
 
-template <int V>
-void phase_delay_impl<V>::processFrame(float* numFrames, int numChannels)
-{
-	numChannels = jmin(2, numChannels);
 
-	for (int i = 0; i < numChannels; i++)
-		numFrames[i] = delays[i].get().getNextSample(numFrames[i]);
-}
 
 template <int V>
 bool phase_delay_impl<V>::handleModulation(double&) noexcept
@@ -326,12 +229,13 @@ void phase_delay_impl<V>::setFrequency(double newFrequency)
 		delays[0].get().setDelay(coefficient);
 		delays[1].get().setDelay(coefficient);
 	}
-		
 	else
 	{
-		auto f = [coefficient](AllpassDelay& d) {d.setDelay(coefficient); };
-		delays[0].forEachVoice(f);
-		delays[1].forEachVoice(f);
+		for (auto& outer : delays)
+		{
+			for (auto& d : outer)
+				d.setDelay(coefficient);
+		}
 	}
 		
 }
@@ -343,24 +247,27 @@ void haas_impl<V>::setPosition(double newValue)
 {
 	position = newValue;
 
-	auto d = std::abs(position) * 0.02;
+	auto d = hmath::abs(position) * 0.02;
 
-	if (delayL.isMonophonicOrInsideVoiceRendering())
+	auto& l = delay.get()[0];
+	auto& r = delay.get()[1];
+
+	if (delay.isMonophonicOrInsideVoiceRendering())
 	{
 		if (position == 0.0)
 		{
-			delayL.get().setDelayTimeSamples(0);
-			delayR.get().setDelayTimeSamples(0);
+			l.setDelayTimeSamples(0);
+			r.setDelayTimeSamples(0);
 		}
 		else if (position > 0.0)
 		{
-			delayL.get().setDelayTimeSeconds(d);
-			delayR.get().setDelayTimeSamples(0);
+			l.setDelayTimeSeconds(d);
+			r.setDelayTimeSamples(0);
 		}
 		else if (position < 0.0)
 		{
-			delayL.get().setDelayTimeSamples(0);
-			delayR.get().setDelayTimeSeconds(d);
+			l.setDelayTimeSamples(0);
+			r.setDelayTimeSeconds(d);
 		}
 	}
 	else
@@ -369,24 +276,44 @@ void haas_impl<V>::setPosition(double newValue)
 		// causes issues with the fade time logic...
 		int fadeTime = NumVoices == 1 ? 2048 : 0;
 
-		auto setZero = [fadeTime](DelayType& t) { t.setFadeTimeSamples(fadeTime); t.setDelayTimeSamples(0); };
-		auto setSeconds = [fadeTime, d](DelayType& t) { t.setFadeTimeSamples(fadeTime); t.setDelayTimeSeconds(d); };
+		jassertfalse;
 
-		if (position == 0.0)
+#if 0
+
+		auto setToPos = [fadeTime, position](DelayType& t) 
+		{ 
+			auto& l = t[0];
+			auto& r = t[0]
+
+			if (position == 0.0)
+			{
+				l.forEachVoice(setZero);
+				r.forEachVoice(setZero);
+			}
+			else if (position > 0.0)
+			{
+				l.forEachVoice(setSeconds);
+				r.forEachVoice(setZero);
+			}
+			else if (position < 0.0)
+			{
+				l.forEachVoice(setZero);
+				r.forEachVoice(setSeconds);
+			}
+		};
+
+		auto setSeconds = [fadeTime, d](DelayType& t) 
 		{
-			delayL.forEachVoice(setZero);
-			delayR.forEachVoice(setZero);
-		}
-		else if (position > 0.0)
-		{
-			delayL.forEachVoice(setSeconds);
-			delayR.forEachVoice(setZero);
-		}
-		else if (position < 0.0)
-		{
-			delayL.forEachVoice(setZero);
-			delayR.forEachVoice(setSeconds);
-		}
+			for (auto& d : t)
+			{
+				d.setFadeTimeSamples(fadeTime);
+				d.setDelayTimeSeconds(d);
+			}
+		};
+		
+		delay.forEachVoice(setToPos);
+
+#endif
 	}
 }
 
@@ -397,63 +324,59 @@ bool haas_impl<V>::handleModulation(double&)
 	return false;
 }
 
-template <int V>
-void haas_impl<V>::process(ProcessData& d)
-{
-	if (d.numChannels == 2)
-	{
-		delayL.get().processBlock(d.data[0], d.size);
-		delayR.get().processBlock(d.data[1], d.size);
-	}
-}
 
 template <int V>
-void haas_impl<V>::processFrame(float* data, int numChannels)
+void haas_impl<V>::processFrame(FrameType& data)
 {
-	if (numChannels == 2)
-	{
-		data[0] = delayL.get().getDelayedValue(data[0]);
-		data[1] = delayR.get().getDelayedValue(data[1]);
-	}
+	data[0] = delay.get()[0].getDelayedValue(data[0]);
+	data[1] = delay.get()[1].getDelayedValue(data[1]);
 }
+
+
+template <int V>
+void haas_impl<V>::process(haas_impl<V>::ProcessType& d)
+{
+	delay.get()[0].processBlock(d[0]);
+	delay.get()[1].processBlock(d[1]);
+}
+
 
 template <int V>
 void haas_impl<V>::reset()
 {
-
-	if (delayL.isMonophonicOrInsideVoiceRendering())
+	if (delay.isMonophonicOrInsideVoiceRendering())
 	{
-		jassert(delayR.isMonophonicOrInsideVoiceRendering());
-
-		delayL.get().setFadeTimeSamples(0);
-		delayR.get().setFadeTimeSamples(0);
-
-		delayL.get().clear();
-		delayR.get().clear();
+		for (auto& d : delay.get())
+		{
+			d.setFadeTimeSamples(0);
+			d.clear();
+		}
 	}
 	else
 	{
-		auto f = [](DelayType& d) {d.clear(); };
-		delayL.forEachVoice(f);
-		delayR.forEachVoice(f);
+		for (auto& d : delay)
+		{
+			for (auto& inner : d)
+				inner.clear();
+		}
 	}
 }
 
 template <int V>
 void haas_impl<V>::prepare(PrepareSpecs ps)
 {
-	delayL.prepare(ps);
-	delayR.prepare(ps);
+	delay.prepare(ps);
 
 	auto sr = ps.sampleRate;
-	auto f = [sr](DelayType& d)
-	{
-		d.prepareToPlay(sr);
-		d.setFadeTimeSamples(0);
-	};
 
-	delayL.forEachVoice(f);
-	delayR.forEachVoice(f);
+	for(auto& d: delay)
+	{
+		for (auto& inner : d)
+		{
+			inner.prepareToPlay(sr);
+			inner.setFadeTimeSamples(0);
+		}
+	};
 
 	setPosition(position);
 }
@@ -490,27 +413,9 @@ void reverb::prepare(PrepareSpecs ps)
 	r.setSampleRate(ps.sampleRate);
 }
 
-void reverb::process(ProcessData& d)
-{
-	switch (d.getNumChannels())
-	{
-	case 1: r.processMono(d[0].data, d.getNumSamples()); break;
-	case 2: r.processStereo(d[0].data, d[1].data, d.getNumSamples()); break;
-	default: jassertfalse;
-	}
-}
-
 void reverb::reset() noexcept
 {
 	r.reset();
-}
-
-void reverb::processFrame(float* numFrames, int numChannels)
-{
-	if (numChannels == 2)
-		r.processStereo(numFrames, numFrames + 1, 1);
-	else if (numChannels == 1)
-		r.processMono(numFrames, 1);
 }
 
 bool reverb::handleModulation(double&) noexcept

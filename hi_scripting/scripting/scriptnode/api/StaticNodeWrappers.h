@@ -44,27 +44,15 @@ struct ComponentHelpers
         
 };
 
-
-class WrapperNode : public ModulationSourceNode
+struct NoExtraComponent
 {
-protected:
+	using ObjectType = HiseDspBase;
 
-	WrapperNode(DspNetwork* parent, ValueTree d);;
-
-	NodeComponent* createComponent() override;
-
-	virtual Component* createExtraComponent() { return nullptr; }
-
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
-
-	Rectangle<int> createRectangleForParameterSliders(int numColumns) const;
-
-	virtual int getExtraWidth() const { return 0; }
-	virtual int getExtraHeight() const { return 0; }
+	static Component* createExtraComponent(ObjectType* , PooledUIUpdater*) { return nullptr; }
 };
 
     
-template <class HiseDspBaseType> class HiseDspNodeBase : public WrapperNode
+template <class HiseDspBaseType, class ComponentType=NoExtraComponent> class HiseDspNodeBase : public WrapperNode
 {
 	using WrapperType = bypass::smoothed<HiseDspBaseType, false>;
 
@@ -76,112 +64,210 @@ public:
 
 		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
 
-		d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
-
 		Array<HiseDspBase::ParameterData> pData;
+		wrapper.getWrappedObject().createParameters(pData);
 
-		wrapper.getObject().createParameters(pData);
-
-		for (auto p : pData)
-		{
-			auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.id);
-
-			if (!existingChild.isValid())
-			{
-				existingChild = p.createValueTree();
-				getParameterTree().addChild(existingChild, -1, getUndoManager());
-			}
-
-			auto newP = new Parameter(this, existingChild);
-			newP->setCallback(p.db);
-			newP->valueNames = p.parameterNames;
-
-			addParameter(newP);
-		}
-
-		bypassListener.setCallback(d, { PropertyIds::Bypassed },
-			valuetree::AsyncMode::Synchronously,
-			std::bind(&WrapperType::setBypassedFromValueTreeCallback,
-				&wrapper, std::placeholders::_1, std::placeholders::_2));
+		initParameterData(pData);
 	};
 
-    static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new HiseDspNodeBase<HiseDspBaseType>(n, d); }; 
-    static Identifier getStaticId() { return HiseDspBaseType::getStaticId(); };
-    
+
+	Array<ParameterDataImpl> createInternalParameterList() override
+	{
+		Array<ParameterDataImpl> pList;
+		wrapper.getWrappedObject().createParameters(pList);
+		return pList;
+	}
+
+    static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new HiseDspNodeBase<HiseDspBaseType, ComponentType>(n, d); }; 
+	static Identifier getStaticId() { return HiseDspBaseType::getStaticId(); };
+
 	Component* createExtraComponent()
 	{
-		return wrapper.getObject().createExtraComponent(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+		auto obj = static_cast<ComponentType::ObjectType*>(&wrapper.getWrappedObject());
+		auto updater = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
+		auto c =  ComponentType::createExtraComponent(obj, updater);
+		
+		return c;
 	}
 
-	int getExtraHeight() const final override
-	{
-		return wrapper.getObject().getExtraHeight();
-	}
-
-	int getExtraWidth() const final override
-	{
-		return wrapper.getObject().getExtraWidth();
-	}
-
-	bool isUsingModulation() const override
-	{
-		return HiseDspBaseType::isModulationSource;
-	}
+	GET_SELF_OBJECT(wrapper);
+	GET_WRAPPED_OBJECT(wrapper.getWrappedObject());
 
 	void reset()
 	{
 		wrapper.reset();
-
-		if (HiseDspBaseType::isModulationSource)
-		{
-			double initValue = 0.0;
-			if (getRootNetwork()->isCurrentlyRenderingVoice() && wrapper.getObject().handleModulation(initValue))
-				sendValueToTargets(initValue, 0);
-		}
-	}
-
-	HiseDspBase* getInternalT()
-	{
-		return wrapper.getInternalT();
 	}
 
 	bool isPolyphonic() const override { return wrapper.isPolyphonic(); }
 
-	void postInit() override
-    {
-        if(wrapper.getInternalT()->needsReinitialisation())
-            wrapper.initialise(this);
-    }
-
 	void prepare(PrepareSpecs specs) final override
 	{
-		ModulationSourceNode::prepare(specs);
-		wrapper.prepare(specs);
+		auto& exceptionHandler = getRootNetwork()->getExceptionHandler();
+
+		exceptionHandler.removeError(this);
+
+		try
+		{
+			wrapper.prepare(specs);
+		}
+		catch (Error& s)
+		{
+			exceptionHandler.addError(this, s);
+		}
 	}
 
-	void processFrame(dyn<float>& data) final override
+	void processFrame(NodeBase::FrameType& data) final override
+	{
+		if (data.size() == 1)
+			processMonoFrame(MonoFrameType::as(data.begin()));
+		if (data.size() == 2)
+			processStereoFrame(StereoFrameType::as(data.begin()));
+	}
+
+	void processMonoFrame(MonoFrameType& data) final override
 	{
 		wrapper.processFrame(data);
+	}
 
-		if (wrapper.allowsModulation())
-		{
-			double value = 0.0;
-			if (wrapper.handleModulation(value))
-				sendValueToTargets(value, 1);
-		}
+	void processStereoFrame(StereoFrameType& data) final override
+	{
+		wrapper.processFrame(data);
 	}
 
 	void process(ProcessData& data) noexcept final override
 	{
 		wrapper.process(data);
+	}
 
-		if (wrapper.allowsModulation())
+
+	void setBypassed(bool shouldBeBypassed) final override
+	{
+		WrapperNode::setBypassed(shouldBeBypassed);
+		wrapper.setBypassed(shouldBeBypassed);
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{
+		wrapper.handleHiseEvent(e);
+	}
+
+	WrapperType wrapper;
+	valuetree::PropertyListener bypassListener;
+};
+
+
+template <class HiseDspBaseType, class ComponentType = ModulationSourcePlotter> class HiseDspNodeBaseWithModulation : public ModulationSourceNode
+{
+	using WrapperType = wrap::mod<HiseDspBaseType, parameter::dynamic_base_holder>;
+
+public:
+	HiseDspNodeBaseWithModulation(DspNetwork* parent, ValueTree d) :
+		ModulationSourceNode(parent, d)
+	{
+		wrapper.getObject().initialise(this);
+		wrapper.p.setRingBuffer(ringBuffer.get());
+
+		stop();
+
+		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
+		
+		Array<HiseDspBase::ParameterData> pData;
+		wrapper.getWrappedObject().createParameters(pData);
+		initParameterData(pData);
+	};
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new HiseDspNodeBaseWithModulation<HiseDspBaseType, ComponentType>(n, d); };
+	static Identifier getStaticId() { return HiseDspBaseType::getStaticId(); };
+
+	Component* createExtraComponent()
+	{
+		auto obj = static_cast<ComponentType::ObjectType*>(&wrapper.getWrappedObject());
+		auto updater = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
+
+		auto c = ComponentType::createExtraComponent(obj, updater);
+
+		c->getProperties().set("circleOffsetX", -10.0f);
+
+		return c;
+	}
+
+	void timerCallback() override
+	{
+		wrapper.p.updateUI();
+	}
+
+	bool isUsingNormalisedRange() const override
+	{
+		return wrapper.getWrappedObject().isNormalisedModulation();
+	}
+
+	parameter::dynamic_base_holder* getParameterHolder() override
+	{
+		return &wrapper.p;
+	}
+	
+	
+
+	GET_WRAPPED_OBJECT(wrapper.getWrappedObject());
+
+	void reset()
+	{
+		wrapper.reset();
+	}
+
+	bool isPolyphonic() const override { return wrapper.isPolyphonic(); }
+
+	void prepare(PrepareSpecs specs) final override
+	{
+		auto& exceptionHandler = getRootNetwork()->getExceptionHandler();
+
+		exceptionHandler.removeError(this);
+
+		try
 		{
-			double value = 0.0;
-
-			if (wrapper.handleModulation(value))
-				sendValueToTargets(value, data.getNumSamples());
+			ModulationSourceNode::prepare(specs);
+			wrapper.prepare(specs);
 		}
+		catch (Error& s)
+		{
+			exceptionHandler.addError(this, s);
+		}
+	}
+
+	void writeToRingBuffer(double value, int numSamplesForAnalysis)
+	{
+		if (ringBuffer != nullptr &&
+			numSamplesForAnalysis > 0 &&
+			getRootNetwork()->isRenderingFirstVoice())
+		{
+			ringBuffer->write(value, (int)(jmax(1.0, sampleRateFactor * (double)numSamplesForAnalysis)));
+		}
+	}
+
+	void processFrame(NodeBase::FrameType& data) final override
+	{
+		if (data.size() == 1)
+			processMonoFrame(MonoFrameType::as(data.begin()));
+		if (data.size() == 2)
+			processStereoFrame(StereoFrameType::as(data.begin()));
+	}
+
+	void processMonoFrame(MonoFrameType& data) final override
+	{
+		wrapper.p.setSamplesToWrite(1);
+		wrapper.processFrame(data);
+	}
+
+	void processStereoFrame(StereoFrameType& data) final override
+	{
+		wrapper.p.setSamplesToWrite(1);
+		wrapper.processFrame(data);
+	}
+
+	void process(ProcessData& data) noexcept final override
+	{
+		wrapper.p.setSamplesToWrite(data.getNumSamples());
+		wrapper.process(data);
 	}
 
 	NamedValueSet getDefaultProperties() const
@@ -192,35 +278,156 @@ public:
 	void handleHiseEvent(HiseEvent& e) final override
 	{
 		wrapper.handleHiseEvent(e);
-
-		if (wrapper.allowsModulation())
-		{
-			double value = 0.0;
-			if (wrapper.handleModulation(value))
-				sendValueToTargets(value, 0);
-		}
 	}
 
-	RestorableNode* getAsRestorableNode() override
-	{
-		if (auto hc = getAsHardcodedNode())
-		{
-			return hc;
-		}
-
-		auto rn = dynamic_cast<RestorableNode*>(wrapper.getInternalT());
-
-		return rn;
-	}
-
-	HardcodedNode* getAsHardcodedNode() override
-	{
-		return wrapper.getObject().getAsHardcodedNode();
-	}
+	//parameter::data_pool parameterDataPool;
 
 	WrapperType wrapper;
-	valuetree::PropertyListener bypassListener;
+
 };
+
+
+struct combined_parameter_base
+{
+	struct Data
+	{
+		double getPmaValue() const { return value * mulValue + addValue; }
+
+		double getPamValue() const { return (value + addValue) * mulValue; }
+
+		double value = 0.0;
+		double mulValue = 1.0;
+		double addValue = 0.0;
+	} data;
+
+	NormalisableRange<double> currentRange;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base);
+};
+
+struct CombinedParameterDisplay : public ModulationSourceBaseComponent
+{
+	CombinedParameterDisplay(combined_parameter_base* b, PooledUIUpdater* u) :
+		ModulationSourceBaseComponent(u),
+		obj(b)
+	{
+		setSize(140, 80);
+	};
+
+	void timerCallback() override
+	{
+		repaint();
+	}
+
+	void paint(Graphics& g) override;
+
+	WeakReference<combined_parameter_base> obj;
+};
+
+template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
+{
+	ParameterMultiplyAddNode(DspNetwork* n, ValueTree d) :
+		ModulationSourceNode(n, d)
+	{
+		Array<ParameterDataImpl> pData;
+		obj.createParameters(pData);
+
+		initParameterData(pData);
+
+		valueRangeUpdater.setCallback(getModulationTargetTree(), valuetree::AsyncMode::Asynchronously, [this](ValueTree v, bool wasAdded)
+		{
+			auto firstChild = getModulationTargetTree().getChild(0);
+
+			if (!firstChild.isValid())
+			{
+				NormalisableRange<double> defaultRange(0.0, 1.0);
+				auto thisValue = getParameter("Value")->data;
+				obj.currentRange = defaultRange;
+				RangeHelpers::storeDoubleRange(thisValue, false, defaultRange, getUndoManager());
+			}
+			else if (auto p = getParameterData(firstChild))
+			{
+				auto thisValue = getParameter("Value")->data;
+				RangeHelpers::storeDoubleRange(thisValue, false, p.range, getUndoManager());
+				obj.currentRange = p.range;
+
+				auto v = obj.data.getPmaValue();
+				getParameterHolder()->call(v);
+			}
+		});
+	};
+
+	void timerCallback() override
+	{
+		obj.p.updateUI();
+	}
+
+	bool isUsingNormalisedRange() const override
+	{
+		return false;
+	}
+
+	parameter::dynamic_base_holder* getParameterHolder() override
+	{
+		return &obj.p;
+	}
+
+	
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new ParameterMultiplyAddNode<T>(n, d); };
+	static Identifier getStaticId() { return T::getStaticId(); };
+
+	Component* createExtraComponent()
+	{
+		auto b = dynamic_cast<combined_parameter_base*>(&obj.getWrappedObject());
+		auto u = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
+		auto cp =  new CombinedParameterDisplay(b, u);
+		cp->getProperties().set("circleOffsetY", -40.0f);
+		return cp;
+	}
+
+	void reset()
+	{
+
+	}
+
+	void prepare(PrepareSpecs ps) final override
+	{
+
+	}
+
+	void processFrame(NodeBase::FrameType& data) final override
+	{
+		
+	}
+
+	void processMonoFrame(MonoFrameType& data) final override
+	{
+	}
+
+	void processStereoFrame(StereoFrameType& data) final override
+	{
+	}
+
+	void process(ProcessData& data) noexcept final override
+	{
+	}
+
+	Array<ParameterDataImpl> createInternalParameterList() override
+	{  
+		Array<ParameterDataImpl> pData;
+		obj.createParameters(pData); 
+		return pData; 
+	}
+
+	void handleHiseEvent(HiseEvent& e) final override
+	{}
+
+	T obj;
+
+	valuetree::ChildListener valueRangeUpdater;
+};
+
 
 
 class RestorableNode
@@ -277,7 +484,7 @@ public:
 	{
 		CombinedParameterValue(const HiseDspBase::ParameterData& p):
 			id(p.id),
-			callback(p.db),
+			callback(p.dbNew),
 			lastValue(p.defaultValue)
 		{
 
@@ -448,12 +655,7 @@ public:
 	{
 		if (auto typed = dynamic_cast<HiseDspBase*>(&obj->getObject()))
 		{
-			if (auto hc = typed->getAsHardcodedNode())
-			{
-				hc->fillInternalParameterList(typed, id);
-				internalNodes.addArray(hc->internalNodes);
-			}
-
+			
 			internalNodes.add({ typed, id });
 			fillInternalParameterList(typed, id);
 		}
@@ -491,6 +693,9 @@ private:
 
 	Array<InternalNode> internalNodes;
 };
+
+
+
 
 
 struct hc
@@ -533,6 +738,7 @@ public:
 		int w = 256;
 		int h = 0;
 
+#if RE
 		for (auto nId : nodeIds)
 		{
 			if (auto node = hc->getNode(nId))
@@ -545,6 +751,7 @@ public:
 				h += newComponent->getHeight();
 			}
 		}
+#endif
 
 		setSize(w, h);
 	}
@@ -610,11 +817,7 @@ struct hardcoded_base : public HiseDspBase,
 {
 	virtual ~hardcoded_base() {};
 
-	HardcodedNode* getAsHardcodedNode() override
-	{
-		return this;
-	}
-
+#if RE
 	int getExtraWidth() const override
 	{
 		if (extraWidth != -1)
@@ -630,79 +833,42 @@ struct hardcoded_base : public HiseDspBase,
 
 		return HiseDspBase::getExtraHeight();
 	}
+#endif
 
-	Component* createExtraComponent(PooledUIUpdater* updater) override
-	{
-		extraHeight = -1;
-		extraWidth = -1;
-		StringArray sa = getNodeIdsWithPublicComponent();
-
-		if (sa.isEmpty())
-			return nullptr;
-		else
-		{
-			auto c = new HardcodedNodeComponent(this, sa, updater);
-			extraHeight = c->getHeight();
-			extraWidth = c->getWidth();
-			return c;
-		}
-			
-	}
+	
 
 	int extraHeight = -1;
 	int extraWidth = -1;
 };
 #endif
 
-template <class Initialiser, class T, class PropertyClass=properties::none> struct cpp_node : public SingleWrapper<T>
+template <class Initialiser, class T, class PropertyClass=properties::none> struct cpp_node: public HiseDspBase
 {
 	static constexpr bool isModulationSource = T::isModulationSource;
 	static constexpr int NumChannels = T::NumChannels;
 
-	
+	// We treat everything in this node as opaque...
+	GET_SELF_AS_OBJECT();
 
 	static Identifier getStaticId() { return Initialiser::getStaticId(); };
 
 	using FixBlockType = snex::Types::ProcessDataFix<NumChannels>;
 	using FrameType = snex::Types::span<float, NumChannels>;
 
-	void initialise(NodeBase* n) override
+	void initialise(NodeBase* n)
 	{
 		Initialiser init;
 
 		init.initialise(obj);
 		obj.initialise(n);
 		props.initWithRoot(n, this, obj);
-
 	}
 
 	template <int P> static void setParameter(void* ptr, double v)
 	{
-		static_cast<cpp_node*>(ptr)->obj.setParameter<P>(v);
+		auto* objPtr = &static_cast<cpp_node*>(ptr)->obj;
+		T::setParameter<P>(objPtr, v);
 	}
-
-	template <int I, int Limit> struct ParameterAdder
-	{
-		struct Below
-		{
-			static constexpr int value = I < Limit;
-		};
-
-		ParameterAdder(cpp_node& p, Array<ParameterData>& d)
-		{
-			add_(p, d, std::integral_constant<bool, Below::value>{});
-		}
-
-		void add_(cpp_node& obj, Array<ParameterData>& d, std::true_type)
-		{
-			obj.addParameter<I>(d);
-		}
-
-		void add_(cpp_node& obj, Array<ParameterData>& d, std::false_type)
-		{
-
-		}
-	};
 
 	void process(FixBlockType& d)
 	{
@@ -722,59 +888,35 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 		obj.processFrame(fd);
 	}
 
-	constexpr bool allowsModulation()
-	{
-		return obj.isModulationSource;
-	}
-
 	void prepare(PrepareSpecs ps)
 	{
 		obj.prepare(ps);
 	}
 
-	forcedinline void reset() noexcept { obj.reset(); }
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
 
-	forcedinline bool handleModulation(double& value) noexcept
+	bool isPolyphonic() const
+	{
+		return false;
+	}
+
+	void reset() noexcept { obj.reset(); }
+
+	bool handleModulation(double& value) noexcept
 	{
 		return obj.handleModulation(value);
 	}
 
-	constexpr auto& getObject() { return *this; }
-	constexpr const auto& getObject() const { return *this; }
-
-	void createParameters(Array<ParameterData>& data) override
+	void createParameters(Array<ParameterDataImpl>& data)
 	{
-		static constexpr int NumParameters = obj.parameters.size;
-
-#define ADD_PARAMETER(x) ParameterAdder<x, NumParameters>(*this, data)
-
-		ADD_PARAMETER(0); ADD_PARAMETER(1); ADD_PARAMETER(2); ADD_PARAMETER(3);
-		ADD_PARAMETER(4); ADD_PARAMETER(5); ADD_PARAMETER(6); ADD_PARAMETER(7);
-
-		ADD_PARAMETER(8); ADD_PARAMETER(9); ADD_PARAMETER(10); ADD_PARAMETER(11);
-		ADD_PARAMETER(12); ADD_PARAMETER(13); ADD_PARAMETER(14); ADD_PARAMETER(15);
-
-#undef ADD_PARAMETER
-
+		obj.parameters.addToList(data);
 		props.initWithRoot(nullptr, nullptr, obj);
 	}
 
-	template <int P> void addParameter(Array<ParameterData>& data)
-	{
-		String pName = "Parameter";
-
-		pName << String(P);
-
-
-		ParameterData p(pName, obj.parameters.createParameterRange<P>());
-		p.db = [this](double v)
-		{
-			obj.setParameter<P>(v);
-		};
-
-		data.add(p);
-	}
-
+	T obj;
 	PropertyClass props;
 };
 
@@ -903,9 +1045,21 @@ static Identifier getStaticId() { return Identifier(id); };
             monoNodes.add(newItem);
         }
         
-        template <class T> void registerNode(const PostCreateCallback& cb = {})
+		template <class T, class ComponentType=ModulationSourcePlotter> void registerModNode(const PostCreateCallback& cb = {})
+		{
+			using WrappedT = HiseDspNodeBaseWithModulation<T, ComponentType>;
+
+			Item newItem;
+			newItem.cb = WrappedT::createNode;
+			newItem.id = WrappedT::getStaticId;
+			newItem.pb = cb;
+
+			monoNodes.add(newItem);
+		};
+
+        template <class T, class ComponentType=NoExtraComponent> void registerNode(const PostCreateCallback& cb = {})
         {
-            using WrappedT = HiseDspNodeBase<T>;
+            using WrappedT = HiseDspNodeBase<T, ComponentType>;
             
             Item newItem;
             newItem.cb = WrappedT::createNode;
@@ -915,10 +1069,10 @@ static Identifier getStaticId() { return Identifier(id); };
             monoNodes.add(newItem);
         };
         
-        template <class MonoT, class PolyT> void registerPolyNode(const PostCreateCallback& cb = {})
+        template <class MonoT, class PolyT, class ComponentType=NoExtraComponent> void registerPolyNode(const PostCreateCallback& cb = {})
         {
-            using WrappedPolyT = HiseDspNodeBase<PolyT>;
-            using WrappedMonoT = HiseDspNodeBase<MonoT>;
+            using WrappedPolyT = HiseDspNodeBase<PolyT, ComponentType>;
+            using WrappedMonoT = HiseDspNodeBase<MonoT, ComponentType>;
             
             {
                 Item newItem;
@@ -962,14 +1116,14 @@ static Identifier getStaticId() { return Identifier(id); };
 			polyNodes.sort(sorter);
 		}
 
-    private:
+    protected:
         
-        struct Item
-        {
-            CreateCallback cb;
-            IdFunction id;
-            PostCreateCallback pb;
-        };
+		struct Item
+		{
+			CreateCallback cb;
+			IdFunction id;
+			PostCreateCallback pb;
+		};
         
         Array<Item> monoNodes;
         Array<Item> polyNodes;

@@ -52,10 +52,9 @@ template <typename ProcessDataType> struct Block
 	{
 		constexpr int NumChannelsThisTime = T::NumChannels;
 
-		using ThisProcessType = ProcessDataFix<NumChannelsThisTime>;
-		auto cd = ProcessDataHelpers<NumChannelsThisTime>::makeChannelData(d.getRawDataPointers() + channelIndex);
+		ProcessDataFix<NumChannelsThisTime> thisData(d.getRawDataPointers() + channelIndex, d.getNumSamples());
+		thisData.copyNonAudioDataFrom(d);
 
-		ThisProcessType thisData(d, cd);
 		obj.process(thisData);
 		channelIndex += NumChannelsThisTime;
 	}

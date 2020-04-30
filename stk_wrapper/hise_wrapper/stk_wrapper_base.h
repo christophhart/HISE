@@ -111,7 +111,9 @@ public:
 	using PolyObjectType = PolyData<ObjectType, NumVoices>;
 
 	SET_HISE_POLY_NODE_ID(T::getId());
+#if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
+#endif
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	GET_SELF_AS_OBJECT(WrapperBase);
@@ -163,7 +165,7 @@ public:
 	EffectWrapper();
 
 	void process(ProcessData& d);
-	void processFrame(float* frameData, int numChannels);
+	//void processFrame(FrameType& data);
 	void handleHiseEvent(HiseEvent& ) { }
 };
 
@@ -175,7 +177,7 @@ public:
 	InstrumentWrapper();
 
 	void process(ProcessData& d);
-	void processFrame(float* frameData, int numChannels);
+	//void processFrame(FrameType& d);
 	void handleHiseEvent(HiseEvent& e);
 };
 

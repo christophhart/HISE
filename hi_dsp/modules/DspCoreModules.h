@@ -64,6 +64,11 @@ public:
 		fadeTimeSamples = newFadeTimeInSamples;
 	}
 
+	template <typename T> void processBlock(T& data)
+	{
+		processBlock(data.begin(), data.size());
+	}
+
 	void processBlock(float* data, int numValues)
 	{
 		ScopedLockType sl(processLock);

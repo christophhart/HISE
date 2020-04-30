@@ -46,10 +46,12 @@ public:
 	SET_HISE_POLY_NODE_ID("seq");
 	GET_SELF_AS_OBJECT(seq_impl);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
+
+#if RE
 	SET_HISE_NODE_EXTRA_WIDTH(512);
 	SET_HISE_NODE_EXTRA_HEIGHT(100);
+#endif
 
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
 	void createParameters(Array<ParameterData>& data) override;
 	void initialise(NodeBase* n) override;
 	bool handleModulation(double& value);
@@ -60,7 +62,7 @@ public:
 	{
 		if (packData != nullptr)
 		{
-			auto peakValue = jlimit(0.0, 0.999999, DspHelpers::findPeak(data.begin(), data.size());
+			auto peakValue = jlimit(0.0, 0.999999, DspHelpers::findPeak(data.begin(), data.size()));
 			auto index = int(peakValue * (double)packData->getNumSliders());
 
 			if (lastIndex.get() != index)
@@ -69,7 +71,10 @@ public:
 				modValue.get().setModValue(packData->getValue(index));
 			}
 
-			FloatVectorOperations::fill(frameData, (float)modValue.get().getModValue(), numChannels);
+			float v = (float)modValue.get().getModValue();
+
+			for (auto& s : data)
+				s = v;
 		}
 	}
 
@@ -107,17 +112,15 @@ public:
 DEFINE_EXTERN_NODE_TEMPLATE(seq, seq_poly, seq_impl);
 
 
+
 struct TableNode : public HiseDspBase
 {
 	SET_HISE_NODE_ID("table");
 	GET_SELF_AS_OBJECT(TableNode);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-	SET_HISE_NODE_EXTRA_WIDTH(512);
-	SET_HISE_NODE_EXTRA_HEIGHT(100);
 
 	struct TableInterface;
 
-	Component* createExtraComponent(PooledUIUpdater* updater) override;
 	void createParameters(Array<ParameterData>& data) override;
 	void initialise(NodeBase* n) override;
 	bool handleModulation(double& value);
@@ -165,6 +168,8 @@ struct TableNode : public HiseDspBase
 
 	double currentValue = 0;
 	bool changed = true;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TableNode);
 };
 
 namespace core
@@ -175,8 +180,11 @@ struct file_player : public AudioFileNodeBase
 	SET_HISE_NODE_ID("file_player");
 	GET_SELF_AS_OBJECT(file_player);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+#if RE
 	SET_HISE_NODE_EXTRA_WIDTH(256);
 	SET_HISE_NODE_EXTRA_HEIGHT(100);
+#endif
 
 	file_player();;
 
@@ -186,6 +194,8 @@ struct file_player : public AudioFileNodeBase
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
+		static_assert(std::is_base_of<snex::Types::InternalData, ProcessDataType>(), "not called with process data type");
+
 		SpinLock::ScopedLockType sl(audioFile->getLock());
 
 		if (currentBuffer->clear)
@@ -193,11 +203,11 @@ struct file_player : public AudioFileNodeBase
 
 		int cIndex = 0;
 
-		for (auto c : d)
+		for (auto c : data)
 		{
 			double thisUptime = uptime;
 
-			for (auto& s : d.toChannelData(c))
+			for (auto& s : data.toChannelData(c))
 			{
 				s += getSample(thisUptime, cIndex);
 				thisUptime += uptimeDelta;
@@ -206,7 +216,7 @@ struct file_player : public AudioFileNodeBase
 			cIndex++;
 		}
 
-		uptime += (double)d.getNumSamples() * uptimeDelta;
+		uptime += (double)data.getNumSamples() * uptimeDelta;
 
 		updatePosition();
 	}

@@ -39,51 +39,18 @@ using namespace hise;
 
 class HardcodedNode;
 
+
+
+
 class ParameterHolder
 {
 public:
 
-	struct ParameterData
-	{
-		ParameterData(const String& id_);;
-		ParameterData(const String& id_, NormalisableRange<double> r);
-		ParameterData withRange(NormalisableRange<double> r);
-
-		ValueTree createValueTree() const;
-
-		void setDefaultValue(double newDefaultValue)
-		{
-			defaultValue = newDefaultValue;
-		}
-
-		void callUnscaled(double newValue) const;
-
-		void operator()(double newValue) const;
-		void setBypass(double newValue) const;
-		void callWithRange(double value) const;
-		void addConversion(const Identifier& converterId);
-		void setParameterValueNames(const StringArray& valueNames);
-		void init();
-
-		void setCallback(const std::function<void(double)>& callback)
-		{
-			db = callback;
-			db(defaultValue);
-		}
-
-		String id;
-		NormalisableRange<double> range;
-		double defaultValue = 0.0;
-		std::function<void(double)> db;
-		StringArray parameterNames;
-
-		double lastValue = 0.0;
-		bool isUsingRange = true;
-	};
+	using ParameterData = ParameterDataImpl;
 
 	virtual ~ParameterHolder() {};
 
-	virtual void createParameters(Array<ParameterData>& data) = 0;
+	virtual void createParameters(Array<ParameterData>& data) {};
 
 };
 
@@ -93,35 +60,7 @@ public:
 
 	HiseDspBase() {};
 
-	using Function = std::function<void(HiseDspBase&)>;
-
 	virtual ~HiseDspBase() {};
-
-	template <class ObjectType> class ExtraComponent : public Component,
-		public PooledUIUpdater::SimpleTimer
-	{
-	protected:
-
-		ExtraComponent(ObjectType* t, PooledUIUpdater* updater) :
-			SimpleTimer(updater),
-			object(dynamic_cast<HiseDspBase*>(t))
-		{};
-
-		ObjectType* getObject() const
-		{
-			return dynamic_cast<ObjectType*>(object.get());
-		}
-
-	private:
-
-		WeakReference<HiseDspBase> object;
-	};
-
-	bool isHardcoded() const;
-
-	virtual int getExtraWidth() const { return 0; };
-
-	virtual int getExtraHeight() const { return 0; };
 
 	virtual void initialise(NodeBase* n)
 	{
@@ -130,23 +69,10 @@ public:
 
 	virtual void prepare(PrepareSpecs ) {};
 
-    /** Override this method if the node wasn't fully initialised. */
-    virtual bool needsReinitialisation() const { return false; }
-    
-	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
-
 	virtual void handleHiseEvent(HiseEvent& e)
 	{
 		ignoreUnused(e);
 	};
-
-	
-
-	virtual Component* createExtraComponent(PooledUIUpdater* updater)
-	{
-		ignoreUnused(updater);
-		return nullptr;
-	}
 
 	virtual bool isPolyphonic() const { return false; }
 
@@ -160,17 +86,9 @@ template <class T> class SingleWrapper : public HiseDspBase
 {
 public:
 
-	int getExtraHeight() const final override { return this->obj.getExtraHeight(); }
-	int getExtraWidth() const final override { return this->obj.getExtraWidth(); }
-
 	inline void initialise(NodeBase* n) override
 	{
 		obj.initialise(n);
-	}
-
-	Component* createExtraComponent(PooledUIUpdater* updater) override
-	{
-		return obj.createExtraComponent(updater);
 	}
 
 	void handleHiseEvent(HiseEvent& e) final override
@@ -180,28 +98,13 @@ public:
 
 	bool isPolyphonic() const override
 	{
-		return obj.isPolyphonic();
+		return obj.getWrappedObject().isPolyphonic();
 	}
-
-	HiseDspBase* getInternalT()
-	{
-		return dynamic_cast<HiseDspBase*>(&obj);
-	}
-
-	HardcodedNode* getAsHardcodedNode() override { return obj.getAsHardcodedNode(); }
 
 protected:
 
 	T obj;
 };
-
-namespace wrap
-{
-
-
-}
-
-
 
 
 }

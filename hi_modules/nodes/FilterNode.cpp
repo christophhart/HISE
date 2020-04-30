@@ -38,17 +38,27 @@ using namespace juce;
 using namespace hise;
 
 
-struct FilterNodeGraph : public HiseDspBase::ExtraComponent<CoefficientProvider>
+#define BIG 1
+
+
+struct FilterNodeGraph : public ScriptnodeExtraComponent<CoefficientProvider>
 {
 	FilterNodeGraph(CoefficientProvider* d, PooledUIUpdater* h) :
-		ExtraComponent<CoefficientProvider>(d, h),
+		ScriptnodeExtraComponent<CoefficientProvider>(d, h),
 		filterGraph(1)
 	{
 		lastCoefficients = {};
 		this->addAndMakeVisible(filterGraph);
 		filterGraph.addFilter(hise::FilterType::HighPass);
 
+		setSize(256, 100);
+
 		timerCallback();
+	}
+
+	static Component* createExtraComponent(CoefficientProvider* p, PooledUIUpdater* h)
+	{
+		return new FilterNodeGraph(p, h);
 	}
 
 	bool coefficientsChanged(const IIRCoefficients& first, const IIRCoefficients& second) const
@@ -92,10 +102,8 @@ void FilterNodeBase<FilterType, NV>::setMode(double newMode)
 		filter.get().setType((int)newMode);
 	else
 	{
-		filter.forEachVoice([newMode](FilterObject& f)
-		{
+		for(auto& f: filter)
 			f.setType((int)newMode);
-		});
 	}
 }
 
@@ -106,10 +114,8 @@ void FilterNodeBase<FilterType, NV>::setQ(double newQ)
 		filter.get().setQ(newQ);
 	else
 	{
-		filter.forEachVoice([newQ](FilterObject& f)
-		{
+		for(auto& f: filter)
 			f.setQ(newQ);
-		});
 	}
 }
 
@@ -122,10 +128,8 @@ void FilterNodeBase<FilterType, NV>::setGain(double newGain)
 		filter.get().setGain(gainValue);
 	else
 	{
-		filter.forEachVoice([gainValue](FilterObject& f)
-		{
+		for (auto& f : filter)
 			f.setGain(gainValue);
-		});
 	}
 }
 
@@ -136,32 +140,9 @@ void FilterNodeBase<FilterType, NV>::setFrequency(double newFrequency)
 		filter.get().setFrequency(newFrequency);
 	else
 	{
-		filter.forEachVoice([newFrequency](FilterObject& f)
-		{
+		for (auto& f : filter)
 			f.setFrequency(newFrequency);
-		});
 	}
-}
-
-template <class FilterType, int NV>
-void FilterNodeBase<FilterType, NV>::processFrame(float* frameData, int numChannels)
-{
-	filter.get().processFrame(frameData, numChannels);
-}
-
-
-template <class FilterType, int NV>
-void scriptnode::filters::FilterNodeBase<FilterType, NV>::processDataPointers(float** data, int numChannels, int numSamples)
-{
-	buffer.setDataToReferTo(data, numChannels, numSamples);
-	FilterHelpers::RenderData r(buffer, 0, numSamples);
-	filter.get().render(r);
-}
-
-template <class FilterType, int NV>
-void FilterNodeBase<FilterType, NV>::process(ProcessData& d) noexcept
-{
-	processDataPointers(d.data, d.getNumChannels(), d.getNumSamples());
 }
 
 template <class FilterType, int NV>
@@ -170,7 +151,10 @@ void FilterNodeBase<FilterType, NV>::reset()
 	if (filter.isMonophonicOrInsideVoiceRendering())
 		filter.get().reset();
 	else
-		filter.forEachVoice([](FilterObject& f) { f.reset(); });
+	{
+		for (auto& f : filter)
+			f.reset();
+	}
 }
 
 template <class FilterType, int NV>
@@ -180,87 +164,100 @@ IIRCoefficients FilterNodeBase<FilterType, NV>::getCoefficients()
 }
 
 template <class FilterType, int NV>
-void FilterNodeBase<FilterType, NV>::prepare(PrepareSpecs ps) noexcept
+void FilterNodeBase<FilterType, NV>::prepare(PrepareSpecs ps)
 {
 	sr = ps.sampleRate;
 
 	auto c = ps.numChannels;
 	auto s = ps.sampleRate;
 
+	if (ps.numChannels != 1)
+	{
+		Error error;
+		error.error = Error::ChannelMismatch;
+		error.actual = ps.numChannels;
+		error.expected = 1;
+
+		throw error;
+	}
+
 	filter.prepare(ps);
 
-	filter.forEachVoice([c, s](FilterObject& f)
+	for(auto& f: filter)
 	{
 		f.setNumChannels(c);
 		f.setSampleRate(s);
-	});
-}
-
-template <class FilterType, int NV>
-Component* FilterNodeBase<FilterType, NV>::createExtraComponent(PooledUIUpdater* updater)
-{
-	return new FilterNodeGraph(this, updater);
+	};
 }
 
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::createParameters(Array<ParameterData>& parameters)
 {
 	{
-		ParameterData p("Frequency");
+		DEFINE_PARAMETERDATA(FilterNodeBase, Frequency);
 		p.range = { 20.0, 20000.0, 0.1 };
 		p.range.setSkewForCentre(1000.0);
 		p.defaultValue = 1000.0;
+#if BIG
 		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setFrequency);
+#endif
 		parameters.add(std::move(p));
 	}
 	{
-		ParameterData p("Q");
+		DEFINE_PARAMETERDATA(FilterNodeBase, Q);
+
+#if BIG
 		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setQ);
+#endif
 		p.range = { 0.3, 9.9, 0.1 };
 		p.range.setSkewForCentre(1.0);
 		p.defaultValue = 1.0;
 		parameters.add(std::move(p));
 	}
 	{
-		ParameterData p("Gain");
+		DEFINE_PARAMETERDATA(FilterNodeBase, Gain);
 		p.range = { -18, 18, 0.1 };
 		p.range.setSkewForCentre(0.0);
 		p.defaultValue = 0.0;
+
+#if BIG
 		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setGain);
+#endif
 		parameters.add(std::move(p));
 	}
 	{
-		ParameterData p("Smoothing");
+		DEFINE_PARAMETERDATA(FilterNodeBase, Smoothing);
 		p.range = { 0.0, 1.0, 0.01 };
 		p.range.setSkewForCentre(0.1);
 		p.defaultValue = 0.01;
-		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setSmoothingTime);
+
+#if BIG
+		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setSmoothing);
+#endif
 		parameters.add(std::move(p));
 	}
 	{
-		ParameterData p("Mode");
+		DEFINE_PARAMETERDATA(FilterNodeBase, Mode);
 		p.setParameterValueNames(filter.getCurrentOrFirst().getModes());
+#if BIG
 		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setMode);
+#endif
 		parameters.add(std::move(p));
 	}
 }
 
 
 template <class FilterType, int NV>
-void FilterNodeBase<FilterType, NV>::setSmoothingTime(double newSmoothingTime)
+void FilterNodeBase<FilterType, NV>::setSmoothing(double newSmoothingTime)
 {
 	if (filter.isMonophonicOrInsideVoiceRendering())
 		filter.get().setSmoothingTime(newSmoothingTime);
 	else
 	{
-		filter.forEachVoice([newSmoothingTime](FilterObject& f)
-		{
+		for(auto& f: filter)
 			f.setSmoothingTime(newSmoothingTime);
-		});
 	}
 }
-
-
 
 #define DEFINE_FILTER_NODE_TEMPIMPL(className) template class FilterNodeBase<hise::MultiChannelFilter<className>, 1>; \
 											template class FilterNodeBase<hise::MultiChannelFilter<className>, NUM_POLYPHONIC_VOICES>;
@@ -276,7 +273,6 @@ DEFINE_FILTER_NODE_TEMPIMPL(StateVariableEqSubType);
 DEFINE_FILTER_NODE_TEMPIMPL(LinkwitzRiley);
 
 #undef DEFINE_FILTER_NODE_TEMPIMPL
-
 
 template <int NV>
 scriptnode::filters::fir_impl<NV>::fir_impl()
@@ -303,8 +299,17 @@ void scriptnode::filters::fir_impl<NV>::rebuildCoefficients()
 
 	SimpleReadWriteLock::ScopedWriteLock sl(coefficientLock);
 
-	leftFilters.forEachVoice([this](FilterType& f) { f.coefficients = leftCoefficients; f.reset(); });
-	rightFilters.forEachVoice([this](FilterType& f) { f.coefficients = rightCoefficients; f.reset(); });
+	for (auto& f : leftFilters)
+	{
+		f.coefficients = leftCoefficients; 
+		f.reset();
+	}
+
+	for (auto& f : rightFilters)
+	{
+		f.coefficients = rightCoefficients;
+		f.reset();
+	}
 
 	ok = true;
 }
@@ -330,8 +335,11 @@ void scriptnode::filters::fir_impl<NV>::reset()
 
 	else
 	{
-		leftFilters.forEachVoice([](FilterType& f) { f.reset(); });
-		rightFilters.forEachVoice([](FilterType& f) { f.reset(); });
+		for (auto& f : leftFilters)
+			f.reset();
+
+		for (auto& f : rightFilters)
+			f.reset();
 	}
 }
 
@@ -341,44 +349,7 @@ bool scriptnode::filters::fir_impl<NV>::handleModulation(double&)
 	return false;
 }
 
-template <int NV>
-void scriptnode::filters::fir_impl<NV>::process(ProcessData& d)
-{
-	if (!ok)
-		return;
 
-	SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
-
-	dsp::AudioBlock<float> l(d.data, 1, d.getNumSamples());
-	dsp::ProcessContextReplacing<float> pcrl(l);
-	leftFilters.get().process(pcrl);
-
-	if (d.getNumChannels() > 1)
-	{
-		dsp::AudioBlock<float> r(d.data + 1, 1, d.getNumSamples());
-		dsp::ProcessContextReplacing<float> pcrr(r);
-		rightFilters.get().process(pcrr);
-	}
-}
-
-template <int NV>
-void scriptnode::filters::fir_impl<NV>::processFrame(float* frameData, int numChannels)
-{
-	if (!ok)
-		return;
-
-	SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
-
-	if (numChannels == 1)
-	{
-		*frameData = leftFilters.get().processSample(*frameData);
-	}
-	else
-	{
-		frameData[0] = leftFilters.get().processSample(frameData[0]);
-		frameData[1] = rightFilters.get().processSample(frameData[1]);
-	}
-}
 
 template <int NV>
 void scriptnode::filters::fir_impl<NV>::prepare(PrepareSpecs specs)
@@ -388,11 +359,14 @@ void scriptnode::filters::fir_impl<NV>::prepare(PrepareSpecs specs)
 	ps.sampleRate = specs.sampleRate;
 	ps.maximumBlockSize = specs.blockSize;
 
-	leftFilters.forEachVoice([ps](FilterType& f) { f.prepare(ps); });
-	rightFilters.forEachVoice([ps](FilterType& f) { f.prepare(ps); });
-
 	leftFilters.prepare(specs);
 	rightFilters.prepare(specs);
+
+	for (auto& f : leftFilters)
+		f.prepare(ps);
+
+	for (auto& f : rightFilters)
+		f.prepare(ps);
 
 	rebuildCoefficients();
 }
@@ -402,17 +376,20 @@ DEFINE_EXTERN_NODE_TEMPIMPL(fir_impl);
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
-	registerPolyNode<one_pole, one_pole_poly>();
-	registerPolyNode<svf, svf_poly>();
-	registerPolyNode<svf_eq, svf_eq_poly>();
-	registerPolyNode<biquad, biquad_poly>();
-	registerPolyNode<ladder, ladder_poly>();
-	registerPolyNode<ring_mod, ring_mod_poly>();
-	registerPolyNode<moog, moog_poly>();
-	registerPolyNode<allpass, allpass_poly>();
-	registerPolyNode<linkwitzriley, linkwitzriley_poly>();
+#if 1
+	registerPolyNode<one_pole, one_pole_poly, FilterNodeGraph>();
+
+	registerPolyNode<svf, svf_poly, FilterNodeGraph>();
+	registerPolyNode<svf_eq, svf_eq_poly, FilterNodeGraph>();
+	registerPolyNode<biquad, biquad_poly, FilterNodeGraph>();
+	registerPolyNode<ladder, ladder_poly, FilterNodeGraph>();
+	registerPolyNode<ring_mod, ring_mod_poly, FilterNodeGraph>();
+	registerPolyNode<moog, moog_poly, FilterNodeGraph>();
+	registerPolyNode<allpass, allpass_poly, FilterNodeGraph>();
+	registerPolyNode<linkwitzriley, linkwitzriley_poly, FilterNodeGraph>();
 	registerNode<convolution>();
 	registerPolyNode<fir, fir_poly>();
+#endif
 }
 
 

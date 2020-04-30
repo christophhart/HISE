@@ -461,11 +461,11 @@ struct convolution : public AudioFileNodeBase
 	SET_HISE_NODE_ID("convolution");
 	GET_SELF_AS_OBJECT(convolution);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-	SET_HISE_NODE_EXTRA_WIDTH(256);
-	SET_HISE_NODE_EXTRA_HEIGHT(100);
 
 	void prepare(PrepareSpecs specs) override
 	{
+		DspHelpers::setErrorIfFrameProcessing(specs);
+
 		lastSampleRate = specs.sampleRate;
 		largestBlockSize = specs.blockSize;
 
@@ -543,20 +543,20 @@ struct convolution : public AudioFileNodeBase
 		return false;
 	}
 
-	void process(ProcessData& d)
+	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto numToProcess = jmin(d.getNumChannels(), convolvers.size());
-
 		SpinLock::ScopedLockType sl(impulseLock);
+
+		auto numToProcess = jmin(data.getNumChannels(), convolvers.size());
 
 		for (int i = 0; i < numToProcess; i++)
 		{
-			auto ptr = d[i].begin();
-			convolvers[i]->process(ptr, ptr, d.getNumSamples());
+			auto ptr = data[i].begin();
+			convolvers[i]->process(ptr, ptr, data.getNumSamples());
 		}
 	}
 
-	void processFrame(float* , int )
+	template <typename FrameDataType> void processFrame(FrameDataType&)
 	{
 		jassertfalse;
 	}
