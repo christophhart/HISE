@@ -272,7 +272,7 @@ public:
 
 		auto cd = Types::ProcessDataHelpers<NumChannels>::makeChannelData(data);
 		int numSamples = Types::ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
-		ProcessType d(cd, numSamples);
+		ProcessType d(cd.begin(), numSamples);
 		
 		d.setEventBuffer(b);
 
@@ -912,6 +912,50 @@ public:
 #define START_BENCHMARK const double start = Time::getMillisecondCounterHiRes();
 #define STOP_BENCHMARK_AND_LOG const double end = Time::getMillisecondCounterHiRes(); logPerformanceMessage(m->executionTime, end - start);
 
+namespace AccessTestClasses
+{
+struct A
+{
+	static constexpr int getValue() { return 3; }
+
+	GET_SELF_AS_OBJECT();
+};
+
+struct B
+{
+	GET_SELF_AS_OBJECT();
+
+	static constexpr int getValue() { return 7; }
+};
+
+struct WrappedA
+{
+	GET_SELF_OBJECT(*this);
+	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+
+	static constexpr int getValue() { return A::getValue() * getOtherValue(); };
+	static constexpr int getOtherValue() { return 8; }
+
+	A obj;
+};
+
+template <typename T> struct OpaqueT
+{
+	GET_SELF_OBJECT(obj);
+	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+
+	static constexpr int getValue() { return T::getValue() * 5; };
+
+	T obj;
+};
+
+using OpaqueB = OpaqueT<B>;
+using OpaqueSquare = OpaqueT<OpaqueT<B>>;
+using OpaqueAccessible = OpaqueT<WrappedA>;
+
+
+}
+
 
 
 
@@ -921,12 +965,51 @@ public:
 
 	HiseJITUnitTest() : UnitTest("HiseJIT UnitTest") {}
 
+	void testAccessWrappers()
+	{
+#define expect_access(expr, result, error) expectEquals<int>(expr, result, error);
+#define test_constexpr(expr, result, error) static_assert(expr == (result), error);
+#define test_and_constexpr(expr, result, error) expect_access(expr, result, error); test_constexpr(expr, result, error);
+
+		constexpr AccessTestClasses::A a;
+		constexpr AccessTestClasses::WrappedA wa;
+		constexpr AccessTestClasses::B b;
+		constexpr AccessTestClasses::OpaqueB wb;
+		constexpr AccessTestClasses::OpaqueSquare os;
+
+		constexpr AccessTestClasses::OpaqueAccessible oa;
+
+		test_and_constexpr(a.getValue(), 3, "A doesn't work");
+		test_and_constexpr(wa.getValue(), 3 * 8, "WrappedA doesn't work");
+		test_and_constexpr(wa.getWrappedObject().getValue(), 3, "WrappedObject::getWrappedObject doesn't return wrapped object");
+		test_and_constexpr(wa.getObject().getValue(), 3 * 8, "WrappedA::getObject() doesn't return itself");
+
+
+		test_and_constexpr(b.getValue(), 7, "B doesn't work");
+		test_and_constexpr(wb.getValue(), 7 * 5, "OpaqueB doesn't work");
+		test_and_constexpr(wb.getObject().getValue(), 7, "OpaqueB::getObject() doesn't return wrapped object");
+
+		test_and_constexpr(os.getValue(), 7 * 5 * 5, "OpaqueSquare doesn't work");
+
+		test_and_constexpr(os.getWrappedObject().getValue(), 7, "OpaqueSquare::getObject() doesn't return most nested object");
+
+		test_and_constexpr(oa.getValue(), 120, "OpaqueAccessible doesn't work");
+
+		test_and_constexpr(oa.getObject().getValue(), 8 * 3, "OpaqueAccesible::getObject() doesn't return accessible");
+
+		test_and_constexpr(oa.getWrappedObject().getValue(), 3, "OpaqueAccessible::getWrappedObject() doesn't work");
+
+		test_and_constexpr(oa.getObject().getOtherValue(), 8, "OpaqueAccessible::getObject part II");
+	}
+
 	void runTest() override
 	{
 		//optimizations = OptimizationIds::getAllIds();
 
+		testArrayTypes();
+		testAccessWrappers();
 		
-		
+
 
 		runTestFiles("plain_parameter_in_chain");
 
@@ -972,6 +1055,64 @@ public:
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
 		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination });
+		
+	}
+	template <typename T> void testWrapType(T& data)
+	{
+		using namespace Types;
+
+		auto idx = IndexType::wrapped(data);
+
+		testBasicIndexOperators(idx);
+
+	}
+
+	template <typename Index> void testBasicIndexOperators(Index& idx)
+	{
+		expectEquals<int>(idx, 0, "init value defaults to zero");
+		expectEquals<int>(idx++, 0, "post inc still zero");
+		expectEquals<int>(idx, 1, "inced after inc");
+		expectEquals<int>(++idx, 2, "incred before pre");
+	}
+
+	template <typename T> void testClampType(const T& data)
+	{
+		using namespace Types;
+
+		auto idx = IndexType::clamped(data);
+
+		testBasicIndexOperators(idx);
+
+		idx++; idx++; idx++; idx++; idx++; idx++; idx++;
+
+		expectEquals<int>(idx, 4, "inced against clamp");
+
+		idx = 9;
+
+		expectEquals<int>(idx, 4, "clamped works");
+		expectEquals<int>(data[idx], 10, "clamped access works");
+
+		idx = 2;
+
+		expectEquals<int>(idx.moved(1), 3, "clamp moved by 1");
+		expectEquals<int>(idx, 3, "clamped after moved");
+		expectEquals<int>(idx.moved(2), 4, "moved against clamped");
+		expectEquals<int>(idx, 4, "clamped after moved");
+	}
+
+	void testArrayTypes()
+	{
+		beginTest("Testing array types");
+
+		using namespace Types;
+
+		span<int, 5> data = { 2, 4, 6, 8, 10 };
+		testClampType(data);
+		testWrapType(data);
+
+		dyn<int> dynData(data);
+		testClampType(dynData);
+
 		
 	}
 

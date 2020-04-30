@@ -40,7 +40,7 @@ struct processor
 	void reset() {}
 	void handleHiseEvent(HiseEvent& e) {}
 	void prepare(PrepareSpecs ps) {}
-	void processFrame(float* data, int numChannels) {}
+	void processFrame(span<float, NumChannels>& d) {}
 	void process(ProcessDataFix<NumChannels>& d) {}
 	bool handleModulation(double& v) {}
 

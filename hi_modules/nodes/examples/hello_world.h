@@ -140,9 +140,11 @@ using SecondParameter = parameter::from0to1<processor,					// the node class
 
 using ParameterType = parameter::chain<ranges::Identity, FirstParameter, SecondParameter>;
 
+//using ParameterType = parameter::empty;
+
 // We can't use the node directly, but wrap it into a container so that it can
 // use the properties and parameters (in this example it's a bit overkill)...
-using ChainWrapper = container::chain<ParameterType, processor>;
+using ChainWrapper = container::chain<ParameterType, processor, core::oscillator, core::oscillator, core::oscillator, core::oscillator, filters::one_pole>;
 
 /** This class will connect the parameters to the objects and defines the ID of this node. */
 struct initialiser
@@ -166,7 +168,7 @@ struct initialiser
 
 		// As you can see, the container does not add any bytes to the actual
 		// node object...
-		static_assert(chainSize == processorSize + parameterSize , "no fat");
+		//static_assert(chainSize == processorSize + parameterSize , "no fat");
 
 		auto& fp = c.getParameter<0>();
 

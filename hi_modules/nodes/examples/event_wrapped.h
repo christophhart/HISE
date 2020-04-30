@@ -33,6 +33,8 @@ struct processor
 	*/
 	DECLARE_SNEX_NODE(processor);
 
+	static const int NumChannels = 2;
+
 	bool isPolyphonic() const { return false; }
 	void reset() {}
 
@@ -48,7 +50,8 @@ struct processor
 		// We'll store the maximum block amount here...
 		maxSize = ps.blockSize;
 	}
-	void processFrame(float* data, int numChannels) {}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d) {}
 
 	void process(ProcessData& d)
 	{
@@ -78,7 +81,7 @@ struct processor
 /** By wrapping the processor into a wrap::event template, we'll make sure that the
     MIDI processing will take place. 
 */
-using Type = container::chain<parameter::empty, wrap::event<processor>>;
+using Type = container::chain<parameter::empty, fix<1, wrap::event<processor>>>;
 
 /** You can uncomment this line instead of the one above and the handleHiseEvent method
     will never be called. 
