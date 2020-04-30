@@ -40,6 +40,30 @@ using namespace juce;
 
 
 
+template <class T> class ScriptnodeExtraComponent : public Component,
+public PooledUIUpdater::SimpleTimer
+{
+public:
+
+	using ObjectType = T;
+
+protected:
+
+	ScriptnodeExtraComponent(ObjectType* t, PooledUIUpdater* updater) :
+		SimpleTimer(updater),
+		object(t)
+	{};
+
+	ObjectType* getObject() const
+	{
+		return object.get();
+	}
+
+private:
+
+	WeakReference<ObjectType> object;
+};
+
 
 class NodeComponent : public Component,
 					  public DspNetwork::SelectionListener,
@@ -95,10 +119,7 @@ public:
 		void mouseUp(const MouseEvent& e) override;
 		void mouseDrag(const MouseEvent& e) override;
 		
-		bool isInterestedInDragSource(const SourceDetails&) override
-		{
-			return true;
-		}
+		bool isInterestedInDragSource(const SourceDetails&) override;
 
 		void itemDragEnter(const SourceDetails& dragSourceDetails) override
 		{

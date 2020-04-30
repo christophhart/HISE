@@ -78,7 +78,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	}
 	else
 	{
-#if HISE_INCLUDE_SNEX
+#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
 		int jitNodeIndex = index - numSnippets - numFiles;
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
@@ -195,7 +195,7 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
 		{
-#if HISE_INCLUDE_SNEX
+#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
 			if (auto network = h->getActiveNetwork())
 			{
 				auto list = network->getListOfNodesWithType<scriptnode::JitNode>(true);

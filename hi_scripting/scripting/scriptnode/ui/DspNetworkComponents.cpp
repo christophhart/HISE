@@ -113,6 +113,8 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::editNodeProperty(*this);
 	if ((key).isKeyCode('q') || key.isKeyCode('Q'))
 		return Actions::toggleBypass(*this);
+	if (((key).isKeyCode('c') || key.isKeyCode('C')))
+		return Actions::toggleCableDisplay(*this);
 	if (((key).isKeyCode('c') || key.isKeyCode('C')) && key.getModifiers().isCommandDown())
 		return Actions::copyToClipboard(*this);
 	if (key == KeyPress::upKey || key == KeyPress::downKey)
@@ -241,6 +243,8 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		g.drawEllipse(start, 2.0f);
 	}
 
+	float alpha = showCables ? 1.0f : 0.1f;
+
 	Array<ParameterSlider*> list;
 	fillChildComponentList(list, this);
 
@@ -262,7 +266,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 						auto start = getCircle(sourceSlider);
 						auto end = getCircle(targetSlider);
 
-						paintCable(g, start, end, Colour(MIDI_PROCESSOR_COLOUR));
+						paintCable(g, start, end, Colour(MIDI_PROCESSOR_COLOUR), alpha);
 					}
 				}
 			}
@@ -297,7 +301,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 					if (parentMatch && paraMatch)
 					{
 						auto end = getCircle(s);
-						paintCable(g, start, end, Colour(0xffbe952c));
+						paintCable(g, start, end, Colour(0xffbe952c), alpha);
 						break;
 					}
 				}
@@ -314,6 +318,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		auto n = b->parent.node.get();
 
 		if (n == nullptr)
+			continue;
+
+		if (!n->isBodyShown())
 			continue;
 
 		auto connection = n->getValueTree().getProperty(PropertyIds::DynamicBypass).toString();
@@ -336,8 +343,49 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 					auto c = n->isBypassed() ? Colours::grey : Colour(SIGNAL_COLOUR).withAlpha(0.8f);
 
-					paintCable(g, start, end, c);
+					paintCable(g, start, end, c, alpha);
 					break;
+				}
+			}
+		}
+	}
+
+	Array<FunkySendComponent*> sendList;
+	fillChildComponentList(sendList, this);
+
+	for (auto s : sendList)
+	{
+		
+		auto nc = s->findParentComponentOfClass<NodeComponent>();
+
+		if (!nc->node->isBodyShown())
+			continue;
+
+		if (auto sn = s->getAsSendNode())
+		{
+			for (auto r : sendList)
+			{
+				nc = r->findParentComponentOfClass<NodeComponent>();
+
+				if (!nc->node->isBodyShown())
+					continue;
+
+				if (auto rn = r->getAsReceiveNode())
+				{
+					if (&sn->cable == rn->source)
+					{
+						float deltaY = JUCE_LIVE_CONSTANT_OFF(-11.5f);
+						float deltaXS = JUCE_LIVE_CONSTANT_OFF(-127.0f);
+						float deltaXE = JUCE_LIVE_CONSTANT_OFF(-49.0f);
+
+						auto start = getCircle(s, false).translated(deltaXS, deltaY);
+						auto end = getCircle(r, false).translated(deltaXE, deltaY);
+
+						if (start.getY() > end.getY())
+							std::swap(start, end);
+
+						paintCable(g, start, end, Colours::white, alpha);
+					}
 				}
 			}
 		}
@@ -493,6 +541,7 @@ bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
 
 bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
 {
+#if 0
 	if (auto hc = node->getAsRestorableNode())
 	{
 		// Check if there is already a node that was unfrozen
@@ -571,6 +620,7 @@ bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
 
 		return true;
 	}
+#endif
 
 	return false;
 }
@@ -601,6 +651,7 @@ bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
 
 	auto f = selection.getFirst();
 
+#if 0
 	if (auto r = f->getAsRestorableNode())
 	{
 		unfreezeNode(f);
@@ -610,6 +661,7 @@ bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
 	{
 		return true;
 	}
+#endif
 
 	return false;
 }
@@ -623,6 +675,13 @@ bool DspNetworkGraph::Actions::copyToClipboard(DspNetworkGraph& g)
 	}
 
 	return false;
+}
+
+bool DspNetworkGraph::Actions::toggleCableDisplay(DspNetworkGraph& g)
+{
+	g.showCables = !g.showCables;
+	g.repaint();
+	return true;
 }
 
 bool DspNetworkGraph::Actions::editNodeProperty(DspNetworkGraph& g)
@@ -979,21 +1038,19 @@ DspNetworkGraph::ScrollableParent::~ScrollableParent()
 	context.detach();
 }
 
-void DspNetworkGraph::ScrollableParent::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel)
+void DspNetworkGraph::ScrollableParent::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
 {
-	if (event.mods.isCommandDown())
+	if (e.mods.isCommandDown())
 	{
 		if (wheel.deltaY > 0)
 			zoomFactor += 0.1f;
 		else
 			zoomFactor -= 0.1f;
 
-		zoomFactor = jlimit(0.25f, 1.0f, zoomFactor);
-
+		zoomFactor = jlimit(0.25f, 2.0f, zoomFactor);
 		auto trans = AffineTransform::scale(zoomFactor);
-
-
 		viewport.getViewedComponent()->setTransform(trans);
+		centerCanvas();
 	}
 }
 
@@ -1298,6 +1355,277 @@ void KeyboardPopup::PopupList::Item::paint(Graphics& g)
 void KeyboardPopup::PopupList::Item::resized()
 {
 	deleteButton.setBounds(getLocalBounds().removeFromRight(getHeight()).reduced(3));
+}
+
+namespace ScriptnodeIcons
+{
+static const unsigned char cableIcon[] = { 110,109,174,71,121,65,139,108,156,65,98,76,55,113,65,252,169,157,65,240,167,104,65,236,81,158,65,168,198,95,65,186,73,158,65,98,131,192,48,65,221,36,158,65,229,208,10,65,158,239,138,65,160,26,11,65,23,217,102,65,98,90,100,11,65,242,210,55,65,242,210,
+49,65,84,227,17,65,23,217,96,65,14,45,18,65,98,158,239,135,65,201,118,18,65,109,231,154,65,72,225,56,65,131,192,154,65,109,231,103,65,98,57,180,154,65,98,16,120,65,115,104,152,65,104,145,131,65,188,116,148,65,231,251,137,65,108,244,253,203,65,233,38,
+217,65,108,41,92,179,65,152,110,234,65,108,174,71,121,65,139,108,156,65,99,109,248,83,147,65,195,245,221,65,98,217,206,87,65,141,151,234,65,227,165,247,64,201,118,228,65,100,59,119,64,55,137,198,65,98,215,163,128,192,252,169,137,65,199,75,23,63,12,2,
+43,62,190,159,92,65,0,0,0,0,98,178,157,95,65,0,0,0,0,154,153,95,65,0,0,0,0,117,147,98,65,111,18,3,59,98,250,126,189,65,217,206,119,62,147,24,251,65,211,77,56,65,254,212,214,65,14,45,166,65,98,164,112,211,65,147,24,173,65,174,71,207,65,6,129,179,65,238,
+124,202,65,41,92,185,65,108,76,55,184,65,223,79,159,65,98,240,167,198,65,53,94,134,65,238,124,200,65,207,247,75,65,49,8,187,65,88,57,24,65,98,152,110,172,65,246,40,192,64,137,65,144,65,139,108,111,64,12,2,93,65,139,108,111,64,98,178,157,215,64,27,47,
+117,64,207,247,115,63,182,243,65,65,219,249,134,64,61,10,152,65,98,145,237,200,64,205,204,186,65,248,83,57,65,250,126,204,65,221,36,130,65,213,120,197,65,108,248,83,147,65,195,245,221,65,99,101,0,0 };
+
+static const unsigned char foldIcon[] = { 110,109,123,20,116,65,141,151,178,65,108,109,231,139,65,106,188,160,65,108,211,77,204,65,209,34,225,65,108,176,114,186,65,0,0,243,65,108,109,231,139,65,188,116,196,65,108,135,22,57,65,217,206,243,65,108,41,92,21,65,182,243,225,65,108,123,20,116,65,141,
+151,178,65,99,109,250,126,11,66,233,38,77,65,108,250,126,11,66,100,59,141,65,108,0,0,0,0,100,59,141,65,108,0,0,0,0,233,38,77,65,108,250,126,11,66,233,38,77,65,99,109,135,22,139,65,164,112,189,64,108,176,114,186,65,0,0,0,0,108,211,77,204,65,121,233,14,
+64,108,182,243,156,65,152,110,2,65,108,135,22,139,65,246,40,38,65,108,41,92,21,65,66,96,21,64,108,135,22,57,65,23,217,206,61,108,135,22,139,65,164,112,189,64,99,101,0,0 };
+
+static const unsigned char gotoIcon[] = { 110,109,111,146,38,66,106,188,168,64,108,35,91,38,66,106,188,168,64,108,35,91,38,66,41,92,217,65,108,215,35,38,66,41,92,217,65,108,215,35,38,66,227,165,218,65,108,57,180,102,65,227,165,218,65,108,57,180,102,65,213,120,176,65,108,150,67,17,66,213,120,
+176,65,108,150,67,17,66,106,188,168,64,108,152,110,104,65,106,188,168,64,108,152,110,104,65,0,0,0,0,108,111,146,38,66,0,0,0,0,108,111,146,38,66,106,188,168,64,99,109,0,0,0,0,219,249,132,65,108,0,0,0,0,199,75,31,65,108,236,81,12,65,199,75,31,65,108,236,
+81,12,65,37,6,113,64,108,16,88,146,65,190,159,84,65,108,236,81,12,65,250,126,182,65,108,236,81,12,65,219,249,132,65,108,0,0,0,0,219,249,132,65,99,101,0,0 };
+
+static const unsigned char propertyIcon[] = { 110,109,0,0,0,0,0,0,0,0,108,152,110,39,66,0,0,0,0,108,152,110,39,66,57,180,102,65,108,174,71,39,66,57,180,102,65,108,174,71,39,66,201,246,29,66,98,172,28,39,66,178,157,33,66,119,62,36,66,43,135,36,66,68,139,32,66,45,178,36,66,108,127,106,220,63,45,178,
+36,66,98,141,151,78,63,43,135,36,66,10,215,163,61,147,152,33,66,227,165,27,61,201,246,29,66,108,227,165,27,61,57,180,102,65,108,0,0,0,0,57,180,102,65,108,0,0,0,0,0,0,0,0,99,109,223,207,25,66,57,180,102,65,108,133,235,89,64,57,180,102,65,108,133,235,89,
+64,94,58,23,66,108,223,207,25,66,94,58,23,66,108,223,207,25,66,57,180,102,65,99,109,254,212,10,65,39,49,226,65,108,236,81,6,66,39,49,226,65,108,236,81,6,66,209,34,7,66,108,254,212,10,65,209,34,7,66,108,254,212,10,65,39,49,226,65,99,109,254,212,10,65,
+121,233,153,65,108,236,81,6,66,121,233,153,65,108,236,81,6,66,244,253,197,65,108,254,212,10,65,244,253,197,65,108,254,212,10,65,121,233,153,65,99,101,0,0 };
+
+static const unsigned char zoom[] = { 110,109,223,79,184,65,254,212,218,65,98,47,221,141,65,63,53,245,65,76,55,37,65,166,155,246,65,238,124,167,64,231,251,212,65,98,90,100,139,191,113,61,171,65,41,92,239,191,154,153,43,65,92,143,122,64,233,38,149,64,98,66,96,213,64,248,83,227,63,244,253,
+40,65,193,202,161,61,80,141,105,65,111,18,131,58,98,33,176,108,65,0,0,0,0,8,172,108,65,0,0,0,0,168,198,111,65,111,18,131,58,98,127,106,200,65,57,180,72,62,43,7,5,66,10,215,67,65,82,184,224,65,125,63,176,65,98,178,157,222,65,125,63,180,65,137,65,220,65,
+111,18,184,65,8,172,217,65,94,186,187,65,108,137,193,26,66,180,200,11,66,108,215,163,10,66,102,230,27,66,108,223,79,184,65,254,212,218,65,99,109,137,65,106,65,104,145,85,64,98,121,233,214,64,41,92,95,64,96,229,208,62,254,212,80,65,236,81,144,64,180,200,
+164,65,98,176,114,252,64,18,131,214,65,211,77,139,65,213,120,228,65,61,10,182,65,45,178,188,65,98,215,163,210,65,111,18,162,65,109,231,219,65,76,55,105,65,221,36,203,65,188,116,33,65,98,244,253,187,65,76,55,193,64,106,188,153,65,129,149,83,64,137,65,
+106,65,104,145,85,64,99,101,0,0 };
+
+static const unsigned char errorIcon[] = { 110,109,186,73,129,65,23,217,150,64,108,225,122,129,65,250,126,54,65,108,55,137,55,65,113,61,129,65,108,145,237,152,64,152,110,129,65,108,182,243,253,60,164,112,55,65,108,0,0,0,0,14,45,154,64,108,219,249,150,64,166,155,196,60,108,141,151,54,65,0,0,0,
+0,98,133,235,79,65,135,22,201,63,125,63,105,65,233,38,73,64,186,73,129,65,23,217,150,64,99,109,27,47,181,64,37,6,17,64,108,158,239,15,64,188,116,183,64,108,115,104,17,64,127,106,40,65,108,152,110,182,64,96,229,94,65,108,43,135,40,65,166,155,94,65,108,
+244,253,94,65,119,190,39,65,108,82,184,94,65,47,221,180,64,108,35,219,39,65,59,223,15,64,98,147,24,14,65,137,65,16,64,8,172,232,64,215,163,16,64,27,47,181,64,37,6,17,64,99,109,55,137,1,65,229,208,206,64,108,137,65,38,65,66,96,133,64,108,162,69,64,65,
+115,104,185,64,108,80,141,27,65,139,108,1,65,108,162,69,64,65,221,36,38,65,108,137,65,38,65,246,40,64,65,108,55,137,1,65,164,112,27,65,108,203,161,185,64,246,40,64,65,108,154,153,133,64,221,36,38,65,108,61,10,207,64,139,108,1,65,108,154,153,133,64,115,
+104,185,64,108,203,161,185,64,66,96,133,64,108,55,137,1,65,229,208,206,64,99,101,0,0 };
+
+}
+
+juce::Path DspNetworkGraph::WrapperWithMenuBar::ActionButton::createPath(const String& url) const
+{
+	Path p;
+
+	LOAD_PATH_IF_URL("cable", ScriptnodeIcons::cableIcon);
+	LOAD_PATH_IF_URL("fold", ScriptnodeIcons::foldIcon);
+	LOAD_PATH_IF_URL("deselect", EditorIcons::cancelIcon);
+	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
+	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
+	LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
+	LOAD_PATH_IF_URL("goto", ScriptnodeIcons::gotoIcon);
+	LOAD_PATH_IF_URL("properties", ScriptnodeIcons::propertyIcon);
+	LOAD_PATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+
+	LOAD_PATH_IF_URL("copy", SampleMapIcons::copySamples);
+	LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+	LOAD_PATH_IF_URL("duplicate", SampleMapIcons::duplicateSamples);
+	LOAD_PATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
+	LOAD_PATH_IF_URL("zoom", ScriptnodeIcons::zoom);
+	LOAD_PATH_IF_URL("error", ScriptnodeIcons::errorIcon);
+	LOAD_PATH_IF_URL("export", HnodeIcons::freezeIcon);
+	LOAD_PATH_IF_URL("wrap", HnodeIcons::mapIcon);
+	LOAD_PATH_IF_URL("surround", HnodeIcons::injectNodeIcon);
+
+	return p;
+}
+
+void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
+{
+	auto p = dynamic_cast<DspNetworkGraph*>(canvas.viewport.getViewedComponent());
+
+	ActionButton* b = new ActionButton(p, name);
+
+	if (name == "cable")
+	{
+		b->actionFunction = Actions::toggleCableDisplay;
+		b->stateFunction = [](DspNetworkGraph& g) { return g.showCables; };
+		b->setTooltip("Show / Hide cables [C]");
+	}
+	if (name == "add")
+	{
+		b->actionFunction = [](DspNetworkGraph& g)
+		{
+			Actions::showKeyboardPopup(g, KeyboardPopup::New);
+			return true;
+		};
+
+		b->enabledFunction = selectionEmpty;
+		b->setTooltip("Create node after selection [N]");
+	}
+	if (name == "wrap")
+	{
+		b->enabledFunction = selectionEmpty;
+
+		b->actionFunction = [](DspNetworkGraph& g)
+		{
+			PopupLookAndFeel plaf;
+			PopupMenu m;
+			m.setLookAndFeel(&plaf);
+
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoChain, "Wrap into chain");
+
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoFrame, "Wrap into frame processing container");
+
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoMulti, "Wrap into multichannel container");
+
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoSplit, "Wrap into split container");
+
+			m.addItem((int)NodeComponent::MenuActions::WrapIntoOversample4, "Wrap into 4x oversample container");
+
+			int result = m.show();
+
+			Array<NodeComponent*> list;
+
+			fillChildComponentList(list, &g);
+
+			for (auto n : list)
+			{
+				if (n->isSelected())
+				{
+					n->handlePopupMenuResult(result);
+					return true;
+				}
+			}
+
+			return true;
+		};
+	}
+	if (name == "error")
+	{
+		b->stateFunction = [](DspNetworkGraph& g)
+		{
+			return !g.network->getExceptionHandler().isOk();
+		};
+
+		b->setColour(TextButton::ColourIds::buttonOnColourId, Colour(0xFFAA4444));
+		b->setTooltip("Select nodes with error");
+
+		b->enabledFunction = b->stateFunction;
+
+		b->startTimer(1000);
+
+		b->actionFunction = [](DspNetworkGraph& g)
+		{
+			auto& exceptionHandler = g.network->getExceptionHandler();
+			auto list = g.network->getListOfNodesWithType<NodeBase>(false);
+
+			g.network->deselectAll();
+
+			for (auto& n : list)
+			{
+				auto e = exceptionHandler.getErrorMessage(n);
+
+				if (e.isNotEmpty())
+					g.network->addToSelection(n, ModifierKeys::commandModifier);
+			}
+
+			return true;
+			
+		};
+	}
+	if (name == "zoom")
+	{
+		b->actionFunction = [](DspNetworkGraph& g)
+		{
+			g.setTransform({});
+			return true;
+		};
+
+		b->setTooltip("Reset Zoom");
+	}
+	if (name == "fold")
+	{
+		b->actionFunction = Actions::foldSelection;
+		b->stateFunction = [](DspNetworkGraph& g)
+		{
+			auto selection = g.network->getSelection();
+
+			if (selection.isEmpty())
+				return false;
+
+			return (bool)selection.getFirst()->getValueTree()[PropertyIds::Folded];
+		};
+		b->enabledFunction = selectionEmpty;
+		b->setTooltip("Fold the selected nodes [F]");
+	}
+	if (name == "deselect")
+	{
+		b->actionFunction = Actions::deselectAll;
+		b->enabledFunction = selectionEmpty;
+		b->setTooltip("Deselect all nodes [Esc]");
+	}
+	if (name == "undo")
+	{
+		b->actionFunction = Actions::undo;
+		b->setTooltip("Undo the last action [Ctrl+Z]");
+	}
+	if (name == "redo")
+	{
+		b->actionFunction = Actions::redo;
+		b->setTooltip("Redo the last action [Ctrl+Y]");
+	}
+	if (name == "copy")
+	{
+		b->actionFunction = Actions::copyToClipboard;
+		b->enabledFunction = selectionEmpty;
+		b->setTooltip("Copy nodes to clipboard [Ctrl+C]");
+	}
+	if (name == "delete")
+	{
+		b->actionFunction = Actions::deleteSelection;
+		b->enabledFunction = selectionEmpty;
+		b->setTooltip("Delete selected nodes [Del]");
+	}
+	if (name == "duplicate")
+	{
+		b->actionFunction = Actions::duplicateSelection;
+		b->enabledFunction = selectionEmpty;
+		b->setTooltip("Duplicate node [Ctrl+D]");
+	}
+	if (name == "bypass")
+	{
+		b->actionFunction = Actions::toggleBypass;
+		b->enabledFunction = selectionEmpty;
+
+		b->stateFunction = [](DspNetworkGraph& g)
+		{
+			if (auto f = g.network->getSelection().getFirst())
+			{
+				return !f->isBypassed();
+			}
+
+			return false;
+		};
+
+		b->setTooltip("Bypass the selected nodes");
+	}
+	if (name == "properties")
+	{
+		b->setTooltip("Show node properties [P]");
+		b->actionFunction = Actions::editNodeProperty;
+		b->enabledFunction = selectionEmpty;
+	}
+	if (name == "goto")
+	{
+		b->enabledFunction = selectionEmpty;
+
+		b->actionFunction = [](DspNetworkGraph& g)
+		{
+			if (auto fn = g.network->getSelection().getFirst())
+			{
+				if (!fn->isBodyShown())
+				{
+					auto p = fn;
+
+					while (p != nullptr)
+					{
+						p->setValueTreeProperty(PropertyIds::Folded, false);
+						p = p->getParentNode();
+					}
+				}
+
+				Actions::selectAndScrollToNode(g, fn);
+			}
+
+
+			
+			return true;
+		};
+	}
+
+	actionButtons.add(b);
+	addAndMakeVisible(b);
 }
 
 }

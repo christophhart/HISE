@@ -200,6 +200,14 @@ void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 }
 
 
+bool NodeComponent::Header::isInterestedInDragSource(const SourceDetails& details)
+{
+	if (dynamic_cast<FunkySendComponent*>(details.sourceComponent.get()) != nullptr)
+		return false;
+
+	return true;
+}
+
 void NodeComponent::Header::paint(Graphics& g)
 {
 	g.setColour(parent.getOutlineColour());
@@ -294,10 +302,11 @@ void NodeComponent::paint(Graphics& g)
 
 	Path p;
 
+#if 0
 	if (node->getAsRestorableNode() != nullptr)
 		p.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
     
-#if HISE_INCLUDE_SNEX
+#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
 	else if (dynamic_cast<JitNodeBase*>(node.get()) != nullptr)
 		p.loadPathFromData(HnodeIcons::jit, sizeof(HnodeIcons::jit));
 #endif
@@ -309,6 +318,7 @@ void NodeComponent::paint(Graphics& g)
 		g.setColour(Colours::white.withAlpha(0.2f));
 		g.fillPath(p);
 	}
+#endif
 }
 
 
@@ -332,6 +342,31 @@ void NodeComponent::paintOverChildren(Graphics& g)
 		p.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), true);
 		g.setColour(Colours::white.withAlpha(0.6f));
 		g.fillPath(p);
+	}
+
+	auto& exceptionHandler = node->getRootNetwork()->getExceptionHandler();
+
+	auto error = exceptionHandler.getErrorMessage(node);
+
+	if (error.isNotEmpty())
+	{
+		g.setColour(Colour(0xaa683333));
+		g.drawRect(getLocalBounds().reduced(1), 1);
+		g.fillRect(getLocalBounds().reduced(1));
+
+		auto f = GLOBAL_BOLD_FONT();
+
+		g.setFont(f);
+		
+		MarkdownRenderer mp(error);
+		mp.getStyleData().fontSize = 13.0f;
+		
+		mp.parse();
+		auto h = mp.getHeightForWidth(getWidth() - 20.0f);
+
+		mp.draw(g, getLocalBounds().toFloat().reduced(10.0f));
+
+		setEnabled(false);
 	}
 }
 
@@ -378,6 +413,7 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 	m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
 	m.addItem((int)MenuActions::EditProperties, "Edit Properties");
 
+#if 0
 	if (auto hc = node.get()->getAsRestorableNode())
 	{
 		m.addItem((int)MenuActions::UnfreezeNode, "Unfreeze hardcoded node");
@@ -387,6 +423,7 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 	{
 		m.addItem((int)MenuActions::FreezeNode, "Replace with hardcoded version");
 	}
+#endif
 
 	m.addSectionHeader("Wrap into container");
 	m.addItem((int)MenuActions::WrapIntoChain, "Chain");

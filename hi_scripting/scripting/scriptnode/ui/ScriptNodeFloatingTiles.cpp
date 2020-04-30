@@ -45,7 +45,7 @@ DspNetworkGraphPanel::DspNetworkGraphPanel(FloatingTile* parent) :
 
 Component* DspNetworkGraphPanel::createComponentForNetwork(DspNetwork* p)
 {
-	return new DspNetworkGraph::ScrollableParent(p);
+	return new DspNetworkGraph::WrapperWithMenuBar(p);
 }
 
 NodePropertyPanel::NodePropertyPanel(FloatingTile* parent):

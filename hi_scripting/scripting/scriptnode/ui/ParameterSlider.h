@@ -45,6 +45,7 @@ struct ParameterKnobLookAndFeel : public LookAndFeel_V3
 
 	Image cachedImage_smalliKnob_png;
 	Image cachedImage_knobRing_png;
+	Image withoutArrow;
 
 	Font getLabelFont(Label&) override;
 
@@ -136,9 +137,9 @@ struct ParameterSlider : public Slider,
 
 	void checkEnabledState();
 	void updateRange(Identifier, var);
-	void timerCallback() override;
-
 	void paint(Graphics& g) override;
+
+	void timerCallback() override { repaint(); }
 
 	bool isInterestedInDragSource(const SourceDetails& details) override;
 	void itemDragEnter(const SourceDetails& dragSourceDetails) override;

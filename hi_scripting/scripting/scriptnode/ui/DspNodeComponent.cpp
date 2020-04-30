@@ -55,8 +55,10 @@ void DefaultParameterNodeComponent::resized()
 	b.removeFromTop(UIValues::HeaderHeight);
 
 	if (extraComponent != nullptr)
+	{
 		extraComponent->setBounds(b.removeFromTop(extraComponent->getHeight()));
-
+	}
+		
 	int numPerRow = jmax(1, getWidth() / 100);
 
 	for (int i = 0; i < sliders.size(); i += numPerRow)

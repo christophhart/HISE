@@ -69,7 +69,7 @@ bool NodePopupEditor::keyPressed(const KeyPress& key)
 	}
 	if (key.getKeyCode() == 'o' || key.getKeyCode() == 'O')
 	{
-#if HISE_INCLUDE_SNEX
+#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
 		if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
 		{
 			auto n = nc->node;
@@ -131,6 +131,7 @@ void NodePopupEditor::buttonClicked(Button* b)
 
 		if (mode == 0)
 		{
+#if 0
 			if (tmp->node->getAsRestorableNode())
 			{
 				m.addItem((int)NodeComponent::MenuActions::UnfreezeNode, "Unfreeze Node");
@@ -144,6 +145,7 @@ void NodePopupEditor::buttonClicked(Button* b)
 				m.addItem((int)NodeComponent::MenuActions::FreezeNode, "Freeze Node (discard changes)");
 				m.addSeparator();
 			}
+#endif
 
 			m.addSectionHeader("Export Node");
 			m.addItem((int)NodeComponent::MenuActions::ExportAsCpp, "Export as custom CPP class");
@@ -202,7 +204,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 		editor = t;
 		addAndMakeVisible(editor);
 	}
-	else if (propId == PropertyIds::Callback || propId == PropertyIds::Connection)
+	else if (propId == PropertyIds::Callback)
 	{
 		Array<var> values;
 

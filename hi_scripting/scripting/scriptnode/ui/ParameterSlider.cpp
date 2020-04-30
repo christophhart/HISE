@@ -46,7 +46,7 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 {
 	setName(pTree[PropertyIds::ID].toString());
 
-	connectionListener.setTypeToWatch(PropertyIds::Connections);
+	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets });
 	connectionListener.setCallback(pTree.getRoot(), valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnConnectionChange));
 
@@ -86,6 +86,8 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index) :
 			}
 		}
 	}
+
+	checkEnabledState();
 
 	setScrollWheelEnabled(false);
 }
@@ -134,25 +136,15 @@ void ParameterSlider::checkEnabledState()
 
 	bool isModulated = (bool)pTree[PropertyIds::ModulationTarget];
 	bool isConnectedToMacro = macroList.size() > 0;
-	isReadOnlyModulated = isModulated;
-
-	for (auto m : macroList)
-	{
-		isReadOnlyModulated |= m->getOpTypeForParameter(parameterToControl) == OperatorIds::SetValue;
-	}
-
+	
 	modulationActive = isModulated || isConnectedToMacro;
 
+	setEnabled(!modulationActive);
+
 	if (modulationActive)
-	{
-		setEnabled(!isReadOnlyModulated);
 		start();
-	}
 	else
-	{
 		stop();
-		setEnabled(true);
-	}
 
 	if (auto g = findParentComponentOfClass<DspNetworkGraph>())
 		g->repaint();
@@ -168,25 +160,12 @@ void ParameterSlider::updateRange(Identifier, var)
 	repaint();
 }
 
-
-void ParameterSlider::timerCallback()
-{
-	if (parameterToControl != nullptr)
-	{
-		modulationActive = true;
-		auto modValue = parameterToControl->getModValue();
-
-		if (modValue != lastModValue)
-		{
-			lastModValue = modValue;
-			repaint();
-		}
-	}
-}
-
 bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 {
 	if (details.sourceComponent == this)
+		return false;
+
+	if(dynamic_cast<FunkySendComponent*>(details.sourceComponent.get()) != nullptr)
 		return false;
 
 	return !isReadOnlyModulated;
@@ -291,7 +270,9 @@ void ParameterSlider::sliderDragEnded(Slider*)
 void ParameterSlider::sliderValueChanged(Slider*)
 {
 	if (parameterToControl != nullptr)
-		parameterToControl->setValueAndStoreAsync(getValue());
+	{
+		parameterToControl->data.setProperty(PropertyIds::Value, getValue(), parameterToControl->parent->getUndoManager());
+	}
 
 	if (auto nl = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
 	{
@@ -327,6 +308,8 @@ ParameterKnobLookAndFeel::ParameterKnobLookAndFeel()
 {
 	cachedImage_smalliKnob_png = ImageProvider::getImage(ImageProvider::ImageType::KnobEmpty); // ImageCache::getFromMemory(BinaryData::knob_empty_png, BinaryData::knob_empty_pngSize);
 	cachedImage_knobRing_png = ImageProvider::getImage(ImageProvider::ImageType::KnobUnmodulated); // ImageCache::getFromMemory(BinaryData::ring_unmodulated_png, BinaryData::ring_unmodulated_pngSize);
+
+	withoutArrow = ImageCache::getFromMemory(BinaryData::knob_without_arrow_png, BinaryData::knob_without_arrow_pngSize);
 }
 
 
@@ -367,6 +350,12 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 
 	const int filmstripHeight = cachedImage_smalliKnob_png.getHeight() / 128;
 
+	
+	if (!s.isEnabled())
+	{
+		g.drawImageWithin(withoutArrow, xOffset, 3, 48, 48, RectanglePlacement::fillDestination);
+	}
+	else
 	{
 		const double value = s.getValue();
 		const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
@@ -378,18 +367,13 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 
 		Image clip = cachedImage_smalliKnob_png.getClippedImage(Rectangle<int>(0, offset, filmstripHeight, filmstripHeight));
 
-
-
 		g.setColour(Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
 		g.drawImage(clip, xOffset, 3, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
 	}
 
 	{
 		auto ps = dynamic_cast<ParameterSlider*>(&s);
-
-		double value = ps->modulationActive ? ps->lastModValue : ps->getValue();
-
-
+		auto value = ps->parameterToControl->getValue();
 		const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
 		const double proportion = jlimit(0.0, 1.0, pow(normalizedValue, s.getSkewFactor()));
 		const int stripIndex = (int)(proportion * 127);
@@ -398,10 +382,9 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 
 		Image clipRing = imageToUse->getClippedImage(Rectangle<int>(0, (int)(stripIndex * filmstripHeight), filmstripHeight, filmstripHeight));
 
-		g.setColour(Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
+		//g.setColour(Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
 		g.drawImage(clipRing, xOffset, 3, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
 	}
-
 }
 
 MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :

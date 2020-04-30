@@ -62,10 +62,7 @@ struct NodePropertyComponent : public PropertyComponent
 					return jp->getScriptEngine()->getInlineFunctionNames(1);
 				}
 			}
-			else if (id == PropertyIds::Connection)
-			{
-				return routing::Factory::getSourceNodeList(n);
-			}
+			
 
 			return {};
 		}

@@ -428,7 +428,7 @@ struct MacroPropertyEditor : public Component,
 
 class ContainerComponent : public NodeComponent,
 							public DragAndDropContainer,
-							public NodeBase::HelpManager::Listener
+							public HelpManager::Listener
 {
 public:
 

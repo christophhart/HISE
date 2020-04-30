@@ -938,8 +938,7 @@ void MacroPropertyEditor::buttonClicked(Button* b)
 					{
 						if (auto mod = dynamic_cast<ModulationSourceNode*>(n.get()))
 						{
-							if(mod->isUsingModulation())
-								mEntries.add({ parent->getId(), mod->getId(), true });
+							mEntries.add({ parent->getId(), mod->getId(), true });	
 						}
 					}
 				}

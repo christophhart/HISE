@@ -46,6 +46,8 @@ using namespace juce;
 using namespace hise;
 
 
+
+
 class KeyboardPopup : public Component,
 					  public TextEditor::Listener,
 					  public KeyListener,
@@ -609,6 +611,7 @@ class DspNetworkGraph : public Component,
 	public DspNetwork::SelectionListener
 {
 public:
+
 	struct ScrollableParent : public Component
 	{
 		ScrollableParent(DspNetwork* n);
@@ -669,15 +672,8 @@ public:
 				currentModalWindow->grabKeyboardFocus();
 			}
 
-
-			
-			
-
 			dark.setRuler(target, cBounds);
 			dark.setVisible(currentModalWindow != nullptr);
-			
-			
-
 		}
 
 		struct Holder : public Component,
@@ -899,8 +895,177 @@ public:
 		OpenGLContext context;
 
 		ScopedPointer<Holder> currentModalWindow;
-		
-		
+	};
+
+	struct WrapperWithMenuBar : public Component
+	{
+		constexpr static int MenuHeight = 24;
+
+		struct Spacer : public Component
+		{
+			Spacer(int width)
+			{
+				setSize(width, MenuHeight);
+			}
+		};
+
+		struct ActionButton: public PathFactory,
+							 public Component,
+							 public DspNetwork::SelectionListener,
+						     public SettableTooltipClient,
+							 public Timer
+		{
+			ActionButton(DspNetworkGraph* parent_, const String& name):
+				parent(parent_)
+			{
+				parent->network->addSelectionListener(this);
+
+				p = createPath(name);
+				setSize(MenuHeight, MenuHeight);
+				setRepaintsOnMouseActivity(true);
+
+				setColour(TextButton::ColourIds::buttonOnColourId, Colour(SIGNAL_COLOUR));
+				setColour(TextButton::ColourIds::buttonColourId, Colour(0xFFAAAAAA));
+			}
+
+			~ActionButton()
+			{
+				if (parent.getComponent() != nullptr)
+					parent.getComponent()->network->removeSelectionListener(this);
+			}
+
+			void selectionChanged(const NodeBase::List& l) override
+			{
+				repaint();
+			}
+
+			void timerCallback() override
+			{
+				if (lastState != stateFunction(*parent))
+				{
+					lastState = !lastState;
+					repaint();
+				}
+			}
+
+			void paint(Graphics& g) override
+			{
+				auto on = stateFunction ? stateFunction(*parent) : false;
+				auto enabled = enabledFunction ? enabledFunction(*parent) : true;
+				auto over = isMouseOver(false);
+				auto down = isMouseButtonDown(false);
+
+				Colour c = findColour(on ? TextButton::ColourIds::buttonOnColourId :  TextButton::ColourIds::buttonColourId);
+				
+				float alpha = 1.0f;
+
+				if (!enabled)
+					alpha *= 0.6f;
+
+				if (!over)
+					alpha *= 0.9f;
+				if (!down)
+					alpha *= 0.9f;
+
+				c = c.withAlpha(alpha);
+
+				g.setColour(c);
+
+				scalePath(p, getLocalBounds().toFloat().reduced(down && enabled ? 5.0f : 4.0f));
+
+				g.fillPath(p);
+			}
+
+			String getId() const override { return ""; }
+
+			void mouseDown(const MouseEvent& e) override
+			{
+				if(actionFunction)
+					actionFunction(*parent);
+
+				repaint();
+			}
+
+			Path createPath(const String& name) const override;
+
+			void resized() override
+			{
+				scalePath(p, this, 2.0f);
+			}
+
+			Path p;
+
+			using Callback = std::function<bool(DspNetworkGraph& g)>;
+			
+			Component::SafePointer<DspNetworkGraph> parent;
+			Callback stateFunction;
+			Callback enabledFunction;
+			Callback actionFunction;
+			bool lastState = false;
+		};
+
+		WrapperWithMenuBar(DspNetwork* n):
+			canvas(n)
+		{
+			addAndMakeVisible(canvas);
+
+			addButton("zoom");
+			addButton("error");
+			addButton("goto");
+			addButton("cable");
+			addSpacer(10);
+			addButton("add");
+			addButton("wrap");
+			addButton("export");
+			addButton("deselect");
+			addButton("fold");
+			addButton("bypass");
+			addButton("properties");
+			
+			addSpacer(10);
+			addButton("undo");
+			addButton("redo");
+			addSpacer(10);
+			addButton("copy");
+			addButton("duplicate");
+			addButton("delete");
+		}
+
+		void addSpacer(int width)
+		{
+			auto p = new Spacer(width);
+			actionButtons.add(p);
+			addAndMakeVisible(p);
+		}
+
+		static bool selectionEmpty(DspNetworkGraph& g)
+		{
+			return !g.network->getSelection().isEmpty();
+		}
+
+		void addButton(const String& name);
+
+		void paint(Graphics& g) override
+		{
+			GlobalHiseLookAndFeel::drawFake3D(g, getLocalBounds().removeFromTop(MenuHeight));
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			auto menuBar = b.removeFromTop(MenuHeight);
+
+			for (auto ab : actionButtons)
+			{
+				ab->setTopLeftPosition(menuBar.getTopLeft());
+				menuBar.removeFromLeft(ab->getWidth() + 3);
+			}
+
+			canvas.setBounds(b);
+		}
+
+		ScrollableParent canvas;
+		OwnedArray<Component> actionButtons;
 	};
 
 	struct Actions
@@ -914,7 +1079,7 @@ public:
 		static bool toggleFreeze(DspNetworkGraph& g);
 
 		static bool copyToClipboard(DspNetworkGraph& g);
-
+		static bool toggleCableDisplay(DspNetworkGraph& g);
 		static bool editNodeProperty(DspNetworkGraph& g);
 		static bool foldSelection(DspNetworkGraph& g);
 		static bool arrowKeyAction(DspNetworkGraph& g, const KeyPress& k);
@@ -950,17 +1115,27 @@ public:
 
 	NodeComponent* getComponent(NodeBase::Ptr node);
 
-	static void paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c)
+	static void paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha=1.0f)
 	{
-		g.setColour(Colours::black);
+		Colour holeColour = Colours::black;
+
+		if (alpha != 1.0f)
+		{
+			holeColour = c;
+		}
+
+
+		g.setColour(holeColour);
 		g.fillEllipse(start);
 		g.setColour(Colour(0xFFAAAAAA));
 		g.drawEllipse(start, 2.0f);
 
-		g.setColour(Colours::black);
+		g.setColour(holeColour);
 		g.fillEllipse(end);
 		g.setColour(Colour(0xFFAAAAAA));
 		g.drawEllipse(end, 2.0f);
+
+		
 
 		Path p;
 
@@ -970,9 +1145,9 @@ public:
 
 		p.quadraticTo(controlPoint, end.getCentre());
 
-		g.setColour(Colours::black);
+		g.setColour(Colours::black.withMultipliedAlpha(alpha));
 		g.strokePath(p, PathStrokeType(3.0f));
-		g.setColour(c);
+		g.setColour(c.withMultipliedAlpha(alpha));
 		g.strokePath(p, PathStrokeType(2.0f));
 	};
 
@@ -983,7 +1158,15 @@ public:
 			float width = 6.0f;
 			float height = 6.0f;
 			float y = getKnobCircle ? 66.0f : c->getHeight();
+
+			float offsetY = (float)c->getProperties()["circleOffsetY"];
+			float offsetX = (float)c->getProperties()["circleOffsetX"];
+
+			y += offsetY;
+			
 			float circleX = c->getLocalBounds().toFloat().getWidth() / 2.0f - width / 2.0f;
+
+			circleX += offsetX;
 
 			Rectangle<float> circleBounds = { circleX, y, width, height };
 
@@ -993,6 +1176,7 @@ public:
 		return {};
 	};
 
+	bool showCables = true;
 
 	bool setCurrentlyDraggedComponent(NodeComponent* n);
 

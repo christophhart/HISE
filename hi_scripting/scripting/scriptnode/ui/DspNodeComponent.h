@@ -71,6 +71,15 @@ public:
 		resized();
 	}
 
+	void applyExtraComponentToBounds(Rectangle<int>& bounds)
+	{
+		if (extraComponent != nullptr)
+		{
+			bounds.setWidth(jmax(bounds.getWidth(), extraComponent->getWidth()));
+			bounds.setHeight(bounds.getHeight() + extraComponent->getHeight());
+		}
+	}
+
 	void resized() override;
 
 	int extraWidth = -1;
