@@ -152,11 +152,14 @@ using sdouble = _ramp<double>;
 using namespace Types;
 
 
+
+
 struct PrepareSpecs
 {
 	double sampleRate = 0.0;
 	int blockSize = 0;
 	int numChannels = 0;
+	int* voiceIndex = nullptr;
 
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
 };

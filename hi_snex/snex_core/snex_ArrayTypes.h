@@ -66,6 +66,42 @@ struct DSP
 	}
 };
 
+template <typename Derived> struct index_base
+{
+	index_base(int initValue) : value(initValue) {};
+	Derived& operator=(int v) { value = v; return asDerived(); }
+
+	// Preinc
+	int operator++()
+	{
+		value++;
+		return (int)asDerived();
+	}
+
+	// Postinc
+	int operator++(int)
+	{
+		auto v = value;
+		operator++();
+		return v;
+	}
+
+	Derived& moved(int delta)
+	{
+		value += delta;
+		return asDerived();
+	}
+
+protected:
+
+	int value = 0;
+
+private:
+
+	Derived& asDerived() { return (*static_cast<Derived*>(this)); }
+	const Derived& asDerived() const { return (*static_cast<const Derived*>(this)); }
+};
+
 /** A fixed-size array type for SNEX. 
 
 	The span type is an iteratable compile-time array.
@@ -73,78 +109,54 @@ struct DSP
 */
 template <class T, int MaxSize> struct span
 {
+	static constexpr ArrayID ArrayType = Types::ArrayID::SpanType;
 	using DataType = T;
 	using Type = span<T, MaxSize>;
 
 	static constexpr int s = MaxSize;
 
-	struct wrapped
+	struct wrapped: public index_base<wrapped>
 	{
-		using ParentType = Type;
+		wrapped(int initValue) : index_base<wrapped>(initValue) {}
+		wrapped& operator=(int v) { value = v; return *this; };
 
-		wrapped& operator=(int v) { value = v; return *this; }
-
-		int get(const Type& obj) const
+		operator int() const
 		{
-			auto i = value % MaxSize;
-			return i;
+			return value % MaxSize;
 		}
-
-		int value = 0;
 	};
 
 	struct zeroed
 	{
-		using ParentType = Type;
-
-		zeroed& operator=(int v) { value = v; return *this; }
-
-		int get(const Type& obj) const
+		operator int() const
 		{
 			if (isPositiveAndBelow(value, MaxSize - 1))
 				return value;
 
 			return 0;
 		}
-
-		int value = 0;
 	};
 
-	struct clamped
+	struct clamped: public index_base<clamped>
 	{
-		using ParentType = Type;
+		clamped(int initValue) : index_base<clamped>(initValue) {}
+		clamped& operator=(int v) { value = v; return *this; };
 
-		clamped& operator=(int v) { value = v; return *this; }
-
-		int get(const Type& obj) const
+		operator int() const
 		{
 			return jlimit(0, MaxSize - 1, value);
 		}
-
-		int value = 0;
 	};
 
 	struct unsafe
 	{
-		using ParentType = Type;
-
-		unsafe& operator=(int v) { value = v; return *this; }
-
-		int get(const Type& obj) const
+		operator int() const
 		{
 			return value;
 		}
-
-		int value = 0;
 	};
 
-	template <class IndexType> IndexType index(int value)
-	{
-		IndexType obj = { value };
-		auto v = obj.get(*this);
-		obj.value = v;
-		return obj;
-	}
+	
 
 	span()
 	{
@@ -173,34 +185,42 @@ template <class T, int MaxSize> struct span
 
 	static constexpr size_t getSimdSize()
 	{
-		static_assert(isSimdable(), "not SIMDable");
-
-		if (std::is_same<T, float>())
-			return 4;
+		if (isSimdable())
+		{
+			if (std::is_same<T, float>())
+				return 4;
+			else
+				return 2;
+		}
 		else
-			return 2;
+			return 1;
 	}
 
-	Type& operator=(const T& t)
+	Type& operator=(const DataType& t)
 	{
-		static_assert(isSimdable(), "Can't add non SIMDable types");
-
-		constexpr int numLoop = MaxSize / getSimdSize();
-		int i = 0;
-
-		float t_ = (float)t;
-
-		if (std::is_same<T, float>())
+		if (isSimdable())
 		{
-			auto dst = (float*)data;
-
-			for (int i = 0; i < numLoop; i++)
+			constexpr int numLoop = MaxSize / getSimdSize();
+			
+			if (std::is_same<DataType, float>())
 			{
-				auto v = _mm_load_ps1(&t_);
-				_mm_store_ps(dst, v);
+				float t_ = (float)t;
 
-				dst += getSimdSize();
+				auto dst = (float*)data;
+
+				for (int i = 0; i < numLoop; i++)
+				{
+					auto v = _mm_load_ps1(&t_);
+					_mm_store_ps(dst, v);
+
+					dst += getSimdSize();
+				}
 			}
+		}
+		else
+		{
+			for (auto& v : *this)
+				v = t;
 		}
 
 		return *this;
@@ -241,20 +261,31 @@ template <class T, int MaxSize> struct span
 
 	Type& operator=(const Type& other)
 	{
-		static_assert(isSimdable(), "Can't add non SIMDable types");
-
-		constexpr int numLoop = MaxSize / getSimdSize();
-		auto src = (float*)other.data;
-		auto dst = (float*)data;
-
-		for (int i = 0; i < numLoop; i++)
+		if (MaxSize >= 4)
 		{
-			auto v = _mm_load_ps((float*)src);
-			_mm_store_ps(dst, v);
+			jassert(isSimdable());
 
-			src += getSimdSize();
-			dst += getSimdSize();
+			constexpr int numLoop = MaxSize / getSimdSize();
+			auto src = (float*)other.data;
+			auto dst = (float*)data;
+
+			for (int i = 0; i < numLoop; i++)
+			{
+				auto v = _mm_load_ps((float*)src);
+				_mm_store_ps(dst, v);
+
+				src += getSimdSize();
+				dst += getSimdSize();
+			}
 		}
+		else
+		{
+			int index = 0;
+			for (auto& v : *this)
+				v = other[index++];
+		}
+
+		
 
 		return *this;
 	}
@@ -348,6 +379,24 @@ template <class T, int MaxSize> struct span
 		return *reinterpret_cast<span<span<T, MaxSize / ChannelAmount>, ChannelAmount>*>(this);
 	}
 
+	void copyTo(Type& other) const
+	{
+		auto src = begin();
+		auto dst = other.begin();
+
+		for (int i = 0; i < MaxSize; i++)
+			*dst++ = *src++;
+	}
+
+	void addTo(Type& other) const
+	{
+		auto src = begin();
+		auto dst = other.begin();
+
+		for (int i = 0; i < MaxSize; i++)
+			*dst++ += *src++;
+	}
+
 	span<span<float, 4>, MaxSize / 4>& toSimd()
 	{
 		using Type = span<span<float, 4>, MaxSize / 4>;
@@ -358,32 +407,24 @@ template <class T, int MaxSize> struct span
 		return *reinterpret_cast<Type*>(this);
 	}
 
-	template <class IndexType> const T& operator[](const IndexType& i) const
+	
+
+	template <class IndexType> const T& operator[](IndexType i) const
 	{
-		auto index = i.get(*this);
-		return data[index];
+		auto idx = (int)i;
+		return data[idx];
 	}
 
-	template <class IndexType> T& operator[](const IndexType& i)
+	template <class IndexType> T& operator[](IndexType i)
 	{
-		auto index = i.get(*this);
-		return data[index];
-	}
-
-	const T& operator[](int index) const
-	{
-		return data[index];
+		auto idx = (int)i;
+		return data[idx];
 	}
 
 	/** Morphs any pointer of the data type into this type. */
 	constexpr static Type& as(T* ptr)
 	{
 		return *reinterpret_cast<Type*>(ptr);
-	}
-
-	T& operator[](int index)
-	{
-		return data[index];
 	}
 
 	T* begin() const
@@ -409,10 +450,7 @@ template <class T, int MaxSize> struct span
 
 	static constexpr int alignment()
 	{
-		if (MaxSize < 4)
-			return sizeof(T);
-		else
-			return 16;
+		return 16;
 	}
 
 	alignas(alignment()) T data[MaxSize];
@@ -422,121 +460,78 @@ using float4 = span<float, 4>;
 
 template <class T> struct dyn
 {
+	static constexpr ArrayID ArrayType = Types::ArrayID::DynType;
 	using Type = dyn<T>;
 	using DataType = T;
 
-	struct wrapped
+	struct wrapped: public index_base<wrapped>
 	{
-		using ParentType = Type;
+		wrapped(Type& d, int initValue) :
+			index_base<wrapped>(initValue),
+			size(jmax(1, d.size()))
+		{}
 
-		wrapped(int v) : value(v) {};
-		wrapped& operator=(int v) { value = v; return *this; }
-
-		wrapped moved(int delta) const
+		operator int() const
 		{
-			wrapped t;
-			t.value = value + delta;
-			return t;
+			return value % size;
 		}
 
-		bool valid(dyn<T>& obj) const
-		{
-			return get(obj) == value;
-		}
+	private:
 
-		int operator++()
-		{
-			return value++;
-		}
-
-		int get(const dyn<T>& obj) const
-		{
-			auto i = value % obj.size();
-			return i;
-		}
-
-		int value = 0;
+		int size = 0;
 	};
 
-	struct zeroed
+	struct zeroed : public index_base<zeroed>
 	{
-		using ParentType = Type;
+		zeroed(Type& d, int initValue) :
+			index_base<zeroed>(initValue),
+			size(d.size())
+		{}
 
-		zeroed(int v) : value(v) {};
-		zeroed& operator=(int v) { value = v; return *this; }
-
-		bool valid(dyn<T>& obj) const
+		operator int() const
 		{
-			return get(obj) == value;
-		}
-
-		int get(const dyn<T>& obj) const
-		{
-			if (isPositiveAndBelow(value, obj.size()))
+			if (isPositiveAndBelow(value, size))
 				return value;
 
 			return 0;
 		}
 
-		int operator++()
-		{
-			return value++;
-		}
+	private:
 
-		int value = 0;
+		int size = 0;
 	};
 
-	struct clamped
+	struct clamped : public index_base<clamped>
 	{
-		using ParentType = Type;
+		clamped(const Type& d, int initValue) :
+			index_base<clamped>(initValue),
+			size(jmax(0, d.size()-1))
+		{}
 
-		clamped() = default;
-		clamped(int v) : value(v) {};
-		clamped& operator=(int v) { value = v; return *this; }
+		clamped& operator=(int v) { value = v; return *this; };
 
-		bool valid(dyn<T>& obj) const
+		operator int() const
 		{
-			return get(obj) == value;
+			return jlimit(0, size, value);
 		}
 
-		int get(const dyn<T>& obj) const
-		{
-			return jlimit(0, obj.size(), value);
-		}
+	private:
 
-		int operator++()
-		{
-			return value++;
-		}
-
-		int value = 0;
+		int size = 0;
 	};
 
-	struct unsafe
+	struct unsafe : public index_base<unsafe>
 	{
-		using ParentType = Type;
+		unsafe(Type& d, int initValue) :
+			index_base<unsafe>(initValue),
+		{}
 
-		unsafe() = default;
-		unsafe(int v) : value(v) {};
-		unsafe& operator=(int v) { value = v; return *this; }
-
-		bool valid(dyn<T>& obj) const
+		operator int() const
 		{
-			return get(obj) == value;
+			value;
 		}
-
-		int get(const dyn<T>& obj) const
-		{
-			return value;
-		}
-
-		int operator++()
-		{
-			return value++;
-		}
-
-		int value = 0;
 	};
+
 
 	dyn() :
 		data(nullptr),
@@ -610,32 +605,23 @@ template <class T> struct dyn
 		return DSP::interpolate<WrapType>(*this, index);
 	}
 
-	template <class IndexType> const T& operator[](IndexType& t) const
+	template <class IndexType> const T& operator[](IndexType t) const
 	{
-		auto index = t.get(*this);
-		return data[index];
+		int i = (int)t;
+		return data[i];
 	}
 
-	template <class IndexType> T& operator[](IndexType& t)
+	template <class IndexType> T& operator[](IndexType t)
 	{
-		auto index = t.get(*this);
-		return data[index];
-	}
-
-	const T& operator[](int index) const
-	{
-		return data[index];
+		int i = (int)t;
+		return data[i];
 	}
 
 	template <class Other> bool valid(Other& t)
 	{
 		return t.valid(*this);
 	}
-
-	T& operator[](int index)
-	{
-		return data[index];
-	}
+	
 
 	T* begin() const
 	{
@@ -674,6 +660,7 @@ template <class T> struct dyn
 
 template <typename T> struct heap
 {
+	static constexpr ArrayID ArrayType = Types::ArrayID::HeapType;
 	using Type = heap<T>;
 	using DataType = T;
 

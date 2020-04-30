@@ -189,20 +189,11 @@ template <int C> struct ProcessDataFix: public InternalData
 	using ChannelDataType = Types::span<float*, NumChannels>;
 
 	/** Creates a ProcessDataFix object from the given data pointer. */
-	ProcessDataFix(ChannelDataType& d, int numSamples) :
-		InternalData(d.begin(), numSamples)
+	ProcessDataFix(float** d, int numSamples_, int numChannels_=NumChannels) :
+		InternalData(d, numSamples_)
 	{
+		ignoreUnused(numChannels_);
 		numChannels = NumChannels;
-	}
-
-	/** Creates a ProcessDataFix object from the other type with a different audio signal pointer. */
-	template <typename OtherProcessData> ProcessDataFix(OtherProcessData& d, ChannelDataType& channels, int numSamples = -1) :
-		InternalData(channels.begin(), numSamples > 0 ? numSamples : d.getNumSamples())
-	{
-		shouldReset = d.getResetFlag();
-		auto e = d.toEventData();
-		events = e.begin();
-		numEvents = e.size();
 	}
 
 	/** Allows iteration over the channel data. 
@@ -226,7 +217,7 @@ template <int C> struct ProcessDataFix: public InternalData
 	dyn<float> operator[](int channelIndex)
 	{
 		jassert(isPositiveAndBelow(channelIndex, NumChannels));
-		return dyn<float>(getChannelPtr(channelIndex), getNumSamples());
+		return dyn<float>(data[channelIndex], getNumSamples());
 	}
 
 	FrameProcessor<C> toFrameData();
@@ -242,25 +233,19 @@ protected:
 
 	ChannelPtr getChannelPtr(int index);
 
-	
+	JUCE_DECLARE_NON_COPYABLE(ProcessDataFix);
 };
 
 struct ProcessDataDyn: public InternalData
 {
 	/** Creates a ProcessDataFix object from the given data pointer. */
-	ProcessDataDyn(float** d, int numChannels_, int numSamples_) :
+	ProcessDataDyn(float** d, int numSamples_, int numChannels_) :
 		InternalData(d, numSamples_)
 	{
 		numChannels = numChannels_;
-	}
 
-	/** Creates a copy of the given object with another data pointer. */
-	ProcessDataDyn(ProcessDataDyn& other, float** externalData, int numSamples=-1) :
-		InternalData(externalData, numSamples > 0 ? numSamples : other.getNumSamples())
-	{
-		numChannels = other.getNumChannels();
-		events = other.events;
-		numEvents = other.numEvents;
+		jassert(numChannels < NUM_MAX_CHANNELS);
+
 	}
 
 	int getNumChannels() const { return numChannels; };
@@ -287,6 +272,8 @@ struct ProcessDataDyn: public InternalData
 	{
 		return reinterpret_cast<ChannelPtr*>(data + numChannels);
 	}
+
+	JUCE_DECLARE_NON_COPYABLE(ProcessDataDyn);
 };
 
 }

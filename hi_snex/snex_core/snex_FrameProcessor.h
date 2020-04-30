@@ -160,6 +160,8 @@ template <int NumChannels> struct FrameProcessor
 	/** @internal Forwards the range-based iterator of the span class. */
 	float* end() const;
 
+	FrameType& toSpan() { return frameData; }
+
 private:
 
 	friend class SnexObjectDatabase;
@@ -181,6 +183,43 @@ private:
 	int frameIndex = 0;
 	FrameType frameData;
 
+};
+
+
+
+struct IndexType
+{
+	template <typename int I> static auto wrapped(const FrameProcessor<I>& f)
+	{
+		return span<float, I>::wrapped(0);
+	}
+
+	template <typename int I> static auto clamped(const FrameProcessor<I>& f)
+	{
+		return span<float, I>::clamped(0);
+	}
+
+
+
+	template <typename E, int I> static auto clamped(const span<E, I>& obj)
+	{
+		return span<E, I>::clamped(0);
+	}
+
+	template <typename E> static auto clamped(const dyn<E>& obj)
+	{
+		return dyn<E>::clamped(obj, 0);
+	}
+
+	template <typename E, int I> static auto wrapped(const span<E, I>& obj)
+	{
+		return span<E, I>::wrapped(0);
+	}
+
+	template <typename E> static auto wrapped(const dyn<E>& obj)
+	{
+		return dyn<E>::wrapped(obj, 0);
+	}
 };
 
 

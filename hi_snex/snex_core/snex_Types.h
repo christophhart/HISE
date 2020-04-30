@@ -21,12 +21,24 @@ namespace Types
 enum ID
 {
 	Void =			0b00000000,
-	Pointer = 0b10001111,
+	Pointer =		0b10001111,
 	Float =			0b00010000,
 	Double =		0b00100000,
 	Integer =		0b01000000,
 	Block =			0b10000000,
 	Dynamic =		0b11111111
+};
+
+/** This will identify each snex array type by using the constexpr static variable
+    T::ArrayType
+*/
+enum class ArrayID
+{
+	SpanType,
+	DynType,
+	HeapType,
+	ProcessDataType,
+	FrameProcessorType
 };
 
 struct OutOfBoundsException

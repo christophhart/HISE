@@ -176,13 +176,13 @@ struct hmath
 	vOpScalar(vmuls, FloatVectorOperations::multiply);
 	vOpScalar(vadds, FloatVectorOperations::add);
 
-	static forcedinline block& clip(block& b1, float s1, float s2) 
+	static forcedinline block& vclip(block& b1, float s1, float s2) 
 	{
 		FloatVectorOperations::clip(b1.data, b1.data, s1, s2, b1.size()); 
 		return b1;
 	};
 
-	static forcedinline block& abs(block& input)
+	static forcedinline block& vabs(block& input)
 	{
 		FloatVectorOperations::abs(input.data, input.data, input.size());
 		return input;
