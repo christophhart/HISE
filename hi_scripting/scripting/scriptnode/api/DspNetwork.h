@@ -44,6 +44,7 @@ struct Error
 	enum ErrorCode
 	{
 		OK,
+		NoMatchingParent,
 		ChannelMismatch,
 		BlockSizeMismatch,
 		IllegalFrameCall,
@@ -121,10 +122,11 @@ public:
 		{
 		case Error::ChannelMismatch: s << "Channel amount mismatch";  break;
 		case Error::BlockSizeMismatch: s << "Blocksize mismatch"; break;
-		case Error::IllegalFrameCall: s << "Illegal call of processFrame()"; return s;
+		case Error::IllegalFrameCall: s << "Can't be used in frame processing context"; return s;
 		case Error::IllegalBlockSize: s << "Illegal block size: " << String(e.actual); return s;
 		case Error::SampleRateMismatch: s << "Samplerate mismatch"; break;
 		case Error::InitialisationError: return "Initialisation error";
+		case Error::NoMatchingParent:	return "Can't find suitable parent node";
 		default:
 			break;
 		}
@@ -133,11 +135,6 @@ public:
 
 		return s;
 	}
-
-	
-
-	
-
 
 	String getErrorMessage(NodeBase* n) const
 	{
@@ -155,6 +152,10 @@ private:
 
 	Array<Item> items;
 };
+
+
+class SnexSource;
+
 
 /** A network of multiple DSP objects that are connected using a graph. */
 class DspNetwork : public ConstScriptingObject,
@@ -397,7 +398,18 @@ public:
 			return &um;
 	}
 
+	double getOriginalSampleRate() const noexcept { return originalSampleRate; }
+
+	Array<WeakReference<SnexSource>>& getSnexObjects() 
+	{
+		return snexObjects;
+	}
+
 private:
+
+	Array<WeakReference<SnexSource>> snexObjects;
+
+	double originalSampleRate = 0.0;
 
 	ScriptnodeExceptionHandler exceptionHandler;
 

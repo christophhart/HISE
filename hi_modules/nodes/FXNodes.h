@@ -150,11 +150,17 @@ template <int V> class bitcrush_impl : public HiseDspBase
 {
 public:
 
-	static constexpr int NumVoices = V;
+	enum class Parameters
+	{
+		BitDepth
+	};
 
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(BitDepth, bitcrush_impl);
+	}
+
+	static constexpr int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID("bitcrush");
 	GET_SELF_AS_OBJECT(bitcrush_impl);

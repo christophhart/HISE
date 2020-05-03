@@ -193,11 +193,11 @@ public:
 
 	void processFrame(FrameType& data) final override
 	{
-		if (data.size() == 1) processFrame(MonoFrameType::as(data.begin()));
-		else if (data.size() == 2) processFrame(StereoFrameType::as(data.begin()));
+		if (data.size() == 1) processFrameInternal(MonoFrameType::as(data.begin()));
+		else if (data.size() == 2) processFrameInternal(StereoFrameType::as(data.begin()));
 	}
 
-	template <typename int C> void processFrame(snex::Types::span<float, C>& data)
+	template <typename int C> void processFrameInternal(snex::Types::span<float, C>& data)
 	{
 		if (isBypassed())
 			return;
@@ -218,7 +218,6 @@ public:
 				if (C == 2)
 					n->processStereoFrame(StereoFrameType::as(data.begin()));
 					
-
 				isFirst = false;
 			}
 			else
@@ -239,7 +238,8 @@ public:
 	void processMonoFrame(MonoFrameType& data) final override;
 	void processStereoFrame(StereoFrameType& data) final override;
 
-	AudioSampleBuffer splitBuffer;
+	heap<float> original, workBuffer;
+	
 };
 
 

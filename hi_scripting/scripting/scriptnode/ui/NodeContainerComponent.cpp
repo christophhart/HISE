@@ -829,7 +829,7 @@ void ModChainNodeComponent::resized()
 void ModChainNodeComponent::paint(Graphics& g)
 {
 	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xcd403c32)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF403c32)));
 
 	g.fillRoundedRectangle(b, 5.0f);
 	g.setColour(getOutlineColour());

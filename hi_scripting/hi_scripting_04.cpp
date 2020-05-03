@@ -36,26 +36,12 @@
 
 #include <regex>
 
+#include "scripting/scripting_audio_processor/ScriptDspModules.cpp"
 
-#include "scripting/api/DspFactory.cpp"
-#include "scripting/api/DspInstance.cpp"
+#include "scripting/ScriptProcessor.cpp"
+#include "scripting/ScriptProcessorModules.cpp"
+#include "scripting/HardcodedScriptProcessor.cpp"
+#include "scripting/hardcoded_modules/Arpeggiator.cpp"
 
-#include "scripting/engine/JavascriptApiClass.cpp"
-#include "scripting/api/ScriptingBaseObjects.cpp"
 
-#include "scripting/engine/HiseJavascriptEngine.cpp"
-#include "scripting/engine/JavascriptEngineExpressions.cpp"
-#include "scripting/engine/JavascriptEngineStatements.cpp"
-#include "scripting/engine/JavascriptEngineOperators.cpp"
-#include "scripting/engine/JavascriptEngineCustom.cpp"
-#include "scripting/engine/JavascriptEngineParser.cpp"
-#include "scripting/engine/JavascriptEngineObjects.cpp"
-#include "scripting/engine/JavascriptEngineMathObject.cpp"
-#include "scripting/engine/JavascriptEngineAdditionalMethods.cpp"
-#include "scripting/engine/JavascriptEngineCyclicReferenceChecks.cpp"
 
-#include "scripting/api/ScriptingApiObjects.cpp"
-#include "scripting/api/ScriptingApi.cpp"
-
-#include "scripting/api/ScriptingApiWrappers.cpp"
-#include "scripting/api/ScriptingApiContent.cpp"

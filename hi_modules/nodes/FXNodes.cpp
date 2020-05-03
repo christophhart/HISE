@@ -121,12 +121,9 @@ template <int V>
 void bitcrush_impl<V>::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Bit Depth");
-
+		DEFINE_PARAMETERDATA(bitcrush_impl, BitDepth);
 		p.range = { 4.0, 16.0, 0.1 };
 		p.defaultValue = 16.0;
-		p.db = BIND_MEMBER_FUNCTION_1(bitcrush_impl::setBitDepth);
-
 		data.add(std::move(p));
 	}
 }

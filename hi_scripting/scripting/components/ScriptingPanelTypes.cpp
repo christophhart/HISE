@@ -78,20 +78,18 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	}
 	else
 	{
-#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
+#if HISE_INCLUDE_SNEX
 		int jitNodeIndex = index - numSnippets - numFiles;
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
 		{
 			if (auto network = h->getActiveNetwork())
 			{
-				auto list = network->getListOfNodesWithType<scriptnode::JitNode>(true);
+				auto list = network->getSnexObjects();
 
-				if (auto n = dynamic_cast<scriptnode::JitNode*>(list[jitNodeIndex].get()))
+				if (auto l = list[jitNodeIndex].get())
 				{
-					auto v = n->getNodePropertyAsValue(scriptnode::PropertyIds::Code);
-					auto pg = new snex::SnexPlayground(v, nullptr); // add the buffer later...
-					return pg;
+					return new scriptnode::SnexPopupEditor(l->getId(), l, false);
 				}
 			}
 		}
@@ -195,13 +193,13 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
 		{
-#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
+#if HISE_INCLUDE_SNEX
 			if (auto network = h->getActiveNetwork())
 			{
-				auto list = network->getListOfNodesWithType<scriptnode::JitNode>(true);
-
-				for (auto l : list)
-					indexList.add("SNEX Node: " + l->getId());
+				for (auto so : network->getSnexObjects())
+				{
+					indexList.add("SNEX Node: " + so->getId());
+				}
 			}
 #endif
 		}

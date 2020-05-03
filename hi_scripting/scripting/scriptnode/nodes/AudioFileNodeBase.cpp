@@ -94,10 +94,10 @@ void AudioFileNodeBase::initialise(NodeBase* n)
 	holder = dynamic_cast<ComplexDataHolder*>(pwsc);
 
 	index.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(AudioFileNodeBase::updateIndex));
-	index.init(n, this);
+	index.initialise(n);
 
 	internalReference.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(AudioFileNodeBase::updateFile));
-	internalReference.init(n, this);
+	internalReference.initialise(n);
 }
 
 void AudioFileNodeBase::updateFile(Identifier id, var newValue)
@@ -138,8 +138,6 @@ void AudioFileNodeBase::updateIndex(Identifier id, var newValue)
 
 void AudioFileNodeBase::createParameters(Array<ParameterData>& )
 {
-	index.init(nullptr, this);
-	internalReference.init(nullptr, this);
 }
 
 void AudioFileNodeBase::addListener(Listener* l)

@@ -56,7 +56,7 @@ struct NodeProperty
 
 		This will automatically initialise the proper value tree ID at the best time.
 	*/
-	bool init(NodeBase* n, HiseDspBase* parent);
+	bool initialise(NodeBase* n);
 
 	/** Callback when the initialisation was successful. This might happen either during the initialise() method or after all parameters
 		are created. Use this callback to setup the listeners / the logic that changes the property.
@@ -66,15 +66,17 @@ struct NodeProperty
 	/** Returns the ID in the ValueTree. */
 	Identifier getValueTreePropertyId() const;
 
-	NodeBase* pendingNode = nullptr;
-	HiseDspBase* pendingParent = nullptr;
-
 	ValueTree getPropertyTree() const { return d; }
+
+	juce::Value asJuceValue()
+	{
+		return d.getPropertyAsValue(PropertyIds::Value, um);
+	}
 
 private:
 
+	UndoManager* um = nullptr;
 	ValueTree d;
-
 	Identifier valueTreePropertyid;
 	Identifier baseId;
 	var defaultValue;
@@ -218,10 +220,11 @@ template <class PropertyClass> struct native : public NodePropertyT<typename Pro
 	/** This is being called in the initialise method of the cpp_node template class.
 		the root object needs to have the same type that is used as object type for the node.
 	*/
-	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
 	{
-		init(n, parent);
 		setRootObject(r);
+		p.set(r, PropertyClass::getDefault());
+		initialise(n);
 	}
 
 private:
@@ -240,6 +243,17 @@ private:
 	}
 
 	PropertyClass p;
+};
+
+
+
+template <int Value> struct constant
+{
+	constant(const Identifier&, bool) {};
+	
+	void initialise(NodeBase* n) {}
+
+	constexpr int getValue() { return Value; }
 };
 
 /** This node property can be used to use an external file.
@@ -263,12 +277,12 @@ template <class PropertyClass, int NumChannels> struct file : public NodePropert
 	/** This is being called in the initialise method of the cpp_node template class.
 		the root object needs to have the same type that is used as object type for the node.
 	*/
-	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
 	{
 		if (n != nullptr)
 		{
 			mc = n->getScriptProcessor()->getMainController_();
-			init(n, parent);
+			initialise(n);
 			setRootObject(r);
 		}
 	}
@@ -324,13 +338,65 @@ struct none
 */
 template <class... Properties> struct list: advanced_tuple<Properties...>
 {
-	tuple_iteratorT3(initWithRoot, RootObject, NodeBase*, n, HiseDspBase*, parent, RootObject&, r);
+	tuple_iteratorT2(initWithRoot, RootObject, NodeBase*, n, RootObject&, r);
 
-	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
 	{
-		call_tuple_iterator3(initWithRoot, n, parent, r);
+		call_tuple_iterator2(initWithRoot, n, r);
 	}
 };
 }
+
+
+
+struct SnexSource
+{
+	SnexSource() :
+		expression(PropertyIds::Code, "")
+	{
+		for (auto& o : snex::OptimizationIds::getAllIds())
+			s.addOptimization(o);
+	};
+
+	~SnexSource();
+
+	virtual String getEmptyText() const { return ""; }
+
+	virtual void initialise(NodeBase* n);
+
+	void prepare(PrepareSpecs ps)
+	{
+		prepareFunction.callVoid(&ps);
+	}
+
+	virtual void codeCompiled() {};
+
+	void setCode(Identifier id, var newValue)
+	{
+		if (id == PropertyIds::Value)
+		{
+			recompile();
+		}
+	}
+
+	void recompile();
+
+	String getId() const
+	{
+		if (parentNode != nullptr)
+		{
+			return parentNode->getId();
+		}
+	}
+
+	NodePropertyT<String> expression;
+	WeakReference<NodeBase> parentNode;
+
+	snex::jit::GlobalScope s;
+	snex::jit::JitObject obj;
+	snex::jit::FunctionData prepareFunction;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexSource);
+};
 
 }

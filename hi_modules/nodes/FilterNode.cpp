@@ -171,16 +171,6 @@ void FilterNodeBase<FilterType, NV>::prepare(PrepareSpecs ps)
 	auto c = ps.numChannels;
 	auto s = ps.sampleRate;
 
-	if (ps.numChannels != 1)
-	{
-		Error error;
-		error.error = Error::ChannelMismatch;
-		error.actual = ps.numChannels;
-		error.expected = 1;
-
-		throw error;
-	}
-
 	filter.prepare(ps);
 
 	for(auto& f: filter)

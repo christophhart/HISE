@@ -82,8 +82,8 @@ template <typename T, int NumVoices> struct PolyData
 		}
 		else
 		{
-			for (int i = 0; i < NumVoices; i++)
-				getWithIndex(i) = value;
+			for (auto& d : *this)
+				d = value;
 		}
 	}
 
@@ -114,19 +114,6 @@ template <typename T, int NumVoices> struct PolyData
 		else
 			return getWithIndex(getCurrentVoiceIndex());
 	}
-
-#if 0
-	void forEachVoice(const std::function<void(T& v)>& f)
-	{
-		if (!isPolyphonic() || voicePtr == nullptr)
-			f(*data);
-		else
-		{
-			for (int i = 0; i < NumVoices; i++)
-				f(getWithIndex(i));
-		}
-	}
-#endif
 
 	T* begin() const
 	{
@@ -393,6 +380,8 @@ private:
 	double modValue = 0.0;
 };
 
+class NodeBase;
+
 struct DspHelpers
 {
 	/** Increases the buffer size to match the process specs. */
@@ -416,7 +405,7 @@ struct DspHelpers
 
 	static void setErrorIfFrameProcessing(const PrepareSpecs& ps);
 
-	
+	static void setErrorIfNotOriginalSamplerate(const PrepareSpecs& ps, NodeBase* n);
 
 	/** Returns a ParameterCallback with the given range. */
 	static ParameterCallback getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction);
@@ -435,6 +424,7 @@ struct DspHelpers
 
 	static void validate(PrepareSpecs sp, PrepareSpecs rp);
 
+	static void throwIfFrame(PrepareSpecs ps);
 
 	template <typename ProcessDataType> forcedinline static double findPeak(const ProcessDataType& data)
 	{

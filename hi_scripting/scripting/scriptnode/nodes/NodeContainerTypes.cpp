@@ -121,8 +121,11 @@ void SplitNode::prepare(PrepareSpecs ps)
 
 	NodeContainer::prepareNodes(ps);
 
-	ps.numChannels *= 2;
-	DspHelpers::increaseBuffer(splitBuffer, ps);
+	if (ps.blockSize > 1)
+	{
+		DspHelpers::increaseBuffer(original, ps);
+		DspHelpers::increaseBuffer(workBuffer, ps);
+	}
 }
 
 juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
@@ -145,43 +148,58 @@ void SplitNode::process(ProcessData& data)
 	if (isBypassed())
 		return;
 
-	// neu denken, vielleicht mit splitprocessor::Block<ProcessDataDyn> ???
-	jassertfalse;
+	float* ptrs[NUM_MAX_CHANNELS];
+	int numSamples = data.getNumSamples();
 
-#if 0
-	auto original = data.copyTo(splitBuffer, 0);
+	{
+		float* optr = original.begin();
+		float* wptr = workBuffer.begin();
+
+		int index = 0;
+		for (auto& c : data)
+		{
+			FloatVectorOperations::copy(optr, c.getRawReadPointer(), numSamples);
+			ptrs[index++] = wptr;
+			optr += numSamples;
+			wptr += numSamples;
+		}
+	}
+	
 	int channelCounter = 0;
 
 	for (auto n : nodes)
 	{
+		if (n->isBypassed())
+			continue;
+
 		if (channelCounter++ == 0)
 		{
-			if (n->isBypassed())
-				continue;
-
 			n->process(data);
 		}
 		else
 		{
-			if (n->isBypassed())
-				continue;
+			int numToCopy = data.getNumSamples() * data.getNumChannels();
 
-			auto wd = original.copyTo(splitBuffer, 1);
-			n->process(wd);
-			data += wd;
+			FloatVectorOperations::copy(workBuffer.begin(), original.begin(), numToCopy);
+			ProcessData cp(ptrs, numSamples, data.getNumChannels());
+
+			n->process(cp);
+
+			int index = 0;
+			for (auto& c : data)
+				FloatVectorOperations::add(c.getRawWritePointer(), ptrs[index++], numSamples);
 		}
 	}
-#endif
 }
 
 void SplitNode::processMonoFrame(MonoFrameType& data)
 {
-
+	processFrameInternal(data);
 }
 
 void SplitNode::processStereoFrame(StereoFrameType& data)
 {
-
+	processFrameInternal(data);
 }
 
 void SplitNode::reset()
@@ -213,7 +231,11 @@ void ModulationChainNode::process(ProcessData& data) noexcept
 
 void ModulationChainNode::prepare(PrepareSpecs ps)
 {
+	
 	ScopedLock sl(getRootNetwork()->getConnectionLock());
+
+	DspHelpers::setErrorIfFrameProcessing(ps);
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
 	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
@@ -318,6 +340,7 @@ template <int OversampleFactor>
 void OversampleNode<OversampleFactor>::prepare(PrepareSpecs ps)
 {
 	DspHelpers::setErrorIfFrameProcessing(ps);
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
 	lastVoiceIndex = ps.voiceIndex;
 	prepareNodes(ps);
@@ -652,6 +675,9 @@ void MidiChainNode::process(ProcessData& data) noexcept
 void MidiChainNode::prepare(PrepareSpecs ps)
 {
 	ScopedLock sl(getRootNetwork()->getConnectionLock());
+
+	DspHelpers::setErrorIfFrameProcessing(ps);
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
 	prepareNodes(ps);
 }

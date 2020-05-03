@@ -41,61 +41,191 @@ using namespace hise;
 namespace core
 {
 
-struct MidiDisplayProviderBase
+
+
+struct SnexEventProcessor: public SnexSource
 {
-	virtual ~MidiDisplayProviderBase() {};
-
-	virtual float getDisplayValue() const = 0;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiDisplayProviderBase);
-};
-
-template <int V> class MidiSourceNode : public HiseDspBase,
-							            public MidiDisplayProviderBase
-{
-public:
-
-	static constexpr int NumVoices = V;
-
 	enum class Mode
 	{
 		Gate = 0,
 		Velocity,
 		NoteNumber,
-		Frequency
+		Frequency,
+		Custom
 	};
 
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-	SET_HISE_POLY_NODE_ID("midi");
-	GET_SELF_AS_OBJECT(MidiSourceNode);
+	static StringArray getModes()
+	{
+		return { "Gate", "Velocity", "NoteNumber", "Frequency", "Custom" };
+	}
 
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(40);
-	SET_HISE_NODE_EXTRA_WIDTH(256);
-#endif
+	String getEmptyText() const override
+	{
+		String c;
+
+		c << "void prepare(PrepareSpecs ps)\n";
+		c << "{\n\n    \n}\n\n";
+		c << "int getMidiValue(HiseEvent& e, double& value)\n";
+		c << "{\n    return 0;\n}\n";
+
+		return c;
+	}
+
+	SnexEventProcessor() :
+		SnexSource(),
+		mode(PropertyIds::Mode, "Gate")
+	{
+		
+	};
+
+	void prepare(PrepareSpecs ps);
+
+	void initialise(NodeBase* n)
+	{
+		SnexSource::initialise(n);
+		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SnexEventProcessor::setMode));
+		mode.initialise(n);
+		modeValue.referTo(mode.getPropertyTree().getPropertyAsValue(PropertyIds::Value, n->getUndoManager()));
+	}
+
+	void codeCompiled() override
+	{
+		f = obj["getMidiValue"];
+	}
+
+	void setMode(Identifier id, var newValue)
+	{
+		if (id == PropertyIds::Value)
+		{
+			auto v = newValue.toString();
+
+			auto idx = getModes().indexOf(v);
+
+			if (idx != -1)
+				currentMode = (Mode)idx;
+		}
+	}
+
+	bool getMidiValue(HiseEvent& e, double& v)
+	{
+		switch (currentMode)
+		{
+		case Mode::Gate:
+		{
+			if (e.isNoteOnOrOff())
+			{
+				v = e.isNoteOn() ? 1.0 : 0.0;
+				lastValue = v;
+				return true;
+			}
+
+			break;
+		}
+		case Mode::Velocity:
+		{
+			if (e.isNoteOn())
+			{
+				v = (double)e.getVelocity() / 127.0;
+				lastValue = v;
+				return true;
+			}
+
+			break;
+		}
+		case Mode::NoteNumber:
+		{
+			if (e.isNoteOn())
+			{
+				v = (double)e.getNoteNumber() / 127.0;
+				lastValue = v;
+				return true;
+			}
+
+			break;
+		}
+		case Mode::Frequency:
+		{
+			if (e.isNoteOn())
+			{
+				v = (e.getFrequency() - 20.0) / 19980.0;
+				lastValue = v;
+				return true;
+			}
+			break;
+		}
+		case Mode::Custom:
+		{
+			HiseEvent* eptr = &e;
+			double* s = &v;
+
+			if (f.function != nullptr)
+			{
+				auto ok = (bool)f.call<int>(eptr, s);
+				lastValue = v;
+				return ok;
+			}
+				
+			break;
+		}
+		}
+
+		return false;
+	}
+
+	double lastValue = 0.0;
+	Mode currentMode = Mode::Gate;
+	NodePropertyT<String> mode;
+	Value modeValue;
+	snex::jit::FunctionData f;
+	
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexEventProcessor);
+};
+
+
+template <typename MidiType> class midi: public HiseDspBase 
+{
+public:
+
+	SET_HISE_NODE_ID("midi");
+	GET_SELF_AS_OBJECT();
 
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_PROCESS_SINGLE;
 	HISE_EMPTY_PROCESS;
 
-	void initialise(NodeBase* n);
+	static constexpr bool isNormalisedModulation() { return true; }
 
-	void prepare(PrepareSpecs sp);;
-	void handleHiseEvent(HiseEvent& e);
-	bool handleModulation(double& value);
-	void createParameters(Array<ParameterData>& data) override;
+	constexpr bool isPolyphonic() const { return false; }
 
-	float getDisplayValue() const override;
-
-	void setMode(double newMode)
+	void initialise(NodeBase* n)
 	{
-		currentMode = (Mode)(int)newMode;
+		mType.initialise(n);
 	}
 
-	Mode currentMode;
-	ScriptFunctionManager scriptFunction;
-	
-	PolyData<ModValue, NumVoices> modValue;
+	void prepare(PrepareSpecs ps)
+	{
+		mType.prepare(ps);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		double thisModValue = 0.0;
+		auto thisChanged = mType.getMidiValue(e, thisModValue);
+		if (thisChanged)
+			v.setModValueIfChanged(thisModValue);
+	}
+
+	bool handleModulation(double& value)
+	{
+		return v.getChangedValue(value);
+	}
+
+	void createParameters(Array<ParameterDataImpl>& data)
+	{
+	}
+
+	MidiType mType;
+	ModValue v;
 };
 
 struct TimerInfo
@@ -103,6 +233,18 @@ struct TimerInfo
 	bool active = false;
 	int samplesBetweenCallbacks = 22050;
 	int samplesLeft = 22050;
+	double lastValue = 0.0f;
+	
+	bool getChangedValue(double& v)
+	{
+		if (samplesBetweenCallbacks >= samplesLeft)
+		{
+			v = lastValue;
+			return true;
+		}
+
+		return false;
+	}
 
 	bool tick()
 	{
@@ -112,44 +254,108 @@ struct TimerInfo
 	void reset()
 	{
 		samplesLeft = samplesBetweenCallbacks;
+		lastValue = 0.0;
 	}
 };
 
-struct TimerDisplayProviderBase
+
+struct SnexEventTimer: public SnexSource
 {
-	virtual ~TimerDisplayProviderBase() {}
+	SnexEventTimer():
+		SnexSource()
+	{}
 
-	virtual bool& getActiveFlag() = 0;
+	void codeCompiled() override
+	{
+		f = obj["getTimerValue"];
+	}
 
-	JUCE_DECLARE_WEAK_REFERENCEABLE(TimerDisplayProviderBase)
+	String getEmptyText() const override
+	{
+		String s;
+
+		s << "double getTimerValue()\n";
+		s << "{\n    return 0.0;\n}\n";
+		return s;
+	}
+
+	double getTimerValue()
+	{
+		ui_led = true;
+		if (f.function != nullptr)
+		{
+			lastValue = f.call<double>();
+			return lastValue;
+		}
+			
+		return 0.0;
+	}
+
+	double lastValue = 0.0;
+	bool ui_led = false;
+	snex::jit::FunctionData f;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexEventTimer);
 };
 
-template <int NV> class TimerNode : public HiseDspBase,
-									public TimerDisplayProviderBase
+template <typename TimerType> struct timer_base
+{
+	enum class Parameters
+	{
+		Active,
+		Interval
+	};
+
+	void initialise(NodeBase* n)
+	{
+		tType.initialise(n);
+	}
+
+	TimerType tType;
+	double sr = 44100.0;
+};
+
+template <int NV, typename TimerType> class timer_impl: public timer_base<TimerType>
 {
 public:
 
-	using FirstChannelType = snex::Types::ProcessDataFix<1>;
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Active, timer_impl);
+		DEF_PARAMETER(Interval, timer_impl);
+	}
 
+	constexpr bool isNormalisedModulation() const { return false; }
 	constexpr static int NumVoices = NV;
 
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 	SET_HISE_POLY_NODE_ID("timer");
-	GET_SELF_AS_OBJECT(TimerNode);
+	GET_SELF_AS_OBJECT();
 
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(40);
-	SET_HISE_NODE_EXTRA_WIDTH(256);
-#endif
+	timer_impl()
+	{
+		
+	}
 
-	TimerNode();
+	void prepare(PrepareSpecs ps)
+	{
+		sr = ps.sampleRate;
+		tType.prepare(ps);
+		t.prepare(ps);
+	}
 
-	void initialise(NodeBase* n);
-
-	void prepare(PrepareSpecs ps) override;
-	void reset();
-
-	bool& getActiveFlag() override;
+	void reset()
+	{
+		if (t.isMonophonicOrInsideVoiceRendering())
+		{
+			t.get().reset();
+			t.get().lastValue = tType.getTimerValue();
+		}
+		else
+		{
+			for (auto& ti : t)
+				ti.reset();
+		}
+	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& d)
 	{
@@ -160,58 +366,347 @@ public:
 
 		if (thisInfo.tick())
 		{
-			auto newValue = scriptFunction.callWithDouble(0.0);
-
-			modValue.get().setModValue(newValue);
-
-			ui_led = true;
 			thisInfo.reset();
-		}
-
-		if (fillMode.getValue())
-		{
-			auto value = (float)modValue.get().getModValue();
-
-			for (auto& s : d)
-				s = value;
+			thisInfo.lastValue = tType.getTimerValue();
 		}
 	}
+
+	void handleHiseEvent(HiseEvent& e) {};
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
-		auto& fd = d.as<FirstChannelType>();
+		auto& thisInfo = t.get();
 
-		processFirstChannel(fd);
+		if (!thisInfo.active)
+			return;
 
-		auto ptrs = d.getRawDataPointers();
+		const int numSamples = d.getNumSamples();
 
-		for (int i = 1; i < d.getNumChannels(); i++)
-			FloatVectorOperations::copy(ptrs[i], ptrs[0], d.getNumSamples());
+		if (numSamples < thisInfo.samplesLeft)
+		{
+			thisInfo.samplesLeft -= numSamples;
+		}
+		else
+		{
+			const int numRemaining = numSamples - thisInfo.samplesLeft;
+
+			t.get().lastValue = tType.getTimerValue();
+			const int numAfter = numSamples - numRemaining;
+			thisInfo.samplesLeft = thisInfo.samplesBetweenCallbacks + numRemaining;
+		}
 	}
 
-	void processFirstChannel(FirstChannelType& d);
-	bool handleModulation(double& value);
-	void createParameters(Array<ParameterData>& data) override;
+	bool handleModulation(double& value)
+	{
+		if(t.isMonophonicOrInsideVoiceRendering())
+			return t.get().getChangedValue(value);
+	}
 
-	void setActive(double value);
-	void setInterval(double timeMs);
+	void createParameters(Array<ParameterDataImpl>& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(timer_impl, Active);
+			p.range = { 0.0, 1.0, 1.0 };
+			p.defaultValue = 1.0;
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(timer_impl, Interval);
+			p.range = { 0.0, 2000.0, 0.1 };
+			p.defaultValue = 500.0;
+			data.add(std::move(p));
+		}
+	}
 
-	bool ui_led = false;
+	void setActive(double value)
+	{
+		bool thisActive = value > 0.5;
+
+		if (t.isMonophonicOrInsideVoiceRendering())
+		{
+			auto& thisInfo = t.get();
+
+			if (thisInfo.active != thisActive)
+			{
+				thisInfo.active = thisActive;
+				thisInfo.reset();
+			}
+		}
+		else
+		{
+			for (auto& ti : t)
+			{
+				if (ti.active != thisActive)
+				{
+					ti.active = thisActive;
+					ti.reset();
+				}
+			}
+		}
+	}
+
+	void setInterval(double timeMs)
+	{
+		auto newTime = roundToInt(timeMs * 0.001 * sr);
+
+		if (t.isMonophonicOrInsideVoiceRendering())
+		{
+			t.get().samplesBetweenCallbacks = newTime;
+		}
+		else
+		{
+			for (auto& ti : t)
+				ti.samplesBetweenCallbacks = newTime;
+		}
+	}
 
 private:
 
-	double sr = 44100.0;
-
 	PolyData<TimerInfo, NumVoices> t;
-
-	ScriptFunctionManager scriptFunction;
-	NodePropertyT<bool> fillMode;
-	
-	PolyData<ModValue, NumVoices> modValue;	
 };
 
-DEFINE_EXTERN_NODE_TEMPLATE(midi, midi_poly, MidiSourceNode);
-DEFINE_EXTERN_NODE_TEMPLATE(timer, timer_poly, TimerNode);
+
+
+struct SnexOscillator : public SnexSource
+{
+	SnexOscillator()
+	{
+
+	}
+
+	void codeCompiled() override
+	{
+		ok = false;
+		tickFunction = obj["tick"];
+		processFunction = obj["process"];
+
+		auto tickMatches = tickFunction.returnType == Types::ID::Float && tickFunction.args[0].typeInfo.getType() == Types::ID::Double;
+		auto processMatches = processFunction.returnType == Types::ID::Void;
+
+		ok = processFunction.function != nullptr && tickMatches && processMatches && processFunction.function != nullptr;
+	}
+
+	String getEmptyText() const override
+	{
+		String s;
+		s << "float tick(double uptime)\n";
+		s << "{\n    return 0.0f;\n}\n";
+
+		s << "void process(OscProcessData& d)\n";
+		s << "{\n";
+		s << "    for (auto& s : d.data)\n";
+		s << "    {\n";
+		s << "        s = tick(d.uptime);\n";
+		s << "        d.uptime += d.delta;\n";
+		s << "    }\n";
+		s << "}\n";
+
+		return s;
+	}
+
+	void initialise(NodeBase* n)
+	{
+		SnexSource::initialise(n);
+	}
+
+	float tick(double uptime)
+	{
+		jassert(isReady());
+		return processFunction.call<float>(uptime);
+	}
+
+	void process(OscProcessData& d)
+	{
+		jassert(isReady());
+		processFunction.callVoid(&d);
+	}
+
+	bool isReady() const { return ok; }
+
+	bool ok = false;
+	FunctionData tickFunction;
+	FunctionData processFunction;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexOscillator);
+};
+
+template <typename T> struct snex_osc_base
+{
+	void initialise(NodeBase* n)
+	{
+		oscType.initialise(n);
+	}
+
+	T oscType;
+};
+
+template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
+{
+	enum class Parameters
+	{
+		Frequency,
+		PitchMultiplier,
+		Extra1,
+		Extra2
+	};
+
+	static constexpr int NumVoices = NV;
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Frequency, snex_osc_impl);
+		DEF_PARAMETER(PitchMultiplier, snex_osc_impl);
+		DEF_PARAMETER(Extra1, snex_osc_impl);
+		DEF_PARAMETER(Extra2, snex_osc_impl);
+	}
+
+	SET_HISE_POLY_NODE_ID("snex_osc");
+	GET_SELF_AS_OBJECT();
+
+	void prepare(PrepareSpecs ps)
+	{
+		sampleRate = ps.sampleRate;
+		voiceIndex = ps.voiceIndex;
+		oscData.prepare(ps);
+		reset();
+	}
+
+	void reset()
+	{
+		if (oscData.isMonophonicOrInsideVoiceRendering())
+		{
+			oscData.get().reset();
+		}
+		else
+		{
+			for (auto& o : oscData)
+				o.reset();
+		}
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		if (oscType.isReady())
+		{
+			auto& thisData = oscData.get();
+			auto uptime = thisData.tick();
+			data[0] += this->oscType.tick(thisData.tick());
+		}
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		if (oscType.isReady())
+		{
+			auto& thisData = oscData.get();
+
+			OscProcessData op;
+			op.data = data[0];
+			op.uptime = thisData.uptime;
+			op.delta = thisData.uptimeDelta * thisData.multiplier;
+			op.voiceIndex = *voiceIndex;
+			
+			oscType.process(op);
+			thisData.uptime += op.delta * (double)data.getNumSamples();
+		}
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+			setFrequency(e.getFrequency());
+	}
+
+	void setExtra1(double newValue)
+	{
+		
+	}
+
+	void setExtra2(double newValue)
+	{
+
+	}
+
+	void setFrequency(double newValue)
+	{
+		if (sampleRate > 0.0)
+		{
+			auto cyclesPerSecond = newValue;
+			auto cyclesPerSample = cyclesPerSecond / sampleRate;
+
+			if (oscData.isMonophonicOrInsideVoiceRendering())
+			{
+				oscData.get().uptimeDelta = cyclesPerSample;
+			}
+			else
+			{
+				for (auto& o : oscData)
+					o.uptimeDelta = cyclesPerSample;
+			}
+		}
+	}
+
+	void setPitchMultiplier(double newMultiplier)
+	{
+		newMultiplier = jlimit(0.01, 100.0, newMultiplier);
+
+		if (oscData.isMonophonicOrInsideVoiceRendering())
+		{
+			oscData.get().multiplier = newMultiplier;
+		}
+		else
+		{
+			for (auto& o : oscData)
+				o.multiplier = newMultiplier;
+		}
+	}
+
+	double sampleRate = 0.0;
+
+	void createParameters(Array<ParameterDataImpl>& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(snex_osc_impl, Frequency);
+			p.range = { 20.0, 20000.0, 0.1 };
+			p.range.setSkewForCentre(1000.0);
+			p.defaultValue = 220.0;
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(snex_osc_impl, PitchMultiplier);
+			p.range = { 1.0, 16.0, 1.0 };
+			p.defaultValue = 1.0;
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(snex_osc_impl, Extra1);
+			p.range = { 0.0, 1.0, 0.01 };
+			p.defaultValue = 0.0;
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(snex_osc_impl, Extra2);
+			p.range = { 0.0, 1.0, 0.01 };
+			p.defaultValue = 0.0;
+			data.add(std::move(p));
+		}
+	}
+
+
+	int* voiceIndex = nullptr;
+	PolyData<OscData, NumVoices> oscData;
+};
+
+template <typename OscType> using snex_osc = snex_osc_impl<1, OscType>;
+template <typename OscType> using snex_osc_poly = snex_osc_impl<NUM_POLYPHONIC_VOICES, OscType>;
+
+
+template <typename TimerType> using timer = timer_impl<1, TimerType>;
+template <typename TimerType> using timer_poly = timer_impl<NUM_POLYPHONIC_VOICES, TimerType>;
+
 }
 
 

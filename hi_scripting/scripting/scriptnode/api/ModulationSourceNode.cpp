@@ -243,6 +243,10 @@ scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParamete
 
 void ModulationSourceNode::prepare(PrepareSpecs ps)
 {
+	NodeBase::prepare(ps);
+
+	rebuildModulationConnections();
+
 	if (ps.sampleRate > 0.0)
 		sampleRateFactor = 32768.0 / ps.sampleRate;
 
@@ -287,6 +291,12 @@ void ModulationSourceNode::rebuildModulationConnections()
 	{
 		if (auto c = createDynamicParameterData(m))
 			chain->addParameter(c);
+		else
+		{
+			p->setParameter(nullptr);
+			stop();
+			return;
+		}
 	}
 
 	if (auto s = chain->getFirstIfSingle())

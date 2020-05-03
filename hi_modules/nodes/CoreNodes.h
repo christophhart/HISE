@@ -446,6 +446,18 @@ DEFINE_EXTERN_NODE_TEMPLATE(ramp, ramp_poly, ramp_impl);
 
 struct OscillatorDisplayProvider
 {
+	struct UseMidi
+	{
+		DECLARE_SNEX_NATIVE_PROPERTY(UseMidi, bool, true);
+
+		void set(OscillatorDisplayProvider& obj, bool newValue)
+		{
+			obj.useMidi = newValue;
+		}
+	};
+
+	using UseMidiProperty = properties::native<UseMidi>;
+
 	enum class Mode
 	{
 		Sine,
@@ -463,6 +475,34 @@ struct OscillatorDisplayProvider
 
 	virtual ~OscillatorDisplayProvider() {};
 
+	float tickNoise(OscData& d)
+	{
+		return r.nextFloat() * 2.0f - 1.0f;
+	}
+
+	float tickSaw(OscData& d)
+	{
+		return 2.0f * std::fmodf(d.tick() / sinTable->getTableSize(), 1.0f) - 1.0f;
+	}
+
+	float tickTriangle(OscData& d)
+	{
+		return (1.0f - std::abs(tickSaw(d))) * 2.0f - 1.0f;
+	}
+
+	float tickSine(OscData& d)
+	{
+		return sinTable->getInterpolatedValue(d.tick());
+	}
+
+	float tickSquare(OscData& d)
+	{
+		return (float)(1 - (int)std::signbit(tickSaw(d))) * 2.0f - 1.0f;
+	}
+
+	bool useMidi = false;
+
+	Random r;
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;
 	StringArray modes;
 	Mode currentMode = Mode::Sine;
@@ -471,8 +511,8 @@ struct OscillatorDisplayProvider
 };
 
 
-template <int NV> class oscillator_impl: public HiseDspBase,
-										 public OscillatorDisplayProvider
+
+template <int NV> class oscillator_impl: public OscillatorDisplayProvider
 {
 public:
 
@@ -490,24 +530,13 @@ public:
 
 	oscillator_impl();
 
-	void initialise(NodeBase* n) override;
-	void reset() noexcept;;
+	void initialise(NodeBase* n) {};
+	void reset() noexcept;
 	void prepare(PrepareSpecs ps);
-
 	void process(snex::Types::ProcessDataFix<1>& data);
-
 	void processFrame(snex::Types::span<float, 1>& data);
-
-	void handleHiseEvent(HiseEvent& e) override;
-
-	float tickSine(OscData& d);
-	float tickTriangle(OscData& d);
-	float tickSaw(OscData& d);
-	float tickNoise(OscData& d);
-	float tickSquare(OscData& d);
-
-	void createParameters(Array<HiseDspBase::ParameterData>& data) override;
-
+	void handleHiseEvent(HiseEvent& e);
+	void createParameters(Array<HiseDspBase::ParameterData>& data);
 	void setMode(double newMode);
 	void setFrequency(double newFrequency);
 	void setPitchMultiplier(double newMultiplier);
@@ -521,19 +550,66 @@ public:
 
 	double sr = 44100.0;
 	PolyData<OscData, NumVoices> voiceData;
-	Random r;
 
-	NodePropertyT<bool> useMidi;
-	
 	double freqValue = 220.0;
 };
 
+template <class T, class PropertyType> struct BoringWrapper
+{
+	GET_SELF_OBJECT(obj.getObject());
+	GET_WRAPPED_OBJECT(obj.getWrappedObject());
 
-extern template class oscillator_impl<1>; 
-using oscillator = fix<1, oscillator_impl<1>>; 
-extern template class oscillator_impl<NUM_POLYPHONIC_VOICES>; 
+	static Identifier getStaticId() { return T::getStaticId(); }
+
+	constexpr bool isPolyphonic() const { return obj.isPolyphonic(); }
+
+	void initialise(NodeBase* n)
+	{
+		props.initWithRoot(n, obj.getWrappedObject());
+		obj.initialise(n);
+	}
+
+	void reset()
+	{
+		obj.reset();
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		obj.processFrame(data);
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		obj.process(data);
+	}
+
+	void createParameters(Array<ParameterDataImpl>& data)
+	{
+		obj.createParameters(data);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		obj.prepare(ps);
+	}
+
+	PropertyType props;
+	T obj;
+};
+
+
+
+using oscillator = fix<1, oscillator_impl<1>>;
 using oscillator_poly = fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
+extern template class fix<1, oscillator_impl<1>>;
+extern template class fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 class fm : public HiseDspBase
 {

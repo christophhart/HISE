@@ -41,19 +41,13 @@ ScriptFunctionManager::~ScriptFunctionManager()
 		mc->removeScriptListener(this);
 }
 
-bool NodeProperty::init(NodeBase* n, HiseDspBase* parent)
+bool NodeProperty::initialise(NodeBase* n)
 {
-	if (n == nullptr && pendingNode == nullptr)
-		return false;
-
-	if (n == nullptr)
-		n = pendingNode;
-
-	if (parent == nullptr)
-		parent = pendingParent;
-
+	jassert(n != nullptr);
 
 	valueTreePropertyid = baseId;
+
+	um = n->getUndoManager();
 
 	auto propTree = n->getPropertyTree();
 
@@ -124,6 +118,17 @@ void ScriptFunctionManager::postInit(NodeBase* n)
 		BIND_MEMBER_FUNCTION_2(ScriptFunctionManager::updateFunction));
 }
 
+void SnexSource::recompile()
+{
+	snex::jit::Compiler compiler(s);
+	snex::Types::SnexObjectDatabase::registerObjects(compiler, 1);
+	obj = compiler.compileJitObject(expression.getValue());
 
+	if (compiler.getCompileResult().wasOk())
+	{
+		prepareFunction = obj["prepare"];
+		codeCompiled();
+	}
+}
 
 }

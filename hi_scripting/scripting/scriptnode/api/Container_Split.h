@@ -79,10 +79,7 @@ template <class ProcessDataType, int N> struct Block
 		else
 		{
 			originalBuffer.copyTo(workBuffer);
-
-
 			auto wcd = snex::Types::ProcessDataHelpers<NumChannels>::makeChannelData(workBuffer);
-
 
 			ProcessDataFix<NumChannels> wd(wcd.begin(), d.getNumSamples());
 			wd.copyNonAudioDataFrom(d);

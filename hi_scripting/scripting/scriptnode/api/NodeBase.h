@@ -187,7 +187,7 @@ public:
 
 	virtual void process(ProcessData& data) = 0;
 
-	virtual void prepare(PrepareSpecs specs) = 0;
+	virtual void prepare(PrepareSpecs specs);
 
 	Identifier getObjectName() const override { return "Node"; };
 

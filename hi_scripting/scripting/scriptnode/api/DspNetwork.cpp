@@ -286,6 +286,8 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 	{
 		ScopedLock sl(getConnectionLock());
 
+		originalSampleRate = sampleRate;
+
 		PrepareSpecs ps;
 		ps.sampleRate = sampleRate;
 		ps.blockSize = (int)blockSize;
@@ -770,6 +772,31 @@ void DspNetwork::SelectionUpdater::changeListenerCallback(ChangeBroadcaster*)
 	{
 		if (l != nullptr)
 			l->selectionChanged(list);
+	}
+}
+
+SnexSource::~SnexSource()
+{
+	if (parentNode != nullptr)
+	{
+		parentNode->getRootNetwork()->getSnexObjects().removeAllInstancesOf(this);
+	}
+}
+
+void SnexSource::initialise(NodeBase* n)
+{
+	parentNode = n;
+	expression.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SnexSource::setCode));
+	expression.initialise(n);
+
+	if (expression.getValue().isEmpty())
+	{
+		expression.storeValue(getEmptyText(), n->getUndoManager());
+	}
+
+	if (parentNode != nullptr)
+	{
+		parentNode->getRootNetwork()->getSnexObjects().addIfNotAlreadyThere(this);
 	}
 }
 

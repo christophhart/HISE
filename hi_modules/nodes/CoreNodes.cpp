@@ -41,7 +41,7 @@ namespace core
 
 void tempo_sync::initialise(NodeBase* n)
 {
-	useFreqDomain.init(n, this);
+	useFreqDomain.initialise(n);
 
 	mc = n->getScriptProcessor()->getMainController_();
 	mc->addTempoListener(this);
@@ -197,7 +197,7 @@ void ramp_impl<NV>::setLoopStart(double newLoopStart)
 template <int NV>
 void ramp_impl<NV>::initialise(NodeBase* b)
 {
-	useMidi.init(b, this);
+	useMidi.initialise(b);
 }
 
 template <int NV>
@@ -216,8 +216,6 @@ void ramp_impl<NV>::createParameters(Array<ParameterData>& data)
 		p.defaultValue = 0.0;
 		data.add(std::move(p));
 	}
-
-	useMidi.init(nullptr, nullptr);
 }
 
 
@@ -316,6 +314,41 @@ struct OscDisplay : public ScriptnodeExtraComponent<OscillatorDisplayProvider>
 	Path p;
 };
 
+
+template <int NV>
+void scriptnode::core::oscillator_impl<NV>::process(snex::Types::ProcessDataFix<1>& data)
+{
+	auto f = data.toFrameData();
+
+	while (f.next())
+		processFrame(f.toSpan());
+}
+
+template <int NV>
+void scriptnode::core::oscillator_impl<NV>::processFrame(snex::Types::span<float, 1>& data)
+{
+	auto& d = voiceData.get();
+	auto& s = data[0];
+
+	switch (currentMode)
+	{
+	case Mode::Sine:	 s += tickSine(d); break;
+	case Mode::Triangle: s += tickTriangle(d); break;
+	case Mode::Saw:		 s += tickSaw(d); break;
+	case Mode::Square:	 s += tickSquare(d); break;
+	case Mode::Noise:	 s += Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
+	}
+}
+
+
+template <int NV>
+void scriptnode::core::oscillator_impl<NV>::prepare(PrepareSpecs ps)
+{
+	voiceData.prepare(ps);
+	sr = ps.sampleRate;
+	setFrequency(freqValue);
+}
+
 template <int NV>
 void scriptnode::core::oscillator_impl<NV>::reset() noexcept
 {
@@ -330,72 +363,23 @@ void scriptnode::core::oscillator_impl<NV>::reset() noexcept
 
 
 template <int NV>
-float scriptnode::core::oscillator_impl<NV>::tickNoise(OscData& d)
+void scriptnode::core::oscillator_impl<NV>::setMode(double newMode)
 {
-	return r.nextFloat() * 2.0f - 1.0f;
-}
-
-template <int NV>
-float scriptnode::core::oscillator_impl<NV>::tickSaw(OscData& d)
-{
-	return 2.0f * std::fmodf(d.tick() / sinTable->getTableSize(), 1.0f) - 1.0f;
-}
-
-template <int NV>
-float scriptnode::core::oscillator_impl<NV>::tickTriangle(OscData& d)
-{
-	return (1.0f - std::abs(tickSaw(d))) * 2.0f - 1.0f;
-}
-
-template <int NV>
-float scriptnode::core::oscillator_impl<NV>::tickSine(OscData& d)
-{
-	return sinTable->getInterpolatedValue(d.tick());
+	currentMode = (Mode)(int)newMode;
 }
 
 
 template <int NV>
-float scriptnode::core::oscillator_impl<NV>::tickSquare(OscData& d)
+void scriptnode::core::oscillator_impl<NV>::handleHiseEvent(HiseEvent& e)
 {
-	return (float)(1 - (int)std::signbit(tickSaw(d))) * 2.0f - 1.0f;
-}
-
-template <int NV>
-void oscillator_impl<NV>::initialise(NodeBase* n)
-{
-	useMidi.init(n, this);
-}
-
-
-template <int NV>
-void oscillator_impl<NV>::prepare(PrepareSpecs ps)
-{
-	voiceData.prepare(ps);
-
-	sr = ps.sampleRate;
-
-	setFrequency(freqValue);
-	useMidi.init(nullptr, nullptr);
-}
-
-template <int NV>
-void oscillator_impl<NV>::setPitchMultiplier(double newMultiplier)
-{
-	auto pitchMultiplier = jlimit(0.01, 100.0, newMultiplier);
-
-	if (voiceData.isMonophonicOrInsideVoiceRendering())
+	if (useMidi && e.isNoteOn())
 	{
-		voiceData.get().multiplier = pitchMultiplier;
-	}
-	else
-	{
-		for(auto& d: voiceData)
-			d.multiplier = pitchMultiplier;
+		setFrequency(e.getFrequency());
 	}
 }
 
 template <int NV>
-void oscillator_impl<NV>::setFrequency(double newFrequency)
+void scriptnode::core::oscillator_impl<NV>::setFrequency(double newFrequency)
 {
 	freqValue = newFrequency;
 	auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
@@ -406,35 +390,36 @@ void oscillator_impl<NV>::setFrequency(double newFrequency)
 	}
 	else
 	{
-		for(auto& d: voiceData)
+		for (auto& d : voiceData)
 			d.uptimeDelta = newUptimeDelta;
 	}
 }
 
 template <int NV>
-void oscillator_impl<NV>::setMode(double newMode)
+void scriptnode::core::oscillator_impl<NV>::setPitchMultiplier(double newMultiplier)
 {
-	currentMode = (Mode)(int)newMode;
+	auto pitchMultiplier = jlimit(0.01, 100.0, newMultiplier);
+
+	if (voiceData.isMonophonicOrInsideVoiceRendering())
+	{
+		voiceData.get().multiplier = pitchMultiplier;
+	}
+	else
+	{
+		for (auto& d : voiceData)
+			d.multiplier = pitchMultiplier;
+	}
 }
 
 template <int NV>
-oscillator_impl<NV>::oscillator_impl():
-	useMidi(PropertyIds::UseMidi, false)
+scriptnode::core::oscillator_impl<NV>::oscillator_impl()
 {
-	
+
 }
 
-template <int V>
-void oscillator_impl<V>::handleHiseEvent(HiseEvent& e)
-{
-    if (useMidi.getValue() && e.isNoteOn())
-    {
-        setFrequency(e.getFrequency());
-    }
-}
 
 template <int NV>
-void oscillator_impl<NV>::createParameters(Array<HiseDspBase::ParameterData>& data)
+void scriptnode::core::oscillator_impl<NV>::createParameters(Array<HiseDspBase::ParameterData>& data)
 {
 	{
 		DEFINE_PARAMETERDATA(oscillator_impl, Mode);
@@ -455,39 +440,10 @@ void oscillator_impl<NV>::createParameters(Array<HiseDspBase::ParameterData>& da
 		p.dbNew = parameter::inner<oscillator_impl, (int)Parameters::PitchMultiplier>(*this);
 		data.add(std::move(p));
 	}
-
-	useMidi.init(nullptr, nullptr);
 }
 
-template <int NV>
-void oscillator_impl<NV>::processFrame(snex::Types::span<float, 1>& data)
-{
-	auto& d = voiceData.get();
-	auto& s = data[0];
-
-	switch (currentMode)
-	{
-	case Mode::Sine:	 s += tickSine(d); break;
-	case Mode::Triangle: s += tickTriangle(d); break;
-	case Mode::Saw:		 s += tickSaw(d); break;
-	case Mode::Square:	 s += tickSquare(d); break;
-	case Mode::Noise:	 s += Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
-	}
-}
-
-template <int NV>
-void oscillator_impl<NV>::process(snex::Types::ProcessDataFix<1>& data)
-{
-	auto f = data.toFrameData();
-
-	while (f.next())
-		processFrame(f.toSpan());
-}
-
-
-
-DEFINE_EXTERN_NODE_TEMPIMPL(oscillator_impl);
-
+template class fix<1, oscillator_impl<1>>;
+template class fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 template <int V>
 gain_impl<V>::gain_impl():
@@ -555,9 +511,6 @@ void gain_impl<V>::createParameters(Array<ParameterData>& data)
 		p.defaultValue = 20.0;
 		data.add(std::move(p));
 	}
-
-	resetValue.init(nullptr, nullptr);
-	useResetValue.init(nullptr, nullptr);
 }
 
 
@@ -566,8 +519,8 @@ void gain_impl<V>::createParameters(Array<ParameterData>& data)
 template <int V>
 void gain_impl<V>::initialise(NodeBase* n)
 {
-	resetValue.init(n, this);
-	useResetValue.init(n, this);
+	resetValue.initialise(n);
+	useResetValue.initialise(n);
 }
 
 template <int V>
@@ -675,7 +628,7 @@ void smoother_impl<NV>::reset()
 template <int NV>
 void smoother_impl<NV>::initialise(NodeBase* n)
 {
-	useMidi.init(n, this);
+	useMidi.initialise(n);
 }
 
 
@@ -710,8 +663,6 @@ void smoother_impl<NV>::createParameters(Array<ParameterData>& data)
 		p.defaultValue = 100.0;
 		data.add(std::move(p));
 	}
-
-	useMidi.init(nullptr, nullptr);
 }
 
 DEFINE_EXTERN_NODE_TEMPIMPL(smoother_impl); 
@@ -743,7 +694,7 @@ void ramp_envelope_impl<V>::createParameters(Array<ParameterData>& data)
 template <int V>
 void ramp_envelope_impl<V>::initialise(NodeBase* n)
 {
-	useMidi.init(n, this);
+	useMidi.initialise(n);
 }
 
 template <int V>
@@ -752,7 +703,6 @@ void ramp_envelope_impl<V>::prepare(PrepareSpecs ps)
 	gainer.prepare(ps);
 	sr = ps.sampleRate;
 	setRampTime(attackTimeSeconds * 1000.0);
-	useMidi.init(nullptr, nullptr);
 }
 
 template <int V>

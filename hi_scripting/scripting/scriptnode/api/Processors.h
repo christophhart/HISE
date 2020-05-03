@@ -52,6 +52,8 @@ public:
 
 	fix() {};
 
+	constexpr bool isPolyphonic() const { return obj.getWrappedObject().isPolyphonic(); }
+
 	static Identifier getStaticId() { return T::getStaticId(); }
 
 	void initialise(NodeBase* n)
@@ -146,7 +148,6 @@ template <class T> class event
 {
 public:
 
-	
 	static constexpr bool isModulationSource = false;
 
 	bool isPolyphonic() const { return obj.isPolyphonic(); }
@@ -177,54 +178,55 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
-		// neu denken, mit event iterator...
-		jassertfalse;
+		auto events = d.toEventData();
 
-#if 0
-		if (d.eventBuffer != nullptr && !d.eventBuffer->isEmpty())
+		if (events.size() > 0)
 		{
 			float* ptrs[NUM_MAX_CHANNELS];
-			int numChannels = d.numChannels;
-			memcpy(ptrs, d.data, sizeof(float*) * numChannels);
-
-			auto advancePtrs = [numChannels](float** dt, int numSamples)
-			{
-				for (int i = 0; i < numChannels; i++)
-					dt[i] += numSamples;
-			};
-
-			HiseEventBuffer::Iterator iter(*d.eventBuffer);
+			int numChannels = d.getNumChannels();
+			memcpy(ptrs, d.getRawDataPointers(), sizeof(float*) * numChannels);
 
 			int lastPos = 0;
-			int numLeft = d.size;
-			int samplePos;
-			HiseEvent e;
-
-			while (iter.getNextEvent(e, samplePos, true, false))
+			int numLeft = d.getNumSamples();
+			
+			for (auto& e : events)
 			{
-				int numThisTime = jmin(numLeft, samplePos - lastPos);
+				if (e.isIgnored())
+					continue;
+
+				auto samplePos = e.getTimeStamp();
+				const int numThisTime = jmin(numLeft, samplePos - lastPos);
 
 				obj.handleHiseEvent(e);
 
 				if (numThisTime > 0)
 				{
-					ProcessData part(ptrs, numChannels, numThisTime);
+					ProcessDataType part(ptrs, numThisTime, d.getNumChannels());
 					obj.process(part);
-					advancePtrs(ptrs, numThisTime);
-					numLeft = jmax(0, numLeft - numThisTime);
-					lastPos = samplePos;
+					
+					for (int i = 0; i < d.getNumChannels(); i++)
+						ptrs[i] += numThisTime;
 				}
-			}
 
+				numLeft = jmax(0, numLeft - numThisTime);
+				lastPos = samplePos;
+			}
+			
 			if (numLeft > 0)
 			{
-				ProcessData part(ptrs, numChannels, numLeft);
+				ProcessDataType part(ptrs, numLeft, numChannels);
 				obj.process(part);
 			}
 		}
 		else
+		{
 			obj.process(d);
-#endif
+		}
+
+		
+
+
+		
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
@@ -529,7 +531,7 @@ public:
 	{
 		int numToProcess = data.getNumSamples() / HISE_EVENT_RASTER;
 
-		jassert(numToProcess == controlBuffer.size());
+		jassert(numToProcess <= controlBuffer.size());
 
 		FloatVectorOperations::clear(controlBuffer.begin(), numToProcess);
 		

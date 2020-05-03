@@ -1882,7 +1882,7 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 		for (int i = 0; i < numChannels; i++)
 			channels[i] += startSample;
 
-		scriptnode::ProcessData d(channels, numChannels, numSamples);
+		scriptnode::ProcessData d(channels, numSamples, numChannels);
 
 		{
 			scriptnode::DspNetwork::VoiceSetter vs(*n, getVoiceIndex());

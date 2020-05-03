@@ -75,11 +75,6 @@ template <class ParameterClass, typename... Processors> struct container_base
 	using Type = container_base<ParameterClass, Processors...>;
 	static constexpr bool isModulationSource = false;
 
-	bool handleModulation(double& value)
-	{
-		return false;
-	}
-
 	void initialise(NodeBase* b)
 	{
 		call_tuple_iterator1(initialise, b);
@@ -113,12 +108,6 @@ template <class ParameterClass, typename... Processors> struct container_base
 		getParameter<P>().call(v);
 	}
 
-#if RE
-    int getExtraWidth() const { return 0; }
-    int getExtraHeight() const { return 0; }
-#endif
-    
-    Component* createExtraComponent(PooledUIUpdater* updater) { return nullptr; }
     bool isPolyphonic() const { return get<0>().isPolyphonic(); }
 
 	ParameterClass parameters;

@@ -116,6 +116,7 @@ DECLARE_ID(PublicComponent);
 DECLARE_ID(Code);
 DECLARE_ID(AllowSubBlocks);
 DECLARE_ID(Enabled);
+DECLARE_ID(Mode);
 
 enum EditType
 {
@@ -209,7 +210,7 @@ struct PropertyHelpers
 
 
 
-#define SET_HISE_POLY_NODE_ID(id) SET_HISE_NODE_ID(id); bool isPolyphonic() const override { return NumVoices > 1; };
+#define SET_HISE_POLY_NODE_ID(id) SET_HISE_NODE_ID(id); bool isPolyphonic() const { return NumVoices > 1; };
 
 #define SET_HISE_NODE_ID(id) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(id); };
 #define SET_HISE_NODE_EXTRA_HEIGHT(x) int getExtraHeight() const final override { return x; };

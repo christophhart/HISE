@@ -87,6 +87,15 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	}
 }
 
+void NodeBase::prepare(PrepareSpecs specs)
+{
+	for (auto p : parameters)
+	{
+		auto v = p->getValue();
+		p->setValueAndStoreAsync(v);
+	}
+}
+
 DspNetwork* NodeBase::getRootNetwork() const
 {
 	return static_cast<DspNetwork*>(parent.get());

@@ -142,9 +142,11 @@ using ParameterType = parameter::chain<ranges::Identity, FirstParameter, SecondP
 
 //using ParameterType = parameter::empty;
 
+using OscType = core::oscillator;
+
 // We can't use the node directly, but wrap it into a container so that it can
 // use the properties and parameters (in this example it's a bit overkill)...
-using ChainWrapper = container::chain<ParameterType, processor, core::oscillator, core::oscillator, core::oscillator, core::oscillator, filters::one_pole>;
+using ChainWrapper = container::chain<ParameterType, processor, filters::one_pole, OscType, OscType, OscType, OscType> ;
 
 /** This class will connect the parameters to the objects and defines the ID of this node. */
 struct initialiser

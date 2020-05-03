@@ -212,6 +212,8 @@ public:
 
 	using F5Callback = std::function<void(const var&)>;
 
+	using CompileCallback = std::function<Result(const String& text, var& data)>;
+
 	JSONEditor(ObjectWithDefaultProperties* editedObject):
 		editedComponent(dynamic_cast<Component*>(editedObject))
 	{
@@ -280,15 +282,17 @@ public:
 
 	}
 
-	JSONEditor(const File& f)
+	
+
+	JSONEditor(const String& f, CodeTokeniser* t)
 	{
 		constructionTime = Time::getApproximateMillisecondCounter();
 
 		setName("External Script Preview");
 
-		tokeniser = new JavascriptTokeniser();
+		tokeniser = t;
 		doc = new CodeDocument();
-		doc->replaceAllContent(f.loadFileAsString());
+		doc->replaceAllContent(f);
 		doc->setSavePoint();
 		doc->clearUndoHistory();
 		doc->addListener(this);
@@ -397,11 +401,22 @@ public:
 		resizer->setBounds(getWidth() - 12, getHeight() - 12, 12, 12);
 	}
 
+	static Result defaultJSONParse(const String& s, var& value)
+	{
+		return JSON::parse(s, value);
+	}
+
+	void setCompileCallback(const CompileCallback& c, bool closeAfterExecution)
+	{
+		compileCallback = c;
+		closeAfterCallbackExecution = closeAfterExecution;
+	}
 
 private:
 
 	uint32 constructionTime;
 
+	CompileCallback compileCallback = defaultJSONParse;
 	F5Callback callback;
 
 	bool closeAfterCallbackExecution = false;
@@ -413,7 +428,7 @@ private:
 	ComponentBoundsConstrainer constrainer;
 
 	ScopedPointer<CodeDocument> doc;
-	ScopedPointer<JavascriptTokeniser> tokeniser;
+	ScopedPointer<CodeTokeniser> tokeniser;
 	ScopedPointer<CodeEditorComponent> editor;
 
 	ScopedPointer<Label> changeLabel;

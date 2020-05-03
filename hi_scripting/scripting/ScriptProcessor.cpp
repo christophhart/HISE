@@ -271,6 +271,7 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 		scriptEngine->executeInlineFunction(fVar, args, &r);
 	}
 
+#if 0
 #if USE_BACKEND
 	if (!r.wasOk())
 	{
@@ -281,6 +282,7 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 			debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
 		}
 	}
+#endif
 #endif
 }
 
@@ -1486,37 +1488,6 @@ String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<F
 	return x;
 }
 
-String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, int& counter)
-{
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
-
-	try
-	{
-		String returnString = it.removeUnneededNamespaces(counter);
-		return returnString;
-	}
-	catch (String &e)
-	{
-		Logger::getCurrentLogger()->writeToLog(e);
-		return code;
-	}
-}
-
-String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
-{
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "");
-
-	try
-	{
-		String returnString = it.uglify();
-		return returnString;
-	}
-	catch (String &e)
-	{
-		Logger::getCurrentLogger()->writeToLog(e);
-		return prettyCode;
-	}
-}
 
 String JavascriptProcessor::getBase64CompressedScript() const
 {

@@ -796,7 +796,6 @@ ApiClass::Constant ApiClass::Constant::null;
 #endif
 
 
-
 var HiseJavascriptEngine::callFunction(const Identifier& function, const var::NativeFunctionArgs& args, Result* result)
 {
 #if JUCE_DEBUG

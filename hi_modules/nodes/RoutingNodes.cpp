@@ -88,7 +88,7 @@ ReceiveNode::ReceiveNode() :
 
 void ReceiveNode::initialise(NodeBase* n)
 {
-	addToSignal.init(n, this);
+	addToSignal.initialise(n);
 }
 
 void ReceiveNode::prepare(PrepareSpecs ps)
@@ -112,8 +112,6 @@ void ReceiveNode::createParameters(Array<ParameterData>& d)
 		p.db = BIND_MEMBER_FUNCTION_1(ReceiveNode::setGain);
 		d.add(std::move(p));
 	}
-
-	addToSignal.init(nullptr, nullptr);
 }
 
 void ReceiveNode::reset()
@@ -155,7 +153,7 @@ juce::StringArray Factory::getSourceNodeList(NodeBase* n)
 void SendNode::initialise(NodeBase* n)
 {
 	parent = n;
-	connectionUpdater.init(n, this);
+	connectionUpdater.initialise(n);
 }
 
 void SendNode::reset()
@@ -199,7 +197,7 @@ bool SendNode::isConnected() const
 
 void SendNode::createParameters(Array<ParameterData>&)
 {
-	connectionUpdater.init(nullptr, nullptr);
+	
 }
 
 void SendNode::connectTo(ReceiveNode* s)

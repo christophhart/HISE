@@ -439,7 +439,7 @@ struct dynamic
 		parentNode = n;
 
 		receiveIds.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::restoreConnections));
-		receiveIds.init(n, nullptr);
+		receiveIds.initialise(n);
 	};
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
@@ -904,7 +904,7 @@ struct dynamic_matrix : public RoutableProcessor
 		//ScopedValueSetter<bool> svs(recursion, true);
 
 		internalData.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic_matrix::updateFromEmbeddedData));
-		internalData.init(n, nullptr);
+		internalData.initialise(n);
 	}
 
 	void updateFromEmbeddedData(Identifier id, var newValue)

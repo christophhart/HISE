@@ -39,34 +39,108 @@ using namespace hise;
 namespace core
 {
 
-class MidiDisplay : public ScriptnodeExtraComponent<MidiDisplayProviderBase>
+
+class MidiDisplay : public ScriptnodeExtraComponent<SnexEventProcessor>,
+					public SnexPopupEditor::Parent,
+					public Value::Listener
 {
 public:
 
-	MidiDisplay(MidiDisplayProviderBase* t, PooledUIUpdater* updater) :
-		ScriptnodeExtraComponent<MidiDisplayProviderBase>(t, updater),
-		dragger(updater)
+	using ObjectType = core::midi<SnexEventProcessor>;
+
+	MidiDisplay(SnexEventProcessor* t, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<SnexEventProcessor>(t, updater),
+		SnexPopupEditor::Parent(t),
+		dragger(updater),
+		editCodeButton("snex", this, f),
+		modeSelector("Mode")
 	{
+		
+
 		meter.setColour(VuMeter::backgroundColour, Colour(0xFF333333));
 		meter.setColour(VuMeter::outlineColour, Colour(0x45ffffff));
 		meter.setType(VuMeter::MonoHorizontal);
 		meter.setColour(VuMeter::ledColour, Colours::grey);
 
+		modeSelector.setColour(HiseColourScheme::ComponentBackgroundColour, Colours::transparentBlack);
+		modeSelector.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+		modeSelector.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+		modeSelector.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+		modeSelector.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+
+		modeSelector.onChange = [this]()
+		{
+			getObject()->modeValue.setValue(modeSelector.getText());
+		};
+
+		addAndMakeVisible(modeSelector);
+		addAndMakeVisible(editCodeButton);
+
+		t->modeValue.addListener(this);
+		valueChanged(t->modeValue);
+
+		editCodeButton.setLookAndFeel(&blaf);
+		modeSelector.setLookAndFeel(&claf);
+
+		modeSelector.addItemList(SnexEventProcessor::getModes(), 1);
+
+		editCodeButton.addListener(this);
+
 		this->addAndMakeVisible(meter);
 		this->addAndMakeVisible(dragger);
-
-		this->setSize(256, 40);
+		this->setSize(256, 128);
 	}
+
+	~MidiDisplay()
+	{
+		getObject()->modeValue.removeListener(this);
+	}
+
+	void valueChanged(Value& value) override
+	{
+		auto s = value.getValue().toString();
+
+		if (SnexEventProcessor::getModes().contains(s))
+		{
+			modeSelector.setText(s, dontSendNotification);
+		}
+
+		editCodeButton.setVisible(s == "Custom");
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds();
+
+		g.setColour(Colours::white.withAlpha(0.6f));
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		g.drawText("Normalised MIDI Value", b.removeFromTop(18).toFloat(), Justification::left);
+		b.removeFromTop(meter.getHeight());
+
+		auto row = b.removeFromTop(18).toFloat();
+
+		g.drawText("Mode", row.removeFromLeft(128.0f), Justification::left);
+	}
+
+	
 
 	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
 	{
-		return new MidiDisplay(obj, updater);
+		return new MidiDisplay(&obj->mType, updater);
 	}
 
 	void resized() override
 	{
 		auto b = this->getLocalBounds();
+		b.removeFromTop(18);
+
 		meter.setBounds(b.removeFromTop(24));
+		b.removeFromTop(18);
+		auto r = b.removeFromTop(28);
+		editCodeButton.setBounds(r.removeFromRight(60).reduced(4));
+		modeSelector.setBounds(r);
+		b.removeFromTop(10);
 		dragger.setBounds(b);
 	}
 
@@ -75,145 +149,65 @@ public:
 		if (this->getObject() == nullptr)
 			return;
 
-		meter.setPeak(this->getObject()->getDisplayValue());
+		meter.setPeak(this->getObject()->lastValue);
 	}
 
+	SnexPathFactory f;
+	BlackTextButtonLookAndFeel blaf;
+	GlobalHiseLookAndFeel claf;
+	ComboBox modeSelector;
+	HiseShapeButton editCodeButton;
 	ModulationSourceBaseComponent dragger;
 	VuMeter meter;
 };
 
-template <int V>
-float scriptnode::core::MidiSourceNode<V>::getDisplayValue() const
-{
-	return (float)modValue.getCurrentOrFirst().getModValue();
-}
 
 
-template <int V>
-void MidiSourceNode<V>::createParameters(Array<ParameterData>& data)
-{
-	ParameterData d("Mode");
-
-	d.setParameterValueNames({ "Gate", "Velocity", "NoteNumber", "Frequency" });
-	d.defaultValue = 0.0;
-	d.db = BIND_MEMBER_FUNCTION_1(MidiSourceNode::setMode);
-
-	data.add(std::move(d));
-
-	scriptFunction.init(nullptr, nullptr);
-}
-
-template <int V>
-bool MidiSourceNode<V>::handleModulation(double& value)
-{
-	return modValue.get().getChangedValue(value);
-}
-
-template <int V>
-void MidiSourceNode<V>::handleHiseEvent(HiseEvent& e)
-{
-	bool thisChanged = false;
-	double thisModValue = 0.0;
-
-	switch (currentMode)
-	{
-	case Mode::Gate:
-	{
-		if (e.isNoteOnOrOff())
-		{
-			thisModValue = e.isNoteOn() ? 1.0 : 0.0;
-			thisChanged = true;
-		}
-
-		break;
-	}
-	case Mode::Velocity:
-	{
-		if (e.isNoteOn())
-		{
-			thisModValue = (double)e.getVelocity() / 127.0;
-			thisChanged = true;
-		}
-
-		break;
-	}
-	case Mode::NoteNumber:
-	{
-		if (e.isNoteOn())
-		{
-			thisModValue = (double)e.getNoteNumber() / 127.0;
-			thisChanged = true;
-		}
-
-		break;
-	}
-	case Mode::Frequency:
-	{
-		if (e.isNoteOn())
-		{
-			thisModValue = (e.getFrequency() - 20.0) / 19980.0;
-			thisChanged = true;
-		}
-
-		break;
-	}
-	}
-
-	if (thisChanged)
-	{
-		
-		modValue.get().setModValue(scriptFunction.callWithDouble(thisModValue));
-	}
-		
-}
-
-template <int V>
-void MidiSourceNode<V>::prepare(PrepareSpecs sp)
-{
-	modValue.prepare(sp);
-}
 
 
-template <int V>
-void MidiSourceNode<V>::initialise(NodeBase* n)
-{
-	scriptFunction.init(n, this);
-}
-
-DEFINE_EXTERN_NODE_TEMPIMPL(MidiSourceNode);
-
-
-class TimerDisplay : public ScriptnodeExtraComponent<TimerDisplayProviderBase>
+class TimerDisplay : public ScriptnodeExtraComponent<SnexEventTimer>,
+					 public SnexPopupEditor::Parent
 {
 public:
 
-	TimerDisplay(TimerDisplayProviderBase* t, PooledUIUpdater* updater) :
-		ScriptnodeExtraComponent<TimerDisplayProviderBase>(t, updater),
-		dragger(updater)
-	{
-		this->addAndMakeVisible(dragger);
+	using ObjectType = timer_base<SnexEventTimer>;
 
-		this->setSize(256, 40);
+	TimerDisplay(SnexEventTimer* t, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<SnexEventTimer>(t, updater),
+		SnexPopupEditor::Parent(t),
+		dragger(updater),
+		editCodeButton("snex", this, f)
+	{
+		addAndMakeVisible(editCodeButton);
+		editCodeButton.addListener(this);
+		this->addAndMakeVisible(dragger);
+		this->setSize(256, 50);
 	}
 
 	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
 	{
-		return new TimerDisplay(obj, updater);
+		return new TimerDisplay(&obj->tType, updater);
 	}
 
 	void resized() override
 	{
 		auto b = this->getLocalBounds();
-		b.removeFromTop(24);
+		auto t = b.removeFromTop(28);
+		editCodeButton.setBounds(t.removeFromRight(60).reduced(4));
 		dragger.setBounds(b);
 	}
 
 	void paint(Graphics& g) override
 	{
-		auto b = this->getLocalBounds().removeFromTop(24);
+		auto b = this->getLocalBounds().removeFromTop(28);
+
+		auto ledArea = b.removeFromLeft(24).removeFromTop(24);
+
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.drawRect(ledArea, 1.0f);
 
 		g.setColour(Colours::white.withAlpha(alpha));
-		g.fillEllipse(b.withSizeKeepingCentre(20, 20).toFloat());
+		g.fillRect(ledArea.reduced(2.0f));
 	}
 
 	void timerCallback() override
@@ -226,7 +220,7 @@ public:
 
 		float lastAlpha = alpha;
 
-		auto& ui_led = getObject()->getActiveFlag();
+		auto& ui_led = getObject()->ui_led;
 
 		if (ui_led)
 		{
@@ -240,170 +234,139 @@ public:
 			repaint();
 	}
 
+	SnexPathFactory f;
+	HiseShapeButton editCodeButton;
+	
 	float alpha = 0.0f;
 	ModulationSourceBaseComponent dragger;
 };
 
-template <int NV>
-TimerNode<NV>::TimerNode():
-	fillMode(PropertyIds::FillMode, true)
+void SnexEventProcessor::prepare(PrepareSpecs ps)
 {
-
-}
-
-
-template <int NV>
-bool& TimerNode<NV>::getActiveFlag()
-{
-	return ui_led;
-}
-
-
-template <int NV>
-void TimerNode<NV>::setInterval(double timeMs)
-{
-	auto newTime = roundToInt(timeMs * 0.001 * sr);
-
-	if (t.isMonophonicOrInsideVoiceRendering())
+	if (parentNode != nullptr)
 	{
-		t.get().samplesBetweenCallbacks = newTime;
-	}
-	else
-	{
-		for(auto& ti: t)
-			ti.samplesBetweenCallbacks = newTime;
-	}
-}
+		auto pp = parentNode->getParentNode();
+		bool found = true;
 
-template <int NV>
-void TimerNode<NV>::setActive(double value)
-{
-	bool thisActive = value > 0.5;
+		bool isInMidiChain = false;
 
-	if (t.isMonophonicOrInsideVoiceRendering())
-	{
-		auto& thisInfo = t.get();
-
-		if (thisInfo.active != thisActive)
+		while (pp != nullptr)
 		{
-			thisInfo.active = thisActive;
-			thisInfo.reset();
+			isInMidiChain |= pp->getValueTree()[PropertyIds::FactoryPath].toString().contains("midichain");
+			pp = pp->getParentNode();
 		}
-	}
-	else
-	{
-		for (auto& ti : t)
+
+		if (!isInMidiChain)
 		{
-			ti.active = thisActive;
-			ti.reset();
+			Error e;
+			e.error = Error::NoMatchingParent;
+			throw e;
 		}
 	}
 
+	if(currentMode == Mode::Custom)
+		SnexSource::prepare(ps);
 }
 
-template <int NV>
-void TimerNode<NV>::createParameters(Array<ParameterData>& data)
+
+struct SnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator>,
+							   public SnexPopupEditor::Parent,
+							   public Value::Listener
 {
+	using ObjectType = snex_osc_base<SnexOscillator>;
+
+	SnexOscillatorDisplay(SnexOscillator* o, PooledUIUpdater* u):
+		ScriptnodeExtraComponent<SnexOscillator>(o, u),
+		Parent(o),
+		editCodeButton("snex", this, f)
 	{
-		ParameterData d("Interval");
-
-		d.range = { 0.0, 2000.0, 0.1 };
-		d.defaultValue = 500.0;
-		d.db = BIND_MEMBER_FUNCTION_1(TimerNode::setInterval);
-
-		data.add(std::move(d));
+		codeValue.referTo(o->expression.asJuceValue());
+		addAndMakeVisible(editCodeButton);
+		codeValue.addListener(this);
+		setSize(256, 60);
+		valueChanged(codeValue);
 	}
 
+	~SnexOscillatorDisplay()
 	{
-		ParameterData d("Active");
-
-		d.range = { 0.0, 1.0, 1.0 };
-		d.defaultValue = 500.0;
-		d.db = BIND_MEMBER_FUNCTION_1(TimerNode::setActive);
-
-		data.add(std::move(d));
+		codeValue.removeListener(this);
 	}
 
-	scriptFunction.init(nullptr, nullptr);
-	fillMode.init(nullptr, nullptr);
-}
-
-template <int NV>
-bool TimerNode<NV>::handleModulation(double& value)
-{
-	return modValue.get().getChangedValue(value);
-}
-
-template <int NV>
-void TimerNode<NV>::processFirstChannel(snex::Types::ProcessDataFix<1>& d)
-{
-	auto& thisInfo = t.get();
-
-	if (!thisInfo.active)
-		return;
-
-	const int numSamples = d.getNumSamples();
-
-	if (numSamples < thisInfo.samplesLeft)
+	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* u)
 	{
-		thisInfo.samplesLeft -= numSamples;
+		return new SnexOscillatorDisplay(&obj->oscType, u);
+	}
 
-		if (fillMode.getValue())
+	void valueChanged(Value& v) override
+	{
+		heap<float> buffer;
+		buffer.setSize(200);
+		dyn<float> d(buffer);
+
+		for (auto& s : buffer)
+			s = 0.0f;
+
+		if (getObject()->isReady())
 		{
-			for (auto ch : d)
-				FloatVectorOperations::fill(ch.getRawWritePointer(), (float)modValue.get().getModValue(), numSamples);
+			OscProcessData od;
+			od.data = d;
+			od.uptime = 0.0;
+			od.delta = 1.0 / (double)buffer.size();
+			od.voiceIndex = 0;
+
+			getObject()->process(od);
+
+			p.clear();
+			p.startNewSubPath(0.0f, 0.0f);
+
+			float i = 0.0f;
+
+			for (auto& s : buffer)
+			{
+				FloatSanitizers::sanitizeFloatNumber(s);
+				jlimit(-10.0f, 10.0f, s);
+				p.lineTo(i, -1.0f * s);
+				i += 1.0f;
+			}
+
+			p.lineTo(i, 0.0f);
+			p.closeSubPath();
+
+			if (p.getBounds().getHeight() > 0.0f && p.getBounds().getWidth() > 0.0f)
+			{
+				p.scaleToFit(pathBounds.getX(), pathBounds.getY(), pathBounds.getWidth(), pathBounds.getHeight(), false);
+			}
 		}
+
+		repaint();
 	}
-	else
+
+	void timerCallback() override {};
+
+	void resized() override
 	{
-		const int numRemaining = numSamples - thisInfo.samplesLeft;
+		auto b = getLocalBounds();
 
-		if (fillMode.getValue())
-		{
-			for (auto ch : d)
-				FloatVectorOperations::fill(ch.getRawWritePointer(), (float)modValue.get().getModValue(), numRemaining);
-		}
+		auto buttonBounds = b.removeFromRight(60).reduced(4);
+		editCodeButton.setBounds(buttonBounds);
 
-		auto newValue = scriptFunction.callWithDouble(0.0);
-		modValue.get().setModValue(newValue);
-
-		ui_led = true;
-
-		const int numAfter = numSamples - numRemaining;
-
-		if (fillMode.getValue())
-		{
-			for (auto ch : d)
-				FloatVectorOperations::fill(ch.getRawWritePointer() + numRemaining, (float)newValue, numAfter);
-		}
-		
-		thisInfo.samplesLeft = thisInfo.samplesBetweenCallbacks + numRemaining;
+		pathBounds = b.toFloat();
 	}
-}
 
-template <int NV>
-void TimerNode<NV>::reset()
-{
-	t.get().reset();
-}
+	void paint(Graphics& g) override
+	{
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, pathBounds.getWidth(), pathBounds.getHeight());
+	}
 
-template <int NV>
-void TimerNode<NV>::prepare(PrepareSpecs ps)
-{
-	sr = ps.sampleRate;
+	Path p;
 
-	t.prepare(ps);
-	modValue.prepare(ps);
-}
+	Value codeValue;
+	Rectangle<float> pathBounds;
 
-template <int NV>
-void TimerNode<NV>::initialise(NodeBase* n)
-{
-	scriptFunction.init(n, this);
-	fillMode.init(n, this);
-}
+	SnexPathFactory f;
+	HiseShapeButton editCodeButton;
+};
 
-DEFINE_EXTERN_NODE_TEMPIMPL(TimerNode);
 }
     
 }

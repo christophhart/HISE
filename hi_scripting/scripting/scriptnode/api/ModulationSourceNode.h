@@ -56,6 +56,7 @@ protected:
 
 	void initParameterData(Array<ParameterDataImpl>& pData);
 
+	
 private:
 
 	mutable int cachedExtraWidth = -1;
@@ -81,45 +82,6 @@ public:
 
 		bool findTarget();
 
-#if OM
-		void setExpression(const String& exprCode)
-		{
-#if HISE_INCLUDE_SNEX
-			snex::JitExpression::Ptr newExpr;
-
-			if (exprCode.isEmpty())
-			{
-				SpinLock::ScopedLockType lock(expressionLock);
-				std::swap(expr, newExpr);
-			}
-			else
-			{
-				newExpr = new snex::JitExpression(exprCode, parent);
-
-				if (newExpr->isValid())
-				{
-					SpinLock::ScopedLockType lock(expressionLock);
-					std::swap(newExpr, expr);
-				}
-			}
-#endif
-		}
-
-		void applyValue(double value)
-		{
-			if (!active)
-				return;
-
-			switch (opType)
-			{
-			case SetValue: targetParameter->setValueAndStoreAsync(value); break;
-			case Multiply: targetParameter->multiplyModulationValue(value); break;
-			case Add:	   targetParameter->addModulationValue(value); break;
-			default:   break;
-			}
-		}
-#endif
-
 		bool isModulationConnection() const override { return true; }
 
 		valuetree::PropertyListener expressionUpdater;
@@ -127,18 +89,8 @@ public:
 		valuetree::RemoveListener removeWatcher;
 		WeakReference<ModulationSourceNode> parent;
 
-#if OM
-		DspHelpers::ParameterCallback callback;
-#endif
-
 		CachedValue<bool> active;
 		
-		
-
-#if OM
-		SnexExpressionPtr expr;
-		SpinLock expressionLock;
-#endif
 	};
 
 	ValueTree getModulationTargetTree();;
@@ -162,80 +114,11 @@ public:
 
 	void prepare(PrepareSpecs ps) override;
 
-#if OM
-	void sendValueToTargets(double value, int numSamplesForAnalysis);
-	{
-		if (ringBuffer != nullptr &&
-			numSamplesForAnalysis > 0 &&
-			getRootNetwork()->isRenderingFirstVoice())
-		{
-			ringBuffer->write(value, (int)(jmax(1.0, sampleRateFactor * (double)numSamplesForAnalysis)));
-		}
-
-		if (scaleModulationValue)
-		{
-			value = jlimit(0.0, 1.0, value);
-
-			for (auto t : targets)
-			{
-#if HISE_INCLUDE_SNEX
-				SpinLock::ScopedLockType l(t->expressionLock);
-
-				if (t->expr != nullptr)
-				{
-					auto thisValue = t->expr->getValue(value);
-					t->applyValue(thisValue);
-					continue;
-				}
-#endif
-
-				auto thisValue = value;
-
-				if (t->inverted)
-					thisValue = 1.0 - thisValue;
-
-				auto normalised = t->connectionRange.convertFrom0to1(thisValue);
-
-				t->applyValue(normalised);
-			}
-		}
-		else
-		{
-			for (auto t : targets)
-			{
-#if HISE_INCLUDE_SNEX
-				SpinLock::ScopedLockType l(t->expressionLock);
-
-				if (t->expr != nullptr)
-				{
-					auto thisValue = t->expr->getValue(value);
-					t->applyValue(thisValue);
-					continue;
-				}
-#endif
-
-				t->applyValue(value);
-			}
-		}
-
-		lastModValue = value;
-	}
-#endif
 
 	void logMessage(int level, const String& s) override;
 
 	int fillAnalysisBuffer(AudioSampleBuffer& b);
 
-#if OM
-	void setScaleModulationValue(bool shouldScaleValue)
-	{
-		scaleModulationValue = shouldScaleValue;
-	}
-
-	bool shouldScaleModulationValue() const noexcept { return scaleModulationValue; }
-
-	virtual bool isUsingModulation() const { return false; }
-#endif
 
 	void checkTargets();
 

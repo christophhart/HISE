@@ -272,4 +272,6 @@ struct NodePopupEditor : public Component,
 	HiseShapeButton exportButton, wrapButton, surroundButton;
 };
 
+
+
 }

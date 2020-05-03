@@ -175,22 +175,126 @@ struct TableNode : public HiseDspBase
 namespace core
 {
 
+struct file_base
+{
+	virtual ~file_base() {};
+
+	CriticalSection fileLock;
+	std::atomic<bool> writeFlag;
+	AudioSampleBuffer displayBuffer;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(file_base);
+};
+
+struct FileDisplay : public ScriptnodeExtraComponent<file_base>
+{
+	FileDisplay(file_base* b, PooledUIUpdater* u):
+		ScriptnodeExtraComponent<file_base>(b, u)
+	{
+		setSize(400, 100);
+	}
+
+	static Component* createExtraComponent(file_base* b, PooledUIUpdater* u)
+	{
+
+	}
+
+
+};
+
+template <typename T, int C> struct file_node: public file_base
+{
+	GET_SELF_OBJECT(obj);
+	GET_WRAPPED_OBJECT(obj);
+
+	void initialise(NodeBase* n)
+	{
+		fileProperty.initWithRoot(n, nullptr, *this);
+		obj.initialise(n);
+	}
+
+	static Identifier getStaticId() { return T::getStaticId(); }
+
+	void reset() 
+	{ 
+		ScopedLock sl(fileLock);
+		obj.reset();
+	}
+	void prepare(PrepareSpecs ps) 
+	{ 
+		ScopedLock sl(fileLock);
+		obj.prepare(ps); 
+	}
+	
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if(!writeFlag)
+			obj.handleHiseEvent(e);
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		if(!writeFlag)
+			obj.process(data.as<ProcessDataFix<C>>());
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		if(!writeFlag)
+			obj.processFrame(data);
+	}
+
+	void createParameters(Array<ParameterDataImpl>& data)
+	{
+		obj.createParameters(data);
+	}
+
+	T obj;
+
+	struct PropClass
+	{
+		using FileType = typename properties::file<PropClass, C>::type;
+
+		static Identifier getId()
+		{
+			return PropertyIds::File;
+		}
+
+		void setFile(file_node& obj, FileType& file)
+		{
+			int numSamples = file.data[0].size();
+
+			for (int i = 0; i < C; i++)
+				displayBuffer.copyFrom(i, 0, file.data[i].begin(), numSamples);
+
+			
+			writeFlag.store(true);
+			ScopedLock sl(fileLock);
+			obj.setFile(file.data, file.sampleRate);
+			writeFlag.store(false);
+		}
+	};
+
+	properties::file<PropClass, C> fileProperty;
+};
+
 struct file_player : public AudioFileNodeBase
 {
 	SET_HISE_NODE_ID("file_player");
-	GET_SELF_AS_OBJECT(file_player);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-#if RE
-	SET_HISE_NODE_EXTRA_WIDTH(256);
-	SET_HISE_NODE_EXTRA_HEIGHT(100);
-#endif
+	GET_SELF_AS_OBJECT();
 
 	file_player();;
 
 	void prepare(PrepareSpecs specs) override;
 	void reset();
 	bool handleModulation(double& modValue);
+
+	template <typename AudioDataType> void setFile(AudioDataType& audio, double sampleRate)
+	{
+
+	}
+
+	span<dyn<float>, 2> currentData;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
@@ -248,11 +352,14 @@ private:
 	double uptimeDelta = 1.0;
 };
 
+
+
 }
 
 namespace core
 {
 
+//using file_player = file_node<file_player_impl, 2>;
 using table = TableNode;
 
 }

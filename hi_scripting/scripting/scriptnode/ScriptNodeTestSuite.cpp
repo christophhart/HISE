@@ -1102,7 +1102,7 @@ struct ScriptNodeTests : public juce::UnitTest
 		TestChain c;
 		properties::list<properties::native<MyProperty>> p;
 
-		p.initWithRoot(nullptr, nullptr, c);
+		p.initWithRoot(nullptr, c);
 		
 	}
 };

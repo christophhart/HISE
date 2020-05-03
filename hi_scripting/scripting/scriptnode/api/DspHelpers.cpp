@@ -73,6 +73,20 @@ void DspHelpers::setErrorIfFrameProcessing(const PrepareSpecs& ps)
 	}
 }
 
+void DspHelpers::setErrorIfNotOriginalSamplerate(const PrepareSpecs& ps, NodeBase* n)
+{
+	auto original = n->getRootNetwork()->getOriginalSampleRate();
+
+	if (ps.sampleRate != original)
+	{
+		Error e;
+		e.error = Error::SampleRateMismatch;
+		e.expected = (int)original;
+		e.actual = (int)ps.sampleRate;
+		throw e;
+	}
+}
+
 scriptnode::DspHelpers::ParameterCallback DspHelpers::getFunctionFrom0To1ForRange(NormalisableRange<double> range, bool inverted, const ParameterCallback& originalFunction)
 {
 	if (RangeHelpers::isIdentity(range))
@@ -218,6 +232,16 @@ void DspHelpers::validate(PrepareSpecs sp, PrepareSpecs rp)
 		e.error = Error::BlockSizeMismatch;
 		e.actual = rp.blockSize;
 		e.expected = sp.blockSize;
+		throw e;
+	}
+}
+
+void DspHelpers::throwIfFrame(PrepareSpecs ps)
+{
+	if (ps.blockSize == 1)
+	{
+		Error e;
+		e.error = Error::IllegalFrameCall;
 		throw e;
 	}
 }

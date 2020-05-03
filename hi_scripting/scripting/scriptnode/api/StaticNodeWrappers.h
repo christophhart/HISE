@@ -114,6 +114,8 @@ public:
 		{
 			exceptionHandler.addError(this, s);
 		}
+
+		NodeBase::prepare(specs);
 	}
 
 	void processFrame(NodeBase::FrameType& data) final override
@@ -232,6 +234,8 @@ public:
 		{
 			exceptionHandler.addError(this, s);
 		}
+
+		ModulationSourceNode::prepare(specs);
 	}
 
 	void writeToRingBuffer(double value, int numSamplesForAnalysis)
@@ -817,26 +821,6 @@ struct hardcoded_base : public HiseDspBase,
 {
 	virtual ~hardcoded_base() {};
 
-#if RE
-	int getExtraWidth() const override
-	{
-		if (extraWidth != -1)
-			return extraWidth;
-
-		return HiseDspBase::getExtraWidth();
-	}
-
-	int getExtraHeight() const override
-	{
-		if (extraHeight != -1)
-			return extraHeight;
-
-		return HiseDspBase::getExtraHeight();
-	}
-#endif
-
-	
-
 	int extraHeight = -1;
 	int extraWidth = -1;
 };
@@ -1055,6 +1039,26 @@ static Identifier getStaticId() { return Identifier(id); };
 			newItem.pb = cb;
 
 			monoNodes.add(newItem);
+		};
+
+		template <class MonoT, class PolyT, class ComponentType = NoExtraComponent> void registerPolyModNode()
+		{
+			using WrappedPolyT = HiseDspNodeBaseWithModulation<PolyT, ComponentType>;
+			using WrappedMonoT = HiseDspNodeBaseWithModulation<MonoT, ComponentType>;
+
+			{
+				Item newItem;
+				newItem.cb = WrappedPolyT::createNode;
+				newItem.id = WrappedPolyT::getStaticId;
+				polyNodes.add(newItem);
+			}
+
+			{
+				Item newItem;
+				newItem.cb = WrappedMonoT::createNode;
+				newItem.id = WrappedMonoT::getStaticId;
+				monoNodes.add(newItem);
+			}
 		};
 
         template <class T, class ComponentType=NoExtraComponent> void registerNode(const PostCreateCallback& cb = {})

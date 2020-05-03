@@ -86,6 +86,24 @@ namespace core
 {
 
 
+struct FunkyType
+{
+	void initialise(NodeBase* n) {};
+
+	void prepare(PrepareSpecs ps)
+	{
+
+
+	}
+
+	int getMidiValue(HiseEvent& e, double& value)
+	{
+		value = 0.5;
+		return 1;
+	}
+};
+
+
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
@@ -96,10 +114,6 @@ Factory::Factory(DspNetwork* network) :
 
 	registerPolyNode<seq, seq_poly>();
 	
-#if HISE_INCLUDE_SNEX
-	registerPolyNodeRaw<JitNode, JitPolyNode>();
-	registerNode<core::simple_jit>({});
-#endif
 	registerNode<mono2stereo>({});
 	registerNode<table>();
 	registerNode<fix_delay>();
@@ -111,10 +125,18 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<gain, gain_poly>();
 	
 	
-	registerPolyNode<timer, timer_poly, TimerDisplay>();
-	registerPolyNode<midi, midi_poly, MidiDisplay>({});
+	
+	
 	registerPolyNode<smoother, smoother_poly>({});
 #endif
+
+	registerModNode<core::midi<SnexEventProcessor>, MidiDisplay>();
+
+	registerPolyModNode<timer<SnexEventTimer>, timer_poly<SnexEventTimer>, TimerDisplay>();
+
+	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, SnexOscillatorDisplay>();
+
+	//registerPolyNode<midi, midi_poly, MidiDisplay>({});
 
 	registerNodeRaw<ParameterMultiplyAddNode<core::pma<parameter::dynamic_base_holder>>>();
 
@@ -194,8 +216,11 @@ Factory::Factory(DspNetwork* network) :
 	//B o2(network, {});
 #endif
 
+	
+	using osc = BoringWrapper<fix<1, oscillator_impl<1>>, OscillatorDisplayProvider::UseMidiProperty>;
+	using osc_poly = BoringWrapper<fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>, OscillatorDisplayProvider::UseMidiProperty>;
 
-	registerPolyNode<oscillator, oscillator_poly, OscDisplay>();
+	registerPolyNode<osc, osc_poly, OscDisplay>();
 
 }
 }

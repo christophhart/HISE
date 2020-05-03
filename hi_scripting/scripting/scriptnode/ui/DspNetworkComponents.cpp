@@ -1029,13 +1029,13 @@ DspNetworkGraph::ScrollableParent::ScrollableParent(DspNetwork* n)
 	viewport.setViewedComponent(new DspNetworkGraph(n), true);
 	addAndMakeVisible(dark);
 	dark.setVisible(false);
-	context.attachTo(*this);
+	//context.attachTo(*this);
 	setOpaque(true);
 }
 
 DspNetworkGraph::ScrollableParent::~ScrollableParent()
 {
-	context.detach();
+	//context.detach();
 }
 
 void DspNetworkGraph::ScrollableParent::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
