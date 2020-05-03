@@ -90,6 +90,7 @@
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="mcl_editor" path="../../../Projekte/mcl_editor"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -134,6 +135,7 @@
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="mcl_editor" path="../../../Projekte/mcl_editor"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -196,6 +198,7 @@
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="mcl_editor" path="../../../Projekte/mcl_editor"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=1&#10;&#10;"
@@ -239,6 +242,7 @@
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="stk_wrapper" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="mcl_editor" path="../../../Projekte/mcl_editor"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -272,6 +276,7 @@
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
+    <MODULE id="mcl_editor" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="stk_wrapper" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <JUCEOPTIONS USE_IPP="0" USE_BACKEND="1" USE_FRONTEND="0" USE_RAW_FRONTEND="0"
