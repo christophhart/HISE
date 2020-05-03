@@ -77,7 +77,4 @@ using String = juce::String;
 
 #include "snex_core/snex_ExternalObjects.cpp"
 
-
-#include "snex_jit/snex_jit_UnitTests.cpp"
-#include "snex_components/snex_JitPlayground.cpp"
 #endif
