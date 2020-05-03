@@ -332,6 +332,79 @@ MathFunctions::MathFunctions() :
 
 		return Result::ok();
 	});
+
+	addInliner("sin", [](InlineData* d_)
+	{
+		SETUP_MATH_INLINE("inline sin");
+		
+		static constexpr int TableSize = 2048;
+
+		static float sinTable[TableSize];
+		for (int i = 0; i < TableSize; i++)
+		{
+			double v = ((double)i / (double)TableSize) * double_Pi * 2.0;
+			sinTable[i] = std::sin(v);
+		}
+
+		auto i1 = cc.newGpq();
+		auto i2 = cc.newGpq();
+		auto tmpFloat = cc.newXmmSs();
+
+		d->target->loadMemoryIntoRegister(cc);
+
+		auto idx = cc.newXmmSs();
+		bool isDouble = d->args[0]->getType() == Types::ID::Double;
+
+		if (isDouble)
+		{
+			if (d->args[0]->isMemoryLocation())
+				cc.cvtsd2ss(idx, d->args[0]->getAsMemoryLocation());
+			else
+				cc.cvtsd2ss(idx, FP_REG_R(d->args[0]));
+		}
+		else
+		{
+			if (d->args[0]->isMemoryLocation())
+				cc.movss(idx, d->args[0]->getAsMemoryLocation());
+			else
+				cc.movss(idx, FP_REG_R(d->args[0]));
+		}
+
+		auto tableSize = cc.newFloatConst(ConstPool::kScopeGlobal, (float)TableSize / (2.0f * float_Pi));
+
+		cc.mulss(idx, tableSize);
+		cc.cvttss2si(i1, idx);
+		cc.lea(i2, x86::ptr(i1).cloneAdjusted(1));
+		cc.cvtsi2ss(tmpFloat, i1);
+		cc.subss(idx, tmpFloat);
+		cc.and_(i1, TableSize-1);
+		cc.and_(i2, TableSize-1);
+
+		auto adr = (uint64_t)sinTable;
+
+		auto dataReg = cc.newGpq();
+		cc.mov(dataReg, adr);
+		auto p1 = x86::dword_ptr(dataReg, i1, 2);
+		auto p2 = x86::dword_ptr(dataReg, i2, 2);
+		
+		X86Xmm v1;
+
+		if (isDouble)
+			v1 = cc.newXmmSs();
+		else
+			v1 = FP_REG_W(d->target);
+
+		// return v0 + t * (v1 - v0);
+		cc.movss(v1, p2);
+		cc.subss(v1, p1);
+		cc.mulss(v1, idx);
+		cc.addss(v1, p1);
+
+		if (isDouble)
+			cc.cvtss2sd(FP_REG_W(d->target), v1);
+
+		return Result::ok();
+	});
 }
 
 
