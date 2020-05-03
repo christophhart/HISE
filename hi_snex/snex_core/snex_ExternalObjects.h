@@ -166,6 +166,16 @@ struct PrepareSpecs
 
 
 
+struct OscProcessData
+{
+	dyn<float> data;		// 12 bytes
+	double uptime = 0.0;    // 8 bytes
+	double delta = 0.0;     // 8 bytes
+	int voiceIndex = 0;			// 4 bytes
+
+	static snex::ComplexType* createType(Compiler& c);
+};
+
 
 struct SnexObjectDatabase
 {

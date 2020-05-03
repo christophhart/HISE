@@ -323,6 +323,8 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	ct.constant = numChannels;
 	ct.argumentId = NamespacedIdentifier("NumChannels");
 
+	c.registerExternalComplexType(OscProcessData::createType(c));
+
 	auto prototypes = ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
 
 	{
@@ -865,6 +867,22 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 	}
 
 	return f;
+}
+
+snex::ComplexType* OscProcessData::createType(Compiler& c)
+{
+	OscProcessData d;
+
+	auto st = CREATE_SNEX_STRUCT(OscProcessData);
+	auto blockType = c.getNamespaceHandler().getAliasType(NamespacedIdentifier("block")).getComplexType();
+
+	ADD_SNEX_STRUCT_COMPLEX(st, blockType, d, data);
+
+	ADD_SNEX_STRUCT_MEMBER(st, d, uptime);
+	ADD_SNEX_STRUCT_MEMBER(st, d, delta);
+	ADD_SNEX_STRUCT_MEMBER(st, d, voiceIndex);
+
+	return st;
 }
 
 }
