@@ -1566,11 +1566,18 @@ void AsmCodeGenerator::fillSignature(const FunctionData& data, FuncSignatureX& s
 	{
 		auto t = p.typeInfo.getType();
 
-		if (t == Types::ID::Float)	 sig.addArgT<float>();
-		if (t == Types::ID::Double)  sig.addArgT<double>();
-		if (t == Types::ID::Integer) sig.addArgT<int>();
-		if (t == Types::ID::Block)   sig.addArgT<PointerType>();
-		if (t == Types::ID::Pointer) sig.addArgT<PointerType>();
+		if (p.typeInfo.isRef())
+		{
+			sig.addArgT<PointerType>();
+		}
+		else
+		{
+			if (t == Types::ID::Float)	 sig.addArgT<float>();
+			if (t == Types::ID::Double)  sig.addArgT<double>();
+			if (t == Types::ID::Integer) sig.addArgT<int>();
+			if (t == Types::ID::Block)   sig.addArgT<PointerType>();
+			if (t == Types::ID::Pointer) sig.addArgT<PointerType>();
+		}
 	}
 }
 
