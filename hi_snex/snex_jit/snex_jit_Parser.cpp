@@ -61,7 +61,7 @@ public:
 		newScope = new JitCompiledFunctionClass(parentScope, classInstanceId);
 	};
 
-	~ClassCompiler()
+	virtual ~ClassCompiler()
 	{
 		syntaxTree = nullptr;
 	}

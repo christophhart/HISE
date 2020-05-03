@@ -632,8 +632,10 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			}
 			else
 			{
-				jassert(variableScope != nullptr);
-				reg = compiler->registerPool.getRegisterForVariable(variableScope, id);
+				if (variableScope != nullptr)
+					reg = compiler->registerPool.getRegisterForVariable(variableScope, id);
+				else
+					location.throwError("Can't resolve variable " + id.toString());
 			}
 		}
 			

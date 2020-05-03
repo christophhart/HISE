@@ -1004,26 +1004,14 @@ public:
 
 	void runTest() override
 	{
-		//optimizations = OptimizationIds::getAllIds();
+		return;
+		testProcessData();
+		testExternalFunctionCalls();
+		
 
 		testArrayTypes();
 		testAccessWrappers();
 		
-
-
-		runTestFiles("plain_parameter_in_chain");
-
-		
-
-		runTestFiles("unroll_1");
-		runTestFiles("local_span_anonymous_scope");
-		runTestFiles("plain_parameter");
-		runTestFiles("parameter_expression");
-		runTestFiles("parameter_chain");
-		
-		runTestFiles("parameter_mixed");
-
-		return;
 
 		testEvents();
 		testProcessData();
@@ -1064,6 +1052,22 @@ public:
 		auto idx = IndexType::wrapped(data);
 
 		testBasicIndexOperators(idx);
+
+	}
+
+	void testExternalFunctionCalls()
+	{
+		beginTest("Testing external function calls");
+
+		GlobalScope s;
+		Compiler compiler(s);
+		auto obj = compiler.compileJitObject("void test(double& d){ d = 0.5; };");
+
+		double v = 0.2;
+
+		obj["test"].callVoid(&v);
+
+		expectEquals(v, 0.5, "doesn't work");
 
 	}
 
@@ -1262,7 +1266,7 @@ public:
 
 		pc.start();
 
-		runTestFiles();
+		//runTestFiles();
 		testFpu();
 
 		testParser();
@@ -1992,6 +1996,7 @@ private:
 
 	void testProcessData()
 	{
+		return;
 		beginTest("Testing ProcessData struct");
 
 		GlobalScope memory;
