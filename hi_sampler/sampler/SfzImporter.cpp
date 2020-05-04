@@ -42,8 +42,8 @@ static const char * sfz_opcodeNames[SfzImporter::numSupportedOpcodes] =
 		"offset",
 		"end",
 		"loop_mode",
-		"loopstart",
-		"loopend",
+		"loop_start",
+		"loop_end",
 		"tune",
 		"pitch_keycenter",
 		"volume",
@@ -65,8 +65,8 @@ Identifier SfzImporter::getSamplerProperty(Opcode opcode)
 	case offset:			return SampleIds::SampleStart;
 	case end:				return SampleIds::SampleEnd;
 	case loop_mode:			return SampleIds::LoopEnabled;
-	case loopstart:			return SampleIds::LoopStart;
-	case loopend:			return SampleIds::LoopEnd;
+	case loop_start:			return SampleIds::LoopStart;
+	case loop_end:			return SampleIds::LoopEnd;
 	case tune:				return SampleIds::Pitch;
 	case pitch_keycenter:	return SampleIds::Root;
 	case volume:			return SampleIds::Volume;
@@ -408,7 +408,18 @@ void SfzImporter::importSfzFile()
 
 					auto p = getSamplerProperty((Opcode)k);
 
-					sample.setProperty(p, region->opcodes[opcode], nullptr);
+					if (p == SampleIds::FileName)
+					{
+						auto path = region->opcodes[opcode];
+						PoolReference ref(sampler->getMainController(), path, FileHandlerBase::Samples);
+						sample.setProperty(p, ref.getReferenceString(), nullptr);
+					}
+					else
+					{
+						sample.setProperty(p, region->opcodes[opcode], nullptr);
+					}
+
+					
 				}
 			}
 

@@ -55,8 +55,8 @@ public:
 		offset, ///< the sample start
 		end, ///< the sample end
 		loop_mode, ///< the loop mode (it will only support yes / no)
-		loopstart, ///< the loop start
-		loopend, ///< the loop end
+		loop_start, ///< the loop start
+		loop_end, ///< the loop end
 		tune, ///< the fine tune
 		pitch_keycenter, ///< the coarse tune
 		volume, ///< the volume
@@ -172,7 +172,7 @@ private:
 
 	static const char **opcodeNames;
 
-	const File &fileToImport;
+	File fileToImport;
 
 	ModulatorSampler *sampler;
 
