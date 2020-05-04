@@ -666,7 +666,8 @@ public:
 			}
 		}
 
-		repaintUpdater.triggerAsyncUpdate();
+		if(index != -1)
+			repaintUpdater.triggerAsyncUpdate();
 	}
 
 	

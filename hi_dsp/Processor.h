@@ -343,7 +343,7 @@ public:
 					 
 	{
 		setInternalAttribute(parameterIndex, newValue);
-		if(notifyEditor == sendNotification) sendChangeMessage();
+		if(notifyEditor == sendNotification) sendPooledChangeMessage();
 	}
 
 	/** returns the attribute with the specified index (use a enum in the derived class). */
