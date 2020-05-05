@@ -269,7 +269,7 @@ public:
 
 		b.addEvent(on);
 		b.addEvent(off);
-
+		
 		auto cd = Types::ProcessDataHelpers<NumChannels>::makeChannelData(data);
 		int numSamples = Types::ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
 		ProcessType d(cd.begin(), numSamples);
@@ -277,7 +277,6 @@ public:
 		d.setEventBuffer(b);
 
 		using T = void;
-
 		Compiler c(memory);
 		Types:: SnexObjectDatabase::registerObjects(c, NumChannels);
 
@@ -288,7 +287,6 @@ public:
 		DBG(c.getAssemblyCode());
 
 		auto f = obj["test"];
-
 		v = f.call<int>(&d);
 	}
 
@@ -305,16 +303,60 @@ public:
 		file(f),
 		r(Result::ok()),
 		t(t_),
-		memory(memory_)
+		memory(memory_),
+		c(memory)
 	{
 		parseFunctionData();
+	}
+
+	HiseEventBuffer parseEventData(const String& s)
+	{
+		HiseEventBuffer e;
+
+		auto v = JSON::parse(s);
+
+		if (auto ar = v.getArray())
+		{
+			for (auto& o : *ar)
+			{
+				e.addEvent(parseHiseEvent(o));
+			}
+		}
+
+		return e;
+	}
+
+	HiseEvent parseHiseEvent(const var& eventObject)
+	{
+		auto type = eventObject["Type"].toString();
+		auto channel = (int)eventObject["Channel"];
+		auto value1 = (int)eventObject["Value1"];
+		auto value2 = (int)eventObject["Value2"];
+		auto timestamp = (int)eventObject["Timestamp"];
+
+		HiseEvent e;
+
+		if (type == "NoteOn")
+			e = HiseEvent(HiseEvent::Type::NoteOn, value1, value2, channel);
+		if(type == "NoteOff")
+			e = HiseEvent(HiseEvent::Type::NoteOff, value1, value2, channel);
+		if(type == "Controller")
+			e = HiseEvent(HiseEvent::Type::Controller, value1, value2, channel);
+
+		if (timestamp % HISE_EVENT_RASTER != 0)
+			throwError("Unaligned event: " + JSON::toString(eventObject));
+
+		e.setTimeStamp(timestamp);
+		
+		return e;
 	}
 
 	JitFileTestCase(GlobalScope& memory_, const juce::String& s) :
 		code(s),
 		r(Result::ok()),
 		t(nullptr),
-		memory(memory_)
+		memory(memory_),
+		c(memory)
 	{
 		parseFunctionData();
 	}
@@ -352,10 +394,10 @@ public:
 		if (r.failed())
 			return r;
 
-		Compiler c(memory);
 		c.setDebugHandler(debugHandler);
 		
-		Types::SnexObjectDatabase::registerObjects(c, 2);
+		if(!isProcessDataTest)
+			Types::SnexObjectDatabase::registerObjects(c, 2);
 
 		auto obj = c.compileJitObject(code);
 
@@ -435,6 +477,7 @@ private:
 		static const Identifier output("output");
 		static const Identifier error("error");
 		static const Identifier filename("filename");
+		static const Identifier events("events");
 		static const juce::String END_TEST_DATA("END_TEST_DATA");
 
 		/** BEGIN_TEST_DATA
@@ -494,13 +537,29 @@ private:
 
 				for (auto a : arg)
 				{
-					auto type = Types::Helpers::getTypeFromTypeName(a.trim());
+					if (a.trim().startsWith("ProcessData"))
+					{
+						isProcessDataTest = true;
+						numChannels = a.fromFirstOccurrenceOf("<", false, false).getIntValue();
 
-					if (type == Types::ID::Void)
-						throwError("Can't parse argument type " + a);
+						Identifier id("data");
 
-					Identifier id(juce::String("p") + juce::String(index));
-					function.addArgs(id, TypeInfo(type));
+						Types::SnexObjectDatabase::registerObjects(c, numChannels);
+						TemplateParameter::List tp;
+						tp.add(TemplateParameter(numChannels, TemplateParameter::Single));
+
+						function.addArgs("data", TypeInfo(c.getComplexType(NamespacedIdentifier("ProcessData"), tp)));
+					}
+					else
+					{
+						auto type = Types::Helpers::getTypeFromTypeName(a.trim());
+
+						if (type == Types::ID::Void)
+							throwError("Can't parse argument type " + a);
+
+						Identifier id(juce::String("p") + juce::String(index));
+						function.addArgs(id, TypeInfo(type));
+					}
 				}
 			}
 			{
@@ -521,9 +580,23 @@ private:
 					case Types::ID::Integer: inputs.add(v.getIntValue());    break;
 					case Types::ID::Float:   inputs.add(v.getFloatValue());  break;
 					case Types::ID::Double:  inputs.add(v.getDoubleValue()); break;
-					case Types::ID::Block:   
+					case Types::ID::Block:  
+					case Types::ID::Pointer:
 					{
-						auto b = Helpers::loadFile(v);
+						AudioSampleBuffer b;
+
+						try
+						{
+							b = Helpers::loadFile(v);
+						}
+						catch (String& m)
+						{
+							throwError(m);
+						}
+
+						if (isProcessDataTest && b.getNumChannels() != numChannels)
+							throwError("Input Channel mismatch: " + String(b.getNumChannels()));
+
 						inputs.add(block(b.getWritePointer(0), b.getNumSamples()));
 						inputBuffers.add(std::move(b));
 						break;
@@ -538,6 +611,19 @@ private:
 				expectedFail = Helpers::parseQuotedString(s[error]);
 			}
 
+			{
+				auto obj = s[events].toString();
+
+				try
+				{
+					auto buffer = parseEventData(obj);
+					eventBuffer.addEvents(buffer);
+				}
+				catch (String& e)
+				{
+					t->expect(false, e);
+				}
+			}
 
 			if (!file.existsAsFile())
 			{
@@ -562,6 +648,9 @@ private:
 
 				auto v = Helpers::parseQuotedString(s[output]);
 				auto t = function.returnType.getType();
+
+				if (isProcessDataTest)
+					t = Types::ID::Block;
 
 				switch (t)
 				{
@@ -657,10 +746,12 @@ private:
 		{
 			StringArray sa;
 
+			NewLine nl;
+
 			if (token.isEmpty())
-				sa = StringArray::fromLines(s);
+				sa = StringArray::fromTokens(s, nl.getDefault(), "[]");
 			else
-				sa = StringArray::fromTokens(s, token, "\"");
+				sa = StringArray::fromTokens(s, token, "\"[]");
 
 			sa.removeEmptyStrings();
 			return sa;
@@ -669,21 +760,53 @@ private:
 
 	
 
-	
+	Result expectBufferOrProcessDataOK()
+	{
+		if (outputBufferFile != File())
+		{
+			hlac::CompressionHelpers::dump(inputBuffers.getLast(), outputBufferFile.getFullPathName());
+
+			if (t != nullptr)
+				return r;
+			else
+				return Result::fail(outputBufferFile.getFullPathName() + " was created");
+		}
+
+		if (isProcessDataTest)
+		{
+			if (actualResult.toInt() != 0)
+				return Result::fail("Return value not zero: " + String(actualResult.toInt()));
+
+			auto in = inputBuffers.getFirst();
+			auto out = outputBuffer;
+
+			jassert(in.getNumSamples() == out.getNumSamples());
+			jassert(in.getNumChannels() == out.getNumChannels());
+			jassert(numChannels == out.getNumChannels());
+
+			int numSamples = out.getNumSamples();
+
+			for (int i = 0; i < numChannels; i++)
+			{
+				Types::dyn<float> e(out.getWritePointer(i), numSamples);
+				Types::dyn<float> a(in.getWritePointer(i), numSamples);
+
+				return Helpers::compareBlocks(e, a);
+			}
+		}
+		else
+		{
+			return Helpers::compareBlocks(expectedResult, actualResult);
+		}
+	}
 
 	Result expectValueMatch()
 	{
 		if (t != nullptr)
 		{
-			if (actualResult.getType() == Types::ID::Block)
+			if (actualResult.getType() == Types::ID::Block || isProcessDataTest)
 			{
-				if (outputBufferFile != File())
-				{
-					hlac::CompressionHelpers::dump(inputBuffers.getLast(), outputBufferFile.getFullPathName());
-					return r;
-				}
-
-				auto r = Helpers::compareBlocks(expectedResult, actualResult);
+				auto r = expectBufferOrProcessDataOK();
 				t->expect(r.wasOk(), file.getFileName() + ": " + r.getErrorMessage());
 			}
 			else
@@ -698,15 +821,9 @@ private:
 			if (r.failed())
 				return r;
 
-			if (actualResult.getType() == Types::ID::Block)
+			if (actualResult.getType() == Types::ID::Block || isProcessDataTest)
 			{
-				if (outputBufferFile != File())
-				{
-					hlac::CompressionHelpers::dump(inputBuffers.getLast(), outputBufferFile.getFullPathName());
-					return Result::fail(outputBufferFile.getFullPathName() + " was created");
-				}
-
-				return Helpers::compareBlocks(expectedResult, actualResult);
+				return expectBufferOrProcessDataOK();
 			}
 			else
 			{
@@ -719,8 +836,6 @@ private:
 					return Result::fail(e);
 				}
 			}
-
-			
 
 			return Result::ok();
 		}
@@ -776,6 +891,21 @@ private:
 		case Types::ID::Float:   return function.call<R>(inputs[0].toFloat()); break;
 		case Types::ID::Double:  return function.call<R>(inputs[0].toDouble()); break;
 		case Types::ID::Block: { auto b = inputs[0].toBlock(); return function.call<R>(&b); break; }
+		case Types::ID::Pointer: 
+		{
+			jassert(function.args[0].typeInfo.getTypedComplexType<StructType>()->id == NamespacedIdentifier("ProcessData"));
+			jassert(inputBuffers.size() == 1);
+			jassert(inputBuffers.getFirst().getNumChannels() == numChannels);
+
+			auto channels = inputBuffers.getReference(0).getArrayOfWritePointers();
+
+			Types::ProcessDataDyn p(channels, inputBuffers.getFirst().getNumSamples(), numChannels);
+
+			p.setEventBuffer(eventBuffer);
+
+			return function.call<R>(&p);
+
+		}
 		default: jassertfalse; return R();
 		}
 	}
@@ -813,15 +943,21 @@ private:
 	juce::String code;
 	FunctionData function;
 
+	bool isProcessDataTest = false;
+	int numChannels = -1;
+
 	UnitTest* t;
 	Array<VariableStorage> inputs;
 	VariableStorage expectedResult;
 	VariableStorage actualResult;
 	juce::String expectedFail;
 
+	Compiler c;
+
 	Array<AudioSampleBuffer> inputBuffers;
 	AudioSampleBuffer outputBuffer;
 	File outputBufferFile;
+	HiseEventBuffer eventBuffer;
 	
 };
 
@@ -1004,15 +1140,17 @@ public:
 
 	void runTest() override
 	{
-		return;
-		testProcessData();
-		testExternalFunctionCalls();
-		
+		optimizations = { OptimizationIds::LoopOptimisation };
 
+		runTestFiles("simdable1");
+
+		return;
+
+		runTestsWithOptimisation({});
+
+		testExternalFunctionCalls();
 		testArrayTypes();
 		testAccessWrappers();
-		
-
 		testEvents();
 		testProcessData();
 		testEvents();
@@ -1020,9 +1158,9 @@ public:
 		testOptimizations();
 		testInlining();
 
-		runTestsWithOptimisation({});
 		
-		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination, OptimizationIds::LoopOptimisation });
+		
+		
 
 		juce::String s;
 		s << "Compile count: ";
@@ -1217,10 +1355,10 @@ public:
 
 		for (auto f : fileList)
 		{
-
-            
 			if (soloTest.isNotEmpty() && f.getFileName() != soloTest)
 				continue;
+
+			
 
             DBG(f.getFileName());
             
@@ -1239,7 +1377,6 @@ public:
 				s << f.getFileName() << " leaked " << juce::String(numInstancesAfter - numInstances) << " complex types";
 				expect(false, s);
 			}
-				
 		}
 	}
 
@@ -1266,7 +1403,7 @@ public:
 
 		pc.start();
 
-		//runTestFiles();
+		runTestFiles();
 		testFpu();
 
 		testParser();
@@ -1996,44 +2133,64 @@ private:
 
 	void testProcessData()
 	{
-		return;
 		beginTest("Testing ProcessData struct");
 
 		GlobalScope memory;
 
 		{
 			juce::String code;
-			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
+			ADD_CODE_LINE("int test(ProcessData<2>& d)");
 			ADD_CODE_LINE("{");
-			ADD_CODE_LINE("auto fd = interleave(d.data);");
-			ADD_CODE_LINE("for(auto& s: fd){");
-			ADD_CODE_LINE("    s[0] = 1.0f;}");
-			ADD_CODE_LINE("interleave(fd);");
+			ADD_CODE_LINE("for(auto& s: d[0]){");
+			ADD_CODE_LINE("    s = 1.0f;}");
+			ADD_CODE_LINE("for(auto& s: d[1]){");
+			ADD_CODE_LINE("    s = 2.0f;}");
 			ADD_CODE_LINE(" return 0;}");
 
 			ProcessTestCase test(this, memory, code);
 
+			float sum = 0.0f;
+
+			for (auto& s : test.data)
+			{
+				sum += s;
+			}
+
+			expectEquals(sum, 64.0f + 128.0f, "not working");
+
 			int x = 5;
 		}
 		{
-			ProcessTestCase test(this, memory, "int test(ProcessData<NumChannels>& d) {block::wrapped i; d.data[0][i] = 19.0f; d.data[1][i.moved(3)] = 24.0f; return 2;}");
+			juce::String code;
+			ADD_CODE_LINE("int test(ProcessData<2>& d)");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("for(auto& ch: d){");
+			ADD_CODE_LINE("    for(auto& s: d.toChannelData(ch)){");
+			ADD_CODE_LINE("        s = 1.0f;");
+			ADD_CODE_LINE("    }");
+			ADD_CODE_LINE("}");
+			ADD_CODE_LINE(" return 0;}");
 
+			ProcessTestCase test(this, memory, code);
 
-			auto cd = test.makeChannelData();
+			float sum = 0.0f;
 
-			auto actual = cd[0][0];
-			auto actual2 = cd[1][3];
+			for (auto& s : test.data)
+			{
+				sum += s;
+			}
 
-			expectEquals<float>(actual, 19.0f, "first");
-			expectEquals<float>(actual2, 24.0f, "second");
-			expectEquals<int>(test.v, 2, "value");
+			expectEquals(sum, 128.0f, "not working");
+
+			int x = 5;
+
 		}
 		{
 			juce::String code;
 			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
 			ADD_CODE_LINE("{");
 			ADD_CODE_LINE("int x = 0;");
-			ADD_CODE_LINE("for(auto& e: d.events)");
+			ADD_CODE_LINE("for(auto& e: d.toEventData())");
 			ADD_CODE_LINE("    x += e.getNoteNumber();");
 			ADD_CODE_LINE("return x;}");
 
@@ -2041,15 +2198,85 @@ private:
 
 			expectEquals<int>(test.v, 72, "event iterator");
 		}
-		
-		
 
-		
-		
+		{
+			juce::String code;
+			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    while(f.next())");
+			ADD_CODE_LINE("         f[0] = 3.0f;");
+			ADD_CODE_LINE("    return f.next();");
+
+			ProcessTestCase test(this, memory, code);
+
+			float sum = 0.0f;
+
+			for (auto& s : test.data)
+				sum += s;
+
+			expectEquals(sum, 3.0f * 64.0f, "first channel set");
+			expectEquals(test.v, 0, "next is done");
+		}
+
+		{
+			juce::String code;
+			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    if(f.next()) {");
+			ADD_CODE_LINE("        for(auto& s: f)");
+			ADD_CODE_LINE("            s = 0.8f;");
+			ADD_CODE_LINE("    }");
+			ADD_CODE_LINE("    return f.next();}");
+
+			ProcessTestCase test(this, memory, code);
+
+			expectEquals(test.v, 1, "next returns one");
+			expectEquals(test.data[0], 0.8f, "first frame 1");
+			expectEquals(test.data[64], 0.8f, "first frame 2");
+		}
+
+		{
+			juce::String code;
+			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    f.next();");
+			ADD_CODE_LINE("    f[0] = 1.9f;");
+			ADD_CODE_LINE("    f[1] = 4.9f;");
+			ADD_CODE_LINE("    return f.next();}");
+
+			ProcessTestCase test(this, memory, code);
+
+			expectEquals(test.v, 1, "next returns one");
+			expectEquals(test.data[0], 1.9f, "operator[] 1");
+			expectEquals(test.data[64], 4.9f, "operator[] 1");
+		}
+
+		{
+			juce::String code;
+			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    int v = f.next();");
+			ADD_CODE_LINE("    for(auto& s: f)");
+			ADD_CODE_LINE("        s = 0.8f;");
+			ADD_CODE_LINE("    int v = f.next();");
+			ADD_CODE_LINE("    for(auto& s: f)");
+			ADD_CODE_LINE("        s = 1.4f;");
+			ADD_CODE_LINE("return f.next();}");
+
+			ProcessTestCase test(this, memory, code);
+
+			
+			expectEquals(test.data[0], 0.8f, "first frame 1");
+			expectEquals(test.data[64], 0.8f, "first frame 2");
+			expectEquals(test.data[1], 1.4f, "first frame 1");
+			expectEquals(test.data[65], 1.4f, "first frame 2");
+		}
 
 		int x = 5;
-		
-		
 	}
 
 	void testStaticConst()
@@ -2532,7 +2759,7 @@ private:
 		else
 		{
 			auto diff = abs((double)actual - (double)expected);
-			expect(diff < 0.000001, errorMessage);
+			expect(diff < 0.00001, errorMessage);
 		}
 	}
 
@@ -2871,7 +3098,7 @@ private:
 		CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[in.index<block::unsafe>(1)] = Math.sin(x); return 1.0f; };");
 		test->setup();
 		test->func["test"].call<float>(&bl);
-		expectEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
+		expectAlmostEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
 
 		CREATE_TYPED_TEST("int v = 0; int test(block in) { for(auto& s: in) v += 1; return v; }");
 		test->setup();
@@ -2924,7 +3151,7 @@ private:
         CREATE_TYPED_TEST("float test(block in){ double x = 2.0; in[in.index<block::unsafe>(1)] = Math.sin(x); return 1.0f; };");
         test->setup();
         test->func["test"].call<float>(&bl);
-        expectEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
+		expectAlmostEquals<float>(bl[1], (float)hmath::sin(2.0), "Implicit cast of function call to block assignment");
         
 		
 		bl[0] = 0.86f;
