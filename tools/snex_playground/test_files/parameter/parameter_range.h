@@ -32,6 +32,11 @@ RANGE_FUNCTION(from0To1) \
 
 DECLARE_PARAMETER_RANGE(TestRange, 100.0, 120.0);
 
+struct Identity
+{
+	statid double to0To1(double input) { return input; }
+};
+
 struct Test 
 {
 	template <int P> void setParameter(double v)
@@ -45,18 +50,22 @@ struct Test
 
 
 
+using PType = parameter::from0To1<Test, 0, TestRange>;
 
-container::chain<Test, Test> c;
-parameter::from0To1<Test, 0, TestRange> p;
+
+container::chain<PType, Test, Test> c;
+
 
 
 double main(double input)
 {
 	auto& first = c.get<0>();
 	
-	p.connect(first);
+	auto& p = c.getParameter<0>();
+
+	p.connect<0>(first);
 	
-	p.call<0>(0.5);
+	c.setParameter<0>(0.5);
 	
 	return first.value;
 }

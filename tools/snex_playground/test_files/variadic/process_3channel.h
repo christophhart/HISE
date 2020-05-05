@@ -10,12 +10,10 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-span<float, 48> s = { 1.0f };
-
-ProcessData<3> d;
+ProcessData<3> data;
 
 int main(int input)
 {
-    return d.data.size();
+    return data.getNumChannels();
 }
 

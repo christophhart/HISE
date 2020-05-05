@@ -21,7 +21,7 @@ namespace funky
     };
 }
 
-container::chain<funky::X, funky::X> c;
+container::chain<parameter::empty, funky::X, funky::X> c;
 
 
 

@@ -20,7 +20,7 @@ struct X
     }
 };
 
-container::chain<container::chain<X, X>, X, X> c;
+container::chain<parameter::empty, container::chain<parameter::empty, X, X>, X, X> c;
 
 int main(int input)
 {

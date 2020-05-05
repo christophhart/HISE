@@ -15,7 +15,7 @@ struct X
     int v = 9;
 };
 
-container::chain<container::chain<X, X>, X> c;
+container::chain<parameter::empty, container::chain<parameter::empty, X, X>, X> c;
 
 int main(int input)
 {

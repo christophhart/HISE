@@ -18,7 +18,7 @@ struct Test
 	}
 };
 
-container::split<Test, Test> s;
+container::split<parameter::empty, Test, Test> s;
 
 int main(int input)
 {

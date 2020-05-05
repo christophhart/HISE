@@ -13,13 +13,12 @@ END_TEST_DATA
 
 template <int C> int getSize(ProcessData<C>& data)
 {
-    return data.data.size();
+    return data.getNumChannels();
 }
 
 
 int main(int input)
 {
-  // check with span: maybe add ComplexType::getTemplateArguments...
     ProcessData<5> d;
     
     return getSize(d);

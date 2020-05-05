@@ -2,27 +2,17 @@
 BEGIN_TEST_DATA
   f: main
   ret: int
-  args: int
-  input: 12
-  output: 215
+  args: ProcessData<2>
+  input: "zero2"
+  output: "process2frame2"
   error: ""
   filename: "variadic/process2frame"
 END_TEST_DATA
 */
 
-span<float, 16> c1 = { 4.0f };
-span<float, 16> c2 = { 3.0f };
-
-ProcessData<2> d;// = { c1, c2 };
-
-int main(int input)
+int main(ProcessData<2>& data)
 {
-    d.data[0] = c1;
-    d.data[1] = c2;
-
-    float z = 0.0f;
-    
-    auto& frame = d.toFrameData();
+    auto& frame = data.toFrameData();
     
     while(frame.next())
     {
@@ -30,6 +20,6 @@ int main(int input)
         frame[1] = 125.0f;
     }
     
-    return c1[0] + c2[0];
+    return 0;
 }
 

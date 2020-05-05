@@ -12,7 +12,7 @@ END_TEST_DATA
 
 struct Identity
 {
-	static double from0To1(double v)
+	static double to0To1(double v)
 	{
 		return v;
 	}

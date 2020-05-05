@@ -26,7 +26,7 @@ struct Y
     }
 };
 
-container::chain<X, Y, X> c;
+container::chain<parameter::empty, X, Y, X> c;
 
 span<float, 2> d = { 1.0f, 1.0f };
 

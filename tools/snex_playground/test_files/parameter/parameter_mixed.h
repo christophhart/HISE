@@ -12,7 +12,7 @@ END_TEST_DATA
 
 struct MyRangeConverter
 {
-	static double from0To1(double input)
+	static double to0To1(double input)
 	{
 		return input * 2.0;
 	}
