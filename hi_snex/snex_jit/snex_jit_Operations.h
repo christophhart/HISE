@@ -2596,6 +2596,7 @@ struct Operations::Loop : public Expression,
 		if (compiler->getCurrentPass() != BaseCompiler::DataAllocation &&
 			compiler->getCurrentPass() != BaseCompiler::CodeGeneration)
 		{
+
 			getTarget()->process(compiler, scope);
 			getLoopBlock()->process(compiler, scope);
 		}
@@ -2636,7 +2637,35 @@ struct Operations::Loop : public Expression,
 					location.throwError("Illegal iterator type");
 			}
 			else
-				throwError("Can't deduce loop target type");
+			{
+				if (auto st = targetType.getTypedIfComplexType<StructType>())
+				{
+					FunctionClass::Ptr fc = st->getFunctionClass();
+
+					customBegin = fc->getSpecialFunction(FunctionClass::BeginIterator);
+					customSizeFunction = fc->getSpecialFunction(FunctionClass::SizeFunction);
+
+					if (!customBegin.isResolved() || !customSizeFunction.isResolved())
+						throwError(st->toString() + " does not have iterator methods");
+
+					
+
+					loopTargetType = CustomObject;
+
+					if (iterator.typeInfo.isDynamic())
+						iterator.typeInfo = customBegin.returnType;
+					else if (iterator.typeInfo != customBegin.returnType)
+						location.throwError("iterator type mismatch: " + iterator.typeInfo.toString() + " expected: " + customBegin.returnType.toString());
+
+				}
+				else
+				{
+					throwError("Can't deduce loop target type");
+				}
+
+				
+			}
+				
 			
 			compiler->namespaceHandler.setTypeInfo(iterator.id, NamespaceHandler::Variable, iterator.typeInfo);
 			
@@ -2671,6 +2700,13 @@ struct Operations::Loop : public Expression,
 				le->typePtr = getTarget()->getTypeInfo().getTypedComplexType<DynType>();
 				loopEmitter = le;
 			}
+			else if (loopTargetType == CustomObject)
+			{
+				auto le = new CustomLoopEmitter(compiler, iterator, getTarget()->reg, getLoopBlock(), loadIterator);
+				le->beginFunction = customBegin;
+				le->sizeFunction = customSizeFunction;
+				loopEmitter = le;
+			}
 			
 			if(loopEmitter != nullptr)
 				loopEmitter->emitLoop(acg, compiler, scope);
@@ -2687,6 +2723,9 @@ struct Operations::Loop : public Expression,
 
 	asmjit::Label loopStart;
 	asmjit::Label loopEnd;
+
+	FunctionData customBegin;
+	FunctionData customSizeFunction;
 
 	ScopedPointer<AsmCodeGenerator::LoopEmitterBase> loopEmitter;
 

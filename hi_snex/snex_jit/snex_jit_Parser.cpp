@@ -243,6 +243,8 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	{
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, parseIdentifier());
 
+		auto startPos = location.getXYPosition();
+
 		match(JitTokens::openBrace);
 
 		auto sb = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
@@ -252,7 +254,11 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 			sb->addStatement(parseStatement());
 		}
 
+		auto endPos = location.getXYPosition();
 		match(JitTokens::closeBrace);
+
+		compiler->namespaceHandler.setNamespacePosition(compiler->namespaceHandler.getCurrentNamespaceIdentifier(), startPos, endPos);
+		
 
 		return sb;
 	}
@@ -471,6 +477,8 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 	func->code = location.location;
 
+	auto startPos = location.getXYPosition();
+
 	match(JitTokens::openBrace);
 	int numOpenBraces = 1;
 
@@ -481,6 +489,9 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 		skip();
 	}
 
+	auto endPos = location.getXYPosition();
+
+	compiler->namespaceHandler.setNamespacePosition(s.id, startPos, endPos);
 	
 	func->codeLength = static_cast<int>(location.location - func->code);
 	
@@ -492,7 +503,7 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 {
 	NamespaceHandler::ScopedVisibilityState vs(compiler->namespaceHandler);
 
-	
+	auto startPos = location.getXYPosition();
 
 	SymbolParser sp(*this, compiler->namespaceHandler);
 
@@ -514,7 +525,11 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 
 		auto list = parseStatementList();
 
+		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition());
+
 		match(JitTokens::semicolon);
+
+		
 
 		return new Operations::ClassStatement(location, p, list);
 	}
@@ -546,6 +561,8 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 		tc.id = classId;
 		tc.makeClassType = std::bind(&Operations::TemplateDefinition::createTemplate, tcs, std::placeholders::_1);
 		tc.argList = classTemplateArguments;
+
+		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition());
 
 		compiler->namespaceHandler.addTemplateClass(tc);
 		return tcs;

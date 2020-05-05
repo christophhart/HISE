@@ -68,10 +68,14 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 	auto parentPath = getCurrentScopeStatement()->getPath();
 	auto scopePath = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
 
+
+
 	if (parentPath == scopePath)
 	{
 		scopePath = location.createAnonymousScopeId(parentPath);
 	}
+
+	auto startPos = location.getXYPosition();
 
 	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, scopePath);
 
@@ -88,6 +92,8 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 
 		b->addStatement(parseStatement().get());
 	}
+
+	compiler->namespaceHandler.setNamespacePosition(scopePath, startPos, location.getXYPosition());
 
 	match(JitTokens::closeBrace);
 
@@ -652,7 +658,37 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 	if (auto ct = getDotParentType(p).getTypedIfComplexType<ComplexType>())
 	{
+		if (auto tc = dynamic_cast<TemplatedComplexType*>(ct))
+		{
+			auto ctp = compiler->namespaceHandler.getCurrentTemplateParameters();
+
+			auto tp = tc->getTemplateInstanceParameters();
+
+			for (auto& a : tp)
+			{
+				auto idToUse = a.type.getTemplateId();
+
+				for (auto t : ctp)
+				{
+					if (t.argumentId == idToUse)
+					{
+						a = t;
+					}
+				}
+			}
+
+			TemplateParameter::ListOps::isParameter(tp);
+
+			auto r = Result::ok();
+
+			ct = compiler->namespaceHandler.registerComplexTypeOrReturnExisting(tc->createTemplatedInstance(tp, r));
+
+			location.test(r);
+		}
+
 		FunctionClass::Ptr vfc = ct->getFunctionClass();
+
+		
 
 		auto mId = vfc->getClassName().getChildId(fSymbol.getName());
 

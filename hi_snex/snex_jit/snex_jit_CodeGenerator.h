@@ -342,6 +342,18 @@ struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 	SpanType* typePtr = nullptr;
 };
 
+struct CustomLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
+{
+	CustomLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(c, s, t, body, l)
+	{};
+
+	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
+
+	FunctionData beginFunction;
+	FunctionData sizeFunction;
+};
+
 struct DynLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 {
 	DynLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :

@@ -40,9 +40,10 @@ using namespace asmjit;
 
 Compiler::Compiler(GlobalScope& memoryPool)
 {
-	compiler = new ClassCompiler(&memoryPool, handler);
+	handler = new NamespaceHandler();
+	compiler = new ClassCompiler(&memoryPool, *handler);
 
-	memoryPool.registerFunctionsToNamespaceHandler(handler);
+	memoryPool.registerFunctionsToNamespaceHandler(getNamespaceHandler());
 }
 
 Compiler::~Compiler()

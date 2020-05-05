@@ -37,6 +37,8 @@ namespace Types {
 using namespace juce;
 
 
+
+
 /** A simple helper class that provides interleaved iteration over a multichannel signal. 
 
 	Some processing algorithms require interleaved processing so that you have all samples 
@@ -178,10 +180,10 @@ private:
 	/** @internal (also used as JIT function pointer by SNEX) */
 	static int nextFrame(void* obj);
 
-	span<float*, NumChannels>& channels;
-	int frameLimit = 0;
-	int frameIndex = 0;
-	FrameType frameData;
+	span<float*, NumChannels>& channels; // 8 byte
+	int frameLimit = 0;					 // 4 byte
+	int frameIndex = 0;				     // 4 byte
+	FrameType frameData;				 // sizeof(FrameData)
 
 };
 

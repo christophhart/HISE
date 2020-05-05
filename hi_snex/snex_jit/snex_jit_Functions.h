@@ -52,6 +52,8 @@ struct NamespacedIdentifier
 	{
 		auto sa = StringArray::fromTokens(s, "::", "");
 
+		sa.removeEmptyStrings();
+
 		NamespacedIdentifier c;
 		for (auto s : sa)
 			c.add(Identifier(s));
@@ -1432,6 +1434,8 @@ struct FunctionClass: public DebugableObjectBase,
 	{
 		AssignOverload = 0,
 		IncOverload,
+		BeginIterator,
+		SizeFunction,
 		NativeTypeCast,
 		Subscript,
 		ToSimdOp,
@@ -1447,6 +1451,8 @@ struct FunctionClass: public DebugableObjectBase,
 		case IncOverload:    return "operator++";
 		case Subscript:		 return "operator[]";
 		case ToSimdOp:		 return "toSimd";
+		case BeginIterator:  return "begin";
+		case SizeFunction:	 return "size";
 		}
 
 		return {};

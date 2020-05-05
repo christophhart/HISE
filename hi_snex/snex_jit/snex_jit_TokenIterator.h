@@ -103,6 +103,11 @@ struct ParserHelpers
 			throw e;
 		}
 
+		Point<int> getXYPosition() const
+		{
+			return { getLine(), getColNumber(program, location) };
+		}
+
 		void test(const Result& r) const
 		{
 			if (!r.wasOk())

@@ -525,11 +525,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 		if (auto st = valueType.getTypedIfComplexType<SpanType>())
 		{
-			
-
 			value->loadMemoryIntoRegister(cc);
-
-            
             
             if (thisObj->isGlobalVariableRegister())
                 thisObj->loadMemoryIntoRegister(cc);

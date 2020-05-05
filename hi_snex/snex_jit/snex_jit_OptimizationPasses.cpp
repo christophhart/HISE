@@ -1204,6 +1204,11 @@ bool LoopOptimiser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
 {
 	auto t = l->getTarget();
 
+	if (t->getTypeInfo().isDynamic())
+	{
+		t->tryToResolveType(c);
+	}
+
 	if (auto at = t->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>())
 	{
 		bool isFloat = at->getElementType().getType() == Types::ID::Float;
@@ -1218,7 +1223,7 @@ bool LoopOptimiser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
 
 		if (auto asSpan = dynamic_cast<SpanType*>(at))
 		{
-			bool isNonSimdableSpan = (asSpan->getNumElements() % 4 != 0);
+			bool isNonSimdableSpan = (asSpan->getNumElements() % 4) != 0;
 
 			if (isNonSimdableSpan)
 				return false;
@@ -1229,12 +1234,18 @@ bool LoopOptimiser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
 		}
 		if (auto asDyn = dynamic_cast<DynType*>(at))
 		{
-			NamespacedIdentifier i("isSimdable");
+			auto oldPath = l->getLoopBlock()->getPath();
 
+			if (oldPath.getIdentifier() == Identifier("Fallback"))
+			{
+				return false;
+			}
+
+			NamespacedIdentifier i("isSimdable");
 			auto cond = new Operations::FunctionCall(l->location, nullptr, { i, TypeInfo(Types::ID::Integer) }, {});
 			cond->setObjectExpression(t);
 
-			auto oldPath = l->getLoopBlock()->getPath();
+			
 
 			auto fallbackPath = oldPath.getChildId("Fallback");
 			auto simdPath = oldPath.getChildId("SimdPath");
@@ -1259,9 +1270,7 @@ bool LoopOptimiser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
 			replaceExpression(l, ifs);
 			l->parent = nullptr;
 
-			
-
-			return false;
+			return true;;
 		}
 	}
 
@@ -1324,6 +1333,15 @@ struct Helpers
 		}
 
 		return false;
+	}
+
+	static bool isCallNode(BaseNode* n)
+	{
+		if (!n->isInst())
+			return false;
+
+		auto id = n->as<InstNode>()->id();
+		return id == x86::Inst::kIdCall;
 	}
 
 	static bool isInstructWithSameTarget(BaseNode* n1, BaseNode* n2)
@@ -1581,12 +1599,14 @@ struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
 
 	BaseNode* checkNextMovToSameTarget(BaseNode* current)
 	{
-		
-
 		AsmCleanupPass::Iterator<> it(parent, current->next());
 
 		while (auto sn = it.next())
 		{
+			if (Helpers::isCallNode(sn))
+				return nullptr;
+
+
 			if (Helpers::isInstructWithSameTarget(current, sn))
 			{
 				if (Mov::matches(sn))
@@ -1662,6 +1682,9 @@ struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
 
 		while (auto n = all.next())
 		{
+			if (Helpers::isCallNode(n))
+				return nullptr;
+
 			if (Helpers::isInstructWithSameTarget(current, n))
 			{
 				// If the target is a pointer with a base register

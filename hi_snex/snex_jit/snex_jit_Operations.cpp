@@ -1224,7 +1224,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 			jassert(function.id == f.id);
 
-			if (f.matchesArgumentTypes(parameterTypes) && f.matchesTemplateArguments(function.templateParameters))
+			if ((f.matchesArgumentTypes(parameterTypes) || possibleMatches.size() == 1) && f.matchesTemplateArguments(function.templateParameters))
 			{
 				int numArgs = f.args.size();
 
@@ -1251,6 +1251,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 				for (int i = 0; i < numArgs; i++)
 				{
+					setTypeForChild(i + getObjectExpression() != nullptr ? 1 : 0, f.args[i].typeInfo);
+
 					if (f.args[i].isReference())
 					{
 						if (!canBeAliasParameter(getArgument(i)))
@@ -1419,7 +1421,13 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 			else
 			{
-				if (pReg->hasCustomMemoryLocation())
+				bool willBeInlined = function.canBeInlined(false);
+
+				if (willBeInlined)
+				{
+					parameterRegs.set(i, existingReg);
+				}
+				else if (pReg->hasCustomMemoryLocation())
 				{
 					acg.emitComplexTypeCopy(pReg, existingReg, getArgument(i)->getTypeInfo().getComplexType());
 

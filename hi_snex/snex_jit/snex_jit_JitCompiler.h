@@ -147,13 +147,15 @@ public:
 
 	NamespaceHandler& getNamespaceHandler();
 
+	NamespaceHandler::Ptr getNamespaceHandlerReference() { return handler; }
+
 	void initInbuildFunctions();
 
 	static int compileCount;
 
 private:
 
-	NamespaceHandler handler;
+	NamespaceHandler::Ptr handler;
 	juce::String lastCode;
 	juce::String preprocessedCode;
 	ClassCompiler* compiler;

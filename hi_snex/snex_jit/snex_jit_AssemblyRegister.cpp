@@ -200,6 +200,9 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 		jassert(sToUse != nullptr);
 
+		if (sToUse == nullptr)
+			sToUse = scope;
+
 		auto scopeType = sToUse->getScopeType();
 
 		if (!isIter && (sToUse->getRootClassScope() == sToUse || id.isReference()))
@@ -237,7 +240,7 @@ asmjit::X86Mem AssemblyRegister::getMemoryLocationForReference()
 
 juce::int64 AssemblyRegister::getImmediateIntValue()
 {
-	jassert(state == LoadedMemoryLocation);
+	jassert(state == LoadedMemoryLocation || state == UnloadedMemoryLocation);
 	jassert(getType() == Types::ID::Integer);
 	jassert(!hasCustomMem);
 

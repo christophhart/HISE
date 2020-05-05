@@ -1597,15 +1597,11 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	jassert(loopTarget->getScope() != nullptr);
 	jassert(typePtr != nullptr);
 	jassert(iterator.typeInfo == typePtr->getElementType());
-
-
     
 	int numLoops = typePtr->getNumElements();
 
 
 	auto& cc = gen.cc;
-    
-    
     auto start = cc.newGpq();
     auto end = cc.newGpq();
 
@@ -1809,6 +1805,101 @@ void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Bas
 	itReg->setUndirty();
 	itReg->flagForReuse(true);
     
+}
+
+void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)
+{
+	auto& cc = gen.cc;
+
+
+	AsmInlineData d(gen);
+	d.object = loopTarget;
+	
+	AsmCodeGenerator::TemporaryRegister beginReg(gen, loopTarget->getScope(), TypeInfo(Types::ID::Pointer, true));
+	AsmCodeGenerator::TemporaryRegister sizeReg(gen, loopTarget->getScope(), sizeFunction.returnType);
+	AsmCodeGenerator::TemporaryRegister endReg(gen, loopTarget->getScope(), TypeInfo(Types::ID::Pointer, true));
+
+	auto elementSize = beginFunction.returnType.getRequiredByteSize();
+
+	d.target = beginReg.tempReg;
+
+	if (auto s = loopTarget->getTypeInfo().getTypedIfComplexType<StructType>())
+		d.templateParameters = s->getTemplateInstanceParameters();
+
+	beginFunction.inlineFunction(&d);
+
+	d.target = sizeReg.tempReg;
+
+	sizeFunction.inlineFunction(&d);
+
+	if (sizeReg.tempReg->isUnloadedImmediate())
+	{
+		auto offset = sizeReg.tempReg->getImmediateIntValue();
+		cc.lea(endReg.get(), x86::ptr(beginReg.get()).cloneAdjustedAndResized(offset * elementSize, elementSize));
+	}
+	else
+	{
+		auto shift = log2(elementSize);
+		cc.lea(endReg.get(), x86::ptr(beginReg.get(), sizeReg.get(), shift, 0, elementSize));
+	}
+
+	auto loopStart = cc.newLabel();
+	continuePoint = cc.newLabel();
+	loopEnd = cc.newLabel();
+	auto itScope = loopBody->blockScope.get();
+
+	auto itReg = compiler->registerPool.getRegisterForVariable(itScope, iterator);
+	itReg->createRegister(cc);
+	itReg->setIsIteratorRegister(true);
+
+	cc.setInlineComment("loop_span {");
+	cc.bind(loopStart);
+
+	if (loadIterator)
+	{
+		IF_(int)    cc.mov(INT_REG_W(itReg), x86::ptr(beginReg.get()));
+		IF_(float)  cc.movss(FP_REG_W(itReg), x86::ptr(beginReg.get()));
+		IF_(double) cc.movsd(FP_REG_W(itReg), x86::ptr(beginReg.get()));
+		IF_(void*)
+		{
+			if (itReg->isSimd4Float())
+				cc.movaps(FP_REG_W(itReg), x86::ptr(beginReg.get()));
+			else
+				cc.mov(PTR_REG_W(itReg), beginReg.get());
+		}
+	}
+
+	itReg->setUndirty();
+
+	loopBody->process(compiler, scope);
+
+
+	cc.bind(continuePoint);
+
+	if (itReg->isDirtyGlobalMemory())
+	{
+		IF_(int)    cc.mov(x86::ptr(beginReg.get()), INT_REG_R(itReg));
+		IF_(float)  cc.movss(x86::ptr(beginReg.get()), FP_REG_R(itReg));
+		IF_(double) cc.movsd(x86::ptr(beginReg.get()), FP_REG_R(itReg));
+		IF_(void*)
+		{
+			jassert(itReg->isSimd4Float());
+			cc.movaps(x86::ptr(beginReg.get()), FP_REG_R(itReg));
+		}
+	}
+
+	cc.add(beginReg.get(), (int64_t)elementSize);
+	cc.cmp(beginReg.get(), endReg.get());
+	cc.setInlineComment("loop_span }");
+	cc.jl(loopStart);
+
+	cc.bind(loopEnd);
+
+	itReg->setUndirty();
+	itReg->flagForReuse(true);
+
+
+
 }
 
 }

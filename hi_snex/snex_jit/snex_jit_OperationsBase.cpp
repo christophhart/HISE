@@ -228,7 +228,15 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 		if (auto sourceType = thisType.getTypedIfComplexType<ComplexType>())
 		{
 			if (!sourceType->isValidCastTarget(expectedType.getType(), expectedType.getTypedIfComplexType<ComplexType>()))
+			{
+				if (currentCompiler->allowSmallObjectOptimisation() && sourceType->getRegisterType(true) == expectedType.getType())
+				{
+					return expectedType;
+				}
+
 				throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
+			}
+				
 		}
 
 		

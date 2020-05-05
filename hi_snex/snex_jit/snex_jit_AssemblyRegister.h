@@ -187,6 +187,8 @@ public:
 
 	void setImmediateValue(int64 value);
 
+	bool isUnloadedImmediate() const { return getType() == Types::ID::Integer && state == UnloadedMemoryLocation; }
+
 	void setIsIteratorRegister(bool isIterator)
 	{
 		isIter = isIterator;

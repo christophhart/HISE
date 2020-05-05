@@ -119,8 +119,7 @@ struct EventWrapper
 		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setVelocity, int);
 		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setChannel, int);
 		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setNoteNumber, int);
-
-
+		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getTimeStamp);
 	};
 
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
@@ -181,6 +180,7 @@ struct SnexObjectDatabase
 {
 	static void registerObjects(Compiler& c, int numChannels);
 	static void createProcessData(Compiler& c, const TypeInfo& eventType);
+	static void createFrameProcessor(Compiler& c);
 	static void registerParameterTemplate(Compiler& c);
 };
 

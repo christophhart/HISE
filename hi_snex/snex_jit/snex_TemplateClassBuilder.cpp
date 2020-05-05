@@ -333,14 +333,41 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::VariadicHelp
 {
 	auto pList = st->getTemplateInstanceParameters();
 
-	Operations::Statement::List clonedArgs;
-
 	auto bl = Helpers::createBlock(d);
+
+	Operations::Statement::List processedArgs;
+
+	for (auto arg : d->args)
+	{
+		if (auto f = Operations::as<Operations::FunctionCall>(arg))
+		{
+			auto bPath = Operations::as<Operations::StatementBlock>(bl)->getPath();
+
+			auto index = d->args.indexOf(arg);
+
+			String s = "arg" + String(index + 1);
+
+			auto vId = Symbol(bPath.getChildId(Identifier(s)), arg->getTypeInfo());
+
+			auto v = new Operations::VariableReference(d->location, vId);
+
+			auto as = new Operations::Assignment(d->location, v, JitTokens::assign_, arg->clone(d->location), true);
+
+			bl->addStatement(as, false);
+
+			processedArgs.add(v->clone(d->location));
+		}
+		else
+		{
+			processedArgs.add(arg->clone(d->location));
+		}
+	}
+
 
 	for (int i = offset; i < pList.size(); i++)
 	{
 		auto childParameter = pList[i].type.getTypedComplexType<StructType>();
-		auto newCall = Helpers::createFunctionCall(childParameter, d, functionId, d->args);
+		auto newCall = Helpers::createFunctionCall(childParameter, d, functionId, processedArgs);
 
 		if (newCall == nullptr)
 		{
