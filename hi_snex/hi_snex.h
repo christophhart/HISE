@@ -107,6 +107,7 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #include "snex_core/snex_ExternalObjects.h"
 #include "snex_jit/snex_jit_NativeDspFunctions.h"
 #include "snex_components/snex_JitPlayground.h"
+#include "snex_components/snex_DebugTools.h"
 #endif
 
 #if HISE_INCLUDE_SNEX

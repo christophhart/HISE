@@ -447,6 +447,65 @@ juce::Result NamespaceHandler::setTypeInfo(const NamespacedIdentifier& id, Symbo
 	return Result::fail("Can't find namespace");
 }
 
+
+
+snex::jit::NamespaceHandler::Namespace::WeakPtr NamespaceHandler::getNamespaceForLineNumber(int lineNumber) const
+{
+	if (auto root = getRoot())
+	{
+		return root->getNamespaceForLineNumber(lineNumber);
+	}
+}
+
+mcl::TokenCollection::List NamespaceHandler::getTokenList()
+{
+	using namespace mcl;
+
+	TokenCollection::List l;
+
+	for (auto n : existingNamespace)
+	{
+		Range<int> tokenScope = n->lines;
+
+		Alias a;
+		a.id = n->id;
+		a.symbolType = SymbolType::NamespacePlaceholder;
+		
+		l.add(new SymbolToken(this, n, a));
+
+		for (auto a : n->aliases)
+		{
+			TokenCollection::TokenPtr p = new SymbolToken(this, n, a);
+
+			bool found = false;
+
+			if(!found)
+				l.add(p);
+		}
+	}
+
+	for (int i = 0; i < l.size(); i++)
+	{
+		if (l[i]->tokenContent.isEmpty())
+		{
+			l.remove(i--);
+			continue;
+		}
+
+		for (int j = i+1; j < l.size(); j++)
+		{
+			if (*l[j] == *l[i])
+			{
+				auto s = l[j]->tokenContent;
+				l.remove(j--);
+			}
+		}
+	}
+
+	return l;
+}
+
+
 bool NamespaceHandler::isConstantSymbol(SymbolType t)
 {
 	return t == TemplateConstant || t == PreprocessorConstant || t == Constant || t == EnumValue;
@@ -798,6 +857,14 @@ juce::Result NamespaceHandler::checkVisiblity(const NamespacedIdentifier& id) co
 	return Result::ok();
 }
 
+void NamespaceHandler::setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e)
+{
+	if (auto ex = get(id))
+	{
+		ex->setPosition({ s.getX(), e.getX() });
+	}
+}
+
 TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const
 {
 	auto p = aliasId.getParent();
@@ -836,6 +903,190 @@ snex::jit::NamespaceHandler::Namespace::Ptr NamespaceHandler::get(const Namespac
 	}
 
 	return nullptr;
+}
+
+struct NamespaceHandler::SymbolToken::Parser: public ParserHelpers::TokenIterator
+{
+	Parser(NamespaceHandler& nh, Namespace::WeakPtr c, const String& t):
+		token(t),
+		ParserHelpers::TokenIterator(t),
+		current(c),
+		handler(nh)
+	{}
+
+	bool parseStructType()
+	{
+		StructType* st = nullptr;
+
+		if (id.isValid())
+			st = handler.getVariableType(id).getTypedIfComplexType<StructType>();
+		else
+			st = dynamic_cast<StructType*>(typePtr.get());
+
+		if (st != nullptr)
+		{
+			id = st->id;
+			typePtr = nullptr;
+
+			if (currentType == JitTokens::identifier)
+			{
+				auto childId = parseIdentifier();
+				id = id.getChildId(childId);
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	bool parseSubscript()
+	{
+		ArrayTypeBase* atb = nullptr;
+
+		if (id.isValid())
+			atb = handler.getVariableType(id).getTypedIfComplexType<ArrayTypeBase>();
+		else
+			atb = dynamic_cast<ArrayTypeBase*>(typePtr.get());
+
+		if (atb != nullptr)
+		{
+			id = {};
+			typePtr = atb->getElementType().getTypedIfComplexType<ComplexType>();
+
+			while (!isEOF() && currentType != JitTokens::closeBracket)
+			{
+				skip();
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+	
+	
+
+	bool parseSubAccess()
+	{
+		if(matchIf(JitTokens::dot))
+		{
+			return parseStructType();
+		}
+		if (matchIf(JitTokens::openBracket))
+		{
+			return parseSubscript();
+		}
+		else
+		{
+			skip();
+		}
+
+		return false;
+	}
+
+	Namespace::WeakPtr parseNamespaceForToken()
+	{
+		if (current == nullptr)
+			return nullptr;
+
+		try
+		{
+			
+
+			id = NamespacedIdentifier(parseIdentifier());
+
+			while (matchIf(JitTokens::double_colon))
+			{
+				if (currentType == JitTokens::identifier)
+				{
+					id = id.getChildId(parseIdentifier());
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			if (id.isExplicit())
+				id = current->id.getChildId(id.getIdentifier());
+
+			ScopedNamespaceSetter sns(handler, current->id);
+			handler.resolve(id);
+
+			if (auto aliasType = handler.getAliasType(id).getTypedIfComplexType<ComplexType>())
+			{
+				typePtr = aliasType;
+				id = {};
+			}
+
+			while (!isEOF())
+			{
+				parseSubAccess();
+			}
+
+			if (id.isNull())
+				parseStructType();
+
+			return handler.get(id);
+		}
+		catch (ParserHelpers::CodeLocation::Error& e)
+		{
+			return nullptr;
+		}
+		
+		return nullptr;
+	}
+
+	NamespacedIdentifier id;
+	ComplexType::Ptr typePtr;
+	String token;
+	NamespaceHandler& handler;
+	Namespace::WeakPtr current;
+};
+
+bool NamespaceHandler::SymbolToken::matches(const String& input, const String& previousToken, int lineNumber) const
+{
+	if (n == nullptr)
+		return false;
+
+	if (previousToken.isNotEmpty())
+	{
+		Namespace* c = n.get();
+
+		try
+		{
+			Parser p(*root.get(), root->getNamespaceForLineNumber(lineNumber), previousToken);
+
+			if (auto realN = p.parseNamespaceForToken())
+			{
+				if (n.get() == realN)
+				{
+					if (a.visibility != Visibility::Public)
+						return false;
+
+					if (a.id.id.toString().contains(input))
+						return true;
+				}
+			}
+		}
+		catch (ParserHelpers::CodeLocation::Error& e)
+		{
+			return false;
+		}
+
+		
+		
+		return false;
+	}
+
+	if (a.id.id.toString().contains(input))
+	{
+		return n.get() == root->getRoot() || n->lines.contains(lineNumber);
+		
+	}
+	
+	return false;
 }
 
 }

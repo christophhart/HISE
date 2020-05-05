@@ -77,6 +77,12 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 	setName("SNEX Editor");
 
+	editor.tokenCollection.clearTokenProviders();
+	editor.tokenCollection.addTokenProvider(new debug::KeywordProvider());
+	editor.tokenCollection.addTokenProvider(new debug::SymbolProvider(doc));
+	editor.tokenCollection.addTokenProvider(new debug::MathFunctionProvider());
+	editor.tokenCollection.signalRebuild();
+
     setLookAndFeel(&laf);
     
 	addAndMakeVisible(editor);
@@ -653,7 +659,7 @@ void SnexPlayground::recalculate()
 void SnexPlayground::recompile()
 {
 	editor.clearWarningsAndErrors();
-
+	
 	if (testMode)
 	{
 		JitFileTestCase tc(memory, doc.getAllContent());
@@ -672,6 +678,8 @@ void SnexPlayground::recompile()
 			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
 		else
 			resultLabel.setText("Test passed OK", dontSendNotification);
+
+		editor.tokenCollection.signalRebuild();
 
 		return;
 	}

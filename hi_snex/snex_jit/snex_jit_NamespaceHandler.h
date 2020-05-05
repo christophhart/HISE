@@ -38,8 +38,10 @@ using namespace juce;
 
 
 
-struct NamespaceHandler
+struct NamespaceHandler: public ReferenceCountedObject
 {
+	using Ptr = ReferenceCountedObjectPtr<NamespaceHandler>;
+
 	enum class Visibility
 	{
 		Public = 0,
@@ -57,6 +59,7 @@ struct NamespaceHandler
 		UsingAlias,
 		Enum,
 		EnumValue,
+		NamespacePlaceholder,
 		PreprocessorConstant,
 		Constant,
 		StaticFunctionClass,
@@ -96,6 +99,25 @@ private:
 
 		void addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType, Visibility v);
 
+		void setPosition(Range<int> namespaceRange)
+		{
+			lines = namespaceRange;
+		}
+
+		Namespace::WeakPtr getNamespaceForLineNumber(int lineNumber)
+		{
+			for (auto c : childNamespaces)
+			{
+				if (auto match = c->getNamespaceForLineNumber(lineNumber))
+					return match;
+			}
+
+			if (lines.contains(lineNumber))
+				return this;
+
+			return nullptr;
+		}
+
 		NamespacedIdentifier id;
 		Array<Alias> aliases;
 		ReferenceCountedArray<Namespace> usedNamespaces;
@@ -103,7 +125,29 @@ private:
 		WeakPtr parent;
 		bool internalSymbol = false;
 
+		Range<int> lines;
+
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Namespace);
+	};
+
+	struct SymbolToken : public mcl::TokenCollection::Token
+	{
+		SymbolToken(NamespaceHandler::Ptr r, Namespace* n_, Alias a_):
+			Token(a_.id.id.toString()),
+			a(a_),
+			n(n_),
+			root(r)
+		{
+			tokenContent = a.id.id.toString();
+		}
+
+		bool matches(const String& input, const String& previousToken, int lineNumber) const override;
+
+		NamespaceHandler::Ptr root;
+		Namespace::Ptr n;
+		Alias a;
+
+		struct Parser;
 	};
 
 public:
@@ -197,6 +241,10 @@ public:
 	Result addConstant(const NamespacedIdentifier& id, const VariableStorage& v);
 	Result setTypeInfo(const NamespacedIdentifier& id, SymbolType expectedType, const TypeInfo& t);
 
+	Namespace::WeakPtr getNamespaceForLineNumber(int lineNumber) const;
+
+	mcl::TokenCollection::List getTokenList();
+
 	static bool isConstantSymbol(SymbolType t);
 
 	bool isTemplateTypeArgument(NamespacedIdentifier classId) const;
@@ -244,6 +292,8 @@ public:
 
 	TemplateParameter::List getCurrentTemplateParameters() const { return currentTemplateParameters.getLast(); }
 
+	void setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e);
+
 private:
 
 	mutable bool skipResolving = false;
@@ -270,6 +320,8 @@ private:
 	Namespace::WeakPtr currentParent;
 
 	Visibility currentVisibility = Visibility::Public;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(NamespaceHandler);
 };
 
 
