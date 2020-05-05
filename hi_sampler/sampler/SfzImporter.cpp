@@ -222,7 +222,6 @@ void SfzImporter::parseOpcodes()
 			if (globalSfzObject->groups.size() > 0)
 			{
 				globalSfzObject->groups.getLast()->addRegion(new Region());
-
 				currentTarget = globalSfzObject->groups.getLast()->regions.getLast();
 			}
 			else
@@ -232,12 +231,8 @@ void SfzImporter::parseOpcodes()
 		}
 
 		parseTagLine(currentLine);
-
-		
-
 	}
 }
-
 
 
 void SfzImporter::applyGlobalOpcodesToRegion()

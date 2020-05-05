@@ -1084,17 +1084,140 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	Path p;
 
 	LOAD_PATH_IF_URL("edit", OverlayIcons::penShape);
-	LOAD_PATH_IF_URL("editoff"				, OverlayIcons::lockShape);
-	LOAD_PATH_IF_URL("cancel"				, EditorIcons::cancelIcon);
-	LOAD_PATH_IF_URL("undo"				, EditorIcons::undoIcon);
-	LOAD_PATH_IF_URL("redo"				, EditorIcons::redoIcon);
-	LOAD_PATH_IF_URL("rebuild"				, ColumnIcons::moveIcon);
-	LOAD_PATH_IF_URL("vertical-align"		, ColumnIcons::verticalAlign);
-	LOAD_PATH_IF_URL("horizontal-align"	, ColumnIcons::horizontalAlign);
-	LOAD_PATH_IF_URL("vertical-distribute" , ColumnIcons::verticalDistribute);
+	LOAD_PATH_IF_URL("editoff", OverlayIcons::lockShape);
+	LOAD_PATH_IF_URL("cancel", EditorIcons::cancelIcon);
+	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
+	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
+	LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
+	LOAD_PATH_IF_URL("vertical-align", ColumnIcons::verticalAlign);
+	LOAD_PATH_IF_URL("horizontal-align", ColumnIcons::horizontalAlign);
+	LOAD_PATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);
 	LOAD_PATH_IF_URL("horizontal-distribute", ColumnIcons::horizontalDistribute);
 
 	return p;
+}
+
+juce::Identifier ComplexDataManager::getProcessorTypeId() const
+{
+	return JavascriptProcessor::getConnectorId();
+}
+
+struct ComplexDataViewer : public Component,
+						   public ComboBox::Listener
+{
+	enum class Type
+	{
+		AudioFiles,
+		Tables,
+		SliderPack,
+		numTypes
+	};
+
+	ComplexDataViewer(JavascriptProcessor* h_, Type t) :
+		type(t),
+		h(h_)
+	{
+		slotSelector.setLookAndFeel(&claf);
+		addAndMakeVisible(slotSelector);
+		refreshSelector();
+		slotSelector.setTextWhenNothingSelected("Select slot");
+
+		dynamic_cast<ControlledObject*>(h.get())->getMainController()->skin(slotSelector);
+
+	}
+
+	void refreshSelector()
+	{
+		int currentId = slotSelector.getSelectedId();
+		int numEntries;
+
+		slotSelector.clear(dontSendNotification);
+
+		switch (type)
+		{
+		case Type::AudioFiles: numEntries = h->getNumAudioFiles(); break;
+		case Type::Tables: numEntries = h->getNumTables(); break;
+		case Type::SliderPack: numEntries = h->getNumSliderPacks(); break;
+		}
+
+		for (int i = 0; i < numEntries; i++)
+		{
+			slotSelector.addItem("Slot" + String(i), i + 1);
+		}
+
+		slotSelector.addItem("Add new slot", numEntries+1);
+		slotSelector.setSelectedId(currentId, dontSendNotification);
+		slotSelector.addListener(this);
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (currentComponent == nullptr)
+		{
+			g.setColour(Colours::white.withAlpha(0.7f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Select slot or create new slot above", getLocalBounds().toFloat(), Justification::centred);
+		}
+	}
+
+	void comboBoxChanged(ComboBox* c)
+	{
+		setContent(c->getSelectedItemIndex());
+		refreshSelector();
+	}
+
+	void setContent(int slotIndex)
+	{
+		switch (type)
+		{
+		case Type::AudioFiles:
+		{
+			auto c = h->addOrReturnAudioFile(slotIndex);
+			auto tn = new ScriptAudioFileBufferComponent(c);
+
+			currentComponent = tn;
+			break;
+		}
+		case Type::Tables:
+		{
+			auto c = h->addOrReturnTableObject(slotIndex);
+			auto te = new TableEditor(c->getScriptProcessor()->getMainController_()->getControlUndoManager(), c->getTable());
+			currentComponent = te;
+			break;
+		}
+		}
+
+		addAndMakeVisible(currentComponent);
+		resized();
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		slotSelector.setBounds(b.removeFromTop(24));
+
+		if(currentComponent != nullptr)
+			currentComponent->setBounds(b);
+	}
+
+	GlobalHiseLookAndFeel claf;
+	ComboBox slotSelector;
+	ScopedPointer<Component> currentComponent;
+	Type type;
+	WeakReference<JavascriptProcessor> h;
+};
+
+juce::Component* ComplexDataManager::createContentComponent(int index)
+{
+	if (auto d = dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
+	{
+		return new ComplexDataViewer(d, (ComplexDataViewer::Type)index);
+	}
+
+	return nullptr;
+	
+
+	
 }
 
 } // namespace hise

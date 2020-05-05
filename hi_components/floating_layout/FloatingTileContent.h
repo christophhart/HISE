@@ -622,6 +622,7 @@ public:
 			SampleEditor,
 			SampleMapEditor,
 			SamplerTable,
+			ComplexDataManager,
 			ScriptConnectorPanel,
 			ScriptEditor,
 			ScriptContent,

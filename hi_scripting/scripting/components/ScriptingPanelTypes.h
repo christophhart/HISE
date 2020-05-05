@@ -358,6 +358,35 @@ private:
 };
 
 
+class ComplexDataManager : public PanelWithProcessorConnection
+{
+public:
+
+	ComplexDataManager(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{};
+
+	SET_PANEL_NAME("ComplexDataManager");
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<JavascriptProcessor>(moduleList);
+	}
+
+	bool hasSubIndex() const override { return true; }
+
+	Identifier getProcessorTypeId() const override;
+
+	void fillIndexList(StringArray& l) override
+	{
+		l.add("Audio Files");
+		l.add("Tables");
+		l.add("Slider Packs");
+	}
+
+	Component* createContentComponent(int index) override;
+};
+
 
 class ScriptWatchTablePanel : public PanelWithProcessorConnection
 {
