@@ -132,5 +132,22 @@ void GlobalScope::removeObjectDeleteListener(ObjectDeleteListener* l)
 	deleteListeners.removeAllInstancesOf(l);
 }
 
+bool GlobalScope::checkRuntimeErrorAfterExecution()
+{
+	if (!currentRuntimeError.wasOk() && isRuntimeErrorCheckEnabled())
+	{
+		auto m = currentRuntimeError.toString();
+
+		for (auto& dh : debugHandlers)
+			dh->logMessage(BaseCompiler::Error, m);
+
+		currentRuntimeError = {};
+
+		return true;
+	}
+
+	return false;
+}
+
 }
 }

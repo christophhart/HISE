@@ -2385,10 +2385,16 @@ struct Operations::WhileLoop : public Statement,
 		{
 			auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 
+			auto safeCheck = scope->getGlobalScope()->isRuntimeErrorCheckEnabled();
+
 			auto cond = acg.cc.newLabel();
 			auto exit = acg.cc.newLabel();
 
 			auto why = acg.cc.newGpd();
+
+			if (safeCheck)
+				acg.cc.xor_(why, why);
+
 			acg.cc.nop();
 
 			acg.cc.bind(cond);
@@ -2415,12 +2421,50 @@ struct Operations::WhileLoop : public Statement,
 				INT_COMPARE(JitTokens::notEquals, acg.cc.je);
 
 #undef INT_COMPARE
+
+				if (safeCheck)
+				{
+					acg.cc.inc(why);
+					acg.cc.cmp(why, 10000000);
+					auto okBranch = acg.cc.newLabel();
+					acg.cc.jb(okBranch);
+
+					
+
+					auto errorFlag = x86::ptr(scope->getGlobalScope()->getRuntimeErrorFlag()).cloneResized(4);
+					acg.cc.mov(why, (int)RuntimeError::ErrorType::WhileLoop);
+					acg.cc.mov(errorFlag, why);
+					acg.cc.mov(why, (int)location.getLine());
+					acg.cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), why);
+					acg.cc.mov(why, (int)location.getColNumber(location.program, location.location));
+					acg.cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), why);
+					acg.cc.jmp(exit);
+					acg.cc.bind(okBranch);
+				}
 			}
 			else
 			{
 				acg.cc.setInlineComment("check condition");
 				acg.cc.cmp(INT_REG_R(cReg), 0);
 				acg.cc.je(exit);
+
+				if (safeCheck)
+				{
+					acg.cc.inc(why);
+					acg.cc.cmp(why, 10000000);
+					auto okBranch = acg.cc.newLabel();
+					acg.cc.jb(okBranch);
+
+					auto errorFlag = x86::ptr(scope->getGlobalScope()->getRuntimeErrorFlag()).cloneResized(4);
+					acg.cc.mov(why, (int)RuntimeError::ErrorType::WhileLoop);
+					acg.cc.mov(errorFlag, why);
+					acg.cc.mov(why, (int)location.getLine());
+					acg.cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), why);
+					acg.cc.mov(why, (int)location.getColNumber(location.program, location.location));
+					acg.cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), why);
+					acg.cc.jmp(exit);
+					acg.cc.bind(okBranch);
+				}
 			}
 
 			getSubExpr(1)->process(compiler, scope);
@@ -3009,25 +3053,36 @@ struct Operations::Subscript : public Expression,
 			{
 				if (auto it = indexType.getTypedIfComplexType<IndexBase>())
 				{
-					auto parentType = getSubExpr(0)->getTypeInfo();
-
-					if (TypeInfo(it->parentType.get()) != parentType)
+					if (subscriptType == CustomObject)
 					{
-						juce::String s;
+						auto wId = NamespacedIdentifier("IndexType").getChildId("wrapped");
 
-						s << "index type mismatch: ";
-						s << indexType.toString();
-						s << " for target ";
-						s << parentType.toString();
+						auto fData = compiler->getInbuiltFunctionClass()->getNonOverloadedFunctionRaw(wId);
 
-						getSubExpr(1)->throwError(s);
+
+
 					}
-						
+					else
+					{
+						auto parentType = getSubExpr(0)->getTypeInfo();
+
+						if (TypeInfo(it->parentType.get()) != parentType)
+						{
+							juce::String s;
+
+							s << "index type mismatch: ";
+							s << indexType.toString();
+							s << " for target ";
+							s << parentType.toString();
+
+							getSubExpr(1)->throwError(s);
+						}
+					}
 				}
 				else
 					getSubExpr(1)->throwError("illegal index type");
 			}
-			else if (!getSubExpr(1)->isConstExpr())
+			else if (dynType == nullptr && !getSubExpr(1)->isConstExpr())
 			{
 				getSubExpr(1)->throwError("Can't use non-constant or non-wrapped index");
 			}
@@ -3128,6 +3183,8 @@ struct Operations::Subscript : public Expression,
 				AssemblyRegister::List l;
 				l.add(getSubRegister(0));
 				l.add(getSubRegister(1));
+
+				acg.location = getSubExpr(1)->location;
 
 				auto r = acg.emitFunctionCall(reg, subscriptOperator, nullptr, l);
 

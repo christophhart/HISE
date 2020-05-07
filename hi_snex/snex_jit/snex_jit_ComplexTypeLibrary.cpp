@@ -750,7 +750,6 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 		subscriptFunction.inliner = Inliner::createAsmInliner(subscriptFunction.id, [t](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
-
 			auto& cc = d->gen.cc;
 
 			auto target = d->target;
@@ -758,20 +757,12 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			auto index = d->args[1];
 			auto limit = cc.newGpd();
 
-			X86Mem p;
-
-			if (dynReg->isMemoryLocation())
-				p = dynReg->getAsMemoryLocation().cloneAdjustedAndResized(4, 4);
-			else
-				p = x86::ptr(PTR_REG_R(dynReg)).cloneAdjustedAndResized(4, 4);
-
-			if (index->getTypeInfo().getTypedIfComplexType<IndexBase>() == nullptr)
-				return Result::fail("Can't use non-index types for subscription index");
+			
 
 			jassert(dynReg->getTypeInfo().getTypedComplexType<DynType>() != nullptr);
-			
 			jassert(target->getTypeInfo() == t);
 
+#if 0
 			switch (getIndexType(index->getTypeInfo()))
 			{
 			case IndexType::W:
@@ -793,9 +784,80 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			default:
 				jassertfalse;
 			}
+#endif
+
+			auto gs = d->target->getScope()->getGlobalScope();
+			auto safeCheck = gs->isRuntimeErrorCheckEnabled();
+
+			auto okBranch = cc.newLabel();
+			auto errorBranch = cc.newLabel();
+
+			if (safeCheck)
+			{
+				X86Mem p;
+
+				if (dynReg->isMemoryLocation())
+					p = dynReg->getAsMemoryLocation().cloneAdjustedAndResized(4, 4);
+				else
+					p = x86::ptr(PTR_REG_R(dynReg)).cloneAdjustedAndResized(4, 4);
+
+				cc.mov(limit, p);
+				
+				
+				if (index->isMemoryLocation())
+					cc.cmp(limit, INT_IMM(index));
+				else
+					cc.cmp(limit, INT_REG_R(index));
+				cc.jg(okBranch);
+
+
+				auto flagReg = cc.newGpd();
+
+				auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
+
+
+				cc.mov(flagReg, (int)RuntimeError::ErrorType::DynAccessOutOfBounds);
+
+				cc.mov(errorFlag, flagReg);
+
+				auto& l = d->gen.location;
+
+				cc.mov(flagReg, (int)l.getLine());
+				cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), flagReg);
+				cc.mov(flagReg, (int)l.getColNumber(l.program, l.location));
+				cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
+				
+				if (index->isMemoryLocation())
+					cc.mov(flagReg, INT_IMM(index));
+				else
+					cc.mov(flagReg, INT_REG_R(index));
+				
+				cc.mov(errorFlag.cloneAdjustedAndResized(12, 4), flagReg);
+				cc.mov(errorFlag.cloneAdjustedAndResized(16, 4), limit);
+
+				cc.jmp(errorBranch);
+				cc.bind(okBranch);
+			}
+
+			auto endLabel = cc.newLabel();
 
 			cc.setInlineComment("dyn_ref");
 			d->gen.emitSpanReference(target, dynReg, index, t.getRequiredByteSize());
+			
+
+			if (safeCheck)
+			{
+				cc.jmp(endLabel);
+				cc.bind(errorBranch);
+				auto nirvana = cc.newStack(target->getTypeInfo().getRequiredByteSize(), 0);
+				target->setCustomMemoryLocation(nirvana, true);
+				cc.bind(endLabel);
+				cc.nop();
+			}
+				
+
+
+
 
 			return Result::ok();
 		});
@@ -1450,6 +1512,89 @@ snex::jit::Inliner::Func IndexBase::getAsmFunction(FunctionClass::SpecialSymbols
 	return {};
 }
 
+snex::jit::Inliner::Func IndexBase::getAsmFunctionWithFixedSize(FunctionClass::SpecialSymbols s, int wrapSize)
+{
+	if (s == FunctionClass::AssignOverload)
+	{
+		return [wrapSize](InlineData* d_)
+		{
+			auto d = dynamic_cast<AsmInlineData*>(d_);
+			auto& cc = d->gen.cc;
+			auto thisObj = d->target;
+			auto value = d->args[1];
+
+			jassert(thisObj->getType() == Types::ID::Integer || thisObj->getTypeInfo().getTypedComplexType<SpanType::Wrapped>() != nullptr);
+			jassert(value->getType() == Types::ID::Integer);
+
+			thisObj->loadMemoryIntoRegister(cc);
+			INT_OP(cc.mov, thisObj, value);
+
+			auto t = INT_REG_W(thisObj);
+
+			if (isPowerOfTwo(wrapSize))
+			{
+				cc.and_(t, wrapSize - 1);
+			}
+			else
+			{
+				auto d = cc.newGpd();
+				auto s = cc.newInt32Const(ConstPool::kScopeLocal, wrapSize);
+
+				cc.cdq(d, t);
+				cc.idiv(d, t, s);
+				cc.mov(t, d);
+			}
+
+			//cc.mov(ptr, t);
+
+			return Result::ok();
+		};
+	}
+	if (s == FunctionClass::IncOverload)
+	{
+		return [wrapSize](InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+
+			jassert(d->target->getType() == Types::ID::Integer);
+
+			auto valueReg = d->args[0];
+			bool isDec, isPre;
+			auto& cc = d->gen.cc;
+			d->target->loadMemoryIntoRegister(cc);
+			auto r = INT_REG_W(d->target);
+			auto tmp = cc.newGpq();
+
+			Operations::Increment::getOrSetIncProperties(d->templateParameters, isPre, isDec);
+			jassert((valueReg == nullptr) == isPre);
+
+			if (!isPre)
+			{
+				valueReg->createRegister(cc);
+				cc.mov(INT_REG_W(valueReg), r);
+			}
+
+			if (isDec)
+			{
+				cc.mov(tmp, r);
+				cc.dec(tmp);
+				cc.mov(r, wrapSize - 1);
+				cc.cmovge(r, tmp);
+			}
+			else
+			{
+				cc.mov(tmp, r);
+				cc.inc(tmp);
+				cc.xor_(r, r);
+				cc.cmp(tmp, wrapSize);
+				cc.cmovne(r, tmp);
+			}
+
+			return Result::ok();
+		};
+	}
+}
+
 bool IndexBase::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer)
 {
 	if (typePtr.get() == this)
@@ -1602,87 +1747,7 @@ snex::jit::Inliner::Func SpanType::Wrapped::getAsmFunction(FunctionClass::Specia
 {
 	auto wrapSize = dynamic_cast<SpanType*>(parentType.get())->getNumElements();
 
-	if (s == FunctionClass::AssignOverload)
-	{
-		return [wrapSize](InlineData* d_)
-		{
-			auto d = dynamic_cast<AsmInlineData*>(d_);
-			auto& cc = d->gen.cc;
-			auto thisObj = d->target;
-			auto value = d->args[1];
-
-			jassert(thisObj->getType() == Types::ID::Integer || thisObj->getTypeInfo().getTypedComplexType<SpanType::Wrapped>() != nullptr);
-			jassert(value->getType() == Types::ID::Integer);
-
-			thisObj->loadMemoryIntoRegister(cc);
-			INT_OP(cc.mov, thisObj, value);
-
-			auto t = INT_REG_W(thisObj);
-
-			if (isPowerOfTwo(wrapSize))
-			{
-				cc.and_(t, wrapSize - 1);
-			}
-			else
-			{
-				auto d = cc.newGpd();
-				auto s = cc.newInt32Const(ConstPool::kScopeLocal, wrapSize);
-
-				cc.cdq(d, t);
-				cc.idiv(d, t, s);
-				cc.mov(t, d);
-			}
-
-			//cc.mov(ptr, t);
-
-			return Result::ok();
-		};
-	}
-	if (s == FunctionClass::IncOverload)
-	{
-		return [wrapSize](InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-
-			jassert(d->target->getType() == Types::ID::Integer);
-
-			auto valueReg = d->args[0];
-			bool isDec, isPre;
-			auto& cc = d->gen.cc;
-			d->target->loadMemoryIntoRegister(cc);
-			auto r = INT_REG_W(d->target);
-			auto tmp = cc.newGpq();
-
-			Operations::Increment::getOrSetIncProperties(d->templateParameters, isPre, isDec);
-			jassert((valueReg == nullptr) == isPre);
-
-			if (!isPre)
-			{
-				valueReg->createRegister(cc);
-				cc.mov(INT_REG_W(valueReg), r);
-			}
-
-			if (isDec)
-			{
-				cc.mov(tmp, r);
-				cc.dec(tmp);
-				cc.mov(r, wrapSize-1);
-				cc.cmovge(r, tmp);
-			}
-			else
-			{
-				cc.mov(tmp, r);
-				cc.inc(tmp);
-				cc.xor_(r, r);
-				cc.cmp(tmp, wrapSize);
-				cc.cmovne(r, tmp);
-			}
-			
-			return Result::ok();
-		};
-	}
-
-	return {};
+	return getAsmFunctionWithFixedSize(s, wrapSize);
 }
 
 }

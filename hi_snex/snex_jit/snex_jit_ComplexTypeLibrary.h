@@ -44,6 +44,8 @@ struct IndexBase : public ComplexType
 
 	virtual Inliner::Func getAsmFunction(FunctionClass::SpecialSymbols s);
 
+	Inliner::Func getAsmFunctionWithFixedSize(FunctionClass::SpecialSymbols s, int size);
+
 	virtual int getInitValue(int input) const { return input; }
 
 	FunctionData* createOperator(FunctionClass* f, FunctionClass::SpecialSymbols s)
@@ -408,6 +410,27 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StructType);
 };
 
+
+struct StructSubscriptIndexType : public IndexBase
+{
+	StructSubscriptIndexType(StructType* parent, const Identifier& id):
+		IndexBase(TypeInfo(parent))
+	{
+		auto tp = parent->getTemplateInstanceParameters();
+		maxSize = tp[0].constant;
+	}
+
+	Identifier getIndexName() const override { return indexId; }
+	Inliner::Func getAsmFunction(FunctionClass::SpecialSymbols s) override
+	{
+		return getAsmFunctionWithFixedSize(s, maxSize);
+	}
+
+	int getInitValue(int input) const { return input % maxSize; }
+
+	Identifier indexId;
+	int maxSize = 0;
+};
 
 #define CREATE_SNEX_STRUCT(x) new StructType(NamespacedIdentifier(#x));
 #define ADD_SNEX_STRUCT_MEMBER(structType, object, member) structType->addExternalMember(#member, object, object.member);

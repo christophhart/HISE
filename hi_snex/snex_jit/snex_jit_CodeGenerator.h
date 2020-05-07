@@ -181,7 +181,7 @@ struct AsmCodeGenerator
 		RegPtr tempReg;
 	};
 
-	AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_);;
+	AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_, ParserHelpers::CodeLocation l);;
 
 	void emitComment(const char* m);
 
@@ -321,6 +321,8 @@ struct AsmCodeGenerator
         }
     }
     
+	ParserHelpers::CodeLocation location;
+
 private:
 
 	
@@ -329,6 +331,7 @@ private:
 
 	static void createRegistersForArguments(X86Compiler& cc, ReferenceCountedArray<AssemblyRegister>& parameters, const FunctionData& f);
 	Types::ID type;
+	
 };
 
 struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase

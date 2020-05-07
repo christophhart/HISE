@@ -537,7 +537,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			{
 				if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
 				{
-					AsmCodeGenerator asg(getFunctionCompiler(compiler), &compiler->registerPool, getType());
+					AsmCodeGenerator asg(getFunctionCompiler(compiler), &compiler->registerPool, getType(), location);
 					asg.emitParameter(dynamic_cast<Function*>(fScope->parentFunction), reg, parameterIndex);
 				}
 			}
@@ -1079,8 +1079,9 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			{
 				if (nfc->hasFunction(function.id))
 				{
-					callType = InbuiltFunction;
 					fc = compiler->getInbuiltFunctionClass();
+					fc->addMatchingFunctions(possibleMatches, function.id);
+					callType = InbuiltFunction;
 					jassert(function.isResolved());
 					return;
 				}
@@ -1127,7 +1128,14 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			{
 				if (auto cs = dynamic_cast<ClassScope*>(scope->getScopeForSymbol(function.id)))
 				{
-					fc = cs->typePtr->getFunctionClass();
+					ComplexType::Ptr p;
+
+					if (cs->isRootClass())
+						p = compiler->namespaceHandler.getComplexType(function.id.getParent());
+					else
+						p = cs->typePtr;
+
+					fc = p->getFunctionClass();
 					ownedFc = fc;
 					fc->addMatchingFunctions(possibleMatches, function.id);
 					callType = StaticFunction;
@@ -1196,9 +1204,12 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (callType == InbuiltFunction)
 		{
-			// Will be done at parser level
-			jassert(function.isResolved());
-			return;
+			if (!function.canBeInlined(true))
+			{
+				// Will be done at parser level
+				jassert(function.isResolved());
+				return;
+			}
 		}
 
 		Array<TypeInfo> parameterTypes;
@@ -1208,6 +1219,22 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		for (auto& f : possibleMatches)
 		{
+			if (f.templateParameters.size() != function.templateParameters.size())
+			{
+				TypeInfo::List originalList;
+				for (auto a : f.args)
+					originalList.add(a.typeInfo);
+
+				auto r = Result::ok();
+				auto resolved = TemplateParameter::ListOps::mergeWithCallParameters(f.templateParameters, function.templateParameters, originalList, parameterTypes, r);
+
+				location.test(r);
+
+				f.templateParameters = resolved;
+				function.templateParameters = resolved;
+			}
+
+
 			if (TemplateParameter::ListOps::isArgument(f.templateParameters))
 			{
 				// Externally defined functions don't have a specialized instantiation, so we
@@ -1527,7 +1554,7 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 		}
 		else
 		{
-			function = compiler->getInbuiltFunctionClass()->getNonOverloadedFunction(function.id);
+			function = compiler->getInbuiltFunctionClass()->getNonOverloadedFunctionRaw(function.id);
 
 			jassert(function.inliner != nullptr);
 		}

@@ -39,10 +39,11 @@ using namespace asmjit;
 
 
 
-AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_) :
+AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_, ParserHelpers::CodeLocation l) :
 	cc(cc_),
 	type(type_),
-	registerPool(pool)
+	registerPool(pool),
+	location(l)
 {
 	
 }
@@ -477,6 +478,32 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 		if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 		{
+			
+
+			auto gs = r->getScope()->getGlobalScope();
+			auto checkZeroDivision = gs->isRuntimeErrorCheckEnabled();
+			
+
+
+			auto okBranch = cc.newLabel();
+			auto errorBranch = cc.newLabel();
+
+			if (checkZeroDivision)
+			{
+				if (r->isMemoryLocation())
+				{
+					if (r->getImmediateIntValue() == 0)
+						location.throwError("Divide by zero");
+				}
+				else
+				{
+					cc.cmp(INT_REG_R(r), 0);
+					cc.je(errorBranch);
+				}
+			}
+
+			
+
 			TemporaryRegister dummy(*this, r->getScope(), TypeInfo(Types::ID::Integer));
 			cc.cdq(dummy.get(), INT_REG_W(l));
 
@@ -490,6 +517,28 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 			if (op == JitTokens::modulo)
 				cc.mov(INT_REG_W(l), dummy.get());
+
+			if (checkZeroDivision)
+			{
+				cc.jmp(okBranch);
+				cc.bind(errorBranch);
+
+				auto flagReg = cc.newGpd();
+
+				auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
+
+				
+				cc.mov(flagReg, (int)RuntimeError::ErrorType::IntegerDivideByZero);
+				cc.mov(errorFlag, flagReg);
+
+				cc.mov(flagReg, (int)location.getLine());
+				cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), flagReg);
+				cc.mov(flagReg, (int)location.getColNumber(location.program, location.location));
+				cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
+				
+				cc.mov(INT_REG_W(l), 0);
+				cc.bind(okBranch);
+			}
 
 			return l;
 		}

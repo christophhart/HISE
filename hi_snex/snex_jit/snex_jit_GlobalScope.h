@@ -36,6 +36,44 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+struct RuntimeError
+{
+	enum class ErrorType
+	{
+		OK,
+		DynAccessOutOfBounds,
+		IntegerDivideByZero,
+		WhileLoop,
+		NullptrAccess
+	};
+
+	bool wasOk() const noexcept { return errorType == (int)ErrorType::OK; }
+
+	String toString() const noexcept
+	{
+		String s;
+
+		
+		s << "Line " << String(lineNumber) << "(" << String(colNumber) << "): ";
+		
+		switch ((ErrorType)errorType)
+		{
+		case ErrorType::IntegerDivideByZero: s << "Runtime error (division by zero)"; break;
+		case ErrorType::WhileLoop: s << "Runtime error (endless while loop)"; break;
+		case ErrorType::DynAccessOutOfBounds: s << "dyn operator[] out of bounds - " << String(data1) << ", limit: " << String(data2); break;
+		}
+
+		return s;
+	}
+
+	int errorType = 0;
+	int lineNumber = 0;
+	int colNumber = 0;
+	int data1 = 0;
+	int data2 = 0;
+};
+
+
 /** A interface class for anything that needs to print out the logs from the
 	compiler.
 
@@ -704,7 +742,16 @@ public:
 
 	BreakpointHandler& getBreakpointHandler() { return breakPointHandler; }
 
+	uint64_t getRuntimeErrorFlag() { return reinterpret_cast<uint64_t>(&currentRuntimeError.errorType); }
+
+
+	bool isRuntimeErrorCheckEnabled() const noexcept { return !optimizationPasses.contains(OptimizationIds::NoSafeChecks); }
+
+	bool checkRuntimeErrorAfterExecution();
+
 private:
+
+	RuntimeError currentRuntimeError;
 
 	BreakpointHandler breakPointHandler;
 	WeakReference<BaseScope> currentClassScope;
