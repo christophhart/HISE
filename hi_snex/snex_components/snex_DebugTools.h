@@ -46,7 +46,9 @@ struct MathFunctionProvider : public TokenCollection::Provider
 	{
 		MathFunction(FunctionData f) :
 			Token(f.getSignature().replace("Math::", "Math."))
-		{};
+		{
+			markdownDescription = f.description;
+		};
 
 		Range<int> getSelectionRangeAfterInsert() const override
 		{
@@ -63,7 +65,7 @@ struct MathFunctionProvider : public TokenCollection::Provider
 			if (previousToken != "Math.")
 				return false;
 
-			return getCodeToInsert("").contains(input);
+			return matchesInput(input, getCodeToInsert(""));
 		}
 
 		String getCodeToInsert(const String& input) const override
@@ -90,7 +92,7 @@ struct KeywordProvider : public TokenCollection::Provider
 			if (previousToken.isNotEmpty())
 				return false;
 
-			return tokenContent.contains(input);
+			return matchesInput(input, tokenContent);
 		}
 
 		
@@ -98,23 +100,21 @@ struct KeywordProvider : public TokenCollection::Provider
 
 	void addTokens(TokenCollection::List& tokens)
 	{
-		tokens.add(new KeywordToken("for"));
-		tokens.add(new KeywordToken("while"));
-		tokens.add(new KeywordToken("int"));
 		tokens.add(new KeywordToken("double"));
 		tokens.add(new KeywordToken("float"));
 		tokens.add(new KeywordToken("span"));
-		tokens.add(new KeywordToken("dyn"));
 		tokens.add(new KeywordToken("return"));
-		tokens.add(new KeywordToken("void"));
 		tokens.add(new KeywordToken("template"));
 		tokens.add(new KeywordToken("typename"));
 		tokens.add(new KeywordToken("break"));
 		tokens.add(new KeywordToken("continue"));
-		tokens.add(new KeywordToken("#define"));
-		tokens.add(new KeywordToken("#if"));
-		tokens.add(new KeywordToken("#endif"));
-		tokens.add(new KeywordToken("#else"));
+		tokens.add(new KeywordToken("namespace"));
+		tokens.add(new KeywordToken("enum"));
+		tokens.add(new KeywordToken("struct"));
+		tokens.add(new KeywordToken("class"));
+		tokens.add(new KeywordToken("private"));
+		tokens.add(new KeywordToken("protected"));
+		tokens.add(new KeywordToken("public"));
 	}
 };
 

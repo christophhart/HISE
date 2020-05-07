@@ -108,6 +108,11 @@ snex::jit::NamespaceHandler& Compiler::getNamespaceHandler()
 	return compiler->namespaceHandler;
 }
 
+snex::jit::FunctionClass::Ptr Compiler::getInbuiltFunctionClass()
+{
+	return compiler->getInbuiltFunctionClass();
+}
+
 void Compiler::initInbuildFunctions()
 {
 	compiler->setInbuildFunctions();

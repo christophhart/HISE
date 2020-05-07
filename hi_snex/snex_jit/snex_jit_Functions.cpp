@@ -335,7 +335,7 @@ bool FunctionClass::hasFunction(const NamespacedIdentifier& s) const
 
 	auto parent = s.getParent();
 
-	if (parent == classSymbol)
+	if (parent == classSymbol || !classSymbol.isValid())
 	{
 		for (auto f : functions)
 			if (f->id == s)
@@ -382,7 +382,7 @@ void FunctionClass::addMatchingFunctions(Array<FunctionData>& matches, const Nam
 {
 	auto parent = symbol.getParent();
 
-	if (parent == classSymbol)
+	if (parent == classSymbol || !classSymbol.isValid())
 	{
 		for (auto f : functions)
 		{

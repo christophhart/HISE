@@ -154,7 +154,9 @@ struct ParserHelpers
 
 			auto charactersFromStart = (end - start);
 
-			for (int i = 0; i < jmin<int>((int)charactersFromStart, (int)start.length()); i++)
+			auto l = (int)start.length();
+
+			for (int i = 0; i < jmin<int>((int)charactersFromStart, l); i++)
 			{
 				if (start[i] == '\n')
 				{

@@ -149,6 +149,8 @@ public:
 
 	NamespaceHandler::Ptr getNamespaceHandlerReference() { return handler; }
 
+	FunctionClass::Ptr getInbuiltFunctionClass();
+
 	void initInbuildFunctions();
 
 	static int compileCount;

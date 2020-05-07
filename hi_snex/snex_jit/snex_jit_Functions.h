@@ -1472,6 +1472,18 @@ struct FunctionClass: public DebugableObjectBase,
 
 	FunctionData getSpecialFunction(SpecialSymbols s, TypeInfo returnType = {}, const TypeInfo::List& args = {}) const;
 
+	FunctionData getNonOverloadedFunctionRaw(NamespacedIdentifier id) const
+	{
+		for (auto f : functions)
+		{
+			if (f->id == id)
+				return *f;
+		}
+
+		return {};
+	}
+	
+
 	FunctionData getNonOverloadedFunction(NamespacedIdentifier id) const
 	{
 		if (id.getParent() != getClassName())

@@ -506,6 +506,20 @@ mcl::TokenCollection::List NamespaceHandler::getTokenList()
 }
 
 
+String NamespaceHandler::getDescriptionForItem(const NamespacedIdentifier& n) const
+{
+	if (auto existing = get(n.getParent()))
+	{
+		for (auto a : existing->aliases)
+		{
+			if (a.id == n)
+				return a.toString();
+		}
+	}
+
+	return {};
+}
+
 bool NamespaceHandler::isConstantSymbol(SymbolType t)
 {
 	return t == TemplateConstant || t == PreprocessorConstant || t == Constant || t == EnumValue;
@@ -865,6 +879,19 @@ void NamespaceHandler::setNamespacePosition(const NamespacedIdentifier& id, Poin
 	}
 }
 
+juce::Array<juce::Range<int>> NamespaceHandler::createLineRangesFromNamespaces() const
+{
+	Array<Range<int>> list;
+
+	for (auto n : existingNamespace)
+	{
+		if (!n->lines.isEmpty())
+			list.add(n->lines);
+	}
+
+	return list;
+}
+
 TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const
 {
 	auto p = aliasId.getParent();
@@ -1065,7 +1092,7 @@ bool NamespaceHandler::SymbolToken::matches(const String& input, const String& p
 					if (a.visibility != Visibility::Public)
 						return false;
 
-					if (a.id.id.toString().contains(input))
+					if (matchesInput(input, a.id.id.toString()))
 						return true;
 				}
 			}
@@ -1080,7 +1107,7 @@ bool NamespaceHandler::SymbolToken::matches(const String& input, const String& p
 		return false;
 	}
 
-	if (a.id.id.toString().contains(input))
+	if (matchesInput(input, a.id.id.toString()))
 	{
 		return n.get() == root->getRoot() || n->lines.contains(lineNumber);
 		

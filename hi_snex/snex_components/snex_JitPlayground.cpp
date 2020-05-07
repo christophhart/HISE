@@ -75,6 +75,61 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
 	memory.getBreakpointHandler().setActive(true);
 
+
+	
+	editor.setLineRangeFunction([this]()
+	{
+		Array<Range<int>> lineRanges;
+		Preprocessor p(doc.getAllContent());
+
+		auto s = p.getDeactivatedLines();
+
+		for (int i = 0; i < s.getNumRanges(); i++)
+		{
+			auto r = s.getRange(i);
+			lineRanges.add({ r.getStart() - 2, r.getEnd() });
+		}
+
+		CodeDocument::Iterator it(doc);
+
+		
+		Array<int> rangeStarts;
+		int currentRangeEnd = 0;
+		bool firstInLine = false;
+
+		while (auto c = it.nextChar())
+		{
+			if (c == '{')
+			{
+				auto thisLine = it.getLine();
+
+				if (firstInLine)
+					thisLine -= 1;
+				
+				rangeStarts.add(thisLine);
+			}
+
+			if (c == '}')
+			{
+				currentRangeEnd = it.getLine() + 1;
+
+				if (!rangeStarts.isEmpty())
+				{
+					Range<int> newRange(rangeStarts.getLast(), currentRangeEnd);
+
+					if(it.getLine() - 1 != newRange.getStart())
+						lineRanges.add(newRange);
+
+					rangeStarts.removeLast();
+				}
+			}
+
+			firstInLine = (c == '\n') || (firstInLine && CharacterFunctions::isWhitespace(c));
+		}
+
+		return lineRanges;
+	});
+
 	setName("SNEX Editor");
 
 	editor.tokenCollection.clearTokenProviders();
@@ -340,6 +395,7 @@ juce::String SnexPlayground::getDefaultCode(bool getTestcode)
 
 void SnexPlayground::paint(Graphics& g)
 {
+	g.fillAll(Colour(0xFF333336));
     snexIcon.scaleToFit(10.0f, 0.0f, 50.0f, 32.0f, true);
     g.setColour(Colours::white.withAlpha(0.5f));
     g.fillPath(snexIcon);
@@ -620,6 +676,9 @@ void SnexPlayground::logMessage(int level, const juce::String& s)
 {
 	juce::String m;
 
+	if (level == jit::BaseCompiler::Error)
+		editor.setError(s);
+
 	switch (level)
 	{
 	case jit::BaseCompiler::Error:  m << "ERROR: "; break;
@@ -631,6 +690,8 @@ void SnexPlayground::logMessage(int level, const juce::String& s)
 	}
 
 	m << s << "\n";
+
+	
 
 	consoleContent.insertText(consoleContent.getNumCharacters(), m);
 	consoleContent.clearUndoHistory();
@@ -671,6 +732,37 @@ void SnexPlayground::recompile()
 		auto r = tc.test();
 
 		assemblyDoc.replaceAllContent(tc.assembly);
+		editor.tokenCollection.signalRebuild();
+
+
+		auto nPtr = tc.c.getNamespaceHandlerReference();
+
+		editor.setTokenTooltipFunction([nPtr](const String& token, int lineNumber)
+		{
+			if (auto n = nPtr->getNamespaceForLineNumber(lineNumber))
+			{
+				NamespaceHandler::ScopedNamespaceSetter sps(*nPtr, n->id);
+
+				auto id = n->id.getChildId(token);
+				nPtr->resolve(id, true);
+
+				return nPtr->getDescriptionForItem(id);
+			}
+			else
+			{
+				NamespacedIdentifier nId(token);
+
+				return nPtr->getDescriptionForItem(nId);
+			}
+
+
+			return String();
+		});
+
+		scopeRanges = tc.c.getNamespaceHandler().createLineRangesFromNamespaces();
+
+		if (tc.memory.checkRuntimeErrorAfterExecution())
+			return;
 
 		editor.setError(r.getErrorMessage());
 
@@ -678,8 +770,6 @@ void SnexPlayground::recompile()
 			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
 		else
 			resultLabel.setText("Test passed OK", dontSendNotification);
-
-		editor.tokenCollection.signalRebuild();
 
 		return;
 	}

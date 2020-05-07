@@ -197,6 +197,8 @@ juce::String getEmpty(const Identifier& namespaceId)
 MainComponent::MainComponent():
     playground(v)
 {
+	context.attachTo(playground);
+
 #if 0
 	snex::jit::GlobalScope s;
 
@@ -229,7 +231,7 @@ MainComponent::MainComponent():
 
 MainComponent::~MainComponent()
 {
-	
+	context.detach();
 
 
 }

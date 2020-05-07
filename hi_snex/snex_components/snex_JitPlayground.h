@@ -526,6 +526,7 @@ public:
 		return cData.obj.createValueTree();
 	}
 
+	
 	void eventHappened(BreakpointHandler* handler, BreakpointHandler::EventType type) override
 	{
 		currentBreakpointLine = *handler->getLineNumber();
@@ -890,6 +891,8 @@ private:
 	
 	CallbackCollection cData;
 	ScopedPointer<Component> stateViewer;
+
+	Array<Range<int>> scopeRanges;
 
 };
 

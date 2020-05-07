@@ -245,6 +245,8 @@ public:
 
 	mcl::TokenCollection::List getTokenList();
 
+	String getDescriptionForItem(const NamespacedIdentifier& n) const;
+
 	static bool isConstantSymbol(SymbolType t);
 
 	bool isTemplateTypeArgument(NamespacedIdentifier classId) const;
@@ -293,6 +295,8 @@ public:
 	TemplateParameter::List getCurrentTemplateParameters() const { return currentTemplateParameters.getLast(); }
 
 	void setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e);
+
+	Array<Range<int>> createLineRangesFromNamespaces() const;
 
 private:
 

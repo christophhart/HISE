@@ -281,7 +281,88 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 
 void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 {
+
 	NamespaceHandler::InternalSymbolSetter iss(c.getNamespaceHandler());
+
+	{
+		NamespacedIdentifier iId("IndexType");
+
+		NamespaceHandler::ScopedNamespaceSetter(c.getNamespaceHandler(), iId);
+
+		TemplateObject cf;
+		cf.id = iId.getChildId("wrapped");
+		auto pId = cf.id.getChildId("ArrayType");
+
+		cf.argList.add(TemplateParameter(pId, false, jit::TemplateParameter::Single));
+
+		cf.functionArgs = [pId]()
+		{
+			Array<TypeInfo> l;
+			l.add(TypeInfo(pId, true, true));
+			return l;
+		};
+
+		cf.makeFunction = [&c, iId](const TemplateObject::ConstructData& cd)
+		{
+			if (!cd.expectTemplateParameterAmount(1))
+				return;
+
+			if (!cd.expectIsComplexType(0))
+				return;
+			
+			auto f = new FunctionData();
+
+			f->id = cd.id;
+			f->returnType = TypeInfo(Types::ID::Dynamic);
+			f->templateParameters.add(cd.tp[0]);
+			f->addArgs("obj", cd.tp[0].type);
+
+			f->inliner = Inliner::createHighLevelInliner(f->id, [](InlineData* b)
+			{
+				auto d = b->toSyntaxTreeData();
+				d->target = new Operations::Immediate(d->location, 0);
+
+
+
+				return Result::ok();
+			});
+
+			f->inliner->returnTypeFunction = [](InlineData* b)
+			{
+				auto rt = dynamic_cast<ReturnTypeInlineData*>(b);
+				auto& handler = rt->object->currentCompiler->namespaceHandler;
+				auto ct = b->templateParameters[0].type.getTypedIfComplexType<ComplexType>();
+
+				if (ct == nullptr)
+					return Result::fail("Can't deduce index type from parameter 1");
+
+				if (auto st = dynamic_cast<StructType*>(ct))
+				{
+				    auto t = handler.registerComplexTypeOrReturnExisting(new StructSubscriptIndexType(st, Identifier("wrapped")));
+					rt->f.returnType = TypeInfo(t);
+					return Result::ok();
+				}
+
+				SubTypeConstructData sd;
+				sd.handler = &handler;
+				sd.id = NamespacedIdentifier("wrapped");
+				auto subType = ct->createSubType(&sd);
+				subType = sd.handler->registerComplexTypeOrReturnExisting(subType);
+
+				rt->f.returnType = TypeInfo(subType);
+
+				if (!sd.r.wasOk())
+					return sd.r;
+
+				return Result::ok();
+			};
+
+			c.getInbuiltFunctionClass()->addFunction(f);
+		};
+
+		c.getNamespaceHandler().addTemplateFunction(cf);
+	}
+
 
 	{
 		c.addConstant(NamespacedIdentifier("NumChannels"), numChannels);
@@ -955,8 +1036,6 @@ void SnexObjectDatabase::createFrameProcessor(Compiler& c)
 		auto fType = new StructType(fId, l);
 
 		int numChannels = c.tp[0].constant;
-
-		Array<Types::MemberOffsets> offsets;
 
 		/*
 		span<float*, NumChannels>& channels; // 8 byte
