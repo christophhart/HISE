@@ -464,6 +464,7 @@ public:
 	juce::String assembly;
 	DebugHandler* debugHandler = nullptr;
 	GlobalScope& memory;
+	Compiler c;
 
 private:
 
@@ -951,9 +952,6 @@ private:
 	VariableStorage expectedResult;
 	VariableStorage actualResult;
 	juce::String expectedFail;
-
-	Compiler c;
-
 	Array<AudioSampleBuffer> inputBuffers;
 	AudioSampleBuffer outputBuffer;
 	File outputBufferFile;
