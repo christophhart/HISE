@@ -3329,10 +3329,10 @@ void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeM
 	{
 		jassert(isCorrectlyInitialised(Items));
 
-		if (newValue.toString().isNotEmpty())
-		{
+		//if (newValue.toString().isNotEmpty())
+		//{
 			currentItems = StringArray::fromLines(newValue.toString());
-		}
+		//}
 	}
 
 
