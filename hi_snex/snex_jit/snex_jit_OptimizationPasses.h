@@ -429,11 +429,18 @@ public:
 
 	Error runOnFunction(asmjit::Zone* zone, asmjit::Logger* logger, FuncNode* func) noexcept
 	{
-		for (auto p : passes)
+		for (int i = 0; i < passes.size(); i++)
 		{
-			while (p->run(func))
+			auto p = passes[i];
+
+			if (p->run(func))
+			{
 				numOptimisations++;
+				i = -1;
+			}
 		}
+
+		
 
 		return 0;
 	}

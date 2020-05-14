@@ -1344,6 +1344,44 @@ struct Helpers
 		return id == x86::Inst::kIdCall;
 	}
 
+	static bool sameMem(Operand o1, Operand o2)
+	{
+		if (o1.isMem() && o2.isMem())
+		{
+			auto m1 = o1.as<BaseMem>();
+			auto m2 = o2.as<BaseMem>();
+
+			// there should be no ptrs without a base reg
+			// to fix the 64bit offset issue
+			jassert(m1.hasBase() && m2.hasBase());
+
+			if (m1.baseId() == m2.baseId())
+			{
+				auto sameIndexType = m1.hasIndexReg() == m2.hasIndexReg();
+
+				if (sameIndexType)
+				{
+					if (m1.hasIndexReg())
+					{
+						auto i1 = m1.indexId();
+						auto i2 = m2.indexId();
+
+						return i1 == i2;
+					}
+					else
+					{
+						auto off1 = m1.offset();
+						auto off2 = m2.offset();
+
+						return off1 == off2;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
 	static bool isInstructWithSameTarget(BaseNode* n1, BaseNode* n2)
 	{
 		// If it's not an instruction, it can't have the same target
@@ -1353,7 +1391,94 @@ struct Helpers
 		auto o1 = n1->as<InstNode>()->opType(0);
 		auto o2 = n2->as<InstNode>()->opType(0);
 
-		return o1.isEqual(o2);
+		return opEqualOrSameReg(o1, o2);
+	}
+
+	static bool isInstructWithSourceAsTarget(BaseNode* sourceNode, BaseNode* targetNode)
+	{
+		if (sourceNode->isInst() && targetNode->isInst())
+		{
+			auto s = getSourceOp(sourceNode->as<InstNode>());
+			auto t = getTargetOp(targetNode->as<InstNode>());
+
+			return opEqualOrSameReg(s, t);
+		}
+
+		return false;
+	}
+
+	static bool isInstructWithMemRegAsTarget(BaseNode* sourceNode, BaseMem m)
+	{
+		if (!sourceNode->isInst())
+			return false;
+
+		if (!m.hasBaseOrIndex())
+			return false;
+
+		auto t = getTargetOp(sourceNode->as<InstNode>());
+
+		if (t.isReg())
+		{
+			if (m.hasBaseReg() && m.baseId() == t.id())
+				return true;
+
+			if (m.hasIndexReg() && m.indexId() == t.id())
+				return true;
+		}
+
+		return false;
+	}
+
+	static bool isInstructWithSameSource(BaseNode* n1, BaseNode* n2)
+	{
+		if (n1->isInst() && n2->isInst())
+		{
+			auto s1 = getSourceOp(n1->as<InstNode>());
+			auto s2 = getSourceOp(n2->as<InstNode>());
+
+			return opEqualOrSameReg(s1, s2);
+		}
+
+		return false;
+	}
+
+	static bool opEqualOrSameReg(const Operand& o1, const Operand& o2)
+	{
+		auto same = o1.isEqual(o2);
+		auto isRegister = o1.isPhysReg() && o2.isPhysReg();
+
+		if (isRegister)
+		{
+			auto firstId = o1.id();
+			auto idMatch = o1.id() == o2.id();
+			
+			auto sameType = o1.as<X86Reg>().isXmm() == o2.as<X86Reg>().isXmm();
+
+			return same || (isRegister && idMatch && sameType);
+		}
+
+		return same;
+		
+	}
+
+	static bool isMemWithRegAsBaseOrIndex(Operand possibleMem, X86Reg r)
+	{
+		if (possibleMem.isMem())
+		{
+			auto m = possibleMem.as<BaseMem>();
+
+			if (m.hasBaseOrIndex())
+			{
+				auto indexId = possibleMem.as<BaseMem>().indexId();
+				auto baseId = possibleMem.as<BaseMem>().baseId();
+
+				auto rId = r.id();
+
+				return rId == baseId || rId == indexId;
+			}
+		}
+
+		return false;
 	}
 
 	static bool isMemWithBaseReg(Operand o)
@@ -1368,10 +1493,22 @@ struct Helpers
 
 	static Operand getSourceOp(InstNode* n)
 	{
-		return n->opType(1);
+		if (n->opCount() > 1)
+			return n->opType(1);
+		else
+			return n->opType(0);
 	}
 };
 
+struct Inc
+{
+	using ReturnType = InstNode;
+	static bool matches(BaseNode* node)
+	{
+		using namespace x86;
+		return Helpers::isInstruction(node, { Inst::kIdInc });
+	}
+};
 
 struct Lea
 {
@@ -1383,6 +1520,15 @@ struct Lea
 	}
 };
 
+struct InstructionFilter
+{
+	using ReturnType = InstNode;
+	static bool matches(BaseNode* node)
+	{
+		return node->isInst();
+	}
+};
+
 struct Mov
 {
 	using ReturnType = InstNode;
@@ -1390,6 +1536,37 @@ struct Mov
 	{
 		using namespace x86;
 		return Helpers::isInstruction(node, { Inst::kIdMov, Inst::kIdMovss, Inst::kIdMovsd, Inst::kIdMovaps });
+	}
+};
+
+struct Jump
+{
+	using ReturnType = InstNode;
+
+	static bool matches(BaseNode* node)
+	{
+		if (node->isInst())
+		{
+			auto inst = node->as<InstNode>();
+			auto thisId = inst->baseInst().id();
+
+			using namespace x86;
+			Range<uint32_t> r(Inst::kIdJa, Inst::kIdJz + 1);
+
+			return r.contains(thisId);
+		}
+
+		return false;
+	}
+};
+
+struct ControlFlowBreakers
+{
+	using ReturnType = InstNode;
+
+	static bool matches(BaseNode* node)
+	{
+		return Helpers::isCallNode(node) || Jump::matches(node);
 	}
 };
 
@@ -1500,6 +1677,8 @@ struct RemoveMovToSameOp : public AsmCleanupPass::SubPass<Mov>
 
 		while (auto n = it.next())
 		{
+			
+
 			if (Helpers::getTargetOp(n).isEqual(Helpers::getSourceOp(n)))
 				it.removeNode(n);
 		}
@@ -1525,7 +1704,11 @@ struct RemoveLeaFromSameSource : public AsmCleanupPass::SubPass<Lea>
 
 			if (source.hasBaseReg() && !source.hasOffset())
 			{
-				if (source.baseReg().isEqual(target))
+				auto sameReg = source.baseReg().isEqual(target);
+				auto hasIndexReg = source.hasIndexReg();
+
+
+				if (sameReg && !hasIndexReg)
 					it.removeNode(n);
 			}
 		}
@@ -1533,6 +1716,166 @@ struct RemoveLeaFromSameSource : public AsmCleanupPass::SubPass<Lea>
 		return false;
 	}
 };
+
+struct RemoveSwappedMovCallsToMemory : public AsmCleanupPass::SubPass<Mov>
+{
+	/** Removes memory writes and loads from the same register to the same memory location. 
+	
+		movss [rcx], xmm0
+		movss xmm0, [rcx]			// <= This one will be removed
+		addss xmm0, dword [L2+4]
+	
+	*/
+	RemoveSwappedMovCallsToMemory(FuncPass* p) :
+		SubPass<Mov>(p)
+	{};
+
+	bool run(BaseNode* n) override
+	{
+		auto it = createIterator(n);
+
+		while (auto n = it.next())
+		{
+			auto nextNode = n->next();
+
+			if (Mov::matches(nextNode))
+			{
+				if (Helpers::isInstructWithSourceAsTarget(n, nextNode))
+				{
+					if (Helpers::isInstructWithSourceAsTarget(nextNode, n))
+					{
+						it.removeNode(nextNode);
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
+
+struct RemoveDoubleMemoryWrites : public AsmCleanupPass::SubPass<InstructionFilter>
+{
+	/** 
+	
+		movss [rcx], xmm0			//< removes this instruction
+		addss xmm0, dword [L2+4]
+		movss [rcx], xmm0
+	*/
+	RemoveDoubleMemoryWrites(FuncPass* p) :
+		SubPass<InstructionFilter>(p)
+	{};
+
+	bool run(BaseNode* n) override
+	{
+		auto it = createIterator(n);
+
+		while (auto thisNode = it.next())
+		{
+			auto thisTarget = Helpers::getTargetOp(thisNode);
+
+			if (thisTarget.isMem())
+			{
+				auto nextIt = createIterator(thisNode);
+
+				while (auto nextNode = nextIt.next())
+				{
+					if (thisNode == nextNode)
+						continue;
+
+					auto nextSource = Helpers::getSourceOp(nextNode);
+
+					if (Helpers::opEqualOrSameReg(nextSource, thisTarget))
+						break;
+
+					if (Helpers::isInstructWithMemRegAsTarget(nextNode, thisTarget.as<BaseMem>()))
+						break;
+
+					if (ControlFlowBreakers::matches(nextNode))
+						break;
+
+					if (Mov::matches(nextNode))
+					{
+						auto nextTarget = Helpers::getTargetOp(nextNode);
+
+						if (Helpers::sameMem(nextTarget, thisTarget))
+						{
+							it.removeNode(thisNode);
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
+
+struct RemoveDoubleRegisterWrites : public AsmCleanupPass::SubPass<InstructionFilter>
+{
+	RemoveDoubleRegisterWrites(FuncPass* p) :
+		SubPass<InstructionFilter>(p)
+	{};
+
+	bool run(BaseNode* n) override
+	{
+		auto it = createIterator(n);
+
+		while (auto thisNode = it.next())
+		{
+			auto thisTarget = Helpers::getTargetOp(thisNode);
+
+			if (thisTarget.isPhysReg() && Mov::matches(thisNode))
+			{
+				
+
+				auto nextIt = createIterator(thisNode);
+
+				while (auto nextNode = nextIt.next())
+				{
+					if (thisNode == nextNode)
+						continue;
+
+					auto nextSource = Helpers::getSourceOp(nextNode);
+
+					if (ControlFlowBreakers::matches(nextNode))
+						break;
+
+					if (Helpers::opEqualOrSameReg(thisTarget, nextSource))
+						break;
+
+					if (Helpers::isMemWithRegAsBaseOrIndex(nextSource, thisTarget.as<X86Reg>()))
+						break;
+
+					if (Mov::matches(nextNode))
+					{
+						auto nextTarget = Helpers::getTargetOp(nextNode);
+
+						if (Helpers::isMemWithRegAsBaseOrIndex(nextTarget, thisTarget.as<X86Reg>()))
+							break;
+
+						if (Helpers::opEqualOrSameReg(nextTarget, thisTarget))
+						{
+							auto idThatIsRemoved = thisTarget.id();
+							auto isMemTarget = nextTarget.isMem();
+
+							it.removeNode(thisNode);
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
+
 
 struct RemoveMathNoops : public AsmCleanupPass::SubPass<MathOp>
 {
@@ -1603,9 +1946,11 @@ struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
 
 		while (auto sn = it.next())
 		{
-			if (Helpers::isCallNode(sn))
+			if (Helpers::isInstructWithSourceAsTarget(current, sn))
 				return nullptr;
 
+			if (ControlFlowBreakers::matches(sn))
+				return nullptr;
 
 			if (Helpers::isInstructWithSameTarget(current, sn))
 			{
@@ -1619,9 +1964,7 @@ struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
 					auto currentSource = Helpers::getSourceOp(current->as<InstNode>());
 					auto seekedSource = Helpers::getSourceOp(sn->as<InstNode>());
 
-
-
-					if (currentSource.isEqual(seekedSource))
+					if (Helpers::opEqualOrSameReg(currentSource, seekedSource))
 						return sn;
 					else
 						return nullptr;
@@ -1660,10 +2003,14 @@ struct RemoveSubsequentMovCalls : public AsmCleanupPass::SubPass<Mov>
 
 			if (auto sn = checkNextMovToSameTarget(n))
 			{
-				it.removeNode(sn);
-				return true;
+				auto instMatch = n->baseInst().id() == sn->as<InstNode>()->baseInst().id();
+
+				if (instMatch)
+				{
+					it.removeNode(sn);
+					return true;
+				}
 			}
-				
 		}
 
 		return false;
@@ -1678,13 +2025,19 @@ struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
 
 	InstNode* getNextUndirtyMovWithSameTarget(BaseNode* current)
 	{
-		AsmCleanupPass::Iterator<AsmCleanupPass::Base> all(parent, current->next());
+		AsmCleanupPass::Iterator<AsmCleanupPass::Base> all(parent, current);
 
 		while (auto n = all.next())
 		{
-			if (Helpers::isCallNode(n))
+			if (current == n)
+				continue;
+
+			if (ControlFlowBreakers::matches(n))
 				return nullptr;
 
+			if (Helpers::isInstructWithSourceAsTarget(current, n))
+				return nullptr;
+			
 			if (Helpers::isInstructWithSameTarget(current, n))
 			{
 				// If the target is a pointer with a base register
@@ -1718,16 +2071,16 @@ struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
 		{
 			if (auto undirtyMov = getNextUndirtyMovWithSameTarget(n))
 			{
+				auto sameInst = n->baseInst().id() == undirtyMov->baseInst().id();
+
 				auto thisSource = Helpers::getSourceOp(n);
 				auto nextTarget = Helpers::getTargetOp(undirtyMov);
-
-				
-
 				auto nextSource = Helpers::getSourceOp(undirtyMov);
 
-				if (thisSource.isEqual(nextSource))
+				if (sameInst && Helpers::opEqualOrSameReg(thisSource, nextSource))
 				{
 					it.removeNode(undirtyMov);
+					return true;
 				}
 			}
 		}
@@ -1746,6 +2099,9 @@ AsmCleanupPass::AsmCleanupPass() :
 	addSubPass<AsmSubPasses::RemoveMovToSameOp>();
 	addSubPass<AsmSubPasses::RemoveUndirtyMovCallsFromSameSource>();
 	addSubPass<AsmSubPasses::RemoveSubsequentMovCalls>();
+	addSubPass<AsmSubPasses::RemoveDoubleRegisterWrites>();
+	addSubPass<AsmSubPasses::RemoveSwappedMovCallsToMemory>();
+	addSubPass<AsmSubPasses::RemoveDoubleMemoryWrites>();
 }
 
 }
