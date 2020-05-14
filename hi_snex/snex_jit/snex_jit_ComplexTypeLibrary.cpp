@@ -216,8 +216,7 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 				d->target->setCustomMemoryLocation(d->object->getAsMemoryLocation(), d->object->isGlobalMemory());
 			else
 			{
-				d->target->createRegister(cc);
-				cc.mov(PTR_REG_W(d->target), PTR_REG_R(d->object));
+				d->target->setCustomMemoryLocation(x86::qword_ptr(PTR_REG_R(d->object)), d->object->isGlobalMemory());
 			}
 				
 
@@ -685,7 +684,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			auto& handler = rt->object->currentCompiler->namespaceHandler;
 			auto float4Type = handler.getAliasType(NamespacedIdentifier("float4"));
-			ComplexType::Ptr dynType = new DynType(float4Type);
+			ComplexType::Ptr dynType = new DynType(float4Type.withModifiers(false, false, false));
 			dynType = handler.registerComplexTypeOrReturnExisting(dynType);
 			rt->f.returnType = TypeInfo(dynType, false, true);
 			
@@ -792,6 +791,8 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			auto okBranch = cc.newLabel();
 			auto errorBranch = cc.newLabel();
 
+			safeCheck &= (index->getTypeInfo().getTypedIfComplexType<IndexBase>() == nullptr);
+
 			if (safeCheck)
 			{
 				X86Mem p;
@@ -847,10 +848,21 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			if (safeCheck)
 			{
+				target->loadMemoryIntoRegister(cc, true);
+
 				cc.jmp(endLabel);
 				cc.bind(errorBranch);
 				auto nirvana = cc.newStack(target->getTypeInfo().getRequiredByteSize(), 0);
-				target->setCustomMemoryLocation(nirvana, true);
+
+				auto type = d->target->getType();
+
+				
+				IF_(int) cc.mov(INT_REG_W(target), nirvana);
+				IF_(double) cc.movsd(FP_REG_W(target), nirvana);
+				IF_(float) cc.movss(FP_REG_W(target), nirvana);
+				IF_(void*) cc.mov(PTR_REG_W(target), nirvana);
+
+				
 				cc.bind(endLabel);
 				cc.nop();
 			}
@@ -990,7 +1002,7 @@ juce::String StructType::toStringInternal() const
 
 		if (!filtered.isEmpty())
 		{
-			s << TemplateParameter::ListOps::toString(filtered);
+			s << TemplateParameter::ListOps::toString(filtered, false);
 		}
 
 		if (i != (parts.size() - 1))
@@ -1135,7 +1147,7 @@ void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 	if (handler->getComplexType(id))
 		return;
 
-	if (isExternalDefinition)
+	if (isExternalDefinition && templateParameters.isEmpty())
 	{
 		NamespaceHandler::ScopedNamespaceSetter sns(*handler, id.getParent());
 

@@ -420,7 +420,7 @@ struct TypeInfo
 		updateDebugName();
 	}
 
-	explicit TypeInfo(ComplexType::Ptr p, bool isConst_=false, bool isRef_=true) :
+	explicit TypeInfo(ComplexType::Ptr p, bool isConst_=false, bool isRef_=false) :
 		typePtr(p),
 		const_(isConst_),
 		ref_(isRef_),
@@ -757,7 +757,7 @@ struct TemplateParameter
 		variadic(vType),
 		t(ParameterType::Type)
 	{
-		jassert(!isTemplateArgument());
+		
 	};
 
 	bool isTemplateArgument() const
@@ -816,7 +816,7 @@ struct TemplateParameter
 
 	struct ListOps
 	{
-		static juce::String toString(const List& l);
+		static juce::String toString(const List& l, bool includeParameterNames = true);
 
 		static List filter(const List& l, const NamespacedIdentifier& id);
 
@@ -1126,7 +1126,7 @@ struct FunctionData
 		function = reinterpret_cast<void*>(typedFunctionPointer);
 	}
 
-	juce::String getSignature(const Array<Identifier>& parameterIds = {}) const;
+	juce::String getSignature(const Array<Identifier>& parameterIds = {}, bool useFullParameterIds=true) const;
 
 	operator bool() const noexcept { return function != nullptr; };
 

@@ -623,7 +623,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 				auto asg = CREATE_ASM_COMPILER(Types::ID::Pointer);
 				reg = compiler->registerPool.getNextFreeRegister(scope, regType);
-				reg->setDataPointer(objectAdress.getDataPointer());
+				reg->setDataPointer(objectAdress.getDataPointer(), true);
 				reg->createMemoryLocation(asg.cc);
                 
 
@@ -646,8 +646,10 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			return;
 		}
 
+#if 0
 		if (reg->isIteratorRegister())
 			return;
+#endif
 
 		auto asg = CREATE_ASM_COMPILER(getType());
 
@@ -664,7 +666,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 				if (assignmentType != JitTokens::void_)
 				{
-					reg->setDataPointer(dataPointer);
+					reg->setDataPointer(dataPointer, true);
 
                     auto ass = findParentStatementOfType<Assignment>(this);
                     
@@ -676,7 +678,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				}
 				else
 				{
-					reg->setDataPointer(dataPointer);
+					reg->setDataPointer(dataPointer, true);
 					reg->createMemoryLocation(asg.cc);
 
                     if(reg->getType() == Types::ID::Pointer)
@@ -867,6 +869,9 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 		getSubExpr(0)->process(compiler, scope);
 		getSubExpr(1)->process(compiler, scope);
 
+		auto targetExpression = getSubExpr(1);
+		auto valueExpression = getSubExpr(0);
+
 		auto value = getSubRegister(0);
 		auto tReg = getSubRegister(1);
 
@@ -907,7 +912,17 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 			else if (!(value->hasCustomMemoryLocation() || value->isMemoryLocation()))
 			{
-				location.throwError("Can't create reference to rvalue");
+				if (value->getType() == Types::ID::Pointer)
+				{
+					auto ptr = x86::ptr(PTR_REG_R(value));
+					tReg->setCustomMemoryLocation(ptr, value->isGlobalMemory());
+					return;
+
+				}
+				else
+				{
+					location.throwError("Can't create reference to rvalue");
+				}
 			}
 
 			tReg->setCustomMemoryLocation(value->getMemoryLocationForReference(), true);
@@ -1212,6 +1227,15 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 		}
 
+		if (possibleMatches.isEmpty())
+		{
+			String s;
+
+			s << "Can't resolve function " << function.id.toString();
+
+			throwError(s);
+		}
+
 		Array<TypeInfo> parameterTypes;
 
 		for (int i = 0; i < getNumArguments(); i++)
@@ -1221,6 +1245,21 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			if (f.templateParameters.size() != function.templateParameters.size())
 			{
+				bool foundBetterMatch = false;
+
+				for (auto& of : possibleMatches)
+				{
+					if (of.matchesArgumentTypes(parameterTypes) && of.matchesTemplateArguments(function.templateParameters))
+					{
+						// This is a better candidate with a template amount match so we'll skip this...
+						foundBetterMatch = true;
+						break;
+					}
+				}
+
+				if (foundBetterMatch)
+					continue;
+
 				TypeInfo::List originalList;
 				for (auto a : f.args)
 					originalList.add(a.typeInfo);
@@ -1345,7 +1384,14 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 				if (pType.isComplexType())
 				{
-					auto objCopy = asg.cc.newStack(pType.getRequiredByteSize(), pType.getRequiredAlignment());
+					auto alignment = pType.getRequiredAlignment();
+					auto size = pType.getRequiredByteSize();
+
+					// This will be initialised using SSE instructions...
+					if (size % 16 == 0 && size > 0)
+						alignment = 16;
+
+					auto objCopy = asg.cc.newStack(size, alignment);
 					auto pReg = compiler->getRegFromPool(scope, TypeInfo(Types::ID::Pointer, true));
 					pReg->setCustomMemoryLocation(objCopy, false);
 					parameterRegs.add(pReg);
@@ -1626,8 +1672,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 		{
 			if (isStackDefinition(scope))
 			{
-				if (scope->getScopeForSymbol(s.id) != scope)
-					jassertfalse;
+				
 			}
 			else if (scope->getRootClassScope() == scope)
 				scope->getRootData()->allocate(scope, s);

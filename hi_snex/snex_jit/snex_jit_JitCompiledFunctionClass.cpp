@@ -194,19 +194,11 @@ void JitObject::getColourAndLetterForType(int type, Colour& colour, char& letter
 	return ApiHelpers::getColourAndLetterForType(type, colour, letter);
 }
 
-snex::jit::FunctionData JitCompiledClassBase::getFunction(const NamespacedIdentifier& id)
+snex::jit::FunctionData JitCompiledClassBase::getFunction(const Identifier& id)
 {
-	Array<FunctionData> matches;
-
 	auto typePtr = dynamic_cast<StructType*>(classType.get());
-	auto sId = typePtr->id.getChildId(id.getIdentifier());
-
-	memberFunctions->addMatchingFunctions(matches, sId);
-
-	if (matches.size() == 1)
-		return matches[0];
-
-	return {};
+	auto sId = typePtr->id.getChildId(id);
+	return memberFunctions->getNonOverloadedFunction(sId);
 }
 
 }

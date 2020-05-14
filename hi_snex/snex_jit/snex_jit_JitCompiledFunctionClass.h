@@ -71,6 +71,12 @@ public:
 		return c;
 	}
 
+	ClassScope* getClassScope()
+	{
+		return pimpl;
+	}
+
+
 private:
 
 	static NamespacedIdentifier getMainId();
@@ -81,6 +87,8 @@ private:
 
 	ClassScope* pimpl;
 };
+
+
 
 class JitObject: public ApiProviderBase
 {
@@ -136,6 +144,8 @@ public:
 		return functionClass->getMainObjectPtr();
 	}
 
+	ClassScope* getClassScope() { return functionClass->getClassScope(); };
+
 	ValueTree createValueTree();
 
 	void getColourAndLetterForType(int type, Colour& colour, char& letter) override;
@@ -152,6 +162,11 @@ private:
 
 	JitCompiledFunctionClass::Ptr functionClass;
 };
+
+
+
+
+
 
 /** This class can be used as base class to create C++ classes that call
     member functions defined in the JIT compiled code. 
@@ -180,7 +195,7 @@ struct JitCompiledClassBase
 
 protected:
 
-	FunctionData getFunction(const NamespacedIdentifier& id);
+	FunctionData getFunction(const Identifier& id);
 
 	void* thisPtr = nullptr;
 
@@ -189,6 +204,10 @@ protected:
 	FunctionClass::Ptr memberFunctions;
 	HeapBlock<uint8> data;
 };
+
+
+
+
 
 }
 }

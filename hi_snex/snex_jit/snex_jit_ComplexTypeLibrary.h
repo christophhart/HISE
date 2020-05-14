@@ -234,6 +234,17 @@ struct DynType : public ArrayTypeBase
 	bool forEach(const TypeFunction&, Ptr, void*) override { return false; }
 	juce::String toStringInternal() const override;
 
+
+	bool matchesOtherType(const ComplexType& other) const override
+	{
+		if (auto otherSpan = dynamic_cast<const DynType*>(&other))
+		{
+			return otherSpan->getElementType() == getElementType();
+		}
+
+		return false;
+	}
+
 	TemplateParameter::List getTemplateInstanceParameters() const override
 	{
 		TemplateParameter::List l;
@@ -275,6 +286,21 @@ struct StructType : public ComplexType,
 	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override;
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
 	
+
+	bool matchesOtherType(const ComplexType& other) const override
+	{
+		if (auto st = dynamic_cast<const StructType*>(&other))
+		{
+			if (id == st->id)
+				return TemplateParameter::ListOps::match(templateParameters, st->templateParameters);
+				
+			return false;
+
+		}
+
+		return false;
+	}
+
 	void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
 
 	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList);

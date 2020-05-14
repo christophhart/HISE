@@ -317,7 +317,7 @@ struct Operations::Immediate : public Expression
 			reg = nullptr;
 
 			reg = compiler->getRegFromPool(scope, getTypeInfo());
-			reg->setDataPointer(v.getDataPointer());
+			reg->setDataPointer(v.getDataPointer(), true);
 
 			reg->createMemoryLocation(getFunctionCompiler(compiler));
 		}
@@ -1838,14 +1838,14 @@ struct Operations::TemplatedFunction : public Statement,
 		auto instanceParameters = TemplateParameter::ListOps::merge(templateParameters, d.tp, r);
 		location.test(r);
 
-		DBG("Creating template function " + d.id.toString() + TemplateParameter::ListOps::toString(templateParameters));
+		//DBG("Creating template function " + d.id.toString() + TemplateParameter::ListOps::toString(templateParameters));
 		
 		if (currentCompiler != nullptr)
 		{
 			auto currentParameters = currentCompiler->namespaceHandler.getCurrentTemplateParameters();
 			location.test(TemplateParameter::ListOps::expandIfVariadicParameters(instanceParameters, currentParameters));
 			instanceParameters = TemplateParameter::ListOps::merge(templateParameters, instanceParameters, *d.r);
-			DBG("Resolved template parameters: " + TemplateParameter::ListOps::toString(instanceParameters));
+			//DBG("Resolved template parameters: " + TemplateParameter::ListOps::toString(instanceParameters));
 
 			if (instanceParameters.size() < templateParameters.size())
 			{

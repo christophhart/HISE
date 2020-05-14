@@ -63,7 +63,7 @@ Symbol::operator bool() const
 	return !id.isNull() && id.isValid();
 }
 
-juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) const
+juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, bool useFullParameterIds) const
 {
 	juce::String s;
 
@@ -100,11 +100,16 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds) c
 		auto pName = parameterIds[index].toString();
 
 		if (pName.isEmpty())
-			pName = arg.id.toString();
+		{
+			if (useFullParameterIds)
+				pName = arg.id.toString();
+			else
+				pName = arg.id.getIdentifier().toString();
+		}
 
 		if (pName.isNotEmpty())
 			s << " " << pName;
-
+		
 		if (++index != args.size())
 			s << ", ";
 	}
@@ -389,12 +394,13 @@ void FunctionClass::addMatchingFunctions(Array<FunctionData>& matches, const Nam
 			if (f->id == symbol)
 				matches.add(*f);
 		}
+
+		if(classSymbol.isValid())
+			return;
 	}
-	else
-	{
-		for (auto c : registeredClasses)
-			c->addMatchingFunctions(matches, symbol);
-	}
+	
+	for (auto c : registeredClasses)
+		c->addMatchingFunctions(matches, symbol);
 }
 
 
@@ -687,7 +693,7 @@ bool TemplateParameter::ListOps::isValidTemplateAmount(const List& argList, int 
 	return required == numProvided;
 }
 
-juce::String TemplateParameter::ListOps::toString(const List& l)
+juce::String TemplateParameter::ListOps::toString(const List& l, bool includeParameterNames)
 {
 	if (l.isEmpty())
 		return {};
@@ -741,7 +747,7 @@ juce::String TemplateParameter::ListOps::toString(const List& l)
 				continue;
 			}
 
-			if (t.argumentId.isValid())
+			if(includeParameterNames && t.argumentId.isValid())
 			{
 				s << t.argumentId.toString() << "=";
 			}
@@ -751,8 +757,6 @@ juce::String TemplateParameter::ListOps::toString(const List& l)
 			else
 				s << juce::String(t.constant);
 		}
-
-		
 
 		if (i != l.size()-1)
 			s << ", ";
@@ -869,7 +873,7 @@ TemplateParameter::List TemplateParameter::ListOps::merge(const TemplateParamete
 
 TemplateParameter::List TemplateParameter::ListOps::sort(const List& arguments, const List& parameters, juce::Result& r)
 {
-	jassert(isArgumentOrEmpty(arguments));
+	//jassert(isArgumentOrEmpty(arguments));
 	jassert(isParameter(parameters) || parameters.isEmpty());
 
 	if (arguments.size() != parameters.size())

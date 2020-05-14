@@ -655,9 +655,13 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 		}
 	}
 	
+	// Template type deduction...
+	bool resolveAfterArgumentParsing = false;
 
 	if (auto ct = getDotParentType(p).getTypedIfComplexType<ComplexType>())
 	{
+		
+
 		if (auto tc = dynamic_cast<TemplatedComplexType*>(ct))
 		{
 			auto ctp = compiler->namespaceHandler.getCurrentTemplateParameters();
@@ -699,11 +703,24 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 		if (!f.templateParameters.isEmpty() && templateParameters.isEmpty())
 		{
-			templateParameters = parseTemplateParameters(false);
+			if (currentType == JitTokens::lessThan)
+			{
+				templateParameters = parseTemplateParameters(false);
+			}
+			else
+			{
+				resolveAfterArgumentParsing = true;
+			}
+
+			
 		}
 
-		templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, templateParameters, r);
-		location.test(r);
+		if (!resolveAfterArgumentParsing)
+		{
+			templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, templateParameters, r);
+			location.test(r);
+		}
+		
 
 		if (auto il = f.inliner)
 		{
@@ -740,8 +757,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 		nf = compiler->getInbuiltFunctionClass()->getNonOverloadedFunction(fSymbol.id);
 	}
 
-	// Template type deduction...
-	bool resolveAfterArgumentParsing = false;
+	
 
 	if (nf.isResolved())
 	{
