@@ -186,5 +186,133 @@ struct SnexObjectDatabase
 
 
 
+struct JitCompiledNode
+{
+	JitCompiledNode(Compiler& c, const String& code, const Identifier& classId, int numChannels_) :
+		r(Result::ok()),
+		numChannels(numChannels_)
+	{
+		String s;
+
+		s << "namespace impl { " << code;
+		s << "}\n";
+		s << "impl::" << classId << " instance;\n";
+
+		Types::SnexObjectDatabase::registerObjects(c, numChannels);
+
+		Array<Identifier> fIds;
+
+		for (auto f : Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels))
+		{
+			addCallbackWrapper(s, f);
+			fIds.add(f.id.getIdentifier());
+		}
+
+		obj = c.compileJitObject(s);
+
+		r = c.getCompileResult();
+
+		if (r.wasOk())
+		{
+			NamespacedIdentifier impl("impl");
+
+			FunctionClass::Ptr fc = c.getComplexType(impl.getChildId(classId))->getFunctionClass();
+
+			thisPtr = obj.getMainObjectPtr();
+			ok = true;
+
+			for (int i = 0; i < fIds.size(); i++)
+			{
+				callbacks[i] = obj[fIds[i]];
+
+				Array<FunctionData> matches;
+
+				fc->addMatchingFunctions(matches, fc->getClassName().getChildId(fIds[i]));
+
+				FunctionData wrappedFunction;
+
+				if (matches.size() == 1)
+					wrappedFunction = matches.getFirst();
+				else
+				{
+					for (auto m : matches)
+					{
+						if (m.matchesArgumentTypes(callbacks[i]))
+						{
+							wrappedFunction = m;
+							break;
+						}
+					}
+				}
+				
+				if (!wrappedFunction.matchesArgumentTypes(callbacks[i]))
+				{
+					r = Result::fail(wrappedFunction.getSignature({}, false) + " doesn't match " + callbacks[i].getSignature({}, false));
+					ok = false;
+					break;
+				}
+
+				if (callbacks[i].function == nullptr)
+					ok = false;
+			}
+		}
+	}
+
+	void addCallbackWrapper(String& s, const FunctionData& d)
+	{
+		s << d.getSignature({}, false) << "{ ";
+
+		if (d.returnType != TypeInfo(Types::ID::Void))
+			s << "return ";
+
+		s << "instance." << d.id.getIdentifier() << "(";
+
+		for (int i = 0; i < d.args.size(); i++)
+		{
+			s << d.args[i].id.getIdentifier();
+			if (isPositiveAndBelow(i, d.args.size() - 1))
+				s << ", ";
+		}
+
+		s << "); }\n";
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		jassert(ps.numChannels >= numChannels);
+		PrepareSpecs copy(ps);
+		callbacks[Types::ScriptnodeCallbacks::PrepareFunction].callVoid(&copy);
+	}
+
+	template <typename T> void process(T& data)
+	{
+		jassert(data.getNumChannels() >= numChannels);
+		callbacks[Types::ScriptnodeCallbacks::ProcessFunction].callVoid(&data);
+	}
+
+	void reset()
+	{
+		callbacks[Types::ScriptnodeCallbacks::ResetFunction].callVoid();
+	}
+
+	template <typename T> void processFrame(T& data)
+	{
+		jassert(data.size() >= numChannels);
+		callbacks[Types::ScriptnodeCallbacks::ProcessFrameFunction].callVoid(data.begin());
+	}
+
+	void* thisPtr = nullptr;
+
+	Result r;
+
+private:
+
+	int numChannels = 0;
+	bool ok = false;
+	FunctionData callbacks[Types::ScriptnodeCallbacks::numFunctions];
+
+	JitObject obj;
+};
+
 }
 }

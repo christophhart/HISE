@@ -374,8 +374,9 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 		auto floatType = TypeInfo(Types::ID::Float);
 		auto float2 = new SpanType(floatType, numChannels);
 
-		ComplexType::Ptr channelType = new SpanType(TypeInfo(blockType), numChannels);
-		ComplexType::Ptr frameType = new DynType(TypeInfo(float2));
+		ComplexType::Ptr channelType = new SpanType(TypeInfo(blockType, false, false), numChannels);
+		ComplexType::Ptr frameType = new DynType(TypeInfo(float2, false, false));
+
 		channelType->setAlias(NamespacedIdentifier("ChannelData"));
 		frameType->setAlias(NamespacedIdentifier("FrameData"));
 
@@ -1445,7 +1446,7 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 	case PrepareFunction: 
 		f.id = NamespacedIdentifier("prepare");
 		f.returnType = TypeInfo(Types::ID::Void);
-		f.addArgs("specs", TypeInfo(c.getComplexType(NamespacedIdentifier("PrepareSpecs"), {})));
+		f.addArgs("specs", TypeInfo(c.getComplexType(NamespacedIdentifier("PrepareSpecs"), {}), false, false));
 		break;
 	case ProcessFunction:
 	{

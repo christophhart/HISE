@@ -802,12 +802,34 @@ void SnexPlayground::recalculate()
 		runThread.notify();
 }
 
+
 void SnexPlayground::recompile()
 {
 	editor.clearWarningsAndErrors();
 	
 	if (testMode)
 	{
+#if 0
+		FunkyTest ft(memory, doc.getAllContent(), "MyFunkyNode", 2);
+
+		double* d = (double*)ft.thisPtr;
+
+		ft.reset();
+		
+		Types::span<float, 2> data;
+
+		ft.processFrame(data);
+
+
+		int x = 12.0f;
+
+		if (ft.r.failed())
+			resultLabel.setText(ft.r.getErrorMessage(), dontSendNotification);
+		else
+			resultLabel.setText("Test passed OK", dontSendNotification);
+
+
+#else
 		JitFileTestCase tc(memory, doc.getAllContent());
 		tc.debugHandler = this;
 
@@ -861,6 +883,7 @@ void SnexPlayground::recompile()
 			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
 		else
 			resultLabel.setText("Test passed OK", dontSendNotification);
+#endif
 
 		return;
 	}
