@@ -203,6 +203,25 @@ struct AsmCodeGenerator
 
 	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes, int additionalOffsetInBytes=0);
 
+	void emitParameter(const FunctionData& f, RegPtr parameterRegister, int parameterIndex)
+	{
+		if (f.object != nullptr)
+			parameterIndex += 1;
+
+		parameterRegister->createRegister(cc);
+
+		auto useParameterAsAdress = f.args[parameterIndex].isReference() && parameterRegister->getType() != Types::ID::Pointer;
+
+		if (useParameterAsAdress)
+		{
+			auto aReg = cc.newGpq();
+			cc.setArg(parameterIndex, aReg);
+			parameterRegister->setCustomMemoryLocation(x86::ptr(aReg), true);
+		}
+		else
+			cc.setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
+	}
+
 	void emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex);
 
 	RegPtr emitBinaryOp(OpType op, RegPtr l, RegPtr r);

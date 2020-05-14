@@ -460,10 +460,11 @@ void AssemblyRegister::setCustomMemoryLocation(X86Mem newLocation, bool isGlobal
 	hasCustomMem = true;
 }
 
-void AssemblyRegister::setDataPointer(void* memLoc)
+void AssemblyRegister::setDataPointer(void* memLoc, bool globalMemory_)
 {
 	memoryLocation = memLoc;
 	reg = {};
+	globalMemory = globalMemory_;
 	state = State::UnloadedMemoryLocation;
 	hasCustomMem = false;
 }
@@ -502,10 +503,13 @@ void AssemblyRegister::clearForReuse()
 
 void AssemblyRegister::setUndirty()
 {
-	jassert(state == DirtyGlobalRegister || isIter || isGlobalMemory());
+	if (dirty && isActiveOrDirtyGlobalRegister())
+	{
+		jassert(state == DirtyGlobalRegister || isIter || isGlobalMemory());
 
-	dirty = false;
-	state = ActiveRegister;
+		dirty = false;
+		state = ActiveRegister;
+	}
 }
 
 AssemblyRegisterPool::AssemblyRegisterPool(BaseCompiler* c):

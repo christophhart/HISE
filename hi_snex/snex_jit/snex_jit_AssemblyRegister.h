@@ -183,7 +183,7 @@ public:
 
 	void setCustomMemoryLocation(X86Mem newLocation, bool isGlobalMemory);
 
-	void setDataPointer(void* memLoc);
+	void setDataPointer(void* memLoc, bool globalMemory_);
 
 	void setImmediateValue(int64 value);
 
@@ -209,7 +209,12 @@ public:
 
 	bool isSimd4Float() const
 	{
-		return type.isComplexType() && type.toString() == "float4";
+		if (auto st = type.getTypedIfComplexType<SpanType>())
+		{
+			return (st->getElementType() == TypeInfo(Types::ID::Float)) && st->getNumElements() == 4;
+		}
+
+		return false;
 	}
 
 	void clearForReuse();
