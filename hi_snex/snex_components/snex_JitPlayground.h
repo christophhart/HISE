@@ -432,6 +432,8 @@ Definitely not standard conform (don't know nothing about assembly lol).
 */
 class AssemblyTokeniser : public juce::CodeTokeniser
 {
+public:
+
 	enum Tokens
 	{
 		Unknown,
@@ -441,6 +443,8 @@ class AssemblyTokeniser : public juce::CodeTokeniser
 		Label,
 		Instruction
 	};
+
+	static SparseSet<int> applyDiff(const String& oldAsm, String& newAsm);
 
 	int readNextToken(CodeDocument::Iterator& source) override;
 
@@ -707,6 +711,9 @@ public:
 
 	~SnexPlayground();
 
+	void paintOverChildren(Graphics& g) override;
+
+
 	void paint(Graphics& g) override;
 	void resized() override;
 
@@ -888,6 +895,7 @@ private:
 
     ParameterList sliders;
 	
+	SparseSet<int> asmAdditions;
 	
 	CallbackCollection cData;
 	ScopedPointer<Component> stateViewer;

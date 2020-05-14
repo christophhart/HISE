@@ -406,7 +406,9 @@ struct TypeInfo
 
 	TypeInfo():
 		type(Types::ID::Dynamic)
-	{}
+	{
+		updateDebugName();
+	}
 
 	explicit TypeInfo(Types::ID type_, bool isConst_=false, bool isRef_=false, bool isStatic_=false):
 		type(type_),
@@ -415,6 +417,7 @@ struct TypeInfo
 		static_(isStatic_)
 	{
 		jassert(type != Types::ID::Pointer || isConst_);
+		updateDebugName();
 	}
 
 	explicit TypeInfo(ComplexType::Ptr p, bool isConst_=false, bool isRef_=true) :
@@ -425,6 +428,7 @@ struct TypeInfo
 	{
 		jassert(p != nullptr);
 		type = Types::ID::Pointer;
+		updateDebugName();
 	}
 
 	explicit TypeInfo(const NamespacedIdentifier& templateTypeId_, bool isConst_ = false, bool isRef_ = false):
@@ -433,7 +437,7 @@ struct TypeInfo
 		ref_(isRef_),
 		static_(false)
 	{
-
+		updateDebugName();
 	}
 
 	bool isDynamic() const noexcept
@@ -508,6 +512,7 @@ struct TypeInfo
 		c.const_ = isConst_;
 		c.ref_ = isRef_;
 		c.static_ = isStatic_;
+		c.updateDebugName();
 		return c;
 	}
 
@@ -522,15 +527,25 @@ struct TypeInfo
 			s << "const ";
 
 		if (isComplexType())
+		{
 			s << typePtr->toString();
+
+			if (isRef())
+				s << "&";
+		}
+			
 		else
 		{
 			s << Types::Helpers::getTypeName(type);
+
 			if (isRef())
 				s << "&";
-			
 		}
 
+
+			
+
+		
 		
 
 		return s;
@@ -554,6 +569,7 @@ struct TypeInfo
 	{
 		jassert(newType != Types::ID::Pointer);
 		type = newType;
+		updateDebugName();
 	}
 
 	bool isNativePointer() const
@@ -638,6 +654,7 @@ struct TypeInfo
 	{
 		auto t = *this;
 		t.const_ = true;
+		t.updateDebugName();
 		return t;
 	}
 
@@ -645,10 +662,24 @@ struct TypeInfo
 	{
 		auto t = *this;
 		t.const_ = false;
+		t.updateDebugName();
 		return t;
 	}
 
+	
+
 private:
+
+	void updateDebugName()
+	{
+#if JUCE_DEBUG
+		debugName = toString().toStdString();
+#endif
+	}
+
+#if JUCE_DEBUG
+	std::string debugName;
+#endif
 
 	bool static_ = false;
 	bool const_ = false;

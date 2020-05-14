@@ -99,17 +99,20 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 		while (auto c = it.nextChar())
 		{
-			if (c == '{')
+			switch (c)
+			{
+			case '{':
 			{
 				auto thisLine = it.getLine();
 
 				if (firstInLine)
 					thisLine -= 1;
-				
-				rangeStarts.add(thisLine);
-			}
 
-			if (c == '}')
+				rangeStarts.add(thisLine);
+
+				break;
+			}
+			case '}':
 			{
 				currentRangeEnd = it.getLine() + 1;
 
@@ -117,12 +120,57 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 				{
 					Range<int> newRange(rangeStarts.getLast(), currentRangeEnd);
 
-					if(it.getLine() - 1 != newRange.getStart())
+					if (it.getLine() - 1 != newRange.getStart())
 						lineRanges.add(newRange);
 
 					rangeStarts.removeLast();
 				}
+
+				break;
 			}
+			case '#': it.skipToEndOfLine(); break;
+			case '/': 
+			{
+				if (it.peekNextChar() == '*')
+				{
+					rangeStarts.add(it.getLine());
+
+					it.nextChar();
+
+					while (c = it.nextChar())
+					{
+						if (c == '*')
+						{
+							if (it.peekNextChar() == '/')
+							{
+								
+								currentRangeEnd = it.getLine() + 1;
+
+								if (!rangeStarts.isEmpty())
+								{
+									Range<int> newRange(rangeStarts.getLast(), currentRangeEnd);
+
+									if (it.getLine() - 1 != newRange.getStart())
+										lineRanges.add(newRange);
+
+									rangeStarts.removeLast();
+								}
+
+								it.nextChar();
+
+								break;
+							}
+						}
+					}
+				}
+				if (it.peekNextChar() == '/')
+					it.skipToEndOfLine(); 
+				
+				break;
+			}
+			}
+
+			
 
 			firstInLine = (c == '\n') || (firstInLine && CharacterFunctions::isWhitespace(c));
 		}
@@ -335,6 +383,43 @@ SnexPlayground::~SnexPlayground()
 	externalCodeValue.setValue(doc.getAllContent());
 }
 
+
+void SnexPlayground::paintOverChildren(Graphics& g)
+{
+	if (!asmAdditions.isEmpty())
+	{
+		CodeDocument::Position pos(assemblyDoc, 0);
+
+		int numCharacters = assemblyDoc.getNumCharacters();
+
+		Array<int> changedLines;
+
+		while (pos.getPosition() < assemblyDoc.getNumCharacters())
+		{
+			if (asmAdditions.contains(pos.getPosition()))
+			{
+				changedLines.addIfNotAlreadyThere(pos.getLineNumber());
+			}
+			
+			pos.moveBy(1);
+		}
+
+		
+
+		for (auto cl : changedLines)
+		{
+			auto lineOnScreen = cl - assembly.getFirstLineOnScreen();
+
+			if (isPositiveAndBelow(lineOnScreen, assembly.getNumLinesOnScreen()))
+			{
+				juce::Rectangle<int> b(assembly.getX(), assembly.getY() + lineOnScreen * assembly.getLineHeight(), assembly.getWidth(), assembly.getLineHeight());
+
+				g.setColour(Colour(0x1188ff88));
+				g.fillRect(b.toFloat());
+			}
+		}
+	}
+}
 
 juce::String SnexPlayground::getDefaultCode(bool getTestcode)
 {
@@ -731,6 +816,12 @@ void SnexPlayground::recompile()
 
 		auto r = tc.test();
 
+		auto lastAssembly = assemblyDoc.getAllContent();
+
+		asmAdditions = AssemblyTokeniser::applyDiff(lastAssembly, tc.assembly);
+
+		repaint();
+
 		assemblyDoc.replaceAllContent(tc.assembly);
 		editor.tokenCollection.signalRebuild();
 
@@ -921,6 +1012,112 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 	scheme.set("Instruction", Colour(0xFFBBBBFF));
 
 	return scheme;
+}
+
+
+struct DiffHelpers
+{
+	static bool sameAsmLine(const String& o, const String& n)
+	{
+		TextDiff d(o, n);
+
+		for (auto& c : d.changes)
+		{
+			if (!c.insertedText.containsOnly("1234567890"))
+				return false;
+		}
+
+		return true;
+	}
+};
+
+SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, String& newAsm)
+{
+	TextDiff d(oldAsm, newAsm);
+
+	SparseSet<int> additions;
+	
+	for (auto c : d.changes)
+	{
+		if (!c.isDeletion() && !c.insertedText.containsOnly("1234567890"))
+		{
+			additions.addRange({ c.start, c.start + c.insertedText.length()});
+		}
+	}
+
+	return additions;
+
+#if 0
+	StringArray thisLines;
+	auto oldLines = StringArray::fromLines(oldAsm);
+	auto newLines = StringArray::fromLines(newAsm);
+
+	int nIndex = 0;
+	int oIndex = 0;
+
+	while(isPositiveAndBelow(nIndex, newLines.size()) || isPositiveAndBelow(oIndex, oldLines.size()))
+	{
+		if (!DiffHelpers::sameAsmLine(oldLines[oIndex], newLines[nIndex]))
+		{
+			int numInserted = 0;
+			int numDeleted = 0;
+
+			for (int j = nIndex + 1; j < newLines.size(); j++)
+			{
+				if (DiffHelpers::sameAsmLine(oldLines[oIndex], newLines[j]))
+				{
+					numInserted = j - nIndex;
+					break;
+				}
+			}
+
+			for (int j = oIndex; j < oldLines.size(); j++)
+			{
+				if (DiffHelpers::sameAsmLine(oldLines[j], newLines[nIndex]))
+				{
+					numDeleted = j - oIndex;
+					break;
+				}
+			}
+
+			if (numInserted > 0)
+			{
+				for (int j = 0; j < numInserted; j++)
+				{
+					thisLines.add("(+)" + newLines[nIndex + j]);
+				}
+
+				nIndex += numInserted+1;
+			}
+
+
+			if (numDeleted > 0)
+			{
+				oIndex += numDeleted;
+
+#if 0
+				for (int j; j < numDeleted; j++)
+				{
+					thisLines.add("(-)" + oldLines[oIndex + j]);
+				}
+
+				oIndex += numDeleted;
+#endif
+			}
+
+			jassert(numInserted != 0 || numDeleted != 0);
+		}
+		else
+		{
+			thisLines.add(newLines[nIndex]);
+		}
+
+		oIndex++;
+		nIndex++;
+	}
+
+	newAsm = thisLines.joinIntoString("\n");
+#endif
 }
 
     namespace Icons
