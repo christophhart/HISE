@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 12
   output: 36
   error: ""
+  compile_flags: AutoVectorisation
   filename: "dyn/dyn2simd"
 END_TEST_DATA
 */

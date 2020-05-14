@@ -375,7 +375,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 		auto float2 = new SpanType(floatType, numChannels);
 
 		ComplexType::Ptr channelType = new SpanType(TypeInfo(blockType, false, false), numChannels);
-		ComplexType::Ptr frameType = new DynType(TypeInfo(float2, false, false));
+		ComplexType::Ptr frameType = new DynType(TypeInfo(c.registerExternalComplexType(float2), false, false));
 
 		channelType->setAlias(NamespacedIdentifier("ChannelData"));
 		frameType->setAlias(NamespacedIdentifier("FrameData"));
@@ -1470,7 +1470,12 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 		f.id = NamespacedIdentifier("processFrame");
 		f.returnType = TypeInfo(Types::ID::Void);
 
-		auto t = new SpanType(TypeInfo(Types::ID::Float), numChannels);
+		
+
+		ComplexType::Ptr t = new SpanType(TypeInfo(Types::ID::Float), numChannels);
+
+		
+
 		f.addArgs("frame", TypeInfo(c.registerExternalComplexType(t), false, true));
 		break;
 	}

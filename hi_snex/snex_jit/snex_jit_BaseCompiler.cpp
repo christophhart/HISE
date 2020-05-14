@@ -101,6 +101,15 @@ using namespace asmjit;
 	}
 
 
+	juce::StringArray BaseCompiler::getOptimizations() const
+	{
+		StringArray sa;
+		for (auto o : optimisationIds)
+			sa.add(o.toString());
+
+		return sa;
+	}
+
 	snex::Types::ID BaseCompiler::getRegisterType(const TypeInfo& t) const
 	{
 

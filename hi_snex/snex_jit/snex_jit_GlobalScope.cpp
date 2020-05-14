@@ -43,7 +43,7 @@ GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 	bufferHandler = new BufferHandler();
 
 	objectClassesWithJitCallableFunctions.add(new ConsoleFunctions(this));
-	addFunctionClass(new MathFunctions());
+	addFunctionClass(new MathFunctions(false));
 
 	jassert(scopeType == BaseScope::Global);
 }
@@ -130,6 +130,25 @@ void GlobalScope::addObjectDeleteListener(ObjectDeleteListener* l)
 void GlobalScope::removeObjectDeleteListener(ObjectDeleteListener* l)
 {
 	deleteListeners.removeAllInstancesOf(l);
+}
+
+void GlobalScope::addOptimization(const juce::String& passId)
+{
+	optimizationPasses.addIfNotAlreadyThere(passId);
+
+	if (passId == OptimizationIds::Inlining)
+	{
+		removeFunctionClass(NamespacedIdentifier("Math"));
+		addFunctionClass(new MathFunctions(true));
+	}
+}
+
+void GlobalScope::clearOptimizations()
+{
+	optimizationPasses.clear();
+
+	removeFunctionClass(NamespacedIdentifier("Math"));
+	addFunctionClass(new MathFunctions(false));
 }
 
 bool GlobalScope::checkRuntimeErrorAfterExecution()

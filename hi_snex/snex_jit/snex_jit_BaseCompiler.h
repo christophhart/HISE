@@ -192,6 +192,8 @@ public:
 		}
 	}
 
+	StringArray getOptimizations() const;
+
 	AssemblyRegister::Ptr getRegFromPool(BaseScope* scope, TypeInfo type)
 	{
 		return registerPool.getNextFreeRegister(scope, type);

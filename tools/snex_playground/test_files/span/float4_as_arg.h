@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 12
   output: 2
   error: ""
+  compile_flags: AutoVectorisation
   filename: "span/float4_as_arg"
 END_TEST_DATA
 */

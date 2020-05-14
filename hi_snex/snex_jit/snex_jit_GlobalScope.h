@@ -708,15 +708,10 @@ public:
 		
 		Use one of the IDs defined in the namespace OptimizationIds.
 	*/
-	void addOptimization(const juce::String& passId)
-	{
-		optimizationPasses.addIfNotAlreadyThere(passId);
-	}
+	void addOptimization(const juce::String& passId);
 
-	void clearOptimizations()
-	{
-		optimizationPasses.clear();
-	}
+	void clearOptimizations();
+
 
 	const StringArray& getOptimizationPassList() const
 	{

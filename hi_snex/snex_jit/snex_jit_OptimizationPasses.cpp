@@ -413,7 +413,7 @@ snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(O
 {
 	if (functionCall->callType == Operations::FunctionCall::ApiFunction)
 	{
-		MathFunctions m;
+		MathFunctions m(false);
 
 		if (auto t = dynamic_cast<Operations::VariableReference*>(functionCall->getObjectExpression().get()))
 		{
@@ -1073,19 +1073,12 @@ bool LoopOptimiser::processStatementInternal(BaseCompiler* compiler, BaseScope* 
 	{
 		COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
 		{
-			if (convertToSimd(compiler, l))
-			{
-				return true;
-			}
-
 			if (unroll(compiler, s, l))
 			{
 				return true;
 			}
 		}
 	}
-
-	
 
 	return false;
 }
@@ -1200,7 +1193,31 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 	return false;
 }
 
-bool LoopOptimiser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
+
+
+bool LoopVectoriser::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
+{
+	if (auto fc = as<Operations::FunctionCall>(statement))
+	{
+		fc->tryToResolveType(compiler);
+		return false;
+	}
+	if (auto l = as<Operations::Loop>(statement))
+	{
+		COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
+		{
+			if (convertToSimd(compiler, l))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
+bool LoopVectoriser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
 {
 	auto t = l->getTarget();
 
@@ -1277,7 +1294,7 @@ bool LoopOptimiser::convertToSimd(BaseCompiler* c, Operations::Loop* l)
 	return false;
 }
 
-juce::Result LoopOptimiser::changeIteratorTargetToSimd(Operations::Loop* l)
+juce::Result LoopVectoriser::changeIteratorTargetToSimd(Operations::Loop* l)
 {
 	auto t = l->getTarget();
 
@@ -1288,7 +1305,7 @@ juce::Result LoopOptimiser::changeIteratorTargetToSimd(Operations::Loop* l)
 	return Result::ok();
 }
 
-bool LoopOptimiser::isUnSimdableOperation(Ptr s)
+bool LoopVectoriser::isUnSimdableOperation(Ptr s)
 {
 	auto parentLoop = Operations::findParentStatementOfType<Operations::Loop>(s);
 
@@ -2103,6 +2120,7 @@ AsmCleanupPass::AsmCleanupPass() :
 	addSubPass<AsmSubPasses::RemoveSwappedMovCallsToMemory>();
 	addSubPass<AsmSubPasses::RemoveDoubleMemoryWrites>();
 }
+
 
 }
 }

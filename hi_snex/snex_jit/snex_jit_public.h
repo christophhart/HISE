@@ -49,15 +49,17 @@ namespace OptimizationIds
 {
 DECLARE_ID(ConstantFolding);
 DECLARE_ID(Inlining);
+DECLARE_ID(AutoVectorisation);
 DECLARE_ID(DeadCodeElimination);
 DECLARE_ID(BinaryOpOptimisation);
 DECLARE_ID(LoopOptimisation);
 DECLARE_ID(AsmOptimisation)
 DECLARE_ID(NoSafeChecks);
 
+
 static StringArray getAllIds()
 {
-	return { OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding, OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining, OptimizationIds::LoopOptimisation, OptimizationIds::AsmOptimisation, OptimizationIds::NoSafeChecks };
+	return { BinaryOpOptimisation, AutoVectorisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
 }
 }
 

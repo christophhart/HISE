@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 24
-  output: 18
+  output: 19
   error: ""
   filename: "dsp/slice_pretest"
 END_TEST_DATA

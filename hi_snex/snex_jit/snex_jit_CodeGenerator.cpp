@@ -39,11 +39,12 @@ using namespace asmjit;
 
 
 
-AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_, ParserHelpers::CodeLocation l) :
+AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_, ParserHelpers::CodeLocation l, const StringArray& opt) :
 	cc(cc_),
 	type(type_),
 	registerPool(pool),
-	location(l)
+	location(l),
+	optimizations(opt)
 {
 	
 }
@@ -219,15 +220,14 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 	if (source->isSimd4Float())
 	{
 		cc.movaps(target, FP_REG_R(source));
-		
 	}
-
-	
 
 	// Don't undirty it when debugging...
 	if (ptrToUse == nullptr)
 		source->setUndirty();
 }
+
+
 
 
 

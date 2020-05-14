@@ -207,15 +207,7 @@ public:
 		return false;
 	}
 
-	bool isSimd4Float() const
-	{
-		if (auto st = type.getTypedIfComplexType<SpanType>())
-		{
-			return (st->getElementType() == TypeInfo(Types::ID::Float)) && st->getNumElements() == 4;
-		}
-
-		return false;
-	}
+	bool isSimd4Float() const;
 
 	void clearForReuse();
 

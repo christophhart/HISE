@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 12
   output: 22
   error: ""
+  compile_flags: AutoVectorisation
   filename: "loop/loop2simd_4"
 END_TEST_DATA
 */

@@ -207,10 +207,10 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 		{
 			auto d = b->toAsmInlineData();
 
+			if (!d->gen.canVectorize())
+				return Result::fail("Vectorization is deactivated");
 
 			auto& cc = d->gen.cc;
-
-			
 
 			if (d->object->isMemoryLocation())
 				d->target->setCustomMemoryLocation(d->object->getAsMemoryLocation(), d->object->isGlobalMemory());
@@ -654,6 +654,9 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 		toSimdFunction.inliner = Inliner::createAsmInliner(toSimdFunction.id, [this](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
+
+			if (!d->gen.canVectorize())
+				return Result::fail("Vectorization is deactivated");
 
 			auto& cc = d->gen.cc;
 

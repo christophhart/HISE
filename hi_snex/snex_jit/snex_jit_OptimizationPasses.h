@@ -254,6 +254,19 @@ public:
 private:
 
 	bool unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l);
+};
+
+class LoopVectoriser : public OptimizationPass
+{
+	using Ptr = Operations::Statement::Ptr;
+
+public:
+
+	OPTIMIZATION_FACTORY(OptimizationIds::AutoVectorisation, LoopVectoriser);
+
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+
+private:
 
 	bool convertToSimd(BaseCompiler* c, Operations::Loop* l);
 
@@ -261,6 +274,7 @@ private:
 
 	static bool isUnSimdableOperation(Ptr s);
 };
+
 
 class FunctionInliner: public OptimizationPass
 {
@@ -466,6 +480,7 @@ struct OptimizationFactory
 		registerOptimization<BinaryOpOptimizer>();
 		registerOptimization<ConstExprEvaluator>();
 		registerOptimization<LoopOptimiser>();
+		registerOptimization<LoopVectoriser>();
 	}
 
 	struct Entry

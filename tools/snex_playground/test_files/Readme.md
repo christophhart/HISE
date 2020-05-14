@@ -42,6 +42,7 @@ Each line is a metadata key/pair value, with the syntax `key: value`. Multiple v
 | `input` | list of values | a whitespace separated list of values (like the output) |
 | `error` | quoted String | the exact error message that is supposed to be thrown. This can be used to test the compiler against invalid input and expect that it behaves correctly and prints the expected error message. If this is not an empty String (`""`), the test result will not compare the output, but just check that the two error messages are identical |
 | `events` | JSON | (optional) list of events for the process data testmode
+| `compile_flags` | (optional) a whitespace separated list of optimizations (as they are shown in the SNEX playground selector) that you can use to skip the test if this optimization isn't enabled. |
 | `filename` | a relative filename | if this is not empty, this filename will be overriden with the current code. This is used by the SNEX Playground's **Test Mode** to quickly generate new tests. |
 
 
@@ -100,6 +101,12 @@ And each `EventObject` needs to has these properties:
 | `Value1` | int | the first value (for notes it's the note number) |
 | `Value2` | int | the second value (for notes it's the velocity) |
 | `Timestamp` | int | the timestamp in the buffer. Must be less than the buffer size and it must be aligned to the `HISE_EVENT_RASTER` value |
+
+## Add required compile flags
+
+Some tests that check specific compiler features (eg. auto vectorisation) can be skipped if the optimization is not enabled.
+
+> Be aware that this function is reserved for special cases (eg. manual calls to `toSimd()` which wouldn't compile otherwise) and must not be used to cheat your way into a passing test suite...
 
 ## How to create new tests
 

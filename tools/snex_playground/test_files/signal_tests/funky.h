@@ -12,6 +12,7 @@ END_TEST_DATA
 
 int main(ProcessData<4>& data)
 {
+	
 	for(auto& c: data)
 	{
 		for(auto& s: data.toChannelData(c))
@@ -19,6 +20,7 @@ int main(ProcessData<4>& data)
 			s = 0.5f;
 		}
 	}
+	
 	
 	return 0;
 }

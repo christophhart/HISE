@@ -181,13 +181,15 @@ struct AsmCodeGenerator
 		RegPtr tempReg;
 	};
 
-	AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_, ParserHelpers::CodeLocation l);;
+	AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_, ParserHelpers::CodeLocation l, const StringArray& optimizations);;
 
 	void emitComment(const char* m);
 
 	void emitStore(RegPtr target, RegPtr value);
 
 	void emitMemoryWrite(RegPtr source, void* ptrToUse=nullptr);
+
+	
 
 	void emitMemoryLoad(RegPtr reg);
 
@@ -254,58 +256,6 @@ struct AsmCodeGenerator
 	
 	Result emitSimpleToComplexTypeCopy(RegPtr target, InitialiserList::Ptr initValues, RegPtr source);
 
-	
-
-#if 0
-	void emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op)
-	{
-		switch (op)
-		{
-		case WrapType::OpType::Set:
-		{
-			bool wasMem = target->hasCustomMemoryLocation() && target->isMemoryLocation();;
-
-			target->loadMemoryIntoRegister(cc);
-
-			auto t = INT_REG_W(target);
-
-			if (isPowerOfTwo(wt->size))
-			{
-				cc.and_(t, wt->size - 1);
-			}
-			else
-			{
-				auto d = cc.newGpd();
-
-				auto s = cc.newInt32Const(ConstPool::kScopeLocal, wt->size);
-
-				cc.cdq(d, t);
-				cc.idiv(d, t, s);
-				cc.mov(t, d);
-			}
-
-			if (wasMem)
-			{
-				auto mem = target->getMemoryLocationForReference();
-				cc.mov(mem, INT_REG_R(target));
-				target->setCustomMemoryLocation(mem);
-			}
-
-			break;
-		}
-		case WrapType::OpType::Inc:
-		{
-			auto t = INT_REG_W(target);
-			auto temp = cc.newGpd();
-
-			cc.mov(temp, 0);
-			cc.cmp(t, wt->size);
-			cc.cmovge(t, temp);
-		}
-		}
-	}
-#endif
-
 	static Array<Identifier> getInlineableMathFunctions();
 
 	void dumpVariables(BaseScope* s, uint64_t lineNumber);
@@ -322,7 +272,6 @@ struct AsmCodeGenerator
 
 	AssemblyRegisterPool* registerPool;
 
-    
     static X86Mem createValid64BitPointer(X86Compiler& cc, X86Mem source, int offset, int byteSize)
     {
         if (source.hasBaseReg())
@@ -340,17 +289,17 @@ struct AsmCodeGenerator
         }
     }
     
+	bool canVectorize() const { return optimizations.contains(OptimizationIds::AutoVectorisation); };
+
 	ParserHelpers::CodeLocation location;
+	
 
 private:
 
-	
-
-	
+	StringArray optimizations;
 
 	static void createRegistersForArguments(X86Compiler& cc, ReferenceCountedArray<AssemblyRegister>& parameters, const FunctionData& f);
 	Types::ID type;
-	
 };
 
 struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase

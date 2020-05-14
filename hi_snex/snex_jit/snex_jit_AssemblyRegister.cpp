@@ -383,19 +383,6 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 
 			isZeroValue = immediateIntValue == 0;
 		}
-		if (type == Types::ID::Block)
-		{
-			jassertfalse;
-#if 0
-			uint8* d = reinterpret_cast<uint8*>(memoryLocation);
-			asmjit::Data128 data = asmjit::Data128::fromU8(d[0], d[1], d[2], d[3],
-				d[4], d[5], d[6], d[7],
-				d[8], d[9], d[10], d[11],
-				d[12], d[13], d[14], d[15]);
-
-			memory = cc.newXmmConst(ConstPool::kScopeLocal, data);
-#endif
-		}
 		if (getType() == Types::ID::Pointer)
 		{
 			memory = x86::qword_ptr((uint64_t)reinterpret_cast<VariableStorage*>(memoryLocation)->getDataPointer());
@@ -487,6 +474,19 @@ void AssemblyRegister::invalidateRegisterForCustomMemory()
 	dirty = false;
 	reg = {};
 	state = LoadedMemoryLocation;
+}
+
+bool AssemblyRegister::isSimd4Float() const
+{
+	if (!compiler->getOptimizations().contains(OptimizationIds::AutoVectorisation))
+		return false;
+
+	if (auto st = type.getTypedIfComplexType<SpanType>())
+	{
+		return (st->getElementType() == TypeInfo(Types::ID::Float)) && st->getNumElements() == 4;
+	}
+
+	return false;
 }
 
 void AssemblyRegister::clearForReuse()

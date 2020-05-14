@@ -37,7 +37,7 @@ using namespace juce;
 
 void debug::MathFunctionProvider::addTokens(mcl::TokenCollection::List& l)
 {
-	FunctionClass::Ptr fc = new snex::jit::MathFunctions();
+	FunctionClass::Ptr fc = new snex::jit::MathFunctions(false);
 
 	Array<NamespacedIdentifier> functions;
 	fc->getAllFunctionNames(functions);

@@ -2363,6 +2363,8 @@ struct Operations::WhileLoop : public Statement,
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override
 	{
+		
+
 		if(compiler->getCurrentPass() == BaseCompiler::CodeGeneration)
 			Statement::processBaseWithoutChildren(compiler, scope);
 		else
@@ -2383,6 +2385,8 @@ struct Operations::WhileLoop : public Statement,
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
 		{
+			
+
 			auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 
 			auto safeCheck = scope->getGlobalScope()->isRuntimeErrorCheckEnabled();

@@ -394,8 +394,24 @@ public:
 		if (r.failed())
 			return r;
 
+		if (!requiredCompileFlags.isEmpty())
+		{
+			auto activeOptimizations = memory.getOptimizationPassList();
+
+			for (auto r : requiredCompileFlags)
+			{
+				if (!activeOptimizations.contains(r))
+				{
+					if (t != nullptr)
+					{
+						t->logMessage("Skipping " + file.getFileNameWithoutExtension() + " due to missing optimization " + r);
+					}
+					return Result::ok();
+				}
+			}
+		}
+
 		c.setDebugHandler(debugHandler);
-		
 
 		if (nodeId.isValid())
 		{
@@ -525,6 +541,7 @@ private:
 		static const Identifier error("error");
 		static const Identifier filename("filename");
 		static const Identifier events("events");
+		static const Identifier compile_flags("compile_flags");
 		static const juce::String END_TEST_DATA("END_TEST_DATA");
 
 		/** BEGIN_TEST_DATA
@@ -692,6 +709,11 @@ private:
 				{
 					t->expect(false, e);
 				}
+			}
+
+			{
+				// Parse compile flags;
+				requiredCompileFlags = Helpers::getStringArray(s[compile_flags].toString(), " ");
 			}
 
 			if (!file.existsAsFile())
@@ -1032,6 +1054,7 @@ private:
 	AudioSampleBuffer outputBuffer;
 	File outputBufferFile;
 	HiseEventBuffer eventBuffer;
+	StringArray requiredCompileFlags;
 	
 };
 
@@ -1214,7 +1237,6 @@ public:
 
 	void runTest() override
 	{
-		
 		optimizations = { OptimizationIds::NoSafeChecks };
 		
 		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks });
@@ -1229,10 +1251,6 @@ public:
 		
 		testOptimizations();
 		testInlining();
-
-		
-		
-		
 
 		juce::String s;
 		s << "Compile count: ";

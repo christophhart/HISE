@@ -1680,6 +1680,18 @@ struct FunctionClass: public DebugableObjectBase,
 
 	void addFunctionClass(FunctionClass* newRegisteredClass);
 
+	void removeFunctionClass(const NamespacedIdentifier& id)
+	{
+		for (auto c : registeredClasses)
+		{
+			if (c->getClassName() == id)
+			{
+				registeredClasses.removeObject(c);
+				return;
+			}
+		}
+	}
+
 	void addFunction(FunctionData* newData);
 
 	Array<NamespacedIdentifier> getFunctionIds() const;

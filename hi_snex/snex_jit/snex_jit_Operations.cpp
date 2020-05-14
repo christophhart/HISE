@@ -537,7 +537,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			{
 				if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
 				{
-					AsmCodeGenerator asg(getFunctionCompiler(compiler), &compiler->registerPool, getType(), location);
+					AsmCodeGenerator asg(getFunctionCompiler(compiler), &compiler->registerPool, getType(), location, compiler->getOptimizations());
 					asg.emitParameter(dynamic_cast<Function*>(fScope->parentFunction), reg, parameterIndex);
 				}
 			}

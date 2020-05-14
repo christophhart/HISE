@@ -36,7 +36,7 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-MathFunctions::MathFunctions() :
+MathFunctions::MathFunctions(bool addInlinedFunctions) :
 	FunctionClass(NamespacedIdentifier("Math"))
 {
 	addFunctionConstant("PI", hmath::PI);
@@ -134,6 +134,10 @@ MathFunctions::MathFunctions() :
 	setDescription("returns the bigger value", { "firstValue", "secondValue" });
 	HNODE_JIT_ADD_C_FUNCTION_0(float, hmath::random, "random");
 	setDescription("returns a 32bit floating point random value", {});
+
+	
+	if (!addInlinedFunctions)
+		return;
 
 #define FP_TARGET FP_REG_W(d->target)
 #define ARGS(i) d->args[i]
