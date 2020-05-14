@@ -141,6 +141,20 @@ struct MyTable
 	}
 };
 
+
+struct SnexTableProperty
+{
+	void setTableData(ComplexType::Ptr propType, ComplexType::Ptr dataType, void* node)
+	{
+		ComplexType::InitData d;
+		d.dataPointer = node;
+		d.initValues = dataType->makeDefaultInitialiserList();
+		dataType->initialise(d);
+	}
+
+	
+}
+
 #if 0
 struct MyPack
 {

@@ -329,7 +329,7 @@ private:
 */
 struct none
 {
-	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
 	{}
 };
 

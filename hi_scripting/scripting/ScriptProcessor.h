@@ -1035,7 +1035,7 @@ template <class PropertyClass> struct table : public NodePropertyT<int>
 		NodePropertyT<int>(PropertyClass::getId(), -1)
 	{};
 
-	template <class RootObject> void initWithRoot(NodeBase* n, HiseDspBase* parent, RootObject& r)
+	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
 	{
 		if (n != nullptr)
 		{
@@ -1050,7 +1050,7 @@ template <class PropertyClass> struct table : public NodePropertyT<int>
 				}
 			});
 
-			init(n, parent);
+			initialise(n);
 		}
 	}
 	

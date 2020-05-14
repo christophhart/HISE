@@ -845,7 +845,7 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 
 		init.initialise(obj);
 		obj.initialise(n);
-		props.initWithRoot(n, this, obj);
+		props.initWithRoot(n, obj);
 	}
 
 	template <int P> static void setParameter(void* ptr, double v)
@@ -897,7 +897,6 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 	void createParameters(Array<ParameterDataImpl>& data)
 	{
 		obj.parameters.addToList(data);
-		props.initWithRoot(nullptr, nullptr, obj);
 	}
 
 	T obj;
