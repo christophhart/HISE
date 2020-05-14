@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: double
   args: double
   input: 12
-  output: 29
+  output: 16
   error: ""
   filename: "parameter/parameter_mixed"
 END_TEST_DATA
@@ -14,7 +14,7 @@ struct MyRangeConverter
 {
 	static double to0To1(double input)
 	{
-		return input * 2.0;
+		return input * 4.0;
 	}
 };
 
@@ -23,10 +23,10 @@ struct OtherTest
 	template <int P> void setParameter(double v)
 	{
 		if(P == 1)
-			o = v * 9.0;
+			o = v + 10.0;
 	}
 	
-	double o = 12.0;
+	double o = 100.0;
 };
 
 struct Test
@@ -36,13 +36,13 @@ struct Test
 		value = v;
 	}
 	
-	double value = 12.0;
+	double value = 100.0;
 };
 
 
 #define DECLARE_PARAMETER_EXPRESSION(name, expression) struct name { static double op(double input) { return expression; }}
 
-DECLARE_PARAMETER_EXPRESSION(TestExpression,  input + 1.0);
+DECLARE_PARAMETER_EXPRESSION(TestExpression, input * 2.0);
 
 
 using ParameterType1 = parameter::plain<Test, 0>;
@@ -62,7 +62,7 @@ double main(double input)
 	pc.connect<0>(first);
 	pc.connect<1>(second);
 
-	c.setParameter<0>(0.2);
+	c.setParameter<0>(0.5);
 
 	return c.get<0>().value + c.get<1>().o;
 }

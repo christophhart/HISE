@@ -39,8 +39,6 @@ double main(double input)
 	c.setParameter<0>(4.0);
 	c.setParameter<1>(3.0);
 
-	Console.dump();
-
 	return c.get<0>().value + c.get<1>().value;
 }
 

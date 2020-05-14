@@ -65,6 +65,21 @@ In this mode the input must be a String that points to an existing audio file wi
 
 The return `int` value is always supposed to be zero, so you can add additional tests in the code and return a non-zero value if they fail.
 
+### Node test mode
+
+If you want to test a node just like it will be used in scriptnode, you can specify the 
+typename of the node within brackets as `f` property: f: {MyNodeThatShouldBeTested}.
+
+In this mode, the code will be surrounded by the scriptnode boilerplate code (everything will be tucked into a `impl` namespace, then an object with the given type is being created and wrapper functions for all node callbacks will be added on the root level.
+
+It will call the functions in their correct order using the processing specifications from the input file:
+
+- prepare();
+- reset();
+- process()
+
+> In this mode the input and output will be automatically set to audio files.
+
 #### Adding events
 
 If you want to add events to the ProcessData, you can do so by supplying a JSON object with the event data as `events` key. It expects this format:

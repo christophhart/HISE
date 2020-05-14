@@ -3,8 +3,8 @@ BEGIN_TEST_DATA
   f: main
   ret: int
   args: int
-  input: 12
-  output: 12
+  input: 6
+  output: 4
   error: ""
   filename: "dyn/dyn_access2"
 END_TEST_DATA

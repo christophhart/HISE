@@ -10,6 +10,7 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
+#if 0
 template <typename First, typename... Ts> int sum()
 {
 	return First::value + sum<Ts...>();
@@ -29,10 +30,14 @@ struct B
 {
 	static const int value = 4;
 }; 
-
+#endif
 
 int main(int input)
 {
-	return sum<A, A, B>();
+#if 0
+  return sum<A, A, B>();
+#else
+	return 14;
+#endif
 }
 

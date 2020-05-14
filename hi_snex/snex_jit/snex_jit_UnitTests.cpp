@@ -396,61 +396,106 @@ public:
 
 		c.setDebugHandler(debugHandler);
 		
-		if(!isProcessDataTest)
-			Types::SnexObjectDatabase::registerObjects(c, 2);
 
-		auto obj = c.compileJitObject(code);
-
-		r = c.getCompileResult();
-
-		if (dumpBeforeTest)
+		if (nodeId.isValid())
 		{
-			DBG("code");
-			DBG(code);
-			DBG(c.dumpSyntaxTree());
-			DBG("symbol tree");
-			DBG(c.dumpNamespaceTree());
-			DBG("assembly");
-			DBG(c.getAssemblyCode());
-			DBG("data dump");
-			DBG(obj.dumpTable());
+			Types::JitCompiledNode n(c, code, nodeId, numChannels);
+
+			if (!n.r.wasOk())
+				return n.r;
+
+			if (dumpBeforeTest)
+			{
+				DBG("code");
+				DBG(code);
+				DBG(c.dumpSyntaxTree());
+				DBG("symbol tree");
+				DBG(c.dumpNamespaceTree());
+				DBG("assembly");
+				DBG(c.getAssemblyCode());
+				DBG("data dump");
+				DBG(obj.dumpTable());
+			}
+
+			Types::PrepareSpecs ps;
+			ps.numChannels = inputBuffer.getNumChannels();
+			ps.sampleRate = 44100.0;
+			ps.blockSize = inputBuffer.getNumSamples();
+			ps.voiceIndex = nullptr;
+			
+			n.prepare(ps);
+			n.reset();
+			
+			Types::ProcessDataDyn d(inputBuffer.getArrayOfWritePointers(), inputBuffer.getNumSamples(), numChannels);
+			d.setEventBuffer(eventBuffer);
+			n.process(d);
+
+			
+
+			assembly = c.getAssemblyCode().fromFirstOccurrenceOf("; function void process", true, false);
+
+			return Helpers::compareBuffers(inputBuffer, outputBuffer);
 		}
-
-		if (r.failed())
-			return expectCompileFail(expectedFail);
-
-		assembly = c.getAssemblyCode();
-
-		auto compiledF = obj[function.id];
-		
-		if (!compiledF.matchesArgumentTypes(function))
-		{
-			r = Result::fail("Compiled function doesn't match test data");
-			return r;
-		}
-
-
-		function = compiledF;
-		
-		switch (function.returnType.getType())
-		{
-		case Types::ID::Integer: actualResult = call<int>(); break;
-		case Types::ID::Float:   actualResult = call<float>(); break;
-		case Types::ID::Double:  actualResult = call<double>(); break;
-		case Types::ID::Block:   actualResult = *call<block*>(); break;
-		default: jassertfalse;
-		}
-
-		if (dumpBeforeTest)
-		{
-			DBG("data dump after execution");
-			DBG(obj.dumpTable());
-		}
-
-		if (expectedFail.isNotEmpty())
-			return expectCompileFail(expectedFail);
 		else
-			return expectValueMatch();
+		{
+			if (!isProcessDataTest)
+				Types::SnexObjectDatabase::registerObjects(c, 2);
+
+			obj = c.compileJitObject(code);
+
+			r = c.getCompileResult();
+
+			if (dumpBeforeTest)
+			{
+				DBG("code");
+				DBG(code);
+				DBG(c.dumpSyntaxTree());
+				DBG("symbol tree");
+				DBG(c.dumpNamespaceTree());
+				DBG("assembly");
+				DBG(c.getAssemblyCode());
+				DBG("data dump");
+				DBG(obj.dumpTable());
+			}
+
+			if (r.failed())
+				return expectCompileFail(expectedFail);
+
+			assembly = c.getAssemblyCode();
+
+			auto compiledF = obj[function.id];
+
+			if (!compiledF.matchesArgumentTypes(function))
+			{
+				r = Result::fail("Compiled function doesn't match test data");
+				return r;
+			}
+
+
+			function = compiledF;
+
+			switch (function.returnType.getType())
+			{
+			case Types::ID::Integer: actualResult = call<int>(); break;
+			case Types::ID::Float:   actualResult = call<float>(); break;
+			case Types::ID::Double:  actualResult = call<double>(); break;
+			case Types::ID::Block:   actualResult = *call<block*>(); break;
+			default: jassertfalse;
+			}
+
+			if (dumpBeforeTest)
+			{
+				DBG("data dump after execution");
+				DBG(obj.dumpTable());
+			}
+
+			if (expectedFail.isNotEmpty())
+				return expectCompileFail(expectedFail);
+			else
+				return expectValueMatch();
+
+		}
+		
 	}
 
 	void save()
@@ -465,6 +510,7 @@ public:
 	DebugHandler* debugHandler = nullptr;
 	GlobalScope& memory;
 	Compiler c;
+	JitObject obj;
 
 private:
 
@@ -519,90 +565,112 @@ private:
 			{
 				// Parse function id
 
-				function.id = NamespacedIdentifier::fromString(s[f].toString());
-			}
-			{
-				// Parse return type
+				auto fId = s[f].toString();
 
-				function.returnType = TypeInfo(Types::Helpers::getTypeFromTypeName(s[ret]));
-
-				if (function.returnType == Types::ID::Void)
-					throwError("Can't find return type in metadata");
-			}
-			{
-				// Parse arguments
-
-				auto arg = Helpers::getStringArray(s[args], " ");
-
-				int index = 1;
-
-				for (auto a : arg)
+				if (fId.startsWith("{"))
 				{
-					if (a.trim().startsWith("ProcessData"))
+					nodeId = Identifier(fId.removeCharacters("{} \t"));
+					isProcessDataTest = true;
+
+					auto inputFile = Helpers::parseQuotedString(s[input]);
+
+					inputBuffer = Helpers::loadFile(s[input]);
+
+					numChannels = inputBuffer.getNumChannels();
+
+					outputBuffer = Helpers::loadFile(s[output]);
+					expectedResult = block(outputBuffer.getWritePointer(0), outputBuffer.getNumSamples());
+				}
+				else
+					function.id = NamespacedIdentifier::fromString(fId);
+			}
+			
+
+			if (nodeId.isNull())
+			{
+				{
+					// Parse return type
+
+					function.returnType = TypeInfo(Types::Helpers::getTypeFromTypeName(s[ret]));
+
+					if (function.returnType == Types::ID::Void)
+						throwError("Can't find return type in metadata");
+				}
+
+				{
+					// Parse arguments
+					auto arg = Helpers::getStringArray(s[args], " ");
+
+					int index = 1;
+
+					for (auto a : arg)
 					{
-						isProcessDataTest = true;
-						numChannels = a.fromFirstOccurrenceOf("<", false, false).getIntValue();
+						if (a.trim().startsWith("ProcessData"))
+						{
+							isProcessDataTest = true;
+							numChannels = a.fromFirstOccurrenceOf("<", false, false).getIntValue();
 
-						Identifier id("data");
+							Identifier id("data");
 
-						Types::SnexObjectDatabase::registerObjects(c, numChannels);
-						TemplateParameter::List tp;
-						tp.add(TemplateParameter(numChannels, TemplateParameter::Single));
+							Types::SnexObjectDatabase::registerObjects(c, numChannels);
+							TemplateParameter::List tp;
+							tp.add(TemplateParameter(numChannels, TemplateParameter::Single));
 
-						function.addArgs("data", TypeInfo(c.getComplexType(NamespacedIdentifier("ProcessData"), tp)));
-					}
-					else
-					{
-						auto type = Types::Helpers::getTypeFromTypeName(a.trim());
+							function.addArgs("data", TypeInfo(c.getComplexType(NamespacedIdentifier("ProcessData"), tp)));
+						}
+						else
+						{
+							auto type = Types::Helpers::getTypeFromTypeName(a.trim());
 
-						if (type == Types::ID::Void)
-							throwError("Can't parse argument type " + a);
+							if (type == Types::ID::Void)
+								throwError("Can't parse argument type " + a);
 
-						Identifier id(juce::String("p") + juce::String(index));
-						function.addArgs(id, TypeInfo(type));
+							Identifier id(juce::String("p") + juce::String(index));
+							function.addArgs(id, TypeInfo(type));
+						}
 					}
 				}
-			}
-			{
-				// Parse inputs
-
-				auto inp = Helpers::getStringArray(s[input], " ");
-
-				if (inp.size() != function.args.size())
-					throwError("Input amount mismatch");
-
-				for (int i = 0; i < inp.size(); i++)
 				{
-					auto v = inp[i];
-					auto t = function.args[i].typeInfo.getType();
+					// Parse inputs
 
-					switch (t)
+					auto inp = Helpers::getStringArray(s[input], " ");
+
+					if (inp.size() != function.args.size())
+						throwError("Input amount mismatch");
+
+					for (int i = 0; i < inp.size(); i++)
 					{
-					case Types::ID::Integer: inputs.add(v.getIntValue());    break;
-					case Types::ID::Float:   inputs.add(v.getFloatValue());  break;
-					case Types::ID::Double:  inputs.add(v.getDoubleValue()); break;
-					case Types::ID::Block:  
-					case Types::ID::Pointer:
-					{
-						AudioSampleBuffer b;
+						auto v = inp[i];
+						auto t = function.args[i].typeInfo.getType();
 
-						try
+						switch (t)
 						{
-							b = Helpers::loadFile(v);
-						}
-						catch (String& m)
+						case Types::ID::Integer: inputs.add(v.getIntValue());    break;
+						case Types::ID::Float:   inputs.add(v.getFloatValue());  break;
+						case Types::ID::Double:  inputs.add(v.getDoubleValue()); break;
+						case Types::ID::Block:
+						case Types::ID::Pointer:
 						{
-							throwError(m);
+							AudioSampleBuffer b;
+
+							try
+							{
+								b = Helpers::loadFile(v);
+							}
+							catch (String& m)
+							{
+								throwError(m);
+							}
+
+							if (isProcessDataTest && b.getNumChannels() != numChannels)
+								throwError("Input Channel mismatch: " + String(b.getNumChannels()));
+
+							inputs.add(block(b.getWritePointer(0), b.getNumSamples()));
+							inputBuffer = b;
+							break;
 						}
-
-						if (isProcessDataTest && b.getNumChannels() != numChannels)
-							throwError("Input Channel mismatch: " + String(b.getNumChannels()));
-
-						inputs.add(block(b.getWritePointer(0), b.getNumSamples()));
-						inputBuffers.add(std::move(b));
-						break;
-					}
-					default:				 jassertfalse;
+						default:				 jassertfalse;
+						}
 					}
 				}
 			}
@@ -639,14 +707,11 @@ private:
 
 					fileToBeWritten = getTestFileDirectory().getChildFile(outputFileName).withFileExtension("h");
 				}
-
-				
 			}
 
-			if (expectedFail.isEmpty())
+			if (nodeId.isNull() && expectedFail.isEmpty())
 			{
 				// Parse output
-
 				auto v = Helpers::parseQuotedString(s[output]);
 				auto t = function.returnType.getType();
 
@@ -667,10 +732,10 @@ private:
 					}
 					catch (juce::String& s)
 					{
-						if (inputBuffers.isEmpty())
+						if (inputBuffer.getNumChannels() == 0)
 							throwError("Must supply input buffer");
 
-						auto size = inputBuffers.getLast().getNumSamples();
+						auto size = inputBuffer.getNumSamples();
 						outputBufferFile = Helpers::getAudioFile(v);
 					}
 					break;
@@ -702,6 +767,29 @@ private:
 			double s = 0.0;
 			auto b = hlac::CompressionHelpers::loadFile(f, s);
 			return b;
+		}
+
+		static Result compareBuffers(AudioSampleBuffer& e, AudioSampleBuffer& a)
+		{
+			int numChannels = e.getNumChannels();
+			jassert(e.getNumSamples() == a.getNumSamples());
+			jassert(e.getNumChannels() == a.getNumChannels());
+			jassert(numChannels == a.getNumChannels());
+
+			int numSamples = a.getNumSamples();
+
+			for (int i = 0; i < numChannels; i++)
+			{
+				Types::dyn<float> a(a.getWritePointer(i), numSamples);
+				Types::dyn<float> e(e.getWritePointer(i), numSamples);
+
+				auto r = Helpers::compareBlocks(e, a);
+
+				if (!r.wasOk())
+					return Result::fail("Channel " + String(i + 1) + ": " + r.getErrorMessage());
+			}
+
+			return Result::ok();
 		}
 
 		static Result compareBlocks(const VariableStorage expected, const VariableStorage& actual)
@@ -765,7 +853,7 @@ private:
 	{
 		if (outputBufferFile != File())
 		{
-			hlac::CompressionHelpers::dump(inputBuffers.getLast(), outputBufferFile.getFullPathName());
+			hlac::CompressionHelpers::dump(inputBuffer, outputBufferFile.getFullPathName());
 
 			if (t != nullptr)
 				return r;
@@ -778,22 +866,7 @@ private:
 			if (actualResult.toInt() != 0)
 				return Result::fail("Return value not zero: " + String(actualResult.toInt()));
 
-			auto in = inputBuffers.getFirst();
-			auto out = outputBuffer;
-
-			jassert(in.getNumSamples() == out.getNumSamples());
-			jassert(in.getNumChannels() == out.getNumChannels());
-			jassert(numChannels == out.getNumChannels());
-
-			int numSamples = out.getNumSamples();
-
-			for (int i = 0; i < numChannels; i++)
-			{
-				Types::dyn<float> e(out.getWritePointer(i), numSamples);
-				Types::dyn<float> a(in.getWritePointer(i), numSamples);
-
-				return Helpers::compareBlocks(e, a);
-			}
+			return Helpers::compareBuffers(inputBuffer, outputBuffer);
 		}
 		else
 		{
@@ -895,12 +968,12 @@ private:
 		case Types::ID::Pointer: 
 		{
 			jassert(function.args[0].typeInfo.getTypedComplexType<StructType>()->id == NamespacedIdentifier("ProcessData"));
-			jassert(inputBuffers.size() == 1);
-			jassert(inputBuffers.getFirst().getNumChannels() == numChannels);
+			jassert(inputBuffer.getNumSamples() > 0);
+			jassert(inputBuffer.getNumChannels() == numChannels);
 
-			auto channels = inputBuffers.getReference(0).getArrayOfWritePointers();
+			auto channels = inputBuffer.getArrayOfWritePointers();
 
-			Types::ProcessDataDyn p(channels, inputBuffers.getFirst().getNumSamples(), numChannels);
+			Types::ProcessDataDyn p(channels, inputBuffer.getNumSamples(), numChannels);
 
 			p.setEventBuffer(eventBuffer);
 
@@ -944,6 +1017,9 @@ private:
 	juce::String code;
 	FunctionData function;
 
+	Identifier nodeId;
+	
+
 	bool isProcessDataTest = false;
 	int numChannels = -1;
 
@@ -952,7 +1028,7 @@ private:
 	VariableStorage expectedResult;
 	VariableStorage actualResult;
 	juce::String expectedFail;
-	Array<AudioSampleBuffer> inputBuffers;
+	AudioSampleBuffer inputBuffer;
 	AudioSampleBuffer outputBuffer;
 	File outputBufferFile;
 	HiseEventBuffer eventBuffer;
@@ -1138,13 +1214,11 @@ public:
 
 	void runTest() override
 	{
-		optimizations = { OptimizationIds::LoopOptimisation };
-
-		runTestFiles("simdable1");
-
-		return;
-
-		runTestsWithOptimisation({});
+		
+		optimizations = { OptimizationIds::NoSafeChecks };
+		
+		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks });
+		runTestsWithOptimisation(OptimizationIds::getAllIds());
 
 		testExternalFunctionCalls();
 		testArrayTypes();

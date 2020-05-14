@@ -33,7 +33,7 @@ struct X
             setA(v);
         if(T == 1)
             setB(v);
-
+        
         return;
     }
     
