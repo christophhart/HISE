@@ -387,10 +387,45 @@ public:
 		return p.getChildFile("test_files");
 	}
 
-	
+	void setTypeForDynamicFunction(Types::ID t, const String& originalCode)
+	{
+		code = {};
+		code << "using T = " << Types::Helpers::getCppTypeName(t) << ";\n";
+		code << originalCode;
+
+		function.returnType = TypeInfo(t);
+
+		for (auto& a : function.args)
+			a.typeInfo = TypeInfo(t);
+	}
 
 	Result test(bool dumpBeforeTest=false)
 	{
+		if (function.returnType == Types::ID::Dynamic)
+		{
+			String originalCode = code;
+
+			setTypeForDynamicFunction(Types::ID::Integer, originalCode);
+			auto ok = test(dumpBeforeTest);
+
+			if (ok.failed())
+				return ok;
+
+			setTypeForDynamicFunction(Types::ID::Float, originalCode);
+			ok = test(dumpBeforeTest);
+
+			if (ok.failed())
+				return ok;
+
+			setTypeForDynamicFunction(Types::ID::Double, originalCode);
+			ok = test(dumpBeforeTest);
+
+			if (ok.failed())
+				return ok;
+
+			return Result::ok();
+		}
+
 		if (r.failed())
 			return r;
 
@@ -456,6 +491,9 @@ public:
 		{
 			if (!isProcessDataTest)
 				Types::SnexObjectDatabase::registerObjects(c, 2);
+
+
+			
 
 			obj = c.compileJitObject(code);
 
@@ -608,7 +646,12 @@ private:
 				{
 					// Parse return type
 
-					function.returnType = TypeInfo(Types::Helpers::getTypeFromTypeName(s[ret]));
+					auto retType = s[ret].toString();
+
+					if (retType == "T")
+						function.returnType = TypeInfo(Types::ID::Dynamic);
+					else
+						function.returnType = TypeInfo(Types::Helpers::getTypeFromTypeName(retType));
 
 					if (function.returnType == Types::ID::Void)
 						throwError("Can't find return type in metadata");
@@ -637,13 +680,21 @@ private:
 						}
 						else
 						{
-							auto type = Types::Helpers::getTypeFromTypeName(a.trim());
+							if (a == "T")
+							{
+								Identifier id(juce::String("p") + juce::String(index));
+								function.addArgs(id, TypeInfo(Types::ID::Dynamic));
+							}
+							else
+							{
+								auto type = Types::Helpers::getTypeFromTypeName(a.trim());
 
-							if (type == Types::ID::Void)
-								throwError("Can't parse argument type " + a);
+								if (type == Types::ID::Void)
+									throwError("Can't parse argument type " + a);
 
-							Identifier id(juce::String("p") + juce::String(index));
-							function.addArgs(id, TypeInfo(type));
+								Identifier id(juce::String("p") + juce::String(index));
+								function.addArgs(id, TypeInfo(type));
+							}
 						}
 					}
 				}
@@ -658,6 +709,7 @@ private:
 					for (int i = 0; i < inp.size(); i++)
 					{
 						auto v = inp[i];
+
 						auto t = function.args[i].typeInfo.getType();
 
 						switch (t)
@@ -665,6 +717,7 @@ private:
 						case Types::ID::Integer: inputs.add(v.getIntValue());    break;
 						case Types::ID::Float:   inputs.add(v.getFloatValue());  break;
 						case Types::ID::Double:  inputs.add(v.getDoubleValue()); break;
+						case Types::ID::Dynamic: inputs.add(v.getDoubleValue()); break;
 						case Types::ID::Block:
 						case Types::ID::Pointer:
 						{
@@ -745,6 +798,7 @@ private:
 				case Types::ID::Integer: expectedResult = v.getIntValue();    break;
 				case Types::ID::Float:   expectedResult = v.getFloatValue();  break;
 				case Types::ID::Double:  expectedResult = v.getDoubleValue(); break;
+				case Types::ID::Dynamic: expectedResult = v.getDoubleValue(); break;
 				case Types::ID::Block:   
 				{
 					try
@@ -1237,14 +1291,12 @@ public:
 
 	void runTest() override
 	{
-		optimizations = { OptimizationIds::Inlining };
-		runTestFiles("node_chain");
-
-
-
-		return;
 		optimizations = { OptimizationIds::NoSafeChecks };
 		
+		runTestFiles("simple_calc");
+
+		return;
+
 		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks });
 		runTestsWithOptimisation(OptimizationIds::getAllIds());
 
@@ -1379,7 +1431,13 @@ public:
 
 	void runTestFileWithAllOptimizations(const String& file)
 	{
+		printDebugInfoForSingleTest = false;
+
 		auto combinations = getAllOptimizationCombinations();
+
+		String fileName = file;
+
+		auto f = getFiles(fileName, false).getFirst();
 
 		for (auto c : combinations)
 		{
@@ -1391,8 +1449,14 @@ public:
 				s << o << ";";
 			logMessage(s);
 
-			optimizations = c;
-			runTestFiles(file);
+			GlobalScope memory;
+			for (auto o : c)
+				memory.addOptimization(o);
+
+			{
+				JitFileTestCase t(this, memory, f);
+				auto r = t.test(false);
+			}
 		}
 	}
 
@@ -1446,18 +1510,12 @@ public:
 	}
 
 
-
-
-	void runTestFiles(juce::String soloTest = {}, bool isFolder=false)
+	Array<File> getFiles(juce::String& soloTest, bool isFolder)
 	{
-
 		if (soloTest.isNotEmpty() && !isFolder && !soloTest.endsWith(".h"))
 		{
 			soloTest.append(".h", 2);
 		}
-
-		if(soloTest.isEmpty())
-			beginTest("Testing files from test directory");
 
 		File f = JitFileTestCase::getTestFileDirectory();
 
@@ -1466,31 +1524,33 @@ public:
 			jassert(soloTest.isNotEmpty());
 			f = f.getChildFile(soloTest);
 		}
-			
 
-		auto fileList = f.findChildFiles(File::findFiles, true, "*.h");
+		return f.findChildFiles(File::findFiles, true, "*.h");
+	}
 
-		logMessage("Found" + juce::String(fileList.size()) + " files to test");
+	void runTestFiles(juce::String soloTest = {}, bool isFolder=false)
+	{
+		if(soloTest.isEmpty())
+			beginTest("Testing files from test directory");
 
 		GlobalScope memory;
 		
 		for (auto o : optimizations)
 			memory.addOptimization(o);
 
-		for (auto f : fileList)
+		for (auto f : getFiles(soloTest, isFolder))
 		{
 			if (soloTest.isNotEmpty() && f.getFileName() != soloTest)
 				continue;
 
-			
-
-            DBG(f.getFileName());
+			if(printDebugInfoForSingleTest)
+				DBG(f.getFileName());
             
 			int numInstances = ComplexType::numInstances;
 
 			{
 				JitFileTestCase t(this, memory, f);
-				auto r = t.test(soloTest.isNotEmpty());
+				auto r = t.test(printDebugInfoForSingleTest && soloTest.isNotEmpty());
 			}
 
 			int numInstancesAfter = ComplexType::numInstances;
@@ -1584,6 +1644,8 @@ public:
 	}
 
 private:
+
+	bool printDebugInfoForSingleTest = true;
 
 	void trimNoopFromSyntaxTree(juce::String& s)
 	{
@@ -2263,6 +2325,24 @@ private:
 
 		{
 			juce::String code;
+			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
+			ADD_CODE_LINE("{");
+			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    while(f.next()) {");
+			ADD_CODE_LINE("        for(auto& s: f)");
+			ADD_CODE_LINE("            s = 0.8f;");
+			ADD_CODE_LINE("    }");
+			ADD_CODE_LINE("    return 1;}");
+
+			ProcessTestCase test(this, memory, code);
+
+			expectEquals(test.v, 1, "next returns one");
+			expectEquals(test.data[0], 0.8f, "first frame 1");
+			expectEquals(test.data[64], 0.8f, "first frame 2");
+		}
+
+		{
+			juce::String code;
 			ADD_CODE_LINE("int test(ProcessData<2>& d)");
 			ADD_CODE_LINE("{");
 			ADD_CODE_LINE("for(auto& s: d[0]){");
@@ -2343,23 +2423,7 @@ private:
 			expectEquals(test.v, 0, "next is done");
 		}
 
-		{
-			juce::String code;
-			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
-			ADD_CODE_LINE("{");
-			ADD_CODE_LINE("    auto& f = d.toFrameData();");
-			ADD_CODE_LINE("    if(f.next()) {");
-			ADD_CODE_LINE("        for(auto& s: f)");
-			ADD_CODE_LINE("            s = 0.8f;");
-			ADD_CODE_LINE("    }");
-			ADD_CODE_LINE("    return f.next();}");
-
-			ProcessTestCase test(this, memory, code);
-
-			expectEquals(test.v, 1, "next returns one");
-			expectEquals(test.data[0], 0.8f, "first frame 1");
-			expectEquals(test.data[64], 0.8f, "first frame 2");
-		}
+		
 
 		{
 			juce::String code;

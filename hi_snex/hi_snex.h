@@ -64,6 +64,9 @@ END_JUCE_MODULE_DECLARATION
 #pragma once
 
 
+#define REMOVE_REUSABLE_REG 1
+
+
 /** As soon as we jump to C++14, we can use proper if constexpr. */
 #define IF_CONSTEXPR if
 

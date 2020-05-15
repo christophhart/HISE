@@ -607,6 +607,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 				auto& cc = d->gen.cc;
 
 				d->object->loadMemoryIntoRegister(cc);
+				d->args[0]->loadMemoryIntoRegister(cc);
 
 				auto dynObj = cc.newStack(16, 0);
 

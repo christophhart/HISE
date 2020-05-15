@@ -489,6 +489,7 @@ struct Operations::VariableReference : public Expression,
 	*/
 	static void reuseAllLastReferences(Statement::Ptr parentStatement)
 	{
+#if REMOVE_REUSABLE_REG
 		ReferenceCountedArray<AssemblyRegister> parentRegisters;
 
 		auto pExpr = dynamic_cast<Expression*>(parentStatement.get());
@@ -500,6 +501,7 @@ struct Operations::VariableReference : public Expression,
 
 			pExpr = dynamic_cast<Expression*>(pExpr->parent.get());
 		}
+
 
 		SyntaxTreeWalker w(parentStatement, false);
 
@@ -516,6 +518,7 @@ struct Operations::VariableReference : public Expression,
 				v->reg->flagForReuse();
 			}
 		}
+#endif
 	}
 
 	bool tryToResolveType(BaseCompiler* c) override
@@ -954,8 +957,10 @@ struct Operations::Compare : public Expression
 
 				VariableReference::reuseAllLastReferences(this);
 
+#if REMOVE_REUSABLE_REG
 				l->reg->flagForReuseIfAnonymous();
 				r->reg->flagForReuseIfAnonymous();
+#endif
 			}
 		}
 	}
@@ -2070,7 +2075,10 @@ struct Operations::BinaryOp : public Expression
 		auto t = Expression::toValueTree();
 		
 		t.setProperty("OpType", op, nullptr);
+
+#if REMOVE_REUSABLE_REG
 		t.setProperty("UseTempRegister", usesTempRegister, nullptr);
+#endif
 		return t;
 	}
 
@@ -2126,6 +2134,7 @@ struct Operations::BinaryOp : public Expression
 			{
 				auto l = getSubRegister(0);
 
+#if REMOVE_REUSABLE_REG
 				if (auto childOp = dynamic_cast<BinaryOp*>(getSubExpr(0).get()))
 				{
 					if (childOp->usesTempRegister)
@@ -2151,6 +2160,19 @@ struct Operations::BinaryOp : public Expression
 
 					asg.emitStore(reg, getSubRegister(0));
 				}
+#else
+
+				if (reg == nullptr)
+				{
+					asg.emitComment("temp register for binary op");
+					reg = compiler->getRegFromPool(scope, getTypeInfo());
+
+				}
+
+				asg.emitStore(reg, getSubRegister(0));
+
+				
+#endif
 
 				auto le = getSubExpr(0);
 				auto re = getSubExpr(1);
@@ -2163,7 +2185,10 @@ struct Operations::BinaryOp : public Expression
 		}
 	}
 
+#if REMOVE_REUSABLE_REG
 	bool usesTempRegister = false;
+#endif
+
 	TokenType op;
 };
 
@@ -2877,7 +2902,9 @@ struct Operations::Negation : public Expression
 
 				asg.emitNegation(reg, getSubRegister(0));
 
+#if REMOVE_REUSABLE_REG
 				getSubRegister(0)->flagForReuseIfAnonymous();
+#endif
 			}
 			else
 			{

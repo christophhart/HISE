@@ -356,11 +356,13 @@ namespace Operations
 			if (reg != nullptr)
 				return;
 
+#if REMOVE_REUSABLE_REG
 			if (clearRegister)
 			{
 				jassert(targetToUse->canBeReused());
 				targetToUse->clearForReuse();
 			}
+#endif
 
 			reg = targetToUse;
 		}

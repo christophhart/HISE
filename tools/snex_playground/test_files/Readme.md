@@ -108,6 +108,16 @@ Some tests that check specific compiler features (eg. auto vectorisation) can be
 
 > Be aware that this function is reserved for special cases (eg. manual calls to `toSimd()` which wouldn't compile otherwise) and must not be used to cheat your way into a passing test suite...
 
+## Use template `T` for testing all numeric types
+
+If you specify `T` as input and return type, the test will be executed for all numeric types (`int`, `double` and `float`). It adds the line 
+
+```cpp
+using T = int;
+```
+
+at the beginning of the code, so make sure you cast every literal value to `T` to avoid warnings.
+
 ## How to create new tests
 
 The SNEX playground can be used to quickly create new tests. If it's compiled with the `SNEX_PLAYGROUND_TEST_MODE`, it will create a test template and execute the current code snippet and just prints the test result. As soon as the `filename` key is specified, it will write the compiled code to the specified file.

@@ -1018,7 +1018,9 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Opera
 		cc.mov(dummy->getRegisterForWriteOp().as<X86Gp>(), imm2ptr(condition->reg->getImmediateIntValue()));
 		cc.cmp(dummy->getRegisterForReadOp().as<X86Gp>(), 0);
 
+#if REMOVE_REUSABLE_REG
 		dummy->flagForReuse(true);
+#endif
 	}
 	else
 		cc.cmp(INT_REG_R(condition->reg), 0);
@@ -1026,7 +1028,9 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Opera
 	cc.setInlineComment("Branch test");
 	cc.jnz(l);
 
+#if REMOVE_REUSABLE_REG
 	condition->reg->flagForReuseIfAnonymous();
+#endif
 
 	if (falseBranch != nullptr)
 	{
@@ -1039,7 +1043,10 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Opera
 			if (auto fAsExpr = dynamic_cast<Operations::Expression*>(falseBranch))
 			{
 				emitStore(returnReg, fAsExpr->reg);
+
+#if REMOVE_REUSABLE_REG
 				fAsExpr->reg->flagForReuseIfAnonymous();
+#endif
 			}
 			else
 				jassertfalse;
@@ -1056,7 +1063,9 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBranch(TypeInfo returnType, Opera
 		if (auto tAsExpr = dynamic_cast<Operations::Expression*>(trueBranch))
 		{
 			emitStore(returnReg, tAsExpr->reg);
+#if REMOVE_REUSABLE_REG
 			tAsExpr->reg->flagForReuseIfAnonymous();
+#endif
 		}
 	}
 
@@ -1687,7 +1696,8 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	auto itReg = compiler->registerPool.getRegisterForVariable(itScope, iterator);
 
 	//itReg->setIsIteratorRegister(true);
-	itReg->setCustomMemoryLocation(x86::ptr(start), false);
+	itReg->setCustomMemoryLocation(x86::ptr(start), loopTarget->isGlobalMemory());
+	itReg->setIsIteratorRegister(true);
 
 	cc.setInlineComment("loop_span {");
 	cc.bind(loopStart);
@@ -1703,8 +1713,10 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 
 	cc.bind(loopEnd);
 
+#if REMOVE_REUSABLE_REG
 	itReg->setUndirty();
 	itReg->flagForReuse(true);
+#endif
     
 }
 
@@ -1816,8 +1828,6 @@ void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Bas
 void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope)
 {
 	auto& cc = gen.cc;
-
-
 	AsmInlineData d(gen);
 	d.object = loopTarget;
 	
@@ -1855,12 +1865,13 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 	auto itScope = loopBody->blockScope.get();
 
 	auto itReg = compiler->registerPool.getRegisterForVariable(itScope, iterator);
-	itReg->createRegister(cc);
+	itReg->setCustomMemoryLocation(x86::ptr(beginReg.get()), loopTarget->isGlobalMemory());
 	itReg->setIsIteratorRegister(true);
 
 	cc.setInlineComment("loop_span {");
 	cc.bind(loopStart);
 
+#if 0
 	if (loadIterator)
 	{
 		IF_(int)    cc.mov(INT_REG_W(itReg), x86::ptr(beginReg.get()));
@@ -1874,14 +1885,16 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 				cc.mov(PTR_REG_W(itReg), beginReg.get());
 		}
 	}
+#endif
 
-	itReg->setUndirty();
+	//itReg->setUndirty();
 
 	loopBody->process(compiler, scope);
 
 
 	cc.bind(continuePoint);
 
+#if 0
 	if (itReg->isDirtyGlobalMemory())
 	{
 		IF_(int)    cc.mov(x86::ptr(beginReg.get()), INT_REG_R(itReg));
@@ -1893,6 +1906,7 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 			cc.movaps(x86::ptr(beginReg.get()), FP_REG_R(itReg));
 		}
 	}
+#endif
 
 	cc.add(beginReg.get(), (int64_t)elementSize);
 	cc.cmp(beginReg.get(), endReg.get());
@@ -1901,8 +1915,10 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 
 	cc.bind(loopEnd);
 
+#if REMOVE_REUSABLE_REG
 	itReg->setUndirty();
 	itReg->flagForReuse(true);
+#endif
 
 
 

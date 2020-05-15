@@ -79,7 +79,9 @@ public:
 		InactiveRegister,
 		ActiveRegister,
 		DirtyGlobalRegister,
+#if REMOVE_REUSABLE_REG
 		ReusableRegister,
+#endif
 		numStates
 	};
 
@@ -110,13 +112,59 @@ public:
 
 	bool isDirtyGlobalMemory() const;
 
-	void flagForReuseIfAnonymous();
+#if REMOVE_REUSABLE_REG
+	void flagForReuseIfAnonymous()
+	{
+		if (!id)
+			flagForReuse();
+	}
 
-	void flagForReuse(bool forceReuse=false);
+	void flagForReuse(bool forceReuse = false)
+	{
+		return;
 
-	void removeReuseFlag();
+		if (!forceReuse)
+		{
+			if (!isActive())
+				return;
 
-	bool canBeReused() const;
+			if (isIter)
+				return;
+
+			if (dirty)
+				return;
+		}
+
+		reusable = true;
+		state = ReusableRegister;
+	}
+
+	void removeReuseFlag()
+	{
+		reusable = false;
+		state = ActiveRegister;
+	}
+
+	bool canBeReused() const
+	{
+		return reusable;
+	}
+
+	void clearForReuse()
+	{
+		isIter = false;
+		state = ReusableRegister;
+		dirty = false;
+		reusable = false;
+		immediateIntValue = 0;
+		memoryLocation = nullptr;
+		scope = nullptr;
+		id = {};
+	}
+
+
+
+#endif
 
 	void reinterpretCast(const TypeInfo& newType);
 
@@ -209,8 +257,6 @@ public:
 
 	bool isSimd4Float() const;
 
-	void clearForReuse();
-
 	void setUndirty();
 
 	bool hasCustomMemoryLocation() const noexcept 
@@ -241,7 +287,11 @@ private:
 	State state = State::InactiveRegister;
 	bool initialised = false;
 	bool dirty = false;
+
+#if REMOVE_REUSABLE_REG
 	bool reusable = false;
+#endif
+
 	int immediateIntValue = 0;
 	TypeInfo type;
 	asmjit::X86Mem memory;

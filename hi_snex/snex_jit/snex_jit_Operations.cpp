@@ -1528,11 +1528,13 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		if (!r.wasOk())
 			location.throwError(r.getErrorMessage());
 
+#if REMOVE_REUSABLE_REG
 		for (int i = 0; i < parameterRegs.size(); i++)
 		{
 			if (!function.args[i].isReference())
 				parameterRegs[i]->flagForReuse();
 		}
+#endif
 	}
 }
 

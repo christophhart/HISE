@@ -152,9 +152,11 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 				d->target->setCustomMemoryLocation(s, false);
 			}
 
+#if REMOVE_REUSABLE_REG
 			dataRegister->flagForReuse();
 			channelRegister->flagForReuse();
 			frameRegister->flagForReuse();
+#endif
 
 			return Result::ok();
 		}, {});

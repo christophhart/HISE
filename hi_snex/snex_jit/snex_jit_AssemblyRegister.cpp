@@ -94,45 +94,7 @@ const Symbol& AssemblyRegister::getVariableId() const
 
 bool AssemblyRegister::isDirtyGlobalMemory() const
 {
-	return dirty;
-}
-
-
-void AssemblyRegister::flagForReuseIfAnonymous()
-{
-	if (!id)
-		flagForReuse();
-}
-
-
-void AssemblyRegister::flagForReuse(bool forceReuse)
-{
-	if (!forceReuse)
-	{
-		if (!isActive())
-			return;
-
-		if (isIter)
-			return;
-
-		if (dirty)
-			return;
-	}
-
-	reusable = true;
-	state = ReusableRegister;
-}
-
-
-void AssemblyRegister::removeReuseFlag()
-{
-	reusable = false;
-	state = ActiveRegister;
-}
-
-bool AssemblyRegister::canBeReused() const
-{
-	return reusable;
+	return dirty && isGlobalMemory();
 }
 
 
@@ -168,7 +130,6 @@ void* AssemblyRegister::getGlobalDataPointer()
 asmjit::X86Reg AssemblyRegister::getRegisterForReadOp()
 {
 	jassert(state == ActiveRegister ||
-		state == ReusableRegister ||
 		state == DirtyGlobalRegister);
 
 	jassert(reg.isValid());
@@ -179,7 +140,6 @@ asmjit::X86Reg AssemblyRegister::getRegisterForReadOp()
 asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 {
 	jassert(state == ActiveRegister ||
-		state == ReusableRegister ||
 		state == DirtyGlobalRegister);
 
 	jassert(scope != nullptr);
@@ -189,7 +149,6 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 		dirty = true;
 		state = DirtyGlobalRegister;
 	}
-		
 
 	if (id)
 	{
@@ -400,9 +359,11 @@ void AssemblyRegister::createRegister(asmjit::X86Compiler& cc)
 
 	if (reg.isValid())
 	{
+#if REMOVE_REUSABLE_REG
 		// From now on we can use it just like a regular register
 		if (state == ReusableRegister)
 			state = ActiveRegister;
+#endif
 
 		jassert(state == ActiveRegister || 
 			    state == DirtyGlobalRegister);
@@ -489,18 +450,6 @@ bool AssemblyRegister::isSimd4Float() const
 	return false;
 }
 
-void AssemblyRegister::clearForReuse()
-{
-	isIter = false;
-	state = ReusableRegister;
-	dirty = false;
-	reusable = false;
-	immediateIntValue = 0;
-	memoryLocation = nullptr;
-	scope = nullptr;
-	id = {};
-}
-
 void AssemblyRegister::setUndirty()
 {
 	if (dirty && isActiveOrDirtyGlobalRegister())
@@ -579,6 +528,7 @@ void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
 
 AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope, TypeInfo type)
 {
+#if REMOVE_REUSABLE_REG
 	for (auto r : currentRegisterPool)
 	{
 		if (r->getType() == compiler->getRegisterType(type) && r->canBeReused())
@@ -589,6 +539,7 @@ AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope
 			return r;
 		}
 	}
+#endif
 
 	RegPtr newReg = new AssemblyRegister(compiler, type);
 	newReg->scope = scope;
@@ -613,7 +564,9 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterWithMem
 
 		if (r->matchesMemoryLocation(other))
 		{
+#if REMOVE_REUSABLE_REG
 			other->clearForReuse();
+#endif
 			r->numMemoryReferences++;
 			return r;
 		}

@@ -165,8 +165,10 @@ struct AsmCodeGenerator
 
 		~TemporaryRegister()
 		{
+#if REMOVE_REUSABLE_REG
 			if (tempReg != nullptr)
 				tempReg->flagForReuse(true);
+#endif
 		}
 
 		X86Gp get()
