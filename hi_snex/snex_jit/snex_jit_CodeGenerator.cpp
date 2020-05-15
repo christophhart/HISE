@@ -1808,8 +1808,8 @@ void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Bas
 
 	cc.bind(loopEnd);
 
-	itReg->setUndirty();
-	itReg->flagForReuse(true);
+	//itReg->setUndirty();
+	//itReg->flagForReuse(true);
     
 }
 

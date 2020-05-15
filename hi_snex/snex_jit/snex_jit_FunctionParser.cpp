@@ -68,12 +68,8 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 	auto parentPath = getCurrentScopeStatement()->getPath();
 	auto scopePath = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
 
-
-
 	if (parentPath == scopePath)
-	{
-		scopePath = location.createAnonymousScopeId(parentPath);
-	}
+		scopePath = compiler->namespaceHandler.createNonExistentIdForLocation(parentPath, location.getLine());
 
 	auto startPos = location.getXYPosition();
 
@@ -225,7 +221,7 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 
 	match(JitTokens::closeParen);
 	
-	auto id = location.createAnonymousScopeId(compiler->namespaceHandler.getCurrentNamespaceIdentifier());
+	auto id = compiler->namespaceHandler.createNonExistentIdForLocation({}, location.getLine());
 
 	Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
 

@@ -1056,6 +1056,9 @@ struct DiffHelpers
 
 SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, String& newAsm)
 {
+	SparseSet<int> additions;
+
+#if 0
 	TextDiff d(oldAsm, newAsm);
 
 	SparseSet<int> additions;
@@ -1069,8 +1072,8 @@ SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, Str
 	}
 
 	return additions;
+#endif
 
-#if 0
 	StringArray thisLines;
 	auto oldLines = StringArray::fromLines(oldAsm);
 	auto newLines = StringArray::fromLines(newAsm);
@@ -1087,7 +1090,7 @@ SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, Str
 
 			for (int j = nIndex + 1; j < newLines.size(); j++)
 			{
-				if (DiffHelpers::sameAsmLine(oldLines[oIndex], newLines[j]))
+				if (DiffHelpers::sameAsmLine(oldLines[oIndex+1], newLines[j]))
 				{
 					numInserted = j - nIndex;
 					break;
@@ -1105,14 +1108,9 @@ SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, Str
 
 			if (numInserted > 0)
 			{
-				for (int j = 0; j < numInserted; j++)
-				{
-					thisLines.add("(+)" + newLines[nIndex + j]);
-				}
-
+				additions.addRange(Range<int>(nIndex, nIndex + numInserted));
 				nIndex += numInserted+1;
 			}
-
 
 			if (numDeleted > 0)
 			{
@@ -1139,8 +1137,7 @@ SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, Str
 		nIndex++;
 	}
 
-	newAsm = thisLines.joinIntoString("\n");
-#endif
+	return additions;
 }
 
     namespace Icons

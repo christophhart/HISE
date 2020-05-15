@@ -1237,6 +1237,12 @@ public:
 
 	void runTest() override
 	{
+		optimizations = { OptimizationIds::Inlining };
+		runTestFiles("node_chain");
+
+
+
+		return;
 		optimizations = { OptimizationIds::NoSafeChecks };
 		
 		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks });
@@ -1371,7 +1377,26 @@ public:
 		}
 	}
 
-	void testAllOptimizations()
+	void runTestFileWithAllOptimizations(const String& file)
+	{
+		auto combinations = getAllOptimizationCombinations();
+
+		for (auto c : combinations)
+		{
+			String s;
+
+			s << "Opt: ";
+
+			for (auto o : c)
+				s << o << ";";
+			logMessage(s);
+
+			optimizations = c;
+			runTestFiles(file);
+		}
+	}
+
+	Array<OpList> getAllOptimizationCombinations()
 	{
 		OpList allIds = OptimizationIds::getAllIds();
 
@@ -1380,6 +1405,7 @@ public:
 		Array<OpList> combinations;
 
 		addRecursive(combinations, allIds);
+
 
 		struct SizeSorter
 		{
@@ -1396,6 +1422,13 @@ public:
 
 		SizeSorter sorter;
 		combinations.sort(sorter);
+
+		return combinations;
+	}
+
+	void testAllOptimizations()
+	{
+		auto combinations = getAllOptimizationCombinations();
 
 		juce::String s;
 
@@ -1423,7 +1456,8 @@ public:
 			soloTest.append(".h", 2);
 		}
 
-		beginTest("Testing files from test directory");
+		if(soloTest.isEmpty())
+			beginTest("Testing files from test directory");
 
 		File f = JitFileTestCase::getTestFileDirectory();
 

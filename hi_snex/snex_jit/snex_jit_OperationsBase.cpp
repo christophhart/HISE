@@ -115,7 +115,7 @@ snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr
 	jassert(compiler != nullptr);
 	jassert(scope != nullptr);
 
-	SyntaxTree bl(expr->location, expr->location.createAnonymousScopeId(compiler->namespaceHandler.getCurrentNamespaceIdentifier()));
+	SyntaxTree bl(expr->location, compiler->namespaceHandler.createNonExistentIdForLocation({}, expr->location.getLine()));
 	bl.addStatement(expr.get());
 
 	BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);
@@ -496,7 +496,11 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 
 Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Location l) const
 {
-	return new StatementBlock(l, l.createAnonymousScopeId(getPath()));
+	const auto& nh = dynamic_cast<const Statement*>(this)->currentCompiler->namespaceHandler;
+
+	auto id = nh.createNonExistentIdForLocation(getPath(), l.getLine());
+	
+	return new StatementBlock(l, id);
 }
 
 

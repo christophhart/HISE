@@ -871,6 +871,21 @@ juce::Result NamespaceHandler::checkVisiblity(const NamespacedIdentifier& id) co
 	return Result::ok();
 }
 
+snex::jit::NamespacedIdentifier NamespaceHandler::createNonExistentIdForLocation(const NamespacedIdentifier& customParent, int lineNumber) const
+{
+	auto currentNamespace = customParent.isValid() ? customParent : getCurrentNamespaceIdentifier();
+	auto id = Identifier("AnonymousScopeLine" + juce::String(lineNumber));
+	
+	auto newId = currentNamespace.getChildId(id);
+
+	if (auto existing = get(newId))
+	{
+		return createNonExistentIdForLocation(customParent, lineNumber + 1);
+	}
+
+	return newId;
+}
+
 void NamespaceHandler::setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e)
 {
 	if (auto ex = get(id))

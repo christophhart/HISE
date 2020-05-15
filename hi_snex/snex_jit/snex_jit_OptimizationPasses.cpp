@@ -536,7 +536,7 @@ bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope
 					{
 						auto base = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(s);
 
-						newFalseBranch = new Operations::StatementBlock(s->location, s->location.createAnonymousScopeId(base->getPath()));
+						newFalseBranch = new Operations::StatementBlock(s->location, compiler->namespaceHandler.createNonExistentIdForLocation(base->getPath(), s->location.getLine()));
 					}
 						
 					replaceWithNoop(s);
@@ -1105,15 +1105,10 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 
 			jassert(loopParent != nullptr);
 			
-			
-
-
-			Ptr lp = new Operations::StatementBlock(l->location, l->location.createAnonymousScopeId(loopParent->getPath()));
+			Ptr lp = new Operations::StatementBlock(l->location, c->namespaceHandler.createNonExistentIdForLocation(loopParent->getPath(), l->location.getLine()));
 			Ptr target = l->getTarget();
 
 			auto isSimdLoop = SpanType::isSimdType(st->getElementType());
-
-			
 
 			for (int i = 0; i < numLoops; i++)
 			{

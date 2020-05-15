@@ -149,7 +149,7 @@ void TemplateClassBuilder::Helpers::addChildObjectPtr(StatementPtr newCall, Synt
 snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createBlock(SyntaxTreeInlineData* d)
 {
 	auto parentScope = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(d->expression);
-	auto blPath = d->location.createAnonymousScopeId(parentScope->getPath());
+	auto blPath = d->expression->currentCompiler->namespaceHandler.createNonExistentIdForLocation(parentScope->getPath(), d->location.getLine());
 	return new Operations::StatementBlock(d->location, blPath);
 }
 

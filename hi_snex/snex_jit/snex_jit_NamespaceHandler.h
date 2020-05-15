@@ -287,6 +287,8 @@ public:
 
 	Result checkVisiblity(const NamespacedIdentifier& id) const;
 
+	NamespacedIdentifier createNonExistentIdForLocation(const NamespacedIdentifier& customParent, int lineNumber) const;
+
 	void setVisiblity(Visibility newVisibility)
 	{
 		currentVisibility = newVisibility;

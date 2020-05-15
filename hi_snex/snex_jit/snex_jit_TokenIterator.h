@@ -119,15 +119,7 @@ struct ParserHelpers
 			return getLineNumber(program, location);
 		}
 
-		NamespacedIdentifier createAnonymousScopeId(const NamespacedIdentifier& parent = {}) const
-		{
-			auto id = Identifier("AnonymousScopeLine" + juce::String(getLine()));
-
-			if (parent.isValid())
-				return parent.getChildId(id);
-				
-			return NamespacedIdentifier(id);
-		}
+		
 
 		static int getColNumber(juce::String::CharPointerType start,
 			juce::String::CharPointerType end)
