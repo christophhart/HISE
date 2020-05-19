@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: T
   args: T
   input: 4
-  output: 2564
+  output: -1136
   error: ""
   filename: "basic/simple_calc"
 END_TEST_DATA
@@ -14,7 +14,7 @@ T calc(T input)
 {
 	T x = input > (T)9 ? (T)5 : (T)2;
 	T y = input * input - (T)4;
-	T z = (x + y) / (T)4;
+	T z = (x + y) * (T)4;
 	
 	
 	T a = x - input + (T)6;

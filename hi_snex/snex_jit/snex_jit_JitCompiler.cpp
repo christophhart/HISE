@@ -38,17 +38,26 @@ using namespace asmjit;
 
  int Compiler::compileCount = 0;
 
-Compiler::Compiler(GlobalScope& memoryPool)
-{
-	handler = new NamespaceHandler();
-	compiler = new ClassCompiler(&memoryPool, *handler);
+ void Compiler::reset()
+ {
+	 if (compiler != nullptr)
+		 delete compiler;
 
-	memoryPool.registerFunctionsToNamespaceHandler(getNamespaceHandler());
+	 handler = new NamespaceHandler();
+	 compiler = new ClassCompiler(&memory, *handler);
+	 memory.registerFunctionsToNamespaceHandler(getNamespaceHandler());
+ }
+
+Compiler::Compiler(GlobalScope& memoryPool):
+	memory(memoryPool)
+{
+	reset();
 }
 
 Compiler::~Compiler()
 {
-	delete compiler;
+	if(compiler != nullptr)
+		delete compiler;
 }
 
 

@@ -399,10 +399,22 @@ public:
 			a.typeInfo = TypeInfo(t);
 	}
 
+	void initCompiler()
+	{
+		c.reset();
+		c.setDebugHandler(debugHandler);
+
+		if (!nodeId.isValid() && !isProcessDataTest)
+			Types::SnexObjectDatabase::registerObjects(c, 2);
+
+	}
+
 	Result test(bool dumpBeforeTest=false)
 	{
 		if (function.returnType == Types::ID::Dynamic)
 		{
+			initCompiler();
+
 			String originalCode = code;
 
 			setTypeForDynamicFunction(Types::ID::Integer, originalCode);
@@ -446,7 +458,7 @@ public:
 			}
 		}
 
-		c.setDebugHandler(debugHandler);
+		initCompiler();
 
 		if (nodeId.isValid())
 		{
@@ -481,20 +493,12 @@ public:
 			d.setEventBuffer(eventBuffer);
 			n.process(d);
 
-			
-
 			assembly = c.getAssemblyCode().fromFirstOccurrenceOf("; function void process", true, false);
 
 			return Helpers::compareBuffers(inputBuffer, outputBuffer);
 		}
 		else
 		{
-			if (!isProcessDataTest)
-				Types::SnexObjectDatabase::registerObjects(c, 2);
-
-
-			
-
 			obj = c.compileJitObject(code);
 
 			r = c.getCompileResult();
@@ -536,6 +540,8 @@ public:
 			case Types::ID::Block:   actualResult = *call<block*>(); break;
 			default: jassertfalse;
 			}
+
+			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
 
 			if (dumpBeforeTest)
 			{

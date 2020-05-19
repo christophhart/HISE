@@ -155,12 +155,17 @@ public:
 
 	static int compileCount;
 
+	void reset();
+
 private:
+
+	
 
 	NamespaceHandler::Ptr handler;
 	juce::String lastCode;
 	juce::String preprocessedCode;
-	ClassCompiler* compiler;
+	ClassCompiler* compiler = nullptr;
+	GlobalScope& memory;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Compiler);
 };

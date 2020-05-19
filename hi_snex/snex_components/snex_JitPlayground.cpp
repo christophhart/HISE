@@ -388,30 +388,14 @@ void SnexPlayground::paintOverChildren(Graphics& g)
 {
 	if (!asmAdditions.isEmpty())
 	{
-		CodeDocument::Position pos(assemblyDoc, 0);
-
-		int numCharacters = assemblyDoc.getNumCharacters();
-
-		Array<int> changedLines;
-
-		while (pos.getPosition() < assemblyDoc.getNumCharacters())
-		{
-			if (asmAdditions.contains(pos.getPosition()))
-			{
-				changedLines.addIfNotAlreadyThere(pos.getLineNumber());
-			}
-			
-			pos.moveBy(1);
-		}
-
+		int startLine = assembly.getFirstLineOnScreen();
+		int endLine = startLine + assembly.getNumLinesOnScreen();
 		
-
-		for (auto cl : changedLines)
+		for (int i = startLine; i < endLine; i++)
 		{
-			auto lineOnScreen = cl - assembly.getFirstLineOnScreen();
-
-			if (isPositiveAndBelow(lineOnScreen, assembly.getNumLinesOnScreen()))
+			if (asmAdditions.contains(i))
 			{
+				auto lineOnScreen = i - startLine;
 				juce::Rectangle<int> b(assembly.getX(), assembly.getY() + lineOnScreen * assembly.getLineHeight(), assembly.getWidth(), assembly.getLineHeight());
 
 				g.setColour(Colour(0x1188ff88));
@@ -1078,6 +1062,38 @@ SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, Str
 	auto oldLines = StringArray::fromLines(oldAsm);
 	auto newLines = StringArray::fromLines(newAsm);
 
+	if (oldLines.size() > newLines.size())
+		return additions;
+
+	int newDelta = 0;
+
+	for (int i = 0; i < oldLines.size(); i++)
+	{
+		if (!DiffHelpers::sameAsmLine(oldLines[i], newLines[i + newDelta]))
+		{
+			if (DiffHelpers::sameAsmLine(oldLines[i + 1], newLines[i + 1 + newDelta]))
+			{
+				additions.addRange(Range<int>(i, i + 1));
+			}
+			else
+			{
+				for (int j = i + 1; j < newLines.size(); j++)
+				{
+					if (DiffHelpers::sameAsmLine(oldLines[i], newLines[j + newDelta]))
+					{
+						auto newLineCount = (j - i);
+
+						additions.addRange(Range<int>(i, i + newLineCount));
+						newDelta += newLineCount;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+
+#if 0
 	int nIndex = 0;
 	int oIndex = 0;
 
@@ -1136,6 +1152,7 @@ SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, Str
 		oIndex++;
 		nIndex++;
 	}
+#endif
 
 	return additions;
 }

@@ -469,13 +469,8 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 		if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 		{
-			
-
 			auto gs = r->getScope()->getGlobalScope();
 			auto checkZeroDivision = gs->isRuntimeErrorCheckEnabled();
-			
-
-
 			auto okBranch = cc.newLabel();
 			auto errorBranch = cc.newLabel();
 
@@ -492,8 +487,6 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 					cc.je(errorBranch);
 				}
 			}
-
-			
 
 			TemporaryRegister dummy(*this, r->getScope(), TypeInfo(Types::ID::Integer));
 			cc.cdq(dummy.get(), INT_REG_W(l));
@@ -515,9 +508,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 				cc.bind(errorBranch);
 
 				auto flagReg = cc.newGpd();
-
 				auto errorFlag = x86::ptr(gs->getRuntimeErrorFlag()).cloneResized(4);
-
 				
 				cc.mov(flagReg, (int)RuntimeError::ErrorType::IntegerDivideByZero);
 				cc.mov(errorFlag, flagReg);
@@ -1145,8 +1136,15 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 		IF_(int) // SOURCE TYPE
 		{
 			
-			if (IS_MEM(expr)) cc.cvtsi2sd(FP_REG_W(target), expr->getAsMemoryLocation());
-			else			  cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
+			if (IS_REG(expr))    cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
+			else if (IS_CMEM(expr))   cc.cvtsi2sd(FP_REG_W(target), INT_MEM(expr));
+			else if (IS_MEM(expr))
+			{
+				auto m = cc.newDoubleConst(ConstPool::kScopeLocal, static_cast<double>(INT_IMM(expr)));
+				target->setCustomMemoryLocation(m, false);
+			}
+			else
+				cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
 		}
 
 		return;
@@ -1162,8 +1160,15 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 		}
 		IF_(int) // SOURCE TYPE
 		{
-			if (IS_MEM(expr)) cc.cvtsi2ss(FP_REG_W(target), INT_MEM(expr));
-			else			  cc.cvtsi2ss(FP_REG_W(target), INT_REG_R(expr));
+			if     (IS_REG(expr))    cc.cvtsi2ss(FP_REG_W(target), INT_REG_R(expr));
+		    else if(IS_CMEM(expr))   cc.cvtsi2ss(FP_REG_W(target), INT_MEM(expr));
+			else if (IS_MEM(expr))
+			{
+				auto m = cc.newFloatConst(ConstPool::kScopeLocal, static_cast<float>(INT_IMM(expr)));
+				target->setCustomMemoryLocation(m, false);
+			}
+			else                     
+				cc.cvtsi2ss(FP_REG_W(target), INT_REG_R(expr));
 		}
 
 		return;

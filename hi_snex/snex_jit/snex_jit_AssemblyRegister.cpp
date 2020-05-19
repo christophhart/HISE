@@ -183,6 +183,8 @@ asmjit::X86Reg AssemblyRegister::getRegisterForWriteOp()
 
 asmjit::X86Mem AssemblyRegister::getAsMemoryLocation()
 {
+	jassert(memory.isMem());
+
 	jassert(state == LoadedMemoryLocation);
 	//jassert(type != Types::ID::Integer);
 
