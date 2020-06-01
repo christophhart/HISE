@@ -722,7 +722,7 @@ int ScriptingApi::Content::ScriptComponent::getGlobalPositionY()
     
 	if (auto p = getParentScriptComponent())
 	{
-		return thisY + p->getGlobalPositionX();
+		return thisY + p->getGlobalPositionY();
 	}
 	else
 		return thisY;
