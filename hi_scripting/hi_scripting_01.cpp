@@ -56,7 +56,7 @@
 
 #include "scripting/api/ScriptingApiObjects.cpp"
 #include "scripting/api/ScriptingApi.cpp"
-
+#include "scripting/api/CubeApi.cpp"
 
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.cpp"
