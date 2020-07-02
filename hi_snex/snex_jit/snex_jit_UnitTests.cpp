@@ -404,7 +404,7 @@ public:
 		c.reset();
 		c.setDebugHandler(debugHandler);
 
-		if (!nodeId.isValid() && !isProcessDataTest)
+		if (!nodeId.isValid())
 			Types::SnexObjectDatabase::registerObjects(c, 2);
 
 	}
