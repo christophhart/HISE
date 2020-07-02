@@ -683,26 +683,17 @@ public:
 
 	float getAttribute(int index) const override 
 	{ 
-		if (auto n = getActiveNetwork())
-			return n->networkParameterHandler.getParameter(index);
-		else
-			return contentParameterHandler.getParameter(index);
+		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameter(index);
 	}
 	
 	void setInternalAttribute(int index, float newValue) override 
 	{ 
-		if (auto n = getActiveNetwork())
-			n->networkParameterHandler.setParameter(index, newValue);
-		else
-			contentParameterHandler.setParameter(index, newValue);
+		getCurrentNetworkParameterHandler(&contentParameterHandler)->setParameter(index, newValue);
 	}
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
-		if (auto n = getActiveNetwork())
-			return n->networkParameterHandler.getParameterId(parameterIndex);
-		else
-			return contentParameterHandler.getParameterId(parameterIndex);
+		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameterId(parameterIndex);
 	}
 
 	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
@@ -782,26 +773,17 @@ public:
 
 	float getAttribute(int index) const override
 	{
-		if (auto n = getActiveNetwork())
-			return n->networkParameterHandler.getParameter(index);
-		else
-			return contentParameterHandler.getParameter(index);
+		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameter(index);
 	}
 
 	void setInternalAttribute(int index, float newValue) override
 	{
-		if (auto n = getActiveNetwork())
-			n->networkParameterHandler.setParameter(index, newValue);
-		else
-			contentParameterHandler.setParameter(index, newValue);
+		getCurrentNetworkParameterHandler(&contentParameterHandler)->setParameter(index, newValue);
 	}
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
-		if (auto n = getActiveNetwork())
-			return n->networkParameterHandler.getParameterId(parameterIndex);
-		else
-			return contentParameterHandler.getParameterId(parameterIndex);
+		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameterId(parameterIndex);
 	}
 
 	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
@@ -981,10 +963,7 @@ public:
 
 		index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
 
-		if (auto n = getActiveNetwork())
-			return n->networkParameterHandler.getParameter(index);
-		else
-			return contentParameterHandler.getParameter(index);
+		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameter(index);
 	}
 
 	void setInternalAttribute(int index, float newValue) override
@@ -997,25 +976,19 @@ public:
 
 		index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
 
-		if (auto n = getActiveNetwork())
-			n->networkParameterHandler.setParameter(index, newValue);
-		else
-			contentParameterHandler.setParameter(index, newValue);
+		getCurrentNetworkParameterHandler(&contentParameterHandler)->setParameter(index, newValue);
 	}
 
-	Identifier getIdentifierForParameterIndex(int index) const override
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
-		if (index < ModulatorSynth::Parameters::numModulatorSynthParameters)
+		if (parameterIndex < ModulatorSynth::Parameters::numModulatorSynthParameters)
 		{
-			return ModulatorSynth::getIdentifierForParameterIndex(index);
+			return ModulatorSynth::getIdentifierForParameterIndex(parameterIndex);
 		}
 
-		index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
+		parameterIndex -= ModulatorSynth::Parameters::numModulatorSynthParameters;
 
-		if (auto n = getActiveNetwork())
-			return n->networkParameterHandler.getParameterId(index);
-		else
-			return contentParameterHandler.getParameterId(index);
+		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameterId(parameterIndex);
 	}
 
 	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
