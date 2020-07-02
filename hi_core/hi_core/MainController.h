@@ -1144,6 +1144,8 @@ public:
 		return &getCurrentFileHandler();
 	}
 
+	AudioPlayHead::CurrentPositionInfo& getPositionInfo() { return lastPosInfo; }
+
 	const FileHandlerBase& getCurrentFileHandler() const
 	{
 		return getSampleManager().getProjectHandler();
