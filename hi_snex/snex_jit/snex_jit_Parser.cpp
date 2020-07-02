@@ -34,55 +34,37 @@ int Compiler::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 }
 
 
-class ClassScope : public FunctionClass,
-				   public BaseScope
-{
-public:
-
-	
-
-	ClassScope(GlobalScope& parent) :
-		FunctionClass({}),
-		BaseScope({}, &parent)
-	{
-		jassert(scopeType == BaseScope::Class);
-
-		runtime = new asmjit::JitRuntime();
-
-		addFunctionClass(new MessageFunctions());
-		addFunctionClass(new MathFunctions());
-		addFunctionClass(new BlockFunctions());
-	};
-
-	ScopedPointer<asmjit::JitRuntime> runtime;
-
-private:
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ClassScope);
-};
 
 class ClassCompiler final: public BaseCompiler
 {
 public:
 
-	ClassCompiler(GlobalScope& memoryPool_) :
-		BaseCompiler(),
-		memoryPool(memoryPool_),
+	ClassCompiler(BaseScope* parentScope_, NamespaceHandler& handler, const NamespacedIdentifier& classInstanceId = {}) :
+		BaseCompiler(handler),
+		instanceId(classInstanceId),
+		parentScope(parentScope_),
 		lastResult(Result::ok())
 	{
-		const auto& optList = memoryPool.getOptimizationPassList();
-
-		if (!optList.isEmpty())
+		if (auto gs = parentScope->getGlobalScope())
 		{
-			OptimizationFactory f;
+			const auto& optList = gs->getOptimizationPassList();
 
-			for (const auto& id : optList)
-				addOptimization(f.createOptimization(id));
+			if (!optList.isEmpty())
+			{
+				OptimizationFactory f;
+
+				for (const auto& id : optList)
+					addOptimization(f.createOptimization(id));
+			}
 		}
 
-		newScope = new JitCompiledFunctionClass(memoryPool);
+		newScope = new JitCompiledFunctionClass(parentScope, classInstanceId);
 	};
 
+	~ClassCompiler()
+	{
+		syntaxTree = nullptr;
+	}
 
 	void setFunctionCompiler(asmjit::X86Compiler* cc)
 	{
@@ -91,35 +73,61 @@ public:
 
 	asmjit::Runtime* getRuntime()
 	{
+		if (parentRuntime != nullptr)
+			return parentRuntime;
+
 		return newScope->pimpl->runtime;
 	}
 
-	JitCompiledFunctionClass* compileAndGetScope(const String& code)
-	{
-		NewClassParser parser(this, code);
+	asmjit::Runtime* parentRuntime = nullptr;
 
-		if(newScope == nullptr)
-			newScope = new JitCompiledFunctionClass(memoryPool);
+	JitCompiledFunctionClass* compileAndGetScope(const ParserHelpers::CodeLocation& classStart, int length)
+	{
+		NewClassParser parser(this, classStart, length);
+
+		if (newScope == nullptr)
+		{
+			newScope = new JitCompiledFunctionClass(parentScope, instanceId);
+		}
+
+		newScope->pimpl->handler = &namespaceHandler;
 
 		try
 		{
+			parser.currentScope = newScope->pimpl;
+
 			setCurrentPass(BaseCompiler::Parsing);
+
+			NamespaceHandler::ScopedNamespaceSetter sns(namespaceHandler, Identifier());
+
 			syntaxTree = parser.parseStatementList();
-			executePass(PreSymbolOptimization, newScope->pimpl, syntaxTree);
-			executePass(ResolvingSymbols, newScope->pimpl, syntaxTree);
-			executePass(TypeCheck, newScope->pimpl, syntaxTree);
-			executePass(PostSymbolOptimization, newScope->pimpl, syntaxTree);
-			executePass(FunctionParsing, newScope->pimpl, syntaxTree);
+
+			auto sTree = dynamic_cast<SyntaxTree*>(syntaxTree.get());
+
+			executePass(ComplexTypeParsing, newScope->pimpl, sTree);
+			executePass(DataSizeCalculation, newScope->pimpl, sTree);
+
+			newScope->pimpl->getRootData()->finalise();
+
+			auto d = (int*)newScope->pimpl->getRootData()->data.get();
+
+			executePass(DataAllocation, newScope->pimpl, sTree);
+			executePass(DataInitialisation, newScope->pimpl, sTree);
+			executePass(PreSymbolOptimization, newScope->pimpl, sTree);
+			executePass(ResolvingSymbols, newScope->pimpl, sTree);
+			executePass(TypeCheck, newScope->pimpl, sTree);
+			executePass(SyntaxSugarReplacements, newScope->pimpl, sTree);
+			executePass(PostSymbolOptimization, newScope->pimpl, sTree);
+			executePass(FunctionParsing, newScope->pimpl, sTree);
 
 			// Optimize now
 
-			executePass(FunctionCompilation, newScope->pimpl, syntaxTree);
+			executePass(FunctionCompilation, newScope->pimpl, sTree);
 
 			lastResult = Result::ok();
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
-			
 			syntaxTree = nullptr;
 
 			logMessage(BaseCompiler::Error, e.toString());
@@ -129,121 +137,260 @@ public:
 		return newScope.release();
 	}
 
+	JitCompiledFunctionClass* compileAndGetScope(const juce::String& code)
+	{
+		ParserHelpers::CodeLocation loc(code.getCharPointer(), code.getCharPointer());
+
+		return compileAndGetScope(loc, code.length());
+	}
+
 	Result getLastResult() { return lastResult; }
 
 	ScopedPointer<JitCompiledFunctionClass> newScope;
 
 	asmjit::X86Compiler* asmCompiler;
 
-	String assembly;
+	juce::String assembly;
 
 	Result lastResult;
 
-	GlobalScope& memoryPool;
+	BaseScope* parentScope;
+	NamespacedIdentifier instanceId;
 
-	ScopedPointer<SyntaxTree> syntaxTree;
+	Operations::Statement::Ptr syntaxTree;
 };
 
 
-SyntaxTree* BlockParser::parseStatementList()
+BlockParser::StatementPtr BlockParser::parseStatementList()
 {
 	matchIf(JitTokens::openBrace);
 
-	compiler->logMessage(BaseCompiler::ProcessMessage, "Parsing statements");
+	auto list = new SyntaxTree(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
 
-	ScopedPointer<SyntaxTree> list = new SyntaxTree(location);
+	StatementPtr p = list;
+
+	list->setParentScopeStatement(getCurrentScopeStatement());
+
+	ScopedScopeStatementSetter svs(this, list);
 
 	while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 	{
+		while (matchIf(JitTokens::using_))
+		{
+			parseUsingAlias();
+		}
+
 		auto s = parseStatement();
 		list->addStatement(s);
+
+		while (matchIf(JitTokens::using_))
+		{
+			parseUsingAlias();
+		}
 	}
 
 	matchIf(JitTokens::closeBrace);
 
 	finaliseSyntaxTree(list);
 
-	return list.release();
+	return p;
 }
+
+
 
 BlockParser::StatementPtr NewClassParser::parseStatement()
 {
-	bool isConst = matchIf(JitTokens::const_);
+	if (matchIf(JitTokens::namespace_))
+	{
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, parseIdentifier());
 
-	bool isSmoothedType = isSmoothedVariableType();
-	currentHnodeType = matchType();
+		match(JitTokens::openBrace);
+
+		auto sb = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
+
+		while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
+		{
+			sb->addStatement(parseStatement());
+		}
+
+		match(JitTokens::closeBrace);
+
+		return sb;
+	}
 	
-	matchIfSymbol();
+	if (matchIf(JitTokens::using_))
+	{
+		parseUsingAlias();
+		return new Operations::Noop(location);
+	}
 
+	if (matchIf(JitTokens::struct_))
+	{
+		return parseSubclass();
+	}
+
+	if (matchIf(JitTokens::static_))
+	{
+		if (!matchIfType())
+			location.throwError("Expected type");
+
+		if (!currentTypeInfo.isConst())
+			location.throwError("Can't define non-const static variables");
+
+		auto s = parseNewSymbol(NamespaceHandler::Constant);
+
+		match(JitTokens::assign_);
+
+		auto v = parseConstExpression(false);
+
+		compiler->namespaceHandler.addConstant(s.id, v);
+
+		match(JitTokens::semicolon);
+		return new Operations::Noop(location);
+	}
+
+	if (matchIfType())
+	{
+		if (currentTypeInfo.isComplexType())
+			return parseComplexTypeDefinition();
+		else
+			return parseVariableDefinition();
+	}
+
+	location.throwError("Can't parse statement");
+	return nullptr;
+}
+
+
+BlockParser::StatementPtr NewClassParser::parseDefinition()
+{
 	StatementPtr s;
 
 	if (matchIf(JitTokens::openParen))
 	{
-		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + currentSymbol.toString());
-		s = parseFunction();
+		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + getCurrentSymbol().toString());
+		s = parseFunction(getCurrentSymbol());
 		matchIf(JitTokens::semicolon);
 	}
 	else
 	{
-		if (isSmoothedType)
-		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding smoothed variable " + currentSymbol.toString());
-			s = parseSmoothedVariableDefinition();
-			match(JitTokens::semicolon);
-		}
-		else
-		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + currentSymbol.toString());
-			s = parseVariableDefinition(isConst);
-			match(JitTokens::semicolon);
-		}
+		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + getCurrentSymbol().toString());
+		s = parseVariableDefinition();
+		match(JitTokens::semicolon);
 	}
 
 	return s;
 }
 
-snex::jit::BlockParser::StatementPtr NewClassParser::parseSmoothedVariableDefinition()
+snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 {
-	StatementPtr s;
+	if (auto cc = dynamic_cast<ClassCompiler*>(compiler.get()))
+	{
+		auto& handler = cc->parentScope->getGlobalScope()->getBufferHandler();
+		auto id = parseIdentifier();
 
-	match(JitTokens::assign_);
-	auto value = parseVariableStorageLiteral();
+		if (id == Identifier("Buffer"))
+		{
+			match(JitTokens::dot);
 
-	return new Operations::SmoothedVariableDefinition(location, currentSymbol, currentHnodeType, value);
+			auto function = parseIdentifier();
+			match(JitTokens::openParen);
+
+			auto value = parseVariableStorageLiteral().toInt();
+			match(JitTokens::closeParen);
+
+			try
+			{
+				throw juce::String("Invalid buffer function");
+#if 0
+				if (function.toString() == "create")
+				{
+					return new Operations::Immediate(location, handler.create(getCurrentSymbol(false).getName(), value));
+				}
+				else if (function.toString() == "getAudioFile")
+				{
+					return new Operations::Immediate(location, handler.getAudioFile(value, getCurrentSymbol(false).id));
+				}
+				else if (function.toString() == "getTable")
+				{
+					return new Operations::Immediate(location, handler.getTable(value, getCurrentSymbol(false).id));
+				}
+				else
+				{
+					
+				}
+#endif
+			}
+			catch (juce::String& s)
+			{
+				location.throwError(s);
+			}
+		}
+		else
+			location.throwError("Expected Buffer function");
+	}
 }
 
-BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst*/)
+BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 {
-	auto type = currentHnodeType;
-	auto target = new Operations::VariableReference(location, { {}, currentSymbol.id, type });
-	target->isLocalToScope = true;
+	auto s = parseNewSymbol(NamespaceHandler::Variable);
 
-	match(JitTokens::assign_);
-	ExprPtr expr = new Operations::Immediate(location, parseVariableStorageLiteral());
-	return new Operations::Assignment(location, target, JitTokens::assign_, expr);
+	if (matchIf(JitTokens::openParen))
+	{
+		if (!compiler->namespaceHandler.changeSymbolType(s.id, NamespaceHandler::Function))
+			location.throwError("Can't find function");
+
+		auto st = parseFunction(s);
+
+		matchIf(JitTokens::semicolon);
+
+		return st;
+	}
+	else
+	{
+		auto target = new Operations::VariableReference(location, s);
+
+		match(JitTokens::assign_);
+
+		ExprPtr expr;
+
+		expr = new Operations::Immediate(location, parseVariableStorageLiteral());
+		match(JitTokens::semicolon);
+
+		return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
+	}
 }
 
-BlockParser::StatementPtr NewClassParser::parseFunction()
+BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 {
-	auto func = new Operations::Function(location);
+	auto func = new Operations::Function(location, s);
 
 	StatementPtr newStatement = func;
 
 	auto& fData = func->data;
 
-	fData.id = currentSymbol.id;
-	fData.returnType = currentHnodeType;
+	fData.id = func->id.id;
+	fData.returnType = currentTypeInfo;
 	fData.object = nullptr;
 
-	while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
+	jassert(compiler->namespaceHandler.getCurrentNamespaceIdentifier() == s.id.getParent());
+
 	{
-		auto t = matchType();
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, s.id);
 
-		fData.args.add(t);
-		func->parameters.add(parseIdentifier());
+		while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
+		{
+			matchType();
 
-		matchIf(JitTokens::comma);
+			auto s = parseNewSymbol(NamespaceHandler::Variable);
+			fData.args.add(s);
+			func->parameters.add(s.id.id);
+
+			matchIf(JitTokens::comma);
+		}
 	}
+
+	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
 
 	match(JitTokens::closeParen);
 
@@ -265,33 +412,176 @@ BlockParser::StatementPtr NewClassParser::parseFunction()
 	return newStatement;
 }
 
-snex::VariableStorage BlockParser::parseVariableStorageLiteral()
+BlockParser::StatementPtr NewClassParser::parseSubclass()
 {
-	bool isMinus = matchIf(JitTokens::minus);
+	SymbolParser sp(*this, compiler->namespaceHandler);
 
-	auto type = Types::Helpers::getTypeFromStringValue(currentString);
+	sp.parseNamespacedIdentifier<NamespaceResolver::MustBeNew>();
 
-	String stringValue = currentString;
-	match(JitTokens::literal);
+	auto classId = sp.currentNamespacedIdentifier;
 
-	if (type == Types::ID::Integer)
-		return VariableStorage(stringValue.getIntValue() * (!isMinus ? 1 : -1));
-	else if (type == Types::ID::Float)
-		return VariableStorage(stringValue.getFloatValue() * (!isMinus ? 1.0f : -1.0f));
-	else if (type == Types::ID::Double)
-		return VariableStorage(stringValue.getDoubleValue() * (!isMinus ? 1.0 : -1.0));
-	else if (type == Types::ID::Event)
-    {
-        HiseEvent e;
-		return VariableStorage(e);
-    }
-	else if (type == Types::ID::Block)
-		return block();
-	else
-		return {};
+	auto p = new StructType(classId);
+
+	compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct);
+	compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
+
+	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
+
+	auto list = parseStatementList();
+
+	match(JitTokens::semicolon);
+
+	return new Operations::ClassStatement(location, p, list);
+}
+
+juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters()
+{
+	Array<TemplateParameter> parameters;
+
+	match(JitTokens::lessThan);
+
+	while (currentType != JitTokens::greaterThan)
+	{
+		if (currentType == JitTokens::literal)
+		{
+			auto v = parseVariableStorageLiteral();
+
+			if (v.getType() == Types::ID::Integer)
+			{
+				TemplateParameter tp;
+				tp.constant = v.toInt();
+				parameters.add(tp);
+			}
+			else
+				location.throwError("Can't use non-integers as template argument");
+		}
+		else if (matchIfType())
+		{
+			TemplateParameter tp;
+			tp.type = currentTypeInfo;
+			parameters.add(tp);
+		}
+		else
+			location.throwError("Invalid template parameter: " + juce::String(currentType));
+
+		matchIf(JitTokens::comma);
+	}
+
+	match(JitTokens::greaterThan);
+
+	return parameters;
+}
+
+snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
+{
+	jassert(getCurrentComplexType() != nullptr);
+
+	Array<NamespacedIdentifier> ids;
+
+	auto typePtr = getCurrentComplexType();
+	auto rootId = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+
+	ids.add(rootId.getChildId(parseIdentifier()));
+	
+	while (matchIf(JitTokens::comma))
+		ids.add(rootId.getChildId(parseIdentifier()));
+
+	auto n = new Operations::ComplexTypeDefinition(location, ids, currentTypeInfo);
+
+	for (auto id : ids)
+		compiler->namespaceHandler.addSymbol(id, currentTypeInfo, NamespaceHandler::Variable);
+
+	if (matchIf(JitTokens::assign_))
+	{
+		if (currentType == JitTokens::openBrace)
+			n->initValues = parseInitialiserList();
+		else
+			n->addStatement(parseExpression());
+	}
+
+	match(JitTokens::semicolon);
+
+	return n;
+}
+
+InitialiserList::Ptr BlockParser::parseInitialiserList()
+{
+	match(JitTokens::openBrace);
+
+	InitialiserList::Ptr root = new InitialiserList();
+
+	bool next = true;
+
+	while (next)
+	{
+		if (currentType == JitTokens::openBrace)
+			root->addChildList(parseInitialiserList());
+		else
+			root->addImmediateValue(parseConstExpression(false));
+
+		next = matchIf(JitTokens::comma);
+	}
+
+	match(JitTokens::closeBrace);
+
+	return root;
 }
 
 
+
+
+void BlockParser::parseUsingAlias()
+{
+	if (matchIf(JitTokens::namespace_))
+	{
+		auto id = compiler->namespaceHandler.getRootId();
+
+		id = id.getChildId(parseIdentifier());
+
+		while (matchIf(JitTokens::colon))
+		{
+			match(JitTokens::colon);
+			id = id.getChildId(parseIdentifier());
+		}
+
+
+		auto r = compiler->namespaceHandler.addUsedNamespace(id);
+
+		if (!r.wasOk())
+			location.throwError(r.getErrorMessage());
+
+		match(JitTokens::semicolon);
+		return;
+	}
+	else
+	{
+		auto s = parseNewSymbol(NamespaceHandler::UsingAlias);
+
+		match(JitTokens::assign_);
+
+		if (!matchIfType())
+			location.throwError("Expected type");
+
+		if (currentTypeInfo.isComplexType())
+			currentTypeInfo.getComplexType()->setAlias(s.id);
+
+		s.typeInfo = currentTypeInfo;
+		match(JitTokens::semicolon);
+		compiler->namespaceHandler.setTypeInfo(s.id, NamespaceHandler::UsingAlias, s.typeInfo);
+	}
+}
+
+snex::VariableStorage TypeParser::parseConstExpression(bool canBeTemplateParameter)
+{
+	if (currentType == JitTokens::identifier)
+	{
+		SymbolParser sp(*this, namespaceHandler);
+		auto id = sp.parseExistingSymbol(true);
+		return namespaceHandler.getConstantValue(id.id);
+	}
+	
+	return parseVariableStorageLiteral();
+}
 
 }
 }

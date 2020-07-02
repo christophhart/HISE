@@ -116,8 +116,7 @@ public:
 	}
 
 	virtual Identifier getObjectName() const = 0;
-	Identifier getName() const override { return getObjectName(); }
-	String getInstanceName() const { return name; }
+	Identifier getInstanceName() const override { return name.isValid() ? name : getObjectName(); }
 
 	/** \internal Overwrite this method and check if the object got deleted. Best thing is to use a WeakReference and check if it's nullptr. */
 	virtual bool objectDeleted() const { return false; }
@@ -143,11 +142,11 @@ public:
 		return true;
 	}
 
-	void setName(const String &name_) noexcept{ name = name_; };
+	void setName(const Identifier &name_) noexcept{ name = name_; };
 
 private:
 
-	String name;
+	Identifier name;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ConstScriptingObject);
 };

@@ -46,86 +46,6 @@ using namespace asmjit;
 #define HNODE_JIT_ADD_C_FUNCTION_3(rt, ptr, argType1, argType2, argType3, name) addFunction(new FunctionData(FunctionData::template create<rt, argType1, argType2, argType3>(name, static_cast<rt(*)(argType1, argType2, argType3)>(ptr))));
 
 
-
-
-
-template <typename T> class SmoothedFloat : public JitCallableObject
-{
-public:
-
-	void reset(T initValue)
-	{
-		v.setValueWithoutSmoothing(initValue);
-	}
-
-	void prepare(double samplerate, double milliSeconds)
-	{
-		v.reset(samplerate, milliSeconds * 0.001);
-	}
-
-	void set(T newTargetValue)
-	{
-		v.setTargetValue(newTargetValue);
-	}
-
-	T next()
-	{
-		return v.getNextValue();
-	}
-
-	juce::LinearSmoothedValue<T> v;
-
-	SmoothedFloat(const Identifier& id, T initialValue) :
-		JitCallableObject(id)
-	{
-		registerAllObjectFunctions(nullptr);
-		reset(initialValue);
-	};
-
-	~SmoothedFloat()
-	{
-		functions.clear();
-	}
-
-	struct Wrapper
-	{
-		JIT_MEMBER_WRAPPER_1(void, SmoothedFloat, reset, T);
-		JIT_MEMBER_WRAPPER_2(void, SmoothedFloat, prepare, double, double);
-		JIT_MEMBER_WRAPPER_1(void, SmoothedFloat, set, T);
-		JIT_MEMBER_WRAPPER_0(T, SmoothedFloat, next);
-	};
-
-	void registerAllObjectFunctions(GlobalScope*) override
-	{
-		Types::ID valueType = Types::Helpers::getTypeFromTypeId<T>();
-
-		{
-			auto f = createMemberFunction(Types::ID::Void, "reset", { valueType });
-			f->setFunction(Wrapper::reset);
-			addFunction(f);
-		}
-
-		{
-			auto f = createMemberFunction(Types::ID::Void, "prepare", { Types::ID::Double, Types::ID::Double });
-			f->setFunction(Wrapper::prepare);
-			addFunction(f);
-		}
-
-		{
-			auto f = createMemberFunction(Types::ID::Void, "set", { valueType });
-			f->setFunction(Wrapper::set);
-			addFunction(f);
-		}
-
-		{
-			auto f = createMemberFunction(valueType, "next", {});
-			f->setFunction(Wrapper::next);
-			addFunction(f);
-		}
-	}
-};
-
-
 class ConsoleFunctions : public JitCallableObject
 {
 	struct WrapperInt
@@ -148,22 +68,41 @@ class ConsoleFunctions : public JitCallableObject
 		JIT_MEMBER_WRAPPER_1(HiseEvent, ConsoleFunctions, print, HiseEvent);
 	};
 
+	struct WrapperStop
+	{
+		JIT_MEMBER_WRAPPER_1(void, ConsoleFunctions, stop, bool);
+	};
+
+	struct WrapperDump
+	{
+		JIT_MEMBER_WRAPPER_0(void, ConsoleFunctions, dump);
+	};
 	
 	int print(int value)
 	{
 		DBG(value);
 		
-		if (gs != nullptr)
-			gs->logMessage(String(value) + "\n");
-
+		MessageManager::callAsync([this, value]()
+		{
+			if (gs != nullptr)
+			{
+				gs->logMessage(juce::String(value) + "\n");
+			}
+		});
+			
 		return value;
 	}
 	double print(double value)
 	{
 		DBG(value);
 		
-		if (gs != nullptr)
-			gs->logMessage(String(value) + "\n");
+		MessageManager::callAsync([this, value]()
+		{
+			if (gs != nullptr)
+			{
+				gs->logMessage(juce::String(value) + "\n");
+			}
+		});
 
 		return value;
 	}
@@ -171,26 +110,72 @@ class ConsoleFunctions : public JitCallableObject
 	{
 		DBG(value);
 		
-		if (gs != nullptr)
-			gs->logMessage(String(value) + "\n");
+		MessageManager::callAsync([this, value]()
+		{
+			if (gs != nullptr)
+			{
+				gs->logMessage(juce::String(value) + "\n");
+			}
+		});
 
 		return value;
 	}
+
+	void dump()
+	{
+		if (gs != nullptr)
+		{
+			auto s = gs->getCurrentClassScope()->getRootData()->dumpTable();
+
+			MessageManager::callAsync([this, s]()
+			{
+				if (gs != nullptr)
+				{
+					gs->logMessage(s + "\n");
+				}
+			});
+		}
+	}
+
+	void stop(bool condition)
+	{
+		if (condition && gs != nullptr)
+		{
+			auto& handler = gs->getBreakpointHandler();
+
+			if (handler.isActive())
+			{
+				handler.breakExecution();
+
+				while (!handler.shouldResume())
+				{
+					if (handler.canWait())
+						Thread::getCurrentThread()->wait(100);
+				}
+			}
+		}
+	}
+
 	HiseEvent print(HiseEvent e)
 	{
-		String s;
+		MessageManager::callAsync([this, e]()
+		{
+			juce::String s;
 
-		s << e.getTypeAsString();
-		s << " channel: " << e.getChannel();
-		s << " value: " << e.getNoteNumber();
-		s << " value2: " << e.getVelocity();
-		s << " timestamp: " << (int)e.getTimeStamp();
-		s << "\n";
+			s << e.getTypeAsString();
+			s << " channel: " << e.getChannel();
+			s << " value: " << e.getNoteNumber();
+			s << " value2: " << e.getVelocity();
+			s << " timestamp: " << (int)e.getTimeStamp();
+			s << "\n";
 
-		DBG(s);
+			DBG(s);
 
-		if(gs != nullptr)
-			gs->logMessage(s);
+			if (gs != nullptr)
+			{
+				gs->logMessage(s + "\n");
+			}
+		});
 
 		return e;
 	}
@@ -200,71 +185,19 @@ class ConsoleFunctions : public JitCallableObject
 public:
 
 	ConsoleFunctions(GlobalScope* scope_) :
-		JitCallableObject("Console"),
+		JitCallableObject(NamespacedIdentifier("Console")),
 		gs(scope_)
-	{};
+	{
+		registerAllObjectFunctions(gs);
+	};
 
+	~ConsoleFunctions()
+	{
+		int x = 5;
+	}
+
+	WeakReference<BaseScope> classScope;
 	WeakReference<GlobalScope> gs;
-};
-
-class BlockFunctions : public FunctionClass
-{
-public:
-
-	struct Wrapper
-	{
-		static float getSample(block b, int index)
-		{
-			if (isPositiveAndBelow(index, b.size()))
-				return b[index];
-
-			return 0.0f;
-		}
-
-		static void setSample(block b, int index, float newValue)
-		{
-			if (isPositiveAndBelow(index, b.size()))
-				b[index] = newValue;
-		}
-
-		static AddressType getWritePointer(block b)
-		{
-			return reinterpret_cast<AddressType>(b.getData());
-		}
-
-		static int size(block b)
-		{
-			return b.size();
-		}
-
-	};
-
-public:
-
-	BlockFunctions();
-};
-
-class MessageFunctions : public FunctionClass
-{
-public:
-
-	struct Wrapper
-	{
-#define WRAP_MESSAGE_GET_FUNCTION(returnType, x) static returnType x(HiseEvent e) { return static_cast<returnType>(e.x()); };
-
-		WRAP_MESSAGE_GET_FUNCTION(int, getNoteNumber);
-		WRAP_MESSAGE_GET_FUNCTION(int, getVelocity);
-		WRAP_MESSAGE_GET_FUNCTION(int, getChannel);
-		WRAP_MESSAGE_GET_FUNCTION(int, isNoteOn);
-		WRAP_MESSAGE_GET_FUNCTION(int, isNoteOnOrOff);
-		WRAP_MESSAGE_GET_FUNCTION(double, getFrequency);
-
-#undef WRAP_MESSAGE_FUNCTION
-	};
-
-public:
-
-	MessageFunctions();;
 };
 
 class MathFunctions : public FunctionClass

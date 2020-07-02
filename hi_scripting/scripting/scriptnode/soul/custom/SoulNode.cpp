@@ -71,11 +71,41 @@ void SoulNode::logMessage(const String& s)
 
 }
 
+void SoulNode::prepare(PrepareSpecs specs)
+{
+	patchPlayer.prepare(specs);
+
+	lastConfig.maxFramesPerBlock = specs.blockSize;
+	lastConfig.sampleRate = specs.sampleRate;
+	channelAmount = specs.numChannels;
+
+	auto p = patchPlayer.getCurrentOrFirst();
+
+	if (state == State::WaitingForPrepare || (p != nullptr && p->needsRebuilding(lastConfig)))
+	{
+		auto tmp = WeakReference<SoulNode>(this);
+
+		getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(getScriptProcessor()), [tmp](Processor* )
+		{
+			if (tmp != nullptr)
+				tmp.get()->rebuild();
+
+			return SafeFunctionCall::OK;
+		}, MainController::KillStateHandler::SampleLoadingThread);
+	}
+}
+
 void SoulNode::rebuild()
 {
+	if (lastConfig.sampleRate == 0.0 || lastConfig.maxFramesPerBlock == 0 || channelAmount == 0)
+	{
+		state = State::WaitingForPrepare;
+		return;
+	}
+
 	try
 	{
-		ok = false;
+		state = State::Compiling;
 
 		auto desktop = File::getSpecialLocation(File::userDesktopDirectory);
 		auto expectedLocation = desktop.getChildFile(soul::patch::SOULPatchLibrary::getLibraryFileName()).getFullPathName();
@@ -95,21 +125,36 @@ void SoulNode::rebuild()
 		if (!vptr->isValid())
 			throw String("Can't find soul patch " + currentFileName);
 			
-		patch = library->createInstance(currentFile);
+		auto newPatch = library->createInstance(currentFile);
 
-		auto desc = patch->getDescription();
+		auto desc = newPatch->getDescription();
 
-		if (patch == nullptr)
+		if (newPatch == nullptr)
 			throw String("Can't create SOUL patch from " + currentFileName);
 
-		SimpleReadWriteLock::ScopedWriteLock sl(compileLock);
+		auto createNew = [this, newPatch](PatchPtr& p)
+		{
+			PerformanceCounter pc("s");
 
-		patchPlayer = patch->compileNewPlayer(lastConfig, compilerCache.get(), nullptr, nullptr, debugHandler.get());
+			pc.start();
+			auto pl = newPatch->compileNewPlayer(lastConfig, compilerCache.get(), nullptr, nullptr, debugHandler.get());
+			pc.stop();
 
-		if (patchPlayer == nullptr)
+			SimpleReadWriteLock::ScopedWriteLock sl(compileLock);
+			std::swap(p, pl);
+		};
+
+		if (isPolyphonic())
+			patchPlayer.forEachVoice(createNew);
+		else
+			createNew(patchPlayer.getFirst());
+
+		auto newPatchPlayer = patchPlayer.getFirst();
+
+		if (newPatchPlayer == nullptr)
 			throw String("Can't create SOUL patch player from " + currentFileName);
 
-		auto compileMessages = patchPlayer->getCompileMessages();
+		auto compileMessages = newPatchPlayer->getCompileMessages();
 
 		for (auto& m : compileMessages)
 		{
@@ -120,14 +165,13 @@ void SoulNode::rebuild()
 		int numInputChannelsInNewPatch = 0;
 		int numOutputChannelsInNewPatch = 0;
 
-		for (auto b : patchPlayer->getInputBuses())
+		for (auto b : newPatchPlayer->getInputBuses())
 			numInputChannelsInNewPatch += b.numChannels;
 
-		for (auto b : patchPlayer->getOutputBuses())
+		for (auto b : newPatchPlayer->getOutputBuses())
 			numOutputChannelsInNewPatch += b.numChannels;
 
 		if(channelAmount != numOutputChannelsInNewPatch)
-			
 		{
 			String s;
 
@@ -136,61 +180,103 @@ void SoulNode::rebuild()
 			throw s;
 		}
 
-		if (!patchPlayer->isPlayable())
+		if (!newPatchPlayer->isPlayable())
 			throw String("Can't play soul patch " + currentFileName);
 
-		DynamicObject::Ptr oldValues = new DynamicObject();
+		StringArray oldParameters;
+		StringArray newParameters;
+
+		auto patchParameters = newPatchPlayer->getParameters();
 
 		for (int i = 0; i < getNumParameters(); i++)
-			oldValues->setProperty(Identifier(getParameter(i)->getId()), getParameter(i)->getValue());
+			oldParameters.add(getParameter(0)->getId());
 
-		auto pTree = getParameterTree();
-		pTree.getParent().removeChild(pTree, getUndoManager());
-		while (getNumParameters() > 0)
-			removeParameter(0);
-
-		for (auto p : patchPlayer->getParameters())
+		for (auto p : patchParameters)
 		{
-			ValueTree nt(PropertyIds::Parameter);
+			if (getFlagState(*p, "hidden", false))
+				jassertfalse;
 
-			NormalisableRange<double> d;
-			d.start = p->minValue;
-			d.end = p->maxValue;
-			d.interval = p->step;
-			
-			auto pName = p->name.toString<String>();
+			newParameters.add(p->name);
+		}
+		
+		if (oldParameters != newParameters)
+		{
+			auto parameterWasAdded = oldParameters.size() < newParameters.size();
+			auto parameterWasRemoved = oldParameters.size() > newParameters.size();
 
-			nt.setProperty(PropertyIds::ID, pName, nullptr);
-
-			RangeHelpers::storeDoubleRange(nt, false, d, nullptr);
-
-			auto hasValue = oldValues->hasProperty(Identifier(pName));
-
-			nt.setProperty(PropertyIds::Value, hasValue ? oldValues->getProperty(pName) : var(p->initialValue), nullptr);
-
-			getParameterTree().addChild(nt, -1, getUndoManager());
-
-			auto np = new Parameter(this, nt);
-
-			auto f = [p](double v)
+			if (parameterWasAdded)
 			{
-				p->setValue(v);
-			};
+				for (auto p : patchParameters)
+				{
+					auto pName = p->name.toString<String>();
 
-			np->setCallback(f);
+					if (oldParameters.contains(pName))
+						continue;
 
-			addParameter(np);
+					ValueTree nt(PropertyIds::Parameter);
+					nt.setProperty(PropertyIds::ID, pName, nullptr);
+
+					getParameterTree().addChild(nt, -1, getUndoManager());
+					auto np = new Parameter(this, nt);
+					addParameter(np);
+				}
+			}
+			else if (parameterWasRemoved)
+			{
+				for (auto op : oldParameters)
+				{
+					if (newParameters.contains(op))
+						continue;
+
+					if (auto oldParameter = getParameter(op))
+					{
+						auto index = oldParameter->data.getParent().indexOf(oldParameter->data);
+						removeParameter(index);
+					}
+				}
+			}
+		}
+		
+		for (auto p : patchParameters)
+		{
+			if (auto nodeParameter = getParameter(p->name.toString<String>()))
+			{
+				NormalisableRange<double> d;
+				d.start = p->minValue;
+				d.end = p->maxValue;
+				d.interval = p->step;
+				RangeHelpers::storeDoubleRange(nodeParameter->data, false, d, getUndoManager());
+
+				nodeParameter->setCallback([p](double v)
+				{
+					p->setValue(v);
+				});
+
+				p->setValue(nodeParameter->getValue());
+			}
+		}
+		
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(compileLock);
+
+			duplicateLeftInput = numInputChannelsInNewPatch == 1 && numOutputChannelsInNewPatch == 2;
+			isInstrument = numInputChannelsInNewPatch == 0 && numOutputChannelsInNewPatch != 0;
+			state = State::CompiledOk;
+
+			std::swap(newPatch, patch);
 		}
 
-		ok = true;
+		reset();
 	}
 	catch (String& s)
 	{
-		ok = false;
+		state = State::CompileError;
 		logError(s);
 	}
 	catch (...)
 	{
+		state = State::CompileError;
+
 		jassertfalse;
 	}
 }

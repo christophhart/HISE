@@ -36,8 +36,6 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-    
-    
     void BaseCompiler::executeOptimization(ReferenceCountedObject* statement, BaseScope* scope)
     {
         if(currentOptimization == nullptr)
@@ -45,49 +43,83 @@ using namespace asmjit;
         
         Operations::Statement::Ptr ptr(dynamic_cast<Operations::Statement*>(statement));
         
-        dynamic_cast<OptimizationPass*>(currentOptimization)->processStatementInternal(this, scope, ptr);
+		if (dynamic_cast<OptimizationPass*>(currentOptimization)->processStatementInternal(this, scope, ptr))
+		{
+			throw BaseCompiler::OptimisationSucess();
+		}
     }
-    
-    void BaseCompiler::executePass(Pass p, BaseScope* scope, SyntaxTree* statements)
+
+	void BaseCompiler::optimize(ReferenceCountedObject* statement, BaseScope* scope, bool useExistingPasses)
+	{
+		OwnedArray<OptimizationPassBase> constExprPasses;
+
+		OwnedArray<OptimizationPassBase>* toUse = nullptr;
+
+		if (useExistingPasses)
+		{
+			toUse = &passes;
+		}
+		else
+		{
+			OptimizationFactory f;
+
+			Array<Identifier> optList = { OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding };
+
+			for (const auto& id : optList)
+				constExprPasses.add(f.createOptimization(id));
+
+			toUse = &constExprPasses;
+		}
+
+		Operations::Statement::Ptr ptr(dynamic_cast<Operations::Statement*>(statement));
+
+		bool noMoreOptimisationsPossible = false;
+
+		while (!noMoreOptimisationsPossible)
+		{
+			try
+			{
+				for (auto o : *toUse)
+				{
+					currentOptimization = o;
+					ptr->process(this, scope);
+				}
+
+				noMoreOptimisationsPossible = true;
+			}
+			catch (OptimisationSucess& s)
+			{
+				if(useExistingPasses)
+					logMessage(MessageType::VerboseProcessMessage, "Repeat optimizations");
+			}
+		}
+	}
+
+
+	void BaseCompiler::executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement)
     {
+		auto st = dynamic_cast<Operations::Statement*>(statement);
+
         if (isOptimizationPass(p) && passes.isEmpty())
             return;
         
         setCurrentPass(p);
         
-        for (auto s : *statements)
-        {
-            try
-            {
-                for (auto o : passes)
-                    o->reset();
-                
-                if(isOptimizationPass(p))
-                {
-                    Operations::Statement::Ptr ptr(s);
-                    
-                    for(auto o: passes)
-                    {
-                        
-                        currentOptimization = o;
-                        ptr->process(this, scope);
-                    }
-                    
-                    ptr = nullptr;
-                }
-                else
-                    s->process(this, scope);
-            }
-            catch (DeadCodeException& d)
-            {
-                auto lineNumber = d.location.getLineNumber(d.location.program, d.location.location);
-                
-                String m;
-                m << "Skipping removed expression at Line " << lineNumber;
-                s->logOptimisationMessage(m);
-            }
-        }
+		if (isOptimizationPass(p))
+		{
+			for (auto s : *st)
+			{
+				for (auto o : passes)
+					o->reset();
+
+				if (isOptimizationPass(p))
+				{
+					optimize(s, scope, true);
+				}
+			}
+		}
+		else
+			st->process(this, scope);
     }
-    
 }
 }

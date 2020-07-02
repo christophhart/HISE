@@ -365,6 +365,8 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		out << "function " << functionCode;
 	}
 
+	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Function"); }
+
 	bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
 
 	void prepareCycleReferenceCheck() override;

@@ -149,7 +149,8 @@ private:
  *
  *  For a living example of an API class take a look at eg. the Math class or the ScriptingApi::Engine class.
  */
-class ApiClass : public ReferenceCountedObject
+class ApiClass : public ReferenceCountedObject,
+				 public DebugableObjectBase
 {
 public:
 
@@ -172,12 +173,15 @@ public:
 	ApiClass(int numConstants_);;
 	virtual ~ApiClass();
 
-    /** Overwrite this and return your API class name (which will be the name in Javascript for the object).*/
-	virtual Identifier getName() const = 0;
+    
 
 	/** You can overwrite this method and return true if you want to allow illegal calls that would otherwise
 	*	fire a warning. This is eg. used in the Console class to prevent firing when debugging. */
 	virtual bool allowIllegalCallsOnAudioThread(int /*functionIndex*/) const { return false; }
+
+	String getDebugName() const override { return getObjectName().toString(); }
+
+	String getDebugValue() const override { return ""; }
 
 	// ================================================================================================================
 

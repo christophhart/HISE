@@ -44,7 +44,7 @@ JIT function needs to be revalidated.
 */
 struct JitCallableObject : public FunctionClass
 {
-	JitCallableObject(const Identifier& id);;
+	JitCallableObject(const NamespacedIdentifier& id);;
 
 	virtual ~JitCallableObject();;
 
@@ -57,14 +57,23 @@ protected:
 
 	virtual void registerAllObjectFunctions(GlobalScope* memory) = 0;
 
-	FunctionData* createMemberFunction(const Types::ID returnType, const Identifier& functionId, const Array<Types::ID>& args)
+	FunctionData* createMemberFunction(const Types::ID returnType, const Identifier& functionId, const Array<Types::ID>& argTypes)
 	{
+		auto fId = getClassName().getChildId(functionId);
+
 		ScopedPointer<FunctionData> functionWrapper(new FunctionData());
 		functionWrapper->object = this;
-		functionWrapper->id = functionId;
+		functionWrapper->id = fId;
 		functionWrapper->functionName << objectId << "." << functionId << "()";
-		functionWrapper->args = args;
-		functionWrapper->returnType = returnType;
+
+		for (int i = 0; i < argTypes.size(); i++)
+		{
+			juce::String s("Param");
+			s << juce::String(i);
+			functionWrapper->addArgs(Identifier(s), TypeInfo(argTypes[i]));
+		}
+
+		functionWrapper->returnType = TypeInfo(returnType);
 
 		return functionWrapper.release();
 	}
@@ -87,7 +96,7 @@ public:
 
 	/** Create a class. The id will be used as first element in the dot operator. */
 	JitTestObject(Identifier id) :
-		JitCallableObject(id)
+		JitCallableObject(NamespacedIdentifier(id))
 	{};
 
 	/** A member function. */
@@ -126,12 +135,7 @@ public:
 		}
 
 		{
-			auto f = createMemberFunction(Integer,
-				"get5",
-				{ Float, Float, Float, Float, Float });
-			f->function = reinterpret_cast<void*>(Wrappers::get5);
-
-			addFunction(f);
+			
 		}
 	}
 

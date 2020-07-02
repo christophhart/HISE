@@ -366,8 +366,8 @@ root(root_)
 		hiddenProperties.addIfNotAlreadyThere(Identifier("parseInt"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("typeof"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Object"));
-		hiddenProperties.addIfNotAlreadyThere(Identifier("Array"));
-		hiddenProperties.addIfNotAlreadyThere(Identifier("String"));
+		//hiddenProperties.addIfNotAlreadyThere(Identifier("Array"));
+		//hiddenProperties.addIfNotAlreadyThere(Identifier("String"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Math"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("JSON"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Integer"));
@@ -440,6 +440,90 @@ HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::Roo
 }
 
 
+struct ManualGraphicsObject: public DebugableObjectBase
+{
+	ManualGraphicsObject()
+	{};
+
+	Identifier getObjectName() const override { return "Graphics"; };
+	Identifier getInstanceName() const override { return "g"; };
+
+	void getAllFunctionNames(Array<Identifier>& functions) const override
+	{
+#if USE_BACKEND
+		auto gTree = ApiHelpers::getApiTree().getChildWithName("Graphics");
+
+		for (auto c : gTree)
+			functions.add(c.getProperty("name", "unknown").toString());  
+#endif
+	}
+
+	
+};
+
+struct ManualEventObject : public DebugableObjectBase
+{
+	Identifier getObjectName() const override { return "event"; };
+
+	int getTypeNumber() const override { return 2; };
+
+	Identifier getInstanceName() const override {
+		return "event";
+	}
+
+	DebugInformationBase* createDebugInformationForChild(const Identifier& id) override
+	{
+#define ADD_IF(name, type, description) if(id.toString() == name) return createProperty(name, type, description);
+		ADD_IF("mouseDownX", "int", "The x - position of the mouse click");
+		ADD_IF("mouseDownY", "int", "the y - position of the mouse click");
+		ADD_IF("mouseUp", "bool", "true if the mouse was released");
+		ADD_IF("x", "int", "the current mouse x - position");
+		ADD_IF("y", "int", "the current mouse y - position");
+		ADD_IF("clicked", "bool", "true if the mouse is currently clicked");
+		ADD_IF("doubleClick", "bool", "true if the mouse is currently double clicked");
+		ADD_IF("rightClick", "bool", "true if the mouse is currently right clicked");
+		ADD_IF("drag", "bool", "true if the mouse is currently dragged");
+		ADD_IF("dragX", "int", "the drag x - delta from the start");
+		ADD_IF("dragY", "int", "the drag y - delta from the start");
+		ADD_IF("insideDrag", "bool", "true if the mouse is being dragged inside the component");
+		ADD_IF("hover", "bool", "true if the mouse is hovering the component");
+		ADD_IF("result", "int", "the result of the popup menue");
+		ADD_IF("itemText", "String", "the text of the popup menu");
+		ADD_IF("shiftDown", "bool", "true if the shift modifier is pressed");
+		ADD_IF("cmdDown", "bool", "true if the cmd modifier is pressed");
+		ADD_IF("altDown", "bool", "true if the alt modifier is pressed");
+		ADD_IF("ctrlDown", "bool", "true if the ctrl modifier is pressed");
+#undef ADD_IF
+
+		return nullptr;
+	}
+
+	void getAllConstants(Array<Identifier>& ids) const override
+	{
+		StringArray eventProperties = MouseCallbackComponent::getCallbackPropertyNames();
+
+		for (auto e : eventProperties)
+			ids.add(e);
+	}
+
+	DebugInformationBase* createProperty(const String& id, const String& type, const String& description)
+	{
+		auto s = new SettableDebugInfo();
+		s->dataType = type;
+		s->typeValue = 2;
+		s->name = "event." + id;
+		s->codeToInsert = s->name;
+		s->description.append("\n" + description, GLOBAL_BOLD_FONT());
+		s->category = "Event Callback property";
+		
+		return s;
+	}
+
+	
+
+	
+};
+
 
 
 void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(DynamicObject *rootObject)
@@ -450,18 +534,21 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 
 	for (int i = 0; i < constObjects.size(); i++)
 	{
-		debugInformation.add(new FixedVarPointerInformation(constObjects.getVarPointerAt(i), constObjects.getName(i), Identifier(), DebugInformation::Type::Constant));
-		debugInformation.getLast()->location = constLocations[i];
+		debugInformation.add(new FixedVarPointerInformation(constObjects.getVarPointerAt(i), constObjects.getName(i), Identifier(), DebugInformation::Type::Constant, constLocations[i]));
 	}
 
 	const int numRegisters = varRegister.getNumUsedRegisters();
 
 	for (int i = 0; i < numRegisters; i++)
 	{
-		debugInformation.add(new FixedVarPointerInformation(varRegister.getVarPointer(i), varRegister.getRegisterId(i), Identifier(), DebugInformation::Type::RegisterVariable));
-		debugInformation.getLast()->location = registerLocations[i];
+		debugInformation.add(new FixedVarPointerInformation(varRegister.getVarPointer(i), varRegister.getRegisterId(i), Identifier(), DebugInformation::Type::RegisterVariable, registerLocations[i]));
 	}
+	
+	for (int i = 0; i < apiClasses.size(); i++)
+	{
+		debugInformation.add(new DebugableObjectInformation(apiClasses[i].get(), apiClasses[i]->getObjectName(), DebugableObjectInformation::Type::ApiClass));
 		
+	}
 
 	DynamicObject *globalObject = rootObject->getProperty("Globals").getDynamicObject();
 
@@ -494,29 +581,23 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 	{
 		InlineFunction::Object *o = dynamic_cast<InlineFunction::Object*>(inlineFunctions.getUnchecked(i).get());
 
-		auto inlineDebugInfo = new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction);
-
-		inlineDebugInfo->location.fileName = o->location.fileName;
-		inlineDebugInfo->location.charNumber = o->location.charNumber;
+		auto inlineDebugInfo = new DebugableObjectInformation(o, o->getObjectName(), DebugInformation::Type::InlineFunction);
 
 		debugInformation.add(inlineDebugInfo);
 	}
-
-#if JUCE_IOS
-#else
-	for (int i = 0; i < externalCFunctions.size(); i++)
-	{
-		ExternalCFunction* cf = externalCFunctions[i];
-
-		debugInformation.add(new DebugableObjectInformation(cf, cf->name, DebugInformation::Type::ExternalFunction));
-	}
-#endif
 
 	for (int i = 0; i < callbackNEW.size(); i++)
 	{
 		if (!callbackNEW[i]->isDefined()) continue;
 
 		debugInformation.add(new DebugableObjectInformation(callbackNEW[i], callbackNEW[i]->getName(), DebugInformation::Type::Callback));
+	}
+
+
+	// Artificially create g object
+	{
+		debugInformation.add(ManualDebugObject::create<ManualGraphicsObject>());
+		debugInformation.add(ManualDebugObject::create<ManualEventObject>());
 	}
 }
 
@@ -528,8 +609,7 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 
 	if (index < upperLimit)
 	{
-		DebugInformation* di = new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable);
-		di->location = registerLocations[index];
+		DebugInformation* di = new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable, registerLocations[index]);
 		return di;
 	}
 
@@ -552,8 +632,7 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 	{
 		const int constIndex = index - prevLimit;
 
-		DebugInformation* di = new FixedVarPointerInformation(constObjects.getVarPointerAt(constIndex), constObjects.getName(constIndex), id, DebugInformation::Type::Constant);
-		di->location = constLocations[constIndex];
+		DebugInformation* di = new FixedVarPointerInformation(constObjects.getVarPointerAt(constIndex), constObjects.getName(constIndex), id, DebugInformation::Type::Constant, constLocations[constIndex]);
 	
 		return di;
 	}
@@ -671,17 +750,6 @@ HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType HiseJavas
 	else if (globals->getProperties().contains(name)) return VariableStorageType::Globals;
 	else if (root->getProperties().contains(name)) return VariableStorageType::RootScope;
 	else return VariableStorageType::Undeclared;
-}
-
-
-int HiseJavascriptEngine::RootObject::HiseSpecialData::getExternalCIndex(const Identifier& functionId)
-{
-	for (int i = 0; i < externalCFunctions.size(); i++)
-	{
-		if (externalCFunctions[i]->name == functionId) return i;
-	}
-
-	return -1;
 }
 
 
@@ -844,8 +912,6 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (Breakpoint& bp)
 		{
-			ScopedLock sl(getDebugLock());
-
 			if(bp.localScope == nullptr)
 				bp.localScope = c->createDynamicObjectForBreakpoint().getDynamicObject();
 

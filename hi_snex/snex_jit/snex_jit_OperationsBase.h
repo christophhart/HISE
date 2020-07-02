@@ -39,6 +39,8 @@ using namespace asmjit;
 
 class FunctionScope;
 
+#define SET_EXPRESSION_ID(x) Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER(#x); }
+
 /** This class has a variable pool that will not exceed the lifetime of the compilation. */
 class Operations
 {
@@ -50,16 +52,60 @@ public:
 	static BaseScope* findClassScope(BaseScope* scope);
 	static BaseScope* findFunctionScope(BaseScope* scope);
 
+	
+
 	using RegPtr = AssemblyRegister::Ptr;
 
 	static asmjit::Runtime* getRuntime(BaseCompiler* c);
 
-	using Symbol = BaseScope::Symbol;
 	using Location = ParserHelpers::CodeLocation;
 	using TokenType = ParserHelpers::TokenType;
 
+	static juce::String toSyntaxTreeString(const ValueTree& v, int intLevel)
+	{
+		juce::String s;
+
+		auto lineNumber = (int)v["Line"];
+		if (lineNumber < 10)
+			s << "0";
+		s << juce::String(lineNumber) << " ";
+
+		for (int i = 0; i < intLevel; i++)
+		{
+			s << "-";
+		}
+
+
+
+		s << v.getType() << ": ";
+
+		for (int i = 0; i < v.getNumProperties(); i++)
+		{
+			auto id = v.getPropertyName(i);
+
+			if (id == Identifier("Line"))
+				continue;
+
+			s << id << "=" << v[id].toString();
+
+			if (i != v.getNumProperties() - 1)
+				s << ", ";
+		}
+
+		s << "\n";
+
+		return s;
+	}
+
 	struct Statement : public ReferenceCountedObject
 	{
+		enum class TextFormat
+		{
+			SyntaxTree,
+			CppCode,
+			numTextFormat
+		};
+
 		using Ptr = ReferenceCountedObjectPtr<Statement>;
 
 		Statement(Location l);;
@@ -74,12 +120,28 @@ public:
 			return dynamic_cast<const T*>(this) != nullptr;
 		}
 
+		virtual juce::String toString(TextFormat t) const
+		{
+			jassertfalse;
+			return {};
+		}
+
 		virtual ~Statement() {};
 
-		virtual Types::ID getType() const = 0;
+		virtual TypeInfo getTypeInfo() const = 0;
 		virtual void process(BaseCompiler* compiler, BaseScope* scope);
 
 		virtual bool hasSideEffect() const { return false; }
+
+		virtual size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const { return 0; }
+
+		void cloneChildren(Ptr newClone) const
+		{
+			for (auto s : *this)
+				newClone->addStatement(s->clone(newClone->location));
+		}
+
+		virtual Ptr clone(Location l) const = 0;
 
 		Ptr getChildStatement(int index) const
 		{
@@ -103,10 +165,24 @@ public:
 			childStatements.clear();
 		}
 
-		void throwError(const String& errorMessage);
-		void logOptimisationMessage(const String& m);
-		void logWarning(const String& m);
-		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message);
+		virtual Identifier getStatementId() const = 0;
+
+		virtual ValueTree toValueTree() const
+		{
+			ValueTree v(getStatementId());
+
+			v.setProperty("Line", location.getLine(), nullptr);
+
+			for (auto s : *this)
+				v.addChild(s->toValueTree(), -1, nullptr);
+
+			return v;
+		}
+
+		void throwError(const juce::String& errorMessage);
+		void logOptimisationMessage(const juce::String& m);
+		void logWarning(const juce::String& m);
+		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const juce::String& message);
 
 		Statement** begin() const { return childStatements.begin(); }
 
@@ -121,6 +197,22 @@ public:
 		{
 			for (auto s : *this)
 				s->process(compiler, scope);
+		}
+
+		bool forEachRecursive(const std::function<bool(Ptr)>& f)
+		{
+			if (f(this))
+				return true;
+
+			for (int i = 0; i < getNumChildStatements(); i++)
+			{
+				auto c = getChildStatement(i);
+
+				if (c->forEachRecursive(f))
+					return true;
+			}
+
+			return false;
 		}
 
 		virtual bool isConstExpr() const;
@@ -159,20 +251,35 @@ public:
 
 		virtual ~Expression() {};
 
-		Types::ID getType() const override;
+		void attachAsmComment(const juce::String& message);
 
-		void attachAsmComment(const String& message);
+		TypeInfo checkAndSetType(int offset, TypeInfo expectedType);
 
-		void checkAndSetType(int offset = 0, Types::ID expectedType = Types::ID::Dynamic);
+		TypeInfo setTypeForChild(int childIndex, TypeInfo expectedType);
 
 		/** Processes all sub expressions. Call this from your base class. */
 		void process(BaseCompiler* compiler, BaseScope* scope) override;
 
+		void processChildrenIfNotCodeGen(BaseCompiler* compiler, BaseScope* scope);
+
+		bool isCodeGenPass(BaseCompiler* compiler) const;
+
+		bool preprocessCodeGenForChildStatements(BaseCompiler* compiler, BaseScope* scope, const std::function<bool()>& abortFunction);
+
+		void replaceMemoryWithExistingReference(BaseCompiler* compiler);
+
 		bool isAnonymousStatement() const;
+
+		Types::ID getType() const
+		{
+			return getTypeInfo().getType();
+		}
 
 		virtual VariableStorage getConstExprValue() const;
 
 		bool hasSubExpr(int index) const;
+
+		virtual VariableStorage getPointerValue() const;
 
 		Ptr getSubExpr(int index) const;
 
@@ -182,7 +289,7 @@ public:
 		*/
 		RegPtr getSubRegister(int index) const;
 
-		String asmComment;
+		juce::String asmComment;
 
 		RegPtr reg;
 
@@ -199,19 +306,11 @@ public:
 			if (clearRegister)
 			{
 				jassert(targetToUse->canBeReused());
-
 				targetToUse->clearForReuse();
-
-				
 			}
 
 			reg = targetToUse;
 		}
-
-
-	protected:
-
-		Types::ID type;
 
 	private:
 
@@ -253,8 +352,88 @@ public:
 	struct Function;		struct BinaryOp;				struct VariableReference;
 	struct TernaryOp;		struct LogicalNot;				struct Cast;
 	struct Negation;		struct Compare;					struct UnaryOp;
-	struct Increment;		struct BlockAccess;				struct BlockAssignment;
-	struct BlockLoop;		struct IfStatement;				struct SmoothedVariableDefinition;
+	struct Increment;		struct DotOperator;				struct Loop;		
+	struct IfStatement;		struct ClassStatement;			struct UsingStatement;
+	struct CastedSimd;      struct Subscript;				struct InlinedParameter;
+	struct ComplexTypeDefinition;						    struct ControlFlowStatement;
+	struct InlinedArgument; struct MemoryReference;
+
+	struct ScopeStatementBase
+	{
+		ScopeStatementBase(const NamespacedIdentifier& id) :
+			returnType(Types::ID::Dynamic),
+			path(id)
+		{};
+
+		virtual ~ScopeStatementBase() {};
+
+		Statement::Ptr createChildBlock(Location l) const;
+
+		void cloneScopeProperties(ScopeStatementBase* newClone) const
+		{
+			newClone->returnType = returnType;
+		}
+
+		void allocateReturnRegister(BaseCompiler* c, BaseScope* s)
+		{
+			jassert(hasReturnType());
+			returnRegister = c->registerPool.getNextFreeRegister(s, getReturnType());
+		}
+
+		void setParentScopeStatement(ScopeStatementBase* parent)
+		{
+			parentScopeStatement = parent;
+		}
+
+		void setReturnType(TypeInfo t)
+		{
+			returnType = t;
+		}
+
+		TypeInfo getReturnType() const
+		{
+			return returnType;
+		}
+
+		static ScopeStatementBase* getStatementListWithReturnType(Statement* s)
+		{
+			if (s == nullptr)
+				return nullptr;
+
+			if (auto ss = dynamic_cast<ScopeStatementBase*>(s))
+			{
+				if (ss->hasReturnType())
+					return ss;
+			}
+
+			return getStatementListWithReturnType(s->parent);
+		}
+
+		RegPtr getReturnRegister()
+		{
+			jassert(hasReturnType());
+			return returnRegister;
+		}
+
+		bool hasReturnType() const
+		{
+			return returnType.getType() != Types::ID::Dynamic;
+		}
+
+		NamespacedIdentifier getPath() const { return path; }
+
+	protected:
+
+		RegPtr returnRegister;
+		TypeInfo returnType;
+
+	private:
+
+		NamespacedIdentifier path;
+		WeakReference<ScopeStatementBase> parentScopeStatement;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScopeStatementBase);
+	};
 
 	/** Just a empty base class that checks whether the global variables will be loaded
 		before the branch.
@@ -263,7 +442,43 @@ public:
 	{
 		void allocateDirtyGlobalVariables(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
 
+		
+
 		virtual ~ConditionalBranch() {}
+	};
+
+	struct TypeDefinitionBase
+	{
+		virtual ~TypeDefinitionBase() {};
+		virtual Array<NamespacedIdentifier> getInstanceIds() const = 0;
+	};
+
+	struct SymbolStatement
+	{
+		virtual ~SymbolStatement() {}
+
+		bool isApiClass(BaseScope* s) const
+		{
+			if (auto fc = getFunctionClassForSymbol(s))
+			{
+				return dynamic_cast<ComplexType*>(fc) == nullptr;
+			}
+
+			return false;
+		}
+
+		FunctionClass* getFunctionClassForSymbol(BaseScope* scope) const
+		{
+			if (auto gfc = scope->getGlobalScope()->getGlobalFunctionClass(getSymbol().id))
+				return gfc;
+
+			if (scope->getScopeType() == BaseScope::Global)
+				return nullptr;
+
+			return scope->getRootData()->getSubFunctionClass(getSymbol().id);
+		}
+
+		virtual Symbol getSymbol() const = 0;
 	};
 
 	struct BranchingStatement
@@ -297,22 +512,116 @@ public:
 	static Expression* findAssignmentForVariable(Expression::Ptr variable, BaseScope* scope);
 };
 
-class SyntaxTree : public Operations::Statement
+/** A syntax tree is a list of statements without a parent (so that the SyntaxTreeWalker will look deeper than that. 
+
+It's used by either class definitions or function definition (so that each function has its own syntax tree).
+*/
+class SyntaxTree : public Operations::Statement,
+				   public Operations::ScopeStatementBase
 {
 public:
 
-	SyntaxTree(ParserHelpers::CodeLocation l);;
-	Types::ID getType() const { return Types::ID::Void; }
+	SyntaxTree(ParserHelpers::CodeLocation l, const NamespacedIdentifier& ns);
+	TypeInfo getTypeInfo() const { return returnType; }
 
-	void addVariableReference(Operations::Statement* s);
+	
+
+	~SyntaxTree()
+	{
+		int x = 5;
+	}
+
+	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const
+	{
+		size_t s = 0;
+
+		for (int i = 0; i < getNumChildStatements(); i++)
+			s += getChildStatement(i)->getRequiredByteSize(compiler, scope);
+
+		return s;
+	}
+
+	juce::String toString(TextFormat t) const override
+	{
+		switch (t)
+		{
+		case Operations::Statement::TextFormat::SyntaxTree: return dump();
+		case Operations::Statement::TextFormat::CppCode:
+		{
+			juce::String s;
+			juce::String nl;
+			s << "{";
+
+			for (auto c : *this)
+			{
+				s << c->toString(t) << ";\n";
+			}
+
+			s << "}";
+
+			return s;
+		}
+		default:
+			return {};
+		}
+	}
+
+	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("SyntaxTree"); }
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		Statement::process(compiler, scope);
+
+		for (int i = 0; i < getNumChildStatements(); i++)
+			getChildStatement(i)->process(compiler, scope);
+
+		if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation && hasReturnType())
+		{
+			allocateReturnRegister(compiler, scope);
+		}
+	}
+
 	bool isFirstReference(Operations::Statement* v) const;
 
-	Operations::Statement* getLastVariableForReference(BaseScope::RefPtr ref) const;
-	Operations::Statement* getLastAssignmentForReference(BaseScope::RefPtr ref) const;
+	void addAlias(const Identifier& id, const juce::String& typeString)
+	{
+		registeredAliases.add({ id, typeString });
+	}
+
+	juce::String dump() const
+	{
+		auto v = toValueTree();
+		juce::String s;
+		dumpInternal(0, s, v);
+		return s;
+	}
+
 	
+
+	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override;
+
 private:
 
-	Array<WeakReference<Statement>> variableReferences;
+	
+
+	static void dumpInternal(int intLevel, juce::String& s, const ValueTree& v)
+	{
+		intLevel++;
+
+		s << Operations::toSyntaxTreeString(v, intLevel);
+
+		for (const auto& c : v)
+			dumpInternal(intLevel, s, c);
+
+	};
+
+	struct UsingAliases
+	{
+		Identifier id;
+		juce::String aliasContent;
+	};
+
+	Array<UsingAliases> registeredAliases;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SyntaxTree);
 };

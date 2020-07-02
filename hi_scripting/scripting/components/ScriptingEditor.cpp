@@ -204,7 +204,7 @@ int ScriptingEditor::getBodyHeight() const
 void ScriptingEditor::gotoLocation(DebugInformation* info)
 {
 	showOnInitCallback();
-	gotoChar(info->location.charNumber);
+	gotoChar(info->getLocation().charNumber);
 }
 
 //==============================================================================

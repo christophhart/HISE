@@ -36,6 +36,13 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+class GlobalScope;
+class ClassScope;
+class RootClassData;
+struct StructType;
+
+
+
 /** This class holds all data that is used by either the compiler or the JIT itself.
 
 	The lifetime of this object depends on the ScopeType property - local scopes are
@@ -47,25 +54,6 @@ class BaseScope
 {
 public:
 
-	/** A Symbol is used to identifiy the data slot. */
-	struct Symbol
-	{
-		Symbol();
-		Symbol(const Identifier& parent_, const Identifier& id_, Types::ID t_);
-
-		bool operator==(const Symbol& other) const;
-
-		bool matchesIdAndType(const Symbol& other) const;
-
-		String toString() const;
-
-		operator bool() const;
-
-		Identifier parent;
-		Identifier id;
-		Types::ID type = Types::ID::Dynamic;
-	};
-
 	enum ScopeType
 	{
 		Global,		// The global memory pool
@@ -74,102 +62,253 @@ public:
 		Anonymous	// the variables of the current block
 	};
 
-	struct Constant
-	{
-		Symbol id;
-		const VariableStorage v;
-	};
-
-	struct Reference : public ReferenceCountedObject
-	{
-	private:
-
-		friend class BaseScope;
-
-		Reference();
-
-		Reference(BaseScope* p, const Identifier& s, Types::ID type);;
-
-	public:
-
-		int getNumReferences() const;;
-
-		bool operator==(const Reference& other) const;
-
-		WeakReference<BaseScope> scope;
-		Symbol id;
-		bool isConst = false;
-
-		void* getDataPointer() const;
-
-		VariableStorage getDataCopy() const;
-
-		VariableStorage& getDataReference(bool allowConstInitialisation = false) const;
-
-		Types::ID getType() const;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Reference);
-	};
-
-	using RefPtr = ReferenceCountedObjectPtr<Reference>;
-
 	ScopeType getScopeType() const;;
 
-	RefPtr get(const Symbol& s);
+	GlobalScope* getGlobalScope();
 
-	bool addConstant(const Identifier& id, VariableStorage v);
+	ClassScope* getRootClassScope() const;
+
+	NamespacedIdentifier getScopeSymbol() const { return scopeId; }
 
 	BaseScope* getParent();
 
+	NamespaceHandler& getNamespaceHandler();
+
+	RootClassData* getRootData() const;
+
+	template <class T> T* getParentScopeOfType()
+	{
+		if (auto thisAsT = dynamic_cast<T*>(this))
+			return thisAsT;
+
+		if (auto p = getParent())
+			return p->getParentScopeOfType<T>();
+		else
+			return nullptr;
+	}
+
 public:
 
-	BaseScope(const Identifier& id, BaseScope* parent_ = nullptr, int numVariables = 1024);;
+	BaseScope(const NamespacedIdentifier& s, BaseScope* parent_ = nullptr);;
 
 	virtual ~BaseScope();;
 
-	Result allocate(const Identifier& id, VariableStorage v);
+	BaseScope* getScopeForSymbol( const NamespacedIdentifier& s);
 
-	BaseScope* getScopeForSymbol(const Symbol& s);
+	bool isClassObjectScope() const
+	{
+		return scopeType == Class && scopeId.isValid();
+	}
 
+	BaseScope* getChildScope(const NamespacedIdentifier& s) const
+	{
+		if (s == scopeId)
+			return const_cast<BaseScope*>(this);
 
-	Result deallocate(Reference v);
+		for (auto cs : childScopes)
+		{
+			if (auto bs = cs->getChildScope(s))
+				return bs;
+		}
 
-	Array<Symbol> getAllVariables() const;
+		return nullptr;
+	}
+
+	int getNumChildScopes() const
+	{
+		return childScopes.size();
+	}
 
 protected:
 
-	VariableStorage & getVariableReference(const Identifier& id);
-
-	/** Used for resolving the outside reference. */
-	struct InternalReference
-	{
-		bool operator==(const InternalReference& other) const;
-
-		bool operator==(const Symbol& s) const;
-
-		InternalReference(const Identifier& id_, VariableStorage& r);;
-
-		Identifier id;
-		VariableStorage& ref;
-	};
-
-	Identifier scopeId;
+	NamespacedIdentifier scopeId;
 	WeakReference<BaseScope> parent;
 	VariableStorage empty;
 
-	int size = 0;
-	HeapBlock<VariableStorage> data;
-
 	ScopeType scopeType;
-	Array<Constant> constants;
 
-	ReferenceCountedArray<Reference> referencedVariables;
+private:
 
-	Array<InternalReference> allocatedVariables;
+	BaseScope* findScopeWithId(const NamespacedIdentifier& id);
+
+	Array<WeakReference<BaseScope>> childScopes;
+
+	BaseScope* getScopeForSymbolInternal(const NamespacedIdentifier& s);
+	
+	bool hasSymbol(const NamespacedIdentifier& s);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BaseScope);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BaseScope);
 };
+
+struct SymbolWithScope
+{
+	bool operator==(const SymbolWithScope& other) const
+	{
+		return s == other.s && scope == other.scope;
+	}
+
+	operator bool() const
+	{
+		return s && scope.get() != nullptr;
+	}
+
+	Symbol s;
+	WeakReference<BaseScope> scope;
+};
+
+
+class RootClassData: public FunctionClass
+{
+	struct TableEntry : public ReferenceCountedObject
+	{
+		Symbol s;
+		void* data;
+		WeakReference<BaseScope> scope;
+	};
+
+public:
+
+	juce::String dumpTable() const;
+
+	RootClassData();
+
+	
+
+	void enlargeAllocatedSize(const TypeInfo& t)
+	{
+		jassert(data == nullptr);
+		allocatedSize += t.getRequiredByteSize();
+	}
+
+	void finalise()
+	{
+		if (allocatedSize % 16 != 0)
+		{
+			allocatedSize += 16 - (allocatedSize % 16);
+		}
+
+		data.allocate(allocatedSize, true);
+	}
+
+	bool zeroPadAlign(size_t alignment)
+	{
+		if (alignment == 0)
+		{
+			return Result::fail("No data size specified");
+		}
+
+		int unAligned = (numUsed % alignment);
+
+		if (unAligned != 0)
+		{
+			auto numToPad = alignment - unAligned;
+
+			memset(data + numUsed, 0, numToPad);
+			numUsed += numToPad;
+			return true;
+		}
+
+		return false;
+	}
+
+	bool contains(const NamespacedIdentifier& s) const
+	{
+		for (const auto& ts : symbolTable)
+			if (ts.s.id == s)
+				return true;
+
+		return false;
+	}
+
+	bool checkSubClassMembers(const TableEntry& ts, const NamespacedIdentifier& s, const std::function<void(StructType* sc, const Identifier& id)>& f) const;
+
+	Array<Symbol> getAllVariables() const
+	{
+		Array<Symbol> list;
+
+		for (const auto& t : *this)
+			list.add(t.s);
+
+		return list;
+	}
+
+	Result initSubClassMembers(ComplexType::Ptr type, const Identifier& memberId, InitialiserList::Ptr initList);
+
+	Result initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues);
+
+	void* getDataPointer(const NamespacedIdentifier& s) const;
+
+	VariableStorage getDataCopy(const NamespacedIdentifier& s) const
+	{
+		for (const auto& ts : symbolTable)
+		{
+			if (ts.s.id == s)
+			{
+				switch (ts.s.typeInfo.getType())
+				{
+				case Types::ID::Integer: return VariableStorage(*(int*)ts.data);
+				case Types::ID::Float: return VariableStorage(*(float*)ts.data);
+				case Types::ID::Double: return VariableStorage(*(double*)ts.data);
+				case Types::ID::Block: return VariableStorage(*(block*)ts.data);
+				}
+			}
+		}
+
+		jassertfalse;
+		return {};
+	}
+
+	Result allocate(BaseScope* scope, const Symbol& s)
+	{
+		jassert(scope->getScopeType() == BaseScope::Class);
+
+		// This is the last time you'll get the chance to set the type...
+		jassert(s.typeInfo.getType() != Types::ID::Dynamic);
+
+		if (contains(s.id))
+			return Result::fail(s.toString() + "already exists");
+
+		auto requiredAlignment = s.typeInfo.getRequiredAlignment();
+
+		zeroPadAlign(requiredAlignment);
+
+		auto size = s.typeInfo.getRequiredByteSize();
+
+		TableEntry newEntry;
+		newEntry.s = s;
+		newEntry.data = data + numUsed;
+
+		numUsed += size;
+		memset(newEntry.data, 0, size);
+		newEntry.scope = scope;
+
+		jassert(numUsed <= allocatedSize);
+
+		symbolTable.add(newEntry);
+		return Result::ok();
+	}
+
+	HeapBlock<char> data;
+
+private:
+
+	TableEntry* begin() const
+	{
+		return symbolTable.begin();
+	}
+
+	TableEntry* end() const
+	{
+		return symbolTable.end();
+	}
+
+	Array<TableEntry> symbolTable;
+	
+	int numUsed = 0;
+	int allocatedSize = 0;
+};
+
 
 
 }

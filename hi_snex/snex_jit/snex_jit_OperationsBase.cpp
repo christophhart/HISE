@@ -46,12 +46,12 @@ snex::jit::Operations::FunctionCompiler& Operations::getFunctionCompiler(BaseCom
 BaseScope* Operations::findClassScope(BaseScope* scope)
 {
 	if (scope == nullptr)
-		return nullptr;
+return nullptr;
 
-	if (scope->getScopeType() == BaseScope::Class)
-		return scope;
-	else
-		return findClassScope(scope->getParent());
+if (scope->getScopeType() == BaseScope::Class)
+return scope;
+else
+return findClassScope(scope->getParent());
 }
 
 snex::jit::BaseScope* Operations::findFunctionScope(BaseScope* scope)
@@ -89,94 +89,116 @@ Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr va
 			if (isStatementType<Assignment>(s))
 				return dynamic_cast<Expression*>(s);
 		}
-
-		return nullptr;
-	}
-	else
-	{
-		return nullptr;
 	}
 
-
-
-#if 0
-	if (auto fScope = dynamic_cast<FunctionScope*>(findFunctionScope(scope)))
-	{
-		auto pf = dynamic_cast<Function*>(fScope->parentFunction.get());
-
-		auto vPtr = dynamic_cast<VariableReference*>(variable.get());
-
-		for (auto s : *pf->statements)
-		{
-			if (auto as = dynamic_cast<Assignment*>(s))
-			{
-				auto tv = dynamic_cast<VariableReference*>(as->getSubExpr(0).get());
-
-				if (tv->ref == vPtr->ref)
-					return as;
-			}
-		}
-
-		return nullptr;
-	}
-#endif
+	return nullptr;
 }
 
 
-snex::Types::ID Operations::Expression::getType() const
-{
-	return type;
-}
 
-void Operations::Expression::attachAsmComment(const String& message)
+void Operations::Expression::attachAsmComment(const juce::String& message)
 {
 	asmComment = message;
 }
 
-void Operations::Expression::checkAndSetType(int offset /*= 0*/, Types::ID expectedType)
+TypeInfo Operations::Expression::checkAndSetType(int offset, TypeInfo expectedType)
 {
-	Types::ID exprType = expectedType;
+	TypeInfo exprType = expectedType;
+
+	if (expectedType.isInvalid())
+	{
+		// Native types have precedence so that the complex types can call their cast operators...
+		for (int i = offset; i < getNumChildStatements(); i++)
+		{
+			auto thisType = getChildStatement(i)->getTypeInfo();
+			if (thisType.isComplexType())
+				continue;
+
+			exprType = thisType;
+		}
+	}
 
 	for (int i = offset; i < getNumChildStatements(); i++)
 	{
-		auto e = getSubExpr(i);
-
-		if (auto v = dynamic_cast<VariableReference*>(e.get()))
-		{
-			if (!v->functionClassConstant.isVoid())
-			{
-				v->type = expectedType;
-				continue;
-			}
-		}
-
-		auto thisType = e->getType();
-
-		if (!Types::Helpers::matchesTypeStrict(thisType, exprType))
-		{
-			logWarning("Implicit cast, possible lost of data");
-
-			if (e->isConstExpr())
-			{
-				replaceChildStatement(i, ConstExprEvaluator::evalCast(e.get(), exprType).get());
-			}
-			else
-			{
-				Ptr implCast = new Operations::Cast(e->location, e, exprType);
-				implCast->attachAsmComment("Implicit cast");
-
-				replaceChildStatement(i, implCast);
-			}
-		}
-		else
-			exprType = Types::Helpers::getMoreRestrictiveType(exprType, thisType);
+		exprType = setTypeForChild(i, exprType);
 	}
 
-	type = exprType;
+	return exprType;
 }
 
 
 
+
+TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expectedType)
+{
+	auto e = getSubExpr(childIndex);
+
+	if (auto v = dynamic_cast<VariableReference*>(e.get()))
+	{
+		bool isDifferentType = expectedType != Types::ID::Dynamic && expectedType != v->getConstExprValue().getType();
+
+		if (v->isConstExpr() && isDifferentType)
+		{
+			// Internal cast of a constexpr variable...
+			v->id.constExprValue = VariableStorage(expectedType.getType(), v->id.constExprValue.toDouble());
+			return expectedType;
+		}
+	}
+
+	auto thisType = e->getTypeInfo();
+
+	if (expectedType.isInvalid())
+	{
+		return thisType;
+	}
+
+	if (!thisType.isComplexType() && (thisType == expectedType.getType()))
+	{
+		// the expected complex type can be implicitely casted to the native type
+		return expectedType;
+	}
+
+	if (!expectedType.isComplexType() && expectedType == thisType.getType())
+	{
+		// this type can be implicitely casted to the native expected type;
+		return thisType;
+	}
+		
+
+	if (expectedType != thisType)
+	{
+		if (auto targetType = expectedType.getTypedIfComplexType<ComplexType>())
+		{
+			if(!targetType->isValidCastSource(thisType.getType(), thisType.getTypedIfComplexType<ComplexType>()))
+				throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
+		}
+
+		if (auto sourceType = thisType.getTypedIfComplexType<ComplexType>())
+		{
+			if (!sourceType->isValidCastTarget(expectedType.getType(), expectedType.getTypedIfComplexType<ComplexType>()))
+				throwError(juce::String("Can't cast ") + thisType.toString() + " to " + expectedType.toString());
+		}
+
+		
+			
+
+		logWarning("Implicit cast, possible lost of data");
+
+		if (e->isConstExpr())
+		{
+			replaceChildStatement(childIndex, ConstExprEvaluator::evalCast(e.get(), expectedType.getType()).get());
+		}
+		else
+		{
+			Ptr implCast = new Operations::Cast(e->location, e, expectedType.getType());
+			implCast->attachAsmComment("Implicit cast");
+
+			replaceChildStatement(childIndex, implCast);
+		}
+	}
+
+	return expectedType;
+}
 
 void Operations::Expression::process(BaseCompiler* compiler, BaseScope* scope)
 {
@@ -189,11 +211,59 @@ void Operations::Expression::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 }
 
+void Operations::Expression::processChildrenIfNotCodeGen(BaseCompiler* compiler, BaseScope* scope)
+{
+	if (isCodeGenPass(compiler))
+		Statement::process(compiler, scope);
+	else
+		Expression::process(compiler, scope);
+}
+
+bool Operations::Expression::isCodeGenPass(BaseCompiler* compiler) const
+{
+	return compiler->getCurrentPass() == BaseCompiler::RegisterAllocation ||
+		   compiler->getCurrentPass() == BaseCompiler::CodeGeneration;
+}
+
+bool Operations::Expression::preprocessCodeGenForChildStatements(BaseCompiler* compiler, BaseScope* scope, const std::function<bool()>& abortFunction)
+{
+	if (reg != nullptr)
+		return false;
+
+	if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation)
+	{
+		BaseCompiler::ScopedPassSwitcher svs(compiler, BaseCompiler::RegisterAllocation);
+		getSubExpr(0)->process(compiler, scope);
+		getSubExpr(1)->process(compiler, scope);
+
+		if (!abortFunction())
+			return false;;
+	}
+
+	BaseCompiler::ScopedPassSwitcher svs(compiler, BaseCompiler::CodeGeneration);
+	getSubExpr(0)->process(compiler, scope);
+	getSubExpr(1)->process(compiler, scope);
+
+	return true;
+}
+
+void Operations::Expression::replaceMemoryWithExistingReference(BaseCompiler* compiler)
+{
+	jassert(reg != nullptr);
+
+	auto prevReg = compiler->registerPool.getRegisterWithMemory(reg);
+
+	if (prevReg != reg)
+		reg = prevReg;
+}
+
 bool Operations::Expression::isAnonymousStatement() const
 {
 	return isStatementType<StatementBlock>(parent) ||
 		isStatementType<SyntaxTree>(parent);
 }
+
+
 
 snex::VariableStorage Operations::Expression::getConstExprValue() const
 {
@@ -206,6 +276,12 @@ snex::VariableStorage Operations::Expression::getConstExprValue() const
 bool Operations::Expression::hasSubExpr(int index) const
 {
 	return isPositiveAndBelow(index, getNumChildStatements());
+}
+
+snex::VariableStorage Operations::Expression::getPointerValue() const
+{
+	location.throwError("Can't use address of temporary register");
+	return {};
 }
 
 Operations::Expression::Ptr Operations::Expression::getSubExpr(int index) const
@@ -230,69 +306,33 @@ snex::jit::Operations::RegPtr Operations::Expression::getSubRegister(int index) 
 }
 
 
-SyntaxTree::SyntaxTree(ParserHelpers::CodeLocation l) :
-	Statement(l)
+SyntaxTree::SyntaxTree(ParserHelpers::CodeLocation l, const NamespacedIdentifier& ns) :
+	Statement(l),
+	ScopeStatementBase(ns)
 {
-
-}
-
-void SyntaxTree::addVariableReference(Operations::Statement* s)
-{
-	variableReferences.add(s);
 }
 
 bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 {
-	for (auto v : variableReferences)
+	SyntaxTreeWalker m(v_);
+
+	if(auto v = m.getNextStatementOfType<Operations::VariableReference>())
 	{
-		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
-		{
-			if (variable->ref == dynamic_cast<Operations::VariableReference*>(v_)->ref)
-				return v == v_;
-		}
+		return v == v_;
 	}
 
 	return false;
 }
 
-Operations::Statement* SyntaxTree::getLastVariableForReference(BaseScope::RefPtr ref) const
+
+snex::jit::Operations::Statement::Ptr SyntaxTree::clone(ParserHelpers::CodeLocation l) const
 {
-	Statement* lastRef = nullptr;
+	Statement::Ptr c = new Operations::StatementBlock(l, getPath());
+	dynamic_cast<Operations::StatementBlock*>(c.get())->isInlinedFunction = true;
 
-	for (auto v : variableReferences)
-	{
-		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
-		{
-			if (ref == variable->ref)
-				lastRef = variable;
-		}
-	}
-
-	return lastRef;
+	cloneChildren(c);
+	return c;
 }
-
-Operations::Statement* SyntaxTree::getLastAssignmentForReference(BaseScope::RefPtr ref) const
-{
-	Statement* lastAssignment = nullptr;
-
-	for (auto v : variableReferences)
-	{
-		if (auto variable = dynamic_cast<Operations::VariableReference*>(v.get()))
-		{
-			if (ref == variable->ref)
-			{
-				if (auto as = dynamic_cast<Operations::Assignment*>(v->parent.get()))
-				{
-					if (as->getTargetVariable() == variable)
-						lastAssignment = as;
-				}
-			}
-		}
-	}
-
-	return lastAssignment;
-}
-
 
 Operations::Statement::Statement(Location l) :
 	location(l)
@@ -302,29 +342,42 @@ Operations::Statement::Statement(Location l) :
 
 void Operations::Statement::process(BaseCompiler* compiler, BaseScope* scope)
 {
+	jassert(scope != nullptr);
+
+	if (parent == nullptr)
+		return;
+
 	currentCompiler = compiler;
 	currentScope = scope;
 	currentPass = compiler->getCurrentPass();
 
+
+
 	if (BaseCompiler::isOptimizationPass(currentPass))
 	{
-		compiler->executeOptimization(this, scope);
+		bool found = false;
+
+		for (int i = 0; i < parent->getNumChildStatements(); i++)
+			found |= parent->getChildStatement(i).get() == this;
+
+		if(found)
+			compiler->executeOptimization(this, scope);
 	}
 }
 
-void Operations::Statement::throwError(const String& errorMessage)
+void Operations::Statement::throwError(const juce::String& errorMessage)
 {
 	ParserHelpers::CodeLocation::Error e(location.program, location.location);
 	e.errorMessage = errorMessage;
 	throw e;
 }
 
-void Operations::Statement::logOptimisationMessage(const String& m)
+void Operations::Statement::logOptimisationMessage(const juce::String& m)
 {
 	logMessage(currentCompiler, BaseCompiler::VerboseProcessMessage, m);
 }
 
-void Operations::Statement::logWarning(const String& m)
+void Operations::Statement::logWarning(const juce::String& m)
 {
 	logMessage(currentCompiler, BaseCompiler::Warning, m);
 }
@@ -355,12 +408,13 @@ Operations::Statement::Ptr Operations::Statement::replaceInParent(Statement::Ptr
 				Ptr f(this);
 				parent->childStatements.set(i, newExpression.get());
 				newExpression->parent = parent;
+				//parent = nullptr;
 				return f;
 			}
 		}
 	}
 
-	jassertfalse;
+	
 	return nullptr;
 }
 
@@ -383,12 +437,12 @@ Operations::Statement::Ptr Operations::Statement::replaceChildStatement(int inde
 	return returnExpr;
 }
 
-void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const String& message)
+void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const juce::String& message)
 {
 	if (!compiler->hasLogger())
 		return;
 
-	String m;
+	juce::String m;
 
 	m << "Line " << location.getLineNumber(location.program, location.location) << ": ";
 	m << message;
@@ -406,9 +460,14 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 	{
 		// If use a class variable, we need to create the register
 		// outside the loop
-		if (v->isClassVariable() && v->isFirstReference())
+		if (v->isClassVariable(s) && v->isFirstReference())
 			v->process(c, s);
 	}
+}
+
+Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Location l) const
+{
+	return new StatementBlock(l, l.createAnonymousScopeId(getPath()));
 }
 
 }

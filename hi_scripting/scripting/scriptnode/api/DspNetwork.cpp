@@ -285,15 +285,18 @@ void DspNetwork::setForwardControlsToParameters(bool shouldForward)
 
 void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 {
-	ScopedLock sl(getConnectionLock());
+	if (sampleRate > 0.0)
+	{
+		ScopedLock sl(getConnectionLock());
 
-	PrepareSpecs ps;
-	ps.sampleRate = sampleRate;
-	ps.blockSize = (int)blockSize;
-	ps.numChannels = signalPath->getNumChannelsToProcess();
-	ps.voiceIndex = &voiceIndex;
+		PrepareSpecs ps;
+		ps.sampleRate = sampleRate;
+		ps.blockSize = (int)blockSize;
+		ps.numChannels = signalPath->getNumChannelsToProcess();
+		ps.voiceIndex = &voiceIndex;
 
-	signalPath->prepare(ps);
+		signalPath->prepare(ps);
+	}
 }
 
 void DspNetwork::processBlock(var pData)

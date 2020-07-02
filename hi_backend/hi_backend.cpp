@@ -39,7 +39,6 @@
 
 #include "backend/debug_components/SamplePoolTable.cpp"
 #include "backend/debug_components/MacroEditTable.cpp"
-#include "backend/debug_components/ScriptWatchTable.cpp"
 #include "backend/debug_components/ScriptComponentEditPanel.cpp"
 #include "backend/debug_components/ScriptComponentPropertyPanels.cpp"
 #include "backend/debug_components/ProcessorCollection.cpp"

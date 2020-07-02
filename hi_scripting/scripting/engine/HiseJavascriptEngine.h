@@ -91,7 +91,7 @@ class DialogWindowWithBackgroundThread;
  *
  *
  */
-class HiseJavascriptEngine
+class HiseJavascriptEngine: public ApiProviderBase
 {
 public:
 	/** Creates an instance of the engine.
@@ -196,9 +196,14 @@ public:
 
 	void setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue);
 
-	DebugInformation*getDebugInformation(int index);
 
-	var getScriptObject(const Identifier &id) const;
+	String getHoverString(const String& token);
+
+	DebugInformationBase* getDebugInformation(int index);
+
+#if 0
+	var getDebugObject(const Identifier &id) const;
+#endif
 
 	var getScriptVariableFromRootNamespace(const Identifier & id) const;
 
@@ -206,7 +211,10 @@ public:
 	File getIncludedFile(int fileIndex) const;
 	Result getIncludedFileResult(int fileIndex) const;
 
-	int getNumDebugObjects() const;
+	int getNumDebugObjects() const override;
+
+	DebugableObjectBase* getDebugObject(const String& token) override;
+	
 
 	void clearDebugInformation();
 	
@@ -226,11 +234,8 @@ public:
 
 	void setCallStackEnabled(bool shouldBeEnabled);
 
-	CriticalSection& getDebugLock() const;
-
 	void registerApiClass(ApiClass *apiClass);
-	bool isApiClassRegistered(const String& className);
-
+	
     void setIsInitialising(bool shouldBeInitialising)
     {
         initialising = shouldBeInitialising;
@@ -240,7 +245,7 @@ public:
     
 	static bool isJavascriptFunction(const var& v);
     
-	const ApiClass* getApiClass(const Identifier &className) const;
+	
 
 	struct ExternalFileData
 	{
@@ -578,6 +583,8 @@ public:
 
 			bool isDefined() const noexcept{ return isCallbackDefined; }
 
+			Identifier getObjectName() const override { return getName(); }
+
 			const Identifier &getName() const { return callbackName; }
 
 			int getNumArgs() const { return numArgs; };
@@ -682,6 +689,10 @@ public:
 				id(id_)
 			{}
 
+			Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Namespace"); }
+
+			Identifier getInstanceName() const override { return id; }
+
 			String getDebugDataType() const override { return "Namespace"; };
 			String getDebugName() const override { return id.toString(); };
 			String getDebugValue() const override { return id.toString(); };
@@ -731,6 +742,8 @@ public:
 
 			~HiseSpecialData();
 
+			Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("RootNamespace"); }
+
             void clear();
             
             Callback *getCallback(const Identifier &id);
@@ -741,20 +754,12 @@ public:
 
 			DynamicObject* getInlineFunction(const Identifier &id);
 
+			
+
 			bool updateCyclicReferenceList(CyclicReferenceCheckBase::ThreadData& data, const Identifier& id) override;
 
 			void prepareCycleReferenceCheck() override;
 
-#if INCLUDE_NATIVE_JIT
-			NativeJITScope* getNativeJITScope(const Identifier& id);
-
-			NativeJITCompiler* getNativeCompiler(const Identifier& id);
-            
-            ReferenceCountedArray<NativeJITCompiler> jitModules;
-            ReferenceCountedArray<NativeJITScope> jitScopes;
-            
-#endif
-            
 			void setProcessor(JavascriptProcessor *p) noexcept { processor = p; }
 
 			static bool initHiddenProperties;
@@ -778,15 +783,11 @@ public:
 
 			ReferenceCountedArray<Callback> callbackNEW;
 
-			ReferenceCountedArray<ExternalCFunction> externalCFunctions;
-
 			double callbackTimes[32];
 
 			static Array<Identifier> hiddenProperties;
 
 			OwnedArray<ExternalFileData> includedFiles;
-
-			int getExternalCIndex(const Identifier& id);
 
 			/** Call this after compiling and a dictionary of all values will be created. */
 			void createDebugInformation(DynamicObject *root);
@@ -807,7 +808,7 @@ public:
 
 			int getNumDebugObjects() { return debugInformation.size(); }
 
-			DebugInformation *getDebugInformation(int debugIndex)
+			DebugInformationBase *getDebugInformation(int debugIndex)
 			{
 				if (debugIndex < debugInformation.size())
 				{
@@ -819,14 +820,7 @@ public:
 
 			void checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name, CodeLocation& l);;
 
-			
 			static DebugInformation *get(ReferenceCountedObject* o) { return dynamic_cast<DebugInformation*>(o); }
-
-			/** Lock this before you obtain debug objects to make sure it will not be rebuilt during access. */
-			CriticalSection &getDebugLock()
-			{
-				return debugLock;
-			}
 
 		private:
 
@@ -835,9 +829,7 @@ public:
 
 			CriticalSection debugLock;
 
-			OwnedArray<DebugInformation> debugInformation;
-
-			
+			OwnedArray<DebugInformationBase> debugInformation;
 		};
 
 		void setUseCycleReferenceCheckForNextCompilation()
@@ -943,6 +935,11 @@ public:
 		DynamicObject::Ptr localScope;
 		
 	};
+
+	void getColourAndLetterForType(int type, Colour& colour, char& letter) override
+	{
+		return ValueTreeApiHelpers::getColourAndCharForType(type, letter, colour);
+	}
 
 	void setBreakpoints(Array<Breakpoint> &breakpoints);
 

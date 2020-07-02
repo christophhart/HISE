@@ -210,7 +210,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 	struct FunctionCall;
 
 	struct Object : public DynamicObject,
-					public DebugableObject,
+					public DebugableObjectBase,
 					public CyclicReferenceCheckBase
 	{
 	public:
@@ -243,6 +243,13 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			body = nullptr;
 			dynamicFunctionCall = nullptr;
 		}
+
+		Location getLocation() const override
+		{
+			return location;
+		}
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("InlineFunction"); }
 
 		String getDebugValue() const override { return lastReturnValue.toString(); }
 
@@ -734,127 +741,5 @@ struct HiseJavascriptEngine::RootObject::NativeJIT
 
 #endif
 
-struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCountedObject,
-														    public DebugableObject
-{
-	ExternalCFunction(CodeLocation& /*l*/, const Identifier &name_, bool hasReturnType_, Array<Identifier>& arguments_, const String &comment_, const String& codeToCompile):
-	name(name_),
-	hasReturnType(hasReturnType_),
-	numArguments(arguments_.size()),
-	arguments(arguments_),
-	f(nullptr),
-	compiledOk(false),
-	commentDoc(comment_),
-	signature(codeToCompile.fromFirstOccurrenceOf(" ", false, false).upToFirstOccurrenceOf(")", true, false))
-	{
-		String cCode = "#include <TccLibrary.h>\n";
-		cCode << "#include <math.h>\n";
-		cCode << codeToCompile;
-
-#if INCLUDE_TCC
-		int dllLoading = c.openContext();
-
-		if (dllLoading != (int)LoadingErrorCode::LoadingSuccessful)
-		{
-			c.closeContext();
-			l.throwError("The TCC compiler dynamic library could not be loaded.");
-		}
-
-		compiledOk = c.compile(cCode) == 0;
-
-		if (compiledOk)
-		{
-			f = c.getFunction(name.toString());
-			c.closeContext();
-			if (f == nullptr)
-			{
-				l.throwError("The function couldn't be parsed");
-			}
-		}
-		else
-		{
-			c.closeContext();
-			l.throwError("Error at compiling external C function " + name.toString());
-		}
-#endif
-	}
-
-	struct FunctionCall : public Expression
-	{
-		FunctionCall(const CodeLocation& l, ExternalCFunction* cFunction_) : Expression(l), cFunction(cFunction_) {}
-
-		var getResult(const Scope& s) const override
-		{
-			if (!cFunction->compiledOk)
-			{
-				location.throwError("Trying to call a uncompiled function.");
-				return var();
-			}
-
-			var args[4];
-
-			for (int i = 0; i < cFunction->numArguments; i++)
-			{
-				args[i] = parameterExpressions[i]->getResult(s);
-			}
-
-			if (cFunction->hasReturnType)
-			{
-				
-			}
-			else
-			{
-				using voidFunc0 = void(*)();
-				using voidFunc1 = void(*)(var*);
-				using voidFunc2 = void(*)(var*, var*);
-				using voidFunc3 = void(*)(var*, var*, var*);
-				using voidFunc4 = void(*)(var*, var*, var*, var*);
-
-				switch (cFunction->numArguments)
-				{
-				case 0: ((voidFunc0)cFunction->f)(); break;
-				case 1: ((voidFunc1)cFunction->f)(args); break;
-				case 2: ((voidFunc2)cFunction->f)(args, args + 1); break;
-				case 3: ((voidFunc3)cFunction->f)(args, args + 1, args + 2); break;
-				case 4: ((voidFunc4)cFunction->f)(args, args + 1, args + 2, args + 3); break;
-				}
-			}
-			
-			return var();
-		}
-
-		OwnedArray<Expression> parameterExpressions;
-		ExternalCFunction* cFunction;
-	};
-
-
-	String getDebugValue() const override { return lastReturnValue.toString(); }
-
-	/** This will be shown as name of the object. */
-	String getDebugName() const override { return signature; }
-
-	String getDebugDataType() const override { return DebugInformation::getVarType(lastReturnValue); }
-
-	AttributedString getDescription() const override
-	{
-		return DebugableObject::Helpers::getFunctionDoc(commentDoc, arguments);
-	}
-
-	var lastReturnValue;
-
-	String signature;
-
-	Identifier name;
-	bool hasReturnType;
-	Array<Identifier> arguments;
-	int numArguments;
-	void* f;
-    
-#if INCLUDE_TCC
-	TccContext c;
-#endif
-	bool compiledOk;
-	String commentDoc;
-};
 
 } // namespace hise

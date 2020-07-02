@@ -47,35 +47,17 @@ public:
     
     virtual ~FunctionParser() {}
 
+
+	StatementPtr parseStatementToBlock();
 	StatementPtr parseStatementBlock();
 	StatementPtr parseStatement();
 	StatementPtr parseAssignment();
 	StatementPtr parseReturnStatement();
-	StatementPtr parseVariableDefinition(bool isConst);
+	StatementPtr parseVariableDefinition();
 	StatementPtr parseLoopStatement();
 	StatementPtr parseIfStatement();
 	
-
 	void finaliseSyntaxTree(SyntaxTree* tree) override;
-
-	ExprPtr createBinaryNode(ExprPtr l, ExprPtr r, TokenType op);
-
-	ExprPtr parseExpression();
-	ExprPtr parseTernaryOperator();
-	ExprPtr parseBool();
-	ExprPtr parseLogicOperation();
-	ExprPtr parseComparation();
-	ExprPtr parseSum();
-	ExprPtr parseDifference();
-	ExprPtr parseProduct();
-	ExprPtr parseTerm();
-	ExprPtr parseCast(Types::ID type);
-	ExprPtr parseUnary();
-	ExprPtr parseFactor();
-	ExprPtr parseSymbolOrLiteral();
-	ExprPtr parseReference();
-	ExprPtr parseLiteral(bool isNegative=false);
-	ExprPtr parseFunctionCall();
 };
 
 

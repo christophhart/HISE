@@ -64,6 +64,10 @@
 #include "hi_tools/HI_LookAndFeels.cpp"
 
 
+#include "hi_standalone_components/CodeEditorApiBase.cpp"
+#include "hi_standalone_components/AdvancedCodeEditor.cpp"
+#include "hi_standalone_components/ScriptWatchTable.cpp"
+
 #include "hi_tools/JavascriptTokeniser.cpp"
 #include "hi_markdown/MarkdownLink.cpp"
 #include "hi_markdown/MarkdownHeader.cpp"

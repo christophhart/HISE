@@ -52,7 +52,12 @@ Component* CodeEditorPanel::createContentComponent(int index)
 {
 	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-	const bool isCallback = index < p->getNumSnippets();
+	int numSnippets = p->getNumSnippets();
+	int numFiles = p->getNumWatchedFiles();
+
+	const bool isCallback = index < numSnippets;
+	const bool isExternalFile = index >= numSnippets && index < numFiles;
+	const bool isJitNodeCode = !isExternalFile && !isCallback;
 
 	if (isCallback)
 	{
@@ -61,7 +66,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 		return pe;
 	}
-	else
+	else if (isExternalFile)
 	{
 		const int fileIndex = index - p->getNumSnippets();
 
@@ -71,6 +76,29 @@ Component* CodeEditorPanel::createContentComponent(int index)
 
 		return pe;
 	}
+	else
+	{
+#if HISE_INCLUDE_SNEX
+		int jitNodeIndex = index - numSnippets - numFiles;
+
+		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
+		{
+			if (auto network = h->getActiveNetwork())
+			{
+				auto list = network->getListOfNodesWithType<scriptnode::JitNode>(true);
+
+				if (auto n = dynamic_cast<scriptnode::JitNode*>(list[jitNodeIndex].get()))
+				{
+					auto v = n->getNodePropertyAsValue(scriptnode::PropertyIds::Code);
+					auto pg = new snex::SnexPlayground(v, nullptr); // add the buffer later...
+					return pg;
+				}
+			}
+		}
+#endif
+	}
+
+	return nullptr;
 }
 
 
@@ -163,6 +191,19 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 		for (int i = 0; i < p->getNumWatchedFiles(); i++)
 		{
 			indexList.add(p->getWatchedFile(i).getFileName());
+		}
+
+		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
+		{
+#if HISE_INCLUDE_SNEX
+			if (auto network = h->getActiveNetwork())
+			{
+				auto list = network->getListOfNodesWithType<scriptnode::JitNode>(true);
+
+				for (auto l : list)
+					indexList.add("SNEX Node: " + l->getId());
+			}
+#endif
 		}
 	}
 }
@@ -1013,9 +1054,9 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 {
 	setStyleProperty("showConnectionBar", false);
 
-	auto swt = new ScriptWatchTable(getRootWindow());
+	auto swt = new ScriptWatchTable();
 
-	swt->setScriptProcessor(dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()), nullptr);
+	swt->setHolder(dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()));
 
 	return swt;
 }

@@ -41,62 +41,44 @@ snex::jit::BaseScope::ScopeType BaseScope::getScopeType() const
 	return scopeType;
 }
 
-snex::jit::BaseScope::RefPtr BaseScope::get(const Symbol& s)
+snex::jit::GlobalScope* BaseScope::getGlobalScope()
 {
-	for (auto er : referencedVariables)
-	{
-		if (er->id == s)
-			return er;
-	}
+	BaseScope* c = this;
 
-	for (auto c : constants)
-	{
-		if (c.id == s)
-		{
-			RefPtr r = new Reference(this, s.id, c.id.type);
-			r->isConst = true;
-			referencedVariables.add(r);
-			return r;
-		}
-	}
+	while (c != nullptr && c->getScopeType() != Global)
+		c = c->getParent();
 
-	for (auto ir : allocatedVariables)
-	{
-		if (ir.id == s.id)
-		{
-			RefPtr r = new Reference(this, s.id, ir.ref.getType());
-			referencedVariables.add(r);
-			return r;
-		}
-	}
-
-	return nullptr;
+	return dynamic_cast<GlobalScope*>(c);
 }
 
-bool BaseScope::addConstant(const Identifier& id, VariableStorage v)
+snex::jit::ClassScope* BaseScope::getRootClassScope() const
 {
-	for (auto r : referencedVariables)
-	{
-		if (r->id.id == id)
-			return false;
-	}
+	BaseScope* c = const_cast<BaseScope*>(this);
 
-	for (auto c : constants)
-	{
-		if (c.id.id == id)
-			return false;
-	}
+	while (c != nullptr && c->getParent() != nullptr && c->getParent()->getScopeType() != Global)
+		c = c->getParent();
 
-	constants.add({ { {}, id, v.getType() }, v });
-	return true;
+	return dynamic_cast<ClassScope*>(c);
 }
 
-snex::jit::BaseScope* BaseScope::getParent()
+BaseScope* BaseScope::getParent()
 {
 	return parent.get();
 }
 
-BaseScope::BaseScope(const Identifier& id, BaseScope* parent_ /*= nullptr*/, int numVariables /*= 1024*/) :
+NamespaceHandler& BaseScope::getNamespaceHandler()
+{
+	auto h = getRootClassScope()->handler;
+	jassert(h != nullptr);
+	return *h;
+}
+
+RootClassData* BaseScope::getRootData() const
+{
+	return getRootClassScope()->rootData.get();
+}
+
+BaseScope::BaseScope(const NamespacedIdentifier& id, BaseScope* parent_ /*= nullptr*/) :
 	scopeId(id),
 	parent(parent_)
 {
@@ -109,212 +91,308 @@ BaseScope::BaseScope(const Identifier& id, BaseScope* parent_ /*= nullptr*/, int
 	else
 		scopeType = Anonymous;
 
-	size = numVariables;
-	data.allocate(size, true);
+	if (parent != nullptr)
+		parent->childScopes.add(this);
 }
 
 BaseScope::~BaseScope()
 {
-}
-
-juce::Result BaseScope::allocate(const Identifier& id, VariableStorage v)
-{
-	for (auto av : allocatedVariables)
-	{
-		if (av.id == id)
-			return Result::fail("already exists");
-	};
-
-	for (int i = 0; i < size; i++)
-	{
-		if (data[i].getType() == Types::ID::Void)
-		{
-			data[i] = v;
-			allocatedVariables.add({ id, *(data + i) });
-			return Result::ok();
-		}
-	}
-
-	return Result::fail("Can't allocate");
-}
-
-snex::jit::BaseScope* BaseScope::getScopeForSymbol(const Symbol& s)
-{
-	if (scopeId == s.parent)
-	{
-		for (const auto& c : constants)
-			if (c.id.matchesIdAndType(s))
-				return this;
-
-		for (const auto& v : allocatedVariables)
-			if (v == s)
-				return this;
-
-		if (scopeId.isValid())
-			return nullptr;
-	}
-
 	if (parent != nullptr)
-		return parent->getScopeForSymbol(s);
+	{
+		parent->childScopes.removeAllInstancesOf(this);
+	}
+}
+
+snex::jit::BaseScope* BaseScope::findScopeWithId(const NamespacedIdentifier& id)
+{
+	if (scopeId == id)
+		return this;
+
+	for (auto cs : childScopes)
+	{
+		if (auto found = cs->findScopeWithId(id))
+			return found;
+	}
+
+	if (getRootClassScope() == this)
+	{
+		if (getNamespaceHandler().rootHasNamespace(id))
+			return this;
+	}
 
 	return nullptr;
 }
 
-juce::Result BaseScope::deallocate(Reference v)
+BaseScope* BaseScope::getScopeForSymbolInternal(const NamespacedIdentifier& s)
 {
-	for (const auto& ir : allocatedVariables)
+	auto parentSymbol = s.getParent();
+
+	if (parentSymbol == scopeId)
 	{
-		if (v.id.id == ir.id)
+		if (hasSymbol(s))
+			return this;
+	}
+
+
+	for (auto c : childScopes)
+	{
+		if (auto m = c->getScopeForSymbolInternal(s))
+			return m;
+	}
+
+	if (auto fc = dynamic_cast<FunctionClass*>(this))
+	{
+		if (auto c = fc->getSubFunctionClass(parentSymbol))
 		{
-			ir.ref = {};
-			allocatedVariables.remove(allocatedVariables.indexOf(ir));
-			return Result::ok();
+			if (auto cs = dynamic_cast<BaseScope*>(c))
+				return cs;
+			else
+				return this;
 		}
 	}
 
-	return Result::fail("Can't deallocate Variable " + v.id.toString());
+	return nullptr;
 }
 
-juce::Array<snex::jit::BaseScope::Symbol> BaseScope::getAllVariables() const
+
+
+bool BaseScope::hasSymbol(const NamespacedIdentifier& s)
 {
-	Array<Symbol> variableIds;
+	jassert(s.getParent() == scopeId || getNamespaceHandler().rootHasNamespace(s.getParent()));
 
-	variableIds.ensureStorageAllocated(allocatedVariables.size());
+	auto type = getNamespaceHandler().getSymbolType(s);
 
-	for (auto v : allocatedVariables)
-		variableIds.add({ scopeId, v.id, v.ref.getType() });
-
-	return variableIds;
+	return type != NamespaceHandler::Unknown;
 }
 
-snex::VariableStorage & BaseScope::getVariableReference(const Identifier& id)
+BaseScope* BaseScope::getScopeForSymbol(const NamespacedIdentifier& s)
 {
-	for (auto v : allocatedVariables)
+	if (getScopeType() == Global)
 	{
-		if (v.id == id)
-			return v.ref;
+		if (auto fc = getGlobalScope()->getGlobalFunctionClass(s))
+			return this;
+
+		if (hasSymbol(s))
+			return this;
 	}
 
-	jassertfalse;
-	empty = {};
-	return empty;
+	auto bs = getRootClassScope()->findScopeWithId(s.getParent());
+
+	jassert(bs->hasSymbol(s));
+
+	return bs;
 }
 
 
-bool BaseScope::Symbol::operator==(const Symbol& other) const
+#if 0
+bool BaseScope::updateSymbol(Symbol& symbolToBeUpdated)
 {
-	return parent == other.parent && id == other.id;
+	jassert(getScopeForSymbol(symbolToBeUpdated) == this);
+
+	for (auto c : constants)
+	{
+		if (c.id == symbolToBeUpdated)
+		{
+			jassert(Types::Helpers::isFixedType((c.v.getType())));
+
+			symbolToBeUpdated.typeInfo = TypeInfo(c.v.getType(), true, false);
+			symbolToBeUpdated.constExprValue = c.v;
+			return true;
+		}
+	}
+
+	if (getScopeType() != Global && getRootData()->contains(symbolToBeUpdated))
+	{
+		return getRootData()->updateSymbol(symbolToBeUpdated);
+	}
+
+	if (getRootClassScope() == this)
+	{
+		if (getRootData()->hasFunction(symbolToBeUpdated))
+			return true;
+
+		if (auto c = getRootData()->getSubFunctionClass(symbolToBeUpdated.getParentSymbol()))
+		{
+			if (c->hasFunction(symbolToBeUpdated))
+				return true;
+
+			auto v = c->getConstantValue(symbolToBeUpdated);
+			symbolToBeUpdated.constExprValue = v;
+			symbolToBeUpdated.typeInfo = TypeInfo(v.getType(), true);
+
+			return true;
+		}
+	}
+
+	return false;
 }
+#endif
 
-
-BaseScope::Symbol::Symbol(const Identifier& parent_, const Identifier& id_, Types::ID t_) :
-	parent(parent_),
-	id(id_),
-	type(t_)
+juce::String RootClassData::dumpTable() const
 {
+	
+	juce::String s;
+	juce::String nl("\n");
 
-}
-
-
-BaseScope::Symbol::Symbol()
-{
-
-}
+	s << "Dumping root data table" << nl;
 
 
-bool BaseScope::Symbol::matchesIdAndType(const Symbol& other) const
-{
-	return other == *this;// && other.type == type;
-}
+	for (const auto& st : symbolTable)
+	{
+		if (st.s.typeInfo.isComplexType())
+		{
+			int il = 0;
 
-juce::String BaseScope::Symbol::toString() const
-{
-	if (id.isNull())
-		return "undefined";
-
-	String s;
-
-	if (parent.isValid())
-		s << parent << "." << id;
-	else
-		s << id;
+			s << st.s.typeInfo.getComplexType()->toString() << " ";
+				
+			s << st.s.toString() << "\n";
+			st.s.typeInfo.getComplexType()->dumpTable(s, il, data.get(), st.data);
+		}
+		else
+		{
+			Types::Helpers::dumpNativeData(s, 0, st.s.toString(), data.get(), st.data, Types::Helpers::getSizeForType(st.s.typeInfo.getType()), st.s.typeInfo.getType());
+		}
+	}
 
 	return s;
 }
 
-BaseScope::Symbol::operator bool() const
+RootClassData::RootClassData() :
+	FunctionClass(NamespacedIdentifier(Identifier()))
 {
-	return id.isValid();
+	
 }
 
-
-bool BaseScope::Reference::operator==(const Reference& other) const
+juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues)
 {
-	return id == other.id && scope.get() == other.scope.get();
+	if (scope == scope->getRootClassScope())
+	{
+		for (const auto& ts : symbolTable)
+		{
+			if (ts.s == s)
+			{
+				if (ts.s.typeInfo.isComplexType())
+				{
+					return ts.s.typeInfo.getComplexType()->initialise(ts.data, initValues);
+				}
+				else
+				{
+					VariableStorage initValue;
+					initValues->getValue(0, initValue);
+
+					if (ts.s.typeInfo.getType() == initValue.getType())
+					{
+						ComplexType::writeNativeMemberType(ts.data, 0, initValue);
+						return Result::ok();
+					}
+
+					return Result::fail("type mismatch");
+				}
+			}
+		}
+	}
+	
+	if (auto cs = dynamic_cast<ClassScope*>(scope))
+	{
+		if (cs->typePtr != nullptr)
+		{
+			return initSubClassMembers(cs->typePtr.get(), s.id.getIdentifier(), initValues);
+		}
+	}
+
+	return Result::fail("not found");
 }
 
-
-BaseScope::Reference::Reference(BaseScope* p, const Identifier& s, Types::ID type) :
-	scope(p),
-	id(p->scopeId, s, type)
+void* RootClassData::getDataPointer(const NamespacedIdentifier& s) const
 {
+	for (const auto& ts : symbolTable)
+	{
+		if (ts.s.id == s)
+			return ts.data;
 
+		uint64_t data = reinterpret_cast<uint64_t>(ts.data);
+
+		auto found = checkSubClassMembers(ts, s, [&data](StructType* sc, const Identifier& id)
+		{
+			data += sc->getMemberOffset(id);
+		});
+
+		if (found)
+			return (void*)data;
+	}
+
+	jassertfalse;
+	return nullptr;
 }
 
-
-BaseScope::Reference::Reference() : scope(nullptr), id({})
+juce::Result RootClassData::initSubClassMembers(ComplexType::Ptr type, const Identifier& memberId, InitialiserList::Ptr initList)
 {
+	for (const auto& ts : symbolTable)
+	{
+		if (ts.s.typeInfo.isComplexType())
+		{
+			ts.s.typeInfo.getComplexType()->forEach([memberId, initList](ComplexType::Ptr p, void* dataPointer)
+			{
+				if (auto structType = dynamic_cast<StructType*>(p.get()))
+				{
+					auto offset = structType->getMemberOffset(memberId);
 
+					if (structType->isNativeMember(memberId))
+					{
+						VariableStorage initValue;
+
+						jassert(initList->size() == 1);
+
+						initList->getValue(0, initValue);
+
+						ComplexType::writeNativeMemberType(dataPointer, offset, initValue);
+						return false;
+					}
+					else
+					{
+						auto memberType = structType->getMemberComplexType(memberId);
+						auto ptr = ComplexType::getPointerWithOffset(dataPointer, offset);
+						memberType->initialise(ptr, initList);
+						return false;
+					}
+				}
+
+				p->initialise(dataPointer, initList);
+
+				return false;
+			}, type, ts.data);
+		}
+	}
+
+	return Result::ok();
 }
 
-int BaseScope::Reference::getNumReferences() const
+bool RootClassData::checkSubClassMembers(const TableEntry& ts, const NamespacedIdentifier& s, const std::function<void(StructType* sc, const Identifier& id)>& f) const
 {
-	return getReferenceCount() - 1;
-}
+	if (ts.s.id ==  s.getParent() && ts.s.typeInfo.isComplexType())
+	{
+		auto path = s.getIdList();
+		path.remove(0);
 
-void* BaseScope::Reference::getDataPointer() const
-{
-	return scope.get()->getVariableReference(id.id).getDataPointer();
-}
+		auto tp = ts.s.typeInfo.getComplexType();
 
-snex::VariableStorage BaseScope::Reference::getDataCopy() const
-{
-	return VariableStorage(scope.get()->getVariableReference(id.id));
-}
+		for (int i = 0; i < path.size(); i++)
+		{
+			auto thisMember = path[i];
+			auto st = dynamic_cast<StructType*>(tp.get());
 
-snex::VariableStorage& BaseScope::Reference::getDataReference(bool allowConstInitialisation /*= false*/) const
-{
-	ignoreUnused(allowConstInitialisation);
-	jassert(!(isConst && !allowConstInitialisation));
+			if (st == nullptr)
+				break;
 
-	return scope.get()->getVariableReference(id.id);
-}
+			f(st, thisMember);
 
-snex::Types::ID BaseScope::Reference::getType() const
-{
-	return id.type;
-}
+			tp = st->getMemberComplexType(thisMember).get();
+		}
 
+		return true;
+	}
 
-bool BaseScope::InternalReference::operator==(const InternalReference& other) const
-{
-	return id == other.id;
-}
-
-
-bool BaseScope::InternalReference::operator==(const Symbol& s) const
-{
-	auto symbolType = s.type;
-	auto thisType = ref.getType();
-
-	return id == s.id && Types::Helpers::matchesType(symbolType, thisType);
-}
-
-BaseScope::InternalReference::InternalReference(const Identifier& id_, VariableStorage& r) :
-	id(id_),
-	ref(r)
-{
-
+	return false;
 }
 
 }

@@ -1367,7 +1367,7 @@ void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component
 {
 	if (scriptWatchTable.getComponent() != nullptr)
 	{
-		scriptWatchTable->setScriptProcessor(p, dynamic_cast<ScriptingEditor*>(editor));
+		scriptWatchTable->setHolder(p);
 	}
 };;
 

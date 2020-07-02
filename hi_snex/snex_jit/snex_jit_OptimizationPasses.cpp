@@ -39,7 +39,6 @@ using namespace asmjit;
 
 void OptimizationPass::replaceWithNoop(StatementPtr s)
 {
-	s->logOptimisationMessage("Remove statement");
 	replaceExpression(s, new Operations::Noop(s->location));
 }
 
@@ -67,21 +66,56 @@ struct VOps
 #undef VAR_OP_INT
 };
 
-void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
+ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalDotOperator(BaseScope* s, Operations::DotOperator* dot)
+{
+	if (auto pv = dynamic_cast<Operations::VariableReference*>(dot->getDotParent().get()))
+	{
+		if (auto fc = pv->getFunctionClassForSymbol(s))
+		{
+			if (auto cv = dynamic_cast<Operations::VariableReference*>(dot->getDotChild().get()))
+			{
+				if (fc->hasConstant(cv->id.id))
+				{
+					return new Operations::Immediate(dot->location, fc->getConstantValue(cv->id.id));
+				}
+			}
+			if (auto cf = dynamic_cast<Operations::FunctionCall*>(dot->getDotChild().get()))
+			{
+				return evalConstMathFunction(cf);
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+
+
+bool ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
 	// run both times, since something could become constexpr during symbol resolving...
 	if(compiler->getCurrentPass() == BaseCompiler::PostSymbolOptimization ||
 	   compiler->getCurrentPass() == BaseCompiler::PreSymbolOptimization)
 	{
-		if (auto v = as<Operations::VariableReference>(statement))
+		
+
+		if (auto fc = as<Operations::FunctionCall>(statement))
 		{
-			if (!v->functionClassConstant.isVoid())
+			if (auto constResult = evalConstMathFunction(fc))
 			{
-				auto parentType = v->parent.get()->getType();
+				statement->logOptimisationMessage("Remove const Math function call");
+				replaceExpression(statement, constResult);
+				return true;
+			}
+		}
 
-				v->logOptimisationMessage("Replace function constant");
-
-				replaceWithImmediate(v, VariableStorage(parentType, v->functionClassConstant.toDouble()));
+		if (auto dot = as<Operations::DotOperator>(statement))
+		{
+			if (auto constResult = evalDotOperator(s, dot))
+			{
+				statement->logOptimisationMessage("Remove const dot operator");
+				replaceExpression(statement, constResult);
+				return true;
 			}
 		}
 
@@ -106,6 +140,17 @@ void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 					else
 						replaceWithNoop(statement);
 				}
+
+				return true;
+			}
+		}
+
+		if (auto c = as<Operations::Cast>(statement))
+		{
+			if (auto imm = evalCast(c->getSubExpr(0), c->getType()))
+			{
+				replaceExpression(c, imm);
+				return true;
 			}
 		}
 
@@ -119,9 +164,20 @@ void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 
 				a->getSubExpr(1)->process(compiler, s);
 
-				if (a->getTargetVariable()->isLocalConst)
+
+				if (a->getTargetType() == Operations::Assignment::TargetType::Variable)
 				{
-					compiler->logMessage(BaseCompiler::ProcessMessage, "Replace with " + Types::Helpers::getCppValueString(value));
+					auto target = a->getTargetVariable();
+
+					if (target != nullptr)
+					{
+						int numWriteAccesses = target->getNumWriteAcesses();
+
+						if (s->getScopeType() != BaseScope::Class && numWriteAccesses == 1 && !target->id.isConst())
+						{
+							a->logWarning("const value is declared as non-const");
+						}
+					}
 				}
 			}
 		}
@@ -135,6 +191,7 @@ void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			{
 				statement->logOptimisationMessage("Folded comparison");
 				replaceExpression(statement, constexprResult);
+				return true;
 			}
 		}
 
@@ -147,11 +204,15 @@ void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			{
 				statement->logOptimisationMessage("Folded binary op");
 				replaceExpression(statement, constExprBinaryOp);
+				return true;
 			}
 			else if (bOp->isLogicOp())
 			{
 				if (bOp->getSubExpr(1)->isConstExpr())
+				{
 					bOp->swapSubExpressions(0, 1);
+					return true;
+				}
 
 				if (bOp->getSubExpr(0)->isConstExpr())
 				{
@@ -161,22 +222,27 @@ void ConstExprEvaluator::processStatementInternal(BaseCompiler* compiler, BaseSc
 					{
 						statement->logOptimisationMessage("short-circuit constant && op");
 						replaceExpression(statement, new Operations::Immediate(statement->location, 0));
+						return true;
 					}
 					else if (bOp->op == JitTokens::logicalOr && lValue.toInt() == 1)
 					{
 						statement->logOptimisationMessage("short-circuit constant || op");
 						replaceExpression(statement, new Operations::Immediate(statement->location, 1));
+						return true;
 					}
 					else
 					{
 						statement->logOptimisationMessage("removed constant condition in logic op");
 						replaceExpression(statement, bOp->getSubExpr(1));
+						return true;
 					}
 				}
 			}
 
 		}
 	}
+
+	return false;
 
 #if 0
 
@@ -329,6 +395,8 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalNegation(ExprPtr 
 
 ConstExprEvaluator::ExprPtr ConstExprEvaluator::evalCast(ExprPtr expression, Types::ID targetType)
 {
+	jassert(targetType != Types::ID::Dynamic);
+
 	if (expression->isConstExpr())
 	{
 		auto value = expression->getConstExprValue();
@@ -352,74 +420,310 @@ snex::jit::ConstExprEvaluator::ExprPtr ConstExprEvaluator::createInvertImmediate
 
 
 
-#undef IS
-
-
-void Inliner::processStatementInternal(BaseCompiler* , BaseScope* , StatementPtr )
+snex::jit::OptimizationPass::ExprPtr ConstExprEvaluator::evalConstMathFunction(Operations::FunctionCall* functionCall)
 {
-#if 0
-	for (auto s : *tree)
+	if (functionCall->callType == Operations::FunctionCall::ApiFunction)
 	{
-		if (auto v = as<Operations::VariableReference>(s))
+		MathFunctions m;
+
+		if (auto t = dynamic_cast<Operations::VariableReference*>(functionCall->objExpr.get()))
 		{
-#if 0
-			bool canBeInlined = v->ref->getNumReferences() == 2 && // single usage
-				!v->isFirstReference() &&		  // not the definition
-				!v->isClassVariable();			  // not a class variable
+			if (!(t->id.id == m.getClassName()))
+				return nullptr;
+		}
 
-			if (canBeInlined)
+		Array<FunctionData> matches;
+		auto symbol = m.getClassName().getChildId(functionCall->function.id.id);
+
+		m.addMatchingFunctions(matches, symbol);
+
+		if (!matches.isEmpty())
+		{
+			Array<VariableStorage> constArgs;
+			Array<TypeInfo> argTypes;
+
+			for (int i = 0; i < functionCall->getNumArguments(); i++)
 			{
-				if (auto as = v->findAssignmentForVariable(this, scope))
+				if (functionCall->getArgument(i)->isConstExpr())
 				{
-					bool isNoSelfAssignment = !as->isOpAssignment(as);
-					bool isSameLine = dynamic_cast<Operations::VariableReference*>(as->getSubExpr(0).get())->ref == v->ref;
+					auto value = functionCall->getArgument(i)->getConstExprValue();
+					constArgs.add(value);
+					argTypes.add(TypeInfo(value.getType()));
+				}
 
-					if (isNoSelfAssignment && !isSameLine && v->parameterIndex == -1) // Self assignments shouldn't be inlined
+				else
+					return nullptr;
+			}
+
+			for (auto& match : matches)
+			{
+				// Don't constexpr the random function...
+				if (match.id.toString().contains("rand"))
+					continue;
+
+				if (match.matchesArgumentTypes(argTypes))
+				{
+					VariableStorage result;
+
+#define RETURN_T(x) match.returnType == Types::Helpers::getTypeFromTypeId<x>()
+#define ARG_T(i, x) argTypes[i] == Types::Helpers::getTypeFromTypeId<x>()
+
+					if (argTypes.size() == 1)
 					{
-						v->logOptimisationMessage("Inline variable " + v->ref->id.toString());
-
-						ExprPtr replacement = as->getSubExpr(1);
-						as->optimizeAway();
-						v->replaceInParent(replacement);
+#define CALL_IF(x) if (RETURN_T(x) && ARG_T(0, x)) result = match.call<x, x>((x)constArgs[0])
+						CALL_IF(int);
+						CALL_IF(float);
+						CALL_IF(double);
+#undef CALL_IF
 					}
+
+					if (argTypes.size() == 2)
+					{
+#define CALL_IF(x) if (RETURN_T(x) && ARG_T(0, x) && ARG_T(1, x)) result = match.call<x, x, x>((x)constArgs[0], (x)constArgs[1])
+						CALL_IF(int);
+						CALL_IF(float);
+						CALL_IF(double);
+#undef CALL_IF
+					}
+					if (argTypes.size() == 3)
+					{
+#define CALL_IF(x) if (RETURN_T(x) && ARG_T(0, x) && ARG_T(1, x) && ARG_T(2, x)) result = match.call<x, x, x>((x)constArgs[0], (x)constArgs[1], (x)constArgs[2])
+						CALL_IF(int);
+						CALL_IF(float);
+						CALL_IF(double);
+#undef CALL_IF
+					}
+#undef RETURN_T
+#undef ARG_T
+
+					return new Operations::Immediate(functionCall->location, result);
 				}
 			}
-#endif
-		}
-		else if (auto a = as<Operations::Assignment>(s))
-		{
-			createSelfAssignmentFromBinaryOp(a);
-		}
-		else if (auto b = as<Operations::BinaryOp>(s))
-		{
-			// Move into seperate pass
-			swapBinaryOpIfPossible(b);
 		}
 	}
 
+	return nullptr;
+}
+
+#undef IS
+
+
+
+
+bool FunctionInliner::processStatementInternal(BaseCompiler* compiler, BaseScope* scope, StatementPtr s)
+{
+	if (auto is = dynamic_cast<Operations::IfStatement*>(s.get()))
+	{
+		bool hasReturnStatement = is->getTrueBranch()->forEachRecursive([](StatementPtr p)
+		{
+			if (dynamic_cast<Operations::ReturnStatement*>(p.get()) != nullptr)
+				return true;
+
+			return false;
+		});
+
+		bool hasNoFalseBranch = is->getFalseBranch() == nullptr;
+
+		if (hasReturnStatement && hasNoFalseBranch)
+		{
+			Operations::Statement::Ptr newFalseBranch;
+
+			bool moveIntoNewFalseBranch = false;
+
+			for (int i = 0; i < is->parent->getNumChildStatements(); i++)
+			{
+				auto s = is->parent->getChildStatement(i);
+
+				if (s.get() == is)
+				{
+					moveIntoNewFalseBranch = true;
+
+					continue;
+				}
+
+				if (moveIntoNewFalseBranch)
+				{
+					if (newFalseBranch == nullptr)
+					{
+						auto base = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(s);
+
+						newFalseBranch = new Operations::StatementBlock(s->location, s->location.createAnonymousScopeId(base->getPath()));
+					}
+						
+					replaceWithNoop(s);
+					newFalseBranch->addStatement(s);
+				}
+			}
+
+			is->addStatement(newFalseBranch);
+
+			return true;
+		}
+	}
+
+	if (auto fc = dynamic_cast<Operations::FunctionCall*>(s.get()))
+	{
+		if (compiler->getCurrentPass() == BaseCompiler::PreSymbolOptimization)
+			return false;
+
+		if (fc->function.canBeInlined(true))
+		{
+			jassertfalse;
+		}
+
+#if 0
+		auto rd = fc->fc;
+
+		jassert(rd != nullptr);
+
+		auto s = rd->getClassName().getChildSymbol(fc->function.id);
+
+		if (rd->hasFunction(s))
+		{
+
+			Array<FunctionData> matches;
+			rd->addMatchingFunctions(matches, s);
+
+			FunctionData toUse;
+
+			if (matches.size() > 1)
+			{
+				BaseCompiler::ScopedPassSwitcher sps2(compiler, BaseCompiler::ResolvingSymbols);
+				fc->process(compiler, scope);
+				BaseCompiler::ScopedPassSwitcher sps3(compiler, BaseCompiler::TypeCheck);
+				fc->process(compiler, scope);
+
+				toUse = fc->function;
+			}
+			else
+				toUse = matches.getFirst();
+
+			auto s = dynamic_cast<ClassCompiler*>(compiler)->syntaxTree.get();
+
+			SyntaxTreeWalker w(s);
+
+			while (auto f = w.getNextStatementOfType<Operations::Function>())
+			{
+				auto& ofd = f->data;
+
+				if (toUse.id == ofd.id && toUse.matchesArgumentTypes(ofd, true))
+					return inlineRootFunction(compiler, scope, f, fc);
+			}
+		}
 #endif
+	}
+
+	return false;
 }
 
 
-void DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
+bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scope, Operations::Function* f, Operations::FunctionCall* fc)
+{
+	auto clone = f->statements->clone(fc->location);
+	auto cs = dynamic_cast<Operations::StatementBlock*>(clone.get());
+
+	cs->setReturnType(f->data.returnType);
+
+	if (fc->callType == Operations::FunctionCall::MemberFunction)
+	{
+		jassert(fc->objExpr != nullptr);
+
+		auto thisSymbol = Symbol("this");
+
+		Operations::Expression::Ptr e = as<Operations::Expression>(fc->objExpr->clone(fc->location).get());
+
+		cs->addInlinedParameter(-1, thisSymbol, e);
+
+		if (auto st = fc->objExpr->getTypeInfo().getTypedIfComplexType<StructType>())
+		{
+			clone->forEachRecursive([st, e](Operations::Statement::Ptr p)
+			{
+				if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
+				{
+					if (st->hasMember(v->id.id.getIdentifier()))
+					{
+						auto newParent = e->clone(v->location);
+						auto newChild = v->clone(v->location);
+
+						auto newDot = new Operations::DotOperator(v->location,
+							dynamic_cast<Operations::Expression*>(newParent.get()),
+							dynamic_cast<Operations::Expression*>(newChild.get()));
+
+						v->replaceInParent(newDot);
+					}
+
+				}
+
+				return false;
+			});
+		}
+		else
+			return false;
+		
+
+
+	}
+
+	for (int i = 0; i < fc->getNumArguments(); i++)
+	{
+		auto pVarSymbol = f->data.args[i];
+
+		Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
+
+		cs->addInlinedParameter(i, pVarSymbol, e);
+	}
+
+	replaceExpression(fc, clone);
+
+	{
+		BaseCompiler::ScopedPassSwitcher s1(compiler, BaseCompiler::DataSizeCalculation);
+		clone->process(compiler, scope);
+		BaseCompiler::ScopedPassSwitcher s2(compiler, BaseCompiler::DataAllocation);
+		clone->process(compiler, scope);
+		BaseCompiler::ScopedPassSwitcher s3(compiler, BaseCompiler::DataInitialisation);
+		clone->process(compiler, scope);
+		BaseCompiler::ScopedPassSwitcher s4(compiler, BaseCompiler::ResolvingSymbols);
+		clone->process(compiler, scope);
+		BaseCompiler::ScopedPassSwitcher s5(compiler, BaseCompiler::TypeCheck);
+		clone->process(compiler, scope);
+	}
+	return true;
+}
+
+bool DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
 	COMPILER_PASS(BaseCompiler::PostSymbolOptimization)
 	{
         if (auto imm = as<Operations::Immediate>(statement))
         {
-            if(imm->isAnonymousStatement())
-                replaceWithNoop(imm);
+			if (imm->isAnonymousStatement())
+			{
+				replaceWithNoop(imm);
+				return true;
+			}
+                
         }
         
 		if (auto a = as<Operations::Assignment>(statement))
 		{
+			if (a->getTargetType() != Operations::Assignment::TargetType::Variable)
+				return false;
+
+			
+
 			auto v = a->getTargetVariable();
 
-			if (v->isClassVariable())
-				return;
+			if (v->isClassVariable(s))
+				return false;
+
+			if (v->objectPtr != nullptr)
+				return false;
+
+			if (Operations::findParentStatementOfType<Operations::MemoryReference>(v) != nullptr)
+				return false;
 
 			if (v->isParameter(s))
-				return;
+				return false;
 
 			int numReferences = 0;
 
@@ -435,9 +739,13 @@ void DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
 			{
 				compiler->logMessage(BaseCompiler::Warning, "Unused variable " + v->id.toString());
 				OptimizationPass::replaceWithNoop(statement);
+				return true;
 			}
 		}
 	}
+
+	return false;
+
 #if 0
 
 	for (auto s : *tree)
@@ -480,14 +788,17 @@ void DeadcodeEliminator::processStatementInternal(BaseCompiler* compiler, BaseSc
 	
 }
 
-void BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
+bool BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
 	COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
 	{
 		if (auto bOp = as<Operations::BinaryOp>(statement))
 		{
-			simplifyOp(bOp->getSubExpr(0), bOp->getSubExpr(1), bOp->op, compiler, s);
-			swapIfBetter(bOp, bOp->op, compiler, s);
+			if (simplifyOp(bOp->getSubExpr(0), bOp->getSubExpr(1), bOp->op, compiler, s))
+				return true;
+
+			if (swapIfBetter(bOp, bOp->op, compiler, s))
+				return true;
 		}
 	}
 
@@ -495,45 +806,50 @@ void BinaryOpOptimizer::processStatementInternal(BaseCompiler* compiler, BaseSco
 	{
 		if (auto bOp = as<Operations::BinaryOp>(statement))
 		{
-			swapIfBetter(bOp, bOp->op, compiler, s);
+			if (swapIfBetter(bOp, bOp->op, compiler, s))
+				return true;
 		}
 
 		if (auto a = as<Operations::Assignment>(statement))
 		{
-			simplifyOp(a->getSubExpr(1), a->getSubExpr(0), a->assignmentType, compiler, s);
+			if (simplifyOp(a->getSubExpr(1), a->getSubExpr(0), a->assignmentType, compiler, s))
+				return true;
 
-			
-			currentlyAssignedId = a->getTargetVariable()->ref;
-
-			a->getSubExpr(0)->process(compiler, s);
-
-			if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
+			if (a->getTargetType() == Operations::Assignment::TargetType::Variable)
 			{
-				if (isAssignedVariable(bOp->getSubExpr(0)))
+				currentlyAssignedId.s = a->getTargetVariable()->id;
+				currentlyAssignedId.scope = a->getTargetVariable()->variableScope;
+
+				a->getSubExpr(0)->process(compiler, s);
+
+				if (auto bOp = dynamic_cast<Operations::BinaryOp*>(a->getSubExpr(0).get()))
 				{
-					a->logOptimisationMessage("Replace " + String(bOp->op) + " with self assignment");
-                    
+					if (isAssignedVariable(bOp->getSubExpr(0)) && !SpanType::isSimdType(a->getSubExpr(1)->getTypeInfo()))
+					{
+						a->logOptimisationMessage("Replace " + juce::String(bOp->op) + " with self assignment");
 
-                    a->assignmentType = bOp->op;
-                    
-                    auto right = bOp->getSubExpr(1);
-                    
-                    replaceExpression(bOp, right);
+
+						a->assignmentType = bOp->op;
+
+						auto right = bOp->getSubExpr(1);
+
+						replaceExpression(bOp, right);
+						return true;
+					}
 				}
+
+				currentlyAssignedId = {};
 			}
-
-			currentlyAssignedId = nullptr;
-
 		}
-
-		
 	}
+
+	return false;
 	
 }
 
 bool BinaryOpOptimizer::swapIfBetter(ExprPtr bOp, const char* op, BaseCompiler* compiler, BaseScope* s)
 {
-	if (currentlyAssignedId == nullptr)
+	if (currentlyAssignedId)
 		return false;
 
 	StatementPtr rightOp(bOp->getSubExpr(1).get());
@@ -581,6 +897,7 @@ bool BinaryOpOptimizer::simplifyOp(ExprPtr l, ExprPtr r, const char* op, BaseCom
 			a->assignmentType = o;
 	};
 
+	
 	if (op == JitTokens::minus)
 	{
 		if (r->isConstExpr())
@@ -624,7 +941,7 @@ bool BinaryOpOptimizer::isAssignedVariable(ExprPtr e) const
 {
 	if (auto v = dynamic_cast<Operations::VariableReference*>(e.get()))
 	{
-		return v->ref == currentlyAssignedId;
+		return SymbolWithScope({ v->id, v->variableScope}) == currentlyAssignedId;
 	}
 	else
 	{
@@ -652,11 +969,11 @@ snex::jit::Operations::BinaryOp* BinaryOpOptimizer::getFirstOp(ExprPtr e)
 	return nullptr;
 }
 
-bool BinaryOpOptimizer::containsVariableReference(ExprPtr p, BaseScope::RefPtr refToCheck)
+bool BinaryOpOptimizer::containsVariableReference(ExprPtr p, const Symbol& refToCheck)
 {
 	if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
 	{
-		return v->ref == refToCheck;
+		return v->id == refToCheck;
 	}
 
 	for (int i = 0; i < p->getNumChildStatements(); i++)
@@ -681,16 +998,16 @@ void BinaryOpOptimizer::swapBinaryOpIfPossible(ExprPtr binaryOp)
 
 	bool rightContainsReferenceToTarget = false;
 
-	BaseScope::RefPtr targetRef;
+	Symbol targetRef;
 
 	if (auto assignment = Operations::findParentStatementOfType<Operations::Assignment>(binaryOp.get()))
 	{
 		auto v = dynamic_cast<Operations::VariableReference*>(assignment->getSubExpr(0).get());
 
-		targetRef = v->ref;
+		targetRef = v->id;
 	}
 
-	if (targetRef != nullptr && containsVariableReference(r, targetRef))
+	if (targetRef && containsVariableReference(r, targetRef))
 		rightContainsReferenceToTarget = true;
 
 	if (leftIsImmediate || rightContainsReferenceToTarget)
@@ -713,7 +1030,7 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 		if (auto v_l = dynamic_cast<Operations::VariableReference*>(bOp->getSubExpr(0).get()))
 		{
-			if (v_l->ref == as->getTargetVariable()->ref)
+			if (v_l->id == as->getTargetVariable()->id)
 			{
 				if (auto bOp_r = dynamic_cast<Operations::BinaryOp*>(bOp->getSubExpr(1).get()))
 				{
@@ -734,7 +1051,7 @@ void BinaryOpOptimizer::createSelfAssignmentFromBinaryOp(ExprPtr assignment)
 
 		if (auto v_r = dynamic_cast<Operations::VariableReference*>(bOp->getSubExpr(1).get()))
 		{
-			if (v_r->ref == as->getTargetVariable()->ref)
+			if (v_r->id == as->getTargetVariable()->id)
 			{
 				as->logOptimisationMessage("Create self assign");
 				as->assignmentType = bOp->op;

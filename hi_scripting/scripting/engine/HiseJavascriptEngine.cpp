@@ -772,18 +772,11 @@ void HiseJavascriptEngine::setCallStackEnabled(bool shouldBeEnabled)
 void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 {
 	root->hiseSpecialData.apiClasses.add(apiClass);
-	root->hiseSpecialData.apiIds.add(apiClass->getName());
+	root->hiseSpecialData.apiIds.add(apiClass->getObjectName());
 }
 
-bool HiseJavascriptEngine::isApiClassRegistered(const String& className)
-{
-	Identifier id(className);
-
-	return root->hiseSpecialData.apiIds.contains(id);
-}
-
-
-const ApiClass* HiseJavascriptEngine::getApiClass(const Identifier &className) const
+#if 0
+const ApiClassBase* HiseJavascriptEngine::getApiClass(const Identifier &className) const
 {
 	const int index = root->hiseSpecialData.apiIds.indexOf(className);
 
@@ -794,6 +787,7 @@ const ApiClass* HiseJavascriptEngine::getApiClass(const Identifier &className) c
 
 	return nullptr;
 }
+#endif
 
 ApiClass::Constant ApiClass::Constant::null;
 
@@ -853,13 +847,14 @@ void HiseJavascriptEngine::setCallbackParameter(int callbackIndex, int parameter
 	root->hiseSpecialData.callbackNEW[callbackIndex]->setParameterValue(parameterIndex, newValue);
 }
 
-DebugInformation* HiseJavascriptEngine::getDebugInformation(int index)
+DebugInformationBase* HiseJavascriptEngine::getDebugInformation(int index)
 {
 	return root->hiseSpecialData.getDebugInformation(index);
 }
 
 
-var HiseJavascriptEngine::getScriptObject(const Identifier &id) const
+#if 0
+var HiseJavascriptEngine::getDebugObject(const Identifier &id) const
 {
 	String idAsString = id.toString();
 
@@ -905,6 +900,7 @@ var HiseJavascriptEngine::getScriptObject(const Identifier &id) const
 		return getScriptVariableFromRootNamespace(id);
 	}
 }
+#endif
 
 
 var HiseJavascriptEngine::getScriptVariableFromRootNamespace(const Identifier & id) const
@@ -1013,11 +1009,6 @@ void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest
 #endif
 }
 
-juce::CriticalSection& HiseJavascriptEngine::getDebugLock() const
-{
-	return root->hiseSpecialData.getDebugLock();
-}
-
 void HiseJavascriptEngine::extendTimeout(int milliSeconds)
 {
 	auto newTimeout = root->timeout.toMilliseconds() + milliSeconds;
@@ -1029,6 +1020,50 @@ void HiseJavascriptEngine::abortEverything()
 {
 	if(root != nullptr)
 		root->timeout = Time(0);
+}
+
+hise::DebugableObjectBase* HiseJavascriptEngine::getDebugObject(const String& token)
+{
+	if (token.isEmpty())
+		return nullptr;
+
+	if (auto obj = ApiProviderBase::getDebugObject(token))
+		return obj;
+
+	auto r = root->evaluate(token);
+
+	if (r.isArray())
+		return ApiProviderBase::getDebugObject("Array");
+	if (r.isString())
+		return ApiProviderBase::getDebugObject("String");
+
+		
+
+	if(auto s = dynamic_cast<DebugableObjectBase*>(r.getObject()))
+		return s;
+
+	return nullptr;
+}
+
+juce::String HiseJavascriptEngine::getHoverString(const String& token)
+{
+	try
+	{
+		auto value = root->evaluate(token).toString();
+
+		if (token != value)
+			return token + ": " + value;
+
+		return "";
+	}
+	catch (String& error)
+	{
+		return "";
+	}
+	catch (RootObject::Error& e)
+	{
+		return "";
+	}
 }
 
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :

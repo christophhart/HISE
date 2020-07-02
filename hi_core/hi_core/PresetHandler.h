@@ -457,6 +457,10 @@ public:
     
 	static ValueTree createUserPreset(ModulatorSynthChain* chain);
 
+	static void addRequiredExpansions(const MainController* mc, ValueTree& preset);
+
+	static StringArray checkRequiredExpansions(MainController* mc, ValueTree& preset);
+
 	static ValueTree createModuleStateTree(ModulatorSynthChain* chain);
 
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);

@@ -20,16 +20,13 @@ namespace Types
 {
 enum ID
 {
-	Void =    0b00000000,
-	Event =	  0b00001111,
-	Float =   0b00010000,
-	Double =  0b00100000,
-	FpNumber= 0b00110000,
-	Integer = 0b01000000,
-	Block =   0b10000000,
-	Number =  0b01110000,
-	Signal =  0b10110000,
-	Dynamic = 0b11111111
+	Void =			0b00000000,
+	Pointer = 0b10001111,
+	Float =			0b00010000,
+	Double =		0b00100000,
+	Integer =		0b01000000,
+	Block =			0b10000000,
+	Dynamic =		0b11111111
 };
 
 struct OutOfBoundsException
@@ -255,7 +252,526 @@ struct FunctionType
 	
 };
 
+
+struct Throw
+{
+	struct Exception
+	{
+		int index;
+		int maxSize;
+	};
+
+	template <typename T, int MaxLimit> static T& get(T* data, int index)
+	{
+		if (isPositiveAndBelow(index, MaxLimit))
+			return data[index];
+		else
+			throw Exception({ index, MaxLimit });
+
+		static T empty = T();
+		return empty;
+	}
+
+	template <typename T, int MaxLimit> static const T& get(const T* data, int index)
+	{
+		return index % MaxLimit;
+	}
+
+	template <typename T> static T& get(T* data, int index, int maxLimit)
+	{
+		return index % maxLimit;
+	}
+
+	template <typename T> static const T& get(const T* data, int index, int maxLimit)
+	{
+		return index % maxLimit;
+	}
+};
+
+struct Wrap
+{
+	template <typename T, int MaxLimit> static T& get(T* data, int index)
+	{
+		return index % MaxLimit;
+	}
+
+	template <typename T, int MaxLimit> static const T& get(const T* data, int index)
+	{
+		return index % MaxLimit;
+	}
+
+	template <typename T> static T& get(T* data, int index, int maxLimit)
+	{
+		return index % maxLimit;
+	}
+
+	template <typename T> static const T& get(const T* data, int index, int maxLimit)
+	{
+		return index % maxLimit;
+	}
+};
+
+struct Zero
+{
+	template <typename T, int MaxLimit> static T& get(T* data, int index)
+	{
+		if (!isPositiveAndBelow(index, MaxLimit))
+		{
+			static T empty = T(0);
+			return empty;
+		}
+
+		return data[index];
+	}
+
+	template <typename T, int MaxLimit> static const T& get(const T* data, int index)
+	{
+		if (!isPositiveAndBelow(index, MaxLimit))
+		{
+			static T empty = T(0);
+			return empty;
+		}
+
+		return data[index];
+	}
+};
+
+
+template <int S> struct wrap
+{
+	wrap<S>& operator= (int v)
+	{
+		value = v % S;
+		return *this;
+	}
+
+	wrap<S>& operator++()
+	{
+		int rt = value;
+
+		if (value++ >= S)
+			value = 0;
+
+		return rt;
+	}
+
+	int value = 0;
+};
+
+
+template <class T, int Size> struct ref_span
+{
+	template <class Other> ref_span(Other& o) :
+		data(o.begin())
+	{
+		auto otherSize = o.end() - o.begin();
+		jassert(otherSize == Size);
+	}
+
+	T& operator[](int index)
+	{
+		return *data + index;
+	}
+
+	const T& operator[](int index) const
+	{
+		return *data + index;
+	}
+
+	T* begin() const
+	{
+		return const_cast<T*>(data);
+	}
+
+#if 0
+	ref_span<float4, Size / 4>& toSimd() const
+	{
+		jassert(float4::isAlignedTo16Byte(data));
+		static_assert(Size % 4 == 0, "Not Simdable");
+		static_assert(std::is_same<T, float>(), "Not float");
+
+		return *reinterpret_cast<ref_span<float4, Size / 4>*>(this);
+	}
+#endif
+
+	T* end() const
+	{
+		return const_cast<T*>(data) + Size;
+	}
+
+private:
+
+	const T* data;
+};
+
+template <class T, int MaxSize> struct span
+{
+	using DataType = T;
+	using Type = span<T, MaxSize>;
+
+	static constexpr int s = MaxSize;
+
+	span()
+	{
+		memset(data, 0, sizeof(T)*MaxSize);
+	}
+
+	span(const std::initializer_list<T>& l)
+	{
+		if (l.size() == 1)
+		{
+			for (int i = 0; i < MaxSize; i++)
+			{
+				data[i] = *l.begin();
+			}
+		}
+		else
+			memcpy(data, l.begin(), sizeof(T)*MaxSize);
+		
+	}
+
+	static constexpr size_t getSimdSize()
+	{
+		static_assert(isSimdable(), "not SIMDable");
+		
+		if (std::is_same<T, float>())
+			return 4;
+		else
+			return 2;
+	}
+
+	Type& operator=(const T& t)
+	{
+		static_assert(isSimdable(), "Can't add non SIMDable types");
+
+		constexpr int numLoop = MaxSize / getSimdSize();
+		int i = 0;
+
+		if (std::is_same<T, float>())
+		{
+			auto dst = (float*)data;
+
+            auto v_ = (float)t;
+            
+			for (int i = 0; i < numLoop; i++)
+			{
+				auto v = _mm_load_ps1(&v_);
+				_mm_store_ps(dst, v);
+
+				dst += getSimdSize();
+			}
+		}
+
+		return *this;
+	}
+
+	operator DataType()
+	{
+		if (MaxSize == 1)
+			return *begin();
+	}
+
+	Type& operator+=(const T& scalar)
+	{
+		*this + scalar;
+		return *this;
+	}
+
+	Type& operator+(const T& scalar)
+	{
+		static_assert(isSimdable(), "Can't add non SIMDable types");
+
+		constexpr int numLoop = MaxSize / getSimdSize();
+		auto dst = (float*)data;
+        auto v_ = (float)scalar;
+        
+		auto v = _mm_load_ps1(&v_);
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto r = _mm_add_ps(_mm_load_ps(dst), v);
+			_mm_store_ps(dst, r);
+
+			dst += getSimdSize();
+		}
+
+		return *this;
+	}
+
+	Type& operator=(const Type& other)
+	{
+		static_assert(isSimdable(), "Can't add non SIMDable types");
+
+		constexpr int numLoop = MaxSize / getSimdSize();
+		auto src = (float*)other.data;
+		auto dst = (float*)data;
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto v = _mm_load_ps((float*)src);
+			_mm_store_ps(dst, v);
+
+			src += getSimdSize();
+			dst += getSimdSize();
+		}
+
+		return *this;
+	}
+
+	Type& operator+ (const Type& other)
+	{
+		auto dst = (float*)data;
+		auto src = (float*)other.data;
+		constexpr int numLoop = MaxSize / getSimdSize();
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto v = _mm_load_ps(dst);
+			auto r = _mm_add_ps(v, _mm_load_ps(src));
+			_mm_store_ps(dst, r);
+
+			dst += getSimdSize();
+			src += getSimdSize();
+		}
+
+		return *this;
+	}
+
+	Type& operator +=(const Type& other)
+	{
+		static_assert(isSimdable(), "Can't add non SIMDable types");
+		
+		constexpr int numLoop = MaxSize / getSimdSize();
+		int i = 0;
+
+		auto dst = (float*)data;
+		auto src = (float*)other.data;
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto v = _mm_load_ps(dst);
+			auto r = _mm_add_ps(v, _mm_load_ps(src));
+			_mm_store_ps(dst, r);
+
+			dst += getSimdSize();
+			src += getSimdSize();
+		}
+		
+		return *this;
+	}
+
+	T accumulate() const
+	{
+		T v = T(0);
+
+		for (int i = 0; i < MaxSize; i++)
+		{
+			v += data[i];
+		}
+
+		return v;
+	}
+
+	static constexpr bool isSimdType()
+	{
+		return (std::is_same<T, float>() && MaxSize == 4) ||
+			(std::is_same<T, double>() && MaxSize == 2);
+	}
+
+	static constexpr bool isSimdable()
+	{
+		return (std::is_same<T, float>() && MaxSize % 4 == 0) ||
+			(std::is_same<T, double>() && MaxSize % 2 == 0);
+	}
+
+	bool isAlignedTo16Byte() const
+	{
+		return isAlignedTo16Byte(*this);
+	}
+
+	template <int SliceLength> ref_span<T, SliceLength> slice()
+	{
+		return ref_span<T, SliceLength>(*this);
+	}
+
+
+
+	template <class Other> static bool isAlignedTo16Byte(Other& d)
+	{
+		return reinterpret_cast<uint64_t>(d.begin()) % 16 == 0;
+	}
+
+	
+
+	ref_span<T, MaxSize> getRef() const
+	{
+		return ref_span<T, MaxSize>(*this);
+	}
+
+	template <int ChannelAmount> span<span<T, MaxSize/ChannelAmount>, ChannelAmount>& split()
+	{
+		static_assert(MaxSize % ChannelAmount == 0, "Can't split with slice length ");
+
+		return *reinterpret_cast<span<span<T, MaxSize / ChannelAmount>, ChannelAmount>*>(this);
+	}
+
+	const T& operator[](int index) const
+	{
+		return data[index];
+	}
+
+	T& operator[](int index)
+	{
+		return data[index];
+	}
+
+	T* begin() const
+	{
+		return const_cast<T*>(data);
+	}
+
+	T* end() const
+	{
+		return const_cast<T*>(data + MaxSize);
+	}
+
+	void fill(const T& value)
+	{
+		for (auto& v : *this)
+			v = value;
+	}
+
+	constexpr int size()
+	{
+		return MaxSize;
+	}
+
+	static constexpr int alignment()
+	{
+		if (MaxSize * sizeof(T) > 16)
+			return 16;
+		else
+			return MaxSize * sizeof(T);
+	}
+
+	alignas(alignment()) T data[MaxSize];
+};
+
+using float4 = span<float, 4>;
+
+template <class T> struct dyn
+{
+	using DataType = T;
+	
+	dyn() :
+		data(nullptr),
+		size(0)
+	{}
+
+
+	template<class Other> dyn(Other& o) :
+		data(o.begin()),
+		size(o.end() - o.begin())
+	{}
+
+	template<class Other> dyn(Other& o, size_t size_) :
+		data(o.begin()),
+		size(size_)
+	{}
+
+	template<class Other> dyn(Other* data_, size_t size_) :
+		data(data_),
+		size(size_)
+	{}
+
+	template<class Other> dyn(Other& o, size_t size_, size_t offset) :
+		data(o.begin() + offset),
+		size(size_)
+	{
+		auto fullSize = o.end() - o.begin();
+		jassert(offset + size < fullSize);
+	}
+
+	template <int NumChannels> span<dyn<T>, NumChannels> split()
+	{
+		span<dyn<T>, NumChannels> r;
+
+		int newSize = size / NumChannels;
+
+		T* d = data;
+
+		for (auto& e : r)
+		{
+			e = dyn<T>(d, newSize);
+			d += newSize;
+		}
+
+		return r;
+	}
+
+	const T& operator[](int index) const
+	{
+		return data[index];
+	}
+
+	T& operator[](int index)
+	{
+		return data[index];
+	}
+
+	T* begin() const
+	{
+		return const_cast<T*>(data);
+	}
+
+	T* end() const
+	{
+		return const_cast<T*>(data) + size;
+	}
+
+	T* data;
+	size_t size = 0;
+};
+
+namespace Interleaver
+{
+
+	template <class T> static bool isContinousMemory(const T& t)
+	{
+		auto ptr = t.begin();
+		auto e = t.end();
+
+		auto elementSize = sizeof(T::DataType);
+
+		auto size = (e - ptr) * elementSize;
+
+		auto realSize = reinterpret_cast<uint64_t>(e) - reinterpret_cast<uint64_t>(ptr);
+
+		return realSize == size;
+	}
+
+	static auto simd(const dyn<float>& t)
+	{
+		return dyn<float4>(reinterpret_cast<float4*>(t.begin()), t.size / 4);
+	}
+
+	template <int C> static auto& simd(span<float, C>& t)
+	{
+		static_assert(t.isSimdable(), "is not SIMDable");
+		jassert(t.isAlignedTo16Byte());
+
+		static_assert(C % 4 == 0, "Can't split with slice length ");
+
+		return *reinterpret_cast<span<float4, C / 4>*>(&t);
+	}
+};
+
+
+
+
 }
+
+
 
 using block = Types::FloatBlock;
 using event = hise::HiseEvent;
@@ -290,7 +806,14 @@ static forcedinline float range(float value, float lower, float upper) { return 
 static forcedinline float min(float value1, float value2) { return jmin<float>(value1, value2); };
 static forcedinline float max(float value1, float value2) { return jmax<float>(value1, value2); };
 static forcedinline float random() { return Random::getSystemRandom().nextFloat(); };
+static forcedinline float fmod(float x, float y) { return std::fmod(x, y); };
 
+template <class SpanT> static auto sumSpan(const SpanT& t) { return t.accumulate(); };
+
+
+
+static forcedinline int min(int value1, int value2) { return jmin<int>(value1, value2); };
+static forcedinline int max(int value1, int value2) { return jmax<int>(value1, value2); };
 static int round(int value) { return value; };
 static forcedinline int randInt(int low=0, int high=INT_MAX) { return  Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); }
 
@@ -315,6 +838,10 @@ static forcedinline double ceil(double a) { return std_::ceil(a); }
 static forcedinline double floor(double a) { return std_::floor(a); }
 static forcedinline double db2gain(double a) { return Decibels::decibelsToGain(a); }
 static forcedinline double gain2db(double a) { return Decibels::gainToDecibels(a); }
+static forcedinline double fmod(double x, double y) 
+{ 
+	return std::fmod(x, y); 
+};
 
 static forcedinline float map(float normalisedInput, float start, float end) { return jmap<float>(normalisedInput, start, end); }
 static forcedinline float sin(float a) { return std_::sinf(a); }

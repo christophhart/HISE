@@ -47,28 +47,41 @@ public:
 
 	using Ptr = ReferenceCountedObjectPtr<JitCompiledFunctionClass>;
 
-	JitCompiledFunctionClass(GlobalScope& memory);
+	JitCompiledFunctionClass(BaseScope* parentScope, const NamespacedIdentifier& classInstanceId);
 
 	~JitCompiledFunctionClass();
 
-	FunctionData getFunction(const Identifier& functionId);
+	FunctionData getFunction(const NamespacedIdentifier& functionId);
 
 	VariableStorage getVariable(const Identifier& id);
 
-	VariableStorage* getVariablePtr(const Identifier& id);
+	void* getVariablePtr(const Identifier& id);
 
-	Array<Identifier> getFunctionIds() const;
+	juce::String dumpTable();
+
+	Array<NamespacedIdentifier> getFunctionIds() const;
+
+	ClassScope* releaseClassScope()
+	{
+		auto c = pimpl;
+		pimpl = nullptr;
+		return c;
+	}
 
 private:
 
+	OwnedArray<DebugInformationBase> debugInformation;
 	friend class ClassCompiler;
+	friend class JitObject;
 
 	ClassScope* pimpl;
 };
 
-class JitObject
+class JitObject: public ApiProviderBase
 {
 public:
+
+	
 
 	JitObject() : functionClass(nullptr) {};
 
@@ -76,18 +89,89 @@ public:
 		functionClass(f)
 	{};
 
-	VariableStorage* getVariablePtr(const Identifier& id) const;
+
+	template <typename T> T* getVariablePtr(const Identifier& id)
+	{
+		return reinterpret_cast<T*>(functionClass->getVariablePtr(id));
+	}
 
 	FunctionData operator[](const Identifier& functionId) const;
 
-	Array<Identifier> getFunctionIds() const;
+	FunctionData operator[](const NamespacedIdentifier& functionId) const;
+
+	Array<NamespacedIdentifier> getFunctionIds() const;
 
 	explicit operator bool() const;;
 	
+	void rebuildDebugInformation();
+
+	int getNumDebugObjects() const override
+	{
+		if(functionClass != nullptr)
+			return functionClass->debugInformation.size();
+		
+		return 0;
+	}
+
+	DebugableObjectBase* getDebugObject(const juce::String& token) override;
+
+	DebugInformationBase* getDebugInformation(int index)
+	{
+		return functionClass->debugInformation[index];
+	}
+
+	ValueTree createValueTree();
+
+	void getColourAndLetterForType(int type, Colour& colour, char& letter) override;
+
+	juce::String dumpTable()
+	{
+		if(functionClass != nullptr)
+			return functionClass->dumpTable();
+
+		return {};
+	}
+
 private:
+
+	
+	
+	
 	JitCompiledFunctionClass::Ptr functionClass;
 };
 
+/** This class can be used as base class to create C++ classes that call
+    member functions defined in the JIT compiled code. 
+	
+	In order to use it, pass the code and the class identifier (either class name
+	or alias) into Compiler::compileJitClass<T>(). Then subclass this class and
+	add member functions that call the defined member functions of this class.
+	*/
+struct JitCompiledClassBase
+{
+	JitCompiledClassBase(JitObject&& o_, ComplexType::Ptr p) :
+		o(o_),
+		classType(p),
+		memberFunctions(classType->getFunctionClass())
+	{
+		data.allocate(classType->getRequiredAlignment() + classType->getRequiredByteSize(), true);
+
+		thisPtr = reinterpret_cast<void*>(data.get() + classType->getRequiredAlignment());
+
+		classType->initialise(thisPtr, classType->makeDefaultInitialiserList());
+	}
+
+protected:
+
+	FunctionData getFunction(const NamespacedIdentifier& id);
+
+	void* thisPtr = nullptr;
+
+	JitObject o;
+	ComplexType::Ptr classType;
+	FunctionClass::Ptr memberFunctions;
+	HeapBlock<uint8> data;
+};
 
 }
 }

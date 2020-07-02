@@ -80,7 +80,7 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		addConstant("LOG10E", log10(exp(1.0)));
 	}
 
-	Identifier getName() const override { static const Identifier i("Math"); return i; }
+	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Math"); }
 
 	struct Wrapper
 	{

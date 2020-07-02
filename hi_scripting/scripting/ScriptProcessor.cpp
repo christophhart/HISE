@@ -559,14 +559,12 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 	currentCompileThread(nullptr),
 	lastResult(Result::ok()),
 	callStackEnabled(mc->isCallStackEnabled()),
-	repaintDispatcher(mc),
-	repaintUpdater(repaintDispatcher)
+	repaintDispatcher(mc)
 {
 	allInterfaceData = ValueTree("UIData");
 	auto defaultContent = ValueTree("ContentProperties");
 	defaultContent.setProperty("DeviceType", "Desktop", nullptr);
 	allInterfaceData.addChild(defaultContent, -1, nullptr);
-
 }
 
 
@@ -578,6 +576,434 @@ JavascriptProcessor::~JavascriptProcessor()
 	scriptEngine = nullptr;
 }
 
+
+void JavascriptProcessor::addPopupMenuItems(PopupMenu &menu, Component* c, const MouseEvent& e)
+{
+	if (auto ed = dynamic_cast<CodeEditorComponent*>(c))
+	{
+
+		String s = ed->getTextInRange(ed->getHighlightedRegion());
+
+		if (s == "include")
+		{
+			CodeDocument::Position start = ed->getSelectionEnd().movedBy(2);
+			CodeDocument::Position end = start;
+
+			while (end.getCharacter() != '\"' && start.getLineNumber() == end.getLineNumber())
+			{
+				end.moveBy(1);
+			};
+
+			String fileName = ed->getTextInRange(Range<int>(start.getPosition(), end.getPosition()));
+
+			menu.addItem(OpenExternalFile, "Open " + fileName + " in editor popup");
+			menu.addSeparator();
+		}
+
+		menu.addItem(ClearAllBreakpoints, "Clear all breakpoints", anyBreakpointsActive());
+
+		menu.addSeparator();
+
+
+		const String selection = ed->getTextInRange(ed->getHighlightedRegion()).trimEnd().trimStart();
+		const bool isUIDefinitionSelected = selection.startsWith("const var");
+
+		menu.addItem(ScriptContextActions::CreateUiFactoryMethod, "Create UI factory method from selection", isUIDefinitionSelected);
+		menu.addItem(ScriptContextActions::ReplaceConstructorWithReference, "Replace addComponent with Content.getComponent()");
+		menu.addSeparator();
+		menu.addSectionHeader("Import / Export");
+		menu.addItem(ScriptContextActions::SaveScriptFile, "Save Script To File");
+		menu.addItem(ScriptContextActions::LoadScriptFile, "Load Script From File");
+		menu.addSeparator();
+		menu.addItem(ScriptContextActions::SaveScriptClipboard, "Save Script to Clipboard");
+		menu.addItem(ScriptContextActions::LoadScriptClipboard, "Load Script from Clipboard");
+		menu.addSeparator();
+		menu.addItem(ScriptContextActions::ExportAsCompressedScript, "Export as compressed script");
+		menu.addItem(ScriptContextActions::ImportCompressedScript, "Import compressed script");
+		menu.addSeparator();
+		menu.addItem(ScriptContextActions::MoveToExternalFile, "Move selection to external file");
+		menu.addItem(ScriptContextActions::InsertExternalFile, "Replace include with file content", s == "include");
+	}
+}
+
+struct ScriptRefactoring
+{
+	static String createFactoryMethod(const String& definition)
+	{
+		StringArray lines = StringArray::fromLines(definition);
+
+		for (int i = 0; i < lines.size(); i++)
+		{
+			lines.set(i, lines[i].upToFirstOccurrenceOf("//", false, false));
+		}
+
+		if (lines.size() != 0)
+		{
+			const String firstLineRegex = "(const var )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+			//const String firstLineRegex = "(const var)\\s+(\\w*)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+			const StringArray firstLineData = RegexFunctions::getFirstMatch(firstLineRegex, lines[0]);
+
+			if (firstLineData.size() == 7)
+			{
+
+
+				const String componentName = firstLineData[2];
+				const String componentType = firstLineData[3];
+				const String componentId = firstLineData[4];
+				const String componentX = firstLineData[5];
+				const String componentY = firstLineData[6];
+
+				StringArray newLines;
+
+				String functionName = PresetHandler::getCustomName("Factory Method");
+
+				const String inlineDefinition = "inline function " + functionName + "(name, x, y)\n{";
+
+				newLines.add(inlineDefinition);
+
+				const String newFirstLine = "\tlocal component = " + componentType + "(name, x, y);";
+
+				newLines.add(newFirstLine);
+
+				for (int i = 1; i < lines.size(); i++)
+				{
+					newLines.add("    " + lines[i].replace(componentId, "name").replace(componentName + ".", "component."));
+				}
+
+				newLines.add("    return component;\n};\n");
+
+				const String newComponentDefinition = "const var " + componentName + " = " +
+					functionName + "(" +
+					componentId + ", " +
+					componentX + ", " +
+					componentY + ");\n";
+
+				newLines.add(newComponentDefinition);
+
+				return newLines.joinIntoString("\n");
+			}
+
+
+		}
+
+		return definition;
+	}
+
+
+	static const String createScriptComponentReference(const String selection)
+	{
+		String regexString = "(\\s*)(const\\s+var |local )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+
+		const StringArray firstLineData = RegexFunctions::getFirstMatch(regexString, selection);
+
+		if (firstLineData.size() == 8)
+		{
+
+			const String whitespace = firstLineData[1];
+			const String variableType = firstLineData[2];
+			const String componentName = firstLineData[3];
+			const String componentType = firstLineData[4];
+			const String componentId = firstLineData[5];
+
+			return whitespace + variableType + componentName + " = Content.getComponent(" + componentId + ");";
+		}
+
+		PresetHandler::showMessageWindow("Something went wrong...", "The replacement didn't work");
+		return selection;
+	}
+};
+
+void JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
+{
+	if (auto ed = dynamic_cast<CodeEditorComponent*>(c))
+	{
+		auto action = (ScriptContextActions)menuId;
+
+		switch (action)
+		{
+		case CreateUiFactoryMethod:
+		{
+			const String selection = ed->getTextInRange(ed->getHighlightedRegion()).trimEnd().trimStart();
+			const String newText = ScriptRefactoring::createFactoryMethod(selection);
+
+			ed->insertTextAtCaret(newText);
+
+			return;
+		}
+		case ReplaceConstructorWithReference:
+		{
+			const String selection = ed->getTextInRange(ed->getHighlightedRegion()).trimEnd().trimStart();
+			const String newText = ScriptRefactoring::createScriptComponentReference(selection);
+
+			ed->insertTextAtCaret(newText);
+			return;
+		}
+		case ClearAllBreakpoints:
+		{
+			removeAllBreakpoints();
+			ed->repaint();
+			return;
+		}
+		case SaveScriptFile:
+		{
+			FileChooser scriptSaver("Save script as",
+				File(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+				"*.js");
+
+			if (scriptSaver.browseForFileToSave(true))
+			{
+				String script;
+				mergeCallbacksToScript(script);
+				scriptSaver.getResult().replaceWithText(script);
+				debugToConsole(dynamic_cast<Processor*>(this), "Script saved to " + scriptSaver.getResult().getFullPathName());
+			}
+			return;
+		}
+		case LoadScriptFile:
+		{
+			FileChooser scriptLoader("Please select the script you want to load",
+				File(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+				"*.js");
+
+			if (scriptLoader.browseForFileToOpen())
+			{
+				String script = scriptLoader.getResult().loadFileAsString().removeCharacters("\r");
+				const bool success = parseSnippetsFromString(script);
+
+				if (success)
+				{
+					compileScript();
+
+					debugToConsole(dynamic_cast<Processor*>(this), "Script loaded from " + scriptLoader.getResult().getFullPathName());
+				}
+			}
+
+			return;
+		}
+		case ExportAsCompressedScript:
+		{
+			const String compressedScript = getBase64CompressedScript();
+			const String scriptName = PresetHandler::getCustomName("Compressed Script") + ".cjs";
+			File f = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(scriptName);
+
+			if (!f.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite", "The file " + scriptName + " already exists. Do you want to overwrite it?"))
+			{
+				f.deleteFile();
+				f.replaceWithText(compressedScript);
+			}
+
+			return;
+		}
+		case ImportCompressedScript:
+		{
+			FileChooser scriptLoader("Please select the compressed script you want to load",
+				File(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+				"*.cjs");
+
+			if (scriptLoader.browseForFileToOpen())
+			{
+				String compressedScript = scriptLoader.getResult().loadFileAsString();
+
+				const bool success = restoreBase64CompressedScript(compressedScript);
+
+				if (success)
+				{
+					compileScript();
+					debugToConsole(dynamic_cast<Processor*>(this), "Compressed Script loaded from " + scriptLoader.getResult().getFullPathName());
+				}
+			}
+
+			return;
+		}
+		case SaveScriptClipboard:
+		{
+			String x;
+			mergeCallbacksToScript(x);
+			SystemClipboard::copyTextToClipboard(x);
+
+			debugToConsole(dynamic_cast<Processor*>(this), "Script exported to Clipboard.");
+
+			return;
+		}
+		case LoadScriptClipboard:
+		{
+			String x = String(SystemClipboard::getTextFromClipboard()).removeCharacters("\r");
+
+			if (x.containsNonWhitespaceChars() && PresetHandler::showYesNoWindow("Replace Script?", "Do you want to replace the script?"))
+			{
+				const bool success = parseSnippetsFromString(x);
+
+				if (success)
+					compileScript();
+			}
+
+			return;
+		}
+		case MoveToExternalFile:
+		{
+			const String text = ed->getDocument().getTextBetween(ed->getSelectionStart(), ed->getSelectionEnd());
+
+			const String newFileName = PresetHandler::getCustomName("Script File", "Enter the file name for the external script file (without .js)");
+
+			if (newFileName.isNotEmpty())
+			{
+				File scriptDirectory = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+				File newFile = scriptDirectory.getChildFile(newFileName + ".js");
+
+				if (!newFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite existing file", "Do you want to overwrite the file " + newFile.getFullPathName() + "?"))
+				{
+					newFile.replaceWithText(text);
+				}
+
+				String insertStatement = "include(\"" + newFile.getFileName() + "\");" + NewLine();
+
+				ed->getDocument().replaceSection(ed->getSelectionStart().getPosition(), ed->getSelectionEnd().getPosition(), insertStatement);
+			}
+
+			return;
+		}
+		case InsertExternalFile:
+		{
+			ed->moveCaretToEndOfLine(true);
+
+			const String text = ed->getDocument().getTextBetween(ed->getSelectionStart(), ed->getSelectionEnd());
+
+			String fileName = text.fromFirstOccurrenceOf("\"", false, true);
+			fileName = fileName.upToLastOccurrenceOf("\"", false, true);
+
+			File scriptDirectory = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+			File scriptFile = scriptDirectory.getChildFile(fileName);
+
+			if (scriptFile.existsAsFile())
+			{
+				const String content = scriptFile.loadFileAsString();
+
+				ed->getDocument().replaceSection(ed->getSelectionStart().getPosition(), ed->getSelectionEnd().getPosition(), content);
+			}
+
+			return;
+		}
+		
+		}
+	}
+	
+}
+
+void JavascriptProcessor::handleBreakpoints(const Identifier& codefile, Graphics& g, Component* c)
+{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	if (anyBreakpointsActive())
+	{
+		auto ed = dynamic_cast<CodeEditorComponent*>(c);
+
+		int startLine = ed->getFirstLineOnScreen();
+
+		int endLine = startLine + ed->getNumLinesOnScreen();
+
+		for (int i = startLine; i < endLine; i++)
+		{
+			HiseJavascriptEngine::Breakpoint bp = getBreakpointForLine(codefile, i);
+
+			if (bp.lineNumber != -1)
+			{
+				const float x = 5.0f;
+				const float y = (float)((bp.lineNumber - ed->getFirstLineOnScreen()) * ed->getLineHeight() + 1);
+
+				const float w = (float)(ed->getLineHeight() - 2);
+				const float h = w;
+
+				g.setColour(Colours::darkred.withAlpha(bp.hit ? 1.0f : 0.3f));
+				g.fillEllipse(x, y, w, h);
+				g.setColour(Colours::white.withAlpha(bp.hit ? 1.0f : 0.5f));
+				g.drawEllipse(x, y, w, h, 1.0f);
+				g.setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)(ed->getLineHeight() - 3)));
+				g.drawText(String(bp.index + 1), (int)x, (int)y, (int)w, (int)h, Justification::centred);
+			}
+		}
+	}
+#endif
+}
+
+void JavascriptProcessor::handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed, const MouseEvent& e)
+{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	if (e.mods.isShiftDown())
+	{
+		removeAllBreakpoints();
+		ed.repaint();
+	}
+	else if (e.mods.isCommandDown())
+	{
+		int lineNumber = e.y / ed.getLineHeight() + ed.getFirstLineOnScreen();
+		CodeDocument::Position start(ed.getDocument(), lineNumber, 0);
+
+		int charNumber = start.getPosition();
+
+		const String content = ed.getDocument().getAllContent().substring(charNumber);
+
+		const int offsetToFirstToken = JavascriptCodeEditor::Helpers::getOffsetToFirstToken(content);
+
+		CodeDocument::Position tokenStart(ed.getDocument(), charNumber + offsetToFirstToken);
+
+		toggleBreakpoint(codeFile, tokenStart.getLineNumber(), tokenStart.getPosition());
+		ed.repaint();
+	}
+#endif
+}
+
+
+void JavascriptProcessor::jumpToDefinition(const String& token, const String& namespaceId)
+{
+	if (token.isNotEmpty())
+	{
+		const String c = namespaceId.isEmpty() ? token : namespaceId + "." + token;
+
+		auto f = [c](Processor* p)
+		{
+			Result result = Result::ok();
+
+			auto s = dynamic_cast<JavascriptProcessor*>(p);
+
+			var t = s->getScriptEngine()->evaluate(c, &result);
+
+			if (result.wasOk())
+			{
+				auto info = DebugableObject::Helpers::getDebugInformation(s->getScriptEngine(), t);
+
+				auto f2 = [info, s]()
+				{
+					if (info != nullptr)
+						DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(s), info);
+				};
+
+				MessageManager::callAsync(f2);
+			}
+
+			return SafeFunctionCall::OK;
+		};
+
+		auto p = dynamic_cast<Processor*>(this);
+
+		p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
+	}
+}
+
+void JavascriptProcessor::setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos)
+{
+#if USE_BACKEND
+	dynamic_cast<Processor*>(this)->getMainController()->setLastActiveEditor(e, pos);
+#endif
+}
+
+hise::JavascriptCodeEditor* JavascriptProcessor::getActiveEditor()
+{
+#if USE_BACKEND
+	return dynamic_cast<JavascriptCodeEditor*>(dynamic_cast<Processor*>(this)->getMainController()->getLastActiveEditor());
+#endif
+	return nullptr;
+}
 
 void JavascriptProcessor::fileChanged()
 {
@@ -1247,6 +1673,8 @@ void JavascriptProcessor::compileScriptWithCycleReferenceCheckEnabled()
 
 void JavascriptProcessor::stuffAfterCompilation(const SnippetResult& result)
 {
+	
+
 	mainController->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 
 	if (lastCompileWasOK)
@@ -1285,6 +1713,7 @@ void JavascriptProcessor::stuffAfterCompilation(const SnippetResult& result)
 	}
 
 	mainController->sendScriptCompileMessage(this);
+	rebuild();
 }
 
 JavascriptProcessor::SnippetDocument::SnippetDocument(const Identifier &callbackName_, const String &parameters_) :
@@ -1618,6 +2047,62 @@ Result JavascriptThreadPool::Task::callWithResult()
 	};
 
 	return Result::fail("invalid function");
+}
+
+void JavascriptProcessor::EditorHelpers::applyChangesFromActiveEditor(JavascriptProcessor* p)
+{
+	auto activeEditor = getActiveEditor(p);
+
+	if (activeEditor == nullptr)
+		return;
+
+#if USE_BACKEND
+	if (auto pe = activeEditor->findParentComponentOfClass<PopupIncludeEditor>())
+	{
+		auto f = pe->getFile();
+
+		if (f.existsAsFile())
+			f.replaceWithText(activeEditor->getDocument().getAllContent());
+	}
+#endif
+}
+
+hise::JavascriptCodeEditor* JavascriptProcessor::EditorHelpers::getActiveEditor(Processor* p)
+{
+	auto activeEditor = p->getMainController()->getLastActiveEditor();
+	return dynamic_cast<JavascriptCodeEditor*>(activeEditor);
+}
+
+hise::JavascriptCodeEditor* JavascriptProcessor::EditorHelpers::getActiveEditor(JavascriptProcessor* p)
+{
+	auto processor = dynamic_cast<Processor*>(p);
+	auto activeEditor = processor->getMainController()->getLastActiveEditor();
+
+	return dynamic_cast<JavascriptCodeEditor*>(activeEditor);
+}
+
+juce::CodeDocument* JavascriptProcessor::EditorHelpers::gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObjectBase* object)
+{
+	if (object == nullptr)
+		return nullptr;
+
+	auto jsp = dynamic_cast<JavascriptProcessor*>(p);
+
+	auto info = DebugableObject::Helpers::getDebugInformation(jsp->getScriptEngine(), object);
+
+	if (info != nullptr)
+	{
+		DebugableObject::Helpers::gotoLocation(p, info);
+
+		auto activeEditor = getActiveEditor(jsp);
+
+		if (activeEditor != nullptr)
+		{
+			return &activeEditor->getDocument();
+		}
+	}
+
+	return nullptr;
 }
 
 } // namespace hise

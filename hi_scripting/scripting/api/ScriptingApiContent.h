@@ -240,7 +240,6 @@ public:
 	struct ScriptComponent : public RestorableObject,
 		public ConstScriptingObject,
 		public AssignableObject,
-		public DebugableObject,
 		public SafeChangeBroadcaster,
 		public UpdateDispatcher::Listener
 	{

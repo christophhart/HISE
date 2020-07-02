@@ -57,10 +57,67 @@ DECLARE_ID(BinaryOpOptimisation);
 }
 }
 
+namespace snex
+{
+struct ApiHelpers
+{
+	enum DebugObjectTypes
+	{
+		LocalFunction = 9000,
+		ApiCall,
+		Template,
+		Constants,
+		BasicTypes,
+		numDebugObjectTypes
+	};
 
+	static void getColourAndLetterForType(int type, Colour& colour, char& letter)
+	{
+		auto typedType = (Types::ID)type; // type;
+
+		if (typedType < Types::ID::Dynamic)
+		{
+			colour = Types::Helpers::getColourForType(typedType);
+			letter = Types::Helpers::getTypeChar(typedType);
+		}
+
+		if (type == ApiHelpers::DebugObjectTypes::Template)
+		{
+			colour = Colours::yellow.withSaturation(0.3f);
+			letter = 'T';
+		}
+
+		if (type == ApiHelpers::DebugObjectTypes::Constants)
+		{
+			colour = Colours::blanchedalmond;
+			letter = 'C';
+		}
+
+		if (type == ApiHelpers::DebugObjectTypes::BasicTypes)
+		{
+			colour = Colours::white;
+			letter = 'T';
+		}
+
+
+		if (type == ApiHelpers::DebugObjectTypes::ApiCall)
+		{
+			colour = Colours::aqua;
+			letter = 'A';
+		}
+
+		if (type == ApiHelpers::DebugObjectTypes::LocalFunction)
+		{
+			colour = Colours::dodgerblue;
+			letter = 'F';
+		}
+	}
+};
+}
 
 
 #include "snex_jit_Functions.h"
+#include "snex_jit_NamespaceHandler.h"
 #include "snex_jit_BaseScope.h"
 #include "snex_jit_GlobalScope.h"
 #include "snex_jit_JitCallableObject.h"

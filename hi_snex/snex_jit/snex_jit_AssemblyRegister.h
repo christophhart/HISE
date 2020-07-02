@@ -40,21 +40,20 @@ using namespace asmjit;
 
 class SyntaxTree;
 class BlockScope;
+class BaseScope;
 
 /** A high level, reference counted assembly register. */
 class AssemblyRegister : public ReferenceCountedObject
 {
 public:
 
-#if JUCE_64BIT
-	using IntRegisterType = X86Gpq;
-#else
-	using IntRegisterType = X86Gpd;
-#endif
+	using IntRegisterType = x86::Gpd;
+	
 	using FloatRegisterType = X86Xmm;
 	using DoubleRegisterType = X86Xmm;
 	using FloatMemoryType = X86Mem;
 	using Ptr = ReferenceCountedObjectPtr<AssemblyRegister>;
+	using List = ReferenceCountedArray<AssemblyRegister>;
 
 	enum State
 	{
@@ -69,15 +68,28 @@ public:
 
 private:
 
-	AssemblyRegister(Types::ID type_);
+	AssemblyRegister(TypeInfo type_);
 
+	
 public:
 
-	void setReference(BaseScope::RefPtr ref);
+	~AssemblyRegister()
+	{
+		int x = 5;
+	}
 
-	BaseScope::Reference* getVariableId() const;
 
-	bool operator==(const BaseScope::RefPtr s) const;
+	bool matchesMemoryLocation(Ptr other) const;
+
+	bool isGlobalMemory() const;
+
+	bool shouldLoadMemoryIntoRegister() const;
+
+	void setReference(BaseScope* scope, const Symbol& ref);
+
+	const Symbol& getVariableId() const;
+
+	bool operator==(const Symbol& s) const;
 
 	bool isDirtyGlobalMemory() const;
 
@@ -85,9 +97,13 @@ public:
 
 	void flagForReuse(bool forceReuse=false);
 
+	void removeReuseFlag();
+
 	bool canBeReused() const;
 
-	Types::ID getType() const { return type; }
+	Types::ID getType() const { return type.getType(); }
+
+	TypeInfo getTypeInfo() const { return type; }
 
 	void* getGlobalDataPointer();
 
@@ -101,14 +117,28 @@ public:
 
 	X86Mem getAsMemoryLocation();
 
+	X86Mem getMemoryLocationForReference();
+
 	int64 getImmediateIntValue();
 
 	/** Loads the memory into the register. */
-	void loadMemoryIntoRegister(asmjit::X86Compiler& cc);
+	void loadMemoryIntoRegister(asmjit::X86Compiler& cc, bool forceLoad=false);
+
+	BaseScope* getScope() const { return scope.get(); }
+
+	void changeComplexType(ComplexType::Ptr newTypePtr)
+	{
+		jassert(type.isComplexType());
+		type = TypeInfo(newTypePtr);
+	}
+
+	bool isValid() const;
 
 	bool isGlobalVariableRegister() const;
 
 	bool isActive() const;
+
+	bool matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const;
 
 	bool isActiveOrDirtyGlobalRegister() const;
 
@@ -119,7 +149,9 @@ public:
 
 	bool isMemoryLocation() const;
 
-	void setDataPointer(VariableStorage* memLoc);
+	void setCustomMemoryLocation(X86Mem newLocation, bool isGlobalMemory);
+
+	void setDataPointer(void* memLoc);
 
 	void setIsIteratorRegister(bool isIterator)
 	{
@@ -137,27 +169,51 @@ public:
 		return false;
 	}
 
+	bool isSimd4Float() const
+	{
+		return type.isComplexType() && type.toString() == "float4";
+	}
+
 	void clearForReuse();
+
+	void setUndirty();
+
+	bool hasCustomMemoryLocation() const noexcept 
+	{
+		return hasCustomMem;
+	}
+
+	bool isZero() const
+	{
+		return isZeroValue;
+	}
 
 private:
 
+	int numMemoryReferences = 0;
+
+	int debugId = 0;
 	friend class AssemblyRegisterPool;
 
 	X86Reg partReg1;
 	X86Reg partReg2;
 
+	bool hasCustomMem = false;
+	bool globalMemory = false;
 	bool isIter = false;
+	bool isZeroValue = false;
 
 	State state = State::InactiveRegister;
 	bool initialised = false;
 	bool dirty = false;
 	bool reusable = false;
 	int immediateIntValue = 0;
-	Types::ID type;
+	TypeInfo type;
 	asmjit::X86Mem memory;
 	asmjit::X86Reg reg;
-	VariableStorage* memoryLocation = nullptr;
-	WeakReference<BaseScope::Reference> variableId;
+	void* memoryLocation = nullptr;
+	WeakReference<BaseScope> scope;
+	Symbol id;
 };
 
 class AssemblyRegisterPool
@@ -171,10 +227,16 @@ public:
 
 	void clear();
 	RegList getListOfAllDirtyGlobals();
-	RegPtr getRegisterForVariable(const BaseScope::RefPtr variableId);
+	RegPtr getRegisterForVariable(BaseScope* scope, const Symbol& variableId);
+
+	RegPtr getActiveRegisterForCustomMem(RegPtr regWithCustomMem);
 
 	void removeIfUnreferenced(AssemblyRegister::Ptr ref);
-	AssemblyRegister::Ptr getNextFreeRegister(Types::ID type);
+	RegPtr getNextFreeRegister(BaseScope* scope, TypeInfo type);
+
+	RegPtr getRegisterWithMemory(RegPtr other);
+
+	RegList getListOfAllNamedRegisters();
 
 private:
 

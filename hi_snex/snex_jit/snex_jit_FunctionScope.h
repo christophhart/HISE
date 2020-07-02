@@ -40,22 +40,51 @@ using namespace asmjit;
 
 struct RegisterScope : public BaseScope
 {
-	RegisterScope(BaseScope* parentScope) :
+	RegisterScope(BaseScope* parentScope, const NamespacedIdentifier& id) :
 		BaseScope({}, parentScope)
 	{
+		jassert(id.isValid());
+
+		if (!(parentScope->getScopeSymbol() == id.getParent()))
+			scopeId = parentScope->getScopeSymbol().getChildId(id.getIdentifier());
+		else
+			scopeId = id;
+
+		//jassert();
 		jassert(getScopeType() >= BaseScope::Function);
 	}
 
-	AssemblyRegister* getRegister(RefPtr ref)
+	~RegisterScope()
+	{
+		int x = 5;
+	};
+
+	Array<Symbol> localVariables;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RegisterScope);
+};
+
+
+class FunctionScope : public RegisterScope
+{
+public:
+	FunctionScope(BaseScope* parent, const NamespacedIdentifier& functionName) :
+		RegisterScope(parent, functionName)
+	{
+		scopeType = BaseScope::Function;
+	}
+
+	~FunctionScope() {}
+
+	AssemblyRegister* getRegister(const Symbol& ref)
 	{
 		for (auto r : allocatedRegisters)
 		{
-			if (*r == ref)
+			if (r->getVariableId() == ref)
 				return r;
 		}
-
-		if (auto rParent = dynamic_cast<RegisterScope*>(parent.get()))
-			return rParent->getRegister(ref);
 
 		return nullptr;
 	}
@@ -65,26 +94,9 @@ struct RegisterScope : public BaseScope
 		allocatedRegisters.add(newRegister);
 	}
 
-private:
-
 	ReferenceCountedArray<AssemblyRegister> allocatedRegisters;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RegisterScope);
-};
-
-
-class FunctionScope : public RegisterScope
-{
-public:
-	FunctionScope(BaseScope* parent) :
-		RegisterScope(parent)
-	{
-		jassert(scopeType == BaseScope::Function);
-	}
-
-	~FunctionScope() {}
-
-	ReferenceCountedObjectPtr<ReferenceCountedObject> parentFunction;
+	ReferenceCountedObject* parentFunction = nullptr;
 	FunctionData data;
 	Array<Identifier> parameters;
 

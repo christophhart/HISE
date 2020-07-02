@@ -39,7 +39,7 @@ using namespace juce;
 #define HNODE_JIT_OPERATORS(X) \
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
     X(openParen,     "(")        X(closeParen,   ")")       X(openBrace,    "{")    X(closeBrace, "}") \
-    X(openBracket,   "[")        X(closeBracket, "]")       X(colon,        ":")    X(question,   "?") \
+    X(openBracket,   "[")        X(closeBracket, "]")       X(double_colon, "::")   X(colon,        ":")    X(question,   "?") \
     X(typeEquals,    "===")      X(equals,       "==")      X(assign_,       "=") \
     X(typeNotEquals, "!==")      X(notEquals,    "!=")      X(logicalNot,   "!") \
     X(plusEquals,    "+=")       X(plusplus,     "++")      X(plus,         "+") \
@@ -54,10 +54,12 @@ using namespace juce;
 #define HNODE_JIT_KEYWORDS(X) \
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
-	X(void_, "void")			X(buffer_, "Buffer") X(public_, "public")	X(private_, "private") \
-	X(class_, "class")			X(block_, "block")	X(event_, "event")		X(for_, "for") \
-	X(if_, "if")				X(else_, "else")	X(sfloat, "sfloat")		X(sdouble, "sdouble") \
-	X(auto_, "auto")
+	X(void_, "void")			X(public_, "public")	X(private_, "private") \
+	X(class_, "class")			X(block_, "block")	X(for_, "for") \
+	X(if_, "if")				X(else_, "else")	\
+	X(auto_, "auto")			X(struct_, "struct")	X(span_, "span") \
+	X(using_, "using")		    X(wrap, "wrap")		X(static_, "static")	X(break_, "break") \
+	X(continue_, "continue")	X(dyn_, "dyn")		X(namespace_, "namespace")  
 
 namespace JitTokens
 {
@@ -84,15 +86,15 @@ struct ParserHelpers
 	struct CodeLocation
 	{
 		
-		CodeLocation(const String::CharPointerType& code, 
-			         const String::CharPointerType& wholeProgram) noexcept        : 
+		CodeLocation(const juce::String::CharPointerType& code,
+			         const juce::String::CharPointerType& wholeProgram) noexcept        :
 		  program(wholeProgram),
 		  location(code)
 		{};
 
 		CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location) {}
 
-		void throwError(const String& message) const
+		void throwError(const juce::String& message) const
 		{
 			Error e(program, location);
 
@@ -101,8 +103,23 @@ struct ParserHelpers
 			throw e;
 		}
 
-		static int getLineNumber(String::CharPointerType start, 
-								 String::CharPointerType end)
+		int getLine() const
+		{
+			return getLineNumber(program, location);
+		}
+
+		NamespacedIdentifier createAnonymousScopeId(const NamespacedIdentifier& parent = {}) const
+		{
+			auto id = Identifier("AnonymousScopeLine" + juce::String(getLine()));
+
+			if (parent.isValid())
+				return parent.getChildId(id);
+				
+			return NamespacedIdentifier(id);
+		}
+
+		static int getLineNumber(juce::String::CharPointerType start, 
+			juce::String::CharPointerType end)
 		{
 			int line = 1;
 
@@ -146,6 +163,8 @@ struct ParserHelpers
 		String::CharPointerType location;
 	};
 
+	
+
 	struct TokenIterator
 	{
 
@@ -161,12 +180,34 @@ struct ParserHelpers
 
 	typedef const char* TokenType;
 
-		TokenIterator(const String::CharPointerType& code, const String::CharPointerType& wholeProgram, int length) :
+		TokenIterator(const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length) :
 			location(code, wholeProgram),
 			p(code),
 			endPointer(code + length)
 		{
 			skip(); 
+		}
+
+        virtual ~TokenIterator() {};
+        
+		void seek(TokenIterator& other)
+		{
+			if (other.location.program != location.program)
+				location.throwError("Can't skip different locations");
+
+			while (location.location != other.location.location && !isEOF())
+				skip();
+		}
+
+		bool seekAndReturnTrue(TokenIterator* parentToSeek)
+		{
+			if (parentToSeek == this)
+				return true;
+
+			if (parentToSeek != nullptr)
+				parentToSeek->seek(*this);
+
+			return true;
 		}
 
 		void skip()
@@ -184,8 +225,6 @@ struct ParserHelpers
 			skip();
 		}
 
-	
-
 		bool isEOF() const { return currentType == JitTokens::eof; }
 
 		bool matchIf(TokenType expected) { if (currentType == expected) { skip(); return true; } return false; }
@@ -200,16 +239,14 @@ struct ParserHelpers
 
 		String currentString;
 
-		Types::ID currentHnodeType;
-		
+		TypeInfo currentTypeInfo;
+
 		int offset = 0;
 
 		String::CharPointerType p;
 
 		String::CharPointerType endPointer;
 		int length = -1;
-
-		BaseScope::Symbol currentSymbol;
 
 		TokenType currentAssignmentType;
 
@@ -228,41 +265,9 @@ struct ParserHelpers
 				currentSideEffect = Nothing;
 		}
 
-		bool matchIfSymbol()
-		{
-			if (currentType == JitTokens::identifier)
-			{
-				currentSymbol = {};
-
-				currentSymbol.id = parseIdentifier();
-
-				if (matchIf(JitTokens::dot))
-				{
-					currentSymbol.parent = currentSymbol.id;
-					currentSymbol.id = parseIdentifier();
-				}
-
-				return true;
-			}
-
-			return false;
-		}
-
 		static bool isIdentifierStart(const juce_wchar c) noexcept { return CharacterFunctions::isLetter(c) || c == '_'; }
 		static bool isIdentifierBody(const juce_wchar c) noexcept { return CharacterFunctions::isLetterOrDigit(c) || c == '_'; }
 
-		bool matchIfTypeToken()
-		{
-			if (matchIf(JitTokens::float_))		  currentHnodeType = Types::ID::Float;
-			else if (matchIf(JitTokens::int_))	  currentHnodeType = Types::ID::Integer;
-			else if (matchIf(JitTokens::double_)) currentHnodeType = Types::ID::Double;
-			else if (matchIf(JitTokens::event_))  currentHnodeType = Types::ID::Event;
-			else if (matchIf(JitTokens::block_))  currentHnodeType = Types::ID::Block;
-			else if (matchIf(JitTokens::void_))	  currentHnodeType = Types::ID::Void;
-			else								  currentHnodeType = Types::ID::Dynamic;
-			
-			return currentHnodeType != Types::ID::Dynamic;
-		}
 
 		void throwTokenMismatch(const char* expected)
 		{
@@ -272,32 +277,6 @@ struct ParserHelpers
 			s << "Actual: " << currentType;
 
 			location.throwError(s);
-		}
-
-		bool isSmoothedVariableType() const
-		{
-			if (currentType == JitTokens::sfloat)
-				return true;
-			if (currentType == JitTokens::sdouble)
-				return true;
-
-			return false;
-		}
-
-		Types::ID matchType()
-		{
-			if (matchIf(JitTokens::float_)) return Types::ID::Float;
-			if (matchIf(JitTokens::int_))	return Types::ID::Integer;
-			if (matchIf(JitTokens::double_)) return Types::ID::Double;
-			if (matchIf(JitTokens::event_))	return Types::ID::Event;
-			if (matchIf(JitTokens::block_))	return Types::ID::Block;
-			if (matchIf(JitTokens::void_))	return Types::ID::Void;
-			if (matchIf(JitTokens::sfloat)) return Types::ID::Float;
-			if (matchIf(JitTokens::sdouble)) return Types::ID::Double;
-
-			throwTokenMismatch("Type");
-
-			RETURN_IF_NO_THROW(Types::ID::Void);
 		}
 
 		bool matchIfAssignmentType()
@@ -427,6 +406,29 @@ struct ParserHelpers
 			return true;
 		}
 
+		VariableStorage parseVariableStorageLiteral()
+		{
+			bool isMinus = matchIf(JitTokens::minus);
+
+			auto type = Types::Helpers::getTypeFromStringValue(currentString);
+
+			juce::String stringValue = currentString;
+			match(JitTokens::literal);
+
+			if (type == Types::ID::Integer)
+				return VariableStorage(stringValue.getIntValue() * (!isMinus ? 1 : -1));
+			else if (type == Types::ID::Float)
+				return VariableStorage(stringValue.getFloatValue() * (!isMinus ? 1.0f : -1.0f));
+			else if (type == Types::ID::Double)
+				return VariableStorage(stringValue.getDoubleValue() * (!isMinus ? 1.0 : -1.0));
+			else if (type == Types::ID::Block)
+				return block();
+			else
+				return {};
+		}
+
+
+
 		static String getSideEffectDescription(AssignSideEffectType s)
 		{
 
@@ -521,7 +523,7 @@ struct ParserHelpers
 			}
 
 			currentValue = v;
-			currentString = String(v);
+			currentString = juce::String(v);
 			return true;
 		}
 	};

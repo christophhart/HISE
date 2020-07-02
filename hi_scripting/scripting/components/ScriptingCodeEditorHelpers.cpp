@@ -200,91 +200,6 @@ public:
 
 	}
 
-	static String createFactoryMethod(const String& definition)
-	{
-		StringArray lines = StringArray::fromLines(definition);
-
-		for (int i = 0; i < lines.size(); i++)
-		{
-			lines.set(i, lines[i].upToFirstOccurrenceOf("//", false, false));
-		}
-
-		if (lines.size() != 0)
-		{
-			const String firstLineRegex = "(const var )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
-			//const String firstLineRegex = "(const var)\\s+(\\w*)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
-			const StringArray firstLineData = RegexFunctions::getFirstMatch(firstLineRegex, lines[0]);
-
-			if (firstLineData.size() == 7)
-			{
-
-				
-				const String componentName = firstLineData[2];
-				const String componentType = firstLineData[3];
-				const String componentId = firstLineData[4];
-				const String componentX = firstLineData[5];
-				const String componentY = firstLineData[6];
-
-				StringArray newLines;
-
-				String functionName = PresetHandler::getCustomName("Factory Method");
-
-				const String inlineDefinition = "inline function " + functionName + "(name, x, y)\n{";
-
-				newLines.add(inlineDefinition);
-
-				const String newFirstLine = "\tlocal component = " + componentType + "(name, x, y);";
-
-				newLines.add(newFirstLine);
-
-				for (int i = 1; i < lines.size(); i++)
-				{
-					newLines.add("    " + lines[i].replace(componentId, "name").replace(componentName + ".", "component."));
-				}
-
-				newLines.add("    return component;\n};\n");
-
-				const String newComponentDefinition = "const var " + componentName + " = " +
-					functionName + "(" +
-					componentId + ", " +
-					componentX + ", " +
-					componentY + ");\n";
-
-				newLines.add(newComponentDefinition);
-
-				return newLines.joinIntoString("\n");
-			}
-
-
-		}
-
-		return definition;
-	}
-
-
-	static const String createScriptComponentReference(const String selection)
-	{
-		String regexString = "(\\s*)(const\\s+var |local )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
-
-		const StringArray firstLineData = RegexFunctions::getFirstMatch(regexString, selection);
-
-		if (firstLineData.size() == 8)
-		{
-			
-			const String whitespace = firstLineData[1];
-			const String variableType = firstLineData[2];
-			const String componentName = firstLineData[3];
-			const String componentType = firstLineData[4];
-			const String componentId = firstLineData[5];
-			
-			return whitespace + variableType + componentName + " = Content.getComponent(" + componentId + ");";
-		}
-
-		PresetHandler::showMessageWindow("Something went wrong...", "The replacement didn't work");
-		return selection;
-	}
-
-
 private:
 
     bool debounce = false;
@@ -595,120 +510,24 @@ public:
 };
 
 
-String JavascriptCodeEditor::Helpers::getLeadingWhitespace(String line)
+bool JavascriptProcessor::handleKeyPress(const KeyPress& k, Component* c)
 {
-	line = line.removeCharacters("\r\n");
-	const String::CharPointerType endOfLeadingWS(line.getCharPointer().findEndOfWhitespace());
-	return String(line.getCharPointer(), endOfLeadingWS);
-}
-
-int JavascriptCodeEditor::Helpers::getBraceCount(String::CharPointerType line)
-{
-	int braces = 0;
-
-	for (;;)
+	if ((k.isKeyCode('f') || k.isKeyCode('F')) && k.getModifiers().isCommandDown()) // Ctrl + F
 	{
-		const juce_wchar c = line.getAndAdvance();
-
-		if (c == 0)                         break;
-		else if (c == '{')                  ++braces;
-		else if (c == '}')                  --braces;
-		else if (c == '/') { if (*line == '/') break; }
-		else if (c == '"' || c == '\'') { while (!(line.isEmpty() || line.getAndAdvance() == c)) {} }
+		ReferenceFinder * finder = new ReferenceFinder(dynamic_cast<JavascriptCodeEditor*>(c), this);
+		finder->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
+		finder->grabKeyboardFocus();
+		return true;
 	}
-
-	return braces;
-}
-
-bool JavascriptCodeEditor::Helpers::getIndentForCurrentBlock(CodeDocument::Position pos, const String& tab, String& blockIndent, String& lastLineIndent)
-{
-	int braceCount = 0;
-	bool indentFound = false;
-
-	while (pos.getLineNumber() > 0)
+	else if ((k.isKeyCode('h') || k.isKeyCode('H')) && k.getModifiers().isCommandDown()) // Ctrl + F
 	{
-		pos = pos.movedByLines(-1);
-
-		const String line(pos.getLineText());
-		const String trimmedLine(line.trimStart());
-
-		braceCount += getBraceCount(trimmedLine.getCharPointer());
-
-		if (braceCount > 0)
-		{
-			blockIndent = getLeadingWhitespace(line);
-			if (!indentFound)
-				lastLineIndent = blockIndent + tab;
-
-			return true;
-		}
-
-		if ((!indentFound) && trimmedLine.isNotEmpty())
-		{
-			indentFound = true;
-			lastLineIndent = getLeadingWhitespace(line);
-		}
+		CodeReplacer * replacer = new CodeReplacer(dynamic_cast<JavascriptCodeEditor*>(c));
+		replacer->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
+		replacer->getTextEditor("search")->grabKeyboardFocus();
+		return true;
 	}
 
 	return false;
-}
-
-
-char JavascriptCodeEditor::Helpers::getCharacterAtCaret(CodeDocument::Position pos, bool beforeCaret /*= false*/)
-{
-	if (beforeCaret)
-	{
-		if (pos.getPosition() == 0) return 0;
-
-		pos.moveBy(-1);
-
-		return (char)pos.getCharacter();
-	}
-	else
-	{
-		return (char)pos.getCharacter();
-	}
-}
-
-Range<int> JavascriptCodeEditor::Helpers::getFunctionParameterTextRange(CodeDocument::Position pos)
-{
-	Range<int> returnRange;
-
-	pos.moveBy(-1);
-
-	if (pos.getCharacter() == ')')
-	{
-		returnRange.setEnd(pos.getPosition());
-
-		pos.moveBy(-1);
-
-		if (pos.getCharacter() == '(')
-		{
-			return Range<int>();
-		}
-		else
-		{
-			while (pos.getCharacter() != '(' && pos.getIndexInLine() > 0)
-			{
-				pos.moveBy(-1);
-			}
-
-			returnRange.setStart(pos.getPosition() + 1);
-			return returnRange;
-		}
-	}
-	else if (pos.getCharacter() == '\n')
-	{
-		while (pos.getCharacter() != '\t' && pos.getPosition() > 0)
-		{
-			pos.moveBy(-1);
-		}
-
-		returnRange.setStart(pos.getPosition() + 1);
-		return returnRange;
-	}
-
-	return returnRange;
 }
 
 } // namespace hise

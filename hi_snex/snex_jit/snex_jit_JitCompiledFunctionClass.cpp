@@ -36,25 +36,26 @@ namespace jit {
 using namespace juce;
 
 
-JitCompiledFunctionClass::JitCompiledFunctionClass(GlobalScope& memory)
+JitCompiledFunctionClass::JitCompiledFunctionClass(BaseScope* parentScope, const NamespacedIdentifier& classInstanceId)
 {
-	pimpl = new ClassScope(memory);
+	pimpl = new ClassScope(parentScope, classInstanceId, nullptr);
 }
 
 
 JitCompiledFunctionClass::~JitCompiledFunctionClass()
 {
-	delete pimpl;
+	if(pimpl != nullptr)
+		delete pimpl;
 }
 
 
 VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 {
-	auto s = BaseScope::Symbol({}, id, Types::ID::Dynamic);
+	auto s = pimpl->rootData->getClassName().getChildId(id);
 
-	if (auto r = pimpl->get(s))
+	if (auto r = pimpl->rootData->contains(s))
 	{
-		return r->getDataCopy();
+		return pimpl->rootData->getDataCopy(s);
 	}
 
 	jassertfalse;
@@ -62,27 +63,34 @@ VariableStorage JitCompiledFunctionClass::getVariable(const Identifier& id)
 }
 
 
-snex::VariableStorage* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
+void* JitCompiledFunctionClass::getVariablePtr(const Identifier& id)
 {
-	auto s = BaseScope::Symbol({}, id, Types::ID::Dynamic);
+	auto s = pimpl->rootData->getClassName().getChildId(id);
 
-	if (auto r = pimpl->get(s))
-		return &r->getDataReference(false);
+	if (pimpl->rootData->contains(s))
+		return pimpl->rootData->getDataPointer(s);
 
 	return nullptr;
 }
 
-juce::Array<juce::Identifier> JitCompiledFunctionClass::getFunctionIds() const
+juce::String JitCompiledFunctionClass::dumpTable()
 {
-	return pimpl->getFunctionIds();
+	return pimpl->getRootData()->dumpTable();
 }
 
-FunctionData JitCompiledFunctionClass::getFunction(const Identifier& functionId)
+Array<NamespacedIdentifier> JitCompiledFunctionClass::getFunctionIds() const
 {
-	if (pimpl->hasFunction({}, functionId))
+	return pimpl->getRootData()->getFunctionIds();
+}
+
+FunctionData JitCompiledFunctionClass::getFunction(const NamespacedIdentifier& functionId)
+{
+	auto s = pimpl->getRootData()->getClassName().getChildId(functionId.getIdentifier());
+
+	if (pimpl->getRootData()->hasFunction(s))
 	{
 		Array<FunctionData> matches;
-		pimpl->addMatchingFunctions(matches, {}, functionId);
+		pimpl->getRootData()->addMatchingFunctions(matches, s);
 
 		// We don't allow overloaded functions for JIT compilation anyway...
 		return matches.getFirst();
@@ -91,15 +99,9 @@ FunctionData JitCompiledFunctionClass::getFunction(const Identifier& functionId)
 	return {};
 }
 
-snex::VariableStorage* JitObject::getVariablePtr(const Identifier& id) const
-{
-	if (*this)
-		return functionClass->getVariablePtr(id);
 
-	return nullptr;
-}
 
-snex::jit::FunctionData JitObject::operator[](const Identifier& functionId) const
+snex::jit::FunctionData JitObject::operator[](const NamespacedIdentifier& functionId) const
 {
 	if (*this)
 	{
@@ -111,7 +113,12 @@ snex::jit::FunctionData JitObject::operator[](const Identifier& functionId) cons
 }
 
 
-juce::Array<juce::Identifier> JitObject::getFunctionIds() const
+FunctionData JitObject::operator[](const Identifier& functionId) const
+{
+	return operator[](NamespacedIdentifier(functionId));
+}
+
+Array<NamespacedIdentifier> JitObject::getFunctionIds() const
 {
 	if (*this)
 	{
@@ -124,6 +131,57 @@ juce::Array<juce::Identifier> JitObject::getFunctionIds() const
 JitObject::operator bool() const
 {
 	return functionClass != nullptr;
+}
+
+void JitObject::rebuildDebugInformation()
+{
+	functionClass->pimpl->createDebugInfo(functionClass->debugInformation);
+}
+
+hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)
+{
+#if 0
+	for (auto& f : functionClass->debugInformation)
+	{
+		if (token == f->getCodeToInsert())
+		{
+			if (f->getType() == Types::ID::Block)
+				return functionClass->pimpl->getSubFunctionClass(Symbol::createRootSymbol("Block"));
+			if (f->getType() == Types::ID::Event)
+				return functionClass->pimpl->getSubFunctionClass(Symbol::createRootSymbol("Message"));
+		}
+	}
+#endif
+
+	return ApiProviderBase::getDebugObject(token);
+}
+
+juce::ValueTree JitObject::createValueTree()
+{
+	auto c = dynamic_cast<GlobalScope*>(functionClass->pimpl->getParent())->getGlobalFunctionClass(NamespacedIdentifier("Console"));
+	auto v = functionClass->pimpl->getRootData()->getApiValueTree();
+	v.addChild(FunctionClass::createApiTree(c), -1, nullptr);
+	return v;
+}
+
+void JitObject::getColourAndLetterForType(int type, Colour& colour, char& letter)
+{
+	return ApiHelpers::getColourAndLetterForType(type, colour, letter);
+}
+
+snex::jit::FunctionData JitCompiledClassBase::getFunction(const NamespacedIdentifier& id)
+{
+	Array<FunctionData> matches;
+
+	auto typePtr = dynamic_cast<StructType*>(classType.get());
+	auto sId = typePtr->id.getChildId(id.getIdentifier());
+
+	memberFunctions->addMatchingFunctions(matches, sId);
+
+	if (matches.size() == 1)
+		return matches[0];
+
+	return {};
 }
 
 }

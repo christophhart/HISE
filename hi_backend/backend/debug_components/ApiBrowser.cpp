@@ -66,7 +66,7 @@ className(className_)
 
 	setWantsKeyboardFocus(true);
 
-	help = ApiHelpers::createAttributedStringFromApi(methodTree, className, true, Colours::white);
+	help = ValueTreeApiHelpers::createAttributedStringFromApi(methodTree, className, true, Colours::white);
 }
 
 

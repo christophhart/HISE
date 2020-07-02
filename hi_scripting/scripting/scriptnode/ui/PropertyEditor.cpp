@@ -80,7 +80,9 @@ bool NodePopupEditor::keyPressed(const KeyPress& key)
 
 				if (propTree.isValid())
 				{
-					auto pg = new snex::jit::SnexPlayground(propTree.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()));
+					auto bh = new HiseBufferHandler(dynamic_cast<Processor*>(n.get()->getScriptProcessor()));
+
+					auto pg = new snex::jit::SnexPlayground(propTree.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()), bh);
 
 					auto bounds = sp->getBounds().reduced(100);
 

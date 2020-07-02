@@ -442,11 +442,15 @@ class JavascriptProcessor :	public FileChangeListener,
 							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
 							public ComplexDataHolder,
+							public ApiProviderBase::Holder,
 							public scriptnode::DspNetwork::Holder
 {
 public:
 
 	// ================================================================================================================
+
+
+	
 
 	/** A named document that contains a callback function. */
 	class SnippetDocument : public CodeDocument
@@ -574,12 +578,73 @@ public:
 
 	using ResultFunction = std::function<void(const SnippetResult& result)>;
 
+	enum ScriptContextActions
+	{
+		SaveScriptFile = 9000,
+		LoadScriptFile,
+		SaveScriptClipboard,
+		LoadScriptClipboard,
+
+		ClearAllBreakpoints,
+
+
+		CreateUiFactoryMethod,
+		ReplaceConstructorWithReference,
+		OpenExternalFile,
+		OpenInPopup,
+		MoveToExternalFile,
+		InsertExternalFile,
+		ExportAsCompressedScript,
+		ImportCompressedScript
+	};
+
 	// ================================================================================================================
 
 	JavascriptProcessor(MainController *mc);
 	virtual ~JavascriptProcessor();
 
+	struct EditorHelpers
+	{
+		static void applyChangesFromActiveEditor(JavascriptProcessor* p);
+
+		static JavascriptCodeEditor* getActiveEditor(JavascriptProcessor* p);
+
+		static JavascriptCodeEditor* getActiveEditor(Processor* p);
+
+		static CodeDocument* gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObjectBase* object);
+	};
+
+	ValueTree createApiTree() override
+	{
+#if USE_BACKEND
+		return ApiHelpers::getApiTree();
+#else
+		return {};
+#endif
+	}
+
+	void addPopupMenuItems(PopupMenu &m, Component* c, const MouseEvent &e) override;
+	void performPopupMenuAction(int menuId, Component* c) override;
+
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");
+
+	void handleBreakpoints(const Identifier& codefile, Graphics& g, Component* c);
+
+	void handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed, const MouseEvent& e);
+
+#if USE_BACKEND
+	bool handleKeyPress(const KeyPress& k, Component* c) override;
+#endif
+
+	void jumpToDefinition(const String& namespaceId, const String& token) override;
+
+	void setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos) override;
+
+	int getCodeFontSize() const override { return dynamic_cast<const Processor*>(this)->getMainController()->getGlobalCodeFontSize(); }
+
+	
+
+	JavascriptCodeEditor* getActiveEditor() override;
 
 	void breakpointWasHit(int index) override
 	{
@@ -599,15 +664,7 @@ public:
 		repaintUpdater.triggerAsyncUpdate();
 	}
 
-	void addEditor(Component* editor)
-	{
-		repaintUpdater.editors.add(editor);
-	}
-
-	void removeEditor(Component* editor)
-	{
-		repaintUpdater.editors.removeAllInstancesOf(editor);
-	}
+	
 
 	virtual void fileChanged() override;
 
@@ -647,6 +704,8 @@ public:
 	bool wasLastCompileOK() const { return lastCompileWasOK; }
 
 	Result getLastErrorMessage() const { return lastResult; }
+
+	ApiProviderBase* getProviderBase() override { return scriptEngine.get(); }
 
 	HiseJavascriptEngine *getScriptEngine() { return scriptEngine; }
 
@@ -809,26 +868,11 @@ private:
 
 	};
 
-	struct RepaintUpdater : public UpdateDispatcher::Listener
-	{
-		RepaintUpdater(UpdateDispatcher& dp) :
-			Listener(&dp)
-		{};
-
-		void handleAsyncUpdate() override
-		{
-			for (int i = 0; i < editors.size(); i++)
-			{
-				editors[i]->repaint();
-			}
-		}
-
-		Array<Component::SafePointer<Component>> editors;
-	};
+	
 
 	UpdateDispatcher repaintDispatcher;
 
-	RepaintUpdater repaintUpdater;
+	
 
 	Array<HiseJavascriptEngine::Breakpoint> breakpoints;
 

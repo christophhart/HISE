@@ -37,12 +37,13 @@ using namespace juce;
 using namespace asmjit;
 
 GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
-	FunctionClass("Globals"),
-	BaseScope("Globals", nullptr, numVariables)
+	FunctionClass({}),
+	BaseScope({}, nullptr)
 {
-	auto c = new ConsoleFunctions(this);
+	bufferHandler = new BufferHandler();
 
-	registerObjectFunction(c);
+	objectClassesWithJitCallableFunctions.add(new ConsoleFunctions(this));
+	addFunctionClass(new MathFunctions());
 
 	jassert(scopeType == BaseScope::Global);
 }
@@ -58,7 +59,7 @@ void GlobalScope::registerObjectFunction(FunctionClass* objectClass)
 		jassertfalse;
 }
 
-void GlobalScope::deregisterObject(const Identifier& id)
+void GlobalScope::deregisterObject(const NamespacedIdentifier& id)
 {
 	bool somethingDone = false;
 
@@ -81,23 +82,44 @@ void GlobalScope::deregisterObject(const Identifier& id)
 	}
 }
 
-bool GlobalScope::hasFunction(const Identifier& classId, const Identifier& functionId) const
+void GlobalScope::registerFunctionsToNamespaceHandler(NamespaceHandler& handler)
+{
+	NamespaceHandler::ScopedNamespaceSetter sns(handler, NamespacedIdentifier());
+
+	for (auto of : objectClassesWithJitCallableFunctions)
+	{
+		handler.addSymbol(of->getClassName(), TypeInfo(Types::ID::Pointer, true), NamespaceHandler::StaticFunctionClass);
+	}
+
+	for (auto rc : registeredClasses)
+	{
+		handler.addSymbol(rc->getClassName(), TypeInfo(Types::ID::Pointer, true), NamespaceHandler::StaticFunctionClass);
+	}
+}
+
+bool GlobalScope::hasFunction(const NamespacedIdentifier& symbol) const
 {
 	for (auto of : objectClassesWithJitCallableFunctions)
 	{
-		if (of->hasFunction(classId, functionId))
+		if (of->hasFunction(symbol))
+			return true;
+	}
+
+	for (auto rc : registeredClasses)
+	{
+		if (rc->hasFunction(symbol))
 			return true;
 	}
 
 	return false;
 }
 
-void GlobalScope::addMatchingFunctions(Array<FunctionData>& matches, const Identifier& classId, const Identifier& functionId) const
+void GlobalScope::addMatchingFunctions(Array<FunctionData>& matches, const NamespacedIdentifier& symbol) const
 {
-	FunctionClass::addMatchingFunctions(matches, classId, functionId);
+	FunctionClass::addMatchingFunctions(matches, symbol);
 
 	for (auto of : objectClassesWithJitCallableFunctions)
-		of->addMatchingFunctions(matches, classId, functionId);
+		of->addMatchingFunctions(matches, symbol);
 }
 
 void GlobalScope::addObjectDeleteListener(ObjectDeleteListener* l)

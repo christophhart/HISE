@@ -112,24 +112,43 @@ public:
 		}
 	};
 
-	
-
 	~Compiler();
 	Compiler(GlobalScope& memoryPool);
 
 	void setDebugHandler(DebugHandler* newHandler);
 
-	JitObject compileJitObject(const String& code);
+	JitObject compileJitObject(const juce::String& code);
+
+	/** Compile a class that you want to use from C++. */
+	template <class T> T* compileJitClass(const juce::String& code, const Identifier& classId)
+	{
+		auto obj = compileJitObject(code);
+		auto typePtr = getComplexType(NamespacedIdentifier(classId));
+		return new T(std::move(obj), typePtr);
+	};
 
 	Result getCompileResult();
 
-	String getAssemblyCode();
+	juce::String getAssemblyCode();
+	juce::String dumpSyntaxTree() const;
+	juce::String dumpNamespaceTree() const;
+	juce::String getLastCompiledCode() { return lastCode; }
 
-	String getLastCompiledCode() { return lastCode; }
+	/** This registers an external object as complex type.
+
+	If a similar type already exists, it returns the pointer to this type object,
+	so make sure you use the return value of this function for further processing. */
+	ComplexType::Ptr registerExternalComplexType(ComplexType::Ptr t);
+
+	ComplexType::Ptr getComplexType(const NamespacedIdentifier& s);
+
+
+	void registerVariadicType(VariadicSubType::Ptr p);
 
 private:
 
-	String lastCode;
+	NamespaceHandler handler;
+	juce::String lastCode;
 	ClassCompiler* compiler;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Compiler);

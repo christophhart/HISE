@@ -200,7 +200,18 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 	PolyData<T, NumVoices> obj;
 };
 
+struct HiseBufferHandler : public snex::BufferHandler
+{
+	HiseBufferHandler(Processor* parentProcessor) :
+		processor(parentProcessor)
+	{
 
+	}
+
+	void registerExternalItems() override;
+
+	WeakReference<hise::Processor> processor;
+};
 
 namespace core
 {
@@ -343,6 +354,8 @@ public:
 		}
 	}
 
+	
+
 	hise::SingleWriteLockfreeMutex lock;
 	PrepareSpecs lastSpecs;
 	snex::jit::GlobalScope scope;
@@ -405,5 +418,9 @@ public:
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitPolyNode(n, d); };
 };
 #endif
+
+
+
+
 
 }
