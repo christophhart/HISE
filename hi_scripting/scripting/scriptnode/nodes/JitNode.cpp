@@ -465,6 +465,7 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 
 	snex::jit::FunctionData f;
 
+#if 0
 	if (!cc.resetFunction)
 	{
 		f.id = "reset";
@@ -545,6 +546,8 @@ juce::String JitNodeBase::convertJitCodeToCppClass(int numVoices, bool addToFact
 
 		CppGen::Emitter::emitFunctionDefinition(missingFunctions, createParameterFunction);
 	}
+
+#endif
 
 	CppGen::MethodInfo snippetFunction;
 	snippetFunction.name = "getSnippetText";

@@ -2138,6 +2138,8 @@ void PresetHandler::checkMetaParameters(Processor* p)
 					e << c->getName().toString() << " changed " << s << " without being marked as meta parameter";
 					throw Result::fail(e);
 				}
+
+				return false;
 			});
 		}
 		catch (Result& r)

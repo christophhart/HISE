@@ -494,6 +494,8 @@ struct ManualEventObject : public DebugableObjectBase
 		ADD_IF("altDown", "bool", "true if the alt modifier is pressed");
 		ADD_IF("ctrlDown", "bool", "true if the ctrl modifier is pressed");
 #undef ADD_IF
+
+		return nullptr;
 	}
 
 	void getAllConstants(Array<Identifier>& ids) const override

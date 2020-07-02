@@ -474,8 +474,9 @@ public:
 	};
 
 	/** Subclass any component from this interface class and use getProviderBase(). Check for nullptr each time!. */
-	struct ApiComponentBase
+	class ApiComponentBase
 	{
+	public:
 		ApiProviderBase* getProviderBase()
 		{
 			if (holder != nullptr)
