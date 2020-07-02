@@ -4469,7 +4469,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("suffix", slider.getTextValueSuffix());
 		obj->setProperty("skew", slider.getSkewFactor());
 
-		obj->setProperty("style", slider.getSliderStyle());	// Horizontal:2, Vertical:3, Range:9
+		obj->setProperty("style", style);	// Horizontal:2, Vertical:3, Range:9
 
 		// Vertical & Horizontal style slider
 		obj->setProperty("min", slider.getMinimum());
@@ -4498,10 +4498,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 			return;
 	}
 
-	GlobalHiseLookAndFeel::drawLinearSliderBackground (g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
-	GlobalHiseLookAndFeel::drawLinearSliderThumb (g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
+	GlobalHiseLookAndFeel::drawLinearSlider(g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
 }
-
 
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonText(Graphics &g_, TextButton &button, bool isMouseOverButton, bool isButtonDown)
