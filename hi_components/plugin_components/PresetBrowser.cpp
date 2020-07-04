@@ -1206,7 +1206,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 
 void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& newName)
 {
-	if (columnIndex == 0)
+	if (columnIndex == 0 && (numColumns == 3 || numColumns == 2))
 	{
         if(newName.isNotEmpty())
         {
@@ -1223,7 +1223,7 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 
         rebuildAllPresets();
 	}
-	else if (columnIndex == 1)
+	else if (columnIndex == 1 && numColumns == 3)
 	{
 		currentCategoryFile = PresetBrowserColumn::getChildDirectory(currentBankFile, 2, rowIndex);
 
@@ -1242,9 +1242,18 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 
         rebuildAllPresets();
 	}
-	else if (columnIndex == 2)
+	else if (columnIndex == 2 || (columnIndex == 1 && numColumns == 2) || (columnIndex == 0 && numColumns == 1))
 	{
-		File presetFile = PresetBrowserColumn::getChildDirectory(currentCategoryFile, 3, rowIndex);
+		File current;
+
+		if (numColumns == 3)
+			current = currentCategoryFile;
+		else if (numColumns == 2)
+		 	current = currentBankFile;
+		else if (numColumns == 1)
+		 	current = rootFile;
+
+		File presetFile = PresetBrowserColumn::getChildDirectory(current, 3, rowIndex);
 
 		if (newName.isNotEmpty())
 		{
@@ -1255,7 +1264,7 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 			else
 			{
 				presetFile.moveFileTo(newFile);
-				presetColumn->setNewRootDirectory(currentCategoryFile);
+				presetColumn->setNewRootDirectory(current);
 				rebuildAllPresets();
 				showLoadedPreset();
 			}
