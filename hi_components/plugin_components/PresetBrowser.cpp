@@ -750,14 +750,32 @@ hise::PresetBrowserLookAndFeelMethods& PresetBrowser::getPresetBrowserLookAndFee
 void PresetBrowser::presetChanged(const File& newPreset)
 {
 	if (allPresets[currentlyLoadedPreset] == newPreset)
+	{
+		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 		return;
+	}
 
 	File pFile = newPreset;
-	File cFile = pFile.getParentDirectory();
-	File bFile = cFile.getParentDirectory();
+	File cFile;
+	File bFile;
 
-	bankColumn->setSelectedFile(bFile, sendNotification);
-	categoryColumn->setSelectedFile(cFile, sendNotification);
+	if (numColumns > 2)
+	{
+		cFile = pFile.getParentDirectory();
+	}
+
+	if (numColumns > 1)
+	{
+		bFile = numColumns > 2 ? cFile.getParentDirectory() : pFile.getParentDirectory();
+		bankColumn->setSelectedFile(bFile, sendNotification);
+	}
+
+	// For some reason I needed to call twice the same condition...
+	if (numColumns > 2)
+	{
+		categoryColumn->setSelectedFile(cFile, sendNotification);
+	}
+	
 	presetColumn->setSelectedFile(newPreset, dontSendNotification);
 
 	saveButton->setEnabled(true);
