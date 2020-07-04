@@ -1274,7 +1274,7 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 
 void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 {
-	if (columnIndex == 0)
+	if (columnIndex == 0 && (numColumns == 3 || numColumns == 2))
 	{
 		File bankToDelete = f;
 
@@ -1284,7 +1284,7 @@ void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 		categoryColumn->setNewRootDirectory(File());
 		presetColumn->setNewRootDirectory(File());
 	}
-	else if (columnIndex == 1)
+	else if (columnIndex == 1 && numColumns == 3)
 	{
 		File categoryToDelete = f;
 
@@ -1294,13 +1294,21 @@ void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 		presetColumn->setNewRootDirectory(File());
 
 	}
-	else if (columnIndex == 2)
+	else if (columnIndex == 2 || (columnIndex == 1 && numColumns == 2) || (columnIndex == 0 && numColumns == 1))
 	{
 		File presetFile = f;
 
-		presetFile.deleteFile();
-		presetColumn->setNewRootDirectory(currentCategoryFile);
+		File current;
 
+		if (numColumns == 3)
+			current = currentCategoryFile;
+		else if (numColumns == 2)
+		 	current = currentBankFile;
+		else if (numColumns == 1)
+		 	current = rootFile;
+
+		presetFile.deleteFile();
+		presetColumn->setNewRootDirectory(current);
 	}
 
 	rebuildAllPresets();
