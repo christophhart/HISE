@@ -42,7 +42,8 @@ Each line is a metadata key/pair value, with the syntax `key: value`. Multiple v
 | `input` | list of values | a whitespace separated list of values (like the output) |
 | `error` | quoted String | the exact error message that is supposed to be thrown. This can be used to test the compiler against invalid input and expect that it behaves correctly and prints the expected error message. If this is not an empty String (`""`), the test result will not compare the output, but just check that the two error messages are identical |
 | `events` | JSON | (optional) list of events for the process data testmode
-| `compile_flags` | (optional) a whitespace separated list of optimizations (as they are shown in the SNEX playground selector) that you can use to skip the test if this optimization isn't enabled. |
+| `compile_flags` | String list | (optional) a whitespace separated list of optimizations (as they are shown in the SNEX playground that you can use to skip the test if this optimization isn't enabled. |
+| `loop_count` | int | (optional) the expected number of loops. | 
 | `filename` | a relative filename | if this is not empty, this filename will be overriden with the current code. This is used by the SNEX Playground's **Test Mode** to quickly generate new tests. |
 
 
@@ -107,6 +108,12 @@ And each `EventObject` needs to has these properties:
 Some tests that check specific compiler features (eg. auto vectorisation) can be skipped if the optimization is not enabled.
 
 > Be aware that this function is reserved for special cases (eg. manual calls to `toSimd()` which wouldn't compile otherwise) and must not be used to cheat your way into a passing test suite...
+
+## Loop Counter
+
+In order to test the loop optimisations you can enter a number of loops that this test is supposed to create. This can be used to check whether the loops got optimised away or being unrolled. It just checks the ASM output for the number of occurrences of the `loop {` String. If the number doesn't match, the test will fail.
+
+> Make sure to use the correct number (if you inline functions, it will duplicate the loop code). Also this check will only work if you have supplied `LoopOptimisation` as required compile flag...
 
 ## Use template `T` for testing all numeric types
 

@@ -104,8 +104,16 @@ private:
 
 /** A fixed-size array type for SNEX. 
 
-	The span type is an iteratable compile-time array.
+	The span type is an iteratable compile-time array. The elements can be accessed 
+	using the []-operator or via a range-based for loop.
 
+	Note that the []-operator access can either take a literal integer index (that 
+	is compiled-time checked against the boundaries), or a index subtype with a 
+	defined out-of-bounds behaviour (wrapping, clamping, etc).
+
+	A special version of the span is the span<float, 4> type, which will use optimized
+	SSE instructions for common operations. Also any span type with floats and a 
+	length that is a multiple of 4 will use SSE instructions when optimizing loops.
 */
 template <class T, int MaxSize> struct span
 {
@@ -115,6 +123,20 @@ template <class T, int MaxSize> struct span
 
 	static constexpr int s = MaxSize;
 
+	/** The wrapped index type can be used for an index that will wrap around
+	    the boundaries in order to implement eg. ring buffers.
+
+		You can either create them directly or use the IndexType helper class
+		for a leaner syntax:
+		
+		@code
+		span<float, 19> data = { 2.0f };
+
+		span<float, 19>::wrapped idx2 = data;
+
+		// Just pass the span into the function
+		auto idx1 = IndexType::wrapped(data);
+	*/
 	struct wrapped: public index_base<wrapped>
 	{
 		wrapped(int initValue) : index_base<wrapped>(initValue) {}
