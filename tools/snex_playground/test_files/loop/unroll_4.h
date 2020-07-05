@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 0
   output: 25
   error: ""
+  loop_count: 0
   filename: "loop/unroll_4"
 END_TEST_DATA
 */
