@@ -711,9 +711,6 @@ public:
 
 	~SnexPlayground();
 
-	void paintOverChildren(Graphics& g) override;
-
-
 	void paint(Graphics& g) override;
 	void resized() override;
 
@@ -894,8 +891,6 @@ private:
 	Spacer spacerSignal;
 
     ParameterList sliders;
-	
-	SparseSet<int> asmAdditions;
 	
 	CallbackCollection cData;
 	ScopedPointer<Component> stateViewer;

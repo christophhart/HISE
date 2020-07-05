@@ -383,28 +383,6 @@ SnexPlayground::~SnexPlayground()
 	externalCodeValue.setValue(doc.getAllContent());
 }
 
-
-void SnexPlayground::paintOverChildren(Graphics& g)
-{
-	if (!asmAdditions.isEmpty())
-	{
-		int startLine = assembly.getFirstLineOnScreen();
-		int endLine = startLine + assembly.getNumLinesOnScreen();
-		
-		for (int i = startLine; i < endLine; i++)
-		{
-			if (asmAdditions.contains(i))
-			{
-				auto lineOnScreen = i - startLine;
-				juce::Rectangle<int> b(assembly.getX(), assembly.getY() + lineOnScreen * assembly.getLineHeight(), assembly.getWidth(), assembly.getLineHeight());
-
-				g.setColour(Colour(0x1188ff88));
-				g.fillRect(b.toFloat());
-			}
-		}
-	}
-}
-
 juce::String SnexPlayground::getDefaultCode(bool getTestcode)
 {
 	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
@@ -824,8 +802,6 @@ void SnexPlayground::recompile()
 
 		auto lastAssembly = assemblyDoc.getAllContent();
 
-		asmAdditions = AssemblyTokeniser::applyDiff(lastAssembly, tc.assembly);
-
 		repaint();
 
 		assemblyDoc.replaceAllContent(tc.assembly);
@@ -1021,141 +997,6 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 	return scheme;
 }
 
-
-struct DiffHelpers
-{
-	static bool sameAsmLine(const String& o, const String& n)
-	{
-		TextDiff d(o, n);
-
-		for (auto& c : d.changes)
-		{
-			if (!c.insertedText.containsOnly("1234567890"))
-				return false;
-		}
-
-		return true;
-	}
-};
-
-SparseSet<int> snex::jit::AssemblyTokeniser::applyDiff(const String& oldAsm, String& newAsm)
-{
-	SparseSet<int> additions;
-
-#if 0
-	TextDiff d(oldAsm, newAsm);
-
-	SparseSet<int> additions;
-	
-	for (auto c : d.changes)
-	{
-		if (!c.isDeletion() && !c.insertedText.containsOnly("1234567890"))
-		{
-			additions.addRange({ c.start, c.start + c.insertedText.length()});
-		}
-	}
-
-	return additions;
-#endif
-
-	StringArray thisLines;
-	auto oldLines = StringArray::fromLines(oldAsm);
-	auto newLines = StringArray::fromLines(newAsm);
-
-	if (oldLines.size() > newLines.size())
-		return additions;
-
-	int newDelta = 0;
-
-	for (int i = 0; i < oldLines.size(); i++)
-	{
-		if (!DiffHelpers::sameAsmLine(oldLines[i], newLines[i + newDelta]))
-		{
-			if (DiffHelpers::sameAsmLine(oldLines[i + 1], newLines[i + 1 + newDelta]))
-			{
-				additions.addRange(Range<int>(i, i + 1));
-			}
-			else
-			{
-				for (int j = i + 1; j < newLines.size(); j++)
-				{
-					if (DiffHelpers::sameAsmLine(oldLines[i], newLines[j + newDelta]))
-					{
-						auto newLineCount = (j - i);
-
-						additions.addRange(Range<int>(i, i + newLineCount));
-						newDelta += newLineCount;
-						break;
-					}
-				}
-			}
-		}
-	}
-
-
-#if 0
-	int nIndex = 0;
-	int oIndex = 0;
-
-	while(isPositiveAndBelow(nIndex, newLines.size()) || isPositiveAndBelow(oIndex, oldLines.size()))
-	{
-		if (!DiffHelpers::sameAsmLine(oldLines[oIndex], newLines[nIndex]))
-		{
-			int numInserted = 0;
-			int numDeleted = 0;
-
-			for (int j = nIndex + 1; j < newLines.size(); j++)
-			{
-				if (DiffHelpers::sameAsmLine(oldLines[oIndex+1], newLines[j]))
-				{
-					numInserted = j - nIndex;
-					break;
-				}
-			}
-
-			for (int j = oIndex; j < oldLines.size(); j++)
-			{
-				if (DiffHelpers::sameAsmLine(oldLines[j], newLines[nIndex]))
-				{
-					numDeleted = j - oIndex;
-					break;
-				}
-			}
-
-			if (numInserted > 0)
-			{
-				additions.addRange(Range<int>(nIndex, nIndex + numInserted));
-				nIndex += numInserted+1;
-			}
-
-			if (numDeleted > 0)
-			{
-				oIndex += numDeleted;
-
-#if 0
-				for (int j; j < numDeleted; j++)
-				{
-					thisLines.add("(-)" + oldLines[oIndex + j]);
-				}
-
-				oIndex += numDeleted;
-#endif
-			}
-
-			jassert(numInserted != 0 || numDeleted != 0);
-		}
-		else
-		{
-			thisLines.add(newLines[nIndex]);
-		}
-
-		oIndex++;
-		nIndex++;
-	}
-#endif
-
-	return additions;
-}
 
     namespace Icons
     {
