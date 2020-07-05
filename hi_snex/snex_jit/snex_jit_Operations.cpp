@@ -1637,6 +1637,9 @@ bool Operations::StatementBlock::isRealStatement(Statement* s)
 	if (dynamic_cast<Noop*>(s) != nullptr)
 		return false;
 
+	if (as<ReturnStatement>(s))
+		return s->getType() != Types::ID::Void;
+
 	if (dynamic_cast<VariableReference*>(s) != nullptr)
 		return false;
 

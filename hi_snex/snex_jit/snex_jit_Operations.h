@@ -2485,14 +2485,14 @@ struct Operations::WhileLoop : public Statement,
 					acg.cc.jb(okBranch);
 
 					auto errorFlag = x86::ptr(scope->getGlobalScope()->getRuntimeErrorFlag()).cloneResized(4);
-					acg.cc.mov(why, (int)RuntimeError::ErrorType::WhileLoop);
-					acg.cc.mov(errorFlag, why);
-					acg.cc.mov(why, (int)location.getLine());
-					acg.cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), why);
-					acg.cc.mov(why, (int)location.getColNumber(location.program, location.location));
-					acg.cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), why);
-					acg.cc.jmp(exit);
-					acg.cc.bind(okBranch);
+acg.cc.mov(why, (int)RuntimeError::ErrorType::WhileLoop);
+acg.cc.mov(errorFlag, why);
+acg.cc.mov(why, (int)location.getLine());
+acg.cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), why);
+acg.cc.mov(why, (int)location.getColNumber(location.program, location.location));
+acg.cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), why);
+acg.cc.jmp(exit);
+acg.cc.bind(okBranch);
 				}
 			}
 
@@ -2505,12 +2505,12 @@ struct Operations::WhileLoop : public Statement,
 };
 
 struct Operations::Loop : public Expression,
-					      public Operations::ConditionalBranch,
-						  public Operations::ArrayStatementBase
+	public Operations::ConditionalBranch,
+	public Operations::ArrayStatementBase
 {
 	SET_EXPRESSION_ID(Loop);
 
-	
+
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		auto c1 = getSubExpr(0)->clone(l);
@@ -2548,7 +2548,7 @@ struct Operations::Loop : public Expression,
 		t.setProperty("LoopType", loopTypes[loopTargetType], nullptr);
 		t.setProperty("LoadIterator", loadIterator, nullptr);
 		t.setProperty("Iterator", iterator.toString(), nullptr);
-		
+
 		return t;
 	}
 
@@ -2577,11 +2577,26 @@ struct Operations::Loop : public Expression,
 			auto r = compiler->namespaceHandler.setTypeInfo(iterator.id, NamespaceHandler::Variable, targetType->getElementType());
 
 			auto iteratorType = targetType->getElementType().withModifiers(iterator.isConst(), iterator.isReference());
-			
+
 			iterator = { iterator.id, iteratorType };
 
 			if (r.failed())
 				throwError(r.getErrorMessage());
+		}
+
+		if (auto fpType = tt.getTypedIfComplexType<StructType>())
+		{
+			if (fpType->id == NamespacedIdentifier("FrameProcessor"))
+			{
+				TypeInfo floatType(Types::ID::Float, false, true);
+
+				auto r = compiler->namespaceHandler.setTypeInfo(iterator.id, NamespaceHandler::Variable, floatType);
+
+				iterator = { iterator.id, floatType };
+
+				if (r.failed())
+					throwError(r.getErrorMessage());
+			}
 		}
 
 		Statement::tryToResolveType(compiler);

@@ -495,6 +495,10 @@ public:
 
 			assembly = c.getAssemblyCode().fromFirstOccurrenceOf("; function void process", true, false);
 
+			auto r = Helpers::testAssemblyLoopCount(assembly, expectedLoopCount);
+			if (r.failed())
+				return r;
+
 			return Helpers::compareBuffers(inputBuffer, outputBuffer);
 		}
 		else
@@ -520,6 +524,17 @@ public:
 				return expectCompileFail(expectedFail);
 
 			assembly = c.getAssemblyCode();
+
+			auto r = Helpers::testAssemblyLoopCount(assembly, expectedLoopCount);
+			if (r.failed())
+			{
+				if(t != nullptr)
+					t->expect(false, r.getErrorMessage());
+
+				return r;
+			}
+
+			
 
 			auto compiledF = obj[function.id];
 
@@ -585,6 +600,7 @@ private:
 		static const Identifier error("error");
 		static const Identifier filename("filename");
 		static const Identifier events("events");
+		static const Identifier loop_count("loop_count");
 		static const Identifier compile_flags("compile_flags");
 		static const juce::String END_TEST_DATA("END_TEST_DATA");
 
@@ -775,6 +791,16 @@ private:
 				requiredCompileFlags = Helpers::getStringArray(s[compile_flags].toString(), " ");
 			}
 
+			{
+				auto l = s[loop_count].toString();
+
+				if (!l.isEmpty())
+				{
+					expectedLoopCount = l.getIntValue();
+					requiredCompileFlags.addIfNotAlreadyThere(OptimizationIds::LoopOptimisation);
+				}
+			}
+
 			if (!file.existsAsFile())
 			{
 				// Parse output file
@@ -840,6 +866,32 @@ private:
 		{
 			auto filename = parseQuotedString(v);
 			return getTestFileDirectory().getChildFile("wave_files").getChildFile(filename);
+		}
+
+		static Result testAssemblyLoopCount(const String& assemblyCode, int expectedLoopCount)
+		{
+			if (expectedLoopCount == -1)
+				return Result::ok();
+
+			int numFound = 0;
+
+			for (int i = 0; i < assemblyCode.length(); i++)
+			{
+				static const String l("loop {");
+				if (assemblyCode.substring(i, i + l.length()) == l)
+				{
+					numFound++;
+				}
+			}
+
+			if (numFound != expectedLoopCount)
+			{
+				String f;
+				f << "Loop optimisation fail: Expected: " << String(expectedLoopCount) << ", Actual: " << String(numFound);
+				return Result::fail(f);
+			}
+
+			return Result::ok();
 		}
 
 		static AudioSampleBuffer loadFile(const var& v)
@@ -1115,6 +1167,7 @@ private:
 	File outputBufferFile;
 	HiseEventBuffer eventBuffer;
 	StringArray requiredCompileFlags;
+	int expectedLoopCount = -1;
 	
 };
 
@@ -1165,7 +1218,7 @@ public:
 	{
 	}
 
-
+	int expectedLoopCount = -1;
 	juce::String globals;
 	juce::String initBody;
 	juce::String prepareToPlayBody;
@@ -1297,13 +1350,18 @@ public:
 
 	void runTest() override
 	{
-		optimizations = { OptimizationIds::NoSafeChecks };
-		
-		runTestFiles("simple_calc");
+		optimizations = { OptimizationIds::Inlining, OptimizationIds::LoopOptimisation };
+		runTestFiles("loop/", true);
 
 		return;
 
+		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks, OptimizationIds::AsmOptimisation });
+
+		optimizations = { OptimizationIds::NoSafeChecks };
+		
+		
 		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks });
+		
 		runTestsWithOptimisation(OptimizationIds::getAllIds());
 
 		testExternalFunctionCalls();
@@ -1546,7 +1604,7 @@ public:
 
 		for (auto f : getFiles(soloTest, isFolder))
 		{
-			if (soloTest.isNotEmpty() && f.getFileName() != soloTest)
+			if (!isFolder && soloTest.isNotEmpty() && f.getFileName() != soloTest)
 				continue;
 
 			if(printDebugInfoForSingleTest)

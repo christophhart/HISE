@@ -1704,7 +1704,7 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 	itReg->setCustomMemoryLocation(x86::ptr(start), loopTarget->isGlobalMemory());
 	itReg->setIsIteratorRegister(true);
 
-	cc.setInlineComment("loop_span {");
+	cc.setInlineComment("loop {");
 	cc.bind(loopStart);
 
 	loopBody->process(compiler, scope);
@@ -1713,7 +1713,7 @@ void SpanLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Ba
 
 	cc.add(start, (int64_t)typePtr->getElementSize());
 	cc.cmp(start, end);
-	cc.setInlineComment("loop_span }");
+	cc.setInlineComment("loop}");
 	cc.jne(loopStart);
 
 	cc.bind(loopEnd);
@@ -1771,7 +1771,7 @@ void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Bas
 	//itReg->createRegister(cc);
 	itReg->setIsIteratorRegister(true);
 
-	cc.setInlineComment("loop_span {");
+	cc.setInlineComment("loop {");
 	cc.bind(loopStart);
 
 	itReg->setCustomMemoryLocation(x86::ptr(beg.get()), loopTarget->isGlobalMemory());
@@ -1820,7 +1820,7 @@ void DynLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, Bas
 
 	cc.add(beg.get(), (int64_t)elementSize);
 	cc.cmp(beg.get(), end.get());
-	cc.setInlineComment("loop_span }");
+	cc.setInlineComment("loop }");
 	cc.jl(loopStart);
 
 	cc.bind(loopEnd);
@@ -1873,7 +1873,7 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 	itReg->setCustomMemoryLocation(x86::ptr(beginReg.get()), loopTarget->isGlobalMemory());
 	itReg->setIsIteratorRegister(true);
 
-	cc.setInlineComment("loop_span {");
+	cc.setInlineComment("loop {");
 	cc.bind(loopStart);
 
 #if 0
@@ -1915,7 +1915,7 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 
 	cc.add(beginReg.get(), (int64_t)elementSize);
 	cc.cmp(beginReg.get(), endReg.get());
-	cc.setInlineComment("loop_span }");
+	cc.setInlineComment("loop }");
 	cc.jl(loopStart);
 
 	cc.bind(loopEnd);

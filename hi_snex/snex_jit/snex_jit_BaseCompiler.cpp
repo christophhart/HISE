@@ -93,7 +93,7 @@ using namespace asmjit;
 				{
 					return;
 				}
-
+				
 				if(useExistingPasses)
 					logMessage(MessageType::VerboseProcessMessage, "Repeat optimizations");
 			}
@@ -213,15 +213,16 @@ using namespace asmjit;
         
 		if (isOptimizationPass(p))
 		{
-			for (auto s : *st)
+			for (int i = 0; i < st->getNumChildStatements(); i++)
 			{
+				auto s = st->getChildStatement(i);
+
 				for (auto o : passes)
 					o->reset();
 
-				if (isOptimizationPass(p))
-				{
-					optimize(s, scope, true);
-				}
+				optimize(s, scope, true);
+
+				st->removeNoops();
 			}
 		}
 		else

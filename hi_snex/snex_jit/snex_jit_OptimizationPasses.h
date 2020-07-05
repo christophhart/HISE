@@ -102,6 +102,8 @@ public:
 		old->replaceInParent(newExpression);
 	}
 
+	void processPreviousPasses(BaseCompiler* c, BaseScope* s, StatementPtr st);
+
     /** Short helper tool to check Types. */
     template <class T> static T* as(StatementPtr obj)
     {
@@ -253,7 +255,45 @@ public:
 
 private:
 
+	struct Helpers
+	{
+		static int getCompileTimeAmount(StatementPtr target)
+		{
+			auto t = target->getTypeInfo();
+
+			if (auto sp = t.getTypedIfComplexType<SpanType>())
+				return sp->getNumElements();
+
+			if (auto st = t.getTypedIfComplexType<StructType>())
+			{
+				if (st->id == NamespacedIdentifier("FrameProcessor"))
+					return st->getTemplateInstanceParameters()[0].constant;
+			}
+
+			return 0;
+		}
+	};
+
+	Operations::Loop* currentLoop = nullptr;
+	BaseScope* currentScope = nullptr;
+	BaseCompiler* currentCompiler = nullptr;
+
 	bool unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l);
+
+	bool combineLoops(BaseCompiler* c, BaseScope* s, Operations::Loop* l);
+
+	bool sameTarget(Operations::Loop* l1, Operations::Loop* l2);
+
+	bool isBlockWithSingleStatement(StatementPtr s);
+
+	bool combineInternal(Operations::Loop* l, Operations::Loop* nl);
+
+	Operations::Loop* getLoopStatement(StatementPtr s);
+
+	StatementPtr getRealParent(StatementPtr s);
+
+	static Symbol getRealSymbol(StatementPtr s);
+	
 };
 
 class LoopVectoriser : public OptimizationPass

@@ -464,6 +464,17 @@ Operations::Statement::Ptr Operations::Statement::replaceChildStatement(int inde
 	return returnExpr;
 }
 
+void Operations::Statement::removeNoops()
+{
+	for (int i = 0; i < childStatements.size(); i++)
+	{
+		if (as<Noop>(childStatements[i]))
+		{
+			childStatements.remove(i--);
+		}
+	}
+}
+
 void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const juce::String& message)
 {
 	if (!compiler->hasLogger())

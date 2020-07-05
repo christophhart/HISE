@@ -275,6 +275,8 @@ namespace Operations
 		Ptr replaceInParent(Ptr newExpression);
 		Ptr replaceChildStatement(int index, Ptr newExpr);
 
+		void removeNoops();
+
 		void attachAsmComment(const juce::String& message);
 
 		TypeInfo checkAndSetType(int offset, TypeInfo expectedType);

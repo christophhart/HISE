@@ -42,6 +42,21 @@ void OptimizationPass::replaceWithNoop(StatementPtr s)
 	replaceExpression(s, new Operations::Noop(s->location));
 }
 
+void OptimizationPass::processPreviousPasses(BaseCompiler* c, BaseScope* s, StatementPtr st)
+{
+	for (int i = BaseCompiler::DataSizeCalculation; i < (int)c->getCurrentPass(); i++)
+	{
+		auto p = (BaseCompiler::Pass)i;
+
+		if (BaseCompiler::isOptimizationPass(p))
+			continue;
+
+		BaseCompiler::ScopedPassSwitcher svs(c, p);
+
+		c->executePass(p, s, st);
+	}
+}
+
 struct VOps
 {
 #define VAR_OP(name, opChar) static VariableStorage name(VariableStorage l, VariableStorage r) { return VariableStorage(l.getType(), l.toDouble() opChar r.toDouble()); }
@@ -1071,8 +1086,19 @@ bool LoopOptimiser::processStatementInternal(BaseCompiler* compiler, BaseScope* 
 	}
 	if (auto l = as<Operations::Loop>(statement))
 	{
+		currentLoop = l;
+		currentScope = s;
+		currentCompiler = compiler;
+
+		if (combineLoops(compiler, s, l))
+		{
+			return true;
+		}
+
 		COMPILER_PASS(BaseCompiler::PreSymbolOptimization)
 		{
+			
+
 			if (unroll(compiler, s, l))
 			{
 				return true;
@@ -1095,100 +1121,354 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 
 	l->tryToResolveType(c);
 
-	if (auto st = l->getTarget()->getTypeInfo().getTypedIfComplexType<SpanType>())
+	int compileTimeLoopCount = Helpers::getCompileTimeAmount(l->getTarget());
+
+	if (compileTimeLoopCount > 0 && compileTimeLoopCount <= 8)
 	{
-		int numLoops = st->getNumElements();
+		auto loopParent = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(l);
 
-		if (numLoops <= 8)
+		jassert(loopParent != nullptr);
+
+		Ptr lp = new Operations::StatementBlock(l->location, c->namespaceHandler.createNonExistentIdForLocation(loopParent->getPath(), l->location.getLine()));
+		Ptr target = l->getTarget();
+
+		for (int i = 0; i < compileTimeLoopCount; i++)
 		{
-			auto loopParent = Operations::findParentStatementOfType<Operations::ScopeStatementBase>(l);
+			Identifier uId("Unroll" + juce::String(i));
 
-			jassert(loopParent != nullptr);
-			
-			Ptr lp = new Operations::StatementBlock(l->location, c->namespaceHandler.createNonExistentIdForLocation(loopParent->getPath(), l->location.getLine()));
-			Ptr target = l->getTarget();
+			auto cb = l->getLoopBlock()->clone(l->location);
 
-			auto isSimdLoop = SpanType::isSimdType(st->getElementType());
+			juce::String comment;
+			comment << "unroll " << target->getTypeInfo().toString() << "[" << juce::String(i) << "]";
 
-			for (int i = 0; i < numLoops; i++)
+
+			auto newParentScopeId = as<Operations::StatementBlock>(lp)->getPath().getChildId(uId);
+
+			auto clb = as<Operations::StatementBlock>(cb);
+			clb->setNewPath(c, newParentScopeId);
+
+			clb->attachAsmComment(comment);
+
+			auto iteratorSymbol = Symbol(clb->getPath().getChildId(l->iterator.getName()), l->iterator.typeInfo);
+
+			jassert(l->iterator.resolved);
+
+			NamespaceHandler::ScopedNamespaceSetter sns(c->namespaceHandler, iteratorSymbol.id.getParent());
+
+			c->namespaceHandler.addSymbol(iteratorSymbol.id, iteratorSymbol.typeInfo, NamespaceHandler::Variable);
+
+			iteratorSymbol.typeInfo = iteratorSymbol.typeInfo.withModifiers(iteratorSymbol.isConst(), true);
+
+			if (l->evaluateIteratorLoad())
 			{
-				Identifier uId("Unroll" + juce::String(i));
+				auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
+				auto imm = new Operations::Immediate(l->location, VariableStorage(i));
+				auto sus = new Operations::Subscript(l->location, target, imm);
+				auto ia = new Operations::Assignment(l->location, iv, JitTokens::assign_, sus, true);
 
-				auto cb = l->getLoopBlock()->clone(l->location);
-
-				juce::String comment;
-				comment << "unroll " << target->getTypeInfo().toString() << "[" << juce::String(i) << "]";
-
-				
-
-				auto newParentScopeId = as<Operations::StatementBlock>(lp)->getPath().getChildId(uId);
-
-				auto clb = as<Operations::StatementBlock>(cb);
-				clb->setNewPath(c, newParentScopeId);
-
-				clb->attachAsmComment(comment);
-
-				auto iteratorSymbol = Symbol(clb->getPath().getChildId(l->iterator.getName()), l->iterator.typeInfo);
-
-				jassert(l->iterator.resolved);
-
-				NamespaceHandler::ScopedNamespaceSetter sns(c->namespaceHandler, iteratorSymbol.id.getParent());
-
-				c->namespaceHandler.addSymbol(iteratorSymbol.id, iteratorSymbol.typeInfo, NamespaceHandler::Variable);
-
-				iteratorSymbol.typeInfo = iteratorSymbol.typeInfo.withModifiers(iteratorSymbol.isConst(), true);
-
-				if (l->evaluateIteratorLoad())
-				{
-					auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
-					auto imm = new Operations::Immediate(l->location, VariableStorage(i));
-					auto sus = new Operations::Subscript(l->location, target, imm);
-					auto ia = new Operations::Assignment(l->location, iv, JitTokens::assign_, sus, true);
-
-					cb->addStatement(ia, true);
-				}
-				
-				jassert(iteratorSymbol.resolved);
-
-				cb->forEachRecursive([this, c, s](Ptr f)
-				{
-					if (auto sl = as<Operations::Loop>(f))
-					{
-						unroll(c, s, sl);
-					}
-
-					return false;
-				});
-
-				lp->addStatement(cb);
-
-				if (l->evaluateIteratorStore())
-				{
-					auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
-					auto imm = new Operations::Immediate(l->location, VariableStorage(i));
-					auto sus = new Operations::Subscript(l->location, target, imm);
-					auto ia = new Operations::Assignment(l->location, sus, JitTokens::assign_, iv, false);
-
-					cb->addStatement(ia, false);
-				}
+				cb->addStatement(ia, true);
 			}
 
-			replaceExpression(l, lp);
+			jassert(iteratorSymbol.resolved);
 
-			l->parent = nullptr;
+			cb->forEachRecursive([this, c, s](Ptr f)
+			{
+				if (auto sl = as<Operations::Loop>(f))
+				{
+					unroll(c, s, sl);
+				}
 
-			return true;
+				return false;
+			});
+
+			lp->addStatement(cb);
+
+			if (l->evaluateIteratorStore())
+			{
+				auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
+				auto imm = new Operations::Immediate(l->location, VariableStorage(i));
+				auto sus = new Operations::Subscript(l->location, target, imm);
+				auto ia = new Operations::Assignment(l->location, sus, JitTokens::assign_, iv, false);
+
+				cb->addStatement(ia, false);
+			}
 		}
 
-		return false;
+		replaceExpression(l, lp);
+		l->parent = nullptr;
+		return true;
 
-		
+		return false;
 	}
 
 	return false;
 }
 
 
+
+bool LoopOptimiser::combineLoops(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
+{
+	using namespace Operations;
+
+	auto loopParent = getRealParent(l);
+	
+	for (int i = 0; i < loopParent->getNumChildStatements(); i++)
+	{
+		auto c = loopParent->getChildStatement(i);
+		auto tl = getLoopStatement(c.get());
+
+		if (tl == l)
+		{
+			if (i < loopParent->getNumChildStatements())
+			{
+				auto ns = loopParent->getChildStatement(i + 1);
+				if (auto nl = getLoopStatement(ns))
+				{
+					if (combineInternal(l, nl))
+						return true;
+				}
+			}
+
+			if (i > 0)
+			{
+				auto ps = loopParent->getChildStatement(i - 1);
+
+				if (auto pl = getLoopStatement(ps))
+				{
+					if (combineInternal(pl, l))
+					{
+						Operations::dumpSyntaxTree(loopParent);
+						return true;
+					}
+						
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+
+
+bool LoopOptimiser::sameTarget(Operations::Loop* l1, Operations::Loop* l2)
+{
+	using namespace Operations;
+
+	auto t1 = l1->getTarget();
+	auto t2 = l2->getTarget();
+
+	auto sameVariable = [](StatementPtr s1, StatementPtr s2)
+	{
+		if (auto v1 = as<SymbolStatement>(s1))
+		{
+			if (auto v2 = as<SymbolStatement>(s2))
+			{
+				if (getRealSymbol(s1) == getRealSymbol(s2))
+					return true;
+
+#if 0
+				if (v1->getSymbol() == v2->getSymbol())
+					return true;
+
+				auto ip1 = StatementBlock::findInlinedParameterInParentBlocks(s1, v1->getSymbol());
+
+				auto ip2 = StatementBlock::findInlinedParameterInParentBlocks(s2, v2->getSymbol());
+
+				if (ip1 != nullptr && ip2 != nullptr)
+				{
+					auto is1 = as<SymbolStatement>(ip1->getSubExpr(0));
+					auto is2 = as<SymbolStatement>(ip2->getSubExpr(0));
+
+					return is1->getSymbol() == is2->getSymbol();
+				}
+#endif
+			}
+		}
+
+		return false;
+	};
+
+	if (sameVariable(t1, t2))
+		return true;
+
+	auto sameFunctionCall = [sameVariable](StatementPtr s1, StatementPtr s2)
+	{
+		if (auto f1 = as<FunctionCall>(s1))
+		{
+			if (auto f2 = as<FunctionCall>(s2))
+			{
+				if (f1->function.id == f2->function.id)
+				{
+					auto o1 = f1->getObjectExpression();
+					auto o2 = f2->getObjectExpression();
+
+					if ((o1 == nullptr && o2 == nullptr) || sameVariable(o1, o2))
+					{
+						auto numMaxArguments = jmax(f1->getNumArguments(), f2->getNumArguments());
+
+						for (int i = 0; i < numMaxArguments; i++)
+						{
+							if (!sameVariable(f1->getArgument(i), f2->getArgument(i)))
+								return false;
+						}
+
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	};
+
+	if (sameFunctionCall(t1, t2))
+		return true;
+
+	return false;
+}
+
+bool LoopOptimiser::isBlockWithSingleStatement(StatementPtr s)
+{
+	using namespace Operations;
+
+	if (auto sb = as<StatementBlock>(s))
+	{
+		auto numStatements = sb->getNumChildStatements();
+		auto numRealStatements = 0;
+
+		for (int i = 0; i < numStatements; i++)
+		{
+			auto c = s->getChildStatement(i);
+
+			if (StatementBlock::isRealStatement(c))
+				numRealStatements++;
+		}
+
+		if (numRealStatements == 1)
+			return true;
+	}
+
+	return false;
+}
+
+bool LoopOptimiser::combineInternal(Operations::Loop* l, Operations::Loop* nl)
+{
+	using namespace Operations;
+
+	if (sameTarget(l, nl))
+	{
+		bool atLastLoop = currentLoop == nl;
+		auto fb = l->getLoopBlock();
+		auto nb = nl->getLoopBlock();
+		auto sourceBlock = atLastLoop ? fb : nb;
+		auto targetBlock = atLastLoop ? nb : fb;
+		auto lastTargetStatement = targetBlock->getChildStatement(targetBlock->getNumChildStatements() - 1);
+		auto loc = lastTargetStatement->location;
+		auto si = atLastLoop ? l->iterator : nl->iterator;
+		auto ti = atLastLoop ? nl->iterator : l->iterator;
+
+		Operations::dumpSyntaxTree(l);
+		Operations::dumpSyntaxTree(nl);
+
+		sourceBlock->forEachRecursive([this, si, ti](Statement::Ptr b)
+		{
+			if (auto ip = as<InlinedParameter>(b))
+			{
+				if (auto ip1 = StatementBlock::findInlinedParameterInParentBlocks(ip, ip->getSymbol()))
+				{
+					auto newSymbol = as<SymbolStatement>(ip1->getSubExpr(0))->getSymbol();
+
+					replaceExpression(ip, new VariableReference(ip->location, newSymbol));
+				}
+			}
+
+			if (auto ss = as<VariableReference>(b))
+			{
+				
+
+				if (ss->id == si)
+					ss->id = ti;
+
+				
+			}
+
+			return false;
+		});
+
+		auto newBlock = new StatementBlock(loc, targetBlock->getPath());
+		
+		for (int i = 0; i < fb->getNumChildStatements(); i++)
+		{
+			auto s = fb->getChildStatement(i)->clone(loc);
+			newBlock->addStatement(s);
+		}
+
+		for (int i = 0; i < nb->getNumChildStatements(); i++)
+		{
+			auto s = nb->getChildStatement(i)->clone(loc);
+			newBlock->addStatement(s);
+		}
+
+		
+
+		replaceExpression(targetBlock, newBlock);
+		processPreviousPasses(currentCompiler, currentScope, newBlock);
+
+		replaceWithNoop(getRealParent(sourceBlock));
+
+		return true;
+	}
+
+	return false;
+}
+
+snex::jit::Operations::Loop* LoopOptimiser::getLoopStatement(StatementPtr s)
+{
+	using namespace Operations;
+
+	if (auto l = as<Loop>(s))
+		return l;
+
+	if (isBlockWithSingleStatement(s))
+	{
+		for (int i = 0; i < s->getNumChildStatements(); i++)
+		{
+			if (StatementBlock::isRealStatement(s->getChildStatement(i)))
+			{
+				return getLoopStatement(s->getChildStatement(i));
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+snex::jit::OptimizationPass::StatementPtr LoopOptimiser::getRealParent(StatementPtr s)
+{
+	using namespace Operations;
+
+	if (auto p = s->parent)
+	{
+		if (isBlockWithSingleStatement(p.get()))
+		{
+			return getRealParent(p.get());
+		}
+
+		
+		return p;
+	}
+
+	return nullptr;
+}
+
+snex::jit::Symbol LoopOptimiser::getRealSymbol(StatementPtr s)
+{
+	using namespace Operations;
+	if (auto ie = StatementBlock::findInlinedParameterInParentBlocks(s, as<SymbolStatement>(s)->getSymbol()))
+		return as<SymbolStatement>(ie->getSubExpr(0))->getSymbol();
+	else return as<SymbolStatement>(s)->getSymbol();
+}
 
 bool LoopVectoriser::processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement)
 {
