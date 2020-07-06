@@ -153,8 +153,9 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::cre
 	return new Operations::StatementBlock(d->location, blPath);
 }
 
-snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createFunctionCall(StructType* converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs)
+snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createFunctionCall(ComplexType::Ptr converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs)
 {
+	jassert(converterType != nullptr);
 	auto f = getFunctionFromTargetClass(converterType, functionId);
 
 	TemplateParameter::List tpToUse;
@@ -189,15 +190,15 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::cre
 		return nullptr;
 }
 
-snex::jit::StructType* TemplateClassBuilder::Helpers::getStructTypeFromTemplate(StructType* st, int index)
+ComplexType::Ptr TemplateClassBuilder::Helpers::getSubTypeFromTemplate(StructType* st, int index)
 {
-	return st->getTemplateInstanceParameters()[index].type.getTypedComplexType<StructType>();
+	return st->getTemplateInstanceParameters()[index].type.getComplexType();
 }
 
-snex::jit::FunctionData TemplateClassBuilder::Helpers::getFunctionFromTargetClass(StructType* targetType, const Identifier& id)
+snex::jit::FunctionData TemplateClassBuilder::Helpers::getFunctionFromTargetClass(ComplexType::Ptr targetType, const Identifier& id)
 {
 	FunctionClass::Ptr fc = targetType->getFunctionClass();
-	auto fId = targetType->id.getChildId(id);
+	auto fId = fc->getClassName().getChildId(id);
 	return fc->getNonOverloadedFunction(fId);
 }
 
@@ -237,7 +238,7 @@ void ParameterBuilder::Helpers::initSingleParameterStruct(const TemplateObject::
 	st->setDefaultValue("target", InitialiserList::makeSingleList(VariableStorage(nullptr, 8)));
 }
 
-snex::jit::Operations::Statement::Ptr ParameterBuilder::Helpers::createSetParameterCall(StructType* targetType, SyntaxTreeInlineData* d, Operations::Statement::Ptr input)
+snex::jit::Operations::Statement::Ptr ParameterBuilder::Helpers::createSetParameterCall(ComplexType::Ptr targetType, SyntaxTreeInlineData* d, Operations::Statement::Ptr input)
 {
 	StatementList exprArgs;
 	exprArgs.add(input);
@@ -257,7 +258,7 @@ snex::jit::FunctionData ParameterBuilder::Helpers::connectFunction(StructType* s
 {
 	FunctionData cFunc;
 
-	auto targetType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(st, 0);
+	auto targetType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 0);
 
 	cFunc.id = st->id.getChildId("connect");
 	cFunc.returnType = TypeInfo(Types::ID::Void, false, false);
@@ -366,7 +367,7 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::VariadicHelp
 
 	for (int i = offset; i < pList.size(); i++)
 	{
-		auto childParameter = pList[i].type.getTypedComplexType<StructType>();
+		auto childParameter = pList[i].type.getComplexType();
 		auto newCall = Helpers::createFunctionCall(childParameter, d, functionId, processedArgs);
 
 		if (newCall == nullptr)
@@ -387,6 +388,25 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::VariadicHelp
 	return bl;
 }
 
+WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels):
+	TemplateClassBuilder(c, NamespacedIdentifier("wrap").getChildId(id))
+{
+	addTypeTemplateParameter("ObjectClass");
+	
+	setInitialiseStructFunction([&c, numChannels](const TemplateObject::ConstructData& cd, StructType* st)
+	{
+		auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 0);
+		st->addMember("obj", TypeInfo(pType, false, false));
+
+		auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
+
+		for (auto p : prototypes)
+			st->addWrappedMemberMethod("obj", p);
+	});
+}
+
+
+
 ContainerNodeBuilder::ContainerNodeBuilder(Compiler& c, const Identifier& id, int numChannels_) :
 	TemplateClassBuilder(c, NamespacedIdentifier("container").getChildId(id)),
 	numChannels(numChannels_)
@@ -394,9 +414,10 @@ ContainerNodeBuilder::ContainerNodeBuilder(Compiler& c, const Identifier& id, in
 	addTypeTemplateParameter("ParameterClass");
 	addVariadicTypeTemplateParameter("ProcessorTypes");
 	addFunction(TemplateClassBuilder::VariadicHelpers::getFunction);
+
 	setInitialiseStructFunction([](const TemplateObject::ConstructData& cd, StructType* st)
 	{
-		auto pType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(st, 0);
+		auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 0);
 
 		if (!ParameterBuilder::Helpers::isParameterClass(TypeInfo(pType)))
 		{

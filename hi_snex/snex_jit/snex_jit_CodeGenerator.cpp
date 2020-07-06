@@ -383,7 +383,7 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 	jassert(target->getType() == type);
 	jassert(parent->getType() == Types::ID::Pointer);
 
-	int byteSize = target->getTypeInfo().getRequiredByteSize();
+	int byteSize = jmin<int>(8, target->getTypeInfo().getRequiredByteSize());
 
 	if (parent->isMemoryLocation())
 	{
@@ -392,7 +392,6 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 	}
 	else
 	{
-		int byteSize = target->getTypeInfo().getRequiredByteSize();
 		auto ptr = x86::ptr(INT_REG_R(parent), memberOffset.toInt());
 		target->setCustomMemoryLocation(ptr.cloneResized(byteSize), true);
 	}

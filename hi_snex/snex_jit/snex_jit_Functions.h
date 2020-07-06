@@ -240,8 +240,6 @@ struct ComplexType : public ReferenceCountedObject
 {
 	static int numInstances;
 
-	
-
 	struct InitData
 	{
 		AssemblyMemory* asmPtr = nullptr;
@@ -1470,10 +1468,11 @@ struct FunctionClass: public DebugableObjectBase,
 		NativeTypeCast,
 		Subscript,
 		ToSimdOp,
+		Constructor,
 		numOperatorOverloads
 	};
 
-	static Identifier getSpecialSymbol(SpecialSymbols s)
+	static Identifier getSpecialSymbol(const NamespacedIdentifier& classId, SpecialSymbols s)
 	{
 		switch (s)
 		{
@@ -1484,6 +1483,7 @@ struct FunctionClass: public DebugableObjectBase,
 		case ToSimdOp:		 return "toSimd";
 		case BeginIterator:  return "begin";
 		case SizeFunction:	 return "size";
+		case Constructor:    return classId.getIdentifier();
 		}
 
 		return {};
@@ -1491,13 +1491,15 @@ struct FunctionClass: public DebugableObjectBase,
 
 	bool hasSpecialFunction(SpecialSymbols s) const
 	{
-		auto id = getClassName().getChildId(getSpecialSymbol(s));
+		
+
+		auto id = getClassName().getChildId(getSpecialSymbol(getClassName(), s));
 		return hasFunction(id);
 	}
 
 	void addSpecialFunctions(SpecialSymbols s, Array<FunctionData>& possibleMatches) const
 	{
-		auto id = getClassName().getChildId(getSpecialSymbol(s));
+		auto id = getClassName().getChildId(getSpecialSymbol(getClassName(), s));
 		addMatchingFunctions(possibleMatches, id);
 	}
 
@@ -1608,7 +1610,7 @@ struct FunctionClass: public DebugableObjectBase,
 	FunctionData& createSpecialFunction(SpecialSymbols s)
 	{
 		auto f = new FunctionData();
-		f->id = getClassName().getChildId(getSpecialSymbol(s));
+		f->id = getClassName().getChildId(getSpecialSymbol(getClassName(), s));
 		
 		addFunction(f);
 		return *f;

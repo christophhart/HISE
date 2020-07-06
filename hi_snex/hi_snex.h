@@ -53,10 +53,7 @@ END_JUCE_MODULE_DECLARATION
 
 /* TODO Roadmap:
 
-- add static functions & change console & math to static functions
-- add DECLARE_XXX macro system that creates parameters & ranges
-- add parameter variadic types
-- start replacing scriptnode ProcessData with snex type
+- use JitCompiledNode with the boilerplate code for scriptnode library nodes et al... b
 - add scriptnode node classes to SNEX
 
 */

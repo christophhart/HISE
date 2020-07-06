@@ -281,7 +281,6 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 
 void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 {
-
 	NamespaceHandler::InternalSymbolSetter iss(c.getNamespaceHandler());
 
 	{
@@ -437,7 +436,8 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 		ContainerNodeBuilder split(c, "split", numChannels);
 		split.flush();
 
-
+		WrapBuilder init(c, "init", numChannels);
+		init.flush();
 	}
 
 	registerParameterTemplate(c);
@@ -490,7 +490,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		
 		{
 			FunctionData subscript;
-			subscript.id = pId.getChildId(FunctionClass::getSpecialSymbol(jit::FunctionClass::Subscript));
+			subscript.id = pId.getChildId(FunctionClass::getSpecialSymbol(pId, jit::FunctionClass::Subscript));
 			subscript.returnType = TypeInfo(c.handler->getAliasType(NamespacedIdentifier("block")));
 			subscript.addArgs("obj", TypeInfo(Types::ID::Pointer, true, true));
 			subscript.addArgs("index", TypeInfo(Types::ID::Integer));
@@ -550,9 +550,9 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 
 		{
 			FunctionData beginF, sizeFunction;
-			beginF.id = pId.getChildId(FunctionClass::getSpecialSymbol(jit::FunctionClass::BeginIterator));
+			beginF.id = pId.getChildId(FunctionClass::getSpecialSymbol({}, jit::FunctionClass::BeginIterator));
 			beginF.returnType = channelType;
-			sizeFunction.id = pId.getChildId(FunctionClass::getSpecialSymbol(jit::FunctionClass::SizeFunction));
+			sizeFunction.id = pId.getChildId(FunctionClass::getSpecialSymbol({}, jit::FunctionClass::SizeFunction));
 			sizeFunction.returnType = TypeInfo(Types::ID::Integer);
 
 			beginF.inliner = Inliner::createAsmInliner(beginF.id, [](InlineData* b)
@@ -1055,7 +1055,7 @@ void SnexObjectDatabase::createFrameProcessor(Compiler& c)
 
 		{
 			FunctionData beginF;
-			beginF.id = fId.getChildId(FunctionClass::getSpecialSymbol(jit::FunctionClass::BeginIterator));
+			beginF.id = fId.getChildId(FunctionClass::getSpecialSymbol({}, jit::FunctionClass::BeginIterator));
 			beginF.returnType = TypeInfo(Types::ID::Float, false, true);
 			beginF.inliner = Inliner::createAsmInliner(beginF.id, [fType](InlineData* b)
 			{
@@ -1077,7 +1077,7 @@ void SnexObjectDatabase::createFrameProcessor(Compiler& c)
 			fType->addJitCompiledMemberFunction(beginF);
 
 			FunctionData sizeF;
-			sizeF.id = fId.getChildId(FunctionClass::getSpecialSymbol(jit::FunctionClass::SizeFunction));
+			sizeF.id = fId.getChildId(FunctionClass::getSpecialSymbol({}, jit::FunctionClass::SizeFunction));
 			sizeF.returnType = TypeInfo(Types::ID::Integer);
 			sizeF.inliner = Inliner::createAsmInliner(sizeF.id, [numChannels](InlineData* b)
 			{
@@ -1195,7 +1195,7 @@ void SnexObjectDatabase::createFrameProcessor(Compiler& c)
 
 			{
 				FunctionData subscript;
-				subscript.id = fId.getChildId(FunctionClass::getSpecialSymbol(jit::FunctionClass::Subscript));
+				subscript.id = fId.getChildId(FunctionClass::getSpecialSymbol({}, jit::FunctionClass::Subscript));
 				subscript.returnType = TypeInfo(Types::ID::Float, false, true);
 				subscript.addArgs("obj", TypeInfo(Types::ID::Pointer, true)); // break ref-count cycle...
 				subscript.addArgs("index", TypeInfo(Types::ID::Integer));
@@ -1273,7 +1273,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 			auto d = b->toSyntaxTreeData();
 			auto input = d->args[0]->clone(d->location);
 
-			auto targetType = TCH::getStructTypeFromTemplate(st, 0);
+			auto targetType = TCH::getSubTypeFromTemplate(st, 0);
 			d->target       = PH::createSetParameterCall(targetType, d, input);
 
 			return Result::ok();
@@ -1289,9 +1289,9 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 		return PH::createCallPrototype(st, [st](InlineData* b)
 		{
 			auto d = b->toSyntaxTreeData();
-			auto exprType =   TCH::getStructTypeFromTemplate(st, 2);
+			auto exprType =   TCH::getSubTypeFromTemplate(st, 2);
 			auto exprCall =   TCH::createFunctionCall(exprType, d, "op", d->args);
-			auto targetType = TCH::getStructTypeFromTemplate(st, 0);
+			auto targetType = TCH::getSubTypeFromTemplate(st, 0);
 			d->target =       PH::createSetParameterCall(targetType, d, exprCall);
 
 			return Result::ok();
@@ -1306,9 +1306,9 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 		return PH::createCallPrototype(st, [st](InlineData* b)
 		{
 			auto d = b->toSyntaxTreeData();
-			auto rangeType =   TCH::getStructTypeFromTemplate(st, 2);
+			auto rangeType =   TCH::getSubTypeFromTemplate(st, 2);
 			auto rangeCall =   TCH::createFunctionCall(rangeType, d, "from0To1", d->args);
-			auto targetType =  TCH::getStructTypeFromTemplate(st, 0);
+			auto targetType =  TCH::getSubTypeFromTemplate(st, 0);
 			d->target =        PH::createSetParameterCall(targetType, d, rangeCall);
 
 			return Result::ok();
@@ -1325,9 +1325,9 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 			auto d = b->toSyntaxTreeData();
 			auto input = d->args[0]->clone(d->location);
 
-			auto rangeType = TCH::getStructTypeFromTemplate(st, 2);
+			auto rangeType = TCH::getSubTypeFromTemplate(st, 2);
 			auto rangeCall = TCH::createFunctionCall(rangeType, d, "to0To1", d->args);
-			auto targetType = TCH::getStructTypeFromTemplate(st, 0);
+			auto targetType = TCH::getSubTypeFromTemplate(st, 0);
 			d->target = PH::createSetParameterCall(targetType, d, rangeCall);
 
 			return Result::ok();
@@ -1353,7 +1353,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 
 
 			int parameterIndex = d->templateParameters.getFirst().constant;
-			auto targetType = TCH::getStructTypeFromTemplate(st, parameterIndex + 1);
+			auto targetType = TCH::getSubTypeFromTemplate(st, parameterIndex + 1);
 			auto newCall = TCH::createFunctionCall(targetType, d, "connect", d->args);
 			TCH::addChildObjectPtr(newCall, d, st, parameterIndex);
 
@@ -1371,7 +1371,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 		{
 			auto d = b->toSyntaxTreeData();
 
-			auto rangeType = TCH::getStructTypeFromTemplate(st, 0);
+			auto rangeType = TCH::getSubTypeFromTemplate(st, 0);
 			auto rangeCall = TCH::createFunctionCall(rangeType, d, "to0To1", d->args);
 
 			if (rangeCall == nullptr)
@@ -1402,7 +1402,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 			auto d = b->toSyntaxTreeData();
 
 			auto value = d->templateParameters.getFirst().constant;
-			auto targetType = TCH::getStructTypeFromTemplate(st, value);
+			auto targetType = TCH::getSubTypeFromTemplate(st, value);
 			auto newCall = TCH::createFunctionCall(targetType, d, "call", d->args);
 			TCH::addChildObjectPtr(newCall, d, st, value);
 
@@ -1424,6 +1424,19 @@ snex::jit::ComplexType::Ptr PrepareSpecs::createComplexType(Compiler& c, const I
 	ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
 
 	return c.registerExternalComplexType(st);
+}
+
+juce::Array<snex::jit::NamespacedIdentifier> ScriptnodeCallbacks::getIds(const NamespacedIdentifier& p)
+{
+	Array<NamespacedIdentifier> ids;
+
+	ids.add(p.getChildId("prepare"));
+	ids.add(p.getChildId("reset"));
+	ids.add(p.getChildId("handleEvent"));
+	ids.add(p.getChildId("process"));
+	ids.add(p.getChildId("processFrame"));
+
+	return ids;
 }
 
 juce::Array<snex::jit::FunctionData> ScriptnodeCallbacks::getAllPrototypes(Compiler& c, int numChannels)
@@ -1507,6 +1520,150 @@ snex::ComplexType* OscProcessData::createType(Compiler& c)
 	ADD_SNEX_STRUCT_MEMBER(st, d, voiceIndex);
 
 	return st;
+}
+
+snex::jit::Inliner::Ptr SnexNodeBase::createInliner(const NamespacedIdentifier& id, const Array<void*>& functions)
+{
+	return Inliner::createAsmInliner(id, [id, functions](InlineData* b)
+	{
+		auto d = b->toAsmInlineData();
+
+		FunctionData f;
+		f.returnType = TypeInfo(Types::ID::Void);
+		f.id = id;
+		auto tp = d->templateParameters[0];
+
+		int c = 2;
+
+		f.function = functions[c];
+
+		d->gen.emitFunctionCall(d->target, f, d->object, d->args);
+
+		return Result::ok();
+	});
+}
+
+
+
+TypeInfo SnexNodeBase::Wrappers::createFrameType(const SnexTypeConstructData& cd)
+{
+	ComplexType::Ptr st = new SpanType(TypeInfo(Types::ID::Float), cd.numChannels);
+
+	return TypeInfo(cd.c.getNamespaceHandler().registerComplexTypeOrReturnExisting(st), false, true);
+}
+
+JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& classId, int numChannels_, const CompilerInitFunction& cf) :
+	r(Result::ok()),
+	numChannels(numChannels_)
+{
+	String s;
+
+	auto implId = NamespacedIdentifier::fromString("impl::" + classId);
+
+	s << "namespace impl { " << code;
+	s << "}\n";
+	s << implId.toString() << " instance;\n";
+
+	cf(c, numChannels);
+	
+	Array<Identifier> fIds;
+
+	for (auto f : Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels))
+	{
+		addCallbackWrapper(s, f);
+		fIds.add(f.id.getIdentifier());
+	}
+
+	obj = c.compileJitObject(s);
+
+	r = c.getCompileResult();
+
+	if (r.wasOk())
+	{
+		NamespacedIdentifier impl("impl");
+
+		if (instanceType = c.getComplexType(implId))
+		{
+			if (auto libraryNode = dynamic_cast<SnexNodeBase*>(instanceType.get()))
+			{
+				parameterList = libraryNode->getParameterList();
+			}
+			if (auto st = dynamic_cast<StructType*>(instanceType.get()))
+			{
+				auto pId = st->id.getChildId("Parameters");
+				auto pNames = c.getNamespaceHandler().getEnumValues(pId);
+
+				if (!pNames.isEmpty())
+				{
+					for (int i = 0; i < pNames.size(); i++)
+						addParameterMethod(s, pNames[i], i);
+				}
+
+				cf(c, numChannels);
+
+				obj = c.compileJitObject(s);
+				r = c.getCompileResult();
+
+				instanceType = c.getComplexType(implId);
+
+				for (auto& n : pNames)
+				{
+					auto f = obj[Identifier("set" + n)];
+
+					OpaqueSnexParameter osp;
+					osp.name = n;
+					osp.function = f.function;
+					parameterList.add(osp);
+				}
+			}
+
+			FunctionClass::Ptr fc = instanceType->getFunctionClass();
+
+			thisPtr = obj.getMainObjectPtr();
+			ok = true;
+
+			for (int i = 0; i < fIds.size(); i++)
+			{
+				callbacks[i] = obj[fIds[i]];
+
+				Array<FunctionData> matches;
+
+				fc->addMatchingFunctions(matches, fc->getClassName().getChildId(fIds[i]));
+
+				FunctionData wrappedFunction;
+
+				if (matches.size() == 1)
+					wrappedFunction = matches.getFirst();
+				else
+				{
+					for (auto m : matches)
+					{
+						if (m.matchesArgumentTypes(callbacks[i]))
+						{
+							wrappedFunction = m;
+							break;
+						}
+					}
+				}
+
+				if (!wrappedFunction.matchesArgumentTypes(callbacks[i]))
+				{
+					r = Result::fail(wrappedFunction.getSignature({}, false) + " doesn't match " + callbacks[i].getSignature({}, false));
+					ok = false;
+					break;
+				}
+
+				if (callbacks[i].function == nullptr)
+					ok = false;
+			}
+
+			
+		}
+		else
+		{
+			jassertfalse;
+		}
+	}
 }
 
 }

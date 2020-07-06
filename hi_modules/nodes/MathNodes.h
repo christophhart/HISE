@@ -280,6 +280,8 @@ template <class OpType, int V> class OpNode : public HiseDspBase
 {
 public:
 
+	using OperationType = OpType;
+
 	enum class Parameters
 	{
 		Value
@@ -308,6 +310,11 @@ public:
 	void prepare(PrepareSpecs ps);
 	void createParameters(Array<ParameterData>& data) override;
 	void setValue(double newValue);
+
+
+	static snex::Types::DefaultFunctionClass createSnexFunctions(const snex::Types::SnexTypeConstructData& cd);
+
+
 
 	DEFINE_PARAMETERS
 	{

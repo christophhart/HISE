@@ -71,12 +71,14 @@ namespace fx
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
+	registerNodeCustomSNEX<reverb>({});
+
 #if NOT_JUST_OSC
 	registerPolyNode<sampleandhold, sampleandhold_poly>({});
 	registerPolyNode<bitcrush, bitcrush_poly>({});
 	registerPolyNode<fix<2, haas>, fix<2, haas_poly>>({});
 	registerPolyNode<phase_delay, phase_delay_poly>({});
-	registerNode<reverb>({});
+	
 #endif
 }
 
@@ -129,6 +131,8 @@ Factory::Factory(DspNetwork* network) :
 	
 	registerPolyNode<smoother, smoother_poly>({});
 #endif
+
+	registerNode<new_jit>();
 
 	registerModNode<core::midi<SnexEventProcessor>, MidiDisplay>();
 
@@ -217,8 +221,8 @@ Factory::Factory(DspNetwork* network) :
 #endif
 
 	
-	using osc = BoringWrapper<fix<1, oscillator_impl<1>>, OscillatorDisplayProvider::UseMidiProperty>;
-	using osc_poly = BoringWrapper<fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>, OscillatorDisplayProvider::UseMidiProperty>;
+	using osc = fix<1, oscillator_impl<1>>;
+	using osc_poly = fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 	registerPolyNode<osc, osc_poly, OscDisplay>();
 

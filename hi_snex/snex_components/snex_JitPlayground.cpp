@@ -827,9 +827,6 @@ void SnexPlayground::recompile()
 
 				return nPtr->getDescriptionForItem(nId);
 			}
-
-
-			return String();
 		});
 
 		scopeRanges = tc.c.getNamespaceHandler().createLineRangesFromNamespaces();

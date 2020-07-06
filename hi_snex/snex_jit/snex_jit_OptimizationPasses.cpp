@@ -1237,7 +1237,6 @@ bool LoopOptimiser::combineLoops(BaseCompiler* c, BaseScope* s, Operations::Loop
 				{
 					if (combineInternal(pl, l))
 					{
-						Operations::dumpSyntaxTree(loopParent);
 						return true;
 					}
 						
@@ -1368,9 +1367,6 @@ bool LoopOptimiser::combineInternal(Operations::Loop* l, Operations::Loop* nl)
 		auto si = atLastLoop ? l->iterator : nl->iterator;
 		auto ti = atLastLoop ? nl->iterator : l->iterator;
 
-		Operations::dumpSyntaxTree(l);
-		Operations::dumpSyntaxTree(nl);
-
 		sourceBlock->forEachRecursive([this, si, ti](Statement::Ptr b)
 		{
 			if (auto ip = as<InlinedParameter>(b))
@@ -1385,12 +1381,8 @@ bool LoopOptimiser::combineInternal(Operations::Loop* l, Operations::Loop* nl)
 
 			if (auto ss = as<VariableReference>(b))
 			{
-				
-
 				if (ss->id == si)
 					ss->id = ti;
-
-				
 			}
 
 			return false;

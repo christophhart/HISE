@@ -614,6 +614,17 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 	valuetree::Helpers::foreach(c, updateSendConnection);
 }
 
+void DspNetwork::createSnexNodeLibrary(snex::Types::SnexTypeConstructData cd)
+{
+	cd.polyphonic = isPoly;
+
+	for (auto n : nodeFactories)
+	{
+		cd.id = snex::jit::NamespacedIdentifier(n->getId());
+		n->registerSnexTypes(cd);
+	}
+}
+
 DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 {
 	auto asScriptProcessor = dynamic_cast<ProcessorWithScriptingContent*>(this);

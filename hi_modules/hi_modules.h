@@ -267,5 +267,6 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "nodes/DelayNode.h"
 
 #include "nodes/MetaNodes.h"
+#include "nodes/snex_library/snex_NodeLibrary.h"
 
 #endif   // HI_MODULES_INCLUDED

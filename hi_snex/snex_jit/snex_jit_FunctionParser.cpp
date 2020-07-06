@@ -697,6 +697,8 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 		
 		auto f = matches.getFirst();
 
+		
+
 		if (!f.templateParameters.isEmpty() && templateParameters.isEmpty())
 		{
 			if (currentType == JitTokens::lessThan)
@@ -707,16 +709,31 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 			{
 				resolveAfterArgumentParsing = true;
 			}
-
-			
 		}
 
-		if (!resolveAfterArgumentParsing)
+		if (matches.size() > 1 && !templateParameters.isEmpty())
 		{
-			templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, templateParameters, r);
-			location.test(r);
+			for (const auto& m : matches)
+			{
+				if (m.matchesTemplateArguments(templateParameters))
+				{
+					f = m;
+					break;
+				}
+			}
 		}
-		
+		else
+		{
+			if (!resolveAfterArgumentParsing && 
+				TemplateParameter::ListOps::isArgument(f.templateParameters))
+			{
+				// externally defined functions might not have template arguments, but are already in parameter
+				// format
+
+				templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, templateParameters, r);
+				location.test(r);
+			}
+		}
 
 		if (auto il = f.inliner)
 		{

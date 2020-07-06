@@ -118,10 +118,15 @@ void ScriptFunctionManager::postInit(NodeBase* n)
 		BIND_MEMBER_FUNCTION_2(ScriptFunctionManager::updateFunction));
 }
 
+void SnexSource::initCompiler(snex::jit::Compiler& c)
+{
+	snex::Types::SnexObjectDatabase::registerObjects(c, 1);
+}
+
 void SnexSource::recompile()
 {
 	snex::jit::Compiler compiler(s);
-	snex::Types::SnexObjectDatabase::registerObjects(compiler, 1);
+	initCompiler(compiler);
 	obj = compiler.compileJitObject(expression.getValue());
 
 	if (compiler.getCompileResult().wasOk())

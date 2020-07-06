@@ -961,8 +961,76 @@ public:
 #define SCRIPTNODE_FACTORY(x, id) static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new x(n, d); }; \
 static Identifier getStaticId() { return Identifier(id); };
     
-    class NodeFactory
+
+template <typename ObjectType> struct FilterTestNode : public snex::Types::SnexNodeBase
+{
+	FilterTestNode(const snex::Types::SnexTypeConstructData& cd_) :
+		SnexNodeBase(cd_)
+	{
+		cd.id = cd.id.getChildId(ObjectType::getStaticId());
+		cd.c.registerExternalComplexType(this);
+		functionCreator = DefaultFunctionClass(&obj);
+	}
+
+	snex::Types::OpaqueSnexParameter::List getParameterList() override
+	{
+		Array<ParameterDataImpl> data;
+		obj.createParameters(data);
+
+		OpaqueSnexParameter::List l;
+
+		for (auto& p : data)
+		{
+			OpaqueSnexParameter osp;
+			osp.function = p.dbNew.getFunction();
+			osp.name = p.id;
+
+			l.add(osp);
+		}
+
+		return l;
+	}
+
+	
+
+	/** Override this and return the size of the object. It will be used by the allocator to create the memory. */
+	size_t getRequiredByteSize() const override
+	{
+		return sizeof(obj);
+	}
+
+	Result initialise(InitData d) override
+	{
+		memcpy(d.dataPointer, &obj, getRequiredByteSize());
+		reinterpret_cast<ObjectType*>(d.dataPointer)->initialise(reinterpret_cast<NodeBase*>(cd.nodeParent));
+		return Result::ok();
+	}
+
+	ObjectType obj;
+};
+
+
+
+
+    struct NodeFactory
     {
+		
+
+		using CreateCallback = std::function<NodeBase*(DspNetwork*, ValueTree)>;
+		using SnexTypeCreateCallback = std::function<snex::jit::ComplexType::Ptr(const snex::Types::SnexTypeConstructData&)>;
+		using PostCreateCallback = std::function<void(NodeBase* n)>;
+		using IdFunction = std::function<Identifier()>;
+
+	protected:
+
+		struct Item
+		{
+			CreateCallback cb;
+			IdFunction id;
+			PostCreateCallback pb;
+			SnexTypeCreateCallback tc;
+		};
+
     public:
         
         NodeFactory(DspNetwork* n) :
@@ -971,9 +1039,7 @@ static Identifier getStaticId() { return Identifier(id); };
         
         virtual ~NodeFactory() {};
         
-        using CreateCallback = std::function<NodeBase*(DspNetwork*, ValueTree)>;
-        using PostCreateCallback = std::function<void(NodeBase* n)>;
-        using IdFunction = std::function<Identifier()>;
+        
         
         StringArray getModuleList() const
         {
@@ -1068,10 +1134,36 @@ static Identifier getStaticId() { return Identifier(id); };
             newItem.cb = WrappedT::createNode;
             newItem.id = WrappedT::getStaticId;
             newItem.pb = cb;
-            
+			
             monoNodes.add(newItem);
         };
         
+		template <class T> void addCustomSnexCreator(Item& c)
+		{
+			auto fId = getId();
+
+			c.tc = [](const SnexTypeConstructData& cd)
+			{
+				auto sn = new FilterTestNode<T>(cd);
+				//sn->functionCreator = T::createSnexFunctions(cd);
+				return sn;
+			};
+		}
+
+		template <class T, class ComponentType = NoExtraComponent> void registerNodeCustomSNEX(const PostCreateCallback& cb = {})
+		{
+			using WrappedT = HiseDspNodeBase<T, ComponentType>;
+
+			Item newItem;
+			newItem.cb = WrappedT::createNode;
+			newItem.id = WrappedT::getStaticId;
+			newItem.pb = cb;
+
+			addCustomSnexCreator<T>(newItem);
+
+			monoNodes.add(newItem);
+		};
+
         template <class MonoT, class PolyT, class ComponentType=NoExtraComponent> void registerPolyNode(const PostCreateCallback& cb = {})
         {
             using WrappedPolyT = HiseDspNodeBase<PolyT, ComponentType>;
@@ -1096,10 +1188,23 @@ static Identifier getStaticId() { return Identifier(id); };
             }
         };
         
+		template <class MonoT, class PolyT, class ComponentType = NoExtraComponent> void registerPolyNodeCustomSNEX(const PostCreateCallback& cb = {})
+		{
+			using WrappedPolyT = HiseDspNodeBase<PolyT, ComponentType>;
+			using WrappedMonoT = HiseDspNodeBase<MonoT, ComponentType>;
+
+			registerPolyNode<MonoT, PolyT, ComponentType>(cb);
+
+			addCustomSnexCreator<MonoT>(monoNodes.getReference(monoNodes.size() - 1));
+			addCustomSnexCreator<PolyT>(polyNodes.getReference(polyNodes.size() - 1));
+		};
+
         virtual Identifier getId() const = 0;
         
         NodeBase* createNode(ValueTree data, bool createPolyIfAvailable) const;
         
+		void registerSnexTypes(const snex::Types::SnexTypeConstructData& cd);
+
         void setNetworkToUse(DspNetwork* n)
         {
             network = n;
@@ -1119,15 +1224,9 @@ static Identifier getStaticId() { return Identifier(id); };
 			polyNodes.sort(sorter);
 		}
 
-    protected:
-        
-		struct Item
-		{
-			CreateCallback cb;
-			IdFunction id;
-			PostCreateCallback pb;
-		};
-        
+	protected:
+
+
         Array<Item> monoNodes;
         Array<Item> polyNodes;
         

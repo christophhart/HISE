@@ -120,10 +120,10 @@ public:
 	JitObject compileJitObject(const juce::String& code);
 
 	/** Compile a class that you want to use from C++. */
-	template <class T> T* compileJitClass(const juce::String& code, const Identifier& classId)
+	template <class T> T* compileJitClass(const juce::String& code, const String& classId)
 	{
 		auto obj = compileJitObject(code);
-		auto typePtr = getComplexType(NamespacedIdentifier(classId));
+		auto typePtr = getComplexType(NamespacedIdentifier::fromString(classId));
 		return new T(std::move(obj), typePtr);
 	};
 

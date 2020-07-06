@@ -423,26 +423,23 @@ bool reverb::handleModulation(double&) noexcept
 void reverb::createParameters(Array<ParameterData>& data)
 {
 	{
-		ParameterData p("Size");
+		DEFINE_PARAMETERDATA(reverb, Damping);
 		p.range = { 0.0, 1.0, 0.01 };
 		p.defaultValue = 0.5f;
-		p.db = BIND_MEMBER_FUNCTION_1(reverb::setSize);
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Damping");
+		DEFINE_PARAMETERDATA(reverb, Width);
 		p.range = { 0.0, 1.0, 0.01 };
 		p.defaultValue = 0.5f;
-		p.db = BIND_MEMBER_FUNCTION_1(reverb::setDamping);
 		data.add(std::move(p));
 	}
 
 	{
-		ParameterData p("Width");
+		DEFINE_PARAMETERDATA(reverb, Size);
 		p.range = { 0.0, 1.0, 0.01 };
 		p.defaultValue = 0.5f;
-		p.db = BIND_MEMBER_FUNCTION_1(reverb::setWidth);
 		data.add(std::move(p));
 	}
 }

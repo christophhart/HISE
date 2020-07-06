@@ -1197,7 +1197,7 @@ struct Operations::FunctionCall : public Expression
 
 	static bool canBeAliasParameter(Ptr e)
 	{
-		return dynamic_cast<VariableReference*>(e.get()) != nullptr;
+		return dynamic_cast<SymbolStatement*>(e.get()) != nullptr;
 	}
 
 	void inlineFunctionCall(AsmCodeGenerator& acg);
@@ -2435,8 +2435,6 @@ struct Operations::WhileLoop : public Statement,
 
 			getSubExpr(0)->process(compiler, scope);
 			auto cReg = getSubRegister(0);
-
-			dumpSyntaxTree(this);
 
 			if (cp != nullptr)
 			{

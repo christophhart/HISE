@@ -36,6 +36,324 @@ namespace scriptnode
 {
 using namespace juce;
 using namespace hise;
+using namespace snex;
+using namespace jit;
+
+#if 0
+struct CompiledNodeBase: public ReferenceCountedObject
+{
+	CompiledNodeBase(JitObject&& obj_, ComplexType::Ptr typePtr_) :
+		obj(obj_),
+		typePtr(typePtr_),
+		r(Result::ok())
+	{
+		
+	}
+
+	void init(Compiler& c, int numChannels)
+	{
+		if (typePtr == nullptr)
+		{
+			r = Result::fail("Can't find class definition");
+			return;
+		}
+
+		r = c.getCompileResult();
+
+		if (r.failed())
+			return;
+
+		data.allocate(typePtr->getRequiredByteSize(), true);
+
+		ComplexType::InitData d;
+		d.dataPointer = data.get();
+		d.initValues = typePtr->makeDefaultInitialiserList();
+		r = typePtr->initialise(d);
+
+		if (r.wasOk())
+		{
+			FunctionClass::Ptr fc = typePtr->getFunctionClass();
+			auto classId = fc->getClassName();
+			auto protoTypes = Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
+
+			for (int i = 0; i < Types::ScriptnodeCallbacks::numFunctions; i++)
+			{
+				auto id = classId.getChildId(protoTypes[i].id.getIdentifier());
+
+				protoTypes.getReference(i).id = id;
+
+				Array<FunctionData> matches;
+				fc->addMatchingFunctions(matches, id);
+
+				for (auto m : matches)
+				{
+					if (m.matchIdArgsAndTemplate(protoTypes[i]))
+					{
+						callbacks[i] = m;
+						jassert(callbacks[i].function != nullptr);
+					}
+				}
+
+				if (callbacks[i].function == nullptr)
+				{
+					auto l = Types::ScriptnodeCallbacks::getIds(classId);
+					r = Result::fail(l[i].toString() + " can't be resolved");
+					break;
+				}
+			}
+		}
+		
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		jassert(r.wasOk());
+		callbacks[Types::ScriptnodeCallbacks::PrepareFunction].callVoidUnchecked(getObject(), &ps);
+	}
+
+	void reset()
+	{
+		jassert(r.wasOk());
+		callbacks[Types::ScriptnodeCallbacks::ResetFunction].callVoidUnchecked(getObject());
+	}
+
+	void handleEvent(HiseEvent& e)
+	{
+		jassert(r.wasOk());
+		callbacks[Types::ScriptnodeCallbacks::HandleEventFunction].callVoidUnchecked(getObject(), &e);
+	}
+
+	void process(ProcessData& data)
+	{
+		jassert(r.wasOk());
+		callbacks[Types::ScriptnodeCallbacks::ProcessFunction].callVoidUnchecked(getObject(), &data);
+	}
+
+	void processFrame(float* data)
+	{
+		jassert(r.wasOk());
+		callbacks[Types::ScriptnodeCallbacks::ProcessFrameFunction].callVoidUnchecked(getObject(), &data);
+	}
+
+	void* getObject()
+	{
+		return reinterpret_cast<void*>(data.get());
+	}
+	
+	using Ptr = ReferenceCountedObjectPtr<CompiledNodeBase>;
+
+	FunctionData callbacks[(int)Types::ScriptnodeCallbacks::numFunctions];
+
+	Result r;
+	HeapBlock<uint8> data;
+	JitObject obj;
+	ComplexType::Ptr typePtr;
+};
+#endif
+
+struct new_jit: public SnexSource,
+				public HiseDspBase
+{
+	SET_HISE_NODE_ID("jit");
+
+	GET_SELF_AS_OBJECT(new_jit);
+
+	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+
+	bool isPolyphonic() const { return true; };
+
+	new_jit():
+		classId(PropertyIds::FreezedPath, "core::MyClass"),
+		lastResult(Result::ok())
+	{}
+
+	String getEmptyText() const override
+	{
+		String s;
+		String nl = "\n";
+
+		s << "namespace core" << nl;
+		s << "{" << nl;
+		s << "using MyClass = container::chain<parameters::empty, core::skip>;" << nl;
+		s << "}" << nl;
+
+		return s;
+	}
+
+	void prepare(PrepareSpecs ps) override
+	{
+		lastSpecs = ps;
+
+		recompile();
+
+		if (compiledNode)
+		{
+			compiledNode->prepare(ps);
+			compiledNode->reset();
+		}
+	};
+
+	void reset()
+	{
+		if (compiledNode)
+			compiledNode->reset();
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (compiledNode)
+			compiledNode->handleEvent(e);
+	}
+
+	void initialise(NodeBase* n) override
+	{
+		SnexSource::initialise(n);
+		
+
+		auto rc = [this](Identifier id, var value)
+		{
+			recompile();
+		};
+
+		classId.initialise(n);
+		classId.setAdditionalCallback(rc);
+	}
+
+	void initCompiler(Compiler& c) override
+	{
+		c.reset();
+		snex::Types::SnexObjectDatabase::registerObjects(c, lastSpecs.numChannels);
+
+		Types::SnexTypeConstructData cd(c);
+		cd.nodeParent = parentNode.get();
+		cd.numChannels = lastSpecs.numChannels;
+		parentNode->getRootNetwork()->createSnexNodeLibrary(cd);
+	}
+
+	void recompile() override
+	{
+		if (lastSpecs.numChannels > 0)
+		{
+			auto c = expression.getValue();
+
+			snex::jit::Compiler compiler(s);
+
+			auto f = [this](Compiler& c, int)
+			{
+				initCompiler(c);
+			};
+
+			Types::JitCompiledNode::Ptr newNode = new Types::JitCompiledNode(compiler, expression.getValue(), classId.getValue(), lastSpecs.numChannels, f);
+
+ 			lastResult = newNode->r;
+
+			ScopedLock sl(parentNode->getRootNetwork()->getConnectionLock());
+
+			if (newNode->r.wasOk())
+			{
+				newNode->prepare(lastSpecs);
+				newNode->reset();
+
+				std::swap(compiledNode, newNode);
+				updateParameters();
+			}
+			else
+			{
+				compiledNode = nullptr;
+			}
+		}
+	}
+
+	void updateParameters()
+	{
+		Array<HiseDspBase::ParameterData> l;
+		createParameters(l);
+
+		StringArray foundParameters;
+
+		for (int i = 0; i < parentNode->getNumParameters(); i++)
+		{
+			auto pId = parentNode->getParameter(i)->getId();
+
+			bool found = false;
+
+			for (auto& p : l)
+			{
+				if (p.id == pId)
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+			{
+				auto v = parentNode->getParameter(i)->data;
+				v.getParent().removeChild(v, parentNode->getUndoManager());
+				parentNode->removeParameter(i--);
+			}
+		}
+
+		for (auto& p : l)
+		{
+			foundParameters.add(p.id);
+
+			if (auto param = parentNode->getParameter(p.id))
+			{
+				p.dbNew(param->getValue());
+				auto pc = new parameter::dynamic_base(p.dbNew);
+				param->setCallbackNew(pc);
+			}
+			else
+			{
+				auto newTree = p.createValueTree();
+				parentNode->getParameterTree().addChild(newTree, -1, nullptr);
+
+				auto newP = new NodeBase::Parameter(parentNode, newTree);
+
+				auto pc = new parameter::dynamic_base(p.dbNew);
+				newP->setCallbackNew(pc);
+				parentNode->addParameter(newP);
+			}
+		}
+	}
+
+	void process(ProcessData& d)
+	{
+		if (compiledNode)
+			compiledNode->process(d);
+	}
+
+	template <typename T> void processFrame(T& data)
+	{
+		if (compiledNode)
+			compiledNode->processFrame(data);
+	};
+
+	
+
+	void createParameters(Array<HiseDspBase::ParameterData>& data)
+	{
+		if (compiledNode)
+		{
+			auto l = compiledNode->getParameterList();
+
+			for (int i = 0; i < l.size(); i++)
+			{
+				ParameterDataImpl p(l[i].name);
+				p.range = { 0.0, 1.0 };
+				p.dbNew.referTo(compiledNode->thisPtr, (parameter::dynamic::Function)l[i].function);
+
+				data.add(p);
+			}
+		}
+	}
+
+	PrepareSpecs lastSpecs;
+	Types::JitCompiledNode::Ptr compiledNode;
+	Result lastResult;
+	NodePropertyT<String> classId;
+};
 
 #if OLD_JIT_STUFF
 

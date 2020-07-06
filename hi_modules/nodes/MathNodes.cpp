@@ -57,6 +57,26 @@ bool scriptnode::math::OpNode<OpType, V>::handleModulation(double&) noexcept
 	return false;
 }
 
+template <typename T> struct CreateFunctions
+{
+	static FunctionData* createProcess(const snex::Types::SnexTypeConstructData& cd)
+	{
+		
+		jassertfalse;
+		return nullptr;
+	}
+};
+
+template <class OpType, int V>
+snex::Types::DefaultFunctionClass scriptnode::math::OpNode<OpType, V>::createSnexFunctions(const snex::Types::SnexTypeConstructData& cd)
+{
+	OpNode* ptr = nullptr;
+	snex::Types::DefaultFunctionClass f(ptr);
+	//f.processFunction = CreateFunctions<OpNode>::createProcess;
+
+	return f;
+}
+
 
 template <class OpType, int V>
 void scriptnode::math::OpNode<OpType, V>::createParameters(Array<ParameterData>& data)
@@ -116,7 +136,7 @@ Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
 	
-	registerPolyNode<add, add_poly>();
+	registerPolyNodeCustomSNEX<add, add_poly>();
 
 #if NOT_JUST_OSC
 	registerPolyNode<mul, mul_poly>();

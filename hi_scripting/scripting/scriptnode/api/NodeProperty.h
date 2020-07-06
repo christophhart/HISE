@@ -364,12 +364,14 @@ struct SnexSource
 
 	virtual void initialise(NodeBase* n);
 
-	void prepare(PrepareSpecs ps)
+	virtual void prepare(PrepareSpecs ps)
 	{
 		prepareFunction.callVoid(&ps);
 	}
 
 	virtual void codeCompiled() {};
+
+	virtual void initCompiler(snex::jit::Compiler& c);
 
 	void setCode(Identifier id, var newValue)
 	{
@@ -379,7 +381,7 @@ struct SnexSource
 		}
 	}
 
-	void recompile();
+	virtual void recompile();
 
 	String getId() const
 	{

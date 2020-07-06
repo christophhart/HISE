@@ -712,6 +712,24 @@ snex::VariableStorage NamespaceHandler::getConstantValue(const NamespacedIdentif
 	return {};
 }
 
+juce::StringArray NamespaceHandler::getEnumValues(const NamespacedIdentifier& enumId) const
+{
+	StringArray sa;
+
+	if (auto existing = get(enumId))
+	{
+		for (auto& a : existing->aliases)
+		{
+			if (a.symbolType == SymbolType::EnumValue)
+			{
+				sa.add(a.id.getIdentifier().toString());
+			}
+		}
+	}
+
+	return sa;
+}
+
 bool NamespaceHandler::isStaticFunctionClass(const NamespacedIdentifier& classId) const
 {
 	auto p = classId.getParent();

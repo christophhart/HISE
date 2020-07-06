@@ -1763,7 +1763,14 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 
 				FunctionData overloadedAssignOp;
 
-				if (FunctionClass::Ptr fc = getNumChildStatements() > 0 ? type.getComplexType()->getFunctionClass() : nullptr)
+				FunctionClass::Ptr fc = type.getComplexType()->getFunctionClass();
+
+				if (fc->hasSpecialFunction(FunctionClass::Constructor))
+				{
+					jassertfalse;
+				}
+
+				if (getNumChildStatements() > 0)
 				{
 					overloadedAssignOp = fc->getSpecialFunction(FunctionClass::AssignOverload, type, { type, getSubExpr(0)->getTypeInfo() });
 				}

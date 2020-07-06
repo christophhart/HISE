@@ -462,7 +462,7 @@ public:
 
 		if (nodeId.isValid())
 		{
-			Types::JitCompiledNode n(c, code, nodeId, numChannels);
+			Types::JitCompiledNode n(c, code, nodeId.toString(), numChannels);
 
 			if (!n.r.wasOk())
 				return n.r;
@@ -493,10 +493,11 @@ public:
 			d.setEventBuffer(eventBuffer);
 			n.process(d);
 
+
 			assembly = c.getAssemblyCode().fromFirstOccurrenceOf("; function void process", true, false);
 
 			auto r = Helpers::testAssemblyLoopCount(assembly, expectedLoopCount);
-			if (r.failed())
+			if (r.failed() && !memory.getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
 				return r;
 
 			return Helpers::compareBuffers(inputBuffer, outputBuffer);
@@ -526,7 +527,7 @@ public:
 			assembly = c.getAssemblyCode();
 
 			auto r = Helpers::testAssemblyLoopCount(assembly, expectedLoopCount);
-			if (r.failed())
+			if (r.failed() && !memory.getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
 			{
 				if(t != nullptr)
 					t->expect(false, r.getErrorMessage());
@@ -981,8 +982,6 @@ private:
 		}
 	};
 
-	
-
 	Result expectBufferOrProcessDataOK()
 	{
 		if (outputBufferFile != File())
@@ -1350,10 +1349,13 @@ public:
 
 	void runTest() override
 	{
-		optimizations = { OptimizationIds::Inlining, OptimizationIds::LoopOptimisation };
-		runTestFiles("loop/", true);
-
 		return;
+		testInlining();
+
+		optimizations = OptimizationIds::getAllIds();
+		runTestFiles("loop_combine5");
+
+		runTestsWithOptimisation(OptimizationIds::getAllIds());
 
 		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks, OptimizationIds::AsmOptimisation });
 
@@ -1379,8 +1381,6 @@ public:
 		s << juce::String(Compiler::compileCount);
 
 		logMessage(s);
-
-		return;
 
 		runTestsWithOptimisation({ OptimizationIds::LoopOptimisation });
 		runTestsWithOptimisation({ OptimizationIds::Inlining, OptimizationIds::LoopOptimisation });

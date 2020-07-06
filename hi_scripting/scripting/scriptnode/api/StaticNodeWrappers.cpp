@@ -301,5 +301,23 @@ void CombinedParameterDisplay::paint(Graphics& g)
 	g.drawText(end, t.translated(50.0f, 60.0f), Justification::centred);
 }
 
+void NodeFactory::registerSnexTypes(const snex::Types::SnexTypeConstructData& cd)
+{
+	if (cd.polyphonic)
+	{
+		for (const auto& n : polyNodes)
+		{
+			if (n.tc)
+				cd.c.registerExternalComplexType(n.tc(cd));
+		}
+	}
+
+	for (const auto& n : monoNodes)
+	{
+		if (n.tc)
+			cd.c.registerExternalComplexType(n.tc(cd));
+	}
+}
+
 }
 

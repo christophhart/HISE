@@ -405,6 +405,8 @@ public:
 		return snexObjects;
 	}
 
+	void createSnexNodeLibrary(snex::Types::SnexTypeConstructData cd);
+
 private:
 
 	Array<WeakReference<SnexSource>> snexObjects;

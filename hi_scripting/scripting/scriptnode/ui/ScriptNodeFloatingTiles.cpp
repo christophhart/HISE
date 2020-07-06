@@ -310,7 +310,9 @@ void SnexPopupEditor::recompile()
 
 	snex::jit::Compiler compiler(s);
 	compiler.setDebugHandler(this);
-	SnexObjectDatabase::registerObjects(compiler, 1);
+
+	source->initCompiler(compiler);
+
 	auto obj = compiler.compileJitObject(code);
 
 	asmDoc.replaceAllContent(compiler.getAssemblyCode());

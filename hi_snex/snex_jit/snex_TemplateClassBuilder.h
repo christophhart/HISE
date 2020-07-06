@@ -101,16 +101,15 @@ struct TemplateClassBuilder
 
 		/** Just returns a identifier for the (variadic) member called eg. "_p12". */
 		/** Creates a function call to the member function of the given type. */
-		static StatementPtr createFunctionCall(StructType* converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs);
+		static StatementPtr createFunctionCall(ComplexType::Ptr converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs);
 
 		/** This adds the object pointer to the member at the given memberIndex position. */
 		static void addChildObjectPtr(StatementPtr newCall, SyntaxTreeInlineData* d, StructType* parentType, int memberIndex);
 
-
-		static StructType* getStructTypeFromTemplate(StructType* st, int index);
+		static ComplexType::Ptr getSubTypeFromTemplate(StructType* st, int index);
 
 		/** Helper function that creates the function data for the given member function. */
-		static FunctionData getFunctionFromTargetClass(StructType* targetType, const Identifier& id);
+		static FunctionData getFunctionFromTargetClass(ComplexType::Ptr targetType, const Identifier& id);
 	};
 
 	struct VariadicHelpers
@@ -188,7 +187,7 @@ struct ParameterBuilder : public TemplateClassBuilder
 		/** This method is the default for any single parameter connection. It creates a member pointer to the given target. */
 		static void initSingleParameterStruct(const TemplateObject::ConstructData& cd, StructType* st);
 
-		static Operations::Statement::Ptr createSetParameterCall(StructType* targetType, SyntaxTreeInlineData* d, Operations::Statement::Ptr input);
+		static Operations::Statement::Ptr createSetParameterCall(ComplexType::Ptr targetType, SyntaxTreeInlineData* d, Operations::Statement::Ptr input);
 
 		/** This function builder creates the connect function that sets the member pointer to the given target. */
 		static FunctionData connectFunction(StructType* st);
@@ -198,18 +197,18 @@ struct ParameterBuilder : public TemplateClassBuilder
 		static void forwardToListElements(StructType* parent, const TemplateParameter::List& list, StructType** parameterType, int& index)
 		{
 			index = 0;
-			*parameterType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(parent, index);
+			*parameterType = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(parent, index).get());
 
 			if ((*parameterType)->id.getIdentifier() == Identifier("list"))
 			{
 				index = list[0].constant;
-				*parameterType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(*parameterType, index);
+				*parameterType = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(*parameterType, index).get());
 			}
 		}
 
 		static int getParameterListOffset(StructType* container, int index)
 		{
-			auto parameterType = TemplateClassBuilder::Helpers::getStructTypeFromTemplate(container, 0);
+			auto parameterType = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(container, 0).get());
 
 			jassert(isParameterClass(TypeInfo(parameterType)));
 
@@ -230,6 +229,8 @@ struct ParameterBuilder : public TemplateClassBuilder
 		addFunction(f);
 	}
 };
+
+
 
 
 struct ContainerNodeBuilder : public TemplateClassBuilder
@@ -264,6 +265,13 @@ private:
 
 	Array<FunctionData> callbacks;
 	int numChannels;
+};
+
+
+struct WrapBuilder : public TemplateClassBuilder
+{
+	WrapBuilder(Compiler& c, const Identifier& id, int numChannels);
+
 };
 
 

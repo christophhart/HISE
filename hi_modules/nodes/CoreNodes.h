@@ -520,7 +520,8 @@ public:
 	{
 		Mode,
 		Frequency,
-		PitchMultiplier
+		PitchMultiplier,
+		numParameters
 	};
 
 	constexpr static int NumVoices = NV;

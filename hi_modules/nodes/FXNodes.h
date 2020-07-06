@@ -254,9 +254,20 @@ class reverb : public HiseDspBase
 {
 public:
 
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
+	enum class Parameters
+	{
+		Damping,
+		Width,
+		Size,
+		numParameters
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Damping, reverb);
+		DEF_PARAMETER(Width, reverb);
+		DEF_PARAMETER(Size, reverb);
+	}
 
 	SET_HISE_NODE_ID("reverb");
 	GET_SELF_AS_OBJECT(reverb);

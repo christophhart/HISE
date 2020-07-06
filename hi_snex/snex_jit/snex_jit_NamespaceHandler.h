@@ -271,6 +271,8 @@ public:
 
 	VariableStorage getConstantValue(const NamespacedIdentifier& variableId) const;
 
+	StringArray getEnumValues(const NamespacedIdentifier& enumId) const;
+
 	bool isStaticFunctionClass(const NamespacedIdentifier& classId) const;
 
 	bool isClassEnumValue(const NamespacedIdentifier& classId) const;

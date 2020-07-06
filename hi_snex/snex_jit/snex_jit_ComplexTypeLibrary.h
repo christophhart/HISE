@@ -54,7 +54,7 @@ struct IndexBase : public ComplexType
 		{
 			auto op = new FunctionData();
 			op->returnType = TypeInfo(this);
-			op->id = f->getClassName().getChildId(f->getSpecialSymbol(s));
+			op->id = f->getClassName().getChildId(f->getSpecialSymbol(f->getClassName(), s));
 			op->inliner = new Inliner(op->id, asmFunc, {});
 			f->addFunction(op);
 
@@ -63,8 +63,6 @@ struct IndexBase : public ComplexType
 
 		return nullptr;
 	}
-
-	
 
 	size_t getRequiredByteSize() const override { return 4; }
 	size_t getRequiredAlignment() const override { return 0; };
