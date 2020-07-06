@@ -905,15 +905,16 @@ void PresetBrowser::resized()
 	}
 	else
 	{
-		const int columnWidth = getWidth() / numColumns;
+		const int bankColumnWidth = getWidth() * columnWidthRatio;
+		const int presetColumnWidth = getWidth() - getWidth() * columnWidthRatio * (numColumns - 1);
 
 		if(numColumns > 1)
-			bankColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+			bankColumn->setBounds(listArea.removeFromLeft(bankColumnWidth).reduced(2, 2));
 
 		if(numColumns > 2)
-			categoryColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+			categoryColumn->setBounds(listArea.removeFromLeft(bankColumnWidth).reduced(2, 2));
 
-		presetColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+		presetColumn->setBounds(listArea.removeFromLeft(presetColumnWidth).reduced(2, 2));
 	}
 
 
@@ -1031,6 +1032,19 @@ void PresetBrowser::setNumColumns(int newNumColumns)
 	}
 }
 
+
+void PresetBrowser::setColumnWidthRatio(double newColumnWidthRatio)
+{
+	newColumnWidthRatio = jlimit<double>(0.0, 1.0, newColumnWidthRatio);
+
+	if (newColumnWidthRatio != columnWidthRatio)
+	{
+		columnWidthRatio = newColumnWidthRatio;
+		resized();
+	}
+}
+
+
 void PresetBrowser::setShowButton(int buttonId, bool newValue)
 {
 	enum ButtonIndexes
@@ -1126,6 +1140,7 @@ void PresetBrowser::setOptions(const Options& newOptions)
 
 	getPresetBrowserLookAndFeel().textColour = newOptions.textColour;
 	setNumColumns(newOptions.numColumns);
+	setColumnWidthRatio(newOptions.columnWidthRatio);
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
 	setShowEditButtons(newOptions.showEditButtons);

@@ -406,6 +406,7 @@ public:
 		ShowEditButtons,
 		ShowFavoriteIcon,
 		NumColumns,
+		ColumnWidthRatio,
 		numSpecialProperties
 	};
 
@@ -590,7 +591,8 @@ public:
 		Inverted,
 		Minimum,
 		Maximum,
-		numColumns
+		numColumns,
+		columnWidthRatio
 	};
 
 	MidiLearnPanel(FloatingTile* parent) :
