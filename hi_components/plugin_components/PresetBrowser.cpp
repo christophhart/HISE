@@ -1171,6 +1171,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 			bankColumn->setEditMode(false);
+			bankColumn->updateButtonVisibility();
 			presetColumn->updateButtonVisibility();
 		}
 
