@@ -1542,6 +1542,7 @@ public:
 		struct Laf : public GlobalHiseLookAndFeel,
 					 public PresetBrowserLookAndFeelMethods,
 					 public TableEditor::LookAndFeelMethods,
+					 public NumberTag::LookAndFeelMethods,
 					 public ControlledObject
 		{
 			Laf(MainController* mc) :
@@ -1590,6 +1591,8 @@ public:
 			void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
 				bool isMouseOverButton, bool isButtonDown) override;
 
+			void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number) override;
+
 			void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p) override;
 			void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText) override;
 			void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
@@ -1600,6 +1603,8 @@ public:
 			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
 			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
 			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+
+			
 
 			bool functionDefined(const String& s);
 		};

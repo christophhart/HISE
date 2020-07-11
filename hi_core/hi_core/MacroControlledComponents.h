@@ -135,7 +135,7 @@ private:
 *	Subclass your component from this class, and set the Processor's Attribute in its specified callback.
 *	
 */
-class MacroControlledObject
+class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionListener
 {
 public:
 	
@@ -169,8 +169,7 @@ public:
 		macroControlledComponentEnabled(true)
 	{};
     
-
-    virtual ~MacroControlledObject() {};
+    virtual ~MacroControlledObject();;
 
 	/** returns the name. */
 	const String getName() const noexcept { return name; };
@@ -181,6 +180,8 @@ public:
 	{
 		midiLearnEnabled = shouldBe;
 	}
+
+	void macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded) override;
 
 	bool canBeMidiLearned() const
 	{
@@ -202,22 +203,21 @@ public:
 	*	@param parameter_ the parameter that is controlled by the element
 	*	@param name_ the name of the element. This will also be the displayed name in the macro control panel.
 	*/
-	virtual void setup(Processor *p, int parameter_, const String &name_)
-	{
-		processor = p;
-		parameter = parameter_;
-		name = name_;
-	}
+	virtual void setup(Processor *p, int parameter_, const String &name_);
+
+	void initMacroControl(NotificationType notify);
 
 	virtual void addToMacroController(int newMacroIndex)
 	{ 
 		numberTag->setNumber(newMacroIndex+1);
+		numberTag->setVisible(true);
 		macroIndex = newMacroIndex; 
 	};
 
 	virtual void removeFromMacroController() 
 	{ 
 		numberTag->setNumber(0);
+		numberTag->setVisible(false);
 		macroIndex = -1;	
 	}
 
@@ -264,13 +264,13 @@ protected:
 
 protected:
 
-	void removeParameterWithPopup();
-
 	void enableMidiLearnWithPopup();
 
 	ScopedPointer<NumberTag> numberTag;
 
 private:
+
+	ScopedPointer<LookAndFeel> slaf;
 
 	bool midiLearnEnabled = true;
 
@@ -297,6 +297,7 @@ public:
         ComboBox(name),
 		MacroControlledObject()
 	{
+		addChildComponent(numberTag);
 		font = GLOBAL_FONT();
 
 		addListener(this);
@@ -323,19 +324,11 @@ public:
     
     void touchAndHold(Point<int> downPosition) override;
     
-#if USE_BACKEND
-	void paint(Graphics &g) override
+	void resized() override
 	{
-		ComboBox::paint(g);
-        
-		Image img(Image::PixelFormat::ARGB, getWidth(), getHeight(), true);
-
-		numberTag->applyEffect(img, g, 1.0f, 1.0f);
-
-		g.drawImageAt(img, 0, 0);
-
+		ComboBox::resized();
+		numberTag->setBounds(getLocalBounds());
 	}
-#endif
 
 #if 0
 	static void comboBoxPopupMenuFinishedCallback(int result, HiComboBox* combo)
@@ -401,7 +394,7 @@ public:
         MacroControlledObject(),
 		notifyEditor(dontSendNotification)
 	{
-        
+		addChildComponent(numberTag);
 		addListener(this);
 		setWantsKeyboardFocus(false);
         
@@ -442,15 +435,11 @@ public:
 
     void touchAndHold(Point<int> downPosition) override;
     
-#if USE_BACKEND
-	void paint(Graphics &g) override
+	void resized() override
 	{
-		ToggleButton::paint(g);
-		Image img(Image::PixelFormat::ARGB, getWidth(), getHeight(), true);
-		numberTag->applyEffect(img, g, 1.0f, 1.0f);
-		g.drawImageAt(img, 0, 0);
+		ToggleButton::resized();
+		numberTag->setBounds(getLocalBounds());
 	}
-#endif
 
 	NormalisableRange<double> getRange() const override 
 	{ 
@@ -600,16 +589,11 @@ public:
 
 	void textEditorEscapeKeyPressed(TextEditor&) override;
 
-
-#if USE_BACKEND
-	void paint(Graphics &g) override
+	void resized() override
 	{
-		Slider::paint(g);
-		Image img(Image::PixelFormat::ARGB, getWidth(), getHeight(), true);
-		numberTag->applyEffect(img, g, 1.0f, 1.0f);
-		g.drawImageAt(img, 0, 0);
+		Slider::resized();
+		numberTag->setBounds(getLocalBounds());
 	}
-#endif
 
 	void setMode(Mode m)
 	{

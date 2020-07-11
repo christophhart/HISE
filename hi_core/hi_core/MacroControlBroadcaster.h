@@ -45,8 +45,21 @@ class MacroControlBroadcaster
 {
 public:
 
+	struct MacroConnectionListener
+	{
+		virtual ~MacroConnectionListener() {};
+
+		virtual void macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded) = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroConnectionListener);
+	};
+
 	/** Creates a new MacroControlBroadcaster with eight Macro slots. */
 	MacroControlBroadcaster(ModulatorSynthChain *chain);
+
+	virtual ~MacroControlBroadcaster() {};
 
 	/** A simple POD object to store information about a macro controlled parameter. 
 	*	@ingroup macroControl
@@ -159,9 +172,27 @@ public:
 		bool readOnly;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroControlledParameterData)
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroControlledParameterData);
 	};
 
-	
+	void sendMacroConnectionChangeMessage(int macroIndex, Processor* p, int parameterIndex, bool wasAdded)
+	{
+		for (auto l : macroListeners)
+		{
+			if (l != nullptr)
+				l->macroConnectionChanged(macroIndex, p, parameterIndex, wasAdded);
+		}
+	}
+
+	void addMacroConnectionListener(MacroConnectionListener* l)
+	{
+		macroListeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeMacroConnectionListener(MacroConnectionListener* l)
+	{
+		macroListeners.removeAllInstancesOf(l);
+	}
 
 	/** A MacroControlData object stores information about all parameters that are mapped to one macro control. 
 	*	@ingroup macroControl
@@ -170,11 +201,16 @@ public:
 	struct MacroControlData
 	{
 		/** Creates an empty data object. */
-		MacroControlData(int index):
+		MacroControlData(int index, MacroControlBroadcaster& parent_):
 			macroName("Macro " + String(index + 1)),
 			currentValue(0.0),
-			midiController(-1)
+			midiController(-1),
+			parent(parent_),
+			macroIndex(index)
 		{};
+
+		MacroControlBroadcaster& parent;
+		int macroIndex;
 
 		virtual ~MacroControlData()
 		{
@@ -297,7 +333,8 @@ public:
 
 		OwnedArray<MacroControlledParameterData> controlledParameters;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroControlData)
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroControlData);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroControlData);
 	};
 
 	/** Small helper function that iterates all child processors and returns the matching Processor with the given ID. */
@@ -386,6 +423,8 @@ public:
 	void replaceMacroControlData(int index, MacroControlData *newData, ModulatorSynthChain *parentChain);
 
 private:
+
+	Array<WeakReference<MacroConnectionListener>> macroListeners;
 
 	OwnedArray<MacroControlData> macroControls;
 	

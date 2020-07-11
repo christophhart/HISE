@@ -62,6 +62,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 #if USE_BACKEND
 	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
 	registerType < GenericPanel<MacroParameterTable>>(PopupMenuOptions::MacroTable);
+
 	registerType<GenericPanel<ApiCollection>>(PopupMenuOptions::ApiCollection);
 	registerType<scriptnode::DspNodeList::Panel>(PopupMenuOptions::DspNodeList);
 	registerType<GenericPanel<ModuleBrowser>>(PopupMenuOptions::ModuleBrowser);
@@ -133,11 +134,13 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<MidiChannelPanel>(PopupMenuOptions::MidiChannelList);
 	registerType<TooltipPanel>(PopupMenuOptions::TooltipPanel);
 	registerType<MidiLearnPanel>(PopupMenuOptions::MidiLearnPanel);
+	registerType<FrontendMacroPanel>(PopupMenuOptions::FrontendMacroPanel);
 	registerType<AudioAnalyserComponent::Panel>(PopupMenuOptions::AudioAnalyser);
 	registerType<WaveformComponent::Panel>(PopupMenuOptions::WavetablePreview);
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);
 	registerType<FilterDragOverlay::Panel>(PopupMenuOptions::DraggableFilterPanel);
 	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
+	
 	registerType<AhdsrGraph::Panel>(PopupMenuOptions::AHDSRGraph);
 	registerType<MarkdownPreviewPanel>(PopupMenuOptions::MarkdownPreviewPanel);
 
@@ -607,6 +610,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 
 			addToPopupMenu(m, PopupMenuOptions::MacroControls, "8 Macro Controls");
 			addToPopupMenu(m, PopupMenuOptions::MacroTable, "Macro Control Editor");
+			addToPopupMenu(m, PopupMenuOptions::FrontendMacroPanel, "All Macro Edit Table");
 			addToPopupMenu(m, PopupMenuOptions::Plotter, "Plotter");
 			addToPopupMenu(m, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
 			addToPopupMenu(m, PopupMenuOptions::TablePanel, "Table Editor");
@@ -689,6 +693,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ThreeRows:			FloatingPanelTemplates::create3Rows(parent); break;
 	case PopupMenuOptions::Note:				parent->setNewContent(GET_PANEL_NAME(Note)); break;
 	case PopupMenuOptions::MacroControls:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<MacroComponent>)); break;
+	case PopupMenuOptions::FrontendMacroPanel:   parent->setNewContent(GET_PANEL_NAME(FrontendMacroPanel)); break;
 	case PopupMenuOptions::MidiKeyboard:		parent->setNewContent(GET_PANEL_NAME(MidiKeyboardPanel)); break;
 	case PopupMenuOptions::TablePanel:			parent->setNewContent(GET_PANEL_NAME(TableEditorPanel)); break;
 	case PopupMenuOptions::SampleConnector:		parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<ModulatorSampler>)); break;

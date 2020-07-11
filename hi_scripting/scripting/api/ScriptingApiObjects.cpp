@@ -4409,6 +4409,24 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& 
 	PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(g_, button, bg, isMouseOverButton, isButtonDown);
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawNumberTag(Graphics& g_, Colour& c, Rectangle<int> area, int offset, int size, int number)
+{
+	if (auto l = get())
+	{
+		if (number != -1)
+		{
+			DynamicObject::Ptr obj = new DynamicObject();
+			obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
+			obj->setProperty("macroIndex", number - 1);
+
+			if (l->callWithGraphics(g_, "drawNumberTag", var(obj)))
+				return;
+		}
+	}
+
+	NumberTag::LookAndFeelMethods::drawNumberTag(g_, c, area, offset, size, number);
+}
+
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Graphics& g_, PresetBrowser* p)
 {
 	if (auto l = get())

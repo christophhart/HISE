@@ -825,6 +825,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
+	
+	API_VOID_METHOD_WRAPPER_1(Engine, setFrontendMacros)
 	API_VOID_METHOD_WRAPPER_2(Engine, setKeyColour);
 	API_VOID_METHOD_WRAPPER_2(Engine, showErrorMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, showMessage);
@@ -921,6 +923,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
+	ADD_API_METHOD_1(setFrontendMacros);
 	ADD_API_METHOD_2(setKeyColour);
 	ADD_API_METHOD_2(showErrorMessage);
 	ADD_API_METHOD_1(showMessage);
@@ -1168,6 +1171,27 @@ String ScriptingApi::Engine::getMacroName(int index)
 	{
 		reportScriptError("Illegal Macro Index");
 		return "Undefined";
+	}
+}
+
+void ScriptingApi::Engine::setFrontendMacros(var nameList)
+{
+	auto& mm = getProcessor()->getMainController()->getMacroManager();
+
+	if (auto ar = nameList.getArray())
+	{
+		mm.setEnableMacroOnFrontend(!ar->isEmpty());
+		
+		for (int i = 0; i < 8; i++)
+		{
+			auto macroName = (*ar)[i].toString();
+			mm.getMacroChain()->getMacroControlData(i)->setMacroName(macroName);
+		}
+	}
+	else
+	{
+		mm.setEnableMacroOnFrontend(false);
+		reportScriptError("Expected an Array of Strings");
 	}
 }
 
@@ -2879,12 +2903,17 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 		const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
 
 #if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
-		// Apparently there was something wrong with the timestamp calculation.
+
+		if (getProcessor()->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+		{
+			// Apparently there was something wrong with the timestamp calculation.
 		// This restores the old behaviour by removing one block from the timestamps.
 		// By default, it's turned off, but you can enable it if you need backwards
 		// compatibility with older patches...
-		int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
-		timestamp = jmax<int>(0, timestamp - blocksize);
+			int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
+			timestamp = jmax<int>(0, timestamp - blocksize);
+		}
+		
 #endif
 
 		if (current != nullptr)
@@ -3580,12 +3609,16 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 
 
 #if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
-						// Apparently there was something wrong with the timestamp calculation.
+
+						if (getProcessor()->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+						{
+							// Apparently there was something wrong with the timestamp calculation.
 						// This restores the old behaviour by removing one block from the timestamps.
 						// By default, it's turned off, but you can enable it if you need backwards
 						// compatibility with older patches...
-						int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
-						timeStampSamples = jmax<int>(0, timeStampSamples - blocksize);
+							int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
+							timeStampSamples = jmax<int>(0, timeStampSamples - blocksize);
+						}
 #endif
 
 						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())

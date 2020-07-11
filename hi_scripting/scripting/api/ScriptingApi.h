@@ -378,6 +378,9 @@ public:
 		/** Returns the name for the given macro index. */
 		String getMacroName(int index);
 
+		/** Enables the macro system to be used by the end user. */
+		void setFrontendMacros(var nameList);
+
 		/** Returns the current operating system ("OSX" or ("WIN"). */
 		String getOS();
 

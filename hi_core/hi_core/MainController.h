@@ -383,6 +383,9 @@ public:
 		void removeMacroControlsFor(Processor *p);
 		void removeMacroControlsFor(Processor *p, Identifier name);
 	
+		bool isMacroEnabledOnFrontend() const { return enableMacroOnFrontend; };
+		void setEnableMacroOnFrontend(bool shouldBeEnabled) { enableMacroOnFrontend = shouldBeEnabled; }
+
 		MidiControllerAutomationHandler *getMidiControlAutomationHandler();;
 		const MidiControllerAutomationHandler *getMidiControlAutomationHandler() const;;
 
@@ -397,6 +400,7 @@ public:
 		ModulatorSynthChain *macroChain;
 		int macroIndexForCurrentLearnMode;
 		int macroIndexForCurrentMidiLearnMode;
+		bool enableMacroOnFrontend = false;
 
 		MidiControllerAutomationHandler midiControllerHandler;
 

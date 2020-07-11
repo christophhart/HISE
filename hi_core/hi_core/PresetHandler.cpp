@@ -145,6 +145,9 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 	preset.addChild(autoData, -1, nullptr);
 	preset.addChild(mpeData, -1, nullptr);
 
+	if(chain->getMainController()->getMacroManager().isMacroEnabledOnFrontend())
+		chain->saveMacrosToValueTree(preset);
+
 	return preset;
 }
 

@@ -37,7 +37,7 @@ callbackLevel(CallbackLevel::NoCallbacks),
 callbackLevels(getCallbackLevels()),
 constrainer(new RectangleConstrainer())
 {
-
+	initMacroControl(dontSendNotification);
 }
 
 
