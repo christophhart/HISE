@@ -91,14 +91,16 @@ void Arpeggiator::onInit()
 
 	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
 
-	bypassButton = Content.addButton("BypassButton", 10, 10);
+	bypassButton = Content.addButton("BypassButton", 0, 10);
+	bypassButton->set("width", 74);
 	bypassButton->set("text", "Bypass");
 	
 	parameterNames.add("Bypass");
 
-	resetButton = Content.addButton("ResetButton", 10, 60);
+	resetButton = Content.addButton("ResetButton", 74, 10);
 
 	resetButton->set("isMomentary", true);
+	resetButton->set("width", 64);
 	resetButton->set("text", "Reset");
 
 	parameterNames.add("Reset");
@@ -184,7 +186,9 @@ void Arpeggiator::onInit()
 
 	parameterNames.add("CurrentStep");
 
-	
+	enableTieNotes = Content.addButton("EnableTie", 10, 70);
+	enableTieNotes->set("text", "Enable Tie Notes");
+	parameterNames.add("EnableTieNotes");
 
 	auto bg = Content.addPanel("packBg", 150, 5);
 
@@ -199,8 +203,6 @@ void Arpeggiator::onInit()
 	semiToneSliderPack->set("max", 24);
 	semiToneSliderPack->set("sliderAmount", 4);
 	semiToneSliderPack->set("stepSize", 1);
-	
-
 	velocitySliderPack = Content.addSliderPack("VelocitySliderPack", 160, 160);
 	velocitySliderPack->getSliderPackData()->setDefaultValue(127.0);
 
@@ -331,9 +333,6 @@ void Arpeggiator::onInit()
 	lengthLabel->set("fontStyle", "Bold");
 	lengthLabel->set("editable", false);
 	lengthLabel->set("multiline", false);
-
-	
-
 	
 	stepSkipSlider->setValue(1);
 	sequenceComboBox->setValue(1);
@@ -346,12 +345,11 @@ void Arpeggiator::onInit()
 	outputMidiChannel->setValue(1);
 	mpeStartChannel->setValue(2);
 	mpeEndChannel->setValue(16);
+	enableTieNotes->setValue(1);
 
 	velocitySliderPack->setAllValues(127);
 	lengthSliderPack->setAllValues(75);
 	semiToneSliderPack->setAllValues(0);
-	
-
 }
 
 void Arpeggiator::onNoteOn()

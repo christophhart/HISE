@@ -253,7 +253,9 @@ private:
 
 	bool keys_are_held()
 	{
-		return Synth.getNumPressedKeys() != 0;
+		return !userHeldKeysArray.isEmpty();
+
+		//return Synth.getNumPressedKeys() != 0;
 	};
 
 
@@ -277,14 +279,14 @@ private:
 
 	bool curr_step_is_tied()
 	{
-		return getSliderValueWithoutDisplay(lengthSliderPack, currentStep) == 100.0f;
+		return enableTieNotes->getValue() && getSliderValueWithoutDisplay(lengthSliderPack, currentStep) == 100.0f;
 	};
 
 	bool next_step_will_be_tied()
 	{
 		int nextStep = incAndWrapValueFromZeroToMax(currentStep, stepSkipSlider->getValue(), lengthSliderPack->getNumSliders());
 
-		return getSliderValueWithoutDisplay(lengthSliderPack, nextStep) == 100.0f;
+		return enableTieNotes->getValue() && getSliderValueWithoutDisplay(lengthSliderPack, nextStep) == 100.0f;
 
 	};
 
@@ -332,6 +334,7 @@ private:
 	ScriptComboBox outputMidiChannel;
 	ScriptComboBox mpeStartChannel;
 	ScriptComboBox mpeEndChannel;
+	ScriptButton enableTieNotes;
 
 	int mpeStart = 2;
 	int mpeEnd = 16;
