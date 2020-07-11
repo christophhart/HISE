@@ -422,19 +422,8 @@ void ProcessorEditorChainBar::paintOverChildren(Graphics &g)
 	{
 		if (chainButtons[i]->getWidth() != 0)
 		{
-			numberRenderer.drawNumberTag(g, Colours::white.withAlpha(0.5f), chainButtons[i]->getBounds(), 2, 14, numProcessorList[i - 1]);
-
-#if 0
-			Image img(Image::PixelFormat::ARGB, chainButtons[i + 1]->getWidth(), chainButtons[i + 1]->getHeight()-heightSub, true);
-
-			Graphics g2(img);
-
-			numberTags[i]->applyEffect(img, g2, 1.0f, 1.0f);
-
-
-
-			g.drawImageAt(img, chainButtons[i + 1]->getX(), chainButtons[i + 1]->getY(), 0);
-#endif
+            auto c = Colours::white.withAlpha(0.5f);
+			numberRenderer.drawNumberTag(g, c, chainButtons[i]->getBounds(), 2, 14, numProcessorList[i - 1]);
 		}
 	}
 

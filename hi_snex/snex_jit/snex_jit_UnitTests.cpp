@@ -1071,7 +1071,8 @@ private:
 			c.compileJitObject(code);
 			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
 
-			expectedEqualSyntaxTree(firstTree, c.dumpSyntaxTree(), "added false branch");
+            auto s = c.dumpSyntaxTree();
+			expectedEqualSyntaxTree(firstTree, s, "added false branch");
 		}
 		
 		{
