@@ -402,6 +402,9 @@ public:
         /** Returns the product version (not the HISE version!). */
         String getVersion();
 
+        /** Returns the product name (not the HISE name!). */
+        String getName();
+
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
 
