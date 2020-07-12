@@ -4427,8 +4427,10 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 
 		s.setTextBoxStyle (Slider::NoTextBox, false, -1, -1);
 
-		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
+		obj->setProperty("id", s.getComponentID());
 		obj->setProperty("text", s.getName());
+		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
+
 		obj->setProperty("value", s.getValue());
 		obj->setProperty("valueNormalized", (s.getValue() - s.getMinimum()) / (s.getMaximum() - s.getMinimum()));
 		obj->setProperty("valueSuffixString", s.getTextFromValue(s.getValue()));
@@ -4441,11 +4443,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 		obj->setProperty("hover", s.isMouseOver());
 
 		obj->setProperty("bgColour", s.findColour(HiseColourScheme::ComponentOutlineColourId).getARGB());
-
 		obj->setProperty("itemColour1", s.findColour(HiseColourScheme::ComponentFillTopColourId).getARGB());
-
 		obj->setProperty("itemColour2", s.findColour(HiseColourScheme::ComponentFillBottomColourId).getARGB());
-
 		obj->setProperty("textColour", s.findColour(HiseColourScheme::ComponentTextColourId).getARGB());
 
 		if (l->callWithGraphics(g_, "drawRotarySlider", var(obj)))
@@ -4456,19 +4455,21 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 }
 
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, int x, int y, int width, int height, float sliderPos, float minSliderPos, float maxSliderPos, const Slider::SliderStyle style, Slider &slider)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPos*/, float /*minSliderPos*/, float /*maxSliderPos*/, const Slider::SliderStyle style, Slider &slider)
 {
 	if (auto l = get())
 	{
 		DynamicObject::Ptr obj = new DynamicObject();
 
-		obj->setProperty("area", ApiHelpers::getVarRectangle(slider.getLocalBounds().toFloat()));
+		obj->setProperty("id", slider.getComponentID());
 		obj->setProperty("text", slider.getName());
+		obj->setProperty("area", ApiHelpers::getVarRectangle(slider.getLocalBounds().toFloat()));
+
 		obj->setProperty("valueSuffixString", slider.getTextFromValue(slider.getValue()));
 		obj->setProperty("suffix", slider.getTextValueSuffix());
 		obj->setProperty("skew", slider.getSkewFactor());
 
-		obj->setProperty("style", slider.getSliderStyle());	// Horizontal:2, Vertical:3, Range:9
+		obj->setProperty("style", style);	// Horizontal:2, Vertical:3, Range:9
 
 		// Vertical & Horizontal style slider
 		obj->setProperty("min", slider.getMinimum());
@@ -4486,21 +4487,16 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("hover", slider.isMouseOver());
 
 		obj->setProperty("bgColour", slider.findColour(HiseColourScheme::ComponentOutlineColourId).getARGB());
-
 		obj->setProperty("itemColour1", slider.findColour(HiseColourScheme::ComponentFillTopColourId).getARGB());
-
 		obj->setProperty("itemColour2", slider.findColour(HiseColourScheme::ComponentFillBottomColourId).getARGB());
-
 		obj->setProperty("textColour", slider.findColour(HiseColourScheme::ComponentTextColourId).getARGB());
 
 		if (l->callWithGraphics(g, "drawLinearSlider", var(obj)))
 			return;
 	}
 
-	GlobalHiseLookAndFeel::drawLinearSliderBackground (g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
-	GlobalHiseLookAndFeel::drawLinearSliderThumb (g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
+	GlobalHiseLookAndFeel::drawLinearSlider(g, -1, -1, width, height, -1, -1, -1, style, slider);
 }
-
 
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonText(Graphics &g_, TextButton &button, bool isMouseOverButton, bool isButtonDown)

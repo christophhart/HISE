@@ -70,6 +70,7 @@ public:
 		Font font;
 
 		int numColumns = 3;
+		double columnWidthRatio = 0.33;
 
 		bool showNotesLabel = true;
 		bool showEditButtons = true;
@@ -209,7 +210,7 @@ private:
 	void setShowFavorites(bool shouldShowFavorites);
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 	void setNumColumns(int numColumns);
-
+	void setColumnWidthRatio(double columnWidthRatio);
 
 	/** SaveButton = 1, ShowFolderButton = 0 */
 	void setShowButton(int buttonId, bool newValue);
@@ -220,6 +221,7 @@ private:
 	// ============================================================================================
 
 	int numColumns = 3;
+	double columnWidthRatio = 0.33;
 
 	File rootFile;
 	File currentBankFile;

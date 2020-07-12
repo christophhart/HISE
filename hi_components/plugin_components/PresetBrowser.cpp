@@ -750,14 +750,32 @@ hise::PresetBrowserLookAndFeelMethods& PresetBrowser::getPresetBrowserLookAndFee
 void PresetBrowser::presetChanged(const File& newPreset)
 {
 	if (allPresets[currentlyLoadedPreset] == newPreset)
+	{
+		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 		return;
+	}
 
 	File pFile = newPreset;
-	File cFile = pFile.getParentDirectory();
-	File bFile = cFile.getParentDirectory();
+	File cFile;
+	File bFile;
 
-	bankColumn->setSelectedFile(bFile, sendNotification);
-	categoryColumn->setSelectedFile(cFile, sendNotification);
+	if (numColumns > 2)
+	{
+		cFile = pFile.getParentDirectory();
+	}
+
+	if (numColumns > 1)
+	{
+		bFile = numColumns > 2 ? cFile.getParentDirectory() : pFile.getParentDirectory();
+		bankColumn->setSelectedFile(bFile, sendNotification);
+	}
+
+	// For some reason I needed to call twice the same condition...
+	if (numColumns > 2)
+	{
+		categoryColumn->setSelectedFile(cFile, sendNotification);
+	}
+	
 	presetColumn->setSelectedFile(newPreset, dontSendNotification);
 
 	saveButton->setEnabled(true);
@@ -887,15 +905,16 @@ void PresetBrowser::resized()
 	}
 	else
 	{
-		const int columnWidth = getWidth() / numColumns;
+		const int bankColumnWidth = getWidth() * columnWidthRatio;
+		const int presetColumnWidth = getWidth() - getWidth() * columnWidthRatio * (numColumns - 1);
 
 		if(numColumns > 1)
-			bankColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+			bankColumn->setBounds(listArea.removeFromLeft(bankColumnWidth).reduced(2, 2));
 
 		if(numColumns > 2)
-			categoryColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+			categoryColumn->setBounds(listArea.removeFromLeft(bankColumnWidth).reduced(2, 2));
 
-		presetColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+		presetColumn->setBounds(listArea.removeFromLeft(presetColumnWidth).reduced(2, 2));
 	}
 
 
@@ -1013,6 +1032,19 @@ void PresetBrowser::setNumColumns(int newNumColumns)
 	}
 }
 
+
+void PresetBrowser::setColumnWidthRatio(double newColumnWidthRatio)
+{
+	newColumnWidthRatio = jlimit<double>(0.0, 1.0, newColumnWidthRatio);
+
+	if (newColumnWidthRatio != columnWidthRatio)
+	{
+		columnWidthRatio = newColumnWidthRatio;
+		resized();
+	}
+}
+
+
 void PresetBrowser::setShowButton(int buttonId, bool newValue)
 {
 	enum ButtonIndexes
@@ -1108,6 +1140,7 @@ void PresetBrowser::setOptions(const Options& newOptions)
 
 	getPresetBrowserLookAndFeel().textColour = newOptions.textColour;
 	setNumColumns(newOptions.numColumns);
+	setColumnWidthRatio(newOptions.columnWidthRatio);
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
 	setShowEditButtons(newOptions.showEditButtons);
@@ -1153,6 +1186,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 			bankColumn->setEditMode(false);
+			bankColumn->updateButtonVisibility();
 			presetColumn->updateButtonVisibility();
 		}
 
@@ -1188,7 +1222,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 
 void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& newName)
 {
-	if (columnIndex == 0)
+	if (columnIndex == 0 && (numColumns == 3 || numColumns == 2))
 	{
         if(newName.isNotEmpty())
         {
@@ -1205,7 +1239,7 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 
         rebuildAllPresets();
 	}
-	else if (columnIndex == 1)
+	else if (columnIndex == 1 && numColumns == 3)
 	{
 		currentCategoryFile = PresetBrowserColumn::getChildDirectory(currentBankFile, 2, rowIndex);
 
@@ -1224,9 +1258,18 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 
         rebuildAllPresets();
 	}
-	else if (columnIndex == 2)
+	else if (columnIndex == 2 || (columnIndex == 1 && numColumns == 2) || (columnIndex == 0 && numColumns == 1))
 	{
-		File presetFile = PresetBrowserColumn::getChildDirectory(currentCategoryFile, 3, rowIndex);
+		File current;
+
+		if (numColumns == 3)
+			current = currentCategoryFile;
+		else if (numColumns == 2)
+		 	current = currentBankFile;
+		else if (numColumns == 1)
+		 	current = rootFile;
+
+		File presetFile = PresetBrowserColumn::getChildDirectory(current, 3, rowIndex);
 
 		if (newName.isNotEmpty())
 		{
@@ -1237,7 +1280,7 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 			else
 			{
 				presetFile.moveFileTo(newFile);
-				presetColumn->setNewRootDirectory(currentCategoryFile);
+				presetColumn->setNewRootDirectory(current);
 				rebuildAllPresets();
 				showLoadedPreset();
 			}
@@ -1247,7 +1290,7 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 
 void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 {
-	if (columnIndex == 0)
+	if (columnIndex == 0 && (numColumns == 3 || numColumns == 2))
 	{
 		File bankToDelete = f;
 
@@ -1257,7 +1300,7 @@ void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 		categoryColumn->setNewRootDirectory(File());
 		presetColumn->setNewRootDirectory(File());
 	}
-	else if (columnIndex == 1)
+	else if (columnIndex == 1 && numColumns == 3)
 	{
 		File categoryToDelete = f;
 
@@ -1267,13 +1310,21 @@ void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 		presetColumn->setNewRootDirectory(File());
 
 	}
-	else if (columnIndex == 2)
+	else if (columnIndex == 2 || (columnIndex == 1 && numColumns == 2) || (columnIndex == 0 && numColumns == 1))
 	{
 		File presetFile = f;
 
-		presetFile.deleteFile();
-		presetColumn->setNewRootDirectory(currentCategoryFile);
+		File current;
 
+		if (numColumns == 3)
+			current = currentCategoryFile;
+		else if (numColumns == 2)
+		 	current = currentBankFile;
+		else if (numColumns == 1)
+		 	current = rootFile;
+
+		presetFile.deleteFile();
+		presetColumn->setNewRootDirectory(current);
 	}
 
 	rebuildAllPresets();

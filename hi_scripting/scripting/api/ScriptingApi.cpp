@@ -859,6 +859,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
+	API_METHOD_WRAPPER_0(Engine, getName);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
@@ -952,6 +953,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getPreloadProgress);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
+	ADD_API_METHOD_0(getName);
 	ADD_API_METHOD_0(getFilterModeList);
 	ADD_API_METHOD_0(createGlobalScriptLookAndFeel);
 	ADD_API_METHOD_1(setAllowDuplicateSamples);
@@ -1229,12 +1231,19 @@ var ScriptingApi::Engine::getFilterModeList() const
 String ScriptingApi::Engine::getVersion()
 {
 #if USE_BACKEND
-	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
+	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 #else
 	return FrontendHandler::getVersionString();
 #endif
+}
 
-
+String ScriptingApi::Engine::getName()
+{
+#if USE_BACKEND
+	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
+#else
+	return FrontendHandler::getProjectName();
+#endif
 }
 
 double ScriptingApi::Engine::getMasterPeakLevel(int channel)
