@@ -41,7 +41,6 @@ class NodeFactory;
 
 /** A network of multiple DSP objects that are connected using a graph. */
 class DspNetwork : public ConstScriptingObject,
-				   public DebugableObject,
 				   public Timer
 {
 public:

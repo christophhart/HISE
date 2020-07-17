@@ -277,7 +277,7 @@ public:
 
 	virtual void prepare(PrepareSpecs specs) = 0;
 
-	Identifier getObjectName() const override { return "Node"; };
+	Identifier getObjectName() const final override { return PropertyIds::Node; };
 
 	void prepareParameters(PrepareSpecs specs);
 
