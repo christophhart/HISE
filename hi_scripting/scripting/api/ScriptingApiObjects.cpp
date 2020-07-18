@@ -171,6 +171,157 @@ void addScriptParameters(ConstScriptingObject* this_, Processor* p)
 	this_->addConstant("ScriptParameters", var(scriptedParameters.get()));
 }
 
+struct ScriptingObjects::ScriptFile::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptFile, getParentDirectory);
+	API_METHOD_WRAPPER_1(ScriptFile, getChildFile);
+	API_METHOD_WRAPPER_1(ScriptFile, toString);
+	API_METHOD_WRAPPER_0(ScriptFile, isFile);
+	API_METHOD_WRAPPER_0(ScriptFile, isDirectory);
+	API_METHOD_WRAPPER_1(ScriptFile, writeObject);
+	API_METHOD_WRAPPER_1(ScriptFile, writeString);
+	API_METHOD_WRAPPER_2(ScriptFile, writeEncryptedObject);
+	API_METHOD_WRAPPER_0(ScriptFile, loadAsString);
+	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
+	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
+	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
+};
+
+ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const File& f_) :
+	ConstScriptingObject(p, 3),
+	f(f_)
+{
+	addConstant("FullPath", (int)FullPath);
+	addConstant("NoExtension", (int)NoExtension);
+	addConstant("Extension", (int)OnlyExtension);
+	addConstant("Filename", (int)Filename);
+
+	ADD_API_METHOD_0(getParentDirectory);
+	ADD_API_METHOD_1(getChildFile);
+	ADD_API_METHOD_1(toString);
+	ADD_API_METHOD_0(isFile);
+	ADD_API_METHOD_0(isDirectory);
+	ADD_API_METHOD_1(writeObject);
+	ADD_API_METHOD_1(writeString);
+	ADD_API_METHOD_2(writeEncryptedObject);
+	ADD_API_METHOD_0(loadAsString);
+	ADD_API_METHOD_0(loadAsObject);
+	ADD_API_METHOD_1(loadEncryptedObject);
+	ADD_API_METHOD_0(show);
+}
+
+
+var ScriptingObjects::ScriptFile::getChildFile(String childFileName)
+{
+	return new ScriptFile(getScriptProcessor(), f.getChildFile(childFileName));
+}
+
+var ScriptingObjects::ScriptFile::getParentDirectory()
+{
+	return new ScriptFile(getScriptProcessor(), f.getParentDirectory());
+}
+
+String ScriptingObjects::ScriptFile::toString(int formatType) const
+{
+	switch (formatType)
+	{
+	case Format::FullPath: return f.getFullPathName();
+	case Format::NoExtension: return f.getFileNameWithoutExtension();
+	case Format::OnlyExtension: return f.getFileExtension();
+	case Format::Filename: return f.getFileName();
+	default:
+		reportScriptError("Illegal formatType argument " + String(formatType));
+	}
+
+	return {};
+}
+
+bool ScriptingObjects::ScriptFile::isFile() const
+{
+	return f.existsAsFile();
+}
+
+bool ScriptingObjects::ScriptFile::isDirectory() const
+{
+	return f.isDirectory();
+}
+
+bool ScriptingObjects::ScriptFile::writeObject(var jsonData)
+{
+	auto text = JSON::toString(jsonData);
+	return writeString(text);
+}
+
+bool ScriptingObjects::ScriptFile::writeString(String text)
+{
+	return f.replaceWithText(text);
+}
+
+bool ScriptingObjects::ScriptFile::writeEncryptedObject(var jsonData, String key)
+{
+	auto data = key.getCharPointer().getAddress();
+	auto size = jlimit(0, 72, key.length());
+
+	BlowFish bf(data, size);
+
+	auto text = JSON::toString(jsonData, true);
+
+	MemoryOutputStream mos;
+	mos.writeString(text);
+	mos.flush();
+	
+	auto out = mos.getMemoryBlock();
+
+	bf.encrypt(out);
+
+	return f.replaceWithText(out.toBase64Encoding());
+}
+
+String ScriptingObjects::ScriptFile::loadAsString() const
+{
+	return f.loadFileAsString();
+}
+
+var ScriptingObjects::ScriptFile::loadAsObject() const
+{
+	var v;
+
+	auto r = JSON::parse(loadAsString(), v);
+
+	if (r.wasOk())
+		return v;
+
+	reportScriptError(r.getErrorMessage());
+}
+
+var ScriptingObjects::ScriptFile::loadEncryptedObject(String key)
+{
+	auto data = key.getCharPointer().getAddress();
+	auto size = jlimit(0, 72, key.length());
+
+	BlowFish bf(data, size);
+
+	MemoryBlock in;
+	
+	in.fromBase64Encoding(f.loadFileAsString());
+	bf.decrypt(in);
+
+	var v;
+
+	auto r = JSON::parse(in.toString(), v);
+
+	return v;
+}
+
+void ScriptingObjects::ScriptFile::show()
+{
+	auto f_ = f;
+	MessageManager::callAsync([f_]()
+	{
+		f_.revealToUser();
+	});
+}
+
 struct ScriptingObjects::ScriptAudioFile::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, loadFile);
@@ -4670,6 +4821,9 @@ juce::ValueTree ApiHelpers::getApiTree()
 
 	if (!v.isValid())
 		v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
+
+	//File::getSpecialLocation(File::userDesktopDirectory).getChildFile("API.xml").replaceWithText(v.createXml()->createDocument(""));
+
 
 	return v;
 }

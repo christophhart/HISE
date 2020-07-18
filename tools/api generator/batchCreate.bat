@@ -17,8 +17,9 @@ xcopy "xml\classhise_1_1_scripting_api_1_1_message.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_synth.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_sampler.xml" "xml\selection"
 
-
-classhise_1_1_scripting_objects_1_1_expansion_handler_object
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_file.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_api_1_1_server.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_api_1_1_file_system.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_api_1_1_module_ids.xml" "xml\selection"
 xcopy "xml\structhise_1_1_hise_javascript_engine_1_1_root_object_1_1_math_class.xml" "xml\selection"
@@ -80,6 +81,9 @@ ren "xml\selection\classhise_1_1_dsp_instance.xml" "DspModule.xml"
 ren "xml\selection\classhise_1_1_doxygen_string_functions.xml" "String.xml"
 ren "xml\selection\classhise_1_1_doxygen_array_functions.xml" "Array.xml"
 
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_file.xml" "File.xml"
+ren "xml\selection\classhise_1_1_scripting_api_1_1_file_system.xml" "FileSystem.xml"
+ren "xml\selection\classhise_1_1_scripting_api_1_1_server.xml" "Server.xml"
 
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_modulator.xml" "Modulator.xml"

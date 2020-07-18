@@ -166,6 +166,69 @@ public:
 		// ============================================================================================================
 	};
 
+	class ScriptFile : public ConstScriptingObject
+	{
+	public:
+
+		enum Format
+		{
+			FullPath,
+			NoExtension,
+			OnlyExtension,
+			Filename
+		};
+
+		ScriptFile(ProcessorWithScriptingContent* p, const File& f_);
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("File"); }
+
+		// ================================================= API calls
+
+		/** Returns a child file if this is a directory. */
+		var getChildFile(String childFileName);
+
+		/** Returns the parent directory as File. */
+		var getParentDirectory();
+
+		/** Returns a String representation of that file. */
+		String toString(int formatType) const;
+		
+		/** Checks if this file exists and is a file. */
+		bool isFile() const;
+
+		/** Checks if this file exists and is a directory. */
+		bool isDirectory() const;
+
+		/** Replaces the file content with the JSON data. */
+		bool writeObject(var jsonData);
+
+		/** Replaces the file content with the given text. */
+		bool writeString(String text);
+
+		/** Encrypts an JSON object using the supplied key. */
+		bool writeEncryptedObject(var jsonData, String key);
+
+		/** Loads the given file as text. */
+		String loadAsString() const;
+
+		/** Loads the given file as object. */
+		var loadAsObject() const;
+
+		/** Loads the encrypted object using the supplied RSA key pair. */
+		var loadEncryptedObject(String key);
+
+		/** Opens a Explorer / Finder window that points to the file. */
+		void show();
+
+		// ================================================= End of API calls
+
+		File f;
+
+	private:
+
+		struct Wrapper;
+	};
+
 	class ScriptAudioFile : public ConstScriptingObject,
 							public AsyncUpdater,
 							public PooledUIUpdater::SimpleTimer

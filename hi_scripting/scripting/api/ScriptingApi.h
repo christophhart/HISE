@@ -918,6 +918,199 @@ public:
 		ModulatorSynth* ownerSynth;
 	};
 
+	class Server : public ApiClass,
+				   public ScriptingObject
+	{
+	public:
+
+		enum StatusCodes
+		{
+			StatusOK = 200,
+			StatusNotFound = 404,
+			StatusServerError = 500,
+			StatusAuthenticationFail = 403,
+			numStatusCodes
+		};
+
+		Server(JavascriptProcessor* jp);
+
+		~Server()
+		{
+			internalThread.stopThread(3000);
+		}
+		
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Server"); }
+
+		/** Sets the base URL for all server queries. */
+		void setBaseURL(String url);
+
+		/** Calls a sub URL and executes the callback when finished. */
+		void callWithGET(String subURL, var parameters, var callback);
+
+		/** Calls a sub URL with POST arguments and executes the callback when finished. */
+		void callWithPOST(String subURL, var parameters, var callback);
+		
+		/** Downloads a file to the given target. */
+		void downloadFile(String subURL, var parameters, var targetFile, var callback);
+
+		/** Stops the pending download (and deletes the file). */
+		bool stopDownload(String subURL, var parameters);
+
+	private:
+
+		struct PendingDownload: public ReferenceCountedObject,
+								public URL::DownloadTask::Listener
+		{
+			void finished(URL::DownloadTask* , bool success) override
+			{
+				data->setProperty("success", success);
+				data->setProperty("finished", true);
+				call();
+
+				isRunning = false;
+				isFinished = true;
+			}
+
+			void progress(URL::DownloadTask* , int64 bytesDownloaded, int64 totalLength) override
+			{
+				data->setProperty("numTotal", totalLength);
+				data->setProperty("numDownloaded", bytesDownloaded);
+				call();
+			}
+
+			void abort()
+			{
+				data->setProperty("success", false);
+				data->setProperty("finished", true);
+				call();
+
+				isRunning = false;
+				isFinished = true;
+				download = nullptr;
+
+				targetFile.deleteFile();
+			}
+
+			void call();
+
+			void start()
+			{
+				isRunning = true;
+				download = downloadURL.downloadToFile(targetFile, {}, this);
+				
+				data = new DynamicObject();
+				
+				data->setProperty("numTotal", 0);
+				data->setProperty("numDownloaded", 0);
+				data->setProperty("finished", false);
+				data->setProperty("success", false);
+			}
+
+			DynamicObject::Ptr data;
+			using Ptr = ReferenceCountedObjectPtr<PendingDownload>;
+			URL downloadURL;
+			File targetFile;
+			var callback;
+			ScopedPointer<URL::DownloadTask> download;
+			std::atomic<bool> isRunning = { false };
+			std::atomic<bool> isFinished = { false };
+			std::atomic<bool> shouldAbort = { false };
+			JavascriptProcessor* jp = nullptr;
+		};
+
+		struct PendingCallback: public ReferenceCountedObject
+		{
+			using Ptr = ReferenceCountedObjectPtr<PendingCallback>;
+
+			URL url;
+			bool isPost;
+			var function;
+			int status = 0;
+		};
+
+		struct WebThread : public Thread
+		{
+			WebThread(Server& p) :
+				Thread("Server Thread"),
+				parent(p)
+			{};
+
+			Server& parent;
+
+			void run() override;
+
+			CriticalSection queueLock;
+
+			ReferenceCountedArray<PendingCallback> pendingCallbacks;
+			ReferenceCountedArray<PendingDownload> pendingDownloads;
+
+		} internalThread;
+
+		JavascriptProcessor* jp;
+
+		URL getWithParameters(String subURL, var parameters);
+
+		URL baseURL;
+
+		struct Wrapper;
+	};
+
+	class FileSystem : public ApiClass,
+					  public ScriptingObject,
+					   public ControlledObject
+	{
+	public:
+
+		enum SpecialLocations
+		{
+			AudioFiles,
+			Images,
+			Samples,
+			AppData,
+			UserHome,
+			Documents,
+			Desktop,
+			Downloads,
+			numSpecialLocations
+		};
+
+		FileSystem(ProcessorWithScriptingContent* pwsc);
+		~FileSystem();
+
+		Identifier getObjectName() const override
+		{
+			return "FileSystem";
+		}
+
+		// ========================================================= API Calls
+
+		/** Returns the current sample folder as File object. */
+		var getFolder(var locationType);
+
+		/** Returns a list of all child files of a directory that match the wildcard. */
+		var findFiles(var directory, String wildcard, bool recursive);
+
+		/** Opens a file browser to choose a file. */
+		void browse(var startFolder, bool forSaving, String wildcard, var callback);
+
+		/** Returns a unique machine ID that can be used to identify the computer. */
+		String getSystemId();
+
+		// ========================================================= End of API calls
+
+		
+
+		ProcessorWithScriptingContent* p;
+
+	private:
+
+		File getFile(SpecialLocations l);
+
+		struct Wrapper;
+
+
+	};
+
 	class Colours: public ApiClass
 	{
 	public:
