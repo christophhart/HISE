@@ -199,6 +199,9 @@ public:
 		/** Checks if this file exists and is a directory. */
 		bool isDirectory() const;
 
+		/** Deletes the file or directory WITHOUT confirmation. */
+		bool deleteFileOrDirectory();
+
 		/** Replaces the file content with the JSON data. */
 		bool writeObject(var jsonData);
 
