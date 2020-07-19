@@ -994,6 +994,28 @@ void ProjectHandler::checkActiveProject()
 	
 }
 
+juce::File ProjectHandler::getAppDataRoot()
+{
+	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+
+#if JUCE_IOS
+	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/");
+#elif JUCE_MAC
+
+
+#if ENABLE_APPLE_SANDBOX
+	return File::getSpecialLocation(File::userMusicDirectory);
+#else
+	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support");
+#endif
+
+
+#else // WINDOWS
+	return File::getSpecialLocation(appDataDirectoryToUse);
+#endif
+
+}
+
 juce::File ProjectHandler::getAppDataDirectory()
 {
 
@@ -1242,29 +1264,11 @@ File FrontendHandler::getSampleLocationForCompiledPlugin()
 
 juce::File FrontendHandler::getAppDataDirectory()
 {
-
-    const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-    
-#if JUCE_IOS
-    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
-#elif JUCE_MAC
-
-    
-#if ENABLE_APPLE_SANDBOX
-    File f = File::getSpecialLocation(File::userMusicDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
-#else
-    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
-#endif
-    
-
-#else // WINDOWS
-	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile(getCompanyName() + "/" + getProjectName());
-#endif
+	auto root = ProjectHandler::getAppDataRoot();
+	auto f = root.getChildFile(getCompanyName() + "/" + getProjectName());
 
 	if (!f.isDirectory())
-	{
 		f.createDirectory();
-	}
 
 	return f;
 }

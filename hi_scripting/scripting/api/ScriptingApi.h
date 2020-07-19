@@ -1066,6 +1066,7 @@ public:
 			AudioFiles,
 			Images,
 			Samples,
+			UserPresets,
 			AppData,
 			UserHome,
 			Documents,

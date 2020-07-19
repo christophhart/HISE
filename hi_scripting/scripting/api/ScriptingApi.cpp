@@ -4283,6 +4283,7 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	p(pwsc)
 {
 	addConstant("Samples", (int)Samples);
+	addConstant("UserPresets", (int)UserPresets);
 	addConstant("AppData", (int)AppData);
 	addConstant("UserHome", (int)UserHome);
 	addConstant("Documents", (int)Documents);
@@ -4389,20 +4390,32 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 #if USE_BACKEND
 	case AppData:
 	{
+		f = ProjectHandler::getAppDataRoot();
+
 		auto& h = getMainController()->getCurrentFileHandler();
 
 		auto company = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::User::Company);
 
 		auto project = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name);
 
-		jassertfalse;
+		f = f.getChildFile(company.toString()).getChildFile(project.toString());
+
+		if (!f.isDirectory())
+			f.createDirectory();
+
 		break;
 	}
-
 #else
 	case AppData:	f = FrontendHandler::getAppDataDirectory();
 		break;
 #endif
+	case UserPresets:
+#if USE_BACKEND
+		f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+#else
+		f = FrontendHandler::getUserPresetDirectory();
+#endif
+		break;
 	case UserHome: f = File::getSpecialLocation(File::userHomeDirectory); break;
 	case Documents: f = File::getSpecialLocation(File::userDocumentsDirectory); break;
 	case Desktop:	f = File::getSpecialLocation(File::userDesktopDirectory); break;

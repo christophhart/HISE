@@ -296,6 +296,7 @@ public:
 		listeners.removeAllInstancesOf(listenerToRemove);
 	}
 
+	static File getAppDataRoot();
    
 	static File getAppDataDirectory();
 	
