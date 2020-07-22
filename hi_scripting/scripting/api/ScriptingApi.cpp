@@ -4433,6 +4433,7 @@ struct ScriptingApi::Server::Wrapper
 	API_VOID_METHOD_WRAPPER_3(Server, callWithPOST);
 	API_VOID_METHOD_WRAPPER_3(Server, callWithGET);
 	API_VOID_METHOD_WRAPPER_4(Server, downloadFile);
+	API_VOID_METHOD_WRAPPER_1(Server, setHttpHeader);
 	API_METHOD_WRAPPER_2(Server, stopDownload);
 };
 
@@ -4450,6 +4451,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_1(setBaseURL);
 	ADD_API_METHOD_3(callWithPOST);
 	ADD_API_METHOD_3(callWithGET);
+	ADD_API_METHOD_1(setHttpHeader);
 	ADD_API_METHOD_4(downloadFile);
 	ADD_API_METHOD_2(stopDownload);
 }
@@ -4468,6 +4470,7 @@ void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callba
 		p->function = callback;
 		p->url = getWithParameters(subURL, parameters);
 		p->isPost = false;
+		p->extraHeader = extraHeader;
 
 		internalThread.notify();
 		internalThread.pendingCallbacks.add(p);
@@ -4481,11 +4484,17 @@ void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callb
 		PendingCallback::Ptr p = new PendingCallback();
 		p->function = callback;
 		p->url = getWithParameters(subURL, parameters);
+		p->extraHeader = extraHeader;
 		p->isPost = true;
 
 		internalThread.notify();
 		internalThread.pendingCallbacks.add(p);
 	}
+}
+
+void ScriptingApi::Server::setHttpHeader(String newHeader)
+{
+	extraHeader = newHeader;
 }
 
 void ScriptingApi::Server::downloadFile(String subURL, var parameters, var targetFile, var callback)
@@ -4593,7 +4602,7 @@ void ScriptingApi::Server::WebThread::run()
 		{
 			ScopedPointer<WebInputStream> wis;
 
-			wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, {}, 3000, nullptr, &job->status));
+			wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, 3000, nullptr, &job->status));
 
 			if (wis != nullptr)
 			{

@@ -950,6 +950,9 @@ public:
 		/** Calls a sub URL with POST arguments and executes the callback when finished. */
 		void callWithPOST(String subURL, var parameters, var callback);
 		
+		/** Adds the given String to the HTTP POST header. */
+		void setHttpHeader(String additionalHeader);
+
 		/** Downloads a file to the given target. */
 		void downloadFile(String subURL, var parameters, var targetFile, var callback);
 
@@ -1023,6 +1026,7 @@ public:
 			using Ptr = ReferenceCountedObjectPtr<PendingCallback>;
 
 			URL url;
+			String extraHeader;
 			bool isPost;
 			var function;
 			int status = 0;
@@ -1051,6 +1055,7 @@ public:
 		URL getWithParameters(String subURL, var parameters);
 
 		URL baseURL;
+		String extraHeader;
 
 		struct Wrapper;
 	};
