@@ -134,7 +134,7 @@ using namespace asmjit;
 
 	bool BaseCompiler::allowSmallObjectOptimisation() const
 	{
-		return optimisationIds.contains(OptimizationIds::Inlining);
+		return optimisationIds.contains(OptimizationIds::SmallObjectOptimisation);
 	}
 
 	void BaseCompiler::setInbuildFunctions()
@@ -146,14 +146,14 @@ using namespace asmjit;
 		namespaceHandler(handler),
 		registerPool(this)
 	{
-		TemplateObject spanClass;
-		auto sId = NamespacedIdentifier("span");
+		TemplateObject spanClass({NamespacedIdentifier("span"), {}});
+		auto sId = spanClass.id;
 
 		NamespaceHandler::InternalSymbolSetter iss(handler);
 
 		spanClass.id = sId;
-		spanClass.argList.add(TemplateParameter(sId.getChildId("DataType")));
-		spanClass.argList.add(TemplateParameter(sId.getChildId("NumElements"), 0, false));
+		spanClass.argList.add(TemplateParameter(sId.id.getChildId("DataType")));
+		spanClass.argList.add(TemplateParameter(sId.id.getChildId("NumElements"), 0, false));
 
 		spanClass.makeClassType = [](const TemplateObject::ConstructData& d)
 		{
@@ -174,10 +174,9 @@ using namespace asmjit;
 		};
 		namespaceHandler.addTemplateClass(spanClass);
 
-		TemplateObject dynClass;
-		auto dId = NamespacedIdentifier("dyn");
-		dynClass.id = dId;
-		dynClass.argList.add(TemplateParameter(dId.getChildId("DataType")));
+		TemplateObject dynClass({ NamespacedIdentifier("dyn"), {}});
+		auto dId = dynClass.id;
+		dynClass.argList.add(TemplateParameter(dId.id.getChildId("DataType")));
 
 		dynClass.makeClassType = [](const TemplateObject::ConstructData& d)
 		{

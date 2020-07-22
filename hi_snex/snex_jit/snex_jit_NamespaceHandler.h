@@ -81,11 +81,18 @@ private:
 		VariableStorage constantValue;
 		bool internalSymbol = false;
 		
+		bool operator==(const Alias& other) const
+		{
+			return toString() == other.toString();
+		}
+
 		juce::String toString() const;
 	};
 
 	struct Namespace : public ReferenceCountedObject
 	{
+		Namespace() = default;
+
 		using WeakPtr = WeakReference<Namespace>;
 		using Ptr = ReferenceCountedObjectPtr<Namespace>;
 		using List = ReferenceCountedArray<Namespace>;
@@ -128,6 +135,7 @@ private:
 		Range<int> lines;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Namespace);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Namespace);
 	};
 
 	struct SymbolToken : public mcl::TokenCollection::Token
@@ -185,15 +193,25 @@ public:
 		ScopedTemplateParameterSetter(NamespaceHandler& h, const TemplateParameter::List& currentList):
 			handler(h)
 		{
-			jassert(TemplateParameter::ListOps::readyToResolve(currentList));
-			handler.currentTemplateParameters.add(currentList);
+			if (currentList.isEmpty())
+				wasEmpty = true;
+			else
+			{
+				wasEmpty = false;
+
+				// You should only use this method with template parameters, not arguments...
+				jassert(TemplateParameter::ListOps::readyToResolve(currentList));
+				handler.currentTemplateParameters.add(currentList);
+			}
 		}
 
 		~ScopedTemplateParameterSetter()
 		{
-			handler.currentTemplateParameters.removeLast();
+			if(!wasEmpty)
+				handler.currentTemplateParameters.removeLast();
 		}
 
+		bool wasEmpty;
 		NamespaceHandler& handler;
 	};
 
@@ -223,6 +241,7 @@ public:
 	};
 
 	NamespaceHandler() = default;
+	~NamespaceHandler();
 
 	ComplexType::Ptr registerComplexTypeOrReturnExisting(ComplexType::Ptr ptr);
 	ComplexType::Ptr getComplexType(NamespacedIdentifier id);
@@ -249,17 +268,20 @@ public:
 
 	static bool isConstantSymbol(SymbolType t);
 
-	bool isTemplateTypeArgument(NamespacedIdentifier classId) const;
+	bool isTemplateTypeArgument(NamespacedIdentifier& classId) const;
 
-	bool isTemplateConstantArgument(NamespacedIdentifier classId) const;
+	bool isTemplateConstantArgument(NamespacedIdentifier& classId) const;
 
-	bool isTemplateFunction(NamespacedIdentifier functionId) const;
+	bool isTemplateFunction(TemplateInstance& functionId) const;
 
-	bool isTemplateClass(NamespacedIdentifier& classId) const;
+	bool isTemplateClass(TemplateInstance& classId) const;
 
-	ComplexType::Ptr createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
+	/** Doesn't check the template parameters, just for the parser to decide whether it should parse template arguments. */
+	bool isTemplateClassId(NamespacedIdentifier& classId) const;
 
-	void createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r);
+	ComplexType::Ptr createTemplateInstantiation(const TemplateInstance& id, const Array<TemplateParameter>& tp, juce::Result& r);
+
+	void createTemplateFunction(const TemplateInstance& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
 	bool rootHasNamespace(const NamespacedIdentifier& id) const;
 
@@ -283,9 +305,9 @@ public:
 
 	void addTemplateFunction(const TemplateObject& f);
 
-	TemplateObject getTemplateObject(const NamespacedIdentifier& id, int numProvidedArguments=-1) const;
+	TemplateObject getTemplateObject(const TemplateInstance& id, int numProvidedArguments=-1) const;
 
-	Array<TemplateObject> getAllTemplateObjectsWith(const NamespacedIdentifier& id) const;
+	Array<TemplateObject> getAllTemplateObjectsWith(const TemplateInstance& id) const;
 
 	Result checkVisiblity(const NamespacedIdentifier& id) const;
 
@@ -296,7 +318,7 @@ public:
 		currentVisibility = newVisibility;
 	}
 
-	TemplateParameter::List getCurrentTemplateParameters() const { return currentTemplateParameters.getLast(); }
+	TemplateParameter::List getCurrentTemplateParameters() const;
 
 	void setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e);
 

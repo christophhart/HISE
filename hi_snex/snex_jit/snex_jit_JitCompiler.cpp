@@ -97,7 +97,7 @@ ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s, const A
 	else
 	{
 		auto r = Result::ok();
-		return compiler->namespaceHandler.createTemplateInstantiation(s, tp, r);
+		return compiler->namespaceHandler.createTemplateInstantiation({ s, {} }, tp, r);
 	}
 }
 

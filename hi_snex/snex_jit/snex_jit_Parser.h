@@ -249,13 +249,13 @@ private:
 
 			auto t = namespaceHandler.getAliasType(nId);
 
-			if (namespaceHandler.isTemplateClass(nId))
+			if (namespaceHandler.isTemplateClassId(nId))
 			{
 				auto tp = parseTemplateParameters();
 
 				Result r = Result::ok();
 
-				auto s = namespaceHandler.createTemplateInstantiation(nId, tp, r);
+				auto s = namespaceHandler.createTemplateInstantiation({ nId, {} }, tp, r);
 				location.test(r);
 
 				currentTypeInfo = TypeInfo(s);
@@ -295,6 +295,8 @@ private:
 						currentTypeInfo = TypeInfo(st, currentTypeInfo.isConst(), currentTypeInfo.isRef());
 						return true;
 					}
+					else
+						return false;
 				}
 			}
 		}
@@ -524,10 +526,12 @@ public:
 
 	Operations::ScopeStatementBase* getCurrentScopeStatement() { return currentScopeStatement; }
 
-	TypeInfo getDotParentType(ExprPtr e);
+	TypeInfo getDotParentType(ExprPtr e, bool checkFunctionCallObjectExpression);
 
 	NamespacedIdentifier getDotParentName(ExprPtr e);
 	
+	TemplateInstance getTemplateInstanceFromParent(ExprPtr e, NamespacedIdentifier id);
+
 	void parseUsingAlias();
 
 	void parseEnum();

@@ -6,24 +6,28 @@ BEGIN_TEST_DATA
   input: 12
   output: 12
   error: ""
-  filename: "init/init_test1"
+  filename: "init/init_test11"
 END_TEST_DATA
 */
 
+int counter = 0;
 
 struct X
 {
-	X()
+	X(int input)
 	{
-		value = 12;
+		value = input;
+	
+		counter++;
 	}
-
+	
 	int value = 9;
 };
 
-X obj;
+span<span<X, 6>, 2> data = {{ 5 }};
 
 int main(int input)
 {
-	return obj.value;
+	return counter;
 }
+

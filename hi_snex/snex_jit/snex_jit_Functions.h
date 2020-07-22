@@ -41,194 +41,6 @@ using namespace juce;
 class FunctionClass;
 
 
-struct NamespacedIdentifier
-{
-	explicit NamespacedIdentifier(const Identifier& id)
-	{
-		add(id);
-	}
-
-	static NamespacedIdentifier fromString(const juce::String& s)
-	{
-		auto sa = StringArray::fromTokens(s, "::", "");
-
-		sa.removeEmptyStrings();
-
-		NamespacedIdentifier c;
-		for (auto s : sa)
-			c.add(Identifier(s));
-
-		return c;
-	}
-
-	static NamespacedIdentifier null()
-	{
-		static const NamespacedIdentifier n("null");
-		return n;
-	}
-
-	bool isNull() const
-	{
-		return null() == *this;
-	}
-
-	NamespacedIdentifier()
-	{}
-
-	Array<Identifier> getIdList() const
-	{
-		Array<Identifier> l;
-		l.addArray(namespaces);
-		l.add(id);
-		return l;
-	}
-
-	std::string debugName;
-	Array<Identifier> namespaces;
-	Identifier id;
-
-	bool isValid() const
-	{
-		return id.isValid();
-	}
-
-	bool isInGlobalNamespace() const
-	{
-		return namespaces.isEmpty();
-	}
-
-	bool isExplicit() const
-	{
-		return isInGlobalNamespace();
-	}
-
-	Identifier getIdentifier() const
-	{
-		return id;
-	}
-
-	bool isParentOf(const NamespacedIdentifier& other) const
-	{
-		auto otherName = other.toString();
-		auto thisName = toString();
-		return otherName.startsWith(thisName);
-	}
-
-	void relocateSelf(const NamespacedIdentifier& oldParent, const NamespacedIdentifier& newParent)
-	{
-		jassert(oldParent.isParentOf(*this));
-
-		NamespacedIdentifier s(newParent);
-
-		auto opl = oldParent.getIdList();
-		auto ids = getIdList();
-
-		for (int i = 0; i < ids.size(); i++)
-		{
-			if (opl[i] != ids[i])
-			{
-				s = s.getChildId(ids[i]);
-			}
-		}
-
-		jassert(newParent.isParentOf(s));
-
-		debugName = s.debugName;
-		namespaces = s.namespaces;
-		id = s.id;
-	}
-
-	NamespacedIdentifier relocate(const NamespacedIdentifier& oldParent, const NamespacedIdentifier& newParent) const
-	{
-		NamespacedIdentifier s(*this);
-
-		s.relocateSelf(oldParent, newParent);
-		return s;
-	}
-
-	NamespacedIdentifier getChildId(const Identifier& id) const
-	{
-		auto c = *this;
-		c.add(id);
-		return c;
-	}
-
-	NamespacedIdentifier getParent() const
-	{
-		if (namespaces.isEmpty())
-			return {};
-
-		auto c = *this;
-		c.pop();
-		return c;
-	}
-
-	bool operator !=(const NamespacedIdentifier& other) const
-	{
-		return !(*this == other);
-	}
-
-	bool operator==(const NamespacedIdentifier& other) const
-	{
-		if (id != other.id)
-			return false;
-
-		if (namespaces.size() == other.namespaces.size())
-		{
-			for (int i = 0; i < namespaces.size(); i++)
-			{
-				if (namespaces[i] != other.namespaces[i])
-					return false;
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-	NamespacedIdentifier withId(const Identifier& id) const
-	{
-		auto c = *this;
-		c.add(id);
-		return c;
-	}
-
-	juce::String toString() const
-	{
-		juce::String s;
-
-		for (auto n : namespaces)
-			s << n << "::";
-
-		s << id;
-
-		return s;
-	}
-
-	void add(const Identifier& newId)
-	{
-		if (id.isValid())
-			namespaces.add(id);
-
-		id = newId;
-
-		debugName = toString().toStdString();
-	}
-
-	Result pop()
-	{
-		if (id.isNull())
-			return Result::fail("Can't pop namespace");
-
-		id = namespaces.getLast();
-		namespaces.removeLast();
-
-		debugName = toString().toStdString();
-
-		return Result::ok();
-	}
-};
 
 class NamespaceHandler;
 
@@ -245,6 +57,7 @@ struct ComplexType : public ReferenceCountedObject
 		AssemblyMemory* asmPtr = nullptr;
 		void* dataPointer = nullptr;
 		InitialiserList::Ptr initValues;
+		bool callConstructor = false;
 	};
 
 	ComplexType()
@@ -300,6 +113,10 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual InitialiserList::Ptr makeDefaultInitialiserList() const = 0;
 
+	Result callConstructor(void* data, InitialiserList::Ptr initList);
+
+	virtual bool hasConstructor();
+
 	virtual void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
 
 	virtual Types::ID getRegisterType(bool allowSmallObjectOptimisation) const 
@@ -327,6 +144,8 @@ struct ComplexType : public ReferenceCountedObject
 	virtual bool isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr complexTargetType) const;
 
 	virtual ComplexType::Ptr createSubType(SubTypeConstructData* ) { return nullptr; }
+
+	
 
 	int hash() const
 	{
@@ -691,7 +510,6 @@ class NamespaceHandler;
 
 struct TemplateParameter
 {
-
 	enum VariadicType
 	{
 		Single,
@@ -840,18 +658,12 @@ struct TemplateParameter
 
 		static bool isNamed(const List& l);
 
+		static bool isSubset(const List& all, const List& possibleSubSet);
+
 		static bool readyToResolve(const List& l);
 
 		static bool isValidTemplateAmount(const List& argList, int numProvided);
 	};
-
-	
-
-	
-
-	
-
-	
 
 	TypeInfo type;
 	int constant;
@@ -861,6 +673,63 @@ struct TemplateParameter
 	NamespacedIdentifier argumentId;
 };
 
+/** This should be used whenever a class instance is being identified instead of a normal NamespacedIdentifier. 
+
+	It provides additional template parameters that have been used to instantiate the actual template object
+	(eg. class template parameters for a templated function). 
+*/
+struct TemplateInstance
+{
+	TemplateInstance(const NamespacedIdentifier& id_, const TemplateParameter::List& tp_) :
+		id(id_),
+		tp(tp_)
+	{
+		jassert(tp.isEmpty() || TemplateParameter::ListOps::isParameter(tp));
+
+#if JUCE_DEBUG
+		String s;
+		s << id.toString() << TemplateParameter::ListOps::toString(tp, false);
+		debugName = s.toStdString();
+#endif
+	}
+
+	bool operator==(const TemplateInstance& other) const
+	{
+		return id == other.id && TemplateParameter::ListOps::match(tp, other.tp);
+	}
+
+	bool isValid() const
+	{
+		return id.isValid();
+	}
+
+	bool isParentOf(const TemplateInstance& other) const
+	{
+		return id.isParentOf(other.id) && TemplateParameter::ListOps::isSubset(other.tp, tp);
+	}
+
+	TemplateInstance getChildIdWithSameTemplateParameters(const Identifier& childId)
+	{
+		auto c = *this;
+		c.id = id.getChildId(childId);
+		return c;
+	}
+
+	String toString() const
+	{
+		String s;
+		s << id.toString();
+		s << TemplateParameter::ListOps::toString(tp, false);
+		return s;
+	}
+
+	NamespacedIdentifier id;
+	TemplateParameter::List tp;
+
+#if JUCE_DEBUG
+	std::string debugName;
+#endif
+};
 
 struct SubTypeConstructData
 {
@@ -1222,6 +1091,8 @@ struct FunctionData
 		return Result::fail("Can't inline");
 	}
 
+	void callVoidDynamic(const Array<VariableStorage>& args) const;
+
 	template <typename... Parameters> void callVoid(Parameters... ps) const
 	{
 		if (function != nullptr)
@@ -1231,7 +1102,6 @@ struct FunctionData
 			else
 				callVoidUnchecked(ps...);
 		}
-			
 	}
 
 	template <typename... Parameters> forcedinline void callVoidUnchecked(Parameters... ps) const
@@ -1369,9 +1239,13 @@ struct TemplateObject
 			return true;
 		}
 
+		ConstructData(const TemplateInstance& id_) :
+			id(id_)
+		{};
+
 		NamespaceHandler* handler;
-		NamespacedIdentifier id;
-		Array<TemplateParameter> tp;
+		TemplateInstance id;
+		TemplateParameter::List tp;
 		juce::Result* r;
 	};
 
@@ -1384,7 +1258,15 @@ struct TemplateObject
 		return id == other.id && argList.size() == other.argList.size();
 	}
 
-	NamespacedIdentifier id;
+	TemplateObject() :
+		id({}, {})
+	{};
+
+	TemplateObject(const TemplateInstance& id_) :
+		id(id_)
+	{};
+
+	TemplateInstance id;
 	ClassConstructor makeClassType;
 	FunctionConstructor makeFunction;
 	FunctionArgumentCollector functionArgs;
@@ -1501,6 +1383,11 @@ struct FunctionClass: public DebugableObjectBase,
 	{
 		auto id = getClassName().getChildId(getSpecialSymbol(getClassName(), s));
 		addMatchingFunctions(possibleMatches, id);
+	}
+
+	static bool isConstructor(const NamespacedIdentifier& id)
+	{
+		return id.isValid() && id.getParent().getIdentifier() == id.getIdentifier();
 	}
 
 	FunctionData getSpecialFunction(SpecialSymbols s, TypeInfo returnType = {}, const TypeInfo::List& args = {}) const;

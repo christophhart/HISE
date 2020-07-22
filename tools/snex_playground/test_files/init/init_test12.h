@@ -6,24 +6,31 @@ BEGIN_TEST_DATA
   input: 12
   output: 12
   error: ""
-  filename: "init/init_test1"
+  filename: "init/init_test12"
 END_TEST_DATA
 */
 
+int counter = 0;
 
 struct X
 {
-	X()
+	struct Y
 	{
-		value = 12;
-	}
-
-	int value = 9;
+		Y()
+		{
+			value = 12;
+		}
+		
+		int value = 0;
+	};
+	
+	Y y;
 };
 
 X obj;
 
 int main(int input)
 {
-	return obj.value;
+	return obj.y.value;
 }
+

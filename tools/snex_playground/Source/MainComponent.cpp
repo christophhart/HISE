@@ -50,7 +50,7 @@ struct JitObjectWithPrototype
 			return r;
 		}
 
-		if (auto type = c.getComplexType(snex::jit::NamespacedIdentifier("instance"), {}))
+		if (auto type = c.getComplexType(snex::NamespacedIdentifier("instance"), {}))
 		{
 			objectSize = type->getRequiredByteSize();
 

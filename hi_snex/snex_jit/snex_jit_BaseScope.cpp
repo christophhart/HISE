@@ -265,17 +265,25 @@ juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, Initiali
 {
 	if (scope == scope->getRootClassScope())
 	{
-		for (const auto& ts : symbolTable)
+		for (auto& ts : symbolTable)
 		{
 			if (ts.s == s)
 			{
-				if (ts.s.typeInfo.isComplexType())
+				if (auto typePtr = ts.s.typeInfo.getTypedIfComplexType<ComplexType>())
 				{
-					ComplexType::InitData d;
-					d.dataPointer = ts.data;
-					d.initValues = initValues;
+					if (!typePtr->hasConstructor())
+					{
+						ComplexType::InitData d;
+						d.dataPointer = ts.data;
+						d.initValues = initValues;
 
-					return ts.s.typeInfo.getComplexType()->initialise(d);
+						return typePtr->initialise(d);
+					}
+					else
+					{
+						ts.initValues = initValues;
+						return Result::ok();
+					}
 				}
 				else
 				{
@@ -303,6 +311,92 @@ juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, Initiali
 	}
 
 	return Result::fail("not found");
+}
+
+juce::Result RootClassData::callRootConstructors()
+{
+	auto r = Result::ok();
+
+	for (const auto& ts : symbolTable)
+	{
+		if (auto typePtr = ts.s.typeInfo.getTypedIfComplexType<ComplexType>())
+		{
+			if (ts.initValues != nullptr)
+			{
+				ts.initValues->forEach([&](InitialiserList::ChildBase* b)
+				{
+					using namespace Operations;
+
+					if (auto ph = dynamic_cast<InitialiserList::MemberPointer*>(b))
+					{
+						if (auto st = dynamic_cast<StructType*>(typePtr))
+						{
+							auto offset = st->getMemberOffset(ph->variableId);
+							auto dataToUse = reinterpret_cast<void*>((uint8*)ts.data + offset);
+							ph->value = VariableStorage(dataToUse, st->getMemberTypeInfo(ph->variableId).getRequiredByteSize());
+						}
+					}
+
+					if (auto e = dynamic_cast<InitialiserList::ExpressionChild*>(b))
+					{
+						Types::ID type;
+						void* data = nullptr;
+						size_t size = 0;
+
+						if (auto ss = as<SymbolStatement>(e->expression))
+						{
+							auto te = getTableEntry(ss->getSymbol());
+							
+							type = te->s.getRegisterType();
+							data = te->data;
+							size = te->s.typeInfo.getRequiredByteSize();
+						}
+						if (auto dot = as<DotOperator>(e->expression))
+						{
+							auto childId = as<SymbolStatement>(dot->getDotChild())->getSymbol();
+							auto parentId = as<SymbolStatement>(dot->getDotParent())->getSymbol();
+
+							auto te = getTableEntry(parentId);
+
+							jassert(te != nullptr);
+
+							if (auto st = parentId.typeInfo.getTypedComplexType<StructType>())
+							{
+								auto mId = childId.id.getIdentifier();
+								type = st->getMemberDataType(mId);
+								data = (void*)((uint8*)te->data + st->getMemberOffset(mId));
+								size = st->getMemberTypeInfo(mId).getRequiredByteSize();
+							}
+						}
+
+						if (data != nullptr)
+						{
+							IF_(int) e->value = *reinterpret_cast<int*>(data);
+							IF_(double) e->value = *reinterpret_cast<double*>(data);
+							IF_(float) e->value = *reinterpret_cast<float*>(data);
+							IF_(void*) e->value = VariableStorage(data, size);
+
+							jassert(!e->value.isVoid());
+						}
+					}
+
+					return false;
+				});
+
+				ComplexType::InitData initData;
+				initData.dataPointer = ts.data;
+				initData.callConstructor = true;
+				initData.initValues = ts.initValues;
+
+				r = typePtr->initialise(initData);
+
+				if (!r.wasOk())
+					break;
+			}
+		}
+	}
+
+	return r;
 }
 
 void* RootClassData::getDataPointer(const NamespacedIdentifier& s) const

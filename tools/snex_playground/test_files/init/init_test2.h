@@ -6,16 +6,22 @@ BEGIN_TEST_DATA
   input: 12
   output: 12
   error: ""
-  filename: "init/init_test1"
+  filename: "init/init_test2"
 END_TEST_DATA
 */
 
 
 struct X
 {
-	X()
+	void init()
 	{
 		value = 12;
+	}
+	
+
+	X()
+	{
+		init();
 	}
 
 	int value = 9;

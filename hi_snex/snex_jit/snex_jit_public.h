@@ -47,6 +47,7 @@ namespace jit
 
 namespace OptimizationIds
 {
+DECLARE_ID(SmallObjectOptimisation);
 DECLARE_ID(ConstantFolding);
 DECLARE_ID(Inlining);
 DECLARE_ID(AutoVectorisation);

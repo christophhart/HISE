@@ -19,22 +19,25 @@ struct ranges
 };
 
 
+
 #define MIN_MAX(minValue, maxValue) static const double min = minValue; static const double max = maxValue;
 
 
 #define RANGE_FUNCTION(id) static double id(double input) { return ranges::id(min, max, input); }
 
-#define DECLARE_PARAMETER_RANGE(name, minValue, maxValue) struct name \
-{ MIN_MAX(minValue, maxValue)  \
+#define DECLARE_PARAMETER_RANGE(name, minValue, maxValue) struct name { MIN_MAX(minValue, maxValue)  \
 RANGE_FUNCTION(to0To1); \
-RANGE_FUNCTION(from0To1) \
- }
+RANGE_FUNCTION(from0To1) \ }
+
+
 
 DECLARE_PARAMETER_RANGE(TestRange, 100.0, 120.0);
 
+
+
 struct Identity
 {
-	statid double to0To1(double input) { return input; }
+	static double to0To1(double input) { return input; }
 };
 
 struct Test 

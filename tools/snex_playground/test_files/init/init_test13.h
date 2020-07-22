@@ -4,26 +4,29 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 12
+  output: 1
   error: ""
-  filename: "init/init_test1"
+  filename: "init/init_test13"
 END_TEST_DATA
 */
 
+int counter = 0;
 
 struct X
 {
 	X()
 	{
-		value = 12;
+		value = 1;
 	}
-
-	int value = 9;
+	
+	int value = 0;
 };
 
-X obj;
 
 int main(int input)
 {
+	X obj, obj2;
+	
 	return obj.value;
 }
+

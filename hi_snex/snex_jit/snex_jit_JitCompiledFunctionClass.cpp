@@ -101,7 +101,7 @@ Array<NamespacedIdentifier> JitCompiledFunctionClass::getFunctionIds() const
 	return pimpl->getRootData()->getFunctionIds();
 }
 
-snex::jit::NamespacedIdentifier JitCompiledFunctionClass::getMainId()
+snex::NamespacedIdentifier JitCompiledFunctionClass::getMainId()
 {
 	return NamespacedIdentifier("instance");
 }

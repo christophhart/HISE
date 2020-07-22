@@ -87,6 +87,7 @@ public:
 		PreCodeGenerationOptimization,
 		RegisterAllocation,
 		CodeGeneration,
+		RootObjectConstruction,
 		numPasses
 	};
 
@@ -183,13 +184,15 @@ public:
 	
 	void optimize(ReferenceCountedObject* statement, BaseScope* scope, bool useExistingPasses=true);
 
-	void addOptimization(OptimizationPassBase* newPass)
+	void addOptimization(OptimizationPassBase* newPass, const String& id = String())
 	{
 		if (newPass != nullptr)
 		{
 			passes.add(newPass);
 			optimisationIds.add(newPass->getName());
 		}
+		else if (id.isNotEmpty())
+			optimisationIds.add(id);
 	}
 
 	StringArray getOptimizations() const;

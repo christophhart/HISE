@@ -37,7 +37,7 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-#define IF_(typeName) if(type == Types::Helpers::getTypeFromTypeId<typeName>())
+
 #define FP_REG_W(x) x->getRegisterForWriteOp().as<X86Xmm>()
 #define FP_REG_R(x) x->getRegisterForReadOp().as<X86Xmm>()
 #define FP_MEM(x) x->getAsMemoryLocation()

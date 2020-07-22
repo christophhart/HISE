@@ -137,6 +137,10 @@ namespace Operations
 		virtual TypeInfo getTypeInfo() const = 0;
 		virtual void process(BaseCompiler* compiler, BaseScope* scope) = 0;
 
+		virtual Ptr clone(Location l) const = 0;
+
+		virtual Identifier getStatementId() const = 0;
+
 		virtual bool hasSideEffect() const 
 		{ 
 			for (auto s : *this)
@@ -161,7 +165,7 @@ namespace Operations
 				newClone->addStatement(s->clone(newClone->location));
 		}
 
-		virtual Ptr clone(Location l) const = 0;
+		
 
 		Ptr getChildStatement(int index) const
 		{
@@ -195,8 +199,6 @@ namespace Operations
 
 			return false;
 		};
-
-		virtual Identifier getStatementId() const = 0;
 
 		virtual ValueTree toValueTree() const
 		{
@@ -449,7 +451,7 @@ namespace Operations
 	struct InlinedParameter;struct ComplexTypeDefinition;	struct ControlFlowStatement;
 	struct InlinedArgument; struct MemoryReference;			struct TemplateDefinition; 
 	struct TemplatedTypeDef; struct TemplatedFunction;		struct ThisPointer;
-	struct WhileLoop;		struct PointerAccess;
+	struct WhileLoop;		struct PointerAccess;			struct AnonymousBlock;
 
 	struct ScopeStatementBase
 	{
@@ -529,6 +531,7 @@ namespace Operations
 		WeakReference<ScopeStatementBase> parentScopeStatement;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScopeStatementBase);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScopeStatementBase);
 	};
 
 	/** Just a empty base class that checks whether the global variables will be loaded
@@ -794,6 +797,8 @@ struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 		return expression->toString(Operations::Statement::TextFormat::CppCode);
 	}
 
+	
+
 	InitialiserList::Ptr createChildList() const override
 	{
 		auto p = new InitialiserList();
@@ -805,6 +810,12 @@ struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 
 	bool getValue(VariableStorage& v) const override
 	{
+		if (!value.isVoid())
+		{
+			v = value;
+			return true;
+		}
+
 		auto cExpression = Operations::evalConstExpr(expression);
 
 		if (cExpression->isConstExpr())
@@ -812,12 +823,13 @@ struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 			v = cExpression->getConstExprValue();
 			return true;
 		}
-
+		
 		jassertfalse;
 		return false;
 	}
 
 	Operations::Expression::Ptr expression;
+	VariableStorage value;
 };
 
 juce::ReferenceCountedObject* InitialiserList::getExpression(int index)

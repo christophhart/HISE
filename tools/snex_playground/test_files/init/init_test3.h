@@ -4,24 +4,24 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 12
+  output: 8
   error: ""
-  filename: "init/init_test1"
+  filename: "init/init_test3"
 END_TEST_DATA
 */
 
 
 struct X
 {
-	X()
+	X(int v)
 	{
-		value = 12;
+		value = v * 2;
 	}
 
 	int value = 9;
 };
 
-X obj;
+X obj = { 4 };
 
 int main(int input)
 {

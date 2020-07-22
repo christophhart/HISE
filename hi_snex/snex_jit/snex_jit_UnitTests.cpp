@@ -1349,11 +1349,22 @@ public:
 
 	void runTest() override
 	{
+		optimizations = OptimizationIds::getAllIds();
+
+		runTestFiles();
+		
+		
+
 		return;
+		runTestFiles("template", true);
+
+		return;
+
+		
 		testInlining();
 
 		optimizations = OptimizationIds::getAllIds();
-		runTestFiles("loop_combine5");
+		
 
 		runTestsWithOptimisation(OptimizationIds::getAllIds());
 

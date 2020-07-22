@@ -139,6 +139,14 @@ juce::String NamespaceHandler::Alias::toString() const
 	return s;
 }
 
+NamespaceHandler::~NamespaceHandler()
+{
+	templateClassIds.clear();
+	templateFunctionIds.clear();
+	jassert(currentTemplateParameters.isEmpty());
+	complexTypes.clear();
+}
+
 snex::jit::ComplexType::Ptr NamespaceHandler::registerComplexTypeOrReturnExisting(ComplexType::Ptr ptr)
 {
 	if (ptr == nullptr)
@@ -255,7 +263,7 @@ void NamespaceHandler::pushNamespace(const Identifier& id)
 	jassert(currentParent->childNamespaces.contains(currentNamespace));
 }
 
-snex::jit::NamespacedIdentifier NamespaceHandler::getRootId() const
+snex::NamespacedIdentifier NamespaceHandler::getRootId() const
 {
 	return getRoot()->id;
 }
@@ -278,7 +286,7 @@ juce::Result NamespaceHandler::popNamespace()
 	return Result::ok();
 }
 
-snex::jit::NamespacedIdentifier NamespaceHandler::getCurrentNamespaceIdentifier() const
+snex::NamespacedIdentifier NamespaceHandler::getCurrentNamespaceIdentifier() const
 {
 	if (currentNamespace == nullptr)
 		return {};
@@ -525,7 +533,7 @@ bool NamespaceHandler::isConstantSymbol(SymbolType t)
 	return t == TemplateConstant || t == PreprocessorConstant || t == Constant || t == EnumValue;
 }
 
-bool NamespaceHandler::isTemplateTypeArgument(NamespacedIdentifier classId) const
+bool NamespaceHandler::isTemplateTypeArgument(NamespacedIdentifier& classId) const
 {
 	resolve(classId);
 
@@ -541,7 +549,7 @@ bool NamespaceHandler::isTemplateTypeArgument(NamespacedIdentifier classId) cons
 	return false;
 }
 
-bool NamespaceHandler::isTemplateConstantArgument(NamespacedIdentifier classId) const
+bool NamespaceHandler::isTemplateConstantArgument(NamespacedIdentifier& classId) const
 {
 	resolve(classId);
 
@@ -557,9 +565,9 @@ bool NamespaceHandler::isTemplateConstantArgument(NamespacedIdentifier classId) 
 	return false;
 }
 
-bool NamespaceHandler::isTemplateFunction(NamespacedIdentifier functionId) const
+bool NamespaceHandler::isTemplateFunction(TemplateInstance& functionId) const
 {
-	resolve(functionId, true);
+	resolve(functionId.id, true);
 
 	for (auto& t : templateFunctionIds)
 	{
@@ -570,9 +578,9 @@ bool NamespaceHandler::isTemplateFunction(NamespacedIdentifier functionId) const
 	return false;
 }
 
-bool NamespaceHandler::isTemplateClass(NamespacedIdentifier& classId) const
+bool NamespaceHandler::isTemplateClass(TemplateInstance& classId) const
 {
-	resolve(classId, true);
+	resolve(classId.id, true);
 
 	for (auto& t : templateClassIds)
 	{
@@ -583,9 +591,25 @@ bool NamespaceHandler::isTemplateClass(NamespacedIdentifier& classId) const
 	return false;
 }
 
-snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
+bool NamespaceHandler::isTemplateClassId(NamespacedIdentifier& classId) const
 {
-	NamespacedIdentifier copy(id);
+	resolve(classId, true);
+
+	for (auto& t : templateClassIds)
+	{
+		if (t.id.id == classId)
+			return true;
+	}
+
+	return false;
+}
+
+snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const TemplateInstance& id, const Array<TemplateParameter>& tp, juce::Result& r)
+{
+	// This is only used for template functions (for now???)
+	jassert(id.tp.isEmpty());
+
+	auto copy = TemplateInstance(id);
 
 	jassert(isTemplateClass(copy));
 
@@ -604,10 +628,9 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 	{
 		if (c.id == id)
 		{
-			TemplateObject::ConstructData d;
+			TemplateObject::ConstructData d(id);
 			d.handler = this;
 			d.tp = tp;
-			d.id = c.id;
 			d.r = &r;
 			
 			ComplexType::Ptr ptr;
@@ -643,14 +666,14 @@ snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const 
 	return nullptr;
 }
 
-void NamespaceHandler::createTemplateFunction(const NamespacedIdentifier& id, const Array<TemplateParameter>& tp, juce::Result& r)
+void NamespaceHandler::createTemplateFunction(const TemplateInstance& id, const Array<TemplateParameter>& tp, juce::Result& r)
 {
 	for (const auto& f : templateFunctionIds)
 	{
-		if (f.id == id && TemplateParameter::ListOps::isValidTemplateAmount(f.argList, tp.size()))
+		if (f.id == id && 
+			TemplateParameter::ListOps::isValidTemplateAmount(f.argList, tp.size()))
 		{
-			TemplateObject::ConstructData d;
-			d.id = id;
+			TemplateObject::ConstructData d(id);
 			d.r = &r;
 			d.handler = this;
 			d.tp = tp;
@@ -787,15 +810,15 @@ void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 	if (currentNamespace == nullptr)
 		pushNamespace(Identifier());
 
-	if (auto p = get(s.id.getParent()))
+	if (auto p = get(s.id.id.getParent()))
 	{
 		Alias a;
-		a.id = s.id;
+		a.id = s.id.id;
 		a.symbolType = TemplatedClass;
 		a.visibility = currentVisibility;
 		a.internalSymbol = internalSymbolMode;
 
-		p->aliases.add(a);
+		p->aliases.addIfNotAlreadyThere(a);
 	}
 
 
@@ -812,36 +835,38 @@ void NamespaceHandler::addTemplateFunction(const TemplateObject& f)
 	if (currentNamespace == nullptr)
 		pushNamespace(Identifier());
 
-	if (auto p = get(f.id.getParent()))
+	if (auto p = get(f.id.id.getParent()))
 	{
 		Alias a;
-		a.id = f.id;
+		a.id = f.id.id;
 		a.internalSymbol = internalSymbolMode;
 		a.symbolType = TemplatedFunction;
-		p->aliases.add(a);
+		p->aliases.addIfNotAlreadyThere(a);
 	}
 
 	templateFunctionIds.addIfNotAlreadyThere(f);
 }
 
-TemplateObject NamespaceHandler::getTemplateObject(const NamespacedIdentifier& id, int numArgs) const
+TemplateObject NamespaceHandler::getTemplateObject(const TemplateInstance& id, int numArgs) const
 {
 	for (const auto& c : templateClassIds)
 	{
-		if (c.id == id && TemplateParameter::ListOps::isValidTemplateAmount(c.argList, numArgs))
+		if (c.id == id &&
+			TemplateParameter::ListOps::isValidTemplateAmount(c.argList, numArgs))
 			return c;
 	}
 
 	for (const auto& f : templateFunctionIds)
 	{
-		if (f.id == id && TemplateParameter::ListOps::isValidTemplateAmount(f.argList, numArgs))
+		if (f.id == id && 
+			TemplateParameter::ListOps::isValidTemplateAmount(f.argList, numArgs))
 			return f;
 	}
 
-	return {};
+	return TemplateObject(TemplateInstance({}, {}));
 }
 
-juce::Array<snex::jit::TemplateObject> NamespaceHandler::getAllTemplateObjectsWith(const NamespacedIdentifier& id) const
+juce::Array<snex::jit::TemplateObject> NamespaceHandler::getAllTemplateObjectsWith(const TemplateInstance& id) const
 {
 	Array<TemplateObject> matches;
 
@@ -889,7 +914,7 @@ juce::Result NamespaceHandler::checkVisiblity(const NamespacedIdentifier& id) co
 	return Result::ok();
 }
 
-snex::jit::NamespacedIdentifier NamespaceHandler::createNonExistentIdForLocation(const NamespacedIdentifier& customParent, int lineNumber) const
+snex::NamespacedIdentifier NamespaceHandler::createNonExistentIdForLocation(const NamespacedIdentifier& customParent, int lineNumber) const
 {
 	auto currentNamespace = customParent.isValid() ? customParent : getCurrentNamespaceIdentifier();
 	auto id = Identifier("AnonymousScopeLine" + juce::String(lineNumber));
@@ -902,6 +927,16 @@ snex::jit::NamespacedIdentifier NamespaceHandler::createNonExistentIdForLocation
 	}
 
 	return newId;
+}
+
+snex::jit::TemplateParameter::List NamespaceHandler::getCurrentTemplateParameters() const
+{
+	TemplateParameter::List tp;
+
+	for (const auto& ctp : currentTemplateParameters)
+		tp.addArray(ctp);
+
+	return tp;
 }
 
 void NamespaceHandler::setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e)

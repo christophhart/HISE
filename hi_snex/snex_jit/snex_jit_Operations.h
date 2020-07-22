@@ -1195,10 +1195,7 @@ struct Operations::FunctionCall : public Expression
 
 	bool shouldInlineFunctionCall(BaseCompiler* compiler, BaseScope* scope) const;
 
-	static bool canBeAliasParameter(Ptr e)
-	{
-		return dynamic_cast<SymbolStatement*>(e.get()) != nullptr;
-	}
+	static bool canBeAliasParameter(Ptr e);
 
 	void inlineFunctionCall(AsmCodeGenerator& acg);
 
@@ -1603,7 +1600,7 @@ struct Operations::TemplateDefinition : public Statement,
 {
 	SET_EXPRESSION_ID(TemplateDefinition);
 
-	TemplateDefinition(Location l, const NamespacedIdentifier& classId, NamespaceHandler& handler_, Statement::Ptr statements_) :
+	TemplateDefinition(Location l, const TemplateInstance& classId, NamespaceHandler& handler_, Statement::Ptr statements_) :
 		Statement(l),
 		templateClassId(classId),
 		statements(statements_),
@@ -1657,7 +1654,6 @@ struct Operations::TemplateDefinition : public Statement,
 
 	TemplateParameter::List getTemplateArguments() const
 	{
-		
 		return handler.getTemplateObject(templateClassId).argList;
 	}
 
@@ -1677,56 +1673,14 @@ struct Operations::TemplateDefinition : public Statement,
 		return {};
 	}
 
-	ComplexType::Ptr createTemplate(const TemplateObject::ConstructData& d)
-	{
-		auto instanceParameters = TemplateParameter::ListOps::merge(getTemplateArguments(), d.tp, *d.r);
+	/** This will be called by the parser to create a new object.
+	
+		It will add a ClassStatement as child statement and return the created 
+		ComplexType. 
+	*/
+	ComplexType::Ptr createTemplate(const TemplateObject::ConstructData& d);
 
-		for (auto es : *this)
-		{
-			if (auto ecs = as<ClassStatement>(es))
-			{
-				auto tp = ecs->getStructType()->getTemplateInstanceParameters();
-
-				if (TemplateParameter::ListOps::match(instanceParameters, tp))
-				{
-					return ecs->getStructType();
-				}
-			}
-		}
-
-		for (auto c : clones)
-		{
-			auto p = as<TemplateDefinition>(c)->createTemplate(d);
-		}
-
-		if (d.r->failed())
-			throwError(d.r->getErrorMessage());
-
-		ComplexType::Ptr p = new StructType(templateClassId, instanceParameters);
-
-		p = handler.registerComplexTypeOrReturnExisting(p);
-
-		Ptr cb = new SyntaxTree(location, as<ScopeStatementBase>(statements)->getPath());
-
-		statements->cloneChildren(cb);
-
-		auto c = new ClassStatement(location, p, cb);
-
-		addStatement(c);
-
-		if (currentCompiler != nullptr)
-		{
-			TemplateParameterResolver resolver(instanceParameters);
-			resolver.process(c);
-
-			c->currentCompiler = currentCompiler;
-			c->processAllPassesUpTo(currentPass, currentScope);
-		}
-
-		return d.handler->registerComplexTypeOrReturnExisting(p);
-	}
-
-	NamespacedIdentifier templateClassId;
+	TemplateInstance templateClassId;
 	NamespaceHandler& handler;
 
 	Statement::Ptr statements;
@@ -1760,7 +1714,6 @@ struct Operations::Function : public Statement,
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		jassert(functionScope == nullptr);
-		jassert(functionClass == nullptr);
 		jassert(statements == nullptr);
 		jassert(objectPtr == nullptr);
 		
@@ -1803,7 +1756,7 @@ struct Operations::Function : public Statement,
 
 	
 
-	FunctionClass::Ptr functionClass;
+	//FunctionClass::Ptr functionClass;
 
 	ScopedPointer<FunctionScope> functionScope;
 	
@@ -1811,6 +1764,9 @@ struct Operations::Function : public Statement,
 	RegPtr objectPtr;
 	bool hasObjectPtr;
 	FunctionData* classData = nullptr;
+
+	// member functions will not be owned by the StructType
+	ScopedPointer<FunctionData> ownedMemberFunction;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Function);
 };
@@ -1837,79 +1793,7 @@ struct Operations::TemplatedFunction : public Statement,
 		}
 	}
 
-	void createFunction(const TemplateObject::ConstructData& d)
-	{
-		Result r = Result::ok();
-		auto instanceParameters = TemplateParameter::ListOps::merge(templateParameters, d.tp, r);
-		location.test(r);
-
-		//DBG("Creating template function " + d.id.toString() + TemplateParameter::ListOps::toString(templateParameters));
-		
-		if (currentCompiler != nullptr)
-		{
-			auto currentParameters = currentCompiler->namespaceHandler.getCurrentTemplateParameters();
-			location.test(TemplateParameter::ListOps::expandIfVariadicParameters(instanceParameters, currentParameters));
-			instanceParameters = TemplateParameter::ListOps::merge(templateParameters, instanceParameters, *d.r);
-			//DBG("Resolved template parameters: " + TemplateParameter::ListOps::toString(instanceParameters));
-
-			if (instanceParameters.size() < templateParameters.size())
-			{
-				// Shouldn't happen, the parseCall() method should have resolved the template parameters 
-				// to another function already...
-				jassertfalse;
-			}
-		}
-
-		TemplateParameterResolver resolve(collectParametersFromParentClass(this, instanceParameters));
-
-		for (auto e : *this)
-		{
-			if (auto ef = as<Function>(e))
-			{
-				auto fParameters = ef->data.templateParameters;
-
-				if (TemplateParameter::ListOps::match(fParameters, instanceParameters))
-					return;// ef->data;
-			}
-		}
-
-		for (auto c : clones)
-			as<TemplatedFunction>(c)->createFunction(d);
-		
-		FunctionData fData = data;
-
-		resolve.resolveIds(fData);
-
-		fData.templateParameters = instanceParameters;
-
-		auto newF = new Function(location, {});
-		newF->code = code;
-		newF->codeLength = codeLength;
-		newF->data = fData;
-		newF->parameters = parameters;
-		
-		addStatement(newF);
-
-		auto isInClass = findParentStatementOfType<ClassStatement>(this) != nullptr;
-		
-		auto ok = resolve.process(newF);
-
-		if (isInClass)
-		{
-			
-			location.test(ok);
-		}
-		
-
-		if (currentCompiler != nullptr)
-		{
-			NamespaceHandler::ScopedTemplateParameterSetter stps(currentCompiler->namespaceHandler, instanceParameters);
-			newF->currentCompiler = currentCompiler;
-			newF->processAllPassesUpTo(currentPass, currentScope);
-		}
-		
-		return;// fData;
-	}
+	void createFunction(const TemplateObject::ConstructData& d);
 
 	Ptr clone(Location l) const override
 	{
@@ -1917,6 +1801,7 @@ struct Operations::TemplatedFunction : public Statement,
 		as<TemplatedFunction>(f)->parameters = parameters;
 		as<TemplatedFunction>(f)->code = code;
 		as<TemplatedFunction>(f)->codeLength = codeLength;
+		as<TemplatedFunction>(f)->data.args.addArray(data.args);
 		
 		cloneChildren(f);
 
@@ -2991,7 +2876,35 @@ struct Operations::IfStatement : public Statement,
 };
 
 
+struct Operations::AnonymousBlock : public Expression
+{
+	AnonymousBlock(Location l) :
+		Expression(l)
+	{};
 
+	TypeInfo getTypeInfo() const override
+	{
+		return getSubExpr(0)->getTypeInfo();
+	}
+
+	virtual void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		processBaseWithChildren(compiler, scope);
+	}
+
+	virtual Ptr clone(Location l) const override
+	{
+		auto ab = new AnonymousBlock(l);
+
+		for (auto e : *this)
+		{
+			ab->addStatement(e->clone(l));
+		}
+		return ab;
+	}
+
+	Identifier getStatementId() const override { return "AnonymousBlock"; }
+};
 
 
 struct Operations::Subscript : public Expression,

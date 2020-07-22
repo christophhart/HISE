@@ -38,11 +38,17 @@ using namespace juce;
 using namespace asmjit;
 
 
-TypeInfo BlockParser::getDotParentType(ExprPtr e)
+TypeInfo BlockParser::getDotParentType(ExprPtr e, bool allowFunctionCallObjectExpression)
 {
 	if (auto dp = dynamic_cast<Operations::DotOperator*>(e.get()))
-	{
 		return dp->getDotParent()->getTypeInfo();
+	if (auto fc = dynamic_cast<Operations::FunctionCall*>(e.get()))
+	{
+		if (!allowFunctionCallObjectExpression)
+			return {};
+
+		if (auto e = fc->getObjectExpression())
+			return e->getTypeInfo();
 	}
 
 	return {};
@@ -605,6 +611,8 @@ BlockParser::ExprPtr BlockParser::parseSubscript(ExprPtr p)
 	return found ? parseDotOperator(p) : parseCall(p);
 }
 
+
+
 BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 {
 	using namespace Operations;
@@ -619,14 +627,9 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 	
 	if (currentType == JitTokens::lessThan)
 	{
-		auto tId = fSymbol.id;
+		auto tId = getTemplateInstanceFromParent(p, fSymbol.id);
 
-		if (auto ct = getDotParentType(p).getTypedIfComplexType<ComplexType>())
-		{
-			FunctionClass::Ptr vfc = ct->getFunctionClass();
-
-			tId = vfc->getClassName().getChildId(fSymbol.getName());
-		}
+		NamespaceHandler::ScopedTemplateParameterSetter psp(compiler->namespaceHandler, tId.tp);
 
 		if (compiler->namespaceHandler.isTemplateFunction(tId))
 		{
@@ -654,10 +657,8 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 	// Template type deduction...
 	bool resolveAfterArgumentParsing = false;
 
-	if (auto ct = getDotParentType(p).getTypedIfComplexType<ComplexType>())
+	if (auto ct = getDotParentType(p, false).getTypedIfComplexType<ComplexType>())
 	{
-		
-
 		if (auto tc = dynamic_cast<TemplatedComplexType*>(ct))
 		{
 			auto ctp = compiler->namespaceHandler.getCurrentTemplateParameters();
@@ -687,8 +688,6 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 		}
 
 		FunctionClass::Ptr vfc = ct->getFunctionClass();
-
-		
 
 		auto mId = vfc->getClassName().getChildId(fSymbol.getName());
 
@@ -740,7 +739,8 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 			if (il->returnTypeFunction)
 			{
 				ReturnTypeInlineData rt(f);
-				rt.object = dynamic_cast<Operations::DotOperator*>(p.get())->getDotParent();
+
+				rt.object = p->getSubExpr(0); // can be either dot parent or object expression of function call
 				rt.object->currentCompiler = compiler;
 				rt.templateParameters = templateParameters;
 
@@ -825,10 +825,9 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 		match(JitTokens::closeParen);		
 	}
 
-
 	if (auto f = as<FunctionCall>(p))
 	{
-		auto fId = f->function.id;
+		auto fId = getTemplateInstanceFromParent(f, f->function.id);
 
 		if (compiler->namespaceHandler.isTemplateFunction(fId))
 		{
@@ -879,7 +878,7 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 
 					f->function.templateParameters = templateParameters;
 
-					compiler->namespaceHandler.createTemplateFunction(fSymbol.id, templateParameters, r);
+					compiler->namespaceHandler.createTemplateFunction(fId, templateParameters, r);
 					location.test(r);
 				}
 			}
@@ -920,6 +919,15 @@ BlockParser::ExprPtr BlockParser::parseReference(bool mustBeResolvedAtCompileTim
 	{
 		currentTypeInfo = {};
 		currentSymbol = Symbol(parseIdentifier());
+	}
+
+	for (const auto& tp : compiler->namespaceHandler.getCurrentTemplateParameters())
+	{
+		if (tp.argumentId == currentSymbol.id)
+		{
+			jassert(tp.constantDefined);
+			return new Operations::Immediate(location, VariableStorage(tp.constant));
+		}
 	}
 
 	return new Operations::VariableReference(location, getCurrentSymbol());

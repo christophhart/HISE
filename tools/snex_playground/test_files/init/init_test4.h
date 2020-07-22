@@ -4,24 +4,30 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 12
+  output: 180
   error: ""
-  filename: "init/init_test1"
+  filename: "init/init_test4"
 END_TEST_DATA
 */
+
+struct Y
+{
+	int yValue = 90;
+};
 
 
 struct X
 {
-	X()
+	X(Y& o)
 	{
-		value = 12;
+		value = o.yValue * 2;
 	}
 
 	int value = 9;
 };
 
-X obj;
+Y yObj;
+X obj = { yObj };
 
 int main(int input)
 {

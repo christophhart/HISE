@@ -24,6 +24,8 @@ constexpr const auto& getWrappedObject() const { return x; }
 /** Use this macro in order to create the getObject() / getWrappedObject() methods that return the object itself. */
 #define GET_SELF_AS_OBJECT() GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this);
 
+#define IF_(typeName) if(type == Types::Helpers::getTypeFromTypeId<typeName>())
+
 namespace Types
 {
 
@@ -125,6 +127,196 @@ struct Helpers
 
 }
 
+
+struct NamespacedIdentifier
+{
+	explicit NamespacedIdentifier(const Identifier& id)
+	{
+		add(id);
+	}
+
+	static NamespacedIdentifier fromString(const juce::String& s)
+	{
+		auto sa = StringArray::fromTokens(s, "::", "");
+
+		sa.removeEmptyStrings();
+
+		NamespacedIdentifier c;
+		for (auto s : sa)
+			c.add(Identifier(s));
+
+		return c;
+	}
+
+	static NamespacedIdentifier null()
+	{
+		static const NamespacedIdentifier n("null");
+		return n;
+	}
+
+	bool isNull() const
+	{
+		return null() == *this;
+	}
+
+	NamespacedIdentifier()
+	{}
+
+	Array<Identifier> getIdList() const
+	{
+		Array<Identifier> l;
+		l.addArray(namespaces);
+		l.add(id);
+		return l;
+	}
+
+	std::string debugName;
+	Array<Identifier> namespaces;
+	Identifier id;
+
+	bool isValid() const
+	{
+		return id.isValid();
+	}
+
+	bool isInGlobalNamespace() const
+	{
+		return namespaces.isEmpty();
+	}
+
+	bool isExplicit() const
+	{
+		return isInGlobalNamespace();
+	}
+
+	Identifier getIdentifier() const
+	{
+		return id;
+	}
+
+	bool isParentOf(const NamespacedIdentifier& other) const
+	{
+		auto otherName = other.toString();
+		auto thisName = toString();
+		return otherName.startsWith(thisName);
+	}
+
+	void relocateSelf(const NamespacedIdentifier& oldParent, const NamespacedIdentifier& newParent)
+	{
+		jassert(oldParent.isParentOf(*this));
+
+		NamespacedIdentifier s(newParent);
+
+		auto opl = oldParent.getIdList();
+		auto ids = getIdList();
+
+		for (int i = 0; i < ids.size(); i++)
+		{
+			if (opl[i] != ids[i])
+			{
+				s = s.getChildId(ids[i]);
+			}
+		}
+
+		jassert(newParent.isParentOf(s));
+
+		debugName = s.debugName;
+		namespaces = s.namespaces;
+		id = s.id;
+	}
+
+	NamespacedIdentifier relocate(const NamespacedIdentifier& oldParent, const NamespacedIdentifier& newParent) const
+	{
+		NamespacedIdentifier s(*this);
+
+		s.relocateSelf(oldParent, newParent);
+		return s;
+	}
+
+	NamespacedIdentifier getChildId(const Identifier& id) const
+	{
+		auto c = *this;
+		c.add(id);
+		return c;
+	}
+
+	NamespacedIdentifier getParent() const
+	{
+		if (namespaces.isEmpty())
+			return {};
+
+		auto c = *this;
+		c.pop();
+		return c;
+	}
+
+	bool operator !=(const NamespacedIdentifier& other) const
+	{
+		return !(*this == other);
+	}
+
+	bool operator==(const NamespacedIdentifier& other) const
+	{
+		if (id != other.id)
+			return false;
+
+		if (namespaces.size() == other.namespaces.size())
+		{
+			for (int i = 0; i < namespaces.size(); i++)
+			{
+				if (namespaces[i] != other.namespaces[i])
+					return false;
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	NamespacedIdentifier withId(const Identifier& id) const
+	{
+		auto c = *this;
+		c.add(id);
+		return c;
+	}
+
+	juce::String toString() const
+	{
+		juce::String s;
+
+		for (auto n : namespaces)
+			s << n << "::";
+
+		s << id;
+
+		return s;
+	}
+
+	void add(const Identifier& newId)
+	{
+		if (id.isValid())
+			namespaces.add(id);
+
+		id = newId;
+
+		debugName = toString().toStdString();
+	}
+
+	Result pop()
+	{
+		if (id.isNull())
+			return Result::fail("Can't pop namespace");
+
+		id = namespaces.getLast();
+		namespaces.removeLast();
+
+		debugName = toString().toStdString();
+
+		return Result::ok();
+	}
+};
+
 struct InitialiserList : public ReferenceCountedObject
 {
 	using Ptr = ReferenceCountedObjectPtr<InitialiserList>;
@@ -146,8 +338,6 @@ struct InitialiserList : public ReferenceCountedObject
 
 		virtual juce::String toString() const = 0;
 	};
-
-	
 
 	juce::String toString() const
 	{
@@ -198,6 +388,27 @@ struct InitialiserList : public ReferenceCountedObject
 			return Result::fail("Can't find item at index " + juce::String(index));
 	}
 
+	Array<VariableStorage> toFlatConstructorList() const
+	{
+		Array<VariableStorage> list;
+
+		for (auto c : root)
+		{
+			VariableStorage v;
+			
+			if (c->getValue(v))
+			{
+				list.add(v);
+			}
+			else
+			{
+				jassertfalse;
+			}
+		}
+
+		return list;
+	}
+
 	Ptr createChildList(int index)
 	{
 		if (auto child = root[index])
@@ -238,6 +449,34 @@ struct InitialiserList : public ReferenceCountedObject
 
 	struct ExpressionChild;
 
+	struct MemberPointer : public ChildBase
+	{
+		MemberPointer(const Identifier& id) :
+			variableId(id)
+		{};
+
+		juce::String toString() const override
+		{
+			return variableId.toString();
+		}
+
+		bool getValue(VariableStorage& v) const override
+		{
+			v = value;
+			return !v.isVoid();
+		}
+
+		InitialiserList::Ptr createChildList() const override
+		{
+			InitialiserList::Ptr n = new InitialiserList();
+			n->addChild(new MemberPointer(variableId));
+			return n;
+		}
+
+		Identifier variableId;
+		VariableStorage value;
+	};
+
 private:
 
 	struct ImmediateChild : public ChildBase
@@ -252,7 +491,7 @@ private:
 			return true;
 		}
 
-		virtual InitialiserList::Ptr createChildList() const override
+		InitialiserList::Ptr createChildList() const override
 		{
 			InitialiserList::Ptr n = new InitialiserList();
 			n->addImmediateValue(v);
@@ -266,8 +505,6 @@ private:
 
 		VariableStorage v;
 	};
-
-	
 
 	struct ListChild : public ChildBase
 	{

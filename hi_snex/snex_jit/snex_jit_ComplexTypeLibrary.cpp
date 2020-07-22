@@ -45,6 +45,10 @@ SpanType::SpanType(const TypeInfo& t, int size_) :
 }
 
 
+SpanType::~SpanType()
+{
+}
+
 bool SpanType::isSimdType(const TypeInfo& t)
 {
 	if (auto st = t.getTypedIfComplexType<SpanType>())
@@ -365,6 +369,7 @@ juce::Result SpanType::initialise(InitData d)
 			}
 				
 			c.initValues = d.initValues->createChildList(indexToUse);
+			c.callConstructor = d.callConstructor;
 
 			auto ok = elementType.getComplexType()->initialise(c);
 
@@ -962,6 +967,10 @@ StructType::StructType(const NamespacedIdentifier& s, const Array<TemplateParame
 	}
 }
 
+StructType::~StructType()
+{
+}
+
 size_t StructType::getRequiredByteSize() const
 {
 	size_t s = 0;
@@ -1041,6 +1050,7 @@ juce::Result StructType::initialise(InitData d)
 			{
 				InitData c;
 				c.initValues = d.initValues->createChildList(index);
+				c.callConstructor = d.callConstructor;
 
 				AssemblyMemory cm;
 
@@ -1057,7 +1067,7 @@ juce::Result StructType::initialise(InitData d)
 				if (!ok.wasOk())
 					return ok;
 			}
-			else
+			else if(!d.callConstructor) // don't write native members when there's a constructor...
 			{
 				if (d.asmPtr == nullptr)
 				{
@@ -1082,6 +1092,11 @@ juce::Result StructType::initialise(InitData d)
 		}
 
 		index++;
+	}
+
+	if (d.callConstructor)
+	{
+		return callConstructor(d.dataPointer, d.initValues);
 	}
 
 	return Result::ok();
@@ -1227,8 +1242,6 @@ bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defa
 
 snex::jit::ComplexType::Ptr StructType::createSubType(SubTypeConstructData* sd)
 {
-	
-
 	auto cId = sd->id;
 
 	if (cId.isExplicit())
@@ -1249,7 +1262,7 @@ snex::jit::ComplexType::Ptr StructType::createSubType(SubTypeConstructData* sd)
 		{
 			TemplateParameter::List l = getTemplateInstanceParameters();
 			l.addArray(sd->l);
-			return sd->handler->createTemplateInstantiation(cId, l, sd->r);
+			return sd->handler->createTemplateInstantiation({ cId, {} }, l, sd->r);
 		}
 	}
 
@@ -1298,6 +1311,23 @@ size_t StructType::getRequiredAlignment(Member* m)
 return m->typeInfo.getRequiredAlignment();
 }
 
+bool StructType::hasConstructor()
+{
+	if (ComplexType::hasConstructor())
+		return true;
+
+	for (auto m : memberData)
+	{
+		if (auto t = m->typeInfo.getTypedIfComplexType<ComplexType>())
+		{
+			if (t->hasConstructor())
+				return true;
+		}
+	}
+
+	return false;
+}
+
 void StructType::finaliseAlignment()
 {
 	if (isFinalised())
@@ -1318,6 +1348,87 @@ void StructType::finaliseAlignment()
 			m->padding = offset % alignment;
 
 		offset += m->padding + m->typeInfo.getRequiredByteSize();
+	}
+
+	
+	if (hasConstructor() && !ComplexType::hasConstructor())
+	{
+		// One of the members has a constructor, so we need to create an 
+		// artificial one for this struct.
+
+		FunctionClass::Ptr fc = getFunctionClass();
+
+		FunctionData f;
+		f.id = fc->getClassName().getChildId(FunctionClass::getSpecialSymbol(fc->getClassName(), FunctionClass::Constructor));
+		f.returnType = TypeInfo(Types::ID::Void);
+		
+		struct SubConstructorData
+		{
+			WeakReference<ComplexType> childType;
+			size_t offset;
+		};
+
+		Array<SubConstructorData> subConstructors;
+
+		for (auto m : memberData)
+		{
+			if (auto ct = m->typeInfo.getTypedIfComplexType<ComplexType>())
+			{
+				if (ct->hasConstructor())
+				{
+					FunctionClass::Ptr sfc = ct->getFunctionClass();
+
+					SubConstructorData sd;
+
+					sd.childType = m->typeInfo.getComplexType().get();
+					sd.offset = m->offset;
+
+					subConstructors.add(std::move(sd));
+				}
+			}
+		}
+		
+		f.inliner = Inliner::createHighLevelInliner(f.id, [subConstructors](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+
+			using namespace Operations;
+
+			auto ab = new AnonymousBlock(d->location);
+
+			for (auto sc : subConstructors)
+			{
+				auto parent = d->object->clone(d->location);
+
+				FunctionClass::Ptr sfc = sc.childType->getFunctionClass();
+
+				auto f = sfc->getSpecialFunction(FunctionClass::Constructor);
+
+				auto call = new FunctionCall(d->location, nullptr, Symbol(f.id, TypeInfo(Types::ID::Void)), f.templateParameters);
+				call->setObjectExpression(new MemoryReference(d->location, parent, TypeInfo(sc.childType.get()), sc.offset));
+
+				if (f.canBeInlined(true))
+				{
+					SyntaxTreeInlineData sd(call, {});
+					sd.object = call->getObjectExpression();
+					sd.templateParameters = f.templateParameters;
+					
+					auto r = f.inlineFunction(&sd);
+					d->location.test(r);
+					ab->addStatement(sd.target);
+				}
+				else
+				{
+					ab->addStatement(call);
+				}
+			}
+
+			d->target = ab;
+
+			return Result::ok();
+		});
+
+		addJitCompiledMemberFunction(f);
 	}
 
 	auto alignment = getRequiredAlignment();
@@ -1342,7 +1453,7 @@ snex::Types::ID StructType::getMemberDataType(const Identifier& id) const
 	for (auto m : memberData)
 	{
 		if (m->id == id)
-			m->typeInfo.getType();
+			return m->typeInfo.getType();
 	}
 
 	jassertfalse;
@@ -1438,6 +1549,11 @@ snex::jit::Symbol StructType::getMemberSymbol(const Identifier& mId) const
 	return {};
 }
 
+TemplateInstance StructType::getTemplateInstanceId() const
+{
+	return TemplateInstance(id, templateParameters);
+}
+
 bool StructType::injectMemberFunctionPointer(const FunctionData& f, void* fPointer)
 {
 	for (auto& m : memberFunctions)
@@ -1500,7 +1616,10 @@ IndexBase::IndexBase(const TypeInfo& parentType_) :
 	ComplexType(),
 	parentType(parentType_.getComplexType())
 {
+}
 
+IndexBase::~IndexBase()
+{
 }
 
 snex::jit::Inliner::Func IndexBase::getAsmFunction(FunctionClass::SpecialSymbols s)

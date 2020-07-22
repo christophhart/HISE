@@ -61,23 +61,10 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		classData = new FunctionData(data);
 
 		if (scope->getRootClassScope() == scope)
-		{
-			functionClass = scope->getRootData();
-		}
-		else if (auto cs = dynamic_cast<ClassScope*>(scope))
-		{
-			jassert(cs->typePtr != nullptr);
-
-			functionClass = cs->typePtr->getFunctionClass();
-
-			jassert(functionClass != nullptr);
-		}
+			scope->getRootData()->addFunction(classData);
 		else
-			location.throwError("Can't define function at this location");
-
-
-		functionClass->addFunction(classData);
-
+			ownedMemberFunction = classData;
+		
 		try
 		{
 			FunctionParser p(compiler, *this);
@@ -137,7 +124,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			compiler->setCurrentPass(BaseCompiler::FunctionParsing);
 
-			Statement::Ptr statementCopy = statements;
+			WeakReference<Statement> statementCopy = statements;
 
 			classData->templateParameters = data.templateParameters;
 
@@ -149,6 +136,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			{
 				classData->inliner = Inliner::createHighLevelInliner(data.id, [statementCopy, classDataCopy](InlineData* b)
 				{
+					jassert(statementCopy.get() != nullptr);
 					auto d = b->toSyntaxTreeData();
 
 					auto fc = dynamic_cast<Operations::FunctionCall*>(d->expression.get());
@@ -289,11 +277,27 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
         jassert(data.function != nullptr);
         
+		if (scope->getRootClassScope() == scope)
+		{
+			auto ok = scope->getRootData()->injectFunctionPointer(data);
+			jassert(ok);
+		}
+		else
+		{
+			if (auto cs = findParentStatementOfType<ClassStatement>(this))
+			{
+				dynamic_cast<StructType*>(cs->classType.get())->injectMemberFunctionPointer(data, data.function);
+			}
+			else
+			{
+				// Should have been catched by the other branch...
+				jassertfalse;
+			}
+		}
+		
+		
 
-		bool success = functionClass->injectFunctionPointer(data);
-
-		ignoreUnused(success);
-		jassert(success);
+		
 
 		auto& as = dynamic_cast<ClassCompiler*>(compiler)->assembly;
 
@@ -321,13 +325,16 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		jassert(scope->getScopeType() == BaseScope::Class);
 
+#if 0
 		if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
 		{
 			if (!st->injectMemberFunctionPointer(data, data.function))
 				location.throwError("Can't inject function pointer to member function");
 		}
+#endif
 
 		compiler->setCurrentPass(BaseCompiler::FunctionCompilation);
+		
 	}
 }
 
@@ -1458,7 +1465,18 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 					return;
 				}
 				else
-					throwError("Can't find function pointer to JIT function " + function.functionName);
+				{
+					if (function.templateParameters.isEmpty())
+						throwError("Can't find function pointer to JIT function " + function.functionName);
+					else
+					{
+						
+
+						//throwError("The function template " + function.getSignature({}) + " was not instantiated");
+
+						return;
+					}
+				}
 			}
 		}
 
@@ -1629,6 +1647,11 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 	return ok;
 }
 
+bool Operations::FunctionCall::canBeAliasParameter(Ptr e)
+{
+	return dynamic_cast<SymbolStatement*>(e.get()) != nullptr || dynamic_cast<MemoryReference*>(e.get()) != nullptr;
+}
+
 bool Operations::StatementBlock::isRealStatement(Statement* s)
 {
 	if (dynamic_cast<InlinedArgument*>(s) != nullptr)
@@ -1765,10 +1788,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 
 				FunctionClass::Ptr fc = type.getComplexType()->getFunctionClass();
 
-				if (fc->hasSpecialFunction(FunctionClass::Constructor))
-				{
-					jassertfalse;
-				}
+				
 
 				if (getNumChildStatements() > 0)
 				{
@@ -1799,7 +1819,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 							{
 								if (initValues != nullptr)
 									acg.emitStackInitialisation(s, type.getComplexType(), nullptr, initValues);
-								else if (getSubExpr(0) != nullptr)
+								else if (getSubRegister(0) != nullptr)
 									acg.emitComplexTypeCopy(s, getSubRegister(0), type.getComplexType());
 							}
 							else
@@ -1996,6 +2016,163 @@ void Operations::InlinedArgument::process(BaseCompiler* compiler, BaseScope* sco
 			reg = getSubRegister(0);
 		}
 	}
+}
+
+snex::jit::ComplexType::Ptr Operations::TemplateDefinition::createTemplate(const TemplateObject::ConstructData& d)
+{
+	auto instanceParameters = TemplateParameter::ListOps::merge(getTemplateArguments(), d.tp, *d.r);
+
+	for (auto es : *this)
+	{
+		if (auto ecs = as<ClassStatement>(es))
+		{
+			auto tp = ecs->getStructType()->getTemplateInstanceParameters();
+
+			if (TemplateParameter::ListOps::match(instanceParameters, tp))
+			{
+				return ecs->getStructType();
+			}
+		}
+	}
+
+	for (auto c : clones)
+	{
+		auto p = as<TemplateDefinition>(c)->createTemplate(d);
+	}
+
+	if (d.r->failed())
+		throwError(d.r->getErrorMessage());
+
+	TemplateParameter::List ipToUse;
+	ipToUse.addArray(templateClassId.tp);
+	ipToUse.addArray(instanceParameters);
+
+	ComplexType::Ptr p = new StructType(templateClassId.id, ipToUse);
+
+	p = handler.registerComplexTypeOrReturnExisting(p);
+
+	Ptr cb = new SyntaxTree(location, as<ScopeStatementBase>(statements)->getPath());
+
+	statements->cloneChildren(cb);
+
+	auto c = new ClassStatement(location, p, cb);
+
+	addStatement(c);
+
+	c->forEachRecursive([ipToUse, c, d](Ptr p)
+	{
+		if (auto tf = as<TemplatedFunction>(p))
+		{
+			auto cId = dynamic_cast<StructType*>(c->classType.get())->getTemplateInstanceId();
+
+			TemplateObject fo({ tf->data.id, ipToUse });
+			fo.makeFunction = std::bind(&TemplatedFunction::createFunction, tf, std::placeholders::_1);
+			fo.argList = tf->templateParameters;
+
+			auto args = tf->data.args;
+
+			fo.functionArgs = [args]()
+			{
+				TypeInfo::List l;
+
+				for (auto a : args)
+					l.add(a.typeInfo);
+
+				return l;
+			};
+
+			d.handler->addTemplateFunction(fo);
+		}
+
+		return false;
+	});
+
+	if (currentCompiler != nullptr)
+	{
+		TemplateParameterResolver resolver(instanceParameters);
+		resolver.process(c);
+
+		c->currentCompiler = currentCompiler;
+		c->processAllPassesUpTo(currentPass, currentScope);
+	}
+
+	return d.handler->registerComplexTypeOrReturnExisting(p);
+}
+
+void Operations::TemplatedFunction::createFunction(const TemplateObject::ConstructData& d)
+{
+	Result r = Result::ok();
+	auto instanceParameters = TemplateParameter::ListOps::merge(templateParameters, d.tp, r);
+	location.test(r);
+
+	//DBG("Creating template function " + d.id.toString() + TemplateParameter::ListOps::toString(templateParameters));
+
+	if (currentCompiler != nullptr)
+	{
+		auto currentParameters = currentCompiler->namespaceHandler.getCurrentTemplateParameters();
+		location.test(TemplateParameter::ListOps::expandIfVariadicParameters(instanceParameters, currentParameters));
+		instanceParameters = TemplateParameter::ListOps::merge(templateParameters, instanceParameters, *d.r);
+		//DBG("Resolved template parameters: " + TemplateParameter::ListOps::toString(instanceParameters));
+
+		if (instanceParameters.size() < templateParameters.size())
+		{
+			// Shouldn't happen, the parseCall() method should have resolved the template parameters 
+			// to another function already...
+			jassertfalse;
+		}
+	}
+
+	TemplateParameterResolver resolve(collectParametersFromParentClass(this, instanceParameters));
+
+	for (auto e : *this)
+	{
+		if (auto ef = as<Function>(e))
+		{
+			auto fParameters = ef->data.templateParameters;
+
+			if (TemplateParameter::ListOps::match(fParameters, instanceParameters))
+				return;// ef->data;
+		}
+	}
+
+	for (auto c : clones)
+		as<TemplatedFunction>(c)->createFunction(d);
+
+	FunctionData fData = data;
+
+	resolve.resolveIds(fData);
+
+	fData.templateParameters = instanceParameters;
+
+	auto newF = new Function(location, {});
+	newF->code = code;
+	newF->codeLength = codeLength;
+	newF->data = fData;
+	newF->parameters = parameters;
+
+	addStatement(newF);
+
+	auto isInClass = findParentStatementOfType<ClassStatement>(this) != nullptr;
+
+	auto ok = resolve.process(newF);
+
+	if (isInClass)
+	{
+
+		location.test(ok);
+	}
+
+
+	if (currentCompiler != nullptr)
+	{
+		NamespaceHandler::ScopedTemplateParameterSetter stps(currentCompiler->namespaceHandler, instanceParameters);
+		newF->currentCompiler = currentCompiler;
+		newF->processAllPassesUpTo(currentPass, currentScope);
+	}
+
+	//dumpSyntaxTree(findParentStatementOfType<TemplateDefinition>(this));
+
+	return;// fData;
 }
 
 }

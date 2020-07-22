@@ -40,6 +40,8 @@ struct IndexBase : public ComplexType
 {
 	IndexBase(const TypeInfo& parentType);
 
+	virtual ~IndexBase();
+
 	virtual Identifier getIndexName() const = 0;
 
 	virtual Inliner::Func getAsmFunction(FunctionClass::SpecialSymbols s);
@@ -89,6 +91,8 @@ struct IndexBase : public ComplexType
 	juce::String toStringInternal() const override;
 
 	ComplexType::WeakPtr parentType;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(IndexBase);
 };
 
 struct ArrayTypeBase : public ComplexType,
@@ -97,6 +101,8 @@ struct ArrayTypeBase : public ComplexType,
 	virtual ~ArrayTypeBase() {}
 
 	virtual TypeInfo getElementType() const = 0;
+
+	
 };
 
 struct SpanType : public ArrayTypeBase
@@ -125,6 +131,7 @@ struct SpanType : public ArrayTypeBase
 
 	/** Creates a simple one-dimensional span. */
 	SpanType(const TypeInfo& dataType, int size_);
+	~SpanType();
 
 	void finaliseAlignment() override;
 	size_t getRequiredByteSize() const override;
@@ -135,6 +142,15 @@ struct SpanType : public ArrayTypeBase
 	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
 
+	bool hasConstructor() override
+	{
+		if (auto typePtr = getElementType().getTypedIfComplexType<ComplexType>())
+		{
+			return typePtr->hasConstructor();
+		}
+
+		return false;
+	}
 
 	bool matchesOtherType(const ComplexType& other) const override
 	{
@@ -264,6 +280,7 @@ struct StructType : public ComplexType,
 					public ComplexTypeWithTemplateParameters
 {
 	StructType(const NamespacedIdentifier& s, const Array<TemplateParameter>& templateParameters = {});;
+	~StructType();
 
 	size_t getRequiredByteSize() const override;
 	size_t getRequiredAlignment() const override;
@@ -275,6 +292,8 @@ struct StructType : public ComplexType,
 
 		return Types::ID::Pointer;
 	}
+
+	bool hasConstructor() override;
 
 	void finaliseAlignment() override;
 	juce::String toStringInternal() const override;
@@ -317,6 +336,8 @@ struct StructType : public ComplexType,
 	void addJitCompiledMemberFunction(const FunctionData& f);
 
 	Symbol getMemberSymbol(const Identifier& id) const;
+
+	TemplateInstance getTemplateInstanceId() const;
 
 	bool injectMemberFunctionPointer(const FunctionData& f, void* fPointer);
 
@@ -454,6 +475,8 @@ struct StructSubscriptIndexType : public IndexBase
 
 	Identifier indexId;
 	int maxSize = 0;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StructSubscriptIndexType);
 };
 
 #define CREATE_SNEX_STRUCT(x) new StructType(NamespacedIdentifier(#x));

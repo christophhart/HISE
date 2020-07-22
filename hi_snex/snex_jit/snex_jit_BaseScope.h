@@ -157,15 +157,16 @@ struct SymbolWithScope
 	WeakReference<BaseScope> scope;
 };
 
+struct TableEntry : public ReferenceCountedObject
+{
+	Symbol s;
+	void* data;
+	InitialiserList::Ptr initValues;
+};
 
 class RootClassData: public FunctionClass
 {
-	struct TableEntry : public ReferenceCountedObject
-	{
-		Symbol s;
-		void* data;
-		WeakReference<BaseScope> scope;
-	};
+	
 
 public:
 
@@ -237,6 +238,8 @@ public:
 
 	Result initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues);
 
+	Result callRootConstructors();
+
 	void* getDataPointer(const NamespacedIdentifier& s) const;
 
 	VariableStorage getDataCopy(const NamespacedIdentifier& s) const
@@ -281,7 +284,6 @@ public:
 
 		numUsed += size;
 		memset(newEntry.data, 0, size);
-		newEntry.scope = scope;
 
 		jassert(numUsed <= allocatedSize);
 
@@ -292,6 +294,17 @@ public:
 	HeapBlock<char> data;
 
 private:
+
+	TableEntry* getTableEntry(const Symbol& s)
+	{
+		for (auto& t : symbolTable)
+		{
+			if (t.s == s)
+				return &t;
+		}
+
+		return nullptr;
+	}
 
 	TableEntry* begin() const
 	{

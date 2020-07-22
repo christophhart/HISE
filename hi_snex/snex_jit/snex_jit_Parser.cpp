@@ -54,7 +54,7 @@ public:
 				OptimizationFactory f;
 
 				for (const auto& id : optList)
-					addOptimization(f.createOptimization(id));
+					addOptimization(f.createOptimization(id), id);
 			}
 		}
 
@@ -128,7 +128,7 @@ public:
 
 			executePass(FunctionCompilation, newScope->pimpl, sTree);
 
-			lastResult = Result::ok();
+			lastResult = newScope->pimpl->getRootData()->callRootConstructors();
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
@@ -421,6 +421,11 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	fData.returnType = currentTypeInfo;
 	fData.object = nullptr;
 
+	if (FunctionClass::isConstructor(fData.id))
+	{
+		fData.returnType = TypeInfo(Types::ID::Void);
+	}
+
 	jassert(compiler->namespaceHandler.getCurrentNamespaceIdentifier() == s.id.getParent());
 
 	{
@@ -447,8 +452,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 	if (isTemplateFunction)
 	{
-		TemplateObject f;
-		f.id = s.id;
+		TemplateObject f({ s.id, compiler->namespaceHandler.getCurrentTemplateParameters() });
 		f.argList = as<TemplatedFunction>(newStatement)->templateParameters;
 		f.makeFunction = std::bind(&TemplatedFunction::createFunction, as<TemplatedFunction>(newStatement), std::placeholders::_1);
 
@@ -555,10 +559,11 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 
 		match(JitTokens::semicolon);
 
-		auto tcs = new Operations::TemplateDefinition(location, classId, compiler->namespaceHandler, list);
+		TemplateInstance cId(classId, compiler->namespaceHandler.getCurrentTemplateParameters());
 
-		TemplateObject tc;
-		tc.id = classId;
+		auto tcs = new Operations::TemplateDefinition(location, cId, compiler->namespaceHandler, list);
+
+		TemplateObject tc(cId);
 		tc.makeClassType = std::bind(&Operations::TemplateDefinition::createTemplate, tcs, std::placeholders::_1);
 		tc.argList = classTemplateArguments;
 
@@ -750,11 +755,20 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 	auto typePtr = getCurrentComplexType();
 	auto rootId = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
 
-	ids.add(rootId.getChildId(parseIdentifier()));
+	bool isConstructor = rootId.toString() == typePtr->toString();
+
+	if (isConstructor)
+	{
+		ids.add(rootId.getChildId(FunctionClass::getSpecialSymbol(rootId, FunctionClass::Constructor)));
+	}
+	else
+	{
+		ids.add(rootId.getChildId(parseIdentifier()));
+	}
 
 	if (matchIf(JitTokens::openParen))
 	{
-		Symbol s(ids.getFirst(), t);
+ 		Symbol s(ids.getFirst(), t);
 
 		compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
 
@@ -780,6 +794,51 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 				n->addInitValues(parseInitialiserList());
 			else
 				n->addStatement(parseExpression());
+		}
+
+		if (currentTypeInfo.isComplexType() && currentTypeInfo.getComplexType()->hasConstructor())
+		{
+			StatementPtr cd = n;
+
+			auto ab = new Operations::AnonymousBlock(location);
+
+			ab->addStatement(n);
+
+			for (auto id : ids)
+			{
+				FunctionClass::Ptr fc = currentTypeInfo.getComplexType()->getFunctionClass();
+
+				auto cf = fc->getSpecialFunction(FunctionClass::Constructor);
+				auto call = new Operations::FunctionCall(location, nullptr, Symbol(cf.id, TypeInfo(Types::ID::Void)), {});
+				auto obj = new Operations::VariableReference(location, Symbol(id, TypeInfo(currentTypeInfo)));
+
+				call->setObjectExpression(obj);
+
+				if (n->initValues != nullptr)
+				{
+					n->initValues->forEach([&](InitialiserList::ChildBase* cb)
+					{
+						if (auto e = dynamic_cast<InitialiserList::ExpressionChild*>(cb))
+						{
+							call->addArgument(e->expression->clone(location));
+						}
+						else
+						{
+							VariableStorage immValue;
+
+							if (cb->getValue(immValue))
+								call->addArgument(new Operations::Immediate(location, immValue));
+						}
+
+						return false;
+					});
+				}
+
+				ab->addStatement(call);
+			}
+
+			match(JitTokens::semicolon);
+			return ab;
 		}
 
 		match(JitTokens::semicolon);
@@ -826,7 +885,7 @@ InitialiserList::Ptr BlockParser::parseInitialiserList()
 
 
 
-snex::jit::NamespacedIdentifier BlockParser::getDotParentName(ExprPtr e)
+snex::NamespacedIdentifier BlockParser::getDotParentName(ExprPtr e)
 {
 	if (auto dp = dynamic_cast<Operations::DotOperator*>(e.get()))
 	{
@@ -837,6 +896,40 @@ snex::jit::NamespacedIdentifier BlockParser::getDotParentName(ExprPtr e)
 	}
 
 	return {};
+}
+
+TemplateInstance BlockParser::getTemplateInstanceFromParent(ExprPtr p, NamespacedIdentifier id)
+{
+	auto parentType = getDotParentType(p, true);
+
+	TemplateParameter::List parentInstanceParameters;
+
+	if (parentType.isTemplateType())
+	{
+		for (auto& tp : compiler->namespaceHandler.getCurrentTemplateParameters())
+		{
+			if (tp.argumentId == parentType.getTemplateId())
+			{
+				parentType = tp.type;
+				break;
+			}
+		}
+	}
+
+	if (auto ct = parentType.getTypedIfComplexType<ComplexType>())
+	{
+		if (FunctionClass::Ptr vfc = ct->getFunctionClass())
+		{
+			id = vfc->getClassName().getChildId(id.getIdentifier());
+
+			if (auto st = parentType.getTypedIfComplexType<StructType>())
+			{
+				parentInstanceParameters = st->getTemplateInstanceParameters();
+			}
+		}
+	}
+
+	return TemplateInstance(id, parentInstanceParameters);
 }
 
 void BlockParser::parseUsingAlias()

@@ -196,7 +196,7 @@ bool FunctionData::matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID
 	Array<TypeInfo> t;
 
 	for (auto n : nativeArgList)
-		t.add(TypeInfo(n));
+		t.add(TypeInfo(n, n == Types::ID::Pointer ? true : false));
 
 	return matchesArgumentTypes(TypeInfo(r), t);
 }
@@ -215,6 +215,73 @@ bool FunctionData::matchesTemplateArguments(const TemplateParameter::List& l) co
 	}
 
 	return true;
+}
+
+void FunctionData::callVoidDynamic(const Array<VariableStorage>& args) const
+{
+	Types::ID type;
+
+	switch (args.size())
+	{
+	case 0: callVoid(); break;
+	case 1: 
+	{
+		type = args[0].getType(); 
+		IF_(int)	callVoid((int)args[0]); 
+		IF_(double) callVoid((double)args[0]); 
+		IF_(float)	callVoid((float)args[0]); 
+		IF_(void*)	callVoid((void*)args[0]); 
+
+		break;
+	}
+	case 2:
+	{
+		type = args[0].getType();
+
+#define DYN2(typeId) IF_(typeId) { auto a1 = (typeId)args[0]; type = args[1].getType(); \
+			IF_(int)	callVoid(a1, (int)args[1]); \
+			IF_(double) callVoid(a1, (double)args[1]); \
+			IF_(float)	callVoid(a1, (float)args[1]); \
+			IF_(void*)	callVoid(a1, (void*)args[1]); break;}
+
+		DYN2(int);
+		DYN2(double);
+		DYN2(float);
+		DYN2(void*);
+
+#undef DYN2
+
+		break;
+	}
+	case 3:
+	{
+		type = args[0].getType();
+
+#define DYN2(typeId) IF_(typeId) { auto a2 = (typeId)args[1]; type = args[2].getType(); \
+			IF_(int) callVoid(a1, a2, (int)args[2]); \
+			IF_(double) callVoid(a1, a2, (double)args[2]); \
+			IF_(float) callVoid(a1, a2, (float)args[2]); \
+			IF_(void*) callVoid(a1, a2, (void*)args[2]); break;}
+
+#define DYN3(typeId) IF_(typeId) { auto a1 = (typeId)args[0]; type = args[1].getType(); \
+			DYN2(int); \
+			DYN2(float); \
+			DYN2(double); \
+			DYN2(void*); break; }
+
+		DYN3(int);
+		DYN3(double);
+		DYN3(float);
+		DYN3(void*);
+
+		break;
+
+#undef DYN2
+#undef DYN3
+	}
+	default:
+		jassertfalse;
+	}
 }
 
 struct SyntaxTreeInlineData: public InlineData
@@ -300,6 +367,72 @@ struct ReturnTypeInlineData : public InlineData
 	FunctionData& f;
 };
 
+
+Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
+{
+	auto args = initList->toFlatConstructorList();
+
+	FunctionClass::Ptr fc = getFunctionClass();
+
+	if (fc != nullptr)
+	{
+		auto cf = fc->getSpecialFunction(FunctionClass::Constructor);
+
+		if (cf.function == nullptr)
+			return Result::ok();
+
+		if (cf.args.size() != args.size())
+		{
+			// If the constructor has no arguments, pass them to the default initialisation
+			if (cf.args.isEmpty())
+			{
+				InitData id;
+				id.dataPointer = data;
+				id.callConstructor = false;
+				id.initValues = initList;
+				
+				auto r = initialise(id);
+
+				if (r.failed())
+					return r;
+			}
+			else
+			{
+				return Result::fail("constructor argument mismatch");
+			}
+		}
+			
+
+
+		Array<Types::ID> types;
+
+		// The constructor might have zero arguments
+		if (cf.args.size() > 0)
+		{
+			for (auto a : args)
+				types.add(a.getType());
+		}
+
+		if (!cf.matchesNativeArgumentTypes(Types::ID::Void, types))
+			return Result::fail("constructor type mismatch");
+
+		cf.object = data;
+
+		cf.callVoidDynamic(args);
+	}
+
+	return Result::ok();
+}
+
+bool ComplexType::hasConstructor()
+{
+	if (FunctionClass::Ptr fc = getFunctionClass())
+	{
+		return fc->getSpecialFunction(FunctionClass::Constructor).id.isValid();
+	}
+
+	return false;
+}
 
 void ComplexType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 {
@@ -665,6 +798,17 @@ bool TemplateParameter::ListOps::isNamed(const List& l)
 	return true;
 }
 
+bool TemplateParameter::ListOps::isSubset(const List& all, const List& possibleSubSet)
+{
+	for (auto tp : possibleSubSet)
+	{
+		if (!all.contains(tp))
+			return false;
+	}
+
+	return true;
+}
+
 bool TemplateParameter::ListOps::readyToResolve(const List& l)
 {
 	return isNamed(l) && isParameter(l);
@@ -782,6 +926,12 @@ TemplateParameter::List TemplateParameter::ListOps::filter(const List& l, const 
 
 TemplateParameter::List TemplateParameter::ListOps::merge(const TemplateParameter::List& arguments, const TemplateParameter::List& parameters, juce::Result& r)
 {
+	if (arguments.isEmpty() && parameters.isEmpty())
+		return {};
+
+	jassert(isArgument(arguments));
+	jassert(isParameter(parameters));
+
 	if (arguments.isEmpty() && parameters.isEmpty())
 		return parameters;
 
@@ -1099,15 +1249,14 @@ snex::jit::ComplexType::Ptr TemplatedComplexType::createTemplatedInstance(const 
 
 snex::jit::ComplexType::Ptr TemplatedComplexType::createSubType(SubTypeConstructData* sd)
 {
-
-
 	auto id = sd->id;
 	auto sl = sd->l;
 
 	ComplexType::Ptr parentType = this;
 
-	TemplateObject s;
-	s.id = id.relocate(id.getParent(), c.id);
+	auto sId = TemplateInstance(id.relocate(id.getParent(), c.id.id), sd->l);
+	TemplateObject s(sId);
+	
 	s.makeClassType = [parentType, id, sl](const TemplateObject::ConstructData& sc)
 	{
 		auto parent = dynamic_cast<TemplatedComplexType*>(parentType.get());

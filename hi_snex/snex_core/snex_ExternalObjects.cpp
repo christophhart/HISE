@@ -288,9 +288,8 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 		NamespaceHandler::ScopedNamespaceSetter(c.getNamespaceHandler(), iId);
 
-		TemplateObject cf;
-		cf.id = iId.getChildId("wrapped");
-		auto pId = cf.id.getChildId("ArrayType");
+		TemplateObject cf({ iId.getChildId("wrapped"), {} });
+		auto pId = cf.id.id.getChildId("ArrayType");
 
 		cf.argList.add(TemplateParameter(pId, false, jit::TemplateParameter::Single));
 
@@ -311,7 +310,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 			
 			auto f = new FunctionData();
 
-			f->id = cd.id;
+			f->id = cd.id.id;
 			f->returnType = TypeInfo(Types::ID::Dynamic);
 			f->templateParameters.add(cd.tp[0]);
 			f->addArgs("obj", cd.tp[0].type);
@@ -437,6 +436,67 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 		split.flush();
 
 		WrapBuilder init(c, "init", numChannels);
+		init.addTypeTemplateParameter("InitialiserClass");
+
+		init.addInitFunction([](const TemplateObject::ConstructData& cd, StructType* st)
+		{
+			auto ic = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 1);
+
+			st->addMember("initialiser", TypeInfo(ic, false, false));
+			InitialiserList::Ptr di = new InitialiserList();
+			di->addChild(new InitialiserList::MemberPointer("obj"));
+			st->setDefaultValue("initialiser", di);
+		});
+
+		init.addFunction([](StructType* st)
+		{
+			FunctionData f;
+
+			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
+			f.returnType = TypeInfo(Types::ID::Void);
+
+			f.inliner = Inliner::createHighLevelInliner(f.id, [st](InlineData* b)
+			{
+				auto d = b->toSyntaxTreeData();
+
+				auto ic = st->getMemberComplexType(Identifier("initialiser"));
+
+				FunctionClass::Ptr fc = ic->getFunctionClass();
+
+				auto icf = fc->getSpecialFunction(FunctionClass::Constructor);
+
+				auto nc = new Operations::FunctionCall(d->location, nullptr, Symbol(icf.id, TypeInfo(Types::ID::Void)), icf.templateParameters);
+
+				auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), st->getMemberOffset(1));
+				auto objRef = new Operations::MemoryReference(d->location, d->object, st->getMemberTypeInfo("obj").withModifiers(false, true, false), 0);
+
+				nc->setObjectExpression(initRef);
+				nc->addArgument(objRef);
+
+				if (icf.canBeInlined(true))
+				{
+					SyntaxTreeInlineData sd(nc, {});
+					sd.object = initRef->clone(d->location);
+					sd.path = d->path;
+					sd.templateParameters = d->templateParameters;
+					auto r = icf.inlineFunction(&sd);
+
+					if (!r.wasOk())
+						return r;
+
+					d->target = sd.target;
+				}
+				else
+				{
+					d->target = nc;
+				}
+
+				return Result::ok();
+			});
+
+			return f;
+		});
+
 		init.flush();
 	}
 
@@ -448,9 +508,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 {
 	NamespacedIdentifier pId("ProcessData");
 
-	TemplateObject ptc;
-	
-	ptc.id = pId;
+	TemplateObject ptc({ pId, {} });
 	ptc.argList.add(TemplateParameter(pId.getChildId("NumChannels"), 0, false));
 
 	ptc.makeClassType = [eventType](const TemplateObject::ConstructData& c)
@@ -683,7 +741,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 
 			int numChannels = c.tp[0].constant;
 
-			auto frameProcessor = c.handler->createTemplateInstantiation(NamespacedIdentifier("FrameProcessor"), c.tp, *c.r);
+			auto frameProcessor = c.handler->createTemplateInstantiation({ NamespacedIdentifier("FrameProcessor"), {} }, c.tp, *c.r);
 
 			tfd.returnType = TypeInfo(frameProcessor);
 
@@ -1012,9 +1070,7 @@ void SnexObjectDatabase::createFrameProcessor(Compiler& c)
 {
 	NamespacedIdentifier pId("FrameProcessor");
 
-	TemplateObject ftc;
-
-	ftc.id = pId;
+	TemplateObject ftc({ pId,{} });
 	ftc.argList.add(TemplateParameter(pId.getChildId("NumChannels"), 0, false));
 
 	ftc.makeClassType = [](const TemplateObject::ConstructData& c)
@@ -1426,7 +1482,7 @@ snex::jit::ComplexType::Ptr PrepareSpecs::createComplexType(Compiler& c, const I
 	return c.registerExternalComplexType(st);
 }
 
-juce::Array<snex::jit::NamespacedIdentifier> ScriptnodeCallbacks::getIds(const NamespacedIdentifier& p)
+juce::Array<snex::NamespacedIdentifier> ScriptnodeCallbacks::getIds(const NamespacedIdentifier& p)
 {
 	Array<NamespacedIdentifier> ids;
 

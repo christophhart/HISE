@@ -69,8 +69,7 @@ void TemplateClassBuilder::addFunction(const FunctionBuilder& f)
 
 snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 {
-	TemplateObject to;
-	to.id = id;
+	TemplateObject to({ id, {} });
 	to.argList = tp;
 
 	auto l = tp;
@@ -110,7 +109,7 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 		if (!cd.r->wasOk())
 			return ptr;
 
-		auto st = new StructType(cd.id, ip);
+		auto st = new StructType(cd.id.id, ip);
 
 		for (const auto& f : initFunctions)
 		{
@@ -232,7 +231,10 @@ void ParameterBuilder::Helpers::initSingleParameterStruct(const TemplateObject::
 
 	auto targetType = ip[0].type.getTypedComplexType<StructType>();
 
-	cd.handler->createTemplateFunction(targetType->id.getChildId("setParameter"), { ip[1] }, *cd.r);
+	auto id = targetType->getTemplateInstanceId();
+	id.id = id.id.getChildId("setParameter");
+
+	cd.handler->createTemplateFunction(id, { ip[1] }, *cd.r);
 
 	st->addMember("target", TypeInfo(Types::ID::Pointer, true, false));
 	st->setDefaultValue("target", InitialiserList::makeSingleList(VariableStorage(nullptr, 8)));
@@ -393,6 +395,8 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels):
 {
 	addTypeTemplateParameter("ObjectClass");
 	
+	
+
 	setInitialiseStructFunction([&c, numChannels](const TemplateObject::ConstructData& cd, StructType* st)
 	{
 		auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 0);
@@ -402,7 +406,59 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels):
 
 		for (auto p : prototypes)
 			st->addWrappedMemberMethod("obj", p);
+
+		TemplateObject to(st->getTemplateInstanceId());
+		
+		to.argList.add(TemplateParameter(to.id.id.getChildId("P"), 0, false));
+		to.makeFunction = [st](const TemplateObject::ConstructData& cd_)
+		{
+			FunctionData f;
+			f.id = cd_.id.id;
+			f.addArgs("newValue", TypeInfo(Types::ID::Double));
+			f.returnType = TypeInfo(Types::ID::Void);
+			f.templateParameters.addArray(cd_.tp);
+
+			f.inliner = Inliner::createHighLevelInliner(f.id, [](InlineData* b)
+			{
+				using namespace Operations;
+				auto d = b->toSyntaxTreeData();
+				auto st = d->object->getTypeInfo().getTypedComplexType<StructType>();
+				auto objType = st->getMemberTypeInfo("obj").getTypedComplexType<StructType>();
+
+				Symbol fSymbol(objType->id.getChildId("setParameter"), TypeInfo(Types::ID::Void));
+
+				auto r = Result::ok();
+				auto& h = d->object->currentScope->getNamespaceHandler();
+				
+				auto id = objType->getTemplateInstanceId().getChildIdWithSameTemplateParameters("setParameter");
+
+				h.createTemplateFunction(id, d->templateParameters, r);
+
+				if (r.failed())
+					return r;
+
+				auto newCall = new FunctionCall(d->location, nullptr, fSymbol, d->templateParameters);
+				auto ref = new MemoryReference(d->location, d->object->clone(d->location), TypeInfo(objType), 0);
+				newCall->setObjectExpression(ref);
+				newCall->addArgument(d->args[0]->clone(d->location));
+				d->target = newCall;
+
+				return Result::ok();
+			});
+
+			st->addJitCompiledMemberFunction(f);
+		};
+
+		to.functionArgs = []()
+		{
+			TypeInfo::List callParameters;
+			callParameters.add(TypeInfo(Types::ID::Double));
+			return callParameters;
+		};
+
+		cd.handler->addTemplateFunction(to);
 	});
+
 }
 
 
@@ -433,7 +489,6 @@ ContainerNodeBuilder::ContainerNodeBuilder(Compiler& c, const Identifier& id, in
 
 	addFunction(Helpers::getParameterFunction);
 	addFunction(Helpers::setParameterFunction);
-	
 
 	callbacks = snex::Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
 
