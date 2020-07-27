@@ -4388,11 +4388,8 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		args[1] = argsObject;
 
 		var thisObject(this);
-
 		var::NativeFunctionArgs arg(thisObject, args, 2);
-
 		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-
 		Result r = Result::ok();
 		
 		try
@@ -4421,6 +4418,87 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 	}
 
 	return false;
+}
+
+var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier& functionname, var* args, int numArgs)
+{
+	auto f = functions.getProperty(functionname, {});
+
+	if (HiseJavascriptEngine::isJavascriptFunction(f))
+	{
+		var thisObject(this);
+		var::NativeFunctionArgs arg(thisObject, args, numArgs);
+		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+		Result r = Result::ok();
+
+		try
+		{
+			return engine->callExternalFunctionRaw(f, arg);
+		}
+		catch (String& errorMessage)
+		{
+			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
+		}
+		catch (HiseJavascriptEngine::RootObject::Error& e)
+		{
+
+		}
+	}
+
+	return {};
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAlertBox(Graphics& g_, AlertWindow& w, const Rectangle<int>& ta, TextLayout& tl)
+{
+	if (auto l = get())
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(w.getLocalBounds().toFloat()));
+		obj->setProperty("title", w.getName()); 
+
+		if (l->callWithGraphics(g_, "drawAlertWindow", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawAlertBox(g_, w, ta, tl);
+}
+
+hise::MarkdownLayout::StyleData ScriptingObjects::ScriptedLookAndFeel::Laf::getAlertWindowMarkdownStyleData()
+{
+	auto s = MessageWithIcon::LookAndFeelMethods::getAlertWindowMarkdownStyleData();
+
+	if (auto l = get())
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("textColour", s.textColour.getARGB());
+		obj->setProperty("codeColour", s.codeColour.getARGB());
+		obj->setProperty("linkColour", s.linkColour.getARGB());
+		obj->setProperty("headlineColour", s.headlineColour.getARGB());
+
+		obj->setProperty("headlineFont", s.boldFont.getTypefaceName());
+		obj->setProperty("font", s.f.getTypefaceName());
+		obj->setProperty("fontSize", s.fontSize);
+
+		var x = var(obj);
+
+		auto nObj = l->callDefinedFunction("getAlertWindowMarkdownStyleData", &x, 1);
+
+		if (nObj.getDynamicObject() != nullptr)
+		{
+			s.textColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["textColour"]);
+			s.linkColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["linkColour"]);
+			s.codeColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["codeColour"]);
+			s.headlineColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["headlineColour"]);
+
+			s.fontSize = nObj["fontSize"];
+			s.boldFont = Font(nObj.getProperty("headlineFont", ""), s.boldFont.getHeight(), s.boldFont.getStyleFlags());
+			s.f = Font(nObj.getProperty("font", ""), s.f.getHeight(), s.f.getStyleFlags());
+		}
+	}
+	
+	return s;
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPopupMenuBackground(Graphics& g_, int width, int height)
@@ -4759,6 +4837,38 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRuler(Graphics& g_, Ta
 
 	if (auto tl = dynamic_cast<TableEditor::LookAndFeelMethods*>(&te.getLookAndFeel()))
 		tl->drawTableRuler(g_, te, area, lineThickness, rulerPosition);
+}
+
+juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)
+{
+	auto img = MessageWithIcon::LookAndFeelMethods::createIcon(type);
+
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		
+		String s;
+
+		switch (type)
+		{
+		case PresetHandler::IconType::Error:	s = "Error"; break;
+		case PresetHandler::IconType::Info:		s = "Info"; break;
+		case PresetHandler::IconType::Question: s = "Question"; break;
+		case PresetHandler::IconType::Warning:	s = "Warning"; break;
+		default: jassertfalse; break;
+		}
+
+		obj->setProperty("type", s);
+		obj->setProperty("area", ApiHelpers::getVarRectangle({ 0.0f, 0.0f, (float)img.getWidth(), (float)img.getHeight() }));
+
+		Image img2(Image::ARGB, img.getWidth(), img.getHeight(), true);
+		Graphics g(img2);
+
+		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj)))
+			return img2;
+	}
+
+	return img;
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTag(Graphics& g_, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)

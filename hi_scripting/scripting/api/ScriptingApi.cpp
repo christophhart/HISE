@@ -870,6 +870,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getExpansionList);
 	API_METHOD_WRAPPER_1(Engine, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(Engine, createGlobalScriptLookAndFeel);
+	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
@@ -983,6 +984,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(setLatencySamples);
 	ADD_API_METHOD_0(getLatencySamples);
 	ADD_API_METHOD_2(getDspNetworkReference);
+	ADD_API_METHOD_3(showYesNoWindow);
 }
 
 
@@ -1326,6 +1328,31 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 #endif
 
 	
+}
+
+void ScriptingApi::Engine::showYesNoWindow(String title, String markdownMessage, var callback)
+{
+	WeakReference<HiseJavascriptEngine> engine(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
+	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+
+	auto f = [markdownMessage, title, callback, engine, this, p]
+	{
+		if (engine != nullptr)
+		{
+			var args[1];
+
+			args[0] = PresetHandler::showYesNoWindow(title, markdownMessage);
+
+			auto r = Result::ok();
+
+			engine.get()->callExternalFunction(callback, var::NativeFunctionArgs({}, args, 1), &r, true);
+
+			if (!r.wasOk())
+				debugError(p, r.getErrorMessage());
+		}
+	};
+
+	MessageManager::callAsync(f);
 }
 
 var ScriptingApi::Engine::createGlobalScriptLookAndFeel()

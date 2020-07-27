@@ -2857,34 +2857,19 @@ MessageWithIcon::MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf,
 	t(type),
 	r(message, nullptr)
 {
-	switch (type)
-	{
-	case PresetHandler::IconType::Info: image = ImageCache::getFromMemory(
-		BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
-		break;
-	case PresetHandler::IconType::Warning: image = ImageCache::getFromMemory(BinaryData::infoWarning_png, BinaryData::infoWarning_pngSize);
-		break;
-	case PresetHandler::IconType::Question: image = ImageCache::getFromMemory(BinaryData::infoQuestion_png, BinaryData::infoQuestion_pngSize);
-		break;
-	case PresetHandler::IconType::Error: image = ImageCache::getFromMemory(BinaryData::infoError_png, BinaryData::infoError_pngSize);
-		break;
-	case PresetHandler::IconType::numIconTypes: image = Image(); jassertfalse;
-		break;
-	default:
-		break;
-	}
+	image = defaultLaf.createIcon(type);
 
-	auto& sd = r.getStyleData();
+	auto s = defaultLaf.getAlertWindowMarkdownStyleData();
 
-	sd.f = laf->getAlertWindowFont();
-	sd.boldFont = laf->getAlertWindowTitleFont();
-	sd.fontSize = 14.0f;
+	s.f = laf->getAlertWindowFont();
+	s.boldFont = laf->getAlertWindowTitleFont();
 
-	sd.textColour = Colours::white.withAlpha(0.8f);
+	if (auto laf_ = dynamic_cast<LookAndFeelMethods*>(laf))
+		s = laf_->getAlertWindowMarkdownStyleData();
 
-	r.setStyleData(sd);
+	r.setStyleData(s);
 
-	auto w = jmin(sd.f.getStringWidthFloat(message) + 30.0f, 600.0f);
+	auto w = jmin(s.f.getStringWidthFloat(message) + 30.0f, 600.0f);
 
 	auto height = (int)r.getHeightForWidth(w);
 
@@ -2907,13 +2892,42 @@ void MessageWithIcon::paint(Graphics &g)
 
 void MessageWithIcon::LookAndFeelMethods::paintMessage(MessageWithIcon& icon, Graphics& g)
 {
-	g.drawImageAt(icon.image, 0, 0);
+	auto img = createIcon(icon.t);
+	g.drawImageAt(img, 0, 0);
 	g.setColour(Colour(0xFF999999));
 
 	auto b = icon.getLocalBounds();
 	b.removeFromLeft(icon.image.getWidth());
 
 	icon.r.draw(g, b.toFloat());
+}
+
+hise::MarkdownLayout::StyleData MessageWithIcon::LookAndFeelMethods::getAlertWindowMarkdownStyleData()
+{
+	auto s = MarkdownLayout::StyleData::createDarkStyle();
+	s.fontSize = 14.0f;
+	s.textColour = Colours::white.withAlpha(0.8f);
+	return s;
+}
+
+juce::Image MessageWithIcon::LookAndFeelMethods::createIcon(PresetHandler::IconType type)
+{
+	switch (type)
+	{
+	case PresetHandler::IconType::Info: return ImageCache::getFromMemory(
+		BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
+		break;
+	case PresetHandler::IconType::Warning: return ImageCache::getFromMemory(BinaryData::infoWarning_png, BinaryData::infoWarning_pngSize);
+		break;
+	case PresetHandler::IconType::Question: return ImageCache::getFromMemory(BinaryData::infoQuestion_png, BinaryData::infoQuestion_pngSize);
+		break;
+	case PresetHandler::IconType::Error: return ImageCache::getFromMemory(BinaryData::infoError_png, BinaryData::infoError_pngSize);
+		break;
+	case PresetHandler::IconType::numIconTypes: return Image(); jassertfalse;
+		break;
+	default:
+		break;
+	}
 }
 
 } // namespace hise

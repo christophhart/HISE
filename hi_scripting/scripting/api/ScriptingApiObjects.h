@@ -1609,6 +1609,7 @@ public:
 					 public PresetBrowserLookAndFeelMethods,
 					 public TableEditor::LookAndFeelMethods,
 					 public NumberTag::LookAndFeelMethods,
+					 public MessageWithIcon::LookAndFeelMethods,
 					 public ControlledObject
 		{
 			Laf(MainController* mc) :
@@ -1628,12 +1629,16 @@ public:
 					return GLOBAL_BOLD_FONT();
 			}
 
+			void drawAlertBox(Graphics&, AlertWindow&, const Rectangle<int>& textArea, TextLayout&) override;
+
 			Font getAlertWindowMessageFont() override { return getFont(); }
 			Font getAlertWindowTitleFont() override { return getFont(); }
 			Font getTextButtonFont(TextButton &, int) override { return getFont(); }
 			Font getComboBoxFont(ComboBox&) override { return getFont(); }
 			Font getPopupMenuFont() override { return getFont(); };
 			Font getAlertWindowFont() override { return getFont(); };
+
+			MarkdownLayout::StyleData getAlertWindowMarkdownStyleData() override;
 
 			void drawPopupMenuBackground(Graphics& g_, int width, int height) override;
 
@@ -1670,7 +1675,7 @@ public:
 			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
 			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
 
-			
+			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);
 		};
@@ -1690,6 +1695,8 @@ public:
 		void setGlobalFont(const String& fontName, float fontSize);
 
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
+
+		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
 
 		Font f = GLOBAL_BOLD_FONT();
 		ReferenceCountedObjectPtr<GraphicsObject> g;
