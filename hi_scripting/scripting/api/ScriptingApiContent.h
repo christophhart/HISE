@@ -283,6 +283,16 @@ public:
 			numProperties
 		};
 
+		struct SubComponentListener
+		{
+			virtual ~SubComponentListener() {};
+
+			virtual void subComponentAdded(ScriptComponent* newComponent) = 0;
+			virtual void subComponentRemoved(ScriptComponent* componentAboutToBeRemoved) = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(SubComponentListener);
+		};
+
 		ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants = 0);
 
 		virtual ~ScriptComponent();
@@ -485,6 +495,18 @@ public:
 
 		// End of API Methods ============================================================================================
 
+
+		void addSubComponentListener(SubComponentListener* l)
+		{
+			subComponentListeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeSubComponentListener(SubComponentListener* l)
+		{
+			subComponentListeners.removeAllInstancesOf(l);
+		}
+
+		void sendSubComponentChangeMessage(ScriptComponent* s, bool wasAdded, NotificationType notify=sendNotificationAsync);
 		
 		void setChanged(bool isChanged = true) noexcept{ hasChanged = isChanged; }
 		bool isChanged() const noexcept{ return hasChanged; };
@@ -642,6 +664,8 @@ public:
 		ValueTree propertyTree;
 
 		Array<Identifier> scriptChangedProperties;
+
+		Array<WeakReference<SubComponentListener>> subComponentListeners;
 
 		bool countJsonSetProperties = true;
 		Identifier searchedProperty;
@@ -1238,8 +1262,11 @@ public:
 
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
 		
+		ScriptPanel(ScriptPanel* parent);
+
         ~ScriptPanel();
 		
+		void init();
 
 		// ========================================================================================================
 
@@ -1327,6 +1354,25 @@ public:
 		void setIsModalPopup(bool shouldBeModal)
 		{
 			isModalPopup = shouldBeModal;
+		}
+
+		/** Adds a child panel to this panel. */
+		var addChildPanel();
+
+		/** Removes the panel from its parent panel if it was created with addChildPanel(). */
+		bool removeFromParent();
+
+		/** Returns a list of all panels that have been added as child panel. */
+		var getChildPanelList();
+
+		/** Returns the panel that this panel has been added to with addChildPanel. */
+		var getParentPanel();
+
+		int getNumSubPanels() const { return childPanels.size(); }
+
+		ScriptPanel* getSubPanel(int index)
+		{
+			return childPanels[index].get();
 		}
 
 		// ========================================================================================================
@@ -1490,6 +1536,11 @@ public:
 			String prettyName;
 		};
 		
+		WeakReference<ScriptPanel> parentPanel;
+		Array<WeakReference<ScriptPanel>> childPanels;
+
+		bool isChildPanel = false;
+
 		Array<NamedImage> loadedImages;
 		
 		// ========================================================================================================
