@@ -474,9 +474,9 @@ public:
 	float borderRadius;
 	float borderSize;
 	Image image;
-	bool isUsingCustomImage;
+	bool isUsingCustomImage = false;
 
-	bool isPopupPanel;
+	bool isPopupPanel = false;
 
 	ImageButton closeButton;
 

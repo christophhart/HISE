@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 #undef GET_SCRIPT_PROPERTY
 #undef GET_OBJECT_COLOUR
 
-#define GET_SCRIPT_PROPERTY(id) (getContent()->getComponent(getIndex())->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::id))
+#define GET_SCRIPT_PROPERTY(id) (getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::id))
 
 
 
@@ -119,6 +119,16 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 	index(index_)
 {
 	scriptComponent = content->contentData->getComponent(index_);
+}
+
+ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentComponent* content, ScriptComponent* sc):
+	AsyncValueTreePropertyListener(sc->getPropertyValueTree(), content->contentData->getUpdateDispatcher()),
+	valuePopupHandler(*this),
+	contentComponent(content),
+	index(-1),
+	scriptComponent(sc)
+{
+	
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()
@@ -1490,29 +1500,14 @@ void ScriptCreatedComponentWrappers::ImageWrapper::mouseCallback(const var &mous
 ScriptCreatedComponentWrappers::PanelWrapper::PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index) :
 ScriptCreatedComponentWrapper(content, index)
 {
-	BorderPanel *bp = new BorderPanel(panel->getDrawActionHandler());
+	initPanel(panel);
 
-	bp->setName(panel->name.toString());
+}
 
-#if HISE_INCLUDE_RLOTTIE
-	bp->setAnimation(panel->getAnimation());
-#endif
-
-	bp->addMouseCallbackListener(this);
-	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
-	bp->setDragBounds(panel->getDragBounds(), this);
-    bp->setOpaque(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
-	bp->isPopupPanel = panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::isPopupPanel);
-	bp->setJSONPopupData(panel->getJSONPopupData(), panel->getPopupSize());
-	bp->setup(getProcessor(), getIndex(), panel->name.toString());
-	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
-
-	component = bp;
-
-	initAllProperties();
-
-	panel->repaint();
-
+ScriptCreatedComponentWrappers::PanelWrapper::PanelWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptPanel* panel):
+	ScriptCreatedComponentWrapper(content, panel)
+{
+	initPanel(panel);
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
@@ -1645,10 +1640,93 @@ void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle
 
 ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
 {
+	if (auto c = getScriptComponent())
+		c->removeSubComponentListener(this);
+
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
 
 	bpc->removeCallbackListener(this);
 	
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::subComponentAdded(ScriptComponent* newComponent)
+{
+	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	for (int i = 0; i < sc->getNumSubPanels(); i++)
+	{
+		if (auto sp = sc->getSubPanel(i))
+		{
+			if (newComponent == sp)
+			{
+				childPanelWrappers.add(new PanelWrapper(contentComponent, sp));
+				bpc->addAndMakeVisible(childPanelWrappers.getLast()->getComponent());
+			}
+		}
+	}
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::subComponentRemoved(ScriptComponent* componentAboutToBeRemoved)
+{
+	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	for (int i = 0; i < childPanelWrappers.size(); i++)
+	{
+		if (childPanelWrappers[i]->getScriptComponent() == componentAboutToBeRemoved)
+		{
+			bpc->removeChildComponent(childPanelWrappers[i]->getComponent());
+			childPanelWrappers.remove(i);
+			return;
+		}
+	}
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Content::ScriptPanel* panel)
+{
+	BorderPanel *bp = new BorderPanel(panel->getDrawActionHandler());
+
+	panel->addSubComponentListener(this);
+
+	bp->setName(panel->name.toString());
+
+#if HISE_INCLUDE_RLOTTIE
+	bp->setAnimation(panel->getAnimation());
+#endif
+
+	bp->addMouseCallbackListener(this);
+	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
+	bp->setDragBounds(panel->getDragBounds(), this);
+	bp->setOpaque(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
+	bp->isPopupPanel = panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::isPopupPanel);
+	bp->setJSONPopupData(panel->getJSONPopupData(), panel->getPopupSize());
+	bp->setup(getProcessor(), getIndex(), panel->name.toString());
+	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
+
+	component = bp;
+
+	initAllProperties();
+
+	rebuildChildPanels();
+
+	panel->repaint();
+
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::rebuildChildPanels()
+{
+	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	for (int i = 0; i < sc->getNumSubPanels(); i++)
+	{
+		if (auto sp = sc->getSubPanel(i))
+		{
+			childPanelWrappers.add(new PanelWrapper(contentComponent, sp));
+			bpc->addAndMakeVisible(childPanelWrappers.getLast()->getComponent());
+		}
+	}
 }
 
 ScriptCreatedComponentWrappers::SliderPackWrapper::SliderPackWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSliderPack *pack, int index) :
