@@ -718,8 +718,41 @@ TextEditor * MultilineLabel::createEditorComponent()
 	textEditor->setMultiLine(multiline, true);
 
 	textEditor->setReturnKeyStartsNewLine(multiline);
+	
+	if (usePasswordChar)
+		textEditor->setPasswordCharacter('*');
 
 	return textEditor;
+}
+
+void MultilineLabel::paint(Graphics& g)
+{
+	if (usePasswordChar)
+	{
+		g.fillAll(findColour(Label::backgroundColourId));
+
+		if (!isBeingEdited())
+		{
+
+			g.setColour(findColour(Label::textColourId));
+			g.setFont(getFont());
+
+			auto text = getText().length();
+
+			String s;
+			for (int i = 0; i < text; i++)
+				s << '*';
+
+			auto b = getBorderSize().subtractedFrom(getLocalBounds());
+
+			g.drawFittedText(s, b, getJustificationType(), 1);
+		}
+
+		g.setColour(findColour(Label::outlineColourId));
+		g.drawRect(getLocalBounds(), 2);
+	}
+	else
+		Label::paint(g);
 }
 
 ImageComponentWithMouseCallback::ImageComponentWithMouseCallback() :

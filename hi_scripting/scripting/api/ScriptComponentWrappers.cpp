@@ -974,6 +974,8 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateFont(ScriptingApi::Cont
 		}
 	}
 
+	l->setUsePasswordCharacter(fontStyle == "Password");
+
 	l->setJustificationType(sl->getJustification());
 }
 
