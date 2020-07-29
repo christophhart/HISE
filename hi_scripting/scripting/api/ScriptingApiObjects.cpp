@@ -4374,9 +4374,10 @@ hise::MarkdownLayout::StyleData ScriptingObjects::ScriptedLookAndFeel::Laf::getA
 			s.codeColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["codeColour"]);
 			s.headlineColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["headlineColour"]);
 
+			s.boldFont = getMainController()->getFontFromString(nObj.getProperty("headlineFont", "Default"), s.boldFont.getHeight());
+
 			s.fontSize = nObj["fontSize"];
-			s.boldFont = Font(nObj.getProperty("headlineFont", ""), s.boldFont.getHeight(), s.boldFont.getStyleFlags());
-			s.f = Font(nObj.getProperty("font", ""), s.f.getHeight(), s.f.getStyleFlags());
+			s.f = getMainController()->getFontFromString(nObj.getProperty("font", "Default"), s.boldFont.getHeight());
 		}
 	}
 	
