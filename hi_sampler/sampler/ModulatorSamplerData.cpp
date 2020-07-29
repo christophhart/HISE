@@ -162,10 +162,8 @@ hise::FileHandlerBase* SampleMap::getCurrentFileHandler() const
 {
 	FileHandlerBase* handler = &GET_PROJECT_HANDLER(sampler);
 
-#if HISE_ENABLE_EXPANSIONS
-	if (currentPool != nullptr)
+	if (handler->getMainController()->getExpansionHandler().isEnabled() && currentPool != nullptr)
 		handler = currentPool->getFileHandler();
-#endif
 
 	return handler;
 }
@@ -534,9 +532,6 @@ bool SampleMap::save(const File& fileToUse)
 	}
 
 	data.setProperty("ID", sampleMapId.toString(), nullptr);
-	
-
-
 	data.setProperty("RRGroupAmount", sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount), nullptr);
 	data.setProperty("MicPositions", sampler->getStringForMicPositions(), nullptr);
 	
@@ -767,12 +762,10 @@ void SampleMap::load(const PoolReference& reference)
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
 
-#if HISE_ENABLE_EXPANSIONS
 	if (auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
 	{
 		currentPool = &expansion->pool->getSampleMapPool();
 	}
-#endif
 
 	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);

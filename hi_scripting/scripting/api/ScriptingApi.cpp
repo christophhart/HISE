@@ -1149,15 +1149,12 @@ void ScriptingApi::Engine::setHostBpm(double newTempo)
 double ScriptingApi::Engine::getMemoryUsage() const
 {
 	auto bytes = getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->getMemoryUsageForAllSamples();
-
-#if HISE_ENABLE_EXPANSIONS
 	auto& handler = getProcessor()->getMainController()->getExpansionHandler();
 
 	for (int i = 0; i < handler.getNumExpansions(); i++)
 	{
 		bytes += handler.getExpansion(i)->pool->getSamplePool()->getMemoryUsageForAllSamples();
 	}
-#endif
 
 	return (double)bytes / 1024.0 / 1024.0;
 }
@@ -4310,6 +4307,7 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	p(pwsc)
 {
 	addConstant("Samples", (int)Samples);
+	addConstant("Expansions", (int)Expansions);
 	addConstant("UserPresets", (int)UserPresets);
 	addConstant("AppData", (int)AppData);
 	addConstant("UserHome", (int)UserHome);
@@ -4414,6 +4412,7 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 	{
 	case Samples:	f = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
 		break;
+	case Expansions: return getMainController()->getExpansionHandler().getExpansionFolder();
 #if USE_BACKEND
 	case AppData:
 	{

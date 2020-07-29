@@ -690,9 +690,8 @@ expHandler(mc->getExpansionHandler())
 	setOpaque(false);
 	setLookAndFeel(&laf);
 
-	#if HISE_ENABLE_EXPANSIONS
+	if(getMainController()->getExpansionHandler().isEnabled())
 		expHandler.addListener(this); //Setup expansion handler listener
-	#endif
 }
 
 PresetBrowser::~PresetBrowser()
@@ -1290,8 +1289,6 @@ void PresetBrowser::buttonClicked(Button* b)
 	{
 		if (getMainController()->getUserPresetHandler().getCurrentlyLoadedFile().existsAsFile())
 		{
-
-
 			auto fileToBeReplaced = getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
 			File tempFile = fileToBeReplaced.getSiblingFile("tempFileBeforeMove.preset");
 
@@ -1529,7 +1526,8 @@ juce::String PresetBrowser::DataBaseHelpers::getNoteFromXml(const File& currentP
 
 bool PresetBrowser::DataBaseHelpers::matchesAvailableExpansions(MainController* mc, const File& currentPreset)
 {
-#if HISE_ENABLE_EXPANSIONS
+	if (!mc->getExpansionHandler().isEnabled())
+		return true;
 
 	if (mc == nullptr)
 		return true;
@@ -1561,10 +1559,6 @@ bool PresetBrowser::DataBaseHelpers::matchesAvailableExpansions(MainController* 
 	}
 
 	return true;
-#else
-	ignoreUnused(mc, currentPreset);
-	return true;
-#endif
 }
 
 

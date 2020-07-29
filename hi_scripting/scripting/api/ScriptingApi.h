@@ -1072,6 +1072,7 @@ public:
 		enum SpecialLocations
 		{
 			AudioFiles,
+			Expansions,
 			Images,
 			Samples,
 			UserPresets,

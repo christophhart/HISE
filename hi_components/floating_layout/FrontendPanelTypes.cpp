@@ -464,14 +464,12 @@ void PerformanceLabelPanel::timerCallback()
 
 	auto bytes = mc->getSampleManager().getModulatorSamplerSoundPool2()->getMemoryUsageForAllSamples();
 
-#if HISE_ENABLE_EXPANSIONS
 	auto& handler = getMainController()->getExpansionHandler();
 
 	for (int i = 0; i < handler.getNumExpansions(); i++)
 	{
 		bytes += handler.getExpansion(i)->pool->getSamplePool()->getMemoryUsageForAllSamples();
 	}
-#endif
 
 	const double ramUsage = (double)bytes / 1024.0 / 1024.0;
 

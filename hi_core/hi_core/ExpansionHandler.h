@@ -92,10 +92,6 @@ public:
 
 		checkSubDirectories();
 
-#if HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT
-		redirectSampleDirectoryToDefault();
-#endif
-
 		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
 		pool->getMidiFilePool().loadAllFilesFromProjectFolder();
 
@@ -131,15 +127,6 @@ public:
 
 	PooledAdditionalData loadAdditionalData(const String& relativePath);
 
-	/** By default the expansion pack uses its own sample folder, but you can force this to use the default sample location. 
-	
-	    This is called automatically at initialisation of the expansion object if the preprocessor macro
-		
-		HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT
-
-		is set to true
-	*/
-	void redirectSampleDirectoryToDefault();
 
 #if 0
 	ValueTree getSampleMap(const String& sampleMapId)
@@ -460,9 +447,48 @@ public:
 		return notifier.enabled;
 	}
     
+	bool isEnabled() const noexcept { return enabled; };
+
+	/** Call this method to set the expansion type you want to create. */
+	template <class T> void setExpansionType()
+	{
+		if (std::is_same<T, Disabled>())
+		{
+			enabled = false;
+
+			expansionCreateFunction = [](const File& f)
+			{
+				return nullptr;
+			};
+		}
+		else
+		{
+			enabled = true;
+
+			expansionCreateFunction = [&](const File& f)
+			{
+				auto e = new T(mc, f);
+				return dynamic_cast<Expansion*>(e);
+			};
+		}
+	}
+
+#if HISE_USE_CUSTOM_EXPANSION_TYPE
+	// Implement this method and return your custom C++ expansion class
+	Expansion* createCustomExpansion(const File& f);
+#endif
+	
+
 private:
 
-    FileHandlerBase* getFileHandler(MainController* mc);
+	bool enabled = true;
+
+	String keyCode;
+	var credentials;
+
+	std::function<Expansion*(const File& f)> expansionCreateFunction;
+
+	FileHandlerBase* getFileHandler(MainController* mc);
     
 	template <class DataType> void getPoolForReferenceString(const PoolReference& p, SharedPoolBase<DataType>** pool)
 	{
