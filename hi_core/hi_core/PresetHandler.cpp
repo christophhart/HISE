@@ -155,7 +155,6 @@ void UserPresetHelpers::addRequiredExpansions(const MainController* mc, ValueTre
 {
 	ignoreUnused(mc, preset);
 
-#if HISE_ENABLE_EXPANSIONS
 	const auto& expHandler = mc->getExpansionHandler();
 
 	String s;
@@ -168,28 +167,25 @@ void UserPresetHelpers::addRequiredExpansions(const MainController* mc, ValueTre
 
 	if (s.isNotEmpty())
 		preset.setProperty("RequiredExpansions", s, nullptr);
-#endif
 }
 
 StringArray UserPresetHelpers::checkRequiredExpansions(MainController* mc, ValueTree& preset)
 {
 	StringArray missingExpansions;
-
-#if HISE_ENABLE_EXPANSIONS
-
-	auto expList = preset.getProperty("RequiredExpansions", "").toString();
 	auto& expHandler = mc->getExpansionHandler();
 
-	auto sa = StringArray::fromTokens(expList, ";", "");
-	sa.removeDuplicates(true);
-	sa.removeEmptyStrings();
+	if (expHandler.isEnabled())
+	{
+		auto expList = preset.getProperty("RequiredExpansions", "").toString();
+		auto sa = StringArray::fromTokens(expList, ";", "");
+		sa.removeDuplicates(true);
+		sa.removeEmptyStrings();
 
-	
+		for (auto s : sa)
+			if (expHandler.getExpansionFromName(s) == nullptr)
+				missingExpansions.add(s);
 
-	for (auto s : sa)
-		if (expHandler.getExpansionFromName(s) == nullptr)
-			missingExpansions.add(s);
-#endif
+	}
 
 	return missingExpansions;
 }

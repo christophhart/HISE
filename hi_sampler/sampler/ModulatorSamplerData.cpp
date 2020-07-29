@@ -187,9 +187,14 @@ void SampleMap::setCurrentMonolith()
 		}
 		else
 		{
-			File monolithDirectory = getCurrentFileHandler()->getSubDirectory(ProjectHandler::SubDirectories::Samples);
+			File monolithDirectories[2];
 
-			if (!monolithDirectory.isDirectory())
+			// First check in the expansion folder, then in the global sample folder...
+			monolithDirectories[0] = getCurrentFileHandler()->getSubDirectory(ProjectHandler::SubDirectories::Samples);
+			monolithDirectories[1] = sampler->getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+
+			if (!monolithDirectories[1].isDirectory())
 			{
 				sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
 					"The sample directory does not exist");
@@ -216,7 +221,11 @@ void SampleMap::setCurrentMonolith()
 			{
 				auto path = getMonolithID().replace("/", "_");
 
-				File f = monolithDirectory.getChildFile(path + ".ch" + String(i + 1));
+				File f = monolithDirectories[0].getChildFile(path + ".ch" + String(i + 1));
+
+				if(!f.existsAsFile() && monolithDirectories[0] != monolithDirectories[1])
+					f = monolithDirectories[1].getChildFile(path + ".ch" + String(i + 1));
+
 				if (f.existsAsFile())
 				{
 					monolithFiles.add(f);
@@ -556,6 +565,9 @@ bool SampleMap::save(const File& fileToUse)
 					PresetHandler::showMessageWindow("Invalid Path", "You need to store the samplemap in the samplemap directory", PresetHandler::IconType::Error);
 					return false;
 				}
+
+				auto id = f.getRelativePathFrom(rootDirectory).upToFirstOccurrenceOf(".xml", false, false);
+				setId(Identifier(id));
 			}
 		}
 		else
