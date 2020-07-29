@@ -43,11 +43,13 @@ class FloatingTile;
 namespace ExpansionIds
 {
 DECLARE_ID(ExpansionInfo);
+DECLARE_ID(Credentials);
 DECLARE_ID(PrivateInfo);
 DECLARE_ID(Name);
 DECLARE_ID(ProjectName);
 DECLARE_ID(Version);
 DECLARE_ID(Key);
+DECLARE_ID(Hash);
 DECLARE_ID(PoolData);
 DECLARE_ID(Data);
 }
@@ -520,6 +522,16 @@ public:
 		return notifier.enabled;
 	}
     
+	void setCredentials(var newCredentials)
+	{
+		if (!Helpers::equalJSONData(credentials, newCredentials))
+		{
+			credentials = newCredentials;
+
+			rebuildUnitialisedExpansions();
+		}
+	}
+
 	bool setErrorMessage(const String& message, bool isCritical)
 	{
 		for (auto l : listeners)
@@ -530,6 +542,21 @@ public:
 
 		return false;
 	}
+
+	void setEncryptionKey(const String& newKey)
+	{
+		if (keyCode != newKey)
+		{
+			keyCode = newKey;
+
+			rebuildUnitialisedExpansions();
+		}
+	}
+
+	var getCredentials() const { return credentials; }
+
+	String getEncryptionKey() const { return keyCode; }
+
 	bool isEnabled() const noexcept { return enabled; };
 
 	/** Call this method to set the expansion type you want to create. */

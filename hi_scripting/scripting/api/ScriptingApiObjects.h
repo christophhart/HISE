@@ -1429,48 +1429,6 @@ public:
 		// ============================================================================================================
 	};
 
-	class ExpansionObject : public ConstScriptingObject
-	{
-	public:
-
-		// ============================================================================================================
-
-		ExpansionObject(ProcessorWithScriptingContent* p, Expansion* e);
-
-		// ============================================================================================================
-
-		Identifier getObjectName() const override { return "Expansion"; }
-		bool objectDeleted() const override { return exp == nullptr; }
-		bool objectExists() const override { return exp != nullptr; }
-
-		// ============================================================================================================
-
-		/** Returns a list of all available sample maps in the expansion. */
-		var getSampleMapList() const;
-
-		/** Returns a list of all available images in the expansion. */
-		var getImageList() const;
-
-		/** Returns a list of all available audio files in the expansion. */
-		var getAudioFileList() const;
-
-		var getMidiFileList() const;
-
-		/** Attempts to parse a JSON file in the AdditionalSourceCode directory of the expansion. */
-		var loadDataFile(var relativePath);
-
-		/** Writes the given data into the file in the AdditionalSourceCode directory of the expansion. */
-		bool writeDataFile(var relativePath, var dataToWrite);
-
-		/** Returns an object containing all properties of the expansion. */
-		var getProperties() const;
-
-	private:
-
-		struct Wrapper;
-
-		WeakReference<Expansion> exp;
-	};
 
 	class GraphicsObject : public ConstScriptingObject
 	{

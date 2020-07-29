@@ -282,6 +282,9 @@ public:
 		/** Creates a Dsp node network. */
 		var createDspNetwork(String id);
 
+		/** Creates (and activates) the expansion handler. */
+		var createExpansionHandler();
+
 		/** Creates a reference to the DSP network of another script processor. */
 		var getDspNetworkReference(String processorId, String id);
 

@@ -867,6 +867,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_METHOD_WRAPPER_0(Engine, getControlRateDownsamplingFactor);
 	API_METHOD_WRAPPER_1(Engine, createDspNetwork);
+	API_METHOD_WRAPPER_0(Engine, createExpansionHandler);
 	API_METHOD_WRAPPER_0(Engine, getExpansionList);
 	API_METHOD_WRAPPER_1(Engine, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(Engine, createGlobalScriptLookAndFeel);
@@ -984,6 +985,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(setLatencySamples);
 	ADD_API_METHOD_0(getLatencySamples);
 	ADD_API_METHOD_2(getDspNetworkReference);
+	ADD_API_METHOD_0(createExpansionHandler);
 	ADD_API_METHOD_3(showYesNoWindow);
 }
 
@@ -1399,6 +1401,11 @@ var ScriptingApi::Engine::createDspNetwork(String id)
 	RETURN_IF_NO_THROW({});
 }
 
+var ScriptingApi::Engine::createExpansionHandler()
+{
+	return var(new ScriptExpansionHandler(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())));
+}
+
 var ScriptingApi::Engine::getDspNetworkReference(String processorId, String id)
 {
 	Processor::Iterator<scriptnode::DspNetwork::Holder> iter(getScriptProcessor()->getMainController_()->getMainSynthChain());
@@ -1485,23 +1492,12 @@ void ScriptingApi::Engine::openWebsite(String url)
     {
         reportScriptError("not a valid URL");
     }
-
-
 }
 
 var ScriptingApi::Engine::getExpansionList()
 {
-	auto& expHandler = getProcessor()->getMainController()->getExpansionHandler();
-
-	Array<var> list;
-
-	for (int i = 0; i < expHandler.getNumExpansions(); i++)
-	{
-		auto newObj = new ScriptingObjects::ExpansionObject(getScriptProcessor(), expHandler.getExpansion(i));
-		list.add(var(newObj));
-	}
-
-	return list;
+	auto h = createExpansionHandler();
+	return dynamic_cast<ScriptExpansionHandler*>(h.getObject())->getExpansionList();
 }
 
 bool ScriptingApi::Engine::setCurrentExpansion(const String& expansionName)

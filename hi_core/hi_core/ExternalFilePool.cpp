@@ -958,6 +958,119 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, Addition
 	data->getFile().swapWith(d);
 }
 
+
+EncryptedCompressor::EncryptedCompressor(BlowFish* ownedKey) :
+	key(ownedKey)
+{
+
+}
+
+void EncryptedCompressor::encrypt(MemoryBlock&& mb, OutputStream& output) const
+{
+	key->encrypt(mb);
+	output.write(mb.getData(), mb.getSize());
+}
+
+void EncryptedCompressor::write(OutputStream& output, const ValueTree& data, const File& originalFile) const
+{
+	MemoryBlock mb;
+
+	zstd::ZDefaultCompressor comp;
+	auto result = comp.compress(data, mb);
+
+	if (result.failed())
+	{
+		DBG(result.getErrorMessage());
+		jassertfalse;
+	}
+
+	key->encrypt(mb);
+	output.write(mb.getData(), mb.getSize());
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, AdditionalDataReference* data) const
+{
+	ScopedPointer<MemoryInputStream> ownedStream = mis;
+
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	key->decrypt(mb);
+
+	ownedStream = new MemoryInputStream(mb, false);
+
+	Compressor::create(ownedStream.release(), data);
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, MidiFileReference* data) const
+{
+	ScopedPointer<MemoryInputStream> ownedStream = mis;
+
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	key->decrypt(mb);
+
+	ownedStream = new MemoryInputStream(mb, false);
+
+	Compressor::create(ownedStream.release(), data);
+}
+
+void EncryptedCompressor::write(OutputStream& output, const AdditionalDataReference& data, const File& originalFile) const
+{
+	MemoryOutputStream mos;
+	Compressor::write(mos, data, originalFile);
+	encrypt(mos.getMemoryBlock(), output);
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, AudioSampleBuffer* data) const
+{
+	ScopedPointer<MemoryInputStream> ownedStream = mis;
+
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	key->decrypt(mb);
+
+	ownedStream = new MemoryInputStream(mb, false);
+
+	Compressor::create(ownedStream.release(), data);
+}
+
+void EncryptedCompressor::write(OutputStream& output, const MidiFileReference& data, const File& originalFile) const
+{
+	MemoryOutputStream mos;
+	Compressor::write(mos, data, originalFile);
+	encrypt(mos.getMemoryBlock(), output);
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, Image* data) const
+{
+	Compressor::create(mis, data);
+}
+
+void EncryptedCompressor::write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const
+{
+	MemoryOutputStream mos;
+	Compressor::write(mos, data, originalFile);
+	encrypt(mos.getMemoryBlock(), output);
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, ValueTree* data) const
+{
+	ScopedPointer<MemoryInputStream> ownedStream = mis;
+
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	key->decrypt(mb);
+	zstd::ZDefaultCompressor comp;
+	comp.expand(mb, *data);
+
+	jassert(data->isValid());
+}
+
+void EncryptedCompressor::write(OutputStream& output, const Image& data, const File& originalFile) const
+{
+	Compressor::write(output, data, originalFile);
+}
+
 PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
 	ControlledObject(mc),
 	parentHandler(handler)

@@ -3361,22 +3361,29 @@ void ScriptingObjects::GraphicsObject::fillEllipse(var area)
 
 void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int /*xOffset*/, int yOffset)
 {
-	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent);
-	const Image img = sc->getLoadedImage(imageName);
-
-	if (img.isValid())
+	if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent))
 	{
-		Rectangle<float> r = getRectangleFromVar(area);
+		const Image img = sc->getLoadedImage(imageName);
 
-        if(r.getWidth() != 0)
-        {
-            const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
-            
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, (float)scaleFactor, yOffset));
-        }        
+		if (img.isValid())
+		{
+			Rectangle<float> r = getRectangleFromVar(area);
+
+			if (r.getWidth() != 0)
+			{
+				const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
+
+				drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, (float)scaleFactor, yOffset));
+			}
+		}
+		else
+			reportScriptError("Image not found");
 	}
 	else
-		reportScriptError("Image not found");
+	{
+		reportScriptError("drawImage is only allowed in a panel's paint routine");
+	}
+	
 }
 
 void ScriptingObjects::GraphicsObject::drawDropShadow(var area, var colour, int radius)
@@ -4212,131 +4219,6 @@ int ScriptingObjects::ScriptedMidiPlayer::getNumTracks()
 	}
 
 	return 0;
-}
-
-struct ScriptingObjects::ExpansionObject::Wrapper
-{
-	API_METHOD_WRAPPER_0(ExpansionObject, getSampleMapList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getImageList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getAudioFileList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getMidiFileList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getProperties);
-	API_METHOD_WRAPPER_1(ExpansionObject, loadDataFile);
-	API_METHOD_WRAPPER_2(ExpansionObject, writeDataFile);
-};
-
-ScriptingObjects::ExpansionObject::ExpansionObject(ProcessorWithScriptingContent* p, Expansion* e) :
-	ConstScriptingObject(p, 0),
-	exp(e)
-{
-	ADD_API_METHOD_0(getSampleMapList);
-	ADD_API_METHOD_0(getImageList);
-	ADD_API_METHOD_0(getAudioFileList);
-	ADD_API_METHOD_0(getMidiFileList);
-	ADD_API_METHOD_0(getProperties);
-	ADD_API_METHOD_1(loadDataFile);
-	ADD_API_METHOD_2(writeDataFile);
-}
-
-var ScriptingObjects::ExpansionObject::getSampleMapList() const
-{
-	if (objectExists())
-	{
-		auto refList = exp->pool->getSampleMapPool().getListOfAllReferences(true);
-
-		Array<var> list;
-
-		for (auto& ref : refList)
-			list.add(ref.getReferenceString().upToFirstOccurrenceOf(".xml", false, true));
-
-		return list;
-	}
-
-	reportScriptError("Expansion was deleted");
-	RETURN_IF_NO_THROW({});
-}
-
-var ScriptingObjects::ExpansionObject::getImageList() const
-{
-	if (objectExists())
-	{
-		exp->pool->getImagePool().loadAllFilesFromProjectFolder();
-		auto refList = exp->pool->getImagePool().getListOfAllReferences(true);
-		
-
-		Array<var> list;
-
-		for (auto& ref : refList)
-			list.add(ref.getReferenceString());
-
-		return list;
-	}
-
-	reportScriptError("Expansion was deleted");
-	RETURN_IF_NO_THROW({});
-}
-
-var ScriptingObjects::ExpansionObject::getAudioFileList() const
-{
-	if (objectExists())
-	{
-		exp->pool->getAudioSampleBufferPool().loadAllFilesFromProjectFolder();
-		auto refList = exp->pool->getAudioSampleBufferPool().getListOfAllReferences(true);
-
-		
-
-		Array<var> list;
-
-		for (auto& ref : refList)
-			list.add(ref.getReferenceString());
-
-		return list;
-	}
-
-	reportScriptError("Expansion was deleted");
-	RETURN_IF_NO_THROW({});
-}
-
-var ScriptingObjects::ExpansionObject::getMidiFileList() const
-{
-	if (objectExists())
-	{
-		auto refList = exp->pool->getMidiFilePool().getListOfAllReferences(true);
-
-		Array<var> list;
-
-		for (auto& ref : refList)
-			list.add(ref.getReferenceString());
-
-		return list;
-	}
-
-	reportScriptError("Expansion was deleted");
-	RETURN_IF_NO_THROW({});
-}
-
-var ScriptingObjects::ExpansionObject::loadDataFile(var relativePath)
-{
-	auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
-
-	return JSON::parse(fileToLoad.loadFileAsString());
-}
-
-bool ScriptingObjects::ExpansionObject::writeDataFile(var relativePath, var dataToWrite)
-{
-	auto content = JSON::toString(dataToWrite);
-
-	auto targetFile = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
-
-	return targetFile.replaceWithText(content);
-}
-
-var ScriptingObjects::ExpansionObject::getProperties() const
-{
-	if (objectExists())
-		return exp->getPropertyObject();
-
-	return {};
 }
 
 
