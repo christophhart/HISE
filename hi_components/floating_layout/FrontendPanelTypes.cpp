@@ -571,6 +571,7 @@ var PresetBrowserPanel::toDynamicObject() const
 
 	storePropertyInObject(obj, SpecialPanelIds::ShowSaveButton, options.showSaveButtons);
 
+	storePropertyInObject(obj, SpecialPanelIds::ShowExpansionsAsColumn, options.showExpansions);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, options.showFolderButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, options.showNotesLabel);
 	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, options.showEditButtons);
@@ -588,6 +589,7 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
 	options.showNotesLabel = getPropertyWithDefault(object, SpecialPanelIds::ShowNotes);
 	options.showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
+	options.showExpansions = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionsAsColumn);
 	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
 	options.showFavoriteIcons = getPropertyWithDefault(object, SpecialPanelIds::ShowFavoriteIcon);
 	options.backgroundColour = findPanelColour(PanelColourId::bgColour);
@@ -620,6 +622,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowNotes, "ShowNotes");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowEditButtons, "ShowEditButtons");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
 
 	return Identifier();
@@ -640,6 +643,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowNotes, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowEditButtons, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumColumns, 3);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowExpansionsAsColumn, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFavoriteIcon, true);
 
 	return var();

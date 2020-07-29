@@ -405,6 +405,7 @@ public:
 		ShowNotes,
 		ShowEditButtons,
 		ShowFavoriteIcon,
+		ShowExpansionsAsColumn,
 		NumColumns,
 		numSpecialProperties
 	};
