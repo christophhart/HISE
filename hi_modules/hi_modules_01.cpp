@@ -150,6 +150,7 @@ namespace wdl
 
 
 #include "synthesisers/synths/GlobalModulatorContainer.cpp"
+#include "synthesisers/synths/MacroModulationSource.cpp"
 #include "synthesisers/synths/SineSynth.cpp"
 #include "synthesisers/synths/NoiseSynth.cpp"
 #include "synthesisers/synths/WaveSynth.cpp"

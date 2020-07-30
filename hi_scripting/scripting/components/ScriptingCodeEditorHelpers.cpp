@@ -526,6 +526,8 @@ bool JavascriptProcessor::handleKeyPress(const KeyPress& k, Component* c)
 		replacer->getTextEditor("search")->grabKeyboardFocus();
 		return true;
 	}
+
+	return false;
 }
 
 } // namespace hise

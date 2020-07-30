@@ -40,18 +40,8 @@ void SyntaxTreeWalker::add(Operations::Statement* s)
 {
 	statements.add(s);
 
-	if (auto bl = dynamic_cast<Operations::BlockLoop*>(s))
-	{
-		// the statement block is not a "real" sub expr (because it shouldn't
-		// be subject to the usual codegen)
-		add(bl->getSubExpr(0).get());
-		add(bl->b);
-	}
-	else
-	{
-		for (int i = 0; i < s->getNumChildStatements(); i++)
-			add(s->getChildStatement(i));
-	}
+	for (int i = 0; i < s->getNumChildStatements(); i++)
+		add(s->getChildStatement(i));
 }
 
 

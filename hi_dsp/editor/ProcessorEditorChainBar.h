@@ -138,12 +138,17 @@ public:
 
 private:
 
+	NumberTag::LookAndFeelMethods numberRenderer;
+
 	int insertPosition;
 
 	Component::SafePointer<TextButton> midiButton;
 
 	OwnedArray<TextButton> chainButtons;
 	OwnedArray<NumberTag> numberTags;
+
+	Array<int> numProcessorList;
+
 	bool itemDragging;
 	bool canBeDropped;
 

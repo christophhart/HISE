@@ -296,6 +296,7 @@ public:
 		listeners.removeAllInstancesOf(listenerToRemove);
 	}
 
+	static File getAppDataRoot();
    
 	static File getAppDataDirectory();
 	
@@ -743,6 +744,10 @@ struct MessageWithIcon : public Component
         virtual ~LookAndFeelMethods() {};
         
 		virtual void paintMessage(MessageWithIcon& icon, Graphics& g);
+
+		virtual MarkdownLayout::StyleData getAlertWindowMarkdownStyleData();
+
+		virtual Image createIcon(PresetHandler::IconType type);
 	};
 
 	MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf, const String &message);

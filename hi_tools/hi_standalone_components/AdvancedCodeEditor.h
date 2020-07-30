@@ -241,6 +241,8 @@ public:
 
 	String getCurrentToken() const;
 
+	String getTokenForPosition(const CodeDocument::Position& pos) const;
+
 	void showAutoCompleteNew();
 	void closeAutoCompleteNew(String returnString);
 
@@ -406,7 +408,7 @@ public:
 
 		static bool isAdvancedTokenCharacter(juce_wchar c)
 		{
-			return CharacterFunctions::isLetterOrDigit(c) || c == '.' || c == '_' || c == '[' || c == ']' || c == '(' || c == ')' || c == '"';
+			return CharacterFunctions::isLetterOrDigit(c) || c == '.' || c == '_' || c == '[' || c == ']' || c == '"';
 		}
 
 		static Range<int> getJSONTag(const CodeDocument& doc, const Identifier& id);
@@ -422,10 +424,64 @@ public:
 		
 	};
 
+	void mouseMove(const MouseEvent& e) override
+	{
+		auto pos = e.getPosition();
+        auto pos2 = getPositionAt(pos.x, pos.y); 
+		auto token = getTokenForPosition(pos2);
+
+		if (token != hoverManager.lastToken)
+		{
+			hoverManager.stopTimer();
+			hoverPosition = {};
+			hoverText = {};
+			repaint();
+
+			hoverManager.position = pos;
+			hoverManager.lastToken = token;
+			hoverManager.startTimer(700);
+		}
+	}
+
 
 private:
 
-	class AutoCompletePopup;
+	struct HoverManager : public Timer
+	{
+		HoverManager(JavascriptCodeEditor& p) :
+			parent(p)
+		{};
+
+		JavascriptCodeEditor& parent;
+
+		void timerCallback() override
+		{
+			if (auto pr = parent.getProviderBase())
+			{
+				parent.hoverText = pr->getHoverString(lastToken);
+
+				if (parent.hoverText.isNotEmpty())
+				{
+					parent.hoverPosition = position;
+					parent.repaint();
+					startTimer(300);
+				}
+				else
+				{
+					parent.hoverPosition = {};
+					stopTimer();
+				}
+					
+			}
+		}
+
+		Point<int> position;
+		String lastToken;
+	} hoverManager;
+
+	String hoverText;
+	Point<int> hoverPosition;
+
 
 	// ================================================================================================================
 

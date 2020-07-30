@@ -12,7 +12,7 @@ The Scriptnode Expression Language (**SNEX**) is a simplified subset of the C la
 
 It's intended use is fast execution of expressions for signal processing algorithms. Unlike the HiseScript language, which is interpreted, the scriptnode expressions are JIT compiled and run in almost native speed (several orders of magnitude above HiseScript performance). When the scriptnode graph is exported as Cpp code, the expressions will be then compiled by the standard compiler (which is why it needs to be a strict subset of C / C++).
 
-The JIT compiler uses the awesome `asmjit` library to emit the assembly instructions. Currently supported are macOS / Windows / Linux (32bit / 64bit). iOS support is not possible due to the security restriction that prevents allocation of executable memory.
+The JIT compiler uses the awesome `asmjit` library to emit the assembly instructions. Currently supported are macOS / Windows / Linux, however only 64bit is supported (32bit is pretty much deprecated by now). iOS support is not possible due to the security restriction that prevents allocation of executable memory.
 
 There are two places where it can be used: in the `core.jit` node, which allows creating fully customizable nodes and at the connection between parameters (or modulation sources) via the `Expression` property which can be used to convert the value send to the connection target.
 
@@ -118,11 +118,11 @@ The **SNEX** syntax uses brackets for blocks and semicolons for statements. Comm
 }
 ```
 
-You can define variables in any scope (function scope or global scope), however **there are no anonymous scopes**.
+You can define variables in any scope (function scope or global scope), and variables in inner scopes override variables of the outer scope.
 
 ## Language structure
 
-A valid SNEX code consists of definitions of variables and functions:
+A valid SNEX code consists of definitions of variables, functions and more complex data structures (spans and structs):
 
 ```cpp
 // some variables
@@ -137,9 +137,6 @@ type functionName()
 }
 ```
 
-**There is no concept of classes or any other object oriented design principle.** 
-The rationale behind this is that a SNEX compiled object is already like a class, and the scope of a 
-single SNEX code does not exceed the complexity of a single C++ class.
 
 ## Variables
 
@@ -155,7 +152,15 @@ You can also define constant values by prepending `const` to the definition:
 const type value = initialValue;
 ```
 
-Doing so will speed up the compilation because it doesn't need to lookup the memory location.
+Doing so will speed up the execution because it doesn't need to lookup the memory location.
+
+SNEX supports the `auto` keyword, which will use the type from the assigned literal:
+
+```cpp
+auto x = 12; // x is int
+auto y = 12.0f; // y is float
+auto z = Math.sin(2.0); // z is double;
+```
 
 ## Functions
 
@@ -171,7 +176,7 @@ ReturnType functionName(ArgumentType1 arg1, ArgumentType2 arg2)
 
 Functions can be overloaded: despite having the same name, their argument amount and types can vary. However they can't differ only in the return type.
 
-## Types
+## Native Types
 
 Unlike HiseScript, **SNEX** is strictly typed. **However there is a very limited set of available types**:
 
@@ -190,6 +195,177 @@ int x = (int)2.0f;
 ```
 
 Type mismatches will be implicitely corrected by the compiler if possible (but it will produce a warning message so it's not recommended behaviour to just don't care about types).
+
+## Complex Types
+
+In addition to the native types, there are also complex types that can be used to create more complex data structure:
+
+### Span
+
+A span is a one-dimensional array with a number of elements which are known at compile time. The definition follows this syntax, specifying the data type, the size and an optional initialisation list:
+
+```
+span<type, size> name [= { initialisers }];
+```
+
+The type of the span can be any native type as well as complex types. This allows nesting of spans to create multidimensional arrays:
+
+```
+span<span<int, 3>, 3> matrix3x3;
+```
+
+Accessing the content of a span can be done by using the subscript-operator `[]`, which is a zero based integer index:
+
+```
+span<float, 3> data = { 1.0f, 2.0f, 3.0f };
+
+// Usage:
+
+data[1] = 3.0f; // sets the second element to 3.0f;
+data[3] = 0.0f; // ERROR: out of bounds (trying to write element number 4)...
+```
+
+Be aware that the []-operator on spans is completely safe: If you use a constant value for the subscription index, it will check at compile time that it's within the bounds of the span (so the example above will not compile). However be aware that you can't use a non-constant value to access span elements because it might cause an out of bounds error:
+
+```
+span<float, 3> data = { 1.0f, 2.0f, 3.0f };
+
+// Usage:
+
+int x = 2;
+data[x] = 2.0f; // OK
+x = 3;
+data[x] = 2.0f; // ERROR: out of bounds
+```
+
+> There is of course the option of accessing span elements dynamically, but you have to use a `wrap` object for the index.
+
+### Wrap
+
+The `wrap` type is an integer that is guaranteed to stay within the bounds specified at the definition:
+
+```
+wrap<8> index = { 1 };  // initialises to 1 
+                        // (if you omit the list, it will be zero by default)
+
+int x = index * 2 + index; // x = 3 // you can use it just like any other integer variable
+
+index = 9;              // assigning a value will wrap around the specified limit
+                        // (in this case it will have the value 1 because 9 % 8 == 1)
+
+index = 7;
+index++;                // incrementing the index will also wrap around
+                        // also this is faster than assigning a value because it doesn't 
+                        // need to calculate the modulo.
+
+span<int, 8> data = {1,2,3,4,5,6,7,8}; // let's define a span now with 8 elements
+
+data[++index] = 19;       // now you can use a dynamic index for the span []-operator...
+data[++index] = 20;       // now you can use a dynamic index for the span []-operator...
+```
+
+Of course the wrap size must be equal or less than the size of the span, or it will again throw a compilation error:
+
+```
+wrap<124> index;
+
+span<int, 4> data = { 1, 2, 3, 4};
+
+index = 5; // will not wrap around;
+
+data[index] = 5; // ERROR: out of bounds...
+```
+
+> If the wrap size is a power of two, the compiler will optimize the modulo operation to a simple bit shift operation, which might be noticeably faster, so if you have the choice, pick a power of two.
+
+### Structs
+
+A `struct` combines multiple other data types (including other complex data types) and can have functions that operate on instances of these structs. This allows a very basic object-oriented programming approach.
+
+```
+struct X
+{
+    int m1 = 5;
+    int m2 = 4;
+    float data = 1.0f;
+    span<int, 3> list = {1, 2, 3}
+
+    int getAll()
+    {
+        return m1 + m2 + (int)data + list[0] + list[1] + list[2];
+    }
+};
+
+X obj1;
+
+// Usage:
+
+
+obj1.getAll(); // returns 18
+
+obj1.m2 = 6;
+obj1.getAll(); // returns 16
+```
+
+Definitions of a struct must always be concluded by a `;` (unlike function definitions). You can access the data members and call functions on a struct instance using the dot operator.
+
+> there is no public / private concept with structs at the moment, but it might be added in the future.
+
+You can also create spans of structs and call them in a loop:
+
+```
+struct FX
+{
+    void process(block b)
+    {
+        // do something;
+    }
+};
+
+static const int NumChannels = 2;       // must be a compile time constant value
+
+using StereoFX = span<FX, NumChannels>; // define an alias for a multichannel pair of FX
+span<StereoFX, 4> chain;                // Creates a 2D array of FX objects
+wrap<NumChannels> cIndex;               // used for the channelIndex later...
+
+void process(channel b, int channelIndex)
+{
+    cIndex = channelIndex;
+
+    for(auto& fx: chain[cIndex])
+        fx.process(b);
+}
+```
+## Type aliases & compile time constant values
+
+If you create complex structures of nested data types, the syntax will quickly become a bit hard to read.
+
+An array of multichannel frames and it's index might be defined like this:
+
+```
+span<span<float, 4>, 128> data1;
+span<span<float, 4>, 128> data2;
+wrap<4> index1;
+wrap<4> index2;
+```
+
+You can enhance the readability by using type aliases and compile time constants for the numbers (also you increase the reusablility of the code):
+
+```
+static const NumChannels = 4; // define a constant for the channel amount
+static const BlockSize = 128; // define a constant for the block size
+
+using Frame = span<float, NumChannels>; // define Frame as span of 4 floats
+using FrameBlock = span<Frame, BlockSize>;
+using FrameIndex = wrap<NumChannels>;
+
+// Usage:
+FrameBlock data1;
+FrameBlock data2;
+
+FrameIndex index1;
+FrameIndex index2;
+```
 
 ## Variable visibility
 
@@ -222,9 +398,10 @@ a + b; // Add
 a - b; // Subtract
 a * b; // Multiply
 a / b; // Divide
-a % b; // Modulo
+a % b; // Modulo (only with integer type)
 
-a++; // post-increment (no pre increment support!)
+a++; // post-increment
+++a; // pre-increment (faster!)
 
 !a; // Logical inversion
 a == b; // equality
@@ -294,27 +471,6 @@ a ? b : c
 
 The false branch will not be evaluated.
 
-### Function calls
-
-You can call other functions using this syntax: `functionCall(parameter1, parameter2);`Be aware that forward declaring is not supported so you can't call functions before defining them:
-
-```cpp
-void f1()
-{
-    f2(); // won't work
-}
-
-void f1()
-{
-    doSomething();
-}
-
-void f3()
-{
-    f1(); // now you can call it
-}
-```
-
 ### if / else-if branching
 
 Conditional execution of entire code blocks is possible using the `if` / `else` keywords:
@@ -337,6 +493,27 @@ else
 // Some other code (will not be executed if otherCondition was true)
 ```
 
+### Function calls
+
+You can call other functions using this syntax: `functionCall(parameter1, parameter2);`Be aware that forward declaring is not supported so you can't call functions before defining them:
+
+```cpp
+void f1()
+{
+    f2(); // won't work
+}
+
+void f1()
+{
+    doSomething();
+}
+
+void f3()
+{
+    f1(); // now you can call it
+}
+```
+
 ### Return statement
 
 Functions that have a return type need a return statement at the end of their function body:
@@ -354,9 +531,9 @@ int f2()
 }
 ```
 
-### Block Iterator
+### Loops
 
-The only loop construct in **SNEX** is an iterator for a `block` using the range-based `for` loop syntax of C++:
+There are no "classic" loops in SNEX (like `while` and `for`, but you can iterate over `span` and `block` data using the the range-based `for` loop syntax of C++:
 
 ```cpp
 double uptime = 0.0;
@@ -366,17 +543,15 @@ for(auto& sample: block)
     sample = (float)Math.sin(uptime);
     uptime += 0.002;
 }
+
+
+span<int, 12> data;
+
+for(int& d: data)
+    d += 5;
 ```
 
-If you don't know C++, don't bother about the `&` symbol (it just means that it takes a reference to the value so you can actually change it). Be aware that the non-reference version:
-
-```cpp
-for(auto sample: block)
-    sample = 2.0f;
-```
-
-will not compile, since it would have no effect.
-
+The `&` token indicates that the iterator variable is a reference to the actual data, so assigning a value will write it into the memory location. If you don't need to change the value, you might want to omit the `&` token. In this case, the iterator variable will be copied from the original source and won't be written back, which saves a few CPU cycles.
 
 ### API classes
 

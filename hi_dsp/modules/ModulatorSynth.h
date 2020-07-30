@@ -938,7 +938,8 @@ public:
 		wavetableSynth,
 		audioLooper,
 		modulatorSynthGroup,
-		scriptSynth
+		scriptSynth,
+		macroModulationSource
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):

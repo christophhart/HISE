@@ -1045,6 +1045,27 @@ hise::DebugableObjectBase* HiseJavascriptEngine::getDebugObject(const String& to
 	return nullptr;
 }
 
+juce::String HiseJavascriptEngine::getHoverString(const String& token)
+{
+	try
+	{
+		auto value = root->evaluate(token).toString();
+
+		if (token != value)
+			return token + ": " + value;
+
+		return "";
+	}
+	catch (String& error)
+	{
+		return "";
+	}
+	catch (RootObject::Error& e)
+	{
+		return "";
+	}
+}
+
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),
 bufferTime(bufferTime_),

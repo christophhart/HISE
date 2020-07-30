@@ -177,7 +177,10 @@ public:
             updateSuspendState();
         }
         
+        ScopedValueSetter<bool> svs(getKillStateHandler().getStateLoadFlag(), true);
+        
 #if USE_RAW_FRONTEND
+        
 		MemoryInputStream in(data, sizeInBytes, false);
 		MemoryBlock mb;
 		in.readIntoMemoryBlock(mb);
@@ -192,11 +195,9 @@ public:
         
 		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
-        ScopedValueSetter<bool> svs(getKillStateHandler().getStateLoadFlag(), true);
-        
 		currentlyLoadedProgram = v.getProperty("Program");
 
-		getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
+    getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
 
 		channelData = v.getProperty("MidiChannelFilterData", -1);
 		if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
@@ -220,13 +221,14 @@ public:
             getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
         else
             getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+#endif
         
         if(suspendAfterLoad)
         {
             updater.suspendState = true;
             updater.updateDelayed();
         }
-#endif
+
 	}
 
 

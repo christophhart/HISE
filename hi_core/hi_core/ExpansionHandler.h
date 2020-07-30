@@ -43,11 +43,13 @@ class FloatingTile;
 namespace ExpansionIds
 {
 DECLARE_ID(ExpansionInfo);
+DECLARE_ID(Credentials);
 DECLARE_ID(PrivateInfo);
 DECLARE_ID(Name);
 DECLARE_ID(ProjectName);
 DECLARE_ID(Version);
 DECLARE_ID(Key);
+DECLARE_ID(Hash);
 DECLARE_ID(PoolData);
 DECLARE_ID(Data);
 }
@@ -76,6 +78,14 @@ public:
 		
 	}
 
+	struct Sorter
+	{
+		static int compareElements(Expansion* first, Expansion* second)
+		{
+			return first->getProperty(ExpansionIds::Name).compare(second->getProperty(ExpansionIds::Name));
+		};
+	};
+
 	~Expansion()
 	{
 		saveExpansionInfoFile();
@@ -86,15 +96,11 @@ public:
 		- create a Data object
 	    - setup the pools
 	*/
-	virtual void initialise() 
+	virtual Result initialise() 
 	{
 		addMissingFolders();
 
 		checkSubDirectories();
-
-#if HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT
-		redirectSampleDirectoryToDefault();
-#endif
 
 		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
 		pool->getMidiFilePool().loadAllFilesFromProjectFolder();
@@ -102,11 +108,13 @@ public:
 		data = new Data(root, Helpers::loadValueTreeForFileBasedExpansion(root));
 
 		saveExpansionInfoFile();
+
+		return Result::ok();
 	};
 
 	virtual void encodeExpansion()
 	{
-		jassertfalse;
+		PresetHandler::showMessageWindow("Can't encode Expansion", "You haven't set a encryption key yet", PresetHandler::IconType::Error);
 	}
 
 	var getPropertyObject() const
@@ -121,6 +129,8 @@ public:
 
 	virtual ExpansionType getExpansionType() const { return ExpansionType::FileBased; }
 
+	static ExpansionType getExpansionTypeFromFolder(const File& f);
+
 	File getRootFolder() const override { return root; }
 
 	virtual PoolReference createReferenceForFile(const String& relativePath, FileHandlerBase::SubDirectories fileType);
@@ -131,15 +141,6 @@ public:
 
 	PooledAdditionalData loadAdditionalData(const String& relativePath);
 
-	/** By default the expansion pack uses its own sample folder, but you can force this to use the default sample location. 
-	
-	    This is called automatically at initialisation of the expansion object if the preprocessor macro
-		
-		HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT
-
-		is set to true
-	*/
-	void redirectSampleDirectoryToDefault();
 
 #if 0
 	ValueTree getSampleMap(const String& sampleMapId)
@@ -346,6 +347,13 @@ class ExpansionHandler
 {
 public:
 
+	struct Disabled
+	{
+		Disabled(MainController*, const File& ) {};
+
+		virtual ~Disabled() {};
+	};
+
 	struct Reference
 	{
 		String referenceString;
@@ -373,7 +381,10 @@ public:
 			Loading an expansion pack is not the only way of accessing its content, it is just telling
 			that it is supposed to be the "active" expansion.
 		*/
-		virtual void expansionPackLoaded(Expansion* currentExpansion) = 0;
+		virtual void expansionPackLoaded(Expansion* currentExpansion) {};
+
+		/** Can be used to handle error messages. */
+		virtual void logMessage(const String& message, bool isCritical) {}
 
 	private:
 
@@ -387,17 +398,56 @@ public:
 		static void createFrontendLayoutWithExpansionEditing(FloatingTile* root, bool putInTabWithMainInterface=true);
 		static bool isValidExpansion(const File& directory);
 		static Identifier getSanitizedIdentifier(const String& idToSanitize);
+
+		static bool equalJSONData(var first, var second);
+
+		static int64 getJSONHash(var obj);
 	};
 
 	void createNewExpansion(const File& expansionFolder);
 	File getExpansionFolder() const;
 	void createAvailableExpansions();
 
+	void clearExpansions()
+	{
+		if (MessageManager::getInstance()->currentThreadHasLockedMessageManager())
+		{
+			expansionList.clear();
+		}
+		else
+		{
+			struct DelayedDelete: public AsyncUpdater
+			{
+				DelayedDelete(OwnedArray<Expansion>& list)
+				{
+					pendingDelete.swapWith(list);
+					triggerAsyncUpdate();
+				}
+
+				void handleAsyncUpdate() override
+				{
+					pendingDelete.clear();
+					delete this;
+				}
+
+				OwnedArray<Expansion> pendingDelete;
+
+				JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedDelete);
+			};
+
+			new DelayedDelete(expansionList);
+		}
+	}
+
 	Expansion* createExpansionForFile(const File& f);
 
 	var getListOfAvailableExpansions() const;
 
+	const OwnedArray<Expansion>& getListOfUnavailableExpansions() const;
+
 	bool setCurrentExpansion(const String& expansionName);
+
+	void setCurrentExpansion(Expansion* e);
 
 	void addListener(Listener* l)
 	{
@@ -426,7 +476,19 @@ public:
 
 	Expansion* getExpansionForWildcardReference(const String& stringToTest) const;
 
-	int getNumExpansions() const { return expansionList.size(); }
+	int getNumExpansions() const { return isEnabled() ? expansionList.size() : 0; }
+
+
+	Expansion* getExpansionFromRootFile(const File& expansionRoot) const
+	{
+		for (auto& e : expansionList)
+		{
+			if (e->getRootFolder() == expansionRoot)
+				return e;
+		}
+
+		return nullptr;
+	}
 
 	Expansion* getExpansionFromName(const String& name) const
 	{
@@ -460,9 +522,115 @@ public:
 		return notifier.enabled;
 	}
     
+	void setCredentials(var newCredentials)
+	{
+		if (!Helpers::equalJSONData(credentials, newCredentials))
+		{
+			credentials = newCredentials;
+
+			rebuildUnitialisedExpansions();
+		}
+	}
+
+	bool setErrorMessage(const String& message, bool isCritical)
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->logMessage(message, isCritical);
+		}
+
+		return false;
+	}
+
+	void setEncryptionKey(const String& newKey)
+	{
+		if (keyCode != newKey)
+		{
+			keyCode = newKey;
+
+			rebuildUnitialisedExpansions();
+		}
+	}
+
+	var getCredentials() const { return credentials; }
+
+	String getEncryptionKey() const { return keyCode; }
+
+	bool isEnabled() const noexcept { return enabled; };
+
+	/** Call this method to set the expansion type you want to create. */
+	template <class T> void setExpansionType()
+	{
+		if (std::is_same<T, Disabled>())
+		{
+			enabled = false;
+
+			expansionCreateFunction = [](const File& f)
+			{
+				return nullptr;
+			};
+		}
+		else
+		{
+			enabled = true;
+
+			expansionCreateFunction = [&](const File& f)
+			{
+				auto e = new T(mc, f);
+				return dynamic_cast<Expansion*>(e);
+			};
+		}
+	}
+
+#if HISE_USE_CUSTOM_EXPANSION_TYPE
+	// Implement this method and return your custom C++ expansion class
+	Expansion* createCustomExpansion(const File& f);
+#endif
+	
+
 private:
 
-    FileHandlerBase* getFileHandler(MainController* mc);
+	void rebuildUnitialisedExpansions()
+	{
+		bool didSomething = false;
+
+		for (int i = 0; i < uninitialisedExpansions.size(); i++)
+		{
+			auto e = uninitialisedExpansions[i];
+
+			auto r = e->initialise();
+
+			if (r.wasOk())
+			{
+				e = uninitialisedExpansions.removeAndReturn(i--);
+				expansionList.add(e);
+				didSomething = true;
+			}
+			else
+				setErrorMessage(r.getErrorMessage(), false);
+		}
+
+		
+
+		if (didSomething)
+		{
+			Expansion::Sorter s;
+			expansionList.sort(s, true);
+
+			notifier.sendNotification(Notifier::EventType::ExpansionCreated);
+		}
+			
+	}
+
+	bool enabled = true;
+
+	String keyCode;
+	var credentials;
+
+	std::function<Expansion*(const File& f)> expansionCreateFunction;
+
+	FileHandlerBase* getFileHandler(MainController* mc);
     
 	template <class DataType> void getPoolForReferenceString(const PoolReference& p, SharedPoolBase<DataType>** pool)
 	{
@@ -546,6 +714,7 @@ private:
 	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	OwnedArray<Expansion> expansionList;
+	OwnedArray<Expansion> uninitialisedExpansions;
 
 	WeakReference<Expansion> currentExpansion;
 

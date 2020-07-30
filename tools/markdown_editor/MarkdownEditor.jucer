@@ -3,7 +3,7 @@
 <JUCERPROJECT id="LIw2Py" name="MarkdownEditor" displaySplashScreen="0" reportAppUsage="1"
               splashScreenColour="Dark" projectType="guiapp" version="1.0.0"
               bundleIdentifier="com.yourcompany.MarkdownEditor" includeBinaryInAppConfig="1"
-              cppLanguageStandard="latest" companyCopyright="" jucerVersion="5.2.0">
+              cppLanguageStandard="latest" companyCopyright="" jucerVersion="5.4.3">
   <MAINGROUP id="JMBnAC" name="MarkdownEditor">
     <GROUP id="{FD8766C4-CBD5-1BD0-658F-058C5C8E90D2}" name="Source">
       <FILE id="aVdE5A" name="MainComponent.cpp" compile="1" resource="0"
@@ -191,6 +191,9 @@
             useGlobalPath="0"/>
     <MODULE id="juce_video" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
-  <JUCEOPTIONS JUCE_USE_DIRECTWRITE="enabled" USE_BACKEND="enabled" USE_FRONTEND="disabled"
-               IS_STANDALONE_APP="enabled" USE_IPP="disabled" HI_EXPORT_DSP_LIBRARY="disabled"/>
+  <JUCEOPTIONS JUCE_USE_DIRECTWRITE="1" USE_BACKEND="1" USE_FRONTEND="0" IS_STANDALONE_APP="1"
+               USE_IPP="0" HI_EXPORT_DSP_LIBRARY="0"/>
+  <LIVE_SETTINGS>
+    <WINDOWS/>
+  </LIVE_SETTINGS>
 </JUCERPROJECT>

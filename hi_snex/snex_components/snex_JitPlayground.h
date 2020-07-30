@@ -142,7 +142,100 @@ struct Graph : public Component
 	bool barebone = false;
 	int boxWidth = 128;
 
+	struct InternalGraph : public Component,
+						   public Timer
+	{
+		void paint(Graphics& g) override;
+		
+		void timerCallback() override
+		{
+			stopTimer();
+			repaint();
+		}
+
+		void setBuffer(AudioSampleBuffer& b);
+
+		void calculatePath(Path& p, AudioSampleBuffer& b, int channel);
+
+		void mouseMove(const MouseEvent& e) override
+		{
+			currentPoint = e.getPosition();
+			startTimer(1200);
+			repaint();
+		}
+
+		void mouseExit(const MouseEvent&) override
+		{
+			stopTimer();
+			currentPoint = {};
+			repaint();
+		}
+
+		void mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel) override
+		{
+			if (e.mods.isAnyModifierKeyDown())
+			{
+				zoomFactor = jlimit(1.0f, 32.0f, zoomFactor + (float)wheel.deltaY * 5.0f);
+				findParentComponentOfClass<Graph>()->resized();
+				setBuffer(lastBuffer);
+			}
+			else
+				getParentComponent()->mouseWheelMove(e, wheel);
+		}
+
+		bool isHiresMode() const
+		{
+			return pixelsPerSample > 10.0f;
+		}
+
+		int getYPixelForSample(int sample)
+		{
+			auto x = (float)getPixelForSample(sample);
+			Line<float> line(x, 0.0f, x, (float)getHeight());
+			return roundToInt(l.getClippedLine(line, true).getEndY());
+		}
+
+		int getPixelForSample(int sample)
+		{
+			if (lastBuffer.getNumSamples() == 0)
+				return 0;
+
+			Path::Iterator iter(l);
+
+			auto asFloat = (float)sample / (float)lastBuffer.getNumSamples();
+			asFloat *= (float)getWidth();
+
+			while (iter.next())
+			{
+				if (iter.x1 >= asFloat)
+					return roundToInt(iter.x1);
+			}
+
+			return 0;
+		}
+
+		AudioSampleBuffer lastBuffer;
+
+		float pixelsPerSample = 1;
+		
+		Point<int> currentPoint;
+
+		int numSamples = 0;
+		int currentPosition = 0;
+		Path l;
+		Path r;
+
+		Range<float> leftPeaks;
+		Range<float> rightPeaks;
+		bool stereoMode = false;
+		
+		float zoomFactor = 1.0f;
+
+	} internalGraph;
+
 	
+
+	Viewport viewport;
 
 	Graph(bool barebone_=false) :
 		testSignal("TestSignal"),
@@ -171,8 +264,48 @@ struct Graph : public Component
 			skin(bufferLength);
 			bufferLength.setTextWhenNothingSelected("Select Buffer size");
 			bufferLength.addItemList({ "16", "512", "44100" }, 1);
+
+			viewport.setViewedComponent(&internalGraph, false);
+
+			addAndMakeVisible(viewport);
 		}
-		
+	}
+
+	void paint(Graphics& g)
+	{
+		auto b = getLocalBounds().removeFromRight(50);
+
+		b = b.removeFromTop(viewport.getMaximumVisibleHeight());
+
+		g.setColour(Colours::white);
+
+		if (internalGraph.stereoMode)
+		{
+			auto left = b.removeFromTop(b.getHeight() / 2).toFloat();
+			auto right = b.toFloat();
+
+			auto lMax = left.removeFromTop(18);
+			auto lMin = left.removeFromBottom(18);
+
+			g.drawText(juce::String(internalGraph.leftPeaks.getStart(), 1), lMin, Justification::left);
+			g.drawText(juce::String(internalGraph.leftPeaks.getEnd(), 1), lMax, Justification::left);
+
+			auto rMax = right.removeFromTop(18);
+			auto rMin = right.removeFromBottom(18);
+
+			g.drawText(juce::String(internalGraph.rightPeaks.getStart(), 1), rMin, Justification::left);
+			g.drawText(juce::String(internalGraph.rightPeaks.getEnd(), 1), rMax, Justification::left);
+		}
+		else
+		{
+			auto left = b.removeFromTop(b.getHeight()).toFloat();
+
+			auto lMax = left.removeFromTop(18);
+			auto lMin = left.removeFromBottom(18);
+
+			g.drawText(juce::String(internalGraph.leftPeaks.getStart(), 1), lMin, Justification::left);
+			g.drawText(juce::String(internalGraph.leftPeaks.getEnd(), 1), lMax, Justification::left);
+		}
 	}
 
 	void skin(ComboBox& b)
@@ -188,44 +321,44 @@ struct Graph : public Component
 		b.setColour(ComboBox::ColourIds::outlineColourId, Colours::transparentBlack);
 	}
 
-	void setBuffer(AudioSampleBuffer& b);
-
-	void paint(Graphics& g) override;
-
 	void resized() override
 	{
+		auto b = getLocalBounds();
+		b.removeFromRight(60);
+
 		if (!barebone)
 		{
-			auto boxBounds = getLocalBounds().removeFromLeft(boxWidth);
+			auto boxBounds = b.removeFromLeft(boxWidth);
 
 			testSignal.setBounds(boxBounds.removeFromTop(30));
 			channelMode.setBounds(boxBounds.removeFromTop(30));
 			bufferLength.setBounds(boxBounds.removeFromTop(30));
 			processingMode.setBounds(boxBounds.removeFromTop(30));
 		}
-	}
 
-	void setCurrentPosition(int newPos)
-	{
-		currentPosition = newPos;
+		internalGraph.setBounds(0, 0, viewport.getWidth() * internalGraph.zoomFactor, viewport.getMaximumVisibleHeight());
+		viewport.setBounds(b);
+		internalGraph.setBounds(0, 0, viewport.getWidth() * internalGraph.zoomFactor, viewport.getMaximumVisibleHeight());
+
 		repaint();
 	}
 
-	int numSamples = 0;
-	int currentPosition = 0;
-
-	void calculatePath(Path& p, AudioSampleBuffer& b, int channel);
-
-	Range<float> leftPeaks;
-	Range<float> rightPeaks;
-	bool stereoMode = false;
+	void setBuffer(AudioSampleBuffer& b)
+	{
+		resized();
+		internalGraph.setBuffer(b);
+	}
+	
+	void setCurrentPosition(int newPos)
+	{
+		internalGraph.currentPosition = newPos;
+		repaint();
+	}
 
 	ComboBox testSignal;
 	ComboBox channelMode;
 	ComboBox bufferLength;
 	ComboBox processingMode;
-	Path l;
-	Path r;
 };
 
 /** Quick and dirty assembly syntax highlighter.
@@ -449,7 +582,7 @@ public:
         juce::OwnedArray<juce::Slider> sliders;
     };
     
-    static juce::String getDefaultCode();
+    static juce::String getDefaultCode(bool getTestCode=false);
     
 	SnexPlayground(Value externalCodeValue, BufferHandler* bufferHandlerToUse=nullptr);
 
@@ -484,7 +617,7 @@ public:
 
 private:
 
-	
+	AudioSampleBuffer loadedFile;
 
 	int currentBreakpointLine = -1;
 
@@ -587,6 +720,7 @@ private:
 	AssemblyTokeniser assemblyTokeniser;
 	CodeDocument assemblyDoc;
 	CodeEditorComponent assembly;
+	bool saveTest = false;
 
 	struct PlaygroundBufferHandler : public BufferHandler
 	{
@@ -622,6 +756,8 @@ private:
 	TextButton compileButton;
 	TextButton resumeButton;
 	TextButton showInfo;
+
+	bool testMode = true;
     
 	std::atomic<int> currentSampleIndex = { 0 };
 

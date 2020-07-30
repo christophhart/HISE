@@ -632,7 +632,9 @@ public:
 
 	void handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed, const MouseEvent& e);
 
+#if USE_BACKEND
 	bool handleKeyPress(const KeyPress& k, Component* c) override;
+#endif
 
 	void jumpToDefinition(const String& namespaceId, const String& token) override;
 

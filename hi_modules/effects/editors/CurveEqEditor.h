@@ -118,6 +118,7 @@ public:
 		buttons.add(highShelfButton);
 		buttons.add(peakButton);
 
+		initMacroControl(dontSendNotification);
 	};
 
 

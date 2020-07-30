@@ -2286,11 +2286,7 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::uglify()
 var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
 	ExpressionTreeBuilder tb(code, String());
-
 	tb.setupApiData(hiseSpecialData, code);
-
-	
-
 	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
 }
 

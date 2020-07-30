@@ -37,6 +37,108 @@ namespace snex {
 using namespace jit;
 using namespace juce;
 
+template <typename T> struct _ramp
+{
+	using Type = _ramp<T>;
+
+	struct Wrapper
+	{
+		JIT_MEMBER_WRAPPER_0(void, Type, reset);
+		JIT_MEMBER_WRAPPER_1(void, Type, set, T);
+		JIT_MEMBER_WRAPPER_0(T, Type, advance);
+		JIT_MEMBER_WRAPPER_0(T, Type, get);
+		JIT_MEMBER_WRAPPER_2(void, Type, prepare, double, double);
+	};
+
+	void reset()
+	{
+		stepsToDo = 0;
+		value = targetValue;
+		delta = T(0);
+	}
+
+	void set(T newTargetValue)
+	{
+		if (numSteps == 0)
+		{
+			value = targetValue;
+			stepsToDo = 0;
+		}
+		else
+		{
+			auto d = newTargetValue - value;
+			delta = d * stepDivider;
+			targetValue = newTargetValue;
+			stepsToDo = numSteps;
+		}
+	}
+
+	T advance()
+	{
+		if (stepsToDo <= 0)
+			return value;
+
+		auto v = value;
+		value += delta;
+		stepsToDo--;
+
+		return v;
+	}
+
+	T get()
+	{
+		return value;
+	}
+
+	void prepare(double samplerate, double timeInMilliseconds)
+	{
+		auto msPerSample = 1000.0 / samplerate;
+		numSteps = timeInMilliseconds * msPerSample;
+
+		if(numSteps > 0)
+			stepDivider = T(1) / (T)numSteps;
+	}
+
+	static ComplexType::Ptr createComplexType(const Identifier& id);
+
+	T value = T(0);
+	T targetValue = T(0);
+	T delta = T(0);
+	T stepDivider = T(0);
+
+	int numSteps = 0;
+	int stepsToDo = 0;
+};
+
+struct EventWrapper
+{
+	struct Wrapper
+	{
+		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getNoteNumber);
+		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getVelocity);
+		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getChannel);
+		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setVelocity, int);
+		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setChannel, int);
+		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setNoteNumber, int);
+
+
+	};
+
+	static ComplexType::Ptr createComplexType(const Identifier& id);
+};
+
+template struct _ramp<float>;
+template struct _ramp<double>;
+
+using sfloat = _ramp<float>;
+using sdouble = _ramp<double>;
+
+struct SnexObjectDatabase
+{
+	static void registerObjects(Compiler& c);
+};
+
+
 
 
 /** A callback collection is a high-level structure which handles the usage of SNEX within HISE.
@@ -182,7 +284,7 @@ private:
 
 struct ParameterHelpers
 {
-	static FunctionData getFunction(const String& parameterName, JitObject& obj);
+	static FunctionData getFunction(const juce::String& parameterName, JitObject& obj);
 
 	static StringArray getParameterNames(JitObject& obj);
 };

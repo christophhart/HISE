@@ -99,9 +99,9 @@
 #include "SampleExporter.h"
 #include "Console.h"
 
-
-#include "MacroControlledComponents.h"
 #include "MacroControlBroadcaster.h"
+#include "MacroControlledComponents.h"
+
 #include "MiscComponents.h"
 #include "StandaloneProcessor.h"
 

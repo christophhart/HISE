@@ -78,6 +78,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	}
 	else
 	{
+#if HISE_INCLUDE_SNEX
 		int jitNodeIndex = index - numSnippets - numFiles;
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
@@ -94,7 +95,10 @@ Component* CodeEditorPanel::createContentComponent(int index)
 				}
 			}
 		}
+#endif
 	}
+
+	return nullptr;
 }
 
 
@@ -191,6 +195,7 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
 		{
+#if HISE_INCLUDE_SNEX
 			if (auto network = h->getActiveNetwork())
 			{
 				auto list = network->getListOfNodesWithType<scriptnode::JitNode>(true);
@@ -198,6 +203,7 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 				for (auto l : list)
 					indexList.add("SNEX Node: " + l->getId());
 			}
+#endif
 		}
 	}
 }

@@ -17,6 +17,7 @@ namespace snex
 #define CONVERT_TO_DOUBLE_WITH_OP(op) { data.d.type = Types::Double; data.d.value op other.toDouble(); }
 #define CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(op) { CALC_IF_FLOAT(op) else CONVERT_TO_DOUBLE_WITH_OP(op ) }
 
+
 class VariableStorage
 {
 public:
@@ -34,7 +35,25 @@ public:
 	VariableStorage(const Types::FloatBlock& b);
 	VariableStorage(HiseEvent& m);
 
+	template <class T> VariableStorage(T* ptr)
+	{
+		data.p.type = Types::ID::Pointer;
+		data.p.data = ptr;
+		data.p.size = sizeof(T);
+	}
+
+	template <class T> VariableStorage& operator =(T* ptr)
+	{
+		data.p.type = Types::ID::Pointer;
+		data.p.data = ptr;
+		data.p.size = sizeof(T);
+	}
+
+	VariableStorage(void* objectPointer, int objectSize);
+
+	VariableStorage& operator =(int s);
 	VariableStorage& operator =(FloatType s);
+	VariableStorage& operator =(double s);
 	VariableStorage& operator =(const Types::FloatBlock& s);
 
 	bool operator==(const VariableStorage& other) const;
@@ -47,6 +66,7 @@ public:
 	void set(block&& s);;
 	void set(block& b);
 	void set(const HiseEvent& e);
+	void set(void* objectPointer, int newSize);
 
 	void clear();
 
@@ -55,6 +75,7 @@ public:
 	explicit operator int() const;
 	explicit operator Types::FloatBlock() const;
 	explicit operator HiseEvent() const;
+	explicit operator void*() const;
 
 	template <Types::ID expectedType> VariableStorage& store(const VariableStorage& other)
 	{
@@ -75,13 +96,7 @@ public:
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(+=)
 		else IF_CONSTEXPR (expectedType == Types::ID::Block)
 			data.b + (block)other;
-		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
-		{
-			if (other.getTypeValue() == Types::ID::Block)
-				data.b + (block)other;
-			else
-				data.b + (FloatType)other;
-		}
+		
 
 		return *this;
 	}
@@ -118,13 +133,6 @@ public:
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(-=)
 		else IF_CONSTEXPR (expectedType == Types::ID::Block)
 			data.b - (block)other;
-		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
-		{
-			if (other.getTypeValue() == Types::ID::Block)
-				data.b - (block)other;
-			else
-				data.b - (FloatType)other;
-		}
 
 		return *this;
 	}
@@ -135,11 +143,7 @@ public:
 			data.i.value /= (int)other;
 		else IF_CONSTEXPR (expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(/=)
-		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
-		{
-			if (other.getTypeValue() == Types::ID::Double)
-				data.b * (FloatType)(1.0 / (double)other);
-		}
+		
 
 		return *this;
 	}
@@ -152,13 +156,7 @@ public:
 			CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(*=)
 		else IF_CONSTEXPR (expectedType == Types::ID::Block)
 			data.b * (block)other;
-		else IF_CONSTEXPR (expectedType == Types::ID::Signal)
-		{
-			if (other.getTypeValue() == Types::ID::Block)
-				data.b * other.data.b;
-			else
-				data.b * (FloatType)other;
-		}
+		
 
 		return *this;
 	}
@@ -169,8 +167,6 @@ public:
 		
 		if (t == 0)
 			return Types::ID::Void;
-		else if (t < (int)HiseEvent::Type::numTypes)
-			return Types::ID::Event;
 		else
 			return (Types::ID)t;
 	}
@@ -181,6 +177,7 @@ public:
 	block toBlock() const;
 	HiseEvent toEvent() const;
 	bool isVoid() const noexcept { return getType() == Types::ID::Void; }
+	size_t getSizeInBytes() const noexcept;
 
 	template <Types::ID TypeID> auto toType() const
 	{
@@ -190,23 +187,26 @@ public:
 			return toInt();
 		else IF_CONSTEXPR (TypeID == Types::ID::Block)
 			return toBlock();
-		else IF_CONSTEXPR (TypeID == Types::ID::Event)
-			return toEvent();
+		
 		
 		return 0;
 	}
 
-	void* getDataPointer()
+	void* getDataPointer() const
 	{
+		if (getTypeValue() == Types::ID::Pointer)
+			return data.p.data;
 		if (getTypeValue() == Types::ID::Float ||
 			getTypeValue() == Types::ID::Double ||
 			getTypeValue() == Types::ID::Integer)
 		{
-			return &data.d.value;
+			return const_cast<void*>((const void*)&data.d.value);
 		}
 		else
-			return &data;
+			return const_cast<void*>((const void*)&data);
 	}
+
+	int getPointerSize() const;
 
 private:
 	 
@@ -237,6 +237,13 @@ private:
 		int unused2;
 	};
 
+	struct PointerData
+	{
+		int type;
+		int size;
+		void* data;
+	};
+
 	union Data
 	{
 		Data()
@@ -254,19 +261,14 @@ private:
 		IntData i;
 		FloatData f;
 		HiseEvent e;
+		PointerData p;
 	};
 
 	Data data;
-
-#if 0
-	double doubleValue;
-	HiseEvent m;
-	int intValue;
-	block blockValue;
-
-	Types::ID type;
-#endif
 };
+
+
+
 
 
 

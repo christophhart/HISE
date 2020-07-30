@@ -1465,7 +1465,7 @@ void StateVariableEqSubType::Coefficients::tick()
 	const double gain = 0.99;
 	const double invGain = 1.0 - gain;
 
-#if HI_ENABLE_LEGACY_CPU_SUPPORT || !JUCE_WINDOWS
+#if 1 || HI_ENABLE_LEGACY_CPU_SUPPORT || !JUCE_WINDOWS
 
 	mp[0] *= gain;
 	mp[1] *= gain;

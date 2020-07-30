@@ -93,11 +93,6 @@ SplitNode::SplitNode(DspNetwork* root, ValueTree data) :
 	initListeners();
 }
 
-juce::Identifier SplitNode::getObjectName() const
-{
-	return "SplitNode";
-}
-
 void SplitNode::prepare(PrepareSpecs ps)
 {
 	ScopedLock sl(getRootNetwork()->getConnectionLock());

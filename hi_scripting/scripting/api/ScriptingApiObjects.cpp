@@ -171,6 +171,167 @@ void addScriptParameters(ConstScriptingObject* this_, Processor* p)
 	this_->addConstant("ScriptParameters", var(scriptedParameters.get()));
 }
 
+struct ScriptingObjects::ScriptFile::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptFile, getParentDirectory);
+	API_METHOD_WRAPPER_1(ScriptFile, getChildFile);
+	API_METHOD_WRAPPER_1(ScriptFile, toString);
+	API_METHOD_WRAPPER_0(ScriptFile, isFile);
+	API_METHOD_WRAPPER_0(ScriptFile, isDirectory);
+	API_METHOD_WRAPPER_1(ScriptFile, writeObject);
+	API_METHOD_WRAPPER_1(ScriptFile, writeString);
+	API_METHOD_WRAPPER_2(ScriptFile, writeEncryptedObject);
+	API_METHOD_WRAPPER_0(ScriptFile, loadAsString);
+	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
+	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
+	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
+	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
+};
+
+ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const File& f_) :
+	ConstScriptingObject(p, 3),
+	f(f_)
+{
+	addConstant("FullPath", (int)FullPath);
+	addConstant("NoExtension", (int)NoExtension);
+	addConstant("Extension", (int)OnlyExtension);
+	addConstant("Filename", (int)Filename);
+
+	ADD_API_METHOD_0(getParentDirectory);
+	ADD_API_METHOD_1(getChildFile);
+	ADD_API_METHOD_1(toString);
+	ADD_API_METHOD_0(isFile);
+	ADD_API_METHOD_0(isDirectory);
+	ADD_API_METHOD_0(deleteFileOrDirectory);
+	ADD_API_METHOD_1(writeObject);
+	ADD_API_METHOD_1(writeString);
+	ADD_API_METHOD_2(writeEncryptedObject);
+	ADD_API_METHOD_0(loadAsString);
+	ADD_API_METHOD_0(loadAsObject);
+	ADD_API_METHOD_1(loadEncryptedObject);
+	ADD_API_METHOD_0(show);
+}
+
+
+var ScriptingObjects::ScriptFile::getChildFile(String childFileName)
+{
+	return new ScriptFile(getScriptProcessor(), f.getChildFile(childFileName));
+}
+
+var ScriptingObjects::ScriptFile::getParentDirectory()
+{
+	return new ScriptFile(getScriptProcessor(), f.getParentDirectory());
+}
+
+String ScriptingObjects::ScriptFile::toString(int formatType) const
+{
+	switch (formatType)
+	{
+	case Format::FullPath: return f.getFullPathName();
+	case Format::NoExtension: return f.getFileNameWithoutExtension();
+	case Format::OnlyExtension: return f.getFileExtension();
+	case Format::Filename: return f.getFileName();
+	default:
+		reportScriptError("Illegal formatType argument " + String(formatType));
+	}
+
+	return {};
+}
+
+bool ScriptingObjects::ScriptFile::isFile() const
+{
+	return f.existsAsFile();
+}
+
+bool ScriptingObjects::ScriptFile::isDirectory() const
+{
+	return f.isDirectory();
+}
+
+bool ScriptingObjects::ScriptFile::deleteFileOrDirectory()
+{
+	if (!f.isDirectory() && !f.existsAsFile())
+		return false;
+
+	return f.deleteRecursively(false);
+}
+
+bool ScriptingObjects::ScriptFile::writeObject(var jsonData)
+{
+	auto text = JSON::toString(jsonData);
+	return writeString(text);
+}
+
+bool ScriptingObjects::ScriptFile::writeString(String text)
+{
+	return f.replaceWithText(text);
+}
+
+bool ScriptingObjects::ScriptFile::writeEncryptedObject(var jsonData, String key)
+{
+	auto data = key.getCharPointer().getAddress();
+	auto size = jlimit(0, 72, key.length());
+
+	BlowFish bf(data, size);
+
+	auto text = JSON::toString(jsonData, true);
+
+	MemoryOutputStream mos;
+	mos.writeString(text);
+	mos.flush();
+	
+	auto out = mos.getMemoryBlock();
+
+	bf.encrypt(out);
+
+	return f.replaceWithText(out.toBase64Encoding());
+}
+
+String ScriptingObjects::ScriptFile::loadAsString() const
+{
+	return f.loadFileAsString();
+}
+
+var ScriptingObjects::ScriptFile::loadAsObject() const
+{
+	var v;
+
+	auto r = JSON::parse(loadAsString(), v);
+
+	if (r.wasOk())
+		return v;
+
+	reportScriptError(r.getErrorMessage());
+}
+
+var ScriptingObjects::ScriptFile::loadEncryptedObject(String key)
+{
+	auto data = key.getCharPointer().getAddress();
+	auto size = jlimit(0, 72, key.length());
+
+	BlowFish bf(data, size);
+
+	MemoryBlock in;
+	
+	in.fromBase64Encoding(f.loadFileAsString());
+	bf.decrypt(in);
+
+	var v;
+
+	auto r = JSON::parse(in.toString(), v);
+
+	return v;
+}
+
+void ScriptingObjects::ScriptFile::show()
+{
+	auto f_ = f;
+	MessageManager::callAsync([f_]()
+	{
+		f_.revealToUser();
+	});
+}
+
 struct ScriptingObjects::ScriptAudioFile::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, loadFile);
@@ -3210,22 +3371,29 @@ void ScriptingObjects::GraphicsObject::fillEllipse(var area)
 
 void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int /*xOffset*/, int yOffset)
 {
-	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent);
-	const Image img = sc->getLoadedImage(imageName);
-
-	if (img.isValid())
+	if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent))
 	{
-		Rectangle<float> r = getRectangleFromVar(area);
+		const Image img = sc->getLoadedImage(imageName);
 
-        if(r.getWidth() != 0)
-        {
-            const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
-            
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, (float)scaleFactor, yOffset));
-        }        
+		if (img.isValid())
+		{
+			Rectangle<float> r = getRectangleFromVar(area);
+
+			if (r.getWidth() != 0)
+			{
+				const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
+
+				drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, (float)scaleFactor, yOffset));
+			}
+		}
+		else
+			reportScriptError("Image not found");
 	}
 	else
-		reportScriptError("Image not found");
+	{
+		reportScriptError("drawImage is only allowed in a panel's paint routine");
+	}
+	
 }
 
 void ScriptingObjects::GraphicsObject::drawDropShadow(var area, var colour, int radius)
@@ -4063,131 +4231,6 @@ int ScriptingObjects::ScriptedMidiPlayer::getNumTracks()
 	return 0;
 }
 
-struct ScriptingObjects::ExpansionObject::Wrapper
-{
-	API_METHOD_WRAPPER_0(ExpansionObject, getSampleMapList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getImageList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getAudioFileList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getMidiFileList);
-	API_METHOD_WRAPPER_0(ExpansionObject, getProperties);
-	API_METHOD_WRAPPER_1(ExpansionObject, loadDataFile);
-	API_METHOD_WRAPPER_2(ExpansionObject, writeDataFile);
-};
-
-ScriptingObjects::ExpansionObject::ExpansionObject(ProcessorWithScriptingContent* p, Expansion* e) :
-	ConstScriptingObject(p, 0),
-	exp(e)
-{
-	ADD_API_METHOD_0(getSampleMapList);
-	ADD_API_METHOD_0(getImageList);
-	ADD_API_METHOD_0(getAudioFileList);
-	ADD_API_METHOD_0(getMidiFileList);
-	ADD_API_METHOD_0(getProperties);
-	ADD_API_METHOD_1(loadDataFile);
-	ADD_API_METHOD_2(writeDataFile);
-}
-
-var ScriptingObjects::ExpansionObject::getSampleMapList() const
-{
-	if (objectExists())
-	{
-		auto refList = exp->pool->getSampleMapPool().getListOfAllReferences(true);
-
-		Array<var> list;
-
-		for (auto& ref : refList)
-			list.add(ref.getReferenceString().upToFirstOccurrenceOf(".xml", false, true));
-
-		return list;
-	}
-
-	reportScriptError("Expansion was deleted");
-	RETURN_IF_NO_THROW({});
-}
-
-var ScriptingObjects::ExpansionObject::getImageList() const
-{
-	if (objectExists())
-	{
-		exp->pool->getImagePool().loadAllFilesFromProjectFolder();
-		auto refList = exp->pool->getImagePool().getListOfAllReferences(true);
-		
-
-		Array<var> list;
-
-		for (auto& ref : refList)
-			list.add(ref.getReferenceString());
-
-		return list;
-	}
-
-	reportScriptError("Expansion was deleted");
-	RETURN_IF_NO_THROW({});
-}
-
-var ScriptingObjects::ExpansionObject::getAudioFileList() const
-{
-	if (objectExists())
-	{
-		exp->pool->getAudioSampleBufferPool().loadAllFilesFromProjectFolder();
-		auto refList = exp->pool->getAudioSampleBufferPool().getListOfAllReferences(true);
-
-		
-
-		Array<var> list;
-
-		for (auto& ref : refList)
-			list.add(ref.getReferenceString());
-
-		return list;
-	}
-
-	reportScriptError("Expansion was deleted");
-	RETURN_IF_NO_THROW({});
-}
-
-var ScriptingObjects::ExpansionObject::getMidiFileList() const
-{
-	if (objectExists())
-	{
-		auto refList = exp->pool->getMidiFilePool().getListOfAllReferences(true);
-
-		Array<var> list;
-
-		for (auto& ref : refList)
-			list.add(ref.getReferenceString());
-
-		return list;
-	}
-
-	reportScriptError("Expansion was deleted");
-	RETURN_IF_NO_THROW({});
-}
-
-var ScriptingObjects::ExpansionObject::loadDataFile(var relativePath)
-{
-	auto fileToLoad = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
-
-	return JSON::parse(fileToLoad.loadFileAsString());
-}
-
-bool ScriptingObjects::ExpansionObject::writeDataFile(var relativePath, var dataToWrite)
-{
-	auto content = JSON::toString(dataToWrite);
-
-	auto targetFile = exp->getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile(relativePath.toString());
-
-	return targetFile.replaceWithText(content);
-}
-
-var ScriptingObjects::ExpansionObject::getProperties() const
-{
-	if (objectExists())
-		return exp->getPropertyObject();
-
-	return {};
-}
-
 
 struct ScriptingObjects::ScriptedLookAndFeel::Wrapper
 {
@@ -4237,11 +4280,8 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		args[1] = argsObject;
 
 		var thisObject(this);
-
 		var::NativeFunctionArgs arg(thisObject, args, 2);
-
 		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-
 		Result r = Result::ok();
 		
 		try
@@ -4270,6 +4310,88 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 	}
 
 	return false;
+}
+
+var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier& functionname, var* args, int numArgs)
+{
+	auto f = functions.getProperty(functionname, {});
+
+	if (HiseJavascriptEngine::isJavascriptFunction(f))
+	{
+		var thisObject(this);
+		var::NativeFunctionArgs arg(thisObject, args, numArgs);
+		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+		Result r = Result::ok();
+
+		try
+		{
+			return engine->callExternalFunctionRaw(f, arg);
+		}
+		catch (String& errorMessage)
+		{
+			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
+		}
+		catch (HiseJavascriptEngine::RootObject::Error& e)
+		{
+
+		}
+	}
+
+	return {};
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAlertBox(Graphics& g_, AlertWindow& w, const Rectangle<int>& ta, TextLayout& tl)
+{
+	if (auto l = get())
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(w.getLocalBounds().toFloat()));
+		obj->setProperty("title", w.getName()); 
+
+		if (l->callWithGraphics(g_, "drawAlertWindow", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawAlertBox(g_, w, ta, tl);
+}
+
+hise::MarkdownLayout::StyleData ScriptingObjects::ScriptedLookAndFeel::Laf::getAlertWindowMarkdownStyleData()
+{
+	auto s = MessageWithIcon::LookAndFeelMethods::getAlertWindowMarkdownStyleData();
+
+	if (auto l = get())
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("textColour", s.textColour.getARGB());
+		obj->setProperty("codeColour", s.codeColour.getARGB());
+		obj->setProperty("linkColour", s.linkColour.getARGB());
+		obj->setProperty("headlineColour", s.headlineColour.getARGB());
+
+		obj->setProperty("headlineFont", s.boldFont.getTypefaceName());
+		obj->setProperty("font", s.f.getTypefaceName());
+		obj->setProperty("fontSize", s.fontSize);
+
+		var x = var(obj);
+
+		auto nObj = l->callDefinedFunction("getAlertWindowMarkdownStyleData", &x, 1);
+
+		if (nObj.getDynamicObject() != nullptr)
+		{
+			s.textColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["textColour"]);
+			s.linkColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["linkColour"]);
+			s.codeColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["codeColour"]);
+			s.headlineColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(nObj["headlineColour"]);
+
+			s.boldFont = getMainController()->getFontFromString(nObj.getProperty("headlineFont", "Default"), s.boldFont.getHeight());
+
+			s.fontSize = nObj["fontSize"];
+			s.f = getMainController()->getFontFromString(nObj.getProperty("font", "Default"), s.boldFont.getHeight());
+		}
+	}
+	
+	return s;
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPopupMenuBackground(Graphics& g_, int width, int height)
@@ -4417,6 +4539,24 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& 
 	}
 
 	PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(g_, button, bg, isMouseOverButton, isButtonDown);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawNumberTag(Graphics& g_, Colour& c, Rectangle<int> area, int offset, int size, int number)
+{
+	if (auto l = get())
+	{
+		if (number != -1)
+		{
+			DynamicObject::Ptr obj = new DynamicObject();
+			obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
+			obj->setProperty("macroIndex", number - 1);
+
+			if (l->callWithGraphics(g_, "drawNumberTag", var(obj)))
+				return;
+		}
+	}
+
+	NumberTag::LookAndFeelMethods::drawNumberTag(g_, c, area, offset, size, number);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Graphics& g_, PresetBrowser* p)
@@ -4592,6 +4732,44 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRuler(Graphics& g_, Ta
 		tl->drawTableRuler(g_, te, area, lineThickness, rulerPosition);
 }
 
+juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)
+{
+	auto img = MessageWithIcon::LookAndFeelMethods::createIcon(type);
+
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		
+		String s;
+
+		switch (type)
+		{
+		case PresetHandler::IconType::Error:	s = "Error"; break;
+		case PresetHandler::IconType::Info:		s = "Info"; break;
+		case PresetHandler::IconType::Question: s = "Question"; break;
+		case PresetHandler::IconType::Warning:	s = "Warning"; break;
+		default: jassertfalse; break;
+		}
+
+		obj->setProperty("type", s);
+		obj->setProperty("area", ApiHelpers::getVarRectangle({ 0.0f, 0.0f, (float)img.getWidth(), (float)img.getHeight() }));
+
+		Image img2(Image::ARGB, img.getWidth(), img.getHeight(), true);
+		Graphics g(img2);
+
+		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj)))
+		{
+			if ((int)obj->getProperty("type") == -1)
+				return {};
+
+			return img2;
+		}
+			
+	}
+
+	return img;
+}
+
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTag(Graphics& g_, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
 {
 	if (auto l = get())
@@ -4655,6 +4833,7 @@ LookAndFeel* HiseColourScheme::createAlertWindowLookAndFeel(void* mainController
 }
 #endif
 
+#if USE_BACKEND
 juce::ValueTree ApiHelpers::getApiTree()
 {
 	static ValueTree v;
@@ -4662,7 +4841,11 @@ juce::ValueTree ApiHelpers::getApiTree()
 	if (!v.isValid())
 		v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
 
+	//File::getSpecialLocation(File::userDesktopDirectory).getChildFile("API.xml").replaceWithText(v.createXml()->createDocument(""));
+
+
 	return v;
 }
+#endif
 
 } // namespace hise

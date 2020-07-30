@@ -37,7 +37,7 @@ MacroControlBroadcaster::MacroControlBroadcaster(ModulatorSynthChain *chain):
 {
 	for(int i = 0; i < 8; i++)
 	{
-		macroControls.add(new MacroControlData(i));
+		macroControls.add(new MacroControlData(i, *this));
 		
 	}
 }
@@ -129,13 +129,15 @@ XmlElement *MacroControlBroadcaster::MacroControlledParameterData::exportAsXml()
 
 
 
-MacroControlBroadcaster::MacroControlData::MacroControlData(ModulatorSynthChain *chain, XmlElement *xml)
+MacroControlBroadcaster::MacroControlData::MacroControlData(ModulatorSynthChain *chain, XmlElement *xml):
+	parent(*chain)
 {
 	currentValue = 0.0f;
 
 	jassert(xml->getTagName() == "macro");
 
 	macroName = xml->getStringAttribute("name");
+	macroIndex = macroName.getTrailingIntValue();
 
 	setValue((float)xml->getDoubleAttribute("value", 0.0));
 
@@ -328,7 +330,13 @@ void MacroControlBroadcaster::MacroControlData::removeAllParametersWithProcessor
 {
 	for(int i = 0; i < controlledParameters.size(); i++)
 	{
-		if(controlledParameters[i]->getProcessor() == p) controlledParameters.remove(i);
+		auto cp = controlledParameters[i];
+
+		if (cp->getProcessor() == p)
+		{
+			parent.sendMacroConnectionChangeMessage(macroIndex, cp->getProcessor(), cp->getParameter(), false);
+			controlledParameters.remove(i--);
+		}
 	}		
 }
 
@@ -372,7 +380,7 @@ void MacroControlBroadcaster::MacroControlData::addParameter(Processor *p, int p
 																range,
 																readOnly));
 
-
+	parent.sendMacroConnectionChangeMessage(macroIndex, p, parameterId, true);
 }
 
 Processor *MacroControlBroadcaster::findProcessor(Processor *p, const String &idToSearch)
@@ -395,7 +403,6 @@ void MacroControlBroadcaster::setMacroControl(int macroIndex, float newValue, No
 
 	data->setValue(newValue);
 
-	
 	if(notifyEditor == sendNotificationAsync)
 	{
 		thisAsSynth->sendChangeMessage();
@@ -455,8 +462,17 @@ void MacroControlBroadcaster::MacroControlData::removeParameter(int parameterInd
 		controlledParameters[parameterIndex]->getProcessor()->sendChangeMessage();
 	}
 
-	controlledParameters.remove(parameterIndex);
+	Processor* pToRemove = nullptr; 
+	auto indexToRemove = -1;
 
+	if (auto cp = controlledParameters[parameterIndex])
+	{
+		pToRemove = cp->getProcessor();
+		indexToRemove = cp->getParameter();
+	}
+
+	controlledParameters.remove(parameterIndex);
+	parent.sendMacroConnectionChangeMessage(macroIndex, pToRemove, indexToRemove, false);
 };
 
 void MacroControlBroadcaster::MacroControlData::removeParameter(const String &parameterName, const Processor *processor)

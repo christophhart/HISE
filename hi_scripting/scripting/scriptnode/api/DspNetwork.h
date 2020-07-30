@@ -41,7 +41,6 @@ class NodeFactory;
 
 /** A network of multiple DSP objects that are connected using a graph. */
 class DspNetwork : public ConstScriptingObject,
-				   public DebugableObject,
 				   public Timer
 {
 public:
@@ -85,6 +84,17 @@ public:
 			activeNetwork = n;
 		}
 
+		ScriptParameterHandler* getCurrentNetworkParameterHandler(const ScriptParameterHandler* contentHandler) const
+		{
+			if (auto n = getActiveNetwork())
+			{
+				if (n->isForwardingControlsToParameters())
+					return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->networkParameterHandler));
+			}
+
+			return const_cast<ScriptParameterHandler*>(contentHandler);
+		}
+
 		DspNetwork* getActiveNetwork() const
 		{
 			return activeNetwork.get();
@@ -106,7 +116,7 @@ public:
 
 	Identifier getObjectName() const override { return "DspNetwork"; };
 
-	String getDebugName() const override { return "DSP Network"; }
+	String getDebugName() const override { return "DspNetwork"; }
 	String getDebugValue() const override { return getId(); }
 	void rightClickCallback(const MouseEvent& e, Component* c) override;
 

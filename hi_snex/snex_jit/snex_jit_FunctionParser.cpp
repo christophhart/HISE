@@ -38,12 +38,54 @@ using namespace juce;
 using namespace asmjit;
 
 
+TypeInfo BlockParser::getDotParentType(ExprPtr e)
+{
+	if (auto dp = dynamic_cast<Operations::DotOperator*>(e.get()))
+	{
+		return dp->getDotParent()->getTypeInfo();
+	}
+
+	return {};
+}
+
+snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementToBlock()
+{
+	if (matchIf(JitTokens::openBrace))
+	{
+		return parseStatementBlock();
+	}
+	else
+	{
+		auto scopeIdToUse = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+		auto body = new Operations::StatementBlock(location, scopeIdToUse);
+		body->addStatement(parseStatement());
+		return body;
+	}
+}
+
 snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
 {
-	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(location);
+	auto parentPath = getCurrentScopeStatement()->getPath();
+	auto scopePath = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+
+	if (parentPath == scopePath)
+	{
+		scopePath = location.createAnonymousScopeId(parentPath);
+	}
+
+	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, scopePath);
+
+	ScopedPointer<Operations::StatementBlock> b = new Operations::StatementBlock(location, scopePath);
+
+	b->setParentScopeStatement(getCurrentScopeStatement());
+
+	ScopedScopeStatementSetter svs(this, b.get());
 
 	while (!isEOF() && currentType != JitTokens::closeBrace)
 	{
+		while (matchIf(JitTokens::using_))
+			parseUsingAlias();
+
 		b->addStatement(parseStatement().get());
 	}
 
@@ -54,42 +96,52 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseStatementBlock()
 
 BlockParser::StatementPtr FunctionParser::parseStatement()
 {
-	bool isConst = matchIf(JitTokens::const_);
+	if (matchIf(JitTokens::static_))
+	{
+		match(JitTokens::const_);
 
-	StatementPtr statement;
+		if (!matchIfType())
+			location.throwError("Expected type");
+
+		if (currentTypeInfo.isComplexType())
+			location.throwError("Can't define static const complex types");
+
+		auto s = parseNewSymbol(NamespaceHandler::Constant);
+
+		match(JitTokens::assign_);
+
+		auto value = parseConstExpression(false);
+
+		compiler->namespaceHandler.addConstant(s.id, value);
+
+		match(JitTokens::semicolon);
+		return parseStatement();
+	}
+
+	
 
 	if (matchIf(JitTokens::if_))
-	{
-		statement = parseIfStatement();
-	}
+		return(parseIfStatement());
 	else if (matchIf(JitTokens::openBrace))
-	{
-		statement = parseStatementBlock();
-		
-		matchIf(JitTokens::semicolon);
-	}
+		return matchIfSemicolonAndReturn(parseStatementBlock());
 	else if (matchIf(JitTokens::return_))
-	{
-		statement = parseReturnStatement();
-		match(JitTokens::semicolon);
-	}
+		return matchSemicolonAndReturn(parseReturnStatement());
+	else if (matchIf(JitTokens::break_))
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, true));
+	else if (matchIf(JitTokens::continue_))
+		return matchSemicolonAndReturn(new Operations::ControlFlowStatement(location, false));
 	else if (matchIf(JitTokens::for_))
-	{
-		statement = parseLoopStatement();
-	}
+		return parseLoopStatement();
 
-	else if (matchIfTypeToken())
+	if (matchIfType())
 	{
-		statement = parseVariableDefinition(isConst);
-		match(JitTokens::semicolon);
+		if (currentTypeInfo.isComplexType())
+			return parseComplexTypeDefinition();
+		else
+			return matchSemicolonAndReturn(parseVariableDefinition());
 	}
 	else
-	{
-		statement = parseAssignment();
-		match(JitTokens::semicolon);
-	}
-		
-	return statement;
+		return matchSemicolonAndReturn(parseAssignment());
 }
 
 BlockParser::StatementPtr FunctionParser::parseReturnStatement()
@@ -103,42 +155,55 @@ BlockParser::StatementPtr FunctionParser::parseReturnStatement()
 
 }
 
-snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition(bool isConst)
+snex::jit::BlockParser::StatementPtr FunctionParser::parseVariableDefinition()
 {
-	auto type = currentHnodeType;
-	auto id = parseIdentifier();
+	jassert(currentTypeInfo.isValid());
 
-	auto target = new Operations::VariableReference(location, { {}, id, type });
-	target->isLocalToScope = true;
-	target->isLocalConst = isConst;
+	SymbolParser sp(*this, compiler->namespaceHandler);
 
+	auto s = sp.parseNewSymbol(NamespaceHandler::Unknown);
+	auto target = new Operations::VariableReference(location, s);
+	
 	match(JitTokens::assign_);
 	ExprPtr expr = parseExpression();
-	return new Operations::Assignment(location, target, JitTokens::assign_, expr);
+	
+	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Variable);
+
+	return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
 }
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseLoopStatement()
 {
 	match(JitTokens::openParen);
 
-	match(JitTokens::auto_);
+	matchType();
 
-	match(JitTokens::bitwiseAnd);
+	auto iteratorType = currentTypeInfo;
 
-	auto variableId = parseIdentifier();
+	// has to be done manually because the normal symbol parser consumes the ':' token...
+	auto iteratorId = parseIdentifier();
+
 	match(JitTokens::colon);
 	
 	ExprPtr loopBlock = parseExpression();
 
 	match(JitTokens::closeParen);
 	
-	StatementPtr block = parseStatement();
+	auto id = location.createAnonymousScopeId(compiler->namespaceHandler.getCurrentNamespaceIdentifier());
 
-	return new Operations::BlockLoop(location, variableId, loopBlock.get(), block.get());
+	Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
+
+	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, id);
+
+	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), {}, NamespaceHandler::Variable);
+	StatementPtr body = parseStatementToBlock();
+	
+	return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);
 }
 
 snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
 {
+	auto loc = location;
 	match(JitTokens::openParen);
 
 	ExprPtr cond = parseBool();
@@ -146,7 +211,6 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
 	match(JitTokens::closeParen);
 
 	StatementPtr trueBranch = parseStatement();
-
 	StatementPtr falseBranch;
 
 	if (matchIf(JitTokens::else_))
@@ -154,7 +218,7 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseIfStatement()
 		falseBranch = parseStatement();
 	}
 
-	return new Operations::IfStatement(location, cond, trueBranch, falseBranch);
+	return new Operations::IfStatement(loc, cond, trueBranch, falseBranch);
 }
 
 void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
@@ -180,28 +244,32 @@ void FunctionParser::finaliseSyntaxTree(SyntaxTree* tree)
 		auto lastTrueStatement = is->getTrueBranch();
 		auto lastFalseStatement = is->getFalseBranch();
 
-		while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastTrueStatement.get()))
-			lastTrueStatement = bl->getLastStatement();
-		
-		while (auto bl = dynamic_cast<Operations::StatementBlock*>(lastTrueStatement.get()))
-			lastTrueStatement = bl->getLastStatement();
+		auto hasReturn = [](Operations::Statement::Ptr p)
+		{
+			if(dynamic_cast<Operations::ReturnStatement*>(p.get()))
+				return true;
 
+			return false;
+		};
 
-		auto lastTrueStatementOK = isReturn(lastTrueStatement);
-		auto lastFalseStatementOK = isReturn(lastFalseStatement);
+		if (!lastTrueStatement->forEachRecursive(hasReturn))
+			lastTrueStatement->addStatement(new Operations::ReturnStatement(location, nullptr));
+
+		if (lastFalseStatement != nullptr)
+		{
+			if (!lastFalseStatement->forEachRecursive(hasReturn))
+			{
+				lastFalseStatement->addStatement(new Operations::ReturnStatement(location, nullptr));
+			}
 		
-		if (lastFalseStatementOK && lastTrueStatementOK)
 			return;
-
-		is->getTrueBranch()->addStatement(new Operations::ReturnStatement(location, nullptr));
-		is->getFalseBranch()->addStatement(new Operations::ReturnStatement(location, nullptr));
+		}
 	}
 
-	
 	tree->addStatement(new Operations::ReturnStatement(location, nullptr));
 }
 
-BlockParser::ExprPtr FunctionParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenType op)
+BlockParser::ExprPtr BlockParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenType op)
 {
 	return new Operations::BinaryOp(location, l, r, op);
 }
@@ -216,42 +284,19 @@ snex::jit::BlockParser::StatementPtr FunctionParser::parseAssignment()
 		auto t = currentAssignmentType;
 		ExprPtr right = parseExpression();
 
-		if (auto ba = dynamic_cast<Operations::BlockAccess*>(left.get()))
-		{
-			return new Operations::BlockAssignment(location, left, t, right);
-		}
-		else
-		{
-			return new Operations::Assignment(location, left, t, right);
-		}
-		
+		return new Operations::Assignment(location, left, t, right, false);
 	}
 
 	return left;
 }
 
-Operations::Expression::Ptr FunctionParser::parseFunctionCall()
-{
-	ScopedPointer<Operations::FunctionCall> f = new Operations::FunctionCall(location, currentSymbol);
 
-
-	while (!isEOF() && currentType != JitTokens::closeParen)
-	{
-		f->addStatement(parseExpression());
-		matchIf(JitTokens::comma);
-	};
-
-	match(JitTokens::closeParen);
-
-	return f.release();
-}
-
-Operations::Expression::Ptr FunctionParser::parseExpression()
+Operations::Expression::Ptr BlockParser::parseExpression()
 {
 	return parseTernaryOperator();
 }
 
-BlockParser::ExprPtr FunctionParser::parseTernaryOperator()
+BlockParser::ExprPtr BlockParser::parseTernaryOperator()
 {
 	ExprPtr condition = parseBool();
 
@@ -267,7 +312,7 @@ BlockParser::ExprPtr FunctionParser::parseTernaryOperator()
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseBool()
+BlockParser::ExprPtr BlockParser::parseBool()
 {
 	const bool isInverted = matchIf(JitTokens::logicalNot);
 	ExprPtr result = parseLogicOperation();
@@ -279,7 +324,7 @@ BlockParser::ExprPtr FunctionParser::parseBool()
 }
 
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseLogicOperation()
+BlockParser::ExprPtr BlockParser::parseLogicOperation()
 {
 	ExprPtr left = parseComparation();
 
@@ -297,7 +342,7 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseLogicOperation()
 		return left;
 }
 
-BlockParser::ExprPtr FunctionParser::parseComparation()
+BlockParser::ExprPtr BlockParser::parseComparation()
 {
 	ExprPtr left = parseSum();
 
@@ -308,6 +353,11 @@ BlockParser::ExprPtr FunctionParser::parseComparation()
 		currentType == JitTokens::equals ||
 		currentType == JitTokens::notEquals)
 	{
+		// If this is true, we are parsing a template argument 
+		// and don't want to consume the '>' token...
+		if (isParsingTemplateArgument)
+			return left;
+
 		TokenType op = currentType;
 		skip();
 		ExprPtr right = parseSum();
@@ -318,7 +368,7 @@ BlockParser::ExprPtr FunctionParser::parseComparation()
 }
 
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseSum()
+BlockParser::ExprPtr BlockParser::parseSum()
 {
 	ExprPtr left(parseDifference());
 
@@ -333,7 +383,7 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseSum()
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseProduct()
+BlockParser::ExprPtr BlockParser::parseProduct()
 {
 	ExprPtr left(parseTerm());
 
@@ -351,7 +401,7 @@ BlockParser::ExprPtr FunctionParser::parseProduct()
 
 
 
-BlockParser::ExprPtr FunctionParser::parseDifference()
+BlockParser::ExprPtr BlockParser::parseDifference()
 {
 	ExprPtr left(parseProduct());
 
@@ -365,12 +415,17 @@ BlockParser::ExprPtr FunctionParser::parseDifference()
 		return left;
 }
 
-BlockParser::ExprPtr FunctionParser::parseTerm()
+BlockParser::ExprPtr BlockParser::parseTerm()
 {
 	if (matchIf(JitTokens::openParen))
 	{
-		if (matchIfTypeToken()) 
-			return parseCast(currentHnodeType);
+		if (matchIfType())
+		{
+			if (currentTypeInfo.isComplexType())
+				location.throwError("Can't cast to " + currentTypeInfo.toString());
+
+			return parseCast(currentTypeInfo.getType());
+		}
 		else
 		{
 			auto result = parseExpression();
@@ -383,7 +438,7 @@ BlockParser::ExprPtr FunctionParser::parseTerm()
 }
 
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseCast(Types::ID type)
+BlockParser::ExprPtr BlockParser::parseCast(Types::ID type)
 {
 	match(JitTokens::closeParen);
 	ExprPtr source(parseTerm());
@@ -391,7 +446,7 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseCast(Types::ID type)
 }
 
 
-snex::jit::BlockParser::ExprPtr FunctionParser::parseUnary()
+BlockParser::ExprPtr BlockParser::parseUnary()
 {
 	if (currentType == JitTokens::identifier ||
 		currentType == JitTokens::literal ||
@@ -422,17 +477,15 @@ snex::jit::BlockParser::ExprPtr FunctionParser::parseUnary()
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseFactor()
+BlockParser::ExprPtr BlockParser::parseFactor()
 {
 	if (matchIf(JitTokens::plusplus))
 	{
-		matchIfSymbol();
 		ExprPtr expr = parseReference();
 		return new Operations::Increment(location, expr, true, false);
 	}
 	if (matchIf(JitTokens::minusminus))
 	{
-		matchIfSymbol();
 		ExprPtr expr = parseReference();
 		return new Operations::Increment(location, expr, true, true);
 	}
@@ -442,53 +495,154 @@ BlockParser::ExprPtr FunctionParser::parseFactor()
 			return parseLiteral(true);
 		else
 		{
-			ExprPtr expr = parseSymbolOrLiteral();
+			ExprPtr expr = parseReference();
 			return new Operations::Negation(location, expr);
 		}
 	}
-	else
-		return parseSymbolOrLiteral();
-}
-
-
-BlockParser::ExprPtr FunctionParser::parseSymbolOrLiteral()
-{
-	if (matchIfSymbol())
+	//	else return parseSymbolOrLiteral();
+	else if (currentType == JitTokens::identifier)
 	{
-		if (matchIf(JitTokens::openParen))
-			return parseFunctionCall();
-		else
-		{
-			ExprPtr expr = parseReference();
-
-			if (matchIf(JitTokens::plusplus))
-				return new Operations::Increment(location, expr, false, false);
-			if (matchIf(JitTokens::minusminus))
-				return new Operations::Increment(location, expr, false, true);
-			if (matchIf(JitTokens::openBracket))
-			{
-				ExprPtr idx = parseExpression();
-
-				match(JitTokens::closeBracket);
-
-				return new Operations::BlockAccess(location, expr, idx);
-			}
-
-			return expr;
-		}
-			
+		return parsePostSymbol();
 	}
 	else
 		return parseLiteral();
 }
 
 
-BlockParser::ExprPtr FunctionParser::parseReference()
+BlockParser::ExprPtr BlockParser::parseDotOperator(ExprPtr p)
 {
-	return new Operations::VariableReference(location, currentSymbol);
+	while(matchIf(JitTokens::dot))
+	{
+		auto e = parseReference(false);
+		p = new Operations::DotOperator(location, p, e);
+	}
+	
+	return parseSubscript(p);
 }
 
-BlockParser::ExprPtr FunctionParser::parseLiteral(bool isNegative)
+
+BlockParser::ExprPtr BlockParser::parseSubscript(ExprPtr p)
+{
+	bool found = false;
+
+	while (matchIf(JitTokens::openBracket))
+	{
+		ExprPtr idx = parseExpression();
+
+		match(JitTokens::closeBracket);
+		p = new Operations::Subscript(location, p, idx);
+		found = true;
+	}
+
+	return found ? parseDotOperator(p) : parseCall(p);
+}
+
+BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
+{
+	bool found = false;
+
+	Array<TemplateParameter> templateParameters;
+
+    auto fSymbol = getCurrentSymbol();
+
+	auto pType = getDotParentType(p);
+	
+	if (auto vt = pType.getTypedIfComplexType<VariadicTypeBase>())
+	{
+		if(currentType == JitTokens::lessThan)
+			templateParameters = parseTemplateParameters();
+
+		auto mId = vt->getVariadicId().getChildId(fSymbol.getName());
+
+		FunctionClass::Ptr vfc = vt->getFunctionClass();
+		Array<FunctionData> matches;
+		vfc->addMatchingFunctions(matches, mId);
+		
+		auto f = matches.getFirst();
+
+		if (auto il = f.inliner)
+		{
+			if (il->returnTypeFunction)
+			{
+				ReturnTypeInlineData rt(f);
+				rt.object = dynamic_cast<Operations::DotOperator*>(p.get())->getDotParent();
+				rt.templateParameters = templateParameters;
+
+				il->process(&rt);
+			}
+		}
+
+		fSymbol = Symbol(f.id, f.returnType);
+
+		jassert(fSymbol.resolved);
+	}
+
+	while (matchIf(JitTokens::openParen))
+	{
+		if (auto dot = dynamic_cast<Operations::DotOperator*>(p.get()))
+		{
+			if (auto s = dynamic_cast<Operations::SymbolStatement*>(dot->getDotParent().get()))
+			{
+				auto symbol = s->getSymbol();
+				auto parentSymbol = symbol.id;
+
+				if (compiler->namespaceHandler.isStaticFunctionClass(parentSymbol))
+				{
+					fSymbol.id = parentSymbol.getChildId(fSymbol.id.getIdentifier());
+					fSymbol.resolved = false;
+					p = nullptr;
+				}
+			}
+		}
+
+		auto f = new Operations::FunctionCall(location, p, fSymbol, templateParameters);
+
+		while (!isEOF() && currentType != JitTokens::closeParen)
+		{
+			f->addArgument(parseExpression());
+			matchIf(JitTokens::comma);
+		};
+
+		match(JitTokens::closeParen);
+
+		p = f;
+		found = true;
+	}
+
+	return found ? parseDotOperator(p) : p;
+}
+
+BlockParser::ExprPtr BlockParser::parsePostSymbol()
+{
+	auto expr = parseReference();
+
+	expr = parseDotOperator(expr);
+
+	if (matchIf(JitTokens::plusplus))
+		expr = new Operations::Increment(location, expr, false, false);
+	else if (matchIf(JitTokens::minusminus))
+		expr = new Operations::Increment(location, expr, false, true);
+	
+	return expr;
+}
+
+
+
+
+BlockParser::ExprPtr BlockParser::parseReference(bool mustBeResolvedAtCompileTime)
+{
+	if (mustBeResolvedAtCompileTime)
+		parseExistingSymbol();
+	else
+	{
+		currentTypeInfo = {};
+		currentSymbol = Symbol(parseIdentifier());
+	}
+
+	return new Operations::VariableReference(location, getCurrentSymbol());
+}
+
+BlockParser::ExprPtr BlockParser::parseLiteral(bool isNegative)
 {
 	auto v = parseVariableStorageLiteral();
 
@@ -502,41 +656,6 @@ BlockParser::ExprPtr FunctionParser::parseLiteral(bool isNegative)
 	return new Operations::Immediate(location, v);
 }
 
-#if 0
-
-	if (matchIfSymbol())
-	{
-		ExprPtr left;
-
-		
-
-		if (matchIf(JitTokens::plus))
-		{
-			ExprPtr right = parseExpression();
-
-			return new Operations::BinaryOp(location, left, right);
-		}
-
-		return left;
-	}
-
-	if (currentType == JitTokens::literal)
-	{
-		auto v = parseVariableStorageLiteral();
-		return new Operations::Immediate(location, v);
-	}
-
-	String expression;
-
-	while (currentType != JitTokens::eof && currentType != JitTokens::semicolon)
-	{
-		expression << currentType;
-		skip();
-	}
-
-	return new Operations::DummyExpression(location, expression);
-}
-#endif
 
 
 }

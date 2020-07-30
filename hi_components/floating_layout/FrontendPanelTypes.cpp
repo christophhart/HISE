@@ -464,14 +464,12 @@ void PerformanceLabelPanel::timerCallback()
 
 	auto bytes = mc->getSampleManager().getModulatorSamplerSoundPool2()->getMemoryUsageForAllSamples();
 
-#if HISE_ENABLE_EXPANSIONS
 	auto& handler = getMainController()->getExpansionHandler();
 
 	for (int i = 0; i < handler.getNumExpansions(); i++)
 	{
 		bytes += handler.getExpansion(i)->pool->getSamplePool()->getMemoryUsageForAllSamples();
 	}
-#endif
 
 	const double ramUsage = (double)bytes / 1024.0 / 1024.0;
 
@@ -573,6 +571,7 @@ var PresetBrowserPanel::toDynamicObject() const
 
 	storePropertyInObject(obj, SpecialPanelIds::ShowSaveButton, options.showSaveButtons);
 
+	storePropertyInObject(obj, SpecialPanelIds::ShowExpansionsAsColumn, options.showExpansions);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, options.showFolderButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, options.showNotesLabel);
 	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, options.showEditButtons);
@@ -590,6 +589,7 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
 	options.showNotesLabel = getPropertyWithDefault(object, SpecialPanelIds::ShowNotes);
 	options.showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
+	options.showExpansions = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionsAsColumn);
 	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
 	options.showFavoriteIcons = getPropertyWithDefault(object, SpecialPanelIds::ShowFavoriteIcon);
 	options.backgroundColour = findPanelColour(PanelColourId::bgColour);
@@ -622,6 +622,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowNotes, "ShowNotes");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowEditButtons, "ShowEditButtons");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
 
 	return Identifier();
@@ -642,6 +643,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowNotes, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowEditButtons, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumColumns, 3);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowExpansionsAsColumn, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFavoriteIcon, true);
 
 	return var();
@@ -823,6 +825,527 @@ void AboutPagePanel::rebuildText()
 		text.append(showWebsiteURL + nl, bold, low);
 	}
 	
+}
+
+FrontendMacroPanel::FrontendMacroPanel(FloatingTile* parent) :
+	TableFloatingTileBase(parent),
+	macroChain(parent->getMainController()->getMainSynthChain()),
+	macroManager(parent->getMainController()->getMacroManager())
+{
+	getMainController()->getMainSynthChain()->addMacroConnectionListener(this);
+
+	setName("Macro Edit Table");
+	initTable();
+}
+
+FrontendMacroPanel::~FrontendMacroPanel()
+{
+	getMainController()->getMainSynthChain()->removeMacroConnectionListener(this);
+}
+
+void FrontendMacroPanel::macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded)
+{
+	updateContent();
+	repaint();
+}
+
+hise::MacroControlBroadcaster::MacroControlData* FrontendMacroPanel::getData(MacroControlBroadcaster::MacroControlledParameterData* pd)
+{
+	for (int i = 0; i < 8; i++)
+	{
+		if (macroChain->getMacroControlData(i)->getParameterWithProcessorAndIndex(pd->getProcessor(), pd->getParameter()))
+			return macroChain->getMacroControlData(i);
+	}
+
+	return nullptr;
+}
+
+const hise::MacroControlBroadcaster::MacroControlData* FrontendMacroPanel::getData(MacroControlBroadcaster::MacroControlledParameterData* pd) const
+{
+	for (int i = 0; i < 8; i++)
+	{
+		if (macroChain->getMacroControlData(i)->getParameterWithProcessorAndIndex(pd->getProcessor(), pd->getParameter()))
+			return macroChain->getMacroControlData(i);
+	}
+
+	return nullptr;
+}
+
+int FrontendMacroPanel::getNumRows()
+{
+	if (!getMainController()->getMacroManager().isMacroEnabledOnFrontend())
+	{
+		connectionList.clear();
+		return 0;
+	}
+
+	int numConnections = 0;
+
+	Array<WeakReference<MacroControlBroadcaster::MacroControlledParameterData>> newList;
+
+	for (int i = 0; i < 8; i++)
+	{
+		auto d = macroChain->getMacroControlData(i);
+
+		for (int j = 0; j < d->getNumParameters(); j++)
+		{
+			newList.add(d->getParameter(j));
+		}
+	}
+
+	newList.swapWith(connectionList);
+
+	return connectionList.size();
+}
+
+void FrontendMacroPanel::removeEntry(int rowIndex)
+{
+	if (auto data = connectionList[rowIndex].get())
+		getData(data)->removeParameter(data->getParameterName(), data->getProcessor());
+}
+
+bool FrontendMacroPanel::setRange(int rowIndex, NormalisableRange<double> newRange)
+{
+	if (auto data = connectionList[rowIndex].get())
+	{
+		data->setRangeStart(newRange.start);
+		data->setRangeEnd(newRange.end);
+		return true;
+	}
+
+	return false;
+}
+
+void FrontendMacroPanel::paint(Graphics& g)
+{
+	if (!getMainController()->getMacroManager().isMacroEnabledOnFrontend())
+	{
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colour(0xFF682222));
+		g.drawText("Macros are not enabled on the Front Interface", getLocalBounds().toFloat(), Justification::centred);
+	}
+}
+
+bool FrontendMacroPanel::isInverted(int rowIndex) const
+{
+	if (auto data = connectionList[rowIndex].get())
+		return data->isInverted();
+
+	return false;
+}
+
+juce::NormalisableRange<double> FrontendMacroPanel::getFullRange(int rowIndex) const
+{
+	if (auto data = connectionList[rowIndex].get())
+		return data->getTotalRange();
+
+	return {};
+}
+
+juce::NormalisableRange<double> FrontendMacroPanel::getRange(int rowIndex) const
+{
+	if (auto data = connectionList[rowIndex].get())
+		return data->getParameterRange();
+
+	return {};
+}
+
+bool FrontendMacroPanel::isUsed(int rowIndex) const
+{
+	return isPositiveAndBelow(rowIndex, connectionList.size());
+}
+
+void FrontendMacroPanel::setInverted(int row, bool value)
+{
+	if (auto data = connectionList[row].get())
+		data->setInverted(value);
+}
+
+juce::String FrontendMacroPanel::getCellText(int rowNumber, int columnId) const
+{
+	if (auto data = connectionList[rowNumber].get())
+	{
+		if (columnId == ColumnId::ParameterName)
+			return data->getParameterName();
+		else if (columnId == ColumnId::CCNumber)
+			return getData(data)->getMacroName();
+	}
+
+	return {};
+}
+
+MidiLearnPanel::MidiLearnPanel(FloatingTile* parent) :
+	TableFloatingTileBase(parent),
+	handler(*getMainController()->getMacroManager().getMidiControlAutomationHandler())
+{
+	handler.addChangeListener(this);
+	setName("MIDI Control List");
+	initTable();
+}
+
+MidiLearnPanel::~MidiLearnPanel()
+{
+	handler.removeChangeListener(this);
+}
+
+void MidiLearnPanel::changeListenerCallback(SafeChangeBroadcaster*)
+{
+	updateContent();
+	repaint();
+}
+
+int MidiLearnPanel::getNumRows()
+{
+	return handler.getNumActiveConnections();
+}
+
+void MidiLearnPanel::removeEntry(int rowIndex)
+{
+	auto data = handler.getDataFromIndex(rowIndex);
+
+	handler.removeMidiControlledParameter(data.processor, data.attribute, sendNotification);
+}
+
+bool MidiLearnPanel::setRange(int rowIndex, NormalisableRange<double> newRange)
+{
+	return handler.setNewRangeForParameter(rowIndex, newRange);
+}
+
+bool MidiLearnPanel::isInverted(int rowIndex) const
+{
+	auto data = handler.getDataFromIndex(rowIndex);
+
+	if (data.used)
+		return data.inverted;
+
+	return false;
+}
+
+juce::NormalisableRange<double> MidiLearnPanel::getFullRange(int rowIndex) const
+{
+	auto data = handler.getDataFromIndex(rowIndex);
+
+	if (data.used)
+		return data.fullRange;
+
+	return {};
+}
+
+juce::NormalisableRange<double> MidiLearnPanel::getRange(int rowIndex) const
+{
+	auto data = handler.getDataFromIndex(rowIndex);
+
+	if (data.used)
+		return data.parameterRange;
+
+	return {};
+}
+
+bool MidiLearnPanel::isUsed(int rowIndex) const
+{
+	return handler.getDataFromIndex(rowIndex).used;
+}
+
+void MidiLearnPanel::setInverted(int row, bool value)
+{
+	if (isUsed(row))
+	{
+		const bool ok = handler.setParameterInverted(row, value);
+		jassert(ok);
+		ignoreUnused(ok);
+	}
+}
+
+juce::String MidiLearnPanel::getCellText(int rowNumber, int columnId) const
+{
+	auto data = handler.getDataFromIndex(rowNumber);
+
+	if (data.processor == nullptr)
+	{
+		return {};
+	}
+
+	if (columnId == ColumnId::ParameterName)
+		return ProcessorHelpers::getPrettyNameForAutomatedParameter(data.processor, data.attribute);
+	else if (columnId == ColumnId::CCNumber)
+		return String(data.ccNumber);
+}
+
+TableFloatingTileBase::InvertedButton::InvertedButton(TableFloatingTileBase &owner_) :
+	owner(owner_)
+{
+	laf.setFontForAll(owner.font);
+
+	addAndMakeVisible(t = new TextButton("Inverted"));
+	t->setButtonText("Inverted");
+	t->setLookAndFeel(&laf);
+	t->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	t->addListener(this);
+	t->setTooltip("Invert the range of the macro control for this parameter.");
+	t->setColour(TextButton::buttonColourId, Colour(0x88000000));
+	t->setColour(TextButton::buttonOnColourId, Colour(0x88FFFFFF));
+	t->setColour(TextButton::textColourOnId, Colour(0xaa000000));
+	t->setColour(TextButton::textColourOffId, Colour(0x99ffffff));
+
+	t->setClickingTogglesState(true);
+}
+
+void TableFloatingTileBase::InvertedButton::resized()
+{
+	t->setBounds(getLocalBounds().reduced(1));
+}
+
+void TableFloatingTileBase::InvertedButton::setRowAndColumn(const int newRow, bool value)
+{
+	row = newRow;
+
+	t->setToggleState(value, dontSendNotification);
+	t->setButtonText(value ? "Inverted" : "Normal");
+}
+
+void TableFloatingTileBase::InvertedButton::buttonClicked(Button *b)
+{
+	t->setButtonText(b->getToggleState() ? "Inverted" : "Normal");
+	owner.setInverted(row, b->getToggleState());
+}
+
+TableFloatingTileBase::ValueSliderColumn::ValueSliderColumn(TableFloatingTileBase &table) :
+	owner(table)
+{
+	addAndMakeVisible(slider = new Slider());
+
+	laf.setFontForAll(table.font);
+
+	slider->setLookAndFeel(&laf);
+	slider->setSliderStyle(Slider::LinearBar);
+	slider->setTextBoxStyle(Slider::TextBoxLeft, true, 80, 20);
+	slider->setColour(Slider::backgroundColourId, Colour(0x38ffffff));
+	slider->setColour(Slider::thumbColourId, Colour(SIGNAL_COLOUR));
+	slider->setColour(Slider::rotarySliderOutlineColourId, Colours::black);
+	slider->setColour(Slider::textBoxOutlineColourId, Colour(0x38ffffff));
+	slider->setColour(Slider::textBoxTextColourId, Colours::black);
+	slider->setTextBoxIsEditable(true);
+
+	slider->addListener(this);
+}
+
+void TableFloatingTileBase::ValueSliderColumn::resized()
+{
+	slider->setBounds(getLocalBounds().reduced(1));
+}
+
+void TableFloatingTileBase::ValueSliderColumn::setRowAndColumn(const int newRow, int column, double value, NormalisableRange<double> range)
+{
+	row = newRow;
+	columnId = column;
+
+	slider->setRange(range.start, range.end, range.interval);
+	slider->setSkewFactor(range.skew);
+
+	slider->setValue(value, dontSendNotification);
+}
+
+void TableFloatingTileBase::ValueSliderColumn::sliderValueChanged(Slider *)
+{
+	auto newValue = slider->getValue();
+
+	auto actualValue = owner.setRangeValue(row, (TableFloatingTileBase::ColumnId)columnId, newValue);
+
+	if (newValue != actualValue)
+		slider->setValue(actualValue, dontSendNotification);
+}
+
+TableFloatingTileBase::TableFloatingTileBase(FloatingTile* parent) :
+	FloatingTileContent(parent),
+	font(GLOBAL_FONT())
+{
+
+}
+
+void TableFloatingTileBase::initTable()
+{
+	// Create our table component and add it to this component..
+	addAndMakeVisible(table);
+	table.setModel(this);
+
+	// give it a border
+
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white.withAlpha(0.5f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.5f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white.withAlpha(0.5f));
+
+	table.setColour(ListBox::backgroundColourId, Colours::transparentBlack);
+	table.setOutlineThickness(0);
+
+	laf = new TableHeaderLookAndFeel();
+
+	table.getHeader().setLookAndFeel(laf);
+	table.getHeader().setSize(getWidth(), 22);
+	table.getViewport()->setScrollBarsShown(true, false, true, false);
+	table.getHeader().setInterceptsMouseClicks(false, false);
+	table.setMultipleSelectionEnabled(false);
+
+	auto first = getIndexName();
+
+	auto fWidth = (int)font.getStringWidthFloat(first) + 20;
+
+	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, fWidth, fWidth);
+	table.getHeader().addColumn("Parameter", ParameterName, 70);
+	table.getHeader().addColumn("Inverted", Inverted, 50, 50, 50);
+	table.getHeader().addColumn("Min", Minimum, 70, 70, 70);
+	table.getHeader().addColumn("Max", Maximum, 70, 70, 70);
+	table.getHeader().setStretchToFitActive(true);
+}
+
+void TableFloatingTileBase::updateContent()
+{
+	table.updateContent();
+}
+
+void TableFloatingTileBase::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	table.setColour(ListBox::backgroundColourId, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+
+	itemColour1 = findPanelColour(FloatingTileContent::PanelColourId::itemColour1);
+	itemColour2 = findPanelColour(FloatingTileContent::PanelColourId::itemColour2);
+	textColour = findPanelColour(FloatingTileContent::PanelColourId::textColour);
+
+	font = getFont();
+	laf->f = font;
+	laf->bgColour = itemColour1;
+	laf->textColour = textColour;
+}
+
+void TableFloatingTileBase::paintRowBackground(Graphics& g, int /*rowNumber*/, int /*width*/, int /*height*/, bool rowIsSelected)
+{
+	if (rowIsSelected)
+	{
+		g.fillAll(Colours::white.withAlpha(0.2f));
+	}
+}
+
+void TableFloatingTileBase::resized()
+{
+	table.setBounds(getLocalBounds());
+}
+
+double TableFloatingTileBase::setRangeValue(int row, ColumnId column, double newRangeValue)
+{
+	if (isUsed(row))
+	{
+		auto range = getRange(row);
+
+		if (column == Minimum)
+		{
+			if (range.end <= newRangeValue)
+			{
+				return range.end;
+			}
+			else
+			{
+				range.start = newRangeValue;
+
+				const bool ok = setRange(row, range);
+				jassert(ok);
+				ignoreUnused(ok);
+
+				return newRangeValue;
+			}
+		}
+		else if (column == Maximum)
+		{
+			if (range.start >= newRangeValue)
+			{
+				return range.start;
+			}
+			else
+			{
+				range.end = newRangeValue;
+
+				const bool ok = setRange(row, range);
+				jassert(ok);
+				ignoreUnused(ok);
+
+				return newRangeValue;
+			}
+		}
+
+		else jassertfalse;
+	}
+
+	return -1.0 * newRangeValue;
+}
+
+void TableFloatingTileBase::deleteKeyPressed(int lastRowSelected)
+{
+	if (isUsed(lastRowSelected))
+	{
+		removeEntry(lastRowSelected);
+	}
+
+	updateContent();
+	repaint();
+}
+
+Component* TableFloatingTileBase::refreshComponentForCell(int rowNumber, int columnId, bool /*isRowSelected*/, Component* existingComponentToUpdate)
+{
+	//auto data = handler.getDataFromIndex(rowNumber);
+
+	if (columnId == Minimum || columnId == Maximum)
+	{
+		ValueSliderColumn* slider = dynamic_cast<ValueSliderColumn*> (existingComponentToUpdate);
+
+		if (slider == nullptr)
+			slider = new ValueSliderColumn(*this);
+
+		auto pRange = getRange(rowNumber);
+		auto fullRange = getFullRange(rowNumber);
+
+		const double value = columnId == Maximum ? pRange.end : pRange.start;
+
+		slider->slider->setColour(Slider::ColourIds::backgroundColourId, Colours::transparentBlack);
+		slider->slider->setColour(Slider::ColourIds::thumbColourId, itemColour1);
+		slider->slider->setColour(Slider::ColourIds::textBoxTextColourId, textColour);
+
+		slider->setRowAndColumn(rowNumber, (ColumnId)columnId, value, fullRange);
+
+		return slider;
+	}
+	else if (columnId == Inverted)
+	{
+		InvertedButton* b = dynamic_cast<InvertedButton*> (existingComponentToUpdate);
+
+		if (b == nullptr)
+			b = new InvertedButton(*this);
+
+		b->t->setColour(TextButton::buttonOnColourId, itemColour1);
+		b->t->setColour(TextButton::textColourOnId, textColour);
+		b->t->setColour(TextButton::buttonColourId, Colours::transparentBlack);
+		b->t->setColour(TextButton::textColourOffId, textColour);
+
+		b->setRowAndColumn(rowNumber, isInverted(rowNumber));
+
+		return b;
+	}
+	{
+		// for any other column, just return 0, as we'll be painting these columns directly.
+
+		jassert(existingComponentToUpdate == nullptr);
+		return nullptr;
+	}
+}
+
+void TableFloatingTileBase::paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool /*rowIsSelected*/)
+{
+	g.setColour(textColour);
+	g.setFont(font);
+	auto text = getCellText(rowNumber, columnId);
+
+	g.drawText(text, 2, 0, width - 4, height, Justification::centredLeft, true);
 }
 
 } // namespace hise

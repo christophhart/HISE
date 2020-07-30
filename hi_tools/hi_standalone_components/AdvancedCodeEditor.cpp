@@ -37,7 +37,8 @@ using namespace juce;
 JavascriptCodeEditor::JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, ApiProviderBase::Holder *holder, const Identifier& snippetId_) :
 	CodeEditorComponent(document, codeTokeniser),
 	ApiComponentBase(holder),
-	snippetId(snippetId_)
+	snippetId(snippetId_),
+	hoverManager(*this)
 {
 	holder->addEditor(this);
 
@@ -314,10 +315,15 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 juce::String JavascriptCodeEditor::getCurrentToken() const
 {
-	CodeDocument::Position start = getCaretPos();
+	return getTokenForPosition(getCaretPos());
+}
+
+String JavascriptCodeEditor::getTokenForPosition(const CodeDocument::Position& pos) const
+{
+	CodeDocument::Position start = pos;
 	CodeDocument::Position end = start;
 
-	getDocument().findTokenContaining(start, start, end);
+	Helpers::findAdvancedTokenRange(pos, start, end);
 
 	return getDocument().getTextBetween(start, end);
 }
@@ -450,6 +456,32 @@ void JavascriptCodeEditor::paintOverChildren(Graphics& g)
 	}
 
 	holder->handleBreakpoints(snippetId, g, this);
+
+	if (hoverText.isNotEmpty())
+	{
+		Font f = GLOBAL_BOLD_FONT();
+		auto w = f.getStringWidthFloat(hoverText) + 20.0f;
+
+		auto x = (float)hoverPosition.x - w / 2.0f;
+
+
+
+		auto y = (float)hoverPosition.y;
+
+		y -= std::fmod(y, (float)getLineHeight());
+		y += (float)getLineHeight() + 5.0f;
+
+		auto h = f.getHeight() + 15.0f;
+
+		Rectangle<float> area(x, y, w, h);
+
+		g.setColour(Colour(0xEEAAAAAA));
+		g.fillRoundedRectangle(area, 2.0f);
+		g.setColour(Colours::black);
+		g.setFont(f);
+		g.drawText(hoverText, area, Justification::centred);
+		g.drawRoundedRectangle(area, 2.0f, 1.0f);
+	}
 }
 
 
