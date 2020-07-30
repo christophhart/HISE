@@ -2861,8 +2861,11 @@ MessageWithIcon::MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf,
 	s.boldFont = laf->getAlertWindowTitleFont();
 
 	if (auto laf_ = dynamic_cast<LookAndFeelMethods*>(laf))
+	{
 		s = laf_->getAlertWindowMarkdownStyleData();
-
+		image = laf_->createIcon(type);
+	}
+		
 	r.setStyleData(s);
 
 	auto w = jmin(s.f.getStringWidthFloat(message) + 30.0f, 600.0f);
@@ -2889,12 +2892,16 @@ void MessageWithIcon::paint(Graphics &g)
 void MessageWithIcon::LookAndFeelMethods::paintMessage(MessageWithIcon& icon, Graphics& g)
 {
 	auto img = createIcon(icon.t);
-	g.drawImageAt(img, 0, 0);
+
+	if (img.isValid())
+	{
+		g.drawImageAt(img, 0, 0);
+	}
+
 	g.setColour(Colour(0xFF999999));
 
 	auto b = icon.getLocalBounds();
-	b.removeFromLeft(icon.image.getWidth());
-
+	b.removeFromLeft(img.getWidth());
 	icon.r.draw(g, b.toFloat());
 }
 

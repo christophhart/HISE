@@ -4748,7 +4748,13 @@ juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler
 		Graphics g(img2);
 
 		if (l->callWithGraphics(g, "drawAlertWindowIcon", var(obj)))
+		{
+			if ((int)obj->getProperty("type") == -1)
+				return {};
+
 			return img2;
+		}
+			
 	}
 
 	return img;
