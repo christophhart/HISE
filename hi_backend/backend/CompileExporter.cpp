@@ -1724,6 +1724,17 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", String());
 	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", String());
 #endif
+
+	auto& dataObject = exporter->dataObject;
+
+	if (GET_SETTING(HiseSettings::Project::ExpansionType) == "Custom")
+	{
+		REPLACE_WILDCARD_WITH_STRING("%USE_CUSTOM_EXPANSION_TYPE%", "1");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%USE_CUSTOM_EXPANSION_TYPE%", "0");
+	}
 }
 
 void CompileExporter::ProjectTemplateHelpers::handleCompanyInfo(CompileExporter* exporter, String& templateProject)

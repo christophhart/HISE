@@ -825,6 +825,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
+	
+	API_VOID_METHOD_WRAPPER_1(Engine, setFrontendMacros)
 	API_VOID_METHOD_WRAPPER_2(Engine, setKeyColour);
 	API_VOID_METHOD_WRAPPER_2(Engine, showErrorMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, showMessage);
@@ -866,9 +868,11 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_METHOD_WRAPPER_0(Engine, getControlRateDownsamplingFactor);
 	API_METHOD_WRAPPER_1(Engine, createDspNetwork);
+	API_METHOD_WRAPPER_0(Engine, createExpansionHandler);
 	API_METHOD_WRAPPER_0(Engine, getExpansionList);
 	API_METHOD_WRAPPER_1(Engine, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(Engine, createGlobalScriptLookAndFeel);
+	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
@@ -922,6 +926,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
+	ADD_API_METHOD_1(setFrontendMacros);
 	ADD_API_METHOD_2(setKeyColour);
 	ADD_API_METHOD_2(showErrorMessage);
 	ADD_API_METHOD_1(showMessage);
@@ -982,6 +987,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(setLatencySamples);
 	ADD_API_METHOD_0(getLatencySamples);
 	ADD_API_METHOD_2(getDspNetworkReference);
+	ADD_API_METHOD_0(createExpansionHandler);
+	ADD_API_METHOD_3(showYesNoWindow);
 }
 
 
@@ -1146,15 +1153,12 @@ void ScriptingApi::Engine::setHostBpm(double newTempo)
 double ScriptingApi::Engine::getMemoryUsage() const
 {
 	auto bytes = getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->getMemoryUsageForAllSamples();
-
-#if HISE_ENABLE_EXPANSIONS
 	auto& handler = getProcessor()->getMainController()->getExpansionHandler();
 
 	for (int i = 0; i < handler.getNumExpansions(); i++)
 	{
 		bytes += handler.getExpansion(i)->pool->getSamplePool()->getMemoryUsageForAllSamples();
 	}
-#endif
 
 	return (double)bytes / 1024.0 / 1024.0;
 }
@@ -1170,6 +1174,27 @@ String ScriptingApi::Engine::getMacroName(int index)
 	{
 		reportScriptError("Illegal Macro Index");
 		return "Undefined";
+	}
+}
+
+void ScriptingApi::Engine::setFrontendMacros(var nameList)
+{
+	auto& mm = getProcessor()->getMainController()->getMacroManager();
+
+	if (auto ar = nameList.getArray())
+	{
+		mm.setEnableMacroOnFrontend(!ar->isEmpty());
+		
+		for (int i = 0; i < 8; i++)
+		{
+			auto macroName = (*ar)[i].toString();
+			mm.getMacroChain()->getMacroControlData(i)->setMacroName(macroName);
+		}
+	}
+	else
+	{
+		mm.setEnableMacroOnFrontend(false);
+		reportScriptError("Expected an Array of Strings");
 	}
 }
 
@@ -1313,6 +1338,31 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 	
 }
 
+void ScriptingApi::Engine::showYesNoWindow(String title, String markdownMessage, var callback)
+{
+	WeakReference<HiseJavascriptEngine> engine(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
+	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+
+	auto f = [markdownMessage, title, callback, engine, this, p]
+	{
+		if (engine != nullptr)
+		{
+			var args[1];
+
+			args[0] = PresetHandler::showYesNoWindow(title, markdownMessage);
+
+			auto r = Result::ok();
+
+			engine.get()->callExternalFunction(callback, var::NativeFunctionArgs({}, args, 1), &r, true);
+
+			if (!r.wasOk())
+				debugError(p, r.getErrorMessage());
+		}
+	};
+
+	MessageManager::callAsync(f);
+}
+
 var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 {
 	auto mc = getScriptProcessor()->getMainController_();
@@ -1358,6 +1408,11 @@ var ScriptingApi::Engine::createDspNetwork(String id)
 
 	reportScriptError("Not available on this script processor");
 	RETURN_IF_NO_THROW({});
+}
+
+var ScriptingApi::Engine::createExpansionHandler()
+{
+	return var(new ScriptExpansionHandler(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())));
 }
 
 var ScriptingApi::Engine::getDspNetworkReference(String processorId, String id)
@@ -1446,23 +1501,12 @@ void ScriptingApi::Engine::openWebsite(String url)
     {
         reportScriptError("not a valid URL");
     }
-
-
 }
 
 var ScriptingApi::Engine::getExpansionList()
 {
-	auto& expHandler = getProcessor()->getMainController()->getExpansionHandler();
-
-	Array<var> list;
-
-	for (int i = 0; i < expHandler.getNumExpansions(); i++)
-	{
-		auto newObj = new ScriptingObjects::ExpansionObject(getScriptProcessor(), expHandler.getExpansion(i));
-		list.add(var(newObj));
-	}
-
-	return list;
+	auto h = createExpansionHandler();
+	return dynamic_cast<ScriptExpansionHandler*>(h.getObject())->getExpansionList();
 }
 
 bool ScriptingApi::Engine::setCurrentExpansion(const String& expansionName)
@@ -2916,12 +2960,17 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 		const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
 
 #if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
-		// Apparently there was something wrong with the timestamp calculation.
+
+		if (getProcessor()->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+		{
+			// Apparently there was something wrong with the timestamp calculation.
 		// This restores the old behaviour by removing one block from the timestamps.
 		// By default, it's turned off, but you can enable it if you need backwards
 		// compatibility with older patches...
-		int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
-		timestamp = jmax<int>(0, timestamp - blocksize);
+			int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
+			timestamp = jmax<int>(0, timestamp - blocksize);
+		}
+		
 #endif
 
 		if (current != nullptr)
@@ -3642,12 +3691,16 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 
 
 #if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
-						// Apparently there was something wrong with the timestamp calculation.
+
+						if (getProcessor()->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+						{
+							// Apparently there was something wrong with the timestamp calculation.
 						// This restores the old behaviour by removing one block from the timestamps.
 						// By default, it's turned off, but you can enable it if you need backwards
 						// compatibility with older patches...
-						int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
-						timeStampSamples = jmax<int>(0, timeStampSamples - blocksize);
+							int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
+							timeStampSamples = jmax<int>(0, timeStampSamples - blocksize);
+						}
 #endif
 
 						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
@@ -4295,6 +4348,388 @@ Array<Identifier> ScriptingApi::ModuleIds::getTypeList(ModulatorSynth* s)
 	}
 
 	return ids;
+}
+
+struct ScriptingApi::FileSystem::Wrapper
+{
+	API_METHOD_WRAPPER_1(FileSystem, getFolder);
+	API_METHOD_WRAPPER_3(FileSystem, findFiles);
+	API_METHOD_WRAPPER_0(FileSystem, getSystemId);
+	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
+};
+
+ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
+	ApiClass(6),
+	ScriptingObject(pwsc),
+	ControlledObject(pwsc->getMainController_()),
+	p(pwsc)
+{
+	addConstant("Samples", (int)Samples);
+	addConstant("Expansions", (int)Expansions);
+	addConstant("UserPresets", (int)UserPresets);
+	addConstant("AppData", (int)AppData);
+	addConstant("UserHome", (int)UserHome);
+	addConstant("Documents", (int)Documents);
+	addConstant("Desktop", (int)Desktop);
+	addConstant("Downloads", (int)Downloads);
+
+	ADD_API_METHOD_1(getFolder);
+	ADD_API_METHOD_3(findFiles);
+	ADD_API_METHOD_0(getSystemId);
+	ADD_API_METHOD_4(browse);
+}
+
+ScriptingApi::FileSystem::~FileSystem()
+{
+
+}
+
+
+var ScriptingApi::FileSystem::getFolder(var locationType)
+{
+	auto l = (SpecialLocations)(int)locationType;
+	auto f = getFile(l);
+
+	if (f.isDirectory())
+		return new ScriptingObjects::ScriptFile(p, f);
+
+	return {};
+}
+
+var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool recursive)
+{
+	Array<var> l;
+
+	if (auto root = dynamic_cast<ScriptingObjects::ScriptFile*>(directory.getObject()))
+	{
+		if (root->isDirectory())
+		{
+			auto list = root->f.findChildFiles(File::findFilesAndDirectories, recursive, wildcard);
+
+			for (auto sf : list)
+				l.add(new ScriptingObjects::ScriptFile(p, sf));
+		}
+	}
+
+	return l;
+}
+
+void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wildcard, var callback)
+{
+	File f;
+
+	if (startFolder.isInt())
+		auto f = getFile((SpecialLocations)(int)startFolder);
+	else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(startFolder.getObject()))
+		f = sf->f;
+
+	auto p_ = p;
+
+	auto cb = [forSaving, f, wildcard, callback, p_]()
+	{
+		FileChooser fc(forSaving ? "Open file" : "Save file", f, wildcard);
+
+		var a;
+
+		if (forSaving && fc.browseForFileToSave(true))
+		{
+			a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+		}
+		if (!forSaving && fc.browseForFileToOpen())
+		{
+			a = var(new ScriptingObjects::ScriptFile(p_, fc.getResult()));
+		}
+
+		if (a.isObject())
+		{
+			if (auto engine = dynamic_cast<JavascriptProcessor*>(p_)->getScriptEngine())
+			{
+				var::NativeFunctionArgs args({}, &a, 1);
+				auto r = Result::ok();
+				engine->callExternalFunction(callback, args, &r, true);
+
+				if (!r.wasOk())
+					debugError(dynamic_cast<Processor*>(p_), r.getErrorMessage());
+			}
+		}
+	};
+
+	MessageManager::callAsync(cb);
+}
+
+String ScriptingApi::FileSystem::getSystemId()
+{
+	return OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()[0];
+}
+
+juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
+{
+	File f;
+
+	switch (l)
+	{
+	case Samples:	f = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Samples);
+		break;
+	case Expansions: return getMainController()->getExpansionHandler().getExpansionFolder();
+#if USE_BACKEND
+	case AppData:
+	{
+		f = ProjectHandler::getAppDataRoot();
+
+		auto& h = getMainController()->getCurrentFileHandler();
+
+		auto company = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::User::Company);
+
+		auto project = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name);
+
+		f = f.getChildFile(company.toString()).getChildFile(project.toString());
+
+		if (!f.isDirectory())
+			f.createDirectory();
+
+		break;
+	}
+#else
+	case AppData:	f = FrontendHandler::getAppDataDirectory();
+		break;
+#endif
+	case UserPresets:
+#if USE_BACKEND
+		f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+#else
+		f = FrontendHandler::getUserPresetDirectory();
+#endif
+		break;
+	case UserHome: f = File::getSpecialLocation(File::userHomeDirectory); break;
+	case Documents: f = File::getSpecialLocation(File::userDocumentsDirectory); break;
+	case Desktop:	f = File::getSpecialLocation(File::userDesktopDirectory); break;
+	case Downloads: f = File::getSpecialLocation(File::userHomeDirectory).getChildFile("Downloads"); break;
+	default:
+		break;
+	}
+
+	return f;
+}
+
+struct ScriptingApi::Server::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(Server, setBaseURL);
+	API_VOID_METHOD_WRAPPER_3(Server, callWithPOST);
+	API_VOID_METHOD_WRAPPER_3(Server, callWithGET);
+	API_VOID_METHOD_WRAPPER_4(Server, downloadFile);
+	API_VOID_METHOD_WRAPPER_1(Server, setHttpHeader);
+	API_METHOD_WRAPPER_2(Server, stopDownload);
+};
+
+ScriptingApi::Server::Server(JavascriptProcessor* jp_):
+	ApiClass(4),
+	ScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_)),
+	jp(jp_),
+	internalThread(*this)
+{
+	addConstant("StatusOK", StatusOK);
+	addConstant("StatusNotFound", StatusNotFound);
+	addConstant("StatusServerError", StatusServerError);
+	addConstant("StatusAuthenticationFail", StatusAuthenticationFail);
+
+	ADD_API_METHOD_1(setBaseURL);
+	ADD_API_METHOD_3(callWithPOST);
+	ADD_API_METHOD_3(callWithGET);
+	ADD_API_METHOD_1(setHttpHeader);
+	ADD_API_METHOD_4(downloadFile);
+	ADD_API_METHOD_2(stopDownload);
+}
+
+void ScriptingApi::Server::setBaseURL(String url)
+{
+	baseURL = URL(url);
+	internalThread.startThread();
+}
+
+void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callback)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+		PendingCallback::Ptr p = new PendingCallback();
+		p->function = callback;
+		p->url = getWithParameters(subURL, parameters);
+		p->isPost = false;
+		p->extraHeader = extraHeader;
+
+		internalThread.notify();
+		internalThread.pendingCallbacks.add(p);
+	}
+}
+
+void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callback)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+		PendingCallback::Ptr p = new PendingCallback();
+		p->function = callback;
+		p->url = getWithParameters(subURL, parameters);
+		p->extraHeader = extraHeader;
+		p->isPost = true;
+
+		internalThread.notify();
+		internalThread.pendingCallbacks.add(p);
+	}
+}
+
+void ScriptingApi::Server::setHttpHeader(String newHeader)
+{
+	extraHeader = newHeader;
+}
+
+void ScriptingApi::Server::downloadFile(String subURL, var parameters, var targetFile, var callback)
+{
+	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(targetFile.getObject()))
+	{
+		if (sf->f.isDirectory())
+		{
+			reportScriptError("target file is a directory");
+			return;
+		}
+
+		auto urlToUse = getWithParameters(subURL, parameters);
+
+		if(urlToUse.isWellFormed())
+		{
+			ScopedLock sl(internalThread.queueLock);
+
+			for (auto d : internalThread.pendingDownloads)
+			{
+				if (d->downloadURL == urlToUse)
+				{
+					debugToConsole(dynamic_cast<Processor*>(jp), "Skipping download for " + urlToUse.toString(false));
+					return;
+				}
+			}
+		}
+
+		PendingDownload::Ptr p = new PendingDownload();
+
+		p->callback = callback;
+		p->targetFile = sf->f;
+		p->downloadURL = urlToUse;
+		p->jp = jp;
+		
+		ScopedLock sl(internalThread.queueLock);
+		internalThread.pendingDownloads.add(p);
+		internalThread.notify();
+	}
+	else
+	{
+		reportScriptError("target file is not a file object");
+	}
+}
+
+bool ScriptingApi::Server::stopDownload(String subURL, var parameters)
+{
+	auto urlToUse = getWithParameters(subURL, parameters);
+
+	if (urlToUse.isWellFormed())
+	{
+		ScopedLock sl(internalThread.queueLock);
+
+		for (auto d : internalThread.pendingDownloads)
+		{
+			if (d->downloadURL == urlToUse)
+			{
+				d->shouldAbort = true;
+				internalThread.notify();
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+juce::URL ScriptingApi::Server::getWithParameters(String subURL, var parameters)
+{
+	auto url = baseURL.getChildURL(subURL);
+
+	if (auto d = parameters.getDynamicObject())
+	{
+		for (auto& p : d->getProperties())
+			url = url.withParameter(p.name.toString(), p.value.toString());
+	}
+
+	return url;
+}
+
+void ScriptingApi::Server::WebThread::run()
+{
+	while (!threadShouldExit())
+	{
+		{
+			ScopedLock sl(queueLock);
+
+			for (int i = 0; i < pendingDownloads.size(); i++)
+			{
+				auto d = pendingDownloads[i];
+
+				if (!d->isRunning)
+					d->start();
+
+				if (d->shouldAbort)
+					d->abort();
+
+				if (d->isFinished)
+					pendingDownloads.remove(i--);
+			}
+		}
+		
+
+		while (auto job = pendingCallbacks.removeAndReturn(0))
+		{
+			ScopedPointer<WebInputStream> wis;
+
+			wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, 3000, nullptr, &job->status));
+
+			if (wis != nullptr)
+			{
+				auto response = wis->readEntireStreamAsString();
+
+				var argData[2];
+				argData[0] = job->status;
+
+				auto r = JSON::parse(response, argData[1]);
+
+				if (!r.wasOk())
+				{
+					argData[0] = 500;
+					argData[1] = var(new DynamicObject());
+					argData[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
+
+					debugError(dynamic_cast<Processor*>(parent.jp), r.getErrorMessage());
+				}
+				
+				if (auto engine = parent.jp->getScriptEngine())
+				{
+					LockHelpers::SafeLock sl(dynamic_cast<Processor*>(parent.jp)->getMainController(), LockHelpers::Type::ScriptLock);
+					var::NativeFunctionArgs args(var(&parent), argData, 2);
+					engine->callExternalFunction(job->function, args, &r);
+				}
+			}
+		}
+
+		Thread::wait(5000);
+	}
+}
+
+void ScriptingApi::Server::PendingDownload::call()
+{
+	if (auto e = jp->getScriptEngine())
+	{
+		var d(data);
+		var nothing;
+		var::NativeFunctionArgs args(nothing, &d, 1);
+
+		LockHelpers::SafeLock sl(dynamic_cast<Processor*>(jp)->getMainController(), LockHelpers::Type::ScriptLock);
+		e->callExternalFunction(callback, args);
+	}
 }
 
 } // namespace hise

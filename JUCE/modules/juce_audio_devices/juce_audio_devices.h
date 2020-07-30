@@ -121,7 +121,7 @@
     Enables JACK audio devices (Linux only).
 */
 #ifndef JUCE_JACK
- #define JUCE_JACK 0
+ #define JUCE_JACK 1
 #endif
 
 /** Config: JUCE_BELA

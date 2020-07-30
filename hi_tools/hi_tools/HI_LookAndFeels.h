@@ -100,40 +100,55 @@ struct HiToolbarIcons
 };
 
 
-
-class NumberTag: public juce::ImageEffectFilter
+/** The default overlay that displays an assignment to a macro control. */
+class NumberTag: public Component
 {
 public:
+
+	struct LookAndFeelMethods
+	{
+		virtual void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number)
+		{
+			if (number > 0)
+			{
+				Rectangle<float> rect = area.reduced(offset).removeFromTop(size).removeFromRight(size).toFloat();
+				DropShadow d;
+
+				d.colour = c.withAlpha(0.3f);
+				d.radius = (int)offset * 2;
+				d.offset = Point<int>();
+				d.drawForRectangle(g, Rectangle<int>((int)rect.getX(), (int)rect.getY(), (int)rect.getWidth(), (int)rect.getHeight()));
+
+				g.setColour(Colours::black.withAlpha(0.3f));
+				g.setColour(Colours::white.withAlpha(0.7f));
+				g.drawRoundedRectangle(rect.reduced(1.0f), 4.0f, 1.0f);
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.drawText(String(number), rect, Justification::centred, false);
+			}
+		}
+	};
+
+	struct DefaultLookAndFeel : public LookAndFeel_V3,
+								public LookAndFeelMethods
+	{};
 
 	NumberTag(float offset_=0.f, float size_=13.0f, Colour c_=Colours::black):
 		number(0),
 		offset(offset_),
 		size(size_),
 		c(c_)
-	{};
-
-	void applyEffect (Image &image, Graphics &g, float /*scaleFactor*/, float /*alpha*/) override
 	{
-		const int w = image.getBounds().getWidth();
+		setInterceptsMouseClicks(false, false);
+		setLookAndFeel(&dlaf);
+	};
 
-		g.drawImageAt(image, 0, 0);
-
+	void paint(Graphics &g) override
+	{
 		if(number == 0) 
 			return;
 
-		Rectangle<float> rect = Rectangle<float>((float)w-offset-size, offset, size, size);
-		DropShadow d;
-
-		d.colour = c.withAlpha(0.3f);
-		d.radius = (int)offset*2;
-		d.offset = Point<int>();
-		d.drawForRectangle(g, Rectangle<int>((int)rect.getX(), (int)rect.getY(), (int)rect.getWidth(), (int)rect.getHeight()));
-
-		g.setColour(Colours::black.withAlpha(0.3f));
-		g.setColour(Colours::white.withAlpha(0.7f));
-		g.drawRoundedRectangle(rect.reduced(1.0f), 4.0f, 1.0f);
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText(String(number), rect, Justification::centred, false);
+		if (auto l = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+			l->drawNumberTag(g, c, getLocalBounds(), offset, size, number);
 	};
  	
 	void setNumber(int newNumber)
@@ -143,13 +158,15 @@ public:
 
 private:
 
-	
+	DefaultLookAndFeel dlaf;
+
 	int number;
 
 	float offset;
 	float size;
     Colour c;
 };
+
 
 class PopupLookAndFeel : public LookAndFeel_V3
 {

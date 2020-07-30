@@ -77,6 +77,7 @@ public:
 		bool showSaveButtons = true;
 		bool showFolderButton = true;
 		bool showFavoriteIcons = true;
+		bool showExpansions = false;
 	};
 
 	// ============================================================================================
@@ -188,13 +189,13 @@ public:
 		static Identifier getIdForFile(const File& presetFile);
 	};
 
-	
-
 	void setOptions(const Options& newOptions);
 
 	ExpansionHandler& expHandler;
 
 	void expansionPackLoaded(Expansion* currentExpansion);
+
+	void expansionPackCreated(Expansion* newExpansion) override;
 
 	PresetBrowserLookAndFeelMethods& getPresetBrowserLookAndFeel();
 
@@ -210,7 +211,6 @@ private:
 	void setShowFavorites(bool shouldShowFavorites);
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 	void setNumColumns(int numColumns);
-	void setColumnWidthRatio(double columnWidthRatio);
 
 	/** SaveButton = 1, ShowFolderButton = 0 */
 	void setShowButton(int buttonId, bool newValue);
@@ -223,11 +223,13 @@ private:
 	int numColumns = 3;
 	double columnWidthRatio = 0.33;
 
+	File defaultRoot;
 	File rootFile;
 	File currentBankFile;
 	File currentCategoryFile;
 
 	ScopedPointer<PresetBrowserSearchBar> searchBar;
+	ScopedPointer<PresetBrowserColumn> expansionColumn;
 	ScopedPointer<PresetBrowserColumn> bankColumn;
 	ScopedPointer<PresetBrowserColumn> categoryColumn;
 	ScopedPointer<PresetBrowserColumn> presetColumn;
@@ -248,6 +250,8 @@ private:
 	bool showOnlyPresets = false;
 	String currentWildcard = "*";
 	StringArray currentTagSelection;
+
+	WeakReference<Expansion> currentlySelectedExpansion;
 
 	var presetDatabase;
 

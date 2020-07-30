@@ -180,8 +180,8 @@ void ProcessorEditorChainBar::checkActiveChilds(int chainToCheck)
 
 	b->setButtonText(name);
 
-	numberTags[chainToCheck]->setNumber(numProcessors);
-
+	numProcessorList.set(chainToCheck, numProcessors);
+	repaint();
 }
 
 bool ProcessorEditorChainBar::isInterestedInDragSource(const SourceDetails & dragSourceDetails)
@@ -418,25 +418,12 @@ void ProcessorEditorChainBar::closeAll()
 
 void ProcessorEditorChainBar::paintOverChildren(Graphics &g)
 {
-	for (int i = 0; i < numberTags.size(); i++)
+	for (int i = 1; i < chainButtons.size(); i++)
 	{
-		if (chainButtons[i + 1]->getWidth() != 0)
+		if (chainButtons[i]->getWidth() != 0)
 		{
-#if HISE_IOS
-			const int heightSub = 5;
-#else
-			const int heightSub = 0;
-#endif
-
-			Image img(Image::PixelFormat::ARGB, chainButtons[i + 1]->getWidth(), chainButtons[i + 1]->getHeight()-heightSub, true);
-
-			Graphics g2(img);
-
-			numberTags[i]->applyEffect(img, g2, 1.0f, 1.0f);
-
-
-
-			g.drawImageAt(img, chainButtons[i + 1]->getX(), chainButtons[i + 1]->getY(), 0);
+            auto c = Colours::white.withAlpha(0.5f);
+			numberRenderer.drawNumberTag(g, c, chainButtons[i]->getBounds(), 2, 14, numProcessorList[i - 1]);
 		}
 	}
 

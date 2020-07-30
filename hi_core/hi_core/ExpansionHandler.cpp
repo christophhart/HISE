@@ -125,11 +125,30 @@ juce::Identifier ExpansionHandler::Helpers::getSanitizedIdentifier(const String&
 	return Identifier(s);
 }
 
+bool ExpansionHandler::Helpers::equalJSONData(var first, var second)
+{
+	if (first.isObject() && second.isObject())
+	{
+		auto a = JSON::toString(first, true);
+		auto b = JSON::toString(second, true);
+		return a.compare(b) == 0;
+	}
+
+	return false;
+}
+
+juce::int64 ExpansionHandler::Helpers::getJSONHash(var obj)
+{
+	if (obj.isObject())
+		return JSON::toString(obj, true).hashCode64();
+
+	return -1;
+}
+
 ExpansionHandler::ExpansionHandler(MainController* mc_):
 	mc(mc_),
 	notifier(*this)
 {
-	//rebuildExpansions();
 }
 
 void ExpansionHandler::createNewExpansion(const File& expansionFolder)
@@ -189,23 +208,54 @@ void ExpansionHandler::createAvailableExpansions()
 
 		if (Helpers::isValidExpansion(f))
 		{
-			expansionList.add(createExpansionForFile(f));
-			didSomething = true;
+			auto e = createExpansionForFile(f);
+
+			if (e != nullptr && !uninitialisedExpansions.contains(e))
+			{
+				expansionList.add(e);
+				didSomething = true;
+			}
 		}
 	}
     
-    if(didSomething)
-        notifier.sendNotification(Notifier::EventType::ExpansionCreated);
+	if (didSomething)
+	{
+		Expansion::Sorter s;
+		expansionList.sort(s, true);
+
+		notifier.sendNotification(Notifier::EventType::ExpansionCreated);
+	}
 }
 
-#if !HISE_USE_CUSTOM_EXPANSION_TYPE
 hise::Expansion* ExpansionHandler::createExpansionForFile(const File& f)
 {
-	auto e = new Expansion(mc, f);
-	e->initialise();
+	Expansion* e = nullptr;
+
+#if HISE_USE_CUSTOM_EXPANSION_TYPE
+	e = createCustomExpansion(f);
+#else
+
+	// Call setExpansionType with the class that you want to create
+	// before any expansion is created!
+	jassert(expansionCreateFunction);
+
+	if (expansionCreateFunction)
+		e = expansionCreateFunction(f);
+#endif
+
+	if (e != nullptr)
+	{
+		auto r = e->initialise();
+
+		if (r.failed())
+		{
+			uninitialisedExpansions.add(e);
+			setErrorMessage(r.getErrorMessage(), false);
+		}
+	}
+		
 	return e;
 }
-#endif
 
 var ExpansionHandler::getListOfAvailableExpansions() const
 {
@@ -217,6 +267,13 @@ var ExpansionHandler::getListOfAvailableExpansions() const
 	}
 
 	return var(ar);
+}
+
+
+
+const juce::OwnedArray<hise::Expansion>& ExpansionHandler::getListOfUnavailableExpansions() const
+{
+	return uninitialisedExpansions;
 }
 
 bool ExpansionHandler::setCurrentExpansion(const String& expansionName)
@@ -233,15 +290,21 @@ bool ExpansionHandler::setCurrentExpansion(const String& expansionName)
 	{
 		if (e->getProperty(ExpansionIds::Name) == expansionName)
 		{
-			currentExpansion = e;
-
-			notifier.sendNotification(Notifier::EventType::ExpansionLoaded);
-
+			setCurrentExpansion(e);
 			return true;
 		}
 	}
 
 	return false;
+}
+
+void ExpansionHandler::setCurrentExpansion(Expansion* e)
+{
+	if (currentExpansion != e)
+	{
+		currentExpansion = e;
+		notifier.sendNotification(Notifier::EventType::ExpansionLoaded);
+	}
 }
 
 PooledAudioFile ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)
@@ -273,6 +336,9 @@ hise::PooledSampleMap ExpansionHandler::loadSampleMap(const PoolReference& sampl
 
 hise::Expansion* ExpansionHandler::getExpansionForWildcardReference(const String& poolReferenceString) const
 {
+	if (!isEnabled())
+		return nullptr;
+
 	auto id = Expansion::Helpers::getExpansionIdFromReference(poolReferenceString);
 
 	if (id.isNotEmpty())
@@ -315,6 +381,19 @@ PoolCollection* ExpansionHandler::getCurrentPoolCollection()
         return mc->getCurrentFileHandler().pool;
     }
 
+
+hise::Expansion::ExpansionType Expansion::getExpansionTypeFromFolder(const File& f)
+{
+	if (Helpers::getExpansionInfoFile(f, Encrypted).existsAsFile())
+		return Encrypted;
+	if (Helpers::getExpansionInfoFile(f, Intermediate).existsAsFile())
+		return Intermediate;
+	if (Helpers::getExpansionInfoFile(f, FileBased).existsAsFile())
+		return FileBased;
+
+	jassertfalse;
+	return numExpansionType;
+}
 
 hise::PoolReference Expansion::createReferenceForFile(const String& relativePath, FileHandlerBase::SubDirectories fileType)
 {
@@ -378,23 +457,6 @@ PooledAdditionalData Expansion::loadAdditionalData(const String& relativePath)
 	return pool->getPool<AdditionalDataReference>()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
 }
 
-void Expansion::redirectSampleDirectoryToDefault()
-{
-#if USE_FRONTEND
-	auto target = FrontendHandler::getSampleLocationForCompiledPlugin();
-
-	for (auto& s : subDirectories)
-	{
-		if(s.directoryType == SubDirectories::Samples)
-		{
-			s.file = target;
-			s.isReference = true;
-			break;
-		}
-	}
-
-#endif
-}
 
 void Expansion::saveExpansionInfoFile()
 {

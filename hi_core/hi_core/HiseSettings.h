@@ -81,6 +81,7 @@ DECLARE_ID(SupportMonoFX);
 DECLARE_ID(EnableMidiInputFX);
 DECLARE_ID(UseRawFrontend);
 DECLARE_ID(VST3Support);
+DECLARE_ID(ExpansionType);
 
 Array<Identifier> getAllIds();
 

@@ -270,6 +270,8 @@ public:
 			bool voiceValuesReadOnly = true;
 		};
 
+		void setDisplayValue(float v);
+
 	private:
 
 		void applyMonophonicValuesToVoiceInternal(float* voiceBuffer, float* monoBuffer, int numSamples);

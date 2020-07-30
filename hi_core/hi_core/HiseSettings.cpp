@@ -89,6 +89,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(EnableMidiInputFX);
 	ids.add(VST3Support);
 	ids.add(UseRawFrontend);
+	ids.add(ExpansionType);
 
 	return ids;
 }
@@ -290,6 +291,15 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("If you're compiling an iOS app, you need to add an App Group to your Apple ID for this project and supply the name here.");
 		D("App Group IDs must have reverse-domain format and start with group, like:");
 		D("> `group.company.product`");
+		P_();
+
+		P(HiseSettings::Project::ExpansionType);
+		D("Sets the expansion type you want to use for this project. You can choose between:  \n");
+		D("- Disabled / no expansions (default)");
+		D("- Unencrypted file-based expansions (just creates a mini-project-folder inside the expansion)");
+		D("- Script-encrypted expansions");
+		D("- Custom expansions that uses a custom C++ class");
+		D("> If you use a custom expansion, you will need to implement `ExpansionHandler::createCustomExpansion()` in your project's C++ code");
 		P_();
 
 		P(HiseSettings::Project::RedirectSampleFolder);
@@ -613,6 +623,11 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 	if (id == Compiler::VisualStudioVersion)
 		return { "Visual Studio 2015", "Visual Studio 2017" };
 
+	if (id == Project::ExpansionType)
+	{
+		return { "Disabled", "FilesOnly", "Encrypted", "Custom" };
+	}
+
 	if (id == Project::AAXCategoryFX)
 		return {
 			"AAX_ePlugInCategory_EQ",
@@ -776,6 +791,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Project::EnableMidiInputFX)		return "No";
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
+	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";

@@ -1178,9 +1178,11 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 
 			dynamic_cast<AudioProcessor*>(mc)->setLatencySamples(fullBlockSize);
 
-			mc->prepareToPlay(sampleRate, fullBlockSize);
-		}
 
+		}
+        
+        if(!(mc->getMainSynthChain()->getLargestBlockSize() == fullBlockSize && sampleRate == mc->getMainSynthChain()->getSampleRate()))
+            mc->prepareToPlay(sampleRate, fullBlockSize);
 	}
 	else
 	{

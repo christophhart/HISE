@@ -319,7 +319,7 @@ juce::String Types::Helpers::getCppValueString(const var& v, ID type)
 		double dValue = (double)v;
 
 
-		if (fmodf(v, 1.0f) == 0.0f)
+		if (fmod(v, 1.0f) == 0.0f)
 			value << juce::String(static_cast<int>(dValue)) << ".0";
 		else
 		{

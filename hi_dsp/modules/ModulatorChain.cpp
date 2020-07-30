@@ -311,6 +311,11 @@ void ModulatorChain::ModChainWithBuffer::setCurrentRampValueForVoice(int voiceIn
 		currentRampValues[voiceIndex] = value;
 }
 
+void ModulatorChain::ModChainWithBuffer::setDisplayValue(float v)
+{
+	c->setOutputValue(v);
+}
+
 void ModulatorChain::ModChainWithBuffer::setExpandToAudioRate(bool shouldExpandAfterRendering)
 {
 	options.expandToAudioRate = shouldExpandAfterRendering;
@@ -544,7 +549,7 @@ float* ModulatorChain::ModChainWithBuffer::getWritePointerForVoiceValues(int sta
 float* ModulatorChain::ModChainWithBuffer::getWritePointerForManualExpansion(int startSample)
 {
 	// You have already expanded the values...
-	jassert(currentVoiceData != nullptr || !polyExpandChecker);
+	//jassert(currentVoiceData != nullptr || !polyExpandChecker);
 
 	// Have you already downsampled the startOffsetValue? If not, this is really bad...
 	jassert(startSample % HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR == 0);
@@ -559,7 +564,7 @@ float* ModulatorChain::ModChainWithBuffer::getWritePointerForManualExpansion(int
 const float* ModulatorChain::ModChainWithBuffer::getMonophonicModulationValues(int startSample) const
 {
 	// If you include the monophonic modulation values in the voice modulation, there's no need for this method
-	jassert(!options.includeMonophonicValues);
+	//jassert(!options.includeMonophonicValues);
 
 	if (c->hasMonophonicTimeModulationMods())
 	{
