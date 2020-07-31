@@ -81,8 +81,6 @@ public:
 	int getBlockSizeForChildNodes() const override;
 	double getSampleRateForChildNodes() const override;
 
-	Identifier getObjectName() const override { return getStaticId(); }
-
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 
 private:
@@ -105,8 +103,6 @@ public:
 	void reset() final override;
 	String getCppCode(CppGen::CodeLocation location) override;
 	
-	Identifier getObjectName() const override { return getStaticId(); }
-
 private:
 
 	wrap::event<SerialNode::DynamicSerialProcessor> obj;
@@ -173,8 +169,6 @@ public:
 
 	SplitNode(DspNetwork* root, ValueTree data);;
 
-	Identifier getObjectName() const override;;
-
 	SCRIPTNODE_FACTORY(SplitNode, "split");
 
 	String getCppCode(CppGen::CodeLocation location) override;
@@ -206,7 +200,6 @@ public:
 
 	float* currentChannelData[NUM_MAX_CHANNELS];
 	Range<int> channelRanges[NUM_MAX_CHANNELS];
-	Identifier getObjectName() const override { return "MultiChannelNode"; };
 };
 
 

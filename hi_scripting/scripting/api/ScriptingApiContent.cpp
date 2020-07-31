@@ -133,7 +133,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	name(name_),
 	parent(base->getScriptingContent()),
 	controlSender(this, base),
-	propertyTree(parent->getValueTreeForComponent(name)),
+	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
 	value(0.0),
 	skipRestoring(false),
 	hasChanged(false),
@@ -1037,6 +1037,34 @@ var ScriptingApi::Content::ScriptComponent::getAllProperties()
 	return var(list);
 }
 
+void ScriptingApi::Content::ScriptComponent::sendSubComponentChangeMessage(ScriptComponent* s, bool wasAdded, NotificationType notify/*=sendNotificationAsync*/)
+{
+	WeakReference<ScriptComponent> ws(s);
+	WeakReference<ScriptComponent> ts(this);
+
+	auto f = [ts, ws, wasAdded]()
+	{
+		if (ts != nullptr && ws != nullptr)
+		{
+			for (auto l : ts->subComponentListeners)
+			{
+				if (l != nullptr)
+				{
+					if (wasAdded)
+						l->subComponentAdded(ws);
+					else
+						l->subComponentRemoved(ws);
+				}
+			}
+		}
+	};
+
+	if (notify == sendNotificationSync)
+		f();
+	else
+		MessageManager::callAsync(f);
+}
+
 struct ScriptingApi::Content::ScriptSlider::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMidPoint);
@@ -1710,7 +1738,9 @@ StringArray ScriptingApi::Content::ScriptLabel::getOptionsFor(const Identifier &
 
 	switch (index)
 	{
-	case FontStyle:	sa.addArray(f.getAvailableStyles());
+	case FontStyle:	
+		sa.addArray(f.getAvailableStyles());
+		sa.add("Password");
 		break;
 	case FontName:	sa.add("Default");
 		sa.add("Oxygen");
@@ -2626,6 +2656,11 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
     API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
+	API_METHOD_WRAPPER_0(ScriptPanel, addChildPanel);
+	API_METHOD_WRAPPER_0(ScriptPanel, removeFromParent);
+	API_METHOD_WRAPPER_0(ScriptPanel, getChildPanelList);
+	API_METHOD_WRAPPER_0(ScriptPanel, getParentPanel);
+
 #if HISE_INCLUDE_RLOTTIE
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setAnimation);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setAnimationFrame);
@@ -2639,14 +2674,27 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *b
 ScriptComponent(base, panelName, 1),
 PreloadListener(base->getMainController_()->getSampleManager()),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
-loadRoutine(var()),
-paintRoutine(var()),
-mouseRoutine(var()),
-timerRoutine(var())
+isChildPanel(true)
+{
+	init();
+}
+
+ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptPanel* parent) :
+	ScriptComponent(parent->getScriptProcessor(), {}, 1),
+	PreloadListener(parent->getScriptProcessor()->getMainController_()->getSampleManager()),
+	graphics(new ScriptingObjects::GraphicsObject(parent->getScriptProcessor(), this)),
+	parentPanel(parent)
+{
+	
+	init();
+}
+
+
+void ScriptingApi::Content::ScriptPanel::init()
 {
 	ADD_NUMBER_PROPERTY(i00, "borderSize");					ADD_AS_SLIDER_TYPE(0, 20, 1);
 	ADD_NUMBER_PROPERTY(i01, "borderRadius");				ADD_AS_SLIDER_TYPE(0, 20, 1);
-    ADD_SCRIPT_PROPERTY(i02, "opaque");						ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i02, "opaque");						ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "allowDragging");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i04, "allowCallbacks");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i05, "popupMenuItems");				ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
@@ -2668,7 +2716,7 @@ timerRoutine(var())
 	setDefaultValue(itemColour2, 0x30000000);
 	setDefaultValue(borderSize, 2.0f);
 	setDefaultValue(borderRadius, 6.0f);
-    setDefaultValue(opaque, false);
+	setDefaultValue(opaque, false);
 	setDefaultValue(allowDragging, 0);
 	setDefaultValue(allowCallbacks, "No Callbacks");
 	setDefaultValue(PopupMenuItems, "");
@@ -2679,9 +2727,10 @@ timerRoutine(var())
 	setDefaultValue(enableMidiLearn, false);
 	setDefaultValue(holdIsRightClick, true);
 	setDefaultValue(isPopupPanel, false);
-	
+
 	handleDefaultDeactivatedProperties();
 
+	
 	addConstant("data", new DynamicObject());
 
 	//initInternalPropertyFromValueTreeOrDefault(visible);
@@ -2698,11 +2747,15 @@ timerRoutine(var())
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
-    ADD_API_METHOD_3(setValueWithUndo);
+	ADD_API_METHOD_3(setValueWithUndo);
 	ADD_API_METHOD_1(showAsPopup);
 	ADD_API_METHOD_0(closeAsPopup);
 	ADD_API_METHOD_1(setIsModalPopup);
 	ADD_API_METHOD_0(isVisibleAsPopup);
+	ADD_API_METHOD_0(addChildPanel);
+	ADD_API_METHOD_0(removeFromParent);
+	ADD_API_METHOD_0(getChildPanelList);
+	ADD_API_METHOD_0(getParentPanel);
 
 #if HISE_INCLUDE_RLOTTIE
 	ADD_API_METHOD_0(getAnimationData);
@@ -2711,8 +2764,12 @@ timerRoutine(var())
 #endif
 }
 
+
 ScriptingApi::Content::ScriptPanel::~ScriptPanel()
 {
+	if (parentPanel != nullptr)
+		parentPanel->sendSubComponentChangeMessage(this, false, sendNotificationAsync);
+
 	stopTimer();
 
 	timerRoutine = var();
@@ -2769,11 +2826,18 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=fal
 		auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
 		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
-		auto f = [this, forceRepaint](JavascriptProcessor*)
+		auto safeThis = WeakReference<ScriptPanel>(this);
+
+		auto f = [safeThis, forceRepaint](JavascriptProcessor*)
 		{
-			Result r = Result::ok();
-			internalRepaintIdle(forceRepaint, r);
-			return r;
+			if (safeThis != nullptr)
+			{
+				Result r = Result::ok();
+				safeThis.get()->internalRepaintIdle(forceRepaint, r);
+				return r;
+			}
+
+			return Result::ok();
 		};
 
 		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, jp, f);
@@ -2785,7 +2849,7 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 {
 	jassert_locked_script_thread(dynamic_cast<Processor*>(getScriptProcessor())->getMainController());
 
-	const bool parentHasMovedOn = !parent->hasComponent(this);
+	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
 
 	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
 	{
@@ -2920,7 +2984,7 @@ void ScriptingApi::Content::ScriptPanel::mouseCallbackInternal(const var& mouseI
 
 void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 {
-	const bool parentHasMovedOn = !parent->hasComponent(this);
+	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
 
 	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
 	{
@@ -3170,7 +3234,7 @@ bool ScriptingApi::Content::ScriptPanel::timerCallbackInternal(MainController * 
 	ignoreUnused(mc);
 	jassert_locked_script_thread(mc);
 
-	const bool parentHasMovedOn = !parent->hasComponent(this);
+	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
 
 	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
 	{
@@ -3220,6 +3284,17 @@ void ScriptingApi::Content::ScriptPanel::repaintWrapped()
 	{
 		repaint();
 	}
+}
+
+var ScriptingApi::Content::ScriptPanel::addChildPanel()
+{
+	auto s = new ScriptPanel(this);
+	childPanels.add(s);
+
+	sendSubComponentChangeMessage(s, true);
+
+	childPanels.getLast()->isChildPanel = true;
+	return var(childPanels.getLast());
 }
 
 #if HISE_INCLUDE_RLOTTIE
@@ -3283,6 +3358,38 @@ void ScriptingApi::Content::ScriptPanel::updateAnimationData()
 
 	animationData = var(obj);
 }
+
+bool ScriptingApi::Content::ScriptPanel::removeFromParent()
+{
+	if (parentPanel != nullptr && (parentPanel->childPanels.indexOf(this) != -1))
+	{
+		parentPanel->sendSubComponentChangeMessage(this, false, sendNotificationAsync);
+		parentPanel->childPanels.removeAllInstancesOf(this);
+		parentPanel = nullptr;
+		return true;
+	}
+
+	return false;
+}
+
+var ScriptingApi::Content::ScriptPanel::getChildPanelList()
+{
+	Array<var> cp;
+
+	for (auto p : childPanels)
+		cp.add(var(p.get()));
+
+	return cp;
+}
+
+var ScriptingApi::Content::ScriptPanel::getParentPanel()
+{
+	if (parentPanel != nullptr)
+		return var(parentPanel);
+
+	return {};
+}
+
 #endif
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)

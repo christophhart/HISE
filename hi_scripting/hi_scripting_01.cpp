@@ -55,6 +55,7 @@
 #include "scripting/engine/JavascriptEngineCyclicReferenceChecks.cpp"
 
 #include "scripting/api/ScriptingApiObjects.cpp"
+#include "scripting/api/ScriptExpansion.cpp"
 #include "scripting/api/ScriptingApi.cpp"
 #include "scripting/api/CubeApi.cpp"
 

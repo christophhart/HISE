@@ -36,7 +36,7 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-JitCallableObject::JitCallableObject(const Identifier& id) :
+JitCallableObject::JitCallableObject(const NamespacedIdentifier& id) :
 	FunctionClass(id)
 {
 
@@ -46,7 +46,7 @@ JitCallableObject::~JitCallableObject()
 {
 	if (globalScope.get() != nullptr)
 	{
-		globalScope->deregisterObject(objectId);
+		globalScope->deregisterObject(classSymbol);
 	}
 }
 

@@ -39,7 +39,8 @@ using namespace asmjit;
 
 Compiler::Compiler(GlobalScope& memoryPool)
 {
-	compiler = new ClassCompiler(memoryPool);
+	compiler = new ClassCompiler(&memoryPool, handler);
+	memoryPool.registerFunctionsToNamespaceHandler(handler);
 }
 
 Compiler::~Compiler()
@@ -53,6 +54,38 @@ juce::String Compiler::getAssemblyCode()
 	return compiler->assembly;
 }
 
+
+
+juce::String Compiler::dumpSyntaxTree() const
+{
+	if (compiler->syntaxTree != nullptr)
+	{
+		return dynamic_cast<SyntaxTree*>(compiler->syntaxTree.get())->dump();
+	}
+
+	return {};
+}
+
+juce::String Compiler::dumpNamespaceTree() const
+{
+	return compiler->namespaceHandler.dump();
+}
+
+ComplexType::Ptr Compiler::registerExternalComplexType(ComplexType::Ptr t)
+{
+	return compiler->namespaceHandler.registerComplexTypeOrReturnExisting(t);
+}
+
+ComplexType::Ptr Compiler::getComplexType(const NamespacedIdentifier& s)
+{
+	return compiler->namespaceHandler.getComplexType(s);
+	return nullptr;
+}
+
+void Compiler::registerVariadicType(VariadicSubType::Ptr p)
+{
+	compiler->namespaceHandler.addVariadicType(p);
+}
 
 juce::Result Compiler::getCompileResult()
 {
@@ -70,8 +103,7 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 void Compiler::setDebugHandler(DebugHandler* newHandler)
 {
 	compiler->setDebugHandler(newHandler);
-
-	compiler->memoryPool.addDebugHandler(newHandler);
+	compiler->parentScope->getGlobalScope()->addDebugHandler(newHandler);
 }
 
 

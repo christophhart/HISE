@@ -490,20 +490,29 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
     
 	bool sibling = false;
 
-	if (fileName.isEmpty())
+	File dumpFile;
+
+	if (File::isAbsolutePath(fileName))
 	{
-		fileName = "dump.wav";
-		sibling = true;
+		dumpFile = File(fileName);
 	}
+	else
+	{
+		if (fileName.isEmpty())
+		{
+			fileName = "dump.wav";
+			sibling = true;
+		}
 
 #if JUCE_WINDOWS
-	File dumpFile = File("D:\\dumps").getChildFile(fileName);
+		File dumpFile = File("D:\\dumps").getChildFile(fileName);
 #else
-	File dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
+		File dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
 #endif
 
-	if (sibling)
-		dumpFile = dumpFile.getNonexistentSibling(false);
+		if (sibling)
+			dumpFile = dumpFile.getNonexistentSibling(false);
+	}
 
 	dumpFile.deleteFile();
 	dumpFile.create();
@@ -1603,14 +1612,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			}
 			
 			WRITE_FLAG(Flag::EndMonolith);
-			
-
 			jassert(tmpInput->isExhausted());
-
 			fos->flush();
-
 			tmpInput = nullptr;
-			
 		}
 
 		WRITE_FLAG(Flag::EndOfArchive);

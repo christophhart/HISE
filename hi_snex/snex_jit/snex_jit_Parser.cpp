@@ -34,324 +34,37 @@ int Compiler::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 }
 
 
-class ClassScope : public FunctionClass,
-				   public BaseScope
-{
-public:
-
-	
-
-	ClassScope(GlobalScope& parent) :
-		FunctionClass({}),
-		BaseScope({}, &parent)
-	{
-		parent.setCurrentClassScope(this);
-
-		parent.getBufferHandler().reset();
-
-		jassert(scopeType == BaseScope::Class);
-
-		runtime = new asmjit::JitRuntime();
-
-		addFunctionClass(new MessageFunctions());
-		addFunctionClass(new MathFunctions());
-		addFunctionClass(new BlockFunctions());
-	};
-
-	ScopedPointer<asmjit::JitRuntime> runtime;
-
-	struct FunctionDebugInfo : public DebugInformationBase
-	{
-		FunctionDebugInfo(jit::FunctionData* d):
-			type(d->returnType),
-			full(d->getSignature()),
-			name(d->id.toString())
-		{
-
-		}
-
-		int getType() const override
-		{
-			return ApiHelpers::DebugObjectTypes::LocalFunction;
-		}
-
-		juce::String getCategory() const override
-		{
-			return "Local function";
-		}
-
-		Types::ID type;
-		juce::String name;
-		juce::String full;
-
-		virtual juce::String getTextForName() const
-		{
-			return full;
-		}
-
-		virtual juce::String getTextForType() const { return "function"; }
-
-		virtual juce::String getTextForDataType() const
-		{
-			return Types::Helpers::getTypeName(type);
-		}
-
-		virtual juce::String getTextForValue() const
-		{
-			return "";
-		}
-
-		virtual juce::String getCodeToInsert() const
-		{
-			return full.fromFirstOccurrenceOf(" ", false, false);
-		}
-
-	};
-
-	struct LocalVariableInfo
-	{
-		bool isParameter;
-		Identifier id;
-		Types::ID type;
-	};
-
-	struct LocalVariableDebugObject : public DebugableObjectBase
-	{
-		LocalVariableDebugObject(LocalVariableInfo info_, GlobalScope* s_):
-			s(s_),
-			info(info_)
-		{}
-
-		GlobalScope* s = nullptr;
-		LocalVariableInfo info;
-
-		Identifier getObjectName() const override 
-		{
-			return info.id;
-		}
-
-		int getTypeNumber() const override
-		{
-			return info.type;
-		}
-
-		juce::String getDebugDataType() const override
-		{
-			return Types::Helpers::getTypeName(info.type);
-		}
-
-		juce::String getDebugValue() const override
-		{
-			if (s != nullptr)
-			{
-				auto entry = s->getBreakpointHandler().getEntry(getObjectName());
-
-				if (entry.isUsed)
-					return Types::Helpers::getCppValueString(entry.currentValue);
-				else
-					return "unknown";
-			}
-		}
-		juce::String getCategory() const override { return info.isParameter ? "Parameter" : "Local variable"; };
-	};
-
-	struct BufferDummy : public ManualDebugObject
-	{
-
-		BufferDummy():
-			ManualDebugObject()
-		{
-			childNames.add("create");
-			childNames.add("getAudioFile");
-			childNames.add("getTableData");
-			category = "API call";
-			objectName = "Buffer";
-		}
-
-		int getTypeNumber() const override { return ApiHelpers::DebugObjectTypes::ApiCall; }
-		
-		void fillInfo(SettableDebugInfo* childInfo, const juce::String& id) override
-		{
-			if (id == "create")
-			{
-				childInfo->category = "API call";
-				childInfo->codeToInsert = "Buffer.create(int size)";
-				childInfo->name = "Buffer.create(int size)";
-				childInfo->typeValue = Types::ID::Block;
-				childInfo->description.append("\nCreates a empty buffer with the given size", GLOBAL_BOLD_FONT());
-			}
-			if (id == "getAudioFile")
-			{
-				childInfo->category = "API call";
-				childInfo->codeToInsert = "Buffer.getAudioFile(int fileIndex)";
-				childInfo->name = "Buffer.getAudioFile(int fileIndex)";
-				childInfo->typeValue = Types::ID::Block;
-				childInfo->description.append("\nreturns a wrapped block for the given audio file", GLOBAL_BOLD_FONT());
-			}
-			if (id == "getTableData")
-			{
-				childInfo->category = "API call";
-				childInfo->codeToInsert = "Buffer.getTableData(int tableIndex)";
-				childInfo->name = "Buffer.getTableData(int tableIndex)";
-				childInfo->typeValue = Types::ID::Block;
-				childInfo->description.append("\nreturns a wrapped block for the given look up table", GLOBAL_BOLD_FONT());
-			}
-		}
-	};
-
-	
-
-	void addLocalVariableInfo(const LocalVariableInfo& l)
-	{
-		localVariableInfo.add(l);
-	}
-
-	juce::Array<LocalVariableInfo> localVariableInfo;
-
-	void addRegisteredFunctionClasses(OwnedArray<DebugInformationBase>& list, int typeNumber= ApiHelpers::DebugObjectTypes::ApiCall)
-	{
-		for (auto f : registeredClasses)
-			list.add(new ObjectDebugInformation(f, typeNumber));
-	}
-
-	void createDebugInfo(OwnedArray<DebugInformationBase>& list)
-	{
-		list.clear();
-
-		auto addType = [&list](const juce::String& name, const juce::String& description, Types::ID type)
-		{
-			auto wblockInfo = new SettableDebugInfo();
-			wblockInfo->codeToInsert = name;
-			wblockInfo->name = name;
-			wblockInfo->description.append("\n" + description, GLOBAL_BOLD_FONT(), Colours::black);
-			wblockInfo->dataType = name;
-			wblockInfo->value = "";
-			wblockInfo->typeValue = type;
-			wblockInfo->category = "Basic Type";
-
-			list.add(wblockInfo);
-		};
-
-		addType("int", "A 32bit integer type", Types::ID::Integer);
-		addType("bool", "A boolean type (true | false)", Types::ID::Integer);
-		addType("float", "A 32bit floating point type", Types::ID::Float);
-		addType("sfloat", "A smoothed floating point value ", Types::ID::Float);
-		addType("double", "A 64bit floating point type", Types::ID::Double);
-		addType("sdouble", "A smoothed 64bit floating point value", Types::ID::Double);
-		addType("block", "A wrapper around a array of float numbers", Types::ID::Block);
-		addType("wblock", "A buffer object with index wrapping", Types::ID::Block);
-		addType("zblock", "A buffer object with zero wrapping", Types::ID::Block);
-		addType("event", "The HISE event", Types::ID::Event);
-		
-		auto forInfo = new SettableDebugInfo();
-		forInfo->codeToInsert = "for (auto& s : channel)\n\t{\n\t\t\n\t}\n\t";;
-		forInfo->name = "for-loop";
-		forInfo->description.append("\nA range based for loop over a block", GLOBAL_BOLD_FONT(), Colours::black);
-		forInfo->dataType = "float";
-		forInfo->value = "";
-		forInfo->category = "Template";
-		forInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
-
-		auto channelInfo = new SettableDebugInfo();
-		channelInfo->codeToInsert = "void processChannel(block channel, int channelIndex)\n{\n\t\n}\n";;
-		channelInfo->name = "processChannel";
-		channelInfo->description.append("\nBlock based channel processing", GLOBAL_BOLD_FONT(), Colours::black);
-		channelInfo->value = "";
-		channelInfo->category = "Template";
-		channelInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
-
-		list.add(channelInfo);
-
-		auto sampleInfo = new SettableDebugInfo();
-		sampleInfo->codeToInsert = "float processSample(float input)\n{\n\treturn input;\n}\n";;
-		sampleInfo->name = "processSample";
-		sampleInfo->description.append("\nMono (or stateless) sample processing", GLOBAL_BOLD_FONT(), Colours::black);
-		sampleInfo->value = "";
-		sampleInfo->category = "Template";
-		sampleInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
-
-		list.add(sampleInfo);
-
-		auto setInfo = new SettableDebugInfo();
-		setInfo->codeToInsert = "void setParameterX(double value)\n{\n\t\n}\n";;
-		setInfo->name = "setParameter";
-		setInfo->description.append("\nParameter callback template", GLOBAL_BOLD_FONT(), Colours::black);
-		setInfo->value = "";
-		setInfo->category = "Template";
-		setInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
-
-		list.add(setInfo);
-
-		auto frameInfo = new SettableDebugInfo();
-		frameInfo->codeToInsert = "void processFrame(block frame)\n{\n\t\n}\n";;
-		frameInfo->name = "processFrame";
-		frameInfo->description.append("\nInterleaved frame processing callback", GLOBAL_BOLD_FONT(), Colours::black);
-		frameInfo->value = "";
-		frameInfo->category = "Template";
-		frameInfo->typeValue = ApiHelpers::DebugObjectTypes::Template;
-
-		list.add(frameInfo);
-
-		list.add(forInfo);
-
-		for (auto l : localVariableInfo)
-		{
-			if (hasVariable(l.id))
-				continue;
-
-			auto lInfo = new LocalVariableDebugObject(l, dynamic_cast<GlobalScope*>(getParent()));
-			list.add(new ObjectDebugInformation(lInfo));
-		}
-
-		for (auto f : functions)
-		{
-			list.add(new FunctionDebugInfo(f));
-		}
-
-		if (auto gs = dynamic_cast<GlobalScope*>(getParent()))
-		{
-			list.add(new ObjectDebugInformation(gs->getGlobalFunctionClass("Console"), ApiHelpers::DebugObjectTypes::ApiCall));
-		}
-
-		
-		addRegisteredFunctionClasses(list);
-		
-
-		for (auto v : referencedVariables)
-		{
-			list.add(new ObjectDebugInformation(v));
-		}
-
-		list.add(ManualDebugObject::create<BufferDummy>());
-	}
-
-private:
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ClassScope);
-};
 
 class ClassCompiler final: public BaseCompiler
 {
 public:
 
-	ClassCompiler(GlobalScope& memoryPool_) :
-		BaseCompiler(),
-		memoryPool(memoryPool_),
+	ClassCompiler(BaseScope* parentScope_, NamespaceHandler& handler, const NamespacedIdentifier& classInstanceId = {}) :
+		BaseCompiler(handler),
+		instanceId(classInstanceId),
+		parentScope(parentScope_),
 		lastResult(Result::ok())
 	{
-		const auto& optList = memoryPool.getOptimizationPassList();
-
-		if (!optList.isEmpty())
+		if (auto gs = parentScope->getGlobalScope())
 		{
-			OptimizationFactory f;
+			const auto& optList = gs->getOptimizationPassList();
 
-			for (const auto& id : optList)
-				addOptimization(f.createOptimization(id));
+			if (!optList.isEmpty())
+			{
+				OptimizationFactory f;
+
+				for (const auto& id : optList)
+					addOptimization(f.createOptimization(id));
+			}
 		}
 
-		newScope = new JitCompiledFunctionClass(memoryPool);
+		newScope = new JitCompiledFunctionClass(parentScope, classInstanceId);
 	};
 
+	~ClassCompiler()
+	{
+		syntaxTree = nullptr;
+	}
 
 	void setFunctionCompiler(asmjit::X86Compiler* cc)
 	{
@@ -360,35 +73,61 @@ public:
 
 	asmjit::Runtime* getRuntime()
 	{
+		if (parentRuntime != nullptr)
+			return parentRuntime;
+
 		return newScope->pimpl->runtime;
 	}
 
-	JitCompiledFunctionClass* compileAndGetScope(const juce::String& code)
-	{
-		NewClassParser parser(this, code);
+	asmjit::Runtime* parentRuntime = nullptr;
 
-		if(newScope == nullptr)
-			newScope = new JitCompiledFunctionClass(memoryPool);
+	JitCompiledFunctionClass* compileAndGetScope(const ParserHelpers::CodeLocation& classStart, int length)
+	{
+		NewClassParser parser(this, classStart, length);
+
+		if (newScope == nullptr)
+		{
+			newScope = new JitCompiledFunctionClass(parentScope, instanceId);
+		}
+
+		newScope->pimpl->handler = &namespaceHandler;
 
 		try
 		{
+			parser.currentScope = newScope->pimpl;
+
 			setCurrentPass(BaseCompiler::Parsing);
+
+			NamespaceHandler::ScopedNamespaceSetter sns(namespaceHandler, Identifier());
+
 			syntaxTree = parser.parseStatementList();
-			executePass(PreSymbolOptimization, newScope->pimpl, syntaxTree);
-			executePass(ResolvingSymbols, newScope->pimpl, syntaxTree);
-			executePass(TypeCheck, newScope->pimpl, syntaxTree);
-			executePass(PostSymbolOptimization, newScope->pimpl, syntaxTree);
-			executePass(FunctionParsing, newScope->pimpl, syntaxTree);
+
+			auto sTree = dynamic_cast<SyntaxTree*>(syntaxTree.get());
+
+			executePass(ComplexTypeParsing, newScope->pimpl, sTree);
+			executePass(DataSizeCalculation, newScope->pimpl, sTree);
+
+			newScope->pimpl->getRootData()->finalise();
+
+			auto d = (int*)newScope->pimpl->getRootData()->data.get();
+
+			executePass(DataAllocation, newScope->pimpl, sTree);
+			executePass(DataInitialisation, newScope->pimpl, sTree);
+			executePass(PreSymbolOptimization, newScope->pimpl, sTree);
+			executePass(ResolvingSymbols, newScope->pimpl, sTree);
+			executePass(TypeCheck, newScope->pimpl, sTree);
+			executePass(SyntaxSugarReplacements, newScope->pimpl, sTree);
+			executePass(PostSymbolOptimization, newScope->pimpl, sTree);
+			executePass(FunctionParsing, newScope->pimpl, sTree);
 
 			// Optimize now
 
-			executePass(FunctionCompilation, newScope->pimpl, syntaxTree);
+			executePass(FunctionCompilation, newScope->pimpl, sTree);
 
 			lastResult = Result::ok();
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
-			
 			syntaxTree = nullptr;
 
 			logMessage(BaseCompiler::Error, e.toString());
@@ -396,6 +135,13 @@ public:
 		}
 
 		return newScope.release();
+	}
+
+	JitCompiledFunctionClass* compileAndGetScope(const juce::String& code)
+	{
+		ParserHelpers::CodeLocation loc(code.getCharPointer(), code.getCharPointer());
+
+		return compileAndGetScope(loc, code.length());
 	}
 
 	Result getLastResult() { return lastResult; }
@@ -408,102 +154,139 @@ public:
 
 	Result lastResult;
 
-	GlobalScope& memoryPool;
+	BaseScope* parentScope;
+	NamespacedIdentifier instanceId;
 
-	ScopedPointer<SyntaxTree> syntaxTree;
+	Operations::Statement::Ptr syntaxTree;
 };
 
 
-SyntaxTree* BlockParser::parseStatementList()
+BlockParser::StatementPtr BlockParser::parseStatementList()
 {
 	matchIf(JitTokens::openBrace);
 
-	compiler->logMessage(BaseCompiler::ProcessMessage, "Parsing statements");
+	auto list = new SyntaxTree(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
 
-	ScopedPointer<SyntaxTree> list = new SyntaxTree(location);
+	StatementPtr p = list;
+
+	list->setParentScopeStatement(getCurrentScopeStatement());
+
+	ScopedScopeStatementSetter svs(this, list);
 
 	while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 	{
+		while (matchIf(JitTokens::using_))
+		{
+			parseUsingAlias();
+		}
+
 		auto s = parseStatement();
 		list->addStatement(s);
+
+		while (matchIf(JitTokens::using_))
+		{
+			parseUsingAlias();
+		}
 	}
 
 	matchIf(JitTokens::closeBrace);
 
 	finaliseSyntaxTree(list);
 
-	return list.release();
+	return p;
 }
+
+
 
 BlockParser::StatementPtr NewClassParser::parseStatement()
 {
-	bool isConst = matchIf(JitTokens::const_);
+	if (matchIf(JitTokens::namespace_))
+	{
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, parseIdentifier());
 
-	bool isSmoothedType = isSmoothedVariableType();
-	bool isWrappedBlType = isWrappedBlockType();
+		match(JitTokens::openBrace);
 
-	currentHnodeType = matchType();
+		auto sb = new Operations::StatementBlock(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
+
+		while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
+		{
+			sb->addStatement(parseStatement());
+		}
+
+		match(JitTokens::closeBrace);
+
+		return sb;
+	}
 	
-	matchIfSymbol();
+	if (matchIf(JitTokens::using_))
+	{
+		parseUsingAlias();
+		return new Operations::Noop(location);
+	}
 
+	if (matchIf(JitTokens::struct_))
+	{
+		return parseSubclass();
+	}
+
+	if (matchIf(JitTokens::static_))
+	{
+		if (!matchIfType())
+			location.throwError("Expected type");
+
+		if (!currentTypeInfo.isConst())
+			location.throwError("Can't define non-const static variables");
+
+		auto s = parseNewSymbol(NamespaceHandler::Constant);
+
+		match(JitTokens::assign_);
+
+		auto v = parseConstExpression(false);
+
+		compiler->namespaceHandler.addConstant(s.id, v);
+
+		match(JitTokens::semicolon);
+		return new Operations::Noop(location);
+	}
+
+	if (matchIfType())
+	{
+		if (currentTypeInfo.isComplexType())
+			return parseComplexTypeDefinition();
+		else
+			return parseVariableDefinition();
+	}
+
+	location.throwError("Can't parse statement");
+	return nullptr;
+}
+
+
+BlockParser::StatementPtr NewClassParser::parseDefinition()
+{
 	StatementPtr s;
 
 	if (matchIf(JitTokens::openParen))
 	{
-		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + currentSymbol.toString());
-		s = parseFunction();
+		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding function " + getCurrentSymbol().toString());
+		s = parseFunction(getCurrentSymbol());
 		matchIf(JitTokens::semicolon);
 	}
 	else
 	{
-		if (isSmoothedType)
-		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding smoothed variable " + currentSymbol.toString());
-			s = parseSmoothedVariableDefinition();
-			match(JitTokens::semicolon);
-		}
-		else if (isWrappedBlType)
-		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding wrapped block " + currentSymbol.toString());
-			s = parseWrappedBlockDefinition();
-			match(JitTokens::semicolon);
-		}
-		else
-		{
-			compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + currentSymbol.toString());
-			s = parseVariableDefinition(isConst);
-			match(JitTokens::semicolon);
-		}
+		compiler->logMessage(BaseCompiler::ProcessMessage, "Adding variable " + getCurrentSymbol().toString());
+		s = parseVariableDefinition();
+		match(JitTokens::semicolon);
 	}
 
 	return s;
-}
-
-snex::jit::BlockParser::StatementPtr NewClassParser::parseSmoothedVariableDefinition()
-{
-	StatementPtr s;
-
-	match(JitTokens::assign_);
-	auto value = parseVariableStorageLiteral();
-
-	return new Operations::SmoothedVariableDefinition(location, currentSymbol, currentHnodeType, value);
-}
-
-snex::jit::BlockParser::StatementPtr NewClassParser::parseWrappedBlockDefinition()
-{
-	StatementPtr s;
-	match(JitTokens::assign_);
-
-	auto value = parseBufferInitialiser();
-
-	return new Operations::WrappedBlockDefinition(location, currentSymbol, value);
 }
 
 snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 {
 	if (auto cc = dynamic_cast<ClassCompiler*>(compiler.get()))
 	{
-		auto& handler = cc->memoryPool.getBufferHandler();
+		auto& handler = cc->parentScope->getGlobalScope()->getBufferHandler();
 		auto id = parseIdentifier();
 
 		if (id == Identifier("Buffer"))
@@ -518,22 +301,25 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 
 			try
 			{
+				throw juce::String("Invalid buffer function");
+#if 0
 				if (function.toString() == "create")
 				{
-					return new Operations::Immediate(location, handler.create(currentSymbol.id, value));
+					return new Operations::Immediate(location, handler.create(getCurrentSymbol(false).getName(), value));
 				}
 				else if (function.toString() == "getAudioFile")
 				{
-					return new Operations::Immediate(location, handler.getAudioFile(value, currentSymbol.id));
+					return new Operations::Immediate(location, handler.getAudioFile(value, getCurrentSymbol(false).id));
 				}
 				else if (function.toString() == "getTable")
 				{
-					return new Operations::Immediate(location, handler.getTable(value, currentSymbol.id));
+					return new Operations::Immediate(location, handler.getTable(value, getCurrentSymbol(false).id));
 				}
 				else
 				{
-					throw juce::String("Invalid buffer function");
+					
 				}
+#endif
 			}
 			catch (juce::String& s)
 			{
@@ -545,52 +331,66 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 	}
 }
 
-BlockParser::StatementPtr NewClassParser::parseVariableDefinition(bool /*isConst*/)
+BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 {
-	auto type = currentHnodeType;
-	auto target = new Operations::VariableReference(location, { {}, currentSymbol.id, type });
-	target->isLocalToScope = true;
+	auto s = parseNewSymbol(NamespaceHandler::Variable);
 
-	match(JitTokens::assign_);
-
-
-	ExprPtr expr;
-	
-	if (type == Types::ID::Block)
+	if (matchIf(JitTokens::openParen))
 	{
-		expr = parseBufferInitialiser();
+		if (!compiler->namespaceHandler.changeSymbolType(s.id, NamespaceHandler::Function))
+			location.throwError("Can't find function");
+
+		auto st = parseFunction(s);
+
+		matchIf(JitTokens::semicolon);
+
+		return st;
 	}
 	else
 	{
+		auto target = new Operations::VariableReference(location, s);
+
+		match(JitTokens::assign_);
+
+		ExprPtr expr;
+
 		expr = new Operations::Immediate(location, parseVariableStorageLiteral());
+		match(JitTokens::semicolon);
+
+		return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
 	}
-	
-	return new Operations::Assignment(location, target, JitTokens::assign_, expr);
 }
 
-BlockParser::StatementPtr NewClassParser::parseFunction()
+BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 {
-	auto func = new Operations::Function(location);
+	auto func = new Operations::Function(location, s);
 
 	StatementPtr newStatement = func;
 
 	auto& fData = func->data;
 
-	fData.id = currentSymbol.id;
-	fData.returnType = currentHnodeType;
+	fData.id = func->id.id;
+	fData.returnType = currentTypeInfo;
 	fData.object = nullptr;
 
-	while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
+	jassert(compiler->namespaceHandler.getCurrentNamespaceIdentifier() == s.id.getParent());
+
 	{
-		auto t = matchType();
+		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, s.id);
 
-		bool isAlias = matchIf(JitTokens::bitwiseAnd);
+		while (currentType != JitTokens::closeParen && currentType != JitTokens::eof)
+		{
+			matchType();
 
-		fData.args.add({ t, isAlias });
-		func->parameters.add(parseIdentifier());
+			auto s = parseNewSymbol(NamespaceHandler::Variable);
+			fData.args.add(s);
+			func->parameters.add(s.id.id);
 
-		matchIf(JitTokens::comma);
+			matchIf(JitTokens::comma);
+		}
 	}
+
+	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
 
 	match(JitTokens::closeParen);
 
@@ -612,33 +412,176 @@ BlockParser::StatementPtr NewClassParser::parseFunction()
 	return newStatement;
 }
 
-snex::VariableStorage BlockParser::parseVariableStorageLiteral()
+BlockParser::StatementPtr NewClassParser::parseSubclass()
 {
-	bool isMinus = matchIf(JitTokens::minus);
+	SymbolParser sp(*this, compiler->namespaceHandler);
 
-	auto type = Types::Helpers::getTypeFromStringValue(currentString);
+	sp.parseNamespacedIdentifier<NamespaceResolver::MustBeNew>();
 
-	juce::String stringValue = currentString;
-	match(JitTokens::literal);
+	auto classId = sp.currentNamespacedIdentifier;
 
-	if (type == Types::ID::Integer)
-		return VariableStorage(stringValue.getIntValue() * (!isMinus ? 1 : -1));
-	else if (type == Types::ID::Float)
-		return VariableStorage(stringValue.getFloatValue() * (!isMinus ? 1.0f : -1.0f));
-	else if (type == Types::ID::Double)
-		return VariableStorage(stringValue.getDoubleValue() * (!isMinus ? 1.0 : -1.0));
-	else if (type == Types::ID::Event)
-    {
-        HiseEvent e;
-		return VariableStorage(e);
-    }
-	else if (type == Types::ID::Block)
-		return block();
-	else
-		return {};
+	auto p = new StructType(classId);
+
+	compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct);
+	compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
+
+	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
+
+	auto list = parseStatementList();
+
+	match(JitTokens::semicolon);
+
+	return new Operations::ClassStatement(location, p, list);
+}
+
+juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters()
+{
+	Array<TemplateParameter> parameters;
+
+	match(JitTokens::lessThan);
+
+	while (currentType != JitTokens::greaterThan)
+	{
+		if (currentType == JitTokens::literal)
+		{
+			auto v = parseVariableStorageLiteral();
+
+			if (v.getType() == Types::ID::Integer)
+			{
+				TemplateParameter tp;
+				tp.constant = v.toInt();
+				parameters.add(tp);
+			}
+			else
+				location.throwError("Can't use non-integers as template argument");
+		}
+		else if (matchIfType())
+		{
+			TemplateParameter tp;
+			tp.type = currentTypeInfo;
+			parameters.add(tp);
+		}
+		else
+			location.throwError("Invalid template parameter: " + juce::String(currentType));
+
+		matchIf(JitTokens::comma);
+	}
+
+	match(JitTokens::greaterThan);
+
+	return parameters;
+}
+
+snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
+{
+	jassert(getCurrentComplexType() != nullptr);
+
+	Array<NamespacedIdentifier> ids;
+
+	auto typePtr = getCurrentComplexType();
+	auto rootId = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+
+	ids.add(rootId.getChildId(parseIdentifier()));
+	
+	while (matchIf(JitTokens::comma))
+		ids.add(rootId.getChildId(parseIdentifier()));
+
+	auto n = new Operations::ComplexTypeDefinition(location, ids, currentTypeInfo);
+
+	for (auto id : ids)
+		compiler->namespaceHandler.addSymbol(id, currentTypeInfo, NamespaceHandler::Variable);
+
+	if (matchIf(JitTokens::assign_))
+	{
+		if (currentType == JitTokens::openBrace)
+			n->initValues = parseInitialiserList();
+		else
+			n->addStatement(parseExpression());
+	}
+
+	match(JitTokens::semicolon);
+
+	return n;
+}
+
+InitialiserList::Ptr BlockParser::parseInitialiserList()
+{
+	match(JitTokens::openBrace);
+
+	InitialiserList::Ptr root = new InitialiserList();
+
+	bool next = true;
+
+	while (next)
+	{
+		if (currentType == JitTokens::openBrace)
+			root->addChildList(parseInitialiserList());
+		else
+			root->addImmediateValue(parseConstExpression(false));
+
+		next = matchIf(JitTokens::comma);
+	}
+
+	match(JitTokens::closeBrace);
+
+	return root;
 }
 
 
+
+
+void BlockParser::parseUsingAlias()
+{
+	if (matchIf(JitTokens::namespace_))
+	{
+		auto id = compiler->namespaceHandler.getRootId();
+
+		id = id.getChildId(parseIdentifier());
+
+		while (matchIf(JitTokens::colon))
+		{
+			match(JitTokens::colon);
+			id = id.getChildId(parseIdentifier());
+		}
+
+
+		auto r = compiler->namespaceHandler.addUsedNamespace(id);
+
+		if (!r.wasOk())
+			location.throwError(r.getErrorMessage());
+
+		match(JitTokens::semicolon);
+		return;
+	}
+	else
+	{
+		auto s = parseNewSymbol(NamespaceHandler::UsingAlias);
+
+		match(JitTokens::assign_);
+
+		if (!matchIfType())
+			location.throwError("Expected type");
+
+		if (currentTypeInfo.isComplexType())
+			currentTypeInfo.getComplexType()->setAlias(s.id);
+
+		s.typeInfo = currentTypeInfo;
+		match(JitTokens::semicolon);
+		compiler->namespaceHandler.setTypeInfo(s.id, NamespaceHandler::UsingAlias, s.typeInfo);
+	}
+}
+
+snex::VariableStorage TypeParser::parseConstExpression(bool canBeTemplateParameter)
+{
+	if (currentType == JitTokens::identifier)
+	{
+		SymbolParser sp(*this, namespaceHandler);
+		auto id = sp.parseExistingSymbol(true);
+		return namespaceHandler.getConstantValue(id.id);
+	}
+	
+	return parseVariableStorageLiteral();
+}
 
 }
 }

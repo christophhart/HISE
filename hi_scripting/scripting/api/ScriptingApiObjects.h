@@ -166,6 +166,72 @@ public:
 		// ============================================================================================================
 	};
 
+	class ScriptFile : public ConstScriptingObject
+	{
+	public:
+
+		enum Format
+		{
+			FullPath,
+			NoExtension,
+			OnlyExtension,
+			Filename
+		};
+
+		ScriptFile(ProcessorWithScriptingContent* p, const File& f_);
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("File"); }
+
+		// ================================================= API calls
+
+		/** Returns a child file if this is a directory. */
+		var getChildFile(String childFileName);
+
+		/** Returns the parent directory as File. */
+		var getParentDirectory();
+
+		/** Returns a String representation of that file. */
+		String toString(int formatType) const;
+		
+		/** Checks if this file exists and is a file. */
+		bool isFile() const;
+
+		/** Checks if this file exists and is a directory. */
+		bool isDirectory() const;
+
+		/** Deletes the file or directory WITHOUT confirmation. */
+		bool deleteFileOrDirectory();
+
+		/** Replaces the file content with the JSON data. */
+		bool writeObject(var jsonData);
+
+		/** Replaces the file content with the given text. */
+		bool writeString(String text);
+
+		/** Encrypts an JSON object using the supplied key. */
+		bool writeEncryptedObject(var jsonData, String key);
+
+		/** Loads the given file as text. */
+		String loadAsString() const;
+
+		/** Loads the given file as object. */
+		var loadAsObject() const;
+
+		/** Loads the encrypted object using the supplied RSA key pair. */
+		var loadEncryptedObject(String key);
+
+		/** Opens a Explorer / Finder window that points to the file. */
+		void show();
+
+		// ================================================= End of API calls
+
+		File f;
+
+	private:
+
+		struct Wrapper;
+	};
+
 	class ScriptAudioFile : public ConstScriptingObject,
 							public AsyncUpdater,
 							public PooledUIUpdater::SimpleTimer
@@ -1366,48 +1432,6 @@ public:
 		// ============================================================================================================
 	};
 
-	class ExpansionObject : public ConstScriptingObject
-	{
-	public:
-
-		// ============================================================================================================
-
-		ExpansionObject(ProcessorWithScriptingContent* p, Expansion* e);
-
-		// ============================================================================================================
-
-		Identifier getObjectName() const override { return "Expansion"; }
-		bool objectDeleted() const override { return exp == nullptr; }
-		bool objectExists() const override { return exp != nullptr; }
-
-		// ============================================================================================================
-
-		/** Returns a list of all available sample maps in the expansion. */
-		var getSampleMapList() const;
-
-		/** Returns a list of all available images in the expansion. */
-		var getImageList() const;
-
-		/** Returns a list of all available audio files in the expansion. */
-		var getAudioFileList() const;
-
-		var getMidiFileList() const;
-
-		/** Attempts to parse a JSON file in the AdditionalSourceCode directory of the expansion. */
-		var loadDataFile(var relativePath);
-
-		/** Writes the given data into the file in the AdditionalSourceCode directory of the expansion. */
-		bool writeDataFile(var relativePath, var dataToWrite);
-
-		/** Returns an object containing all properties of the expansion. */
-		var getProperties() const;
-
-	private:
-
-		struct Wrapper;
-
-		WeakReference<Expansion> exp;
-	};
 
 	class GraphicsObject : public ConstScriptingObject
 	{
@@ -1545,6 +1569,8 @@ public:
 		struct Laf : public GlobalHiseLookAndFeel,
 					 public PresetBrowserLookAndFeelMethods,
 					 public TableEditor::LookAndFeelMethods,
+					 public NumberTag::LookAndFeelMethods,
+					 public MessageWithIcon::LookAndFeelMethods,
 					 public ControlledObject
 		{
 			Laf(MainController* mc) :
@@ -1564,12 +1590,16 @@ public:
 					return GLOBAL_BOLD_FONT();
 			}
 
+			void drawAlertBox(Graphics&, AlertWindow&, const Rectangle<int>& textArea, TextLayout&) override;
+
 			Font getAlertWindowMessageFont() override { return getFont(); }
 			Font getAlertWindowTitleFont() override { return getFont(); }
 			Font getTextButtonFont(TextButton &, int) override { return getFont(); }
 			Font getComboBoxFont(ComboBox&) override { return getFont(); }
 			Font getPopupMenuFont() override { return getFont(); };
 			Font getAlertWindowFont() override { return getFont(); };
+
+			MarkdownLayout::StyleData getAlertWindowMarkdownStyleData() override;
 
 			void drawPopupMenuBackground(Graphics& g_, int width, int height) override;
 
@@ -1593,6 +1623,8 @@ public:
 			void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
 				bool isMouseOverButton, bool isButtonDown) override;
 
+			void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number) override;
+
 			void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p) override;
 			void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText) override;
 			void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
@@ -1603,6 +1635,8 @@ public:
 			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
 			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
 			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+
+			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);
 		};
@@ -1622,6 +1656,8 @@ public:
 		void setGlobalFont(const String& fontName, float fontSize);
 
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
+
+		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
 
 		Font f = GLOBAL_BOLD_FONT();
 		ReferenceCountedObjectPtr<GraphicsObject> g;

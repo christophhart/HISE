@@ -42,6 +42,11 @@ class BaseCompiler
 {
 public:
 
+	struct OptimisationSucess
+	{
+		juce::String message;
+	};
+
 	struct DeadCodeException
 	{
 		DeadCodeException(ParserHelpers::CodeLocation l) : location(l) {};
@@ -60,21 +65,55 @@ public:
 		numMessageTypes
 	};
 
+	BaseCompiler(NamespaceHandler& handler):
+		namespaceHandler(handler)
+	{
+		auto float4Type = new SpanType(TypeInfo(Types::ID::Float), 4);
+		float4Type->setAlias(NamespacedIdentifier("float4"));
+		namespaceHandler.registerComplexTypeOrReturnExisting(float4Type);
+
+		
+
+	}
+
 	virtual ~BaseCompiler() {};
 
 	enum Pass
 	{
 		Parsing,
+		ComplexTypeParsing,
+		DataSizeCalculation,
 		PreSymbolOptimization,
+		DataAllocation,
+		DataInitialisation,
 		ResolvingSymbols,
 		TypeCheck,
 		PostSymbolOptimization,
+		SyntaxSugarReplacements,
 		FunctionParsing,
 		FunctionCompilation,
 		PreCodeGenerationOptimization,
 		RegisterAllocation,
 		CodeGeneration,
 		numPasses
+	};
+
+	struct ScopedPassSwitcher
+	{
+		ScopedPassSwitcher(BaseCompiler* compiler, Pass newPass):
+			c(compiler)
+		{
+			oldPass = c->getCurrentPass();
+			c->setCurrentPass(newPass);
+		}
+
+		~ScopedPassSwitcher()
+		{
+			c->setCurrentPass(oldPass);
+		}
+
+		WeakReference<BaseCompiler> c;
+		BaseCompiler::Pass oldPass = numPasses;
 	};
 
 	struct OptimizationPassBase
@@ -107,8 +146,8 @@ public:
 		{
 		case Error:  m << "ERROR: "; break;
 		case Warning:  m << "WARNING: "; break;
-		case PassMessage:  m << "PASS: "; break;
-		case ProcessMessage: m << "- "; break;
+		case PassMessage: return;// m << "PASS: "; break;
+		case ProcessMessage: return;// m << "- "; break;
 		case VerboseProcessMessage: m << "-- "; break;
         default: break;
 		}
@@ -157,21 +196,29 @@ public:
 
 	Pass getCurrentPass() { return currentPass; }
 
-	void executePass(Pass p, BaseScope* scope, SyntaxTree* statements);
+	void executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement);
 
 	void executeOptimization(ReferenceCountedObject* statement, BaseScope* scope);
 	
+	void optimize(ReferenceCountedObject* statement, BaseScope* scope, bool useExistingPasses=true);
+
 	void addOptimization(OptimizationPassBase* newPass)
 	{
 		passes.add(newPass);
 	}
 
-	AssemblyRegister::Ptr getRegFromPool(Types::ID type)
+	AssemblyRegister::Ptr getRegFromPool(BaseScope* scope, TypeInfo type)
 	{
-		return registerPool.getNextFreeRegister(type);
+		return registerPool.getNextFreeRegister(scope, type);
 	}
 
 	AssemblyRegisterPool registerPool;
+
+	
+
+	NamespaceHandler& namespaceHandler;
+
+	
 
 private:
 
@@ -184,6 +231,8 @@ private:
 	Pass currentPass;
 
 	WeakReference<DebugHandler> debugHandler;
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BaseCompiler)
 };

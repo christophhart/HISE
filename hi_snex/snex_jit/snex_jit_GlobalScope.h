@@ -59,6 +59,17 @@ struct DebugHandler
 
 class BaseCompiler;
 
+struct DataPool
+{
+	struct Item
+	{
+		Symbol s;
+		int offset;
+	};
+
+
+	juce::HeapBlock<char> data;
+};
 
 class BreakpointHandler: public AsyncUpdater
 {
@@ -89,9 +100,11 @@ public:
 			s << " (" << Types::Helpers::getTypeName(currentValue.getType()) << "): ";
 			s << Types::Helpers::getCppValueString(currentValue);
 			s << "\n";
+            
+            return s;
 		}
 
-		Identifier id;
+		Symbol id;
 		VariableStorage currentValue;
 		BaseScope::ScopeType scope;
 		bool changed = false;
@@ -156,7 +169,7 @@ public:
 		return numEntries;
 	}
 
-	Entry getEntry(const Identifier& id) const 
+	Entry getEntry(const Symbol& id) const 
 	{ 
 		for (int i = 0; i < 128; i++)
 		{
@@ -178,19 +191,19 @@ public:
 		numEntries = 0;
 	}
 
-	void* getNextFreeTable(BaseScope::RefPtr ref)
+	void* getNextFreeTable(const Symbol& ref)
 	{
 		for (int i = 0; i < 128; i++)
 		{
-			if (!dumpTable[i].isUsed || dumpTable[i].id == ref->id.id)
+			if (!dumpTable[i].isUsed || dumpTable[i].id == ref)
 			{
 				if(!dumpTable[i].isUsed)
 					numEntries++;
 
 				dumpTable[i].isUsed = true;
-				dumpTable[i].id = ref->id.id;
-				dumpTable[i].scope = ref->scope->getScopeType();
-				dumpTable[i].currentValue = VariableStorage(ref->getType(), 0);
+                dumpTable[i].id = ref;
+				dumpTable[i].scope = BaseScope::Class; 
+				dumpTable[i].currentValue = VariableStorage(ref.typeInfo.getType(), 0);
 
 				return dumpTable[i].currentValue.getDataPointer();
 			}
@@ -400,7 +413,7 @@ public:
 
 	block create(int size)
 	{
-		Identifier id("internal" + registeredItems.size());
+        Identifier id("internal" + juce::String(registeredItems.size()));
 		return registerInternalData(id, size);
 	}
 
@@ -590,7 +603,7 @@ public:
 	{
 		virtual ~ObjectDeleteListener() {};
 
-		virtual void objectWasDeleted(const Identifier& id) = 0;
+		virtual void objectWasDeleted(const NamespacedIdentifier& id) = 0;
 
 	private:
 
@@ -600,19 +613,16 @@ public:
 	
 	void registerObjectFunction(FunctionClass* objectClass);
 
-	void deregisterObject(const Identifier& id);
+	void deregisterObject(const NamespacedIdentifier& id);
 
-	bool hasFunction(const Identifier& classId, const Identifier& functionId) const override;
+	void registerFunctionsToNamespaceHandler(NamespaceHandler& handler);
 
-	void addMatchingFunctions(Array<FunctionData>& matches, const Identifier& classId, const Identifier& functionId) const override;
+	bool hasFunction(const NamespacedIdentifier& id) const override;
+
+	void addMatchingFunctions(Array<FunctionData>& matches, const NamespacedIdentifier& symbol) const override;
 
 	void addObjectDeleteListener(ObjectDeleteListener* l);
 	void removeObjectDeleteListener(ObjectDeleteListener* l);
-
-    VariableStorage& operator[](const Identifier& id)
-    {
-        return getVariableReference(id);
-    }
 
 	static GlobalScope* getFromChildScope(BaseScope* scope)
 	{
@@ -627,10 +637,10 @@ public:
 		return dynamic_cast<GlobalScope*>(scope);
 	}
 
-	FunctionClass* getGlobalFunctionClass(const Identifier& id)
+	FunctionClass* getGlobalFunctionClass(const NamespacedIdentifier& id)
 	{
 		for (auto c : objectClassesWithJitCallableFunctions)
-			if (c->getObjectName() == id)
+			if (c->getClassName() == id)
 				return c;
 
 		return nullptr;
@@ -661,6 +671,11 @@ public:
 		optimizationPasses.addIfNotAlreadyThere(passId);
 	}
 
+	void clearOptimizations()
+	{
+		optimizationPasses.clear();
+	}
+
 	const Array<Identifier>& getOptimizationPassList() const
 	{
 		return optimizationPasses;
@@ -685,11 +700,9 @@ public:
 
 	BreakpointHandler& getBreakpointHandler() { return breakPointHandler; }
 
-	
-
 private:
 
-	
+	ScopedPointer<FunctionClass> consoleFunctions;
 
 	BreakpointHandler breakPointHandler;
 	WeakReference<BaseScope> currentClassScope;

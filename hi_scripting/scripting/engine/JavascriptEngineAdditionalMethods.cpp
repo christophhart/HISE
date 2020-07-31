@@ -450,10 +450,12 @@ struct ManualGraphicsObject: public DebugableObjectBase
 
 	void getAllFunctionNames(Array<Identifier>& functions) const override
 	{
+#if USE_BACKEND
 		auto gTree = ApiHelpers::getApiTree().getChildWithName("Graphics");
 
 		for (auto c : gTree)
-			functions.add(c.getProperty("name", "unknown").toString());
+			functions.add(c.getProperty("name", "unknown").toString());  
+#endif
 	}
 
 	
@@ -492,6 +494,8 @@ struct ManualEventObject : public DebugableObjectBase
 		ADD_IF("altDown", "bool", "true if the alt modifier is pressed");
 		ADD_IF("ctrlDown", "bool", "true if the ctrl modifier is pressed");
 #undef ADD_IF
+
+		return nullptr;
 	}
 
 	void getAllConstants(Array<Identifier>& ids) const override

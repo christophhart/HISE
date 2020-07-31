@@ -1689,7 +1689,7 @@ void ModulatorSynth::killAllVoices()
             
             if (isInGroup())
                 shouldHaveEnvelope = false;
-            else if (ProcessorHelpers::is<GlobalModulatorContainer>(this))
+            else if (ProcessorHelpers::is<GlobalModulatorContainer>(this) || ProcessorHelpers::is<MacroModulationSource>(this))
                 shouldHaveEnvelope = false;
             else 
                 shouldHaveEnvelope = true;
@@ -1790,6 +1790,7 @@ void ModulatorSynthChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(AudioLooper);
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
 	ADD_NAME_TO_TYPELIST(JavascriptSynthesiser);
+	ADD_NAME_TO_TYPELIST(MacroModulationSource);
 }
 
 
@@ -1810,6 +1811,7 @@ Processor* ModulatorSynthChainFactoryType::createProcessor	(int typeIndex, const
 	case modulatorSynthGroup:	return new ModulatorSynthGroup(m, id, numVoices);
 	case globalModulatorContainer:	return new GlobalModulatorContainer(m, id, numVoices);
 	case scriptSynth:			return new JavascriptSynthesiser(m, id, numVoices);
+	case macroModulationSource: return new MacroModulationSource(m, id, numVoices);
 	default:					jassertfalse; return nullptr;
 	}
 };

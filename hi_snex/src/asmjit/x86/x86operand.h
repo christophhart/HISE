@@ -467,6 +467,19 @@ public:
     return result;
   }
 
+  inline Mem cloneAdjustedAndResized(int64_t off, size_t newSize) const noexcept {
+	  Mem result(*this);
+	  result.addOffset(off);
+	  result.setSize(newSize);
+	  return result;
+  }
+
+  inline Mem cloneResized(size_t newSize) const noexcept {
+	  Mem result(*this);
+	  result.setSize(newSize);
+	  return result;
+  }
+
   //! Converts memory `baseType` and `baseId` to `x86::Reg` instance.
   //!
   //! The memory must have a valid base register otherwise the result will be wrong.

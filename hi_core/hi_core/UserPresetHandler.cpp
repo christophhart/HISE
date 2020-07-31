@@ -207,7 +207,8 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
 		}
 
-
+		if(mc->getMacroManager().isMacroEnabledOnFrontend())
+			mc->getMacroManager().getMacroChain()->loadMacrosFromValueTree(userPresetToLoad);
 
 		auto f = [](Dispatchable* obj)
 		{

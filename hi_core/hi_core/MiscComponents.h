@@ -474,9 +474,9 @@ public:
 	float borderRadius;
 	float borderSize;
 	Image image;
-	bool isUsingCustomImage;
+	bool isUsingCustomImage = false;
 
-	bool isPopupPanel;
+	bool isPopupPanel = false;
 
 	ImageButton closeButton;
 
@@ -529,8 +529,17 @@ public:
 	void setMultiline(bool shouldBeMultiline);;
 	TextEditor *createEditorComponent() override;
 
+	void setUsePasswordCharacter(bool shouldUsePassword)
+	{
+		usePasswordChar = shouldUsePassword;
+		repaint();
+	}
+
+	void paint(Graphics& g) override;
+
 private:
 
+	bool usePasswordChar = false;
 	bool multiline;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultilineLabel);

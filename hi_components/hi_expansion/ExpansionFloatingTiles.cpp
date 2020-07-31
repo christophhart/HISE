@@ -150,6 +150,7 @@ void ExpansionEditBar::buttonClicked(Button* b)
 	}
 	if (b->getName() == "Rebuild")
 	{
+		handler.clearExpansions();
 		handler.createAvailableExpansions();
 		refreshExpansionList();
 	}
