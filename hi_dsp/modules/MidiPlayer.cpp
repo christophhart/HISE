@@ -298,26 +298,36 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 	signature.nominator = (double)nom;
 	signature.denominator = (double)denom;
 
+	auto fileTicks = (int)file.getTimeFormat();
+
+	double timeFactor = fileTicks > 0 ? (double)TicksPerQuarter / (double)fileTicks : 1.0;
+
 	for (int i = 0; i < file.getNumTracks(); i++)
 	{
 		ScopedPointer<MidiMessageSequence> newSequence = new MidiMessageSequence(*file.getTrack(i));
 		newSequence->deleteSysExMessages();
 
-		
-
 		for (int j = 0; j < newSequence->getNumEvents(); j++)
 		{
-			if (newSequence->getEventPointer(j)->message.isMetaEvent())
+			auto e = newSequence->getEventPointer(j);
+
+			if (e->message.isMetaEvent())
 				newSequence->deleteEvent(j--, false);
+			else if (timeFactor != 1.0)
+				e->message.setTimeStamp(e->message.getTimeStamp() * timeFactor);
 		}
 
 		if(newSequence->getNumEvents() > 0)
 			normalisedFile.addTrack(*newSequence);
 	}
 
+	
+
 	normalisedFile.setTicksPerQuarterNote(TicksPerQuarter);
 
-	signature.calculateNumBars(file.getLastTimestamp() / TicksPerQuarter);
+	signature.calculateNumBars(normalisedFile.getLastTimestamp() / TicksPerQuarter);
+
+	
 
 	for (int i = 0; i < normalisedFile.getNumTracks(); i++)
 	{
