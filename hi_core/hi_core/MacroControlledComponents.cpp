@@ -86,6 +86,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		AddMacroControlOffset = 50,
 		GlobalModAddOffset = 100,
 		GlobalModRemoveOffset = 200,
+		MidiOffset = 300,
 		numCommands
 	};
 
@@ -97,8 +98,19 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	m.setLookAndFeel(&plaf);
 
 
-	if(!isOnHiseModuleUI)
+	if (!isOnHiseModuleUI)
+	{
 		m.addItem(Learn, "Learn MIDI CC", true, learningActive);
+		
+		auto value = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMidiControllerNumber(processor, parameter);
+
+		PopupMenu s;
+		for (int i = 1; i < 127; i++)
+			s.addItem(i + MidiOffset, "CC #" + String(i), true, i == value);
+
+		m.addSubMenu("Assign MIDI CC", s, true);
+	}
+		
 
 	auto& data = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData();
 
@@ -183,6 +195,17 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->removeParameter(name, getProcessor());
 		initMacroControl(sendNotification);
 	}
+	else if (result >= MidiOffset)
+	{
+		auto number = result - MidiOffset;
+
+		auto mHandler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
+		
+		mHandler->deactivateMidiLearning();
+		mHandler->removeMidiControlledParameter(processor, parameter, sendNotificationAsync);
+		mHandler->addMidiControlledParameter(processor, parameter, rangeWithSkew, -1);
+		mHandler->setUnlearndedMidiControlNumber(number, sendNotificationAsync);
+	}
 	else if (result >= AddMacroControlOffset)
 	{
 		int macroIndex = result - AddMacroControlOffset;
@@ -190,6 +213,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->addParameter(getProcessor(), parameter, getName(), rangeWithSkew);
 		initMacroControl(sendNotification);
 	}
+	
 }
 
 
