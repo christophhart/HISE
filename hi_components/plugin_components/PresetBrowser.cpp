@@ -1143,9 +1143,9 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 
 	if (columnIndex == -1) // Expansions
 	{
-		currentBankFile = {};
-		currentCategoryFile = {};
-		currentlyLoadedPreset = {};
+		currentBankFile = File();
+		currentCategoryFile = File();
+		currentlyLoadedPreset = 0;
 		
 		if (file == File())
 		{
