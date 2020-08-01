@@ -46,6 +46,7 @@ viewUndoManager(new UndoManager())
 	getSampleManager().getModulatorSamplerSoundPool()->setDebugProcessor(synthChain);
 	getMacroManager().setMacroChain(synthChain);
 
+	getExpansionHandler().addListener(this);
 
 	if (!inUnitTestMode())
 	{
@@ -59,8 +60,9 @@ viewUndoManager(new UndoManager())
 
 	GET_PROJECT_HANDLER(synthChain).checkSubDirectories();
 
+	refreshExpansionType();
 
-	getExpansionHandler().createAvailableExpansions();
+	//getExpansionHandler().createAvailableExpansions();
 
 
 	if (!inUnitTestMode())
@@ -103,6 +105,7 @@ BackendProcessor::~BackendProcessor()
 	getSampleManager().cancelAllJobs();
 
 	getSampleManager().getProjectHandler().removeListener(this);
+	getExpansionHandler().removeListener(this);
 
 	deletePendingFlag = true;
 
@@ -132,6 +135,30 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 
 	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
+
+	refreshExpansionType();
+	
+}
+
+void BackendProcessor::refreshExpansionType()
+{
+	auto expType = dynamic_cast<GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Project::ExpansionType);
+
+	if (expType == "Disabled")
+	{
+		getExpansionHandler().setExpansionType<ExpansionHandler::Disabled>();
+	}
+	else if (expType == "FilesOnly" || expType == "Custom")
+	{
+		getExpansionHandler().setExpansionType<Expansion>();
+	}
+	else if (expType == "Encrypted")
+	{
+		getExpansionHandler().setExpansionType<ScriptEncryptedExpansion>();
+	}
+
+	getExpansionHandler().clearExpansions();
+	getExpansionHandler().createAvailableExpansions();
 }
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)

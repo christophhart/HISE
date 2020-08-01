@@ -136,6 +136,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/api/XmlApi.h"
 #include "scripting/api/ScriptingApiObjects.h"
+#include "scripting/api/ScriptExpansion.h"
 #include "scripting/api/ScriptingApi.h"
 #include "scripting/api/ScriptingApiContent.h"
 #include "scripting/api/ScriptComponentEditBroadcaster.h"

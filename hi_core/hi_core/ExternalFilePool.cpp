@@ -348,7 +348,7 @@ PoolHelpers::Reference::Reference(PoolBase* pool_, const String& embeddedReferen
 	directoryType(type)
 {
 #if USE_BACKEND
-	jassertfalse;
+	jassert(embeddedReference.startsWith("{EXP"));
 #endif
 
 	reference = embeddedReference;
@@ -363,16 +363,14 @@ PoolHelpers::Reference PoolHelpers::Reference::withFileHandler(FileHandlerBase* 
 
 	jassert(m == ProjectPath);
 
-#if HISE_ENABLE_EXPANSIONS
-	if (auto exp = dynamic_cast<Expansion*>(handler))
+	if (handler->getMainController()->getExpansionHandler().isEnabled())
 	{
-		
-
-		auto path = reference.fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
-
-		return exp->createReferenceForFile(path, directoryType);
+		if (auto exp = dynamic_cast<Expansion*>(handler))
+		{
+			auto path = reference.fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
+			return exp->createReferenceForFile(path, directoryType);
+		}
 	}
-#endif
 
 	ignoreUnused(handler);
 	return Reference(*this);
@@ -534,8 +532,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 
 		auto expansionFolder = mc->getExpansionHandler().getExpansionFolder();
 
-#if HISE_ENABLE_EXPANSIONS
-		if (f.isAChildOf(expansionFolder))
+		if (mc->getExpansionHandler().isEnabled() && f.isAChildOf(expansionFolder))
 		{
 			m = ExpansionPath;
 
@@ -543,10 +540,13 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			auto expansionName = relativePath.upToFirstOccurrenceOf("/", false, false);
 			auto subDirectoryName = ProjectHandler::getIdentifier(directoryType);
 			relativePath = relativePath.fromFirstOccurrenceOf(subDirectoryName, false, false);
+
+			if (directoryType == FileHandlerBase::SampleMaps)
+				relativePath = relativePath.upToLastOccurrenceOf(".xml", false, false);
+
 			reference = "{EXP::" + expansionName + "}" + relativePath;
 			return;
 		}
-#endif
 
 #if USE_BACKEND
 		auto subFolder = mc->getCurrentFileHandler().getSubDirectory(directoryType);
@@ -573,10 +573,9 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		return;
 	}
 
-#if HISE_ENABLE_EXPANSIONS
 	if (auto e = mc->getExpansionHandler().getExpansionForWildcardReference(input))
 	{
-		if (e->getExpansionType() == Expansion::FileBased)
+		if (e->getExpansionType() == Expansion::FileBased || directoryType == FileHandlerBase::Samples)
 		{
 			m = ExpansionPath;
 
@@ -592,7 +591,6 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			return;
 		}
 	}
-#endif
 	
 
 	if (input.startsWith(projectFolderWildcard) || directoryType == FileHandlerBase::SampleMaps)
@@ -960,6 +958,119 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, Addition
 	data->getFile().swapWith(d);
 }
 
+
+EncryptedCompressor::EncryptedCompressor(BlowFish* ownedKey) :
+	key(ownedKey)
+{
+
+}
+
+void EncryptedCompressor::encrypt(MemoryBlock&& mb, OutputStream& output) const
+{
+	key->encrypt(mb);
+	output.write(mb.getData(), mb.getSize());
+}
+
+void EncryptedCompressor::write(OutputStream& output, const ValueTree& data, const File& originalFile) const
+{
+	MemoryBlock mb;
+
+	zstd::ZDefaultCompressor comp;
+	auto result = comp.compress(data, mb);
+
+	if (result.failed())
+	{
+		DBG(result.getErrorMessage());
+		jassertfalse;
+	}
+
+	key->encrypt(mb);
+	output.write(mb.getData(), mb.getSize());
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, AdditionalDataReference* data) const
+{
+	ScopedPointer<MemoryInputStream> ownedStream = mis;
+
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	key->decrypt(mb);
+
+	ownedStream = new MemoryInputStream(mb, false);
+
+	Compressor::create(ownedStream.release(), data);
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, MidiFileReference* data) const
+{
+	ScopedPointer<MemoryInputStream> ownedStream = mis;
+
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	key->decrypt(mb);
+
+	ownedStream = new MemoryInputStream(mb, false);
+
+	Compressor::create(ownedStream.release(), data);
+}
+
+void EncryptedCompressor::write(OutputStream& output, const AdditionalDataReference& data, const File& originalFile) const
+{
+	MemoryOutputStream mos;
+	Compressor::write(mos, data, originalFile);
+	encrypt(mos.getMemoryBlock(), output);
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, AudioSampleBuffer* data) const
+{
+	ScopedPointer<MemoryInputStream> ownedStream = mis;
+
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	key->decrypt(mb);
+
+	ownedStream = new MemoryInputStream(mb, false);
+
+	Compressor::create(ownedStream.release(), data);
+}
+
+void EncryptedCompressor::write(OutputStream& output, const MidiFileReference& data, const File& originalFile) const
+{
+	MemoryOutputStream mos;
+	Compressor::write(mos, data, originalFile);
+	encrypt(mos.getMemoryBlock(), output);
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, Image* data) const
+{
+	Compressor::create(mis, data);
+}
+
+void EncryptedCompressor::write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const
+{
+	MemoryOutputStream mos;
+	Compressor::write(mos, data, originalFile);
+	encrypt(mos.getMemoryBlock(), output);
+}
+
+void EncryptedCompressor::create(MemoryInputStream* mis, ValueTree* data) const
+{
+	ScopedPointer<MemoryInputStream> ownedStream = mis;
+
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	key->decrypt(mb);
+	zstd::ZDefaultCompressor comp;
+	comp.expand(mb, *data);
+
+	jassert(data->isValid());
+}
+
+void EncryptedCompressor::write(OutputStream& output, const Image& data, const File& originalFile) const
+{
+	Compressor::write(output, data, originalFile);
+}
+
 PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
 	ControlledObject(mc),
 	parentHandler(handler)
@@ -968,11 +1079,10 @@ PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
 	{
 		switch ((ProjectHandler::SubDirectories)i)
 		{
-#if HISE_ENABLE_EXPANSIONS
 		case ProjectHandler::SubDirectories::AdditionalSourceCode:
-			dataPools[i] = new AdditionalDataPool(mc, parentHandler);
+			if(mc->getExpansionHandler().isEnabled())
+				dataPools[i] = new AdditionalDataPool(mc, parentHandler);
 			break;
-#endif
 		case ProjectHandler::SubDirectories::AudioFiles:
 			dataPools[i] = new AudioSampleBufferPool(mc, parentHandler);
 			break;

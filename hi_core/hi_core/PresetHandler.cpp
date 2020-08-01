@@ -155,7 +155,6 @@ void UserPresetHelpers::addRequiredExpansions(const MainController* mc, ValueTre
 {
 	ignoreUnused(mc, preset);
 
-#if HISE_ENABLE_EXPANSIONS
 	const auto& expHandler = mc->getExpansionHandler();
 
 	String s;
@@ -168,28 +167,25 @@ void UserPresetHelpers::addRequiredExpansions(const MainController* mc, ValueTre
 
 	if (s.isNotEmpty())
 		preset.setProperty("RequiredExpansions", s, nullptr);
-#endif
 }
 
 StringArray UserPresetHelpers::checkRequiredExpansions(MainController* mc, ValueTree& preset)
 {
 	StringArray missingExpansions;
-
-#if HISE_ENABLE_EXPANSIONS
-
-	auto expList = preset.getProperty("RequiredExpansions", "").toString();
 	auto& expHandler = mc->getExpansionHandler();
 
-	auto sa = StringArray::fromTokens(expList, ";", "");
-	sa.removeDuplicates(true);
-	sa.removeEmptyStrings();
+	if (expHandler.isEnabled())
+	{
+		auto expList = preset.getProperty("RequiredExpansions", "").toString();
+		auto sa = StringArray::fromTokens(expList, ";", "");
+		sa.removeDuplicates(true);
+		sa.removeEmptyStrings();
 
-	
+		for (auto s : sa)
+			if (expHandler.getExpansionFromName(s) == nullptr)
+				missingExpansions.add(s);
 
-	for (auto s : sa)
-		if (expHandler.getExpansionFromName(s) == nullptr)
-			missingExpansions.add(s);
-#endif
+	}
 
 	return missingExpansions;
 }
@@ -2865,8 +2861,11 @@ MessageWithIcon::MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf,
 	s.boldFont = laf->getAlertWindowTitleFont();
 
 	if (auto laf_ = dynamic_cast<LookAndFeelMethods*>(laf))
+	{
 		s = laf_->getAlertWindowMarkdownStyleData();
-
+		image = laf_->createIcon(type);
+	}
+		
 	r.setStyleData(s);
 
 	auto w = jmin(s.f.getStringWidthFloat(message) + 30.0f, 600.0f);
@@ -2893,12 +2892,16 @@ void MessageWithIcon::paint(Graphics &g)
 void MessageWithIcon::LookAndFeelMethods::paintMessage(MessageWithIcon& icon, Graphics& g)
 {
 	auto img = createIcon(icon.t);
-	g.drawImageAt(img, 0, 0);
+
+	if (img.isValid())
+	{
+		g.drawImageAt(img, 0, 0);
+	}
+
 	g.setColour(Colour(0xFF999999));
 
 	auto b = icon.getLocalBounds();
-	b.removeFromLeft(icon.image.getWidth());
-
+	b.removeFromLeft(img.getWidth());
 	icon.r.draw(g, b.toFloat());
 }
 

@@ -1,4 +1,4 @@
-# Doxyfile 1.8.16
+# Doxyfile 1.8.15
 
 # This file describes the settings to be used by the documentation system
 # doxygen (www.doxygen.org) for a project.
@@ -197,16 +197,6 @@ SHORT_NAMES            = NO
 
 JAVADOC_AUTOBRIEF      = NO
 
-# If the JAVADOC_BANNER tag is set to YES then doxygen will interpret a line
-# such as
-# /***************
-# as being the beginning of a Javadoc-style comment "banner". If set to NO, the
-# Javadoc-style will behave just like regular comments and it will not be
-# interpreted by doxygen.
-# The default value is: NO.
-
-JAVADOC_BANNER         = NO
-
 # If the QT_AUTOBRIEF tag is set to YES then doxygen will interpret the first
 # line (until the first dot) of a Qt-style comment as the brief description. If
 # set to NO, the Qt-style will behave just like regular Qt-style comments (thus
@@ -339,7 +329,7 @@ MARKDOWN_SUPPORT       = NO
 # to that level are automatically included in the table of contents, even if
 # they do not have an id attribute.
 # Note: This feature currently applies only to Markdown headings.
-# Minimum value: 0, maximum value: 99, default value: 5.
+# Minimum value: 0, maximum value: 99, default value: 0.
 # This tag requires that the tag MARKDOWN_SUPPORT is set to YES.
 
 TOC_INCLUDE_HEADINGS   = 0
@@ -475,12 +465,6 @@ EXTRACT_ALL            = NO
 
 EXTRACT_PRIVATE        = NO
 
-# If the EXTRACT_PRIV_VIRTUAL tag is set to YES, documented private virtual
-# methods of a class will be included in the documentation.
-# The default value is: NO.
-
-EXTRACT_PRIV_VIRTUAL   = NO
-
 # If the EXTRACT_PACKAGE tag is set to YES, all members with package or internal
 # scope will be included in the documentation.
 # The default value is: NO.
@@ -559,7 +543,7 @@ INTERNAL_DOCS          = YES
 # names in lower-case letters. If set to YES, upper-case letters are also
 # allowed. This is useful if you have classes or files whose names only differ
 # in case and if your file system supports case sensitive file names. Windows
-# (including Cygwin) ands Mac users are advised to set this option to NO.
+# and Mac users are advised to set this option to NO.
 # The default value is: system dependent.
 
 CASE_SENSE_NAMES       = NO
@@ -866,7 +850,8 @@ FILE_PATTERNS          = ScriptingApiObjects.h \
                          JavascriptEngineObjects.cpp \
                          ScriptedAudioProcessor.h \
                          DspNetwork.h \
-                         NodeBase.h
+                         NodeBase.h \
+                         ScriptExpansion.h
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.
@@ -1416,7 +1401,7 @@ QCH_FILE               =
 
 # The QHP_NAMESPACE tag specifies the namespace to use when generating Qt Help
 # Project output. For more information please see Qt Help Project / Namespace
-# (see: https://doc.qt.io/archives/qt-4.8/qthelpproject.html#namespace).
+# (see: http://doc.qt.io/archives/qt-4.8/qthelpproject.html#namespace).
 # The default value is: org.doxygen.Project.
 # This tag requires that the tag GENERATE_QHP is set to YES.
 
@@ -1424,7 +1409,7 @@ QHP_NAMESPACE          = org.doxygen.Project
 
 # The QHP_VIRTUAL_FOLDER tag specifies the namespace to use when generating Qt
 # Help Project output. For more information please see Qt Help Project / Virtual
-# Folders (see: https://doc.qt.io/archives/qt-4.8/qthelpproject.html#virtual-
+# Folders (see: http://doc.qt.io/archives/qt-4.8/qthelpproject.html#virtual-
 # folders).
 # The default value is: doc.
 # This tag requires that the tag GENERATE_QHP is set to YES.
@@ -1433,7 +1418,7 @@ QHP_VIRTUAL_FOLDER     = doc
 
 # If the QHP_CUST_FILTER_NAME tag is set, it specifies the name of a custom
 # filter to add. For more information please see Qt Help Project / Custom
-# Filters (see: https://doc.qt.io/archives/qt-4.8/qthelpproject.html#custom-
+# Filters (see: http://doc.qt.io/archives/qt-4.8/qthelpproject.html#custom-
 # filters).
 # This tag requires that the tag GENERATE_QHP is set to YES.
 
@@ -1441,7 +1426,7 @@ QHP_CUST_FILTER_NAME   =
 
 # The QHP_CUST_FILTER_ATTRS tag specifies the list of the attributes of the
 # custom filter to add. For more information please see Qt Help Project / Custom
-# Filters (see: https://doc.qt.io/archives/qt-4.8/qthelpproject.html#custom-
+# Filters (see: http://doc.qt.io/archives/qt-4.8/qthelpproject.html#custom-
 # filters).
 # This tag requires that the tag GENERATE_QHP is set to YES.
 
@@ -1449,7 +1434,7 @@ QHP_CUST_FILTER_ATTRS  =
 
 # The QHP_SECT_FILTER_ATTRS tag specifies the list of the attributes this
 # project's filter section matches. Qt Help Project / Filter Attributes (see:
-# https://doc.qt.io/archives/qt-4.8/qthelpproject.html#filter-attributes).
+# http://doc.qt.io/archives/qt-4.8/qthelpproject.html#filter-attributes).
 # This tag requires that the tag GENERATE_QHP is set to YES.
 
 QHP_SECT_FILTER_ATTRS  =
@@ -1728,11 +1713,10 @@ LATEX_CMD_NAME         = latex
 MAKEINDEX_CMD_NAME     = makeindex
 
 # The LATEX_MAKEINDEX_CMD tag can be used to specify the command name to
-# generate index for LaTeX. In case there is no backslash (\) as first character
-# it will be automatically added in the LaTeX code.
+# generate index for LaTeX.
 # Note: This tag is used in the generated output file (.tex).
 # See also: MAKEINDEX_CMD_NAME for the part in the Makefile / make.bat.
-# The default value is: makeindex.
+# The default value is: \makeindex.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
 LATEX_MAKEINDEX_CMD    = \makeindex
@@ -2224,6 +2208,12 @@ EXTERNAL_GROUPS        = YES
 
 EXTERNAL_PAGES         = YES
 
+# The PERL_PATH should be the absolute path and name of the perl script
+# interpreter (i.e. the result of 'which perl').
+# The default file (with absolute path) is: /usr/bin/perl.
+
+PERL_PATH              = /usr/bin/perl
+
 #---------------------------------------------------------------------------
 # Configuration options related to the dot tool
 #---------------------------------------------------------------------------
@@ -2236,6 +2226,15 @@ EXTERNAL_PAGES         = YES
 # The default value is: YES.
 
 CLASS_DIAGRAMS         = NO
+
+# You can define message sequence charts within doxygen comments using the \msc
+# command. Doxygen will then run the mscgen tool (see:
+# http://www.mcternan.me.uk/mscgen/)) to produce the chart and insert it in the
+# documentation. The MSCGEN_PATH tag allows you to specify the directory where
+# the mscgen tool resides. If left empty the tool is assumed to be found in the
+# default search path.
+
+MSCGEN_PATH            =
 
 # You can include diagrams made with dia in doxygen documentation. Doxygen will
 # then run dia to produce the diagram and insert it in the documentation. The

@@ -1301,6 +1301,48 @@ private:
 
 
 
+class EncryptedCompressor : public PoolBase::DataProvider::Compressor
+{
+public:
+
+
+
+	EncryptedCompressor(BlowFish* ownedKey);
+
+	virtual ~EncryptedCompressor() {};
+
+	void encrypt(MemoryBlock&& mb, OutputStream& output) const;
+
+
+	/** SampleMaps ==================================================== */
+
+	void write(OutputStream& output, const ValueTree& data, const File& originalFile) const override;
+	void create(MemoryInputStream* mis, ValueTree* data) const override;
+
+	/** Images ==================================================== */
+
+	void write(OutputStream& output, const Image& data, const File& originalFile) const override;
+	void create(MemoryInputStream* mis, Image* data) const override;
+
+	/** AudioFiles ==================================================== */
+
+	void write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const override;
+	void create(MemoryInputStream* mis, AudioSampleBuffer* data) const override;
+
+	/** MidiFiles ==================================================== */
+
+	void write(OutputStream& output, const MidiFileReference& data, const File& originalFile) const override;
+	void create(MemoryInputStream* mis, MidiFileReference* data) const override;
+
+	/** AdditionalData ==================================================== */
+
+	void write(OutputStream& output, const AdditionalDataReference& data, const File& originalFile) const override;
+	void create(MemoryInputStream* mis, AdditionalDataReference* data) const override;
+
+	ScopedPointer<BlowFish> key;
+};
+
+
 } // namespace hise
 
 #endif  // EXTERNALFILEPOOL_H_INCLUDED

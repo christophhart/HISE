@@ -26,6 +26,10 @@ xcopy "xml\structhise_1_1_hise_javascript_engine_1_1_root_object_1_1_math_class.
 xcopy "xml\classhise_1_1_doxygen_array_functions.xml" "xml\selection"
 xcopy "xml\classhise_1_1_doxygen_string_functions.xml" "xml\selection"
 
+
+xcopy "xml\classhise_1_1_script_expansion_handler.xml" "xml\selection"
+xcopy "xml\classhise_1_1_script_expansion_reference.xml" "xml\selection"
+
 xcopy "xml\classhise_1_1_dsp_instance.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
@@ -47,7 +51,6 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_graphics_object.xml" "xml\selecti
 xcopy "xml\classhise_1_1_scripting_objects_1_1_path_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_timer_object.xml" "xml\selection"
-xcopy "xml\classhise_1_1_scripting_objects_1_1_expansion_object.xml" "xml\selection"
 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_combo_box.xml" "xml\selection"
@@ -104,7 +107,6 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_preset_storage.
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_graphics_object.xml" "Graphics.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_path_object.xml" "Path.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_timer_object.xml" "Timer.xml"
-ren "xml\selection\classhise_1_1_scripting_objects_1_1_expansion_object.xml" "Expansion.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "MidiPlayer.xml"
 
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "ScriptButton.xml"
@@ -119,6 +121,10 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_scripted_plotter
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pack.xml" "ScriptSliderPack.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport.xml" "ScriptedViewport.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "ScriptFloatingTile.xml"
+
+
+ren "xml\selection\classhise_1_1_script_expansion_handler.xml" "ExpansionHandler.xml"
+ren "xml\selection\classhise_1_1_script_expansion_reference.xml" "Expansion.xml"
 
 ren "xml\selection\classscriptnode_1_1_dsp_network.xml" "DspNetwork.xml"
 ren "xml\selection\classscriptnode_1_1_node_base.xml" "Node.xml"

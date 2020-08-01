@@ -914,18 +914,10 @@ void MidiPlayer::loadMidiFile(PoolReference reference)
 {
 	PooledMidiFile newContent;
 
-#if HISE_ENABLE_EXPANSIONS
-
 	if (auto e = getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
 		newContent = e->pool->getMidiFilePool().loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	else
 		newContent = getMainController()->getCurrentMidiFilePool()->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
-
-#else
-
-	newContent = getMainController()->getCurrentMidiFilePool()->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
-
-#endif
 
 	if (newContent.get() != nullptr)
 	{

@@ -1612,14 +1612,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			}
 			
 			WRITE_FLAG(Flag::EndMonolith);
-			
-
 			jassert(tmpInput->isExhausted());
-
 			fos->flush();
-
 			tmpInput = nullptr;
-			
 		}
 
 		WRITE_FLAG(Flag::EndOfArchive);

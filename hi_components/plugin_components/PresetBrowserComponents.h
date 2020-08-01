@@ -254,8 +254,6 @@ class PresetBrowserColumn : public Component,
 public:
 	// ============================================================================================
 
-	
-
 	class ColumnListModel : public ListBoxModel,
 							public PresetBrowserChildComponentBase
 	{
@@ -301,7 +299,6 @@ public:
 			FavoriteOverlay(ColumnListModel& parent_, int index_);
 			~FavoriteOverlay();
 
-
 			void refreshShape();
 
 			void buttonClicked(Button*) override;
@@ -309,7 +306,6 @@ public:
 			void refreshIndex(int newIndex)
 			{
 				index = newIndex;
-
 			}
 
 			ScopedPointer<ShapeButton> b;
@@ -353,12 +349,10 @@ public:
 
 		void updateTags(const StringArray& newSelection);
 
-		
-
 		bool allowRecursiveSearch = false;
 		bool deleteOnClick = false;
 
-	private:
+	protected:
 
 		bool empty = false;
 		bool showFavoritesOnly = false;
@@ -374,6 +368,23 @@ public:
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ColumnListModel)
 	};
+
+	struct ExpansionColumnModel : public ColumnListModel,
+								  public ControlledObject
+	{
+		ExpansionColumnModel(PresetBrowser* p);;
+
+		void listBoxItemClicked(int row, const MouseEvent &) override;
+
+
+		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
+
+		int getNumRows() override;
+
+		int lastIndex = -1;
+	};
+
+	
 
 	// ============================================================================================
 
@@ -492,6 +503,13 @@ public:
 		}
 	}
 
+	void setModel(ColumnListModel* newModel, const File& totalRoot)
+	{
+		listbox->setModel(newModel);
+		newModel->setTotalRoot(totalRoot);
+		listModel = newModel;
+	}
+
 private:
 
 	bool deleteByTouch = false;
@@ -504,7 +522,7 @@ private:
 	int index;
 	File currentRoot;
 	File selectedFile;
-
+	
 	ScopedPointer<TextButton> editButton;
 
 	ScopedPointer<TextButton> addButton;

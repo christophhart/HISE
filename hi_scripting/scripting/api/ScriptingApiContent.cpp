@@ -1738,7 +1738,9 @@ StringArray ScriptingApi::Content::ScriptLabel::getOptionsFor(const Identifier &
 
 	switch (index)
 	{
-	case FontStyle:	sa.addArray(f.getAvailableStyles());
+	case FontStyle:	
+		sa.addArray(f.getAvailableStyles());
+		sa.add("Password");
 		break;
 	case FontName:	sa.add("Default");
 		sa.add("Oxygen");
