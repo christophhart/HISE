@@ -945,6 +945,9 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		currentPool = mc->getCurrentAudioSampleBufferPool();
 		
+		if (auto e = mc->getExpansionHandler().getExpansionForWildcardReference(fileName))
+			currentPool = &e->pool->getAudioSampleBufferPool();
+
 		data = currentPool->loadFromReference(newRef, PoolHelpers::LoadAndCacheWeak);
 		currentPool->addListener(this);
 

@@ -90,6 +90,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(VST3Support);
 	ids.add(UseRawFrontend);
 	ids.add(ExpansionType);
+	ids.add(EncryptionKey);
 
 	return ids;
 }
@@ -297,8 +298,15 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("- Disabled / no expansions (default)");
 		D("- Unencrypted file-based expansions (just creates a mini-project-folder inside the expansion)");
 		D("- Script-encrypted expansions");
+		D("- Full expansions that contain the entire instrument");
 		D("- Custom expansions that uses a custom C++ class");
 		D("> If you use a custom expansion, you will need to implement `ExpansionHandler::createCustomExpansion()` in your project's C++ code");
+		P_();
+
+		P(HiseSettings::Project::EncryptionKey);
+		D("Sets the BlowFish encryption key (up to 72 characters) that will be used to encrypt the intermediate expansions.");
+		D("> If you're using the **Full** expansion type you will need to set the key here, otherwise, you can call `ExpansionHandler.setEncryptionKey()` for the same effect.");
+		D("Make sure you restart HISE after changing this setting in order to apply the change.");
 		P_();
 
 		P(HiseSettings::Project::RedirectSampleFolder);
@@ -620,7 +628,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 
 	if (id == Project::ExpansionType)
 	{
-		return { "Disabled", "FilesOnly", "Encrypted", "Custom" };
+		return { "Disabled", "FilesOnly", "Encrypted", "Full", "Custom" };
 	}
 
 	if (id == Project::AAXCategoryFX)

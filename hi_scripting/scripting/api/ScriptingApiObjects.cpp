@@ -302,6 +302,8 @@ var ScriptingObjects::ScriptFile::loadAsObject() const
 		return v;
 
 	reportScriptError(r.getErrorMessage());
+
+	RETURN_IF_NO_THROW(var());
 }
 
 var ScriptingObjects::ScriptFile::loadEncryptedObject(String key)
@@ -2431,7 +2433,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 #if USE_BACKEND
 		auto pool = audioSampleProcessor->getMainController()->getCurrentAudioSampleBufferPool();
 
-		if (!pool->areAllFilesLoaded())
+		if (!fileName.contains("{EXP::") && !pool->areAllFilesLoaded())
 			reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
 #endif
 

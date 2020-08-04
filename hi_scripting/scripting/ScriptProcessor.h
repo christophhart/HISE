@@ -687,7 +687,11 @@ public:
 
 	void restoreInterfaceData(ValueTree propertyData);
 
-	String getBase64CompressedScript() const;
+	String collectScript(bool silent) const;
+
+	String getBase64CompressedScript(bool silent=false) const;
+
+	
 
 	bool restoreBase64CompressedScript(const String &base64compressedScript);
 

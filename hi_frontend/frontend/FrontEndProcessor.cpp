@@ -281,6 +281,17 @@ updater(*this)
 	getCurrentFileHandler().pool->getMidiFilePool().loadAllFilesFromDataProvider();
 #endif
 
+#if HISE_USE_CUSTOM_EXPANSION_TYPE
+	auto key = FrontendHandler::getExpansionKey();
+
+	if (key.isNotEmpty())
+	{
+		FullInstrumentExpansion::setNewDefault(this, synthData);
+		getExpansionHandler().setEncryptionKey(key);
+	}
+		
+#endif
+
 	getExpansionHandler().createAvailableExpansions();
 
 	if (externalFiles != nullptr)

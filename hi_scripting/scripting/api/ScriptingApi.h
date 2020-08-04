@@ -402,6 +402,9 @@ public:
 		/** Returns the preload progress from 0.0 to 1.0. Use this to display some kind of loading icon. */
 		double getPreloadProgress();
 
+		/** Returns the current preload message if there is one. */
+		String getPreloadMessage();
+
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
 

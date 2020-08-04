@@ -537,7 +537,25 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			m = ExpansionPath;
 
 			auto relativePath = f.getRelativePathFrom(expansionFolder).replace("\\", "/");
-			auto expansionName = relativePath.upToFirstOccurrenceOf("/", false, false);
+			auto eFolder = expansionFolder.getChildFile(relativePath.upToFirstOccurrenceOf("/", false, false));
+
+			String expansionName;
+
+			if (auto e = mc->getExpansionHandler().getExpansionFromRootFile(eFolder))
+			{
+				expansionName = e->getProperty(ExpansionIds::Name);
+			}
+			else
+			{
+				auto eInfoFile = Expansion::Helpers::getExpansionInfoFile(eFolder, Expansion::FileBased);
+				jassert(eInfoFile.existsAsFile());
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(eInfoFile);
+				jassert(xml != nullptr);
+				expansionName = xml->getStringAttribute(ExpansionIds::Name.toString());
+			}
+
+			jassert(expansionName.isNotEmpty());
+
 			auto subDirectoryName = ProjectHandler::getIdentifier(directoryType);
 			relativePath = relativePath.fromFirstOccurrenceOf(subDirectoryName, false, false);
 

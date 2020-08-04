@@ -534,6 +534,8 @@ void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryP
         
         v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
 
+		FullInstrumentExpansion::setNewDefault(p->getMainController(), v);
+
 		outputFile.deleteFile();
 
 		FileOutputStream fos(outputFile);

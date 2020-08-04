@@ -498,6 +498,10 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 
 	addComboBox("resume", sa3, "Resume on existing archive");
 
+	hxiFile = new FilenameComponent("HXI File", File(), false, false, false, "*.hxi", "", "Choose optional HXI file to embed");
+	hxiFile->setSize(300, 24);
+	addCustomComponent(hxiFile);
+
 	targetFile = new FilenameComponent("Target directory", f, true, true, true, "", "", "Choose export directory");
 	targetFile->setSize(300, 24);
 	addCustomComponent(targetFile);
@@ -547,6 +551,7 @@ void SampleDataExporter::run()
 	hlac::HlacArchiver::CompressData data;
 
 	data.targetFile = getTargetFile();
+	data.optionalHeaderFile = hxiFile->getCurrentFile();
 	data.metadataJSON = getMetadataJSON();
 	data.fileList = collectMonoliths();
 	data.progress = &logData.progress;
@@ -662,10 +667,37 @@ String SampleDataExporter::getMetadataJSON() const
 		d->setProperty("Expansion", expName);
 	}
 
+	if (hxiFile->getCurrentFile().existsAsFile())
+	{
+		showStatusMessage("Writing HXI name");
+
+		if (Expansion::Helpers::isXmlFile(hxiFile->getCurrentFile()))
+		{
+			ScopedPointer<XmlElement> xml = XmlDocument::parse(hxiFile->getCurrentFile());
+
+			if (xml != nullptr)
+			{
+				if (auto c = xml->getChildByName(ExpansionIds::ExpansionInfo.toString()))
+				{
+					auto name = c->getStringAttribute(ExpansionIds::Name.toString());
+					jassert(name.isNotEmpty());
+					d->setProperty("HxiName", name);
+				}
+			}
+		}
+		else
+		{
+			FileInputStream fis(hxiFile->getCurrentFile());
+			auto v = ValueTree::readFromStream(fis);
+			d->setProperty("HxiName", v.getChildWithName(ExpansionIds::ExpansionInfo)[ExpansionIds::Name]);
+		}
+
+		
+	}
+
 	int index = getComboBoxComponent("supportFull")->getSelectedItemIndex();
 
 	d->setProperty("BitDepth", index == 0 ? 24 : 16);
-
 	var data(d);
 
 	return JSON::toString(data, true);
