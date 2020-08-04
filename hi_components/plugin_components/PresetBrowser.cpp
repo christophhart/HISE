@@ -909,12 +909,12 @@ void PresetBrowser::resized()
 			expansionColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
 
 		if(numColumns > 1)
-			bankColumn->setBounds(listArea.removeFromLeft(bankColumnWidth).reduced(2, 2));
+			bankColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
 
 		if(numColumns > 2)
-			categoryColumn->setBounds(listArea.removeFromLeft(bankColumnWidth).reduced(2, 2));
+			categoryColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
 
-		presetColumn->setBounds(listArea.removeFromLeft(presetColumnWidth).reduced(2, 2));
+		presetColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
 	}
 
 

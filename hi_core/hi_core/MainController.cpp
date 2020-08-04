@@ -155,22 +155,26 @@ void MainController::initProjectDocsWithURL(const String& projectDocURL)
 
 hise::SampleMapPool* MainController::getCurrentSampleMapPool()
 {
+#if ADD_LATER
 	if (FullInstrumentExpansion::isEnabled(this))
 	{
 		if (auto ce = getExpansionHandler().getCurrentExpansion())
 			return &ce->pool->getSampleMapPool();
 	}
+#endif
 
 	return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
 }
 
 const hise::SampleMapPool* MainController::getCurrentSampleMapPool() const
 {
+#if ADD_LATER
 	if (FullInstrumentExpansion::isEnabled(this))
 	{
 		if (auto ce = getExpansionHandler().getCurrentExpansion())
 			return &ce->pool->getSampleMapPool();
 	}
+#endif
 
 	return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
 }

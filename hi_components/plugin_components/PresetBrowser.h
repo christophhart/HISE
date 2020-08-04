@@ -204,6 +204,8 @@ public:
 		manageButton->setVisible(false);
 	}
 
+	void setColumnWidthRatio(double newRatio);
+
 private:
 
 	DefaultPresetBrowserLookAndFeel laf;
