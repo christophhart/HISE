@@ -357,6 +357,12 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 		synthChain->compileAllScripts();
 	}
 
+
+	ValueTree autoData = synthData.getChildWithName("MidiAutomation");
+
+	if (autoData.isValid())
+		getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+
 	synthChain->loadMacrosFromValueTree(synthData);
 
 	LOG_START("Adding plugin parameters");
