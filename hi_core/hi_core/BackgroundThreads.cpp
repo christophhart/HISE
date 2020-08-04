@@ -468,7 +468,7 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 
 	auto& expHandler = getMainController()->getExpansionHandler();
 
-	sa4.add("All available samples");
+	sa4.add("Factory Content Samples");
 
 	int activeExpansion = -1;
 
@@ -500,6 +500,7 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 
 	hxiFile = new FilenameComponent("HXI File", File(), false, false, false, "*.hxi", "", "Choose optional HXI file to embed");
 	hxiFile->setSize(300, 24);
+	hxiFile->setDefaultBrowseTarget(f);
 	addCustomComponent(hxiFile);
 
 	targetFile = new FilenameComponent("Target directory", f, true, true, true, "", "", "Choose export directory");
@@ -595,13 +596,6 @@ void SampleDataExporter::setTargetDirectory(const File& targetDirectory)
 Array<File> SampleDataExporter::collectMonoliths()
 {
 	Array<File> sampleMonoliths;
-
-	File sampleDirectory = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
-
-	sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
-
-	
-
 	auto expName = getExpansionName();
 
 	if (expName.isNotEmpty())
@@ -610,29 +604,14 @@ Array<File> SampleDataExporter::collectMonoliths()
 
 		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(expName))
 		{
-			auto list = e->pool->getSampleMapPool().getListOfAllReferences(true);
-
-			auto folder = e->getSubDirectory(FileHandlerBase::SampleMaps);
-
-			for (auto ref : list)
-			{
-				auto path = ref.getFile().getRelativePathFrom(folder);
-
-				path = path.replaceCharacter('\\', '/');
-				path = path.replaceCharacter('/', '_');
-				path = path.upToFirstOccurrenceOf(".xml", false, true);
-
-				validIds.add(path);
-			}
+			auto f = e->getSubDirectory(FileHandlerBase::Samples);
+			f.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
 		}
-
-		for (int i = 0; i < sampleMonoliths.size(); i++)
-		{
-			auto name = sampleMonoliths[i].getFileNameWithoutExtension();
-
-			if (!validIds.contains(name))
-				sampleMonoliths.remove(i--);
-		}
+	}
+	else
+	{
+		File sampleDirectory = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+		sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
 	}
 
 	sampleMonoliths.sort();
