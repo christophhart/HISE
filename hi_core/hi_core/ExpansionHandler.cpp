@@ -347,6 +347,14 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 {
 	if (currentExpansion != e)
 	{
+#if USE_BACKEND
+		if (FullInstrumentExpansion::isEnabled(mc))
+		{
+			debugToConsole(mc->getMainSynthChain(), "Skipping loading of expansion " + (e != nullptr ? e->getProperty(ExpansionIds::Name) : "Default"));
+			return;
+		}
+#endif
+
 		currentExpansion = e;
 		notifier.sendNotification(Notifier::EventType::ExpansionLoaded, notifyListeners);
 	}

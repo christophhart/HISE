@@ -843,8 +843,17 @@ bool FullInstrumentExpansion::isEnabled(const MainController* mc)
 #endif
 }
 
+Expansion* FullInstrumentExpansion::getCurrentFullExpansion(const MainController* mc)
+{
+	if (!isEnabled(mc))
+		return nullptr;
+
+	return mc->getExpansionHandler().getCurrentExpansion();
+}
+
 void FullInstrumentExpansion::expansionPackLoaded(Expansion* e)
 {
+
 	if (e == this)
 	{
 		if (fullyLoaded)
@@ -933,6 +942,9 @@ juce::Result FullInstrumentExpansion::initialise()
 		fullyLoaded = false;
 
 		getMainController()->getExpansionHandler().addListener(this);
+
+		checkSubDirectories();
+
 		return Result::ok();
 	}
 
@@ -1085,10 +1097,6 @@ void FullInstrumentExpansion::encodeExpansion()
 	while (auto jp = iter.getNextProcessor())
 	{
 		auto s = jp->collectScript(true);
-
-		if (isProjectExport)
-			s = s.replace("{PROJECT_FOLDER}", getWildcard());
-
 		auto idHash = dynamic_cast<Processor*>(jp)->getId().hashCode();
 
 		zstd::ZCompressor<hise::JavascriptDictionaryProvider> comp;
@@ -1123,6 +1131,7 @@ void FullInstrumentExpansion::encodeExpansion()
 			return true;
 		});
 
+#if 0
 		if (isProjectExport)
 		{
 			auto wc = getWildcard();
@@ -1142,6 +1151,7 @@ void FullInstrumentExpansion::encodeExpansion()
 				return true;
 			});
 		}
+#endif
 
 		zstd::ZCompressor<hise::PresetDictionaryProvider> comp;
 		MemoryBlock mb;
