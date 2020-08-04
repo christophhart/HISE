@@ -2497,7 +2497,7 @@ public:
 		// sure that the physical scale factor is a multiple of 0.25.
 		// (I am not aware of OS that use a smaller resolution for their scale factor
 		// steps).
-		physicalScaleFactor -= fmodf(physicalScaleFactor, 0.25f);
+		physicalScaleFactor -= fmod(physicalScaleFactor, 0.25f);
 		sf = juceScaleFactor * physicalScaleFactor;
 
 		pixelSizeInFloat = 1.0f / sf;

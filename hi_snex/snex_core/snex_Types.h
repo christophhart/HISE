@@ -860,8 +860,8 @@ static forcedinline float exp(float a) { return std_::expf(a); }
 static forcedinline float pow(float base, float exp) { return std_::powf(base, exp); }
 static forcedinline float sqr(float a) { return a * a; }
 static forcedinline float sqrt(float a) { return std_::sqrtf(a); }
-static forcedinline float ceil(float a) { return std_::ceilf(a); }
-static forcedinline float floor(float a) { return std_::floorf(a); }
+static forcedinline float ceil(float a) { return std_::ceil(a); }
+static forcedinline float floor(float a) { return std_::floor(a); }
 static forcedinline float db2gain(float a) { return Decibels::decibelsToGain(a); }
 static forcedinline float gain2db(float a) { return Decibels::gainToDecibels(a); }
 

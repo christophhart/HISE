@@ -297,9 +297,9 @@ void SliderPack::resized()
 
         for (int i = 0; i < sliders.size(); i++)
         {
-			int thisXPos = std::floorf(x);
+			int thisXPos = std::floor(x);
 
-			auto subMod = std::fmodf(x, 1.0f);
+			auto subMod = std::fmod(x, 1.0f);
 
 			int thisWidth = std::floor(widthPerSlider + subMod) - 1;
 

@@ -577,6 +577,7 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, options.showEditButtons);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFavoriteIcon, options.showFavoriteIcons);
 	storePropertyInObject(obj, SpecialPanelIds::NumColumns, options.numColumns);
+	storePropertyInObject(obj, SpecialPanelIds::ColumnWidthRatio, options.columnWidthRatio);
 
 	return obj;
 }
@@ -591,6 +592,7 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
 	options.showExpansions = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionsAsColumn);
 	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
+	options.columnWidthRatio = getPropertyWithDefault(object, SpecialPanelIds::ColumnWidthRatio);
 	options.showFavoriteIcons = getPropertyWithDefault(object, SpecialPanelIds::ShowFavoriteIcon);
 	options.backgroundColour = findPanelColour(PanelColourId::bgColour);
 	options.highlightColour = findPanelColour(PanelColourId::itemColour1);

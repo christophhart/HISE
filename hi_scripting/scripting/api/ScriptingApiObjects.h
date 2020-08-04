@@ -661,6 +661,9 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+        /** Returns the ID of the attribute with the given index. */
+        String getAttributeId(int index);
+        
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
@@ -777,11 +780,17 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+        /** Returns the ID of the attribute with the given index. */
+        String getAttributeId(int index);
+        
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
+
+		/** Checks if the effect is bypassed. */
+		bool isBypassed() const;
 
 		/** Exports the state as base64 string. */
 		String exportState();
@@ -966,11 +975,17 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
 
+        /** Returns the attribute with the given index. */
+        String getAttributeId(int index);
+
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
         
-		/** Bypasses the effect. */
+		/** Bypasses the synth. */
 		void setBypassed(bool shouldBeBypassed);
+		
+		/** Checks if the synth is bypassed. */
+		bool isBypassed() const;
 
 		/** Returns the child synth with the given index. */
 		ScriptingSynth* getChildSynthByIndex(int index);
@@ -1059,8 +1074,14 @@ public:
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
+        /** Returns the ID of the attribute with the given index. */
+		String getAttributeId(int index);
+		
 		/** Bypasses the MidiProcessor. */
-		void setBypassed(bool shouldBeBypassed);;
+		void setBypassed(bool shouldBeBypassed);
+		
+		/** Checks if the MidiProcessor is bypassed. */
+		bool isBypassed() const;
 
 		/** Exports the state as base64 string. */
 		String exportState();
@@ -1113,12 +1134,18 @@ public:
 
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
+
+        /** Returns the attribute with the given index. */
+        String getAttributeId(int index);
         
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
-		/** Bypasses the effect. */
+		/** Bypasses the audio sample player. */
 		void setBypassed(bool shouldBeBypassed);
+
+		/** Checks if the audio sample player is bypassed. */
+		bool isBypassed() const;
 
 		/** loads the file. You can use the wildcard {PROJECT_FOLDER} to get the audio file folder for the current project. */
 		void setFile(String fileName);
@@ -1608,6 +1635,10 @@ public:
 				const Drawable* icon, const Colour* textColourToUse);
 
 			void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
+
+			void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
+			
+			void drawLinearSlider(Graphics &g, int x, int y, int width, int height, float sliderPos, float minSliderPos, float maxSliderPos, const Slider::SliderStyle style, Slider &slider) override;
 
 			void drawButtonText(Graphics &g_, TextButton &button, bool isMouseOverButton, bool isButtonDown) override;
 

@@ -411,6 +411,9 @@ public:
         /** Returns the product version (not the HISE version!). */
         String getVersion();
 
+        /** Returns the product name (not the HISE name!). */
+        String getName();
+
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
 
@@ -561,7 +564,6 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
-
 		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
 		var importSamples(var fileNameList, bool skipExistingSamples);
 
@@ -571,8 +573,14 @@ public:
         /** Returns the currently loaded sample map. */
         String getCurrentSampleMapId() const;
 
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
+
         /** Gets the attribute with the given index (use the constants for clearer code). */
         var getAttribute(int index) const;
+        
+        /** Returns the ID of the attribute with the given index. */
+		String getAttributeId(int index);
 
         /** Sets a attribute to the given value. */
         void setAttribute(int index, var newValue);
@@ -756,6 +764,9 @@ public:
 
 		/** Returns the Effect with the supplied name. Can only be called in onInit(). It looks also in all child processors. */
 		ScriptEffect *getEffect(const String &name);
+	
+        /** Returns an array of all effects that match the given regex. */
+        var getAllEffects(String regex);
 
 		/** Returns the MidiProcessor with the supplied name. Can not be the own name! */
 		ScriptMidiProcessor * getMidiProcessor(const String &name);

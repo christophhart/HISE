@@ -604,7 +604,7 @@ void CompressionHelpers::applyDithering(float* data, int numSamples)
 		in += s * (s1 + s1 - s2);            //error feedback
 		tmp = in + o + d * (float)(r1 - r2); //dc offset and dither
 
-		out = floorf(w * tmp);                //truncate downwards
+		out = floor(w * tmp);                //truncate downwards
 		if (tmp < 0.0f) out--;                  //this is faster than floor()
 
 		s2 = s1;

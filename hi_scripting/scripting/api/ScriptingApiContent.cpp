@@ -722,7 +722,7 @@ int ScriptingApi::Content::ScriptComponent::getGlobalPositionY()
     
 	if (auto p = getParentScriptComponent())
 	{
-		return thisY + p->getGlobalPositionX();
+		return thisY + p->getGlobalPositionY();
 	}
 	else
 		return thisY;
@@ -3436,10 +3436,10 @@ void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeM
 	{
 		jassert(isCorrectlyInitialised(Items));
 
-		if (newValue.toString().isNotEmpty())
-		{
+		//if (newValue.toString().isNotEmpty())
+		//{
 			currentItems = StringArray::fromLines(newValue.toString());
-		}
+		//}
 	}
 
 
@@ -3654,7 +3654,6 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 200);
 	setDefaultValue(ScriptComponent::Properties::height, 100);
-	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Properties::updateAfterInit, true);
 	setDefaultValue(Properties::ContentType, EmptyComponent::getPanelId().toString());
@@ -3897,6 +3896,7 @@ colour(Colour(0xff777777))
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
 	setMethod("setName", Wrapper::setName);
 	setMethod("getComponent", Wrapper::getComponent);
+	setMethod("getAllComponents", Wrapper::getAllComponents);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("setValuePopupData", Wrapper::setValuePopupData);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
@@ -3948,7 +3948,6 @@ const ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getCompone
 	return nullptr;
 }
 
-
 int ScriptingApi::Content::getComponentIndex(const Identifier &componentName) const
 {
 	for (int i = 0; i < getNumComponents(); i++)
@@ -3961,7 +3960,6 @@ int ScriptingApi::Content::getComponentIndex(const Identifier &componentName) co
 
 	return -1;
 }
-
 
 ScriptingApi::Content::ScriptComboBox *ScriptingApi::Content::addComboBox(Identifier boxName, int x, int y)
 {
@@ -4047,6 +4045,21 @@ var ScriptingApi::Content::getComponent(var componentName)
 	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
 
 	return var();
+}
+
+var ScriptingApi::Content::getAllComponents(String regex)
+{
+	Array<var> list;
+
+	for (int i = 0; i < getNumComponents(); i++)
+	{	    
+		if (RegexFunctions::matchesWildcard(regex, components[i]->getName().toString()))
+		{
+			list.add(var(components[i]));
+		}
+	}
+
+	return var(list);
 }
 
 void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentName, const var &jsonData)

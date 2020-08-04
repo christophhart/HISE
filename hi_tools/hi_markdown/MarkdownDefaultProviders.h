@@ -190,7 +190,7 @@ public:
 		{
 			auto b = p.getBounds();
 			auto r = (float)b.getWidth() / (float)b.getHeight();
-			p.scaleToFit(0.0f, 0.0f, floorf(width), floorf(width / r), true);
+			p.scaleToFit(0.0f, 0.0f, floor(width), floor(width / r), true);
 
 			Image img(Image::PixelFormat::ARGB, (int)p.getBounds().getWidth(), (int)p.getBounds().getHeight(), true);
 			Graphics g(img);

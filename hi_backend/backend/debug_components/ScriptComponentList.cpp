@@ -382,7 +382,7 @@ ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 
 	addAndMakeVisible(tree = new TreeView());
 
-	tree->setDefaultOpenness(true);
+	tree->setDefaultOpenness(false);
 	tree->setMultiSelectEnabled(true);
 	tree->setColour(TreeView::backgroundColourId, Colours::transparentBlack);
 	tree->setColour(TreeView::ColourIds::dragAndDropIndicatorColourId, Colour(SIGNAL_COLOUR));

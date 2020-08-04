@@ -861,6 +861,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
+	API_METHOD_WRAPPER_0(Engine, getName);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
@@ -957,6 +958,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getPreloadProgress);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
+	ADD_API_METHOD_0(getName);
 	ADD_API_METHOD_0(getFilterModeList);
 	ADD_API_METHOD_0(createGlobalScriptLookAndFeel);
 	ADD_API_METHOD_1(setAllowDuplicateSamples);
@@ -1254,12 +1256,19 @@ var ScriptingApi::Engine::getFilterModeList() const
 String ScriptingApi::Engine::getVersion()
 {
 #if USE_BACKEND
-	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
+	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 #else
 	return FrontendHandler::getVersionString();
 #endif
+}
 
-
+String ScriptingApi::Engine::getName()
+{
+#if USE_BACKEND
+	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
+#else
+	return FrontendHandler::getProjectName();
+#endif
 }
 
 double ScriptingApi::Engine::getMasterPeakLevel(int channel)
@@ -1892,7 +1901,9 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapList);
     API_METHOD_WRAPPER_0(Sampler, getCurrentSampleMapId);
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
+    API_METHOD_WRAPPER_0(Sampler, getNumAttributes);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
+    API_METHOD_WRAPPER_1(Sampler, getAttributeId);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setUseStaticMatrix);
     API_METHOD_WRAPPER_1(Sampler, loadSampleForAnalysis);
 	API_METHOD_WRAPPER_1(Sampler, createSelection);
@@ -1928,7 +1939,9 @@ sampler(sampler_)
 	ADD_API_METHOD_1(loadSampleMap);
     ADD_API_METHOD_0(getCurrentSampleMapId);
 	ADD_API_METHOD_0(getSampleMapList);
+	ADD_API_METHOD_0(getNumAttributes);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
     ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(isNoteNumberMapped);
     ADD_API_METHOD_1(loadSampleForAnalysis);
@@ -2634,6 +2647,18 @@ var ScriptingApi::Sampler::getSampleMapList() const
 	return sampleMapNames;
 }
 
+int ScriptingApi::Sampler::getNumAttributes() const
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (checkValidObject())
+	{
+		return s->getNumParameters();
+	}
+
+	return 0;
+}
+
 var ScriptingApi::Sampler::getAttribute(int index) const
 {
     ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
@@ -2645,6 +2670,16 @@ var ScriptingApi::Sampler::getAttribute(int index) const
     }
 
     return s->getAttribute(index);
+}
+
+String ScriptingApi::Sampler::getAttributeId(int parameterIndex)
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+    if (checkValidObject())
+        return s->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
 }
 
 void ScriptingApi::Sampler::setAttribute(int index, var newValue)
@@ -2791,6 +2826,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getSampler);
 	API_METHOD_WRAPPER_1(Synth, getSlotFX);
 	API_METHOD_WRAPPER_1(Synth, getEffect);
+	API_METHOD_WRAPPER_1(Synth, getAllEffects);
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
 	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
@@ -2859,6 +2895,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getSampler);
 	ADD_API_METHOD_1(getSlotFX);
 	ADD_API_METHOD_1(getEffect);
+	ADD_API_METHOD_1(getAllEffects);
 	ADD_API_METHOD_1(getRoutingMatrix);
 	ADD_API_METHOD_1(getMidiProcessor);
 	ADD_API_METHOD_1(getChildSynth);
@@ -3433,6 +3470,31 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 		reportIllegalCall("getEffect()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptEffect(getScriptProcessor(), nullptr))
 	}
+}
+
+
+var ScriptingApi::Synth::getAllEffects(String regex)
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
+	if(getScriptProcessor()->objectsCanBeCreated())
+	{
+	    Array<var> list;
+	    
+		Processor::Iterator<EffectProcessor> it(owner);
+
+		EffectProcessor *fx;
+
+		while((fx = it.getNextProcessor()) != nullptr)
+		{
+			if (RegexFunctions::matchesWildcard(regex, fx->getId()))
+			{
+				list.add(new ScriptEffect(getScriptProcessor(), fx));
+			}
+		}
+
+        return var(list);
+    }
 }
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)

@@ -970,6 +970,7 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingModulator, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingModulator, getAttribute);
+    API_METHOD_WRAPPER_1(ScriptingModulator, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingModulator, isBypassed);
@@ -1020,6 +1021,7 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_1(setIntensity);
 	ADD_API_METHOD_0(getIntensity);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_0(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
@@ -1100,6 +1102,14 @@ float ScriptingObjects::ScriptingModulator::getAttribute(int parameterIndex)
     }
 
 	return 0.0f;
+}
+
+String ScriptingObjects::ScriptingModulator::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return mod->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
 }
 
 int ScriptingObjects::ScriptingModulator::getNumAttributes() const
@@ -1379,8 +1389,10 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingEffect, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingEffect, getAttribute);
+    API_METHOD_WRAPPER_1(ScriptingEffect, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingEffect, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingEffect, isBypassed);
 	API_METHOD_WRAPPER_0(ScriptingEffect, exportState);
 	API_METHOD_WRAPPER_1(ScriptingEffect, getCurrentLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, restoreState);
@@ -1417,7 +1429,9 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
@@ -1463,6 +1477,14 @@ float ScriptingObjects::ScriptingEffect::getAttribute(int parameterIndex)
 	return 0.0f;
 }
 
+String ScriptingObjects::ScriptingEffect::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return effect->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
+}
+
 int ScriptingObjects::ScriptingEffect::getNumAttributes() const
 {
 	if (checkValidObject())
@@ -1482,7 +1504,15 @@ void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
 	}
 }
 
+bool ScriptingObjects::ScriptingEffect::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return effect->isBypassed();
+	}
 
+	return false;
+}
 
 String ScriptingObjects::ScriptingEffect::exportState()
 {
@@ -1894,8 +1924,10 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingSynth, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingSynth, getAttribute);
+    API_METHOD_WRAPPER_1(ScriptingSynth, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingSynth, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingSynth, isBypassed);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getChildSynthByIndex);
 	API_METHOD_WRAPPER_0(ScriptingSynth, exportState);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getCurrentLevel);
@@ -1933,7 +1965,9 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_1(getChildSynthByIndex);
 	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
@@ -1979,6 +2013,14 @@ float ScriptingObjects::ScriptingSynth::getAttribute(int parameterIndex)
 	return 0.0f;
 }
 
+String ScriptingObjects::ScriptingSynth::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return synth->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
+}
+
 int ScriptingObjects::ScriptingSynth::getNumAttributes() const
 {
 	if (checkValidObject())
@@ -1996,6 +2038,16 @@ void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
 		synth->setBypassed(shouldBeBypassed, sendNotification);
 		synth->sendChangeMessage();
 	}
+}
+
+bool ScriptingObjects::ScriptingSynth::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return synth->isBypassed();
+	}
+
+	return false;
 }
 
 ScriptingObjects::ScriptingSynth* ScriptingObjects::ScriptingSynth::getChildSynthByIndex(int index)
@@ -2165,7 +2217,9 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptingMidiProcessor, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingMidiProcessor, getAttribute);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getNumAttributes);
+	API_METHOD_WRAPPER_1(ScriptingMidiProcessor, getAttributeId);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, isBypassed);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreScriptControls);
@@ -2198,12 +2252,14 @@ mp(mp_)
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
 	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
+	ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_0(asMidiPlayer);
 }
 
@@ -2273,6 +2329,14 @@ int ScriptingObjects::ScriptingMidiProcessor::getNumAttributes() const
 	return 0;
 }
 
+String ScriptingObjects::ScriptingMidiProcessor::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return mp->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
+}
+
 void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
@@ -2280,6 +2344,16 @@ void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed
 		mp->setBypassed(shouldBeBypassed, sendNotification);
 		mp->sendChangeMessage();
 	}
+}
+
+bool ScriptingObjects::ScriptingMidiProcessor::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return mp->isBypassed();
+	}
+
+	return false;
 }
 
 String ScriptingObjects::ScriptingMidiProcessor::exportState()
@@ -2345,8 +2419,10 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAttribute);
+    API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAttributeId);
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, isBypassed);
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleLength);
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setSampleRange);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setFile);
@@ -2373,8 +2449,10 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_0(getNumAttributes);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_0(getSampleLength);
 	ADD_API_METHOD_2(setSampleRange);
 	ADD_API_METHOD_1(setFile);
@@ -2400,6 +2478,14 @@ float ScriptingObjects::ScriptingAudioSampleProcessor::getAttribute(int paramete
 	return 0.0f;
 }
 
+String ScriptingObjects::ScriptingAudioSampleProcessor::getAttributeId(int parameterIndex)
+{
+    if (checkValidObject())
+        return audioSampleProcessor->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
+}
+
 int ScriptingObjects::ScriptingAudioSampleProcessor::getNumAttributes() const
 {
 	if (checkValidObject())
@@ -2419,6 +2505,15 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setBypassed(bool shouldBeB
 	}
 }
 
+bool ScriptingObjects::ScriptingAudioSampleProcessor::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return audioSampleProcessor->isBypassed();
+	}
+
+	return false;
+}
 
 void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 {
@@ -4444,6 +4539,87 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawToggleButton(Graphics &g_, 
 
 	GlobalHiseLookAndFeel::drawToggleButton(g_, b, isMouseOverButton, isButtonDown);
 }
+
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		s.setTextBoxStyle (Slider::NoTextBox, false, -1, -1);
+
+		obj->setProperty("id", s.getComponentID());
+		obj->setProperty("text", s.getName());
+		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
+
+		obj->setProperty("value", s.getValue());
+		obj->setProperty("valueNormalized", (s.getValue() - s.getMinimum()) / (s.getMaximum() - s.getMinimum()));
+		obj->setProperty("valueSuffixString", s.getTextFromValue(s.getValue()));
+		obj->setProperty("suffix", s.getTextValueSuffix());
+		obj->setProperty("skew", s.getSkewFactor());
+		obj->setProperty("min", s.getMinimum());
+		obj->setProperty("max", s.getMaximum());
+
+		obj->setProperty("clicked", s.isMouseButtonDown());
+		obj->setProperty("hover", s.isMouseOver());
+
+		obj->setProperty("bgColour", s.findColour(HiseColourScheme::ComponentOutlineColourId).getARGB());
+		obj->setProperty("itemColour1", s.findColour(HiseColourScheme::ComponentFillTopColourId).getARGB());
+		obj->setProperty("itemColour2", s.findColour(HiseColourScheme::ComponentFillBottomColourId).getARGB());
+		obj->setProperty("textColour", s.findColour(HiseColourScheme::ComponentTextColourId).getARGB());
+
+		if (l->callWithGraphics(g_, "drawRotarySlider", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawRotarySlider(g_, -1, -1, width, height, -1, -1, -1, s);
+}
+
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPos*/, float /*minSliderPos*/, float /*maxSliderPos*/, const Slider::SliderStyle style, Slider &slider)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		obj->setProperty("id", slider.getComponentID());
+		obj->setProperty("text", slider.getName());
+		obj->setProperty("area", ApiHelpers::getVarRectangle(slider.getLocalBounds().toFloat()));
+
+		obj->setProperty("valueSuffixString", slider.getTextFromValue(slider.getValue()));
+		obj->setProperty("suffix", slider.getTextValueSuffix());
+		obj->setProperty("skew", slider.getSkewFactor());
+
+		obj->setProperty("style", style);	// Horizontal:2, Vertical:3, Range:9
+
+		// Vertical & Horizontal style slider
+		obj->setProperty("min", slider.getMinimum());
+		obj->setProperty("max", slider.getMaximum());
+		obj->setProperty("value", slider.getValue());
+		obj->setProperty("valueNormalized", (slider.getValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+
+		// Range style slider
+		obj->setProperty("valueRangeStyleMin", slider.getMinValue());
+		obj->setProperty("valueRangeStyleMax", slider.getMaxValue());
+		obj->setProperty("valueRangeStyleMinNormalized", (slider.getMinValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+		obj->setProperty("valueRangeStyleMaxNormalized", (slider.getMaxValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+
+		obj->setProperty("clicked", slider.isMouseButtonDown());
+		obj->setProperty("hover", slider.isMouseOver());
+
+		obj->setProperty("bgColour", slider.findColour(HiseColourScheme::ComponentOutlineColourId).getARGB());
+		obj->setProperty("itemColour1", slider.findColour(HiseColourScheme::ComponentFillTopColourId).getARGB());
+		obj->setProperty("itemColour2", slider.findColour(HiseColourScheme::ComponentFillBottomColourId).getARGB());
+		obj->setProperty("textColour", slider.findColour(HiseColourScheme::ComponentTextColourId).getARGB());
+
+		if (l->callWithGraphics(g, "drawLinearSlider", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawLinearSlider(g, -1, -1, width, height, -1, -1, -1, style, slider);
+}
+
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonText(Graphics &g_, TextButton &button, bool isMouseOverButton, bool isButtonDown)
 {

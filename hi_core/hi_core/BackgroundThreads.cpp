@@ -979,7 +979,7 @@ void SampleDataImporter::threadFinished()
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Samples imported", "All samples were imported successfully.");
+		PresetHandler::showMessageWindow("Samples imported", "All samples were imported successfully. Please relaunch the instrument.");
 
 #if USE_FRONTEND
 

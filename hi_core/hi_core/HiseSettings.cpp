@@ -101,6 +101,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(HisePath);
 	ids.add(VisualStudioVersion);
 	ids.add(UseIPP);
+	ids.add(LegacyCPUSupport);
 	ids.add(RebuildPoolFiles);
 	ids.add(Support32BitMacOS);
 	ids.add(CustomNodePath);
@@ -338,7 +339,7 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("If enabled, the exported plugins will use the VST3 SDK standard instead of the VST 2.x SDK. Until further notice, this is a experimental feature so proceed with caution.");
 		D("> Be aware that Steinberg stopped support for the VST 2.4 SDK in October 2018 so if you don't have a valid VST2 license agreement in place, you must use the VST3 SDK.");
 		P_();
-
+		
 		P(HiseSettings::Project::UseRawFrontend);
 		D("If enabled, the project will not use the preset structure and scripted user interface and lets you use HISE as C++ framework.");
 		D("You will have to implement a custom C++ class in the `AdditionalSourceCode` subfolder.");
@@ -352,7 +353,6 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("The unique code to identify your company. This must be 4 characters with the first one being uppercase like this:");
 		D("> `Abcd`");
 		P_();
-
 
 		P(HiseSettings::User::TeamDevelopmentID);
 		D("If you have a Apple Developer Account, enter the Developer ID here in order to code sign your app / plugin after compilation");
@@ -376,6 +376,10 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("If enabled, HISE uses the FFT routines from the Intel Performance Primitive library (which can be downloaded for free) in order");
 		D("to speed up the convolution reverb");
 		D("> If you use the convolution reverb in your project, this is almost mandatory, but there are a few other places that benefit from having this library");
+		P_();
+
+        P(HiseSettings::Compiler::LegacyCPUSupport);
+		D("If enabled, then all SSE instructions are replaced by their native implementation. This can be used to compile a version that runs on legacy CPU models."); 
 		P_();
 
 		P(HiseSettings::Compiler::RebuildPoolFiles);
@@ -601,6 +605,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 	if (id == Project::EmbedAudioFiles ||
 		id == Project::EmbedImageFiles ||
 		id == Compiler::UseIPP ||
+        id == Compiler::LegacyCPUSupport ||
 		id == Scripting::EnableCallstack ||
 		id == Other::EnableAutosave ||
 		id == Scripting::EnableDebugMode ||
@@ -797,9 +802,9 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Scripting::CompileTimeout)		return 5.0;
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
 	else if (id == Compiler::UseIPP)				return "Yes";
+	else if (id == Compiler::LegacyCPUSupport) 		return "No";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == Compiler::Support32BitMacOS)		return "Yes";
-
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";
