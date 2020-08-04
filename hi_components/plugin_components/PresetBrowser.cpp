@@ -624,6 +624,9 @@ expHandler(mc->getExpansionHandler())
 		getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
 
+	if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(mc))
+		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
+
 #endif
 
 	mc->getUserPresetHandler().getTagDataBase().setRootDirectory(rootFile);
