@@ -667,10 +667,10 @@ private:
 
 		void handleAsyncUpdate()
 		{
-			ScopedLock sl(parent.listeners.getLock());
-
-			for (auto l : parent.listeners)
+			for (int i = 0; i < parent.listeners.size(); i++)
 			{
+				auto l = parent.listeners[i];
+
 				if (l.get() != nullptr)
 				{
 					if (m == EventType::ExpansionLoaded)

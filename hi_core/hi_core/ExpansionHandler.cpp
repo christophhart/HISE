@@ -229,7 +229,9 @@ bool ExpansionHandler::createAvailableExpansions()
 	{
 		Expansion::Sorter s;
 		expansionList.sort(s, true);
-		notifier.sendNotification(Notifier::EventType::ExpansionCreated);
+
+		auto notification = MessageManager::getInstance()->isThisTheMessageThread() ? sendNotificationSync : sendNotificationAsync;
+		notifier.sendNotification(Notifier::EventType::ExpansionCreated, notification);
 	}
 
 	return didSomething;

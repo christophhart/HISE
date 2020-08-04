@@ -4608,59 +4608,77 @@ void ScriptingApi::Server::WebThread::run()
 {
 	while (!threadShouldExit())
 	{
+		if (parent.getScriptProcessor()->getMainController_()->getKillStateHandler().initialised())
 		{
-			ScopedLock sl(queueLock);
-
-			for (int i = 0; i < pendingDownloads.size(); i++)
 			{
-				auto d = pendingDownloads[i];
+				ScopedLock sl(queueLock);
 
-				if (!d->isRunning)
-					d->start();
+				for (int i = 0; i < pendingDownloads.size(); i++)
+				{
+					auto d = pendingDownloads[i];
 
-				if (d->shouldAbort)
-					d->abort();
+					if (!d->isRunning)
+						d->start();
 
-				if (d->isFinished)
-					pendingDownloads.remove(i--);
+					if (d->shouldAbort)
+						d->abort();
+
+					if (d->isFinished)
+						pendingDownloads.remove(i--);
+				}
 			}
+
+
+			while (auto job = pendingCallbacks.removeAndReturn(0))
+			{
+				ScopedPointer<WebInputStream> wis;
+
+				wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, 3000, nullptr, &job->status));
+
+				if (wis != nullptr)
+				{
+					auto response = wis->readEntireStreamAsString();
+					auto status = job->status;
+					auto function = job->function;
+
+					auto& pool = parent.getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+
+					pool.addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(parent.getScriptProcessor()), [status, response, function](JavascriptProcessor* jp)
+					{
+						if (auto engine = jp->getScriptEngine())
+						{
+							auto r = Result::ok();
+
+							var argData[2];
+							argData[0] = status;
+
+							r = JSON::parse(response, argData[1]);
+
+							if (!r.wasOk())
+							{
+								argData[0] = 500;
+								argData[1] = var(new DynamicObject());
+								argData[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
+							}
+
+							var::NativeFunctionArgs args(var(), argData, 2);
+							engine->callExternalFunction(function, args, &r);
+
+							return r;
+						}
+					});
+				}
+			}
+
+			Thread::wait(5000);
 		}
+		else
+		{
+			// We postpone each server call until the thingie is loaded...
+			Thread::wait(200);
+		}
+
 		
-
-		while (auto job = pendingCallbacks.removeAndReturn(0))
-		{
-			ScopedPointer<WebInputStream> wis;
-
-			wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, 3000, nullptr, &job->status));
-
-			if (wis != nullptr)
-			{
-				auto response = wis->readEntireStreamAsString();
-
-				var argData[2];
-				argData[0] = job->status;
-
-				auto r = JSON::parse(response, argData[1]);
-
-				if (!r.wasOk())
-				{
-					argData[0] = 500;
-					argData[1] = var(new DynamicObject());
-					argData[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
-
-					debugError(dynamic_cast<Processor*>(parent.jp), r.getErrorMessage());
-				}
-				
-				if (auto engine = parent.jp->getScriptEngine())
-				{
-					LockHelpers::SafeLock sl(dynamic_cast<Processor*>(parent.jp)->getMainController(), LockHelpers::Type::ScriptLock);
-					var::NativeFunctionArgs args(var(&parent), argData, 2);
-					engine->callExternalFunction(job->function, args, &r);
-				}
-			}
-		}
-
-		Thread::wait(5000);
 	}
 }
 

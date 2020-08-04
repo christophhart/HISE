@@ -945,6 +945,12 @@ public:
 
 		~Server()
 		{
+			ScopedLock sl(internalThread.queueLock);
+
+
+			internalThread.pendingCallbacks.clear();
+			internalThread.pendingDownloads.clear();
+
 			internalThread.stopThread(3000);
 		}
 		

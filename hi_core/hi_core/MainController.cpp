@@ -648,6 +648,9 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
+	if (getKillStateHandler().getStateLoadFlag())
+		return;
+
 	AudioThreadGuard audioThreadGuard(&getKillStateHandler());
 
 	getSampleManager().handleNonRealtimeState();
