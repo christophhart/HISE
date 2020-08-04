@@ -3379,7 +3379,19 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 			}
 		}
 		else
-			reportScriptError("Image not found");
+		{
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(Colours::grey));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRect(getRectangleFromVar(area)));
+			
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(Colours::black));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRect(getRectangleFromVar(area), 1.0f));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(GLOBAL_BOLD_FONT()));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText("XXX", getRectangleFromVar(area), Justification::centred));
+
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found");
+		}
+			
+			
 	}
 	else
 	{

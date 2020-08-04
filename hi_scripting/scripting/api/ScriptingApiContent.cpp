@@ -3053,7 +3053,7 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 		loadedImages.add({ newImage, prettyName });
 	else
 	{
-		BACKEND_ONLY(reportScriptError("Image " + imageName + " not found. "));
+		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found. ");
 	}
 }
 
