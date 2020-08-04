@@ -139,7 +139,11 @@ void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(expansionLoadedCallback))
 	{
-		loadedCallback = expansionLoadedCallback;
+		loadedCallback = dynamic_cast<DebugableObjectBase*>(expansionLoadedCallback.getObject());
+	}
+	else
+	{
+		reportScriptError("Not a Javascript function");
 	}
 }
 
@@ -208,12 +212,14 @@ void ScriptExpansionHandler::expansionPackLoaded(Expansion* currentExpansion)
 
 void ScriptExpansionHandler::expansionPackCreated(Expansion* newExpansion)
 {
-	if (jp.get() != nullptr && HiseJavascriptEngine::isJavascriptFunction(loadedCallback))
+	if (jp.get() != nullptr && loadedCallback != nullptr)
 	{
 		var args(new ScriptExpansionReference(getScriptProcessor(), newExpansion));
 		auto r = Result::ok();
 
-		jp->getScriptEngine()->callExternalFunction(loadedCallback, var::NativeFunctionArgs(this, &args, 1), &r, true);
+		var lc(dynamic_cast<DynamicObject*>(loadedCallback.get()));
+
+		jp->getScriptEngine()->callExternalFunction(lc, var::NativeFunctionArgs(this, &args, 1), &r, true);
 
 		if (r.failed())
 		{

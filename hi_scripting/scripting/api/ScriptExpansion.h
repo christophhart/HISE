@@ -128,7 +128,7 @@ private:
 	struct Wrapper;
 
 	var errorFunction;
-	var loadedCallback;
+	WeakReference<DebugableObjectBase> loadedCallback;
 	WeakReference<JavascriptProcessor> jp;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptExpansionHandler);
@@ -249,6 +249,8 @@ public:
 	static void setNewDefault(MainController* mc, ValueTree t);
 
 	static bool isEnabled(const MainController* mc);
+
+	static Expansion* getCurrentFullExpansion(const MainController* mc);
 
 	void setIsProjectExporter()
 	{

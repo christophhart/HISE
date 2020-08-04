@@ -1883,11 +1883,13 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 	}
 	case MainController::KillStateHandler::AudioThread:
 	{
+		// Nope...
 		jassertfalse;
 		break;
 	}
     default:
-        jassertfalse;
+		// We're calling any task from an unspecified thread (eg. server download thread).
+		pushToQueue(t, p, f);
         break;
 	};
 }
