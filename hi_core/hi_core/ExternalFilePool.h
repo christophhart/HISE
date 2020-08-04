@@ -394,7 +394,7 @@ public:
 
 		virtual Result restorePool(InputStream* ownedInputStream);
 
-		MemoryInputStream* createInputStream(const String& referenceString);
+		virtual MemoryInputStream* createInputStream(const String& referenceString);
 
 		virtual Result writePool(OutputStream* ownedOutputStream, double* progress=nullptr);
 
@@ -406,6 +406,8 @@ public:
 
 		Array<PoolReference> getListOfAllEmbeddedReferences() const;
 
+		size_t getSizeOfEmbeddedReferences() const { return embeddedSize; }
+
 	private:
 
 		ValueTree metadata;
@@ -414,6 +416,7 @@ public:
 		PoolBase* pool = nullptr;
 		ScopedPointer<InputStream> input;
 		Array<int64> hashCodes;
+		size_t embeddedSize = 0;
 
 		ScopedPointer<Compressor> compressor;
 	};

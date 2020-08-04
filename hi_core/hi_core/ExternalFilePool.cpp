@@ -680,6 +680,8 @@ juce::Result PoolBase::DataProvider::restorePool(InputStream* ownedInputStream)
 
 	metadataOffset = input->getPosition();
 
+	embeddedSize = input->getTotalLength();
+
 	return Result::ok();
 }
 
@@ -1080,8 +1082,10 @@ PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
 		switch ((ProjectHandler::SubDirectories)i)
 		{
 		case ProjectHandler::SubDirectories::AdditionalSourceCode:
-			if(mc->getExpansionHandler().isEnabled())
+			if (mc->getExpansionHandler().isEnabled())
 				dataPools[i] = new AdditionalDataPool(mc, parentHandler);
+			else
+				dataPools[i] = nullptr;
 			break;
 		case ProjectHandler::SubDirectories::AudioFiles:
 			dataPools[i] = new AudioSampleBufferPool(mc, parentHandler);

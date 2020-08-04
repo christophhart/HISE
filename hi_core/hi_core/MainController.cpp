@@ -153,6 +153,28 @@ void MainController::initProjectDocsWithURL(const String& projectDocURL)
 	getProjectDocHolder()->setProjectURL(URL(projectDocURL));
 }
 
+hise::SampleMapPool* MainController::getCurrentSampleMapPool()
+{
+	if (FullInstrumentExpansion::isEnabled(this))
+	{
+		if (auto ce = getExpansionHandler().getCurrentExpansion())
+			return &ce->pool->getSampleMapPool();
+	}
+
+	return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
+}
+
+const hise::SampleMapPool* MainController::getCurrentSampleMapPool() const
+{
+	if (FullInstrumentExpansion::isEnabled(this))
+	{
+		if (auto ce = getExpansionHandler().getCurrentExpansion())
+			return &ce->pool->getSampleMapPool();
+	}
+
+	return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
+}
+
 const CriticalSection & MainController::getLock() const
 {
 	if (getDebugLogger().isLogging() && MessageManager::getInstance()->isThisTheMessageThread())
@@ -213,8 +235,8 @@ void MainController::clearPreset()
 			mc->setKeyboardCoulour(i, Colours::transparentBlack);
 		}
 
+		mc->setCurrentScriptLookAndFeel(nullptr);
 		mc->clearIncludedFiles();
-
 		mc->changed = false;
 
 		return SafeFunctionCall::OK;
@@ -465,10 +487,43 @@ bool MainController::shouldUseSoftBypassRamps() const noexcept
 #endif
 }
 
+void callOnAllChildren(Component* c, const std::function<void(Component*)>& f)
+{
+	f(c);
+
+	for (int i = 0; i < c->getNumChildComponents(); i++)
+		callOnAllChildren(c->getChildComponent(i), f);
+}
+
+void MainController::resetLookAndFeelToDefault(Component* c)
+{
+	GlobalScriptCompileBroadcaster::setCurrentScriptLookAndFeel(nullptr);
+
+	auto newLaf = new hise::GlobalHiseLookAndFeel();
+	newLaf->setComboBoxFont(globalFont);
+
+	callOnAllChildren(c, [newLaf, this](Component* c)
+	{
+		if (dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(&c->getLookAndFeel()))
+		{
+			if(dynamic_cast<MacroControlledObject*>(c) != nullptr)
+				skin(*c);
+
+			c->setLookAndFeel(newLaf);
+		}
+	});
+
+	mainLookAndFeel = newLaf;
+}
+
 void MainController::setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf)
 {
 	GlobalScriptCompileBroadcaster::setCurrentScriptLookAndFeel(newLaf);
-	mainLookAndFeel = new ScriptingObjects::ScriptedLookAndFeel::Laf(this);
+
+	if(newLaf == nullptr && dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(mainLookAndFeel.get()) != nullptr)
+		mainLookAndFeel = new hise::GlobalHiseLookAndFeel();
+	else if(newLaf != nullptr)
+		mainLookAndFeel = new ScriptingObjects::ScriptedLookAndFeel::Laf(this);
 }
 
 int MainController::getNumActiveVoices() const

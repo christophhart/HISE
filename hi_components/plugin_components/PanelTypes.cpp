@@ -47,6 +47,12 @@ CustomSettingsWindowPanel::CustomSettingsWindowPanel(FloatingTile* parent) :
 	viewport->setViewedComponent(window);
 	viewport->setScrollBarsShown(true, false, true, false);
 
+	if (getMainController()->getCurrentScriptLookAndFeel() != nullptr)
+	{
+		slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(getMainController());
+		viewport->setLookAndFeel(slaf);
+	}
+
 	window->setFont(GLOBAL_BOLD_FONT());
 
 	
@@ -269,6 +275,13 @@ MidiSourcePanel::MidiSourcePanel(FloatingTile* parent) :
 	viewport->setViewedComponent(midiInputList);
 
 	viewport->setScrollBarsShown(true, false, true, false);
+
+	if (getMainController()->getCurrentScriptLookAndFeel() != nullptr)
+	{
+		slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(getMainController());
+		viewport->setLookAndFeel(slaf);
+		midiInputList->setLookAndFeel(slaf);
+	}
 
 	//midiInputList->setLookAndFeel(&tblaf);
 	midiInputList->startTimer(4000);

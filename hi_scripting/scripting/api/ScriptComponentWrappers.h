@@ -767,6 +767,7 @@ public:
 		bool shouldUseList = false;
 
 		ScopedPointer<ColumnListBoxModel> model;
+		ScopedPointer<LookAndFeel> slaf;
 
 	};
 

@@ -163,6 +163,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsImportArchivedSamples,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenseFile,
+		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewFullscreen,
 		MenuViewBack,
@@ -554,6 +555,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Create Dummy License File", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuViewResetLookAndFeel:
+		setCommandTarget(result, "Reset custom Look and Feel", true, false, 'X', false);
+		result.categoryName = "View";
+		break;
 	case MenuViewReset:
 		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
 		result.categoryName = "View";
@@ -745,6 +750,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
 	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
+	case MenuViewResetLookAndFeel:		Actions::resetLookAndFeel(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -969,6 +975,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		break;
 	}
 	case BackendCommandTarget::ViewMenu: {
+
+		ADD_ALL_PLATFORMS(MenuViewResetLookAndFeel);
+
 		ADD_ALL_PLATFORMS(MenuViewBack);
 		ADD_ALL_PLATFORMS(MenuViewForward);
 		ADD_ALL_PLATFORMS(MenuViewReset);
@@ -1643,6 +1652,15 @@ void BackendCommandTarget::Actions::toggleFullscreen(BackendRootWindow * bpe)
 #else 
 	ignoreUnused(bpe);
 #endif
+}
+
+
+
+void BackendCommandTarget::Actions::resetLookAndFeel(BackendRootWindow* bpe)
+{
+	
+
+	bpe->owner->resetLookAndFeelToDefault(bpe);
 }
 
 void BackendCommandTarget::Actions::addView(BackendRootWindow *bpe)

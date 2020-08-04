@@ -39,9 +39,6 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 
 	PoolReference ref(getMainController(), sampleData.getProperty("FileName").toString(), ProjectHandler::SubDirectories::Samples);
 
-	ref = ref.withFileHandler(parentMap->getCurrentFileHandler());
-
-
 	auto existingSample = pool->getSampleFromPool(ref);
 
 	if (existingSample != nullptr && existingSample->isMonolithic() != (hmaf != nullptr))

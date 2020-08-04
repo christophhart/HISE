@@ -1180,15 +1180,9 @@ public:
 		return &getSampleManager().getProjectHandler().pool->getImagePool();
 	};
 
-	SampleMapPool* getCurrentSampleMapPool()
-	{
-		return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
-	}
+	SampleMapPool* getCurrentSampleMapPool();
 
-	const SampleMapPool* getCurrentSampleMapPool() const
-	{
-		return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
-	}
+	const SampleMapPool* getCurrentSampleMapPool() const;
 
 	MidiFilePool* getCurrentMidiFilePool()
 	{
@@ -1335,6 +1329,8 @@ public:
 	virtual ModulatorSynthChain *getMainSynthChain() = 0;
 
 	virtual const ModulatorSynthChain *getMainSynthChain() const = 0;
+
+	void resetLookAndFeelToDefault(Component* c);
 
 	void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf) override;
 

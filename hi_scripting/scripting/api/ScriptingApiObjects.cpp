@@ -4722,6 +4722,37 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRuler(Graphics& g_, Ta
 		tl->drawTableRuler(g_, te, area, lineThickness, rulerPosition);
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, ScrollBar& scrollbar, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown)
+{
+	if (auto l = get())
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		auto fullArea = Rectangle<int>(x, y, width, height).toFloat();
+
+		Rectangle<float> thumbArea;
+
+		if(isScrollbarVertical)
+			thumbArea = Rectangle<int>(x, y + thumbStartPosition, width, thumbSize).toFloat();
+		else
+			thumbArea = Rectangle<int>(x + thumbStartPosition, y, thumbSize, height).toFloat();
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(fullArea));
+		obj->setProperty("handle", ApiHelpers::getVarRectangle(thumbArea));
+		obj->setProperty("vertical", isScrollbarVertical);
+		obj->setProperty("over", isMouseOver);
+		obj->setProperty("down", isMouseDown);
+		obj->setProperty("bgColour", scrollbar.findColour(ScrollBar::ColourIds::backgroundColourId).getARGB());
+		obj->setProperty("itemColour", scrollbar.findColour(ScrollBar::ColourIds::thumbColourId).getARGB());
+		obj->setProperty("itemColour2", scrollbar.findColour(ScrollBar::ColourIds::trackColourId).getARGB());
+		
+		if (l->callWithGraphics(g_, "drawScrollbar", var(obj)))
+			return;
+	}
+
+	GlobalHiseLookAndFeel::drawScrollbar(g_, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
+}
+
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)
 {
 	auto img = MessageWithIcon::LookAndFeelMethods::createIcon(type);

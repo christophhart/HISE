@@ -1207,6 +1207,14 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 
 		vp->setViewedComponent(new DummyComponent(), true);
 
+		auto mc = viewport->getScriptProcessor()->getMainController_();
+
+		if (mc->getCurrentScriptLookAndFeel() != nullptr)
+		{
+			slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(mc);
+			vp->setLookAndFeel(slaf);
+		}
+
 		component = vp;
 	}
 	else

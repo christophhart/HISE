@@ -229,7 +229,7 @@ private:
 
 	bool listInitialised = false;
 
-	
+	GlobalHiseLookAndFeel hlaf;
 
 	ScopedPointer<ComboBox> connectionSelector;
 	ScopedPointer<ComboBox> indexSelector;
