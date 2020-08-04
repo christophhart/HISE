@@ -591,7 +591,7 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
 		}
 	}
 
-	return var();
+	return getDefaultSetting(id);
 }
 
 void HiseSettings::Data::addSetting(ValueTree& v, const Identifier& id)
@@ -774,7 +774,7 @@ void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 #endif
 }
 
-var HiseSettings::Data::getDefaultSetting(const Identifier& id)
+var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 {
 	BACKEND_ONLY(auto& handler_ = GET_PROJECT_HANDLER(mc->getMainSynthChain()));
 
@@ -824,7 +824,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 		return scriptFolder.getFullPathName();
 	}
 	else if (id == Scripting::EnableDebugMode)		return mc->getDebugLogger().isLogging() ? "Yes" : "No";
-	else if (id == Audio::Driver)					return getDeviceManager()->getCurrentAudioDeviceType();
+	else if (id == Audio::Driver)					return const_cast<Data*>(this)->getDeviceManager()->getCurrentAudioDeviceType();
 	else if (id == Audio::Device)
 	{
 		auto device = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->getCurrentAudioDevice();
