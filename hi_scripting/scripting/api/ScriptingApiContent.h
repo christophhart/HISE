@@ -1537,7 +1537,7 @@ public:
 		};
 		
 		WeakReference<ScriptPanel> parentPanel;
-		Array<WeakReference<ScriptPanel>> childPanels;
+		ReferenceCountedArray<ScriptPanel> childPanels;
 
 		bool isChildPanel = false;
 

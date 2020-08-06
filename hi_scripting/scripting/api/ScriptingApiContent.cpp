@@ -3364,7 +3364,7 @@ bool ScriptingApi::Content::ScriptPanel::removeFromParent()
 	if (parentPanel != nullptr && (parentPanel->childPanels.indexOf(this) != -1))
 	{
 		parentPanel->sendSubComponentChangeMessage(this, false, sendNotificationAsync);
-		parentPanel->childPanels.removeAllInstancesOf(this);
+		parentPanel->childPanels.removeObject(this);
 		parentPanel = nullptr;
 		return true;
 	}
@@ -3377,7 +3377,7 @@ var ScriptingApi::Content::ScriptPanel::getChildPanelList()
 	Array<var> cp;
 
 	for (auto p : childPanels)
-		cp.add(var(p.get()));
+		cp.add(var(p));
 
 	return cp;
 }
