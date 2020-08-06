@@ -4372,7 +4372,7 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 
 	auto cb = [forSaving, f, wildcard, callback, p_]()
 	{
-		FileChooser fc(forSaving ? "Open file" : "Save file", f, wildcard);
+		FileChooser fc(forSaving ? "Save file" : "Open file", f, wildcard);
 
 		var a;
 
@@ -4387,15 +4387,23 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 
 		if (a.isObject())
 		{
-			if (auto engine = dynamic_cast<JavascriptProcessor*>(p_)->getScriptEngine())
+			WeakCallbackHolder cb(p_, callback, 1);
+			cb.call(&a, 1);
+
+#if 0
+			p_->getMainController_()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
+				dynamic_cast<JavascriptProcessor*>(p_), [callback, a](JavascriptProcessor* p)
 			{
 				var::NativeFunctionArgs args({}, &a, 1);
 				auto r = Result::ok();
-				engine->callExternalFunction(callback, args, &r, true);
+				p->getScriptEngine()->callExternalFunction(callback, args, &r);
 
 				if (!r.wasOk())
-					debugError(dynamic_cast<Processor*>(p_), r.getErrorMessage());
-			}
+					debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
+
+				return r;
+			});
+#endif
 		}
 	};
 

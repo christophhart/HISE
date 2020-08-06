@@ -52,7 +52,9 @@ struct ScriptExpansionHandler::Wrapper
 ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ApiClass(3),
 	ControlledObject(dynamic_cast<ControlledObject*>(jp_)->getMainController()),
-	jp(jp_)
+	jp(jp_),
+	expansionCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 1),
+	errorFunction(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 2)
 {
 	getMainController()->getExpansionHandler().addListener(this);
 
@@ -98,17 +100,15 @@ void ScriptExpansionHandler::setCredentials(var newCredentials)
 void ScriptExpansionHandler::setErrorFunction(var newErrorFunction)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(newErrorFunction))
-		errorFunction = newErrorFunction;
+		errorFunction = WeakCallbackHolder(getScriptProcessor(), newErrorFunction, 1);
+
+	errorFunction.setHighPriority();
 }
 
 void ScriptExpansionHandler::setErrorMessage(String errorMessage)
 {
-	if (HiseJavascriptEngine::isJavascriptFunction(errorFunction))
-	{
-		var arg(errorMessage);
-		var::NativeFunctionArgs args(this, &arg, 1);
-		jp->getScriptEngine()->callExternalFunctionRaw(errorFunction, args);
-	}
+	logMessage(errorMessage, false);
+
 }
 
 var ScriptExpansionHandler::getExpansionList()
@@ -138,13 +138,9 @@ var ScriptExpansionHandler::getExpansion(var name)
 void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(expansionLoadedCallback))
-	{
-		loadedCallback = dynamic_cast<DebugableObjectBase*>(expansionLoadedCallback.getObject());
-	}
-	else
-	{
-		reportScriptError("Not a Javascript function");
-	}
+		expansionCallback = WeakCallbackHolder(getScriptProcessor(), expansionLoadedCallback, 1);
+
+	expansionCallback.setHighPriority();
 }
 
 var ScriptExpansionHandler::getUninitialisedExpansions()
@@ -212,38 +208,22 @@ void ScriptExpansionHandler::expansionPackLoaded(Expansion* currentExpansion)
 
 void ScriptExpansionHandler::expansionPackCreated(Expansion* newExpansion)
 {
-	if (jp.get() != nullptr && loadedCallback != nullptr)
+	if (expansionCallback)
 	{
 		var args(new ScriptExpansionReference(getScriptProcessor(), newExpansion));
-		auto r = Result::ok();
-
-		var lc(dynamic_cast<DynamicObject*>(loadedCallback.get()));
-
-		jp->getScriptEngine()->callExternalFunction(lc, var::NativeFunctionArgs(this, &args, 1), &r, true);
-
-		if (r.failed())
-		{
-			debugError(dynamic_cast<Processor*>(jp.get()), r.getErrorMessage());
-		}
+		expansionCallback.call(&args, 1);
 	}
 }
 
 void ScriptExpansionHandler::logMessage(const String& message, bool isCritical)
 {
-	if (HiseJavascriptEngine::isJavascriptFunction(errorFunction))
+
+	if (errorFunction)
 	{
 		var args[2];
-		args[0] = var(message);
+		args[0] = message;
 		args[1] = isCritical;
-
-		auto r = Result::ok();
-
-		jp->getScriptEngine()->callExternalFunction(errorFunction, var::NativeFunctionArgs(this, args, 2), &r, true);
-
-		if (r.failed())
-		{
-			debugError(dynamic_cast<Processor*>(jp.get()), r.getErrorMessage());
-		}
+		errorFunction.call(args, 2);
 	}
 }
 

@@ -127,8 +127,8 @@ private:
 
 	struct Wrapper;
 
-	var errorFunction;
-	WeakReference<DebugableObjectBase> loadedCallback;
+	WeakCallbackHolder errorFunction;
+	WeakCallbackHolder expansionCallback;
 	WeakReference<JavascriptProcessor> jp;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptExpansionHandler);
