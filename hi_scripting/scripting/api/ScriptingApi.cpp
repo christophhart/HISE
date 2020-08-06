@@ -1338,24 +1338,38 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 
 void ScriptingApi::Engine::showYesNoWindow(String title, String markdownMessage, var callback)
 {
-	WeakReference<HiseJavascriptEngine> engine(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
-	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+	//auto p = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+	auto p = getScriptProcessor();
 
-	auto f = [markdownMessage, title, callback, engine, this, p]
+	auto f = [markdownMessage, title, callback, p]
 	{
-		if (engine != nullptr)
+		auto ok = PresetHandler::showYesNoWindow(title, markdownMessage);
+
+		std::array<var, 1> args = { var(ok) };
+
+		//Array<var> args = { var(ok) };
+
+
+
+		WeakCallbackHolder cb(p, callback, 1);
+		cb.call({ var(ok) });
+
+#if 0
+		dynamic_cast<ControlledObject*>(p)->getMainController()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
+			p, [ok, callback](JavascriptProcessor* p)
 		{
-			var args[1];
-
-			args[0] = PresetHandler::showYesNoWindow(title, markdownMessage);
-
 			auto r = Result::ok();
 
-			engine.get()->callExternalFunction(callback, var::NativeFunctionArgs({}, args, 1), &r, true);
+			var arg(ok);
+
+			p->getScriptEngine()->callExternalFunction(callback, var::NativeFunctionArgs({}, &arg, 1), &r);
 
 			if (!r.wasOk())
-				debugError(p, r.getErrorMessage());
-		}
+				debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
+
+			return r;
+		});
+#endif
 	};
 
 	MessageManager::callAsync(f);
@@ -4469,9 +4483,12 @@ struct ScriptingApi::Server::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Server, setBaseURL);
 	API_VOID_METHOD_WRAPPER_3(Server, callWithPOST);
 	API_VOID_METHOD_WRAPPER_3(Server, callWithGET);
-	API_VOID_METHOD_WRAPPER_4(Server, downloadFile);
+	API_METHOD_WRAPPER_4(Server, downloadFile);
 	API_VOID_METHOD_WRAPPER_1(Server, setHttpHeader);
-	API_METHOD_WRAPPER_2(Server, stopDownload);
+	API_METHOD_WRAPPER_0(Server, getPendingDownloads);
+	API_METHOD_WRAPPER_0(Server, isOnline);
+	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
+	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
 };
 
 ScriptingApi::Server::Server(JavascriptProcessor* jp_):
@@ -4480,6 +4497,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	jp(jp_),
 	internalThread(*this)
 {
+	addConstant("StatusNoConnection", StatusNoConnection);
 	addConstant("StatusOK", StatusOK);
 	addConstant("StatusNotFound", StatusNotFound);
 	addConstant("StatusServerError", StatusServerError);
@@ -4490,7 +4508,8 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_3(callWithGET);
 	ADD_API_METHOD_1(setHttpHeader);
 	ADD_API_METHOD_4(downloadFile);
-	ADD_API_METHOD_2(stopDownload);
+	ADD_API_METHOD_0(getPendingDownloads);
+	ADD_API_METHOD_0(isOnline);
 }
 
 void ScriptingApi::Server::setBaseURL(String url)
@@ -4503,8 +4522,7 @@ void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callba
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		PendingCallback::Ptr p = new PendingCallback();
-		p->function = callback;
+		PendingCallback::Ptr p = new PendingCallback(getScriptProcessor(), callback);
 		p->url = getWithParameters(subURL, parameters);
 		p->isPost = false;
 		p->extraHeader = extraHeader;
@@ -4518,8 +4536,7 @@ void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callb
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		PendingCallback::Ptr p = new PendingCallback();
-		p->function = callback;
+		PendingCallback::Ptr p = new PendingCallback(getScriptProcessor(), callback);
 		p->url = getWithParameters(subURL, parameters);
 		p->extraHeader = extraHeader;
 		p->isPost = true;
@@ -4534,69 +4551,83 @@ void ScriptingApi::Server::setHttpHeader(String newHeader)
 	extraHeader = newHeader;
 }
 
-void ScriptingApi::Server::downloadFile(String subURL, var parameters, var targetFile, var callback)
+var ScriptingApi::Server::downloadFile(String subURL, var parameters, var targetFile, var callback)
 {
 	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(targetFile.getObject()))
 	{
 		if (sf->f.isDirectory())
 		{
 			reportScriptError("target file is a directory");
-			return;
+			return var();
 		}
 
 		auto urlToUse = getWithParameters(subURL, parameters);
 
 		if(urlToUse.isWellFormed())
 		{
+			ScriptingObjects::ScriptDownloadObject::Ptr p = new ScriptingObjects::ScriptDownloadObject(getScriptProcessor(), urlToUse, sf->f, callback);
+
 			ScopedLock sl(internalThread.queueLock);
 
-			for (auto d : internalThread.pendingDownloads)
+			for (auto ep : internalThread.pendingDownloads)
 			{
-				if (d->downloadURL == urlToUse)
-				{
-					debugToConsole(dynamic_cast<Processor*>(jp), "Skipping download for " + urlToUse.toString(false));
-					return;
-				}
+				if (*p == *ep)
+					return var(ep);
 			}
+
+			internalThread.pendingDownloads.add(p);
+			internalThread.notify();
+
+			return var(p);
 		}
-
-		PendingDownload::Ptr p = new PendingDownload();
-
-		p->callback = callback;
-		p->targetFile = sf->f;
-		p->downloadURL = urlToUse;
-		p->jp = jp;
-		
-		ScopedLock sl(internalThread.queueLock);
-		internalThread.pendingDownloads.add(p);
-		internalThread.notify();
 	}
 	else
 	{
 		reportScriptError("target file is not a file object");
 	}
+
+	return var();
 }
 
-bool ScriptingApi::Server::stopDownload(String subURL, var parameters)
+var ScriptingApi::Server::getPendingDownloads()
 {
-	auto urlToUse = getWithParameters(subURL, parameters);
+	Array<var> list;
 
-	if (urlToUse.isWellFormed())
+	for (auto p : internalThread.pendingDownloads)
 	{
-		ScopedLock sl(internalThread.queueLock);
+		list.add(var(p));
+	}
 
-		for (auto d : internalThread.pendingDownloads)
-		{
-			if (d->downloadURL == urlToUse)
-			{
-				d->shouldAbort = true;
-				internalThread.notify();
-				return true;
-			}
-		}
+	return list;
+}
+
+void ScriptingApi::Server::setNumAllowedDownloads(int maxNumberOfParallelDownloads)
+{
+	internalThread.numMaxDownloads = maxNumberOfParallelDownloads;
+}
+
+bool ScriptingApi::Server::isOnline()
+{
+	const char* urlsToTry[] = { "http://google.com/generate_204", "https://amazon.com", nullptr };
+
+	for (const char** url = urlsToTry; *url != nullptr; ++url)
+	{
+		URL u(*url);
+
+		auto ms = Time::getMillisecondCounter();
+		std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr));
+		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(Time::getMillisecondCounter() - ms);
+
+		if (in != nullptr)
+			return true;
 	}
 
 	return false;
+}
+
+void ScriptingApi::Server::cleanFinishedDownloads()
+{
+	internalThread.cleanDownloads = true;
 }
 
 juce::URL ScriptingApi::Server::getWithParameters(String subURL, var parameters)
@@ -4621,21 +4652,32 @@ void ScriptingApi::Server::WebThread::run()
 			{
 				ScopedLock sl(queueLock);
 
+				int numActiveDownloads = 0;
+
 				for (int i = 0; i < pendingDownloads.size(); i++)
 				{
 					auto d = pendingDownloads[i];
 
-					if (!d->isRunning)
+					if (d->isWaitingForStart && numActiveDownloads < numMaxDownloads)
 						d->start();
 
-					if (d->shouldAbort)
-						d->abort();
+					if (d->isWaitingForStop)
+						d->stopInternal();
 
-					if (d->isFinished)
+					if (d->isRunning())
+					{
+						if (numActiveDownloads >= numMaxDownloads)
+							d->stop();
+						else
+							numActiveDownloads++;
+					}
+					
+					if (cleanDownloads && d->isFinished)
 						pendingDownloads.remove(i--);
 				}
-			}
 
+				cleanDownloads = false;
+			}
 
 			while (auto job = pendingCallbacks.removeAndReturn(0))
 			{
@@ -4643,64 +4685,57 @@ void ScriptingApi::Server::WebThread::run()
 
 				wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, 3000, nullptr, &job->status));
 
-				if (wis != nullptr)
+				auto response = wis != nullptr ? wis->readEntireStreamAsString() : "{}";
+				std::array<var, 2> args;
+
+				args[0] = job->status;
+				auto r = JSON::parse(response, args[1]);
+
+				if (!r.wasOk())
 				{
-					auto response = wis->readEntireStreamAsString();
-					auto status = job->status;
-					auto function = job->function;
-
-					auto& pool = parent.getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
-
-					pool.addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(parent.getScriptProcessor()), [status, response, function](JavascriptProcessor* jp)
-					{
-						if (auto engine = jp->getScriptEngine())
-						{
-							auto r = Result::ok();
-
-							var argData[2];
-							argData[0] = status;
-
-							r = JSON::parse(response, argData[1]);
-
-							if (!r.wasOk())
-							{
-								argData[0] = 500;
-								argData[1] = var(new DynamicObject());
-								argData[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
-							}
-
-							var::NativeFunctionArgs args(var(), argData, 2);
-							engine->callExternalFunction(function, args, &r);
-
-							return r;
-						}
-					});
+					args[0] = 500;
+					args[1] = var(new DynamicObject());
+					args[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
 				}
+
+				job->f.call(args);
+#if 0
+
+				auto& pool = parent.getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+
+				
+
+				pool.addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(parent.getScriptProcessor()), [status, response, function](JavascriptProcessor* jp)
+				{
+					if (auto engine = jp->getScriptEngine())
+					{
+						auto r = Result::ok();
+
+						var argData[2];
+						argData[0] = status;
+
+						
+
+						
+
+						var::NativeFunctionArgs args(var(), argData, 2);
+						engine->callExternalFunction(function, args, &r);
+
+						return r;
+					}
+				});
+#endif
 			}
 
-			Thread::wait(5000);
+			Thread::wait(500);
 		}
 		else
 		{
 			// We postpone each server call until the thingie is loaded...
 			Thread::wait(200);
 		}
-
-		
 	}
 }
 
-void ScriptingApi::Server::PendingDownload::call()
-{
-	if (auto e = jp->getScriptEngine())
-	{
-		var d(data);
-		var nothing;
-		var::NativeFunctionArgs args(nothing, &d, 1);
-
-		LockHelpers::SafeLock sl(dynamic_cast<Processor*>(jp)->getMainController(), LockHelpers::Type::ScriptLock);
-		e->callExternalFunction(callback, args);
-	}
-}
 
 } // namespace hise
