@@ -70,7 +70,7 @@ public:
 		Font font;
 
 		int numColumns = 3;
-		double columnWidthRatio = 0.33;
+		Array<var> columnWidthRatios;
 
 		bool showNotesLabel = true;
 		bool showEditButtons = true;
@@ -204,8 +204,6 @@ public:
 		manageButton->setVisible(false);
 	}
 
-	void setColumnWidthRatio(double newRatio);
-
 private:
 
 	DefaultPresetBrowserLookAndFeel laf;
@@ -223,7 +221,7 @@ private:
 	// ============================================================================================
 
 	int numColumns = 3;
-	double columnWidthRatio = 0.33;
+	Array<var> columnWidthRatios;
 
 	File defaultRoot;
 	File rootFile;

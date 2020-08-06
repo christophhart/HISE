@@ -901,20 +901,38 @@ void PresetBrowser::resized()
 	}
 	else
 	{
-		int numColumnsToShow = expansionColumn != nullptr ? (numColumns + 1) : numColumns;
+		const int folderOffset = expansionColumn != nullptr ? 1 : 0;
+		const int numColumnsToShow = jlimit(1, 4, numColumns + folderOffset);
+		int columnWidths[4] = { 0, 0, 0, 0 };
+		auto w = (double)getWidth();
 
-		const int columnWidth = getWidth() / numColumnsToShow;
+		if (columnWidthRatios.size() == numColumnsToShow)
+		{
+			for (int i = 0; i < numColumnsToShow; i++)
+			{
+				auto r = jlimit(0.0, 1.0, (double)columnWidthRatios[i]);
+				columnWidths[i] = roundToInt(w * r);
+			}
+		}
+		else
+		{
+			// column amount mismatch, use equal spacing...
+			const int columnWidth = roundToInt(w / (double)numColumnsToShow);
+
+			for (int i = 0; i < numColumnsToShow; i++)
+				columnWidths[i] = columnWidth;
+		}
 
 		if(expansionColumn != nullptr)
-			expansionColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+			expansionColumn->setBounds(listArea.removeFromLeft(columnWidths[0]).reduced(2, 2));
 
 		if(numColumns > 1)
-			bankColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+			bankColumn->setBounds(listArea.removeFromLeft(columnWidths[0+folderOffset]).reduced(2, 2));
 
 		if(numColumns > 2)
-			categoryColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+			categoryColumn->setBounds(listArea.removeFromLeft(columnWidths[numColumnsToShow-2]).reduced(2, 2));
 
-		presetColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+		presetColumn->setBounds(listArea.removeFromLeft(columnWidths[numColumnsToShow-1]).reduced(2, 2));
 	}
 
 
@@ -1033,18 +1051,6 @@ void PresetBrowser::setNumColumns(int newNumColumns)
 }
 
 
-void PresetBrowser::setColumnWidthRatio(double newColumnWidthRatio)
-{
-	newColumnWidthRatio = jlimit<double>(0.0, 1.0, newColumnWidthRatio);
-
-	if (newColumnWidthRatio != columnWidthRatio)
-	{
-		columnWidthRatio = newColumnWidthRatio;
-		resized();
-	}
-}
-
-
 void PresetBrowser::setShowButton(int buttonId, bool newValue)
 {
 	enum ButtonIndexes
@@ -1073,6 +1079,9 @@ void PresetBrowser::setShowNotesLabel(bool shouldBeShown)
 
 void PresetBrowser::setShowEditButtons(bool showEditButtons)
 {
+	if (expansionColumn != nullptr)
+		expansionColumn->setShowButtons(showEditButtons);
+
 	bankColumn->setShowButtons(showEditButtons);
 	categoryColumn->setShowButtons(showEditButtons);
 	presetColumn->setShowButtons(showEditButtons);
@@ -1152,7 +1161,9 @@ void PresetBrowser::setOptions(const Options& newOptions)
 
 	getPresetBrowserLookAndFeel().textColour = newOptions.textColour;
 	setNumColumns(newOptions.numColumns);
-	setColumnWidthRatio(newOptions.columnWidthRatio);
+	columnWidthRatios.clear();
+	columnWidthRatios.addArray(newOptions.columnWidthRatios);
+
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
 	setShowEditButtons(newOptions.showEditButtons);
@@ -1167,6 +1178,8 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	noteLabel->update();
 	tagList->update();
 	modalInputWindow->update();
+
+	resized();
 }
 
 void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const File& file, bool /*doubleClick*/)

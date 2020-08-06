@@ -577,7 +577,7 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, options.showEditButtons);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFavoriteIcon, options.showFavoriteIcons);
 	storePropertyInObject(obj, SpecialPanelIds::NumColumns, options.numColumns);
-	storePropertyInObject(obj, SpecialPanelIds::ColumnWidthRatio, options.columnWidthRatio);
+	storePropertyInObject(obj, SpecialPanelIds::ColumnWidthRatio, var(options.columnWidthRatios));
 
 	return obj;
 }
@@ -592,7 +592,14 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
 	options.showExpansions = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionsAsColumn);
 	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
-	options.columnWidthRatio = getPropertyWithDefault(object, SpecialPanelIds::ColumnWidthRatio);
+
+	auto ratios = getPropertyWithDefault(object, SpecialPanelIds::ColumnWidthRatio);
+	if (ratios.isArray())
+	{
+		options.columnWidthRatios.clear();
+		options.columnWidthRatios.addArray(*ratios.getArray());
+	}
+	
 	options.showFavoriteIcons = getPropertyWithDefault(object, SpecialPanelIds::ShowFavoriteIcon);
 	options.backgroundColour = findPanelColour(PanelColourId::bgColour);
 	options.highlightColour = findPanelColour(PanelColourId::itemColour1);
@@ -624,6 +631,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowNotes, "ShowNotes");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowEditButtons, "ShowEditButtons");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnWidthRatio, "ColumnWidthRatio");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
 
@@ -645,6 +653,11 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowNotes, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowEditButtons, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumColumns, 3);
+
+	Array<var> defaultRatios;
+	defaultRatios.insertMultiple(0, 1.0 / 3.0, 3);
+
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ColumnWidthRatio, var(defaultRatios));
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowExpansionsAsColumn, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFavoriteIcon, true);
 
