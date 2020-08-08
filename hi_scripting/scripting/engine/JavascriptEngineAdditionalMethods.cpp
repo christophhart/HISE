@@ -301,8 +301,6 @@ var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::Nativ
 	}
 	else if (auto ifo = dynamic_cast<RootObject::InlineFunction::Object*>(function.getObject()))
 	{
-		
-
 		return ifo->performDynamically(RootObject::Scope(nullptr, root, root), const_cast<var*>(args.arguments), args.numArguments);
 	}
     

@@ -516,6 +516,14 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	anonymousFunctionRef = other.anonymousFunctionRef;
 	thisObject = other.thisObject;
 	args.swapWith(other.args);
+	return *this;
+}
+
+void WeakCallbackHolder::clear()
+{
+	getScriptProcessor()->getMainController_()->removeScriptListener(this);
+	weakCallback = nullptr;
+	anonymousFunctionRef = var();
 }
 
 void WeakCallbackHolder::call(var* arguments, int numArgs)
@@ -569,6 +577,8 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 		if (!r.wasOk())
 			debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
 	}
+	else
+		jassertfalse;
 
 	return r;
 }

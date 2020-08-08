@@ -2674,7 +2674,10 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *b
 ScriptComponent(base, panelName, 1),
 PreloadListener(base->getMainController_()->getSampleManager()),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
-isChildPanel(true)
+isChildPanel(true),
+loadRoutine(base, var(), 1),
+timerRoutine(base, var(), 0),
+mouseRoutine(base, var(), 1)
 {
 	init();
 }
@@ -2683,7 +2686,10 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptPanel* parent) :
 	ScriptComponent(parent->getScriptProcessor(), {}, 1),
 	PreloadListener(parent->getScriptProcessor()->getMainController_()->getSampleManager()),
 	graphics(new ScriptingObjects::GraphicsObject(parent->getScriptProcessor(), this)),
-	parentPanel(parent)
+	parentPanel(parent),
+	loadRoutine(parent->getScriptProcessor(), var(), 1),
+	mouseRoutine(parent->getScriptProcessor(), var(), 1),
+	timerRoutine(parent->getScriptProcessor(), var(), 0)
 {
 	
 	init();
@@ -2772,8 +2778,9 @@ ScriptingApi::Content::ScriptPanel::~ScriptPanel()
 
 	stopTimer();
 
-	timerRoutine = var();
-	mouseRoutine = var();
+	timerRoutine.clear();
+	mouseRoutine.clear();
+	loadRoutine.clear();
 	paintRoutine = var();
     
     loadedImages.clear();
@@ -2900,115 +2907,52 @@ void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
 	if (HiseJavascriptEngine::isJavascriptFunction(loadingCallback))
 	{
 		getScriptProcessor()->getMainController_()->getSampleManager().addPreloadListener(this);
-		loadRoutine = loadingCallback;
+
+		loadRoutine = WeakCallbackHolder(getScriptProcessor(), loadingCallback, 1);
+		loadRoutine.setThisObject(this);
+		loadRoutine.incRefCount();
+		loadRoutine.setHighPriority();
 	}
     else
     {
         getScriptProcessor()->getMainController_()->getSampleManager().removePreloadListener(this);
-        loadRoutine = var();
+		loadRoutine = WeakCallbackHolder(getScriptProcessor(), var(), 1);
     }
-    
 }
 
 
 void ScriptingApi::Content::ScriptPanel::preloadStateChanged(bool isPreloading)
 {
-	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
-	{
-		auto f = [this, isPreloading](JavascriptProcessor* )
-		{
-			Result r = Result::ok();
-			preloadStateInternal(isPreloading, r);
-			return r;
-		};
-
-		auto mc = getScriptProcessor()->getMainController_();
-		
-		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
-			dynamic_cast<JavascriptProcessor*>(getScriptProcessor()),
-			f);
-	}
-}
-
-
-void ScriptingApi::Content::ScriptPanel::preloadStateInternal(bool isPreloading, Result& r)
-{
-	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
-
-	var thisObject(this);
-	var b(isPreloading);
-	var::NativeFunctionArgs args(thisObject, &b, 1);
-
-	auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-
-	jassert(engine != nullptr);
-
-	if (engine != nullptr)
-	{
-		engine->maximumExecutionTime = RelativeTime(0.5);
-		engine->callExternalFunction(loadRoutine, args, &r);
-
-		if (r.failed())
-		{
-			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-		}
-	}
+	if (loadRoutine)
+		loadRoutine.call1(isPreloading);
 }
 
 
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
 {
-	mouseRoutine = mouseCallbackFunction;
+	mouseRoutine = WeakCallbackHolder(getScriptProcessor(), mouseCallbackFunction, 1);
+	mouseRoutine.incRefCount();
+	mouseRoutine.setThisObject(this);
+	mouseRoutine.setHighPriority();
 }
-
-
-void ScriptingApi::Content::ScriptPanel::mouseCallbackInternal(const var& mouseInformation, Result& r)
-{
-	var thisObject(this);
-
-	var::NativeFunctionArgs args(thisObject, &mouseInformation, 1);
-
-	auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-
-	engine->maximumExecutionTime = RelativeTime(0.5);
-	engine->callExternalFunction(mouseRoutine, args, &r);
-
-	if (r.failed())
-	{
-		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-	}
-	
-}
-
 
 void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 {
 	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
 
 	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
-	{
 		return;
-	}
 
-	if (HiseJavascriptEngine::isJavascriptFunction(mouseRoutine))
-	{
-		auto f = [this, mouseInformation](JavascriptProcessor*)
-		{
-			Result r = Result::ok();
-			mouseCallbackInternal(mouseInformation, r);
-			return r;
-		};
-
-		auto& tp = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
-
-		tp.addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), f);
-	};
+	if (mouseRoutine)
+		mouseRoutine.call1(mouseInformation);
 }
 
 void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 {
-	timerRoutine = timerCallback_;
+	timerRoutine = WeakCallbackHolder(getScriptProcessor(), timerCallback_, 0);
+	timerRoutine.setThisObject(this);
+	timerRoutine.incRefCount();
 }
 
 
@@ -3020,6 +2964,10 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 	if (mc == nullptr)
 		return;
 
+	if (timerRoutine)
+		timerRoutine.call(nullptr, 0);
+
+#if 0
 	WeakReference<ScriptPanel> tmp(this);
 
 	auto f = [tmp, mc](JavascriptProcessor* )
@@ -3033,6 +2981,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 	};
 
 	mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), f);
+#endif
 }
 
 
@@ -3231,6 +3180,7 @@ void ScriptingApi::Content::ScriptPanel::showAsModalPopup()
 
 bool ScriptingApi::Content::ScriptPanel::timerCallbackInternal(MainController * mc, Result &r)
 {
+#if 0
 	ignoreUnused(mc);
 	jassert_locked_script_thread(mc);
 
@@ -3260,7 +3210,10 @@ bool ScriptingApi::Content::ScriptPanel::timerCallbackInternal(MainController * 
 		}
 	}
 
+#endif
+
 	return true;
+
 }
 
 void ScriptingApi::Content::ScriptPanel::repaintWrapped()

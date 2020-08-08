@@ -246,6 +246,13 @@ struct WeakCallbackHolder : private ScriptingObject,
 	/** Call the function with the given arguments. */
 	void call(var* arguments, int numArgs);
 
+	/** Call the function with one argument that can be converted to a var. */
+	template <typename T> void call1(const T& arg1)
+	{
+		var a(arg1);
+		call(&a, 1);
+	}
+
 	/** Calls the function with a var container. */
 	template <typename T> void call(const T& t)
 	{
@@ -278,7 +285,9 @@ struct WeakCallbackHolder : private ScriptingObject,
 	{
 		anonymousFunctionRef = var();
 	}
-	
+
+	void clear();
+
 	operator bool() const
 	{
 		return weakCallback.get() != nullptr;
