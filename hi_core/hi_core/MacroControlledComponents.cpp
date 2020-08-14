@@ -395,7 +395,7 @@ void HiSlider::sliderDragStarted(Slider* s)
 {
 	dragStartValue = s->getValue();
 
-	Point<int> o;
+	juce::Point<int> o;
 
 	startTouch(o);
 }
@@ -534,7 +534,7 @@ void HiSlider::mouseUp(const MouseEvent& e)
 	Slider::mouseUp(e);
 }
 
-void HiSlider::touchAndHold(Point<int> /*downPosition*/)
+void HiSlider::touchAndHold(juce::Point<int> /*downPosition*/)
 {
 	enableMidiLearnWithPopup();
 }
@@ -576,7 +576,7 @@ void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 	setLookAndFeel(laf);
 }
 
-void HiToggleButton::touchAndHold(Point<int> /*downPosition*/)
+void HiToggleButton::touchAndHold(juce::Point<int> /*downPosition*/)
 {
 	enableMidiLearnWithPopup();
 }
@@ -676,7 +676,7 @@ void HiComboBox::mouseDown(const MouseEvent &e)
     }
 }
 
-void HiComboBox::touchAndHold(Point<int> /*downPosition*/)
+void HiComboBox::touchAndHold(juce::Point<int> /*downPosition*/)
 {
 	enableMidiLearnWithPopup();
 }

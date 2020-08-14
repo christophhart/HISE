@@ -229,7 +229,7 @@ public:
 		}
 	}
 
-	bool samplePathContains(Point<int> localPoint) const;
+	bool samplePathContains(juce::Point<int> localPoint) const;
 
     void drawSampleRectangle(Graphics &g, Rectangle<int> area);
 
@@ -473,7 +473,7 @@ private:
 	/** checks if the sampler contains new samples that are not displayed yet. */
 	bool newSamplesDetected();
 
-	SampleComponent* getSampleComponentAt(Point<int> point);
+	SampleComponent* getSampleComponentAt(juce::Point<int> point);
 
 	void checkEventForSampleDragging(const MouseEvent &e);
 

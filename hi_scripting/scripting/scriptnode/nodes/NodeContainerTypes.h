@@ -81,7 +81,7 @@ public:
 	int getBlockSizeForChildNodes() const override;
 	double getSampleRateForChildNodes() const override;
 
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+	Rectangle<int> getPositionInCanvas(juce::Point<int> topLeft) const override;
 
 private:
 	

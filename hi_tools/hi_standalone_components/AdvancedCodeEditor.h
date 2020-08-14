@@ -475,12 +475,12 @@ private:
 			}
 		}
 
-		Point<int> position;
+		juce::Point<int> position;
 		String lastToken;
 	} hoverManager;
 
 	String hoverText;
-	Point<int> hoverPosition;
+	juce::Point<int> hoverPosition;
 
 
 	// ================================================================================================================

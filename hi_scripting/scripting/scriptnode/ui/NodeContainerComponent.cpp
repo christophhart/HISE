@@ -299,7 +299,7 @@ void ContainerComponent::helpChanged(float , float )
 	repaint();
 }
 
-void ContainerComponent::setDropTarget(Point<int> position)
+void ContainerComponent::setDropTarget(juce::Point<int> position)
 {
 	if (position.isOrigin())
 	{
@@ -388,7 +388,7 @@ SerialNodeComponent::SerialNodeComponent(SerialNode* node) :
 }
 
 
-int SerialNodeComponent::getInsertPosition(Point<int> position) const
+int SerialNodeComponent::getInsertPosition(juce::Point<int> position) const
 {
 	auto targetY = position.getY();
 	auto p = childNodeComponents.size();
@@ -421,7 +421,7 @@ void SerialNodeComponent::resized()
 {
 	ContainerComponent::resized();
 
-	Point<int> startPos = getStartPosition();
+	juce::Point<int> startPos = getStartPosition();
 
 	for (auto nc : childNodeComponents)
 	{
@@ -494,8 +494,8 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 		auto tc = childNodeComponents[i];
 		auto nc = childNodeComponents[i + 1];
 
-		Point<int> start_({ tc->getBounds().getCentreX(), tc->getBounds().getBottom() });
-		Point<int> end_({ nc->getBounds().getCentreX(), nc->getBounds().getY() });
+		juce::Point<int> start_({ tc->getBounds().getCentreX(), tc->getBounds().getBottom() });
+		juce::Point<int> end_({ nc->getBounds().getCentreX(), nc->getBounds().getY() });
 
 		Line<float> l(start_.toFloat().translated(xOffset, 0.0f), end_.toFloat().translated(xOffset, 0.0f));
 
@@ -589,7 +589,7 @@ bool ParallelNodeComponent::isMultiChannelNode() const
 }
 
 
-int ParallelNodeComponent::getInsertPosition(Point<int> position) const
+int ParallelNodeComponent::getInsertPosition(juce::Point<int> position) const
 {
 	auto targetX = position.getX();
 	auto p = childNodeComponents.size();
@@ -741,8 +741,8 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 			auto b = targetNode->getBounds().toFloat();
 
-			Point<float> p1(b.getCentreX() + targetOffsetX, b.getY());
-			Point<float> p2(b.getCentreX() + targetOffsetX, b.getBottom());
+			juce::Point<float> p1(b.getCentreX() + targetOffsetX, b.getY());
+			juce::Point<float> p2(b.getCentreX() + targetOffsetX, b.getBottom());
 
 			p.addLineSegment({ start, p1 }, 2.0f);
 			p.addLineSegment({ p2, end }, 2.0f);
@@ -754,8 +754,8 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 		{
 			auto b = n->getBounds().toFloat();
 
-			Point<float> p1(b.getCentreX() + xOffset, b.getY());
-			Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+			juce::Point<float> p1(b.getCentreX() + xOffset, b.getY());
+			juce::Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
 
 			p.addLineSegment({ start, p1 }, 2.0f);
 			p.addLineSegment({ p2, end }, 2.0f);
@@ -776,7 +776,7 @@ ModChainNodeComponent::ModChainNodeComponent(ModulationChainNode* node):
 {
 }
 
-int ModChainNodeComponent::getInsertPosition(Point<int> position) const
+int ModChainNodeComponent::getInsertPosition(juce::Point<int> position) const
 {
 	auto targetY = position.getY();
 	auto p = childNodeComponents.size();
@@ -808,7 +808,7 @@ void ModChainNodeComponent::resized()
 {
 	ContainerComponent::resized();
 
-	Point<int> startPos = getStartPosition();
+	juce::Point<int> startPos = getStartPosition();
 
 	for (auto nc : childNodeComponents)
 	{

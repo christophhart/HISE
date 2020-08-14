@@ -133,7 +133,7 @@ Justification ApiHelpers::getJustification(const String& justificationName, Resu
 	return Justification::centred;
 }
 
-Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*/)
+juce::Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*/)
 {
 	if (data.isArray())
 	{
@@ -144,7 +144,7 @@ Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*
             auto d0 = (float)d->getUnchecked(0);
             auto d1 = (float)d->getUnchecked(1);
 
-            Point<float> p(SANITIZED(d0), SANITIZED(d1));
+            juce::Point<float> p(SANITIZED(d0), SANITIZED(d1));
 
 			return p;
 		}
@@ -152,14 +152,14 @@ Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*
 		{
 			if (r != nullptr) *r = Result::fail("Point array needs 2 elements");
 
-			return Point<float>();
+			return juce::Point<float>();
 		}
 	}
 	else
 	{
 		if (r != nullptr) *r = Result::fail("Point is not an array");
 
-		return Point<float>();
+		return juce::Point<float>();
 	}
 }
 

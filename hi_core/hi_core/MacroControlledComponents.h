@@ -54,9 +54,9 @@ public:
 		abortTouch();
 	}
 	
-	virtual void touchAndHold(Point<int> downPosition) = 0;
+	virtual void touchAndHold(juce::Point<int> downPosition) = 0;
 	
-	void startTouch(Point<int> downPosition)
+	void startTouch(juce::Point<int> downPosition)
 	{
 		if (isTouchEnabled())
 		{
@@ -93,7 +93,7 @@ private:
 			dragDistance(0.0f)
 		{}
 
-		void startTouch(Point<int>& newDownPosition)
+		void startTouch(juce::Point<int>& newDownPosition)
 		{
 			downPosition = newDownPosition;
 			startTimer(1000);
@@ -116,7 +116,7 @@ private:
 
 	private:
 
-		Point<int> downPosition;
+		juce::Point<int> downPosition;
 
 		float dragDistance;
 
@@ -322,7 +322,7 @@ public:
         ComboBox::mouseUp(e);
     }
     
-    void touchAndHold(Point<int> downPosition) override;
+    void touchAndHold(juce::Point<int> downPosition) override;
     
 	void resized() override
 	{
@@ -433,7 +433,7 @@ public:
 
 	void mouseUp(const MouseEvent& e) override;
 
-    void touchAndHold(Point<int> downPosition) override;
+    void touchAndHold(juce::Point<int> downPosition) override;
     
 	void resized() override
 	{
@@ -578,7 +578,7 @@ public:
 
 	void mouseUp(const MouseEvent&) override;
 
-	void touchAndHold(Point<int> downPosition) override;
+	void touchAndHold(juce::Point<int> downPosition) override;
 
 	
 	void updateValueFromLabel(bool updateValue);

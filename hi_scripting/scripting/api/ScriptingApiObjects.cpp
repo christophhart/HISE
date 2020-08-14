@@ -3568,16 +3568,16 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thicknes
 
 void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
 {
-	Point<float> c = getPointFromVar(center);
+	juce::Point<float> c = getPointFromVar(center);
     auto air = (float)angleInRadian;
 	auto a = AffineTransform::rotation(SANITIZED(air), c.getX(), c.getY());
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
 }
 
-Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
+juce::Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
 {
-	Point<float>&& f = ApiHelpers::getPointFromVar(data, &rectangleResult);
+	juce::Point<float>&& f = ApiHelpers::getPointFromVar(data, &rectangleResult);
 
 	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
 

@@ -563,7 +563,7 @@ void FilterGraph::mouseMove (const MouseEvent &)
 		return;
 	}
 
-    Point <int> mousePos =  getMouseXYRelative();
+    juce::Point <int> mousePos =  getMouseXYRelative();
     int xPos = mousePos.getX();
     float freq = xToFreq ((float)xPos);
     

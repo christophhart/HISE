@@ -295,7 +295,7 @@ public:
 
 	virtual NodeComponent* createComponent();
 
-	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;
+	virtual Rectangle<int> getPositionInCanvas(juce::Point<int> topLeft) const;
 	
 	virtual HardcodedNode* getAsHardcodedNode() { return nullptr; }
 

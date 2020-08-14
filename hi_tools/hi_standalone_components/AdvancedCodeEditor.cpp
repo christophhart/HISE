@@ -135,7 +135,7 @@ void JavascriptCodeEditor::itemDragMove(const SourceDetails &dragSourceDetails)
 {
 	if (positionFound == NoJSONFound)
 	{
-		Point<int> pos = dragSourceDetails.localPosition;
+		juce::Point<int> pos = dragSourceDetails.localPosition;
 		moveCaretTo(getPositionAt(pos.x, pos.y), false);
 
 		const int currentCharPosition = getCaretPos().getPosition();
@@ -353,11 +353,11 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 			moveCaretTo(CodeDocument::Position(getDocument(), tokenRange.getStart()), false);
 
 			Rectangle<int> caretArea = editor->getLocalArea(this, getCaretRectangle());
-			Point<int> topLeft = caretArea.getBottomLeft();
+			juce::Point<int> topLeft = caretArea.getBottomLeft();
 
 			if (caretArea.getY() > editor->getHeight() - currentPopup->getHeight())
 			{
-				topLeft = Point<int>(topLeft.getX(), jmax<int>(0, caretArea.getY() - currentPopup->getHeight()));
+				topLeft = juce::Point<int>(topLeft.getX(), jmax<int>(0, caretArea.getY() - currentPopup->getHeight()));
 			}
 
 			moveCaretTo(current, false);

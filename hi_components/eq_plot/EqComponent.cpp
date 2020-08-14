@@ -458,7 +458,7 @@ void FilterDragOverlay::updatePositions(bool forceUpdate)
 
 	for (int i = 0; i < dragComponents.size(); i++)
 	{
-		Point<int> point = getPosition(i);
+		juce::Point<int> point = getPosition(i);
 
 		Rectangle<int> b(point, point);
 
@@ -501,7 +501,7 @@ void FilterDragOverlay::mouseDrag(const MouseEvent &e)
 	}
 }
 
-Point<int> FilterDragOverlay::getPosition(int index)
+juce::Point<int> FilterDragOverlay::getPosition(int index)
 {
 	if (isPositiveAndBelow(index, eq->getNumFilterBands()))
 	{
@@ -511,7 +511,7 @@ Point<int> FilterDragOverlay::getPosition(int index)
 		const int x = (int)filterGraph.freqToX(eq->getAttribute(freqIndex));
 		const int y = (int)filterGraph.gainToY(eq->getAttribute(gainIndex), 24.0f);
 
-		return Point<int>(x, y).translated(offset, offset);
+		return juce::Point<int>(x, y).translated(offset, offset);
 	}
 	else
 		return {};

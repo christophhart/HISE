@@ -115,7 +115,7 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 #pragma warning( pop )
 
 
-bool SampleComponent::samplePathContains(Point<int> localPoint) const
+bool SampleComponent::samplePathContains(juce::Point<int> localPoint) const
 {
 	if (outline.isEmpty())
 		return bounds.contains(localPoint);
@@ -1011,7 +1011,7 @@ void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
 }
 	
 
-SampleComponent* SamplerSoundMap::getSampleComponentAt(Point<int> point)
+SampleComponent* SamplerSoundMap::getSampleComponentAt(juce::Point<int> point)
 {
 	for(int i = 0; i < sampleComponents.size(); i++)
 	{

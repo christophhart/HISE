@@ -69,7 +69,7 @@ void HeaderButton::refresh()
 
 	jassert(shadow != nullptr);
 
-	shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, Point<int>()));
+	shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, juce::Point<int>()));
 
 
 	buttonColour = off ? Colours::grey.withAlpha(0.3f) : buttonColour;
@@ -395,7 +395,7 @@ Drawable * ButtonShapes::deleteShape(bool /*on*/, bool enabled)
 	g.strokePath(internalPath1, PathStrokeType(4.000f, PathStrokeType::mitered, PathStrokeType::square));
 	g.strokePath(internalPath2, PathStrokeType(4.000f, PathStrokeType::mitered, PathStrokeType::square));
 
-	DropShadow d(Colours::white.withAlpha(0.5f), 5, Point<int>());
+	DropShadow d(Colours::white.withAlpha(0.5f), 5, juce::Point<int>());
 
 	d.drawForPath(g, internalPath1);
 	d.drawForPath(g, internalPath2);

@@ -336,7 +336,7 @@ protected:
 
 	void updatePopupPosition();
 
-	virtual Point<int> getValuePopupPosition(Rectangle<int> /*componentBounds*/) const { return Point<int>(); }
+	virtual juce::Point<int> getValuePopupPosition(Rectangle<int> /*componentBounds*/) const { return juce::Point<int>(); }
 
 	virtual String getTextForValuePopup()
 	{
@@ -521,7 +521,7 @@ public:
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderWrapper);
 
-		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const;
+		juce::Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const;
 
 		String getTextForValuePopup() override;
 
@@ -633,19 +633,19 @@ public:
 		
 		String getTextForTablePopup(float x, float y);
 
-		void pointDragStarted(Point<int> position, float index, float value) override;
+		void pointDragStarted(juce::Point<int> position, float index, float value) override;
 		void pointDragEnded() override;
-		void pointDragged(Point<int> position, float index, float value) override;
-		void curveChanged(Point<int> position, float curveValue) override;
+		void pointDragged(juce::Point<int> position, float index, float value) override;
+		void curveChanged(juce::Point<int> position, float curveValue) override;
 
-		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const override;
+		juce::Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const override;
 
 		String getTextForValuePopup() override { return popupText; }
 
 	private:
 
 		String popupText;
-		Point<int> localPopupPosition;
+		juce::Point<int> localPopupPosition;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper)
 	};

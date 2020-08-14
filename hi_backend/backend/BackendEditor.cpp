@@ -350,7 +350,7 @@ void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
 
 void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 {
-	getRootWindow()->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
+	getRootWindow()->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, juce::Point<int>());
 
     clearModuleList();
 	container = nullptr;
@@ -931,7 +931,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 {
 	if (!shouldShow)
 	{
-		getParentShell()->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
+		getParentShell()->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, juce::Point<int>());
 		return;
 	}
 
@@ -1043,7 +1043,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 		break;
 	}
 
-	Point<int> point(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
+	juce::Point<int> point(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
 	auto popup = getParentShell()->showComponentInRootPopup(c, button, point);
 
 	if (popup != nullptr)

@@ -171,7 +171,7 @@ private:
 	String currentText;
 	bool isClear;
 
-	Point<float> lastMousePosition;
+	juce::Point<float> lastMousePosition;
 	bool newPosition;
 
 	

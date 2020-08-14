@@ -218,7 +218,7 @@ struct Graph : public Component
 
 		float pixelsPerSample = 1;
 		
-		Point<int> currentPoint;
+		juce::Point<int> currentPoint;
 
 		int numSamples = 0;
 		int currentPosition = 0;

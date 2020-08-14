@@ -66,7 +66,7 @@ public:
 		Component::SafePointer<Component> mainEditor;
 	};
 
-	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
+	static juce::Point<float> getPointFromVar(const var& data, Result* r = nullptr);
 
 	static var getVarRectangle(Rectangle<float> floatRectangle, Result* r = nullptr);
 
@@ -1571,7 +1571,7 @@ public:
 
 	private:
 
-		Point<float> getPointFromVar(const var& data);
+		juce::Point<float> getPointFromVar(const var& data);
 		Rectangle<float> getRectangleFromVar(const var &data);
 		Rectangle<int> getIntRectangleFromVar(const var &data);
 

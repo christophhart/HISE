@@ -426,12 +426,12 @@ public:
 	{
 		//Point<int> p = map->getLocalPoint(this, Point<int>((int)((float)x / SCALE_FACTOR()), (int)((float)y / SCALE_FACTOR())));
 
-		Point<int> p(x, y);
+		juce::Point<int> p(x, y);
 
 		if (isInDragArea(p))
 		{
 
-			Point<int> dropPoint = getDropPoint(p);
+			juce::Point<int> dropPoint = getDropPoint(p);
 
 			const int x_relative = dropPoint.getX();
 			const int y_relative = dropPoint.getY();
@@ -526,12 +526,12 @@ public:
 		}
 	}
 
-	bool isInDragArea(Point<int> testPoint)
+	bool isInDragArea(juce::Point<int> testPoint)
 	{
 		return viewport->getBounds().contains(testPoint);
 	}
 
-	Point<int> getDropPoint(Point<int> dragPoint)
+	juce::Point<int> getDropPoint(juce::Point<int> dragPoint)
 	{
 		jassert(isInDragArea(dragPoint));
 

@@ -1478,7 +1478,7 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 	{
 		jassert(shadow != nullptr);
 
-		shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, Point<int>()));
+		shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, juce::Point<int>()));
 	}
 		
 	buttonColour = off ? Colours::grey.withAlpha(0.7f) : buttonColour;

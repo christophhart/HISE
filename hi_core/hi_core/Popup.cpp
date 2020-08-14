@@ -99,7 +99,7 @@ void TooltipBar::timerCallback()
 	Desktop& desktop = Desktop::getInstance();
 	const MouseInputSource mouseSource (desktop.getMainMouseSource());
 
-	Point<float> thisPosition = mouseSource.getScreenPosition();
+	juce::Point<float> thisPosition = mouseSource.getScreenPosition();
 
 	const bool positionHasChanged = thisPosition != lastMousePosition;
 

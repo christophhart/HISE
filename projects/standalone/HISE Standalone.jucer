@@ -44,7 +44,7 @@
                extraDefs="USE_IPP=1&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1"
                extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
+        <CONFIGURATION name="Debug" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="1" optimisation="1" targetName="HISE Debug" linkTimeOptimisation="0"
                        headerPath="/opt/intel/ipp/include" libraryPath="/opt/intel/ipp/lib"
                        cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"/>

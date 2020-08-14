@@ -720,7 +720,7 @@ void MarkdownEditorPanel::buttonClicked(Button* b)
 	}
 
 	Component* c = nullptr;
-	Point<int> p;
+	juce::Point<int> p;
 
 	if (b == &tableButton)
 	{

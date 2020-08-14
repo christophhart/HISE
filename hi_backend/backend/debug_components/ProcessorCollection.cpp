@@ -311,9 +311,9 @@ void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
 
 			PopupMenu::Options options;
 			
-			Point<int> mousePos(Desktop::getInstance().getMousePosition());
+			juce::Point<int> mousePos(Desktop::getInstance().getMousePosition());
 
-			Point<int> pos2 = mousePos;
+			juce::Point<int> pos2 = mousePos;
 			pos2.addXY(200, 500);
 
 			m.showMenuAsync(options.withTargetScreenArea(Rectangle<int>(mousePos, mousePos)), new PopupCallback(this));

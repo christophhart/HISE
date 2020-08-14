@@ -330,7 +330,7 @@ public:
 	void updateCoefficients();
 	void addFilterToGraph(int filterIndex, int filterType);
 	void updatePositions(bool forceUpdate);
-	Point<int> getPosition(int index);
+	juce::Point<int> getPosition(int index);
 
 	virtual void fillPopupMenu(PopupMenu& m, int handleIndex);
 

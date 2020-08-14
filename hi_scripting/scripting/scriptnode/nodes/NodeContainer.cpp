@@ -880,7 +880,7 @@ NodeComponent* SerialNode::createComponent()
 
 
 
-juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
+juce::Rectangle<int> SerialNode::getPositionInCanvas(juce::Point<int> topLeft) const
 {
 	using namespace UIValues;
 
@@ -896,7 +896,7 @@ juce::Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
 
 	h += PinHeight; // the "hole" for the cable
 
-	Point<int> childPos(NodeMargin, NodeMargin);
+	juce::Point<int> childPos(NodeMargin, NodeMargin);
 
 	for (auto n : nodes)
 	{
@@ -1019,7 +1019,7 @@ NodeComponent* ParallelNode::createComponent()
 	return new ParallelNodeComponent(this);
 }
 
-juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
+juce::Rectangle<int> ParallelNode::getPositionInCanvas(juce::Point<int> topLeft) const
 {
 	using namespace UIValues;
 
@@ -1030,7 +1030,7 @@ juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 	if (v_data[PropertyIds::ShowParameters])
 		y += UIValues::ParameterHeight;
 
-	Point<int> startPos(UIValues::NodeMargin, y);
+	juce::Point<int> startPos(UIValues::NodeMargin, y);
 
 	int maxy = startPos.getY();
 	int maxWidth = NodeWidth + NodeMargin;

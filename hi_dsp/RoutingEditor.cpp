@@ -61,7 +61,7 @@ void RouterComponent::ChannelConnector::paintOverChildren(Graphics& g)
 
 	g.setColour(Colours::white);
 
-	Point<int> connector = getConnectionPoint();
+	juce::Point<int> connector = getConnectionPoint();
 
 	g.fillEllipse((float)connector.getX() - 3.0f, (float)connector.getY() - 3.0f, 6.0f, 6.0f);
 
@@ -161,8 +161,8 @@ void RouterComponent::paint(Graphics& g)
 
 		if (j != -1)
 		{
-			Point<int> start = sourceChannels[i]->getConnectionPointInParent();
-			Point<int> end = destinationChannels[j]->getConnectionPointInParent();
+			juce::Point<int> start = sourceChannels[i]->getConnectionPointInParent();
+			juce::Point<int> end = destinationChannels[j]->getConnectionPointInParent();
 
 			g.drawLine((float)start.getX(), (float)start.getY(), (float)end.getX(), (float)end.getY(), 2);
 		}
@@ -176,8 +176,8 @@ void RouterComponent::paint(Graphics& g)
 
 		if (j != -1)
 		{
-			Point<int> start = sourceChannels[i]->getConnectionPointInParent();
-			Point<int> end = destinationChannels[j]->getConnectionPointInParent();
+			juce::Point<int> start = sourceChannels[i]->getConnectionPointInParent();
+			juce::Point<int> end = destinationChannels[j]->getConnectionPointInParent();
 
 			g.drawLine((float)start.getX(), (float)start.getY(), (float)end.getX(), (float)end.getY(), 2);
 		}

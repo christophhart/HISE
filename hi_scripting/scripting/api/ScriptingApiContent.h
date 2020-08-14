@@ -2203,7 +2203,7 @@ struct ContentValueTreeHelpers
 		return Result::ok();
 	}
 
-	static void updatePosition(ValueTree& v, Point<int> localPoint, Point<int> oldParentPosition)
+	static void updatePosition(ValueTree& v, juce::Point<int> localPoint, juce::Point<int> oldParentPosition)
 	{
 		static const Identifier x("x");
 		static const Identifier y("y");
@@ -2214,7 +2214,7 @@ struct ContentValueTreeHelpers
 		v.setProperty(y, newPoint.getY(), nullptr);
 	}
 
-	static Point<int> getLocalPosition(const ValueTree& v)
+	static juce::Point<int> getLocalPosition(const ValueTree& v)
 	{
 		static const Identifier x("x");
 		static const Identifier y("y");
@@ -2222,10 +2222,10 @@ struct ContentValueTreeHelpers
 
 		if (v.getType() == root)
 		{
-			return Point<int>();
+			return juce::Point<int>();
 		}
 
-		return Point<int>(v.getProperty(x), v.getProperty(y));
+		return juce::Point<int>(v.getProperty(x), v.getProperty(y));
 	}
 
 	static bool isShowing(const ValueTree& v)
@@ -2248,7 +2248,7 @@ struct ContentValueTreeHelpers
 		}
 	}
 
-	static bool getAbsolutePosition(const ValueTree& v, Point<int>& offset)
+	static bool getAbsolutePosition(const ValueTree& v, juce::Point<int>& offset)
 	{
 		static const Identifier x("x");
 		static const Identifier y("y");

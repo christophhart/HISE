@@ -224,7 +224,7 @@ public:
 	SerialNode(DspNetwork* root, ValueTree data);
 
 	NodeComponent* createComponent() override;
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+	Rectangle<int> getPositionInCanvas(juce::Point<int> topLeft) const override;
 
 	String createCppClass(bool isOuterClass) override;
 	String getCppCode(CppGen::CodeLocation location) override;
@@ -239,7 +239,7 @@ public:
 	String createCppClass(bool isOuterClass) override;
 	String getCppCode(CppGen::CodeLocation location) override;
 	NodeComponent* createComponent() override;
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+	Rectangle<int> getPositionInCanvas(juce::Point<int> topLeft) const override;
 };
 
 class NodeContainerFactory : public NodeFactory

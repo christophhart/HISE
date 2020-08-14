@@ -571,7 +571,7 @@ void PresetBrowserColumn::setNewRootDirectory(const File& newRootDirectory)
 	updateButtonVisibility();
 }
 
-void PresetBrowserColumn::touchAndHold(Point<int> /*downPosition*/)
+void PresetBrowserColumn::touchAndHold(juce::Point<int> /*downPosition*/)
 {
 	bool scrolling = listbox->getViewport()->isCurrentlyScrollingOnDrag();
 

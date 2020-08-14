@@ -514,7 +514,7 @@ void ScriptContentComponent::paint(Graphics &g)
 #endif
 }
 
-ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptComponentFor(Point<int> pos)
+ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptComponentFor(juce::Point<int> pos)
 {
 	for (int i = componentWrappers.size() - 1; i >= 0; --i)
 	{
@@ -568,7 +568,7 @@ Component* ScriptContentComponent::getComponentFor(ScriptingApi::Content::Script
 	return nullptr;
 }
 
-void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos)
+void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, juce::Point<int> pos)
 {
 	for (int i = componentWrappers.size() - 1; i >= 0; --i)
 	{
