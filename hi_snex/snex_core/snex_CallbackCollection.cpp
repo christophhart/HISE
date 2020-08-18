@@ -187,7 +187,7 @@ JitExpression::JitExpression(const juce::String& s, DebugHandler* handler) :
 {
 	juce::String code = "double get(double input){ return " + s + ";}";
 
-	
+
 
 	snex::jit::Compiler c(memory);
 	obj = c.compileJitObject(code);
@@ -239,7 +239,7 @@ template <typename T>
 ComplexType::Ptr snex::_ramp<T>::createComplexType(const Identifier& id)
 {
 	Type s;
-	
+
 	auto obj = new StructType(NamespacedIdentifier(id));
 
 	ADD_SNEX_STRUCT_MEMBER(obj, s, value);
@@ -259,7 +259,7 @@ ComplexType::Ptr snex::_ramp<T>::createComplexType(const Identifier& id)
 
 	ADD_INLINER(set, {
 		SETUP_INLINER(T);
-		
+
 		auto skipSmooth = cc.newLabel();
 		auto end = cc.newLabel();
 		auto numSteps = cc.newGpd();
@@ -269,7 +269,7 @@ ComplexType::Ptr snex::_ramp<T>::createComplexType(const Identifier& id)
 
 		IF_(float)  dl = cc.newXmmSs();
 		IF_(double) dl = cc.newXmmSd();
-		
+
 		cc.setInlineComment("Inlined sfloat::set");
 		cc.mov(numSteps, MEMBER_PTR(numSteps));
 		cc.test(numSteps, numSteps);
@@ -293,17 +293,17 @@ ComplexType::Ptr snex::_ramp<T>::createComplexType(const Identifier& id)
 				cc.movsd(MEMBER_PTR(delta), dl);
 				cc.movsd(MEMBER_PTR(targetValue), newTargetValue);
 			}
-			
+
 			cc.mov(MEMBER_PTR(stepsToDo), numSteps);
 			cc.jmp(end);
 		}
 		// else
 		{
 			cc.bind(skipSmooth);
-			
+
 			IF_(float) cc.movss(MEMBER_PTR(value), newTargetValue);
 			IF_(double) cc.movsd(MEMBER_PTR(value), newTargetValue);
-			
+
 			cc.mov(MEMBER_PTR(stepsToDo), 0);
 		}
 
@@ -317,7 +317,7 @@ ComplexType::Ptr snex::_ramp<T>::createComplexType(const Identifier& id)
 		SETUP_INLINER(T);
 		d->target->createRegister(cc);
 		auto ret = FP_REG_W(d->target);
-		
+
 		cc.setInlineComment("inline get()");
 		IF_(float) cc.movss(ret, MEMBER_PTR(value));
 		IF_(double) cc.movsd(ret, MEMBER_PTR(value));
@@ -439,7 +439,7 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(const Identifier& id
 		auto n = base.cloneAdjustedAndResized(0x01, 1);
 
 		auto v = d->args[0];
-		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		if (IS_MEM(v)) cc.mov(n, INT_IMM((int)v));
 		else cc.mov(n, INT_REG_R(v));
 
 		return Result::ok();
@@ -449,9 +449,9 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(const Identifier& id
 	{
 		SETUP_INLINER(int);
 		auto n = base.cloneAdjustedAndResized(0x02, 1);
-		
+
 		auto v = d->args[0];
-		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		if (IS_MEM(v)) cc.mov(n, INT_IMM((int)v));
 		else cc.mov(n, INT_REG_R(v));
 
 		return Result::ok();
@@ -461,9 +461,9 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(const Identifier& id
 	{
 		SETUP_INLINER(int);
 		auto n = base.cloneAdjustedAndResized(0x03, 1);
-		
+
 		auto v = d->args[0];
-		if (IS_MEM(v)) cc.mov(n, INT_IMM(v));
+		if (IS_MEM(v)) cc.mov(n, INT_IMM((int)v));
 		else cc.mov(n, INT_REG_R(v));
 
 		return Result::ok();
@@ -637,7 +637,7 @@ template <class FunctionType> struct VariadicFunctionInliner
 
 				auto id = fc->getClassName().getChildId(getId().getIdentifier());
 				TypeInfo t;
-				
+
 
 				Array<FunctionData> matches;
 				fc->addMatchingFunctions(matches, id);
@@ -726,7 +726,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 		getFunction.inliner->returnTypeFunction = [](InlineData* b)
 		{
 			auto d = dynamic_cast<ReturnTypeInlineData*>(b);
-			
+
 			if (d->templateParameters.size() != 1)
 				return Result::fail("template amount mismatch. Expected 1");
 
@@ -755,11 +755,11 @@ void SnexObjectDatabase::registerObjects(Compiler& c)
 
 		chainType->functions.add(getFunction);
 	}
-	
+
 
 	c.registerVariadicType(chainType);
 
-	
+
 }
 
 
