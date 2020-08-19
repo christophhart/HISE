@@ -167,6 +167,7 @@ public:
 		RefreshVelocityXFade,
 		AutomapUsingMetadata,
 		TrimSampleStart,
+		ExportAiffWithMetadata,
 		numCommands
 	};
 
@@ -210,7 +211,8 @@ public:
 								AutomapVelocity,
 								RefreshVelocityXFade,
 								AutomapUsingMetadata,
-								TrimSampleStart
+								TrimSampleStart,
+								ExportAiffWithMetadata
 								};
 
 		commands.addArray(id, numElementsInArray(id));
@@ -632,7 +634,7 @@ public:
 		toolsMenu.addCommandItem(a, ExtractToSingleMicSamples);
 		toolsMenu.addCommandItem(a, ReencodeMonolith);
 		toolsMenu.addCommandItem(a, EncodeAllMonoliths);
-		
+		toolsMenu.addCommandItem(a, ExportAiffWithMetadata);
 
 		p.addSubMenu("Tools", toolsMenu, true);
 
