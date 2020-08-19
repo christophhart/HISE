@@ -97,7 +97,7 @@ struct CallbackStateComponent : public Component,
 		r.setNewText(s);
 		auto h = r.getHeightForWidth((float)(getWidth() + 10), true);
 
-		setSize(getWidth(), h + 10);
+		setSize(getWidth(), roundToInt(h + 10.f));
 
 		repaint();
 	}
@@ -336,9 +336,9 @@ struct Graph : public Component
 			processingMode.setBounds(boxBounds.removeFromTop(30));
 		}
 
-		internalGraph.setBounds(0, 0, viewport.getWidth() * internalGraph.zoomFactor, viewport.getMaximumVisibleHeight());
+		internalGraph.setBounds(0, 0, roundToInt((float)viewport.getWidth() * internalGraph.zoomFactor), viewport.getMaximumVisibleHeight());
 		viewport.setBounds(b);
-		internalGraph.setBounds(0, 0, viewport.getWidth() * internalGraph.zoomFactor, viewport.getMaximumVisibleHeight());
+		internalGraph.setBounds(0, 0, roundToInt((float)viewport.getWidth() * internalGraph.zoomFactor), viewport.getMaximumVisibleHeight());
 
 		repaint();
 	}
@@ -432,7 +432,7 @@ public:
 
 	void eventHappened(BreakpointHandler* handler, BreakpointHandler::EventType type) override
 	{
-		currentBreakpointLine = *handler->getLineNumber();
+		currentBreakpointLine = (int)*handler->getLineNumber();
 
 		if (type == BreakpointHandler::Resume)
 			currentBreakpointLine = -1;
@@ -465,7 +465,7 @@ public:
 		console.scrollToLine(lineToShow);
 	}
 
-	void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) override
+	void handleBreakpoints(const Identifier& /*codeFile*/, Graphics& g, Component* /*c*/) override
 	{
 		if (currentBreakpointLine > 0)
 		{

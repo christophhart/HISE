@@ -344,7 +344,7 @@ public:
 	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport);
 	~ExpansionEncodingWindow();
 
-	void logMessage(const String& message, bool isCritical)
+	void logMessage(const String& message, bool /*isCritical*/)
 	{
 		showStatusMessage(message);
 	}

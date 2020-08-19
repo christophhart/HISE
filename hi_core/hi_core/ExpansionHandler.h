@@ -377,10 +377,16 @@ public:
 			Loading an expansion pack is not the only way of accessing its content, it is just telling
 			that it is supposed to be the "active" expansion.
 		*/
-		virtual void expansionPackLoaded(Expansion* currentExpansion) {};
+		virtual void expansionPackLoaded(Expansion* currentExpansion) 
+		{
+			ignoreUnused(currentExpansion);
+		};
 
 		/** Can be used to handle error messages. */
-		virtual void logMessage(const String& message, bool isCritical) {}
+		virtual void logMessage(const String& message, bool isCritical) 
+		{
+			ignoreUnused(message, isCritical);
+		}
 
 	private:
 

@@ -640,7 +640,7 @@ public:
 
 	void setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos) override;
 
-	int getCodeFontSize() const override { return dynamic_cast<const Processor*>(this)->getMainController()->getGlobalCodeFontSize(); }
+	int getCodeFontSize() const override { return (int)dynamic_cast<const Processor*>(this)->getMainController()->getGlobalCodeFontSize(); }
 
 	
 

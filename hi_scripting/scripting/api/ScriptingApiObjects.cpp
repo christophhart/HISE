@@ -476,7 +476,7 @@ double ScriptingObjects::ScriptDownloadObject::getProgress() const
 
 int ScriptingObjects::ScriptDownloadObject::getDownloadSpeed()
 {
-	return isRunning() ? jmax(bytesInLastSecond, bytesInCurrentSecond) : 0;
+	return isRunning() ? jmax((int)bytesInLastSecond, (int)bytesInCurrentSecond) : 0;
 }
 
 void ScriptingObjects::ScriptDownloadObject::call(bool highPriority)
@@ -522,6 +522,8 @@ var ScriptingObjects::ScriptDownloadObject::getDownloadedTarget()
 	{
 		return var(new ScriptFile(getScriptProcessor(), targetFile));
 	}
+
+	return var();
 }
 
 void ScriptingObjects::ScriptDownloadObject::finished(URL::DownloadTask*, bool success)
@@ -4575,7 +4577,7 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		{
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 		}
-		catch (HiseJavascriptEngine::RootObject::Error& e)
+		catch (HiseJavascriptEngine::RootObject::Error& )
 		{
 
 		}
@@ -4614,7 +4616,7 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 		{
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 		}
-		catch (HiseJavascriptEngine::RootObject::Error& e)
+		catch (HiseJavascriptEngine::RootObject::Error& )
 		{
 
 		}

@@ -253,11 +253,11 @@ struct WeakCallbackHolder : private ScriptingObject,
 		call(&a, 1);
 	}
 
-	/** Calls the function with a var container. */
-	template <typename T> void call(const T& t)
+	/** Calls the function with any iteratable var container. */
+	template <typename ContainerType> void call(const ContainerType& t)
 	{
 		// C++ Motherf%!(%...
-		call(const_cast<var*>(&*t.begin()), t.size());
+		call(const_cast<var*>(&*t.begin()), (int)t.size());
 	}
 
 	void call(Array<var> v)

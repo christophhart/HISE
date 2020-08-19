@@ -172,7 +172,7 @@ struct ExpansionPopupBase : public Component,
 		r.setTargetComponent(this);
 		r.parse();
 
-		h += r.getHeightForWidth(w-20);
+		h += (int)r.getHeightForWidth((float)(w-20));
 
 		setSize(w, h + 20);
 	}
@@ -295,7 +295,7 @@ struct ExpansionEditPopup : public ExpansionPopupBase
 			{
 				s << "| **" << FileHandlerBase::getIdentifier(type).removeCharacters("/") << "** | ";
 
-				int fileSize = 0;
+				int64 fileSize = 0;
 
 				if (lookForFiles)
 				{
@@ -317,7 +317,7 @@ struct ExpansionEditPopup : public ExpansionPopupBase
 					int embedded = poolToUse->getDataProvider()->getListOfAllEmbeddedReferences().size();
 					int loaded = poolToUse->getNumLoadedFiles();
 
-					fileSize = poolToUse->getDataProvider()->getSizeOfEmbeddedReferences();
+					fileSize = (int64)poolToUse->getDataProvider()->getSizeOfEmbeddedReferences();
 
 					s << jmax(embedded, loaded) << " | ";
 				}
@@ -351,7 +351,7 @@ struct ExpansionEditPopup : public ExpansionPopupBase
 	{
 		ExpansionPopupBase::paint(g);
 
-		auto top = getLocalBounds().toFloat().removeFromTop(panelHeight);
+		auto top = getLocalBounds().toFloat().removeFromTop((float)panelHeight);
 
 		String eName;
 		switch (eType)

@@ -43,6 +43,8 @@ bool HiseJavascriptEngine::isJavascriptFunction(const var& v)
 	{
 		return dynamic_cast<RootObject::FunctionObject*>(obj) || dynamic_cast<RootObject::InlineFunction::Object*>(obj);
 	}
+
+	return false;
 }
 
 HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())

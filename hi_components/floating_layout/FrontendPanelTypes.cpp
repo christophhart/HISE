@@ -1069,6 +1069,8 @@ juce::String MidiLearnPanel::getCellText(int rowNumber, int columnId) const
 		return ProcessorHelpers::getPrettyNameForAutomatedParameter(data.processor, data.attribute);
 	else if (columnId == ColumnId::CCNumber)
 		return String(data.ccNumber);
+	else
+		return "";
 }
 
 TableFloatingTileBase::InvertedButton::InvertedButton(TableFloatingTileBase &owner_) :
