@@ -81,6 +81,8 @@
 #include "hi_markdown/MarkdownDatabaseCrawler.cpp"
 #include "hi_markdown/MarkdownParser.cpp"
 
+#include "mcl_editor/mcl_editor.cpp"
+
 #include "hi_tools/VariantBuffer.cpp"
 #include "hi_tools/Tables.cpp"
 #include "hi_tools/ValueTreeHelpers.cpp"

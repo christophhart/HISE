@@ -66,7 +66,6 @@
 #define JUCE_MODULE_AVAILABLE_juce_gui_basics            1
 #define JUCE_MODULE_AVAILABLE_juce_gui_extra             1
 #define JUCE_MODULE_AVAILABLE_juce_opengl                1
-#define JUCE_MODULE_AVAILABLE_mcl_editor                 1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 
@@ -302,29 +301,6 @@
 
 #ifndef    JUCE_ENABLE_LIVE_CONSTANT_EDITOR
  //#define JUCE_ENABLE_LIVE_CONSTANT_EDITOR 0
-#endif
-
-//==============================================================================
-// mcl_editor flags:
-
-#ifndef    MCL_ENABLE_OPEN_GL
- //#define MCL_ENABLE_OPEN_GL 1
-#endif
-
-#ifndef    TEST_MULTI_CARET_EDITING
- //#define TEST_MULTI_CARET_EDITING 1
-#endif
-
-#ifndef    TEST_SYNTAX_SUPPORT
- //#define TEST_SYNTAX_SUPPORT 1
-#endif
-
-#ifndef    ENABLE_CARET_BLINK
- //#define ENABLE_CARET_BLINK 1
-#endif
-
-#ifndef    PROFILE_PAINTS
- //#define PROFILE_PAINTS 0
 #endif
 
 //==============================================================================

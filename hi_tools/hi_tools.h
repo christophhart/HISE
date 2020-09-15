@@ -61,9 +61,8 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 
-#if USE_BACKEND || SNEX_STANDALONE_PLAYGROUND
-#include "../../Projekte/mcl_editor/mcl_editor/mcl_editor.h"
-#endif
+
+
 
 #include "../hi_zstd/hi_zstd.h"
 #include "../hi_streaming/hi_streaming.h"
@@ -145,6 +144,7 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_markdown/MarkdownHtmlExporter.h"
 #include "hi_markdown/MarkdownDatabaseCrawler.h"
 
+#include "mcl_editor/mcl_editor.h"
 
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"
