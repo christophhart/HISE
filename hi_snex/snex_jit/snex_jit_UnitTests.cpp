@@ -1350,8 +1350,7 @@ public:
 	void runTest() override
 	{
 		optimizations = OptimizationIds::getAllIds();
-		return;
-		runTestFiles();
+		//runTestFiles();
 		
 		
 

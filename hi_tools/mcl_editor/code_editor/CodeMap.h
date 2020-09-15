@@ -335,18 +335,24 @@ public:
 	
 
 	FoldMap(TextDocument& d) :
-		doc(d),
-		foldButton("fold", Colours::white.withAlpha(0.8f), Colours::white, Colours::white)
+		doc(d)
 	{
-		foldButton.setShape(factory.createPath("fold"), true, true, true);
-
-		addAndMakeVisible(foldButton);
 		doc.addFoldListener(this);
+
+		vp.setViewedComponent(&content, false);
+		addAndMakeVisible(vp);
+		vp.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.2f));
+		vp.setScrollBarThickness(10);
 	};
 
 	void foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged) override
 	{
 		rebuild();
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colours::black.withAlpha(0.2f));
 	}
 
 	void rootWasRebuilt(FoldableLineRange::WeakPtr rangeThatHasChanged) override
@@ -359,6 +365,8 @@ public:
 	{
 		items.clear();
 
+		int h = 0;
+
 		for (auto r : doc.getFoldableLineRangeHolder().roots)
 		{
 			ScopedPointer<Item> n = new Item(r, *this);
@@ -366,20 +374,19 @@ public:
 			if (n->type == Skip)
 				continue;
 
-			addAndMakeVisible(n);
+			h += n->getHeight();
+
+			content.addAndMakeVisible(n);
 			items.add(n.release());
 		}
 
-		resized();
+		content.setSize(getWidth() - vp.getScrollBarThickness(), h);
+		updateSize();
 	}
 
-	
-
-	void resized() override
+	void updateSize()
 	{
 		auto y = Item::Height;
-
-		foldButton.setBounds(getWidth() - y, 0, y, y);
 
 		for (auto i : items)
 		{
@@ -388,21 +395,18 @@ public:
 		}
 	}
 
+	void resized() override
+	{
+		vp.setBounds(getLocalBounds());
+	}
+
+	Viewport vp;
+	Component content;
+
 	OwnedArray<Item> items;
 
 	FoldableLineRange::Ptr root;
 
-	struct Icon
-	{
-		Path createPath(const String& url) const
-		{
-			Path p;
-			p.addTriangle({ 0.0f, 0.0 }, { 0.0f, 1.0f }, { 1.0f, 1.0f });
-			return p;
-		}
-	} factory;
-
-	ShapeButton foldButton;
 
 	TextDocument& doc;
 };

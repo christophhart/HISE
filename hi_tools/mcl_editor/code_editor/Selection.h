@@ -85,6 +85,21 @@ struct mcl::Selection
 			: head.x >= row && row >= tail.x;
 	}
 
+	static Selection fromCodePosition(const CodeDocument::Position& p)
+	{
+		return Selection(p.getLineNumber(), p.getIndexInLine(), p.getLineNumber(), p.getIndexInLine());
+	}
+
+	static Selection fromCodePosition(const CodeDocument::Position& s, const CodeDocument::Position& e)
+	{
+		return Selection(s.getLineNumber(), s.getIndexInLine(), e.getLineNumber(), e.getIndexInLine());
+	}
+
+	CodeDocument::Position toCodePosition(const CodeDocument& doc, bool getHead=true) const
+	{
+		return CodeDocument::Position(doc, getHead ? head.x : tail.x, getHead ? head.y : tail.y);
+	}
+
 	/** Return the range of columns this selection covers on the given row.
 	 */
 	juce::Range<int> getColumnRangeOnRow(int row, int numColumns) const

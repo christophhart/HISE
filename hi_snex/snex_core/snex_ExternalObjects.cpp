@@ -194,10 +194,10 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 	HiseEvent e;
 	int* ptr = reinterpret_cast<int*>(&e);
 
-	obj->addExternalMember("dword1", e, ptr[0]);
-	obj->addExternalMember("dword2", e, ptr[1]);
-	obj->addExternalMember("dword3", e, ptr[2]);
-	obj->addExternalMember("dword4", e, ptr[3]);
+	obj->addExternalMember("dword1", e, ptr[0], NamespaceHandler::Visibility::Private);
+	obj->addExternalMember("dword2", e, ptr[1], NamespaceHandler::Visibility::Private);
+	obj->addExternalMember("dword3", e, ptr[2], NamespaceHandler::Visibility::Private);
+	obj->addExternalMember("dword4", e, ptr[3], NamespaceHandler::Visibility::Private);
 
 	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getNoteNumber);
 	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getVelocity);

@@ -411,10 +411,12 @@ struct Autocomplete : public Component,
 	{
 
 		HelpPopup(Autocomplete* p) :
-			ac(p)
+			ac(p),
+			corner(this, nullptr)
 		{
 			addAndMakeVisible(display);
 			p->addComponentListener(this);
+			addAndMakeVisible(corner);
 		}
 
 		~HelpPopup()
@@ -449,6 +451,7 @@ struct Autocomplete : public Component,
 		void resized() override
 		{
 			display.setBounds(getLocalBounds().reduced(10));
+			corner.setBounds(getLocalBounds().removeFromRight(10).removeFromBottom(10));
 		}
 
 		void paint(Graphics& g) override
@@ -460,6 +463,7 @@ struct Autocomplete : public Component,
 
 		Autocomplete* ac;
 		SimpleMarkdownDisplay display;
+		ResizableCornerComponent corner;
 	};
 
 	struct Item : public Component

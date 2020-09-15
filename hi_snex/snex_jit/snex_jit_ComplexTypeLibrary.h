@@ -318,7 +318,7 @@ struct StructType : public ComplexType,
 		return false;
 	}
 
-	void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
+	void registerExternalAtNamespaceHandler(NamespaceHandler* handler, const String& description) override;
 
 	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList);
 
@@ -371,7 +371,7 @@ struct StructType : public ComplexType,
 		isExternalDefinition = true;
 	}
 
-	template <class ObjectType, typename ArgumentType> void addExternalMember(const Identifier& id, ObjectType& obj, ArgumentType& defaultValue)
+	template <class ObjectType, typename ArgumentType> void addExternalMember(const Identifier& id, ObjectType& obj, ArgumentType& defaultValue, NamespaceHandler::Visibility v = NamespaceHandler::Visibility::Public)
 	{
 		auto type = Types::Helpers::getTypeFromTypeId<ArgumentType>();
 		auto nm = new Member();
@@ -379,6 +379,7 @@ struct StructType : public ComplexType,
 		nm->typeInfo = TypeInfo(type);
 		nm->offset = reinterpret_cast<uint64>(&defaultValue) - reinterpret_cast<uint64>(&obj);
 		nm->defaultList = InitialiserList::makeSingleList(VariableStorage(type, var(defaultValue)));
+		nm->visibility = v;
 
 		memberData.add(nm);
 		isExternalDefinition = true;
@@ -444,6 +445,7 @@ private:
 		size_t padding = 0;
 		Identifier id;
 		TypeInfo typeInfo;
+		NamespaceHandler::Visibility visibility = NamespaceHandler::Visibility::numVisibilities;
 		InitialiserList::Ptr defaultList;
 	};
 

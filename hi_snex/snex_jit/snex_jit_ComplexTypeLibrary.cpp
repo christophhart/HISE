@@ -506,7 +506,7 @@ void DynType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void
 
 snex::jit::FunctionClass* DynType::getFunctionClass()
 {
-	auto dynOperators = new FunctionClass(NamespacedIdentifier("DynFunctions"));
+	auto dynOperators = new FunctionClass(NamespacedIdentifier("dyn"));
 
 	auto& assignFunction = dynOperators->createSpecialFunction(FunctionClass::AssignOverload);
 	assignFunction.addArgs("this", TypeInfo(this));
@@ -1160,7 +1160,7 @@ snex::InitialiserList::Ptr StructType::makeDefaultInitialiserList() const
 	return n;
 }
 
-void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
+void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler, const String& description)
 {
 	if (handler->getComplexType(id))
 		return;
@@ -1178,7 +1178,7 @@ void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 		{
 			if (auto subClass = m->typeInfo.getTypedIfComplexType<StructType>())
 			{
-				subClass->registerExternalAtNamespaceHandler(handler);
+				subClass->registerExternalAtNamespaceHandler(handler, description);
 			}
 		}
 
@@ -1187,7 +1187,7 @@ void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 			auto mId = id.getChildId(m->id);
 			auto mType = m->typeInfo;
 
-			handler->addSymbol(mId, mType, NamespaceHandler::Variable, NamespaceHandler::SymbolDebugInfo::fromString(m->comment));
+			handler->addSymbol(mId, mType, NamespaceHandler::Variable, NamespaceHandler::SymbolDebugInfo::fromString(m->comment, m->visibility));
 		}
 
 		FunctionClass::Ptr fc = getFunctionClass();

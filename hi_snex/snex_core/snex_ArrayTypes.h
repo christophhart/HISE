@@ -115,13 +115,13 @@ private:
 	SSE instructions for common operations. Also any span type with floats and a 
 	length that is a multiple of 4 will use SSE instructions when optimizing loops.
 */
-template <class T, int MaxSize> struct span
+template <class T, int Size> struct span
 {
 	static constexpr ArrayID ArrayType = Types::ArrayID::SpanType;
 	using DataType = T;
-	using Type = span<T, MaxSize>;
+	using Type = span<T, Size>;
 
-	static constexpr int s = MaxSize;
+	static constexpr int s = Size;
 
 	/** The wrapped index type can be used for an index that will wrap around
 	    the boundaries in order to implement eg. ring buffers.
@@ -136,6 +136,7 @@ template <class T, int MaxSize> struct span
 
 		// Just pass the span into the function
 		auto idx1 = IndexType::wrapped(data);
+		@endcode
 	*/
 	struct wrapped: public index_base<wrapped>
 	{
@@ -144,7 +145,7 @@ template <class T, int MaxSize> struct span
 
 		operator int() const
 		{
-			return value % MaxSize;
+			return value % Size;
 		}
 	};
 
@@ -152,13 +153,17 @@ template <class T, int MaxSize> struct span
 	{
 		operator int() const
 		{
-			if (isPositiveAndBelow(value, MaxSize - 1))
+			if (isPositiveAndBelow(value, Size - 1))
 				return value;
 
 			return 0;
 		}
 	};
 
+	/** An index type that will clamp the value to the limits, so that its zero for negative input and `size-1` for values outside the boundary.
+
+		This is useful for look up tables etc. 
+	*/
 	struct clamped: public index_base<clamped>
 	{
 		clamped(int initValue) : index_base<clamped>(initValue) {}
@@ -166,10 +171,11 @@ template <class T, int MaxSize> struct span
 
 		operator int() const
 		{
-			return jlimit(0, MaxSize - 1, value);
+			return jlimit(0, Size - 1, value);
 		}
 	};
 
+	/** An index type that is not performing any bounds-check at all. Use it at your own risk! */
 	struct unsafe
 	{
 		operator int() const
@@ -178,30 +184,28 @@ template <class T, int MaxSize> struct span
 		}
 	};
 
-	
-
 	span()
 	{
-		memset(data, 0, sizeof(T)*MaxSize);
+		memset(data, 0, sizeof(T)*Size);
 	}
 
 	span(const std::initializer_list<T>& l)
 	{
 		if (l.size() == 1)
 		{
-			for (int i = 0; i < MaxSize; i++)
+			for (int i = 0; i < Size; i++)
 			{
 				data[i] = *l.begin();
 			}
 		}
 		else
-			memcpy(data, l.begin(), sizeof(T)*MaxSize);
+			memcpy(data, l.begin(), sizeof(T)*Size);
 
 	}
 
 	static Type& fromExternalData(T* data, int numElements)
 	{
-		jassert(numElements <= MaxSize);
+		jassert(numElements <= Size);
 		return *reinterpret_cast<Type*>(data);
 	}
 
@@ -222,7 +226,7 @@ template <class T, int MaxSize> struct span
 	{
 		if (isSimdable())
 		{
-			constexpr int numLoop = MaxSize / getSimdSize();
+			constexpr int numLoop = Size / getSimdSize();
 			
 			if (std::is_same<DataType, float>())
 			{
@@ -250,7 +254,7 @@ template <class T, int MaxSize> struct span
 
 	operator DataType()
 	{
-		if (MaxSize == 1)
+		if (Size == 1)
 			return *begin();
 	}
 
@@ -264,7 +268,7 @@ template <class T, int MaxSize> struct span
 	{
 		static_assert(isSimdable(), "Can't add non SIMDable types");
 
-		constexpr int numLoop = MaxSize / getSimdSize();
+		constexpr int numLoop = Size / getSimdSize();
 		auto dst = (float*)data;
 		auto sc = (float)scalar;
 
@@ -283,11 +287,11 @@ template <class T, int MaxSize> struct span
 
 	Type& operator=(const Type& other)
 	{
-		if (MaxSize >= 4)
+		if (Size >= 4)
 		{
 			jassert(isSimdable());
 
-			constexpr int numLoop = MaxSize / getSimdSize();
+			constexpr int numLoop = Size / getSimdSize();
 			auto src = (float*)other.data;
 			auto dst = (float*)data;
 
@@ -316,7 +320,7 @@ template <class T, int MaxSize> struct span
 	{
 		auto dst = (float*)data;
 		auto src = (float*)other.data;
-		constexpr int numLoop = MaxSize / getSimdSize();
+		constexpr int numLoop = Size / getSimdSize();
 
 		for (int i = 0; i < numLoop; i++)
 		{
@@ -335,7 +339,7 @@ template <class T, int MaxSize> struct span
 	{
 		static_assert(isSimdable(), "Can't add non SIMDable types");
 
-		constexpr int numLoop = MaxSize / getSimdSize();
+		constexpr int numLoop = Size / getSimdSize();
 		int i = 0;
 
 		auto dst = (float*)data;
@@ -358,7 +362,7 @@ template <class T, int MaxSize> struct span
 	{
 		T v = T(0);
 
-		for (int i = 0; i < MaxSize; i++)
+		for (int i = 0; i < Size; i++)
 		{
 			v += data[i];
 		}
@@ -368,14 +372,14 @@ template <class T, int MaxSize> struct span
 
 	static constexpr bool isSimdType()
 	{
-		return (std::is_same<T, float>() && MaxSize == 4) ||
-			(std::is_same<T, double>() && MaxSize == 2);
+		return (std::is_same<T, float>() && Size == 4) ||
+			(std::is_same<T, double>() && Size == 2);
 	}
 
 	static constexpr bool isSimdable()
 	{
-		return (std::is_same<T, float>() && MaxSize % 4 == 0) ||
-			(std::is_same<T, double>() && MaxSize % 2 == 0);
+		return (std::is_same<T, float>() && Size % 4 == 0) ||
+			(std::is_same<T, double>() && Size % 2 == 0);
 	}
 
 	bool isAlignedTo16Byte() const
@@ -394,11 +398,11 @@ template <class T, int MaxSize> struct span
 		return reinterpret_cast<uint64_t>(d.begin()) % 16 == 0;
 	}
 
-	template <int ChannelAmount> span<span<T, MaxSize / ChannelAmount>, ChannelAmount>& split()
+	template <int ChannelAmount> span<span<T, Size / ChannelAmount>, ChannelAmount>& split()
 	{
-		static_assert(MaxSize % ChannelAmount == 0, "Can't split with slice length ");
+		static_assert(Size % ChannelAmount == 0, "Can't split with slice length ");
 
-		return *reinterpret_cast<span<span<T, MaxSize / ChannelAmount>, ChannelAmount>*>(this);
+		return *reinterpret_cast<span<span<T, Size / ChannelAmount>, ChannelAmount>*>(this);
 	}
 
 	void copyTo(Type& other) const
@@ -406,7 +410,7 @@ template <class T, int MaxSize> struct span
 		auto src = begin();
 		auto dst = other.begin();
 
-		for (int i = 0; i < MaxSize; i++)
+		for (int i = 0; i < Size; i++)
 			*dst++ = *src++;
 	}
 
@@ -415,21 +419,22 @@ template <class T, int MaxSize> struct span
 		auto src = begin();
 		auto dst = other.begin();
 
-		for (int i = 0; i < MaxSize; i++)
+		for (int i = 0; i < Size; i++)
 			*dst++ += *src++;
 	}
 
-	span<span<float, 4>, MaxSize / 4>& toSimd()
+	/** Converts this float span into a SSE span with 4 float elements at once. 
+		This checks at compile time whether the span can be converted.
+	*/
+	span<span<float, 4>, Size / 4>& toSimd()
 	{
-		using Type = span<span<float, 4>, MaxSize / 4>;
+		using Type = span<span<float, 4>, Size / 4>;
 
 		static_assert(isSimdable(), "is not SIMDable");
 		jassert(isAlignedTo16Byte());
 
 		return *reinterpret_cast<Type*>(this);
 	}
-
-	
 
 	template <class IndexType> const T& operator[](IndexType i) const
 	{
@@ -449,6 +454,15 @@ template <class T, int MaxSize> struct span
 		return *reinterpret_cast<Type*>(ptr);
 	}
 
+	/** This method allows a lean range-based for loop syntax:
+	
+		@code
+		span<float, 512> data;
+		
+		for(auto& s: data)
+		    s = 0.5f;
+		@endcode
+	*/
 	T* begin() const
 	{
 		return const_cast<T*>(data);
@@ -456,7 +470,7 @@ template <class T, int MaxSize> struct span
 
 	T* end() const
 	{
-		return const_cast<T*>(data + MaxSize);
+		return const_cast<T*>(data + Size);
 	}
 
 	void fill(const T& value)
@@ -465,9 +479,10 @@ template <class T, int MaxSize> struct span
 			v = value;
 	}
 
+	/** Returns the number of elements in this span. */
 	constexpr int size()
 	{
-		return MaxSize;
+		return Size;
 	}
 
 	static constexpr int alignment()
@@ -475,11 +490,17 @@ template <class T, int MaxSize> struct span
 		return 16;
 	}
 
-	alignas(alignment()) T data[MaxSize];
+	alignas(alignment()) T data[Size];
 };
 
+/** This alias is a special type on its own as it has mathematical operators that directly translate to SSE instructions. */
 using float4 = span<float, 4>;
 
+/** The dyn template is a typed array with a dynamic amount of elements. 
+	
+	The memory used by this type will be allocated on the heap and it can be resized to fit a new size limit.
+
+*/
 template <class T> struct dyn
 {
 	static constexpr ArrayID ArrayType = Types::ArrayID::DynType;
@@ -657,6 +678,7 @@ template <class T> struct dyn
 
 	bool isEmpty() const noexcept { return size() == 0; }
 
+	/** Returns the size of the array. Be aware that this is not a compile time constant. */
 	int size() const noexcept { return size_; }
 
 	template <typename OtherContainer> void copyTo(OtherContainer& t)
@@ -857,12 +879,12 @@ template <class DataType> static dyn<DataType> slice(const dyn<DataType>& src, i
 	return c;
 }
 
-template <class DataType, int MaxSize> static dyn<DataType> slice(const span<DataType, MaxSize>& src, int start, int size = -1)
+template <class DataType, int Size> static dyn<DataType> slice(const span<DataType, Size>& src, int start, int size = -1)
 {
-	using SpanType = span<DataType, MaxSize>;
+	using SpanType = span<DataType, Size>;
 
 	if (size == -1)
-		size = MaxSize - start;
+		size = Size - start;
 
 	typename SpanType::clamped clampedStart = { start };
 	typename SpanType::clamped clampedSize = { start + size };
@@ -873,11 +895,11 @@ template <class DataType, int MaxSize> static dyn<DataType> slice(const span<Dat
 	return c;
 }
 
-template <int Start, int Size, class DataType, int MaxSize> static span<DataType, Size>& slice(const span<DataType, MaxSize>& src)
+template <int Start, int SliceSize, class DataType, int Size> static span<DataType, SliceSize>& slice(const span<DataType, Size>& src)
 {
-	using SpanType = span<DataType, Size>;
+	using SpanType = span<DataType, SliceSize>;
 
-	constexpr int SizeToUse = Size == -1 ? MaxSize - Start : Size;
+	constexpr int SizeToUse = SliceSize == -1 ? Size - Start : SliceSize;
 
 	typename SpanType::clamped clampedStart = Start;
 	typename SpanType::clamped clampedSize = Start + SizeToUse;

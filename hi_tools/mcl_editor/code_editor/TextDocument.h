@@ -479,6 +479,14 @@ public:
 		}
 	}
 
+	/** Add a selection to the list. */
+	void addSelection(Selection selection) 
+	{ 
+		auto newSelections = selections;
+		newSelections.add(selection);
+		setSelections(newSelections);
+	}
+
 	/** Replace the selection at the given index. The index must be in range. */
 	void setSelection(int index, Selection newSelection, bool useUndo=true) 
 	{
@@ -606,8 +614,7 @@ public:
 	/** Return the character at the given index. */
 	juce::juce_wchar getCharacter(juce::Point<int> index) const;
 
-	/** Add a selection to the list. */
-	void addSelection(Selection selection) { selections.add(selection); }
+	
 
 	/** Return the number of active selections. */
 	int getNumSelections() const { return selections.size(); }
@@ -617,6 +624,8 @@ public:
 
 	/** Return one of the current selections. */
 	const Selection& getSelection(int index) const;
+
+	
 
 	float getRowHeight() const
 	{
@@ -708,6 +717,15 @@ public:
 			auto l = doc.getLine(i).removeCharacters("\r");
 			lines.add(l.substring(0, l.length()-1));
 		}
+
+		CodeDocument::Position pos(getCodeDocument(), wasInserted ? endIndex : startIndex);
+
+		if (getNumSelections() == 1)
+		{
+			setSelections(Selection(pos.getLineNumber(), pos.getIndexInLine(), pos.getLineNumber(), pos.getIndexInLine()), false);
+		}
+
+		
 
 		rebuildRowPositions();
 	}

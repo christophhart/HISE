@@ -79,7 +79,7 @@ debug::SymbolProvider::ComplexMemberToken::ComplexMemberToken(SymbolProvider& pa
 {
 	f.getOrResolveReturnType(p);
 
-
+	c = FourColourScheme::getColour(FourColourScheme::Method);
 	tokenContent = f.getSignature();
 	priority = 80;
 	codeToInsert = f.getCodeToInsert();
@@ -110,6 +110,65 @@ void debug::PreprocessorMacroProvider::addTokens(mcl::TokenCollection::List& tok
 	for (auto ad : p.getAutocompleteData())
 	{
 		tokens.add(new PreprocessorToken(ad.name, ad.codeToInsert, ad.description, ad.lineNumber));
+	}
+}
+
+void debug::SymbolProvider::addTokens(mcl::TokenCollection::List& tokens)
+{
+	ApiDatabase::Instance db;
+	c.reset();
+	Types::SnexObjectDatabase::registerObjects(c, 2);
+
+	c.compileJitObject(doc.getAllContent());
+
+	auto ct = c.getNamespaceHandler().getComplexTypeList();
+
+	for (auto c : ct)
+	{
+		FunctionClass::Ptr fc = c->getFunctionClass();
+
+		TokenCollection::List l;
+
+		for (auto id : fc->getFunctionIds())
+		{
+			Array<FunctionData> fData;
+			fc->addMatchingFunctions(fData, id);
+
+			for (auto& f : fData)
+				l.add(new ComplexMemberToken(*this, c, f));
+		}
+
+		if (auto st = dynamic_cast<StructType*>(c))
+		{
+			for (auto ni : l)
+				db->addDocumentation(ni, st->id.id, ni->getCodeToInsert(""));
+		}
+
+		tokens.addArray(l);
+	}
+
+	auto l2 = c.getNamespaceHandler().getTokenList();
+
+	for (auto ni : l2)
+		db->addDocumentation(ni, Identifier(ni->tokenContent), {});
+
+	tokens.addArray(l2);
+}
+
+void debug::TemplateProvider::addTokens(mcl::TokenCollection::List& tokens)
+{
+	GlobalScope s;
+	Compiler c(s);
+	Types::SnexObjectDatabase::registerObjects(c, 2);
+
+	ApiDatabase::Instance db;
+
+	for (auto id : c.getNamespaceHandler().getTemplateClassTypes())
+	{
+		auto nt = new TemplateToken(id);
+		tokens.add(nt);
+
+		db->addDocumentation(nt, id.id.id.id, {});	
 	}
 }
 

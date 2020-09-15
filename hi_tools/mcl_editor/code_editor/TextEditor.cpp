@@ -35,7 +35,7 @@ mcl::TextEditor::TextEditor(CodeDocument& codeDoc)
 	tokenCollection.addTokenProvider(new SimpleDocumentTokenProvider(codeDoc));
 
 	document.addSelectionListener(this);
-	startTimer(1000);
+	startTimer(500);
 
     lastTransactionTime = Time::getApproximateMillisecondCounter();
     document.setSelections ({ Selection() });
@@ -218,6 +218,93 @@ void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array
 	repaint();
 }
 
+bool TextEditor::cut()
+{
+	auto s = document.getSelections().getFirst();
+
+	bool move = false;
+
+	if (s.isSingular())
+	{
+		document.navigate(s.head, TextDocument::Target::line, TextDocument::Direction::backwardCol);
+		document.navigate(s.head, TextDocument::Target::character, TextDocument::Direction::backwardCol);
+		document.navigate(s.tail, TextDocument::Target::line, TextDocument::Direction::forwardCol);
+		document.setSelection(0, s);
+		move = true;
+	}
+
+	SystemClipboard::copyTextToClipboard(document.getSelectionContent(s));
+
+	insert("");
+
+	if (move)
+	{
+		nav({}, TextDocument::Target::character, TextDocument::Direction::forwardRow);
+		nav({}, TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol);
+	}
+
+	return true;
+}
+
+bool TextEditor::copy()
+{
+	SystemClipboard::copyTextToClipboard(document.getSelectionContent(document.getSelections().getFirst()));
+	return true;
+}
+
+bool TextEditor::paste()
+{
+	auto insertText = SystemClipboard::getTextFromClipboard();
+	auto sel = document.getSelection(0);
+	Point<int> p = sel.head;
+	auto lineStart = p;
+	document.navigate(lineStart, TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol);
+
+	auto prevws = document.getSelectionContent({ lineStart, p });
+
+	if (!prevws.containsNonWhitespaceChars() && sel.isSingular())
+	{
+		auto sa = StringArray::fromLines(insertText);
+
+		auto getWhitespaceAtBeginning = [](const String& s)
+		{
+			for (int numWhitespace = 0; numWhitespace < s.length(); numWhitespace++)
+			{
+				auto c = s[numWhitespace];
+
+				if (!(c == ' ' || c == '\t'))
+					return s.substring(0, numWhitespace);
+			}
+
+			return s;
+		};
+
+		auto whitespaceToRemove = getWhitespaceAtBeginning(sa[0]);
+
+		if (whitespaceToRemove.isEmpty() && sa.size() > 1)
+			whitespaceToRemove = getWhitespaceAtBeginning(sa[1]);
+
+		bool first = true;
+
+		for (auto& l : sa)
+		{
+			auto trimmed = whitespaceToRemove.isEmpty() ? l : l.fromFirstOccurrenceOf(whitespaceToRemove, false, false);
+
+			if (first)
+			{
+				l = l.trimCharactersAtStart(" \t");
+				first = false;
+			}
+			else
+				l = prevws + trimmed;
+		}
+
+		insertText = sa.joinIntoString("\n");
+	}
+
+	return insert(insertText);
+}
+
 void TextEditor::selectionChanged()
 {
 	highlight.updateSelections();
@@ -356,7 +443,7 @@ void mcl::TextEditor::resized()
 	
 	
 	
-	scrollBar.setBounds(b.removeFromRight(14));
+	
 
 	if(map.isVisible())
 		map.setBounds(b.removeFromRight(150));
@@ -365,6 +452,8 @@ void mcl::TextEditor::resized()
 
 	if(treeview.isVisible())
 		treeview.setBounds(b.removeFromRight(250));
+
+	scrollBar.setBounds(b.removeFromRight(14));
 
 	linebreakDisplay.setBounds(b.removeFromRight(15));
 
@@ -494,39 +583,71 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
     }
     else if (e.mods.isRightButtonDown())
     {
+		enum Commands
+		{
+			Cut=1,
+			Copy,
+			Paste,
+			SelectAll,
+			Undo,
+			Redo,
+			FoldAll,
+			UnfoldAll,
+			Goto,
+			LineBreaks,
+			CodeMap,
+			FoldMap,
+			BackgroundParsing,
+			Preprocessor,
+			numCommands
+		};
+
         PopupMenu menu;
 		menu.setLookAndFeel(plaf);
 
 
 		menu.addSeparator();
-		menu.addSectionHeader("View options");
-		menu.addItem(8, "Fold all", true, false);
-		menu.addItem(9, "Unfold all", true, false);
-		menu.addItem(7, "Goto definition", true, false);
+
+		bool isSomethingSelected = !document.getSelection(0).isSingular();
+
+		menu.addItem(Cut, "Cut", isSomethingSelected, false);
+		menu.addItem(Copy, "Copy", isSomethingSelected, false);
+		menu.addItem(Paste, "Paste", SystemClipboard::getTextFromClipboard().isNotEmpty(), false);
+		menu.addItem(SelectAll, "Select All");
+		menu.addSeparator();
+
+		menu.addItem(Undo, "Undo", document.getCodeDocument().getUndoManager().canUndo(), false);
+		menu.addItem(Redo, "Redo", document.getCodeDocument().getUndoManager().canRedo(), false);
 
 		menu.addSeparator();
 
+		menu.addSectionHeader("View options");
+		menu.addItem(FoldAll, "Fold all", true, false);
+		menu.addItem(UnfoldAll, "Unfold all", true, false);
+		menu.addItem(Goto, "Goto definition", true, false);
 
+		menu.addSeparator();
 
-		menu.addItem(10, "Enable line breaks", true, linebreakEnabled);
-		menu.addItem(11, "Enable code map", true, map.isVisible());
-		menu.addItem(12, "Enable fold map", true, foldMap.isVisible());
-
-
-		
+		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
+		menu.addItem(CodeMap, "Enable code map", true, map.isVisible());
+		menu.addItem(FoldMap, "Enable fold map", true, foldMap.isVisible());
 
 		menu.addSectionHeader("Language options");
-		
-
-		menu.addItem(13, "Background C++ parsing", true, enableLiveParsing);
-		menu.addItem(14, "Parse preprocessor conditions", true, enablePreprocessorParsing);
+		menu.addItem(BackgroundParsing, "Background C++ parsing", true, enableLiveParsing);
+		menu.addItem(Preprocessor, "Parse preprocessor conditions", true, enablePreprocessorParsing);
 
 		auto result = menu.show();
 
         switch (result)
         {
-			case 8: 
-			case 9: 
+			case Cut: cut(); break;
+			case Copy: copy(); break;
+			case Paste: paste(); break;
+			case SelectAll: expand(TextDocument::Target::document); break;
+			case Undo: document.getCodeDocument().getUndoManager().undo(); break;
+			case Redo: document.getCodeDocument().getUndoManager().redo(); break;
+			case FoldAll: 
+			case UnfoldAll: 
 			{
 				for (auto l : document.getFoldableLineRangeHolder().all)
 					l->setFolded(result == 8);
@@ -534,15 +655,12 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 				document.getFoldableLineRangeHolder().updateFoldState(nullptr);
 				break;
 			}
-			case 7: 
-			{
-
-				gotoDefinition({index, index}); break;
-			}
-			case 10: linebreakEnabled = !linebreakEnabled; refreshLineWidth(); break;
-			case 11: map.setVisible(!map.isVisible()); resized(); break;
-			case 13: enableLiveParsing = !enableLiveParsing; break;
-			case 14: enablePreprocessorParsing = !enablePreprocessorParsing; break;
+			case Goto: gotoDefinition({index, index}); break;
+			case LineBreaks: linebreakEnabled = !linebreakEnabled; refreshLineWidth(); break;
+			case CodeMap: map.setVisible(!map.isVisible()); resized(); break;
+			case FoldMap: foldMap.setVisible(!foldMap.isVisible()); resized(); break;
+			case BackgroundParsing: enableLiveParsing = !enableLiveParsing; break;
+			case Preprocessor: enablePreprocessorParsing = !enablePreprocessorParsing; break;
         }
 
         resetProfilingData();
@@ -672,28 +790,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     auto mods        = key.getModifiers();
     auto isTab       = tabKeyUsed && (key.getTextCharacter() == '\t');
 
-
-    // =======================================================================================
-    auto nav = [this, mods] (Target target, Direction direction)
-    {
-		lastInsertWasDouble = false;
-
-		if (mods.isShiftDown())
-            document.navigateSelections (target, direction, Selection::Part::head);
-        else
-            document.navigateSelections (target, direction, Selection::Part::both);
-
-        translateToEnsureCaretIsVisible();
-        updateSelections();
-        return true;
-    };
-    auto expandBack = [this, mods] (Target target, Direction direction)
-    {
-        document.navigateSelections (target, direction, Selection::Part::head);
-        translateToEnsureCaretIsVisible();
-        updateSelections();
-        return true;
-    };
+    
 
 	auto skipIfClosure = [this](juce_wchar c)
 	{
@@ -800,14 +897,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		return true;
 	};
 
-    auto expand = [this, nav] (Target target)
-    {
-		document.navigateSelections(target, Direction::backwardCol, Selection::Part::tail);
-		document.navigateSelections(target, Direction::forwardCol, Selection::Part::head);
-		//translateToEnsureCaretIsVisible();
-		updateSelections();
-        return true;
-    };
+   
 
 	auto insertTabAfterBracket = [this, mods]()
 	{
@@ -938,6 +1028,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     {
         auto s = document.getSelections().getLast();
         document.navigate (s.head, target, direction);
+		document.navigate(s.tail, target, direction);
         document.addSelection (s);
         translateToEnsureCaretIsVisible();
         updateSelections();
@@ -963,7 +1054,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
         return true;
     };
 
-	auto remove = [this, expand, expandBack](Target target, Direction direction)
+	auto remove = [this](Target target, Direction direction)
 	{
 		const auto& s = document.getSelections().getLast();
 
@@ -1033,10 +1124,10 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     }
     if (mods.isCtrlDown())
     {
-        if (key.isKeyCode (KeyPress::rightKey)) return nav (Target::whitespace, Direction::forwardCol)  && nav (Target::word, Direction::forwardCol);
-        if (key.isKeyCode (KeyPress::leftKey )) return nav (Target::whitespace, Direction::backwardCol) && nav (Target::word, Direction::backwardCol);
-        if (key.isKeyCode (KeyPress::downKey )) return nav (Target::word, Direction::forwardCol)  && nav (Target::paragraph, Direction::forwardRow);
-        if (key.isKeyCode (KeyPress::upKey   )) return nav (Target::word, Direction::backwardCol) && nav (Target::paragraph, Direction::backwardRow);
+        if (key.isKeyCode (KeyPress::rightKey)) return nav (mods, Target::whitespace, Direction::forwardCol)  && nav (mods, Target::word, Direction::forwardCol);
+        if (key.isKeyCode (KeyPress::leftKey )) return nav (mods, Target::whitespace, Direction::backwardCol) && nav (mods, Target::word, Direction::backwardCol);
+        if (key.isKeyCode (KeyPress::downKey )) return nav (mods, Target::word, Direction::forwardCol)  && nav (mods, Target::paragraph, Direction::forwardRow);
+        if (key.isKeyCode (KeyPress::upKey   )) return nav (mods, Target::word, Direction::backwardCol) && nav (mods, Target::paragraph, Direction::backwardRow);
 
         if (key.isKeyCode (KeyPress::backspaceKey)) return (   expandBack (Target::whitespace, Direction::backwardCol)
                                                             && expandBack (Target::word, Direction::backwardCol)
@@ -1054,8 +1145,8 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     }
     if (mods.isCommandDown())
     {
-        if (key.isKeyCode (KeyPress::downKey)) return nav (Target::document, Direction::forwardRow);
-        if (key.isKeyCode (KeyPress::upKey  )) return nav (Target::document, Direction::backwardRow);
+        if (key.isKeyCode (KeyPress::downKey)) return nav (mods, Target::document, Direction::forwardRow);
+        if (key.isKeyCode (KeyPress::upKey  )) return nav (mods, Target::document, Direction::backwardRow);
     }
 
 
@@ -1120,16 +1211,32 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		return gotoDefinition();
 
 	}
-	if (key.isKeyCode(KeyPress::rightKey)) return nav(Target::character, Direction::forwardCol);
-	if (key.isKeyCode(KeyPress::leftKey)) return nav(Target::character, Direction::backwardCol);
-	if (key.isKeyCode(KeyPress::downKey)) return nav(Target::character, Direction::forwardRow);
-    if (key.isKeyCode (KeyPress::upKey   )) return nav (Target::character, Direction::backwardRow);
+	if (key.isKeyCode(KeyPress::rightKey))  return nav(mods, Target::character, Direction::forwardCol);
+	if (key.isKeyCode(KeyPress::leftKey))   return nav(mods, Target::character, Direction::backwardCol);
+	if (key.isKeyCode(KeyPress::downKey))
+	{
+		if (mods.isAltDown())
+		{
+			return addCaret(Target::character, Direction::forwardRow);
+		}
+		return nav(mods, Target::character, Direction::forwardRow);
+	}
+	if (key.isKeyCode(KeyPress::upKey))
+	{
+		if (mods.isAltDown())
+		{
+			return addCaret(Target::character, Direction::backwardRow);
+		}
+		return nav(mods, Target::character, Direction::backwardRow);
+	}
+
+
 
 	if (key.isKeyCode(KeyPress::backspaceKey)) return remove(Target::character, Direction::backwardCol);
 	if (key.isKeyCode(KeyPress::deleteKey))	   return remove(Target::character, Direction::forwardCol);
 
-	if (key.isKeyCode(KeyPress::homeKey)) return nav(Target::firstnonwhitespace, Direction::backwardCol);
-	if (key.isKeyCode(KeyPress::endKey))  return nav(Target::line, Direction::forwardCol);
+	if (key.isKeyCode(KeyPress::homeKey)) return nav(mods, Target::firstnonwhitespace, Direction::backwardCol);
+	if (key.isKeyCode(KeyPress::endKey))  return nav(mods, Target::line, Direction::forwardCol);
 
     if (key == KeyPress ('a', ModifierKeys::commandModifier, 0)) return expand (Target::document);
 	if (key == KeyPress('d', ModifierKeys::commandModifier, 0))  return addNextTokenToSelection();
@@ -1138,103 +1245,71 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     if (key == KeyPress ('z', ModifierKeys::commandModifier, 0)) return document.getCodeDocument().getUndoManager().undo();
     if (key == KeyPress ('r', ModifierKeys::commandModifier, 0)) return document.getCodeDocument().getUndoManager().redo();
 
-    if (key == KeyPress ('x', ModifierKeys::commandModifier, 0))
-    {
-		auto s = document.getSelections().getFirst();
-
-		bool move = false;
-
-		if (s.isSingular())
-		{
-			document.navigate(s.head, Target::line, Direction::backwardCol);
-			document.navigate(s.head, Target::character, Direction::backwardCol);
-			document.navigate(s.tail, Target::line, Direction::forwardCol);
-			document.setSelection(0, s);
-			move = true;
-		}
-		
-		SystemClipboard::copyTextToClipboard(document.getSelectionContent(s));
-
-		insert("");
-
-		if (move)
-		{
-			nav(Target::character, Direction::forwardRow);
-			nav(Target::firstnonwhitespace, Direction::backwardCol);
-			
-			
-		}
-
-		return true;
-    }
-    if (key == KeyPress ('c', ModifierKeys::commandModifier, 0))
-    {
-        SystemClipboard::copyTextToClipboard (document.getSelectionContent (document.getSelections().getFirst()));
-        return true;
-    }
-
-	if (key == KeyPress('v', ModifierKeys::commandModifier, 0))
+	if (key.isKeyCode(KeyPress::F4Key))
 	{
-		auto insertText = SystemClipboard::getTextFromClipboard();
-
-		auto sel = document.getSelection(0);
-		
-		Point<int> p = sel.head;
-		auto lineStart = p;
-		document.navigate(lineStart, TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol);
-
-		auto prevws = document.getSelectionContent({ lineStart, p });
-
-		
-
-		if (!prevws.containsNonWhitespaceChars() && sel.isSingular())
+		auto isComment = [this](Selection s)
 		{
-			auto sa = StringArray::fromLines(insertText);
+			document.navigate(s.tail, Target::line, Direction::forwardCol);
+			document.navigate(s.head, Target::line, Direction::forwardCol);
+			document.navigate(s.tail, Target::firstnonwhitespace, Direction::backwardCol);
+			document.navigate(s.head, Target::firstnonwhitespace, Direction::backwardCol);
+			s.head.y += 2;
+			return document.getSelectionContent(s) == "//";
+		};
 
-			auto getWhitespaceAtBeginning = [](const String& s)
-			{
-				for (int numWhitespace = 0; numWhitespace < s.length(); numWhitespace++)
-				{
-					auto c = s[numWhitespace];
+		bool anythingCommented = false;
+		bool anythingUncommented = false;
 
-					if (!(c == ' ' || c == '\t'))
-					{
-						return s.substring(0, numWhitespace);
-					}
-				}
+		for (auto s : document.getSelections())
+		{
+			auto thisOne = isComment(s);
 
-				return s;
-			};
-
-			auto whitespaceToRemove = getWhitespaceAtBeginning(sa[0]);
-
-			if (whitespaceToRemove.isEmpty() && sa.size() > 1)
-				whitespaceToRemove = getWhitespaceAtBeginning(sa[1]);
-			
-			bool first = true;
-
-			for (auto& l : sa)
-			{
-				auto trimmed = whitespaceToRemove.isEmpty() ? l : l.fromFirstOccurrenceOf(whitespaceToRemove, false, false);
-
-				if (first)
-				{
-					l = l.trimCharactersAtStart(" \t");
-					first = false;
-				}
-				else
-				{
-					l = prevws + trimmed;
-				}
-			}
-
-
-			insertText = sa.joinIntoString("\n");
+			anythingCommented |= thisOne;
+			anythingUncommented |= !thisOne;
 		}
-		
 
-		return insert(insertText);
+		if (anythingUncommented && anythingCommented)
+			return false;
+
+		Array<CodeDocument::Position> positions;
+
+		for (auto s : document.getSelections())
+		{
+			positions.add(s.toCodePosition(document.getCodeDocument()));
+		}
+
+		for (auto& p : positions)
+			p.setPositionMaintained(true);
+
+		nav({}, TextDocument::Target::line, TextDocument::Direction::forwardCol);
+		nav({}, TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol);
+
+		if (anythingUncommented)
+		{
+			insert("//");
+		}
+		else
+		{
+			remove(Target::character, Direction::forwardCol);
+			remove(Target::character, Direction::forwardCol);
+		}
+
+		Array<Selection> newSelection;
+
+		for (auto p : positions)
+		{
+			newSelection.add(Selection::fromCodePosition(p));
+		}
+
+		document.setSelections(newSelection);
+		return true;
 	}
+    if (key == KeyPress ('x', ModifierKeys::commandModifier, 0))
+		return cut();
+    if (key == KeyPress ('c', ModifierKeys::commandModifier, 0))
+		return copy();
+	if (key == KeyPress('v', ModifierKeys::commandModifier, 0))
+		return paste();
 	if (key == KeyPress('f', ModifierKeys::ctrlModifier, 0))
 	{
 		currentSearchBox = new SearchBoxComponent(document, transform.getScaleFactor());

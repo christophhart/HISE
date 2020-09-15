@@ -98,6 +98,7 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #include "snex_core/snex_DynamicType.h"
 #include "snex_core/snex_TypeHelpers.h"
 #include "snex_jit/snex_jit_public.h"
+#include "api/SnexApi.h"
 
 #include "snex_core/snex_CallbackCollection.h"
 #include "snex_core/snex_FrameProcessor.h"

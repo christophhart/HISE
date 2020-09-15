@@ -40,21 +40,6 @@ using namespace juce;
 
 struct NamespaceHandler: public ReferenceCountedObject
 {
-	struct SymbolDebugInfo
-	{
-		static SymbolDebugInfo fromString(const String& s)
-		{
-			SymbolDebugInfo info;
-			info.comment = s;
-			return info;
-		}
-
-		int lineNumber = -1;
-		String comment;
-	};
-
-	using Ptr = ReferenceCountedObjectPtr<NamespaceHandler>;
-
 	enum class Visibility
 	{
 		Public = 0,
@@ -62,6 +47,25 @@ struct NamespaceHandler: public ReferenceCountedObject
 		Private,
 		numVisibilities
 	};
+
+	struct SymbolDebugInfo
+	{
+		static SymbolDebugInfo fromString(const String& s, Visibility v=Visibility::numVisibilities)
+		{
+			SymbolDebugInfo info;
+			info.comment = s;
+			info.visibility = v;
+			return info;
+		}
+
+		Visibility visibility = Visibility::numVisibilities;
+		int lineNumber = -1;
+		String comment;
+	};
+
+	using Ptr = ReferenceCountedObjectPtr<NamespaceHandler>;
+
+	
 
 	enum SymbolType
 	{

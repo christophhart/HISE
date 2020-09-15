@@ -102,6 +102,9 @@ void NamespaceHandler::Namespace::addSymbol(const NamespacedIdentifier& aliasId,
 	if (contains(aliasId))
 		return;
 
+	if (description.visibility != Visibility::numVisibilities)
+		v = description.visibility;
+
 	aliases.add({ aliasId, type, v, symbolType });
 	aliases.getReference(aliases.size() - 1).internalSymbol = internalSymbol;
 	aliases.getReference(aliases.size() - 1).debugInfo = description;

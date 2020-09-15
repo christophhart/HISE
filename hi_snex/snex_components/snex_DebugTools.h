@@ -40,6 +40,77 @@ namespace debug
 
 using namespace mcl;
 
+struct ApiDatabase
+{
+	ApiDatabase()
+	{
+		v = ValueTree::readFromData(SnexApi::apivaluetree_dat, SnexApi::apivaluetree_datSize);
+
+
+		DBG(v.createXml()->createDocument(""));
+	}
+
+	bool addDocumentation(TokenCollection::TokenPtr p, const Identifier& parent, String member)
+	{
+		
+
+		auto classTree = v.getChildWithName(parent);
+
+		
+
+		if (member.isEmpty() && classTree.isValid())
+		{
+			p->markdownDescription = classTree.getProperty("description");
+			return true;
+		}
+		else
+		{
+			member = member.upToFirstOccurrenceOf("(", false, false);
+
+			auto mTree = classTree.getChildWithProperty("name", member);
+
+			if (mTree.isValid())
+			{
+				p->markdownDescription = mTree.getProperty("description");
+				return true;
+			}
+		}
+		return false;
+	}
+
+	
+
+	using Instance = SharedResourcePointer<ApiDatabase>;
+
+private:
+
+	ValueTree v;
+};
+
+struct FourColourScheme
+{
+	enum Types
+	{
+		Keyword,
+		Method,
+		Classes,
+		Preprocessor
+	};
+
+	static Colour getColour(Types index)
+	{
+		switch (index)
+		{
+			case Keyword:		return Colour(0xFF882D61);
+			case Classes:		return Colour(0xFFAA5239);
+			case Preprocessor:	return Colour(0xFFAA6C39);
+			case Method:		return Colour(0xFF7B9F35);
+		}
+
+		return {};
+	}
+};
+
 struct MathFunctionProvider : public TokenCollection::Provider
 {
 	struct MathFunction : public TokenCollection::Token
@@ -48,6 +119,7 @@ struct MathFunctionProvider : public TokenCollection::Provider
 			Token(f.getSignature().replace("Math::", "Math."))
 		{
 			markdownDescription = f.description;
+			c = FourColourScheme::getColour(FourColourScheme::Method);
 		};
 
 		bool matches(const String& input, const String& previousToken, int lineNumber) const override
@@ -71,11 +143,11 @@ struct KeywordProvider : public TokenCollection::Provider
 {
 	struct KeywordToken : public TokenCollection::Token
 	{
-		KeywordToken(const String& s) :
+		KeywordToken(const String& s, int priority_=100) :
 			Token(s)
 		{
-			c = Colours::red;
-			priority = 200;
+			c = FourColourScheme::getColour(FourColourScheme::Keyword);
+			priority = priority_;
 		};
 
 		bool matches(const String& input, const String& previousToken, int lineNumber) const override
@@ -89,17 +161,17 @@ struct KeywordProvider : public TokenCollection::Provider
 
 	void addTokens(TokenCollection::List& tokens)
 	{
-		tokens.add(new KeywordToken("double"));
-		tokens.add(new KeywordToken("float"));
+		tokens.add(new KeywordToken("double", 200));
+		tokens.add(new KeywordToken("float", 200));
 		tokens.add(new KeywordToken("return"));
-		tokens.add(new KeywordToken("template"));
-		tokens.add(new KeywordToken("typename"));
+		tokens.add(new KeywordToken("template", 200));
+		tokens.add(new KeywordToken("typename", 200));
 		tokens.add(new KeywordToken("break"));
 		tokens.add(new KeywordToken("continue"));
 		tokens.add(new KeywordToken("namespace"));
 		tokens.add(new KeywordToken("enum"));
-		tokens.add(new KeywordToken("struct"));
-		tokens.add(new KeywordToken("class"));
+		tokens.add(new KeywordToken("struct", 200));
+		tokens.add(new KeywordToken("class", 200));
 		tokens.add(new KeywordToken("private"));
 		tokens.add(new KeywordToken("using"));
 		tokens.add(new KeywordToken("protected"));
@@ -114,19 +186,12 @@ struct TemplateProvider : public TokenCollection::Provider
 		TemplateToken(const TemplateObject& s):
 			Token(getTokenString(s))
 		{
-			priority = 100;
+			priority = 120;
 
 			markdownDescription = s.description;
 
-			c = Colours::orange;
+			c = FourColourScheme::getColour(FourColourScheme::Classes);
 		};
-
-#if 0
-		virtual Range<int> getSelectionRangeAfterInsert() const 
-		{ 
-			return { tokenContent.indexOfChar('<'), tokenContent.lastIndexOfChar('>') }; 
-		}
-#endif
 
 		static String getTokenString(const TemplateObject& o)
 		{
@@ -148,15 +213,7 @@ struct TemplateProvider : public TokenCollection::Provider
 		int pStart, pEnd;
 	};
 
-	void addTokens(TokenCollection::List& tokens)
-	{
-		GlobalScope s;
-		Compiler c(s);
-		Types::SnexObjectDatabase::registerObjects(c, 2);
-
-		for (auto id : c.getNamespaceHandler().getTemplateClassTypes())
-			tokens.add(new TemplateToken(id));
-	}
+	void addTokens(TokenCollection::List& tokens);
 };
 
 struct ComplexTypeProvider : public TokenCollection::Provider
@@ -182,6 +239,7 @@ struct PreprocessorMacroProvider : public TokenCollection::Provider
 		{
 			markdownDescription = description;
 			codeToInsert = code;
+			c = FourColourScheme::getColour(FourColourScheme::Preprocessor);
 		}
 
 		String getCodeToInsert(const String& input)
@@ -232,40 +290,16 @@ struct SymbolProvider : public TokenCollection::Provider
 		doc(d),
 		c(s)
 	{
-		
 	}
 
-	void addTokens(TokenCollection::List& tokens)
+	void addTokens(TokenCollection::List& tokens);
+
+	static void addDocumentation(const ValueTree& v, TokenCollection::TokenPtr t, const String& methodName)
 	{
-		c.reset();
-		Types::SnexObjectDatabase::registerObjects(c, 2);
+		auto c = v.getChildWithProperty("name", methodName);
 
-		c.compileJitObject(doc.getAllContent());
-
-		auto ct = c.getNamespaceHandler().getComplexTypeList();
-
-		for (auto c : ct)
-		{
-			FunctionClass::Ptr fc = c->getFunctionClass();
-			
-			for (auto id : fc->getFunctionIds())
-			{
-				Array<FunctionData> fData;
-				fc->addMatchingFunctions(fData, id);
-
-				for(auto& f: fData)
-					tokens.add(new ComplexMemberToken(*this, c, f));
-			}
-		}
-
-		auto l = c.getNamespaceHandler().getTokenList();
-
-		for (auto a : l)
-		{
-			DBG(a->getCodeToInsert(""));
-		}
-
-		tokens.addArray(l);
+		if (c.isValid())
+			t->markdownDescription = c["description"].toString();
 	}
 
 	GlobalScope s;

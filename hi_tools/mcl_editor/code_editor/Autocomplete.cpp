@@ -63,7 +63,12 @@ void Autocomplete::Item::paint(Graphics& g)
 	auto b = getLocalBounds().toFloat();
 	b.removeFromBottom(1.0f);
 
+	auto bar = b.removeFromLeft(3.0f);
+
 	g.fillRect(b);
+
+
+
 
 	if (selected)
 	{
@@ -78,6 +83,12 @@ void Autocomplete::Item::paint(Graphics& g)
 
 	auto tBounds = getLocalBounds().toFloat();
 	tBounds = tBounds.withSizeKeepingCentre(tBounds.getWidth() - 10.0f, 18.0f);
+
+	
+
+	g.setColour(token->c);
+	g.fillRect(bar);
+	
 
 	auto s = createDisplayText();
 	s.draw(g, tBounds);

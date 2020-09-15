@@ -14,9 +14,6 @@
  * 
  TODO:
 
- - make codemap draggable
- - fix gutter zoom with gradient
- - Find & replace with nice selections
 
 
 
@@ -304,19 +301,26 @@ public:
 
 			auto sl = gotoFunction(s.x, token);
 
-			if (sl >= 0)
-			{
-				auto sourceLine = Point<int>(sl, 0);
+			return jumpToLine(sl);
+		}
 
-				document.navigate(sourceLine, mcl::TextDocument::Target::character, mcl::TextDocument::Direction::backwardCol);
-				document.navigate(sourceLine, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+		return false;
+	}
 
-				Selection ss(sourceLine, sourceLine);
+	bool jumpToLine(int lineNumber)
+	{
+		if (lineNumber >= 0)
+		{
+			auto sourceLine = Point<int>(lineNumber, 0);
 
-				document.setSelections({ ss });
-				translateToEnsureCaretIsVisible();
-				return true;
-			}
+			document.navigate(sourceLine, mcl::TextDocument::Target::character, mcl::TextDocument::Direction::backwardCol);
+			document.navigate(sourceLine, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+
+			Selection ss(sourceLine, sourceLine);
+
+			document.setSelections({ ss });
+			translateToEnsureCaretIsVisible();
+			return true;
 		}
 
 		return false;
@@ -464,7 +468,42 @@ public:
 
 	bool isLiveParsingEnabled() const { return enableLiveParsing; }
 	bool isPreprocessorParsingEnabled() const { return enablePreprocessorParsing; }
+
+	bool cut();
+	bool copy();
+	bool paste();
+
 private:
+
+	bool expand(TextDocument::Target target)
+	{
+		document.navigateSelections(target, TextDocument::Direction::backwardCol, Selection::Part::tail);
+		document.navigateSelections(target, TextDocument::Direction::forwardCol, Selection::Part::head);
+		updateSelections();
+		return true;
+	};
+
+	bool expandBack(TextDocument::Target target, TextDocument::Direction direction)
+	{
+		document.navigateSelections(target, direction, Selection::Part::head);
+		translateToEnsureCaretIsVisible();
+		updateSelections();
+		return true;
+	};
+
+	bool nav(ModifierKeys mods, TextDocument::Target target, TextDocument::Direction direction)
+	{
+		lastInsertWasDouble = false;
+
+		if (mods.isShiftDown())
+			document.navigateSelections(target, direction, Selection::Part::head);
+		else
+			document.navigateSelections(target, direction, Selection::Part::both);
+
+		translateToEnsureCaretIsVisible();
+		updateSelections();
+		return true;
+	}
 
 	struct Error
 	{

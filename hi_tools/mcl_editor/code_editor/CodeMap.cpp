@@ -516,7 +516,8 @@ void mcl::CodeMap::HoverPreview::setCenterRow(int newCenterRow)
 void FoldMap::Item::mouseDoubleClick(const MouseEvent& e)
 {
 	clicked = true;
-	findParentComponentOfClass<TextEditor>()->setFirstLineOnScreen(p->getLineRange().getStart());
+	auto line = p->getLineRange().getStart()+1;
+	findParentComponentOfClass<TextEditor>()->jumpToLine(line);
 	repaint();
 }
 
