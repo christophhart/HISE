@@ -223,6 +223,31 @@ struct Helpers
 		return s;
 	}
 
+	static ValueTree getApiDocTree(ValueTree v)
+	{
+		jassert(v.getType() == DoxygenTags::memberdef);
+
+		String memberName;
+		appendValueTree(memberName, v.getChildWithName(DoxygenTags::name), false);
+
+		String description = findAllText(v, DoxygenTags::detaileddescription);
+
+		ValueTree m("method");
+		m.setProperty("name", memberName, nullptr);
+		m.setProperty("arguments", findAllText(v, DoxygenTags::argsstring, true), nullptr);
+		m.setProperty("returnType", findAllText(v, DoxygenTags::type, true), nullptr);
+
+		auto d = findAllText(v, DoxygenTags::detaileddescription);
+
+		if (d.isEmpty())
+			return {};
+
+		m.setProperty("description", d, nullptr);
+		
+		return m;
+	}
+
+
 	static void appendMemberDef(String& s, ValueTree v)
 	{
 		auto memberType = v.getProperty(DoxygenTags::kind).toString();
@@ -380,6 +405,7 @@ struct Helpers
 		return {};
 	}
 
+	
 	static void appendValueTree(String& s, ValueTree v, bool noLinks)
 	{
 		if (v.getType() == Identifier(DoxygenTags::compoundname))
@@ -582,6 +608,12 @@ struct XmlToMarkdownConverter
 	}
 
 	
+	void setValueTreeMode()
+	{
+		valueTreeMode = true;
+	}
+
+	bool valueTreeMode = false;
 
 	void updateAnchorCache()
 	{
@@ -609,6 +641,41 @@ struct XmlToMarkdownConverter
 		
 	}
 
+	ValueTree getProcessedValueTree()
+	{
+		ValueTree v(f.getFileNameWithoutExtension());
+
+		String classDoc;
+
+		Helpers::appendValueTree(classDoc, c.getChildWithName(DoxygenTags::detaileddescription), false);
+
+		DBG(classDoc);
+
+		v.setProperty("description", classDoc, nullptr);
+		v.setProperty("detailed", classDoc, nullptr);
+
+		for (auto c_ : c)
+		{
+			if (c_.getType() == DoxygenTags::sectiondef)
+			{
+				auto sectionType = c_.getProperty(DoxygenTags::kind).toString();
+
+				if (sectionType == "public-func")
+				{
+					for (auto m : c_)
+					{
+						auto mm = Helpers::getApiDocTree(m);
+
+						if(mm.isValid())
+							v.addChild(mm, -1, nullptr);
+					}
+				}
+			}
+		}
+
+		return v;
+	}
+
 	String process()
 	{
 		Helpers::currentPage = Helpers::getProperLink(f.getFileNameWithoutExtension());
@@ -619,10 +686,6 @@ struct XmlToMarkdownConverter
 
 		c.removeChild(description, nullptr);
 		c.addChild(description, 1, nullptr);
-
-		File test("D:\\test.xml");
-
-		test.replaceWithText(c.toXmlString());
 
 		auto t = c.getChildWithName(DoxygenTags::compoundname).getChildWithName(DoxygenTags::text);
 
@@ -683,16 +746,30 @@ struct XmlToMarkdownConverter
 //==============================================================================
 int main (int argc, char* argv[])
 {
-	if (argc != 3)
+	if (argc != 3 && argc != 4)
 	{
 		std::cout << "Doxygen XML2MarkdownConverter\n\n";
-		std::cout << "Usage: cpp_api_builder [INPUT_DIRECTORY] [OUTPUT_DIRECTORY]";
+		std::cout << "Usage: cpp_api_builder [INPUT_DIRECTORY] [OUTPUT_DIRECTORY] [--valuetree]";
+		
 	}
 	else
 	{
-		File root(argv[1]);
+		auto mode = String(argv[3]).compare("--valuetree") == 0;
 
-		File target(argv[2]);
+		String inputString(argv[1]);
+		String outputString(argv[2]);
+
+		File root, target;
+
+		if (File::isAbsolutePath(inputString))
+			root = File(inputString);
+		else
+			root = File(argv[0]).getParentDirectory().getChildFile(inputString);
+
+		if (File::isAbsolutePath(outputString))
+			target = File(outputString);
+		else
+			target = File(argv[0]).getParentDirectory().getChildFile(outputString);
 
 		Array<File> files;
 
@@ -711,10 +788,31 @@ int main (int argc, char* argv[])
 
 		std::cout << "Creating files\n";
 
+		ValueTree api("Api");
+
 		for (auto f : files)
 		{
 			XmlToMarkdownConverter c(f, root, target);
-			c.writeMarkdownFile();
+
+			if (mode)
+			{
+				c.setValueTreeMode();
+				api.addChild(c.getProcessedValueTree(), -1, nullptr);
+			}
+			else
+			{
+				c.writeMarkdownFile();
+			}
+		}
+
+		if (mode)
+		{
+			auto outputFile = target.getChildFile("apiValueTree.dat");
+			outputFile.deleteFile();
+			outputFile.create();
+			FileOutputStream fos(outputFile);
+			api.writeToStream(fos);
+			return 0;
 		}
 	}
 

@@ -73,3 +73,5 @@ tools/rlottie/rLottie Demo/JuceLibraryCode/
 hi_snex/html/
 hi_snex/latex/classsnex_1_1_types_1_1_channel_ptr.tex
 hi_snex/latex/
+tools/SNEX api generator/xml/
+tools/SNEX api generator/output/apiValueTree.dat
