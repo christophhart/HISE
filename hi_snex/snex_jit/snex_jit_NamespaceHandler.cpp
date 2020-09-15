@@ -95,7 +95,7 @@ juce::String NamespaceHandler::Namespace::getIntendLevel(int level)
 	return s;
 }
 
-void NamespaceHandler::Namespace::addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType, Visibility v)
+void NamespaceHandler::Namespace::addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType, Visibility v, const SymbolDebugInfo& description)
 {
 	jassert(aliasId.getParent() == id);
 
@@ -104,6 +104,7 @@ void NamespaceHandler::Namespace::addSymbol(const NamespacedIdentifier& aliasId,
 
 	aliases.add({ aliasId, type, v, symbolType });
 	aliases.getReference(aliases.size() - 1).internalSymbol = internalSymbol;
+	aliases.getReference(aliases.size() - 1).debugInfo = description;
 }
 
 juce::String NamespaceHandler::Alias::toString() const
@@ -161,7 +162,7 @@ snex::jit::ComplexType::Ptr NamespaceHandler::registerComplexTypeOrReturnExistin
 	if (currentNamespace == nullptr)
 		pushNamespace(Identifier());
 
-	ptr->registerExternalAtNamespaceHandler(this);
+	ptr->registerExternalAtNamespaceHandler(this, {});
 	
 	complexTypes.add(ptr);
 	return ptr;
@@ -178,6 +179,12 @@ snex::jit::ComplexType::Ptr NamespaceHandler::getComplexType(NamespacedIdentifie
 	}
 
 	return nullptr;
+}
+
+snex::jit::TypeInfo NamespaceHandler::parseTypeFromTextInput(const String& input, int lineNumber)
+{
+	ExpressionTypeParser etp(*this, input, lineNumber);
+	return etp.parseType();
 }
 
 bool NamespaceHandler::changeSymbolType(NamespacedIdentifier id, SymbolType newType)
@@ -405,12 +412,27 @@ juce::Result NamespaceHandler::resolve(NamespacedIdentifier& id, bool allowZeroM
 	return Result::ok();
 }
 
-void NamespaceHandler::addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType)
+void NamespaceHandler::addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info = {})
 {
 	jassert(id.getParent() == currentNamespace->id);
 
 	currentNamespace->internalSymbol = internalSymbolMode;
-	currentNamespace->addSymbol(id, t, symbolType, currentVisibility);
+	currentNamespace->addSymbol(id, t, symbolType, currentVisibility, info);
+}
+
+void NamespaceHandler::setSymbolCode(const NamespacedIdentifier& id, const String& tokenToInsert)
+{
+	if (auto p = get(id.getParent()))
+	{
+		for (auto& a : p->aliases)
+		{
+			if (a.id == id)
+			{
+				a.codeToInsert = tokenToInsert;
+				return;
+			}
+		}
+	}
 }
 
 Result NamespaceHandler::addConstant(const NamespacedIdentifier& id, const VariableStorage& v)
@@ -463,6 +485,8 @@ snex::jit::NamespaceHandler::Namespace::WeakPtr NamespaceHandler::getNamespaceFo
 	{
 		return root->getNamespaceForLineNumber(lineNumber);
 	}
+
+	return nullptr;
 }
 
 mcl::TokenCollection::List NamespaceHandler::getTokenList()
@@ -483,6 +507,9 @@ mcl::TokenCollection::List NamespaceHandler::getTokenList()
 
 		for (auto a : n->aliases)
 		{
+			if (a.symbolType == Function)
+				continue;
+
 			TokenCollection::TokenPtr p = new SymbolToken(this, n, a);
 
 			bool found = false;
@@ -604,6 +631,13 @@ bool NamespaceHandler::isTemplateClassId(NamespacedIdentifier& classId) const
 	return false;
 }
 
+Array<snex::jit::TemplateObject> NamespaceHandler::getTemplateClassTypes() const
+{
+	Array<snex::jit::TemplateObject> tc;
+	tc.addArray(templateClassIds);
+	return tc;
+}
+
 snex::jit::ComplexType::Ptr NamespaceHandler::createTemplateInstantiation(const TemplateInstance& id, const Array<TemplateParameter>& tp, juce::Result& r)
 {
 	// This is only used for template functions (for now???)
@@ -693,6 +727,116 @@ bool NamespaceHandler::rootHasNamespace(const NamespacedIdentifier& id) const
 	auto ns = get(id);
 	
 	return type == Unknown || type == Struct && ns != nullptr;
+}
+
+
+
+
+int NamespaceHandler::getDefinitionLine(int lineNumber, const String& token)
+{
+	auto getNId = [this](int lineNumber, const String& token)
+	{
+		auto id = NamespacedIdentifier::fromString(token);
+
+		if (id.isExplicit())
+		{
+			if (auto nId = get(id))
+				return id;
+
+			if (auto e = getNamespaceForLineNumber(lineNumber))
+			{
+				id = e->id.getChildId(token);
+
+				switchToExistingNamespace(e->id);
+				resolve(id);
+			}
+		}
+
+		return id;
+	};
+
+	auto getType = [this](const NamespacedIdentifier& id, int lineNumber)
+	{
+		auto t = getVariableType(id);
+
+		if (t.isDynamic())
+		{
+			ExpressionTypeParser etp(*this, id.toString(), lineNumber);
+
+			return etp.parseType();
+		}
+	};
+
+	auto getLineNumber = [](const Alias& a)
+	{
+		auto number = a.debugInfo.lineNumber;
+
+		if (a.symbolType == SymbolType::Struct || a.symbolType == SymbolType::TemplatedClass ||
+			a.symbolType == SymbolType::NamespacePlaceholder)
+			number -= 1;
+
+		return number;
+	};
+
+	auto getLineNumberN = [](Namespace* n)
+	{
+		return n->debugInfo.lineNumber - 1;
+	};
+	
+	if (token.contains("."))
+	{
+		auto beforeDot = token.upToLastOccurrenceOf(".", false, false);
+		auto afterDot = token.fromLastOccurrenceOf(".", false, false);
+
+		auto beforeId = getNId(lineNumber, beforeDot);
+		auto type = getVariableType(beforeId);
+
+		if (type.isDynamic())
+		{
+			ExpressionTypeParser etp(*this, beforeDot, lineNumber);
+			type = etp.parseType();
+		}
+
+		if (auto st = type.getTypedIfComplexType<StructType>())
+		{
+			if (auto e = get(st->id))
+			{
+				for (const auto& a : e->aliases)
+				{
+					if (a.id.id.toString() == afterDot)
+					{
+						return getLineNumber(a);
+					}
+				}
+			}
+		}
+		else
+		{
+			
+		}
+	}
+
+	auto id = getNId(lineNumber, token);
+
+	if (auto ns = get(id))
+	{
+		return getLineNumberN(ns);
+	}
+
+	if (auto existing = get(id.getParent()))
+	{
+		
+
+		for (const auto& a : existing->aliases)
+		{
+			if (a.id == id)
+			{
+				return getLineNumber(a);
+			}
+		}
+	}
+	
+	return -1;
 }
 
 NamespaceHandler::SymbolType NamespaceHandler::getSymbolType(const NamespacedIdentifier& id) const
@@ -786,6 +930,16 @@ bool NamespaceHandler::isClassEnumValue(const NamespacedIdentifier& classId) con
 	}
 
 	return false;
+}
+
+juce::Result NamespaceHandler::switchToExistingNamespace(const NamespacedIdentifier& id)
+{
+	if (auto e = get(id))
+	{
+		currentNamespace = e;
+	}
+
+	return Result::ok();
 }
 
 void NamespaceHandler::addTemplateClass(const TemplateObject& s)
@@ -939,11 +1093,12 @@ snex::jit::TemplateParameter::List NamespaceHandler::getCurrentTemplateParameter
 	return tp;
 }
 
-void NamespaceHandler::setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e)
+void NamespaceHandler::setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e, const SymbolDebugInfo& info)
 {
 	if (auto ex = get(id))
 	{
 		ex->setPosition({ s.getX(), e.getX() });
+		ex->debugInfo = info;
 	}
 }
 
@@ -958,6 +1113,13 @@ juce::Array<juce::Range<int>> NamespaceHandler::createLineRangesFromNamespaces()
 	}
 
 	return list;
+}
+
+juce::ReferenceCountedArray<snex::jit::ComplexType> NamespaceHandler::getComplexTypeList()
+{
+	juce::ReferenceCountedArray<snex::jit::ComplexType> l;
+	l.addArray(complexTypes);
+	return l;
 }
 
 TypeInfo NamespaceHandler::getTypeInfo(const NamespacedIdentifier& aliasId, const Array<SymbolType>& t) const
@@ -1091,6 +1253,9 @@ struct NamespaceHandler::SymbolToken::Parser: public ParserHelpers::TokenIterato
 
 			id = NamespacedIdentifier(parseIdentifier());
 
+			if (auto e = handler.get(id))
+				return e.get();
+
 			while (matchIf(JitTokens::double_colon))
 			{
 				if (currentType == JitTokens::identifier)
@@ -1170,14 +1335,12 @@ bool NamespaceHandler::SymbolToken::matches(const String& input, const String& p
 			return false;
 		}
 
-		
-		
 		return false;
 	}
 
 	if (matchesInput(input, a.id.id.toString()))
 	{
-		return n.get() == root->getRoot() || n->lines.contains(lineNumber);
+		return a.symbolType == NamespacePlaceholder || n.get() == root->getRoot() || n->lines.contains(lineNumber);
 		
 	}
 	

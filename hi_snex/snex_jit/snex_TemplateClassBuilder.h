@@ -94,6 +94,12 @@ struct TemplateClassBuilder
 		initFunction = f;
 	}
 
+	/** Sets a description for the autocomplete menu. */
+	void setDescription(const String& newDescription)
+	{
+		description = newDescription;
+	}
+
 	/** This class contains some helper functions and default functions. */
 	struct Helpers
 	{
@@ -157,6 +163,8 @@ struct TemplateClassBuilder
 	}
 
 protected:
+
+	String description;
 
 	TemplateObject createTemplateObject();
 	

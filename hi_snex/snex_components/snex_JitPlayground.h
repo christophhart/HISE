@@ -495,7 +495,8 @@ class SnexPlayground : public Component,
 public:
 
 	struct PreprocessorUpdater: public Timer,
-								public CodeDocument::Listener
+								public CodeDocument::Listener,
+		public snex::DebugHandler
 	{
 		PreprocessorUpdater(SnexPlayground& parent_):
 			parent(parent_)
@@ -507,12 +508,14 @@ public:
 
 		void codeDocumentTextInserted(const juce::String&, int) override
 		{
-			startTimer(500);
+			startTimer(1200);
 		}
+
+		void logMessage(int level, const juce::String& s) override;
 
 		void codeDocumentTextDeleted(int, int) override
 		{
-			startTimer(500);
+			startTimer(1200);
 		}
 
 		~PreprocessorUpdater()

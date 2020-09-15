@@ -113,22 +113,7 @@ public:
 		return s;
 	}
 
-	Symbol parseNewSymbol(NamespaceHandler::SymbolType t)
-	{
-		auto type = other.currentTypeInfo;
-
-		parseNamespacedIdentifier<NamespaceResolver::MustBeNew>();
-		
-		auto s = Symbol(currentNamespacedIdentifier, type);
-
-		if(t != NamespaceHandler::Unknown)
-			handler.addSymbol(s.id, type, t);
-
-		if (s.typeInfo.isDynamic() && t != NamespaceHandler::UsingAlias)
-			location.throwError("Can't resolve symbol type");
-
-		return s;
-	}
+	Symbol parseNewSymbol(NamespaceHandler::SymbolType t);
 	
 
 	template <class T> void parseNamespacedIdentifier()
@@ -393,12 +378,73 @@ private:
 };
 
 
+
 class BlockParser : public ParserHelpers::TokenIterator
 {
 public:
 
 	using ExprPtr = Operations::Expression::Ptr;
 	using StatementPtr = Operations::Statement::Ptr;
+
+	struct CommentAttacher
+	{
+		CommentAttacher(TokenIterator& t):
+			lineNumber(t.location.getLine())
+		{
+			t.skipWhitespaceAndComments();
+			comment = t.lastComment;
+
+			processComment(comment);
+
+			t.lastComment = {};
+		}
+
+		ExprPtr withComment(ExprPtr p)
+		{
+			p->comment = comment;
+			return p;
+		}
+
+		static void processComment(String& s)
+		{
+			s = s.replace("//", "");
+			s = s.replace("/**", "");
+			s = s.replace("*/", "");
+			s = s.replace("/*", "");
+
+			auto lines = StringArray::fromLines(s);
+
+			for (auto& s : lines)
+			{
+				s = s.trim();
+			}
+
+			s = lines.joinIntoString("\n");
+		}
+
+		NamespaceHandler::SymbolDebugInfo getInfo() const
+		{
+			NamespaceHandler::SymbolDebugInfo info;
+			info.comment = comment;
+			info.lineNumber = lineNumber;
+			return info;
+		}
+
+		FunctionData& withComment(FunctionData& d)
+		{
+			d.description = comment;
+			return d;
+		}
+
+		int lineNumber;
+		String comment;
+	};
+
+	ExprPtr withAttachedComment(ExprPtr p)
+	{
+		p->comment = lastComment;
+		lastComment = {};
+	}
 
 	struct ScopedTemplateArgParser
 	{
@@ -567,7 +613,104 @@ private:
 };
 
 
+/** Parses an expression to a type for a compiled code. */
+struct ExpressionTypeParser : private ParserHelpers::TokenIterator
+{
+	ExpressionTypeParser(NamespaceHandler& n, const String& statement, int lineNumber_) :
+		TokenIterator(statement),
+		nh(n),
+		lineNumber(lineNumber_)
+	{
 
+	}
+
+	TypeInfo parseType()
+	{
+		try
+		{
+			auto id = parseIdentifier();
+			currentId = NamespacedIdentifier(id);
+
+			if (auto ns = nh.getNamespaceForLineNumber(lineNumber))
+			{
+				currentId = ns->id.getChildId(id);
+
+				nh.switchToExistingNamespace(ns->id);
+				nh.resolve(currentId);
+			}
+
+			auto ct = nh.getVariableType(currentId);
+			return parseDot(ct);
+		}
+		catch (ParserHelpers::CodeLocation::Error& e)
+		{
+			return TypeInfo();
+		}
+	}
+
+private:
+
+	int lineNumber;
+
+	TypeInfo parseDot(TypeInfo parent)
+	{
+		if (parent == TypeInfo())
+			return {};
+
+		if (matchIf(JitTokens::dot))
+		{
+			if (auto st = parent.getTypedIfComplexType<StructType>())
+			{
+				currentId = NamespacedIdentifier(parseIdentifier());
+				return parseDot(st->getMemberTypeInfo(currentId.id));
+			}
+
+			location.throwError("illegal dot operator");
+		}
+
+		return parseSubscript(parent);
+	}
+
+	TypeInfo parseSubscript(TypeInfo parent)
+	{
+		if (matchIf(JitTokens::openBracket))
+		{
+			if (auto at = parent.getTypedIfComplexType<jit::ArrayTypeBase>())
+			{
+				while (!isEOF() && currentType != JitTokens::closeBracket)
+					skip();
+
+				match(JitTokens::closeBracket);
+
+				auto t = at->getElementType();
+				return parseDot(t);
+			}
+			
+			location.throwError("Not an array");
+		}
+
+		return parseCall(parent);
+	}
+
+	TypeInfo parseCall(TypeInfo parent)
+	{
+		if (matchIf(JitTokens::openParen))
+		{
+			while (!isEOF() && currentType != JitTokens::closeParen)
+				skip();
+
+			match(JitTokens::closeParen);
+			FunctionClass::Ptr fc = parent.getComplexType()->getFunctionClass();
+			auto fData = fc->getNonOverloadedFunction(NamespacedIdentifier(currentId));
+			return parseDot(fData.returnType);
+		}
+
+		return parent;
+	}
+
+	NamespacedIdentifier currentId;
+	NamespaceHandler& nh;
+};
 
 
 class NewClassParser : public BlockParser

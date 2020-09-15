@@ -40,6 +40,19 @@ using namespace juce;
 
 struct NamespaceHandler: public ReferenceCountedObject
 {
+	struct SymbolDebugInfo
+	{
+		static SymbolDebugInfo fromString(const String& s)
+		{
+			SymbolDebugInfo info;
+			info.comment = s;
+			return info;
+		}
+
+		int lineNumber = -1;
+		String comment;
+	};
+
 	using Ptr = ReferenceCountedObjectPtr<NamespaceHandler>;
 
 	enum class Visibility
@@ -80,6 +93,9 @@ private:
 		SymbolType symbolType;
 		VariableStorage constantValue;
 		bool internalSymbol = false;
+		String codeToInsert;
+		
+		SymbolDebugInfo debugInfo;
 		
 		bool operator==(const Alias& other) const
 		{
@@ -104,11 +120,25 @@ private:
 
 		static juce::String getIntendLevel(int level);
 
-		void addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType, Visibility v);
+		void addSymbol(const NamespacedIdentifier& aliasId, const TypeInfo& type, SymbolType symbolType, Visibility v, const SymbolDebugInfo& description);
 
 		void setPosition(Range<int> namespaceRange)
 		{
 			lines = namespaceRange;
+		}
+
+		bool hasChildNamespace(Namespace::WeakPtr p)
+		{
+			for (auto e : childNamespaces)
+			{
+				if (e == p)
+					return true;
+
+				if (e->hasChildNamespace(p))
+					return true;
+			}
+
+			return false;
 		}
 
 		Namespace::WeakPtr getNamespaceForLineNumber(int lineNumber)
@@ -132,6 +162,7 @@ private:
 		WeakPtr parent;
 		bool internalSymbol = false;
 
+		SymbolDebugInfo debugInfo;
 		Range<int> lines;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Namespace);
@@ -147,6 +178,10 @@ private:
 			root(r)
 		{
 			tokenContent = a.id.id.toString();
+			markdownDescription = a.debugInfo.comment;
+
+			if (a.codeToInsert.isNotEmpty())
+				tokenContent = a.codeToInsert;
 		}
 
 		bool matches(const String& input, const String& previousToken, int lineNumber) const override;
@@ -246,6 +281,8 @@ public:
 	ComplexType::Ptr registerComplexTypeOrReturnExisting(ComplexType::Ptr ptr);
 	ComplexType::Ptr getComplexType(NamespacedIdentifier id);
 
+	TypeInfo parseTypeFromTextInput(const String& input, int lineNumber);
+
 	bool changeSymbolType(NamespacedIdentifier id, SymbolType newType);
 
 	NamespacedIdentifier getRootId() const;
@@ -255,7 +292,8 @@ public:
 	juce::String dump();
 	Result addUsedNamespace(const NamespacedIdentifier& usedNamespace);
 	Result resolve(NamespacedIdentifier& id, bool allowZeroMatch = false) const;
-	void addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType);
+	void addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info);
+	void setSymbolCode(const NamespacedIdentifier& id, const String& tokenToInsert);
 
 	Result addConstant(const NamespacedIdentifier& id, const VariableStorage& v);
 	Result setTypeInfo(const NamespacedIdentifier& id, SymbolType expectedType, const TypeInfo& t);
@@ -279,11 +317,15 @@ public:
 	/** Doesn't check the template parameters, just for the parser to decide whether it should parse template arguments. */
 	bool isTemplateClassId(NamespacedIdentifier& classId) const;
 
+	Array<jit::TemplateObject> getTemplateClassTypes() const;
+
 	ComplexType::Ptr createTemplateInstantiation(const TemplateInstance& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
 	void createTemplateFunction(const TemplateInstance& id, const Array<TemplateParameter>& tp, juce::Result& r);
 
 	bool rootHasNamespace(const NamespacedIdentifier& id) const;
+
+	int getDefinitionLine(int lineNumber, const String& token);
 
 	SymbolType getSymbolType(const NamespacedIdentifier& id) const;
 
@@ -320,9 +362,11 @@ public:
 
 	TemplateParameter::List getCurrentTemplateParameters() const;
 
-	void setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e);
+	void setNamespacePosition(const NamespacedIdentifier& id, Point<int> s, Point<int> e, const SymbolDebugInfo& ingo);
 
 	Array<Range<int>> createLineRangesFromNamespaces() const;
+
+	ReferenceCountedArray<ComplexType> getComplexTypeList();
 
 private:
 
@@ -353,6 +397,8 @@ private:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NamespaceHandler);
 };
+
+
 
 
 }

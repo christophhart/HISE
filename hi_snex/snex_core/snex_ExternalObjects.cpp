@@ -414,7 +414,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 		TemplateClassBuilder midi(c, mId);
 
 
-		midi.addTypeTemplateParameter("T");
+		midi.addTypeTemplateParameter("NodeType");
 		
 		midi.setInitialiseStructFunction([prototypes](const TemplateObject::ConstructData& cd, StructType* st)
 		{
@@ -430,9 +430,12 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 	{
 		ContainerNodeBuilder chain(c, "chain", numChannels);
+		chain.setDescription("Processes all nodes serially");
+			
 		chain.flush();
 
 		ContainerNodeBuilder split(c, "split", numChannels);
+		split.setDescription("Copies the signal, processes all nodes parallel and sums up the processed signal at the end");
 		split.flush();
 
 		WrapBuilder init(c, "init", numChannels);
@@ -510,6 +513,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 
 	TemplateObject ptc({ pId, {} });
 	ptc.argList.add(TemplateParameter(pId.getChildId("NumChannels"), 0, false));
+	ptc.description = "An object containing the data for the multichannel processing";
 
 	ptc.makeClassType = [eventType](const TemplateObject::ConstructData& c)
 	{
@@ -531,12 +535,12 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 
 		auto pType = new StructType(pId, l);
 
-		pType->addMember("data", TypeInfo(Types::ID::Pointer, true));
-		pType->addMember("events", TypeInfo(Types::ID::Pointer, true));
-		pType->addMember("numSamples", TypeInfo(Types::ID::Integer));
-		pType->addMember("numEvents", TypeInfo(Types::ID::Integer));
-		pType->addMember("numChannels", TypeInfo(Types::ID::Integer));
-		pType->addMember("shouldReset", TypeInfo(Types::ID::Integer));
+		pType->addMember("data", TypeInfo(Types::ID::Pointer, true), "the pointer to the channel values");
+		pType->addMember("events", TypeInfo(Types::ID::Pointer, true), "a list containing all events for the current block");
+		pType->addMember("numSamples", TypeInfo(Types::ID::Integer), "the number of samples to process");
+		pType->addMember("numEvents", TypeInfo(Types::ID::Integer), "the number of events in this block");
+		pType->addMember("numChannels", TypeInfo(Types::ID::Integer), "the number of channels to process");
+		pType->addMember("shouldReset", TypeInfo(Types::ID::Integer), "flag that checks if the processing should be reseted");
 
 		pType->setDefaultValue("data", InitialiserList::makeSingleList(0));
 		pType->setDefaultValue("events", InitialiserList::makeSingleList(0));
@@ -1322,6 +1326,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 
 
 	auto plain = PH::createWithTP(c, "plain");
+	plain.setDescription("A plain parameter connection to a certain parameter index of a given node type. The value will be passed to the target without any conversion.");
 	plain.addFunction([](StructType* st)
 	{
 		return PH::createCallPrototype(st, [st](InlineData* b)
@@ -1339,6 +1344,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 	plain.flush();
 
 	auto expr = PH::createWithTP(c, "expression");
+	expr.setDescription("A parameter with an expression that is evaluated before sending the value to the destination.  \nThe expression class must have a function `static double ExpressionClass::op(double input);`");
 	expr.addTypeTemplateParameter("ExpressionClass");
 	expr.addFunction([](StructType* st)
 	{
@@ -1357,6 +1363,8 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 
 	auto from0To1 = PH::createWithTP(c, "from0To1");
 	from0To1.addTypeTemplateParameter("RangeClass");
+	from0To1.setDescription("A parameter that converts a normalised value to a given range before sending it to the destination. The RangeClass must have a `static double from0To1(double input);` method.");
+
 	from0To1.addFunction([](StructType* st)
 	{
 		return PH::createCallPrototype(st, [st](InlineData* b)
@@ -1374,6 +1382,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 
 	auto to0To1 = PH::createWithTP(c, "to0To1");
 	to0To1.addTypeTemplateParameter("RangeClass");
+	to0To1.setDescription("A parameter connection that sends a normalised value to the target. The input value will be scaled based on the Range class which needs a `static double to0To1(double input);` method.");
 	to0To1.addFunction([](StructType* st)
 	{
 		return PH::createCallPrototype(st, [st](InlineData* b)
@@ -1394,6 +1403,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 	ParameterBuilder chainP(c, "chain");
 
 	chainP.addTypeTemplateParameter("InputRange");
+	chainP.setDescription("A parameter connection to multiple targets. The `Parameters` argument can be a list of other parameter classes.  \nThe input value will be normalised using the `InputRange` class, so you most probably want to scale the values back using `parameter::from0To1` (or a custom scaling using `parameter::expression`).");
 	chainP.addVariadicTypeTemplateParameter("Parameters");
 	chainP.addFunction(TemplateClassBuilder::VariadicHelpers::getFunction);
 	chainP.setInitialiseStructFunction(TemplateClassBuilder::VariadicHelpers::initVariadicMembers<1>);

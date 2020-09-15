@@ -44,6 +44,8 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::FunctionTemplateParsing)
 	{
+		data.description = comment;
+
 		functionScope = new FunctionScope(scope, data.id);
 
 		{
@@ -127,6 +129,8 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			WeakReference<Statement> statementCopy = statements;
 
 			classData->templateParameters = data.templateParameters;
+
+			
 
 			auto classDataCopy = FunctionData(*classData);
 

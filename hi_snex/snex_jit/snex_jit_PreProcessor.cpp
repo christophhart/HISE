@@ -117,9 +117,14 @@ String Preprocessor::TextBlock::toString() const
 
 String Preprocessor::TextBlock::subString(String::CharPointerType location) const
 {
-	jassert(location - start < length);
-	auto end = start + length;
-	return { location, end };
+	if (*location)
+	{
+		jassert(location - start < length);
+		auto end = start + length;
+		return { location, end };
+	}
+
+	return {};
 }
 
 String::CharPointerType Preprocessor::TextBlock::getEnd() const
@@ -252,6 +257,8 @@ void Preprocessor::parseDefinition(TextBlock& b)
 			p.matchIf(JitTokens::comma);
 		}
 
+		
+
 		p.match(JitTokens::closeParen);
 		
 		newItem = new Macro(args);
@@ -262,8 +269,13 @@ void Preprocessor::parseDefinition(TextBlock& b)
 	}
 
 	newItem->id = id;
-	newItem->body = b.subString(p.location.location);
-	entries.add(newItem);
+	newItem->lineNumber = b.getLineRange().getStart();
+
+	if (p.location.location)
+	{
+		newItem->body = b.subString(p.location.location);
+		entries.add(newItem);
+	}
 }
 
 bool Preprocessor::evaluate(TextBlock& b)
@@ -278,7 +290,7 @@ bool Preprocessor::evaluate(TextBlock& b)
 
 	while (!p.isEOF())
 	{
-		if (p.currentType == JitTokens::identifier)
+		if (!conditionMode && p.currentType == JitTokens::identifier)
 		{
 			auto macroStart = p.location.location;
 
@@ -344,16 +356,28 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 	auto start = code.getCharPointer();
 	auto currentLine = start;
 	auto defaultNewLine = NewLine::getDefault();
+	auto firstNewLineChar = '\n';
+	auto lineNumber = 0;
 
 	while (start != end)
 	{
+		
+
 		while (start != end)
 		{
 			if (CharacterFunctions::isWhitespace(*start))
+			{
+				if (*start == firstNewLineChar)
+					lineNumber++;
+
 				start++;
+			}
+				
 			else
 				break;
 		}
+
+		auto blockStart = lineNumber;
 
 		TextBlock currentBlock(code.getCharPointer(), start);
 		bool isPreprocessor = *start == '#';
@@ -362,6 +386,9 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 		while (start != end)
 		{
 			start++;
+
+			if (*start == firstNewLineChar)
+				lineNumber++;
 
 			if (isPreprocessor && *start == '\\')
 			{
@@ -380,6 +407,22 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 			}
 		}
 
+		while (start != end)
+		{
+			if (CharacterFunctions::isWhitespace(*start))
+			{
+				if (*start == firstNewLineChar)
+					lineNumber++;
+
+				start++;
+			}
+
+			else
+				break;
+		}
+
+		currentBlock.setLineRange(blockStart, lineNumber);
+
 		currentBlock.flush(start);
 		blocks.add(currentBlock);
 	}
@@ -393,15 +436,83 @@ juce::String Preprocessor::toString(const Array<TextBlock>& blocks)
 {
 	String s;
 
-	for (const auto& b : blocks)
+	for (auto& b : blocks)
 	{
 		if (!b.isPreprocessorDirective())
 			s << b.toString();
 		else
-			s << "\n";
+		{
+			b.replaceWithEmptyLines();
+
+			auto l = b.toString().substring(1);
+
+			s << l;
+		}
 	}
 
 	return s;
+}
+
+juce::Array<Preprocessor::AutocompleteData> Preprocessor::getAutocompleteData() const
+{
+	Array<AutocompleteData> l;
+
+	for (auto i : entries)
+	{
+		if (auto ad = i->getAutocompleteData())
+		{
+			l.add(ad);
+		}
+	}
+
+	return l;
+}
+
+String Preprocessor::Macro::evaluate(StringArray& parameters, Result& r)
+{
+	if (parameters.size() != arguments.size())
+	{
+		r = Result::fail("macro parameter amount mismatch");
+		return {};
+	}
+
+	String processed = body.trim();
+
+	for (int i = 0; i < arguments.size(); i++)
+	{
+		ParserHelpers::TokenIterator t(processed);
+
+		String p;
+
+		while (!t.isEOF())
+		{
+			auto prev = t.location.location;
+
+			if (t.currentType == JitTokens::identifier)
+			{
+				auto id = Identifier(t.currentValue.toString());
+
+				if (arguments[i] == id)
+				{
+					t.skip();
+					auto now = t.location.location;
+					auto old = String(prev, now);
+
+					p << old.replace(id, parameters[i].trim());
+					continue;
+				}
+
+			}
+
+			t.skip();
+			auto now = t.location.location;
+			p << String(prev, now);
+		}
+
+		processed = p;
+	}
+
+	return processed;
 }
 
 }

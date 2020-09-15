@@ -72,4 +72,45 @@ void debug::MathFunctionProvider::addTokens(mcl::TokenCollection::List& l)
 	}
 }
 
+debug::SymbolProvider::ComplexMemberToken::ComplexMemberToken(SymbolProvider& parent_, ComplexType::Ptr p_, FunctionData& f) :
+	Token(f.getSignature()),
+	parent(parent_),
+	p(p_)
+{
+	f.getOrResolveReturnType(p);
+
+
+	tokenContent = f.getSignature();
+	priority = 80;
+	codeToInsert = f.getCodeToInsert();
+	markdownDescription = f.description;
+}
+
+bool debug::SymbolProvider::ComplexMemberToken::matches(const String& input, const String& previousToken, int lineNumber) const
+{
+	if (previousToken.endsWith("."))
+	{
+
+		auto typeInfo = parent.c.getNamespaceHandler().parseTypeFromTextInput(previousToken.upToLastOccurrenceOf(".", false, false), lineNumber);
+
+		if (typeInfo.getTypedIfComplexType<ComplexType>() == p.get())
+		{
+			return matchesInput(input, tokenContent);
+		}
+	}
+
+	return false;
+}
+
+void debug::PreprocessorMacroProvider::addTokens(mcl::TokenCollection::List& tokens)
+{
+	Preprocessor p(doc.getAllContent());
+	p.process();
+
+	for (auto ad : p.getAutocompleteData())
+	{
+		tokens.add(new PreprocessorToken(ad.name, ad.codeToInsert, ad.description, ad.lineNumber));
+	}
+}
+
 }

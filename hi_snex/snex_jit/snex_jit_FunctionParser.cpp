@@ -95,7 +95,9 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 		b->addStatement(parseStatement().get());
 	}
 
-	compiler->namespaceHandler.setNamespacePosition(scopePath, startPos, location.getXYPosition());
+	CommentAttacher ca(*this);
+
+	compiler->namespaceHandler.setNamespacePosition(scopePath, startPos, location.getXYPosition(), ca.getInfo());
 
 	match(JitTokens::closeBrace);
 
@@ -170,6 +172,8 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 	ExprPtr target;
 	Symbol s;
 
+	CommentAttacher ca(*this);
+
 	if (currentTypeInfo.isDynamic())
 		s = sp.parseNewDynamicSymbolSymbol(NamespaceHandler::Unknown);
 	else
@@ -195,7 +199,8 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseVariableDefinition()
 		s.typeInfo = expr->getTypeInfo().withModifiers(isConst, isRef);
 	}
 
-	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Variable);
+	
+	compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Variable, ca.getInfo());
 
 	if (s.typeInfo.isComplexType())
 	{
@@ -233,7 +238,10 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 
 	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, id);
 
-	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), {}, NamespaceHandler::Variable);
+	lastComment = {};
+	CommentAttacher ca(*this);
+
+	compiler->namespaceHandler.addSymbol(id.getChildId(iteratorId), {}, NamespaceHandler::Variable, ca.getInfo());
 	StatementPtr body = parseStatementToBlock();
 	
 	return new Operations::Loop(location, iteratorSymbol, loopBlock.get(), body);

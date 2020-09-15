@@ -384,7 +384,7 @@ struct StructType : public ComplexType,
 		isExternalDefinition = true;
 	}
 
-	void addMember(const Identifier& id, const TypeInfo& typeInfo)
+	void addMember(const Identifier& id, const TypeInfo& typeInfo, const String& comment = {})
 	{
 		jassert(!isFinalised());
 
@@ -406,6 +406,7 @@ struct StructType : public ComplexType,
 		nm->id = id;
 		nm->typeInfo = toUse;
 		nm->offset = 0;
+		nm->comment = comment;
 		memberData.add(nm);
 	}
 
@@ -438,6 +439,7 @@ private:
 
 	struct Member
 	{
+		String comment;
 		size_t offset = 0;
 		size_t padding = 0;
 		Identifier id;

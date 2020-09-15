@@ -550,7 +550,7 @@ void Operations::ScopeStatementBase::setNewPath(BaseCompiler* c, const Namespace
 			{
 				auto newId = v->id.id.relocate(oldPath, newPath);
 				NamespaceHandler::ScopedNamespaceSetter sns(c->namespaceHandler, newId.getParent());
-				c->namespaceHandler.addSymbol(newId, v->id.typeInfo, NamespaceHandler::Variable);
+				c->namespaceHandler.addSymbol(newId, v->id.typeInfo, NamespaceHandler::Variable, {});
 				v->id.id = newId;
 			}
 		}

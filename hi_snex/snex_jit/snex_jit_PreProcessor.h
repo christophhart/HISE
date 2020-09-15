@@ -35,7 +35,6 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
 
 using String = juce::String;
 
@@ -65,8 +64,6 @@ DECLARE_HNODE_JIT_TOKEN(identifier, "$identifier")
 DECLARE_HNODE_JIT_TOKEN(code_, "code")
 }
 
-
-
 struct Preprocessor
 {
 	using Token = const char*;
@@ -84,6 +81,21 @@ struct Preprocessor
 		return deactivatedLines;
 	}
 
+	struct AutocompleteData
+	{
+		explicit operator bool() const
+		{
+			return codeToInsert.isNotEmpty();
+		}
+
+		String name;
+		String description;
+		String codeToInsert;
+		int lineNumber;
+	};
+
+	Array<AutocompleteData> getAutocompleteData() const;
+
 private:
 
 	bool conditionMode = false;
@@ -99,6 +111,18 @@ private:
 
 		NamespacedIdentifier id;
 		String body;
+
+		virtual AutocompleteData getAutocompleteData() const
+		{
+			AutocompleteData ad;
+			ad.description = body;
+			ad.codeToInsert = "";
+			ad.name = id.toString();
+			ad.lineNumber = lineNumber;
+			return ad;
+		}
+
+		int lineNumber;
 	};
 
 	struct Definition : public Item
@@ -106,6 +130,14 @@ private:
 		bool evaluate(String& b, Result& r)
 		{
 			jassertfalse;
+		}
+
+		AutocompleteData getAutocompleteData() const
+		{
+			auto ad = Item::getAutocompleteData();
+			ad.codeToInsert = id.toString();
+			ad.description << "Expands to\n> `" << body << "`";
+			return ad;
 		}
 	};
 
@@ -117,52 +149,29 @@ private:
 
 		Array<Identifier> arguments;
 	
-		String evaluate(StringArray& parameters, Result& r)
+		AutocompleteData getAutocompleteData() const
 		{
-			if (parameters.size() != arguments.size())
+			auto ad = Item::getAutocompleteData();
+			ad.codeToInsert << id.toString() << "(";
+
+			for (auto a : arguments)
 			{
-				r = Result::fail("macro parameter amount mismatch");
-				return {};
+				ad.codeToInsert << a.toString();
+
+				if (arguments.getLast() != a)
+					ad.codeToInsert << ", ";
 			}
 
-			String processed = body.trim();
+			ad.codeToInsert << ")";
+			ad.name = ad.codeToInsert;
 
-			for (int i = 0; i < arguments.size(); i++)
-			{
-				ParserHelpers::TokenIterator t(processed);
+			
+			ad.description = "Expands to:  \n> `" + body + "`";
 
-				String p;
-
-				while (!t.isEOF())
-				{
-					auto prev = t.location.location;
-
-					if (t.currentType == JitTokens::identifier)
-					{
-						auto id = Identifier(t.currentValue.toString());
-
-						if (arguments[i] == id)
-						{
-							t.skip();
-							auto now = t.location.location;
-							auto old = String(prev, now);
-
-							p << old.replace(id, parameters[i].trim());
-							continue;
-						}
-							
-					}
-					
-					t.skip();
-					auto now = t.location.location;
-					p << String(prev, now);
-				}
-
-				processed = p;
-			}
-
-			return processed;
+			return ad;
 		}
+
+		String evaluate(StringArray& parameters, Result& r);
 	};
 
 	template <class T> static T* as(Item::Ptr p)
@@ -195,8 +204,15 @@ private:
 			return blockType == t;
 		}
 
+		void setLineRange(int startLine, int endLine)
+		{
+			lineRange = { startLine, jmax(startLine + 1, endLine) };
+		}
+
 		Range<int> getLineRange() const
 		{
+			return lineRange;
+
 			ParserHelpers::CodeLocation s(originalLocation, program);
 			ParserHelpers::CodeLocation e(originalLocation + length, program);
 
@@ -213,6 +229,9 @@ private:
 
 		void replaceWithEmptyLines()
 		{
+			if (cleaned)
+				return;
+
 			auto l = StringArray::fromLines(toString());
 
 			String s; 
@@ -221,6 +240,7 @@ private:
 				s << "\n";
 
 			setProcessedCode(s);
+			cleaned = true;
 		}
 
 		String subString(String::CharPointerType location) const;
@@ -275,6 +295,9 @@ private:
 
 		String processedCode;
 
+		Range<int> lineRange;
+		bool cleaned = false;
+
 	};
 
 	static juce::String toString(const Array<TextBlock>& blocks);
@@ -295,7 +318,6 @@ private:
 
 	String code;
 };
-
 
 
 }

@@ -50,16 +50,6 @@ struct MathFunctionProvider : public TokenCollection::Provider
 			markdownDescription = f.description;
 		};
 
-		Range<int> getSelectionRangeAfterInsert() const override
-		{
-			auto c = getCodeToInsert("");
-
-			auto start = c.indexOf("(");
-			auto end = c.indexOf(")");
-
-			return { start, end };
-		}
-
 		bool matches(const String& input, const String& previousToken, int lineNumber) const override
 		{
 			if (previousToken != "Math.")
@@ -85,6 +75,7 @@ struct KeywordProvider : public TokenCollection::Provider
 			Token(s)
 		{
 			c = Colours::red;
+			priority = 200;
 		};
 
 		bool matches(const String& input, const String& previousToken, int lineNumber) const override
@@ -94,15 +85,12 @@ struct KeywordProvider : public TokenCollection::Provider
 
 			return matchesInput(input, tokenContent);
 		}
-
-		
 	};
 
 	void addTokens(TokenCollection::List& tokens)
 	{
 		tokens.add(new KeywordToken("double"));
 		tokens.add(new KeywordToken("float"));
-		tokens.add(new KeywordToken("span"));
 		tokens.add(new KeywordToken("return"));
 		tokens.add(new KeywordToken("template"));
 		tokens.add(new KeywordToken("typename"));
@@ -113,29 +101,177 @@ struct KeywordProvider : public TokenCollection::Provider
 		tokens.add(new KeywordToken("struct"));
 		tokens.add(new KeywordToken("class"));
 		tokens.add(new KeywordToken("private"));
+		tokens.add(new KeywordToken("using"));
 		tokens.add(new KeywordToken("protected"));
 		tokens.add(new KeywordToken("public"));
 	}
 };
 
-struct SymbolProvider : public TokenCollection::Provider
+struct TemplateProvider : public TokenCollection::Provider
 {
-	SymbolProvider(CodeDocument& d):
-		doc(d)
+	struct TemplateToken : public TokenCollection::Token
 	{
-		
-	}
+		TemplateToken(const TemplateObject& s):
+			Token(getTokenString(s))
+		{
+			priority = 100;
+
+			markdownDescription = s.description;
+
+			c = Colours::orange;
+		};
+
+#if 0
+		virtual Range<int> getSelectionRangeAfterInsert() const 
+		{ 
+			return { tokenContent.indexOfChar('<'), tokenContent.lastIndexOfChar('>') }; 
+		}
+#endif
+
+		static String getTokenString(const TemplateObject& o)
+		{
+			String s;
+			s << o.id.toString();
+			s << TemplateParameter::ListOps::toString(o.argList, true);
+
+			return s;
+		}
+
+		bool matches(const String& input, const String& previousToken, int lineNumber) const override
+		{
+			if (previousToken.isNotEmpty())
+				return false;
+
+			return matchesInput(input, tokenContent);
+		}
+
+		int pStart, pEnd;
+	};
 
 	void addTokens(TokenCollection::List& tokens)
 	{
 		GlobalScope s;
 		Compiler c(s);
 		Types::SnexObjectDatabase::registerObjects(c, 2);
-		auto obj = c.compileJitObject(doc.getAllContent());
 
-		tokens.addArray(c.getNamespaceHandler().getTokenList());
+		for (auto id : c.getNamespaceHandler().getTemplateClassTypes())
+			tokens.add(new TemplateToken(id));
+	}
+};
+
+struct ComplexTypeProvider : public TokenCollection::Provider
+{
+	
+
+	
+};
+
+struct PreprocessorMacroProvider : public TokenCollection::Provider
+{
+	PreprocessorMacroProvider(CodeDocument& d) :
+		doc(d)
+	{
+
 	}
 
+	struct PreprocessorToken : public TokenCollection::Token
+	{
+		PreprocessorToken(const String& name, const String& code, const String& description, int lineNumber):
+			Token(name),
+			definitionLine(lineNumber)
+		{
+			markdownDescription = description;
+			codeToInsert = code;
+		}
+
+		String getCodeToInsert(const String& input)
+		{
+			return codeToInsert;
+		}
+
+		bool matches(const String& input, const String& previousToken, int lineNumber) const override
+		{
+			if (previousToken.isEmpty())
+			{
+				return lineNumber > definitionLine && matchesInput(input, tokenContent);
+			}
+			
+			return false;
+		}
+
+		String codeToInsert;
+		int definitionLine;
+
+	};
+
+	void addTokens(TokenCollection::List& tokens) override;
+
+	CodeDocument& doc;
+};
+
+struct SymbolProvider : public TokenCollection::Provider
+{
+	struct ComplexMemberToken : public TokenCollection::Token
+	{
+		ComplexMemberToken(SymbolProvider& parent_, ComplexType::Ptr p_, FunctionData& f);
+
+		bool matches(const String& input, const String& previousToken, int lineNumber) const override;
+
+		SymbolProvider& parent;
+		ComplexType::Ptr p;
+
+		String codeToInsert;
+
+		String getCodeToInsert(const String& input) const override
+		{
+			return codeToInsert;
+		}
+	};
+
+	SymbolProvider(CodeDocument& d):
+		doc(d),
+		c(s)
+	{
+		
+	}
+
+	void addTokens(TokenCollection::List& tokens)
+	{
+		c.reset();
+		Types::SnexObjectDatabase::registerObjects(c, 2);
+
+		c.compileJitObject(doc.getAllContent());
+
+		auto ct = c.getNamespaceHandler().getComplexTypeList();
+
+		for (auto c : ct)
+		{
+			FunctionClass::Ptr fc = c->getFunctionClass();
+			
+			for (auto id : fc->getFunctionIds())
+			{
+				Array<FunctionData> fData;
+				fc->addMatchingFunctions(fData, id);
+
+				for(auto& f: fData)
+					tokens.add(new ComplexMemberToken(*this, c, f));
+			}
+		}
+
+		auto l = c.getNamespaceHandler().getTokenList();
+
+		for (auto a : l)
+		{
+			DBG(a->getCodeToInsert(""));
+		}
+
+		tokens.addArray(l);
+	}
+
+	GlobalScope s;
+	Compiler c;
+
+	ReferenceCountedArray<jit::ComplexType> typeList;
 	StringArray sa;
 	CodeDocument& doc;
 };

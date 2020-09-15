@@ -71,6 +71,7 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 {
 	TemplateObject to({ id, {} });
 	to.argList = tp;
+	to.description = description;
 
 	auto l = tp;
 
@@ -206,8 +207,8 @@ snex::jit::ParameterBuilder ParameterBuilder::Helpers::createWithTP(Compiler& c,
 	ParameterBuilder b(c, n);
 
 	b.setConnectFunction();
-	b.addTypeTemplateParameter("T");
-	b.addIntTemplateParameter("P");
+	b.addTypeTemplateParameter("NodeType");
+	b.addIntTemplateParameter("ParameterIndex");
 
 	return b;
 }
@@ -236,7 +237,7 @@ void ParameterBuilder::Helpers::initSingleParameterStruct(const TemplateObject::
 
 	cd.handler->createTemplateFunction(id, { ip[1] }, *cd.r);
 
-	st->addMember("target", TypeInfo(Types::ID::Pointer, true, false));
+	st->addMember("target", TypeInfo(Types::ID::Pointer, true, false), {});
 	st->setDefaultValue("target", InitialiserList::makeSingleList(VariableStorage(nullptr, 8)));
 }
 
@@ -536,6 +537,12 @@ void ContainerNodeBuilder::deactivateCallback(const Identifier& id)
 
 void ContainerNodeBuilder::flush()
 {
+	description << "\n#### Template Parameters:\n";
+	description << "- **ParameterClass**: a class template (parameter::xxx) that defines the parameter connections\n";
+	description << "- **ProcessorTypes**: a dynamic list of nodes that are processed.\n";
+
+
+
 	/** TODO
 	
 		- fix get<0>() offset

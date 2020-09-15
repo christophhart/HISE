@@ -1169,7 +1169,7 @@ void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 	{
 		NamespaceHandler::ScopedNamespaceSetter sns(*handler, id.getParent());
 
-		handler->addSymbol(id, TypeInfo(this), NamespaceHandler::Struct);
+		handler->addSymbol(id, TypeInfo(this), NamespaceHandler::Struct, {});
 		NamespaceHandler::ScopedNamespaceSetter sns2(*handler, id);
 
 		Array<TypeInfo> subList;
@@ -1186,7 +1186,8 @@ void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 		{
 			auto mId = id.getChildId(m->id);
 			auto mType = m->typeInfo;
-			handler->addSymbol(mId, mType, NamespaceHandler::Variable);
+
+			handler->addSymbol(mId, mType, NamespaceHandler::Variable, NamespaceHandler::SymbolDebugInfo::fromString(m->comment));
 		}
 
 		FunctionClass::Ptr fc = getFunctionClass();
@@ -1198,12 +1199,14 @@ void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 
 			for (auto d : data)
 			{
-				handler->addSymbol(d.id, d.returnType, NamespaceHandler::Function);
+				handler->addSymbol(d.id, d.returnType, NamespaceHandler::Function, 
+					NamespaceHandler::SymbolDebugInfo::fromString(d.description));
+				handler->setSymbolCode(d.id, d.getCodeToInsert());
 			}
 		}
 	}
 
-	ComplexType::registerExternalAtNamespaceHandler(handler);
+	ComplexType::registerExternalAtNamespaceHandler(handler, {});
 }
 
 bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList)

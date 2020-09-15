@@ -79,6 +79,7 @@ public:
 		return newScope->pimpl->runtime;
 	}
 
+	bool parseOnly = false;
 	asmjit::Runtime* parentRuntime = nullptr;
 
 	JitCompiledFunctionClass* compileAndGetScope(const ParserHelpers::CodeLocation& classStart, int length)
@@ -118,6 +119,13 @@ public:
 			executePass(PreSymbolOptimization, newScope->pimpl, sTree);
 			executePass(ResolvingSymbols, newScope->pimpl, sTree);
 			executePass(TypeCheck, newScope->pimpl, sTree);
+
+			if (parseOnly)
+			{
+				lastResult = Result::ok();
+				return nullptr;
+			}
+
 			executePass(SyntaxSugarReplacements, newScope->pimpl, sTree);
 			executePass(PostSymbolOptimization, newScope->pimpl, sTree);
 			
@@ -172,7 +180,6 @@ BlockParser::StatementPtr BlockParser::parseStatementList()
 	matchIf(JitTokens::openBrace);
 
 	auto list = new SyntaxTree(location, compiler->namespaceHandler.getCurrentNamespaceIdentifier());
-
 	StatementPtr p = list;
 
 	list->setParentScopeStatement(getCurrentScopeStatement());
@@ -241,6 +248,8 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 
 	if (matchIf(JitTokens::namespace_))
 	{
+		CommentAttacher ca(*this);
+
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, parseIdentifier());
 
 		auto startPos = location.getXYPosition();
@@ -251,13 +260,16 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 
 		while (currentType != JitTokens::eof && currentType != JitTokens::closeBrace)
 		{
-			sb->addStatement(parseStatement());
+			CommentAttacher ca(*this);
+			auto p = parseStatement();
+			sb->addStatement(ca.withComment(p));
 		}
 
 		auto endPos = location.getXYPosition();
 		match(JitTokens::closeBrace);
 
-		compiler->namespaceHandler.setNamespacePosition(compiler->namespaceHandler.getCurrentNamespaceIdentifier(), startPos, endPos);
+		compiler->namespaceHandler.setNamespacePosition(compiler->namespaceHandler.getCurrentNamespaceIdentifier(), startPos, endPos, ca.getInfo());
+		
 		
 
 		return sb;
@@ -410,8 +422,12 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	if (isTemplateFunction)
 		func = new TemplatedFunction(location, s, templateArguments);
 	else
+	{
 		func = new Function(location, s);
 		
+	}
+		
+	
 
 	StatementPtr newStatement = dynamic_cast<Statement*>(func);
 
@@ -420,7 +436,9 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	fData.id = func->data.id;
 	fData.returnType = currentTypeInfo;
 	fData.object = nullptr;
-
+	CommentAttacher ca(*this);
+	ca.withComment(fData);
+	
 	if (FunctionClass::isConstructor(fData.id))
 	{
 		fData.returnType = TypeInfo(Types::ID::Void);
@@ -470,7 +488,8 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	}
 	else
 	{
-		compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
+		compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function, ca.getInfo());
+		compiler->namespaceHandler.setSymbolCode(s.id, fData.getCodeToInsert());
 	}
 
 	match(JitTokens::closeParen);
@@ -495,10 +514,12 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 	auto endPos = location.getXYPosition();
 
-	compiler->namespaceHandler.setNamespacePosition(s.id, startPos, endPos);
+	compiler->namespaceHandler.setNamespacePosition(s.id, startPos, endPos, ca.getInfo());
 	
 	func->codeLength = static_cast<int>(location.location - func->code);
 	
+	
+
 	return newStatement;
 }
 
@@ -521,7 +542,9 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 	{
 		auto p = new StructType(classId, templateArguments);
 
-		compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct);
+		CommentAttacher ca(*this);
+
+		compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct, ca.getInfo());
 		compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
 
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
@@ -529,7 +552,7 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 
 		auto list = parseStatementList();
 
-		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition());
+		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition(), ca.getInfo());
 
 		match(JitTokens::semicolon);
 
@@ -550,13 +573,14 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 		
 		StatementPtr list;
 
+		CommentAttacher ca(*this);
+
 		{
 			NamespaceHandler::ScopedVisibilityState vs(compiler->namespaceHandler);
 			compiler->namespaceHandler.setVisiblity(defaultVisibility);
-			list = parseStatementList();
+			list = ca.withComment(parseStatementList());
 		}
 		
-
 		match(JitTokens::semicolon);
 
 		TemplateInstance cId(classId, compiler->namespaceHandler.getCurrentTemplateParameters());
@@ -567,7 +591,7 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 		tc.makeClassType = std::bind(&Operations::TemplateDefinition::createTemplate, tcs, std::placeholders::_1);
 		tc.argList = classTemplateArguments;
 
-		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition());
+		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition(), ca.getInfo());
 
 		compiler->namespaceHandler.addTemplateClass(tc);
 		return tcs;
@@ -770,7 +794,8 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 	{
  		Symbol s(ids.getFirst(), t);
 
-		compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function);
+		CommentAttacher ca(*this);
+		compiler->namespaceHandler.addSymbol(s.id, s.typeInfo, NamespaceHandler::Function, ca.getInfo());
 
 		auto st = parseFunction(s);
 
@@ -785,8 +810,10 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 
 		auto n = new Operations::ComplexTypeDefinition(location, ids, currentTypeInfo);
 
+		CommentAttacher ca(*this);
+
 		for (auto id : ids)
-			compiler->namespaceHandler.addSymbol(id, currentTypeInfo, NamespaceHandler::Variable);
+			compiler->namespaceHandler.addSymbol(id, currentTypeInfo, NamespaceHandler::Variable, ca.getInfo());
 
 		if (matchIf(JitTokens::assign_))
 		{
@@ -1030,8 +1057,9 @@ void BlockParser::parseEnum()
 
 		for (auto i : items)
 		{
+			CommentAttacher ca(*this);
 			auto idToUse = currentNamespace.getChildId(i.id);
-			nh.addSymbol(idToUse, type, NamespaceHandler::EnumValue);
+			nh.addSymbol(idToUse, type, NamespaceHandler::EnumValue, ca.getInfo());
 			nh.addConstant(idToUse, i.value);
 		}
 	}
@@ -1048,7 +1076,8 @@ void BlockParser::parseEnum()
 		for (auto i : items)
 		{
 			auto idToUse = currentNamespace.getChildId(i.id);
-			nh.addSymbol(idToUse, type, NamespaceHandler::EnumValue);
+			CommentAttacher ca(*this);
+			nh.addSymbol(idToUse, type, NamespaceHandler::EnumValue, ca.getInfo());
 			nh.addConstant(idToUse, i.value);
 		}
 	}
@@ -1126,6 +1155,25 @@ snex::VariableStorage TypeParser::parseConstExpression(bool canBeTemplateParamet
 	}
 	
 	return parseVariableStorageLiteral();
+}
+
+snex::jit::Symbol SymbolParser::parseNewSymbol(NamespaceHandler::SymbolType t)
+{
+	auto type = other.currentTypeInfo;
+
+	parseNamespacedIdentifier<NamespaceResolver::MustBeNew>();
+
+	auto s = Symbol(currentNamespacedIdentifier, type);
+
+	BlockParser::CommentAttacher ca(*this);
+
+	if (t != NamespaceHandler::Unknown)
+		handler.addSymbol(s.id, type, t,ca.getInfo());
+
+	if (s.typeInfo.isDynamic() && t != NamespaceHandler::UsingAlias)
+		location.throwError("Can't resolve symbol type");
+
+	return s;
 }
 
 }

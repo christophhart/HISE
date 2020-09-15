@@ -30,7 +30,6 @@
 *   ===========================================================================
 */
 
-#if USE_BACKEND || SNEX_STANDALONE_PLAYGROUND
 
 namespace snex {
 namespace jit {
@@ -75,11 +74,11 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
 	memory.getBreakpointHandler().setActive(true);
 
+	editor.setPopupLookAndFeel(new hise::PopupLookAndFeel());
 
-	
-	editor.setLineRangeFunction([this]()
+	editor.setLineRangeFunction([](const CodeDocument& doc)
 	{
-		Array<Range<int>> lineRanges;
+		mcl::FoldableLineRange::List lineRanges;
 		Preprocessor p(doc.getAllContent());
 
 		auto s = p.getDeactivatedLines();
@@ -87,15 +86,14 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 		for (int i = 0; i < s.getNumRanges(); i++)
 		{
 			auto r = s.getRange(i);
-			lineRanges.add({ r.getStart() - 2, r.getEnd() });
+			lineRanges.add(new mcl::FoldableLineRange(doc, { r.getStart() - 2, r.getEnd() }));
 		}
 
 		CodeDocument::Iterator it(doc);
-
 		
-		Array<int> rangeStarts;
 		int currentRangeEnd = 0;
 		bool firstInLine = false;
+		mcl::FoldableLineRange::WeakPtr currentElement;
 
 		while (auto c = it.nextChar())
 		{
@@ -108,22 +106,30 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 				if (firstInLine)
 					thisLine -= 1;
 
-				rangeStarts.add(thisLine);
+				Range<int> r(thisLine, thisLine);
+
+				mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, r);
+
+				if (currentElement == nullptr)
+				{
+					currentElement = newElement;
+					lineRanges.add(newElement);
+				}
+				else
+				{
+					newElement->parent = currentElement;
+					currentElement->children.add(newElement);
+					currentElement = newElement.get();
+				}
 
 				break;
 			}
 			case '}':
 			{
-				currentRangeEnd = it.getLine() + 1;
-
-				if (!rangeStarts.isEmpty())
+				if (currentElement != nullptr)
 				{
-					Range<int> newRange(rangeStarts.getLast(), currentRangeEnd);
-
-					if (it.getLine() - 1 != newRange.getStart())
-						lineRanges.add(newRange);
-
-					rangeStarts.removeLast();
+					currentElement->setEnd(it.getPosition());
+					currentElement = currentElement->parent;
 				}
 
 				break;
@@ -133,7 +139,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 			{
 				if (it.peekNextChar() == '*')
 				{
-					rangeStarts.add(it.getLine());
+					auto lineNumber = it.getLine();
 
 					it.nextChar();
 
@@ -143,17 +149,21 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 						{
 							if (it.peekNextChar() == '/')
 							{
-								
-								currentRangeEnd = it.getLine() + 1;
-
-								if (!rangeStarts.isEmpty())
+								auto thisLine = it.getLine();
+								if (thisLine > lineNumber)
 								{
-									Range<int> newRange(rangeStarts.getLast(), currentRangeEnd);
+									mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, { lineNumber, it.getLine() });
 
-									if (it.getLine() - 1 != newRange.getStart())
-										lineRanges.add(newRange);
-
-									rangeStarts.removeLast();
+									if (currentElement == nullptr)
+									{
+										lineRanges.add(newElement);
+									}
+									else
+									{
+										currentElement->children.add(newElement);
+										newElement->parent = currentElement;
+										currentElement = newElement;
+									}
 								}
 
 								it.nextChar();
@@ -170,8 +180,6 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 			}
 			}
 
-			
-
 			firstInLine = (c == '\n') || (firstInLine && CharacterFunctions::isWhitespace(c));
 		}
 
@@ -183,8 +191,38 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	editor.tokenCollection.clearTokenProviders();
 	editor.tokenCollection.addTokenProvider(new debug::KeywordProvider());
 	editor.tokenCollection.addTokenProvider(new debug::SymbolProvider(doc));
+	editor.tokenCollection.addTokenProvider(new debug::TemplateProvider());
 	editor.tokenCollection.addTokenProvider(new debug::MathFunctionProvider());
+	editor.tokenCollection.addTokenProvider(new debug::PreprocessorMacroProvider(doc));
 	editor.tokenCollection.signalRebuild();
+
+	auto& d = doc;
+	editor.setGotoFunction([&d](int lineNumber, const String& token)
+	{
+		mcl::Selection selection;
+
+		GlobalScope s;
+		jit::Compiler c(s);
+
+		Types::SnexObjectDatabase::registerObjects(c, 2);
+
+		c.compileJitObject(d.getAllContent());
+		auto l = c.getNamespaceHandler().getDefinitionLine(lineNumber, token);
+
+		if (l != -1)
+			return l;
+
+		Preprocessor pp(d.getAllContent());
+		pp.process();
+		for (auto l : pp.getAutocompleteData())
+		{
+			if (l.name.upToFirstOccurrenceOf("(", false, false) == token)
+				return l.lineNumber+1;
+		}
+
+
+		return -1;
+	});
 
     setLookAndFeel(&laf);
     
@@ -771,27 +809,6 @@ void SnexPlayground::recompile()
 	
 	if (testMode)
 	{
-#if 0
-		FunkyTest ft(memory, doc.getAllContent(), "MyFunkyNode", 2);
-
-		double* d = (double*)ft.thisPtr;
-
-		ft.reset();
-		
-		Types::span<float, 2> data;
-
-		ft.processFrame(data);
-
-
-		int x = 12.0f;
-
-		if (ft.r.failed())
-			resultLabel.setText(ft.r.getErrorMessage(), dontSendNotification);
-		else
-			resultLabel.setText("Test passed OK", dontSendNotification);
-
-
-#else
 		JitFileTestCase tc(memory, doc.getAllContent());
 		tc.debugHandler = this;
 
@@ -840,7 +857,6 @@ void SnexPlayground::recompile()
 			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
 		else
 			resultLabel.setText("Test passed OK", dontSendNotification);
-#endif
 
 		return;
 	}
@@ -1173,6 +1189,9 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 	void Graph::InternalGraph::paint(Graphics& g)
 	{
+		if (lastBuffer.getNumSamples() == 0)
+			return;
+
 		g.fillAll(Colour(0x33666666));
 
 		g.setFont(GLOBAL_BOLD_FONT());
@@ -1324,8 +1343,6 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 		if (b.getMagnitude(channel, 0, b.getNumSamples()) > 0.0f)
 		{
-			
-			
 			auto delta = (float)b.getNumSamples() / jmax(1.0f, (float)getWidth());
 
 			int samplesPerPixel = jmax(1, (int)delta);
@@ -1357,13 +1374,37 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 	void SnexPlayground::PreprocessorUpdater::timerCallback()
 	{
-		snex::jit::Preprocessor pp(parent.doc.getAllContent());
-
-		lastRange = pp.getDeactivatedLines();
-
-		parent.editor.setDeactivatedLines(lastRange);
-
 		stopTimer();
+
+		if (parent.editor.isPreprocessorParsingEnabled())
+		{
+			snex::jit::Preprocessor pp(parent.doc.getAllContent());
+			lastRange = pp.getDeactivatedLines();
+			parent.editor.setDeactivatedLines(lastRange);
+		}
+
+		if (parent.editor.isLiveParsingEnabled())
+		{
+			parent.editor.clearWarningsAndErrors();
+
+			GlobalScope s;
+			Compiler c(s);
+			c.setDebugHandler(this);
+			Types::SnexObjectDatabase::registerObjects(c, 2);
+
+			c.compileJitObject(parent.doc.getAllContent());
+			parent.editor.tokenCollection.signalRebuild();
+			auto r = c.getCompileResult();
+
+			if (!r.wasOk())
+				parent.editor.setError(r.getErrorMessage());
+		}
+	}
+
+	void SnexPlayground::PreprocessorUpdater::logMessage(int level, const juce::String& s)
+	{
+		if (level == (int)snex::BaseCompiler::Warning)
+			parent.editor.addWarning(s);
 	}
 
 	void OptimizationProperties::resetOptimisations()
@@ -1382,4 +1423,3 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 }
 }
 
-#endif

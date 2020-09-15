@@ -99,7 +99,6 @@ struct ParserHelpers
 			Error e(program, location);
 
 			e.errorMessage = message;
-
 			throw e;
 		}
 
@@ -209,7 +208,14 @@ struct ParserHelpers
 			p(code),
 			endPointer(code + length)
 		{
-			skip(); 
+			try
+			{
+				skip();
+			}
+			catch (CodeLocation::Error& e)
+			{
+
+			}
 		}
 
 		TokenIterator(const juce::String& c) :
@@ -445,6 +451,8 @@ struct ParserHelpers
 				throwTokenMismatch(name);
 		}
 
+		
+
 		void skipWhitespaceAndComments()
 		{
 			for (;;)
@@ -453,15 +461,28 @@ struct ParserHelpers
 
 				if (*p == '/')
 				{
+					lastComment = "";
+
 					const juce_wchar c2 = p[1];
 
-					if (c2 == '/') { p = CharacterFunctions::find(p, (juce_wchar) '\n'); continue; }
+					if (c2 == '/') 
+					{ 
+						auto start = p;
+						p = CharacterFunctions::find(p, (juce_wchar) '\n'); 
+						lastComment = String(start, p);
+
+						continue;
+					}
 
 					if (c2 == '*')
 					{
+						auto start = p;
 						location.location = p;
 						p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
 						if (p.isEmpty()) location.throwError("Unterminated '/*' comment");
+
+						lastComment = String(start, p);
+
 						p += 2; continue;
 					}
 				}
@@ -626,6 +647,8 @@ struct ParserHelpers
 			currentString = String(v);
 			return true;
 		}
+
+		String lastComment;
 
 		bool parseDecimalLiteral()
 		{

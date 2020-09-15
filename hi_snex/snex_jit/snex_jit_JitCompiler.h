@@ -119,6 +119,8 @@ public:
 
 	JitObject compileJitObject(const juce::String& code);
 
+	NamespaceHandler& parseWithoutCompilation(const juce::String& code);
+
 	/** Compile a class that you want to use from C++. */
 	template <class T> T* compileJitClass(const juce::String& code, const String& classId)
 	{

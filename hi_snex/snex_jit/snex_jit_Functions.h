@@ -117,7 +117,7 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual bool hasConstructor();
 
-	virtual void registerExternalAtNamespaceHandler(NamespaceHandler* handler);
+	virtual void registerExternalAtNamespaceHandler(NamespaceHandler* handler, const juce::String& description);
 
 	virtual Types::ID getRegisterType(bool allowSmallObjectOptimisation) const 
 	{ 
@@ -842,6 +842,7 @@ struct InlineData
 	Array<TemplateParameter> templateParameters;
 };
 
+
 struct Inliner : public ReferenceCountedObject
 {
 	using Ptr = ReferenceCountedObjectPtr<Inliner>;
@@ -993,6 +994,8 @@ struct FunctionData
 		function = reinterpret_cast<void*>(typedFunctionPointer);
 	}
 
+	juce::String getCodeToInsert() const;
+
 	juce::String getSignature(const Array<Identifier>& parameterIds = {}, bool useFullParameterIds=true) const;
 
 	operator bool() const noexcept { return function != nullptr; };
@@ -1011,6 +1014,8 @@ struct FunctionData
 	{
 		return function != nullptr || inliner != nullptr;
 	}
+
+	TypeInfo getOrResolveReturnType(ComplexType::Ptr p);
 
 	bool matchIdArgs(const FunctionData& other) const;
 
@@ -1267,6 +1272,7 @@ struct TemplateObject
 	{};
 
 	TemplateInstance id;
+	String description;
 	ClassConstructor makeClassType;
 	FunctionConstructor makeFunction;
 	FunctionArgumentCollector functionArgs;
@@ -1334,6 +1340,8 @@ class BaseScope;
 class NamespaceHandler;
  
 struct InlineData;
+
+
 
 /** A function class is a collection of functions. */
 struct FunctionClass: public DebugableObjectBase,

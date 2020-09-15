@@ -154,6 +154,25 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 }
 
 
+snex::jit::NamespaceHandler& Compiler::parseWithoutCompilation(const juce::String& code)
+{
+	try
+	{
+		Preprocessor p(code);
+		preprocessedCode = p.process();
+	}
+	catch (juce::String& e)
+	{
+		compiler->lastResult = Result::fail(e);
+		return compiler->namespaceHandler;
+	}
+
+	compiler->parseOnly = true;
+	compiler->compileAndGetScope(preprocessedCode);
+
+	return compiler->namespaceHandler;
+}
+
 void Compiler::setDebugHandler(DebugHandler* newHandler)
 {
 	compiler->setDebugHandler(newHandler);

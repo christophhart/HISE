@@ -38,6 +38,22 @@ using namespace juce;
 using namespace asmjit;
 
 
+struct ReturnTypeInlineData : public InlineData
+{
+	ReturnTypeInlineData(FunctionData& f_) :
+		f(f_)
+	{
+		templateParameters = f.templateParameters;
+	};
+
+	bool isHighlevel() const override { return true; }
+
+	Operations::Expression::Ptr object;
+	FunctionData& f;
+};
+
+
+
 snex::jit::Symbol Symbol::getParentSymbol(NamespaceHandler* handler) const
 {
 	auto p = id.getParent();
@@ -61,6 +77,26 @@ snex::jit::Symbol Symbol::getChildSymbol(const Identifier& childName, NamespaceH
 Symbol::operator bool() const
 {
 	return !id.isNull() && id.isValid();
+}
+
+juce::String FunctionData::getCodeToInsert() const
+{
+	juce::String s;
+	s << id.id.toString() << "(";
+
+	int n = 0;
+
+	for (auto p : args)
+	{
+		s << p.typeInfo.toString() << " " << p.id.id;
+
+		if (++n != args.size())
+			s << ", ";
+	}
+
+	s << ")";
+		
+	return s;
 }
 
 juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, bool useFullParameterIds) const
@@ -117,6 +153,25 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, b
 	s << ")";
 
 	return s;
+}
+
+snex::jit::TypeInfo FunctionData::getOrResolveReturnType(ComplexType::Ptr p)
+{
+	if (returnType.isDynamic())
+	{
+		ReturnTypeInlineData rt(*this);
+
+		if (inliner != nullptr)
+		{
+			if (auto st = dynamic_cast<StructType*>(p.get()))
+			{
+				rt.templateParameters = st->getTemplateInstanceParameters();
+				inliner->returnTypeFunction(&rt);
+			}
+		}
+	}
+
+	return returnType;
 }
 
 bool FunctionData::matchIdArgs(const FunctionData& other) const
@@ -353,20 +408,6 @@ struct AsmInlineData: public InlineData
 	AssemblyRegister::List args;
 };
 
-struct ReturnTypeInlineData : public InlineData
-{
-	ReturnTypeInlineData(FunctionData& f_) :
-		f(f_)
-	{
-		templateParameters = f.templateParameters;
-	};
-
-	bool isHighlevel() const override { return true; }
-
-	Operations::Expression::Ptr object;
-	FunctionData& f;
-};
-
 
 Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 {
@@ -434,10 +475,8 @@ bool ComplexType::hasConstructor()
 	return false;
 }
 
-void ComplexType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
+void ComplexType::registerExternalAtNamespaceHandler(NamespaceHandler* handler, const juce::String& description)
 {
-	
-
 	if (hasAlias())
 	{
 		if (handler->getSymbolType(getAlias()) == NamespaceHandler::UsingAlias)
@@ -445,7 +484,10 @@ void ComplexType::registerExternalAtNamespaceHandler(NamespaceHandler* handler)
 
 		jassert(getAlias().isExplicit());
 
-		handler->addSymbol(getAlias(), TypeInfo(this), NamespaceHandler::UsingAlias);
+		NamespaceHandler::SymbolDebugInfo info;
+		info.comment = description;
+
+		handler->addSymbol(getAlias(), TypeInfo(this), NamespaceHandler::UsingAlias, info);
 	}
 }
 

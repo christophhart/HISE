@@ -186,7 +186,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 		};
 
 
-		compiler->namespaceHandler.addSymbol(il->id, il->returnType, NamespaceHandler::Function);
+		compiler->namespaceHandler.addSymbol(il->id, il->returnType, NamespaceHandler::Function, {});
 		addFunction(il);
 	}
 
@@ -318,7 +318,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 			return Result::ok();
 		};
 
-		compiler->namespaceHandler.addSymbol(sliceFunction->id, sliceFunction->returnType, NamespaceHandler::Function);
+		compiler->namespaceHandler.addSymbol(sliceFunction->id, sliceFunction->returnType, NamespaceHandler::Function, {});
 		addFunction(sliceFunction);
 	}
 

@@ -371,9 +371,13 @@ namespace Operations
 			reg = targetToUse;
 		}
 
+		String comment;
+
+
 	private:
 
 		ReferenceCountedArray<Statement> childStatements;
+
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Statement);
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement);
@@ -755,8 +759,6 @@ public:
 		dumpInternal(0, s, v);
 		return s;
 	}
-
-	
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override;
 
