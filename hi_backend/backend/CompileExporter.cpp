@@ -1166,14 +1166,16 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 	String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
     system(permissionCommand.getCharPointer());
 
-	batchFile.getParentDirectory().revealToUser();
+	if (!globalCommandLineExport)
+		batchFile.getParentDirectory().revealToUser();
 
 #else
     
     String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
     system(permissionCommand.getCharPointer());
     
-    String command = "open \"" + batchFile.getFullPathName() + "\"";
+		if (!globalCommandLineExport)
+    	String command = "open \"" + batchFile.getFullPathName() + "\"";
 
 #endif
     
