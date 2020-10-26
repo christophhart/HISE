@@ -35,6 +35,8 @@ struct mcl::Selection
 
 		virtual void selectionChanged() = 0;
 
+		virtual void displayedLineRangeChanged(Range<int> newRange) {};
+
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 

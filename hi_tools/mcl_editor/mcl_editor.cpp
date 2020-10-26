@@ -22,3 +22,4 @@
 #include "code_editor/Gutter.cpp"
 #include "code_editor/Autocomplete.cpp"
 #include "code_editor/TextEditor.cpp"
+#include "code_editor/FullEditor.cpp"

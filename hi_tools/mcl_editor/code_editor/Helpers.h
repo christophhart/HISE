@@ -89,6 +89,25 @@ struct ActionHelpers
 
 struct Helpers
 {
+	enum ColourId
+	{
+		GutterColour,
+		EditorBackgroundColour,
+		TooltipColour,
+		numColours
+	};
+
+	static Colour getEditorColour(ColourId c)
+	{
+		switch (c)
+		{
+		case GutterColour: return JUCE_LIVE_CONSTANT_OFF(Colour(0xff2f2f2f));
+		case EditorBackgroundColour: return JUCE_LIVE_CONSTANT_OFF(Colour(0xff282829));
+		}
+
+		return Colours::transparentBlack;
+	}
+
 	static String replaceTabsWithSpaces(const String& s, int numToInsert)
 	{
 		if (!s.containsChar('\t'))

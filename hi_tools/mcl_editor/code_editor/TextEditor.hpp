@@ -53,7 +53,7 @@ public:
 
 	
 
-    TextEditor(juce::CodeDocument& doc);
+    TextEditor(TextDocument& doc);
     ~TextEditor();
     void setFont (juce::Font font);
     void setText (const juce::String& text);
@@ -65,14 +65,14 @@ public:
 	void timerCallback() override
 	{
 		document.getCodeDocument().getUndoManager().beginNewTransaction();
+
+		document.viewUndoManager.beginNewTransaction();
 	}
 
 	int getNumDisplayedRows() const;
 
 	void setShowNavigation(bool shouldShowNavigation)
 	{
-		map.setVisible(shouldShowNavigation);
-		treeview.setVisible(shouldShowNavigation);
 		resized();
 	}
 
@@ -234,6 +234,20 @@ public:
 		document.navigate(s, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
 		document.navigate(p, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
 
+
+		auto lineStart = o;
+		document.navigate(lineStart, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+
+		auto lineContent = document.getSelectionContent({ lineStart, o });
+
+		auto isCommentLine = lineContent.contains("//") || lineContent.startsWith("/*");
+
+		if (isCommentLine)
+		{
+			closeAutocomplete(true, {}, {});
+			return;
+		}
+
 		autocompleteSelection = { s.x, s.y, p.x, p.y };
 		auto input = document.getSelectionContent(autocompleteSelection);
 
@@ -301,56 +315,104 @@ public:
 
 			auto sl = gotoFunction(s.x, token);
 
-			return jumpToLine(sl);
+			return document.jumpToLine(sl);
 		}
 
 		return false;
 	}
 
-	bool jumpToLine(int lineNumber)
-	{
-		if (lineNumber >= 0)
-		{
-			auto sourceLine = Point<int>(lineNumber, 0);
-
-			document.navigate(sourceLine, mcl::TextDocument::Target::character, mcl::TextDocument::Direction::backwardCol);
-			document.navigate(sourceLine, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
-
-			Selection ss(sourceLine, sourceLine);
-
-			document.setSelections({ ss });
-			translateToEnsureCaretIsVisible();
-			return true;
-		}
-
-		return false;
-	}
+	
 
 	void codeDocumentTextInserted(const String& newText, int insertIndex) override
 	{
 		updateAfterTextChange();
 	}
 	
-	void clearParameters()
+	struct Action : public UndoableAction
 	{
+		using List = Autocomplete::ParameterSelection::List;
+		using Ptr = Autocomplete::ParameterSelection::Ptr;
+
+		Action(TextEditor* te, List nl, Ptr ncp) :
+			editor(te),
+			oldList(te->currentParameterSelection),
+			newList(std::move(nl)),
+			oldCurrent(te->currentParameter),
+			newCurrent(ncp)
+		{}
+
+		bool undo() override
+		{
+			if (editor != nullptr)
+			{
+				editor->setParameterSelectionInternal(oldList, oldCurrent, false);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool perform() override
+		{
+			if (editor != nullptr)
+			{
+				editor->setParameterSelectionInternal(newList, newCurrent, false);
+				return true;
+			}
+
+			return false;
+		}
+
+		WeakReference<TextEditor> editor;
+		List oldList, newList;
+		Ptr oldCurrent, newCurrent;
+	};
+
+	void setParameterSelectionInternal(Action::List l, Action::Ptr p, bool useUndo)
+	{
+		if (useUndo)
+		{
+			auto a = new Action(this, l, p);
+			document.getCodeDocument().getUndoManager().perform(a);
+		}
+		else
+		{
+			currentParameterSelection = l;
+			currentParameter = p;
+
+			if (currentParameter != nullptr)
+				document.setSelections({ currentParameter->getSelection() }, false);
+
+			repaint();
+		}
+	}
+
+	void clearParameters(bool useUndo=true)
+	{
+		setParameterSelectionInternal({}, nullptr, useUndo);
+
+#if OLD
 		currentParameter = nullptr;
 		currentParameterSelection.clear();
 		repaint();
+#endif
 	}
 
-	bool incParameter()
+	bool incParameter(bool useUndo=true)
 	{
 		auto s = currentParameterSelection.size();
 
-		if (currentParameter)
+		if (currentParameter != nullptr)
 		{
 			auto newIndex = currentParameterSelection.indexOf(currentParameter) + 1;
-			auto ok = setParameterSelection(newIndex);
 
-			if (!ok)
+			if (auto next = currentParameterSelection[newIndex])
+				setParameterSelectionInternal(currentParameterSelection, next, useUndo);
+			else
 			{
+				setParameterSelectionInternal(currentParameterSelection, nullptr, useUndo);
 				Point<int> p(postParameterPos.getLineNumber(), postParameterPos.getIndexInLine());
-				document.setSelections({ Selection(p) });
+				document.setSelections({ Selection(p) }, true);
 			}
 
 			return true;
@@ -359,10 +421,13 @@ public:
 		return false;
 	}
 
-	
-
-	bool setParameterSelection(int index)
+	bool setParameterSelection(int index, bool useUndo=true)
 	{
+		setParameterSelectionInternal(currentParameterSelection, currentParameterSelection[index], useUndo);
+
+		return true;
+
+#if OLD
 		auto s = currentParameterSelection.size();
 
 		if (isPositiveAndBelow(index, s))
@@ -380,6 +445,7 @@ public:
 		}
 
 		return false;
+#endif
 	}
 
 	void closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges);
@@ -388,20 +454,21 @@ public:
 	{
 		if (!skipTextUpdate)
 		{
-			auto b = document.getBounds();
-
-			scrollBar.setRangeLimits({ b.getY(), b.getBottom() });
+			document.invalidate({});
 		
 			if (lineRangeFunction)
 			{
 
 				auto ranges = lineRangeFunction(document.getCodeDocument());
+
+				
+
 				document.getFoldableLineRangeHolder().setRanges(ranges);
 			}
 
 			updateSelections();
 
-			Timer::callAfterDelay(500, [this]()
+			Timer::callAfterDelay(300, [this]()
 			{
 				this->updateAutocomplete();
 			});
@@ -472,6 +539,10 @@ public:
 	bool cut();
 	bool copy();
 	bool paste();
+
+	void displayedLineRangeChanged(Range<int> newRange) override;
+
+	void translateToEnsureCaretIsVisible();
 
 private:
 
@@ -622,7 +693,7 @@ private:
     void updateSelections();
 
 	void selectionChanged() override;
-    void translateToEnsureCaretIsVisible();
+    
 
     void renderTextUsingGlyphArrangement (juce::Graphics& g);
     void resetProfilingData();
@@ -640,7 +711,7 @@ private:
     //==========================================================================
     double lastTransactionTime;
     bool tabKeyUsed = true;
-    TextDocument document;
+    TextDocument& document;
 	ScopedPointer<Error> currentError;
 
 	OwnedArray<Error> warnings;
@@ -650,10 +721,7 @@ private:
     CaretComponent caret;
     GutterComponent gutter;
     HighlightComponent highlight;
-	CodeMap map;
-	FoldMap foldMap;
 	LinebreakDisplay linebreakDisplay;
-	DocTreeView treeview;
 	ScrollBar scrollBar;
 	SparseSet<int> deactivatesLines;
 	bool linebreakEnabled = true;
@@ -666,6 +734,8 @@ private:
 	bool enablePreprocessorParsing = true;
 	Selection currentClosure[2];
 
+	bool scrollRecursion = false;
+
 	Autocomplete::ParameterSelection::List currentParameterSelection;
 	Autocomplete::ParameterSelection::Ptr currentParameter;
 	CodeDocument::Position postParameterPos;
@@ -674,6 +744,8 @@ private:
 	ScopedPointer<SearchBoxComponent> currentSearchBox;
 
 	ScopedPointer<LookAndFeel> plaf;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TextEditor);
 };
 
 

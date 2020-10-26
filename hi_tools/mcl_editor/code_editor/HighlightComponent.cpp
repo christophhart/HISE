@@ -129,7 +129,7 @@ Path mcl::HighlightComponent::getOutlinePath(const TextDocument& doc, const Sele
 	}
 
 	p.closeSubPath();
-	return p.createPathWithRoundedCorners(1.0f);
+	return p.createPathWithRoundedCorners(2.0f);
 }
 
 mcl::HighlightComponent::~HighlightComponent()

@@ -50,7 +50,7 @@ public:
 
 		findAll.onClick = [this]()
 		{
-			doc.setSelections(doc.getSearchResults());
+			doc.setSelections(doc.getSearchResults(), true);
 			doc.setSearchResults({});
 			sendSearchChangeMessage();
 		};
@@ -102,7 +102,7 @@ public:
 		
 
 
-		doc.setSelections({ toUse.oriented() });
+		doc.setSelections({ toUse.oriented() }, true);
 		sendSearchChangeMessage();
 	}
 

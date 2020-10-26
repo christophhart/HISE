@@ -29,7 +29,12 @@ public:
 
 	float getGutterWidth() const
 	{
-		auto w = document.getCharacterRectangle().getWidth() * 6;
+		auto numRows = document.getNumRows();
+		auto digits = numRows > 0 ? (int)(log10(numRows)) : 0;
+
+		auto w = document.getCharacterRectangle().getWidth() * (digits+4);
+
+		w += breakpoints.isEmpty() ? 0.0f : (document.getCharacterRectangle().getHeight() * 0.6f);
 
 		return w * scaleFactor;
 	}
@@ -58,11 +63,7 @@ public:
 	//==========================================================================
 	void paint(juce::Graphics& g) override;
 
-	void setScaleFactor(float newFactor)
-	{
-		scaleFactor = newFactor;
-		repaint();
-	}
+	
 
 	
 
@@ -74,6 +75,8 @@ public:
 	}
 
 private:
+
+	Array<int> breakpoints;
 
 	TextDocument::RowData hoveredData;
 

@@ -52,14 +52,19 @@ public:
 		static bool matchesInput(const String& input, const String& code)
 		{
 			if (input.length() == 1)
-				return code.startsWith(input);
+				return code.toLowerCase().startsWith(input.toLowerCase());
 			else
-				return code.contains(input);
+				return code.toLowerCase().contains(input.toLowerCase());
+		}
+
+		virtual bool equals(const Token* other) const
+		{
+			return other->tokenContent == tokenContent;
 		}
 
 		bool operator==(const Token& other) const
 		{
-			return tokenContent == other.tokenContent;
+			return equals(&other) && other.equals(this);
 		}
 
 		virtual Array<Range<int>> getSelectionRangeAfterInsert() const
@@ -375,8 +380,12 @@ struct Autocomplete : public Component,
 
 	struct ParameterSelection: public ReferenceCountedObject
 	{
+		
+
 		using Ptr = ReferenceCountedObjectPtr<ParameterSelection>;
 		using List = ReferenceCountedArray<ParameterSelection>;
+
+		
 
 		ParameterSelection(TextDocument& doc, int start, int end):
 			s(doc.getCodeDocument(), start),

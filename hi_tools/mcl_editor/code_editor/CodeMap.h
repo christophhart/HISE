@@ -68,7 +68,8 @@ public:
 
 
 class FoldMap : public Component,
-				public FoldableLineRange::Listener
+				public FoldableLineRange::Listener,
+				public Selection::Listener
 {
 public:
 
@@ -115,7 +116,7 @@ public:
 
 		static EntryType getEntryType(String& s)
 		{
-			static const StringArray skipWords = { "for", "if", "while", "switch", "/*" };
+			static const StringArray skipWords = { "for", "if", "else", "while", "switch", "/*" };
 
 			for (auto& w : skipWords)
 				if (s.startsWith(w))
@@ -154,7 +155,33 @@ public:
 		}
 	};
 
-	
+	void selectionChanged() override
+	{
+		if (doc.getNumSelections() == 1)
+		{
+			auto lineToBolden = doc.getSelection(0).head.x;
+
+			for (auto i : items)
+			{
+				i->setBoldLine(lineToBolden);
+			}
+		}
+
+		
+	}
+
+	void displayedLineRangeChanged(Range<int> newRange) override
+	{
+		auto middleLine = newRange.getStart() + newRange.getLength() / 2;
+
+		for (auto i : items)
+		{
+			i->setDisplayedRange(newRange);
+			
+		}
+
+		repaint();
+	}
 
 	String getTextForFoldRange(FoldableLineRange::WeakPtr p)
 	{
@@ -217,6 +244,31 @@ public:
 				return {};
 		}
 
+		void setBoldLine(int lineToBolden)
+		{
+			isBoldLine = p->getLineRange().contains(lineToBolden);
+
+			for (auto c : children)
+				c->setBoldLine(lineToBolden);
+
+			repaint();
+		}
+
+		void setDisplayedRange(Range<int> newRange)
+		{
+			auto r = p->getLineRange();
+			onScreen = newRange.contains(r);
+
+			edgeOnScreen = r.intersects(newRange) && !r.contains(newRange);
+
+			for (auto c : children)
+				c->setDisplayedRange(newRange);
+
+			repaint();
+
+		}
+
+
 		void updateHeight()
 		{
 			int h = Height;
@@ -241,9 +293,6 @@ public:
 		{
 			folded = !folded;
 			updateHeight();
-
-			
-
 			findParentComponentOfClass<FoldMap>()->resized();
 		}
 
@@ -269,7 +318,21 @@ public:
 
 			//Font f(Font::getDefaultMonospacedFontName(), 13.0f, clicked ? Font::bold : Font::plain);
 
-			Font f(14.0f, Font::plain);
+			auto f = GLOBAL_FONT().withHeight(12.0f);
+
+
+			if (isBoldLine)
+				f = f.boldened();
+
+			if (edgeOnScreen) 
+			{
+				auto b = a.removeFromRight(4.0f);
+				g.setColour(Colours::white.withAlpha(0.07f));
+				g.fillRect(b);
+
+				if (onScreen)
+					g.fillRect(b);
+			}
 
 			if (isMouseOver(false))
 			{
@@ -294,6 +357,12 @@ public:
 			if (children.isEmpty())
 			{
 				g.fillEllipse(icon.reduced(2.0f));
+
+				if (isBoldLine)
+				{
+					g.setColour(Colours::white.withAlpha(0.5f));
+					g.drawEllipse(icon.reduced(2.0f), 1.0f);
+				}
 			}
 			else
 			{
@@ -310,12 +379,18 @@ public:
 				path.scaleToFit(icon.getX(), icon.getY(), icon.getWidth(), icon.getHeight(), true);
 
 				g.fillPath(path);
+
+				if (isBoldLine)
+				{
+					g.setColour(Colours::white.withAlpha(0.5f));
+					g.strokePath(path, PathStrokeType(1.0f));
+				}
 			}
 
 			
 
 			g.setFont(f);
-			g.setColour(Colours::white);
+			g.setColour(Colours::white.withAlpha(isBoldLine ? 1.0f : 0.8f));
 
 			a.removeFromLeft((float)Helpers::getLevel(p) * 5.0f);
 
@@ -323,6 +398,10 @@ public:
 		}
 
 		bool folded = false;
+		bool isBoldLine = false;
+
+		bool onScreen = false;
+		bool edgeOnScreen = false;
 
 		String text;
 		EntryType type;
@@ -335,15 +414,25 @@ public:
 	
 
 	FoldMap(TextDocument& d) :
-		doc(d)
+		doc(d),
+		resizer(this, nullptr, ResizableEdgeComponent::leftEdge)
 	{
 		doc.addFoldListener(this);
+		doc.addSelectionListener(this);
 
 		vp.setViewedComponent(&content, false);
 		addAndMakeVisible(vp);
 		vp.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.2f));
 		vp.setScrollBarThickness(10);
+
+		addAndMakeVisible(resizer);
 	};
+
+	~FoldMap()
+	{
+		doc.removeFoldListener(this);
+		doc.removeSelectionListener(this);
+	}
 
 	void foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged) override
 	{
@@ -386,19 +475,24 @@ public:
 
 	void updateSize()
 	{
-		auto y = Item::Height;
+		auto y = 0;
 
 		for (auto i : items)
 		{
-			i->setBounds(0, y, getWidth(), i->getHeight());
+			i->setBounds(0, y, content.getWidth(), i->getHeight());
 			y += i->getHeight();
 		}
 	}
 
 	void resized() override
 	{
+		updateSize();
 		vp.setBounds(getLocalBounds());
+
+		resizer.setBounds(getLocalBounds().removeFromLeft(5));
 	}
+
+	ResizableEdgeComponent resizer;
 
 	Viewport vp;
 	Component content;
@@ -422,7 +516,8 @@ public:
 	CodeMap(TextDocument& doc_, CodeTokeniser* tok) :
 		doc(doc_),
 		tokeniser(tok),
-		rebuilder(*this)
+		rebuilder(*this),
+		transformToUse(defaultTransform)
 	{
 		doc.addSelectionListener(this);
 		doc.getCodeDocument().addListener(this);
@@ -454,6 +549,11 @@ public:
 	void selectionChanged() override
 	{
 		rebuilder.startTimer(300);
+	}
+
+	void displayedLineRangeChanged(Range<int> newRange) override
+	{
+		setVisibleRange(newRange);
 	}
 
 	void codeDocumentTextDeleted(int startIndex, int endIndex) override
@@ -566,6 +666,8 @@ public:
 	Range<int> surrounding;
 	int offsetY = 0;
 
+	AffineTransform defaultTransform;
+	AffineTransform& transformToUse;
 };
 
 

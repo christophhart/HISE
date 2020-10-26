@@ -14,10 +14,10 @@
 
 /* TODO:
 
-	- fix selection after undo
-	- fix autocomplete appearing on arrow-up/down
-	- 
-
+	- fix scrollbar being too wide OK
+	- fix return key at the end jumping to start OK
+	- highlight rectangle gets off with high zoom factor
+	- make "Back / Forward" View Undo for navigation options OK
 */
 
 
@@ -76,5 +76,6 @@
 #include "code_editor/Gutter.h"
 #include "code_editor/Autocomplete.h"
 #include "code_editor/TextEditor.hpp"
+#include "code_editor/FullEditor.hpp"
 
 

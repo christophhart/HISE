@@ -135,20 +135,18 @@ public:
 			{
 				auto pos = getPositionInLine(i, ReturnLastCharacter);
 				auto lineNumber = pos.x;
-
 				auto b = characterBounds.translated(pos.y * characterBounds.getWidth(), pos.x * characterBounds.getHeight());
 
+				if (isPositiveAndBelow(lineNumber, lineRanges.size()))
+				{
+					auto& l = lineRanges.getReference(lineNumber);
 
-
-				auto& l = lineRanges.getReference(lineNumber);
-
-				l.used = true;
-				l.y = b.getY();
-				l.expandLeft(b.getX());
-				l.expandRight(b.getRight());
+					l.used = true;
+					l.y = b.getY();
+					l.expandLeft(b.getX());
+					l.expandRight(b.getRight());
+				}
 			}
-
-
 
 			for (auto& lr : lineRanges)
 			{
@@ -208,7 +206,7 @@ public:
 				auto l = (int)charactersPerLine.size() - 1;
 				auto c = charactersPerLine[l];
 
-				auto isTab = !string.isEmpty() && string[jmax(0, string.length()-1, col - 1)] == '\t';
+				auto isTab = !string.isEmpty() && string[jlimit(0, string.length()-1, col - 1)] == '\t';
 
 				if (isTab)
 					return { l, roundToTab(c) };

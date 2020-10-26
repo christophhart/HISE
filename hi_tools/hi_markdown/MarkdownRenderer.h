@@ -424,8 +424,11 @@ public:
 	void setText(const String& text)
 	{
 		r.setNewText(text);
-		r.setTargetComponent(this);
+		r.setTargetComponent(&canvas);
+		
+
 		resized();
+		r.updateCreatedComponents();
 	}
 
 	void resized() override

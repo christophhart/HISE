@@ -758,6 +758,12 @@ public:
 	/** Searches all active note on events and returns the one with the given event id. */
 	HiseEvent popNoteOnFromEventId(uint16 eventId);
 
+	/** Checks whether the event ID points to an active artificial event. */
+	bool isArtificialEventId(uint16 eventId) const
+	{
+		return !artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE].isEmpty();
+	}
+
 	// ===========================================================================================================
 
 private:

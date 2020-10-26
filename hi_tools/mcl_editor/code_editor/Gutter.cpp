@@ -27,6 +27,7 @@ mcl::GutterComponent::GutterComponent(TextDocument& document)
 void mcl::GutterComponent::setViewTransform(const AffineTransform& transformToUse)
 {
 	transform = transformToUse;
+	scaleFactor = transform.getScaleFactor();
 	repaint();
 }
 
@@ -45,8 +46,9 @@ void mcl::GutterComponent::paint(Graphics& g)
 	 Draw the gutter background, shadow, and outline
 	 ------------------------------------------------------------------
 	 */
-	auto bg = getParentComponent()->findColour(CodeEditorComponent::backgroundColourId);
-	auto ln = bg.overlaidWith(getParentComponent()->findColour(CodeEditorComponent::lineNumberBackgroundId));
+	
+	auto ln = Helpers::getEditorColour(Helpers::GutterColour);
+
 
 	auto GUTTER_WIDTH = getGutterWidth();
 
@@ -90,15 +92,29 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 	UnblurryGraphics ug(g, *this);
 
+	int bpIndex = 0;
+	for (auto bp : breakpoints)
+	{
+		auto b = getRowBounds(rowData[bp]);
+
+		b = b.removeFromLeft(b.getHeight()).reduced(3.5f);
+
+		auto t = h.getLineType(bp);
+
+		if (t == FoldableLineRange::Holder::LineType::Folded)
+			continue;
+
+		g.setColour(Colour(0xFF683333));
+		g.fillEllipse(b);
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.drawEllipse(b, 1.0f);
+	}
+
 	for (const auto& r : rowData)
 	{
 		bool isErrorLine = r.rowNumber == errorLine;
 
 		auto b = getRowBounds(r);
-
-		
-			
-
 		bool showFoldRange = false;
 
 		auto t = h.getLineType(r.rowNumber);
@@ -200,6 +216,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 	}
 
 	
+	auto gw = getGutterWidth();
 
 	for (const auto& r : rowData)
 	{
@@ -209,22 +226,14 @@ void mcl::GutterComponent::paint(Graphics& g)
 		auto A = r.bounds.getRectangle(0)
 			.transformedBy(transform)
 			.withX(0)
-			.withWidth(GUTTER_WIDTH);
+			.withWidth(gw);
+
+
 
 		A.removeFromRight(15 * transform.getScaleFactor());
 
-		auto f = document.getFont();
-
-		auto gap = (document.getRowHeight() - f.getHeight() * 0.8f) / 2.0f * transform.getScaleFactor();
-
-		f.setHeight(f.getHeight() * transform.getScaleFactor() * 0.8f);
-
-		
-
-		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId));
-		g.drawText(String(r.rowNumber + 1), A.reduced(5.0f, gap), Justification::topRight, false);
-
-		//memoizedGlyphArrangements (r.rowNumber).draw(g, verticalTransform);
+		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withMultipliedAlpha(0.7f));
+		g.drawText(String(r.rowNumber + 1), A.reduced(5.0f, 0.0f), Justification::right, false);
 	}
 
 	
@@ -266,6 +275,25 @@ juce::Rectangle<float> mcl::GutterComponent::getRowBounds(const TextDocument::Ro
 
 void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 {
+	auto delta = getGutterWidth() - (float)e.getMouseDownX();
+
+	delta /= scaleFactor;
+
+
+	DBG(delta);
+	if (delta > 18.0f)
+	{
+		if (breakpoints.contains(hoveredData.rowNumber))
+			breakpoints.removeAllInstancesOf(hoveredData.rowNumber);
+		else
+			breakpoints.add(hoveredData.rowNumber);
+
+		findParentComponentOfClass<mcl::TextEditor>()->translateView(0.0f, 0.0f);
+
+		repaint();
+		return;
+	}
+
 	document.getFoldableLineRangeHolder().toggleFoldState(hoveredData.rowNumber);
 }
 

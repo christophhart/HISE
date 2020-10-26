@@ -17,6 +17,54 @@ namespace mcl
 using namespace juce;
 
 
+class BreakpointManager
+{
+	struct Listener
+	{
+		virtual void breakpointsChanged() = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	void addBreakpoint(int lineNumber, NotificationType notifyListeners)
+	{
+		if (!breakpoints.contains(lineNumber))
+		{
+			breakpoints.add(lineNumber);
+			breakpoints.sort();
+
+			if (notifyListeners != dontSendNotification)
+				sendListenerMessage();
+		}
+	}
+
+private:
+
+	void sendListenerMessage()
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->breakpointsChanged();
+		}
+	}
+
+	Array<int> breakpoints;
+	Array<WeakReference<Listener>> listeners;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(BreakpointManager);
+};
+
 
 class FoldableLineRange : public ReferenceCountedObject
 {
@@ -65,8 +113,14 @@ public:
 	}
 
 	/** This will check whether the list is correctly nested with a weak ref to the parent. */
-	static Result checkList(List listToCheck, WeakPtr parent=nullptr)
+	static Result checkList(List& listToCheck, WeakPtr parent=nullptr)
 	{
+		for (int i = 0; i < listToCheck.size(); i++)
+		{
+			if (listToCheck[i]->getLineRange().getLength() <= 1)
+				listToCheck.remove(i--);
+		}
+
 		for (auto l : listToCheck)
 		{
 			if (l->parent != parent)
@@ -77,6 +131,8 @@ public:
 			if (!r.wasOk())
 				return r;
 		}
+
+		return Result::ok();
 	}
 
 	class Listener
@@ -235,7 +291,11 @@ public:
 
 		void setRanges(FoldableLineRange::List newRanges)
 		{
+			
+
 			Array<int> foldedLines;
+
+			checkList(newRanges, nullptr);
 
 			List l;
 			
@@ -394,10 +454,11 @@ public:
 	struct SelectionAction : public UndoableAction
 	{
 		SelectionAction(TextDocument& t, const Array<Selection>& now_) :
-			before(t.selections),
 			now(now_),
 			doc(t)
-		{};
+		{
+			before.addArray(t.selections);
+		};
 
 		bool perform() override
 		{
@@ -466,11 +527,11 @@ public:
 	void replaceAll(const juce::String& content);
 
 	/** Replace the list of selections with a new one. */
-	void setSelections(const juce::Array<Selection>& newSelections, bool useUndo=true)
+	void setSelections(const juce::Array<Selection>& newSelections, bool useUndo)
 	{
 		if (useUndo)
 		{
-			getCodeDocument().getUndoManager().perform(new SelectionAction(*this, newSelections));
+			viewUndoManager.perform(new SelectionAction(*this, newSelections));
 		}
 		else
 		{
@@ -484,18 +545,18 @@ public:
 	{ 
 		auto newSelections = selections;
 		newSelections.add(selection);
-		setSelections(newSelections);
+		setSelections(newSelections, true);
 	}
 
 	/** Replace the selection at the given index. The index must be in range. */
-	void setSelection(int index, Selection newSelection, bool useUndo=true) 
+	void setSelection(int index, Selection newSelection, bool useUndo) 
 	{
 		if (useUndo)
 		{
 			auto copy = selections;
 			copy.setUnchecked(index, newSelection);
 
-			getCodeDocument().getUndoManager().perform(new SelectionAction(*this, copy));
+			viewUndoManager.perform(new SelectionAction(*this, copy));
 		}
 		else
 			selections.setUnchecked(index, newSelection); sendSelectionChangeMessage(); 
@@ -515,7 +576,8 @@ public:
 
 	void foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged)
 	{
-		rebuildRowPositions();
+		if(rangeThatHasChanged != nullptr)
+			rebuildRowPositions();
 	}
 
 	void rootWasRebuilt(FoldableLineRange::WeakPtr newRoot)
@@ -724,10 +786,6 @@ public:
 		{
 			setSelections(Selection(pos.getLineNumber(), pos.getIndexInLine(), pos.getLineNumber(), pos.getIndexInLine()), false);
 		}
-
-		
-
-		rebuildRowPositions();
 	}
 
 	/** returns the amount of lines occupied by the row. This can be > 1 when the line-break is active. */
@@ -746,6 +804,44 @@ public:
 	void removeSelectionListener(Selection::Listener* l)
 	{
 		selectionListeners.removeAllInstancesOf(l);
+	}
+
+	void setDisplayedLineRange(Range<int> newRange)
+	{
+		if (newRange != currentlyDisplayedLineRange)
+		{
+			currentlyDisplayedLineRange = newRange;
+
+			for (auto sl : selectionListeners)
+			{
+				sl->displayedLineRangeChanged(currentlyDisplayedLineRange);
+			}
+		}
+	}
+
+	bool jumpToLine(int lineNumber, bool justScroll=false)
+	{
+		if (lineNumber >= 0)
+		{
+			if (justScroll)
+			{
+				auto newRange = currentlyDisplayedLineRange.movedToStartAt(lineNumber - currentlyDisplayedLineRange.getLength()/2);
+				setDisplayedLineRange(newRange);
+				return true;
+			}
+
+			auto sourceLine = Point<int>(lineNumber, 0);
+
+			navigate(sourceLine, Target::character, Direction::backwardCol);
+			navigate(sourceLine, Target::firstnonwhitespace, Direction::backwardCol);
+
+			Selection ss(sourceLine, sourceLine);
+
+			setSelections({ ss }, true);
+			return true;
+		}
+
+		return false;
 	}
 
 	void setDuplicateOriginal(const Selection& s)
@@ -785,9 +881,13 @@ public:
 
 private:
 
+	UndoManager viewUndoManager;
+
 	Array<Selection> searchResults;
 
 	FoldableLineRange::Holder foldManager;
+
+	Range<int> currentlyDisplayedLineRange;
 
 	Array<float> rowPositions;
 

@@ -315,10 +315,12 @@ void mcl::CodeMap::setVisibleRange(Range<int> visibleLines)
 	if (displayedLines.getEnd() > doc.getNumRows())
 		displayedLines = displayedLines.movedToEndAt(doc.getNumRows());
 
+	repaint();
 }
 
 void mcl::CodeMap::rebuild()
 {
+	
 	colouredRectangles.clear();
 
 	if (!isActive())
@@ -415,11 +417,9 @@ void mcl::CodeMap::mouseDrag(const MouseEvent& e)
 	if (dragging)
 	{
 		auto pos = e.getPosition().y;
-		auto editor = findParentComponentOfClass<TextEditor>();
-
 		auto line = jlimit(0.0f, (float)doc.getNumRows(), (float)pos / (float)getHeight() * (float)doc.getNumRows());
 
-		editor->scrollToLine(line, false);
+		doc.jumpToLine(line, true);
 	}
 
 	hoveredLine = getLineNumberFromEvent(e);
@@ -433,7 +433,7 @@ void mcl::CodeMap::mouseUp(const MouseEvent& e)
 	if (isTimerRunning())
 	{
 		stopTimer();
-		findParentComponentOfClass<TextEditor>()->scrollToLine(targetAnimatedLine, true);
+		doc.jumpToLine(targetAnimatedLine, true);
 	}
 }
 
@@ -446,8 +446,7 @@ void mcl::CodeMap::timerCallback()
 		stopTimer();
 	}
 
-	auto editor = findParentComponentOfClass<TextEditor>();
-	editor->scrollToLine(currentAnimatedLine, false);
+	doc.jumpToLine(currentAnimatedLine, true);
 }
 
 void mcl::CodeMap::HoverPreview::paint(Graphics& g)
@@ -517,7 +516,13 @@ void FoldMap::Item::mouseDoubleClick(const MouseEvent& e)
 {
 	clicked = true;
 	auto line = p->getLineRange().getStart()+1;
-	findParentComponentOfClass<TextEditor>()->jumpToLine(line);
+
+	auto& doc = findParentComponentOfClass<FoldMap>()->doc;
+	
+	doc.setDisplayedLineRange(p->getLineRange());
+	doc.jumpToLine(line);
+
+
 	repaint();
 }
 

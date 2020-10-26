@@ -26,10 +26,10 @@ juce::AttributedString Autocomplete::Item::createDisplayText() const
 
 	auto text = token->tokenContent;
 
-	auto beforeIndex = text.indexOf(input);
+	auto beforeIndex = text.toLowerCase().indexOf(input.toLowerCase());
 
 	auto before = text.substring(0, beforeIndex);
-	auto between = input;
+	auto between = text.substring(beforeIndex, beforeIndex + input.length());
 	auto after = text.substring(beforeIndex + input.length());
 
 	auto nf = Font(Font::getDefaultMonospacedFontName(), 16.0f, Font::plain);
