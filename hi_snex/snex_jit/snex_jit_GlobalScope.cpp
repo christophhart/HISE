@@ -38,7 +38,8 @@ using namespace asmjit;
 
 GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 	FunctionClass({}),
-	BaseScope({}, nullptr)
+	BaseScope({}, nullptr),
+	runtimeError(Result::ok())
 {
 	bufferHandler = new BufferHandler();
 
@@ -157,13 +158,20 @@ bool GlobalScope::checkRuntimeErrorAfterExecution()
 	{
 		auto m = currentRuntimeError.toString();
 
-		for (auto& dh : debugHandlers)
-			dh->logMessage(BaseCompiler::Error, m);
+		runtimeError = Result::fail(m);
 
+		for (auto& dh : debugHandlers)
+		{
+			if(dh.get() != nullptr)
+				dh->logMessage(BaseCompiler::Error, m);
+		}
+			
 		currentRuntimeError = {};
 
 		return true;
 	}
+
+	runtimeError = Result::ok();
 
 	return false;
 }

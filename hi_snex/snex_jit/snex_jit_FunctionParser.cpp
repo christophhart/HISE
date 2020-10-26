@@ -345,7 +345,10 @@ void CodeParser::finaliseSyntaxTree(SyntaxTree* tree)
 
 BlockParser::ExprPtr BlockParser::createBinaryNode(ExprPtr l, ExprPtr r, TokenType op)
 {
-	return new Operations::BinaryOp(location, l, r, op);
+	if (isVectorOp(op, l, r))
+		return new Operations::VectorOp(location, l, op, r);
+	else
+		return new Operations::BinaryOp(location, l, r, op);
 }
 
 
@@ -358,7 +361,10 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseAssignment()
 		auto t = currentAssignmentType;
 		ExprPtr right = parseExpression();
 
-		return new Operations::Assignment(location, left, t, right, false);
+		if(isVectorOp(t, left))
+			return new Operations::VectorOp(location, left, t, right);
+		else
+			return new Operations::Assignment(location, left, t, right, false);
 	}
 
 	return left;

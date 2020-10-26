@@ -36,12 +36,27 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+/** This object contains information about possible runtime issues that
+    are catches when the SafeChecks are enabled. 
+	
+	In order to use it in the compiler, fetch the address of the global
+	runtime error object and overwrite the bytes as shown below with 
+	meaningful codes:
+	
+	Byte 0: error code (should be an ErrorType enum value)
+	Byte 4: line number
+	Byte 8: col number
+	Byte 12: special data 1 (if used)
+	Byte 16: special data 2 (if used) 
+*/
 struct RuntimeError
 {
 	enum class ErrorType
 	{
 		OK,
 		DynAccessOutOfBounds,
+		DynReferIllegalSize,
+		DynReferIllegalOffset,
 		IntegerDivideByZero,
 		WhileLoop,
 		NullptrAccess
@@ -53,7 +68,6 @@ struct RuntimeError
 	{
 		String s;
 
-		
 		s << "Line " << String(lineNumber) << "(" << String(colNumber) << "): ";
 		
 		switch ((ErrorType)errorType)
@@ -61,6 +75,8 @@ struct RuntimeError
 		case ErrorType::IntegerDivideByZero: s << "Runtime error (division by zero)"; break;
 		case ErrorType::WhileLoop: s << "Runtime error (endless while loop)"; break;
 		case ErrorType::DynAccessOutOfBounds: s << "dyn operator[] out of bounds - " << String(data1) << ", limit: " << String(data2); break;
+		case ErrorType::DynReferIllegalOffset: s << "referTo: illegal offset for dynamic source: " << String(data2) << "(total size: " + String(data1) << ")"; break;
+		case ErrorType::DynReferIllegalSize: s << "referTo: illegal size for dynamic source (" << String(data1) << ")"; break;
 		}
 
 		return s;
@@ -531,7 +547,7 @@ private:
 
 		auto newItem = new Item();
 		newItem->id = id;
-		newItem->b = b;
+		newItem->b.referTo(b);
 		newItem->isConst = true;
 
 		registeredItems.add(newItem);
@@ -737,6 +753,16 @@ public:
 
 	BreakpointHandler& getBreakpointHandler() { return breakPointHandler; }
 
+	
+	/** This returns the address to the runtime error flag. 
+		
+		If the NoSafeChecks optimisation is disabled, you can implement
+		some safe checks that can write an error into this flag. 
+		The return value is the 64bit absolute address that points to the
+		RunTimeError object in use...
+
+
+	*/
 	uint64_t getRuntimeErrorFlag() { return reinterpret_cast<uint64_t>(&currentRuntimeError.errorType); }
 
 
@@ -744,9 +770,12 @@ public:
 
 	bool checkRuntimeErrorAfterExecution();
 
+	Result getRuntimeError() const { return runtimeError; }
+
 private:
 
 	RuntimeError currentRuntimeError;
+	Result runtimeError;
 
 	BreakpointHandler breakPointHandler;
 	WeakReference<BaseScope> currentClassScope;

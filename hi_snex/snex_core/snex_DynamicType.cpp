@@ -59,6 +59,12 @@ VariableStorage::VariableStorage(void* objectPointer, int objectSize)
 	data.p.size = objectSize;
 }
 
+snex::VariableStorage& VariableStorage::operator=(const VariableStorage& other)
+{
+	data.e = HiseEvent(other.data.e);
+	return *this;
+}
+
 bool VariableStorage::operator==(const VariableStorage& other) const
 {
 	if (other.getType() != getType())
@@ -261,7 +267,8 @@ int VariableStorage::getPointerSize() const
 
 snex::VariableStorage& VariableStorage::operator=(const block& s)
 {
-	data.b = s;
+	data.b.data = s.data;
+	data.b.size_ = s.size();
 	return *this;
 }
 

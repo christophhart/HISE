@@ -450,7 +450,8 @@ namespace Operations
 	struct Function;		struct BinaryOp;				struct VariableReference;
 	struct TernaryOp;		struct LogicalNot;				struct Cast;
 	struct Negation;		struct Compare;					struct UnaryOp;
-	struct Increment;		struct DotOperator;				struct Loop;		
+	struct Increment;		struct DotOperator;				struct Loop;	
+	struct VectorOp;
 	struct IfStatement;		struct ClassStatement;			struct Subscript;				
 	struct InlinedParameter;struct ComplexTypeDefinition;	struct ControlFlowStatement;
 	struct InlinedArgument; struct MemoryReference;			struct TemplateDefinition; 

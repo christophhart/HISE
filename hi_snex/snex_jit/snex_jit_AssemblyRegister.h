@@ -235,6 +235,11 @@ public:
 
 	void setImmediateValue(int64 value);
 
+	bool isImmediate() const
+	{
+		return isUnloadedImmediate() || (globalMemory && state == LoadedMemoryLocation);
+	}
+
 	bool isUnloadedImmediate() const { return getType() == Types::ID::Integer && state == UnloadedMemoryLocation; }
 
 	void setIsIteratorRegister(bool isIterator)

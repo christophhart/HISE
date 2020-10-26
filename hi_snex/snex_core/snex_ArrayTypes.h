@@ -480,7 +480,7 @@ template <class T, int Size> struct span
 	}
 
 	/** Returns the number of elements in this span. */
-	constexpr int size()
+	constexpr int size() const
 	{
 		return Size;
 	}
@@ -626,6 +626,67 @@ template <class T> struct dyn
 		return rt;
 	}
 
+	dyn<float>& asBlock()
+	{
+		static_assert(std::is_same<T, float>(), "not a float dyn");
+		return *reinterpret_cast<dyn<float>*>(this);
+	}
+
+	dyn<float>& operator=(float s)
+	{
+		FloatVectorOperations::fill((float*)begin(), s, size());
+		return asBlock();
+	}
+
+	dyn<T>& operator=(const dyn<T>& other)
+	{
+		memcpy(begin(), other.begin(), size() * sizeof(T));
+		return *this;
+	}
+
+	dyn<float>& operator *=(float s)
+	{
+		FloatVectorOperations::multiply((float*)begin(), s, size());
+		return asBlock();
+	}
+
+	dyn<float>& operator *=(const dyn<float>& other)
+	{
+		FloatVectorOperations::multiply((float*)begin(), other.begin(), size());
+		return asBlock();
+	}
+
+	dyn<float>& operator +=(float s)
+	{
+		FloatVectorOperations::add((float*)begin(), s, size());
+		return asBlock();
+	}
+
+	dyn<float>& operator +=(const dyn<float>& other)
+	{
+		FloatVectorOperations::add((float*)begin(), other.begin(), size());
+		return asBlock();
+	}
+
+	dyn<float>& operator -=(float s)
+	{
+		FloatVectorOperations::add((float*)begin(), -1.0f * s, size());
+		return asBlock();
+	}
+
+	dyn<float>& operator -=(const dyn<float>& other)
+	{
+		FloatVectorOperations::subtract((float*)begin(), other.begin(), size());
+		return asBlock();
+	}
+
+	dyn<float>& operator +(float s)					{ return *this += s; }
+	dyn<float>& operator +(const dyn<float>& other) { return *this += other; }
+	dyn<float>& operator *(float s)					{ return *this *= s; }
+	dyn<float>& operator *(const dyn<float>& other) { return *this *= other; }
+	dyn<float>& operator -(float s)					{ return *this -= s; }
+	dyn<float>& operator -(const dyn<float>& other) { return *this -= other; }
+
 	template <int NumChannels> span<dyn<T>, NumChannels> split()
 	{
 		span<dyn<T>, NumChannels> r;
@@ -648,6 +709,7 @@ template <class T> struct dyn
 		return DSP::interpolate<WrapType>(*this, index);
 	}
 
+	
 	template <class IndexType> const T& operator[](IndexType t) const
 	{
 		int i = (int)t;
@@ -680,6 +742,13 @@ template <class T> struct dyn
 
 	/** Returns the size of the array. Be aware that this is not a compile time constant. */
 	int size() const noexcept { return size_; }
+
+	/** Refers to a given container. */
+	template <typename OtherContainer> void referTo(OtherContainer& t, int newSize=-1, int offset=0)
+	{
+		data = t.begin() + offset;
+		size_ = newSize >= 0 ? newSize : t.size();
+	}
 
 	template <typename OtherContainer> void copyTo(OtherContainer& t)
 	{

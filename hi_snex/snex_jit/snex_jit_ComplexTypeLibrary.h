@@ -417,6 +417,18 @@ struct StructType : public ComplexType,
 		memberFunctions.add(data);
 	}
 
+	void setExternalMemberParameterNames(const StringArray& names)
+	{
+		jassert(memberFunctions.size() != 0);
+
+		auto& f = memberFunctions.getReference(memberFunctions.size() - 1);
+
+		jassert(names.size() == f.args.size());
+
+		for (int i = 0; i < f.args.size(); i++)
+			f.args.getReference(i).id = NamespacedIdentifier(names[i]);
+	}
+
 	template <typename ReturnType, typename... Parameters>void addExternalMemberFunction(const Identifier& id, ReturnType(*ptr)(Parameters...))
 	{
 		FunctionData f = FunctionData::create(id, ptr, true);
@@ -485,9 +497,12 @@ struct StructSubscriptIndexType : public IndexBase
 
 #define CREATE_SNEX_STRUCT(x) new StructType(NamespacedIdentifier(#x));
 #define ADD_SNEX_STRUCT_MEMBER(structType, object, member) structType->addExternalMember(#member, object, object.member);
+#define ADD_SNEX_PRIVATE_MEMBER(structType, object, member) structType->addExternalMember(#member, object, object.member, NamespaceHandler::Visibility::Private);
 #define ADD_SNEX_STRUCT_COMPLEX(structType, typePtr, object, member) structType->addExternalComplexMember(#member, typePtr, object, object.member);
 
 #define ADD_SNEX_STRUCT_METHOD(structType, obj, name) structType->addExternalMemberFunction(#name, obj::Wrapper::name);
+
+#define SET_SNEX_PARAMETER_IDS(obj, ...) obj->setExternalMemberParameterNames({ __VA_ARGS__ });
 
 #define ADD_INLINER(x, f) fc->addInliner(#x, [obj](InlineData* d_)f);
 

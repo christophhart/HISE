@@ -251,13 +251,15 @@ public:
 
 	OPTIMIZATION_FACTORY(OptimizationIds::LoopOptimisation, LoopOptimiser);
 
-	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, StatementPtr statement) override;
+	bool processStatementInternal(BaseCompiler* compiler, BaseScope* s, Ptr statement) override;
+
+	static bool replaceWithVectorLoop(BaseCompiler* compiler, BaseScope* s, Ptr binaryOpToReplace);
 
 private:
 
 	struct Helpers
 	{
-		static int getCompileTimeAmount(StatementPtr target)
+		static int getCompileTimeAmount(Ptr target)
 		{
 			auto t = target->getTypeInfo();
 
@@ -284,15 +286,15 @@ private:
 
 	bool sameTarget(Operations::Loop* l1, Operations::Loop* l2);
 
-	bool isBlockWithSingleStatement(StatementPtr s);
+	bool isBlockWithSingleStatement(Ptr s);
 
 	bool combineInternal(Operations::Loop* l, Operations::Loop* nl);
 
-	Operations::Loop* getLoopStatement(StatementPtr s);
+	Operations::Loop* getLoopStatement(Ptr s);
 
-	StatementPtr getRealParent(StatementPtr s);
+	StatementPtr getRealParent(Ptr s);
 
-	static Symbol getRealSymbol(StatementPtr s);
+	static Symbol getRealSymbol(Ptr s);
 	
 };
 

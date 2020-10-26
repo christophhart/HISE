@@ -732,7 +732,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	auto e = getSubExpr(0);
 
-
+	
 
 	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
 	{

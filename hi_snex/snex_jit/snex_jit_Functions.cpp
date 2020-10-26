@@ -82,6 +82,7 @@ Symbol::operator bool() const
 juce::String FunctionData::getCodeToInsert() const
 {
 	juce::String s;
+
 	s << id.id.toString() << "(";
 
 	int n = 0;

@@ -457,6 +457,8 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 			FP_OP(cc.mulps, l, r);
 		if (op == JitTokens::minus)
 			FP_OP(cc.subps, l, r);
+		if (op == JitTokens::assign_)
+			FP_OP(cc.movaps, l, r);
 	}
 	else
 	{
@@ -528,6 +530,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 		BINARY_OP(JitTokens::minus, cc.sub, cc.subss, cc.subsd);
 		BINARY_OP(JitTokens::times, cc.imul, cc.mulss, cc.mulsd);
 		FLOAT_BINARY_OP(JitTokens::divide, cc.divss, cc.divsd);
+		BINARY_OP(JitTokens::assign_, cc.mov, cc.movss, cc.movsd);
 	}
 	
 	if (l->getTypeInfo().isRef() || l->hasCustomMemoryLocation())
@@ -941,7 +944,7 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 			{
 				uint64_t* s = reinterpret_cast<uint64_t*>(start);
 				auto dst = target->getAsMemoryLocation().clone();
-
+				
 				auto r = cc.newXmm();
 
 				for (int i = 0; i < numBytesToInitialise; i += 16)

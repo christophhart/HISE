@@ -293,8 +293,18 @@ struct AsmCodeGenerator
     
 	bool canVectorize() const { return optimizations.contains(OptimizationIds::AutoVectorisation); };
 
+	static bool isRuntimeErrorCheckEnabled(BaseScope* scope)
+	{
+		return scope->getGlobalScope()->isRuntimeErrorCheckEnabled();
+	}
+
 	ParserHelpers::CodeLocation location;
 	
+	void setType(Types::ID newType)
+	{
+		type = newType;
+	}
+
 
 private:
 

@@ -2002,9 +2002,19 @@ struct Operations::BinaryOp : public Expression
 				op == JitTokens::logicalOr)
 			{
 				checkAndSetType(0, TypeInfo(Types::ID::Integer));
+				return;
 			}
-			else
-				checkAndSetType(0, {});
+			
+			if (auto atb = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>())
+			{
+				if (atb->getElementType().getType() == Types::ID::Float)
+				{
+					LoopOptimiser::replaceWithVectorLoop(compiler, scope, this);
+					jassertfalse;
+				}
+			}
+			
+			checkAndSetType(0, {});
 		}
 
 		COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -2075,6 +2085,377 @@ struct Operations::BinaryOp : public Expression
 #endif
 
 	TokenType op;
+};
+
+/** TODO:    
+	- support span
+	- add more functions (Math.max, clip, etc)
+	- support size runtime check)
+*/
+struct Operations::VectorOp : public Expression
+{
+	VectorOp(Location l, Ptr target, TokenType opType_, Ptr opPtr):
+		Expression(l),
+		opType(opType_)
+	{
+		if (!BlockParser::isVectorOp(opType, target) && BlockParser::isVectorOp(opType, opPtr))
+			l.throwError("left operator must be vector");
+
+		const String validOps = "*+-=";
+
+		if (!validOps.containsChar(*opType))
+		{
+			String e;
+			e << opType << ": illegal operation for vectors";
+			throwError(e);
+		}
+
+		addStatement(opPtr);
+		addStatement(target);
+	}
+
+	SET_EXPRESSION_ID(VectorOp);
+
+	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
+	{
+		auto c1 = getSubExpr(0)->clone(l);
+		auto c2 = getSubExpr(1)->clone(l);
+
+		return new VectorOp(l, c1, opType, c2);
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return getSubExpr(1)->getTypeInfo();
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+		t.setProperty("OpType", opType, nullptr);
+		return t;
+	}
+
+	void initChildOps()
+	{
+		if (!isChildOp)
+		{
+			forEachRecursive([this](Ptr p)
+			{
+				if (this->isChildOp)
+					return true;
+
+				if (this == p)
+					return false;
+
+				if (auto pt = as<VectorOp>(p))
+					pt->isChildOp = true;
+
+				return false;
+			});
+		}
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override
+	{
+		initChildOps();
+
+		processBaseWithChildren(compiler, scope);
+
+		COMPILER_PASS(BaseCompiler::TypeCheck)
+		{
+			if(!BlockParser::isVectorOp(opType, getSubExpr(0)))
+				setTypeForChild(0, TypeInfo(Types::ID::Float));
+		}
+
+		COMPILER_PASS(BaseCompiler::CodeGeneration)
+		{
+			// Forward the registers for all sub vector ops...
+			reg = getSubRegister(1);
+
+			if(!isChildOp)
+				emitVectorOp(compiler, scope);
+		}
+	}
+
+	struct SerialisedVectorOp: public ReferenceCountedObject
+	{
+		enum class Type
+		{
+			ImmediateScalar,
+			ScalarVariable,
+			VectorVariable,
+			VectorOpType,
+			VectorFunction, // TODO
+			TargetVector,
+			numReaderTypes
+		};
+
+		using Ptr = ReferenceCountedObjectPtr<SerialisedVectorOp>;
+		using List = ReferenceCountedArray<SerialisedVectorOp>;
+
+		SerialisedVectorOp(Statement::Ptr s, x86::Compiler& cc)
+		{
+			if (s->getType() == Types::ID::Float)
+			{
+				if (s->isConstExpr())
+				{
+					readerType = Type::ImmediateScalar;
+					auto immValue = s->getConstExprValue().toFloat();
+					dbgString << "imm " << String(immValue);
+
+					immConst = cc.newXmmConst(ConstPool::kScopeGlobal, 
+						                      Data128::fromF32(immValue));
+				}
+				else
+				{
+					readerType = Type::ScalarVariable;
+
+					dbgString << "scalar " << s->toString(Statement::TextFormat::SyntaxTree);
+
+					s->reg->loadMemoryIntoRegister(cc);
+					dataReg = s->reg->getRegisterForReadOp().as<X86Xmm>();
+					cc.shufps(dataReg, dataReg, 0);
+
+					jassert(s->reg->isActive());
+				}
+			}
+			else
+			{
+				// Must be a span or dyn
+				jassert(s->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>() != nullptr);
+
+				if (auto vop = as<VectorOp>(s))
+				{
+					readerType = vop->isChildOp ? Type::VectorOpType : Type::TargetVector;
+					opType = vop->opType;
+					dbgString << "vop " << opType;
+				}
+				else
+				{
+					readerType = Type::VectorVariable;
+					dbgString << "vec " << s->toString(Statement::TextFormat::CppCode);
+				}
+
+				addressReg = cc.newGpq();
+
+				X86Mem fatPointerAddress;
+
+				if (s->reg->hasCustomMemoryLocation() || s->reg->isMemoryLocation())
+					fatPointerAddress = s->reg->getMemoryLocationForReference();
+				else
+					fatPointerAddress = x86::ptr(PTR_REG_R(s->reg));
+
+				sizeMem = fatPointerAddress.cloneAdjustedAndResized(4, 4);
+				auto objectAddress = fatPointerAddress.cloneAdjustedAndResized(8, 8);
+				cc.setInlineComment("Set Address");
+				cc.mov(addressReg, objectAddress);
+			}
+
+			for(auto c: *s)
+				childOps.add(new SerialisedVectorOp(c, cc));
+		}
+
+		bool isOp() const
+		{
+			return readerType == Type::TargetVector || readerType == Type::VectorOpType;
+		}
+
+		bool isVectorType() const
+		{
+			return readerType == Type::TargetVector ||
+				readerType == Type::VectorVariable ||
+				readerType == Type::VectorOpType;
+		}
+
+		void checkAlignment(x86::Compiler& cc, x86::Gp& resultReg)
+		{
+			if (readerType == Type::VectorVariable)
+			{
+				cc.test(addressReg, 0xF);
+				cc.cmovnz(resultReg, addressReg.r32());
+			}
+
+			for (auto c : childOps)
+				c->checkAlignment(cc, resultReg);
+		}
+
+		void process(x86::Compiler& cc, bool isSimd)
+		{
+			for (auto c : childOps)
+				c->process(cc, isSimd);
+
+			if (isVectorType())
+			{
+				if (readerType == Type::VectorVariable)
+				{
+					if (isSimd)
+					{
+						dataReg = cc.newXmmPs();
+						cc.setInlineComment("Load data from address");
+						cc.movaps(dataReg, x86::ptr(addressReg));
+					}
+					else
+					{
+						dataReg = cc.newXmm();
+						cc.setInlineComment("Load data from address");
+						cc.movss(dataReg, x86::ptr(addressReg));
+					}
+				}
+
+				if (isOp())
+				{
+					emitOp(cc, isSimd);
+
+					if (isSimd)
+						cc.movaps(x86::ptr(addressReg), getDataRegToUse());
+					else
+						cc.movss(x86::ptr(addressReg), getDataRegToUse());
+				}
+			}
+		}
+
+		void incAdress(x86::Compiler& cc, bool isSimd)
+		{
+			if(isVectorType())
+				cc.add(addressReg, isSimd ? 4 * sizeof(float) : sizeof(float));
+			
+			for (auto c : childOps)
+				c->incAdress(cc, isSimd);
+		}
+
+		String toString(int& intendation) const
+		{
+			String text;
+			String tabs;
+			intendation += 2;
+
+			for (int i = 0; i < intendation; i++)
+				tabs << " ";
+
+			text << tabs << dbgString << "\n";
+
+			for (auto c : childOps)
+				text << c->toString(intendation);
+			
+			intendation -= 2;
+			return text;
+		}
+
+		X86Mem getSizeMem() const
+		{
+			jassert(isVectorType());
+			return sizeMem;
+		}
+
+	private:
+
+		x86::Xmm getDataRegToUse() const
+		{
+			if (isOp())
+				return childOps[1]->getDataRegToUse();
+
+			return dataReg;
+		}
+
+		void emitOp(x86::Compiler& cc, bool isSimd)
+		{
+			auto r = childOps[0];
+			jassert(r != nullptr);
+			jassert(getDataRegToUse().isValid());
+
+			HashMap<TokenType, std::array<uint32, 2>> opMap;
+
+			using namespace asmjit::x86;
+
+			opMap.set(JitTokens::plus, { Inst::kIdAddss, Inst::kIdAddps });
+			opMap.set(JitTokens::assign_, { Inst::kIdMovss, Inst::kIdMovaps });
+			opMap.set(JitTokens::times, { Inst::kIdMulss, Inst::kIdMulps });
+			opMap.set(JitTokens::minus, { Inst::kIdSubss, Inst::kIdSubps });
+
+			auto instId = opMap[opType][(int)isSimd];
+
+			if (r->readerType == Type::ImmediateScalar)
+				cc.emit(instId, getDataRegToUse(), isSimd ? r->immConst : r->immConst.cloneResized(4));
+			else
+			{
+				jassert(r->getDataRegToUse().isValid());
+				cc.emit(instId, getDataRegToUse(), r->getDataRegToUse());
+			}
+		}
+
+		Type readerType;
+		TokenType opType = JitTokens::void_;
+		String dbgString;
+
+		x86::Mem immConst; 
+		x86::Gp  addressReg;
+		x86::Mem sizeMem;
+		x86::Xmm dataReg;
+
+		List childOps;
+	};
+
+	void emitVectorOp(BaseCompiler* compiler, BaseScope* scope)
+	{
+		auto& cc = getFunctionCompiler(compiler);
+		
+		SerialisedVectorOp::Ptr root = new SerialisedVectorOp(this, cc);
+
+		auto sizeReg = cc.newGpd();
+
+		auto simdLoop = cc.newLabel();
+		auto loopEnd = cc.newLabel();
+		auto leftOverLoop = cc.newLabel();
+
+		if (scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
+		{
+			static constexpr int SimdSize = 4;
+
+			cc.xor_(sizeReg, sizeReg);
+			root->checkAlignment(cc, sizeReg);
+
+			cc.cmp(sizeReg, 0);
+
+			// Now we can use the sizeReg as actual size...
+			cc.mov(sizeReg, root->getSizeMem());
+			
+			cc.jne(leftOverLoop);
+
+			cc.setInlineComment("Skip the SIMD loop if i < 4");
+			cc.cmp(sizeReg, SimdSize);
+			cc.jb(leftOverLoop);
+
+			cc.bind(simdLoop);
+
+			root->process(cc, true);
+			root->incAdress(cc, true);
+
+			cc.sub(sizeReg, SimdSize);
+			cc.cmp(sizeReg, SimdSize);
+			cc.jae(simdLoop);
+		}
+		else
+		{
+			// We used the sizeReg as alignment cache register
+			// to avoid spilling...
+			cc.mov(sizeReg, root->getSizeMem());
+		}
+
+		cc.bind(leftOverLoop);
+		cc.test(sizeReg, sizeReg);
+		cc.jz(loopEnd);
+
+		root->process(cc, false);
+		root->incAdress(cc, false);
+
+		cc.dec(sizeReg);
+		cc.jmp(leftOverLoop);
+		cc.bind(loopEnd);
+	}
+	
+	bool isChildOp = false;
+	TokenType opType;
 };
 
 struct Operations::UnaryOp : public Expression
@@ -2435,7 +2816,10 @@ struct Operations::Loop : public Expression,
 		return t;
 	}
 
-	TypeInfo getTypeInfo() const override { return {}; }
+	TypeInfo getTypeInfo() const override 
+	{ 
+		return getSubExpr(0)->getTypeInfo(); 
+	}
 
 	Expression::Ptr getTarget()
 	{

@@ -44,18 +44,22 @@ jit::ComplexType::Ptr _ramp<T>::createComplexType(Compiler& c, const Identifier&
 
 	auto obj = new StructType(NamespacedIdentifier(id));
 
-	ADD_SNEX_STRUCT_MEMBER(obj, s, value);
-	ADD_SNEX_STRUCT_MEMBER(obj, s, targetValue);
-	ADD_SNEX_STRUCT_MEMBER(obj, s, delta);
-	ADD_SNEX_STRUCT_MEMBER(obj, s, stepDivider);
-	ADD_SNEX_STRUCT_MEMBER(obj, s, numSteps);
-	ADD_SNEX_STRUCT_MEMBER(obj, s, stepsToDo);
+	ADD_SNEX_PRIVATE_MEMBER(obj, s, value);
+	ADD_SNEX_PRIVATE_MEMBER(obj, s, targetValue);
+	ADD_SNEX_PRIVATE_MEMBER(obj, s, delta);
+	ADD_SNEX_PRIVATE_MEMBER(obj, s, stepDivider);
+	ADD_SNEX_PRIVATE_MEMBER(obj, s, numSteps);
+	ADD_SNEX_PRIVATE_MEMBER(obj, s, stepsToDo);
 
 	ADD_SNEX_STRUCT_METHOD(obj, Type, reset);
+	
 	ADD_SNEX_STRUCT_METHOD(obj, Type, set);
+	SET_SNEX_PARAMETER_IDS(obj, "newValue");
+
 	ADD_SNEX_STRUCT_METHOD(obj, Type, advance);
 	ADD_SNEX_STRUCT_METHOD(obj, Type, get);
 	ADD_SNEX_STRUCT_METHOD(obj, Type, prepare);
+	SET_SNEX_PARAMETER_IDS(obj, "sampleRate", "fadeTimeMilliSeconds");
 
 	FunctionClass::Ptr fc = obj->getFunctionClass();
 
@@ -1584,6 +1588,7 @@ snex::ComplexType* OscProcessData::createType(Compiler& c)
 	ADD_SNEX_STRUCT_MEMBER(st, d, uptime);
 	ADD_SNEX_STRUCT_MEMBER(st, d, delta);
 	ADD_SNEX_STRUCT_MEMBER(st, d, voiceIndex);
+
 
 	return st;
 }

@@ -100,13 +100,13 @@ bool SpanType::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* da
 
 snex::jit::FunctionClass* SpanType::getFunctionClass()
 {
-	NamespacedIdentifier sId("SpanFunctions");
+	NamespacedIdentifier sId("span");
 	auto st = new FunctionClass(sId);
 
 	auto byteSize = getElementSize();
 	int numElements = getNumElements();
 
-	auto subscript = st->createSpecialFunction(FunctionClass::Subscript);
+	auto& subscript = st->createSpecialFunction(FunctionClass::Subscript);
 	subscript.returnType = getElementType();
 	subscript.addArgs("index", TypeInfo(Types::ID::Dynamic));
 	subscript.inliner = new Inliner(subscript.id, [byteSize](InlineData* d_)
@@ -115,6 +115,8 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 		d->gen.emitSpanReference(d->target, d->object, d->args[0], byteSize);
 		return Result::ok();
 	}, {});
+
+	
 
 	{
 
@@ -464,7 +466,7 @@ size_t DynType::getRequiredByteSize() const
 
 size_t DynType::getRequiredAlignment() const
 {
-	return 8;
+	return 16;
 }
 
 void DynType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const
@@ -508,48 +510,196 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 {
 	auto dynOperators = new FunctionClass(NamespacedIdentifier("dyn"));
 
-	auto& assignFunction = dynOperators->createSpecialFunction(FunctionClass::AssignOverload);
-	assignFunction.addArgs("this", TypeInfo(this));
-	assignFunction.addArgs("other", TypeInfo(Types::ID::Pointer, true));
-	assignFunction.returnType = TypeInfo(this);
+	auto assignFunction = new FunctionData();
+	assignFunction->id = dynOperators->getClassName().getChildId("referTo");
+	//assignFunction->addArgs("this", TypeInfo(this));
+	assignFunction->addArgs("other", TypeInfo(Types::ID::Pointer, true));
+	assignFunction->returnType = TypeInfo(this);
 
-	assignFunction.inliner = new Inliner(assignFunction.id, [](InlineData* d_)
+	assignFunction->inliner = new Inliner(assignFunction->id, [](InlineData* d_)
 	{
+		auto setToZeroIfImmediate = [](int& vToChange, AssemblyRegister::Ptr& p, int limit)
+		{
+			if (p != nullptr)
+			{
+				if (p->isImmediate())
+				{
+					auto newSize = p->getImmediateIntValue();
+
+					if (isPositiveAndBelow(newSize, limit + 1))
+					{
+						vToChange = newSize;
+						p = nullptr;
+						return true;
+					}
+					else
+					{
+						vToChange = newSize;
+						p = nullptr;
+						return false;
+					}
+				}
+			}
+
+			return true;
+		};
+
 		auto d = d_->toAsmInlineData();
-
-		auto value = d->args[1];
-		auto valueType = value->getTypeInfo();
-		auto thisObj = d->target;
-
 		auto& cc = d->gen.cc;
 
-		jassert(thisObj->getTypeInfo().getTypedComplexType<DynType>() != nullptr);
-		jassert(thisObj == d->args[0]);
-		jassert(d->args.size() == 2);
+		auto value = d->args[0];
+		auto valueType = value->getTypeInfo();
+		auto isDyn = valueType.getTypedIfComplexType<DynType>() != nullptr;
+		auto thisObj = d->object;
+		
+		auto offset = 0;
+		auto fixSize = -1;
+		auto totalSize = -1;
+
+		auto sizeReg = d->args[1];
+		auto offsetReg = d->args[2];
+
 
 		if (auto st = valueType.getTypedIfComplexType<SpanType>())
 		{
-			value->loadMemoryIntoRegister(cc);
-            
-            if (thisObj->isGlobalVariableRegister())
-                thisObj->loadMemoryIntoRegister(cc);
-            
-			auto size = (int)st->getNumElements();
-
-			X86Mem ptr;
-
-
-			if (thisObj->isMemoryLocation())
-				ptr = thisObj->getAsMemoryLocation();
-			else
-				ptr = x86::ptr(PTR_REG_R(thisObj));
-
-			cc.mov(ptr.cloneAdjustedAndResized(0, 4), 0);
-			cc.mov(ptr.cloneAdjustedAndResized(4, 4), size);
-			cc.mov(ptr.cloneAdjustedAndResized(8, 8), PTR_REG_R(value));
-
-			return Result::ok();
+			fixSize = (int)st->getNumElements();
+			totalSize = fixSize;
 		}
+
+		if (sizeReg != nullptr && sizeReg->getType() != Types::ID::Integer)
+			return Result::fail("Can't use non-integer values as size argument to referTo()");
+		if (offsetReg != nullptr && offsetReg->getType() != Types::ID::Integer)
+			return Result::fail("Can't use non-integer values as offset argument to referTo()");
+
+
+		if (!isDyn)
+		{
+			if (!setToZeroIfImmediate(fixSize, sizeReg, totalSize))
+				return Result::fail("illegal size: " + String(fixSize));
+			if (!setToZeroIfImmediate(offset, offsetReg, totalSize - fixSize))
+				return Result::fail("illegal offset: " + String(offset));
+		}
+		else
+		{
+			setToZeroIfImmediate(fixSize, sizeReg, INT_MAX-1);
+			setToZeroIfImmediate(offset, offsetReg, INT_MAX-1);
+		}
+		
+		jassert(thisObj->getTypeInfo().getTypedComplexType<DynType>() != nullptr);
+		jassert(d->args.size() >= 1);
+		
+		value->loadMemoryIntoRegister(cc);
+		auto dynSourcePtr = x86::ptr(PTR_REG_R(value));
+		X86Mem ptr;
+
+		if (thisObj->isMemoryLocation())
+			ptr = thisObj->getAsMemoryLocation();
+		else
+			ptr = x86::ptr(PTR_REG_R(thisObj));
+
+		cc.mov(ptr.cloneAdjustedAndResized(0, 4), 0);
+
+		
+
+		if (sizeReg != nullptr)
+			cc.mov(ptr.cloneAdjustedAndResized(4, 4), INT_REG_R(sizeReg));
+		else if (fixSize >= 0)
+			cc.mov(ptr.cloneAdjustedAndResized(4, 4), fixSize);
+		else
+		{
+			jassert(isDyn);
+			auto tmp = cc.newGpd();
+			cc.mov(tmp, dynSourcePtr.cloneAdjustedAndResized(4, 4));
+			cc.mov(ptr.cloneAdjustedAndResized(4, 4), tmp);
+		}
+
+		if (isDyn)
+		{
+			auto tmp = cc.newGpq();
+			cc.mov(tmp, dynSourcePtr.cloneAdjustedAndResized(8, 8));
+			cc.mov(ptr.cloneAdjustedAndResized(8, 8), tmp);
+		}
+		else
+		{
+			cc.mov(ptr.cloneAdjustedAndResized(8, 8), PTR_REG_R(value));
+		}
+
+		if (offsetReg != nullptr)
+			cc.add( ptr.cloneAdjustedAndResized(8, 8), PTR_REG_R(offsetReg));
+		else if (offset != 0)
+			cc.add(ptr.cloneAdjustedAndResized(8, 8), offset * 4);
+
+		if (isDyn && d->gen.isRuntimeErrorCheckEnabled(d->object->getScope()))
+		{
+			auto testSize = sizeReg != nullptr || (fixSize >= 0);
+			auto testOffset = offsetReg != nullptr || (offset > 0);
+
+			auto checkReg = cc.newGpd();
+			auto limitReg = cc.newGpd();
+			auto error = cc.newLabel();
+			auto ok = cc.newLabel();
+			bool isSizeError = false;
+			auto sourceSizePtr = dynSourcePtr.cloneAdjustedAndResized(4, 4);
+			auto destSizePtr = ptr.cloneAdjustedAndResized(4, 4);
+
+			if (testSize)
+			{
+				cc.mov(checkReg, destSizePtr);
+				cc.mov(limitReg, sourceSizePtr);
+				cc.cmp(checkReg, limitReg);
+				cc.mov(checkReg, (int)RuntimeError::ErrorType::DynReferIllegalSize);
+				cc.ja(error);
+			}
+
+			if (testOffset)
+			{
+				cc.mov(checkReg, sourceSizePtr);
+				cc.sub(checkReg, destSizePtr);
+
+				if (offset > 0)
+					cc.sub(checkReg, offset);
+				else
+					cc.sub(checkReg, INT_REG_R(offsetReg));
+
+				cc.cmp(checkReg, 0);
+				cc.mov(checkReg, (int)RuntimeError::ErrorType::DynReferIllegalOffset);
+				cc.js(error);
+			}
+
+			cc.jmp(ok);
+
+			cc.bind(error);
+			auto flag = d->object->getScope()->getGlobalScope()->getRuntimeErrorFlag();
+
+			cc.mov(limitReg.r64(), flag);
+
+			auto ptr = x86::ptr(limitReg.r64()).cloneResized(4);
+
+			auto loc = d->gen.location.getXYPosition();
+
+			cc.mov(ptr, checkReg);
+			cc.mov(ptr.cloneAdjusted(4), loc.x);
+			cc.mov(ptr.cloneAdjusted(8), loc.y);
+
+			if(sizeReg != nullptr)
+				cc.mov(ptr.cloneAdjusted(12), INT_REG_R(sizeReg));
+			else
+				cc.mov(ptr.cloneAdjusted(12), fixSize);
+
+			if(offsetReg != nullptr)
+				cc.mov(ptr.cloneAdjusted(16), INT_REG_R(offsetReg));
+			else
+				cc.mov(ptr.cloneAdjusted(16), offset);
+			
+
+			cc.bind(ok);
+		}
+
+		d->target = d->object;
+
+		return Result::ok();
+			
+#if 0
 		else if (auto dt = valueType.getTypedIfComplexType<DynType>())
 		{
 			if (thisObj->isGlobalVariableRegister())
@@ -562,13 +712,14 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			return Result::ok();
 		}
-		else
-		{
-			juce::String s;
-			s << "Can't assign" << valueType.toString() << " to " << thisObj->getTypeInfo().toString();
-			return Result::fail(s);
-		}
+#endif
+		juce::String s;
+		s << "Can't assign" << valueType.toString() << " to " << thisObj->getTypeInfo().toString();
+		return Result::fail(s);
 	}, {});
+
+	dynOperators->addFunction(assignFunction);
+
 
 	{
 		auto sizeFunction = new FunctionData();

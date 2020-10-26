@@ -51,6 +51,7 @@ public:
 
 	VariableStorage(void* objectPointer, int objectSize);
 
+	VariableStorage& operator=(const VariableStorage& other);
 	VariableStorage& operator =(int s);
 	VariableStorage& operator =(FloatType s);
 	VariableStorage& operator =(double s);

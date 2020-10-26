@@ -1109,6 +1109,15 @@ bool LoopOptimiser::processStatementInternal(BaseCompiler* compiler, BaseScope* 
 	return false;
 }
 
+bool LoopOptimiser::replaceWithVectorLoop(BaseCompiler* compiler, BaseScope* s, Ptr binaryOpToReplace)
+{
+	jassertfalse;
+
+	return false;
+
+
+}
+
 bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 {
 	auto hasControlFlow = l->forEachRecursive([](Ptr p)
@@ -1844,6 +1853,24 @@ struct Jump
 	}
 };
 
+struct CompareInstructions
+{
+	using ReturnType = InstNode;
+
+	static bool matches(BaseNode* node)
+	{
+		if (node->isInst())
+		{
+			auto inst = node->as<InstNode>();
+			auto thisId = inst->baseInst().id();
+			using namespace x86;
+			return thisId == Inst::kIdCmp || thisId == Inst::kIdTest;
+		}
+
+		return false;
+	}
+};
+
 struct ControlFlowBreakers
 {
 	using ReturnType = InstNode;
@@ -2125,6 +2152,11 @@ struct RemoveDoubleRegisterWrites : public AsmCleanupPass::SubPass<InstructionFi
 						continue;
 
 					auto nextSource = Helpers::getSourceOp(nextNode);
+
+					// Sometimes the cmp instruction is used before
+					// moving a value to the operand.
+					if (CompareInstructions::matches(nextNode))
+						break;
 
 					if (ControlFlowBreakers::matches(nextNode))
 						break;

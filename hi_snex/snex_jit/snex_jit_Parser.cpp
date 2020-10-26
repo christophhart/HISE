@@ -1086,6 +1086,26 @@ void BlockParser::parseEnum()
 	match(JitTokens::semicolon);
 }
 
+bool BlockParser::isVectorOp(TokenType t, BlockParser::ExprPtr l, BlockParser::ExprPtr r /*= nullptr*/)
+{
+	ignoreUnused(t);
+
+	if (auto atb = l->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>())
+	{
+		return true;
+	}
+
+	if (r == nullptr)
+		return false;
+
+	if (auto atb = r->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>())
+	{
+		return true;
+	}
+
+	return false;
+}
+
 juce::Array<snex::jit::TemplateParameter> TypeParser::parseTemplateParameters()
 {
 	Array<TemplateParameter> parameters;

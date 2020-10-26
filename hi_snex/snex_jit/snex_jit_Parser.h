@@ -602,6 +602,8 @@ public:
 	ExprPtr parseReference(bool mustBeValidRootSymbol=true);
 	ExprPtr parseLiteral(bool isNegative = false);
 
+	static bool isVectorOp(TokenType t, ExprPtr l, ExprPtr r = nullptr);
+
 private:
 
 	Symbol currentSymbol;
