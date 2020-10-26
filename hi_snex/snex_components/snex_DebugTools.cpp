@@ -88,6 +88,12 @@ debug::SymbolProvider::ComplexMemberToken::ComplexMemberToken(SymbolProvider& pa
 
 bool debug::SymbolProvider::ComplexMemberToken::matches(const String& input, const String& previousToken, int lineNumber) const
 {
+	if (auto st = dynamic_cast<SpanType*>(p.get()))
+	{
+		if (st->getElementSize() == 19)
+			jassertfalse;
+	}
+
 	if (previousToken.endsWith("."))
 	{
 
@@ -141,7 +147,7 @@ void debug::SymbolProvider::addTokens(mcl::TokenCollection::List& tokens)
 		if (auto st = dynamic_cast<StructType*>(c))
 		{
 			for (auto ni : l)
-				db->addDocumentation(ni, st->id.id, ni->getCodeToInsert(""));
+				db->addDocumentation(ni, st->id, ni->getCodeToInsert(""));
 		}
 
 		tokens.addArray(l);
@@ -150,7 +156,7 @@ void debug::SymbolProvider::addTokens(mcl::TokenCollection::List& tokens)
 	auto l2 = c.getNamespaceHandler().getTokenList();
 
 	for (auto ni : l2)
-		db->addDocumentation(ni, Identifier(ni->tokenContent), {});
+		db->addDocumentation(ni, NamespacedIdentifier(ni->tokenContent), {});
 
 	tokens.addArray(l2);
 }
@@ -168,7 +174,7 @@ void debug::TemplateProvider::addTokens(mcl::TokenCollection::List& tokens)
 		auto nt = new TemplateToken(id);
 		tokens.add(nt);
 
-		db->addDocumentation(nt, id.id.id.id, {});	
+		db->addDocumentation(nt, id.id.id, {});	
 	}
 }
 

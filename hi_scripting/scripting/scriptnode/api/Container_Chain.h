@@ -72,6 +72,58 @@ template <typename FrameDataType> struct Frame
 };
 }
 
+/** A chain processes all its child nodes serially:
+
+	@code
+	| |
+	V V
+    Inp
+    ||
+	P1
+	||
+	P2
+	||
+	[...]
+	||
+	Px
+	||
+	Out
+
+
+	   | |
+	   V V
+	  _Inp___...__
+	//     \\     \\
+	||     ||     ||
+	P1     P2     Px
+	\\_   _//_..._//
+	   |+|
+	   Out
+	    
+
+	  | |
+	  V V
+	  Inp
+	 /   \
+	P1   P2
+	 \   /
+	  Out
+	@endcode
+
+	The `ParameterClass` template parameter can be used to define compile-time
+	parameter connections:
+
+	@code
+	using MyParameterType = parameter::plain<core::osc, 0>;
+	using MyChainType = container::chain<MyParameterType, core::osc>;
+
+	MyChainType c;
+	c.getParameter<0>().connect(c.get<0>());
+
+	// forwards the parameter to the internal oscillator
+	c.setParameter<0>(440.0f);
+	@endcode
+*/
 template <class ParameterClass, typename... Processors> struct chain: public container_base<ParameterClass, Processors...>
 {
 	static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
@@ -85,23 +137,27 @@ template <class ParameterClass, typename... Processors> struct chain: public con
 
 	GET_SELF_AS_OBJECT(chain);
 
+	/** prepares all child nodes with the same specs. */
 	void prepare(PrepareSpecs ps)
 	{
 		call_tuple_iterator1(prepare, ps);
 	}
 
+	/** Processes all child nodes. */
 	void process(BlockType& d)
 	{
 		BlockProcessor p(d);
 		call_tuple_iterator1(process, p);
 	}
 
+	/** Process all child nodes one frame at a time. */
 	void processFrame(FrameType& d)
 	{
 		FrameProcessor p(d);
 		call_tuple_iterator1(processFrame, p);
 	}
 
+	/** Calls `handleHiseEvent` for all child nodes. */
 	void handleHiseEvent(HiseEvent& e)
 	{
 		call_tuple_iterator1(handleHiseEvent, e);

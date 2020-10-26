@@ -496,6 +496,10 @@ private:
 };
 
 
+/** Downsamples the incoming signal with the HISE_EVENT_RASTER value
+    (default is 8x) and processes a mono signal that can be used as
+    modulation signal.
+*/
 template <class T> class control_rate
 {
 public:

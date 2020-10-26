@@ -6,7 +6,7 @@
 namespace SnexApi
 {
     extern const char*  apivaluetree_dat;
-    const int           apivaluetree_datSize = 23169;
+    const int           apivaluetree_datSize = 30906;
 
 }
 

@@ -47,7 +47,7 @@ using namespace juce;
 	The most simple example would be a MS-Decoder
 
 	
-	```cpp
+	@code
 	// Mid-Side processing
 
 	float m = (l + r) * 0.5f;
@@ -55,7 +55,7 @@ using namespace juce;
 
 	l = m + stereo_amount * s;
 	r = m - stereo_amount * s;
-	```
+	@endcode
 
 	In scriptnode / SNEX, the signal data is not interleaved by default, which means that the data
 	for each channel is stored consecutively in memory. This has the advantage that most operations
@@ -65,7 +65,7 @@ using namespace juce;
 	away most of the interleaving boilerplate code.
 
 	
-	```cpp
+	@code
 	// This is the callback function required by SNEX / scriptnode
 	void process(ProcessDataFix<2>& data)
 	{
@@ -90,7 +90,7 @@ using namespace juce;
 		l = m + stereo_amount * s;
 		r = m - stereo_amount * s;
 	}
-	```
+	@endcode
 
 	Since the function will be most likely inlined by the compiler, there is no performance overhead,
 	and you don't need to implement the algorithm twice for compatibility with frame-based calls.
@@ -166,7 +166,7 @@ template <int NumChannels> struct FrameProcessor
 private:
 
 	friend class SnexObjectDatabase;
-	template <int NumChannels> friend class ProcessDataFix;
+	template <int NumChannels> friend class ProcessData;
 	friend class ProcessDataDyn;
 
 	/** @internal: only used by ProcessDataFix<NumChannels>::toFrameData(). */

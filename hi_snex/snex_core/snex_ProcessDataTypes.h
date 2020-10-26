@@ -62,7 +62,7 @@ struct ChannelPtr
 private:
 
 	/** @internal. The entire class can only be used internally by the ProcessDataFix class to create iteratable channels. */
-	template <int C> friend struct ProcessDataFix;
+	template <int C> friend struct ProcessData;
 	friend struct InternalData;
 	
 	/** @internal. */
@@ -87,13 +87,19 @@ protected:
 
 public:
 
+	/** Returns the amount of samples for this processing block. 
+	    This value is guaranteed to be less than the `blockSize` value passed into the
+		last `prepare()`
+	*/
 	int getNumSamples() const { return numSamples; }
 
-	dyn<float> toChannelData(const ChannelPtr& channelStart) const
+	/** Converts a ChannelPtr to a block. */
+	block toChannelData(const ChannelPtr& channelStart) const
 	{
 		return dyn<float>(channelStart.get(), getNumSamples());
 	}
 
+	/** Creates a buffer of HiseEvents for the given chunk. */
 	dyn<HiseEvent> toEventData() const
 	{
 		return { events, (size_t)numEvents };
@@ -180,7 +186,7 @@ protected:
 	- toFrameData() that creates a FrameProcessor object for frame based processing
 	- toEventData() that creates a dyn<HiseEvent> so you can process the events
 */
-template <int C> struct ProcessDataFix: public InternalData
+template <int C> struct ProcessData: public InternalData
 {
 	/** The number of channels. */
 	constexpr static int NumChannels = C;
@@ -189,7 +195,7 @@ template <int C> struct ProcessDataFix: public InternalData
 	using ChannelDataType = Types::span<float*, NumChannels>;
 
 	/** Creates a ProcessDataFix object from the given data pointer. */
-	ProcessDataFix(float** d, int numSamples_, int numChannels_=NumChannels) :
+	ProcessData(float** d, int numSamples_, int numChannels_=NumChannels) :
 		InternalData(d, numSamples_)
 	{
 		ignoreUnused(numChannels_);
@@ -198,9 +204,25 @@ template <int C> struct ProcessDataFix: public InternalData
 
 	/** Allows iteration over the channel data. 
 	
-		The ChannelPtr return type can be passed into the toChannelData() method in order
-		to create a dyn<float> object that can be used to iterate over the channel's
-		sample data. 
+		The ChannelPtr return type can be passed into the `toChannelData()` method in order
+		to create a `dyn<float>` object that can be used to iterate over the channel's
+		sample data:
+
+		@code
+		ProcessData<2> data;
+
+		for(auto& ch: data)
+		{
+			// Pass the `ch` iterator into the `toChannelData` function
+			// in order to iterator over the float samples...
+			for(float& s: data.toChannelData(ch))
+			{
+				s *= 0.5f;
+			}
+		}
+		@endcode
+
+
 	*/
 	ChannelPtr* begin() const
 	{
@@ -220,8 +242,10 @@ template <int C> struct ProcessDataFix: public InternalData
 		return dyn<float>(data[channelIndex], getNumSamples());
 	}
 
+	/** Generates a frame processor that allows frame-based iteration over all given channels. */
 	FrameProcessor<C> toFrameData();
 
+	/** Gets the number of channels. */
 	static constexpr int getNumChannels();
 	
 protected:
@@ -233,7 +257,7 @@ protected:
 
 	ChannelPtr getChannelPtr(int index);
 
-	JUCE_DECLARE_NON_COPYABLE(ProcessDataFix);
+	JUCE_DECLARE_NON_COPYABLE(ProcessData);
 };
 
 struct ProcessDataDyn: public InternalData
@@ -247,6 +271,7 @@ struct ProcessDataDyn: public InternalData
 		jassert(numChannels < NUM_MAX_CHANNELS);
 
 	}
+
 
 	int getNumChannels() const { return numChannels; };
 	

@@ -49,6 +49,7 @@ template <typename T> struct _ramp
 		JIT_MEMBER_WRAPPER_2(void, Type, prepare, double, double);
 	};
 
+	/** Stops the ramping and sets the value to the target. */
 	void reset()
 	{
 		stepsToDo = 0;
@@ -56,6 +57,7 @@ template <typename T> struct _ramp
 		delta = T(0);
 	}
 
+	/** Sets a new target value and resets the ramp position to the beginning. */
 	void set(T newTargetValue)
 	{
 		if (numSteps == 0)
@@ -72,6 +74,7 @@ template <typename T> struct _ramp
 		}
 	}
 
+	/** Returns the currently smoothed value and calculates the next ramp value. */
 	T advance()
 	{
 		if (stepsToDo <= 0)
@@ -84,11 +87,13 @@ template <typename T> struct _ramp
 		return v;
 	}
 
-	T get()
+	/** Returns the current value. */
+	T get() const
 	{
 		return value;
 	}
 
+	/** Setup the processing. The ramp time will be calculated based on the samplerate. */
 	void prepare(double samplerate, double timeInMilliseconds)
 	{
 		auto msPerSample = 1000.0 / samplerate;
@@ -147,32 +152,75 @@ struct ScriptnodeCallbacks
 template struct _ramp<float>;
 template struct _ramp<double>;
 
-using sfloat = _ramp<float>;
+/** A smoothed float value. 
+
+	This object can be used to get a ramped value for parameter changes etc.
+	
+
+*/
+struct sfloat: public _ramp<float>
+{};
+
 using sdouble = _ramp<double>;
 
 using namespace Types;
 
 
 
+/** A data structure containing the processing details for the context. 
 
+	This is being passed into the `prepare()` method of each node and
+	can be used to setup the internals.
+	
+	*/
 struct PrepareSpecs
 {
+	/** the sample rate. This value might be modified if the node is being used in an oversampled context. */
 	double sampleRate = 0.0;
+
+	/** The maximum samples that one block will contain. It is not guaranteed that the number will always be that amount, but you can assume that it never exceeds this number. */
 	int blockSize = 0;
+
+	/** The number of channels for the signal. */
 	int numChannels = 0;
+
+	/** A pointer to the voice index. */
 	int* voiceIndex = nullptr;
 
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
 };
 
 
+/** This data structure is useful if you're writing any kind of oscillator. 
 
+	It contains the buffer that the signal is supposed to be added to as well
+	as the pitch information and current state.
+
+	It has an overloaded ++-operator that will bump up the uptime.
+
+	@code
+	void process(OscProcessData& d)
+	{
+		for(auto& s: d.data)
+		{
+		    s += Math.sin(d++);
+		}
+	}
+	@endcode
+*/
 struct OscProcessData
 {
 	dyn<float> data;		// 12 bytes
 	double uptime = 0.0;    // 8 bytes
 	double delta = 0.0;     // 8 bytes
 	int voiceIndex = 0;			// 4 bytes
+
+	double operator++()
+	{
+		auto v = uptime;
+		uptime += delta;
+		return v;
+	}
 
 	static snex::ComplexType* createType(Compiler& c);
 };
@@ -363,22 +411,22 @@ struct SnexNodeBase : public snex::ComplexType
 		{
 			Array<void*> f;
 
-			f.add(process<OT, Types::ProcessDataFix<jmin(1, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(2, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(3, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(4, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(5, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(6, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(7, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(8, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(9, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(10, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(11, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(12, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(13, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(14, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(15, MaxChannels)>>);
-			f.add(process<OT, Types::ProcessDataFix<jmin(16, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(1, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(2, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(3, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(4, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(5, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(6, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(7, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(8, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(9, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(10, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(11, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(12, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(13, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(14, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(15, MaxChannels)>>);
+			f.add(process<OT, Types::ProcessData<jmin(16, MaxChannels)>>);
 
 			return f;
 		}

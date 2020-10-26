@@ -831,6 +831,7 @@ private:
 	Value externalCodeValue;
 
 	CodeDocument doc;
+	mcl::TextDocument mclDoc;
 
 	PreprocessorUpdater conditionUpdater;
 
@@ -841,7 +842,7 @@ private:
 	jit::GlobalScope memory;
 	BreakpointDataProvider bpProvider;
 
-	mcl::TextEditor editor;
+	mcl::FullEditor editor;
 	AssemblyTokeniser assemblyTokeniser;
 	CodeDocument assemblyDoc;
 	CodeEditorComponent assembly;

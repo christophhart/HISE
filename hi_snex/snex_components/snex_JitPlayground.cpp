@@ -42,7 +42,8 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	memory(),
 	bpProvider(memory),
 	externalCodeValue(externalCode),
-	editor(doc),
+	mclDoc(doc),
+	editor(mclDoc),
 	assembly(assemblyDoc, &assemblyTokeniser),
 	console(consoleContent, &consoleTokeniser),
 	snexIcon(factory.createPath("snex")),
@@ -74,9 +75,11 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	memory.setBufferHandler(toUse != nullptr ? toUse : new PlaygroundBufferHandler());
 	memory.getBreakpointHandler().setActive(true);
 
-	editor.setPopupLookAndFeel(new hise::PopupLookAndFeel());
+	auto& ed = editor.editor;
 
-	editor.setLineRangeFunction([](const CodeDocument& doc)
+	ed.setPopupLookAndFeel(new hise::PopupLookAndFeel());
+
+	ed.setLineRangeFunction([](const CodeDocument& doc)
 	{
 		mcl::FoldableLineRange::List lineRanges;
 		Preprocessor p(doc.getAllContent());
@@ -188,16 +191,16 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 
 	setName("SNEX Editor");
 
-	editor.tokenCollection.clearTokenProviders();
-	editor.tokenCollection.addTokenProvider(new debug::KeywordProvider());
-	editor.tokenCollection.addTokenProvider(new debug::SymbolProvider(doc));
-	editor.tokenCollection.addTokenProvider(new debug::TemplateProvider());
-	editor.tokenCollection.addTokenProvider(new debug::MathFunctionProvider());
-	editor.tokenCollection.addTokenProvider(new debug::PreprocessorMacroProvider(doc));
-	editor.tokenCollection.signalRebuild();
+	ed.tokenCollection.clearTokenProviders();
+	ed.tokenCollection.addTokenProvider(new debug::KeywordProvider());
+	ed.tokenCollection.addTokenProvider(new debug::SymbolProvider(doc));
+	ed.tokenCollection.addTokenProvider(new debug::TemplateProvider());
+	ed.tokenCollection.addTokenProvider(new debug::MathFunctionProvider());
+	ed.tokenCollection.addTokenProvider(new debug::PreprocessorMacroProvider(doc));
+	ed.tokenCollection.signalRebuild();
 
 	auto& d = doc;
-	editor.setGotoFunction([&d](int lineNumber, const String& token)
+	ed.setGotoFunction([&d](int lineNumber, const String& token)
 	{
 		mcl::Selection selection;
 
@@ -232,11 +235,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	watchTable.setHolder(&bpProvider);
 
 	//editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(16.0f));
-	editor.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xCC38383A));
-	editor.setOpaque(false);
-	editor.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white);
-
-	editor.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0x33FFFFFF));
+	
 
 	if (externalCode.toString().isEmpty())
 		doc.replaceAllContent(getDefaultCode(testMode));
@@ -245,8 +244,7 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	
 	doc.clearUndoHistory();
 
-	editor.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
-	editor.setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFBBBBBB));
+	
 
 	addAndMakeVisible(graph);
 
@@ -293,8 +291,8 @@ SnexPlayground::SnexPlayground(Value externalCode, BufferHandler* toUse) :
 	graph.bufferLength.addListener(this);
 	graph.processingMode.addListener(this);
 
-	editor.colourScheme = scheme;
-	editor.setShowNavigation(false);
+	ed.colourScheme = scheme;
+	ed.setShowNavigation(false);
 
 	addAndMakeVisible(assembly);
 
@@ -762,7 +760,7 @@ void SnexPlayground::logMessage(int level, const juce::String& s)
 	juce::String m;
 
 	if (level == jit::BaseCompiler::Error)
-		editor.setError(s);
+		editor.editor.setError(s);
 
 	switch (level)
 	{
@@ -783,7 +781,7 @@ void SnexPlayground::logMessage(int level, const juce::String& s)
 
 	if (level == jit::BaseCompiler::Warning)
 	{
-		editor.addWarning(s);
+		editor.editor.addWarning(s);
 	}
 }
 
@@ -805,7 +803,10 @@ void SnexPlayground::recalculate()
 
 void SnexPlayground::recompile()
 {
-	editor.clearWarningsAndErrors();
+	auto& ed = editor.editor;
+
+
+	ed.clearWarningsAndErrors();
 	
 	if (testMode)
 	{
@@ -821,13 +822,15 @@ void SnexPlayground::recompile()
 
 		repaint();
 
+		
 		assemblyDoc.replaceAllContent(tc.assembly);
-		editor.tokenCollection.signalRebuild();
+		ed.tokenCollection.signalRebuild();
+		
 
 
 		auto nPtr = tc.c.getNamespaceHandlerReference();
 
-		editor.setTokenTooltipFunction([nPtr](const String& token, int lineNumber)
+		ed.setTokenTooltipFunction([nPtr](const String& token, int lineNumber)
 		{
 			if (auto n = nPtr->getNamespaceForLineNumber(lineNumber))
 			{
@@ -851,7 +854,7 @@ void SnexPlayground::recompile()
 		if (tc.memory.checkRuntimeErrorAfterExecution())
 			return;
 
-		editor.setError(r.getErrorMessage());
+		ed.setError(r.getErrorMessage());
 
 		if (r.failed())
 			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
@@ -891,14 +894,15 @@ void SnexPlayground::recompile()
 
 	if (!cc.getCompileResult().wasOk())
 	{
-		editor.setError(cc.getCompileResult().getErrorMessage());
+		ed.setError(cc.getCompileResult().getErrorMessage());
+
 
 		resultLabel.setText(cc.getCompileResult().getErrorMessage(), dontSendNotification);
 		graph.setBuffer(b);
 	}
 	else
 	{
-		editor.setError({});
+		ed.setError({});
 
 		cData.obj = newObject;
 		cData.setupCallbacks();
@@ -1376,16 +1380,18 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 	{
 		stopTimer();
 
-		if (parent.editor.isPreprocessorParsingEnabled())
+		auto& ed = parent.editor.editor;
+
+		if (ed.isPreprocessorParsingEnabled())
 		{
 			snex::jit::Preprocessor pp(parent.doc.getAllContent());
 			lastRange = pp.getDeactivatedLines();
-			parent.editor.setDeactivatedLines(lastRange);
+			ed.setDeactivatedLines(lastRange);
 		}
 
-		if (parent.editor.isLiveParsingEnabled())
+		if (ed.isLiveParsingEnabled())
 		{
-			parent.editor.clearWarningsAndErrors();
+			ed.clearWarningsAndErrors();
 
 			GlobalScope s;
 			Compiler c(s);
@@ -1393,18 +1399,18 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			Types::SnexObjectDatabase::registerObjects(c, 2);
 
 			c.compileJitObject(parent.doc.getAllContent());
-			parent.editor.tokenCollection.signalRebuild();
+			ed.tokenCollection.signalRebuild();
 			auto r = c.getCompileResult();
 
 			if (!r.wasOk())
-				parent.editor.setError(r.getErrorMessage());
+				ed.setError(r.getErrorMessage());
 		}
 	}
 
 	void SnexPlayground::PreprocessorUpdater::logMessage(int level, const juce::String& s)
 	{
 		if (level == (int)snex::BaseCompiler::Warning)
-			parent.editor.addWarning(s);
+			parent.editor.editor.addWarning(s);
 	}
 
 	void OptimizationProperties::resetOptimisations()

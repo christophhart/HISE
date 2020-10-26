@@ -45,19 +45,20 @@ struct ApiDatabase
 	ApiDatabase()
 	{
 		v = ValueTree::readFromData(SnexApi::apivaluetree_dat, SnexApi::apivaluetree_datSize);
-
-
-		DBG(v.createXml()->createDocument(""));
 	}
 
-	bool addDocumentation(TokenCollection::TokenPtr p, const Identifier& parent, String member)
+	static Identifier getPath(const NamespacedIdentifier& id)
 	{
-		
+		return Identifier(id.toString().replace("::", "_"));
+	}
+
+	bool addDocumentation(TokenCollection::TokenPtr p, const NamespacedIdentifier& id, String member)
+	{
+		auto parent = getPath(id);
 
 		auto classTree = v.getChildWithName(parent);
 
 		
-
 		if (member.isEmpty() && classTree.isValid())
 		{
 			p->markdownDescription = classTree.getProperty("description");
@@ -101,10 +102,10 @@ struct FourColourScheme
 	{
 		switch (index)
 		{
-			case Keyword:		return Colour(0xFF882D61);
-			case Classes:		return Colour(0xFFAA5239);
-			case Preprocessor:	return Colour(0xFFAA6C39);
-			case Method:		return Colour(0xFF7B9F35);
+			case Keyword:		return Colour(0xffbbbbff);
+			case Classes:		return Colour(0xFF70FFE4);
+			case Preprocessor:	return Colour(0xFFB5C792);
+			case Method:		return Colour(0xFFA0FF51);
 		}
 
 		return {};
@@ -274,6 +275,17 @@ struct SymbolProvider : public TokenCollection::Provider
 		ComplexMemberToken(SymbolProvider& parent_, ComplexType::Ptr p_, FunctionData& f);
 
 		bool matches(const String& input, const String& previousToken, int lineNumber) const override;
+
+		bool equals(const Token* other) const override
+		{
+			if (auto co = dynamic_cast<const ComplexMemberToken*>(other))
+			{
+				if (co->p != p)
+					return false;
+			}
+
+			return Token::equals(other);
+		}
 
 		SymbolProvider& parent;
 		ComplexType::Ptr p;

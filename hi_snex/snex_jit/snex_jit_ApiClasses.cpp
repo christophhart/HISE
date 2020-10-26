@@ -46,6 +46,8 @@ MathFunctions::MathFunctions(bool addInlinedFunctions) :
 
 #define DESCRIPTION(type, x) setDescription(juce::String("Calculates the ") + #type + " " + #x + " value", { "input" }); 
 
+	HNODE_JIT_ADD_C_FUNCTION_2(block, hmath::min, block, float, "min"); DESCRIPTION(int, smaller);
+
 
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::min, int, int, "min");		DESCRIPTION(int, smaller);
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::max, int, int, "max");		DESCRIPTION(int, bigger);

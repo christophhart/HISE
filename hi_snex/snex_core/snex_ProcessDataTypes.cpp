@@ -41,19 +41,19 @@ using namespace juce;
 
 
 template <int C>
-snex::Types::FrameProcessor<C> snex::Types::ProcessDataFix<C>::toFrameData()
+snex::Types::FrameProcessor<C> snex::Types::ProcessData<C>::toFrameData()
 {
 	return FrameProcessor<C>(data, getNumSamples());
 }
 
 template <int C>
-constexpr int snex::Types::ProcessDataFix<C>::getNumChannels()
+constexpr int snex::Types::ProcessData<C>::getNumChannels()
 {
 	return NumChannels;
 }
 
 template <int C>
-ChannelPtr snex::Types::ProcessDataFix<C>::getChannelPtr(int index)
+ChannelPtr snex::Types::ProcessData<C>::getChannelPtr(int index)
 {
 	jassert(isPositiveAndBelow(index, NumChannels));
 	return { data[index] };
@@ -112,7 +112,7 @@ template <int C> struct ProcessDataHelpers
 
 	
 
-	template <typename OtherContainer> static void copyTo(const ProcessDataFix<C>& source, OtherContainer& t)
+	template <typename OtherContainer> static void copyTo(const ProcessData<C>& source, OtherContainer& t)
 	{
 		static_assert(std::is_same<float, OtherContainer::DataType>(), "target must be float array");
 
@@ -136,7 +136,7 @@ template <int C> struct ProcessDataHelpers
 	template <typename DspClass, typename ProcessDataType> static void processFix(DspClass* ptr, ProcessDataType& data)
 	{
 		auto& obj = *static_cast<DspClass*>(ptr);
-		auto& fixData = data.as<snex::Types::ProcessDataFix<C>>();
+		auto& fixData = data.as<snex::Types::ProcessData<C>>();
 
 		auto fd = fixData.toFrameData();
 
