@@ -245,13 +245,95 @@ public:
 
 };
 
+
+struct VectorTestObject
+{
+	VectorTestObject()
+	{
+		int i = 0;
+		for (auto& s : data)
+			s = (float)(i++ % 256);
+	}
+
+	bool operator==(const VectorTestObject& other) const
+	{
+		for (int i = 0; i < data.size(); i++)
+			if (data[i] != other.data[i])
+				return false;
+
+		return true;
+	}
+
+	operator String() const { return "funky"; };
+
+	Types::span<float, 512> data;
+	block a;
+	block b;
+
+	hmath Math;
+};
+
+
+
+
+
+class VectorOpTestCase: public VectorTestObject
+{
+public:
+	VectorOpTestCase(UnitTest& t_, const StringArray optimizationList, const String& line):
+		t(t_)
+	{
+		code = makeCode(line);
+
+		for (auto o : optimizationList)
+			m.addOptimization(o);
+
+
+		Compiler c(m);
+		Types::SnexObjectDatabase::registerObjects(c, 2);
+
+
+		obj = c.compileJitObject(code);
+
+		t.expect(c.getCompileResult().wasOk());
+
+		f = obj["process"];
+	}
+
+	String makeCode(const String& line)
+	{
+		String s;
+
+		s << "void process(block a, block b, float s)\n{\n\t";
+		s << line;
+		s << ";\n}";
+		return s;
+	}
+
+	void test(float s, int size, int offset1, int offset2)
+	{
+		jassert(size + offset2 < 256);
+		a.referTo(data, size, offset1);
+		b.referTo(data, size, offset2 + 256);
+		f.callVoid(&a, &b, s);
+	}
+
+	FunctionData f;
+	String code;
+	UnitTest& t;
+	GlobalScope m;
+	JitObject obj;
+	
+};
+
+
 class ProcessTestCase
 {
 public:
 
 	static constexpr int NumChannels = 2;
 
-	using ProcessType = Types::ProcessDataFix<NumChannels>;
+	using ProcessType = Types::ProcessData<NumChannels>;
 
 	ProcessType::ChannelDataType makeChannelData()
 	{
@@ -294,7 +376,7 @@ public:
 	int v;
 };
 
-class JitFileTestCase
+class JitFileTestCase: public DebugHandler
 {
 public:
 
@@ -325,6 +407,8 @@ public:
 
 		return e;
 	}
+
+
 
 	HiseEvent parseHiseEvent(const var& eventObject)
 	{
@@ -363,6 +447,12 @@ public:
 
 	~JitFileTestCase()
 	{
+	}
+
+	void logMessage(int level, const juce::String& s) override
+	{
+		if (level == BaseCompiler::Error)
+			r = Result::fail(s);
 	}
 
 	static File getTestFileDirectory()
@@ -508,6 +598,8 @@ public:
 
 			r = c.getCompileResult();
 
+			DBG(c.dumpSyntaxTree());
+
 			if (dumpBeforeTest)
 			{
 				DBG("code");
@@ -556,6 +648,16 @@ public:
 			case Types::ID::Block:   actualResult = *call<block*>(); break;
 			default: jassertfalse;
 			}
+
+
+			if (memory.checkRuntimeErrorAfterExecution())
+			{
+				if (t != nullptr)
+					t->expect(false, memory.getRuntimeError().getErrorMessage());
+
+				return memory.getRuntimeError();
+			}
+				
 
 			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
 
@@ -1349,10 +1451,9 @@ public:
 
 	void runTest() override
 	{
-		optimizations = OptimizationIds::getAllIds();
-		//runTestFiles();
-		
-		
+		optimizations = { OptimizationIds::AutoVectorisation, OptimizationIds::BinaryOpOptimisation, OptimizationIds::AsmOptimisation };
+
+		testVectorOps();
 
 		return;
 		runTestFiles("template", true);
@@ -1579,8 +1680,6 @@ public:
 
 			s << "\n";
 		}
-
-		DBG(s);
 	}
 
 
@@ -2539,6 +2638,71 @@ private:
 		}
 
 		int x = 5;
+	}
+
+	void testVectorOps()
+	{
+		beginTest("Testing vector ops");
+
+		testVectorOps({});
+		testVectorOps({ OptimizationIds::AutoVectorisation });
+		testVectorOps({ OptimizationIds::AutoVectorisation, OptimizationIds::AsmOptimisation });
+		testVectorOps({ OptimizationIds::AutoVectorisation, OptimizationIds::BinaryOpOptimisation, OptimizationIds::AsmOptimisation });
+	}
+
+	void testVectorOps(const StringArray& opt)
+	{
+		optimizations = opt;
+
+		testVectorOps(false, false);
+		testVectorOps(false, true);
+		testVectorOps(true, false);
+		testVectorOps(true, true);
+	}
+
+	void testVectorOps(bool allowOffset, bool forceSimdSize)
+	{
+
+		Random r;
+
+		int a, b, s; // f**ing autocomplete...
+
+		using T = block;
+
+		auto numSamples = forceSimdSize ? r.nextInt({1, 13}) * 4 : r.nextInt({ 3, 90 });
+		auto scalar = (float)r.nextInt({ 1, 15 });
+		auto o1 = allowOffset ? r.nextInt({ 0, 6 }) * 2 : 0;
+		auto o2 = allowOffset ? r.nextInt({ 0, 6 }) * 2 : 0;
+
+		Types::span<float, 512> expected;
+		Types::span<float, 512> actual;
+
+#define VECTOR_OBJECT(code) struct CppObject: public VectorTestObject { void test(float s, int size, int offset1, int offset2) { a.referTo(data, size, offset1); b.referTo(data, size, offset2 + 256); code; }} cppObject;
+#define JIT_VECTOR_OBJECT(line) VectorOpTestCase t(*this, optimizations, #line);
+
+#define TEST_VECTOR(line)  {JIT_VECTOR_OBJECT(line); VECTOR_OBJECT(line); t.test(scalar, numSamples, o1,o2); cppObject.test(scalar, numSamples, o1, o2); expect(t == cppObject, #line); /*expected = (cppObject.data); actual = (t.data);*/}
+
+		//TEST_VECTOR(a *= (b - 80.0f) * s + (a - s + b));
+
+		TEST_VECTOR(a *= b);
+
+		TEST_VECTOR(a = s);
+		
+		TEST_VECTOR(a = Math.min(a, 3.0f));
+
+		TEST_VECTOR(a = 15.0f);
+		TEST_VECTOR(a = (b * 15.0f) + a);
+		TEST_VECTOR(a = b - 15.0f);
+		TEST_VECTOR(a = b);
+		TEST_VECTOR(a = s);
+		TEST_VECTOR(a *= s);
+		TEST_VECTOR(a *= b);
+		TEST_VECTOR(a *= b; a *= s);
+		TEST_VECTOR(a += s);
+		TEST_VECTOR(a += b);
+		TEST_VECTOR(a = b + 12.0f);
+		TEST_VECTOR(a = b + (a * b));
+		TEST_VECTOR(a *= (b - 80.0f) * s + (a - s + b));
 	}
 
 	void testStaticConst()
@@ -3511,9 +3675,6 @@ private:
 			Types::SnexObjectDatabase::registerObjects(c, 2);
 
 			auto obj = c.compileJitObject(code);
-
-			DBG(c.getAssemblyCode());
-
 			auto result = obj["test"].call<int>(&d);
 
 			expectEquals<int>(result, 118, "event buffer iteration");
