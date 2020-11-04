@@ -1,0 +1,252 @@
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licences for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licencing:
+*
+*   http://www.hartinstruments.net/hise/
+*
+*   HISE is based on the JUCE library,
+*   which also must be licenced for commercial applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
+
+namespace snex {
+namespace jit {
+using namespace juce;
+using namespace asmjit;
+
+
+void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scope)
+{
+
+
+	if (subClass == nullptr)
+	{
+		subClass = new ClassScope(scope, getStructType()->id, classType);
+	}
+
+	processBaseWithChildren(compiler, subClass);
+
+#if 0
+	if (auto st = as<SyntaxTree>(getSubExpr(0)))
+	{
+		DBG(st->dump());
+	}
+#endif
+
+
+	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
+	{
+		auto cType = getStructType();
+
+		forEachRecursive([cType](Ptr p)
+		{
+			if (auto f = as<Function>(p))
+			{
+				cType->addJitCompiledMemberFunction(f->data);
+			}
+
+			if (auto tf = as<TemplatedFunction>(p))
+			{
+				auto fData = tf->data;
+				fData.templateParameters = tf->templateParameters;
+
+				cType->addJitCompiledMemberFunction(fData);
+			}
+
+			return false;
+		});
+
+
+		addMembersFromStatementBlock(getStructType(), getChildStatement(0));
+	}
+
+	COMPILER_PASS(BaseCompiler::DataAllocation)
+	{
+		getStructType()->finaliseAlignment();
+	}
+}
+
+
+void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	processBaseWithChildren(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
+	{
+		if (auto tcd = type.getTypedComplexType<TemplatedComplexType>())
+		{
+			jassertfalse;
+		}
+
+		if (type.isComplexType())
+			type.getComplexType()->finaliseAlignment();
+	}
+	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
+	{
+		if (!isStackDefinition(scope) && scope->getRootClassScope() == scope)
+			scope->getRootData()->enlargeAllocatedSize(type);
+	}
+	COMPILER_PASS(BaseCompiler::DataAllocation)
+	{
+		for (auto s : getSymbols())
+		{
+			if (isStackDefinition(scope))
+			{
+
+			}
+			else if (scope->getRootClassScope() == scope)
+				scope->getRootData()->allocate(scope, s);
+		}
+	}
+	COMPILER_PASS(BaseCompiler::DataInitialisation)
+	{
+		if (getNumChildStatements() == 0 && initValues == nullptr)
+		{
+			initValues = type.makeDefaultInitialiserList();
+		}
+
+		if (!isStackDefinition(scope))
+		{
+			for (auto s : getSymbols())
+			{
+				if (scope->getRootClassScope() == scope)
+				{
+					auto r = scope->getRootData()->initData(scope, s, initValues);
+
+					if (!r.wasOk())
+						location.throwError(r.getErrorMessage());
+				}
+				else if (auto cScope = dynamic_cast<ClassScope*>(scope))
+				{
+					if (auto st = dynamic_cast<StructType*>(cScope->typePtr.get()))
+						st->setDefaultValue(s.id.getIdentifier(), initValues);
+				}
+			}
+		}
+	}
+	COMPILER_PASS(BaseCompiler::RegisterAllocation)
+	{
+		if (isStackDefinition(scope))
+		{
+			if (type.isRef())
+			{
+				if (auto s = getSubExpr(0))
+				{
+					reg = s->reg;
+
+					if (reg != nullptr)
+						reg->setReference(scope, getSymbols().getFirst());
+				}
+			}
+			else
+			{
+				auto acg = CREATE_ASM_COMPILER(getType());
+
+				for (auto s : getSymbols())
+				{
+					auto reg = compiler->registerPool.getRegisterForVariable(scope, s);
+
+					if (reg->getType() == Types::ID::Pointer && type.getRequiredByteSize() > 0)
+					{
+						auto c = acg.cc.newStack(type.getRequiredByteSize(), type.getRequiredAlignment(), "funky");
+
+						reg->setCustomMemoryLocation(c, false);
+					}
+
+					stackLocations.add(reg);
+				}
+
+
+			}
+		}
+	}
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		if (isStackDefinition(scope))
+		{
+			if (type.isRef())
+			{
+				if (auto s = getSubExpr(0))
+				{
+					reg = s->reg;
+					reg->setReference(scope, getSymbols().getFirst());
+				}
+			}
+			else
+			{
+				auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(type));
+
+				FunctionData overloadedAssignOp;
+
+				FunctionClass::Ptr fc = type.getComplexType()->getFunctionClass();
+
+
+
+				if (getNumChildStatements() > 0)
+				{
+					overloadedAssignOp = fc->getSpecialFunction(FunctionClass::AssignOverload, type, { type, getSubExpr(0)->getTypeInfo() });
+				}
+
+				for (auto s : stackLocations)
+				{
+					if (type.getRequiredByteSize() > 0)
+					{
+						if (initValues == nullptr && overloadedAssignOp.canBeInlined(false))
+						{
+							AsmInlineData d(acg);
+
+							d.object = s;
+							d.target = s;
+							d.args.add(s);
+							d.args.add(getSubRegister(0));
+
+							auto r = overloadedAssignOp.inlineFunction(&d);
+
+							if (!r.wasOk())
+								location.throwError(r.getErrorMessage());
+						}
+						else
+						{
+							if (s->getType() == Types::ID::Pointer)
+							{
+								if (initValues != nullptr)
+									acg.emitStackInitialisation(s, type.getComplexType(), nullptr, initValues);
+								else if (getSubRegister(0) != nullptr)
+									acg.emitComplexTypeCopy(s, getSubRegister(0), type.getComplexType());
+							}
+							else
+							{
+								acg.emitSimpleToComplexTypeCopy(s, initValues, getSubExpr(0) != nullptr ? getSubRegister(0) : nullptr);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+}
+}
