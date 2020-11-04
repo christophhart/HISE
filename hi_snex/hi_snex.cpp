@@ -34,6 +34,15 @@ using String = juce::String;
 #include "snex_jit/snex_jit_OptimizationPasses.h"
 #include "snex_jit/snex_jit_SyntaxTreeWalker.h"
 #include "snex_jit/snex_jit_Operations.h"
+#include "snex_jit/snex_jit_OperationsSymbols.h"
+#include "snex_jit/snex_jit_OperationsFunction.h"
+#include "snex_jit/snex_jit_OperationsOperators.h"
+#include "snex_jit/snex_jit_OperationsBranching.h"
+
+
+
+#include "snex_jit/snex_jit_OperationsObjects.h"
+#include "snex_jit/snex_jit_OperationsTemplates.h"
 #include "snex_jit/snex_jit_FunctionParser.h"
 #include "snex_jit/snex_TemplateClassBuilder.h"
 
@@ -64,6 +73,12 @@ using String = juce::String;
 #include "snex_jit/snex_jit_SyntaxTreeWalker.cpp"
 
 #include "snex_jit/snex_jit_Operations.cpp"
+#include "snex_jit/snex_jit_OperationsBranching.cpp"
+#include "snex_jit/snex_jit_OperationsSymbols.cpp"
+#include "snex_jit/snex_jit_OperationsFunction.cpp"
+#include "snex_jit/snex_jit_OperationsOperators.cpp"
+#include "snex_jit/snex_jit_OperationsObjects.cpp"
+#include "snex_jit/snex_jit_OperationsTemplates.cpp"
 #include "snex_jit/snex_jit_FunctionParser.cpp"
 
 #include "snex_jit/snex_jit_JitCompiledFunctionClass.cpp"

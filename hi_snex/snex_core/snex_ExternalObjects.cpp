@@ -369,9 +369,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	{
 		c.addConstant(NamespacedIdentifier("NumChannels"), numChannels);
 		
-		auto blockType = new DynType(TypeInfo(Types::ID::Float));
-		blockType->setAlias(NamespacedIdentifier("block"));
-		c.registerExternalComplexType(blockType);
+		auto blockType = c.getNamespaceHandler().getComplexType(NamespacedIdentifier("block"));
 
 		auto floatType = TypeInfo(Types::ID::Float);
 		auto float2 = new SpanType(floatType, numChannels);

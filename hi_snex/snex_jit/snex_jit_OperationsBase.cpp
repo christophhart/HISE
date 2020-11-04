@@ -306,7 +306,7 @@ void Operations::Expression::replaceMemoryWithExistingReference(BaseCompiler* co
 	auto prevReg = compiler->registerPool.getRegisterWithMemory(reg);
 
 	if (prevReg != reg)
-		reg = prevReg;
+		reg->setReferToReg(prevReg);
 }
 
 bool Operations::Expression::isAnonymousStatement() const

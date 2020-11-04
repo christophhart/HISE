@@ -79,24 +79,14 @@ public:
 		InactiveRegister,
 		ActiveRegister,
 		DirtyGlobalRegister,
-#if REMOVE_REUSABLE_REG
-		ReusableRegister,
-#endif
 		numStates
 	};
 
 private:
 
 	AssemblyRegister(BaseCompiler* compiler, TypeInfo type_);
-
 	
 public:
-
-	~AssemblyRegister()
-	{
-		int x = 5;
-	}
-
 
 	bool matchesMemoryLocation(Ptr other) const;
 
@@ -111,60 +101,6 @@ public:
 	bool operator==(const Symbol& s) const;
 
 	bool isDirtyGlobalMemory() const;
-
-#if REMOVE_REUSABLE_REG
-	void flagForReuseIfAnonymous()
-	{
-		if (!id)
-			flagForReuse();
-	}
-
-	void flagForReuse(bool forceReuse = false)
-	{
-		return;
-
-		if (!forceReuse)
-		{
-			if (!isActive())
-				return;
-
-			if (isIter)
-				return;
-
-			if (dirty)
-				return;
-		}
-
-		reusable = true;
-		state = ReusableRegister;
-	}
-
-	void removeReuseFlag()
-	{
-		reusable = false;
-		state = ActiveRegister;
-	}
-
-	bool canBeReused() const
-	{
-		return reusable;
-	}
-
-	void clearForReuse()
-	{
-		isIter = false;
-		state = ReusableRegister;
-		dirty = false;
-		reusable = false;
-		immediateIntValue = 0;
-		memoryLocation = nullptr;
-		scope = nullptr;
-		id = {};
-	}
-
-
-
-#endif
 
 	void reinterpretCast(const TypeInfo& newType);
 
@@ -274,7 +210,24 @@ public:
 		return isZeroValue;
 	}
 
+	void setReferToReg(Ptr otherPtr)
+	{
+		referenceTarget = otherPtr->getReferenceTargetRegister();
+	}
+
+	bool isReferencingOtherRegister() const { return getReferenceTargetRegister() != this; }
+
+	Ptr getReferenceTargetRegister() const
+	{
+		if (referenceTarget != nullptr)
+			return referenceTarget->getReferenceTargetRegister();
+
+		return const_cast<AssemblyRegister*>(this);
+	}
+
 private:
+
+	Ptr referenceTarget;
 
 	int numMemoryReferences = 0;
 

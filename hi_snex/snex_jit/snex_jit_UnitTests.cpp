@@ -252,7 +252,7 @@ struct VectorTestObject
 	{
 		int i = 0;
 		for (auto& s : data)
-			s = (float)(i++ % 256);
+			s = (float)(i++ % 256) - 128.0f;
 	}
 
 	bool operator==(const VectorTestObject& other) const
@@ -597,8 +597,6 @@ public:
 			obj = c.compileJitObject(code);
 
 			r = c.getCompileResult();
-
-			DBG(c.dumpSyntaxTree());
 
 			if (dumpBeforeTest)
 			{
@@ -1451,19 +1449,16 @@ public:
 
 	void runTest() override
 	{
-		optimizations = { OptimizationIds::AutoVectorisation, OptimizationIds::BinaryOpOptimisation, OptimizationIds::AsmOptimisation };
-
-		testVectorOps();
-
-		return;
-		runTestFiles("template", true);
-
-		return;
-
 		
-		testInlining();
 
-		optimizations = OptimizationIds::getAllIds();
+		//testVectorOps();
+		//testInlining();
+
+		optimizations = {};// OptimizationIds::getAllIds();
+
+		//optimizations = { OptimizationIds::AsmOptimisation };
+		runTestFiles("");
+		return;
 		
 
 		runTestsWithOptimisation(OptimizationIds::getAllIds());
@@ -1882,21 +1877,7 @@ private:
 
 		auto firstTree = c.dumpSyntaxTree();
 		
-		{
-			code = {};
-
-			ADD_CODE_LINE("int test(int input){");
-			ADD_CODE_LINE("{");
-			ADD_CODE_LINE("    if(input == 2) {return input;}");
-			ADD_CODE_LINE("    else { return input * 2; }");
-			ADD_CODE_LINE("}");
-
-			c.compileJitObject(code);
-			expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile error");
-
-            
-			expectedEqualSyntaxTree(firstTree, c.dumpSyntaxTree(), "added false branch");
-		}
+		
 		
 		{
 			code = {};
@@ -2671,7 +2652,7 @@ private:
 
 		auto numSamples = forceSimdSize ? r.nextInt({1, 13}) * 4 : r.nextInt({ 3, 90 });
 		auto scalar = (float)r.nextInt({ 1, 15 });
-		auto o1 = allowOffset ? r.nextInt({ 0, 6 }) * 2 : 0;
+		auto o1 = 30; allowOffset ? r.nextInt({ 0, 6 }) * 2 : 0;
 		auto o2 = allowOffset ? r.nextInt({ 0, 6 }) * 2 : 0;
 
 		Types::span<float, 512> expected;
@@ -2682,14 +2663,16 @@ private:
 
 #define TEST_VECTOR(line)  {JIT_VECTOR_OBJECT(line); VECTOR_OBJECT(line); t.test(scalar, numSamples, o1,o2); cppObject.test(scalar, numSamples, o1, o2); expect(t == cppObject, #line); /*expected = (cppObject.data); actual = (t.data);*/}
 
-		//TEST_VECTOR(a *= (b - 80.0f) * s + (a - s + b));
-
+		TEST_VECTOR(a = Math.min(Math.max(a, 35.0f), 40.0f));
+		TEST_VECTOR(a *= (b - 80.0f) * s + (a - s + b));
+		TEST_VECTOR(a = Math.abs(a));
+		TEST_VECTOR(a = Math.min(a, b));
+		TEST_VECTOR(a = Math.min(a, 35.0f));
+		TEST_VECTOR(a = Math.min(Math.max(a, 35.0f), 40.0f));
+		TEST_VECTOR(a = Math.max(a, 12.0f) + b);
+		TEST_VECTOR(a = Math.abs(b) + (a * 12.0f));
 		TEST_VECTOR(a *= b);
-
 		TEST_VECTOR(a = s);
-		
-		TEST_VECTOR(a = Math.min(a, 3.0f));
-
 		TEST_VECTOR(a = 15.0f);
 		TEST_VECTOR(a = (b * 15.0f) + a);
 		TEST_VECTOR(a = b - 15.0f);

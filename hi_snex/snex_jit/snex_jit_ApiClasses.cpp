@@ -36,18 +36,83 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-MathFunctions::MathFunctions(bool addInlinedFunctions) :
+struct VectorMathFunction
+{
+	enum class ArgTypes
+	{
+		SingleBlock,
+		Scalar,
+		TwoBlocks,
+		numArgTypes
+	};
+
+	static FunctionData* createSingleArgsFunction(void* ptr, const Identifier& id, ComplexType::Ptr blockType)
+	{
+		VectorMathFunction v(ptr, id);
+		return v.create(blockType, ArgTypes::SingleBlock);
+	}
+
+	static FunctionData* createForScalar(void* ptr, const Identifier& id, ComplexType::Ptr blockType)
+	{
+		VectorMathFunction v(ptr, id);
+		return v.create(blockType, ArgTypes::Scalar);
+	}
+
+	static FunctionData* createForTwoBlocks(void* ptr, const Identifier& id, ComplexType::Ptr blockType)
+	{
+		VectorMathFunction v(ptr, id);
+		return v.create(blockType, ArgTypes::TwoBlocks);
+	}
+
+	VectorMathFunction(void* ptr, const Identifier& id_)
+	{
+		NamespacedIdentifier m("Math");
+		id = m.getChildId(id_);
+		f = ptr;
+	}
+
+	NamespacedIdentifier id;
+	void* f;
+
+	FunctionData* create(ComplexType::Ptr blockType, ArgTypes argTypes)
+	{
+		auto fData = new FunctionData();
+		fData->id = id;
+		fData->function = f;
+
+		fData->returnType = TypeInfo(blockType, false, false);
+		fData->args.add({ id.getChildId("b1"), TypeInfo(blockType, false, false) });
+
+		if (argTypes == ArgTypes::Scalar)
+			fData->args.add({ id.getChildId("s"), TypeInfo(Types::ID::Float, false, false) });
+		else if(argTypes == ArgTypes::TwoBlocks)
+			fData->args.add({ id.getChildId("b2"), TypeInfo(blockType, true, true) });
+
+		return fData;
+	}
+};
+
+#define DESCRIPTION(type, x) setDescription(juce::String("Calculates the ") + #type + " " + #x + " value", { "input" }); 
+#define HNODE_JIT_VECTOR_FUNCTION_1(name) addFunction(VectorMathFunction::createSingleArgsFunction(static_cast<block&(*)(block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
+#define HNODE_JIT_VECTOR_FUNCTION(name) addFunction(VectorMathFunction::createForTwoBlocks(static_cast<block&(*)(block&, const block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
+#define HNODE_JIT_VECTOR_FUNCTION_S(name) addFunction(VectorMathFunction::createForScalar(static_cast<block&(*)(block&, float)>(hmath::name), #name, blockType)); DESCRIPTION(name, float);
+
+MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType) :
 	FunctionClass(NamespacedIdentifier("Math"))
 {
+	jassert(blockType != nullptr);
+
 	addFunctionConstant("PI", hmath::PI);
 	addFunctionConstant("E", hmath::E);
 	addFunctionConstant("SQRT2", hmath::SQRT2);
 	addFunctionConstant("FORTYTWO", hmath::FORTYTWO);
 
-#define DESCRIPTION(type, x) setDescription(juce::String("Calculates the ") + #type + " " + #x + " value", { "input" }); 
 
-	HNODE_JIT_ADD_C_FUNCTION_2(block, hmath::min, block, float, "min"); DESCRIPTION(int, smaller);
-
+	HNODE_JIT_VECTOR_FUNCTION(min);
+	HNODE_JIT_VECTOR_FUNCTION_S(min);
+	HNODE_JIT_VECTOR_FUNCTION(max);
+	HNODE_JIT_VECTOR_FUNCTION_S(max);
+	HNODE_JIT_VECTOR_FUNCTION_1(abs);
 
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::min, int, int, "min");		DESCRIPTION(int, smaller);
 	HNODE_JIT_ADD_C_FUNCTION_2(int, hmath::max, int, int, "max");		DESCRIPTION(int, bigger);

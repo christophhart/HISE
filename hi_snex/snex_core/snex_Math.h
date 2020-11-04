@@ -53,19 +53,37 @@ struct hmath
 	constexpr static double FORTYTWO = 42.0; // just for unit test purposes, the other ones choke because of 
 									   // String conversion imprecisions...
 
-	static forcedinline block min(block b1, float s)
+	static forcedinline block& min(block& b1, float s)
 	{
 		FloatVectorOperations::min(b1.begin(), b1.begin(), s, b1.size());
 		return b1;
 	}
 
-	static forcedinline block max(block b1, float s)
+	static forcedinline block& min(block& b1, const block& b2)
+	{
+		jassert(b1.size() == b2.size());
+		FloatVectorOperations::min(b1.begin(), b1.begin(), b2.begin(), b1.size());
+		return b1;
+	}
+
+	static forcedinline block& max(block& b1, float s)
 	{
 		FloatVectorOperations::max(b1.begin(), b1.begin(), s, b1.size());
 		return b1;
 	}
 
+	static forcedinline block& max(block& b1, const block& b2)
+	{
+		jassert(b1.size() == b2.size());
+		FloatVectorOperations::max(b1.begin(), b1.begin(), b2.begin(), b1.size());
+		return b1;
+	}
 
+	static forcedinline block& abs(block& b1)
+	{
+		FloatVectorOperations::abs(b1.begin(), b1.begin(), b1.size());
+		return b1;
+	}
 
 	static forcedinline double sign(double value) { return value > 0.0 ? 1.0 : -1.0; };
 	static forcedinline double abs(double value) { return value * sign(value); };

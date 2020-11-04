@@ -201,7 +201,7 @@ public:
 		}
 	};
 
-	MathFunctions(bool addInlinedFunctions);;
+	MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType);;
 };
 
 }

@@ -774,6 +774,8 @@ public:
 
 private:
 
+	ComplexType::Ptr blockType;
+
 	RuntimeError currentRuntimeError;
 	Result runtimeError;
 

@@ -43,8 +43,11 @@ GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 {
 	bufferHandler = new BufferHandler();
 
+	blockType = new DynType(TypeInfo(Types::ID::Float));
+	blockType->setAlias(NamespacedIdentifier("block"));
+
 	objectClassesWithJitCallableFunctions.add(new ConsoleFunctions(this));
-	addFunctionClass(new MathFunctions(false));
+	
 
 	jassert(scopeType == BaseScope::Global);
 }
@@ -86,6 +89,12 @@ void GlobalScope::deregisterObject(const NamespacedIdentifier& id)
 void GlobalScope::registerFunctionsToNamespaceHandler(NamespaceHandler& handler)
 {
 	NamespaceHandler::ScopedNamespaceSetter sns(handler, NamespacedIdentifier());
+
+	blockType = handler.registerComplexTypeOrReturnExisting(blockType);
+
+	jassert(dynamic_cast<DynType*>(blockType.get()) != nullptr);
+
+	addFunctionClass(new MathFunctions(false, blockType));
 
 	for (auto of : objectClassesWithJitCallableFunctions)
 	{
@@ -140,7 +149,7 @@ void GlobalScope::addOptimization(const juce::String& passId)
 	if (passId == OptimizationIds::Inlining)
 	{
 		removeFunctionClass(NamespacedIdentifier("Math"));
-		addFunctionClass(new MathFunctions(true));
+		addFunctionClass(new MathFunctions(true, blockType));
 	}
 }
 
@@ -149,7 +158,7 @@ void GlobalScope::clearOptimizations()
 	optimizationPasses.clear();
 
 	removeFunctionClass(NamespacedIdentifier("Math"));
-	addFunctionClass(new MathFunctions(false));
+	addFunctionClass(new MathFunctions(false, {}));
 }
 
 bool GlobalScope::checkRuntimeErrorAfterExecution()
