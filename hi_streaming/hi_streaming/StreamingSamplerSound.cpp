@@ -121,12 +121,8 @@ void StreamingSamplerSound::setBasicMappingData(const StreamingHelpers::BasicMap
 
 void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 {
-	
-
 	if (reversed)
-	{
 		return;
-	}
 
 	const bool preloadSizeChanged = preloadSize == newPreloadSize;
 	const bool streamingDeactivated = newPreloadSize == -1 && entireSampleLoaded;
@@ -136,8 +132,6 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	ScopedLock sl(getSampleLock());
 
 	const bool sampleDeactivated = !hasActiveState() || newPreloadSize == 0;
-
-
 
 	if (sampleDeactivated)
 	{
@@ -497,7 +491,6 @@ void StreamingSamplerSound::loopChanged()
 		fileReader.openFileHandles();
 		sampleEnd = fileReader.getSampleLength();
 	}
-
 
 	loopStart = jmax<int>(loopStart, sampleStart);
 	loopEnd = jmin<int>(loopEnd, sampleEnd);
