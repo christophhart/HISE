@@ -505,9 +505,9 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 		}
 
 #if JUCE_WINDOWS
-		File dumpFile = File("D:\\dumps").getChildFile(fileName);
+		dumpFile = File("D:\\dumps").getChildFile(fileName);
 #else
-		File dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
+		dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
 #endif
 
 		if (sibling)
