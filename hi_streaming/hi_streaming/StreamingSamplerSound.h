@@ -424,10 +424,30 @@ private:
 
 	};
 
+	struct ScopedFileHandler
+	{
+		ScopedFileHandler(StreamingSamplerSound* s, NotificationType notifyPool_ = NotificationType::sendNotification) :
+			reader(s->fileReader),
+			notifyPool(notifyPool_)
+		{
+			reader.openFileHandles(notifyPool);
+		}
+
+		~ScopedFileHandler()
+		{
+			reader.closeFileHandles(notifyPool);
+		}
+
+		NotificationType notifyPool;
+		FileReader& reader;
+	};
+
 	// ==============================================================================================================================================
 
 	void loopChanged();
 	void lengthChanged();
+
+	void applyCrossfadeToPreloadBuffer();
 
 	/** This fills the supplied AudioSampleBuffer with samples.
 	*
