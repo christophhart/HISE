@@ -122,6 +122,7 @@ struct NodeContainer : public AssignableObject
 		valuetree::RecursivePropertyListener expressionListener;
 
 		ReferenceCountedArray<Connection> connections;
+		bool initialised = false;
 	};
 
 	NodeContainer();

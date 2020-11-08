@@ -203,6 +203,9 @@ void RemoveListener::setCallback(ValueTree childToListenTo, AsyncMode asyncMode,
 	if (parent.isValid())
 		parent.removeListener(this);
 
+	if (!parent.isValid())
+		parent = childToListenTo.getParent();
+
 	WeakReference<RemoveListener> tmp = this;
 
 	auto f = [tmp, childToListenTo, asyncMode, c, checkParentsToo]()
@@ -225,7 +228,7 @@ void RemoveListener::setCallback(ValueTree childToListenTo, AsyncMode asyncMode,
 		tmp.get()->cb = c;
 	};
 
-	if (tmp.get()->parent.isValid())
+	if (parent.isValid())
 	{
 		f();
 	}
@@ -334,15 +337,21 @@ void ChildListener::sendAddMessageForAllChildren()
 	{
 	case AsyncMode::Unregistered: break;
 	case AsyncMode::Synchronously:
-		for (auto c : v)
+	{
+		IterationProtector ip(v);
+
+		for (auto& c : v)
 			cb(c, true);
+
 		break;
+	}
+		
 	case AsyncMode::Asynchronously:
 	{
 		ScopedLock sl(asyncLock);
 
 		pendingChanges.clear();
-		for (auto c : v)
+		for (auto& c : v)
 			pendingChanges.addIfNotAlreadyThere({ c, true });
 
 		triggerAsyncUpdate();
