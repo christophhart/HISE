@@ -70,6 +70,23 @@ MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterD
 	parameterRange = NormalisableRange<double>(xml.getDoubleAttribute("low", 0.0), xml.getDoubleAttribute("high", 1.0));
 	inverted = xml.getBoolAttribute("inverted", false);
 	controlledProcessor = findProcessor(chain, id);
+
+	if (controlledProcessor->getIdentifierForParameterIndex(parameter).toString().compare(parameterName) != 0)
+	{
+		// parameter name vs id mismatch, we'll resolve it now...
+		int numParameters = controlledProcessor->getNumParameters();
+
+		Identifier pToLookFor(parameterName);
+
+		for (int i = 0; i < numParameters; i++)
+		{
+			if (controlledProcessor->getIdentifierForParameterIndex(i) == pToLookFor)
+			{
+				parameter = i;
+				break;
+			}
+		}
+	}
 }
 
 /** Allows comparison. This only compares the Processor and the parameter (not the range). */
