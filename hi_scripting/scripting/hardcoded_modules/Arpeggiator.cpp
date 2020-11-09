@@ -81,7 +81,7 @@ const SliderPackData * Arpeggiator::getSliderPackData(int index) const
 void Arpeggiator::onInit()
 {
 	Content.setWidth(800);
-	Content.setHeight(500);
+	Content.setHeight(550);
 	
 	userHeldKeysArray.ensureStorageAllocated(128);
 	userHeldKeysArraySorted.ensureStorageAllocated(128);
@@ -186,10 +186,11 @@ void Arpeggiator::onInit()
 
 	parameterNames.add("CurrentStep");
 
-	enableTieNotes = Content.addButton("EnableTie", 10, 70);
-	enableTieNotes->set("text", "Enable Tie Notes");
+	enableTieNotes = Content.addButton("EnableTie", 0, 70);
+	enableTieNotes->set("text", "Tie 100%");
 	parameterNames.add("EnableTieNotes");
 
+	
 	auto bg = Content.addPanel("packBg", 150, 5);
 
 	bg->set("width", 532);
@@ -221,10 +222,9 @@ void Arpeggiator::onInit()
 	lengthSliderPack->set("sliderAmount", 4);
 	lengthSliderPack->set("stepSize", "1");
 	
-	
-	
-	inputMidiChannel = Content.addComboBox("ChannelSelector", 300, 440);
-	inputMidiChannel->set("text", "MIDI Channel");
+	inputMidiChannel = Content.addComboBox("ChannelSelector", 300, 460);
+	inputMidiChannel->set("items", "");
+	parameterNames.add("InputChannel");
 	inputMidiChannel->addItem("All Channels");
 	inputMidiChannel->addItem("Channel 1");
 	inputMidiChannel->addItem("Channel 2");
@@ -243,9 +243,10 @@ void Arpeggiator::onInit()
 	inputMidiChannel->addItem("Channel 15");
 	inputMidiChannel->addItem("Channel 16");
 
-	outputMidiChannel = Content.addComboBox("OutputChannelSelector", 300, 440 + 35);
-	outputMidiChannel->set("text", "MIDI Channel");
-	outputMidiChannel->addItem("All Channels");
+	outputMidiChannel = Content.addComboBox("OutputChannelSelector", 300, 460 + 55);
+	parameterNames.add("OutputChannel");
+	outputMidiChannel->set("items", "");
+	outputMidiChannel->addItem("Use input channel");
 	outputMidiChannel->addItem("Channel 1");
 	outputMidiChannel->addItem("Channel 2");
 	outputMidiChannel->addItem("Channel 3");
@@ -263,8 +264,9 @@ void Arpeggiator::onInit()
 	outputMidiChannel->addItem("Channel 15");
 	outputMidiChannel->addItem("Channel 16");
 
-	mpeStartChannel = Content.addComboBox("MPEStartChannel", 450, 440);
-	mpeStartChannel->set("text", "MPE Start Channel");
+	mpeStartChannel = Content.addComboBox("MPEStartChannel", 450, 460);
+	parameterNames.add("MPEStartChannel");
+	mpeStartChannel->set("items", "");
 	mpeStartChannel->addItem("Inactive");
 	mpeStartChannel->addItem("Channel 2");
 	mpeStartChannel->addItem("Channel 3");
@@ -282,8 +284,9 @@ void Arpeggiator::onInit()
 	mpeStartChannel->addItem("Channel 15");
 	mpeStartChannel->addItem("Channel 16");
 
-	mpeEndChannel = Content.addComboBox("MPEEndChannel", 450, 440 + 35);
+	mpeEndChannel = Content.addComboBox("MPEEndChannel", 450, 460 + 55);
 	mpeEndChannel->set("text", "MPE End Channel");
+	mpeEndChannel->set("items", "");
 	mpeEndChannel->addItem("Inactive");
 	mpeEndChannel->addItem("Channel 2");
 	mpeEndChannel->addItem("Channel 3");
@@ -301,39 +304,20 @@ void Arpeggiator::onInit()
 	mpeEndChannel->addItem("Channel 15");
 	mpeEndChannel->addItem("Channel 16");
 
-	auto noteLabel = Content.addLabel("NoteLabel", 160, 11);
+	sustainHold = Content.addButton("Sus", 85, 70);
 	
-	noteLabel->set("text", "Note Numbers");
-	noteLabel->set("saveInPreset", false);
-	noteLabel->set("width", 110);
-	noteLabel->set("height", 20);
-	noteLabel->set("fontName", "Oxygen");
-	noteLabel->set("fontStyle", "Bold");
-	noteLabel->set("editable", false);
-	noteLabel->set("multiline", false);
-	
-	auto velocityLabel = Content.addLabel("VelocityLabel", 160, 140);
+	parameterNames.add("HoldSustain");
+	enableTieNotes->set("width", 85);
+	sustainHold->set("width", 55);
 
-	velocityLabel->set("text", "Velocity");
-	velocityLabel->set("saveInPreset", false);
-	velocityLabel->set("width", 110);
-	velocityLabel->set("height", 20);
-	velocityLabel->set("fontName", "Oxygen");
-	velocityLabel->set("fontStyle", "Bold");
-	velocityLabel->set("editable", false);
-	velocityLabel->set("multiline", false);
+	createLabel("NoteLabel", "Note Numbers", semiToneSliderPack);
+	createLabel("VeloLabel", "Velocity", velocitySliderPack);
+	createLabel("LengthLabel", "Note Length", lengthSliderPack);
+	createLabel("MIDILabel1", "Input Channel", inputMidiChannel);
+	createLabel("MIDILabel2", "Output Channel", outputMidiChannel);
+	createLabel("MIDILabel3", "MPE Start Channel", mpeStartChannel);
+	createLabel("MIDILabel4", "MPE End Channel", mpeEndChannel);
 
-	auto lengthLabel = Content.addLabel("LengthLabel", 160, 270);
-
-	lengthLabel->set("text", "Note Length");
-	lengthLabel->set("saveInPreset", false);
-	lengthLabel->set("width", 110);
-	lengthLabel->set("height", 20);
-	lengthLabel->set("fontName", "Oxygen");
-	lengthLabel->set("fontStyle", "Bold");
-	lengthLabel->set("editable", false);
-	lengthLabel->set("multiline", false);
-	
 	stepSkipSlider->setValue(1);
 	sequenceComboBox->setValue(1);
 	speedKnob->setValue((int)TempoSyncer::Tempo::Sixteenth); 
@@ -350,6 +334,15 @@ void Arpeggiator::onInit()
 	velocitySliderPack->setAllValues(127);
 	lengthSliderPack->setAllValues(75);
 	semiToneSliderPack->setAllValues(0);
+
+	resetButton->set("tooltip", "Stops the current sequence if pressed");
+
+	enableTieNotes->set("tooltip", "Ties steps with 100% length to the next note");
+	sustainHold->set("tooltip", "Holds the sequence if the sustain pedal is pressed");
+	inputMidiChannel->set("tooltip", "The MIDI channel that is fed into the arpeggiator.");
+	outputMidiChannel->set("tooltip", "The MIDI channel that is used for the arpeggiated notes");
+
+
 }
 
 void Arpeggiator::onNoteOn()
@@ -439,16 +432,21 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 
 		channelFilter = (int)value - 1;
 
-		killIncomingNotes = channelFilter == 0 || midiChannel == channelFilter;
+		killIncomingNotes = midiChannel == 0 || midiChannel == channelFilter;
 
 	}
 	else if (c == outputMidiChannel)
 	{
 		reset(true, false);
 
-		midiChannel = jmax<int>(1, (int)value);
+		//midiChannel = jmax<int>(1, (int)value);
+		midiChannel = (int)value - 1;
 
 		killIncomingNotes = midiChannel == 0 || midiChannel == channelFilter;
+	}
+	else if (c == sustainHold)
+	{
+		sustainHoldEnabled = (bool)value;
 	}
 	else if (c == mpeStartChannel || c == mpeEndChannel)
 	{
@@ -468,9 +466,41 @@ void Arpeggiator::onController()
 	if (bypassButton->getValue())
 		return;
 
+	const auto& m = *getCurrentHiseEvent();
+
+	if (m.getControllerNumber() == 64 && sustainHoldEnabled)
+	{
+		auto newActive = m.getControllerValue() >= 64;
+
+		if (newActive != sustainHoldActive)
+		{
+			if (sustainHoldActive)
+			{
+				// the pedal is released here,
+				// remove all notes from the playing queue
+				
+				for (auto& s : sustainHoldKeys)
+				{
+					userHeldKeysArray.removeFirstMatchingValue(s);
+					userHeldKeysArraySorted.removeFirstMatchingValue(s);
+				}
+
+				sustainHoldKeys.clearQuick();
+				
+				if (!keys_are_held())
+					reset(false, true);
+			}
+
+			sustainHoldActive = newActive;
+		}
+
+		// Don't propagate the sustain pedal command any further as it would result in holding the arpeggiated notes
+		Message.ignoreEvent(true);
+	}
+
 	if (mpeMode)
 	{
-		const auto& m = *getCurrentHiseEvent();
+		
 
 		auto c = m.getChannel();
 
@@ -710,7 +740,9 @@ int Arpeggiator::sendNoteOn()
 {
 	//const int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
 
-	const int eventId = Synth.addNoteOn(mpeMode ? currentNote.channel : midiChannel, currentNote.noteNumber, currentVelocity, 0);
+	int midiChannelToUse = mpeMode || midiChannel == 0 ? currentNote.channel : midiChannel;
+
+	const int eventId = Synth.addNoteOn(midiChannelToUse, currentNote.noteNumber, currentVelocity, 0);
 
 	if (mpeMode)
 	{
@@ -780,6 +812,10 @@ void Arpeggiator::addUserHeldKey(const NoteWithChannel& note)
 	if (userHeldKeysArray.contains(note))
 		return;
 
+	// allow replaying the note to keep it ringing after the pedal was released
+	if(sustainHoldActive)
+		sustainHoldKeys.removeFirstMatchingValue(note);
+
 	userHeldKeysArray.add(note);
 	userHeldKeysArraySorted.add(note);
 	userHeldKeysArraySorted.sort();
@@ -787,8 +823,16 @@ void Arpeggiator::addUserHeldKey(const NoteWithChannel& note)
 
 void Arpeggiator::remUserHeldKey(const NoteWithChannel& note)
 {
-	userHeldKeysArray.removeFirstMatchingValue(note);
-	userHeldKeysArraySorted.removeFirstMatchingValue(note);
+	if (sustainHoldActive)
+	{
+		// keep it playing, but save it for later...
+		sustainHoldKeys.addIfNotAlreadyThere(note);
+	}
+	else
+	{
+		userHeldKeysArray.removeFirstMatchingValue(note);
+		userHeldKeysArraySorted.removeFirstMatchingValue(note);
+	}
 }
 
 void Arpeggiator::clearUserHeldKeys()

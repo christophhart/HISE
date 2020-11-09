@@ -138,7 +138,7 @@ private:
 	};
 
 	
-
+	Array<NoteWithChannel, DummyCriticalSection, 256> sustainHoldKeys;
 	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArray;
 	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArraySorted;
 	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArray;
@@ -204,7 +204,7 @@ private:
 	int currentVelocity = 0;
 	int currentStep = 0;
 	int currentNoteLengthInSamples = 0;
-	int midiChannel = 1;
+	int midiChannel = 0;
 	
 	bool randomOrder = false;
 
@@ -258,6 +258,11 @@ private:
 		//return Synth.getNumPressedKeys() != 0;
 	};
 
+	void stopIfNoKeysActive()
+	{
+
+	}
+
 
 	int incAndWrapValueFromZeroToMax(int increment, int value, int max)
 	{
@@ -294,6 +299,23 @@ private:
 	{
 		return getSliderValueWithoutDisplay(lengthSliderPack, currentStep) == 0.0f;
 	};
+
+	void createLabel(const String& name, const String& content, ScriptComponent* attachedComponent)
+	{
+		auto pos = attachedComponent->getPosition();
+
+		auto lengthLabel = Content.addLabel(name, pos.getX(), pos.getY() - 20);
+
+		lengthLabel->set("text", content);
+		lengthLabel->set("alignment", "left");
+		lengthLabel->set("saveInPreset", false);
+		lengthLabel->set("width", pos.getWidth());
+		lengthLabel->set("height", 20);
+		lengthLabel->set("fontName", "Oxygen");
+		lengthLabel->set("fontStyle", "Bold");
+		lengthLabel->set("editable", false);
+		lengthLabel->set("multiline", false);
+	}
 
 	bool next_step_will_be_skipped()
 	{
@@ -335,6 +357,10 @@ private:
 	ScriptComboBox mpeStartChannel;
 	ScriptComboBox mpeEndChannel;
 	ScriptButton enableTieNotes;
+	ScriptButton sustainHold;
+
+	bool sustainHoldEnabled = false;
+	bool sustainHoldActive = false;
 
 	int mpeStart = 2;
 	int mpeEnd = 16;
