@@ -1714,6 +1714,23 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	bp->setup(getProcessor(), getIndex(), panel->name.toString());
 	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
 
+	auto cursor = panel->getMouseCursorPath();
+
+	if (!cursor.path.isEmpty())
+	{
+		auto s = 80;
+
+		Image icon(Image::ARGB, s, s, true);
+		Graphics g(icon);
+
+		PathFactory::scalePath(cursor.path, { 0.0f, 0.0f, (float)s, (float)s });
+
+		g.setColour(cursor.c);
+		g.fillPath(cursor.path);
+		MouseCursor c(icon, roundToInt(cursor.hitPoint.x * s), roundToInt(cursor.hitPoint.y * s));
+		bp->setMouseCursor(c);
+	}
+
 	component = bp;
 
 	initAllProperties();
