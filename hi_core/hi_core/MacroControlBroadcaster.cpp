@@ -35,6 +35,8 @@ namespace hise { using namespace juce;
 MacroControlBroadcaster::MacroControlBroadcaster(ModulatorSynthChain *chain):
 	thisAsSynth(chain)
 {
+	SimpleReadWriteLock::ScopedWriteLock sl(macroLock);
+
 	for(int i = 0; i < 8; i++)
 	{
 		macroControls.add(new MacroControlData(i, *this));
@@ -146,15 +148,15 @@ XmlElement *MacroControlBroadcaster::MacroControlledParameterData::exportAsXml()
 
 
 
-MacroControlBroadcaster::MacroControlData::MacroControlData(ModulatorSynthChain *chain, XmlElement *xml):
-	parent(*chain)
+MacroControlBroadcaster::MacroControlData::MacroControlData(ModulatorSynthChain *chain, int index, XmlElement *xml):
+	parent(*chain),
+	macroIndex(index)
 {
 	currentValue = 0.0f;
 
 	jassert(xml->getTagName() == "macro");
 
 	macroName = xml->getStringAttribute("name");
-	macroIndex = macroName.getTrailingIntValue();
 
 	setValue((float)xml->getDoubleAttribute("value", 0.0));
 
@@ -171,6 +173,8 @@ void MacroControlBroadcaster::saveMacrosToValueTree(ValueTree &v) const
 {
 	ScopedPointer<XmlElement> macroControlData = new XmlElement("macro_controls");
 
+	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
 	for (int i = 0; i < macroControls.size(); i++)
 	{
 		macroControlData->addChildElement(macroControls[i]->exportAsXml());
@@ -184,6 +188,8 @@ void MacroControlBroadcaster::saveMacrosToValueTree(ValueTree &v) const
 void MacroControlBroadcaster::saveMacroValuesToValueTree(ValueTree &v) const
 {
 	ScopedPointer<XmlElement> macroControlData = new XmlElement("macro_controls");
+
+	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
 
 	for (int i = 0; i < macroControls.size(); i++)
 	{
@@ -210,14 +216,21 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v)
 
 	if(data != nullptr && data->getNumChildElements() == 8)
 	{
-		macroControls.clear();
+		sendMacroConnectionChangeMessageForAll(false);
 
-		for(int i = 0; i < data->getNumChildElements(); i++)
 		{
-			macroControls.add(new MacroControlData(thisAsSynth, data->getChildElement(i)));
+			SimpleReadWriteLock::ScopedWriteLock sl(macroLock);
 
-			thisAsSynth->getMainController()->getMacroManager().setMidiControllerForMacro(i, macroControls.getLast()->getMidiController());
+			macroControls.clear();
+
+			for (int i = 0; i < data->getNumChildElements(); i++)
+			{
+				macroControls.add(new MacroControlData(thisAsSynth, i, data->getChildElement(i)));
+				thisAsSynth->getMainController()->getMacroManager().setMidiControllerForMacro(i, macroControls.getLast()->getMidiController());
+			}
 		}
+
+		sendMacroConnectionChangeMessageForAll(true);
 
 		for(int i = 0; i < macroControls.size(); i++)
 		{
@@ -239,6 +252,8 @@ void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
         return;
     }
     
+	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
 	for (int i = 0; i < macroControls.size(); i++)
 	{
 		XmlElement *child = data->getChildElement(i);
@@ -254,11 +269,13 @@ void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
 
 void MacroControlBroadcaster::replaceMacroControlData(int index, MacroControlData *newData, ModulatorSynthChain *parentChain)
 {
+	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
 	if(index < macroControls.size())
 	{
 		ScopedPointer<XmlElement> xml = newData->exportAsXml();
 
-		MacroControlData *copy = new MacroControlData(parentChain, xml);
+		MacroControlData *copy = new MacroControlData(parentChain, index, xml);
 
 		macroControls.set(index, copy);
 	}
@@ -289,6 +306,8 @@ float MacroControlBroadcaster::MacroControlData::getDisplayValue() const
 
 void MacroControlBroadcaster::clearData(int macroIndex)
 {
+	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
 	MacroControlData *data = macroControls[macroIndex];
 
 	const int numParams = data->getNumParameters();
@@ -454,6 +473,8 @@ void MacroControlBroadcaster::addControlledParameter(int macroControllerIndex,
 	if(p != nullptr)
 	{
 		//if(macroControls[macroControllerIndex]->hasParameter(p, parameterId)) return;
+
+		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
 
 		for(int i = 0; i < macroControls.size(); i++)
 		{
