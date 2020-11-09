@@ -907,7 +907,8 @@ public:
 		ControlledObject(mc),
 		lowPriorityQueue(8192),
 		highPriorityQueue(2048),
-		compilationQueue(128)
+		compilationQueue(128),
+		deferredPanels(1024)
 	{
 		startThread(6);
 	}
@@ -925,6 +926,7 @@ public:
 		compilationQueue.clear();
 		lowPriorityQueue.clear();
 		highPriorityQueue.clear();
+		deferredPanels.clear();
 	}
 	
 	class Task
@@ -936,6 +938,7 @@ public:
 			Compilation,
 			HiPriorityCallbackExecution,
 			LowPriorityCallbackExecution,
+			DeferredPanelRepaintJob,
 			Free,
 			numTypes
 		};
@@ -973,6 +976,8 @@ public:
 
 	void addJob(Task::Type t, JavascriptProcessor* p, const Task::Function& f);
 
+	void addDeferredPaintJob(ScriptingApi::Content::ScriptPanel* sp);
+
 	void run() override;;
 
 	const CriticalSection& getLock() const noexcept { return scriptLock; };
@@ -1009,6 +1014,8 @@ private:
 	MultithreadedLockfreeQueue<CompilationTask, queueConfig> compilationQueue;
 	MultithreadedLockfreeQueue<CallbackTask, queueConfig> lowPriorityQueue;
 	MultithreadedLockfreeQueue<CallbackTask, queueConfig> highPriorityQueue;
+
+	MultithreadedLockfreeQueue<WeakReference<ScriptingApi::Content::ScriptPanel>, queueConfig> deferredPanels;
 };
 
 

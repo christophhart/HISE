@@ -1878,6 +1878,12 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 }
 
 
+void JavascriptThreadPool::addDeferredPaintJob(ScriptingApi::Content::ScriptPanel* sp)
+{
+	WeakReference<ScriptingApi::Content::ScriptPanel> spWeak(sp);
+	deferredPanels.push(std::move(spWeak));
+}
+
 Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilationList& pendingCompilations)
 {
 	Result r = Result::ok();
@@ -1940,6 +1946,16 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 			r = lpt.call();
 		}
 
+		WeakReference<ScriptingApi::Content::ScriptPanel> sp;
+
+		while (deferredPanels.pop(sp))
+		{
+			ScopedValueSetter<bool> svs(busy, true);
+			
+			if(sp.get() != nullptr)
+				sp->repaint();
+		}
+		
 		return r;
 	}
 	default:

@@ -2800,13 +2800,24 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createCompon
 
 void ScriptingApi::Content::ScriptPanel::repaint()
 {
-	internalRepaint(false);
+	auto threadId = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
+
+	if (threadId == MainController::KillStateHandler::SampleLoadingThread ||
+		threadId == MainController::KillStateHandler::ScriptingThread ||
+		threadId == MainController::KillStateHandler::MessageThread)
+	{
+		internalRepaint(false);
+	}
+	else
+	{
+		getScriptProcessor()->getMainController_()->getJavascriptThreadPool().addDeferredPaintJob(this);
+	}
 }
 
 
 void ScriptingApi::Content::ScriptPanel::repaintImmediately()
 {
-	internalRepaint(false);
+	repaint();
 }
 
 
