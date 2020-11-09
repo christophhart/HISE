@@ -323,8 +323,13 @@ struct DrawActions
 		{
 			Iterator(Handler* handler)
 			{
-				if(handler != nullptr)
+				if (handler != nullptr)
+				{
+					actionsInIterator.ensureStorageAllocated(handler->nextActions.size());
+					SpinLock::ScopedLockType sl(handler->lock);
+
 					actionsInIterator.addArray(handler->nextActions);
+				}
 			}
 
 			ActionBase* getNextAction()
@@ -338,7 +343,7 @@ struct DrawActions
 			bool wantsCachedImage() const
 			{
 				for (auto action : actionsInIterator)
-					if (action->wantsCachedImage())
+					if (action != nullptr && action->wantsCachedImage())
 						return true;
 
 				return false;
@@ -382,20 +387,21 @@ struct DrawActions
 		void addDrawAction(ActionBase* newDrawAction)
 		{
 			if (layerStack.getLast() != nullptr)
-			{
 				layerStack.getLast()->addDrawAction(newDrawAction);
-			}
 			else
-			{
 				currentActions.add(newDrawAction);
-			}
 		}
 
 		void flush()
 		{
-			nextActions.swapWith(currentActions);
-			currentActions.clear();
-			layerStack.clear();
+			{
+				SpinLock::ScopedLockType sl(lock);
+
+				nextActions.swapWith(currentActions);
+				currentActions.clear();
+				layerStack.clear();
+			}
+
 			triggerAsyncUpdate();
 		}
 
@@ -414,6 +420,8 @@ struct DrawActions
 		}
 
 		Array<WeakReference<Listener>> listeners;
+
+		SpinLock lock;
 
 		ReferenceCountedArray<ActionLayer> layerStack;
 
