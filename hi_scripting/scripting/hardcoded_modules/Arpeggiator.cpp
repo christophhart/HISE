@@ -304,11 +304,11 @@ void Arpeggiator::onInit()
 	mpeEndChannel->addItem("Channel 15");
 	mpeEndChannel->addItem("Channel 16");
 
-	sustainHold = Content.addButton("Sus", 85, 70);
+	sustainHold = Content.addButton("Hold", 85, 70);
 	
-	parameterNames.add("HoldSustain");
+	parameterNames.add("Hold");
 	enableTieNotes->set("width", 85);
-	sustainHold->set("width", 55);
+	sustainHold->set("width", 60);
 
 	createLabel("NoteLabel", "Note Numbers", semiToneSliderPack);
 	createLabel("VeloLabel", "Velocity", velocitySliderPack);
@@ -341,8 +341,6 @@ void Arpeggiator::onInit()
 	sustainHold->set("tooltip", "Holds the sequence if the sustain pedal is pressed");
 	inputMidiChannel->set("tooltip", "The MIDI channel that is fed into the arpeggiator.");
 	outputMidiChannel->set("tooltip", "The MIDI channel that is used for the arpeggiated notes");
-
-
 }
 
 void Arpeggiator::onNoteOn()
@@ -446,7 +444,29 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 	}
 	else if (c == sustainHold)
 	{
-		sustainHoldEnabled = (bool)value;
+		auto newActive = (bool)value;
+
+		if (newActive != sustainHoldActive)
+		{
+			if (sustainHoldActive)
+			{
+				// the pedal is released here,
+				// remove all notes from the playing queue
+
+				for (auto& s : sustainHoldKeys)
+				{
+					userHeldKeysArray.removeFirstMatchingValue(s);
+					userHeldKeysArraySorted.removeFirstMatchingValue(s);
+				}
+
+				sustainHoldKeys.clearQuick();
+
+				if (!keys_are_held())
+					reset(false, true);
+			}
+
+			sustainHoldActive = newActive;
+		}
 	}
 	else if (c == mpeStartChannel || c == mpeEndChannel)
 	{
@@ -468,35 +488,7 @@ void Arpeggiator::onController()
 
 	const auto& m = *getCurrentHiseEvent();
 
-	if (m.getControllerNumber() == 64 && sustainHoldEnabled)
-	{
-		auto newActive = m.getControllerValue() >= 64;
-
-		if (newActive != sustainHoldActive)
-		{
-			if (sustainHoldActive)
-			{
-				// the pedal is released here,
-				// remove all notes from the playing queue
-				
-				for (auto& s : sustainHoldKeys)
-				{
-					userHeldKeysArray.removeFirstMatchingValue(s);
-					userHeldKeysArraySorted.removeFirstMatchingValue(s);
-				}
-
-				sustainHoldKeys.clearQuick();
-				
-				if (!keys_are_held())
-					reset(false, true);
-			}
-
-			sustainHoldActive = newActive;
-		}
-
-		// Don't propagate the sustain pedal command any further as it would result in holding the arpeggiated notes
-		Message.ignoreEvent(true);
-	}
+	
 
 	if (mpeMode)
 	{

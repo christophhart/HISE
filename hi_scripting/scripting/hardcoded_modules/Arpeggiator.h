@@ -359,7 +359,6 @@ private:
 	ScriptButton enableTieNotes;
 	ScriptButton sustainHold;
 
-	bool sustainHoldEnabled = false;
 	bool sustainHoldActive = false;
 
 	int mpeStart = 2;
