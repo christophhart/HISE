@@ -447,7 +447,7 @@ public:
 
 	void saveMacroValuesToValueTree(ValueTree &v) const;
 
-	void loadMacrosFromValueTree(const ValueTree &v);
+	void loadMacrosFromValueTree(const ValueTree &v, bool loadMacroValues = true);
 	
 	/** Only loads the values of the macros (and doesn't recreate the macro controls. */
 	void loadMacroValuesFromValueTree(const ValueTree &v);

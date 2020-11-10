@@ -1185,11 +1185,15 @@ void TableFloatingTileBase::initTable()
 
 	// give it a border
 
+	textColour = Colours::white.withAlpha(0.5f);
+
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white.withAlpha(0.5f));
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.5f));
-	setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white.withAlpha(0.5f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, textColour);
+
+	
 
 	table.setColour(ListBox::backgroundColourId, Colours::transparentBlack);
 	table.setOutlineThickness(0);

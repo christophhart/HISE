@@ -208,7 +208,7 @@ void MacroControlBroadcaster::saveMacroValuesToValueTree(ValueTree &v) const
 	v.addChild(macros, -1, nullptr);
 }
 
-void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v)
+void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v, bool loadMacroValues)
 {
 	ValueTree macroData = v.getChildWithName("macro_controls");
 
@@ -238,7 +238,8 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v)
 		}	
 	}
 
-	loadMacroValuesFromValueTree(v);
+	if(loadMacroValues)
+		loadMacroValuesFromValueTree(v);
 }
 
 void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
