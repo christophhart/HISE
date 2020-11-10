@@ -856,6 +856,16 @@ public:
 
 	void handleHiseEvent(const HiseEvent &m)
 	{
+		if (isMonophonic)
+		{
+			if (m.isNoteOn())
+				monophonicKeymap.setBit((uint8)m.getNoteNumber());
+			else if (m.isNoteOff())
+				monophonicKeymap.clearBit((uint8)m.getNoteNumber());
+			if (m.isAllNotesOff())
+				monophonicKeymap.clear();
+		}
+
 		if(m.isAllNotesOff())
 		{
 			this->allNotesOff();
@@ -877,13 +887,12 @@ public:
 
 	float startVoice(int /*voiceIndex*/) override
 	{
-		numPressedKeys++;
 		return 1.0f;
 	}
 
 	void stopVoice(int /*voiceIndex*/) override
 	{
-		numPressedKeys = jmax<int>(0, numPressedKeys - 1);
+		
 	}
 
 	bool shouldUpdatePlotter() const override
@@ -914,7 +923,12 @@ public:
 
 protected:
 
-	int getNumPressedKeys() const { return numPressedKeys; }
+	int getNumPressedKeys() const
+	{
+		jassert(isMonophonic);
+
+		return monophonicKeymap.getNumSetBits();
+	}
 
 
 	EnvelopeModulator(MainController *mc, const String &id, int voiceAmount_, Modulation::Mode m);
@@ -960,10 +974,54 @@ protected:
 	bool isMonophonic = false;
 	bool shouldRetrigger = true;
 
+
+protected:
+
 private:
 
-	int numPressedKeys = 0;
+	struct MidiBitmap
+	{
+		MidiBitmap()
+		{
+			clear();
+		}
 
+		void clear()
+		{
+			data[0] = 0;
+			data[1] = 0;
+			numBitsSet = 0;
+		}
+
+		int getNumSetBits() const { return numBitsSet; }
+
+		void clearBit(uint8 index)
+		{
+			auto bIndex = (index / 64);
+			auto bMod = index - bIndex;
+			auto before = data[bIndex];
+
+			data[bIndex] = before & ~(uint64)((1 << bMod));
+
+			if(before != data[bIndex])
+				numBitsSet = jmax(0, numBitsSet - 1);
+		}
+
+		void setBit(uint8 index)
+		{
+			auto bIndex = (index / 64);
+			auto bMod = index - bIndex;
+			auto before = data[bIndex];
+
+			data[bIndex] = before | (uint64)((1 << bMod));
+
+			if(before != data[bIndex])
+				numBitsSet++;
+		}
+
+		uint64 data[2];
+		int8 numBitsSet = 0;
+	} monophonicKeymap;
 };
 
 /** This class only exists for the Iterator. */

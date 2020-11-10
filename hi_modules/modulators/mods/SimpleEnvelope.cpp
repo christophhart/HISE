@@ -380,7 +380,7 @@ float SimpleEnvelope::calcCoefficient(float time, float targetRatio/*=1.0f*/) co
 	}
 }
 
-float SimpleEnvelope::calculateNewValue(int /*voiceIndex*/)
+float SimpleEnvelope::calculateNewValue(int voiceIndex)
 {
 	switch (state->current_state)
 	{
@@ -397,6 +397,7 @@ float SimpleEnvelope::calculateNewValue(int /*voiceIndex*/)
 		break;
 	case SimpleEnvelopeState::RETRIGGER:
 	{
+#if HISE_RAMP_RETRIGGER_ENVELOPES_FROM_ZERO
 		state->current_value -= 0.005f;
 		if (state->current_value <= 0.0f)
 		{
@@ -404,6 +405,10 @@ float SimpleEnvelope::calculateNewValue(int /*voiceIndex*/)
 			state->current_state = SimpleEnvelopeState::ATTACK;
 		}
 		break;
+#else
+		state->current_state = SimpleEnvelopeState::ATTACK;
+		return calculateNewValue(voiceIndex);
+#endif
 	}
 	case SimpleEnvelopeState::RELEASE:
 		state->current_value -= release_delta;
@@ -427,12 +432,17 @@ float SimpleEnvelope::calculateNewExpValue()
 	case SimpleEnvelopeState::IDLE: break;
 	case SimpleEnvelopeState::RETRIGGER:
 	{
+#if HISE_RAMP_RETRIGGER_ENVELOPES_FROM_ZERO
 		state->current_value -= 0.005f;
 		if (state->current_value <= 0.0f)
 		{
 			state->current_value = 0.0f;
 			state->current_state = SimpleEnvelopeState::ATTACK;
 		}
+#else
+		state->current_state = SimpleEnvelopeState::ATTACK;
+		return calculateNewExpValue();
+#endif
 		break;
 	}
 	case SimpleEnvelopeState::ATTACK:
