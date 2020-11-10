@@ -51,6 +51,11 @@ MidiProcessor::~MidiProcessor()
 };
 
 
+bool MidiProcessor::setArtificialTimestamp(uint16 eventId, int newTimestamp)
+{
+	return ownerSynth->midiProcessorChain->setArtificialTimestamp(eventId, newTimestamp);
+}
+
 void MidiProcessor::addHiseEventToBuffer(const HiseEvent &m)
 {
 	ownerSynth->midiProcessorChain->addArtificialEvent(m);
@@ -93,6 +98,27 @@ ProcessorEditorBody *MidiProcessorChain::createEditor(ProcessorEditor *parentEdi
 void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 {
 	artificialEvents.addEvent(m);
+}
+
+bool MidiProcessorChain::setArtificialTimestamp(uint16 eventId, int newTimestamp)
+{
+	for (auto& e : artificialEvents)
+	{
+		if (e.getEventId() == eventId)
+		{
+			e.setTimeStamp(newTimestamp);
+			return true;
+		}
+	}
+
+	for (auto& e : futureEventBuffer)
+	{
+		if (e.getEventId() == eventId)
+		{
+			e.setTimeStamp(newTimestamp);
+			return true;
+		}
+	}
 }
 
 void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples)

@@ -56,19 +56,21 @@ public:
 		Stride,
 		SortKeys,
 		Tempo,
-		Direction,
+		DirectionType,
 		OctaveRange,
 		Shuffle,
 		CurrentStep
 	};
 
-	enum Direction
+	enum class Direction
 	{
-		enumSeqUP = 1,
-		enumSeqDN = 2,
-		enumSeqUPDN = 3,
-		enumSeqDNUP = 4,
-		enumSeqRND
+		Up = 1,
+		Down = 2,
+		UpDown = 3,
+		DownUp = 4,
+		Random,
+		Chord,
+		numDirections
 	};
 
 	Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms);;
@@ -113,7 +115,9 @@ private:
 
 	void sendNoteOff(int eventId);
 
-	int sendNoteOn();
+	Range<int> sendNoteOn();
+
+	
 
 	bool mpeMode = false;
 
@@ -137,6 +141,7 @@ private:
 		NoteWithChannel operator+=(int8 delta) noexcept { noteNumber += delta; return *this; };
 	};
 
+	int sendNoteOnInternal(const NoteWithChannel& c);
 	
 	Array<NoteWithChannel, DummyCriticalSection, 256> sustainHoldKeys;
 	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArray;
@@ -178,14 +183,7 @@ private:
 
 	// gui objects and sequence arrays
 	
-	
-	
-	
-
-	// direction stuff
-	bool do_use_step_semitone_offsets = true;
-	
-	
+	void applySliderPackData(NoteWithChannel& c);
 
 	int curSeqPatternEnum = 1;
 	
@@ -358,6 +356,10 @@ private:
 	ScriptComboBox mpeEndChannel;
 	ScriptButton enableTieNotes;
 	ScriptButton sustainHold;
+
+	Range<int> lastEventIdRange;
+
+	Direction currentDirection = Direction::Up;
 
 	bool sustainHoldActive = false;
 

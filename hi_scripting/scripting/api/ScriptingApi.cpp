@@ -2988,7 +2988,8 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 	}
 	else
 	{
-		reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
+		if(!parentMidiProcessor->setArtificialTimestamp(eventId, timestamp))
+			reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
 	}
 }
 
