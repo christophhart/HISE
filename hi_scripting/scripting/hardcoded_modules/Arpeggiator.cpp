@@ -365,11 +365,30 @@ void Arpeggiator::onNoteOn()
 
 	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
 
-	addUserHeldKey({(int8)Message.getNoteNumber(), (int8)Message.getChannel()});
+	NoteWithChannel newNote = { (int8)Message.getNoteNumber(), (int8)Message.getChannel() };
+
+	addUserHeldKey(newNote);
+
+	if (is_playing && currentDirection == Direction::Chord && (Engine.getUptime() - chordStartUptime < 0.02))
+	{
+		// Here we land if the chord mode has just been started but the
+		// arp is already playing, so we need to manually play the note.
+		newNote += (int8)semiToneSliderPack->getSliderValueAt(currentStep);
+		int thisId = sendNoteOnInternal(newNote);
+		Synth.noteOffDelayedByEventId(thisId, jmax<int>(minNoteLenSamples, currentNoteLengthInSamples));
+
+		additionalChordStartKeys.add(thisId);
+	}
 
 	// do not call playNote() if timer is already running
 	if (!is_playing)
+	{
+		if (currentDirection == Direction::Chord)
+			chordStartUptime = Engine.getUptime();
+
 		playNote();
+	}
+		
 }
 
 void Arpeggiator::onNoteOff()
@@ -529,22 +548,16 @@ void Arpeggiator::onTimer(int /*offsetInBuffer*/)
 
 void Arpeggiator::playNote()
 {
-	// get time scale for timer
 	calcTimeInterval();
-
-	// start synth timer
 	start();
 
-	// transfer user held keys to midi sequence
+	additionalChordStartKeys.clearQuick();
 	MidiSequenceArray.clearQuick();
 	MidiSequenceArraySorted.clearQuick();
 
 	const int octaveRaw = (int)octaveSlider->getValue();
-
 	const int octaveSign = octaveRaw >= 0 ? 1 : -1;
-
 	auto octaveAmount = abs(octaveRaw) + 1;
-
 
 	for (int i = 0; i < octaveAmount; i++)
 	{
@@ -586,8 +599,6 @@ void Arpeggiator::playNote()
 		}
 	}
 
-	
-
 	const int stepResetAmount = (int)stepReset->getValue();
 
 	// if master reset num steps is 0 ignore this block, otherwise do a full arp reset when num steps have passed
@@ -596,30 +607,13 @@ void Arpeggiator::playNote()
 		if (curMasterStep >= stepResetAmount)
 			reset(false, false);
 	}
-	// otherwise just keep curMasterStep at 0
 	else
-	{
-		curMasterStep = 0;
-	}
+		curMasterStep = 0; // otherwise just keep curMasterStep at 0
 
-	/* --- GET CURRENT SETP VARIABLES --- */
-
-	// get note either from the sorted sequence array or the non-sorted
 	currentNote = sortKeysButton->getValue() ? MidiSequenceArraySorted[curHeldNoteIdx] : MidiSequenceArray[curHeldNoteIdx];
-	
-
-	
-
-	// add semitone offset if enabled
 	currentNote += (int8)semiToneSliderPack->getSliderValueAt(currentStep);
-
-	// get step velocity
 	currentVelocity = (int)velocitySliderPack->getSliderValueAt(currentStep);
-
-	// get step gate length		
 	currentNoteLengthInSamples = (int)(Engine.getSamplesForMilliSeconds(timeInterval * 1000.0) * (double)lengthSliderPack->getSliderValueAt(currentStep) / 100.0);
-
-	
 
 	/* --- PLAY NOTE LOGIC --- */
 
@@ -627,22 +621,15 @@ void Arpeggiator::playNote()
 	if (MidiSequenceArray.size() > 1 && !curr_step_is_skip())
 	{
 		// this means we are coming from the 1 note logic and we need to end the last note
-		if (currentlyPlayingEventIds.size() > 0)
+		if (!currentlyPlayingEventIds.isEmpty())
 		{
-			for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
-			{
-				auto eventId = currentlyPlayingEventIds[i];
-
-
-				sendNoteOff(eventId);
-
-			}
+			for (auto& id : currentlyPlayingEventIds)
+				sendNoteOff(id);
 
 			currentlyPlayingEventIds.clearQuick();
 		}
 
 		last_step_was_tied = false;
-
 		lastEventIdRange = sendNoteOn();
 
 		// add a little bit of time to the note off for a tied step to engage the synth's legato features
@@ -686,11 +673,8 @@ void Arpeggiator::playNote()
 		{
 			last_step_was_tied = false;
 
-			for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
-			{
-				//Synth.addNoteOff(midiChannel, currentlyPlayingEventIds[i], jmax<int>(minNoteLenSamples, currentNoteLengthInSamples));
-				Synth.noteOffDelayedByEventId(currentlyPlayingEventIds[i], currentNoteLengthInSamples);
-			}
+			for(auto& id: currentlyPlayingEventIds)
+				Synth.noteOffDelayedByEventId(id, currentNoteLengthInSamples);
 
 			currentlyPlayingEventIds.clearQuick();
 		}
@@ -717,11 +701,8 @@ void Arpeggiator::stopCurrentNote()
 {
 	auto l = jmax<int>(minNoteLenSamples, currentNoteLengthInSamples);
 
-	for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
-	{
-		//Synth.addNoteOff(midiChannel, currentlyPlayingEventIds[i], );
-		Synth.noteOffDelayedByEventId(currentlyPlayingEventIds[i], l);
-	}
+	for(auto& id: currentlyPlayingEventIds)
+		Synth.noteOffDelayedByEventId(id, l);
 
 	currentlyPlayingEventIds.clearQuick();
 }
@@ -731,27 +712,27 @@ void Arpeggiator::sendNoteOff(int eventId)
 	Synth.noteOffDelayedByEventId(eventId, minNoteLenSamples);
 }
 
-Range<int> Arpeggiator::sendNoteOn()
+Range<uint16> Arpeggiator::sendNoteOn()
 {
 	if (currentDirection != Direction::Chord)
 	{
 		auto id = sendNoteOnInternal(currentNote);
 
-		return { id, id + 1 };
+		return { id, (uint16)(id + 1) };
 	}
 		
 	else
 	{
-		int firstId = -1;
-		int lastId = -1;
+		uint16 firstId = 0;
+		uint16 lastId = 0;
 
 		for (auto& c : MidiSequenceArraySorted)
 		{
 			c += (int8)semiToneSliderPack->getSliderValueAt(currentStep);
 
-			int thisId = sendNoteOnInternal(c);
+			auto thisId = sendNoteOnInternal(c);
 
-			if (firstId == -1)
+			if (firstId == 0)
 				firstId = thisId;
 			else
 			{
@@ -762,7 +743,7 @@ Range<int> Arpeggiator::sendNoteOn()
 			lastId = thisId;
 		}
 
-		return { firstId, lastId + 1 };
+		return { firstId, (uint16)(lastId + 1) };
 	}
 }
 
@@ -770,11 +751,11 @@ Range<int> Arpeggiator::sendNoteOn()
 
 
 
-int Arpeggiator::sendNoteOnInternal(const Arpeggiator::NoteWithChannel& c)
+uint16 Arpeggiator::sendNoteOnInternal(const Arpeggiator::NoteWithChannel& c)
 {
 	int midiChannelToUse = mpeMode || midiChannel == 0 ? c.channel : midiChannel;
 
-	const int eventId = Synth.addNoteOn(midiChannelToUse, c.noteNumber, currentVelocity, 0);
+	auto eventId = (uint16)Synth.addNoteOn(midiChannelToUse, c.noteNumber, currentVelocity, 0);
 
 	if (mpeMode)
 	{
@@ -917,9 +898,10 @@ void Arpeggiator::start()
 void Arpeggiator::stop()
 {
 	for (int i = lastEventIdRange.getStart(); i < lastEventIdRange.getEnd(); i++)
-	{
 		Synth.noteOffByEventId(i);
-	}
+
+	for (auto& ac : additionalChordStartKeys)
+		Synth.noteOffByEventId(ac);
 
 	stopCurrentNote();
 

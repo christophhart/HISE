@@ -115,7 +115,7 @@ private:
 
 	void sendNoteOff(int eventId);
 
-	Range<int> sendNoteOn();
+	Range<uint16> sendNoteOn();
 
 	
 
@@ -141,13 +141,15 @@ private:
 		NoteWithChannel operator+=(int8 delta) noexcept { noteNumber += delta; return *this; };
 	};
 
-	int sendNoteOnInternal(const NoteWithChannel& c);
+	uint16 sendNoteOnInternal(const NoteWithChannel& c);
 	
 	Array<NoteWithChannel, DummyCriticalSection, 256> sustainHoldKeys;
 	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArray;
 	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArraySorted;
 	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArray;
 	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArraySorted;
+	
+
 	Array<int, DummyCriticalSection, 256> currentlyPlayingEventIds;
 	
 	struct MPEValues
@@ -357,9 +359,13 @@ private:
 	ScriptButton enableTieNotes;
 	ScriptButton sustainHold;
 
-	Range<int> lastEventIdRange;
+	Range<uint16> lastEventIdRange;
+	Array<uint16, DummyCriticalSection, 32> additionalChordStartKeys;
+	double chordStartUptime = 0.0;
 
 	Direction currentDirection = Direction::Up;
+
+	
 
 	bool sustainHoldActive = false;
 
