@@ -268,7 +268,12 @@ void MultiChannelFilter<FilterSubType>::updateEvery64Frame()
 template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::update(FilterHelpers::RenderData& renderData)
 {
-	auto thisFreq = FilterLimits::limitFrequency(renderData.freqModValue * frequency.getNextValue());
+	auto f = frequency.getNextValue();
+	auto bp = renderData.bipolarDelta;
+
+	f += bp * (20000.0);
+
+	auto thisFreq = FilterLimits::limitFrequency(f);
 	auto thisGain = renderData.gainModValue * gain.getNextValue();
 	auto thisQ = FilterLimits::limitQ(q.getNextValue() * renderData.qModValue);
 
