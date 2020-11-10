@@ -225,7 +225,8 @@ private:
 
 	bool changeFlag;
 
-	float bipolarIntensity = 0.0f;
+	float bipolarParameterValue = 0.0f;
+	LinearSmoothedValue<float> bipolarIntensity;
 
 	FilterBank voiceFilters;
 	FilterBank monoFilters;
