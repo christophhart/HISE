@@ -629,6 +629,11 @@ public:
 	/** If you move the mouse wheel over a point, you can adjust the curve to the left of the point */
 	void mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)  override;
 
+	void setScrollWheelEnabled(bool shouldBeEnabled)
+	{
+		allowScrollWheel = shouldBeEnabled;
+	}
+
 	void updateCurve(int x, int y, float newCurveValue, bool useUndoManager);
 
 	void updateFromProcessor(SafeChangeBroadcaster* b);
@@ -952,6 +957,8 @@ private:
 
 	
 	Font fontToUse;
+
+	bool allowScrollWheel = true;
 
 	WeakReference<Processor> connectedProcessor;
 
