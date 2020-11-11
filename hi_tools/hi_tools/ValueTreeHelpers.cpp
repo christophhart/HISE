@@ -340,7 +340,7 @@ void ChildListener::sendAddMessageForAllChildren()
 	{
 		IterationProtector ip(v);
 
-		for (auto& c : v)
+		for (auto c : v)
 			cb(c, true);
 
 		break;
@@ -351,7 +351,7 @@ void ChildListener::sendAddMessageForAllChildren()
 		ScopedLock sl(asyncLock);
 
 		pendingChanges.clear();
-		for (auto& c : v)
+		for (auto c : v)
 			pendingChanges.addIfNotAlreadyThere({ c, true });
 
 		triggerAsyncUpdate();
