@@ -372,12 +372,10 @@ PolyFilterEffect::~PolyFilterEffect()
 void PolyFilterEffect::processorChanged(EventType /*t*/, Processor* /*p*/)
 {
 	bool before = polyMode;
-
 	polyMode = false;
 
 	for (auto& mb : modChains)
 	{
-
 		if (mb.getChain()->hasActivePolyMods())
 		{
 			polyMode = true;
@@ -410,8 +408,6 @@ float PolyFilterEffect::getAttribute(int parameterIndex) const
 
 void PolyFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
-	
-
 	auto& filterBankToUse = hasPolyMods() ? voiceFilters : monoFilters;
 
 	switch (parameterIndex)
@@ -489,6 +485,7 @@ void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	bipolarIntensity.reset(sampleRate / 64.0, 0.05);
 	voiceFilters.setSampleRate(sampleRate);
+	monoFilters.setSampleRate(sampleRate);
 	
 }
 
