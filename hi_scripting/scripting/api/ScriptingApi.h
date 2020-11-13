@@ -207,6 +207,9 @@ public:
 		/** Sets the font that will be used as default font for various things. */
 		void setGlobalFont(String fontName);
 
+		/** Sets the minimum sample rate for the global processing (and adds oversampling if the current samplerate is lower). */
+		bool setMinimumSampleRate(double minimumSampleRate);
+
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 

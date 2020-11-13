@@ -1334,6 +1334,12 @@ public:
 
 	void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf) override;
 
+	bool setMinimumSamplerate(double newMinimumSampleRate)
+	{
+		minimumSamplerate = jlimit<double>(1.0, 96000.0 * 4.0, newMinimumSampleRate);
+		return refreshOversampling();
+	}
+
 	/** Returns the time that the plugin spends in its processBlock method. */
 	float getCpuUsage() const {return usagePercent.load();};
 
@@ -1530,18 +1536,24 @@ protected:
 	
     void setMidiInputFlag() {midiInputFlag = true; };
     
-	void setReplaceBufferContent(bool shouldReplaceContent)
-	{
-		replaceBufferContent = shouldReplaceContent;
-	}
-
 	void killAndCallOnAudioThread(const ProcessorFunction& f);
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
+
+	
 	
 
 private:
+
+	bool refreshOversampling();
+
+	double getOriginalSamplerate() const { return sampleRate / getOversampleFactor(); }
+
+	int getOriginalBufferSize() const { return (int)((double)maxBufferSize.get() / getOversampleFactor()); }
+
+	int getOversampleFactor() const { return currentOversampleFactor; }
+	
 
 #if HISE_INCLUDE_RLOTTIE
 	ScopedPointer<RLottieManager> rLottieManager;
@@ -1583,8 +1595,6 @@ private:
 
 	bool skipCompilingAtPresetLoad = false;
 
-	bool replaceBufferContent = true;
-
 	UnorderedStack<HiseEvent> suspendedNoteOns;
 
 	HiseEventBuffer masterEventBuffer;
@@ -1614,6 +1624,10 @@ private:
 		Identifier id;
 	};
 
+	ScopedPointer<juce::dsp::Oversampling<float>> oversampler;
+	double minimumSamplerate = 0.0;
+	int currentOversampleFactor = 1;
+	
 	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
 	ValueTree embeddedMarkdownDocs;

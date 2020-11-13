@@ -822,6 +822,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getPitchRatioFromSemitones);
 	API_METHOD_WRAPPER_1(Engine, getSemitonesFromPitchRatio);
 	API_METHOD_WRAPPER_0(Engine, getSampleRate);
+	API_METHOD_WRAPPER_1(Engine, setMinimumSampleRate);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
@@ -923,6 +924,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getSemitonesFromPitchRatio);
 	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
+	ADD_API_METHOD_1(setMinimumSampleRate);
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
@@ -1079,6 +1081,11 @@ void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
 void ScriptingApi::Engine::setGlobalFont(String fontName)
 {
 	getProcessor()->getMainController()->setGlobalFont(fontName);
+}
+
+bool ScriptingApi::Engine::setMinimumSampleRate(double minimumSampleRate)
+{
+	return getProcessor()->getMainController()->setMinimumSamplerate(minimumSampleRate);
 }
 
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
