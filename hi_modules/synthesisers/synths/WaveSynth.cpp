@@ -53,13 +53,17 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
     tempBuffer(2, 0)
 {
 	modChains += { this, "Mix Modulation"};
+	modChains += { this, "Osc2 Pitch Modulation", ModulatorChain::ModulationType::Normal, Modulation::PitchMode};
 
 	finaliseModChains();
 
 	modChains[ChainIndex::MixChain].setAllowModificationOfVoiceValues(true);
 	modChains[ChainIndex::MixChain].setExpandToAudioRate(true);
 
+	modChains[ChainIndex::Osc2PitchIndex].setExpandToAudioRate(true);
+
 	mixChain = modChains[ChainIndex::MixChain].getChain();
+	osc2pitchChain = modChains[ChainIndex::Osc2PitchIndex].getChain();
 
 	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
 
@@ -75,6 +79,7 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("EnableSecondOscillator");
 	parameterNames.add("PulseWidth1");
 	parameterNames.add("PulseWidth2");
+
 
 	WaveformLookupTables::init();
 
@@ -104,6 +109,7 @@ void WaveSynth::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(EnableSecondOscillator, "EnableSecondOscillator");
 	loadAttribute(PulseWidth1, "PulseWidth1");
 	loadAttribute(PulseWidth2, "PulseWidth2");
+	loadAttribute(HardSync, "HardSync");
 }
 
 ValueTree WaveSynth::exportAsValueTree() const
@@ -122,6 +128,7 @@ ValueTree WaveSynth::exportAsValueTree() const
 	saveAttribute(EnableSecondOscillator, "EnableSecondOscillator");
 	saveAttribute(PulseWidth1, "PulseWidth1");
 	saveAttribute(PulseWidth2, "PulseWidth2");
+	saveAttribute(HardSync, "HardSync");
 
 	return v;
 }
@@ -135,6 +142,7 @@ Processor * WaveSynth::getChildProcessor(int processorIndex)
 	case GainModulation:	return gainChain;
 	case PitchModulation:	return pitchChain;
 	case MixModulation:		return mixChain;
+	case Osc2PitchChain:    return osc2pitchChain;
 	case MidiProcessor:		return midiProcessorChain;
 	case EffectChain:		return effectChain;
 	default:				jassertfalse; return nullptr;
@@ -150,6 +158,7 @@ const Processor * WaveSynth::getChildProcessor(int processorIndex) const
 	case GainModulation:	return gainChain;
 	case PitchModulation:	return pitchChain;
 	case MixModulation:		return mixChain;
+	case Osc2PitchChain:    return osc2pitchChain;
 	case MidiProcessor:		return midiProcessorChain;
 	case EffectChain:		return effectChain;
 	default:				jassertfalse; return nullptr;
@@ -229,6 +238,7 @@ float WaveSynth::getAttribute(int parameterIndex) const
 	case EnableSecondOscillator: return enableSecondOscillator ? 1.0f : 0.0f;
 	case PulseWidth1:			return (float)pulseWidth1;
 	case PulseWidth2:			return (float)pulseWidth2;
+	case HardSync:				return hardSync ? 1.0f : 0.0f;
 	default:					jassertfalse; return -1.0f;
 	}
 }
@@ -267,6 +277,7 @@ void WaveSynth::setInternalAttribute(int parameterIndex, float newValue)
 	case EnableSecondOscillator: enableSecondOscillator = newValue > 0.5f; break;
 	case PulseWidth1:			pulseWidth1 = jlimit<float>(0.0f, 1.0f, newValue); refreshPulseWidth(true); break;
 	case PulseWidth2:			pulseWidth2 = jlimit<float>(0.0f, 1.0f, newValue); refreshPulseWidth(false); break;
+	case HardSync:				hardSync = newValue > 0.5f; break;
 	default:					jassertfalse;
 		break;
 	}
@@ -394,27 +405,40 @@ void WaveSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthesis
 
 void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 {
+	auto wavesynth = static_cast<WaveSynth*>(getOwnerSynth());
+
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
 	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
+	const float* secondPitchValues = wavesynth->getPitch2ModValues(startSample);
 
 	float *outL = voiceBuffer.getWritePointer(0, startSample);
 	float *outR = voiceBuffer.getWritePointer(1, startSample);
 
 #if USE_MARTIN_FINKE_POLY_BLEP_ALGORITHM
 
-	if (voicePitchValues == nullptr)
+	if (voicePitchValues == nullptr && secondPitchValues == nullptr)
 	{
 		if (enableSecondOsc)
 		{
 			leftGenerator.setFreqModulationValue((float)uptimeDelta);
-			rightGenerator.setFreqModulationValue((float)uptimeDelta);
+			rightGenerator.setFreqModulationValue((float)uptimeDelta * wavesynth->getConstantPitch2ModValue());
 
 			while (--numSamples >= 0)
 			{
-				*outL++ = leftGenerator.getAndInc();
-				*outR++ = rightGenerator.getAndInc();
+				*outL++ = leftGenerator.get();
+				*outR++ = rightGenerator.get();
+
+				rightGenerator.inc();
+
+				if (wavesynth->isHardSyncEnabled())
+				{
+					if (leftGenerator.inc())
+						rightGenerator.sync(0.0);
+				}
+				else
+					leftGenerator.inc();
 			}
 		}
 		else
@@ -430,26 +454,62 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 	}
 	else
 	{
-		voicePitchValues += startSample;
+		if(voicePitchValues != nullptr)
+			voicePitchValues += startSample;
 
 		if (enableSecondOsc)
 		{
 			while (--numSamples >= 0)
 			{
-				leftGenerator.setFreqModulationValue(*voicePitchValues * (float)uptimeDelta);
-				*outL++ = leftGenerator.getAndInc();
-
-				rightGenerator.setFreqModulationValue(*voicePitchValues * (float)uptimeDelta);
-				*outR++ = rightGenerator.getAndInc();
+				auto leftDelta = (float)uptimeDelta;
 				
-				voicePitchValues++;
+				if (voicePitchValues != nullptr)
+					leftDelta *= *voicePitchValues;
+
+				leftGenerator.setFreqModulationValue(leftDelta);
+				
+
+				auto rightDelta = (float)uptimeDelta;
+				
+				if (voicePitchValues != nullptr)
+					rightDelta *= *voicePitchValues;
+				
+				if (secondPitchValues != nullptr)
+					rightDelta *= *secondPitchValues;
+
+				rightGenerator.setFreqModulationValue(rightDelta);
+
+				*outL++ = leftGenerator.get();
+				*outR++ = rightGenerator.get();
+
+				rightGenerator.inc();
+
+				if (wavesynth->isHardSyncEnabled())
+				{
+					if (leftGenerator.inc())
+						rightGenerator.sync(0.0);
+				}
+				else
+					leftGenerator.inc();
+
+				if(voicePitchValues != nullptr)
+					voicePitchValues++;
+				if (secondPitchValues != nullptr)
+					secondPitchValues++;
 			}
 		}
 		else
 		{
 			while (--numSamples >= 0)
 			{
-				leftGenerator.setFreqModulationValue(*voicePitchValues * (float)uptimeDelta);
+				auto leftDelta = (float)uptimeDelta;
+
+				if (voicePitchValues != nullptr)
+					leftDelta *= *voicePitchValues;
+
+				leftGenerator.setFreqModulationValue(leftDelta);
+
+				
 				voicePitchValues++;
 
 				*outL = leftGenerator.getAndInc();
@@ -508,7 +568,7 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		auto leftSamples = voiceBuffer.getWritePointer(0, startIndex);
 		auto rightSamples = voiceBuffer.getWritePointer(1, startIndex);
 
-		auto wavesynth = static_cast<WaveSynth*>(getOwnerSynth());
+		
 
 		auto& tBuffer = wavesynth->getTempBufferForMixCalculation();
 
