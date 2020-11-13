@@ -228,6 +228,7 @@ protected:
 #else
 			projectName(v, "ProjectName", nullptr, FrontendHandler::getProjectName()),
 			projectVersion(v, "ProjectName", nullptr, FrontendHandler::getVersionString()),
+			tags(v, "Tags", nullptr, ""),
 #endif
 			version(v, "Version", nullptr, "1.0.0")
 		{
