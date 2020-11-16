@@ -275,6 +275,8 @@ void TableEnvelope::reset(int voiceIndex)
 
 void TableEnvelope::handleHiseEvent(const HiseEvent& m)
 {
+	EnvelopeModulator::handleHiseEvent(m);
+	
 	if(attackChain->shouldBeProcessedAtAll())
 		attackChain->handleHiseEvent(m);
 

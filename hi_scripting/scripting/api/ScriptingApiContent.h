@@ -1242,6 +1242,15 @@ public:
 	{
 		// ========================================================================================================
 
+		struct MouseCursorInfo
+		{
+			Path path;
+			Colour c = juce::Colours::white;
+			Point<float> hitPoint = { 0.0f, 0.0f };
+		} mouseCursorPath;
+
+
+
 		enum Properties
 		{
 			borderSize = ScriptComponent::numProperties,
@@ -1333,6 +1342,9 @@ public:
 		/** Calls the paint routine immediately. */
 		void repaintImmediately();
 
+		/** Sets a Path as mouse cursor for this panel. */
+		void setMouseCursor(var pathIcon, var colour, var hitPoint);
+
 		/** Sets an JSON animation. */
 		void setAnimation(String base64LottieAnimation);
 
@@ -1417,6 +1429,11 @@ public:
 		{
 			
 		};
+
+		MouseCursorInfo getMouseCursorPath() const
+		{
+			return mouseCursorPath;
+		}
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
@@ -1831,6 +1848,9 @@ public:
 
 	/** Returns the reference to the given component. */
 	var getComponent(var name);
+	
+	/** Returns an array of all components that match the given regex. */
+    var getAllComponents(String regex);
 
 	/** Restore the Component from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);

@@ -654,6 +654,9 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 	case RefreshVelocityXFade:	result.setInfo("Refresh Velocity Crossfades.", "Adds a crossfade to overlapping sounds in a group.", "Sample Editing", 0);
 		result.setActive(true);
 		break;
+	case ExportAiffWithMetadata: result.setInfo("Export AIFF with metadata", "Exports the current samplemap as AIFF files with metadata", "Sample Editing", 0);
+		result.setActive(true);
+		break;
 	case AutomapUsingMetadata:  result.setInfo("Automap using Metadata", "Automaps the sample using the metadata that is found in the sample file.", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
 		break;
@@ -718,6 +721,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	}
 	case SaveSampleMap:				sampler->saveSampleMap(); refreshSampleMapPool(); return true;
 	case DuplicateSampleMapAsReference:	sampler->saveSampleMapAsReference(); refreshSampleMapPool(); return true;
+	case ExportAiffWithMetadata:
+		SampleEditHandler::SampleEditingActions::writeSamplesWithAiffData(sampler); return true;
 	case SaveSampleMapAsMonolith:	
 #if USE_BACKEND
 		sampler->saveSampleMapAsMonolith(this); return true;

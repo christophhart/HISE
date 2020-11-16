@@ -897,7 +897,7 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	addComboBox("normalise", sa2, "Normalization");
 
-	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addBasicComponents(true);
@@ -1288,7 +1288,7 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 	getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 #endif
 
-	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addProgressBarComponent(wholeProgress);

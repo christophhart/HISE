@@ -822,6 +822,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getPitchRatioFromSemitones);
 	API_METHOD_WRAPPER_1(Engine, getSemitonesFromPitchRatio);
 	API_METHOD_WRAPPER_0(Engine, getSampleRate);
+	API_METHOD_WRAPPER_1(Engine, setMinimumSampleRate);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
@@ -862,6 +863,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
+	API_METHOD_WRAPPER_0(Engine, getName);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
@@ -923,6 +925,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getSemitonesFromPitchRatio);
 	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
+	ADD_API_METHOD_1(setMinimumSampleRate);
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
@@ -959,6 +962,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getPreloadMessage);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
+	ADD_API_METHOD_0(getName);
 	ADD_API_METHOD_0(getFilterModeList);
 	ADD_API_METHOD_0(createGlobalScriptLookAndFeel);
 	ADD_API_METHOD_1(setAllowDuplicateSamples);
@@ -1079,6 +1083,11 @@ void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
 void ScriptingApi::Engine::setGlobalFont(String fontName)
 {
 	getProcessor()->getMainController()->setGlobalFont(fontName);
+}
+
+bool ScriptingApi::Engine::setMinimumSampleRate(double minimumSampleRate)
+{
+	return getProcessor()->getMainController()->setMinimumSamplerate(minimumSampleRate);
 }
 
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
@@ -1261,12 +1270,19 @@ var ScriptingApi::Engine::getFilterModeList() const
 String ScriptingApi::Engine::getVersion()
 {
 #if USE_BACKEND
-	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
+	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 #else
 	return FrontendHandler::getVersionString();
 #endif
+}
 
-
+String ScriptingApi::Engine::getName()
+{
+#if USE_BACKEND
+	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
+#else
+	return FrontendHandler::getProjectName();
+#endif
 }
 
 double ScriptingApi::Engine::getMasterPeakLevel(int channel)
@@ -1547,33 +1563,52 @@ String ScriptingApi::Engine::getCurrentUserPresetName()
 	return getProcessor()->getMainController()->getUserPresetHandler().getCurrentlyLoadedFile().getFileNameWithoutExtension();
 }
 
-void ScriptingApi::Engine::saveUserPreset(String presetName)
+void ScriptingApi::Engine::saveUserPreset(var presetName)
 {
-	getProcessor()->getMainController()->getUserPresetHandler().savePreset(presetName);
+	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(presetName.getObject()))
+	{
+		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(sf->f);
+		UserPresetHelpers::saveUserPreset(getProcessor()->getMainController()->getMainSynthChain(), sf->f.getFullPathName());
+	}
+	else
+	{
+		getProcessor()->getMainController()->getUserPresetHandler().savePreset(presetName);
+	}
 }
 
-void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
+void ScriptingApi::Engine::loadUserPreset(var file)
 {
+	auto name = ScriptingObjects::ScriptFile::getFileNameFromFile(file);
+
+	File userPresetToLoad;
+
+	if (File::isAbsolutePath(name))
+	{
+		userPresetToLoad = File(name);
+	}
+	else
+	{
 #if USE_BACKEND
-	File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+		File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-	File userPresetRoot = FrontendHandler::getUserPresetDirectory();
+		File userPresetRoot = FrontendHandler::getUserPresetDirectory();
 #endif
 
-	auto userPreset = userPresetRoot.getChildFile(relativePath + ".preset");
+		userPresetToLoad = userPresetRoot.getChildFile(file.toString() + ".preset");
+	}
 
     if(!getProcessor()->getMainController()->isInitialised())
     {
         reportScriptError("Do not load user presets at startup.");
     }
-    else if (userPreset.existsAsFile())
+    else if (userPresetToLoad.existsAsFile())
 	{
-		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPreset);
-		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(userPreset);
+		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPresetToLoad);
+		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(userPresetToLoad);
 	}
 	else
 	{
-		reportScriptError("User preset " + userPreset.getFullPathName() + " doesn't exist");
+		reportScriptError("User preset " + userPresetToLoad.getFullPathName() + " doesn't exist");
 	}
 }
 
@@ -1913,7 +1948,9 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapList);
     API_METHOD_WRAPPER_0(Sampler, getCurrentSampleMapId);
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
+    API_METHOD_WRAPPER_0(Sampler, getNumAttributes);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
+    API_METHOD_WRAPPER_1(Sampler, getAttributeId);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setUseStaticMatrix);
     API_METHOD_WRAPPER_1(Sampler, loadSampleForAnalysis);
 	API_METHOD_WRAPPER_1(Sampler, createSelection);
@@ -1949,7 +1986,9 @@ sampler(sampler_)
 	ADD_API_METHOD_1(loadSampleMap);
     ADD_API_METHOD_0(getCurrentSampleMapId);
 	ADD_API_METHOD_0(getSampleMapList);
+	ADD_API_METHOD_0(getNumAttributes);
     ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_1(getAttributeId);
     ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(isNoteNumberMapped);
     ADD_API_METHOD_1(loadSampleForAnalysis);
@@ -2655,6 +2694,18 @@ var ScriptingApi::Sampler::getSampleMapList() const
 	return sampleMapNames;
 }
 
+int ScriptingApi::Sampler::getNumAttributes() const
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (checkValidObject())
+	{
+		return s->getNumParameters();
+	}
+
+	return 0;
+}
+
 var ScriptingApi::Sampler::getAttribute(int index) const
 {
     ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
@@ -2666,6 +2717,16 @@ var ScriptingApi::Sampler::getAttribute(int index) const
     }
 
     return s->getAttribute(index);
+}
+
+String ScriptingApi::Sampler::getAttributeId(int parameterIndex)
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+    if (checkValidObject())
+        return s->getIdentifierForParameterIndex(parameterIndex).toString();    
+    
+    return String();
 }
 
 void ScriptingApi::Sampler::setAttribute(int index, var newValue)
@@ -2812,6 +2873,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getSampler);
 	API_METHOD_WRAPPER_1(Synth, getSlotFX);
 	API_METHOD_WRAPPER_1(Synth, getEffect);
+	API_METHOD_WRAPPER_1(Synth, getAllEffects);
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
 	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
@@ -2880,6 +2942,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getSampler);
 	ADD_API_METHOD_1(getSlotFX);
 	ADD_API_METHOD_1(getEffect);
+	ADD_API_METHOD_1(getAllEffects);
 	ADD_API_METHOD_1(getRoutingMatrix);
 	ADD_API_METHOD_1(getMidiProcessor);
 	ADD_API_METHOD_1(getChildSynth);
@@ -2972,7 +3035,8 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 	}
 	else
 	{
-		reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
+		if(!parentMidiProcessor->setArtificialTimestamp(eventId, timestamp))
+			reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
 	}
 }
 
@@ -3454,6 +3518,31 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 		reportIllegalCall("getEffect()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptEffect(getScriptProcessor(), nullptr))
 	}
+}
+
+
+var ScriptingApi::Synth::getAllEffects(String regex)
+{
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
+	if(getScriptProcessor()->objectsCanBeCreated())
+	{
+	    Array<var> list;
+	    
+		Processor::Iterator<EffectProcessor> it(owner);
+
+		EffectProcessor *fx;
+
+		while((fx = it.getNextProcessor()) != nullptr)
+		{
+			if (RegexFunctions::matchesWildcard(regex, fx->getId()))
+			{
+				list.add(new ScriptEffect(getScriptProcessor(), fx));
+			}
+		}
+
+        return var(list);
+    }
 }
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)
@@ -4318,13 +4407,14 @@ struct ScriptingApi::FileSystem::Wrapper
 };
 
 ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
-	ApiClass(6),
+	ApiClass((int)numSpecialLocations),
 	ScriptingObject(pwsc),
 	ControlledObject(pwsc->getMainController_()),
 	p(pwsc)
 {
 	addConstant("Samples", (int)Samples);
 	addConstant("Expansions", (int)Expansions);
+	addConstant("AudioFiles", (int)AudioFiles);
 	addConstant("UserPresets", (int)UserPresets);
 	addConstant("AppData", (int)AppData);
 	addConstant("UserHome", (int)UserHome);
@@ -4378,7 +4468,7 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 	File f;
 
 	if (startFolder.isInt())
-		auto f = getFile((SpecialLocations)(int)startFolder);
+		f = getFile((SpecialLocations)(int)startFolder);
 	else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(startFolder.getObject()))
 		f = sf->f;
 
@@ -4386,7 +4476,7 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 
 	auto cb = [forSaving, f, wildcard, callback, p_]()
 	{
-		FileChooser fc(forSaving ? "Save file" : "Open file", f, wildcard);
+    FileChooser fc(!forSaving ? "Open file" : "Save file", f, wildcard);
 
 		var a;
 
@@ -4444,9 +4534,7 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 		f = ProjectHandler::getAppDataRoot();
 
 		auto& h = getMainController()->getCurrentFileHandler();
-
 		auto company = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::User::Company);
-
 		auto project = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name);
 
 		f = f.getChildFile(company.toString()).getChildFile(project.toString());
@@ -4471,6 +4559,16 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 	case Documents: f = File::getSpecialLocation(File::userDocumentsDirectory); break;
 	case Desktop:	f = File::getSpecialLocation(File::userDesktopDirectory); break;
 	case Downloads: f = File::getSpecialLocation(File::userHomeDirectory).getChildFile("Downloads"); break;
+	case AudioFiles: 
+#if USE_BACKEND
+		f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::AudioFiles);
+#else
+#if !USE_RELATIVE_PATH_FOR_AUDIO_FILES
+		// You need to set this flag if you want to load audio files from the folder
+		jassertfalse;
+#endif
+		f = FrontendHandler::getAdditionalAudioFilesDirectory();
+#endif
 	default:
 		break;
 	}

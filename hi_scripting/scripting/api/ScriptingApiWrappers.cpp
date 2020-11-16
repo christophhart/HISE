@@ -71,6 +71,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addSliderPack(const var::NativeFunctionArgs& args);
 	static var addFloatingTile(const var::NativeFunctionArgs& args);
 	static var getComponent(const var::NativeFunctionArgs& args);
+	static var getAllComponents(const var::NativeFunctionArgs& args);
 	static var set(const var::NativeFunctionArgs& args);
 	static var get(const var::NativeFunctionArgs& args);
 	static var addToMacroControl(const var::NativeFunctionArgs& args);
@@ -331,6 +332,22 @@ var ScriptingApi::Content::Wrapper::getComponent(const var::NativeFunctionArgs& 
 	return var();
 }
 
+var ScriptingApi::Content::Wrapper::getAllComponents(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("getAllComponents()", 1);
+
+		if (args.numArguments == 1)
+		{
+			return thisObject->getAllComponents(args.arguments[0]);
+		}
+
+		return var();
+	}
+
+	return var();
+}
 
 var ScriptingApi::Content::Wrapper::storeAllControlsAsPreset(const var::NativeFunctionArgs& args)
 {

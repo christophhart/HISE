@@ -487,7 +487,7 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 		getComboBoxComponent("expansions")->setSelectedItemIndex(activeExpansion + 1, dontSendNotification);
 	}
 
-	if (GET_HISE_SETTING(synthChain, HiseSettings::Project::SupportFullDynamicsHLAC) == "0")
+	if (!GET_HISE_SETTING(synthChain, HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("supportFull")->setSelectedItemIndex(1, dontSendNotification);
 
 #if USE_BACKEND
@@ -990,7 +990,7 @@ void SampleDataImporter::threadFinished()
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Samples imported", "All samples were imported successfully.");
+		PresetHandler::showMessageWindow("Samples imported", "All samples were imported successfully. Please relaunch the instrument.");
 
 #if USE_FRONTEND
 

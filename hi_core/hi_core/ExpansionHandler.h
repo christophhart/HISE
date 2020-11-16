@@ -56,6 +56,7 @@ DECLARE_ID(PrivateInfo);
 DECLARE_ID(Name);
 DECLARE_ID(ProjectName);
 DECLARE_ID(Version);
+DECLARE_ID(Tags);
 DECLARE_ID(Key);
 DECLARE_ID(Hash);
 DECLARE_ID(PoolData);
@@ -260,9 +261,11 @@ protected:
 #if USE_BACKEND
 			projectName(v, "ProjectName", nullptr, "unused"),
 			projectVersion(v, "ProjectName", nullptr, "1.0.0"),
+			tags(v, "Tags", nullptr, ""),
 #else
 			projectName(v, "ProjectName", nullptr, FrontendHandler::getProjectName()),
 			projectVersion(v, "ProjectName", nullptr, FrontendHandler::getVersionString()),
+			tags(v, "Tags", nullptr, ""),
 #endif
 			version(v, "Version", nullptr, "1.0.0")
 		{
@@ -270,6 +273,7 @@ protected:
 			Helpers::initCachedValue(v, version);
 			Helpers::initCachedValue(v, projectName);
 			Helpers::initCachedValue(v, projectVersion);
+			Helpers::initCachedValue(v, tags);
 		}
 
 		var toPropertyObject() const;
@@ -282,6 +286,7 @@ protected:
 		CachedValue<String> projectName;
 		CachedValue<String> version;
 		CachedValue<String> projectVersion;
+		CachedValue<String> tags;
 	};
 
 	ScopedPointer<Data> data;

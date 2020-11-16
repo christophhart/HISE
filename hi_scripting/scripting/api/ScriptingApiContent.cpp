@@ -722,7 +722,7 @@ int ScriptingApi::Content::ScriptComponent::getGlobalPositionY()
     
 	if (auto p = getParentScriptComponent())
 	{
-		return thisY + p->getGlobalPositionX();
+		return thisY + p->getGlobalPositionY();
 	}
 	else
 		return thisY;
@@ -2656,6 +2656,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
     API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
+	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setMouseCursor);
 	API_METHOD_WRAPPER_0(ScriptPanel, addChildPanel);
 	API_METHOD_WRAPPER_0(ScriptPanel, removeFromParent);
 	API_METHOD_WRAPPER_0(ScriptPanel, getChildPanelList);
@@ -2717,6 +2718,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	setDefaultValue(ScriptComponent::Properties::width, 100);
 	setDefaultValue(ScriptComponent::Properties::height, 50);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
+	setDefaultValue(ScriptComponent::Properties::isPluginParameter, false);
 	setDefaultValue(textColour, 0x23FFFFFF);
 	setDefaultValue(itemColour, 0x30000000);
 	setDefaultValue(itemColour2, 0x30000000);
@@ -2762,7 +2764,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_0(removeFromParent);
 	ADD_API_METHOD_0(getChildPanelList);
 	ADD_API_METHOD_0(getParentPanel);
-
+	ADD_API_METHOD_3(setMouseCursor);
 #if HISE_INCLUDE_RLOTTIE
 	ADD_API_METHOD_0(getAnimationData);
 	ADD_API_METHOD_1(setAnimation);
@@ -2805,13 +2807,24 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createCompon
 
 void ScriptingApi::Content::ScriptPanel::repaint()
 {
-	internalRepaint(false);
+	auto threadId = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
+
+	if (threadId == MainController::KillStateHandler::SampleLoadingThread ||
+		threadId == MainController::KillStateHandler::ScriptingThread ||
+		threadId == MainController::KillStateHandler::MessageThread)
+	{
+		internalRepaint(false);
+	}
+	else
+	{
+		getScriptProcessor()->getMainController_()->getJavascriptThreadPool().addDeferredPaintJob(this);
+	}
 }
 
 
 void ScriptingApi::Content::ScriptPanel::repaintImmediately()
 {
-	internalRepaint(false);
+	repaint();
 }
 
 
@@ -3107,6 +3120,33 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 	}
 }
 
+void ScriptingApi::Content::ScriptPanel::setMouseCursor(var pathIcon, var colour, var hitPoint)
+ {
+	if (auto po = dynamic_cast<ScriptingObjects::PathObject*>(pathIcon.getObject()))
+	{
+		mouseCursorPath.path = po->getPath();
+		mouseCursorPath.c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
+		
+		if (auto ar = hitPoint.getArray())
+		{
+			if (ar->size() == 2)
+			{
+				mouseCursorPath.hitPoint = Point<float>((float)((*ar)[0]), (float)((*ar)[1]));
+				
+				if (!Rectangle<float>(0.0f, 0.0f, 1.0f, 1.0f).contains(mouseCursorPath.hitPoint))
+					reportScriptError("hitPoint must be within [0, 0, 1, 1] area");
+				
+			}
+			else
+				reportScriptError("hitPoint must be a [x, y] array");
+		}
+		else
+			reportScriptError("hitPoint must be a [x, y] array");
+	}
+	else
+		reportScriptError("pathIcon is not a path");
+}
+
 Rectangle<int> ScriptingApi::Content::ScriptPanel::getBoundsForImage() const
 {
 	auto scaleFactor = getScaleFactorForCanvas();
@@ -3389,10 +3429,10 @@ void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeM
 	{
 		jassert(isCorrectlyInitialised(Items));
 
-		if (newValue.toString().isNotEmpty())
-		{
+		//if (newValue.toString().isNotEmpty())
+		//{
 			currentItems = StringArray::fromLines(newValue.toString());
-		}
+		//}
 	}
 
 
@@ -3607,7 +3647,6 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 200);
 	setDefaultValue(ScriptComponent::Properties::height, 100);
-	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Properties::updateAfterInit, true);
 	setDefaultValue(Properties::ContentType, EmptyComponent::getPanelId().toString());
@@ -3850,6 +3889,7 @@ colour(Colour(0xff777777))
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
 	setMethod("setName", Wrapper::setName);
 	setMethod("getComponent", Wrapper::getComponent);
+	setMethod("getAllComponents", Wrapper::getAllComponents);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("setValuePopupData", Wrapper::setValuePopupData);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
@@ -3901,7 +3941,6 @@ const ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getCompone
 	return nullptr;
 }
 
-
 int ScriptingApi::Content::getComponentIndex(const Identifier &componentName) const
 {
 	for (int i = 0; i < getNumComponents(); i++)
@@ -3914,7 +3953,6 @@ int ScriptingApi::Content::getComponentIndex(const Identifier &componentName) co
 
 	return -1;
 }
-
 
 ScriptingApi::Content::ScriptComboBox *ScriptingApi::Content::addComboBox(Identifier boxName, int x, int y)
 {
@@ -4000,6 +4038,21 @@ var ScriptingApi::Content::getComponent(var componentName)
 	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
 
 	return var();
+}
+
+var ScriptingApi::Content::getAllComponents(String regex)
+{
+	Array<var> list;
+
+	for (int i = 0; i < getNumComponents(); i++)
+	{	    
+		if (RegexFunctions::matchesWildcard(regex, components[i]->getName().toString()))
+		{
+			list.add(var(components[i]));
+		}
+	}
+
+	return var(list);
 }
 
 void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentName, const var &jsonData)

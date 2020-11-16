@@ -1043,12 +1043,70 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 	}
 }
 
+void SampleEditHandler::SampleEditingActions::writeSamplesWithAiffData(ModulatorSampler* sampler)
+{
+	FileChooser fc("Choose Target directory");
+
+	if (fc.browseForDirectory())
+	{
+		auto f = fc.getResult();
+
+		auto name = sampler->getSampleMap()->getId();
+
+		auto targetDir = f.getChildFile(name);
+		targetDir.createDirectory();
+
+		for (int i = 0; i < sampler->getNumSounds(); i++)
+		{
+			auto s = static_cast<ModulatorSamplerSound*>(sampler->getSound(i))->getReferenceToSound(0);
+			ScopedPointer<AudioFormatReader> reader = s->createReaderForPreview();
+
+			StringPairArray metadata;
+			AiffAudioFormat af;
+
+			auto groupId = static_cast<ModulatorSamplerSound*>(sampler->getSound(i))->getSampleProperty(SampleIds::RRGroup).toString();
+
+			auto gDir = targetDir.getChildFile("RR " + String(groupId));
+			gDir.createDirectory();
+
+			auto t = gDir.getChildFile(String(i)).withFileExtension("aiff");
+
+			FileOutputStream* fos = new FileOutputStream(t);
+
+			metadata.set("MetaDataSource", "AIFF");
+
+#define SET_METADATA_FROM_PROPERTY(name, id) metadata.set(name, static_cast<ModulatorSamplerSound*>(sampler->getSound(i))->getSampleProperty(id).toString());
+
+			SET_METADATA_FROM_PROPERTY("LowVelocity", SampleIds::LoVel);
+			SET_METADATA_FROM_PROPERTY("HighVelocity", SampleIds::HiVel);
+			SET_METADATA_FROM_PROPERTY("LowNote", SampleIds::LoKey);
+			SET_METADATA_FROM_PROPERTY("HighNote", SampleIds::HiKey);
+			SET_METADATA_FROM_PROPERTY("MidiUnityNote", SampleIds::Root);
+			SET_METADATA_FROM_PROPERTY("Loop0Type", SampleIds::LoopEnabled);
+
+#undef SET_METADATA_FROM_PROPERTY
+
+			ScopedPointer<AudioFormatWriter> writer = af.createWriterFor(fos, reader->sampleRate, reader->numChannels, reader->bitsPerSample, metadata, 5);
+
+			auto ok = writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
+			jassert(ok);
+
+		}
+	}
+}
+
+
+
 #define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sound->setSampleProperty(prop, string.getIntValue());
+
+
 
 bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPairArray &metadata, bool readOnly=false)
 {
 	const String format = metadata.getValue("MetaDataSource", "");
 	
+	
+
 	String lowVel, hiVel, loKey, hiKey, root, start, end, loopEnabled, loopStart, loopEnd;
 
 	DBG(metadata.getDescription());

@@ -86,6 +86,7 @@ public:
 		MenuOpenFileFromProjectOffset,
 		MenuSaveFile = 0x23000,
 		MenuSaveFileAs,
+		MenuSaveFileXmlBackup,
 		MenuSaveFileAsXmlBackup,
 		MenuOpenXmlBackup,
         MenuFileXmlBackupMenuOffset,
@@ -316,6 +317,7 @@ public:
 		static void saveUserPreset(BackendRootWindow *bpe);
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
 		static void collectExternalFiles(BackendRootWindow * bpe);
+		static void saveFileXml(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
 		static void exportFileAsSnippet(BackendProcessor* bp);

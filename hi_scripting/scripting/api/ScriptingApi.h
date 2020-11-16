@@ -207,6 +207,9 @@ public:
 		/** Sets the font that will be used as default font for various things. */
 		void setGlobalFont(String fontName);
 
+		/** Sets the minimum sample rate for the global processing (and adds oversampling if the current samplerate is lower). */
+		bool setMinimumSampleRate(double minimumSampleRate);
+
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 
@@ -337,10 +340,10 @@ public:
 		String getCurrentUserPresetName();
 
 		/** Asks for a preset name (if presetName is empty) and saves the current user preset. */
-		void saveUserPreset(String presetName);
+		void saveUserPreset(var presetName);
 
-		/** Loads a user preset with the given relative path (use `/` for directory separation). */
-		void loadUserPreset(const String& relativePathWithoutFileEnding);
+		/** Loads a user preset with the given relative path  (use `/` for directory separation) or the given ScriptFile object. */
+		void loadUserPreset(var relativePathOrFileObject);
 
 		/** Sets the tags that appear in the user preset browser. */
 		void setUserPresetTagList(var listOfTags);
@@ -413,6 +416,9 @@ public:
 
         /** Returns the product version (not the HISE version!). */
         String getVersion();
+
+        /** Returns the product name (not the HISE name!). */
+        String getName();
 
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
@@ -564,7 +570,6 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
-
 		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
 		var importSamples(var fileNameList, bool skipExistingSamples);
 
@@ -574,8 +579,14 @@ public:
         /** Returns the currently loaded sample map. */
         String getCurrentSampleMapId() const;
 
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
+
         /** Gets the attribute with the given index (use the constants for clearer code). */
         var getAttribute(int index) const;
+        
+        /** Returns the ID of the attribute with the given index. */
+		String getAttributeId(int index);
 
         /** Sets a attribute to the given value. */
         void setAttribute(int index, var newValue);
@@ -759,6 +770,9 @@ public:
 
 		/** Returns the Effect with the supplied name. Can only be called in onInit(). It looks also in all child processors. */
 		ScriptEffect *getEffect(const String &name);
+	
+        /** Returns an array of all effects that match the given regex. */
+        var getAllEffects(String regex);
 
 		/** Returns the MidiProcessor with the supplied name. Can not be the own name! */
 		ScriptMidiProcessor * getMidiProcessor(const String &name);
@@ -1040,7 +1054,6 @@ public:
 		{
 			AudioFiles,
 			Expansions,
-			Images,
 			Samples,
 			UserPresets,
 			AppData,

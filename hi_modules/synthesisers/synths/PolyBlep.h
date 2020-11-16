@@ -71,7 +71,7 @@ public:
 
     float get() const;
 
-    void inc();
+    bool inc();
 
     float getAndInc();
 

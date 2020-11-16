@@ -93,6 +93,7 @@ namespace Compiler
 DECLARE_ID(HisePath);
 DECLARE_ID(VisualStudioVersion);
 DECLARE_ID(UseIPP);
+DECLARE_ID(LegacyCPUSupport);
 DECLARE_ID(RebuildPoolFiles);
 DECLARE_ID(Support32BitMacOS);
 DECLARE_ID(CustomNodePath);

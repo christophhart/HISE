@@ -70,6 +70,7 @@ public:
 		Font font;
 
 		int numColumns = 3;
+		Array<var> columnWidthRatios;
 
 		bool showNotesLabel = true;
 		bool showEditButtons = true;
@@ -220,6 +221,7 @@ private:
 	// ============================================================================================
 
 	int numColumns = 3;
+	Array<var> columnWidthRatios;
 
 	File defaultRoot;
 	File rootFile;

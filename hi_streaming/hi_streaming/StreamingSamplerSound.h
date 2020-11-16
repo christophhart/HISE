@@ -56,8 +56,6 @@ public:
 		numSampleStates
 	};
 
-	
-
 	/** An object of this class will be thrown if the loading of the sound fails.
 	*/
 	struct LoadingError
@@ -298,15 +296,12 @@ private:
 		// ==========================================================================================================================================
 
 		FileReader(StreamingSamplerSound *soundForReader, StreamingSamplerSoundPool *pool);
-
 		~FileReader();
 
 		// ==============================================================================================================================================
 
 		void setFile(const String &fileName);
-
 		void setMonolithicInfo(MonolithInfoToUse* info, int channelIndex, int sampleIndex);
-
 
 		String getFileName(bool getFullPath);
 		void checkFileReference();
@@ -348,9 +343,7 @@ private:
 		int64 getMonolithOffset() const
 		{
 			if (monolithicInfo != nullptr)
-			{
 				return monolithicInfo->getMonolithOffset(monolithicIndex);
-			}
 
 			return 0;
 		}
@@ -358,9 +351,7 @@ private:
 		int64 getMonolithLength() const
 		{
 			if (monolithicInfo != nullptr)
-			{
 				return monolithicInfo->getMonolithLength(monolithicIndex);
-			}
 
 			return 0;
 		}
@@ -433,10 +424,30 @@ private:
 
 	};
 
+	struct ScopedFileHandler
+	{
+		ScopedFileHandler(StreamingSamplerSound* s, NotificationType notifyPool_ = NotificationType::sendNotification) :
+			reader(s->fileReader),
+			notifyPool(notifyPool_)
+		{
+			reader.openFileHandles(notifyPool);
+		}
+
+		~ScopedFileHandler()
+		{
+			reader.closeFileHandles(notifyPool);
+		}
+
+		NotificationType notifyPool;
+		FileReader& reader;
+	};
+
 	// ==============================================================================================================================================
 
 	void loopChanged();
 	void lengthChanged();
+
+	void applyCrossfadeToPreloadBuffer();
 
 	/** This fills the supplied AudioSampleBuffer with samples.
 	*

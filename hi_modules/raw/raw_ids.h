@@ -90,7 +90,7 @@ constexpr int Pitch = hise::ModulatorSynth::PitchModulation;
 constexpr int FX = hise::ModulatorSynth::EffectChain;
 
 /** the frequency modulation for filters. */
-constexpr int FilterFrequency = hise::MonoFilterEffect::FrequencyChain;
+constexpr int FilterFrequency = hise::PolyFilterEffect::FrequencyChain;
 
 /** the slot where modulators are put in a GlobalModulatorContainer. */
 constexpr int GlobalModulatorSlot = hise::GlobalModulatorContainer::GainModulation;

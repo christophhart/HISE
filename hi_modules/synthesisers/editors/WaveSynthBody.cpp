@@ -164,6 +164,10 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     enableSecondButton->setButtonText (TRANS("Enable 2nd Osc"));
     enableSecondButton->addListener (this);
 
+	addAndMakeVisible(enableSyncButton = new HiToggleButton("enableSyncButton"));
+	enableSyncButton->setButtonText(TRANS("Sync 2nd Osc"));
+	enableSyncButton->addListener(this);
+
     addAndMakeVisible (pulseSlider1 = new HiSlider ("Pulse 1"));
     pulseSlider1->setTooltip (TRANS("Select the pulse width if possible"));
     pulseSlider1->setRange (0, 1, 0.01);
@@ -207,6 +211,7 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 	mixSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 
 	enableSecondButton->setup(getProcessor(), WaveSynth::SpecialParameters::EnableSecondOscillator, "Enable 2nd Osc");
+	enableSyncButton->setup(getProcessor(), WaveSynth::SpecialParameters::HardSync, "Sync 2nd Osc");
 
 	pulseSlider1->setup(getProcessor(), WaveSynth::SpecialParameters::PulseWidth1, "Pulse Width 1");
 	pulseSlider1->setMode(HiSlider::Mode::NormalizedPercentage);
@@ -303,11 +308,13 @@ void WaveSynthBody::resized()
     waveFormSelector2->setBounds (getWidth() - 26 - 128, 65, 128, 24);
     waveformDisplay2->setBounds (getWidth() - 26 - 128, 15, 128, 48);
     mixSlider->setBounds ((getWidth() / 2) - (128 / 2), 13, 128, 48);
+
     panSlider->setBounds (160, 73, 128, 48);
     panSlider2->setBounds (getWidth() - 161 - 128, 73, 128, 48);
     detuneSlider2->setBounds (getWidth() - 26 - 128, 94, 128, 48);
     detuneSlider->setBounds (25, 96, 128, 48);
     enableSecondButton->setBounds ((getWidth() / 2) + -64, 136, 128, 28);
+	enableSyncButton->setBounds((getWidth() / 2) + -64, 166, 128, 28);
     pulseSlider1->setBounds (160, 132, 128, 48);
     pulseSlider2->setBounds (getWidth() - 161 - 128, 132, 128, 48);
     //[UserResized] Add your own custom resize handling here..

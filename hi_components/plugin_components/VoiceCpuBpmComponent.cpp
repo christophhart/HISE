@@ -33,13 +33,17 @@
 namespace hise { using namespace juce;
 
 VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_):
-	PreloadListener(mc_->getSampleManager())
+	PreloadListener(mc_->getSampleManager()),
+	ControlledObject(mc_)
 {
 	if (mc_ != nullptr)
 	{
 		mainControllers.add(mc_);
 
 		preloadActive = mc_->getSampleManager().isPreloading();
+
+		getMainController()->getDebugLogger().addListener(this);
+
 	}
 		
 
@@ -116,7 +120,7 @@ VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_):
 
 VoiceCpuBpmComponent::~VoiceCpuBpmComponent()
 {
-	
+	getMainController()->getDebugLogger().removeListener(this);
 }
 
 void VoiceCpuBpmComponent::buttonClicked(Button *)
@@ -198,6 +202,13 @@ void VoiceCpuBpmComponent::paint(Graphics& g)
 	if (!preloadActive)
 	{
 		if (isOpaque()) g.fillAll(findColour(Slider::ColourIds::backgroundColourId));
+
+
+		if (isRecording)
+		{
+			g.setColour(Colours::red.withAlpha(0.3f));
+			g.fillRoundedRectangle(getLocalBounds().toFloat(), 2.0f);
+		}
 
 		g.setColour(Colours::white.withAlpha(0.4f));
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));

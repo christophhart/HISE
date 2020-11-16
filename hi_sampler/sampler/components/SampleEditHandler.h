@@ -155,6 +155,9 @@ public:
 		static void deselectAllSamples(SampleEditHandler* handler);
 		static void reencodeMonolith(Component* childComponentOfMainEditor, SampleEditHandler* handler);
 		static void encodeAllMonoliths(Component* comp, SampleEditHandler* handler);
+
+
+		static void writeSamplesWithAiffData(ModulatorSampler* sampler);
 	};
 
 	
