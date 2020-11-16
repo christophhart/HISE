@@ -1015,8 +1015,8 @@ private:
 
 			for (int i = 0; i < numChannels; i++)
 			{
-				Types::dyn<float> a(a.getWritePointer(i), numSamples);
-				Types::dyn<float> e(e.getWritePointer(i), numSamples);
+				block a(a.getWritePointer(i), numSamples);
+				block e(e.getWritePointer(i), numSamples);
 
 				auto r = Helpers::compareBlocks(e, a);
 
@@ -1027,17 +1027,8 @@ private:
 			return Result::ok();
 		}
 
-		static Result compareBlocks(const VariableStorage expected, const VariableStorage& actual)
+		static Result compareBlocks(const block& e, const block& a)
 		{
-			if (expected.getType() != Types::ID::Block)
-				return Result::fail("Expected type not a block");
-
-			if (actual.getType() != Types::ID::Block)
-				return Result::fail("Actual type not a block");
-
-			auto e = expected.toBlock();
-			auto a = actual.toBlock();
-
 			if (e.size() != a.size())
 				return Result::fail(juce::String("size mismatch. Expected: ") + juce::String(e.size()) + ", Actual: " + juce::String(a.size()));
 
@@ -1103,7 +1094,7 @@ private:
 		}
 		else
 		{
-			return Helpers::compareBlocks(expectedResult, actualResult);
+			return Helpers::compareBlocks(expectedResult.toBlock(), actualResult.toBlock());
 		}
 	}
 
@@ -1454,10 +1445,13 @@ public:
 		//testVectorOps();
 		//testInlining();
 
-		optimizations = {};// OptimizationIds::getAllIds();
+		optimizations = OptimizationIds::getAllIds();
 
+		runTestFiles("float4_basic03");
+
+		return;
 		//optimizations = { OptimizationIds::AsmOptimisation };
-		runTestFiles("");
+		runTestFiles("inc_after_cond");
 		return;
 		
 

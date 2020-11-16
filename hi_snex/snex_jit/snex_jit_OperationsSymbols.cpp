@@ -374,7 +374,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 			}
 		}
 
-		if (reg->isActiveOrDirtyGlobalRegister() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
+		if (reg->isActive() && findParentStatementOfType<ConditionalBranch>(this) != nullptr)
 		{
 			// the code generation has already happened before the branch so that we have the global register
 			// available in any case
@@ -388,7 +388,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 		auto asg = CREATE_ASM_COMPILER(getType());
 
-		isFirstOccurence = (!reg->isActiveOrDirtyGlobalRegister() && !reg->isMemoryLocation()) || isFirstReference();
+		isFirstOccurence = (!reg->isActive() && !reg->isMemoryLocation()) || isFirstReference();
 
 		if (isFirstOccurence)
 		{

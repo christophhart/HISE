@@ -533,6 +533,9 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 				dbgString << "vec " << s->toString(Statement::TextFormat::CppCode);
 			}
 
+			
+
+			cc.setInlineComment("Set Address");
 			addressReg = cc.newGpq();
 
 			X86Mem fatPointerAddress;
@@ -544,10 +547,19 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 			else
 				fatPointerAddress = x86::ptr(PTR_REG_R(reg));
 
-			sizeMem = fatPointerAddress.cloneAdjustedAndResized(4, 4);
-			auto objectAddress = fatPointerAddress.cloneAdjustedAndResized(8, 8);
-			cc.setInlineComment("Set Address");
-			cc.mov(addressReg, objectAddress);
+
+			if (auto spanType = sType.getTypedIfComplexType<SpanType>())
+			{
+				cc.lea(addressReg, fatPointerAddress);
+				// make a better version if desired...
+				sizeMem = cc.newInt32Const(ConstPool::kScopeLocal, spanType->getNumElements());
+			}
+			else
+			{
+				sizeMem = fatPointerAddress.cloneAdjustedAndResized(4, 4);
+				auto objectAddress = fatPointerAddress.cloneAdjustedAndResized(8, 8);
+				cc.mov(addressReg, objectAddress);
+			}
 		}
 
 		for (auto c : *s)
@@ -594,6 +606,18 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 
 		for (auto c : childOps)
 			c->checkAlignment(cc, resultReg);
+	}
+
+	void safeCheckPtrs(x86::Compiler& cc, const asmjit::Label& loopEnd)
+	{
+		if (isVectorType())
+		{
+			cc.cmp(addressReg, 0);
+			cc.jz(loopEnd);
+		}
+
+		for (auto c : childOps)
+			c->safeCheckPtrs(cc, loopEnd);
 	}
 
 	void process(x86::Compiler& cc, bool isSimd)
@@ -801,6 +825,15 @@ void Operations::VectorOp::emitVectorOp(BaseCompiler* compiler, BaseScope* scope
 	auto simdLoop = cc.newLabel();
 	auto loopEnd = cc.newLabel();
 	auto leftOverLoop = cc.newLabel();
+
+	if (!scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::NoSafeChecks))
+	{
+		root->safeCheckPtrs(cc, loopEnd);
+	}
+	
+
+
+
 
 	if (scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
 	{

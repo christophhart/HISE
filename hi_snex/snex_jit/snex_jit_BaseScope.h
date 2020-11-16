@@ -179,7 +179,7 @@ public:
 	void enlargeAllocatedSize(const TypeInfo& t)
 	{
 		jassert(data == nullptr);
-		allocatedSize += t.getRequiredByteSize();
+		allocatedSize += t.getRequiredByteSize() + t.getRequiredAlignment();
 	}
 
 	void finalise()

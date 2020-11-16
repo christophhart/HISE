@@ -17,7 +17,7 @@ using WrapType = dyn<float>::wrapped;
 
 float main(float input)
 {
-    d = s;
+    d.referTo(s);
 
     return d[d.index<WrapType>(2)];
 }

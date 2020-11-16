@@ -1126,10 +1126,16 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 		return as<Operations::ControlFlowStatement>(p) != nullptr;
 	});
 		
+
+	
+
 	if (hasControlFlow)
 		return false;
 
 	l->tryToResolveType(c);
+
+	if (l->iterator.typeInfo.getTypedIfComplexType<DynType>() != nullptr)
+		return false;
 
 	int compileTimeLoopCount = Helpers::getCompileTimeAmount(l->getTarget());
 
@@ -1171,12 +1177,35 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 
 			if (l->evaluateIteratorLoad())
 			{
-				auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
 				auto imm = new Operations::Immediate(l->location, VariableStorage(i));
 				auto sus = new Operations::Subscript(l->location, target, imm);
-				auto ia = new Operations::Assignment(l->location, iv, JitTokens::assign_, sus, true);
+				auto iv = new Operations::VariableReference(l->location, iteratorSymbol);
 
-				cb->addStatement(ia, true);
+				if (auto childDynType = iteratorSymbol.typeInfo.getTypedIfComplexType<DynType>())
+				{
+					// Fix this when optimising span<dyn> unrolling...
+					jassertfalse;
+
+#if 0
+					FunctionClass::Ptr fc = childDynType->getFunctionClass();
+
+					auto f = fc->getNonOverloadedFunction(fc->getClassName().getChildId("referTo"));
+					auto call = new Operations::FunctionCall(l->location, nullptr, { f.id, TypeInfo(Types::ID::Void) }, {});
+					call->setObjectExpression(iv);
+					call->addArgument(sus);
+
+					cb->addStatement(call, true);
+					cb->addStatement(new Operations::ComplexTypeDefinition(l->location, iteratorSymbol.id, iteratorSymbol.typeInfo), true);
+#endif
+				}
+				else
+				{
+					auto ia = new Operations::Assignment(l->location, iv, JitTokens::assign_, sus, true);
+
+					cb->addStatement(ia, true);
+				}
+
+				
 			}
 
 			jassert(iteratorSymbol.resolved);

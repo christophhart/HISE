@@ -156,7 +156,15 @@ public:
 
 	bool matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const;
 
-	bool isActiveOrDirtyGlobalRegister() const;
+#if 0
+	bool isActiveOrDirtyGlobalRegister() const
+	{
+		if (isReferencingOtherRegister())
+			return getReferenceTargetRegister()->isActiveOrDirtyGlobalRegister();
+
+		return state == ActiveRegister || state == DirtyGlobalRegister;
+	}
+#endif
 
 	/** Creates a memory location for the given constant. */
 	void createMemoryLocation(asmjit::X86Compiler& cc);
@@ -185,34 +193,27 @@ public:
 
 	void invalidateRegisterForCustomMemory();
 
-	bool isIteratorRegister() const
-	{
-		if (isIter)
-		{
-			jassert(state == ActiveRegister);
-			return true;
-		}
-
-		return false;
-	}
+	bool isIteratorRegister() const;
 
 	bool isSimd4Float() const;
 
 	void setUndirty();
 
-	bool hasCustomMemoryLocation() const noexcept 
-	{
-		return hasCustomMem;
-	}
+	bool hasCustomMemoryLocation() const noexcept;
 
-	bool isZero() const
-	{
-		return isZeroValue;
-	}
+	bool isZero() const;
 
 	void setReferToReg(Ptr otherPtr)
 	{
-		referenceTarget = otherPtr->getReferenceTargetRegister();
+		if (otherPtr->getTypeInfo().isNativePointer())
+		{
+			auto ptr = x86::ptr(otherPtr->getRegisterForReadOp().as<X86Gpq>());
+			setCustomMemoryLocation(ptr, otherPtr->isGlobalMemory());
+		}
+		else
+		{
+			referenceTarget = otherPtr->getReferenceTargetRegister();
+		}
 	}
 
 	bool isReferencingOtherRegister() const { return getReferenceTargetRegister() != this; }

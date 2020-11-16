@@ -16,7 +16,7 @@ dyn<float> d;
 
 float main(float input)
 {
-	d = data;
+	d.referTo(data);
 	
 	d *= 2.0f;
 

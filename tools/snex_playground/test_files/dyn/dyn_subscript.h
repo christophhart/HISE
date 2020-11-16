@@ -16,7 +16,7 @@ dyn<int> x;
 int main(int input)
 {
   dyn<int>::wrapped i = 2;
-	x = c;
+	x.referTo(c);
 
   return x[i];
 }

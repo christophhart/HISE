@@ -42,7 +42,7 @@ using namespace asmjit;
 #define FP_REG_R(x) x->getRegisterForReadOp().as<X86Xmm>()
 #define FP_MEM(x) x->getAsMemoryLocation()
 #define IS_MEM(x) x->isMemoryLocation()
-#define IS_CMEM(x) x->hasCustomMemoryLocation() && !x->isActiveOrDirtyGlobalRegister()
+#define IS_CMEM(x) x->hasCustomMemoryLocation() && !x->isActive()
 #define IS_REG(x)  x->isActive()
 
 

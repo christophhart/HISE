@@ -35,8 +35,7 @@ struct I
 	}
 };
 
-
-
+#if 0
 struct X2
 {
 	template <int P> void setParameter(double newValue)
@@ -55,17 +54,15 @@ struct I2
 		x2.v = 80;
 	}
 };
-
+#endif
 
 wrap::init<X, I> o;
-wrap::init<X2, I2> o2;
+//wrap::init<X2, I2> o2;
 
 int main(int input)
 {
   	o.setParameter<0>(20.0);
-  	o2.setParameter<0>(1000.0);
+  	//o2.setParameter<0>(1000.0);
   	
-	return o.obj.value + o2.obj.v;
+	return o.obj.value;// + o2.obj.v;
 }
-
-

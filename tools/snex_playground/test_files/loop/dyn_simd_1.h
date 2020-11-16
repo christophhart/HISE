@@ -16,7 +16,7 @@ dyn<float> d;
 
 int main(float input)
 {
-	d = s;
+	d.referTo(s);
 
 	for(auto& v: d)
     {

@@ -408,6 +408,11 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels):
 		for (auto p : prototypes)
 			st->addWrappedMemberMethod("obj", p);
 
+
+		
+		
+
+#if 0
 		TemplateObject to(st->getTemplateInstanceId());
 		
 		to.argList.add(TemplateParameter(to.id.id.getChildId("P"), 0, false));
@@ -458,11 +463,48 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels):
 		};
 
 		cd.handler->addTemplateFunction(to);
+#endif
 	});
+
+	addFunction(createSetFunction);
 
 }
 
 
+
+snex::jit::FunctionData WrapBuilder::createSetFunction(StructType* st)
+{
+	FunctionData sf;
+	sf.id = st->id.getChildId("setParameter");
+	sf.returnType = TypeInfo(Types::ID::Void, false, false);
+	sf.addArgs("value", TypeInfo(Types::ID::Double));
+	sf.templateParameters.add(TemplateParameter(sf.id.getChildId("P"), 0, false));
+
+	sf.inliner = Inliner::createHighLevelInliner(sf.id, [st](InlineData* b)
+	{
+		// Fix this at some point...
+		jassertfalse;
+
+		auto d = b->toSyntaxTreeData();
+		auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 0);
+
+		FunctionClass::Ptr fc = pType->getFunctionClass();
+		auto exprCall = new Operations::FunctionCall(d->location, nullptr, { st->id.getChildId("setParameter"), TypeInfo(Types::ID::Void) }, d->templateParameters);
+		auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(pType, false, true), 0);
+
+		exprCall->setObjectExpression(obj);
+
+		for (auto a : d->args)
+			exprCall->addArgument(a->clone(d->location));
+		
+		d->target = exprCall;
+
+		return Result::ok();
+	});
+
+	return sf;
+	
+}
 
 ContainerNodeBuilder::ContainerNodeBuilder(Compiler& c, const Identifier& id, int numChannels_) :
 	TemplateClassBuilder(c, NamespacedIdentifier("container").getChildId(id)),

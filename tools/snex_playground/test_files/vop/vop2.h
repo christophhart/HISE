@@ -14,7 +14,7 @@ span<float, 5> data = { 0.5f};
 
 int main(int input)
 {
-	data = 2.0f - data;
+	data *= -1.0f;
 	return 12;
 }
 

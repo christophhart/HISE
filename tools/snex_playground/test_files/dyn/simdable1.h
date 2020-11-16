@@ -14,6 +14,7 @@ int main(ProcessData<1>& data)
 {
 	for(auto& s: data[0])
 	{
+
 		s = 0.5f;
 	}
 	

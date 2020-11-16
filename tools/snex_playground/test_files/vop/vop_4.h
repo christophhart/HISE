@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 64
+  output: 80
   error: ""
   filename: "vop/vop_4"
 END_TEST_DATA

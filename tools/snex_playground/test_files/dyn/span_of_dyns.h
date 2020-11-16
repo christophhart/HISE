@@ -20,15 +20,14 @@ StereoChannels d;
 
 int main(int input)
 {
-    d[0] = data;
-    d[1] = data2;
+    d[0].referTo(data);
+    d[1].referTo(data2);
 	
     for(auto& s: d)
     {
         for(auto& v: s)
             input += v;
     }
-    
     
     return input;
 }

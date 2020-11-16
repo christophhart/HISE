@@ -17,7 +17,7 @@ dyn<float>::wrapped i;
 
 void assign()
 {
-    d = s;
+    d.referTo(s);
 }
 
 float main(float input)

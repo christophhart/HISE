@@ -12,13 +12,11 @@ END_TEST_DATA
 
 
 
-
-
 struct X
 {
-    span<float, 2> data = { 1.0f, 2.0f };
+    span<int, 2> data = { 1, 2 };
     
-    float& getData()
+    int& getData()
     {
         return data[0];
     }
@@ -27,14 +25,10 @@ struct X
 
 X obj;
 
-
-
 int main(int input)
 {
 	auto& x = obj.getData();
-	
-	x = 9.0f;
-	
-	return (int)obj.data[0];
+	x = 9;
+	return obj.data[0];
 }
 

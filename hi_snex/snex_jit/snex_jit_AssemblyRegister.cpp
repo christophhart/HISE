@@ -329,7 +329,7 @@ bool AssemblyRegister::isValid() const
 	if (isReferencingOtherRegister())
 		return getReferenceTargetRegister()->isValid();
 
-	return state == ActiveRegister && reg.isValid();
+	return isActive() && reg.isValid();
 }
 
 bool AssemblyRegister::isGlobalVariableRegister() const
@@ -345,26 +345,22 @@ bool AssemblyRegister::isActive() const
 	if (isReferencingOtherRegister())
 		return getReferenceTargetRegister()->isActive();
 
-	return state == ActiveRegister;
+	return state == ActiveRegister || state == DirtyGlobalRegister;
 }
 
 bool AssemblyRegister::matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const
 {
+
+	// Here we do not look for a reference since we really want the actual register...
+#if 0
 	if (isReferencingOtherRegister())
-		return getReferenceTargetRegister()->matchesScopeAndSymbol(scopeToCheck, symbol);
+		getReferenceTargetRegister()->matchesScopeAndSymbol(scopeToCheck, symbol);
+#endif
 
 	auto scopeMatches = scopeToCheck->getScopeForSymbol(symbol.id) == scope;
 	auto symbolMatches = symbol == id;
 
 	return scopeMatches && symbolMatches;
-}
-
-bool AssemblyRegister::isActiveOrDirtyGlobalRegister() const
-{
-	if (isReferencingOtherRegister())
-		return getReferenceTargetRegister()->isActiveOrDirtyGlobalRegister();
-
-	return state == ActiveRegister || state == DirtyGlobalRegister;
 }
 
 void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
@@ -538,6 +534,20 @@ void AssemblyRegister::invalidateRegisterForCustomMemory()
 	state = LoadedMemoryLocation;
 }
 
+bool AssemblyRegister::isIteratorRegister() const
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isIteratorRegister();
+
+	if (isIter)
+	{
+		jassert(state == ActiveRegister);
+		return true;
+	}
+
+	return false;
+}
+
 bool AssemblyRegister::isSimd4Float() const
 {
 	if (isReferencingOtherRegister())
@@ -562,13 +572,29 @@ void AssemblyRegister::setUndirty()
 		return;
 	}
 
-	if (dirty && isActiveOrDirtyGlobalRegister())
+	if (dirty && isActive())
 	{
 		jassert(state == DirtyGlobalRegister || isIter || isGlobalMemory());
 
 		dirty = false;
 		state = ActiveRegister;
 	}
+}
+
+bool AssemblyRegister::hasCustomMemoryLocation() const noexcept
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->hasCustomMemoryLocation();
+
+	return hasCustomMem;
+}
+
+bool AssemblyRegister::isZero() const
+{
+	if (isReferencingOtherRegister())
+		return getReferenceTargetRegister()->isZero();
+
+	return isZeroValue;
 }
 
 AssemblyRegisterPool::AssemblyRegisterPool(BaseCompiler* c):

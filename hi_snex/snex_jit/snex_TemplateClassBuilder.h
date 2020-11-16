@@ -280,6 +280,8 @@ struct WrapBuilder : public TemplateClassBuilder
 {
 	WrapBuilder(Compiler& c, const Identifier& id, int numChannels);
 
+	static FunctionData createSetFunction(StructType* st);
+
 };
 
 
