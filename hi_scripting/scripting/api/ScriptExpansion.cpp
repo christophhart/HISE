@@ -368,7 +368,7 @@ var ScriptExpansionReference::loadDataFile(var relativePath)
 String ScriptExpansionReference::getWildcardReference(var relativePath)
 {
 	if (objectExists())
-		return exp->getWildcard() + relativePath;
+		return exp->getWildcard() + relativePath.toString();
 
 	return {};
 }

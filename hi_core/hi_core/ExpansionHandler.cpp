@@ -152,8 +152,11 @@ void ExpansionHandler::createNewExpansion(const File& expansionFolder)
 	if (Helpers::isValidExpansion(expansionFolder))
 		return;
 
-	expansionList.add(createExpansionForFile(expansionFolder));
-	notifier.sendNotification(Notifier::EventType::ExpansionCreated);
+	if (auto e = createExpansionForFile(expansionFolder))
+	{
+		expansionList.add(e);
+		notifier.sendNotification(Notifier::EventType::ExpansionCreated);
+	}
 }
 
 juce::File ExpansionHandler::getExpansionFolder() const
@@ -307,7 +310,8 @@ var ExpansionHandler::getListOfAvailableExpansions() const
 
 	for (auto e : expansionList)
 	{
-		ar.add(e->getProperty(ExpansionIds::Name));
+		if(e != nullptr)
+			ar.add(e->getProperty(ExpansionIds::Name));
 	}
 
 	return var(ar);
