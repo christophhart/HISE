@@ -340,10 +340,10 @@ public:
 		String getCurrentUserPresetName();
 
 		/** Asks for a preset name (if presetName is empty) and saves the current user preset. */
-		void saveUserPreset(String presetName);
+		void saveUserPreset(var presetName);
 
-		/** Loads a user preset with the given relative path (use `/` for directory separation). */
-		void loadUserPreset(const String& relativePathWithoutFileEnding);
+		/** Loads a user preset with the given relative path  (use `/` for directory separation) or the given ScriptFile object. */
+		void loadUserPreset(var relativePathOrFileObject);
 
 		/** Sets the tags that appear in the user preset browser. */
 		void setUserPresetTagList(var listOfTags);
@@ -1090,7 +1090,6 @@ public:
 		{
 			AudioFiles,
 			Expansions,
-			Images,
 			Samples,
 			UserPresets,
 			AppData,

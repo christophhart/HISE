@@ -188,6 +188,19 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptFile, show);
 };
 
+String ScriptingObjects::ScriptFile::getFileNameFromFile(var fileOrString)
+{
+	if (fileOrString.isString())
+		return fileOrString.toString();
+
+	if (auto asFile = dynamic_cast<ScriptFile*>(fileOrString.getObject()))
+	{
+		return asFile->f.getFullPathName();
+	}
+
+	return {};
+}
+
 ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const File& f_) :
 	ConstScriptingObject(p, 3),
 	f(f_)
@@ -3919,6 +3932,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTrack);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSequence);
 	API_VOID_METHOD_WRAPPER_3(ScriptedMidiPlayer, create);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getMidiFileList);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, isEmpty);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumTracks);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumSequences);
@@ -3945,6 +3959,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(record);
 	ADD_API_METHOD_3(setFile);
 	ADD_API_METHOD_2(saveAsMidiFile);
+	ADD_API_METHOD_0(getMidiFileList);
 	ADD_API_METHOD_1(setTrack);
 	ADD_API_METHOD_1(setSequence);
 	ADD_API_METHOD_0(isEmpty);
@@ -4191,14 +4206,16 @@ bool ScriptingObjects::ScriptedMidiPlayer::record(int timestamp)
 	return false;
 }
 
-bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearExistingSequences, bool selectNewSequence)
+bool ScriptingObjects::ScriptedMidiPlayer::setFile(var fileName, bool clearExistingSequences, bool selectNewSequence)
 {
 	if (auto pl = getPlayer())
 	{
 		if (clearExistingSequences)
 			pl->clearSequences(dontSendNotification);
 
-		if (!fileName.isEmpty())
+		auto name = ScriptFile::getFileNameFromFile(fileName);
+
+		if (!name.isEmpty())
 		{
 			PoolReference r(pl->getMainController(), fileName, FileHandlerBase::MidiFiles);
 			pl->loadMidiFile(r);
@@ -4218,12 +4235,33 @@ bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearEx
 	return false;
 }
 
-bool ScriptingObjects::ScriptedMidiPlayer::saveAsMidiFile(String fileName, int trackIndex)
+bool ScriptingObjects::ScriptedMidiPlayer::saveAsMidiFile(var fileName, int trackIndex)
 {
 	if (auto pl = getPlayer())
-		return pl->saveAsMidiFile(fileName, trackIndex);
+	{
+		auto name = ScriptFile::getFileNameFromFile(fileName);
+
+		if (name.isNotEmpty())
+			return pl->saveAsMidiFile(name, trackIndex);
+		else
+			reportScriptError("Can't parse file name");
+	}
 
 	return false;	
+}
+
+var ScriptingObjects::ScriptedMidiPlayer::getMidiFileList()
+{
+	auto list = getProcessor()->getMainController()->getCurrentFileHandler().pool->getMidiFilePool().getListOfAllReferences(true);
+
+	Array<var> l;
+
+	for (auto ref : list)
+	{
+		l.add(ref.getReferenceString());
+	}
+
+	return l;
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)

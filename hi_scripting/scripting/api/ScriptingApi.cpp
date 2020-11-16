@@ -1542,33 +1542,52 @@ String ScriptingApi::Engine::getCurrentUserPresetName()
 	return getProcessor()->getMainController()->getUserPresetHandler().getCurrentlyLoadedFile().getFileNameWithoutExtension();
 }
 
-void ScriptingApi::Engine::saveUserPreset(String presetName)
+void ScriptingApi::Engine::saveUserPreset(var presetName)
 {
-	getProcessor()->getMainController()->getUserPresetHandler().savePreset(presetName);
+	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(presetName.getObject()))
+	{
+		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(sf->f);
+		UserPresetHelpers::saveUserPreset(getProcessor()->getMainController()->getMainSynthChain(), sf->f.getFullPathName());
+	}
+	else
+	{
+		getProcessor()->getMainController()->getUserPresetHandler().savePreset(presetName);
+	}
 }
 
-void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
+void ScriptingApi::Engine::loadUserPreset(var file)
 {
+	auto name = ScriptingObjects::ScriptFile::getFileNameFromFile(file);
+
+	File userPresetToLoad;
+
+	if (File::isAbsolutePath(name))
+	{
+		userPresetToLoad = File(name);
+	}
+	else
+	{
 #if USE_BACKEND
-	File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+		File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-	File userPresetRoot = FrontendHandler::getUserPresetDirectory();
+		File userPresetRoot = FrontendHandler::getUserPresetDirectory();
 #endif
 
-	auto userPreset = userPresetRoot.getChildFile(relativePath + ".preset");
+		userPresetToLoad = userPresetRoot.getChildFile(file.toString() + ".preset");
+	}
 
     if(!getProcessor()->getMainController()->isInitialised())
     {
         reportScriptError("Do not load user presets at startup.");
     }
-    else if (userPreset.existsAsFile())
+    else if (userPresetToLoad.existsAsFile())
 	{
-		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPreset);
-		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(userPreset);
+		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPresetToLoad);
+		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(userPresetToLoad);
 	}
 	else
 	{
-		reportScriptError("User preset " + userPreset.getFullPathName() + " doesn't exist");
+		reportScriptError("User preset " + userPresetToLoad.getFullPathName() + " doesn't exist");
 	}
 }
 
@@ -4374,6 +4393,7 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 {
 	addConstant("Samples", (int)Samples);
 	addConstant("Expansions", (int)Expansions);
+	addConstant("AudioFiles", (int)AudioFiles);
 	addConstant("UserPresets", (int)UserPresets);
 	addConstant("AppData", (int)AppData);
 	addConstant("UserHome", (int)UserHome);
@@ -4427,7 +4447,7 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 	File f;
 
 	if (startFolder.isInt())
-		auto f = getFile((SpecialLocations)(int)startFolder);
+		f = getFile((SpecialLocations)(int)startFolder);
 	else if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(startFolder.getObject()))
 		f = sf->f;
 
@@ -4435,7 +4455,7 @@ void ScriptingApi::FileSystem::browse(var startFolder, bool forSaving, String wi
 
 	auto cb = [forSaving, f, wildcard, callback, p_]()
 	{
-		FileChooser fc(forSaving ? "Open file" : "Save file", f, wildcard);
+		FileChooser fc(!forSaving ? "Open file" : "Save file", f, wildcard);
 
 		var a;
 
@@ -4510,6 +4530,16 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 	case Documents: f = File::getSpecialLocation(File::userDocumentsDirectory); break;
 	case Desktop:	f = File::getSpecialLocation(File::userDesktopDirectory); break;
 	case Downloads: f = File::getSpecialLocation(File::userHomeDirectory).getChildFile("Downloads"); break;
+	case AudioFiles: 
+#if USE_BACKEND
+		f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::AudioFiles);
+#else
+#if !USE_RELATIVE_PATH_FOR_AUDIO_FILES
+		// You need to set this flag if you want to load audio files from the folder
+		jassertfalse;
+#endif
+		f = FrontendHandler::getAdditionalAudioFilesDirectory();
+#endif
 	default:
 		break;
 	}

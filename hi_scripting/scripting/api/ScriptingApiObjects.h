@@ -178,9 +178,18 @@ public:
 			Filename
 		};
 
+		static String getFileNameFromFile(var fileOrString);
+
 		ScriptFile(ProcessorWithScriptingContent* p, const File& f_);
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("File"); }
+
+		String getDebugValue() const override { return f.getFullPathName(); };
+
+		void rightClickCallback(const MouseEvent &, Component*) override
+		{
+			f.revealToUser();
+		}
 
 		// ================================================= API calls
 
@@ -1353,10 +1362,13 @@ public:
 		bool record(int timestamp);
 
 		/** Loads a MIDI file and switches to this sequence if specified. */
-		bool setFile(String fileName, bool clearExistingSequences, bool selectNewSequence);
+		bool setFile(var fileName, bool clearExistingSequences, bool selectNewSequence);
 
 		/** Saves the current sequence into the given file at the track position. */
-		bool saveAsMidiFile(String fileName, int trackIndex);
+		bool saveAsMidiFile(var file, int trackIndex);
+
+		/** Returns a list of all MIDI files that are embedded in the plugin. */
+		var getMidiFileList();
 
 		/** Sets the track index (starting with one). */
 		void setTrack(int trackIndex);
