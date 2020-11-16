@@ -315,6 +315,8 @@ var ScriptingObjects::ScriptFile::loadAsObject() const
 		return v;
 
 	reportScriptError(r.getErrorMessage());
+
+	RETURN_IF_NO_THROW(var());
 }
 
 var ScriptingObjects::ScriptFile::loadEncryptedObject(String key)
@@ -343,6 +345,287 @@ void ScriptingObjects::ScriptFile::show()
 	{
 		f_.revealToUser();
 	});
+}
+
+struct ScriptingObjects::ScriptDownloadObject::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, resume);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, stop);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, isRunning);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getProgress);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getFullURL);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadedTarget);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadSpeed);
+};
+
+ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile_, var callback_) :
+	ConstScriptingObject(pwsc, 3),
+	callback(pwsc, callback_, 0),
+	downloadURL(url),
+	targetFile(targetFile_),
+	jp(dynamic_cast<JavascriptProcessor*>(pwsc))
+{
+	data = new DynamicObject();
+	addConstant("data", var(data));
+
+	callback.setThisObject(this);
+
+	ADD_API_METHOD_0(resume);
+	ADD_API_METHOD_0(stop);
+	ADD_API_METHOD_0(isRunning);
+	ADD_API_METHOD_0(getProgress);
+	ADD_API_METHOD_0(getFullURL);
+	ADD_API_METHOD_0(getDownloadedTarget);
+	ADD_API_METHOD_0(getDownloadSpeed);
+}
+
+ScriptingObjects::ScriptDownloadObject::~ScriptDownloadObject()
+{
+	flushTemporaryFile();
+}
+
+bool ScriptingObjects::ScriptDownloadObject::stop()
+{
+	if (isRunning())
+	{
+		isWaitingForStop = true;
+		return true;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptDownloadObject::stopInternal()
+{
+	if (isRunning_)
+	{
+		flushTemporaryFile();
+
+		isRunning_ = false;
+		isFinished = false;
+		download = nullptr;
+
+		data->setProperty("success", false);
+		data->setProperty("finished", true);
+		call(true);
+		return true;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptDownloadObject::resume()
+{
+	if (!isRunning() && !isFinished)
+	{
+		isWaitingForStart = true;
+		return true;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
+{
+	if (!isRunning_)
+	{
+		if (targetFile.existsAsFile())
+		{
+			if (targetFile.existsAsFile())
+			{
+				existingBytesBeforeResuming = targetFile.getSize();
+
+				int status = 0;
+
+				ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+
+				auto numTotal = wis != nullptr ? wis->getTotalLength() : 0;
+
+				if (numTotal > 0 && status == 206 && numTotal < existingBytesBeforeResuming)
+				{
+					wis = nullptr;
+
+					resumeFile = new TemporaryFile(targetFile, TemporaryFile::OptionFlags::putNumbersInBrackets);
+
+					isRunning_ = true;
+
+					String rangeHeader;
+					rangeHeader << "Range: bytes=" << existingBytesBeforeResuming << "-" << numTotal;
+
+					download = downloadURL.downloadToFile(resumeFile->getFile(), rangeHeader, this);
+
+					data->setProperty("numTotal", numTotal);
+					data->setProperty("numDownloaded", existingBytesBeforeResuming);
+					data->setProperty("finished", false);
+					data->setProperty("success", false);
+				}
+				else
+				{
+					stopInternal();
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+
+bool ScriptingObjects::ScriptDownloadObject::isRunning()
+{
+	return isRunning_;
+}
+
+double ScriptingObjects::ScriptDownloadObject::getProgress() const
+{
+	auto d = (int)data->getProperty("numDownloaded") + existingBytesBeforeResuming;
+	auto t = (int)data->getProperty("numTotal") + existingBytesBeforeResuming;
+
+	if (t != 0)
+		return (double)d / double(t);
+	else
+		return 0.0;
+}
+
+int ScriptingObjects::ScriptDownloadObject::getDownloadSpeed()
+{
+	return isRunning() ? jmax((int)bytesInLastSecond, (int)bytesInCurrentSecond) : 0;
+}
+
+void ScriptingObjects::ScriptDownloadObject::call(bool highPriority)
+{
+	
+	callback.call(nullptr, 0);
+
+#if 0
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+		auto type = highPriority ? JavascriptThreadPool::Task::HiPriorityCallbackExecution :
+			JavascriptThreadPool::Task::Type::LowPriorityCallbackExecution;
+
+		auto& pool = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+		Ptr strongPtr = Ptr(this);
+
+		pool.addJob(type, jp, [strongPtr](JavascriptProcessor* p)
+		{
+			if (auto e = p->getScriptEngine())
+			{
+				auto r = Result::ok();
+				var::NativeFunctionArgs args(var(strongPtr), nullptr, 0);
+				e->callExternalFunction(strongPtr->callback, args, &r);
+				strongPtr->callbackPending.store(false);
+				return r;
+			}
+
+			return Result::fail("engine doesn't exist");
+		});
+	}
+#endif
+}
+
+
+String ScriptingObjects::ScriptDownloadObject::getFullURL()
+{
+	return downloadURL.toString(false);
+}
+
+var ScriptingObjects::ScriptDownloadObject::getDownloadedTarget()
+{
+	if (isFinished && data->getProperty("success"))
+	{
+		return var(new ScriptFile(getScriptProcessor(), targetFile));
+	}
+
+	return var();
+}
+
+void ScriptingObjects::ScriptDownloadObject::finished(URL::DownloadTask*, bool success)
+{
+	data->setProperty("success", success);
+	data->setProperty("finished", true);
+	flushTemporaryFile();
+
+	isRunning_ = false;
+	isFinished = true;
+
+	call(true);
+}
+
+void ScriptingObjects::ScriptDownloadObject::flushTemporaryFile()
+{
+	if (resumeFile != nullptr)
+	{
+		FileInputStream fis(resumeFile->getFile());
+		FileOutputStream fos(targetFile);
+
+		auto numWritten = fos.writeFromInputStream(fis, -1);
+
+		resumeFile = nullptr;
+	}
+}
+
+void ScriptingObjects::ScriptDownloadObject::progress(URL::DownloadTask*, int64 bytesDownloaded, int64 totalLength)
+{
+	auto thisTimeMs = Time::getMillisecondCounter();
+
+	bytesInCurrentSecond += (bytesDownloaded + existingBytesBeforeResuming - lastBytesDownloaded);
+	lastBytesDownloaded = bytesDownloaded + existingBytesBeforeResuming;
+
+	if ((thisTimeMs - lastSpeedMeasure) > 1000)
+	{
+		bytesInLastSecond = bytesInCurrentSecond;
+		bytesInCurrentSecond = 0;
+		lastSpeedMeasure = thisTimeMs;
+	}
+
+	data->setProperty("numTotal", totalLength + existingBytesBeforeResuming);
+	data->setProperty("numDownloaded", bytesDownloaded + existingBytesBeforeResuming);
+
+	if (!callbackPending && (thisTimeMs - lastTimeMs) > 100)
+	{
+		callbackPending = true;
+		call(false);
+		lastTimeMs = thisTimeMs;
+	}
+}
+
+void ScriptingObjects::ScriptDownloadObject::start()
+{
+	isWaitingForStart = false;
+
+	if (targetFile.existsAsFile() && targetFile.getSize() > 0)
+	{
+		resumeInternal();
+		return;
+	}
+
+	int status = 0;
+
+	ScopedPointer<InputStream> wis = downloadURL.createInputStream(false, nullptr, nullptr, String(), 0, nullptr, &status);
+
+	if (status == 200)
+	{
+		isRunning_ = true;
+		download = downloadURL.downloadToFile(targetFile, {}, this);
+
+		data->setProperty("numTotal", 0);
+		data->setProperty("numDownloaded", 0);
+		data->setProperty("finished", false);
+		data->setProperty("success", false);
+
+		call(true);
+	}
+	else
+	{
+		isFinished = true;
+
+		data->setProperty("numTotal", 0);
+		data->setProperty("numDownloaded", 0);
+		data->setProperty("finished", true);
+		data->setProperty("success", false);
+
+		call(true);
+	}
 }
 
 struct ScriptingObjects::ScriptAudioFile::Wrapper
@@ -2539,7 +2822,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 #if USE_BACKEND
 		auto pool = audioSampleProcessor->getMainController()->getCurrentAudioSampleBufferPool();
 
-		if (!pool->areAllFilesLoaded())
+		if (!fileName.contains("{EXP::") && !pool->areAllFilesLoaded())
 			reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
 #endif
 
@@ -3485,7 +3768,19 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 			}
 		}
 		else
-			reportScriptError("Image not found");
+		{
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(Colours::grey));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRect(getRectangleFromVar(area)));
+			
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(Colours::black));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRect(getRectangleFromVar(area), 1.0f));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(GLOBAL_BOLD_FONT()));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText("XXX", getRectangleFromVar(area), Justification::centred));
+
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found");
+		}
+			
+			
 	}
 	else
 	{
@@ -4415,7 +4710,7 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		{
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 		}
-		catch (HiseJavascriptEngine::RootObject::Error& e)
+		catch (HiseJavascriptEngine::RootObject::Error& )
 		{
 
 		}
@@ -4454,7 +4749,7 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 		{
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
 		}
-		catch (HiseJavascriptEngine::RootObject::Error& e)
+		catch (HiseJavascriptEngine::RootObject::Error& )
 		{
 
 		}
@@ -5082,5 +5377,7 @@ juce::ValueTree ApiHelpers::getApiTree()
 	return v;
 }
 #endif
+
+
 
 } // namespace hise

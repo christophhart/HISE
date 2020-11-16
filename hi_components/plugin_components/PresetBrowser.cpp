@@ -624,6 +624,9 @@ expHandler(mc->getExpansionHandler())
 		getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
 
+	if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(mc))
+		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
+
 #endif
 
 	mc->getUserPresetHandler().getTagDataBase().setRootDirectory(rootFile);
@@ -725,7 +728,7 @@ PresetBrowser::~PresetBrowser()
 
 void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
-	if(expansionColumn != nullptr)
+	if(expansionColumn != nullptr && currentExpansion != nullptr)
 		selectionChanged(-1, -1, currentExpansion->getRootFolder(), false);
 }
 
@@ -1270,7 +1273,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 	else if (columnIndex == 2)
 	{
 		if (currentlySelectedExpansion != nullptr)
-			getMainController()->getExpansionHandler().setCurrentExpansion(currentlySelectedExpansion);
+			getMainController()->getExpansionHandler().setCurrentExpansion(currentlySelectedExpansion, sendNotificationSync);
 
 		loadPreset(file);
 

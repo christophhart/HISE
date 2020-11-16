@@ -405,6 +405,9 @@ public:
 		/** Returns the preload progress from 0.0 to 1.0. Use this to display some kind of loading icon. */
 		double getPreloadProgress();
 
+		/** Returns the current preload message if there is one. */
+		String getPreloadMessage();
+
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
 
@@ -945,6 +948,7 @@ public:
 
 		enum StatusCodes
 		{
+			StatusNoConnection = 0,
 			StatusOK = 200,
 			StatusNotFound = 404,
 			StatusServerError = 500,
@@ -973,82 +977,39 @@ public:
 		/** Adds the given String to the HTTP POST header. */
 		void setHttpHeader(String additionalHeader);
 
-		/** Downloads a file to the given target. */
-		void downloadFile(String subURL, var parameters, var targetFile, var callback);
+		/** Downloads a file to the given target and returns a Download object. */
+		var downloadFile(String subURL, var parameters, var targetFile, var callback);
 
-		/** Stops the pending download (and deletes the file). */
-		bool stopDownload(String subURL, var parameters);
+		/** Returns a list of all pending Downloads. */
+		var getPendingDownloads();
+
+		/** Sets the maximal number of parallel downloads. */
+		void setNumAllowedDownloads(int maxNumberOfParallelDownloads);
+
+		/** Returns true if the system is connected to the internet. */
+		bool isOnline();
+		
+		/** Removes all finished downloads from the list. */
+		void cleanFinishedDownloads();
 
 	private:
-
-		struct PendingDownload: public ReferenceCountedObject,
-								public URL::DownloadTask::Listener
-		{
-			void finished(URL::DownloadTask* , bool success) override
-			{
-				data->setProperty("success", success);
-				data->setProperty("finished", true);
-				call();
-
-				isRunning = false;
-				isFinished = true;
-			}
-
-			void progress(URL::DownloadTask* , int64 bytesDownloaded, int64 totalLength) override
-			{
-				data->setProperty("numTotal", totalLength);
-				data->setProperty("numDownloaded", bytesDownloaded);
-				call();
-			}
-
-			void abort()
-			{
-				data->setProperty("success", false);
-				data->setProperty("finished", true);
-				call();
-
-				isRunning = false;
-				isFinished = true;
-				download = nullptr;
-
-				targetFile.deleteFile();
-			}
-
-			void call();
-
-			void start()
-			{
-				isRunning = true;
-				download = downloadURL.downloadToFile(targetFile, {}, this);
-				
-				data = new DynamicObject();
-				
-				data->setProperty("numTotal", 0);
-				data->setProperty("numDownloaded", 0);
-				data->setProperty("finished", false);
-				data->setProperty("success", false);
-			}
-
-			DynamicObject::Ptr data;
-			using Ptr = ReferenceCountedObjectPtr<PendingDownload>;
-			URL downloadURL;
-			File targetFile;
-			var callback;
-			ScopedPointer<URL::DownloadTask> download;
-			std::atomic<bool> isRunning = { false };
-			std::atomic<bool> isFinished = { false };
-			std::atomic<bool> shouldAbort = { false };
-			JavascriptProcessor* jp = nullptr;
-		};
 
 		struct PendingCallback: public ReferenceCountedObject
 		{
 			using Ptr = ReferenceCountedObjectPtr<PendingCallback>;
 
+			PendingCallback(ProcessorWithScriptingContent* p, const var& function):
+				f(p, function, 2)
+			{
+				f.setHighPriority();
+				f.incRefCount();
+			}
+
+			WeakCallbackHolder f;
+
 			URL url;
 			String extraHeader;
 			bool isPost;
-			var function;
 			int status = 0;
 		};
 
@@ -1065,8 +1026,11 @@ public:
 
 			CriticalSection queueLock;
 
+			std::atomic<bool> cleanDownloads = { false };
+
+			int numMaxDownloads = 1;
 			ReferenceCountedArray<PendingCallback> pendingCallbacks;
-			ReferenceCountedArray<PendingDownload> pendingDownloads;
+			ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> pendingDownloads;
 
 		} internalThread;
 

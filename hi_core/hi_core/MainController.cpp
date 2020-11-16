@@ -345,6 +345,7 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				synth->setEditorState(Processor::EditorState::Folded, true);
 
 			changed = false;
+#endif
 
 			auto f = [](Dispatchable* obj)
 			{
@@ -355,15 +356,11 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
 				p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
 
-#if USE_BACKEND
-
-#endif
-
 				return Dispatchable::Status::OK;
 			};
 
-			getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
-#endif
+			if(USE_BACKEND || FullInstrumentExpansion::isEnabled(this))
+				getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
 
 			allNotesOff(true);
 		}
@@ -698,6 +695,9 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
+	if (getKillStateHandler().getStateLoadFlag())
+		return;
+
 	AudioThreadGuard audioThreadGuard(&getKillStateHandler());
 
 	getSampleManager().handleNonRealtimeState();

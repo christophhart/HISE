@@ -49,7 +49,7 @@ public:
 			}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(SoulNodeComponent::updatePosition));
 	}
 
-	void updatePosition(const ValueTree& v, const Identifier& id)
+	void updatePosition(const ValueTree& /*v*/, const Identifier& /*id*/)
 	{
 		jassertfalse;
 	}

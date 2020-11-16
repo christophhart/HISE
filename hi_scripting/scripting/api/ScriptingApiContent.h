@@ -1291,13 +1291,41 @@ public:
 
 		void preloadStateChanged(bool isPreloading) override;
 
-		void preloadStateInternal(bool isPreloading, Result& r);
+#if 0
+		void preloadStateInternal(bool isPreloading, Result& r)
+		{
+			jassert_locked_script_thread(getScriptProcessor()->getMainController_());
+
+			var thisObject(this);
+			var b(isPreloading);
+			var::NativeFunctionArgs args(thisObject, &b, 1);
+
+			auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+			jassert(engine != nullptr);
+
+			if (engine != nullptr)
+			{
+				engine->maximumExecutionTime = RelativeTime(0.5);
+				engine->callExternalFunction(loadRoutine, args, &r);
+
+				if (r.failed())
+				{
+					debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+				}
+			}
+		}
+#endif
 
 		void preRecompileCallback() override
 		{
 			ScriptComponent::preRecompileCallback();
+
+			timerRoutine.clear();
+			loadRoutine.clear();
+			mouseRoutine.clear();
+
 			stopTimer();
-			
 		}
 
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
@@ -1541,9 +1569,12 @@ public:
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
 
 		var paintRoutine;
-		var mouseRoutine;
-		var timerRoutine;
-		var loadRoutine;
+
+		
+
+		WeakCallbackHolder timerRoutine;
+		WeakCallbackHolder loadRoutine;
+		WeakCallbackHolder mouseRoutine;
 
 		var dragBounds;
 
@@ -1554,7 +1585,7 @@ public:
 		};
 		
 		WeakReference<ScriptPanel> parentPanel;
-		Array<WeakReference<ScriptPanel>> childPanels;
+		ReferenceCountedArray<ScriptPanel> childPanels;
 
 		bool isChildPanel = false;
 

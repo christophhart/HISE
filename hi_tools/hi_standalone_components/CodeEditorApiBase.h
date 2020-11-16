@@ -91,19 +91,36 @@ public:
 	/** This can be used to override the debug information created for one of its objects children (constant or function). If you do so, the object created here will be owned by the caller. */
 	virtual DebugInformationBase* createDebugInformationForChild(const Identifier& id)
 	{
+		ignoreUnused(id);
 		return nullptr;
 	}
 
-	virtual void getAllFunctionNames(Array<Identifier>& functions) const {};
+	virtual void getAllFunctionNames(Array<Identifier>& functions) const 
+	{
+		ignoreUnused(functions);
+	};
 
-	virtual void getAllConstants(Array<Identifier>& ids) const {};
+	virtual void getAllConstants(Array<Identifier>& ids) const
+	{
+		ignoreUnused(ids);
+	};
 
-	virtual const var getConstantValue(int index) const { return var(); };
+	virtual const var getConstantValue(int index) const 
+	{
+		ignoreUnused(index);
+		return var(); 
+	};
 
 	/** This will be called if the user double clicks on the row. */
-	virtual void doubleClickCallback(const MouseEvent &/*e*/, Component* /*componentToNotify*/) {};
+	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
+	{
+		ignoreUnused(e, componentToNotify);
+	};
 
-	virtual void rightClickCallback(const MouseEvent& /*e*/, Component* /*componentToNotifiy*/) {};
+	virtual void rightClickCallback(const MouseEvent& e, Component* componentToNotifiy) 
+	{
+		ignoreUnused(e, componentToNotifiy);
+	};
 
 	virtual Location getLocation() const { return Location(); }
 
@@ -438,15 +455,30 @@ public:
 
 		virtual void rebuild();;
 
-		virtual bool handleKeyPress(const KeyPress& k, Component* c) { return false; }
+		virtual bool handleKeyPress(const KeyPress& k, Component* c) 
+		{
+			ignoreUnused(k, c);
+			return false; 
+		}
 
-		virtual void addPopupMenuItems(PopupMenu &m, Component* c, const MouseEvent& e) {};
-		virtual void performPopupMenuAction(int menuId, Component* c) {};
+		virtual void addPopupMenuItems(PopupMenu &m, Component* c, const MouseEvent& e) 
+		{
+			ignoreUnused(m, c, e);
+		};
 
-		virtual void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) {};
+		virtual void performPopupMenuAction(int menuId, Component* c) 
+		{
+			ignoreUnused(menuId, c);
+		};
+
+		virtual void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) 
+		{
+			ignoreUnused(codeFile, g, c);
+		};
 
 		virtual void handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed, const MouseEvent& e)
 		{
+			ignoreUnused(codeFile, ed, e);
 		}
 
 	protected:

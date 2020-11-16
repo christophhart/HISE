@@ -152,12 +152,28 @@ void BackendProcessor::refreshExpansionType()
 	{
 		getExpansionHandler().setExpansionType<Expansion>();
 	}
+	else if (expType == "Full")
+	{
+		auto key = dynamic_cast<GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Project::EncryptionKey).toString();
+
+		if (key.isNotEmpty())
+		{
+			getExpansionHandler().setEncryptionKey(key);
+			getExpansionHandler().setExpansionType<FullInstrumentExpansion>();
+		}
+			
+		else
+		{
+			PresetHandler::showMessageWindow("Can't initialise full expansions", "You need to specify the encryption key in the Project settings in order to use **Full** expansions", PresetHandler::IconType::Error);
+
+			getExpansionHandler().setExpansionType<ExpansionHandler::Disabled>();
+		}
+	}
 	else if (expType == "Encrypted")
 	{
 		getExpansionHandler().setExpansionType<ScriptEncryptedExpansion>();
 	}
 
-	getExpansionHandler().clearExpansions();
 	getExpansionHandler().createAvailableExpansions();
 }
 

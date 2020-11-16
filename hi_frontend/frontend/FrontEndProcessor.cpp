@@ -281,6 +281,17 @@ updater(*this)
 	getCurrentFileHandler().pool->getMidiFilePool().loadAllFilesFromDataProvider();
 #endif
 
+#if HISE_USE_CUSTOM_EXPANSION_TYPE
+	auto key = FrontendHandler::getExpansionKey();
+
+	if (key.isNotEmpty())
+	{
+		FullInstrumentExpansion::setNewDefault(this, synthData);
+		getExpansionHandler().setEncryptionKey(key);
+	}
+		
+#endif
+
 	getExpansionHandler().createAvailableExpansions();
 
 	if (externalFiles != nullptr)
@@ -405,6 +416,131 @@ void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 #endif
 #endif
 };
+
+void FrontendProcessor::getStateInformation(MemoryBlock &destData)
+{
+#if USE_RAW_FRONTEND
+	zstd::ZDefaultCompressor compressor;
+	ValueTree v = rawDataHolder->exportAsValueTree();
+
+	// This needs to be added independently from the usual plugin state because it's not supposed to be 
+	// a property of a user preset
+	v.setProperty("HostTempo", globalBPM, nullptr);
+
+	compressor.compress(v, destData);
+#else
+	MemoryOutputStream output(destData, false);
+
+
+	ValueTree v("ControlData");
+
+	if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(this))
+	{
+		v.setProperty("CurrentExpansion", e->getProperty(ExpansionIds::Name), nullptr);
+	}
+
+	//synthChain->saveMacroValuesToValueTree(v);
+
+	auto modules = UserPresetHelpers::createModuleStateTree(synthChain);
+
+	if (modules.getNumChildren() > 0)
+		v.addChild(modules, -1, nullptr);
+
+	v.addChild(getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
+
+	synthChain->saveInterfaceValues(v);
+
+	v.setProperty("MidiChannelFilterData", getMainSynthChain()->getActiveChannelData()->exportData(), nullptr);
+
+	v.setProperty("Program", currentlyLoadedProgram, nullptr);
+
+	v.setProperty("HostTempo", globalBPM, nullptr);
+
+	v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
+
+	auto mpeData = getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+
+	v.addChild(mpeData, -1, nullptr);
+
+	v.writeToStream(output);
+
+
+
+
+#endif
+}
+
+void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
+{
+	bool suspendAfterLoad = false;
+
+	if (updater.suspendState)
+	{
+		suspendAfterLoad = true;
+		updater.suspendState = false;
+		updateSuspendState();
+	}
+
+	ScopedValueSetter<bool> svs(getKillStateHandler().getStateLoadFlag(), true);
+
+#if USE_RAW_FRONTEND
+
+	MemoryInputStream in(data, sizeInBytes, false);
+	MemoryBlock mb;
+	in.readIntoMemoryBlock(mb);
+	ValueTree v;
+	zstd::ZDefaultCompressor compressor;
+	compressor.expand(mb, v);
+
+	globalBPM = v.getProperty("HostTempo", -1.0);
+
+	rawDataHolder->restoreFromValueTree(v);
+#else
+
+	ValueTree v = ValueTree::readFromData(data, sizeInBytes);
+
+	if (FullInstrumentExpansion::isEnabled(this))
+	{
+		auto currentExpansion = v.getProperty("CurrentExpansion", "").toString();
+		auto e = getExpansionHandler().getExpansionFromName(currentExpansion);
+
+		getExpansionHandler().setCurrentExpansion(e, sendNotificationSync);
+	}
+
+	currentlyLoadedProgram = v.getProperty("Program");
+
+	getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
+
+	channelData = v.getProperty("MidiChannelFilterData", -1);
+	if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
+
+	globalBPM = v.getProperty("HostTempo", -1.0);
+
+	UserPresetHelpers::restoreModuleStates(synthChain, v);
+
+	const String userPresetName = v.getProperty("UserPreset").toString();
+
+	if (userPresetName.isNotEmpty())
+	{
+		getUserPresetHandler().setCurrentlyLoadedFile(File(userPresetName));
+	}
+
+	synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
+
+	auto mpeData = v.getChildWithName("MPEData");
+
+	if (mpeData.isValid())
+		getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
+	else
+		getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+#endif
+
+	if (suspendAfterLoad)
+	{
+		updater.suspendState = true;
+		updater.updateDelayed();
+	}
+}
 
 AudioProcessorEditor* FrontendProcessor::createEditor()
 {
