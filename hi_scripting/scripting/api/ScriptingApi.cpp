@@ -4386,7 +4386,7 @@ struct ScriptingApi::FileSystem::Wrapper
 };
 
 ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
-	ApiClass(6),
+	ApiClass((int)numSpecialLocations),
 	ScriptingObject(pwsc),
 	ControlledObject(pwsc->getMainController_()),
 	p(pwsc)
