@@ -480,9 +480,11 @@ void StreamingSamplerSound::lengthChanged()
 {
 	ScopedLock sl(getSampleLock());
 
-	sampleLength = jmax<int>(0, sampleEnd - sampleStart);
-
-	setPreloadSize(preloadSize, true);
+	if (sampleEnd != MAX_SAMPLE_NUMBER)
+	{
+		sampleLength = jmax<int>(0, sampleEnd - sampleStart);
+		setPreloadSize(preloadSize, true);
+	}
 }
 
 void StreamingSamplerSound::applyCrossfadeToPreloadBuffer()
