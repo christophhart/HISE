@@ -342,6 +342,9 @@ public:
 		/** Asks for a preset name (if presetName is empty) and saves the current user preset. */
 		void saveUserPreset(var presetName);
 
+		/** Sorts an array with a given comparison function. */
+		bool sortWithFunction(var arrayToSort, var sortFunction);
+
 		/** Loads a user preset with the given relative path  (use `/` for directory separation) or the given ScriptFile object. */
 		void loadUserPreset(var relativePathOrFileObject);
 
