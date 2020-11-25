@@ -1572,6 +1572,11 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		else
 			REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER", String());
 
+		if (buildVST3)
+			REPLACE_WILDCARD_WITH_STRING("%VSTSDK3_FOLDER%", hisePath.getChildFile("JUCE/modules/juce_audio_processors/format_types/VST3_SDK").getFullPathName());
+		else
+			REPLACE_WILDCARD_WITH_STRING("%VSTSDK3_FOLDER", String());
+
 		if (buildAAX)
 		{
 			const File aaxPath = hisePath.getChildFile("tools/SDK/AAX");
