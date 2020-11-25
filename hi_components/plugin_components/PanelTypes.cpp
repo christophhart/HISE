@@ -280,7 +280,6 @@ MidiSourcePanel::MidiSourcePanel(FloatingTile* parent) :
 	{
 		slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(getMainController());
 		viewport->setLookAndFeel(slaf);
-		midiInputList->setLookAndFeel(slaf);
 	}
 
 	//midiInputList->setLookAndFeel(&tblaf);
