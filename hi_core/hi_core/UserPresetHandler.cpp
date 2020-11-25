@@ -148,6 +148,11 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 
 		mc->getSampleManager().setShouldSkipPreloading(true);
 
+		// Reload the macro connections before restoring the preset values
+		// so that it will update the correct connections with `setMacroControl()` in a control callback
+		if (mc->getMacroManager().isMacroEnabledOnFrontend())
+			mc->getMacroManager().getMacroChain()->loadMacrosFromValueTree(userPresetToLoad, false);
+
 #if USE_RAW_FRONTEND
 
 		auto fp = dynamic_cast<FrontendProcessor*>(mc);
@@ -207,8 +212,9 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
 		}
 
-		if(mc->getMacroManager().isMacroEnabledOnFrontend())
-			mc->getMacroManager().getMacroChain()->loadMacrosFromValueTree(userPresetToLoad);
+		// Now we can restore the values of the macro controls
+		if (mc->getMacroManager().isMacroEnabledOnFrontend())
+			mc->getMacroManager().getMacroChain()->loadMacroValuesFromValueTree(userPresetToLoad);
 
 		auto f = [](Dispatchable* obj)
 		{

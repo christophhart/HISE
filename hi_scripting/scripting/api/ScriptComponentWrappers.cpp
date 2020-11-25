@@ -383,7 +383,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptComponent::useUndoManager:	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager)); break;
 		PROPERTY_CASE::ScriptComponent::text:			s->setName(GET_SCRIPT_PROPERTY(text)); break;
 		PROPERTY_CASE::ScriptComponent::enabled:		s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled)); break;
-		PROPERTY_CASE::ScriptComponent::tooltip :		updateTooltip(s); break;
+		PROPERTY_CASE::ScriptComponent::tooltip :		s->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 		PROPERTY_CASE::ScriptComponent::saveInPreset:   s->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
@@ -1207,6 +1207,14 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 
 		vp->setViewedComponent(new DummyComponent(), true);
 
+		auto mc = viewport->getScriptProcessor()->getMainController_();
+
+		if (mc->getCurrentScriptLookAndFeel() != nullptr)
+		{
+			slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(mc);
+			vp->setLookAndFeel(slaf);
+		}
+
 		component = vp;
 	}
 	else
@@ -1706,6 +1714,23 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	bp->setup(getProcessor(), getIndex(), panel->name.toString());
 	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
 
+	auto cursor = panel->getMouseCursorPath();
+
+	if (!cursor.path.isEmpty())
+	{
+		auto s = 80;
+
+		Image icon(Image::ARGB, s, s, true);
+		Graphics g(icon);
+
+		PathFactory::scalePath(cursor.path, { 0.0f, 0.0f, (float)s, (float)s });
+
+		g.setColour(cursor.c);
+		g.fillPath(cursor.path);
+		MouseCursor c(icon, roundToInt(cursor.hitPoint.x * s), roundToInt(cursor.hitPoint.y * s));
+		bp->setMouseCursor(c);
+	}
+
 	component = bp;
 
 	initAllProperties();
@@ -1828,7 +1853,8 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue
 	}
 }
 
-class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener
+class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener,
+																			  public SampleMap::Listener
 {
 public:
 
@@ -1836,6 +1862,8 @@ public:
 		s(s_),
 		waveform(waveform_)
 	{
+		s->getSampleMap()->addListener(this);
+
 		s->addChangeListener(this);
 
 		if (auto v = s->getLastStartedVoice())
@@ -1848,7 +1876,35 @@ public:
 	{
 		lastSound = nullptr;
 
-		s->removeChangeListener(this);
+		if (s != nullptr)
+		{
+			s->getSampleMap()->removeListener(this);
+			s->removeChangeListener(this);
+		}
+	}
+
+	void refreshAfterSampleMapChange()
+	{
+		if (displayedIndex != -1)
+		{
+			if(auto newSound =  s->getSound(displayedIndex))
+				waveform->setSoundToDisplay(dynamic_cast<ModulatorSamplerSound*>(newSound), 0);
+		}
+	}
+
+	void sampleMapWasChanged(PoolReference ) override
+	{
+		refreshAfterSampleMapChange();
+	}
+
+	void sampleAmountChanged() override 
+	{
+		refreshAfterSampleMapChange();
+	};
+
+	void sampleMapCleared() override 
+	{
+		refreshAfterSampleMapChange();
 	}
 
     void setActive(bool shouldBeActive)
@@ -1874,6 +1930,8 @@ public:
 		}
 	}
 
+
+	int displayedIndex = -1;
 
     bool active = true;
 	ModulatorSampler* s;
@@ -1975,6 +2033,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateSampleIndex(Scr
             if(samplerListener != nullptr)
             {
                 samplerListener->setActive(newValue == -1);
+				samplerListener->displayedIndex = newValue;
             }
             
             if(newValue != -1 && lastIndex != newValue)

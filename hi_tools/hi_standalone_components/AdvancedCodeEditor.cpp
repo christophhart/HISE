@@ -309,6 +309,8 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 		return;
 	}
 
+	holder.get()->performPopupMenuAction(menuId, this);
+		
 
 	CodeEditorComponent::performPopupMenuAction(menuId);
 }

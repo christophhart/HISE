@@ -264,11 +264,7 @@ void AhdsrEnvelope::stopVoice(int voiceIndex)
 	{
 		EnvelopeModulator::stopVoice(voiceIndex);
 
-		if (getNumPressedKeys() == 0)
-		{
-			auto monoState = static_cast<AhdsrEnvelopeState*>(monophonicState.get());
-			monoState->current_state = AhdsrEnvelopeState::RELEASE;
-		}
+		
 	}
 	else
 	{
@@ -362,6 +358,14 @@ void AhdsrEnvelope::reset(int voiceIndex)
 
 void AhdsrEnvelope::handleHiseEvent(const HiseEvent &e)
 {
+	EnvelopeModulator::handleHiseEvent(e);
+
+	if (isInMonophonicMode() && getNumPressedKeys() == 0)
+	{
+		auto monoState = static_cast<AhdsrEnvelopeState*>(monophonicState.get());
+		monoState->current_state = AhdsrEnvelopeState::RELEASE;
+	}
+
 	for (auto& mb : internalChains)
 		mb.handleHiseEvent(e);
 };
@@ -511,34 +515,6 @@ float AhdsrEnvelope::calculateNewValue(int /*voiceIndex*/)
 				state->current_state = AhdsrEnvelopeState::HOLD;
 			}
 		}
-		case AhdsrEnvelopeState::RETRIGGER:
-		{
-			const bool down = attack > 0.0f;
-
-			if (down)
-			{
-				state->current_value -= 0.005f;
-				if (state->current_value <= 0.0f)
-				{
-					state->current_value = 0.0f;
-					state->current_state = AhdsrEnvelopeState::ATTACK;
-				}
-			}
-			else
-			{
-				state->current_value += 0.005f;
-
-				if (state->current_value >= state->attackLevel)
-				{
-					state->current_value = state->attackLevel;
-					state->holdCounter = 0;
-					state->current_state = AhdsrEnvelopeState::HOLD;
-				}
-			}
-
-			
-			break;
-		}
 		case AhdsrEnvelopeState::HOLD:
 			{
 				state->holdCounter++;
@@ -553,6 +529,7 @@ float AhdsrEnvelope::calculateNewValue(int /*voiceIndex*/)
 					break;
 				}
 			}
+		
 		case AhdsrEnvelopeState::DECAY:
 		{
 			if (decay != 0.0f)
@@ -592,6 +569,40 @@ float AhdsrEnvelope::calculateNewValue(int /*voiceIndex*/)
 				state->current_value = 0.0f;
 				state->current_state = AhdsrEnvelopeState::IDLE;
 			}
+
+			break;
+		}
+		case AhdsrEnvelopeState::RETRIGGER:
+		{
+
+#if HISE_RAMP_RETRIGGER_ENVELOPES_FROM_ZERO
+			const bool down = attack > 0.0f;
+
+			if (down)
+			{
+				state->current_value -= 0.005f;
+				if (state->current_value <= 0.0f)
+				{
+					state->current_value = 0.0f;
+					state->current_state = AhdsrEnvelopeState::ATTACK;
+				}
+			}
+			else
+			{
+				state->current_value += 0.005f;
+
+				if (state->current_value >= state->attackLevel)
+				{
+					state->current_value = state->attackLevel;
+					state->holdCounter = 0;
+					state->current_state = AhdsrEnvelopeState::HOLD;
+				}
+			}
+			break;
+#else
+			state->current_state = AhdsrEnvelopeState::ATTACK;
+			return calculateNewValue(-1);
+#endif
 		}
 	}
 

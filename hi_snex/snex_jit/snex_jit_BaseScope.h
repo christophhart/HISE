@@ -178,7 +178,7 @@ public:
 	void enlargeAllocatedSize(const TypeInfo& t)
 	{
 		jassert(data == nullptr);
-		allocatedSize += t.getRequiredByteSize();
+		allocatedSize += (int)t.getRequiredByteSize();
 	}
 
 	void finalise()
@@ -205,7 +205,7 @@ public:
 			auto numToPad = alignment - unAligned;
 
 			memset(data + numUsed, 0, numToPad);
-			numUsed += numToPad;
+			numUsed += (int)numToPad;
 			return true;
 		}
 
@@ -279,7 +279,7 @@ public:
 		newEntry.s = s;
 		newEntry.data = data + numUsed;
 
-		numUsed += size;
+		numUsed += (int)size;
 		memset(newEntry.data, 0, size);
 		newEntry.scope = scope;
 

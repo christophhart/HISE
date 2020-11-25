@@ -82,6 +82,7 @@ DECLARE_ID(EnableMidiInputFX);
 DECLARE_ID(UseRawFrontend);
 DECLARE_ID(VST3Support);
 DECLARE_ID(ExpansionType);
+DECLARE_ID(EncryptionKey);
 
 Array<Identifier> getAllIds();
 
@@ -92,6 +93,7 @@ namespace Compiler
 DECLARE_ID(HisePath);
 DECLARE_ID(VisualStudioVersion);
 DECLARE_ID(UseIPP);
+DECLARE_ID(LegacyCPUSupport);
 DECLARE_ID(RebuildPoolFiles);
 DECLARE_ID(Support32BitMacOS);
 DECLARE_ID(CustomNodePath);
@@ -190,7 +192,7 @@ struct Data: public SafeChangeBroadcaster
 	MainController* getMainController() { return mc; }
 	const MainController* getMainController() const { return mc; }
 
-	var getDefaultSetting(const Identifier& id);
+	var getDefaultSetting(const Identifier& id) const;
 
 	ValueTree data;
 

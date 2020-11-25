@@ -407,6 +407,7 @@ public:
 		ShowFavoriteIcon,
 		ShowExpansionsAsColumn,
 		NumColumns,
+		ColumnWidthRatio,
 		numSpecialProperties
 	};
 
@@ -590,7 +591,8 @@ public:
 		Inverted,
 		Minimum,
 		Maximum,
-		numColumns
+		numColumns,
+		columnWidthRatio
 	};
 
 	TableFloatingTileBase(FloatingTile* parent);

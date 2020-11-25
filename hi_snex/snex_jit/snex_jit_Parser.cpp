@@ -282,55 +282,6 @@ BlockParser::StatementPtr NewClassParser::parseDefinition()
 	return s;
 }
 
-snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
-{
-	if (auto cc = dynamic_cast<ClassCompiler*>(compiler.get()))
-	{
-		auto& handler = cc->parentScope->getGlobalScope()->getBufferHandler();
-		auto id = parseIdentifier();
-
-		if (id == Identifier("Buffer"))
-		{
-			match(JitTokens::dot);
-
-			auto function = parseIdentifier();
-			match(JitTokens::openParen);
-
-			auto value = parseVariableStorageLiteral().toInt();
-			match(JitTokens::closeParen);
-
-			try
-			{
-				throw juce::String("Invalid buffer function");
-#if 0
-				if (function.toString() == "create")
-				{
-					return new Operations::Immediate(location, handler.create(getCurrentSymbol(false).getName(), value));
-				}
-				else if (function.toString() == "getAudioFile")
-				{
-					return new Operations::Immediate(location, handler.getAudioFile(value, getCurrentSymbol(false).id));
-				}
-				else if (function.toString() == "getTable")
-				{
-					return new Operations::Immediate(location, handler.getTable(value, getCurrentSymbol(false).id));
-				}
-				else
-				{
-					
-				}
-#endif
-			}
-			catch (juce::String& s)
-			{
-				location.throwError(s);
-			}
-		}
-		else
-			location.throwError("Expected Buffer function");
-	}
-}
-
 BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 {
 	auto s = parseNewSymbol(NamespaceHandler::Variable);

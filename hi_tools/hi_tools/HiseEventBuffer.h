@@ -646,6 +646,8 @@ public:
 	
 	void sortTimestamps();
 	
+	void multiplyTimestamps(int factor);
+
 
 	template <int Alignment> void alignEventsToRaster(int maxTimeStamp)
 	{

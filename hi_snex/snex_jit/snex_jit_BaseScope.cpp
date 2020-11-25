@@ -345,7 +345,7 @@ juce::Result RootClassData::initSubClassMembers(ComplexType::Ptr type, const Ide
 
 						initList->getValue(0, initValue);
 
-						ComplexType::writeNativeMemberType(dataPointer, offset, initValue);
+						ComplexType::writeNativeMemberType(dataPointer, (int)offset, initValue);
 						return false;
 					}
 					else

@@ -100,16 +100,16 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 
-	gainSlider->setup(getProcessor(), MonoFilterEffect::Gain, "Gain");
+	gainSlider->setup(getProcessor(), PolyFilterEffect::Gain, "Gain");
 	gainSlider->setMode(HiSlider::Decibel, -18.0, 18.0, 0.0);
 
-	bipolarFreqSlider->setup(getProcessor(), MonoFilterEffect::BipolarIntensity, "Bipolar Freq Intensity");
+	bipolarFreqSlider->setup(getProcessor(), PolyFilterEffect::BipolarIntensity, "Bipolar Freq Intensity");
 	bipolarFreqSlider->setMode(HiSlider::Linear, -1.0, 1.0, 0.0);
 
-	qSlider->setup(getProcessor(), MonoFilterEffect::Q, "Q");
+	qSlider->setup(getProcessor(), PolyFilterEffect::Q, "Q");
 	qSlider->setMode(HiSlider::Linear, 0.3, 8.0, 1.0);
 
-	freqSlider->setup(getProcessor(), MonoFilterEffect::Frequency, "Frequency");
+	freqSlider->setup(getProcessor(), PolyFilterEffect::Frequency, "Frequency");
 	freqSlider->setMode(HiSlider::Frequency, 20.0, 20000.0, 1500.0);
 
 	getProcessor()->getMainController()->skin(*modeSelector);
@@ -173,8 +173,8 @@ void FilterEditor::timerCallback()
 		filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients());
 	}
 
-	freqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::FrequencyChain)->getOutputValue());
-	bipolarFreqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::BipolarFrequencyChain)->getOutputValue());
+	freqSlider->setDisplayValue(getProcessor()->getChildProcessor(PolyFilterEffect::FrequencyChain)->getOutputValue());
+	bipolarFreqSlider->setDisplayValue(getProcessor()->getChildProcessor(PolyFilterEffect::BipolarFrequencyChain)->getOutputValue());
 
 	updateNameLabel();
 }
@@ -269,7 +269,7 @@ void FilterEditor::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
     {
         //[UserComboBoxCode_modeSelector] -- add your combo box handling code here..
 
-		getProcessor()->setAttribute(MonoFilterEffect::Mode, (float)modeSelector->getSelectedId() - 1, dontSendNotification);
+		getProcessor()->setAttribute(PolyFilterEffect::Mode, (float)modeSelector->getSelectedId() - 1, dontSendNotification);
 
 		updateGui();
 

@@ -475,6 +475,12 @@ void HiseEventBuffer::sortTimestamps()
 	}
 }
 
+void HiseEventBuffer::multiplyTimestamps(int factor)
+{
+	for (auto& e : *this)
+		e.setTimeStamp(e.getTimeStamp() * factor);
+}
+
 bool HiseEventBuffer::timeStampsAreSorted() const
 {
 	if (numUsed == 0) return true;

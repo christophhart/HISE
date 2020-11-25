@@ -148,7 +148,7 @@ public:
 			return;
 
 		if (auto l = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-			l->drawNumberTag(g, c, getLocalBounds(), offset, size, number);
+			l->drawNumberTag(g, c, getLocalBounds(), roundToInt(offset), roundToInt(size), number);
 	};
  	
 	void setNumber(int newNumber)

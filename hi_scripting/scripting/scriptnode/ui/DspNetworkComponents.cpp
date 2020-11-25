@@ -984,11 +984,11 @@ void DspNetworkGraph::ScrollableParent::mouseWheelMove(const MouseEvent& event, 
 	if (event.mods.isCommandDown())
 	{
 		if (wheel.deltaY > 0)
-			zoomFactor += 0.1f;
+			zoomFactor += 0.02f;
 		else
-			zoomFactor -= 0.1f;
+			zoomFactor -= 0.02f;
 
-		zoomFactor = jlimit(0.25f, 1.0f, zoomFactor);
+		zoomFactor = jlimit(0.15f, 1.0f, zoomFactor);
 
 		auto trans = AffineTransform::scale(zoomFactor);
 

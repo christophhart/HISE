@@ -93,6 +93,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuOpenFile,
 		MenuSaveFile,
 		MenuSaveFileAs,
+		MenuSaveFileXmlBackup,
 		MenuSaveFileAsXmlBackup,
 		MenuOpenXmlBackup,
 		MenuProjectNew,
@@ -163,6 +164,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsImportArchivedSamples,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenseFile,
+		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewFullscreen,
 		MenuViewBack,
@@ -260,6 +262,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuSaveFileAs:
 		setCommandTarget(result, "Save As Archive", true, false, 'X', false);
+		result.categoryName = "File";
+		break;
+	case MenuSaveFileXmlBackup:
+	  	setCommandTarget(result, "Save XML (NOT WORKING)", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'S', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
 		result.categoryName = "File";
 		break;
 	case MenuSaveFileAsXmlBackup:
@@ -554,6 +560,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Create Dummy License File", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuViewResetLookAndFeel:
+		setCommandTarget(result, "Reset custom Look and Feel", true, false, 'X', false);
+		result.categoryName = "View";
+		break;
 	case MenuViewReset:
 		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
 		result.categoryName = "View";
@@ -666,6 +676,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
 	case MenuSaveFile:                  Actions::saveFile(bpe, false); updateCommands(); return true;
 	case MenuSaveFileAs:				Actions::saveFile(bpe, true); updateCommands(); return true;
+    case MenuSaveFileXmlBackup:			Actions::saveFileXml(bpe); updateCommands(); return true;
     case MenuSaveFileAsXmlBackup:		Actions::saveFileAsXml(bpe); updateCommands(); return true;
     case MenuOpenXmlBackup:             { FileChooser fc("Select XML file to load",
                                                          GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
@@ -745,6 +756,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
 	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
+	case MenuViewResetLookAndFeel:		Actions::resetLookAndFeel(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -827,6 +839,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		
 		
 		ADD_ALL_PLATFORMS(MenuOpenXmlBackup);
+		ADD_ALL_PLATFORMS(MenuSaveFileXmlBackup);
 		ADD_ALL_PLATFORMS(MenuSaveFileAsXmlBackup);
 
 		PopupMenu xmlBackups;
@@ -910,6 +923,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		
 		p.addSectionHeader("Export Tools");
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
+		ADD_DESKTOP_ONLY(MenuExportFileAsPlayerLibrary);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
 		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
 		ADD_DESKTOP_ONLY(MenuExportCompileFilesInPool);
@@ -969,6 +983,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		break;
 	}
 	case BackendCommandTarget::ViewMenu: {
+
+		ADD_ALL_PLATFORMS(MenuViewResetLookAndFeel);
+
 		ADD_ALL_PLATFORMS(MenuViewBack);
 		ADD_ALL_PLATFORMS(MenuViewForward);
 		ADD_ALL_PLATFORMS(MenuViewReset);
@@ -1645,6 +1662,15 @@ void BackendCommandTarget::Actions::toggleFullscreen(BackendRootWindow * bpe)
 #endif
 }
 
+
+
+void BackendCommandTarget::Actions::resetLookAndFeel(BackendRootWindow* bpe)
+{
+	
+
+	bpe->owner->resetLookAndFeelToDefault(bpe);
+}
+
 void BackendCommandTarget::Actions::addView(BackendRootWindow *bpe)
 {
     String view = PresetHandler::getCustomName("View");
@@ -1806,6 +1832,189 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 	
 }
 
+
+// GREG ADDITION (Just copied from saveFileAsXml below and made a few mods but not working, of cousre...)
+void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
+{
+	if (PresetHandler::showYesNoWindow("Save " + bpe->owner->getMainSynthChain()->getId(), "Do you want to save this XML?"))	// Greg added
+	{
+		const bool hasDefaultName = bpe->owner->getMainSynthChain()->getId() == "Master Chain";
+
+		// Overwrite Xml with mainSynthChain name
+		if (!hasDefaultName)
+
+			const String newName = bpe->owner->getMainSynthChain()->getId();
+
+			if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+			{
+
+				if (PresetHandler::showYesNoWindow("Overwrite " + bpe->owner->getMainSynthChain()->getId(), "Overwrite the existing XML?"))	// Overwrite dialog
+				{
+					const String newName = bpe->owner->getMainSynthChain()->getId();
+
+					ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
+
+		            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
+		            
+					ScopedPointer<XmlElement> xml = v.createXml();
+
+					XmlBackupFunctions::removeEditorStatesFromXml(*xml);
+
+					
+					Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
+
+					while (auto s = siter.getNextProcessor())
+					{
+						if (s->getSampleMap()->hasUnsavedChanges())
+							s->getSampleMap()->saveAndReloadMap();
+					}
+
+					File originalScriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
+
+					File scriptDirectory = originalScriptDirectory.getSiblingFile("TempScriptDirectory");
+
+					Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
+
+					scriptDirectory.deleteRecursively();
+
+					scriptDirectory.createDirectory();
+
+					String interfaceId = "";
+
+					while (JavascriptProcessor *sp = iter.getNextProcessor())
+					{
+						if (sp->isConnectedToExternalFile())
+							continue;
+
+						String content;
+
+						if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
+						{
+							if (jmp->isFront())
+								interfaceId = jmp->getId();
+						}
+
+						sp->mergeCallbacksToScript(content);
+
+						File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), scriptDirectory, dynamic_cast<Processor*>(sp)->getId());
+
+						scriptFile.replaceWithText(content);
+					}
+
+					XmlBackupFunctions::removeAllScripts(*xml);
+
+					if(interfaceId.isNotEmpty())
+						//XmlBackupFunctions::extractContentData(*xml, interfaceId, fc.getResult());
+
+					//fc.getResult().replaceWithText(xml->createDocument(""));
+
+					debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
+		            
+					if (originalScriptDirectory.deleteRecursively())
+					{
+						scriptDirectory.moveFileTo(originalScriptDirectory);
+					}
+					else
+					{
+						PresetHandler::showMessageWindow("Error at writing script file",
+							"The embedded script files could not be saved (probably because the file is opened somewhere else).\nPress OK to show the folder and move it manually", PresetHandler::IconType::Error);
+
+						scriptDirectory.revealToUser();
+					}
+
+		            
+				}
+			}
+
+		// Else, same as saveFileAsXml (call for manual saving)
+		else
+		{
+			if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+			{
+				FileChooser fc("Select XML file to save", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
+
+				if (fc.browseForFileToSave(true))
+				{
+					const String newName = fc.getResult().getFileNameWithoutExtension();
+					bpe->owner->getMainSynthChain()->setId(newName);
+
+					ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
+
+		            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
+		            
+					ScopedPointer<XmlElement> xml = v.createXml();
+
+					XmlBackupFunctions::removeEditorStatesFromXml(*xml);
+
+					
+					Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
+
+					while (auto s = siter.getNextProcessor())
+					{
+						if (s->getSampleMap()->hasUnsavedChanges())
+							s->getSampleMap()->saveAndReloadMap();
+					}
+
+					File originalScriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
+
+					File scriptDirectory = originalScriptDirectory.getSiblingFile("TempScriptDirectory");
+
+					Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
+
+					scriptDirectory.deleteRecursively();
+
+					scriptDirectory.createDirectory();
+
+					String interfaceId = "";
+
+					while (JavascriptProcessor *sp = iter.getNextProcessor())
+					{
+						if (sp->isConnectedToExternalFile())
+							continue;
+
+						String content;
+
+						if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
+						{
+							if (jmp->isFront())
+								interfaceId = jmp->getId();
+						}
+
+						sp->mergeCallbacksToScript(content);
+
+						File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), scriptDirectory, dynamic_cast<Processor*>(sp)->getId());
+
+						scriptFile.replaceWithText(content);
+					}
+
+					XmlBackupFunctions::removeAllScripts(*xml);
+					
+					if(interfaceId.isNotEmpty())
+						XmlBackupFunctions::extractContentData(*xml, interfaceId, fc.getResult());
+
+					fc.getResult().replaceWithText(xml->createDocument(""));
+
+					debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
+		            
+					if (originalScriptDirectory.deleteRecursively())
+					{
+						scriptDirectory.moveFileTo(originalScriptDirectory);
+					}
+					else
+					{
+						PresetHandler::showMessageWindow("Error at writing script file",
+							"The embedded script files could not be saved (probably because the file is opened somewhere else).\nPress OK to show the folder and move it manually", PresetHandler::IconType::Error);
+
+						scriptDirectory.revealToUser();
+					}
+
+		            
+				}
+			}
+		}
+	}
+}
+
 void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 {
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
@@ -1822,6 +2031,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
             v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
             
 			ScopedPointer<XmlElement> xml = v.createXml();
+
+			FullInstrumentExpansion::setNewDefault(bpe->owner, v);
 
 			XmlBackupFunctions::removeEditorStatesFromXml(*xml);
 
@@ -2275,17 +2486,28 @@ void BackendCommandTarget::Actions::createExternalScriptFile(BackendRootWindow *
 
 void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe)
 {
-	
-	FileChooser fc("Export as HisePlayerLibrary", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory(), "*.hpl");
+	auto& h = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-	if (fc.browseForFileToSave(true))
+	if (bpe->getMainController()->getExpansionHandler().getEncryptionKey().isEmpty())
 	{
-		File s = fc.getResult();
+		auto k = dynamic_cast<GlobalSettingManager*>(bpe->owner)->getSettingsObject().getSetting(HiseSettings::Project::EncryptionKey).toString();
 
-		new HisePlayerExporter(bpe->getMainSynthChain(), s);
+		if (k.isNotEmpty())
+			bpe->getMainController()->getExpansionHandler().setEncryptionKey(k);
+		else
+		{
+			PresetHandler::showMessageWindow("No encryption key", "You have to specify an encryption key in order to encode the project as full expansion", PresetHandler::IconType::Error);
+			return;
+		}
 	}
-	
-	
+
+	auto existingIntermediate = Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate);
+
+	if (existingIntermediate.existsAsFile())
+		existingIntermediate.deleteFile();
+
+	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);
+	e->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::cleanBuildDirectory(BackendRootWindow * bpe)
@@ -2518,7 +2740,7 @@ void BackendCommandTarget::Actions::copyMissingSampleListToClipboard(BackendRoot
 
 	if (missingSounds.isEmpty())
 	{
-		PresetHandler::showMessageWindow("No missing samples founr", "All samples could be found", PresetHandler::IconType::Info);
+		PresetHandler::showMessageWindow("No missing samples found", "All samples could be found", PresetHandler::IconType::Info);
 	}
 	else
 	{

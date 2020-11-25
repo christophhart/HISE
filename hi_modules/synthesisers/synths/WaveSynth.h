@@ -204,7 +204,8 @@ public:
 	{
 		GainChain=0,
 		PitchChain,
-		MixChain
+		MixChain,
+		Osc2PitchIndex
 	};
 
 	enum AdditionalWaveformTypes
@@ -230,12 +231,14 @@ public:
 		EnableSecondOscillator, ///< **On** ... Off | Can be used to mute the second oscillator to save CPU cycles
 		PulseWidth1, ///< 0 ... **1** | Determines the first pulse width for waveforms that support this (eg. square)
 		PulseWidth2, ///< 0 ... **1** | Determines the second pulse width for waveforms that support this (eg. square)
+		HardSync, ///< **Off** ... On | Syncs the second oscillator to the first
 		numWaveSynthParameters
 	};
 
 	enum InternalChains
 	{
 		MixModulation = ModulatorSynth::numInternalChains,
+		Osc2PitchChain,
 		numInternalChains
 	};
 
@@ -268,6 +271,19 @@ public:
 	void prepareToPlay(double newSampleRate, int samplesPerBlock) override;
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
+
+	const float* getPitch2ModValues(int startSample)
+	{
+		return modChains[ChainIndex::Osc2PitchIndex].getReadPointerForVoiceValues(startSample);
+	}
+
+	float getConstantPitch2ModValue() const
+	{
+		auto& mb = modChains[ChainIndex::Osc2PitchIndex];
+		return mb.getConstantModulationValue();
+	}
+
+	bool isHardSyncEnabled() const { return hardSync; }
 
 	float* getMixModulationValues(int startSample)
 	{
@@ -306,6 +322,7 @@ private:
 	double getPitchValue(bool getLeftValue);
 
 	ModulatorChain* mixChain;
+	ModulatorChain* osc2pitchChain;
 
 	AudioSampleBuffer tempBuffer;
 
@@ -318,6 +335,8 @@ private:
 	float detune1, detune2;
 
 	double pulseWidth1, pulseWidth2;
+
+	bool hardSync = false;
 
 	WaveformComponent::WaveformType waveForm1, waveForm2;
 

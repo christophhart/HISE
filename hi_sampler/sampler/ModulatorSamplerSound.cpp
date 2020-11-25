@@ -39,9 +39,6 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 
 	PoolReference ref(getMainController(), sampleData.getProperty("FileName").toString(), ProjectHandler::SubDirectories::Samples);
 
-	ref = ref.withFileHandler(parentMap->getCurrentFileHandler());
-
-
 	auto existingSample = pool->getSampleFromPool(ref);
 
 	if (existingSample != nullptr && existingSample->isMonolithic() != (hmaf != nullptr))
@@ -307,6 +304,12 @@ void ModulatorSamplerSound::calculateNormalizedPeak()
 		normalizedPeak = 0.0f;
 		data.setProperty(SampleIds::NormalizedPeak, 0.0f, nullptr);
 	}
+}
+
+void ModulatorSamplerSound::removeNormalisationInfo(UndoManager* um)
+{
+	data.setProperty(SampleIds::Normalized, 0, um);
+	data.removeProperty(SampleIds::NormalizedPeak, um);
 }
 
 float ModulatorSamplerSound::getNormalizedPeak() const

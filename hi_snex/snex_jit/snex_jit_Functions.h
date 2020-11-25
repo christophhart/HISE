@@ -916,9 +916,11 @@ struct VariadicSubType : public ReferenceCountedObject
 
 
 /** A function class is a collection of functions. */
-struct FunctionClass: public DebugableObjectBase,
+class FunctionClass: public DebugableObjectBase,
 					  public ReferenceCountedObject
 {
+public:
+
 	using Ptr = ReferenceCountedObjectPtr<FunctionClass>;
 
 	enum SpecialSymbols

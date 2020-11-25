@@ -897,7 +897,7 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	addComboBox("normalise", sa2, "Normalization");
 
-	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addBasicComponents(true);
@@ -932,9 +932,13 @@ void MonolithExporter::run()
 		return;
 	}
 
-	auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
+	PoolReference ref(sampleMap->getSampler()->getMainController(), sampleMapFile.getFullPathName(), ProjectHandler::SampleMaps);
 
-	name = name.replace(File::getSeparatorString(), "/");
+	auto name = ref.getReferenceString().fromFirstOccurrenceOf("}", false, false).upToFirstOccurrenceOf(".xml", false, true);
+
+	//auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
+
+	//name = name.replace(File::getSeparatorString(), "/");
 
 	sampleMap->setId(name);
 
@@ -1284,7 +1288,7 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 	getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 #endif
 
-	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addProgressBarComponent(wholeProgress);

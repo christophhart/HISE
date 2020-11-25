@@ -374,6 +374,7 @@ public:
 	static String getCompanyWebsiteName();
 	static String getVersionString();
 	static String getAppGroupId();
+	static String getExpansionKey();
 
 	static String checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound);
 

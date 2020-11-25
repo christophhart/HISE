@@ -974,6 +974,52 @@ void DebugLogger::setPerformanceWarningLevel(int newWarningLevel)
 
 
 
+void DebugLogger::startRecording()
+{
+	auto numberOfSeconds = PresetHandler::getCustomName("1.0", "Enter the amount of seconds you want to record").getDoubleValue();
+
+	if(isPositiveAndBelow(numberOfSeconds, 60.0))
+	{
+		{
+			ScopedLock sl(recorderLock);
+			auto rate = getMainController()->getMainSynthChain()->getSampleRate();
+			debugRecorder = AudioSampleBuffer(2, rate * numberOfSeconds);
+			recordUptime = 0;
+		}
+
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->recordStateChanged(true);
+		}
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Invalid input", "Enter a number between 1.0 and 60.0", PresetHandler::IconType::Error);
+	}
+}
+
+void DebugLogger::recordOutput(AudioSampleBuffer& bufferToRecord)
+{
+	if (recordUptime < 0)
+		return;
+
+	ScopedLock sl(recorderLock);
+
+	int numSamplesToRecord = jmin<int>(debugRecorder.getNumSamples() - recordUptime, bufferToRecord.getNumSamples());
+
+	debugRecorder.copyFrom(0, recordUptime, bufferToRecord, 0, 0, numSamplesToRecord);
+	debugRecorder.copyFrom(1, recordUptime, bufferToRecord, 1, 0, numSamplesToRecord);
+
+	recordUptime += bufferToRecord.getNumSamples();
+
+	if (recordUptime > debugRecorder.getNumSamples())
+	{
+		recordUptime = -1;
+		dumper.triggerAsyncUpdate();
+	}
+}
+
 #undef RETURN_CASE_STRING_FAILURE
 
 File DebugLogger::getLogFile()
@@ -1132,6 +1178,36 @@ String DebugLogger::getSystemSpecs() const
 	stats << nl;
 
 	return stats;
+}
+
+void DebugLogger::RecordDumper::handleAsyncUpdate()
+{
+	auto desktop = File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory);
+
+	auto dumpFile = desktop.getChildFile("HISE_One_Second_Dump.wav");
+
+	if (dumpFile.existsAsFile())
+		dumpFile.deleteFile();
+
+	WavAudioFormat waf;
+
+	StringPairArray metadata;
+
+	ScopedPointer<AudioFormatWriter> writer = waf.createWriterFor(new FileOutputStream(dumpFile), parent.getMainController()->getMainSynthChain()->getSampleRate(), 2, 24, metadata, 5);
+
+	writer->writeFromAudioSampleBuffer(parent.debugRecorder, 0, parent.debugRecorder.getNumSamples());
+
+	parent.debugRecorder = AudioSampleBuffer(2, 0);
+
+	writer = nullptr;
+
+	dumpFile.revealToUser();
+
+	for (auto l : parent.listeners)
+	{
+		if (l != nullptr)
+			l->recordStateChanged(false);
+	}
 }
 
 } // namespace hise

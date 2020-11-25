@@ -539,6 +539,9 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 	case SaveSampleMapAsXml:	result.setInfo("Save as XML", "Save the current SampleMap as XML file", "SampleMap Handling", 0);
 		result.setActive(true);
 		break;
+	case RemoveNormalisationInfo: result.setInfo("Remove Normalisation Info", "Resets the normalisation value", "SampleMap Handling", 0);
+		result.setActive(true);
+		break;
 	case DuplicateSampleMapAsReference:
 		result.setInfo("Duplicate as Reference", "Creates a copy of this samplemap and reuses the current monolith", "SampleMap Handling", 0);
 		result.setActive(true);
@@ -654,6 +657,9 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 	case RefreshVelocityXFade:	result.setInfo("Refresh Velocity Crossfades.", "Adds a crossfade to overlapping sounds in a group.", "Sample Editing", 0);
 		result.setActive(true);
 		break;
+	case ExportAiffWithMetadata: result.setInfo("Export AIFF with metadata", "Exports the current samplemap as AIFF files with metadata", "Sample Editing", 0);
+		result.setActive(true);
+		break;
 	case AutomapUsingMetadata:  result.setInfo("Automap using Metadata", "Automaps the sample using the metadata that is found in the sample file.", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
 		break;
@@ -690,6 +696,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
 	case CreateMultiMicSampleMap:	SampleEditHandler::SampleEditingActions::createMultimicSampleMap(handler); return true;
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
+	case RemoveNormalisationInfo: SampleEditHandler::SampleEditingActions::removeNormalisationInfo(handler); return true;
 	case ReencodeMonolith:	SampleEditHandler::SampleEditingActions::reencodeMonolith(this, handler); return true;
 	
 	case ZoomIn:			zoom(false); return true;
@@ -718,6 +725,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	}
 	case SaveSampleMap:				sampler->saveSampleMap(); refreshSampleMapPool(); return true;
 	case DuplicateSampleMapAsReference:	sampler->saveSampleMapAsReference(); refreshSampleMapPool(); return true;
+	case ExportAiffWithMetadata:
+		SampleEditHandler::SampleEditingActions::writeSamplesWithAiffData(sampler); return true;
 	case SaveSampleMapAsMonolith:	
 #if USE_BACKEND
 		sampler->saveSampleMapAsMonolith(this); return true;

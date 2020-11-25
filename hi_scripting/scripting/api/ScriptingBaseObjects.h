@@ -217,6 +217,100 @@ private:
 };
 
 
+/** This object can hold a function that can be called asynchronously on the scripting thread. 
+
+	If you pass in a callback to an object / function that should be executed on certain C++ events,
+	use this wrapper around the function and it will:
+	
+	- automatically call it on the scripting thread
+	- make sure that the function will not be executed when the script was recompiled
+	- avoid cyclic references that might lead to memory leaks
+
+	You can delete the object right after calling `call`...
+	*/
+struct WeakCallbackHolder : private ScriptingObject,
+							private GlobalScriptCompileListener
+							
+{
+	WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs);
+
+	/** @internal: used by the scripting thread. */
+	WeakCallbackHolder(const WeakCallbackHolder& copy);
+
+	WeakCallbackHolder(WeakCallbackHolder&& other);
+
+	~WeakCallbackHolder();
+
+	WeakCallbackHolder& operator=(WeakCallbackHolder&& other);
+
+	/** Call the function with the given arguments. */
+	void call(var* arguments, int numArgs);
+
+	/** Call the function with one argument that can be converted to a var. */
+	template <typename T> void call1(const T& arg1)
+	{
+		var a(arg1);
+		call(&a, 1);
+	}
+
+	/** Calls the function with any iteratable var container. */
+	template <typename ContainerType> void call(const ContainerType& t)
+	{
+		// C++ Motherf%!(%...
+		call(const_cast<var*>(&*t.begin()), (int)t.size());
+	}
+
+	void call(Array<var> v)
+	{
+		call(const_cast<var*>(v.getRawDataPointer()), v.size());
+	}
+
+	/** @internal: used by the scripting thread. */
+	Result operator()(JavascriptProcessor* p);
+
+	void setHighPriority()
+	{
+		highPriority = true;
+	}
+
+	/** Increases the reference count for the callback object. 
+		Use this in order to assure the liveness of the callback, but beware of leaking. 
+	*/
+	void incRefCount()
+	{
+		anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
+	}
+
+	void decRefCount()
+	{
+		anonymousFunctionRef = var();
+	}
+
+	void clear();
+
+	operator bool() const
+	{
+		return weakCallback.get() != nullptr;
+	}
+
+	void setThisObject(ReferenceCountedObject* thisObj)
+	{
+		thisObject = dynamic_cast<DebugableObjectBase*>(thisObj);
+	}
+
+private:
+
+	void scriptWasCompiled(JavascriptProcessor* p);
+
+	bool highPriority = false;
+	int numExpectedArgs;
+	Result r;
+	Array<var> args;
+	var anonymousFunctionRef;
+	WeakReference<DebugableObjectBase> weakCallback;
+	WeakReference<DebugableObjectBase> thisObject;
+};
+
 
 /** @internal A interface class for objects that can be used with the [] operator in Javascript.
 	
