@@ -397,6 +397,9 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile)
 			hlac::HlacArchiver a(Thread::getCurrentThread());
 			a.setListener(this);
 			auto ok = a.extractSampleData(data);
+
+			ignoreUnused(ok);
+
 			auto headerFile = samplesDir.getChildFile("header.dat");
 			jassert(headerFile.existsAsFile());
 

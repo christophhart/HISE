@@ -150,6 +150,7 @@ public:
 		// Sample Editing
 		DuplicateSamples,
 		DeleteDuplicateSamples,
+		
 		CutSamples,
 		CopySamples,
 		PasteSamples,
@@ -168,6 +169,7 @@ public:
 		AutomapUsingMetadata,
 		TrimSampleStart,
 		ExportAiffWithMetadata,
+		RemoveNormalisationInfo,
 		numCommands
 	};
 
@@ -212,7 +214,8 @@ public:
 								RefreshVelocityXFade,
 								AutomapUsingMetadata,
 								TrimSampleStart,
-								ExportAiffWithMetadata
+								ExportAiffWithMetadata,
+								RemoveNormalisationInfo
 								};
 
 		commands.addArray(id, numElementsInArray(id));
@@ -628,6 +631,7 @@ public:
 		toolsMenu.addCommandItem(a, FillVelocityGaps);
 		toolsMenu.addCommandItem(a, AutomapUsingMetadata);
 		toolsMenu.addCommandItem(a, TrimSampleStart);
+		toolsMenu.addCommandItem(a, RemoveNormalisationInfo);
 		toolsMenu.addSeparator();
 		toolsMenu.addCommandItem(a, MergeIntoMultisamples);
 		toolsMenu.addCommandItem(a, CreateMultiMicSampleMap);
@@ -635,6 +639,7 @@ public:
 		toolsMenu.addCommandItem(a, ReencodeMonolith);
 		toolsMenu.addCommandItem(a, EncodeAllMonoliths);
 		toolsMenu.addCommandItem(a, ExportAiffWithMetadata);
+		
 
 		p.addSubMenu("Tools", toolsMenu, true);
 

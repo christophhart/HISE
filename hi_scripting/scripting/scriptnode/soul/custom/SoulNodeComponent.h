@@ -87,7 +87,7 @@ struct SoulEditor : public FloatingTileContent,
 		patchSelector.clear(dontSendNotification);
 
 		int id = 1;
-		int selected = -1;
+		
 
 		results = soulRoot.findChildFiles(File::findFiles, true, "*.soulpatch");
 
