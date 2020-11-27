@@ -604,8 +604,24 @@ Array<File> SampleDataExporter::collectMonoliths()
 
 		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(expName))
 		{
+			auto& smPool = e->pool->getSampleMapPool();
+			
 			auto f = e->getSubDirectory(FileHandlerBase::Samples);
-			f.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
+			//f.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
+
+			for (auto& id : smPool.getIdList())
+			{
+				auto hlacFileName = id.fromLastOccurrenceOf("}", false, false).replaceCharacter('/', '_');
+
+				f.findChildFiles(sampleMonoliths, File::findFiles, false, hlacFileName + ".*");
+
+			}
+
+
+			for (auto& s : sampleMonoliths)
+				DBG(s.getFullPathName());
+			
+			
 		}
 	}
 	else
