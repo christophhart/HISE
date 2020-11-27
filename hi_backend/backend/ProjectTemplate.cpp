@@ -78,7 +78,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"
 "    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%\" vstLegacyFolder=\"%VSTSDK_FOLDER%\" vst3Folder=\"%VSTSDK3_FOLDER%\" aaxFolder=\"%AAX_PATH%\" \r\n"
-"            IPPLibrary=\"%IPP_WIN_SETTING%\" extraDefs=\"%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_WIN%\" extraCompilerFlags=\"/bigobj\" />\r\n"
+"            IPPLibrary=\"%IPP_WIN_SETTING%\" extraDefs=\"%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_WIN%\" extraCompilerFlags=\"/bigobj\" >\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" winWarningLevel=\"4\" generateManifest=\"1\" winArchitecture=\"32-bit\"\r\n"
 "                       libraryPath=\"%AAX_DEBUG_LIB%;%WIN_STATIC_LIB_FOLDER_D32%/\" isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME%_Debug_x86\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\" prebuildCommand=\"%PREBUILD_COMMAND%\"/>\r\n"
