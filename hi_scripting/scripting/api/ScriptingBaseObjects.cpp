@@ -463,6 +463,11 @@ WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, const v
 	r(Result::ok()),
 	numExpectedArgs(numExpectedArgs_)
 {
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(p))
+	{
+		engineToUse = jp->getScriptEngine();
+	}
+
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
 		weakCallback = dynamic_cast<DebugableObjectBase*>(callback.getObject());
@@ -516,12 +521,15 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	anonymousFunctionRef = other.anonymousFunctionRef;
 	thisObject = other.thisObject;
 	args.swapWith(other.args);
+	const_cast<MainController*>(getScriptProcessor()->getMainController_())->addScriptListener(this);
+
 	return *this;
 }
 
 void WeakCallbackHolder::clear()
 {
 	getScriptProcessor()->getMainController_()->removeScriptListener(this);
+	engineToUse = nullptr;
 	weakCallback = nullptr;
 	anonymousFunctionRef = var();
 }
@@ -564,6 +572,9 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 {
 	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
 
+	if (engineToUse.get() == nullptr)
+		return Result::fail("Engine is dangling");
+
 	if (weakCallback.get() != nullptr)
 	{
 		var thisObj;
@@ -572,7 +583,7 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 			thisObj = var(d);
 
 		var::NativeFunctionArgs a(thisObj, args.getRawDataPointer(), args.size());
-		p->getScriptEngine()->callExternalFunction(var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get())), a, &r);
+		engineToUse->callExternalFunction(var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get())), a, &r);
 
 		if (!r.wasOk())
 			debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());

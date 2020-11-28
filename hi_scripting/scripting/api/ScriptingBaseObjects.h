@@ -216,6 +216,8 @@ private:
 
 };
 
+class HiseJavascriptEngine;
+
 
 /** This object can hold a function that can be called asynchronously on the scripting thread. 
 
@@ -309,6 +311,8 @@ private:
 	var anonymousFunctionRef;
 	WeakReference<DebugableObjectBase> weakCallback;
 	WeakReference<DebugableObjectBase> thisObject;
+
+	WeakReference<HiseJavascriptEngine> engineToUse;
 };
 
 
