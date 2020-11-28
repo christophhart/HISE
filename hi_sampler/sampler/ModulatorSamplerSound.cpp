@@ -306,6 +306,12 @@ void ModulatorSamplerSound::calculateNormalizedPeak()
 	}
 }
 
+void ModulatorSamplerSound::removeNormalisationInfo(UndoManager* um)
+{
+	data.setProperty(SampleIds::Normalized, 0, um);
+	data.removeProperty(SampleIds::NormalizedPeak, um);
+}
+
 float ModulatorSamplerSound::getNormalizedPeak() const
 {
 	return (isNormalized && normalizedPeak != -1.0f) ? normalizedPeak : 1.0f;

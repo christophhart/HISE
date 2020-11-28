@@ -539,6 +539,9 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 	case SaveSampleMapAsXml:	result.setInfo("Save as XML", "Save the current SampleMap as XML file", "SampleMap Handling", 0);
 		result.setActive(true);
 		break;
+	case RemoveNormalisationInfo: result.setInfo("Remove Normalisation Info", "Resets the normalisation value", "SampleMap Handling", 0);
+		result.setActive(true);
+		break;
 	case DuplicateSampleMapAsReference:
 		result.setInfo("Duplicate as Reference", "Creates a copy of this samplemap and reuses the current monolith", "SampleMap Handling", 0);
 		result.setActive(true);
@@ -693,6 +696,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
 	case CreateMultiMicSampleMap:	SampleEditHandler::SampleEditingActions::createMultimicSampleMap(handler); return true;
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
+	case RemoveNormalisationInfo: SampleEditHandler::SampleEditingActions::removeNormalisationInfo(handler); return true;
 	case ReencodeMonolith:	SampleEditHandler::SampleEditingActions::reencodeMonolith(this, handler); return true;
 	
 	case ZoomIn:			zoom(false); return true;

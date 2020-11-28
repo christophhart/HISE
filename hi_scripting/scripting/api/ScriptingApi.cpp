@@ -865,6 +865,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_METHOD_WRAPPER_0(Engine, getName);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
+	API_METHOD_WRAPPER_2(Engine, sortWithFunction);
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
@@ -965,6 +966,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getName);
 	ADD_API_METHOD_0(getFilterModeList);
+	ADD_API_METHOD_2(sortWithFunction);
 	ADD_API_METHOD_0(createGlobalScriptLookAndFeel);
 	ADD_API_METHOD_1(setAllowDuplicateSamples);
 	ADD_API_METHOD_1(isControllerUsedByAutomation);
@@ -1576,6 +1578,58 @@ void ScriptingApi::Engine::saveUserPreset(var presetName)
 	{
 		getProcessor()->getMainController()->getUserPresetHandler().savePreset(presetName);
 	}
+}
+
+struct DynamicArrayComparator
+{
+	DynamicArrayComparator(HiseJavascriptEngine* engine_, var sortFunction_, var arrayToSort_):
+		engine(engine_),
+		sortFunction(sortFunction_),
+		arrayToSort(arrayToSort_)
+	{
+		if (!HiseJavascriptEngine::isJavascriptFunction(sortFunction))
+			valid = false;
+
+		if (!arrayToSort.isArray())
+			valid = false;
+	}
+
+	int compareElements(var a, var b) const
+	{
+		arg[0] = a;
+		arg[1] = b;
+
+		var::NativeFunctionArgs args(arrayToSort, arg, 2);
+		
+		auto rt = engine->callExternalFunctionRaw(sortFunction, args);
+
+		arg[0] = var();
+		arg[1] = var();
+
+		return (int)rt;
+	}
+
+	mutable var arg[2];
+	bool valid = true;
+	HiseJavascriptEngine* engine;
+	var sortFunction;
+	var arrayToSort;
+};
+
+bool ScriptingApi::Engine::sortWithFunction(var arrayToSort, var sortFunction)
+{
+	if (auto ar = arrayToSort.getArray())
+	{
+		DynamicArrayComparator dac(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine(), sortFunction, arrayToSort);
+
+		if (dac.valid)
+		{
+			ar->sort(dac, true);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void ScriptingApi::Engine::loadUserPreset(var file)
@@ -3550,6 +3604,8 @@ var ScriptingApi::Synth::getAllEffects(String regex)
 
         return var(list);
     }
+
+	RETURN_IF_NO_THROW(var());
 }
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)

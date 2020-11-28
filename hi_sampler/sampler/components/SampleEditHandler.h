@@ -134,6 +134,7 @@ public:
 		static void deleteSelectedSounds(SampleEditHandler *body);
 		static void duplicateSelectedSounds(SampleEditHandler *body);
 		static void removeDuplicateSounds(SampleEditHandler *body);
+		static void removeNormalisationInfo(SampleEditHandler* body);
 		static void cutSelectedSounds(SampleEditHandler *body);
 		static void copySelectedSounds(SampleEditHandler *body);
 		static void automapVelocity(SampleEditHandler *body);

@@ -894,8 +894,6 @@ int FrontendMacroPanel::getNumRows()
 		return 0;
 	}
 
-	int numConnections = 0;
-
 	Array<WeakReference<MacroControlBroadcaster::MacroControlledParameterData>> newList;
 
 	for (int i = 0; i < 8; i++)
