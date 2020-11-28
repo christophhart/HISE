@@ -230,9 +230,7 @@ class HiseJavascriptEngine;
 
 	You can delete the object right after calling `call`...
 	*/
-struct WeakCallbackHolder : private ScriptingObject,
-							private GlobalScriptCompileListener
-							
+struct WeakCallbackHolder : private ScriptingObject
 {
 	WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs);
 
@@ -292,7 +290,7 @@ struct WeakCallbackHolder : private ScriptingObject,
 
 	operator bool() const
 	{
-		return weakCallback.get() != nullptr;
+		return weakCallback.get() != nullptr && engineToUse.get() != nullptr;
 	}
 
 	void setThisObject(ReferenceCountedObject* thisObj)
@@ -302,8 +300,6 @@ struct WeakCallbackHolder : private ScriptingObject,
 
 private:
 
-	void scriptWasCompiled(JavascriptProcessor* p);
-
 	bool highPriority = false;
 	int numExpectedArgs;
 	Result r;
@@ -311,7 +307,6 @@ private:
 	var anonymousFunctionRef;
 	WeakReference<DebugableObjectBase> weakCallback;
 	WeakReference<DebugableObjectBase> thisObject;
-
 	WeakReference<HiseJavascriptEngine> engineToUse;
 };
 
