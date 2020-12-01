@@ -405,6 +405,7 @@ void oscillator_impl<NV>::processSingle(float* data, int )
 	case Mode::Triangle: *data += tickTriangle(d); break;
 	case Mode::Saw: *data += tickSaw(d); break;
 	case Mode::Square: *data += tickSquare(d); break;
+        default: jassertfalse; break;
 	}
 
 	
@@ -455,6 +456,7 @@ void oscillator_impl<NV>::process(ProcessData& data)
 
 		break;
 	}
+    default: jassertfalse; break;
 	}
 }
 

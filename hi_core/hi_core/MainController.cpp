@@ -972,7 +972,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		for (int i = 0; i < osOutput.getNumChannels(); i++)
 			d[i] = osOutput.getChannelPointer(i);
 		
-		thisMultiChannelBuffer.setDataToReferTo(d, osOutput.getNumChannels(), osOutput.getNumSamples());
+		thisMultiChannelBuffer.setDataToReferTo(d, (int)osOutput.getNumChannels(), (int)osOutput.getNumSamples());
 	}
 
 

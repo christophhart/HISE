@@ -885,7 +885,7 @@ void JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 
 			return;
 		}
-		
+            default: break;
 		}
 	}
 	

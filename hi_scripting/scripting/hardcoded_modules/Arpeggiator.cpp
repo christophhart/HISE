@@ -806,6 +806,13 @@ void Arpeggiator::changeDirection()
 	case Direction::Random:
 		randomOrder = true;
 		break;
+    case Direction::Chord:
+        arpDirMod = 1;
+        randomOrder = false;
+        break;
+    default:
+        jassertfalse;
+        break;
 	}
 }
 
@@ -866,6 +873,7 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 	{
 	case Direction::Up:
 	case Direction::UpDown:
+    case Direction::Chord:
 		arpDirMod = 1;
 		curHeldNoteIdx = 0;
 		break;
@@ -874,6 +882,9 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 		arpDirMod = -1;
 		curHeldNoteIdx = MidiSequenceArray.size() - 1;
 		break;
+    default:
+        jassertfalse;
+        break;
 	}
 
 	if (do_all_notes_off)

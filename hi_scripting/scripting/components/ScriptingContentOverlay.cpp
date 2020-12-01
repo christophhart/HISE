@@ -569,11 +569,10 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				if (componentToUse != nullptr)
 				{
+                    jassertfalse;
+                    #if 0
 					auto func = dynamic_cast<DebugableObjectBase*>(componentToUse->getCustomControlCallback());
-
-					jassertfalse;
-
-#if 0
+                    
 					if (func != nullptr)
 						func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
 #endif

@@ -73,7 +73,7 @@ namespace hise { using namespace juce;
 
 
 	*/
-class HiseEvent
+class alignas(16) HiseEvent
 {
 public:
 
@@ -722,7 +722,7 @@ private:
 
 	void insertEventAtPosition(const HiseEvent& e, int positionInBuffer);
 
-	HiseEvent buffer[HISE_EVENT_BUFFER_SIZE];
+	alignas(16) HiseEvent buffer[HISE_EVENT_BUFFER_SIZE];
 
 	int numUsed = 0;
 };

@@ -2177,7 +2177,9 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 	case CompileExporter::TargetTypes::InstrumentPlugin: projectType = "Instrument plugin"; break;
 	case CompileExporter::TargetTypes::EffectPlugin: projectType = "FX plugin"; break;
 	case CompileExporter::TargetTypes::StandaloneApplication: projectType = "Standalone application"; break;
-    case CompileExporter::TargetTypes::numTargetTypes: break;
+    case CompileExporter::TargetTypes::MidiEffectPlugin: projectType = "MIDI FX plugin"; break;
+    case CompileExporter::TargetTypes::numTargetTypes:
+        default:                                        break;
 	}
 
 #if JUCE_WINDOWS

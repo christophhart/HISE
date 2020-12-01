@@ -1,3 +1,7 @@
+
+// Don't bother fixing warnings for Snex before HISE 3.0
+#pragma clang diagnostic ignored "-Weverything"
+
 #include "hi_snex.h"
 
 #if HISE_INCLUDE_SNEX

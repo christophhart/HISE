@@ -626,7 +626,7 @@ public:
 
 		bool useLoadingThread = false;
 
-		ValueType lastValue;
+		ValueType lastValue = ValueType(0);
 
         typename Data<ValueType>::LoadFunction loadFunction;
         typename Data<ValueType>::SaveFunction saveFunction;

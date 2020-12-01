@@ -445,7 +445,6 @@ template <class T, int MaxSize> struct span
 		static_assert(isSimdable(), "Can't add non SIMDable types");
 
 		constexpr int numLoop = MaxSize / getSimdSize();
-		int i = 0;
 
 		if (std::is_same<T, float>())
 		{
@@ -542,7 +541,6 @@ template <class T, int MaxSize> struct span
 		static_assert(isSimdable(), "Can't add non SIMDable types");
 		
 		constexpr int numLoop = MaxSize / getSimdSize();
-		int i = 0;
 
 		auto dst = (float*)data;
 		auto src = (float*)other.data;
@@ -748,11 +746,6 @@ namespace Interleaver
 		auto realSize = reinterpret_cast<uint64_t>(e) - reinterpret_cast<uint64_t>(ptr);
 
 		return realSize == size;
-	}
-
-	static auto simd(const dyn<float>& t)
-	{
-		return dyn<float4>(reinterpret_cast<float4*>(t.begin()), t.size / 4);
 	}
 
 	template <int C> static auto& simd(span<float, C>& t)

@@ -251,6 +251,7 @@ public:
 				case Types::ID::Float: return VariableStorage(*(float*)ts.data);
 				case Types::ID::Double: return VariableStorage(*(double*)ts.data);
 				case Types::ID::Block: return VariableStorage(*(block*)ts.data);
+                default:           jassertfalse;
 				}
 			}
 		}

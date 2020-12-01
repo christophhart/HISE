@@ -2083,9 +2083,6 @@ void PresetHandler::checkMetaParameters(Processor* p)
 
 				auto checkAsExpected = [](DynamicObject* obj, ScriptComponent* c)
 				{
-					auto ev = (double)obj->getProperty(c->getName());
-					auto v = (double)c->getValue();
-
 					auto expectedValue = obj->getProperty(c->getName());
 
 					if (expectedValue != c->getValue())

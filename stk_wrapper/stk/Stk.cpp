@@ -188,7 +188,7 @@ void Stk :: sleep(unsigned long milliseconds)
 #if defined(__OS_WINDOWS__)
   Sleep((DWORD) milliseconds);
 #elif (defined(__OS_IRIX__) || defined(__OS_LINUX__) || defined(__OS_MACOSX__))
-  usleep( (unsigned long) (milliseconds * 1000) );
+  usleep( (unsigned int) (milliseconds * 1000) );
 #endif
 }
 

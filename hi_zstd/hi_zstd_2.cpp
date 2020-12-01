@@ -1,5 +1,8 @@
+#pragma clang diagnostic ignored "-Weverything"
+
 
 #include "hi_zstd.h"
+
 
 // Contains compression files
 

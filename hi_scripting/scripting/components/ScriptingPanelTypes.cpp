@@ -57,7 +57,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 
 	const bool isCallback = index < numSnippets;
 	const bool isExternalFile = index >= numSnippets && index < (numSnippets + numFiles);
-	const bool isJitNodeCode = !isExternalFile && !isCallback;
+	
 
 	if (isCallback)
 	{
