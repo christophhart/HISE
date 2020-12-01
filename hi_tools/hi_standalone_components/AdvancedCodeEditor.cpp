@@ -1262,7 +1262,7 @@ void JavascriptCodeEditor::AutoCompletePopup::addRowFromApiClass(const ValueTree
             RowInfo *info = new RowInfo();
             info->classId = classId;
             info->description = ValueTreeApiHelpers::createAttributedStringFromApi(methodTree, classId.toString(), false, Colours::black);
-            info->codeToInsert = ValueTreeApiHelpers::createCodeToInsert(methodTree, classId);
+            info->codeToInsert = ValueTreeApiHelpers::createCodeToInsert(methodTree, classId.toString());
             info->name = info->codeToInsert;
             info->type = (int)RowInfo::Type::ApiMethod;
             allInfo.add(info);
