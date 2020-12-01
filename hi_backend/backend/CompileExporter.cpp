@@ -1161,20 +1161,19 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
     String command = "\"" + batchFile.getFullPathName() + "\"";
     
 #elif JUCE_LINUX
+	if (!isUsingCIMode())
+	{
+		PresetHandler::showMessageWindow("Batch file created.", "The batch file was created in the build directory.Click OK to open the location");
+		String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
+	  system(permissionCommand.getCharPointer());
 
-	PresetHandler::showMessageWindow("Batch file created.", "The batch file was created in the build directory.Click OK to open the location");
-	String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
-    system(permissionCommand.getCharPointer());
-
-	if (!globalCommandLineExport)
 		batchFile.getParentDirectory().revealToUser();
-
+	}
 #else
     
     String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
     system(permissionCommand.getCharPointer());
     
-		if (!globalCommandLineExport)
     	String command = "open \"" + batchFile.getFullPathName() + "\"";
 
 #endif
