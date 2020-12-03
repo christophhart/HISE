@@ -388,6 +388,12 @@ void CustomKeyboard::paint(Graphics &g)
 
 void CustomKeyboard::mouseDown(const MouseEvent& e)
 {
+	if (ccc)
+	{
+		if (ccc(e, true))
+			return;
+	}
+
 	if (toggleMode)
 	{
 		auto number = getNoteAtPosition(e.getMouseDownPosition().toFloat());
@@ -411,6 +417,12 @@ void CustomKeyboard::mouseDown(const MouseEvent& e)
 
 void CustomKeyboard::mouseUp(const MouseEvent& e)
 {
+	if (ccc)
+	{
+		if (ccc(e, false))
+			return;
+	}
+
 	if (!toggleMode)
 		MidiKeyboardComponent::mouseUp(e);
 }
