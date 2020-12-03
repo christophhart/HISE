@@ -300,13 +300,13 @@ private:
 		return getSliderValueWithoutDisplay(lengthSliderPack, currentStep) == 0.0f;
 	};
 
-	void createLabel(const String& name, const String& content, ScriptComponent* attachedComponent)
+	void createLabel(const String& lName, const String& lContent, ScriptComponent* attachedComponent)
 	{
 		auto pos = attachedComponent->getPosition();
 
-		auto lengthLabel = Content.addLabel(name, pos.getX(), pos.getY() - 20);
+		auto lengthLabel = Content.addLabel(lName, pos.getX(), pos.getY() - 20);
 
-		lengthLabel->set("text", content);
+		lengthLabel->set("text", lContent);
 		lengthLabel->set("alignment", "left");
 		lengthLabel->set("saveInPreset", false);
 		lengthLabel->set("width", pos.getWidth());

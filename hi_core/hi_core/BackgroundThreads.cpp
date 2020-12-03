@@ -616,12 +616,6 @@ Array<File> SampleDataExporter::collectMonoliths()
 				f.findChildFiles(sampleMonoliths, File::findFiles, false, hlacFileName + ".*");
 
 			}
-
-
-			for (auto& s : sampleMonoliths)
-				DBG(s.getFullPathName());
-			
-			
 		}
 	}
 	else
