@@ -142,6 +142,7 @@ static const unsigned char optimizeIcon[] = { 110,109,12,2,148,65,141,151,197,65
 
 
 SnexPopupEditor::SnexPopupEditor(const String& name, SnexSource* src, bool isPopup) :
+	d(doc),
 	Component(name),
 	source(src),
 	editor(d),
@@ -160,20 +161,20 @@ SnexPopupEditor::SnexPopupEditor(const String& name, SnexSource* src, bool isPop
 	codeValue.referTo(source->expression.asJuceValue());
 	codeValue.addListener(this);
 
-	d.replaceAllContent(codeValue.getValue().toString());
-	d.clearUndoHistory();
+	d.getCodeDocument().replaceAllContent(codeValue.getValue().toString());
+	d.getCodeDocument().clearUndoHistory();
 
 	for (auto& o : snex::OptimizationIds::getAllIds())
 		s.addOptimization(o);
 
 	s.addDebugHandler(this);
 
-	d.addListener(this);
+	d.getCodeDocument().addListener(this);
 
 	editor.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white);
 
 	editor.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0x33888888));
-	d.clearUndoHistory();
+	d.getCodeDocument().clearUndoHistory();
 	editor.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
 	editor.setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFBBBBBB));
 	editor.setShowNavigation(false);
@@ -189,8 +190,8 @@ SnexPopupEditor::SnexPopupEditor(const String& name, SnexSource* src, bool isPop
 	asmDoc.replaceAllContent("; no assembly generated");
 
 
-	auto numLinesToShow = jmin(20, d.getNumLines());
-	auto numColToShow = jlimit(60, 90, d.getMaximumLineLength());
+	auto numLinesToShow = jmin(20, d.getCodeDocument().getNumLines());
+	auto numColToShow = jlimit(60, 90, d.getCodeDocument().getMaximumLineLength());
 
 	auto w = (float)numColToShow * editor.getFont().getStringWidth("M");
 	auto h = editor.getFont().getHeight() * (float)numLinesToShow * 1.5f;
@@ -293,20 +294,20 @@ void SnexPopupEditor::valueChanged(Value& v)
 {
 	auto c = v.getValue().toString();
 
-	auto code = d.getAllContent();
+	auto code = d.getCodeDocument().getAllContent();
 
 	if (c != code)
 	{
 		ScopedValueSetter<bool> s(internalChange, true);
-		d.replaceAllContent(c);
-		d.clearUndoHistory();
+		d.getCodeDocument().replaceAllContent(c);
+		d.getCodeDocument().clearUndoHistory();
 	}
 }
 
 void SnexPopupEditor::recompile()
 {
 	editor.clearWarningsAndErrors();
-	auto code = d.getAllContent();
+	auto code = d.getCodeDocument().getAllContent();
 
 	snex::jit::Compiler compiler(s);
 	compiler.setDebugHandler(this);

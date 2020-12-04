@@ -158,7 +158,8 @@ struct SnexPopupEditor : public Component,
 	SnexSource* source;
 
 	bool internalChange = false;
-	CodeDocument d;
+	CodeDocument doc;
+	mcl::TextDocument d;
 	Value codeValue;
 	mcl::TextEditor editor;
 	juce::ResizableCornerComponent corner;
