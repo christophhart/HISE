@@ -623,6 +623,10 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 
 			auto x = cc.newXmmPs();
 
+			
+
+			
+
 			switch (idx)
 			{
 			case 0: cc.movss(FP_REG_W(target), FP_REG_R(address));;
@@ -643,7 +647,7 @@ void AsmCodeGenerator::emitSpanReference(RegPtr target, RegPtr address, RegPtr i
 			default: jassertfalse;
 			}
 
-			
+			target->setDirtyFloat4(address, idx * sizeof(float));
 
 			return;
 		}

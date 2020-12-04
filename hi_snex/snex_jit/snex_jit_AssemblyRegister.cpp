@@ -564,6 +564,20 @@ bool AssemblyRegister::isSimd4Float() const
 	return false;
 }
 
+void AssemblyRegister::setDirtyFloat4(Ptr source, int byteOffset)
+{
+	if (source->isGlobalMemory())
+	{
+		memory = source->getMemoryLocationForReference().cloneAdjusted(byteOffset);
+		globalMemory = true;
+		dirty = true;
+		hasCustomMem = true;
+		
+		if (isActive())
+			state = DirtyGlobalRegister;
+	}
+}
+
 void AssemblyRegister::setUndirty()
 {
 	if (isReferencingOtherRegister())

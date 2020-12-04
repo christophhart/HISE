@@ -96,6 +96,8 @@ struct Operations::VectorOp : public Expression
 		if (!BlockParser::isVectorOp(opType, target) && BlockParser::isVectorOp(opType, opPtr) && as<FunctionCall>(target) == nullptr)
 			l.throwError("left operator must be vector");
 
+		isSimd4 = SpanType::isSimdType(target->getTypeInfo());
+
 		const String validOps = "*+-=";
 
 		if (!validOps.containsChar(*opType))
@@ -139,6 +141,7 @@ struct Operations::VectorOp : public Expression
 
 	void emitVectorOp(BaseCompiler* compiler, BaseScope* scope);
 
+	bool isSimd4 = false;
 	bool isChildOp = false;
 	TokenType opType;
 };

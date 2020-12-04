@@ -13,14 +13,14 @@ END_TEST_DATA
 
 float4 data = { 1.0f, 2.0f, 3.0f, 4.0f };
 
-void clearFloat4(float4& d)
+void clearFloat4()
 {
-	d = 2.0f;
+	data = 2.0f;
 }
 
 int main(int input)
 {
-	clearFloat4(data);
+	clearFloat4();
 	
 	return (int)data[3];
 }

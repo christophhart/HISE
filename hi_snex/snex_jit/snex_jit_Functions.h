@@ -74,25 +74,7 @@ struct ComplexType : public ReferenceCountedObject
 
 	static void writeNativeMemberTypeToAsmStack(const ComplexType::InitData& d, int initIndex, int offsetInBytes, int size);
 
-	static void writeNativeMemberType(void* dataPointer, int byteOffset, const VariableStorage& initValue)
-	{
-		auto dp_raw = getPointerWithOffset(dataPointer, byteOffset);
-		auto copy = initValue;
-
-		switch (copy.getType())
-		{
-		case Types::ID::Integer: *reinterpret_cast<int*>(dp_raw) = (int)initValue; break;
-		case Types::ID::Double:  *reinterpret_cast<double*>(dp_raw) = (double)initValue; break;
-		case Types::ID::Float:	 *reinterpret_cast<float*>(dp_raw) = (float)initValue; break;
-		case Types::ID::Pointer: *((void**)dp_raw) = copy.getDataPointer(); break;
-		case Types::ID::Block:	 *reinterpret_cast<block*>(dp_raw) = initValue.toBlock(); break;
-		default:				 jassertfalse;
-		}
-
-		auto x = (int*)dataPointer;
-		int y = 1;
-
-	}
+	static void writeNativeMemberType(void* dataPointer, int byteOffset, const VariableStorage& initValue);
 
 	using Ptr = ReferenceCountedObjectPtr<ComplexType>;
 	using WeakPtr = WeakReference<ComplexType>;

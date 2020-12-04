@@ -473,6 +473,9 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 		VectorOpType,
 		VectorFunction,
 		TargetVector,
+		Simd4Value,
+		Simd4Op,
+		Simd4Target,
 		numReaderTypes
 	};
 
@@ -517,48 +520,84 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 		else
 		{
 			auto sType = s->getTypeInfo();
+			auto isSimd4 = SpanType::isSimdType(sType);
 
 			// Must be a span or dyn
 			jassert(sType.getTypedIfComplexType<ArrayTypeBase>() != nullptr);
 
 			if (auto vop = as<VectorOp>(s))
 			{
-				readerType = vop->isChildOp ? Type::VectorOpType : Type::TargetVector;
 				opType = vop->opType;
-				dbgString << "vop " << opType;
+
+				if (isSimd4)
+				{
+					readerType = vop->isChildOp ? Type::Simd4Op : Type::Simd4Target;
+					dbgString << "f4op " << opType;
+
+					addressReg = cc.newInt64();
+					cc.mov(addressReg, 3);
+
+				}
+				else
+				{
+					readerType = vop->isChildOp ? Type::VectorOpType : Type::TargetVector;
+					dbgString << "vop " << opType;
+				}
 			}
 			else
 			{
-				readerType = Type::VectorVariable;
-				dbgString << "vec " << s->toString(Statement::TextFormat::CppCode);
+				if (isSimd4)
+				{
+					readerType = Type::Simd4Value;
+					s->reg->loadMemoryIntoRegister(cc);
+					dataReg = s->reg->getRegisterForReadOp().as<x86::Xmm>();
+					dbgString << "float4 " << s->toString(Statement::TextFormat::CppCode);
+					return;
+				}
+				else
+				{
+					readerType = Type::VectorVariable;
+					dbgString << "vec " << s->toString(Statement::TextFormat::CppCode);
+				}
 			}
 
-			
-
-			cc.setInlineComment("Set Address");
-			addressReg = cc.newGpq();
-
-			X86Mem fatPointerAddress;
-
-			auto reg = getRegPtr(s);
-
-			if (reg->hasCustomMemoryLocation() || reg->isMemoryLocation())
-				fatPointerAddress = reg->getMemoryLocationForReference();
-			else
-				fatPointerAddress = x86::ptr(PTR_REG_R(reg));
-
-
-			if (auto spanType = sType.getTypedIfComplexType<SpanType>())
+			if (isSimd4)
 			{
-				cc.lea(addressReg, fatPointerAddress);
-				// make a better version if desired...
-				sizeMem = cc.newInt32Const(ConstPool::kScopeLocal, spanType->getNumElements());
+				addressReg = cc.newGpq();
+
+				auto reg = getRegPtr(s);
+
+				jassert(reg->hasCustomMemoryLocation() || reg->isGlobalMemory());
+
+				cc.lea(addressReg, reg->getMemoryLocationForReference());
 			}
 			else
 			{
-				sizeMem = fatPointerAddress.cloneAdjustedAndResized(4, 4);
-				auto objectAddress = fatPointerAddress.cloneAdjustedAndResized(8, 8);
-				cc.mov(addressReg, objectAddress);
+				cc.setInlineComment("Set Address");
+				addressReg = cc.newGpq();
+
+				X86Mem fatPointerAddress;
+
+				auto reg = getRegPtr(s);
+
+				if (reg->hasCustomMemoryLocation() || reg->isMemoryLocation())
+					fatPointerAddress = reg->getMemoryLocationForReference();
+				else
+					fatPointerAddress = x86::ptr(PTR_REG_R(reg));
+
+
+				if (auto spanType = sType.getTypedIfComplexType<SpanType>())
+				{
+					cc.lea(addressReg, fatPointerAddress);
+					// make a better version if desired...
+					sizeMem = cc.newInt32Const(ConstPool::kScopeLocal, spanType->getNumElements());
+				}
+				else
+				{
+					sizeMem = fatPointerAddress.cloneAdjustedAndResized(4, 4);
+					auto objectAddress = fatPointerAddress.cloneAdjustedAndResized(8, 8);
+					cc.mov(addressReg, objectAddress);
+				}
 			}
 		}
 
@@ -566,13 +605,27 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 			childOps.add(new SerialisedVectorOp(c, cc));
 	}
 
+	RegPtr getAddressReg(Statement::Ptr p)
+	{
+		if(readerType != Type::Simd4Op)
+			return getRegPtr(p);
+
+		return childOps[0]->getAddressReg(p);
+	}
+
 	bool isOp() const
 	{
-		return readerType == Type::TargetVector || readerType == Type::VectorOpType || readerType == Type::VectorFunction;
+		return readerType == Type::TargetVector || readerType == Type::VectorOpType || readerType == Type::VectorFunction || readerType == Type::Simd4Target || readerType == Type::Simd4Op;
 	}
 
 	static AssemblyRegister::Ptr getRegPtr(Statement::Ptr p)
 	{
+		if (auto vOp = as<VectorOp>(p))
+		{
+			if (vOp->isSimd4)
+				return getRegPtr(vOp->getSubExpr(1));
+		}
+
 		if (p->reg != nullptr)
 			return p->reg;
 
@@ -593,7 +646,10 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 	{
 		return readerType == Type::TargetVector ||
 			readerType == Type::VectorVariable ||
-			readerType == Type::VectorOpType;
+			readerType == Type::VectorOpType ||
+			readerType == Type::Simd4Target ||
+			readerType == Type::Simd4Op ||
+			readerType == Type::Simd4Value;
 	}
 
 	void checkAlignment(x86::Compiler& cc, x86::Gp& resultReg)
@@ -622,10 +678,8 @@ struct Operations::VectorOp::SerialisedVectorOp : public ReferenceCountedObject
 
 	void process(x86::Compiler& cc, bool isSimd)
 	{
-
 		for (auto c : childOps)
 			c->process(cc, isSimd);
-
 
 		if (isVectorType() || isFunction())
 		{
@@ -819,66 +873,81 @@ void Operations::VectorOp::emitVectorOp(BaseCompiler* compiler, BaseScope* scope
 {
 	auto& cc = getFunctionCompiler(compiler);
 
-	SerialisedVectorOp::Ptr root = new SerialisedVectorOp(this, cc);
-	auto sizeReg = cc.newGpd();
-
-	auto simdLoop = cc.newLabel();
-	auto loopEnd = cc.newLabel();
-	auto leftOverLoop = cc.newLabel();
-
-	if (!scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::NoSafeChecks))
+	if (isSimd4)
 	{
-		root->safeCheckPtrs(cc, loopEnd);
-	}
-	
+		/* TODO:
+		
+			- make proper "dirty register" stuff
+			- check references as function parameters `clearFloat(float& d)`
+			- fix "left op must be vector for simd4" (check against C++)
 
+		*/
+		jassertfalse;
 
-
-
-	if (scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
-	{
-		static constexpr int SimdSize = 4;
-
-		cc.xor_(sizeReg, sizeReg);
-		root->checkAlignment(cc, sizeReg);
-
-		cc.cmp(sizeReg, 0);
-
-		// Now we can use the sizeReg as actual size...
-		cc.mov(sizeReg, root->getSizeMem());
-
-		cc.jne(leftOverLoop);
-
-		cc.setInlineComment("Skip the SIMD loop if i < 4");
-		cc.cmp(sizeReg, SimdSize);
-		cc.jb(leftOverLoop);
-
-		cc.bind(simdLoop);
-
+		SerialisedVectorOp::Ptr root = new SerialisedVectorOp(this, cc);
 		root->process(cc, true);
-		root->incAdress(cc, true);
 
-		cc.sub(sizeReg, SimdSize);
-		cc.cmp(sizeReg, SimdSize);
-		cc.jae(simdLoop);
+		return;
 	}
 	else
 	{
-		// We used the sizeReg as alignment cache register
-		// to avoid spilling...
-		cc.mov(sizeReg, root->getSizeMem());
+		SerialisedVectorOp::Ptr root = new SerialisedVectorOp(this, cc);
+		auto sizeReg = cc.newGpd();
+
+		auto simdLoop = cc.newLabel();
+		auto loopEnd = cc.newLabel();
+		auto leftOverLoop = cc.newLabel();
+
+		if (!scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::NoSafeChecks))
+		{
+			root->safeCheckPtrs(cc, loopEnd);
+		}
+
+		if (scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
+		{
+			static constexpr int SimdSize = 4;
+
+			cc.xor_(sizeReg, sizeReg);
+			root->checkAlignment(cc, sizeReg);
+
+			cc.cmp(sizeReg, 0);
+
+			// Now we can use the sizeReg as actual size...
+			cc.mov(sizeReg, root->getSizeMem());
+
+			cc.jne(leftOverLoop);
+
+			cc.setInlineComment("Skip the SIMD loop if i < 4");
+			cc.cmp(sizeReg, SimdSize);
+			cc.jb(leftOverLoop);
+
+			cc.bind(simdLoop);
+
+			root->process(cc, true);
+			root->incAdress(cc, true);
+
+			cc.sub(sizeReg, SimdSize);
+			cc.cmp(sizeReg, SimdSize);
+			cc.jae(simdLoop);
+		}
+		else
+		{
+			// We used the sizeReg as alignment cache register
+			// to avoid spilling...
+			cc.mov(sizeReg, root->getSizeMem());
+		}
+
+		cc.bind(leftOverLoop);
+		cc.test(sizeReg, sizeReg);
+		cc.jz(loopEnd);
+
+		root->process(cc, false);
+		root->incAdress(cc, false);
+
+		cc.dec(sizeReg);
+		cc.jmp(leftOverLoop);
+		cc.bind(loopEnd);
 	}
-
-	cc.bind(leftOverLoop);
-	cc.test(sizeReg, sizeReg);
-	cc.jz(loopEnd);
-
-	root->process(cc, false);
-	root->incAdress(cc, false);
-
-	cc.dec(sizeReg);
-	cc.jmp(leftOverLoop);
-	cc.bind(loopEnd);
 }
 
 void Operations::Increment::process(BaseCompiler* compiler, BaseScope* scope)

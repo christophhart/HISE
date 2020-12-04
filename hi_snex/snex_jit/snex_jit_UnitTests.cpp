@@ -1440,14 +1440,14 @@ public:
 
 	void runTest() override
 	{
-		
+		return;
 
 		//testVectorOps();
 		//testInlining();
 
-		optimizations = OptimizationIds::getAllIds();
+		optimizations = {OptimizationIds::AutoVectorisation};// OptimizationIds::getAllIds();
 
-		runTestFiles("float4_basic03");
+		runTestFiles("float4_as_arg.h");
 
 		return;
 		//optimizations = { OptimizationIds::AsmOptimisation };

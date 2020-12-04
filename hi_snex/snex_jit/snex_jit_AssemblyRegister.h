@@ -197,6 +197,8 @@ public:
 
 	bool isSimd4Float() const;
 
+	void setDirtyFloat4(Ptr source, int byteOffset);
+
 	void setUndirty();
 
 	bool hasCustomMemoryLocation() const noexcept;
