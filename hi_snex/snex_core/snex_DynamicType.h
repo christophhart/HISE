@@ -35,6 +35,13 @@ public:
 	VariableStorage(const block& b);
 	VariableStorage(HiseEvent& m);
 
+	VariableStorage(void* ptr)
+	{
+		data.p.type = Types::ID::Pointer;
+		data.p.data = ptr;
+		data.p.size = 0;
+	}
+
 	template <class T> VariableStorage(T* ptr)
 	{
 		data.p.type = Types::ID::Pointer;
@@ -165,6 +172,7 @@ public:
 			return (Types::ID)t;
 	}
 
+	void* toPtr() const;
 	double toDouble() const;
 	FloatType toFloat() const;
 	int toInt() const;
@@ -175,14 +183,23 @@ public:
 
 	template <Types::ID TypeID> auto toType() const
 	{
-		IF_CONSTEXPR (TypeID == Types::ID::Float || TypeID == Types::ID::Float)
+		IF_CONSTEXPR (TypeID == Types::ID::Float)
 			return toFloat();
+		else IF_CONSTEXPR (TypeId == Types::ID::Double)
+			return toDouble();
 		else IF_CONSTEXPR (TypeID == Types::ID::Integer)
 			return toInt();
 		else IF_CONSTEXPR (TypeID == Types::ID::Block)
 			return toBlock();
+		else IF_CONSTEXPR (TypeID == Types::ID::Pointer)
+			return toPtr();
 		
 		return 0;
+	}
+
+	template <typename T> auto cast() const
+	{
+		return toType<Types::Helpers::getTypeFromTypeId<T>()>();
 	}
 
 	void* getDataPointer() const

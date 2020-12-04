@@ -208,6 +208,171 @@ protected:
 
 
 
+class SnexComplexVarObject : public DynamicObject
+{
+public:
+
+	using Ptr = ReferenceCountedObjectPtr<SnexComplexVarObject>;
+
+	static var make(ComplexType::Ptr p)
+	{
+		return new SnexComplexVarObject(p);
+	}
+
+	void setProperty(const Identifier& propertyName, const var& newValue) override
+	{
+		for (auto& p : dynamicProps)
+		{
+			if (p.id == propertyName)
+			{
+				VariableStorage v(p.type, newValue);
+				ComplexType::writeNativeMemberType(p.dataMember, 0, v);
+			}
+		}
+	}
+
+	const var& getProperty(const Identifier& propertyName) const override
+	{
+		for (const auto& p : dynamicProps)
+		{
+			if (p.id == propertyName)
+				return p.toVar();
+		}
+
+		return {};
+	}
+
+	var invokeMethod(Identifier id, const var::NativeFunctionArgs& a) override
+	{
+		for (auto& f : functions)
+		{
+			if (f == id)
+				return f.call(a);
+		}
+
+		return {};
+	}
+
+	var toVar()
+	{
+		return var(this);
+	}
+
+	void* getPointer() const
+	{
+		return dataPtr;
+	}
+
+	static VariableStorage toArgs(const var& s, const TypeInfo& requestedType)
+	{
+
+	}
+
+private:
+
+	struct DynamicProperty
+	{
+		Types::ID type;
+		Identifier id;
+		void* dataMember = nullptr;
+		mutable var externalVar;
+
+		const var& toVar() const
+		{
+			switch (type)
+			{
+			case Types::ID::Integer:
+			{
+				auto v = *reinterpret_cast<int*>(dataMember);
+				externalVar = { v };
+				break;
+			}
+			case Types::ID::Float:
+			{
+				auto v = *reinterpret_cast<float*>(dataMember);
+				externalVar = { v };
+				break;
+			}
+			case Types::ID::Double:
+			{
+				auto v = *reinterpret_cast<double*>(dataMember);
+				externalVar = { v };
+				break;
+			}
+			default:
+				break;
+			}
+
+			return externalVar;
+		}
+	};
+
+	struct DynamicFunction
+	{
+		DynamicFunction(const FunctionData& f_) :
+			f(f_)
+		{
+			id = f.id.getIdentifier();
+			returnType = f.returnType.getType();
+
+			args.ensureStorageAllocated(4);
+			for (int i = 0; i < 4; i++)
+				args.add({});
+		};
+
+		bool operator==(const Identifier& id_) const
+		{
+			return id_ == id;
+		}
+
+		int getNumArgs() const
+		{
+			return f.args.size();
+		}
+
+		var call(const var::NativeFunctionArgs& vArgs)
+		{
+			if (getNumArgs() == vArgs.numArguments)
+			{
+				for (int i = 0; i < vArgs.numArguments; i++)
+					args.set(i, VariableStorage(f.args[i].typeInfo.getType(), vArgs.arguments[i]));
+
+				if (f.returnType.getType() == Types::ID::Void)
+					f.callVoidDynamic(args.getRawDataPointer(), getNumArgs());
+				else
+				{
+					auto v = f.callDynamic(args.getRawDataPointer(), getNumArgs());
+
+					switch (v.getType())
+					{
+					case Types::ID::Integer: return var(v.toInt());
+					case Types::ID::Double: return var(v.toDouble());
+					case Types::ID::Float: return var(v.toFloat());
+					case Types::ID::Pointer: return var(v.toPtr());
+					}
+				}
+			}
+
+			return {};
+		};
+
+		Array<snex::VariableStorage> args;
+		FunctionData f;
+		Identifier id;
+		Types::ID returnType;
+	};
+
+	Array<DynamicFunction> functions;
+	Array<DynamicProperty> dynamicProps;
+
+	SnexComplexVarObject(ComplexType::Ptr p);
+
+	ComplexType::Ptr ptr;
+	HeapBlock<uint8> ownedData_;
+	void* dataPtr;
+};
+
+
 
 }
 }

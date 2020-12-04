@@ -1661,6 +1661,27 @@ size_t StructType::getMemberOffset(int index) const
 	return 0;
 }
 
+snex::jit::NamespaceHandler::Visibility StructType::getMemberVisibility(const Identifier& id) const
+{
+	for (auto m : memberData)
+	{
+		if (m->id == id)
+			return m->visibility;
+	}
+
+	return NamespaceHandler::Visibility::Private;
+}
+
+juce::Identifier StructType::getMemberName(int index) const
+{
+	if (isPositiveAndBelow(index, memberData.size()))
+	{
+		return memberData[index]->id;
+	}
+
+	return {};
+}
+
 void StructType::addJitCompiledMemberFunction(const FunctionData& f)
 {
 	for (auto& existing : memberFunctions)

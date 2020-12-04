@@ -198,6 +198,13 @@ VariableStorage::operator void*() const
 	return data.p.data;
 }
 
+void* VariableStorage::toPtr() const
+{
+	jassert(isVoid());
+
+	return data.p.data;
+}
+
 double VariableStorage::toDouble() const
 {
 	if (getTypeValue() == Types::ID::Double)

@@ -9,6 +9,9 @@
 #include "MainComponent.h"
 
 using namespace snex::Types;
+using namespace snex::jit;
+using namespace snex;
+
 
 
 /** A class that wraps a SNEX compiled object and supplies a predefined
@@ -20,6 +23,8 @@ struct JitObjectWithPrototype
 	JitObjectWithPrototype(snex::jit::GlobalScope& s_) :
 		s(s_)
 	{}
+
+
 
 	template <int FunctionIndex, typename ReturnType, typename... Parameters>
 	ReturnType call(Parameters... ps)
@@ -113,6 +118,7 @@ struct JitObjectWithPrototype
 };
 
 
+
 template <int NumChannels> struct ScriptNodeClassPrototype : public JitObjectWithPrototype
 {
 	
@@ -193,11 +199,59 @@ juce::String getEmpty(const Identifier& namespaceId)
 
 
 
+
+
 //==============================================================================
-MainComponent::MainComponent():
-    playground(v)
+MainComponent::MainComponent() :
+	playground(v)
 {
 	context.attachTo(playground);
+
+	String s;
+	String nl = "\n";
+
+	s << "struct MyData {" << nl;
+	s << "public:" << nl;
+	s << "float data = 8.0f;" << nl;
+	s << "void setData(float factor, float value){ data = factor * value; }" << nl;
+	s << "float getData() {" << nl;
+	s << "    return data * 2.0f;" << nl;
+	s << "}" << nl;
+	s << "float clear() { " << nl;
+	s << "    data = 0.0f; return 0.0f;" << nl;
+	s << "}" << nl;
+	s << "};" << nl;
+
+	GlobalScope m;
+	Compiler c(m);
+
+	auto obj = c.compileJitObject(s);
+
+	auto v = snex::jit::SnexComplexVarObject::make(c.getComplexType(NamespacedIdentifier("MyData")));
+
+	auto r = v.call("getData");
+
+	
+
+	DBG(r.toString());
+
+	v.call("setData", 18.0f, 90.0f);
+
+	DBG(v["data"].toString());
+
+	r = v.call("getData");
+
+	DBG(r.toString());
+
+	v.call("clear");
+
+	DBG(v["data"].toString());
+
+	v.getDynamicObject()->setProperty("data", 18);
+
+	DBG(v["data"].toString());
+
+	
 
 #if 0
 	snex::jit::GlobalScope s;

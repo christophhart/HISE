@@ -333,6 +333,10 @@ struct StructType : public ComplexType,
 
 	size_t getMemberOffset(int index) const; 
 
+	NamespaceHandler::Visibility getMemberVisibility(const Identifier& id) const;
+
+	Identifier getMemberName(int index) const;
+
 	void addJitCompiledMemberFunction(const FunctionData& f);
 
 	Symbol getMemberSymbol(const Identifier& id) const;
@@ -408,6 +412,7 @@ struct StructType : public ComplexType,
 		nm->typeInfo = toUse;
 		nm->offset = 0;
 		nm->comment = comment;
+		nm->visibility = NamespaceHandler::Visibility::Public;
 		memberData.add(nm);
 	}
 

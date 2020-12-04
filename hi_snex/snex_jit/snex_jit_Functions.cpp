@@ -273,71 +273,413 @@ bool FunctionData::matchesTemplateArguments(const TemplateParameter::List& l) co
 	return true;
 }
 
-void FunctionData::callVoidDynamic(const Array<VariableStorage>& args) const
+struct VariadicCallHelpers
+{
+#define variadic_call static forcedinline
+
+	template <typename T> static constexpr bool isDynamic()
+	{
+		return std::is_same<VariableStorage, T>();
+	}
+
+	struct VoidFunctions
+	{
+		variadic_call void call0(const FunctionData& f)
+		{
+			f.callVoid();
+		}
+
+		variadic_call void call1(const FunctionData& f, const VariableStorage& a1)
+		{
+			using namespace Types;
+
+			switch (a1.getType())
+			{
+			case ID::Integer:	f.callVoid(a1.toInt()); break;
+			case ID::Double:	f.callVoid(a1.toDouble()); break;
+			case ID::Float:		f.callVoid(a1.toFloat()); break;
+			case ID::Pointer:	f.callVoid(a1.toPtr()); break;
+			}
+		}
+
+		variadic_call void call2(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2)
+		{
+			using namespace Types;
+
+			switch (a1.getType())
+			{
+			case ID::Integer:	cv2_tv(f, (int)a1, a2); break;
+			case ID::Double:	cv2_tv(f, (double)a1, a2); break;
+			case ID::Float:		cv2_tv(f, (float)a1, a2); break;
+			case ID::Pointer:	cv2_tv(f, (void*)a1, a2); break;
+			}
+		}
+
+		template <typename T1> variadic_call void cv2_tv(const FunctionData& f, T1 a1, const VariableStorage& a2)
+		{
+			using namespace Types;
+
+			switch (a2.getType())
+			{
+			case ID::Integer:	f.callVoid(a1, a2.toInt()); break;
+			case ID::Double:	f.callVoid(a1, a2.toDouble()); break;
+			case ID::Float:		f.callVoid(a1, a2.toFloat()); break;
+			case ID::Pointer:	f.callVoid(a1, a2.toPtr()); break;
+			}
+		}
+
+		variadic_call void call3(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2, const VariableStorage& a3)
+		{
+			using namespace Types;
+
+			switch (a1.getType())
+			{
+			case ID::Integer:	cv3_tvv(f, (int)a1, a2, a3); break;
+			case ID::Double:	cv3_tvv(f, (double)a1, a2, a3); break;
+			case ID::Float:		cv3_tvv(f, (float)a1, a2, a3); break;
+			case ID::Pointer:	cv3_tvv(f, (void*)a1, a2, a3); break;
+			}
+		}
+
+		template <typename T> variadic_call void cv3_tvv(const FunctionData& f, T a1, const VariableStorage& a2, const VariableStorage& a3)
+		{
+			using namespace Types;
+
+			switch (a2.getType())
+			{
+			case ID::Integer:	cv3_ttv(f, a1, a2.toInt(), a3); break;
+			case ID::Double:	cv3_ttv(f, a1, a2.toDouble(), a3); break;
+			case ID::Float:		cv3_ttv(f, a1, a2.toFloat(), a3); break;
+			case ID::Pointer:	cv3_ttv(f, a1, a2.toPtr(), a3); break;
+			}
+		}
+
+		template <typename T1, typename T2> variadic_call void cv3_ttv(const FunctionData& f, T1 a1, T2 a2, const VariableStorage& a3)
+		{
+			using namespace Types;
+
+			switch (a3.getType())
+			{
+			case ID::Integer:	f.callVoid(a1, a2, a3.toInt()); break;
+			case ID::Double:	f.callVoid(a1, a2, a3.toDouble()); break;
+			case ID::Float:		f.callVoid(a1, a2, a3.toFloat()); break;
+			case ID::Pointer:	f.callVoid(a1, a2, a3.toPtr()); break;
+			}
+		}
+
+
+		variadic_call void call4(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2, const VariableStorage& a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (a1.getType())
+			{
+			case ID::Integer:	cv4_tvvv(f, (int)a1, a2, a3, a4); break;
+			case ID::Double:	cv4_tvvv(f, (double)a1, a2, a3, a4); break;
+			case ID::Float:		cv4_tvvv(f, (float)a1, a2, a3, a4); break;
+			case ID::Pointer:	cv4_tvvv(f, (void*)a1, a2, a3, a4); break;
+			}
+		}
+
+		template <typename T> variadic_call void cv4_tvvv(const FunctionData& f, T a1, const VariableStorage& a2, const VariableStorage& a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (a2.getType())
+			{
+			case ID::Integer:	cv4_ttvv(f, a1, a2.toInt(), a3, a4); break;
+			case ID::Double:	cv4_ttvv(f, a1, a2.toDouble(), a3, a4); break;
+			case ID::Float:		cv4_ttvv(f, a1, a2.toFloat(), a3, a4); break;
+			case ID::Pointer:	cv4_ttvv(f, a1, a2.toPtr(), a3, a4); break;
+			}
+		}
+
+		template <typename T1, typename T2> variadic_call void cv4_ttvv(const FunctionData& f, T1 a1, T2 a2, const VariableStorage& a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (a3.getType())
+			{
+			case ID::Integer:	cv4_tttv(f, a1, a2, a3.toInt(), a4); break;
+			case ID::Double:	cv4_tttv(f, a1, a2, a3.toDouble(), a4); break;
+			case ID::Float:		cv4_tttv(f, a1, a2, a3.toFloat(), a4); break;
+			case ID::Pointer:	cv4_tttv(f, a1, a2, a3.toPtr(), a4); break;
+			}
+		}
+
+		template <typename T1, typename T2, typename T3> variadic_call void cv4_tttv(const FunctionData& f, T1 a1, T2 a2, T3 a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (a4.getType())
+			{
+			case ID::Integer:	f.callVoid(a1, a2, a3, a4.toInt()); break;
+			case ID::Double:	f.callVoid(a1, a2, a3, a4.toDouble()); break;
+			case ID::Float:		f.callVoid(a1, a2, a3, a4.toFloat()); break;
+			case ID::Pointer:	f.callVoid(a1, a2, a3, a4.toPtr()); break;
+			}
+		}
+	};
+
+	struct ReturnFunctions
+	{
+		variadic_call VariableStorage call0(const FunctionData& f)
+		{
+			using namespace Types;
+
+			switch (f.returnType.getType())
+			{
+			case ID::Integer:	return { f.call<int>() };
+			case ID::Double:	return { f.call<double>() };
+			case ID::Float:		return { f.call<float>() };
+			case ID::Pointer:	return { f.call<void*>(), 0 };
+			}
+		}
+
+		variadic_call VariableStorage call1(const FunctionData& f, const VariableStorage& a1)
+		{
+			using namespace Types;
+
+			switch (f.returnType.getType())
+			{
+			case ID::Integer:	return { c1_v<int>(f, a1) };
+			case ID::Double:	return { c1_v<double>(f, a1) };
+			case ID::Float:		return { c1_v<float>(f, a1) };
+			case ID::Pointer:	return { c1_v<void*>(f, a1), 0 };
+			}
+
+			return {};
+		}
+
+		template <typename R> variadic_call R c1_v(const FunctionData& f, const VariableStorage& a1)
+		{
+			using namespace Types;
+
+			switch (a1.getType())
+			{
+			case ID::Integer:	return f.call<R>((int)a1);
+			case ID::Double:	return f.call<R>((double)a1);
+			case ID::Float:		return f.call<R>((float)a1);
+			case ID::Pointer:	return f.call<R>((void*)a1);
+			}
+
+			return R();
+		}
+
+		variadic_call VariableStorage call2(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2)
+		{
+			using namespace Types;
+
+			switch (f.returnType.getType())
+			{
+			case ID::Integer:	return { c2_vv<int>(f, a1, a2) };
+			case ID::Double:	return { c2_vv<double>(f, a1, a2) };
+			case ID::Float:		return { c2_vv<float>(f, a1, a2) };
+			case ID::Pointer:	return { c2_vv<void*>(f, a1, a2), 0 };
+			}
+
+			return {};
+		}
+
+		template <typename R> variadic_call R c2_vv(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2)
+		{
+			using namespace Types;
+
+			switch (a1.getType())
+			{
+			case ID::Integer:	return c2_tv<R>(f, (int)a1, a2);
+			case ID::Double:	return c2_tv<R>(f, (double)a1, a2);
+			case ID::Float:		return c2_tv<R>(f, (float)a1, a2);
+			case ID::Pointer:	return c2_tv<R>(f, (void*)a1, a2);
+			}
+
+			return R();
+		}
+
+		template <typename R, typename T1> variadic_call R c2_tv(const FunctionData& f, T1 a1, const VariableStorage& a2)
+		{
+			using namespace Types;
+
+			switch (a2.getType())
+			{
+			case ID::Integer:	return f.call<R>(a1, (int)a2);
+			case ID::Double:	return f.call<R>(a1, (double)a2);
+			case ID::Float:		return f.call<R>(a1, (float)a2);
+			case ID::Pointer:	return f.call<R>(a1, (void*)a2);
+			}
+
+			return R();
+		}
+
+		variadic_call VariableStorage call3(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2, const VariableStorage& a3)
+		{
+			using namespace Types;
+
+			switch (f.returnType.getType())
+			{
+			case ID::Integer:	return { c3_vvv<int>(f, a1, a2, a3) };
+			case ID::Double:	return { c3_vvv<double>(f, a1, a2, a3) };
+			case ID::Float:		return { c3_vvv<float>(f, a1, a2, a3) };
+			case ID::Pointer:	return { c3_vvv<void*>(f, a1, a2, a3), 0 };
+			}
+
+			return {};
+		}
+
+		template <typename R> variadic_call R c3_vvv(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2, const VariableStorage& a3)
+		{
+			using namespace Types;
+
+			switch (a1.getType())
+			{
+			case ID::Integer:	return c3_tvv<R>(f, (int)a1, a2, a3);
+			case ID::Double:	return c3_tvv<R>(f, (double)a1, a2, a3);
+			case ID::Float:		return c3_tvv<R>(f, (float)a1, a2, a3);
+			case ID::Pointer:	return c3_tvv<R>(f, (void*)a1, a2, a3);
+			}
+
+			return R();
+		}
+
+		template <typename R, typename T1> variadic_call R c3_tvv(const FunctionData& f, T1 a1, const VariableStorage& a2, const VariableStorage& a3)
+		{
+			using namespace Types;
+
+			switch (a2.getType())
+			{
+			case ID::Integer:	return c3_ttv<R>(f, a1, (int)a2, a3);
+			case ID::Double:	return c3_ttv<R>(f, a1, (double)a2, a3);
+			case ID::Float:		return c3_ttv<R>(f, a1, (float)a2, a3);
+			case ID::Pointer:	return c3_ttv<R>(f, a1, (void*)a2, a3);
+			}
+
+			return R();
+		}
+
+		template <typename R, typename T1> variadic_call R c3_ttv(const FunctionData& f, T1 a1, const VariableStorage& a2, const VariableStorage& a3)
+		{
+			using namespace Types;
+
+			switch (a3.getType())
+			{
+			case ID::Integer:	return f.call<R>(a1, a2, (int)a3);
+			case ID::Double:	return f.call<R>(a1, a2, (double)a3);
+			case ID::Float:		return f.call<R>(a1, a2, (float)a3);
+			case ID::Pointer:	return f.call<R>(a1, a2, (void*)a3);
+			}
+
+			return R();
+		}
+
+		variadic_call VariableStorage call4(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2, const VariableStorage& a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (f.returnType.getType())
+			{
+			case ID::Integer:	return { c4_vvvv<int>(f, a1, a2, a3, a4) };
+			case ID::Double:	return { c4_vvvv<double>(f, a1, a2, a3, a4) };
+			case ID::Float:		return { c4_vvvv<float>(f, a1, a2, a3, a4) };
+			case ID::Pointer:	return { c4_vvvv<void*>(f, a1, a2, a3, a4), 0 };
+			}
+
+			return {};
+		}
+
+		template <typename R> variadic_call R c4_vvvv(const FunctionData& f, const VariableStorage& a1, const VariableStorage& a2, const VariableStorage& a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (a1.getType())
+			{
+			case ID::Integer:	return c4_tvvv<R>(f, (int)a1, a2, a3, a4);
+			case ID::Double:	return c4_tvvv<R>(f, (double)a1, a2, a3, a4);
+			case ID::Float:		return c4_tvvv<R>(f, (float)a1, a2, a3, a4);
+			case ID::Pointer:	return c4_tvvv<R>(f, (void*)a1, a2, a3, a4);
+			}
+
+			return R();
+		}
+
+		template <typename R, typename T1> variadic_call R c4_tvvv(const FunctionData& f, T1 a1, const VariableStorage& a2, const VariableStorage& a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (a2.getType())
+			{
+			case ID::Integer:	return c4_ttvv<R>(f, a1, (int)a2, a3, a4);
+			case ID::Double:	return c4_ttvv<R>(f, a1, (double)a2, a3, a4);
+			case ID::Float:		return c4_ttvv<R>(f, a1, (float)a2, a3, a4);
+			case ID::Pointer:	return c4_ttvv<R>(f, a1, (void*)a2, a3, a4);
+			}
+
+			return R();
+		}
+
+		template <typename R, typename T1> variadic_call R c4_ttvv(const FunctionData& f, T1 a1, const VariableStorage& a2, const VariableStorage& a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (a3.getType())
+			{
+			case ID::Integer:	return c4_ttvv<R>(f, a1, a2, (int)a3, a4);
+			case ID::Double:	return c4_ttvv<R>(f, a1, a2, (double)a3, a4);
+			case ID::Float:		return c4_ttvv<R>(f, a1, a2, (float)a3, a4);
+			case ID::Pointer:	return c4_ttvv<R>(f, a1, a2, (void*)a3, a4);
+			}
+
+			return R();
+		}
+
+		template <typename R, typename T1> variadic_call R c4_tttv(const FunctionData& f, T1 a1, const VariableStorage& a2, const VariableStorage& a3, const VariableStorage& a4)
+		{
+			using namespace Types;
+
+			switch (a4.getType())
+			{
+			case ID::Integer:	return f.call<R>(a1, a2, a3, (int)a4);
+			case ID::Double:	return f.call<R>(a1, a2, a3, (double)a4);
+			case ID::Float:		return f.call<R>(a1, a2, a3, (float)a4);
+			case ID::Pointer:	return f.call<R>(a1, a2, a3, (void*)a4);
+			}
+
+			return R();
+		}
+	};
+
+	
+
+	
+};
+
+void FunctionData::callVoidDynamic(VariableStorage* args, int numArgs) const
 {
 	Types::ID type;
 
-	switch (args.size())
+	switch (numArgs)
 	{
 	case 0: callVoid(); break;
-	case 1: 
-	{
-		type = args[0].getType(); 
-		IF_(int)	callVoid((int)args[0]); 
-		IF_(double) callVoid((double)args[0]); 
-		IF_(float)	callVoid((float)args[0]); 
-		IF_(void*)	callVoid((void*)args[0]); 
-
-		break;
+	case 1: VariadicCallHelpers::VoidFunctions::call1(*this, args[0]); break;
+	case 2: VariadicCallHelpers::VoidFunctions::call2(*this, args[0], args[1]); break;
+	case 3: VariadicCallHelpers::VoidFunctions::call3(*this, args[0], args[1], args[2]); break;
+	case 4: VariadicCallHelpers::VoidFunctions::call4(*this, args[0], args[1], args[2], args[3]); break;
 	}
-	case 2:
+}
+
+snex::VariableStorage FunctionData::callDynamic(VariableStorage* args, int numArgs) const
+{
+	switch (numArgs)
 	{
-		type = args[0].getType();
-
-#define DYN2(typeId) IF_(typeId) { auto a1 = (typeId)args[0]; type = args[1].getType(); \
-			IF_(int)	callVoid(a1, (int)args[1]); \
-			IF_(double) callVoid(a1, (double)args[1]); \
-			IF_(float)	callVoid(a1, (float)args[1]); \
-			IF_(void*)	callVoid(a1, (void*)args[1]); break;}
-
-		DYN2(int);
-		DYN2(double);
-		DYN2(float);
-		DYN2(void*);
-
-#undef DYN2
-
-		break;
-	}
-	case 3:
-	{
-		type = args[0].getType();
-
-#define DYN2(typeId) IF_(typeId) { auto a2 = (typeId)args[1]; type = args[2].getType(); \
-			IF_(int) callVoid(a1, a2, (int)args[2]); \
-			IF_(double) callVoid(a1, a2, (double)args[2]); \
-			IF_(float) callVoid(a1, a2, (float)args[2]); \
-			IF_(void*) callVoid(a1, a2, (void*)args[2]); break;}
-
-#define DYN3(typeId) IF_(typeId) { auto a1 = (typeId)args[0]; type = args[1].getType(); \
-			DYN2(int); \
-			DYN2(float); \
-			DYN2(double); \
-			DYN2(void*); break; }
-
-		DYN3(int);
-		DYN3(double);
-		DYN3(float);
-		DYN3(void*);
-
-		break;
-
-#undef DYN2
-#undef DYN3
-	}
+	case 0: return VariadicCallHelpers::ReturnFunctions::call0(*this);
+	case 1: return VariadicCallHelpers::ReturnFunctions::call1(*this, args[0]);
+	case 2: return VariadicCallHelpers::ReturnFunctions::call2(*this, args[0], args[1]);
+	case 3: return VariadicCallHelpers::ReturnFunctions::call3(*this, args[0], args[1], args[2]);
+	case 4: return VariadicCallHelpers::ReturnFunctions::call4(*this, args[0], args[1], args[2], args[3]);
 	default:
 		jassertfalse;
+		return {};
 	}
+	return {};
 }
 
 struct SyntaxTreeInlineData: public InlineData
@@ -460,7 +802,7 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 
 		cf.object = data;
 
-		cf.callVoidDynamic(args);
+		cf.callVoidDynamic(args.getRawDataPointer(), args.size());
 	}
 
 	return Result::ok();

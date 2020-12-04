@@ -201,5 +201,55 @@ snex::jit::FunctionData JitCompiledClassBase::getFunction(const Identifier& id)
 	return memberFunctions->getNonOverloadedFunction(sId);
 }
 
+SnexComplexVarObject::SnexComplexVarObject(ComplexType::Ptr p) :
+	ptr(p)
+{
+	ownedData_.allocate(p->getRequiredAlignment() + p->getRequiredByteSize(), true);
+	dataPtr = ownedData_.get() + p->getRequiredAlignment();
+
+	ComplexType::InitData d;
+	d.dataPointer = dataPtr;
+	d.callConstructor = p->hasConstructor();
+	d.initValues = p->makeDefaultInitialiserList();
+
+	p->initialise(d);
+	FunctionClass::Ptr fc = p->getFunctionClass();
+	Array<snex::NamespacedIdentifier> functionIds;
+
+	fc->getAllFunctionNames(functionIds);
+
+	TypeInfo ti(p);
+
+	if (auto st = ti.getTypedIfComplexType<StructType>())
+	{
+		int i = 0;
+		Identifier mId = st->getMemberName(i);
+
+		while (mId.isValid())
+		{
+			if (st->getMemberVisibility(mId) == NamespaceHandler::Visibility::Public)
+			{
+				DynamicProperty p;
+				p.id = mId;
+				p.dataMember = (uint8*)dataPtr + st->getMemberOffset(mId);
+				p.type = st->getMemberTypeInfo(mId).getType();
+				dynamicProps.add(p);
+			}
+
+			i++;
+			mId = st->getMemberName(i);
+		}
+	}
+
+	for (auto& fId : functionIds)
+	{
+		auto fData = fc->getNonOverloadedFunction(fId);
+		fData.object = dataPtr;
+
+		if (fData.id.isValid())
+			functions.add({ fData });
+	}
+}
+
 }
 }

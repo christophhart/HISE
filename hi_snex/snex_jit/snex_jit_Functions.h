@@ -1078,7 +1078,9 @@ struct FunctionData
 		return Result::fail("Can't inline");
 	}
 
-	void callVoidDynamic(const Array<VariableStorage>& args) const;
+	void callVoidDynamic(VariableStorage* args, int numArgs) const;
+
+	VariableStorage callDynamic(VariableStorage* args, int numArgs) const;
 
 	template <typename... Parameters> void callVoid(Parameters... ps) const
 	{
