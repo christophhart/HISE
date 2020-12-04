@@ -507,6 +507,10 @@ struct SnexNodeBase : public snex::ComplexType
 
 		template <typename OT> static FunctionData* createProcessFunction(const SnexTypeConstructData& cd)
 		{
+			jassertfalse;
+
+			return nullptr;
+#if 0
 			FunctionData* p = new FunctionData();
 			p->id = cd.id.getChildId("process");
 			p->returnType = TypeInfo(Types::ID::Void);
@@ -515,18 +519,22 @@ struct SnexNodeBase : public snex::ComplexType
 			tp.add(TemplateParameter(cd.numChannels, TemplateParameter::Single));
 
 			auto r = Result::ok();
-			auto pType = cd.c.getNamespaceHandler().createTemplateInstantiation(NamespacedIdentifier("ProcessData"), tp, r);
+
+
+
+			ComplexType::Ptr pType(cd.c.getNamespaceHandler().createTemplateInstantiation(NamespacedIdentifier("ProcessData"), tp, r));
 
 			jassert(r.wasOk());
 
-			Symbol s(p->id.getChildId("data"), TypeInfo(pType, false, true));
-			p->args.add(s);
+			
+			p->args.add(Symbol(p->id.getChildId("data"), TypeInfo(pType, false, true)));
 
 			auto list = createProcessWrappers<OT, 16>();
 
 			p->function = list[cd.numChannels - 1];
 			
 			return p;
+#endif
 		}
 
 		static TypeInfo createFrameType(const SnexTypeConstructData& cd);

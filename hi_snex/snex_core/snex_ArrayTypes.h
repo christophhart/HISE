@@ -638,11 +638,20 @@ template <class T> struct dyn
 		return asBlock();
 	}
 
+
 	dyn<T>& operator=(const dyn<T>& other)
 	{
+		// If you hit one of those, you probably wanted
+		// to refer the data. Use referTo instead!
+		jassert(other.size() > 0);
+		jassert(size() > 0);
+		jassert(begin() != nullptr);
+		jassert(other.begin() != nullptr);
+
 		memcpy(begin(), other.begin(), size() * sizeof(T));
 		return *this;
 	}
+
 
 	dyn<float>& operator *=(float s)
 	{
@@ -746,8 +755,17 @@ template <class T> struct dyn
 	/** Refers to a given container. */
 	template <typename OtherContainer> void referTo(OtherContainer& t, int newSize=-1, int offset=0)
 	{
-		data = t.begin() + offset;
-		size_ = newSize >= 0 ? newSize : t.size();
+		newSize = newSize >= 0 ? newSize : t.size();
+		referToRawData(t.begin(), newSize, offset);
+	}
+
+	/** Refers to a raw data pointer. */
+	void referToRawData(T* newData, int newSize, int offset = 0)
+	{
+		jassert(newSize != 0);
+
+		data = newData + offset;
+		size_ = newSize;
 	}
 
 	template <typename OtherContainer> void copyTo(OtherContainer& t)

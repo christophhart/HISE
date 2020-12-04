@@ -329,19 +329,19 @@ void cable::dynamic::prepare(PrepareSpecs ps)
 
 	if (ps.blockSize == 1)
 	{
-		frameData = { data_, (size_t)ps.numChannels };
+		frameData.referTo(data_, ps.numChannels);
 		buffer.setSize(0);
 	}
 	else
 	{
-		frameData = { data_, (size_t)ps.numChannels };
+		frameData.referTo(data_, ps.numChannels);
 		DspHelpers::increaseBuffer(buffer, ps);
 
 		auto ptr = buffer.begin();
 
 		for (int i = 0; i < ps.numChannels; i++)
 		{
-			channels[i] = { ptr, (size_t)ps.blockSize };
+			channels[i].referToRawData(ptr, (size_t)ps.blockSize);
 			ptr += ps.blockSize;
 		}
 	}

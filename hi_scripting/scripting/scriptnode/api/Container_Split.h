@@ -81,7 +81,7 @@ template <class ProcessDataType, int N> struct Block
 			originalBuffer.copyTo(workBuffer);
 			auto wcd = snex::Types::ProcessDataHelpers<NumChannels>::makeChannelData(workBuffer);
 
-			ProcessDataFix<NumChannels> wd(wcd.begin(), d.getNumSamples());
+			ProcessData<NumChannels> wd(wcd.begin(), d.getNumSamples());
 			wd.copyNonAudioDataFrom(d);
 
 			t.process(wd);
@@ -143,7 +143,7 @@ template <class ParameterClass, typename... Processors> struct split : public co
 	static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
 	static constexpr int getNumChannels() { return NumChannels; }
 
-	using BlockType = snex::Types::ProcessDataFix<NumChannels>;
+	using BlockType = snex::Types::ProcessData<NumChannels>;
 	using BlockProcessor = splitprocessor::Block<BlockType, N>;
 
 	using FrameType = snex::Types::span<float, NumChannels>;

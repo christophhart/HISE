@@ -52,7 +52,7 @@ template <typename ProcessDataType> struct Block
 	{
 		constexpr int NumChannelsThisTime = T::NumChannels;
 
-		ProcessDataFix<NumChannelsThisTime> thisData(d.getRawDataPointers() + channelIndex, d.getNumSamples());
+		ProcessData<NumChannelsThisTime> thisData(d.getRawDataPointers() + channelIndex, d.getNumSamples());
 		thisData.copyNonAudioDataFrom(d);
 
 		obj.process(thisData);
@@ -94,7 +94,7 @@ template <class ParameterClass, typename... Processors> struct multi: public con
 	
 	constexpr static int NumChannels = Helpers::getSummedChannels<Processors...>();
 
-	using BlockType = snex::Types::ProcessDataFix<NumChannels>;
+	using BlockType = snex::Types::ProcessData<NumChannels>;
 	using BlockProcessor = multiprocessor::Block<BlockType>;
 	using FrameType = snex::Types::span<float, NumChannels>;
 	using FrameProcessor = multiprocessor::Frame<FrameType>;
