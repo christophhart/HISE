@@ -1320,6 +1320,7 @@ ASMJIT_FAVOR_SIZE Error X86Internal::emitEpilog(Emitter* emitter, const FuncFram
 // ============================================================================
 
 #ifndef ASMJIT_NO_LOGGING
+#if 0
 static void dumpFuncValue(String& sb, uint32_t archId, const FuncValue& value) noexcept {
   Logging::formatTypeId(sb, value.typeId());
   sb.appendChar('@');
@@ -1333,6 +1334,7 @@ static void dumpFuncValue(String& sb, uint32_t archId, const FuncValue& value) n
     sb.appendString("<none>");
   }
 }
+
 
 static void dumpAssignment(String& sb, const X86FuncArgsContext& ctx) noexcept {
   typedef X86FuncArgsContext::Var Var;
@@ -1356,6 +1358,7 @@ static void dumpAssignment(String& sb, const X86FuncArgsContext& ctx) noexcept {
     sb.appendChar('\n');
   }
 }
+#endif
 #endif
 
 ASMJIT_FAVOR_SIZE Error X86Internal::emitArgsAssignment(Emitter* emitter, const FuncFrame& frame, const FuncArgsAssignment& args) {

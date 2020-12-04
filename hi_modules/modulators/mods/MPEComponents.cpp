@@ -34,6 +34,7 @@
 namespace hise {
 using namespace juce;
 
+#if USE_BACKEND
 MARKDOWN_CHAPTER(MpeHelp)
 START_MARKDOWN(Help);
 ML("# How to use MPE");
@@ -117,6 +118,7 @@ ML("}");
 ML("```");
 END_MARKDOWN()
 END_MARKDOWN_CHAPTER()
+#endif
 
 juce::Path MPEPanel::Factory::createPath(const String& id) const
 {

@@ -560,6 +560,7 @@ void ScriptingObjects::ScriptDownloadObject::flushTemporaryFile()
 
 		auto numWritten = fos.writeFromInputStream(fis, -1);
 
+        ignoreUnused(numWritten);
 		resumeFile = nullptr;
 	}
 }

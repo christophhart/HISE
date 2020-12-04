@@ -107,6 +107,8 @@ public:
 
 	struct LookAndFeelMethods
 	{
+        virtual ~LookAndFeelMethods() {};
+        
 		virtual void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number)
 		{
 			if (number > 0)

@@ -475,8 +475,6 @@ public:
 			if (currentBreakpointLine >= firstLine && currentBreakpointLine <= lastLine)
 			{
 				auto lineHeight = editor.getLineHeight();
-				auto b = editor.getLocalBounds();
-
 				int x = 0;
 				int y = lineHeight * (currentBreakpointLine - firstLine - 1);
 				int w = editor.getWidth();

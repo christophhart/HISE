@@ -195,7 +195,7 @@ struct ExpansionPopupBase : public Component,
 	void paint(Graphics& g) override
 	{
 		auto b = getLocalBounds();
-		auto top = b.removeFromTop(panelHeight).toFloat();
+		b.removeFromTop(panelHeight).toFloat();
 
 		r.draw(g, b.toFloat().reduced(10.0f));
 	}
@@ -203,8 +203,7 @@ struct ExpansionPopupBase : public Component,
 	void resized() override
 	{
 		auto b = getLocalBounds();
-
-		auto top = b.removeFromTop(panelHeight);
+		b.removeFromTop(panelHeight);
 
 		r.setChildComponentBounds(b.reduced(10));
 		r.updateCreatedComponents();
@@ -359,6 +358,7 @@ struct ExpansionEditPopup : public ExpansionPopupBase
 		case Expansion::FileBased: eName = "File based"; break;
 		case Expansion::Intermediate: eName = "Intermediate"; break;
 		case Expansion::Encrypted: eName = "Encrypted"; break;
+        default: jassertfalse; break;
 		}
 
 		auto p = f.createPath(eName);
@@ -446,6 +446,7 @@ public:
 			case Expansion::FileBased: s << "File-Based |\n"; break;
 			case Expansion::Intermediate: s << "Intermediate |\n"; break;
 			case Expansion::Encrypted: s << "Encrypted |\n"; break;
+            default:                   jassertfalse; break;
 			}
 		}
 

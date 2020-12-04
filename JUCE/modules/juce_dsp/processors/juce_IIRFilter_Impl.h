@@ -91,6 +91,7 @@ void Filter<SampleType>::processInternal (const ProcessContext& context) noexcep
     // otherwise MSVC will moan that the tenary expressions below
     // are constant conditional expressions
     constexpr bool isBypassed = bypassed;
+    ignoreUnused(isBypassed);
 
     switch (order)
     {

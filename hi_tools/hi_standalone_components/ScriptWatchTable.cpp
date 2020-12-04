@@ -303,9 +303,6 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 
 		if (columnId == Type)
 		{
-
-			const float alpha = 0.4f;
-			const float brightness = 0.6f;
 			const float h = jmin<float>((float)height, (float)width) - 4.0f;
 			const Rectangle<float> area(((float)width - h) / 2.0f, 2.0f, h, h);
 

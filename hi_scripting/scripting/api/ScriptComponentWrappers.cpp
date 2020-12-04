@@ -1680,8 +1680,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::subComponentAdded(ScriptCompo
 void ScriptCreatedComponentWrappers::PanelWrapper::subComponentRemoved(ScriptComponent* componentAboutToBeRemoved)
 {
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
-	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
-
+	
 	for (int i = 0; i < childPanelWrappers.size(); i++)
 	{
 		if (childPanelWrappers[i]->getScriptComponent() == componentAboutToBeRemoved)

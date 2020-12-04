@@ -74,6 +74,7 @@ public:
 			case State::CompileError: c = Colours::red; break;
 			case State::Compiling: c = Colours::yellow; break;
 			case State::WaitingForPrepare: c = Colours::orange; break;
+            default: break;
 			}
 
 			c = c.withSaturation(0.2f).withBrightness(0.4f);

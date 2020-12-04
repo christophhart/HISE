@@ -148,6 +148,8 @@ public:
     CustomKeyboard (MainController* mc);
     virtual ~CustomKeyboard();
 
+	using CustomClickCallback = std::function<bool(const MouseEvent&, bool)>;
+
 	void buttonClicked(Button *b) override
 	{
 		if (b->getName() == "OctaveUp")
@@ -236,6 +238,18 @@ public:
 		return getRectangleForKey(midiNoteNumber);
 	}
 	
+	/** Set a custom click callback. Pass in a lambda with the signature
+		
+		bool f(const MouseEvent& e, bool isMouseDown)
+
+		that returns true if the event was consumed or if it should perform
+		the default functionality.
+	*/
+	void setCustomClickCallback(const CustomClickCallback& f)
+	{
+		ccc = f;
+	}
+
 protected:
 
 	void drawWhiteNote (int midiNoteNumber, Graphics &g, Rectangle<float> area, bool isDown, bool isOver, Colour lineColour, Colour textColour) override;
@@ -245,6 +259,8 @@ protected:
 
 
 private:
+
+	CustomClickCallback ccc;
 
 	Array<PooledImage> upImages;
 	Array<PooledImage> downImages;

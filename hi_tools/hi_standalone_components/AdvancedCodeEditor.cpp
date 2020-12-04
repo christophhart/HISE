@@ -1183,7 +1183,7 @@ void JavascriptCodeEditor::AutoCompletePopup::rebuild(const String& tokenText)
 	else
 	{
 		createVariableRows();
-		createApiRows(apiTree);
+		createApiRows(apiTree, tokenText);
 	}
 
 	rebuildVisibleItems(tokenText);
@@ -1218,7 +1218,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createVariableRows()
 	}
 }
 
-void JavascriptCodeEditor::AutoCompletePopup::createApiRows(const ValueTree &apiTree)
+void JavascriptCodeEditor::AutoCompletePopup::createApiRows(const ValueTree &apiTree, const String& tokenText)
 {
 	if (auto p = getProviderBase())
 	{
@@ -1231,6 +1231,8 @@ void JavascriptCodeEditor::AutoCompletePopup::createApiRows(const ValueTree &api
 			{
 				addRowsFromObject(apiObject, className, classTree);
 			}
+            
+            addRowFromApiClass(classTree, tokenText);
 		}
 	}
 }
@@ -1251,15 +1253,20 @@ void JavascriptCodeEditor::AutoCompletePopup::addRowFromApiClass(const ValueTree
 {
 	for (auto methodTree : classTree)
 	{
-		auto classId = classTree.getType();
+        auto classId = classTree.getType();
 
-		RowInfo *info = new RowInfo();
-		info->classId = classId;
-		info->description = ValueTreeApiHelpers::createAttributedStringFromApi(methodTree, classId.toString(), false, Colours::black);
-		info->codeToInsert = ValueTreeApiHelpers::createCodeToInsert(methodTree, originalToken);
-		info->name = info->codeToInsert;
-		info->type = (int)RowInfo::Type::ApiMethod;
-		allInfo.add(info);
+        const String name = methodTree.getProperty(Identifier("name")).toString();
+        
+        if(name.contains(originalToken))
+        {
+            RowInfo *info = new RowInfo();
+            info->classId = classId;
+            info->description = ValueTreeApiHelpers::createAttributedStringFromApi(methodTree, classId.toString(), false, Colours::black);
+            info->codeToInsert = ValueTreeApiHelpers::createCodeToInsert(methodTree, classId.toString());
+            info->name = info->codeToInsert;
+            info->type = (int)RowInfo::Type::ApiMethod;
+            allInfo.add(info);
+        }
 	}
 }
 

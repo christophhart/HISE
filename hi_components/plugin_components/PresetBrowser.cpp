@@ -1334,9 +1334,12 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 		else if (numColumns == 1)
 		 	current = rootFile;
 
-		File presetFile = PresetBrowserColumn::getChildDirectory(current, 3, rowIndex);
+		auto presetFile = getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
 
-		if (newName.isNotEmpty())
+
+		//File presetFile = PresetBrowserColumn::getChildDirectory(current, 3, rowIndex);
+
+		if (presetFile.existsAsFile() && newName.isNotEmpty())
 		{
 			File newFile = presetFile.getSiblingFile(newName + ".preset");
 
@@ -1344,7 +1347,9 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 				modalInputWindow->confirmReplacement(presetFile, newFile);
 			else
 			{
-				presetFile.moveFileTo(newFile);
+				auto ok = presetFile.moveFileTo(newFile);
+
+				
 				presetColumn->setNewRootDirectory(current);
 				rebuildAllPresets();
 				showLoadedPreset();

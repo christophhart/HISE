@@ -1092,8 +1092,6 @@ NodeContainer::MacroParameter::Connection::Connection(NodeBase* parent, MacroPar
 
 	if (auto targetNode = dynamic_cast<NodeBase*>(parent->getRootNetwork()->get(nodeId).getObject()))
 	{
-		auto undoManager = um;
-		
 		auto parameterId = d[PropertyIds::ParameterId].toString();
 
 		if (parameterId == PropertyIds::Bypassed.toString())

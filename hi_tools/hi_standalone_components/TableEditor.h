@@ -413,6 +413,8 @@ public:
 
 	struct LookAndFeelMethods
 	{
+        virtual ~LookAndFeelMethods() {};
+        
 		virtual void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) = 0;
 		virtual void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) = 0;
 		virtual void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) = 0;
@@ -421,6 +423,8 @@ public:
 	struct HiseTableLookAndFeel : public LookAndFeel_V3,
 		public LookAndFeelMethods
 	{
+        virtual ~HiseTableLookAndFeel() {};
+        
 		void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
 		void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
 		void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
@@ -429,6 +433,8 @@ public:
 	struct FlatTableLookAndFeel : public LookAndFeel_V3,
 								  public LookAndFeelMethods
 	{
+        virtual ~FlatTableLookAndFeel() {};
+        
 		void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
 		void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
 		void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;

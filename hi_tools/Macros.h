@@ -239,7 +239,9 @@ struct FontHelpers
 #define END_MARKDOWN_CHAPTER()
 #endif
 
-#define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
+#ifndef RETURN_STATIC_IDENTIFIER
+#define RETURN_STATIC_IDENTIFIER(x) const static Identifier id_(x); return id_;
+#endif
 
 #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { RETURN_STATIC_IDENTIFIER(x) }
 
