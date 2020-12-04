@@ -218,7 +218,7 @@ public:
 		{
 			for (auto n : parent->getNodeList())
 			{
-				auto& dd = data.as<ProcessData>();
+				auto& dd = data.as<ProcessDataDyn>();
 				n->process(dd);
 			}
 		}

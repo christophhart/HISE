@@ -67,7 +67,7 @@ using namespace juce;
 	
 	@code
 	// This is the callback function required by SNEX / scriptnode
-	void process(ProcessDataFix<2>& data)
+	void process(ProcessData<2>& data)
 	{
 		// Create a FrameProcessor object from the data
 		auto frame = data.toFrameData();
@@ -169,7 +169,7 @@ private:
 	template <int NumChannels> friend class ProcessData;
 	friend class ProcessDataDyn;
 
-	/** @internal: only used by ProcessDataFix<NumChannels>::toFrameData(). */
+	/** @internal: only used by ProcessData<NumChannels>::toFrameData(). */
 	FrameProcessor(float** processDataPointers, int numSamples);
 
 	/** @internal */
@@ -199,8 +199,6 @@ struct IndexType
 	{
 		return span<float, I>::clamped(0);
 	}
-
-
 
 	template <typename E, int I> static auto clamped(const span<E, I>& obj)
 	{

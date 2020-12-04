@@ -63,7 +63,7 @@ namespace cable
 template <int C, int A> struct frame
 {
 	using FrameType = span<float, C>;
-	using BlockType = ProcessDataFix<C>;
+	using BlockType = ProcessData<C>;
 
 	Colour colour = Colours::transparentBlack;
 	constexpr int  getNumChannels() const { return C; };
@@ -117,7 +117,7 @@ template <int C, int A> struct frame
 template <int C, int A> struct block
 {
 	using FrameType = span<float, C>;
-	using BlockType = ProcessDataFix<C>;
+	using BlockType = ProcessData<C>;
 
 	Colour colour = Colours::transparentBlack;
 
@@ -146,7 +146,7 @@ template <int C, int A> struct block
 		auto d = ProcessDataHelpers<C>::makeChannelData(buffer);
 
 		for (auto& ch : d)
-			channels[index++] = { ch, (size_t)ps.blockSize };
+			channels[index++].referTo(ch, (size_t)ps.blockSize);
 	};
 
 	template <typename T> void connect(T& receiveTarget)

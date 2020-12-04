@@ -534,7 +534,7 @@ public:
 	void initialise(NodeBase* n) {};
 	void reset() noexcept;
 	void prepare(PrepareSpecs ps);
-	void process(snex::Types::ProcessDataFix<1>& data);
+	void process(snex::Types::ProcessData<1>& data);
 	void processFrame(snex::Types::span<float, 1>& data);
 	void handleHiseEvent(HiseEvent& e);
 	void createParameters(Array<HiseDspBase::ParameterData>& data);

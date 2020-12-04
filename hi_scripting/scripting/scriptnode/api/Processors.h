@@ -47,7 +47,7 @@ public:
 
 	static const int NumChannels = C;
 
-	using FixProcessType = snex::Types::ProcessDataFix<NumChannels>;
+	using FixProcessType = snex::Types::ProcessData<NumChannels>;
 	using FixFrameType = snex::Types::span<float, NumChannels>;
 
 	fix() {};
@@ -289,7 +289,7 @@ public:
 	GET_SELF_OBJECT(obj);
 	GET_WRAPPED_OBJECT(obj);
 
-	using FixProcessType = snex::Types::ProcessDataFix<NumChannels>;
+	using FixProcessType = snex::Types::ProcessData<NumChannels>;
 	using FrameType = snex::Types::span<float, NumChannels>;
 
 	void initialise(NodeBase* n)
@@ -505,7 +505,7 @@ template <class T> class control_rate
 public:
 
 	using FrameType = snex::Types::span<float, 1>;
-	using ProcessType = snex::Types::ProcessDataFix<1>;
+	using ProcessType = snex::Types::ProcessData<1>;
 
 	constexpr static bool isModulationSource = false;
 
@@ -541,7 +541,7 @@ public:
 		
 		float* d[1] = { controlBuffer.begin() };
 
-		ProcessDataFix<1> md(d, numToProcess, 1);
+		ProcessData<1> md(d, numToProcess, 1);
 		md.copyNonAudioDataFrom(data);
 
 		obj.process(md);

@@ -318,7 +318,7 @@ struct new_jit: public SnexSource,
 		}
 	}
 
-	void process(ProcessData& d)
+	void process(ProcessDataDyn& d)
 	{
 		if (compiledNode)
 			compiledNode->process(d);

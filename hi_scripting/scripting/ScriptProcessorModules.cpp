@@ -495,7 +495,7 @@ void JavascriptPolyphonicEffect::renderVoice(int voiceIndex, AudioSampleBuffer &
 		for (int i = 0; i < numChannels; i++)
 			channels[i] += startSample;
 
-		scriptnode::ProcessData d(channels, numChannels, numSamples);
+		scriptnode::ProcessDataDyn d(channels, numChannels, numSamples);
 
 		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
 		n->getRootNode()->process(d);
@@ -1079,7 +1079,7 @@ void JavascriptTimeVariantModulator::calculateBlock(int startSample, int numSamp
 		auto ptr = internalBuffer.getWritePointer(0, startSample);
 		FloatVectorOperations::clear(ptr, numSamples);
 
-		scriptnode::ProcessData d(&ptr, 1, numSamples);
+		snex::Types::ProcessDataDyn d(&ptr, 1, numSamples);
 
 		ScopedLock sl(n->getConnectionLock());
 		n->getRootNode()->process(d);
@@ -1248,7 +1248,7 @@ void JavascriptEnvelopeModulator::calculateBlock(int startSample, int numSamples
 
 		memset(ptr, 0, sizeof(float)*numSamples);
 
-		scriptnode::ProcessData d(&ptr, 1, numSamples);
+		scriptnode::ProcessDataDyn d(&ptr, 1, numSamples);
 
 		ScopedLock sl(n->getConnectionLock());
 		n->getRootNode()->process(d);
@@ -1882,7 +1882,7 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 		for (int i = 0; i < numChannels; i++)
 			channels[i] += startSample;
 
-		scriptnode::ProcessData d(channels, numSamples, numChannels);
+		scriptnode::ProcessDataDyn d(channels, numSamples, numChannels);
 
 		{
 			scriptnode::DspNetwork::VoiceSetter vs(*n, getVoiceIndex());

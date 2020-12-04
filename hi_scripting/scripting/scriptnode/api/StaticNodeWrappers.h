@@ -136,7 +136,7 @@ public:
 		wrapper.processFrame(data);
 	}
 
-	void process(ProcessData& data) noexcept final override
+	void process(ProcessDataDyn& data) noexcept final override
 	{
 		wrapper.process(data);
 	}
@@ -268,7 +268,7 @@ public:
 		wrapper.processFrame(data);
 	}
 
-	void process(ProcessData& data) noexcept final override
+	void process(ProcessDataDyn& data) noexcept final override
 	{
 		wrapper.p.setSamplesToWrite(data.getNumSamples());
 		wrapper.process(data);
@@ -413,7 +413,7 @@ template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
 	{
 	}
 
-	void process(ProcessData& data) noexcept final override
+	void process(ProcessDataDyn& data) noexcept final override
 	{
 	}
 
@@ -836,7 +836,7 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 
 	static Identifier getStaticId() { return Initialiser::getStaticId(); };
 
-	using FixBlockType = snex::Types::ProcessDataFix<NumChannels>;
+	using FixBlockType = snex::Types::ProcessData<NumChannels>;
 	using FrameType = snex::Types::span<float, NumChannels>;
 
 	void initialise(NodeBase* n)
@@ -859,7 +859,7 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 		obj.process(d);
 	}
 
-	void process(ProcessData& data) noexcept
+	void process(ProcessDataDyn& data) noexcept
 	{
 		jassert(data.getNumChannels() == NumChannels);
 		auto& fd = data.as<FixBlockType>();

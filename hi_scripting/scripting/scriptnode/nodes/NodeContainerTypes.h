@@ -48,7 +48,7 @@ public:
 	ChainNode(DspNetwork* n, ValueTree t);
 	String getCppCode(CppGen::CodeLocation location) override;
 
-	void process(ProcessData& data) final override;
+	void process(ProcessDataDyn& data) final override;
 	void processFrame(FrameType& data) final override;
 
 	void processMonoFrame(MonoFrameType& data) final override;
@@ -74,7 +74,7 @@ public:
 	ModulationChainNode(DspNetwork* n, ValueTree t);;
 
 	void processFrame(FrameType& data) noexcept final override;
-	void process(ProcessData& data) noexcept final override;
+	void process(ProcessDataDyn& data) noexcept final override;
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override;
@@ -103,7 +103,7 @@ public:
 	MidiChainNode(DspNetwork* n, ValueTree t);
 
 	void processFrame(FrameType& data) noexcept final override;
-	void process(ProcessData& data) noexcept final override;
+	void process(ProcessDataDyn& data) noexcept final override;
 	void prepare(PrepareSpecs ps) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 	void reset() final override;
@@ -133,7 +133,7 @@ public:
 	void prepare(PrepareSpecs ps) override;
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) final override;
-	void process(ProcessData& d) noexcept final override;
+	void process(ProcessDataDyn& d) noexcept final override;
 	void processFrame(FrameType& data) noexcept final override { jassertfalse; }
 
 	wrap::oversample<OversampleFactor, SerialNode::DynamicSerialProcessor> obj;
@@ -152,7 +152,7 @@ public:
 
 	FixedBlockNode(DspNetwork* network, ValueTree d);
 
-	void process(ProcessData& data) final override;
+	void process(ProcessDataDyn& data) final override;
 
 	void processFrame(FrameType& data) noexcept final override { jassertfalse; }
 
@@ -189,7 +189,7 @@ public:
 	void prepare(PrepareSpecs ps) override;
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) final override;
-	void process(ProcessData& data) final override;
+	void process(ProcessDataDyn& data) final override;
 
 	void processFrame(FrameType& data) final override
 	{
@@ -255,7 +255,7 @@ public:
 	void reset() final override;
 	void handleHiseEvent(HiseEvent& e) override;
 	void processFrame(FrameType& data) final override;
-	void process(ProcessData& d) final override;
+	void process(ProcessDataDyn& d) final override;
 
 	void channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange) override;
 
@@ -274,7 +274,7 @@ public:
 
 	void prepare(PrepareSpecs ps) final override;
 	void reset() final override;
-	void process(ProcessData& data) final override;
+	void process(ProcessDataDyn& data) final override;
 	void processFrame(FrameType& data) final override;
 	int getBlockSizeForChildNodes() const override;;
 	void handleHiseEvent(HiseEvent& e) override;
@@ -290,7 +290,7 @@ template <int NumChannels> class SingleSampleBlock : public SerialNode
 {
 public:
 
-	using FixProcessType = snex::Types::ProcessDataFix<NumChannels>;
+	using FixProcessType = snex::Types::ProcessData<NumChannels>;
 	using FixFrameType = snex::Types::span<float, NumChannels>;
 
 	SingleSampleBlock(DspNetwork* n, ValueTree d) :
@@ -332,7 +332,7 @@ public:
 			leftoverBuffer.setSize(numLeftOverChannels, ps.blockSize);
 	}
 
-	void process(ProcessData& data) final override
+	void process(ProcessDataDyn& data) final override
 	{
 		if (isBypassed())
 			obj.getObject().process(data.as<FixProcessType>());

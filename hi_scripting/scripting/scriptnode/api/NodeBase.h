@@ -185,7 +185,7 @@ public:
 	NodeBase(DspNetwork* rootNetwork, ValueTree data, int numConstants);;
 	virtual ~NodeBase() {}
 
-	virtual void process(ProcessData& data) = 0;
+	virtual void process(ProcessDataDyn& data) = 0;
 
 	virtual void prepare(PrepareSpecs specs);
 

@@ -261,7 +261,7 @@ void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 
 	if (exceptionHandler.isOk())
 	{
-		ProcessData d(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels());
+		ProcessDataDyn d(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels());
 		d.setEventBuffer(*e);
 
 		signalPath->process(d);
@@ -326,7 +326,7 @@ void DspNetwork::processBlock(var pData)
 				}
 			}
 
-			ProcessData d(currentData, numSamplesToUse, numChannelsToUse);
+			ProcessDataDyn d(currentData, numSamplesToUse, numChannelsToUse);
 			signalPath->process(d);
 
 		}
@@ -620,7 +620,7 @@ void DspNetwork::createSnexNodeLibrary(snex::Types::SnexTypeConstructData cd)
 
 	for (auto n : nodeFactories)
 	{
-		cd.id = snex::jit::NamespacedIdentifier(n->getId());
+		cd.id = snex::NamespacedIdentifier(n->getId());
 		n->registerSnexTypes(cd);
 	}
 }

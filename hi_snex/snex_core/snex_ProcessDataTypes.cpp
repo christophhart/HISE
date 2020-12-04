@@ -68,7 +68,7 @@ template <int C> struct ProcessDataHelpers
 	/** @internal The internal channel data type.*/
 	using ChannelDataType = Types::span<float*, NumChannels>;
 
-	/** @internal. Used on the C++ side to create a ProcessDataFix object from a consecutive float memory range. */
+	/** @internal. Used on the C++ side to create a ProcessData<> object from a consecutive float memory range. */
 	template <typename T> static ChannelDataType makeChannelData(T& obj)
 	{
 		auto ptr = obj.begin();

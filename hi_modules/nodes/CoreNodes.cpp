@@ -316,7 +316,7 @@ struct OscDisplay : public ScriptnodeExtraComponent<OscillatorDisplayProvider>
 
 
 template <int NV>
-void scriptnode::core::oscillator_impl<NV>::process(snex::Types::ProcessDataFix<1>& data)
+void scriptnode::core::oscillator_impl<NV>::process(snex::Types::ProcessData<1>& data)
 {
 	auto f = data.toFrameData();
 

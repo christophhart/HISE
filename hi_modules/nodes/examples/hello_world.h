@@ -88,7 +88,7 @@ struct processor
 	}
 
 	/** This method is being called to calculate the signal buffer. */
-	void process(ProcessDataFix<NumChannels>& d)
+	void process(ProcessData<NumChannels>& d)
 	{
 		auto f = d.toFrameData();
 

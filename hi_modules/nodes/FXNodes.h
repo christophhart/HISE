@@ -316,7 +316,7 @@ public:
 	static const int NumChannels = 2;
 	using DelayType = span<DelayLine<2048, DummyCriticalSection>, NumChannels>;
 	using FrameType = span<float, NumChannels>;
-	using ProcessType = ProcessDataFix<NumChannels>;
+	using ProcessType = snex::Types::ProcessData<NumChannels>;
 
 	static constexpr int NumVoices = V;
 

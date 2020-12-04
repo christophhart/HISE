@@ -52,7 +52,7 @@ ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
 #endif
 }
 
-void ChainNode::process(ProcessData& data)
+void ChainNode::process(ProcessDataDyn& data)
 {
 	wrapper.process(data);
 }
@@ -143,7 +143,7 @@ void SplitNode::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void SplitNode::process(ProcessData& data)
+void SplitNode::process(ProcessDataDyn& data)
 {
 	if (isBypassed())
 		return;
@@ -181,7 +181,7 @@ void SplitNode::process(ProcessData& data)
 			int numToCopy = data.getNumSamples() * data.getNumChannels();
 
 			FloatVectorOperations::copy(workBuffer.begin(), original.begin(), numToCopy);
-			ProcessData cp(ptrs, numSamples, data.getNumChannels());
+			ProcessDataDyn cp(ptrs, numSamples, data.getNumChannels());
 
 			n->process(cp);
 
@@ -220,7 +220,7 @@ void ModulationChainNode::processFrame(NodeBase::FrameType& d) noexcept
 		obj.processFrame(d);
 }
 
-void ModulationChainNode::process(ProcessData& data) noexcept
+void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 {
 	if (isBypassed())
 		return;
@@ -376,7 +376,7 @@ void OversampleNode<OversampleFactor>::handleHiseEvent(HiseEvent& e)
 }
 
 template <int OversampleFactor>
-void OversampleNode<OversampleFactor>::process(ProcessData& d) noexcept
+void OversampleNode<OversampleFactor>::process(ProcessDataDyn& d) noexcept
 {
 	if (isBypassed())
 	{
@@ -424,7 +424,7 @@ void FixedBlockNode<B>::updateBypassState(Identifier, var)
 }
 
 template <int B>
-void FixedBlockNode<B>::process(ProcessData& d)
+void FixedBlockNode<B>::process(ProcessDataDyn& d)
 {
 	if (isBypassed())
 	{
@@ -570,7 +570,7 @@ void MultiChannelNode::processFrame(NodeBase::FrameType& data)
 	}
 }
 
-void MultiChannelNode::process(ProcessData& d)
+void MultiChannelNode::process(ProcessDataDyn& d)
 {
 	int channelIndex = 0;
 
@@ -585,7 +585,7 @@ void MultiChannelNode::process(ProcessData& d)
 			for (int i = 0; i < numChannelsThisTime; i++)
 				currentChannelData[i] = d[startChannel + i].data;
 
-			ProcessData td(currentChannelData, d.getNumSamples(), numChannelsThisTime);
+			ProcessDataDyn td(currentChannelData, d.getNumSamples(), numChannelsThisTime);
 			td.copyNonAudioDataFrom(d);
 			n->process(td);
 		}
@@ -612,7 +612,7 @@ void SingleSampleBlockX::reset()
 	obj.reset();
 }
 
-void SingleSampleBlockX::process(ProcessData& data)
+void SingleSampleBlockX::process(ProcessDataDyn& data)
 {
 	if (isBypassed())
 		obj.getObject().process(data);
@@ -660,7 +660,7 @@ void MidiChainNode::processFrame(NodeBase::FrameType& data) noexcept
 	obj.processFrame(data);
 }
 
-void MidiChainNode::process(ProcessData& data) noexcept
+void MidiChainNode::process(ProcessDataDyn& data) noexcept
 {
 	if (isBypassed())
 	{

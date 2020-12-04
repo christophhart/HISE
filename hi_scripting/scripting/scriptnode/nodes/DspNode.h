@@ -87,7 +87,7 @@ public:
 			obj->prepareToPlay(ps.sampleRate, ps.blockSize);
 	}
 
-	void process(ProcessData& data) final override
+	void process(ProcessDataDyn& data) final override
 	{
 		if (obj != nullptr)
 			obj->processBlock(data.getRawDataPointers(), data.getNumChannels(), data.getNumSamples());

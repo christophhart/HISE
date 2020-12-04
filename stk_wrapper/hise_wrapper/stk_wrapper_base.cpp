@@ -256,7 +256,7 @@ TP EFFECT_WRAPPER::EffectWrapper():
 	
 }
 
-TP void EFFECT_WRAPPER::process(ProcessData& d)
+TP void EFFECT_WRAPPER::process(ProcessDataDyn& d)
 {
 	
 
@@ -320,7 +320,7 @@ TP INSTRUMENT_WRAPPER::InstrumentWrapper()
 
 }
 
-TP void INSTRUMENT_WRAPPER::process(ProcessData& d)
+TP void INSTRUMENT_WRAPPER::process(ProcessDataDyn& d)
 {
 
 #if 0

@@ -84,7 +84,7 @@ struct TestNode
 		data[0] = value;
 	}
 
-	void process(ProcessDataFix<NumChannels>& d)
+	void process(ProcessData<NumChannels>& d)
 	{
 		auto frameData = d.toFrameData();
 
@@ -117,7 +117,7 @@ struct TestNode
 
 namespace TestOps
 {
-using ProcessDataType = snex::Types::ProcessDataFix<2>;
+using ProcessDataType = snex::Types::ProcessData<2>;
 
 struct Add
 {
@@ -158,7 +158,7 @@ template <class OpClass, int C> struct Node
 			s = OpClass::op(s, op2);
 	}
 
-	void process(ProcessDataFix<NumChannels>& d)
+	void process(ProcessData<NumChannels>& d)
 	{
 		for (auto& c : d)
 		{
@@ -627,7 +627,7 @@ struct ScriptNodeTests : public juce::UnitTest
 				v = 3.0f;
 
 			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
-			ProcessDataFix<NumChannels> data(cd.begin(), numSamples);
+			ProcessData<NumChannels> data(cd.begin(), numSamples);
 
 			chain->process(data);
 
@@ -682,7 +682,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			chain.prepare(ps);
 
 			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
-			ProcessDataFix<NumChannels> data(cd.begin(), numSamples);
+			ProcessData<NumChannels> data(cd.begin(), numSamples);
 
 			chain.process(data);
 
@@ -728,7 +728,7 @@ struct ScriptNodeTests : public juce::UnitTest
 
 		beginTest("Testing matrix nodes");
 
-		
+		using namespace snex::Types;
 
 		PrepareSpecs ps;
 		ps.blockSize = numSamples;
@@ -738,7 +738,7 @@ struct ScriptNodeTests : public juce::UnitTest
 		DspHelpers::increaseBuffer(buffer, ps);
 		
 		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
-		ProcessDataFix<NumChannels> d(cd.begin(), numSamples, NumChannels);
+		ProcessData<NumChannels> d(cd.begin(), numSamples, NumChannels);
 
 		clear(buffer);
 
@@ -858,13 +858,13 @@ struct ScriptNodeTests : public juce::UnitTest
 		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
 		int numSamples = ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
 
-		ProcessDataFix<NumChannels> pd(cd.begin(), numSamples);
+		ProcessData<NumChannels> pd(cd.begin(), numSamples);
 
 		{
 			fillWithInc(data);
 
 			auto f = pd.toFrameData();
-			auto v = testProcessData(pd, f, "ProcessDataFix");
+			auto v = testProcessData(pd, f, "ProcessData");
 
 			expectEquals(pd.getNumSamples(), numSamples, "sample divider");
 			expectEquals(v, sum(data), "frame processing doesn't work");
@@ -882,7 +882,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			auto& dpd = pd.as<ProcessDataDyn>();
 
 			auto f = dpd.toFrameData<NumChannels>();
-			auto v = testProcessData(pd, f, "ProcessDataFix -> Dyn");
+			auto v = testProcessData(pd, f, "ProcessData -> Dyn");
 
 			expectEquals(dpd.getNumSamples(), numSamples, "sample divider");
 			expectEquals(v, sum(data), "frame processing doesn't work");
@@ -909,7 +909,7 @@ struct ScriptNodeTests : public juce::UnitTest
 		{
 			fillWithInc(data);
 
-			auto& fpd = pd.as<ProcessDataFix<NumChannels>>();
+			auto& fpd = pd.as<ProcessData<NumChannels>>();
 			auto f = fpd.toFrameData();
 
 			auto v = testProcessData(fpd, f, "ProcessDataDyn -> Fix");
@@ -922,7 +922,7 @@ struct ScriptNodeTests : public juce::UnitTest
 	template <int NumSamples, typename T, typename RefData> void expectContainerWorks(T& obj, const String& name, RefData& refData)
 	{
 		constexpr int NumChannels = obj.getNumChannels();
-		using ProcessType = ProcessDataFix<NumChannels>;
+		using ProcessType = ProcessData<NumChannels>;
 
 		heap<float> data;
 

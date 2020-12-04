@@ -235,7 +235,7 @@ template <typename T, int C> struct file_node: public file_base
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		if(!writeFlag)
-			obj.process(data.as<ProcessDataFix<C>>());
+			obj.process(data.as<ProcessData<C>>());
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)

@@ -41,7 +41,7 @@ struct processor
 	void handleHiseEvent(HiseEvent& e) {}
 	void prepare(PrepareSpecs ps) {}
 	void processFrame(span<float, NumChannels>& d) {}
-	void process(ProcessDataFix<NumChannels>& d) {}
+	void process(ProcessData<NumChannels>& d) {}
 	bool handleModulation(double& v) {}
 
 	template <int P> void setParameter(double v) {}

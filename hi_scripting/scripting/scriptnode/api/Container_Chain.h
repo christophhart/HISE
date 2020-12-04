@@ -129,7 +129,7 @@ template <class ParameterClass, typename... Processors> struct chain: public con
 	static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
 	static constexpr int getNumChannels() { return NumChannels; }
 
-	using BlockType = snex::Types::ProcessDataFix<NumChannels>;
+	using BlockType = snex::Types::ProcessData<NumChannels>;
 	using BlockProcessor = chainprocessor::Block<BlockType>;
 
 	using FrameType = snex::Types::span<float, NumChannels>;

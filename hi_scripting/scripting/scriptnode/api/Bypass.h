@@ -223,7 +223,7 @@ public:
 		this->obj.processFrame(data);
 	}
 
-	void process(ProcessData& data) noexcept
+	void process(ProcessDataDyn& data) noexcept
 	{
 		if (!bypassed)
 			this->obj.process(data);

@@ -164,7 +164,7 @@ public:
 
 	EffectWrapper();
 
-	void process(ProcessData& d);
+	void process(ProcessDataDyn& d);
 	//void processFrame(FrameType& data);
 	void handleHiseEvent(HiseEvent& ) { }
 };
@@ -176,7 +176,7 @@ public:
 
 	InstrumentWrapper();
 
-	void process(ProcessData& d);
+	void process(ProcessDataDyn& d);
 	//void processFrame(FrameType& d);
 	void handleHiseEvent(HiseEvent& e);
 };
