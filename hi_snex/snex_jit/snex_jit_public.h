@@ -60,7 +60,7 @@ DECLARE_ID(NoSafeChecks);
 
 static StringArray getAllIds()
 {
-	return { BinaryOpOptimisation, AutoVectorisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+	return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
 }
 }
 

@@ -1941,6 +1941,9 @@ struct MathOp
 		case Inst::kIdMulss:
 		case Inst::kIdMulsd: return '*';
 		}
+
+		jassertfalse;
+		return 0;
 	}
 
 	static Types::ID getType(BaseNode* node)
@@ -2404,6 +2407,8 @@ struct RemoveUndirtyMovCallsFromSameSource : public AsmCleanupPass::SubPass<Mov>
 				}
 			}
 		}
+
+		return nullptr;
 	}
 
 	/** optimizes next mov calls to the same target with the same source

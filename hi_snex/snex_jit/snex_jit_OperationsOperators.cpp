@@ -1063,14 +1063,16 @@ bool Operations::Subscript::tryToResolveType(BaseCompiler* compiler)
 
 	auto parentType = getSubExpr(0)->getTypeInfo();
 
-	if (spanType = parentType.getTypedIfComplexType<SpanType>())
+	if (auto ts = parentType.getTypedIfComplexType<SpanType>())
 	{
+		spanType = ts;
 		subscriptType = Span;
 		elementType = spanType->getElementType();
 		return true;
 	}
-	else if (dynType = parentType.getTypedIfComplexType<DynType>())
+	else if (auto ds = parentType.getTypedIfComplexType<DynType>())
 	{
+		dynType = ds;
 		subscriptType = Dyn;
 		elementType = dynType->elementType;
 		return true;

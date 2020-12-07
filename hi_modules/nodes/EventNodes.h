@@ -601,7 +601,7 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 			auto& thisData = oscData.get();
 
 			OscProcessData op;
-			op.data = data[0];
+			op.data.referTo(data[0]);
 			op.uptime = thisData.uptime;
 			op.delta = thisData.uptimeDelta * thisData.multiplier;
 			op.voiceIndex = *voiceIndex;

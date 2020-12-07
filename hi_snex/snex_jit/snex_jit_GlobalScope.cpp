@@ -158,7 +158,8 @@ void GlobalScope::clearOptimizations()
 	optimizationPasses.clear();
 
 	removeFunctionClass(NamespacedIdentifier("Math"));
-	addFunctionClass(new MathFunctions(false, {}));
+
+	addFunctionClass(new MathFunctions(false, blockType));
 }
 
 bool GlobalScope::checkRuntimeErrorAfterExecution()

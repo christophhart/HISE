@@ -286,7 +286,17 @@ struct ProcessDataDyn: public InternalData
 		return dyn<float>(data[channelIndex], getNumSamples());
 	}
 
-	
+	void referTo(float** newData, int newChannels, int newSamples)
+	{
+		data = newData;
+		numChannels = newChannels;
+		numSamples = newSamples;
+	}
+
+	float** getRawChannelPointers()
+	{
+		return data;
+	}
 
 	ChannelPtr* begin() const
 	{

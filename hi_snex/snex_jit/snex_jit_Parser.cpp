@@ -350,6 +350,9 @@ snex::jit::BlockParser::ExprPtr NewClassParser::parseBufferInitialiser()
 		else
 			location.throwError("Expected Buffer function");
 	}
+
+	jassertfalse;
+	return nullptr;
 }
 
 BlockParser::StatementPtr NewClassParser::parseVariableDefinition()

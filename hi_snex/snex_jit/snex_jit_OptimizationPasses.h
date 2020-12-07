@@ -403,6 +403,8 @@ struct AsmCleanupPass : public OptimizationPass,
 		{
 			if (FilterType::matches(currentNode))
 				return currentNode->as<FilterType::ReturnType>();
+
+			return nullptr;
 		}
 
 		/** Removes the given node. */

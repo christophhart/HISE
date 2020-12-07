@@ -260,12 +260,12 @@ struct JitCompiledNode: public ReferenceCountedObject
 
 	JitCompiledNode(Compiler& c, const String& code, const String& classId, int numChannels_, const CompilerInitFunction& cf=defaultInitialiser);
 
-	void addParameterMethod(String& s, const String& parameterName, int index)
+	static void addParameterMethod(String& s, const String& parameterName, int index)
 	{
 		s << "void set" << parameterName << "(double value) { instance.setParameter<" << String(index) << ">(value);}\n";
 	}
 
-	void addCallbackWrapper(String& s, const FunctionData& d)
+	static void addCallbackWrapper(String& s, const FunctionData& d)
 	{
 		s << d.getSignature({}, false) << "{ ";
 
@@ -287,8 +287,10 @@ struct JitCompiledNode: public ReferenceCountedObject
 	void prepare(PrepareSpecs ps)
 	{
 		jassert(ps.numChannels >= numChannels);
-		PrepareSpecs copy(ps);
-		callbacks[Types::ScriptnodeCallbacks::PrepareFunction].callVoid(&copy);
+		
+		lastSpecs = ps;
+
+		callbacks[Types::ScriptnodeCallbacks::PrepareFunction].callVoid(&lastSpecs);
 	}
 
 	template <typename T> void process(T& data)
@@ -323,6 +325,8 @@ struct JitCompiledNode: public ReferenceCountedObject
 	Result r;
 
 private:
+
+	PrepareSpecs lastSpecs;
 
 	OpaqueSnexParameter::List parameterList;
 

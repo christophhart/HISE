@@ -38,7 +38,7 @@ VariableStorage::VariableStorage(int s)
 
 VariableStorage::VariableStorage(const block& b)
 {
-	data.b = b;
+	data.b.referTo(b);
 }
 
 VariableStorage::VariableStorage(HiseEvent& m_)

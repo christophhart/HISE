@@ -309,7 +309,7 @@ struct SnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator>,
 		if (getObject()->isReady())
 		{
 			OscProcessData od;
-			od.data = d;
+			od.data.referTo(d);
 			od.uptime = 0.0;
 			od.delta = 1.0 / (double)buffer.size();
 			od.voiceIndex = 0;

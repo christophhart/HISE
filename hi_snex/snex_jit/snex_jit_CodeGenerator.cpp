@@ -878,11 +878,11 @@ void AsmCodeGenerator::emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr)
 	else
 	{
 		if (type == Types::ID::Float || type == Types::ID::Double)
-			cc.ret(rToUse->getRegisterForWriteOp().as<X86Xmm>());
+			cc.ret(rToUse->getRegisterForReadOp().as<X86Xmm>());
 		else if (type == Types::ID::Integer)
-            cc.ret(rToUse->getRegisterForWriteOp().as<x86::Gpd>());
+            cc.ret(rToUse->getRegisterForReadOp().as<x86::Gpd>());
 		else if (type == Types::ID::Block || type == Types::ID::Pointer)
-			cc.ret(rToUse->getRegisterForWriteOp().as<X86Gpq>());
+			cc.ret(rToUse->getRegisterForReadOp().as<X86Gpq>());
 	}
 }
 
