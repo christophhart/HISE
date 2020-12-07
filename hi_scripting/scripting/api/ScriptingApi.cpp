@@ -887,6 +887,31 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 };
 
+struct ScriptingApi::Engine::Snex: public ApiClass::SnexWrapper
+{
+	Snex(ApiClass* obj, void* e):
+		SnexWrapper(obj, e)
+	{
+		using namespace snex::Types;
+
+		addApiCall(ID::Double, "getUptime", getUptime, {});
+		addApiCall(ID::Double, "getSampleRate", getSampleRate, {});
+		addApiCall(ID::Double, "getHostBpm", getHostBpm, {});
+		addApiCall(ID::Void, "allNotesOff", allNotesOff, {});
+		addApiCall(ID::Double, "getControlRateDownsamplingFactor", getControlRateDownsamplingFactor, {});
+	}
+
+#define AS_ENGINE static_cast<Engine*>(e)
+
+	static double getUptime(void* e) { return AS_ENGINE->getUptime(); }
+	static double getSampleRate(void* e) { return AS_ENGINE->getSampleRate(); }
+	static double getHostBpm(void* e) { return AS_ENGINE->getHostBpm(); };
+	static void allNotesOff(void* e) { AS_ENGINE->allNotesOff(); };
+	static double getControlRateDownsamplingFactor(void* e) { return AS_ENGINE->getControlRateDownsamplingFactor(); }
+
+#undef AS_ENGINE
+};
+
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
 ApiClass(0),
@@ -1824,6 +1849,11 @@ void ScriptingApi::Engine::redo()
 	MessageManager::callAsync(f);
 }
 
+ApiClass::SnexWrapper* ScriptingApi::Engine::createSnexWrapper()
+{
+	return SnexWrapper::create<Snex>(this);
+}
+
 // ====================================================================================================== Sampler functions
 
 struct ScriptingApi::Sampler::Wrapper
@@ -2707,6 +2737,33 @@ bool ScriptingApi::Sampler::clearSampleMap()
 // ====================================================================================================== Synth functions
 
 
+struct ScriptingApi::Synth::Snex : public ApiClass::SnexWrapper
+{
+	Snex(ApiClass* c, void* obj) :
+		SnexWrapper(c, obj)
+	{
+		using namespace snex::Types;
+
+		addApiCall(Integer, "playNote", playNote, { Integer, Integer });
+		addApiCall(Void, "noteOffByEventId", noteOffByEventId, { Integer });
+		addApiCall(Void, "noteOffDelayedByEventId", noteOffDelayedByEventId, { Integer, Integer });
+	};
+
+	static int playNote(void* s, int noteNumber, int velocity)
+	{
+		return static_cast<Synth*>(s)->playNote(noteNumber, velocity);
+	}
+
+	static void noteOffByEventId(void* s, int eventId)
+	{
+		static_cast<Synth*>(s)->noteOffByEventId(eventId);
+	}
+
+	static void noteOffDelayedByEventId(void* s, int eventId, int timestamp)
+	{
+		static_cast<Synth*>(s)->noteOffDelayedByEventId(eventId, timestamp);
+	}
+};
 
 struct ScriptingApi::Synth::Wrapper
 {
@@ -3868,6 +3925,11 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 	reportScriptError("Modulator " + id + " was not found in " + c->getId());
 
 	RETURN_IF_NO_THROW(-1)
+}
+
+ApiClass::SnexWrapper* ScriptingApi::Synth::createSnexWrapper()
+{
+	return SnexWrapper::create<Snex>(this);
 }
 
 // ====================================================================================================== Console functions

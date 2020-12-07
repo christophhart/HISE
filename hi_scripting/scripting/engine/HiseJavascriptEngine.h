@@ -535,7 +535,12 @@ public:
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
 		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct ExternalCFunction;
-		struct NativeJIT;				struct IsDefinedTest;
+		struct NativeJIT;				struct IsDefinedTest;		
+
+		// Snex stuff
+
+		struct SnexDefinition;			struct SnexConstructor;		struct SnexBinding;
+		struct SnexConfiguration;
 
 		// Parser classes
 
@@ -713,10 +718,19 @@ public:
 
 			void prepareCycleReferenceCheck() override;
 
+			void addSnexClass(HiseJavascriptEngine::RootObject* root, const String& code, const Identifier& classId);
+
+			bool hasSnexClass(const Identifier& sId) const;
+
+			var createSnexInstance(const Identifier& sId, const var::NativeFunctionArgs& args);
+
+			snex::jit::SnexStructSriptingWrapper::Ptr getSnexStruct(const Identifier& id);
+
 			DebugInformation* createDebugInformation(int index) const;
 
 			const Identifier id;
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
+			ReferenceCountedArray<DynamicObject> inlineFunctionSnexBindings;
 			NamedValueSet constObjects;
 			VarRegister	varRegister;
 
@@ -724,6 +738,8 @@ public:
 			Array<DebugableObject::Location> constLocations;
 
 			DebugableObject::Location namespaceLocation;
+
+			snex::jit::SnexStructSriptingWrapper::List snexClasses;
 		};
 
 		struct HiseSpecialData: public JavascriptNamespace
@@ -838,6 +854,8 @@ public:
 		}
 
 		HiseSpecialData hiseSpecialData;
+
+		snex::jit::GlobalScope snexGlobalScope;
 
 		private:
 

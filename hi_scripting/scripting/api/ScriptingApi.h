@@ -192,7 +192,7 @@ public:
 		// ============================================================================================================
 
 		Engine(ProcessorWithScriptingContent *p);
-		~Engine() {};
+		~Engine();;
 
 		Identifier getObjectName() const override  { RETURN_STATIC_IDENTIFIER("Engine"); };
 
@@ -461,7 +461,13 @@ public:
 
 		// ============================================================================================================
 
+		SnexWrapper* createSnexWrapper() override;
+
 		struct Wrapper;
+
+		struct Snex;
+
+		double unused = 0.0;
 
 		ScriptBaseMidiProcessor* parentMidiProcessor;
 
@@ -815,6 +821,10 @@ public:
 		void setSustainPedal(bool shouldBeDown) { sustainState = shouldBeDown; };
 
 		struct Wrapper;
+
+		struct Snex;
+
+		SnexWrapper* createSnexWrapper() override;
 
 	private:
 

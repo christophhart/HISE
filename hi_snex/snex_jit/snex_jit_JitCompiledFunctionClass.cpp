@@ -201,24 +201,43 @@ snex::jit::FunctionData JitCompiledClassBase::getFunction(const Identifier& id)
 	return memberFunctions->getNonOverloadedFunction(sId);
 }
 
-SnexComplexVarObject::SnexComplexVarObject(ComplexType::Ptr p) :
-	ptr(p)
+SnexComplexVarObject::SnexComplexVarObject(SnexStructSriptingWrapper::Ptr p, const var::NativeFunctionArgs& constructorArgs) :
+	ptr(p->ptr),
+	parent(p.get())
 {
-	ownedData_.allocate(p->getRequiredAlignment() + p->getRequiredByteSize(), true);
-	dataPtr = ownedData_.get() + p->getRequiredAlignment();
+	ownedData_.allocate(ptr->getRequiredAlignment() + ptr->getRequiredByteSize(), true);
+	dataPtr = ownedData_.get() + ptr->getRequiredAlignment();
 
 	ComplexType::InitData d;
 	d.dataPointer = dataPtr;
-	d.callConstructor = p->hasConstructor();
-	d.initValues = p->makeDefaultInitialiserList();
+	d.callConstructor = false;
+	d.initValues = ptr->makeDefaultInitialiserList();
 
-	p->initialise(d);
-	FunctionClass::Ptr fc = p->getFunctionClass();
+	
+
+	ptr->initialise(d);
+
+	if (ptr->hasConstructor())
+	{
+		FunctionClass::Ptr f = ptr->getFunctionClass();
+		auto cf = f->getSpecialFunction(FunctionClass::Constructor);
+
+		VariableStorage cArgs[4];
+
+		for (int i = 0; i < constructorArgs.numArguments; i++)
+			cArgs[i] = VariableStorage(cf.args[i].typeInfo.getType(), constructorArgs.arguments[i]);
+
+		cf.object = dataPtr;
+
+		cf.callVoidDynamic(cArgs, constructorArgs.numArguments);
+	}
+
+	FunctionClass::Ptr fc = ptr->getFunctionClass();
 	Array<snex::NamespacedIdentifier> functionIds;
 
 	fc->getAllFunctionNames(functionIds);
 
-	TypeInfo ti(p);
+	TypeInfo ti(ptr);
 
 	if (auto st = ti.getTypedIfComplexType<StructType>())
 	{
@@ -229,11 +248,11 @@ SnexComplexVarObject::SnexComplexVarObject(ComplexType::Ptr p) :
 		{
 			if (st->getMemberVisibility(mId) == NamespaceHandler::Visibility::Public)
 			{
-				DynamicProperty p;
-				p.id = mId;
-				p.dataMember = (uint8*)dataPtr + st->getMemberOffset(mId);
-				p.type = st->getMemberTypeInfo(mId).getType();
-				dynamicProps.add(p);
+				DynamicProperty prop;
+				prop.id = mId;
+				prop.dataMember = (uint8*)dataPtr + st->getMemberOffset(mId);
+				prop.type = st->getMemberTypeInfo(mId).getType();
+				dynamicProps.add(prop);
 			}
 
 			i++;
@@ -249,6 +268,222 @@ SnexComplexVarObject::SnexComplexVarObject(ComplexType::Ptr p) :
 		if (fData.id.isValid())
 			functions.add({ fData });
 	}
+}
+
+SnexStructSriptingWrapper::SnexStructSriptingWrapper(GlobalScope& s, const String& code, const Identifier& classId_) :
+	scope(s),
+	r(Result::ok()),
+	classId(classId_)
+{
+	jit::Compiler c(scope);
+
+	snex::Types::SnexObjectDatabase::registerObjects(c, 2);
+
+	obj = c.compileJitObject(code);
+	r = c.getCompileResult();
+
+	if (r.wasOk())
+	{
+		NamespacedIdentifier nId(classId);
+		ptr = c.getComplexType(nId);
+	}
+}
+
+var SnexStructSriptingWrapper::create(const var::NativeFunctionArgs& args)
+{
+	if (!r.wasOk())
+		throw r.getErrorMessage();
+
+	return SnexComplexVarObject::make(this, args);
+}
+
+SnexComplexVarObject::DynamicFunction::DynamicFunction(const FunctionData& f_) :
+	f(f_)
+{
+	id = f.id.getIdentifier();
+	returnType = f.returnType.getType();
+
+	uint32 requiredComplexArgSize = 0;
+
+	for (int i = 0; i < 4; i++)
+	{
+		args[i] = VariableStorage();
+		
+		auto ti = f.args[i].typeInfo;
+
+		cArgs[i].nativeType = ti.getType();
+
+		if (auto p = ti.getTypedIfComplexType<ComplexType>())
+		{
+			cArgs[i].specialType = getSpecialType(ti);
+			cArgs[i].numElements = getNumElements(ti);
+		}
+	}
+}
+
+bool setupSpecialType(Types::ProcessDataDyn& data, const var& v)
+{
+	// Must be set before calling this method...
+	jassert(data.getNumChannels() != 0);
+
+	if (v.isBuffer())
+	{
+		if (data.getNumChannels() == 1)
+		{
+			auto& vb = *v.getBuffer();
+			data.referTo(vb.buffer.getArrayOfWritePointers(), 1, vb.size);
+		}
+		else
+			throw String("Channel mismatch: expected " + String(data.getNumChannels()) + " channels");
+
+		return true;
+	}
+	else if (v.isArray())
+	{
+		auto& ar = *v.getArray();
+
+		if (ar.size() == data.getNumChannels())
+		{
+			int length = 0;
+
+			for (int ch = 0; ch < ar.size(); ch++)
+			{
+				if (ar[ch].isBuffer())
+				{
+					auto& cb = *ar[ch].getBuffer();
+
+					if (ch == 0)
+						length = cb.size;
+
+					if (cb.size != length)
+						throw String("buffer length mismatch at channel " + String(ch));
+
+					auto channels = data.getRawChannelPointers();
+					channels[ch] = &cb[0];
+				}
+
+				else
+					throw String("Expected Buffer at channel index " + String(ch));
+			}
+
+			
+
+			if (length == 0)
+				throw String("Can't find buffers");
+
+			data.referTo(data.getRawChannelPointers(), data.getNumChannels(), length);
+
+			return true;
+		}
+		else
+		{
+			throw  String("channel amount mismatch: expected " + String(data.getNumChannels()) + " channels");
+		}
+	}
+
+	return false;
+}
+
+bool setupSpecialType(block& b, const var& v)
+{
+	if (v.isBuffer())
+	{
+		auto& vb = *v.getBuffer();
+		
+		b.referToRawData(vb.buffer.getWritePointer(0), vb.size);
+		return true;
+	}
+	
+	throw String("argument must be Buffer Type");
+}
+
+
+var SnexComplexVarObject::DynamicFunction::call(const var::NativeFunctionArgs& vArgs)
+{
+	if (getNumArgs() == vArgs.numArguments)
+	{
+		if (cArgs[0].isSpecial())
+		{
+			switch (cArgs[0].specialType)
+			{
+			case ComplexArgument::ProcessData:
+			{
+				float* data[NUM_MAX_CHANNELS];
+				memset(data, 0, sizeof(float*)*NUM_MAX_CHANNELS);
+				Types::ProcessDataDyn d(data, 0, cArgs[0].numElements);
+				setupSpecialType(d, vArgs.arguments[0]);
+				f.callVoid(&d);
+				return {};
+			}
+			case ComplexArgument::BlockType:
+			{
+				block b;
+				setupSpecialType(b, vArgs.arguments[0]);
+				f.callVoid(&b);
+				return {};
+			}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < vArgs.numArguments; i++)
+			{
+				args[i] = VariableStorage(cArgs[i].nativeType, vArgs.arguments[i]);
+			}
+
+			if (f.returnType.getType() == Types::ID::Void)
+				f.callVoidDynamic(args, getNumArgs());
+			else
+			{
+				auto v = f.callDynamic(args, getNumArgs());
+
+				switch (v.getType())
+				{
+				case Types::ID::Integer: return var(v.toInt());
+				case Types::ID::Double: return var(v.toDouble());
+				case Types::ID::Float: return var(v.toFloat());
+				case Types::ID::Pointer: return var(v.toPtr());
+				}
+			}
+		}
+	}
+
+	return {};
+}
+
+snex::jit::SnexComplexVarObject::DynamicFunction::ComplexArgument::SpecialType SnexComplexVarObject::DynamicFunction::getSpecialType(const TypeInfo& t)
+{
+	if (auto dt = t.getTypedIfComplexType<snex::jit::DynType>())
+	{
+		if (dt->getElementType().getType() == snex::Types::ID::Float)
+			return ComplexArgument::BlockType;
+	}
+	if (auto st = t.getTypedIfComplexType<snex::jit::StructType>())
+	{
+		if (st->id.getIdentifier().toString() == "ProcessData")
+		{
+			return ComplexArgument::SpecialType::ProcessData;
+		}
+	}
+
+	return ComplexArgument::Unknown;
+}
+
+int SnexComplexVarObject::DynamicFunction::getNumElements(const TypeInfo& t)
+{
+	if (auto dt = t.getTypedIfComplexType<snex::jit::SpanType>())
+	{
+		return dt->getNumElements();
+	}
+	if (auto st = t.getTypedIfComplexType<snex::jit::StructType>())
+	{
+		if (st->id.getIdentifier().toString() == "ProcessData")
+		{
+			return st->getTemplateInstanceParameters()[0].constant;
+		}
+	}
+
+	return 0;
 }
 
 }

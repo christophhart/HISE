@@ -208,15 +208,36 @@ protected:
 
 
 
+
+struct SnexStructSriptingWrapper : public ReferenceCountedObject
+{
+	using Ptr = ReferenceCountedObjectPtr<SnexStructSriptingWrapper>;
+	using List = ReferenceCountedArray<SnexStructSriptingWrapper>;
+	using WeakPtr = WeakReference<SnexStructSriptingWrapper>;
+	using WeakList = Array<WeakPtr>;
+
+	SnexStructSriptingWrapper(GlobalScope& s, const String& code, const Identifier& classId_);
+
+	var create(const var::NativeFunctionArgs& args);
+
+	Identifier classId;
+	GlobalScope& scope;
+	JitObject obj;
+	ComplexType::Ptr ptr;
+	Result r;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SnexStructSriptingWrapper);
+};
+
 class SnexComplexVarObject : public DynamicObject
 {
 public:
 
 	using Ptr = ReferenceCountedObjectPtr<SnexComplexVarObject>;
 
-	static var make(ComplexType::Ptr p)
+	static var make(SnexStructSriptingWrapper::Ptr p, const var::NativeFunctionArgs& args)
 	{
-		return new SnexComplexVarObject(p);
+		return new SnexComplexVarObject(p, args);
 	}
 
 	void setProperty(const Identifier& propertyName, const var& newValue) override
@@ -239,7 +260,17 @@ public:
 				return p.toVar();
 		}
 
-		return {};
+		static var empty = {};
+		return empty;
+	}
+
+	bool hasMethod(const Identifier& id) const override
+	{
+		for (auto& f : functions)
+			if (f == id)
+				return true;
+
+		return false;
 	}
 
 	var invokeMethod(Identifier id, const var::NativeFunctionArgs& a) override
@@ -309,16 +340,7 @@ private:
 
 	struct DynamicFunction
 	{
-		DynamicFunction(const FunctionData& f_) :
-			f(f_)
-		{
-			id = f.id.getIdentifier();
-			returnType = f.returnType.getType();
-
-			args.ensureStorageAllocated(4);
-			for (int i = 0; i < 4; i++)
-				args.add({});
-		};
+		DynamicFunction(const FunctionData& f_);;
 
 		bool operator==(const Identifier& id_) const
 		{
@@ -330,33 +352,36 @@ private:
 			return f.args.size();
 		}
 
-		var call(const var::NativeFunctionArgs& vArgs)
+		var call(const var::NativeFunctionArgs& vArgs);;
+
+		struct ComplexArgument
 		{
-			if (getNumArgs() == vArgs.numArguments)
+			static constexpr int MaxChannelAmount = 16;
+
+			enum SpecialType
 			{
-				for (int i = 0; i < vArgs.numArguments; i++)
-					args.set(i, VariableStorage(f.args[i].typeInfo.getType(), vArgs.arguments[i]));
+				Native,
+				BlockType,
+				ProcessData,
+				FrameData,
+				Unknown,
+				numSpecialTypes
+			};
 
-				if (f.returnType.getType() == Types::ID::Void)
-					f.callVoidDynamic(args.getRawDataPointer(), getNumArgs());
-				else
-				{
-					auto v = f.callDynamic(args.getRawDataPointer(), getNumArgs());
+			bool isSpecial() const { return specialType != Native; }
 
-					switch (v.getType())
-					{
-					case Types::ID::Integer: return var(v.toInt());
-					case Types::ID::Double: return var(v.toDouble());
-					case Types::ID::Float: return var(v.toFloat());
-					case Types::ID::Pointer: return var(v.toPtr());
-					}
-				}
-			}
-
-			return {};
+			int numElements = 0;
+			Types::ID nativeType;
+			SpecialType specialType = Native;
 		};
 
-		Array<snex::VariableStorage> args;
+		static ComplexArgument::SpecialType getSpecialType(const TypeInfo& t);
+
+		static int getNumElements(const TypeInfo& t);
+
+		VariableStorage args[4];
+		ComplexArgument cArgs[4];
+
 		FunctionData f;
 		Identifier id;
 		Types::ID returnType;
@@ -365,12 +390,15 @@ private:
 	Array<DynamicFunction> functions;
 	Array<DynamicProperty> dynamicProps;
 
-	SnexComplexVarObject(ComplexType::Ptr p);
+	SnexComplexVarObject(SnexStructSriptingWrapper::Ptr p, const var::NativeFunctionArgs& constructorArgs);
 
+	snex::jit::SnexStructSriptingWrapper::WeakPtr parent;
 	ComplexType::Ptr ptr;
 	HeapBlock<uint8> ownedData_;
 	void* dataPtr;
 };
+
+
 
 
 
