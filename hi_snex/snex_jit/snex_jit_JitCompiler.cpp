@@ -142,6 +142,7 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 	try
 	{
 		Preprocessor p(lastCode);
+		p.addDefinitionsFromScope(memory.getPreprocessorDefinitions());
 		preprocessedCode = p.process();
 	}
 	catch (juce::String& e)
@@ -159,6 +160,7 @@ snex::jit::NamespaceHandler& Compiler::parseWithoutCompilation(const juce::Strin
 	try
 	{
 		Preprocessor p(code);
+		p.addDefinitionsFromScope(memory.getPreprocessorDefinitions());
 		preprocessedCode = p.process();
 	}
 	catch (juce::String& e)

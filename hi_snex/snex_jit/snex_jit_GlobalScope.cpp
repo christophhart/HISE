@@ -186,5 +186,16 @@ bool GlobalScope::checkRuntimeErrorAfterExecution()
 	return false;
 }
 
+void GlobalScope::setPreprocessorDefinitions(var d)
+{
+	preprocessorDefinitions.clear();
+
+	if (auto obj = d.getDynamicObject())
+	{
+		for (auto& o : obj->getProperties())
+			preprocessorDefinitions.set(o.name.toString(), o.value.toString());
+	}
+}
+
 }
 }

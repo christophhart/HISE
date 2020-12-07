@@ -468,6 +468,20 @@ juce::Array<Preprocessor::AutocompleteData> Preprocessor::getAutocompleteData() 
 	return l;
 }
 
+void Preprocessor::addDefinitionsFromScope(const StringPairArray& a)
+{
+	auto keys = a.getAllKeys();
+
+	for (auto& k : keys)
+	{
+		Item::Ptr newItem = new Definition();
+		newItem->body << a[k];
+		newItem->id = NamespacedIdentifier(k);
+		newItem->lineNumber = -1;
+		entries.add(newItem);
+	}
+}
+
 String Preprocessor::Macro::evaluate(StringArray& parameters, Result& r)
 {
 	if (parameters.size() != arguments.size())

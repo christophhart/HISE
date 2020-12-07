@@ -772,7 +772,13 @@ public:
 
 	Result getRuntimeError() const { return runtimeError; }
 
+	void setPreprocessorDefinitions(var d);
+
+	StringPairArray getPreprocessorDefinitions() const { return preprocessorDefinitions; }
+
 private:
+
+	StringPairArray preprocessorDefinitions;
 
 	ComplexType::Ptr blockType;
 

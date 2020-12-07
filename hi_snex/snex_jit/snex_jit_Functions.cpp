@@ -295,10 +295,10 @@ struct VariadicCallHelpers
 
 			switch (a1.getType())
 			{
-			case ID::Integer:	f.callVoid(a1.toInt()); break;
-			case ID::Double:	f.callVoid(a1.toDouble()); break;
-			case ID::Float:		f.callVoid(a1.toFloat()); break;
-			case ID::Pointer:	f.callVoid(a1.toPtr()); break;
+			case ID::Integer:	f.callVoid((int)a1); break;
+			case ID::Double:	f.callVoid((double)a1); break;
+			case ID::Float:		f.callVoid((float)a1); break;
+			case ID::Pointer:	f.callVoid((void*)a1); break;
 			}
 		}
 
@@ -321,10 +321,10 @@ struct VariadicCallHelpers
 
 			switch (a2.getType())
 			{
-			case ID::Integer:	f.callVoid(a1, a2.toInt()); break;
-			case ID::Double:	f.callVoid(a1, a2.toDouble()); break;
-			case ID::Float:		f.callVoid(a1, a2.toFloat()); break;
-			case ID::Pointer:	f.callVoid(a1, a2.toPtr()); break;
+			case ID::Integer:	f.callVoid(a1, (int)a2); break;
+			case ID::Double:	f.callVoid(a1, (double)a2); break;
+			case ID::Float:		f.callVoid(a1, (float)a2); break;
+			case ID::Pointer:	f.callVoid(a1, (void*)a2); break;
 			}
 		}
 
@@ -347,10 +347,10 @@ struct VariadicCallHelpers
 
 			switch (a2.getType())
 			{
-			case ID::Integer:	cv3_ttv(f, a1, a2.toInt(), a3); break;
-			case ID::Double:	cv3_ttv(f, a1, a2.toDouble(), a3); break;
-			case ID::Float:		cv3_ttv(f, a1, a2.toFloat(), a3); break;
-			case ID::Pointer:	cv3_ttv(f, a1, a2.toPtr(), a3); break;
+			case ID::Integer:	cv3_ttv(f, a1, (int)a2, a3); break;
+			case ID::Double:	cv3_ttv(f, a1, (float)a2, a3); break;
+			case ID::Float:		cv3_ttv(f, a1, (double)a2, a3); break;
+			case ID::Pointer:	cv3_ttv(f, a1, (void*)a2, a3); break;
 			}
 		}
 
@@ -387,10 +387,10 @@ struct VariadicCallHelpers
 
 			switch (a2.getType())
 			{
-			case ID::Integer:	cv4_ttvv(f, a1, a2.toInt(), a3, a4); break;
-			case ID::Double:	cv4_ttvv(f, a1, a2.toDouble(), a3, a4); break;
-			case ID::Float:		cv4_ttvv(f, a1, a2.toFloat(), a3, a4); break;
-			case ID::Pointer:	cv4_ttvv(f, a1, a2.toPtr(), a3, a4); break;
+			case ID::Integer:	cv4_ttvv(f, a1, (int)a2, a3, a4); break;
+			case ID::Double:	cv4_ttvv(f, a1, (double)a2, a3, a4); break;
+			case ID::Float:		cv4_ttvv(f, a1, (float)a2, a3, a4); break;
+			case ID::Pointer:	cv4_ttvv(f, a1, (void*)a2, a3, a4); break;
 			}
 		}
 
@@ -400,10 +400,10 @@ struct VariadicCallHelpers
 
 			switch (a3.getType())
 			{
-			case ID::Integer:	cv4_tttv(f, a1, a2, a3.toInt(), a4); break;
-			case ID::Double:	cv4_tttv(f, a1, a2, a3.toDouble(), a4); break;
-			case ID::Float:		cv4_tttv(f, a1, a2, a3.toFloat(), a4); break;
-			case ID::Pointer:	cv4_tttv(f, a1, a2, a3.toPtr(), a4); break;
+			case ID::Integer:	cv4_tttv(f, a1, a2, (int)a3, a4); break;
+			case ID::Double:	cv4_tttv(f, a1, a2, (double)a3, a4); break;
+			case ID::Float:		cv4_tttv(f, a1, a2, (float)a3, a4); break;
+			case ID::Pointer:	cv4_tttv(f, a1, a2, (void*)a3, a4); break;
 			}
 		}
 
@@ -413,10 +413,10 @@ struct VariadicCallHelpers
 
 			switch (a4.getType())
 			{
-			case ID::Integer:	f.callVoid(a1, a2, a3, a4.toInt()); break;
-			case ID::Double:	f.callVoid(a1, a2, a3, a4.toDouble()); break;
-			case ID::Float:		f.callVoid(a1, a2, a3, a4.toFloat()); break;
-			case ID::Pointer:	f.callVoid(a1, a2, a3, a4.toPtr()); break;
+			case ID::Integer:	f.callVoid(a1, a2, a3, (int)a4); break;
+			case ID::Double:	f.callVoid(a1, a2, a3, (double)a4); break;
+			case ID::Float:		f.callVoid(a1, a2, a3, (float)a4); break;
+			case ID::Pointer:	f.callVoid(a1, a2, a3, (void*)a4); break;
 			}
 		}
 	};
@@ -434,6 +434,8 @@ struct VariadicCallHelpers
 			case ID::Float:		return { f.call<float>() };
 			case ID::Pointer:	return { f.call<void*>(), 0 };
 			}
+
+			return {};
 		}
 
 		variadic_call VariableStorage call1(const FunctionData& f, const VariableStorage& a1)
@@ -646,10 +648,6 @@ struct VariadicCallHelpers
 			return R();
 		}
 	};
-
-	
-
-	
 };
 
 void FunctionData::callVoidDynamic(VariableStorage* args, int numArgs) const
@@ -1681,6 +1679,30 @@ snex::jit::ComplexType::Ptr TemplatedComplexType::createSubType(SubTypeConstruct
 
 	return new TemplatedComplexType(s, d);
 }
+
+ExternalTypeParser::ExternalTypeParser(String::CharPointerType location, String::CharPointerType wholeProgram) :
+	parseResult(Result::ok()),
+	l(nullptr)
+{
+	NamespaceHandler nh;
+	ParserHelpers::TokenIterator it(location, wholeProgram, wholeProgram - location);
+	TypeParser tp(it, nh, {});
+
+	try
+	{
+		tp.matchType();
+		type = tp.currentTypeInfo;
+		parseResult = Result::ok();
+		l = tp.location.location;
+	}
+	catch (ParserHelpers::CodeLocation::Error& s)
+	{
+		parseResult = Result::fail(s.toString());
+		type = {};
+		l = nullptr;
+	}
+}
+
 
 } // end namespace jit
 } // end namespace snex

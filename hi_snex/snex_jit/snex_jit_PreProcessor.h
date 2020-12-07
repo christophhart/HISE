@@ -96,6 +96,8 @@ struct Preprocessor
 
 	Array<AutocompleteData> getAutocompleteData() const;
 
+	void addDefinitionsFromScope(const StringPairArray& a);
+
 private:
 
 	bool conditionMode = false;

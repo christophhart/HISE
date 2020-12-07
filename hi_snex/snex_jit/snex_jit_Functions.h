@@ -239,6 +239,10 @@ struct TypeInfo
 		updateDebugName();
 	}
 
+	
+
+	
+
 	bool isDynamic() const noexcept
 	{
 		return !isTemplateType() && type == Types::ID::Dynamic;
@@ -340,12 +344,6 @@ struct TypeInfo
 			if (isRef())
 				s << "&";
 		}
-
-
-			
-
-		
-		
 
 		return s;
 	}
@@ -486,6 +484,27 @@ private:
 	Types::ID type = Types::ID::Dynamic;
 	ComplexType::Ptr typePtr;
 	NamespacedIdentifier templateTypeId;
+};
+
+struct ExternalTypeParser
+{
+	ExternalTypeParser(String::CharPointerType location, String::CharPointerType wholeProgram);
+
+	String::CharPointerType getEndOfTypeName()
+	{
+		return l;
+	}
+
+	Result getResult() const { return parseResult; }
+
+	TypeInfo getType() const { return type; }
+
+private:
+
+	TypeInfo type;
+
+	String::CharPointerType l;
+	Result parseResult;
 };
 
 class NamespaceHandler;
