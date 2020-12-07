@@ -558,6 +558,9 @@ bool FloatingTile::showTitle() const
 	}
 	else
 	{
+		if (getCurrentFloatingPanel() == nullptr)
+			return true;
+
 		return getCurrentFloatingPanel()->showTitleInPresentationMode();
 	}
 }
@@ -1313,7 +1316,6 @@ void FloatingTile::setContent(const var& data)
 	if (data.isUndefined() || data.isVoid())
 	{
 		addAndMakeVisible(content = new EmptyComponent(this));
-		
 	}
 	else
 	{
@@ -1351,10 +1353,18 @@ void FloatingTile::setContent(NamedValueSet&& data)
 
 void FloatingTile::setNewContent(const Identifier& newId)
 {
-	addAndMakeVisible(content = dynamic_cast<Component*>(FloatingTileContent::createNewPanel(newId, this)));
+	auto newObject = dynamic_cast<Component*>(FloatingTileContent::createNewPanel(newId, this));
+	setNewContent(newObject);
+}
+
+void FloatingTile::setNewContent(Component* newContent)
+{
+	jassert(dynamic_cast<FloatingTileContent*>(newContent) != nullptr);
+
+	addAndMakeVisible(content = newContent);
 
 	refreshFixedSizeForNewContent();
-	
+
 	if (hasChildren())
 		setCanBeFolded(false);
 

@@ -62,10 +62,7 @@ Console::Console(MainController* mc_):
 
 	consoleDoc->addListener(this);
 
-	tokeniser = new ConsoleTokeniser();
-
-	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser));
-	newTextConsole->addMouseListener(this, true);
+	setTokeniser(new ConsoleTokeniser());
 }
 
 Console::~Console()
@@ -108,79 +105,81 @@ void Console::mouseDown(const MouseEvent &e)
 		
 		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
-
-
-		const int SNIPPET_OFFSET = 1000;
-		const int FILE_OFFSET = 2000;
-
-		if (jsp != nullptr)
+		if (id.isNotEmpty() && findParentComponentOfClass<ComponentWithBackendConnection>() != nullptr)
 		{
-			const String selectedText = newTextConsole->getTextInRange(newTextConsole->getHighlightedRegion());
+			JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
 
-			int snippet = -1;
+			const int SNIPPET_OFFSET = 1000;
+			const int FILE_OFFSET = 2000;
 
-			for (int i = 0; i < jsp->getNumSnippets(); i++)
+			if (jsp != nullptr)
 			{
-				if (jsp->getSnippet(i)->getCallbackName().toString() == selectedText)
+				const String selectedText = newTextConsole->getTextInRange(newTextConsole->getHighlightedRegion());
+
+				int snippet = -1;
+
+				for (int i = 0; i < jsp->getNumSnippets(); i++)
 				{
-					snippet = i;
-					break;
+					if (jsp->getSnippet(i)->getCallbackName().toString() == selectedText)
+					{
+						snippet = i;
+						break;
+					}
+				}
+
+				if (snippet != -1)
+				{
+					m.addItem(SNIPPET_OFFSET + snippet, "Go to callback " + selectedText);
+				}
+
+				int fileIndex = -1;
+
+				for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
+				{
+					if (jsp->getWatchedFile(i).getFileName() == selectedText)
+					{
+						fileIndex = i;
+						break;
+					}
+				}
+
+				if (fileIndex != -1)
+				{
+					m.addItem(FILE_OFFSET + fileIndex, "Go to file " + selectedText);
 				}
 			}
 
-			if (snippet != -1)
+			const int result = m.show();
+
+			if (result == 1)
 			{
-				m.addItem(SNIPPET_OFFSET + snippet, "Go to callback " + selectedText);
+				newTextConsole->getDocument().replaceAllContent("");
+				newTextConsole->scrollToLine(0);
+
 			}
-
-			int fileIndex = -1;
-
-			for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
+			else if (result == 2)
 			{
-				if (jsp->getWatchedFile(i).getFileName() == selectedText)
+				newTextConsole->moveCaretToEnd(false);
+			}
+			else if (result >= FILE_OFFSET)
+			{
+				jsp->showPopupForFile(result - FILE_OFFSET);
+			}
+			else if (result >= SNIPPET_OFFSET)
+			{
+				Processor *js = dynamic_cast<Processor*>(jsp);
+
+				const int editorStateOffset = dynamic_cast<ProcessorWithScriptingContent*>(js)->getCallbackEditorStateOffset() + 1;
+
+				const int editorStateIndex = (result - SNIPPET_OFFSET);
+
+				for (int i = 0; i < jsp->getNumSnippets(); i++)
 				{
-					fileIndex = i;
-					break;
+					js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
 				}
+
+				GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessorWithUndo(js);
 			}
-
-			if (fileIndex != -1)
-			{
-				m.addItem(FILE_OFFSET + fileIndex, "Go to file " + selectedText);
-			}
-		}
-
-        const int result = m.show();
-        
-		if (result == 1)
-		{
-			newTextConsole->getDocument().replaceAllContent("");
-			newTextConsole->scrollToLine(0);
-			
-		}
-        else if (result == 2)
-        {
-			newTextConsole->moveCaretToEnd(false);
-        }
-		else if (result >= FILE_OFFSET)
-		{
-			jsp->showPopupForFile(result - FILE_OFFSET);
-		}
-		else if (result >= SNIPPET_OFFSET)
-		{
-			Processor *js = dynamic_cast<Processor*>(jsp);
-
-			const int editorStateOffset = dynamic_cast<ProcessorWithScriptingContent*>(js)->getCallbackEditorStateOffset() + 1;
-
-			const int editorStateIndex = (result - SNIPPET_OFFSET);
-
-			for (int i = 0; i < jsp->getNumSnippets(); i++)
-			{
-				js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
-			}
-
-			GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessorWithUndo(js);
 		}
     }
     else if (e.mods.isAltDown())

@@ -59,6 +59,9 @@ class FloatingTile;
 #include "FloatingTileContainer.h"
 #include "FloatingTile.h"
 
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+#include "SnexFloatingTiles.h"
+#endif
 
 #include "FloatingInterfaceBuilder.h"
 

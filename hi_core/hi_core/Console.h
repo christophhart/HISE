@@ -84,6 +84,13 @@ public:
 	*   on the timer callback.
 	*/
 
+	void setTokeniser(CodeTokeniser* newTokeniser)
+	{
+		tokeniser = newTokeniser;
+		addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser.get()));
+		newTextConsole->addMouseListener(this, true);
+	}
+
 private:
 
 	class ConsoleTokeniser : public CodeTokeniser

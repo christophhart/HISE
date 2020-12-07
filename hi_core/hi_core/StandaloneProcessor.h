@@ -313,6 +313,9 @@ public:
 
 	void requestQuit();
 
+	AudioProcessor* getCurrentProcessor() { return wrappedProcessor.get(); }
+	const AudioProcessor* getCurrentProcessor() const { return wrappedProcessor.get(); }
+
 private:
 
 	ScopedPointer<AudioProcessor> wrappedProcessor;
@@ -322,7 +325,6 @@ private:
     ScopedPointer<MidiInput> virtualMidiPort;
     
 	float scaleFactor = 1.0;
-
 };
 
 } // namespace hise

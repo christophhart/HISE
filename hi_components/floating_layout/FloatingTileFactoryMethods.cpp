@@ -47,6 +47,17 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 {
 	registerLayoutPanelTypes();
 	
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+
+	registerType<SnexEditorPanel>(PopupMenuOptions::SnexEditor);
+	registerType<SnexWorkbenchPanel<snex::ui::OptimizationProperties>>(PopupMenuOptions::SnexOptimisations);
+	registerType<SnexWorkbenchPanel<snex::ui::Graph>>(PopupMenuOptions::SnexOptimisations);
+	//registerType<snex::ui::Console>();
+	//registerType<snex::ui::AssemblyViewer>();
+
+#endif
+
+
 	registerType<Note>(PopupMenuOptions::Note);
 #if HISE_INCLUDE_RLOTTIE
 	registerType<RLottieFloatingTile>(PopupMenuOptions::RLottieDevPanel);
@@ -79,6 +90,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ComplexDataManager>(PopupMenuOptions::ComplexDataManager);
 	registerType<scriptnode::DspNetworkGraphPanel>(PopupMenuOptions::DspNetworkGraph);
 	registerType<scriptnode::NodePropertyPanel>(PopupMenuOptions::DspNodeParameterEditor);
+
 #endif
 
 	registerFrontendPanelTypes();
