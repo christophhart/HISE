@@ -1440,31 +1440,9 @@ public:
 
 	void runTest() override
 	{
-		return;
+		optimizations = OptimizationIds::getAllIds();
+		runTestFiles("node_chain");
 
-		//testVectorOps();
-		//testInlining();
-
-		optimizations = {OptimizationIds::AutoVectorisation};// OptimizationIds::getAllIds();
-
-		runTestFiles("float4_as_arg.h");
-
-		return;
-		//optimizations = { OptimizationIds::AsmOptimisation };
-		runTestFiles("inc_after_cond");
-		return;
-		
-
-		runTestsWithOptimisation(OptimizationIds::getAllIds());
-
-		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks, OptimizationIds::AsmOptimisation });
-
-		optimizations = { OptimizationIds::NoSafeChecks };
-		
-		
-		runTestsWithOptimisation({ OptimizationIds::NoSafeChecks });
-		
-		runTestsWithOptimisation(OptimizationIds::getAllIds());
 
 		testExternalFunctionCalls();
 		testArrayTypes();
