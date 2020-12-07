@@ -34,6 +34,13 @@ using String = juce::String;
 
 #include "snex_jit/snex_jit_UnitTests.cpp"
 #include "api/SnexApi.cpp"
+
 #include "snex_components/snex_DebugTools.cpp"
+#include "snex_components/snex_WorkbenchData.cpp"
+#include "snex_components/snex_ExtraComponents.cpp"
+
+
+
 #include "snex_components/snex_JitPlayground.cpp"
+
 #endif

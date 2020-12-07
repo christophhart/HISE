@@ -417,7 +417,6 @@ void* RootClassData::getDataPointer(const NamespacedIdentifier& s) const
 			return (void*)data;
 	}
 
-	jassertfalse;
 	return nullptr;
 }
 

@@ -674,8 +674,11 @@ public:
 			toggleGlobalLayoutMode,
 			exportAsJSON,
 			loadFromJSON,
+			SnexEditor,
+			SnexOptimisations,
+			SnexAssembly,
+			SnexGraph,
 			MenuCommandOffset = 10000,
-
 			numOptions
 		};
 

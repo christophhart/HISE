@@ -1194,6 +1194,8 @@ public:
 		return &getSampleManager().getProjectHandler().pool->getMidiFilePool();
 	}
 
+	virtual void* getWorkbenchManager() { return nullptr; }
+
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };
 	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
 #if USE_BACKEND

@@ -44,6 +44,8 @@ void ComponentHelpers::addExtraComponentToDefault(NodeComponent* nc, Component* 
 {
     dynamic_cast<DefaultParameterNodeComponent*>(nc)->setExtraComponent(c);
 }
+
+#if OLD_SCRIPTNODE_CPP
     
 scriptnode::HardcodedNode::CombinedParameterValue* HardcodedNode::getCombinedParameter(const String& id, NormalisableRange<double> range, Identifier opType)
 {
@@ -140,6 +142,7 @@ scriptnode::HiseDspBase* HardcodedNode::getNode(const String& id) const
 	return nullptr;
 }
 
+#endif
 
 WrapperNode::WrapperNode(DspNetwork* parent, ValueTree d) :
 	NodeBase(parent, d, 0)

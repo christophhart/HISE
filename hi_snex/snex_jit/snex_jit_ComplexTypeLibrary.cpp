@@ -1902,6 +1902,9 @@ snex::jit::Inliner::Func IndexBase::getAsmFunctionWithFixedSize(FunctionClass::S
 			return Result::ok();
 		};
 	}
+
+	jassertfalse;
+	return {};
 }
 
 bool IndexBase::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer)

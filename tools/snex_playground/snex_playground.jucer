@@ -66,7 +66,7 @@
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0"/>
+                       enablePluginBinaryCopyStep="0" optimisation="3"/>
         <CONFIGURATION isDebug="0" name="Release" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" debugInformationFormat="ProgramDatabase"
                        enablePluginBinaryCopyStep="0" linkTimeOptimisation="1" alwaysGenerateDebugSymbols="1"/>

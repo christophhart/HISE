@@ -76,3 +76,5 @@ hi_snex/latex/
 tools/SNEX api generator/xml/
 tools/SNEX api generator/output/apiValueTree.dat
 tools/SNEX api generator/html/
+tools/snex_workbench/JuceLibraryCode/
+tools/snex_workbench/Builds/

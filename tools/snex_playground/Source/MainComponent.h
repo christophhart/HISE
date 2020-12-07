@@ -30,7 +30,11 @@ private:
     //==============================================================================
     // Your private member variables go here...
 
+	snex::ui::WorkbenchData data;
+
     Value v;
+
+
 	snex::jit::SnexPlayground playground;
 	OpenGLContext context;
 

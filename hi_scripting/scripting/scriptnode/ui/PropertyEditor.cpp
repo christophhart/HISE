@@ -231,13 +231,30 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 		{
 			jp->onClick = [this, n]()
 			{
+				
 				auto pTree = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
 				if (pTree.isValid())
 				{
 					if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
 					{
-						auto value = pTree.getPropertyAsValue(PropertyIds::Value, n->getUndoManager());
-						auto pg = new snex::jit::SnexPlayground(value);
+						auto wb = new snex::ui::WorkbenchData();
+
+						auto lf = [n]()
+						{
+							auto pTree = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
+							return pTree[PropertyIds::Value].toString();
+						};
+
+						auto sf = [n](const String& s)
+						{
+							auto pTree = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
+							pTree.setProperty(PropertyIds::Value, s, n->getUndoManager());
+							return true;
+						};
+
+						wb->setContentFunctions(lf, sf);
+
+						auto pg = new snex::jit::SnexPlayground(wb);
 
 						auto bounds = sp->getBounds().reduced(100);
 

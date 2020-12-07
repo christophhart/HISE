@@ -51,6 +51,7 @@ Array<juce::Identifier> HiseSettings::SettingFiles::getAllIds()
 	ids.add(GeneralSettings);
 	ids.add(ScriptingSettings);
 	ids.add(DocSettings);
+	ids.add(SnexWorkbenchSettings);
 #endif
 
 #endif
@@ -179,6 +180,15 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 	return ids;
 }
 
+Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
+{
+	Array<Identifier> ids;
+
+	ids.add(PlayOnRecompile);
+	ids.add(AddFade);
+	
+	return ids;
+}
 
 
 #define P(p) if (prop == p) { s << "### " << ConversionHelpers::getUncamelcasedId(p) << "\n";
@@ -478,6 +488,10 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("The MIDI input device list. It should get updated automatically if you connect a new MIDI device - if not try restarting HISE");
 		P_();
 			
+		P(HiseSettings::SnexWorkbench::PlayOnRecompile);
+		D("Plays the selected testfile when you compile a script");
+		P_();
+
 		return s;
 
 	};
@@ -516,6 +530,7 @@ juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 	else if (id == SettingFiles::ScriptingSettings)	return appDataFolder.getChildFile("ScriptSettings.xml");
 	else if (id == SettingFiles::OtherSettings)		return appDataFolder.getChildFile("OtherSettings.xml");
 	else if (id == SettingFiles::DocSettings)		return appDataFolder.getChildFile("DocSettings.xml");
+	else if (id == SettingFiles::SnexWorkbenchSettings) return appDataFolder.getChildFile("SnexWorkbench.xml");
 
 	jassertfalse;
 
@@ -602,7 +617,9 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::VST3Support ||
 		id == Project::UseRawFrontend ||
 		id == Project::SupportFullDynamicsHLAC ||
-		id == Documentation::RefreshOnStartup)
+		id == Documentation::RefreshOnStartup ||
+		id == SnexWorkbench::PlayOnRecompile ||
+		id == SnexWorkbench::AddFade)
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -711,6 +728,7 @@ void HiseSettings::Data::addMissingSettings(ValueTree& v, const Identifier &id)
 	else if (id == SettingFiles::ScriptingSettings) ids = Scripting::getAllIds();
 	else if (id == SettingFiles::OtherSettings)		ids = Other::getAllIds();
 	else if (id == SettingFiles::DocSettings)		ids = Documentation::getAllIds();
+	else if (id == SettingFiles::SnexWorkbenchSettings) ids = SnexWorkbench::getAllIds();
 
 	for (const auto& id_ : ids)
 		addSetting(v, id_);
@@ -783,7 +801,8 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Compiler::UseIPP)				return "Yes";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == Compiler::Support32BitMacOS)		return "Yes";
-
+	else if (id == SnexWorkbench::AddFade)			return "Yes";
+	else if (id == SnexWorkbench::PlayOnRecompile)  return "Yes";
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";

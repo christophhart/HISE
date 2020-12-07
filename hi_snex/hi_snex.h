@@ -69,6 +69,9 @@ END_JUCE_MODULE_DECLARATION
 
 #include "AppConfig.h"
 
+
+
+
 /** Config: HISE_INCLUDE_SNEX
  
 Set to 0 to disable SNEX compilation (default on iOS).
@@ -107,6 +110,12 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #include "snex_core/snex_ProcessDataTypes.cpp"
 #include "snex_core/snex_ExternalObjects.h"
 #include "snex_jit/snex_jit_NativeDspFunctions.h"
+
+
+
+#include "snex_components/snex_WorkbenchData.h"
+#include "snex_components/snex_ExtraComponents.h"
+
 #include "snex_components/snex_JitPlayground.h"
 #include "snex_components/snex_DebugTools.h"
 #endif

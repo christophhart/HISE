@@ -56,7 +56,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	int numFiles = p->getNumWatchedFiles();
 
 	const bool isCallback = index < numSnippets;
-	const bool isExternalFile = index >= numSnippets && index < numFiles;
+	const bool isExternalFile = index >= numSnippets && (index-numSnippets) < numFiles;
 	const bool isJitNodeCode = !isExternalFile && !isCallback;
 
 	if (isCallback)
@@ -70,7 +70,16 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	{
 		const int fileIndex = index - p->getNumSnippets();
 
-		auto pe = new PopupIncludeEditor(p, p->getWatchedFile(fileIndex));
+		auto f = p->getWatchedFile(fileIndex);
+
+		if (f.getFileExtension() == ".h")
+		{
+			snex::ui::WorkbenchData* wb = new snex::ui::WorkbenchData();
+			wb->setUseFileAsContentSource(f);
+			return new snex::SnexPlayground(wb);
+		}
+
+		auto pe = new PopupIncludeEditor(p, f);
 		pe->addMouseListener(this, true);
 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 

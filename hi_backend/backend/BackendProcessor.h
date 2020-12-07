@@ -175,9 +175,15 @@ public:
 	}
 
 	void setEditorData(var editorState);
+
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+	snex::ui::WorkbenchManager workbenches;
+	virtual void* getWorkbenchManager() override { return reinterpret_cast<void*>(&workbenches); }
+#endif
+
 private:
 
-	
+
 
 	File databaseRoot;
 

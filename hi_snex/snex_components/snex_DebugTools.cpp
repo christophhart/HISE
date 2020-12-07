@@ -132,26 +132,27 @@ void debug::SymbolProvider::addTokens(mcl::TokenCollection::List& tokens)
 
 	for (auto c : ct)
 	{
-		FunctionClass::Ptr fc = c->getFunctionClass();
-
-		TokenCollection::List l;
-
-		for (auto id : fc->getFunctionIds())
+		if (FunctionClass::Ptr fc = c->getFunctionClass())
 		{
-			Array<FunctionData> fData;
-			fc->addMatchingFunctions(fData, id);
+			TokenCollection::List l;
 
-			for (auto& f : fData)
-				l.add(new ComplexMemberToken(*this, c, f));
+			for (auto id : fc->getFunctionIds())
+			{
+				Array<FunctionData> fData;
+				fc->addMatchingFunctions(fData, id);
+
+				for (auto& f : fData)
+					l.add(new ComplexMemberToken(*this, c, f));
+			}
+
+			if (auto st = dynamic_cast<StructType*>(c))
+			{
+				for (auto ni : l)
+					db->addDocumentation(ni, st->id, ni->getCodeToInsert(""));
+			}
+
+			tokens.addArray(l);
 		}
-
-		if (auto st = dynamic_cast<StructType*>(c))
-		{
-			for (auto ni : l)
-				db->addDocumentation(ni, st->id, ni->getCodeToInsert(""));
-		}
-
-		tokens.addArray(l);
 	}
 
 	auto l2 = c.getNamespaceHandler().getTokenList();
