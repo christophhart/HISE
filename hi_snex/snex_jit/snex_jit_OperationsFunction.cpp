@@ -118,6 +118,23 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
 			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
 
+			if (classData->isConst())
+			{
+				sTree->forEachRecursive([](Ptr p)
+				{
+					if (auto a = as<Assignment>(p))
+					{
+						if (auto ss = as<VariableReference>(a->getSubExpr(1)))
+						{
+							if (ss->variableScope->getScopeType() <= BaseScope::ScopeType::Class)
+								ss->location.throwError("Can't modify const object variables");
+						}
+					}
+
+					return false;
+				});
+			}
+
 			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
 			compiler->executePass(BaseCompiler::TypeCheck, functionScope, sTree);
 			compiler->executePass(BaseCompiler::SyntaxSugarReplacements, functionScope, sTree);
@@ -276,8 +293,8 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		cc = nullptr;
 
-		auto ok = runtime->add(&data.function, ch);
-
+		asmjit::ErrorCode ok = (asmjit::ErrorCode)runtime->add(&data.function, ch);
+		
 		jassert(data.function != nullptr);
 
 		if (scope->getRootClassScope() == scope)
