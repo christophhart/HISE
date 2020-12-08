@@ -4934,10 +4934,22 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("valueNormalized", (slider.getValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
 
 		// Range style slider
-		obj->setProperty("valueRangeStyleMin", slider.getMinValue());
-		obj->setProperty("valueRangeStyleMax", slider.getMaxValue());
-		obj->setProperty("valueRangeStyleMinNormalized", (slider.getMinValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
-		obj->setProperty("valueRangeStyleMaxNormalized", (slider.getMaxValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+
+		double minv = 0.0;
+		double maxv = 1.0;
+
+		if (slider.isTwoValue())
+		{
+			minv = slider.getMinValue();
+			maxv = slider.getMaxValue();
+		}
+
+		obj->setProperty("valueRangeStyleMin", minv);
+		obj->setProperty("valueRangeStyleMax", maxv);
+
+		obj->setProperty("valueRangeStyleMinNormalized", (minv - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+		obj->setProperty("valueRangeStyleMaxNormalized", (maxv - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+
 
 		obj->setProperty("clicked", slider.isMouseButtonDown());
 		obj->setProperty("hover", slider.isMouseOver());

@@ -41,12 +41,12 @@ thisAsProcessor(dynamic_cast<Processor*>(p))
 
 ProcessorWithScriptingContent *ScriptingObject::getScriptProcessor()
 {
-	return processor;
+	return processor.get();
 };
 
 const ProcessorWithScriptingContent *ScriptingObject::getScriptProcessor() const
 {
-	return processor;
+	return processor.get();
 };
 
 

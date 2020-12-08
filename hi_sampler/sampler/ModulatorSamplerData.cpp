@@ -312,12 +312,24 @@ void SampleMap::parseValueTree(const ValueTree &v)
 
 	ScopedNotificationDelayer dnd(*this);
 
-	for (auto c : data)
+	try
 	{
-		progress = sampleIndex / numSamples;
-		sampleIndex += 1.0;
+		for (auto c : data)
+		{
+			progress = sampleIndex / numSamples;
+			sampleIndex += 1.0;
 
-		valueTreeChildAdded(data, c);
+			valueTreeChildAdded(data, c);
+		}
+	}
+	catch (String& s)
+	{
+#if USE_BACKEND
+		debugToConsole(sampler, s);
+#else
+		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::SamplesNotFound, {});
+#endif
+
 	}
 
 	sampler->updateRRGroupAmountAfterMapLoad();
@@ -441,6 +453,11 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 {
 	auto map = sampler->getSampleMap();
+
+	if (map->mode == SampleMap::SaveMode::Monolith && map->currentMonolith == nullptr)
+	{
+		throw String("Can't find monolith");
+	}
 
 	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
 

@@ -1335,6 +1335,11 @@ void MainController::loadTypeFace(const String& fileName, const void* fontData, 
 
 	Identifier id_ = fontId.isEmpty() ? Identifier() : Identifier(fontId);
 
+	if (fileName.endsWith(".woff"))
+	{
+		throw String("Error loading font " + fileName + ": unsupported format. Use .TTF");
+	}
+
 	customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(fontData, fontDataSize), id_));
 
 	MemoryBlock mb(fontData, fontDataSize);

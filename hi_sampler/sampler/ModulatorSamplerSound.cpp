@@ -37,7 +37,15 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 {
 	auto pool = parentMap->getCurrentSamplePool();
 
-	PoolReference ref(getMainController(), sampleData.getProperty("FileName").toString(), ProjectHandler::SubDirectories::Samples);
+	auto filename = sampleData.getProperty(SampleIds::FileName).toString();
+
+	if (FileHandlerBase::isAbsolutePathCrossPlatform(filename) && hmaf != nullptr)
+	{
+		// Just create a dummy reference string, it won't be used for anything else than identification...
+		filename = "{PROJECT_FOLDER}" + FileHandlerBase::getFileNameCrossPlatform(filename, true);
+	}
+
+	PoolReference ref(getMainController(), filename, ProjectHandler::SubDirectories::Samples);
 
 	auto existingSample = pool->getSampleFromPool(ref);
 

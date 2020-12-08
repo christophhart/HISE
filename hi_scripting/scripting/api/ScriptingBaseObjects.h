@@ -96,7 +96,7 @@ protected:
     
 private:
 
-	ProcessorWithScriptingContent* processor;	
+	WeakReference<ProcessorWithScriptingContent> processor;	
 	Processor* thisAsProcessor;
 };
 

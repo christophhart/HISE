@@ -2426,6 +2426,42 @@ bool FileHandlerBase::isAbsolutePathCrossPlatform(const String &pathName)
 	return isAbsoluteWindowsPath || isAbsoluteOSXPath || File::isAbsolutePath(pathName);
 }
 
+String FileHandlerBase::getFileNameCrossPlatform(String pathName, bool includeParentDirectory)
+{
+	if (File::isAbsolutePath(pathName))
+	{
+		File f(pathName);
+
+		if (includeParentDirectory)
+			return f.getRelativePathFrom(f.getParentDirectory()).replace("\\", "/");
+		else
+			return f.getFileName();	
+	}
+
+	if (isAbsolutePathCrossPlatform(pathName))
+	{
+		pathName = pathName.replace("\\", "/");
+
+		StringArray sa = StringArray::fromTokens(pathName, "/", "");
+
+		if (sa.size() > 2)
+		{
+			if (includeParentDirectory)
+				return sa[sa.size() - 2] + "/" + sa[sa.size() - 1];
+			else
+				return sa[sa.size() - 1];
+		}
+	}
+
+	if (pathName.contains("}") && pathName.startsWith("{"))
+	{
+		// Most likely a Pool reference...
+		return pathName.fromFirstOccurrenceOf("}", false, false);
+	}
+	
+	return pathName;
+}
+
 juce::File FileHandlerBase::getLinkFile(const File &subDirectory)
 {
 #if JUCE_MAC
