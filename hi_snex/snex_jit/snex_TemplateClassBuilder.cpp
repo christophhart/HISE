@@ -153,8 +153,27 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::cre
 	return new Operations::StatementBlock(d->location, blPath);
 }
 
+snex::jit::StructType* TemplateClassBuilder::Helpers::getStructTypeFromInlineData(InlineData* b)
+{
+	if (b->isHighlevel())
+	{
+		auto d = b->toSyntaxTreeData();
+		return d->object->getTypeInfo().getTypedComplexType<StructType>();
+	}
+	else
+	{
+		auto d = b->toAsmInlineData();
+		return d->object->getTypeInfo().getTypedComplexType<StructType>();
+	}
+}
+
 snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createFunctionCall(ComplexType::Ptr converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs)
 {
+	if (functionId.isNull())
+	{
+		return new Operations::Noop(d->location);
+	}
+
 	jassert(converterType != nullptr);
 	auto f = getFunctionFromTargetClass(converterType, functionId);
 
@@ -371,7 +390,17 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::VariadicHelp
 	for (int i = offset; i < pList.size(); i++)
 	{
 		auto childParameter = pList[i].type.getComplexType();
-		auto newCall = Helpers::createFunctionCall(childParameter, d, functionId, processedArgs);
+
+		Identifier thisId = functionId;
+
+		if (functionId == FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor))
+		{
+			FunctionClass::Ptr fc = childParameter->getFunctionClass();
+			auto f = fc->getSpecialFunction(FunctionClass::Constructor);
+			thisId = f.id.getIdentifier();
+		}
+
+		auto newCall = Helpers::createFunctionCall(childParameter, d, thisId, processedArgs);
 
 		if (newCall == nullptr)
 		{
@@ -391,30 +420,118 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::VariadicHelp
 	return bl;
 }
 
-WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels):
-	TemplateClassBuilder(c, NamespacedIdentifier("wrap").getChildId(id))
+WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels_):
+	TemplateClassBuilder(c, NamespacedIdentifier("wrap").getChildId(id)),
+	WrappedObjectOffset(0),
+	numChannels(numChannels_)
+{
+	init(c, numChannels);
+}
+
+WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, const Identifier& constantArg, int numChannels_):
+	TemplateClassBuilder(c, NamespacedIdentifier("wrap").getChildId(id)),
+	WrappedObjectOffset(1),
+	numChannels(numChannels_)
+{
+	addIntTemplateParameter(constantArg);
+	init(c, numChannels);
+}
+
+void WrapBuilder::mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<void*(const TemplateParameter::List& list)>& templateMapFunction)
+{
+	auto nc = numChannels;
+	auto& jc = c;
+
+	setInlinerForCallback(cb, Inliner::InlineType::Assembly, [cb, nc, &jc, templateMapFunction](InlineData* b)
+	{
+		using namespace Operations;
+
+		auto d = b->toAsmInlineData();
+
+		Array<FunctionData> matches;
+		Array<TypeInfo> args;
+
+		auto objectType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+
+		if (templateMapFunction == nullptr)
+			return Result::fail("Can't deduce wrapped function pointer");
+
+		FunctionClass::Ptr fc = objectType->getFunctionClass();
+
+		auto prototype = Types::ScriptnodeCallbacks::getPrototype(jc, cb, nc);
+
+		fc->addMatchingFunctions(matches, fc->getClassName().getChildId(prototype.id.getIdentifier()));
+
+		auto tp = objectType->getTemplateInstanceParameters();
+
+		for (auto a : d->args)
+		{
+			args.add(a->getTypeInfo());
+			tp.add(TemplateParameter(a->getTypeInfo()));
+		}
+
+		void* functionPointerToWrap = nullptr;
+
+		if (templateMapFunction)
+		{
+			functionPointerToWrap = templateMapFunction(tp);
+		}
+
+		if (functionPointerToWrap == nullptr)
+			return Result::fail("Can't find function for template parameters " + TemplateParameter::ListOps::toString(tp));
+
+		for (auto& m : matches)
+		{
+			if (m.matchesArgumentTypes(args))
+			{
+				AsmCodeGenerator::TemporaryRegister functionPointer(d->gen, d->object->getScope(), TypeInfo(Types::ID::Pointer, true, false));
+
+				auto fReg = functionPointer.tempReg;
+
+				fReg->createRegister(d->gen.cc);
+				d->gen.cc.mov(PTR_REG_W(fReg), (uint64_t)m.function);
+				d->args.insert(0, fReg);
+
+				FunctionData f;
+				f.id = m.id;
+				f.addArgs("functionPointer", TypeInfo(Types::ID::Pointer, true, false));
+				f.args.addArray(m.args);
+				f.function = functionPointerToWrap;
+				f.returnType = m.returnType;
+
+				auto r = d->gen.emitFunctionCall(d->target, f, d->object, d->args);
+
+				if (!r.wasOk())
+					return r;
+			}
+		}
+
+		return Result::ok();
+	});
+}
+
+void WrapBuilder::init(Compiler& c, int numChannels)
 {
 	addTypeTemplateParameter("ObjectClass");
-	
-	
 
-	setInitialiseStructFunction([&c, numChannels](const TemplateObject::ConstructData& cd, StructType* st)
+	int objIndex = WrappedObjectOffset;
+
+	setInitialiseStructFunction([&c, numChannels, objIndex](const TemplateObject::ConstructData& cd, StructType* st)
 	{
-		auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 0);
+		auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, objIndex);
 		st->addMember("obj", TypeInfo(pType, false, false));
 
-		auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
+		for (int i = 1; i < numChannels+1; i++)
+		{
+			auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(c, i);
 
-		for (auto p : prototypes)
-			st->addWrappedMemberMethod("obj", p);
-
-
-		
-		
+			for (auto p : prototypes)
+				st->addWrappedMemberMethod("obj", p);
+		}
 
 #if 0
 		TemplateObject to(st->getTemplateInstanceId());
-		
+
 		to.argList.add(TemplateParameter(to.id.id.getChildId("P"), 0, false));
 		to.makeFunction = [st](const TemplateObject::ConstructData& cd_)
 		{
@@ -435,7 +552,7 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels):
 
 				auto r = Result::ok();
 				auto& h = d->object->currentScope->getNamespaceHandler();
-				
+
 				auto id = objType->getTemplateInstanceId().getChildIdWithSameTemplateParameters("setParameter");
 
 				h.createTemplateFunction(id, d->templateParameters, r);
@@ -467,10 +584,8 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels):
 	});
 
 	addFunction(createSetFunction);
-
+	addFunction(Helpers::constructorFunction);
 }
-
-
 
 snex::jit::FunctionData WrapBuilder::createSetFunction(StructType* st)
 {
@@ -506,6 +621,38 @@ snex::jit::FunctionData WrapBuilder::createSetFunction(StructType* st)
 	
 }
 
+void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inliner::InlineType t, const Inliner::Func& inliner)
+{
+	auto fToReplace = Types::ScriptnodeCallbacks::getPrototype(c, cb, numChannels);
+
+	InitialiseStructFunction replacer = [fToReplace, t, inliner](const TemplateObject::ConstructData& cd, StructType* st)
+	{
+		FunctionClass::Ptr fc = st->getMemberTypeInfo("obj").getComplexType()->getFunctionClass();
+
+		Array<FunctionData> matches;
+
+		fc->addMatchingFunctions(matches, fc->getClassName().getChildId(fToReplace.id.getIdentifier()));
+
+		for (auto& m : matches)
+		{
+			auto copy = FunctionData(m);
+			copy.id = st->id.getChildId(fToReplace.id.getIdentifier());
+			copy.function = m.function;
+			copy.inliner = Inliner::createFromType(fToReplace.id, t, inliner);
+
+			auto ok = st->injectInliner(copy);
+
+			if (!ok)
+			{
+				*cd.r = Result::fail("Can't inject inliner for " + copy.getSignature());
+				return;
+			}
+		}
+	};
+
+	addInitFunction(replacer);
+}
+
 ContainerNodeBuilder::ContainerNodeBuilder(Compiler& c, const Identifier& id, int numChannels_) :
 	TemplateClassBuilder(c, NamespacedIdentifier("container").getChildId(id)),
 	numChannels(numChannels_)
@@ -532,11 +679,13 @@ ContainerNodeBuilder::ContainerNodeBuilder(Compiler& c, const Identifier& id, in
 
 	addFunction(Helpers::getParameterFunction);
 	addFunction(Helpers::setParameterFunction);
+	addFunction(Helpers::constructorFunction);
 
 	callbacks = snex::Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
 
 	for (auto& cf : callbacks)
 		cf.inliner = Inliner::createHighLevelInliner(cf.id, Helpers::defaultForwardInliner);
+
 }
 
 void ContainerNodeBuilder::addHighLevelInliner(const Identifier& functionId, const Inliner::Func& inliner)
@@ -671,29 +820,13 @@ bool ContainerNodeBuilder::isScriptnodeCallback(const Identifier& id) const
 juce::Result ContainerNodeBuilder::Helpers::defaultForwardInliner(InlineData* b)
 {
 	auto d = b->toSyntaxTreeData();
-	auto st = getStructTypeFromInlineData(b);
+	auto st = TemplateClassBuilder::Helpers::getStructTypeFromInlineData(b);
 	auto id = getFunctionIdFromInlineData(b);
 
 	constexpr int ParameterOffset = 1;
 
 	d->target = TemplateClassBuilder::VariadicHelpers::callEachMember(d, st, id, ParameterOffset);
 	return Result::ok();
-}
-
-snex::jit::StructType* ContainerNodeBuilder::Helpers::getStructTypeFromInlineData(InlineData* b)
-{
-	if (b->isHighlevel())
-	{
-		auto d = b->toSyntaxTreeData();
-		return d->object->getTypeInfo().getTypedComplexType<StructType>();
-	}
-	else
-	{
-		auto d = b->toAsmInlineData();
-		return d->object->getTypeInfo().getTypedComplexType<StructType>();
-	}
-
-	
 }
 
 juce::Identifier ContainerNodeBuilder::Helpers::getFunctionIdFromInlineData(InlineData* b)
@@ -780,6 +913,45 @@ snex::jit::FunctionData ContainerNodeBuilder::Helpers::setParameterFunction(Stru
 	});
 
 	return sf;
+}
+
+int WrapBuilder::Helpers::getChannelFromFixData(const TypeInfo& p)
+{
+	if (auto st = p.getTypedIfComplexType<StructType>())
+	{
+		if (st->id.getIdentifier() == Identifier("ProcessData"))
+		{
+			return st->getTemplateInstanceParameters()[0].constant;
+		}
+	}
+
+	if (auto sp = p.getTypedIfComplexType<SpanType>())
+	{
+		return sp->getNumElements();
+	}
+
+	return -1;
+}
+
+juce::Result WrapBuilder::Helpers::constructorInliner(InlineData* b)
+{
+	auto d = b->toSyntaxTreeData();
+	auto wrapType = TemplateClassBuilder::Helpers::getStructTypeFromInlineData(b);
+	
+	auto pId = Identifier("obj");
+	auto offset = wrapType->getMemberOffset(pId);
+	
+	if (auto childType = dynamic_cast<StructType*>(wrapType->getMemberComplexType(pId).get()))
+	{
+		auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(childType, d, childType->getConstructorId(), {});
+		auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(childType, false, true), offset);
+		dynamic_cast<Operations::FunctionCall*>(newCall.get())->setObjectExpression(obj);
+		d->target = newCall;
+
+		return Result::ok();
+	}
+
+	return Result::fail("Can't find obj constructor");
 }
 
 }

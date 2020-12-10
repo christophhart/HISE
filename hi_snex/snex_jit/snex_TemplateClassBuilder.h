@@ -105,6 +105,10 @@ struct TemplateClassBuilder
 	{
 		static StatementPtr createBlock(SyntaxTreeInlineData* d);
 
+		static StructType* getStructTypeFromInlineData(InlineData* b);
+
+
+
 		/** Just returns a identifier for the (variadic) member called eg. "_p12". */
 		/** Creates a function call to the member function of the given type. */
 		static StatementPtr createFunctionCall(ComplexType::Ptr converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs);
@@ -189,6 +193,7 @@ struct ParameterBuilder : public TemplateClassBuilder
 
 	struct Helpers
 	{
+		
 		static ParameterBuilder createWithTP(Compiler& c, const Identifier& n);
 		static FunctionData createCallPrototype(StructType* st, const Inliner::Func& highlevelFunc);
 
@@ -253,17 +258,25 @@ struct ContainerNodeBuilder : public TemplateClassBuilder
 
 	void flush() override;
 
-	
-
 	struct Helpers
 	{
+		static FunctionData constructorFunction(StructType* st)
+		{
+			FunctionData f;
+			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
+			f.returnType = TypeInfo(Types::ID::Void);
+			f.inliner = Inliner::createHighLevelInliner(f.id, defaultForwardInliner);
+
+			return f;
+		}
+
 		static Result defaultForwardInliner(InlineData* b);
 
-		static StructType* getStructTypeFromInlineData(InlineData* b);
 		static Identifier getFunctionIdFromInlineData(InlineData* b);
 
 		static FunctionData getParameterFunction(StructType* st);
 		static FunctionData setParameterFunction(StructType* st);
+
 	};
 
 private:
@@ -278,10 +291,106 @@ private:
 
 struct WrapBuilder : public TemplateClassBuilder
 {
+	
+
 	WrapBuilder(Compiler& c, const Identifier& id, int numChannels);
+
+	/** Use this constructor for all wrappers that have an int as first argument before the object. */
+	WrapBuilder(Compiler& c, const Identifier& id, const Identifier& constantArg, int numChannels);
+
+	/** This function will replace the given callback with an externally defined function that wraps the original callback. 
+	
+		The signature of the returning function must be:
+
+			template <typename... As> static void func(void* objPointer, void* functionPointer, As... rest)
+
+		and it will receive the original process function passed into as `functionPointer` so you can implement the custom logic. This way
+		you don't need to write a specialisation for each wrapped object, but just use the opaque function pointer instead.
+
+		If this function is templated, you can supply a templateMapFunction which takes a TemplateParameter::List as argument and needs
+		to return the matching (compile-time-defined) template function instance:
+
+		auto mapFunction = [](const TemplateParameter::List& l)
+		{
+			int firstConstant = l[0].constant;
+			ComplexType::Ptr type = l[1].type;
+
+			if(firstConstant == 16)
+			{
+			    if(type == ProcessDataType<2>)
+				{
+				     return (void*)process_function<16, ProcessDataType<2>;
+				}
+
+				// ...
+			}
+		};
+
+		Be aware that the template parameter list will have all arguments of the original function call appended after the template class
+		parameters, so you can decide which function to use
+	*/
+	void mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<void*(const TemplateParameter::List& list)>& templateMapFunction);
+
+	void init(Compiler& c, int numChannels);
+
+	/** Call this with function pointers to a function that you want to use instead.
+	
+		This will not be inlined, so for high-performance implementations, write a
+		custom inliner. 
+	*/
+	void injectExternalFunction(const Identifier& id, void* functionPointer)
+	{
+		addFunction([id, functionPointer](StructType* st)
+		{
+			FunctionClass::Ptr fc = st->getFunctionClass();
+
+			Array<FunctionData> matches;
+
+			fc->addMatchingFunctions(matches, st->id.getChildId(id));
+
+			for (auto& m : matches)
+				st->injectMemberFunctionPointer(m, functionPointer);
+
+			auto rf = matches[0];
+			rf.function = functionPointer;
+			return rf;
+		});
+	}
+
+	struct Helpers
+	{
+		/** Returns the channel amount from the given type info. 
+		
+			You can use this in the template map lambda to find out which channel to pass into the template function.
+		*/
+		static int getChannelFromFixData(const TypeInfo& p);
+
+		static Result constructorInliner(InlineData* b);
+
+		static FunctionData constructorFunction(StructType* st)
+		{
+			FunctionData f;
+			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
+			f.returnType = TypeInfo(Types::ID::Void);
+
+			f.inliner = Inliner::createHighLevelInliner(f.id, constructorInliner);
+
+			return f;
+		}
+	};
+
+	/** A function prototype that returns a function for the given struct type. */
+	using FunctionBuilder = std::function<FunctionData(StructType*)>;
 
 	static FunctionData createSetFunction(StructType* st);
 
+	private:
+
+		void setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inliner::InlineType t, const Inliner::Func& inliner);
+
+	const int WrappedObjectOffset;
+
+	const int numChannels;
 };
 
 

@@ -1441,8 +1441,6 @@ public:
 	void runTest() override
 	{
 		optimizations = OptimizationIds::getAllIds();
-		runTestFiles("node_chain");
-
 
 		testExternalFunctionCalls();
 		testArrayTypes();
@@ -1460,18 +1458,8 @@ public:
 
 		logMessage(s);
 
-		runTestsWithOptimisation({ OptimizationIds::LoopOptimisation });
-		runTestsWithOptimisation({ OptimizationIds::Inlining, OptimizationIds::LoopOptimisation });
-		runTestsWithOptimisation({ OptimizationIds::Inlining });
-		
-
-		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination });
-		runTestsWithOptimisation({ OptimizationIds::DeadCodeElimination, OptimizationIds::Inlining });
-		runTestsWithOptimisation({ OptimizationIds::ConstantFolding });
-		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation });
-		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining });
-		runTestsWithOptimisation({ OptimizationIds::ConstantFolding, OptimizationIds::BinaryOpOptimisation, OptimizationIds::Inlining, OptimizationIds::DeadCodeElimination });
-		
+		runTestsWithOptimisation({});
+		runTestsWithOptimisation(OptimizationIds::getAllIds());
 	}
 	template <typename T> void testWrapType(T& data)
 	{

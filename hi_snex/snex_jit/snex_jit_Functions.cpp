@@ -203,8 +203,13 @@ bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 		if (thisArgs.isInvalid())
 			continue;
 
+		if (otherArgs == thisArgs)
+			continue;
+
+#if 0
 		if (otherArgs.getType() == thisArgs.getType())
 			continue;
+#endif
 
 		if (thisArgs != otherArgs)
 		{

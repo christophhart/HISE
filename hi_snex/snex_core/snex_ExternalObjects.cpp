@@ -283,6 +283,133 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 #define REGISTER_CPP_CLASS(compiler, className) c.registerExternalComplexType(className::createComplexType(c, #className));
 
 
+
+
+
+template <class Node> struct JitNodeWrapper
+{
+	using T = scriptnode::core::fix_delay;
+
+	struct Wrapper
+	{
+		static void prepare(void* obj, PrepareSpecs specs)
+		{
+			static_cast<T*>(obj)->prepare(specs);
+		}
+
+		static void reset(void* obj)
+		{
+			static_cast<T*>(obj)->reset();
+		};
+
+		template <int NumChannels> static void process(void* obj, ProcessData<NumChannels>& data)
+		{
+			static_cast<T*>(obj)->process(data);
+		}
+
+		template <int NumChannels> static void processFrame(void* obj, span<float, NumChannels>& data)
+		{
+			static_cast<T*>(obj)->processFrame(data);
+		}
+
+		static void handleHiseEvent(void* obj, HiseEvent& e)
+		{
+			static_cast<T*>(obj)->handleHiseEvent(e);
+		}
+
+		static void construct(void* target)
+		{
+			volatile T* dst = new (target)T();
+			jassert(dst != nullptr);
+		}
+	};
+
+	static ComplexType::Ptr create(Compiler& c, int numChannels, const Identifier& factoryId)
+	{
+		auto id = NamespacedIdentifier(factoryId).getChildId(T::getStaticId());
+		auto st = new StructType(id);
+		
+		auto prepaFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::PrepareFunction, numChannels);
+		auto eventFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::HandleEventFunction, numChannels);
+		auto resetFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ResetFunction, numChannels);
+
+		st->addJitCompiledMemberFunction(prepaFunction);
+		st->addJitCompiledMemberFunction(eventFunction);
+		st->addJitCompiledMemberFunction(resetFunction);
+
+		auto addProcessCallbacks = [&](int i)
+		{
+			auto pi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFunction, i);
+			auto fi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFrameFunction, i);
+
+			st->addJitCompiledMemberFunction(pi);
+			st->addJitCompiledMemberFunction(fi);
+
+			if (i == 1)
+			{
+				pi.function = (void*)Wrapper::process<1>;
+				fi.function = (void*)Wrapper::processFrame<1>;
+			}
+
+			if (i == 2)
+			{
+				pi.function = (void*)Wrapper::process<2>;
+				fi.function = (void*)Wrapper::processFrame<2>;
+			}
+
+			st->injectMemberFunctionPointer(pi, pi.function);
+			st->injectMemberFunctionPointer(fi, fi.function);
+		};
+
+		addProcessCallbacks(2);
+		addProcessCallbacks(1);
+		
+		st->injectMemberFunctionPointer(prepaFunction, Wrapper::prepare);
+		st->injectMemberFunctionPointer(eventFunction, Wrapper::handleHiseEvent);
+		st->injectMemberFunctionPointer(resetFunction, Wrapper::reset);
+
+		T object;
+		scriptnode::ParameterDataList list;
+		object.createParameters(list);
+
+		for (int i = 0; i < list.size(); i++)
+		{
+			auto p = list.getReference(i);
+
+			FunctionData f;
+
+			f.id = st->id.getChildId("setParameter");
+			f.templateParameters.add(TemplateParameter(f.id.getChildId("P"), i, true, jit::TemplateParameter::Single));
+			f.returnType = TypeInfo(Types::ID::Void);
+			f.addArgs("value", TypeInfo(Types::ID::Double));
+
+			st->addJitCompiledMemberFunction(f);
+			f.function = p.dbNew.getFunction();
+			st->injectMemberFunctionPointer(f, p.dbNew.getFunction());
+		}
+
+		{
+			FunctionData constructor;
+			constructor.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, jit::FunctionClass::Constructor));
+
+			constructor.returnType = TypeInfo(Types::ID::Void);
+
+			st->addJitCompiledMemberFunction(constructor);
+			st->injectMemberFunctionPointer(constructor, Wrapper::construct);
+		}
+
+		st->setSizeFromObject(object);
+
+		return st;
+	}
+};
+
+
+static void funkyWasGeht(void* obj, void* data)
+{
+	jassertfalse;
+}
+
 void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 {
 	NamespaceHandler::InternalSymbolSetter iss(c.getNamespaceHandler());
@@ -386,8 +513,14 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 	REGISTER_CPP_CLASS(c, sfloat);
 	REGISTER_CPP_CLASS(c, sdouble);
-	REGISTER_CPP_CLASS(c, PrepareSpecs);
+	
+	c.registerExternalComplexType(PrepareSpecsJIT::createComplexType(c, "PrepareSpecs"));
 	c.registerExternalComplexType(EventWrapper::createComplexType(c, "HiseEvent"));
+
+	
+
+
+
 
 	{
 		auto dataType = c.getComplexType(NamespacedIdentifier("ChannelData"));
@@ -425,7 +558,9 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 			for (auto p : prototypes)
 				st->addWrappedMemberMethod("obj", p);
 		});
-		
+
+		midi.addFunction(WrapBuilder::Helpers::constructorFunction);
+
 		midi.flush();
 	}
 
@@ -433,13 +568,17 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	{
 		ContainerNodeBuilder chain(c, "chain", numChannels);
 		chain.setDescription("Processes all nodes serially");
-			
+
 		chain.flush();
 
 		ContainerNodeBuilder split(c, "split", numChannels);
 		split.setDescription("Copies the signal, processes all nodes parallel and sums up the processed signal at the end");
 		split.flush();
 
+
+	}
+
+	{
 		WrapBuilder init(c, "init", numChannels);
 		init.addTypeTemplateParameter("InitialiserClass");
 
@@ -505,7 +644,62 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 		init.flush();
 	}
 
+	{
+		WrapBuilder os(c, "fix", "NumChannels", numChannels);
+
+		os.injectExternalFunction("process", funkyWasGeht);
+
+		os.flush();
+	}
+
+	{
+		WrapBuilder fb(c, "fix_block", "BlockSize", numChannels);
+
+		fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::PrepareFunction, [](const TemplateParameter::List& tp)
+		{
+			HashMap<int, void*> map;
+
+#define INSERT(b) map.set({b}, (void*)scriptnode::wrap::static_functions::fix_block<b>::prepare);
+			INSERT(16);
+			INSERT(32);
+			INSERT(64);
+			INSERT(128);
+			INSERT(256);
+			INSERT(512);
+#undef INSERT
+
+			return map[tp[0].constant];
+		});
+
+		fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, [](const TemplateParameter::List& tp)
+		{
+			struct Key
+			{
+				Key(int b, int c) : blocksize(b), channelAmount(c) { }
+				String toString() const { return String(blocksize << 16 | channelAmount); }
+				int blocksize; int channelAmount;
+			};
+
+			HashMap<String, void*> map;
+
+#define INSERT(b, c) map.set(Key(b, c).toString(), (void*)scriptnode::wrap::static_functions::fix_block<b>::process<Types::ProcessData<c>>);
+			INSERT(16, 1);  INSERT(16, 2);
+			INSERT(32, 1);  INSERT(32, 2);
+			INSERT(64, 1);  INSERT(64, 2);
+			INSERT(128, 1); INSERT(128, 2);
+			INSERT(256, 1); INSERT(256, 2);
+			INSERT(512, 1); INSERT(512, 2);
+#undef INSERT
+			
+			return map[Key(tp[0].constant, WrapBuilder::Helpers::getChannelFromFixData(tp[2].type)).toString()];
+		});
+		
+		fb.flush();
+	}
+
 	registerParameterTemplate(c);
+
+	c.registerExternalComplexType(JitNodeWrapper<scriptnode::core::fix_delay>::create(c, numChannels, "core"));
 }
 
 
@@ -1482,7 +1676,7 @@ void SnexObjectDatabase::registerParameterTemplate(Compiler& c)
 	listP.flush();
 }
 
-snex::jit::ComplexType::Ptr PrepareSpecs::createComplexType(Compiler& c, const Identifier& id)
+snex::jit::ComplexType::Ptr PrepareSpecsJIT::createComplexType(Compiler& c, const Identifier& id)
 {
 	PrepareSpecs obj;
 
@@ -1493,6 +1687,8 @@ snex::jit::ComplexType::Ptr PrepareSpecs::createComplexType(Compiler& c, const I
 
 	return c.registerExternalComplexType(st);
 }
+
+
 
 juce::Array<snex::NamespacedIdentifier> ScriptnodeCallbacks::getIds(const NamespacedIdentifier& p)
 {
@@ -1611,6 +1807,8 @@ snex::jit::Inliner::Ptr SnexNodeBase::createInliner(const NamespacedIdentifier& 
 		return Result::ok();
 	});
 }
+
+
 
 
 

@@ -830,6 +830,14 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 		{
 			StatementPtr cd = n;
 
+
+			FunctionClass::Ptr fc = currentTypeInfo.getComplexType()->getFunctionClass();
+
+			if (!fc->hasSpecialFunction(FunctionClass::Constructor))
+			{
+				location.throwError("Can't find constructor");
+			}
+
 			auto ab = new Operations::AnonymousBlock(location);
 
 			ab->addStatement(n);

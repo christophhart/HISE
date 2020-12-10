@@ -849,11 +849,33 @@ struct Inliner : public ReferenceCountedObject
 	using Ptr = ReferenceCountedObjectPtr<Inliner>;
 	using Func = std::function<Result(InlineData* d)>;
 
+	enum InlineType
+	{
+		HighLevel,
+		Assembly,
+		AutoReturnType,
+		numInlineTypes
+	};
+
 	Inliner(const NamespacedIdentifier& id, const Func& asm_, const Func& highLevel_) :
 		functionId(id),
 		asmFunc(asm_),
 		highLevelFunc(highLevel_)
-	{};
+	{
+		if (hasHighLevelInliner())
+			inlineType = HighLevel;
+
+		if (hasAsmInliner())
+			inlineType = Assembly;
+	};
+
+	static Inliner* createFromType(const NamespacedIdentifier& id, InlineType type, const Func& f)
+	{
+		if (type == Assembly)
+			return createAsmInliner(id, f);
+		else
+			return createHighLevelInliner(id, f);
+	}
 
 	static Inliner* createHighLevelInliner(const NamespacedIdentifier& id, const Func& highLevelFunc)
 	{
@@ -880,6 +902,8 @@ struct Inliner : public ReferenceCountedObject
 	}
 
 	Result process(InlineData* d) const;
+
+	InlineType inlineType = numInlineTypes;
 
 	const NamespacedIdentifier functionId;
 	const Func asmFunc;
@@ -1389,6 +1413,7 @@ struct FunctionClass: public DebugableObjectBase,
 		auto id = getClassName().getChildId(getSpecialSymbol(getClassName(), s));
 		return hasFunction(id);
 	}
+
 
 	void addSpecialFunctions(SpecialSymbols s, Array<FunctionData>& possibleMatches) const
 	{

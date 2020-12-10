@@ -295,6 +295,8 @@ struct StructType : public ComplexType,
 
 	bool hasConstructor() override;
 
+	Identifier getConstructorId();
+
 	void finaliseAlignment() override;
 	juce::String toStringInternal() const override;
 	FunctionClass* getFunctionClass() override;
@@ -338,6 +340,8 @@ struct StructType : public ComplexType,
 	Identifier getMemberName(int index) const;
 
 	void addJitCompiledMemberFunction(const FunctionData& f);
+
+	bool injectInliner(const FunctionData& f);
 
 	Symbol getMemberSymbol(const Identifier& id) const;
 
@@ -449,7 +453,23 @@ struct StructType : public ComplexType,
 
 	NamespacedIdentifier id;
 
+	/** Use this in order to overwrite the actual member structure. 
+	
+		You can use it to create an opaque data structure from an existing C++ class. 	
+	*/
+	template <typename T> void setSizeFromObject(const T& obj)
+	{
+		externalyDefinedSize = sizeof(T);
+
+		// Setup a constructor before this;
+		jassert(hasConstructor());
+
+		memberData.clear();
+	}
+
 private:
+
+	size_t externalyDefinedSize = 0;
 
 	TemplateParameter::List templateParameters;
 	

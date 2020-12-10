@@ -1124,6 +1124,9 @@ StructType::~StructType()
 
 size_t StructType::getRequiredByteSize() const
 {
+	if (externalyDefinedSize != 0)
+		return externalyDefinedSize;
+
 	size_t s = 0;
 
 	for (auto m : memberData)
@@ -1298,10 +1301,22 @@ snex::InitialiserList::Ptr StructType::makeDefaultInitialiserList() const
 {
 	InitialiserList::Ptr n = new InitialiserList();
 
+	if (externalyDefinedSize != 0)
+	{
+		//n->addChild(new InitialiserList::ExternalInitialiser());
+		return n;
+	}
+
+	
+
 	for (auto m : memberData)
 	{
 		if (m->typeInfo.isComplexType() && m->defaultList == nullptr)
-			n->addChildList(m->typeInfo.getComplexType()->makeDefaultInitialiserList());
+		{
+			if(auto childList = m->typeInfo.getComplexType()->makeDefaultInitialiserList())
+				n->addChildList(childList);
+		}
+			
 		else if (m->defaultList != nullptr)
 			n->addChildList(m->defaultList);
 		else
@@ -1452,6 +1467,9 @@ void* StructType::getMemberPointer(Member* m, void* dataPointer)
 
 size_t StructType::getRequiredAlignment() const
 {
+	if (externalyDefinedSize != 0)
+		return 16; // magic!
+
 	if (auto f = memberData.getFirst())
 	{
 		return f->typeInfo.getRequiredAlignment();
@@ -1467,6 +1485,14 @@ return m->typeInfo.getRequiredAlignment();
 
 bool StructType::hasConstructor()
 {
+	// You need to supply a constructor that fills the data pointer with the structure
+	if (externalyDefinedSize != 0)
+	{
+		// If this isn't specified, you will not be able to intialise the opaque data set...
+		jassert(ComplexType::hasConstructor());
+		return true;
+	}
+
 	if (ComplexType::hasConstructor())
 		return true;
 
@@ -1482,8 +1508,23 @@ bool StructType::hasConstructor()
 	return false;
 }
 
+juce::Identifier StructType::getConstructorId()
+{
+	if (hasConstructor())
+		return id.getIdentifier();
+	else
+		return {};
+}
+
 void StructType::finaliseAlignment()
 {
+	if (externalyDefinedSize != 0)
+	{
+		ComplexType::finaliseAlignment();
+		return;
+	}
+		
+
 	if (isFinalised())
 		return;
 
@@ -1714,6 +1755,25 @@ void StructType::addJitCompiledMemberFunction(const FunctionData& f)
 	memberFunctions.add(f);
 }
 
+bool StructType::injectInliner(const FunctionData& f)
+{
+	// Yeah, right...
+	jassert(f.inliner != nullptr);
+	jassert(f.function != nullptr);
+
+	for (auto& existing : memberFunctions)
+	{
+		if (existing.matchIdArgsAndTemplate(f))
+		{
+			existing.function = f.function;
+			existing.inliner = f.inliner;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 snex::jit::Symbol StructType::getMemberSymbol(const Identifier& mId) const
 {
 	if (hasMember(mId))
@@ -1746,8 +1806,17 @@ bool StructType::injectMemberFunctionPointer(const FunctionData& f, void* fPoint
 void StructType::addWrappedMemberMethod(const Identifier& memberId, FunctionData wrapperFunction)
 {
 	auto functionId = wrapperFunction.id.getIdentifier();
-
 	wrapperFunction.id = id.getChildId(functionId);
+
+	for (auto& m : memberFunctions)
+	{
+
+		if (m.matchIdArgsAndTemplate(wrapperFunction))
+		{
+			// Already in there...
+			return;
+		}
+	}
 
 	if (wrapperFunction.inliner == nullptr)
 	{
@@ -1768,15 +1837,41 @@ void StructType::addWrappedMemberMethod(const Identifier& memberId, FunctionData
 
 			FunctionClass::Ptr fc = getMemberComplexType(memberId)->getFunctionClass();
 
-			if (!fc->hasFunction(fc->getClassName().getChildId(functionId)))
+			auto fId = fc->getClassName().getChildId(functionId);
+			
+			if (!fc->hasFunction(fId))
 			{
 				juce::String s;
 				s << getMemberComplexType(memberId)->toString() << " does not have function " << functionId;
 				return Result::fail(s);
 			}
-				
+			
 
-			nf->function = fc->getNonOverloadedFunction(NamespacedIdentifier(functionId));
+			Array<FunctionData> matches;
+
+			fc->addMatchingFunctions(matches, fId);
+
+			if (matches.size() == 1)
+				nf->function = matches[0];
+			else
+			{
+				Array<TypeInfo> argTypes;
+
+				for (auto a : d->args)
+					argTypes.add(a->getTypeInfo());
+
+				for (auto& m : matches)
+				{
+					if (m.matchesArgumentTypes(argTypes))
+					{
+						nf->function = m;
+						break;
+					}
+				}
+			}
+
+			if (!nf->function.isResolved())
+				return Result::fail("Non overloaded function detected");
 
 			d->target = newCall;
 
