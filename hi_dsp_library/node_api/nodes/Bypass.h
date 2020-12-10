@@ -36,6 +36,7 @@ namespace scriptnode
 {
 using namespace juce;
 using namespace hise;
+using namespace snex::Types;
 
 namespace bypass
 {
@@ -49,14 +50,14 @@ public:
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
 		if (shouldSmoothBypass())
-			DspHelpers::forwardToFrame16(this, data);
+			FrameConverters::forwardToFrame16(this, data);
 		else if(!bypassed)
 			this->obj.process(data);
 	}
 
 	void processFrame(snex::Types::dyn<float>& data) noexcept
 	{
-		DspHelpers::forwardToFixFrame16(this, data);
+		FrameConverters::forwardToFixFrame16(this, data);
 	}
 
 	template <int N> void processFrame(snex::Types::span<float, N>& data) noexcept
@@ -122,7 +123,7 @@ public:
 		bypassRamper.setTargetValue(bypassed ? 0.0f : 1.0f);
 	}
 
-	void createParameters(Array<HiseDspBase::ParameterData>& data) override
+	void createParameters(ParameterDataList& data) override
 	{
 		this->obj.createParameters(data);
 	}
@@ -277,7 +278,7 @@ public:
 			setBypassed((bool)newValue);
 	}
 
-	void createParameters(Array<HiseDspBase::ParameterData>& data) override
+	void createParameters(ParameterDataList& data) override
 	{
 		if (AddAsParameter)
 		{

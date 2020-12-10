@@ -219,7 +219,7 @@ public:
 
 	virtual Rectangle<int> getPositionInCanvas(Point<int> topLeft) const;
 	
-	virtual Array<ParameterDataImpl> createInternalParameterList() { return {}; }
+	virtual ParameterDataList createInternalParameterList() { return {}; }
 
 	// ============================================================================================= BEGIN NODE API
 

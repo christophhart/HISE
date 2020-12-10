@@ -32,64 +32,69 @@
 
 #pragma once
 
-namespace scriptnode
-{
-using namespace juce;
-using namespace hise;
+namespace hise { using namespace juce;
 
-using RefBufferPtr = ScriptingObjects::ScriptAudioFile::RefCountedBuffer::Ptr;
-
-class AudioFileNodeBase : public HiseDspBase,
-						  public ScriptingObjects::ScriptAudioFile::Listener
+template <int MaxLength=65536, typename LockType=SpinLock, bool AllowFade=true> class DelayLine
 {
+    static constexpr int DELAY_BUFFER_SIZE = MaxLength;
+    static constexpr int DELAY_BUFFER_MASK = MaxLength - 1;
+    
 public:
+    
+    using ScopedLockType = typename LockType::ScopedLockType;
+    
+	DelayLine();
 
-	struct Listener
+	void prepareToPlay(double sampleRate_);
+
+	void setDelayTimeSeconds(double delayInSeconds);
+
+	void setDelayTimeSamples(int delayInSamples);
+
+	void setFadeTimeSamples(int newFadeTimeInSamples);
+
+	template <typename T> void processBlock(T& data)
 	{
-		virtual ~Listener() {};
-		virtual void sourceChanged(ScriptingObjects::ScriptAudioFile* newReference) = 0;
+		processBlock(data.begin(), data.size());
+	}
 
-		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-	};
+	void processBlock(float* data, int numValues);
 
-	struct WrappedDisplay;
+	float getLastValue();
 
-	AudioFileNodeBase();;
+	float getDelayedValue(float inputValue);
 
-	void contentChanged() override;
-	void initialise(NodeBase* n) override;
 
-	void updateFile(Identifier id, var newValue);
-	void updateIndex(Identifier id, var newValue);
+	void clear();
 
-	void createParameters(ParameterDataList& data) override;
-	void addListener(Listener* l);
-	void removeListener(Listener* l);
-
-protected:
-
-	SpinLock lock;
-	RefBufferPtr currentBuffer;
-	ScriptingObjects::ScriptAudioFile::Ptr audioFile;
+	String toDbgString();
 
 private:
 
-	
-	
-	UndoManager* undoManager = nullptr;
+	void processSampleWithFade(float& f);
 
-	bool recursiveProtection = false;
+	void processSampleWithoutFade(float& f);
 
-	ComplexDataHolder* holder;
-	Array<WeakReference<Listener>> listeners;
-	ProcessorWithScriptingContent* pwsc = nullptr;
+	void setInternalDelayTime(int delayInSamples);
 
-	bool isUsingInternalReference = false;
-	NodePropertyT<int> index;
-	NodePropertyT<String> internalReference;
+	LockType processLock;
 
-	JUCE_DECLARE_WEAK_REFERENCEABLE(AudioFileNodeBase);
+	double maxDelayTime;
+	int currentDelayTime;
+	double sampleRate;
+
+	int lastIgnoredDelayTime;
+
+	float delayBuffer[DELAY_BUFFER_SIZE];
+
+	int readIndex;
+	int oldReadIndex;
+	int writeIndex;
+
+	int fadeCounter;
+
+	int fadeTimeSamples;
 };
 
 
-}
+} 

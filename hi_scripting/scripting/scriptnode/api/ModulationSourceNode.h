@@ -54,7 +54,7 @@ protected:
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 	Rectangle<int> createRectangleForParameterSliders(int numColumns) const;
 
-	void initParameterData(Array<ParameterDataImpl>& pData);
+	void initParameterData(ParameterDataList& pData);
 
 	
 private:
@@ -103,7 +103,7 @@ public:
 	
 	NodeBase* getTargetNode(const ValueTree& m) const;
 
-	ParameterDataImpl getParameterData(const ValueTree& m) const;
+	parameter::data getParameterData(const ValueTree& m) const;
 
 	virtual bool isUsingNormalisedRange() const = 0;
 	virtual parameter::dynamic_base_holder* getParameterHolder() { return nullptr; }

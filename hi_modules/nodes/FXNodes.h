@@ -45,15 +45,21 @@ template <int V> class sampleandhold_impl : public HiseDspBase
 {
 public:
 
-	static constexpr int NumVoices = V;
 
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
+	enum class Parameters
+	{
+		Counter
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Counter, sampleandhold_impl);
+	}
+
+	static constexpr int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID("sampleandhold");
 	GET_SELF_AS_OBJECT(sampleandhold_impl);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	sampleandhold_impl();
 
@@ -103,9 +109,9 @@ public:
 
 	
 	bool handleModulation(double&) noexcept { return false; };
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 
-	void setFactor(double value);
+	void setCounter(double value);
 
 private:
 
@@ -164,7 +170,6 @@ public:
 
 	SET_HISE_POLY_NODE_ID("bitcrush");
 	GET_SELF_AS_OBJECT(bitcrush_impl);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	bitcrush_impl();
 
@@ -185,7 +190,7 @@ public:
 
 	void reset() noexcept;;
 	bool handleModulation(double&) noexcept;;
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 
 	void setBitDepth(double newBitDepth);
 
@@ -202,12 +207,18 @@ public:
 	static constexpr int NumVoices = V;
 	using Delays = span<PolyData<AllpassDelay, NumVoices>, 2>;
 
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
+	enum class Parameters
+	{
+		Frequency
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Frequency, phase_delay_impl);
+	}
+
 	SET_HISE_POLY_NODE_ID("phase_delay");
 	GET_SELF_AS_OBJECT(phase_delay_impl);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	phase_delay_impl();
 
@@ -238,7 +249,7 @@ public:
 	void reset() noexcept;;
 	
 	bool handleModulation(double&) noexcept;;
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 
 	void setFrequency(double frequency);
 
@@ -271,7 +282,6 @@ public:
 
 	SET_HISE_NODE_ID("reverb");
 	GET_SELF_AS_OBJECT(reverb);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	reverb();
 
@@ -296,7 +306,7 @@ public:
 
 	void reset() noexcept;;
 	bool handleModulation(double&) noexcept;;
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 
 	void setDamping(double newDamping);
 	void setWidth(double width);
@@ -320,15 +330,20 @@ public:
 
 	static constexpr int NumVoices = V;
 
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
+	enum class Parameters
+	{
+		Position
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Position, haas_impl);
+	}
 
 	SET_HISE_POLY_NODE_ID("haas");
 	GET_SELF_AS_OBJECT(haas_impl);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
 

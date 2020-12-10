@@ -73,9 +73,8 @@ public:
 	SET_HISE_POLY_NODE_ID(FilterType::getFilterTypeId());
 
 	GET_SELF_AS_OBJECT();
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
-	void createParameters(Array<ParameterData>& parameters) override;
+	void createParameters(ParameterDataList& parameters) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
 
@@ -141,7 +140,6 @@ template <int NV> struct fir_impl : public AudioFileNodeBase
 
 	SET_HISE_NODE_ID("fir");
 	GET_SELF_AS_OBJECT();
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	fir_impl();;
 

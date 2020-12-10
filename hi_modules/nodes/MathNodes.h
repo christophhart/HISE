@@ -287,12 +287,15 @@ public:
 		Value
 	};
 
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Value, OpNode);
+	}
+
 	constexpr static int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID(OpType::getId());
-
 	GET_SELF_AS_OBJECT(OpNode);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	bool handleModulation(double&) noexcept;;
 	
@@ -308,18 +311,10 @@ public:
 
 	void reset() noexcept;
 	void prepare(PrepareSpecs ps);
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void setValue(double newValue);
 
-
 	static snex::Types::DefaultFunctionClass createSnexFunctions(const snex::Types::SnexTypeConstructData& cd);
-
-
-
-	DEFINE_PARAMETERS
-	{
-		DEF_PARAMETER(Value, OpNode);
-	}
 
 	PolyData<float, NumVoices> value = OpType::defaultValue;
 };

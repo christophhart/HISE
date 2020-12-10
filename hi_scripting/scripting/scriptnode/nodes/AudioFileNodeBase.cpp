@@ -136,7 +136,7 @@ void AudioFileNodeBase::updateIndex(Identifier id, var newValue)
 	}
 }
 
-void AudioFileNodeBase::createParameters(Array<ParameterData>& )
+void AudioFileNodeBase::createParameters(ParameterDataList& )
 {
 }
 

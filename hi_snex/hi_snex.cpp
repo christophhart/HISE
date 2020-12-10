@@ -46,9 +46,9 @@ using String = juce::String;
 #include "snex_jit/snex_jit_FunctionParser.h"
 #include "snex_jit/snex_TemplateClassBuilder.h"
 
-#include "snex_core/snex_Types.cpp"
-#include "snex_core/snex_TypeHelpers.cpp"
-#include "snex_core/snex_DynamicType.cpp"
+//#include "snex_core/snex_Types.cpp"
+//#include "snex_core/snex_TypeHelpers.cpp"
+//#include "snex_core/snex_DynamicType.cpp"
 
 #include "snex_jit/snex_jit_Functions.cpp"
 #include "snex_jit/snex_jit_NativeDspFunctions.cpp"

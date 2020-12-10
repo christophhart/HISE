@@ -106,7 +106,7 @@ struct TempoDisplay: public ModulationSourceBaseComponent
 
 
 
-void tempo_sync::createParameters(Array<ParameterData>& data)
+void tempo_sync::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(tempo_sync, Tempo);
@@ -201,7 +201,7 @@ void ramp_impl<NV>::initialise(NodeBase* b)
 }
 
 template <int NV>
-void ramp_impl<NV>::createParameters(Array<ParameterData>& data)
+void ramp_impl<NV>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(ramp_impl, PeriodTime);
@@ -419,7 +419,7 @@ scriptnode::core::oscillator_impl<NV>::oscillator_impl()
 
 
 template <int NV>
-void scriptnode::core::oscillator_impl<NV>::createParameters(Array<HiseDspBase::ParameterData>& data)
+void scriptnode::core::oscillator_impl<NV>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(oscillator_impl, Mode);
@@ -434,7 +434,7 @@ void scriptnode::core::oscillator_impl<NV>::createParameters(Array<HiseDspBase::
 		data.add(std::move(p));
 	}
 	{
-		HiseDspBase::ParameterData p("Freq Ratio");
+		parameter::data p("Freq Ratio");
 		p.range = { 1.0, 16.0, 1.0 };
 		p.defaultValue = 1.0;
 		p.dbNew = parameter::inner<oscillator_impl, (int)Parameters::PitchMultiplier>(*this);
@@ -442,8 +442,8 @@ void scriptnode::core::oscillator_impl<NV>::createParameters(Array<HiseDspBase::
 	}
 }
 
-template class fix<1, oscillator_impl<1>>;
-template class fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
+template class wrap::fix<1, oscillator_impl<1>>;
+template class wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 template <int V>
 gain_impl<V>::gain_impl():
@@ -495,7 +495,7 @@ void gain_impl<V>::setGain(double newValue)
 }
 
 template <int V>
-void gain_impl<V>::createParameters(Array<ParameterData>& data)
+void gain_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(gain_impl, Gain);
@@ -648,7 +648,7 @@ void scriptnode::core::smoother_impl<NV>::prepare(PrepareSpecs ps)
 }
 
 template <int NV>
-void smoother_impl<NV>::createParameters(Array<ParameterData>& data)
+void smoother_impl<NV>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(smoother_impl, DefaultValue);
@@ -676,7 +676,7 @@ ramp_envelope_impl<V>::ramp_envelope_impl():
 }
 
 template <int V>
-void ramp_envelope_impl<V>::createParameters(Array<ParameterData>& data)
+void ramp_envelope_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(ramp_envelope_impl, Gate);
@@ -815,7 +815,7 @@ void hise_mod::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void hise_mod::createParameters(Array<ParameterData>& data)
+void hise_mod::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(hise_mod, Index);
@@ -872,7 +872,7 @@ void fm::reset()
 	}
 }
 
-void fm::createParameters(Array<ParameterData>& data)
+void fm::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(fm, Frequency);

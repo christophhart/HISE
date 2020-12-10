@@ -745,7 +745,7 @@ juce::String NodeContainer::createCppClassForNodes(bool isOuterClass)
 		parameterMethod.name = "createParameters";
 
 
-		parameterMethod.arguments = { "Array<ParameterData>& data" };
+		parameterMethod.arguments = { "ParameterDataList& data" };
 		parameterMethod.returnType = "void";
 
 		auto& pb = parameterMethod.body;

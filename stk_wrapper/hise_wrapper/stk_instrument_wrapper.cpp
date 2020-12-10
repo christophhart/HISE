@@ -65,28 +65,28 @@ public:
 	STK_NUM_PARAMETERS(2);
 	STK_NUM_CHANNELS(1);
 
-	template <int Index> static void addParameter(ParameterList& data, const Callback& cb)
+	template <int Index> static void addParameter(ParameterDataList& data)
 	{
 		if (Index == 0)
 		{
-			HiseDspBase::ParameterData p("Frequency");
+			parameter::data p("Frequency");
+			p.dbNew = parameter::inner<Plucked, 0>(*this);
 			p.range = { 20.0, 20000.0, 0.1 };
 			p.range.setSkewForCentre(1000.0);
-			p.db = cb;
 			data.add(std::move(p));
 		}
 		if (Index == 1)
 		{
-			HiseDspBase::ParameterData p("Release");
+			parameter::data p("Release");
+			p.dbNew = parameter::inner<Plucked, 1>(*this);
 			p.range = { 0.0, 1.0, 0.1 };
-			p.db = cb;
 			data.add(std::move(p));
 		}
 	}
 
-	template <int Index> static void setParameter(ObjectWrapper& d, double newValue)
+	template <int Index> static void setParameter(void* obj, double newValue)
 	{
-		stk::Plucked obj;
+		ObjectWrapper& d = *reinterpret_cast<ObjectWrapper*>(obj);
 
 		if (Index == 0)
 			d.getObject()->setFrequency(newValue);
@@ -104,27 +104,29 @@ public:
 	STK_NUM_PARAMETERS(2);
 	STK_NUM_CHANNELS(1);
 
-	template <int Index> static void addParameter(ParameterList& data, const Callback& cb)
+	template <int Index> static void addParameter(ParameterDataList& data)
 	{
 		if (Index == 0)
 		{
-			HiseDspBase::ParameterData p("Frequency");
+			parameter::data p("Frequency");
+			p.dbNew = parameter::inner<Guitar, 0>(*this);
 			p.range = { 20.0, 20000.0, 0.1 };
 			p.range.setSkewForCentre(1000.0);
-			p.db = cb;
 			data.add(std::move(p));
 		}
 		if (Index == 1)
 		{
-			HiseDspBase::ParameterData p("Release");
+			parameter::data p("Release");
+			p.dbNew = parameter::inner<Guitar, 1>(*this);
 			p.range = { 0.0, 1.0, 0.1 };
-			p.db = cb;
 			data.add(std::move(p));
 		}
 	}
 
-	template <int Index> static void setParameter(ObjectWrapper& d, double newValue)
+	template <int Index> static void setParameter(void* obj, double newValue)
 	{
+		ObjectWrapper& d = *reinterpret_cast<ObjectWrapper*>(obj);
+
 		if (Index == 0)
 			d.getObject()->setFrequency(newValue);
 		if (Index == 1)

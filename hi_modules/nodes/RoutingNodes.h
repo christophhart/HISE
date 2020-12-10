@@ -314,7 +314,7 @@ template <typename CableType> struct receive: public base
 		}
 	}
 
-	void createParameters(Array<ParameterDataImpl>& data)
+	void createParameters(ParameterDataList& data)
 	{
 		DEFINE_PARAMETERDATA(receive, Feedback);
 		p.range = { 0.0, 1.0, 0.01 };
@@ -359,7 +359,7 @@ template <typename CableType> struct send: public base
 
 	void handleHiseEvent(HiseEvent& e) {};
 
-	void createParameters(Array<ParameterDataImpl>&) {};
+	void createParameters(ParameterDataList&) {};
 
 	void initialise(NodeBase* n)
 	{
@@ -629,20 +629,24 @@ class ReceiveNode : public HiseDspBase,
 {
 public:
 
+	enum class Parameters
+	{
+		Feedback
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Feedback, ReceiveNode);
+	}
+
 	SET_HISE_NODE_ID("receive");
-
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(5);
-#endif
-
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	GET_SELF_AS_OBJECT(ReceiveNode);
 	
 	ReceiveNode();
 
 	void initialise(NodeBase* n);
 	void prepare(PrepareSpecs ps);
-	void createParameters(Array<ParameterData>& d) override;
+	void createParameters(ParameterDataList& d) override;
 	void reset();
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
@@ -688,7 +692,7 @@ public:
 	Colour getColour() const override;
 	bool isConnected() const override;
 
-	void setGain(double newGain);
+	void setFeedback(double newGain);
 
 	float gainFactor = 0.0f;
 	float singleFrameData[NUM_MAX_CHANNELS];
@@ -709,13 +713,6 @@ class SendNode : public HiseDspBase,
 public:
 
 	SET_HISE_NODE_ID("send");
-
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(5);
-	SET_HISE_NODE_EXTRA_WIDTH(64);
-#endif
-
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	GET_SELF_AS_OBJECT(SendNode);
 
 	SendNode();;
@@ -751,7 +748,7 @@ public:
 	}
 
 	bool handleModulation(double&) { return false; }
-	void createParameters(Array<ParameterData>&) override;
+	void createParameters(ParameterDataList&) override;
 	void connectTo(ReceiveNode* s);
 
 	void connect(ReceiveNode& r)
@@ -779,11 +776,6 @@ public:
 struct MsEncoder : public HiseDspBase
 {
 	SET_HISE_NODE_ID("ms_encode");
-
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	GET_SELF_AS_OBJECT(MsEncoder);
 
 	HISE_EMPTY_RESET;
@@ -816,12 +808,6 @@ struct MsEncoder : public HiseDspBase
 struct MsDecoder : public HiseDspBase
 {
 	SET_HISE_NODE_ID("ms_decode");
-
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
-
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	GET_SELF_AS_OBJECT(MsDecoder);
 
 	HISE_EMPTY_RESET;
@@ -1019,7 +1005,7 @@ template <class MatrixType> struct matrix
 
 	constexpr bool isPolyphonic() const { return false; }
 
-	void createParameters(Array<ParameterDataImpl>&)
+	void createParameters(ParameterDataList&)
 	{
 		
 	}

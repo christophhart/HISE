@@ -134,66 +134,74 @@ TP bool WRAPPER_BASE::voiceRenderingActive() const
 	return objects[0].isVoiceRenderingActive();
 }
 
-TP void WRAPPER_BASE::setParameter0(double newValue)
+TP void WRAPPER_BASE::setParameter0(void* obj, double newValue)
 {
+	auto& typed = *static_cast<WrapperBase*>(obj);
+
 	paramValues[0] = newValue;
 
 	if (voiceRenderingActive())
-		for (auto& o : *this) T::template setParameter<0>(o.get(), newValue);
+		for (auto& o : typed) T::template setParameter<0>(&o.get(), newValue);
 	else
 	{
-		for (auto& o : *this)
+		for (auto& o : typed)
 		{
 			for (auto& ob : o)
-				T::template setParameter<0>(ob, newValue);
+				T::template setParameter<0>(&ob, newValue);
 		}
 	}
 }
 
-TP void WRAPPER_BASE::setParameter1(double newValue)
+TP void WRAPPER_BASE::setParameter1(void* obj, double newValue)
 {
+	auto& typed = *static_cast<WrapperBase*>(obj);
+
 	paramValues[1] = newValue;
 
 	if (voiceRenderingActive())
-		for (auto& o : *this) T::template setParameter<1>(o.get(), newValue);
+		for (auto& o : typed) T::template setParameter<1>(&o.get(), newValue);
 	else
 	{
-		for (auto& o : *this)
+		for (auto& o : typed)
 		{
 			for (auto& ob : o)
-				T::template setParameter<1>(ob, newValue);
+				T::template setParameter<1>(&ob, newValue);
 		}
 	}
 }
 
-TP void WRAPPER_BASE::setParameter2(double newValue)
+TP void WRAPPER_BASE::setParameter2(void* obj, double newValue)
 {
+	auto& typed = *static_cast<WrapperBase*>(obj);
+
 	paramValues[2] = newValue;
 
 	if (voiceRenderingActive())
-		for (auto& o : *this) T::template setParameter<2>(o.get(), newValue);
+		for (auto& o : typed) T::template setParameter<2>(&o.get(), newValue);
 	else
 		{
-		for (auto& o : *this)
+		for (auto& o : typed)
 		{
 			for (auto& ob : o)
-				T::template setParameter<2>(ob, newValue);
+				T::template setParameter<2>(&ob, newValue);
 		}
 	}
 }
 
-TP void WRAPPER_BASE::setParameter3(double newValue)
+TP void WRAPPER_BASE::setParameter3(void* obj, double newValue)
 {
+	auto& typed = *static_cast<WrapperBase*>(obj);
+
 	paramValues[3] = newValue;
 
 	if (voiceRenderingActive())
-		for (auto& o : *this) T::template setParameter<3>(o.get(), newValue);
+		for (auto& o : typed) T::template setParameter<3>(&o.get(), newValue);
 	else
 	{
-		for (auto& o : *this)
+		for (auto& o : typed)
 		{
 			for (auto& ob : o)
-				T::template setParameter<3>(ob, newValue);
+				T::template setParameter<3>(&ob, newValue);
 		}
 	}
 }
@@ -201,8 +209,13 @@ TP void WRAPPER_BASE::setParameter3(double newValue)
 
 
 
-TP void WRAPPER_BASE::createParameters(Array<ParameterData>& data)
+TP void WRAPPER_BASE::createParameters(ParameterDataList& data)
 {
+	jassertfalse;
+
+	// Fix this at some point when the stk things might be used again...
+
+#if 0
 	if (T::NumParameters >= 1)
 		T::template addParameter<0>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter0));
 	if (T::NumParameters >= 2)
@@ -211,6 +224,7 @@ TP void WRAPPER_BASE::createParameters(Array<ParameterData>& data)
 		T::template addParameter<2>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter2));
 	if (T::NumParameters >= 4)
 		T::template addParameter<3>(data, BIND_MEMBER_FUNCTION_1(WrapperBase::setParameter3));
+#endif
 }
 
 TP void WRAPPER_BASE::prepare(PrepareSpecs ps)
@@ -236,10 +250,10 @@ TP void WRAPPER_BASE::prepare(PrepareSpecs ps)
 
 	int numParameters = T::NumParameters;
 
-	if (numParameters > 0) setParameter0(paramValues[0]);
-	if (numParameters > 1) setParameter1(paramValues[1]);
-	if (numParameters > 2) setParameter2(paramValues[2]);
-	if (numParameters > 3) setParameter3(paramValues[3]);
+	if (numParameters > 0) setParameter0(this, paramValues[0]);
+	if (numParameters > 1) setParameter1(this, paramValues[1]);
+	if (numParameters > 2) setParameter2(this, paramValues[2]);
+	if (numParameters > 3) setParameter3(this, paramValues[3]);
 
 	Stk::setSampleRate(gb);
 }

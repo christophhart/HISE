@@ -220,7 +220,7 @@ public:
 		return v.getChangedValue(value);
 	}
 
-	void createParameters(Array<ParameterDataImpl>& data)
+	void createParameters(ParameterDataList& data)
 	{
 	}
 
@@ -402,7 +402,7 @@ public:
 			return t.get().getChangedValue(value);
 	}
 
-	void createParameters(Array<ParameterDataImpl>& data)
+	void createParameters(ParameterDataList& data)
 	{
 		{
 			DEFINE_PARAMETERDATA(timer_impl, Active);
@@ -663,7 +663,7 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 
 	double sampleRate = 0.0;
 
-	void createParameters(Array<ParameterDataImpl>& data)
+	void createParameters(ParameterDataList& data)
 	{
 		{
 			DEFINE_PARAMETERDATA(snex_osc_impl, Frequency);

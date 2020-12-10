@@ -43,6 +43,27 @@
 
 #include "dsp_library/DspBaseModule.cpp"
 
+
+#include "snex_basics/snex_Types.cpp"
+#include "snex_basics/snex_ArrayTypes.cpp"
+#include "snex_basics/snex_Math.cpp"
+#include "snex_basics/snex_DynamicType.cpp"
+#include "snex_basics/snex_TypeHelpers.cpp"
+
+
+
+#include "node_api/helpers/ParameterData.cpp"
+#include "node_api/nodes/Base.cpp"
+
+
+#include "dsp_nodes/DelayNode.cpp"
+
+
+#include "unit_test/wrapper_tests.cpp"
+#include "unit_test/node_tests.cpp"
+#include "unit_test/container_tests.cpp"
+
+
 namespace hise
 {
 	using namespace juce;

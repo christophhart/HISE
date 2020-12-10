@@ -87,27 +87,21 @@ Set to 0 to disable SNEX compilation (default on iOS).
 
 
 
-#include "../hi_tools/hi_tools.h"
+
 #include "../hi_lac/hi_lac.h"
-#include "../JUCE/modules/juce_dsp/juce_dsp.h"
+#include "../hi_dsp_library/hi_dsp_library.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 
 #if HISE_INCLUDE_SNEX
-#include "snex_core/snex_Types.h"
 
-#include "snex_core/snex_ArrayTypes.h"
-#include "snex_core/snex_ArrayTypes.cpp"
-#include "snex_core/snex_Math.h"
-#include "snex_core/snex_DynamicType.h"
-#include "snex_core/snex_TypeHelpers.h"
 #include "snex_jit/snex_jit_public.h"
 #include "api/SnexApi.h"
 
 #include "snex_core/snex_CallbackCollection.h"
-#include "snex_core/snex_FrameProcessor.h"
-#include "snex_core/snex_FrameProcessor.cpp"
-#include "snex_core/snex_ProcessDataTypes.h"
-#include "snex_core/snex_ProcessDataTypes.cpp"
+//#include "snex_core/snex_FrameProcessor.h"
+//#include "snex_core/snex_FrameProcessor.cpp"
+//#include "snex_core/snex_ProcessDataTypes.h"
+//#include "snex_core/snex_ProcessDataTypes.cpp"
 #include "snex_core/snex_ExternalObjects.h"
 #include "snex_jit/snex_jit_NativeDspFunctions.h"
 

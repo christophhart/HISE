@@ -79,14 +79,14 @@ snex::Types::DefaultFunctionClass scriptnode::math::OpNode<OpType, V>::createSne
 
 
 template <class OpType, int V>
-void scriptnode::math::OpNode<OpType, V>::createParameters(Array<ParameterData>& data)
+void scriptnode::math::OpNode<OpType, V>::createParameters(ParameterDataList& data)
 {
-	ParameterData p("Value");
-	p.range = { 0.0, 1.0, 0.01 };
-	p.defaultValue = OpType::defaultValue;
-
-	p.dbNew = parameter::inner<OpNode, (int)Parameters::Value>(*this);
-	data.add(std::move(p));
+	{
+		DEFINE_PARAMETERDATA(OpNode, Value);
+		p.range = { 0.0, 1.0, 0.01 };
+		p.defaultValue = OpType::defaultValue;
+		data.add(std::move(p));
+	}
 }
 
 #pragma warning(push)

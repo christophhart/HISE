@@ -93,6 +93,8 @@ public:
 	*/
 	int getNumSamples() const { return numSamples; }
 
+	int getNumEvents() const { return numEvents; }
+
 	/** Converts a ChannelPtr to a block. */
 	block toChannelData(const ChannelPtr& channelStart) const
 	{
@@ -125,14 +127,19 @@ public:
 		return shouldReset;
 	}
 
-	void setEventBuffer(const HiseEventBuffer& b)
+	template <typename ContainerType> void setEventBuffer(const ContainerType& b)
 	{
 		events = b.begin();
-		numEvents = b.getNumUsed();
+		numEvents = b.size();
 	}
 
 	template <typename T> T& as()
 	{
+		if (T::isFixedChannel)
+		{
+			jassert(numChannels >= T::getNumFixedChannels());
+		}
+
 		return *static_cast<T*>(this);
 	}
 
@@ -188,6 +195,8 @@ protected:
 */
 template <int C> struct ProcessData: public InternalData
 {
+	constexpr static bool isFixedChannel = true;
+
 	/** The number of channels. */
 	constexpr static int NumChannels = C;
 
@@ -248,6 +257,8 @@ template <int C> struct ProcessData: public InternalData
 	/** Gets the number of channels. */
 	static constexpr int getNumChannels();
 	
+	constexpr static int getNumFixedChannels();
+
 protected:
 
 	ChannelDataType& getChannelDataType()
@@ -260,8 +271,17 @@ protected:
 	JUCE_DECLARE_NON_COPYABLE(ProcessData);
 };
 
+
+
 struct ProcessDataDyn: public InternalData
 {
+	constexpr static bool isFixedChannel = false;
+
+	constexpr static int getNumFixedChannels()
+	{
+		return NUM_MAX_CHANNELS;
+	}
+
 	/** Creates a ProcessDataFix object from the given data pointer. */
 	ProcessDataDyn(float** d, int numSamples_, int numChannels_) :
 		InternalData(d, numSamples_)
@@ -310,6 +330,231 @@ struct ProcessDataDyn: public InternalData
 
 	JUCE_DECLARE_NON_COPYABLE(ProcessDataDyn);
 };
+
+
+
+/** This helper class takes a process data type and allows chunk-wise processing.
+
+	Just create one of these from any process data type, then call
+
+
+*/
+template <typename ProcessDataType, bool IncludeEvents=true> struct ChunkableProcessData
+{
+	ChunkableProcessData(ProcessDataType& d) :
+		numChannels(d.getNumChannels()),
+		numSamples(d.getNumSamples()),
+		events(d.toEventData())
+	{
+		memcpy(ptrs.begin(), d.getRawDataPointers(), sizeof(float*) * numChannels);
+	}
+
+	~ChunkableProcessData()
+	{
+		// You haven't used all samples. Don't forget to call getRemainder() at the end
+		jassert(numSamples == 0);
+	}
+
+	/** Checks whether there are samples left. */
+	operator bool() const { return getNumLeft() > 0; }
+
+	/** Returns the amount of samples left. */
+	int getNumLeft() const { return numSamples; }
+
+	/** Returns the amount of samples already processed. */
+	int getNumProcessed() const { return numProcessed; }
+
+	/** This helper method will create a ProcessDataType of the given size and 
+		bump the pointers when it goes out of scope. 
+		
+		It also will refer to events in that range and adjust the timestamps 
+		accordingly IF the IncludeEvents template parameter is true. 
+	
+	*/
+	struct ScopedChunk
+	{
+		ScopedChunk(ChunkableProcessData& parent_, int numSamplesToSplice) :
+			parent(parent_),
+			sliced(parent.ptrs.begin(), numSamplesToSplice, parent.numChannels)
+		{
+			if (IncludeEvents && !parent.events.isEmpty())
+			{
+				int firstIndex = 0;
+				int lastIndex = 0;
+
+				int firstTimestamp = parent.numProcessed;
+				int lastTimestamp = firstTimestamp + numSamplesToSplice;
+
+				for (auto& e : parent.events)
+				{
+					auto eventTimestamp = e.getTimeStamp();
+
+					if (eventTimestamp < firstTimestamp)
+						firstIndex++;
+
+					if (eventTimestamp < lastTimestamp)
+						lastIndex++;
+					else
+						break;
+				}
+
+				int numEventsThisTime = lastIndex - firstIndex;
+
+				if (numEventsThisTime != 0)
+				{
+					slicedEvents.referToRawData(parent.events.begin() + firstIndex, (size_t) numEventsThisTime);
+
+					sliced.setEventBuffer(slicedEvents);
+
+					for (auto& e : slicedEvents)
+						e.addToTimeStamp(-parent.numProcessed);
+				}
+			}
+
+			jassert(isPositiveAndBelow(numSamplesToSplice-1, parent.numSamples));
+		}
+
+		~ScopedChunk()
+		{
+			if (ProcessDataType::isFixedChannel)
+			{
+				for (auto& p : parent.ptrs)
+					p += sliced.getNumSamples();
+			}
+			else
+			{
+				for (int i = 0; i < parent.numChannels; i++)
+					parent.ptrs[i] += sliced.getNumSamples();
+			}
+
+			if (IncludeEvents)
+			{
+				for (auto& e : slicedEvents)
+					e.addToTimeStamp(parent.numProcessed);
+			}
+
+			parent.numSamples -= sliced.getNumSamples();
+			parent.numProcessed += sliced.getNumSamples();
+		}
+
+		ProcessDataType& toData()
+		{
+			return sliced;
+		}
+
+		ScopedChunk(ScopedChunk&& other):
+			parent(other.parent)
+		{
+			std::swap(sliced, other.sliced);
+		}
+
+		
+
+	private:
+
+		ChunkableProcessData& parent;
+		ProcessDataType sliced;
+		dyn<HiseEvent> slicedEvents;
+	};
+
+	ScopedChunk getRemainder()
+	{
+		return ScopedChunk(*this, numSamples);
+	}
+
+	ScopedChunk getChunk(int numSamplesToSplice)
+	{
+		return ScopedChunk(*this, numSamplesToSplice);
+	}
+
+private:
+
+	span<float*, ProcessDataType::getNumFixedChannels()> ptrs;
+
+	dyn<HiseEvent> events;
+	int numSamples = 0;
+	int numProcessed = 0;
+	const int numChannels = 0;
+};
+
+struct FrameConverters
+{
+	template <typename DspClass, typename ProcessDataType> static forcedinline void forwardToFrameMono(DspClass* ptr, ProcessDataType& data)
+	{
+		processFix<1>(ptr, data);
+	}
+
+	template <int NumChannels, typename DspClass, typename ProcessDataType> static void processFix(DspClass* ptr, ProcessDataType& data)
+	{
+		jassert(data.getNumEvents() == 0);
+
+		auto& obj = *static_cast<DspClass*>(ptr);
+		auto& fixData = data.as<snex::Types::ProcessData<NumChannels>>();
+
+		auto fd = fixData.toFrameData();
+
+		while (fd.next())
+			obj.processFrame(fd.toSpan());
+	}
+
+	template <typename DspClass, typename ProcessDataType> static forcedinline void forwardToFrameStereo(DspClass* ptr, ProcessDataType& data)
+	{
+		switch (data.getNumChannels())
+		{
+		case 1:   processFix<1>(ptr, data); break;
+		case 2:   processFix<2>(ptr, data); break;
+		}
+	}
+
+	template <typename DspClass, typename FrameDataType> static forcedinline void forwardToFixFrame16(DspClass* ptr, FrameDataType& data)
+	{
+		jassert(Helpers::isRefArrayType<FrameDataType>(), "unneeded call to forwardToFrameFix");
+
+		switch (data.size())
+		{
+		case 1:		ptr->processFrame(span<float, 1>::as(data.begin())); break;
+		case 2:		ptr->processFrame(span<float, 2>::as(data.begin())); break;
+		case 3:		ptr->processFrame(span<float, 3>::as(data.begin())); break;
+		case 4:		ptr->processFrame(span<float, 4>::as(data.begin())); break;
+		case 5:		ptr->processFrame(span<float, 5>::as(data.begin())); break;
+		case 6:		ptr->processFrame(span<float, 6>::as(data.begin())); break;
+		case 7:		ptr->processFrame(span<float, 7>::as(data.begin())); break;
+		case 8:		ptr->processFrame(span<float, 8>::as(data.begin())); break;
+		case 9:		ptr->processFrame(span<float, 9>::as(data.begin())); break;
+		case 10:	ptr->processFrame(span<float, 10>::as(data.begin())); break;
+		case 11:	ptr->processFrame(span<float, 11>::as(data.begin())); break;
+		case 12:	ptr->processFrame(span<float, 12>::as(data.begin())); break;
+		case 13:	ptr->processFrame(span<float, 13>::as(data.begin())); break;
+		case 14:	ptr->processFrame(span<float, 14>::as(data.begin())); break;
+		case 15:	ptr->processFrame(span<float, 15>::as(data.begin())); break;
+		case 16:	ptr->processFrame(span<float, 16>::as(data.begin())); break;
+		}
+	}
+
+	template <typename DspClass, typename ProcessDataType> static forcedinline void forwardToFrame16(DspClass* ptr, ProcessDataType& data)
+	{
+		switch (data.getNumChannels())
+		{
+		case 1:   processFix<1>(ptr, data); break;
+		case 2:   processFix<2>(ptr, data); break;
+		case 3:   processFix<3>(ptr, data); break;
+		case 4:   processFix<4>(ptr, data); break;
+		case 5:   processFix<5>(ptr, data); break;
+		case 6:   processFix<6>(ptr, data); break;
+		case 7:   processFix<7>(ptr, data); break;
+		case 8:   processFix<8>(ptr, data); break;
+		case 9:   processFix<9>(ptr, data); break;
+		case 10: processFix<10>(ptr, data); break;
+		case 11: processFix<11>(ptr, data); break;
+		case 12: processFix<12>(ptr, data); break;
+		case 13: processFix<13>(ptr, data); break;
+		case 14: processFix<14>(ptr, data); break;
+		case 15: processFix<15>(ptr, data); break;
+		case 16: processFix<16>(ptr, data); break;
+		}
+	}
+};
+
 
 }
 }

@@ -93,7 +93,7 @@ template <class ParameterClass, typename... Processors> struct container_base
 		return parameters.getParameter<arg>();
 	}
 
-    void createParameters(Array<HiseDspBase::ParameterData>& d)
+    void createParameters(Array<parameter::data>& )
     {
 		jassertfalse;
     }

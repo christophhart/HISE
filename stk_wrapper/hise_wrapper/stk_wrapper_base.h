@@ -111,11 +111,6 @@ public:
 	using PolyObjectType = PolyData<ObjectType, NumVoices>;
 
 	SET_HISE_POLY_NODE_ID(T::getId());
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
 	GET_SELF_AS_OBJECT(WrapperBase);
 
 	WrapperBase();
@@ -132,14 +127,14 @@ public:
 		return begin() + NumChannels;
 	}
 
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void reset();
 	void prepare(PrepareSpecs ps);
 
-	void setParameter0(double newValue);
-	void setParameter1(double newValue);
-	void setParameter2(double newValue);
-	void setParameter3(double newValue);
+	void setParameter0(void* obj, double newValue);
+	void setParameter1(void* obj, double newValue);
+	void setParameter2(void* obj, double newValue);
+	void setParameter3(void* obj, double newValue);
 	
 	
 	bool handleModulation(double&) { return false; }

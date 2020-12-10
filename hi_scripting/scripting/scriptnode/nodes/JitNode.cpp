@@ -158,7 +158,7 @@ void jit_impl<NV>::prepare(PrepareSpecs specs)
 }
 
 template <int NV>
-void jit_impl<NV>::createParameters(Array<ParameterData>& data)
+void jit_impl<NV>::createParameters(ParameterDataList& data)
 {
 	code.init(nullptr, this);
 
@@ -481,7 +481,7 @@ void JitNodeBase::updateParameters(Identifier id, var newValue)
 {
 	auto obj = getInternalJitNode();
 
-	Array<HiseDspBase::ParameterData> l;
+	ParameterDataList l;
 	obj->createParameters(l);
 
 	StringArray foundParameters;

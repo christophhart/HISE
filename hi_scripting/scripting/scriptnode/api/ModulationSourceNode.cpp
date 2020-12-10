@@ -192,7 +192,7 @@ scriptnode::NodeBase* ModulationSourceNode::getTargetNode(const ValueTree& m) co
 	return getRootNetwork()->getNodeWithId(m[PropertyIds::NodeId].toString());
 }
 
-scriptnode::ParameterDataImpl ModulationSourceNode::getParameterData(const ValueTree& m) const
+parameter::data ModulationSourceNode::getParameterData(const ValueTree& m) const
 {
 	if (auto targetNode = getTargetNode(m))
 	{
@@ -205,7 +205,7 @@ scriptnode::ParameterDataImpl ModulationSourceNode::getParameterData(const Value
 		}
 	}
 	
-	return ParameterDataImpl("");
+	return parameter::data("");
 }
 
 scriptnode::parameter::dynamic_base* ModulationSourceNode::createDynamicParameterData(ValueTree& m)
@@ -589,7 +589,7 @@ juce::Rectangle<int> WrapperNode::getExtraComponentBounds() const
 	return { 0, 0, cachedExtraWidth, cachedExtraHeight };
 }
 
-void WrapperNode::initParameterData(Array<ParameterDataImpl>& pData)
+void WrapperNode::initParameterData(ParameterDataList& pData)
 {
 	auto d = getValueTree();
 

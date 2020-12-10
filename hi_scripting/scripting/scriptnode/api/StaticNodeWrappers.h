@@ -64,16 +64,16 @@ public:
 
 		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
 
-		Array<HiseDspBase::ParameterData> pData;
+		ParameterDataList pData;
 		wrapper.getWrappedObject().createParameters(pData);
 
 		initParameterData(pData);
 	};
 
 
-	Array<ParameterDataImpl> createInternalParameterList() override
+	ParameterDataList createInternalParameterList() override
 	{
-		Array<ParameterDataImpl> pList;
+		ParameterDataList pList;
 		wrapper.getWrappedObject().createParameters(pList);
 		return pList;
 	}
@@ -173,7 +173,7 @@ public:
 
 		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
 		
-		Array<HiseDspBase::ParameterData> pData;
+		ParameterDataList pData;
 		wrapper.getWrappedObject().createParameters(pData);
 		initParameterData(pData);
 	};
@@ -333,7 +333,7 @@ template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
 	ParameterMultiplyAddNode(DspNetwork* n, ValueTree d) :
 		ModulationSourceNode(n, d)
 	{
-		Array<ParameterDataImpl> pData;
+		ParameterDataList pData;
 		obj.createParameters(pData);
 
 		initParameterData(pData);
@@ -417,9 +417,9 @@ template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
 	{
 	}
 
-	Array<ParameterDataImpl> createInternalParameterList() override
+	ParameterDataList createInternalParameterList() override
 	{  
-		Array<ParameterDataImpl> pData;
+		ParameterDataList pData;
 		obj.createParameters(pData); 
 		return pData; 
 	}
@@ -610,9 +610,9 @@ public:
 
 	static constexpr int ExtraHeight = 0;
 
-	static Array<HiseDspBase::ParameterData> createParametersT(ParameterHolder* d, const String& prefix)
+	static ParameterDataList createParametersT(ParameterHolder* d, const String& prefix)
 	{
-		Array<HiseDspBase::ParameterData> data;
+		ParameterDataList data;
 		d->createParameters(data);
 
 		if (prefix.isNotEmpty())
@@ -640,7 +640,7 @@ public:
 
 	void setParameterDefault(const String& parameterId, double value);
 
-	Array<HiseDspBase::ParameterData> internalParameterList;
+	ParameterDataList internalParameterList;
 	Array<ParameterInitValue> initValues;
 
 	OwnedArray<CombinedParameterValue> combinedParameterValues;
@@ -894,7 +894,7 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 		return obj.handleModulation(value);
 	}
 
-	void createParameters(Array<ParameterDataImpl>& data)
+	void createParameters(ParameterDataList& data)
 	{
 		obj.parameters.addToList(data);
 	}
@@ -974,7 +974,7 @@ template <typename ObjectType> struct FilterTestNode : public snex::Types::SnexN
 
 	snex::Types::OpaqueSnexParameter::List getParameterList() override
 	{
-		Array<ParameterDataImpl> data;
+		ParameterDataList data;
 		obj.createParameters(data);
 
 		OpaqueSnexParameter::List l;
@@ -1009,13 +1009,30 @@ template <typename ObjectType> struct FilterTestNode : public snex::Types::SnexN
 	ObjectType obj;
 };
 
+/** This namespace contains functions that initialise nodes.
 
+	It's been put here so that it can acccess the NodeBase type.
 
+*/
+namespace init
+{
+struct no
+{
+	static void initialise(void*, NodeBase*)
+	{};
+};
 
+struct oversample
+{
+	static void initialise(void* obj, NodeBase* n)
+	{
+		auto typed = static_cast<wrap::oversample_base*>(obj);
+		typed->lock = &n->getRootNetwork()->getConnectionLock();
+	};
+};
+}
     struct NodeFactory
     {
-		
-
 		using CreateCallback = std::function<NodeBase*(DspNetwork*, ValueTree)>;
 		using SnexTypeCreateCallback = std::function<snex::jit::ComplexType::Ptr(const snex::Types::SnexTypeConstructData&)>;
 		using PostCreateCallback = std::function<void(NodeBase* n)>;

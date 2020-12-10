@@ -233,7 +233,7 @@ public:
 				n->processFrame(dd);
 		}
 
-		void createParameters(Array<ParameterData>& ) override {};
+		void createParameters(ParameterDataList& ) override {};
 
 		NodeContainer* parent;
 	};

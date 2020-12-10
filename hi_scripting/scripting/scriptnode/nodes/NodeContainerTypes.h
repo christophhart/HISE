@@ -91,7 +91,7 @@ public:
 
 private:
 	
-	fix<1, wrap::control_rate<SerialNode::DynamicSerialProcessor>> obj;
+	wrap::fix<1, wrap::control_rate<SerialNode::DynamicSerialProcessor>> obj;
 };
 
 class MidiChainNode : public SerialNode
@@ -167,7 +167,7 @@ public:
 
 	void updateBypassState(Identifier, var);
 
-	wrap::fix_block<DynamicSerialProcessor, FixedBlockSize> obj;
+	wrap::fix_block<FixedBlockSize, DynamicSerialProcessor> obj;
 
 	valuetree::PropertyListener bypassListener;
 	int* lastVoiceIndex = nullptr;

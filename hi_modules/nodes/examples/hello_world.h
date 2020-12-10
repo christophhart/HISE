@@ -154,7 +154,7 @@ struct initialiser
 	/** This macro defines the ID of the node. Usually you just use the name of the surrounding
 		namespace, so that it can be accessed by others.
 	*/
-	DECLARE_SNEX_INITIALISER(hello_world);
+	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("hello_world"); };
 
 	void initialise(ChainWrapper& c)
 	{

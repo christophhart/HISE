@@ -95,7 +95,7 @@ void dynamics_wrapper<DynamicProcessorType>::setThreshhold(double v)
 }
 
 template <class DynamicProcessorType>
-void dynamics_wrapper<DynamicProcessorType>::createParameters(Array<ParameterData>& data)
+void dynamics_wrapper<DynamicProcessorType>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(dynamics_wrapper, Threshhold);
@@ -185,7 +185,7 @@ void envelope_follower::setRelease(double v)
 	envelope.setReleaseDouble(v);
 }
 
-void envelope_follower::createParameters(Array<ParameterData>& data)
+void envelope_follower::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(envelope_follower, Attack);

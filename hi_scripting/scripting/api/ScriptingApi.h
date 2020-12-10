@@ -192,7 +192,7 @@ public:
 		// ============================================================================================================
 
 		Engine(ProcessorWithScriptingContent *p);
-		~Engine();;
+		~Engine();
 
 		Identifier getObjectName() const override  { RETURN_STATIC_IDENTIFIER("Engine"); };
 

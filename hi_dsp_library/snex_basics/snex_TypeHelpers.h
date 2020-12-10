@@ -397,13 +397,7 @@ struct InitialiserList : public ReferenceCountedObject
 			VariableStorage v;
 			
 			if (c->getValue(v))
-			{
 				list.add(v);
-			}
-			else
-			{
-				jassertfalse;
-			}
 		}
 
 		return list;
@@ -449,6 +443,8 @@ struct InitialiserList : public ReferenceCountedObject
 
 	struct ExpressionChild;
 
+	
+
 	struct MemberPointer : public ChildBase
 	{
 		MemberPointer(const Identifier& id) :
@@ -475,6 +471,33 @@ struct InitialiserList : public ReferenceCountedObject
 
 		Identifier variableId;
 		VariableStorage value;
+	};
+
+	/** This is used when a struct is being initialised by a externally defined C++ struct
+	    (via placement new) and has the sole purpose of avoiding compile warnings...
+	*/
+	struct ExternalInitialiser : public ChildBase
+	{
+		ExternalInitialiser():
+			ChildBase()
+		{}
+
+		juce::String toString() const override
+		{
+			return "external_class";
+		}
+
+		bool getValue(VariableStorage& ) const override
+		{
+			return true;
+		}
+
+		InitialiserList::Ptr createChildList() const override
+		{
+			InitialiserList::Ptr n = new InitialiserList();
+			n->addChild(new ExternalInitialiser());
+			return n;
+		}
 	};
 
 private:

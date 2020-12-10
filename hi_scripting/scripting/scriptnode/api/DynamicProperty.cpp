@@ -23,88 +23,36 @@
  *   http://www.hise.audio/
  *
  *   HISE is based on the JUCE library,
- *   which also must be licenced for commercial applications:
+ *   which also must be licensed for commercial applications:
  *
  *   http://www.juce.com
  *
  *   ===========================================================================
  */
 
-#pragma once
-
 namespace scriptnode
 {
 using namespace juce;
 using namespace hise;
 
-class HardcodedNode;
-
-
-
-
-class ParameterHolder
+namespace parameter
 {
-public:
 
-	using ParameterData = ParameterDataImpl;
-
-	virtual ~ParameterHolder() {};
-
-	virtual void createParameters(Array<ParameterData>& data) {};
-
-};
-
-class HiseDspBase: public ParameterHolder
+dynamic_base::dynamic_base(parameter::dynamic& obj_) :
+	obj(obj_.getObjectPtr()),
+	f(obj_.getFunction())
 {
-public:
-
-	HiseDspBase() {};
-
-	virtual ~HiseDspBase() {};
-
-	virtual void initialise(NodeBase* n)
-	{
-		ignoreUnused(n);
-	}
-
-	virtual void prepare(PrepareSpecs ) {};
-
-	virtual void handleHiseEvent(HiseEvent& e)
-	{
-		ignoreUnused(e);
-	};
-
-	virtual bool isPolyphonic() const { return false; }
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseDspBase);
-
-	
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseDspBase);
-};
-
-template <class T> class SingleWrapper : public HiseDspBase
-{
-public:
-
-	inline void initialise(NodeBase* n) override
-	{
-		obj.initialise(n);
-	}
-
-	void handleHiseEvent(HiseEvent& e) final override
-	{
-		obj.handleHiseEvent(e);
-	}
-
-	bool isPolyphonic() const override
-	{
-		return obj.getWrappedObject().isPolyphonic();
-	}
-
-protected:
-
-	T obj;
-};
-
 
 }
+
+dynamic_base::dynamic_base() :
+	obj(nullptr),
+	f(nullptr)
+{
+
+}
+
+}
+
+}
+

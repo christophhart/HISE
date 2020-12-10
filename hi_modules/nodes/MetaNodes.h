@@ -64,7 +64,7 @@ struct instance : public hardcoded_pimpl
 
 	String getSnippetText() const override;
 
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	DEFINE_DSP_METHODS_PIMPL;
 };
@@ -84,7 +84,7 @@ struct instance : public hardcoded_pimpl
 
 	String getSnippetText() const override;
 
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	DEFINE_DSP_METHODS_PIMPL;
 };
@@ -103,7 +103,7 @@ struct instance : public hardcoded_pimpl
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	String getSnippetText() const override;
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	DEFINE_DSP_METHODS_PIMPL;
 };
@@ -123,7 +123,7 @@ struct instance : public hardcoded_pimpl
 
 	String getSnippetText() const override;
 
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	DEFINE_DSP_METHODS_PIMPL;
 };

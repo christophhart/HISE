@@ -164,8 +164,6 @@ template <class T> class analyse_base : public HiseDspBase,
 public:
 
 	SET_HISE_NODE_ID(T::getStaticId());
-
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
     GET_SELF_AS_OBJECT(analyse_base);
     
 	HISE_EMPTY_MOD;

@@ -158,8 +158,6 @@ struct new_jit: public SnexSource,
 
 	GET_SELF_AS_OBJECT(new_jit);
 
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
 	bool isPolyphonic() const { return true; };
 
 	new_jit():
@@ -266,7 +264,7 @@ struct new_jit: public SnexSource,
 
 	void updateParameters()
 	{
-		Array<HiseDspBase::ParameterData> l;
+		ParameterDataList l;
 		createParameters(l);
 
 		StringArray foundParameters;
@@ -332,7 +330,7 @@ struct new_jit: public SnexSource,
 
 	
 
-	void createParameters(Array<HiseDspBase::ParameterData>& data)
+	void createParameters(ParameterDataList& data)
 	{
 		if (compiledNode)
 		{
@@ -340,7 +338,7 @@ struct new_jit: public SnexSource,
 
 			for (int i = 0; i < l.size(); i++)
 			{
-				ParameterDataImpl p(l[i].name);
+				parameter::data p(l[i].name);
 				p.range = { 0.0, 1.0 };
 				p.dbNew.referTo(compiledNode->thisPtr, (parameter::dynamic::Function)l[i].function);
 
@@ -473,7 +471,7 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 #endif
 	}
 
-	void createParameters(Array<ParameterData>& data) override
+	void createParameters(ParameterDataList& data) override
 	{
 		if (NumVoices == 1)
 		{
@@ -652,7 +650,7 @@ public:
 
 	Array<PDataNewCheckCheck> createParameterDataNewFunkFunk() { return {}; }
 
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void initialise(NodeBase* n);
 	void handleHiseEvent(HiseEvent& e) final override;
 	bool handleModulation(double&);
@@ -771,7 +769,7 @@ public:
 #endif
 	}
 
-	template <int Index> bool createParameter(Array<ParameterData>& data)
+	template <int Index> bool createParameter(ParameterDataList& data)
 	{
 #if 0
 		auto& c = cData.getFirst();

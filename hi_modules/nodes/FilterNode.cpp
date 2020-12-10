@@ -181,24 +181,18 @@ void FilterNodeBase<FilterType, NV>::prepare(PrepareSpecs ps)
 }
 
 template <class FilterType, int NV>
-void FilterNodeBase<FilterType, NV>::createParameters(Array<ParameterData>& parameters)
+void FilterNodeBase<FilterType, NV>::createParameters(ParameterDataList& parameters)
 {
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Frequency);
 		p.range = { 20.0, 20000.0, 0.1 };
 		p.range.setSkewForCentre(1000.0);
 		p.defaultValue = 1000.0;
-#if BIG
-		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setFrequency);
-#endif
 		parameters.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Q);
 
-#if BIG
-		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setQ);
-#endif
 		p.range = { 0.3, 9.9, 0.1 };
 		p.range.setSkewForCentre(1.0);
 		p.defaultValue = 1.0;
@@ -209,10 +203,6 @@ void FilterNodeBase<FilterType, NV>::createParameters(Array<ParameterData>& para
 		p.range = { -18, 18, 0.1 };
 		p.range.setSkewForCentre(0.0);
 		p.defaultValue = 0.0;
-
-#if BIG
-		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setGain);
-#endif
 		parameters.add(std::move(p));
 	}
 	{
@@ -220,18 +210,11 @@ void FilterNodeBase<FilterType, NV>::createParameters(Array<ParameterData>& para
 		p.range = { 0.0, 1.0, 0.01 };
 		p.range.setSkewForCentre(0.1);
 		p.defaultValue = 0.01;
-
-#if BIG
-		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setSmoothing);
-#endif
 		parameters.add(std::move(p));
 	}
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Mode);
 		p.setParameterValueNames(filter.getCurrentOrFirst().getModes());
-#if BIG
-		p.db = BIND_MEMBER_FUNCTION_1(FilterNodeBase::setMode);
-#endif
 		parameters.add(std::move(p));
 	}
 }

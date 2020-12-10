@@ -52,7 +52,10 @@ END_JUCE_MODULE_DECLARATION
 #define HI_DSP_LIBRARY_H_INCLUDED
 
 #include "AppConfig.h"
+
+#include "../hi_tools/hi_tools.h"
 #include "../JUCE/modules/juce_core/juce_core.h"
+#include "../JUCE/modules/juce_dsp/juce_dsp.h"
 
 
 
@@ -73,10 +76,68 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #endif
 
 
+/** TODO List for scripnode rework:
+
+	Move nodes over:
+
+	- nodes with Tables / Sliderpacks
+	- nodes with acccess to NodeBase*
+	- nodes with properties
+	- wrapper nodes
+	- nodes with obvious access to MainController
+*/
+
+
+/** TODO JIT integration
+
+	- inline assembly for wrapper nodes / other containers
+	- make PolyData JIT template
+
+*/
+
+
 
 #include "dsp_library/DspBaseModule.h"
 #include "dsp_library/BaseFactory.h"
 #include "dsp_library/DspFactory.h"
+
+
+#include "dsp_basics/DelayLine.h"
+#include "dsp_basics/DelayLine.cpp"
+
+// Include the basic structures from SNEX
+
+#include "snex_basics/snex_Types.h"
+#include "snex_basics/snex_ArrayTypes.h"
+#include "snex_basics/snex_Math.h"
+#include "snex_basics/snex_DynamicType.h"
+#include "snex_basics/snex_TypeHelpers.h"
+#include "snex_basics/snex_FrameProcessor.h"
+#include "snex_basics/snex_FrameProcessor.cpp"
+#include "snex_basics/snex_ProcessDataTypes.h"
+#include "snex_basics/snex_ProcessDataTypes.cpp"
+
+#include "node_api/helpers/node_macros.h"
+#include "node_api/helpers/node_ids.h"
+#include "node_api/helpers/ParameterData.h"
+#include "node_api/helpers/parameter.h"
+#include "node_api/helpers/parameter_impl.h"
+
+#include "node_api/helpers/range.h"
+#include "node_api/helpers/range_impl.h"
+
+#include "node_api/nodes/Base.h"
+#include "node_api/nodes/Bypass.h"
+#include "node_api/nodes/container_base.h"
+#include "node_api/nodes/container_base_impl.h"
+#include "node_api/nodes/Containers.h"
+#include "node_api/nodes/Container_Chain.h"
+#include "node_api/nodes/Container_Split.h"
+#include "node_api/nodes/Container_Multi.h"
+#include "node_api/nodes/Processors.h"
+
+
+#include "dsp_nodes/DelayNode.h"
 
 // Include these files in the header because the external functions won't get linked when in another object file...
 #if HI_EXPORT_DSP_LIBRARY

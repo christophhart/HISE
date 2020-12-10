@@ -45,10 +45,10 @@ template <class P, typename... Ts> using frame1_block = wrap::frame<1, container
 template <class P, typename... Ts> using frame2_block = wrap::frame<2, container::chain<P, Ts...>>;
 template <class P, typename... Ts> using frame4_block = wrap::frame<4, container::chain<P, Ts...>>;
 template <class P, typename... Ts> using framex_block = wrap::frame_x< container::chain<P, Ts...>>;
-template <class P, typename... Ts> using oversample2x = wrap::oversample<2,   container::chain<P, Ts...>>;
-template <class P, typename... Ts> using oversample4x = wrap::oversample<4,   container::chain<P, Ts...>>;
-template <class P, typename... Ts> using oversample8x = wrap::oversample<8,   container::chain<P, Ts...>>;
-template <class P, typename... Ts> using oversample16x = wrap::oversample<16, container::chain<P, Ts...>>;
+template <class P, typename... Ts> using oversample2x = wrap::oversample<2,   container::chain<P, Ts...>, init::oversample>;
+template <class P, typename... Ts> using oversample4x = wrap::oversample<4,   container::chain<P, Ts...>, init::oversample>;
+template <class P, typename... Ts> using oversample8x = wrap::oversample<8,   container::chain<P, Ts...>, init::oversample>;
+template <class P, typename... Ts> using oversample16x = wrap::oversample<16, container::chain<P, Ts...>, init::oversample>;
 template <class P, typename... Ts> using modchain = wrap::control_rate<chain<P, Ts...>>;
 
 }
@@ -68,9 +68,14 @@ public:
 		Multiplier
 	};
 
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Tempo, tempo_sync);
+		DEF_PARAMETER(Multiplier, tempo_sync);
+	}
+
 	SET_HISE_NODE_ID("tempo_sync");
 	GET_SELF_AS_OBJECT();
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_RESET;
@@ -81,7 +86,7 @@ public:
 	~tempo_sync();
 
 	void initialise(NodeBase* n) override;
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void tempoChanged(double newTempo) override;
 	void setTempo(double newTempoIndex);
 	bool handleModulation(double& max);
@@ -90,11 +95,7 @@ public:
 
 	void setMultiplier(double newMultiplier);
 
-	DEFINE_PARAMETERS
-	{
-		DEF_PARAMETER(Tempo, tempo_sync);
-		DEF_PARAMETER(Multiplier, tempo_sync);
-	}
+	
 
 	double currentTempoMilliseconds = 500.0;
 	double lastTempoMs = 0.0;
@@ -160,7 +161,7 @@ template <class ParameterType> struct pma: public combined_parameter_base
 		p.call(data.getPmaValue());
 	}
 
-	void createParameters(Array<ParameterDataImpl>& data)
+	void createParameters(ParameterDataList& data)
 	{
 		{
 			DEFINE_PARAMETERDATA(pma, Value);
@@ -189,8 +190,6 @@ public:
 
 	SET_HISE_NODE_ID("peak");
 	GET_SELF_AS_OBJECT(peak);
-
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
@@ -226,8 +225,6 @@ public:
 	SET_HISE_NODE_ID("mono2stereo");
 	GET_SELF_AS_OBJECT(mono2stereo);
 
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
 	HISE_EMPTY_RESET;
@@ -255,8 +252,6 @@ public:
 	SET_HISE_NODE_ID("empty");
 	GET_SELF_AS_OBJECT(empty);
 
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
-
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
 	HISE_EMPTY_PROCESS;
@@ -281,7 +276,6 @@ public:
 
 	SET_HISE_POLY_NODE_ID("ramp");
 	GET_SELF_AS_OBJECT();
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	ramp_impl();
 
@@ -339,7 +333,7 @@ public:
 		currentValue.get() = newValue;
 	}
 
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void handleHiseEvent(HiseEvent& e) final override;
 
 	void setPeriodTime(double periodTimeMs);
@@ -377,7 +371,6 @@ public:
 
 	SET_HISE_NODE_ID("hise_mod");
 	GET_SELF_AS_OBJECT(hise_mod);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	hise_mod();
 
@@ -418,7 +411,7 @@ public:
 
 	void handleHiseEvent(HiseEvent& e) override;
 	
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 
 	void setIndex(double index);
 
@@ -537,7 +530,7 @@ public:
 	void process(snex::Types::ProcessData<1>& data);
 	void processFrame(snex::Types::span<float, 1>& data);
 	void handleHiseEvent(HiseEvent& e);
-	void createParameters(Array<HiseDspBase::ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 	void setMode(double newMode);
 	void setFrequency(double newFrequency);
 	void setPitchMultiplier(double newMultiplier);
@@ -590,7 +583,7 @@ template <class T, class PropertyType> struct BoringWrapper
 		obj.process(data);
 	}
 
-	void createParameters(Array<ParameterDataImpl>& data)
+	void createParameters(ParameterDataList& data)
 	{
 		obj.createParameters(data);
 	}
@@ -606,11 +599,11 @@ template <class T, class PropertyType> struct BoringWrapper
 
 
 
-using oscillator = fix<1, oscillator_impl<1>>;
-using oscillator_poly = fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
+using oscillator = wrap::fix<1, oscillator_impl<1>>;
+using oscillator_poly = wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
-extern template class fix<1, oscillator_impl<1>>;
-extern template class fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
+extern template class wrap::fix<1, oscillator_impl<1>>;
+extern template class wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 class fm : public HiseDspBase
 {
@@ -631,7 +624,6 @@ public:
 	}
 
 	SET_HISE_NODE_ID("fm");
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	GET_SELF_AS_OBJECT(fm);
 
 	bool isPolyphonic() const { return true; }
@@ -653,7 +645,7 @@ public:
 		od.uptime += modGain.get() * modValue;
 	}
 
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 
 	void handleHiseEvent(HiseEvent& e);
 	
@@ -692,7 +684,6 @@ public:
 
 	SET_HISE_POLY_NODE_ID("gain");
 	GET_SELF_AS_OBJECT(gain_impl);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	gain_impl();
 
@@ -725,9 +716,7 @@ public:
 	void reset() noexcept;;
 
 	bool handleModulation(double&) noexcept { return false; };
-	void createParameters(Array<ParameterData>& data) override;
-
-	
+	void createParameters(ParameterDataList& data) override;
 
 	void setGain(double newValue);
 	void setSmoothing(double smoothingTimeMs);
@@ -766,12 +755,11 @@ public:
 
 	SET_HISE_POLY_NODE_ID("smoother");
 	GET_SELF_AS_OBJECT(smoother_impl);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	smoother_impl();
 
 	void initialise(NodeBase* n) override;
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
 
@@ -830,12 +818,11 @@ public:
 
 	SET_HISE_POLY_NODE_ID("ramp_envelope");
 	GET_SELF_AS_OBJECT(ramp_envelope_impl);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	ramp_envelope_impl();
 
 	void initialise(NodeBase* n) override;
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
 

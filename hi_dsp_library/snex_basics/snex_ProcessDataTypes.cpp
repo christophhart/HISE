@@ -53,6 +53,12 @@ constexpr int snex::Types::ProcessData<C>::getNumChannels()
 }
 
 template <int C>
+constexpr int snex::Types::ProcessData<C>::getNumFixedChannels()
+{
+	return NumChannels;
+}
+
+template <int C>
 ChannelPtr snex::Types::ProcessData<C>::getChannelPtr(int index)
 {
 	jassert(isPositiveAndBelow(index, NumChannels));
@@ -82,35 +88,11 @@ template <int C> struct ProcessDataHelpers
 		return d;
 	}
 
-#if 0
-	template <typename T> static ProcessDataFix<C> cloneWithPointers(const T& d, float** other, int numSamples = 1)
-	{
-		ProcessDataFix<C> copy(d);
-		
-		copy.data = other;
-
-		if (numSamples >= 0)
-			copy.numSamples = numSamples;
-
-		return copy;
-	}
-#endif
-
-#if 0
-	/** @internal. Used on the C++ side to create a ProcessDataFix object from an array of float pointers. */
-	static ChannelDataType& makeChannelData(float** externalData)
-	{
-		return *reinterpret_cast<ChannelDataType*>(externalData);
-	}
-#endif
-
 	/** @internal A helper function that creates the sample amount for a data array. */
 	template <typename T> constexpr static int getNumSamplesForConsequentData(T& obj)
 	{
 		return obj.size() / NumChannels;
 	}
-
-	
 
 	template <typename OtherContainer> static void copyTo(const ProcessData<C>& source, OtherContainer& t)
 	{
@@ -131,18 +113,7 @@ template <int C> struct ProcessDataHelpers
 		jassert(t.size() >= numToCopy);
 	}
 
-
-
-	template <typename DspClass, typename ProcessDataType> static void processFix(DspClass* ptr, ProcessDataType& data)
-	{
-		auto& obj = *static_cast<DspClass*>(ptr);
-		auto& fixData = data.as<snex::Types::ProcessData<C>>();
-
-		auto fd = fixData.toFrameData();
-
-		while (fd.next())
-			obj.processFrame(fd.toSpan());
-	}
+	
 };
 
 

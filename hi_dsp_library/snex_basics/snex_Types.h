@@ -71,6 +71,29 @@ struct FunctionType
 };
 
 
+/** A data structure containing the processing details for the context.
+
+	This is being passed into the `prepare()` method of each node and
+	can be used to setup the internals.
+
+	*/
+struct PrepareSpecs
+{
+	/** the sample rate. This value might be modified if the node is being used in an oversampled context. */
+	double sampleRate = 0.0;
+
+	/** The maximum samples that one block will contain. It is not guaranteed that the number will always be that amount, but you can assume that it never exceeds this number. */
+	int blockSize = 0;
+
+	/** The number of channels for the signal. */
+	int numChannels = 0;
+
+	/** A pointer to the voice index. */
+	int* voiceIndex = nullptr;
+
+	
+};
+
 
 }
 

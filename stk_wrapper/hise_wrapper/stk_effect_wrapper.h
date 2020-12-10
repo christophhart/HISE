@@ -87,7 +87,7 @@ template class wrapperClass<helper::className, sizeof(stk::className), stk::clas
 #define DECLARE_STK_TEMPLATE(wrapperClass, className, numChannels) \
 template class wrapperClass<helper::className, sizeof(stk::className), stk::className, numChannels, 1>; \
 
-using ParameterList = Array<scriptnode::HiseDspBase::ParameterData>;
+
 
 using Callback = std::function<void(double)>;
 

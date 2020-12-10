@@ -62,11 +62,10 @@ public:
 	static Identifier getStaticId();
 
 	GET_SELF_AS_OBJECT();
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
 	dynamics_wrapper();
 
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 	bool handleModulation(double& max) noexcept;;
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;
@@ -122,7 +121,6 @@ public:
 
 	SET_HISE_NODE_ID("envelope_follower");
 	GET_SELF_AS_OBJECT();
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
 	envelope_follower();
 
@@ -151,7 +149,7 @@ public:
 	void setAttack(double v);
 	void setRelease(double v);
 
-	void createParameters(Array<ParameterData>& data);
+	void createParameters(ParameterDataList& data);
 
 	EnvelopeFollower::AttackRelease envelope;
 	hmath Math;

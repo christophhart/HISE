@@ -38,6 +38,10 @@ using namespace juce;
 using namespace hise;
 
 
+
+
+
+
 /** This namespace contains template classes that define compile-time range objects which can be passed
 	into parameter connections. It has:
 

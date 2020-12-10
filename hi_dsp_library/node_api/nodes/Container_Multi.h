@@ -36,6 +36,7 @@ namespace scriptnode
 {
 using namespace juce;
 using namespace hise;
+using namespace snex::Types;
 
 namespace container
 {

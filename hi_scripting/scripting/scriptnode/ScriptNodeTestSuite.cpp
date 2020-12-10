@@ -460,7 +460,7 @@ struct ScriptNodeTests : public juce::UnitTest
 
 			cpp_node<handler, ChainType> node;
 
-			Array<scriptnode::ParameterDataImpl> p;
+			ParameterDataList p;
 
 			node.initialise(nullptr);
 			node.createParameters(p);
@@ -520,7 +520,7 @@ struct ScriptNodeTests : public juce::UnitTest
 
 	template <typename R, typename S, int NumChannels> auto* createSendReceiveChain(int numSamples)
 	{
-		using rType = fix<NumChannels, R>;
+		using rType = wrap::fix<NumChannels, R>;
 		using sType = S;
 		using ChainType = container::chain<parameter::empty, rType, math::add, sType>;
 
@@ -661,10 +661,10 @@ struct ScriptNodeTests : public juce::UnitTest
 		fillWithInc(buffer);
 
 		{
-			using sType = fix<NumChannels, SenderType>;
+			using sType = wrap::fix<NumChannels, SenderType>;
 			using rType = ReceiverType;
 
-			using ChainType = container::chain<parameter::empty, fix<NumChannels, sType>, math::clear, wrap::fix_block<rType, 16>>;
+			using ChainType = container::chain<parameter::empty, sType, math::clear, wrap::fix_block<rType, 16>>;
 
 			ChainType chain;
 

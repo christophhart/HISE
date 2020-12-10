@@ -94,19 +94,13 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 
-#include "scripting/scriptnode/api/Properties.h"
-
-
 #include "scripting/scriptnode/api/RangeHelpers.h"
 
 
-
-#include "scripting/scriptnode/template_library/parameter.h"
-#include "scripting/scriptnode/template_library/parameter_impl.h"
-
+#include "scripting/scriptnode/api/DynamicProperty.h"
 #include "scripting/scriptnode/api/DspHelpers.h"
 
-
+#include "scripting/scriptnode/api/Properties.h"
 #include "scripting/scriptnode/api/NodeBase.h"
 
 
@@ -118,25 +112,9 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 
 #include "scripting/scriptnode/ui/NodeComponent.h"
-#include "scripting/scriptnode/api/Base.h"
-#include "scripting/scriptnode/api/Bypass.h"
-
-#include "scripting/scriptnode/template_library/range.h"
-#include "scripting/scriptnode/template_library/range_impl.h"
-
-#include "scripting/scriptnode/template_library/container_base.h"
-#include "scripting/scriptnode/template_library/container_base_impl.h"
 
 
 
-#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
-#include "scripting/scriptnode/api/Containers.h"
-#include "scripting/scriptnode/api/Container_Chain.h"
-#include "scripting/scriptnode/api/Container_Split.h"
-#include "scripting/scriptnode/api/Container_Multi.h"
-#endif
-
-#include "scripting/scriptnode/api/Processors.h"
 
 #include "scripting/scriptnode/api/ModulationSourceNode.h"
 #include "scripting/scriptnode/api/StaticNodeWrappers.h"

@@ -1007,6 +1007,10 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(getDspNetworkReference);
 }
 
+ScriptingApi::Engine::~Engine()
+{
+
+}
 
 void ScriptingApi::Engine::allNotesOff()
 {

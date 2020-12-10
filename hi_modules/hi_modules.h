@@ -264,7 +264,6 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "nodes/EventNodes.h"
 #include "nodes/FilterNode.h"
 #include "nodes/RoutingNodes.h"
-#include "nodes/DelayNode.h"
 
 #include "nodes/MetaNodes.h"
 #include "nodes/snex_library/snex_NodeLibrary.h"

@@ -109,18 +109,14 @@ void scriptnode::seq_impl<NV>::initialise(NodeBase* n)
 }
 
 template <int NV>
-void scriptnode::seq_impl<NV>::createParameters(Array<ParameterData>& data)
+void scriptnode::seq_impl<NV>::createParameters(ParameterDataList& data)
 {
 	jassert(sp != nullptr);
 
 	{
-		ParameterData p("SliderPack");
-
+		DEFINE_PARAMETERDATA(seq_impl, SliderPack);
 		double maxPacks = (double)sp.get()->getNumSliderPacks();
-
 		p.range = { 0.0, jmax(1.0, maxPacks), 1.0 };
-		p.db = BIND_MEMBER_FUNCTION_1(seq_impl::setSliderPack);
-
 		data.add(std::move(p));
 	}
 }
@@ -160,17 +156,13 @@ struct TableNode::TableInterface : public ScriptnodeExtraComponent<TableNode>
 	ComboBox selector;
 };
 
-void TableNode::createParameters(Array<ParameterData>& data)
+void TableNode::createParameters(ParameterDataList& data)
 {
 	if (tp != nullptr)
 	{
-		ParameterData p("TableIndex");
-
+		DEFINE_PARAMETERDATA(TableNode, TableIndex);
 		double maxPacks = (double)tp.get()->getNumTables();
-
 		p.range = { 0.0, jmax(1.0, maxPacks), 1.0 };
-		p.db = BIND_MEMBER_FUNCTION_1(TableNode::setTable);
-
 		data.add(std::move(p));
 	}
 }
@@ -204,7 +196,7 @@ void TableNode::reset() noexcept
 	changed = true;
 }
 
-void TableNode::setTable(double indexAsDouble)
+void TableNode::setTableIndex(double indexAsDouble)
 {
 	jassert(tp != nullptr);
 	auto index = (int)indexAsDouble;

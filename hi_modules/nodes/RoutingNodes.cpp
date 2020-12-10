@@ -103,13 +103,12 @@ void ReceiveNode::prepare(PrepareSpecs ps)
 
 }
 
-void ReceiveNode::createParameters(Array<ParameterData>& d)
+void ReceiveNode::createParameters(ParameterDataList& d)
 {
 	{
-		ParameterData p("Feedback");
+		DEFINE_PARAMETERDATA(ReceiveNode, Feedback);
 		p.range = { 0.0, 1.0, 0.01 };
 		p.defaultValue = 0.0f;
-		p.db = BIND_MEMBER_FUNCTION_1(ReceiveNode::setGain);
 		d.add(std::move(p));
 	}
 }
@@ -132,7 +131,7 @@ bool ReceiveNode::isConnected() const
 	return connectedOK;
 }
 
-void ReceiveNode::setGain(double newGain)
+void ReceiveNode::setFeedback(double newGain)
 {
 	gainFactor = jlimit(0.0f, 1.0f, (float)newGain);
 }
@@ -195,7 +194,7 @@ bool SendNode::isConnected() const
 }
 
 
-void SendNode::createParameters(Array<ParameterData>&)
+void SendNode::createParameters(ParameterDataList&)
 {
 	
 }

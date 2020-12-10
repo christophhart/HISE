@@ -627,6 +627,8 @@ public:
 	/** Returns the number of events in this buffer. */
 	int getNumUsed() const { return numUsed; }
 
+	int size() const { return getNumUsed(); }
+
 	HiseEvent getEvent(int index) const;
 
 	HiseEvent popEvent(int index);

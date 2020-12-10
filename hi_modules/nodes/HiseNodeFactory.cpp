@@ -166,7 +166,7 @@ Factory::Factory(DspNetwork* network) :
 
 	parameter::dynamic_chain chain;
 
-	Array<ParameterDataImpl> data;
+	ParameterDataList data;
 
 	o.createParameters(data);
 
@@ -221,8 +221,8 @@ Factory::Factory(DspNetwork* network) :
 #endif
 
 	
-	using osc = fix<1, oscillator_impl<1>>;
-	using osc_poly = fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
+	using osc = wrap::fix<1, oscillator_impl<1>>;
+	using osc_poly = wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 	registerPolyNode<osc, osc_poly, OscDisplay>();
 

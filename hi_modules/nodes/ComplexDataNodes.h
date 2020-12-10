@@ -41,18 +41,23 @@ template <int NV> class seq_impl : public HiseDspBase
 {
 public:
 
+	enum class Parameters
+	{
+		SliderPack
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(SliderPack, seq_impl);
+	}
+
+
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("seq");
 	GET_SELF_AS_OBJECT(seq_impl);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
 
-#if RE
-	SET_HISE_NODE_EXTRA_WIDTH(512);
-	SET_HISE_NODE_EXTRA_HEIGHT(100);
-#endif
-
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void initialise(NodeBase* n) override;
 	bool handleModulation(double& value);
 	void reset();
@@ -117,11 +122,20 @@ struct TableNode : public HiseDspBase
 {
 	SET_HISE_NODE_ID("table");
 	GET_SELF_AS_OBJECT(TableNode);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(true);
+
+	enum class Parameters
+	{
+		TableIndex
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(TableIndex, TableNode);
+	}
 
 	struct TableInterface;
 
-	void createParameters(Array<ParameterData>& data) override;
+	void createParameters(ParameterDataList& data) override;
 	void initialise(NodeBase* n) override;
 	bool handleModulation(double& value);
 	void prepare(PrepareSpecs);
@@ -161,7 +175,7 @@ struct TableNode : public HiseDspBase
 		}
 	}
 
-	void setTable(double indexAsDouble);
+	void setTableIndex(double indexAsDouble);
 
 	WeakReference<LookupTableProcessor> tp;
 	WeakReference<SampleLookupTable> tableData;
@@ -244,7 +258,7 @@ template <typename T, int C> struct file_node: public file_base
 			obj.processFrame(data);
 	}
 
-	void createParameters(Array<ParameterDataImpl>& data)
+	void createParameters(ParameterDataList& data)
 	{
 		obj.createParameters(data);
 	}

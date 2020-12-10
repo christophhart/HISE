@@ -30,58 +30,69 @@
 *   ===========================================================================
 */
 
-#pragma once
-
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
 namespace core
 {
-struct fix_delay : public HiseDspBase
+
+void fix_delay::prepare(PrepareSpecs ps)
 {
-	SET_HISE_NODE_ID("fix_delay");
-#if RE
-	SET_HISE_NODE_EXTRA_HEIGHT(0);
-#endif
-	GET_SELF_AS_OBJECT(fix_delay);
-	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-
-	fix_delay() {};
-
-	void prepare(PrepareSpecs ps);
-	bool handleModulation(double&) noexcept { return false; };
-	void reset() noexcept;
-
-	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+	if (delayLines.size() != ps.numChannels)
 	{
-		jassert(data.getNumChannels() == delayLines.size());
-		int index = 0;
+		delayLines.clear();
 
-		for(auto c: data)
-			delayLines[index++]->processBlock(c.getRawWritePointer(), data.getNumSamples());
+		for (int i = 0; i < ps.numChannels; i++)
+			delayLines.add(new DelayLine<>());
 	}
 
-	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
-	{
-		jassert(data.size() == delayLines.size());
+	reset();
 
-		int index = 0;
+	for (auto d : delayLines)
+		d->prepareToPlay(ps.sampleRate);
 
-		for (auto& s: data)
-			s = delayLines[index++]->getDelayedValue(s);
-	}
-
-	void setDelayTimeMilliseconds(double newValue);
-	void setFadeTimeMilliseconds(double newValue);
-	void createParameters(Array<ParameterData>& data) override;
-
-	OwnedArray<DelayLine<>> delayLines;
-	
-	double delayTimeSeconds = 0.1;
-};
+	setDelayTime(delayTimeSeconds * 1000.0);
 }
 
+void fix_delay::createParameters(ParameterDataList& data)
+{
+	{
+		DEFINE_PARAMETERDATA(fix_delay, DelayTime);
+		p.range = { 0.0, 1000.0, 0.1 };
+		p.range.setSkewForCentre(100.0);
+		p.defaultValue = 100.0;
+		data.add(std::move(p));
+	}
+	{
+		DEFINE_PARAMETERDATA(fix_delay, FadeTime);
+		p.range = { 0.0, 1024.0, 1.0 };
+		p.defaultValue = 512;
+		data.add(std::move(p));
+	}
+}
+
+void fix_delay::reset() noexcept
+{
+	for (auto d : delayLines)
+		d->clear();
+}
+
+void fix_delay::setDelayTime(double newValue)
+{
+	delayTimeSeconds = newValue * 0.001;
+
+	for (auto d : delayLines)
+		d->setDelayTimeSeconds(delayTimeSeconds);
+}
+
+void fix_delay::setFadeTime(double newValue)
+{
+	for (auto d : delayLines)
+		d->setFadeTimeSamples((int)newValue);
+}
+
+}
 
 
 }

@@ -46,7 +46,7 @@ sampleandhold_impl<V>::sampleandhold_impl()
 }
 
 template <int V>
-void sampleandhold_impl<V>::setFactor(double value)
+void sampleandhold_impl<V>::setCounter(double value)
 {
 	auto factor = jlimit(1, 44100, roundToInt(value));
 
@@ -60,13 +60,12 @@ void sampleandhold_impl<V>::setFactor(double value)
 }
 
 template <int V>
-void sampleandhold_impl<V>::createParameters(Array<ParameterData>& d)
+void sampleandhold_impl<V>::createParameters(ParameterDataList& d)
 {
 	{
-		ParameterData p("Counter");
-		p.range = { 1, 64, 1.0 };
-		p.db = BIND_MEMBER_FUNCTION_1(sampleandhold_impl::setFactor);
-
+		DEFINE_PARAMETERDATA(sampleandhold_impl, Counter);
+		p.range = { 1.0, 64, 1.0 };
+		p.defaultValue = 1.0;
 		d.add(std::move(p));
 	}
 }
@@ -118,7 +117,7 @@ void bitcrush_impl<V>::setBitDepth(double newBitDepth)
 }
 
 template <int V>
-void bitcrush_impl<V>::createParameters(Array<ParameterData>& data)
+void bitcrush_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(bitcrush_impl, BitDepth);
@@ -201,15 +200,13 @@ bool phase_delay_impl<V>::handleModulation(double&) noexcept
 }
 
 template <int V>
-void phase_delay_impl<V>::createParameters(Array<ParameterData>& data)
+void phase_delay_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
-		ParameterData p("Frequency");
+		DEFINE_PARAMETERDATA(phase_delay_impl, Frequency);
 		p.range = { 20.0, 20000.0, 0.1 };
 		p.range.setSkewForCentre(1000.0);
 		p.defaultValue = 400.0;
-		p.db = BIND_MEMBER_FUNCTION_1(phase_delay_impl::setFrequency);
-
 		data.add(std::move(p));
 	}
 }
@@ -379,13 +376,12 @@ void haas_impl<V>::prepare(PrepareSpecs ps)
 }
 
 template <int V>
-void haas_impl<V>::createParameters(Array<ParameterData>& data)
+void haas_impl<V>::createParameters(ParameterDataList& data)
 {
 	{
-		ParameterData p("Position");
+		DEFINE_PARAMETERDATA(haas_impl, Position);
 		p.range = { -1.0, 1.0, 0.1 };
 		p.defaultValue = 0.0;
-		p.db = BIND_MEMBER_FUNCTION_1(haas_impl::setPosition);
 		data.add(std::move(p));
 	}
 }
@@ -420,7 +416,7 @@ bool reverb::handleModulation(double&) noexcept
 	return false;
 }
 
-void reverb::createParameters(Array<ParameterData>& data)
+void reverb::createParameters(ParameterDataList& data)
 {
 	{
 		DEFINE_PARAMETERDATA(reverb, Damping);
