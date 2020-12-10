@@ -50,6 +50,7 @@
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
 //==============================================================================
+#define JUCE_MODULE_AVAILABLE_hi_dsp_library             1
 #define JUCE_MODULE_AVAILABLE_hi_lac                     1
 #define JUCE_MODULE_AVAILABLE_hi_snex                    1
 #define JUCE_MODULE_AVAILABLE_hi_tools                   1
@@ -68,6 +69,17 @@
 #define JUCE_MODULE_AVAILABLE_juce_opengl                1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
+
+//==============================================================================
+// hi_dsp_library flags:
+
+#ifndef    HI_EXPORT_DSP_LIBRARY
+ #define   HI_EXPORT_DSP_LIBRARY 0
+#endif
+
+#ifndef    IS_STATIC_DSP_LIBRARY
+ //#define IS_STATIC_DSP_LIBRARY 1
+#endif
 
 //==============================================================================
 // hi_lac flags:

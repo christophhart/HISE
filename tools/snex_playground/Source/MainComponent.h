@@ -30,12 +30,12 @@ private:
     //==============================================================================
     // Your private member variables go here...
 
-	snex::ui::WorkbenchData data;
+	snex::ui::WorkbenchData::Ptr data;
 
     Value v;
 
 
-	snex::jit::SnexPlayground playground;
+	ScopedPointer<snex::jit::SnexPlayground> playground;
 	OpenGLContext context;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)

@@ -258,13 +258,13 @@ void Graph::recalculate()
 
 			outputBuffer.makeCopyOf(sourceBuffer);
 
-			volatile PrepareSpecs ps;
+			PrepareSpecs ps;
 			ps.sampleRate = 44100.0;
 			ps.numChannels = outputBuffer.getNumChannels();
 			ps.blockSize = outputBuffer.getNumSamples();
 			ps.voiceIndex = nullptr;
 
-			//currentNode->prepare(ps);
+			currentNode->prepare(ps);
 			currentNode->reset();
 
 			ProcessDataDyn data(outputBuffer.getArrayOfWritePointers(), outputBuffer.getNumSamples(), outputBuffer.getNumChannels());

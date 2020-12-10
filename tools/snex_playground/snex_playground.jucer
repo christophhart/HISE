@@ -60,13 +60,14 @@
         <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0" optimisation="3"/>
+                       enablePluginBinaryCopyStep="0" optimisation="1"/>
         <CONFIGURATION isDebug="0" name="Release" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" debugInformationFormat="ProgramDatabase"
                        enablePluginBinaryCopyStep="0" linkTimeOptimisation="1" alwaysGenerateDebugSymbols="1"/>
@@ -88,6 +89,7 @@
         <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile">
@@ -114,10 +116,12 @@
         <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
   <MODULES>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -140,5 +144,5 @@
     <OSX/>
     <LINUX/>
   </LIVE_SETTINGS>
-  <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1"/>
+  <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" HI_EXPORT_DSP_LIBRARY="0"/>
 </JUCERPROJECT>

@@ -203,40 +203,13 @@ juce::String getEmpty(const Identifier& namespaceId)
 
 //==============================================================================
 MainComponent::MainComponent() :
-	playground(&data, true)
+	data(new ui::WorkbenchData()),
+	playground(new SnexPlayground(data, true))
 {
-	data.setContentFunctions([this]() {return v.toString(); }, [this](const String& s) {v.setValue(s); return true; });
+	data->setContentFunctions([this]() {return v.toString(); }, [this](const String& s) {v.setValue(s); return true; });
 
-	context.attachTo(playground);
+	context.attachTo(*playground);
 	
-	
-
-#if 0
-	snex::jit::GlobalScope s;
-
-	ScriptNodeClassPrototype<2> obj(s);
-
-	obj.compile(getEmpty("MyTest"));
-
-	PrepareSpecs ps;
-	ps.blockSize = 512;
-	ps.sampleRate = 44100.0;
-	ps.numChannels = 2;
-
-	ProcessDataDyn d;
-
-	
-
-	span<float, 1024> storage = { 0.0f };
-
-	d.channelData[0] = storage.begin();
-	d.channelData[1] = storage.begin() + 512;
-	d.numChannels = 2;
-	d.numSamples = 512;
-
-	obj.process(d);
-#endif
-
 	addAndMakeVisible(playground);
     setSize (1024, 768);
 }
@@ -256,8 +229,5 @@ void MainComponent::paint (Graphics& g)
 
 void MainComponent::resized()
 {
-    // This is called when the MainComponent is resized.
-    // If you add any child components, this is where you should
-    // update their positions.
-	playground.setBounds(getLocalBounds());
+    playground->setBounds(getLocalBounds());
 }

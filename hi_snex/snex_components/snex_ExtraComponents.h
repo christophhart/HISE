@@ -313,7 +313,7 @@ struct Graph : public WorkbenchComponent,
 	{
 		currentNode = p->getCompiledNode();
 
-		if (currentNode != nullptr)
+		if (currentNode == nullptr)
 			currentResult = p->getLastResult();
 		else
 			currentResult = currentNode->r;

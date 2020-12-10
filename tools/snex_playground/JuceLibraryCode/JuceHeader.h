@@ -14,6 +14,7 @@
 
 #include "AppConfig.h"
 
+#include <hi_dsp_library/hi_dsp_library.h>
 #include <hi_lac/hi_lac.h>
 #include <hi_snex/hi_snex.h>
 #include <hi_tools/hi_tools.h>

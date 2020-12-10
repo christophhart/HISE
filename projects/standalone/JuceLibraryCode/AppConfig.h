@@ -22,7 +22,7 @@
 #define HISE_INCLUDE_SNEX 1
 #define OLD_JIT_STUFF 0
 #define NOT_JUST_OSC 0
-#define OLD_SCRIPTNODE_CPP 1
+#define OLD_SCRIPTNODE_CPP 0
 #define HI_RUN_UNIT_TESTS 1
 
 //#define HISE_ENABLE_EXPANSIONS 1
@@ -90,6 +90,13 @@
 #define JUCE_MODULE_AVAILABLE_stk_wrapper                 1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
+
+//==============================================================================
+// hi_components flags:
+
+#ifndef    HISE_INCLUDE_SNEX_FLOATING_TILES
+ //#define HISE_INCLUDE_SNEX_FLOATING_TILES 1
+#endif
 
 //==============================================================================
 // hi_core flags:

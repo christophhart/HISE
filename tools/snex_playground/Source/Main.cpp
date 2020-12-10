@@ -27,7 +27,7 @@ public:
     {
 		
 		runner.setAssertOnFailure(true);
-		runner.runAllTests();
+		runner.runTestsInCategory("node_tests");
 
         // This method is where you should put your application's initialisation code..
 

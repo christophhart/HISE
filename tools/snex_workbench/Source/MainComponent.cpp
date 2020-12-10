@@ -140,11 +140,26 @@ bool MainContentComponent::perform(const InvocationInfo &info)
 	return false;
 }
 
+using namespace snex::Types;
+
+
+
+
+
+
 //==============================================================================
 MainContentComponent::MainContentComponent(const String &commandLine):
 	standaloneProcessor(),
 	rootTile(getProcessor(), nullptr)
 {
+	UnitTestRunner runner;
+	runner.setPassesAreLogged(true);
+	runner.setAssertOnFailure(false);
+
+	runner.runTestsInCategory("node_tests");
+
+	
+
 	context.attachTo(*this);
 
 	mainManager.registerAllCommandsForTarget(this);

@@ -72,8 +72,7 @@
     <VS2017 targetFolder="Builds/VisualStudio2017" IPPLibrary="Sequential"
             windowsTargetPlatformVersion="10.0.16299.0" extraDefs="USE_IPP=1&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
-                       optimisation="3"/>
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"/>
         <CONFIGURATION isDebug="0" name="Release" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
