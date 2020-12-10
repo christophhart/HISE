@@ -189,7 +189,7 @@ public:
 
 	virtual void prepare(PrepareSpecs specs);
 
-	Identifier getObjectName() const override { return "Node"; };
+	Identifier getObjectName() const final override { return PropertyIds::Node; };
 
 	virtual void processFrame(FrameType& data) = 0;
 	

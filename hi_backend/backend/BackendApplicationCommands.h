@@ -86,6 +86,7 @@ public:
 		MenuOpenFileFromProjectOffset,
 		MenuSaveFile = 0x23000,
 		MenuSaveFileAs,
+		MenuSaveFileXmlBackup,
 		MenuSaveFileAsXmlBackup,
 		MenuOpenXmlBackup,
         MenuFileXmlBackupMenuOffset,
@@ -152,6 +153,7 @@ public:
 		MenuAddView,
 		MenuDeleteView,
 		MenuRenameView,
+		MenuViewResetLookAndFeel,
         MenuViewSaveCurrentView,
         MenuViewRemoveAllSoloProcessors,
         MenuViewShowAllHiddenProcessors,
@@ -290,6 +292,7 @@ public:
 		static void createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget);
 		static void recompileAllScripts(BackendRootWindow * bpe);
 		static void toggleFullscreen(BackendRootWindow * bpe);
+		static void resetLookAndFeel(BackendRootWindow* bpe);
 		static void addView(BackendRootWindow *bpe);
 		static void deleteView(BackendRootWindow *bpe);
 		static void saveView(BackendRootWindow *bpe);
@@ -314,6 +317,7 @@ public:
 		static void saveUserPreset(BackendRootWindow *bpe);
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
 		static void collectExternalFiles(BackendRootWindow * bpe);
+		static void saveFileXml(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
 		static void exportFileAsSnippet(BackendProcessor* bp);

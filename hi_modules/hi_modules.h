@@ -221,6 +221,7 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 */
 
 #include "synthesisers/synths/GlobalModulatorContainer.h"
+#include "synthesisers/synths/MacroModulationSource.h"
 #include "synthesisers/synths/SineSynth.h"
 #include "synthesisers/synths/NoiseSynth.h"
 #include "synthesisers/synths/WaveSynth.h"

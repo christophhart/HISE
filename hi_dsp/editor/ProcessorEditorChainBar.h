@@ -138,12 +138,17 @@ public:
 
 private:
 
+	NumberTag::LookAndFeelMethods numberRenderer;
+
 	int insertPosition;
 
 	Component::SafePointer<TextButton> midiButton;
 
 	OwnedArray<TextButton> chainButtons;
 	OwnedArray<NumberTag> numberTags;
+
+	Array<int> numProcessorList;
+
 	bool itemDragging;
 	bool canBeDropped;
 
@@ -159,7 +164,7 @@ private:
 
 	ScopedPointer<ChainBarButtonLookAndFeel> laf;
 
-	bool midiActive;
+    bool midiActive = false;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProcessorEditorChainBar)

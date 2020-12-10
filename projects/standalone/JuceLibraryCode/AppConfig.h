@@ -16,16 +16,7 @@
 //==============================================================================
 // [BEGIN_USER_CODE_SECTION]
 
-//#define JUCE_ENABLE_AUDIO_GUARD 0
-
-#define HI_ENABLE_CUSTOM_NODE_LOCATION 0
-#define HISE_INCLUDE_SNEX 1
-#define OLD_JIT_STUFF 0
-#define NOT_JUST_OSC 0
-#define OLD_SCRIPTNODE_CPP 0
-#define HI_RUN_UNIT_TESTS 1
-
-//#define HISE_ENABLE_EXPANSIONS 1
+#define JUCE_ENABLE_AUDIO_GUARD 0
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
@@ -122,7 +113,7 @@
 #endif
 
 #ifndef    USE_IPP
- #define   USE_IPP 0
+ #define   USE_IPP 1
 #endif
 
 #ifndef    USE_VDSP_FFT
@@ -173,16 +164,12 @@
  //#define CRASH_ON_GLITCH 0
 #endif
 
-#ifndef    HISE_ENABLE_EXPANSIONS
- //#define HISE_ENABLE_EXPANSIONS 0
-#endif
-
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS
  #define   ENABLE_SCRIPTING_BREAKPOINTS 1
 #endif
 
 #ifndef    HISE_ENABLE_MIDI_INPUT_FOR_FX
- //#define HISE_ENABLE_MIDI_INPUT_FOR_FX 0
+ #define   HISE_ENABLE_MIDI_INPUT_FOR_FX 1
 #endif
 
 #ifndef    ENABLE_ALL_PEAK_METERS
@@ -215,6 +202,10 @@
 
 #ifndef    USE_SPLASH_SCREEN
  //#define USE_SPLASH_SCREEN 0
+#endif
+
+#ifndef    HISE_USE_CUSTOM_EXPANSION_TYPE
+ //#define HISE_USE_CUSTOM_EXPANSION_TYPE 0
 #endif
 
 #ifndef    HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
@@ -266,7 +257,7 @@
 // hi_scripting flags:
 
 #ifndef    INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
- //#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 1
+ //#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 0
 #endif
 
 //==============================================================================
@@ -311,7 +302,7 @@
 #endif
 
 #ifndef    JUCE_JACK
- //#define JUCE_JACK 0
+ #define   JUCE_JACK 1
 #endif
 
 #ifndef    JUCE_BELA

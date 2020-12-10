@@ -160,6 +160,12 @@ public:
 	/** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
 	static bool isAbsolutePathCrossPlatform(const String &pathName);
 
+	/** This returns the filename for an absolute path independent of the OS.
+	    It can be used to convert an absolute path created on another platform to a valid reference string for ID
+		purposes (use includeParentDirectory to decrease the probability of collisions).
+	*/
+	static String getFileNameCrossPlatform(String pathName, bool includeParentDirectory);
+
 	static File getLinkFile(const File &subDirectory);
 
 	/** Creates a platform dependant file in the subdirectory that redirects to another location.
@@ -296,6 +302,7 @@ public:
 		listeners.removeAllInstancesOf(listenerToRemove);
 	}
 
+	static File getAppDataRoot();
    
 	static File getAppDataDirectory();
 	
@@ -373,6 +380,7 @@ public:
 	static String getCompanyWebsiteName();
 	static String getVersionString();
 	static String getAppGroupId();
+	static String getExpansionKey();
 
 	static String checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound);
 
@@ -743,6 +751,10 @@ struct MessageWithIcon : public Component
         virtual ~LookAndFeelMethods() {};
         
 		virtual void paintMessage(MessageWithIcon& icon, Graphics& g);
+
+		virtual MarkdownLayout::StyleData getAlertWindowMarkdownStyleData();
+
+		virtual Image createIcon(PresetHandler::IconType type);
 	};
 
 	MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf, const String &message);

@@ -1,6 +1,6 @@
+#pragma clang diagnostic ignored "-Weverything"
 
 #include "hi_zstd.h"
-
 
 #define ZDICT_STATIC_LINKING_ONLY
 

@@ -195,6 +195,16 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	if(buildMenus)
 		rebuildMenus(true, true);
 
+	if (mc->getCurrentScriptLookAndFeel() != nullptr)
+	{
+		slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(mc);
+
+		for (int i = 0; i < getNumChildComponents(); i++)
+		{
+			getChildComponent(i)->setLookAndFeel(slaf.get());
+		}
+	}
+
 	setSize(320, 400);
 }
 
@@ -562,8 +572,6 @@ void CustomSettingsWindow::paint(Graphics& g)
 
 		g.setFont(font);
 		g.drawText("Sample Location:", 15, y, getWidth() - 30, 30, Justification::centredTop);
-
-		g.setFont(GLOBAL_FONT());
 		g.drawText(samplePath, 10, y, getWidth() - 20, 30, Justification::centredBottom);
 
 		y += 80;

@@ -505,9 +505,9 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 		}
 
 #if JUCE_WINDOWS
-		File dumpFile = File("D:\\dumps").getChildFile(fileName);
+		dumpFile = File("D:\\dumps").getChildFile(fileName);
 #else
-		File dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
+		dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
 #endif
 
 		if (sibling)
@@ -604,7 +604,7 @@ void CompressionHelpers::applyDithering(float* data, int numSamples)
 		in += s * (s1 + s1 - s2);            //error feedback
 		tmp = in + o + d * (float)(r1 - r2); //dc offset and dither
 
-		out = floorf(w * tmp);                //truncate downwards
+		out = floor(w * tmp);                //truncate downwards
 		if (tmp < 0.0f) out--;                  //this is faster than floor()
 
 		s2 = s1;
@@ -1150,10 +1150,27 @@ bool CompressionHelpers::Misc::validateChecksum(uint32 data)
 	return (uint16)(bytes[0] * bytes[1]) == product;
 }
 
-#define CHECK_FLAG(x) if(!readAndCheckFlag(fis, x)) { listener->criticalErrorOccured("Read error"); return false; }
+#define CHECK_FLAG(x) if(!readAndCheckFlag(fis, x)) { if(listener != nullptr) listener->criticalErrorOccured("Read error"); return false; }
 
-#define VERBOSE_LOG(x) listener->logVerboseMessage(x)
-#define STATUS_LOG(x) listener->logStatusMessage(x)
+#define VERBOSE_LOG(x) if(listener != nullptr) listener->logVerboseMessage(x);
+#define STATUS_LOG(x) if(listener != nullptr) listener->logStatusMessage(x);
+
+var HlacArchiver::readMetadataFromArchive(const File& sourceFile)
+{
+	ScopedPointer<FileInputStream> fis = new FileInputStream(sourceFile);
+
+	auto flag = readFlag(fis);
+
+	if (flag == Flag::BeginMetadata)
+	{
+		auto obj = JSON::parse(fis->readString());
+
+		if (readFlag(fis) == Flag::EndMetadata)
+			return obj;
+	}
+	
+	return var();
+}
 
 bool HlacArchiver::extractSampleData(const DecompressData& data)
 {
@@ -1196,6 +1213,20 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 	int partIndex = 1;
 
 	currentFlag = readFlag(fis);
+
+	if (currentFlag == Flag::BeginHeaderFile)
+	{
+		VERBOSE_LOG("    Read Header file");
+
+		auto numBytesForHeaderFile = fis->readInt64();
+		VERBOSE_LOG(String(numBytesForHeaderFile) + String(" bytes"));
+		auto headerTargetFile = data.targetDirectory.getChildFile("header.dat");
+		headerTargetFile.create();
+		ScopedPointer<FileOutputStream> fos = new FileOutputStream(headerTargetFile);
+		fos->writeFromInputStream(*fis, numBytesForHeaderFile);
+		CHECK_FLAG(Flag::EndHeaderFile);
+		currentFlag = readFlag(fis);
+	}
 
 	while (currentFlag == Flag::BeginName)
 	{
@@ -1522,6 +1553,17 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 		CHECK_FILE_WRITE_OP;
 		WRITE_FLAG(Flag::EndMetadata);
 
+		if (data.optionalHeaderFile.existsAsFile())
+		{
+			WRITE_FLAG(Flag::BeginHeaderFile);
+			ScopedPointer<FileInputStream> fis = new FileInputStream(data.optionalHeaderFile);
+			auto numBytesToWrite = fis->getTotalLength();
+			fos->writeInt64(numBytesToWrite);
+			ok = fos->writeFromInputStream(*fis, -1);
+			CHECK_FILE_WRITE_OP;
+			WRITE_FLAG(Flag::EndHeaderFile);
+		}
+
 		hlac::HiseLosslessAudioFormat haf;
 
 		StringPairArray metadata;
@@ -1612,14 +1654,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			}
 			
 			WRITE_FLAG(Flag::EndMonolith);
-			
-
 			jassert(tmpInput->isExhausted());
-
 			fos->flush();
-
 			tmpInput = nullptr;
-			
 		}
 
 		WRITE_FLAG(Flag::EndOfArchive);

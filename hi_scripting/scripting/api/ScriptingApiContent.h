@@ -283,6 +283,16 @@ public:
 			numProperties
 		};
 
+		struct SubComponentListener
+		{
+			virtual ~SubComponentListener() {};
+
+			virtual void subComponentAdded(ScriptComponent* newComponent) = 0;
+			virtual void subComponentRemoved(ScriptComponent* componentAboutToBeRemoved) = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(SubComponentListener);
+		};
+
 		ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants = 0);
 
 		virtual ~ScriptComponent();
@@ -485,6 +495,18 @@ public:
 
 		// End of API Methods ============================================================================================
 
+
+		void addSubComponentListener(SubComponentListener* l)
+		{
+			subComponentListeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeSubComponentListener(SubComponentListener* l)
+		{
+			subComponentListeners.removeAllInstancesOf(l);
+		}
+
+		void sendSubComponentChangeMessage(ScriptComponent* s, bool wasAdded, NotificationType notify=sendNotificationAsync);
 		
 		void setChanged(bool isChanged = true) noexcept{ hasChanged = isChanged; }
 		bool isChanged() const noexcept{ return hasChanged; };
@@ -642,6 +664,8 @@ public:
 		ValueTree propertyTree;
 
 		Array<Identifier> scriptChangedProperties;
+
+		Array<WeakReference<SubComponentListener>> subComponentListeners;
 
 		bool countJsonSetProperties = true;
 		Identifier searchedProperty;
@@ -1218,6 +1242,15 @@ public:
 	{
 		// ========================================================================================================
 
+		struct MouseCursorInfo
+		{
+			Path path;
+			Colour c = juce::Colours::white;
+			Point<float> hitPoint = { 0.0f, 0.0f };
+		} mouseCursorPath;
+
+
+
 		enum Properties
 		{
 			borderSize = ScriptComponent::numProperties,
@@ -1238,8 +1271,11 @@ public:
 
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
 		
+		ScriptPanel(ScriptPanel* parent);
+
         ~ScriptPanel();
 		
+		void init();
 
 		// ========================================================================================================
 
@@ -1255,13 +1291,41 @@ public:
 
 		void preloadStateChanged(bool isPreloading) override;
 
-		void preloadStateInternal(bool isPreloading, Result& r);
+#if 0
+		void preloadStateInternal(bool isPreloading, Result& r)
+		{
+			jassert_locked_script_thread(getScriptProcessor()->getMainController_());
+
+			var thisObject(this);
+			var b(isPreloading);
+			var::NativeFunctionArgs args(thisObject, &b, 1);
+
+			auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+			jassert(engine != nullptr);
+
+			if (engine != nullptr)
+			{
+				engine->maximumExecutionTime = RelativeTime(0.5);
+				engine->callExternalFunction(loadRoutine, args, &r);
+
+				if (r.failed())
+				{
+					debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+				}
+			}
+		}
+#endif
 
 		void preRecompileCallback() override
 		{
 			ScriptComponent::preRecompileCallback();
+
+			timerRoutine.clear();
+			loadRoutine.clear();
+			mouseRoutine.clear();
+
 			stopTimer();
-			
 		}
 
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
@@ -1277,6 +1341,9 @@ public:
 
 		/** Calls the paint routine immediately. */
 		void repaintImmediately();
+
+		/** Sets a Path as mouse cursor for this panel. */
+		void setMouseCursor(var pathIcon, var colour, var hitPoint);
 
 		/** Sets an JSON animation. */
 		void setAnimation(String base64LottieAnimation);
@@ -1329,6 +1396,25 @@ public:
 			isModalPopup = shouldBeModal;
 		}
 
+		/** Adds a child panel to this panel. */
+		var addChildPanel();
+
+		/** Removes the panel from its parent panel if it was created with addChildPanel(). */
+		bool removeFromParent();
+
+		/** Returns a list of all panels that have been added as child panel. */
+		var getChildPanelList();
+
+		/** Returns the panel that this panel has been added to with addChildPanel. */
+		var getParentPanel();
+
+		int getNumSubPanels() const { return childPanels.size(); }
+
+		ScriptPanel* getSubPanel(int index)
+		{
+			return childPanels[index].get();
+		}
+
 		// ========================================================================================================
 
 #if HISE_INCLUDE_RLOTTIE
@@ -1343,6 +1429,11 @@ public:
 		{
 			
 		};
+
+		MouseCursorInfo getMouseCursorPath() const
+		{
+			return mouseCursorPath;
+		}
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
@@ -1478,9 +1569,12 @@ public:
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
 
 		var paintRoutine;
-		var mouseRoutine;
-		var timerRoutine;
-		var loadRoutine;
+
+		
+
+		WeakCallbackHolder timerRoutine;
+		WeakCallbackHolder loadRoutine;
+		WeakCallbackHolder mouseRoutine;
 
 		var dragBounds;
 
@@ -1490,6 +1584,11 @@ public:
 			String prettyName;
 		};
 		
+		WeakReference<ScriptPanel> parentPanel;
+		ReferenceCountedArray<ScriptPanel> childPanels;
+
+		bool isChildPanel = false;
+
 		Array<NamedImage> loadedImages;
 		
 		// ========================================================================================================
@@ -1749,6 +1848,9 @@ public:
 
 	/** Returns the reference to the given component. */
 	var getComponent(var name);
+	
+	/** Returns an array of all components that match the given regex. */
+    var getAllComponents(String regex);
 
 	/** Restore the Component from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);

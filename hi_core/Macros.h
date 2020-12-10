@@ -77,13 +77,6 @@ namespace hise { using namespace juce;
 #endif
 #endif
 
-
-#if HISE_ENABLE_EXPANSIONS
-#ifndef HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT
-#define HISE_REDIRECT_EXPANSION_SAMPLE_FOLDER_TO_DEFAULT 0
-#endif
-#endif
-
 #if USE_COPY_PROTECTION
 #ifndef HISE_ALLOW_OFFLINE_ACTIVATION
 #define HISE_ALLOW_OFFLINE_ACTIVATION 1
@@ -186,7 +179,7 @@ namespace hise { using namespace juce;
 #define LOCK_WITH_GUARD(mc) ScopedLock sl(mc->getLock());
 #endif
 
-#define GET_HISE_SETTING(processor, settingId) dynamic_cast<GlobalSettingManager*>(processor->getMainController())->getSettingsObject().getDefaultSetting(settingId)
+#define GET_HISE_SETTING(processor, settingId) dynamic_cast<GlobalSettingManager*>(processor->getMainController())->getSettingsObject().getSetting(settingId)
 
 #include "copyProtectionMacros.h"
 

@@ -236,6 +236,8 @@ String DeactiveOverlay::getTextForError(State s) const
 	case DeactiveOverlay::SamplesNotInstalled:
 #if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
 		return "Please click below to install the samples from the downloaded archive or point to the location where you've already installed the samples.";
+#elif HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
+        return "Please click below to install the samples from the downloaded archive.";
 #elif HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
 		return "Please click below to point to the location where you've already installed the samples.";
 #else
@@ -370,20 +372,23 @@ void DeactiveOverlay::resized()
 		registerProductButton->setVisible(false);
 
 		auto b = getLocalBounds().withSizeKeepingCentre(200, 50);
+        ignoreUnused(b);
 
 #if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
 		installSampleButton->setVisible(true);
 		installSampleButton->setBounds(b.removeFromTop(32));
 #else
 		installSampleButton->setVisible(false);
-		
 #endif
 
+#if HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
 		resolveSamplesButton->setVisible(true);
-		ignoreButton->setVisible(false);
-
-		
 		resolveSamplesButton->setBounds(b.removeFromBottom(32));
+#else
+		resolveSamplesButton->setVisible(false);
+#endif
+		
+		ignoreButton->setVisible(false);
 	}
 
 	if (currentState[LicenseNotFound] ||

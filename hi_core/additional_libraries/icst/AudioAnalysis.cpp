@@ -1352,7 +1352,7 @@
 		// calculate cubic phase correction
 		float p,err; double a2,a3;
 		err = (ps - pe + M_PI_FLOAT*(fs + fe)*len);
-		p = floorf(err/TWOPI + 0.5f);
+		p = floor(err/TWOPI + 0.5f);
 		err = (TWOPI*p - err)*invlen*invlen;
 		a2 = static_cast<double>(M_PI_FLOAT*(fe - fs)*invlen + 3.0f*err);
 		a3 = static_cast<double>(-2.0f*err*invlen);
@@ -1406,7 +1406,7 @@
 			temp = xr*yr - xi*yi; xi = xi*yr + xr*yi; xr = temp;
 			temp = yr*ar - yi*ai; yi = yi*ar + yr*ai; yr =temp;
 		}
-		t = 0.5f + ps/TWOPI + 0.5f*(fs+fe)*len; t -= (0.5f + floorf(t));
+		t = 0.5f + ps/TWOPI + 0.5f*(fs+fe)*len; t -= (0.5f + floor(t));
 		return TWOPI*t;
 	}
 

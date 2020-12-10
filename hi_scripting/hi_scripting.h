@@ -57,7 +57,7 @@ compilation process. This will obviously slow down the compilation, so if you're
 compile / debug cycle and don't need all nodes in scriptnode you might want to turn this off during development.
 */
 #ifndef INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
-#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 1
+#define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 0
 #endif
 
 
@@ -134,6 +134,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/api/XmlApi.h"
 #include "scripting/api/ScriptingApiObjects.h"
+#include "scripting/api/ScriptExpansion.h"
 #include "scripting/api/ScriptingApi.h"
 #include "scripting/api/ScriptingApiContent.h"
 #include "scripting/api/ScriptComponentEditBroadcaster.h"

@@ -951,15 +951,9 @@ template <class MatrixType> struct matrix
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		if (MatrixType::isFixedChannelMatrix())
-		{
-			ProcessDataHelpers<MatrixType::getNumChannels()>::processFix(this, data);
-		}
+			FrameConverters::processFix<MatrixType::getNumChannels()>(this, data);
 		else
-		{
-			DspHelpers::forwardToFrame16(this, data);
-		}
-
-		
+			FrameConverters::forwardToFrame16(this, data);
 	}
 	
 	template <typename FrameDataType> void processFrame(FrameDataType& data)

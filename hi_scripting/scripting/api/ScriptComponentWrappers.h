@@ -127,6 +127,18 @@ private:
 
 class ScriptContentComponent;
 
+
+#define DECLARE_ID(x) const Identifier x(#x);
+namespace ScriptComponentProperties
+{
+DECLARE_ID(x);
+DECLARE_ID(y);
+DECLARE_ID(width);
+DECLARE_ID(height);
+
+}
+#undef DECLARE_ID
+
 /** A baseclass for the wrappers of script created components.
 *
 *	They usually contain the component and are subclassed from their listener. In their listener callback
@@ -311,6 +323,9 @@ protected:
 	*/
 	ScriptCreatedComponentWrapper(ScriptContentComponent *content, int index_);
 	
+	/** Call this constructor for a content without data management. */
+	ScriptCreatedComponentWrapper(ScriptContentComponent* content, ScriptComponent* sc);
+
 	Processor *getProcessor();
 
 	ScriptingApi::Content *getContent();
@@ -658,13 +673,25 @@ public:
 
 	class PanelWrapper : public ScriptCreatedComponentWrapper,
                          public MouseCallbackComponent::Listener,
-						 public MouseCallbackComponent::RectangleConstrainer::Listener
+						 public MouseCallbackComponent::RectangleConstrainer::Listener,
+						 public ScriptComponent::SubComponentListener
 	{
 	public:
 
 		PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index);
 
+		PanelWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptPanel* panel);
+
 		~PanelWrapper();
+
+		OwnedArray<PanelWrapper> childPanelWrappers;
+		
+		void subComponentAdded(ScriptComponent* newComponent) override;
+		void subComponentRemoved(ScriptComponent* componentAboutToBeRemoved) override;
+
+		void initPanel(ScriptingApi::Content::ScriptPanel* panel);
+
+		void rebuildChildPanels();
 
 		void updateComponent() override;
 
@@ -740,6 +767,7 @@ public:
 		bool shouldUseList = false;
 
 		ScopedPointer<ColumnListBoxModel> model;
+		ScopedPointer<LookAndFeel> slaf;
 
 	};
 

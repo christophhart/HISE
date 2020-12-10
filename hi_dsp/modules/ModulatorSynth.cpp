@@ -708,14 +708,10 @@ void ModulatorSynth::handleVolumeFade(int eventId, int fadeTimeMilliseconds, flo
 {
 	const double fadeTimeSeconds = (double)fadeTimeMilliseconds / 1000.0;
 
-	for (int i = voices.size(); --i >= 0;)
+	for (auto v : activeVoices)
 	{
-		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
-
-		if (!v->isInactive() && v->getCurrentHiseEvent().getEventId() == eventId)
-		{
+		if (v->getCurrentHiseEvent().getEventId() == eventId)
 			v->setVolumeFade(fadeTimeSeconds, targetGain);
-		}
 	}
 }
 
@@ -1691,7 +1687,7 @@ void ModulatorSynth::killAllVoices()
             
             if (isInGroup())
                 shouldHaveEnvelope = false;
-            else if (ProcessorHelpers::is<GlobalModulatorContainer>(this))
+            else if (ProcessorHelpers::is<GlobalModulatorContainer>(this) || ProcessorHelpers::is<MacroModulationSource>(this))
                 shouldHaveEnvelope = false;
             else 
                 shouldHaveEnvelope = true;
@@ -1778,6 +1774,8 @@ void ModulatorSynthVoice::setCurrentHiseEvent(const HiseEvent &m)
 	transposeAmount = m.getTransposeAmount();
 	eventGainFactor = m.getGainFactor();
 	eventPitchFactor = m.getPitchFactorForEvent();
+	gainFader.setValueWithoutSmoothing(eventGainFactor);
+	pitchFader.setValueWithoutSmoothing(eventPitchFactor);
 }
 
 void ModulatorSynthChainFactoryType::fillTypeNameList()
@@ -1792,6 +1790,7 @@ void ModulatorSynthChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(AudioLooper);
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
 	ADD_NAME_TO_TYPELIST(JavascriptSynthesiser);
+	ADD_NAME_TO_TYPELIST(MacroModulationSource);
 }
 
 
@@ -1812,6 +1811,7 @@ Processor* ModulatorSynthChainFactoryType::createProcessor	(int typeIndex, const
 	case modulatorSynthGroup:	return new ModulatorSynthGroup(m, id, numVoices);
 	case globalModulatorContainer:	return new GlobalModulatorContainer(m, id, numVoices);
 	case scriptSynth:			return new JavascriptSynthesiser(m, id, numVoices);
+	case macroModulationSource: return new MacroModulationSource(m, id, numVoices);
 	default:					jassertfalse; return nullptr;
 	}
 };

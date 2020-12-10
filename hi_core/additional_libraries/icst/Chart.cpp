@@ -948,7 +948,7 @@ int Chart::ZMap(float z)
 bool Chart::UseFracTicks(float x)				
 {
 	x = fabsf(x);
-	if (fabsf(floorf(x + 0.5f) - x) > 0.01f*x) return true;
+	if (fabsf(floor(x + 0.5f) - x) > 0.01f*x) return true;
 	return false;
 }
 

@@ -668,8 +668,10 @@ void PresetBrowserColumn::paint(Graphics& g)
 
 	String emptyText;
 
+	StringArray columnNames = { "Expansion", "Nothing", "Bank", "Column" };
+
 	if (currentRoot == File() && listModel->wildcard.isEmpty() && listModel->currentlyActiveTags.isEmpty())
-		emptyText = "Select a " + String(index == 1 ? "Bank" : "Category");
+		emptyText = "Select a " + columnNames[jlimit(0, 3, index+1)];
 	else if (listModel->isEmpty())
 		emptyText = isResultBar ? "No results" : "Add a " + name;
 
@@ -720,6 +722,63 @@ PresetBrowserChildComponentBase::PresetBrowserChildComponentBase(PresetBrowser* 
 PresetBrowserLookAndFeelMethods &PresetBrowserChildComponentBase::getPresetBrowserLookAndFeel()
 {
 	return parent->getPresetBrowserLookAndFeel();
+}
+
+PresetBrowserColumn::ExpansionColumnModel::ExpansionColumnModel(PresetBrowser* p) :
+	ColumnListModel(p, -1, p),
+	ControlledObject(p->getMainController())
+{
+	totalRoot = p->getMainController()->getExpansionHandler().getExpansionFolder();
+	root = totalRoot;
+}
+
+void PresetBrowserColumn::ExpansionColumnModel::listBoxItemClicked(int row, const MouseEvent & e)
+{
+	if (listener != nullptr && !e.mouseWasDraggedSinceMouseDown())
+	{
+		if (lastIndex == row)
+		{
+			lastIndex = -1;
+		}
+		else
+			lastIndex = row;
+
+		listener->selectionChanged(index, lastIndex, lastIndex == -1 ? File() : entries[lastIndex], false);
+	}
+}
+
+void PresetBrowserColumn::ExpansionColumnModel::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
+{
+	if (lastIndex == -1)
+		rowIsSelected = false;
+
+	auto& h = getMainController()->getExpansionHandler();
+
+	String itemName;
+
+	if (auto* e = h.getExpansion(rowNumber))
+	{
+		itemName = e->getProperty(ExpansionIds::Name);
+	}
+
+	if (rowNumber < entries.size())
+	{
+		auto position = Rectangle<int>(0, 1, width, height - 2);
+		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick);
+	}
+}
+
+int PresetBrowserColumn::ExpansionColumnModel::getNumRows() 
+{
+	entries.clear();
+
+	// We check for actual valid expansions to display here...
+	auto& h = getMainController()->getExpansionHandler();
+
+	for (int i = 0; i < h.getNumExpansions(); i++)
+		entries.add(h.getExpansion(i)->getRootFolder());
+
+	return entries.size();
 }
 
 }

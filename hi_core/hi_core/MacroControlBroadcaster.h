@@ -45,8 +45,21 @@ class MacroControlBroadcaster
 {
 public:
 
+	struct MacroConnectionListener
+	{
+		virtual ~MacroConnectionListener() {};
+
+		virtual void macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded) = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroConnectionListener);
+	};
+
 	/** Creates a new MacroControlBroadcaster with eight Macro slots. */
 	MacroControlBroadcaster(ModulatorSynthChain *chain);
+
+	virtual ~MacroControlBroadcaster() {};
 
 	/** A simple POD object to store information about a macro controlled parameter. 
 	*	@ingroup macroControl
@@ -159,9 +172,76 @@ public:
 		bool readOnly;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroControlledParameterData)
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroControlledParameterData);
 	};
 
-	
+	void sendMacroConnectionChangeMessage(int macroIndex, Processor* p, int parameterIndex, bool wasAdded)
+	{
+		// Should only be called from the message thread
+		jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+		for (auto l : macroListeners)
+		{
+			if (l != nullptr)
+				l->macroConnectionChanged(macroIndex, p, parameterIndex, wasAdded);
+		}
+	}
+
+	void sendMacroConnectionChangeMessageForAll(bool wasAdded)
+	{
+		struct AsyncData
+		{
+			int index;
+			WeakReference<Processor> p;
+			int parameter;
+			bool wasAdded;
+		};
+
+		Array<AsyncData> data;
+
+		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
+		for (auto m : macroControls)
+		{
+			auto index = m->macroIndex;
+
+			for (int i = 0; i < m->getNumParameters(); i++)
+			{
+				if (auto p = m->getParameter(i))
+					data.add({ index, p->getProcessor(), p->getParameter(), wasAdded });
+			}
+		}
+
+		if (!data.isEmpty())
+		{
+			WeakReference<MacroControlBroadcaster> safeThis(this);
+
+			auto f = [data, safeThis]()
+			{
+				if (safeThis != nullptr)
+				{
+					for (auto d : data)
+					{
+						if(d.p != nullptr)
+							safeThis.get()->sendMacroConnectionChangeMessage(d.index, d.p.get(), d.parameter, d.wasAdded);
+					}
+				}
+				
+			};
+
+			MessageManager::callAsync(f);
+		}
+	}
+
+	void addMacroConnectionListener(MacroConnectionListener* l)
+	{
+		macroListeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeMacroConnectionListener(MacroConnectionListener* l)
+	{
+		macroListeners.removeAllInstancesOf(l);
+	}
 
 	/** A MacroControlData object stores information about all parameters that are mapped to one macro control. 
 	*	@ingroup macroControl
@@ -170,11 +250,16 @@ public:
 	struct MacroControlData
 	{
 		/** Creates an empty data object. */
-		MacroControlData(int index):
+		MacroControlData(int index, MacroControlBroadcaster& parent_):
 			macroName("Macro " + String(index + 1)),
 			currentValue(0.0),
-			midiController(-1)
+			midiController(-1),
+			parent(parent_),
+			macroIndex(index)
 		{};
+
+		MacroControlBroadcaster& parent;
+		const int macroIndex;
 
 		virtual ~MacroControlData()
 		{
@@ -185,7 +270,7 @@ public:
 		*
 		*	The chain is used to find the child processor with the given id.
 		*/
-		MacroControlData(ModulatorSynthChain *chain, XmlElement *xml);
+		MacroControlData(ModulatorSynthChain *chain, int index, XmlElement *xml);
 
 		/** Returns the last value. */
 		float getCurrentValue() const;
@@ -297,7 +382,8 @@ public:
 
 		OwnedArray<MacroControlledParameterData> controlledParameters;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroControlData)
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroControlData);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroControlData);
 	};
 
 	/** Small helper function that iterates all child processors and returns the matching Processor with the given ID. */
@@ -309,6 +395,8 @@ public:
 	/** searches all macroControls and returns the index of the control if the supplied parameter is mapped or -1 if it is not mapped. */
 	int getMacroControlIndexForProcessorParameter(const Processor *p, int parameter) const
 	{
+		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
 		for(int i = 0; i < macroControls.size(); i++)
 		{
 			for(int j = 0; j < macroControls[i]->getNumParameters(); j++)
@@ -342,16 +430,24 @@ public:
 								bool readOnly=true);
 
 	/** Returns the MacroControlData object at the supplied index. */
-	MacroControlData *getMacroControlData(int index) { return macroControls[index];	}
+	MacroControlData *getMacroControlData(int index) 
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+		return macroControls[index];	
+	}
 
 	/** Returns the MacroControlData object at the supplied index. */
-	const MacroControlData *getMacroControlData(int index) const { return macroControls[index]; }
+	const MacroControlData *getMacroControlData(int index) const 
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+		return macroControls[index]; 
+	}
 
 	void saveMacrosToValueTree(ValueTree &v) const;
 
 	void saveMacroValuesToValueTree(ValueTree &v) const;
 
-	void loadMacrosFromValueTree(const ValueTree &v);
+	void loadMacrosFromValueTree(const ValueTree &v, bool loadMacroValues = true);
 	
 	/** Only loads the values of the macros (and doesn't recreate the macro controls. */
 	void loadMacroValuesFromValueTree(const ValueTree &v);
@@ -362,7 +458,6 @@ public:
     void clearAllMacroControls()
     {
         const int numMacros = macroControls.size();
-        
         
         for(int i = 0; i < numMacros; i++)
         {
@@ -387,10 +482,15 @@ public:
 
 private:
 
+	mutable hise::SimpleReadWriteLock macroLock;
+
+	Array<WeakReference<MacroConnectionListener>> macroListeners;
+
 	OwnedArray<MacroControlData> macroControls;
 	
 	ModulatorSynthChain *thisAsSynth;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MacroControlBroadcaster);
 };
 
 } // namespace hise

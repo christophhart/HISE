@@ -245,6 +245,11 @@ public:
 			nonRealtime = shouldBeNonRealtime;
 		}
 
+		String getPreloadMessage() const
+		{
+			return currentPreloadMessage;
+		}
+
 	private:
 
 		bool nonRealtime = false;
@@ -383,6 +388,9 @@ public:
 		void removeMacroControlsFor(Processor *p);
 		void removeMacroControlsFor(Processor *p, Identifier name);
 	
+		bool isMacroEnabledOnFrontend() const { return enableMacroOnFrontend; };
+		void setEnableMacroOnFrontend(bool shouldBeEnabled) { enableMacroOnFrontend = shouldBeEnabled; }
+
 		MidiControllerAutomationHandler *getMidiControlAutomationHandler();;
 		const MidiControllerAutomationHandler *getMidiControlAutomationHandler() const;;
 
@@ -397,6 +405,7 @@ public:
 		ModulatorSynthChain *macroChain;
 		int macroIndexForCurrentLearnMode;
 		int macroIndexForCurrentMidiLearnMode;
+		bool enableMacroOnFrontend = false;
 
 		MidiControllerAutomationHandler midiControllerHandler;
 
@@ -1144,6 +1153,8 @@ public:
 		return &getCurrentFileHandler();
 	}
 
+	AudioPlayHead::CurrentPositionInfo& getPositionInfo() { return lastPosInfo; }
+
 	const FileHandlerBase& getCurrentFileHandler() const
 	{
 		return getSampleManager().getProjectHandler();
@@ -1174,15 +1185,9 @@ public:
 		return &getSampleManager().getProjectHandler().pool->getImagePool();
 	};
 
-	SampleMapPool* getCurrentSampleMapPool()
-	{
-		return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
-	}
+	SampleMapPool* getCurrentSampleMapPool();
 
-	const SampleMapPool* getCurrentSampleMapPool() const
-	{
-		return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
-	}
+	const SampleMapPool* getCurrentSampleMapPool() const;
 
 	MidiFilePool* getCurrentMidiFilePool()
 	{
@@ -1332,7 +1337,15 @@ public:
 
 	virtual const ModulatorSynthChain *getMainSynthChain() const = 0;
 
+	void resetLookAndFeelToDefault(Component* c);
+
 	void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf) override;
+
+	bool setMinimumSamplerate(double newMinimumSampleRate)
+	{
+		minimumSamplerate = jlimit<double>(1.0, 96000.0 * 4.0, newMinimumSampleRate);
+		return refreshOversampling();
+	}
 
 	/** Returns the time that the plugin spends in its processBlock method. */
 	float getCpuUsage() const {return usagePercent.load();};
@@ -1467,6 +1480,11 @@ public:
 		currentPreview = p;
 	}
 
+	void setDefaultPresetHandler(ControlledObject* ownedHandler)
+	{
+		defaultPresetHandler = ownedHandler;
+	}
+
 	MarkdownContentProcessor* getCurrentMarkdownPreview()
 	{
 		return currentPreview;
@@ -1530,18 +1548,24 @@ protected:
 	
     void setMidiInputFlag() {midiInputFlag = true; };
     
-	void setReplaceBufferContent(bool shouldReplaceContent)
-	{
-		replaceBufferContent = shouldReplaceContent;
-	}
-
 	void killAndCallOnAudioThread(const ProcessorFunction& f);
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
+
+	
 	
 
 private:
+
+	bool refreshOversampling();
+
+	double getOriginalSamplerate() const { return sampleRate / getOversampleFactor(); }
+
+	int getOriginalBufferSize() const { return (int)((double)maxBufferSize.get() / getOversampleFactor()); }
+
+	int getOversampleFactor() const { return currentOversampleFactor; }
+	
 
 #if HISE_INCLUDE_RLOTTIE
 	ScopedPointer<RLottieManager> rLottieManager;
@@ -1583,8 +1607,6 @@ private:
 
 	bool skipCompilingAtPresetLoad = false;
 
-	bool replaceBufferContent = true;
-
 	UnorderedStack<HiseEvent> suspendedNoteOns;
 
 	HiseEventBuffer masterEventBuffer;
@@ -1614,6 +1636,10 @@ private:
 		Identifier id;
 	};
 
+	ScopedPointer<juce::dsp::Oversampling<float>> oversampler;
+	double minimumSamplerate = 0.0;
+	int currentOversampleFactor = 1;
+	
 	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
 	ValueTree embeddedMarkdownDocs;
@@ -1706,6 +1732,8 @@ private:
     std::atomic<double> temp_usage;
 	int scrollY;
 	BigInteger shownComponents;
+
+	ScopedPointer<ControlledObject> defaultPresetHandler;
 
 	void handleSuspendedNoteOffs();
 public:

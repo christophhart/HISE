@@ -35,9 +35,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-#if OLD_JIT_STUFF
-
-#if HISE_INCLUDE_SNEX
+#if 0
     
 using namespace snex;
 
@@ -81,8 +79,6 @@ void HiseBufferHandler::registerExternalItems()
 			auto af = cdh->addOrReturnAudioFile(i);
 
 			auto& buffer = af->getBuffer()->range;
-
-			int numChannels = buffer.getNumChannels();
 
 			if (buffer.getNumSamples() > 0)
 			{
@@ -561,8 +557,6 @@ juce::String JitNode::createCppClass(bool isOuterClass)
 		return getId();
 }
 
-
-#endif
 
 #endif
 

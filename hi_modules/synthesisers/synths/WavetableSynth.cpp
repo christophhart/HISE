@@ -148,7 +148,7 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 			}
 			
 			const float tableModValue = tableValues[startSample];
-			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * (double)(numTables -1);
+			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * (float)(numTables -1);
 
 			const int lowerTableIndex = (int)(tableValue);
 			const int upperTableIndex = jmin(numTables-1, lowerTableIndex + 1);
@@ -212,7 +212,7 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 				i2 = 0;
 			}
 
-			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * (double)(numTables - 1);
+			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * (float)(numTables - 1);
 
 			const int lowerTableIndex = (int)(tableValue);
 			const int upperTableIndex = jmin(numTables - 1, lowerTableIndex + 1);

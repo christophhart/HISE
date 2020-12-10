@@ -37,10 +37,15 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 {
 	auto pool = parentMap->getCurrentSamplePool();
 
-	PoolReference ref(getMainController(), sampleData.getProperty("FileName").toString(), ProjectHandler::SubDirectories::Samples);
+	auto filename = sampleData.getProperty(SampleIds::FileName).toString();
 
-	ref = ref.withFileHandler(parentMap->getCurrentFileHandler());
+	if (FileHandlerBase::isAbsolutePathCrossPlatform(filename) && hmaf != nullptr)
+	{
+		// Just create a dummy reference string, it won't be used for anything else than identification...
+		filename = "{PROJECT_FOLDER}" + FileHandlerBase::getFileNameCrossPlatform(filename, true);
+	}
 
+	PoolReference ref(getMainController(), filename, ProjectHandler::SubDirectories::Samples);
 
 	auto existingSample = pool->getSampleFromPool(ref);
 
@@ -158,13 +163,11 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 	else if( id == SampleIds::LoVel)		
 		return Range<int>(0, (int)getSampleProperty(SampleIds::HiVel) -
 							 (int)getSampleProperty(SampleIds::LowerVelocityXFade) -
-							 (int)getSampleProperty(SampleIds::UpperVelocityXFade) - 
-							 1);
+							 (int)getSampleProperty(SampleIds::UpperVelocityXFade));
 	else if( id == SampleIds::HiVel)		
 		return Range<int>((int)getSampleProperty(SampleIds::LoVel) +
 						  (int)getSampleProperty(SampleIds::LowerVelocityXFade) +
-						  (int)getSampleProperty(SampleIds::UpperVelocityXFade) +
-						  1, 127);
+						  (int)getSampleProperty(SampleIds::UpperVelocityXFade), 127);
 	else if( id == SampleIds::Volume)		return Range<int>(-100, 18);
 	else if( id == SampleIds::Pan)			return Range<int>(-100, 100);
 	else if( id == SampleIds::Normalized)	return Range<int>(0, 1);
@@ -309,6 +312,12 @@ void ModulatorSamplerSound::calculateNormalizedPeak()
 		normalizedPeak = 0.0f;
 		data.setProperty(SampleIds::NormalizedPeak, 0.0f, nullptr);
 	}
+}
+
+void ModulatorSamplerSound::removeNormalisationInfo(UndoManager* um)
+{
+	data.setProperty(SampleIds::Normalized, 0, um);
+	data.removeProperty(SampleIds::NormalizedPeak, um);
 }
 
 float ModulatorSamplerSound::getNormalizedPeak() const
@@ -652,7 +661,9 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 	var rv = data.getProperty(id, getDefaultValue(id));
 
 	if (SampleIds::Helpers::isMapProperty(id))
+	{
 		return jlimit(0, 127, (int)rv);
+	}
 	else
 		return rv;
 }

@@ -361,7 +361,7 @@ struct ResynthesisHelpers
 		double delta = (double)(numInputSamples) / (double)numOutputSamples;
         double uptime = (double)latencyInSamples;
         
-		AudioSampleBuffer scratchBuffer(upsampledBuffer.getNumChannels(), numOutputSamples);
+		AudioSampleBuffer scratchBuffer((int)upsampledBuffer.getNumChannels(), numOutputSamples);
         
         for (int i = 0; i < numOutputSamples; i++)
         {
@@ -479,7 +479,7 @@ struct ResynthesisHelpers
 			// You'll usually don't find longer wavetables than this....
 			jassert(reader->lengthInSamples < 8192);
 
-			int inputSize = reader->lengthInSamples;
+			int inputSize = (int)reader->lengthInSamples;
 			int outputSize = getWavetableLength(noteNumber, sampleRate);
 
 #if 0
@@ -500,7 +500,7 @@ struct ResynthesisHelpers
 
 			ScopedPointer<Oversampler> os = createOversampler(workingBufferSize);
 
-			auto extraSamplesForLatency = (int)std::ceilf(os->getLatencyInSamples());
+			auto extraSamplesForLatency = (int)std::ceil(os->getLatencyInSamples());
 
 			b.setSize(1, workingBufferSize + extraSamplesForLatency);
 			b.clear();

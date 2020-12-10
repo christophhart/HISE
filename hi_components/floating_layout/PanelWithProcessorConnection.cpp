@@ -54,6 +54,9 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	indexSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
 	indexSelector->setTextWhenNothingSelected("Disconnected");
 
+	connectionSelector->setLookAndFeel(&hlaf);
+	indexSelector->setLookAndFeel(&hlaf);
+
 	BACKEND_ONLY(getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);)
 }
 

@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 #undef GET_SCRIPT_PROPERTY
 #undef GET_OBJECT_COLOUR
 
-#define GET_SCRIPT_PROPERTY(id) (getContent()->getComponent(getIndex())->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::id))
+#define GET_SCRIPT_PROPERTY(id) (getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::id))
 
 
 
@@ -119,6 +119,16 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 	index(index_)
 {
 	scriptComponent = content->contentData->getComponent(index_);
+}
+
+ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentComponent* content, ScriptComponent* sc):
+	AsyncValueTreePropertyListener(sc->getPropertyValueTree(), content->contentData->getUpdateDispatcher()),
+	valuePopupHandler(*this),
+	contentComponent(content),
+	index(-1),
+	scriptComponent(sc)
+{
+	
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()
@@ -373,7 +383,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptComponent::useUndoManager:	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager)); break;
 		PROPERTY_CASE::ScriptComponent::text:			s->setName(GET_SCRIPT_PROPERTY(text)); break;
 		PROPERTY_CASE::ScriptComponent::enabled:		s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled)); break;
-		PROPERTY_CASE::ScriptComponent::tooltip :		updateTooltip(s); break;
+		PROPERTY_CASE::ScriptComponent::tooltip :		s->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 		PROPERTY_CASE::ScriptComponent::saveInPreset:   s->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
@@ -964,6 +974,8 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateFont(ScriptingApi::Cont
 		}
 	}
 
+	l->setUsePasswordCharacter(fontStyle == "Password");
+
 	l->setJustificationType(sl->getJustification());
 }
 
@@ -1194,6 +1206,14 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 		vp->setName(viewport->name.toString());
 
 		vp->setViewedComponent(new DummyComponent(), true);
+
+		auto mc = viewport->getScriptProcessor()->getMainController_();
+
+		if (mc->getCurrentScriptLookAndFeel() != nullptr)
+		{
+			slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(mc);
+			vp->setLookAndFeel(slaf);
+		}
 
 		component = vp;
 	}
@@ -1490,29 +1510,14 @@ void ScriptCreatedComponentWrappers::ImageWrapper::mouseCallback(const var &mous
 ScriptCreatedComponentWrappers::PanelWrapper::PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index) :
 ScriptCreatedComponentWrapper(content, index)
 {
-	BorderPanel *bp = new BorderPanel(panel->getDrawActionHandler());
+	initPanel(panel);
 
-	bp->setName(panel->name.toString());
+}
 
-#if HISE_INCLUDE_RLOTTIE
-	bp->setAnimation(panel->getAnimation());
-#endif
-
-	bp->addMouseCallbackListener(this);
-	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
-	bp->setDragBounds(panel->getDragBounds(), this);
-    bp->setOpaque(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
-	bp->isPopupPanel = panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::isPopupPanel);
-	bp->setJSONPopupData(panel->getJSONPopupData(), panel->getPopupSize());
-	bp->setup(getProcessor(), getIndex(), panel->name.toString());
-	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
-
-	component = bp;
-
-	initAllProperties();
-
-	panel->repaint();
-
+ScriptCreatedComponentWrappers::PanelWrapper::PanelWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptPanel* panel):
+	ScriptCreatedComponentWrapper(content, panel)
+{
+	initPanel(panel);
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
@@ -1645,10 +1650,109 @@ void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle
 
 ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
 {
+	if (auto c = getScriptComponent())
+		c->removeSubComponentListener(this);
+
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
 
 	bpc->removeCallbackListener(this);
 	
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::subComponentAdded(ScriptComponent* newComponent)
+{
+	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	for (int i = 0; i < sc->getNumSubPanels(); i++)
+	{
+		if (auto sp = sc->getSubPanel(i))
+		{
+			if (newComponent == sp)
+			{
+				childPanelWrappers.add(new PanelWrapper(contentComponent, sp));
+				bpc->addAndMakeVisible(childPanelWrappers.getLast()->getComponent());
+			}
+		}
+	}
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::subComponentRemoved(ScriptComponent* componentAboutToBeRemoved)
+{
+	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
+	
+	for (int i = 0; i < childPanelWrappers.size(); i++)
+	{
+		if (childPanelWrappers[i]->getScriptComponent() == componentAboutToBeRemoved)
+		{
+			bpc->removeChildComponent(childPanelWrappers[i]->getComponent());
+			childPanelWrappers.remove(i);
+			return;
+		}
+	}
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Content::ScriptPanel* panel)
+{
+	BorderPanel *bp = new BorderPanel(panel->getDrawActionHandler());
+
+	panel->addSubComponentListener(this);
+
+	bp->setName(panel->name.toString());
+
+#if HISE_INCLUDE_RLOTTIE
+	bp->setAnimation(panel->getAnimation());
+#endif
+
+	bp->addMouseCallbackListener(this);
+	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
+	bp->setDragBounds(panel->getDragBounds(), this);
+	bp->setOpaque(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
+	bp->isPopupPanel = panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::isPopupPanel);
+	bp->setJSONPopupData(panel->getJSONPopupData(), panel->getPopupSize());
+	bp->setup(getProcessor(), getIndex(), panel->name.toString());
+	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
+
+	auto cursor = panel->getMouseCursorPath();
+
+	if (!cursor.path.isEmpty())
+	{
+		auto s = 80;
+
+		Image icon(Image::ARGB, s, s, true);
+		Graphics g(icon);
+
+		PathFactory::scalePath(cursor.path, { 0.0f, 0.0f, (float)s, (float)s });
+
+		g.setColour(cursor.c);
+		g.fillPath(cursor.path);
+		MouseCursor c(icon, roundToInt(cursor.hitPoint.x * s), roundToInt(cursor.hitPoint.y * s));
+		bp->setMouseCursor(c);
+	}
+
+	component = bp;
+
+	initAllProperties();
+
+	rebuildChildPanels();
+
+	panel->repaint();
+
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::rebuildChildPanels()
+{
+	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	for (int i = 0; i < sc->getNumSubPanels(); i++)
+	{
+		if (auto sp = sc->getSubPanel(i))
+		{
+			childPanelWrappers.add(new PanelWrapper(contentComponent, sp));
+			bpc->addAndMakeVisible(childPanelWrappers.getLast()->getComponent());
+		}
+	}
 }
 
 ScriptCreatedComponentWrappers::SliderPackWrapper::SliderPackWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSliderPack *pack, int index) :
@@ -1748,7 +1852,8 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue
 	}
 }
 
-class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener
+class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener,
+																			  public SampleMap::Listener
 {
 public:
 
@@ -1756,6 +1861,8 @@ public:
 		s(s_),
 		waveform(waveform_)
 	{
+		s->getSampleMap()->addListener(this);
+
 		s->addChangeListener(this);
 
 		if (auto v = s->getLastStartedVoice())
@@ -1768,7 +1875,35 @@ public:
 	{
 		lastSound = nullptr;
 
-		s->removeChangeListener(this);
+		if (s != nullptr)
+		{
+			s->getSampleMap()->removeListener(this);
+			s->removeChangeListener(this);
+		}
+	}
+
+	void refreshAfterSampleMapChange()
+	{
+		if (displayedIndex != -1)
+		{
+			if(auto newSound =  s->getSound(displayedIndex))
+				waveform->setSoundToDisplay(dynamic_cast<ModulatorSamplerSound*>(newSound), 0);
+		}
+	}
+
+	void sampleMapWasChanged(PoolReference ) override
+	{
+		refreshAfterSampleMapChange();
+	}
+
+	void sampleAmountChanged() override 
+	{
+		refreshAfterSampleMapChange();
+	};
+
+	void sampleMapCleared() override 
+	{
+		refreshAfterSampleMapChange();
 	}
 
     void setActive(bool shouldBeActive)
@@ -1794,6 +1929,8 @@ public:
 		}
 	}
 
+
+	int displayedIndex = -1;
 
     bool active = true;
 	ModulatorSampler* s;
@@ -1895,6 +2032,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateSampleIndex(Scr
             if(samplerListener != nullptr)
             {
                 samplerListener->setActive(newValue == -1);
+				samplerListener->displayedIndex = newValue;
             }
             
             if(newValue != -1 && lastIndex != newValue)

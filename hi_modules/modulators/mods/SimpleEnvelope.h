@@ -35,10 +35,6 @@
 
 namespace hise { using namespace juce;
 
-class ExponentialStateCalculator
-{
-
-};
 
 /** @ingroup modulatorTypes
 

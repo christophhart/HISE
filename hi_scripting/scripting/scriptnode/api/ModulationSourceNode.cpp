@@ -445,7 +445,7 @@ void ModulationSourcePlotter::timerCallback()
 
 		if (pixelCounter > 4.0f)
 		{
-			pixelCounter = fmodf(pixelCounter, 4.0f);
+			pixelCounter = fmod(pixelCounter, 4.0f);
 			repaint();
 		}	
 	}

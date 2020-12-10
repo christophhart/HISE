@@ -207,6 +207,9 @@ public:
 		/** Sets the font that will be used as default font for various things. */
 		void setGlobalFont(String fontName);
 
+		/** Sets the minimum sample rate for the global processing (and adds oversampling if the current samplerate is lower). */
+		bool setMinimumSampleRate(double minimumSampleRate);
+
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 
@@ -261,6 +264,9 @@ public:
 		/** Iterates the given sub-directory of the Samples folder and returns a list with all references to audio files. */
 		var getSampleFilesFromDirectory(const String& relativePathFromSampleFolder, bool recursive);
 
+		/** Shows a message with a question and executes the function after the user has selected his choice. */
+		void showYesNoWindow(String title, String markdownMessage, var callback);
+
 		/** Creates a (or returns an existing ) script look and feel object. */
 		var createGlobalScriptLookAndFeel();
 
@@ -278,6 +284,9 @@ public:
 
 		/** Creates a Dsp node network. */
 		var createDspNetwork(String id);
+
+		/** Creates (and activates) the expansion handler. */
+		var createExpansionHandler();
 
 		/** Creates a reference to the DSP network of another script processor. */
 		var getDspNetworkReference(String processorId, String id);
@@ -331,10 +340,13 @@ public:
 		String getCurrentUserPresetName();
 
 		/** Asks for a preset name (if presetName is empty) and saves the current user preset. */
-		void saveUserPreset(String presetName);
+		void saveUserPreset(var presetName);
 
-		/** Loads a user preset with the given relative path (use `/` for directory separation). */
-		void loadUserPreset(const String& relativePathWithoutFileEnding);
+		/** Sorts an array with a given comparison function. */
+		bool sortWithFunction(var arrayToSort, var sortFunction);
+
+		/** Loads a user preset with the given relative path  (use `/` for directory separation) or the given ScriptFile object. */
+		void loadUserPreset(var relativePathOrFileObject);
 
 		/** Sets the tags that appear in the user preset browser. */
 		void setUserPresetTagList(var listOfTags);
@@ -378,6 +390,9 @@ public:
 		/** Returns the name for the given macro index. */
 		String getMacroName(int index);
 
+		/** Enables the macro system to be used by the end user. */
+		void setFrontendMacros(var nameList);
+
 		/** Returns the current operating system ("OSX" or ("WIN"). */
 		String getOS();
 
@@ -393,6 +408,9 @@ public:
 		/** Returns the preload progress from 0.0 to 1.0. Use this to display some kind of loading icon. */
 		double getPreloadProgress();
 
+		/** Returns the current preload message if there is one. */
+		String getPreloadMessage();
+
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
 
@@ -401,6 +419,9 @@ public:
 
         /** Returns the product version (not the HISE version!). */
         String getVersion();
+
+        /** Returns the product name (not the HISE name!). */
+        String getName();
 
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
@@ -558,7 +579,6 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
-
 		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
 		var importSamples(var fileNameList, bool skipExistingSamples);
 
@@ -568,8 +588,14 @@ public:
         /** Returns the currently loaded sample map. */
         String getCurrentSampleMapId() const;
 
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
+
         /** Gets the attribute with the given index (use the constants for clearer code). */
         var getAttribute(int index) const;
+        
+        /** Returns the ID of the attribute with the given index. */
+		String getAttributeId(int index);
 
         /** Sets a attribute to the given value. */
         void setAttribute(int index, var newValue);
@@ -753,6 +779,9 @@ public:
 
 		/** Returns the Effect with the supplied name. Can only be called in onInit(). It looks also in all child processors. */
 		ScriptEffect *getEffect(const String &name);
+	
+        /** Returns an array of all effects that match the given regex. */
+        var getAllEffects(String regex);
 
 		/** Returns the MidiProcessor with the supplied name. Can not be the own name! */
 		ScriptMidiProcessor * getMidiProcessor(const String &name);
@@ -923,6 +952,166 @@ public:
 		static Array<Identifier> getTypeList(ModulatorSynth* s);
 
 		ModulatorSynth* ownerSynth;
+	};
+
+	class Server : public ApiClass,
+				   public ScriptingObject
+	{
+	public:
+
+		enum StatusCodes
+		{
+			StatusNoConnection = 0,
+			StatusOK = 200,
+			StatusNotFound = 404,
+			StatusServerError = 500,
+			StatusAuthenticationFail = 403,
+			numStatusCodes
+		};
+
+		Server(JavascriptProcessor* jp);
+
+		~Server()
+		{
+			internalThread.stopThread(3000);
+		}
+		
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Server"); }
+
+		/** Sets the base URL for all server queries. */
+		void setBaseURL(String url);
+
+		/** Calls a sub URL and executes the callback when finished. */
+		void callWithGET(String subURL, var parameters, var callback);
+
+		/** Calls a sub URL with POST arguments and executes the callback when finished. */
+		void callWithPOST(String subURL, var parameters, var callback);
+		
+		/** Adds the given String to the HTTP POST header. */
+		void setHttpHeader(String additionalHeader);
+
+		/** Downloads a file to the given target and returns a Download object. */
+		var downloadFile(String subURL, var parameters, var targetFile, var callback);
+
+		/** Returns a list of all pending Downloads. */
+		var getPendingDownloads();
+
+		/** Sets the maximal number of parallel downloads. */
+		void setNumAllowedDownloads(int maxNumberOfParallelDownloads);
+
+		/** Returns true if the system is connected to the internet. */
+		bool isOnline();
+		
+		/** Removes all finished downloads from the list. */
+		void cleanFinishedDownloads();
+
+	private:
+
+		struct PendingCallback: public ReferenceCountedObject
+		{
+			using Ptr = ReferenceCountedObjectPtr<PendingCallback>;
+
+			PendingCallback(ProcessorWithScriptingContent* p, const var& function):
+				f(p, function, 2)
+			{
+				f.setHighPriority();
+				f.incRefCount();
+			}
+
+			WeakCallbackHolder f;
+
+			URL url;
+			String extraHeader;
+			bool isPost;
+			int status = 0;
+		};
+
+		struct WebThread : public Thread
+		{
+			WebThread(Server& p) :
+				Thread("Server Thread"),
+				parent(p)
+			{};
+
+			Server& parent;
+
+			void run() override;
+
+			CriticalSection queueLock;
+
+			std::atomic<bool> cleanDownloads = { false };
+
+			int numMaxDownloads = 1;
+			ReferenceCountedArray<PendingCallback> pendingCallbacks;
+			ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> pendingDownloads;
+
+		} internalThread;
+
+		JavascriptProcessor* jp;
+
+		URL getWithParameters(String subURL, var parameters);
+
+		URL baseURL;
+		String extraHeader;
+
+		struct Wrapper;
+	};
+
+	class FileSystem : public ApiClass,
+					  public ScriptingObject,
+					   public ControlledObject
+	{
+	public:
+
+		enum SpecialLocations
+		{
+			AudioFiles,
+			Expansions,
+			Samples,
+			UserPresets,
+			AppData,
+			UserHome,
+			Documents,
+			Desktop,
+			Downloads,
+			numSpecialLocations
+		};
+
+		FileSystem(ProcessorWithScriptingContent* pwsc);
+		~FileSystem();
+
+		Identifier getObjectName() const override
+		{
+			return "FileSystem";
+		}
+
+		// ========================================================= API Calls
+
+		/** Returns the current sample folder as File object. */
+		var getFolder(var locationType);
+
+		/** Returns a list of all child files of a directory that match the wildcard. */
+		var findFiles(var directory, String wildcard, bool recursive);
+
+		/** Opens a file browser to choose a file. */
+		void browse(var startFolder, bool forSaving, String wildcard, var callback);
+
+		/** Returns a unique machine ID that can be used to identify the computer. */
+		String getSystemId();
+
+		// ========================================================= End of API calls
+
+		
+
+		ProcessorWithScriptingContent* p;
+
+	private:
+
+		File getFile(SpecialLocations l);
+
+		struct Wrapper;
+
+
 	};
 
 	class Colours: public ApiClass

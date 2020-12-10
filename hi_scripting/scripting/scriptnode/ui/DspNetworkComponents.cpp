@@ -44,7 +44,7 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 	rebuildNodes();
 	setWantsKeyboardFocus(true);
 
-	cableRepainter.setCallback(dataReference, {PropertyIds::Bypassed },
+	cableRepainter.setCallback(dataReference, { PropertyIds::Bypassed },
 		valuetree::AsyncMode::Asynchronously,
 		[this](ValueTree v, Identifier id)
 	{
@@ -70,7 +70,7 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 
 	resizeListener.setCallback(dataReference, { PropertyIds::Folded, PropertyIds::ShowParameters },
 		valuetree::AsyncMode::Asynchronously,
-	  [this](ValueTree, Identifier)
+		[this](ValueTree, Identifier)
 	{
 		this->resizeNodes();
 	});
@@ -286,12 +286,12 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 			for (auto c : modTargets)
 			{
-				
+
 				for (auto s : list)
 				{
-                    if(s->parameterToControl == nullptr)
-                        continue;
-                    
+					if (s->parameterToControl == nullptr)
+						continue;
+
 					if (!s->parameterToControl->parent->isBodyShown())
 						continue;
 
@@ -355,7 +355,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	for (auto s : sendList)
 	{
-		
+
 		auto nc = s->findParentComponentOfClass<NodeComponent>();
 
 		if (!nc->node->isBodyShown())
@@ -444,13 +444,13 @@ void DspNetworkGraph::Actions::selectAndScrollToNode(DspNetworkGraph& g, NodeBas
 				deltaX = nodeArea.getX() - viewArea.getX();
 			else if (nodeArea.getRight() > viewArea.getRight() && viewArea.getWidth() > nodeArea.getWidth())
 				deltaX = nodeArea.getRight() - viewArea.getRight();
-			
+
 
 			if (nodeArea.getY() < viewArea.getY())
 				deltaY = nodeArea.getY() - viewArea.getY();
 			else if (nodeArea.getBottom() > viewArea.getBottom() && viewArea.getHeight() > nodeArea.getHeight())
 				deltaY = nodeArea.getBottom() - viewArea.getBottom();
-			
+
 
 			viewport->setViewPosition(viewArea.getX() + deltaX, viewArea.getY() + deltaY);
 
@@ -738,7 +738,7 @@ bool DspNetworkGraph::Actions::arrowKeyAction(DspNetworkGraph& g, const KeyPress
 	}
 	else
 	{
-		
+
 
 		auto selectPrev = k == KeyPress::upKey;
 		auto index = node->getIndexInParent();
@@ -768,7 +768,7 @@ bool DspNetworkGraph::Actions::arrowKeyAction(DspNetworkGraph& g, const KeyPress
 				selectAndScrollToNode(g, prevNode);
 				return true;
 			}
-				
+
 
 			return true;
 		}
@@ -784,9 +784,9 @@ bool DspNetworkGraph::Actions::arrowKeyAction(DspNetworkGraph& g, const KeyPress
 					return true;
 				}
 			}
-			
+
 			container = dynamic_cast<NodeContainer*>(node->getParentNode());
-			
+
 			if (container == nullptr)
 				return false;
 
@@ -816,7 +816,7 @@ bool DspNetworkGraph::Actions::arrowKeyAction(DspNetworkGraph& g, const KeyPress
 	return false;
 }
 
-bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPopup::Mode )
+bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPopup::Mode)
 {
 	auto firstInSelection = g.network->getSelection().getFirst();
 
@@ -826,7 +826,7 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 
 	bool somethingSelected = dynamic_cast<NodeContainer*>(firstInSelection.get()) != nullptr;
 	bool stillInNetwork = somethingSelected && firstInSelection->getParentNode() != nullptr;
-	
+
 
 	if (somethingSelected && stillInNetwork)
 		containerToLookFor = firstInSelection;
@@ -839,7 +839,7 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 	Array<ContainerComponent*> list;
 
 	fillChildComponentList(list, &g);
-	
+
 	bool mouseOver = g.isMouseOver(true);
 
 	if (mouseOver)
@@ -870,7 +870,7 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 	{
 		auto thisAddPosition = nc->getCurrentAddPosition();
 
-		
+
 		bool containerIsSelected = nc->node == containerToLookFor;
 		bool nothingSelectedAndAddPositionMatches = (containerToLookFor == nullptr && thisAddPosition != -1);
 
@@ -887,7 +887,7 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 
 			auto r = sp->getLocalArea(nc, midPoint.toNearestInt());
 
-			
+
 
 			sp->setCurrentModalWindow(newPopup, r);
 		}
@@ -968,7 +968,7 @@ bool DspNetworkGraph::Actions::showJSONEditorForSelection(DspNetworkGraph& g)
 				auto newTree = ValueTreeConverters::convertDynamicObjectToScriptNodeTree(newData.getArray()->getFirst());
 				n->getValueTree().copyPropertiesAndChildrenFrom(newTree, n->getUndoManager());
 			}
-			
+
 		}
 
 		return;
@@ -1024,7 +1024,7 @@ bool DspNetworkGraph::Actions::redo(DspNetworkGraph& g)
 
 DspNetworkGraph::ScrollableParent::ScrollableParent(DspNetwork* n)
 {
-	
+
 	addAndMakeVisible(viewport);
 	viewport.setViewedComponent(new DspNetworkGraph(n), true);
 	addAndMakeVisible(dark);
@@ -1126,24 +1126,24 @@ KeyboardPopup::Help::Help(DspNetwork* n) :
 #if USE_BACKEND
 
 	auto bp = dynamic_cast<BackendProcessor*>(n->getScriptProcessor()->getMainController_())->getDocProcessor();
-	
+
 	rootDirectory = bp->getDatabaseRootDirectory();
 	renderer.setDatabaseHolder(bp);
-	
+
 	initGenerator(rootDirectory, bp);
 	renderer.setImageProvider(new doc::ScreenshotProvider(&renderer));
 	renderer.setLinkResolver(new doc::Resolver(rootDirectory));
-	
+
 #endif
 
-		
+
 }
 
 
 void KeyboardPopup::Help::showDoc(const String& text)
 {
-    ignoreUnused(text);
-    
+	ignoreUnused(text);
+
 #if USE_BACKEND
 	if (text.isEmpty())
 	{
@@ -1167,8 +1167,8 @@ bool KeyboardPopup::Help::initialised = false;
 
 void KeyboardPopup::Help::initGenerator(const File& root, MainController* mc)
 {
-    ignoreUnused(root, mc);
-    
+	ignoreUnused(root, mc);
+
 #if USE_BACKEND
 	if (initialised)
 		return;
@@ -1230,7 +1230,7 @@ void KeyboardPopup::addNodeAndClose(String path)
 
 				newNode = network->get(path);
 
-				if(!newNode.isObject())
+				if (!newNode.isObject())
 					newNode = network->create(path, {});
 
 				container->assign(ap, newNode);
@@ -1245,9 +1245,9 @@ void KeyboardPopup::addNodeAndClose(String path)
 		MessageManager::callAsync(f);
 	}
 
-	
 
-	
+
+
 }
 
 bool KeyboardPopup::keyPressed(const KeyPress& k, Component*)
@@ -1299,10 +1299,10 @@ KeyboardPopup::PopupList::Item::Item(const Entry& entry_, bool isSelected_) :
 	p = f.createPath(icons[(int)entry.t]);
 }
 
-void KeyboardPopup::PopupList::Item::buttonClicked(Button* )
+void KeyboardPopup::PopupList::Item::buttonClicked(Button*)
 {
 	auto plist = findParentComponentOfClass<PopupList>();
-	
+
 	plist->network->deleteIfUnused(entry.insertString);
 
 	MessageManager::callAsync([plist]()
@@ -1511,7 +1511,7 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 			}
 
 			return true;
-			
+
 		};
 	}
 	if (name == "zoom")
@@ -1618,8 +1618,6 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 				Actions::selectAndScrollToNode(g, fn);
 			}
 
-
-			
 			return true;
 		};
 	}
@@ -1629,4 +1627,3 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 }
 
 }
-

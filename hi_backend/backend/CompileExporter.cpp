@@ -370,6 +370,11 @@ int CompileExporter::getBuildOptionPart(const String& argument)
         useIpp = true;
         return 0;
     }
+    case 'l':
+    {
+        legacyCpuSupport = true;
+        return 0;
+    }
 	case 'a':
 	{
 		const String architectureName = argument.fromFirstOccurrenceOf("-a:", false, true);
@@ -442,7 +447,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	const auto& data = dynamic_cast<GlobalSettingManager*>(chainToExport->getMainController())->getSettingsObject();
 
 	if (!useIpp) useIpp = data.getSetting(HiseSettings::Compiler::UseIPP);
-    
+	
+	if (!legacyCpuSupport) legacyCpuSupport = data.getSetting(HiseSettings::Compiler::LegacyCPUSupport);
+	    
 	if(!hisePath.isDirectory()) 
 		hisePath = data.getSetting(HiseSettings::Compiler::HisePath);
 
@@ -1312,7 +1319,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
     }
     
 	HeaderHelpers::addProjectInfoLines(this, pluginDataHeaderFile);
-	HeaderHelpers::addCustomToolbarRegistration(this, pluginDataHeaderFile);
+	HeaderHelpers::addFullExpansionTypeSetter(this, pluginDataHeaderFile);
 	HeaderHelpers::writeHeaderFile(solutionDirectory, pluginDataHeaderFile);
 
 	return ErrorCodes::OK;
@@ -1335,7 +1342,7 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppHeaderFile(const
     pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
 
 	HeaderHelpers::addProjectInfoLines(this, pluginDataHeaderFile);
-	HeaderHelpers::addCustomToolbarRegistration(this, pluginDataHeaderFile);
+	HeaderHelpers::addFullExpansionTypeSetter(this, pluginDataHeaderFile);
 	HeaderHelpers::writeHeaderFile(solutionDirectory, pluginDataHeaderFile);
 
 	return ErrorCodes::OK;
@@ -1645,8 +1652,10 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 #endif
 
 #if JUCE_LINUX
+    REPLACE_WILDCARD_WITH_STRING("%USE_JACK%", "enabled");
 	REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "x11 xinerama xext");
 #else
+    REPLACE_WILDCARD_WITH_STRING("%USE_JACK%", "disabled");
 	REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
 #endif
 
@@ -1678,6 +1687,8 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
     REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "enabled" : "disabled");
     REPLACE_WILDCARD_WITH_STRING("%IPP_WIN_SETTING%", exporter->useIpp ? "Sequential" : String());
     
+    REPLACE_WILDCARD_WITH_STRING("%LEGACY_CPU_SUPPORT%", exporter->legacyCpuSupport ? "enabled" : "disabled");
+    
     REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString());
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString());
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString());
@@ -1700,11 +1711,32 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a");
 	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", "/opt/intel/ipp/include");
 	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", "/opt/intel/ipp/lib");
-#else
+#endif
+
+#if JUCE_LINUX
+	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", "/opt/intel/ipp/lib/intel64/libippi.a  /opt/intel/ipp/lib/intel64/libipps.a /opt/intel/ipp/lib/intel64/libippvm.a /opt/intel/ipp/lib/intel64/libippcore.a");
+	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", "/opt/intel/ipp/include");
+	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", "/opt/intel/ipp/lib");
+#endif
+
+#if !JUCE_MAC && !JUCE_LINUX
 	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", String());
 	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", String());
 	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", String());
 #endif
+
+	auto& dataObject = exporter->dataObject;
+
+	auto expansionType = GET_SETTING(HiseSettings::Project::ExpansionType);
+
+	if (expansionType == "Custom" || expansionType == "Full")
+	{
+		REPLACE_WILDCARD_WITH_STRING("%USE_CUSTOM_EXPANSION_TYPE%", "1");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%USE_CUSTOM_EXPANSION_TYPE%", "0");
+	}
 }
 
 void CompileExporter::ProjectTemplateHelpers::handleCompanyInfo(CompileExporter* exporter, String& templateProject)
@@ -2145,7 +2177,9 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 	case CompileExporter::TargetTypes::InstrumentPlugin: projectType = "Instrument plugin"; break;
 	case CompileExporter::TargetTypes::EffectPlugin: projectType = "FX plugin"; break;
 	case CompileExporter::TargetTypes::StandaloneApplication: projectType = "Standalone application"; break;
-    case CompileExporter::TargetTypes::numTargetTypes: break;
+    case CompileExporter::TargetTypes::MidiEffectPlugin: projectType = "MIDI FX plugin"; break;
+    case CompileExporter::TargetTypes::numTargetTypes:
+        default:                                        break;
 	}
 
 #if JUCE_WINDOWS
@@ -2247,7 +2281,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 	ADD_LINE("\"" << projucerPath << "\" --resave AutogeneratedProject.jucer");
 	ADD_LINE("cd Builds/LinuxMakefile/");
 	ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
-    ADD_LINE("make CONFIG=Release AR=gcc-ar");
+    ADD_LINE("make CONFIG=Release AR=gcc-ar -j`nproc --ignore=2`");
 	ADD_LINE("echo Compiling finished. Cleaning up...");
 
 	File tempFile = batchFile.getSiblingFile("tempBatch");
@@ -2516,8 +2550,11 @@ void CompileExporter::HeaderHelpers::addCopyProtectionHeaderLines(const String &
 	}
 }
 
-void CompileExporter::HeaderHelpers::addCustomToolbarRegistration(CompileExporter* /*exporter*/, String& /*pluginDataHeaderFile*/)
-{}
+void CompileExporter::HeaderHelpers::addFullExpansionTypeSetter(CompileExporter* exporter, String& pluginDataHeaderFile)
+{
+	if (FullInstrumentExpansion::isEnabled(exporter->chainToExport->getMainController()))
+		pluginDataHeaderFile << "\nSET_CUSTOM_EXPANSION_TYPE(FullInstrumentExpansion);\n";
+}
 
 void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* exporter, String& pluginDataHeaderFile)
 {
@@ -2526,6 +2563,8 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 	const String projectName = exporter->GET_SETTING(HiseSettings::Project::Name);
 	const String versionString = exporter->GET_SETTING(HiseSettings::Project::Version);
 	const String appGroupString = exporter->GET_SETTING(HiseSettings::Project::AppGroupID);
+	const String expType = exporter->GET_SETTING(HiseSettings::Project::ExpansionType);
+	const String expKey = exporter->GET_SETTING(HiseSettings::Project::EncryptionKey);
 
 	pluginDataHeaderFile << "String hise::FrontendHandler::getProjectName() { return \"" << projectName << "\"; };\n";
 	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyName() { return \"" << companyName << "\"; };\n";
@@ -2534,6 +2573,7 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
     
     pluginDataHeaderFile << "String hise::FrontendHandler::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
     
+	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionKey() { return \"" << expKey << "\"; };\n";
 }
 
 void CompileExporter::HeaderHelpers::writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile)

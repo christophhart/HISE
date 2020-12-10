@@ -90,6 +90,8 @@ public:
 };
 
 
+
+
 class ScriptCreatedComponentWrapper;
 class ScriptContentComponent;
 class ScriptedControlAudioParameter;
@@ -164,6 +166,81 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiList);
 
 		// ============================================================================================================
+	};
+
+	class ScriptFile : public ConstScriptingObject
+	{
+	public:
+
+		enum Format
+		{
+			FullPath,
+			NoExtension,
+			OnlyExtension,
+			Filename
+		};
+
+		static String getFileNameFromFile(var fileOrString);
+
+		ScriptFile(ProcessorWithScriptingContent* p, const File& f_);
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("File"); }
+
+		String getDebugValue() const override { return f.getFullPathName(); };
+
+		void rightClickCallback(const MouseEvent &, Component*) override
+		{
+			f.revealToUser();
+		}
+
+		// ================================================= API calls
+
+		/** Returns a child file if this is a directory. */
+		var getChildFile(String childFileName);
+
+		/** Returns the parent directory as File. */
+		var getParentDirectory();
+
+		/** Returns a String representation of that file. */
+		String toString(int formatType) const;
+		
+		/** Checks if this file exists and is a file. */
+		bool isFile() const;
+
+		/** Checks if this file exists and is a directory. */
+		bool isDirectory() const;
+
+		/** Deletes the file or directory WITHOUT confirmation. */
+		bool deleteFileOrDirectory();
+
+		/** Replaces the file content with the JSON data. */
+		bool writeObject(var jsonData);
+
+		/** Replaces the file content with the given text. */
+		bool writeString(String text);
+
+		/** Encrypts an JSON object using the supplied key. */
+		bool writeEncryptedObject(var jsonData, String key);
+
+		/** Loads the given file as text. */
+		String loadAsString() const;
+
+		/** Loads the given file as object. */
+		var loadAsObject() const;
+
+		/** Loads the encrypted object using the supplied RSA key pair. */
+		var loadEncryptedObject(String key);
+
+		/** Opens a Explorer / Finder window that points to the file. */
+		void show();
+
+		// ================================================= End of API calls
+
+		File f;
+
+	private:
+
+		struct Wrapper;
 	};
 
 	class ScriptAudioFile : public ConstScriptingObject,
@@ -282,6 +359,104 @@ public:
 		RefCountedBuffer::Ptr buffer;
 		
 		struct Wrapper;
+	};
+
+	struct ScriptDownloadObject : public ConstScriptingObject,
+							 public URL::DownloadTask::Listener
+	{
+		using Ptr = ReferenceCountedObjectPtr<ScriptDownloadObject>;
+
+		ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile, var callback);;
+
+		~ScriptDownloadObject();
+
+		Identifier getObjectName() const override { return "Download"; }
+
+		// ============================================================================================= API
+
+		/** Stops the download. The target file will not be deleted and you can resume the download later. */
+		bool stop();
+
+		/** Resumes the download. */
+		bool resume();
+
+		/** Checks if the download is currently active. */
+		bool isRunning();
+
+		/** Returns the progress ratio from 0 to 1. */
+		double getProgress() const;
+
+		/** Returns the current download speed in bytes / second. */
+		int getDownloadSpeed();
+
+		/** Returns the download size in bytes. */
+		double getDownloadSize();
+
+		/** Returns the number of bytes downloaded. */
+		double getNumBytesDownloaded();
+
+		/** Returns the full URL of the download. */
+		String getFullURL();
+
+		/** Returns the target file if the download has succeeded. */
+		var getDownloadedTarget();
+
+		/** Sets the maximum amount of allowed downloads. */
+		void setNumAllowedDownloads(int maxNumber);
+
+		// ============================================================================================= End of API
+
+		void finished(URL::DownloadTask*, bool success) override;
+
+		void flushTemporaryFile();
+
+		void progress(URL::DownloadTask*, int64 bytesDownloaded, int64 totalLength) override;
+
+		void call(bool hiPriority);
+
+		void start();
+
+		bool operator==(const ScriptDownloadObject& other) const
+		{
+			return downloadURL == other.downloadURL;
+		}
+
+		std::atomic<bool> isWaitingForStop = { false };
+		std::atomic<bool> isWaitingForStart = { true };
+		std::atomic<bool> isRunning_ = { false };
+		std::atomic<bool> isFinished = { false };
+		std::atomic<bool> callbackPending = { false };
+
+		struct Wrapper;
+
+		bool stopInternal();
+
+	private:
+
+		bool resumeInternal();
+
+		
+
+		int64 bytesInLastSecond = 0;
+		int64 bytesInCurrentSecond = 0;
+		int64 lastBytesDownloaded = 0;
+
+		int64 existingBytesBeforeResuming = 0;
+		ScopedPointer<TemporaryFile> resumeFile;
+
+		uint32 lastTimeMs = 0;
+		uint32 lastSpeedMeasure = 0;
+
+		DynamicObject::Ptr data;
+		
+		URL downloadURL;
+		File targetFile;
+
+		WeakCallbackHolder callback;
+		
+		ScopedPointer<URL::DownloadTask> download;
+		
+		JavascriptProcessor* jp = nullptr;
 	};
 
 	class ScriptTableData : public ConstScriptingObject
@@ -595,6 +770,9 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+        /** Returns the ID of the attribute with the given index. */
+        String getAttributeId(int index);
+        
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
@@ -711,11 +889,17 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+        /** Returns the ID of the attribute with the given index. */
+        String getAttributeId(int index);
+        
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
+
+		/** Checks if the effect is bypassed. */
+		bool isBypassed() const;
 
 		/** Exports the state as base64 string. */
 		String exportState();
@@ -900,11 +1084,17 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
 
+        /** Returns the attribute with the given index. */
+        String getAttributeId(int index);
+
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
         
-		/** Bypasses the effect. */
+		/** Bypasses the synth. */
 		void setBypassed(bool shouldBeBypassed);
+		
+		/** Checks if the synth is bypassed. */
+		bool isBypassed() const;
 
 		/** Returns the child synth with the given index. */
 		ScriptingSynth* getChildSynthByIndex(int index);
@@ -993,8 +1183,14 @@ public:
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
+        /** Returns the ID of the attribute with the given index. */
+		String getAttributeId(int index);
+		
 		/** Bypasses the MidiProcessor. */
-		void setBypassed(bool shouldBeBypassed);;
+		void setBypassed(bool shouldBeBypassed);
+		
+		/** Checks if the MidiProcessor is bypassed. */
+		bool isBypassed() const;
 
 		/** Exports the state as base64 string. */
 		String exportState();
@@ -1047,12 +1243,18 @@ public:
 
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
+
+        /** Returns the attribute with the given index. */
+        String getAttributeId(int index);
         
 		/** Returns the number of attributes. */
 		int getNumAttributes() const;
 
-		/** Bypasses the effect. */
+		/** Bypasses the audio sample player. */
 		void setBypassed(bool shouldBeBypassed);
+
+		/** Checks if the audio sample player is bypassed. */
+		bool isBypassed() const;
 
 		/** loads the file. You can use the wildcard {PROJECT_FOLDER} to get the audio file folder for the current project. */
 		void setFile(String fileName);
@@ -1260,10 +1462,13 @@ public:
 		bool record(int timestamp);
 
 		/** Loads a MIDI file and switches to this sequence if specified. */
-		bool setFile(String fileName, bool clearExistingSequences, bool selectNewSequence);
+		bool setFile(var fileName, bool clearExistingSequences, bool selectNewSequence);
 
 		/** Saves the current sequence into the given file at the track position. */
-		bool saveAsMidiFile(String fileName, int trackIndex);
+		bool saveAsMidiFile(var file, int trackIndex);
+
+		/** Returns a list of all MIDI files that are embedded in the plugin. */
+		var getMidiFileList();
 
 		/** Sets the track index (starting with one). */
 		void setTrack(int trackIndex);
@@ -1363,48 +1568,6 @@ public:
 		// ============================================================================================================
 	};
 
-	class ExpansionObject : public ConstScriptingObject
-	{
-	public:
-
-		// ============================================================================================================
-
-		ExpansionObject(ProcessorWithScriptingContent* p, Expansion* e);
-
-		// ============================================================================================================
-
-		Identifier getObjectName() const override { return "Expansion"; }
-		bool objectDeleted() const override { return exp == nullptr; }
-		bool objectExists() const override { return exp != nullptr; }
-
-		// ============================================================================================================
-
-		/** Returns a list of all available sample maps in the expansion. */
-		var getSampleMapList() const;
-
-		/** Returns a list of all available images in the expansion. */
-		var getImageList() const;
-
-		/** Returns a list of all available audio files in the expansion. */
-		var getAudioFileList() const;
-
-		var getMidiFileList() const;
-
-		/** Attempts to parse a JSON file in the AdditionalSourceCode directory of the expansion. */
-		var loadDataFile(var relativePath);
-
-		/** Writes the given data into the file in the AdditionalSourceCode directory of the expansion. */
-		bool writeDataFile(var relativePath, var dataToWrite);
-
-		/** Returns an object containing all properties of the expansion. */
-		var getProperties() const;
-
-	private:
-
-		struct Wrapper;
-
-		WeakReference<Expansion> exp;
-	};
 
 	class GraphicsObject : public ConstScriptingObject
 	{
@@ -1542,6 +1705,8 @@ public:
 		struct Laf : public GlobalHiseLookAndFeel,
 					 public PresetBrowserLookAndFeelMethods,
 					 public TableEditor::LookAndFeelMethods,
+					 public NumberTag::LookAndFeelMethods,
+					 public MessageWithIcon::LookAndFeelMethods,
 					 public ControlledObject
 		{
 			Laf(MainController* mc) :
@@ -1561,12 +1726,16 @@ public:
 					return GLOBAL_BOLD_FONT();
 			}
 
+			void drawAlertBox(Graphics&, AlertWindow&, const Rectangle<int>& textArea, TextLayout&) override;
+
 			Font getAlertWindowMessageFont() override { return getFont(); }
 			Font getAlertWindowTitleFont() override { return getFont(); }
 			Font getTextButtonFont(TextButton &, int) override { return getFont(); }
 			Font getComboBoxFont(ComboBox&) override { return getFont(); }
 			Font getPopupMenuFont() override { return getFont(); };
 			Font getAlertWindowFont() override { return getFont(); };
+
+			MarkdownLayout::StyleData getAlertWindowMarkdownStyleData() override;
 
 			void drawPopupMenuBackground(Graphics& g_, int width, int height) override;
 
@@ -1579,6 +1748,10 @@ public:
 
 			void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
 
+			void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
+			
+			void drawLinearSlider(Graphics &g, int x, int y, int width, int height, float sliderPos, float minSliderPos, float maxSliderPos, const Slider::SliderStyle style, Slider &slider) override;
+
 			void drawButtonText(Graphics &g_, TextButton &button, bool isMouseOverButton, bool isButtonDown) override;
 
 			void drawComboBox(Graphics&, int width, int height, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, ComboBox& cb);
@@ -1590,6 +1763,8 @@ public:
 			void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
 				bool isMouseOverButton, bool isButtonDown) override;
 
+			void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number) override;
+
 			void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p) override;
 			void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText) override;
 			void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
@@ -1600,6 +1775,10 @@ public:
 			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
 			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
 			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+
+			void drawScrollbar(Graphics& g, ScrollBar& scrollbar, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown) override;
+
+			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);
 		};
@@ -1619,6 +1798,8 @@ public:
 		void setGlobalFont(const String& fontName, float fontSize);
 
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject);
+
+		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
 
 		Font f = GLOBAL_BOLD_FONT();
 		ReferenceCountedObjectPtr<GraphicsObject> g;

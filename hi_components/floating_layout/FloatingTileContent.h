@@ -617,6 +617,7 @@ public:
 			MidiLearnPanel,
 			MidiKeyboard,
 			MidiPlayerOverlay,
+			FrontendMacroPanel,
 			PresetBrowser,
 			SampleConnector,
 			SampleEditor,

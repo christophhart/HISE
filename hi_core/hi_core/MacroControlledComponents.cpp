@@ -49,8 +49,6 @@ bool MacroControlledObject::checkLearnMode()
 
 	if(currentlyActiveLearnIndex != -1)
 	{
-		addToMacroController(currentlyActiveLearnIndex);
-
 		GET_MACROCHAIN()->addControlledParameter(currentlyActiveLearnIndex, getProcessor()->getId(), parameter, name, getRange());
 			
 		return true;
@@ -59,31 +57,17 @@ bool MacroControlledObject::checkLearnMode()
 	return false;
 }
 
-void MacroControlledObject::removeParameterWithPopup()
-{
-	if (macroIndex != -1)
-	{
-		PopupMenu m;
-
-		auto& plaf = getProcessor()->getMainController()->getGlobalLookAndFeel();
-		m.setLookAndFeel(&plaf);
-
-		m.addItem(1, "Remove Macro control");
-
-		const int result = m.show();
-
-		if (result == 1)
-		{
-			getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->removeParameter(name, getProcessor());
-			removeFromMacroController();
-		}
-	}
-}
 
 void MacroControlledObject::enableMidiLearnWithPopup()
 {
 	if (!canBeMidiLearned())
 		return;
+
+#if USE_BACKEND
+	auto isOnHiseModuleUI = dynamic_cast<Component*>(this)->findParentComponentOfClass<ProcessorEditorBody>() != nullptr;
+#else
+	auto isOnHiseModuleUI = false;
+#endif
 
 	MidiControllerAutomationHandler *handler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
 
@@ -98,8 +82,11 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		Remove,
 		AddMPE,
 		RemoveMPE,
-		GlobalModAddOffset=100,
-		GlobalModRemoveOffset=200,
+		RemoveMacroControl,
+		AddMacroControlOffset = 50,
+		GlobalModAddOffset = 100,
+		GlobalModRemoveOffset = 200,
+		MidiOffset = 300,
 		numCommands
 	};
 
@@ -110,8 +97,21 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	m.setLookAndFeel(&plaf);
 
-	m.addItem(Learn, "Learn MIDI CC", true, learningActive);
-	
+
+	if (!isOnHiseModuleUI)
+	{
+		m.addItem(Learn, "Learn MIDI CC", true, learningActive);
+		
+		auto value = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMidiControllerNumber(processor, parameter);
+
+		PopupMenu s;
+		for (int i = 1; i < 127; i++)
+			s.addItem(i + MidiOffset, "CC #" + String(i), true, i == value);
+
+		m.addSubMenu("Assign MIDI CC", s, true);
+	}
+		
+
 	auto& data = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData();
 
 	const String possibleName = dynamic_cast<Component*>(this)->getName() + "MPE";
@@ -134,30 +134,29 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		m.addItem(Remove, "Remove CC " + String(midiController));
 	}
-	
-#if 0
-	auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(getProcessor()->getMainController()->getMainSynthChain());
 
-	if (!mods.isEmpty())
+	if (macroIndex != -1)
 	{
-		jassert(container != nullptr);
-
-		PopupMenu modSubMenu;
-
-		auto currentlyControllingMod = container->getModulatorForControlledParameter(processor, parameter);
-
-		for (int i = 0; i < mods.size(); i++)
-		{
-			auto m_ = mods[i].get();
-			if (m_ == nullptr)
-				continue;
-
-			modSubMenu.addItem(i + GlobalModAddOffset, m_->getId(), true, currentlyControllingMod == m_);
-		}
-
-		m.addSubMenu("Add Modulation", modSubMenu);
+		m.addItem(RemoveMacroControl, "Remove Macro control");
 	}
-#endif
+	else
+	{
+		auto& mm = getProcessor()->getMainController()->getMacroManager();
+		auto macroChain = mm.getMacroChain();
+
+		if (mm.isMacroEnabledOnFrontend())
+		{
+			for (int i = 0; i < 8; i++)
+			{
+				auto name = macroChain->getMacroControlData(i)->getMacroName();
+
+				if (name.isNotEmpty())
+				{
+					m.addItem((int)AddMacroControlOffset + i, "Add to " + name);
+				}
+			}
+		}
+	}
 
 	NormalisableRange<double> rangeWithSkew = getRange();
 
@@ -191,25 +190,32 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		data.removeConnection(possibleConnection);
 	}
-#if 0
-	else if (result >= GlobalModAddOffset)
+	else if (result == RemoveMacroControl)
 	{
-		auto mod = mods[result - GlobalModAddOffset];
-
-		auto currentMod = container->getModulatorForControlledParameter(processor, parameter);
-
-		if (currentMod != nullptr)
-		{
-			container->removeModulatorControlledParameter(currentMod, processor, parameter);
-		}
-
-		if (currentMod != mod)
-		{
-			container->addModulatorControlledParameter(mod, processor, parameter, rangeWithSkew, getMacroIndex());	
-		}
+		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->removeParameter(name, getProcessor());
+		initMacroControl(sendNotification);
 	}
-#endif
+	else if (result >= MidiOffset)
+	{
+		auto number = result - MidiOffset;
+
+		auto mHandler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
+		
+		mHandler->deactivateMidiLearning();
+		mHandler->removeMidiControlledParameter(processor, parameter, sendNotificationAsync);
+		mHandler->addMidiControlledParameter(processor, parameter, rangeWithSkew, -1);
+		mHandler->setUnlearndedMidiControlNumber(number, sendNotificationAsync);
+	}
+	else if (result >= AddMacroControlOffset)
+	{
+		int macroIndex = result - AddMacroControlOffset;
+
+		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->addParameter(getProcessor(), parameter, getName(), rangeWithSkew);
+		initMacroControl(sendNotification);
+	}
+	
 }
+
 
 void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomOldValue/*=false*/, float customOldValue/*=-1.0f*/)
 {
@@ -227,6 +233,30 @@ void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomO
 	}
 }
 
+void MacroControlledObject::macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded)
+{
+	if (getProcessor() == p && parameter == parameterIndex)
+	{
+		if (wasAdded)
+			addToMacroController(macroIndex);
+		else
+			removeFromMacroController();
+
+		if (auto c = dynamic_cast<Component*>(this))
+			c->repaint();
+
+		updateValue(dontSendNotification);
+	}
+}
+
+MacroControlledObject::~MacroControlledObject()
+{
+	if (auto p = getProcessor())
+	{
+		p->getMainController()->getMainSynthChain()->removeMacroConnectionListener(this);
+	}
+}
+
 bool MacroControlledObject::isConnectedToModulator() const
 {
 	auto chain = getProcessor()->getMainController()->getMainSynthChain();
@@ -238,6 +268,64 @@ bool MacroControlledObject::isConnectedToModulator() const
 
 	return false;
 	
+}
+
+void MacroControlledObject::setup(Processor *p, int parameter_, const String &name_)
+{
+	processor = p;
+	parameter = parameter_;
+	name = name_;
+
+	initMacroControl(dontSendNotification);
+
+	slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(p->getMainController());
+	numberTag->setLookAndFeel(slaf.get());
+	
+	
+
+	p->getMainController()->getMainSynthChain()->addMacroConnectionListener(this);
+
+	auto mIndex = p->getMainController()->getMainSynthChain()->getMacroControlIndexForProcessorParameter(p, parameter);
+
+	if (mIndex != -1)
+		addToMacroController(mIndex);
+	else
+		removeFromMacroController();
+}
+
+void MacroControlledObject::initMacroControl(NotificationType notify)
+{
+#if 0
+	if (getProcessor() == nullptr)
+		return;
+
+
+	auto macroChain = getProcessor()->getMainController()->getMacroManager().getMacroChain();
+	
+	auto mIndex = -1;
+
+	for (int i = 0; i < 8; i++)
+	{
+		if (auto p = macroChain->getMacroControlData(i)->getParameterWithProcessorAndIndex(getProcessor(), parameter))
+		{
+			mIndex = i;
+			break;
+		}
+	}
+	
+	if (mIndex >= 0)
+		addToMacroController(mIndex);
+	else
+
+		removeFromMacroController();
+
+	if (notify == sendNotification)
+	{
+		getProcessor()->getMainController()->getMainSynthChain()->sendChangeMessage();
+
+		
+	}
+#endif
 }
 
 bool  MacroControlledObject::isLocked()
@@ -372,6 +460,8 @@ HiSlider::HiSlider(const String &name) :
 	displayValue(1.0f),
 	useModulatedRing(false)
 {
+	addChildComponent(numberTag);
+
 	setScrollWheelEnabled(true);
 
 	FloatVectorOperations::clear(modeValues, numModes);
@@ -428,17 +518,7 @@ void HiSlider::mouseDown(const MouseEvent &e)
 	}
 	else
 	{
-#if USE_FRONTEND
 		enableMidiLearnWithPopup();
-#else
-		const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
-
-		if (isOnPreview)
-			enableMidiLearnWithPopup();
-
-		else
-			removeParameterWithPopup();
-#endif
 	}
 }
 
@@ -456,17 +536,7 @@ void HiSlider::mouseUp(const MouseEvent& e)
 
 void HiSlider::touchAndHold(Point<int> /*downPosition*/)
 {
-#if USE_FRONTEND
 	enableMidiLearnWithPopup();
-#else
-
-	const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
-
-	if (isOnPreview)
-		enableMidiLearnWithPopup();
-	else
-		removeParameterWithPopup();
-#endif
 }
 
 void HiSlider::updateValueFromLabel(bool shouldUpdateValue)
@@ -508,17 +578,7 @@ void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 
 void HiToggleButton::touchAndHold(Point<int> /*downPosition*/)
 {
-#if USE_FRONTEND
-    enableMidiLearnWithPopup();
-#else
-        
-    const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
-        
-    if (isOnPreview)
-        enableMidiLearnWithPopup();
-    else
-        removeParameterWithPopup();
-#endif
+	enableMidiLearnWithPopup();
 }
     
 void HiToggleButton::mouseDown(const MouseEvent &e)
@@ -572,17 +632,7 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
     }
     else
     {
-#if USE_FRONTEND
-        enableMidiLearnWithPopup();
-#else
-
-		const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
-
-		if (isOnPreview)
-			enableMidiLearnWithPopup();
-		else
-			removeParameterWithPopup();
-#endif
+		enableMidiLearnWithPopup();
     }
 }
 
@@ -622,34 +672,13 @@ void HiComboBox::mouseDown(const MouseEvent &e)
     }
     else
     {
-#if USE_FRONTEND
-        
-        enableMidiLearnWithPopup();
-        
-#else
-		const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
-
-		if (isOnPreview)
-			enableMidiLearnWithPopup();
-		else
-			removeParameterWithPopup();
-#endif
+		enableMidiLearnWithPopup();
     }
 }
 
 void HiComboBox::touchAndHold(Point<int> /*downPosition*/)
 {
-#if USE_FRONTEND
-    enableMidiLearnWithPopup();
-#else
-        
-    const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
-        
-    if (isOnPreview)
-        enableMidiLearnWithPopup();
-    else
-        removeParameterWithPopup();
-#endif
+	enableMidiLearnWithPopup();
 }
     
 void HiComboBox::updateValue(NotificationType /*sendAttributeChange*/)

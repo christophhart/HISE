@@ -405,7 +405,9 @@ public:
 		ShowNotes,
 		ShowEditButtons,
 		ShowFavoriteIcon,
+		ShowExpansionsAsColumn,
 		NumColumns,
+		ColumnWidthRatio,
 		numSpecialProperties
 	};
 
@@ -576,10 +578,9 @@ private:
 };
 
 
-class MidiLearnPanel : public FloatingTileContent,
-					   public Component,
-					   public TableListBoxModel,
-					   public SafeChangeListener
+class TableFloatingTileBase : public FloatingTileContent,
+							  public Component,
+							  public TableListBoxModel
 {
 public:
 
@@ -590,268 +591,47 @@ public:
 		Inverted,
 		Minimum,
 		Maximum,
-		numColumns
+		numColumns,
+		columnWidthRatio
 	};
 
-	MidiLearnPanel(FloatingTile* parent) :
-		FloatingTileContent(parent),
-		font(GLOBAL_FONT()),
-		handler(*getMainController()->getMacroManager().getMidiControlAutomationHandler())
-	{
-		handler.addChangeListener(this);
+	TableFloatingTileBase(FloatingTile* parent);
+	void initTable();
 
-		
+	virtual ~TableFloatingTileBase() {};
 
-		setName("MIDI Control List");
+	void updateContent();
+	void fromDynamicObject(const var& object);
+	void paintRowBackground(Graphics& g, int /*rowNumber*/, int /*width*/, int /*height*/, bool rowIsSelected) override;
 
-		// Create our table component and add it to this component..
-		addAndMakeVisible(table);
-		table.setModel(this);
-
-		// give it a border
-
-
-		setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
-		setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
-
-
-		table.setColour(ListBox::backgroundColourId, Colours::transparentBlack);
-
-		table.setOutlineThickness(0);
-
-		laf = new TableHeaderLookAndFeel();
-
-		
-
-		table.getHeader().setLookAndFeel(laf);
-		table.getHeader().setSize(getWidth(), 22);
-
-		table.getViewport()->setScrollBarsShown(true, false, true, false);
-
-		table.getHeader().setInterceptsMouseClicks(false, false);
-
-		table.setMultipleSelectionEnabled(false);
-
-		table.getHeader().addColumn("CC #", CCNumber, 40, 40, 40);
-		table.getHeader().addColumn("Parameter", ParameterName, 70);
-		table.getHeader().addColumn("Inverted", Inverted, 50, 50, 50);
-		table.getHeader().addColumn("Min", Minimum, 70, 70, 70);
-		table.getHeader().addColumn("Max", Maximum, 70, 70, 70);
-
-		table.getHeader().setStretchToFitActive(true);
-	}
-
-	~MidiLearnPanel()
-	{
-		handler.removeChangeListener(this);
-	}
-
-	SET_PANEL_NAME("MidiLearnPanel");
-
-	int getNumRows() override
-	{
-		return handler.getNumActiveConnections();
-	};
-
-	void updateContent()
-	{
-		table.updateContent();
-	}
-
-
-	void fromDynamicObject(const var& object)
-	{
-		FloatingTileContent::fromDynamicObject(object);
-
-		table.setColour(ListBox::backgroundColourId, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
-		
-		itemColour1 = findPanelColour(FloatingTileContent::PanelColourId::itemColour1);
-		itemColour2 = findPanelColour(FloatingTileContent::PanelColourId::itemColour2);
-		textColour = findPanelColour(FloatingTileContent::PanelColourId::textColour);
-
-		font = getFont();
-		laf->f = font;
-		laf->bgColour = itemColour1;
-		laf->textColour = textColour;
-	}
-
-
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
-	{
-		updateContent();
-		repaint();
-	}
-
-	void paintRowBackground(Graphics& g, int /*rowNumber*/, int /*width*/, int /*height*/, bool rowIsSelected) override
-	{
-		if (rowIsSelected)
-		{
-			g.fillAll(Colours::white.withAlpha(0.2f));
-		}
-	}
-
-	void deleteKeyPressed(int lastRowSelected) override
-	{
-		auto data = handler.getDataFromIndex(lastRowSelected);
-
-		if (data.used)
-		{
-			handler.removeMidiControlledParameter(data.processor, data.attribute, sendNotification);
-		}
-
-		updateContent();
-		repaint();
-	}
-
-	/** Tries to set the range and returns the actual value. Compare this agains newRangeValue and update your UI accordingly. */
-	double setRangeValue(int row, ColumnId column, double newRangeValue)
-	{
-		auto data = handler.getDataFromIndex(row);
-
-		if (data.used)
-		{
-			auto range = data.parameterRange;
-
-			if (column == Minimum)
-			{
-				if (range.end <= newRangeValue)
-				{
-					return range.end;
-				}
-				else
-				{
-					range.start = newRangeValue;
-
-					const bool ok = handler.setNewRangeForParameter(row, range);
-					jassert(ok);
-                    ignoreUnused(ok);
-
-					return newRangeValue;
-				}
-			}
-			else if (column == Maximum)
-			{
-				if (range.start >= newRangeValue)
-				{
-					return range.start;
-				}
-				else
-				{
-					range.end = newRangeValue;
-
-					const bool ok = handler.setNewRangeForParameter(row, range);
-					jassert(ok);
-                    ignoreUnused(ok);
-
-					return newRangeValue;
-				}
-			}
-
-			else jassertfalse;
-		}
-
-		return -1.0 * newRangeValue;
-	};
-
-	void setInverted(int row, bool value)
-	{
-		auto data = handler.getDataFromIndex(row);
-
-		if (data.used)
-		{
-			const bool ok = handler.setParameterInverted(row, value);
-			jassert(ok);
-            ignoreUnused(ok);
-		}
-
-	}
+	//==============================================================================
+	void resized() override;
 
 	void selectedRowsChanged(int /*lastRowSelected*/) {};
 
+	/** Tries to set the range and returns the actual value. Compare this against newRangeValue and update your UI accordingly. */
+	double setRangeValue(int row, ColumnId column, double newRangeValue);;
+
+	void deleteKeyPressed(int lastRowSelected) override;
+
 	Component* refreshComponentForCell(int rowNumber, int columnId, bool /*isRowSelected*/,
-		Component* existingComponentToUpdate) override
-	{
-		auto data = handler.getDataFromIndex(rowNumber);
+		Component* existingComponentToUpdate) override;
 
-		if (columnId == Minimum || columnId == Maximum)
-		{
-			ValueSliderColumn* slider = dynamic_cast<ValueSliderColumn*> (existingComponentToUpdate);
+	virtual void removeEntry(int rowIndex) = 0;
+	virtual bool setRange(int rowIndex, NormalisableRange<double> newRange) = 0;
+	virtual NormalisableRange<double> getRange(int rowIndex) const = 0;
+	virtual bool isUsed(int rowIndex) const = 0;
+	virtual bool isInverted(int rowIndex) const = 0;
+	virtual NormalisableRange<double> getFullRange(int rowIndex) const = 0;
+	virtual void setInverted(int rowIndex, bool value) = 0;
 
-
-			if (slider == nullptr)
-				slider = new ValueSliderColumn(*this);
-
-			
-
-			const double value = columnId == Maximum ? data.parameterRange.end : data.parameterRange.start;
-
-			slider->slider->setColour(Slider::ColourIds::backgroundColourId, Colours::transparentBlack);
-			slider->slider->setColour(Slider::ColourIds::thumbColourId, itemColour1);
-			slider->slider->setColour(Slider::ColourIds::textBoxTextColourId, textColour);
-
-			slider->setRowAndColumn(rowNumber, (ColumnId)columnId, value, data.fullRange);
-
-			
-
-			return slider;
-		}
-		else if (columnId == Inverted)
-		{
-			InvertedButton* b = dynamic_cast<InvertedButton*> (existingComponentToUpdate);
-
-			if (b == nullptr)
-				b = new InvertedButton(*this);
-
-			b->t->setColour(TextButton::buttonOnColourId, itemColour1);
-			b->t->setColour(TextButton::textColourOnId, textColour);
-			b->t->setColour(TextButton::buttonColourId, Colours::transparentBlack);
-			b->t->setColour(TextButton::textColourOffId, textColour);
-
-			b->setRowAndColumn(rowNumber, data.inverted);
-
-			return b;
-		}
-		{
-			// for any other column, just return 0, as we'll be painting these columns directly.
-
-			jassert(existingComponentToUpdate == nullptr);
-			return nullptr;
-		}
-	}
-
+	virtual String getIndexName() const = 0;
+	virtual String getCellText(int rowNumber, int columnId) const = 0;
+	
 	void paintCell(Graphics& g, int rowNumber, int columnId,
-		int width, int height, bool /*rowIsSelected*/) override
-	{
-		g.setColour(textColour);
-		g.setFont(font);
+		int width, int height, bool /*rowIsSelected*/) override;
 
-		auto data = handler.getDataFromIndex(rowNumber);
-
-		if (data.processor == nullptr)
-		{
-			return;
-		}
-
-		String text;
-		
-		if (columnId == ColumnId::ParameterName)
-			text = ProcessorHelpers::getPrettyNameForAutomatedParameter(data.processor, data.attribute);
-		else if (columnId == ColumnId::CCNumber)
-			text = String(data.ccNumber);
-		
-		g.drawText(text, 2, 0, width - 4, height, Justification::centredLeft, true);
-
-	}
-
-
-	//==============================================================================
-	void resized() override
-	{
-		table.setBounds(getLocalBounds());
-	}
-
-
-private:
+protected:
 
 	Colour textColour;
 	Colour itemColour1;
@@ -861,64 +641,25 @@ private:
 		public SliderListener
 	{
 	public:
-		ValueSliderColumn(MidiLearnPanel &table) :
-			owner(table)
-		{
-			addAndMakeVisible(slider = new Slider());
 
-			laf.setFontForAll(table.font);
-
-			slider->setLookAndFeel(&laf);
-			slider->setSliderStyle(Slider::LinearBar);
-			slider->setTextBoxStyle(Slider::TextBoxLeft, true, 80, 20);
-			slider->setColour(Slider::backgroundColourId, Colour(0x38ffffff));
-			slider->setColour(Slider::thumbColourId, Colour(SIGNAL_COLOUR));
-			slider->setColour(Slider::rotarySliderOutlineColourId, Colours::black);
-			slider->setColour(Slider::textBoxOutlineColourId, Colour(0x38ffffff));
-			slider->setColour(Slider::textBoxTextColourId, Colours::black);
-			slider->setTextBoxIsEditable(true);
-
-			slider->addListener(this);
-		}
-
-		void resized()
-		{
-			slider->setBounds(getLocalBounds().reduced(1));
-		}
-
-		void setRowAndColumn(const int newRow, ColumnId column, double value, NormalisableRange<double> range)
-		{
-			row = newRow;
-			columnId = column;
-
-			slider->setRange(range.start, range.end, range.interval);
-			slider->setSkewFactor(range.skew);
-
-			slider->setValue(value, dontSendNotification);
-		}
+		ValueSliderColumn(TableFloatingTileBase &table);
+		void resized();
+		void setRowAndColumn(const int newRow, int column, double value, NormalisableRange<double> range);
 
 		ScopedPointer<Slider> slider;
 
 	private:
 
-		void sliderValueChanged(Slider *) override
-		{
-			auto newValue = slider->getValue();
-
-			auto actualValue = owner.setRangeValue(row, columnId, newValue);
-
-			if (newValue != actualValue)
-				slider->setValue(actualValue, dontSendNotification);
-		}
+		void sliderValueChanged(Slider *) override;
 
 	private:
-		MidiLearnPanel &owner;
+		TableFloatingTileBase &owner;
 
 		HiPropertyPanelLookAndFeel laf;
 
 		int row;
-		ColumnId columnId;
-		
+		int columnId;
+
 	};
 
 	class InvertedButton : public Component,
@@ -926,69 +667,93 @@ private:
 	{
 	public:
 
-		InvertedButton(MidiLearnPanel &owner_) :
-			owner(owner_)
-		{
-			laf.setFontForAll(owner_.font);
+		InvertedButton(TableFloatingTileBase &owner_);;
 
-			addAndMakeVisible(t = new TextButton("Inverted"));
-			t->setButtonText("Inverted");
-			t->setLookAndFeel(&laf);
-			t->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
-			t->addListener(this);
-			t->setTooltip("Invert the range of the macro control for this parameter.");
-			t->setColour(TextButton::buttonColourId, Colour(0x88000000));
-			t->setColour(TextButton::buttonOnColourId, Colour(0x88FFFFFF));
-			t->setColour(TextButton::textColourOnId, Colour(0xaa000000));
-			t->setColour(TextButton::textColourOffId, Colour(0x99ffffff));
-
-			t->setClickingTogglesState(true);
-		};
-
-		void resized()
-		{
-			t->setBounds(getLocalBounds().reduced(1));
-		}
-
-		void setRowAndColumn(const int newRow, bool value)
-		{
-			row = newRow;
-
-			t->setToggleState(value, dontSendNotification);
-			t->setButtonText(value ? "Inverted" : "Normal");
-		}
-
-		void buttonClicked(Button *b)
-		{
-			t->setButtonText(b->getToggleState() ? "Inverted" : "Normal");
-			owner.setInverted(row, b->getToggleState());
-		};
+		void resized();
+		void setRowAndColumn(const int newRow, bool value);
+		void buttonClicked(Button *b);;
 
 		ScopedPointer<TextButton> t;
 
 	private:
 
-		MidiLearnPanel &owner;
+		TableFloatingTileBase &owner;
 
 		int row;
-		ColumnId columnId;
-		
-
+		int columnId;
 		HiPropertyPanelLookAndFeel laf;
-
-
 	};
 
 	TableListBox table;     // the table component itself
 	Font font;
-
+	int numRows;            // The number of rows of data we've got
 	ScopedPointer<TableHeaderLookAndFeel> laf;
+};
+
+
+class MidiLearnPanel : public TableFloatingTileBase,
+					   public SafeChangeListener
+{
+public:
+
+	MidiLearnPanel(FloatingTile* parent);
+	~MidiLearnPanel();
+
+	void changeListenerCallback(SafeChangeBroadcaster*) override;
+
+	SET_PANEL_NAME("MidiLearnPanel");
+
+	String getIndexName() const override { return "CC #"; };
+
+	int getNumRows() override;;
+	void removeEntry(int rowIndex) override;
+	bool setRange(int rowIndex, NormalisableRange<double> newRange);
+	bool isInverted(int rowIndex) const override;
+
+	NormalisableRange<double> getFullRange(int rowIndex) const override;
+	NormalisableRange<double> getRange(int rowIndex) const override;
+
+	bool isUsed(int rowIndex) const;
+	void setInverted(int row, bool value);
+	String getCellText(int rowNumber, int columnId) const override;
 
 	MidiControllerAutomationHandler& handler;
 
-	int numRows;            // The number of rows of data we've got
-
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiLearnPanel)
+};
+
+struct FrontendMacroPanel : public TableFloatingTileBase,
+						   public MacroControlBroadcaster::MacroConnectionListener
+{
+	SET_PANEL_NAME("FrontendMacroPanel");
+
+	FrontendMacroPanel(FloatingTile* parent);;
+	~FrontendMacroPanel();
+
+	String getIndexName() const override { return "Source"; };
+
+	void macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded);
+
+	MacroControlBroadcaster* macroChain;
+	MainController::MacroManager& macroManager;
+
+	MacroControlBroadcaster::MacroControlData* getData(MacroControlBroadcaster::MacroControlledParameterData* pd);
+	const MacroControlBroadcaster::MacroControlData* getData(MacroControlBroadcaster::MacroControlledParameterData* pd) const;
+
+	int getNumRows() override;;
+	void removeEntry(int rowIndex) override;
+	bool setRange(int rowIndex, NormalisableRange<double> newRange);
+	void paint(Graphics& g) override;
+	bool isInverted(int rowIndex) const override;
+	NormalisableRange<double> getFullRange(int rowIndex) const override;
+	NormalisableRange<double> getRange(int rowIndex) const override;
+	bool isUsed(int rowIndex) const;
+	void setInverted(int row, bool value);
+	String getCellText(int rowNumber, int columnId) const override;
+
+	Array<WeakReference<MacroControlBroadcaster::MacroControlledParameterData>> connectionList;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendMacroPanel)
 };
 
 } // namespace hise

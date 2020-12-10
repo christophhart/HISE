@@ -153,6 +153,32 @@ void MainController::initProjectDocsWithURL(const String& projectDocURL)
 	getProjectDocHolder()->setProjectURL(URL(projectDocURL));
 }
 
+hise::SampleMapPool* MainController::getCurrentSampleMapPool()
+{
+#if ADD_LATER
+	if (FullInstrumentExpansion::isEnabled(this))
+	{
+		if (auto ce = getExpansionHandler().getCurrentExpansion())
+			return &ce->pool->getSampleMapPool();
+	}
+#endif
+
+	return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
+}
+
+const hise::SampleMapPool* MainController::getCurrentSampleMapPool() const
+{
+#if ADD_LATER
+	if (FullInstrumentExpansion::isEnabled(this))
+	{
+		if (auto ce = getExpansionHandler().getCurrentExpansion())
+			return &ce->pool->getSampleMapPool();
+	}
+#endif
+
+	return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
+}
+
 const CriticalSection & MainController::getLock() const
 {
 	if (getDebugLogger().isLogging() && MessageManager::getInstance()->isThisTheMessageThread())
@@ -213,8 +239,8 @@ void MainController::clearPreset()
 			mc->setKeyboardCoulour(i, Colours::transparentBlack);
 		}
 
+		mc->setCurrentScriptLookAndFeel(nullptr);
 		mc->clearIncludedFiles();
-
 		mc->changed = false;
 
 		return SafeFunctionCall::OK;
@@ -319,6 +345,7 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				synth->setEditorState(Processor::EditorState::Folded, true);
 
 			changed = false;
+#endif
 
 			auto f = [](Dispatchable* obj)
 			{
@@ -329,15 +356,11 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
 				p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
 
-#if USE_BACKEND
-
-#endif
-
 				return Dispatchable::Status::OK;
 			};
 
-			getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
-#endif
+			if(USE_BACKEND || FullInstrumentExpansion::isEnabled(this))
+				getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
 
 			allNotesOff(true);
 		}
@@ -432,7 +455,7 @@ void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 
 void MainController::stopCpuBenchmark()
 {
-	const float thisUsage = 100.0f * (float)((Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / cpuBufferSize.get());
+	const float thisUsage = 100.0f * (float)((Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * getOriginalSamplerate() / cpuBufferSize.get());
 	
 	const float lastUsage = usagePercent.load();
 	
@@ -456,6 +479,49 @@ void MainController::killAndCallOnLoadingThread(const ProcessorFunction& f)
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
+bool MainController::refreshOversampling()
+{
+	auto requiredOversamplingFactor = (double)jlimit(1, 8, nextPowerOfTwo((int)(minimumSamplerate / getOriginalSamplerate())));
+
+	int numChannelsOfOversampler = oversampler != nullptr ? (int)oversampler->numChannels : -1;
+
+	bool channelsNeedUpdating = numChannelsOfOversampler > 0 && numChannelsOfOversampler != multiChannelBuffer.getNumChannels();
+
+	if (requiredOversamplingFactor != getOversampleFactor() || channelsNeedUpdating)
+	{
+		auto f = [this, requiredOversamplingFactor](Processor* p)
+		{
+			ScopedPointer<juce::dsp::Oversampling<float>> newOversampler;
+			
+			if(requiredOversamplingFactor != 1)
+				newOversampler = new juce::dsp::Oversampling<float>(multiChannelBuffer.getNumChannels(),
+				log2(requiredOversamplingFactor),
+				juce::dsp::Oversampling<float>::FilterType::filterHalfBandPolyphaseIIR);
+
+			{
+				ScopedLock sl(getLock());
+				std::swap(oversampler, newOversampler);
+
+				auto originalSampleRate = getOriginalSamplerate();
+				auto originalBufferSize = getOriginalBufferSize();
+
+				currentOversampleFactor = requiredOversamplingFactor;
+
+				prepareToPlay(originalSampleRate, originalBufferSize);
+
+				return SafeFunctionCall::OK;
+			}
+		};
+
+		allNotesOff(false);
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
+
+		return true;
+	}
+
+	return false;
+}
+
 bool MainController::shouldUseSoftBypassRamps() const noexcept
 {
 #if USE_BACKEND || !FRONTEND_IS_PLUGIN
@@ -465,10 +531,43 @@ bool MainController::shouldUseSoftBypassRamps() const noexcept
 #endif
 }
 
+void callOnAllChildren(Component* c, const std::function<void(Component*)>& f)
+{
+	f(c);
+
+	for (int i = 0; i < c->getNumChildComponents(); i++)
+		callOnAllChildren(c->getChildComponent(i), f);
+}
+
+void MainController::resetLookAndFeelToDefault(Component* c)
+{
+	GlobalScriptCompileBroadcaster::setCurrentScriptLookAndFeel(nullptr);
+
+	auto newLaf = new hise::GlobalHiseLookAndFeel();
+	newLaf->setComboBoxFont(globalFont);
+
+	callOnAllChildren(c, [newLaf, this](Component* c)
+	{
+		if (dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(&c->getLookAndFeel()))
+		{
+			if(dynamic_cast<MacroControlledObject*>(c) != nullptr)
+				skin(*c);
+
+			c->setLookAndFeel(newLaf);
+		}
+	});
+
+	mainLookAndFeel = newLaf;
+}
+
 void MainController::setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf)
 {
 	GlobalScriptCompileBroadcaster::setCurrentScriptLookAndFeel(newLaf);
-	mainLookAndFeel = new ScriptingObjects::ScriptedLookAndFeel::Laf(this);
+
+	if(newLaf == nullptr && dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(mainLookAndFeel.get()) != nullptr)
+		mainLookAndFeel = new hise::GlobalHiseLookAndFeel();
+	else if(newLaf != nullptr)
+		mainLookAndFeel = new ScriptingObjects::ScriptedLookAndFeel::Laf(this);
 }
 
 int MainController::getNumActiveVoices() const
@@ -596,6 +695,9 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
+	if (getKillStateHandler().getStateLoadFlag())
+		return;
+
 	AudioThreadGuard audioThreadGuard(&getKillStateHandler());
 
 	getSampleManager().handleNonRealtimeState();
@@ -613,9 +715,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 #if !FRONTEND_IS_PLUGIN
 	if (!getKillStateHandler().handleKillState())
 	{
-
 		buffer.clear();
-
 
 		MidiBuffer::Iterator it(midiMessages);
 
@@ -630,7 +730,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		midiMessages.clear();
 
 		if (sampleRate > 0.0)
-			uptime += double(numSamplesThisBlock) / sampleRate;
+			uptime += double(numSamplesThisBlock) / getOriginalSamplerate() ;
 
 		return;
 	}
@@ -655,14 +755,14 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		midiMessages.clear();
 
 		if (sampleRate > 0.0)
-			uptime += double(numSamplesThisBlock) / sampleRate;
+			uptime += double(numSamplesThisBlock) / getOriginalSamplerate();
 
 		return;
 	}
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
-	jassert(maxBufferSize.get() >= numSamplesThisBlock);
+	jassert(getOriginalBufferSize() >= numSamplesThisBlock);
 
 #if !FRONTEND_IS_PLUGIN || HISE_ENABLE_MIDI_INPUT_FOR_FX
     
@@ -729,8 +829,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if !FRONTEND_IS_PLUGIN
 
-	if(replaceBufferContent)
-		buffer.clear();
+	buffer.clear();
 
 	checkAllNotesOff();
 
@@ -741,6 +840,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	handleControllersForMacroKnobs(midiMessages);
 #endif
 
+	if (oversampler != nullptr)
+		masterEventBuffer.multiplyTimestamps(getOversampleFactor());
 	
 #if FRONTEND_IS_PLUGIN
 
@@ -748,26 +849,54 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     
     if(isUsingMultiChannel)
     {
-        AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, numSamplesThisBlock);
-        
-        thisMultiChannelBuffer.clear();
-        
-        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(0), buffer.getReadPointer(0), numSamplesThisBlock);
-        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(1), buffer.getReadPointer(1), numSamplesThisBlock);
-        
-        synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
-        
-        buffer.clear();
-        
+		AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, numSamplesThisBlock);
+		thisMultiChannelBuffer.clear();
+
+		FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(0), buffer.getReadPointer(0), numSamplesThisBlock);
+		FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(1), buffer.getReadPointer(1), numSamplesThisBlock);
+
+		if (oversampler == nullptr)
+		{
+			synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
+		}
+		else
+		{
+			dsp::AudioBlock<float> osInput(thisMultiChannelBuffer);
+
+			auto osOutput = oversampler->processSamplesUp(osInput);
+			auto data = (float**)alloca(sizeof(void*) * multiChannelBuffer.getNumChannels());
+
+			for (int i = 0; i < osOutput.getNumChannels(); i++)
+				data[i] = osOutput.getChannelPointer(i);
+
+			AudioSampleBuffer thisMultiChannelBufferOs(data, osOutput.getNumChannels(), osOutput.getNumSamples());
+			synthChain->renderNextBlockWithModulators(thisMultiChannelBufferOs, masterEventBuffer);
+			oversampler->processSamplesDown(osInput);
+		}
+
+		buffer.clear();
+
 		// Just use the first two channels. You need to route back all your send channels to the first stereo pair.
-		FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
-		FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
+		FloatVectorOperations::copy(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
+		FloatVectorOperations::copy(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
     }
     else
     {
-        synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
+		if (oversampler == nullptr)
+			synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
+		else
+		{
+			dsp::AudioBlock<float> osInput(buffer);
+
+			auto osOutput = oversampler->processSamplesUp(osInput);
+			buffer.clear();
+			float* data[2] = { osOutput.getChannelPointer(0), osOutput.getChannelPointer(1) };
+
+			AudioSampleBuffer rBuffer(data, 2, numSamplesThisBlock * getOversampleFactor());
+			synthChain->renderNextBlockWithModulators(rBuffer, masterEventBuffer);
+			oversampler->processSamplesDown(osInput);
+		}
     }
-	
 
 #elif HISE_MIDIFX_PLUGIN
 
@@ -791,6 +920,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 
 	AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, numSamplesThisBlock);
+
+	
+
+	
+
+	jassert(thisMultiChannelBuffer.getNumSamples() <= multiChannelBuffer.getNumSamples());
 
 	thisMultiChannelBuffer.clear();
 
@@ -827,6 +962,19 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		}
 	}
 
+	if (getOversampleFactor() != 1)
+	{
+		dsp::AudioBlock<float> osInput(thisMultiChannelBuffer);
+		auto osOutput = oversampler->processSamplesUp(osInput);
+
+		auto d = (float**)alloca(sizeof(void*) * osOutput.getNumChannels());
+
+		for (int i = 0; i < osOutput.getNumChannels(); i++)
+			d[i] = osOutput.getChannelPointer(i);
+		
+		thisMultiChannelBuffer.setDataToReferTo(d, (int)osOutput.getNumChannels(), (int)osOutput.getNumSamples());
+	}
+
 
 	synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
 
@@ -834,15 +982,15 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	if (!isUsingMultiChannel)
 	{
-		if (replaceBufferContent)
+		if (getOversampleFactor() != 1)
 		{
-			FloatVectorOperations::copy(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
-			FloatVectorOperations::copy(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
+			dsp::AudioBlock<float> output(buffer);
+			oversampler->processSamplesDown(output);
 		}
 		else
 		{
-			FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
-			FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
+			FloatVectorOperations::copy(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
+			FloatVectorOperations::copy(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
 		}
 	}
 	else
@@ -850,14 +998,19 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		auto& matrix = getMainSynthChain()->getMatrix();
 
         int maxNumChannelAmount = jmin(matrix.getNumSourceChannels(), buffer.getNumChannels(), thisMultiChannelBuffer.getNumChannels());
-        
-		for (int i = 0; i < maxNumChannelAmount; i++)
+     
+		if (getOversampleFactor() != 1)
 		{
-			if (replaceBufferContent)
-				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), numSamplesThisBlock);
-			else
-				FloatVectorOperations::add(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), numSamplesThisBlock);
+			dsp::AudioBlock<float> output(buffer.getArrayOfWritePointers(), maxNumChannelAmount, 0, numSamplesThisBlock);
+			oversampler->processSamplesDown(output);
 		}
+		else
+		{
+			for (int i = 0; i < maxNumChannelAmount; i++)
+				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), numSamplesThisBlock);
+		}
+
+		
 	}
 
 #if USE_HARD_CLIPPER
@@ -881,7 +1034,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
     if(sampleRate > 0.0)
     {
-        uptime += double(numSamplesThisBlock) / sampleRate;
+        uptime += double(numSamplesThisBlock) / getOriginalSamplerate();
     }
 
 #if USE_BACKEND
@@ -968,20 +1121,20 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
     LOG_START("Preparing playback");
     
-	maxBufferSize = samplesPerBlock;
-	sampleRate = sampleRate_;
+	maxBufferSize = samplesPerBlock * currentOversampleFactor;
+	sampleRate = sampleRate_ * currentOversampleFactor;
  
 	hostBpmPointer = &dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
 
 	// Prevent high buffer sizes from blowing up the 350MB limitation...
 	if (HiseDeviceSimulator::isAUv3())
 	{
-		maxBufferSize = jmin<int>(samplesPerBlock, 1024);
+		maxBufferSize = jmin<int>(maxBufferSize.get(), 1024);
 	}
 
-	if (samplesPerBlock % HISE_EVENT_RASTER != 0)
+	if (maxBufferSize.get() % HISE_EVENT_RASTER != 0)
 	{
-		sendOverlayMessage(DeactiveOverlay::CustomErrorMessage, "The buffer size " + String(samplesPerBlock) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
+		sendOverlayMessage(DeactiveOverlay::CustomErrorMessage, "The buffer size " + String(maxBufferSize.get()) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
 	}
 
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
@@ -1022,6 +1175,9 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	LockHelpers::SafeLock audioLock(this, LockHelpers::AudioLock);
 
 	getMainSynthChain()->setIsOnAir(true);
+
+	if (oversampler != nullptr)
+		oversampler->initProcessing(getOriginalBufferSize());
 }
 
 void MainController::setBpm(double newTempo)
@@ -1178,6 +1334,11 @@ void MainController::loadTypeFace(const String& fileName, const void* fontData, 
 	if (fontId.isNotEmpty() && customTypeFaceData.getChildWithProperty("FontId", fontId).isValid()) return;
 
 	Identifier id_ = fontId.isEmpty() ? Identifier() : Identifier(fontId);
+
+	if (fileName.endsWith(".woff"))
+	{
+		throw String("Error loading font " + fileName + ": unsupported format. Use .TTF");
+	}
 
 	customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(fontData, fontDataSize), id_));
 
@@ -1414,6 +1575,10 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 
 	// Updates the channel amount
 	multiChannelBuffer.setSize(numNewChannels, multiChannelBuffer.getNumSamples());
+
+
+	refreshOversampling();
+	
 
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }

@@ -87,7 +87,7 @@ using namespace asmjit;
 
 				noMoreOptimisationsPossible = true;
 			}
-			catch (OptimisationSucess& s)
+			catch (OptimisationSucess& )
 			{
 				if (ptr->parent == nullptr)
 				{

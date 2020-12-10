@@ -145,6 +145,9 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 	preset.addChild(autoData, -1, nullptr);
 	preset.addChild(mpeData, -1, nullptr);
 
+	if(chain->getMainController()->getMacroManager().isMacroEnabledOnFrontend())
+		chain->saveMacrosToValueTree(preset);
+
 	return preset;
 }
 
@@ -152,7 +155,6 @@ void UserPresetHelpers::addRequiredExpansions(const MainController* mc, ValueTre
 {
 	ignoreUnused(mc, preset);
 
-#if HISE_ENABLE_EXPANSIONS
 	const auto& expHandler = mc->getExpansionHandler();
 
 	String s;
@@ -165,28 +167,25 @@ void UserPresetHelpers::addRequiredExpansions(const MainController* mc, ValueTre
 
 	if (s.isNotEmpty())
 		preset.setProperty("RequiredExpansions", s, nullptr);
-#endif
 }
 
 StringArray UserPresetHelpers::checkRequiredExpansions(MainController* mc, ValueTree& preset)
 {
 	StringArray missingExpansions;
-
-#if HISE_ENABLE_EXPANSIONS
-
-	auto expList = preset.getProperty("RequiredExpansions", "").toString();
 	auto& expHandler = mc->getExpansionHandler();
 
-	auto sa = StringArray::fromTokens(expList, ";", "");
-	sa.removeDuplicates(true);
-	sa.removeEmptyStrings();
+	if (expHandler.isEnabled())
+	{
+		auto expList = preset.getProperty("RequiredExpansions", "").toString();
+		auto sa = StringArray::fromTokens(expList, ";", "");
+		sa.removeDuplicates(true);
+		sa.removeEmptyStrings();
 
-	
+		for (auto s : sa)
+			if (expHandler.getExpansionFromName(s) == nullptr)
+				missingExpansions.add(s);
 
-	for (auto s : sa)
-		if (expHandler.getExpansionFromName(s) == nullptr)
-			missingExpansions.add(s);
-#endif
+	}
 
 	return missingExpansions;
 }
@@ -534,6 +533,8 @@ void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryP
 		ValueTree v = p->exportAsValueTree();
         
         v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
+
+		FullInstrumentExpansion::setNewDefault(p->getMainController(), v);
 
 		outputFile.deleteFile();
 
@@ -991,6 +992,28 @@ void ProjectHandler::checkActiveProject()
 	
 }
 
+juce::File ProjectHandler::getAppDataRoot()
+{
+	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+
+#if JUCE_IOS
+	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/");
+#elif JUCE_MAC
+
+
+#if ENABLE_APPLE_SANDBOX
+	return File::getSpecialLocation(File::userMusicDirectory);
+#else
+	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support");
+#endif
+
+
+#else // WINDOWS
+	return File::getSpecialLocation(appDataDirectoryToUse);
+#endif
+
+}
+
 juce::File ProjectHandler::getAppDataDirectory()
 {
 
@@ -1153,7 +1176,7 @@ juce::File FrontendHandler::getSubDirectory(SubDirectories directory) const
 	case hise::FileHandlerBase::numSubDirectories:
 	case hise::FileHandlerBase::MidiFiles:
 		jassertfalse;
-		break;
+		break; 
 	case hise::FileHandlerBase::UserPresets:
 		return getRootFolder().getChildFile("User Presets");
 	case hise::FileHandlerBase::Samples:
@@ -1239,29 +1262,11 @@ File FrontendHandler::getSampleLocationForCompiledPlugin()
 
 juce::File FrontendHandler::getAppDataDirectory()
 {
-
-    const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-    
-#if JUCE_IOS
-    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
-#elif JUCE_MAC
-
-    
-#if ENABLE_APPLE_SANDBOX
-    File f = File::getSpecialLocation(File::userMusicDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
-#else
-    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
-#endif
-    
-
-#else // WINDOWS
-	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile(getCompanyName() + "/" + getProjectName());
-#endif
+	auto root = ProjectHandler::getAppDataRoot();
+	auto f = root.getChildFile(getCompanyName() + "/" + getProjectName());
 
 	if (!f.isDirectory())
-	{
 		f.createDirectory();
-	}
 
 	return f;
 }
@@ -2078,9 +2083,6 @@ void PresetHandler::checkMetaParameters(Processor* p)
 
 				auto checkAsExpected = [](DynamicObject* obj, ScriptComponent* c)
 				{
-					auto ev = (double)obj->getProperty(c->getName());
-					auto v = (double)c->getValue();
-
 					auto expectedValue = obj->getProperty(c->getName());
 
 					if (expectedValue != c->getValue())
@@ -2138,6 +2140,8 @@ void PresetHandler::checkMetaParameters(Processor* p)
 					e << c->getName().toString() << " changed " << s << " without being marked as meta parameter";
 					throw Result::fail(e);
 				}
+
+				return false;
 			});
 		}
 		catch (Result& r)
@@ -2420,6 +2424,42 @@ bool FileHandlerBase::isAbsolutePathCrossPlatform(const String &pathName)
 	const bool isAbsoluteOSXPath = pathName.startsWithChar('/');
 
 	return isAbsoluteWindowsPath || isAbsoluteOSXPath || File::isAbsolutePath(pathName);
+}
+
+String FileHandlerBase::getFileNameCrossPlatform(String pathName, bool includeParentDirectory)
+{
+	if (File::isAbsolutePath(pathName))
+	{
+		File f(pathName);
+
+		if (includeParentDirectory)
+			return f.getRelativePathFrom(f.getParentDirectory()).replace("\\", "/");
+		else
+			return f.getFileName();	
+	}
+
+	if (isAbsolutePathCrossPlatform(pathName))
+	{
+		pathName = pathName.replace("\\", "/");
+
+		StringArray sa = StringArray::fromTokens(pathName, "/", "");
+
+		if (sa.size() > 2)
+		{
+			if (includeParentDirectory)
+				return sa[sa.size() - 2] + "/" + sa[sa.size() - 1];
+			else
+				return sa[sa.size() - 1];
+		}
+	}
+
+	if (pathName.contains("}") && pathName.startsWith("{"))
+	{
+		// Most likely a Pool reference...
+		return pathName.fromFirstOccurrenceOf("}", false, false);
+	}
+	
+	return pathName;
 }
 
 juce::File FileHandlerBase::getLinkFile(const File &subDirectory)
@@ -2848,34 +2888,22 @@ MessageWithIcon::MessageWithIcon(PresetHandler::IconType type, LookAndFeel* laf,
 	t(type),
 	r(message, nullptr)
 {
-	switch (type)
+	image = defaultLaf.createIcon(type);
+
+	auto s = defaultLaf.getAlertWindowMarkdownStyleData();
+
+	s.f = laf->getAlertWindowFont();
+	s.boldFont = laf->getAlertWindowTitleFont();
+
+	if (auto laf_ = dynamic_cast<LookAndFeelMethods*>(laf))
 	{
-	case PresetHandler::IconType::Info: image = ImageCache::getFromMemory(
-		BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
-		break;
-	case PresetHandler::IconType::Warning: image = ImageCache::getFromMemory(BinaryData::infoWarning_png, BinaryData::infoWarning_pngSize);
-		break;
-	case PresetHandler::IconType::Question: image = ImageCache::getFromMemory(BinaryData::infoQuestion_png, BinaryData::infoQuestion_pngSize);
-		break;
-	case PresetHandler::IconType::Error: image = ImageCache::getFromMemory(BinaryData::infoError_png, BinaryData::infoError_pngSize);
-		break;
-	case PresetHandler::IconType::numIconTypes: image = Image(); jassertfalse;
-		break;
-	default:
-		break;
+		s = laf_->getAlertWindowMarkdownStyleData();
+		image = laf_->createIcon(type);
 	}
+		
+	r.setStyleData(s);
 
-	auto& sd = r.getStyleData();
-
-	sd.f = laf->getAlertWindowFont();
-	sd.boldFont = laf->getAlertWindowTitleFont();
-	sd.fontSize = 14.0f;
-
-	sd.textColour = Colours::white.withAlpha(0.8f);
-
-	r.setStyleData(sd);
-
-	auto w = jmin(sd.f.getStringWidthFloat(message) + 30.0f, 600.0f);
+	auto w = jmin(s.f.getStringWidthFloat(message) + 30.0f, 600.0f);
 
 	auto height = (int)r.getHeightForWidth(w);
 
@@ -2898,13 +2926,43 @@ void MessageWithIcon::paint(Graphics &g)
 
 void MessageWithIcon::LookAndFeelMethods::paintMessage(MessageWithIcon& icon, Graphics& g)
 {
-	g.drawImageAt(icon.image, 0, 0);
+	auto img = createIcon(icon.t);
+
+	if (img.isValid())
+	{
+		g.drawImageAt(img, 0, 0);
+	}
+
 	g.setColour(Colour(0xFF999999));
 
 	auto b = icon.getLocalBounds();
-	b.removeFromLeft(icon.image.getWidth());
-
+	b.removeFromLeft(img.getWidth());
 	icon.r.draw(g, b.toFloat());
+}
+
+hise::MarkdownLayout::StyleData MessageWithIcon::LookAndFeelMethods::getAlertWindowMarkdownStyleData()
+{
+	auto s = MarkdownLayout::StyleData::createDarkStyle();
+	s.fontSize = 14.0f;
+	s.textColour = Colours::white.withAlpha(0.8f);
+	return s;
+}
+
+juce::Image MessageWithIcon::LookAndFeelMethods::createIcon(PresetHandler::IconType type)
+{
+	switch (type)
+	{
+	case PresetHandler::IconType::Info: return ImageCache::getFromMemory(
+		BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
+	case PresetHandler::IconType::Warning: return ImageCache::getFromMemory(BinaryData::infoWarning_png, BinaryData::infoWarning_pngSize);
+	case PresetHandler::IconType::Question: return ImageCache::getFromMemory(BinaryData::infoQuestion_png, BinaryData::infoQuestion_pngSize);
+	case PresetHandler::IconType::Error: return ImageCache::getFromMemory(BinaryData::infoError_png, BinaryData::infoError_pngSize);
+	case PresetHandler::IconType::numIconTypes: 
+	default:
+		jassertfalse;
+		return Image(); 
+		
+	}
 }
 
 } // namespace hise

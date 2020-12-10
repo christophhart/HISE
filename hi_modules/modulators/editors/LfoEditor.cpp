@@ -170,6 +170,9 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 	phaseSlider->setup(getProcessor(), LfoModulator::Parameters::PhaseOffset, "Phase Offset");
 	phaseSlider->setMode(HiSlider::NormalizedPercentage);
 
+    tableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
+    stepsUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Steps;
+    
     //[/UserPreSize]
 
     setSize (800, 255);
@@ -181,6 +184,8 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
 	//ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
 
+    
+    
 	h = getHeight();
     //[/Constructor]
 }

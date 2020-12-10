@@ -339,8 +339,8 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto p = [](void* obj, ProcessDataType& data) { static_cast<event*>(obj)->process(data); };
-		auto e = [](void* obj, HiseEvent& e) { static_cast<event*>(obj)->handleHiseEvent(e); };
+		auto p = [](void* obj, ProcessDataType& data) { static_cast<event*>(obj)->obj.process(data); };
+		auto e = [](void* obj, HiseEvent& e) { static_cast<event*>(obj)->obj.handleHiseEvent(e); };
 		static_functions::event::process<ProcessDataType>(this, p, e, data);
 	}
 

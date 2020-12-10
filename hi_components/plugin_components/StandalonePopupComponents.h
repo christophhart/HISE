@@ -190,6 +190,8 @@ private:
 
 	MainController* mc;
 
+	ScopedPointer<LookAndFeel> slaf;
+
 	ScopedPointer<ComboBox> deviceSelector;
 	ScopedPointer<ComboBox> soundCardSelector;
 	ScopedPointer<ComboBox> outputSelector;

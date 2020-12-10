@@ -81,8 +81,6 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-
-
 //=============================================================================
 /** Config: USE_BACKEND
 
@@ -211,7 +209,6 @@ Set this to 0 to deactivate the plotter data collection
 #endif
 
 
-
 #ifndef IS_MARKDOWN_EDITOR
 #define IS_MARKDOWN_EDITOR 0
 #endif
@@ -232,14 +229,6 @@ If this is set to 1, the application will crash instantly if there is a drop out
 #define CRASH_ON_GLITCH 0
 #endif
 
-
-/** Config: HISE_ENABLE_EXPANSIONS
-
-If this is enabled, you can use expansion packs to add additional content to your project.
-*/
-#ifndef HISE_ENABLE_EXPANSIONS
-#define HISE_ENABLE_EXPANSIONS 0
-#endif
 
 /** Config: ENABLE_SCRIPTING_BREAKPOINTS
 
@@ -332,6 +321,14 @@ If your project contains a SplashScreen.png image file, it will use this as spla
 */
 #ifndef USE_SPLASH_SCREEN
 #define USE_SPLASH_SCREEN 0
+#endif
+
+/** Config: HISE_USE_CUSTOM_EXPANSION_TYPE
+
+If your project uses a custom C++ implementation for the expansion system, set this to 1 and implement ExpansionHandler::createCustomExpansion().
+*/
+#ifndef HISE_USE_CUSTOM_EXPANSION_TYPE
+#define HISE_USE_CUSTOM_EXPANSION_TYPE 0
 #endif
 
 

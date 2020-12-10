@@ -49,7 +49,8 @@ class BackendProcessor: public PluginParameterAudioProcessor,
 					    public AudioProcessorDriver,
 						public MainController,
 						public ProjectHandler::Listener,
-						public MarkdownDatabaseHolder
+						public MarkdownDatabaseHolder,
+						public ExpansionHandler::Listener
 {
 public:
 	BackendProcessor(AudioDeviceManager *deviceManager_=nullptr, AudioProcessorPlayer *callback_=nullptr);
@@ -57,6 +58,8 @@ public:
 	~BackendProcessor();
 
 	void projectChanged(const File& newRootDirectory) override;
+
+	void refreshExpansionType();
 
 	void handleEditorData(bool save)
 	{
@@ -89,7 +92,15 @@ public:
 
 	void getStateInformation	(MemoryBlock &destData) override;;
 
-	
+	void logMessage(const String& message, bool isCritical) override
+	{
+		if (isCritical)
+		{
+			debugError(getMainSynthChain(), message);
+		}
+		else
+			debugToConsole(getMainSynthChain(), message);
+	}
 
 	void setStateInformation(const void *data,int sizeInBytes) override;
 

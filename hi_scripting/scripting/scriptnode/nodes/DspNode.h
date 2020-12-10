@@ -46,8 +46,6 @@ public:
 
 	DspNode(DspNetwork* root, DspFactory* f_, ValueTree data);
 
-	Identifier getObjectName() const override { return "DspNode"; }
-
 	virtual void assign(const int index, var newValue) override
 	{
 		if (auto p = getParameter(index))

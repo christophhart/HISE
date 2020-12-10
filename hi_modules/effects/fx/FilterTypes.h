@@ -114,6 +114,7 @@ public:
 		int startSample = 0;
 		int numSamples = -1;
 		double freqModValue = 1.0;
+		double bipolarDelta = 0.0;
 		double gainModValue = 1.0;
 		double qModValue = 1.0;
 	};

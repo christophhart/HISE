@@ -162,10 +162,8 @@ hise::FileHandlerBase* SampleMap::getCurrentFileHandler() const
 {
 	FileHandlerBase* handler = &GET_PROJECT_HANDLER(sampler);
 
-#if HISE_ENABLE_EXPANSIONS
-	if (currentPool != nullptr)
+	if (handler->getMainController()->getExpansionHandler().isEnabled() && currentPool != nullptr)
 		handler = currentPool->getFileHandler();
-#endif
 
 	return handler;
 }
@@ -189,9 +187,14 @@ void SampleMap::setCurrentMonolith()
 		}
 		else
 		{
-			File monolithDirectory = getCurrentFileHandler()->getSubDirectory(ProjectHandler::SubDirectories::Samples);
+			File monolithDirectories[2];
 
-			if (!monolithDirectory.isDirectory())
+			// First check in the expansion folder, then in the global sample folder...
+			monolithDirectories[0] = getCurrentFileHandler()->getSubDirectory(ProjectHandler::SubDirectories::Samples);
+			monolithDirectories[1] = sampler->getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+
+			if (!monolithDirectories[1].isDirectory())
 			{
 				sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
 					"The sample directory does not exist");
@@ -218,7 +221,11 @@ void SampleMap::setCurrentMonolith()
 			{
 				auto path = getMonolithID().replace("/", "_");
 
-				File f = monolithDirectory.getChildFile(path + ".ch" + String(i + 1));
+				File f = monolithDirectories[0].getChildFile(path + ".ch" + String(i + 1));
+
+				if(!f.existsAsFile() && monolithDirectories[0] != monolithDirectories[1])
+					f = monolithDirectories[1].getChildFile(path + ".ch" + String(i + 1));
+
 				if (f.existsAsFile())
 				{
 					monolithFiles.add(f);
@@ -305,12 +312,24 @@ void SampleMap::parseValueTree(const ValueTree &v)
 
 	ScopedNotificationDelayer dnd(*this);
 
-	for (auto c : data)
+	try
 	{
-		progress = sampleIndex / numSamples;
-		sampleIndex += 1.0;
+		for (auto c : data)
+		{
+			progress = sampleIndex / numSamples;
+			sampleIndex += 1.0;
 
-		valueTreeChildAdded(data, c);
+			valueTreeChildAdded(data, c);
+		}
+	}
+	catch (String& s)
+	{
+#if USE_BACKEND
+		debugToConsole(sampler, s);
+#else
+		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::SamplesNotFound, {});
+#endif
+
 	}
 
 	sampler->updateRRGroupAmountAfterMapLoad();
@@ -435,6 +454,11 @@ void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 {
 	auto map = sampler->getSampleMap();
 
+	if (map->mode == SampleMap::SaveMode::Monolith && map->currentMonolith == nullptr)
+	{
+		throw String("Can't find monolith");
+	}
+
 	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
 
 	{
@@ -534,9 +558,6 @@ bool SampleMap::save(const File& fileToUse)
 	}
 
 	data.setProperty("ID", sampleMapId.toString(), nullptr);
-	
-
-
 	data.setProperty("RRGroupAmount", sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount), nullptr);
 	data.setProperty("MicPositions", sampler->getStringForMicPositions(), nullptr);
 	
@@ -561,6 +582,9 @@ bool SampleMap::save(const File& fileToUse)
 					PresetHandler::showMessageWindow("Invalid Path", "You need to store the samplemap in the samplemap directory", PresetHandler::IconType::Error);
 					return false;
 				}
+
+				auto id = f.getRelativePathFrom(rootDirectory).upToFirstOccurrenceOf(".xml", false, false);
+				setId(Identifier(id));
 			}
 		}
 		else
@@ -767,12 +791,10 @@ void SampleMap::load(const PoolReference& reference)
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
 
-#if HISE_ENABLE_EXPANSIONS
 	if (auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
 	{
 		currentPool = &expansion->pool->getSampleMapPool();
 	}
-#endif
 
 	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);
@@ -892,7 +914,7 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	addComboBox("normalise", sa2, "Normalization");
 
-	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addBasicComponents(true);
@@ -927,9 +949,13 @@ void MonolithExporter::run()
 		return;
 	}
 
-	auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
+	PoolReference ref(sampleMap->getSampler()->getMainController(), sampleMapFile.getFullPathName(), ProjectHandler::SampleMaps);
 
-	name = name.replace(File::getSeparatorString(), "/");
+	auto name = ref.getReferenceString().fromFirstOccurrenceOf("}", false, false).upToFirstOccurrenceOf(".xml", false, true);
+
+	//auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
+
+	//name = name.replace(File::getSeparatorString(), "/");
 
 	sampleMap->setId(name);
 
@@ -1279,7 +1305,7 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 	getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 #endif
 
-	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addProgressBarComponent(wholeProgress);

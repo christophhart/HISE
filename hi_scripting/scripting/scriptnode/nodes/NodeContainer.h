@@ -125,6 +125,7 @@ struct NodeContainer : public AssignableObject
 		valuetree::RecursivePropertyListener expressionListener;
 
 		ReferenceCountedArray<Connection> connections;
+		bool initialised = false;
 	};
 
 	NodeContainer();
@@ -240,7 +241,6 @@ public:
 
 	SerialNode(DspNetwork* root, ValueTree data);
 
-	Identifier getObjectName() const override { return "SerialNode"; };
 	NodeComponent* createComponent() override;
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 
