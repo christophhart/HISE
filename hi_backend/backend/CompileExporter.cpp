@@ -1161,19 +1161,20 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
     String command = "\"" + batchFile.getFullPathName() + "\"";
     
 #elif JUCE_LINUX
+	if (!isUsingCIMode())
+	{
+		PresetHandler::showMessageWindow("Batch file created.", "The batch file was created in the build directory.Click OK to open the location");
+		String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
+	  system(permissionCommand.getCharPointer());
 
-	PresetHandler::showMessageWindow("Batch file created.", "The batch file was created in the build directory.Click OK to open the location");
-	String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
-    system(permissionCommand.getCharPointer());
-
-	batchFile.getParentDirectory().revealToUser();
-
+		batchFile.getParentDirectory().revealToUser();
+	}
 #else
     
     String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
     system(permissionCommand.getCharPointer());
     
-    String command = "open \"" + batchFile.getFullPathName() + "\"";
+    	String command = "open \"" + batchFile.getFullPathName() + "\"";
 
 #endif
     
@@ -1570,6 +1571,11 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		else
 			REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER", String());
 
+		if (buildVST3)
+			REPLACE_WILDCARD_WITH_STRING("%VSTSDK3_FOLDER%", hisePath.getChildFile("JUCE/modules/juce_audio_processors/format_types/VST3_SDK").getFullPathName());
+		else
+			REPLACE_WILDCARD_WITH_STRING("%VSTSDK3_FOLDER", String());
+
 		if (buildAAX)
 		{
 			const File aaxPath = hisePath.getChildFile("tools/SDK/AAX");
@@ -1684,10 +1690,10 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", exporter->hisePath.getFullPathName());
 	REPLACE_WILDCARD_WITH_STRING("%JUCE_PATH%", jucePath.getFullPathName());
 	
-    REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "enabled" : "disabled");
+    REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "1" : "0");
     REPLACE_WILDCARD_WITH_STRING("%IPP_WIN_SETTING%", exporter->useIpp ? "Sequential" : String());
     
-    REPLACE_WILDCARD_WITH_STRING("%LEGACY_CPU_SUPPORT%", exporter->legacyCpuSupport ? "enabled" : "disabled");
+    REPLACE_WILDCARD_WITH_STRING("%LEGACY_CPU_SUPPORT%", exporter->legacyCpuSupport ? "1" : "0");
     
     REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString());
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString());
@@ -1708,15 +1714,15 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", isUsingCIMode() ? "0" : "1");
 
 #if JUCE_MAC
-	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a");
-	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", "/opt/intel/ipp/include");
-	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", "/opt/intel/ipp/lib");
+	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", exporter->useIpp ? "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a" : String());
+	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", exporter->useIpp ? "/opt/intel/ipp/include" : String());
+	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", exporter->useIpp ? "/opt/intel/ipp/lib" : String());
 #endif
 
 #if JUCE_LINUX
-	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", "/opt/intel/ipp/lib/intel64/libippi.a  /opt/intel/ipp/lib/intel64/libipps.a /opt/intel/ipp/lib/intel64/libippvm.a /opt/intel/ipp/lib/intel64/libippcore.a");
-	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", "/opt/intel/ipp/include");
-	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", "/opt/intel/ipp/lib");
+	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", exporter->useIpp ? "/opt/intel/ipp/lib/intel64/libippi.a  /opt/intel/ipp/lib/intel64/libipps.a /opt/intel/ipp/lib/intel64/libippvm.a /opt/intel/ipp/lib/intel64/libippcore.a" : String());
+	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", exporter->useIpp ? "/opt/intel/ipp/include" : String());
+	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", exporter->useIpp ? "/opt/intel/ipp/lib" : String());
 #endif
 
 #if !JUCE_MAC && !JUCE_LINUX
