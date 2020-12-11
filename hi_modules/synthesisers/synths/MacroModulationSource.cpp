@@ -118,7 +118,7 @@ void MacroModulationSource::preVoiceRendering(int startSample, int numThisTime)
 				v *= mb.getConstantModulationValue();
 
 			if (v != lastValues[i])
-				getMainController()->getMainSynthChain()->setMacroControl(i, v * 127.0, sendNotificationAsync);
+				getMainController()->getMainSynthChain()->setMacroControl(i, v * 127.0f, sendNotificationAsync);
 
 			lastValues[i] = v;
 

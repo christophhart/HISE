@@ -178,7 +178,7 @@ public:
 	void enlargeAllocatedSize(const TypeInfo& t)
 	{
 		jassert(data == nullptr);
-		allocatedSize += t.getRequiredByteSize();
+		allocatedSize += (int)t.getRequiredByteSize();
 	}
 
 	void finalise()
@@ -205,7 +205,7 @@ public:
 			auto numToPad = alignment - unAligned;
 
 			memset(data + numUsed, 0, numToPad);
-			numUsed += numToPad;
+			numUsed += (int)numToPad;
 			return true;
 		}
 
@@ -251,6 +251,7 @@ public:
 				case Types::ID::Float: return VariableStorage(*(float*)ts.data);
 				case Types::ID::Double: return VariableStorage(*(double*)ts.data);
 				case Types::ID::Block: return VariableStorage(*(block*)ts.data);
+                default:           jassertfalse;
 				}
 			}
 		}
@@ -279,7 +280,7 @@ public:
 		newEntry.s = s;
 		newEntry.data = data + numUsed;
 
-		numUsed += size;
+		numUsed += (int)size;
 		memset(newEntry.data, 0, size);
 		newEntry.scope = scope;
 

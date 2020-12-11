@@ -347,10 +347,6 @@ PoolHelpers::Reference::Reference(PoolBase* pool_, const String& embeddedReferen
 	pool(pool_),
 	directoryType(type)
 {
-#if USE_BACKEND
-	jassert(embeddedReference.startsWith("{EXP"));
-#endif
-
 	reference = embeddedReference;
 	hashCode = reference.hashCode64();
 	m = EmbeddedResource;
@@ -499,8 +495,10 @@ void PoolHelpers::Reference::parseDragDescription(const var& v)
 	}
 }
 
-void PoolHelpers::Reference::parseReferenceString(const MainController* mc, const String& input)
+void PoolHelpers::Reference::parseReferenceString(const MainController* mc, const String& input_)
 {
+	String input = input_;
+
 	if (input.isEmpty())
 	{
 		m = Invalid;
@@ -512,6 +510,14 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 	
 
 	static const String projectFolderWildcard("{PROJECT_FOLDER}");
+
+	if (FullInstrumentExpansion::isEnabled(mc) && input.startsWith(projectFolderWildcard))
+	{
+		if (auto e = mc->getExpansionHandler().getCurrentExpansion())
+		{
+			input = input.replace(projectFolderWildcard, e->getWildcard());
+		}
+	}
 
 #if USE_RELATIVE_PATH_FOR_AUDIO_FILES
 
@@ -537,7 +543,25 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			m = ExpansionPath;
 
 			auto relativePath = f.getRelativePathFrom(expansionFolder).replace("\\", "/");
-			auto expansionName = relativePath.upToFirstOccurrenceOf("/", false, false);
+			auto eFolder = expansionFolder.getChildFile(relativePath.upToFirstOccurrenceOf("/", false, false));
+
+			String expansionName;
+
+			if (auto e = mc->getExpansionHandler().getExpansionFromRootFile(eFolder))
+			{
+				expansionName = e->getProperty(ExpansionIds::Name);
+			}
+			else
+			{
+				auto eInfoFile = Expansion::Helpers::getExpansionInfoFile(eFolder, Expansion::FileBased);
+				jassert(eInfoFile.existsAsFile());
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(eInfoFile);
+				jassert(xml != nullptr);
+				expansionName = xml->getStringAttribute(ExpansionIds::Name.toString());
+			}
+
+			jassert(expansionName.isNotEmpty());
+
 			auto subDirectoryName = ProjectHandler::getIdentifier(directoryType);
 			relativePath = relativePath.fromFirstOccurrenceOf(subDirectoryName, false, false);
 

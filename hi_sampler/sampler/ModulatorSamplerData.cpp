@@ -312,12 +312,24 @@ void SampleMap::parseValueTree(const ValueTree &v)
 
 	ScopedNotificationDelayer dnd(*this);
 
-	for (auto c : data)
+	try
 	{
-		progress = sampleIndex / numSamples;
-		sampleIndex += 1.0;
+		for (auto c : data)
+		{
+			progress = sampleIndex / numSamples;
+			sampleIndex += 1.0;
 
-		valueTreeChildAdded(data, c);
+			valueTreeChildAdded(data, c);
+		}
+	}
+	catch (String& s)
+	{
+#if USE_BACKEND
+		debugToConsole(sampler, s);
+#else
+		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::SamplesNotFound, {});
+#endif
+
 	}
 
 	sampler->updateRRGroupAmountAfterMapLoad();
@@ -441,6 +453,11 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 {
 	auto map = sampler->getSampleMap();
+
+	if (map->mode == SampleMap::SaveMode::Monolith && map->currentMonolith == nullptr)
+	{
+		throw String("Can't find monolith");
+	}
 
 	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
 
@@ -897,7 +914,7 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	addComboBox("normalise", sa2, "Normalization");
 
-	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addBasicComponents(true);
@@ -932,9 +949,13 @@ void MonolithExporter::run()
 		return;
 	}
 
-	auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
+	PoolReference ref(sampleMap->getSampler()->getMainController(), sampleMapFile.getFullPathName(), ProjectHandler::SampleMaps);
 
-	name = name.replace(File::getSeparatorString(), "/");
+	auto name = ref.getReferenceString().fromFirstOccurrenceOf("}", false, false).upToFirstOccurrenceOf(".xml", false, true);
+
+	//auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
+
+	//name = name.replace(File::getSeparatorString(), "/");
 
 	sampleMap->setId(name);
 
@@ -1284,7 +1305,7 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 	getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 #endif
 
-	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addProgressBarComponent(wholeProgress);

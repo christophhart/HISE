@@ -90,6 +90,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(VST3Support);
 	ids.add(UseRawFrontend);
 	ids.add(ExpansionType);
+	ids.add(EncryptionKey);
 
 	return ids;
 }
@@ -298,8 +299,15 @@ Array<juce::Identifier> HiseSettings::Audio::getAllIds()
 		D("- Disabled / no expansions (default)");
 		D("- Unencrypted file-based expansions (just creates a mini-project-folder inside the expansion)");
 		D("- Script-encrypted expansions");
+		D("- Full expansions that contain the entire instrument");
 		D("- Custom expansions that uses a custom C++ class");
 		D("> If you use a custom expansion, you will need to implement `ExpansionHandler::createCustomExpansion()` in your project's C++ code");
+		P_();
+
+		P(HiseSettings::Project::EncryptionKey);
+		D("Sets the BlowFish encryption key (up to 72 characters) that will be used to encrypt the intermediate expansions.");
+		D("> If you're using the **Full** expansion type you will need to set the key here, otherwise, you can call `ExpansionHandler.setEncryptionKey()` for the same effect.");
+		D("Make sure you restart HISE after changing this setting in order to apply the change.");
 		P_();
 
 		P(HiseSettings::Project::RedirectSampleFolder);
@@ -587,7 +595,7 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
 		}
 	}
 
-	return var();
+	return getDefaultSetting(id);
 }
 
 void HiseSettings::Data::addSetting(ValueTree& v, const Identifier& id)
@@ -625,7 +633,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 
 	if (id == Project::ExpansionType)
 	{
-		return { "Disabled", "FilesOnly", "Encrypted", "Custom" };
+		return { "Disabled", "FilesOnly", "Encrypted", "Full", "Custom" };
 	}
 
 	if (id == Project::AAXCategoryFX)
@@ -771,7 +779,7 @@ void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 #endif
 }
 
-var HiseSettings::Data::getDefaultSetting(const Identifier& id)
+var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 {
 	BACKEND_ONLY(auto& handler_ = GET_PROJECT_HANDLER(mc->getMainSynthChain()));
 
@@ -821,7 +829,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 		return scriptFolder.getFullPathName();
 	}
 	else if (id == Scripting::EnableDebugMode)		return mc->getDebugLogger().isLogging() ? "Yes" : "No";
-	else if (id == Audio::Driver)					return getDeviceManager()->getCurrentAudioDeviceType();
+	else if (id == Audio::Driver)					return const_cast<Data*>(this)->getDeviceManager()->getCurrentAudioDeviceType();
 	else if (id == Audio::Device)
 	{
 		auto device = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->getCurrentAudioDevice();

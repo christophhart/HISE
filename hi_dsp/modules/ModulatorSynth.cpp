@@ -708,14 +708,10 @@ void ModulatorSynth::handleVolumeFade(int eventId, int fadeTimeMilliseconds, flo
 {
 	const double fadeTimeSeconds = (double)fadeTimeMilliseconds / 1000.0;
 
-	for (int i = voices.size(); --i >= 0;)
+	for (auto v : activeVoices)
 	{
-		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
-
-		if (!v->isInactive() && v->getCurrentHiseEvent().getEventId() == eventId)
-		{
+		if (v->getCurrentHiseEvent().getEventId() == eventId)
 			v->setVolumeFade(fadeTimeSeconds, targetGain);
-		}
 	}
 }
 
@@ -1776,6 +1772,8 @@ void ModulatorSynthVoice::setCurrentHiseEvent(const HiseEvent &m)
 	transposeAmount = m.getTransposeAmount();
 	eventGainFactor = m.getGainFactor();
 	eventPitchFactor = m.getPitchFactorForEvent();
+	gainFader.setValueWithoutSmoothing(eventGainFactor);
+	pitchFader.setValueWithoutSmoothing(eventPitchFactor);
 }
 
 void ModulatorSynthChainFactoryType::fillTypeNameList()

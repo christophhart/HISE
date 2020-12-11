@@ -135,7 +135,8 @@ public:
 		case Type::Callback:		 return "Callback";
 		case Type::ExternalFunction: return "ExternalFunction";
 		case Type::Namespace:		 return "Namespace";
-        case Type::numTypes:         return "";
+        case Type::numTypes:
+        default:                     return {};
 		}
 		return "";
 	}

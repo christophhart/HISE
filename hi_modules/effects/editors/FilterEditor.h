@@ -53,13 +53,13 @@ public:
 
 	void updateGui() override
 	{
-		modeSelector->setSelectedId((int)getProcessor()->getAttribute(MonoFilterEffect::Mode) + 1, dontSendNotification);
+		modeSelector->setSelectedId((int)getProcessor()->getAttribute(PolyFilterEffect::Mode) + 1, dontSendNotification);
 		freqSlider->updateValue();
 		bipolarFreqSlider->updateValue();
 		gainSlider->updateValue();
 		qSlider->updateValue();
 
-		FilterBank::FilterMode m = (FilterBank::FilterMode)(int)(getProcessor()->getAttribute(MonoFilterEffect::Mode));
+		FilterBank::FilterMode m = (FilterBank::FilterMode)(int)(getProcessor()->getAttribute(PolyFilterEffect::Mode));
 
 		switch (m)
 		{

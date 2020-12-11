@@ -276,7 +276,7 @@ private:
 		static void addAdditionalSourceCodeHeaderLines(CompileExporter* exporter, String& pluginDataHeaderFile);
 		static void addStaticDspFactoryRegistration(String& pluginDataHeaderFile, CompileExporter* exporter);
 		static void addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile);
-		static void addCustomToolbarRegistration(CompileExporter* exporter, String& pluginDataHeaderFile);
+		static void addFullExpansionTypeSetter(CompileExporter* exporter, String& pluginDataHeaderFile);
 		static void addProjectInfoLines(CompileExporter* exporter, String& pluginDataHeaderFile);
 
 		static void writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile);

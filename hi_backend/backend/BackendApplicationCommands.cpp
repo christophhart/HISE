@@ -923,6 +923,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		
 		p.addSectionHeader("Export Tools");
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
+		ADD_DESKTOP_ONLY(MenuExportFileAsPlayerLibrary);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
 		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
 		ADD_DESKTOP_ONLY(MenuExportCompileFilesInPool);
@@ -2031,6 +2032,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
             
 			ScopedPointer<XmlElement> xml = v.createXml();
 
+			FullInstrumentExpansion::setNewDefault(bpe->owner, v);
+
 			XmlBackupFunctions::removeEditorStatesFromXml(*xml);
 
 			
@@ -2483,17 +2486,28 @@ void BackendCommandTarget::Actions::createExternalScriptFile(BackendRootWindow *
 
 void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe)
 {
-	
-	FileChooser fc("Export as HisePlayerLibrary", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory(), "*.hpl");
+	auto& h = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-	if (fc.browseForFileToSave(true))
+	if (bpe->getMainController()->getExpansionHandler().getEncryptionKey().isEmpty())
 	{
-		File s = fc.getResult();
+		auto k = dynamic_cast<GlobalSettingManager*>(bpe->owner)->getSettingsObject().getSetting(HiseSettings::Project::EncryptionKey).toString();
 
-		new HisePlayerExporter(bpe->getMainSynthChain(), s);
+		if (k.isNotEmpty())
+			bpe->getMainController()->getExpansionHandler().setEncryptionKey(k);
+		else
+		{
+			PresetHandler::showMessageWindow("No encryption key", "You have to specify an encryption key in order to encode the project as full expansion", PresetHandler::IconType::Error);
+			return;
+		}
 	}
-	
-	
+
+	auto existingIntermediate = Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate);
+
+	if (existingIntermediate.existsAsFile())
+		existingIntermediate.deleteFile();
+
+	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);
+	e->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::cleanBuildDirectory(BackendRootWindow * bpe)

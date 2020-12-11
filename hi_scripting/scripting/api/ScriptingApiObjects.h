@@ -90,6 +90,8 @@ public:
 };
 
 
+
+
 class ScriptCreatedComponentWrapper;
 class ScriptContentComponent;
 class ScriptedControlAudioParameter;
@@ -178,9 +180,18 @@ public:
 			Filename
 		};
 
+		static String getFileNameFromFile(var fileOrString);
+
 		ScriptFile(ProcessorWithScriptingContent* p, const File& f_);
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("File"); }
+
+		String getDebugValue() const override { return f.getFullPathName(); };
+
+		void rightClickCallback(const MouseEvent &, Component*) override
+		{
+			f.revealToUser();
+		}
 
 		// ================================================= API calls
 
@@ -348,6 +359,104 @@ public:
 		RefCountedBuffer::Ptr buffer;
 		
 		struct Wrapper;
+	};
+
+	struct ScriptDownloadObject : public ConstScriptingObject,
+							 public URL::DownloadTask::Listener
+	{
+		using Ptr = ReferenceCountedObjectPtr<ScriptDownloadObject>;
+
+		ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const File& targetFile, var callback);;
+
+		~ScriptDownloadObject();
+
+		Identifier getObjectName() const override { return "Download"; }
+
+		// ============================================================================================= API
+
+		/** Stops the download. The target file will not be deleted and you can resume the download later. */
+		bool stop();
+
+		/** Resumes the download. */
+		bool resume();
+
+		/** Checks if the download is currently active. */
+		bool isRunning();
+
+		/** Returns the progress ratio from 0 to 1. */
+		double getProgress() const;
+
+		/** Returns the current download speed in bytes / second. */
+		int getDownloadSpeed();
+
+		/** Returns the download size in bytes. */
+		double getDownloadSize();
+
+		/** Returns the number of bytes downloaded. */
+		double getNumBytesDownloaded();
+
+		/** Returns the full URL of the download. */
+		String getFullURL();
+
+		/** Returns the target file if the download has succeeded. */
+		var getDownloadedTarget();
+
+		/** Sets the maximum amount of allowed downloads. */
+		void setNumAllowedDownloads(int maxNumber);
+
+		// ============================================================================================= End of API
+
+		void finished(URL::DownloadTask*, bool success) override;
+
+		void flushTemporaryFile();
+
+		void progress(URL::DownloadTask*, int64 bytesDownloaded, int64 totalLength) override;
+
+		void call(bool hiPriority);
+
+		void start();
+
+		bool operator==(const ScriptDownloadObject& other) const
+		{
+			return downloadURL == other.downloadURL;
+		}
+
+		std::atomic<bool> isWaitingForStop = { false };
+		std::atomic<bool> isWaitingForStart = { true };
+		std::atomic<bool> isRunning_ = { false };
+		std::atomic<bool> isFinished = { false };
+		std::atomic<bool> callbackPending = { false };
+
+		struct Wrapper;
+
+		bool stopInternal();
+
+	private:
+
+		bool resumeInternal();
+
+		
+
+		int64 bytesInLastSecond = 0;
+		int64 bytesInCurrentSecond = 0;
+		int64 lastBytesDownloaded = 0;
+
+		int64 existingBytesBeforeResuming = 0;
+		ScopedPointer<TemporaryFile> resumeFile;
+
+		uint32 lastTimeMs = 0;
+		uint32 lastSpeedMeasure = 0;
+
+		DynamicObject::Ptr data;
+		
+		URL downloadURL;
+		File targetFile;
+
+		WeakCallbackHolder callback;
+		
+		ScopedPointer<URL::DownloadTask> download;
+		
+		JavascriptProcessor* jp = nullptr;
 	};
 
 	class ScriptTableData : public ConstScriptingObject
@@ -1353,10 +1462,13 @@ public:
 		bool record(int timestamp);
 
 		/** Loads a MIDI file and switches to this sequence if specified. */
-		bool setFile(String fileName, bool clearExistingSequences, bool selectNewSequence);
+		bool setFile(var fileName, bool clearExistingSequences, bool selectNewSequence);
 
 		/** Saves the current sequence into the given file at the track position. */
-		bool saveAsMidiFile(String fileName, int trackIndex);
+		bool saveAsMidiFile(var file, int trackIndex);
+
+		/** Returns a list of all MIDI files that are embedded in the plugin. */
+		var getMidiFileList();
 
 		/** Sets the track index (starting with one). */
 		void setTrack(int trackIndex);

@@ -880,8 +880,17 @@ hise::FloatingTileContent* FloatingTileContent::Factory::createFromId(const Iden
 	if (index != -1) return functions[index](parent);
 	else
 	{
+#if USE_BACKEND
+		auto ft = new ExternalPlaceholder(parent);
+		ft->setName(id);
+
+		return ft;
+#else
 		jassertfalse;
 		return functions[0](parent);
+#endif
+
+		
 	}
 }
 

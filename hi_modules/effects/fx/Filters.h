@@ -38,6 +38,7 @@ namespace hise { using namespace juce;
 #define USE_STATE_VARIABLE_FILTERS 1
 
 
+#if HISE_INCLUDE_OLD_MONO_FILTER
 
 class MonoFilterEffect: public MonophonicEffectProcessor,
 						public FilterEffect
@@ -129,6 +130,7 @@ private:
 	double lastSampleRate = 0.0;
 
 };
+#endif
 
 /** The filter module of HISE. 
 	@ingroup effectTypes
@@ -160,6 +162,17 @@ public:
 		BipolarFreqChainShown,
 		ResonanceChainShown,
 		numEditorStates
+	};
+
+	enum Parameters
+	{
+		Gain = 0,
+		Frequency,
+		Q,
+		Mode,
+		Quality,
+		BipolarIntensity,
+		numEffectParameters
 	};
 
 	PolyFilterEffect(MainController *mc, const String &uid, int numVoices);;
@@ -212,7 +225,8 @@ private:
 
 	bool changeFlag;
 
-	float bipolarIntensity = 0.0f;
+	float bipolarParameterValue = 0.0f;
+	LinearSmoothedValue<float> bipolarIntensity;
 
 	FilterBank voiceFilters;
 	FilterBank monoFilters;

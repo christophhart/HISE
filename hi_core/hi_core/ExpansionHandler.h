@@ -43,6 +43,14 @@ class FloatingTile;
 namespace ExpansionIds
 {
 DECLARE_ID(ExpansionInfo);
+DECLARE_ID(FullData);
+DECLARE_ID(Preset);
+DECLARE_ID(Scripts);
+DECLARE_ID(Script);
+DECLARE_ID(HeaderData);
+DECLARE_ID(Fonts);
+DECLARE_ID(Icon);
+DECLARE_ID(HiseVersion);
 DECLARE_ID(Credentials);
 DECLARE_ID(PrivateInfo);
 DECLARE_ID(Name);
@@ -53,6 +61,8 @@ DECLARE_ID(Key);
 DECLARE_ID(Hash);
 DECLARE_ID(PoolData);
 DECLARE_ID(Data);
+DECLARE_ID(URL);
+DECLARE_ID(UUID);
 }
 
 #undef DECLARE_ID
@@ -112,6 +122,31 @@ public:
 
 		return Result::ok();
 	};
+
+
+
+	struct Helpers
+	{
+		static ValueTree loadValueTreeForFileBasedExpansion(const File& root);;
+
+		static bool isXmlFile(const File& f);
+
+		template <class T> static void initCachedValue(ValueTree v, const T& cachedValue)
+		{
+			if (!v.hasProperty(cachedValue.getPropertyID()))
+			{
+				v.setProperty(cachedValue.getPropertyID(), cachedValue.getDefault(), nullptr);
+			}
+		}
+
+		static File getExpansionInfoFile(const File& expansionRoot, ExpansionType type);
+
+		static String getExpansionIdFromReference(const String& referenceId);
+
+		static String getExpansionTypeName(ExpansionType e);
+
+	};
+
 
 	virtual void encodeExpansion()
 	{
@@ -210,6 +245,8 @@ public:
 		return s;
 	}
 
+	ValueTree getPropertyValueTree();
+
 protected:
 
 	File root;
@@ -228,6 +265,7 @@ protected:
 #else
 			projectName(v, "ProjectName", nullptr, FrontendHandler::getProjectName()),
 			projectVersion(v, "ProjectName", nullptr, FrontendHandler::getVersionString()),
+			tags(v, "Tags", nullptr, ""),
 #endif
 			version(v, "Version", nullptr, "1.0.0")
 		{
@@ -299,55 +337,14 @@ protected:
 	}
 
 	
-
-	struct Helpers
-	{
-
-
-		static ValueTree loadValueTreeForFileBasedExpansion(const File& root)
-		{
-			auto infoFile = Helpers::getExpansionInfoFile(root, FileBased);
-
-			if (infoFile.existsAsFile())
-			{
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(infoFile);
-
-				if (xml != nullptr)
-				{
-					auto tree = ValueTree::fromXml(*xml);
-					return tree;
-				}
-			}
-
-			return ValueTree("ExpansionInfo");
-		};
-
-		template <class T> static void initCachedValue(ValueTree v, const T& cachedValue)
-		{
-			if (!v.hasProperty(cachedValue.getPropertyID()))
-			{
-				v.setProperty(cachedValue.getPropertyID(), cachedValue.getDefault(), nullptr);
-			}
-		}
-
-		static File getExpansionInfoFile(const File& expansionRoot, ExpansionType type)
-		{
-			if (type == Encrypted)		   return expansionRoot.getChildFile("info.hxp");
-			else if (type == Intermediate) return expansionRoot.getChildFile("info.hxi");
-			else						   return expansionRoot.getChildFile("expansion_info.xml");
-		}
-
-		static String getExpansionIdFromReference(const String& referenceId);
-
-	};
-
 	friend class ExpansionHandler;
 	
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Expansion)
 
 };
 
-class ExpansionHandler
+
+class ExpansionHandler: public hlac::HlacArchiver::Listener
 {
 public:
 
@@ -385,15 +382,45 @@ public:
 			Loading an expansion pack is not the only way of accessing its content, it is just telling
 			that it is supposed to be the "active" expansion.
 		*/
-		virtual void expansionPackLoaded(Expansion* currentExpansion) {};
+		virtual void expansionPackLoaded(Expansion* currentExpansion) 
+		{
+			ignoreUnused(currentExpansion);
+		};
 
 		/** Can be used to handle error messages. */
-		virtual void logMessage(const String& message, bool isCritical) {}
+		virtual void logMessage(const String& message, bool isCritical) 
+		{
+			ignoreUnused(message, isCritical);
+		}
 
 	private:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
+
+	struct InitialisationError
+	{
+		bool operator==(const InitialisationError& other) const
+		{
+			return other.e == e;
+		};
+
+		WeakReference<Expansion> e;
+		Result r;
+	};
+
+#if USE_BACKEND
+	struct ScopedProjectExporter: public ControlledObject
+	{
+		ScopedProjectExporter(MainController* mc, bool shouldDoSomething);
+
+		~ScopedProjectExporter();
+
+		bool doSomething = false;
+		File expFolder;
+		bool wasEnabled = false;
+	};
+#endif
 
 	ExpansionHandler(MainController* mc);
 
@@ -410,38 +437,9 @@ public:
 
 	void createNewExpansion(const File& expansionFolder);
 	File getExpansionFolder() const;
-	void createAvailableExpansions();
+	bool createAvailableExpansions();
 
-	void clearExpansions()
-	{
-		if (MessageManager::getInstance()->currentThreadHasLockedMessageManager())
-		{
-			expansionList.clear();
-		}
-		else
-		{
-			struct DelayedDelete: public AsyncUpdater
-			{
-				DelayedDelete(OwnedArray<Expansion>& list)
-				{
-					pendingDelete.swapWith(list);
-					triggerAsyncUpdate();
-				}
-
-				void handleAsyncUpdate() override
-				{
-					pendingDelete.clear();
-					delete this;
-				}
-
-				OwnedArray<Expansion> pendingDelete;
-
-				JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedDelete);
-			};
-
-			new DelayedDelete(expansionList);
-		}
-	}
+	bool forceReinitialisation();
 
 	Expansion* createExpansionForFile(const File& f);
 
@@ -451,7 +449,7 @@ public:
 
 	bool setCurrentExpansion(const String& expansionName);
 
-	void setCurrentExpansion(Expansion* e);
+	void setCurrentExpansion(Expansion* e, NotificationType notifyListeners = NotificationType::sendNotificationAsync);
 
 	void addListener(Listener* l)
 	{
@@ -463,13 +461,13 @@ public:
 		listeners.removeAllInstancesOf(l);
 	}
 
+	bool installFromResourceFile(const File& f);
+
 	PooledAudioFile loadAudioFileReference(const PoolReference& sampleId);
 
 	double getSampleRateForFileReference(const PoolReference& sampleId);
 
 	const var getMetadata(const PoolReference& sampleId);
-
-
 
 	PooledImage loadImageReference(const PoolReference& imageId, PoolHelpers::LoadingType loadingType = PoolHelpers::LoadAndCacheWeak);
 
@@ -531,8 +529,7 @@ public:
 		if (!Helpers::equalJSONData(credentials, newCredentials))
 		{
 			credentials = newCredentials;
-
-			rebuildUnitialisedExpansions();
+			forceReinitialisation();
 		}
 	}
 
@@ -552,8 +549,7 @@ public:
 		if (keyCode != newKey)
 		{
 			keyCode = newKey;
-
-			rebuildUnitialisedExpansions();
+			forceReinitialisation();
 		}
 	}
 
@@ -562,6 +558,15 @@ public:
 	String getEncryptionKey() const { return keyCode; }
 
 	bool isEnabled() const noexcept { return enabled; };
+
+	Array<Expansion::ExpansionType> getAllowedExpansionTypes() const { return allowedExpansions; };
+
+	void setAllowedExpansions(const Array<Expansion::ExpansionType>& newAllowedExpansions)
+	{
+		allowedExpansions.clear();
+		allowedExpansions.addArray(newAllowedExpansions);
+		forceReinitialisation();
+	}
 
 	/** Call this method to set the expansion type you want to create. */
 	template <class T> void setExpansionType()
@@ -592,45 +597,28 @@ public:
 	Expansion* createCustomExpansion(const File& f);
 #endif
 	
+	Array<InitialisationError> initialisationErrors;
 
 private:
 
-	void rebuildUnitialisedExpansions()
-	{
-		bool didSomething = false;
+	void logStatusMessage(const String& message);;
 
-		for (int i = 0; i < uninitialisedExpansions.size(); i++)
-		{
-			auto e = uninitialisedExpansions[i];
+	void logVerboseMessage(const String&) {};
 
-			auto r = e->initialise();
+	void criticalErrorOccured(const String& message);;
 
-			if (r.wasOk())
-			{
-				e = uninitialisedExpansions.removeAndReturn(i--);
-				expansionList.add(e);
-				didSomething = true;
-			}
-			else
-				setErrorMessage(r.getErrorMessage(), false);
-		}
+	mutable File expansionFolder;
 
-		
+	Array<Expansion::ExpansionType> allowedExpansions;
 
-		if (didSomething)
-		{
-			Expansion::Sorter s;
-			expansionList.sort(s, true);
-
-			notifier.sendNotification(Notifier::EventType::ExpansionCreated);
-		}
-			
-	}
+	bool rebuildUnitialisedExpansions();
 
 	bool enabled = true;
 
 	String keyCode;
 	var credentials;
+
+	void checkAllowedExpansions(Result& r, Expansion* e);
 
 	std::function<Expansion*(const File& f)> expansionCreateFunction;
 
@@ -690,10 +678,10 @@ private:
 
 		void handleAsyncUpdate()
 		{
-			ScopedLock sl(parent.listeners.getLock());
-
-			for (auto l : parent.listeners)
+			for (int i = 0; i < parent.listeners.size(); i++)
 			{
+				auto l = parent.listeners[i];
+
 				if (l.get() != nullptr)
 				{
 					if (m == EventType::ExpansionLoaded)
@@ -725,6 +713,7 @@ private:
 	MainController * mc;
 };
 
+#define SET_CUSTOM_EXPANSION_TYPE(ExpansionClass) hise::Expansion* hise::ExpansionHandler::createCustomExpansion(const File& f) { return new ExpansionClass(mc, f); };
 
 }
 

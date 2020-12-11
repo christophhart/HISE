@@ -41,9 +41,11 @@ class VuMeter;
 	@ingroup hise_ui
 */
 class VoiceCpuBpmComponent : public Component,
+	public ControlledObject,
 	public Timer,
 	public ButtonListener,
-	public MainController::SampleManager::PreloadListener
+	public MainController::SampleManager::PreloadListener,
+	public DebugLogger::Listener
 {
 public:
 
@@ -67,7 +69,15 @@ public:
 
 	void preloadStateChanged(bool isPreloading) override;
 
+	void recordStateChanged(bool state) override
+	{
+		isRecording = state;
+		repaint();
+	}
+
 private:
+
+	bool isRecording = false;
 
 	bool preloadActive = false;
 

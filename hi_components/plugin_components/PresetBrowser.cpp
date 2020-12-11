@@ -624,6 +624,9 @@ expHandler(mc->getExpansionHandler())
 		getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
 
+	if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(mc))
+		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
+
 #endif
 
 	mc->getUserPresetHandler().getTagDataBase().setRootDirectory(rootFile);
@@ -725,7 +728,7 @@ PresetBrowser::~PresetBrowser()
 
 void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
-	if(expansionColumn != nullptr)
+	if(expansionColumn != nullptr && currentExpansion != nullptr)
 		selectionChanged(-1, -1, currentExpansion->getRootFolder(), false);
 }
 
@@ -1270,7 +1273,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 	else if (columnIndex == 2)
 	{
 		if (currentlySelectedExpansion != nullptr)
-			getMainController()->getExpansionHandler().setCurrentExpansion(currentlySelectedExpansion);
+			getMainController()->getExpansionHandler().setCurrentExpansion(currentlySelectedExpansion, sendNotificationSync);
 
 		loadPreset(file);
 
@@ -1331,9 +1334,12 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 		else if (numColumns == 1)
 		 	current = rootFile;
 
-		File presetFile = PresetBrowserColumn::getChildDirectory(current, 3, rowIndex);
+		auto presetFile = getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
 
-		if (newName.isNotEmpty())
+
+		//File presetFile = PresetBrowserColumn::getChildDirectory(current, 3, rowIndex);
+
+		if (presetFile.existsAsFile() && newName.isNotEmpty())
 		{
 			File newFile = presetFile.getSiblingFile(newName + ".preset");
 
@@ -1341,7 +1347,9 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 				modalInputWindow->confirmReplacement(presetFile, newFile);
 			else
 			{
-				presetFile.moveFileTo(newFile);
+				auto ok = presetFile.moveFileTo(newFile);
+
+				
 				presetColumn->setNewRootDirectory(current);
 				rebuildAllPresets();
 				showLoadedPreset();

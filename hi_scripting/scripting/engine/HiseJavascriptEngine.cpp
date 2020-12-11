@@ -1056,11 +1056,11 @@ juce::String HiseJavascriptEngine::getHoverString(const String& token)
 
 		return "";
 	}
-	catch (String& error)
+	catch (String& )
 	{
 		return "";
 	}
-	catch (RootObject::Error& e)
+	catch (RootObject::Error& )
 	{
 		return "";
 	}

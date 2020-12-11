@@ -346,6 +346,8 @@ InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :
 
 	dynamic_cast<GlobalSettingManager*>(getMainController())->addScaleFactorListener(this);
 	getMainController()->addScriptListener(this);
+	getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);
+	getMainController()->getExpansionHandler().addListener(this);
 }
 
 
@@ -353,6 +355,8 @@ InterfaceContentPanel::~InterfaceContentPanel()
 {
 	dynamic_cast<GlobalSettingManager*>(getMainController())->removeScaleFactorListener(this);
 	getMainController()->removeScriptListener(this);
+	getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
+	getMainController()->getExpansionHandler().removeListener(this);
 
 	content = nullptr;
 }
@@ -379,6 +383,31 @@ void InterfaceContentPanel::resized()
 	{
 		refreshButton->centreWithSize(200, 30);
 	}
+}
+
+void InterfaceContentPanel::newHisePresetLoaded()
+{
+	
+	content = nullptr;
+	connectToScript();
+
+	resized();
+}
+
+void InterfaceContentPanel::expansionPackLoaded(Expansion* currentExpansion)
+{
+#if USE_BACKEND
+	Component::SafePointer<InterfaceContentPanel> safeThis(this);
+
+	MessageManager::callAsync([safeThis]()
+	{
+		if (safeThis.getComponent() != nullptr)
+		{
+			safeThis.getComponent()->content = nullptr;
+			safeThis.getComponent()->resized();
+		}
+	});
+#endif
 }
 
 void InterfaceContentPanel::scriptWasCompiled(JavascriptProcessor *processor)

@@ -56,19 +56,21 @@ public:
 		Stride,
 		SortKeys,
 		Tempo,
-		Direction,
+		DirectionType,
 		OctaveRange,
 		Shuffle,
 		CurrentStep
 	};
 
-	enum Direction
+	enum class Direction
 	{
-		enumSeqUP = 1,
-		enumSeqDN = 2,
-		enumSeqUPDN = 3,
-		enumSeqDNUP = 4,
-		enumSeqRND
+		Up = 1,
+		Down = 2,
+		UpDown = 3,
+		DownUp = 4,
+		Random,
+		Chord,
+		numDirections
 	};
 
 	Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms);;
@@ -113,7 +115,9 @@ private:
 
 	void sendNoteOff(int eventId);
 
-	int sendNoteOn();
+	Range<uint16> sendNoteOn();
+
+	
 
 	bool mpeMode = false;
 
@@ -137,12 +141,15 @@ private:
 		NoteWithChannel operator+=(int8 delta) noexcept { noteNumber += delta; return *this; };
 	};
 
+	uint16 sendNoteOnInternal(const NoteWithChannel& c);
 	
-
+	Array<NoteWithChannel, DummyCriticalSection, 256> sustainHoldKeys;
 	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArray;
 	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArraySorted;
 	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArray;
 	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArraySorted;
+	
+
 	Array<int, DummyCriticalSection, 256> currentlyPlayingEventIds;
 	
 	struct MPEValues
@@ -178,14 +185,7 @@ private:
 
 	// gui objects and sequence arrays
 	
-	
-	
-	
-
-	// direction stuff
-	bool do_use_step_semitone_offsets = true;
-	
-	
+	void applySliderPackData(NoteWithChannel& c);
 
 	int curSeqPatternEnum = 1;
 	
@@ -204,7 +204,7 @@ private:
 	int currentVelocity = 0;
 	int currentStep = 0;
 	int currentNoteLengthInSamples = 0;
-	int midiChannel = 1;
+	int midiChannel = 0;
 	
 	bool randomOrder = false;
 
@@ -258,6 +258,11 @@ private:
 		//return Synth.getNumPressedKeys() != 0;
 	};
 
+	void stopIfNoKeysActive()
+	{
+
+	}
+
 
 	int incAndWrapValueFromZeroToMax(int increment, int value, int max)
 	{
@@ -294,6 +299,23 @@ private:
 	{
 		return getSliderValueWithoutDisplay(lengthSliderPack, currentStep) == 0.0f;
 	};
+
+	void createLabel(const String& lName, const String& lContent, ScriptComponent* attachedComponent)
+	{
+		auto pos = attachedComponent->getPosition();
+
+		auto lengthLabel = Content.addLabel(lName, pos.getX(), pos.getY() - 20);
+
+		lengthLabel->set("text", lContent);
+		lengthLabel->set("alignment", "left");
+		lengthLabel->set("saveInPreset", false);
+		lengthLabel->set("width", pos.getWidth());
+		lengthLabel->set("height", 20);
+		lengthLabel->set("fontName", "Oxygen");
+		lengthLabel->set("fontStyle", "Bold");
+		lengthLabel->set("editable", false);
+		lengthLabel->set("multiline", false);
+	}
 
 	bool next_step_will_be_skipped()
 	{
@@ -335,6 +357,17 @@ private:
 	ScriptComboBox mpeStartChannel;
 	ScriptComboBox mpeEndChannel;
 	ScriptButton enableTieNotes;
+	ScriptButton sustainHold;
+
+	Range<uint16> lastEventIdRange;
+	Array<uint16, DummyCriticalSection, 32> additionalChordStartKeys;
+	double chordStartUptime = 0.0;
+
+	Direction currentDirection = Direction::Up;
+
+	
+
+	bool sustainHoldActive = false;
 
 	int mpeStart = 2;
 	int mpeEnd = 16;

@@ -57,6 +57,9 @@ public:
 	void setIndexInChain(int chainIndex) noexcept { indexInChain = chainIndex; }
 	int getIndexInChain() const noexcept { return indexInChain; }
 
+	/** Changes the timestamp of an artificial note. */
+	bool setArtificialTimestamp(uint16 eventId, int newTimestamp);
+
 	void addHiseEventToBuffer(const HiseEvent &m);
 
 	Colour getColour() const
@@ -194,6 +197,8 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void addArtificialEvent(const HiseEvent& m);
+
+	bool setArtificialTimestamp(uint16 eventId, int newTimestamp);
 
 	void sendAllNoteOffEvent()
 	{

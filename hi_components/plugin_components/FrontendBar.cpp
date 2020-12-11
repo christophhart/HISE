@@ -372,6 +372,7 @@ void DeactiveOverlay::resized()
 		registerProductButton->setVisible(false);
 
 		auto b = getLocalBounds().withSizeKeepingCentre(200, 50);
+        ignoreUnused(b);
 
 #if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
 		installSampleButton->setVisible(true);

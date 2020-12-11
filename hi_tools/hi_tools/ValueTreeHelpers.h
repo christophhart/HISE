@@ -92,6 +92,55 @@ protected:
 	void valueTreeParentChanged(ValueTree&) override {}
 };
 
+/** A small helper function that will catch illegal operations during a child
+    iteration. If you want to check an iteration against illegal operations,
+	create one of these before starting the iteration. 
+	
+	If a child is being added or removed during the lifetime of this object, it will
+	fire an assertion so you can backtrace the culprit.
+	
+*/
+struct IterationProtector : public Base
+{
+	IterationProtector(ValueTree& v_):
+		Base(),
+		v(v_)
+	{
+		v.addListener(this);
+	}
+
+	~IterationProtector()
+	{
+		v.removeListener(this);
+	}
+
+	void valueTreeChildRemoved(ValueTree& p, ValueTree&, int) override
+	{
+		// Must not happen during iteration...
+		jassert(p != v);
+	}
+
+	void valueTreeChildAdded(ValueTree& p, ValueTree&) override
+	{
+		// Must not happen during iteration...
+		jassert(p != v);
+	}
+
+	void valueTreeChildOrderChanged(ValueTree& p, int, int) override
+	{
+		// Must not happen during iteration...
+		jassert(p != v);
+	}
+
+	void handleAsyncUpdate() override
+	{
+		jassertfalse;
+	}
+
+	ValueTree v;
+	
+};
+
 /** This class fires the given callback whenever the property changes. Can be used as member object
 	instead of deriving. */
 struct PropertyListener : public Base

@@ -87,7 +87,7 @@ using namespace asmjit;
 
 				noMoreOptimisationsPossible = true;
 			}
-			catch (OptimisationSucess& s)
+			catch (OptimisationSucess& )
 			{
 				if(useExistingPasses)
 					logMessage(MessageType::VerboseProcessMessage, "Repeat optimizations");

@@ -894,8 +894,6 @@ int FrontendMacroPanel::getNumRows()
 		return 0;
 	}
 
-	int numConnections = 0;
-
 	Array<WeakReference<MacroControlBroadcaster::MacroControlledParameterData>> newList;
 
 	for (int i = 0; i < 8; i++)
@@ -1084,6 +1082,8 @@ juce::String MidiLearnPanel::getCellText(int rowNumber, int columnId) const
 		return ProcessorHelpers::getPrettyNameForAutomatedParameter(data.processor, data.attribute);
 	else if (columnId == ColumnId::CCNumber)
 		return String(data.ccNumber);
+	else
+		return "";
 }
 
 TableFloatingTileBase::InvertedButton::InvertedButton(TableFloatingTileBase &owner_) :
@@ -1185,11 +1185,15 @@ void TableFloatingTileBase::initTable()
 
 	// give it a border
 
+	textColour = Colours::white.withAlpha(0.5f);
+
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white.withAlpha(0.5f));
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.5f));
-	setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white.withAlpha(0.5f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, textColour);
+
+	
 
 	table.setColour(ListBox::backgroundColourId, Colours::transparentBlack);
 	table.setOutlineThickness(0);

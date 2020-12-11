@@ -138,7 +138,7 @@ private:
 
 	void triggerAsyncUpdateForListener(Listener* l);
 
-	MultithreadedLockfreeQueue<WeakReference<Listener>, MultithreadedQueueHelpers::Configuration::NoAllocationsTokenlessUsageAllowed> pendingListeners;
+	MultithreadedLockfreeQueue<WeakReference<Listener>, MultithreadedQueueHelpers::Configuration::AllocationsAllowedAndTokenlessUsageAllowed> pendingListeners;
 
 	void timerCallback() override;
 

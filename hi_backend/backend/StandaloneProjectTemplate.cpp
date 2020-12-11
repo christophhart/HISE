@@ -117,7 +117,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "      </MODULEPATHS>\r\n"
 "    </%VS_VERSION%>\r\n"
 "    <XCODE_MAC targetFolder=\"Builds/MacOSX\" vstFolder=\"%VSTSDK_FOLDER%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\" %ICON_FILE% \r\n"
-"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%EXTRA_DEFINES_OSX%\">\r\n"
+"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%EXTRA_DEFINES_OSX%\" hardenedRuntime=\"1\" hardenedRuntimeOptions=\"com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" osxSDK=\"default\" osxCompatibility=\"10.7 SDK\" osxArchitecture=\"%MACOS_ARCHITECTURE%\"\r\n"
 "                       isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME% Debug\"\r\n"
@@ -236,7 +236,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "               ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\"\r\n"
 "               ENABLE_ALL_PEAK_METERS=\"disabled\" ENABLE_CONSOLE_OUTPUT=\"disabled\"\r\n"
 "               JUCE_ASIO=\"%USE_ASIO%\" JUCE_JACK=\"%USE_JACK%\" USE_SPLASH_SCREEN=\"%USE_SPLASH_SCREEN%\" HI_ENABLE_LEGACY_CPU_SUPPORT=\"%LEGACY_CPU_SUPPORT%\" HLAC_MEASURE_DECODING_PERFORMANCE=\"disabled\" HLAC_DEBUG_LOG=\"disabled\" HLAC_INCLUDE_TEST_SUITE=\"disabled\" STANDALONE_STREAMING=\"disabled\""
-"				JUCE_DSP_USE_INTEL_MKL=\"disabled\" JUCE_WEB_BROWSER=\"disabled\" JUCE_USE_CURL=\"disabled\" JUCE_DSP_USE_SHARED_FFTW=\"disabled\" JUCE_DSP_USE_STATIC_FFTW=\"disabled\"/>\r\n"
+"				JUCE_DSP_USE_INTEL_MKL=\"disabled\" JUCE_WEB_BROWSER=\"disabled\" JUCE_USE_CURL=\"disabled\" JUCE_DSP_USE_SHARED_FFTW=\"disabled\" JUCE_DSP_USE_STATIC_FFTW=\"disabled\" HISE_USE_CUSTOM_EXPANSION_TYPE=\"%USE_CUSTOM_EXPANSION_TYPE%\" />\r\n"
 "</JUCERPROJECT>\r\n";
 
 const char* projectStandaloneTemplate_jucer = (const char*)projectStandaloneTemplate_jucer_lines;

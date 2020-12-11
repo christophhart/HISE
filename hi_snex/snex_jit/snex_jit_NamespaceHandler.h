@@ -38,8 +38,10 @@ using namespace juce;
 
 
 
-struct NamespaceHandler
+class NamespaceHandler
 {
+public:
+
 	enum SymbolType
 	{
 		Unknown,

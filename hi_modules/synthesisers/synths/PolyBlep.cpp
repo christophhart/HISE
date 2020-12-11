@@ -169,9 +169,14 @@ float PolyBLEP::get() const {
     }
 }
 
-void PolyBLEP::inc() {
+bool PolyBLEP::inc() {
+
+	auto lastT = t;
+
     t += internalFreqValue;
     t -= bitwiseOrZero(t);
+
+	return lastT > t;
 }
 
 float PolyBLEP::getAndInc() {

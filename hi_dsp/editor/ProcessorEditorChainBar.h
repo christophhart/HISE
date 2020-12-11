@@ -164,7 +164,7 @@ private:
 
 	ScopedPointer<ChainBarButtonLookAndFeel> laf;
 
-	bool midiActive;
+    bool midiActive = false;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProcessorEditorChainBar)
