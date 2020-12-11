@@ -823,7 +823,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getSemitonesFromPitchRatio);
 	API_METHOD_WRAPPER_0(Engine, getSampleRate);
 	API_METHOD_WRAPPER_1(Engine, setMinimumSampleRate);
-	API_METHOD_WRAPPER_2(Engine, getMidiNoteName);
+	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
 	
@@ -928,7 +928,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
 	ADD_API_METHOD_1(setMinimumSampleRate);
-	ADD_API_METHOD_2(getMidiNoteName);
+	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
 	ADD_API_METHOD_1(setFrontendMacros);
@@ -1423,7 +1423,7 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 {
 	for (int i = 0; i < 127; i++)
 	{
-		if (getMidiNoteName(i, midiNoteName.contains("#")) == midiNoteName)
+		if (getMidiNoteName(i) == midiNoteName)
 			return i;
 	}
 	return -1;

@@ -276,10 +276,10 @@ public:
 		/** sets the latency of the plugin as reported to the host. Default is 0. */
 		void setLatencySamples(int latency);
 
-		/** Converts MIDI note number to Midi note name ("C3" for middle C with # or b). */
-		String getMidiNoteName(int midiNumber, bool useSharps) const { return MidiMessage::getMidiNoteName(midiNumber, useSharps, true, 3); };
+		/** Converts MIDI note number to Midi note name ("C3" for middle C). */
+		String getMidiNoteName(int midiNumber) const { return MidiMessage::getMidiNoteName(midiNumber, true, true, 3); };
 
-		/** Converts MIDI note name to MIDI number ("C3" for middle C, works with # and b). */
+		/** Converts MIDI note name to MIDI number ("C3" for middle C). */
 		int getMidiNoteFromName(String midiNoteName) const;
 
 		/** Creates a Dsp node network. */
