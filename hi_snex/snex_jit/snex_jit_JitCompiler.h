@@ -106,7 +106,7 @@ public:
 			scheme.set("Pass", Colour(0xFF66AA66));
 			scheme.set("Process", Colours::white);
 			scheme.set("VerboseProcess", Colours::lightgrey);
-			scheme.set("AsmJit", Colours::grey);
+			scheme.set("AsmJit", Colours::lightblue);
 
 			return scheme;
 		}

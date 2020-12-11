@@ -708,6 +708,8 @@ private:
     RenderScheme renderScheme = RenderScheme::usingGlyphArrangement;
 	GotoFunction gotoFunction;
 
+	friend class FullEditor;
+
     //==========================================================================
     double lastTransactionTime;
     bool tabKeyUsed = true;

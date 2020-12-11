@@ -111,6 +111,7 @@ String ui::WorkbenchData::convertToLogMessage(int level, const String& s)
 	case jit::BaseCompiler::PassMessage: return {};// m << "PASS: "; break;
 	case jit::BaseCompiler::ProcessMessage: return {};// m << "- "; break;
 	case jit::BaseCompiler::VerboseProcessMessage: m << "-- "; break;
+	case jit::BaseCompiler::AsmJitMessage: m << "OUTPUT-- "; break;
 	default: break;
 	}
 
@@ -119,7 +120,65 @@ String ui::WorkbenchData::convertToLogMessage(int level, const String& s)
 
 	m << s;
 
+	
+
 	return m;
+}
+
+juce::Result ui::WorkbenchData::compileTestCase()
+{
+	auto s = getCode();
+
+	if (preprocessFunction)
+		s = preprocessFunction(s);
+
+	JitFileTestCase tc(getGlobalScope(), s);
+	
+	auto r = tc.test();
+
+	lastAssembly = tc.assembly;
+	lastObject = tc.obj;
+	return r;
+}
+
+juce::Result ui::WorkbenchData::defaultCompilation()
+{
+	auto s = getCode();
+
+	if (preprocessFunction)
+		s = preprocessFunction(s);
+
+	Compiler cc(memory);
+
+	SnexObjectDatabase::registerObjects(cc, numChannels);
+	cc.setDebugHandler(this);
+
+	lastObject = cc.compileJitObject(s);
+	lastAssembly = cc.getAssemblyCode();
+	return cc.getCompileResult();
+}
+
+juce::Result ui::WorkbenchData::compileJitNode()
+{
+	auto s = getCode();
+
+	if (preprocessFunction)
+		s = preprocessFunction(s);
+
+	Compiler cc(memory);
+
+	SnexObjectDatabase::registerObjects(cc, numChannels);
+	cc.setDebugHandler(this);
+
+	if (getConnectedFile().existsAsFile())
+	{
+		auto m = getConnectedFile().getFileNameWithoutExtension();
+		compiledNode = new Types::JitCompiledNode(cc, s, m, numChannels);
+
+		lastObject = {};
+		lastAssembly = cc.getAssemblyCode();
+		return compiledNode->r;
+	}
 }
 
 void ui::WorkbenchManager::workbenchChanged(WorkbenchData::Ptr oldWorkBench, WorkbenchData::Ptr newWorkbench)

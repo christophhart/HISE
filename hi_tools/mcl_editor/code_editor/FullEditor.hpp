@@ -104,6 +104,26 @@ struct FullEditor: public Component
 		navigator.codeMap.transformToUse = editor.transform;
 	}
 
+	String injectBreakpointCode(const String& s)
+	{
+		return editor.gutter.injectBreakPoints(s);
+	}
+
+	void setCurrentBreakline(int n)
+	{
+		editor.gutter.setCurrentBreakline(n);
+	}
+
+	void addBreakpointListener(GutterComponent::BreakpointListener* l)
+	{
+		editor.gutter.addBreakpointListener(l);
+	}
+
+	void removeBreakpointListener(GutterComponent::BreakpointListener* l)
+	{
+		editor.gutter.removeBreakpointListener(l);
+	}
+
 	void resized() override
 	{
 		auto b = getLocalBounds();

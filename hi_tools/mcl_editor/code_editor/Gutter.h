@@ -23,6 +23,16 @@ class mcl::GutterComponent : public juce::Component,
 							 public FoldableLineRange::Listener
 {
 public:
+
+	struct BreakpointListener
+	{
+		virtual ~BreakpointListener() {};
+
+		virtual void breakpointsChanged(GutterComponent& g) {}
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(BreakpointListener);
+	};
+
 	GutterComponent(TextDocument& document);
 	void setViewTransform(const juce::AffineTransform& transformToUse);
 	void updateSelections();
@@ -63,8 +73,32 @@ public:
 	//==========================================================================
 	void paint(juce::Graphics& g) override;
 
-	
+	String injectBreakPoints(const String& s)
+	{
+		
+		currentBreakLine = -1;
 
+		Component::SafePointer<GutterComponent> st(this);
+
+		MessageManager::callAsync([st]()
+		{
+			if (st)
+				st.getComponent()->repaint();
+		});
+
+		if (breakpoints.isEmpty())
+			return s;
+
+		auto lines = StringArray::fromLines(s);
+
+		for (auto bp : breakpoints)
+		{
+			if (isPositiveAndBelow(bp, lines.size()))
+				lines.set(bp, "Console.stop(1); " + lines[bp]);
+		}
+
+		return lines.joinIntoString("\n");
+	}
 	
 
 	void setError(int lineNumber, const String& error)
@@ -74,7 +108,27 @@ public:
 		repaint();
 	}
 
+	void addBreakpointListener(BreakpointListener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeBreakpointListener(BreakpointListener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	void setCurrentBreakline(int n)
+	{
+		currentBreakLine = n;
+		repaint();
+	}
+
 private:
+
+	int currentBreakLine = -1;
+
+	Array<WeakReference<BreakpointListener>> listeners;
 
 	Array<int> breakpoints;
 

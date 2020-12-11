@@ -110,10 +110,23 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	void logMessage(int level, const juce::String& s) override
 	{
-		for (auto l : listeners)
+		if (MessageManager::getInstance()->isThisTheMessageThread())
 		{
-			if (l != nullptr)
-				l->logMessage(this, level, s);
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->logMessage(this, level, s);
+			}
+		}
+		else
+		{
+			WeakPtr wp(this);
+
+			MessageManager::callAsync([wp, level, s]()
+			{
+				if (wp != nullptr)
+					wp.get()->logMessage(level, s);
+			});
 		}
 	}
 
@@ -171,61 +184,16 @@ struct WorkbenchData : public ReferenceCountedObject,
 	using LoadFunction = std::function<String()>;
 	using PreprocessFunction = std::function<String(const String&)>;
 	using SaveFunction = std::function<bool(const String& s)>;
-	using CompileFunction = std::function<bool(void)>;
-
+	using CompileManager = std::function<bool(void)>;
+	using CompileProcedure = std::function<Result(void)>;
 	
-
-	void compileTest()
-	{
-#if 0
-		JitFileTestCase tc(memory, loadFunction());
-		tc.debugHandler = this;
-
-		auto r = tc.test();
-
-		assemblyDoc.replaceAllContent(tc.assembly);
-		ed.tokenCollection.signalRebuild();
-
-		auto nPtr = tc.c.getNamespaceHandlerReference();
-
-		ed.setTokenTooltipFunction([nPtr](const String& token, int lineNumber)
-		{
-			if (auto n = nPtr->getNamespaceForLineNumber(lineNumber))
-			{
-				NamespaceHandler::ScopedNamespaceSetter sps(*nPtr, n->id);
-
-				auto id = n->id.getChildId(token);
-				nPtr->resolve(id, true);
-
-				return nPtr->getDescriptionForItem(id);
-			}
-			else
-			{
-				NamespacedIdentifier nId(token);
-
-				return nPtr->getDescriptionForItem(nId);
-			}
-		});
-
-		scopeRanges = tc.c.getNamespaceHandler().createLineRangesFromNamespaces();
-
-		if (tc.memory.checkRuntimeErrorAfterExecution())
-			return;
-
-		ed.setError(r.getErrorMessage());
-
-		if (r.failed())
-			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
-		else
-			resultLabel.setText("Test passed OK", dontSendNotification);
-
-#endif
-	}
 
 	WorkbenchData() :
 		memory(1024),
 		lastResult(Result::ok())
-	{};
+	{
+		memory.addDebugHandler(this);
+	};
 
 	/** Call this if you want to recompile the current workbench.
 
@@ -241,8 +209,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 				l->preCompile();
 		}
 
-		if (compileFunction)
-			compileFunction();
+		if (compileManager)
+			compileManager();
 		else
 			handleCompilation();
 	}
@@ -261,6 +229,21 @@ struct WorkbenchData : public ReferenceCountedObject,
 				l->recompiled(this);
 		}
 	}
+
+	/** You can add additional callbacks that will be executed after a successful compilation. 
+	
+		You can customize the way the code is being compiled (and executed) by adding other functions
+	*/
+	void setCompileProcedure(const CompileProcedure& f)
+	{
+		compileProcedure = f;
+	}
+
+	Result compileTestCase();
+
+	Result defaultCompilation();
+
+	Result compileJitNode();
 
 	bool handleCompilation()
 	{
@@ -281,25 +264,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 #endif
 		}
 
-		auto s = getCode();
+		jassert(compileProcedure);
 
-		if (preprocessFunction)
-			s = preprocessFunction(s);
-
-		Compiler cc(memory);
-
-		SnexObjectDatabase::registerObjects(cc, numChannels);
-		cc.setDebugHandler(this);
-
-		lastObject = cc.compileJitObject(s);
-		lastAssembly = cc.getAssemblyCode();
-		lastResult = cc.getCompileResult();
-
-		if (lastResult.wasOk() && getConnectedFile().existsAsFile())
-		{
-			auto m = getConnectedFile().getFileNameWithoutExtension();
-			compiledNode = new Types::JitCompiledNode(cc, s, m, numChannels);
-		}
+		lastResult = compileProcedure();
 
 		triggerAsyncUpdate();
 
@@ -314,9 +281,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 	}
 
 	/** Set a compile function. This function must call `handleCompilation` at some point and return true or false if the compilation was done synchronously. */
-	void setCompileFunction(const CompileFunction& f)
+	void setCompileManager(const CompileManager& f)
 	{
-		compileFunction = f;
+		compileManager = f;
 	}
 
 	void setContentFunctions(const LoadFunction& lf, const SaveFunction& sf)
@@ -378,11 +345,18 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 	}
 
+	void setPreprocessFunction(const PreprocessFunction& f)
+	{
+		preprocessFunction = f;
+	}
+
 private:
 
 	int numChannels = 2;
 
 	WeakReference<Holder> holder;
+
+	CompileProcedure compileProcedure;
 
 	File connectedFile;
 
@@ -396,7 +370,7 @@ private:
 	PreprocessFunction preprocessFunction;
 	LoadFunction loadFunction;
 	SaveFunction saveFunction;
-	CompileFunction compileFunction;
+	CompileManager compileManager;
 
 	GlobalScope memory;
 

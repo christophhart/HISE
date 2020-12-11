@@ -710,15 +710,7 @@ public:
 		debugHandlers.removeAllInstancesOf(handler);
 	}
 
-	void logMessage(const String& message)
-	{
-		for (auto dh : debugHandlers)
-		{
-			if(dh != nullptr)
-				dh->logMessage(0, message);
-		}
-			
-	}
+	void logMessage(const String& message);
 
 	/** Add an optimization pass ID that will be added to each compiler that uses this scope. 
 		

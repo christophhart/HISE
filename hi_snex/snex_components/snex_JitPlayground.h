@@ -203,25 +203,31 @@ public:
 /** A simple background thread that does the compilation. */
 class BackgroundCompileThread: public Thread
 {
-	BackgroundCompileThread(ui::WorkbenchData* data_) :
+public:
+
+	BackgroundCompileThread(ui::WorkbenchData::Ptr data_, bool enable) :
 		Thread("SnexPlaygroundThread"),
 		data(data_)
 	{
 		setPriority(4);
-		startThread();
+		
+		if(enable)
+			startThread();
 	}
 
-	void compileCode(const String& codeToCompile)
+	~BackgroundCompileThread()
 	{
-		currentCode = codeToCompile;
+		stopThread(3000);
+	}
+
+	bool compileCode()
+	{
+		currentCode = data->getCode();
 		dirty.store(true);
 		notify();
+		return true;
 	}
 
-	void compileInternal(const String& code)
-	{
-
-	}
 
 	void run() override
 	{
@@ -229,8 +235,7 @@ class BackgroundCompileThread: public Thread
 		{
 			if (dirty.load())
 			{
-				auto c = currentCode;
-				compileInternal(currentCode);
+				data->handleCompilation();
 				dirty.store(false);
 			}
 
@@ -248,9 +253,9 @@ class BackgroundCompileThread: public Thread
 
 
 class SnexPlayground : public ui::WorkbenchComponent,
-	public ComboBox::Listener,
 	public CodeDocument::Listener,
-	public BreakpointHandler::Listener
+	public BreakpointHandler::Listener,
+	public mcl::GutterComponent::BreakpointListener
 {
 public:
 
@@ -346,6 +351,19 @@ public:
 
 	}
 
+	void breakpointsChanged(mcl::GutterComponent& g) override
+	{
+		triggerRecompile();
+	}
+
+	bool triggerRecompile()
+	{
+		if (testMode)
+			backgroundCompileThread.compileCode();
+
+		return false;
+	}
+
     static juce::String getDefaultCode(bool getTestCode=false);
     
 	SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents=false);
@@ -355,10 +373,7 @@ public:
 	void paint(Graphics& g) override;
 	void resized() override;
 
-	void comboBoxChanged(ComboBox* ) override
-	{
-		recalculate();
-	}
+	void mouseDown(const MouseEvent& event) override;
 
 	bool keyPressed(const KeyPress& k) override;
 	void createTestSignal();
@@ -379,11 +394,17 @@ public:
 		}
 	};
 
-private:
+	String loadTestfile();
 
-	int currentBreakpointLine = -1;
+	bool saveTestFile(const String& s);
 
 	
+
+private:
+
+	File currentTestFile;
+
+	int currentBreakpointLine = -1;
 
 	juce::String currentParameter;
 	std::function<void(void)> pendingParam;
@@ -431,6 +452,8 @@ private:
 		if (type == BreakpointHandler::Resume)
 			currentBreakpointLine = -1;
 
+		editor.setCurrentBreakline(currentBreakpointLine);
+
 		resumeButton.setEnabled(type == BreakpointHandler::Break);
 
 #if 0
@@ -454,13 +477,12 @@ private:
 		resized();
 	}
 
-	void recalculate();
-
 	void preCompile() override
 	{
 		auto& ed = editor.editor;
 		ed.clearWarningsAndErrors();
 
+		assemblyDoc.replaceAllContent({});
 		consoleContent.replaceAllContent({});
 		consoleContent.clearUndoHistory();
 	}
@@ -468,24 +490,11 @@ private:
 	/** Don't change the workbench in the editor. */
 	void workbenchChanged(ui::WorkbenchData::Ptr, ui::WorkbenchData::Ptr) {}
 
-	void recompiled(ui::WorkbenchData::Ptr p) override
-	{
-		auto r = p->getLastResult();
+	void recompiled(ui::WorkbenchData::Ptr p) override;
 
-		if (r.wasOk())
-		{
-			editor.editor.setError({});
-			assemblyDoc.replaceAllContent(getWorkbench()->getLastAssembly());
-			
-			resized();
-			recalculate();
-		}
-		else
-		{
-			editor.editor.setError(r.getErrorMessage());
-			resultLabel.setText(r.getErrorMessage(), dontSendNotification);
-		}
-	}
+	const bool testMode;
+
+	BackgroundCompileThread backgroundCompileThread;
 
 	CodeDocument doc;
 	mcl::TextDocument mclDoc;
@@ -513,8 +522,6 @@ private:
 	TextButton resumeButton;
 	TextButton showInfo;
 
-	bool testMode = true;
-    
 	std::atomic<int> currentSampleIndex = { 0 };
 
 	Spacer spacerAssembly;

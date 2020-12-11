@@ -14,6 +14,10 @@ int Compiler::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 	{
 		source.skipToEndOfLine(); return BaseCompiler::MessageType::Warning;
 	}
+	if (c == 'O')
+	{
+		source.skipToEndOfLine(); return BaseCompiler::MessageType::AsmJitMessage;
+	}
 	if (c == 'E')
 	{
 		source.skipToEndOfLine(); return BaseCompiler::MessageType::Error;

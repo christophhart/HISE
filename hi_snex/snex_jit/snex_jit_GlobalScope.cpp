@@ -142,6 +142,15 @@ void GlobalScope::removeObjectDeleteListener(ObjectDeleteListener* l)
 	deleteListeners.removeAllInstancesOf(l);
 }
 
+void GlobalScope::logMessage(const String& message)
+{
+	for (auto dh : debugHandlers)
+	{
+		if (dh != nullptr)
+			dh->logMessage(BaseCompiler::AsmJitMessage, message);
+	}
+}
+
 void GlobalScope::addOptimization(const juce::String& passId)
 {
 	optimizationPasses.addIfNotAlreadyThere(passId);

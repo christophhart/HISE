@@ -31,11 +31,15 @@
 */
 
 
+
+
+
+
 namespace snex {
 namespace jit {
 using namespace juce;
 
-SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents) :
+SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	ui::WorkbenchComponent(data, true),
 	bpProvider(getGlobalScope()),
 	mclDoc(doc),
@@ -51,8 +55,26 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents)
 	spacerInfo("Info"),
 	compileButton("Compile"),
 	resumeButton("Resume"),
-	conditionUpdater(*this)
+	conditionUpdater(*this),
+	testMode(isTestMode),
+	backgroundCompileThread(data, isTestMode)
 {
+	if (isTestMode)
+	{
+		data->setContentFunctions(BIND_MEMBER_FUNCTION_0(SnexPlayground::loadTestfile), BIND_MEMBER_FUNCTION_1(SnexPlayground::saveTestFile));
+		data->setCompileManager(BIND_MEMBER_FUNCTION_0(SnexPlayground::triggerRecompile));
+		data->setCompileProcedure(std::bind(&ui::WorkbenchData::compileTestCase, getWorkbench()));
+
+		data->setPreprocessFunction(std::bind(&mcl::FullEditor::injectBreakpointCode, &editor, std::placeholders::_1));
+
+		editor.addBreakpointListener(this);
+
+	}
+	else
+	{
+		data->setCompileProcedure(std::bind(&ui::WorkbenchData::defaultCompilation, getWorkbench()));
+	}
+
 	stateViewer = new ui::OptimizationProperties(getWorkbench());
 
 	for (auto o : OptimizationIds::getAllIds())
@@ -214,12 +236,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents)
 	addAndMakeVisible(editor);
 	addAndMakeVisible(console);
 
-	auto newCode = getWorkbench()->getCode();
-
-	doc.replaceAllContent(newCode.replace("\r\n", "\n"));
-	doc.clearUndoHistory();
-
-	if (addDebugComponents)
+	if (isTestMode)
 	{
 
 		assembly.setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0));
@@ -242,6 +259,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents)
 		console.setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFBBBBBB));
 		console.setReadOnly(true);
 		console.setLineNumbersShown(false);
+		
 	}
 
 	CodeEditorComponent::ColourScheme scheme;
@@ -270,9 +288,8 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents)
 	resultLabel.setColour(juce::Label::ColourIds::textColourId, Colours::white);
 	resultLabel.setEditable(false);
 
-	if (addDebugComponents)
+	if (isTestMode)
 	{
-
 		addAndMakeVisible(stateViewer);
 		addAndMakeVisible(showInfo);
 		addAndMakeVisible(showAssembly);
@@ -625,21 +642,50 @@ void SnexPlayground::logMessage(ui::WorkbenchData::Ptr p, int level, const juce:
 	}
 }
 
-void SnexPlayground::recalculate()
+static void addToSubMenu(File currentFile, Array<File>& addedFiles, PopupMenu& m, const File& f)
 {
-#if 0
-	int mode = jmax(0, graph.processingMode.getSelectedItemIndex());
+	if (f.isDirectory())
+	{
+		PopupMenu sub;
 
-	if(auto c = dynamic_cast<CallbackStateComponent*>(stateViewer.get()))
-		c->setFrameProcessing(mode);
+		auto l = f.findChildFiles(File::findFilesAndDirectories, false);
 
-	dirty = true;
-	
-	if (!runThread.isThreadRunning())
-		runThread.startThread();
-	else
-		runThread.notify();
-#endif
+		for (auto& c : l)
+			addToSubMenu(currentFile, addedFiles, sub, c);
+
+		m.addSubMenu(f.getFileName(), sub);
+
+		return;
+	}
+
+	if (f.getFileExtension() == ".h")
+	{
+		addedFiles.add(f);
+		m.addItem(addedFiles.size() + 1, f.getFileNameWithoutExtension(), true, f == currentFile);
+	}
+}
+
+
+void SnexPlayground::mouseDown(const MouseEvent& event)
+{
+	if (testMode && event.getMouseDownX() < 50)
+	{
+		PopupMenu m;
+		
+		Array<File> addedFiles;
+
+		auto root = JitFileTestCase::getTestFileDirectory();
+
+		for(auto c: root.findChildFiles(File::findDirectories, false))
+			addToSubMenu(currentTestFile, addedFiles, m, c);
+		
+		if (auto r = m.show())
+		{
+			currentTestFile = addedFiles[r - 2];
+			doc.replaceAllContent({});
+			getWorkbench()->triggerRecompile();
+		}
+	}
 }
 
 bool SnexPlayground::keyPressed(const KeyPress& k)
@@ -681,6 +727,73 @@ void SnexPlayground::createTestSignal()
 		FloatVectorOperations::copy(b.getWritePointer(1), b.getWritePointer(0), b.getNumSamples());
 	}
 #endif
+}
+
+String SnexPlayground::loadTestfile()
+{
+	String s;
+
+	bool replaceContentInEditor = false;
+	
+	auto currentCode = doc.getAllContent();
+
+	if (currentCode.isNotEmpty())
+	{
+		s = currentCode;
+		replaceContentInEditor = false;
+	}
+	else if (currentTestFile.existsAsFile())
+	{
+		s = currentTestFile.loadFileAsString();
+		replaceContentInEditor = true;
+	}
+	else
+	{
+		s = ui::WorkbenchData::getTestTemplate();
+		replaceContentInEditor = true;
+	}
+
+	if (replaceContentInEditor)
+	{
+		doc.clearUndoHistory();
+		doc.replaceAllContent(s.removeCharacters("\r"));
+	}
+
+	return s;
+}
+
+
+
+
+
+void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
+{
+	auto r = p->getLastResult();
+
+	assemblyDoc.replaceAllContent(getWorkbench()->getLastAssembly());
+
+	if (r.wasOk())
+	{
+		editor.editor.setError({});
+		resized();
+		resultLabel.setText("OK", dontSendNotification);
+	}
+	else
+	{
+		editor.editor.setError(r.getErrorMessage());
+		resultLabel.setText(r.getErrorMessage(), dontSendNotification);
+	}
+}
+
+bool SnexPlayground::saveTestFile(const String& s)
+{
+	if (saveTest)
+	{
+		JitFileTestCase newTest(getGlobalScope(), s);
+		newTest.save();
+	}
+
+	return true;
 }
 
 int AssemblyTokeniser::readNextToken(CodeDocument::Iterator& source)

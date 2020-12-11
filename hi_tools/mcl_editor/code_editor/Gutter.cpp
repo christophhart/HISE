@@ -92,23 +92,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 	UnblurryGraphics ug(g, *this);
 
-	int bpIndex = 0;
-	for (auto bp : breakpoints)
-	{
-		auto b = getRowBounds(rowData[bp]);
-
-		b = b.removeFromLeft(b.getHeight()).reduced(3.5f);
-
-		auto t = h.getLineType(bp);
-
-		if (t == FoldableLineRange::Holder::LineType::Folded)
-			continue;
-
-		g.setColour(Colour(0xFF683333));
-		g.fillEllipse(b);
-		g.setColour(Colours::white.withAlpha(0.4f));
-		g.drawEllipse(b, 1.0f);
-	}
+	
 
 	for (const auto& r : rowData)
 	{
@@ -237,7 +221,40 @@ void mcl::GutterComponent::paint(Graphics& g)
 	}
 
 	
+	if (currentBreakLine != -1)
+	{
+		auto b = getRowBounds(rowData[currentBreakLine-1]);
+		g.setColour(Colours::red.withAlpha(0.12f));
 
+		g.fillRect(b);
+	}
+
+	int bpIndex = 0;
+
+	for (auto bp : breakpoints)
+	{
+		auto b = getRowBounds(rowData[bp]);
+
+		b = b.removeFromLeft(b.getHeight()).reduced(3.5f);
+
+		auto t = h.getLineType(bp);
+
+		if (t == FoldableLineRange::Holder::LineType::Folded)
+			continue;
+
+		g.setColour(Colour(0xFF683333));
+		g.fillEllipse(b);
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.drawEllipse(b, 1.0f);
+
+		if (bp == currentBreakLine-1)
+		{
+			g.drawEllipse(b, 1.0f);
+			g.setColour(Colours::white);
+
+			g.fillEllipse(b.withSizeKeepingCentre(3.0f, 3.0f));
+		}
+	}
 	
 
 #if PROFILE_PAINTS
@@ -279,14 +296,32 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 
 	delta /= scaleFactor;
 
-
-	DBG(delta);
 	if (delta > 18.0f)
 	{
-		if (breakpoints.contains(hoveredData.rowNumber))
-			breakpoints.removeAllInstancesOf(hoveredData.rowNumber);
+		if (e.mods.isCommandDown() || e.mods.isShiftDown())
+		{
+			breakpoints.clear();
+		}
 		else
-			breakpoints.add(hoveredData.rowNumber);
+		{
+			if (breakpoints.contains(hoveredData.rowNumber))
+			{
+				if (e.mods.isRightButtonDown())
+				{
+					// Add condition
+					jassertfalse;
+				}
+				else
+				{
+					breakpoints.removeAllInstancesOf(hoveredData.rowNumber);
+				}
+			}
+			else
+				breakpoints.add(hoveredData.rowNumber);
+		}
+
+		for (auto l : listeners)
+			l->breakpointsChanged(*this);
 
 		findParentComponentOfClass<mcl::TextEditor>()->translateView(0.0f, 0.0f);
 

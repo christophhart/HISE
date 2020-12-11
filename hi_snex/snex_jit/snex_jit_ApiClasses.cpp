@@ -506,7 +506,44 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 
 	{
 		auto f = createMemberFunction(Types::ID::Void, "stop", { Types::ID::Integer});
-		f->setFunction(WrapperStop::stop);
+		
+		f->inliner = Inliner::createAsmInliner(f->id, [this](InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+
+			int lineNumber = d->gen.location.getLine();
+
+			auto globalScope = d->args[0]->getScope()->getGlobalScope();
+			auto& bpHandler = globalScope->getBreakpointHandler();
+
+			for (auto r : d->gen.registerPool->getListOfAllNamedRegisters())
+			{
+				if (auto ref = r->getVariableId())
+				{
+					if (auto address = bpHandler.getNextFreeTable(ref))
+						d->gen.emitMemoryWrite(r, address);
+				}
+			}
+
+
+			auto& cc = d->gen.cc;
+
+			auto data = reinterpret_cast<void*>(bpHandler.getLineNumber());
+
+			auto lineReg = cc.newGpq();
+			cc.mov(lineReg, (int64_t)data);
+			auto target = x86::qword_ptr(lineReg);
+			cc.mov(target, lineNumber);
+
+			FunctionData rp;
+			rp.function = WrapperStop::stop;
+			rp.object = this;
+			rp.returnType = TypeInfo(Types::ID::Void);
+			rp.addArgs("condition", TypeInfo(Types::ID::Integer));
+
+			return d->gen.emitFunctionCall(d->target, rp, d->object, d->args);
+		});
+
 		addFunction(f);
 		setDescription("Breaks the execution if condition is true and dumps all variables", { "condition"});
 	}
