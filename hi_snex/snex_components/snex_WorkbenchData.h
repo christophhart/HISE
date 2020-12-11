@@ -492,6 +492,8 @@ struct WorkbenchManager : public WorkbenchData::Listener
 		w->addListener(this);
 		setCurrentWorkbench(w);
 
+		data.add(w);
+
 		return w;
 	}
 

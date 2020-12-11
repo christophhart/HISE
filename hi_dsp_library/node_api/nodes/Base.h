@@ -70,8 +70,6 @@ public:
 		ignoreUnused(e);
 	};
 
-	virtual bool isPolyphonic() const { return false; }
-
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseDspBase);
 
 	
@@ -92,7 +90,7 @@ public:
 		obj.handleHiseEvent(e);
 	}
 
-	bool isPolyphonic() const override
+	bool isPolyphonic() const
 	{
 		return obj.getWrappedObject().isPolyphonic();
 	}

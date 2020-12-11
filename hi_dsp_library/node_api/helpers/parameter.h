@@ -239,8 +239,8 @@ template <typename T, int P> struct inner
 
 	static void callStatic(void* obj_, double v)
 	{
-		//auto target = &static_cast<inner*>(obj_)->obj;
-		T::setParameter<P>(obj_, v);
+		auto f = T::template setParameter<P>;
+		f(obj_, v);
 	}
 
 	void* getObjectPtr() { return obj; }
@@ -340,7 +340,7 @@ template <class T, int P, class RangeType> struct from0to1 : public single_base<
 	static void callStatic(void* obj_, double v)
 	{
 		auto converted = RangeType::from0To1(v);
-		T::setParameter<P>(obj_, converted);
+		T::template setParameter<P>(obj_, converted);
 	}
 
 	void operator()(double v)
@@ -456,7 +456,7 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 
 	template <int Index, class Target> void connect(Target& t)
 	{
-		get<Index>().connect<0>(t);
+		get<Index>().template connect<0>(t);
 	}
 };
 

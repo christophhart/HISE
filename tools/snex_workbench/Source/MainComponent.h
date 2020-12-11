@@ -135,11 +135,12 @@ private:
 
 	OpenGLContext context;
 
-	FloatingTabComponent* tabs;
+	
 
 	hise::StandaloneProcessor standaloneProcessor;
 	ApplicationCommandManager mainManager;
-	FloatingTile rootTile;
+	ScopedPointer<FloatingTile> rootTile;
+	FloatingTabComponent* tabs;
 	MenuBarComponent menuBar;
 
 	Array<File> activeFiles;

@@ -287,7 +287,7 @@ void ModulationSourceNode::rebuildModulationConnections()
 
 	ScopedPointer<parameter::dynamic_chain> chain = new parameter::dynamic_chain();
 
-	for (auto& m : modTree)
+	for (auto m : modTree)
 	{
 		if (auto c = createDynamicParameterData(m))
 			chain->addParameter(c);

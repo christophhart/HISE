@@ -1291,7 +1291,7 @@ struct NamespaceHandler::SymbolToken::Parser: public ParserHelpers::TokenIterato
 			if (id.isNull())
 				parseStructType();
 
-			return handler.get(id);
+			return handler.get(id).get();
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{

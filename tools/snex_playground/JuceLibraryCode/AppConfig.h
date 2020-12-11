@@ -135,7 +135,7 @@
 #endif
 
 #ifndef    JUCE_JACK
- //#define JUCE_JACK 0
+ //#define JUCE_JACK 1
 #endif
 
 #ifndef    JUCE_BELA

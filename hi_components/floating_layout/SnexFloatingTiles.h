@@ -125,6 +125,8 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 	{
 		if (content != nullptr)
 			return content->getFixedHeight();
+
+		return 0;
 	}
 
 	void setWorkbench(Ptr wb)

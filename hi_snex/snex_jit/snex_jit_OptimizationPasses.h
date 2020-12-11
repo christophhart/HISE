@@ -392,8 +392,10 @@ struct AsmCleanupPass : public OptimizationPass,
 
 			currentNode = currentNode->next();
 
+			using ReturnType = typename FilterType::ReturnType;
+
 			if (FilterType::matches(retNode))
-				return retNode->as<FilterType::ReturnType>();
+				return retNode->as<ReturnType>();
 			else
 				return next();
 		}
@@ -402,7 +404,7 @@ struct AsmCleanupPass : public OptimizationPass,
 		RetType* peekNextMatch()
 		{
 			if (FilterType::matches(currentNode))
-				return currentNode->as<FilterType::ReturnType>();
+				return currentNode->as<typename FilterType::ReturnType>();
 
 			return nullptr;
 		}

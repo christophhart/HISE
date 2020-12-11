@@ -1015,10 +1015,10 @@ private:
 
 			for (int i = 0; i < numChannels; i++)
 			{
-				block a(a.getWritePointer(i), numSamples);
-				block e(e.getWritePointer(i), numSamples);
+				block a_(a.getWritePointer(i), numSamples);
+				block e_(e.getWritePointer(i), numSamples);
 
-				auto r = Helpers::compareBlocks(e, a);
+				auto r = Helpers::compareBlocks(e_, a_);
 
 				if (!r.wasOk())
 					return Result::fail("Channel " + String(i + 1) + ": " + r.getErrorMessage());

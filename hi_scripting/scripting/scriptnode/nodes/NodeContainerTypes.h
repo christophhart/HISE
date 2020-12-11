@@ -187,11 +187,11 @@ public:
 
 	void processFrame(FrameType& data) final override
 	{
-		if (data.size() == 1) processFrameInternal(MonoFrameType::as(data.begin()));
-		else if (data.size() == 2) processFrameInternal(StereoFrameType::as(data.begin()));
+		if (data.size() == 1) processFrameInternal<1>(MonoFrameType::as(data.begin()));
+		else if (data.size() == 2) processFrameInternal<2>(StereoFrameType::as(data.begin()));
 	}
 
-	template <typename int C> void processFrameInternal(snex::Types::span<float, C>& data)
+	template <int C> void processFrameInternal(snex::Types::span<float, C>& data)
 	{
 		if (isBypassed())
 			return;

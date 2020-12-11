@@ -421,22 +421,22 @@ struct SnexNodeBase : public snex::ComplexType
 		{
 			Array<void*> f;
 
-			f.add(processFrame<OT, Types::span<float, jmin(1, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(2, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(3, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(4, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(5, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(6, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(7, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(8, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(9, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(10, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(11, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(12, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(13, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(14, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(15, MaxChannels)>>);
-			f.add(processFrame<OT, Types::span<float, jmin(16, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(1, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(2, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(3, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(4, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(5, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(6, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(7, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(8, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(9, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(10, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(11, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(12, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(13, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(14, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(15, MaxChannels)>>);
+			f.add((void*)processFrame<OT, Types::span<float, jmin(16, MaxChannels)>>);
 
 			return f;
 		}

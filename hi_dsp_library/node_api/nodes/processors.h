@@ -84,13 +84,12 @@ template <int BlockSize> struct fix_block
 		typedFunction(obj, ps);
 	}
 
-	template <typename ProcessDataType> static void process(void* obj, void* functionPointer, ProcessDataType& data)
+	template <typename ProcessDataType> static void process(void* obj, prototypes::process<ProcessDataType> pf, ProcessDataType& data)
 	{
-		auto typedFunction = (void(*)(void*, ProcessDataType& d))(functionPointer);
 		int numToDo = data.getNumSamples();
 
 		if (numToDo < BlockSize)
-			typedFunction(obj, data);
+			pf(obj, data);
 		else
 		{
 			// We need to forward the HiseEvents to the chunks as there might
@@ -103,7 +102,7 @@ template <int BlockSize> struct fix_block
 			{
 				int numThisTime = jmin(BlockSize, cpd.getNumLeft());
 				auto c = cpd.getChunk(numThisTime);
-				typedFunction(obj, c.toData());
+				pf(obj, c.toData());
 			}
 
 #if 0
@@ -574,6 +573,8 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
+
+
 		static_functions::fix_block<BlockSize>::process(this, fix_block::processInternal<ProcessDataType>, data);
 	}
 

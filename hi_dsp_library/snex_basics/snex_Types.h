@@ -1,4 +1,3 @@
-
 #pragma once
 
 namespace snex {
@@ -28,6 +27,22 @@ enum ID
 	Block =			0b10000000,
 	Dynamic =		0b11111111
 };
+
+template <typename T> ID getTypeFromTypeId()
+{
+	if (std::is_same<T, float>())
+		return ID::Float;
+	if (std::is_same<T, double>())
+		return ID::Double;
+	if (std::is_same<T, int>())
+		return ID::Integer;
+	if (std::is_same<T, block>())
+		return ID::Block;
+	if (std::is_same<T, void*>())
+		return ID::Pointer;
+
+	return ID::Void;
+}
 
 /** This will identify each snex array type by using the constexpr static variable
     T::ArrayType
@@ -99,6 +114,5 @@ struct PrepareSpecs
 
 
 
-
-
 }
+

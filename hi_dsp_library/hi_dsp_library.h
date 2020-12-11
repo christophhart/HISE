@@ -48,8 +48,7 @@ END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
-#ifndef HI_DSP_LIBRARY_H_INCLUDED
-#define HI_DSP_LIBRARY_H_INCLUDED
+#pragma once
 
 #include "AppConfig.h"
 
@@ -96,26 +95,32 @@ Set this to 1 if you want to embed the libraries created with this module into y
 */
 
 
-
-#include "dsp_library/DspBaseModule.h"
-#include "dsp_library/BaseFactory.h"
-#include "dsp_library/DspFactory.h"
-
-
-#include "dsp_basics/DelayLine.h"
-#include "dsp_basics/DelayLine.cpp"
-
 // Include the basic structures from SNEX
 
 #include "snex_basics/snex_Types.h"
 #include "snex_basics/snex_ArrayTypes.h"
 #include "snex_basics/snex_Math.h"
+
+
 #include "snex_basics/snex_DynamicType.h"
+
 #include "snex_basics/snex_TypeHelpers.h"
+
+
+
+
+
 #include "snex_basics/snex_FrameProcessor.h"
 #include "snex_basics/snex_FrameProcessor.cpp"
 #include "snex_basics/snex_ProcessDataTypes.h"
 #include "snex_basics/snex_ProcessDataTypes.cpp"
+
+#include "dsp_library/DspBaseModule.h"
+#include "dsp_library/BaseFactory.h"
+#include "dsp_library/DspFactory.h"
+
+#include "dsp_basics/DelayLine.h"
+#include "dsp_basics/DelayLine.cpp"
 
 #include "node_api/helpers/node_macros.h"
 #include "node_api/helpers/node_ids.h"
@@ -168,5 +173,3 @@ namespace hise {
 #endif
 
 
- 
-#endif

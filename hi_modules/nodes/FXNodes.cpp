@@ -330,8 +330,8 @@ void haas_impl<V>::processFrame(FrameType& data)
 template <int V>
 void haas_impl<V>::process(haas_impl<V>::ProcessType& d)
 {
-	delay.get()[0].processBlock(d[0]);
-	delay.get()[1].processBlock(d[1]);
+	delay.get()[0].processBlock(d.getRawDataPointers()[0], d.getNumSamples());
+	delay.get()[1].processBlock(d.getRawDataPointers()[1], d.getNumSamples());
 }
 
 

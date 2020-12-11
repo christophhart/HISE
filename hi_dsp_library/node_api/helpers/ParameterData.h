@@ -83,7 +83,7 @@ struct dynamic
 	template <typename T> dynamic& operator=(T&& other)
 	{
 		obj = other.getObjectPtr();
-		f = typename T::callStatic;
+		f = (Function)(T::callStatic);
 
 		return *this;
 	}

@@ -149,8 +149,7 @@ using namespace snex::Types;
 
 //==============================================================================
 MainContentComponent::MainContentComponent(const String &commandLine):
-	standaloneProcessor(),
-	rootTile(getProcessor(), nullptr)
+	standaloneProcessor()
 {
 	UnitTestRunner runner;
 	runner.setPassesAreLogged(true);
@@ -158,6 +157,8 @@ MainContentComponent::MainContentComponent(const String &commandLine):
 
 	runner.runTestsInCategory("node_tests");
 
+	rootTile = new FloatingTile(getProcessor(), nullptr);
+	
 	
 
 	context.attachTo(*this);
@@ -175,12 +176,12 @@ MainContentComponent::MainContentComponent(const String &commandLine):
 
 	if (json.isNotEmpty())
 	{
-		rootTile.loadFromJSON(json);
+		rootTile->loadFromJSON(json);
 
 	}
 	else
 	{
-		FloatingInterfaceBuilder builder(&rootTile);
+		FloatingInterfaceBuilder builder(rootTile.get());
 
 		auto r = 0;
 
@@ -210,14 +211,14 @@ MainContentComponent::MainContentComponent(const String &commandLine):
 		builder.finalizeAndReturnRoot();
 	}
 
-	tabs = rootTile.findFirstChildWithType<FloatingTabComponent>();
+	tabs = rootTile->findFirstChildWithType<FloatingTabComponent>();
 	
 	tabs->setAddButtonCallback([this]()
 	{
 		mainManager.invokeDirectly(FileNew, false);
 	});
 
-	if (auto console = rootTile.findFirstChildWithType<ConsolePanel>())
+	if (auto console = rootTile->findFirstChildWithType<ConsolePanel>())
 	{
 		console->getConsole()->setTokeniser(new snex::jit::Compiler::Tokeniser());
 	}
@@ -232,8 +233,10 @@ MainContentComponent::MainContentComponent(const String &commandLine):
 
 MainContentComponent::~MainContentComponent()
 {
-	getLayoutFile().replaceWithText(rootTile.exportAsJSON());
+	getLayoutFile().replaceWithText(rootTile->exportAsJSON());
 	context.detach();
+
+	rootTile = nullptr;
 }
 
 void MainContentComponent::paint(Graphics& g)
@@ -246,7 +249,7 @@ void MainContentComponent::resized()
 	auto b = getLocalBounds();
 
 	menuBar.setBounds(b.removeFromTop(24));
-	rootTile.setBounds(b);
+	rootTile->setBounds(b);
 }
 
 void MainContentComponent::requestQuit()

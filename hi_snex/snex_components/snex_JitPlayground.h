@@ -238,7 +238,7 @@ class BackgroundCompileThread: public Thread
 		}
 	}
 
-	std::atomic<bool> dirty = false;
+	std::atomic<bool> dirty = { false };
 	String currentCode = "";
 
 	ui::WorkbenchData::Ptr data;

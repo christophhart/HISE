@@ -672,32 +672,32 @@ struct SnexScriptFunctionCall: public DynamicObject
 
 		void addv0()
 		{
-			map.set(sig0<void>().getId(), CallWrappers::cv0);
+			map.set(sig0<void>().getId(), (void*)CallWrappers::cv0);
 		}
 
 		template <typename A> void addv1()
 		{
-			map.set(sig<void, A>().getId(), CallWrappers::cv1<A>);
+			map.set(sig<void, A>().getId(), (void*)CallWrappers::cv1<A>);
 		}
 
 		template <typename A1, typename A2> void addv2()
 		{
-			map.set(sig<void, A1, A2>().getId(), CallWrappers::cv2<A1, A2>);
+			map.set(sig<void, A1, A2>().getId(), (void*)CallWrappers::cv2<A1, A2>);
 		}
 
 		template <typename R> void addr0()
 		{
-			map.set(sig0<R>().getId(), CallWrappers::cr0<R>);
+			map.set(sig0<R>().getId(), (void*)CallWrappers::cr0<R>);
 		}
 
 		template <typename R, typename A1> void addr1()
 		{
-			map.set(sig<R, A1>().getId(), CallWrappers::cr1<R, A1>);
+			map.set(sig<R, A1>().getId(), (void*)CallWrappers::cr1<R, A1>);
 		}
 
 		template <typename R, typename A1, typename A2> void addr2()
 		{
-			map.set(sig<R, A1, A2>().getId(), CallWrappers::cr2<R, A1, A2>);
+			map.set(sig<R, A1, A2>().getId(), (void*)CallWrappers::cr2<R, A1, A2>);
 		}
 
 		bool injectFunctionPointer(snex::jit::FunctionData& f)

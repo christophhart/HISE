@@ -1479,14 +1479,11 @@ snex::jit::OptimizationPass::StatementPtr LoopOptimiser::getRealParent(Statement
 {
 	using namespace Operations;
 
-	if (auto p = s->parent)
+	if (auto p = s->parent.get())
 	{
-		if (isBlockWithSingleStatement(p.get()))
-		{
-			return getRealParent(p.get());
-		}
+		if (isBlockWithSingleStatement(p))
+			return getRealParent(p);
 
-		
 		return p;
 	}
 

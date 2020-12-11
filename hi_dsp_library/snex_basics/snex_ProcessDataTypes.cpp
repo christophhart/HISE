@@ -30,8 +30,6 @@
 *   ===========================================================================
 */
 
-#pragma once
-
 namespace snex {
 namespace Types {
 using namespace juce;

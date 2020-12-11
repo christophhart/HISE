@@ -189,12 +189,12 @@ void SplitNode::process(ProcessDataDyn& data)
 
 void SplitNode::processMonoFrame(MonoFrameType& data)
 {
-	processFrameInternal(data);
+	processFrameInternal<1>(data);
 }
 
 void SplitNode::processStereoFrame(StereoFrameType& data)
 {
-	processFrameInternal(data);
+	processFrameInternal<2>(data);
 }
 
 void SplitNode::reset()

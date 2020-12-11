@@ -90,7 +90,7 @@ template <class ParameterClass, typename... Processors> struct container_base
 	
 	template <size_t arg> constexpr auto& getParameter() noexcept
 	{
-		return parameters.getParameter<arg>();
+		return parameters.template getParameter<arg>();
 	}
 
     void createParameters(Array<parameter::data>& )

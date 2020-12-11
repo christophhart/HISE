@@ -187,38 +187,124 @@ private:
 };
 
 
+struct dyn_indexes
+{
+	struct wrapped : public index_base<wrapped>
+	{
+		wrapped(int maxSize) :
+			index_base<wrapped>(0),
+			size(maxSize)
+		{}
+
+		operator int() const
+		{
+			return value % size;
+		}
+
+	private:
+
+		const int size = 0;
+	};
+
+	struct zeroed : public index_base<zeroed>
+	{
+		zeroed(int maxSize) :
+			index_base<zeroed>(0),
+			size(maxSize)
+		{}
+
+		operator int() const
+		{
+			if (isPositiveAndBelow(value, size))
+				return value;
+
+			return 0;
+		}
+
+	private:
+
+		const int size = 0;
+	};
+
+	struct clamped : public index_base<clamped>
+	{
+		clamped(int maxSize) :
+			index_base<clamped>(0),
+			size(jmax(0, maxSize - 1))
+		{}
+
+		operator int() const
+		{
+			return jlimit(0, size, value);
+		}
+
+	private:
+
+		int size = 0;
+	};
+
+	struct unsafe : public index_base<unsafe>
+	{
+		unsafe(int unused, int initValue) :
+			index_base<unsafe>(initValue)
+		{}
+
+		operator int() const
+		{
+			return value;
+		}
+	};
+};
 
 struct IndexType
 {
-	template <typename int I> static auto wrapped(const FrameProcessor<I>& f)
+	
+
+	template <int I> static auto wrapped(const FrameProcessor<I>& f)
 	{
-		return span<float, I>::wrapped(0);
+		return typename span<float, I>::wrapped(0);
 	}
 
-	template <typename int I> static auto clamped(const FrameProcessor<I>& f)
+	template <int I> static auto clamped(const FrameProcessor<I>& f)
 	{
-		return span<float, I>::clamped(0);
+		return typename span<float, I>::clamped(0);
 	}
 
 	template <typename E, int I> static auto clamped(const span<E, I>& obj)
 	{
-		return span<E, I>::clamped(0);
-	}
-
-	template <typename E> static auto clamped(const dyn<E>& obj)
-	{
-		return dyn<E>::clamped(obj, 0);
+		return typename span<E, I>::clamped(0);
 	}
 
 	template <typename E, int I> static auto wrapped(const span<E, I>& obj)
 	{
-		return span<E, I>::wrapped(0);
+		return typename span<E, I>::wrapped(0);
 	}
+
+	template <typename T> static auto clamped(T& obj)
+	{
+		return dyn_indexes::clamped(obj.size());
+	}
+
+	template <typename T> static auto wrapped(T& obj)
+	{
+		return dyn_indexes::wrapped(obj.size());
+	}
+
+
+
+#if 0
+	template <typename E> static auto clamped(const dyn<E>& obj)
+	{
+		return typename dyn<E>::<clamped>(obj, 0);
+	}
+
+	
 
 	template <typename E> static auto wrapped(const dyn<E>& obj)
 	{
-		return dyn<E>::wrapped(obj, 0);
+		return typename dyn<E>::wrapped(obj, 0);
 	}
+#endif
 };
 
 

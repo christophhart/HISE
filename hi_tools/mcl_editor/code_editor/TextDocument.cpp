@@ -573,7 +573,9 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 			}
 			case ':':
 			{
-				if (get(i.translated(0, -1)) != ':')
+				auto ti = i.translated(0, -1);
+
+				if (get(ti) != ':')
 					return;
 				else
 					advance(i);

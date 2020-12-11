@@ -73,7 +73,11 @@ namespace Operations
 		OP_BLOCK(data, value)
 		{
 			for (auto ch : data)
-				hmath::vadds(data.toChannelData(ch), value);
+			{
+				block b(data.toChannelData(ch));
+				hmath::vadds(b, value);
+			}
+				
 		}
 
 		OP_SINGLE(data, value)

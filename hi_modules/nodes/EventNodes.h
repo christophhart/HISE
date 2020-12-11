@@ -319,6 +319,13 @@ template <int NV, typename TimerType> class timer_impl: public timer_base<TimerT
 {
 public:
 
+	enum Parameters
+	{
+		Active,
+		Interval,
+		numParameters
+	};
+
 	DEFINE_PARAMETERS
 	{
 		DEF_PARAMETER(Active, timer_impl);
@@ -601,7 +608,8 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 			auto& thisData = oscData.get();
 
 			OscProcessData op;
-			op.data.referTo(data[0]);
+
+			op.data.referToRawData(data.getRawDataPointers()[0], data.getNumSamples());
 			op.uptime = thisData.uptime;
 			op.delta = thisData.uptimeDelta * thisData.multiplier;
 			op.voiceIndex = *voiceIndex;

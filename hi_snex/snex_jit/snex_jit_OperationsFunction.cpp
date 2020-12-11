@@ -142,7 +142,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			compiler->setCurrentPass(BaseCompiler::FunctionParsing);
 
-			WeakReference<Statement> statementCopy = statements;
+			WeakReference<Statement> statementCopy = statements.get();
 
 			classData->templateParameters = data.templateParameters;
 
@@ -251,13 +251,13 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		ScopedPointer<asmjit::X86Compiler> cc = new asmjit::X86Compiler(ch);
 
-		ScopedPointer<AsmCleanupPass> p = new AsmCleanupPass();
+		AsmCleanupPass* p = nullptr;
 
 		if (scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::AsmOptimisation))
-			cc->addPass(p.get());
-		else
-			p = nullptr;
-
+		{
+			cc->addPass(p = new AsmCleanupPass());
+		}
+		
 		FuncSignatureX sig;
 
 		hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !classData->returnType.isStatic();

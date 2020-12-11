@@ -22,7 +22,7 @@ constexpr const auto& getObject() const { return x; }
 constexpr const auto& getWrappedObject() const { return x; }
 
 /** Use this macro in order to create the getObject() / getWrappedObject() methods that return the object itself. */
-#define GET_SELF_AS_OBJECT() GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this);
+#define GET_SELF_AS_OBJECT(x) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this);
 
 #define IF_(typeName) if(type == Types::Helpers::getTypeFromTypeId<typeName>())
 
@@ -110,18 +110,7 @@ struct Helpers
 
 	template <typename T> constexpr static Types::ID getTypeFromTypeId()
 	{
-		if (std::is_same<T, float>())
-			return Types::ID::Float;
-		if (std::is_same<T, double>())
-			return Types::ID::Double;
-		if (std::is_same<T, int>())
-			return Types::ID::Integer;
-		if (std::is_same<T, block>())
-			return Types::ID::Block;
-		if (std::is_same<T, void*>())
-			return Types::ID::Pointer;
-
-		return Types::ID::Void;
+		return Types::getTypeFromTypeId<T>();
 	};
 };
 

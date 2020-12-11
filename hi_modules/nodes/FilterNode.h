@@ -143,6 +143,8 @@ template <int NV> struct fir_impl : public AudioFileNodeBase
 
 	fir_impl();;
 
+	bool isPolyphonic() const { return NumVoices > 1; }
+
 	void prepare(PrepareSpecs specs) override;
 	
 	void rebuildCoefficients();

@@ -347,14 +347,14 @@ template <class Node> struct JitNodeWrapper
 
 			if (i == 1)
 			{
-				pi.function = (void*)Wrapper::process<1>;
-				fi.function = (void*)Wrapper::processFrame<1>;
+				pi.function = (void*)Wrapper::template process<1>;
+				fi.function = (void*)Wrapper::template processFrame<1>;
 			}
 
 			if (i == 2)
 			{
-				pi.function = (void*)Wrapper::process<2>;
-				fi.function = (void*)Wrapper::processFrame<2>;
+				pi.function = (void*)Wrapper::template process<2>;
+				fi.function = (void*)Wrapper::template processFrame<2>;
 			}
 
 			st->injectMemberFunctionPointer(pi, pi.function);
@@ -761,7 +761,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 				auto dynObj = cc.newStack(16, 32);
 				cc.mov(dynObj.cloneResized(4), 128);
 
-				auto& dataObject = d->args[0];
+				auto dataObject = d->args[0];
 				dataObject->loadMemoryIntoRegister(cc);
 
 				auto tmp = cc.newGpq();

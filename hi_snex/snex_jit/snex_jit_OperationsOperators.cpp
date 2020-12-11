@@ -789,7 +789,7 @@ private:
 		{
 			jassert(r->getDataRegToUse().isValid());
 			bool isAbs = String(opType) == "abs";
-			r = isAbs ? this : childOps[1];
+			r = isAbs ? this : childOps[1].get();
 
 			if (r->readerType == Type::ImmediateScalar || isAbs)
 				cc.emit(instId, getDataRegToUse(), isSimd ? r->immConst : r->immConst.cloneResized(4));

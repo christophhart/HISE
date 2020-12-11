@@ -443,9 +443,10 @@ template <typename ProcessDataType, bool IncludeEvents=true> struct ChunkablePro
 		}
 
 		ScopedChunk(ScopedChunk&& other):
-			parent(other.parent)
+			parent(other.parent),
+			sliced(other.sliced.getRawDataPointers(), other.sliced.getNumSamples(), other.sliced.getNumChannels())
 		{
-			std::swap(sliced, other.sliced);
+			
 		}
 
 		
@@ -508,7 +509,7 @@ struct FrameConverters
 
 	template <typename DspClass, typename FrameDataType> static forcedinline void forwardToFixFrame16(DspClass* ptr, FrameDataType& data)
 	{
-		jassert(Helpers::isRefArrayType<FrameDataType>(), "unneeded call to forwardToFrameFix");
+		static_assert(Helpers::isRefArrayType<FrameDataType>(), "unneeded call to forwardToFrameFix");
 
 		switch (data.size())
 		{

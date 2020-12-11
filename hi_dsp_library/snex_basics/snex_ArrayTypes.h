@@ -30,7 +30,8 @@
 *   ===========================================================================
 */
 
-#pragma once
+#ifndef SNEX_ARRAY_TYPES_INCLUDED
+#define SNEX_ARRAY_TYPES_INCLUDED
 
 #include <cstring>
 
@@ -507,75 +508,6 @@ template <class T> struct dyn
 	using Type = dyn<T>;
 	using DataType = T;
 
-	struct wrapped: public index_base<wrapped>
-	{
-		wrapped(Type& d, int initValue) :
-			index_base<wrapped>(initValue),
-			size(jmax(1, d.size()))
-		{}
-
-		operator int() const
-		{
-			return value % size;
-		}
-
-	private:
-
-		int size = 0;
-	};
-
-	struct zeroed : public index_base<zeroed>
-	{
-		zeroed(Type& d, int initValue) :
-			index_base<zeroed>(initValue),
-			size(d.size())
-		{}
-
-		operator int() const
-		{
-			if (isPositiveAndBelow(value, size))
-				return value;
-
-			return 0;
-		}
-
-	private:
-
-		int size = 0;
-	};
-
-	struct clamped : public index_base<clamped>
-	{
-		clamped(const Type& d, int initValue) :
-			index_base<clamped>(initValue),
-			size(jmax(0, d.size()-1))
-		{}
-
-		clamped& operator=(int v) { value = v; return *this; };
-
-		operator int() const
-		{
-			return jlimit(0, size, value);
-		}
-
-	private:
-
-		int size = 0;
-	};
-
-	struct unsafe : public index_base<unsafe>
-	{
-		unsafe(Type& d, int initValue) :
-			index_base<unsafe>(initValue),
-		{}
-
-		operator int() const
-		{
-			value;
-		}
-	};
-
-
 	dyn() :
 		data(nullptr),
 		size_(0)
@@ -618,7 +550,7 @@ template <class T> struct dyn
 	{
 		dyn<float4> rt;
 
-		jassert(size() % 4 == 0);
+		jassert(this->size() % 4 == 0);
 
 		rt.data = reinterpret_cast<float4*>(begin());
 		rt.size_ = size() / 4;
@@ -1002,3 +934,5 @@ template <int Start, int SliceSize, class DataType, int Size> static span<DataTy
 
 }
 }
+
+#endif

@@ -9,6 +9,7 @@
 
 #include "synthesisers/synths/PolyBlep.cpp"
 
+#if 0
 namespace wdl
 {
 
@@ -16,6 +17,7 @@ namespace wdl
 #include "effects/convolution/wdl/fft.c"
 
 }
+#endif
 
 #if JUCE_MSVC
 #pragma warning (pop)

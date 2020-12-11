@@ -442,8 +442,7 @@ void scriptnode::core::oscillator_impl<NV>::createParameters(ParameterDataList& 
 	}
 }
 
-template class wrap::fix<1, oscillator_impl<1>>;
-template class wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
+
 
 template <int V>
 gain_impl<V>::gain_impl():
@@ -940,5 +939,9 @@ void fm::setFrequency(double newFrequency)
 }
 
 } // namespace core
+
+
+template class wrap::fix<1, core::oscillator_impl<1>>;
+template class wrap::fix<1, core::oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 } // namespace scriptnode

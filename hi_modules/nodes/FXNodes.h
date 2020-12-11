@@ -283,6 +283,8 @@ public:
 	SET_HISE_NODE_ID("reverb");
 	GET_SELF_AS_OBJECT(reverb);
 
+	bool isPolyphonic() const { return false; }
+
 	reverb();
 
 	void initialise(NodeBase* n);

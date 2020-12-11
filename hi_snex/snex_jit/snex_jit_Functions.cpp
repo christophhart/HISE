@@ -1107,7 +1107,14 @@ void ComplexType::writeNativeMemberType(void* dataPointer, int byteOffset, const
 	case Types::ID::Double:  *reinterpret_cast<double*>(dp_raw) = (double)initValue; break;
 	case Types::ID::Float:	 *reinterpret_cast<float*>(dp_raw) = (float)initValue; break;
 	case Types::ID::Pointer: *((void**)dp_raw) = copy.getDataPointer(); break;
-	case Types::ID::Block:	 (*reinterpret_cast<block*>(dp_raw)).referTo(initValue.toBlock()); break;
+	case Types::ID::Block:	  
+	{
+		auto& b = *reinterpret_cast<block*>(dp_raw);
+		auto other = initValue.toBlock();
+
+		b.referToRawData(other.begin(), other.size()); 
+		break;
+	}
 	default:				 jassertfalse;
 	}
 }

@@ -74,6 +74,8 @@ public:
 		DEF_PARAMETER(Multiplier, tempo_sync);
 	}
 
+	bool isPolyphonic() const { return false; }
+
 	SET_HISE_NODE_ID("tempo_sync");
 	GET_SELF_AS_OBJECT();
 
@@ -193,6 +195,8 @@ public:
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
+
+	bool isPolyphonic() const { return false; }
 
 	bool handleModulation(double& value);
 	void reset() noexcept;;
@@ -374,7 +378,7 @@ public:
 
 	hise_mod();
 
-	bool isPolyphonic() const override { return true; }
+	constexpr bool isPolyphonic() const { return true; }
 
 	bool isNormalisedModulation() const { return modIndex != ModulatorSynth::BasicChains::PitchChain; }
 
@@ -602,8 +606,9 @@ template <class T, class PropertyType> struct BoringWrapper
 using oscillator = wrap::fix<1, oscillator_impl<1>>;
 using oscillator_poly = wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
-extern template class wrap::fix<1, oscillator_impl<1>>;
-extern template class wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
+
+
+
 
 class fm : public HiseDspBase
 {
@@ -876,7 +881,8 @@ DEFINE_EXTERN_NODE_TEMPLATE(ramp_envelope, ramp_envelope_poly, ramp_envelope_imp
 } // namespace core
 
 
-
+extern template class scriptnode::wrap::fix<1, core::oscillator_impl<1>>;
+extern template class scriptnode::wrap::fix<1, core::oscillator_impl<NUM_POLYPHONIC_VOICES>>;
 
 
 }

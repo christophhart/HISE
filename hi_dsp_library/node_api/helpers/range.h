@@ -53,6 +53,7 @@ using namespace hise;
 */
 namespace ranges
 {
+using namespace snex;
 
 /** The base class for a connection with a custom SNEX expression.
 
@@ -68,7 +69,7 @@ struct SnexExpressionBase
 	static constexpr bool isRange() { return true; }
 
 	/** Allows `Math.min(a, b)` syntax... */
-	static snex::hmath Math;
+	static hmath Math;
 
 	/** There's no range conversion going on so we return the identity. */
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(0.0, 1.0); };
