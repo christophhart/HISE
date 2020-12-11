@@ -1326,6 +1326,14 @@ snex::InitialiserList::Ptr StructType::makeDefaultInitialiserList() const
 	return n;
 }
 
+bool StructType::createDefaultConstructor()
+{
+	if (hasConstructor())
+		return false;
+
+
+}
+
 void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler, const String& description)
 {
 	if (handler->getComplexType(id))
@@ -1759,8 +1767,7 @@ bool StructType::injectInliner(const FunctionData& f)
 {
 	// Yeah, right...
 	jassert(f.inliner != nullptr);
-	jassert(f.function != nullptr);
-
+	
 	for (auto& existing : memberFunctions)
 	{
 		if (existing.matchIdArgsAndTemplate(f))
@@ -1870,8 +1877,13 @@ void StructType::addWrappedMemberMethod(const Identifier& memberId, FunctionData
 				}
 			}
 
+#if 0
 			if (!nf->function.isResolved())
+			{
 				return Result::fail("Non overloaded function detected");
+			}
+#endif
+				
 
 			d->target = newCall;
 

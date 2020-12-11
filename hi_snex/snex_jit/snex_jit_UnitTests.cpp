@@ -366,8 +366,6 @@ public:
 
 		test->expectEquals(c.getCompileResult().getErrorMessage(), juce::String(), "compile fail");
 
-		DBG(c.getAssemblyCode());
-
 		auto f = obj["test"];
 		v = f.call<int>(&d);
 	}
@@ -501,11 +499,13 @@ public:
 
 	Result test(bool dumpBeforeTest=false)
 	{
-		if (function.returnType == Types::ID::Dynamic)
+		if (nodeId.isNull() && function.returnType == Types::ID::Dynamic)
 		{
 			initCompiler();
 
 			String originalCode = code;
+
+			
 
 			setTypeForDynamicFunction(Types::ID::Integer, originalCode);
 			auto ok = test(dumpBeforeTest);
@@ -590,7 +590,32 @@ public:
 			if (r.failed() && !memory.getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
 				return r;
 
-			return Helpers::compareBuffers(inputBuffer, outputBuffer);
+			if (outputWasEmpty)
+			{
+				// Write the output as reference for the next tests...
+
+				DBG("New file created");
+
+				hlac::CompressionHelpers::dump(inputBuffer, outputBufferFile.getFullPathName());
+
+				outputBufferFile.revealToUser();
+
+				return Result::ok();
+			}
+			else
+			{
+				auto ok = Helpers::compareBuffers(inputBuffer, outputBuffer);
+
+				if (!ok.wasOk())
+				{
+					auto f = outputBufferFile.getSiblingFile(outputBufferFile.getFileNameWithoutExtension() + "_error").getNonexistentSibling(false).withFileExtension(".wav");
+
+					hlac::CompressionHelpers::dump(inputBuffer, f.getFullPathName());
+					f.revealToUser();
+				}
+
+				return ok;
+			}
 		}
 		else
 		{
@@ -674,12 +699,33 @@ public:
 		
 	}
 
-	void save()
+	bool save()
 	{
+		if (!r.wasOk())
+		{
+			AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Can't save file because of error", r.getErrorMessage());
+			return false;
+		}
+
+		if (fileToBeWritten == File())
+		{
+			AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Can't save file", "Unspecified name");
+			return false;
+		}
+
 		if (!fileToBeWritten.existsAsFile() || AlertWindow::showYesNoCancelBox(AlertWindow::QuestionIcon, "Replace test file", "Do you want to replace the test file " + fileToBeWritten.getFullPathName()))
 		{
-			fileToBeWritten.replaceWithText(code);
+			bool showMessageAfter = !fileToBeWritten.existsAsFile();
+
+			fileToBeWritten.create();
+			return fileToBeWritten.replaceWithText(code);
+
+			if(showMessageAfter)
+				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Created new test file", fileToBeWritten.getFullPathName());
 		}
+			
+
+		return false;
 	}
 
 	juce::String assembly;
@@ -756,7 +802,19 @@ private:
 
 					numChannels = inputBuffer.getNumChannels();
 
-					outputBuffer = Helpers::loadFile(s[output]);
+					auto v = Helpers::parseQuotedString(s[output]);
+					outputBufferFile = Helpers::getAudioFile(v);
+
+					try
+					{
+						outputBuffer = Helpers::loadFile(s[output]);
+					}
+					catch (String& e)
+					{
+						outputBuffer.makeCopyOf(inputBuffer);
+						outputWasEmpty = true;
+					}
+
 					expectedResult = block(outputBuffer.getWritePointer(0), outputBuffer.getNumSamples());
 				}
 				else
@@ -1075,7 +1133,7 @@ private:
 
 	Result expectBufferOrProcessDataOK()
 	{
-		if (outputBufferFile != File())
+		if (outputWasEmpty && outputBufferFile != File())
 		{
 			hlac::CompressionHelpers::dump(inputBuffer, outputBufferFile.getFullPathName());
 
@@ -1245,6 +1303,7 @@ private:
 	
 
 	bool isProcessDataTest = false;
+	bool outputWasEmpty = false;
 	int numChannels = -1;
 
 	UnitTest* t;
@@ -1399,7 +1458,7 @@ class HiseJITUnitTest : public UnitTest
 {
 public:
 
-	HiseJITUnitTest() : UnitTest("HiseJIT UnitTest") {}
+	HiseJITUnitTest() : UnitTest("HiseJIT UnitTest", "snex") {}
 
 	void testAccessWrappers()
 	{
@@ -1440,6 +1499,14 @@ public:
 
 	void runTest() override
 	{
+		beginTest("Funky");
+
+		optimizations = OptimizationIds::getAllIds();
+
+		runTestFiles("node_chain.h");
+		return;
+
+
 		optimizations = OptimizationIds::getAllIds();
 
 		testExternalFunctionCalls();
@@ -1679,6 +1746,8 @@ public:
 			{
 				JitFileTestCase t(this, memory, f);
 				auto r = t.test(printDebugInfoForSingleTest && soloTest.isNotEmpty());
+
+				expect(r.wasOk());
 			}
 
 			int numInstancesAfter = ComplexType::numInstances;

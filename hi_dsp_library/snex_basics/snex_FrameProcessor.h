@@ -196,6 +196,8 @@ struct dyn_indexes
 			size(maxSize)
 		{}
 
+		wrapped& operator=(int v) { value = v; return *this; };
+
 		operator int() const
 		{
 			return value % size;
@@ -212,6 +214,8 @@ struct dyn_indexes
 			index_base<zeroed>(0),
 			size(maxSize)
 		{}
+
+		zeroed& operator=(int v) { value = v; return *this; };
 
 		operator int() const
 		{
@@ -232,6 +236,8 @@ struct dyn_indexes
 			index_base<clamped>(0),
 			size(jmax(0, maxSize - 1))
 		{}
+
+		clamped& operator=(int v) { value = v; return *this; };
 
 		operator int() const
 		{

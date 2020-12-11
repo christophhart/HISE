@@ -544,25 +544,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 	auto prototypes = ScriptnodeCallbacks::getAllPrototypes(c, numChannels);
 
-	{
-		auto mId = NamespacedIdentifier("wrap").getChildId("midi");
-		TemplateClassBuilder midi(c, mId);
-
-
-		midi.addTypeTemplateParameter("NodeType");
-		
-		midi.setInitialiseStructFunction([prototypes](const TemplateObject::ConstructData& cd, StructType* st)
-		{
-			st->addMember("obj", cd.tp[0].type);
-
-			for (auto p : prototypes)
-				st->addWrappedMemberMethod("obj", p);
-		});
-
-		midi.addFunction(WrapBuilder::Helpers::constructorFunction);
-
-		midi.flush();
-	}
+	
 
 
 	{
@@ -645,21 +627,48 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	}
 
 	{
+		WrapBuilder event(c, "event", numChannels);
+
+		event.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, [](WrapBuilder::ExternalFunctionMapData& mapData)
+		{
+			int numChannels = mapData.getChannelFromLastArg();
+
+			jassert(numChannels > 0 && numChannels <= 2);
+
+			void* processFunctions[2];
+
+			processFunctions[0] = (void*)scriptnode::wrap::static_functions::event::template process<ProcessData<1>>;
+			processFunctions[1] = (void*)scriptnode::wrap::static_functions::event::template process<ProcessData<2>>;
+
+			mapData.setExternalFunctionPtrToCall(processFunctions[numChannels - 1]);
+
+			auto r = mapData.insertFunctionPtrToArgReg(mapData.getWrappedFunctionPtr(ScriptnodeCallbacks::ProcessFunction));
+
+			if (!r.wasOk())
+				return r;
+
+			return mapData.insertFunctionPtrToArgReg(mapData.getWrappedFunctionPtr(ScriptnodeCallbacks::HandleEventFunction), 1);
+		});
+	}
+
+	{
 		WrapBuilder os(c, "fix", "NumChannels", numChannels);
 
 		os.injectExternalFunction("process", funkyWasGeht);
 
-		os.flush();
 	}
 
 	{
 		WrapBuilder fb(c, "fix_block", "BlockSize", numChannels);
 
-		fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::PrepareFunction, [](const TemplateParameter::List& tp)
+		fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::PrepareFunction, [](WrapBuilder::ExternalFunctionMapData& mapData)
 		{
-			HashMap<int, void*> map;
+			int blockSize = mapData.getTemplateConstant(0);
 
-#define INSERT(b) map.set({b}, (void*)scriptnode::wrap::static_functions::fix_block<b>::prepare);
+			HeapBlock<void*> data;
+			data.allocate(512, true);
+
+#define INSERT(b) data[b] = (void*)scriptnode::wrap::static_functions::fix_block<b>::prepare;
 			INSERT(16);
 			INSERT(32);
 			INSERT(64);
@@ -668,10 +677,10 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 			INSERT(512);
 #undef INSERT
 
-			return map[tp[0].constant];
+			return mapData.insertFunctionPtrToArgReg(data[blockSize]);
 		});
 
-		fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, [](const TemplateParameter::List& tp)
+		fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, [](WrapBuilder::ExternalFunctionMapData& mapData)
 		{
 			struct Key
 			{
@@ -691,10 +700,11 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 			INSERT(512, 1); INSERT(512, 2);
 #undef INSERT
 			
-			return map[Key(tp[0].constant, WrapBuilder::Helpers::getChannelFromFixData(tp[2].type)).toString()];
+			auto channelAmount = mapData.getChannelFromLastArg();
+			auto blockSize = mapData.getTemplateConstant(0);
+			auto ptr = map[Key(blockSize, channelAmount).toString()];
+			return mapData.insertFunctionPtrToArgReg(ptr);
 		});
-		
-		fb.flush();
 	}
 
 	registerParameterTemplate(c);

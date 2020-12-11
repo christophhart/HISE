@@ -206,8 +206,6 @@ MainComponent::MainComponent() :
 	data(new ui::WorkbenchData()),
 	playground(new SnexPlayground(data, true))
 {
-	data->setContentFunctions([this]() {return v.toString(); }, [this](const String& s) {v.setValue(s); return true; });
-
 	context.attachTo(*playground);
 	
 	addAndMakeVisible(playground);

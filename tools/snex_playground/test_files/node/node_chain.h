@@ -4,15 +4,22 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: "zero.wav"
-  output: "sine.wav"
+  output: "nodes/node_chain.wav"
   error: ""
   filename: "node/node_chain"
 END_TEST_DATA
 */
 
 
-struct dc_add
+struct dc
 {
+	dc()
+	{
+		v = 0.2f;
+	}
+
+	float v = 0.2f;
+
 	void reset()
 	{
 	}
@@ -22,15 +29,10 @@ struct dc_add
 		
 	}
 	
-	void process(ProcessData<NumChannels>& data)
-	{
-		for(auto& ch: data)
-		{
-			for(auto& s: data.toChannelData(ch))
-			{
-				s += 0.125f;//Math.sin(uptime);
-			}
-		}
+	void process(ProcessData<1>& data)
+	{	
+		for(auto& s: data[0])
+			s += v;
 	}
 	
 	void handleEvent(HiseEvent& e)
@@ -43,6 +45,6 @@ struct dc_add
 	}
 };
 
-using processor = container::chain<parameter::empty, dc_add, dc_add>;
+using processor = container::chain<parameter::empty, dc, dc>;
 
 

@@ -158,7 +158,8 @@ JitObject::operator bool() const
 
 void JitObject::rebuildDebugInformation()
 {
-	functionClass->pimpl->createDebugInfo(functionClass->debugInformation);
+	if(functionClass != nullptr)
+		functionClass->pimpl->createDebugInfo(functionClass->debugInformation);
 }
 
 hise::DebugableObjectBase* JitObject::getDebugObject(const juce::String& token)

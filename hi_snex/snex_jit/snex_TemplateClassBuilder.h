@@ -262,12 +262,19 @@ struct ContainerNodeBuilder : public TemplateClassBuilder
 	{
 		static FunctionData constructorFunction(StructType* st)
 		{
-			FunctionData f;
-			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
-			f.returnType = TypeInfo(Types::ID::Void);
-			f.inliner = Inliner::createHighLevelInliner(f.id, defaultForwardInliner);
+			if (st->hasConstructor())
+			{
+				FunctionData f;
+				f.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
+				f.returnType = TypeInfo(Types::ID::Void);
+				f.inliner = Inliner::createHighLevelInliner(f.id, defaultForwardInliner);
 
-			return f;
+				return f;
+			}
+			else
+			{
+				return {};
+			}
 		}
 
 		static Result defaultForwardInliner(InlineData* b);
@@ -288,15 +295,65 @@ private:
 	int numChannels;
 };
 
+struct AsmInlineData;
 
 struct WrapBuilder : public TemplateClassBuilder
 {
-	
+	/** This struct holds all the information you need if you want to 
+	    map an external function to a given callback. */
+	struct ExternalFunctionMapData
+	{
+		ExternalFunctionMapData(Compiler& c, AsmInlineData* d);
+
+		/** Returns the amount of channels that this function is using. 
+		
+			It looks in the last argument, which is usually either a ProcessData or a span<float, NumChannels> 
+			type for each function where this is relevant. 
+		*/
+		int getChannelFromLastArg() const;
+
+		int getTemplateConstant(int index) const;
+
+		Result insertFunctionPtrToArgReg(void* ptr, int index = 0);
+
+		Result emitRemappedFunction(FunctionData& f);
+
+		FunctionData getCallbackFromObject(Types::ScriptnodeCallbacks::ID cb);
+
+		void* getWrappedFunctionPtr(Types::ScriptnodeCallbacks::ID cb);
+
+		void setExternalFunctionPtrToCall(void* mainFunctionPointer);
+
+
+	private:
+
+		FunctionData getCallback(TypeInfo t, Types::ScriptnodeCallbacks::ID cb, const Array<TypeInfo>& functionArgs);
+
+		void* mainFunction = nullptr;
+		Compiler& c;
+		WeakReference<BaseScope> scope;
+		TypeInfo objectType;
+		AsmCodeGenerator& acg;
+		TemplateParameter::List tp;
+		
+		AssemblyRegister::Ptr target;
+		AssemblyRegister::Ptr object;
+
+		AssemblyRegister::List argumentRegisters;
+		
+
+		AssemblyRegister::Ptr createPointerArgument(void* ptr);
+	};
 
 	WrapBuilder(Compiler& c, const Identifier& id, int numChannels);
 
 	/** Use this constructor for all wrappers that have an int as first argument before the object. */
 	WrapBuilder(Compiler& c, const Identifier& id, const Identifier& constantArg, int numChannels);
+
+	~WrapBuilder()
+	{
+		flush();
+	}
 
 	/** This function will replace the given callback with an externally defined function that wraps the original callback. 
 	
@@ -310,7 +367,7 @@ struct WrapBuilder : public TemplateClassBuilder
 		If this function is templated, you can supply a templateMapFunction which takes a TemplateParameter::List as argument and needs
 		to return the matching (compile-time-defined) template function instance:
 
-		auto mapFunction = [](const TemplateParameter::List& l)
+		auto mapFunction = [](FunctionData& f, const TemplateParameter::List& l)
 		{
 			int firstConstant = l[0].constant;
 			ComplexType::Ptr type = l[1].type;
@@ -319,17 +376,20 @@ struct WrapBuilder : public TemplateClassBuilder
 			{
 			    if(type == ProcessDataType<2>)
 				{
-				     return (void*)process_function<16, ProcessDataType<2>;
+					 f.function = (void*)process_function<16, ProcessDataType<2>;
+					 return true;
 				}
 
 				// ...
 			}
+
+			return false;
 		};
 
 		Be aware that the template parameter list will have all arguments of the original function call appended after the template class
 		parameters, so you can decide which function to use
 	*/
-	void mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<void*(const TemplateParameter::List& list)>& templateMapFunction);
+	void mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<Result(ExternalFunctionMapData&)>& templateMapFunction);
 
 	void init(Compiler& c, int numChannels);
 
@@ -363,8 +423,6 @@ struct WrapBuilder : public TemplateClassBuilder
 		
 			You can use this in the template map lambda to find out which channel to pass into the template function.
 		*/
-		static int getChannelFromFixData(const TypeInfo& p);
-
 		static Result constructorInliner(InlineData* b);
 
 		static FunctionData constructorFunction(StructType* st)
@@ -377,6 +435,7 @@ struct WrapBuilder : public TemplateClassBuilder
 
 			return f;
 		}
+
 	};
 
 	/** A function prototype that returns a function for the given struct type. */

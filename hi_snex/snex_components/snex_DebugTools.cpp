@@ -97,12 +97,16 @@ bool debug::SymbolProvider::ComplexMemberToken::matches(const String& input, con
 
 	if (previousToken.endsWith("."))
 	{
-
-		auto typeInfo = parent.c.getNamespaceHandler().parseTypeFromTextInput(previousToken.upToLastOccurrenceOf(".", false, false), lineNumber);
-
-		if (typeInfo.getTypedIfComplexType<ComplexType>() == p.get())
+		try
 		{
-			return matchesInput(input, tokenContent);
+			auto typeInfo = parent.c.getNamespaceHandler().parseTypeFromTextInput(previousToken.upToLastOccurrenceOf(".", false, false), lineNumber);
+
+			if (typeInfo.getTypedIfComplexType<ComplexType>() == p.get())
+				return matchesInput(input, tokenContent);
+		}
+		catch (ParserHelpers::CodeLocation::Error& e)
+		{
+			return false;
 		}
 	}
 

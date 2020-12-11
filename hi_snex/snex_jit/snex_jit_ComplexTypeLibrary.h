@@ -304,7 +304,9 @@ struct StructType : public ComplexType,
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
 	void dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const override;
 	InitialiserList::Ptr makeDefaultInitialiserList() const override;
-	
+
+	/** If this struct type has not a default constructor, it will create one. */
+	bool createDefaultConstructor();
 
 	bool matchesOtherType(const ComplexType& other) const override
 	{

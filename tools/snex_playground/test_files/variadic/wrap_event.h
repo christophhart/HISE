@@ -15,7 +15,7 @@ struct X
     int z = 12;
 };
 
-wrap::midi<X> m;
+wrap::event<X> m;
 
 int main(int input)
 {

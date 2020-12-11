@@ -123,7 +123,9 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 		for (const auto& f : fCopy)
 		{
 			auto fData = f(st);
-			st->addJitCompiledMemberFunction(fData);
+
+			if(fData.id.isValid())
+				st->addJitCompiledMemberFunction(fData);
 		}
 
 		st->finaliseExternalDefinition();
@@ -142,8 +144,11 @@ void TemplateClassBuilder::Helpers::addChildObjectPtr(StatementPtr newCall, Synt
 	auto offset = parentType->getMemberOffset(pId);
 	auto childType = parentType->getMemberComplexType(pId);
 
-	auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(childType, false, true), offset);
-	dynamic_cast<Operations::FunctionCall*>(newCall.get())->setObjectExpression(obj);
+	if (auto fc = dynamic_cast<Operations::FunctionCall*>(newCall.get()))
+	{
+		auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(childType, false, true), offset);
+		fc->setObjectExpression(obj);
+	}
 }
 
 snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createBlock(SyntaxTreeInlineData* d)
@@ -411,8 +416,6 @@ snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::VariadicHelp
 			d->location.throwError(s);
 		}
 
-		
-
 		Helpers::addChildObjectPtr(newCall, d, st, i-offset);
 		bl->addStatement(newCall);
 	}
@@ -437,78 +440,6 @@ WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, const Identifier& co
 	init(c, numChannels);
 }
 
-void WrapBuilder::mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<void*(const TemplateParameter::List& list)>& templateMapFunction)
-{
-	auto nc = numChannels;
-	auto& jc = c;
-
-	setInlinerForCallback(cb, Inliner::InlineType::Assembly, [cb, nc, &jc, templateMapFunction](InlineData* b)
-	{
-		using namespace Operations;
-
-		auto d = b->toAsmInlineData();
-
-		Array<FunctionData> matches;
-		Array<TypeInfo> args;
-
-		auto objectType = d->object->getTypeInfo().getTypedComplexType<StructType>();
-
-		if (templateMapFunction == nullptr)
-			return Result::fail("Can't deduce wrapped function pointer");
-
-		FunctionClass::Ptr fc = objectType->getFunctionClass();
-
-		auto prototype = Types::ScriptnodeCallbacks::getPrototype(jc, cb, nc);
-
-		fc->addMatchingFunctions(matches, fc->getClassName().getChildId(prototype.id.getIdentifier()));
-
-		auto tp = objectType->getTemplateInstanceParameters();
-
-		for (auto a : d->args)
-		{
-			args.add(a->getTypeInfo());
-			tp.add(TemplateParameter(a->getTypeInfo()));
-		}
-
-		void* functionPointerToWrap = nullptr;
-
-		if (templateMapFunction)
-		{
-			functionPointerToWrap = templateMapFunction(tp);
-		}
-
-		if (functionPointerToWrap == nullptr)
-			return Result::fail("Can't find function for template parameters " + TemplateParameter::ListOps::toString(tp));
-
-		for (auto& m : matches)
-		{
-			if (m.matchesArgumentTypes(args))
-			{
-				AsmCodeGenerator::TemporaryRegister functionPointer(d->gen, d->object->getScope(), TypeInfo(Types::ID::Pointer, true, false));
-
-				auto fReg = functionPointer.tempReg;
-
-				fReg->createRegister(d->gen.cc);
-				d->gen.cc.mov(PTR_REG_W(fReg), (uint64_t)m.function);
-				d->args.insert(0, fReg);
-
-				FunctionData f;
-				f.id = m.id;
-				f.addArgs("functionPointer", TypeInfo(Types::ID::Pointer, true, false));
-				f.args.addArray(m.args);
-				f.function = functionPointerToWrap;
-				f.returnType = m.returnType;
-
-				auto r = d->gen.emitFunctionCall(d->target, f, d->object, d->args);
-
-				if (!r.wasOk())
-					return r;
-			}
-		}
-
-		return Result::ok();
-	});
-}
 
 void WrapBuilder::init(Compiler& c, int numChannels)
 {
@@ -627,7 +558,9 @@ void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inlin
 
 	InitialiseStructFunction replacer = [fToReplace, t, inliner](const TemplateObject::ConstructData& cd, StructType* st)
 	{
-		FunctionClass::Ptr fc = st->getMemberTypeInfo("obj").getComplexType()->getFunctionClass();
+		//FunctionClass::Ptr fc = st->getMemberTypeInfo("obj").getComplexType()->getFunctionClass();
+
+		FunctionClass::Ptr fc = st->getFunctionClass();
 
 		Array<FunctionData> matches;
 
@@ -915,26 +848,10 @@ snex::jit::FunctionData ContainerNodeBuilder::Helpers::setParameterFunction(Stru
 	return sf;
 }
 
-int WrapBuilder::Helpers::getChannelFromFixData(const TypeInfo& p)
-{
-	if (auto st = p.getTypedIfComplexType<StructType>())
-	{
-		if (st->id.getIdentifier() == Identifier("ProcessData"))
-		{
-			return st->getTemplateInstanceParameters()[0].constant;
-		}
-	}
-
-	if (auto sp = p.getTypedIfComplexType<SpanType>())
-	{
-		return sp->getNumElements();
-	}
-
-	return -1;
-}
-
 juce::Result WrapBuilder::Helpers::constructorInliner(InlineData* b)
 {
+	using namespace Operations;
+
 	auto d = b->toSyntaxTreeData();
 	auto wrapType = TemplateClassBuilder::Helpers::getStructTypeFromInlineData(b);
 	
@@ -943,15 +860,197 @@ juce::Result WrapBuilder::Helpers::constructorInliner(InlineData* b)
 	
 	if (auto childType = dynamic_cast<StructType*>(wrapType->getMemberComplexType(pId).get()))
 	{
-		auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(childType, d, childType->getConstructorId(), {});
-		auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(childType, false, true), offset);
-		dynamic_cast<Operations::FunctionCall*>(newCall.get())->setObjectExpression(obj);
-		d->target = newCall;
+		if (!childType->hasConstructor())
+		{
+			d->target = new Noop(d->location);
+			return Result::ok();
+		}
 
-		return Result::ok();
+		auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(childType, d, childType->getConstructorId(), {});
+
+		if (auto fc = as<FunctionCall>(newCall))
+		{
+			auto obj = new MemoryReference(d->location, d->object, TypeInfo(childType, false, true), offset);
+			fc->setObjectExpression(obj);
+			d->target = newCall;
+			return Result::ok();
+		}
 	}
 
 	return Result::fail("Can't find obj constructor");
+}
+
+
+
+WrapBuilder::ExternalFunctionMapData::ExternalFunctionMapData(Compiler& c_, AsmInlineData* d) :
+	c(c_),
+	acg(d->gen),
+	objectType(d->object->getTypeInfo()),
+	scope(d->object->getScope()),
+	target(d->target),
+	object(d->object)
+{
+	tp = objectType.getTypedComplexType<StructType>()->getTemplateInstanceParameters();
+	argumentRegisters.addArray(d->args);
+
+	// Add them for the template map function
+	for (auto& a : argumentRegisters)
+		tp.add(TemplateParameter(a->getTypeInfo()));
+}
+
+int WrapBuilder::ExternalFunctionMapData::getChannelFromLastArg() const
+{
+	auto p = tp.getLast().type;
+
+	if (auto st = p.getTypedIfComplexType<StructType>())
+	{
+		if (st->id.getIdentifier() == Identifier("ProcessData"))
+			return st->getTemplateInstanceParameters()[0].constant;
+	}
+
+	if (auto sp = p.getTypedIfComplexType<SpanType>())
+		return sp->getNumElements();
+
+	return -1;
+}
+
+int WrapBuilder::ExternalFunctionMapData::getTemplateConstant(int index) const
+{
+	jassert(tp[index].constantDefined);
+	return tp[index].constant;
+}
+
+juce::Result WrapBuilder::ExternalFunctionMapData::insertFunctionPtrToArgReg(void* ptr, int index /*= 0*/)
+{
+	if (ptr)
+	{
+		argumentRegisters.insert(index, createPointerArgument(ptr));
+		return Result::ok();
+	}
+	else
+		return Result::fail("Can't find function pointer");
+}
+
+Result WrapBuilder::ExternalFunctionMapData::emitRemappedFunction(FunctionData& f)
+{
+	if (mainFunction == nullptr)
+		return Result::fail(f.getSignature() + ": unspecified external function pointer");
+
+	f.inliner = nullptr;
+	f.function = mainFunction;
+
+	f.args.clear();
+
+	f.functionName = "external " + f.getSignature();
+
+	int i = 1;
+
+	for (auto d : argumentRegisters)
+		f.addArgs(Identifier("a" + String(i++)), d->getTypeInfo());
+
+	if (!f.isResolved())
+		return Result::fail("Can't find function for template parameters " + TemplateParameter::ListOps::toString(tp));
+	else 
+		return acg.emitFunctionCall(target, f, object, argumentRegisters);
+}
+
+snex::jit::FunctionData WrapBuilder::ExternalFunctionMapData::getCallbackFromObject(Types::ScriptnodeCallbacks::ID cb)
+{
+	Array<TypeInfo> args;
+
+	for (auto a : argumentRegisters)
+		args.add(a->getTypeInfo());
+
+	return getCallback(objectType, cb, args);
+}
+
+void* WrapBuilder::ExternalFunctionMapData::getWrappedFunctionPtr(Types::ScriptnodeCallbacks::ID cb)
+{
+	if (auto st = objectType.getTypedComplexType<StructType>())
+	{
+		auto t = st->getMemberTypeInfo("obj");
+		jassert(t.isComplexType());
+
+		// We have to recreate the argument list from the default callbacks because it might want another callback
+		auto prototypes = ScriptnodeCallbacks::getAllPrototypes(c, getChannelFromLastArg());
+
+		Array<TypeInfo> args;
+
+		for (auto a : prototypes[cb].args)
+			args.add(a.typeInfo);
+		
+		return getCallback(t, cb, args).function;
+	}
+
+	return nullptr;
+}
+
+void WrapBuilder::ExternalFunctionMapData::setExternalFunctionPtrToCall(void* mainFunctionPointer)
+{
+	mainFunction = mainFunctionPointer;
+}
+
+
+
+snex::jit::FunctionData WrapBuilder::ExternalFunctionMapData::getCallback(TypeInfo t, Types::ScriptnodeCallbacks::ID cb, const Array<TypeInfo>& args)
+{
+	Array<FunctionData> matches;
+
+	auto st = t.getTypedComplexType<StructType>();
+
+	FunctionClass::Ptr fc = st->getFunctionClass();
+
+	auto prototype = Types::ScriptnodeCallbacks::getPrototype(c, cb, getChannelFromLastArg());
+	fc->addMatchingFunctions(matches, fc->getClassName().getChildId(prototype.id.getIdentifier()));
+
+	for (auto& m : matches)
+	{
+		if (m.matchesArgumentTypes(args))
+			return m;
+	}
+
+	return {};
+}
+
+snex::jit::AssemblyRegister::Ptr WrapBuilder::ExternalFunctionMapData::createPointerArgument(void* ptr)
+{
+	AsmCodeGenerator::TemporaryRegister functionPointer(acg, scope, TypeInfo(Types::ID::Pointer, true, false));
+	auto fReg = functionPointer.tempReg;
+	fReg->createRegister(acg.cc);
+	acg.cc.mov(PTR_REG_W(fReg), (uint64_t)ptr);
+	return fReg;
+}
+
+
+void WrapBuilder::mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<Result(ExternalFunctionMapData&)>& templateMapFunction)
+{
+	auto nc = numChannels;
+	auto& jc = c;
+
+	setInlinerForCallback(cb, Inliner::InlineType::Assembly, [cb, nc, &jc, templateMapFunction](InlineData* b)
+		{
+			using namespace Operations;
+
+			auto d = b->toAsmInlineData();
+
+			ExternalFunctionMapData mapData(jc, d);
+
+			auto f = mapData.getCallbackFromObject(cb);
+
+			auto r = Result::ok();
+
+			if (templateMapFunction)
+			{
+				auto r = templateMapFunction(mapData);
+
+				if (!r.wasOk())
+					return r;
+
+				return mapData.emitRemappedFunction(f);
+			}
+			else
+				return Result::fail("Can't find map function");
+		});
 }
 
 }
