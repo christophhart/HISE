@@ -477,7 +477,7 @@ HiSlider::HiSlider(const String &name) :
 
 void HiSlider::mouseDown(const MouseEvent &e)
 {
-	if (e.mods.isLeftButtonDown())
+	if (e.mods.isLeftButtonDown() && !e.mods.isCtrlDown())
 	{
 		if (e.mods.isShiftDown() && getWidth() > 25)
 		{
