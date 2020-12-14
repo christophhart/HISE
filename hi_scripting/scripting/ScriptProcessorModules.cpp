@@ -188,7 +188,6 @@ void JavascriptMidiProcessor::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::Server(this));
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(new ScriptingApi::Colours());
-	scriptEngine->registerApiClass(new ScriptExpansionHandler(this));
 	scriptEngine->registerApiClass(synthObject);
 	scriptEngine->registerApiClass(samplerObject);
     

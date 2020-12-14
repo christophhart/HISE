@@ -42,6 +42,7 @@ struct ScriptExpansionHandler::Wrapper
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getExpansionList);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansion);
+	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getCurrentExpansion);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setExpansionCallback);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, encodeWithCredentials);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, refreshExpansions);
@@ -50,7 +51,7 @@ struct ScriptExpansionHandler::Wrapper
 };
 
 ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
-	ApiClass(3),
+	ConstScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_), 3),
 	ControlledObject(dynamic_cast<ControlledObject*>(jp_)->getMainController()),
 	jp(jp_),
 	expansionCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 1),
@@ -70,6 +71,7 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_0(refreshExpansions);
 	ADD_API_METHOD_1(installExpansionFromPackage);
 	ADD_API_METHOD_1(setAllowedExpansionTypes);
+	ADD_API_METHOD_0(getCurrentExpansion);
 
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::FileBased), Expansion::FileBased);
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::Intermediate), Expansion::Intermediate);
@@ -133,6 +135,14 @@ var ScriptExpansionHandler::getExpansion(var name)
 	}
 
 	return var();
+}
+
+var ScriptExpansionHandler::getCurrentExpansion()
+{
+	if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+		return new ScriptExpansionReference(getScriptProcessor(), e);
+
+	return {};
 }
 
 void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
