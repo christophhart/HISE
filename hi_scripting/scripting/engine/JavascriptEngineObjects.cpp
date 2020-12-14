@@ -27,6 +27,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		setMethod("join", join);
 		setMethod("push", push);
         setMethod("sort", sort);
+        setMethod("sortNatural", sortNatural);
 		setMethod("insert", insert);
         setMethod("indexOf", indexOf);
         setMethod("isArray", isArray);
@@ -118,7 +119,19 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
         
         return var();
     }
+
+    static var sortNatural(Args a)
+    {
+        if (Array<var>* array = a.thisObject.getArray())
+        {
+            std::sort (array->begin(), array->end(),
+               [] (const String& a, const String& b) { return a.compareNatural (b) < 0; });
+        }
+        
+        return var();
+    }
     
+
     static var reserve(Args a)
     {
         if (Array<var>* array = a.thisObject.getArray())
@@ -213,6 +226,9 @@ public:
 
 	/** Sorts the array. */
 	void sort() {}
+
+	/** Sorts array of numbers, objects, or strings with "number in string" priority. Can also sort a combination of all types*/
+	void sortNatural() {}
 
 	/** Clears the array. */
 	void clear() {}

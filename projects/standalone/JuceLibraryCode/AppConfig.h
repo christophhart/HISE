@@ -49,6 +49,8 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
+#define JUCE_PROJUCER_VERSION 0x50405
+
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                  1
 #define JUCE_MODULE_AVAILABLE_hi_components               1
@@ -157,10 +159,6 @@
  //#define CRASH_ON_GLITCH 0
 #endif
 
-#ifndef    HISE_ENABLE_EXPANSIONS
- #define   HISE_ENABLE_EXPANSIONS 1
-#endif
-
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS
  #define   ENABLE_SCRIPTING_BREAKPOINTS 1
 #endif
@@ -199,6 +197,10 @@
 
 #ifndef    USE_SPLASH_SCREEN
  //#define USE_SPLASH_SCREEN 0
+#endif
+
+#ifndef    HISE_USE_CUSTOM_EXPANSION_TYPE
+ //#define HISE_USE_CUSTOM_EXPANSION_TYPE 0
 #endif
 
 #ifndef    HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON

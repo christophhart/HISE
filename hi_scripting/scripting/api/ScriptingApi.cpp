@@ -893,6 +893,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setLatencySamples);
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
+	API_METHOD_WRAPPER_1(Engine, getSystemTime);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -995,6 +996,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(getDspNetworkReference);
 	ADD_API_METHOD_0(createExpansionHandler);
 	ADD_API_METHOD_3(showYesNoWindow);
+	ADD_API_METHOD_1(getSystemTime);
 }
 
 
@@ -1977,6 +1979,11 @@ void ScriptingApi::Engine::redo()
 
 	MessageManager::callAsync(f);
 }
+
+String ScriptingApi::Engine::getSystemTime(bool includeDividerCharacters)
+{
+	return Time::getCurrentTime().toISO8601(includeDividerCharacters);
+};
 
 // ====================================================================================================== Sampler functions
 

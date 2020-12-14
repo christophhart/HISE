@@ -74,8 +74,17 @@ var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return g
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
 	for (int i = 0; i < 128; i++) data[i] = valueToFill;
-	empty = false;
-	numValues = 128;
+
+	if (valueToFill == -1)
+	{
+		empty = true;
+		numValues = 0;
+	}
+	else
+	{
+		empty = false;
+		numValues = 128;
+	}
 }
 
 void ScriptingObjects::MidiList::clear()
@@ -87,12 +96,18 @@ void ScriptingObjects::MidiList::clear()
 
 int ScriptingObjects::MidiList::getValue(int index) const
 {
-	if (index < 127 && index >= 0) return (int)data[index]; else return -1;
+	if (index <= 127 && index >= 0) return (int)data[index]; else return -1;
 }
 
 int ScriptingObjects::MidiList::getValueAmount(int valueToCheck)
 {
-	if (empty) return 0;
+	if (empty)
+	{
+		if (valueToCheck == -1)
+			return 128;
+
+	 	return 0;
+	}
 
 	int amount = 0;
 
@@ -137,9 +152,9 @@ void ScriptingObjects::MidiList::setValue(int index, int value)
                 numValues++;
                 empty = false;
             }
-            
-            data[index] = value;
 		}
+
+		data[index] = value;
 	}
 }
 
