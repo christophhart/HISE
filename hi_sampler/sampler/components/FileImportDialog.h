@@ -74,8 +74,6 @@ public:
     void resized();
     void buttonClicked (Button* buttonThatWasClicked);
 
-
-
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	ImportMode mode;
