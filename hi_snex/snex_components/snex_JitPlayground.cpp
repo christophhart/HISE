@@ -41,6 +41,7 @@ using namespace juce;
 
 SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	ui::WorkbenchComponent(data, true),
+	ui::WorkbenchData::CodeProvider(data),
 	bpProvider(getGlobalScope()),
 	mclDoc(doc),
 	editor(mclDoc),
@@ -56,31 +57,19 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	compileButton("Compile"),
 	resumeButton("Resume"),
 	conditionUpdater(*this),
-	testMode(isTestMode),
-	backgroundCompileThread(data, isTestMode)
+	testMode(isTestMode)
 {
 	if (isTestMode)
 	{
-		data->setContentFunctions(BIND_MEMBER_FUNCTION_0(SnexPlayground::loadTestfile), BIND_MEMBER_FUNCTION_1(SnexPlayground::saveTestFile));
-		data->setCompileManager(BIND_MEMBER_FUNCTION_0(SnexPlayground::triggerRecompile));
-		data->setCompileProcedure(std::bind(&ui::WorkbenchData::compileTestCase, getWorkbench()));
-
-		data->setPreprocessFunction(std::bind(&mcl::FullEditor::injectBreakpointCode, &editor, std::placeholders::_1));
-
+		data->setCodeProvider(this);
 		editor.addBreakpointListener(this);
-
 	}
-	else
-	{
-		data->setCompileProcedure(std::bind(&ui::WorkbenchData::defaultCompilation, getWorkbench()));
-	}
+	
 
 	stateViewer = new ui::OptimizationProperties(getWorkbench());
 
 	for (auto o : OptimizationIds::getAllIds())
 		getGlobalScope().addOptimization(o);
-
-	getGlobalScope().getBreakpointHandler().setActive(true);
 
 	auto& ed = editor.editor;
 
@@ -628,6 +617,11 @@ void SnexPlayground::logMessage(ui::WorkbenchData::Ptr p, int level, const juce:
 	if (level == jit::BaseCompiler::Error)
 		editor.editor.setError(s);
 
+	if (level == BaseCompiler::MessageType::Blink)
+	{
+		editor.sendBlinkMessage(s.getIntValue());
+	}
+
 	auto m = p->convertToLogMessage(level, s);
 
 	if (m.isEmpty())
@@ -670,11 +664,18 @@ void SnexPlayground::mouseDown(const MouseEvent& event)
 {
 	if (testMode && event.getMouseDownX() < 50)
 	{
+		hise::PopupLookAndFeel claf;
 		PopupMenu m;
+		m.setLookAndFeel(&claf);
+
+		m.addSectionHeader("Load test file");
+		
 		
 		Array<File> addedFiles;
 
 		auto root = JitFileTestCase::getTestFileDirectory();
+
+		m.addItem(90000, root.getFullPathName(), false, false);
 
 		for(auto c: root.findChildFiles(File::findDirectories, false))
 			addToSubMenu(currentTestFile, addedFiles, m, c);
@@ -729,7 +730,7 @@ void SnexPlayground::createTestSignal()
 #endif
 }
 
-String SnexPlayground::loadTestfile()
+String SnexPlayground::loadCode() const
 {
 	String s;
 
@@ -755,8 +756,13 @@ String SnexPlayground::loadTestfile()
 
 	if (replaceContentInEditor)
 	{
-		doc.clearUndoHistory();
-		doc.replaceAllContent(s.removeCharacters("\r"));
+		auto unconstThis = const_cast<SnexPlayground*>(this);
+
+		MessageManager::callAsync([unconstThis, s]()
+		{
+			unconstThis->doc.clearUndoHistory();
+			unconstThis->doc.replaceAllContent(s.removeCharacters("\r"));
+		});
 	}
 
 	return s;
@@ -785,7 +791,7 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 	}
 }
 
-bool SnexPlayground::saveTestFile(const String& s)
+bool SnexPlayground::saveCode(const String& s)
 {
 	if (saveTest)
 	{
@@ -1066,6 +1072,26 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 	{
 		if (level == (int)snex::BaseCompiler::Warning)
 			parent.editor.editor.addWarning(s);
+	}
+
+	snex::ui::WorkbenchData::CompileResult BackgroundCompileThread::compile(const String& s)
+	{
+		lastTest = new JitFileTestCase(getParent()->getGlobalScope(), s);
+
+		ui::WorkbenchData::CompileResult r;
+
+		r.r = lastTest->compileWithoutTesting();
+		r.assembly = lastTest->assembly;
+		r.obj = lastTest->obj;
+		return r;
+	}
+
+	void BackgroundCompileThread::postCompile(ui::WorkbenchData::CompileResult& lastResult)
+	{
+		if (lastTest != nullptr)
+		{
+			lastResult.r = lastTest->testAfterCompilation();
+		}
 	}
 
 }

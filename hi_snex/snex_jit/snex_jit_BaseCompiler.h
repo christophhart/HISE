@@ -62,6 +62,9 @@ public:
 		ProcessMessage,
 		VerboseProcessMessage,
 		AsmJitMessage,
+		ValueDump,
+		ValueName,
+		Blink,
 		numMessageTypes
 	};
 

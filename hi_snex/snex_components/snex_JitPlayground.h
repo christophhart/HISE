@@ -201,18 +201,18 @@ public:
 
 
 /** A simple background thread that does the compilation. */
-class BackgroundCompileThread: public Thread
+class BackgroundCompileThread: public Thread,
+	public ui::WorkbenchData::CompileHandler
 {
 public:
 
-	BackgroundCompileThread(ui::WorkbenchData::Ptr data_, bool enable) :
+	BackgroundCompileThread(ui::WorkbenchData::Ptr data_) :
 		Thread("SnexPlaygroundThread"),
-		data(data_)
+		CompileHandler(data_)
 	{
+		getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(this);
+
 		setPriority(4);
-		
-		if(enable)
-			startThread();
 	}
 
 	~BackgroundCompileThread()
@@ -220,39 +220,42 @@ public:
 		stopThread(3000);
 	}
 
-	bool compileCode()
-	{
-		currentCode = data->getCode();
-		dirty.store(true);
-		notify();
-		return true;
-	}
+	ui::WorkbenchData::CompileResult compile(const String& s) override;
 
+	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override;
+
+	bool triggerCompilation() override
+	{
+		getParent()->getGlobalScope().getBreakpointHandler().abort();
+
+		if (isThreadRunning())
+			stopThread(3000);
+
+		startThread();
+
+		return false;
+	}
 
 	void run() override
 	{
-		while (!threadShouldExit())
+		try
 		{
-			if (dirty.load())
-			{
-				data->handleCompilation();
-				dirty.store(false);
-			}
-
-			wait(1000);
+			getParent()->handleCompilation();
+		}
+		catch (...)
+		{
+			jassertfalse;
 		}
 	}
 
-	std::atomic<bool> dirty = { false };
-	String currentCode = "";
 
-	ui::WorkbenchData::Ptr data;
+	ScopedPointer<JitFileTestCase> lastTest;
 };
 
 
 
-
 class SnexPlayground : public ui::WorkbenchComponent,
+	public ui::WorkbenchData::CodeProvider,
 	public CodeDocument::Listener,
 	public BreakpointHandler::Listener,
 	public mcl::GutterComponent::BreakpointListener
@@ -293,57 +296,10 @@ public:
 		SnexPlayground& parent;
 	};
 
-	
-
 	void codeDocumentTextInserted(const juce::String& , int ) override
 	{
 		auto lineToShow = jmax(0, consoleContent.getNumLines() - console.getNumLinesOnScreen());
 		console.scrollToLine(lineToShow);
-	}
-
-	void fillLine(Graphics& g, int lineToPaint, Colour c)
-	{
-#if 0
-		int firstLine = editor.getFirstLineOnScreen();
-		int lastLine = firstLine + editor.getNumLinesOnScreen();
-
-		if (lineToPaint >= firstLine && lineToPaint <= lastLine)
-		{
-			auto lineHeight = editor.getLineHeight();
-			auto b = editor.getLocalBounds();
-
-			int x = editor.getGutterComponent()->getWidth();
-			int y = lineHeight * (lineToPaint - firstLine - 1);
-			int w = editor.getWidth();
-			int h = lineHeight;
-
-			g.setColour(c);
-			g.fillRect(x, y, w, h);
-		}
-#endif
-	}
-
-	void drawBreakpoints(Graphics& g) override
-	{
-		auto disabledRows = conditionUpdater.lastRange;
-
-		if (!disabledRows.isEmpty())
-		{
-			auto total = disabledRows.getTotalRange();
-
-			for (int i = total.getStart(); i < total.getEnd(); i++)
-			{
-				if (disabledRows.contains(i))
-				{
-					fillLine(g, i, Colour(0x8838383A));
-				}
-			}
-		}
-
-		if (currentBreakpointLine > 0)
-		{
-			fillLine(g, currentBreakpointLine, Colours::red.withAlpha(0.1f));
-		}
 	}
 
 	void codeDocumentTextDeleted(int , int ) override
@@ -353,19 +309,9 @@ public:
 
 	void breakpointsChanged(mcl::GutterComponent& g) override
 	{
-		triggerRecompile();
+		getWorkbench()->triggerRecompile();
 	}
 
-	bool triggerRecompile()
-	{
-		if (testMode)
-			backgroundCompileThread.compileCode();
-
-		return false;
-	}
-
-    static juce::String getDefaultCode(bool getTestCode=false);
-    
 	SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents=false);
 
 	~SnexPlayground();
@@ -394,9 +340,17 @@ public:
 		}
 	};
 
-	String loadTestfile();
+	String loadCode() const override;
 
-	bool saveTestFile(const String& s);
+	bool preprocess(String& code) override
+	{
+		if(testMode)
+			return editor.injectBreakpointCode(code);
+
+		return false;
+	}
+
+	bool saveCode(const String& s) override;
 
 	
 
@@ -454,27 +408,7 @@ private:
 
 		editor.setCurrentBreakline(currentBreakpointLine);
 
-		resumeButton.setEnabled(type == BreakpointHandler::Break);
-
-#if 0
-		graph.setBuffer(b);
-		graph.setCurrentPosition(currentSampleIndex);
-#endif
-
-		juce::String s;
-
-		s << "Line " << currentBreakpointLine;
-		s << ": Execution paused at ";
-
-		if (currentParameter.isNotEmpty())
-			s << "parameter callback " << currentParameter;
-		else
-			s << juce::String(currentSampleIndex.load());
-
-		resultLabel.setText(s, dontSendNotification);
-		editor.repaint();
 		bpProvider.rebuild();
-		resized();
 	}
 
 	void preCompile() override
@@ -485,6 +419,7 @@ private:
 		assemblyDoc.replaceAllContent({});
 		consoleContent.replaceAllContent({});
 		consoleContent.clearUndoHistory();
+		editor.setCurrentBreakline(-1);
 	}
 
 	/** Don't change the workbench in the editor. */
@@ -493,8 +428,6 @@ private:
 	void recompiled(ui::WorkbenchData::Ptr p) override;
 
 	const bool testMode;
-
-	BackgroundCompileThread backgroundCompileThread;
 
 	CodeDocument doc;
 	mcl::TextDocument mclDoc;

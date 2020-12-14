@@ -97,6 +97,23 @@ class ConsoleFunctions : public JitCallableObject
 		return value;
 	}
 
+	static void dumpObject(void* consoleObject, int dumpedObjectIndex, void* dataPtr)
+	{
+		auto c = static_cast<ConsoleFunctions*>(consoleObject);
+
+		if (auto ptr = c->dumpItems[dumpedObjectIndex])
+		{
+			int l = 0;
+			String s;
+
+			s << "Dump object " << ptr->id.toString();
+			s << " at line " << String(ptr->lineNumber) << "\n";
+
+			ptr->type->dumpTable(s, l, dataPtr, dataPtr);
+			c->logAsyncIfNecessary(s);
+		}
+	}
+
 	void dump()
 	{
 		if (gs != nullptr)
@@ -122,6 +139,12 @@ class ConsoleFunctions : public JitCallableObject
 			MessageManager::callAsync(f);
 	}
 
+	static void blink(void* obj, int lineNumber)
+	{
+		auto c = static_cast<ConsoleFunctions*>(obj);
+		c->gs->sendBlinkMessage(lineNumber);
+	}
+
 	void stop(bool condition)
 	{
 		if (condition && gs != nullptr)
@@ -131,11 +154,11 @@ class ConsoleFunctions : public JitCallableObject
 			if (handler.isActive())
 			{
 				handler.breakExecution();
-
+				
 				while (!handler.shouldResume())
 				{
 					if (handler.canWait())
-						Thread::getCurrentThread()->wait(100);
+						Thread::getCurrentThread()->wait(5000);
 				}
 			}
 		}
@@ -168,6 +191,15 @@ class ConsoleFunctions : public JitCallableObject
 	void registerAllObjectFunctions(GlobalScope*) override;
 
 public:
+
+	struct DumpItem
+	{
+		ComplexType::Ptr type;
+		NamespacedIdentifier id;
+		int lineNumber;
+	};
+
+	OwnedArray<DumpItem> dumpItems;
 
 	ConsoleFunctions(GlobalScope* scope_) :
 		JitCallableObject(NamespacedIdentifier("Console")),

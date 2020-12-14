@@ -108,6 +108,11 @@ struct DebugHandler
 	*/
 	virtual void logMessage(int level, const juce::String& s) = 0;
 
+	/** Override this function and implement some kind of (asynchronous) blinking
+	    on the UI.
+	*/
+	virtual void blink(int line) {};
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DebugHandler);
 };
 
@@ -125,7 +130,7 @@ struct DataPool
 	juce::HeapBlock<char> data;
 };
 
-class BreakpointHandler: public AsyncUpdater
+class BreakpointHandler
 {
 public:
 
@@ -167,7 +172,15 @@ public:
 
 	bool shouldResume() const
 	{
-		return abortExecution || resumeOnNextCheck;
+		if (executingThread != nullptr)
+		{
+			jassert(Thread::getCurrentThread() == executingThread);
+
+			if (executingThread->threadShouldExit())
+				return true;
+		}
+
+		return resumeOnNextCheck;
 	}
 
 	bool isRunning() const
@@ -177,32 +190,54 @@ public:
 
 	void breakExecution()
 	{
-		runExection.store(false);
-		resumeOnNextCheck.store(false);
-		triggerAsyncUpdate();
+		if (!shouldAbort())
+		{
+			runExection.store(false);
+			resumeOnNextCheck.store(false);
+			sendMessage();
+		}
 	}
 
 	void resume()
 	{
-		if (!abortExecution)
+		if (executingThread != nullptr)
 		{
-			runExection.store(true);
-			resumeOnNextCheck.store(true);
-			triggerAsyncUpdate();
+			if (executingThread->threadShouldExit())
+				return;
+
+			executingThread->notify();
 		}
+
+		runExection.store(true);
+		resumeOnNextCheck.store(true);
+
+		
+		sendMessage();
+	}
+
+	bool shouldAbort() const
+	{
+		if (executingThread != nullptr)
+			return executingThread->threadShouldExit();
+
+		return false;
 	}
 
 	bool canWait() const
 	{
+		if (executingThread != nullptr)
+			return !executingThread->threadShouldExit();
+		
 		return true;
 	}
 
 	void abort()
 	{
-		abortExecution.store(true);
+		if (executingThread != nullptr)
+			executingThread->signalThreadShouldExit();
 	}
 
-	void handleAsyncUpdate()
+	void sendMessage()
 	{
 		auto e = runExection ? EventType::Resume : EventType::Break;
 		sendMessageToListeners(e);
@@ -237,8 +272,6 @@ public:
 
 	void clearTable()
 	{
-		abortExecution = false;
-
 		for (int i = 0; i < 128; i++)
 			dumpTable[i].isUsed = false;
 
@@ -273,15 +306,18 @@ public:
 	
 	bool isActive() const
 	{
-		return active;
+		return executingThread != nullptr;
 	}
 
-	void setActive(bool shouldBeActive)
+	void setExecutingThread(Thread* threadToUse)
 	{
-		active = shouldBeActive;
+		executingThread = threadToUse;
 	}
 
 private:
+
+	Thread* executingThread = nullptr;
+
 
 	bool active = false;
 	uint64 lineNumber = 0;
@@ -300,7 +336,6 @@ private:
 
 	Array<WeakReference<Listener>> listeners;
 
-	std::atomic<bool> abortExecution = { false };
 	std::atomic<bool> runExection = { true };
 	std::atomic<bool> resumeOnNextCheck = { false };
 };
@@ -710,6 +745,8 @@ public:
 		debugHandlers.removeAllInstancesOf(handler);
 	}
 
+	void sendBlinkMessage(int lineNumber);
+
 	void logMessage(const String& message);
 
 	/** Add an optimization pass ID that will be added to each compiler that uses this scope. 
@@ -768,8 +805,11 @@ public:
 
 	StringPairArray getPreprocessorDefinitions() const { return preprocessorDefinitions; }
 
+	
+
 private:
 
+	
 	StringPairArray preprocessorDefinitions;
 
 	ComplexType::Ptr blockType;

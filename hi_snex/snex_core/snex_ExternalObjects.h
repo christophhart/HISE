@@ -302,6 +302,8 @@ struct JitCompiledNode: public ReferenceCountedObject
 		return parameterList;
 	}
 
+	JitObject getJitObject() { return obj; }
+
 	void* thisPtr = nullptr;
 
 	Result r;

@@ -299,7 +299,7 @@ snex::jit::FunctionData ParameterBuilder::Helpers::connectFunction(StructType* s
 		auto target = d->args[0];
 		auto obj = d->object;
 
-		auto mem = target->getAsMemoryLocation();
+		auto mem = target->getMemoryLocationForReference();
 
 		if (mem.isNone())
 			jassertfalse;

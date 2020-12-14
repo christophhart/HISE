@@ -70,7 +70,7 @@ protected:
 		{
 			juce::String s("Param");
 			s << juce::String(i);
-			functionWrapper->addArgs(Identifier(s), TypeInfo(argTypes[i]));
+			functionWrapper->addArgs(Identifier(s), TypeInfo(argTypes[i], (argTypes[i] == Types::ID::Pointer) ? true : false));
 		}
 
 		functionWrapper->returnType = TypeInfo(returnType);

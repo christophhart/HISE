@@ -95,8 +95,7 @@ using namespace jit;
 
 struct WorkbenchData : public ReferenceCountedObject,
 	public DebugHandler,
-	public ApiProviderBase::Holder,
-	public AsyncUpdater
+	public ApiProviderBase::Holder
 {
 	static String getDefaultCode(bool getTestCode);
 	static String getDefaultNodeTemplate(const Identifier& mainClass);
@@ -107,6 +106,15 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	/** Formats the log event to print nicely on a console. */
 	String convertToLogMessage(int level, const String& s);
+
+	void blink(int line) override
+	{
+		pendingBlinks.insert(line);
+
+		MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(WorkbenchData::handleBlinks));
+	}
+
+	void handleBlinks();
 
 	void logMessage(int level, const juce::String& s) override
 	{
@@ -135,10 +143,18 @@ struct WorkbenchData : public ReferenceCountedObject,
 		return getLastJitObject().createValueTree();
 	}
 
-	ApiProviderBase* getProviderBase() override { return &lastObject; }
+	ApiProviderBase* getProviderBase() override 
+	{
+		if(lastCompileResult.r.wasOk())
+			return &lastCompileResult.obj; 
+
+		return nullptr;
+	}
 
 	void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) override
 	{
+		jassertfalse;
+
 		for (auto l : listeners)
 		{
 			if (l != nullptr)
@@ -158,7 +174,14 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		virtual void preCompile() {};
 
-		virtual void recompiled(WorkbenchData::Ptr wb) = 0;
+		/** This is called directly after the compilation. Be aware that any
+		    test that is performed in postCompile() might not be executed.
+		*/
+		virtual void recompiled(WorkbenchData::Ptr wb) {};
+
+		/** This is called after the CompileHandler::postCompile callback so if
+		    you rely on a test execution, use this callback instead. */
+		virtual void postPostCompile(WorkbenchData::Ptr wb) {};
 
 		virtual void drawBreakpoints(Graphics& g) {};
 
@@ -179,18 +202,197 @@ struct WorkbenchData : public ReferenceCountedObject,
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
+	/** Base class for all sub items (compile handlers, code providers, etc. */
+	struct SubItemBase
+	{
+		virtual ~SubItemBase() {};
 
+		WorkbenchData* getParent() { return parent.get(); }
+		const WorkbenchData* getParent() const { return parent.get(); }
 
-	using LoadFunction = std::function<String()>;
-	using PreprocessFunction = std::function<String(const String&)>;
-	using SaveFunction = std::function<bool(const String& s)>;
-	using CompileManager = std::function<bool(void)>;
-	using CompileProcedure = std::function<Result(void)>;
+	protected:
+		SubItemBase(WorkbenchData* d) :
+			parent(d)
+		{};
+
+	private:
+
+		WorkbenchData::WeakPtr parent;
+	};
+
+	struct CompileResult
+	{
+		CompileResult() :
+			r(Result::ok())
+		{};
+
+		Result r;
+		String assembly;
+		JitObject obj;
+	};
+
+	struct CompileHandler : public SubItemBase
+	{
+		CompileHandler(WorkbenchData* d) :
+			SubItemBase(d)
+		{};
+
+		virtual ~CompileHandler() {};
+
+		/** This causes a synchronous compilation.
+
+			You can override this method to postpone the compilation
+			to a background thread. If you do so, you will need to call
+
+			@returns true if the compilation was executed synchronously
+			and false if it was deferred.
+		*/
+		virtual bool triggerCompilation()
+		{
+			return getParent()->handleCompilation();
+		}
+
+		/** Compiles the given code and returns a default JIT object. 
+		
+			Override this for custom compilation tasks. This function will
+			be called synchronously or on a background thread depending on the
+			implementation of triggerCompilation().
+		*/
+		virtual CompileResult compile(const String& codeToCompile)
+		{
+			ScopedPointer<Compiler> cc = createCompiler();
+
+			CompileResult r;
+			r.obj = cc->compileJitObject(codeToCompile);
+			r.assembly = cc->getAssemblyCode();
+			r.r = cc->getCompileResult();
+
+			return r;
+		}
+
+		/** Override this method if you want to perform synchronous
+		    tasks directly after a successful compilation. 
+			
+			You can use it to run the code and allow breakpoints.
+			
+		*/
+		virtual void postCompile(CompileResult& lastResult) {};
+
+		virtual Compiler::Ptr createCompiler()
+		{
+			auto p = getParent();
+			Compiler::Ptr cc = new Compiler(p->getGlobalScope());
+
+			SnexObjectDatabase::registerObjects(*cc, p->numChannels);
+			cc->setDebugHandler(p);
+			return cc;
+		}
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(CompileHandler);
+	};
+
+	struct JitNodeCompileHandler : public CompileHandler
+	{
+		JitNodeCompileHandler(WorkbenchData* d) :
+			CompileHandler(d)
+		{};
+
+		CompileResult compile(const String& code)
+		{
+			auto p = getParent();
+
+			CompileResult r;
+
+			if (p->getConnectedFile().existsAsFile())
+			{
+				Compiler::Ptr cc = createCompiler();
+
+				auto m = p->getConnectedFile().getFileNameWithoutExtension();
+				lastNode = new Types::JitCompiledNode(*cc, code, m, p->numChannels);
+
+				r.assembly = cc->getAssemblyCode();
+				r.r = lastNode->r;
+				r.obj = lastNode->getJitObject();
+
+				return r;
+			}
+
+			r.r = Result::fail("Didn't specify file");
+			return r;
+		}
+
+		void postCompile(CompileResult& lastResult) override
+		{
+			jassertfalse; 
+			// Add the test here...
+		}
+
+		JitCompiledNode::Ptr lastNode;
+	};
+
+	/** A code provider will be used to fetch and store the data
 	
+	*/
+	struct CodeProvider: public SubItemBase
+	{
+		CodeProvider(WorkbenchData* d) :
+			SubItemBase(d)
+		{};
+
+		virtual ~CodeProvider() {};
+
+		virtual String loadCode() const = 0;
+
+		/** You can override this method and supply a custom preprocessing
+			which will not be return by loadCode() (and thus not be saved).
+		*/
+		virtual bool preprocess(String& code) 
+		{
+			ignoreUnused(code);
+			return false; 
+		}
+
+		virtual bool saveCode(const String& s) = 0;
+
+	private:
+
+		WorkbenchData::WeakPtr parent;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(CodeProvider);
+	};
+
+	struct DefaultCodeProvider: public CodeProvider
+	{
+		DefaultCodeProvider(WorkbenchData* parent):
+			CodeProvider(parent)
+		{
+
+		}
+
+		String loadCode() const override
+		{
+			auto parent = getParent();
+
+			if (parent != nullptr && parent->getConnectedFile().existsAsFile())
+				return parent->getConnectedFile().loadFileAsString();
+			else
+				return WorkbenchData::getTestTemplate();
+		}
+
+		bool saveCode(const String& s) override
+		{
+			auto parent = getParent();
+			if (parent != nullptr && parent->getConnectedFile().existsAsFile())
+				return parent->getConnectedFile().replaceWithText(s);
+		}
+
+		
+	};
 
 	WorkbenchData() :
-		memory(1024),
-		lastResult(Result::ok())
+		memory(1024)
 	{
 		memory.addDebugHandler(this);
 	};
@@ -209,15 +411,24 @@ struct WorkbenchData : public ReferenceCountedObject,
 				l->preCompile();
 		}
 
-		if (compileManager)
-			compileManager();
+		if (compileHandler != nullptr)
+			compileHandler->triggerCompilation();
 		else
 			handleCompilation();
 	}
 
-	void handleAsyncUpdate()
+	void postPostCompile()
 	{
-		if (lastResult.wasOk())
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->postPostCompile(this);
+		}
+	}
+
+	void postCompile()
+	{
+		if (getLastResult().wasOk())
 		{
 			getLastJitObject().rebuildDebugInformation();
 			rebuild();
@@ -230,73 +441,20 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 	}
 
-	/** You can add additional callbacks that will be executed after a successful compilation. 
-	
-		You can customize the way the code is being compiled (and executed) by adding other functions
-	*/
-	void setCompileProcedure(const CompileProcedure& f)
-	{
-		compileProcedure = f;
-	}
-
-	Result compileTestCase();
-
-	Result defaultCompilation();
-
-	Result compileJitNode();
-
-	bool handleCompilation()
-	{
-		if (!getGlobalScope().getBreakpointHandler().isRunning())
-		{
-			jassertfalse;
-#if 0
-			getGlobalScope().getBreakpointHandler().abort();
-
-			runThread.stopThread(1000);
-
-			while (runThread.isThreadRunning())
-			{
-				Thread::getCurrentThread()->wait(800);
-			}
-
-			memory.getBreakpointHandler().clearTable();
-#endif
-		}
-
-		jassert(compileProcedure);
-
-		lastResult = compileProcedure();
-
-		triggerAsyncUpdate();
-
-		return true;
-	}
+	bool handleCompilation();
 
 	void setUseFileAsContentSource(const File& f)
 	{
 		connectedFile = f;
 
-		setContentFunctions([f]() { return f.loadFileAsString(); }, [f](const String& s) { return f.replaceWithText(s); });
-	}
-
-	/** Set a compile function. This function must call `handleCompilation` at some point and return true or false if the compilation was done synchronously. */
-	void setCompileManager(const CompileManager& f)
-	{
-		compileManager = f;
-	}
-
-	void setContentFunctions(const LoadFunction& lf, const SaveFunction& sf)
-	{
-		loadFunction = lf;
-		saveFunction = sf;
+		codeProvider = new DefaultCodeProvider(this);
 	}
 
 	bool setCode(const String& s, NotificationType recompileOnOk)
 	{
-		if (saveFunction)
+		if (codeProvider != nullptr)
 		{
-			auto ok = saveFunction(s);
+			auto ok = codeProvider->saveCode(s);
 
 			if (ok && recompileOnOk != dontSendNotification)
 				triggerRecompile();
@@ -309,8 +467,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	String getCode() const
 	{
-		if (loadFunction)
-			return loadFunction();
+		if (codeProvider != nullptr)
+			return codeProvider->loadCode();
 
 		return "";
 	}
@@ -318,11 +476,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 	GlobalScope& getGlobalScope() { return memory; }
 	const GlobalScope& getGlobalScope() const { return memory; }
 
-	Result getLastResult() const { return lastResult; }
-	JitObject getLastJitObject() const { return lastObject; }
-	String getLastAssembly() const { return lastAssembly; }
-
-	JitCompiledNode::Ptr getCompiledNode() { return compiledNode; }
+	Result getLastResult() const { return lastCompileResult.r; }
+	JitObject getLastJitObject() const { return lastCompileResult.obj; }
+	String getLastAssembly() const { return lastCompileResult.assembly; }
 
 	void addListener(Listener* l)
 	{
@@ -345,40 +501,48 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 	}
 
-	void setPreprocessFunction(const PreprocessFunction& f)
+	void setCodeProvider(CodeProvider* newCodeProvider, NotificationType recompile=dontSendNotification)
 	{
-		preprocessFunction = f;
+		codeProvider = newCodeProvider;
+
+		if (recompile != dontSendNotification)
+			triggerRecompile();
 	}
+
+	void setCompileHandler(CompileHandler* newCompileHandler, NotificationType recompile = dontSendNotification)
+	{
+		compileHandler = newCompileHandler;
+
+		if (recompile != dontSendNotification)
+			triggerRecompile();
+	}
+
+	
 
 private:
 
+	hise::UnorderedStack<int> pendingBlinks;
+
+	GlobalScope memory;
 	int numChannels = 2;
 
 	WeakReference<Holder> holder;
 
-	CompileProcedure compileProcedure;
-
+	WeakReference<CodeProvider> codeProvider;
+	WeakReference<CompileHandler> compileHandler;
 	File connectedFile;
-
-	String lastAssembly;
-	Result lastResult;
-	JitObject lastObject;
-
-	JitCompiledNode::Ptr compiledNode;
+	CompileResult lastCompileResult;
 
 	Array<WeakReference<Listener>> listeners;
-	PreprocessFunction preprocessFunction;
-	LoadFunction loadFunction;
-	SaveFunction saveFunction;
-	CompileManager compileManager;
-
-	GlobalScope memory;
 
 	friend class WorkbenchComponent;
 	friend class WorkbenchManager;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchData);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WorkbenchData);
 };
+
+
 
 
 struct WorkbenchComponent : public Component,

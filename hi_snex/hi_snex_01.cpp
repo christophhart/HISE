@@ -31,7 +31,7 @@ using String = juce::String;
 #include "snex_jit/snex_jit_BaseCompiler.h"
 
 
-
+#include "snex_jit/snex_jit_UnitTestCase.cpp"
 #include "snex_jit/snex_jit_UnitTests.cpp"
 #include "api/SnexApi.cpp"
 

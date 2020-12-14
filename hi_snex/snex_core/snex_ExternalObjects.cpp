@@ -211,6 +211,16 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, setNoteNumber);
 	ADD_SNEX_STRUCT_METHOD(obj, EventWrapper, getTimeStamp);
 
+	obj->setCustomDumpFunction([](void* ptr)
+	{
+		auto e = static_cast<HiseEvent*>(ptr);
+
+		String s;
+
+		s << "| HiseEvent { " << e->toDebugString() + " }\n";
+		return s;
+	});
+
 	FunctionClass::Ptr fc = obj->getFunctionClass();
 
 	ADD_INLINER(getChannel,
@@ -748,14 +758,44 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		pType->addMember("numChannels", TypeInfo(Types::ID::Integer), "the number of channels to process");
 		pType->addMember("shouldReset", TypeInfo(Types::ID::Integer), "flag that checks if the processing should be reseted");
 
+		auto numChannels = c.tp[0].constant;
+
 		pType->setDefaultValue("data", InitialiserList::makeSingleList(0));
 		pType->setDefaultValue("events", InitialiserList::makeSingleList(0));
 		pType->setDefaultValue("numSamples", InitialiserList::makeSingleList(0));
 		pType->setDefaultValue("numEvents", InitialiserList::makeSingleList(0));
-		pType->setDefaultValue("numChannels", InitialiserList::makeSingleList(c.tp[0].constant));
+		pType->setDefaultValue("numChannels", InitialiserList::makeSingleList(numChannels));
 		pType->setDefaultValue("shouldReset", InitialiserList::makeSingleList(0));
 
 		
+		pType->setCustomDumpFunction([numChannels](void* obj)
+		{
+			String s;
+
+			auto d = static_cast<ProcessDataDyn*>(obj);
+
+			s << "| ProcessData<" << numChannels << ">\t{ ";
+			s << "numSamples: " << d->getNumSamples() << " }\n";
+
+
+			for (int i = 0; i < numChannels; i++)
+			{
+				s << "|   Channel " << numChannels << "\t{ }\n";
+
+				auto chPtr = d->getRawChannelPointers()[i];
+
+				for (int j = 0; j < d->getNumSamples(); j++)
+				{
+					String t;
+					t << "d[" << i << "][" << j << "]";
+
+					Types::Helpers::dumpNativeData(s, 2, t, chPtr, chPtr + i, sizeof(float), Types::ID::Float);
+				}
+			}
+			
+			return s;
+		});
+
 		{
 			FunctionData subscript;
 			subscript.id = pId.getChildId(FunctionClass::getSpecialSymbol(pId, jit::FunctionClass::Subscript));

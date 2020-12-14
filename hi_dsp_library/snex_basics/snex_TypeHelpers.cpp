@@ -134,6 +134,8 @@ void Types::Helpers::dumpNativeData(juce::String& s, int intendationLevel, const
 {
 	juce::String nl("\n");
 
+	s << "|";
+
 	auto intent = getIntendation(intendationLevel);
 
 	size_t byteOffset = (uint8*)dataPointer - (uint8*)dataStart;
@@ -155,10 +157,8 @@ void Types::Helpers::dumpNativeData(juce::String& s, int intendationLevel, const
 	};
 
 	s << intent << Types::Helpers::getCppTypeName((Types::ID)type) << " " << symbol;
-	s << "{ Value: " << getValueString(type, dataPointer);
-	s << ", Size: " << juce::String(byteSize);
-	s << ", Offset: " << juce::String(byteOffset);
-	s << ", Absolute: " << juce::String((uint64_t)dataPointer) << " }" << nl;
+	s << "\t{ " << getValueString(type, dataPointer);
+	s << ", address: 0x" << String::toHexString((uint64_t)dataPointer).toUpperCase() << " }" << nl;
 
 	if (byteOffset % byteSize != 0)
 		s << " (Unaligned!)";
@@ -366,7 +366,7 @@ juce::String Types::Helpers::getCppValueString(const VariableStorage& v)
 	}
 	else if (type == Types::ID::Pointer)
 	{
-		return juce::String(reinterpret_cast<uint64_t>(v.getDataPointer()));
+		return "0x" + juce::String::toHexString(reinterpret_cast<uint64_t>(v.getDataPointer())).toUpperCase();
 	}
 	else
 		return juce::String((int)v);

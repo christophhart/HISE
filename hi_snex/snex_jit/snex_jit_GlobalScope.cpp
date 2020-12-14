@@ -142,6 +142,15 @@ void GlobalScope::removeObjectDeleteListener(ObjectDeleteListener* l)
 	deleteListeners.removeAllInstancesOf(l);
 }
 
+void GlobalScope::sendBlinkMessage(int lineNumber)
+{
+	for (auto dh : debugHandlers)
+	{
+		if (dh != nullptr)
+			dh->blink(lineNumber);
+	}
+}
+
 void GlobalScope::logMessage(const String& message)
 {
 	for (auto dh : debugHandlers)

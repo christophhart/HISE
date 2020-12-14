@@ -469,7 +469,14 @@ struct StructType : public ComplexType,
 		memberData.clear();
 	}
 
+	void setCustomDumpFunction(const std::function<String(void*)>& f)
+	{
+		customDumpFunction = f;
+	}
+
 private:
+
+	std::function<String(void*)> customDumpFunction;
 
 	size_t externalyDefinedSize = 0;
 

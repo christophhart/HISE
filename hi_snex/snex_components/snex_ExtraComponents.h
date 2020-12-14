@@ -80,8 +80,7 @@ struct OptimizationProperties : public WorkbenchComponent
 		for (auto o : OptimizationIds::getAllIds())
 			addOptimization(o);
 
-		for (auto i : items)
-			i->active = getGlobalScope().getOptimizationPassList().contains(i->id);
+		recompiled(getWorkbench());
 
 		setSize(200, items.size() * 20);
 	}
@@ -100,7 +99,8 @@ struct OptimizationProperties : public WorkbenchComponent
 
 	void recompiled(WorkbenchData::Ptr r) override
 	{
-
+		for (auto i : items)
+			i->active = getGlobalScope().getOptimizationPassList().contains(i->id);
 	}
 
 	void resized() override
@@ -311,6 +311,10 @@ struct Graph : public WorkbenchComponent,
 
 	void recompiled(WorkbenchData::Ptr p) override
 	{
+		// Write this new with the JitCompiledNode compile handler
+		jassertfalse;
+
+#if 0
 		currentNode = p->getCompiledNode();
 
 		if (currentNode == nullptr)
@@ -320,6 +324,7 @@ struct Graph : public WorkbenchComponent,
 
 		if (currentResult.wasOk())
 			recalculate();
+#endif
 	}
 
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("SnexGraph"); }

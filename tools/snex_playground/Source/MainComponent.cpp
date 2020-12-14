@@ -203,9 +203,13 @@ juce::String getEmpty(const Identifier& namespaceId)
 
 //==============================================================================
 MainComponent::MainComponent() :
-	data(new ui::WorkbenchData()),
-	playground(new SnexPlayground(data, true))
+	data(new ui::WorkbenchData())
 {
+	compileThread = new snex::jit::BackgroundCompileThread(data);
+	data->setCompileHandler(compileThread);
+
+	playground = new snex::jit::SnexPlayground(data, true);
+
 	context.attachTo(*playground);
 	
 	addAndMakeVisible(playground);
@@ -214,6 +218,7 @@ MainComponent::MainComponent() :
 
 MainComponent::~MainComponent()
 {
+	compileThread->signalThreadShouldExit();
 	context.detach();
 
 

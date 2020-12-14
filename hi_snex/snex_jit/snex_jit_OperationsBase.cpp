@@ -186,6 +186,9 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 {
 	auto e = getSubExpr(childIndex);
 
+	if (e == nullptr)
+		location.throwError("expected expression");
+
 	if (auto v = dynamic_cast<VariableReference*>(e.get()))
 	{
 		bool isDifferentType = expectedType != Types::ID::Dynamic && expectedType != v->getConstExprValue().getType();

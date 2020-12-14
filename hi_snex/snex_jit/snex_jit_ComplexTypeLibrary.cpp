@@ -476,11 +476,14 @@ void DynType::dumpTable(juce::String& s, int& intentLevel, void* dataStart, void
 	int numElements = *reinterpret_cast<int*>(bytePtr + 4);
 	uint8* actualDataPointer = *reinterpret_cast<uint8**>(bytePtr + 8);
 
-	s << "size: " << juce::String(numElements);
-	s << "\t Absolute: " << juce::String(reinterpret_cast<uint64_t>(bytePtr + 4)) << "\n";
-	s << "data: " << juce::String(reinterpret_cast<uint64_t>(actualDataPointer));
-	s << "\t Absolute: " << juce::String(reinterpret_cast<uint64_t>(bytePtr + 8)) << "\n";
 	
+
+	s << "\t{ size: " << juce::String(numElements);
+	s << ", data: 0x" << String::toHexString(reinterpret_cast<uint64_t>(actualDataPointer)).toUpperCase();
+	//s << "\t Absolute: " << String::toHexString(reinterpret_cast<uint64_t>(bytePtr) + 8) << "\n";
+	
+	s << " }\n";
+
 	intentLevel++;
 
 	for (int i = 0; i < numElements; i++)
@@ -1282,11 +1285,20 @@ void StructType::dumpTable(juce::String& s, int& intendLevel, void* dataStart, v
 	size_t offset = 0;
 	intendLevel++;
 
+	if (customDumpFunction)
+	{
+		for (int i = 0; i < intendLevel; i++)
+			s << " ";
+
+		s << customDumpFunction(complexTypeStartPointer);
+		return;
+	}
+
 	for (auto m : memberData)
 	{
 		if (m->typeInfo.isComplexType())
 		{
-			s << Types::Helpers::getIntendation(intendLevel) << id.toString() << " " << m->id << "\n";
+			s << "|" << Types::Helpers::getIntendation(intendLevel) << m->typeInfo.toString() << " " << id.toString() << "::" << m->id;
 			m->typeInfo.getComplexType()->dumpTable(s, intendLevel, dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id));
 		}
 		else

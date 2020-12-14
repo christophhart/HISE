@@ -89,9 +89,11 @@ using namespace juce;
 			DBG(ptr->toFloat()); // 12.0f
 		}
 */
-class Compiler
+class Compiler: public ReferenceCountedObject
 {
 public:
+
+	using Ptr = ReferenceCountedObjectPtr<Compiler>;
 
 	struct Tokeniser : public juce::CodeTokeniser
 	{
@@ -107,6 +109,8 @@ public:
 			scheme.set("Process", Colours::white);
 			scheme.set("VerboseProcess", Colours::lightgrey);
 			scheme.set("AsmJit", Colours::lightblue);
+			scheme.set("ValueDump", Colours::white);
+			scheme.set("ValueName", Colours::lightblue);
 
 			return scheme;
 		}

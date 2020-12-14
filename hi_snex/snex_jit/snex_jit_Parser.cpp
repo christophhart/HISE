@@ -6,6 +6,18 @@ int Compiler::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 {
 	auto c = source.nextChar();
 
+	if (c == '|')
+	{
+		while (!source.isEOF() && source.peekNextChar() != '{')
+			source.skip();
+
+		return BaseCompiler::MessageType::ValueName;
+	}
+	if (c == '{')
+	{
+		source.skipToEndOfLine();
+		return BaseCompiler::MessageType::ValueDump;
+	}
 	if (c == 'P')
 	{
 		source.skipToEndOfLine(); return BaseCompiler::MessageType::PassMessage;

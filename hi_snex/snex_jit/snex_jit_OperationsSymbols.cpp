@@ -179,6 +179,9 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 
 					auto fc = scope->getGlobalScope()->getSubFunctionClass(ss->getSymbol().id);
 
+					if (fc == nullptr)
+						location.throwError("Can't resolve function class");
+
 					id.constExprValue = fc->getConstantValue(cId);
 
 

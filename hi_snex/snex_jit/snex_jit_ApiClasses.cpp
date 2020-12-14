@@ -483,6 +483,7 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 {
 	using namespace Types;
 
+#if 0
 	{
 		auto f = createMemberFunction(Float, "print", { Float });
 		f->setFunction(WrapperFloat::print);
@@ -503,6 +504,37 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 		setDescription("prints a integer value to the console", { "value" });
 		addFunction(f);
 	}
+#endif
+
+	{
+		auto f = createMemberFunction(Types::ID::Void, "blink", {});
+
+		f->inliner = Inliner::createAsmInliner(f->id, [this](InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+
+			int lineNumber = d->gen.location.getLine();
+
+			FunctionData bf;
+			bf.returnType = TypeInfo(Types::ID::Void);
+			bf.addArgs("line", TypeInfo(Types::ID::Integer));
+			bf.function = ConsoleFunctions::blink;
+			bf.object = this;
+
+			AsmCodeGenerator::TemporaryRegister tempReg(d->gen, d->target->getScope(), TypeInfo(Types::ID::Integer));
+
+			tempReg.tempReg->createRegister(d->gen.cc);
+
+			d->gen.cc.setInlineComment("blink at line");
+			d->gen.cc.mov(INT_REG_W(tempReg.tempReg), lineNumber);
+
+			d->args.add(tempReg.tempReg);
+			return d->gen.emitFunctionCall(d->target, bf, d->object, d->args);
+		});
+
+		addFunction(f);
+		setDescription("Sends a blink message to indicate that this was hit", {});
+	}
 
 	{
 		auto f = createMemberFunction(Types::ID::Void, "stop", { Types::ID::Integer});
@@ -516,16 +548,6 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 			auto globalScope = d->args[0]->getScope()->getGlobalScope();
 			auto& bpHandler = globalScope->getBreakpointHandler();
 
-			for (auto r : d->gen.registerPool->getListOfAllNamedRegisters())
-			{
-				if (auto ref = r->getVariableId())
-				{
-					if (auto address = bpHandler.getNextFreeTable(ref))
-						d->gen.emitMemoryWrite(r, address);
-				}
-			}
-
-
 			auto& cc = d->gen.cc;
 
 			auto data = reinterpret_cast<void*>(bpHandler.getLineNumber());
@@ -533,6 +555,7 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 			auto lineReg = cc.newGpq();
 			cc.mov(lineReg, (int64_t)data);
 			auto target = x86::qword_ptr(lineReg);
+			cc.setInlineComment("break at line");
 			cc.mov(target, lineNumber);
 
 			FunctionData rp;
@@ -553,6 +576,74 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 		f->setFunction(WrapperDump::dump);
 		addFunction(f);
 		setDescription("Dumps the current state of the class data", { });
+	}
+
+	{
+		auto f = createMemberFunction(Types::ID::Void, "print", {});
+
+		f->args.add(Symbol(f->id.getChildId("obj"), TypeInfo()));
+
+		f->inliner = Inliner::createAsmInliner(f->id, [this](InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+
+			auto typeToPrint = d->args[0]->getTypeInfo();
+
+			if (typeToPrint.isComplexType())
+			{
+				auto ptr = typeToPrint.getComplexType();
+
+				DumpItem* i = new DumpItem();
+
+				i->type = ptr;
+				i->id = d->args[0]->getVariableId().id;
+				i->lineNumber = d->gen.location.getLine();
+
+				dumpItems.add(i);
+
+				FunctionData df;
+
+				df.object = this;
+				df.function = (void*)ConsoleFunctions::dumpObject;
+				df.addArgs("ctype", TypeInfo(Types::ID::Integer, true));
+				df.addArgs("dataPtr", TypeInfo(Types::ID::Pointer, true));
+				df.returnType = TypeInfo(Types::ID::Void);
+
+				AssemblyRegister::List args;
+
+				{
+					AsmCodeGenerator::TemporaryRegister a1(d->gen, d->args[0]->getScope(), TypeInfo(Types::ID::Integer));
+
+					a1.tempReg->createRegister(d->gen.cc);
+					d->gen.cc.mov(INT_REG_W(a1.tempReg), dumpItems.size() - 1);
+					args.add(a1.tempReg);
+					args.add(d->args[0]);
+				}
+
+				return d->gen.emitFunctionCall(d->target, df, d->object, args);
+			}
+			else
+			{
+				auto nativeType = typeToPrint.getType();
+
+				FunctionData fToCall;
+				fToCall.returnType = TypeInfo(Types::ID::Void);
+				fToCall.addArgs("args", typeToPrint);
+				fToCall.object = this;
+
+				switch (nativeType)
+				{
+				case Types::ID::Double: fToCall.function = (void*)WrapperDouble::print; break;
+				case Types::ID::Float: fToCall.function = (void*)WrapperFloat::print; break;
+				case Types::ID::Integer: fToCall.function = (void*)WrapperInt::print; break;
+				}
+
+				return d->gen.emitFunctionCall(d->target, fToCall, d->object, d->args);
+			}
+		});
+
+		addFunction(f);
+		setDescription("Dumps the given object / expression", { "object" });
 	}
 }
 

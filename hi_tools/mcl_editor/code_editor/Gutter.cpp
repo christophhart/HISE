@@ -19,6 +19,7 @@ using namespace juce;
 mcl::GutterComponent::GutterComponent(TextDocument& document)
 	: document(document)
 	, memoizedGlyphArrangements([this](int row) { return getLineNumberGlyphs(row); })
+	, blinkHandler(*this)
 {
 	setRepaintsOnMouseActivity(true);
 
@@ -55,20 +56,8 @@ void mcl::GutterComponent::paint(Graphics& g)
 	g.setColour(ln);
 	g.fillRect(getLocalBounds().removeFromLeft(GUTTER_WIDTH));
 
-	if (transform.getTranslationX() < GUTTER_WIDTH)
-	{
-		auto shadowRect = getLocalBounds().withLeft(GUTTER_WIDTH).withWidth(12);
-
-		auto gradient = ColourGradient::horizontal(ln.contrasting().withAlpha(0.3f),
-			Colours::transparentBlack, shadowRect);
-		g.setFillType(gradient);
-		g.fillRect(shadowRect);
-	}
-	else
-	{
-		g.setColour(ln.darker(0.2f));
-		g.drawVerticalLine(GUTTER_WIDTH - 1.f, 0.f, getHeight());
-	}
+	g.setColour(ln.darker(0.2f));
+	g.drawVerticalLine(GUTTER_WIDTH - 1.f, 0.f, getHeight());
 
 	/*
 	 Draw the line numbers and selected rows
@@ -77,6 +66,21 @@ void mcl::GutterComponent::paint(Graphics& g)
 	auto area = g.getClipBounds().toFloat().transformedBy(transform.inverted());
 	auto rowData = document.findRowsIntersecting(area);
 	auto verticalTransform = transform.withAbsoluteTranslation(0.f, transform.getTranslationY());
+
+	auto getRowData = [&rowData](int lineNumber)
+	{
+		TextDocument::RowData* data = nullptr;
+
+		for (auto& r : rowData)
+		{
+			if (r.rowNumber == lineNumber)
+			{
+				data = &r;
+			}
+		}
+
+		return data;
+	};
 
 	auto f = document.getFont();
 
@@ -91,8 +95,6 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 
 	UnblurryGraphics ug(g, *this);
-
-	
 
 	for (const auto& r : rowData)
 	{
@@ -154,15 +156,8 @@ void mcl::GutterComponent::paint(Graphics& g)
 		case FoldableLineRange::Holder::RangeStartOpen:
 		case FoldableLineRange::Holder::RangeStartClosed:
 		{
-			
-			
-
-
 			auto w = lfb.getWidth() - 4.0f * transform.getScaleFactor();
-
 			auto box = lfb.withSizeKeepingCentre(w, w);
-
-			
 
 			box = ug.getRectangleWithFixedPixelWidth(box, (int)box.getWidth());
 			
@@ -212,8 +207,6 @@ void mcl::GutterComponent::paint(Graphics& g)
 			.withX(0)
 			.withWidth(gw);
 
-
-
 		A.removeFromRight(15 * transform.getScaleFactor());
 
 		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withMultipliedAlpha(0.7f));
@@ -221,41 +214,56 @@ void mcl::GutterComponent::paint(Graphics& g)
 	}
 
 	
-	if (currentBreakLine != -1)
+	if (currentBreakLine != CodeDocument::Position())
 	{
-		auto b = getRowBounds(rowData[currentBreakLine-1]);
-		g.setColour(Colours::red.withAlpha(0.12f));
-
-		g.fillRect(b);
+		if (auto r = getRowData(currentBreakLine.getLineNumber()-1))
+		{
+			auto b = getRowBounds(*r);
+			g.setColour(Colours::red.withAlpha(0.05f));
+			g.fillRect(b.withWidth(getWidth()));
+		}
 	}
 
 	int bpIndex = 0;
 
 	for (auto bp : breakpoints)
 	{
-		auto b = getRowBounds(rowData[bp]);
-
-		b = b.removeFromLeft(b.getHeight()).reduced(3.5f);
-
-		auto t = h.getLineType(bp);
-
-		if (t == FoldableLineRange::Holder::LineType::Folded)
-			continue;
-
-		g.setColour(Colour(0xFF683333));
-		g.fillEllipse(b);
-		g.setColour(Colours::white.withAlpha(0.4f));
-		g.drawEllipse(b, 1.0f);
-
-		if (bp == currentBreakLine-1)
+		if (auto r = getRowData(bp->getLineNumber()))
 		{
-			g.drawEllipse(b, 1.0f);
-			g.setColour(Colours::white);
+			auto b = getRowBounds(*r);
 
-			g.fillEllipse(b.withSizeKeepingCentre(3.0f, 3.0f));
+			b = b.removeFromLeft(b.getHeight()).reduced(3.5f);
+
+			auto t = h.getLineType(*bp);
+
+			if (t == FoldableLineRange::Holder::LineType::Folded)
+				continue;
+
+			auto bPath = bp->createPath();
+			PathFactory::scalePath(bPath, b);
+
+			if (bp->enabled.getValue())
+			{
+				g.setColour(bp->breakIfHit.getValue() ? Colour(0xFF683333) : Colour(0xFF333368));
+				g.fillPath(bPath);
+			}
+
+			g.setColour(Colours::white.withAlpha(0.4f));
+			g.strokePath(bPath, PathStrokeType(1.0f));
+
+			if (*bp == currentBreakLine.getLineNumber() - 1)
+			{
+				g.strokePath(bPath, PathStrokeType(1.0f));
+				g.setColour(Colours::white);
+
+				Path arrow = createArrow();
+				PathFactory::scalePath(arrow, b.reduced(1.0f));
+				g.fillPath(arrow);
+			}
 		}
 	}
 	
+	blinkHandler.draw(g, rowData);
 
 #if PROFILE_PAINTS
 	std::cout << "[GutterComponent::paint] " << Time::getMillisecondCounterHiRes() - start << std::endl;
@@ -304,24 +312,194 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 		}
 		else
 		{
-			if (breakpoints.contains(hoveredData.rowNumber))
+			if (auto bp = getBreakpoint(hoveredData.rowNumber))
 			{
 				if (e.mods.isRightButtonDown())
 				{
-					// Add condition
-					jassertfalse;
+					PopupMenu m;
+					GlobalHiseLookAndFeel hlaf;
+					m.setLookAndFeel(&hlaf);
+
+					m.addItem(1, bp->enabled.getValue() ? "Disable Breakpoint" : "Enable Breakpoint");
+					m.addItem(2, "Edit breakpoint");
+					m.addItem(5, "Show injected code");
+					m.addSeparator();
+					m.addItem(3, "Delete all breakpoints");
+					m.addItem(4, "Recompile when breakpoints change", true, recompileOnBreakpointChange);
+					
+
+					auto r = m.show();
+
+					auto calloutBounds = getRowBounds(hoveredData).toNearestInt();
+					calloutBounds.setWidth(calloutBounds.getHeight());
+					auto screenBounds = getScreenBounds();
+					calloutBounds = calloutBounds.translated(screenBounds.getX(), screenBounds.getY());
+
+					if (r == 1)
+					{
+						bp->enabled.setValue(!bp->enabled.getValue());
+						repaint();
+					}
+					if (r == 2)
+					{
+						struct Popup : public Component,
+									   public juce::TextEditor::Listener,
+									   public Value::Listener
+						{
+							Popup(Breakpoint::Ptr bp):
+								p(bp),
+								useCondition("Use Condition"),
+								breakButton("Break when hit"),
+								blinkButton("Blink when hit")
+							{
+								setLookAndFeel(&laf);
+								laf.setDefaultSansSerifTypeface(GLOBAL_BOLD_FONT().getTypeface());
+
+								bp->useCondition.addListener(this);
+
+								setup(conditionEditor, bp->condition);
+								setup(useCondition, bp->useCondition);
+								setup(logExpressionEditor, bp->logExpression);
+								setup(breakButton, bp->breakIfHit);
+								setup(blinkButton, bp->blinkIfHit);
+								setSize(300, 30 + 5 * 28 + 8);
+							}
+
+							~Popup()
+							{
+								p->useCondition.removeListener(this);
+							}
+
+							void setup(ToggleButton& b, Value& v)
+							{
+								b.getToggleStateValue().referTo(v);
+								
+								addAndMakeVisible(b);
+							}
+
+							void valueChanged(Value& value) override
+							{
+								auto on = useCondition.getToggleState();
+								conditionEditor.setColour(juce::TextEditor::ColourIds::textColourId, on ? Colours::white : Colours::grey);
+
+								conditionEditor.setText(conditionEditor.getText(), dontSendNotification);
+								conditionEditor.setEnabled(on);
+							}
+
+							void setup(juce::TextEditor& t, Value& v)
+							{
+								t.addListener(this);
+								t.setColour(juce::TextEditor::ColourIds::backgroundColourId, Colours::transparentBlack);
+								t.setColour(juce::TextEditor::ColourIds::textColourId, Colours::white);
+								t.setColour(juce::TextEditor::ColourIds::highlightedTextColourId, Colours::white);
+								t.setColour(juce::TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.4f));
+								t.setColour(juce::TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR).withAlpha(0.8f));
+								t.setColour(juce::CaretComponent::ColourIds::caretColourId, Colours::white);
+								
+								t.setFont(GLOBAL_MONOSPACE_FONT());
+								t.setText(v.toString(), dontSendNotification);
+								t.setSelectAllWhenFocused(true);
+								addAndMakeVisible(t);
+							}
+
+							void textEditorReturnKeyPressed(juce::TextEditor& t)
+							{
+								if (&t == &conditionEditor)
+									p->condition.setValue(t.getText());
+								else
+									p->logExpression.setValue(t.getText());
+								
+								findParentComponentOfClass<CallOutBox>()->dismiss();
+							}
+
+							void resized() override
+							{
+								auto b = getLocalBounds().reduced(5);
+								b.removeFromTop(20);
+								
+								conditionEditor.setBounds(b.removeFromTop(28));
+								b.removeFromTop(8);
+								useCondition.setBounds(b.removeFromTop(20));
+								b.removeFromTop(18);
+								logExpressionEditor.setBounds(b.removeFromTop(28));
+								b.removeFromTop(8);
+
+								auto bottom = b.removeFromTop(20);
+
+								breakButton.setBounds(bottom.removeFromLeft(bottom.getWidth() / 2));
+								blinkButton.setBounds(bottom);
+								b.removeFromTop(8);
+
+							}
+
+							void paint(Graphics& g) override
+							{
+								auto b = getLocalBounds();
+								auto title = b.removeFromTop(20).toFloat();
+								g.setFont(GLOBAL_BOLD_FONT());
+								g.setColour(Colours::white);
+								g.drawText("Edit condition for breakpoint", title, Justification::centred);
+							}
+
+							LookAndFeel_V4 laf;
+
+							Breakpoint::Ptr p;
+							juce::TextEditor conditionEditor;
+							
+							juce::ToggleButton useCondition;
+							juce::TextEditor logExpressionEditor;
+							juce::ToggleButton breakButton;
+							juce::ToggleButton blinkButton;
+						};
+
+						auto& cb = CallOutBox::launchAsynchronously(new Popup(bp), calloutBounds, nullptr);
+
+						cb.setColour(LookAndFeel_V4::ColourScheme::UIColour::widgetBackground, Colours::white);
+
+						cb.grabKeyboardFocus();
+						return;
+					}
+					else if (r == 3)
+					{
+						breakpoints.clear();
+					}
+					else if (r == 4)
+					{
+						recompileOnBreakpointChange = !recompileOnBreakpointChange;
+					}
+					else if (r == 5)
+					{
+						auto line = bp->processLine("");
+						AlertWindowLookAndFeel alaf;
+
+						auto t = new juce::TextEditor();
+						t->setFont(GLOBAL_MONOSPACE_FONT());
+						t->setColour(juce::TextEditor::ColourIds::backgroundColourId, Colours::transparentBlack);
+						t->setColour(juce::TextEditor::ColourIds::textColourId, Colours::white);
+						t->setColour(juce::TextEditor::ColourIds::highlightedTextColourId, Colours::white);
+						t->setColour(juce::TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.4f));
+						t->setColour(juce::TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR).withAlpha(0.8f));
+						t->setColour(juce::CaretComponent::ColourIds::caretColourId, Colours::white);
+						t->setSize(GLOBAL_MONOSPACE_FONT().getStringWidth(line) + 20.0f, 24.0f);
+						t->setText(line, dontSendNotification);
+						t->setReadOnly(true);
+						auto& cb = CallOutBox::launchAsynchronously(t, calloutBounds, nullptr);
+					}
 				}
 				else
 				{
-					breakpoints.removeAllInstancesOf(hoveredData.rowNumber);
+					for (int i = 0; i < breakpoints.size(); i++)
+					{
+						if (*breakpoints[i] == hoveredData.rowNumber)
+							breakpoints.remove(i--);
+					}
 				}
 			}
 			else
-				breakpoints.add(hoveredData.rowNumber);
-		}
+				breakpoints.add(new Breakpoint(this, hoveredData.rowNumber, document.getCodeDocument()));
 
-		for (auto l : listeners)
-			l->breakpointsChanged(*this);
+			sendBreakpointChangeMessage();
+		}
 
 		findParentComponentOfClass<mcl::TextEditor>()->translateView(0.0f, 0.0f);
 
@@ -332,5 +510,9 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 	document.getFoldableLineRangeHolder().toggleFoldState(hoveredData.rowNumber);
 }
 
+void mcl::GutterComponent::sendBlinkMessage(int n)
+{
+	blinkHandler.addBlinkState(n);
+}
 
 }
