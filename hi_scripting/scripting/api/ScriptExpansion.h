@@ -85,7 +85,7 @@ public:
 	bool refreshExpansions();
 
 	/** Sets the current expansion as active expansion. */
-	bool setCurrentExpansion(String expansionName);
+	bool setCurrentExpansion(var expansionName);
 
 	/** Encrypts the given hxi file. */
 	bool encodeWithCredentials(var hxiFile);
@@ -296,8 +296,6 @@ public:
 	BlowFish* createBlowfish();
 
 	// ============================================================================================================
-
-	
 
 	/** Returns the root folder for this expansion. */
 	var getRootFolder();

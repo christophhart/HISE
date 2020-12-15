@@ -381,6 +381,11 @@ public:
 
 		int getNumRows() override;
 
+		void setLastIndex(int newIndex)
+		{
+			lastIndex = newIndex;
+		}
+
 		int lastIndex = -1;
 	};
 
@@ -490,11 +495,15 @@ public:
 
 		if (rowIndex >= 0)
 		{
+			if (auto ec = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
+				ec->setLastIndex(rowIndex);
+
 			selectedFile = file;
 
 			SparseSet<int> s;
 			s.addRange(Range<int>(rowIndex, rowIndex + 1));
 			listbox->setSelectedRows(s, dontSendNotification);
+			listbox->repaint();
 		}
 
 		if (notifyListeners == sendNotification)

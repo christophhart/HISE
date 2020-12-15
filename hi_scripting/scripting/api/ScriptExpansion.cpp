@@ -148,7 +148,11 @@ var ScriptExpansionHandler::getCurrentExpansion()
 void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(expansionLoadedCallback))
+	{
 		expansionCallback = WeakCallbackHolder(getScriptProcessor(), expansionLoadedCallback, 1);
+		expansionCallback.setThisObject(this);
+		expansionCallback.incRefCount();
+	}
 
 	expansionCallback.setHighPriority();
 }
@@ -168,9 +172,18 @@ bool ScriptExpansionHandler::refreshExpansions()
 	return getMainController()->getExpansionHandler().createAvailableExpansions();
 }
 
-bool ScriptExpansionHandler::setCurrentExpansion(String expansionName)
+bool ScriptExpansionHandler::setCurrentExpansion(var expansionName)
 {
-	return getMainController()->getExpansionHandler().setCurrentExpansion(expansionName);
+	if(expansionName.isString())
+		return getMainController()->getExpansionHandler().setCurrentExpansion(expansionName);
+	
+	if (auto se = dynamic_cast<ScriptExpansionReference*>(expansionName.getObject()))
+		return setCurrentExpansion(se->exp->getProperty(ExpansionIds::Name));
+
+	
+
+	reportScriptError("can't find expansion");
+	RETURN_IF_NO_THROW(false);
 }
 
 bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
@@ -182,7 +195,6 @@ bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
 		reportScriptError("argument is not a file");
 		RETURN_IF_NO_THROW(false);
 	}
-
 }
 
 bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile)
@@ -220,8 +232,18 @@ void ScriptExpansionHandler::expansionPackCreated(Expansion* newExpansion)
 {
 	if (expansionCallback)
 	{
-		var args(new ScriptExpansionReference(getScriptProcessor(), newExpansion));
-		expansionCallback.call(&args, 1);
+		if (newExpansion != nullptr)
+		{
+			var args(new ScriptExpansionReference(getScriptProcessor(), newExpansion));
+			expansionCallback.call(&args, 1);
+		}
+		else
+		{
+			var args;
+			expansionCallback.call(&args, 1);
+		}
+
+		
 	}
 }
 
