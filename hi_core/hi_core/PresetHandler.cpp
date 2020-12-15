@@ -2486,11 +2486,20 @@ void FileHandlerBase::createLinkFileInFolder(const File& source, const File& tar
 
 	if (linkFile.existsAsFile())
 	{
+		if (!target.isDirectory())
+		{
+			linkFile.deleteFile();
+			return;
+		}
+
 		if (!PresetHandler::showYesNoWindow("Already there", "Link redirect file exists. Do you want to replace it?"))
 		{
 			return;
 		}
 	}
+
+	if(!target.isDirectory())
+		return;
 
 	linkFile.create();
 

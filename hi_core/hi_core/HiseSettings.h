@@ -83,6 +83,7 @@ DECLARE_ID(UseRawFrontend);
 DECLARE_ID(VST3Support);
 DECLARE_ID(ExpansionType);
 DECLARE_ID(EncryptionKey);
+DECLARE_ID(LinkExpansionsToProject);
 
 Array<Identifier> getAllIds();
 
