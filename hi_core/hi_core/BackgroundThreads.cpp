@@ -43,9 +43,16 @@ void QuasiModalComponent::setModalBaseWindowComponent(Component * childComponent
 
 	if (editor != nullptr)
 	{
-		editor->setModalComponent(dynamic_cast<Component*>(this), fadeInTime);
+		auto asComponent = dynamic_cast<Component*>(this);
+		asComponent->setWantsKeyboardFocus(true);
+
+		editor->setModalComponent(asComponent, fadeInTime);
 
 		isQuasiModal = true;
+
+		
+		
+		asComponent->grabKeyboardFocus();
 	}
 }
 

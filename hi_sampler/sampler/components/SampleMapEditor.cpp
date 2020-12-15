@@ -723,7 +723,10 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 		
 		return true;
 	}
-	case SaveSampleMap:				sampler->saveSampleMap(); refreshSampleMapPool(); return true;
+	case SaveSampleMap:				
+		if(sampler->saveSampleMap()) 
+			refreshSampleMapPool(); 
+		return true;
 	case DuplicateSampleMapAsReference:	sampler->saveSampleMapAsReference(); refreshSampleMapPool(); return true;
 	case ExportAiffWithMetadata:
 		SampleEditHandler::SampleEditingActions::writeSamplesWithAiffData(sampler); return true;
@@ -983,6 +986,14 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 void SampleMapEditor::refreshSampleMapPool()
 {
 	sampler->getMainController()->getCurrentSampleMapPool()->refreshPoolAfterUpdate();
+
+	auto& exp = sampler->getMainController()->getExpansionHandler();
+
+	for (int i = 0; i < exp.getNumExpansions(); i++)
+	{
+		if (auto e = exp.getExpansion(i))
+			e->pool->getSampleMapPool().refreshPoolAfterUpdate();
+	}
 }
 
 void SampleMapEditor::toggleFollowRRGroup()

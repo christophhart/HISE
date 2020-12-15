@@ -289,8 +289,22 @@ updater(*this)
 		FullInstrumentExpansion::setNewDefault(this, synthData);
 		getExpansionHandler().setEncryptionKey(key);
 	}
+#else
+
+	auto expansionType = FrontendHandler::getExpansionType();
+
+	if (expansionType == "FilesOnly")
+		getExpansionHandler().setExpansionType<Expansion>();
+	else if (expansionType == "Encrypted")
+		getExpansionHandler().setExpansionType<ScriptEncryptedExpansion>();
+	else if (expansionType == "Disabled")
+		getExpansionHandler().setExpansionType<ExpansionHandler::Disabled>();
+	else
+		jassertfalse; // should never happen...
 		
 #endif
+
+	
 
 	getExpansionHandler().createAvailableExpansions();
 
@@ -434,10 +448,8 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	ValueTree v("ControlData");
 
-	if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(this))
-	{
+	if (auto e = getExpansionHandler().getCurrentExpansion())
 		v.setProperty("CurrentExpansion", e->getProperty(ExpansionIds::Name), nullptr);
-	}
 
 	//synthChain->saveMacroValuesToValueTree(v);
 
@@ -499,13 +511,12 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 	ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
-	if (FullInstrumentExpansion::isEnabled(this))
-	{
-		auto currentExpansion = v.getProperty("CurrentExpansion", "").toString();
-		auto e = getExpansionHandler().getExpansionFromName(currentExpansion);
+	auto expansionToLoad = v.getProperty("CurrentExpansion", "").toString();
 
+	if (auto e = getExpansionHandler().getExpansionFromName(expansionToLoad))
 		getExpansionHandler().setCurrentExpansion(e, sendNotificationSync);
-	}
+	else
+		getExpansionHandler().setCurrentExpansion(nullptr, sendNotificationSync);
 
 	currentlyLoadedProgram = v.getProperty("Program");
 

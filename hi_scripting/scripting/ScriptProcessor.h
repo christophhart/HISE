@@ -175,6 +175,8 @@ private:
 	void defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
 
 	void customControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorWithScriptingContent);
 };
 
 

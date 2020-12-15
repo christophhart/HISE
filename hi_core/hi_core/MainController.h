@@ -342,7 +342,7 @@ public:
 
 		bool initialised = false;
 
-		Array<WeakReference<PreloadListener>> preloadListeners;
+		Array<WeakReference<PreloadListener>, CriticalSection> preloadListeners;
 
 		using SampleFunction = SuspendHelpers::Suspended<SafeFunctionCall, SuspendHelpers::ScopedTicket>;
 		static constexpr auto config = MultithreadedQueueHelpers::Configuration::AllocationsAllowedAndTokenlessUsageAllowed;

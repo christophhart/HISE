@@ -40,7 +40,7 @@
 namespace hise { using namespace juce;
 
 
-class ScriptExpansionHandler : public ApiClass,
+class ScriptExpansionHandler : public ConstScriptingObject,
 							   public ControlledObject,
 							   public ExpansionHandler::Listener
 {
@@ -72,6 +72,9 @@ public:
 	/** Returns the expansion with the given name*/
 	var getExpansion(var name);
 
+	/** Returns the currently active expansion (if there is one). */
+	var getCurrentExpansion();
+
 	/** Set a function that will be called whenever a expansion is being loaded. */
 	void setExpansionCallback(var expansionLoadedCallback);
 
@@ -82,7 +85,7 @@ public:
 	bool refreshExpansions();
 
 	/** Sets the current expansion as active expansion. */
-	bool setCurrentExpansion(String expansionName);
+	bool setCurrentExpansion(var expansionName);
 
 	/** Encrypts the given hxi file. */
 	bool encodeWithCredentials(var hxiFile);
@@ -92,6 +95,8 @@ public:
 
 	/** Sets a list of allowed expansion types that can be loaded. */
 	void setAllowedExpansionTypes(var typeList);
+
+	
 
 	// ============================================================== End of API calls
 
@@ -291,8 +296,6 @@ public:
 	BlowFish* createBlowfish();
 
 	// ============================================================================================================
-
-	
 
 	/** Returns the root folder for this expansion. */
 	var getRootFolder();

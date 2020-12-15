@@ -106,7 +106,9 @@ MainController::MainController() :
 
 MainController::~MainController()
 {
-	PresetHandler::setCurrentMainController(this);
+	//getControlUndoManager()->clearUndoHistory();
+
+	PresetHandler::setCurrentMainController(nullptr);
 
 	notifyShutdownToRegisteredObjects();
 
@@ -231,6 +233,7 @@ void MainController::clearPreset()
 
 		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
 		mc->getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
+		mc->getControlUndoManager()->clearUndoHistory();
 		mc->getMainSynthChain()->reset();
 		mc->globalVariableObject->clear();
 
@@ -1334,6 +1337,11 @@ void MainController::loadTypeFace(const String& fileName, const void* fontData, 
 	if (fontId.isNotEmpty() && customTypeFaceData.getChildWithProperty("FontId", fontId).isValid()) return;
 
 	Identifier id_ = fontId.isEmpty() ? Identifier() : Identifier(fontId);
+
+	if (fileName.endsWith(".woff"))
+	{
+		throw String("Error loading font " + fileName + ": unsupported format. Use .TTF");
+	}
 
 	customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(fontData, fontDataSize), id_));
 

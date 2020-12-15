@@ -397,16 +397,22 @@ void InterfaceContentPanel::newHisePresetLoaded()
 void InterfaceContentPanel::expansionPackLoaded(Expansion* currentExpansion)
 {
 #if USE_BACKEND
-	Component::SafePointer<InterfaceContentPanel> safeThis(this);
 
-	MessageManager::callAsync([safeThis]()
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
 	{
-		if (safeThis.getComponent() != nullptr)
-		{
-			safeThis.getComponent()->content = nullptr;
-			safeThis.getComponent()->resized();
-		}
-	});
+		// We need to remove the interface content because it might be dangling...
+
+		Component::SafePointer<InterfaceContentPanel> safeThis(this);
+
+		MessageManager::callAsync([safeThis]()
+			{
+				if (safeThis.getComponent() != nullptr)
+				{
+					safeThis.getComponent()->content = nullptr;
+					safeThis.getComponent()->resized();
+				}
+			});
+	}
 #endif
 }
 

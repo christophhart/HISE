@@ -42,6 +42,7 @@ struct ScriptExpansionHandler::Wrapper
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getExpansionList);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansion);
+	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getCurrentExpansion);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setExpansionCallback);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, encodeWithCredentials);
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, refreshExpansions);
@@ -50,7 +51,7 @@ struct ScriptExpansionHandler::Wrapper
 };
 
 ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
-	ApiClass(3),
+	ConstScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_), 3),
 	ControlledObject(dynamic_cast<ControlledObject*>(jp_)->getMainController()),
 	jp(jp_),
 	expansionCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 1),
@@ -70,6 +71,7 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_0(refreshExpansions);
 	ADD_API_METHOD_1(installExpansionFromPackage);
 	ADD_API_METHOD_1(setAllowedExpansionTypes);
+	ADD_API_METHOD_0(getCurrentExpansion);
 
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::FileBased), Expansion::FileBased);
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::Intermediate), Expansion::Intermediate);
@@ -135,10 +137,22 @@ var ScriptExpansionHandler::getExpansion(var name)
 	return var();
 }
 
+var ScriptExpansionHandler::getCurrentExpansion()
+{
+	if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+		return new ScriptExpansionReference(getScriptProcessor(), e);
+
+	return {};
+}
+
 void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(expansionLoadedCallback))
+	{
 		expansionCallback = WeakCallbackHolder(getScriptProcessor(), expansionLoadedCallback, 1);
+		expansionCallback.setThisObject(this);
+		expansionCallback.incRefCount();
+	}
 
 	expansionCallback.setHighPriority();
 }
@@ -158,9 +172,18 @@ bool ScriptExpansionHandler::refreshExpansions()
 	return getMainController()->getExpansionHandler().createAvailableExpansions();
 }
 
-bool ScriptExpansionHandler::setCurrentExpansion(String expansionName)
+bool ScriptExpansionHandler::setCurrentExpansion(var expansionName)
 {
-	return getMainController()->getExpansionHandler().setCurrentExpansion(expansionName);
+	if(expansionName.isString())
+		return getMainController()->getExpansionHandler().setCurrentExpansion(expansionName);
+	
+	if (auto se = dynamic_cast<ScriptExpansionReference*>(expansionName.getObject()))
+		return setCurrentExpansion(se->exp->getProperty(ExpansionIds::Name));
+
+	
+
+	reportScriptError("can't find expansion");
+	RETURN_IF_NO_THROW(false);
 }
 
 bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
@@ -172,7 +195,6 @@ bool ScriptExpansionHandler::encodeWithCredentials(var hxiFile)
 		reportScriptError("argument is not a file");
 		RETURN_IF_NO_THROW(false);
 	}
-
 }
 
 bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile)
@@ -210,8 +232,18 @@ void ScriptExpansionHandler::expansionPackCreated(Expansion* newExpansion)
 {
 	if (expansionCallback)
 	{
-		var args(new ScriptExpansionReference(getScriptProcessor(), newExpansion));
-		expansionCallback.call(&args, 1);
+		if (newExpansion != nullptr)
+		{
+			var args(new ScriptExpansionReference(getScriptProcessor(), newExpansion));
+			expansionCallback.call(&args, 1);
+		}
+		else
+		{
+			var args;
+			expansionCallback.call(&args, 1);
+		}
+
+		
 	}
 }
 

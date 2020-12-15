@@ -1161,19 +1161,19 @@ void ModulatorSampler::nonRealtimeModeChanged(bool isNonRealtime)
 	}
 }
 
-void ModulatorSampler::saveSampleMap() const
+bool ModulatorSampler::saveSampleMap() const
 {
-	sampleMap->save();
+	return sampleMap->save();
 }
 
-void ModulatorSampler::saveSampleMapAsReference() const
+bool ModulatorSampler::saveSampleMapAsReference() const
 {
-	sampleMap->saveSampleMapAsReference();
+	return sampleMap->saveSampleMapAsReference();
 }
 
-void ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const
+bool ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const
 {
-	sampleMap->saveAsMonolith(mainEditor);
+	return sampleMap->saveAsMonolith(mainEditor);
 }
 
 bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)

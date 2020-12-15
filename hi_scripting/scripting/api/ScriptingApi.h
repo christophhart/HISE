@@ -357,8 +357,8 @@ public:
 		/** Sets whether the samples are allowed to be duplicated. Set this to false if you operate on the same samples differently. */
 		void setAllowDuplicateSamples(bool shouldAllow);
 
-		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. */
-		void loadAudioFilesIntoPool();
+		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. Returns a list of all references. */
+		var loadAudioFilesIntoPool();
 
 		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
 		void loadImageIntoPool(const String& id);
@@ -918,6 +918,9 @@ public:
 
 		/** Throws an error message if the value is not a legal number (eg. string or array or infinity or NaN). */
 		void assertLegalNumber(var value);
+
+		/** Throws an assertion in the attached debugger. */
+		void breakInDebugger();
 
 		struct Wrapper;
 
