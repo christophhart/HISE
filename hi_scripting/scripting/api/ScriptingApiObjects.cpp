@@ -4538,6 +4538,9 @@ bool ScriptingObjects::ScriptedMidiPlayer::setFile(var fileName, bool clearExist
 		}
 		else
 		{
+			if(selectNewSequence)
+				pl->sendSequenceUpdateMessage(sendNotificationAsync);
+
 			// if it's empty, we don't want to load anything, so we "succeeded".
 			return true;
 		}
