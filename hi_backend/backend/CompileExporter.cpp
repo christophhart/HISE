@@ -2580,6 +2580,7 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
     pluginDataHeaderFile << "String hise::FrontendHandler::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
     
 	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionKey() { return \"" << expKey << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionType() { return \"" << expType << "\"; };\n";
 }
 
 void CompileExporter::HeaderHelpers::writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile)

@@ -289,8 +289,22 @@ updater(*this)
 		FullInstrumentExpansion::setNewDefault(this, synthData);
 		getExpansionHandler().setEncryptionKey(key);
 	}
+#else
+
+	auto expansionType = FrontendHandler::getExpansionType();
+
+	if (expansionType == "FilesOnly")
+		getExpansionHandler().setExpansionType<Expansion>();
+	else if (expansionType == "Encrypted")
+		getExpansionHandler().setExpansionType<ScriptEncryptedExpansion>();
+	else if (expansionType == "Disabled")
+		getExpansionHandler().setExpansionType<ExpansionHandler::Disabled>();
+	else
+		jassertfalse; // should never happen...
 		
 #endif
+
+	
 
 	getExpansionHandler().createAvailableExpansions();
 
