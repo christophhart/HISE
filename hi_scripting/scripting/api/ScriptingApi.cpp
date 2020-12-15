@@ -4109,6 +4109,7 @@ struct ScriptingApi::Console::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsDefined);
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsObjectOrArray);
 	API_VOID_METHOD_WRAPPER_1(Console, assertLegalNumber);
+	API_VOID_METHOD_WRAPPER_0(Console, breakInDebugger);
 };
 
 ScriptingApi::Console::Console(ProcessorWithScriptingContent *p) :
@@ -4126,6 +4127,8 @@ startTime(0.0)
 	ADD_API_METHOD_1(assertIsDefined);
 	ADD_API_METHOD_1(assertIsObjectOrArray);
 	ADD_API_METHOD_1(assertLegalNumber);
+
+	ADD_API_METHOD_0(breakInDebugger);
 }
 
 
@@ -4247,6 +4250,12 @@ void ScriptingApi::Console::assertLegalNumber(var value)
 	{
 		reportScriptError("Assertion failure: value is not a legal number. Value: " + value.toString());
 	}
+}
+
+void ScriptingApi::Console::breakInDebugger()
+{
+	// There you go...
+	jassertfalse;
 }
 
 #undef SEND_MESSAGE

@@ -919,6 +919,9 @@ public:
 		/** Throws an error message if the value is not a legal number (eg. string or array or infinity or NaN). */
 		void assertLegalNumber(var value);
 
+		/** Throws an assertion in the attached debugger. */
+		void breakInDebugger();
+
 		struct Wrapper;
 
 	private:
