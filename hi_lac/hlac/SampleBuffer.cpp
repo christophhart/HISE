@@ -294,6 +294,9 @@ void HiseSampleBuffer::burnNormalisation()
 	if (isFloatingPoint())
 		return;
 
+	if (getNumSamples() == 0)
+		return;
+
 	AudioSampleBuffer fb(getNumChannels(), getNumSamples());
 	convertToFloatWithNormalisation(fb.getArrayOfWritePointers(), getNumChannels(), 0, getNumSamples());
 

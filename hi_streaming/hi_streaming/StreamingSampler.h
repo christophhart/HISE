@@ -163,11 +163,15 @@ struct StereoChannelData
 #endif
 
 
-#if JUCE_32BIT
-#define NUM_UNMAPPERS 8
-#else
-#define NUM_UNMAPPERS 8
+// You can set a limit of how big the preload buffer can get before the entire sample gets loaded into memory
+// (there are a few edge cases where it could result in clicks during playback so if you encounter them, try
+// lowering that value. There was an issue that could be "solved" by setting this limit to 28000).
+#ifndef HISE_LOAD_ENTIRE_SAMPLE_THRESHHOLD
+#define HISE_LOAD_ENTIRE_SAMPLE_THRESHHOLD INT_MAX
 #endif
+
+
+#define NUM_UNMAPPERS 8
 
 
 

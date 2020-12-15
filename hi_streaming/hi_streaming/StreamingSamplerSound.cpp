@@ -166,8 +166,8 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		entireSampleLoaded = false;
 	}
 
-	// And we're back...
-	if (internalPreloadSize > 28000)
+	// Check if we should simply load the entire sample
+	if (internalPreloadSize > HISE_LOAD_ENTIRE_SAMPLE_THRESHHOLD)
 	{
 		internalPreloadSize = (int)sampleLength;
 		entireSampleLoaded = true;
@@ -489,17 +489,22 @@ void StreamingSamplerSound::lengthChanged()
 
 void StreamingSamplerSound::applyCrossfadeToPreloadBuffer()
 {
-	if (loopEnabled && crossfadeLength > 0)
+	if (loopEnabled && crossfadeLength > 0 && loopLength > 0)
 	{
 		auto fadePos = loopEnd - sampleStart - crossfadeLength;
 		auto numInBuffer = preloadBuffer.getNumSamples();
 
-		while (fadePos < numInBuffer)
+		if (fadePos < numInBuffer)
 		{
-			int numToCopy = jmin(crossfadeLength, numInBuffer - fadePos);
+			preloadBuffer.burnNormalisation();
 
-			hlac::HiseSampleBuffer::copy(preloadBuffer, loopBuffer, fadePos, 0, numToCopy);
-			fadePos += loopLength;
+			while (fadePos < numInBuffer)
+			{
+				int numToCopy = jmin(crossfadeLength, numInBuffer - fadePos);
+
+				hlac::HiseSampleBuffer::copy(preloadBuffer, loopBuffer, fadePos, 0, numToCopy);
+				fadePos += loopLength;
+			}
 		}
 	}
 }
