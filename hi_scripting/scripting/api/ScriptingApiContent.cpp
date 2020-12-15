@@ -322,9 +322,8 @@ ValueTree ScriptingApi::Content::ScriptComponent::exportAsValueTree() const
 void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTree &v)
 {
 	const var data = v.getProperty("value", var::undefined());
-
-	value = Content::Helpers::getCleanedComponentValue(data);
-
+	bool allowStrings = dynamic_cast<Label*>(this) != nullptr;
+	value = Content::Helpers::getCleanedComponentValue(data, allowStrings);
 }
 
 void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* /*componentToNotify*/)
@@ -4335,8 +4334,9 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 		{
 			static const Identifier value_("value");
 
-			v = Helpers::getCleanedComponentValue(presetChild.getProperty(value_));
+			auto allowStrings = dynamic_cast<ScriptLabel*>(components[i].get()) != nullptr;
 
+			v = Helpers::getCleanedComponentValue(presetChild.getProperty(value_), allowStrings);
 		}
 		else
 		{
@@ -5269,13 +5269,19 @@ juce::Colour ScriptingApi::Content::Helpers::getCleanedObjectColour(const var& v
 	return Colour((uint32)colourValue);
 }
 
-var ScriptingApi::Content::Helpers::getCleanedComponentValue(const var& data)
+var ScriptingApi::Content::Helpers::getCleanedComponentValue(const var& data, bool allowStrings)
 {
-	if (data.isString() && data.toString().startsWith("JSON"))
+	if (data.isString() && (data.toString().startsWith("JSON") || allowStrings))
 	{
-		String jsonData = data.toString().fromFirstOccurrenceOf("JSON", false, false);
-
-		return JSON::fromString(jsonData);
+		if (data.toString().startsWith("JSON"))
+		{
+			String jsonData = data.toString().fromFirstOccurrenceOf("JSON", false, false);
+			return JSON::fromString(jsonData);
+		}
+		else
+		{
+			return data;
+		}
 	}
 	else
 	{
