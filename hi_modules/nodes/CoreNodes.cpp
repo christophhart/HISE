@@ -470,7 +470,7 @@ float scriptnode::core::oscillator_impl<NV>::tickNoise(OscData& d)
 template <int NV>
 float scriptnode::core::oscillator_impl<NV>::tickSaw(OscData& d)
 {
-	return 2.0f * std::fmodf(d.tick() / (float)sinTable->getTableSize(), 1.0f) - 1.0f;
+	return 2.0f * std::fmod(d.tick() / (float)sinTable->getTableSize(), 1.0f) - 1.0f;
 }
 
 template <int NV>
