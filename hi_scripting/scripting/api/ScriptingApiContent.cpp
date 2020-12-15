@@ -2578,17 +2578,16 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	if (absoluteFileName.isEmpty())
 	{
-		setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 		image.clear();
+		setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 		return;
 	}
-
-	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
-
 
 	PoolReference ref(getProcessor()->getMainController(), absoluteFileName, ProjectHandler::SubDirectories::Images);
 	image.clear();
 	image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
+
+	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 };
 
 
@@ -3002,10 +3001,18 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 {
 	PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
 
-	for (const auto& img : loadedImages)
+	for (auto& img : loadedImages)
 	{
-		if (img.image.getRef() == ref)
+		if (img.prettyName == prettyName)
+		{
+			if (img.image.getRef() != ref)
+			{
+				HiseJavascriptEngine::TimeoutExtender xt(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
+				img.image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
+			}
+
 			return;
+		}
 	}
 
 	HiseJavascriptEngine::TimeoutExtender xt(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
