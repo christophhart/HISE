@@ -333,7 +333,11 @@ snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(Struc
 		auto pId = getVariadicMemberIdFromIndex(d->templateParameters.getFirst().constant);
 
 		auto offset = st->getMemberOffset(pId);
-		auto type = TypeInfo(st->getMemberComplexType(pId), false, true);
+
+		auto memberType = st->getMemberComplexType(pId);
+		auto innerType = WrapBuilder::Helpers::getInnerType(dynamic_cast<StructType*>(memberType.get()));
+
+		auto type = TypeInfo(innerType, false, true);
 		auto base = dynamic_cast<Operations::Expression*>(d->object.get());
 
 		d->target = new Operations::MemoryReference(d->location, base, type, offset);
@@ -346,10 +350,12 @@ snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(Struc
 		auto pId = getVariadicMemberIdFromIndex(rt->templateParameters.getFirst().constant);
 		auto t = st->getMemberComplexType(pId);
 
+		auto inner = WrapBuilder::Helpers::getInnerType(dynamic_cast<StructType*>(t.get()));
+
 		if (t == nullptr)
 			return Result::fail("Can't deduce type");
 
-		rt->f.returnType = TypeInfo(t, false, true);
+		rt->f.returnType = TypeInfo(inner, false, true);
 
 		return Result::ok();
 	};
@@ -460,6 +466,8 @@ void WrapBuilder::init(Compiler& c, int numChannels)
 				st->addWrappedMemberMethod("obj", p);
 		}
 
+		
+
 #if 0
 		TemplateObject to(st->getTemplateInstanceId());
 
@@ -514,6 +522,7 @@ void WrapBuilder::init(Compiler& c, int numChannels)
 #endif
 	});
 
+	addFunction(createGetObjectFunction);
 	addFunction(createSetFunction);
 	addFunction(Helpers::constructorFunction);
 }
@@ -550,6 +559,26 @@ snex::jit::FunctionData WrapBuilder::createSetFunction(StructType* st)
 
 	return sf;
 	
+}
+
+snex::jit::FunctionData WrapBuilder::createGetObjectFunction(StructType* st)
+{
+	auto inner = Helpers::getInnerType(st);
+
+	
+
+	TypeInfo pType(inner, false, true);
+	FunctionData getObjectFunction;
+	getObjectFunction.id = st->id.getChildId("getObject");
+	getObjectFunction.returnType = pType;
+	getObjectFunction.inliner = Inliner::createHighLevelInliner(getObjectFunction.id, [pType](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+		d->target = new Operations::MemoryReference(d->location, d->object, pType, 0);
+		return Result::ok();
+	});
+
+	return getObjectFunction;
 }
 
 void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inliner::InlineType t, const Inliner::Func& inliner)
@@ -881,6 +910,22 @@ juce::Result WrapBuilder::Helpers::constructorInliner(InlineData* b)
 }
 
 
+
+snex::jit::StructType* WrapBuilder::Helpers::getInnerType(StructType* wrapperClass)
+{
+	StructType* inner = wrapperClass;
+
+	if (inner == nullptr)
+	{
+		jassertfalse;
+		return nullptr;
+	}
+
+	while (inner->id.getParent() == NamespacedIdentifier("wrap"))
+		inner = inner->getMemberTypeInfo("obj").getTypedComplexType<StructType>();
+
+	return inner;
+}
 
 WrapBuilder::ExternalFunctionMapData::ExternalFunctionMapData(Compiler& c_, AsmInlineData* d) :
 	c(c_),

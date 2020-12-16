@@ -285,6 +285,36 @@ private:
 };
 
 
+/** A wrapper around a node that allows custom initialisation.
+
+	Just create an initialiser class that takes a reference
+	to a T object and initialises it and it will do so in 
+	the constructor of this class.
+	
+	You can use it in order to setup default values and
+	add parameter connections for container nodes.
+*/
+template <class T, class Initialiser> class init
+{
+public:
+
+	GET_SELF_OBJECT(obj.getObject());
+	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+
+	init() : obj(), i(obj.getObject()) {};
+
+	HISE_DEFAULT_INIT(T);
+	HISE_DEFAULT_PREPARE(T);
+	HISE_DEFAULT_RESET(T);
+	HISE_DEFAULT_HANDLE_EVENT(T);
+	HISE_DEFAULT_PROCESS_FRAME(T);
+	HISE_DEFAULT_PROCESS(T);
+
+	T obj;
+	Initialiser i;
+};
+
+
 /** Wrapping a node into this template will bypass all callbacks.
 
 	You can use it to quickly deactivate a node (or the code generator might use this
@@ -317,8 +347,6 @@ private:
 	T obj;
 };
 
-#define HISE_DEFAULT_PREPARE(ObjectType) void prepare(PrepareSpecs ps) { obj.prepare(ps); }
-#define HISE_DEFAULT_PROCESS_FRAME(ObjectType) template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept { this->obj.processFrame(data); }
 #define INTERNAL_EVENT_FUNCTION(ObjectClass) static void handleHiseEventInternal(void* obj, HiseEvent& e) { auto& typed = *static_cast<ObjectClass*>(obj); typed.handleHiseEvent(e); }
 
 template <class T> class event

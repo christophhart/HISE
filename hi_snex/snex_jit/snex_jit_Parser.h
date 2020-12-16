@@ -664,7 +664,18 @@ private:
 			if (auto st = parent.getTypedIfComplexType<StructType>())
 			{
 				currentId = NamespacedIdentifier(parseIdentifier());
-				return parseDot(st->getMemberTypeInfo(currentId.id));
+
+				if(st->hasMember(currentId.id))
+					return parseDot(st->getMemberTypeInfo(currentId.id));
+				else
+				{
+					FunctionClass::Ptr fc = st->getFunctionClass();
+
+					auto fData = fc->getNonOverloadedFunctionRaw(st->id.getChildId(currentId.id));
+
+					return fData.returnType;
+				}
+
 			}
 
 			location.throwError("illegal dot operator");

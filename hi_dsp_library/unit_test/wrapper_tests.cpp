@@ -150,6 +150,9 @@ struct helper_nodes
 	/** Converts the velocity of a hise event to a DC offset applied to all channels. */
 	struct event2dc
 	{
+		GET_SELF_AS_OBJECT(event2dc);
+		
+
 		HISE_EMPTY_PREPARE;
 		HISE_EMPTY_RESET;
 		
@@ -170,6 +173,14 @@ struct helper_nodes
 		}
 
 		float v = 0.0f;
+	};
+
+	template <int Default7BitValue> struct event_initialiser
+	{
+		event_initialiser(event2dc& e)
+		{
+			e.v = (float)Default7BitValue / 128.0f;
+		}
 	};
 };
 
@@ -213,10 +224,17 @@ struct WrapperTests : public UnitTest
 
 		testEventWrapper<wrap::fix_block<32, wrap::event<helper_nodes::event2dc>>>
 			(t, "Testing wrap::event in fix_block<32>");
+
+		//testEventWrapper<wrap::init<wrap::event<helper_nodes::event2dc>, helper_nodes::event_initialiser<32>>>(t, "Testing init");
 	}
+
+	
 
 	void runTest() override
 	{
+		
+		
+
 		testEventWrappers();
 	}
 };

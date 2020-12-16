@@ -604,7 +604,10 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 				auto nc = new Operations::FunctionCall(d->location, nullptr, Symbol(icf.id, TypeInfo(Types::ID::Void)), icf.templateParameters);
 
 				auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), st->getMemberOffset(1));
-				auto objRef = new Operations::MemoryReference(d->location, d->object, st->getMemberTypeInfo("obj").withModifiers(false, true, false), 0);
+				
+				auto innerClass = WrapBuilder::Helpers::getInnerType(st);
+				
+				auto objRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(innerClass, false, true), 0);
 
 				nc->setObjectExpression(initRef);
 				nc->addArgument(objRef);
@@ -741,6 +744,8 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		if (!c.expectNotIntegerValue(0, 0))
 			return p;
 
+		auto blockType = TypeInfo(c.handler->getAliasType(NamespacedIdentifier("block")));
+
 		NamespacedIdentifier pId("ProcessData");
 
 		TemplateParameter::List l;
@@ -799,7 +804,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		{
 			FunctionData subscript;
 			subscript.id = pId.getChildId(FunctionClass::getSpecialSymbol(pId, jit::FunctionClass::Subscript));
-			subscript.returnType = TypeInfo(c.handler->getAliasType(NamespacedIdentifier("block")));
+			subscript.returnType = blockType;
 			subscript.addArgs("obj", TypeInfo(Types::ID::Pointer, true, true));
 			subscript.addArgs("index", TypeInfo(Types::ID::Integer));
 			subscript.inliner = Inliner::createAsmInliner(subscript.id, [pType](InlineData* b)
@@ -857,6 +862,24 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		TypeInfo channelType(c.handler->registerComplexTypeOrReturnExisting(channelPtrType));
 
 		{
+			TypeInfo channelList(new SpanType(blockType, numChannels), false, true);
+			
+
+			FunctionData constructor;
+			constructor.id = pId.getChildId(FunctionClass::getSpecialSymbol(pId, FunctionClass::Constructor));
+			constructor.returnType = TypeInfo(Types::ID::Void);
+			constructor.addArgs("data", channelList);
+
+			constructor.inliner = Inliner::createAsmInliner(constructor.id, [pType](InlineData* b)
+			{
+				jassertfalse;
+				return Result::ok();
+			});
+
+			pType->addJitCompiledMemberFunction(constructor);
+		}
+
+		{
 			FunctionData beginF, sizeFunction;
 			beginF.id = pId.getChildId(FunctionClass::getSpecialSymbol({}, jit::FunctionClass::BeginIterator));
 			beginF.returnType = channelType;
@@ -906,7 +929,7 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		{
 			FunctionData tcd;
 			tcd.id = pId.getChildId("toChannelData");
-			tcd.returnType = TypeInfo(c.handler->getAliasType(NamespacedIdentifier("block")));
+			tcd.returnType = blockType;
 			tcd.addArgs("channelPtr", channelType);
 
 			tcd.inliner = Inliner::createAsmInliner(tcd.id, [pType](InlineData* b)

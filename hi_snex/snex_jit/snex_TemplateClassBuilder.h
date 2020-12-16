@@ -436,12 +436,15 @@ struct WrapBuilder : public TemplateClassBuilder
 			return f;
 		}
 
+		static StructType* getInnerType(StructType* wrapperClass);
 	};
 
 	/** A function prototype that returns a function for the given struct type. */
 	using FunctionBuilder = std::function<FunctionData(StructType*)>;
 
 	static FunctionData createSetFunction(StructType* st);
+
+	static FunctionData createGetObjectFunction(StructType* st);
 
 	private:
 

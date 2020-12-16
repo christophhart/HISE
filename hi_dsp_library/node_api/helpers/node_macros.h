@@ -58,6 +58,10 @@ using namespace hise;
 #define HISE_DEFAULT_MOD(ObjectType) bool handleModulation(double& v) { return obj.handleModulation(v); }
 #define HISE_DEFAULT_HANDLE_EVENT(ObjectType) void handleHiseEvent(HiseEvent& e) { obj.handleHiseEvent(e); }
 #define HISE_DEFAULT_INIT(ObjectType) void initialise(NodeBase* n) { obj.initialise(n); }
+#define HISE_DEFAULT_PROCESS(ObjectType) template <typename ProcessDataType> void process(ProcessDataType& d) { obj.process(d); }
+#define HISE_DEFAULT_PREPARE(ObjectType) void prepare(PrepareSpecs ps) { obj.prepare(ps); }
+#define HISE_DEFAULT_PROCESS_FRAME(ObjectType) template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept { this->obj.processFrame(data); }
+
 
 /** Stack float array macros. 
 
