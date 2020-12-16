@@ -22,6 +22,7 @@ struct X
 
 int main(int input)
 {
+	// Use a initialiser list to overwrite the initial x value
 	X obj = { 6 };
 	
 	return obj.getX();

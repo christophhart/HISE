@@ -30,9 +30,9 @@ struct MyFirstStruct
 	// as the struct is called "Constructor"
 	// and will be called whenever the object
 	// is constructed.
-	MyFirstStruct()
+	MyFirstStruct(int initValue)
 	{
-		is1.i1 = 12;
+		is1.i1 = initValue * 2;
 	}
 
 	// Add a native data type member.
@@ -53,7 +53,7 @@ struct MyFirstStruct
 
 
 // You can declare global objects
-MyFirstStruct obj1;
+MyFirstStruct obj1 = { 19 };
 
 int main(int input)
 {
@@ -61,7 +61,7 @@ int main(int input)
 	// These will be allocated on the function
 	// stack with no memory heap allocation
 	// messing with realtime performance!
-	MyFirstStruct localObject;
+	MyFirstStruct localObject(input);
 	
 	// Uncomment this line and you will see a
 	// dump of the memory layout of this object
