@@ -47,6 +47,7 @@ class NamespaceHandler;
 struct AssemblyMemory;
 
 struct SubTypeConstructData;
+struct FunctionData;
 
 struct ComplexType : public ReferenceCountedObject
 {
@@ -1056,6 +1057,9 @@ struct FunctionData
 
 	bool matchesTemplateArguments(const TemplateParameter::List& l) const;
 
+	/** Checks if the id matches the constructor syntax (parent name == function name). */
+	bool isConstructor() const { return id.getIdentifier() == id.getParent().getIdentifier(); }
+
 	void setDescription(const juce::String& d, const StringArray& parameterNames = StringArray())
 	{
 		description = d;
@@ -1420,6 +1424,10 @@ struct FunctionClass: public DebugableObjectBase,
 		auto id = getClassName().getChildId(getSpecialSymbol(getClassName(), s));
 		addMatchingFunctions(possibleMatches, id);
 	}
+
+	FunctionData getConstructor(const Array<TypeInfo>& args);
+
+	FunctionData getConstructor(InitialiserList::Ptr initList);
 
 	static bool isConstructor(const NamespacedIdentifier& id)
 	{

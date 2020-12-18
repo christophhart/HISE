@@ -467,7 +467,6 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 		l->loadMemoryIntoRegister(cc);
 
-
 		if (type == Types::ID::Integer && (op == JitTokens::modulo || op == JitTokens::divide))
 		{
 			auto gs = r->getScope()->getGlobalScope();
@@ -533,10 +532,10 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 		BINARY_OP(JitTokens::assign_, cc.mov, cc.movss, cc.movsd);
 	}
 	
-	if (l->getTypeInfo().isRef() || l->hasCustomMemoryLocation())
+	auto target = l->getMemoryLocationForReference();
+
+	if (target.hasBase())
 	{
-		auto target = l->getMemoryLocationForReference();
-		
 		IF_(int)		cc.mov(target, INT_REG_R(l));
 		IF_(float)		cc.movss(target, FP_REG_R(l));
 		IF_(double)		cc.movsd(target, FP_REG_R(l));
@@ -545,10 +544,18 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 			jassert(l->isSimd4Float());
 			cc.movaps(target, FP_REG_R(l));
 		}
-		
-        if(l->isDirtyGlobalMemory())
-            l->setUndirty();
+
+		if (l->isDirtyGlobalMemory())
+			l->setUndirty();
 	}
+
+#if 0
+	if (l->getTypeInfo().isRef() || l->hasCustomMemoryLocation())
+	{
+		
+		
+	}
+#endif
 
 	return l;
 }
@@ -1225,7 +1232,9 @@ Result AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& 
 	if(objectAddress != nullptr)
 		objectAddress->loadMemoryIntoRegister(cc);
 	
-	TemporaryRegister o(*this, returnReg->getScope(), TypeInfo(Types::ID::Block));
+	auto scope = returnReg != nullptr ? returnReg->getScope() : objectAddress->getScope();
+
+	TemporaryRegister o(*this, scope, TypeInfo(Types::ID::Block));
 	bool useTempReg = false;
 
 	if (!isMemberFunction && f.object != nullptr)

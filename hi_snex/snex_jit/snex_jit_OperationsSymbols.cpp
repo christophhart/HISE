@@ -595,9 +595,6 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 
 				Expression::replaceMemoryWithExistingReference(compiler);
 			}
-
-
-
 		}
 		else
 		{

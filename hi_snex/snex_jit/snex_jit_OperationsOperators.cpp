@@ -1067,14 +1067,14 @@ bool Operations::Subscript::tryToResolveType(BaseCompiler* compiler)
 	{
 		spanType = ts;
 		subscriptType = Span;
-		elementType = spanType->getElementType();
+		elementType = spanType->getElementType().withModifiers(parentType.isConst(), true);
 		return true;
 	}
 	else if (auto ds = parentType.getTypedIfComplexType<DynType>())
 	{
 		dynType = ds;
 		subscriptType = Dyn;
-		elementType = dynType->elementType;
+		elementType = dynType->elementType.withModifiers(parentType.isConst(), true);
 		return true;
 	}
 	else if (getSubExpr(0)->getType() == Types::ID::Block)

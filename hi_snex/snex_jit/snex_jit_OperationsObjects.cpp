@@ -154,6 +154,11 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 			{
 				if (auto s = getSubExpr(0))
 				{
+					if (!s->getTypeInfo().isRef())
+					{
+						location.throwError("Can't assign reference to temporary type");
+					}
+
 					reg = s->reg;
 
 					if (reg != nullptr)

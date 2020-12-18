@@ -1002,6 +1002,41 @@ bool FunctionClass::injectFunctionPointer(FunctionData& dataToInject)
 	return false;
 }
 
+FunctionData FunctionClass::getConstructor(const Array<TypeInfo>& args)
+{
+	for (auto f : functions)
+	{
+		if (f->isConstructor() && f->matchesArgumentTypes(args))
+			return FunctionData(*f);
+	}
+
+	return {};
+}
+
+snex::jit::FunctionData FunctionClass::getConstructor(InitialiserList::Ptr initList)
+{
+	Array<TypeInfo> args;
+
+	initList->forEach([&args](InitialiserList::ChildBase* b)
+	{
+		if (auto e = dynamic_cast<InitialiserList::ExpressionChild*>(b))
+		{
+			args.add(e->expression->getTypeInfo());
+		}
+		else
+		{
+			VariableStorage v;
+			if(b->getValue(v))
+				args.add(TypeInfo(v.getType()));
+		}
+
+		return false;
+	});
+
+	
+	return getConstructor(args);
+}
+
 FunctionData FunctionClass::getSpecialFunction(SpecialSymbols s, TypeInfo returnType, const TypeInfo::List& argTypes) const
 {
 	if (hasSpecialFunction(s))

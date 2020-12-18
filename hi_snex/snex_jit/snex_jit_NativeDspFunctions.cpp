@@ -308,7 +308,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 			if (rt->templateParameters.isEmpty())
 			{
 				auto sliceType = new DynType(elementType);
-				rt->f.returnType = TypeInfo(sliceType, false, false);
+				rt->f.returnType = TypeInfo(sliceType, false, true);
 			}
 			else
 			{

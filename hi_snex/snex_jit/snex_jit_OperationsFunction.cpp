@@ -893,6 +893,55 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 		}
 		else
 		{
+			if (auto cType = compiler->namespaceHandler.getComplexType(function.id))
+			{
+				// might be a constructor with the syntax auto obj = MyObject(...);
+
+				fc = cType->getFunctionClass();
+
+				function.id = function.id.getChildId(function.id.getIdentifier());
+				function.returnType = TypeInfo(cType, false, false);
+				
+				function.inliner = Inliner::createAsmInliner(function.id, [](InlineData* b)
+				{
+					auto d = b->toAsmInlineData();
+
+					auto typeToInitialise = d->target->getTypeInfo().getComplexType();
+					auto& cc = d->gen.cc;
+
+					auto mem = cc.newStack(typeToInitialise->getRequiredByteSize(), typeToInitialise->getRequiredAlignment());
+					
+					d->target->setCustomMemoryLocation(mem, false);
+
+					d->gen.emitStackInitialisation(d->target, typeToInitialise, nullptr, typeToInitialise->makeDefaultInitialiserList());
+
+					FunctionClass::Ptr fc = typeToInitialise->getFunctionClass();
+
+					Array<TypeInfo> argTypes;
+
+					for (auto a : d->args)
+						argTypes.add(a->getTypeInfo());
+
+					auto f = fc->getConstructor(argTypes);
+
+					// Remove the inliner
+					f.inliner = nullptr;
+					
+					auto ok = d->gen.emitFunctionCall(nullptr, f, d->target, d->args);
+
+					
+					return Result::ok();
+				});
+
+				for (int i = 0; i < getNumArguments(); i++)
+					function.addArgs("a" + String(i + 1), getArgument(i)->getTypeInfo());
+
+				possibleMatches.add(function);
+				callType = StaticFunction;
+
+				return true;
+			}
+
 			function = compiler->getInbuiltFunctionClass()->getNonOverloadedFunctionRaw(function.id);
 
 			jassert(function.inliner != nullptr);
