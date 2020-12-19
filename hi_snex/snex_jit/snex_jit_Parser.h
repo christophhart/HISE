@@ -492,11 +492,7 @@ public:
 
 	StatementPtr parseStatementList();
 
-	virtual StatementPtr parseFunction(const Symbol& s)
-	{
-		location.throwError("Can't parse function");
-		return nullptr;
-	}
+	virtual StatementPtr parseFunction(const Symbol& s);
 
 	virtual StatementPtr parseStatement() = 0;
 
@@ -551,6 +547,8 @@ public:
 	Array<TemplateParameter> parseTemplateParameters(bool parseTemplateDefinition);
 
 	StatementPtr parseComplexTypeDefinition();
+
+	virtual StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids);
 
 	StatementPtr matchIfSemicolonAndReturn(StatementPtr p)
 	{
@@ -744,6 +742,8 @@ public:
 
 
 	void registerTemplateArguments(TemplateParameter::List& templateList, const NamespacedIdentifier& scopeId);
+
+	StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids) override;
 
 	StatementPtr parseStatement() override;
 	StatementPtr parseVariableDefinition();

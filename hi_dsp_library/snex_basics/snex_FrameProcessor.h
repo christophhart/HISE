@@ -276,14 +276,14 @@ struct IndexType
 		return typename span<float, I>::clamped(0);
 	}
 
-	template <typename E, int I> static auto clamped(const span<E, I>& obj)
+	template <typename E, int I> static auto clamped(const span<E, I>& obj, int index=0)
 	{
-		return typename span<E, I>::clamped(0);
+		return typename span<E, I>::clamped(index);
 	}
 
-	template <typename E, int I> static auto wrapped(const span<E, I>& obj)
+	template <typename E, int I> static auto wrapped(const span<E, I>& obj, int index=0)
 	{
-		return typename span<E, I>::wrapped(0);
+		return typename span<E, I>::wrapped(index);
 	}
 
 	template <typename T> static auto clamped(T& obj)

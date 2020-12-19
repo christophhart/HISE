@@ -331,9 +331,17 @@ juce::Result RootClassData::callRootConstructors()
 					{
 						if (auto st = dynamic_cast<StructType*>(typePtr))
 						{
-							auto offset = st->getMemberOffset(ph->variableId);
-							auto dataToUse = reinterpret_cast<void*>((uint8*)ts.data + offset);
-							ph->value = VariableStorage(dataToUse, st->getMemberTypeInfo(ph->variableId).getRequiredByteSize());
+							if (st = ph->st)
+							{
+								auto offset = st->getMemberOffset(ph->variableId);
+								auto dataToUse = reinterpret_cast<void*>((uint8*)ts.data + offset);
+								ph->value = VariableStorage(dataToUse, st->getMemberTypeInfo(ph->variableId).getRequiredByteSize());
+							}
+							else
+							{
+								jassertfalse;
+							}
+
 						}
 					}
 

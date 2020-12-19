@@ -270,7 +270,7 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 
 	if (nodeId.isValid())
 	{
-		nodeToTest = new Types::JitCompiledNode(c, code, nodeId.toString(), numChannels);
+		nodeToTest = new JitCompiledNode(c, code, nodeId.toString(), numChannels);
 
 		if (!nodeToTest->r.wasOk())
 			return nodeToTest->r;
@@ -477,23 +477,23 @@ juce::Result JitFileTestCase::test(bool dumpBeforeTest /*= false*/)
 	auto r = compileWithoutTesting(dumpBeforeTest);
 
 	if (!r.wasOk())
-		return expectCompileFail(r.getErrorMessage());
+		return expectCompileFail(expectedFail);
 
 	return testAfterCompilation(dumpBeforeTest);
 }
 
-bool JitFileTestCase::save()
+File JitFileTestCase::save()
 {
 	if (!r.wasOk())
 	{
 		AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Can't save file because of error", r.getErrorMessage());
-		return false;
+		return File();
 	}
 
 	if (fileToBeWritten == File())
 	{
 		AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Can't save file", "Unspecified name");
-		return false;
+		return File();
 	}
 
 	if (!fileToBeWritten.existsAsFile() || AlertWindow::showYesNoCancelBox(AlertWindow::QuestionIcon, "Replace test file", "Do you want to replace the test file " + fileToBeWritten.getFullPathName()))
@@ -501,14 +501,17 @@ bool JitFileTestCase::save()
 		bool showMessageAfter = !fileToBeWritten.existsAsFile();
 
 		fileToBeWritten.create();
-		return fileToBeWritten.replaceWithText(code);
+		auto ok = fileToBeWritten.replaceWithText(code);
+
+		if (ok)
+			return fileToBeWritten;
 
 		if (showMessageAfter)
 			AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Created new test file", fileToBeWritten.getFullPathName());
 	}
 
 
-	return false;
+	return File();
 }
 
 void JitFileTestCase::parseFunctionData()
@@ -863,7 +866,7 @@ juce::Result JitFileTestCase::expectCompileFail(const juce::String& errorMessage
 	if (t != nullptr)
 	{
 		t->expectEquals(r.getErrorMessage(), errorMessage, file.getFileName());
-		return r;
+		return Result::ok();
 	}
 	else
 	{

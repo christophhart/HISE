@@ -789,6 +789,36 @@ private:
 
 }
 
+struct InitialiserList::MemberPointer: public InitialiserList::ChildBase
+{
+	MemberPointer(StructType* st_, const Identifier& id) :
+		st(st_),
+		variableId(id)
+	{};
+
+	juce::String toString() const override
+	{
+		return variableId.toString();
+	}
+
+	bool getValue(VariableStorage& v) const override
+	{
+		v = value;
+		return !v.isVoid();
+	}
+
+	InitialiserList::Ptr createChildList() const override
+	{
+		InitialiserList::Ptr n = new InitialiserList();
+		n->addChild(new MemberPointer(st, variableId));
+		return n;
+	}
+
+	StructType* st;
+	Identifier variableId;
+	VariableStorage value;
+};
+
 struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 {
 	ExpressionChild(Operations::Expression::Ptr e) :

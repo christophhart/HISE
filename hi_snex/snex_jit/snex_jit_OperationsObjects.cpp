@@ -60,11 +60,12 @@ void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scop
 	{
 		auto cType = getStructType();
 
-		forEachRecursive([cType](Ptr p)
+		forEachRecursive([cType, this](Ptr p)
 		{
 			if (auto f = as<Function>(p))
 			{
-				cType->addJitCompiledMemberFunction(f->data);
+				if(f->data.id.getParent() == cType->id)
+					cType->addJitCompiledMemberFunction(f->data);
 			}
 
 			if (auto tf = as<TemplatedFunction>(p))
@@ -126,6 +127,17 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 		{
 			initValues = type.makeDefaultInitialiserList();
 		}
+
+		// Override the init values for the constructor here...
+		// (They should have been passed to the constructor call afterwards
+		if (isStackDefinition(scope) &&					// only stack created objects
+			type.getComplexType()->hasConstructor() &&  // only objects with a constructor
+			as<FunctionCall>(getSubExpr(0)) == nullptr) // only definitions that do not have a function call as sub expression:
+														// auto x = MyObject(...);
+		{
+			initValues = type.makeDefaultInitialiserList();
+		}
+			
 
 		if (!isStackDefinition(scope))
 		{

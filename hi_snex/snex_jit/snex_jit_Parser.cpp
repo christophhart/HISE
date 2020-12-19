@@ -228,6 +228,29 @@ BlockParser::StatementPtr BlockParser::parseStatementList()
 
 
 
+snex::jit::BlockParser::StatementPtr BlockParser::parseFunction(const Symbol& s)
+{
+	// The only function call that's allowed here is a Type definition
+	auto typeDef = new Operations::ComplexTypeDefinition(location, { s.id }, s.typeInfo);
+
+	InitialiserList::Ptr l = new InitialiserList();
+
+	while (currentType != JitTokens::closeParen)
+	{
+		l->addChild(new InitialiserList::ExpressionChild(parseExpression()));
+
+		if (!matchIf(JitTokens::comma))
+		{
+			match(JitTokens::closeParen);
+			break;
+		}
+	}
+
+	typeDef->addInitValues(l);
+
+	return addConstructorToComplexTypeDef(typeDef, {s.id});
+}
+
 void NewClassParser::registerTemplateArguments(TemplateParameter::List& templateList, const NamespacedIdentifier& scopeId)
 {
 	jassert(compiler->namespaceHandler.getCurrentNamespaceIdentifier() == scopeId);
@@ -250,6 +273,13 @@ void NewClassParser::registerTemplateArguments(TemplateParameter::List& template
 			compiler->namespaceHandler.addSymbol(tp.argumentId, TypeInfo(Types::ID::Integer), NamespaceHandler::TemplateConstant);
 		}
 	}
+}
+
+snex::jit::BlockParser::StatementPtr NewClassParser::addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids)
+{
+	// Do not add a constructor in a class definition
+	match(JitTokens::semicolon);
+	return def;
 }
 
 BlockParser::StatementPtr NewClassParser::parseStatement()
@@ -791,35 +821,45 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 				n->addStatement(parseExpression());
 		}
 
-		if (currentTypeInfo.isComplexType() && currentTypeInfo.getComplexType()->hasConstructor())
+		return addConstructorToComplexTypeDef(n, ids);
+	}
+}
+
+snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids)
+{
+	auto n = Operations::as<Operations::ComplexTypeDefinition>(def);
+
+	if (currentTypeInfo.isComplexType() && currentTypeInfo.getComplexType()->hasConstructor())
+	{
+		StatementPtr cd = n;
+
+		FunctionClass::Ptr fc = currentTypeInfo.getComplexType()->getFunctionClass();
+
+		if (!fc->hasSpecialFunction(FunctionClass::Constructor))
 		{
-			StatementPtr cd = n;
+			location.throwError("Can't find constructor");
+		}
 
+		auto ab = new Operations::AnonymousBlock(location);
+		ab->addStatement(n);
 
+		for (auto id : ids)
+		{
 			FunctionClass::Ptr fc = currentTypeInfo.getComplexType()->getFunctionClass();
 
-			if (!fc->hasSpecialFunction(FunctionClass::Constructor))
+			auto cf = fc->getConstructor(n->initValues);
+
+			if (!cf.id.isValid())
+				location.throwError("Can't find constructor that matches init values " + n->initValues->toString());
+			
+			auto call = new Operations::FunctionCall(location, nullptr, Symbol(cf.id, TypeInfo(Types::ID::Void)), {});
+			auto obj = new Operations::VariableReference(location, Symbol(id, TypeInfo(currentTypeInfo)));
+
+			call->setObjectExpression(obj);
+
+			if (n->initValues != nullptr)
 			{
-				location.throwError("Can't find constructor");
-			}
-
-			auto ab = new Operations::AnonymousBlock(location);
-
-			ab->addStatement(n);
-
-			for (auto id : ids)
-			{
-				FunctionClass::Ptr fc = currentTypeInfo.getComplexType()->getFunctionClass();
-
-				auto cf = fc->getSpecialFunction(FunctionClass::Constructor);
-				auto call = new Operations::FunctionCall(location, nullptr, Symbol(cf.id, TypeInfo(Types::ID::Void)), {});
-				auto obj = new Operations::VariableReference(location, Symbol(id, TypeInfo(currentTypeInfo)));
-
-				call->setObjectExpression(obj);
-
-				if (n->initValues != nullptr)
-				{
-					n->initValues->forEach([&](InitialiserList::ChildBase* cb)
+				n->initValues->forEach([&](InitialiserList::ChildBase* cb)
 					{
 						if (auto e = dynamic_cast<InitialiserList::ExpressionChild*>(cb))
 						{
@@ -835,23 +875,19 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 
 						return false;
 					});
-				}
-
-				ab->addStatement(call);
 			}
 
-			match(JitTokens::semicolon);
-			return ab;
+			
+			ab->addStatement(call);
 		}
 
 		match(JitTokens::semicolon);
-
-		return n;
+		return ab;
 	}
 
-	
+	match(JitTokens::semicolon);
 
-	
+	return n;
 }
 
 InitialiserList::Ptr BlockParser::parseInitialiserList()

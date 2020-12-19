@@ -34,6 +34,25 @@
 
 namespace scriptnode
 {
+
+namespace scriptnode_initialisers
+{
+	struct no
+	{
+		static void initialise(void*, NodeBase*)
+		{};
+	};
+
+	struct oversample
+	{
+		static void initialise(void* obj, NodeBase* n)
+		{
+			auto typed = static_cast<wrap::oversample_base*>(obj);
+			typed->lock = &n->getRootNetwork()->getConnectionLock();
+		};
+	};
+}
+
 using namespace juce;
 using namespace hise;
 
@@ -1016,20 +1035,7 @@ template <typename ObjectType> struct FilterTestNode : public snex::Types::SnexN
 */
 namespace init
 {
-struct no
-{
-	static void initialise(void*, NodeBase*)
-	{};
-};
 
-struct oversample
-{
-	static void initialise(void* obj, NodeBase* n)
-	{
-		auto typed = static_cast<wrap::oversample_base*>(obj);
-		typed->lock = &n->getRootNetwork()->getConnectionLock();
-	};
-};
 }
     struct NodeFactory
     {

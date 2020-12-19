@@ -1207,7 +1207,7 @@ juce::Result StructType::initialise(InitData d)
 			{
 				InitData c;
 				c.initValues = d.initValues->createChildList(index);
-				c.callConstructor = d.callConstructor;
+				c.callConstructor = m->typeInfo.getComplexType()->hasConstructor();
 
 				AssemblyMemory cm;
 
@@ -1258,6 +1258,8 @@ juce::Result StructType::initialise(InitData d)
 
 	return Result::ok();
 }
+
+
 
 bool StructType::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer)
 {
@@ -1745,6 +1747,11 @@ juce::Identifier StructType::getMemberName(int index) const
 
 void StructType::addJitCompiledMemberFunction(const FunctionData& f)
 {
+	if (id != f.id.getParent())
+	{
+		jassertfalse;
+	}
+
 	for (auto& existing : memberFunctions)
 	{
 		if (existing.matchIdArgsAndTemplate(f))

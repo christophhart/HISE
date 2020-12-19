@@ -520,6 +520,24 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		for (int i = 0; i < getNumArguments(); i++)
 			parameterTypes.add(compiler->convertToNativeTypeIfPossible(getArgument(i)->getTypeInfo()));
 
+		if (possibleMatches.size() > 0)
+		{
+			// Sort the matches so that resolved functions come first
+			// This avoids templated functions without inliner to be picked over their
+			// actual functions with proper inlining.
+
+			struct {
+				static int compareElements(const FunctionData& f1, const FunctionData& f2)
+				{
+					if (f1.isResolved() && !f2.isResolved()) return -1;
+					if (f2.isResolved() && !f1.isResolved()) return 1;
+					return 0;
+				}
+			} sorter;
+			possibleMatches.sort(sorter);
+		}
+		
+
 		for (auto& f : possibleMatches)
 		{
 			if (f.templateParameters.size() != function.templateParameters.size())

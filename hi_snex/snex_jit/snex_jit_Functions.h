@@ -96,7 +96,7 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual InitialiserList::Ptr makeDefaultInitialiserList() const = 0;
 
-	Result callConstructor(void* data, InitialiserList::Ptr initList);
+	virtual Result callConstructor(void* data, InitialiserList::Ptr initList);
 
 	virtual bool hasConstructor();
 
@@ -216,6 +216,8 @@ struct TypeInfo
 		ref_(isRef_),
 		static_(isStatic_)
 	{
+		jassert(!(type == Types::ID::Void && isRef()));
+
 		jassert(type != Types::ID::Pointer || isConst_);
 		updateDebugName();
 	}
@@ -316,6 +318,9 @@ struct TypeInfo
 		c.const_ = isConst_;
 		c.ref_ = isRef_;
 		c.static_ = isStatic_;
+
+		
+
 		c.updateDebugName();
 		return c;
 	}
@@ -473,6 +478,8 @@ private:
 #if JUCE_DEBUG
 		debugName = toString().toStdString();
 #endif
+
+		jassert(!(type == Types::ID::Void && isRef()));
 	}
 
 #if JUCE_DEBUG
@@ -880,6 +887,8 @@ struct Inliner : public ReferenceCountedObject
 
 	static Inliner* createHighLevelInliner(const NamespacedIdentifier& id, const Func& highLevelFunc)
 	{
+		auto ok = id.getIdentifier() == Identifier("reset4");
+
 		return new Inliner(id, [](InlineData* b)
 		{
 			jassert(!b->isHighlevel());
@@ -1040,6 +1049,8 @@ struct FunctionData
 	{
 		return function != nullptr || inliner != nullptr;
 	}
+
+	FunctionData withParent(const NamespacedIdentifier& newParent) const;
 
 	TypeInfo getOrResolveReturnType(ComplexType::Ptr p);
 

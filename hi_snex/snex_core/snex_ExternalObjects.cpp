@@ -339,9 +339,9 @@ template <class Node> struct JitNodeWrapper
 		auto id = NamespacedIdentifier(factoryId).getChildId(T::getStaticId());
 		auto st = new StructType(id);
 		
-		auto prepaFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::PrepareFunction, numChannels);
-		auto eventFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::HandleEventFunction, numChannels);
-		auto resetFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ResetFunction, numChannels);
+		auto prepaFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::PrepareFunction, numChannels).withParent(id);
+		auto eventFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::HandleEventFunction, numChannels).withParent(id);
+		auto resetFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ResetFunction, numChannels).withParent(id);
 
 		st->addJitCompiledMemberFunction(prepaFunction);
 		st->addJitCompiledMemberFunction(eventFunction);
@@ -349,8 +349,8 @@ template <class Node> struct JitNodeWrapper
 
 		auto addProcessCallbacks = [&](int i)
 		{
-			auto pi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFunction, i);
-			auto fi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFrameFunction, i);
+			auto pi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFunction, i).withParent(id);
+			auto fi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFrameFunction, i).withParent(id);
 
 			st->addJitCompiledMemberFunction(pi);
 			st->addJitCompiledMemberFunction(fi);
@@ -580,7 +580,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 			st->addMember("initialiser", TypeInfo(ic, false, false));
 			InitialiserList::Ptr di = new InitialiserList();
-			di->addChild(new InitialiserList::MemberPointer("obj"));
+			di->addChild(new InitialiserList::MemberPointer(st, "obj"));
 			st->setDefaultValue("initialiser", di);
 		});
 
@@ -772,7 +772,6 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 		pType->setDefaultValue("numChannels", InitialiserList::makeSingleList(numChannels));
 		pType->setDefaultValue("shouldReset", InitialiserList::makeSingleList(0));
 
-		
 		pType->setCustomDumpFunction([numChannels](void* obj)
 		{
 			String s;
@@ -870,9 +869,51 @@ void SnexObjectDatabase::createProcessData(Compiler& c, const TypeInfo& eventTyp
 			constructor.returnType = TypeInfo(Types::ID::Void);
 			constructor.addArgs("data", channelList);
 
-			constructor.inliner = Inliner::createAsmInliner(constructor.id, [pType](InlineData* b)
+			constructor.inliner = Inliner::createAsmInliner(constructor.id, [pType, numChannels](InlineData* b)
 			{
-				jassertfalse;
+				auto d = b->toAsmInlineData();
+
+				auto& cc = d->gen.cc;
+
+				
+
+				auto channelDataOnStack = cc.newStack(numChannels * sizeof(float*), 8);
+
+				X86Mem channelDyn;
+
+				if (d->args[0]->isMemoryLocation())
+					channelDyn = d->args[0]->getAsMemoryLocation();
+				else
+					channelDyn = x86::ptr(PTR_REG_R(d->args[0]));
+
+				auto addressReg = cc.newGpq();
+				auto sizeReg = cc.newGpd();
+
+				cc.mov(sizeReg, channelDyn.cloneAdjustedAndResized(4, 4));
+
+				for (int i = 0; i < numChannels; i++)
+				{
+					auto channelOffset = sizeof(block) * i;
+
+					auto m = channelDyn.cloneAdjustedAndResized(channelOffset + 8, sizeof(void*));
+					
+					
+					cc.mov(addressReg, m);
+					cc.mov(channelDataOnStack.cloneAdjustedAndResized(i * sizeof(float*), 8), addressReg);
+				}
+
+				auto pDataOnStack = cc.newStack(sizeof(Types::ProcessDataDyn), 8);
+				
+				cc.lea(addressReg, channelDataOnStack);
+
+				cc.mov(pDataOnStack.cloneResized(8), addressReg);		// "data", TypeInfo(Types::ID::Pointer, true)
+				cc.mov(pDataOnStack.cloneAdjustedAndResized(8, 8), 0);	// "events", TypeInfo(Types::ID::Pointer, true)
+				cc.mov(pDataOnStack.cloneAdjustedAndResized(16, 4), sizeReg); //"numSamples", TypeInfo(Types::ID::Integer)
+				cc.mov(pDataOnStack.cloneAdjustedAndResized(20, 4), 31); //"numEvents", TypeInfo(Types::ID::Integer)
+				cc.mov(pDataOnStack.cloneAdjustedAndResized(24, 4), numChannels); //"numChannels", TypeInfo(Types::ID::Integer)
+				cc.mov(pDataOnStack.cloneAdjustedAndResized(28, 4), 90);  //"shouldReset", TypeInfo(Types::ID::Integer)
+
+				d->object->setCustomMemoryLocation(pDataOnStack, false);
 				return Result::ok();
 			});
 

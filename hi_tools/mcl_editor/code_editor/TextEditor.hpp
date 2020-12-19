@@ -468,7 +468,7 @@ public:
 
 			updateSelections();
 
-			Timer::callAfterDelay(300, [this]()
+			Timer::callAfterDelay(1200, [this]()
 			{
 				this->updateAutocomplete();
 			});

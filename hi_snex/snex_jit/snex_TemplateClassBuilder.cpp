@@ -125,7 +125,7 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 			auto fData = f(st);
 
 			if(fData.id.isValid())
-				st->addJitCompiledMemberFunction(fData);
+				st->addJitCompiledMemberFunction(fData.withParent(st->id));
 		}
 
 		st->finaliseExternalDefinition();
@@ -537,14 +537,21 @@ snex::jit::FunctionData WrapBuilder::createSetFunction(StructType* st)
 
 	sf.inliner = Inliner::createHighLevelInliner(sf.id, [st](InlineData* b)
 	{
-		// Fix this at some point...
-		jassertfalse;
-
 		auto d = b->toSyntaxTreeData();
 		auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 0);
 
+		Symbol sToUse(dynamic_cast<StructType*>(pType.get())->id.getChildId("setParameter"), TypeInfo(Types::ID::Void));
+
+		TemplateInstance tId(sToUse.id, {});
+		auto r = Result::ok();
+
+		d->object->currentCompiler->namespaceHandler.createTemplateFunction(tId, d->templateParameters, r);
+
+		if (!r.wasOk())
+			return r;
+
 		FunctionClass::Ptr fc = pType->getFunctionClass();
-		auto exprCall = new Operations::FunctionCall(d->location, nullptr, { st->id.getChildId("setParameter"), TypeInfo(Types::ID::Void) }, d->templateParameters);
+		auto exprCall = new Operations::FunctionCall(d->location, nullptr, sToUse , d->templateParameters);
 		auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(pType, false, true), 0);
 
 		exprCall->setObjectExpression(obj);

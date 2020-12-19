@@ -434,33 +434,7 @@ struct InitialiserList : public ReferenceCountedObject
 
 	
 
-	struct MemberPointer : public ChildBase
-	{
-		MemberPointer(const Identifier& id) :
-			variableId(id)
-		{};
-
-		juce::String toString() const override
-		{
-			return variableId.toString();
-		}
-
-		bool getValue(VariableStorage& v) const override
-		{
-			v = value;
-			return !v.isVoid();
-		}
-
-		InitialiserList::Ptr createChildList() const override
-		{
-			InitialiserList::Ptr n = new InitialiserList();
-			n->addChild(new MemberPointer(variableId));
-			return n;
-		}
-
-		Identifier variableId;
-		VariableStorage value;
-	};
+	struct MemberPointer;
 
 	/** This is used when a struct is being initialised by a externally defined C++ struct
 	    (via placement new) and has the sole purpose of avoiding compile warnings...

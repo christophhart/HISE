@@ -556,10 +556,10 @@ public:
 	void runTest() override
 	{
 		beginTest("Funky");
-
+		return;
 		optimizations = OptimizationIds::getAllIds();
 
-		runTestFiles("node_chain.h");
+		runTestFiles("");
 		return;
 
 
@@ -803,7 +803,9 @@ public:
 				JitFileTestCase t(this, memory, f);
 				auto r = t.test(printDebugInfoForSingleTest && soloTest.isNotEmpty());
 
-				expect(r.wasOk());
+				
+
+				expect(r.wasOk(), r.getErrorMessage());
 			}
 
 			int numInstancesAfter = ComplexType::numInstances;

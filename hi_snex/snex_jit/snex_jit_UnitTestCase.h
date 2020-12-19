@@ -63,7 +63,7 @@ public:
 
 	Result test(bool dumpBeforeTest = false);
 
-	bool save();
+	File save();
 
 	juce::String assembly;
 	DebugHandler* debugHandler = nullptr;
@@ -71,9 +71,11 @@ public:
 	Compiler c;
 	JitObject obj;
 
+	JitCompiledNode::Ptr nodeToTest;
+
 private:
 
-	JitCompiledNode::Ptr nodeToTest;
+	
 
 	void parseFunctionData();
 

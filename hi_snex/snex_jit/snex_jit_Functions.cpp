@@ -156,6 +156,13 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, b
 	return s;
 }
 
+snex::jit::FunctionData FunctionData::withParent(const NamespacedIdentifier& newParent) const
+{
+	auto copy = *this;
+	copy.id = newParent.getChildId(id.getIdentifier());
+	return copy;
+}
+
 snex::jit::TypeInfo FunctionData::getOrResolveReturnType(ComplexType::Ptr p)
 {
 	if (returnType.isDynamic())
@@ -757,6 +764,13 @@ struct AsmInlineData: public InlineData
 
 Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 {
+	InitData defaultValues;
+	defaultValues.callConstructor = false;
+	defaultValues.dataPointer = data;
+	defaultValues.initValues = makeDefaultInitialiserList();
+
+	auto r = initialise(defaultValues);
+
 	auto args = initList->toFlatConstructorList();
 
 	FunctionClass::Ptr fc = getFunctionClass();
@@ -933,6 +947,14 @@ void FunctionClass::addFunctionClass(FunctionClass* newRegisteredClass)
 
 void FunctionClass::addFunction(FunctionData* newData)
 {
+	if (newData->isConstructor())
+	{
+		if (getClassName() != newData->id.getParent())
+		{
+			jassertfalse;
+		}
+	}
+
 	if (newData->id.isExplicit())
 	{
 		newData->id = getClassName().getChildId(newData->id.getIdentifier());
@@ -1016,6 +1038,9 @@ FunctionData FunctionClass::getConstructor(const Array<TypeInfo>& args)
 snex::jit::FunctionData FunctionClass::getConstructor(InitialiserList::Ptr initList)
 {
 	Array<TypeInfo> args;
+
+	if (initList == nullptr)
+		return getConstructor(args);
 
 	initList->forEach([&args](InitialiserList::ChildBase* b)
 	{
