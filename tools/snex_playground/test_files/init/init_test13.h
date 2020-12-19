@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 1
+  output: 2
   error: ""
   filename: "init/init_test13"
 END_TEST_DATA
@@ -27,6 +27,6 @@ int main(int input)
 {
 	X obj, obj2;
 	
-	return obj.value;
+	return obj.value + obj2.value;
 }
 

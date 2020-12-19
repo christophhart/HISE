@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 21
+  output: 33
   error: ""
   filename: "00 Examples/04_structs"
 END_TEST_DATA
@@ -14,8 +14,6 @@ END_TEST_DATA
     complex types that can have methods operate
     on their data
 */
-
-
 struct MyFirstStruct
 {
 	
@@ -26,10 +24,9 @@ struct MyFirstStruct
 		int i2 = 1;
 	};
 
-	// A method that has the same name
-	// as the struct is called "Constructor"
-	// and will be called whenever the object
-	// is constructed.
+	/* A method that has the same name as the struct is called "Constructor"
+	   and will be called whenever the object is constructed.
+	*/
 	MyFirstStruct(int initValue)
 	{
 		is1.i1 = initValue * 2;
@@ -52,15 +49,15 @@ struct MyFirstStruct
 }; // <= never forget the semicolon at the end...
 
 
-// You can declare global objects
+/* You can declare global objects. In this case, the 19 will be passed to 
+   the constructor, while the other data values will be set to their default. 
+*/
 MyFirstStruct obj1 = { 19 };
 
 int main(int input)
 {
-	// You can also declare local objects
-	// These will be allocated on the function
-	// stack with no memory heap allocation
-	// messing with realtime performance!
+	// You can also declare local objects. These will be allocated on the function
+	// stack with no memory heap allocation messing with realtime performance!
 	MyFirstStruct localObject(input);
 	
 	// Uncomment this line and you will see a

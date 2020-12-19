@@ -12,8 +12,6 @@ END_TEST_DATA
 
 struct e 
 {
-	
-
 	void reset()
 	{
 		
@@ -31,10 +29,9 @@ struct i
 	}
 };
 
-container::chain<parameter::empty, wrap::init<wrap::event<e>, i>> obj;
+container::chain<parameter::empty, wrap::init<wrap::event<e>, i>> obj3;
 
 int main(int input)
 {
-	return obj.get<0>().x;
+	return obj3.get<0>().v;
 }
-

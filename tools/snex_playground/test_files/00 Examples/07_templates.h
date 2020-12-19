@@ -18,9 +18,16 @@ END_TEST_DATA
 /** This class template will contain a span with
     a length specified by the Size template parameter
 */
-template <int Size> struct IntArray
+template <int Size> class IntArray
 {
+private:
+
+	// Since the Size variable is a compile time
+	// constant we can use it to declare the inner type.
+	span<int, Size> data = {0};
 	
+public:
+
 	/** Functions can also be templated. In this case
 	    we can use the Index variable directly because
 	    it is a compile time constant.
@@ -40,10 +47,6 @@ template <int Size> struct IntArray
 		i = index;
 		return data[i];
 	}
-
-	// Since the Size variable is a compile time
-	// constant we can use it to declare the inner type.
-	span<int, Size> data = {0};
 };
 
 
@@ -54,15 +57,12 @@ int main(int input)
 	// between <...>
 	IntArray<12> twelveArray;
 	
-	
 	// Calling a templated method works just like
 	// above. Be aware that 11 will be 
 	// checked at compile time, so if you pass in a value
 	// below 12, it will fail compilation.
 	twelveArray.set<11>(18);
 	
-	//Console.dump();
-	
-	return twelveArray.get(1);
+	return twelveArray.get(11);
 }
 

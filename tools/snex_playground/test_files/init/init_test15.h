@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 296
+  output: 1296
   error: ""
   filename: "init/init_test15"
 END_TEST_DATA
@@ -20,6 +20,7 @@ struct X
 		}
 		
 		int value = 0;
+		int value2 = 1000;
 	};
 	
 	struct Z
@@ -43,5 +44,5 @@ int main(int input)
 {
 	X obj;
 	
-	return obj.y.value + obj.y2.value + (int)obj.z.z;
+	return obj.y.value + obj.y2.value + (int)obj.z.z + obj.y.value2;
 }
