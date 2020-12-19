@@ -41,7 +41,6 @@ using namespace juce;
 
 SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	ui::WorkbenchComponent(data, true),
-	ui::WorkbenchData::CodeProvider(data),
 	bpProvider(getGlobalScope()),
 	mclDoc(doc),
 	editor(mclDoc),
@@ -61,15 +60,21 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 {
 	if (isTestMode)
 	{
-		data->setCodeProvider(this);
-		editor.addBreakpointListener(this);
+		testProvider = new TestCodeProvider(*this, {});
+		data->setCodeProvider(testProvider);
+	
+		for (auto o : OptimizationIds::getAllIds())
+			getGlobalScope().addOptimization(o);
+	}
+	else
+	{
+		doc.replaceAllContent(getWorkbench()->getCode());
+		doc.clearUndoHistory();
 	}
 	
+	editor.addBreakpointListener(this);
 
 	stateViewer = new ui::OptimizationProperties(getWorkbench());
-
-	for (auto o : OptimizationIds::getAllIds())
-		getGlobalScope().addOptimization(o);
 
 	auto& ed = editor.editor;
 
@@ -683,8 +688,12 @@ void SnexPlayground::mouseDown(const MouseEvent& event)
 		if (auto r = m.show())
 		{
 			currentTestFile = addedFiles[r - 2];
+
 			doc.replaceAllContent({});
-			getWorkbench()->triggerRecompile();
+			doc.clearUndoHistory();
+
+			testProvider = new TestCodeProvider(*this, currentTestFile);
+			getWorkbench()->setCodeProvider(testProvider, sendNotification);
 		}
 	}
 }
@@ -730,33 +739,64 @@ void SnexPlayground::createTestSignal()
 #endif
 }
 
-String SnexPlayground::loadCode() const
+String SnexPlayground::TestCodeProvider::getTestTemplate()
+{
+	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
+	{
+		code << "/** " << comment << " */\n";
+	};
+
+	juce::String s;
+	juce::String nl = "\n";
+	String emptyBracket;
+	emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
+
+	s << "/*" << nl;
+	s << "BEGIN_TEST_DATA" << nl;
+	s << "  f: main" << nl;
+	s << "  ret: int" << nl;
+	s << "  args: int" << nl;
+	s << "  input: 12" << nl;
+	s << "  output: 12" << nl;
+	s << "  error: \"\"" << nl;
+	s << "  filename: \"\"" << nl;
+	s << "END_TEST_DATA" << nl;
+	s << "*/" << nl;
+
+	s << nl;
+	s << "int main(int input)" << nl;
+	s << emptyBracket;
+
+	return s;
+}
+
+String SnexPlayground::TestCodeProvider::loadCode() const
 {
 	String s;
 
 	bool replaceContentInEditor = false;
 	
-	auto currentCode = doc.getAllContent();
+	auto currentCode = parent.doc.getAllContent();
 
 	if (currentCode.isNotEmpty())
 	{
 		s = currentCode;
 		replaceContentInEditor = false;
 	}
-	else if (currentTestFile.existsAsFile())
+	else if (f.existsAsFile())
 	{
-		s = currentTestFile.loadFileAsString();
+		s = f.loadFileAsString();
 		replaceContentInEditor = true;
 	}
 	else
 	{
-		s = ui::WorkbenchData::getTestTemplate();
+		s = getTestTemplate();
 		replaceContentInEditor = true;
 	}
 
 	if (replaceContentInEditor)
 	{
-		auto unconstThis = const_cast<SnexPlayground*>(this);
+		auto unconstThis = const_cast<SnexPlayground*>(&parent);
 
 		MessageManager::callAsync([unconstThis, s]()
 		{
@@ -769,8 +809,16 @@ String SnexPlayground::loadCode() const
 }
 
 
+bool SnexPlayground::TestCodeProvider::saveCode(const String& s)
+{
+	if (parent.saveTest)
+	{
+		JitFileTestCase newTest(parent.getGlobalScope(), s);
+		f = newTest.save();
+	}
 
-
+	return true;
+}
 
 void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 {
@@ -789,17 +837,6 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 		editor.editor.setError(r.getErrorMessage());
 		resultLabel.setText(r.getErrorMessage(), dontSendNotification);
 	}
-}
-
-bool SnexPlayground::saveCode(const String& s)
-{
-	if (saveTest)
-	{
-		JitFileTestCase newTest(getGlobalScope(), s);
-		newTest.save();
-	}
-
-	return true;
 }
 
 int AssemblyTokeniser::readNextToken(CodeDocument::Iterator& source)
@@ -1074,7 +1111,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			parent.editor.editor.addWarning(s);
 	}
 
-	snex::ui::WorkbenchData::CompileResult BackgroundCompileThread::compile(const String& s)
+	snex::ui::WorkbenchData::CompileResult TestCompileThread::compile(const String& s)
 	{
 		lastTest = new JitFileTestCase(getParent()->getGlobalScope(), s);
 
@@ -1086,14 +1123,19 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 		return r;
 	}
 
-	void BackgroundCompileThread::postCompile(ui::WorkbenchData::CompileResult& lastResult)
+	void TestCompileThread::postCompile(ui::WorkbenchData::CompileResult& lastResult)
 	{
 		if (lastTest != nullptr)
 		{
+			if (lastTest->nodeToTest != nullptr)
+			{
+				lastTest->nodeToTest->setExternalDataHolder(ownHolder);
+			}
+
 			lastResult.r = lastTest->testAfterCompilation();
 		}
+			
 	}
-
 }
 }
 

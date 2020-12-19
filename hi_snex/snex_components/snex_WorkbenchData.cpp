@@ -35,6 +35,7 @@ namespace snex {
 using namespace juce;
 
 
+
 String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 {
 	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
@@ -46,8 +47,6 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 	String nl = "\n";
 	String emptyBody = "\t{\n\t\t\n\t}\n\t\n";
 
-	s << "#define NUM_CHANNELS 2" << nl;
-
 	s << "struct " << mainClass << nl;
 
 	s << "{" << nl;
@@ -55,50 +54,17 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 	s << emptyBody;
 	s << "\t" << "void reset()" << nl;
 	s << emptyBody;
-	s << "\t" << "void process(ProcessData<NUM_CHANNELS>& data)" << nl;
+	s << "\t" << "template <typename ProcessDataType> void process(ProcessDataType& data)" << nl;
 	s << emptyBody;
-	s << "\t" << "void processFrame(span<float, NUM_CHANNELS>& data)" << nl;
+	s << "\t" << "template <int C> void processFrame(span<float, C>& data)" << nl;
 	s << emptyBody;
 	s << "\t" << "void handleEvent(HiseEvent& e)" << nl;
 	s << emptyBody;
-	
+
 	s << "};" << nl;
 
 	return s;
 }
-
-String ui::WorkbenchData::getTestTemplate()
-{
-	auto emitCommentLine = [](juce::String& code, const juce::String& comment)
-	{
-		code << "/** " << comment << " */\n";
-	};
-
-	juce::String s;
-	juce::String nl = "\n";
-	String emptyBracket;
-	emptyBracket << "{" << nl << "\t" << nl << "}" << nl << nl;
-
-	s << "/*" << nl;
-	s << "BEGIN_TEST_DATA" << nl;
-	s << "  f: main" << nl;
-	s << "  ret: int" << nl;
-	s << "  args: int" << nl;
-	s << "  input: 12" << nl;
-	s << "  output: 12" << nl;
-	s << "  error: \"\"" << nl;
-	s << "  filename: \"\"" << nl;
-	s << "END_TEST_DATA" << nl;
-	s << "*/" << nl;
-
-	s << nl;
-	s << "int main(int input)" << nl;
-	s << emptyBracket;
-
-	return s;
-}
-
-
 
 String ui::WorkbenchData::convertToLogMessage(int level, const String& s)
 {
@@ -116,8 +82,7 @@ String ui::WorkbenchData::convertToLogMessage(int level, const String& s)
 	default: break;
 	}
 
-	if (getConnectedFile().existsAsFile())
-		m << getConnectedFile().getFileName() << ":";
+	m << getInstanceId() << ":";
 
 	m << s;
 
@@ -150,6 +115,12 @@ bool ui::WorkbenchData::handleCompilation()
 		if (codeProvider != nullptr)
 			codeProvider->preprocess(s);
 
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->preprocess(s);
+		}
+
 		if (getGlobalScope().getBreakpointHandler().shouldAbort())
 			return true;
 
@@ -159,7 +130,11 @@ bool ui::WorkbenchData::handleCompilation()
 
 		compileHandler->postCompile(lastCompileResult);
 
-		MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(WorkbenchData::postPostCompile));
+		// Might get deleted in the meantime...
+		if (compileHandler != nullptr)
+		{
+			MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(WorkbenchData::postPostCompile));
+		}
 	}
 
 	return true;
@@ -171,10 +146,10 @@ void ui::WorkbenchManager::workbenchChanged(WorkbenchData::Ptr oldWorkBench, Wor
 
 	currentWb = newWorkbench.get();
 
-	if (currentWb != nullptr && currentWb->getConnectedFile().existsAsFile())
-	{
-		logMessage(currentWb.get(), jit::BaseCompiler::VerboseProcessMessage, "Switched to " + currentWb->getConnectedFile().getFullPathName());
-	}
+	if (currentWb != nullptr)
+		logMessage(currentWb.get(), jit::BaseCompiler::VerboseProcessMessage, "Switched to " + currentWb->getInstanceId());
 }
+
+
 
 }

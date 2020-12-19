@@ -151,17 +151,17 @@ void Graph::InternalGraph::paint(Graphics& g)
 	}
 }
 
-void Graph::InternalGraph::setBuffer(AudioSampleBuffer& b)
+void Graph::InternalGraph::setBuffer(const AudioSampleBuffer& b)
 {
 	if (b.getNumSamples() == 0)
 		return;
 
-	if (lastBuffer.getNumChannels() == 0 || lastBuffer.getWritePointer(0) != b.getWritePointer(0))
+	if (lastBuffer.getNumChannels() == 0 || lastBuffer.getWritePointer(0) != b.getReadPointer(0))
 	{
 		lastBuffer = AudioSampleBuffer(b.getNumChannels(), b.getNumSamples());
 
 		for (int i = 0; i < lastBuffer.getNumChannels(); i++)
-			FloatVectorOperations::copy(lastBuffer.getWritePointer(i), b.getWritePointer(i), b.getNumSamples());
+			FloatVectorOperations::copy(lastBuffer.getWritePointer(i), b.getReadPointer(i), b.getNumSamples());
 	}
 
 	calculatePath(l, b, 0);
@@ -196,7 +196,7 @@ void Graph::InternalGraph::setBuffer(AudioSampleBuffer& b)
 	repaint();
 }
 
-void Graph::InternalGraph::calculatePath(Path& p, AudioSampleBuffer& b, int channel)
+void Graph::InternalGraph::calculatePath(Path& p, const AudioSampleBuffer& b, int channel)
 {
 	numSamples = b.getNumSamples();
 	p.clear();
@@ -217,7 +217,7 @@ void Graph::InternalGraph::calculatePath(Path& p, AudioSampleBuffer& b, int chan
 		for (int i = 0; i < b.getNumSamples(); i += samplesPerPixel)
 		{
 			int numToDo = jmin(samplesPerPixel, b.getNumSamples() - i);
-			auto range = FloatVectorOperations::findMinAndMax(b.getWritePointer(channel, i), numToDo);
+			auto range = FloatVectorOperations::findMinAndMax(b.getReadPointer(channel, i), numToDo);
 
 			if (range.getEnd() > (-1.0f * range.getStart()))
 			{
@@ -248,31 +248,34 @@ juce::Path Graph::Icons::createPath(const String& t) const
 	return p;
 }
 
-void Graph::recalculate()
+void Graph::buttonClicked(Button* b)
 {
-	if (sourceBuffer.getNumSamples() > 0)
+	if (b == &openFile)
 	{
-		if (currentNode != nullptr && currentResult.wasOk())
+		FileChooser fc("Load test file", {}, "*.wav", true);
+
+		if (fc.browseForFileToOpen())
 		{
-			AudioSampleBuffer outputBuffer;
+			auto f = fc.getResult();
 
-			outputBuffer.makeCopyOf(sourceBuffer);
+			double speed = 0.0;
 
-			PrepareSpecs ps;
-			ps.sampleRate = 44100.0;
-			ps.numChannels = outputBuffer.getNumChannels();
-			ps.blockSize = outputBuffer.getNumSamples();
-			ps.voiceIndex = nullptr;
+			if (auto nodeHandler = dynamic_cast<JitNodeCompileThread*>(getWorkbench()->getCompileHandler()))
+			{
+				auto sourceBuffer = hlac::CompressionHelpers::loadFile(f, speed);
 
-			currentNode->prepare(ps);
-			currentNode->reset();
+				nodeHandler->setTestBuffer(sourceBuffer);
+			}
 
-			ProcessDataDyn data(outputBuffer.getArrayOfWritePointers(), outputBuffer.getNumSamples(), outputBuffer.getNumChannels());
-
-			currentNode->process(data);
-
-			internalGraph.setBuffer(outputBuffer);
 		}
+	}
+}
+
+void Graph::recompiled(WorkbenchData::Ptr p)
+{
+	if (auto nodeHandler = dynamic_cast<JitNodeCompileThread*>(p->getCompileHandler()))
+	{
+		setBuffer(nodeHandler->getTestBuffer());
 	}
 }
 

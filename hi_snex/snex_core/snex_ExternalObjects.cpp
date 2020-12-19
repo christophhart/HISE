@@ -526,7 +526,7 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	
 	c.registerExternalComplexType(PrepareSpecsJIT::createComplexType(c, "PrepareSpecs"));
 	c.registerExternalComplexType(EventWrapper::createComplexType(c, "HiseEvent"));
-
+	c.registerExternalComplexType(ExternalDataJIT::createComplexType(c, "ExternalData"));
 	
 
 
@@ -1803,6 +1803,41 @@ snex::jit::ComplexType::Ptr PrepareSpecsJIT::createComplexType(Compiler& c, cons
 }
 
 
+snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, const Identifier& id)
+{
+	ExternalData obj;
+
+	auto st = new StructType(NamespacedIdentifier(id));
+	st->addMember("dataType", TypeInfo(Types::ID::Integer));
+	ADD_SNEX_STRUCT_MEMBER(st, obj, numSamples);
+	ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
+
+	st->addMember("data", TypeInfo(Types::ID::Pointer, true));
+	st->addMember("obj", TypeInfo(Types::ID::Pointer, true));
+	st->addMember("f", TypeInfo(Types::ID::Pointer, true));
+	
+
+
+	FunctionData rf;
+	rf.id = st->id.getChildId("referBlockTo");
+	rf.addArgs("b", TypeInfo(c.getNamespaceHandler().getComplexType(NamespacedIdentifier("block")), false, true));
+	rf.addArgs("index", TypeInfo(Types::ID::Integer));
+	rf.returnType = TypeInfo(Types::ID::Void);
+	
+	st->addJitCompiledMemberFunction(rf);
+	st->injectMemberFunctionPointer(rf, (void*)referTo);
+
+	FunctionData df;
+	df.id = st->id.getChildId("setDisplayedValue");
+	df.addArgs("value", TypeInfo(Types::ID::Double));
+	df.returnType = TypeInfo(Types::ID::Void);
+
+	st->addJitCompiledMemberFunction(df);
+	st->injectMemberFunctionPointer(df, (void*)setDisplayValueStatic);
+
+	return st;
+}
+
 
 juce::Array<snex::NamespacedIdentifier> ScriptnodeCallbacks::getIds(const NamespacedIdentifier& p)
 {
@@ -1933,119 +1968,9 @@ TypeInfo SnexNodeBase::Wrappers::createFrameType(const SnexTypeConstructData& cd
 	return TypeInfo(cd.c.getNamespaceHandler().registerComplexTypeOrReturnExisting(st), false, true);
 }
 
-JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& classId, int numChannels_, const CompilerInitFunction& cf) :
-	r(Result::ok()),
-	numChannels(numChannels_)
-{
-	String s;
 
-	auto implId = NamespacedIdentifier::fromString("impl::" + classId);
 
-	s << "namespace impl { " << code;
-	s << "}\n";
-	s << implId.toString() << " instance;\n";
 
-	cf(c, numChannels);
-	
-	Array<Identifier> fIds;
-
-	for (auto f : Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels))
-	{
-		addCallbackWrapper(s, f);
-		fIds.add(f.id.getIdentifier());
-	}
-
-	obj = c.compileJitObject(s);
-
-	r = c.getCompileResult();
-
-	if (r.wasOk())
-	{
-		NamespacedIdentifier impl("impl");
-
-		if (instanceType = c.getComplexType(implId))
-		{
-			if (auto libraryNode = dynamic_cast<SnexNodeBase*>(instanceType.get()))
-			{
-				parameterList = libraryNode->getParameterList();
-			}
-			if (auto st = dynamic_cast<StructType*>(instanceType.get()))
-			{
-				auto pId = st->id.getChildId("Parameters");
-				auto pNames = c.getNamespaceHandler().getEnumValues(pId);
-
-				if (!pNames.isEmpty())
-				{
-					for (int i = 0; i < pNames.size(); i++)
-						addParameterMethod(s, pNames[i], i);
-				}
-
-				cf(c, numChannels);
-
-				obj = c.compileJitObject(s);
-				r = c.getCompileResult();
-
-				instanceType = c.getComplexType(implId);
-
-				for (auto& n : pNames)
-				{
-					auto f = obj[Identifier("set" + n)];
-
-					OpaqueSnexParameter osp;
-					osp.name = n;
-					osp.function = f.function;
-					parameterList.add(osp);
-				}
-			}
-
-			FunctionClass::Ptr fc = instanceType->getFunctionClass();
-
-			thisPtr = obj.getMainObjectPtr();
-			ok = true;
-
-			for (int i = 0; i < fIds.size(); i++)
-			{
-				callbacks[i] = obj[fIds[i]];
-
-				Array<FunctionData> matches;
-
-				fc->addMatchingFunctions(matches, fc->getClassName().getChildId(fIds[i]));
-
-				FunctionData wrappedFunction;
-
-				if (matches.size() == 1)
-					wrappedFunction = matches.getFirst();
-				else
-				{
-					for (auto m : matches)
-					{
-						if (m.matchesArgumentTypes(callbacks[i]))
-						{
-							wrappedFunction = m;
-							break;
-						}
-					}
-				}
-
-				if (!wrappedFunction.matchesArgumentTypes(callbacks[i]))
-				{
-					r = Result::fail(wrappedFunction.getSignature({}, false) + " doesn't match " + callbacks[i].getSignature({}, false));
-					ok = false;
-					break;
-				}
-
-				if (callbacks[i].function == nullptr)
-					ok = false;
-			}
-
-			
-		}
-		else
-		{
-			jassertfalse;
-		}
-	}
-}
 
 }
 }

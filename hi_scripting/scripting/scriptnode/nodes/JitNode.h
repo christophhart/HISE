@@ -241,7 +241,7 @@ struct new_jit: public SnexSource,
 				initCompiler(c);
 			};
 
-			Types::JitCompiledNode::Ptr newNode = new Types::JitCompiledNode(compiler, expression.getValue(), classId.getValue(), lastSpecs.numChannels, f);
+			JitCompiledNode::Ptr newNode = new JitCompiledNode(compiler, expression.getValue(), classId.getValue(), lastSpecs.numChannels, f);
 
  			lastResult = newNode->r;
 
@@ -348,7 +348,7 @@ struct new_jit: public SnexSource,
 	}
 
 	PrepareSpecs lastSpecs;
-	Types::JitCompiledNode::Ptr compiledNode;
+	JitCompiledNode::Ptr compiledNode;
 	Result lastResult;
 	NodePropertyT<String> classId;
 };

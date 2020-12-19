@@ -95,5 +95,6 @@ using String = juce::String;
 #include "snex_core/snex_CallbackCollection.cpp"
 
 #include "snex_core/snex_ExternalObjects.cpp"
+#include "snex_core/snex_JitCompiledNode.cpp"
 
 #endif

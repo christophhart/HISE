@@ -44,7 +44,13 @@ void SnexEditorPanel::workbenchChanged(snex::ui::WorkbenchData::Ptr newWorkbench
 void SnexTileBase::setCurrentFile(const File& f)
 {
 	currentFile = f;
-	auto wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForFile(f);
+
+	auto df = new snex::ui::WorkbenchData::DefaultCodeProvider(nullptr, f);
+
+	auto wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true);
+
+	wb->setCompileHandler(new snex::JitNodeCompileThread(wb, getMainController()->getGlobalUIUpdater()));
+
 	workbenchChanged(wb);
 
 	setCustomTitle(f.getFileName());

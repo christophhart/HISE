@@ -182,6 +182,8 @@ void NodePopupEditor::buttonClicked(Button* b)
 }
 
 
+
+
 NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 	v(d.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()))
 {
@@ -237,30 +239,22 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 				{
 					if (auto sp = this->findParentComponentOfClass<DspNetworkGraph::ScrollableParent>())
 					{
-						auto wb = new snex::ui::WorkbenchData();
-
-						auto lf = [n]()
+						if (auto m = static_cast<snex::ui::WorkbenchManager*>(n->getScriptProcessor()->getMainController_()->getWorkbenchManager()))
 						{
-							auto pTree = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
-							return pTree[PropertyIds::Value].toString();
-						};
+							auto v = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString()).getPropertyAsValue(PropertyIds::Value, n->getUndoManager());
 
-						auto sf = [n](const String& s)
-						{
-							auto pTree = n->getPropertyTree().getChildWithProperty(PropertyIds::ID, PropertyIds::Code.toString());
-							pTree.setProperty(PropertyIds::Value, s, n->getUndoManager());
-							return true;
-						};
+							auto cp = new snex::ui::WorkbenchData::ValueBasedCodeProvider(nullptr, v, n->getId());
 
-						wb->setContentFunctions(lf, sf);
+							auto wb = m->getWorkbenchDataForCodeProvider(cp, true);
 
-						auto pg = new snex::jit::SnexPlayground(wb);
+							auto pg = new snex::jit::SnexPlayground(wb);
 
-						auto bounds = sp->getBounds().reduced(100);
+							auto bounds = sp->getBounds().reduced(100);
 
-						pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
-						sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
-						return;
+							pg->setSize(jmin(1280, bounds.getWidth()), jmin(800, bounds.getHeight()));
+							sp->setCurrentModalWindow(pg, sp->getCurrentTarget());
+							return;
+						}
 					}
 				}
 			};

@@ -642,6 +642,8 @@ public:
 	SET_HISE_NODE_ID("receive");
 	GET_SELF_AS_OBJECT(ReceiveNode);
 	
+	bool isPolyphonic() const { return false; }
+
 	ReceiveNode();
 
 	void initialise(NodeBase* n);

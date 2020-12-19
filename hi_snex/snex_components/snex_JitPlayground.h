@@ -206,12 +206,74 @@ class BackgroundCompileThread: public Thread,
 {
 public:
 
-	BackgroundCompileThread(ui::WorkbenchData::Ptr data_) :
+	struct OwnedDataHolder : public ExternalDataHolder
+	{
+		OwnedDataHolder(PooledUIUpdater* updater_) :
+			updater(updater_)
+		{
+
+		}
+
+		Table* getTable(int index) override
+		{
+			if (isPositiveAndBelow(index, tables.size()))
+			{
+				return tables[index];
+			}
+
+			tables.add(new SampleLookupTable());
+			return tables.getLast();
+		}
+
+		SliderPackData* getSliderPack(int index) override
+		{
+			if (isPositiveAndBelow(index, sliderPacks.size()))
+			{
+				return sliderPacks[index];
+			}
+
+			sliderPacks.add(new SliderPackData(nullptr, updater));
+			return sliderPacks.getLast();
+		}
+
+		MultiChannelAudioBuffer* getAudioFile(int index) override
+		{
+			if (isPositiveAndBelow(index, buffers.size()))
+			{
+				return buffers[index];
+			}
+
+			buffers.add(new MultiChannelAudioBuffer(updater, AudioSampleBuffer()));
+			return buffers.getLast();
+		}
+
+		int getNumDataObjects(ExternalData::DataType t) const override
+		{
+			if (t == ExternalData::DataType::SliderPack)
+				return sliderPacks.size();
+			if (t == ExternalData::DataType::Table)
+				return tables.size();
+			if (t == ExternalData::DataType::AudioFile)
+				return buffers.size();
+		}
+
+	private:
+
+		PooledUIUpdater* updater = nullptr;
+
+		ReferenceCountedArray<Table> tables;
+		ReferenceCountedArray<SliderPackData> sliderPacks;
+		ReferenceCountedArray<MultiChannelAudioBuffer> buffers;
+	};
+
+	BackgroundCompileThread(ui::WorkbenchData::Ptr data_, PooledUIUpdater* updater) :
 		Thread("SnexPlaygroundThread"),
 		CompileHandler(data_)
 	{
-		getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(this);
+		if(updater != nullptr)
+			ownHolder = new OwnedDataHolder(updater);
 
+		getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(this);
 		setPriority(4);
 	}
 
@@ -220,9 +282,18 @@ public:
 		stopThread(3000);
 	}
 
-	ui::WorkbenchData::CompileResult compile(const String& s) override;
+	ui::WorkbenchData::CompileResult compile(const String& s) override
+	{
+		// You need to override that method...
+		jassertfalse;
+		return { };
+	}
 
-	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override;
+	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
+	{
+		// You need to override that method...
+		jassertfalse;
+	}
 
 	bool triggerCompilation() override
 	{
@@ -248,19 +319,169 @@ public:
 		}
 	}
 
+protected:
 
+
+	ScopedPointer<OwnedDataHolder> ownHolder;
+};
+
+
+class TestCompileThread : public BackgroundCompileThread
+{
+public:
+
+	TestCompileThread(ui::WorkbenchData::Ptr data) :
+		BackgroundCompileThread(data, nullptr)
+	{
+		updater = new PooledUIUpdater();
+		ownHolder = new OwnedDataHolder(updater);
+
+		updater->startTimer(30);
+	}
+
+	ui::WorkbenchData::CompileResult compile(const String& s) override;
+
+	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override;
+
+private:
+
+	ScopedPointer<PooledUIUpdater> updater;
 	ScopedPointer<JitFileTestCase> lastTest;
 };
 
 
+class JitNodeCompileThread : public BackgroundCompileThread
+{
+public:
+
+	JitNodeCompileThread(ui::WorkbenchData::Ptr d, PooledUIUpdater* updater) :
+		BackgroundCompileThread(d, updater)
+	{
+		
+	};
+
+	const AudioSampleBuffer& getTestBuffer(bool getProcessed = true) const
+	{
+		return getProcessed ? processedTestBuffer : testBuffer;
+	}
+
+	
+
+
+
+	void setTestBuffer(const AudioSampleBuffer& newBuffer)
+	{
+		if (newBuffer.getNumChannels() != testBuffer.getNumChannels())
+			getParent()->triggerRecompile();
+
+		testBuffer.makeCopyOf(newBuffer);
+
+		postCompile(lastResult);
+	}
+
+	ui::WorkbenchData::CompileResult compile(const String& code)
+	{
+		auto p = getParent();
+
+		lastResult = {};
+
+		auto instanceId = p->getInstanceId();
+
+		if (instanceId.isValid())
+		{
+			Compiler::Ptr cc = createCompiler();
+
+			int numChannels = testBuffer.getNumChannels();
+			if (numChannels == 0)
+				numChannels = 2;
+
+			lastNode = new JitCompiledNode(*cc, code, instanceId.toString(), numChannels);
+
+			lastResult.assembly = cc->getAssemblyCode();
+			lastResult.r = lastNode->r;
+			lastResult.obj = lastNode->getJitObject();
+
+			return lastResult;
+		}
+
+		lastResult.r = Result::fail("Didn't specify file");
+		return lastResult;
+	}
+
+	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
+	{
+		if (lastNode != nullptr && lastResult.r.wasOk())
+		{
+			lastNode->setExternalDataHolder(ownHolder);
+
+			if (testBuffer.getNumSamples() > 0)
+			{
+				PrepareSpecs ps;
+				ps.blockSize = testBuffer.getNumSamples();
+				ps.numChannels = testBuffer.getNumChannels();
+				ps.sampleRate = 44100.0;
+				ps.voiceIndex = nullptr;
+
+				processedTestBuffer.makeCopyOf(testBuffer);
+
+				jassert(lastNode->getNumChannels() == ps.numChannels);
+
+				lastNode->prepare(ps);
+				lastNode->reset();
+
+				ProcessDataDyn data(processedTestBuffer.getArrayOfWritePointers(), ps.blockSize, ps.numChannels);
+				lastNode->process(data);
+			}
+		}
+	}
+
+	
+
+private:
+
+	ui::WorkbenchData::CompileResult lastResult;
+
+	
+	JitCompiledNode::Ptr lastNode;
+
+	AudioSampleBuffer testBuffer;
+	AudioSampleBuffer processedTestBuffer;
+};
+
 
 class SnexPlayground : public ui::WorkbenchComponent,
-	public ui::WorkbenchData::CodeProvider,
 	public CodeDocument::Listener,
 	public BreakpointHandler::Listener,
 	public mcl::GutterComponent::BreakpointListener
 {
 public:
+
+	struct TestCodeProvider : public ui::WorkbenchData::CodeProvider
+	{
+		TestCodeProvider(SnexPlayground& p, const File& f_):
+			CodeProvider(p.getWorkbench()),
+			parent(p),
+			f(f_)
+		{}
+
+		static String getTestTemplate();
+
+		String loadCode() const override;
+
+		bool saveCode(const String& s) override;
+
+		Identifier getInstanceId() const override 
+		{ 
+			if (f.existsAsFile())
+				return Identifier(f.getFileNameWithoutExtension());
+
+			return Identifier("UnsavedTest");
+		}
+
+		SnexPlayground& parent;
+
+		File f;
+	};
 
 	struct PreprocessorUpdater: public Timer,
 								public CodeDocument::Listener,
@@ -324,6 +545,11 @@ public:
 	bool keyPressed(const KeyPress& k) override;
 	void createTestSignal();
 
+	bool preprocess(String& code) override
+	{
+		return editor.injectBreakpointCode(code);
+	}
+
 	struct Spacer : public Component
 	{
 		Spacer(const juce::String& n) :
@@ -340,21 +566,10 @@ public:
 		}
 	};
 
-	String loadCode() const override;
-
-	bool preprocess(String& code) override
-	{
-		if(testMode)
-			return editor.injectBreakpointCode(code);
-
-		return false;
-	}
-
-	bool saveCode(const String& s) override;
-
 	
-
 private:
+
+	ScopedPointer<ui::WorkbenchData::CodeProvider> previousProvider;
 
 	File currentTestFile;
 
@@ -464,6 +679,7 @@ private:
 	ScopedPointer<Component> stateViewer;
 
 	Array<Range<int>> scopeRanges;
+	ScopedPointer<TestCodeProvider> testProvider;
 };
 
 }

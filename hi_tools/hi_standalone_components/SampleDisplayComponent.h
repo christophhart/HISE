@@ -645,6 +645,68 @@ private:
 
 };
 
+/** This is a multichannel buffer type used by SNEX and scriptnode for audio files. */
+struct MultiChannelAudioBuffer : public ReferenceCountedObject,
+								 public PooledUIUpdater::Broadcaster
+{
+	struct IndexListener: public PooledUIUpdater::Listener
+	{
+		virtual ~IndexListener() {};
+
+		virtual void readIndexChanged(int) = 0;
+
+	private:
+
+		virtual void handlePooledMessage(Broadcaster* b) override
+		{
+			if (auto sb = dynamic_cast<MultiChannelAudioBuffer*>(b))
+				readIndexChanged(sb->currentIndex);
+		}
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	MultiChannelAudioBuffer(PooledUIUpdater* updater, const AudioSampleBuffer& b)
+	{
+		if(updater != nullptr)
+			setHandler(updater);
+
+		buffer.makeCopyOf(b);
+	}
+
+	MultiChannelAudioBuffer(PooledUIUpdater* updater, AudioSampleBuffer&& b)
+	{
+		if (updater != nullptr)
+			setHandler(updater);
+
+		std::swap(buffer, b);
+	}
+
+	void addListener(IndexListener* l)
+	{
+		addPooledChangeListener(l);
+	}
+
+	void removeListener(IndexListener* l)
+	{
+		removePooledChangeListener(l);
+	}
+
+	void sentDisplayIndexChangeMessage(double newIndexValue)
+	{
+		currentIndex.store(newIndexValue);
+
+		if(updater != nullptr)
+			sendPooledChangeMessage();
+	}
+
+	AudioSampleBuffer buffer;
+
+	std::atomic<double> currentIndex = { 0.0 };
+	PooledUIUpdater* updater;
+};
+
+
 /** A waveform component to display the content of a pooled AudioSampleBuffer.
 *	@ingroup hise_ui
 *

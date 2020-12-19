@@ -97,10 +97,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 	public DebugHandler,
 	public ApiProviderBase::Holder
 {
-	static String getDefaultCode(bool getTestCode);
 	static String getDefaultNodeTemplate(const Identifier& mainClass);
-	static String getTestTemplate();
 
+	static String getDefaultCode(bool getTestCode);
 	using Ptr = ReferenceCountedObjectPtr<WorkbenchData>;
 	using WeakPtr = WeakReference<WorkbenchData>;
 
@@ -179,6 +178,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 		*/
 		virtual void recompiled(WorkbenchData::Ptr wb) {};
 
+		/** Override this and modify the code that will be passed to the compiler. */
+		virtual bool preprocess(String& code) { return false; }
+
 		/** This is called after the CompileHandler::postCompile callback so if
 		    you rely on a test execution, use this callback instead. */
 		virtual void postPostCompile(WorkbenchData::Ptr wb) {};
@@ -210,12 +212,16 @@ struct WorkbenchData : public ReferenceCountedObject,
 		WorkbenchData* getParent() { return parent.get(); }
 		const WorkbenchData* getParent() const { return parent.get(); }
 
+		
+
 	protected:
 		SubItemBase(WorkbenchData* d) :
 			parent(d)
 		{};
 
 	private:
+
+		friend class WorkbenchData;
 
 		WorkbenchData::WeakPtr parent;
 	};
@@ -293,45 +299,6 @@ struct WorkbenchData : public ReferenceCountedObject,
 		JUCE_DECLARE_WEAK_REFERENCEABLE(CompileHandler);
 	};
 
-	struct JitNodeCompileHandler : public CompileHandler
-	{
-		JitNodeCompileHandler(WorkbenchData* d) :
-			CompileHandler(d)
-		{};
-
-		CompileResult compile(const String& code)
-		{
-			auto p = getParent();
-
-			CompileResult r;
-
-			if (p->getConnectedFile().existsAsFile())
-			{
-				Compiler::Ptr cc = createCompiler();
-
-				auto m = p->getConnectedFile().getFileNameWithoutExtension();
-				lastNode = new Types::JitCompiledNode(*cc, code, m, p->numChannels);
-
-				r.assembly = cc->getAssemblyCode();
-				r.r = lastNode->r;
-				r.obj = lastNode->getJitObject();
-
-				return r;
-			}
-
-			r.r = Result::fail("Didn't specify file");
-			return r;
-		}
-
-		void postCompile(CompileResult& lastResult) override
-		{
-			jassertfalse; 
-			// Add the test here...
-		}
-
-		JitCompiledNode::Ptr lastNode;
-	};
-
 	/** A code provider will be used to fetch and store the data
 	
 	*/
@@ -356,39 +323,92 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		virtual bool saveCode(const String& s) = 0;
 
-	private:
+		/** Override this method and return the instance id. This will be used to find the main class in nodes. */
+		virtual Identifier getInstanceId() const = 0;
 
-		WorkbenchData::WeakPtr parent;
+	private:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(CodeProvider);
 	};
 
 	struct DefaultCodeProvider: public CodeProvider
 	{
-		DefaultCodeProvider(WorkbenchData* parent):
-			CodeProvider(parent)
+		DefaultCodeProvider(WorkbenchData* parent, const File& f_):
+			CodeProvider(parent),
+			f(f_)
 		{
-
+			
 		}
 
 		String loadCode() const override
 		{
 			auto parent = getParent();
 
-			if (parent != nullptr && parent->getConnectedFile().existsAsFile())
-				return parent->getConnectedFile().loadFileAsString();
-			else
-				return WorkbenchData::getTestTemplate();
+			if (parent != nullptr && f.existsAsFile())
+			{
+				auto code = f.loadFileAsString();
+
+				if (code.isEmpty())
+				{
+					code = WorkbenchData::getDefaultNodeTemplate(getInstanceId());
+					f.replaceWithText(code);
+				}
+
+				return code;
+			}
+			
+			return {};
 		}
 
 		bool saveCode(const String& s) override
 		{
 			auto parent = getParent();
-			if (parent != nullptr && parent->getConnectedFile().existsAsFile())
-				return parent->getConnectedFile().replaceWithText(s);
+			if (parent != nullptr && f.existsAsFile())
+				return f.replaceWithText(s);
 		}
 
-		
+		Identifier getInstanceId() const override
+		{
+			if (f.existsAsFile())
+				return Identifier(f.getFileNameWithoutExtension());
+
+			return {};
+		}
+
+		File f;
+	};
+
+
+	struct ValueBasedCodeProvider : public CodeProvider
+	{
+		ValueBasedCodeProvider(snex::ui::WorkbenchData* d, Value& v, const Identifier& id_) :
+			CodeProvider(d),
+			id(id_)
+		{
+			codeValue.referTo(v);
+		}
+
+		String loadCode() const override
+		{
+			auto c = codeValue.toString();
+
+			if (c.isEmpty())
+				c = defaultCode;
+
+			return c;
+		}
+
+		bool saveCode(const String& s) override
+		{
+			codeValue.setValue(s);
+			return true;
+		}
+
+		Identifier getInstanceId() const override { return id; }
+
+		Identifier id;
+		Value codeValue;
+		const String defaultCode;
 	};
 
 	WorkbenchData() :
@@ -396,6 +416,11 @@ struct WorkbenchData : public ReferenceCountedObject,
 	{
 		memory.addDebugHandler(this);
 	};
+
+	~WorkbenchData()
+	{
+		compileHandler = nullptr;
+	}
 
 	/** Call this if you want to recompile the current workbench.
 
@@ -445,9 +470,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	void setUseFileAsContentSource(const File& f)
 	{
-		connectedFile = f;
-
-		codeProvider = new DefaultCodeProvider(this);
+		codeProvider = new DefaultCodeProvider(this, f);
 	}
 
 	bool setCode(const String& s, NotificationType recompileOnOk)
@@ -480,6 +503,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 	JitObject getLastJitObject() const { return lastCompileResult.obj; }
 	String getLastAssembly() const { return lastCompileResult.assembly; }
 
+	Identifier getInstanceId() const { return codeProvider->getInstanceId(); }
+
 	void addListener(Listener* l)
 	{
 		listeners.addIfNotAlreadyThere(l);
@@ -489,8 +514,6 @@ struct WorkbenchData : public ReferenceCountedObject,
 	{
 		listeners.removeAllInstancesOf(l);
 	}
-
-	File getConnectedFile() const { return connectedFile; }
 
 	void setNumChannels(int newNumChannels)
 	{
@@ -504,6 +527,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 	void setCodeProvider(CodeProvider* newCodeProvider, NotificationType recompile=dontSendNotification)
 	{
 		codeProvider = newCodeProvider;
+		codeProvider->parent = this;
 
 		if (recompile != dontSendNotification)
 			triggerRecompile();
@@ -517,7 +541,12 @@ struct WorkbenchData : public ReferenceCountedObject,
 			triggerRecompile();
 	}
 
-	
+	bool operator==(CodeProvider* p) const
+	{
+		return getInstanceId() == p->getInstanceId();
+	}
+
+	CompileHandler* getCompileHandler() { return compileHandler; }
 
 private:
 
@@ -529,8 +558,7 @@ private:
 	WeakReference<Holder> holder;
 
 	WeakReference<CodeProvider> codeProvider;
-	WeakReference<CompileHandler> compileHandler;
-	File connectedFile;
+	ScopedPointer<CompileHandler> compileHandler;
 	CompileResult lastCompileResult;
 
 	Array<WeakReference<Listener>> listeners;
@@ -613,22 +641,32 @@ struct WorkbenchManager : public WorkbenchData::Listener
 			logFunction(level, s);
 	};
 
-	WorkbenchData::Ptr getWorkbenchDataForFile(const File& f)
+	WorkbenchData::Ptr getWorkbenchDataForCodeProvider(WorkbenchData::CodeProvider* p, bool ownCodeProvider)
 	{
+		ScopedPointer<WorkbenchData::CodeProvider> owned = p;
+
 		for (auto w : data)
 		{
-			if (w->getConnectedFile() == f)
+			if (*w == p)
 			{
 				w->addListener(this);
 				setCurrentWorkbench(w);
+
+				if (!ownCodeProvider)
+					owned.release();
+				
 				return w;
 			}
 		}
 
 		WorkbenchData::Ptr w = new WorkbenchData();
-		w->setUseFileAsContentSource(f);
+
+		w->setCodeProvider(p, dontSendNotification);
 		w->addListener(this);
 		setCurrentWorkbench(w);
+
+		if(ownCodeProvider)
+			codeProviders.add(owned.release());
 
 		data.add(w);
 
@@ -675,6 +713,8 @@ struct WorkbenchManager : public WorkbenchData::Listener
 	WorkbenchData::WeakPtr currentWb;
 
 	Array<WeakReference<WorkbenchData::Listener>> registeredComponents;
+
+	OwnedArray<WorkbenchData::CodeProvider> codeProviders;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchManager);
 };

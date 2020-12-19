@@ -198,14 +198,159 @@ juce::String getEmpty(const Identifier& namespaceId)
 }
 
 
+struct test_table
+{
+	GET_SELF_AS_OBJECT(test_table);
+
+	static const int NumTables = 1;
+	static const int NumSliderPacks = 0;
+	static const int NumAudioFiles = 0;
+
+	HISE_EMPTY_PREPARE;
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_PROCESS;
+	HISE_EMPTY_PROCESS_SINGLE;
+	HISE_EMPTY_HANDLE_EVENT;
+
+	void setExternalData(int index, const ExternalData& d)
+	{
+		d.referBlockTo(internalData, 0);
+	}
+
+	block internalData;
+};
 
 
+struct table23_data
+{
+	span<float, 128> data = 
+	{	0.98293273f, 0.083770002f, 0.049215005f, 0.46574186f,
+		0.3699328f, 0.077760494f, 0.20188127f, 0.45882956f,
+		0.79893166f, 0.17817925f, 0.39334161f, 0.9944781f,
+		0.16272518f, 0.6708219f, 0.80794162f, 0.89819765f,
+		0.88123468f, 0.60708319f, 0.72685037f, 0.14657131f,
+		0.88341391f, 0.17934901f, 0.51136695f, 0.21482391f,
+		0.24232234f, 0.40386775f, 0.99303175f, 0.20041458f,
+		0.4133036f, 0.0010109104f, 0.35801062f, 0.8327572f,
+		0.67851717f, 0.39967141f, 0.68135488f, 0.65385875f,
+		0.97900148f, 0.3318893f, 0.45139003f, 0.99835871f,
+		0.40881919f, 0.42505153f, 0.26178591f, 0.85262836f,
+		0.048594839f, 0.58222613f, 0.20306654f, 0.93534866f,
+		0.77497217f, 0.19702313f, 0.79881407f, 0.13605712f,
+		0.14838836f, 0.44911654f, 0.87511395f, 0.75888721f,
+		0.35740533f, 0.032125454f, 0.87351156f, 0.34709749f,
+		0.59010001f, 0.77947827f, 0.49466204f, 0.47660084f,
+		0.67126548f, 0.2693361f, 0.44683661f, 0.085785189f,
+		0.61110946f, 0.74041796f, 0.55350956f, 0.20231732f,
+		0.072575202f, 0.5610661f, 0.70852187f, 0.39881603f,
+		0.099298452f, 0.22915382f, 0.64505892f, 0.78737352f,
+		0.62662255f, 0.9961339f, 0.27327271f, 0.69261933f,
+		0.89921753f, 0.90094302f, 0.3363325f, 0.43471232f,
+		0.46900852f, 0.35552988f, 0.30963335f, 0.5332882f,
+		0.67775931f, 0.6710015f, 0.12458851f, 0.50258624f,
+		0.6243484f, 0.66994725f, 0.3167612f, 0.65395415f,
+		0.46521332f, 0.055192671f, 0.28606196f, 0.62753681f,
+		0.33844392f, 0.64746925f, 0.30048265f, 0.92866954f,
+		0.28152311f, 0.25430081f, 0.78861418f, 0.50042064f,
+		0.72681286f, 0.47046658f, 0.042386493f, 0.29158823f,
+		0.70776144f, 0.45799377f, 0.21058219f, 0.11460438f,
+		0.94578363f, 0.92267316f, 0.0043439034f, 0.5812113f,
+		0.86928468f, 0.44711893f, 0.78487704f, 0.072052477f 
+	};
+};
+
+using namespace scriptnode;
+
+namespace scriptnode 
+{
+namespace wrap
+{
+
+}
+}
+
+using testcontainer = container::chain<parameter::empty, wrap::fix<1, test_table>, test_table, test_table>;
+
+struct TestHandler
+{
+	static const int NumTables = 1;
+	static const int NumSliderPacks = 0;
+	static const int NumAudioFiles = 0;
+
+	TestHandler(testcontainer& d)
+	{
+		auto& x = d.get<0>();
+	}
+
+	void setExternalData(testcontainer& d, int index, const ExternalData& b)
+	{
+		if (index == -1)
+		{
+			d.get<2>().setExternalData(0, ExternalData(table23));
+		}
+
+		if (index == 0)
+		{
+			d.get<0>().setExternalData(0, b);
+			d.get<1>().setExternalData(0, b);
+		} 
+	}
+
+	table23_data table23;
+};
+
+using MyProcessor = scriptnode::wrap::data<testcontainer, TestHandler>;
+
+
+
+/** => move this to hi_scripting (or anywhere where it's wrapped on HISE level. */
+template <typename T> struct HardcodedExternalHandler: public snex::ExternalDataProviderBase
+{
+	GET_SELF_OBJECT(*this);
+	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+
+	HardcodedExternalHandler()
+	{
+		initExternalData();
+	}
+
+	int getNumRequiredDataObjects(ExternalData::DataType t) const override
+	{
+		switch (t)
+		{
+		case ExternalData::DataType::AudioFile:		return T::NumAudioFiles;
+		case ExternalData::DataType::SliderPack:	return T::NumSliderPacks;
+		case ExternalData::DataType::Table:			return T::NumTables;
+		default:									return 0;
+		}
+	}
+
+	HISE_DEFAULT_INIT(HardcodedExternalHandler);
+	HISE_DEFAULT_RESET(HardcodedExternalHandler);
+	HISE_DEFAULT_PREPARE(HardcodedExternalHandler);
+	HISE_DEFAULT_PROCESS(HardcodedExternalHandler);
+	HISE_DEFAULT_PROCESS_FRAME(HardcodedExternalHandler);
+	HISE_DEFAULT_HANDLE_EVENT(HardcodedExternalHandler);
+
+	void setExternalData(int index, const ExternalData& d) override
+	{
+		obj.setExternalData(index, d);
+	}
+
+	T obj;
+};
 
 //==============================================================================
 MainComponent::MainComponent() :
 	data(new ui::WorkbenchData())
 {
-	compileThread = new snex::jit::BackgroundCompileThread(data);
+	using namespace scriptnode;
+
+	HardcodedExternalHandler<MyProcessor> funkyNode;
+
+	
+
+	auto compileThread = new snex::jit::TestCompileThread(data);
 	data->setCompileHandler(compileThread);
 
 	playground = new snex::jit::SnexPlayground(data, true);
@@ -218,7 +363,8 @@ MainComponent::MainComponent() :
 
 MainComponent::~MainComponent()
 {
-	compileThread->signalThreadShouldExit();
+	data = nullptr;
+
 	context.detach();
 
 

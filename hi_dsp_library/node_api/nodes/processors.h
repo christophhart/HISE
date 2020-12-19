@@ -37,7 +37,7 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-namespace init
+namespace scriptnode_initialisers
 {
 struct oversample;
 }
@@ -517,7 +517,7 @@ protected:
 
 
 
-template <int OversamplingFactor, class T, class InitFunctionClass=init::oversample> class oversample: public oversample_base
+template <int OversamplingFactor, class T, class InitFunctionClass=scriptnode_initialisers::oversample> class oversample: public oversample_base
 {
 public:
 
@@ -584,6 +584,47 @@ private:
 	T obj;
 };
 
+
+template <class T> class default_data
+{
+	static const int NumTables = T::NumTables;
+	static const int NumSliderPacks = T::NumSliderPacks;
+	static const int NumAudioFiles = T::NumAudioFiles;
+
+	default_data(T& obj)
+	{
+		block b;
+		obj.setExternalData(-1, b);
+	}
+
+	template <typename T> void setExternalData(T& obj, int index, const snex::ExternalData& data)
+	{
+		obj.setExternalData(index, data);
+	}
+};
+
+/** A wrapper that extends the wrap::init class with the possibility of handling external data.
+
+	The DataHandler class needs to have a constructor with a T& argument (where you can do the 
+	usual parameter initialisations). On top of that you need to:
+	
+	1. Define 3 static const int values: `NumTables`, `NumSliderPacks` and `NumAudioFiles`
+	2. Define a `void setExternalData(T& obj, int index, const block& b)` method that distributes the
+	   incoming blocks to its children.
+
+
+	*/
+template <class T, class DataHandler = default_data<T>> struct data : public wrap::init<T, DataHandler>
+{
+	static const int NumTables = DataHandler::NumTables;
+	static const int NumSliderPacks = DataHandler::NumSliderPacks;
+	static const int NumAudioFiles = DataHandler::NumAudioFiles;
+
+	void setExternalData(int index, const snex::ExternalData& data)
+	{
+		this->i.setExternalData(obj, index, data);
+	}
+};
 
 template <int BlockSize, class T> class fix_block
 {

@@ -34,8 +34,6 @@ private:
 
     Value v;
 
-
-	ScopedPointer<snex::jit::BackgroundCompileThread> compileThread;
 	ScopedPointer<snex::jit::SnexPlayground> playground;
 	OpenGLContext context;
 

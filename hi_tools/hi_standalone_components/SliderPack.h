@@ -36,7 +36,8 @@
 namespace hise { using namespace juce;
 
 /** The data model for a SliderPack component. */
-class SliderPackData: public SafeChangeBroadcaster
+class SliderPackData: public SafeChangeBroadcaster,
+					  public ReferenceCountedObject
 {
 public:
 
@@ -179,10 +180,6 @@ private:
 
 	VariantBuffer cachedData;
 	
-	WeakReference<SliderPackData>::Master masterReference;
-
-	friend class WeakReference < SliderPackData > ;
-
 	int nextIndexToDisplay;
 	
 	Range<double> sliderRange;
@@ -194,6 +191,8 @@ private:
 	var defaultValue;
 
 	//Array<float> values;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SliderPackData);
 };
 
 

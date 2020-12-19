@@ -49,7 +49,6 @@ defaultValue(var(1.0))
 
 SliderPackData::~SliderPackData()
 {
-	masterReference.clear();
 }
 
 void SliderPackData::setRange(double minValue, double maxValue, double stepSize_)

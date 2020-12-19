@@ -233,7 +233,7 @@ MainContentComponent::MainContentComponent(const String &commandLine):
 
 MainContentComponent::~MainContentComponent()
 {
-	getLayoutFile().replaceWithText(rootTile->exportAsJSON());
+	//getLayoutFile().replaceWithText(rootTile->exportAsJSON());
 	context.detach();
 
 	rootTile = nullptr;

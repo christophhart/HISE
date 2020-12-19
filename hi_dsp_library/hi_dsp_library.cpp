@@ -53,6 +53,7 @@
 #include "snex_basics/snex_DynamicType.cpp"
 #include "snex_basics/snex_TypeHelpers.cpp"
 
+#include "snex_basics/snex_ExternalData.cpp"
 #include "node_api/helpers/ParameterData.cpp"
 #include "node_api/nodes/Base.cpp"
 

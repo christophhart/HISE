@@ -428,8 +428,6 @@ public:
 
 protected:
 
-	
-
 	ReferenceCountedArray<ScriptingObjects::ScriptSliderPackData> sliderPacks;
 	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
 	ReferenceCountedArray<ScriptingObjects::ScriptAudioFile> audioFiles;

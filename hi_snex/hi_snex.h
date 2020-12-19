@@ -103,6 +103,7 @@ Set to 0 to disable SNEX compilation (default on iOS).
 //#include "snex_core/snex_ProcessDataTypes.h"
 //#include "snex_core/snex_ProcessDataTypes.cpp"
 #include "snex_core/snex_ExternalObjects.h"
+#include "snex_core/snex_JitCompiledNode.h"
 #include "snex_jit/snex_jit_NativeDspFunctions.h"
 
 

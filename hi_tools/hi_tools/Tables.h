@@ -42,7 +42,8 @@ namespace hise { using namespace juce;
 *
 *	@ingroup ui_types
 */
-class Table: public SafeChangeBroadcaster
+class Table: public ReferenceCountedObject,
+			 public SafeChangeBroadcaster
 {
 public:
 

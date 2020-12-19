@@ -148,9 +148,9 @@ struct Graph : public WorkbenchComponent,
 			repaint();
 		}
 
-		void setBuffer(AudioSampleBuffer& b);
+		void setBuffer(const AudioSampleBuffer& b);
 
-		void calculatePath(Path& p, AudioSampleBuffer& b, int channel);
+		void calculatePath(Path& p, const AudioSampleBuffer& b, int channel);
 
 		void mouseMove(const MouseEvent& e) override
 		{
@@ -252,25 +252,7 @@ struct Graph : public WorkbenchComponent,
 		getWorkbench()->removeListener(this);
 	}
 
-	void buttonClicked(Button* b) override
-	{
-		if (b == &openFile)
-		{
-			FileChooser fc("Load test file", getWorkbench()->getConnectedFile().getParentDirectory().getParentDirectory(), "*.wav", true);
-
-			if (fc.browseForFileToOpen())
-			{
-				auto f = fc.getResult();
-
-				double speed = 0.0;
-
-				sourceBuffer = hlac::CompressionHelpers::loadFile(f, speed);
-				recalculate();
-			}
-		}
-	};
-
-	void recalculate();
+	void buttonClicked(Button* b) override;;
 
 	void paint(Graphics& g)
 	{
@@ -309,23 +291,7 @@ struct Graph : public WorkbenchComponent,
 		}
 	}
 
-	void recompiled(WorkbenchData::Ptr p) override
-	{
-		// Write this new with the JitCompiledNode compile handler
-		jassertfalse;
-
-#if 0
-		currentNode = p->getCompiledNode();
-
-		if (currentNode == nullptr)
-			currentResult = p->getLastResult();
-		else
-			currentResult = currentNode->r;
-
-		if (currentResult.wasOk())
-			recalculate();
-#endif
-	}
+	void recompiled(WorkbenchData::Ptr p) override;
 
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("SnexGraph"); }
 
@@ -347,7 +313,7 @@ struct Graph : public WorkbenchComponent,
 		repaint();
 	}
 
-	void setBuffer(AudioSampleBuffer& b)
+	void setBuffer(const AudioSampleBuffer& b)
 	{
 		resized();
 		internalGraph.setBuffer(b);
@@ -362,10 +328,6 @@ struct Graph : public WorkbenchComponent,
 	Icons iconFactory;
 
 	HiseShapeButton newFile, openFile, saveFile;
-
-	AudioSampleBuffer sourceBuffer;
-
-	AudioSampleBuffer outputBuffer;
 
 	JitCompiledNode::Ptr currentNode;
 

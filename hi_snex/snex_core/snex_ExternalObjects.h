@@ -173,6 +173,21 @@ struct PrepareSpecsJIT: public PrepareSpecs
 };
 
 
+struct ExternalDataJIT : public ExternalData
+{
+	static void referTo(void* obj, block& b, int index)
+	{
+		static_cast<ExternalData*>(obj)->referBlockTo(b, index);
+	}
+
+	static void setDisplayValueStatic(void* obj, double value)
+	{
+		static_cast<ExternalData*>(obj)->setDisplayedValue(value);
+	}
+
+	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
+};
+
 /** This data structure is useful if you're writing any kind of oscillator. 
 
 	It contains the buffer that the signal is supposed to be added to as well
@@ -228,99 +243,6 @@ struct OpaqueSnexParameter
 
 
 
-struct JitCompiledNode: public ReferenceCountedObject
-{
-	using CompilerInitFunction = std::function<void(Compiler& c, int numChannels)>;
-
-	using Ptr = ReferenceCountedObjectPtr<JitCompiledNode>;
-
-	static void defaultInitialiser(Compiler& c, int numChannels)
-	{
-		c.reset();
-		SnexObjectDatabase::registerObjects(c, numChannels);
-	}
-
-	JitCompiledNode(Compiler& c, const String& code, const String& classId, int numChannels_, const CompilerInitFunction& cf=defaultInitialiser);
-
-	static void addParameterMethod(String& s, const String& parameterName, int index)
-	{
-		s << "void set" << parameterName << "(double value) { instance.setParameter<" << String(index) << ">(value);}\n";
-	}
-
-	static void addCallbackWrapper(String& s, const FunctionData& d)
-	{
-		s << d.getSignature({}, false) << "{ ";
-
-		if (d.returnType != TypeInfo(Types::ID::Void))
-			s << "return ";
-
-		s << "instance." << d.id.getIdentifier() << "(";
-
-		for (int i = 0; i < d.args.size(); i++)
-		{
-			s << d.args[i].id.getIdentifier();
-			if (isPositiveAndBelow(i, d.args.size() - 1))
-				s << ", ";
-		}
-
-		s << "); }\n";
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		jassert(ps.numChannels >= numChannels);
-		
-		lastSpecs = ps;
-
-		callbacks[Types::ScriptnodeCallbacks::PrepareFunction].callVoid(&lastSpecs);
-	}
-
-	template <typename T> void process(T& data)
-	{
-		jassert(data.getNumChannels() >= numChannels);
-		callbacks[Types::ScriptnodeCallbacks::ProcessFunction].callVoid(&data);
-	}
-
-	void reset()
-	{
-		callbacks[Types::ScriptnodeCallbacks::ResetFunction].callVoid();
-	}
-
-	void handleEvent(HiseEvent& e)
-	{
-		callbacks[Types::ScriptnodeCallbacks::HandleEventFunction].callVoid(&e);
-	}
-
-	template <typename T> void processFrame(T& data)
-	{
-		jassert(data.size() >= numChannels);
-		callbacks[Types::ScriptnodeCallbacks::ProcessFrameFunction].callVoid(data.begin());
-	}
-
-	OpaqueSnexParameter::List getParameterList() const
-	{
-		return parameterList;
-	}
-
-	JitObject getJitObject() { return obj; }
-
-	void* thisPtr = nullptr;
-
-	Result r;
-
-private:
-
-	PrepareSpecs lastSpecs;
-
-	OpaqueSnexParameter::List parameterList;
-
-	int numChannels = 0;
-	bool ok = false;
-	FunctionData callbacks[Types::ScriptnodeCallbacks::numFunctions];
-
-	JitObject obj;
-	ComplexType::Ptr instanceType;
-};
 
 struct SnexTypeConstructData
 {
