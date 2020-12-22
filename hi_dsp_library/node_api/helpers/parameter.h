@@ -148,10 +148,12 @@ template <class T, int P> struct single_base
 
 	template <int Index, class OtherType> void connect(OtherType& element)
 	{
-		static_assert(Index == 0, "Index must be zero");
-		static_assert(std::is_same<OtherType, T>(), "target type mismatch");
+		
 
-		obj = reinterpret_cast<void*>(&element);
+		static_assert(Index == 0, "Index must be zero");
+		static_assert(std::is_same<OtherType::ObjectType, T::ObjectType>(), "target type mismatch");
+
+		obj = reinterpret_cast<void*>(&element.getObject());
 	}
 
 	void* getObjectPtr() { return obj; }
@@ -260,7 +262,9 @@ template <class T, int P> struct plain : public single_base<T, P>
 
 	static void callStatic(void* o, double v)
 	{
-		T::setParameter<P>(o, v);
+		using ObjectType = T::ObjectType;
+
+		ObjectType::setParameter<P>(o, v);
 	}
 
 	void addToList(ParameterDataList& d)
@@ -290,9 +294,13 @@ template <class T, int P, class Expression> struct expression : public single_ba
 	void call(double v)
 	{
 		jassert(obj != nullptr);
-		jassert(connected);
 
-		f(obj, Expression()(v));
+		using ObjectType = T::ObjectType;
+
+		Expression e;
+		v = e.op(v);
+
+		ObjectType::setParameter<P>(obj, v);
 	}
 
 	void operator()(double v)
@@ -330,7 +338,7 @@ template <class T, int P, class Expression> struct expression : public single_ba
 
 	This class is usually used in connections from a macro parameter in order to
 	convert the range to the respective limits for each connection. */
-template <class T, int P, class RangeType> struct from0to1 : public single_base<T, P>
+template <class T, int P, class RangeType> struct from0To1 : public single_base<T, P>
 {
 	void call(double v)
 	{
@@ -381,14 +389,14 @@ template <class T, int P, class RangeType> struct from0to1 : public single_base<
 	This class is usually used in macro parameters to convert the "public" knob
 	range into the normalised range that is sent to each connection.
 */
-template <class T, int P, class RangeType> struct to0to1 : public single_base<T, P>
+template <class T, int P, class RangeType> struct to0To1 : public single_base<T, P>
 {
 	void call(double v)
 	{
 		jassert(obj != nullptr);
 		jassert(connected);
 
-		f(obj, RangeType::to0to1(v));
+		f(obj, RangeType::to0To1(v));
 	}
 
 	void addToList(ParameterDataList& d)

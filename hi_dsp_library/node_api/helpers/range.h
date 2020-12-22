@@ -114,35 +114,37 @@ struct Identity
 #define DECLARE_IDENTITY_RANGE(name) struct name: public Identity {};
 
 /** A shortcut to declare an expression parameter */
-#define DECLARE_PARAMETER_EXPRESSION(name, x) struct name : public ranges::SnexExpressionBase { \
+#define DECLARE_PARAMETER_EXPRESSION(name, x) struct name : public scriptnode::ranges::SnexExpressionBase { \
 static double op(double input) { return x; } }; 
+
+#define RANGE_BASE scriptnode::ranges::RangeBase<double>
 
 /** Declares a linear range with a custom range. */
 #define DECLARE_PARAMETER_RANGE(name, min, max) struct name { \
 	static constexpr bool isRange() { return true; } \
-	static constexpr double to0To1(double input) { return ranges::RangeBase<double>::to0To1(min, max, input); } \
-	static constexpr double from0To1(double input){ return ranges::RangeBase<double>::from0To1(min, max, input); };\
+	static constexpr double to0To1(double input) { return RANGE_BASE::to0To1(min, max, input); } \
+	static constexpr double from0To1(double input){ return RANGE_BASE::from0To1(min, max, input); };\
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max); } };
 
 /** Declares a linear range with discrete steps. */
 #define DECLARE_PARAMETER_RANGE_STEP(name, min, max, step) struct name {\
 	static constexpr bool isRange() { return true; } \
-	static constexpr double to0To1(double input) {  return ranges::RangeBase<double>::to0To1Step(min, max, step, input); } \
-	static constexpr double from0To1(double input){ return ranges::RangeBase<double>::from0To1Step(min, max, step, input);} \
+	static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1Step(min, max, step, input); } \
+	static constexpr double from0To1(double input){ return RANGE_BASE::from0To1Step(min, max, step, input);} \
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, step); } };
 
 /** Declares a skewed range with a settable skew factor. */
 #define DECLARE_PARAMETER_RANGE_SKEW(name, min, max, skew) struct name {\
 	static constexpr bool isRange() { return true; } \
-	static constexpr double to0To1(double input) {  return ranges::RangeBase<double>::to0To1Skew(min, max, skew, input); }\
-	static constexpr double from0To1(double input){ return ranges::RangeBase<double>::from0To1Skew(min, max, skew, input);} \
+	static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1Skew(min, max, skew, input); }\
+	static constexpr double from0To1(double input){ return RANGE_BASE::from0To1Skew(min, max, skew, input);} \
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, 0.0, skew); } };
 
 /** Declares a skewed range with discrete steps. */
 #define DECLARE_PARAMETER_RANGE_STEP_SKEW(name, min, max, step, skew)struct name {\
 	static constexpr bool isRange() { return true; } \
-	static constexpr double to0To1(double input) {  return ranges::RangeBase<double>::to0To1StepSkew(min, max, step, skew, input); } \
-	static constexpr double from0To1(double input){ return ranges::RangeBase<double>::from0To1StepSkew(min, max, step, skew, input);} \
+	static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1StepSkew(min, max, step, skew, input); } \
+	static constexpr double from0To1(double input){ return RANGE_BASE::from0To1StepSkew(min, max, step, skew, input);} \
 	static NormalisableRange<double> createNormalisableRange() { return NormalisableRange<double>(min, max, step, skew); } };
 
 }
