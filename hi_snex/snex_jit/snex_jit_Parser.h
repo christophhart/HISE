@@ -226,6 +226,16 @@ private:
 				}
 			}
 
+			// Might be a second constructor
+			if (nId.getParent().id == nId.id)
+			{
+				if (auto constructorType = namespaceHandler.getComplexType(nId.getParent()))
+				{
+					currentTypeInfo = TypeInfo(constructorType);
+					return true;
+				}
+			}
+
 			if (namespaceHandler.isTemplateTypeArgument(nId))
 			{
 				currentTypeInfo = TypeInfo(nId);

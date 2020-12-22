@@ -100,6 +100,8 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual bool hasConstructor();
 
+	virtual bool hasDefaultConstructor();
+
 	virtual void registerExternalAtNamespaceHandler(NamespaceHandler* handler, const juce::String& description);
 
 	virtual Types::ID getRegisterType(bool allowSmallObjectOptimisation) const 
@@ -380,12 +382,32 @@ struct TypeInfo
 		return !isComplexType() && type == Types::ID::Pointer;
 	}
 
+	TypeInfo toNativePointer() const
+	{
+		if (isComplexType())
+			return TypeInfo(Types::ID::Pointer, true);
+
+		return *this;
+	}
+
 	TypeInfo toPointerIfNativeRef() const
 	{
 		if (!isComplexType() && isRef())
 			return TypeInfo(Types::ID::Pointer, true);
 
 		return *this;
+	}
+
+	bool replaceBlockWithDynType(ComplexType::Ptr blockPtr)
+	{
+		if (getType() == Types::ID::Block)
+		{
+			auto copy = TypeInfo(blockPtr).withModifiers(isConst(), isRef(), isStatic());
+			*this = copy;
+			return true;
+		}
+
+		return false;
 	}
 
 	Types::ID getRegisterType(bool allowSmallObjectOptimisation) const noexcept

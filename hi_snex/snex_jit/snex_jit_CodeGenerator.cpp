@@ -906,7 +906,7 @@ void AsmCodeGenerator::writeDirtyGlobals(BaseCompiler* c)
 	dirtyGlobalList.clear();
 }
 
-void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list)
+Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list)
 {
 	jassert(typePtr != nullptr);
 	jassert(list == nullptr || expr == nullptr);
@@ -932,7 +932,7 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 			d.asmPtr = &m;
 			d.initValues = list;
 
-			typePtr->initialise(d);
+			return typePtr->initialise(d);
 		}
 		else
 		{
@@ -947,7 +947,10 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 			initData.dataPointer = start;
 			initData.initValues = list;
 
-			typePtr->initialise(initData);
+			auto r = typePtr->initialise(initData);
+
+			if (!r.wasOk())
+				return r;
 
 			float* d = reinterpret_cast<float*>(start);
 
@@ -984,6 +987,8 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 					s++;
 				}
 			}
+
+			return Result::ok();
 		}
 
 
@@ -992,8 +997,7 @@ void AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr t
 	else
 	{
 		jassertfalse;
-		
-
+		return Result::fail("unimplemented");
 	}
 }
 

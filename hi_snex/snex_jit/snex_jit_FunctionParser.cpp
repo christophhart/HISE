@@ -106,6 +106,9 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseStatementBlock()
 
 BlockParser::StatementPtr CodeParser::parseStatement()
 {
+	while (currentType == JitTokens::semicolon)
+		match(JitTokens::semicolon);
+
 	if (matchIf(JitTokens::static_))
 	{
 		match(JitTokens::const_);

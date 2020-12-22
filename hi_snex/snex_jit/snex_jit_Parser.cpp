@@ -847,10 +847,15 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 
 snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids)
 {
+	
+
 	auto n = Operations::as<Operations::ComplexTypeDefinition>(def);
 
 	if (currentTypeInfo.isComplexType() && currentTypeInfo.getComplexType()->hasConstructor())
 	{
+		// If objects are created on the stack they might have not been finalised yet
+		currentTypeInfo.getComplexType()->finaliseAlignment();
+
 		StatementPtr cd = n;
 
 		FunctionClass::Ptr fc = currentTypeInfo.getComplexType()->getFunctionClass();
@@ -870,7 +875,16 @@ snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef
 			auto cf = fc->getConstructor(n->initValues);
 
 			if (!cf.id.isValid())
-				location.throwError("Can't find constructor that matches init values " + n->initValues->toString());
+			{
+				String error;
+				error << "Can't find constructor that matches init values ";
+
+				if (n->initValues != nullptr)
+					error << n->initValues->toString();
+
+				location.throwError(error);
+			}
+				
 			
 			auto call = new Operations::FunctionCall(location, nullptr, Symbol(cf.id, TypeInfo(Types::ID::Void)), {});
 			auto obj = new Operations::VariableReference(location, Symbol(id, TypeInfo(currentTypeInfo)));

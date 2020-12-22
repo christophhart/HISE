@@ -443,6 +443,8 @@ namespace Operations
 		return dynamic_cast<T*>(p.get());
 	}
 
+	static bool canBeReferenced(Expression::Ptr p);
+
 	static Expression::Ptr evalConstExpr(Expression::Ptr expr);
 
 	struct Assignment;		struct Immediate;				struct Noop;

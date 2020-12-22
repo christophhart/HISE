@@ -152,6 +152,20 @@ struct SpanType : public ArrayTypeBase
 		return false;
 	}
 
+	bool hasDefaultConstructor() override
+	{
+		if (auto typePtr = getElementType().getTypedIfComplexType<ComplexType>())
+		{
+			auto ok = typePtr->hasDefaultConstructor();
+
+			// span elements always need a default constructor
+			jassert(ok);
+			return ok;
+		}
+
+		return true;
+	}
+
 	bool matchesOtherType(const ComplexType& other) const override
 	{
 		if (auto otherSpan = dynamic_cast<const SpanType*>(&other))
@@ -235,6 +249,11 @@ struct DynType : public ArrayTypeBase
 
 	DynType(const TypeInfo& elementType_);
 
+	bool hasDefaultConstructor() override
+	{
+		return true;
+	}
+
 	static IndexType getIndexType(const TypeInfo& t);
 
 	TypeInfo getElementType() const override { return elementType; }
@@ -294,6 +313,8 @@ struct StructType : public ComplexType,
 	}
 
 	bool hasConstructor() override;
+
+	bool hasDefaultConstructor() override;
 
 	Identifier getConstructorId();
 

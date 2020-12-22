@@ -769,9 +769,17 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 	defaultValues.dataPointer = data;
 	defaultValues.initValues = makeDefaultInitialiserList();
 
+	
+
 	auto r = initialise(defaultValues);
 
-	auto args = initList->toFlatConstructorList();
+	
+	if (hasDefaultConstructor())
+	{
+		// Now change the init values so that it won't fail the type check
+		initList = new InitialiserList();
+	}
+	
 
 	FunctionClass::Ptr fc = getFunctionClass();
 
@@ -781,6 +789,55 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 
 		if (cf.function == nullptr)
 			return Result::ok();
+
+		TypeInfo::List providedArgs;
+		
+
+		/** Set the member pointer here. */
+		initList->forEach([data, &providedArgs](InitialiserList::ChildBase* b)
+		{
+			if (auto mp = dynamic_cast<InitialiserList::MemberPointer*>(b))
+			{
+				auto offset = mp->st->getMemberOffset(mp->variableId);
+				auto memberData = (uint8*)data + offset;
+
+				VariableStorage v;
+
+				if (!mp->getValue(v))
+					mp->value = VariableStorage(memberData, mp->st->getMemberTypeInfo(mp->variableId).getRequiredByteSize());
+
+				providedArgs.add(mp->st->getMemberTypeInfo(mp->variableId).withModifiers(false, true));
+			}
+			else if (auto exp = dynamic_cast<InitialiserList::ExpressionChild*>(b))
+			{
+				providedArgs.add(exp->expression->getTypeInfo());
+			}
+			else
+			{
+				VariableStorage v;
+				if (b->getValue(v))
+					providedArgs.add(TypeInfo(v.getType()));
+			}
+			return false;
+		});
+
+		if (!cf.matchesArgumentTypes(providedArgs))
+		{
+			String s;
+			s << cf.getSignature({}, false);
+			s << ": constructor type mismatch. Expected arguments: (";
+
+			for (auto& pa : providedArgs)
+				s << pa.toString() + ", ";
+
+			s = s.upToLastOccurrenceOf(", ", false, false);
+
+			s << ")";
+
+			return Result::fail(s);
+		}
+
+		auto args = initList->toFlatConstructorList();
 
 		if (cf.args.size() != args.size())
 		{
@@ -799,6 +856,11 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 			}
 			else
 			{
+				if (args.isEmpty())
+				{
+
+				}
+
 				return Result::fail("constructor argument mismatch");
 			}
 		}
@@ -813,6 +875,10 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 			for (auto a : args)
 				types.add(a.getType());
 		}
+
+		for (auto& a : cf.args)
+			a.typeInfo = a.typeInfo.toNativePointer();
+		
 
 		if (!cf.matchesNativeArgumentTypes(Types::ID::Void, types))
 			return Result::fail("constructor type mismatch");
@@ -830,6 +896,33 @@ bool ComplexType::hasConstructor()
 	if (FunctionClass::Ptr fc = getFunctionClass())
 	{
 		return fc->getSpecialFunction(FunctionClass::Constructor).id.isValid();
+	}
+
+	return false;
+}
+
+bool ComplexType::hasDefaultConstructor()
+{
+	if (!hasConstructor())
+		return true;
+
+	if (FunctionClass::Ptr fc = getFunctionClass())
+	{
+		Array<FunctionData> matches;
+
+		auto fid = fc->getClassName();
+
+		auto id =  fid.getChildId(fc->getSpecialSymbol(fid, FunctionClass::Constructor));
+
+		fc->addMatchingFunctions(matches, id);
+
+		for (auto& m : matches)
+		{
+			if (m.args.isEmpty())
+				return true;
+		}
+
+		return false;
 	}
 
 	return false;

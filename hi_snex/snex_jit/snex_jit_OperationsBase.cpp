@@ -107,6 +107,23 @@ bool Operations::isOpAssignment(Expression::Ptr p)
 	return false;
 }
 
+bool Operations::canBeReferenced(Expression::Ptr p)
+{
+	if (as<SymbolStatement>(p) != nullptr)
+		return true;
+
+	if (as<MemoryReference>(p) != nullptr)
+		return true;
+
+	if (as<DotOperator>(p) != nullptr)
+	{
+		return true;
+	}
+
+	auto isRef = p->getTypeInfo().isRef();
+	return isRef;
+}
+
 snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr expr)
 {
 	auto compiler = expr->currentCompiler;

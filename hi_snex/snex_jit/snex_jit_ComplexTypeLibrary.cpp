@@ -369,9 +369,22 @@ juce::Result SpanType::initialise(InitData d)
 				cm = d.asmPtr->cloneWithOffset(offset);
 				c.asmPtr = &cm;
 			}
-				
+			
+
+
 			c.initValues = d.initValues->createChildList(indexToUse);
+
 			c.callConstructor = d.callConstructor;
+
+			if (c.callConstructor)
+			{
+				if (!elementType.getComplexType()->hasDefaultConstructor())
+				{
+					String s;
+					s << elementType.toString() << ": no default constructor";
+					return Result::fail(s);
+				}
+			}
 
 			auto ok = elementType.getComplexType()->initialise(c);
 
@@ -1199,6 +1212,16 @@ juce::Result StructType::initialise(InitData d)
 {
 	int index = 0;
 
+	if (!d.callConstructor && d.initValues->size() != memberData.size())
+	{
+		String s;
+		s << "initialiser mismatch: ";
+		s << d.initValues->toString();
+		s << " (expected " << memberData.size() << ")";
+
+		return Result::fail(s);
+	}
+
 	for (auto m : memberData)
 	{
 		if (isPositiveAndBelow(index, d.initValues->size()))
@@ -1528,6 +1551,23 @@ bool StructType::hasConstructor()
 	}
 
 	return false;
+}
+
+bool StructType::hasDefaultConstructor()
+{
+	if (!ComplexType::hasDefaultConstructor())
+		return false;
+
+	for (auto& m : memberData)
+	{
+		if (auto c = m->typeInfo.getTypedIfComplexType<ComplexType>())
+		{
+			if (!c->hasDefaultConstructor())
+				return false;
+		}
+	}
+
+	return true;
 }
 
 juce::Identifier StructType::getConstructorId()
@@ -1911,6 +1951,56 @@ void StructType::addWrappedMemberMethod(const Identifier& memberId, FunctionData
 	}
 
 	memberFunctions.add(wrapperFunction);
+}
+
+Result StructType::redirectAllOverloadedMembers(const Identifier& id, TypeInfo::List mainArgs)
+{
+	Inliner::Ptr iToUse = nullptr;
+	void* fToUse = nullptr;
+	bool found = false;
+
+	for (auto& m : memberFunctions)
+	{
+		if(m.id.id == id && m.matchesArgumentTypes(mainArgs))
+		{
+			fToUse = m.function;
+			iToUse = m.inliner;
+			found = true;
+			break;
+		}
+	}
+
+	if (found)
+	{
+		for (auto& m : memberFunctions)
+		{
+			if (m.id.id == id)
+			{
+				m.function = fToUse;
+				m.inliner = iToUse;
+			}
+		}
+
+		return Result::ok();
+	}
+	else
+	{
+		String s;
+
+		s << toString() << "::" << id << "(";
+
+		for (auto& a : mainArgs)
+		{
+			s << a.toString() << ", ";
+		}
+
+		s = s.upToLastOccurrenceOf(", ", false, false);
+		s << ") not found";
+
+		return Result::fail(s);
+	}
+		
+	
 }
 
 IndexBase::IndexBase(const TypeInfo& parentType_) :

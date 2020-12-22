@@ -987,11 +987,6 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 	return ok;
 }
 
-bool Operations::FunctionCall::canBeAliasParameter(Ptr e)
-{
-	return dynamic_cast<SymbolStatement*>(e.get()) != nullptr || dynamic_cast<MemoryReference*>(e.get()) != nullptr;
-}
-
 Operations::FunctionCall::FunctionCall(Location l, Ptr f, const Symbol& id, const Array<TemplateParameter>& tp) :
 	Expression(l)
 {
