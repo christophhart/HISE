@@ -1671,12 +1671,17 @@ struct Helpers
 			auto m1 = o1.as<BaseMem>();
 			auto m2 = o2.as<BaseMem>();
 
+			
+
 			// there should be no ptrs without a base reg
 			// to fix the 64bit offset issue
 			jassert(m1.hasBase() && m2.hasBase());
 
 			if (m1.baseId() == m2.baseId())
 			{
+				auto m1Type = m1.baseType();
+				auto m2Type = m2.baseType();
+
 				auto sameIndexType = m1.hasIndexReg() == m2.hasIndexReg();
 
 				if (sameIndexType)
@@ -1686,14 +1691,20 @@ struct Helpers
 						auto i1 = m1.indexId();
 						auto i2 = m2.indexId();
 
-						return i1 == i2;
+						if (i1 == i2)
+						{
+							return true;
+						}
 					}
 					else
 					{
 						auto off1 = m1.offset();
 						auto off2 = m2.offset();
 
-						return off1 == off2;
+						if (off1 == off2)
+						{
+							return true;
+						}
 					}
 				}
 			}
@@ -2143,8 +2154,17 @@ struct RemoveDoubleMemoryWrites : public AsmCleanupPass::SubPass<InstructionFilt
 
 						if (Helpers::sameMem(nextTarget, thisTarget))
 						{
-							it.removeNode(thisNode);
-							return true;
+							
+							auto thisSize = thisTarget.size();
+							auto nextSize = nextTarget.size();
+
+							auto thisIsBigger = thisSize != 0 && thisSize <= nextSize;
+
+							if (thisIsBigger)
+							{
+								it.removeNode(thisNode);
+								return true;
+							}
 						}
 					}
 				}

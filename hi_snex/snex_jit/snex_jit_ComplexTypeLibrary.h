@@ -416,6 +416,15 @@ struct StructType : public ComplexType,
 		isExternalDefinition = true;
 	}
 
+	void setVisibility(const Identifier& id, NamespaceHandler::Visibility v)
+	{
+		for (auto m : memberData)
+		{
+			if (m->id == id)
+				m->visibility = v;
+		}
+	}
+
 	void addMember(const Identifier& id, const TypeInfo& typeInfo, const String& comment = {})
 	{
 		jassert(!isFinalised());
