@@ -89,6 +89,28 @@ struct RuntimeError
 	int data2 = 0;
 };
 
+/** A external definition that can be added to the preprocessor. */
+struct ExternalPreprocessorDefinition
+{
+	using List = Array<ExternalPreprocessorDefinition>;
+
+	enum class Type
+	{
+		Definition,
+		Macro,
+		numTypes
+	};
+
+	bool operator==(const ExternalPreprocessorDefinition& other) const
+	{
+		return name.compareNatural(other.name) == 0;
+	}
+
+	Type t;
+	String name;
+	String value;
+	String description;
+};
 
 /** A interface class for anything that needs to print out the logs from the
 	compiler.
@@ -801,16 +823,18 @@ public:
 
 	Result getRuntimeError() const { return runtimeError; }
 
-	void setPreprocessorDefinitions(var d);
+	void setPreprocessorDefinitions(var d, bool clearExisting=false);
 
-	StringPairArray getPreprocessorDefinitions() const { return preprocessorDefinitions; }
+	void setPreprocessorDefinitions(const ExternalPreprocessorDefinition::List& d, bool clearExisting=false);
 
-	
+	ExternalPreprocessorDefinition::List getPreprocessorDefinitions() const { return preprocessorDefinitions; }
+
+	static ExternalPreprocessorDefinition::List getDefaultDefinitions();
 
 private:
 
 	
-	StringPairArray preprocessorDefinitions;
+	ExternalPreprocessorDefinition::List preprocessorDefinitions;
 
 	ComplexType::Ptr blockType;
 

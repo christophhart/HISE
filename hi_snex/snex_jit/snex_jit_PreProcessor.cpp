@@ -468,17 +468,37 @@ juce::Array<Preprocessor::AutocompleteData> Preprocessor::getAutocompleteData() 
 	return l;
 }
 
-void Preprocessor::addDefinitionsFromScope(const StringPairArray& a)
+void Preprocessor::addDefinitionsFromScope(const ExternalPreprocessorDefinition::List& l)
 {
-	auto keys = a.getAllKeys();
-
-	for (auto& k : keys)
+	for (const auto& e : l)
 	{
-		Item::Ptr newItem = new Definition();
-		newItem->body << a[k];
-		newItem->id = NamespacedIdentifier(k);
-		newItem->lineNumber = -1;
-		entries.add(newItem);
+		if (e.t == ExternalPreprocessorDefinition::Type::Macro)
+		{
+			auto name = e.name.upToFirstOccurrenceOf("(", false, false);
+			auto args = e.name.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false);
+
+			Array<Identifier> ids;
+
+			for (auto s : StringArray::fromTokens(args, ",", ""))
+				ids.add(s.trim());
+
+			Item::Ptr newItem = new Macro(ids);
+			newItem->body = e.value;
+			newItem->id = NamespacedIdentifier(name);
+			newItem->lineNumber = -1;
+			newItem->description = e.description;
+
+			entries.add(newItem);
+		}
+		else
+		{
+			Item::Ptr newItem = new Definition();
+			newItem->body << e.value;
+			newItem->id = NamespacedIdentifier(e.name);
+			newItem->lineNumber = -1;
+			newItem->description = e.description;
+			entries.add(newItem);
+		}
 	}
 }
 

@@ -96,7 +96,7 @@ struct Preprocessor
 
 	Array<AutocompleteData> getAutocompleteData() const;
 
-	void addDefinitionsFromScope(const StringPairArray& a);
+	void addDefinitionsFromScope(const ExternalPreprocessorDefinition::List& a);
 
 private:
 
@@ -113,11 +113,12 @@ private:
 
 		NamespacedIdentifier id;
 		String body;
+		String description;
 
 		virtual AutocompleteData getAutocompleteData() const
 		{
 			AutocompleteData ad;
-			ad.description = body;
+			ad.description = description.isEmpty() ? body : description;
 			ad.codeToInsert = "";
 			ad.name = id.toString();
 			ad.lineNumber = lineNumber;
@@ -138,6 +139,9 @@ private:
 		{
 			auto ad = Item::getAutocompleteData();
 			ad.codeToInsert = id.toString();
+
+			ad.description = description;
+			ad.description << (!description.isEmpty() ? "  \n" : "");
 			ad.description << "Expands to\n> `" << body << "`";
 			return ad;
 		}
@@ -167,8 +171,9 @@ private:
 			ad.codeToInsert << ")";
 			ad.name = ad.codeToInsert;
 
-			
-			ad.description = "Expands to:  \n> `" + body + "`";
+			ad.description = description;
+			ad.description << (!description.isEmpty() ? "  \n" : "");
+			ad.description << "Expands to:  \n> `" + body + "`";
 
 			return ad;
 		}

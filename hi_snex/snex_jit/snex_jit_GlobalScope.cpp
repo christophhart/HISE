@@ -48,6 +48,9 @@ GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 
 	objectClassesWithJitCallableFunctions.add(new ConsoleFunctions(this));
 	
+	
+
+	setPreprocessorDefinitions(getDefaultDefinitions());
 
 	jassert(scopeType == BaseScope::Global);
 }
@@ -204,15 +207,90 @@ bool GlobalScope::checkRuntimeErrorAfterExecution()
 	return false;
 }
 
-void GlobalScope::setPreprocessorDefinitions(var d)
+void GlobalScope::setPreprocessorDefinitions(var d, bool clearExisting)
 {
-	preprocessorDefinitions.clear();
+	if(clearExisting)
+		preprocessorDefinitions.clear();
 
 	if (auto obj = d.getDynamicObject())
 	{
 		for (auto& o : obj->getProperties())
-			preprocessorDefinitions.set(o.name.toString(), o.value.toString());
+		{
+			ExternalPreprocessorDefinition d;
+			d.name = o.name.toString();
+			d.value = o.value.toString();
+			d.t = ExternalPreprocessorDefinition::Type::Definition;
+
+			preprocessorDefinitions.addIfNotAlreadyThere(d);
+		}
 	}
+}
+
+void GlobalScope::setPreprocessorDefinitions(const ExternalPreprocessorDefinition::List& d, bool clearExisting)
+{
+	if(clearExisting)
+		preprocessorDefinitions.clear();
+
+	for (auto& a : d)
+		preprocessorDefinitions.addIfNotAlreadyThere(a);
+
+}
+
+ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
+{
+	ExternalPreprocessorDefinition::List defaultMacros;
+
+	{
+		ExternalPreprocessorDefinition declareNode;
+		declareNode.name = "DECLARE_NODE(className)";
+		declareNode.value = "__internal_property(\"IsNode\", 1); __internal_property(\"NodeId\", className);";
+		declareNode.t = ExternalPreprocessorDefinition::Type::Macro;
+		declareNode.description = "Use this macro inside a class to make it a valid node. The `className` must be the exact same ID as the class and you need to define a `template <int P> void setParameter(double v)` method.  ";
+
+		defaultMacros.add(declareNode);
+	}
+
+	{
+		ExternalPreprocessorDefinition dpe;
+		dpe.name = "DECLARE_PARAMETER_EXPRESSION(name, expression)";
+		dpe.value = "struct name { static double op(double input) { return expression; }};";
+		dpe.t = ExternalPreprocessorDefinition::Type::Macro;
+
+		defaultMacros.add(dpe);
+	}
+
+	{
+		// #define MIN_MAX(minValue, maxValue) static const double min = minValue; static const double max = maxValue;
+		ExternalPreprocessorDefinition mm;
+		mm.t = ExternalPreprocessorDefinition::Type::Macro;
+		mm.name = "MIN_MAX(minValue, maxValue";
+		mm.value = "static const double min = minValue; static const double max = maxValue;";
+		mm.description = "used by DECLARE_PARAMETER_RANGE";
+
+		defaultMacros.add(mm);
+	}
+	{
+		// #define RANGE_FUNCTION(id) static double id(double input) { return ranges::id(min, max, input); }
+
+		ExternalPreprocessorDefinition rf;
+		rf.t = ExternalPreprocessorDefinition::Type::Macro;
+		rf.name = "RANGE_FUNCTION(id)";
+		rf.value = "static double id(double input) { return ranges::id(min, max, input); }";
+
+		defaultMacros.add(rf);
+	}
+	{
+		// #define DECLARE_PARAMETER_RANGE(name, minValue, maxValue) 
+		// struct name { MIN_MAX(minValue, maxValue) RANGE_FUNCTION(to0To1); RANGE_FUNCTION(from0To1) };
+		ExternalPreprocessorDefinition dpr;
+		dpr.t = ExternalPreprocessorDefinition::Type::Macro;
+		dpr.name = "DECLARE_PARAMETER_RANGE(name, minValue, maxValue)";
+		dpr.value = "struct name { MIN_MAX(minValue, maxValue) RANGE_FUNCTION(to0To1); RANGE_FUNCTION(from0To1) };";
+		
+		defaultMacros.add(dpr);
+	}
+
+	return defaultMacros;
 }
 
 }
