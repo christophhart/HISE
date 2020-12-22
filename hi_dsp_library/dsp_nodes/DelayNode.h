@@ -53,7 +53,7 @@ struct fix_delay : public HiseDspBase
 	}
 
 	SET_HISE_NODE_ID("fix_delay");
-	GET_SELF_AS_OBJECT(fix_delay);
+	SN_GET_SELF_AS_OBJECT(fix_delay);
 
 	fix_delay() {};
 

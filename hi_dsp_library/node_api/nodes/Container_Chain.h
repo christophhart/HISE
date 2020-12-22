@@ -135,7 +135,7 @@ template <class ParameterClass, typename... Processors> struct chain: public con
 	using FrameType = snex::Types::span<float, NumChannels>;
 	using FrameProcessor = chainprocessor::Frame<FrameType>;
 
-	GET_SELF_AS_OBJECT(chain);
+	SN_GET_SELF_AS_OBJECT(chain);
 
 	/** prepares all child nodes with the same specs. */
 	void prepare(PrepareSpecs ps)

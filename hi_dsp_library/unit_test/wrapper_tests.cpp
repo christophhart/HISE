@@ -150,8 +150,7 @@ struct helper_nodes
 	/** Converts the velocity of a hise event to a DC offset applied to all channels. */
 	struct event2dc
 	{
-		GET_SELF_AS_OBJECT(event2dc);
-		
+		DECLARE_NODE(event2dc);
 
 		HISE_EMPTY_PREPARE;
 		HISE_EMPTY_RESET;

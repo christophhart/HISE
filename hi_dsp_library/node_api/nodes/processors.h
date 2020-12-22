@@ -205,8 +205,7 @@ template <int C, class T> class fix
 {
 public:
 
-	GET_SELF_OBJECT(obj.getObject());
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_OPAQUE_WRAPPER(fix, T);
 
 	static const int NumChannels = C;
 
@@ -298,10 +297,9 @@ template <class T, class Initialiser> class init
 {
 public:
 
-	GET_SELF_OBJECT(obj.getObject());
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_SELF_AWARE_WRAPPER(init, T);
 
-	init() : obj(), i(obj.getObject()) {};
+	init() : obj(), i(obj) {};
 
 	HISE_DEFAULT_INIT(T);
 	HISE_DEFAULT_PREPARE(T);
@@ -309,6 +307,16 @@ public:
 	HISE_DEFAULT_HANDLE_EVENT(T);
 	HISE_DEFAULT_PROCESS_FRAME(T);
 	HISE_DEFAULT_PROCESS(T);
+
+	template <int P> static void setParameter(void* obj, double value)
+	{
+		static_cast<init*>(obj)->setParameter<P>(value);
+	}
+
+	template <int P> void setParameter(double value)
+	{
+		obj.template setParameter<P>(value);
+	}
 
 	T obj;
 	Initialiser i;
@@ -325,8 +333,7 @@ template <class T> class skip
 {
 public:
 
-	GET_SELF_OBJECT(obj.getObject());
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_OPAQUE_WRAPPER(skip, T);
 
 	void initialise(NodeBase* n)
 	{
@@ -353,8 +360,7 @@ template <class T> class event
 {
 public:
 
-	GET_SELF_OBJECT(obj.getObject());
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_OPAQUE_WRAPPER(event, T);
 
 	bool isPolyphonic() const { return obj.isPolyphonic(); }
 
@@ -381,8 +387,7 @@ template <class T> class frame_x
 {
 public:
 
-	GET_SELF_OBJECT(obj.getObject());
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_OPAQUE_WRAPPER(frame_x, T);
 
 	void initialise(NodeBase* n)
 	{
@@ -521,8 +526,7 @@ template <int OversamplingFactor, class T, class InitFunctionClass=scriptnode_in
 {
 public:
 
-	GET_SELF_OBJECT(obj.getObject());
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_OPAQUE_WRAPPER(oversample, T);
 
 	oversample():
 		oversample_base(OversamplingFactor)
@@ -594,12 +598,12 @@ template <class T> class default_data
 	default_data(T& obj)
 	{
 		block b;
-		obj.setExternalData(-1, b);
+		obj.setExternalData(b, -1);
 	}
 
-	template <typename T> void setExternalData(T& obj, int index, const snex::ExternalData& data)
+	template <typename T> void setExternalData(T& obj, const snex::ExternalData& data, int index)
 	{
-		obj.setExternalData(index, data);
+		obj.setExternalData(data, index);
 	}
 };
 
@@ -620,9 +624,9 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 	static const int NumSliderPacks = DataHandler::NumSliderPacks;
 	static const int NumAudioFiles = DataHandler::NumAudioFiles;
 
-	void setExternalData(int index, const snex::ExternalData& data)
+	void setExternalData(const snex::ExternalData& data, int index)
 	{
-		this->i.setExternalData(obj, index, data);
+		this->i.setExternalData(obj, data, index);
 	}
 };
 

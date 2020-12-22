@@ -209,7 +209,7 @@ template <class T, bool AddAsParameter = true> class yes : public SingleWrapper<
 {
 public:
 
-	GET_SELF_AS_OBJECT(yes);
+	SN_GET_SELF_AS_OBJECT(yes);
 
 	static constexpr bool isModulationSource = T::isModulationSource;
 

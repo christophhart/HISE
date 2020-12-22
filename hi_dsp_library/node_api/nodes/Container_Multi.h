@@ -90,7 +90,7 @@ template <typename FrameType> struct Frame
 
 template <class ParameterClass, typename... Processors> struct multi: public container_base<ParameterClass, Processors...>
 {
-	GET_SELF_AS_OBJECT(multi);
+	SN_GET_SELF_AS_OBJECT(multi);
 
 	
 	constexpr static int NumChannels = Helpers::getSummedChannels<Processors...>();

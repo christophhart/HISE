@@ -49,9 +49,36 @@ using namespace hise;
 #define DEFINE_PARAMETERDATA(ClassName, ParameterName) parameter::data p(#ParameterName); p.dbNew = parameter::inner<ClassName, (int)Parameters::ParameterName>(*this);
 
 
+/** Object Accessors
+
+	/
+
+/** Use this macro to define the type that should be returned by calls to getObject(). Normally you pass in the wrapped object (for non-wrapped classes you should use GET_SELF_AS_OBJECT(). */
+#define GET_SELF_OBJECT(x) constexpr auto& getObject() { return x; } \
+constexpr const auto& getObject() const { return x; }
+
+/** Use this macro to define the expression that should be used in order to get the most nested type. (usually you pass in obj.getWrappedObject(). */
+#define GET_WRAPPED_OBJECT(x) constexpr auto& getWrappedObject() { return x; } \
+constexpr const auto& getWrappedObject() const { return x; }
+
+/** Use this macro in order to create the getObject() / getWrappedObject() methods that return the object itself. */
+#define SN_GET_SELF_AS_OBJECT(x) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this); using ObjectType = x; using WrappedObjectType = x;
+
+
+#define SN_SELF_AWARE_WRAPPER(x, ObjectClass) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(obj.getWrappedObject()); using ObjectType = x; using WrappedObjectType = typename ObjectClass::WrappedObjectType;
+
+#define SN_OPAQUE_WRAPPER(x, ObjectClass) GET_SELF_OBJECT(obj.getObject()); GET_WRAPPED_OBJECT(obj.getWrappedObject()); using ObjectType = typename ObjectClass::ObjectType; using WrappedObjectType= typename ObjectClass::WrappedObjectType;
+
+
+
+/** Callback macros.
+
+	*/
+
 /** Use this definition when you forward a wrapper logic. */
 #define INTERNAL_PROCESS_FUNCTION(ObjectClass) template <typename ProcessDataType> static void processInternal(void* obj, ProcessDataType& data) { auto& typed = *static_cast<ObjectClass*>(obj); typed.process(data); }
 #define INTERNAL_PREPARE_FUNCTION(ObjectClass) static void prepareInternal(void* obj, PrepareSpecs ps) { auto& typed = *static_cast<ObjectClass*>(obj); typed.prepare(ps); }
+
 
 /** Use these for default forwarding to the wrapped element. */
 #define HISE_DEFAULT_RESET(ObjectType) void reset() { obj.reset(); }
@@ -85,8 +112,6 @@ using namespace hise;
 #define SET_HISE_EXTRA_COMPONENT(height, className) SET_HISE_NODE_EXTRA_HEIGHT(height); \
 												    CREATE_EXTRA_COMPONENT(className);
 
-#define GET_OBJECT_FROM_CONTAINER(index) &obj.getObject().get<index>()
-
 /** Node empty callback macros. */
 
 #define HISE_EMPTY_RESET void reset() {}
@@ -109,6 +134,17 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #define DEFINE_EXTERN_MONO_TEMPIMPL(classWithTemplate) template class classWithTemplate;
 
 #define DEFINE_EXTERN_NODE_TEMPIMPL(className) template class className<1>; template class className<NUM_POLYPHONIC_VOICES>;
+
+
+
+/** Snex JIT Preprocessors */
+
+#define FORWARD_PARAMETER_TO_MEMBER(className) DEFINE_PARAMETERS { static_cast<className*>(obj)->setParameter<P>(value); }
+
+/** This is being used to tuck away everything that that JIT compiler can't parse. */
+#define DECLARE_NODE(className) SET_HISE_NODE_ID(#className); FORWARD_PARAMETER_TO_MEMBER(className); SN_GET_SELF_AS_OBJECT(className);
+
+
 
 
 }

@@ -137,7 +137,7 @@ template <typename FrameType, int N> struct Frame
 
 template <class ParameterClass, typename... Processors> struct split : public container_base<ParameterClass, Processors...>
 {
-	GET_SELF_AS_OBJECT(split);
+	SN_GET_SELF_AS_OBJECT(split);
 	static constexpr int N = sizeof...(Processors);
 
 	static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
