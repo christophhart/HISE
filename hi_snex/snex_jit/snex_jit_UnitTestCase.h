@@ -36,6 +36,19 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+struct CppGenerator
+{
+	static void wrapInNamespace(String& code, const Identifier& ns, const String& suffix)
+	{
+		String s;
+		s << "namespace " << ns << suffix << "{\n";
+		s << code;
+		s << "\n}\n";
+		
+		std::swap(s, code);
+	}
+};
+
 class JitFileTestCase : public DebugHandler
 {
 public:
@@ -56,6 +69,96 @@ public:
 	void setTypeForDynamicFunction(Types::ID t, const String& originalCode);
 
 	void initCompiler();
+
+	NamespacedIdentifier getCppPath()
+	{
+		auto path = file.getRelativePathFrom(getTestFileDirectory()).replaceCharacter('\\', '/');
+
+		path = path.replace("00 ", "");
+		path = path.removeCharacters(" ");
+		
+		if (path.getIntValue() != 0)
+			path = path.fromFirstOccurrenceOf("_", false, false);
+
+
+		
+		return NamespacedIdentifier::fromString(path.replace("/", "_test::").upToFirstOccurrenceOf(".h", false, false));
+	}
+
+	bool canBeTestedAsCpp()
+	{
+		if (file.getFileName().startsWith("0"))
+			return false;
+
+		if (expectedFail.isNotEmpty())
+			return false;
+
+		for (int i = 0; i < function.args.size(); i++)
+		{
+			auto iType = function.args[i].typeInfo.getType();
+
+			if (iType == Types::ID::Block ||
+				iType == Types::ID::Dynamic)
+				return false;
+		}
+
+		auto oType = expectedResult.getType();
+		
+		return oType != Types::ID::Block && oType != Types::ID::Dynamic;
+	}
+
+	String convertToCppTestCode()
+	{
+		if (!canBeTestedAsCpp())
+			return {};
+
+		auto id = getCppPath();
+
+		String s;
+
+		s << 
+
+		s << "        expectEquals(" << id.toString() << "::" << function.id.toString() << "(";
+
+		for (int i = 0; i < inputs.size(); i++)
+		{
+			s << Types::Helpers::getCppValueString(inputs[i]);
+
+			if (i != inputs.size() - 1)
+				s << ", ";
+		}
+
+		s << "), " << Types::Helpers::getCppValueString(expectedResult) << ", \"";
+		
+		s << file.getRelativePathFrom(getTestFileDirectory()).replaceCharacter('\\', '/') << "\");\n";
+
+		return s;
+	}
+
+	String convertToIncludeableCpp()
+	{
+		if (!canBeTestedAsCpp())
+			return {};
+
+		auto id = getCppPath();
+
+		auto className = id.getIdentifier();
+
+		auto namespaces = id.getParent();
+
+		String c;
+
+		c << "namespace " << className << "\n{";
+		c << code.fromFirstOccurrenceOf("*/", false, false);
+		c << "\};\n";
+
+		for (auto& ns : id.getParent().getIdList())
+		{
+			CppGenerator::wrapInNamespace(c, ns, "");
+		}
+		
+		return c;
+	}
 
 	Result compileWithoutTesting(bool dumpBeforeTest = false);
 
@@ -106,7 +209,10 @@ private:
 		case Types::ID::Integer: return function.call<R>(inputs[0].toInt()); break;
 		case Types::ID::Float:   return function.call<R>(inputs[0].toFloat()); break;
 		case Types::ID::Double:  return function.call<R>(inputs[0].toDouble()); break;
-		case Types::ID::Block: { auto b = inputs[0].toBlock(); return function.call<R>(&b); break; }
+		case Types::ID::Block: 
+		{ 
+			jassertfalse;
+		}
 		case Types::ID::Pointer:
 		{
 			jassert(function.args[0].typeInfo.getTypedComplexType<StructType>()->id == NamespacedIdentifier("ProcessData"));
@@ -154,7 +260,7 @@ private:
 	}
 
 	File file;
-	File fileToBeWritten;
+	File fileToBeWritten ;
 	Result r;
 	juce::String code;
 	FunctionData function;

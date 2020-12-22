@@ -467,22 +467,21 @@ namespace AccessTestClasses
 {
 struct A
 {
-	static constexpr int getValue() { return 3; }
+	SN_GET_SELF_AS_OBJECT(A);
 
-	GET_SELF_AS_OBJECT();
+	static constexpr int getValue() { return 3; }
 };
 
 struct B
 {
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(B);
 
 	static constexpr int getValue() { return 7; }
 };
 
 struct WrappedA
 {
-	GET_SELF_OBJECT(*this);
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_SELF_AWARE_WRAPPER(WrappedA, A);
 
 	static constexpr int getValue() { return A::getValue() * getOtherValue(); };
 	static constexpr int getOtherValue() { return 8; }
@@ -492,8 +491,7 @@ struct WrappedA
 
 template <typename T> struct OpaqueT
 {
-	GET_SELF_OBJECT(obj);
-	GET_WRAPPED_OBJECT(obj.getWrappedObject());
+	SN_OPAQUE_WRAPPER(OpaqueT, T);
 
 	static constexpr int getValue() { return T::getValue() * 5; };
 
@@ -553,10 +551,11 @@ public:
 		test_and_constexpr(oa.getObject().getOtherValue(), 8, "OpaqueAccessible::getObject part II");
 	}
 
+	
 	void runTest() override
 	{
 		beginTest("Funky");
-		return;
+		
 		optimizations = OptimizationIds::getAllIds();
 
 		runTestFiles("");
@@ -776,7 +775,15 @@ public:
 			f = f.getChildFile(soloTest);
 		}
 
-		return f.findChildFiles(File::findFiles, true, "*.h");
+		auto allFiles = f.findChildFiles(File::findFiles, true, "*.h");
+
+		for (int i = 0; i < allFiles.size(); i++)
+		{
+			if (allFiles[i].getFullPathName().contains("CppTest"))
+				allFiles.remove(i--);
+		}
+
+		return allFiles;
 	}
 
 	void runTestFiles(juce::String soloTest = {}, bool isFolder=false)
@@ -899,6 +906,8 @@ public:
 	}
 
 private:
+
+	
 
 	bool printDebugInfoForSingleTest = true;
 

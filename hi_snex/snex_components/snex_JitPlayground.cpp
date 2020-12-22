@@ -665,6 +665,8 @@ static void addToSubMenu(File currentFile, Array<File>& addedFiles, PopupMenu& m
 }
 
 
+
+
 void SnexPlayground::mouseDown(const MouseEvent& event)
 {
 	if (testMode && event.getMouseDownX() < 50)
@@ -673,6 +675,7 @@ void SnexPlayground::mouseDown(const MouseEvent& event)
 		PopupMenu m;
 		m.setLookAndFeel(&claf);
 
+		m.addItem(100000, "Export all tests into big file");
 		m.addSectionHeader("Load test file");
 		
 		
@@ -682,11 +685,63 @@ void SnexPlayground::mouseDown(const MouseEvent& event)
 
 		m.addItem(90000, root.getFullPathName(), false, false);
 
-		for(auto c: root.findChildFiles(File::findDirectories, false))
+		auto allFiles = root.findChildFiles(File::findDirectories, false);
+		auto cppTestDIr = root.getChildFile("CppTest");
+		for (int i = 0; i < allFiles.size(); i++)
+		{
+			if (allFiles[i].getFullPathName().contains("CppTest"))
+				allFiles.remove(i--);
+		}
+
+		for(auto c: allFiles)
 			addToSubMenu(currentTestFile, addedFiles, m, c);
 		
 		if (auto r = m.show())
 		{
+			if (r == 100000)
+			{
+				if (AlertWindow::showOkCancelBox(AlertWindow::QuestionIcon, "Create include file", "Do you want to create an include file?"))
+				{
+					OwnedArray<JitFileTestCase> testCases;
+
+					String s;
+
+					s << "#include <JuceHeader.h>\n";
+					s << "using namespace juce;\n";
+					s << "using namespace snex;\n";
+					s << "using namespace snex::Types;\n";
+					s << "using namespace scriptnode;\n";
+					s << "using namespace Interleaver;\n";
+					s << "static constexpr int NumChannels = 2;\n";
+					s << "hmath Math;\n";
+
+					for (auto f : addedFiles)
+					{
+						testCases.add(new JitFileTestCase(nullptr, getGlobalScope(), f));
+					}
+
+					for (auto t : testCases)
+						s << t->convertToIncludeableCpp();
+
+					s << "struct TestFileCppTest : public juce::UnitTest\n";
+					s << "{\n";
+					s << "    TestFileCppTest() : juce::UnitTest(\"TestFileCpp\") {};\n";
+					s << "\n";
+					s << "    void runTest() override\n";
+					s << "    {\n";
+					s << "        beginTest(\"Testing CPP files\");\n\n";
+					
+					for (auto t : testCases)
+						s << t->convertToCppTestCode();
+
+					s << "    };\n";
+					s << "};\n\n";
+					s << "static TestFileCppTest cppTest;";
+
+					root.getChildFile("CppTest/Source/include.h").replaceWithText(s);
+				}
+			}
+
 			currentTestFile = addedFiles[r - 2];
 
 			doc.replaceAllContent({});
@@ -1125,7 +1180,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 	void TestCompileThread::postCompile(ui::WorkbenchData::CompileResult& lastResult)
 	{
-		if (lastTest != nullptr)
+		if (lastTest != nullptr && lastResult.r.wasOk())
 		{
 			if (lastTest->nodeToTest != nullptr)
 			{

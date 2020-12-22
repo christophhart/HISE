@@ -288,7 +288,7 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 			DBG(obj.dumpTable());
 		}
 
-		assembly = c.getAssemblyCode().fromFirstOccurrenceOf("; function void process", true, false);
+		assembly = c.getAssemblyCode();//
 		return nodeToTest->r;
 	}
 	else
@@ -381,22 +381,43 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 	{
 		auto compiledF = obj[function.id];
 
-		if (!compiledF.matchesArgumentTypes(function))
+		if (function.returnType == Types::ID::Block)
 		{
-			r = Result::fail("Compiled function doesn't match test data");
-			return r;
+			function.function = compiledF.function;
+			auto b = inputs[0].toBlock();
+
+			if (b.begin() != nullptr)
+			{
+				function.call<block*>(&b);
+				actualResult = VariableStorage(b);
+			}
+			else
+			{
+				r = Result::fail("Can't open input block");
+				return r;
+			}
+
+
 		}
-
-
-		function = compiledF;
-
-		switch (function.returnType.getType())
+		else
 		{
-		case Types::ID::Integer: actualResult = call<int>(); break;
-		case Types::ID::Float:   actualResult = call<float>(); break;
-		case Types::ID::Double:  actualResult = call<double>(); break;
-		case Types::ID::Block:   actualResult = *call<block*>(); break;
-		default: jassertfalse;
+			if (!compiledF.matchesArgumentTypes(function))
+			{
+				r = Result::fail("Compiled function doesn't match test data");
+				return r;
+			}
+
+			function = compiledF;
+
+			switch (function.returnType.getType())
+			{
+			case Types::ID::Integer: actualResult = call<int>(); break;
+			case Types::ID::Float:   actualResult = call<float>(); break;
+			case Types::ID::Double:  actualResult = call<double>(); break;
+			default: jassertfalse;
+			}
+
+			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
 		}
 
 		if (memory.checkRuntimeErrorAfterExecution())
@@ -406,9 +427,6 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 
 			return memory.getRuntimeError();
 		}
-
-
-		expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
 
 		if (dumpBeforeTest)
 		{
@@ -474,7 +492,7 @@ juce::Result JitFileTestCase::test(bool dumpBeforeTest /*= false*/)
 		}
 	}
 
-	auto r = compileWithoutTesting(dumpBeforeTest);
+	r = compileWithoutTesting(dumpBeforeTest);
 
 	if (!r.wasOk())
 		return expectCompileFail(expectedFail);
@@ -780,7 +798,9 @@ void JitFileTestCase::parseFunctionData()
 					if (inputBuffer.getNumChannels() == 0)
 						throwError("Must supply input buffer");
 
-					auto size = inputBuffer.getNumSamples();
+					outputBuffer.makeCopyOf(inputBuffer);
+					outputWasEmpty = true;
+
 					outputBufferFile = Helpers::getAudioFile(v);
 				}
 				break;
