@@ -49,6 +49,9 @@ using String = juce::String;
 #include "snex_jit/snex_jit_OperationsTemplates.h"
 #include "snex_jit/snex_jit_FunctionParser.h"
 #include "snex_jit/snex_TemplateClassBuilder.h"
+#include "snex_core/snex_jit_ContainerTypeLibrary.h"
+#include "snex_core/snex_jit_ParameterTypeLibrary.h"
+#include "snex_core/snex_jit_WrapperTypeLibrary.h";
 
 //#include "snex_core/snex_Types.cpp"
 //#include "snex_core/snex_TypeHelpers.cpp"
@@ -89,12 +92,20 @@ using String = juce::String;
 #include "snex_jit/snex_jit_JitCompiler.cpp"
 
 
+
+
+
+
 #include "snex_jit/snex_TemplateClassBuilder.cpp"
-
-
 #include "snex_core/snex_CallbackCollection.cpp"
 
+
+#include "snex_core/snex_jit_ExternalComplexTypeLibrary.cpp"
+#include "snex_core/snex_jit_ContainerTypeLibrary.cpp"
+#include "snex_core/snex_jit_ParameterTypeLibrary.cpp"
+#include "snex_core/snex_jit_WrapperTypeLibrary.cpp";
 #include "snex_core/snex_ExternalObjects.cpp"
+
 #include "snex_core/snex_JitCompiledNode.cpp"
 
 #endif

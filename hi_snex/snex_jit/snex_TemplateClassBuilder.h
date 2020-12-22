@@ -120,6 +120,19 @@ struct TemplateClassBuilder
 
 		/** Helper function that creates the function data for the given member function. */
 		static FunctionData getFunctionFromTargetClass(ComplexType::Ptr targetType, const Identifier& id);
+
+		/** Call this when you are messing with the channel amount.
+
+		If your wrap / container template wants to use a fixed amount of
+		channels for their processing, call this method and it will
+
+		redirect the processFrame() and process() calls to the channel
+		amount that is set as internal property NumChannels.
+
+		For containers this is enabled by default, but you can call it
+		on wrappers that require fix channel processing.
+		*/
+		static void redirectProcessCallbacksToFixChannel(const TemplateObject::ConstructData& cd, StructType* st);
 	};
 
 	struct VariadicHelpers
@@ -137,8 +150,6 @@ struct TemplateClassBuilder
 			String p = "_p" + String(index + 1);
 			return Identifier(p);
 		}
-
-
 
 		/** Creates members from the variadic template arguments.
 
@@ -166,6 +177,11 @@ struct TemplateClassBuilder
 		additionalInitFunctions.add(f);
 	}
 
+	void addPostFunctionBuilderInitFunction(const InitialiseStructFunction& f)
+	{
+		postFunctionBuilderFunctions.add(f);
+	}
+
 protected:
 
 	String description;
@@ -176,284 +192,21 @@ protected:
 
 	Array<InitialiseStructFunction> additionalInitFunctions;
 
+	Array<InitialiseStructFunction> postFunctionBuilderFunctions;
+
 	Compiler& c;
 	Array<FunctionBuilder> functionBuilders;
 	NamespacedIdentifier id;
 	Array<TemplateParameter> tp;
 };
 
-/** A subclass that is specialised on building parameter template classes. */
-struct ParameterBuilder : public TemplateClassBuilder
-{
-	ParameterBuilder(Compiler& c, const Identifier& id):
-		TemplateClassBuilder(c, NamespacedIdentifier("parameter").getChildId(id))
-	{
-		initFunction = Helpers::initSingleParameterStruct;
-	}
 
-	struct Helpers
-	{
-		
-		static ParameterBuilder createWithTP(Compiler& c, const Identifier& n);
-		static FunctionData createCallPrototype(StructType* st, const Inliner::Func& highlevelFunc);
 
-		/** This method is the default for any single parameter connection. It creates a member pointer to the given target. */
-		static void initSingleParameterStruct(const TemplateObject::ConstructData& cd, StructType* st);
 
-		static Operations::Statement::Ptr createSetParameterCall(ComplexType::Ptr targetType, SyntaxTreeInlineData* d, Operations::Statement::Ptr input);
 
-		/** This function builder creates the connect function that sets the member pointer to the given target. */
-		static FunctionData connectFunction(StructType* st);
 
-		static bool isParameterClass(const TypeInfo& type);
 
-		static void forwardToListElements(StructType* parent, const TemplateParameter::List& list, StructType** parameterType, int& index)
-		{
-			index = 0;
-			*parameterType = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(parent, index).get());
 
-			if ((*parameterType)->id.getIdentifier() == Identifier("list"))
-			{
-				index = list[0].constant;
-				*parameterType = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(*parameterType, index).get());
-			}
-		}
-
-		static int getParameterListOffset(StructType* container, int index)
-		{
-			auto parameterType = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(container, 0).get());
-
-			jassert(isParameterClass(TypeInfo(parameterType)));
-
-			if (parameterType->id.getIdentifier() == Identifier("list"))
-			{
-				return parameterType->getMemberOffset(index);
-			}
-			else
-			{
-				jassert(index == 0);
-				return 0;
-			}
-		}
-	};
-
-	void setConnectFunction(const FunctionBuilder& f=Helpers::connectFunction)
-	{
-		addFunction(f);
-	}
-};
-
-
-
-
-struct ContainerNodeBuilder : public TemplateClassBuilder
-{
-	ContainerNodeBuilder(Compiler& c, const Identifier& id, int numChannels_);
-
-	void addHighLevelInliner(const Identifier& functionId, const Inliner::Func& inliner);
-
-	void addAsmInliner(const Identifier& functionId, const Inliner::Func& inliner);
-
-	void deactivateCallback(const Identifier& id);
-
-	void flush() override;
-
-	struct Helpers
-	{
-		static FunctionData constructorFunction(StructType* st)
-		{
-			if (st->hasConstructor())
-			{
-				FunctionData f;
-				f.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
-				f.returnType = TypeInfo(Types::ID::Void);
-				f.inliner = Inliner::createHighLevelInliner(f.id, defaultForwardInliner);
-
-				return f;
-			}
-			else
-			{
-				return {};
-			}
-		}
-
-		static Result defaultForwardInliner(InlineData* b);
-
-		static Identifier getFunctionIdFromInlineData(InlineData* b);
-
-		static FunctionData getParameterFunction(StructType* st);
-		static FunctionData setParameterFunction(StructType* st);
-
-	};
-
-private:
-
-
-	bool isScriptnodeCallback(const Identifier& id) const;
-
-	Array<FunctionData> callbacks;
-	int numChannels;
-};
-
-struct AsmInlineData;
-
-struct WrapBuilder : public TemplateClassBuilder
-{
-	/** This struct holds all the information you need if you want to 
-	    map an external function to a given callback. */
-	struct ExternalFunctionMapData
-	{
-		ExternalFunctionMapData(Compiler& c, AsmInlineData* d);
-
-		/** Returns the amount of channels that this function is using. 
-		
-			It looks in the last argument, which is usually either a ProcessData or a span<float, NumChannels> 
-			type for each function where this is relevant. 
-		*/
-		int getChannelFromLastArg() const;
-
-		int getTemplateConstant(int index) const;
-
-		Result insertFunctionPtrToArgReg(void* ptr, int index = 0);
-
-		Result emitRemappedFunction(FunctionData& f);
-
-		FunctionData getCallbackFromObject(Types::ScriptnodeCallbacks::ID cb);
-
-		void* getWrappedFunctionPtr(Types::ScriptnodeCallbacks::ID cb);
-
-		void setExternalFunctionPtrToCall(void* mainFunctionPointer);
-
-
-	private:
-
-		FunctionData getCallback(TypeInfo t, Types::ScriptnodeCallbacks::ID cb, const Array<TypeInfo>& functionArgs);
-
-		void* mainFunction = nullptr;
-		Compiler& c;
-		WeakReference<BaseScope> scope;
-		TypeInfo objectType;
-		AsmCodeGenerator& acg;
-		TemplateParameter::List tp;
-		
-		AssemblyRegister::Ptr target;
-		AssemblyRegister::Ptr object;
-
-		AssemblyRegister::List argumentRegisters;
-		
-
-		AssemblyRegister::Ptr createPointerArgument(void* ptr);
-	};
-
-	WrapBuilder(Compiler& c, const Identifier& id, int numChannels);
-
-	/** Use this constructor for all wrappers that have an int as first argument before the object. */
-	WrapBuilder(Compiler& c, const Identifier& id, const Identifier& constantArg, int numChannels);
-
-	~WrapBuilder()
-	{
-		flush();
-	}
-
-	/** This function will replace the given callback with an externally defined function that wraps the original callback. 
-	
-		The signature of the returning function must be:
-
-			template <typename... As> static void func(void* objPointer, void* functionPointer, As... rest)
-
-		and it will receive the original process function passed into as `functionPointer` so you can implement the custom logic. This way
-		you don't need to write a specialisation for each wrapped object, but just use the opaque function pointer instead.
-
-		If this function is templated, you can supply a templateMapFunction which takes a TemplateParameter::List as argument and needs
-		to return the matching (compile-time-defined) template function instance:
-
-		auto mapFunction = [](FunctionData& f, const TemplateParameter::List& l)
-		{
-			int firstConstant = l[0].constant;
-			ComplexType::Ptr type = l[1].type;
-
-			if(firstConstant == 16)
-			{
-			    if(type == ProcessDataType<2>)
-				{
-					 f.function = (void*)process_function<16, ProcessDataType<2>;
-					 return true;
-				}
-
-				// ...
-			}
-
-			return false;
-		};
-
-		Be aware that the template parameter list will have all arguments of the original function call appended after the template class
-		parameters, so you can decide which function to use
-	*/
-	void mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<Result(ExternalFunctionMapData&)>& templateMapFunction);
-
-	void init(Compiler& c, int numChannels);
-
-	/** Call this with function pointers to a function that you want to use instead.
-	
-		This will not be inlined, so for high-performance implementations, write a
-		custom inliner. 
-	*/
-	void injectExternalFunction(const Identifier& id, void* functionPointer)
-	{
-		addFunction([id, functionPointer](StructType* st)
-		{
-			FunctionClass::Ptr fc = st->getFunctionClass();
-
-			Array<FunctionData> matches;
-
-			fc->addMatchingFunctions(matches, st->id.getChildId(id));
-
-			for (auto& m : matches)
-				st->injectMemberFunctionPointer(m, functionPointer);
-
-			auto rf = matches[0];
-			rf.function = functionPointer;
-			return rf;
-		});
-	}
-
-	struct Helpers
-	{
-		/** Returns the channel amount from the given type info. 
-		
-			You can use this in the template map lambda to find out which channel to pass into the template function.
-		*/
-		static Result constructorInliner(InlineData* b);
-
-		static FunctionData constructorFunction(StructType* st)
-		{
-			FunctionData f;
-			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, FunctionClass::Constructor));
-			f.returnType = TypeInfo(Types::ID::Void);
-
-			f.inliner = Inliner::createHighLevelInliner(f.id, constructorInliner);
-
-			return f;
-		}
-
-		static StructType* getInnerType(StructType* wrapperClass);
-	};
-
-	/** A function prototype that returns a function for the given struct type. */
-	using FunctionBuilder = std::function<FunctionData(StructType*)>;
-
-	static FunctionData createSetFunction(StructType* st);
-
-	static FunctionData createGetObjectFunction(StructType* st);
-
-	private:
-
-		void setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inliner::InlineType t, const Inliner::Func& inliner);
-
-	const int WrappedObjectOffset;
-
-	const int numChannels;
-};
 
 
 }
