@@ -53,7 +53,7 @@ using namespace hise;
 
 	/
 
-/** Use this macro to define the type that should be returned by calls to getObject(). Normally you pass in the wrapped object (for non-wrapped classes you should use GET_SELF_AS_OBJECT(). */
+/** Use this macro to define the type that should be returned by calls to getObject(). Normally you pass in the wrapped object (for non-wrapped classes you should use SN_GET_SELF_AS_OBJECT(). */
 #define GET_SELF_OBJECT(x) constexpr auto& getObject() { return x; } \
 constexpr const auto& getObject() const { return x; }
 
@@ -142,7 +142,7 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #define FORWARD_PARAMETER_TO_MEMBER(className) DEFINE_PARAMETERS { static_cast<className*>(obj)->setParameter<P>(value); }
 
 /** This is being used to tuck away everything that that JIT compiler can't parse. */
-#define DECLARE_NODE(className) SET_HISE_NODE_ID(#className); FORWARD_PARAMETER_TO_MEMBER(className); SN_GET_SELF_AS_OBJECT(className);
+#define DECLARE_NODE(className) SET_HISE_NODE_ID(#className); FORWARD_PARAMETER_TO_MEMBER(className); SN_GET_SELF_AS_OBJECT(className); hmath Math;
 
 
 

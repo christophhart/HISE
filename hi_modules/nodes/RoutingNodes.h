@@ -216,7 +216,7 @@ template <typename CableType> struct receive: public base
 {
 	SET_HISE_NODE_ID("receive2");
 
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(receive);
 
 	enum class Parameters
 	{
@@ -348,7 +348,7 @@ template <typename CableType> struct send: public base
 {
 	SET_HISE_NODE_ID("send2");
 
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(CableType);
 
 	constexpr bool isPolyphonic() const { return false; }
 
@@ -640,7 +640,7 @@ public:
 	}
 
 	SET_HISE_NODE_ID("receive");
-	GET_SELF_AS_OBJECT(ReceiveNode);
+	SN_GET_SELF_AS_OBJECT(ReceiveNode);
 	
 	bool isPolyphonic() const { return false; }
 
@@ -715,7 +715,7 @@ class SendNode : public HiseDspBase,
 public:
 
 	SET_HISE_NODE_ID("send");
-	GET_SELF_AS_OBJECT(SendNode);
+	SN_GET_SELF_AS_OBJECT(SendNode);
 
 	SendNode();;
 	~SendNode();
@@ -778,7 +778,7 @@ public:
 struct MsEncoder : public HiseDspBase
 {
 	SET_HISE_NODE_ID("ms_encode");
-	GET_SELF_AS_OBJECT(MsEncoder);
+	SN_GET_SELF_AS_OBJECT(MsEncoder);
 
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_PREPARE;
@@ -810,7 +810,7 @@ struct MsEncoder : public HiseDspBase
 struct MsDecoder : public HiseDspBase
 {
 	SET_HISE_NODE_ID("ms_decode");
-	GET_SELF_AS_OBJECT(MsDecoder);
+	SN_GET_SELF_AS_OBJECT(MsDecoder);
 
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_PREPARE;
@@ -934,7 +934,7 @@ template <class MatrixType> struct matrix
 {
 	SET_HISE_NODE_ID("matrix");
 
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(matrix);
 
 	HISE_EMPTY_RESET;
 

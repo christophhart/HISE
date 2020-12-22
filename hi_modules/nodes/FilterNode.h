@@ -72,7 +72,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID(FilterType::getFilterTypeId());
 
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(FilterNodeBase);
 
 	void createParameters(ParameterDataList& parameters) override;
 	void prepare(PrepareSpecs ps);
@@ -139,7 +139,7 @@ template <int NV> struct fir_impl : public AudioFileNodeBase
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_NODE_ID("fir");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(fir_impl);
 
 	fir_impl();;
 

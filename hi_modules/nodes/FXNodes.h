@@ -59,7 +59,7 @@ public:
 	static constexpr int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID("sampleandhold");
-	GET_SELF_AS_OBJECT(sampleandhold_impl);
+	SN_GET_SELF_AS_OBJECT(sampleandhold_impl);
 
 	sampleandhold_impl();
 
@@ -169,7 +169,7 @@ public:
 	static constexpr int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID("bitcrush");
-	GET_SELF_AS_OBJECT(bitcrush_impl);
+	SN_GET_SELF_AS_OBJECT(bitcrush_impl);
 
 	bitcrush_impl();
 
@@ -218,7 +218,7 @@ public:
 	}
 
 	SET_HISE_POLY_NODE_ID("phase_delay");
-	GET_SELF_AS_OBJECT(phase_delay_impl);
+	SN_GET_SELF_AS_OBJECT(phase_delay_impl);
 
 	phase_delay_impl();
 
@@ -281,7 +281,7 @@ public:
 	}
 
 	SET_HISE_NODE_ID("reverb");
-	GET_SELF_AS_OBJECT(reverb);
+	SN_GET_SELF_AS_OBJECT(reverb);
 
 	bool isPolyphonic() const { return false; }
 
@@ -343,7 +343,7 @@ public:
 	}
 
 	SET_HISE_POLY_NODE_ID("haas");
-	GET_SELF_AS_OBJECT(haas_impl);
+	SN_GET_SELF_AS_OBJECT(haas_impl);
 
 	void createParameters(ParameterDataList& data) override;
 	void prepare(PrepareSpecs ps);

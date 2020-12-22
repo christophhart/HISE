@@ -273,7 +273,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			memset(value, 0, sizeof(double) * numParameters);
 		}
 
-		GET_SELF_AS_OBJECT(Dummy);
+		SN_GET_SELF_AS_OBJECT(Dummy);
 
 		static const int NumChannels = 2;
 

@@ -55,7 +55,7 @@ public:
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("seq");
-	GET_SELF_AS_OBJECT(seq_impl);
+	SN_GET_SELF_AS_OBJECT(seq_impl);
 
 	void createParameters(ParameterDataList& data) override;
 	void initialise(NodeBase* n) override;
@@ -121,7 +121,7 @@ DEFINE_EXTERN_NODE_TEMPLATE(seq, seq_poly, seq_impl);
 struct TableNode : public HiseDspBase
 {
 	SET_HISE_NODE_ID("table");
-	GET_SELF_AS_OBJECT(TableNode);
+	SN_GET_SELF_AS_OBJECT(TableNode);
 
 	enum class Parameters
 	{
@@ -295,7 +295,7 @@ template <typename T, int C> struct file_node: public file_base
 struct file_player : public AudioFileNodeBase
 {
 	SET_HISE_NODE_ID("file_player");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(file_player);
 
 	file_player();;
 

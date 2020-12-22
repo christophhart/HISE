@@ -299,7 +299,7 @@ public:
 	constexpr static int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID(OpType::getId());
-	GET_SELF_AS_OBJECT(OpNode);
+	SN_GET_SELF_AS_OBJECT(OpNode);
 
 	bool handleModulation(double&) noexcept;;
 	

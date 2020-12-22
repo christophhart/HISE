@@ -31,7 +31,7 @@ namespace property_demo_impl
 
 struct processor
 {
-	DECLARE_SNEX_NODE(processor);
+	DECLARE_NODE(processor);
 
 	static const int NumChannels = 2;
 

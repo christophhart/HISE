@@ -36,7 +36,9 @@ struct processor
 
 		The parameter is always the class name without quotes.
 	*/
-	DECLARE_SNEX_NODE(processor);
+	DECLARE_NODE(processor);
+
+	void initialise(NodeBase* b) {};
 
 	static const int NumChannels = 2;
 
@@ -130,11 +132,13 @@ struct processor
 */
 DECLARE_PARAMETER_RANGE(firstParameterRange, 0.0, 0.5);
 
-using FirstParameter = parameter::from0to1<processor,					// the node class
+
+
+using FirstParameter = parameter::from0To1<processor,					// the node class
 										   processor::FirstParameter,   // the parameter index
 										   firstParameterRange>;        // the range class
 
-using SecondParameter = parameter::from0to1<processor,					// the node class
+using SecondParameter = parameter::from0To1<processor,					// the node class
 	processor::SecondParameter,   // the parameter index
 	firstParameterRange>;        // the range class
 
@@ -156,7 +160,7 @@ struct initialiser
 	*/
 	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("hello_world"); };
 
-	void initialise(ChainWrapper& c)
+	initialiser(ChainWrapper& c)
 	{
 		// fetch a reference to the inner node
 		auto& obj = c.get<0>();
@@ -181,7 +185,7 @@ struct initialiser
 
 // this alias will be registered to the example factory and uses the initialiser class and 
 // our chain definition to setup the node structure.
-using instance = cpp_node<initialiser, ChainWrapper>;
+using instance = cpp_node<ChainWrapper, initialiser>;
 
 }
 

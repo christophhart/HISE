@@ -207,7 +207,7 @@ public:
 	{
 	public:
 
-		GET_SELF_AS_OBJECT();
+		SN_GET_SELF_AS_OBJECT(DynamicSerialProcessor);
 
 		bool handleModulation(double&);
 		void handleHiseEvent(HiseEvent& e) final override;

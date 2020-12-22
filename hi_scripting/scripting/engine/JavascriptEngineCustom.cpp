@@ -923,10 +923,7 @@ struct HiseJavascriptEngine::RootObject::SnexConfiguration : public Statement
 		{
 			auto arg = argument->getResult(s);
 			
-			if (auto d = arg.getDynamicObject())
-				s.root->snexGlobalScope.setPreprocessorDefinitions(arg);
-			else
-				s.root->snexGlobalScope.setPreprocessorDefinitions({});
+			s.root->snexGlobalScope.setPreprocessorDefinitions(arg, true);
 		}
 		
 		return ok;

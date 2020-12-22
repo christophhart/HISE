@@ -854,7 +854,7 @@ juce::String NodeContainer::getCppCode(CppGen::CodeLocation location)
 		auto poly = shouldCreatePolyphonicClass();
 
 		CppGen::Emitter::emitDefinition(s, poly ? "SET_HISE_POLY_NODE_ID" : "SET_HISE_NODE_ID", asNode()->getId(), true);
-		CppGen::Emitter::emitDefinition(s, "GET_SELF_AS_OBJECT", "instance", false);
+		CppGen::Emitter::emitDefinition(s, "SN_GET_SELF_AS_OBJECT", "instance", false);
 		
 		return s;
 	}

@@ -84,7 +84,7 @@ struct PropertyHelpers
 
 
 
-#define DECLARE_SNEX_NODE(ClassType) GET_SELF_AS_OBJECT() \
+#define DECLARE_SNEX_NODE(ClassType) SN_GET_SELF_AS_OBJECT() \
 template <int P> static void setParameter(void* obj, double v) { static_cast<ClassType*>(obj)->setParameter<P>(v); } \
 void initialise(scriptnode::NodeBase* n) {} \
 snex::hmath Math;

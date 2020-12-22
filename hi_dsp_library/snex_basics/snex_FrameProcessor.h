@@ -213,12 +213,12 @@ struct IndexType
 		return typename span<E, I>::wrapped(index);
 	}
 
-	template <typename T> static auto clamped(dyn<T>& obj, int index=0)
+	template <typename T> static auto clamped(const dyn<T>& obj, int index=0)
 	{
 		return dyn_indexes::clamped(index);
 	}
 
-	template <typename T> static auto wrapped(dyn<T>& obj, int index=0)
+	template <typename T> static auto wrapped(const dyn<T>& obj, int index=0)
 	{
 		return dyn_indexes::wrapped(index);
 	}

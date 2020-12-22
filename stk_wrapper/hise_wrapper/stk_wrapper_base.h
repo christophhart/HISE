@@ -111,7 +111,7 @@ public:
 	using PolyObjectType = PolyData<ObjectType, NumVoices>;
 
 	SET_HISE_POLY_NODE_ID(T::getId());
-	GET_SELF_AS_OBJECT(WrapperBase);
+	SN_GET_SELF_AS_OBJECT(WrapperBase);
 
 	WrapperBase();
 

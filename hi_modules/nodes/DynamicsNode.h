@@ -61,7 +61,7 @@ public:
 
 	static Identifier getStaticId();
 
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(dynamics_wrapper);
 
 	dynamics_wrapper();
 
@@ -120,7 +120,7 @@ public:
 	}
 
 	SET_HISE_NODE_ID("envelope_follower");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(envelope_follower);
 
 	envelope_follower();
 

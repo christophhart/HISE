@@ -156,7 +156,7 @@ struct new_jit: public SnexSource,
 {
 	SET_HISE_NODE_ID("jit");
 
-	GET_SELF_AS_OBJECT(new_jit);
+	SN_GET_SELF_AS_OBJECT(new_jit);
 
 	bool isPolyphonic() const { return true; };
 
@@ -372,7 +372,7 @@ template <class T, int NV> struct hardcoded_jit : public HiseDspBase,
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 	SET_HISE_POLY_NODE_ID(T::getStaticId());
 
-	GET_SELF_AS_OBJECT(hardcoded_jit);
+	SN_GET_SELF_AS_OBJECT(hardcoded_jit);
 
 	void prepare(PrepareSpecs sp)
 	{
@@ -557,7 +557,7 @@ public:
 #endif
 
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
-	GET_SELF_AS_OBJECT(simple_jit);
+	SN_GET_SELF_AS_OBJECT(simple_jit);
 
 	simple_jit():
 		code(PropertyIds::Code, "input")
@@ -635,7 +635,7 @@ public:
 #if RE
 	SET_HISE_NODE_EXTRA_HEIGHT(0);
 #endif
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT();
 
 
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);

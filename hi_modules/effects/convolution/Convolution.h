@@ -459,7 +459,7 @@ namespace filters
 struct convolution : public AudioFileNodeBase
 {
 	SET_HISE_NODE_ID("convolution");
-	GET_SELF_AS_OBJECT(convolution);
+	SN_GET_SELF_AS_OBJECT(convolution);
 
 	bool isPolyphonic() const { return false; }
 

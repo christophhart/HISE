@@ -673,6 +673,8 @@ template <class T> class control_rate
 {
 public:
 
+	SN_OPAQUE_WRAPPER(control_rate, T);
+
 	using FrameType = snex::Types::span<float, 1>;
 	using ProcessType = snex::Types::ProcessData<1>;
 
@@ -736,9 +738,6 @@ public:
 	{
 		obj.handleHiseEvent(e);
 	}
-
-	auto& getObject() { return obj.getObject(); }
-	const auto& getObject() const { return obj.getObject(); }
 
 	T obj;
 	int singleCounter = 0;

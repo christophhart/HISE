@@ -845,24 +845,27 @@ struct hardcoded_base : public HiseDspBase,
 };
 #endif
 
-template <class Initialiser, class T, class PropertyClass=properties::none> struct cpp_node: public HiseDspBase
+template <class T, class Initialiser, class PropertyClass=properties::none> struct cpp_node: public HiseDspBase
 {
 	static constexpr bool isModulationSource = T::isModulationSource;
 	static constexpr int NumChannels = T::NumChannels;
 
 	// We treat everything in this node as opaque...
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(cpp_node);
 
 	static Identifier getStaticId() { return Initialiser::getStaticId(); };
 
 	using FixBlockType = snex::Types::ProcessData<NumChannels>;
 	using FrameType = snex::Types::span<float, NumChannels>;
 
+	cpp_node() :
+		obj(),
+		initialiser(obj)
+	{
+	}
+
 	void initialise(NodeBase* n)
 	{
-		Initialiser init;
-
-		init.initialise(obj);
 		obj.initialise(n);
 		props.initWithRoot(n, obj);
 	}
@@ -919,6 +922,7 @@ template <class Initialiser, class T, class PropertyClass=properties::none> stru
 	}
 
 	T obj;
+	Initialiser initialiser;
 	PropertyClass props;
 };
 

@@ -164,7 +164,7 @@ template <class T> class analyse_base : public HiseDspBase,
 public:
 
 	SET_HISE_NODE_ID(T::getStaticId());
-    GET_SELF_AS_OBJECT(analyse_base);
+    SN_GET_SELF_AS_OBJECT(analyse_base);
     
 	HISE_EMPTY_MOD;
 	HISE_EMPTY_CREATE_PARAM;

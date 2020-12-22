@@ -77,7 +77,7 @@ public:
 	bool isPolyphonic() const { return false; }
 
 	SET_HISE_NODE_ID("tempo_sync");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(tempo_sync);
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_RESET;
@@ -118,7 +118,7 @@ public:
 template <class ParameterType> struct pma: public combined_parameter_base
 {
 	SET_HISE_NODE_ID("pma");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(pma);
 
 	enum class Parameters
 	{
@@ -191,7 +191,7 @@ class peak : public HiseDspBase
 public:
 
 	SET_HISE_NODE_ID("peak");
-	GET_SELF_AS_OBJECT(peak);
+	SN_GET_SELF_AS_OBJECT(peak);
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
@@ -227,7 +227,7 @@ class mono2stereo : public HiseDspBase
 public:
 
 	SET_HISE_NODE_ID("mono2stereo");
-	GET_SELF_AS_OBJECT(mono2stereo);
+	SN_GET_SELF_AS_OBJECT(mono2stereo);
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
@@ -254,7 +254,7 @@ class empty : public HiseDspBase
 public:
 
 	SET_HISE_NODE_ID("empty");
-	GET_SELF_AS_OBJECT(empty);
+	SN_GET_SELF_AS_OBJECT(empty);
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
@@ -279,7 +279,7 @@ public:
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("ramp");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(ramp_impl);
 
 	ramp_impl();
 
@@ -374,7 +374,7 @@ public:
 	};
 
 	SET_HISE_NODE_ID("hise_mod");
-	GET_SELF_AS_OBJECT(hise_mod);
+	SN_GET_SELF_AS_OBJECT(hise_mod);
 
 	hise_mod();
 
@@ -524,7 +524,7 @@ public:
 	constexpr static int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("oscillator");
-	GET_SELF_AS_OBJECT(oscillator_impl);
+	SN_GET_SELF_AS_OBJECT(oscillator_impl);
 
 	oscillator_impl();
 
@@ -629,7 +629,7 @@ public:
 	}
 
 	SET_HISE_NODE_ID("fm");
-	GET_SELF_AS_OBJECT(fm);
+	SN_GET_SELF_AS_OBJECT(fm);
 
 	bool isPolyphonic() const { return true; }
 
@@ -688,7 +688,7 @@ public:
 	static constexpr int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID("gain");
-	GET_SELF_AS_OBJECT(gain_impl);
+	SN_GET_SELF_AS_OBJECT(gain_impl);
 
 	gain_impl();
 
@@ -759,7 +759,7 @@ public:
 	static constexpr int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("smoother");
-	GET_SELF_AS_OBJECT(smoother_impl);
+	SN_GET_SELF_AS_OBJECT(smoother_impl);
 
 	smoother_impl();
 
@@ -822,7 +822,7 @@ public:
 	static constexpr int NumVoices = V;
 
 	SET_HISE_POLY_NODE_ID("ramp_envelope");
-	GET_SELF_AS_OBJECT(ramp_envelope_impl);
+	SN_GET_SELF_AS_OBJECT(ramp_envelope_impl);
 
 	ramp_envelope_impl();
 

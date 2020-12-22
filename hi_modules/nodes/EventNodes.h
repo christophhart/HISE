@@ -187,7 +187,7 @@ template <typename MidiType> class midi: public HiseDspBase
 public:
 
 	SET_HISE_NODE_ID("midi");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(midi);
 
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_PROCESS_SINGLE;
@@ -336,7 +336,7 @@ public:
 	constexpr static int NumVoices = NV;
 
 	SET_HISE_POLY_NODE_ID("timer");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(timer_impl);
 
 	timer_impl()
 	{
@@ -456,6 +456,8 @@ public:
 	{
 		auto newTime = roundToInt(timeMs * 0.001 * sr);
 
+		
+
 		if (t.isMonophonicOrInsideVoiceRendering())
 		{
 			t.get().samplesBetweenCallbacks = newTime;
@@ -568,7 +570,7 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 	}
 
 	SET_HISE_POLY_NODE_ID("snex_osc");
-	GET_SELF_AS_OBJECT();
+	SN_GET_SELF_AS_OBJECT(snex_osc_impl);
 
 	void prepare(PrepareSpecs ps)
 	{
