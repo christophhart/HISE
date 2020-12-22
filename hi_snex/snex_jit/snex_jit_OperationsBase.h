@@ -457,6 +457,7 @@ namespace Operations
 	struct InlinedArgument; struct MemoryReference;			struct TemplateDefinition; 
 	struct TemplatedTypeDef; struct TemplatedFunction;		struct ThisPointer;
 	struct WhileLoop;		struct PointerAccess;			struct AnonymousBlock;
+	struct InternalProperty;
 
 	struct ScopeStatementBase
 	{

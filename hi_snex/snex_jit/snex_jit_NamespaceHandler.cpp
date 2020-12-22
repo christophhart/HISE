@@ -1062,7 +1062,10 @@ juce::Result NamespaceHandler::checkVisiblity(const NamespacedIdentifier& id) co
 					return Result::ok();
 				else
 				{
-					return Result::fail(a.toString() + " is not accessible");
+					auto x = a.toString();
+					
+
+					return Result::fail(x.trim() + " is not accessible");
 				}
 			}
 		}

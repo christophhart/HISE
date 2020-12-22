@@ -43,13 +43,7 @@ struct Operations::ClassStatement : public Statement,
 {
 	SET_EXPRESSION_ID(ClassStatement)
 
-		ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock) :
-		Statement(l),
-		classType(classType_)
-	{
-		addStatement(classBlock);
-
-	}
+		ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock);
 
 	~ClassStatement()
 	{
@@ -95,7 +89,43 @@ struct Operations::ClassStatement : public Statement,
 };
 
 
+struct Operations::InternalProperty : public Expression
+{
+	SET_EXPRESSION_ID(InternalProperty);
 
+	InternalProperty(Location l, const Identifier& id_, const var& v_):
+		Expression(l),
+		id(id_),
+		v(v_)
+	{
+
+	}
+
+	Ptr clone(Location l) const override
+	{
+		return new InternalProperty(l, id, v);
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+
+		t.setProperty("ID", id.toString(), nullptr);
+		t.setProperty("Value", v.toString(), nullptr);
+
+		return t;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return TypeInfo(Types::ID::Void);
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
+
+	Identifier id;
+	var v;
+};
 
 struct Operations::ComplexTypeDefinition : public Expression,
 	public TypeDefinitionBase

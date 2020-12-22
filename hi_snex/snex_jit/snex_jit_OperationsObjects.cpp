@@ -89,6 +89,23 @@ void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scop
 	}
 }
 
+Operations::ClassStatement::ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock) :
+	Statement(l),
+	classType(classType_)
+{
+	addStatement(classBlock);
+
+	classBlock->forEachRecursive([this](Ptr p)
+	{
+		if (auto ip = as<InternalProperty>(p))
+		{
+			if (findParentStatementOfType<ClassStatement>(ip) == this)
+				getStructType()->setInternalProperty(ip->id, ip->v);
+		}
+
+		return false;
+	});
+}
 
 void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScope* scope)
 {
@@ -166,7 +183,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 			{
 				if (auto s = getSubExpr(0))
 				{
-					if (!s->getTypeInfo().isRef())
+					if (!canBeReferenced(s))
 					{
 						location.throwError("Can't assign reference to temporary type");
 					}
@@ -249,7 +266,11 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 							if (s->getType() == Types::ID::Pointer)
 							{
 								if (initValues != nullptr)
-									acg.emitStackInitialisation(s, type.getComplexType(), nullptr, initValues);
+								{
+									auto r = acg.emitStackInitialisation(s, type.getComplexType(), nullptr, initValues);
+
+									location.test(r);
+								}
 								else if (getSubRegister(0) != nullptr)
 									acg.emitComplexTypeCopy(s, getSubRegister(0), type.getComplexType());
 							}
@@ -262,6 +283,56 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 				}
 			}
 		}
+	}
+}
+
+void Operations::InternalProperty::process(BaseCompiler* compiler, BaseScope* scope)
+{
+	processBaseWithChildren(compiler, scope);
+
+	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
+	{
+		if (auto cs = findParentStatementOfType<ClassStatement>(this))
+		{
+			if (auto st = cs->getStructType())
+			{
+				if (!st->hasInternalProperty(id))
+					location.throwError("Internal property not found");
+
+				
+			}
+		}
+	}
+
+	COMPILER_PASS(BaseCompiler::TypeCheck)
+	{
+		if (auto cs = findParentStatementOfType<ClassStatement>(this))
+		{
+			if (auto st = cs->getStructType())
+			{
+				if (id == jit::WrapIds::IsNode)
+				{
+					FunctionClass::Ptr fc = st->getFunctionClass();
+
+					auto hasParameterFunction = fc->hasFunction(st->id.getChildId("setParameter"));
+
+					if (!hasParameterFunction)
+					{
+						String s;
+						s << st->toString() << "::setParameter not defined";
+						location.throwError(s);
+					}
+				}
+				if (id == scriptnode::PropertyIds::NodeId)
+				{
+					if (v.toString() != st->id.getIdentifier().toString())
+					{
+						location.throwError(st->toString() + ": node id mismatch: " + v.toString());
+					}
+				}
+			}
+		}
+		
 	}
 }
 

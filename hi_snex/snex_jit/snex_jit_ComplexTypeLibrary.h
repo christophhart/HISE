@@ -474,7 +474,31 @@ struct StructType : public ComplexType,
 		customDumpFunction = f;
 	}
 
+	void setInternalProperty(const Identifier& propId, const var& newValue)
+	{
+		internalProperties.set(propId, newValue);
+	}
+
+	var getInternalProperty(const Identifier& propId, const var& defaultValue)
+	{
+		return internalProperties.getWithDefault(propId, defaultValue);
+	}
+
+	bool hasInternalProperty(const Identifier& propId) const
+	{
+		return internalProperties.getVarPointer(propId) != nullptr;
+	}
+
+	/** Call this if you want to redirect all methods with the same id to the one
+	    with the supplied argument list.
+	*/
+	Result redirectAllOverloadedMembers(const Identifier& id, TypeInfo::List mainArgs);
+
+	
+
 private:
+
+	NamedValueSet internalProperties;
 
 	std::function<String(void*)> customDumpFunction;
 
@@ -502,6 +526,7 @@ private:
 	OwnedArray<Member> memberData;
 	bool isExternalDefinition = false;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(StructType);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StructType);
 };
 

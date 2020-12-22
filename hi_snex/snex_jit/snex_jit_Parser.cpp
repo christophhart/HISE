@@ -287,6 +287,36 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	if (auto noop = parseVisibility())
 		return noop;
 
+	if (matchIf(JitTokens::__internal_property))
+	{
+		match(JitTokens::openParen);
+		
+		if (currentValue.isString())
+		{
+
+			Identifier id(currentValue.toString());
+			skip();
+
+			match(JitTokens::comma);
+
+			var v;
+
+			if (matchIf(JitTokens::identifier))
+			{
+				v = currentValue;
+			}
+			else
+			{
+				auto value = parseConstExpression(false);
+				v = value.toInt();
+			}
+
+			match(JitTokens::closeParen);
+
+			return matchSemicolonAndReturn(new Operations::InternalProperty(location, id, v));
+		}
+	}
+
 	if (matchIf(JitTokens::template_))
 		templateArguments = parseTemplateParameters(true);
 	else

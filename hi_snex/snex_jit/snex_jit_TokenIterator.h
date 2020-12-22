@@ -59,7 +59,8 @@ using namespace juce;
 	X(if_, "if")				X(else_, "else")	X(protected_, "protected") \
 	X(auto_, "auto")			X(struct_, "struct")	\
 	X(using_, "using")		    X(static_, "static")	X(break_, "break") X(continue_, "continue")			X(namespace_, "namespace") \
-	X(template_, "template")    X(typename_, "typename") X(while_, "while")
+	X(template_, "template")    X(typename_, "typename") X(while_, "while") \
+	X(__internal_property, "__internal_property");
 
 namespace JitTokens
 {
