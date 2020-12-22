@@ -368,6 +368,10 @@ juce::String Types::Helpers::getCppValueString(const VariableStorage& v)
 	{
 		return "0x" + juce::String::toHexString(reinterpret_cast<uint64_t>(v.getDataPointer())).toUpperCase();
 	}
+	else if (type == Types::ID::Block)
+	{
+		return "block()";
+	}
 	else
 		return juce::String((int)v);
 }

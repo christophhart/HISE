@@ -21,7 +21,7 @@ VariableStorage::VariableStorage(Types::ID type_, const var& value)
 		data.p.data = reinterpret_cast<void*>((int64_t)value);
 	}
 	else
-		data.b = block();
+		jassertfalse;
 }
 
 VariableStorage::VariableStorage(FloatType s)
@@ -274,6 +274,7 @@ int VariableStorage::getPointerSize() const
 
 snex::VariableStorage& VariableStorage::operator=(const block& s)
 {
+	data.b.unused = Types::ID::Block;
 	data.b.data = s.data;
 	data.b.size_ = s.size();
 	return *this;

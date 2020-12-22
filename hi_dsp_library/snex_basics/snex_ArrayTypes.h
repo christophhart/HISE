@@ -87,6 +87,21 @@ template <typename Derived> struct index_base
 		return v;
 	}
 
+	// Preinc
+	int operator--()
+	{
+		value--;
+		return (int)asDerived();
+	}
+
+	// Postinc
+	int operator--(int)
+	{
+		auto v = value;
+		operator--();
+		return v;
+	}
+
 	Derived& moved(int delta)
 	{
 		value += delta;
@@ -102,6 +117,8 @@ private:
 	Derived& asDerived() { return (*static_cast<Derived*>(this)); }
 	const Derived& asDerived() const { return (*static_cast<const Derived*>(this)); }
 };
+
+
 
 /** A fixed-size array type for SNEX. 
 
@@ -141,12 +158,12 @@ template <class T, int Size> struct span
 	*/
 	struct wrapped: public index_base<wrapped>
 	{
-		wrapped(int initValue) : index_base<wrapped>(initValue) {}
+		wrapped(int initValue=0) : index_base<wrapped>(initValue) {}
 		wrapped& operator=(int v) { value = v; return *this; };
 
 		operator int() const
 		{
-			return value % Size;
+			return value >= 0 ? value % Size : (Size - abs(value%Size)) % Size;
 		}
 	};
 
@@ -167,7 +184,7 @@ template <class T, int Size> struct span
 	*/
 	struct clamped: public index_base<clamped>
 	{
-		clamped(int initValue) : index_base<clamped>(initValue) {}
+		clamped(int initValue=0) : index_base<clamped>(initValue) {}
 		clamped& operator=(int v) { value = v; return *this; };
 
 		operator int() const
@@ -177,8 +194,11 @@ template <class T, int Size> struct span
 	};
 
 	/** An index type that is not performing any bounds-check at all. Use it at your own risk! */
-	struct unsafe
+	struct unsafe: public index_base<unsafe>
 	{
+		unsafe(int initValue=0) : index_base<unsafe>(initValue) {}
+		unsafe& operator=(int v) { value = v; return *this; };
+
 		operator int() const
 		{
 			return value;
@@ -187,7 +207,7 @@ template <class T, int Size> struct span
 
 	span()
 	{
-		memset(data, 0, sizeof(T)*Size);
+		
 	}
 
 	span(const std::initializer_list<T>& l)
@@ -221,6 +241,37 @@ template <class T, int Size> struct span
 		}
 		else
 			return 1;
+	}
+
+	Type& operator=(const std::initializer_list<T>& l)
+	{
+		if (isSimdable())
+		{
+			constexpr int numLoop = Size / getSimdSize();
+
+			if (std::is_same<DataType, float>())
+			{
+				float t_ = (float)*l.begin();
+
+				auto dst = (float*)data;
+
+				auto v = _mm_load_ps1(&t_);
+
+				for (int i = 0; i < numLoop; i++)
+				{
+					_mm_store_ps(dst, v);
+					dst += getSimdSize();
+				}
+			}
+		}
+		else
+		{
+			for (auto& v : *this)
+				v = *l.begin();
+		}
+
+		return *this;
+
 	}
 
 	Type& operator=(const DataType& t)
@@ -288,10 +339,8 @@ template <class T, int Size> struct span
 
 	Type& operator=(const Type& other)
 	{
-		if (Size >= 4)
+		if (Size >= 4 && isSimdable())
 		{
-			jassert(isSimdable());
-
 			constexpr int numLoop = Size / getSimdSize();
 			auto src = (float*)other.data;
 			auto dst = (float*)data;
@@ -359,6 +408,75 @@ template <class T, int Size> struct span
 		return *this;
 	}
 
+	Type& operator* (const Type& other)
+	{
+		auto dst = (float*)data;
+		auto src = (float*)other.data;
+		constexpr int numLoop = Size / getSimdSize();
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto v = _mm_load_ps(dst);
+			auto r = _mm_mul_ps(v, _mm_load_ps(src));
+			_mm_store_ps(dst, r);
+
+			dst += getSimdSize();
+			src += getSimdSize();
+		}
+
+		return *this;
+	}
+
+	Type& operator *=(const Type& other)
+	{
+		static_assert(isSimdable(), "Can't add non SIMDable types");
+
+		constexpr int numLoop = Size / getSimdSize();
+		int i = 0;
+
+		auto dst = (float*)data;
+		auto src = (float*)other.data;
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto v = _mm_load_ps(dst);
+			auto r = _mm_mul_ps(v, _mm_load_ps(src));
+			_mm_store_ps(dst, r);
+
+			dst += getSimdSize();
+			src += getSimdSize();
+		}
+
+		return *this;
+	}
+
+	Type& operator*=(const T& scalar)
+	{
+		*this * scalar;
+		return *this;
+	}
+
+	Type& operator*(const T& scalar)
+	{
+		//static_assert(isSimdable(), "Can't add non SIMDable types");
+
+		constexpr int numLoop = Size / getSimdSize();
+		auto dst = (float*)data;
+		auto sc = (float)scalar;
+
+		auto v = _mm_load_ps1(&scalar);
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto r = _mm_mul_ps(_mm_load_ps(dst), v);
+			_mm_store_ps(dst, r);
+
+			dst += getSimdSize();
+		}
+
+		return *this;
+	}
+
 	T accumulate() const
 	{
 		T v = T(0);
@@ -413,6 +531,11 @@ template <class T, int Size> struct span
 
 		for (int i = 0; i < Size; i++)
 			*dst++ = *src++;
+	}
+
+	template <typename IndexType> IndexType index(int initValue)
+	{
+		return IndexType(initValue);
 	}
 
 	void addTo(Type& other) const
@@ -494,6 +617,88 @@ template <class T, int Size> struct span
 	alignas(alignment()) T data[Size];
 };
 
+struct dyn_indexes
+{
+#if 0
+	struct wrapped : public index_base<wrapped>
+	{
+		wrapped(int initValue) :
+			index_base<wrapped>(0),
+			size(maxSize)
+		{}
+
+		wrapped& operator=(int v) { value = v; return *this; };
+
+		operator int() const
+		{
+			return value % size;
+		}
+
+	private:
+
+		const int size = 0;
+	};
+
+	struct zeroed : public index_base<zeroed>
+	{
+		zeroed(int maxSize) :
+			index_base<zeroed>(0),
+			size(maxSize)
+		{}
+
+		zeroed& operator=(int v) { value = v; return *this; };
+
+		operator int() const
+		{
+			if (isPositiveAndBelow(value, size))
+				return value;
+
+			return 0;
+		}
+
+	private:
+
+		const int size = 0;
+	};
+
+	struct clamped : public index_base<clamped>
+	{
+		clamped(int maxSize) :
+			index_base<clamped>(0),
+			size(jmax(0, maxSize - 1))
+		{}
+
+		clamped& operator=(int v) { value = v; return *this; };
+
+		operator int() const
+		{
+			return jlimit(0, size, value);
+		}
+
+	private:
+
+		int size = 0;
+	};
+#endif
+
+	struct unsafe : public index_base<unsafe>
+	{
+		unsafe(int initValue=0) :
+			index_base<unsafe>(initValue)
+		{}
+
+		operator int() const
+		{
+			return value;
+		}
+	};
+
+	// The entire index type concept for dyns is flawed...
+	using wrapped = unsafe;
+	using clamped = unsafe;
+	using zeroed = unsafe;
+};
+
 /** This alias is a special type on its own as it has mathematical operators that directly translate to SSE instructions. */
 using float4 = span<float, 4>;
 
@@ -507,6 +712,11 @@ template <class T> struct dyn
 	static constexpr ArrayID ArrayType = Types::ArrayID::DynType;
 	using Type = dyn<T>;
 	using DataType = T;
+
+	using wrapped = dyn_indexes::wrapped;
+	using unsafe = dyn_indexes::unsafe;
+	using clamped = dyn_indexes::clamped;
+	using zeroed = dyn_indexes::zeroed;
 
 	dyn() :
 		data(nullptr),
@@ -650,6 +860,12 @@ template <class T> struct dyn
 		return DSP::interpolate<WrapType>(*this, index);
 	}
 
+	float operator[](double index)
+	{
+		static_assert(is_same<T, float>, "interpolating []-operator with only valid with dyn<float>");
+
+		Interpolator::interpolateLinear()
+	}
 	
 	template <class IndexType> const T& operator[](IndexType t) const
 	{
@@ -679,6 +895,11 @@ template <class T> struct dyn
 		return const_cast<T*>(data) + size();
 	}
 
+	bool isSimdable() const
+	{
+		return reinterpret_cast<uint64_t>(begin()) % 16 == 0;
+	}
+
 	bool isEmpty() const noexcept { return size() == 0; }
 
 	/** Returns the size of the array. Be aware that this is not a compile time constant. */
@@ -687,6 +908,7 @@ template <class T> struct dyn
 	/** Refers to a given container. */
 	template <typename OtherContainer> void referTo(OtherContainer& t, int newSize=-1, int offset=0)
 	{
+		unused = Types::ID::Block;
 		newSize = newSize >= 0 ? newSize : t.size();
 		referToRawData(t.begin(), newSize, offset);
 	}
@@ -694,6 +916,7 @@ template <class T> struct dyn
 	/** Refers to a raw data pointer. */
 	void referToRawData(T* newData, int newSize, int offset = 0)
 	{
+		unused = Types::ID::Block;
 		jassert(newSize != 0);
 
 		data = newData + offset;
@@ -871,59 +1094,25 @@ template <class T> static bool isContinousMemory(const T& t)
 
 	auto ptr = t.begin();
 	auto e = t.end();
-
 	auto elementSize = sizeof(ElementType);
-
 	auto size = (e - ptr) * elementSize;
-
 	auto realSize = reinterpret_cast<uint64_t>(e) - reinterpret_cast<uint64_t>(ptr);
-
 	return realSize == size;
 }
 
 
-template <class DataType> static dyn<DataType> slice(const dyn<DataType>& src, int start, int size = -1)
+template <class DataType> static dyn<DataType> slice(const dyn<DataType>& src, int size = -1, int start=0)
 {
-	if (size == -1)
-		size = src.size - start;
-
-	using ClampType = typename dyn<DataType>::clamped;
-
-	ClampType clampedStart = start;
-	ClampType clampedSize = start + size;
-
 	dyn<DataType> c;
-	c.data = src.begin() + clampedStart.get(src);
-	c.size = clampedSize.get(src) - clampedStart.get(src);
+	c.referTo(src, size, start);
 	return c;
 }
 
-template <class DataType, int Size> static dyn<DataType> slice(const span<DataType, Size>& src, int start, int size = -1)
+template <class DataType, int Size> static dyn<DataType> slice(const span<DataType, Size>& src, int size = -1, int start=0)
 {
-	using SpanType = span<DataType, Size>;
-
-	if (size == -1)
-		size = Size - start;
-
-	typename SpanType::clamped clampedStart = { start };
-	typename SpanType::clamped clampedSize = { start + size };
-
-	dyn<DataType> c;
-	c.data = src.begin() + clampedStart.get(src);
-	c.size_ = clampedSize.get(src) - clampedStart.get(src);
-	return c;
-}
-
-template <int Start, int SliceSize, class DataType, int Size> static span<DataType, SliceSize>& slice(const span<DataType, Size>& src)
-{
-	using SpanType = span<DataType, SliceSize>;
-
-	constexpr int SizeToUse = SliceSize == -1 ? Size - Start : SliceSize;
-
-	typename SpanType::clamped clampedStart = Start;
-	typename SpanType::clamped clampedSize = Start + SizeToUse;
-
-	return *reinterpret_cast<SpanType*>(src.begin() + Start);
+	dyn<DataType> d;
+	d.referToRawData(src.begin(), size, start);
+	return d;
 }
 
 

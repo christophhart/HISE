@@ -13,16 +13,7 @@
 namespace snex
 {
 
-/** Use this macro to define the type that should be returned by calls to getObject(). Normally you pass in the wrapped object (for non-wrapped classes you should use GET_SELF_AS_OBJECT(). */
-#define GET_SELF_OBJECT(x) constexpr auto& getObject() { return x; } \
-constexpr const auto& getObject() const { return x; }
 
-/** Use this macro to define the expression that should be used in order to get the most nested type. (usually you pass in obj.getWrappedObject(). */
-#define GET_WRAPPED_OBJECT(x) constexpr auto& getWrappedObject() { return x; } \
-constexpr const auto& getWrappedObject() const { return x; }
-
-/** Use this macro in order to create the getObject() / getWrappedObject() methods that return the object itself. */
-#define GET_SELF_AS_OBJECT(x) GET_SELF_OBJECT(*this); GET_WRAPPED_OBJECT(*this);
 
 #define IF_(typeName) if(type == Types::Helpers::getTypeFromTypeId<typeName>())
 
@@ -334,8 +325,13 @@ struct InitialiserList : public ReferenceCountedObject
 		s << "{ ";
 
 		for (auto l : root)
+		{
 			s << l->toString();
 
+			if (root.getLast().get() != l)
+				s << ", ";
+		}
+			
 		s << " }";
 		return s;
 	}

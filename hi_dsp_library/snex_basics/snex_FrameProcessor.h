@@ -187,80 +187,7 @@ private:
 };
 
 
-struct dyn_indexes
-{
-	struct wrapped : public index_base<wrapped>
-	{
-		wrapped(int maxSize) :
-			index_base<wrapped>(0),
-			size(maxSize)
-		{}
 
-		wrapped& operator=(int v) { value = v; return *this; };
-
-		operator int() const
-		{
-			return value % size;
-		}
-
-	private:
-
-		const int size = 0;
-	};
-
-	struct zeroed : public index_base<zeroed>
-	{
-		zeroed(int maxSize) :
-			index_base<zeroed>(0),
-			size(maxSize)
-		{}
-
-		zeroed& operator=(int v) { value = v; return *this; };
-
-		operator int() const
-		{
-			if (isPositiveAndBelow(value, size))
-				return value;
-
-			return 0;
-		}
-
-	private:
-
-		const int size = 0;
-	};
-
-	struct clamped : public index_base<clamped>
-	{
-		clamped(int maxSize) :
-			index_base<clamped>(0),
-			size(jmax(0, maxSize - 1))
-		{}
-
-		clamped& operator=(int v) { value = v; return *this; };
-
-		operator int() const
-		{
-			return jlimit(0, size, value);
-		}
-
-	private:
-
-		int size = 0;
-	};
-
-	struct unsafe : public index_base<unsafe>
-	{
-		unsafe(int unused, int initValue) :
-			index_base<unsafe>(initValue)
-		{}
-
-		operator int() const
-		{
-			return value;
-		}
-	};
-};
 
 struct IndexType
 {
@@ -286,14 +213,14 @@ struct IndexType
 		return typename span<E, I>::wrapped(index);
 	}
 
-	template <typename T> static auto clamped(T& obj)
+	template <typename T> static auto clamped(dyn<T>& obj, int index=0)
 	{
-		return dyn_indexes::clamped(obj.size());
+		return dyn_indexes::clamped(index);
 	}
 
-	template <typename T> static auto wrapped(T& obj)
+	template <typename T> static auto wrapped(dyn<T>& obj, int index=0)
 	{
-		return dyn_indexes::wrapped(obj.size());
+		return dyn_indexes::wrapped(index);
 	}
 
 
@@ -311,6 +238,38 @@ struct IndexType
 		return typename dyn<E>::wrapped(obj, 0);
 	}
 #endif
+};
+
+/** This data structure is useful if you're writing any kind of oscillator.
+
+	It contains the buffer that the signal is supposed to be added to as well
+	as the pitch information and current state.
+
+	It has an overloaded ++-operator that will bump up the uptime.
+
+	@code
+	void process(OscProcessData& d)
+	{
+		for(auto& s: d.data)
+		{
+			s += Math.sin(d++);
+		}
+	}
+	@endcode
+*/
+struct OscProcessData
+{
+	dyn<float> data;		// 12 bytes
+	double uptime = 0.0;    // 8 bytes
+	double delta = 0.0;     // 8 bytes
+	int voiceIndex = 0;			// 4 bytes
+
+	double operator++()
+	{
+		auto v = uptime;
+		uptime += delta;
+		return v;
+	}
 };
 
 
