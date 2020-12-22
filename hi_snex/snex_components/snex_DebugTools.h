@@ -300,7 +300,8 @@ struct SymbolProvider : public TokenCollection::Provider
 
 	SymbolProvider(CodeDocument& d):
 		doc(d),
-		c(s)
+		c(s),
+		nh(c.getNamespaceHandlerReference())
 	{
 	}
 
@@ -316,6 +317,7 @@ struct SymbolProvider : public TokenCollection::Provider
 
 	GlobalScope s;
 	Compiler c;
+	NamespaceHandler::Ptr nh;
 
 	ReferenceCountedArray<jit::ComplexType> typeList;
 	StringArray sa;

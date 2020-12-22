@@ -81,7 +81,7 @@ debug::SymbolProvider::ComplexMemberToken::ComplexMemberToken(SymbolProvider& pa
 	f.getOrResolveReturnType(p);
 
 	c = FourColourScheme::getColour(FourColourScheme::Method);
-	tokenContent = f.getSignature();
+	tokenContent = f.getSignature({}, false);
 	priority = 80;
 	codeToInsert = f.getCodeToInsert();
 	markdownDescription = f.description;
@@ -99,10 +99,12 @@ bool debug::SymbolProvider::ComplexMemberToken::matches(const String& input, con
 	{
 		try
 		{
-			auto typeInfo = parent.c.getNamespaceHandler().parseTypeFromTextInput(previousToken.upToLastOccurrenceOf(".", false, false), lineNumber);
+			auto typeInfo = parent.nh->parseTypeFromTextInput(previousToken.upToLastOccurrenceOf(".", false, false), lineNumber);
+
+			auto codeToSearch = input.length() == 1 ? getCodeToInsert(input) : tokenContent;
 
 			if (typeInfo.getTypedIfComplexType<ComplexType>() == p.get())
-				return matchesInput(input, tokenContent);
+				return matchesInput(input, codeToSearch);
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
@@ -116,6 +118,9 @@ bool debug::SymbolProvider::ComplexMemberToken::matches(const String& input, con
 void debug::PreprocessorMacroProvider::addTokens(mcl::TokenCollection::List& tokens)
 {
 	Preprocessor p(doc.getAllContent());
+
+	p.addDefinitionsFromScope(GlobalScope::getDefaultDefinitions());
+
 	p.process();
 
 	for (auto ad : p.getAutocompleteData())
@@ -133,6 +138,8 @@ void debug::SymbolProvider::addTokens(mcl::TokenCollection::List& tokens)
 	c.compileJitObject(doc.getAllContent());
 
 	auto ct = c.getNamespaceHandler().getComplexTypeList();
+
+	nh = c.getNamespaceHandlerReference();
 
 	for (auto c : ct)
 	{

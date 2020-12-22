@@ -468,7 +468,9 @@ public:
 
 			updateSelections();
 
-			Timer::callAfterDelay(1200, [this]()
+			auto updateSpeed = currentAutoComplete != nullptr ? 30 : 1200;
+
+			Timer::callAfterDelay(updateSpeed, [this]()
 			{
 				this->updateAutocomplete();
 			});
