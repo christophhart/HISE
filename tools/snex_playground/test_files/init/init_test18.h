@@ -12,6 +12,8 @@ END_TEST_DATA
 
 struct X
 {
+	DECLARE_NODE(X);
+
 	void reset()
 	{
 		value *= 2;
@@ -37,6 +39,8 @@ struct I
 
 struct X2
 {
+	DECLARE_NODE(X2);
+
 	template <int P> void setParameter(double newValue)
 	{
 		v = (int)newValue;

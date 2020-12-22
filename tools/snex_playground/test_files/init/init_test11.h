@@ -14,9 +14,9 @@ int counter = 0;
 
 struct X
 {
-	X(int input)
+	X()
 	{
-		value = input;
+		value = 2;
 	
 		counter++;
 	}
@@ -24,7 +24,7 @@ struct X
 	int value = 9;
 };
 
-span<span<X, 6>, 2> data = {{ 5 }};
+span<span<X, 6>, 2> data;
 
 int main(int input)
 {

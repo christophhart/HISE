@@ -16,7 +16,7 @@ using DynWrapType = dyn<float>::unsafe;
 
 int main(int input)
 {
-	auto& d = slice(data, 4, 0);
+	auto d = slice(data, 1, 4);
 	
 	for(auto& s: d)
     {

@@ -13,6 +13,13 @@ END_TEST_DATA
 
 struct osc
 {
+	DECLARE_NODE(osc);
+
+	template <int P> void setParameter(double v)
+	{
+		
+	}
+
 	// setting some random values here...
 	double uptime = 0.1260;
 	double delta = 0.2;
@@ -33,21 +40,10 @@ struct osc
 		{
 			for(auto& s: data.toChannelData(ch))
 			{
-				s += 2.0f;//Math.sin(uptime);
+				s += Math.sin(uptime);
 				uptime += delta;
 			}
 		}
-
-		#if 0
-		auto& f = data.toFrameData();
-		
-		while(f.next())
-		{
-			f[0] += Math.sin((float)uptime);
-			
-			uptime += delta;
-		}
-		#endif
 	}
 	
 	void handleEvent(HiseEvent& e)
@@ -61,6 +57,6 @@ struct osc
 	}
 };
 
-using processor = container::chain<parameter::empty, osc>;
+using processor = container::chain<parameter::empty, wrap::fix<1, osc>>;
 
 

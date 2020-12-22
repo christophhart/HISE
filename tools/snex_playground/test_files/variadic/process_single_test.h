@@ -12,7 +12,14 @@ END_TEST_DATA
 
 struct X
 {
-    void processFrame(span<float, 2>& data)
+    DECLARE_NODE(X);
+
+    template <int P> void setParameter(double v)
+    {
+      
+    }
+
+    void processFrame(span<float, 1>& data)
     {
         data[0] *= 0.5f;
     }
@@ -20,15 +27,22 @@ struct X
 
 struct Y
 {
-    void processFrame(span<float, 2>& data)
+    DECLARE_NODE(Y);
+
+    template <int P> void setParameter(double v)
+    {
+      
+    }
+
+    void processFrame(span<float, 1>& data)
     {
         data[0] += 2.0f;
     }
 };
 
-container::chain<parameter::empty, X, Y, X> c;
+container::chain<parameter::empty, wrap::fix<1, X>, Y, X> c;
 
-span<float, 2> d = { 1.0f, 1.0f };
+span<float, 1> d = { 1.0f };
 
 float main(float input)
 {

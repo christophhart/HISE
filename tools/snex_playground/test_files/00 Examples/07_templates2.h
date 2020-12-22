@@ -18,6 +18,9 @@ END_TEST_DATA
 */
 struct ExampleNode
 {
+	DECLARE_NODE(ExampleNode);
+	
+
 	/*  This method will be called to do block based processing.
 		It is templated because the argument type can be different
 		according to whether the processing is using a fix amount of

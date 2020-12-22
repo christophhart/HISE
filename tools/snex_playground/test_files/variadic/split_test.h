@@ -12,13 +12,20 @@ END_TEST_DATA
 
 struct Test
 {
+	DECLARE_NODE(Test);
+
+	template <int P> void setParameter(double v)
+	{
+		
+	}
+
 	void reset()
 	{
 		
 	}
 };
 
-container::split<parameter::empty, Test, Test> s;
+container::split<parameter::empty, wrap::fix<1, Test>, Test> s;
 
 int main(int input)
 {

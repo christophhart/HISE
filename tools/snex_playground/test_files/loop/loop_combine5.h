@@ -15,6 +15,10 @@ END_TEST_DATA
 
 struct X
 {
+	DECLARE_NODE(X);
+
+	template <int P> void setParameter(double d) {};
+
 	void reset() {}
 	void prepare(PrepareSpecs ps) {}
 	void processFrame(span<float, 2>& data) {}
@@ -41,7 +45,7 @@ struct X
 	void handleEvent(HiseEvent& e) {}
 };
 
-container::chain<parameter::empty, X, X> c;
+container::chain<parameter::empty, wrap::fix<2, X>, X> c;
 
 int main(ProcessData<2>& data)
 {

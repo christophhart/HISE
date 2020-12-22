@@ -16,8 +16,8 @@ using DynWrapType = dyn<float>::unsafe;
 
 int main(int input)
 {
-	auto& d = slice(data, 0, 8);
-	auto& d2 = slice(d, 0, 8);
+	auto d = slice(data, 8, 0);
+	auto d2 = slice(d, 8, 0);
 	
 	int numElements = 0;
 	

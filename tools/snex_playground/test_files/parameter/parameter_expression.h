@@ -11,13 +11,14 @@ END_TEST_DATA
 */
 
 
-#define DECLARE_PARAMETER_EXPRESSION(name, expression) struct name { static double op(double input) { return expression; }}
 
 DECLARE_PARAMETER_EXPRESSION(TestExpression, 2.0 * input - 1.0);
 
 
 struct Test 
 {
+	DECLARE_NODE(Test);
+
 	template <int P> void setParameter(double v)
 	{
 		value = v;
@@ -28,7 +29,7 @@ struct Test
 
 using ParameterType = parameter::expression<Test, 0, TestExpression>;
 
-container::chain<ParameterType, Test, Test> c;
+container::chain<ParameterType, wrap::fix<1, Test>, Test> c;
 
 ParameterType p;
 
@@ -40,7 +41,7 @@ double main(double in)
 	auto& second = c.get<1>();
 	p.connect<0>(second);
 	
-	p.call<0>(x);
+	p.call(x);
 	
 	return c.get<1>().value;
 }

@@ -12,6 +12,14 @@ END_TEST_DATA
 
 struct X
 {
+    DECLARE_NODE(X);
+    static const int NumChannels = 1;
+
+    template <int P> void setParameter(double v)
+    {
+      
+    }
+    
     int v = 8;
 };
 

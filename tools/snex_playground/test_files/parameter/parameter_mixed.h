@@ -20,6 +20,8 @@ struct MyRangeConverter
 
 struct OtherTest
 {
+	DECLARE_NODE(OtherTest);
+
 	template <int P> void setParameter(double v)
 	{
 		if(P == 1)
@@ -31,6 +33,8 @@ struct OtherTest
 
 struct Test
 {
+	DECLARE_NODE(Test);
+
 	template <int P> void setParameter(double v)
 	{
 		value = v;
@@ -40,17 +44,14 @@ struct Test
 };
 
 
-#define DECLARE_PARAMETER_EXPRESSION(name, expression) struct name { static double op(double input) { return expression; }}
-
 DECLARE_PARAMETER_EXPRESSION(TestExpression, input * 2.0);
-
 
 using ParameterType1 = parameter::plain<Test, 0>;
 using OtherParameter = parameter::expression<OtherTest, 1, TestExpression>;
 using ParameterChainType = parameter::chain<MyRangeConverter, ParameterType1, OtherParameter>;
 
 
-container::chain<ParameterChainType, Test, OtherTest> c;
+container::chain<ParameterChainType, wrap::fix<1, Test>, OtherTest> c;
 
 double main(double input)
 {

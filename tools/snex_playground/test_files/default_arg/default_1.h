@@ -4,16 +4,19 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 3
+  output: 8
   error: ""
-  filename: "variadic/process_3channel"
+  filename: "default_arg/default_1"
 END_TEST_DATA
 */
 
-ProcessData<3> data;
+int getDefault(int x=4)
+{
+	return x * 2;
+}
 
 int main(int input)
 {
-    return data.getNumChannels();
+	return getDefault();
 }
 

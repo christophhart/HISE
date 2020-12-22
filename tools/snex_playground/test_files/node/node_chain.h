@@ -13,6 +13,15 @@ END_TEST_DATA
 
 struct dc
 {
+	DECLARE_NODE(dc);
+	
+	static const int NumChannels = 1;
+	
+	template <int P> void setParameter(double v)
+	{
+		
+	}
+
 	dc()
 	{
 		v = 0.2f;

@@ -11,12 +11,12 @@ END_TEST_DATA
 */
 
 
-#define X(name) \
+#define XXX(name) \
 int name() { \
   return 12; \
 }
 
-X(test)
+XXX(test)
 
 
 int main(int input)

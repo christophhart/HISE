@@ -43,8 +43,7 @@ public:
 	*/
 	int get(int index) const
 	{
-		auto i = IndexType::wrapped(data);
-		i = index;
+		auto i = IndexType::wrapped(data, index);
 		return data[i];
 	}
 };
@@ -63,6 +62,8 @@ int main(int input)
 	// below 12, it will fail compilation.
 	twelveArray.set<11>(18);
 	
-	return twelveArray.get(11);
+	// the value will wrap around, so it will return the
+	// value that has been set (23 % 12 == 11)
+	return twelveArray.get(23);
 }
 

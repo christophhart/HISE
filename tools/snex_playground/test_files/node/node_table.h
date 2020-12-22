@@ -41,12 +41,8 @@ struct table_test
 	{
 	}
 	
-	void setExternalData(int index, const ExternalData& d)
+	void setExternalData(const ExternalData& d, int index)
 	{
-		Console.print(d);
-		
-		
-	
 		v = index;
 	}
 	

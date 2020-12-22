@@ -15,7 +15,7 @@ dyn<float> d;
 
 int main(int input)
 {
-	d.referTo(slice(s, 2, 8));
+	d.referTo(s, 2, 8);
 	
 	return d.isSimdable();
 }

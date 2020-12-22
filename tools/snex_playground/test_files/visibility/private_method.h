@@ -5,8 +5,7 @@ BEGIN_TEST_DATA
   args: int
   input: 12
   output: 12
-  error: "Line 27(17): private function X::getX
- is not accessible"
+  error: "Line 27(17): private function X::getX is not accessible"
   filename: "visibility/private_method"
 END_TEST_DATA
 */

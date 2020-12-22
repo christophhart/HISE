@@ -12,6 +12,13 @@ END_TEST_DATA
 
 struct X
 {
+    DECLARE_NODE(X);
+
+    template <int P> void setParameter(double v)
+    {
+      
+    }
+
     int x = 0;
     
     void prepare(PrepareSpecs ps)
@@ -23,6 +30,13 @@ struct X
 
 struct Y
 {
+    DECLARE_NODE(Y);
+
+    template <int P> void setParameter(double v)
+    {
+      
+    }
+
     int value = 0;
     
     void prepare(PrepareSpecs ps)
@@ -31,7 +45,7 @@ struct Y
     }
 };
 
-container::chain<parameter::empty, X, Y> c;
+container::chain<parameter::empty, wrap::fix<2, X>, Y> c;
 
 
 int main(int input)
@@ -40,6 +54,8 @@ int main(int input)
 	
 	c.prepare(ps);
 	
-	return ps.blockSize;
+    return c.get<0>().x;
+
+//	return ps.blockSize;
 }
 

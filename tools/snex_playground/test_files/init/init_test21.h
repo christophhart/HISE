@@ -12,6 +12,10 @@ END_TEST_DATA
 
 struct e 
 {
+	DECLARE_NODE(e);
+
+	template <int P> void setParameter(double v) {}
+
 	void reset()
 	{
 		
@@ -23,9 +27,9 @@ struct e
 
 struct i
 {
-	i(e& o)
+	i(wrap::event<e>& o)
 	{
-		o.v = 18;
+		o.getObject().v = 18;
 	}
 };
 
@@ -33,6 +37,6 @@ wrap::init<wrap::event<e>, i> obj;
 
 int main(int input)
 {
-	return obj.getObject().v;
+	return obj.getWrappedObject().v;
 }
 

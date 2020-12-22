@@ -13,6 +13,10 @@ END_TEST_DATA
 
 struct dc_add
 {
+	DECLARE_NODE(dc_add);
+
+	template <int P> void setParameter(double v) {}
+
 	float value = 0.9f;
 
 	void reset()

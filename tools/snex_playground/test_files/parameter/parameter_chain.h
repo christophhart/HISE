@@ -20,6 +20,8 @@ struct Identity
 
 struct Test
 {
+	DECLARE_NODE(Test);
+
 	template <int P> void setParameter(double v)
 	{
 		value = v;
@@ -33,11 +35,11 @@ using ParameterChainType = parameter::chain<Identity, ParameterType, ParameterTy
 
 ParameterChainType pc;
 
-container::chain<ParameterChainType, Test, Test> c;
+container::chain<ParameterChainType, wrap::fix<1, Test>, Test> c;
 
 void op()
 {
-	pc.call<0>(2.0);
+	pc.call(2.0);
 }
 
 double main(double input)

@@ -30,5 +30,3 @@ float main(float input)
     
     return sum;
 }
-}
-

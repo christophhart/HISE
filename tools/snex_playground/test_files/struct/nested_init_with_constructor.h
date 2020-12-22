@@ -38,7 +38,7 @@ struct MyFirstStruct
 
 int main(int input)
 {
-	MyFirstStruct localObject = {{3, 3}, {7, 2}};	
+	MyFirstStruct localObject = { 3 };	
 	
 	return localObject.get();
 }

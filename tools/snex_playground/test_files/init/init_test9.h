@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 20
+  output: 18
   error: ""
   filename: "init/init_test9"
 END_TEST_DATA
@@ -12,15 +12,12 @@ END_TEST_DATA
 
 struct X
 {
-	X(int input)
-	{
-		value = input * 2;
-	}
+	X() {}
 	
 	int value = 9;
 };
 
-span<X, 2> data = { 5 };
+span<X, 2> data;
 
 int main(int input)
 {

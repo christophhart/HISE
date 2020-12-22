@@ -12,6 +12,10 @@ END_TEST_DATA
 
 struct X
 {
+	DECLARE_NODE(X);
+
+	template <int P> void setParameter(double v) {}
+
 	void reset()
 	{
 		value *= 2;

@@ -12,6 +12,8 @@ END_TEST_DATA
 
 struct Test
 {
+	DECLARE_NODE(Test);
+
 	template <int P> void setParameter(double v)
 	{
 		value = v;
@@ -21,9 +23,9 @@ struct Test
 };
 
 using ParameterType = parameter::plain<Test, 0>;
- using PList = parameter::list<ParameterType, ParameterType>;
+using PList = parameter::list<ParameterType, ParameterType>;
 
-container::chain<PList, Test, Test> c;
+container::chain<PList, wrap::fix<1, Test>, Test> c;
 
 double main(double input)
 {
