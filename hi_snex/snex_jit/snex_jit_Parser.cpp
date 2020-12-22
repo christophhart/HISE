@@ -390,10 +390,7 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 			location.throwError("Can't find function");
 
 		auto st = parseFunction(s);
-
-		matchIf(JitTokens::semicolon);
-
-		return st;
+		return matchIfSemicolonAndReturn(st);
 	}
 	else
 	{
@@ -407,11 +404,16 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 			match(JitTokens::assign_);
 
 			auto v = parseConstExpression(false);
-
 			compiler->namespaceHandler.addConstant(s.id, v);
 
-			match(JitTokens::semicolon);
-			return new Operations::Noop(location);
+			if (v.getType() == Types::ID::Integer)
+			{
+				return matchSemicolonAndReturn(new Operations::InternalProperty(location, s.id.getIdentifier(), v.toInt()));
+			}
+			else
+			{
+				return matchSemicolonAndReturn(new Operations::Noop(location));
+			}
 		}
 
 		if (matchIf(JitTokens::assign_))
@@ -421,9 +423,8 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 			ExprPtr expr;
 
 			expr = new Operations::Immediate(location, parseConstExpression(false));
-			match(JitTokens::semicolon);
 
-			return new Operations::Assignment(location, target, JitTokens::assign_, expr, true);
+			return matchSemicolonAndReturn(new Operations::Assignment(location, target, JitTokens::assign_, expr, true));
 		}
 
 		if (!s.typeInfo.isTemplateType())
@@ -432,9 +433,7 @@ BlockParser::StatementPtr NewClassParser::parseVariableDefinition()
 		}
 		else
 		{
-			match(JitTokens::semicolon);
-			return new Operations::ComplexTypeDefinition(location, s.id, s.typeInfo);
-
+			return matchSemicolonAndReturn(new Operations::ComplexTypeDefinition(location, s.id, s.typeInfo));
 		}
 	}
 }
@@ -548,7 +547,7 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 	
 	
 
-	return newStatement;
+	return matchIfSemicolonAndReturn(newStatement);
 }
 
 
@@ -582,11 +581,7 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 
 		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition(), ca.getInfo());
 
-		match(JitTokens::semicolon);
-
-		
-
-		return new Operations::ClassStatement(location, p, list);
+		return matchSemicolonAndReturn(new Operations::ClassStatement(location, p, list));
 	}
 	else
 	{
@@ -609,7 +604,8 @@ BlockParser::StatementPtr NewClassParser::parseSubclass(NamespaceHandler::Visibi
 			list = ca.withComment(parseStatementList());
 		}
 		
-		match(JitTokens::semicolon);
+		while(currentType == JitTokens::semicolon)
+			match(JitTokens::semicolon);
 
 		TemplateInstance cId(classId, compiler->namespaceHandler.getCurrentTemplateParameters());
 
@@ -810,13 +806,9 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 	bool isConstructor = rootId.toString() == typePtr->toString();
 
 	if (isConstructor)
-	{
 		ids.add(rootId.getChildId(FunctionClass::getSpecialSymbol(rootId, FunctionClass::Constructor)));
-	}
 	else
-	{
 		ids.add(rootId.getChildId(parseIdentifier()));
-	}
 
 	if (matchIf(JitTokens::openParen))
 	{
@@ -827,9 +819,7 @@ snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
 
 		auto st = parseFunction(s);
 
-		matchIf(JitTokens::semicolon);
-
-		return st;
+		return matchIfSemicolonAndReturn(st);
 	}
 	else
 	{

@@ -552,6 +552,9 @@ public:
 
 	StatementPtr matchIfSemicolonAndReturn(StatementPtr p)
 	{
+		while (currentType == JitTokens::semicolon)
+			match(JitTokens::semicolon);
+
 		matchIf(JitTokens::semicolon);
 		return p;
 	}
@@ -559,7 +562,7 @@ public:
 	StatementPtr matchSemicolonAndReturn(StatementPtr p)
 	{
 		match(JitTokens::semicolon);
-		return p;
+		return matchIfSemicolonAndReturn(p);
 	}
 
 	InitialiserList::Ptr parseInitialiserList();
