@@ -196,8 +196,11 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 		sliceFunction->id = getClassName().getChildId("slice");
 		sliceFunction->returnType = TypeInfo(Types::ID::Dynamic);
 		sliceFunction->addArgs("obj", TypeInfo(Types::ID::Dynamic, false, true));
-		sliceFunction->addArgs("start", TypeInfo(Types::ID::Integer));
+		
 		sliceFunction->addArgs("size", TypeInfo(Types::ID::Integer));
+		sliceFunction->addArgs("offset", TypeInfo(Types::ID::Integer));
+		sliceFunction->setDefaultParameter("size", VariableStorage(-1));
+		sliceFunction->setDefaultParameter("offset", VariableStorage(0));
 
 		sliceFunction->inliner = Inliner::createAsmInliner(sliceFunction->id, [](InlineData* b)
 		{
@@ -206,8 +209,8 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 			auto& cc = d->gen.cc;
 			auto dst = d->target;
 			auto src = d->args[0];
-			auto start = d->args[1];
-			auto size = d->args[2];
+			auto start = d->args[2];
+			auto size = d->args[1];
 
 			jassert(dst->getTypeInfo().getTypedIfComplexType<DynType>() != nullptr);
 			jassert(src->getTypeInfo().getTypedIfComplexType<ArrayTypeBase>() != nullptr);
@@ -296,24 +299,32 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 		{
 			auto rt = dynamic_cast<ReturnTypeInlineData*>(b);
 
-			auto sourceType = rt->object->getSubExpr(0)->getTypeInfo();
-			TypeInfo elementType;
+			if (auto so = rt->object->getSubExpr(0))
+			{
+				auto sourceType = so->getTypeInfo();
+				TypeInfo elementType;
+
+				if (auto st = sourceType.getTypedIfComplexType<ArrayTypeBase>())
+					elementType = st->getElementType();
+				else
+					return Result::fail("Can't slice type " + sourceType.toString());
+
+				if (rt->templateParameters.isEmpty())
+				{
+					auto sliceType = new DynType(elementType);
+					rt->f.returnType = TypeInfo(sliceType);
+				}
+				else
+				{
+					jassertfalse;
+				}
+			}
+			else
+			{
+				return Result::fail("Can't deduce array type");
+			}
+
 			
-
-			if (auto st = sourceType.getTypedIfComplexType<ArrayTypeBase>())
-				elementType = st->getElementType();
-			else
-				return Result::fail("Can't slice type " + sourceType.toString());
-
-			if (rt->templateParameters.isEmpty())
-			{
-				auto sliceType = new DynType(elementType);
-				rt->f.returnType = TypeInfo(sliceType, false, true);
-			}
-			else
-			{
-				jassertfalse;
-			}
 
 			return Result::ok();
 		};

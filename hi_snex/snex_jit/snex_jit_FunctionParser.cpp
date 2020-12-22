@@ -881,10 +881,22 @@ BlockParser::ExprPtr BlockParser::parseCall(ExprPtr p)
 			if (numProvided != to.argList.size())
 			{
 				TypeInfo::List callParameters;
+
 				for (int i = 0; i < f->getNumArguments(); i++)
 					callParameters.add(f->getArgument(i)->getTypeInfo());
 
 				auto originalList = to.functionArgs();
+
+				if (callParameters.size() < originalList.size())
+				{
+					// We need to add default values...
+					int numDefinedArgs = callParameters.size();
+
+					for (int i = numDefinedArgs; i < originalList.size(); i++)
+					{
+						callParameters.add(f->function.args[i].typeInfo);
+					}
+				}
 
 				templateParameters = TemplateParameter::ListOps::mergeWithCallParameters(to.argList, templateParameters, originalList, callParameters, r);
 

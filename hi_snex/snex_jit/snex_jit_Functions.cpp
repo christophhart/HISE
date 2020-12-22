@@ -79,6 +79,25 @@ Symbol::operator bool() const
 	return !id.isNull() && id.isValid();
 }
 
+
+
+void FunctionData::setDefaultParameter(const Identifier& s, const Inliner::Func& expressionBuilder)
+{
+	auto newDefaultParameter = new DefaultParameter();
+
+	for (auto& a : args)
+	{
+		if (a.id.getIdentifier() == s)
+		{
+			newDefaultParameter->id = a;
+			break;
+		}
+	}
+	
+	newDefaultParameter->expressionBuilder = expressionBuilder;
+	defaultParameters.add(newDefaultParameter);
+}
+
 juce::String FunctionData::getCodeToInsert() const
 {
 	juce::String s;
@@ -197,6 +216,14 @@ bool FunctionData::matchIdArgsAndTemplate(const FunctionData& other) const
 	return idArgMatch && templateMatch;
 }
 
+bool argumentMatch(const TypeInfo& functionArgs, const TypeInfo& actualArgs)
+{
+	if (functionArgs.isInvalid())
+		return true;
+
+	return functionArgs == actualArgs;
+}
+
 bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 {
 	if (args.size() != typeList.size())
@@ -207,22 +234,8 @@ bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 		auto thisArgs = args[i].typeInfo;
 		auto otherArgs = typeList[i];
 
-		if (thisArgs.isInvalid())
-			continue;
-
-		if (otherArgs == thisArgs)
-			continue;
-
-#if 0
-		if (otherArgs.getType() == thisArgs.getType())
-			continue;
-#endif
-
-		if (thisArgs != otherArgs)
-		{
+		if (!argumentMatch(args[i].typeInfo, typeList[i]))
 			return false;
-		}
-			
 	}
 
 	return true;
@@ -235,6 +248,8 @@ bool FunctionData::matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsL
 
 	return matchesArgumentTypes(argsList);
 }
+
+
 
 bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType /*= true*/) const
 {
@@ -249,7 +264,7 @@ bool FunctionData::matchesArgumentTypes(const FunctionData& otherFunctionData, b
 		auto thisType = args[i].typeInfo;
 		auto otherType = otherFunctionData.args[i].typeInfo;
 
-		if (thisType != otherType)
+		if (!argumentMatch(thisType, otherType))
 			return false;
 	}
 
@@ -270,6 +285,50 @@ bool FunctionData::matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID
 }
 
 
+
+bool FunctionData::matchesArgumentTypesWithDefault(const Array<TypeInfo>& typeList) const
+{
+	for (int i = 0; i < args.size(); i++)
+	{
+		if (isPositiveAndBelow(i, typeList.size()))
+		{
+			auto thisArgs = args[i].typeInfo;
+			auto otherArgs = typeList[i];
+
+			if (!argumentMatch(thisArgs, otherArgs))
+				return false;
+		}
+		else
+		{
+			if (!hasDefaultParameter(args[i]))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+bool FunctionData::hasDefaultParameter(const Symbol& arg) const
+{
+	for (auto d : defaultParameters)
+	{
+		if (d->id == arg)
+			return true;
+	}
+
+	return false;
+}
+
+snex::jit::Inliner::Func FunctionData::getDefaultExpression(const Symbol& s) const
+{
+	for (auto d : defaultParameters)
+	{
+		if (d->id == s)
+			return d->expressionBuilder;
+	}
+
+	return {};
+}
 
 bool FunctionData::matchesTemplateArguments(const TemplateParameter::List& l) const
 {
@@ -360,8 +419,8 @@ struct VariadicCallHelpers
 			switch (a2.getType())
 			{
 			case ID::Integer:	cv3_ttv(f, a1, (int)a2, a3); break;
-			case ID::Double:	cv3_ttv(f, a1, (float)a2, a3); break;
-			case ID::Float:		cv3_ttv(f, a1, (double)a2, a3); break;
+			case ID::Double:	cv3_ttv(f, a1, (double)a2, a3); break;
+			case ID::Float:		cv3_ttv(f, a1, (float)a2, a3); break;
 			case ID::Pointer:	cv3_ttv(f, a1, (void*)a2, a3); break;
 			}
 		}
@@ -707,29 +766,30 @@ struct SyntaxTreeInlineData: public InlineData
 		return true;
 	}
 
+	static void processUpToCurrentPass(Operations::Statement::Ptr currentStatement, Operations::Statement::Ptr e)
+	{
+		auto c = currentStatement->currentCompiler;
+		auto s = currentStatement->currentScope;
+
+		if (auto t = dynamic_cast<Operations::StatementBlock*>(e.get()))
+			s = t->createOrGetBlockScope(s);
+
+		for (int i = 0; i <= currentStatement->currentPass; i++)
+		{
+			auto thisPass = (BaseCompiler::Pass)i;
+			BaseCompiler::ScopedPassSwitcher svs(c, thisPass);
+			c->executePass(thisPass, s, e.get());
+		};
+
+		jassert(e->currentPass == currentStatement->currentPass);
+	}
+
 	bool replaceIfSuccess()
 	{
 		if (target != nullptr)
 		{
 			expression->replaceInParent(target);
-
-			auto c = expression->currentCompiler;
-			auto s = expression->currentScope;
-
-			if (auto t = dynamic_cast<Operations::StatementBlock*>(target.get()))
-				s = t->createOrGetBlockScope(s);
-
-			for (int i = 0; i <= expression->currentPass; i++)
-			{
-				auto thisPass = (BaseCompiler::Pass)i;
-
-				BaseCompiler::ScopedPassSwitcher svs(c, thisPass);
-
-				c->executePass(thisPass, s, target.get());
-			};
-
-			jassert(target->currentPass == expression->currentPass);
-
+			processUpToCurrentPass(expression, target);
 			return true;
 		}
 			

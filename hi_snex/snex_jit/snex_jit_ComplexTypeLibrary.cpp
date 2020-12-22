@@ -530,6 +530,12 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 	assignFunction->id = dynOperators->getClassName().getChildId("referTo");
 	//assignFunction->addArgs("this", TypeInfo(this));
 	assignFunction->addArgs("other", TypeInfo(Types::ID::Pointer, true));
+	assignFunction->addArgs("size", TypeInfo(Types::ID::Integer));
+	assignFunction->addArgs("offset", TypeInfo(Types::ID::Integer));
+
+	assignFunction->setDefaultParameter("size", VariableStorage(-1));
+	assignFunction->setDefaultParameter("offset", VariableStorage(0));
+
 	assignFunction->returnType = TypeInfo(this);
 
 	assignFunction->inliner = new Inliner(assignFunction->id, [](InlineData* d_)
@@ -545,6 +551,12 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 					if (isPositiveAndBelow(newSize, limit + 1))
 					{
 						vToChange = newSize;
+						p = nullptr;
+						return true;
+					}
+					else if (newSize == -1)
+					{
+						vToChange = limit;
 						p = nullptr;
 						return true;
 					}
@@ -915,9 +927,9 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 	{
 		auto& subscriptFunction = dynOperators->createSpecialFunction(FunctionClass::Subscript);
-		subscriptFunction.returnType = elementType;
+		subscriptFunction.returnType = elementType.withModifiers(false, true, false);
 		subscriptFunction.addArgs("this", TypeInfo(this));
-		subscriptFunction.addArgs("index", TypeInfo(Types::ID::Dynamic));
+		subscriptFunction.addArgs("index", TypeInfo(Types::ID::Integer));
 
 		auto t = elementType;
 

@@ -888,7 +888,6 @@ struct Inliner : public ReferenceCountedObject
 	};
 
 	Inliner(const NamespacedIdentifier& id, const Func& asm_, const Func& highLevel_) :
-		functionId(id),
 		asmFunc(asm_),
 		highLevelFunc(highLevel_)
 	{
@@ -909,8 +908,6 @@ struct Inliner : public ReferenceCountedObject
 
 	static Inliner* createHighLevelInliner(const NamespacedIdentifier& id, const Func& highLevelFunc)
 	{
-		auto ok = id.getIdentifier() == Identifier("reset4");
-
 		return new Inliner(id, [](InlineData* b)
 		{
 			jassert(!b->isHighlevel());
@@ -937,7 +934,7 @@ struct Inliner : public ReferenceCountedObject
 
 	InlineType inlineType = numInlineTypes;
 
-	const NamespacedIdentifier functionId;
+	//const NamespacedIdentifier functionId;
 	const Func asmFunc;
 	const Func highLevelFunc;
 
@@ -990,9 +987,23 @@ static constexpr bool isValidParameterType(const Arg1& a1, const Arg2& a2, const
 
 }
 
+
+
+
 /** A wrapper around a function. */
 struct FunctionData
 {
+	struct DefaultParameter: public ReferenceCountedObject
+	{
+		using List = ReferenceCountedArray<DefaultParameter>;
+		
+		Symbol id;
+
+		// This inliner will be called with a SyntaxTreeInlineData
+		// object and just needs to add a StatementPtr to the args list
+		Inliner::Func expressionBuilder;
+	};
+
 	template <typename T> void addArgs(bool omitObjPtr=false)
 	{
 		if(!omitObjPtr || !std::is_same<T, void*>())
@@ -1051,6 +1062,10 @@ struct FunctionData
 		function = reinterpret_cast<void*>(typedFunctionPointer);
 	}
 
+	void setDefaultParameter(const Identifier& s, const Inliner::Func& expressionBuilder);
+
+	void setDefaultParameter(const Identifier& s, const VariableStorage& immediateValue);
+
 	juce::String getCodeToInsert() const;
 
 	juce::String getSignature(const Array<Identifier>& parameterIds = {}, bool useFullParameterIds=true) const;
@@ -1087,6 +1102,12 @@ struct FunctionData
 	bool matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType = true) const;
 
 	bool matchesNativeArgumentTypes(Types::ID r, const Array<Types::ID>& nativeArgList) const;
+
+	bool matchesArgumentTypesWithDefault(const Array<TypeInfo>& typeList) const;
+
+	bool hasDefaultParameter(const Symbol& arg) const;
+
+	Inliner::Func getDefaultExpression(const Symbol& s) const;
 
 	bool matchesTemplateArguments(const TemplateParameter::List& l) const;
 
@@ -1130,6 +1151,8 @@ struct FunctionData
 
 	/** A pretty formatted function name for debugging purposes. */
 	juce::String functionName;
+
+	DefaultParameter::List defaultParameters;
 
 	/** A wrapped lambda containing the assembly generation code for that function. */
 	Inliner::Ptr inliner;

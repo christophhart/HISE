@@ -376,6 +376,12 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 					fc = compiler->getInbuiltFunctionClass();
 					fc->addMatchingFunctions(possibleMatches, function.id);
 					callType = InbuiltFunction;
+
+					if (!function.isResolved() && possibleMatches.size() == 1)
+					{
+						function = possibleMatches[0];
+					}
+
 					jassert(function.isResolved());
 					return;
 				}
@@ -580,6 +586,16 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				auto r = Result::ok();
 				f.templateParameters = TemplateParameter::ListOps::merge(f.templateParameters, function.templateParameters, r);
 				location.test(r);
+
+				for (auto& a : f.args)
+				{
+					if (auto tcd = a.typeInfo.getTypedIfComplexType<TemplatedComplexType>())
+					{
+						a.typeInfo = TypeInfo(tcd->createTemplatedInstance(f.templateParameters, r), a.typeInfo.isConst(), a.typeInfo.isRef());
+
+						location.test(r);
+					}
+				}
 			}
 
 			for (auto& a : f.args)
@@ -587,66 +603,36 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 			jassert(function.id == f.id);
 
-			if ((f.matchesArgumentTypes(parameterTypes) || possibleMatches.size() == 1) && f.matchesTemplateArguments(function.templateParameters))
+			if (f.matchesArgumentTypes(parameterTypes) && f.matchesTemplateArguments(function.templateParameters))
 			{
-				int numArgs = f.args.size();
-
-				if (f.canBeInlined(true))
-				{
-					auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
-
-					SyntaxTreeInlineData d(this, path);
-					d.object = getObjectExpression();
-
-					for (int i = 0; i < getNumArguments(); i++)
-						d.args.add(getArgument(i));
-
-					d.templateParameters = function.templateParameters;
-
-					auto r = f.inlineFunction(&d);
-
-					if (!r.wasOk())
-						location.throwError(r.getErrorMessage());
-
-					d.replaceIfSuccess();
-					return;
-				}
-
-				for (int i = 0; i < numArgs; i++)
-				{
-					setTypeForChild(i + getObjectExpression() != nullptr ? 1 : 0, f.args[i].typeInfo);
-
-					if (f.args[i].isReference())
-					{
-						if (!canBeAliasParameter(getArgument(i)))
-						{
-							throwError("Can't use rvalues for reference parameters");
-						}
-					}
-				}
-
-				if (function.templateParameters.size() != 0)
-				{
-					auto tempParameters = function.templateParameters;
-					TypeInfo t;
-
-					if (!function.returnType.isDynamic())
-						t = function.returnType;
-
-					function = f;
-					function.templateParameters = tempParameters;
-					function.returnType = t.getType() != Types::ID::Dynamic ? t : getTypeInfo();
-				}
-				else
-					function = f;
-
-				tryToResolveType(compiler);
-
+				inlineAndSetType(compiler, f);
 				return;
 			}
 		}
 
-		throwError("Wrong argument types for function call");
+		for (auto& f : possibleMatches)
+		{
+			if (f.matchesArgumentTypesWithDefault(parameterTypes))
+			{
+				addDefaultParameterExpressions(f);
+				inlineAndSetType(compiler, f);
+				return;
+			}
+		}
+		
+		String s;
+		
+		s << "Can't resolve " << function.id.toString() << "(";
+
+		for (auto pt : parameterTypes)
+		{
+			s << pt.toString() << ", ";
+		};
+
+		s = s.upToLastOccurrenceOf(", ", false, false);
+		s << ")";
+
+		throwError(s);
 	}
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
@@ -849,6 +835,9 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 bool Operations::FunctionCall::shouldInlineFunctionCall(BaseCompiler* compiler, BaseScope* scope) const
 {
+	if (!allowInlining)
+		return false;
+
 	if (callType == InbuiltFunction)
 		return true;
 
@@ -1016,6 +1005,121 @@ void Operations::FunctionCall::setObjectExpression(Ptr e)
 		hasObjectExpression = true;
 		addStatement(e.get(), true);
 	}
+}
+
+void Operations::FunctionCall::inlineAndSetType(BaseCompiler* compiler, const FunctionData& f)
+{
+	int numArgs = f.args.size();
+
+	for (int i = 0; i < numArgs; i++)
+	{
+		setTypeForChild(i + ((getObjectExpression() != nullptr) ? 1 : 0), f.args[i].typeInfo);
+
+		if (f.args[i].isReference())
+		{
+			if (!canBeReferenced(getArgument(i)))
+			{
+				throwError("Can't use rvalues for reference parameters");
+			}
+		}
+	}
+
+	if (allowInlining && f.canBeInlined(true))
+	{
+		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
+
+		SyntaxTreeInlineData d(this, path);
+		d.object = getObjectExpression();
+
+		for (int i = 0; i < getNumArguments(); i++)
+			d.args.add(getArgument(i));
+
+		d.templateParameters = function.templateParameters;
+
+		auto r = f.inlineFunction(&d);
+
+		if (!r.wasOk())
+			location.throwError(r.getErrorMessage());
+
+		d.replaceIfSuccess();
+		return;
+	}
+
+	if (function.templateParameters.size() != 0)
+	{
+		auto tempParameters = function.templateParameters;
+		TypeInfo t;
+
+		if (!function.returnType.isDynamic())
+			t = function.returnType;
+
+		function = f;
+		function.templateParameters = tempParameters;
+		function.returnType = t.getType() != Types::ID::Dynamic ? t : getTypeInfo();
+	}
+	else
+		function = f;
+
+	if (!allowInlining)
+		function.inliner = nullptr;
+
+	tryToResolveType(compiler);
+}
+
+void Operations::FunctionCall::addDefaultParameterExpressions(const FunctionData& f)
+{
+	int numDefinedArguments = getNumArguments();
+
+	Statement::List args;
+
+	for (int i = 0; i < getNumArguments(); i++)
+		args.add(getArgument(i));
+
+	for (int i = numDefinedArguments; i < f.args.size(); i++)
+	{
+		auto e = f.getDefaultExpression(f.args[i]);
+
+		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
+
+		SyntaxTreeInlineData d(this, path);
+		d.object = getObjectExpression();
+		
+		std::swap(d.args, args);
+		
+		d.templateParameters = function.templateParameters;
+		auto ok = e(&d);
+
+		location.test(ok);
+		std::swap(d.args, args);
+	}
+	
+	Array<TypeInfo> typesAfterDefault;
+
+	for (auto a : args)
+		typesAfterDefault.add(a->getTypeInfo());
+
+	if (!f.matchesArgumentTypes(typesAfterDefault))
+		location.throwError("Can't deduce proper default values");
+
+	for (int i = numDefinedArguments; i < args.size(); i++)
+	{
+		addArgument(args[i]);
+		SyntaxTreeInlineData::processUpToCurrentPass(this, args[i]);
+	}
+}
+
+void FunctionData::setDefaultParameter(const Identifier& argId, const VariableStorage& immediateValue)
+{
+	auto newDefaultParameter = new DefaultParameter();
+	newDefaultParameter->id = Symbol(id.getChildId(argId), TypeInfo(immediateValue.getType()));
+	newDefaultParameter->expressionBuilder = [immediateValue](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+		d->args.add(new Operations::Immediate(d->location, immediateValue));
+		return Result::ok();
+	};
+
+	defaultParameters.add(newDefaultParameter);
 }
 
 }

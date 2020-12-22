@@ -489,7 +489,28 @@ BlockParser::StatementPtr NewClassParser::parseFunction(const Symbol& s)
 
 			auto s = parseNewSymbol(NamespaceHandler::Variable);
 			fData.args.add(s);
-			func->parameters.add(s.id.id);
+			auto argumentId = s.id.id;
+
+			func->parameters.add(argumentId);
+
+			if (matchIf(JitTokens::assign_))
+			{
+				auto defaultExpression = parseExpression();
+
+				if (defaultExpression->isConstExpr())
+				{
+					fData.setDefaultParameter(argumentId, defaultExpression->getConstExprValue());
+				}
+				else
+				{
+					fData.setDefaultParameter(argumentId, [defaultExpression](InlineData* b)
+					{
+						auto d = b->toSyntaxTreeData();
+						d->args.add(defaultExpression->clone(d->location));
+						return Result::ok();
+					});
+				}
+			}
 
 			matchIf(JitTokens::comma);
 		}

@@ -195,7 +195,9 @@ struct Operations::FunctionCall : public Expression
 
 	bool shouldInlineFunctionCall(BaseCompiler* compiler, BaseScope* scope) const;
 
-	static bool canBeAliasParameter(Ptr e);
+	void addDefaultParameterExpressions(const FunctionData& f);
+
+	void inlineAndSetType(BaseCompiler* compiler, const FunctionData& f);
 
 	void inlineFunctionCall(AsmCodeGenerator& acg);
 
@@ -213,7 +215,14 @@ struct Operations::FunctionCall : public Expression
 
 	ReferenceCountedArray<AssemblyRegister> parameterRegs;
 
+	void setAllowInlining(bool canBeInlined)
+	{
+		allowInlining = canBeInlined;
+	}
+
 private:
+
+	bool allowInlining = true;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionCall);
 
