@@ -195,7 +195,7 @@ struct ExternalDataProviderBase
 	virtual int getNumRequiredDataObjects(ExternalData::DataType t) const = 0;
 
 	/** Override this method and forward the block with the given index to the internal data. */
-	virtual void setExternalData(int index, const ExternalData& data) = 0;
+	virtual void setExternalData(const ExternalData& data, int index) = 0;
 
 	virtual ~ExternalDataProviderBase() {};
 

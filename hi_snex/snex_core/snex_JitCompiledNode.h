@@ -42,7 +42,7 @@ struct JitCompiledNode : public ReferenceCountedObject,
 {
 	int getNumRequiredDataObjects(ExternalData::DataType t) const override;
 
-	void setExternalData(int index, const ExternalData& b) override;
+	void setExternalData(const ExternalData& b, int index) override;
 
 	using CompilerInitFunction = std::function<void(Compiler& c, int numChannels)>;
 

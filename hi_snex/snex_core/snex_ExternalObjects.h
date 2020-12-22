@@ -36,99 +36,32 @@ namespace snex {
 namespace Types {
 using namespace juce;
 
-template <typename T> struct _ramp
+
+struct LibraryBuilderBase
 {
-	using Type = _ramp<T>;
-
-	struct Wrapper
+	LibraryBuilderBase(Compiler& c_, int numChannels_):
+		c(c_),
+		numChannels(numChannels_)
 	{
-		JIT_MEMBER_WRAPPER_0(void, Type, reset);
-		JIT_MEMBER_WRAPPER_1(void, Type, set, T);
-		JIT_MEMBER_WRAPPER_0(T, Type, advance);
-		JIT_MEMBER_WRAPPER_0(T, Type, get);
-		JIT_MEMBER_WRAPPER_2(void, Type, prepare, double, double);
-	};
 
-	/** Stops the ramping and sets the value to the target. */
-	void reset()
-	{
-		stepsToDo = 0;
-		value = targetValue;
-		delta = T(0);
 	}
 
-	/** Sets a new target value and resets the ramp position to the beginning. */
-	void set(T newTargetValue)
-	{
-		if (numSteps == 0)
-		{
-			value = targetValue;
-			stepsToDo = 0;
-		}
-		else
-		{
-			auto d = newTargetValue - value;
-			delta = d * stepDivider;
-			targetValue = newTargetValue;
-			stepsToDo = numSteps;
-		}
-	}
+	/** Override this and return a namespace. */
+	virtual Identifier getFactoryId() const = 0;
 
-	/** Returns the currently smoothed value and calculates the next ramp value. */
-	T advance()
-	{
-		if (stepsToDo <= 0)
-			return value;
+	NamespacedIdentifier getLibraryNamespace() const { return NamespacedIdentifier(getFactoryId()); }
 
-		auto v = value;
-		value += delta;
-		stepsToDo--;
+	virtual ~LibraryBuilderBase() {};
 
-		return v;
-	}
+	/** override this method and register all types. */
+	virtual Result registerTypes() = 0;
 
-	/** Returns the current value. */
-	T get() const
-	{
-		return value;
-	}
+protected:
 
-	/** Setup the processing. The ramp time will be calculated based on the samplerate. */
-	void prepare(double samplerate, double timeInMilliseconds)
-	{
-		auto msPerSample = 1000.0 / samplerate;
-		numSteps = timeInMilliseconds * msPerSample;
-
-		if (numSteps > 0)
-			stepDivider = T(1) / (T)numSteps;
-	}
-
-	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
-
-	T value = T(0);
-	T targetValue = T(0);
-	T delta = T(0);
-	T stepDivider = T(0);
-
-	int numSteps = 0;
-	int stepsToDo = 0;
+	Compiler& c;
+	const int numChannels;
 };
 
-struct EventWrapper
-{
-	struct Wrapper
-	{
-		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getNoteNumber);
-		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getVelocity);
-		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getChannel);
-		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setVelocity, int);
-		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setChannel, int);
-		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setNoteNumber, int);
-		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getTimeStamp);
-	};
-
-	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
-};
 
 struct ScriptnodeCallbacks
 {
@@ -142,6 +75,8 @@ struct ScriptnodeCallbacks
 		numFunctions
 	};
 
+	static ID getCallbackId(const NamespacedIdentifier& p);
+
 	static Array<NamespacedIdentifier> getIds(const NamespacedIdentifier& p);
 
 	static Array<FunctionData> getAllPrototypes(Compiler& c, int numChannels);
@@ -149,89 +84,12 @@ struct ScriptnodeCallbacks
 	static jit::FunctionData getPrototype(Compiler& c, ID id, int numChannels);
 };
 
-template struct _ramp<float>;
-template struct _ramp<double>;
-
-/** A smoothed float value. 
-
-	This object can be used to get a ramped value for parameter changes etc.
-	
-
-*/
-struct sfloat: public _ramp<float>
-{};
-
-using sdouble = _ramp<double>;
-
-using namespace Types;
-
-
-
-struct PrepareSpecsJIT: public PrepareSpecs
-{
-	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
-};
-
-
-struct ExternalDataJIT : public ExternalData
-{
-	static void referTo(void* obj, block& b, int index)
-	{
-		static_cast<ExternalData*>(obj)->referBlockTo(b, index);
-	}
-
-	static void setDisplayValueStatic(void* obj, double value)
-	{
-		static_cast<ExternalData*>(obj)->setDisplayedValue(value);
-	}
-
-	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
-};
-
-/** This data structure is useful if you're writing any kind of oscillator. 
-
-	It contains the buffer that the signal is supposed to be added to as well
-	as the pitch information and current state.
-
-	It has an overloaded ++-operator that will bump up the uptime.
-
-	@code
-	void process(OscProcessData& d)
-	{
-		for(auto& s: d.data)
-		{
-		    s += Math.sin(d++);
-		}
-	}
-	@endcode
-*/
-struct OscProcessData
-{
-	dyn<float> data;		// 12 bytes
-	double uptime = 0.0;    // 8 bytes
-	double delta = 0.0;     // 8 bytes
-	int voiceIndex = 0;			// 4 bytes
-
-	double operator++()
-	{
-		auto v = uptime;
-		uptime += delta;
-		return v;
-	}
-
-	static snex::ComplexType* createType(Compiler& c);
-};
-
 
 struct SnexObjectDatabase
 {
 	static void registerObjects(Compiler& c, int numChannels);
-	static void createProcessData(Compiler& c, const TypeInfo& eventType);
-	static void createFrameProcessor(Compiler& c);
-	static void registerParameterTemplate(Compiler& c);
+	
 };
-
-
 
 struct OpaqueSnexParameter
 {
@@ -240,9 +98,6 @@ struct OpaqueSnexParameter
 	String name;
 	void* function;
 };
-
-
-
 
 struct SnexTypeConstructData
 {

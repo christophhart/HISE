@@ -40,9 +40,10 @@ int JitCompiledNode::getNumRequiredDataObjects(ExternalData::DataType t) const
 	return numRequiredDataTypes[(int)t];
 }
 
-void JitCompiledNode::setExternalData(int index, const ExternalData& b)
+void JitCompiledNode::setExternalData(const ExternalData& b, int index)
 {
-	setExternalDataFunction.callVoid(index, &b);
+	auto ptr = (void*)&b;
+	setExternalDataFunction.callVoid(ptr, index);
 }
 
 JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& classId, int numChannels_, const CompilerInitFunction& cf) :
@@ -63,21 +64,19 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 	Array<Identifier> fIds;
 
+	// Cheapmaster solution 2000
+	if (s.contains("void setExternalData(const ExternalData&"))
+	{
+		s << "void setExternalData(const ExternalData& d, int index) { instance.setExternalData(d, index); }\n";
+	}
+
 	for (auto f : Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels))
 	{
 		addCallbackWrapper(s, f);
 		fIds.add(f.id.getIdentifier());
 	}
 
-	// Cheapmaster solution 2000
-	if (s.contains("void setExternalData(int"))
-	{
-		s << "void setExternalData(int v, const ExternalData& b) { instance.setExternalData(v, b); }\n";
-	}
-
 	obj = c.compileJitObject(s);
-
-	DBG(c.getAssemblyCode());
 
 	r = c.getCompileResult();
 

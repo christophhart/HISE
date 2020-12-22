@@ -66,7 +66,7 @@ ExternalData ExternalDataHolder::getData(ExternalData::DataType t, int index)
 
 void ExternalDataProviderBase::initExternalData()
 {
-	int totalIndex = -1;
+	int totalIndex = 0;
 
 	if (externalDataHolder == nullptr)
 		return;
@@ -76,7 +76,7 @@ void ExternalDataProviderBase::initExternalData()
 		for (int i = 0; i < getNumRequiredDataObjects(d); i++)
 		{
 			auto b = externalDataHolder->getData(d, i);
-			setExternalData(totalIndex++, b);
+			setExternalData(b, totalIndex++);
 		}
 	};
 
