@@ -482,6 +482,10 @@ struct TypeInfo
 		return typePtr.get();
 	}
 
+	int getRequiredByteSizeNonZero() const;
+
+	int getRequiredAlignmentNonZero() const;
+
 	bool isComplexType() const
 	{
 		return typePtr != nullptr;

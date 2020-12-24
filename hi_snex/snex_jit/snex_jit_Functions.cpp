@@ -1978,5 +1978,25 @@ ExternalTypeParser::ExternalTypeParser(String::CharPointerType location, String:
 }
 
 
+int TypeInfo::getRequiredByteSizeNonZero() const
+{
+	auto s = getRequiredByteSize();
+
+	if (s == 0)
+		return 1;
+
+	return s;
+}
+
+int TypeInfo::getRequiredAlignmentNonZero() const
+{
+	auto s = getRequiredAlignment();
+
+	if (s == 0)
+		return 1;
+
+	return s;
+}
+
 } // end namespace jit
 } // end namespace snex

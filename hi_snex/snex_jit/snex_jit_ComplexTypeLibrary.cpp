@@ -305,6 +305,11 @@ size_t SpanType::getRequiredByteSize() const
 
 size_t SpanType::getRequiredAlignment() const
 {
+	auto elementSize = getElementSize();
+
+	if (elementSize == 0)
+		return 1;
+
 	if (isSimd())
 	{
 		return 16;
@@ -461,16 +466,25 @@ size_t SpanType::getElementSize() const
 	{
 		jassert(elementType.getComplexType()->isFinalised());
 
-		auto alignment = elementType.getRequiredAlignment();
-		int childSize = elementType.getRequiredByteSize();
-		size_t elementPadding = 0;
+		int childSize = elementType.getRequiredByteSizeNonZero();
 
-		if (childSize % alignment != 0)
+		auto alignment = elementType.getRequiredAlignment();
+		
+		if (alignment != 0)
 		{
-			elementPadding = alignment - childSize % alignment;
+			jassert(alignment != 0);
+
+			size_t elementPadding = 0;
+
+			if (childSize % alignment != 0)
+			{
+				elementPadding = alignment - childSize % alignment;
+			}
+
+			childSize += elementPadding;
 		}
 
-		return childSize + elementPadding;
+		return childSize;
 	}
 	else
 		return elementType.getRequiredByteSize();
@@ -1567,7 +1581,7 @@ size_t StructType::getRequiredAlignment() const
 		return f->typeInfo.getRequiredAlignment();
 	}
 
-	return 0;
+	return 1;
 }
 
 size_t StructType::getRequiredAlignment(Member* m)

@@ -936,6 +936,14 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 		}
 		else
 		{
+			if (typePtr->getRequiredByteSize() == 0)
+			{
+				jassert(target->isMemoryLocation());
+				auto mem = target->getAsMemoryLocation().cloneResized(1);
+				cc.mov(mem, 0);
+				return Result::ok();
+			}
+
 			HeapBlock<uint8> data;
 			data.allocate(typePtr->getRequiredByteSize() + typePtr->getRequiredAlignment(), true);
 
@@ -1878,7 +1886,15 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 	if (sizeReg.tempReg->isUnloadedImmediate())
 	{
 		auto offset = sizeReg.tempReg->getImmediateIntValue();
-		cc.lea(endReg.get(), x86::ptr(beginReg.get()).cloneAdjustedAndResized(offset * elementSize, elementSize));
+
+		if (beginReg.tempReg->isMemoryLocation())
+		{
+			cc.lea(endReg.get(), beginReg.tempReg->getAsMemoryLocation().cloneAdjustedAndResized(offset * elementSize, elementSize));
+		}
+		else
+		{
+			cc.lea(endReg.get(), x86::ptr(beginReg.get()).cloneAdjustedAndResized(offset * elementSize, elementSize));
+		}
 	}
 	else
 	{

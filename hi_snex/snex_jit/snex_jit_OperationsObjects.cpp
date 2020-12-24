@@ -202,17 +202,14 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 				{
 					auto reg = compiler->registerPool.getRegisterForVariable(scope, s);
 
-					if (reg->getType() == Types::ID::Pointer && type.getRequiredByteSize() > 0)
+					if (reg->getType() == Types::ID::Pointer)
 					{
-						auto c = acg.cc.newStack(type.getRequiredByteSize(), type.getRequiredAlignment(), "funky");
-
+						auto c = acg.cc.newStack(type.getRequiredByteSizeNonZero(), type.getRequiredAlignmentNonZero());
 						reg->setCustomMemoryLocation(c, false);
 					}
 
 					stackLocations.add(reg);
 				}
-
-
 			}
 		}
 	}
@@ -245,39 +242,38 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 
 				for (auto s : stackLocations)
 				{
-					if (type.getRequiredByteSize() > 0)
+					auto sizeToInitialise = type.getRequiredByteSizeNonZero();
+
+					if (initValues == nullptr && overloadedAssignOp.canBeInlined(false))
 					{
-						if (initValues == nullptr && overloadedAssignOp.canBeInlined(false))
+						AsmInlineData d(acg);
+
+						d.object = s;
+						d.target = s;
+						d.args.add(s);
+						d.args.add(getSubRegister(0));
+
+						auto r = overloadedAssignOp.inlineFunction(&d);
+
+						if (!r.wasOk())
+							location.throwError(r.getErrorMessage());
+					}
+					else
+					{
+						if (s->getType() == Types::ID::Pointer)
 						{
-							AsmInlineData d(acg);
+							if (initValues != nullptr)
+							{
+								auto r = acg.emitStackInitialisation(s, type.getComplexType(), nullptr, initValues);
 
-							d.object = s;
-							d.target = s;
-							d.args.add(s);
-							d.args.add(getSubRegister(0));
-
-							auto r = overloadedAssignOp.inlineFunction(&d);
-
-							if (!r.wasOk())
-								location.throwError(r.getErrorMessage());
+								location.test(r);
+							}
+							else if (getSubRegister(0) != nullptr)
+								acg.emitComplexTypeCopy(s, getSubRegister(0), type.getComplexType());
 						}
 						else
 						{
-							if (s->getType() == Types::ID::Pointer)
-							{
-								if (initValues != nullptr)
-								{
-									auto r = acg.emitStackInitialisation(s, type.getComplexType(), nullptr, initValues);
-
-									location.test(r);
-								}
-								else if (getSubRegister(0) != nullptr)
-									acg.emitComplexTypeCopy(s, getSubRegister(0), type.getComplexType());
-							}
-							else
-							{
-								acg.emitSimpleToComplexTypeCopy(s, initValues, getSubExpr(0) != nullptr ? getSubRegister(0) : nullptr);
-							}
+							acg.emitSimpleToComplexTypeCopy(s, initValues, getSubExpr(0) != nullptr ? getSubRegister(0) : nullptr);
 						}
 					}
 				}
