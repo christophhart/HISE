@@ -98,6 +98,41 @@ bool SpanType::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* da
 	return false;
 }
 
+juce::Result SpanType::callDestructor(DeconstructData& d)
+{
+	for (int i = 0; i < getNumElements(); i++)
+	{
+		if (auto typePtr = getElementType().getComplexType())
+		{
+			if (typePtr->hasDestructor())
+			{
+				DeconstructData sd;
+				ScopedPointer<SyntaxTreeInlineData> inner;
+				auto offset = getElementSize() * i;
+
+				if (d.dataPointer != nullptr)
+				{
+					sd.dataPointer = ComplexType::getPointerWithOffset(d.dataPointer, offset);
+				}
+				else
+				{
+					auto outer = d.inlineData->toSyntaxTreeData();
+					jassert(outer != nullptr);
+					inner = new SyntaxTreeInlineData(*outer);
+					inner->object = new Operations::MemoryReference(outer->location, outer->object, elementType, offset);
+				}
+
+				auto r = typePtr->callDestructor(sd);
+
+				if (!r.wasOk())
+					return r;
+			}
+		}
+	}
+
+	return Result::ok();
+}
+
 snex::jit::FunctionClass* SpanType::getFunctionClass()
 {
 	NamespacedIdentifier sId("span");
@@ -1242,7 +1277,7 @@ juce::Result StructType::initialise(InitData d)
 			{
 				InitData c;
 				c.initValues = d.initValues->createChildList(index);
-				c.callConstructor = m->typeInfo.getComplexType()->hasConstructor();
+				c.callConstructor = d.callConstructor && m->typeInfo.getComplexType()->hasConstructor();
 
 				AssemblyMemory cm;
 
@@ -1538,6 +1573,68 @@ size_t StructType::getRequiredAlignment() const
 size_t StructType::getRequiredAlignment(Member* m)
 {
 return m->typeInfo.getRequiredAlignment();
+}
+
+bool StructType::hasDestructor()
+{
+	if (ComplexType::hasDestructor())
+		return true;
+
+	for (auto m : memberData)
+	{
+		if (auto p = m->typeInfo.getTypedIfComplexType<ComplexType>())
+		{
+			if (p->hasDestructor())
+				return true;
+		}
+	}
+
+	return false;
+}
+
+juce::Result StructType::callDestructor(DeconstructData& d)
+{
+	if (ComplexType::hasDestructor())
+	{
+		auto r = ComplexType::callDestructor(d);
+
+		if (!r.wasOk())
+			return r;
+	}
+
+	// Deinitialize in the reverse order...
+	for (int i = memberData.size() - 1; i >= 0; i--)
+	{
+		if (auto typePtr = memberData[i]->typeInfo.getTypedIfComplexType<ComplexType>())
+		{
+			if (typePtr->hasDestructor())
+			{
+				ScopedPointer<SyntaxTreeInlineData> inner;
+				DeconstructData sd;
+				auto offset = memberData[i]->offset;
+
+				if (d.dataPointer != nullptr)
+				{
+					sd.dataPointer = ComplexType::getPointerWithOffset(d.dataPointer, offset);
+				}
+				else
+				{
+					jassert(d.inlineData != nullptr);
+					auto outer = d.inlineData->toSyntaxTreeData();
+					inner = new SyntaxTreeInlineData(*d.inlineData->toSyntaxTreeData());
+					inner->expression = new Operations::MemoryReference(outer->location, outer->expression, memberData[i]->typeInfo, offset);
+				}
+
+				sd.inlineData = inner.get();
+				auto r = typePtr->callDestructor(sd);
+
+				if (!r.wasOk())
+					return r;
+			}
+		}
+	}
+	
+	return Result::ok();
 }
 
 bool StructType::hasConstructor()

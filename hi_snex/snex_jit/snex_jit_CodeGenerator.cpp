@@ -947,6 +947,9 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 			initData.dataPointer = start;
 			initData.initValues = list;
 
+			// Do not call the constructor, since it will be called later on...
+			initData.callConstructor = false;
+
 			auto r = typePtr->initialise(initData);
 
 			if (!r.wasOk())

@@ -824,21 +824,8 @@ struct AsmInlineData: public InlineData
 
 Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 {
-	InitData defaultValues;
-	defaultValues.callConstructor = false;
-	defaultValues.dataPointer = data;
-	defaultValues.initValues = makeDefaultInitialiserList();
-
 	
 
-	auto r = initialise(defaultValues);
-
-	
-	if (hasDefaultConstructor())
-	{
-		// Now change the init values so that it won't fail the type check
-		initList = new InitialiserList();
-	}
 	
 
 	FunctionClass::Ptr fc = getFunctionClass();
@@ -849,6 +836,23 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 
 		if (cf.function == nullptr)
 			return Result::ok();
+
+		InitData defaultValues;
+		defaultValues.callConstructor = false;
+		defaultValues.dataPointer = data;
+		defaultValues.initValues = makeDefaultInitialiserList();
+
+
+
+		auto r = initialise(defaultValues);
+
+
+		if (hasDefaultConstructor())
+		{
+			// Now change the init values so that it won't fail the type check
+			initList = new InitialiserList();
+		}
+
 
 		TypeInfo::List providedArgs;
 		
@@ -949,6 +953,51 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 	}
 
 	return Result::ok();
+}
+
+juce::Result ComplexType::callDestructor(DeconstructData& d)
+{
+	if (hasDestructor())
+	{
+		FunctionClass::Ptr fc = getFunctionClass();
+		auto f = fc->getSpecialFunction(FunctionClass::Destructor);
+
+		if (d.dataPointer != nullptr)
+		{
+			if (f.function != nullptr)
+			{
+				f.object = d.dataPointer;
+				f.callVoid();
+				return Result::ok();
+			}
+
+			return Result::fail("no function pointer found");
+		}
+		else
+		{
+			auto st = d.inlineData->toSyntaxTreeData();
+			auto call = new Operations::FunctionCall(st->location, nullptr, Symbol(f.id, f.returnType), f.templateParameters);
+			call->setObjectExpression(st->expression->clone(st->location));
+
+			st->object->addStatement(call);
+			st->processUpToCurrentPass(st->object, call);
+
+			return Result::ok();
+		}
+	}
+
+	return Result::fail("no destructor");
+	
+}
+
+bool ComplexType::hasDestructor()
+{
+	if (FunctionClass::Ptr fc = getFunctionClass())
+	{
+		return fc->getSpecialFunction(FunctionClass::Destructor).id.isValid();
+	}
+
+	return false;
 }
 
 bool ComplexType::hasConstructor()

@@ -48,6 +48,7 @@ struct AssemblyMemory;
 
 struct SubTypeConstructData;
 struct FunctionData;
+struct InlineData;
 
 struct ComplexType : public ReferenceCountedObject
 {
@@ -59,6 +60,13 @@ struct ComplexType : public ReferenceCountedObject
 		void* dataPointer = nullptr;
 		InitialiserList::Ptr initValues;
 		bool callConstructor = false;
+	};
+
+
+	struct DeconstructData
+	{
+		InlineData* inlineData = nullptr;
+		void* dataPointer = nullptr;
 	};
 
 	ComplexType()
@@ -97,6 +105,10 @@ struct ComplexType : public ReferenceCountedObject
 	virtual InitialiserList::Ptr makeDefaultInitialiserList() const = 0;
 
 	virtual Result callConstructor(void* data, InitialiserList::Ptr initList);
+
+	virtual Result callDestructor(DeconstructData& d);
+
+	virtual bool hasDestructor();
 
 	virtual bool hasConstructor();
 
@@ -1446,6 +1458,7 @@ struct FunctionClass: public DebugableObjectBase,
 		Subscript,
 		ToSimdOp,
 		Constructor,
+		Destructor,
 		numOperatorOverloads
 	};
 
@@ -1460,6 +1473,7 @@ struct FunctionClass: public DebugableObjectBase,
 		case ToSimdOp:		 return "toSimd";
 		case BeginIterator:  return "begin";
 		case SizeFunction:	 return "size";
+		case Destructor:     return Identifier("~" + classId.getIdentifier().toString());
 		case Constructor:    return classId.getIdentifier();
 		}
 
@@ -1468,12 +1482,9 @@ struct FunctionClass: public DebugableObjectBase,
 
 	bool hasSpecialFunction(SpecialSymbols s) const
 	{
-		
-
 		auto id = getClassName().getChildId(getSpecialSymbol(getClassName(), s));
 		return hasFunction(id);
 	}
-
 
 	void addSpecialFunctions(SpecialSymbols s, Array<FunctionData>& possibleMatches) const
 	{

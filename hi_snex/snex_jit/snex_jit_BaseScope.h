@@ -174,7 +174,10 @@ public:
 
 	RootClassData();
 
-	
+	~RootClassData()
+	{
+		callRootDestructors();
+	}
 
 	void enlargeAllocatedSize(const TypeInfo& t)
 	{
@@ -237,6 +240,8 @@ public:
 	Result initSubClassMembers(ComplexType::Ptr type, const Identifier& memberId, InitialiserList::Ptr initList);
 
 	Result initData(BaseScope* scope, const Symbol& s, InitialiserList::Ptr initValues);
+
+	Result callRootDestructors();
 
 	Result callRootConstructors();
 

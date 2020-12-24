@@ -152,7 +152,8 @@ public:
 
 			executePass(FunctionCompilation, newScope->pimpl, sTree);
 
-			lastResult = newScope->pimpl->getRootData()->callRootConstructors();
+			if(lastResult.wasOk())
+				lastResult = newScope->pimpl->getRootData()->callRootConstructors();
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
 		{
@@ -365,6 +366,12 @@ BlockParser::StatementPtr NewClassParser::parseStatement()
 	if (matchIf(JitTokens::class_))
 	{
 		return parseSubclass(NamespaceHandler::Visibility::Private);
+	}
+
+	if (matchIf(JitTokens::destructor))
+	{
+		matchType(templateArguments);
+		return parseComplexTypeDefinition(true);
 	}
 
 	if (matchIfType(templateArguments))
@@ -813,26 +820,47 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 #endif
 }
 
-snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition()
+snex::jit::BlockParser::StatementPtr BlockParser::parseComplexTypeDefinition(bool mustBeDestructor)
 {
 	jassert(getCurrentComplexType() != nullptr);
 
 	Array<NamespacedIdentifier> ids;
 
-	auto t = currentTypeInfo;
+	
 
 	auto typePtr = getCurrentComplexType();
+
+	if (mustBeDestructor)
+		currentTypeInfo = TypeInfo(Types::ID::Void);
+
+	auto t = currentTypeInfo;
+
 	auto rootId = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
 
 	bool isConstructor = rootId.toString() == typePtr->toString();
 
+
+
 	if (isConstructor)
-		ids.add(rootId.getChildId(FunctionClass::getSpecialSymbol(rootId, FunctionClass::Constructor)));
+	{
+		if (mustBeDestructor)
+			ids.add(rootId.getChildId(FunctionClass::getSpecialSymbol(rootId, FunctionClass::Destructor)));
+		else
+			ids.add(rootId.getChildId(FunctionClass::getSpecialSymbol(rootId, FunctionClass::Constructor)));
+	}
 	else
+	{
+		if (mustBeDestructor)
+			location.throwError("Expected destructor()");
+
 		ids.add(rootId.getChildId(parseIdentifier()));
+	}
+		
 
 	if (matchIf(JitTokens::openParen))
 	{
+		
+
  		Symbol s(ids.getFirst(), t);
 
 		CommentAttacher ca(*this);

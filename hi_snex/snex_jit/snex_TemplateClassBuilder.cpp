@@ -104,7 +104,7 @@ snex::jit::TemplateObject TemplateClassBuilder::createTemplateObject()
 			}
 			else
 			{
-				if (!cd.expectIsComplexType(i))
+				if (!cd.expectType(i))
 					return ptr;
 			}
 		}

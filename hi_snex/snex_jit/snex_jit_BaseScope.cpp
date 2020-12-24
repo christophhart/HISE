@@ -313,6 +313,30 @@ juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, Initiali
 	return Result::fail("not found");
 }
 
+juce::Result RootClassData::callRootDestructors()
+{
+	auto r = Result::ok();
+
+	for (const auto& ts : symbolTable)
+	{
+		if (auto typePtr = ts.s.typeInfo.getTypedIfComplexType<ComplexType>())
+		{
+			if (typePtr->hasDestructor())
+			{
+				ComplexType::DeconstructData d;
+				d.dataPointer = ts.data;
+
+				r = typePtr->callDestructor(d);
+
+				if (!r.wasOk())
+					return r;
+			}
+		}
+	}
+
+	return r;
+}
+
 juce::Result RootClassData::callRootConstructors()
 {
 	auto r = Result::ok();

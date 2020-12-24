@@ -48,7 +48,7 @@ using namespace juce;
     X(moduloEquals,  "%=")       X(modulo,       "%")       X(xorEquals,    "^=")   X(bitwiseXor, "^") \
     X(andEquals,     "&=")       X(logicalAnd,   "&&")      X(bitwiseAnd,   "&") \
     X(orEquals,      "|=")       X(logicalOr,    "||")      X(bitwiseOr,    "|") \
-     X(lessThanOrEqual,  "<=")  X(lessThan,   "<") \
+     X(lessThanOrEqual,  "<=")  X(lessThan,   "<")  		X(destructor,   "~") \
       X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")
 
 #define HNODE_JIT_KEYWORDS(X) \

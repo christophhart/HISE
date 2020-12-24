@@ -60,6 +60,50 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 
 	processBaseWithChildren(compiler, bs);
 
+	auto path = getPath();
+
+	COMPILER_PASS(BaseCompiler::DataAllocation)
+	{
+		Array<Symbol> destructorIds;
+
+		forEachRecursive([path, &destructorIds, scope](Ptr p)
+		{
+			if (auto cd = as<ComplexTypeDefinition>(p))
+			{
+				if (cd->isStackDefinition(scope))
+				{
+					if (cd->type.getComplexType()->hasDestructor())
+					{
+						for (auto& id : cd->getInstanceIds())
+						{
+							if (path == id.getParent())
+							{
+								destructorIds.add(Symbol(id, cd->type));
+							}
+						}
+					}
+				}
+			}
+
+			return false;
+		});
+
+		//  Reverse the order of destructor execution.
+		for (int i = destructorIds.size() - 1; i >= 0; i--)
+		{
+			auto id = destructorIds[i];
+
+			ComplexType::DeconstructData d;
+			ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(this, getPath());
+
+			d.inlineData = b.get();
+			b->object = this;
+			b->expression = new Operations::VariableReference(location, id);
+			auto r = id.typeInfo.getComplexType()->callDestructor(d);
+			location.test(r);
+		}
+	}
+
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
 		if (hasReturnType())

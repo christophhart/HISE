@@ -556,7 +556,7 @@ public:
 
 	Array<TemplateParameter> parseTemplateParameters(bool parseTemplateDefinition);
 
-	StatementPtr parseComplexTypeDefinition();
+	StatementPtr parseComplexTypeDefinition(bool mustBeConstructor=false);
 
 	virtual StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids);
 

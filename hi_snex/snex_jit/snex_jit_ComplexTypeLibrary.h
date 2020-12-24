@@ -142,6 +142,18 @@ struct SpanType : public ArrayTypeBase
 	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
 
+	Result callDestructor(DeconstructData& data) override;
+
+	bool hasDestructor() override
+	{
+		if (auto typePtr = getElementType().getTypedIfComplexType<ComplexType>())
+		{
+			return typePtr->hasDestructor();
+		}
+
+		return false;
+	}
+
 	bool hasConstructor() override
 	{
 		if (auto typePtr = getElementType().getTypedIfComplexType<ComplexType>())
@@ -254,6 +266,11 @@ struct DynType : public ArrayTypeBase
 		return true;
 	}
 
+	bool hasDestructor() override
+	{
+		return false;
+	}
+
 	static IndexType getIndexType(const TypeInfo& t);
 
 	TypeInfo getElementType() const override { return elementType; }
@@ -311,6 +328,10 @@ struct StructType : public ComplexType,
 
 		return Types::ID::Pointer;
 	}
+
+	bool hasDestructor() override;
+
+	Result callDestructor(DeconstructData& d) override;
 
 	bool hasConstructor() override;
 
