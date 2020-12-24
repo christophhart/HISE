@@ -310,7 +310,7 @@ public:
 };
 
 
-struct combined_parameter_base
+template <int NumVoices> struct combined_parameter_base
 {
 	struct Data
 	{
@@ -321,11 +321,13 @@ struct combined_parameter_base
 		double value = 0.0;
 		double mulValue = 1.0;
 		double addValue = 0.0;
-	} data;
+	};
+	
+	PolyData<Data, NumVoices> data;
 
 	NormalisableRange<double> currentRange;
 
-	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base<NumVoices>);
 };
 
 struct CombinedParameterDisplay : public ModulationSourceBaseComponent
@@ -394,8 +396,6 @@ template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
 	{
 		return &obj.p;
 	}
-
-	
 
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new ParameterMultiplyAddNode<T>(n, d); };
 	static Identifier getStaticId() { return T::getStaticId(); };

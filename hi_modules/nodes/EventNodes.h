@@ -352,15 +352,12 @@ public:
 
 	void reset()
 	{
-		if (t.isMonophonicOrInsideVoiceRendering())
+		auto v = tType.getTimerValue();
+
+		for (auto& ti : t)
 		{
-			t.get().reset();
-			t.get().lastValue = tType.getTimerValue();
-		}
-		else
-		{
-			for (auto& ti : t)
-				ti.reset();
+			ti.reset();
+			ti.lastValue = v;
 		}
 	}
 
@@ -405,8 +402,12 @@ public:
 
 	bool handleModulation(double& value)
 	{
-		if(t.isMonophonicOrInsideVoiceRendering())
-			return t.get().getChangedValue(value);
+		bool ok = false;
+
+		for (auto& ti : t)
+			ok |= ti.getChangedValue(value);
+
+		return ok;
 	}
 
 	void createParameters(ParameterDataList& data)
@@ -429,25 +430,12 @@ public:
 	{
 		bool thisActive = value > 0.5;
 
-		if (t.isMonophonicOrInsideVoiceRendering())
+		for (auto& ti : t)
 		{
-			auto& thisInfo = t.get();
-
-			if (thisInfo.active != thisActive)
+			if (ti.active != thisActive)
 			{
-				thisInfo.active = thisActive;
-				thisInfo.reset();
-			}
-		}
-		else
-		{
-			for (auto& ti : t)
-			{
-				if (ti.active != thisActive)
-				{
-					ti.active = thisActive;
-					ti.reset();
-				}
+				ti.active = thisActive;
+				ti.reset();
 			}
 		}
 	}
@@ -456,17 +444,8 @@ public:
 	{
 		auto newTime = roundToInt(timeMs * 0.001 * sr);
 
-		
-
-		if (t.isMonophonicOrInsideVoiceRendering())
-		{
-			t.get().samplesBetweenCallbacks = newTime;
-		}
-		else
-		{
-			for (auto& ti : t)
-				ti.samplesBetweenCallbacks = newTime;
-		}
+		for (auto& ti : t)
+			ti.samplesBetweenCallbacks = newTime;
 	}
 
 private:
@@ -582,15 +561,8 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 
 	void reset()
 	{
-		if (oscData.isMonophonicOrInsideVoiceRendering())
-		{
-			oscData.get().reset();
-		}
-		else
-		{
-			for (auto& o : oscData)
-				o.reset();
-		}
+		for (auto& o : oscData)
+			o.reset();
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
@@ -614,7 +586,7 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 			op.data.referToRawData(data.getRawDataPointers()[0], data.getNumSamples());
 			op.uptime = thisData.uptime;
 			op.delta = thisData.uptimeDelta * thisData.multiplier;
-			op.voiceIndex = *voiceIndex;
+			op.voiceIndex = voiceIndex->getVoiceIndex();
 			
 			oscType.process(op);
 			thisData.uptime += op.delta * (double)data.getNumSamples();
@@ -644,15 +616,8 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 			auto cyclesPerSecond = newValue;
 			auto cyclesPerSample = cyclesPerSecond / sampleRate;
 
-			if (oscData.isMonophonicOrInsideVoiceRendering())
-			{
-				oscData.get().uptimeDelta = cyclesPerSample;
-			}
-			else
-			{
-				for (auto& o : oscData)
-					o.uptimeDelta = cyclesPerSample;
-			}
+			for (auto& o : oscData)
+				o.uptimeDelta = cyclesPerSample;
 		}
 	}
 
@@ -660,15 +625,8 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 	{
 		newMultiplier = jlimit(0.01, 100.0, newMultiplier);
 
-		if (oscData.isMonophonicOrInsideVoiceRendering())
-		{
-			oscData.get().multiplier = newMultiplier;
-		}
-		else
-		{
-			for (auto& o : oscData)
-				o.multiplier = newMultiplier;
-		}
+		for (auto& o : oscData)
+			o.multiplier = newMultiplier;
 	}
 
 	double sampleRate = 0.0;
@@ -706,7 +664,7 @@ template <int NV, typename T> struct snex_osc_impl: snex_osc_base<T>
 	}
 
 
-	int* voiceIndex = nullptr;
+	PolyHandler* voiceIndex = nullptr;
 	PolyData<OscData, NumVoices> oscData;
 };
 

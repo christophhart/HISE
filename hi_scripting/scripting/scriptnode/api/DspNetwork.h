@@ -166,22 +166,12 @@ public:
 	struct VoiceSetter
 	{
 		VoiceSetter(DspNetwork& p, int newVoiceIndex):
-			n(p),
-			previous(p.voiceIndex)
-		{
-			jassert(previous == -1);
-			n.voiceIndex = newVoiceIndex;
-		}
-
-		~VoiceSetter()
-		{
-			n.voiceIndex = previous;
-		}
+			internalSetter(p.voiceIndex, newVoiceIndex)
+		{}
 
 	private:
 
-		DspNetwork& n;
-		int previous;
+		const snex::Types::PolyHandler::ScopedVoiceSetter internalSetter;
 	};
 
 	class Holder
@@ -310,9 +300,9 @@ public:
 	NodeBase* createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate=false);
 	bool isInSignalPath(NodeBase* b) const;
 
-	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && voiceIndex != -1; }
+	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && voiceIndex.getVoiceIndex() != -1; }
 
-	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || voiceIndex == 0; }
+	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || voiceIndex.getVoiceIndex() == 0; }
 
 	bool isForwardingControlsToParameters() const
 	{
@@ -388,7 +378,7 @@ public:
 		return exceptionHandler;
 	}
 
-	int* getVoiceIndexPtr() { return &voiceIndex; }
+	//int* getVoiceIndexPtr() { return &voiceIndex; }
 
 	void timerCallback() override
 	{
@@ -438,7 +428,7 @@ private:
 
 	const bool isPoly;
 
-	int voiceIndex;
+	snex::Types::PolyHandler voiceIndex;
 
 	SelectedItemSet<NodeBase::Ptr> selection;
 

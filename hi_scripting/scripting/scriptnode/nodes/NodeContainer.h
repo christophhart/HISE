@@ -194,7 +194,7 @@ private:
 	valuetree::ChildListener parameterListener;
 	valuetree::RecursivePropertyListener channelListener;
 
-	int* lastVoiceIndex = nullptr;
+	PolyHandler* lastVoiceIndex = nullptr;
 	bool channelRecursionProtection = false;
 };
 

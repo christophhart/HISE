@@ -269,7 +269,7 @@ void CombinedParameterDisplay::paint(Graphics& g)
 	g.strokePath(midTrack, PathStrokeType(r2));
 	g.strokePath(innerTrack, PathStrokeType(r1));
 	
-	auto data = obj->data;
+	auto data = obj->data.getFirst();
 
 	auto nrm = [r](double v)
 	{

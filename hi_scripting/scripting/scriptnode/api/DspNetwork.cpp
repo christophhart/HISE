@@ -51,7 +51,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ConstScriptingObject(p, 2),
 	data(data_),
 	isPoly(poly),
-	voiceIndex(poly ? -1 : 0),
+	voiceIndex(poly),
 	parentHolder(dynamic_cast<Holder*>(p))
 {
 	ownedFactories.add(new NodeContainerFactory(this));

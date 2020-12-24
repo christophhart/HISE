@@ -167,15 +167,8 @@ void ramp_impl<NV>::setPeriodTime(double periodTimeMs)
 
 		auto newUptimeDelta = jmax(0.0000001, inv / sr);
 
-		if (state.isMonophonicOrInsideVoiceRendering())
-		{
-			state.get().uptimeDelta = newUptimeDelta;
-		}
-		else
-		{
-			for (auto& s : state)
-				s.uptimeDelta = newUptimeDelta;
-		}
+		for (auto& s : state)
+			s.uptimeDelta = newUptimeDelta;
 	}
 }
 
@@ -184,13 +177,8 @@ void ramp_impl<NV>::setLoopStart(double newLoopStart)
 {
 	auto v = jlimit(0.0, 1.0, newLoopStart);
 
-	if (loopStart.isMonophonicOrInsideVoiceRendering())
-		loopStart.get() = v;
-	else
-	{
-		for (auto& d : loopStart)
-			d = v;
-	}
+	for (auto& d : loopStart)
+		d = v;
 }
 
 
@@ -236,18 +224,10 @@ bool ramp_impl<NV>::handleModulation(double& v)
 template <int NV>
 void ramp_impl<NV>::reset() noexcept
 {
-	if (state.isMonophonicOrInsideVoiceRendering())
-	{
-		state.get().reset();
-		currentValue.get() = 0.0;
-	}
-	else
-	{
-		for (auto& s : state)
-			s.reset();
+	for (auto& s : state)
+		s.reset();
 
-		currentValue.setAll(0.0);
-	}
+	currentValue.setAll(0.0);
 }
 
 template <int NV>
@@ -320,6 +300,8 @@ void scriptnode::core::oscillator_impl<NV>::process(snex::Types::ProcessData<1>&
 {
 	auto f = data.toFrameData();
 
+	currentVoiceData = &voiceData.get();
+
 	while (f.next())
 		processFrame(f.toSpan());
 }
@@ -327,15 +309,17 @@ void scriptnode::core::oscillator_impl<NV>::process(snex::Types::ProcessData<1>&
 template <int NV>
 void scriptnode::core::oscillator_impl<NV>::processFrame(snex::Types::span<float, 1>& data)
 {
-	auto& d = voiceData.get();
+	if (currentVoiceData == nullptr)
+		currentVoiceData = &voiceData.get();
+
 	auto& s = data[0];
 
 	switch (currentMode)
 	{
-	case Mode::Sine:	 s += tickSine(d); break;
-	case Mode::Triangle: s += tickTriangle(d); break;
-	case Mode::Saw:		 s += tickSaw(d); break;
-	case Mode::Square:	 s += tickSquare(d); break;
+	case Mode::Sine:	 s += tickSine(*currentVoiceData); break;
+	case Mode::Triangle: s += tickTriangle(*currentVoiceData); break;
+	case Mode::Saw:		 s += tickSaw(*currentVoiceData); break;
+	case Mode::Square:	 s += tickSquare(*currentVoiceData); break;
 	case Mode::Noise:	 s += Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
 	}
 }
@@ -352,13 +336,8 @@ void scriptnode::core::oscillator_impl<NV>::prepare(PrepareSpecs ps)
 template <int NV>
 void scriptnode::core::oscillator_impl<NV>::reset() noexcept
 {
-	if (voiceData.isMonophonicOrInsideVoiceRendering())
-		voiceData.get().reset();
-	else
-	{
-		for (auto& s : voiceData)
-			s.reset();
-	}
+	for (auto& s : voiceData)
+		s.reset();
 }
 
 
@@ -384,15 +363,8 @@ void scriptnode::core::oscillator_impl<NV>::setFrequency(double newFrequency)
 	freqValue = newFrequency;
 	auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
 
-	if (voiceData.isMonophonicOrInsideVoiceRendering())
-	{
-		voiceData.get().uptimeDelta = newUptimeDelta;
-	}
-	else
-	{
-		for (auto& d : voiceData)
-			d.uptimeDelta = newUptimeDelta;
-	}
+	for (auto& d : voiceData)
+		d.uptimeDelta = newUptimeDelta;
 }
 
 template <int NV>
@@ -400,15 +372,8 @@ void scriptnode::core::oscillator_impl<NV>::setPitchMultiplier(double newMultipl
 {
 	auto pitchMultiplier = jlimit(0.01, 100.0, newMultiplier);
 
-	if (voiceData.isMonophonicOrInsideVoiceRendering())
-	{
-		voiceData.get().multiplier = pitchMultiplier;
-	}
-	else
-	{
-		for (auto& d : voiceData)
-			d.multiplier = pitchMultiplier;
-	}
+	for (auto& d : voiceData)
+		d.multiplier = pitchMultiplier;
 }
 
 template <int NV>
@@ -464,17 +429,10 @@ void gain_impl<V>::setSmoothing(double smoothingTimeMs)
 
 	auto sm = smoothingTime;
 
-	if (gainer.isMonophonicOrInsideVoiceRendering())
-	{
-		gainer.get().reset(sr, sm);
-	}
-	else
-	{
-		auto sr_ = sr;
+	auto sr_ = sr;
 
-		for (auto& g : gainer)
-			g.reset(sr_, sm);
-	}
+	for (auto& g : gainer)
+		g.reset(sr_, sm);
 }
 
 template <int V>
@@ -482,15 +440,10 @@ void gain_impl<V>::setGain(double newValue)
 {
 	gainValue = Decibels::decibelsToGain(newValue);
 
-	if (gainer.isMonophonicOrInsideVoiceRendering())
-		gainer.get().setValue((float)gainValue);
-	else
-	{
-		float gf = (float)gainValue;
+	float gf = (float)gainValue;
 
-		for (auto& g : gainer)
-			g.setValue(gf);
-	}
+	for (auto& g : gainer)
+		g.setValue(gf);
 }
 
 template <int V>
@@ -525,29 +478,23 @@ void gain_impl<V>::initialise(NodeBase* n)
 template <int V>
 void gain_impl<V>::reset() noexcept
 {
-
 	if (sr == 0.0)
 		return;
 
 	auto rv = resetValue.getValue();
+	auto useReset = useResetValue.getValue();
 
-	if (gainer.isMonophonicOrInsideVoiceRendering())
+	for (auto& g : gainer)
 	{
-		gainer.get().reset(sr, smoothingTime);
+		g.reset((float)sr, (float)smoothingTime);
 
-		if (useResetValue.getValue())
+		if (useReset)
 		{
-			gainer.get().setValueWithoutSmoothing(rv);
-			gainer.get().setValue((float)gainValue);
+			g.setValueWithoutSmoothing(rv);
+			g.setValue((float)gainValue);
 		}
 		else
-			gainer.get().setValueWithoutSmoothing((float)gainValue);
-	}
-	else
-	{
-		for (auto& g : gainer)
 		{
-			g.reset((float)sr, (float)smoothingTime);
 			g.setValueWithoutSmoothing((float)gainValue);
 		}
 	}
@@ -574,13 +521,8 @@ void smoother_impl<NV>::setDefaultValue(double newDefaultValue)
 
 	auto d = defaultValue; auto sm = smoothingTimeMs;
 
-	if (smoother.isMonophonicOrInsideVoiceRendering())
-		smoother.get().resetToValue((float)d, (float)sm);
-	else
-	{
-		for (auto& s : smoother)
-			s.resetToValue((float)d, (float)sm);
-	}
+	for (auto& s : smoother)
+		s.resetToValue((float)d, (float)sm);
 }
 
 template <int NV>
@@ -588,13 +530,8 @@ void smoother_impl<NV>::setSmoothingTime(double newSmoothingTime)
 {
 	smoothingTimeMs = newSmoothingTime;
 
-	if (smoother.isMonophonicOrInsideVoiceRendering())
-		smoother.get().setSmoothingTime((float)smoothingTimeMs);
-	else
-	{
-		for(auto& s: smoother)
-			s.setSmoothingTime((float)newSmoothingTime);
-	}
+	for (auto& s : smoother)
+		s.setSmoothingTime((float)newSmoothingTime);
 }
 
 template <int NV>
@@ -615,13 +552,8 @@ void smoother_impl<NV>::reset()
 {
 	auto d = defaultValue;
 
-	if (smoother.isMonophonicOrInsideVoiceRendering())
-		smoother.get().resetToValue(defaultValue, 0.0);
-	else
-	{
-		for (auto& s : smoother)
-			s.resetToValue(d, 0.0);
-	}
+	for (auto& s : smoother)
+		s.resetToValue(d, 0.0);
 }
 
 template <int NV>
@@ -707,13 +639,8 @@ void ramp_envelope_impl<V>::prepare(PrepareSpecs ps)
 template <int V>
 void ramp_envelope_impl<V>::reset()
 {
-	if (gainer.isMonophonicOrInsideVoiceRendering())
-		gainer.get().setValueWithoutSmoothing(0.0f);
-	else
-	{
-		for(auto& g: gainer)
-			g.setValueWithoutSmoothing(0.0f);
-	}
+	for (auto& g : gainer)
+		g.setValueWithoutSmoothing(0.0f);
 }
 
 template <int V>
@@ -732,7 +659,8 @@ void ramp_envelope_impl<V>::handleHiseEvent(HiseEvent& e)
 template <int V>
 void ramp_envelope_impl<V>::setGate(double newValue)
 {
-	gainer.getCurrentOrFirst().setTargetValue(newValue > 0.5 ? 1.0f : 0.0f);
+	for(auto& g: gainer)
+		g.setTargetValue(newValue > 0.5 ? 1.0f : 0.0f);
 }
 
 template <int V>
@@ -742,18 +670,8 @@ void ramp_envelope_impl<V>::setRampTime(double newAttackTimeMs)
 
 	if (sr > 0.0)
 	{
-		if (gainer.isMonophonicOrInsideVoiceRendering())
-		{
-			gainer.get().reset(sr, attackTimeSeconds);
-		}
-		else
-		{
-			auto sr_ = sr;
-			auto as = attackTimeSeconds;
-
-			for (auto& g : gainer)
-				g.reset(sr, attackTimeSeconds);
-		}
+		for (auto& g : gainer)
+			g.reset(sr, attackTimeSeconds);
 	}
 }
 
@@ -799,10 +717,7 @@ void hise_mod::prepare(PrepareSpecs ps)
 
 bool hise_mod::handleModulation(double& v)
 {
-	if (modValues.isMonophonicOrInsideVoiceRendering())
-		return modValues.get().getChangedValue(v);
-	else
-		return false;
+	return modValues.get().getChangedValue(v);
 }
 
 
@@ -842,15 +757,10 @@ void hise_mod::setIndex(double index)
 
 void hise_mod::reset()
 {
-	if (modValues.isMonophonicOrInsideVoiceRendering())
-	{
-		modValues.get().setModValue(parentProcessor->getModValueAtVoiceStart(modIndex));
-	}
-	else
-	{
-		for (auto& m : modValues)
-			m.setModValue(1.0);
-	}
+	auto startValue = parentProcessor->getModValueAtVoiceStart(modIndex);
+
+	for (auto& m : modValues)
+		m.setModValue(startValue);
 }
 
 void fm::prepare(PrepareSpecs ps)
@@ -862,13 +772,8 @@ void fm::prepare(PrepareSpecs ps)
 
 void fm::reset()
 {
-	if (oscData.isMonophonicOrInsideVoiceRendering())
-		oscData.get().reset();
-	else
-	{
-		for (auto& o : oscData)
-			o.reset();
-	}
+	for (auto& o : oscData)
+		o.reset();
 }
 
 void fm::createParameters(ParameterDataList& data)
@@ -902,26 +807,16 @@ void fm::handleHiseEvent(HiseEvent& e)
 
 void fm::setFreqMultiplier(double input)
 {
-	if (oscData.isMonophonicOrInsideVoiceRendering())
-		oscData.get().multiplier = input;
-	else
-	{
-		for (auto& o : oscData)
-			o.multiplier = input;
-	}
+	for (auto& o : oscData)
+		o.multiplier = input;
 }
 
 void fm::setModulator(double newGain)
 {
 	auto newValue = newGain * sinTable->getTableSize() * 0.05;
 
-	if (modGain.isMonophonicOrInsideVoiceRendering())
-		modGain.get() = newValue;
-	else
-	{
-		for (auto& m : modGain)
-			m = newValue;
-	}
+	for (auto& m : modGain)
+		m = newValue;
 }
 
 void fm::setFrequency(double newFrequency)
@@ -929,13 +824,8 @@ void fm::setFrequency(double newFrequency)
 	auto freqValue = newFrequency;
 	auto newUptimeDelta = (double)(freqValue / sr * (double)sinTable->getTableSize());
 
-	if (oscData.isMonophonicOrInsideVoiceRendering())
-		oscData.get().uptimeDelta = newUptimeDelta;
-	else
-	{
-		for (auto& o : oscData)
-			o.uptimeDelta = newUptimeDelta;
-	}
+	for (auto& o : oscData)
+		o.uptimeDelta = newUptimeDelta;
 }
 
 } // namespace core

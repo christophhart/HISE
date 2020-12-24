@@ -95,24 +95,8 @@ void scriptnode::math::OpNode<OpType, V>::createParameters(ParameterDataList& da
 template <class OpType, int V>
 void scriptnode::math::OpNode<OpType, V>::setValue(double newValue)
 {
-	if (NumVoices == 1)
-	{
-		value.getMonoValue() = (float)newValue;
-	}
-	else
-	{
-		if (value.isMonophonicOrInsideVoiceRendering())
-		{
-			value.get() = (float)newValue;
-		}
-		else
-		{
-			auto nv = (float)newValue;
-
-			for (auto& v : value)
-				v = nv;
-		}
-	}
+	for (auto& v : value)
+		v = (float)newValue;
 }
 
 #pragma warning( pop)

@@ -98,25 +98,15 @@ struct FilterNodeGraph : public ScriptnodeExtraComponent<CoefficientProvider>
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setMode(double newMode)
 {
-	if (filter.isMonophonicOrInsideVoiceRendering())
-		filter.get().setType((int)newMode);
-	else
-	{
-		for(auto& f: filter)
-			f.setType((int)newMode);
-	}
+	for (auto& f : filter)
+		f.setType((int)newMode);
 }
 
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setQ(double newQ)
 {
-	if (filter.isMonophonicOrInsideVoiceRendering())
-		filter.get().setQ(newQ);
-	else
-	{
-		for(auto& f: filter)
-			f.setQ(newQ);
-	}
+	for (auto& f : filter)
+		f.setQ(newQ);
 }
 
 template <class FilterType, int NV>
@@ -124,43 +114,31 @@ void FilterNodeBase<FilterType, NV>::setGain(double newGain)
 {
 	auto gainValue = Decibels::decibelsToGain(newGain);
 
-	if (filter.isMonophonicOrInsideVoiceRendering())
-		filter.get().setGain(gainValue);
-	else
-	{
-		for (auto& f : filter)
-			f.setGain(gainValue);
-	}
+	for (auto& f : filter)
+		f.setGain(gainValue);
 }
 
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setFrequency(double newFrequency)
 {
-	if (filter.isMonophonicOrInsideVoiceRendering())
-		filter.get().setFrequency(newFrequency);
-	else
-	{
-		for (auto& f : filter)
-			f.setFrequency(newFrequency);
-	}
+	for (auto& f : filter)
+		f.setFrequency(newFrequency);
 }
 
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::reset()
 {
-	if (filter.isMonophonicOrInsideVoiceRendering())
-		filter.get().reset();
-	else
-	{
-		for (auto& f : filter)
-			f.reset();
-	}
+	for (auto& f : filter)
+		f.reset();
 }
 
 template <class FilterType, int NV>
 IIRCoefficients FilterNodeBase<FilterType, NV>::getCoefficients()
 {
-	return filter.getCurrentOrFirst().getApproximateCoefficients();
+	for(auto& f: filter)
+		return f.getApproximateCoefficients();
+
+	return {};
 }
 
 template <class FilterType, int NV>
@@ -214,7 +192,13 @@ void FilterNodeBase<FilterType, NV>::createParameters(ParameterDataList& paramet
 	}
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Mode);
-		p.setParameterValueNames(filter.getCurrentOrFirst().getModes());
+
+		for (auto& f : filter)
+		{
+			p.setParameterValueNames(f.getModes());
+			break;
+		}
+		
 		parameters.add(std::move(p));
 	}
 }
@@ -223,13 +207,8 @@ void FilterNodeBase<FilterType, NV>::createParameters(ParameterDataList& paramet
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setSmoothing(double newSmoothingTime)
 {
-	if (filter.isMonophonicOrInsideVoiceRendering())
-		filter.get().setSmoothingTime(newSmoothingTime);
-	else
-	{
-		for(auto& f: filter)
-			f.setSmoothingTime(newSmoothingTime);
-	}
+	for (auto& f : filter)
+		f.setSmoothingTime(newSmoothingTime);
 }
 
 #define DEFINE_FILTER_NODE_TEMPIMPL(className) template class FilterNodeBase<hise::MultiChannelFilter<className>, 1>; \
@@ -300,20 +279,11 @@ void scriptnode::filters::fir_impl<NV>::reset()
 {
 	SimpleReadWriteLock::ScopedReadLock sl(coefficientLock, true);
 
-	if (leftFilters.isMonophonicOrInsideVoiceRendering())
-	{
-		leftFilters.get().reset();
-		rightFilters.get().reset();
-	}
+	for (auto& f : leftFilters)
+		f.reset();
 
-	else
-	{
-		for (auto& f : leftFilters)
-			f.reset();
-
-		for (auto& f : rightFilters)
-			f.reset();
-	}
+	for (auto& f : rightFilters)
+		f.reset();
 }
 
 template <int NV>

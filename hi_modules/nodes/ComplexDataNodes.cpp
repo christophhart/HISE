@@ -82,18 +82,10 @@ void scriptnode::seq_impl<NV>::prepare(PrepareSpecs ps)
 template <int NV>
 void scriptnode::seq_impl<NV>::reset()
 {
-	if (lastIndex.isMonophonicOrInsideVoiceRendering())
-	{
-		lastIndex.get() = -1;
-		modValue.get().setModValue(0.0);
-	}
-	else
-	{
-		lastIndex.setAll(-1);
+	lastIndex.setAll(-1);
 
-		for(auto& mv: modValue)
-			mv.setModValue(0.0);
-	}
+	for (auto& mv : modValue)
+		mv.setModValue(0.0);
 }
 
 template <int NV>

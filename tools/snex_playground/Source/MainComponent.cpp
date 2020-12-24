@@ -200,7 +200,7 @@ juce::String getEmpty(const Identifier& namespaceId)
 
 struct test_table
 {
-	GET_SELF_AS_OBJECT(test_table);
+	SN_GET_SELF_AS_OBJECT(test_table);
 
 	static const int NumTables = 1;
 	static const int NumSliderPacks = 0;
@@ -212,7 +212,7 @@ struct test_table
 	HISE_EMPTY_PROCESS_SINGLE;
 	HISE_EMPTY_HANDLE_EVENT;
 
-	void setExternalData(int index, const ExternalData& d)
+	void setExternalData(const ExternalData& d, int index)
 	{
 		d.referBlockTo(internalData, 0);
 	}
@@ -282,17 +282,17 @@ struct TestHandler
 		auto& x = d.get<0>();
 	}
 
-	void setExternalData(testcontainer& d, int index, const ExternalData& b)
+	void setExternalData(testcontainer& d, const ExternalData& b, int index)
 	{
 		if (index == -1)
 		{
-			d.get<2>().setExternalData(0, ExternalData(table23));
+			d.get<2>().setExternalData(ExternalData(table23), index);
 		}
 
 		if (index == 0)
 		{
-			d.get<0>().setExternalData(0, b);
-			d.get<1>().setExternalData(0, b);
+			d.get<0>().setExternalData(b, 0);
+			d.get<1>().setExternalData(b, 0);
 		} 
 	}
 
@@ -332,9 +332,9 @@ template <typename T> struct HardcodedExternalHandler: public snex::ExternalData
 	HISE_DEFAULT_PROCESS_FRAME(HardcodedExternalHandler);
 	HISE_DEFAULT_HANDLE_EVENT(HardcodedExternalHandler);
 
-	void setExternalData(int index, const ExternalData& d) override
+	void setExternalData(const ExternalData& d, int index) override
 	{
-		obj.setExternalData(index, d);
+		obj.setExternalData(d, index);
 	}
 
 	T obj;
@@ -348,7 +348,10 @@ MainComponent::MainComponent() :
 
 	HardcodedExternalHandler<MyProcessor> funkyNode;
 
-	
+	snex::Types::PolyData<int, 19> d4;
+
+	for (auto& s : d4)
+		s = 90;
 
 	auto compileThread = new snex::jit::TestCompileThread(data);
 	data->setCompileHandler(compileThread);

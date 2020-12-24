@@ -50,13 +50,8 @@ void sampleandhold_impl<V>::setCounter(double value)
 {
 	auto factor = jlimit(1, 44100, roundToInt(value));
 
-	if (data.isMonophonicOrInsideVoiceRendering())
-		data.get().factor = factor;
-	else
-	{
-		for (auto& d : data)
-			d.factor = factor;
-	}
+	for (auto& d : data)
+		d.factor = factor;
 }
 
 template <int V>
@@ -73,13 +68,8 @@ void sampleandhold_impl<V>::createParameters(ParameterDataList& d)
 template <int V>
 void sampleandhold_impl<V>::reset() noexcept
 {
-	if (data.isMonophonicOrInsideVoiceRendering())
-		data.get().clear(lastChannelAmount);
-	else
-	{
-		for (auto& d : data)
-			d.clear(lastChannelAmount);
-	}
+	for (auto& d : data)
+		d.clear(lastChannelAmount);
 }
 
 template <int V>
@@ -110,10 +100,8 @@ void bitcrush_impl<V>::setBitDepth(double newBitDepth)
 {
 	auto v = jlimit(1.0f, 16.0f, (float)newBitDepth);
 
-	if (bitDepth.isMonophonicOrInsideVoiceRendering())
-		bitDepth.get() = v;
-	else
-		bitDepth.setAll(v);
+	for (auto& b : bitDepth)
+		b = v;
 }
 
 template <int V>
@@ -176,18 +164,10 @@ void phase_delay_impl<V>::prepare(PrepareSpecs ps)
 template <int V>
 void scriptnode::fx::phase_delay_impl<V>::reset() noexcept
 {
-	if (delays[0].isMonophonicOrInsideVoiceRendering())
+	for (auto& ds : delays)
 	{
-		delays[0].get().reset();
-		delays[1].get().reset();
-	}
-	else
-	{
-		for (auto& ds : delays)
-		{
-			for (auto& d : ds)
-				d.reset();
-		}
+		for (auto& d : ds)
+			d.reset();
 	}
 }
 
@@ -218,18 +198,10 @@ void phase_delay_impl<V>::setFrequency(double newFrequency)
 
 	auto coefficient = AllpassDelay::getDelayCoefficient((float)newFrequency);
 
-	if (delays[0].isMonophonicOrInsideVoiceRendering())
+	for (auto& outer : delays)
 	{
-		delays[0].get().setDelay(coefficient);
-		delays[1].get().setDelay(coefficient);
-	}
-	else
-	{
-		for (auto& outer : delays)
-		{
-			for (auto& d : outer)
-				d.setDelay(coefficient);
-		}
+		for (auto& d : outer)
+			d.setDelay(coefficient);
 	}
 		
 }
@@ -246,68 +218,24 @@ void haas_impl<V>::setPosition(double newValue)
 	auto& l = delay.get()[0];
 	auto& r = delay.get()[1];
 
-	if (delay.isMonophonicOrInsideVoiceRendering())
-	{
-		if (position == 0.0)
-		{
-			l.setDelayTimeSamples(0);
-			r.setDelayTimeSamples(0);
-		}
-		else if (position > 0.0)
-		{
-			l.setDelayTimeSeconds(d);
-			r.setDelayTimeSamples(0);
-		}
-		else if (position < 0.0)
-		{
-			l.setDelayTimeSamples(0);
-			r.setDelayTimeSeconds(d);
-		}
-	}
-	else
-	{
-		// We don't allow fade times in polyphonic effects because there is no constant flow of signal that
+	// We don't allow fade times in polyphonic effects because there is no constant flow of signal that
 		// causes issues with the fade time logic...
-		int fadeTime = NumVoices == 1 ? 2048 : 0;
+	int fadeTime = NumVoices == 1 ? 2048 : 0;
 
-		jassertfalse;
-
-#if 0
-
-		auto setToPos = [fadeTime, position](DelayType& t) 
-		{ 
-			auto& l = t[0];
-			auto& r = t[0]
-
-			if (position == 0.0)
-			{
-				l.forEachVoice(setZero);
-				r.forEachVoice(setZero);
-			}
-			else if (position > 0.0)
-			{
-				l.forEachVoice(setSeconds);
-				r.forEachVoice(setZero);
-			}
-			else if (position < 0.0)
-			{
-				l.forEachVoice(setZero);
-				r.forEachVoice(setSeconds);
-			}
-		};
-
-		auto setSeconds = [fadeTime, d](DelayType& t) 
-		{
-			for (auto& d : t)
-			{
-				d.setFadeTimeSamples(fadeTime);
-				d.setDelayTimeSeconds(d);
-			}
-		};
-		
-		delay.forEachVoice(setToPos);
-
-#endif
+	if (position == 0.0)
+	{
+		l.setDelayTimeSamples(0);
+		r.setDelayTimeSamples(0);
+	}
+	else if (position > 0.0)
+	{
+		l.setDelayTimeSeconds(d);
+		r.setDelayTimeSamples(0);
+	}
+	else if (position < 0.0)
+	{
+		l.setDelayTimeSamples(0);
+		r.setDelayTimeSeconds(d);
 	}
 }
 
@@ -338,20 +266,12 @@ void haas_impl<V>::process(haas_impl<V>::ProcessType& d)
 template <int V>
 void haas_impl<V>::reset()
 {
-	if (delay.isMonophonicOrInsideVoiceRendering())
+	for (auto& d : delay)
 	{
-		for (auto& d : delay.get())
+		for (auto& inner : d)
 		{
-			d.setFadeTimeSamples(0);
-			d.clear();
-		}
-	}
-	else
-	{
-		for (auto& d : delay)
-		{
-			for (auto& inner : d)
-				inner.clear();
+			inner.setFadeTimeSamples(0);
+			inner.clear();
 		}
 	}
 }

@@ -36,6 +36,7 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 using namespace snex;
+using namespace snex::Types;
 
 #if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
 namespace container
@@ -548,6 +549,8 @@ public:
 
 	double sr = 44100.0;
 	PolyData<OscData, NumVoices> voiceData;
+
+	OscData* currentVoiceData = nullptr;
 
 	double freqValue = 220.0;
 };

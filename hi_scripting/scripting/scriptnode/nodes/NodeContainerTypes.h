@@ -135,7 +135,7 @@ public:
 	wrap::oversample<OversampleFactor, SerialNode::DynamicSerialProcessor> obj;
 
 	valuetree::PropertyListener bypassListener;
-	int* lastVoiceIndex = nullptr;
+	PolyHandler* lastVoiceIndex = nullptr;
 };
 
 template <int B> class FixedBlockNode : public SerialNode
@@ -166,7 +166,7 @@ public:
 	wrap::fix_block<FixedBlockSize, DynamicSerialProcessor> obj;
 
 	valuetree::PropertyListener bypassListener;
-	int* lastVoiceIndex = nullptr;
+	PolyHandler* lastVoiceIndex = nullptr;
 };
 
 
