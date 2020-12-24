@@ -126,8 +126,10 @@ struct ApiHelpers
 };
 }
 
-
-#include "snex_jit_Functions.h"
+#include "snex_jit/snex_jit_ComplexType.h"
+#include "snex_jit/snex_jit_TypeInfo.h"
+#include "snex_jit_FunctionData.h"
+#include "snex_jit/snex_jit_FunctionClass.h"
 #include "snex_jit_NamespaceHandler.h"
 #include "snex_jit_BaseScope.h"
 #include "snex_jit_GlobalScope.h"

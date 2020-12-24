@@ -57,7 +57,13 @@ using String = juce::String;
 //#include "snex_core/snex_TypeHelpers.cpp"
 //#include "snex_core/snex_DynamicType.cpp"
 
-#include "snex_jit/snex_jit_Functions.cpp"
+
+
+#include "snex_jit/snex_jit_TypeInfo.cpp"
+#include "snex_jit/snex_jit_FunctionData.cpp"
+#include "snex_jit/snex_jit_ComplexType.cpp" // SyntaxTreeInlineData is defined in FunctionData.cpp
+#include "snex_jit/snex_jit_FunctionClass.cpp"
+
 #include "snex_jit/snex_jit_NativeDspFunctions.cpp"
 #include "snex_jit/snex_jit_NamespaceHandler.cpp"
 
