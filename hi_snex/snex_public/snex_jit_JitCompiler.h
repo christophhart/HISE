@@ -95,26 +95,7 @@ public:
 
 	using Ptr = ReferenceCountedObjectPtr<Compiler>;
 
-	struct Tokeniser : public juce::CodeTokeniser
-	{
-		int readNextToken(CodeDocument::Iterator& source) override;
-
-		CodeEditorComponent::ColourScheme getDefaultColourScheme() override
-		{
-			CodeEditorComponent::ColourScheme scheme;
-
-			scheme.set("Error", Colour(0xFFCC6666));
-			scheme.set("Warning", Colour(0xFFFFFF66));
-			scheme.set("Pass", Colour(0xFF66AA66));
-			scheme.set("Process", Colours::white);
-			scheme.set("VerboseProcess", Colours::lightgrey);
-			scheme.set("AsmJit", Colours::lightblue);
-			scheme.set("ValueDump", Colours::white);
-			scheme.set("ValueName", Colours::lightblue);
-
-			return scheme;
-		}
-	};
+	
 
 	~Compiler();
 	Compiler(GlobalScope& memoryPool);
@@ -152,11 +133,8 @@ public:
 	void addTemplateClass(const TemplateObject& c);
 
 	NamespaceHandler& getNamespaceHandler();
-
 	NamespaceHandler::Ptr getNamespaceHandlerReference() { return handler; }
-
 	FunctionClass::Ptr getInbuiltFunctionClass();
-
 	void initInbuildFunctions();
 
 	static int compileCount;
@@ -164,8 +142,6 @@ public:
 	void reset();
 
 private:
-
-	
 
 	NamespaceHandler::Ptr handler;
 	juce::String lastCode;

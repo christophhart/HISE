@@ -36,6 +36,69 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
+int DebugHandler::Tokeniser::readNextToken(CodeDocument::Iterator& source)
+{
+	auto c = source.nextChar();
+
+	if (c == '|')
+	{
+		while (!source.isEOF() && source.peekNextChar() != '{')
+			source.skip();
+
+		return BaseCompiler::MessageType::ValueName;
+	}
+	if (c == '{')
+	{
+		source.skipToEndOfLine();
+		return BaseCompiler::MessageType::ValueDump;
+	}
+	if (c == 'P')
+	{
+		source.skipToEndOfLine(); return BaseCompiler::MessageType::PassMessage;
+	}
+	if (c == 'W')
+	{
+		source.skipToEndOfLine(); return BaseCompiler::MessageType::Warning;
+	}
+	if (c == 'O')
+	{
+		source.skipToEndOfLine(); return BaseCompiler::MessageType::AsmJitMessage;
+	}
+	if (c == 'E')
+	{
+		source.skipToEndOfLine(); return BaseCompiler::MessageType::Error;
+	}
+	if (c == '-')
+	{
+		c = source.nextChar();
+
+		source.skipToEndOfLine();
+
+		if (c == '-')
+			return BaseCompiler::MessageType::VerboseProcessMessage;
+		else
+			return BaseCompiler::MessageType::ProcessMessage;
+	}
+
+	return BaseCompiler::MessageType::ProcessMessage;
+}
+
+juce::CodeEditorComponent::ColourScheme DebugHandler::Tokeniser::getDefaultColourScheme()
+{
+	CodeEditorComponent::ColourScheme scheme;
+
+	scheme.set("Error", Colour(0xFFCC6666));
+	scheme.set("Warning", Colour(0xFFFFFF66));
+	scheme.set("Pass", Colour(0xFF66AA66));
+	scheme.set("Process", Colours::white);
+	scheme.set("VerboseProcess", Colours::lightgrey);
+	scheme.set("AsmJit", Colours::lightblue);
+	scheme.set("ValueDump", Colours::white);
+	scheme.set("ValueName", Colours::lightblue);
+
+	return scheme;
+}
+
 GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 	FunctionClass({}),
 	BaseScope({}, nullptr),

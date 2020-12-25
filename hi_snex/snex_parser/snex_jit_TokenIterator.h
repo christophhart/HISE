@@ -49,7 +49,7 @@ using namespace juce;
     X(andEquals,     "&=")       X(logicalAnd,   "&&")      X(bitwiseAnd,   "&") \
     X(orEquals,      "|=")       X(logicalOr,    "||")      X(bitwiseOr,    "|") \
      X(lessThanOrEqual,  "<=")  X(lessThan,   "<")  		X(destructor,   "~") \
-      X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")
+      X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")	    X(syntax_tree_variable, "$")
 
 #define HNODE_JIT_KEYWORDS(X) \
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \

@@ -296,7 +296,7 @@ public:
 	juce::String dump();
 	Result addUsedNamespace(const NamespacedIdentifier& usedNamespace);
 	Result resolve(NamespacedIdentifier& id, bool allowZeroMatch = false) const;
-	void addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info);
+	void addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info = {});
 	void setSymbolCode(const NamespacedIdentifier& id, const String& tokenToInsert);
 
 	Result addConstant(const NamespacedIdentifier& id, const VariableStorage& v);

@@ -728,8 +728,9 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 		fType->addMember("frameLimit", TypeInfo(Types::ID::Integer));
 		fType->addMember("frameIndex", TypeInfo(Types::ID::Integer));
 
-		auto frameDataType = new SpanType(TypeInfo(Types::ID::Float), numChannels);
-		fType->addMember("frameData", TypeInfo(c.handler->registerComplexTypeOrReturnExisting(frameDataType)));
+		auto frameDataType_ = new SpanType(TypeInfo(Types::ID::Float), numChannels);
+		auto frameType = TypeInfo(c.handler->registerComplexTypeOrReturnExisting(frameDataType_));
+		fType->addMember("frameData", frameType);
 
 		{
 			FunctionData beginF;
@@ -906,6 +907,27 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 
 				fType->addJitCompiledMemberFunction(subscript);
 			}
+
+			{
+				FunctionData ts;
+				ts.id = fId.getChildId("toSpan");
+				ts.returnType = frameType.withModifiers(false, true, false);
+				ts.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
+				{
+					auto d = b->toSyntaxTreeData();
+
+					auto fType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+
+					auto mt = fType->getMemberTypeInfo("frameData");
+					auto mo = fType->getMemberOffset("frameData");
+
+					d->target = new Operations::MemoryReference(d->location, d->object->clone(d->location), mt, mo);
+
+					return Result::ok();
+				});
+
+				fType->addJitCompiledMemberFunction(ts);
+			}
 		}
 
 
@@ -1052,17 +1074,25 @@ void InbuiltTypeLibraryBuilder::registerRangeFunctions()
 		// static constexpr T from0To1(T min, T max, T value) { return hmath::map(value, min, max); }
 		bf->addFunction(createRangeFunction("from0To1", 3, Inliner::HighLevel, [getMathSymbol](InlineData* b)
 		{
-			auto d = b->toSyntaxTreeData();
+			SyntaxTreeInlineParser p(b, "{return Math.map($a3, $a1, $a2);}");
+			return p.flush();
+
+#if 0
 			auto mCall = new Operations::FunctionCall(d->location, nullptr, getMathSymbol("map"), {});
 			mCall->addArgument(CLONED_ARG(2)); mCall->addArgument(CLONED_ARG(0));
 			mCall->addArgument(CLONED_ARG(1));
 			d->target = mCall;
 			return Result::ok();
+#endif
 		}));
 
 		// static constexpr T to0To1(T min, T max, T value) { return (value - min) / (max - min); }
 		bf->addFunction(createRangeFunction("to0To1", 3, Inliner::HighLevel, [getMathSymbol](InlineData* b)
 		{
+			SyntaxTreeInlineParser p(b, "{return ($a3 - $a1) / ($a2 - $a1);}");
+			return p.flush();
+
+#if 0
 			auto d = b->toSyntaxTreeData();
 			auto value = CLONED_ARG(2); auto min = CLONED_ARG(0);
 			auto min2 = CLONED_ARG(0); auto max = CLONED_ARG(1);
@@ -1070,6 +1100,7 @@ void InbuiltTypeLibraryBuilder::registerRangeFunctions()
 			auto b2 =   new Operations::BinaryOp(d->location, max, min2, JitTokens::minus);
 			d->target = new Operations::BinaryOp(d->location, b1, b2, JitTokens::divide);
 			return Result::ok();
+#endif
 		}));
 
 #if 0

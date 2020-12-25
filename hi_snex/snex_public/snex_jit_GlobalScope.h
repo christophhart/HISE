@@ -122,6 +122,12 @@ struct ExternalPreprocessorDefinition
 */
 struct DebugHandler
 {
+	struct Tokeniser : public juce::CodeTokeniser
+	{
+		int readNextToken(CodeDocument::Iterator& source) override;
+		CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
+	};
+
 	virtual ~DebugHandler() {};
 
 	/** Overwrite this function and print the message somewhere.

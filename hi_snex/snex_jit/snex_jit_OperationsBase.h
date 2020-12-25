@@ -41,6 +41,12 @@ class FunctionScope;
 
 #define SET_EXPRESSION_ID(x) Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER(#x); }
 
+
+#define PROCESS_IF_NOT_NULL(expr) if (expr != nullptr) expr->process(compiler, scope);
+#define COMPILER_PASS(x) if (compiler->getCurrentPass() == x)
+#define CREATE_ASM_COMPILER(type) AsmCodeGenerator(getFunctionCompiler(compiler), &compiler->registerPool, type, location, compiler->getOptimizations());
+#define SKIP_IF_CONSTEXPR if(isConstExpr()) return;
+
 /** This class has a variable pool that will not exceed the lifetime of the compilation. */
 namespace Operations
 {

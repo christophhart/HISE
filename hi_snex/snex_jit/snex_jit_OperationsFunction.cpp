@@ -392,7 +392,13 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 				fc->addMatchingFunctions(possibleMatches, id);
 				callType = RootFunction;
 				return;
-
+			}
+			else if (scope->getRootData()->hasFunction(function.id))
+			{
+				fc = scope->getRootData();
+				fc->addMatchingFunctions(possibleMatches, function.id);
+				callType = RootFunction;
+				return;
 			}
 			else if (scope->getGlobalScope()->hasFunction(function.id))
 			{

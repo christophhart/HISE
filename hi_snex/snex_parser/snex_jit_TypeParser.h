@@ -38,6 +38,54 @@ using namespace juce;
 using namespace asmjit;
 
 
+class TypeParser : public ParserHelpers::TokenIterator
+{
+public:
+
+	TypeParser(TokenIterator& other_, NamespaceHandler& handler, const TemplateParameter::List& tp);;
+	void matchType();
+	bool matchIfType();
+
+private:
+
+	TokenIterator& other;
+
+	Array<TemplateParameter> parseTemplateParameters();
+	VariableStorage parseConstExpression(bool canBeTemplateParameter);
+	bool parseNamespacedIdentifier();
+	bool matchIfSimpleType();
+	bool matchIfComplexType();
+	ComplexType::Ptr parseComplexType(const juce::String& token);
+	Types::ID matchTypeId();
+	bool matchIfTypeInternal();
+	void parseSubType();
+
+	NamespacedIdentifier nId;
+	NamespaceHandler& namespaceHandler;
+	TemplateParameter::List previouslyParsedArguments;
+};
+
+
+
+/** Parses an expression to a type for a compiled code. */
+struct ExpressionTypeParser : private ParserHelpers::TokenIterator
+{
+	ExpressionTypeParser(NamespaceHandler& n, const String& statement, int lineNumber_);
+
+	TypeInfo parseType();
+
+private:
+
+	int lineNumber;
+
+	TypeInfo parseDot(TypeInfo parent);
+	TypeInfo parseSubscript(TypeInfo parent);
+	TypeInfo parseCall(TypeInfo parent);
+
+	NamespacedIdentifier currentId;
+	NamespaceHandler& nh;
+};
+
 
 }
 }

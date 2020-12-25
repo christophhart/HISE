@@ -36,7 +36,9 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
- int Compiler::compileCount = 0;
+
+
+int Compiler::compileCount = 0;
 
  void Compiler::reset()
  {

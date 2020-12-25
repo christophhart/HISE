@@ -812,6 +812,17 @@ Result WrapLibraryBuilder::registerTypes()
 	fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, Callbacks::fix_block::process);
 	fb.flush();
 
+
+	WrapBuilder frame(c, "frame", "NumChannels", numChannels, WrapBuilder::ForwardToObj);
+
+	frame.addInitFunction(WrapBuilder::Helpers::setNumChannelsFromTemplateParameter);
+	frame.addInitFunction(TemplateClassBuilder::Helpers::redirectProcessCallbacksToFixChannel);
+
+	frame.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, Inliner::HighLevel, Callbacks::frame::process);
+	frame.setInlinerForCallback(ScriptnodeCallbacks::PrepareFunction, Inliner::HighLevel, Callbacks::frame::prepare);
+
+	frame.flush();
+
 	return Result::ok();
 }
 
@@ -931,6 +942,50 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::fix::getFunction(InlineDa
 
 
 	return matches[0];
+}
+
+juce::Result WrapLibraryBuilder::Callbacks::frame::process(InlineData* b)
+{
+	String code;
+	String nl = "\n";
+
+	auto d = b->toSyntaxTreeData();
+
+	auto thisRef = new Operations::MemoryReference(d->location, d->object->clone(d->location), d->object->getTypeInfo(), 0);
+
+	code << "{" << nl;
+	code << "    auto frameData = $a1.toFrameData();" << nl;
+	code << "    while(frameData.next())" << nl;
+	code << "        $thisRef.processFrame(frameData.toSpan());" << nl;
+	code << "}";
+
+	SyntaxTreeInlineParser p(b, code);
+
+	p.addExternalExpression("thisRef", thisRef);
+
+	return p.flush();
+}
+
+juce::Result WrapLibraryBuilder::Callbacks::frame::prepare(InlineData* b)
+{
+	String code;
+	String nl = "\n";
+
+	auto d = b->toSyntaxTreeData();
+
+	auto objType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(d->object->getTypeInfo().getTypedComplexType<StructType>(), 1);
+	auto thisRef = new Operations::MemoryReference(d->location, d->object->clone(d->location), TypeInfo(objType, false, true), 0);
+
+	code << "{" << nl;
+	code << "    $a1.blockSize = 1;" << nl;
+	code << "    $objRef.prepare($a1);" << nl;
+	code << "}";
+
+	SyntaxTreeInlineParser p(b, code);
+
+	p.addExternalExpression("objRef", thisRef);
+
+	return p.flush();
 }
 
 }

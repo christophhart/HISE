@@ -415,7 +415,7 @@ juce::Result NamespaceHandler::resolve(NamespacedIdentifier& id, bool allowZeroM
 	return Result::ok();
 }
 
-void NamespaceHandler::addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info = {})
+void NamespaceHandler::addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info)
 {
 	jassert(id.getParent() == currentNamespace->id);
 

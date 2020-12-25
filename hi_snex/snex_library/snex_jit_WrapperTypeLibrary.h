@@ -304,6 +304,13 @@ struct WrapLibraryBuilder : public LibraryBuilderBase
 			static Result process(WrapBuilder::ExternalFunctionMapData& mapData);
 		};
 
+		struct frame
+		{
+			static Result process(InlineData* b);
+
+			static Result prepare(InlineData* b);
+		};
+
 		struct fix
 		{
 			static Result process(InlineData* b);

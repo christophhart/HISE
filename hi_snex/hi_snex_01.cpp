@@ -20,19 +20,18 @@ using CodeEmitter = x86::Emitter;
 using String = juce::String;
 
 
-#include "snex_jit/snex_jit_TokenIterator.h"
-#include "snex_jit/snex_jit_PreProcessor.h"
+#include "snex_parser/snex_jit_TokenIterator.h"
+#include "snex_parser/snex_jit_PreProcessor.h"
 
-#include "snex_jit/snex_jit_ComplexTypeLibrary.h"
-#include "snex_jit/snex_jit_ApiClasses.h"
-#include "snex_jit/snex_jit_ClassScope.h"
+#include "snex_core/snex_jit_ComplexTypeLibrary.h"
+#include "snex_library/snex_jit_ApiClasses.h"
+#include "snex_core/snex_jit_ClassScope.h"
 #include "snex_jit/snex_jit_AssemblyRegister.h"
-#include "snex_jit/snex_jit_FunctionScope.h"
-#include "snex_jit/snex_jit_BaseCompiler.h"
+#include "snex_core/snex_jit_FunctionScope.h"
+#include "snex_core/snex_jit_BaseCompiler.h"
 
-
-#include "snex_jit/snex_jit_UnitTestCase.cpp"
-#include "snex_jit/snex_jit_UnitTests.cpp"
+#include "unit_test/snex_jit_UnitTestCase.cpp"
+#include "unit_test/snex_jit_UnitTests.cpp"
 #include "api/SnexApi.cpp"
 
 #include "snex_components/snex_DebugTools.cpp"

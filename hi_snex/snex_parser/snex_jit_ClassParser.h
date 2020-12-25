@@ -30,18 +30,33 @@
 *   ===========================================================================
 */
 
+#pragma once
 
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
 
 
+class ClassParser : public BlockParser
+{
+public:
 
+	ClassParser(BaseCompiler* c, const juce::String& code);
+	ClassParser(BaseCompiler* c, const ParserHelpers::CodeLocation& l, int codeLength);
+	virtual ~ClassParser() {};
 
+	TemplateParameter::List templateArguments;
 
+	void registerTemplateArguments(TemplateParameter::List& templateList, const NamespacedIdentifier& scopeId);
 
+	StatementPtr addConstructorToComplexTypeDef(StatementPtr def, const Array<NamespacedIdentifier>& ids) override;
 
+	StatementPtr parseStatement() override;
+	StatementPtr parseVariableDefinition();
+	StatementPtr parseFunction(const Symbol& s) override;
+	StatementPtr parseSubclass(NamespaceHandler::Visibility defaultVisibility);
+	StatementPtr parseVisibility();
+};
 
 
 }

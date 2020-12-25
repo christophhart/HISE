@@ -558,7 +558,7 @@ public:
 		
 		optimizations = OptimizationIds::getAllIds();
 
-		runTestFiles("");
+		runTestFiles("wrap_frame");
 		return;
 
 

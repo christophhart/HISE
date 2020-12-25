@@ -30,11 +30,68 @@
 *   ===========================================================================
 */
 
+#pragma once
 
 namespace snex {
 namespace jit {
 using namespace juce;
 using namespace asmjit;
+
+class CodeParser : public BlockParser
+{
+public:
+
+	CodeParser(BaseCompiler* c, const juce::String::CharPointerType& code, const juce::String::CharPointerType& wholeProgram, int length) :
+		BlockParser(c, code, wholeProgram, length)
+	{};
+
+	CodeParser(BaseCompiler* c, const String& code) :
+		BlockParser(c, code)
+	{};
+
+	virtual ~CodeParser() {};
+
+	StatementPtr parseStatementToBlock();
+	StatementPtr parseStatementBlock();
+	StatementPtr parseStatement();
+	StatementPtr parseAssignment();
+	StatementPtr parseReturnStatement();
+	StatementPtr parseVariableDefinition();
+	StatementPtr parseLoopStatement();
+	StatementPtr parseWhileLoop();
+	StatementPtr parseIfStatement();
+
+	void finaliseSyntaxTree(SyntaxTree* tree) override;
+};
+
+class FunctionParser : public CodeParser
+{
+public:
+
+	FunctionParser(BaseCompiler* c, Operations::Function& f) :
+		CodeParser(c, f.code, f.location.program, f.codeLength)
+	{};
+    
+    virtual ~FunctionParser() {}
+};
+
+
+struct SyntaxTreeInlineParser : private CodeParser
+{
+	SyntaxTreeInlineParser(InlineData* b, const String& code);
+	Result flush();
+
+	void addExternalExpression(const String& id, ExprPtr e);
+
+	ExprPtr parseUnary() override;
+
+private:
+
+	String code;
+
+	HashMap<String, ExprPtr> externalExpressions;
+	InlineData* b;
+};
 
 }
 }

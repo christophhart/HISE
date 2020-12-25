@@ -657,7 +657,7 @@ private:
 
 	juce::Label resultLabel;
 
-	Compiler::Tokeniser consoleTokeniser;
+	DebugHandler::Tokeniser consoleTokeniser;
 	CodeDocument consoleContent;
 	CodeEditorComponent console;
 
