@@ -22,12 +22,12 @@ struct TestNode
 	
 	void processFrame(span<float, 1>& data)
 	{
-		data[0] = 0.7f;
+		data[0] = 0.6f;
 	}
 	
 	void prepare(PrepareSpecs ps)
 	{
-		Console.print(ps.blockSize);
+		//Console.print(ps.blockSize);
 		
 	}
 	

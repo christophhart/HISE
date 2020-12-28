@@ -260,9 +260,15 @@ struct FunctionData
 	/** A wrapped lambda containing the assembly generation code for that function. */
 	Inliner::Ptr inliner;
 
+	// Set this to true to always avoid inlining
+	bool neverInline = false;
+
 	bool canBeInlined(bool highLevelInlining) const
 	{
 		if (inliner == nullptr)
+			return false;
+
+		if (neverInline)
 			return false;
 
 		if (!highLevelInlining && inliner->hasAsmInliner())

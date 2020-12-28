@@ -521,7 +521,11 @@ void Operations::ConditionalBranch::allocateDirtyGlobalVariables(Statement::Ptr 
 		// If use a class variable, we need to create the register
 		// outside the loop
 		if (v->isClassVariable(s) && v->isFirstReference())
+		{
+			v->forceLoadData = true;
 			v->process(c, s);
+		}
+			
 	}
 }
 

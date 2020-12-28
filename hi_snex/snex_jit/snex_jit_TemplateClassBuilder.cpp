@@ -158,7 +158,7 @@ void TemplateClassBuilder::Helpers::addChildObjectPtr(StatementPtr newCall, Synt
 
 	if (auto fc = dynamic_cast<Operations::FunctionCall*>(newCall.get()))
 	{
-		auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(childType, false, true), offset);
+		auto obj = new Operations::MemoryReference(d->location, d->object->clone(d->location), TypeInfo(childType, false, true), offset);
 		fc->setObjectExpression(obj);
 	}
 }

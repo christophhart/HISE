@@ -284,6 +284,7 @@ bool TypeParser::matchIfSimpleType()
 
 	if (matchIf(JitTokens::float_))		  t = Types::ID::Float;
 	else if (matchIf(JitTokens::int_))	  t = Types::ID::Integer;
+	else if (matchIf(JitTokens::bool_))   t = Types::ID::Integer;
 	else if (matchIf(JitTokens::double_)) t = Types::ID::Double;
 	else if (matchIf(JitTokens::void_))	  t = Types::ID::Void;
 	else if (matchIf(JitTokens::auto_))	  t = Types::ID::Dynamic;
@@ -315,11 +316,12 @@ snex::jit::ComplexType::Ptr TypeParser::parseComplexType(const juce::String& tok
 
 snex::Types::ID TypeParser::matchTypeId()
 {
-	if (matchIf(JitTokens::float_)) return Types::ID::Float;
-	if (matchIf(JitTokens::int_))	return Types::ID::Integer;
+	if (matchIf(JitTokens::bool_))   return Types::ID::Integer;
+	if (matchIf(JitTokens::float_))  return Types::ID::Float;
+	if (matchIf(JitTokens::int_))	 return Types::ID::Integer;
 	if (matchIf(JitTokens::double_)) return Types::ID::Double;
-	if (matchIf(JitTokens::void_))	return Types::ID::Void;
-	if (matchIf(JitTokens::auto_))  return Types::ID::Dynamic;
+	if (matchIf(JitTokens::void_))	 return Types::ID::Void;
+	if (matchIf(JitTokens::auto_))   return Types::ID::Dynamic;
 
 	throwTokenMismatch("Type");
 

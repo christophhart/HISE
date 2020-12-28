@@ -373,6 +373,10 @@ struct Operations::VariableReference : public Expression,
 	WeakReference<BaseScope> variableScope;
 	bool isFirstOccurence = false;
 	bool isLocalDefinition = false;
+	
+	// This will be set to true for variable references
+	// within conditional branches to avoid uninitialised values
+	bool forceLoadData = false;
 
 	// can be either the data pointer or the member offset
 	VariableStorage objectAdress;

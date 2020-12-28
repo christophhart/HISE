@@ -207,14 +207,14 @@ struct AsmCodeGenerator
 
 	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes, int additionalOffsetInBytes=0);
 
-	void emitParameter(const FunctionData& f, RegPtr parameterRegister, int parameterIndex)
+	void emitParameter(const FunctionData& f, RegPtr parameterRegister, int parameterIndex, bool hasObjectPointer=false)
 	{
-		if (f.object != nullptr)
-			parameterIndex += 1;
-
 		parameterRegister->createRegister(cc);
 
-		auto useParameterAsAdress = f.args[parameterIndex].isReference() && parameterRegister->getType() != Types::ID::Pointer;
+		auto useParameterAsAdress = parameterIndex != -1 && ((f.args[parameterIndex].isReference() && parameterRegister->getType() != Types::ID::Pointer));
+
+		if (f.object != nullptr || hasObjectPointer)
+			parameterIndex += 1;
 
 		if (useParameterAsAdress)
 		{

@@ -1289,9 +1289,13 @@ juce::Result StructType::initialise(InitData d)
 		{
 			if (m->typeInfo.isComplexType())
 			{
+				auto memberHasConstructor = m->typeInfo.getComplexType()->hasConstructor();
+
+				
+
 				InitData c;
 				c.initValues = d.initValues->createChildList(index);
-				c.callConstructor = d.callConstructor && m->typeInfo.getComplexType()->hasConstructor();
+				c.callConstructor = d.callConstructor && memberHasConstructor;
 
 				AssemblyMemory cm;
 
@@ -1306,7 +1310,12 @@ juce::Result StructType::initialise(InitData d)
 				auto ok = m->typeInfo.getComplexType()->initialise(c);
 
 				if (!ok.wasOk())
+				{
+					if (memberHasConstructor && !d.callConstructor)
+						continue;
+
 					return ok;
+				}
 			}
 			else if(!d.callConstructor) // don't write native members when there's a constructor...
 			{

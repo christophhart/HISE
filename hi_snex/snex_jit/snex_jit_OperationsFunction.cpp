@@ -739,7 +739,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (!fc->fillJitFunctionPointer(function))
 			{
-				if (function.inliner != nullptr)
+				if (function.canBeInlined(false)) // function.inliner != nullptr)
 				{
 					inlineFunctionCall(asg);
 					return;

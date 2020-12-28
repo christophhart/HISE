@@ -430,12 +430,7 @@ void AsmCodeGenerator::emitMemberAcess(RegPtr target, RegPtr parent, RegPtr chil
 
 void AsmCodeGenerator::emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex)
 {
-	if (f->hasObjectPtr && f->data.object == nullptr)
-	{
-		parameterIndex += 1;
-	}
-
-	emitParameter(f->data, parameterRegister, parameterIndex);
+	emitParameter(f->data, parameterRegister, parameterIndex, f->hasObjectPtr);
 }
 
 AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, RegPtr r)
