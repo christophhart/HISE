@@ -281,43 +281,6 @@ TypeInfo Operations::Expression::setTypeForChild(int childIndex, TypeInfo expect
 }
 
 
-void Operations::Expression::processChildrenIfNotCodeGen(BaseCompiler* compiler, BaseScope* scope)
-{
-	if (isCodeGenPass(compiler))
-		processBaseWithoutChildren(compiler, scope);
-	else
-		processBaseWithChildren(compiler, scope);
-}
-
-bool Operations::Expression::isCodeGenPass(BaseCompiler* compiler) const
-{
-	return compiler->getCurrentPass() == BaseCompiler::RegisterAllocation ||
-		   compiler->getCurrentPass() == BaseCompiler::CodeGeneration;
-}
-
-bool Operations::Expression::preprocessCodeGenForChildStatements(BaseCompiler* compiler, BaseScope* scope, const std::function<bool()>& abortFunction)
-{
-	if (reg != nullptr)
-		return false;
-
-	if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation)
-	{
-		BaseCompiler::ScopedPassSwitcher svs(compiler, BaseCompiler::RegisterAllocation);
-
-		for (int i = 0; i < getNumChildStatements(); i++)
-			getChildStatement(i)->process(compiler, scope);
-
-		if (!abortFunction())
-			return false;;
-	}
-
-	BaseCompiler::ScopedPassSwitcher svs(compiler, BaseCompiler::CodeGeneration);
-	
-	for (int i = 0; i < getNumChildStatements(); i++)
-		getChildStatement(i)->process(compiler, scope);
-
-	return true;
-}
 
 void Operations::Expression::replaceMemoryWithExistingReference(BaseCompiler* compiler)
 {

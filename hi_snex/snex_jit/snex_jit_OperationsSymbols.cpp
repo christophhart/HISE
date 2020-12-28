@@ -536,7 +536,7 @@ bool Operations::VariableReference::validateLocalDefinition(BaseCompiler* compil
 
 void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	processChildrenIfNotCodeGen(compiler, scope);
+	processBaseWithChildren(compiler, scope);
 
 	if (getDotChild()->isConstExpr())
 	{
@@ -556,17 +556,8 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 	}
 
-	if (isCodeGenPass(compiler))
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		auto abortFunction = []()
-		{
-
-			return false;
-		};
-
-		if (!Expression::preprocessCodeGenForChildStatements(compiler, scope, abortFunction))
-			return;
-
 		if (auto vp = as<SymbolStatement>(getDotChild()))
 		{
 			if (auto st = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<StructType>())
@@ -649,40 +640,19 @@ void Operations::InlinedArgument::process(BaseCompiler* compiler, BaseScope* sco
 {
 	jassert(scope->getScopeType() == BaseScope::Anonymous);
 
-	processChildrenIfNotCodeGen(compiler, scope);
+	processBaseWithChildren(compiler, scope);
 
-	if (isCodeGenPass(compiler))
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		auto f = [this]()
-		{
-			auto child = getSubExpr(0);
-
-			if (auto sb = as<StatementBlock>(child))
-			{
-				jassert(sb->isInlinedFunction);
-				return false;
-			}
-
-			return true;
-		};
-
-		if (!preprocessCodeGenForChildStatements(compiler, scope, f))
-			return;
-
 		if (s.typeInfo.isComplexType() && !s.isReference())
 		{
 			auto acg = CREATE_ASM_COMPILER(getTypeInfo().getType());
-
 			auto stackPtr = acg.cc.newStack(s.typeInfo.getRequiredByteSize(), s.typeInfo.getRequiredAlignment());
-
 			auto target = compiler->getRegFromPool(scope, s.typeInfo);
-
 			target->setCustomMemoryLocation(stackPtr, false);
-
 			auto source = getSubRegister(0);
 
 			acg.emitComplexTypeCopy(target, source, s.typeInfo.getComplexType());
-
 			getSubExpr(0)->reg = target;
 
 			reg = getSubRegister(0);
@@ -717,6 +687,8 @@ void Operations::MemoryReference::process(BaseCompiler* compiler, BaseScope* sco
 
 
 		auto baseReg = getSubRegister(0);
+
+		jassert(baseReg != nullptr);
 
 		reg = compiler->registerPool.getNextFreeRegister(scope, type);
 

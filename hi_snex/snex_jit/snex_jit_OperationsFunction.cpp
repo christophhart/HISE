@@ -292,12 +292,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithChildren(compiler, scope);
 
-	if (Statement::isCodeGenPass(compiler) && findParentStatementOfType<VectorOp>(this) != nullptr)
-	{
-		// We don't want vector functions to be emitted
-		return;
-	}
-
 	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
 	{
 		tryToResolveType(compiler);
@@ -585,13 +579,13 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
+		if (isVectorOpFunction())
+			return;
+
 		jassert(fc != nullptr);
 
 		auto t = getTypeInfo().toPointerIfNativeRef();
-
 		reg = compiler->getRegFromPool(scope, t);
-
-		//VariableReference::reuseAllLastReferences(this);
 
 		if (shouldInlineFunctionCall(compiler, scope))
 		{
@@ -639,6 +633,9 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
+		if (isVectorOpFunction())
+			return;
+
 		auto t = getTypeInfo();
 
 		auto asg = CREATE_ASM_COMPILER(reg->getType());
@@ -1054,6 +1051,11 @@ void Operations::FunctionCall::addDefaultParameterExpressions(const FunctionData
 		addArgument(args[i]);
 		SyntaxTreeInlineData::processUpToCurrentPass(this, args[i]);
 	}
+}
+
+bool Operations::FunctionCall::isVectorOpFunction() const
+{
+	return findParentStatementOfType<VectorOp>(this) != nullptr;
 }
 
 void FunctionData::setDefaultParameter(const Identifier& argId, const VariableStorage& immediateValue)

@@ -205,6 +205,8 @@ struct Operations::FunctionCall : public Expression
 
 	void process(BaseCompiler* compiler, BaseScope* scope);
 
+	bool isVectorOpFunction() const;
+
 	CallType callType = Unresolved;
 	Array<FunctionData> possibleMatches;
 	mutable FunctionData function;

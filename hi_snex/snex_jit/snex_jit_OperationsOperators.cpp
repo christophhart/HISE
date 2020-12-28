@@ -1095,7 +1095,7 @@ bool Operations::Subscript::tryToResolveType(BaseCompiler* compiler)
 
 void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 {
-	processChildrenIfNotCodeGen(compiler, scope);
+	processBaseWithChildren(compiler, scope);
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
@@ -1177,40 +1177,8 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 
 
-	if (isCodeGenPass(compiler))
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
-		auto abortFunction = [this]()
-		{
-			return false;
-
-			if (auto fc = dynamic_cast<FunctionCall*>(parent.get()))
-			{
-				if (fc->getObjectExpression().get() == this)
-					return false;
-			}
-
-
-			if (dynamic_cast<SymbolStatement*>(getSubExpr(0).get()) == nullptr)
-				return false;
-
-			if (!getSubExpr(1)->isConstExpr())
-				return false;
-
-			if (getSubExpr(1)->getTypeInfo().isComplexType())
-				return false;
-
-			if (subscriptType == Dyn || subscriptType == ArrayStatementBase::CustomObject)
-				return false;
-
-			if (SpanType::isSimdType(getSubExpr(0)->getTypeInfo()))
-				return false;
-
-			return true;
-		};
-
-		if (!preprocessCodeGenForChildStatements(compiler, scope, abortFunction))
-			return;
-
 		if (subscriptType == Span && compiler->fitsIntoNativeRegister(getSubExpr(0)->getTypeInfo().getComplexType()))
 		{
 			reg = getSubRegister(0);
@@ -1220,7 +1188,6 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 		reg = compiler->registerPool.getNextFreeRegister(scope, getTypeInfo());
 
 		auto tReg = getSubRegister(0);
-
 		auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(getTypeInfo()));
 
 		if (!subscriptOperator.isResolved())

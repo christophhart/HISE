@@ -293,9 +293,6 @@ namespace Operations
 
 		/** Processes all sub expressions. Call this from your base class. */
 		
-
-		void processChildrenIfNotCodeGen(BaseCompiler* compiler, BaseScope* scope);
-
 		void processBaseWithoutChildren(BaseCompiler* compiler, BaseScope* scope)
 		{
 			jassert(scope != nullptr);
@@ -329,10 +326,6 @@ namespace Operations
 			processBaseWithoutChildren(compiler, scope);
 			processAllChildren(compiler, scope);
 		}
-
-		bool isCodeGenPass(BaseCompiler* compiler) const;
-
-		bool preprocessCodeGenForChildStatements(BaseCompiler* compiler, BaseScope* scope, const std::function<bool()>& abortFunction);
 
 		void replaceMemoryWithExistingReference(BaseCompiler* compiler);
 
