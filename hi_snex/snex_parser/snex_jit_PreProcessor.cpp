@@ -361,8 +361,6 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 
 	while (start != end)
 	{
-		
-
 		while (start != end)
 		{
 			if (CharacterFunctions::isWhitespace(*start))
@@ -372,7 +370,6 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 
 				start++;
 			}
-				
 			else
 				break;
 		}
@@ -385,6 +382,41 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 
 		while (start != end)
 		{
+			if (*start == '/')
+			{
+				auto n = *(start + 1);
+				if (n == '*')
+				{
+					auto endOfComment = CharacterFunctions::find(start, CharPointer_ASCII("*/"));
+					
+					if (endOfComment.isEmpty())
+						currentBlock.throwError("Unterminated comment");
+
+					while (start != endOfComment)
+					{
+						if (*start == firstNewLineChar)
+							lineNumber++;
+
+						start++;
+					}
+
+					start++;
+				}
+				else if (n == '/')
+				{
+					while (start != end)
+					{
+						if (*start == firstNewLineChar)
+						{
+							lineNumber++;
+							break;
+						}
+
+						start++;
+					}
+				}
+			}
+
 			start++;
 
 			if (*start == firstNewLineChar)
