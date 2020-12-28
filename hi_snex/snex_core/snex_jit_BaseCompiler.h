@@ -76,21 +76,17 @@ public:
 	{
 		Parsing,
 		ComplexTypeParsing,
-		DataSizeCalculation,
 		PreSymbolOptimization,
 		DataAllocation,
 		DataInitialisation,
 		ResolvingSymbols,
 		TypeCheck,
 		PostSymbolOptimization,
-		SyntaxSugarReplacements,
 		FunctionTemplateParsing,
 		FunctionParsing,
 		FunctionCompilation,
-		PreCodeGenerationOptimization,
 		RegisterAllocation,
 		CodeGeneration,
-		RootObjectConstruction,
 		numPasses
 	};
 
@@ -148,8 +144,7 @@ public:
 	static bool isOptimizationPass(Pass p)
 	{
 		return p == PreSymbolOptimization ||
-			p == PostSymbolOptimization   ||
-			p == PreCodeGenerationOptimization;
+			p == PostSymbolOptimization;
 	}
 
 	void setCurrentPass(Pass p)
@@ -162,7 +157,6 @@ public:
 		case FunctionParsing:				logMessage(PassMessage, "Parsing Functions"); break;
 		case PreSymbolOptimization:			logMessage(PassMessage, "Optimization Stage 1"); break;
 		case PostSymbolOptimization:		logMessage(PassMessage, "Optimization Stage 2"); break;
-		case PreCodeGenerationOptimization: logMessage(PassMessage, "Optimization Stage 3"); break;
 		case ResolvingSymbols:				logMessage(PassMessage, "Resolving symbols"); break;
 		case RegisterAllocation:			logMessage(PassMessage, "Allocating Registers"); break;
 		case TypeCheck:						logMessage(PassMessage, "Checking Types"); break;

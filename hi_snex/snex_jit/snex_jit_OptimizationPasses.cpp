@@ -44,7 +44,7 @@ void OptimizationPass::replaceWithNoop(StatementPtr s)
 
 void OptimizationPass::processPreviousPasses(BaseCompiler* c, BaseScope* s, StatementPtr st)
 {
-	for (int i = BaseCompiler::DataSizeCalculation; i < (int)c->getCurrentPass(); i++)
+	for (int i = BaseCompiler::ComplexTypeParsing; i < (int)c->getCurrentPass(); i++)
 	{
 		auto p = (BaseCompiler::Pass)i;
 
@@ -683,7 +683,7 @@ bool FunctionInliner::inlineRootFunction(BaseCompiler* compiler, BaseScope* scop
 	replaceExpression(fc, clone);
 
 	{
-		BaseCompiler::ScopedPassSwitcher s1(compiler, BaseCompiler::DataSizeCalculation);
+		BaseCompiler::ScopedPassSwitcher s1(compiler, BaseCompiler::ComplexTypeParsing);
 		clone->process(compiler, scope);
 		BaseCompiler::ScopedPassSwitcher s2(compiler, BaseCompiler::DataAllocation);
 		clone->process(compiler, scope);

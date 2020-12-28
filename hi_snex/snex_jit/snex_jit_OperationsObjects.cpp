@@ -120,9 +120,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 
 		if (type.isComplexType())
 			type.getComplexType()->finaliseAlignment();
-	}
-	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
-	{
+
 		if (!isStackDefinition(scope) && scope->getRootClassScope() == scope)
 			scope->getRootData()->enlargeAllocatedSize(type);
 	}

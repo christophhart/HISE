@@ -108,13 +108,10 @@ public:
 			auto sTree = dynamic_cast<SyntaxTree*>(syntaxTree.get());
 
 			executePass(ComplexTypeParsing, newScope->pimpl, sTree);
-			executePass(DataSizeCalculation, newScope->pimpl, sTree);
 
 			newScope->pimpl->getRootData()->finalise();
 
 			auto d = (int*)newScope->pimpl->getRootData()->data.get();
-
-
 
 			executePass(DataAllocation, newScope->pimpl, sTree);
 			executePass(DataInitialisation, newScope->pimpl, sTree);
@@ -128,7 +125,6 @@ public:
 				return nullptr;
 			}
 
-			executePass(SyntaxSugarReplacements, newScope->pimpl, sTree);
 			executePass(PostSymbolOptimization, newScope->pimpl, sTree);
 
 			executePass(FunctionTemplateParsing, newScope->pimpl, sTree);

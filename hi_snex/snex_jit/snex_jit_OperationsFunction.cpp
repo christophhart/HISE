@@ -137,7 +137,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
 			compiler->executePass(BaseCompiler::TypeCheck, functionScope, sTree);
-			compiler->executePass(BaseCompiler::SyntaxSugarReplacements, functionScope, sTree);
 			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, sTree);
 
 			compiler->setCurrentPass(BaseCompiler::FunctionParsing);
@@ -281,7 +280,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto sTree = dynamic_cast<SyntaxTree*>(statements.get());
 
-		compiler->executePass(BaseCompiler::PreCodeGenerationOptimization, functionScope, sTree);
 		compiler->executePass(BaseCompiler::RegisterAllocation, functionScope, sTree);
 		compiler->executePass(BaseCompiler::CodeGeneration, functionScope, sTree);
 

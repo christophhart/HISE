@@ -58,7 +58,7 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 	auto e = getSubExpr(0);
 
-	COMPILER_PASS(BaseCompiler::DataSizeCalculation)
+	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 	{
 		if (getTargetType() == TargetType::Variable && isFirstAssignment && scope->getRootClassScope() == scope)
 		{
@@ -953,12 +953,6 @@ void Operations::VectorOp::emitVectorOp(BaseCompiler* compiler, BaseScope* scope
 void Operations::Increment::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithChildren(compiler, scope);
-
-	COMPILER_PASS(BaseCompiler::SyntaxSugarReplacements)
-	{
-		if (removed)
-			return;
-	}
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
