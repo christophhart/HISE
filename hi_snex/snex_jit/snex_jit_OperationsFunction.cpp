@@ -145,71 +145,15 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			classData->templateParameters = data.templateParameters;
 
-
-
-			auto classDataCopy = FunctionData(*classData);
+			auto fParameters = classData->args;
 
 			auto createInliner = scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::Inlining);
 
 			if (createInliner)
 			{
-				classData->inliner = Inliner::createHighLevelInliner(data.id, [statementCopy, classDataCopy](InlineData* b)
+				classData->inliner = Inliner::createHighLevelInliner(data.id, [sTree, fParameters](InlineData* b)
 				{
-					jassert(statementCopy.get() != nullptr);
-					auto d = b->toSyntaxTreeData();
-
-					auto fc = dynamic_cast<Operations::FunctionCall*>(d->expression.get());
-					jassert(fc != nullptr);
-					d->target = statementCopy->clone(d->location);
-					auto cs = dynamic_cast<Operations::StatementBlock*>(d->target.get());
-					cs->setReturnType(classDataCopy.returnType);
-
-					if (d->object != nullptr)
-					{
-						auto thisSymbol = Symbol("this");
-						auto e = d->object->clone(d->location);
-						cs->addInlinedParameter(-1, thisSymbol, dynamic_cast<Operations::Expression*>(e.get()));
-
-						if (auto st = e->getTypeInfo().getTypedIfComplexType<StructType>())
-						{
-							if (!as<ThisPointer>(e))
-							{
-								d->target->forEachRecursive([st, e](Operations::Statement::Ptr p)
-								{
-									if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
-									{
-										auto canBeMember = st->id == v->id.id.getParent();
-										auto hasMember = canBeMember && st->hasMember(v->id.id.getIdentifier());
-
-										if (hasMember)
-										{
-											auto newParent = e->clone(v->location);
-											auto newChild = v->clone(v->location);
-
-											auto newDot = new Operations::DotOperator(v->location,
-												dynamic_cast<Operations::Expression*>(newParent.get()),
-												dynamic_cast<Operations::Expression*>(newChild.get()));
-
-											v->replaceInParent(newDot);
-										}
-									}
-
-									return false;
-								});
-							}
-						}
-					}
-
-					for (int i = 0; i < fc->getNumArguments(); i++)
-					{
-						auto pVarSymbol = classDataCopy.args[i];
-
-						Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
-
-						cs->addInlinedParameter(i, pVarSymbol, e);
-					}
-
-					return Result::ok();
+					return b->toSyntaxTreeData()->makeInlinedStatementBlock(sTree, fParameters);
 				});
 			}
 

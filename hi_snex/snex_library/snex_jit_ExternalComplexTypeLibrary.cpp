@@ -1062,46 +1062,13 @@ void InbuiltTypeLibraryBuilder::registerRangeFunctions()
 	FunctionClass::Ptr bf = c.getInbuiltFunctionClass();
 
 	{
-		auto getMathSymbol = [](const Identifier& id)
-		{
-			NamespacedIdentifier m("Math");
-			return Symbol(m.getChildId(id), TypeInfo(Types::ID::Double));
-		};
-
-#define CLONED_ARG(x) d->args[x]->clone(d->location)
-
-
 		// static constexpr T from0To1(T min, T max, T value) { return hmath::map(value, min, max); }
-		bf->addFunction(createRangeFunction("from0To1", 3, Inliner::HighLevel, [getMathSymbol](InlineData* b)
-		{
-			SyntaxTreeInlineParser p(b, "{return Math.map($a3, $a1, $a2);}");
-			return p.flush();
-
-#if 0
-			auto mCall = new Operations::FunctionCall(d->location, nullptr, getMathSymbol("map"), {});
-			mCall->addArgument(CLONED_ARG(2)); mCall->addArgument(CLONED_ARG(0));
-			mCall->addArgument(CLONED_ARG(1));
-			d->target = mCall;
-			return Result::ok();
-#endif
-		}));
+		addRangeFunction(bf, "from0To1", { "min", "max", "value" }, 
+							 "{ return Math.map(value, min, max); }");
 
 		// static constexpr T to0To1(T min, T max, T value) { return (value - min) / (max - min); }
-		bf->addFunction(createRangeFunction("to0To1", 3, Inliner::HighLevel, [getMathSymbol](InlineData* b)
-		{
-			SyntaxTreeInlineParser p(b, "{return ($a3 - $a1) / ($a2 - $a1);}");
-			return p.flush();
-
-#if 0
-			auto d = b->toSyntaxTreeData();
-			auto value = CLONED_ARG(2); auto min = CLONED_ARG(0);
-			auto min2 = CLONED_ARG(0); auto max = CLONED_ARG(1);
-			auto b1 =   new Operations::BinaryOp(d->location, value, min, JitTokens::minus);
-			auto b2 =   new Operations::BinaryOp(d->location, max, min2, JitTokens::minus);
-			d->target = new Operations::BinaryOp(d->location, b1, b2, JitTokens::divide);
-			return Result::ok();
-#endif
-		}));
+		addRangeFunction(bf, "to0To1", { "min", "max", "value" },
+							 "{ return (value - min) / (max - min); }");
 
 #if 0
 		static constexpr T from0To1Skew(T min, T max, T skew, T value) { auto v = hmath::pow(value, skew); return from0To1(min, max, value); }
@@ -1143,6 +1110,17 @@ snex::jit::FunctionData* InbuiltTypeLibraryBuilder::createRangeFunction(const Id
 	c.getNamespaceHandler().addSymbol(f->id, f->returnType, NamespaceHandler::Function, {});
 
 	return f;
+}
+
+void InbuiltTypeLibraryBuilder::addRangeFunction(FunctionClass* fc, const Identifier& id, const StringArray& parameters, const String& code)
+{
+	fc->addFunction(createRangeFunction(id, parameters.size(), Inliner::HighLevel, [code, parameters](InlineData* b)
+	{
+		SyntaxTreeInlineParser p(b, parameters, code);
+		return p.flush();
+
+		return Result::ok();
+	}));
 }
 
 juce::Result InbuiltTypeLibraryBuilder::registerTypes()

@@ -71,6 +71,74 @@ struct SyntaxTreeInlineData : public InlineData
 		return true;
 	}
 
+	/** Adds the function parameters as inlined parameters and converts the given syntax tree to a statement
+	    block that will act as inlined function. 
+	*/
+	Result makeInlinedStatementBlock(SyntaxTree* syntaxTree, const Array<Symbol>& functionParameters)
+	{
+		using namespace Operations;
+		
+		auto fc = dynamic_cast<Operations::FunctionCall*>(expression.get());
+		jassert(fc != nullptr);
+
+		if (syntaxTree->getReturnType() == TypeInfo(Types::ID::Dynamic))
+		{
+			return Result::fail("must set return type before passing here");
+		}
+
+		target = syntaxTree->clone(location);
+		auto cs = as<StatementBlock>(target);
+
+		cs->setReturnType(syntaxTree->getReturnType());
+
+		jassert(cs != nullptr);
+
+		if (object != nullptr)
+		{
+			auto thisSymbol = Symbol("this");
+			auto e = object->clone(location);
+			cs->addInlinedParameter(-1, thisSymbol, dynamic_cast<Operations::Expression*>(e.get()));
+
+			if (auto st = e->getTypeInfo().getTypedIfComplexType<StructType>())
+			{
+				if (!as<ThisPointer>(e))
+				{
+					target->forEachRecursive([st, e](Operations::Statement::Ptr p)
+					{
+						if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
+						{
+							auto canBeMember = st->id == v->id.id.getParent();
+							auto hasMember = canBeMember && st->hasMember(v->id.id.getIdentifier());
+
+							if (hasMember)
+							{
+								auto newParent = e->clone(v->location);
+								auto newChild = v->clone(v->location);
+
+								auto newDot = new Operations::DotOperator(v->location,
+									dynamic_cast<Operations::Expression*>(newParent.get()),
+									dynamic_cast<Operations::Expression*>(newChild.get()));
+
+								v->replaceInParent(newDot);
+							}
+						}
+
+						return false;
+					});
+				}
+			}
+		}
+
+		for (int i = 0; i < fc->getNumArguments(); i++)
+		{
+			auto pVarSymbol = functionParameters[i];
+			Operations::Expression::Ptr e = dynamic_cast<Operations::Expression*>(fc->getArgument(i)->clone(fc->location).get());
+			cs->addInlinedParameter(i, pVarSymbol, e);
+		}
+
+		return Result::ok();
+	}
+
 	static void processUpToCurrentPass(Operations::Statement::Ptr currentStatement, Operations::Statement::Ptr e)
 	{
 		auto c = currentStatement->currentCompiler;

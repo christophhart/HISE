@@ -198,10 +198,8 @@ private:
 
 	void registerRangeFunctions();
 
-
 	FunctionData* createRangeFunction(const Identifier& id, int numArgs, Inliner::InlineType type, const Inliner::Func& inliner);
-
-
+	void addRangeFunction(FunctionClass* fc, const Identifier& id, const StringArray& parameters, const String& code);
 
 };
 

@@ -409,7 +409,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 					auto ass = findParentStatementOfType<Assignment>(this);
 
 
-					if (assignmentType != JitTokens::assign_ || ass == nullptr || ass->loadDataBeforeAssignment())
+					if (assignmentType != JitTokens::assign_ || ass == nullptr || ass->loadDataBeforeAssignment() || forceLoadData)
 						reg->loadMemoryIntoRegister(asg.cc);
 					else
 						reg->createRegister(asg.cc);
@@ -567,7 +567,7 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 		if (!Expression::preprocessCodeGenForChildStatements(compiler, scope, abortFunction))
 			return;
 
-		if (auto vp = dynamic_cast<SymbolStatement*>(getDotChild().get()))
+		if (auto vp = as<SymbolStatement>(getDotChild()))
 		{
 			if (auto st = getSubExpr(0)->getTypeInfo().getTypedIfComplexType<StructType>())
 			{
@@ -595,6 +595,12 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 
 				Expression::replaceMemoryWithExistingReference(compiler);
 			}
+		}
+		else if (auto dp = as<DotOperator>(getDotChild()))
+		{
+			dp->process(compiler, scope);
+			auto cp = dp->getDotParent();
+			auto cc = dp->getDotChild();
 		}
 		else
 		{

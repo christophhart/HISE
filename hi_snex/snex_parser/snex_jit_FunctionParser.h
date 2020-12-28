@@ -78,15 +78,18 @@ public:
 
 struct SyntaxTreeInlineParser : private CodeParser
 {
-	SyntaxTreeInlineParser(InlineData* b, const String& code);
+	SyntaxTreeInlineParser(InlineData* b, const StringArray& parameterNames, const String& code);
 	Result flush();
 
 	void addExternalExpression(const String& id, ExprPtr e);
 
 	ExprPtr parseUnary() override;
 
+	ParserHelpers::CodeLocation originalLocation;
+
 private:
 
+	StringArray originalArgs;
 	String code;
 
 	HashMap<String, ExprPtr> externalExpressions;

@@ -353,10 +353,12 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseAssignment()
 
 
 
-SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const String& code_):
+SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const StringArray& originalParameters, const String& code_):
 	CodeParser(b_->toSyntaxTreeData()->expression->currentCompiler, ""),
 	b(b_),
-	code(code_)
+	code(code_),
+	originalArgs(originalParameters),
+	originalLocation(b_->toSyntaxTreeData()->location)
 {
 	location.location = code.getCharPointer();
 	location.program = code.getCharPointer();
@@ -370,32 +372,60 @@ SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const String& cod
 juce::Result SyntaxTreeInlineParser::flush()
 {
 	auto d = b->toSyntaxTreeData();
-	NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, d->path);
-	int index = 1;
-
-	for (auto a : d->args)
+	
+	if (originalArgs.size() != d->args.size())
 	{
-		String s = "a";
-		s << index++;
-		externalExpressions.set(s, a);
+		return Result::fail("arg amount mismatch");
+	}
+
+	auto& nh = compiler->namespaceHandler;
+	Array<Symbol> args;
+
+	auto thisId = d->path.getChildId("custom_syntax_inliner");
+
+	NamespaceHandler::ScopedNamespaceSetter sns(nh, thisId);
+
+	for (int i = 0; i < d->args.size(); i++)
+	{
+		args.add({ thisId.getChildId(originalArgs[i]), d->args[0]->getTypeInfo() });
+		nh.addSymbol(args[i].id, args[i].typeInfo, NamespaceHandler::SymbolType::Variable);
 	}
 
 	if(d->object != nullptr)
-		externalExpressions.set("this", d->object);
+		externalExpressions.set("this", new Operations::ThisPointer(d->location, d->object->getTypeInfo()));
 
 	using namespace Operations;
 
 	currentScopeStatement = findParentStatementOfType<ScopeStatementBase>(d->expression);
 
-	if (auto bl = parseStatementToBlock())
+	if (auto bl = parseStatementList())
 	{
-		if (auto sb = as<StatementBlock>(bl))
-		{
-			sb->setReturnType(d->expression->getTypeInfo());
-			sb->isInlinedFunction = true;
-			d->target = bl->clone(d->location);
-			return Result::ok();
-		}
+		auto sTree = as<SyntaxTree>(bl);
+		sTree->setReturnType(d->expression->getTypeInfo());
+
+		auto prevPass = d->expression->currentPass;
+
+		ScopedPointer<FunctionScope> functionScope = new FunctionScope(d->expression->currentScope, NamespacedIdentifier("funkyBullshit"));
+
+		for (auto& s : args)
+			functionScope->parameters.add(s.id.getIdentifier());
+
+
+		
+		functionScope->parentFunction = nullptr;
+
+		compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, sTree);
+		// add this when using stack...
+		//compiler->executePass(BaseCompiler::DataSizeCalculation, functionScope, statements);
+		compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
+		compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
+		compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
+		compiler->executePass(BaseCompiler::TypeCheck, functionScope, sTree);
+		compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, sTree);
+
+		compiler->setCurrentPass(prevPass);
+
+		return d->makeInlinedStatementBlock(sTree, args);
 	}
 	else
 	{

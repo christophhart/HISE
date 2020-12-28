@@ -38,12 +38,15 @@ using namespace asmjit;
 
 namespace jit
 {
-WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels_, OpaqueType opaqueType_) :
+WrapBuilder::WrapBuilder(Compiler& c, const Identifier& id, int numChannels_, OpaqueType opaqueType_, bool addParameterClass) :
 	TemplateClassBuilder(c, NamespacedIdentifier("wrap").getChildId(id)),
-	WrappedObjectOffset(0),
+	WrappedObjectOffset(addParameterClass ? 1 : 0),
 	numChannels(numChannels_),
 	opaqueType(opaqueType_)
 {
+	if (addParameterClass)
+		addTypeTemplateParameter("ParameterClass");
+
 	init(c, numChannels);
 }
 
@@ -327,6 +330,7 @@ void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inlin
 		{
 			auto copy = FunctionData(m);
 			copy.id = st->id.getChildId(fToReplace.id.getIdentifier());
+
 			copy.function = m.function;
 			copy.inliner = Inliner::createFromType(fToReplace.id, t, inliner);
 
@@ -377,6 +381,22 @@ juce::Result WrapBuilder::Helpers::constructorInliner(InlineData* b)
 }
 
 
+
+juce::Result WrapBuilder::Helpers::addObjReference(SyntaxTreeInlineParser& p, Operations::Statement::Ptr object)
+{
+	auto wrapType = object->getTypeInfo();
+
+	if (auto st = wrapType.getTypedIfComplexType<StructType>())
+	{
+		auto offset = st->getMemberOffset("obj");
+		auto t = st->getMemberTypeInfo("obj");
+		p.addExternalExpression("obj", new Operations::MemoryReference(p.originalLocation, object->clone(p.originalLocation), t, offset));
+
+		return Result::ok();
+	}
+
+	return Result::fail("not working");
+}
 
 bool WrapBuilder::Helpers::checkPropertyExists(StructType* st, const Identifier& id, Result& r)
 {
@@ -490,6 +510,9 @@ int WrapBuilder::ExternalFunctionMapData::getTemplateConstant(int index) const
 
 juce::Result WrapBuilder::ExternalFunctionMapData::insertFunctionPtrToArgReg(void* ptr, int index /*= 0*/)
 {
+	// Gotta set this before calling anything else...
+	jassert(mainFunction != nullptr);
+
 	if (ptr)
 	{
 		argumentRegisters.insert(index, createPointerArgument(ptr));
@@ -755,37 +778,37 @@ Result WrapLibraryBuilder::registerTypes()
 			se.setDefaultParameter("index", VariableStorage(0));
 
 			se.inliner = Inliner::createHighLevelInliner(se.id, [st](InlineData* b)
+			{
+				auto d = b->toSyntaxTreeData();
+				auto ic = st->getMemberComplexType(Identifier("initialiser"));
+
+				FunctionClass::Ptr fc = ic->getFunctionClass();
+
+				auto ef = fc->getNonOverloadedFunction(fc->getClassName().getChildId("setExternalData"));
+
+				auto nc = new Operations::FunctionCall(d->location, nullptr, Symbol(ef.id, TypeInfo(Types::ID::Void)), ef.templateParameters);
+
+				nc->setAllowInlining(false);
+
+				auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), st->getMemberOffset(1));
+
+
+				WrapBuilder::InnerData id(st->getMemberComplexType("obj"), WrapBuilder::GetSelfAsObject);
+
+				if (id.resolve())
 				{
-					auto d = b->toSyntaxTreeData();
-					auto ic = st->getMemberComplexType(Identifier("initialiser"));
+					auto objRef = new Operations::MemoryReference(d->location, d->object, id.getRefType(), id.offset);
 
-					FunctionClass::Ptr fc = ic->getFunctionClass();
+					nc->setObjectExpression(initRef);
+					nc->addArgument(objRef);
+					nc->addArgument(d->args[0]->clone(d->location));
+					nc->addArgument(d->args[1]->clone(d->location));
 
-					auto ef = fc->getNonOverloadedFunction(fc->getClassName().getChildId("setExternalData"));
+					d->target = nc;
+				}
 
-					auto nc = new Operations::FunctionCall(d->location, nullptr, Symbol(ef.id, TypeInfo(Types::ID::Void)), ef.templateParameters);
-
-					nc->setAllowInlining(false);
-
-					auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), st->getMemberOffset(1));
-
-
-					WrapBuilder::InnerData id(st->getMemberComplexType("obj"), WrapBuilder::GetSelfAsObject);
-
-					if (id.resolve())
-					{
-						auto objRef = new Operations::MemoryReference(d->location, d->object, id.getRefType(), id.offset);
-
-						nc->setObjectExpression(initRef);
-						nc->addArgument(objRef);
-						nc->addArgument(d->args[0]->clone(d->location));
-						nc->addArgument(d->args[1]->clone(d->location));
-
-						d->target = nc;
-					}
-
-					return id.getResult();
-				});
+				return id.getResult();
+			});
 
 			return se;
 		});
@@ -819,9 +842,26 @@ Result WrapLibraryBuilder::registerTypes()
 	frame.addInitFunction(TemplateClassBuilder::Helpers::redirectProcessCallbacksToFixChannel);
 
 	frame.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, Inliner::HighLevel, Callbacks::frame::process);
-	frame.setInlinerForCallback(ScriptnodeCallbacks::PrepareFunction, Inliner::HighLevel, Callbacks::frame::prepare);
+	frame.mapToExternalTemplateFunction(ScriptnodeCallbacks::PrepareFunction, Callbacks::frame::prepare);
 
 	frame.flush();
+
+	WrapBuilder mod(c, "mod", numChannels, WrapBuilder::GetSelfAsObject, true);
+	mod.addInitFunction([](const TemplateObject::ConstructData& cd, StructType* st)
+	{
+		if (!ParameterBuilder::Helpers::isParameterClass(cd.tp[0].type))
+		{
+			*cd.r = Result::fail("Expected parameter class as first template parameter");
+			return;
+		}
+
+		st->addMember("p", cd.tp[0].type);
+	});
+
+	mod.addFunction(Callbacks::mod::checkModValue);
+	mod.addFunction(Callbacks::mod::getParameter);
+
+	mod.flush();
 
 	return Result::ok();
 }
@@ -951,41 +991,150 @@ juce::Result WrapLibraryBuilder::Callbacks::frame::process(InlineData* b)
 
 	auto d = b->toSyntaxTreeData();
 
-	auto thisRef = new Operations::MemoryReference(d->location, d->object->clone(d->location), d->object->getTypeInfo(), 0);
-
 	code << "{" << nl;
-	code << "    auto frameData = $a1.toFrameData();" << nl;
+	code << "    auto frameData = data.toFrameData();" << nl;
 	code << "    while(frameData.next())" << nl;
-	code << "        $thisRef.processFrame(frameData.toSpan());" << nl;
+	code << "        $this.processFrame(frameData.toSpan());" << nl;
 	code << "}";
 
-	SyntaxTreeInlineParser p(b, code);
-
-	p.addExternalExpression("thisRef", thisRef);
+	SyntaxTreeInlineParser p(b, {"data"}, code);
 
 	return p.flush();
 }
 
-juce::Result WrapLibraryBuilder::Callbacks::frame::prepare(InlineData* b)
+juce::Result WrapLibraryBuilder::Callbacks::frame::prepare(WrapBuilder::ExternalFunctionMapData& mapData)
 {
-	String code;
-	String nl = "\n";
+	int numChannels = mapData.getTemplateConstant(0);
 
-	auto d = b->toSyntaxTreeData();
+	span<void*, NUM_MAX_CHANNELS> data = { nullptr };
 
-	auto objType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(d->object->getTypeInfo().getTypedComplexType<StructType>(), 1);
-	auto thisRef = new Operations::MemoryReference(d->location, d->object->clone(d->location), TypeInfo(objType, false, true), 0);
+#define INSERT(b) data[b] = (void*)scriptnode::wrap::static_functions::frame<b>::prepare;
+	INSERT(1);
+	INSERT(2);
+	INSERT(4);
+	INSERT(8);
+#undef INSERT
 
-	code << "{" << nl;
-	code << "    $a1.blockSize = 1;" << nl;
-	code << "    $objRef.prepare($a1);" << nl;
-	code << "}";
+	mapData.setExternalFunctionPtrToCall(data[numChannels]);
 
-	SyntaxTreeInlineParser p(b, code);
+	
 
-	p.addExternalExpression("objRef", thisRef);
+	return mapData.insertFunctionPtrToArgReg(mapData.getWrappedFunctionPtr(ScriptnodeCallbacks::PrepareFunction));
+}
 
-	return p.flush();
+snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::checkModValue(StructType* st)
+{
+	FunctionData cmv;
+	cmv.id = st->id.getChildId("checkModValue");
+	cmv.returnType = TypeInfo(Types::ID::Void);
+
+	cmv.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+
+#if 1
+		using namespace Operations;
+
+		auto pathId = d->path.getChildId("dd");
+
+		auto sb = new StatementBlock(d->location, pathId);
+		auto mv = new VariableReference(d->location, { pathId.getChildId("mv"), TypeInfo(Types::ID::Double) });
+		auto iv = new Immediate(d->location, VariableStorage(0.0));
+		auto as = new Assignment(d->location, mv, JitTokens::assign_, iv, true);
+
+		sb->addStatement(as);
+		
+		auto wrapType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+
+#if 0
+		
+
+		auto wrappedType = wrapType->getMemberTypeInfo("obj");
+
+		auto objRef = new MemoryReference(d->location, d->object->clone(d->location), wrapType->getMemberTypeInfo("obj"), 0);
+
+		auto fc = new FunctionCall(d->location, nullptr, { wrappedType.getTypedComplexType<StructType>()->id.getChildId("handleModulation"), TypeInfo(Types::ID::Integer) }, {});
+
+		fc->setObjectExpression(objRef);
+		fc->addArgument(mv->clone(d->location));
+
+		sb->addStatement(fc);
+#endif
+
+#if 1
+		auto pType = wrapType->getMemberTypeInfo("p");
+
+		auto pRef = new MemoryReference(d->location, d->object->clone(d->location), pType, wrapType->getMemberOffset("p"));
+
+		auto pCall = new FunctionCall(d->location, nullptr, { pType.getTypedComplexType<StructType>()->id.getChildId("call"), TypeInfo(Types::ID::Void) }, {});
+
+		pCall->setObjectExpression(pRef);
+		pCall->addArgument(mv->clone(d->location));
+
+		sb->addStatement(pCall);
+#endif
+
+		d->target = sb;
+		return Result::ok();
+
+#else
+		String code;
+		String nl = "\n";
+
+		code << "double mv = 20.0;" << nl;
+		code << "$obj.handleModulation(mv);" << nl;
+		//code << "    $this.getParameter().call(mv);" << nl;
+
+		SyntaxTreeInlineParser p(b, {}, code);
+
+		WrapBuilder::Helpers::addObjReference(p, d->object);
+
+		return p.flush();
+#endif
+
+		
+	});
+
+
+#if 0
+	FunctionClass::Ptr fc = cd.tp[1].type.getComplexType()->getFunctionClass();
+
+	auto modFunction = fc->getNonOverloadedFunction(fc->getClassName().getChildId("handleModulation"));
+
+	if (!modFunction.isResolved())
+	{
+		*cd.r = Result::fail(cd.tp[1].type.toString() + "::handleModulation not found");
+		return;
+	}
+
+	if (modFunction.matchesArgumentTypes(TypeInfo(Types::ID::Integer), { TypeInfo(Types::ID::Double, false, true) }))
+	{
+		*cd.r = Result::fail(modFunction.getSignature() + ": wrong signature");
+		return;
+	}
+#endif
+
+	return cmv;
+}
+
+snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::getParameter(StructType* st)
+{
+	FunctionData cf;
+	cf.id = st->id.getChildId("getParameter");
+	auto t = st->getMemberTypeInfo("p").withModifiers(false, true);
+
+	cf.returnType = t;
+	auto offset = st->getMemberOffset("p");
+
+	cf.inliner = Inliner::createHighLevelInliner({}, [t, offset](InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+
+			d->target = new Operations::MemoryReference(d->location, d->object->clone(d->location), t, offset);
+			return Result::ok();
+		});
+
+	return cf;
 }
 
 }

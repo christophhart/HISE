@@ -122,7 +122,7 @@ struct WrapBuilder : public TemplateClassBuilder
 		AssemblyRegister::Ptr createPointerArgument(void* ptr);
 	};
 
-	WrapBuilder(Compiler& c, const Identifier& id, int numChannels, OpaqueType opaqueType_);
+	WrapBuilder(Compiler& c, const Identifier& id, int numChannels, OpaqueType opaqueType_, bool addParameterClass=false);
 
 	/** Use this constructor for all wrappers that have an int as first argument before the object. */
 	WrapBuilder(Compiler& c, const Identifier& id, const Identifier& constantArg, int numChannels, OpaqueType opaqueType_);
@@ -231,6 +231,8 @@ struct WrapBuilder : public TemplateClassBuilder
 		*/
 		static Result constructorInliner(InlineData* b);
 
+		static Result addObjReference(SyntaxTreeInlineParser& p, Operations::Statement::Ptr object);
+
 		static FunctionData constructorFunction(StructType* st)
 		{
 			FunctionData f;
@@ -308,7 +310,13 @@ struct WrapLibraryBuilder : public LibraryBuilderBase
 		{
 			static Result process(InlineData* b);
 
-			static Result prepare(InlineData* b);
+			static Result prepare(WrapBuilder::ExternalFunctionMapData& mapData);
+		};
+
+		struct mod
+		{
+			static FunctionData checkModValue(StructType* st);
+			static FunctionData getParameter(StructType* st);
 		};
 
 		struct fix
