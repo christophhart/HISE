@@ -158,7 +158,7 @@ void Types::Helpers::dumpNativeData(juce::String& s, int intendationLevel, const
 
 	s << intent << Types::Helpers::getCppTypeName((Types::ID)type) << " " << symbol;
 	s << "\t{ " << getValueString(type, dataPointer);
-	s << ", address: 0x" << String::toHexString((uint64_t)dataPointer).toUpperCase() << " }" << nl;
+	s << ", address: 0x" << String::toHexString((uint64_t)dataPointer).toUpperCase() << " }";
 
 	if (byteOffset % byteSize != 0)
 		s << " (Unaligned!)";

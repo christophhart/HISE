@@ -342,6 +342,8 @@ void SpanType::dumpTable(juce::String& s, int& intendLevel, void* dataStart, voi
 
 		auto address = ComplexType::getPointerWithOffset(complexTypeStartPointer, i * getElementSize());
 
+		s << "\n";
+
 		if (elementType.isComplexType())
 		{
 			symbol << Types::Helpers::getIntendation(intendLevel);
@@ -1393,14 +1395,17 @@ void StructType::dumpTable(juce::String& s, int& intendLevel, void* dataStart, v
 	{
 		if (m->typeInfo.isComplexType())
 		{
-			s << "|" << Types::Helpers::getIntendation(intendLevel) << m->typeInfo.toString() << " " << id.toString() << "::" << m->id;
+			s << "\n|" << Types::Helpers::getIntendation(intendLevel) << m->typeInfo.toString() << " " << id.toString() << "::" << m->id;
 			m->typeInfo.getComplexType()->dumpTable(s, intendLevel, dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id));
 		}
 		else
 		{
+			s << "\n";
 			Types::Helpers::dumpNativeData(s, intendLevel, id.getChildId(m->id).toString(), dataStart, (uint8*)complexTypeStartPointer + getMemberOffset(m->id), m->typeInfo.getRequiredByteSize(), m->typeInfo.getType());
 		}
 	}
+
+
 	intendLevel--;
 }
 
