@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 89
+  output: 90
   error: ""
   filename: "wrap/wrap_mod"
 END_TEST_DATA
@@ -33,7 +33,7 @@ struct ModSource
 
 	bool handleModulation(double& v)
 	{
-		v = 90.0f;
+		v = 90.0;
 		return true;
 	}
 
@@ -59,7 +59,7 @@ struct ModTarget
 
 	}
 	
-	float value = 0.0f;
+	float value = 7.0f;
 };
 
 using ParameterType = parameter::plain<ModTarget, 0>;
@@ -75,17 +75,7 @@ struct ChainType_Init
 		auto& target = c.get<1>();
 		
 		source.getParameter().connect<0>(target);
-		
-		double v = 0.0;
-
 		source.checkModValue();
-
-#if 0
-		if(source.getWrappedObject().handleModulation(v))
-		{
-			source.getParameter().call(v);
-		}
-#endif
 	}
 };
 
@@ -93,6 +83,7 @@ using Processor = wrap::init<ChainType, ChainType_Init>;
 
 Processor p;
 span<float, 1> x = { 0.0f };
+
 
 int main(int input)
 {

@@ -589,9 +589,9 @@ void Operations::DotOperator::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 		else if (auto dp = as<DotOperator>(getDotChild()))
 		{
-			dp->process(compiler, scope);
-			auto cp = dp->getDotParent();
-			auto cc = dp->getDotChild();
+			// Should be resolved already...
+			jassert(getSubRegister(1) != nullptr);
+			reg = getSubRegister(1);
 		}
 		else
 		{

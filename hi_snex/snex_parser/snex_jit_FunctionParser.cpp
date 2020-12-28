@@ -391,8 +391,10 @@ juce::Result SyntaxTreeInlineParser::flush()
 		nh.addSymbol(args[i].id, args[i].typeInfo, NamespaceHandler::SymbolType::Variable);
 	}
 
+	// We don't use a ThisPointer statement because it can't be properly resolved
+	// due to the missing function scope...
 	if(d->object != nullptr)
-		externalExpressions.set("this", new Operations::ThisPointer(d->location, d->object->getTypeInfo()));
+		externalExpressions.set("this", new Operations::MemoryReference(d->location, d->object->clone(d->location), d->object->getTypeInfo().withModifiers(false, true), 0));
 
 	using namespace Operations;
 

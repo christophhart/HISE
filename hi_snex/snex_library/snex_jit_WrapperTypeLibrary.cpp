@@ -1032,87 +1032,17 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::checkModValue(Struct
 	{
 		auto d = b->toSyntaxTreeData();
 
-#if 1
-		using namespace Operations;
-
-		auto pathId = d->path.getChildId("dd");
-
-		auto sb = new StatementBlock(d->location, pathId);
-		auto mv = new VariableReference(d->location, { pathId.getChildId("mv"), TypeInfo(Types::ID::Double) });
-		auto iv = new Immediate(d->location, VariableStorage(0.0));
-		auto as = new Assignment(d->location, mv, JitTokens::assign_, iv, true);
-
-		sb->addStatement(as);
-		
-		auto wrapType = d->object->getTypeInfo().getTypedComplexType<StructType>();
-
-#if 0
-		
-
-		auto wrappedType = wrapType->getMemberTypeInfo("obj");
-
-		auto objRef = new MemoryReference(d->location, d->object->clone(d->location), wrapType->getMemberTypeInfo("obj"), 0);
-
-		auto fc = new FunctionCall(d->location, nullptr, { wrappedType.getTypedComplexType<StructType>()->id.getChildId("handleModulation"), TypeInfo(Types::ID::Integer) }, {});
-
-		fc->setObjectExpression(objRef);
-		fc->addArgument(mv->clone(d->location));
-
-		sb->addStatement(fc);
-#endif
-
-#if 1
-		auto pType = wrapType->getMemberTypeInfo("p");
-
-		auto pRef = new MemoryReference(d->location, d->object->clone(d->location), pType, wrapType->getMemberOffset("p"));
-
-		auto pCall = new FunctionCall(d->location, nullptr, { pType.getTypedComplexType<StructType>()->id.getChildId("call"), TypeInfo(Types::ID::Void) }, {});
-
-		pCall->setObjectExpression(pRef);
-		pCall->addArgument(mv->clone(d->location));
-
-		sb->addStatement(pCall);
-#endif
-
-		d->target = sb;
-		return Result::ok();
-
-#else
 		String code;
 		String nl = "\n";
 
-		code << "double mv = 20.0;" << nl;
-		code << "$obj.handleModulation(mv);" << nl;
-		//code << "    $this.getParameter().call(mv);" << nl;
+		code << "double mv = 0.0;" << nl;
+		code << "if($obj.handleModulation(mv))" << nl;
+		code << "    $this.getParameter().call(mv);" << nl;
 
 		SyntaxTreeInlineParser p(b, {}, code);
-
 		WrapBuilder::Helpers::addObjReference(p, d->object);
-
 		return p.flush();
-#endif
-
-		
 	});
-
-
-#if 0
-	FunctionClass::Ptr fc = cd.tp[1].type.getComplexType()->getFunctionClass();
-
-	auto modFunction = fc->getNonOverloadedFunction(fc->getClassName().getChildId("handleModulation"));
-
-	if (!modFunction.isResolved())
-	{
-		*cd.r = Result::fail(cd.tp[1].type.toString() + "::handleModulation not found");
-		return;
-	}
-
-	if (modFunction.matchesArgumentTypes(TypeInfo(Types::ID::Integer), { TypeInfo(Types::ID::Double, false, true) }))
-	{
-		*cd.r = Result::fail(modFunction.getSignature() + ": wrong signature");
-		return;
-	}
-#endif
 
 	return cmv;
 }
@@ -1122,17 +1052,16 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::getParameter(StructT
 	FunctionData cf;
 	cf.id = st->id.getChildId("getParameter");
 	auto t = st->getMemberTypeInfo("p").withModifiers(false, true);
-
 	cf.returnType = t;
-	auto offset = st->getMemberOffset("p");
 
-	cf.inliner = Inliner::createHighLevelInliner({}, [t, offset](InlineData* b)
-		{
-			auto d = b->toSyntaxTreeData();
-
-			d->target = new Operations::MemoryReference(d->location, d->object->clone(d->location), t, offset);
-			return Result::ok();
-		});
+	cf.inliner = Inliner::createHighLevelInliner({}, [t](InlineData* b)
+	{
+		auto d = b->toSyntaxTreeData();
+		auto wClass = d->object->getTypeInfo().getTypedComplexType<StructType>();
+		auto offset = wClass->getMemberOffset("p");
+		d->target = new Operations::MemoryReference(d->location, d->object->clone(d->location), t, offset);
+		return Result::ok();
+	});
 
 	return cf;
 }

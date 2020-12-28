@@ -342,6 +342,8 @@ public:
 
 	ProcessTestCase(UnitTest* test, GlobalScope& memory, const juce::String& code)
 	{
+		data = 0.0f;
+
 		HiseEventBuffer b;
 
 		HiseEvent on(HiseEvent::Type::NoteOn, 36, 127, 1);
@@ -559,10 +561,14 @@ public:
 		optimizations = OptimizationIds::getAllIds();
 
 		runTestFiles("wrap_mod");
+
 		return;
 
+		runTestsWithOptimisation({});
 
 		optimizations = OptimizationIds::getAllIds();
+
+		runTestFiles("preprocessor_if5");
 
 		testExternalFunctionCalls();
 		testArrayTypes();
@@ -652,10 +658,6 @@ public:
 		testClampType(data);
 		testWrapType(data);
 
-		dyn<int> dynData(data);
-		testClampType(dynData);
-
-		
 	}
 
 	using OpList = StringArray;
@@ -1577,7 +1579,7 @@ private:
 			juce::String code;
 			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
 			ADD_CODE_LINE("{");
-			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    auto f = d.toFrameData();");
 			ADD_CODE_LINE("    while(f.next()) {");
 			ADD_CODE_LINE("        for(auto& s: f)");
 			ADD_CODE_LINE("            s = 0.8f;");
@@ -1657,7 +1659,7 @@ private:
 			juce::String code;
 			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
 			ADD_CODE_LINE("{");
-			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    auto f = d.toFrameData();");
 			ADD_CODE_LINE("    while(f.next())");
 			ADD_CODE_LINE("         f[0] = 3.0f;");
 			ADD_CODE_LINE("    return f.next();");
@@ -1679,7 +1681,7 @@ private:
 			juce::String code;
 			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
 			ADD_CODE_LINE("{");
-			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    auto f = d.toFrameData();");
 			ADD_CODE_LINE("    f.next();");
 			ADD_CODE_LINE("    f[0] = 1.9f;");
 			ADD_CODE_LINE("    f[1] = 4.9f;");
@@ -1696,7 +1698,7 @@ private:
 			juce::String code;
 			ADD_CODE_LINE("int test(ProcessData<NumChannels>& d)");
 			ADD_CODE_LINE("{");
-			ADD_CODE_LINE("    auto& f = d.toFrameData();");
+			ADD_CODE_LINE("    auto f = d.toFrameData();");
 			ADD_CODE_LINE("    int v = f.next();");
 			ADD_CODE_LINE("    for(auto& s: f)");
 			ADD_CODE_LINE("        s = 0.8f;");

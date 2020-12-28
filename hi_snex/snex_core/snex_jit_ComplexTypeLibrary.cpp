@@ -1879,6 +1879,9 @@ snex::jit::ComplexType::Ptr StructType::getMemberComplexType(const Identifier& i
 
 size_t StructType::getMemberOffset(const Identifier& id) const
 {
+	// Save ya some trouble...
+	jassert(isFinalised());
+
 	for (auto m : memberData)
 	{
 		if (m->id == id)

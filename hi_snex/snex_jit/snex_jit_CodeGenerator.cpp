@@ -388,12 +388,12 @@ void AsmCodeGenerator::emitThisMemberAccess(RegPtr target, RegPtr parent, Variab
 	if (parent->isMemoryLocation())
 	{
         auto p = createValid64BitPointer(cc, parent->getAsMemoryLocation(), memberOffset.toInt(), byteSize);
-        target->setCustomMemoryLocation(p, true);
+        target->setCustomMemoryLocation(p, parent->isGlobalMemory());
 	}
 	else
 	{
 		auto ptr = x86::ptr(INT_REG_R(parent), memberOffset.toInt());
-		target->setCustomMemoryLocation(ptr.cloneResized(byteSize), true);
+		target->setCustomMemoryLocation(ptr.cloneResized(byteSize), parent->isGlobalMemory());
 	}
 }
 
