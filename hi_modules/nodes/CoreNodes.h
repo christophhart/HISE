@@ -116,76 +116,7 @@ public:
 
 
 
-template <class ParameterType> struct pma: public combined_parameter_base
-{
-	SET_HISE_NODE_ID("pma");
-	SN_GET_SELF_AS_OBJECT(pma);
 
-	enum class Parameters
-	{
-		Value,
-		Multiply,
-		Add
-	};
-
-	DEFINE_PARAMETERS
-	{
-		DEF_PARAMETER(Value, pma);
-		DEF_PARAMETER(Multiply, pma);
-		DEF_PARAMETER(Add, pma);
-	};
-
-	void setValue(double v)
-	{
-		data.value = v;
-		sendParameterChange();
-	}
-
-	void setAdd(double v)
-	{
-		data.addValue = v;
-		sendParameterChange();
-	}
-
-	HISE_EMPTY_RESET;
-	HISE_EMPTY_PREPARE;
-	HISE_EMPTY_PROCESS;
-	HISE_EMPTY_PROCESS_SINGLE;
-	HISE_EMPTY_HANDLE_EVENT;
-
-	void setMultiply(double v)
-	{
-		data.mulValue = v;
-		sendParameterChange();
-	}
-
-	void sendParameterChange()
-	{
-		p.call(data.getPmaValue());
-	}
-
-	void createParameters(ParameterDataList& data)
-	{
-		{
-			DEFINE_PARAMETERDATA(pma, Value);
-			p.range = { 0.0, 1.0 };
-			p.defaultValue = 0.0;
-			data.add(std::move(p));
-		}
-		{
-			DEFINE_PARAMETERDATA(pma, Multiply);
-			p.defaultValue = 1.0;
-			data.add(std::move(p));
-		}
-		{
-			DEFINE_PARAMETERDATA(pma, Add);
-			p.defaultValue = 0.0;
-			data.add(std::move(p));
-		}
-	}
-
-	ParameterType p;
-};
 
 class peak : public HiseDspBase
 {

@@ -179,7 +179,7 @@ public:
 
 template <class HiseDspBaseType, class ComponentType = ModulationSourcePlotter> class HiseDspNodeBaseWithModulation : public ModulationSourceNode
 {
-	using WrapperType = wrap::mod<HiseDspBaseType, parameter::dynamic_base_holder>;
+	using WrapperType = wrap::mod<parameter::dynamic_base_holder, HiseDspBaseType>;
 
 public:
 	HiseDspNodeBaseWithModulation(DspNetwork* parent, ValueTree d) :
@@ -310,25 +310,6 @@ public:
 };
 
 
-template <int NumVoices> struct combined_parameter_base
-{
-	struct Data
-	{
-		double getPmaValue() const { return value * mulValue + addValue; }
-
-		double getPamValue() const { return (value + addValue) * mulValue; }
-
-		double value = 0.0;
-		double mulValue = 1.0;
-		double addValue = 0.0;
-	};
-	
-	PolyData<Data, NumVoices> data;
-
-	NormalisableRange<double> currentRange;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base<NumVoices>);
-};
 
 struct CombinedParameterDisplay : public ModulationSourceBaseComponent
 {
@@ -376,7 +357,7 @@ template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
 				RangeHelpers::storeDoubleRange(thisValue, false, p.range, getUndoManager());
 				obj.currentRange = p.range;
 
-				auto v = obj.data.getPmaValue();
+				auto v = obj.getUIData().getPmaValue();
 				getParameterHolder()->call(v);
 			}
 		});

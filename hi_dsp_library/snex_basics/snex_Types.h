@@ -192,6 +192,33 @@ struct PrepareSpecs
 	/** The number of channels for the signal. */
 	int numChannels = 0;
 
+	PrepareSpecs withBlockSize(int newBlockSize) const
+	{
+		PrepareSpecs copy(*this);
+		copy.blockSize = newBlockSize;
+		return copy;
+	}
+
+	template <int BlockSize> PrepareSpecs withBlockSizeT() const
+	{
+		PrepareSpecs copy(*this);
+		copy.blockSize = BlockSize;
+		return copy;
+	}
+
+	PrepareSpecs withNumChannels(int newNumChannels) const
+	{
+		PrepareSpecs copy(*this);
+		copy.numChannels = newNumChannels;
+	}
+
+	template <int NumChannels> PrepareSpecs withNumChannelsT() const
+	{
+		PrepareSpecs copy(*this);
+		copy.numChannels = NumChannels;
+		return copy;
+	}
+
 	/** A pointer to the voice index (see PolyData template). */
 	PolyHandler* voiceIndex = nullptr;
 };

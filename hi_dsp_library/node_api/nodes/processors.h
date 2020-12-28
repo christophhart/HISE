@@ -72,16 +72,23 @@ namespace static_functions
 namespace prototypes
 {
 template <typename ProcessDataType> using process = void(*)(void*, ProcessDataType&);
+typedef void(*prepare)(void*, PrepareSpecs);
 typedef void(*handleHiseEvent)(void*, HiseEvent&);
 }
 
+template <int ChannelAmount> struct frame
+{
+	static void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
+	{
+		f(obj, ps.withNumChannelsT<ChannelAmount>().withBlockSize(1));
+	}
+};
+
 template <int BlockSize> struct fix_block
 {
-	static void prepare(void* obj, void* functionPointer, PrepareSpecs ps)
+	static void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
 	{
-		auto typedFunction = (void(*)(void*, PrepareSpecs))functionPointer;
-		ps.blockSize = BlockSize;
-		typedFunction(obj, ps);
+		f(obj, ps.withBlockSizeT<BlockSize>());
 	}
 
 	template <typename ProcessDataType> static void process(void* obj, prototypes::process<ProcessDataType> pf, ProcessDataType& data)
@@ -396,6 +403,7 @@ public:
 
 	void prepare(PrepareSpecs ps)
 	{
+		ps.blockSize = 1;
 		obj.prepare(ps);
 	}
 
@@ -746,36 +754,50 @@ public:
 };
 
 
-template <class T, class ParameterClass> struct mod
-{
-	GET_SELF_OBJECT(*this);
-	GET_WRAPPED_OBJECT(this->obj.getWrappedObject());
+/** The wrap::mod class can be used in order to create modulation connections between nodes.
 
-	constexpr static bool isModulationSource = false;
+	It uses the same parameter class as the containers in order to optimise as much as possible on 
+	compile time.
+
+	If you want a node to act as modulation source, you need to add a function with the prototype
+
+	bool handleModulation(double& value)
+
+	which sets the `value` parameter to the modulation value and returns true if the modulation is
+	supposed to be sent out to the targets. The return parameter allows you to skip redundant modulation
+	calls (eg. a tempo sync mod only needs to send out a value if the tempo has changed).
+
+	The mod node will call this function on different occasions and if it returns true, forwards the value
+	to the parameter class:
+
+	- after a reset() call
+	- after each process call. Be aware that processFrame will also cause a call to handle modulation so be 
+	  aware of the performance implications here.
+	- after each handleHiseEvent() callback. This can be used to make modulation sources that react on MIDI.
+
+	A useful helper class for this wrapper is the ModValue class, which offers a few convenient functions.
+*/
+template <class ParameterClass, class T> struct mod
+{
+	SN_SELF_AWARE_WRAPPER(mod, T);
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
 	{
-		this->obj.process(data);
+		obj.process(data);
 		checkModValue();
 	}
 
+	/** Resets the node and sends a modulation signal if required. */
 	void reset() noexcept 
 	{
-		this->obj.reset();
+		obj.reset();
 		checkModValue();
 	}
 
-	void checkModValue()
-	{
-		double modValue = 0.0;
-
-		if (this->obj.handleModulation(modValue))
-			p.call(modValue);
-	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		this->obj.processFrame(data);
+		obj.processFrame(data);
 		checkModValue();
 	}
 
@@ -784,6 +806,7 @@ template <class T, class ParameterClass> struct mod
 		obj.initialise(n);
 	}
 
+	/** Calls handleHiseEvent on the wrapped object and sends out a modulation signal if required. */
 	void handleHiseEvent(HiseEvent& e)
 	{
 		obj.handleHiseEvent(e);
@@ -797,21 +820,45 @@ template <class T, class ParameterClass> struct mod
 
 	void prepare(PrepareSpecs ps)
 	{
-		this->obj.prepare(ps);
+		obj.prepare(ps);
 	}
 
+	/** This function will be called when a mod value is supposed to be 
+	    sent out to the target. 
+	*/
 	bool handleModulation(double& value) noexcept
 	{
-		return false;
+		return obj.handleModulation(value);
 	}
 
+	/** This method can be used to connect a target to the parameter of this
+	    modulation node. 
+	*/
 	template <int I, class T> void connect(T& t)
 	{
 		p.getParameter<0>().connect<I>(t);
 	}
 
-	ParameterClass p;
+	/** Forwards the setParameter to the wrapped node. (Required because this
+	    node needs to be *SelfAware*. 
+	*/
+	template <int P> void setParameter(double v)
+	{
+		obj.setParameter<P>(v);
+	}
+
 	T obj;
+	ParameterClass p;
+
+private:
+
+	void checkModValue()
+	{
+		double modValue = 0.0;
+
+		if (handleModulation(modValue))
+			p.call(modValue);
+	}
 };
 
 }

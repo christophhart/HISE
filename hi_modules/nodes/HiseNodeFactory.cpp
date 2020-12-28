@@ -142,7 +142,7 @@ Factory::Factory(DspNetwork* network) :
 
 	//registerPolyNode<midi, midi_poly, MidiDisplay>({});
 
-	registerNodeRaw<ParameterMultiplyAddNode<core::pma<parameter::dynamic_base_holder>>>();
+	registerNodeRaw<ParameterMultiplyAddNode<core::pma<parameter::dynamic_base_holder, 1>>>();
 
 	registerModNode<hise_mod>();
 

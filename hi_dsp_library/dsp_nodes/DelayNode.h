@@ -38,6 +38,130 @@ using namespace hise;
 
 namespace core
 {
+
+struct combined_parameter_base
+{
+	struct Data
+	{
+		double getPmaValue() const { return value * mulValue + addValue; }
+
+		double getPamValue() const { return (value + addValue) * mulValue; }
+
+		double value = 0.0;
+		double mulValue = 1.0;
+		double addValue = 0.0;
+	};
+
+	virtual Data getUIData() const = 0;
+
+	NormalisableRange<double> currentRange;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(combined_parameter_base);
+};
+
+template <int NumVoices> struct combined_parameter : public combined_parameter_base
+{
+	Data getUIData() const override {
+		return data.getFirst();
+	}
+
+	PolyData<Data, NumVoices> data;
+};
+
+template <class ParameterType, int NumVoices=1> struct pma : public combined_parameter<NumVoices>
+{
+	SET_HISE_NODE_ID("pma");
+	SN_GET_SELF_AS_OBJECT(pma);
+
+	enum class Parameters
+	{
+		Value,
+		Multiply,
+		Add
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Value, pma);
+		DEF_PARAMETER(Multiply, pma);
+		DEF_PARAMETER(Add, pma);
+	};
+
+	void setValue(double v)
+	{
+		for (auto& s : this->data)
+		{
+			s.value = v;
+			sendParameterChange(s);
+		}
+	}
+
+	void setAdd(double v)
+	{
+		for (auto& s : this->data)
+		{
+			s.addValue = v;
+			sendParameterChange(s);
+		}
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		this->data.prepare(ps);
+	}
+
+	/** This method can be used to connect a target to the combined output of this
+	    node.
+	*/
+	template <int I, class T> void connect(T& t)
+	{
+		p.getParameter<0>().connect<I>(t);
+	}
+
+	HISE_EMPTY_RESET;
+	HISE_EMPTY_PROCESS;
+	HISE_EMPTY_PROCESS_SINGLE;
+	HISE_EMPTY_HANDLE_EVENT;
+
+	void setMultiply(double v)
+	{
+		for (auto& s : this->data)
+		{
+			s.mulValue = v;
+			sendParameterChange(s);
+		}
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(pma, Value);
+			p.range = { 0.0, 1.0 };
+			p.defaultValue = 0.0;
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(pma, Multiply);
+			p.defaultValue = 1.0;
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(pma, Add);
+			p.defaultValue = 0.0;
+			data.add(std::move(p));
+		}
+	}
+
+	ParameterType p;
+
+private:
+
+	void sendParameterChange(combined_parameter_base::Data& d)
+	{
+		p.call(d.getPmaValue());
+	}
+};
+
 struct fix_delay : public HiseDspBase
 {
 	enum class Parameters
