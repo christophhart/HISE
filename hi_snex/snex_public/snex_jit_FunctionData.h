@@ -243,7 +243,7 @@ struct FunctionData
 	TypeInfo returnType;
 
 	/** whether the function has any side effects. */
-	bool const_;
+	bool const_ = false;
 
 	Array<TemplateParameter> templateParameters;
 

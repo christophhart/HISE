@@ -196,6 +196,7 @@ namespace snex
 #include "snex_core/snex_jit_JitCallableObject.h"
 #include "snex_core/snex_jit_JitCompiledFunctionClass.h"
 #include "snex_public/snex_jit_JitCompiler.h"
+#include "snex_cpp_builder/snex_jit_CppBuilder.h"
 
 namespace snex {
 	namespace jit {

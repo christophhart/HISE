@@ -235,7 +235,7 @@ snex::jit::Inliner::Ptr FunctionClass::getInliner(const NamespacedIdentifier& id
 	return nullptr;
 }
 
-void FunctionClass::addInliner(const Identifier& id, const Inliner::Func& asmFunc)
+void FunctionClass::addInliner(const Identifier& id, const Inliner::Func& func, Inliner::InlineType type)
 {
 	auto nId = getClassName().getChildId(id);
 
@@ -245,7 +245,13 @@ void FunctionClass::addInliner(const Identifier& id, const Inliner::Func& asmFun
 	for (auto& f : functions)
 	{
 		if (f->id == nId)
-			f->inliner = new Inliner(nId, asmFunc, {});
+		{
+			if(type == Inliner::Assembly)
+				f->inliner = new Inliner(nId, func, {});
+			else
+				f->inliner = new Inliner(nId, {}, func);
+		}
+			
 	}
 }
 

@@ -91,6 +91,9 @@ struct ComplexType : public ReferenceCountedObject
 	/** Override this and optimise the alignment. After this call the data structure must not be changed. */
 	virtual void finaliseAlignment() { finalised = true; };
 
+	/** finalised the type and returns a ref counted pointer. */
+	Ptr finaliseAndReturn();
+
 	virtual void dumpTable(juce::String& s, int& intentLevel, void* dataStart, void* complexTypeStartPointer) const = 0;
 
 	virtual Result initialise(InitData d) = 0;

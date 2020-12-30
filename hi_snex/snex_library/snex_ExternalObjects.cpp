@@ -190,7 +190,9 @@ snex::jit::ComplexType::Ptr PrepareSpecsJIT::createComplexType(Compiler& c, cons
 	ADD_SNEX_STRUCT_MEMBER(st, obj, blockSize);
 	ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
 
-	return c.registerExternalComplexType(st);
+	st->finaliseExternalDefinition();
+
+	return st;
 }
 
 
@@ -314,8 +316,7 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 
 	st->finaliseExternalDefinition();
 
-
-	return c.registerExternalComplexType(st);
+	return st;
 }
 
 

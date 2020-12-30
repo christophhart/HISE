@@ -387,6 +387,8 @@ struct StructType : public ComplexType,
 
 	bool injectInliner(const FunctionData& f);
 
+	int injectInliner(const Identifier& functionId, Inliner::InlineType type, const Inliner::Func& func);
+
 	Symbol getMemberSymbol(const Identifier& id) const;
 
 	TemplateInstance getTemplateInstanceId() const;

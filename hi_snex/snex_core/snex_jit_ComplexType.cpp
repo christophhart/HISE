@@ -356,5 +356,13 @@ void ComplexType::writeNativeMemberType(void* dataPointer, int byteOffset, const
 	}
 }
 
+ComplexType::Ptr ComplexType::finaliseAndReturn()
+{
+	if (!finalised)
+		finaliseAlignment();
+
+	return Ptr(this);
+}
+
 }
 }

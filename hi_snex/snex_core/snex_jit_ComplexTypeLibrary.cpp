@@ -1980,6 +1980,23 @@ bool StructType::injectInliner(const FunctionData& f)
 	return false;
 }
 
+int StructType::injectInliner(const Identifier& functionId, Inliner::InlineType type, const Inliner::Func& func)
+{
+	int numReplaced = 0;
+	Inliner::Ptr i = Inliner::createFromType(id.getChildId(functionId), type, func);
+
+	for (auto& f : memberFunctions)
+	{
+		if (f.id.getIdentifier() == functionId)
+		{
+			f.inliner = i;
+			numReplaced++;
+		}
+	}
+		
+	return numReplaced;
+}
+
 snex::jit::Symbol StructType::getMemberSymbol(const Identifier& mId) const
 {
 	if (hasMember(mId))

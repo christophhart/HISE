@@ -123,7 +123,7 @@ struct FunctionClass : public DebugableObjectBase,
 	FunctionClass* getSubFunctionClass(const NamespacedIdentifier& id);
 	bool isInlineable(const NamespacedIdentifier& id) const;
 	Inliner::Ptr getInliner(const NamespacedIdentifier& id) const;
-	void addInliner(const Identifier& id, const Inliner::Func& asmFunc);
+	void addInliner(const Identifier& id, const Inliner::Func& func, Inliner::InlineType type=Inliner::Assembly);
 
 protected:
 

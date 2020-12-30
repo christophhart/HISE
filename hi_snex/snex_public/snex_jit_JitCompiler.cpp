@@ -87,6 +87,11 @@ juce::String Compiler::dumpNamespaceTree() const
 
 ComplexType::Ptr Compiler::registerExternalComplexType(ComplexType::Ptr t)
 {
+	if (auto st = dynamic_cast<StructType*>(t.get()))
+	{
+		st->finaliseExternalDefinition();
+	}
+
 	return compiler->namespaceHandler.registerComplexTypeOrReturnExisting(t);
 }
 

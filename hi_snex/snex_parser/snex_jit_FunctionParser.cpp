@@ -353,10 +353,10 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseAssignment()
 
 
 
-SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const StringArray& originalParameters, const String& code_):
+SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const StringArray& originalParameters, const CppBuilder& builder):
 	CodeParser(b_->toSyntaxTreeData()->expression->currentCompiler, ""),
 	b(b_),
-	code(code_),
+	code(builder.toString()),
 	originalArgs(originalParameters),
 	originalLocation(b_->toSyntaxTreeData()->location)
 {
@@ -366,7 +366,6 @@ SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const StringArray
 	program = code;
 	length = code.length();
 	endPointer = p + length;
-	skip();
 }
 
 juce::Result SyntaxTreeInlineParser::flush()
