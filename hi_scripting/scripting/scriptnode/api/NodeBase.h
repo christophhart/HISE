@@ -169,7 +169,7 @@ public:
 
 		void call(double v) final override
 		{
-			node->setBypassed(!enabledRange.contains(v));
+			node->setBypassed(!enabledRange.contains(v) && enabledRange.getEnd() != v);
 		}
 
 		WeakReference<NodeBase> node;

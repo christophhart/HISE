@@ -416,6 +416,8 @@ struct dynamic
 		receiveIds(PropertyIds::Connection, "")
 	{}
 
+	HISE_EMPTY_SET_PARAMETER;
+
 	void prepare(PrepareSpecs ps);
 
 	void reset()
@@ -937,6 +939,7 @@ template <class MatrixType> struct matrix
 	SN_GET_SELF_AS_OBJECT(matrix);
 
 	HISE_EMPTY_RESET;
+	HISE_EMPTY_SET_PARAMETER;
 
 	void prepare(PrepareSpecs specs)
 	{

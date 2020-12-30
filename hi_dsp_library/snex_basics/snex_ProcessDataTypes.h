@@ -515,6 +515,7 @@ struct FrameConverters
 		{
 		case 1:		ptr->processFrame(span<float, 1>::as(data.begin())); break;
 		case 2:		ptr->processFrame(span<float, 2>::as(data.begin())); break;
+#if 0
 		case 3:		ptr->processFrame(span<float, 3>::as(data.begin())); break;
 		case 4:		ptr->processFrame(span<float, 4>::as(data.begin())); break;
 		case 5:		ptr->processFrame(span<float, 5>::as(data.begin())); break;
@@ -529,6 +530,7 @@ struct FrameConverters
 		case 14:	ptr->processFrame(span<float, 14>::as(data.begin())); break;
 		case 15:	ptr->processFrame(span<float, 15>::as(data.begin())); break;
 		case 16:	ptr->processFrame(span<float, 16>::as(data.begin())); break;
+#endif
 		}
 	}
 

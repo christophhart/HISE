@@ -141,6 +141,8 @@ template <int NV> struct fir_impl : public AudioFileNodeBase
 	SET_HISE_NODE_ID("fir");
 	SN_GET_SELF_AS_OBJECT(fir_impl);
 
+	HISE_EMPTY_SET_PARAMETER;
+
 	fir_impl();;
 
 	bool isPolyphonic() const { return NumVoices > 1; }

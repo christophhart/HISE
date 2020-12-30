@@ -39,7 +39,7 @@ using namespace hise;
 
 class ChainNode : public SerialNode
 {
-	using InternalWrapper = bypass::smoothed<SerialNode::DynamicSerialProcessor, false>;
+	using InternalWrapper = bypass::smoothed<SerialNode::DynamicSerialProcessor>;
 
 public:
 

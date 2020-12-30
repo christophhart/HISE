@@ -195,7 +195,7 @@ struct empty
 	}
 };
 
-template <typename T> struct bypass : public single_base<T, 999>
+template <typename T> struct bypass : public single_base<T, 9000>
 {
 	PARAMETER_SPECS(ParameterType::Single, 1);
 
@@ -211,7 +211,7 @@ template <typename T> struct bypass : public single_base<T, 999>
 
 	static void callStatic(void*  obj, double v)
 	{
-		T::setBypassed(obj, v);
+		T::setParameter<scriptnode::bypass::ParameterId>(obj, v);
 	}
 
 	template <int P> auto& getParameter()

@@ -73,7 +73,7 @@ struct NoExtraComponent
     
 template <class HiseDspBaseType, class ComponentType=NoExtraComponent> class HiseDspNodeBase : public WrapperNode
 {
-	using WrapperType = bypass::smoothed<HiseDspBaseType, false>;
+	using WrapperType = bypass::smoothed<HiseDspBaseType>;
 
 public:
 	HiseDspNodeBase(DspNetwork* parent, ValueTree d) :
@@ -164,7 +164,7 @@ public:
 	void setBypassed(bool shouldBeBypassed) final override
 	{
 		WrapperNode::setBypassed(shouldBeBypassed);
-		wrapper.setBypassed(shouldBeBypassed);
+		WrapperType::setParameter<bypass::ParameterId>(&wrapper, (double)shouldBeBypassed);
 	}
 
 	void handleHiseEvent(HiseEvent& e) final override

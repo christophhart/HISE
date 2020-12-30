@@ -274,218 +274,102 @@ template <class T, int Size> struct span
 
 	}
 
-	Type& operator=(const DataType& t)
+	Type& operator=(const T& t)
 	{
-		if (isSimdable())
-		{
-			constexpr int numLoop = Size / getSimdSize();
-			
-			if (std::is_same<DataType, float>())
-			{
-				float t_ = (float)t;
-
-				auto dst = (float*)data;
-
-				for (int i = 0; i < numLoop; i++)
-				{
-					auto v = _mm_load_ps1(&t_);
-					_mm_store_ps(dst, v);
-
-					dst += getSimdSize();
-				}
-			}
-		}
-		else
-		{
-			for (auto& v : *this)
-				v = t;
-		}
+		for (auto& v : *this)
+			v = t;
 
 		return *this;
 	}
 
-	operator DataType()
+	operator T()
 	{
-		if (Size == 1)
-			return *begin();
+		static_assert(Size == 1, "not a single elemnet span");
+		return *begin();
 	}
 
 	Type& operator+=(const T& scalar)
 	{
-		*this + scalar;
-		return *this;
+		return *this + scalar;
 	}
 
 	Type& operator+(const T& scalar)
 	{
-		static_assert(isSimdable(), "Can't add non SIMDable types");
-
-		constexpr int numLoop = Size / getSimdSize();
-		auto dst = (float*)data;
-		auto sc = (float)scalar;
-
-		auto v = _mm_load_ps1(&scalar);
-
-		for (int i = 0; i < numLoop; i++)
-		{
-			auto r = _mm_add_ps(_mm_load_ps(dst), v);
-			_mm_store_ps(dst, r);
-
-			dst += getSimdSize();
-		}
+		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
+		
+		for (auto& s : *this)
+			s += scalar;
 
 		return *this;
 	}
 
 	Type& operator=(const Type& other)
 	{
-		if (Size >= 4 && isSimdable())
-		{
-			constexpr int numLoop = Size / getSimdSize();
-			auto src = (float*)other.data;
-			auto dst = (float*)data;
-
-			for (int i = 0; i < numLoop; i++)
-			{
-				auto v = _mm_load_ps((float*)src);
-				_mm_store_ps(dst, v);
-
-				src += getSimdSize();
-				dst += getSimdSize();
-			}
-		}
-		else
-		{
-			int index = 0;
-			for (auto& v : *this)
-				v = other[index++];
-		}
-
-		
-
+		memcpy(data, other.begin(), size() * sizeof(T));
 		return *this;
 	}
 
 	Type& operator+ (const Type& other)
 	{
-		auto dst = (float*)data;
-		auto src = (float*)other.data;
-		constexpr int numLoop = Size / getSimdSize();
+		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
 
-		for (int i = 0; i < numLoop; i++)
-		{
-			auto v = _mm_load_ps(dst);
-			auto r = _mm_add_ps(v, _mm_load_ps(src));
-			_mm_store_ps(dst, r);
-
-			dst += getSimdSize();
-			src += getSimdSize();
-		}
+		for (int i = 0; i < size(); i++)
+			data[i] += other.data[i];
 
 		return *this;
 	}
 
 	Type& operator +=(const Type& other)
 	{
-		static_assert(isSimdable(), "Can't add non SIMDable types");
+		return *this + other;
+	}
 
-		constexpr int numLoop = Size / getSimdSize();
-		int i = 0;
-
-		auto dst = (float*)data;
-		auto src = (float*)other.data;
-
-		for (int i = 0; i < numLoop; i++)
-		{
-			auto v = _mm_load_ps(dst);
-			auto r = _mm_add_ps(v, _mm_load_ps(src));
-			_mm_store_ps(dst, r);
-
-			dst += getSimdSize();
-			src += getSimdSize();
-		}
-
-		return *this;
+	constexpr bool isFloatType()
+	{
+		return std::is_same<float, T>() || std::is_same<double, T>();
 	}
 
 	Type& operator* (const Type& other)
 	{
-		auto dst = (float*)data;
-		auto src = (float*)other.data;
-		constexpr int numLoop = Size / getSimdSize();
+		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
 
-		for (int i = 0; i < numLoop; i++)
-		{
-			auto v = _mm_load_ps(dst);
-			auto r = _mm_mul_ps(v, _mm_load_ps(src));
-			_mm_store_ps(dst, r);
+		const auto src = other.begin();
 
-			dst += getSimdSize();
-			src += getSimdSize();
-		}
+		for (int i = 0; i < size(); i++)
+			data[i] *= src[i];
 
 		return *this;
 	}
 
 	Type& operator *=(const Type& other)
 	{
-		static_assert(isSimdable(), "Can't add non SIMDable types");
-
-		constexpr int numLoop = Size / getSimdSize();
-		int i = 0;
-
-		auto dst = (float*)data;
-		auto src = (float*)other.data;
-
-		for (int i = 0; i < numLoop; i++)
-		{
-			auto v = _mm_load_ps(dst);
-			auto r = _mm_mul_ps(v, _mm_load_ps(src));
-			_mm_store_ps(dst, r);
-
-			dst += getSimdSize();
-			src += getSimdSize();
-		}
-
-		return *this;
+		return *this * other;
 	}
 
 	Type& operator*=(const T& scalar)
 	{
-		*this * scalar;
-		return *this;
+		return *this * scalar;
 	}
 
 	Type& operator*(const T& scalar)
 	{
-		//static_assert(isSimdable(), "Can't add non SIMDable types");
+		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
 
-		constexpr int numLoop = Size / getSimdSize();
-		auto dst = (float*)data;
-		auto sc = (float)scalar;
-
-		auto v = _mm_load_ps1(&scalar);
-
-		for (int i = 0; i < numLoop; i++)
-		{
-			auto r = _mm_mul_ps(_mm_load_ps(dst), v);
-			_mm_store_ps(dst, r);
-
-			dst += getSimdSize();
-		}
+		for (auto& s : *this)
+			s *= scalar;
 
 		return *this;
 	}
 
 	T accumulate() const
 	{
+		static_assert(std::is_arithmetic<T>(), "not an arithmetic type");
+
 		T v = T(0);
 
-		for (int i = 0; i < Size; i++)
-		{
-			v += data[i];
-		}
-
+		for (const auto& s : *this)
+			v += s;
+		
 		return v;
 	}
 

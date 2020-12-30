@@ -165,6 +165,8 @@ struct new_jit: public SnexSource,
 		lastResult(Result::ok())
 	{}
 
+	HISE_EMPTY_SET_PARAMETER;
+
 	String getEmptyText() const override
 	{
 		String s;

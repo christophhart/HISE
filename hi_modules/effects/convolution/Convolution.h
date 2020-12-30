@@ -461,6 +461,8 @@ struct convolution : public AudioFileNodeBase
 	SET_HISE_NODE_ID("convolution");
 	SN_GET_SELF_AS_OBJECT(convolution);
 
+	HISE_EMPTY_SET_PARAMETER;
+
 	bool isPolyphonic() const { return false; }
 
 	void prepare(PrepareSpecs specs) override

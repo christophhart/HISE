@@ -36,9 +36,6 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
-namespace core
-{
-
 struct combined_parameter_base
 {
 	struct Data
@@ -67,6 +64,11 @@ template <int NumVoices> struct combined_parameter : public combined_parameter_b
 
 	PolyData<Data, NumVoices> data;
 };
+
+namespace core
+{
+
+
 
 template <class ParameterType, int NumVoices=1> struct pma : public combined_parameter<NumVoices>
 {

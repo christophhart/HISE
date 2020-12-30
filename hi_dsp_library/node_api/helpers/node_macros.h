@@ -121,6 +121,8 @@ constexpr const auto& getWrappedObject() const { return x; }
 #define HISE_EMPTY_CREATE_PARAM void createParameters(ParameterDataList&){}
 #define HISE_EMPTY_MOD bool handleModulation(double& ) { return false; }
 #define HISE_EMPTY_HANDLE_EVENT void handleEvent(HiseEvent& e) {};
+#define HISE_EMPTY_SET_PARAMETER template <int P> static void setParameter(void* obj, double v) {}
+#define HISE_EMPTY_INITIALISE void initialise(NodeBase* b) {}
 
 /** Node Factory macros. */
 
@@ -142,7 +144,7 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #define FORWARD_PARAMETER_TO_MEMBER(className) DEFINE_PARAMETERS { static_cast<className*>(obj)->setParameter<P>(value); }
 
 /** This is being used to tuck away everything that that JIT compiler can't parse. */
-#define DECLARE_NODE(className) SET_HISE_NODE_ID(#className); FORWARD_PARAMETER_TO_MEMBER(className); SN_GET_SELF_AS_OBJECT(className); hmath Math;
+#define DECLARE_NODE(className) SET_HISE_NODE_ID(#className); FORWARD_PARAMETER_TO_MEMBER(className); SN_GET_SELF_AS_OBJECT(className); hmath Math; HISE_EMPTY_INITIALISE HISE_EMPTY_CREATE_PARAM
 
 
 
