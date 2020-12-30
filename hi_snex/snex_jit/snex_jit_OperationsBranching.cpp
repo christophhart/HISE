@@ -62,59 +62,53 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 
 	auto path = getPath();
 
+	
+
 	COMPILER_PASS(BaseCompiler::DataAllocation)
 	{
-		Array<Symbol> destructorIds;
+		addDestructors(scope);
 
-		forEachRecursive([path, &destructorIds, scope](Ptr p)
-		{
-			if (auto cd = as<ComplexTypeDefinition>(p))
-			{
-				if (cd->isStackDefinition(scope))
-				{
-					if (cd->type.getComplexType()->hasDestructor())
-					{
-						for (auto& id : cd->getInstanceIds())
-						{
-							if (path == id.getParent())
-							{
-								destructorIds.add(Symbol(id, cd->type));
-							}
-						}
-					}
-				}
-			}
-
-			return false;
-		});
-
-		//  Reverse the order of destructor execution.
-		for (int i = destructorIds.size() - 1; i >= 0; i--)
-		{
-			auto id = destructorIds[i];
-
-			ComplexType::DeconstructData d;
-			ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(this, getPath());
-
-			d.inlineData = b.get();
-			b->object = this;
-			b->expression = new Operations::VariableReference(location, id);
-			auto r = id.typeInfo.getComplexType()->callDestructor(d);
-			location.test(r);
-		}
+		removeStatementsAfterReturn();
 	}
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
 		if (hasReturnType())
 		{
-			if (!isInlinedFunction)
+			bool useReturnRegister = true;
+
+			if (isInlinedFunction)
 			{
-				allocateReturnRegister(compiler, bs);
+				int returnStatements = 0;
+
+				forEachRecursive([&returnStatements](Ptr p)
+				{
+					if (as<ReturnStatement>(p))
+						returnStatements++;
+
+					return false;
+				});
+
+				jassert(returnStatements > 0);
+
+				useReturnRegister = returnStatements >= 2;
 			}
+
+			if (useReturnRegister)
+				allocateReturnRegister(compiler, bs);
 		}
 
 		reg = returnRegister;
+	}
+
+	COMPILER_PASS(BaseCompiler::CodeGeneration)
+	{
+		if (isInlinedFunction && endLabel.isValid())
+		{
+			auto acg = CREATE_ASM_COMPILER(getType());
+			acg.cc.setInlineComment("end of inline function");
+			acg.cc.bind(endLabel);
+		}
 	}
 }
 
@@ -171,6 +165,61 @@ snex::jit::Operations::InlinedArgument* Operations::StatementBlock::findInlinedP
 	return nullptr;
 }
 
+void Operations::StatementBlock::addInlinedReturnJump(X86Compiler& cc)
+{
+	jassert(isInlinedFunction);
+
+	if (!endLabel.isValid())
+	{
+		endLabel = cc.newLabel();
+	}
+
+	cc.jmp(endLabel);
+}
+
+void Operations::StatementBlock::addDestructors(BaseScope* scope)
+{
+	Array<Symbol> destructorIds;
+	auto path = getPath();
+
+	forEachRecursive([path, &destructorIds, scope](Ptr p)
+		{
+			if (auto cd = as<ComplexTypeDefinition>(p))
+			{
+				if (cd->isStackDefinition(scope))
+				{
+					if (cd->type.getComplexType()->hasDestructor())
+					{
+						for (auto& id : cd->getInstanceIds())
+						{
+							if (path == id.getParent())
+							{
+								destructorIds.add(Symbol(id, cd->type));
+							}
+						}
+					}
+				}
+			}
+
+			return false;
+		});
+
+	//  Reverse the order of destructor execution.
+	for (int i = destructorIds.size() - 1; i >= 0; i--)
+	{
+		auto id = destructorIds[i];
+
+		ComplexType::DeconstructData d;
+		ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(this, getPath(), {});
+
+		d.inlineData = b.get();
+		b->object = this;
+		b->expression = new Operations::VariableReference(location, id);
+		auto r = id.typeInfo.getComplexType()->callDestructor(d);
+		location.test(r);
+	}
+}
+
 void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithChildren(compiler, scope);
@@ -208,7 +257,15 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 			if (auto sb = findInlinedRoot())
 			{
 				reg = getSubRegister(0);
-				sb->reg = reg;
+
+				// if it has a register, it means that there is branching going on...
+				if (sb->reg != nullptr)
+				{
+					asg.emitStore(sb->reg, reg);
+					sb->addInlinedReturnJump(asg.cc);
+				}
+				else
+					sb->reg = reg;
 
 				if (reg != nullptr && reg->isActive())
 					jassert(reg->isValid());

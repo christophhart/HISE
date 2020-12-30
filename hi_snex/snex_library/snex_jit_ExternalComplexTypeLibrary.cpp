@@ -45,7 +45,7 @@ using namespace asmjit;
 
 
 template <typename T>
-jit::ComplexType::Ptr _ramp<T>::createComplexType(Compiler& c, const Identifier& id)
+jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Identifier& id)
 {
 	Type s;
 
@@ -58,17 +58,39 @@ jit::ComplexType::Ptr _ramp<T>::createComplexType(Compiler& c, const Identifier&
 	ADD_SNEX_PRIVATE_MEMBER(obj, s, numSteps);
 	ADD_SNEX_PRIVATE_MEMBER(obj, s, stepsToDo);
 
-	ADD_SNEX_STRUCT_METHOD(obj, Type, reset);
+	ADD_SNEX_STRUCT_METHOD(obj, RampWrapper<T>, reset);
 
-	ADD_SNEX_STRUCT_METHOD(obj, Type, set);
+	ADD_SNEX_STRUCT_METHOD(obj, RampWrapper<T>, set);
 	SET_SNEX_PARAMETER_IDS(obj, "newValue");
 
-	ADD_SNEX_STRUCT_METHOD(obj, Type, advance);
-	ADD_SNEX_STRUCT_METHOD(obj, Type, get);
-	ADD_SNEX_STRUCT_METHOD(obj, Type, prepare);
+	ADD_SNEX_STRUCT_METHOD(obj, RampWrapper<T>, advance);
+	ADD_SNEX_STRUCT_METHOD(obj, RampWrapper<T>, get);
+	ADD_SNEX_STRUCT_METHOD(obj, RampWrapper<T>, prepare);
 	SET_SNEX_PARAMETER_IDS(obj, "sampleRate", "fadeTimeMilliSeconds");
+	ADD_SNEX_STRUCT_METHOD(obj, RampWrapper<T>, isActive);
 
 	FunctionClass::Ptr fc = obj->getFunctionClass();
+
+	obj->injectInliner("advance", Inliner::HighLevel, [](InlineData* b)
+	{
+		CppBuilder c(CppBuilder::OutputType::WrapInBlock);
+
+		c << "if (stepsToDo <= 0)";
+		c << "{";
+		c << "	return value;";
+		c << "}";
+		c << "else";
+		c << "{";
+		c << "";
+		c << "auto v = value;";
+		c << "value += delta;";
+		c << "stepsToDo--;";
+		c << "";
+		c << "return v;";
+		c << "}";
+
+		return SyntaxTreeInlineParser(b, {}, c).flush();
+	});
 
 	ADD_INLINER(set, {
 		SETUP_INLINER(T);

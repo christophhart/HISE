@@ -970,7 +970,9 @@ void Operations::Increment::process(BaseCompiler* compiler, BaseScope* scope)
 		RegPtr valueReg;
 		RegPtr dataReg = getSubRegister(0);
 
-		if (!isPreInc)
+		if (isPreInc)
+			valueReg = dataReg;
+		else
 			valueReg = compiler->getRegFromPool(scope, TypeInfo(Types::ID::Integer));
 
 		bool done = false;

@@ -117,12 +117,20 @@ struct Operations::StatementBlock : public Expression,
 
 	BaseScope* createOrGetBlockScope(BaseScope* parent);
 
+	void addInlinedReturnJump(X86Compiler& cc);
+
 	void process(BaseCompiler* compiler, BaseScope* scope);
 
 	ScopedPointer<RegisterScope> blockScope;
 	bool isInlinedFunction = false;
 
+	
+
 private:
+
+	void addDestructors(BaseScope* scope);
+
+	asmjit::Label endLabel;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatementBlock);
 };

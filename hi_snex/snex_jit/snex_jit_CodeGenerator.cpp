@@ -56,6 +56,12 @@ void AsmCodeGenerator::emitComment(const char* m)
 
 void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 {
+	if (target == value)
+	{
+		writeRegisterToMemory(value);
+		return;
+	}
+
 	if (target->hasCustomMemoryLocation() && !target->isActive())
 	{
 		if (target->shouldLoadMemoryIntoRegister())
@@ -231,6 +237,19 @@ void AsmCodeGenerator::emitMemoryWrite(RegPtr source, void* ptrToUse)
 
 
 
+
+void AsmCodeGenerator::writeRegisterToMemory(RegPtr p)
+{
+	if (p->hasCustomMemoryLocation() && p->isActive())
+	{
+		auto mem = p->getMemoryLocationForReference();
+		auto reg = INT_REG_R(p);
+
+		IF_(int) cc.mov(mem, INT_REG_R(p));
+		IF_(float) cc.movss(mem, FP_REG_R(p));
+		IF_(double) cc.movsd(mem, FP_REG_W(p));
+	}
+}
 
 void AsmCodeGenerator::emitMemoryLoad(RegPtr target)
 {
@@ -1112,10 +1131,13 @@ void AsmCodeGenerator::emitIncrement(RegPtr target, RegPtr expr, bool isPre, boo
 			cc.add(INT_REG_W(expr), -1);
 		else
 			cc.add(INT_REG_W(expr), 1);
+
+		emitStore(target, expr);
 	}
 	else
 	{
 		jassert(target != nullptr);
+		expr->loadMemoryIntoRegister(cc);
 
 		emitStore(target, expr);
 

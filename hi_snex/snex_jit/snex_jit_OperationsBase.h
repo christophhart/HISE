@@ -523,6 +523,8 @@ namespace Operations
 			return returnType.getType() != Types::ID::Dynamic;
 		}
 
+		void removeStatementsAfterReturn();
+
 		NamespacedIdentifier getPath() const { return path; }
 
 		void setNewPath(BaseCompiler* c, const NamespacedIdentifier& newPath);
@@ -742,6 +744,11 @@ public:
 	{
 		processBaseWithChildren(compiler, scope);
 		
+		COMPILER_PASS(BaseCompiler::DataAllocation)
+		{
+			removeStatementsAfterReturn();
+		}
+
 		if(compiler->getCurrentPass() == BaseCompiler::RegisterAllocation && hasReturnType())
 		{
 			allocateReturnRegister(compiler, scope);

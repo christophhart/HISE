@@ -36,9 +36,12 @@ namespace snex {
 namespace Types {
 using namespace juce;
 
-template <typename T> struct _ramp
+
+
+
+template <typename T> struct RampWrapper
 {
-	using Type = _ramp<T>;
+	using Type = pimpl::_ramp<T>;
 
 	struct Wrapper
 	{
@@ -47,87 +50,16 @@ template <typename T> struct _ramp
 		JIT_MEMBER_WRAPPER_0(T, Type, advance);
 		JIT_MEMBER_WRAPPER_0(T, Type, get);
 		JIT_MEMBER_WRAPPER_2(void, Type, prepare, double, double);
+		JIT_MEMBER_WRAPPER_0(bool, Type, isActive);
 	};
 
-	/** Stops the ramping and sets the value to the target. */
-	void reset()
-	{
-		stepsToDo = 0;
-		value = targetValue;
-		delta = T(0);
-	}
-
-	/** Sets a new target value and resets the ramp position to the beginning. */
-	void set(T newTargetValue)
-	{
-		if (numSteps == 0)
-		{
-			value = targetValue;
-			stepsToDo = 0;
-		}
-		else
-		{
-			auto d = newTargetValue - value;
-			delta = d * stepDivider;
-			targetValue = newTargetValue;
-			stepsToDo = numSteps;
-		}
-	}
-
-	/** Returns the currently smoothed value and calculates the next ramp value. */
-	T advance()
-	{
-		if (stepsToDo <= 0)
-			return value;
-
-		auto v = value;
-		value += delta;
-		stepsToDo--;
-
-		return v;
-	}
-
-	/** Returns the current value. */
-	T get() const
-	{
-		return value;
-	}
-
-	/** Setup the processing. The ramp time will be calculated based on the samplerate. */
-	void prepare(double samplerate, double timeInMilliseconds)
-	{
-		auto msPerSample = 1000.0 / samplerate;
-		numSteps = timeInMilliseconds * msPerSample;
-
-		if (numSteps > 0)
-			stepDivider = T(1) / (T)numSteps;
-	}
 
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
-
-	T value = T(0);
-	T targetValue = T(0);
-	T delta = T(0);
-	T stepDivider = T(0);
-
-	int numSteps = 0;
-	int stepsToDo = 0;
 };
 
-template struct _ramp<float>;
-template struct _ramp<double>;
 
-/** A smoothed float value.
-
-	This object can be used to get a ramped value for parameter changes etc.
-
-
-*/
-struct sfloat : public _ramp<float>
-{};
-
-using sdouble = _ramp<double>;
-
+template struct RampWrapper<float>;
+template struct RampWrapper<double>;
 
 struct EventWrapper
 {

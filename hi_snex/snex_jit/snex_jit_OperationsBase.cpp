@@ -502,6 +502,36 @@ Operations::Statement::Ptr Operations::ScopeStatementBase::createChildBlock(Loca
 }
 
 
+void Operations::ScopeStatementBase::removeStatementsAfterReturn()
+{
+	bool returnCalled = false;
+	bool warningCalled = false;
+
+	auto asStatement = dynamic_cast<Statement*>(this);
+
+	for (int i = 0; i < asStatement->getNumChildStatements(); i++)
+	{
+		auto c = asStatement->getChildStatement(i);
+
+		if (as<ReturnStatement>(c))
+		{
+			returnCalled = true;
+			continue;
+		}
+
+		if (returnCalled)
+		{
+			if (!warningCalled)
+			{
+				c->logWarning("Unreachable statement");
+				warningCalled = true;
+			}
+
+			c->replaceInParent(new Operations::Noop(c->location));
+		}
+	}
+}
+
 void Operations::ScopeStatementBase::setNewPath(BaseCompiler* c, const NamespacedIdentifier& newPath)
 {
 	auto oldPath = path;

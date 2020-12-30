@@ -191,7 +191,7 @@ struct AsmCodeGenerator
 
 	void emitMemoryWrite(RegPtr source, void* ptrToUse=nullptr);
 
-	
+	void writeRegisterToMemory(RegPtr p);
 
 	void emitMemoryLoad(RegPtr reg);
 

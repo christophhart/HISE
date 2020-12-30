@@ -34,7 +34,7 @@ template <typename T> ID getTypeFromTypeId()
 		return ID::Float;
 	if (std::is_same<T, double>())
 		return ID::Double;
-	if (std::is_same<T, int>())
+	if (std::is_integral<T>())
 		return ID::Integer;
 	if (std::is_same<T, block>())
 		return ID::Block;
@@ -68,22 +68,112 @@ struct OutOfBoundsException
 };
 
 
-/** A object containing a variable name and metadata about its type. */
-struct Info
-{
-	Identifier id;		// the assigned variable / pin name
-	Types::ID type;		// the type
-	int numValues = -1; // if it's a block, the block size
-	bool isParameter = true;
-};
-
 struct FunctionType
 {
 	ID returnType;
 	Identifier functionName;
 	Array<ID> parameters;
-	
 };
+
+
+namespace pimpl
+{
+	template <typename T> struct _ramp
+	{
+		using Type = _ramp<T>;
+
+		/** Stops the ramping and sets the value to the target. */
+		void reset()
+		{
+			stepsToDo = 0;
+			value = targetValue;
+			delta = T(0);
+		}
+
+		/** Sets a new target value and resets the ramp position to the beginning. */
+		void set(T newTargetValue)
+		{
+			if (numSteps == 0)
+			{
+				targetValue = newTargetValue;
+				reset();
+			}
+			else
+			{
+				auto d = newTargetValue - value;
+				delta = d * stepDivider;
+				targetValue = newTargetValue;
+				stepsToDo = numSteps;
+			}
+		}
+
+		/** Returns true if the value is being smoothed at the moment. */
+		bool isActive() const
+		{
+			return stepsToDo > 0;
+		}
+
+		/** Returns the currently smoothed value and calculates the next ramp value. */
+		T advance()
+		{
+			if (stepsToDo <= 0)
+				return value;
+
+			auto v = value;
+			value += delta;
+			stepsToDo--;
+
+			return v;
+		}
+
+		/** Returns the current value. */
+		T get() const
+		{
+			return value;
+		}
+
+		/** Setup the processing. The ramp time will be calculated based on the samplerate. */
+		void prepare(double samplerate, double timeInMilliseconds)
+		{
+			if (samplerate > 0.0)
+			{
+				auto msPerSample = 1000.0 / samplerate;
+				numSteps = roundToInt(timeInMilliseconds / msPerSample);
+
+				if (numSteps > 0)
+					stepDivider = T(1) / (T)numSteps;
+				else
+					stepDivider = T(0);
+			}
+			else
+			{
+				numSteps = 0;
+				stepDivider = T(0);
+			}
+		}
+
+		T value = T(0);
+		T targetValue = T(0);
+		T delta = T(0);
+		T stepDivider = T(0);
+
+		int numSteps = 0;
+		int stepsToDo = 0;
+	};
+}
+
+
+/** A smoothed float value.
+
+	This object can be used to get a ramped value for parameter changes etc.
+
+
+*/
+struct sfloat : public pimpl::_ramp<float>
+{};
+
+struct sdouble : public pimpl::_ramp<double>
+{};
 
 /** The PolyHandler can be used in order to create data structures that can be used
     in a polyphonic context.
