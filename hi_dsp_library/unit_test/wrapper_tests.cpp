@@ -101,6 +101,7 @@ private:
 		b.clear();
 		ps.numChannels = numChannels;
 		ps.blockSize = numSamples;
+		ps.sampleRate = 44100.0;
 
 		dynData.referTo(b.getArrayOfWritePointers(), numChannels, numSamples);
 
@@ -147,6 +148,41 @@ private:
 /** A bunch of helper nodes that might come in handy to verify the processing of wrapper nodes / containers. */
 struct helper_nodes
 {
+	struct dc
+	{
+		DECLARE_NODE(dc);
+
+		HISE_EMPTY_PREPARE;
+		HISE_EMPTY_RESET;
+		
+		void handleHiseEvent(HiseEvent& e)
+		{
+
+		}
+		
+		template <int P> void setParameter(double v)
+		{
+			dcValue = (float)v;
+		}
+
+		template <typename ProcessDataType> void process(ProcessDataType& data)
+		{
+			for (auto& ch : data)
+			{
+				for (auto& s : data.toChannelData(ch))
+					s += dcValue;
+			}
+		}
+
+		template <typename FrameDataType> void processFrame(FrameDataType& d)
+		{
+			for (auto& s : d)
+				s += dcValue;
+		}
+
+		float dcValue = 1.0f;
+	};
+
 	/** Converts the velocity of a hise event to a DC offset applied to all channels. */
 	struct event2dc
 	{
@@ -232,9 +268,35 @@ struct WrapperTests : public UnitTest
 	void runTest() override
 	{
 		
+		//testBypassWrappers();
 		
 
 		testEventWrappers();
+	}
+
+
+	void testBypassWrappers()
+	{
+		beginTest("Testing bypass wrappers");
+
+		node_test t;
+
+		using BypassNodeType = bypass::smoothed<helper_nodes::dc>;
+		
+		BypassNodeType obj;
+
+		
+		
+		parameter::bypass<BypassNodeType> p;
+
+		p.connect<0>(obj);
+
+		p.call(1.0);
+
+		t.callObjectWithFix<1>(obj, 44100);
+
+		t.expectValues("smoothed_test", { {0, 0, 1.0}, {0, 22050, 0.0f } });
+
 	}
 };
 

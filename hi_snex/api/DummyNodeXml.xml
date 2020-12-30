@@ -1,0 +1,127 @@
+<Node FactoryPath="container.chain" ID="dsp1" NumChannels="2" LockNumChannels="0"
+      NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20"
+      ShowParameters="1">
+  <Properties/>
+  <Nodes>
+    <Node ID="multi" FactoryPath="container.multi" NumChannels="2" LockNumChannels="0"
+          NodeColour="0" Comment="" CommentWidth="300">
+      <Properties/>
+      <Nodes>
+        <Node ID="timer" FactoryPath="core.timer" NumChannels="1" LockNumChannels="0"
+              NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+          <Properties>
+            <Property ID="Code" Value="double getTimerValue()&#10;{&#10;    return 0.0;&#10;}&#10;"
+                      Public="0"/>
+          </Properties>
+          <ModulationTargets/>
+          <Parameters>
+            <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                       StepSize="1" SkewFactor="1" ID="Active" Value="1"/>
+            <Parameter Inverted="0" MinValue="0" MaxValue="2000" LowerLimit="0" UpperLimit="2000"
+                       StepSize="0.1" SkewFactor="1" ID="Interval" Value="500"/>
+          </Parameters>
+        </Node>
+        <Node ID="chain1" FactoryPath="container.chain" NumChannels="1" LockNumChannels="0"
+              NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+          <Properties/>
+          <Nodes>
+            <Node ID="peak" FactoryPath="core.peak" NumChannels="2" LockNumChannels="0"
+                  NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+              <Properties/>
+              <ModulationTargets>
+                <ModulationTarget NodeId="reverb" ParameterId="Damping" OpType="SetValue" Enabled="1"
+                                  Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                                  StepSize="0.01" SkewFactor="1" Expression=""/>
+              </ModulationTargets>
+              <Parameters/>
+            </Node>
+            <Node ID="reverb" FactoryPath="fx.reverb" NumChannels="2" LockNumChannels="0"
+                  NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+              <Properties/>
+              <Parameters>
+                <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                           StepSize="0.01" SkewFactor="1" ID="Damping" Value="0.5" ModulationTarget="1"/>
+                <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                           StepSize="0.01" SkewFactor="1" ID="Width" Value="0.5"/>
+                <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                           StepSize="0.01" SkewFactor="1" ID="Size" Value="0.5"/>
+              </Parameters>
+            </Node>
+          </Nodes>
+          <Parameters/>
+        </Node>
+      </Nodes>
+      <Parameters/>
+    </Node>
+    <Node ID="split" FactoryPath="container.split" NumChannels="2" LockNumChannels="0"
+          NodeColour="0" Comment="" CommentWidth="300" ShowParameters="1">
+      <Properties/>
+      <Nodes>
+        <Node ID="snex_osc" FactoryPath="core.snex_osc" NumChannels="2" LockNumChannels="0"
+              NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+          <Properties>
+            <Property ID="Code" Value="float tick(double uptime)&#10;{&#10;    return 0.0f;&#10;}&#10;void process(OscProcessData&amp; d)&#10;{&#10;    for (auto&amp; s : d.data)&#10;    {&#10;        s = tick(d.uptime);&#10;        d.uptime += d.delta;&#10;    }&#10;}&#10;"
+                      Public="0"/>
+          </Properties>
+          <Parameters>
+            <Parameter Inverted="0" MinValue="20" MaxValue="20000" LowerLimit="20" UpperLimit="20000"
+                       StepSize="0.1" SkewFactor="0.229905" ID="Frequency" Value="0"/>
+            <Parameter Inverted="0" MinValue="1" MaxValue="16" LowerLimit="1" UpperLimit="16"
+                       StepSize="1" SkewFactor="1" ID="PitchMultiplier" Value="1"/>
+            <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                       StepSize="0.01" SkewFactor="1" ID="Extra1" Value="0"/>
+            <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                       StepSize="0.01" SkewFactor="1" ID="Extra2" Value="0"/>
+          </Parameters>
+        </Node>
+        <Node ID="chain" FactoryPath="container.chain" NumChannels="2" LockNumChannels="0"
+              NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+          <Properties/>
+          <Nodes>
+            <Node ID="add" FactoryPath="math.add" NumChannels="2" LockNumChannels="0"
+                  NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+              <Properties/>
+              <Parameters>
+                <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                           StepSize="0.01" SkewFactor="1" ID="Value" Value="0"/>
+              </Parameters>
+            </Node>
+          </Nodes>
+          <Parameters/>
+        </Node>
+      </Nodes>
+      <Parameters>
+        <Parameter ID="P1" MinValue="0" MaxValue="1" StepSize="0.01" SkewFactor="1"
+                   Value="1">
+          <Connections>
+            <Connection NodeId="add" ParameterId="Value" Converter="Identity" OpType="SetValue"
+                        Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                        StepSize="0.01" SkewFactor="1" Expression=""/>
+          </Connections>
+        </Parameter>
+      </Parameters>
+    </Node>
+  </Nodes>
+  <Parameters>
+    <Parameter ID="FunkyParameter" MinValue="0" MaxValue="1" StepSize="0.01"
+               SkewFactor="1" Value="1">
+      <Connections>
+        <Connection NodeId="snex_osc" ParameterId="Frequency" Converter="Identity"
+                    OpType="SetValue" Inverted="0" MinValue="20" MaxValue="20000"
+                    LowerLimit="20" UpperLimit="20000" StepSize="0.1" SkewFactor="0.229905"
+                    Expression=""/>
+      </Connections>
+    </Parameter>
+    <Parameter ID="SecondOne" MinValue="0" MaxValue="1" StepSize="0.01" SkewFactor="1"
+               Value="1">
+      <Connections>
+        <Connection NodeId="snex_osc" ParameterId="Extra2" Converter="Identity" OpType="SetValue"
+                    Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                    StepSize="0.01" SkewFactor="1" Expression=""/>
+        <Connection NodeId="snex_osc" ParameterId="Extra1" Converter="Identity" OpType="SetValue"
+                    Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                    StepSize="0.01" SkewFactor="1" Expression=""/>
+      </Connections>
+    </Parameter>
+  </Parameters>
+</Node>
