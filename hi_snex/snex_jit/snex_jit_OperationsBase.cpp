@@ -375,6 +375,22 @@ Operations::Statement::Statement(Location l) :
 
 }
 
+String Operations::Statement::toSimpleTree() const
+{
+	using namespace cppgen;
+
+	Base b(Base::OutputType::WrapInBlock);
+	b << getStatementId().toString();
+	b << "{";
+
+	for (auto p : *this)
+	{
+		b << p->toSimpleTree();
+	}
+
+	return b.toString();
+}
+
 void Operations::Statement::throwError(const juce::String& errorMessage) const
 {
 	ParserHelpers::CodeLocation::Error e(location.program, location.location);

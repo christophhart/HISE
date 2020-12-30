@@ -70,9 +70,12 @@ private:
 class FunctionScope : public RegisterScope
 {
 public:
-	FunctionScope(BaseScope* parent, const NamespacedIdentifier& functionName) :
+	FunctionScope(BaseScope* parent, const NamespacedIdentifier& functionName, bool allowDifferentParentId=false) :
 		RegisterScope(parent, functionName)
 	{
+		if (allowDifferentParentId)
+			scopeId = functionName;
+
 		scopeType = BaseScope::Function;
 	}
 
@@ -89,6 +92,22 @@ public:
 		return nullptr;
 	}
 
+	ComplexType::Ptr getClassType()
+	{
+		if (hardcodedClassType != nullptr)
+			return hardcodedClassType.get();
+
+		if (auto cs = getParentScopeOfType<ClassScope>())
+			return cs->typePtr;
+
+		return nullptr;
+	}
+
+	void setHardcodedClassType(ComplexType::Ptr cs)
+	{
+		hardcodedClassType = cs;
+	}
+
 	void addAssemblyRegister(AssemblyRegister* newRegister)
 	{
 		allocatedRegisters.add(newRegister);
@@ -99,6 +118,10 @@ public:
 	ReferenceCountedObject* parentFunction = nullptr;
 	FunctionData data;
 	Array<Identifier> parameters;
+
+private:
+
+	WeakReference<ComplexType> hardcodedClassType;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionScope);
 };

@@ -382,8 +382,11 @@ juce::Result WrapBuilder::Helpers::constructorInliner(InlineData* b)
 
 
 
-juce::Result WrapBuilder::Helpers::addObjReference(SyntaxTreeInlineParser& p, Operations::Statement::Ptr object)
+juce::Result WrapBuilder::Helpers::addObjReference(SyntaxTreeInlineParser& p)
 {
+	auto d = p.b->toSyntaxTreeData();
+	auto object = d->object;
+
 	auto wrapType = object->getTypeInfo();
 
 	if (auto st = wrapType.getTypedIfComplexType<StructType>())
@@ -685,7 +688,7 @@ snex::jit::FunctionData WrapLibraryBuilder::createInitConstructor(StructType* st
 
 				if (icf.canBeInlined(true))
 				{
-					SyntaxTreeInlineData sd(nc, {});
+					SyntaxTreeInlineData sd(nc, {}, icf);
 					sd.object = initRef->clone(d->location);
 					sd.path = d->path;
 					sd.templateParameters = d->templateParameters;
@@ -980,24 +983,19 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::fix::getFunction(InlineDa
 
 	fc->addMatchingFunctions(matches, fc->getClassName().getChildId(id));
 
-
 	return matches[0];
 }
 
 juce::Result WrapLibraryBuilder::Callbacks::frame::process(InlineData* b)
 {
-	String code;
-	String nl = "\n";
+	using namespace cppgen;
+	Base c(Base::OutputType::WrapInBlock);
 
-	auto d = b->toSyntaxTreeData();
+	c << "auto frameData = data.toFrameData();";
+	c << "while(frameData.next())";
+	c << "    this->obj.processFrame(frameData.toSpan());";
 
-	code << "{" << nl;
-	code << "    auto frameData = data.toFrameData();" << nl;
-	code << "    while(frameData.next())" << nl;
-	code << "        $this.processFrame(frameData.toSpan());" << nl;
-	code << "}";
-
-	SyntaxTreeInlineParser p(b, {"data"}, code);
+	SyntaxTreeInlineParser p(b, {"data"}, c);
 
 	return p.flush();
 }
@@ -1017,8 +1015,6 @@ juce::Result WrapLibraryBuilder::Callbacks::frame::prepare(WrapBuilder::External
 
 	mapData.setExternalFunctionPtrToCall(data[numChannels]);
 
-	
-
 	return mapData.insertFunctionPtrToArgReg(mapData.getWrappedFunctionPtr(ScriptnodeCallbacks::PrepareFunction));
 }
 
@@ -1030,17 +1026,16 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::checkModValue(Struct
 
 	cmv.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
 	{
-		auto d = b->toSyntaxTreeData();
+		using namespace cppgen;
 
-		String code;
-		String nl = "\n";
+		Base c(Base::OutputType::WrapInBlock);
 
-		code << "double mv = 0.0;" << nl;
-		code << "if($obj.handleModulation(mv))" << nl;
-		code << "    $this.getParameter().call(mv);" << nl;
+		c << "double mv = 0.0;";
+		c << "if($obj.handleModulation(mv))";
+		c << "    $this.getParameter().call(mv);";
 
-		SyntaxTreeInlineParser p(b, {}, code);
-		WrapBuilder::Helpers::addObjReference(p, d->object);
+		SyntaxTreeInlineParser p(b, {}, c);
+		WrapBuilder::Helpers::addObjReference(p);
 		return p.flush();
 	});
 

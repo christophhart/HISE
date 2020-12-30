@@ -560,7 +560,7 @@ public:
 		
 		optimizations = OptimizationIds::getAllIds();
 
-		runTestFiles("wrap_mod");
+		runTestFiles("wrap_frame");
 
 		return;
 
@@ -1126,7 +1126,7 @@ private:
 		Types::SnexObjectDatabase::registerObjects(c, 2);
 
 		{
-			Types::_ramp<T> d;
+			Types::pimpl::_ramp<T> d;
 
 			d.prepare(4000.0, 100.0);
 			d.set(T(1));

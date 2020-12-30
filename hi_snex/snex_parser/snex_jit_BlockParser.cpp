@@ -787,7 +787,27 @@ BlockParser::ExprPtr BlockParser::parseCast(Types::ID type)
 
 BlockParser::ExprPtr BlockParser::parseUnary()
 {
-	
+	if (matchIf(JitTokens::this_))
+	{
+		match(JitTokens::pointer_);
+
+		if (auto fs = currentScope->getParentScopeOfType<FunctionScope>())
+		{
+			if (auto typePtr = fs->getClassType())
+			{
+				auto p = new Operations::ThisPointer(location, TypeInfo(typePtr, false, true));
+
+				auto c = parseReference(false);
+
+				auto d = new Operations::DotOperator(location, p, c);
+
+				return parseDotOperator(d);
+
+			}
+		}
+		
+		location.throwError("Can't use this pointer outside of class method");
+	}
 
 	if (currentType == JitTokens::identifier ||
 		currentType == JitTokens::literal ||

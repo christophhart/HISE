@@ -32,14 +32,10 @@
 
 
 namespace snex {
-namespace jit {
+namespace cppgen {
 using namespace juce;
-using namespace asmjit;
 
-
-}
-
-snex::CppBuilder& CppBuilder::operator<<(const String& line)
+Base& Base::operator<<(const String& line)
 {
 	if (line.contains("\n"))
 	{
@@ -54,11 +50,18 @@ snex::CppBuilder& CppBuilder::operator<<(const String& line)
 	}
 	else
 		lines.add(line.trim());
-	
+
 	return *this;
 }
 
-String CppBuilder::toString() const
+Base& Base::operator<<(const jit::FunctionData& f)
+{
+	lines.add(f.getSignature({}, false));
+
+	return *this;
+}
+
+String Base::toString() const
 {
 	switch (t)
 	{
@@ -67,12 +70,15 @@ String CppBuilder::toString() const
 	}
 }
 
-bool CppBuilder::isIntendKeyword(int line) const
+bool Base::isIntendKeyword(int line) const
 {
+	if (line < 0)
+		return false;
+
 	if (matchesEnd(line, JitTokens::closeBrace))
 		return false;
 
-	const static TokenType ik[] = { JitTokens::for_, JitTokens::if_, JitTokens::while_ };
+	const static TokenType ik[] = { JitTokens::for_, JitTokens::if_, JitTokens::while_, JitTokens::else_ };
 
 	for (const auto& s : ik)
 	{
@@ -84,7 +90,7 @@ bool CppBuilder::isIntendKeyword(int line) const
 }
 
 
-int CppBuilder::getIntendDelta(int line) const
+int Base::getIntendDelta(int line) const
 {
 	if (matchesStart(line, JitTokens::namespace_))
 		return -1000;
@@ -94,9 +100,20 @@ int CppBuilder::getIntendDelta(int line) const
 
 	if (matchesStart(line, "#"))
 		return -1000;
+
+	if (isIntendKeyword(line - 1) && !matchesStart(line, JitTokens::openBrace))
+		return 1;
+
+	return 0;
 }
 
-bool CppBuilder::matchesEnd(int line, TokenType t, TokenType other1/*=nullptr*/, TokenType other2/*=nullptr*/) const
+bool Base::containsButNot(int line, TokenType toContain, TokenType toNotContain) const
+{
+	const auto& s = lines[line];
+	return s.contains(toContain) && !s.contains(toNotContain);
+}
+
+bool Base::matchesEnd(int line, TokenType t, TokenType other1/*=nullptr*/, TokenType other2/*=nullptr*/) const
 {
 	// Skip comments
 	if (matchesStart(line, "//"))
@@ -107,14 +124,14 @@ bool CppBuilder::matchesEnd(int line, TokenType t, TokenType other1/*=nullptr*/,
 		(other2 != nullptr && lines[line].endsWith(other2));
 }
 
-bool CppBuilder::matchesStart(int line, TokenType t, TokenType other1 /*= nullptr*/, TokenType other2 /*= nullptr*/) const
+bool Base::matchesStart(int line, TokenType t, TokenType other1 /*= nullptr*/, TokenType other2 /*= nullptr*/) const
 {
 	return lines[line].startsWith(t) ||
 		(other1 != nullptr && lines[line].startsWith(other1)) ||
 		(other2 != nullptr && lines[line].startsWith(other2));
 }
 
-String CppBuilder::parseLines() const
+String Base::parseLines() const
 {
 	if (t >= OutputType::AddTabs)
 	{
@@ -124,18 +141,20 @@ String CppBuilder::parseLines() const
 
 		for (int i = 0; i < lines.size(); i++)
 		{
-			auto thisIntend = jmax(0, getIntendDelta(i));
+			if (containsButNot(i, JitTokens::closeBrace, JitTokens::openBrace))
+				intendLevel--;
+
+			auto thisIntend = intendLevel + jmax(0, getIntendDelta(i));
 
 			for (int j = 0; j < thisIntend; j++)
-				s << ' ';
+				s << "\t";
 
 			s << lines[i] << "\n";
 
-			if (matchesStart(i, JitTokens::openBrace) || (isIntendKeyword(i) && !matchesStart(i + 1, JitTokens::openBrace)))
+			if (containsButNot(i, JitTokens::openBrace, JitTokens::closeBrace))
 				intendLevel++;
 
-			if (matchesEnd(i, JitTokens::closeBrace))
-				intendLevel--;
+
 		}
 
 		return s;
@@ -144,7 +163,7 @@ String CppBuilder::parseLines() const
 		return lines.joinIntoString("\n");
 }
 
-String CppBuilder::wrapInBlock() const
+String Base::wrapInBlock() const
 {
 	if (matchesStart(0, JitTokens::openBrace))
 	{
@@ -152,11 +171,70 @@ String CppBuilder::wrapInBlock() const
 	}
 	else
 	{
-		CppBuilder copy(*this);
+		Base copy(*this);
 		copy.lines.insert(0, "{");
 		copy.lines.add("}");
 		return copy.parseLines();
 	}
 }
 
+Struct::Struct(Base& parent, jit::ComplexType::Ptr st) :
+	Op(parent)
+{
+	String def;
+
+	auto id = dynamic_cast<jit::StructType*>(st.get())->id.getIdentifier();
+	def << JitTokens::struct_ << " " << id;
+
+	parent << def;
+	parent << "{";
+	parent.pushScope(id);
+}
+
+Namespace::Namespace(Base& parent, const Identifier& id) :
+	Op(parent)
+{
+	String def;
+	def << JitTokens::namespace_ << " " << id;
+	parent << def;
+	parent << "{";
+	parent.pushScope(id);
+}
+
+Function::Function(Base& parent, const jit::FunctionData& f) :
+	Op(parent)
+{
+	jit::FunctionData copy(f);
+	copy.id = NamespacedIdentifier(f.id.getIdentifier());
+	parent << copy;
+	parent.pushScope(copy.id.getIdentifier());
+}
+
+String UsingTemplate::toString()
+{
+	String s;
+	s << JitTokens::using_ << " ";
+	s << scopedId.getIdentifier() << " ";
+	s << JitTokens::assign_ << " ";
+
+	s << tId.toString();
+
+	if (!args.isEmpty())
+	{
+		s << JitTokens::lessThan;
+
+		for (auto& a : args)
+			s << a << ", ";
+
+		s = s.upToLastOccurrenceOf(", ", false, false);
+
+		s << JitTokens::greaterThan;
+	}
+	
+	s << JitTokens::semicolon;
+
+	return s;
+}
+
+}
 }

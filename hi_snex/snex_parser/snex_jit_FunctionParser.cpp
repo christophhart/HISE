@@ -353,13 +353,15 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseAssignment()
 
 
 
-SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const StringArray& originalParameters, const CppBuilder& builder):
+SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const StringArray& originalParameters, const cppgen::Base& builder):
 	CodeParser(b_->toSyntaxTreeData()->expression->currentCompiler, ""),
 	b(b_),
 	code(builder.toString()),
 	originalArgs(originalParameters),
 	originalLocation(b_->toSyntaxTreeData()->location)
 {
+	DBG(code);
+
 	location.location = code.getCharPointer();
 	location.program = code.getCharPointer();
 	p = code.getCharPointer();
@@ -370,6 +372,55 @@ SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const StringArray
 
 juce::Result SyntaxTreeInlineParser::flush()
 {
+	using namespace Operations;
+
+	auto d = b->toSyntaxTreeData();
+
+	ScopedPointer<Function> f = new Function(location, { d->getFunctionId(), d->expression->getTypeInfo() });
+
+	auto fc = dynamic_cast<FunctionCall*>(d->expression.get());
+	jassert(fc != nullptr);
+
+	f->data = d->originalFunction;
+	f->data.inliner = nullptr;
+	f->code = p;
+	f->codeLength = length;
+	f->isHardcodedFunction = true;
+	
+	if (d->object != nullptr)
+		f->hardcodedObjectType = d->object->getTypeInfo().getComplexType();
+	
+	for (auto& a : originalArgs)
+		f->parameters.add(a);
+
+	if (d->object != nullptr)
+	{
+		f->hasObjectPtr = true;
+	}
+
+	try
+	{
+		BaseCompiler::ScopedPassSwitcher sps1(d->expression->currentCompiler, BaseCompiler::FunctionTemplateParsing);
+		f->process(d->expression->currentCompiler, d->expression->currentScope);
+
+		BaseCompiler::ScopedPassSwitcher sps2(d->expression->currentCompiler, BaseCompiler::FunctionParsing);
+
+		f->process(d->expression->currentCompiler, d->expression->currentScope);
+	}
+	catch (ParserHelpers::CodeLocation::Error& e)
+	{
+		return Result::fail(e.toString());
+		jassertfalse;
+	}
+
+	if (f->classData != nullptr)
+	{
+		return f->classData->inliner->process(b);
+	}
+
+	return Result::fail("Can't find inliner");
+
+#if 0
 	auto d = b->toSyntaxTreeData();
 	
 	if (originalArgs.size() != d->args.size())
@@ -381,6 +432,7 @@ juce::Result SyntaxTreeInlineParser::flush()
 	Array<Symbol> args;
 
 	auto thisId = d->path.getChildId("custom_syntax_inliner");
+	//auto thisId = d->getFunctionId();
 
 	NamespaceHandler::ScopedNamespaceSetter sns(nh, thisId);
 
@@ -399,39 +451,45 @@ juce::Result SyntaxTreeInlineParser::flush()
 
 	currentScopeStatement = findParentStatementOfType<ScopeStatementBase>(d->expression);
 
-	if (auto bl = parseStatementList())
+	try
 	{
-		auto sTree = as<SyntaxTree>(bl);
-		sTree->setReturnType(d->expression->getTypeInfo());
+		if (auto bl = parseStatementList())
+		{
+			auto sTree = as<SyntaxTree>(bl);
+			sTree->setReturnType(d->expression->getTypeInfo());
 
-		auto prevPass = d->expression->currentPass;
+			auto prevPass = d->expression->currentPass;
 
-		ScopedPointer<FunctionScope> functionScope = new FunctionScope(d->expression->currentScope, NamespacedIdentifier("funkyBullshit"));
+			ScopedPointer<FunctionScope> functionScope = new FunctionScope(d->expression->currentScope, NamespacedIdentifier("funkyBullshit"));
 
-		for (auto& s : args)
-			functionScope->parameters.add(s.id.getIdentifier());
+			for (auto& s : args)
+				functionScope->parameters.add(s.id.getIdentifier());
 
+			functionScope->parentFunction = nullptr;
 
-		
-		functionScope->parentFunction = nullptr;
+			compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, sTree);
+			// add this when using stack...
+			//compiler->executePass(BaseCompiler::DataSizeCalculation, functionScope, statements);
+			compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
+			compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
+			compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
+			compiler->executePass(BaseCompiler::TypeCheck, functionScope, sTree);
+			compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, sTree);
 
-		compiler->executePass(BaseCompiler::PreSymbolOptimization, functionScope, sTree);
-		// add this when using stack...
-		//compiler->executePass(BaseCompiler::DataSizeCalculation, functionScope, statements);
-		compiler->executePass(BaseCompiler::DataAllocation, functionScope, sTree);
-		compiler->executePass(BaseCompiler::DataInitialisation, functionScope, sTree);
-		compiler->executePass(BaseCompiler::ResolvingSymbols, functionScope, sTree);
-		compiler->executePass(BaseCompiler::TypeCheck, functionScope, sTree);
-		compiler->executePass(BaseCompiler::PostSymbolOptimization, functionScope, sTree);
+			compiler->setCurrentPass(prevPass);
 
-		compiler->setCurrentPass(prevPass);
-
-		return d->makeInlinedStatementBlock(sTree, args);
+			return d->makeInlinedStatementBlock(sTree, args);
+		}
+		else
+		{
+			return Result::fail("Can't parse inliner expression");
+		}
 	}
-	else
+	catch (ParserHelpers::CodeLocation::Error& e)
 	{
-		return Result::fail("Can't parse inliner expression");
+		return Result::fail(e.toString());
 	}
+#endif
 }
 
 void SyntaxTreeInlineParser::addExternalExpression(const String& id, ExprPtr e)

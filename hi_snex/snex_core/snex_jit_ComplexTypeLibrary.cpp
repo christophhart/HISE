@@ -1723,7 +1723,6 @@ void StructType::finaliseAlignment()
 		return;
 	}
 		
-
 	if (isFinalised())
 		return;
 
@@ -1803,7 +1802,7 @@ void StructType::finaliseAlignment()
 
 				if (f.canBeInlined(true))
 				{
-					SyntaxTreeInlineData sd(call, {});
+					SyntaxTreeInlineData sd(call, {}, f);
 					sd.object = call->getObjectExpression();
 					sd.templateParameters = f.templateParameters;
 					

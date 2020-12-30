@@ -58,12 +58,21 @@ struct ReturnTypeInlineData : public InlineData
 
 struct SyntaxTreeInlineData : public InlineData
 {
-	SyntaxTreeInlineData(Operations::Statement::Ptr e_, const NamespacedIdentifier& path_) :
+	SyntaxTreeInlineData(Operations::Statement::Ptr e_, const NamespacedIdentifier& path_, const FunctionData& originalFunction_) :
 		expression(e_),
 		location(e_->location),
-		path(path_)
+		path(path_),
+		originalFunction(originalFunction_)
 	{
 
+	}
+
+	NamespacedIdentifier getFunctionId() const
+	{
+		auto fc = dynamic_cast<const Operations::FunctionCall*>(expression.get());
+		jassert(fc != nullptr);
+
+		return fc->function.id;
 	}
 
 	bool isHighlevel() const override
@@ -175,6 +184,7 @@ struct SyntaxTreeInlineData : public InlineData
 	Operations::Statement::Ptr object;
 	ReferenceCountedArray<Operations::Expression> args;
 	NamespacedIdentifier path;
+	FunctionData originalFunction;
 };
 
 struct AsmInlineData : public InlineData

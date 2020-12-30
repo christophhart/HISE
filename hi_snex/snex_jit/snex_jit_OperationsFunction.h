@@ -105,6 +105,9 @@ struct Operations::Function : public Statement,
 	// member functions will not be owned by the StructType
 	ScopedPointer<FunctionData> ownedMemberFunction;
 
+	bool isHardcodedFunction = false;
+	ComplexType::Ptr hardcodedObjectType;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Function);
 };
 

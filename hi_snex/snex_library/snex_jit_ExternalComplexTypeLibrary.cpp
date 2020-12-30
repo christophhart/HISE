@@ -73,21 +73,46 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 
 	obj->injectInliner("advance", Inliner::HighLevel, [](InlineData* b)
 	{
-		CppBuilder c(CppBuilder::OutputType::WrapInBlock);
+		using namespace cppgen;
 
-		c << "if (stepsToDo <= 0)";
-		c << "{";
-		c << "	return value;";
-		c << "}";
-		c << "else";
-		c << "{";
-		c << "";
-		c << "auto v = value;";
-		c << "value += delta;";
-		c << "stepsToDo--;";
-		c << "";
-		c << "return v;";
-		c << "}";
+		Base c(Base::OutputType::AddTabs);
+
+		{
+			Namespace n(c, "impl");
+			{
+				Struct s(c, b->toSyntaxTreeData()->object->getTypeInfo().getComplexType());
+
+				Function f(c, b->toSyntaxTreeData()->originalFunction);
+				{
+					StatementBlock b1(c);
+					c << "if (stepsToDo <= 0)";
+					c << "	  return value;";
+					c << "else";
+					{
+						StatementBlock b(c);
+						c << "auto v = value;";
+						c << "value += delta;";
+						c << "stepsToDo--;";
+						c << "return v;";
+					}
+				}
+			}
+
+			UsingTemplate wf(c, "node1", NamespacedIdentifier::fromString("wrap::frame"));
+
+			wf << 1 << "funky";
+			wf.flush();
+
+			UsingTemplate p(c, "ParameterType", NamespacedIdentifier::fromString("parameter::plain"));
+
+			p << "funky" << 3;
+			p.flush();
+
+			UsingTemplate ut(c, "funky", NamespacedIdentifier::fromString("container::chain"));
+
+			ut << p << wf << wf << "funky2";
+			ut.flush();
+		}
 
 		return SyntaxTreeInlineParser(b, {}, c).flush();
 	});
@@ -160,64 +185,8 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 			return Result::ok();
 		});
 
-	ADD_INLINER(advance,
-		{
-			/*
-			T advance()
-			{
-				auto v = value;
 
-				if (stepsToDo <= 0)
-					return v;
-
-				value += delta;
-				stepsToDo--;
-
-				return v;
-			}
-			*/
-
-			SETUP_INLINER(T);
-
-			d->target->createRegister(cc);
-			auto ret = FP_REG_W(d->target);
-			auto end = cc.newLabel();
-			auto stepsToDo = cc.newGpd();
-
-			cc.setInlineComment("inline advance()");
-			IF_(float) cc.movss(ret, MEMBER_PTR(value));
-			IF_(double) cc.movsd(ret, MEMBER_PTR(value));
-
-			cc.mov(stepsToDo, MEMBER_PTR(stepsToDo));
-			cc.cmp(stepsToDo, 0);
-			cc.jle(end);
-
-			// if (stepsToDo > 0
-			{
-				IF_(float)
-				{
-					auto tmp = cc.newXmmSs();
-					cc.movss(tmp, ret);
-					cc.addss(tmp, MEMBER_PTR(delta));
-					cc.movss(MEMBER_PTR(value), tmp);
-				}
-				IF_(double)
-				{
-					auto tmp = cc.newXmmSd();
-					cc.movsd(tmp, ret);
-					cc.addsd(tmp, MEMBER_PTR(delta));
-					cc.movsd(MEMBER_PTR(value), tmp);
-				}
-
-				cc.dec(stepsToDo);
-				cc.mov(MEMBER_PTR(stepsToDo), stepsToDo);
-			}
-
-			cc.bind(end);
-			return Result::ok();
-		});
-
-	return obj;
+	return obj->finaliseAndReturn();
 }
 
 
@@ -316,7 +285,9 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 			return Result::ok();
 		});
 
-	return obj;
+	
+
+	return obj->finaliseAndReturn();
 }
 
 snex::jit::ComplexType::Ptr OscProcessDataJit::createComplexType(Compiler& c, const Identifier& id)
@@ -332,7 +303,7 @@ snex::jit::ComplexType::Ptr OscProcessDataJit::createComplexType(Compiler& c, co
 	ADD_SNEX_STRUCT_MEMBER(st, d, delta);
 	ADD_SNEX_STRUCT_MEMBER(st, d, voiceIndex);
 
-	return st;
+	return st->finaliseAndReturn();
 }
 
 void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
@@ -1138,7 +1109,12 @@ void InbuiltTypeLibraryBuilder::addRangeFunction(FunctionClass* fc, const Identi
 {
 	fc->addFunction(createRangeFunction(id, parameters.size(), Inliner::HighLevel, [code, parameters](InlineData* b)
 	{
-		SyntaxTreeInlineParser p(b, parameters, code);
+		using namespace cppgen;
+
+		Base c(Base::OutputType::WrapInBlock);
+		c << code;
+
+		SyntaxTreeInlineParser p(b, parameters, c);
 		return p.flush();
 
 		return Result::ok();
@@ -1149,8 +1125,8 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 {
 	registerBuiltInFunctions();
 
-	REGISTER_CPP_CLASS(c, sfloat);
-	REGISTER_CPP_CLASS(c, sdouble);
+	REGISTER_ORIGINAL_CPP_CLASS(c, RampWrapper<float>, sfloat);
+	REGISTER_ORIGINAL_CPP_CLASS(c, RampWrapper<double>, sdouble);
 	REGISTER_ORIGINAL_CPP_CLASS(c, OscProcessDataJit, OscProcessData);
 	REGISTER_ORIGINAL_CPP_CLASS(c, PrepareSpecsJIT, PrepareSpecs);
 	REGISTER_ORIGINAL_CPP_CLASS(c, EventWrapper, HiseEvent);

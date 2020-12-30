@@ -34,9 +34,12 @@
 
 namespace snex {
 
+namespace cppgen
+{
+
 using namespace juce;
 
-class CppBuilder
+class Base
 {
 public:
 
@@ -50,14 +53,16 @@ public:
 		numOutputTypes
 	};
 
-	CppBuilder(OutputType type):
+	Base(OutputType type) :
 		t(type)
 	{}
 
-	virtual ~CppBuilder()
+	virtual ~Base()
 	{};
 
-	CppBuilder& operator<<(const String& line);
+	Base& operator<<(const String& line);
+
+	Base& operator<<(const jit::FunctionData& f);
 
 	void addComment(const String& comment)
 	{
@@ -66,13 +71,29 @@ public:
 
 	String toString() const;
 
+	NamespacedIdentifier getCurrentScope()
+	{
+		return currentNamespace;
+	}
 
+	void pushScope(const Identifier& id)
+	{
+		currentNamespace = currentNamespace.getChildId(id);
+	}
+
+	void popScope()
+	{
+		jassert(!currentNamespace.isNull());
+		currentNamespace = currentNamespace.getParent();
+	}
 
 private:
 
 	bool isIntendKeyword(int line) const;
 	int getIntendDelta(int line) const;
-	bool matchesEnd(int line, TokenType t, TokenType other1=nullptr, TokenType other2=nullptr) const;
+
+	bool containsButNot(int line, TokenType toContain, TokenType toNotContain) const;
+	bool matchesEnd(int line, TokenType t, TokenType other1 = nullptr, TokenType other2 = nullptr) const;
 	bool matchesStart(int line, TokenType t, TokenType other1 = nullptr, TokenType other2 = nullptr) const;
 
 	String parseLines() const;
@@ -80,7 +101,182 @@ private:
 
 	const OutputType t;
 	StringArray lines;
+
+	NamespacedIdentifier currentNamespace;
 };
+
+struct DefinitionBase
+{
+	DefinitionBase(Base& b, const Identifier& id) :
+		scopedId(b.getCurrentScope().getChildId(id))
+	{};
+
+	virtual ~DefinitionBase()
+	{
+
+	}
+
+	NamespacedIdentifier scopedId;
+};
+
+struct Op
+{
+	Op(Base& parent_) :
+		parent(parent_)
+	{}
+
+	virtual void flush()
+	{
+		isFlushed = true;
+	}
+
+	virtual ~Op()
+	{
+		jassert(isFlushed);
+	}
+
+protected:
+
+	void flushIfNotAlreadyFlushed()
+	{
+		if (!isFlushed)
+			flush();
+	}
+
+	bool isFlushed = false;
+	Base& parent;
+};
+
+struct StatementBlock: public Op
+{
+	StatementBlock(Base& parent) :
+		Op(parent)
+	{
+		parent << "{";
+	};
+
+	void flush() override
+	{
+		parent << "}";
+		Op::flush();
+	}
+
+	~StatementBlock()
+	{
+		flushIfNotAlreadyFlushed();
+	}
+};
+
+struct Function: public Op
+{
+	Function(Base& parent, const jit::FunctionData& f);;
+
+	void flush() override
+	{
+		parent.popScope();
+		Op::flush();
+	}
+
+	~Function()
+	{
+		flushIfNotAlreadyFlushed();
+	}
+};
+
+struct Struct : public Op
+{
+	Struct(Base& parent, jit::ComplexType::Ptr st);
+
+	void flush() override
+	{
+		parent.popScope();
+		parent << "};";
+		Op::flush();
+	}
+
+	~Struct()
+	{
+		flushIfNotAlreadyFlushed();
+	}
+};
+
+struct Namespace : public Op
+{
+	Namespace(Base& parent, const Identifier& id);
+
+	void flush() override
+	{
+		parent.popScope();
+		parent << "}";
+		Op::flush();
+	}
+
+	~Namespace()
+	{
+		flushIfNotAlreadyFlushed();
+	}
+};
+
+struct UsingTemplate: public DefinitionBase,
+				      public Op
+{
+	UsingTemplate(Base& b, const Identifier& id, const NamespacedIdentifier& templateId):
+		DefinitionBase(b, id),
+		Op(b),
+		tId(templateId)
+	{
+
+	}
+
+	~UsingTemplate()
+	{
+		flushIfNotAlreadyFlushed();
+	}
+
+	void flush() override
+	{
+		parent << toString();
+		Op::flush();
+	}
+
+	UsingTemplate& operator<<(const String& s)
+	{
+		args.add(s);
+		return *this;
+	}
+
+	UsingTemplate& operator<<(const NamespacedIdentifier& id)
+	{
+		args.add(id.toString());
+		return *this;
+	}
+
+	UsingTemplate& operator<<(int templateConstant)
+	{
+		args.add(String(templateConstant));
+		return *this;
+	}
+
+	UsingTemplate& operator<<(const DefinitionBase& other)
+	{
+		if (other.scopedId.getParent() == parent.getCurrentScope())
+			args.add(other.scopedId.getIdentifier().toString());
+		else
+			args.add(other.scopedId.toString());
+		return *this;
+	}
+
+private:
+
+	String toString();
+
+	NamespacedIdentifier tId;
+	StringArray args;
+};
+
+}
+
+
 
 
 }

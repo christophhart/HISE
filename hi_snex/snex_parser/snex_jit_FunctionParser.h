@@ -78,7 +78,7 @@ public:
 
 struct SyntaxTreeInlineParser : private CodeParser
 {
-	SyntaxTreeInlineParser(InlineData* b, const StringArray& parameterNames, const CppBuilder& code);
+	SyntaxTreeInlineParser(InlineData* b, const StringArray& parameterNames, const cppgen::Base& code);
 	Result flush();
 
 	void addExternalExpression(const String& id, ExprPtr e);

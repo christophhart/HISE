@@ -42,12 +42,12 @@ using namespace juce;
     X(openBracket,   "[")        X(closeBracket, "]")       X(double_colon, "::")   X(colon,        ":")    X(question,   "?") \
     X(typeEquals,    "===")      X(equals,       "==")      X(assign_,       "=") \
     X(typeNotEquals, "!==")      X(notEquals,    "!=")      X(logicalNot,   "!") \
-    X(plusEquals,    "+=")       X(plusplus,     "++")      X(plus,         "+") \
+    X(plusEquals,    "+=")       X(plusplus,     "++")      X(plus,         "+") X(pointer_, "->") \
     X(minusEquals,   "-=")       X(minusminus,   "--")      X(minus,        "-") \
     X(timesEquals,   "*=")       X(times,        "*")       X(divideEquals, "/=")   X(divide,     "/") \
     X(moduloEquals,  "%=")       X(modulo,       "%")       X(xorEquals,    "^=")   X(bitwiseXor, "^") \
     X(andEquals,     "&=")       X(logicalAnd,   "&&")      X(bitwiseAnd,   "&") \
-    X(orEquals,      "|=")       X(logicalOr,    "||")      X(bitwiseOr,    "|") \
+    X(orEquals,      "|=")       X(logicalOr,    "||")      X(bitwiseOr,    "|")  \
      X(lessThanOrEqual,  "<=")  X(lessThan,   "<")  		X(destructor,   "~") \
       X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")	    X(syntax_tree_variable, "$")
 
@@ -60,7 +60,7 @@ using namespace juce;
 	X(auto_, "auto")			X(struct_, "struct")	\
 	X(using_, "using")		    X(static_, "static")	X(break_, "break") X(continue_, "continue")			X(namespace_, "namespace") \
 	X(template_, "template")    X(typename_, "typename") X(while_, "while") \
-	X(__internal_property, "__internal_property");
+	X(__internal_property, "__internal_property"); X(this_, "this");
 
 namespace JitTokens
 {

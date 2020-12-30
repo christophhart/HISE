@@ -113,6 +113,7 @@ namespace Operations
 		{
 			SyntaxTree,
 			CppCode,
+			SimpleTree,
 			numTextFormat
 		};
 
@@ -133,8 +134,11 @@ namespace Operations
 			return dynamic_cast<const T*>(this) != nullptr;
 		}
 
+		String toSimpleTree() const;
+
 		virtual juce::String toString(TextFormat t) const
 		{
+			
 			return {};
 		}
 

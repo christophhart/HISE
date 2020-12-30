@@ -45,8 +45,11 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 	{
 		data.description = comment;
 
-		functionScope = new FunctionScope(scope, data.id);
+		functionScope = new FunctionScope(scope, data.id, isHardcodedFunction);
 
+		if (isHardcodedFunction)
+			functionScope->setHardcodedClassType(hardcodedObjectType);
+		
 		{
 			NamespaceHandler::ScopedNamespaceSetter(compiler->namespaceHandler, data.id);
 
@@ -149,7 +152,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			auto createInliner = scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::Inlining);
 
-			if (createInliner)
+			if (createInliner || isHardcodedFunction)
 			{
 				classData->inliner = Inliner::createHighLevelInliner(data.id, [sTree, fParameters](InlineData* b)
 				{
@@ -157,9 +160,10 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 				});
 			}
 
-			if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
+			if (!isHardcodedFunction)
 			{
-				st->addJitCompiledMemberFunction(*classData);
+				if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
+					st->addJitCompiledMemberFunction(*classData);
 			}
 		}
 		catch (ParserHelpers::CodeLocation::Error& e)
@@ -973,7 +977,7 @@ void Operations::FunctionCall::inlineAndSetType(BaseCompiler* compiler, const Fu
 	{
 		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
 
-		SyntaxTreeInlineData d(this, path);
+		SyntaxTreeInlineData d(this, path, f);
 		d.object = getObjectExpression();
 
 		for (int i = 0; i < getNumArguments(); i++)
@@ -1026,7 +1030,7 @@ void Operations::FunctionCall::addDefaultParameterExpressions(const FunctionData
 
 		auto path = findParentStatementOfType<ScopeStatementBase>(this)->getPath();
 
-		SyntaxTreeInlineData d(this, path);
+		SyntaxTreeInlineData d(this, path, f);
 		d.object = getObjectExpression();
 		
 		std::swap(d.args, args);

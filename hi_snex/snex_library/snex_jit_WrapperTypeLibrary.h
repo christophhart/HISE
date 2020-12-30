@@ -231,7 +231,7 @@ struct WrapBuilder : public TemplateClassBuilder
 		*/
 		static Result constructorInliner(InlineData* b);
 
-		static Result addObjReference(SyntaxTreeInlineParser& p, Operations::Statement::Ptr object);
+		static Result addObjReference(SyntaxTreeInlineParser& p);
 
 		static FunctionData constructorFunction(StructType* st)
 		{
