@@ -80,7 +80,9 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 		{
 			Namespace n(c, "impl");
 			{
-				Struct s(c, b->toSyntaxTreeData()->object->getTypeInfo().getComplexType());
+				auto st = b->toSyntaxTreeData()->object->getTypeInfo().getTypedComplexType<StructType>();
+
+				Struct s(c, st->id.getIdentifier(), {});
 
 				Function f(c, b->toSyntaxTreeData()->originalFunction);
 				{

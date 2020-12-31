@@ -556,8 +556,13 @@ public:
 	
 	void runTest() override
 	{
+		
+
 		beginTest("Funky");
 		
+		//testValueTreeCodeBuilder();
+		return;
+
 		optimizations = OptimizationIds::getAllIds();
 
 		runTestFiles("wrap_frame");
@@ -658,6 +663,18 @@ public:
 		testClampType(data);
 		testWrapType(data);
 
+	}
+
+	void testValueTreeCodeBuilder()
+	{
+		File f = JitFileTestCase::getTestFileDirectory().getChildFile("node.xml");
+
+		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+		{
+			auto v = ValueTree::fromXml(*xml);
+
+			cppgen::ValueTreeBuilder b(v);
+		}
 	}
 
 	using OpList = StringArray;

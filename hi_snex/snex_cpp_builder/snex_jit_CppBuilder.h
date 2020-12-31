@@ -39,6 +39,8 @@ namespace cppgen
 
 using namespace juce;
 
+static constexpr juce_wchar Space = ' ';
+
 class Base
 {
 public:
@@ -69,6 +71,11 @@ public:
 		lines.add("// " + comment);
 	}
 
+	void addEmptyLine()
+	{
+		lines.add("");
+	}
+
 	String toString() const;
 
 	NamespacedIdentifier getCurrentScope()
@@ -85,6 +92,12 @@ public:
 	{
 		jassert(!currentNamespace.isNull());
 		currentNamespace = currentNamespace.getParent();
+	}
+
+	void clear()
+	{
+		currentNamespace = {};
+		lines.clear();
 	}
 
 private:
@@ -116,8 +129,14 @@ struct DefinitionBase
 
 	}
 
+	bool operator==(const DefinitionBase& other) const
+	{
+		return scopedId == other.scopedId;
+	}
+
 	NamespacedIdentifier scopedId;
 };
+
 
 struct Op
 {
@@ -127,23 +146,28 @@ struct Op
 
 	virtual void flush()
 	{
-		isFlushed = true;
+		flushed = true;
+	}
+
+	bool isFlushed() const
+	{
+		return flushed;
 	}
 
 	virtual ~Op()
 	{
-		jassert(isFlushed);
+		jassert(flushed);
 	}
 
 protected:
 
 	void flushIfNotAlreadyFlushed()
 	{
-		if (!isFlushed)
+		if (!flushed)
 			flush();
 	}
 
-	bool isFlushed = false;
+	bool flushed = false;
 	Base& parent;
 };
 
@@ -185,7 +209,7 @@ struct Function: public Op
 
 struct Struct : public Op
 {
-	Struct(Base& parent, jit::ComplexType::Ptr st);
+	Struct(Base& parent, const Identifier& id, const jit::TemplateParameter::List& tp);
 
 	void flush() override
 	{
@@ -198,6 +222,42 @@ struct Struct : public Op
 	{
 		flushIfNotAlreadyFlushed();
 	}
+};
+
+struct StackVariable : public DefinitionBase,
+					   public Op
+{
+	StackVariable(Base& parent, const Identifier& id, const jit::TypeInfo& t);
+
+	~StackVariable()
+	{
+		Op::flush();
+	}
+
+	void flush() override;
+
+	StackVariable& operator<<(const String& e)
+	{
+		expression << e;
+		return *this;
+	}
+
+	StackVariable& operator<<(int i)
+	{
+		expression << String(i);
+		return *this;
+	}
+
+	StackVariable& operator<<(const StackVariable& other)
+	{
+		expression << other.toString();
+		return *this;
+	}
+
+	String toString() const;
+
+	jit::TypeInfo type;
+	String expression;
 };
 
 struct Namespace : public Op
@@ -230,7 +290,7 @@ struct UsingTemplate: public DefinitionBase,
 
 	~UsingTemplate()
 	{
-		flushIfNotAlreadyFlushed();
+		Op::flush();
 	}
 
 	void flush() override
@@ -257,18 +317,28 @@ struct UsingTemplate: public DefinitionBase,
 		return *this;
 	}
 
-	UsingTemplate& operator<<(const DefinitionBase& other)
+	UsingTemplate& operator<<(const UsingTemplate& other)
 	{
-		if (other.scopedId.getParent() == parent.getCurrentScope())
-			args.add(other.scopedId.getIdentifier().toString());
+		if (!other.isFlushed())
+		{
+			args.add(other.getType());
+		}
 		else
-			args.add(other.scopedId.toString());
+		{
+			if (other.scopedId.getParent() == parent.getCurrentScope())
+				args.add(other.scopedId.getIdentifier().toString());
+			else
+				args.add(other.scopedId.toString());
+		}
+
 		return *this;
 	}
 
-private:
+	String toString() const;
 
-	String toString();
+	String getType() const;
+
+private:
 
 	NamespacedIdentifier tId;
 	StringArray args;

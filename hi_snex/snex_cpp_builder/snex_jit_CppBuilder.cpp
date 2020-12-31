@@ -178,12 +178,16 @@ String Base::wrapInBlock() const
 	}
 }
 
-Struct::Struct(Base& parent, jit::ComplexType::Ptr st) :
+Struct::Struct(Base& parent, const Identifier& id, const jit::TemplateParameter::List& tp) :
 	Op(parent)
 {
 	String def;
 
-	auto id = dynamic_cast<jit::StructType*>(st.get())->id.getIdentifier();
+	if (!tp.isEmpty())
+	{
+		def << JitTokens::template_ << " " << TemplateParameter::ListOps::toString(tp, true);
+	}
+
 	def << JitTokens::struct_ << " " << id;
 
 	parent << def;
@@ -210,12 +214,22 @@ Function::Function(Base& parent, const jit::FunctionData& f) :
 	parent.pushScope(copy.id.getIdentifier());
 }
 
-String UsingTemplate::toString()
+String UsingTemplate::toString() const
 {
 	String s;
 	s << JitTokens::using_ << " ";
 	s << scopedId.getIdentifier() << " ";
 	s << JitTokens::assign_ << " ";
+
+	s << getType();
+	s << JitTokens::semicolon;
+
+	return s;
+}
+
+String UsingTemplate::getType() const
+{
+	String s;
 
 	s << tId.toString();
 
@@ -230,10 +244,44 @@ String UsingTemplate::toString()
 
 		s << JitTokens::greaterThan;
 	}
-	
-	s << JitTokens::semicolon;
 
 	return s;
+}
+
+StackVariable::StackVariable(Base& parent, const Identifier& id, const jit::TypeInfo& t) :
+	DefinitionBase(parent, id),
+	Op(parent),
+	type(t)
+{
+
+}
+
+void StackVariable::flush()
+{
+	String s;
+	s << type.toString();
+	s = s.replace("any", "auto");
+	s << Space;
+	s << scopedId.getIdentifier();
+	s << Space << JitTokens::assign_ << Space;
+	s << expression;
+	s << ";";
+
+	parent << s;
+	Op::flush();
+}
+
+String StackVariable::toString() const
+{
+	if (isFlushed())
+	{
+		if (scopedId.getParent() == parent.getCurrentScope())
+			return scopedId.getIdentifier().toString();
+		else
+			return scopedId.toString();
+	}
+	else
+		return expression;
 }
 
 }
