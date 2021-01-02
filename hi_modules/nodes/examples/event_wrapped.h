@@ -95,7 +95,7 @@ struct initialiser
 };
 
 
-using instance = cpp_node<initialiser, Type>;
+using instance = node<initialiser, Type>;
 
 }
 

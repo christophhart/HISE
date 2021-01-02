@@ -665,8 +665,10 @@ template <class T> struct dyn
 	}
 
 
-	dyn<T>& operator=(const dyn<T>& other)
+	template <typename OtherContainer> dyn<float>& operator=(OtherContainer& other)
 	{
+		static_assert(std::is_same<OtherContainer::DataType, float>(), "not a float container");
+
 		// If you hit one of those, you probably wanted
 		// to refer the data. Use referTo instead!
 		jassert(other.size() > 0);

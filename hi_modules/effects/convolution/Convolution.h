@@ -462,10 +462,11 @@ struct convolution : public AudioFileNodeBase
 	SN_GET_SELF_AS_OBJECT(convolution);
 
 	HISE_EMPTY_SET_PARAMETER;
+	HISE_EMPTY_HANDLE_EVENT;
 
 	bool isPolyphonic() const { return false; }
 
-	void prepare(PrepareSpecs specs) override
+	void prepare(PrepareSpecs specs)
 	{
 		DspHelpers::setErrorIfFrameProcessing(specs);
 

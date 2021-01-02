@@ -171,7 +171,7 @@ struct MyPack
 
 using props = properties::list<ArrayFiller::Property, MyFile::Property, MyTable::Property>;
 
-using instance = cpp_node<initialiser, Type, props>;
+using instance = node<initialiser, Type, props>;
 
 }
 

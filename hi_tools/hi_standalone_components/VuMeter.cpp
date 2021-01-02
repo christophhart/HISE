@@ -77,8 +77,17 @@ void VuMeter::setPeak(float left, float right/*=0.0f*/)
 		l -= 3.0f;
 		r -= 3.0f;
 
-		l = jmax(l, Decibels::gainToDecibels(left));
-		r = jmax(r, Decibels::gainToDecibels(right));
+		if (forceLinear)
+		{
+			l = jmax(l, left * 100.0f - 100.0f);
+			r = jmax(r, right * 100.0f - 100.0f);
+		}
+		else
+		{
+			l = jmax(l, Decibels::gainToDecibels(left));
+			r = jmax(r, Decibels::gainToDecibels(right));
+		}
+
 		repaint();
 	}
 	else
@@ -112,9 +121,6 @@ void VuMeter::drawMonoMeter(Graphics &g)
 	if (type == MonoHorizontal)
 	{
 		const float value = (w - 4.0f) * v;
-
-
-
 
 		g.setGradientFill(ColourGradient(colours[ledColour].withMultipliedAlpha(.5f),
 			0.0f, 0.0f,

@@ -30,61 +30,8 @@
  *   ===========================================================================
  */
 
-#pragma once
-
-namespace scriptnode
+namespace hise
 {
 using namespace juce;
-using namespace hise;
-using namespace snex::Types;
-
-class NodeBase;
-
-class ParameterHolder
-{
-public:
-
-	virtual ~ParameterHolder() {};
-
-	virtual void createParameters(ParameterDataList& data) {};
-
-};
-
-class HiseDspBase: public ParameterHolder
-{
-public:
-
-	HiseDspBase() {};
-
-	virtual ~HiseDspBase() {};
-
-	bool isPolyphonic() const { return false; }
-
-	virtual void initialise(NodeBase* n)
-	{
-		ignoreUnused(n);
-	}
-};
-
-template <class T> class SingleWrapper : public HiseDspBase
-{
-public:
-
-	inline void initialise(NodeBase* n) override
-	{
-		obj.initialise(n);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		obj.handleHiseEvent(e);
-	}
-
-
-protected:
-
-	T obj;
-};
-
 
 }

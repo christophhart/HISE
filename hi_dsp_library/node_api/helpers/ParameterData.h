@@ -53,6 +53,14 @@ struct RangeHelpers
 	static NormalisableRange<double> getDoubleRange(const ValueTree& t);
 
 	static void storeDoubleRange(ValueTree& d, bool isInverted, NormalisableRange<double> r, UndoManager* um);
+
+	static bool isEqual(const NormalisableRange<double>& r1, const NormalisableRange<double>& r2)
+	{
+		return  r1.start == r2.start &&
+				r1.end == r2.end &&
+				r1.skew == r2.skew &&
+				r1.interval == r2.interval;
+	}
 };
 
 

@@ -219,6 +219,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID("phase_delay");
 	SN_GET_SELF_AS_OBJECT(phase_delay_impl);
+	HISE_EMPTY_HANDLE_EVENT;
 
 	phase_delay_impl();
 
@@ -284,6 +285,8 @@ public:
 	SN_GET_SELF_AS_OBJECT(reverb);
 
 	bool isPolyphonic() const { return false; }
+
+	HISE_EMPTY_HANDLE_EVENT;
 
 	reverb();
 

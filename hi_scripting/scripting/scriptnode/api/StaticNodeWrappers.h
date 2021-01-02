@@ -160,7 +160,6 @@ public:
 		wrapper.process(data);
 	}
 
-
 	void setBypassed(bool shouldBeBypassed) final override
 	{
 		WrapperNode::setBypassed(shouldBeBypassed);
@@ -826,86 +825,7 @@ struct hardcoded_base : public HiseDspBase,
 };
 #endif
 
-template <class T, class Initialiser, class PropertyClass=properties::none> struct cpp_node: public HiseDspBase
-{
-	static constexpr bool isModulationSource = T::isModulationSource;
-	static constexpr int NumChannels = T::NumChannels;
 
-	// We treat everything in this node as opaque...
-	SN_GET_SELF_AS_OBJECT(cpp_node);
-
-	static Identifier getStaticId() { return Initialiser::getStaticId(); };
-
-	using FixBlockType = snex::Types::ProcessData<NumChannels>;
-	using FrameType = snex::Types::span<float, NumChannels>;
-
-	cpp_node() :
-		obj(),
-		initialiser(obj)
-	{
-	}
-
-	void initialise(NodeBase* n)
-	{
-		obj.initialise(n);
-		props.initWithRoot(n, obj);
-	}
-
-	template <int P> static void setParameter(void* ptr, double v)
-	{
-		auto* objPtr = &static_cast<cpp_node*>(ptr)->obj;
-		T::setParameter<P>(objPtr, v);
-	}
-
-	void process(FixBlockType& d)
-	{
-		obj.process(d);
-	}
-
-	void process(ProcessDataDyn& data) noexcept
-	{
-		jassert(data.getNumChannels() == NumChannels);
-		auto& fd = data.as<FixBlockType>();
-		obj.process(fd);
-	}
-
-	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
-	{
-		auto& fd = FrameType::as(data.begin());
-		obj.processFrame(fd);
-	}
-
-	void prepare(PrepareSpecs ps)
-	{
-		obj.prepare(ps);
-	}
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-		obj.handleHiseEvent(e);
-	}
-
-	bool isPolyphonic() const
-	{
-		return false;
-	}
-
-	void reset() noexcept { obj.reset(); }
-
-	bool handleModulation(double& value) noexcept
-	{
-		return obj.handleModulation(value);
-	}
-
-	void createParameters(ParameterDataList& data)
-	{
-		obj.parameters.addToList(data);
-	}
-
-	T obj;
-	Initialiser initialiser;
-	PropertyClass props;
-};
 
 #if OLD_SCRIPTNODE_CPP
 struct hardcoded_pimpl : public hardcoded_base

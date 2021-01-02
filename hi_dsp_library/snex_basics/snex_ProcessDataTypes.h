@@ -259,6 +259,11 @@ template <int C> struct ProcessData: public InternalData
 	
 	constexpr static int getNumFixedChannels();
 
+	ProcessData& toFixChannel()
+	{
+		return *this;
+	}
+
 protected:
 
 	ChannelDataType& getChannelDataType()

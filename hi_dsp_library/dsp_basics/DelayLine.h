@@ -97,4 +97,37 @@ private:
 };
 
 
+
+class AllpassDelay
+{
+public:
+	AllpassDelay() :
+		delay(0.f),
+		currentValue(0.f)
+	{}
+
+	static float getDelayCoefficient(float delaySamples)
+	{
+		return (1.f - delaySamples) / (1.f + delaySamples);
+	}
+
+	void setDelay(float newDelay) noexcept { delay = newDelay; };
+
+	void reset()
+	{
+		currentValue = 0.0f;
+	}
+
+	float getNextSample(float input) noexcept
+	{
+		float y = input * -delay + currentValue;
+		currentValue = y * delay + input;
+
+		return y;
+	}
+
+private:
+	float delay, currentValue;
+};
+
 } 

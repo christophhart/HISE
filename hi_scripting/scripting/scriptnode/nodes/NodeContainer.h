@@ -210,7 +210,7 @@ public:
 		SN_GET_SELF_AS_OBJECT(DynamicSerialProcessor);
 
 		bool handleModulation(double&);
-		void handleHiseEvent(HiseEvent& e) final override;
+		void handleHiseEvent(HiseEvent& e);
 		void initialise(NodeBase* p);
 		void reset();
 		void prepare(PrepareSpecs);

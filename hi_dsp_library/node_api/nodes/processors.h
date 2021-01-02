@@ -839,6 +839,8 @@ template <class ParameterClass, class T> struct mod
 		p.getParameter<0>().connect<I>(t);
 	}
 
+	ParameterClass& getParameter() { return p; }
+
 	/** Forwards the setParameter to the wrapped node. (Required because this
 	    node needs to be *SelfAware*. 
 	*/
@@ -860,6 +862,110 @@ private:
 			p.call(modValue);
 	}
 };
+
+
+
+
+
+/** A "base class for the node template". */
+struct DummyMetadata
+{
+	SNEX_METADATA_ID("NodeId");
+	SNEX_METADATA_NUM_CHANNELS(2);
+	SNEX_METADATA_PARAMETERS(3, "Value", "Reverb", "Funky");
+};
+
+
+template <class T, class PropertyClass = properties::none> struct node : public HiseDspBase
+{
+	using MetadataClass = typename T::metadata;
+	static constexpr bool isModulationSource = T::isModulationSource;
+	static constexpr int NumChannels = MetadataClass::NumChannels;
+
+	// We treat everything in this node as opaque...
+	SN_GET_SELF_AS_OBJECT(node);
+
+	static Identifier getStaticId() { return MetadataClass::getStaticId(); };
+
+	using FixBlockType = snex::Types::ProcessData<NumChannels>;
+	using FrameType = snex::Types::span<float, NumChannels>;
+
+	node() :
+		obj()
+	{
+	}
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+		props.initWithRoot(n, obj);
+	}
+
+	template <int P> static void setParameter(void* ptr, double v)
+	{
+		auto* objPtr = &static_cast<node*>(ptr)->obj;
+		T::setParameter<P>(objPtr, v);
+	}
+
+	void process(FixBlockType& d)
+	{
+		obj.process(d);
+	}
+
+	void process(ProcessDataDyn& data) noexcept
+	{
+		jassert(data.getNumChannels() == NumChannels);
+		auto& fd = data.as<FixBlockType>();
+		obj.process(fd);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		auto& fd = FrameType::as(data.begin());
+		obj.processFrame(fd);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		obj.prepare(ps);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	bool isPolyphonic() const
+	{
+		return false;
+	}
+
+	void reset() noexcept { obj.reset(); }
+
+	bool handleModulation(double& value) noexcept
+	{
+		return obj.handleModulation(value);
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		ParameterDataList l;
+		obj.parameters.addToList(l);
+
+		auto pNames = MetadataClass::getParameterIds();
+
+		for (int i = 0; i < l.size(); i++)
+		{
+			l.getReference(i).id = pNames[i];
+		}
+
+		data.addArray(l);
+	}
+
+	T obj;
+	PropertyClass props;
+};
+
 
 }
 

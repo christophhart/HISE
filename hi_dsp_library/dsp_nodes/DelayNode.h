@@ -183,8 +183,9 @@ struct fix_delay : public HiseDspBase
 
 	fix_delay() {};
 
+	HISE_EMPTY_HANDLE_EVENT;
+
 	void prepare(PrepareSpecs ps);
-	bool handleModulation(double&) noexcept { return false; };
 	void reset() noexcept;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept

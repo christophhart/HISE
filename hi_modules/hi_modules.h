@@ -56,6 +56,7 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../hi_scripting/hi_scripting.h"
 
+
 #include "synthesisers/synths/PolyBlep.h"
 
 #include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
@@ -256,15 +257,13 @@ If enabled, HISE will include the hardcoded nodes found at the specified locatio
 #include "raw/raw_UserPreset.h"
 #include "raw/raw_PluginParameter.h"
 
-#include "nodes/CoreNodes.h"
-#include "nodes/FXNodes.h"
+#include "nodes/HiseNodes.h"
 #include "nodes/AnalyserNodes.h"
 #include "nodes/ComplexDataNodes.h"
-#include "nodes/MathNodes.h"
 #include "nodes/DynamicsNode.h"
 #include "nodes/EventNodes.h"
 #include "nodes/FilterNode.h"
-#include "nodes/RoutingNodes.h"
+#include "nodes/DynamicRoutingNodes.h"
 
 #include "nodes/MetaNodes.h"
 #include "nodes/snex_library/snex_NodeLibrary.h"

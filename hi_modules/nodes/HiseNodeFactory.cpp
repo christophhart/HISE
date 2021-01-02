@@ -84,27 +84,38 @@ Factory::Factory(DspNetwork* network) :
 
 }
 
+namespace math
+{
+
+Factory::Factory(DspNetwork* n) :
+	NodeFactory(n)
+{
+
+	registerPolyNodeCustomSNEX<add, add_poly>();
+
+#if NOT_JUST_OSC
+	registerPolyNode<mul, mul_poly>();
+
+	registerNode<clear>();
+	registerPolyNode<sub, sub_poly>();
+	registerPolyNode<div, div_poly>();
+	registerPolyNode<tanh, tanh_poly>();
+	registerPolyNode<clip, clip_poly>();
+	registerNode<sin>();
+	registerNode<pi>();
+	registerNode<sig2mod>();
+	registerNode<abs>();
+	registerNode<square>();
+	registerNode<sqrt>();
+	registerNode<pow>();
+#endif
+
+	sortEntries();
+}
+}
+
 namespace core
 {
-
-
-struct FunkyType
-{
-	void initialise(NodeBase* n) {};
-
-	void prepare(PrepareSpecs ps)
-	{
-
-
-	}
-
-	int getMidiValue(HiseEvent& e, double& value)
-	{
-		value = 0.5;
-		return 1;
-	}
-};
-
 
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
@@ -148,83 +159,10 @@ Factory::Factory(DspNetwork* network) :
 
 	registerModNode<tempo_sync, TempoDisplay>();
 
-	registerNode<routing2::send<cable::dynamic>, FunkySendComponent>();
-	registerNode<routing2::receive<cable::dynamic>, FunkySendComponent>();
-
 	registerModNode<peak>();
 	registerPolyNode<ramp, ramp_poly>();
-
-#if 0
-
-	oscillator_impl<1> o;
-
-	void* obj = &o;
-
-	parameter::data_pool pool;
-
 	
-
-	parameter::dynamic_chain chain;
-
-	ParameterDataList data;
-
-	o.createParameters(data);
-
-	auto& fp = data.getReference(0);
-
-
-
-	chain.addParameter(new parameter::dynamic_from0to1(fp.dbNew, pool.create(fp.range)));
-	
-	String code = "Math.max(input, 0.5) * 1041.0";
-
-	chain.addParameter(new parameter::dynamic_expression(data.getReference(1).dbNew, pool.create(code)));
-
-	chain(1.0);
-
-	parameter::dynamic wrappedChain;
-
-	
-
-
-
-	wrappedChain = std::move(chain);
-
-	parameter::dynamic_to0to1 normaliser(wrappedChain, pool.create(NormalisableRange<double>(20.0, 40.0)));
-
-	parameter::dynamic wrappedNormaliser;
-
-	wrappedNormaliser = std::move(normaliser);
-
-	constexpr int funky3 = sizeof(chain);
-	constexpr int funky = sizeof(normaliser);
-
-	wrappedNormaliser(30.0);
-
-	
-
-	//using bo = bypass::smoothed<oscillator>;
-
-	//bo o;
-
-	//parameter::bypass<bo> p;
-
-	//p.connect<0>(o);
-
-	//p.call(0.7);
-
-	using A = HiseDspNodeBase<oscillator, OscDisplay>;
-	using B = HiseDspNodeBase<oscillator_poly, OscDisplay>;
-	
-	//A o(network, {});
-	//B o2(network, {});
-#endif
-
-	
-	using osc = wrap::fix<1, oscillator_impl<1>>;
-	using osc_poly = wrap::fix<1, oscillator_impl<NUM_POLYPHONIC_VOICES>>;
-
-	registerPolyNode<osc, osc_poly, OscDisplay>();
+	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
 
 }
 }

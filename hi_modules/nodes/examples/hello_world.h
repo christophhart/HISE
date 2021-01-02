@@ -38,8 +38,6 @@ struct processor
 	*/
 	DECLARE_NODE(processor);
 
-	void initialise(NodeBase* b) {};
-
 	static const int NumChannels = 2;
 
 	/** This is optional, but since parameters are identifier by their compile time integer constant
@@ -153,17 +151,19 @@ using OscType = core::oscillator;
 using ChainWrapper = container::chain<ParameterType, processor, filters::one_pole, OscType, OscType, OscType, OscType> ;
 
 /** This class will connect the parameters to the objects and defines the ID of this node. */
-struct initialiser
+struct instance: public ChainWrapper
 {
-	/** This macro defines the ID of the node. Usually you just use the name of the surrounding
-		namespace, so that it can be accessed by others.
-	*/
-	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("hello_world"); };
+	struct metadata
+	{
+		SNEX_METADATA_ID("hello_world");
+		SNEX_METADATA_NUM_CHANNELS(2);
+		SNEX_METADATA_PARAMETERS(2, "FirstParameter", "SecondParameter");
+	};
 
-	initialiser(ChainWrapper& c)
+	instance()
 	{
 		// fetch a reference to the inner node
-		auto& obj = c.get<0>();
+		auto& obj = get<0>();
 
 		// just set the flag so you know it's initialised...
 		obj.initialised = true;
@@ -176,21 +176,19 @@ struct initialiser
 		// node object...
 		//static_assert(chainSize == processorSize + parameterSize , "no fat");
 
-		auto& fp = c.getParameter<0>();
+		auto& fp = getParameter<0>();
 
 		fp.connect<0>(obj);
 		fp.connect<1>(obj);
 	}
 };
 
-// this alias will be registered to the example factory and uses the initialiser class and 
-// our chain definition to setup the node structure.
-using instance = cpp_node<ChainWrapper, initialiser>;
+
 
 }
 
 // By defining this alias, the node can be used by other code (check out the combined.h example).
-using hello_world = hello_world_impl::instance;
+using hello_world = wrap::node<hello_world_impl::instance>;
 
 }
 

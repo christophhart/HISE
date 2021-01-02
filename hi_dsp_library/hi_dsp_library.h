@@ -121,6 +121,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 
 #include "dsp_basics/DelayLine.h"
 #include "dsp_basics/DelayLine.cpp"
+#include "dsp_basics/Oscillators.h"
 
 #include "node_api/helpers/node_macros.h"
 #include "node_api/helpers/node_ids.h"
@@ -139,10 +140,13 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "node_api/nodes/Container_Chain.h"
 #include "node_api/nodes/Container_Split.h"
 #include "node_api/nodes/Container_Multi.h"
-#include "node_api/nodes/Processors.h"
+#include "node_api/nodes/processors.h"
 
-
+#include "dsp_nodes/CoreNodes.h"
+#include "dsp_nodes/RoutingNodes.h"
 #include "dsp_nodes/DelayNode.h"
+#include "dsp_nodes/MathNodes.h"
+#include "dsp_nodes/FXNodes.h"
 
 // Include these files in the header because the external functions won't get linked when in another object file...
 #if HI_EXPORT_DSP_LIBRARY

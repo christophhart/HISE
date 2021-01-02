@@ -61,7 +61,7 @@ struct data
 	}
 };
 
-using instance = cpp_node<data, ChainType>;
+using instance = node<data, ChainType>;
 
 }
 

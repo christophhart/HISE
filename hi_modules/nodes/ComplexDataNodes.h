@@ -299,7 +299,7 @@ struct file_player : public AudioFileNodeBase
 
 	file_player();;
 
-	void prepare(PrepareSpecs specs) override;
+	void prepare(PrepareSpecs specs);
 	void reset();
 	bool handleModulation(double& modValue);
 

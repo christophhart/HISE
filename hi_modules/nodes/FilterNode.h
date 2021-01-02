@@ -74,6 +74,8 @@ public:
 
 	SN_GET_SELF_AS_OBJECT(FilterNodeBase);
 
+	HISE_EMPTY_HANDLE_EVENT;
+
 	void createParameters(ParameterDataList& parameters) override;
 	void prepare(PrepareSpecs ps);
 	void reset();
@@ -142,12 +144,13 @@ template <int NV> struct fir_impl : public AudioFileNodeBase
 	SN_GET_SELF_AS_OBJECT(fir_impl);
 
 	HISE_EMPTY_SET_PARAMETER;
+	HISE_EMPTY_HANDLE_EVENT;
 
 	fir_impl();;
 
 	bool isPolyphonic() const { return NumVoices > 1; }
 
-	void prepare(PrepareSpecs specs) override;
+	void prepare(PrepareSpecs specs) ;
 	
 	void rebuildCoefficients();
 

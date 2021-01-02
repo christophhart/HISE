@@ -458,7 +458,7 @@ struct ScriptNodeTests : public juce::UnitTest
 				}
 			};
 
-			cpp_node<handler, ChainType> node;
+			node<handler, ChainType> node;
 
 			ParameterDataList p;
 

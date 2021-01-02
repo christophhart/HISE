@@ -175,6 +175,59 @@ struct sfloat : public pimpl::_ramp<float>
 struct sdouble : public pimpl::_ramp<double>
 {};
 
+
+/** A small helper class for usage within a wrap::mod node. 
+*/
+struct ModValue
+{
+	/** Return true if that changed flag was set. Use this in the 
+	    handleModulation callback. */
+	bool getChangedValue(double& d)
+	{
+		if (changed)
+		{
+			changed = false;
+			d = (double)modValue;
+			return true;
+		}
+
+		return false;
+	}
+
+	double getModValue() const noexcept { return (double)modValue; }
+
+	/** Set the modulation value and the changed flag. This is best
+	    used in a periodic context, where you don't care about the 
+		change flag.
+	*/
+	void setModValue(double newValue)
+	{
+		modValue = (float)newValue;
+		changed = true;
+	}
+
+	/** Set the modulation value and change flag only if the value has
+	    changed. 
+
+		If the modulation that you are using is not periodically, you 
+		can use this in order to prevent unnecessary calls to the 
+		modulation targets.
+	*/
+	void setModValueIfChanged(double newValue)
+	{
+		if (modValue != (float)newValue)
+		{
+			modValue = (float)newValue;
+			changed = true;
+		}
+	}
+
+private:
+
+	int changed = false;
+	float modValue = 0.0f;
+};
+
 /** The PolyHandler can be used in order to create data structures that can be used
     in a polyphonic context.
 	

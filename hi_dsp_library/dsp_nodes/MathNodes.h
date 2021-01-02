@@ -300,6 +300,7 @@ public:
 
 	SET_HISE_POLY_NODE_ID(OpType::getId());
 	SN_GET_SELF_AS_OBJECT(OpNode);
+	HISE_EMPTY_HANDLE_EVENT;
 
 	bool handleModulation(double&) noexcept;;
 	
@@ -318,7 +319,9 @@ public:
 	void createParameters(ParameterDataList& data) override;
 	void setValue(double newValue);
 
+#if 0
 	static snex::Types::DefaultFunctionClass createSnexFunctions(const snex::Types::SnexTypeConstructData& cd);
+#endif
 
 	PolyData<float, NumVoices> value = OpType::defaultValue;
 };

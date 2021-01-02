@@ -125,7 +125,7 @@ public:
 	envelope_follower();
 
 	bool handleModulation(double&) noexcept { return false; };
-	void prepare(PrepareSpecs ps) override;
+	void prepare(PrepareSpecs ps);
 	void reset() noexcept;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)

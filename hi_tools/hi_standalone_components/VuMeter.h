@@ -95,7 +95,14 @@ public:
 		repaint();
 	}
 
+	void setForceLinear(bool shouldForceLinear)
+	{
+		forceLinear = shouldForceLinear;
+	}
+
 private:
+
+	bool forceLinear = false;
 
 	bool invertMode = false;
 

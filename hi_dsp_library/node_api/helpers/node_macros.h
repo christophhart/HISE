@@ -120,7 +120,7 @@ constexpr const auto& getWrappedObject() const { return x; }
 #define HISE_EMPTY_PROCESS_SINGLE template <typename FrameDataType> void processFrame(FrameDataType& ) {}
 #define HISE_EMPTY_CREATE_PARAM void createParameters(ParameterDataList&){}
 #define HISE_EMPTY_MOD bool handleModulation(double& ) { return false; }
-#define HISE_EMPTY_HANDLE_EVENT void handleEvent(HiseEvent& e) {};
+#define HISE_EMPTY_HANDLE_EVENT void handleHiseEvent(HiseEvent& e) {};
 #define HISE_EMPTY_SET_PARAMETER template <int P> static void setParameter(void* obj, double v) {}
 #define HISE_EMPTY_INITIALISE void initialise(NodeBase* b) {}
 

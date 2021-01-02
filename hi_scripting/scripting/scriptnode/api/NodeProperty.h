@@ -247,14 +247,6 @@ private:
 
 
 
-template <int Value> struct constant
-{
-	constant(const Identifier&, bool) {};
-	
-	void initialise(NodeBase* n) {}
-
-	constexpr int getValue() { return Value; }
-};
 
 /** This node property can be used to use an external file.
 	
@@ -324,14 +316,7 @@ private:
 };
 
 
-/** This template is a dummy property that is being used if the node does not have any public
-	properties that you want to change dynamically.
-*/
-struct none
-{
-	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
-	{}
-};
+
 
 /** This template is being used when you have multiple properties in a node. It simply forwards the
 	calls to every child property.

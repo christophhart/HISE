@@ -60,61 +60,7 @@ using PrepareSpecs = snex::Types::PrepareSpecs;
 using ProcessDataDyn = snex::Types::ProcessDataDyn;
 
 
-struct OscData
-{
-	void reset()
-	{
-		uptime = 0.0;
-	}
 
-	double tick()
-	{
-		auto rv = uptime;
-		uptime += (uptimeDelta * multiplier);
-		return rv;
-	}
-
-	double uptime = 0.0;
-	double uptimeDelta = 0.0;
-	double multiplier = 1.0;
-};
-
-struct ModValue
-{
-	bool getChangedValue(double& d)
-	{
-		if (changed)
-		{
-			changed = false;
-			d = modValue;
-			return true;
-		}
-
-		return false;
-	}
-
-	double getModValue() const noexcept { return modValue; }
-
-	void setModValue(double newValue)
-	{
-		modValue = newValue;
-		changed = true;
-	}
-
-	void setModValueIfChanged(double newValue)
-	{
-		if (modValue != newValue)
-		{
-			modValue = newValue;
-			changed = true;
-		}
-	}
-
-private:
-
-	bool changed = false;
-	double modValue = 0.0;
-};
 
 class NodeBase;
 

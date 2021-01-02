@@ -57,6 +57,7 @@ bool scriptnode::math::OpNode<OpType, V>::handleModulation(double&) noexcept
 	return false;
 }
 
+#if 0
 template <typename T> struct CreateFunctions
 {
 	static FunctionData* createProcess(const snex::Types::SnexTypeConstructData& cd)
@@ -66,7 +67,9 @@ template <typename T> struct CreateFunctions
 		return nullptr;
 	}
 };
+#endif
 
+#if 0
 template <class OpType, int V>
 snex::Types::DefaultFunctionClass scriptnode::math::OpNode<OpType, V>::createSnexFunctions(const snex::Types::SnexTypeConstructData& cd)
 {
@@ -76,6 +79,7 @@ snex::Types::DefaultFunctionClass scriptnode::math::OpNode<OpType, V>::createSne
 
 	return f;
 }
+#endif
 
 
 template <class OpType, int V>
@@ -116,31 +120,6 @@ DEFINE_MONO_OP_NODE_IMPL(square);
 DEFINE_MONO_OP_NODE_IMPL(sqrt);
 DEFINE_MONO_OP_NODE_IMPL(pow);
 
-Factory::Factory(DspNetwork* n) :
-	NodeFactory(n)
-{
-	
-	registerPolyNodeCustomSNEX<add, add_poly>();
-
-#if NOT_JUST_OSC
-	registerPolyNode<mul, mul_poly>();
-	
-	registerNode<clear>();
-	registerPolyNode<sub, sub_poly>();
-	registerPolyNode<div, div_poly>();
-	registerPolyNode<tanh, tanh_poly>();
-	registerPolyNode<clip, clip_poly>();
-	registerNode<sin>();
-	registerNode<pi>();
-	registerNode<sig2mod>();
-	registerNode<abs>();
-	registerNode<square>();
-	registerNode<sqrt>();
-	registerNode<pow>();
-#endif
-
-	sortEntries();
-}
 
 }
 
