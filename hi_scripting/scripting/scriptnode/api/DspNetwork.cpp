@@ -51,6 +51,9 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	ConstScriptingObject(p, 2),
 	data(data_),
 	isPoly(poly),
+#if DUMP_SCRIPTNODE_VALUETREE
+	dumper(*this),
+#endif
 	voiceIndex(poly),
 	parentHolder(dynamic_cast<Holder*>(p))
 {
@@ -809,6 +812,13 @@ void SnexSource::initialise(NodeBase* n)
 	{
 		parentNode->getRootNetwork()->getSnexObjects().addIfNotAlreadyThere(this);
 	}
+}
+
+juce::File DspNetwork::ValueTreeDumper::getFile()
+{
+	auto p = GET_HISE_SETTING(dynamic_cast<Processor*>(parent.getScriptProcessor()), HiseSettings::Compiler::HisePath);
+	File root(p);
+	return root.getChildFile("tools/snex_playground/test_files/node.xml");
 }
 
 }

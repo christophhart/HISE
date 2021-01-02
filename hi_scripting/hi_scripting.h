@@ -60,6 +60,9 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 0
 #endif
 
+// Periodically dumps the value tree of a dsp network
+#define DUMP_SCRIPTNODE_VALUETREE 1
+
 
 #define INCLUDE_TCC 0
 

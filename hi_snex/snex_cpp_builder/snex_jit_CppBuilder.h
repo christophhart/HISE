@@ -41,6 +41,23 @@ using namespace juce;
 
 static constexpr juce_wchar Space = ' ';
 
+// This causes a line break with a intendation to the first occurence
+static constexpr juce_wchar IntendMarker = '$';
+
+// This causes an alignment of subsequent lines to the biggest character amount
+static constexpr juce_wchar AlignMarker = '@';
+
+struct StringHelpers
+{
+	static String withToken(juce_wchar token, const String& s = {})
+	{
+		String t;
+		t << token;
+		t << s;
+		return t;
+	}
+};
+
 class Base
 {
 public:
@@ -55,20 +72,38 @@ public:
 		numOutputTypes
 	};
 
-	Base(OutputType type) :
+	Base(OutputType type=OutputType::WrapInBlock) :
 		t(type)
 	{}
 
 	virtual ~Base()
 	{};
 
+	enum class CommentType
+	{
+		Raw,
+		RawWithNewLine,
+		AlignOnSameLine,
+		FillTo80,
+		FillTo80Light
+	};
+
 	Base& operator<<(const String& line);
 
 	Base& operator<<(const jit::FunctionData& f);
 
-	void addComment(const String& comment)
+	void addComment(const String& comment, CommentType commentType);
+
+	static int getRealLineLength(const String& s);
+
+	void addIfNotEmptyLine()
 	{
-		lines.add("// " + comment);
+		auto lastLine = lines[lines.size() - 1];
+
+		if (lastLine.isEmpty() || lastLine.startsWith("//"))
+			return;
+
+		lines.add("");
 	}
 
 	void addEmptyLine()
@@ -121,7 +156,8 @@ private:
 struct DefinitionBase
 {
 	DefinitionBase(Base& b, const Identifier& id) :
-		scopedId(b.getCurrentScope().getChildId(id))
+		scopedId(b.getCurrentScope().getChildId(id)),
+		parent_(b)
 	{};
 
 	virtual ~DefinitionBase()
@@ -134,9 +170,30 @@ struct DefinitionBase
 		return scopedId == other.scopedId;
 	}
 
+	/** Override this and return an expression. */
+	virtual String toExpression() const 
+	{ 
+		auto pScope = parent_.getCurrentScope();
+
+		if (pScope == scopedId.getParent())
+			return scopedId.getIdentifier().toString();
+		else
+		{
+			if (pScope.isParentOf(scopedId))
+			{
+				auto relocated = scopedId.relocate(pScope, {});
+				return relocated.toString();
+			}
+
+			return scopedId.toString();
+
+		}
+			
+	}
+
+	Base& parent_;
 	NamespacedIdentifier scopedId;
 };
-
 
 struct Op
 {
@@ -144,10 +201,7 @@ struct Op
 		parent(parent_)
 	{}
 
-	virtual void flush()
-	{
-		flushed = true;
-	}
+	
 
 	bool isFlushed() const
 	{
@@ -159,12 +213,17 @@ struct Op
 		jassert(flushed);
 	}
 
+	void flushIfNot()
+	{
+		if (!isFlushed())
+			flush();
+	}
+
 protected:
 
-	void flushIfNotAlreadyFlushed()
+	virtual void flush()
 	{
-		if (!flushed)
-			flush();
+		flushed = true;
 	}
 
 	bool flushed = false;
@@ -179,15 +238,17 @@ struct StatementBlock: public Op
 		parent << "{";
 	};
 
+	~StatementBlock()
+	{
+		flushIfNot();
+	}
+
+private:
+
 	void flush() override
 	{
 		parent << "}";
 		Op::flush();
-	}
-
-	~StatementBlock()
-	{
-		flushIfNotAlreadyFlushed();
 	}
 };
 
@@ -203,13 +264,21 @@ struct Function: public Op
 
 	~Function()
 	{
-		flushIfNotAlreadyFlushed();
+		flushIfNot();
 	}
 };
 
-struct Struct : public Op
+struct Struct : public Op,
+				public DefinitionBase
 {
-	Struct(Base& parent, const Identifier& id, const jit::TemplateParameter::List& tp);
+	Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>& baseClasses, const jit::TemplateParameter::List& tp);
+
+	~Struct()
+	{
+		flushIfNot();
+	}
+
+private:
 
 	void flush() override
 	{
@@ -217,10 +286,14 @@ struct Struct : public Op
 		parent << "};";
 		Op::flush();
 	}
+};
 
-	~Struct()
+struct Symbol : public DefinitionBase
+{
+	Symbol(Base& parent, const Identifier& id):
+		DefinitionBase(parent, id)
 	{
-		flushIfNotAlreadyFlushed();
+
 	}
 };
 
@@ -233,8 +306,6 @@ struct StackVariable : public DefinitionBase,
 	{
 		Op::flush();
 	}
-
-	void flush() override;
 
 	StackVariable& operator<<(const String& e)
 	{
@@ -250,11 +321,28 @@ struct StackVariable : public DefinitionBase,
 
 	StackVariable& operator<<(const StackVariable& other)
 	{
-		expression << other.toString();
+		expression << other.toExpression();
 		return *this;
 	}
 
-	String toString() const;
+	String toExpression() const
+	{
+		if (isFlushed())
+		{
+			return DefinitionBase::toExpression();
+		}
+		else
+			return expression;
+	}
+
+	int getLength() const
+	{
+		return expression.length();
+	}
+
+private:
+
+	void flush() override;
 
 	jit::TypeInfo type;
 	String expression;
@@ -262,19 +350,60 @@ struct StackVariable : public DefinitionBase,
 
 struct Namespace : public Op
 {
-	Namespace(Base& parent, const Identifier& id);
-
-	void flush() override
-	{
-		parent.popScope();
-		parent << "}";
-		Op::flush();
-	}
+	Namespace(Base& parent, const Identifier& id, bool isEmpty);
 
 	~Namespace()
 	{
-		flushIfNotAlreadyFlushed();
+		flushIfNot();
 	}
+
+private:
+
+	const bool isEmpty;
+
+	void flush() override
+	{
+		if (!isEmpty)
+		{
+			parent.popScope();
+			parent << "}";
+			parent.addEmptyLine();
+		}
+
+		Op::flush();
+	}
+};
+
+struct Macro : public Op
+{
+	Macro(Base& b, const String& name, const StringArray& args):
+		Op(b)
+	{
+		s << name;
+		s << "(";
+		
+		for (auto a : args)
+			s << a << ", ";
+
+		s = s.upToLastOccurrenceOf(", ", false, false);
+
+		s << ");";
+	}
+
+	~Macro()
+	{
+		flushIfNot();
+	}
+
+private:
+
+	void flush() override
+	{
+		parent << s;
+		Op::flush();
+	}
+
+	String s;
 };
 
 struct UsingTemplate: public DefinitionBase,
@@ -293,11 +422,7 @@ struct UsingTemplate: public DefinitionBase,
 		Op::flush();
 	}
 
-	void flush() override
-	{
-		parent << toString();
-		Op::flush();
-	}
+	
 
 	UsingTemplate& operator<<(const String& s)
 	{
@@ -319,26 +444,32 @@ struct UsingTemplate: public DefinitionBase,
 
 	UsingTemplate& operator<<(const UsingTemplate& other)
 	{
-		if (!other.isFlushed())
-		{
-			args.add(other.getType());
-		}
-		else
-		{
-			if (other.scopedId.getParent() == parent.getCurrentScope())
-				args.add(other.scopedId.getIdentifier().toString());
-			else
-				args.add(other.scopedId.toString());
-		}
+		args.add(other.toExpression());
 
 		return *this;
 	}
 
+	int getLength() const { return getUsingExpression().length(); }
+
 	String toString() const;
 
-	String getType() const;
+	String toExpression() const override;
 
 private:
+
+	String getUsingExpression() const;
+
+	void flush() override
+	{
+		auto e = toExpression();
+
+		if (!e.isEmpty())
+		{
+			parent << toString();
+		}
+
+		Op::flush();
+	}
 
 	NamespacedIdentifier tId;
 	StringArray args;

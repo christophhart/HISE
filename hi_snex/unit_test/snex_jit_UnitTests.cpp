@@ -560,6 +560,9 @@ public:
 
 		beginTest("Funky");
 		
+
+		optimizations = OptimizationIds::getAllIds();
+		runTestFiles("");
 		//testValueTreeCodeBuilder();
 		return;
 

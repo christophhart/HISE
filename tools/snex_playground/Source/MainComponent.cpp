@@ -342,17 +342,18 @@ template <typename T> struct HardcodedExternalHandler: public snex::ExternalData
 
 //==============================================================================
 MainComponent::MainComponent() :
-	data(new ui::WorkbenchData())
+	data(new ui::WorkbenchData()),
+	editor(doc),
+	doc(d),
+	treeUpdater(doc)
 {
-	using namespace scriptnode;
 
-	HardcodedExternalHandler<MyProcessor> funkyNode;
+#if SHOW_VALUE_TREE_GEN
 
-	snex::Types::PolyData<int, 19> d4;
+	addAndMakeVisible(editor);
+	context.attachTo(editor);
 
-	for (auto& s : d4)
-		s = 90;
-
+#else
 	auto compileThread = new snex::jit::TestCompileThread(data);
 	data->setCompileHandler(compileThread);
 
@@ -361,6 +362,8 @@ MainComponent::MainComponent() :
 	context.attachTo(*playground);
 	
 	addAndMakeVisible(playground);
+
+#endif
     setSize (1024, 768);
 }
 
@@ -381,5 +384,23 @@ void MainComponent::paint (Graphics& g)
 
 void MainComponent::resized()
 {
-    playground->setBounds(getLocalBounds());
+	getChildComponent(0)->setBounds(getLocalBounds());
+}
+
+void MainComponent::Updater::timerCallback()
+{
+	auto f = snex::JitFileTestCase::getTestFileDirectory().getChildFile("node.xml");
+
+	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+	{
+		ValueTree v = ValueTree::fromXml(*xml);
+
+		if (!lastTree.isEquivalentTo(v))
+		{
+			snex::cppgen::ValueTreeBuilder vb(v);
+			d.getCodeDocument().replaceAllContent(vb.toString());
+		}
+
+		lastTree = v;
+	}
 }

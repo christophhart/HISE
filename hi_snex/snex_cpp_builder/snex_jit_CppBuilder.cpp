@@ -61,6 +61,68 @@ Base& Base::operator<<(const jit::FunctionData& f)
 	return *this;
 }
 
+void Base::addComment(const String& comment, CommentType commentType)
+{
+	switch (commentType)
+	{
+	case CommentType::AlignOnSameLine:
+	{
+		String l;
+		l << lines[lines.size() - 1] << AlignMarker << "// " << comment;
+		lines.set(lines.size() - 1, l);
+		break;
+	}
+	case CommentType::FillTo80:
+	{
+		String c;
+
+		c << "%FILL40";
+		c << comment;
+		
+		lines.add(c);
+		addEmptyLine();
+		break;
+	}
+	case CommentType::FillTo80Light:
+	{
+		String c = comment;
+		c << " %FILL80";
+		lines.add("// " + c);
+		addEmptyLine();
+		break;
+	}
+	case CommentType::Raw:
+		lines.add("// " + comment);
+		break;
+	case CommentType::RawWithNewLine:
+		lines.add("// " + comment);
+		addEmptyLine();
+		break;
+	}
+}
+
+int Base::getRealLineLength(const String& s)
+{
+	int l = 0;
+
+	auto start = s.getCharPointer();
+	auto end = start + s.length();
+
+	while (start != end)
+	{
+		if (*start == '\t')
+		{
+			l += (4 - l % 4);
+		}
+		else
+			l++;
+
+		start++;
+	}
+
+	return l;
+}
+
 String Base::toString() const
 {
 	switch (t)
@@ -139,22 +201,135 @@ String Base::parseLines() const
 
 		int intendLevel = 0;
 
+		int currentAlignLength = -1;
+
 		for (int i = 0; i < lines.size(); i++)
 		{
-			if (containsButNot(i, JitTokens::closeBrace, JitTokens::openBrace))
-				intendLevel--;
+			auto l = lines[i];
 
-			auto thisIntend = intendLevel + jmax(0, getIntendDelta(i));
+			if (matchesStart(i, JitTokens::namespace_))
+				intendLevel = -1;
+
+			if (containsButNot(i, JitTokens::closeBrace, JitTokens::openBrace))
+			{
+				intendLevel = jmax(0, intendLevel - 1);
+			}
+
+			auto thisIntend = jmax(0, intendLevel + getIntendDelta(i));
 
 			for (int j = 0; j < thisIntend; j++)
 				s << "\t";
 
-			s << lines[i] << "\n";
+			if (l.containsChar(IntendMarker))
+			{
+				String m;
+				m << IntendMarker;
+				auto sublines = StringArray::fromTokens(l, m, "");
+
+				auto before = sublines[0].length();
+
+				String spaces;
+
+				for (int j = 0; j < thisIntend; j++)
+					spaces << "    ";
+
+				for (int i = 0; i < before; i++)
+					spaces << Space;
+
+				s << sublines[0] << sublines[1] << "\n";
+
+				for (int i = 2; i < sublines.size(); i++)
+				{
+					s << spaces << sublines[i] << "\n";
+				}
+			}
+			else
+			{
+				if (l.containsChar(AlignMarker))
+				{
+					if (currentAlignLength == -1)
+					{
+						for (int j = i; j < lines.size(); j++)
+						{
+							if (lines[j].containsChar(AlignMarker))
+								currentAlignLength = jmax(currentAlignLength, lines[j].indexOfChar(AlignMarker) + 1);
+							else
+								break;
+						}
+					}
+
+					auto thisLength = l.indexOfChar(AlignMarker);
+
+					int spacesRequired = currentAlignLength - thisLength;
+
+					jassert(spacesRequired > 0);
+
+					String spaces;
+					for (int i = 0; i < spacesRequired; i++)
+						spaces << Space;
+
+					String a;
+					a << AlignMarker;
+
+					s << l.replace(a, spaces) << "\n";
+				}
+				else
+				{
+					currentAlignLength = -1;
+					s << l << "\n";
+				}
+			}
 
 			if (containsButNot(i, JitTokens::openBrace, JitTokens::closeBrace))
 				intendLevel++;
+		}
 
+		if (s.contains("%FILL"))
+		{
+			String ns;
 
+			auto again = StringArray::fromLines(s);
+
+			int maxLineLength = 0;
+
+			for (auto& a : again)
+				maxLineLength = jmax(maxLineLength, getRealLineLength(a));
+
+			for (auto& l : again)
+			{
+				if (l.contains("%FILL80"))
+				{
+					auto lc = l.upToFirstOccurrenceOf("%FILL80", false, false);
+					auto required = maxLineLength - getRealLineLength(lc);
+
+					ns << lc;
+
+					for (int i = 0; i < required; i++)
+						ns << '-';
+
+					ns << "\n";
+				}
+				else if (l.contains("%FILL40"))
+				{
+					auto lc = l.fromFirstOccurrenceOf("%FILL40", false, false);
+
+					auto required = (maxLineLength - getRealLineLength(lc) - 8) / 2;
+
+					String h;
+
+					for (int i = 0; i < required; i++)
+						h << "=";
+
+					ns << "// " << h << JitTokens::bitwiseOr << Space << lc << Space << JitTokens::bitwiseOr << h << "\n";
+
+				}
+				else
+				{
+					ns << l << "\n";
+				}
+			}
+
+			return ns;
 		}
 
 		return s;
@@ -178,31 +353,51 @@ String Base::wrapInBlock() const
 	}
 }
 
-Struct::Struct(Base& parent, const Identifier& id, const jit::TemplateParameter::List& tp) :
-	Op(parent)
+Struct::Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>& baseClasses, const jit::TemplateParameter::List& tp) :
+	Op(parent),
+	DefinitionBase(parent, id)
 {
+	parent.addIfNotEmptyLine();
+
 	String def;
 
 	if (!tp.isEmpty())
 	{
-		def << JitTokens::template_ << " " << TemplateParameter::ListOps::toString(tp, true);
+		def << JitTokens::template_ << Space << TemplateParameter::ListOps::toString(tp, true);
 	}
 
-	def << JitTokens::struct_ << " " << id;
+	def << JitTokens::struct_ << Space << id;
+
+	if (!baseClasses.isEmpty())
+	{
+		def << JitTokens::colon;
+		
+		for (auto bc : baseClasses)
+		{
+			def << Space << JitTokens::public_ << Space << bc->toExpression() << ", \n";
+			
+		}
+
+		def = def.upToFirstOccurrenceOf(", \n", false, false);
+	}
 
 	parent << def;
 	parent << "{";
 	parent.pushScope(id);
 }
 
-Namespace::Namespace(Base& parent, const Identifier& id) :
-	Op(parent)
+Namespace::Namespace(Base& parent, const Identifier& id, bool isEmpty_) :
+	Op(parent),
+	isEmpty(isEmpty_)
 {
-	String def;
-	def << JitTokens::namespace_ << " " << id;
-	parent << def;
-	parent << "{";
-	parent.pushScope(id);
+	if (!isEmpty)
+	{
+		String def;
+		def << JitTokens::namespace_ << " " << id;
+		parent << def;
+		parent << "{";
+		parent.pushScope(id);
+	}
 }
 
 Function::Function(Base& parent, const jit::FunctionData& f) :
@@ -221,27 +416,52 @@ String UsingTemplate::toString() const
 	s << scopedId.getIdentifier() << " ";
 	s << JitTokens::assign_ << " ";
 
-	s << getType();
+	s << toExpression();
 	s << JitTokens::semicolon;
 
 	return s;
 }
 
-String UsingTemplate::getType() const
+String UsingTemplate::toExpression() const
+{
+	if (isFlushed())
+		return DefinitionBase::toExpression();
+
+	return getUsingExpression();
+}
+
+String UsingTemplate::getUsingExpression() const
 {
 	String s;
 
 	s << tId.toString();
+
+	auto useIntendMarkers = args.size() > 2;
+
+	for (auto& a : args)
+	{
+		if (a.length() > 22)
+			useIntendMarkers = true;
+	}
 
 	if (!args.isEmpty())
 	{
 		s << JitTokens::lessThan;
 
 		for (auto& a : args)
-			s << a << ", ";
+		{
+			if (useIntendMarkers)
+				s << IntendMarker;
 
+			String i;
+			i << IntendMarker;
+
+			auto t = a.removeCharacters(i);
+
+			s << t << ", ";
+		}
+			
 		s = s.upToLastOccurrenceOf(", ", false, false);
-
 		s << JitTokens::greaterThan;
 	}
 
@@ -269,19 +489,6 @@ void StackVariable::flush()
 
 	parent << s;
 	Op::flush();
-}
-
-String StackVariable::toString() const
-{
-	if (isFlushed())
-	{
-		if (scopedId.getParent() == parent.getCurrentScope())
-			return scopedId.getIdentifier().toString();
-		else
-			return scopedId.toString();
-	}
-	else
-		return expression;
 }
 
 }
