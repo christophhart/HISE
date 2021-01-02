@@ -317,6 +317,9 @@ struct WrapLibraryBuilder : public LibraryBuilderBase
 		{
 			static FunctionData checkModValue(StructType* st);
 			static FunctionData getParameter(StructType* st);
+
+			static Result process(InlineData* b);
+			static Result processFrame(InlineData* b);
 		};
 
 		struct fix

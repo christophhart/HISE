@@ -864,6 +864,9 @@ Result WrapLibraryBuilder::registerTypes()
 	mod.addFunction(Callbacks::mod::checkModValue);
 	mod.addFunction(Callbacks::mod::getParameter);
 
+	mod.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, Inliner::HighLevel, Callbacks::mod::process);
+	mod.setInlinerForCallback(ScriptnodeCallbacks::ProcessFrameFunction, Inliner::HighLevel, Callbacks::mod::processFrame);
+
 	mod.flush();
 
 	return Result::ok();
@@ -1026,13 +1029,27 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::checkModValue(Struct
 
 	cmv.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
 	{
+		auto st = b->toSyntaxTreeData()->object->getTypeInfo().getComplexType();
+		WrapBuilder::InnerData inner(st, WrapBuilder::ForwardToObj);
+
+		if (inner.resolve())
+		{
+			FunctionClass::Ptr fc = inner.st->getFunctionClass();
+
+			auto fId = fc->getClassName().getChildId("handleModulation");
+			auto ok = fc->hasFunction(fId);
+
+			if (!ok)
+				return Result::fail("missing function " + fId.toString());
+		}
+
 		using namespace cppgen;
 
 		Base c(Base::OutputType::WrapInBlock);
 
 		c << "double mv = 0.0;";
-		c << "if($obj.handleModulation(mv))";
-		c << "    $this.getParameter().call(mv);";
+		c << "if(this->obj.handleModulation(mv))";
+		c << "    this->getParameter().call(mv);";
 
 		SyntaxTreeInlineParser p(b, {}, c);
 		WrapBuilder::Helpers::addObjReference(p);
@@ -1059,6 +1076,24 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::getParameter(StructT
 	});
 
 	return cf;
+}
+
+juce::Result WrapLibraryBuilder::Callbacks::mod::process(InlineData* b)
+{
+	cppgen::Base c;
+	c << "this->obj.process(data);";
+	c << "this->checkModValue();";
+
+	return SyntaxTreeInlineParser(b, { "data" }, c).flush();
+}
+
+juce::Result WrapLibraryBuilder::Callbacks::mod::processFrame(InlineData* b)
+{
+	cppgen::Base c;
+	c << "this->obj.processFrame(data);";
+	c << "this->checkModValue();";
+	
+	return SyntaxTreeInlineParser(b, { "data" }, c).flush();
 }
 
 }

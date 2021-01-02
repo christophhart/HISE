@@ -137,7 +137,11 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 
 #define DEFINE_EXTERN_NODE_TEMPIMPL(className) template class className<1>; template class className<NUM_POLYPHONIC_VOICES>;
 
+/** SNEX Metadata macros to be used in metadata subclass for wrap::node. */
 
+#define SNEX_METADATA_PARAMETERS(number, ...) static StringArray getParameterIds() { return StringArray({__VA_ARGS__}); }
+#define SNEX_METADATA_ID(x) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(x); }
+#define SNEX_METADATA_NUM_CHANNELS(x) static constexpr int NumChannels = x;
 
 /** Snex JIT Preprocessors */
 

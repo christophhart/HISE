@@ -37,123 +37,6 @@ using namespace juce;
 using namespace asmjit;
 
 
-template <class Node> struct JitNodeWrapper
-{
-	using T = scriptnode::core::fix_delay;
-
-	struct Wrapper
-	{
-		static void prepare(void* obj, PrepareSpecs specs)
-		{
-			static_cast<T*>(obj)->prepare(specs);
-		}
-
-		static void reset(void* obj)
-		{
-			static_cast<T*>(obj)->reset();
-		};
-
-		template <int NumChannels> static void process(void* obj, ProcessData<NumChannels>& data)
-		{
-			static_cast<T*>(obj)->process(data);
-		}
-
-		template <int NumChannels> static void processFrame(void* obj, span<float, NumChannels>& data)
-		{
-			static_cast<T*>(obj)->processFrame(data);
-		}
-
-		static void handleHiseEvent(void* obj, HiseEvent& e)
-		{
-			static_cast<T*>(obj)->handleHiseEvent(e);
-		}
-
-		static void construct(void* target)
-		{
-			volatile T* dst = new (target)T();
-			jassert(dst != nullptr);
-		}
-	};
-
-	static ComplexType::Ptr create(Compiler& c, int numChannels, const Identifier& factoryId)
-	{
-		auto id = NamespacedIdentifier(factoryId).getChildId(T::getStaticId());
-		auto st = new StructType(id);
-		
-		auto prepaFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::PrepareFunction, numChannels).withParent(id);
-		auto eventFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::HandleEventFunction, numChannels).withParent(id);
-		auto resetFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ResetFunction, numChannels).withParent(id);
-
-		st->addJitCompiledMemberFunction(prepaFunction);
-		st->addJitCompiledMemberFunction(eventFunction);
-		st->addJitCompiledMemberFunction(resetFunction);
-
-		auto addProcessCallbacks = [&](int i)
-		{
-			auto pi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFunction, i).withParent(id);
-			auto fi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFrameFunction, i).withParent(id);
-
-			st->addJitCompiledMemberFunction(pi);
-			st->addJitCompiledMemberFunction(fi);
-
-			if (i == 1)
-			{
-				pi.function = (void*)Wrapper::template process<1>;
-				fi.function = (void*)Wrapper::template processFrame<1>;
-			}
-
-			if (i == 2)
-			{
-				pi.function = (void*)Wrapper::template process<2>;
-				fi.function = (void*)Wrapper::template processFrame<2>;
-			}
-
-			st->injectMemberFunctionPointer(pi, pi.function);
-			st->injectMemberFunctionPointer(fi, fi.function);
-		};
-
-		addProcessCallbacks(2);
-		addProcessCallbacks(1);
-		
-		st->injectMemberFunctionPointer(prepaFunction, Wrapper::prepare);
-		st->injectMemberFunctionPointer(eventFunction, Wrapper::handleHiseEvent);
-		st->injectMemberFunctionPointer(resetFunction, Wrapper::reset);
-
-		T object;
-		scriptnode::ParameterDataList list;
-		object.createParameters(list);
-
-		for (int i = 0; i < list.size(); i++)
-		{
-			auto p = list.getReference(i);
-
-			FunctionData f;
-
-			f.id = st->id.getChildId("setParameter");
-			f.templateParameters.add(TemplateParameter(f.id.getChildId("P"), i, true, jit::TemplateParameter::Single));
-			f.returnType = TypeInfo(Types::ID::Void);
-			f.addArgs("value", TypeInfo(Types::ID::Double));
-
-			st->addJitCompiledMemberFunction(f);
-			f.function = p.dbNew.getFunction();
-			st->injectMemberFunctionPointer(f, p.dbNew.getFunction());
-		}
-
-		{
-			FunctionData constructor;
-			constructor.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, jit::FunctionClass::Constructor));
-
-			constructor.returnType = TypeInfo(Types::ID::Void);
-
-			st->addJitCompiledMemberFunction(constructor);
-			st->injectMemberFunctionPointer(constructor, Wrapper::construct);
-		}
-
-		st->setSizeFromObject(object);
-
-		return st;
-	}
-};
 
 
 static void funkyWasGeht(void* obj, void* data)
@@ -177,7 +60,14 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	WrapLibraryBuilder wBuilder(c, numChannels);
 	wBuilder.registerTypes();
 
-	c.registerExternalComplexType(JitNodeWrapper<scriptnode::core::fix_delay>::create(c, numChannels, "core"));
+	FxNodeLibrary fBuilder(c, numChannels);
+	fBuilder.registerTypes();
+
+	CoreNodeLibrary cnBuilder(c, numChannels);
+	cnBuilder.registerTypes();
+
+	MathNodeLibrary mBuilder(c, numChannels);
+	mBuilder.registerTypes();
 }
 
 
@@ -407,7 +297,13 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 		f.addArgs("e", TypeInfo(c.getComplexType(NamespacedIdentifier("HiseEvent"), {}), false, true));
 		break;
 	}
-		
+	case HandleModulation:
+	{
+		f.id = NamespacedIdentifier("handleModulation");
+		f.returnType = TypeInfo(Types::ID::Integer);
+		f.addArgs("value", TypeInfo(Types::ID::Double, false, true));
+		break;
+	}
 	}
 
 	return f;
