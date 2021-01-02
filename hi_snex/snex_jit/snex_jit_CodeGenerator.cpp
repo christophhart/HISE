@@ -1319,10 +1319,13 @@ void AsmCodeGenerator::emitFunctionParameterReference(RegPtr sourceReg, RegPtr p
 	jassert(parameterReg->getType() == Types::ID::Pointer);
 
 	auto mem = sourceReg->getMemoryLocationForReference();
-	auto isStackVariable = !(sourceReg->getScope()->getScopeType() == BaseScope::Class);
 
-	if (isStackVariable)
+	auto isStackVariable = !sourceReg->isGlobalMemory();
+
+	if (isStackVariable && !sourceReg->hasCustomMemoryLocation())
 	{
+		jassert(sourceReg->isActive());
+
 		auto byteSize = Types::Helpers::getSizeForType(type);
 		mem = cc.newStack(byteSize, 0);
 
@@ -1332,7 +1335,6 @@ void AsmCodeGenerator::emitFunctionParameterReference(RegPtr sourceReg, RegPtr p
 
 		sourceReg->setCustomMemoryLocation(mem, false);
 	}
-
 
 	cc.lea(INT_REG_R(parameterReg), mem);
 }

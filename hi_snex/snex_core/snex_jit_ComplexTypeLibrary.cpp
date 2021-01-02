@@ -98,7 +98,7 @@ bool SpanType::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* da
 	return false;
 }
 
-juce::Result SpanType::callDestructor(DeconstructData& d)
+juce::Result SpanType::callDestructor(InitData& d)
 {
 	for (int i = 0; i < getNumElements(); i++)
 	{
@@ -106,8 +106,10 @@ juce::Result SpanType::callDestructor(DeconstructData& d)
 		{
 			if (typePtr->hasDestructor())
 			{
-				DeconstructData sd;
+				InitData sd;
 				ScopedPointer<SyntaxTreeInlineData> inner;
+				sd.t = ComplexType::InitData::Type::Desctructor;
+
 				auto offset = getElementSize() * i;
 
 				if (d.dataPointer != nullptr)
@@ -1348,7 +1350,7 @@ juce::Result StructType::initialise(InitData d)
 
 	if (d.callConstructor)
 	{
-		return callConstructor(d.dataPointer, d.initValues);
+		return callConstructor(d);
 	}
 
 	return Result::ok();
@@ -1620,7 +1622,7 @@ bool StructType::hasDestructor()
 	return false;
 }
 
-juce::Result StructType::callDestructor(DeconstructData& d)
+juce::Result StructType::callDestructor(InitData& d)
 {
 	if (ComplexType::hasDestructor())
 	{
@@ -1638,7 +1640,10 @@ juce::Result StructType::callDestructor(DeconstructData& d)
 			if (typePtr->hasDestructor())
 			{
 				ScopedPointer<SyntaxTreeInlineData> inner;
-				DeconstructData sd;
+				
+				InitData sd;
+				sd.t = ComplexType::InitData::Type::Desctructor;
+
 				auto offset = memberData[i]->offset;
 
 				if (d.dataPointer != nullptr)
@@ -1647,13 +1652,13 @@ juce::Result StructType::callDestructor(DeconstructData& d)
 				}
 				else
 				{
-					jassert(d.inlineData != nullptr);
-					auto outer = d.inlineData->toSyntaxTreeData();
-					inner = new SyntaxTreeInlineData(*d.inlineData->toSyntaxTreeData());
+					jassert(d.functionTree != nullptr);
+					auto outer = d.functionTree->toSyntaxTreeData();
+					inner = new SyntaxTreeInlineData(*d.functionTree->toSyntaxTreeData());
 					inner->expression = new Operations::MemoryReference(outer->location, outer->expression, memberData[i]->typeInfo, offset);
 				}
 
-				sd.inlineData = inner.get();
+				sd.functionTree = inner.get();
 				auto r = typePtr->callDestructor(sd);
 
 				if (!r.wasOk())
@@ -1742,7 +1747,6 @@ void StructType::finaliseAlignment()
 
 		offset += m->padding + m->typeInfo.getRequiredByteSize();
 	}
-
 	
 	if (hasConstructor() && !ComplexType::hasConstructor())
 	{
@@ -2247,7 +2251,6 @@ snex::jit::Inliner::Func IndexBase::getAsmFunctionWithFixedSize(FunctionClass::S
 			auto tmp = cc.newGpq();
 
 			Operations::Increment::getOrSetIncProperties(d->templateParameters, isPre, isDec);
-			jassert((valueReg == nullptr) == isPre);
 
 			if (!isPre)
 			{

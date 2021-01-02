@@ -230,7 +230,7 @@ TemplateParameter::List TemplateParameter::ListOps::merge(const TemplateParamete
 		return {};
 
 	jassert(isArgument(arguments));
-	jassert(isParameter(parameters));
+	jassert(isParameter(parameters) || parameters.isEmpty());
 
 	if (arguments.isEmpty() && parameters.isEmpty())
 		return parameters;

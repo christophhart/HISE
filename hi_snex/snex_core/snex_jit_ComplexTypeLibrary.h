@@ -142,7 +142,7 @@ struct SpanType : public ArrayTypeBase
 	Result initialise(InitData data) override;
 	bool forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* dataPointer) override;
 
-	Result callDestructor(DeconstructData& data) override;
+	Result callDestructor(InitData& data) override;
 
 	bool hasDestructor() override
 	{
@@ -331,7 +331,7 @@ struct StructType : public ComplexType,
 
 	bool hasDestructor() override;
 
-	Result callDestructor(DeconstructData& d) override;
+	Result callDestructor(InitData& d) override;
 
 	bool hasConstructor() override;
 

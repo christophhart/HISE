@@ -49,17 +49,19 @@ struct ComplexType : public ReferenceCountedObject
 
 	struct InitData
 	{
+		enum class Type
+		{
+			Constructor,
+			Desctructor,
+			numTypes
+		};
+
+		Type t = Type::numTypes;
 		AssemblyMemory* asmPtr = nullptr;
+		InlineData* functionTree = nullptr;
 		void* dataPointer = nullptr;
 		InitialiserList::Ptr initValues;
 		bool callConstructor = false;
-	};
-
-
-	struct DeconstructData
-	{
-		InlineData* inlineData = nullptr;
-		void* dataPointer = nullptr;
 	};
 
 	ComplexType()
@@ -100,9 +102,10 @@ struct ComplexType : public ReferenceCountedObject
 
 	virtual InitialiserList::Ptr makeDefaultInitialiserList() const = 0;
 
-	virtual Result callConstructor(void* data, InitialiserList::Ptr initList);
+	
 
-	virtual Result callDestructor(DeconstructData& d);
+	
+
 
 	virtual bool hasDestructor();
 
@@ -195,6 +198,12 @@ struct ComplexType : public ReferenceCountedObject
 	{
 		return toStringInternal();
 	}
+
+
+	/** Todo: clean this up so that the paths are the same for stack initialisation and root data construction (just like destructor logic). */
+	Result callConstructor(InitData& d);
+
+	virtual Result callDestructor(InitData& d);
 
 private:
 

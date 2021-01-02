@@ -102,7 +102,12 @@ void NamespaceResolver::MustExist::resolve(NamespaceHandler& n, NamespacedIdenti
 	auto r = n.resolve(c);
 
 	if (!r.wasOk())
+	{
+		DBG(n.dump());
+
 		l.throwError(r.getErrorMessage());
+	}
+		
 }
 
 void NamespaceResolver::MustBeNew::resolve(NamespaceHandler& n, NamespacedIdentifier& c, const ParserHelpers::CodeLocation& l)

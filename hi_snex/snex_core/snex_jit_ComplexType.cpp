@@ -38,12 +38,8 @@ using namespace asmjit;
 
 int ComplexType::numInstances = 0;
 
-Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
+Result ComplexType::callConstructor(InitData& d)
 {
-
-
-
-
 	FunctionClass::Ptr fc = getFunctionClass();
 
 	if (fc != nullptr)
@@ -55,10 +51,8 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 
 		InitData defaultValues;
 		defaultValues.callConstructor = false;
-		defaultValues.dataPointer = data;
+		defaultValues.dataPointer = d.dataPointer;
 		defaultValues.initValues = makeDefaultInitialiserList();
-
-
 
 		auto r = initialise(defaultValues);
 
@@ -66,7 +60,7 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 		if (hasDefaultConstructor())
 		{
 			// Now change the init values so that it won't fail the type check
-			initList = new InitialiserList();
+			d.initValues = new InitialiserList();
 		}
 
 
@@ -74,12 +68,12 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 
 
 		/** Set the member pointer here. */
-		initList->forEach([data, &providedArgs](InitialiserList::ChildBase* b)
+		d.initValues->forEach([d, &providedArgs](InitialiserList::ChildBase* b)
 			{
 				if (auto mp = dynamic_cast<InitialiserList::MemberPointer*>(b))
 				{
 					auto offset = mp->st->getMemberOffset(mp->variableId);
-					auto memberData = (uint8*)data + offset;
+					auto memberData = (uint8*)d.dataPointer + offset;
 
 					VariableStorage v;
 
@@ -117,7 +111,7 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 			return Result::fail(s);
 		}
 
-		auto args = initList->toFlatConstructorList();
+		auto args = d.initValues->toFlatConstructorList();
 
 		if (cf.args.size() != args.size())
 		{
@@ -125,9 +119,9 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 			if (cf.args.isEmpty())
 			{
 				InitData id;
-				id.dataPointer = data;
+				id.dataPointer = d.dataPointer;
 				id.callConstructor = false;
-				id.initValues = initList;
+				id.initValues = d.initValues;
 
 				auto r = initialise(id);
 
@@ -136,16 +130,9 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 			}
 			else
 			{
-				if (args.isEmpty())
-				{
-
-				}
-
 				return Result::fail("constructor argument mismatch");
 			}
 		}
-
-
 
 		Array<Types::ID> types;
 
@@ -163,7 +150,7 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 		if (!cf.matchesNativeArgumentTypes(Types::ID::Void, types))
 			return Result::fail("constructor type mismatch");
 
-		cf.object = data;
+		cf.object = d.dataPointer;
 
 		cf.callVoidDynamic(args.getRawDataPointer(), args.size());
 	}
@@ -171,7 +158,7 @@ Result ComplexType::callConstructor(void* data, InitialiserList::Ptr initList)
 	return Result::ok();
 }
 
-juce::Result ComplexType::callDestructor(DeconstructData& d)
+juce::Result ComplexType::callDestructor(InitData& d)
 {
 	if (hasDestructor())
 	{
@@ -191,7 +178,7 @@ juce::Result ComplexType::callDestructor(DeconstructData& d)
 		}
 		else
 		{
-			auto st = d.inlineData->toSyntaxTreeData();
+			auto st = d.functionTree->toSyntaxTreeData();
 			auto call = new Operations::FunctionCall(st->location, nullptr, Symbol(f.id, f.returnType), f.templateParameters);
 			call->setObjectExpression(st->expression->clone(st->location));
 

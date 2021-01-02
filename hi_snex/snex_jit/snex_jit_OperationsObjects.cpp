@@ -39,8 +39,6 @@ using namespace asmjit;
 
 void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scope)
 {
-
-
 	if (subClass == nullptr)
 	{
 		subClass = new ClassScope(scope, getStructType()->id, classType);

@@ -50,6 +50,11 @@ int Compiler::compileCount = 0;
 	 memory.registerFunctionsToNamespaceHandler(getNamespaceHandler());
  }
 
+ bool Compiler::allowInlining() const
+ {
+	 return memory.getOptimizationPassList().contains(OptimizationIds::Inlining);
+ }
+
 Compiler::Compiler(GlobalScope& memoryPool):
 	memory(memoryPool)
 {

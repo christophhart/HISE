@@ -323,7 +323,8 @@ juce::Result RootClassData::callRootDestructors()
 		{
 			if (typePtr->hasDestructor())
 			{
-				ComplexType::DeconstructData d;
+				ComplexType::InitData d;
+				d.t = ComplexType::InitData::Type::Desctructor;
 				d.dataPointer = ts.data;
 
 				r = typePtr->callDestructor(d);

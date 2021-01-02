@@ -141,6 +141,8 @@ public:
 
 	void reset();
 
+	bool allowInlining() const;
+
 private:
 
 	NamespaceHandler::Ptr handler;

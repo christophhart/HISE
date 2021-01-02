@@ -209,10 +209,11 @@ void Operations::StatementBlock::addDestructors(BaseScope* scope)
 	{
 		auto id = destructorIds[i];
 
-		ComplexType::DeconstructData d;
+		ComplexType::InitData d;
 		ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(this, getPath(), {});
 
-		d.inlineData = b.get();
+		d.t = ComplexType::InitData::Type::Desctructor;
+		d.functionTree = b.get();
 		b->object = this;
 		b->expression = new Operations::VariableReference(location, id);
 		auto r = id.typeInfo.getComplexType()->callDestructor(d);

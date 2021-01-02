@@ -41,7 +41,7 @@ struct TypeInfo
 	using List = Array<TypeInfo>;
 
 	TypeInfo();
-	explicit TypeInfo(Types::ID type_, bool isConst_ = false, bool isRef_ = false, bool isStatic_ = false);
+	TypeInfo(Types::ID type_, bool isConst_ = false, bool isRef_ = false, bool isStatic_ = false);
 	explicit TypeInfo(ComplexType::Ptr p, bool isConst_ = false, bool isRef_ = false);
 	explicit TypeInfo(const NamespacedIdentifier& templateTypeId_, bool isConst_ = false, bool isRef_ = false);
 
