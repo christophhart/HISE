@@ -506,6 +506,9 @@ struct StructType : public ComplexType,
 		return templateParameters;
 	}
 
+	// Returns the member index of the base class if the function matches a base class method.
+	int getBaseClassIndexForMethod(const FunctionData& f) const;
+
 	NamespacedIdentifier id;
 
 	/** Use this in order to overwrite the actual member structure. 
@@ -548,6 +551,10 @@ struct StructType : public ComplexType,
 	Result redirectAllOverloadedMembers(const Identifier& id, TypeInfo::List mainArgs);
 
 	
+	void addBaseClass(StructType* b);
+
+	/** Checks whether the given id can be a member. It also checks all base classes. */
+	bool canBeMember(const NamespacedIdentifier& possibleMemberId) const;
 
 private:
 
@@ -572,11 +579,43 @@ private:
 		InitialiserList::Ptr defaultList;
 	};
 
+	struct BaseClass
+	{
+		BaseClass(StructType* s) :
+			baseClass(s),
+			strongType(s)
+		{};
+
+		Member** begin() const
+		{
+			return baseClass->memberData.begin();
+		}
+
+		Member** end() const
+		{
+			return baseClass->memberData.end();
+		}
+
+
+		// the index of the first member
+		int memberOffset = -1;
+
+		
+		WeakReference<StructType> baseClass;
+
+	private:
+
+		// Just keep a ref-counted reference around or the destructor might be dangling...
+		ComplexType::Ptr strongType;
+	};
+
 	static void* getMemberPointer(Member* m, void* dataPointer);
 
 	static size_t getRequiredAlignment(Member* m);
 
 	OwnedArray<Member> memberData;
+	OwnedArray<BaseClass> baseClasses;
+
 	bool isExternalDefinition = false;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(StructType);

@@ -77,43 +77,16 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 
 		Base c(Base::OutputType::AddTabs);
 
+		StatementBlock b1(c);
+		c << "if (stepsToDo <= 0)";
+		c << "	  return value;";
+		c << "else";
 		{
-			Namespace n(c, "impl");
-			{
-				auto st = b->toSyntaxTreeData()->object->getTypeInfo().getTypedComplexType<StructType>();
-
-				Struct s(c, st->id.getIdentifier(), {});
-
-				Function f(c, b->toSyntaxTreeData()->originalFunction);
-				{
-					StatementBlock b1(c);
-					c << "if (stepsToDo <= 0)";
-					c << "	  return value;";
-					c << "else";
-					{
-						StatementBlock b(c);
-						c << "auto v = value;";
-						c << "value += delta;";
-						c << "stepsToDo--;";
-						c << "return v;";
-					}
-				}
-			}
-
-			UsingTemplate wf(c, "node1", NamespacedIdentifier::fromString("wrap::frame"));
-
-			wf << 1 << "funky";
-			wf.flush();
-
-			UsingTemplate p(c, "ParameterType", NamespacedIdentifier::fromString("parameter::plain"));
-
-			p << "funky" << 3;
-			p.flush();
-
-			UsingTemplate ut(c, "funky", NamespacedIdentifier::fromString("container::chain"));
-
-			ut << p << wf << wf << "funky2";
-			ut.flush();
+			StatementBlock b(c);
+			c << "auto v = value;";
+			c << "value += delta;";
+			c << "stepsToDo--;";
+			c << "return v;";
 		}
 
 		return SyntaxTreeInlineParser(b, {}, c).flush();

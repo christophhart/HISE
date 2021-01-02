@@ -55,7 +55,10 @@ public:
 	StatementPtr parseVariableDefinition();
 	StatementPtr parseFunction(const Symbol& s) override;
 	StatementPtr parseSubclass(NamespaceHandler::Visibility defaultVisibility);
-	StatementPtr parseVisibility();
+
+	NamespaceHandler::Visibility parseVisibility();
+
+	StatementPtr parseVisibilityStatement();
 };
 
 

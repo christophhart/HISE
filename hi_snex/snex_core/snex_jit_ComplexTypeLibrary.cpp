@@ -118,7 +118,7 @@ juce::Result SpanType::callDestructor(InitData& d)
 				}
 				else
 				{
-					auto outer = d.inlineData->toSyntaxTreeData();
+					auto outer = d.functionTree->toSyntaxTreeData();
 					jassert(outer != nullptr);
 					inner = new SyntaxTreeInlineData(*outer);
 					inner->object = new Operations::MemoryReference(outer->location, outer->object, elementType, offset);
@@ -1263,6 +1263,18 @@ snex::jit::FunctionClass* StructType::getFunctionClass()
 {
 	auto mf = new FunctionClass(id);
 
+	for (auto b : baseClasses)
+	{
+		jassert(b->baseClass != nullptr);
+
+		for (const auto& f : b->baseClass->memberFunctions)
+		{
+			auto copy = new FunctionData(f);
+			copy->id = id.getChildId(f.id.getIdentifier());
+			mf->addFunction(copy);
+		}
+	}
+
 	for (const auto& f : memberFunctions)
 	{
 		mf->addFunction(new FunctionData(f));
@@ -1434,7 +1446,20 @@ snex::InitialiserList::Ptr StructType::makeDefaultInitialiserList() const
 		else if (m->defaultList != nullptr)
 			n->addChildList(m->defaultList);
 		else
-			jassertfalse;
+		{
+			// Look in the base class for a default initialiser...
+			for (auto b : baseClasses)
+			{
+				for (auto bm : *b)
+				{
+					if (bm->id == m->id)
+					{
+						jassert(bm->defaultList != nullptr);
+						n->addChildList(bm->defaultList);
+					}
+				}
+			}
+		}
 	}
 
 	return n;
@@ -1730,6 +1755,21 @@ void StructType::finaliseAlignment()
 		
 	if (isFinalised())
 		return;
+
+
+	int baseIndex = 0;
+
+	for (auto b : baseClasses)
+	{
+		templateParameters.addArray(b->baseClass->templateParameters);
+
+		jassert(b->baseClass->isFinalised());
+
+		b->memberOffset = baseIndex;
+
+		for (auto m : *b)
+			memberData.insert(baseIndex++, new Member(*m));
+	}
 
 	size_t offset = 0;
 
@@ -2113,6 +2153,20 @@ void StructType::addWrappedMemberMethod(const Identifier& memberId, FunctionData
 	memberFunctions.add(wrapperFunction);
 }
 
+int StructType::getBaseClassIndexForMethod(const FunctionData& f) const
+{
+	for (auto b : baseClasses)
+	{
+		auto idToUse = b->baseClass->id.getChildId(f.id.getIdentifier());
+		FunctionClass::Ptr fc = b->baseClass->getFunctionClass();
+
+		if (fc->hasFunction(idToUse))
+			return b->memberOffset;
+	}
+
+	return -1;
+}
+
 Result StructType::redirectAllOverloadedMembers(const Identifier& id, TypeInfo::List mainArgs)
 {
 	Inliner::Ptr iToUse = nullptr;
@@ -2161,6 +2215,29 @@ Result StructType::redirectAllOverloadedMembers(const Identifier& id, TypeInfo::
 	}
 		
 	
+}
+
+void StructType::addBaseClass(StructType* b)
+{
+	jassert(!isFinalised());
+
+	baseClasses.addIfNotAlreadyThere(new BaseClass(b));
+}
+
+bool StructType::canBeMember(const NamespacedIdentifier& possibleMemberId) const
+{
+	auto parent = possibleMemberId.getParent();
+
+	if (id == parent)
+		return true;
+
+	for (auto b : baseClasses)
+	{
+		if (b->baseClass->id == parent)
+			return true;
+	}
+
+	return false;
 }
 
 IndexBase::IndexBase(const TypeInfo& parentType_) :

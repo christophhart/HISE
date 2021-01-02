@@ -669,6 +669,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		if (!function)
 			fc->fillJitFunctionPointer(function);
 
+		adjustBaseClassPointer(compiler, scope);
 
 		if (shouldInlineFunctionCall(compiler, scope))
 		{
@@ -1060,6 +1061,41 @@ void Operations::FunctionCall::addDefaultParameterExpressions(const FunctionData
 bool Operations::FunctionCall::isVectorOpFunction() const
 {
 	return findParentStatementOfType<VectorOp>(this) != nullptr;
+}
+
+void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, BaseScope* scope)
+{
+	if (auto obj = getObjectExpression())
+	{
+		jassert(obj->reg != nullptr);
+
+		if (auto st = obj->getTypeInfo().getTypedIfComplexType<StructType>())
+		{
+			auto bindex = st->getBaseClassIndexForMethod(function);
+
+			if (bindex != -1)
+			{
+				if (auto byteOffset = st->getMemberOffset(bindex))
+				{
+					auto asg = CREATE_ASM_COMPILER(obj->reg->getType());
+					AsmCodeGenerator::TemporaryRegister tempReg(asg, scope, obj->reg->getTypeInfo());
+
+					if (obj->reg->isMemoryLocation())
+					{
+						auto mem = obj->reg->getAsMemoryLocation().cloneAdjusted(byteOffset);
+						tempReg.tempReg->setCustomMemoryLocation(mem, obj->reg->isGlobalMemory());
+					}
+					else
+					{
+						auto mem = x86::ptr(PTR_REG_R(obj->reg)).cloneAdjusted(byteOffset);
+						tempReg.tempReg->setCustomMemoryLocation(mem, obj->reg->isGlobalMemory());
+					}
+
+					obj->reg = tempReg.tempReg;
+				}
+			}
+		}
+	}
 }
 
 void FunctionData::setDefaultParameter(const Identifier& argId, const VariableStorage& immediateValue)

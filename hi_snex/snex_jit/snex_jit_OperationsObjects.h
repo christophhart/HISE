@@ -43,7 +43,7 @@ struct Operations::ClassStatement : public Statement,
 {
 	SET_EXPRESSION_ID(ClassStatement)
 
-		ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock);
+	ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock, const Array<TemplateInstance>& baseClasses);
 
 	~ClassStatement()
 	{
@@ -84,6 +84,7 @@ struct Operations::ClassStatement : public Statement,
 		return dynamic_cast<StructType*>(classType.get());
 	}
 
+	Array<TemplateInstance> baseClasses;
 	ComplexType::Ptr classType;
 	ScopedPointer<ClassScope> subClass;
 };

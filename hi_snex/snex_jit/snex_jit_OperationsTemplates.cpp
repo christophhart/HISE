@@ -74,7 +74,7 @@ snex::jit::ComplexType::Ptr Operations::TemplateDefinition::createTemplate(const
 
 	statements->cloneChildren(cb);
 
-	auto c = new ClassStatement(location, p, cb);
+	auto c = new ClassStatement(location, p, cb, {});
 
 	addStatement(c);
 

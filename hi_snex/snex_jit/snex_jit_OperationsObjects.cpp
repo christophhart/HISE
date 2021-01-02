@@ -46,17 +46,30 @@ void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scop
 
 	processBaseWithChildren(compiler, subClass);
 
-#if 0
-	if (auto st = as<SyntaxTree>(getSubExpr(0)))
-	{
-		DBG(st->dump());
-	}
-#endif
-
-
 	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 	{
 		auto cType = getStructType();
+
+		for (auto c : baseClasses)
+		{
+			if (c.tp.isEmpty())
+			{
+				auto st = dynamic_cast<StructType*>(compiler->namespaceHandler.getComplexType(c.id).get());
+
+				if (st == nullptr)
+					location.throwError("Can't resolve base class " + c.toString());
+
+				cType->addBaseClass(st);
+			}
+			else
+			{
+				auto r = Result::ok();
+				auto tId = TemplateInstance(c.id, {});
+				auto st = compiler->namespaceHandler.createTemplateInstantiation(tId, c.tp, r);
+				location.test(r);
+				cType->addBaseClass(dynamic_cast<StructType*>(st.get()));
+			}
+		}
 
 		forEachRecursive([cType, this](Ptr p)
 		{
@@ -87,9 +100,10 @@ void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scop
 	}
 }
 
-Operations::ClassStatement::ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock) :
+Operations::ClassStatement::ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock, const Array<TemplateInstance>& baseClasses_) :
 	Statement(l),
-	classType(classType_)
+	classType(classType_),
+	baseClasses(baseClasses_)
 {
 	addStatement(classBlock);
 

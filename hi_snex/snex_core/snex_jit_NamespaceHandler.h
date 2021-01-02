@@ -302,6 +302,8 @@ public:
 	Result addConstant(const NamespacedIdentifier& id, const VariableStorage& v);
 	Result setTypeInfo(const NamespacedIdentifier& id, SymbolType expectedType, const TypeInfo& t);
 
+	Result copySymbolsFromExistingNamespace(const NamespacedIdentifier& existingNamespace);
+
 	Namespace::WeakPtr getNamespaceForLineNumber(int lineNumber) const;
 
 	mcl::TokenCollection::List getTokenList();

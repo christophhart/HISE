@@ -116,7 +116,7 @@ struct SyntaxTreeInlineData : public InlineData
 					{
 						if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
 						{
-							auto canBeMember = st->id == v->id.id.getParent();
+							auto canBeMember = st->canBeMember(v->id.id);
 							auto hasMember = canBeMember && st->hasMember(v->id.id.getIdentifier());
 
 							if (hasMember)

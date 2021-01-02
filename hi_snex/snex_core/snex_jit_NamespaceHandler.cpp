@@ -482,6 +482,27 @@ juce::Result NamespaceHandler::setTypeInfo(const NamespacedIdentifier& id, Symbo
 
 
 
+Result NamespaceHandler::copySymbolsFromExistingNamespace(const NamespacedIdentifier& existingNamespace)
+{
+	auto currentId = getCurrentNamespaceIdentifier();
+
+	jassert(!currentId.isNull());
+
+	if (auto e = get(existingNamespace))
+	{
+		for (auto a : e->aliases)
+		{
+			currentNamespace->addSymbol(currentId.getChildId(a.id.getIdentifier()), a.type, a.symbolType, a.visibility, a.debugInfo);
+		}
+	}
+	else
+	{
+		return Result::fail("Can't find " + existingNamespace.toString());
+	}
+
+	return Result::ok();
+}
+
 snex::jit::NamespaceHandler::Namespace::WeakPtr NamespaceHandler::getNamespaceForLineNumber(int lineNumber) const
 {
 	if (auto root = getRoot())
@@ -967,15 +988,20 @@ void NamespaceHandler::addTemplateClass(const TemplateObject& s)
 	if (currentNamespace == nullptr)
 		pushNamespace(Identifier());
 
+	Alias a;
+	a.id = s.id.id;
+	a.symbolType = TemplatedClass;
+	a.visibility = currentVisibility;
+	a.internalSymbol = internalSymbolMode;
+
 	if (auto p = get(s.id.id.getParent()))
 	{
-		Alias a;
-		a.id = s.id.id;
-		a.symbolType = TemplatedClass;
-		a.visibility = currentVisibility;
-		a.internalSymbol = internalSymbolMode;
-
 		p->aliases.addIfNotAlreadyThere(a);
+	}
+	else
+	{
+		ScopedNamespaceSetter sns(*this, s.id.id.getParent());
+		currentNamespace->aliases.addIfNotAlreadyThere(a);
 	}
 
 

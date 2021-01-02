@@ -204,6 +204,11 @@ struct Operations::FunctionCall : public Expression
 
 	void inlineFunctionCall(AsmCodeGenerator& acg);
 
+	/*	A function call to a base class method might cause slicing if the object pointer is not
+		adjusted to the first base class member byte offset. 
+	*/
+	void adjustBaseClassPointer(BaseCompiler* compiler, BaseScope* scope);
+
 	TypeInfo getTypeInfo() const override;
 
 	void process(BaseCompiler* compiler, BaseScope* scope);

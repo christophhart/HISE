@@ -82,7 +82,7 @@ snex::jit::BlockParser::StatementPtr ClassParser::addConstructorToComplexTypeDef
 
 BlockParser::StatementPtr ClassParser::parseStatement()
 {
-	if (auto noop = parseVisibility())
+	if (auto noop = parseVisibilityStatement())
 		return noop;
 
 	if (matchIf(JitTokens::__internal_property))
@@ -388,7 +388,27 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 
 	auto classId = sp.currentNamespacedIdentifier;
 
+	Array<TemplateInstance> baseClasses;
 
+	if (matchIf(JitTokens::colon))
+	{
+		while (!isEOF() && currentType != JitTokens::openBrace)
+		{
+			auto v = parseVisibility();
+
+			SymbolParser sp(*this, compiler->namespaceHandler);
+
+			sp.parseNamespacedIdentifier<NamespaceResolver::MustExist>();
+
+			TemplateParameter::List tp;
+
+			if (currentType == JitTokens::lessThan)
+				tp = parseTemplateParameters(false);
+
+			baseClasses.add({ sp.currentNamespacedIdentifier, tp });
+			matchIf(JitTokens::comma);
+		}
+	}
 
 	if (templateArguments.isEmpty())
 	{
@@ -397,16 +417,23 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 		CommentAttacher ca(*this);
 
 		compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct, ca.getInfo());
+
+		
+
 		compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
 
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
+
+		for (const auto& b : baseClasses)
+			compiler->namespaceHandler.copySymbolsFromExistingNamespace(b.id);
+
 		compiler->namespaceHandler.setVisiblity(defaultVisibility);
 
 		auto list = parseStatementList();
 
 		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition(), ca.getInfo());
 
-		return matchSemicolonAndReturn(new Operations::ClassStatement(location, p, list));
+		return matchSemicolonAndReturn(new Operations::ClassStatement(location, p, list, baseClasses));
 	}
 	else
 	{
@@ -447,19 +474,31 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 	}
 }
 
-ClassParser::StatementPtr ClassParser::parseVisibility()
+snex::jit::NamespaceHandler::Visibility ClassParser::parseVisibility()
 {
 	if (matchIf(JitTokens::public_))
-		compiler->namespaceHandler.setVisiblity(NamespaceHandler::Visibility::Public);
+		return NamespaceHandler::Visibility::Public;
 	else if (matchIf(JitTokens::private_))
-		compiler->namespaceHandler.setVisiblity(NamespaceHandler::Visibility::Private);
+		return NamespaceHandler::Visibility::Private;
 	else if (matchIf(JitTokens::protected_))
-		compiler->namespaceHandler.setVisiblity(NamespaceHandler::Visibility::Protected);
-	else
-		return nullptr;
+		return NamespaceHandler::Visibility::Protected;
+	
+	return NamespaceHandler::Visibility::numVisibilities;
+}
 
-	match(JitTokens::colon);
-	return new Operations::Noop(location);
+ClassParser::StatementPtr ClassParser::parseVisibilityStatement()
+{
+	auto v = parseVisibility();
+
+	if (v != NamespaceHandler::Visibility::numVisibilities)
+	{
+		compiler->namespaceHandler.setVisiblity(v);
+
+		match(JitTokens::colon);
+		return new Operations::Noop(location);
+	}
+
+	return nullptr;
 }
 
 
