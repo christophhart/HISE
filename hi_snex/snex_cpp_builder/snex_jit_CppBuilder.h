@@ -56,6 +56,13 @@ struct StringHelpers
 		t << s;
 		return t;
 	}
+
+	static void addSuffix(NamespacedIdentifier& id, const String& suffix)
+	{
+		auto newId = id.id.toString();
+		newId << suffix;
+		id.id = Identifier(newId);
+	}
 };
 
 class Base
@@ -67,6 +74,7 @@ public:
 	enum class OutputType
 	{
 		NoProcessing,
+		Uglify,
 		AddTabs,
 		WrapInBlock,
 		numOutputTypes
@@ -93,6 +101,8 @@ public:
 	Base& operator<<(const jit::FunctionData& f);
 
 	void addComment(const String& comment, CommentType commentType);
+
+	String parseUglified() const;
 
 	static int getRealLineLength(const String& s);
 
@@ -129,13 +139,21 @@ public:
 		currentNamespace = currentNamespace.getParent();
 	}
 
-	void clear()
+	virtual void clear()
 	{
 		currentNamespace = {};
 		lines.clear();
 	}
 
 private:
+
+	struct ParseState
+	{
+		int currentLine = 0;
+		int intendLevel = 0;
+		int currentAlignLength = -1;
+		bool lastLineWasEmpty = false;
+	};
 
 	bool isIntendKeyword(int line) const;
 	int getIntendDelta(int line) const;
@@ -146,6 +164,11 @@ private:
 
 	String parseLines() const;
 	String wrapInBlock() const;
+
+	String parseLine(ParseState& state, int i) const;
+	String parseIntendation(ParseState& state, const String& lineContent) const;
+	String parseLineWithAlignedComment(ParseState& state, const String& lineContent) const;
+	String parseLineWithIntendedLineBreak(ParseState& state, const String& lineContent) const;
 
 	const OutputType t;
 	StringArray lines;
@@ -184,6 +207,12 @@ struct DefinitionBase
 				auto relocated = scopedId.relocate(pScope, {});
 				return relocated.toString();
 			}
+			if (pScope.isParentOf(scopedId.getParent()))
+			{
+				auto relocated = scopedId.removeSameParent(pScope);
+				return relocated.toString();
+			}
+			
 
 			return scopedId.toString();
 
@@ -319,8 +348,13 @@ struct StackVariable : public DefinitionBase,
 		return *this;
 	}
 
-	StackVariable& operator<<(const StackVariable& other)
+	StackVariable& operator<<(StackVariable& other)
 	{
+		if (other.hasLineBreaks())
+		{
+			other.flushIfNot();
+		}
+
 		expression << other.toExpression();
 		return *this;
 	}
@@ -340,12 +374,41 @@ struct StackVariable : public DefinitionBase,
 		return expression.length();
 	}
 
+	void addBreaksBeforeDots(int numDotsPerLine)
+	{
+		auto dots = StringArray::fromTokens(expression, ".", "\"");
+
+		String newExpression;
+
+		newExpression << IntendMarker;
+
+		for (int i = 0; i < dots.size(); i++)
+		{
+			newExpression << dots[i] << ".";
+
+			if (((i + 1) % numDotsPerLine) == 0)
+				newExpression << IntendMarker;
+
+			
+		}
+
+		expression = newExpression.upToLastOccurrenceOf(".", false, false);
+	}
+
+	bool hasLineBreaks() const
+	{
+		return expression.containsChar(IntendMarker);
+	}
+
+protected:
+
+	String expression;
+
 private:
 
 	void flush() override;
 
 	jit::TypeInfo type;
-	String expression;
 };
 
 struct Namespace : public Op
@@ -455,9 +518,9 @@ struct UsingTemplate: public DefinitionBase,
 
 	String toExpression() const override;
 
-private:
-
 	String getUsingExpression() const;
+
+private:
 
 	void flush() override
 	{

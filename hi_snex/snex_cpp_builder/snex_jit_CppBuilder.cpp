@@ -63,12 +63,33 @@ Base& Base::operator<<(const jit::FunctionData& f)
 
 void Base::addComment(const String& comment, CommentType commentType)
 {
+	if (t == OutputType::Uglify)
+		return;
+
 	switch (commentType)
 	{
 	case CommentType::AlignOnSameLine:
 	{
 		String l;
-		l << lines[lines.size() - 1] << AlignMarker << "// " << comment;
+
+		auto lastLine = lines[lines.size() - 1];
+
+		if (lastLine.containsChar(IntendMarker))
+		{
+			auto lv = StringArray::fromTokens(lastLine, StringHelpers::withToken(IntendMarker), "");
+
+			auto cv = lv[1];
+			cv << AlignMarker << "// " << comment;
+
+			lv.set(1, cv);
+
+			l = lv.joinIntoString(StringHelpers::withToken(IntendMarker));
+		}
+		else
+		{
+			l << lastLine << AlignMarker << "// " << comment;
+		}
+		
 		lines.set(lines.size() - 1, l);
 		break;
 	}
@@ -101,6 +122,18 @@ void Base::addComment(const String& comment, CommentType commentType)
 	}
 }
 
+String Base::parseUglified() const
+{
+	String s;
+	for (auto& l : lines)
+	{
+		l = l.removeCharacters(StringHelpers::withToken(IntendMarker, StringHelpers::withToken(AlignMarker)));
+		s << l.trim();
+	}
+
+	return s;
+}
+
 int Base::getRealLineLength(const String& s)
 {
 	int l = 0;
@@ -127,6 +160,7 @@ String Base::toString() const
 {
 	switch (t)
 	{
+	case OutputType::Uglify:       return parseUglified();
 	case OutputType::WrapInBlock:  return wrapInBlock();
 	default:					   return parseLines();
 	}
@@ -199,89 +233,20 @@ String Base::parseLines() const
 	{
 		String s;
 
-		int intendLevel = 0;
-
-		int currentAlignLength = -1;
+		ParseState state;
 
 		for (int i = 0; i < lines.size(); i++)
 		{
 			auto l = lines[i];
 
-			if (matchesStart(i, JitTokens::namespace_))
-				intendLevel = -1;
+			auto thisIsEmpty = !l.containsNonWhitespaceChars();
 
-			if (containsButNot(i, JitTokens::closeBrace, JitTokens::openBrace))
-			{
-				intendLevel = jmax(0, intendLevel - 1);
-			}
+			if (state.lastLineWasEmpty && thisIsEmpty)
+				continue;
 
-			auto thisIntend = jmax(0, intendLevel + getIntendDelta(i));
+			state.lastLineWasEmpty = thisIsEmpty;
 
-			for (int j = 0; j < thisIntend; j++)
-				s << "\t";
-
-			if (l.containsChar(IntendMarker))
-			{
-				String m;
-				m << IntendMarker;
-				auto sublines = StringArray::fromTokens(l, m, "");
-
-				auto before = sublines[0].length();
-
-				String spaces;
-
-				for (int j = 0; j < thisIntend; j++)
-					spaces << "    ";
-
-				for (int i = 0; i < before; i++)
-					spaces << Space;
-
-				s << sublines[0] << sublines[1] << "\n";
-
-				for (int i = 2; i < sublines.size(); i++)
-				{
-					s << spaces << sublines[i] << "\n";
-				}
-			}
-			else
-			{
-				if (l.containsChar(AlignMarker))
-				{
-					if (currentAlignLength == -1)
-					{
-						for (int j = i; j < lines.size(); j++)
-						{
-							if (lines[j].containsChar(AlignMarker))
-								currentAlignLength = jmax(currentAlignLength, lines[j].indexOfChar(AlignMarker) + 1);
-							else
-								break;
-						}
-					}
-
-					auto thisLength = l.indexOfChar(AlignMarker);
-
-					int spacesRequired = currentAlignLength - thisLength;
-
-					jassert(spacesRequired > 0);
-
-					String spaces;
-					for (int i = 0; i < spacesRequired; i++)
-						spaces << Space;
-
-					String a;
-					a << AlignMarker;
-
-					s << l.replace(a, spaces) << "\n";
-				}
-				else
-				{
-					currentAlignLength = -1;
-					s << l << "\n";
-				}
-			}
-
-			if (containsButNot(i, JitTokens::openBrace, JitTokens::closeBrace))
-				intendLevel++;
+			s << parseLine(state, i);
 		}
 
 		if (s.contains("%FILL"))
@@ -313,7 +278,7 @@ String Base::parseLines() const
 				{
 					auto lc = l.fromFirstOccurrenceOf("%FILL40", false, false);
 
-					auto required = (maxLineLength - getRealLineLength(lc) - 8) / 2;
+					auto required = (maxLineLength - getRealLineLength(lc) - 6) / 2;
 
 					String h;
 
@@ -352,6 +317,134 @@ String Base::wrapInBlock() const
 		return copy.parseLines();
 	}
 }
+
+
+String Base::parseLine(ParseState& state, int i) const
+{
+	state.currentLine = i;
+	auto lineContent = lines[i];
+	return parseIntendation(state, lineContent);
+}
+
+
+String Base::parseIntendation(ParseState& state, const String& lineContent) const
+{
+	String s;
+
+	auto i = state.currentLine;
+
+	if (matchesStart(i, JitTokens::namespace_))
+		state.intendLevel = -1;
+
+	if (containsButNot(i, JitTokens::closeBrace, JitTokens::openBrace))
+		state.intendLevel = jmax(0, state.intendLevel - 1);
+
+	auto prevIntend = state.intendLevel;
+
+	state.intendLevel = jmax(0, state.intendLevel + getIntendDelta(i));
+
+	for (int j = 0; j < state.intendLevel; j++)
+		s << "\t";
+
+	s << parseLineWithIntendedLineBreak(state, lineContent);
+
+	state.intendLevel = prevIntend;
+
+	if (containsButNot(i, JitTokens::openBrace, JitTokens::closeBrace))
+		state.intendLevel++;
+
+	return s;
+}
+
+String Base::parseLineWithIntendedLineBreak(ParseState& state, const String& lineContent) const
+{
+	if (lineContent.containsChar(IntendMarker))
+	{
+		String m;
+		m << IntendMarker;
+		auto sublines = StringArray::fromTokens(lineContent, m, "");
+
+		auto before = sublines[0].length();
+
+		String spaces;
+
+		for (int j = 0; j < state.intendLevel; j++)
+			spaces << "    ";
+
+		for (int i = 0; i < before; i++)
+			spaces << Space;
+
+		String s;
+
+		auto firstLine = sublines[0] + sublines[1];
+
+		s << parseLineWithAlignedComment(state, firstLine);
+
+		for (int i = 2; i < sublines.size(); i++)
+		{
+			s << spaces;
+
+			if (sublines[i].containsChar(AlignMarker))
+				jassertfalse;
+
+			s << parseLineWithAlignedComment(state, sublines[i]);
+		}
+
+		return s;
+	}
+
+	return parseLineWithAlignedComment(state, lineContent);
+}
+
+String Base::parseLineWithAlignedComment(ParseState& state, const String& lineContent) const
+{
+	if (lineContent.containsChar(AlignMarker))
+	{
+		String s;
+
+		if (state.currentAlignLength == -1)
+		{
+			for (int j = state.currentLine; j < lines.size(); j++)
+			{
+				if (lines[j].containsChar(AlignMarker))
+				{
+					state.currentAlignLength = jmax(state.currentAlignLength, lines[j].indexOfChar(AlignMarker) + 1);
+				}
+					
+				else
+					break;
+			}
+		}
+
+		auto thisLength = lineContent.indexOfChar(AlignMarker);
+		int spacesRequired = state.currentAlignLength - thisLength;
+		jassert(spacesRequired > 0);
+
+		String spaces;
+		for (int i = 0; i < spacesRequired; i++)
+			spaces << Space;
+
+		String a;
+		a << AlignMarker;
+
+		s << lineContent.replace(a, spaces) << "\n";
+
+		return s;
+	}
+	else
+	{
+		state.currentAlignLength = -1;
+
+		String s;
+
+		s << lineContent << "\n";
+
+		return s;
+	}
+}
+
+
+
 
 Struct::Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>& baseClasses, const jit::TemplateParameter::List& tp) :
 	Op(parent),
