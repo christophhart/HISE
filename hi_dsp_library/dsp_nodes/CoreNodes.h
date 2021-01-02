@@ -60,10 +60,7 @@ template <class P, typename... Ts> using modchain = wrap::control_rate<chain<P, 
 namespace core
 {
 
-
-
-
-class peak
+class EMPTY_BASES peak: public HiseDspBase
 {
 public:
 

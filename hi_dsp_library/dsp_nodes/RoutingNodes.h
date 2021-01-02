@@ -218,8 +218,6 @@ template <typename CableType> struct receive: public base
 
 	SN_GET_SELF_AS_OBJECT(receive);
 
-	FORWARD_PARAMETER_TO_MEMBER(receive);
-
 	enum class Parameters
 	{
 		Feedback
@@ -227,10 +225,12 @@ template <typename CableType> struct receive: public base
 
 	constexpr bool isPolyphonic() const { return false; }
 
-	template <int P> void setParameter(double value)
+	template <int P> static void setParameter(void* obj, double value)
 	{
+		auto t = static_cast<receive<CableType>*>(obj);
+
 		if (P == (int)Parameters::Feedback)
-			setFeedback(value);
+			t->setFeedback(value);
 	}
 
 	HISE_EMPTY_RESET;

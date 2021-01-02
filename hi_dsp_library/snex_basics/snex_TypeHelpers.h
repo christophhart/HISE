@@ -181,6 +181,21 @@ struct NamespacedIdentifier
 		return otherName.startsWith(thisName);
 	}
 
+	NamespacedIdentifier removeSameParent(const NamespacedIdentifier& other) const
+	{
+		auto l1 = getIdList();
+		
+		for (auto& o : other.getIdList())
+			l1.removeAllInstancesOf(o);
+
+		NamespacedIdentifier copy(l1.getFirst());
+
+		for (int i = 1; l1.size(); i++)
+			copy = copy.getChildId(l1[i]);
+
+		return copy;
+	}
+
 	void relocateSelf(const NamespacedIdentifier& oldParent, const NamespacedIdentifier& newParent)
 	{
 		jassert(oldParent.isParentOf(*this));
