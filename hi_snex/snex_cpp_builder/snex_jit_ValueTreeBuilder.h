@@ -79,6 +79,9 @@ struct ValueTreeIterator
 	static bool isRecursive(IterationType t);
 	static bool forEach(ValueTree& v, IterationType type, const Func& f);
 
+	static bool forEachParent(ValueTree& v, const Func& f);
+
+
 	static bool getNodePath(Array<int>& path, ValueTree& root, const Identifier& id);
 
 	static bool hasRealParameters(const ValueTree& containerTree);
@@ -90,14 +93,28 @@ struct ValueTreeIterator
 
 
 
-struct Node : public ReferenceCountedObject
+struct Node : public ReferenceCountedObject,
+			  public UsingTemplate
 {
 	using List = ReferenceCountedArray<Node>;
 	using Ptr = ReferenceCountedObjectPtr<Node>;
 
-	Node(UsingTemplate&& t_) :
-		t(t_)
+	Node(Base& b, const Identifier& id, const NamespacedIdentifier& templateId) :
+		UsingTemplate(b, id, templateId)
 	{};
+
+	bool operator==(const Node& other) const
+	{
+		// We never want the node comparison to return true
+		return false;
+	}
+
+	bool operator==(const String& expression) const
+	{
+		auto e = getUsingExpression();
+		auto same = e.compare(expression) == 0;
+		return same;
+	}
 
 	bool isRootNode() const
 	{
@@ -105,8 +122,6 @@ struct Node : public ReferenceCountedObject
 	}
 
 	ValueTree nodeTree;
-
-	UsingTemplate t;
 };
 
 
@@ -188,12 +203,47 @@ struct PooledRange : public ReferenceCountedObject
 	Connection c;
 };
 
+struct PooledCableType : public UsingTemplate,
+						 public ReferenceCountedObject
+{
+	using Ptr = ReferenceCountedObjectPtr<PooledCableType>;
+
+	struct TemplateConstants
+	{
+		bool operator==(const TemplateConstants& other) const
+		{
+			return numChannels == other.numChannels && isFrame == other.isFrame;
+		}
+
+		int numChannels = 0;
+		bool isFrame = false;
+	};
+
+	PooledCableType(Base& p, const Identifier& id, TemplateConstants& c) :
+		UsingTemplate(p, id, NamespacedIdentifier::fromString("cable").getChildId(c.isFrame ? "frame" : "block")),
+		data(c)
+	{
+		*this << c.numChannels;
+	}
+
+	bool operator==(const TemplateConstants& other) const
+	{
+		return data == other;
+	}
+
+	bool operator==(const PooledCableType& other) const
+	{
+		return data == other.data;
+	}
+
+	TemplateConstants data;
+};
+
 struct PooledExpression: public ReferenceCountedObject
 {
 	PooledExpression(const Symbol& s) :
 		id(s)
 	{};
-
 
 	bool operator==(const String& otherExpression) const
 	{
@@ -209,10 +259,31 @@ struct PooledExpression: public ReferenceCountedObject
 	String expression;
 };
 
-struct PooledParameter : public Node
+struct PooledStackVariable : public StackVariable,
+							 public ReferenceCountedObject
 {
-	PooledParameter(UsingTemplate&& t, const Connection& c_) :
-		Node(std::move(t)),
+	using Ptr = ReferenceCountedObjectPtr<PooledStackVariable>;
+
+	PooledStackVariable(Base& p, const ValueTree& nodeTree);;
+
+	bool operator==(const PooledStackVariable& otherExpression) const
+	{
+		return expression.compare(otherExpression.expression) == 0;
+	}
+
+	bool operator==(const String& otherExpression) const
+	{
+		return expression.compare(otherExpression) == 0;
+	}
+
+	ValueTree nodeTree;
+};
+
+struct PooledParameter : public UsingTemplate,
+						 public ReferenceCountedObject
+{
+	PooledParameter(Base& b, const Identifier& id, const Identifier& parameterType, const Connection& c_) :
+		UsingTemplate(b, id, NamespacedIdentifier("parameter").getChildId(parameterType)),
 		c(c_)
 	{};
 
@@ -269,6 +340,21 @@ template <typename ItemType> struct PoolBase
 		return nullptr;
 	}
 
+	ItemType** begin() const
+	{
+		return items.begin();
+	}
+
+	ItemType** end() const
+	{
+		return items.end();
+	}
+
+	ReferenceCountedObjectPtr<ItemType> getLast()
+	{
+		return items.getLast();
+	}
+
 	ReferenceCountedObjectPtr<ItemType> add(ReferenceCountedObjectPtr<ItemType> t)
 	{
 		for (const auto i : items)
@@ -279,6 +365,11 @@ template <typename ItemType> struct PoolBase
 
 		items.add(t);
 		return t;
+	}
+
+	void clear()
+	{
+		items.clear();
 	}
 
 private:
@@ -358,24 +449,79 @@ struct ValueTreeBuilder: public ValueTree::Listener,
 		String errorMessage;
 	};
 
+	void clear() override
+	{
+		Base::clear();
+
+		pooledTypeDefinitions.clear();
+		pooledRanges.clear();
+		pooledParameters.clear();
+		pooledExpressions.clear();
+	}
+
 private:
 
-	Format outputFormat =  Format::CppDynamicLibrary;
+	struct RootContainerBuilder
+	{
+		RootContainerBuilder(ValueTreeBuilder& parent_, Node::Ptr rootContainer) :
+			parent(parent_),
+			root(rootContainer),
+			outputFormat(parent.outputFormat)
+		{};
+
+		Node::Ptr parse();
+
+		void addDefaultParameters();
+		PooledStackVariable::Ptr getChildNodeAsStackVariable(const ValueTree& v);
+
+		PooledStackVariable::Ptr getChildNodeAsStackVariable(const String& nodeId);
+
+		void addMetadata();
+
+		void addParameterConnections();
+
+		void addModulationConnections();
+
+		void addSendConnections();
+
+		void createStackVariablesForChildNodes();
+
+		int getNumParametersToInitialise(ValueTree& child);
+
+		Node::List getSendNodes();
+
+		Node::List getModulationNodes();
+
+		Node::List getContainersWithParameter();
+
+		ValueTreeBuilder& parent;
+		Format outputFormat;
+		Node::Ptr root;
+
+		Identifier nodeClassId;
+
+		PoolBase<PooledStackVariable> stackVariables;
+	};
+
+	Format outputFormat =  Format::JitCompiledInstance;
 
 	String getGlueCode(FormatGlueCode c);
 
 	PooledParameter::Ptr makeParameter(const Identifier& id, const String path, const Connection& c)
 	{
-		auto n = new PooledParameter(UsingTemplate(*this, id, NamespacedIdentifier::fromString(path)), c);
+		jassert(!path.contains("parameter"));
+		auto n = new PooledParameter(*this, id, path, c);
 		return n;
 	}
 
 	Node::Ptr createNode(const ValueTree& v, const Identifier& id, const String& path)
 	{
-		auto n = new Node(UsingTemplate(*this, id, NamespacedIdentifier::fromString(path)));
+		auto n = new Node(*this, id, NamespacedIdentifier::fromString(path));
 		n->nodeTree = v;
 		return n;
 	}
+
+	void addNodeComment(Node::Ptr n);
 
 
 	struct Sanitizers
@@ -389,14 +535,19 @@ private:
 
 	Node::Ptr getNode(const NamespacedIdentifier& id, bool allowZeroMatch) const;
 
+	Node::Ptr parseRoutingNode(Node::Ptr u);
+
 	Node::Ptr parseSnexNode(Node::Ptr u);
 
 	Node::Ptr parseNode(const ValueTree& n);
 	
 	Node::Ptr parseContainer(Node::Ptr u);
+
+	
+
 	void parseContainerChildren(Node::Ptr container);
 	void parseContainerParameters(Node::Ptr container);
-	Node::Ptr parseContainerInitialiser(Node::Ptr container);
+	Node::Ptr parseRootContainer(Node::Ptr container);
 
 	Node::Ptr parseMod(Node::Ptr u);
 
@@ -404,17 +555,9 @@ private:
 
 	Connection getConnection(const ValueTree& c);
 
-	Node::Ptr getUsingTemplate(const NamespacedIdentifier& id);
-
-	Node::List usingTemplates;
-
-	
-
-	Node::List getModulationNodes(Node::Ptr c);
+	Node::Ptr getTypeDefinition(const NamespacedIdentifier& id);
 
 	static NamespacedIdentifier getNodePath(const ValueTree& n);
-
-	StackVariable getChildNodeAsStackVariable(ValueTree& root, const Identifier& id, const String& suffix);;
 
 	PooledParameter::Ptr addParameterAndReturn(PooledParameter::Ptr p)
 	{
@@ -428,7 +571,7 @@ private:
 
 		if (pName.toString() == "empty")
 		{
-			auto up = makeParameter({}, "parameter::empty", {});
+			auto up = makeParameter({}, "empty", {});
 			return addParameterAndReturn(up);
 		}
 
@@ -450,8 +593,8 @@ private:
 		{
 		case Connection::ConnectionType::Bypass:
 		{
-			auto up = makeParameter(p, "parameter::bypass", c);
-			up->t << c.n->t;
+			auto up = makeParameter(p, "bypass", c);
+			*up << *c.n;
 
 			return addParameterAndReturn(up);
 		}
@@ -459,17 +602,17 @@ private:
 		{
 			// parameter::expression<T, P, Expression>;
 
-			auto up = makeParameter(p, "parameter::expression", c);
-			up->t << c.n->t;
-			up->t << c.index;
+			auto up = makeParameter(p, "expression", c);
+			*up << *c.n;
+			*up << c.index;
 
 			String fWhat;
-			fWhat << up->t.scopedId.getIdentifier();
+			fWhat << up->scopedId.getIdentifier();
 			fWhat << "Expression";
 
 			if (auto existing = pooledExpressions.getExisting(c.expressionCode))
 			{
-				up->t << existing->id.toExpression();
+				*up << existing->id.toExpression();
 			}
 			else
 			{
@@ -480,12 +623,12 @@ private:
 				//DECLARE_PARAMETER_EXPRESSION(fWhat, x)
 				Macro(*this, "DECLARE_PARAMETER_EXPRESSION", { StringHelpers::withToken(IntendMarker, fWhat), StringHelpers::withToken(IntendMarker, c.expressionCode) });
 				addEmptyLine();
-				up->t << r->id.toExpression();
+				*up << r->id.toExpression();
 
 				pooledExpressions.add(r);
 			}
 
-			up->t.flushIfNot();
+			up->flushIfNot();
 			addEmptyLine();
 
 			return addParameterAndReturn(up);
@@ -493,13 +636,13 @@ private:
 		case Connection::ConnectionType::RangeWithSkew:
 		case Connection::ConnectionType::Range:
 		{
-			auto up = makeParameter(p, "parameter::from0To1", c);
-			up->t << c.n->t;
-			up->t << c.index;
+			auto up = makeParameter(p, "from0To1", c);
+			*up << *c.n;
+			*up << c.index;
 
 			String fWhat;
 
-			fWhat << up->t.scopedId.getIdentifier();
+			fWhat << up->scopedId.getIdentifier();
 			fWhat << "Range";
 
 			auto parseRange = [&](const NormalisableRange<double>& r)
@@ -539,27 +682,29 @@ private:
 
 			auto r = parseRange(c.targetRange);
 
-			up->t << r->id.toExpression();
+			*up << r->id.toExpression();
 
-			up->t.flushIfNot();
+			up->flushIfNot();
 			addEmptyLine();
 
 			return addParameterAndReturn(up);
 		}
 		default:
 		{
-			auto up = makeParameter(p, "parameter::plain", c);
-			up->t << c.n->t;
-			up->t << c.index;
+			auto up = makeParameter(p, "plain", c);
+			*up << *c.n;
+			*up << c.index;
 			
 			return addParameterAndReturn(up);
 		}
 		}
 	}
 
+	PoolBase<Node> pooledTypeDefinitions;
 	PoolBase<PooledRange> pooledRanges;
 	PoolBase<PooledParameter> pooledParameters;
 	PoolBase<PooledExpression> pooledExpressions;
+	PoolBase<PooledCableType> pooledCables;
 
 	NamespacedIdentifier getNodeId(const ValueTree& n);
 	NamespacedIdentifier getNodeVariable(const ValueTree& n);
