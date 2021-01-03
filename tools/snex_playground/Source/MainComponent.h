@@ -10,7 +10,7 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
-#define SHOW_VALUE_TREE_GEN 0
+#define SHOW_VALUE_TREE_GEN 1
 
 //==============================================================================
 /*
@@ -32,31 +32,17 @@ private:
     //==============================================================================
     // Your private member variables go here...
 
+	hise::PooledUIUpdater updater;
+
 	snex::ui::WorkbenchData::Ptr data;
+
+	ScopedPointer<snex::ui::WorkbenchData::CodeProvider> provider;
 
     Value v;
 
 	ScopedPointer<snex::jit::SnexPlayground> playground;
+	ScopedPointer<snex::ui::Graph> graph;
 	OpenGLContext context;
-
-	CodeDocument d;
-	mcl::TextDocument doc;
-	mcl::FullEditor editor;
-
-	struct Updater : public Timer
-	{
-		
-		Updater(mcl::TextDocument& doc):
-			d(doc)
-		{
-			startTimer(1000);
-		}
-		void timerCallback() override;
-
-		ValueTree lastTree;
-		mcl::TextDocument& d;
-	} treeUpdater;
-	
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

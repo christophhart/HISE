@@ -61,8 +61,6 @@ void ValueTreeBuilder::rebuild()
 {
 	clear();
 
-	
-
 	try
 	{
 		Sanitizers::setChannelAmount(v);
@@ -78,8 +76,8 @@ void ValueTreeBuilder::rebuild()
 	}
 	catch (Error& e)
 	{
-		clear();
-		*this << e.toString();
+		r = Result::fail(e.errorMessage);
+		wrongNodeCode = e.toString();
 	}
 }
 
@@ -92,7 +90,7 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 			case FormatGlueCode::WrappedNamespace: return "impl";
 			case FormatGlueCode::PublicDefinition:
 			{
-				UsingTemplate instance(*this, "instance", NamespacedIdentifier::fromString("wrap::node"));
+				UsingTemplate instance(*this, v[PropertyIds::ID].toString(), NamespacedIdentifier::fromString("wrap::node"));
 
 				instance << *pooledTypeDefinitions.getLast();
 				instance.flushIfNot();
@@ -331,6 +329,27 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		{
 			u = parseRootContainer(u);
 		}
+
+		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
+
+		if (realPath.startsWith("frame"))
+		{
+			Node::Ptr wn = new Node(*this, u->scopedId.id, NamespacedIdentifier::fromString("wrap::frame"));
+
+			if (u->getLength() > 30)
+			{
+				StringHelpers::addSuffix(u->scopedId, "_");
+				u->flushIfNot();
+				addEmptyLine();
+			}
+
+			*wn << (int)u->nodeTree[PropertyIds::NumChannels];
+			*wn << *u;
+
+			u = wn;
+		}
+
+		jassert(!u->isFlushed());
 
 		addNodeComment(u);
 		u->flushIfNot();
@@ -590,6 +609,20 @@ Node::Ptr ValueTreeBuilder::getTypeDefinition(const NamespacedIdentifier& id)
 NamespacedIdentifier ValueTreeBuilder::getNodePath(const ValueTree& n)
 {
 	auto s = n[scriptnode::PropertyIds::FactoryPath].toString().replace(".", "::");
+
+	auto fId = NamespacedIdentifier::fromString(s);
+
+	if (FactoryIds::isContainer(fId))
+	{
+		auto isSplit = fId.id.toString() == "split";
+		auto isMulti = fId.id.toString() == "multi";
+
+		if (!isSplit && !isMulti)
+		{
+			return NamespacedIdentifier::fromString("container::chain");
+		}
+	}
+
 	return NamespacedIdentifier::fromString(s);
 }
 
@@ -881,6 +914,8 @@ PooledStackVariable::Ptr ValueTreeBuilder::RootContainerBuilder::getChildNodeAsS
 	
 	int index = 0;
 
+	*e << "this->";
+
 	for (auto i : path)
 	{
 		*e << "get<" << i << ">()";
@@ -915,7 +950,17 @@ void ValueTreeBuilder::RootContainerBuilder::addMetadata()
 
 	Macro(parent, "SNEX_METADATA_ID", { nodeClassId });
 	Macro(parent, "SNEX_METADATA_NUM_CHANNELS", { root->nodeTree[PropertyIds::NumChannels].toString() });
-	Macro(parent, "SNEX_METADATA_PARAMETERS", { "2", "\"Funky\"", "\"Why\"" });
+
+	StringArray parameterNames;
+
+	for(auto p: root->nodeTree.getChildWithName(PropertyIds::Parameters))
+	{
+		parameterNames.add(p[PropertyIds::ID].toString().quoted());
+	}
+
+	parameterNames.insert(0, String(parameterNames.size()));
+
+	Macro(parent, "SNEX_METADATA_PARAMETERS", parameterNames);
 
 	if (outputFormat == Format::CppDynamicLibrary)
 	{
@@ -954,7 +999,11 @@ void ValueTreeBuilder::RootContainerBuilder::addParameterConnections()
 
 				StackVariable pv(parent, pId, TypeInfo(Types::ID::Dynamic, false, true));
 
-				if (!containerWithParameter->isRootNode())
+				if (containerWithParameter->isRootNode())
+				{
+					pv << "this->";
+				}
+				else
 				{
 					pv << *c;
 					pv << ".";
@@ -1089,6 +1138,14 @@ void ValueTreeBuilder::RootContainerBuilder::addSendConnections()
 		for (auto& id : StringArray::fromTokens(ids, ";", ""))
 		{
 			auto target = getChildNodeAsStackVariable(id);
+
+			if (target == nullptr)
+			{
+				Error e;
+				e.v = s->nodeTree;
+				e.errorMessage << id << " not found";
+				throw e;
+			}
 
 			String def;
 

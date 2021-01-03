@@ -219,7 +219,7 @@ private:
 			FunctionData f;
 
 			f.id = st->id.getChildId("setParameter");
-			f.templateParameters.add(TemplateParameter(f.id.getChildId("P"), i, true, jit::TemplateParameter::Single));
+			f.templateParameters.add(TemplateParameter(i));
 			f.returnType = TypeInfo(Types::ID::Void);
 			f.addArgs("value", TypeInfo(Types::ID::Double));
 
@@ -276,6 +276,7 @@ juce::Result CoreNodeLibrary::registerTypes()
 {
 	LibraryNode<core::oscillator>(c, numChannels, getFactoryId());
 	LibraryNode<core::fix_delay>(c, numChannels, getFactoryId());
+	LibraryNode<core::ramp>(c, numChannels, getFactoryId());
 	LibraryNode<core::peak> p(c, numChannels, getFactoryId());
 	p.addMember("max", Types::ID::Double, 0.0);
 

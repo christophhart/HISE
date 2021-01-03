@@ -348,8 +348,12 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 		editor.grabKeyboardFocus();
 	};
 
+	
+
 	getWorkbench()->addListener(this);
-	getWorkbench()->triggerRecompile();
+
+	if(testMode)
+		getWorkbench()->triggerRecompile();
 
 	MessageManager::callAsync(f);
 }

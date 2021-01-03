@@ -331,9 +331,12 @@ void Operations::InternalProperty::process(BaseCompiler* compiler, BaseScope* sc
 				}
 				if (id == scriptnode::PropertyIds::NodeId)
 				{
-					if (v.toString() != st->id.getIdentifier().toString())
+					if (st->id.getIdentifier( ).toString() != "metadata")
 					{
-						location.throwError(st->toString() + ": node id mismatch: " + v.toString());
+						if (v.toString() != st->id.getIdentifier().toString())
+						{
+							location.throwError(st->toString() + ": node id mismatch: " + v.toString());
+						}
 					}
 				}
 			}

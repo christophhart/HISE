@@ -50,7 +50,7 @@ bool NamespaceHandler::Namespace::contains(const NamespacedIdentifier& symbol) c
 	return false;
 }
 
-juce::String NamespaceHandler::Namespace::dump(int level)
+juce::String NamespaceHandler::Namespace::dump(int level) const
 {
 	juce::String s;
 
@@ -304,7 +304,7 @@ snex::NamespacedIdentifier NamespaceHandler::getCurrentNamespaceIdentifier() con
 	return currentNamespace->id;
 }
 
-juce::String NamespaceHandler::dump()
+juce::String NamespaceHandler::dump() const
 {
 	return getRoot()->dump(0);
 }

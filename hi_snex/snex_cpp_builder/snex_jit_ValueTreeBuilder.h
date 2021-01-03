@@ -377,10 +377,18 @@ private:
 	ReferenceCountedArray<ItemType> items;
 };
 
-struct ValueTreeBuilder: public ValueTree::Listener,
-						 public Timer,
-						 public Base
+struct ValueTreeBuilder: public Base
 {
+	struct BuildResult
+	{
+		BuildResult() :
+			r(Result::ok())
+		{};
+
+		Result r;
+		String code;
+	};
+
 	enum class Format
 	{
 		JitCompiledInstance,
@@ -398,30 +406,26 @@ struct ValueTreeBuilder: public ValueTree::Listener,
 
 	ValueTreeBuilder(const ValueTree& data) :
 		Base(Base::OutputType::AddTabs),
-		v(data)
-	{
-		v.addListener(this);
-		rebuild();
-	}
+		v(data),
+		r(Result::ok())
+	{}
 
-	void valueTreePropertyChanged(ValueTree&, const Identifier&) override { startTimer(2000); }
-	void valueTreeChildAdded(ValueTree& , ValueTree& ) override { startTimer(2000); }
-	void valueTreeChildRemoved(ValueTree& , ValueTree& , int ) override { startTimer(2000); }
-	void valueTreeChildOrderChanged(ValueTree& , int , int )  override { startTimer(2000); }
-	void valueTreeParentChanged(ValueTree&)  override { startTimer(2000); }
-
-	void timerCallback() override
+	BuildResult createCppCode()
 	{
 		rebuild();
-		stopTimer();
+
+		BuildResult br;
+		br.r = r;
+
+		if (r.wasOk())
+			br.code = getCurrentCode();
+		else
+			br.code = wrongNodeCode;
+
+		return br;
 	}
 
-	void rebuild();
-
-	~ValueTreeBuilder()
-	{
-		v.removeListener(this);
-	}
+private:
 
 	String getCurrentCode() const { return toString(); }
 
@@ -442,24 +446,29 @@ struct ValueTreeBuilder: public ValueTree::Listener,
 				s << "\nValueTree: \n";
 				s << xml->createDocument("", false);
 			}
-			
+
 			return s;
 		}
 		ValueTree v;
 		String errorMessage;
 	};
 
+
 	void clear() override
 	{
 		Base::clear();
 
+		r = Result::ok();
 		pooledTypeDefinitions.clear();
 		pooledRanges.clear();
 		pooledParameters.clear();
 		pooledExpressions.clear();
 	}
 
-private:
+	void rebuild();
+
+	Result r;
+	String wrongNodeCode;
 
 	struct RootContainerBuilder
 	{

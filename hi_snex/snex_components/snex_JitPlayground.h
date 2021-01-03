@@ -429,6 +429,8 @@ public:
 				lastNode->prepare(ps);
 				lastNode->reset();
 
+				DBG("POST");
+
 				ProcessDataDyn data(processedTestBuffer.getArrayOfWritePointers(), ps.blockSize, ps.numChannels);
 				lastNode->process(data);
 			}
@@ -566,8 +568,15 @@ public:
 		}
 	};
 
+	void setReadOnly(bool shouldBeReadOnly)
+	{
+		isReadOnly = shouldBeReadOnly;
+	}
+
 	
 private:
+
+	bool isReadOnly = false;
 
 	ScopedPointer<ui::WorkbenchData::CodeProvider> previousProvider;
 
@@ -631,10 +640,18 @@ private:
 		auto& ed = editor.editor;
 		ed.clearWarningsAndErrors();
 
-		assemblyDoc.replaceAllContent({});
-		consoleContent.replaceAllContent({});
-		consoleContent.clearUndoHistory();
-		editor.setCurrentBreakline(-1);
+		if (isReadOnly)
+		{
+			doc.replaceAllContent(getWorkbench()->getCode());
+			doc.clearUndoHistory();
+		}
+		else
+		{
+			assemblyDoc.replaceAllContent({});
+			consoleContent.replaceAllContent({});
+			consoleContent.clearUndoHistory();
+			editor.setCurrentBreakline(-1);
+		}
 	}
 
 	/** Don't change the workbench in the editor. */

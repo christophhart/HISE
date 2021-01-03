@@ -624,6 +624,37 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(WorkbenchComponent);
 };
 
+struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
+	public Timer
+{
+	ValueTreeCodeProvider(snex::ui::WorkbenchData* data) :
+		CodeProvider(data)
+	{
+		timerCallback();
+		startTimer(1000);
+	}
+	void timerCallback() override;
+
+	bool saveCode(const String& ) override
+	{
+		return false;
+	}
+
+	Identifier getInstanceId() const override;
+
+	String loadCode() const override
+	{
+		rebuild();
+		return lastResult.code;
+	}
+
+	void rebuild() const;
+
+	mutable cppgen::ValueTreeBuilder::BuildResult lastResult;
+
+	ValueTree lastTree;
+};
+
 struct WorkbenchManager : public WorkbenchData::Listener
 {
 	using LogFunction = std::function<void(int, const String&)>;

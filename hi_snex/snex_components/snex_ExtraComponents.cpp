@@ -271,9 +271,10 @@ void Graph::buttonClicked(Button* b)
 	}
 }
 
-void Graph::recompiled(WorkbenchData::Ptr p)
+void Graph::postPostCompile(WorkbenchData::Ptr wb)
 {
-	if (auto nodeHandler = dynamic_cast<JitNodeCompileThread*>(p->getCompileHandler()))
+	DBG("POSTPOST");
+	if (auto nodeHandler = dynamic_cast<JitNodeCompileThread*>(wb->getCompileHandler()))
 	{
 		setBuffer(nodeHandler->getTestBuffer());
 	}

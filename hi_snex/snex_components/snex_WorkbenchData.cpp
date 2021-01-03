@@ -152,4 +152,37 @@ void ui::WorkbenchManager::workbenchChanged(WorkbenchData::Ptr oldWorkBench, Wor
 
 
 
+void ui::ValueTreeCodeProvider::timerCallback()
+{
+	auto f = snex::JitFileTestCase::getTestFileDirectory().getChildFile("node.xml");
+
+	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
+	{
+		ValueTree v = ValueTree::fromXml(*xml);
+
+		if (!lastTree.isEquivalentTo(v))
+		{
+			lastTree = v;
+			getParent()->triggerRecompile();
+
+			
+
+			
+			
+
+		}
+	}
+}
+
+juce::Identifier ui::ValueTreeCodeProvider::getInstanceId() const
+{
+	return Identifier(lastTree[scriptnode::PropertyIds::ID].toString());
+}
+
+void ui::ValueTreeCodeProvider::rebuild() const
+{
+	snex::cppgen::ValueTreeBuilder vb(lastTree);
+	lastResult = vb.createCppCode();
+}
+
 }

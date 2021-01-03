@@ -120,7 +120,7 @@ private:
 
 		bool contains(const NamespacedIdentifier& symbol) const;
 
-		juce::String dump(int level);
+		juce::String dump(int level) const;
 
 		static juce::String getIntendLevel(int level);
 
@@ -293,7 +293,7 @@ public:
 	bool isNamespace(const NamespacedIdentifier& possibleNamespace) const;
 	
 	NamespacedIdentifier getCurrentNamespaceIdentifier() const;
-	juce::String dump();
+	juce::String dump() const;
 	Result addUsedNamespace(const NamespacedIdentifier& usedNamespace);
 	Result resolve(NamespacedIdentifier& id, bool allowZeroMatch = false) const;
 	void addSymbol(const NamespacedIdentifier& id, const TypeInfo& t, SymbolType symbolType, const SymbolDebugInfo& info = {});

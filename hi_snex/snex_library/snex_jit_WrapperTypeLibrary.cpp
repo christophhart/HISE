@@ -163,7 +163,7 @@ void WrapBuilder::init(Compiler& c, int numChannels)
 	{
 		auto obj = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, objIndex).get());
 
-		Helpers::checkPropertyExists(obj, WrapIds::IsNode, *cd.r);
+		//Helpers::checkPropertyExists(obj, WrapIds::IsNode, *cd.r);
 	});
 
 	addInitFunction(Helpers::setNumChannelsFromObjectType);
@@ -868,6 +868,38 @@ Result WrapLibraryBuilder::registerTypes()
 	mod.setInlinerForCallback(ScriptnodeCallbacks::ProcessFrameFunction, Inliner::HighLevel, Callbacks::mod::processFrame);
 
 	mod.flush();
+
+
+	WrapBuilder nWrapper(c, "node", 2, WrapBuilder::OpaqueType::GetSelfAsObject);
+
+	nWrapper.addInitFunction([](const TemplateObject::ConstructData& d, StructType* st)
+	{
+		WrapBuilder::InnerData id(st, WrapBuilder::ForwardToObj);
+
+		if (id.resolve())
+		{
+			auto metaClass = id.st->id.getChildId("metadata");
+
+			if (auto mc = dynamic_cast<StructType*>(d.handler->getComplexType(metaClass).get()))
+			{
+				WrapBuilder::Helpers::checkPropertyExists(mc, WrapIds::NodeId, *d.r);
+				WrapBuilder::Helpers::checkPropertyExists(mc, WrapIds::NumChannels, *d.r);
+				WrapBuilder::Helpers::checkPropertyExists(mc, WrapIds::NumParameters, *d.r);
+
+				auto id = mc->getInternalProperty(WrapIds::NodeId, "").toString();
+				auto numChannels = mc->getInternalProperty(WrapIds::NumChannels, 0).toString();
+				auto numParameters = mc->getInternalProperty(WrapIds::NumParameters, 0).toString();
+				
+				st->setInternalProperty(WrapIds::NodeId, id);
+				st->setInternalProperty(WrapIds::NumChannels, numChannels);
+				st->setInternalProperty(WrapIds::NumParameters, numParameters);
+			}
+		}
+	});
+
+	nWrapper.addInitFunction(TemplateClassBuilder::Helpers::redirectProcessCallbacksToFixChannel);
+
+	nWrapper.flush();
 
 	return Result::ok();
 }

@@ -261,9 +261,9 @@ snex::jit::FunctionData TemplateClassBuilder::Helpers::getFunctionFromTargetClas
 
 void TemplateClassBuilder::Helpers::redirectProcessCallbacksToFixChannel(const TemplateObject::ConstructData& cd, StructType* st)
 {
-	jassert(st->hasInternalProperty("NumChannels"));
+	jassert(st->hasInternalProperty(WrapIds::NumChannels));
 
-	if (int numChannel = st->getInternalProperty("NumChannels", 0))
+	if (int numChannel = st->getInternalProperty(WrapIds::NumChannels, 0))
 	{
 		TemplateInstance tId(NamespacedIdentifier("ProcessData"), {});
 

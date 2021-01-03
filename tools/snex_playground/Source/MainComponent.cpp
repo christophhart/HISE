@@ -340,30 +340,48 @@ template <typename T> struct HardcodedExternalHandler: public snex::ExternalData
 	T obj;
 };
 
+
+
+
+
 //==============================================================================
 MainComponent::MainComponent() :
-	data(new ui::WorkbenchData()),
-	editor(doc),
-	doc(d),
-	treeUpdater(doc)
+	data(new ui::WorkbenchData())
 {
 
-#if SHOW_VALUE_TREE_GEN
+	
 
-	addAndMakeVisible(editor);
-	context.attachTo(editor);
 
-#else
-	auto compileThread = new snex::jit::TestCompileThread(data);
-	data->setCompileHandler(compileThread);
+	bool useValueTrees = true;
 
-	playground = new snex::jit::SnexPlayground(data, true);
 
-	context.attachTo(*playground);
+	if (useValueTrees)
+	{
+		auto compileThread = new snex::jit::JitNodeCompileThread(data, &updater);
+		data->setCompileHandler(compileThread);
+
+		provider = new snex::ui::ValueTreeCodeProvider(data);
+		data->setCodeProvider(provider);
+
+		playground = new snex::ui::SnexPlayground(data, false);
+		playground->setReadOnly(true);
+		
+		addAndMakeVisible(graph = new snex::ui::Graph(data, true));
+	}
+	else
+	{
+		auto compileThread = new snex::jit::TestCompileThread(data);
+		data->setCompileHandler(compileThread);
+		playground = new snex::ui::SnexPlayground(data, true);
+	}
+	
+
+
+
+	context.attachTo(*this);
 	
 	addAndMakeVisible(playground);
 
-#endif
     setSize (1024, 768);
 }
 
@@ -384,23 +402,10 @@ void MainComponent::paint (Graphics& g)
 
 void MainComponent::resized()
 {
-	getChildComponent(0)->setBounds(getLocalBounds());
-}
+	auto b = getLocalBounds();
 
-void MainComponent::Updater::timerCallback()
-{
-	auto f = snex::JitFileTestCase::getTestFileDirectory().getChildFile("node.xml");
+	if (graph != nullptr)
+		graph->setBounds(b.removeFromTop(200));
 
-	if (ScopedPointer<XmlElement> xml = XmlDocument::parse(f))
-	{
-		ValueTree v = ValueTree::fromXml(*xml);
-
-		if (!lastTree.isEquivalentTo(v))
-		{
-			snex::cppgen::ValueTreeBuilder vb(v);
-			d.getCodeDocument().replaceAllContent(vb.toString());
-		}
-
-		lastTree = v;
-	}
+	playground->setBounds(b);
 }

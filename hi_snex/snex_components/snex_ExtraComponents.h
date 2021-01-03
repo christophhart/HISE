@@ -254,6 +254,8 @@ struct Graph : public WorkbenchComponent,
 
 	void buttonClicked(Button* b) override;;
 
+	void postPostCompile(WorkbenchData::Ptr wb);
+
 	void paint(Graphics& g)
 	{
 		auto b = getLocalBounds().removeFromRight(50);
@@ -291,7 +293,6 @@ struct Graph : public WorkbenchComponent,
 		}
 	}
 
-	void recompiled(WorkbenchData::Ptr p) override;
 
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("SnexGraph"); }
 
