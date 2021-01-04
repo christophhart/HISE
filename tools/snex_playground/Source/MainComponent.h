@@ -42,6 +42,7 @@ private:
 
 	ScopedPointer<snex::jit::SnexPlayground> playground;
 	ScopedPointer<snex::ui::Graph> graph;
+	ScopedPointer<snex::ui::ParameterList> parameters;
 	OpenGLContext context;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)

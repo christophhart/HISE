@@ -144,7 +144,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	ApiProviderBase* getProviderBase() override 
 	{
-		if(lastCompileResult.r.wasOk())
+		if(lastCompileResult.compiledOk())
 			return &lastCompileResult.obj; 
 
 		return nullptr;
@@ -229,10 +229,27 @@ struct WorkbenchData : public ReferenceCountedObject,
 	struct CompileResult
 	{
 		CompileResult() :
-			r(Result::ok())
+			compileResult(Result::ok()),
+			testResult(Result::ok())
 		{};
 
-		Result r;
+		bool compiledOk() const
+		{
+			return compileResult.wasOk();
+		}
+
+		bool testWasOk() const
+		{
+			return testResult.wasOk();
+		}
+
+		bool allOk() const
+		{
+			return compiledOk() && testWasOk();
+		}
+
+		Result compileResult;
+		Result testResult;
 		String assembly;
 		JitObject obj;
 	};
@@ -271,7 +288,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 			CompileResult r;
 			r.obj = cc->compileJitObject(codeToCompile);
 			r.assembly = cc->getAssemblyCode();
-			r.r = cc->getCompileResult();
+			r.compileResult = cc->getCompileResult();
 
 			return r;
 		}
@@ -442,6 +459,12 @@ struct WorkbenchData : public ReferenceCountedObject,
 			handleCompilation();
 	}
 
+	void triggerPostCompileActions()
+	{
+		compileHandler->postCompile(lastCompileResult);
+		postPostCompile();
+	}
+
 	void postPostCompile()
 	{
 		for (auto l : listeners)
@@ -453,7 +476,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	void postCompile()
 	{
-		if (getLastResult().wasOk())
+		if (getLastResult().compiledOk())
 		{
 			getLastJitObject().rebuildDebugInformation();
 			rebuild();
@@ -499,7 +522,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 	GlobalScope& getGlobalScope() { return memory; }
 	const GlobalScope& getGlobalScope() const { return memory; }
 
-	Result getLastResult() const { return lastCompileResult.r; }
+	CompileResult getLastResult() const { return lastCompileResult; }
 	JitObject getLastJitObject() const { return lastCompileResult.obj; }
 	String getLastAssembly() const { return lastCompileResult.assembly; }
 
@@ -635,8 +658,10 @@ struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
 	}
 	void timerCallback() override;
 
-	bool saveCode(const String& ) override
+	bool saveCode(const String& s) override
 	{
+		customCode = s;
+		getParent()->triggerRecompile();
 		return false;
 	}
 
@@ -644,6 +669,9 @@ struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
 
 	String loadCode() const override
 	{
+		if (customCode.isNotEmpty())
+			return customCode;
+
 		rebuild();
 		return lastResult.code;
 	}
@@ -653,6 +681,7 @@ struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
 	mutable cppgen::ValueTreeBuilder::BuildResult lastResult;
 
 	ValueTree lastTree;
+	String customCode;
 };
 
 struct WorkbenchManager : public WorkbenchData::Listener

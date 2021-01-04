@@ -60,6 +60,30 @@ public:
 	HiseEventBuffer parseEventData(const String& s);
 	HiseEvent parseHiseEvent(const var& eventObject);
 
+	struct HeaderBuilder
+	{
+		HeaderBuilder(const ValueTree& v_) :
+			v(v_)
+		{};
+
+		String operator()();
+
+	private:
+
+		void addDefinition(String& s, const Identifier& key, const String& value, bool quoted = false)
+		{
+			s << "  " << key.toString() << ": ";
+			
+			if (quoted)
+				s << value.quoted();
+			else
+				s << value;
+			
+			s << "\n";
+		}
+
+		ValueTree v;
+	};
 	
 
 	void logMessage(int level, const juce::String& s) override;
@@ -166,6 +190,11 @@ public:
 
 	Result test(bool dumpBeforeTest = false);
 
+	AudioSampleBuffer getBuffer(bool getProcessed) const
+	{
+		return inputBuffer;// getProcessed ? outputBuffer : inputBuffer;
+	}
+
 	File save();
 
 	juce::String assembly;
@@ -178,6 +207,7 @@ public:
 
 private:
 
+	String inputFile;
 	
 
 	void parseFunctionData();

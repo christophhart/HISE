@@ -35,6 +35,22 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+namespace MetaIds
+{
+	static const juce::String BEGIN_TEST_DATA("BEGIN_TEST_DATA");
+	static const Identifier f("f");
+	static const Identifier ret("ret");
+	static const Identifier args("args");
+	static const Identifier input("input");
+	static const Identifier output("output");
+	static const Identifier error("error");
+	static const Identifier filename("filename");
+	static const Identifier events("events");
+	static const Identifier loop_count("loop_count");
+	static const Identifier compile_flags("compile_flags");
+	static const juce::String END_TEST_DATA("END_TEST_DATA");
+}
+
 struct JitFileTestCase::Helpers
 {
 	static File getAudioFile(const var& v)
@@ -332,6 +348,7 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 {
 	if (nodeToTest != nullptr)
 	{
+		inputBuffer = Helpers::loadFile(inputFile);
 
 		Types::PrepareSpecs ps;
 		ps.numChannels = inputBuffer.getNumChannels();
@@ -341,6 +358,8 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 
 		nodeToTest->prepare(ps);
 		nodeToTest->reset();
+
+		
 
 		Types::ProcessDataDyn d(inputBuffer.getArrayOfWritePointers(), inputBuffer.getNumSamples(), numChannels);
 		d.setEventBuffer(eventBuffer);
@@ -534,18 +553,7 @@ File JitFileTestCase::save()
 
 void JitFileTestCase::parseFunctionData()
 {
-	static const juce::String BEGIN_TEST_DATA("BEGIN_TEST_DATA");
-	static const Identifier f("f");
-	static const Identifier ret("ret");
-	static const Identifier args("args");
-	static const Identifier input("input");
-	static const Identifier output("output");
-	static const Identifier error("error");
-	static const Identifier filename("filename");
-	static const Identifier events("events");
-	static const Identifier loop_count("loop_count");
-	static const Identifier compile_flags("compile_flags");
-	static const juce::String END_TEST_DATA("END_TEST_DATA");
+	using namespace MetaIds;
 
 	/** BEGIN_TEST_DATA
 		f: test
@@ -592,9 +600,9 @@ void JitFileTestCase::parseFunctionData()
 				nodeId = Identifier(fId.removeCharacters("{} \t"));
 				isProcessDataTest = true;
 
-				auto inputFile = Helpers::parseQuotedString(s[input]);
+				inputFile = Helpers::parseQuotedString(s[input]);
 
-				inputBuffer = Helpers::loadFile(s[input]);
+				inputBuffer = Helpers::loadFile(inputFile);
 
 				numChannels = inputBuffer.getNumChannels();
 
@@ -910,6 +918,58 @@ juce::Result JitFileTestCase::expectCompileFail(const juce::String& errorMessage
 
 		return Result::ok();
 	}
+}
+
+String JitFileTestCase::HeaderBuilder::operator()()
+{
+	/*
+	BEGIN_TEST_DATA
+	  f: {processor}
+	  ret: int
+	  args: int
+	  input: "zero.wav"
+	  output: "sine.wav"
+	  error: ""
+	  filename: "node/node_sine2"
+	END_TEST_DATA
+	*/
+
+	using namespace MetaIds;
+
+	String s;
+	String nl = "\n";
+
+	int numChannels = v[scriptnode::PropertyIds::NumChannels];
+	auto id = v[scriptnode::PropertyIds::ID].toString();
+
+	String inputFile;
+
+	inputFile << "zero";
+	if (numChannels != 1)
+		inputFile << numChannels;
+	inputFile << ".wav";
+
+	String outputFile;
+
+	outputFile << "valuetree_nodes/" << id << ".wav";
+
+	String codeFile;
+
+	codeFile << "valuetree_nodes/" << id;
+
+	s << "/*" << nl;
+	s << BEGIN_TEST_DATA << nl;
+	addDefinition(s, f, "{processor}");
+	addDefinition(s, ret, "int");
+	addDefinition(s, args, "int");
+	addDefinition(s, input, inputFile, true);
+	addDefinition(s, output, outputFile, true);
+	addDefinition(s, error, "", true);
+	addDefinition(s, filename, codeFile, true);
+	s << END_TEST_DATA << nl;
+	s << "*/" << nl;
+
+	return s;
 }
 
 }

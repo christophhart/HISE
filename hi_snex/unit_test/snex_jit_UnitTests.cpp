@@ -562,7 +562,7 @@ public:
 		
 
 		optimizations = OptimizationIds::getAllIds();
-		runTestFiles("");
+		runTestFiles("node_frame_osc");
 		//testValueTreeCodeBuilder();
 		return;
 

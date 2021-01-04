@@ -273,10 +273,76 @@ void Graph::buttonClicked(Button* b)
 
 void Graph::postPostCompile(WorkbenchData::Ptr wb)
 {
-	DBG("POSTPOST");
-	if (auto nodeHandler = dynamic_cast<JitNodeCompileThread*>(wb->getCompileHandler()))
+	
+
+	if (auto nodeHandler = dynamic_cast<BackgroundCompileThread*>(wb->getCompileHandler()))
 	{
 		setBuffer(nodeHandler->getTestBuffer());
+	}
+}
+
+void ParameterList::rebuild()
+{
+	auto h = getWorkbench()->getCompileHandler();
+
+	if (auto nodeHandler = dynamic_cast<BackgroundCompileThread*>(h))
+	{
+		functions.clear();
+		sliders.clear();
+
+		int numRows = 0;
+
+		if (currentNode = nodeHandler->getLastNode())
+		{
+			auto parameters = currentNode->getParameterList();
+
+			for (auto p: parameters)
+			{
+				auto s = new juce::Slider(p.data.id);
+				s->setLookAndFeel(&laf);
+				s->setRange(p.data.min, p.data.max, p.data.interval);
+				s->setSkewFactor(p.data.skew);
+				s->setValue(p.data.defaultValue, dontSendNotification);
+
+				s->setSliderStyle(Slider::SliderStyle::RotaryHorizontalVerticalDrag);
+				s->setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+				s->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+				s->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+				s->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+				s->addListener(this);
+
+				functions.add(p.toFunctionData());
+
+				addAndMakeVisible(s);
+				s->setSize(128, 48);
+				sliders.add(s);
+			}
+
+			auto numColumns = jmax(1, getWidth() / 150);
+			numRows = sliders.size() / numColumns + 1;
+		}
+
+		setSize(getWidth(), numRows * 60);
+		resized();
+	}
+
+	
+}
+
+void ParameterList::sliderValueChanged(Slider* slider)
+{
+	if (currentNode == nullptr)
+		return;
+
+	auto index = sliders.indexOf(slider);
+
+	if (auto f = functions[index])
+	{
+		auto value = (double)slider->getValue();
+		f.callVoid(value);
+
+		getWorkbench()->triggerPostCompileActions();
+
 	}
 }
 

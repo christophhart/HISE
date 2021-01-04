@@ -162,14 +162,9 @@ void ui::ValueTreeCodeProvider::timerCallback()
 
 		if (!lastTree.isEquivalentTo(v))
 		{
+			customCode = {};
 			lastTree = v;
 			getParent()->triggerRecompile();
-
-			
-
-			
-			
-
 		}
 	}
 }

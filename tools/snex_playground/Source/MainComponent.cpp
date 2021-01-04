@@ -352,31 +352,38 @@ MainComponent::MainComponent() :
 	
 
 
-	bool useValueTrees = true;
+	bool useValueTrees = false;
+
+	auto compileThread = new snex::jit::TestCompileThread(data);
+	data->setCompileHandler(compileThread);
 
 
 	if (useValueTrees)
 	{
-		auto compileThread = new snex::jit::JitNodeCompileThread(data, &updater);
-		data->setCompileHandler(compileThread);
+		//auto compileThread = new snex::jit::JitNodeCompileThread(data, &updater);
+		//data->setCompileHandler(compileThread);
 
 		provider = new snex::ui::ValueTreeCodeProvider(data);
 		data->setCodeProvider(provider);
 
-		playground = new snex::ui::SnexPlayground(data, false);
+		playground = new snex::ui::SnexPlayground(data, true);
 		playground->setReadOnly(true);
 		
+		addAndMakeVisible(parameters = new snex::ui::ParameterList(data));
+
 		addAndMakeVisible(graph = new snex::ui::Graph(data, true));
 	}
 	else
 	{
-		auto compileThread = new snex::jit::TestCompileThread(data);
-		data->setCompileHandler(compileThread);
+		for (auto o : OptimizationIds::getAllIds())
+			data->getGlobalScope().addOptimization(o);
+
 		playground = new snex::ui::SnexPlayground(data, true);
+		provider = new snex::ui::SnexPlayground::TestCodeProvider(*playground, {});
+		data->setCodeProvider(provider, sendNotification);
+
+		playground->setFullTokenProviders();
 	}
-	
-
-
 
 	context.attachTo(*this);
 	
@@ -403,6 +410,9 @@ void MainComponent::paint (Graphics& g)
 void MainComponent::resized()
 {
 	auto b = getLocalBounds();
+
+	if (parameters != nullptr)
+		parameters->setBounds(b.removeFromTop(50));
 
 	if (graph != nullptr)
 		graph->setBounds(b.removeFromTop(200));

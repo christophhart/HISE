@@ -314,7 +314,7 @@ struct Graph : public WorkbenchComponent,
 		repaint();
 	}
 
-	void setBuffer(const AudioSampleBuffer& b)
+	void setBuffer(AudioSampleBuffer b)
 	{
 		resized();
 		internalGraph.setBuffer(b);
@@ -341,63 +341,25 @@ struct ParameterList : public WorkbenchComponent,
 {
 	ParameterList(WorkbenchData* data) :
 		WorkbenchComponent(data)
-	{};
+	{
+		data->addListener(this);
+	};
+
+	~ParameterList()
+	{
+		getWorkbench()->removeListener(this);
+	}
 
 	Array<FunctionData> functions;
 
-	void updateFromJitObject(JitObject& obj)
+	void recompiled(WorkbenchData::Ptr wb) override
 	{
-		StringArray names = ParameterHelpers::getParameterNames(obj);
-
-		functions.clear();
-		sliders.clear();
-
-		for (int i = 0; i < names.size(); i++)
-		{
-			auto s = new juce::Slider(names[i]);
-			s->setLookAndFeel(&laf);
-			s->setRange(0.0, 1.0, 0.01);
-			s->setSliderStyle(Slider::SliderStyle::RotaryHorizontalVerticalDrag);
-			s->setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
-			s->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
-			s->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
-			s->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
-			s->addListener(this);
-
-			functions.add(ParameterHelpers::getFunction(names[i], obj));
-
-			addAndMakeVisible(s);
-			s->setSize(128, 48);
-			sliders.add(s);
-		}
-
-		auto numColumns = jmax(1, getWidth() / 150);
-		auto numRows = sliders.size() / numColumns + 1;
-
-		setSize(getWidth(), numRows * 60);
-		resized();
+		rebuild();
 	}
 
-	void sliderValueChanged(Slider* slider) override
-	{
-		auto index = sliders.indexOf(slider);
+	void rebuild();
 
-		if (auto f = functions[index])
-		{
-			auto value = slider->getValue();
-
-			jassertfalse;
-#if 0
-			auto parent = findParentComponentOfClass<SnexPlayground>();
-
-			parent->currentParameter = getName();
-			parent->pendingParam = [f, value]()
-			{
-				f.callVoid(value);
-			};
-#endif
-		}
-	}
+	void sliderValueChanged(Slider* slider) override;
 
 	void resized() override
 	{
@@ -427,6 +389,7 @@ struct ParameterList : public WorkbenchComponent,
 		}
 	}
 
+	WeakReference<JitCompiledNode> currentNode;
 	hise::GlobalHiseLookAndFeel laf;
 	juce::OwnedArray<juce::Slider> sliders;
 };

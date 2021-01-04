@@ -282,6 +282,8 @@ public:
 		stopThread(3000);
 	}
 
+	virtual JitCompiledNode::Ptr getLastNode() = 0;
+
 	ui::WorkbenchData::CompileResult compile(const String& s) override
 	{
 		// You need to override that method...
@@ -294,6 +296,8 @@ public:
 		// You need to override that method...
 		jassertfalse;
 	}
+
+	virtual AudioSampleBuffer getTestBuffer(bool getProcessed = true) const = 0;
 
 	bool triggerCompilation() override
 	{
@@ -343,7 +347,31 @@ public:
 
 	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override;
 
+	JitCompiledNode::Ptr getLastNode() override
+	{
+		if (lastTest != nullptr)
+		{
+			return lastTest->nodeToTest;
+		}
+
+		return nullptr;
+	}
+
+	
+
+	AudioSampleBuffer getTestBuffer(bool getProcessed = true) const override
+	{
+		if (lastTest != nullptr)
+		{
+			return lastTest->getBuffer(getProcessed);
+		}
+
+		return empty;
+	}
+
 private:
+
+	AudioSampleBuffer empty;
 
 	ScopedPointer<PooledUIUpdater> updater;
 	ScopedPointer<JitFileTestCase> lastTest;
@@ -360,7 +388,7 @@ public:
 		
 	};
 
-	const AudioSampleBuffer& getTestBuffer(bool getProcessed = true) const
+	AudioSampleBuffer getTestBuffer(bool getProcessed = true) const override
 	{
 		return getProcessed ? processedTestBuffer : testBuffer;
 	}
@@ -376,7 +404,7 @@ public:
 
 		testBuffer.makeCopyOf(newBuffer);
 
-		postCompile(lastResult);
+		getParent()->triggerPostCompileActions();
 	}
 
 	ui::WorkbenchData::CompileResult compile(const String& code)
@@ -398,19 +426,19 @@ public:
 			lastNode = new JitCompiledNode(*cc, code, instanceId.toString(), numChannels);
 
 			lastResult.assembly = cc->getAssemblyCode();
-			lastResult.r = lastNode->r;
+			lastResult.compileResult = lastNode->r;
 			lastResult.obj = lastNode->getJitObject();
 
 			return lastResult;
 		}
 
-		lastResult.r = Result::fail("Didn't specify file");
+		lastResult.compileResult = Result::fail("Didn't specify file");
 		return lastResult;
 	}
 
 	void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
 	{
-		if (lastNode != nullptr && lastResult.r.wasOk())
+		if (lastNode != nullptr && lastResult.compiledOk())
 		{
 			lastNode->setExternalDataHolder(ownHolder);
 
@@ -437,7 +465,7 @@ public:
 		}
 	}
 
-	
+	JitCompiledNode::Ptr getLastNode() override { return lastNode; }
 
 private:
 
@@ -534,6 +562,8 @@ public:
 	{
 		getWorkbench()->triggerRecompile();
 	}
+
+	void setFullTokenProviders();
 
 	SnexPlayground(ui::WorkbenchData* data, bool addDebugComponents=false);
 
@@ -658,6 +688,8 @@ private:
 	void workbenchChanged(ui::WorkbenchData::Ptr, ui::WorkbenchData::Ptr) {}
 
 	void recompiled(ui::WorkbenchData::Ptr p) override;
+
+	void postPostCompile(ui::WorkbenchData::Ptr wb) override;
 
 	const bool testMode;
 

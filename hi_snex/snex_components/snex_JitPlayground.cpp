@@ -39,6 +39,18 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+void SnexPlayground::setFullTokenProviders()
+{
+	auto& ed = editor.editor;
+	ed.tokenCollection.clearTokenProviders();
+	ed.tokenCollection.addTokenProvider(new debug::KeywordProvider());
+	ed.tokenCollection.addTokenProvider(new debug::SymbolProvider(doc));
+	ed.tokenCollection.addTokenProvider(new debug::TemplateProvider());
+	ed.tokenCollection.addTokenProvider(new debug::MathFunctionProvider());
+	ed.tokenCollection.addTokenProvider(new debug::PreprocessorMacroProvider(doc));
+	ed.tokenCollection.signalRebuild();
+}
+
 SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	ui::WorkbenchComponent(data, true),
 	bpProvider(getGlobalScope()),
@@ -58,19 +70,8 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 	conditionUpdater(*this),
 	testMode(isTestMode)
 {
-	if (isTestMode)
-	{
-		testProvider = new TestCodeProvider(*this, {});
-		data->setCodeProvider(testProvider);
-	
-		for (auto o : OptimizationIds::getAllIds())
-			getGlobalScope().addOptimization(o);
-	}
-	else
-	{
-		doc.replaceAllContent(getWorkbench()->getCode());
-		doc.clearUndoHistory();
-	}
+	doc.replaceAllContent(getWorkbench()->getCode());
+	doc.clearUndoHistory();
 	
 	editor.addBreakpointListener(this);
 
@@ -192,13 +193,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	setName("SNEX Editor");
 
-	ed.tokenCollection.clearTokenProviders();
-	ed.tokenCollection.addTokenProvider(new debug::KeywordProvider());
-	ed.tokenCollection.addTokenProvider(new debug::SymbolProvider(doc));
-	ed.tokenCollection.addTokenProvider(new debug::TemplateProvider());
-	ed.tokenCollection.addTokenProvider(new debug::MathFunctionProvider());
-	ed.tokenCollection.addTokenProvider(new debug::PreprocessorMacroProvider(doc));
-	ed.tokenCollection.signalRebuild();
+	
 
 	auto& d = doc;
 	ed.setGotoFunction([&d](int lineNumber, const String& token)
@@ -352,9 +347,7 @@ SnexPlayground::SnexPlayground(ui::WorkbenchData* data, bool isTestMode) :
 
 	getWorkbench()->addListener(this);
 
-	if(testMode)
-		getWorkbench()->triggerRecompile();
-
+	
 	MessageManager::callAsync(f);
 }
 
@@ -885,7 +878,7 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 
 	assemblyDoc.replaceAllContent(getWorkbench()->getLastAssembly());
 
-	if (r.wasOk())
+	if (r.compiledOk())
 	{
 		editor.editor.setError({});
 		resized();
@@ -893,8 +886,18 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 	}
 	else
 	{
-		editor.editor.setError(r.getErrorMessage());
-		resultLabel.setText(r.getErrorMessage(), dontSendNotification);
+		editor.editor.setError(r.compileResult.getErrorMessage());
+		resultLabel.setText(r.compileResult.getErrorMessage(), dontSendNotification);
+	}
+}
+
+void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
+{
+	auto result = wb->getLastResult();
+
+	if (!result.testWasOk())
+	{
+		resultLabel.setText(result.testResult.getErrorMessage(), dontSendNotification);
 	}
 }
 
@@ -1176,7 +1179,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 		ui::WorkbenchData::CompileResult r;
 
-		r.r = lastTest->compileWithoutTesting();
+		r.compileResult = lastTest->compileWithoutTesting();
 		r.assembly = lastTest->assembly;
 		r.obj = lastTest->obj;
 		return r;
@@ -1184,16 +1187,15 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 	void TestCompileThread::postCompile(ui::WorkbenchData::CompileResult& lastResult)
 	{
-		if (lastTest != nullptr && lastResult.r.wasOk())
+		if (lastTest != nullptr && lastResult.compiledOk())
 		{
 			if (lastTest->nodeToTest != nullptr)
 			{
 				lastTest->nodeToTest->setExternalDataHolder(ownHolder);
 			}
 
-			lastResult.r = lastTest->testAfterCompilation();
+			lastResult.testResult = lastTest->testAfterCompilation();
 		}
-			
 	}
 }
 }
