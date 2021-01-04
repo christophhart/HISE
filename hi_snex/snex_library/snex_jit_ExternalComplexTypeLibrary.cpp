@@ -1030,6 +1030,28 @@ void InbuiltTypeLibraryBuilder::registerRangeFunctions()
 	FunctionClass::Ptr bf = c.getInbuiltFunctionClass();
 
 	{
+		{
+			auto st = new StructType(NamespacedIdentifier::fromString("ranges::Identity"));
+
+			
+
+			FunctionData to0To1;
+			to0To1.id = st->id.getChildId("to0To1");
+			to0To1.returnType = TypeInfo(Types::ID::Double, false, false, true);
+			to0To1.addArgs("input", Types::ID::Double);
+
+			st->addJitCompiledMemberFunction(to0To1);
+
+			st->injectInliner("to0To1", Inliner::HighLevel, [](InlineData* b)
+			{
+				cppgen::Base c;
+				c << "return value;";
+				return SyntaxTreeInlineParser(b, { "value" }, c).flush();
+			});
+
+			c.registerExternalComplexType(st);
+		}
+
 		// static constexpr T from0To1(T min, T max, T value) { return hmath::map(value, min, max); }
 		addRangeFunction(bf, "from0To1", { "min", "max", "value" }, 
 							 "{ return Math.map(value, min, max); }");
@@ -1038,17 +1060,30 @@ void InbuiltTypeLibraryBuilder::registerRangeFunctions()
 		addRangeFunction(bf, "to0To1", { "min", "max", "value" },
 							 "{ return (value - min) / (max - min); }");
 
+		NormalisableRange<double>;
+
+		// static constexpr T from0To1Skew(T min, T max, T skew, T value) { return from0To1(min, max, hmath::pow(value, skew)); }
+		addRangeFunction(bf, "from0To1Skew", { "min", "max", "skew", "value" },
+							 "{ return min + (max - min) * Math.exp(Math.log(value) / skew); }");
+
+		// static constexpr T to0To1Skew(T min, T max, T skew, T value) { return hmath::pow(to0To1(min, max, value), skew); }
+		addRangeFunction(bf, "to0To1Skew", { "min", "max", "skew", "value" },
+							 "{ return Math.pow(to0To1(min, max, value), skew); }");
+
+		// static constexpr T to0To1Step(T min, T max, T step, T value) { return to0To1(min, max, value - hmath::fmod(value, step)); }
+		addRangeFunction(bf, "to0To1Step", { "min", "max", "step", "value" },
+							 "{ return to0To1(min, max, value - Math.fmod(value, step)); }");
+
+		// static constexpr T from0To1Step(T min, T max, T step, T value) { auto v = from0To1(min, max, value); return v - hmath::fmod(v, step); }
+		addRangeFunction(bf, "from0To1Step", { "min", "max", "step", "value" },
+			"{ return from0To1(min, max, value) - Math.fmod(from0To1(min, max, value), step); }");
+
 #if 0
-		static constexpr T from0To1Skew(T min, T max, T skew, T value) { auto v = hmath::pow(value, skew); return from0To1(min, max, value); }
-		static constexpr T to0To1Skew(T min, T max, T skew, T value) { return hmath::pow(to0To1(min, max, value), skew); }
-		static constexpr T to0To1Step(T min, T max, T step, T value) { return to0To1(min, max, value - hmath::fmod(value, step)); }
+		
+		
 		static constexpr T to0To1StepSkew(T min, T max, T step, T skew, T value) { return to0To1(min, max, skew, value - hmath::fmod(value, step)); }
 
-		static constexpr T from0To1Step(T min, T max, T step, T value)
-		{
-			auto v = from0To1(min, max, value);
-			return v - hmath::fmod(v, step);
-		}
+		
 		static constexpr T from0To1StepSkew(T min, T max, T step, T skew, T value)
 		{
 			auto v = from0To1(min, max, skew, value);

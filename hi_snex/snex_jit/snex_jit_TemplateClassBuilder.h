@@ -107,7 +107,7 @@ struct TemplateClassBuilder
 
 		static StructType* getStructTypeFromInlineData(InlineData* b);
 
-
+		static int getTemplateConstant(StructType* st, int index, Result& r);
 
 		/** Just returns a identifier for the (variadic) member called eg. "_p12". */
 		/** Creates a function call to the member function of the given type. */

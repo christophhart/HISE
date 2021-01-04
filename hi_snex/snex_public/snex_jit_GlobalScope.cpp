@@ -323,6 +323,36 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	}
 
 	{
+		// #define SNEX_METADATA_ID(dsp1_t);
+		ExternalPreprocessorDefinition declareId;
+		declareId.name = "SNEX_METADATA_ID(className)";
+		declareId.value = "__internal_property(\"NodeId\", className);";
+		declareId.t = ExternalPreprocessorDefinition::Type::Macro;
+
+		defaultMacros.add(declareId);
+	}
+
+	{
+		// #define SNEX_METADATA_NUM_CHANNELS(numChannels);
+		ExternalPreprocessorDefinition nc;
+		nc.name = "SNEX_METADATA_NUM_CHANNELS(numChannels)";
+		nc.value = "static const int NumChannels = numChannels;";
+		nc.t = ExternalPreprocessorDefinition::Type::Macro;
+
+		defaultMacros.add(nc);
+	}
+	
+	
+	{
+		// #define SNEX_METADATA_ENCODED_PARAMETERS(NumElements) static const span<unsigned int, NumElements> encodedParameters =
+		ExternalPreprocessorDefinition pd;
+		pd.name = "SNEX_METADATA_ENCODED_PARAMETERS(NumElements)";
+		pd.value = "const span<int, NumElements> encodedParameters ="; 
+		pd.t = ExternalPreprocessorDefinition::Type::Macro;
+		defaultMacros.add(pd);
+	}
+	
+	{
 		// #define MIN_MAX(minValue, maxValue) static const double min = minValue; static const double max = maxValue;
 		ExternalPreprocessorDefinition mm;
 		mm.t = ExternalPreprocessorDefinition::Type::Macro;
@@ -342,6 +372,18 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 
 		defaultMacros.add(rf);
 	}
+
+	{
+		// #define RANGE_FUNCTION_3(id) static double id(double input) { return ranges::id(min, max, skew, input); }
+
+		ExternalPreprocessorDefinition rfs;
+		rfs.t = ExternalPreprocessorDefinition::Type::Macro;
+		rfs.name = "RANGE_FUNCTION_3(id, functionId, thirdParameter)";
+		rfs.value = "static double id(double input) { return ranges::functionId(min, max, thirdParameter, input); }";
+
+		defaultMacros.add(rfs);
+	}
+
 	{
 		// #define DECLARE_PARAMETER_RANGE(name, minValue, maxValue) 
 		// struct name { MIN_MAX(minValue, maxValue) RANGE_FUNCTION(to0To1); RANGE_FUNCTION(from0To1) };
@@ -351,6 +393,30 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 		dpr.value = "struct name { MIN_MAX(minValue, maxValue) RANGE_FUNCTION(to0To1); RANGE_FUNCTION(from0To1) };";
 		
 		defaultMacros.add(dpr);
+	}
+
+	{
+		//#define DECLARE_PARAMETER_RANGE_SKEW(name, min, max, skew) struct name {\
+		static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1Skew(min, max, skew, input); }\
+		static constexpr double from0To1(double input){ return RANGE_BASE::from0To1Skew(min, max, skew, input);} \
+	
+		ExternalPreprocessorDefinition dprs;
+		dprs.t = ExternalPreprocessorDefinition::Type::Macro;
+		dprs.name = "DECLARE_PARAMETER_RANGE_SKEW(name, minValue, maxValue, skewValue)";
+		dprs.value = "struct name { MIN_MAX(minValue, maxValue) static const double skew = skewValue; RANGE_FUNCTION_3(to0To1, to0To1Skew, skew); RANGE_FUNCTION_3(from0To1, from0To1Skew, skew) };";
+
+		defaultMacros.add(dprs);
+	}
+
+	{
+		// #define DECLARE_PARAMETER_RANGE_STEP(name, min, max, step) struct name
+
+		ExternalPreprocessorDefinition dprs;
+		dprs.t = ExternalPreprocessorDefinition::Type::Macro;
+		dprs.name = "DECLARE_PARAMETER_RANGE_STEP(name, minValue, maxValue, stepValue)";
+		dprs.value = "struct name { MIN_MAX(minValue, maxValue) static const double step = stepValue; RANGE_FUNCTION_3(to0To1, to0To1Step, step); RANGE_FUNCTION_3(from0To1, from0To1Step, step) };";
+
+		defaultMacros.add(dprs);
 	}
 
 	return defaultMacros;

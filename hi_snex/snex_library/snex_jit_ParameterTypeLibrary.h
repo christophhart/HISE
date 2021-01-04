@@ -49,7 +49,7 @@ struct ParameterBuilder : public TemplateClassBuilder
 		/** This method is the default for any single parameter connection. It creates a member pointer to the given target. */
 		static void initSingleParameterStruct(const TemplateObject::ConstructData& cd, StructType* st);
 
-		static Operations::Statement::Ptr createSetParameterCall(ComplexType::Ptr targetType, SyntaxTreeInlineData* d, Operations::Statement::Ptr input);
+		static Operations::Statement::Ptr createSetParameterCall(ComplexType::Ptr targetType, int parameterIndex, SyntaxTreeInlineData* d, Operations::Statement::Ptr input);
 
 		/** This function builder creates the connect function that sets the member pointer to the given target. */
 		static FunctionData connectFunction(StructType* st);

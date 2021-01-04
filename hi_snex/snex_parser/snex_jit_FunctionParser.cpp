@@ -360,8 +360,6 @@ SyntaxTreeInlineParser::SyntaxTreeInlineParser(InlineData* b_, const StringArray
 	originalArgs(originalParameters),
 	originalLocation(b_->toSyntaxTreeData()->location)
 {
-	DBG(code);
-
 	location.location = code.getCharPointer();
 	location.program = code.getCharPointer();
 	p = code.getCharPointer();

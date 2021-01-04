@@ -93,18 +93,23 @@ void ParameterBuilder::Helpers::initSingleParameterStruct(const TemplateObject::
 	
 }
 
-snex::jit::Operations::Statement::Ptr ParameterBuilder::Helpers::createSetParameterCall(ComplexType::Ptr targetType, SyntaxTreeInlineData* d, Operations::Statement::Ptr input)
+snex::jit::Operations::Statement::Ptr ParameterBuilder::Helpers::createSetParameterCall(ComplexType::Ptr targetType, int parameterIndex, SyntaxTreeInlineData* d, Operations::Statement::Ptr input)
 {
 	StatementList exprArgs;
 	exprArgs.add(input);
 
 	if (auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(targetType, d, "setParameter", exprArgs))
 	{
-		// We have to manually dereference the member pointer here...
-		auto obj = new Operations::MemoryReference(d->location, d->object, TypeInfo(targetType, false, true), 0);
-		auto ptr = new Operations::PointerAccess(d->location, obj);
+		using namespace Operations;
 
-		dynamic_cast<Operations::FunctionCall*>(newCall.get())->setObjectExpression(ptr);
+		// We have to manually dereference the member pointer here...
+		auto obj = new MemoryReference(d->location, d->object, TypeInfo(targetType, false, true), 0);
+		auto ptr = new PointerAccess(d->location, obj);
+
+		auto asFunction = as<FunctionCall>(newCall);
+
+		asFunction->function.templateParameters.getReference(0).constant = parameterIndex;
+		asFunction->setObjectExpression(ptr);
 
 		return newCall;
 	}
@@ -199,11 +204,15 @@ Result ParameterLibraryBuilder::registerTypes()
 
 					auto targetType = TCH::getSubTypeFromTemplate(st, 0);
 
+					auto r = Result::ok();
+					auto parameterType = TCH::getTemplateConstant(st, 1, r);
+					d->location.test(r);
+
 					WrapBuilder::InnerData id(targetType.get(), WrapBuilder::OpaqueType::GetSelfAsObject);
 
 					if (id.resolve())
 					{
-						d->target = PH::createSetParameterCall(id.st, d, input);
+						d->target = PH::createSetParameterCall(id.st, parameterType, d, input);
 					}
 
 					return id.getResult();
@@ -223,9 +232,13 @@ Result ParameterLibraryBuilder::registerTypes()
 					auto exprType = TCH::getSubTypeFromTemplate(st, 2);
 					auto exprCall = TCH::createFunctionCall(exprType, d, "op", d->args);
 					auto targetType = TCH::getSubTypeFromTemplate(st, 0);
-					d->target = PH::createSetParameterCall(targetType, d, exprCall);
 
-					return Result::ok();
+					auto r = Result::ok();
+					auto parameterIndex = TCH::getTemplateConstant(st, 1, r);
+
+					d->target = PH::createSetParameterCall(targetType, parameterIndex, d, exprCall);
+
+					return r;
 				});
 		});
 	expr.flush();
@@ -241,10 +254,18 @@ Result ParameterLibraryBuilder::registerTypes()
 					auto d = b->toSyntaxTreeData();
 					auto rangeType = TCH::getSubTypeFromTemplate(st, 2);
 					auto rangeCall = TCH::createFunctionCall(rangeType, d, "from0To1", d->args);
-					auto targetType = TCH::getSubTypeFromTemplate(st, 0);
-					d->target = PH::createSetParameterCall(targetType, d, rangeCall);
 
-					return Result::ok();
+					if (rangeCall == nullptr)
+						return Result::fail("from0To1 not found");
+
+					auto targetType = TCH::getSubTypeFromTemplate(st, 0);
+
+					auto r = Result::ok();
+
+					auto parameterIndex = TCH::getTemplateConstant(st, 1, r);
+					d->target = PH::createSetParameterCall(targetType, parameterIndex, d, rangeCall);
+
+					return r;
 				});
 		});
 	from0To1.flush();
@@ -262,7 +283,11 @@ Result ParameterLibraryBuilder::registerTypes()
 					auto rangeType = TCH::getSubTypeFromTemplate(st, 2);
 					auto rangeCall = TCH::createFunctionCall(rangeType, d, "to0To1", d->args);
 					auto targetType = TCH::getSubTypeFromTemplate(st, 0);
-					d->target = PH::createSetParameterCall(targetType, d, rangeCall);
+
+					auto r = Result::ok();
+					auto parameterIndex = TCH::getTemplateConstant(st, 1, r);
+					d->location.test(r);
+					d->target = PH::createSetParameterCall(targetType, parameterIndex, d, rangeCall);
 
 					return Result::ok();
 				});

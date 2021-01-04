@@ -274,6 +274,32 @@ juce::Result MathNodeLibrary::registerTypes()
 
 juce::Result CoreNodeLibrary::registerTypes()
 {
+	LibraryNode<core::empty> e(c, numChannels, getFactoryId());
+
+	e.injectInliner(ScriptnodeCallbacks::ProcessFrameFunction, Inliner::HighLevel, [](InlineData* b)
+	{
+		cppgen::Base c;
+		return SyntaxTreeInlineParser(b, { "data" }, c).flush();
+	});
+
+	e.injectInliner(ScriptnodeCallbacks::ProcessFunction, Inliner::HighLevel, [](InlineData* b)
+	{
+		cppgen::Base c;
+		return SyntaxTreeInlineParser(b, { "data" }, c).flush();
+	});
+
+	e.injectInliner(ScriptnodeCallbacks::ResetFunction, Inliner::HighLevel, [](InlineData* b)
+	{
+		cppgen::Base c;
+		return SyntaxTreeInlineParser(b, { }, c).flush();
+	});
+
+	e.injectInliner(ScriptnodeCallbacks::HandleEventFunction, Inliner::HighLevel, [](InlineData* b)
+	{
+		cppgen::Base c;
+		return SyntaxTreeInlineParser(b, { "e" }, c).flush();
+	});
+
 	LibraryNode<core::oscillator>(c, numChannels, getFactoryId());
 	LibraryNode<core::fix_delay>(c, numChannels, getFactoryId());
 	LibraryNode<core::ramp>(c, numChannels, getFactoryId());

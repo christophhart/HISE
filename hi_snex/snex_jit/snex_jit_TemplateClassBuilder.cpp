@@ -184,6 +184,16 @@ snex::jit::StructType* TemplateClassBuilder::Helpers::getStructTypeFromInlineDat
 	}
 }
 
+int TemplateClassBuilder::Helpers::getTemplateConstant(StructType* st, int index, Result& r)
+{
+	auto tp = st->getTemplateInstanceParameters()[index];
+
+	if (tp.constantDefined)
+		return tp.constant;
+
+	r = Result::fail("Expected template constant at index " + String(index));
+}
+
 snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createFunctionCall(ComplexType::Ptr converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs)
 {
 	if (functionId.isNull())
