@@ -132,7 +132,10 @@ snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr
 	jassert(compiler != nullptr);
 	jassert(scope != nullptr);
 
-	SyntaxTree bl(expr->location, compiler->namespaceHandler.createNonExistentIdForLocation({}, expr->location.getLine()));
+	Random r;
+	
+
+	SyntaxTree bl(expr->location, compiler->namespaceHandler.createNonExistentIdForLocation({}, r.nextInt()));
 	bl.addStatement(expr.get());
 
 	BaseCompiler::ScopedPassSwitcher sp1(compiler, BaseCompiler::DataAllocation);

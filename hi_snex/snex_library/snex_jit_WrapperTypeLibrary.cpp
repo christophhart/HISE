@@ -884,15 +884,13 @@ Result WrapLibraryBuilder::registerTypes()
 			{
 				WrapBuilder::Helpers::checkPropertyExists(mc, WrapIds::NodeId, *d.r);
 				WrapBuilder::Helpers::checkPropertyExists(mc, WrapIds::NumChannels, *d.r);
-				WrapBuilder::Helpers::checkPropertyExists(mc, WrapIds::NumParameters, *d.r);
 
+				
 				auto id = mc->getInternalProperty(WrapIds::NodeId, "").toString();
 				auto numChannels = mc->getInternalProperty(WrapIds::NumChannels, 0).toString();
-				auto numParameters = mc->getInternalProperty(WrapIds::NumParameters, 0).toString();
 				
 				st->setInternalProperty(WrapIds::NodeId, id);
 				st->setInternalProperty(WrapIds::NumChannels, numChannels);
-				st->setInternalProperty(WrapIds::NumParameters, numParameters);
 			}
 		}
 	});

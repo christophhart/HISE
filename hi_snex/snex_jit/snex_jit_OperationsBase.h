@@ -301,12 +301,14 @@ namespace Operations
 		{
 			jassert(scope != nullptr);
 
-			if (parent == nullptr)
-				return;
-
 			currentCompiler = compiler;
 			currentScope = scope;
 			currentPass = compiler->getCurrentPass();
+
+			if (parent == nullptr)
+				return;
+
+			
 
 			if (BaseCompiler::isOptimizationPass(currentPass))
 			{

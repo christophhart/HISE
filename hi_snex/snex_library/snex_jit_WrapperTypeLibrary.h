@@ -51,7 +51,6 @@ DECLARE_ID(ObjectIndex);
 DECLARE_ID(IsNode);
 DECLARE_ID(NumChannels);
 DECLARE_ID(NodeId);
-DECLARE_ID(NumParameters);
 #undef DECLARE_ID
 }
 

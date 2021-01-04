@@ -49,7 +49,7 @@ public:
 	struct CommentAttacher
 	{
 		CommentAttacher(TokenIterator& t):
-			lineNumber(t.location.getLine())
+			lineNumber(0)
 		{
 			t.skipWhitespaceAndComments();
 			comment = t.lastComment;
