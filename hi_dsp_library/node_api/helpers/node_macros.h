@@ -142,6 +142,7 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #define SNEX_METADATA_PARAMETERS(number, ...) static StringArray getParameterIds() { return StringArray({__VA_ARGS__}); }
 #define SNEX_METADATA_ID(x) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(x); }
 #define SNEX_METADATA_NUM_CHANNELS(x) static constexpr int NumChannels = x;
+#define SNEX_METADATA_ENCODED_PARAMETERS(NumElements) const span<unsigned int, NumElements> encodedParameters =
 
 /** Snex JIT Preprocessors */
 
@@ -160,6 +161,8 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #else // defined(_MSC_VER) && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
 #define EMPTY_BASES
 #endif // defined(_MSC_VER) && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
+
+
 
 
 }

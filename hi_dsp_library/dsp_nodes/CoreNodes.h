@@ -69,7 +69,8 @@ public:
 
 	HISE_EMPTY_PREPARE;
 	HISE_EMPTY_CREATE_PARAM;
-	HISE_EMPTY_HANDLE_EVENT
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_INITIALISE;
 
 	bool isPolyphonic() const { return false; }
 
@@ -87,7 +88,7 @@ public:
 		for (auto& ch : data)
 		{
 			auto range = FloatVectorOperations::findMinAndMax(data.toChannelData(ch).begin(), data.getNumSamples());
-			max = Math.max(Math.abs(range.getStart()), Math.abs(range.getEnd()));
+			max = jmax<float>(max, Math.abs(range.getStart()), Math.abs(range.getEnd()));
 		}
 	}
 
@@ -145,6 +146,7 @@ public:
 	HISE_EMPTY_PROCESS_SINGLE;
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_MOD;
+	HISE_EMPTY_HANDLE_EVENT;
 };
 
 

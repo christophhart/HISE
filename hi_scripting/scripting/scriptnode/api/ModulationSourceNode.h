@@ -169,9 +169,9 @@ protected:
 
 struct ModulationSourcePlotter : ModulationSourceBaseComponent
 {
-	using ObjectType = HiseDspBase;
+	using ObjectType = void;
 
-	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	static Component* createExtraComponent(void* , PooledUIUpdater* updater)
 	{
 		return new ModulationSourcePlotter(updater);
 	}
@@ -189,6 +189,11 @@ struct ModulationSourcePlotter : ModulationSourceBaseComponent
 
 	RectangleList<float> rectangles;
 	AudioSampleBuffer buffer;
+};
+
+template <typename T> struct TypedModulationSourcePlotter: public ModulationSourcePlotter
+{
+	using ObjectType = T;
 };
 
 }

@@ -340,7 +340,7 @@ struct new_jit: public SnexSource,
 
 			for (int i = 0; i < l.size(); i++)
 			{
-				parameter::data p(l[i].name);
+				parameter::data p(l[i].data.id);
 				p.range = { 0.0, 1.0 };
 				p.dbNew.referTo(compiledNode->thisPtr, (parameter::dynamic::Function)l[i].function);
 
@@ -354,6 +354,8 @@ struct new_jit: public SnexSource,
 	Result lastResult;
 	NodePropertyT<String> classId;
 };
+
+
 
 #if OLD_JIT_STUFF
 

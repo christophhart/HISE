@@ -176,7 +176,7 @@ public:
 };
 
 
-template <class HiseDspBaseType, class ComponentType = ModulationSourcePlotter> class HiseDspNodeBaseWithModulation : public ModulationSourceNode
+template <class HiseDspBaseType, class ComponentType=ModulationSourcePlotter> class HiseDspNodeBaseWithModulation : public ModulationSourceNode
 {
 	using WrapperType = wrap::mod<parameter::dynamic_base_holder, HiseDspBaseType>;
 
@@ -201,11 +201,9 @@ public:
 
 	Component* createExtraComponent()
 	{
-		auto obj = static_cast<ComponentType::ObjectType*>(&wrapper.getWrappedObject());
+		auto obj = &wrapper.getWrappedObject();
 		auto updater = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
-
 		auto c = ComponentType::createExtraComponent(obj, updater);
-
 		c->getProperties().set("circleOffsetX", -10.0f);
 
 		return c;
@@ -885,7 +883,6 @@ public:
 #define SCRIPTNODE_FACTORY(x, id) static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new x(n, d); }; \
 static Identifier getStaticId() { return Identifier(id); };
     
-
 template <typename ObjectType> struct FilterTestNode : public snex::Types::SnexNodeBase
 {
 	FilterTestNode(const snex::Types::SnexTypeConstructData& cd_) :
@@ -907,7 +904,7 @@ template <typename ObjectType> struct FilterTestNode : public snex::Types::SnexN
 		{
 			OpaqueSnexParameter osp;
 			osp.function = p.dbNew.getFunction();
-			osp.name = p.id;
+			osp.data.id = p.id;
 
 			l.add(osp);
 		}
@@ -1087,6 +1084,8 @@ namespace init
 			newItem.id = WrappedT::getStaticId;
 			newItem.pb = cb;
 
+			
+			
 			addCustomSnexCreator<T>(newItem);
 
 			monoNodes.add(newItem);
@@ -1123,6 +1122,7 @@ namespace init
 
 			registerPolyNode<MonoT, PolyT, ComponentType>(cb);
 
+			
 			addCustomSnexCreator<MonoT>(monoNodes.getReference(monoNodes.size() - 1));
 			addCustomSnexCreator<PolyT>(polyNodes.getReference(polyNodes.size() - 1));
 		};
