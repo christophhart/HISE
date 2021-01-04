@@ -72,89 +72,89 @@ void WrapBuilder::init(Compiler& c, int numChannels)
 	auto compiler = &c;
 
 	setInitialiseStructFunction([compiler, numChannels, objIndex, opaqueType_](const TemplateObject::ConstructData& cd, StructType* st)
+	{
+		auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, objIndex);
+		st->addMember("obj", TypeInfo(pType, false, false));
+
+		st->setInternalProperty(WrapIds::ObjectIndex, 0);
+		st->setInternalProperty(WrapIds::IsObjectWrapper, true);
+		st->setInternalProperty(WrapIds::IsNode, true);
+
+		if (opaqueType_ == GetSelfAsObject)
+			st->setInternalProperty(WrapIds::GetSelfAsObject, true);
+
+		for (int i = 1; i < numChannels + 1; i++)
 		{
-			auto pType = TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, objIndex);
-			st->addMember("obj", TypeInfo(pType, false, false));
+			auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(*compiler, i);
 
-			st->setInternalProperty(WrapIds::ObjectIndex, 0);
-			st->setInternalProperty(WrapIds::IsObjectWrapper, true);
-			st->setInternalProperty(WrapIds::IsNode, true);
+			for (auto p : prototypes)
+				st->addWrappedMemberMethod("obj", p);
+		}
 
-			if (opaqueType_ == GetSelfAsObject)
-				st->setInternalProperty(WrapIds::GetSelfAsObject, true);
+		if (opaqueType_ == GetSelfAsObject)
+		{
+			auto sp = st->getTemplateInstanceId();
+			sp.id = sp.id.getChildId("setParameter");
 
-			for (int i = 1; i < numChannels + 1; i++)
+			TemplateObject spo(sp);
+
+			// We need an empty template function instantiation so that
+			// the parameter::call function can find it...
+			spo.makeFunction = [compiler, st](const TemplateObject::ConstructData& cd)
 			{
-				auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(*compiler, i);
+				FunctionData fd;
 
-				for (auto p : prototypes)
-					st->addWrappedMemberMethod("obj", p);
-			}
+				fd.id = cd.id.id;
+				fd.templateParameters = cd.tp;
+				fd.returnType = TypeInfo(Types::ID::Void);
+				fd.addArgs("value", TypeInfo(Types::ID::Double));
 
-			if (opaqueType_ == GetSelfAsObject)
-			{
-				auto sp = st->getTemplateInstanceId();
-				sp.id = sp.id.getChildId("setParameter");
+				InnerData id(st, OpaqueType::GetObj);
 
-				TemplateObject spo(sp);
-
-				// We need an empty template function instantiation so that
-				// the parameter::call function can find it...
-				spo.makeFunction = [compiler, st](const TemplateObject::ConstructData& cd)
+				if (id.resolve())
 				{
-					FunctionData fd;
+					TemplateInstance fId(id.st->id.getChildId("setParameter"), id.st->getTemplateInstanceParameters());
 
-					fd.id = cd.id.id;
-					fd.templateParameters = cd.tp;
-					fd.returnType = TypeInfo(Types::ID::Void);
-					fd.addArgs("value", TypeInfo(Types::ID::Double));
+					auto r = Result::ok();
 
-					InnerData id(st, OpaqueType::GetObj);
+					compiler->getNamespaceHandler().createTemplateFunction(fId, cd.tp, r);
 
-					if (id.resolve())
-					{
-						TemplateInstance fId(id.st->id.getChildId("setParameter"), id.st->getTemplateInstanceParameters());
+					fd.inliner = Inliner::createHighLevelInliner({}, [id](InlineData* b)
+						{
+							auto d = b->toSyntaxTreeData();
 
-						auto r = Result::ok();
+							auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(id.st, d, "setParameter", d->args);
 
-						compiler->getNamespaceHandler().createTemplateFunction(fId, cd.tp, r);
-
-						fd.inliner = Inliner::createHighLevelInliner({}, [id](InlineData* b)
+							if (auto f = dynamic_cast<Operations::FunctionCall*>(newCall.get()))
 							{
-								auto d = b->toSyntaxTreeData();
+								auto obj = new Operations::MemoryReference(d->location, d->object->clone(d->location), id.getRefType(), id.offset);
+								f->setObjectExpression(obj);
 
-								auto newCall = TemplateClassBuilder::Helpers::createFunctionCall(id.st, d, "setParameter", d->args);
-
-								if (auto f = dynamic_cast<Operations::FunctionCall*>(newCall.get()))
-								{
-									auto obj = new Operations::MemoryReference(d->location, d->object->clone(d->location), id.getRefType(), id.offset);
-									f->setObjectExpression(obj);
-
-									d->target = newCall;
-								}
+								d->target = newCall;
+							}
 								
-								return Result::ok();
-							});
+							return Result::ok();
+						});
 
-						st->addJitCompiledMemberFunction(fd);
-					}
+					st->addJitCompiledMemberFunction(fd);
+				}
 
 					
-				};
+			};
 
-				spo.argList.add(TemplateParameter(sp.id.getChildId("P"), 0, false));
+			spo.argList.add(TemplateParameter(sp.id.getChildId("P"), 0, false));
 
-				spo.functionArgs = []()
-				{
-					TypeInfo::List args;
-					args.add(TypeInfo(Types::ID::Double));
-					return args;
-				};
+			spo.functionArgs = []()
+			{
+				TypeInfo::List args;
+				args.add(TypeInfo(Types::ID::Double));
+				return args;
+			};
 
-				compiler->getNamespaceHandler().addTemplateFunction(spo);
-			}
+			compiler->getNamespaceHandler().addTemplateFunction(spo);
+		}
 
-		});
+	});
 
 	addFunction(createGetObjectFunction);
 	addFunction(createGetWrappedObjectFunction);
@@ -312,14 +312,15 @@ snex::jit::FunctionData WrapBuilder::createGetSelfAsObjectFunction(StructType* s
 	return getObjectFunction;
 }
 
-void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inliner::InlineType t, const Inliner::Func& inliner)
+void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, CallbackList requiredFunctions, Inliner::InlineType t, const Inliner::Func& inliner)
 {
 	auto fToReplace = Types::ScriptnodeCallbacks::getPrototype(c, cb, numChannels);
 
-	InitialiseStructFunction replacer = [fToReplace, t, inliner](const TemplateObject::ConstructData& cd, StructType* st)
-	{
-		//FunctionClass::Ptr fc = st->getMemberTypeInfo("obj").getComplexType()->getFunctionClass();
+	auto compiler = &c;
+	auto thisNumChannels = numChannels;
 
+	InitialiseStructFunction replacer = [fToReplace, requiredFunctions, t, inliner, compiler, thisNumChannels](const TemplateObject::ConstructData& cd, StructType* st)
+	{
 		FunctionClass::Ptr fc = st->getFunctionClass();
 
 		Array<FunctionData> matches;
@@ -333,6 +334,41 @@ void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inlin
 
 			copy.function = m.function;
 			copy.inliner = Inliner::createFromType(fToReplace.id, t, inliner);
+
+			if (!requiredFunctions.isEmpty())
+			{
+				copy.inliner->precodeGenFunc = [requiredFunctions, st](InlineData* b)
+				{
+					auto pd = dynamic_cast<PreCodeGenInlineData*>(b);
+
+					Inliner::List requiredInliners;
+					InnerData id(st, GetObj);
+
+					if (id.resolve())
+					{
+						FunctionClass::Ptr fc = id.st->getFunctionClass();
+
+						for (auto rcb : requiredFunctions)
+						{
+							auto fId = ScriptnodeCallbacks::getIds(fc->getClassName())[rcb];
+
+							auto fToUse = fc->getNonOverloadedFunction(fId);
+
+							if (fToUse.function == nullptr && fToUse.inliner != nullptr)
+							{
+								PreCodeGenInlineData::Item newItem;
+								newItem.functionToCompile = fToUse;
+								newItem.objType = id.st;
+								newItem.offsetFromRoot = id.offset;
+
+								pd->functionsToCompile.add(newItem);
+							}
+						}
+					}
+
+					return Result::ok();
+				};
+			}
 
 			auto ok = st->injectInliner(copy);
 
@@ -481,6 +517,8 @@ WrapBuilder::ExternalFunctionMapData::ExternalFunctionMapData(Compiler& c_, AsmI
 	target(d->target),
 	object(d->object)
 {
+	
+
 	tp = objectType.getTypedComplexType<StructType>()->getTemplateInstanceParameters();
 	argumentRegisters.addArray(d->args);
 
@@ -573,7 +611,21 @@ void* WrapBuilder::ExternalFunctionMapData::getWrappedFunctionPtr(Types::Scriptn
 		for (auto a : prototypes[cb].args)
 			args.add(a.typeInfo);
 
-		return getCallback(t, cb, args).function;
+		auto f = getCallback(t, cb, args);
+		
+		if (!f.function && f.inliner != nullptr)
+		{
+			jassert(f.inliner->inlineType == Inliner::Assembly);
+
+			// This is the case if the wrapper tries to find a valid function pointer that is passed
+			// to the external callback, but if fails to do so, because the function is not compiled
+			// yet. In order to solve this, 
+
+			jassertfalse;
+			return nullptr;
+		}
+		
+		return f.function;
 	}
 
 	return nullptr;
@@ -583,8 +635,6 @@ void WrapBuilder::ExternalFunctionMapData::setExternalFunctionPtrToCall(void* ma
 {
 	mainFunction = mainFunctionPointer;
 }
-
-
 
 snex::jit::FunctionData WrapBuilder::ExternalFunctionMapData::getCallback(TypeInfo t, Types::ScriptnodeCallbacks::ID cb, const Array<TypeInfo>& args)
 {
@@ -616,35 +666,37 @@ snex::jit::AssemblyRegister::Ptr WrapBuilder::ExternalFunctionMapData::createPoi
 }
 
 
-void WrapBuilder::mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<Result(ExternalFunctionMapData&)>& templateMapFunction)
+void WrapBuilder::mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, CallbackList requiredFunctions, const std::function<Result(ExternalFunctionMapData&)>& templateMapFunction)
 {
 	auto nc = numChannels;
 	auto& jc = c;
 
-	setInlinerForCallback(cb, Inliner::InlineType::Assembly, [cb, nc, &jc, templateMapFunction](InlineData* b)
+	requiredFunctions.addIfNotAlreadyThere(cb);
+
+	setInlinerForCallback(cb, requiredFunctions, Inliner::InlineType::Assembly, [cb, requiredFunctions, nc, &jc, templateMapFunction](InlineData* b)
+	{
+		using namespace Operations;
+
+		auto d = b->toAsmInlineData();
+
+		ExternalFunctionMapData mapData(jc, d);
+
+		auto f = mapData.getCallbackFromObject(cb);
+
+		auto r = Result::ok();
+
+		if (templateMapFunction)
 		{
-			using namespace Operations;
+			auto r = templateMapFunction(mapData);
 
-			auto d = b->toAsmInlineData();
+			if (!r.wasOk())
+				return r;
 
-			ExternalFunctionMapData mapData(jc, d);
-
-			auto f = mapData.getCallbackFromObject(cb);
-
-			auto r = Result::ok();
-
-			if (templateMapFunction)
-			{
-				auto r = templateMapFunction(mapData);
-
-				if (!r.wasOk())
-					return r;
-
-				return mapData.emitRemappedFunction(f);
-			}
-			else
-				return Result::fail("Can't find map function");
-		});
+			return mapData.emitRemappedFunction(f);
+		}
+		else
+			return Result::fail("Can't find map function");
+	});
 }
 
 }
@@ -821,21 +873,21 @@ Result WrapLibraryBuilder::registerTypes()
 	}
 
 	WrapBuilder event(c, "event", numChannels, WrapBuilder::ForwardToObj);
-	event.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, Callbacks::wrap_event::process);
+	event.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, {}, Callbacks::wrap_event::process);
 	event.flush();
 
 	WrapBuilder os(c, "fix", "NumChannels", numChannels, WrapBuilder::ForwardToObj);
 
 	os.addInitFunction(WrapBuilder::Helpers::setNumChannelsFromTemplateParameter);
 	os.addInitFunction(TemplateClassBuilder::Helpers::redirectProcessCallbacksToFixChannel);
-	os.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, Inliner::HighLevel, Callbacks::fix::process);
-	os.setInlinerForCallback(ScriptnodeCallbacks::ProcessFrameFunction, Inliner::HighLevel, Callbacks::fix::processFrame);
+	os.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, {}, Inliner::HighLevel, Callbacks::fix::process);
+	os.setInlinerForCallback(ScriptnodeCallbacks::ProcessFrameFunction, {}, Inliner::HighLevel, Callbacks::fix::processFrame);
 	
 	os.flush();
 
 	WrapBuilder fb(c, "fix_block", "BlockSize", numChannels, WrapBuilder::ForwardToObj);
-	fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::PrepareFunction, Callbacks::fix_block::prepare);
-	fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, Callbacks::fix_block::process);
+	fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::PrepareFunction, {}, Callbacks::fix_block::prepare);
+	fb.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, {}, Callbacks::fix_block::process);
 	fb.flush();
 
 
@@ -844,8 +896,8 @@ Result WrapLibraryBuilder::registerTypes()
 	frame.addInitFunction(WrapBuilder::Helpers::setNumChannelsFromTemplateParameter);
 	frame.addInitFunction(TemplateClassBuilder::Helpers::redirectProcessCallbacksToFixChannel);
 
-	frame.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, Inliner::HighLevel, Callbacks::frame::process);
-	frame.mapToExternalTemplateFunction(ScriptnodeCallbacks::PrepareFunction, Callbacks::frame::prepare);
+	frame.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, {}, Inliner::HighLevel, Callbacks::frame::process);
+	frame.mapToExternalTemplateFunction(ScriptnodeCallbacks::PrepareFunction, {}, Callbacks::frame::prepare);
 
 	frame.flush();
 
@@ -864,8 +916,8 @@ Result WrapLibraryBuilder::registerTypes()
 	mod.addFunction(Callbacks::mod::checkModValue);
 	mod.addFunction(Callbacks::mod::getParameter);
 
-	mod.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, Inliner::HighLevel, Callbacks::mod::process);
-	mod.setInlinerForCallback(ScriptnodeCallbacks::ProcessFrameFunction, Inliner::HighLevel, Callbacks::mod::processFrame);
+	mod.setInlinerForCallback(ScriptnodeCallbacks::ProcessFunction, {},Inliner::HighLevel, Callbacks::mod::process);
+	mod.setInlinerForCallback(ScriptnodeCallbacks::ProcessFrameFunction, {}, Inliner::HighLevel, Callbacks::mod::processFrame);
 
 	mod.flush();
 

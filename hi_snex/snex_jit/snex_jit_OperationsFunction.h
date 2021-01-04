@@ -98,15 +98,47 @@ struct Operations::Function : public Statement,
 
 	ScopedPointer<FunctionScope> functionScope;
 
+	struct FunctionCompileData
+	{
+		using InnerFunction = std::function<void(FunctionCompileData&)>;
+
+		FunctionCompileData(FunctionData& ref, BaseCompiler* compiler_, BaseScope* scope_) :
+			data(ref),
+			compiler(compiler_),
+			scope(scope_)
+		{
+
+		};
+
+		FunctionScope* functionScopeToUse = nullptr;
+		FunctionData& data;
+		BaseCompiler* compiler;
+		BaseScope* scope;
+		ScopedPointer<asmjit::X86Compiler> cc;
+		ScopedPointer<asmjit::StringLogger> assemblyLogger;
+		asmjit::ErrorHandler* errorHandler = nullptr;
+		Statement::Ptr statementToCompile = nullptr;
+	};
+
+	static void* compileFunction(FunctionCompileData& f, const FunctionCompileData::InnerFunction& func);
+
 	RegPtr objectPtr;
 	bool hasObjectPtr;
 	FunctionData* classData = nullptr;
 
-	// member functions will not be owned by the StructType
-	ScopedPointer<FunctionData> ownedMemberFunction;
-
 	bool isHardcodedFunction = false;
 	ComplexType::Ptr hardcodedObjectType;
+
+private:
+
+	/** Compiles the very own syntax tree. */
+	void compileSyntaxTree(FunctionCompileData& f);;
+
+	/** Compiles a function call with a asm inliner. */
+	void compileAsmInlinerBeforeCodegen(FunctionCompileData& f);;
+
+	// member functions will not be owned by the StructType
+	ScopedPointer<FunctionData> ownedMemberFunction;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Function);
 };

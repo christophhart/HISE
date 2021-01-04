@@ -184,64 +184,129 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			return;
 		}
 
-
-		ScopedPointer<asmjit::StringLogger> l = new asmjit::StringLogger();
-
-		auto runtime = getRuntime(compiler);
-
-		ScopedPointer<asmjit::CodeHolder> ch = new asmjit::CodeHolder();
-		ch->setLogger(l);
-		ch->setErrorHandler(this);
-		ch->init(runtime->codeInfo());
-
-		//code->setErrorHandler(this);
-
-		ScopedPointer<asmjit::X86Compiler> cc = new asmjit::X86Compiler(ch);
-
-		AsmCleanupPass* p = nullptr;
-
-		if (scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::AsmOptimisation))
+		statements->forEachRecursive([&](Statement::Ptr p)
 		{
-			cc->addPass(p = new AsmCleanupPass());
-		}
+			if (auto fc = as<FunctionCall>(p))
+			{
+				auto inliner = fc->function.inliner;
+				
+				if (inliner != nullptr && inliner->precodeGenFunc)
+				{
+					PreCodeGenInlineData d;
+
+					d.rootObject = fc->getObjectExpression();
+					d.templateParameters = fc->function.templateParameters;
+					
+					auto ok = inliner->precodeGenFunc(&d);
+					location.test(ok);
+
+					for (auto f : d.functionsToCompile)
+					{
+						auto fInliner = f.functionToCompile.inliner;
+
+						FunctionCompileData fcd(f.functionToCompile, compiler, scope);
+
+						auto innerFunc = new FunctionCall(location, nullptr, { f.functionToCompile.id, f.functionToCompile.returnType }, {});
+						auto obj = new MemoryReference(location, d.rootObject->clone(location), TypeInfo(f.objType, false, true), f.offsetFromRoot);
+						innerFunc->setObjectExpression(obj);
+						
+						fcd.statementToCompile = innerFunc;
+
+						for (int i = 0; i < fc->getNumArguments(); i++)
+						{
+							innerFunc->addArgument(fc->getArgument(i)->clone(location));
+						}
+
+						if (fInliner->highLevelFunc)
+						{
+							statements->addStatement(innerFunc);
+							SyntaxTreeInlineData::processUpToCurrentPass(statements, innerFunc);
+							
+							innerFunc->inlineAndSetType(compiler, f.functionToCompile);
+
+							auto block = statements->getLastStatement();
+
+							block->replaceInParent(new Noop(location));
+
+							auto inf = new Function(location, {f.functionToCompile.id, f.functionToCompile.returnType});
+
+							// Continue here...
+							jassertfalse;
+							
+							
+
+#if 0
+							SyntaxTreeInlineData b(innerFunc, as<SyntaxTree>(statements)->getPath(), f.functionToCompile);
+							b.object = obj;
+
+							for (int i = 0; i < innerFunc->getNumArguments(); i++)
+							{
+								b.args.add(innerFunc->getArgument(i)->clone(location));
+							}
+
+							
+
+							auto ok = fInliner->process(&b);
+							location.test(ok);
+
+							b.replaceIfSuccess();
+							b.target->replaceInParent(new Noop(location));
+#endif
+
+							if (auto asf = as<FunctionCall>(fcd.statementToCompile))
+							{
+								if (auto fPointer = asf->function.function)
+								{
+									dynamic_cast<StructType*>(f.objType.get())->injectMemberFunctionPointer(f.functionToCompile, fPointer);
+									continue;
+								}
+							}
+						}
+						else
+						{
+							fcd.statementToCompile = innerFunc;
+						}
+
+
+
+						void* fPointer = nullptr;
+						
+						if (as<FunctionCall>(fcd.statementToCompile))
+						{
+							fPointer = compileFunction(fcd, BIND_MEMBER_FUNCTION_1(Function::compileAsmInlinerBeforeCodegen));
+						}
+						else if (auto sb = as<StatementBlock>(fcd.statementToCompile))
+						{
+							ScopedPointer<FunctionScope> thisFunctionScope = new FunctionScope(scope, f.functionToCompile.id, true);
+							thisFunctionScope->setHardcodedClassType(f.objType);
+
+							thisFunctionScope->data = f.functionToCompile;
+
+							thisFunctionScope->parameters.addArray(parameters);
+							
+
+							fcd.functionScopeToUse = thisFunctionScope;
+
+							fPointer = compileFunction(fcd, BIND_MEMBER_FUNCTION_1(Function::compileSyntaxTree));
+						}
+						
+						dynamic_cast<StructType*>(f.objType.get())->injectMemberFunctionPointer(f.functionToCompile, fPointer);
+
+						fc->function.function = fPointer;
+					}
+				};
+			}
+
+			return false;
+		});
+
+		FunctionCompileData fcd(data, compiler, scope);
+
+		fcd.statementToCompile = statements;
+		fcd.functionScopeToUse = functionScope.get();
+
+		compileFunction(fcd, BIND_MEMBER_FUNCTION_1(Function::compileSyntaxTree));
 		
-		FuncSignatureX sig;
-
-		hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !classData->returnType.isStatic();
-
-		auto objectType = hasObjectPtr ? compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get())) : Types::ID::Void;
-
-		AsmCodeGenerator::fillSignature(data, sig, objectType);
-		cc->addFunc(sig);
-
-		dynamic_cast<ClassCompiler*>(compiler)->setFunctionCompiler(cc);
-
-		compiler->registerPool.clear();
-
-		if (hasObjectPtr)
-		{
-			auto rType = compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get()));
-			objectPtr = compiler->registerPool.getNextFreeRegister(functionScope, TypeInfo(rType, true));
-			auto asg = CREATE_ASM_COMPILER(rType);
-			asg.emitParameter(this, objectPtr, -1);
-		}
-
-		auto sTree = dynamic_cast<SyntaxTree*>(statements.get());
-
-		compiler->executePass(BaseCompiler::RegisterAllocation, functionScope, sTree);
-		compiler->executePass(BaseCompiler::CodeGeneration, functionScope, sTree);
-
-		cc->endFunc();
-		cc->finalize();
-
-		if (p != nullptr)
-			cc->deletePass(p);
-
-		cc = nullptr;
-
-		asmjit::ErrorCode ok = (asmjit::ErrorCode)runtime->add(&data.function, ch);
-		
-		jassert(data.function != nullptr);
 
 		if (scope->getRootClassScope() == scope)
 		{
@@ -261,27 +326,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 		}
 
-		auto& as = dynamic_cast<ClassCompiler*>(compiler)->assembly;
-
-		juce::String fName = data.getSignature();
-
-		if (auto cs = findParentStatementOfType<ClassStatement>(this))
-		{
-			if (auto st = cs->getStructType())
-			{
-				auto name = st->id.toString();
-				auto templated = st->toString();
-
-				fName = fName.replace(name, templated);
-			}
-		}
-
-		as << "; function " << fName << "\n";
-		as << l->data();
-
-		ch->setLogger(nullptr);
-		l = nullptr;
-		ch = nullptr;
+		
 
 		jassert(scope->getScopeType() == BaseScope::Class);
 
@@ -289,8 +334,141 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 }
 
+void* Operations::Function::compileFunction(FunctionCompileData& f, const FunctionCompileData::InnerFunction& func)
+{
+	f.assemblyLogger = new asmjit::StringLogger();
 
+	auto runtime = getRuntime(f.compiler);
 
+	ScopedPointer<asmjit::CodeHolder> ch = new asmjit::CodeHolder();
+	ch->setLogger(f.assemblyLogger);
+	ch->setErrorHandler(f.errorHandler);
+	ch->init(runtime->codeInfo());
+
+	//code->setErrorHandler(this);
+
+	f.cc = new asmjit::X86Compiler(ch);
+
+	AsmCleanupPass* p = nullptr;
+
+	if (f.scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::AsmOptimisation))
+	{
+		f.cc->addPass(p = new AsmCleanupPass());
+	}
+
+	dynamic_cast<ClassCompiler*>(f.compiler)->setFunctionCompiler(f.cc);
+
+	f.compiler->registerPool.clear();
+
+	func(f);
+	
+	f.cc->endFunc();
+	f.cc->finalize();
+
+	if (p != nullptr)
+		f.cc->deletePass(p);
+
+	f.cc = nullptr;
+
+	asmjit::ErrorCode ok = (asmjit::ErrorCode)runtime->add(&f.data.function, ch);
+
+	jassert(f.data.function != nullptr);
+
+	auto& as = dynamic_cast<ClassCompiler*>(f.compiler)->assembly;
+
+	juce::String fName = f.data.getSignature();
+
+#if 0
+	if (auto cs = findParentStatementOfType<ClassStatement>(this))
+	{
+		if (auto st = cs->getStructType())
+		{
+			auto name = st->id.toString();
+			auto templated = st->toString();
+
+			fName = fName.replace(name, templated);
+		}
+	}
+#endif
+
+	as << "; function " << fName << "\n";
+	as << f.assemblyLogger->data();
+
+	ch->setLogger(nullptr);
+	f.assemblyLogger = nullptr;
+	ch = nullptr;
+
+	return f.data.function;
+}
+
+void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
+{
+	auto compiler = f.compiler;
+	auto scope = f.scope;
+
+	FuncSignatureX sig;
+
+	hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !f.data.returnType.isStatic();
+
+	auto objectType = hasObjectPtr ? compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get())) : Types::ID::Void;
+
+	AsmCodeGenerator::fillSignature(f.data, sig, objectType);
+	f.cc->addFunc(sig);
+
+	if (hasObjectPtr)
+	{
+		auto rType = compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get()));
+		objectPtr = compiler->registerPool.getNextFreeRegister(f.functionScopeToUse, TypeInfo(rType, true));
+		auto asg = CREATE_ASM_COMPILER(rType);
+		asg.emitParameter(this, objectPtr, -1);
+	}
+
+	compiler->executePass(BaseCompiler::RegisterAllocation, f.functionScopeToUse, f.statementToCompile);
+	compiler->executePass(BaseCompiler::CodeGeneration, f.functionScopeToUse, f.statementToCompile);
+}
+
+void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f)
+{
+	auto fc = as<FunctionCall>(f.statementToCompile);
+
+	jassert(fc != nullptr);
+
+	auto st = fc->getObjectExpression()->getTypeInfo().getTypedComplexType<StructType>();
+
+	auto compiler = f.compiler;
+
+	FuncSignatureX sig;
+	AsmCodeGenerator::fillSignature(f.data, sig, Types::ID::Pointer);
+	f.cc->addFunc(sig);
+
+	auto rType = compiler->getRegisterType(TypeInfo(st));
+	auto objectPtr = compiler->registerPool.getNextFreeRegister(f.scope, TypeInfo(st));
+
+	auto acg = CREATE_ASM_COMPILER(rType);
+
+	acg.emitParameter(f.data, objectPtr, -1, true);
+
+	AssemblyRegister::List parameters;
+
+	int i = 0;
+
+	for (auto a : f.data.args)
+	{
+		auto pReg = compiler->registerPool.getNextFreeRegister(f.scope, a.typeInfo);
+		acg.emitParameter(f.data, pReg, i++, true);
+	}
+
+	AssemblyRegister::Ptr returnReg;
+
+	if (f.data.returnType != TypeInfo(Types::ID::Void))
+	{
+		returnReg = compiler->registerPool.getNextFreeRegister(f.scope, f.data.returnType);
+	}
+
+	auto ok = acg.emitFunctionCall(returnReg, f.data, objectPtr, parameters);
+
+	location.test(ok);
+}
 
 void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 {

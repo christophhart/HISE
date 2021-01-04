@@ -53,7 +53,25 @@ struct ReturnTypeInlineData : public InlineData
 };
 
 
+struct PreCodeGenInlineData : public InlineData
+{
+	struct Item
+	{
+		FunctionData functionToCompile; // the function that is supposed to be compiled
+		ComplexType::Ptr objType;	    // the object type that is being compiled
+		int offsetFromRoot;				// the byte offset for the type from the object
+	};
 
+	PreCodeGenInlineData()
+	{
+
+	}
+
+	bool isHighlevel() const override { return true; }
+	
+	Operations::Expression::Ptr rootObject; // This will be a reference to the called object
+	Array<Item> functionsToCompile;		    // Fill this with the functions you need to compile
+};
 
 
 struct SyntaxTreeInlineData : public InlineData

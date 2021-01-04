@@ -77,6 +77,8 @@ struct WrapBuilder : public TemplateClassBuilder
 		numOpaqueTypes
 	};
 
+	using CallbackList = Array<Types::ScriptnodeCallbacks::ID>;
+
 	/** This struct holds all the information you need if you want to
 		map an external function to a given callback. */
 	struct ExternalFunctionMapData
@@ -102,11 +104,11 @@ struct WrapBuilder : public TemplateClassBuilder
 
 		void setExternalFunctionPtrToCall(void* mainFunctionPointer);
 
-
 	private:
 
 		FunctionData getCallback(TypeInfo t, Types::ScriptnodeCallbacks::ID cb, const Array<TypeInfo>& functionArgs);
 
+		BaseCompiler* compiler;
 		void* mainFunction = nullptr;
 		Compiler& c;
 		WeakReference<BaseScope> scope;
@@ -166,8 +168,11 @@ struct WrapBuilder : public TemplateClassBuilder
 
 		Be aware that the template parameter list will have all arguments of the original function call appended after the template class
 		parameters, so you can decide which function to use
+
+		The requiredFunctions is a list of all functions that might be called in the external function, so it will check if there is a valid function pointer
+		(and compile it to an internal function if not).
 	*/
-	void mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, const std::function<Result(ExternalFunctionMapData&)>& templateMapFunction);
+	void mapToExternalTemplateFunction(Types::ScriptnodeCallbacks::ID cb, CallbackList requiredFunctions, const std::function<Result(ExternalFunctionMapData&)>& templateMapFunction);
 
 	void init(Compiler& c, int numChannels);
 
@@ -267,7 +272,7 @@ struct WrapBuilder : public TemplateClassBuilder
 
 	static FunctionData createGetSelfAsObjectFunction(StructType* st);
 
-	void setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, Inliner::InlineType t, const Inliner::Func& inliner);
+	void setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, CallbackList requiredFunctions, Inliner::InlineType t, const Inliner::Func& inliner);
 
 private:
 

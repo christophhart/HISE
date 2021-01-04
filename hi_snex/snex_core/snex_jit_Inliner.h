@@ -56,7 +56,10 @@ struct InlineData
 struct Inliner : public ReferenceCountedObject
 {
 	using Ptr = ReferenceCountedObjectPtr<Inliner>;
+	using List = ReferenceCountedArray<Inliner>;
 	using Func = std::function<Result(InlineData* d)>;
+
+	
 
 	enum InlineType
 	{
@@ -80,18 +83,18 @@ struct Inliner : public ReferenceCountedObject
 	static Inliner* createFromType(const NamespacedIdentifier& id, InlineType type, const Func& f)
 	{
 		if (type == Assembly)
-			return createAsmInliner(id, f);
+		{
+			auto inliner = createAsmInliner(id, f);
+			inliner->inlineType = type;
+			return inliner;
+		}
 		else
 			return createHighLevelInliner(id, f);
 	}
 
 	static Inliner* createHighLevelInliner(const NamespacedIdentifier& id, const Func& highLevelFunc)
 	{
-		return new Inliner(id, [](InlineData* b)
-			{
-				jassert(!b->isHighlevel());
-				return Result::fail("must be inlined on higher level");
-			}, highLevelFunc);
+		return new Inliner(id, {}, highLevelFunc);
 	}
 
 	static Inliner* createAsmInliner(const NamespacedIdentifier& id, const Func& asmFunc)
@@ -117,6 +120,8 @@ struct Inliner : public ReferenceCountedObject
 	const Func asmFunc;
 	const Func highLevelFunc;
 
+	// Optional: returns a list of all inliners that need to be compiled before this function
+	Func precodeGenFunc;
 	// Optional: returns a TypeInfo
 	Func returnTypeFunction;
 };
