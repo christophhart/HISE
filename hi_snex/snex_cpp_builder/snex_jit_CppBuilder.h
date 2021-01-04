@@ -69,6 +69,8 @@ class Base
 {
 public:
 
+	using Header = std::function<String()>;
+
 	using TokenType = const char*;
 
 	enum class OutputType
@@ -98,6 +100,8 @@ public:
 
 	Base& operator<<(const String& line);
 
+	Base& operator<<(juce_wchar specialCharacter);
+
 	Base& operator<<(const jit::FunctionData& f);
 
 	void addComment(const String& comment, CommentType commentType);
@@ -116,7 +120,7 @@ public:
 		lines.add("");
 	}
 
-	void addEmptyLine()
+	virtual void addEmptyLine()
 	{
 		lines.add("");
 	}
@@ -145,10 +149,26 @@ public:
 		lines.clear();
 	}
 
+	void setHeader(const Header& h)
+	{
+		header = h;
+	}
+
+protected:
+
+	StringArray lines;
+
 private:
+
+	Header header;
 
 	struct ParseState
 	{
+		ParseState(const StringArray& l) :
+			linesToUse(l)
+		{};
+
+		const StringArray& linesToUse;
 		int currentLine = 0;
 		int intendLevel = 0;
 		int currentAlignLength = -1;
@@ -171,7 +191,7 @@ private:
 	String parseLineWithIntendedLineBreak(ParseState& state, const String& lineContent) const;
 
 	const OutputType t;
-	StringArray lines;
+	
 
 	NamespacedIdentifier currentNamespace;
 };
@@ -439,7 +459,7 @@ private:
 
 struct Macro : public Op
 {
-	Macro(Base& b, const String& name, const StringArray& args):
+	Macro(Base& b, const String& name, const StringArray& args, bool addSemicolon=true):
 		Op(b)
 	{
 		s << name;
@@ -450,7 +470,10 @@ struct Macro : public Op
 
 		s = s.upToLastOccurrenceOf(", ", false, false);
 
-		s << ");";
+		s << ")";
+
+		if (addSemicolon)
+			s << ";";
 	}
 
 	~Macro()
@@ -528,7 +551,8 @@ private:
 
 		if (!e.isEmpty())
 		{
-			parent << toString();
+			if(scopedId != parent.getCurrentScope())
+				parent << toString();
 		}
 
 		Op::flush();

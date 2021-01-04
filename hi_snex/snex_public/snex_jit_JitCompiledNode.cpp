@@ -54,11 +54,27 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 	memset(numRequiredDataTypes, 0, sizeof(int) * (int)ExternalData::DataType::numDataTypes);
 
-	auto implId = NamespacedIdentifier::fromString("impl::" + classId);
+	auto wrapInNamespace = !code.contains("namespace impl");
 
-	s << "namespace impl { " << code;
-	s << "}\n";
+	NamespacedIdentifier implId;
+
+	if (wrapInNamespace)
+	{
+		implId = NamespacedIdentifier::fromString("impl::" + classId);
+
+		s << "namespace impl { " << code;
+		s << "}\n";
+		
+	}
+	else
+	{
+		s << code;
+		implId = NamespacedIdentifier(classId);
+		
+	}
+
 	s << implId.toString() << " instance;\n";
+
 
 	cf(c, numChannels);
 
@@ -84,23 +100,52 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 	{
 		NamespacedIdentifier impl("impl");
 
+		
+
 		if (instanceType = c.getComplexType(implId))
 		{
+			
 			if (auto libraryNode = dynamic_cast<SnexNodeBase*>(instanceType.get()))
 			{
 				parameterList = libraryNode->getParameterList();
 			}
 			if (auto st = dynamic_cast<StructType*>(instanceType.get()))
 			{
-				auto pId = st->id.getChildId("Parameters");
-				auto pNames = c.getNamespaceHandler().getEnumValues(pId);
+				WrapBuilder::InnerData inner(instanceType, WrapBuilder::GetObj);
 
-				if (!pNames.isEmpty())
+				Array<cppgen::ParameterEncoder::Item> encoderData;
+
+				if (inner.resolve())
 				{
-					for (int i = 0; i < pNames.size(); i++)
-						addParameterMethod(s, pNames[i], i);
-				}
+					if (auto metadataType = c.getComplexType(inner.st->id.getChildId("metadata")))
+					{
+						cppgen::ParameterEncoder encoder(metadataType);
 
+						for (auto& p: encoder)
+						{
+							encoderData.add(p);
+							addParameterMethod(s, p.id, p.index);
+						}
+					}
+					else
+					{
+						auto pId = st->id.getChildId("Parameters");
+						auto pNames = c.getNamespaceHandler().getEnumValues(pId);
+
+						if (!pNames.isEmpty())
+						{
+							for (int i = 0; i < pNames.size(); i++)
+							{
+								cppgen::ParameterEncoder::Item item;
+
+								item.index = i;
+								item.id = pNames[i];
+								addParameterMethod(s, pNames[i], i);
+							}
+						}
+					}
+				}
+				
 				cf(c, numChannels);
 
 				obj = c.compileJitObject(s);
@@ -114,12 +159,12 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 				instanceType = c.getComplexType(implId);
 
-				for (auto& n : pNames)
+				for (auto& n : encoderData)
 				{
-					auto f = obj[Identifier("set" + n)];
+					auto f = obj[Identifier("set" + n.id)];
 
 					OpaqueSnexParameter osp;
-					osp.name = n;
+					osp.data = n;
 					osp.function = f.function;
 					parameterList.add(osp);
 				}

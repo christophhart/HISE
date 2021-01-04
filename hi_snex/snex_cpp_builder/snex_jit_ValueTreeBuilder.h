@@ -139,6 +139,7 @@ struct Connection
 		Plain,
 		Range,
 		RangeWithSkew,
+		RangeWithStep,
 		Bypass,
 		Converted,
 		Expression,
@@ -161,8 +162,13 @@ struct Connection
 		if (RangeHelpers::isIdentity(targetRange))
 			return ConnectionType::Plain;
 
+		if (targetRange.interval > 0.02)
+			return ConnectionType::RangeWithStep;
+
 		if (targetRange.skew == 1.0)
 			return ConnectionType::Range;
+
+		
 
 		return ConnectionType::RangeWithSkew;
 	}
@@ -377,6 +383,51 @@ private:
 	ReferenceCountedArray<ItemType> items;
 };
 
+struct HeaderBuilder : public Base
+{
+	HeaderBuilder(const String& title) :
+		Base(Base::OutputType::NoProcessing)
+	{
+		String headline;
+		headline << "/** " << title << "%FILL80";
+
+		lines.add(headline);
+		addEmptyLine();
+	};
+
+	void flushIfNot()
+	{
+		if (flushed)
+			return;
+
+		addEmptyLine();
+		lines.add("*\t%FILL80");
+		lines.add("*/");
+		lines.add("");
+
+		flushed = false;
+	}
+
+	void addEmptyLine() override
+	{
+		lines.add("*");
+	}
+
+	HeaderBuilder& operator <<(const String& t)
+	{
+		lines.add("*\t" + t);
+		return *this;
+	}
+
+	String operator()()
+	{
+		flushIfNot();
+		return toString();
+	}
+
+	bool flushed = false;
+};
+
 struct ValueTreeBuilder: public Base
 {
 	struct BuildResult
@@ -393,6 +444,7 @@ struct ValueTreeBuilder: public Base
 	{
 		JitCompiledInstance,
 		CppDynamicLibrary,
+		TestCaseFile,
 		numFormats
 	};
 
@@ -408,7 +460,9 @@ struct ValueTreeBuilder: public Base
 		Base(Base::OutputType::AddTabs),
 		v(data),
 		r(Result::ok())
-	{}
+	{
+		setHeaderForFormat();
+	}
 
 	BuildResult createCppCode()
 	{
@@ -426,6 +480,8 @@ struct ValueTreeBuilder: public Base
 	}
 
 private:
+
+	void setHeaderForFormat();
 
 	String getCurrentCode() const { return toString(); }
 
@@ -512,7 +568,7 @@ private:
 		PoolBase<PooledStackVariable> stackVariables;
 	};
 
-	Format outputFormat =  Format::JitCompiledInstance;
+	Format outputFormat =  Format::TestCaseFile;
 
 	String getGlueCode(FormatGlueCode c);
 
@@ -578,16 +634,20 @@ private:
 		if (auto existing = pooledParameters.getExisting(c))
 			return existing;
 
-		if (pName.toString() == "empty")
+		String p = pName.toString();
+
+		if (parameterIndexInChain != -1)
+			p << "_" << parameterIndexInChain;
+
+		if (!c)
 		{
-			auto up = makeParameter({}, "empty", {});
+			auto up = makeParameter(p, "empty", {});
 			return addParameterAndReturn(up);
 		}
 
-		String p = pName.toString();
+		
 
-		if(parameterIndexInChain != -1)
-			p << "_" << parameterIndexInChain;
+		
 
 		if (!c)
 		{
@@ -643,6 +703,7 @@ private:
 			return addParameterAndReturn(up);
 		}
 		case Connection::ConnectionType::RangeWithSkew:
+		case Connection::ConnectionType::RangeWithStep:
 		case Connection::ConnectionType::Range:
 		{
 			auto up = makeParameter(p, "from0To1", c);
@@ -678,6 +739,11 @@ private:
 					{
 						macroName << "_SKEW";
 						args.add(Helpers::getCppValueString(c.targetRange.skew, Types::ID::Double));
+					}
+					if (t == Connection::ConnectionType::RangeWithStep)
+					{
+						macroName << "_STEP";
+						args.add(Helpers::getCppValueString(c.targetRange.interval, Types::ID::Double));
 					}
 
 					for (auto& a : args)
@@ -722,6 +788,93 @@ private:
 };
 
 
+
+
+/** A Parameter encoder encodes / decodes the parameter data of a node
+
+	The parameter data of a node is converted from a ValueTree to a 
+	lightweight data structure and can be emitted as C++ literal array
+	of ints that can be read by the JIT compiler and plain C++.
+
+*/
+struct ParameterEncoder
+{
+	// Just a node that shows how it must look so you can feed it to ParameterEncoder::fromNode
+	struct ExampleNode
+	{
+		struct metadata
+		{
+			SNEX_METADATA_ENCODED_PARAMETERS(9)
+			{
+				0x00000000, 0x61726150, 0x6574656D, 0x00003172,
+				0x00000000, 0x00422000, 0x003F0000, 0x0A3F8000,
+				0x003C23D7
+			};
+		};
+	};
+
+
+	template <typename NodeClass> static ParameterEncoder fromNode()
+	{
+		NodeClass::metadata n;
+
+		MemoryOutputStream tm;
+
+		for (auto& s : n.encodedParameters)
+			tm.writeInt(static_cast<int>(s));
+
+		auto data = tm.getMemoryBlock();
+
+		return ParameterEncoder(data);
+	}
+
+	ParameterEncoder(ValueTree& v);
+	ParameterEncoder(jit::ComplexType::Ptr jitCompiledMetadata);
+	
+	struct Item
+	{
+		Item()
+		{};
+
+		Item(MemoryInputStream& mis);
+
+		String toString();
+
+		Item(const ValueTree& v);
+		using DataType = float;
+		int index;
+		String id;
+
+		DataType min;
+		DataType max;
+		DataType defaultValue;
+		DataType skew;
+		DataType interval;
+
+		void writeToStream(MemoryOutputStream& b);
+	};
+
+	Item* begin() const
+	{
+		return items.begin();
+	}
+
+	Item* end() const
+	{
+		return items.end();
+	}
+
+	void writeIntBlock(Base& b);
+
+private:
+
+	ParameterEncoder(const MemoryBlock& m);
+
+	void parseItems(const MemoryBlock& mb);
+	MemoryBlock writeItems();
+
+	Array<Item> items;
+};
 
 
 

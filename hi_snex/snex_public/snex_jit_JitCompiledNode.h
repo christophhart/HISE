@@ -124,6 +124,35 @@ struct JitCompiledNode : public ReferenceCountedObject,
 
 	int getNumChannels() const { return numChannels; }
 
+	template <int P> static void setParameter(void* obj, double value)
+	{
+		auto typed = static_cast<JitCompiledNode*>(obj);
+
+		if (auto pf = typed->parameterList[P].function)
+		{
+			typedef void(*typedF)(double);
+
+			
+			((typedF)pf)(value);
+		}
+			
+	}
+
+	void setParameterDynamic(int index, double value)
+	{
+		if (index == 0) setParameter<0>(this, value);
+		if (index == 1) setParameter<1>(this, value);
+		if (index == 2) setParameter<2>(this, value);
+		if (index == 3) setParameter<3>(this, value);
+		if (index == 4) setParameter<4>(this, value);
+		if (index == 5) setParameter<5>(this, value);
+		if (index == 6) setParameter<6>(this, value);
+		if (index == 7) setParameter<7>(this, value);
+		if (index == 8) setParameter<8>(this, value);
+	}
+
+	
+
 private:
 
 	int numRequiredDataTypes[(int)ExternalData::DataType::numDataTypes];
@@ -140,6 +169,8 @@ private:
 
 	JitObject obj;
 	ComplexType::Ptr instanceType;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JitCompiledNode);
 };
 
 

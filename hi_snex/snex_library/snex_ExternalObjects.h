@@ -96,7 +96,10 @@ struct OpaqueSnexParameter
 {
 	using List = Array<OpaqueSnexParameter>;
 
-	String name;
+	FunctionData toFunctionData();
+
+	cppgen::ParameterEncoder::Item data;
+
 	void* function;
 };
 

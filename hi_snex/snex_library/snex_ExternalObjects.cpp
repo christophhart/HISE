@@ -345,5 +345,17 @@ TypeInfo SnexNodeBase::Wrappers::createFrameType(const SnexTypeConstructData& cd
 
 
 
+snex::jit::FunctionData OpaqueSnexParameter::toFunctionData()
+{
+	FunctionData f;
+
+	f.id = NamespacedIdentifier(data.id);
+	f.returnType = Types::ID::Void;
+	f.addArgs("value", Types::ID::Double);
+	f.function = function;
+
+	return f;
+}
+
 }
 }

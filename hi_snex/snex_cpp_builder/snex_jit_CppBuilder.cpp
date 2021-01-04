@@ -61,6 +61,16 @@ Base& Base::operator<<(const jit::FunctionData& f)
 	return *this;
 }
 
+snex::cppgen::Base& Base::operator<<(juce_wchar specialCharacter)
+{
+	jassert(specialCharacter == AlignMarker || specialCharacter == IntendMarker);
+
+	auto l = lines[lines.size() - 1];
+	l << specialCharacter;
+	lines.set(lines.size() - 1, l);
+	return *this;
+}
+
 void Base::addComment(const String& comment, CommentType commentType)
 {
 	if (t == OutputType::Uglify)
@@ -229,11 +239,25 @@ bool Base::matchesStart(int line, TokenType t, TokenType other1 /*= nullptr*/, T
 
 String Base::parseLines() const
 {
+	String s;
+
+	if (header)
+	{
+		auto hContent = StringArray::fromLines(header());
+
+		ParseState state(hContent);
+
+		
+
+		for (int i = 0; i < hContent.size(); i++)
+		{
+			s << parseLine(state, i);
+		}
+	}
+
 	if (t >= OutputType::AddTabs)
 	{
-		String s;
-
-		ParseState state;
+		ParseState state(lines);
 
 		for (int i = 0; i < lines.size(); i++)
 		{
@@ -297,10 +321,12 @@ String Base::parseLines() const
 			return ns;
 		}
 
-		return s;
+		
 	}
 	else
-		return lines.joinIntoString("\n");
+		s << lines.joinIntoString("\n");
+
+	return s;
 }
 
 String Base::wrapInBlock() const
@@ -322,7 +348,7 @@ String Base::wrapInBlock() const
 String Base::parseLine(ParseState& state, int i) const
 {
 	state.currentLine = i;
-	auto lineContent = lines[i];
+	auto lineContent = state.linesToUse[i];
 	return parseIntendation(state, lineContent);
 }
 
@@ -404,11 +430,11 @@ String Base::parseLineWithAlignedComment(ParseState& state, const String& lineCo
 
 		if (state.currentAlignLength == -1)
 		{
-			for (int j = state.currentLine; j < lines.size(); j++)
+			for (int j = state.currentLine; j < state.linesToUse.size(); j++)
 			{
-				if (lines[j].containsChar(AlignMarker))
+				if (state.linesToUse[j].containsChar(AlignMarker))
 				{
-					state.currentAlignLength = jmax(state.currentAlignLength, lines[j].indexOfChar(AlignMarker) + 1);
+					state.currentAlignLength = jmax(state.currentAlignLength, state.linesToUse[j].indexOfChar(AlignMarker) + 1);
 				}
 					
 				else
