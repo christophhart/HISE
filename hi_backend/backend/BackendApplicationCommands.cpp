@@ -265,7 +265,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "File";
 		break;
 	case MenuSaveFileXmlBackup:
-	  	setCommandTarget(result, "Save XML (NOT WORKING)", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'S', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
+	  	setCommandTarget(result, "Save XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'S', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
 		result.categoryName = "File";
 		break;
 	case MenuSaveFileAsXmlBackup:
@@ -1833,25 +1833,21 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 }
 
 
-// GREG ADDITION (Just copied from saveFileAsXml below and made a few mods but not working, of cousre...)
 void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 {
-	if (PresetHandler::showYesNoWindow("Save " + bpe->owner->getMainSynthChain()->getId(), "Do you want to save this XML?"))	// Greg added
+	const String mainSynthChainId = bpe->owner->getMainSynthChain()->getId();
+	const bool hasDefaultName = mainSynthChainId == "Master Chain";
+
+	if (!hasDefaultName)
 	{
-		const bool hasDefaultName = bpe->owner->getMainSynthChain()->getId() == "Master Chain";
+		File f = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups).getChildFile(mainSynthChainId + ".xml");
 
-		// Overwrite Xml with mainSynthChain name
-		if (!hasDefaultName)
-
-			const String newName = bpe->owner->getMainSynthChain()->getId();
-
-			if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+		if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+		{
+			if (f.existsAsFile())
 			{
-
-				if (PresetHandler::showYesNoWindow("Overwrite " + bpe->owner->getMainSynthChain()->getId(), "Overwrite the existing XML?"))	// Overwrite dialog
+				if (PresetHandler::showYesNoWindow("Overwrite " + mainSynthChainId, "Overwrite the existing XML?"))
 				{
-					const String newName = bpe->owner->getMainSynthChain()->getId();
-
 					ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
 
 		            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
@@ -1904,11 +1900,11 @@ void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 					XmlBackupFunctions::removeAllScripts(*xml);
 
 					if(interfaceId.isNotEmpty())
-						//XmlBackupFunctions::extractContentData(*xml, interfaceId, fc.getResult());
+						XmlBackupFunctions::extractContentData(*xml, interfaceId, f);
 
-					//fc.getResult().replaceWithText(xml->createDocument(""));
+					f.replaceWithText(xml->createDocument(""));
 
-					debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
+					debugToConsole(bpe->owner->getMainSynthChain(), "XML Saved");
 		            
 					if (originalScriptDirectory.deleteRecursively())
 					{
@@ -1921,97 +1917,19 @@ void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 
 						scriptDirectory.revealToUser();
 					}
-
-		            
 				}
 			}
-
-		// Else, same as saveFileAsXml (call for manual saving)
-		else
-		{
-			if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+			else
 			{
-				FileChooser fc("Select XML file to save", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
-
-				if (fc.browseForFileToSave(true))
-				{
-					const String newName = fc.getResult().getFileNameWithoutExtension();
-					bpe->owner->getMainSynthChain()->setId(newName);
-
-					ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
-
-		            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
-		            
-					ScopedPointer<XmlElement> xml = v.createXml();
-
-					XmlBackupFunctions::removeEditorStatesFromXml(*xml);
-
-					
-					Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
-
-					while (auto s = siter.getNextProcessor())
-					{
-						if (s->getSampleMap()->hasUnsavedChanges())
-							s->getSampleMap()->saveAndReloadMap();
-					}
-
-					File originalScriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
-
-					File scriptDirectory = originalScriptDirectory.getSiblingFile("TempScriptDirectory");
-
-					Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
-
-					scriptDirectory.deleteRecursively();
-
-					scriptDirectory.createDirectory();
-
-					String interfaceId = "";
-
-					while (JavascriptProcessor *sp = iter.getNextProcessor())
-					{
-						if (sp->isConnectedToExternalFile())
-							continue;
-
-						String content;
-
-						if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
-						{
-							if (jmp->isFront())
-								interfaceId = jmp->getId();
-						}
-
-						sp->mergeCallbacksToScript(content);
-
-						File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), scriptDirectory, dynamic_cast<Processor*>(sp)->getId());
-
-						scriptFile.replaceWithText(content);
-					}
-
-					XmlBackupFunctions::removeAllScripts(*xml);
-					
-					if(interfaceId.isNotEmpty())
-						XmlBackupFunctions::extractContentData(*xml, interfaceId, fc.getResult());
-
-					fc.getResult().replaceWithText(xml->createDocument(""));
-
-					debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
-		            
-					if (originalScriptDirectory.deleteRecursively())
-					{
-						scriptDirectory.moveFileTo(originalScriptDirectory);
-					}
-					else
-					{
-						PresetHandler::showMessageWindow("Error at writing script file",
-							"The embedded script files could not be saved (probably because the file is opened somewhere else).\nPress OK to show the folder and move it manually", PresetHandler::IconType::Error);
-
-						scriptDirectory.revealToUser();
-					}
-
-		            
-				}
+				debugToConsole(bpe->owner->getMainSynthChain(), "Master Chain name is not default but no corresponding XML found, please create XML first");
+				Actions::saveFileAsXml(bpe);
 			}
 		}
+	}
+	else
+	{
+		debugToConsole(bpe->owner->getMainSynthChain(), "This project has never been saved as XML, please create XML first");
+		Actions::saveFileAsXml(bpe);
 	}
 }
 
