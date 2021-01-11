@@ -387,7 +387,9 @@ struct StructType : public ComplexType,
 
 	bool injectInliner(const FunctionData& f);
 
-	int injectInliner(const Identifier& functionId, Inliner::InlineType type, const Inliner::Func& func);
+	MemoryBlock createByteBlock() const;
+
+	int injectInliner(const Identifier& functionId, Inliner::InlineType type, const Inliner::Func& func, const TemplateParameter::List& functionTemplateParameters = {});
 
 	Symbol getMemberSymbol(const Identifier& id) const;
 
@@ -430,7 +432,7 @@ struct StructType : public ComplexType,
 		auto type = Types::Helpers::getTypeFromTypeId<ArgumentType>();
 		auto nm = new Member();
 		nm->id = id;
-		nm->typeInfo = TypeInfo(type);
+		nm->typeInfo = TypeInfo(type, type == Types::ID::Pointer);
 		nm->offset = reinterpret_cast<uint64>(&defaultValue) - reinterpret_cast<uint64>(&obj);
 		nm->defaultList = InitialiserList::makeSingleList(VariableStorage(type, var(defaultValue)));
 		nm->visibility = v;
@@ -556,6 +558,13 @@ struct StructType : public ComplexType,
 	/** Checks whether the given id can be a member. It also checks all base classes. */
 	bool canBeMember(const NamespacedIdentifier& possibleMemberId) const;
 
+	void setCompiler(Compiler& c)
+	{
+		registeredCompiler = &c;
+	}
+
+	Compiler* getCompiler() { return registeredCompiler.get(); }
+
 private:
 
 	NamedValueSet internalProperties;
@@ -617,6 +626,8 @@ private:
 	OwnedArray<BaseClass> baseClasses;
 
 	bool isExternalDefinition = false;
+
+	WeakReference<Compiler> registeredCompiler = nullptr;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(StructType);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StructType);

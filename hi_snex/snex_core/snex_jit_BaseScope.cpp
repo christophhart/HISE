@@ -315,6 +315,8 @@ juce::Result RootClassData::initData(BaseScope* scope, const Symbol& s, Initiali
 
 juce::Result RootClassData::callRootDestructors()
 {
+	
+
 	auto r = Result::ok();
 
 	for (const auto& ts : symbolTable)
@@ -326,7 +328,6 @@ juce::Result RootClassData::callRootDestructors()
 				ComplexType::InitData d;
 				d.t = ComplexType::InitData::Type::Desctructor;
 				d.dataPointer = ts.data;
-
 				r = typePtr->callDestructor(d);
 
 				if (!r.wasOk())

@@ -332,8 +332,6 @@ struct ProcessDataDyn: public InternalData
 	{
 		return reinterpret_cast<ChannelPtr*>(data + numChannels);
 	}
-
-	JUCE_DECLARE_NON_COPYABLE(ProcessDataDyn);
 };
 
 
@@ -341,8 +339,6 @@ struct ProcessDataDyn: public InternalData
 /** This helper class takes a process data type and allows chunk-wise processing.
 
 	Just create one of these from any process data type, then call
-
-
 */
 template <typename ProcessDataType, bool IncludeEvents=true> struct ChunkableProcessData
 {
@@ -545,6 +541,7 @@ struct FrameConverters
 		{
 		case 1:   processFix<1>(ptr, data); break;
 		case 2:   processFix<2>(ptr, data); break;
+#if 0
 		case 3:   processFix<3>(ptr, data); break;
 		case 4:   processFix<4>(ptr, data); break;
 		case 5:   processFix<5>(ptr, data); break;
@@ -559,6 +556,7 @@ struct FrameConverters
 		case 14: processFix<14>(ptr, data); break;
 		case 15: processFix<15>(ptr, data); break;
 		case 16: processFix<16>(ptr, data); break;
+#endif
 		}
 	}
 };

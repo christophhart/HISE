@@ -87,6 +87,7 @@ struct JitCompiledNode : public ReferenceCountedObject,
 		lastSpecs = ps;
 
 		callbacks[Types::ScriptnodeCallbacks::PrepareFunction].callVoid(&lastSpecs);
+		callbacks[Types::ScriptnodeCallbacks::ResetFunction].callVoid();
 	}
 
 	template <typename T> void process(T& data)

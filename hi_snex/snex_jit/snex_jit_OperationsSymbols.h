@@ -452,6 +452,8 @@ struct Operations::MemoryReference : public Expression
 	ValueTree toValueTree() const override
 	{
 		auto v = Expression::toValueTree();
+		v.setProperty("ObjectType", getSubExpr(0)->getTypeInfo().toString(), nullptr);
+		v.setProperty("MemberType", type.toString(), nullptr);
 		v.setProperty("Offset", offsetInBytes, nullptr);
 		return v;
 	}

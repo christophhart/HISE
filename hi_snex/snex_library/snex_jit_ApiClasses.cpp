@@ -97,6 +97,11 @@ struct VectorMathFunction
 #define HNODE_JIT_VECTOR_FUNCTION(name) addFunction(VectorMathFunction::createForTwoBlocks(static_cast<block&(*)(block&, const block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
 #define HNODE_JIT_VECTOR_FUNCTION_S(name) addFunction(VectorMathFunction::createForScalar(static_cast<block&(*)(block&, float)>(hmath::name), #name, blockType)); DESCRIPTION(name, float);
 
+#define FP_TARGET FP_REG_W(d->target)
+#define ARGS(i) d->args[i]
+#define SETUP_MATH_INLINE(name) auto d = d_->toAsmInlineData(); auto& cc = d->gen.cc; auto type = d->target->getType(); d->target->createRegister(cc); cc.setInlineComment(name);
+
+
 MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType) :
 	FunctionClass(NamespacedIdentifier("Math"))
 {
@@ -201,281 +206,18 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	setDescription("returns the bigger value", { "firstValue", "secondValue" });
 	HNODE_JIT_ADD_C_FUNCTION_0(float, hmath::random, "random");
 	setDescription("returns a 32bit floating point random value", {});
-
 	
 	if (!addInlinedFunctions)
 		return;
 
-#define FP_TARGET FP_REG_W(d->target)
-#define ARGS(i) d->args[i]
-#define SETUP_MATH_INLINE(name) auto d = d_->toAsmInlineData(); auto& cc = d->gen.cc; auto type = d->target->getType(); d->target->createRegister(cc); cc.setInlineComment(name);
-
-	addInliner("abs", [](InlineData* d_)
-	{
-		SETUP_MATH_INLINE("inline abs");
-
-		IF_(float)
-		{
-			auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU32(0x7fffffff));
-			cc.movss(FP_TARGET, FP_REG_R(ARGS(0)));
-			cc.andps(FP_TARGET, c);
-		}
-		IF_(double)
-		{
-			auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU64(0x7fffffffffffffff));
-			cc.movsd(FP_TARGET, FP_REG_R(ARGS(0)));
-			cc.andps(FP_TARGET, c);
-		}
-
-		return Result::ok();
-	});
-
-	addInliner("max", [](InlineData* d_)
-	{
-		SETUP_MATH_INLINE("inline max");
-
-		IF_(float)
-		{
-			FP_OP(cc.movss, d->target, ARGS(0));
-			FP_OP(cc.maxss, d->target, ARGS(1));
-		}
-		IF_(double)
-		{
-			FP_OP(cc.movsd, d->target, ARGS(0));
-			FP_OP(cc.maxsd, d->target, ARGS(1));
-		}
-		IF_(int)
-		{
-			ARGS(0)->loadMemoryIntoRegister(cc);
-
-			INT_OP(cc.mov, d->target, ARGS(0));
-			INT_OP(cc.cmp, ARGS(0), ARGS(1));
-			INT_OP_WITH_MEM(cc.cmovl, d->target, ARGS(1));
-		}
-
-		return Result::ok();
-	});
-
-
-	addInliner("min", [](InlineData* d_)
-	{
-		SETUP_MATH_INLINE("inline min");
-
-		IF_(float)
-		{
-			FP_OP(cc.movss, d->target, ARGS(0));
-			FP_OP(cc.minss, d->target, ARGS(1));
-		}
-		IF_(double)
-		{
-			FP_OP(cc.movsd, d->target, ARGS(0));
-			FP_OP(cc.minsd, d->target, ARGS(1));
-		}
-		IF_(int)
-		{
-			ARGS(0)->loadMemoryIntoRegister(cc);
-
-			INT_OP(cc.mov, d->target, ARGS(0));
-			INT_OP(cc.cmp, ARGS(0), ARGS(1));
-			INT_OP_WITH_MEM(cc.cmovg, d->target, ARGS(1));
-		}
-
-		return Result::ok();
-	});
-
-	addInliner("range", [](InlineData* d_)
-	{
-		SETUP_MATH_INLINE("inline range");
-
-		IF_(float)
-		{
-			FP_OP(cc.movss, d->target, ARGS(0));
-			FP_OP(cc.maxss, d->target, ARGS(1));
-			FP_OP(cc.minss, d->target, ARGS(2));
-
-		}
-		IF_(double)
-		{
-			FP_OP(cc.movsd, d->target, ARGS(0));
-			FP_OP(cc.maxsd, d->target, ARGS(1));
-			FP_OP(cc.minsd, d->target, ARGS(2));
-		}
-		IF_(int)
-		{
-			auto v = ARGS(0);
-			auto l = ARGS(1);
-			auto u = ARGS(2);
-			auto rv = d->target;
-			rv->createRegister(cc);
-
-			v->loadMemoryIntoRegister(cc);
-			l->loadMemoryIntoRegister(cc);
-			u->loadMemoryIntoRegister(cc);
-
-			Intrinsics::range(cc, INT_REG_W(rv), INT_REG_R(v), INT_REG_R(l), INT_REG_R(u));
-		}
-
-		return Result::ok();
-	});
-
-	addInliner("sign", [](InlineData* d_)
-	{
-		SETUP_MATH_INLINE("inline sign");
-
-		ARGS(0)->loadMemoryIntoRegister(cc);
-
-		auto pb = cc.newLabel();
-		auto nb = cc.newLabel();
-
-		IF_(float)
-		{
-			auto input = FP_REG_R(ARGS(0));
-			auto t = FP_REG_W(d->target);
-			auto mem = cc.newMmConst(ConstPool::kScopeGlobal, Data64::fromF32(-1.0f, 1.0f));
-			auto i = cc.newGpq();
-			auto r2 = cc.newGpq();
-			auto zero = cc.newXmmSs();
-
-			cc.xorps(zero, zero);
-			cc.xor_(i, i);
-			cc.ucomiss(input, zero);
-			cc.seta(i.r8());
-			cc.lea(r2, mem);
-			cc.movss(t, x86::ptr(r2, i, 2, 0, 4));
-		}
-		IF_(double)
-		{
-			auto input = FP_REG_R(ARGS(0));
-			auto t = FP_REG_W(d->target);
-			auto mem = cc.newXmmConst(ConstPool::kScopeGlobal, Data128::fromF64(-1.0, 1.0));
-			auto i = cc.newGpq();
-			auto r2 = cc.newGpq();
-			auto zero = cc.newXmmSd();
-
-			cc.xorps(zero, zero);
-			cc.xor_(i, i);
-			cc.ucomisd(input, zero);
-			cc.seta(i.r8());
-			cc.lea(r2, mem);
-			cc.movsd(t, x86::ptr(r2, i, 3, 0, 8));
-		}
-
-		return Result::ok();
-	});
-
-	addInliner("map", [](InlineData* d_)
-	{
-		SETUP_MATH_INLINE("inline map");
-
-		IF_(float)
-		{
-			FP_OP(cc.movss, d->target, ARGS(2));
-			FP_OP(cc.subss, d->target, ARGS(1));
-			FP_OP(cc.mulss, d->target, ARGS(0));
-			FP_OP(cc.addss, d->target, ARGS(1));
-		}
-		IF_(double)
-		{
-			FP_OP(cc.movsd, d->target, ARGS(2));
-			FP_OP(cc.subsd, d->target, ARGS(1));
-			FP_OP(cc.mulsd, d->target, ARGS(0));
-			FP_OP(cc.addsd, d->target, ARGS(1));
-		}
-
-		return Result::ok();
-	});
-
-	addInliner("fmod", [](InlineData* d_)
-	{
-		SETUP_MATH_INLINE("inline fmod");
-
-		X86Mem x = d->gen.createFpuMem(ARGS(0));
-		X86Mem y = d->gen.createFpuMem(ARGS(1));
-		auto u = d->gen.createStack(d->target->getType());
-
-		cc.fld(y);
-		cc.fld(x);
-		cc.fprem();
-		cc.fstp(x);
-		cc.fstp(u);
-
-		d->gen.writeMemToReg(d->target, x);
-
-		return Result::ok();
-	});
-
-	addInliner("sin", [](InlineData* d_)
-	{
-		SETUP_MATH_INLINE("inline sin");
-		
-		static constexpr int TableSize = 2048;
-
-		static float sinTable[TableSize];
-		for (int i = 0; i < TableSize; i++)
-		{
-			double v = ((double)i / (double)TableSize) * double_Pi * 2.0;
-			sinTable[i] = std::sin(v);
-		}
-
-		auto i1 = cc.newGpq();
-		auto i2 = cc.newGpq();
-		auto tmpFloat = cc.newXmmSs();
-
-		d->target->loadMemoryIntoRegister(cc);
-
-		auto idx = cc.newXmmSs();
-		bool isDouble = d->args[0]->getType() == Types::ID::Double;
-
-		if (isDouble)
-		{
-			if (d->args[0]->isMemoryLocation())
-				cc.cvtsd2ss(idx, d->args[0]->getAsMemoryLocation());
-			else
-				cc.cvtsd2ss(idx, FP_REG_R(d->args[0]));
-		}
-		else
-		{
-			if (d->args[0]->isMemoryLocation())
-				cc.movss(idx, d->args[0]->getAsMemoryLocation());
-			else
-				cc.movss(idx, FP_REG_R(d->args[0]));
-		}
-
-		auto tableSize = cc.newFloatConst(ConstPool::kScopeGlobal, (float)TableSize / (2.0f * float_Pi));
-
-		cc.mulss(idx, tableSize);
-		cc.cvttss2si(i1, idx);
-		cc.lea(i2, x86::ptr(i1).cloneAdjusted(1));
-		cc.cvtsi2ss(tmpFloat, i1);
-		cc.subss(idx, tmpFloat);
-		cc.and_(i1, TableSize-1);
-		cc.and_(i2, TableSize-1);
-
-		auto adr = (uint64_t)sinTable;
-
-		auto dataReg = cc.newGpq();
-		cc.mov(dataReg, adr);
-		auto p1 = x86::dword_ptr(dataReg, i1, 2);
-		auto p2 = x86::dword_ptr(dataReg, i2, 2);
-		
-		X86Xmm v1;
-
-		if (isDouble)
-			v1 = cc.newXmmSs();
-		else
-			v1 = FP_REG_W(d->target);
-
-		// return v0 + t * (v1 - v0);
-		cc.movss(v1, p2);
-		cc.subss(v1, p1);
-		cc.mulss(v1, idx);
-		cc.addss(v1, p1);
-
-		if (isDouble)
-			cc.cvtss2sd(FP_REG_W(d->target), v1);
-
-		return Result::ok();
-	});
+	addInliner("abs", Inliners::abs);
+	addInliner("max", Inliners::max);
+	addInliner("min", Inliners::min);
+	addInliner("range", Inliners::range);
+	addInliner("sign", Inliners::sign);
+	addInliner("map", Inliners::map);
+	addInliner("fmod", Inliners::fmod);
+	addInliner("sin", Inliners::sin);
 }
 
 
@@ -645,6 +387,272 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 		addFunction(f);
 		setDescription("Dumps the given object / expression", { "object" });
 	}
+}
+
+juce::Result MathFunctions::Inliners::abs(InlineData* d_)
+{
+	SETUP_MATH_INLINE("inline abs");
+
+	IF_(float)
+	{
+		auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU32(0x7fffffff));
+		cc.movss(FP_TARGET, FP_REG_R(ARGS(0)));
+		cc.andps(FP_TARGET, c);
+	}
+	IF_(double)
+	{
+		auto c = cc.newXmmConst(asmjit::ConstPool::kScopeGlobal, Data128::fromU64(0x7fffffffffffffff));
+		cc.movsd(FP_TARGET, FP_REG_R(ARGS(0)));
+		cc.andps(FP_TARGET, c);
+	}
+
+	return Result::ok();
+}
+
+juce::Result MathFunctions::Inliners::max(InlineData* d_)
+{
+	SETUP_MATH_INLINE("inline max");
+
+	IF_(float)
+	{
+		FP_OP(cc.movss, d->target, ARGS(0));
+		FP_OP(cc.maxss, d->target, ARGS(1));
+	}
+	IF_(double)
+	{
+		FP_OP(cc.movsd, d->target, ARGS(0));
+		FP_OP(cc.maxsd, d->target, ARGS(1));
+	}
+	IF_(int)
+	{
+		ARGS(0)->loadMemoryIntoRegister(cc);
+
+		INT_OP(cc.mov, d->target, ARGS(0));
+		INT_OP(cc.cmp, ARGS(0), ARGS(1));
+		INT_OP_WITH_MEM(cc.cmovl, d->target, ARGS(1));
+	}
+
+	return Result::ok();
+}
+
+juce::Result MathFunctions::Inliners::min(InlineData* d_)
+{
+	SETUP_MATH_INLINE("inline min");
+
+	IF_(float)
+	{
+		FP_OP(cc.movss, d->target, ARGS(0));
+		FP_OP(cc.minss, d->target, ARGS(1));
+	}
+	IF_(double)
+	{
+		FP_OP(cc.movsd, d->target, ARGS(0));
+		FP_OP(cc.minsd, d->target, ARGS(1));
+	}
+	IF_(int)
+	{
+		ARGS(0)->loadMemoryIntoRegister(cc);
+
+		INT_OP(cc.mov, d->target, ARGS(0));
+		INT_OP(cc.cmp, ARGS(0), ARGS(1));
+		INT_OP_WITH_MEM(cc.cmovg, d->target, ARGS(1));
+	}
+
+	return Result::ok();
+}
+
+juce::Result MathFunctions::Inliners::range(InlineData* d_)
+{
+	SETUP_MATH_INLINE("inline range");
+
+	IF_(float)
+	{
+		FP_OP(cc.movss, d->target, ARGS(0));
+		FP_OP(cc.maxss, d->target, ARGS(1));
+		FP_OP(cc.minss, d->target, ARGS(2));
+
+	}
+	IF_(double)
+	{
+		FP_OP(cc.movsd, d->target, ARGS(0));
+		FP_OP(cc.maxsd, d->target, ARGS(1));
+		FP_OP(cc.minsd, d->target, ARGS(2));
+	}
+	IF_(int)
+	{
+		auto v = ARGS(0);
+		auto l = ARGS(1);
+		auto u = ARGS(2);
+		auto rv = d->target;
+		rv->createRegister(cc);
+
+		v->loadMemoryIntoRegister(cc);
+		l->loadMemoryIntoRegister(cc);
+		u->loadMemoryIntoRegister(cc);
+
+		Intrinsics::range(cc, INT_REG_W(rv), INT_REG_R(v), INT_REG_R(l), INT_REG_R(u));
+	}
+
+	return Result::ok();
+}
+
+juce::Result MathFunctions::Inliners::sign(InlineData* d_)
+{
+	SETUP_MATH_INLINE("inline sign");
+
+	ARGS(0)->loadMemoryIntoRegister(cc);
+
+	auto pb = cc.newLabel();
+	auto nb = cc.newLabel();
+
+	IF_(float)
+	{
+		auto input = FP_REG_R(ARGS(0));
+		auto t = FP_REG_W(d->target);
+		auto mem = cc.newMmConst(ConstPool::kScopeGlobal, Data64::fromF32(-1.0f, 1.0f));
+		auto i = cc.newGpq();
+		auto r2 = cc.newGpq();
+		auto zero = cc.newXmmSs();
+
+		cc.xorps(zero, zero);
+		cc.xor_(i, i);
+		cc.ucomiss(input, zero);
+		cc.seta(i.r8());
+		cc.lea(r2, mem);
+		cc.movss(t, x86::ptr(r2, i, 2, 0, 4));
+	}
+	IF_(double)
+	{
+		auto input = FP_REG_R(ARGS(0));
+		auto t = FP_REG_W(d->target);
+		auto mem = cc.newXmmConst(ConstPool::kScopeGlobal, Data128::fromF64(-1.0, 1.0));
+		auto i = cc.newGpq();
+		auto r2 = cc.newGpq();
+		auto zero = cc.newXmmSd();
+
+		cc.xorps(zero, zero);
+		cc.xor_(i, i);
+		cc.ucomisd(input, zero);
+		cc.seta(i.r8());
+		cc.lea(r2, mem);
+		cc.movsd(t, x86::ptr(r2, i, 3, 0, 8));
+	}
+
+	return Result::ok();
+}
+
+juce::Result MathFunctions::Inliners::map(InlineData* d_)
+{
+	SETUP_MATH_INLINE("inline map");
+
+	IF_(float)
+	{
+		FP_OP(cc.movss, d->target, ARGS(2));
+		FP_OP(cc.subss, d->target, ARGS(1));
+		FP_OP(cc.mulss, d->target, ARGS(0));
+		FP_OP(cc.addss, d->target, ARGS(1));
+	}
+	IF_(double)
+	{
+		FP_OP(cc.movsd, d->target, ARGS(2));
+		FP_OP(cc.subsd, d->target, ARGS(1));
+		FP_OP(cc.mulsd, d->target, ARGS(0));
+		FP_OP(cc.addsd, d->target, ARGS(1));
+	}
+
+	return Result::ok();
+}
+
+juce::Result MathFunctions::Inliners::fmod(InlineData* d_)
+{
+	SETUP_MATH_INLINE("inline fmod");
+
+	X86Mem x = d->gen.createFpuMem(ARGS(0));
+	X86Mem y = d->gen.createFpuMem(ARGS(1));
+	auto u = d->gen.createStack(d->target->getType());
+
+	cc.fld(y);
+	cc.fld(x);
+	cc.fprem();
+	cc.fstp(x);
+	cc.fstp(u);
+
+	d->gen.writeMemToReg(d->target, x);
+
+	return Result::ok();
+}
+
+juce::Result MathFunctions::Inliners::sin(InlineData* d_)
+{
+	SETUP_MATH_INLINE("inline sin");
+
+	static constexpr int TableSize = 2048;
+
+	static float sinTable[TableSize];
+	for (int i = 0; i < TableSize; i++)
+	{
+		double v = ((double)i / (double)TableSize) * double_Pi * 2.0;
+		sinTable[i] = std::sin(v);
+	}
+
+	auto i1 = cc.newGpq();
+	auto i2 = cc.newGpq();
+	auto tmpFloat = cc.newXmmSs();
+
+	d->target->loadMemoryIntoRegister(cc);
+
+	auto idx = cc.newXmmSs();
+	bool isDouble = d->args[0]->getType() == Types::ID::Double;
+
+	if (isDouble)
+	{
+		if (d->args[0]->isMemoryLocation())
+			cc.cvtsd2ss(idx, d->args[0]->getAsMemoryLocation());
+		else
+			cc.cvtsd2ss(idx, FP_REG_R(d->args[0]));
+	}
+	else
+	{
+		if (d->args[0]->isMemoryLocation())
+			cc.movss(idx, d->args[0]->getAsMemoryLocation());
+		else
+			cc.movss(idx, FP_REG_R(d->args[0]));
+	}
+
+	auto tableSize = cc.newFloatConst(ConstPool::kScopeGlobal, (float)TableSize / (2.0f * float_Pi));
+
+	cc.mulss(idx, tableSize);
+	cc.cvttss2si(i1, idx);
+	cc.lea(i2, x86::ptr(i1).cloneAdjusted(1));
+	cc.cvtsi2ss(tmpFloat, i1);
+	cc.subss(idx, tmpFloat);
+	cc.and_(i1, TableSize - 1);
+	cc.and_(i2, TableSize - 1);
+
+	auto adr = (uint64_t)sinTable;
+
+	auto dataReg = cc.newGpq();
+	cc.mov(dataReg, adr);
+	auto p1 = x86::dword_ptr(dataReg, i1, 2);
+	auto p2 = x86::dword_ptr(dataReg, i2, 2);
+
+	X86Xmm v1;
+
+	if (isDouble)
+		v1 = cc.newXmmSs();
+	else
+		v1 = FP_REG_W(d->target);
+
+	// return v0 + t * (v1 - v0);
+	cc.movss(v1, p2);
+	cc.subss(v1, p1);
+	cc.mulss(v1, idx);
+	cc.addss(v1, p1);
+
+	if (isDouble)
+		cc.cvtss2sd(FP_REG_W(d->target), v1);
+
+	return Result::ok();
 }
 
 }

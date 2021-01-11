@@ -233,6 +233,19 @@ public:
 		}
 	};
 
+	struct Inliners
+	{
+		static Result abs(InlineData* d);
+		static Result max(InlineData* d);
+		static Result min(InlineData* d);
+		static Result range(InlineData* d);
+		static Result sign(InlineData* b);
+		static Result map(InlineData* b);
+
+		static Result fmod(InlineData* b);
+		static Result sin(InlineData* b);
+	};
+
 	MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType);;
 };
 

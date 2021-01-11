@@ -641,7 +641,7 @@ Operations::TemplateParameterResolver::TemplateParameterResolver(const TemplateP
 	{
 		jassert(p.t != TemplateParameter::Empty);
 		jassert(!p.isTemplateArgument());
-		jassert(p.argumentId.isValid());
+		//jassert(p.argumentId.isValid());
 
 		if (p.t == TemplateParameter::Type)
 			jassert(p.type.isValid());

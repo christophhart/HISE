@@ -457,6 +457,35 @@ private:
 	}
 };
 
+struct Include : public Op
+{
+	Include(Base& b, const File& currentFile, const File& fileToInclude, bool includeContent=false):
+		Op(b),
+		root(currentFile),
+		includeFile(fileToInclude)
+	{
+
+	}
+
+	~Include()
+	{
+		flushIfNot();
+	}
+
+	void flush() override
+	{
+		String d;
+		d << "#include " << includeFile.getRelativePathFrom(root).quoted();
+
+		parent << d;
+
+		Op::flush();
+	}
+
+	File root;
+	File includeFile;
+};
+
 struct Macro : public Op
 {
 	Macro(Base& b, const String& name, const StringArray& args, bool addSemicolon=true):
@@ -490,6 +519,65 @@ private:
 	}
 
 	String s;
+};
+
+struct EncodedParameterMacro : public Op
+{
+	EncodedParameterMacro(Base& b, scriptnode::ParameterEncoder& pe_) :
+		Op(b),
+		pe(pe_)
+	{}
+
+	~EncodedParameterMacro()
+	{
+		flushIfNot();
+	}
+
+	void flush() override
+	{
+		String a;
+
+		a << "{\n\t" << IntendMarker;
+
+		auto data = pe.writeItems();
+
+		MemoryInputStream mis(data, true);
+		auto numIntsWritten = 0;
+
+		while (!mis.isExhausted())
+		{
+			auto iData = mis.readShort();
+
+			a << "0x";
+
+			auto hexString = String::toHexString(iData).toUpperCase();
+
+			int numChars = 4;
+
+			if (hexString.length() < numChars)
+			{
+				for (int i = 0; i < numChars - hexString.length(); i++)
+					a << '0';
+			}
+
+			a << hexString << ", ";
+
+			if ((
+				numIntsWritten + 1) % 8 == 0)
+				a << IntendMarker;
+
+			numIntsWritten++;
+		}
+
+		a = a.upToLastOccurrenceOf(", ", false, false);
+		a << "\n};";
+
+		Macro(parent, "SNEX_METADATA_ENCODED_PARAMETERS", { String(numIntsWritten) }, false);
+
+		parent << a;
+	}
+
+	scriptnode::ParameterEncoder& pe;
 };
 
 struct UsingTemplate: public DefinitionBase,

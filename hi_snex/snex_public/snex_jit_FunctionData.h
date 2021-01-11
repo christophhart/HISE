@@ -194,6 +194,8 @@ struct FunctionData
 
 	TypeInfo getOrResolveReturnType(ComplexType::Ptr p);
 
+	Symbol toSymbol() const { return { id, returnType }; }
+
 	bool matchIdArgs(const FunctionData& other) const;
 
 	bool matchIdArgsAndTemplate(const FunctionData& other) const;

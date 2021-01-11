@@ -143,6 +143,9 @@ public:
 
 	bool allowInlining() const;
 
+	GlobalScope& getGlobalScope() { return memory; }
+	const GlobalScope& getGlobalScope() const { return memory; }
+
 private:
 
 	NamespaceHandler::Ptr handler;
@@ -152,6 +155,7 @@ private:
 	GlobalScope& memory;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Compiler);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Compiler);
 };
 
 

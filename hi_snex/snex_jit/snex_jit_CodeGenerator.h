@@ -254,11 +254,7 @@ struct AsmCodeGenerator
 
 	void emitFunctionParameterReference(RegPtr sourceReg, RegPtr parameterReg);
 
-	void emitInlinedMathAssembly(Identifier id, RegPtr target, const ReferenceCountedArray<AssemblyRegister>& args);
-	
 	Result emitSimpleToComplexTypeCopy(RegPtr target, InitialiserList::Ptr initValues, RegPtr source);
-
-	static Array<Identifier> getInlineableMathFunctions();
 
 	void dumpVariables(BaseScope* s, uint64_t lineNumber);
 

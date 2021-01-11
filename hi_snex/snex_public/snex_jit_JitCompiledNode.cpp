@@ -117,9 +117,9 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 				if (inner.resolve())
 				{
-					if (auto metadataType = c.getComplexType(inner.st->id.getChildId("metadata")))
+					if (auto metadataType = dynamic_cast<jit::StructType*>(c.getComplexType(inner.st->id.getChildId("metadata")).get()))
 					{
-						cppgen::ParameterEncoder encoder(metadataType);
+						scriptnode::ParameterEncoder encoder(metadataType->createByteBlock());
 
 						for (auto& p: encoder)
 						{

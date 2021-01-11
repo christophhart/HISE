@@ -227,5 +227,12 @@ using namespace asmjit;
 		else
 			st->process(this, scope);
     }
+
+	void BaseCompiler::executeScopedPass(Pass p, BaseScope* scope, ReferenceCountedObject* statement)
+	{
+		BaseCompiler::ScopedPassSwitcher sps(this, p);
+		executePass(p, scope, statement);
+	}
+
 }
 }

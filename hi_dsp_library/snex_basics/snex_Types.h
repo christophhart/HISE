@@ -310,11 +310,24 @@ struct PolyHandler
 		return -1;
 	}
 
+	bool isEnabled() const { return enabled; }
+
+	void setEnabled(bool shouldBeEnabled)
+	{
+		enabled = shouldBeEnabled;
+
+		if (!shouldBeEnabled)
+		{
+			currentRenderThread.store(nullptr);
+			voiceIndex.store(-1);
+		}
+	}
+
 private:
 
-	const bool enabled;
 	std::atomic<void*> currentRenderThread = { nullptr };
 	std::atomic<int> voiceIndex = { -1 };
+	bool enabled;
 };
 
 
@@ -498,7 +511,7 @@ template <typename T, int NumVoices> struct PolyData
 
 private:
 
-	mutable int lastVoiceIndex = -1;
+	
 	
 	static constexpr bool isPolyphonic() { return NumVoices > 1; }
 
@@ -543,8 +556,11 @@ private:
 
 private:
 
-	T data[NumVoices];
 	PolyHandler* voicePtr = nullptr;
+	mutable int lastVoiceIndex = -1;
+	int unused = 0;
+
+	T data[NumVoices];
 };
 
 }

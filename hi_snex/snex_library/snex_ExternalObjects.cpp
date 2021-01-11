@@ -80,6 +80,10 @@ snex::jit::ComplexType::Ptr PrepareSpecsJIT::createComplexType(Compiler& c, cons
 	ADD_SNEX_STRUCT_MEMBER(st, obj, blockSize);
 	ADD_SNEX_STRUCT_MEMBER(st, obj, numChannels);
 
+	auto ptr = (void*)obj.voiceIndex;
+
+	st->addExternalMember("voiceIndex", obj, ptr, NamespaceHandler::Visibility::Private);
+
 	st->finaliseExternalDefinition();
 
 	return st;

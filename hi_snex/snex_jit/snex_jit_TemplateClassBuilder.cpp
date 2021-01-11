@@ -40,6 +40,10 @@ TemplateClassBuilder::TemplateClassBuilder(Compiler& compiler, const NamespacedI
 	id(id_),
 	c(compiler)
 {
+	addInitFunction([&compiler](const TemplateObject::ConstructData& cd, StructType* st)
+	{
+		st->setCompiler(compiler);
+	});
 }
 
 void TemplateClassBuilder::flush()

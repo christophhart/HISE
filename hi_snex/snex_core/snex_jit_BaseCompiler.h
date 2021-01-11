@@ -177,6 +177,8 @@ public:
 
 	void executePass(Pass p, BaseScope* scope, ReferenceCountedObject* statement);
 
+	void executeScopedPass(Pass p, BaseScope* scope, ReferenceCountedObject* statement);
+
 	void executeOptimization(ReferenceCountedObject* statement, BaseScope* scope);
 	
 	void optimize(ReferenceCountedObject* statement, BaseScope* scope, bool useExistingPasses=true);

@@ -1669,7 +1669,7 @@ juce::Result StructType::callDestructor(InitData& d)
 				InitData sd;
 				sd.t = ComplexType::InitData::Type::Desctructor;
 
-				auto offset = memberData[i]->offset;
+				auto offset = memberData[i]->offset + memberData[i]->padding;
 
 				if (d.dataPointer != nullptr)
 				{
@@ -2023,7 +2023,7 @@ bool StructType::injectInliner(const FunctionData& f)
 	return false;
 }
 
-int StructType::injectInliner(const Identifier& functionId, Inliner::InlineType type, const Inliner::Func& func)
+int StructType::injectInliner(const Identifier& functionId, Inliner::InlineType type, const Inliner::Func& func, const TemplateParameter::List& functionParameters)
 {
 	int numReplaced = 0;
 	Inliner::Ptr i = Inliner::createFromType(id.getChildId(functionId), type, func);
@@ -2032,12 +2032,45 @@ int StructType::injectInliner(const Identifier& functionId, Inliner::InlineType 
 	{
 		if (f.id.getIdentifier() == functionId)
 		{
-			f.inliner = i;
-			numReplaced++;
+			auto overrideInliner = functionParameters.isEmpty() || 
+				TemplateParameter::ListOps::match(f.templateParameters, functionParameters);
+
+			if (overrideInliner)
+			{
+				f.inliner = i;
+				numReplaced++;
+			}
 		}
 	}
 		
 	return numReplaced;
+}
+
+juce::MemoryBlock StructType::createByteBlock() const
+{
+	auto list = makeDefaultInitialiserList();
+
+	Array<short> bytes;
+
+	list->forEach([&bytes](InitialiserList::ChildBase* p)
+		{
+			VariableStorage v;
+
+			if (p->getValue(v))
+			{
+				auto iData = static_cast<short>(v.toInt());
+				bytes.add(iData);
+			}
+
+			return false;
+		});
+
+	MemoryOutputStream mos;
+
+	for (auto& b : bytes)
+		mos.writeShort(b);
+
+	return mos.getMemoryBlock();
 }
 
 snex::jit::Symbol StructType::getMemberSymbol(const Identifier& mId) const
