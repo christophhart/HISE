@@ -488,6 +488,8 @@ public:
 	void mouseExit(const MouseEvent& event) override;
 	void mouseDown(const MouseEvent& event) override;
 
+	void setOverlayComponent(Component* newOverlayComponent, int fadeTime);
+
 	void resized();
 
 	/** Returns the current size in the container. */
@@ -661,6 +663,8 @@ private:
 
 	FloatingTileContainer* parentContainer;
 	FloatingTileContent::Factory panelFactory;
+
+	ScopedPointer<Component> overlayComponent;
 };
 
 #if USE_BACKEND

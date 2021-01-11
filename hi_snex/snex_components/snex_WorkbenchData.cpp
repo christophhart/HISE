@@ -34,7 +34,7 @@
 namespace snex {
 using namespace juce;
 
-
+DECLARE_PARAMETER_RANGE(FreqRange, 20.0, 20000.0);
 
 String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 {
@@ -129,7 +129,7 @@ bool ui::WorkbenchData::handleCompilation()
 		MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(WorkbenchData::postCompile));
 
 		compileHandler->postCompile(lastCompileResult);
-
+		
 		// Might get deleted in the meantime...
 		if (compileHandler != nullptr)
 		{
@@ -176,8 +176,291 @@ juce::Identifier ui::ValueTreeCodeProvider::getInstanceId() const
 
 void ui::ValueTreeCodeProvider::rebuild() const
 {
-	snex::cppgen::ValueTreeBuilder vb(lastTree);
+	snex::cppgen::ValueTreeBuilder vb(lastTree, cppgen::ValueTreeBuilder::Format::JitCompiledInstance);
 	lastResult = vb.createCppCode();
+}
+
+namespace TestDataIds
+{
+#define DECLARE_ID(x) const Identifier x(#x);
+	DECLARE_ID(SignalType);
+	DECLARE_ID(SignalLength);
+	DECLARE_ID(NodeId);
+	DECLARE_ID(ParameterEvents);
+	DECLARE_ID(HiseEvents);
+	DECLARE_ID(InputFile);
+	DECLARE_ID(OutputFile);
+
+#undef DECLARE_ID
+}
+
+juce::var ui::WorkbenchData::TestData::toJSON() const
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	obj->setProperty(TestDataIds::NodeId, parent.getInstanceId().toString());
+	obj->setProperty(TestDataIds::SignalType, getSignalTypeList()[(int)currentTestSignalType]);
+	obj->setProperty(TestDataIds::SignalLength, testSignalLength);
+	obj->setProperty(TestDataIds::InputFile, testInputFile.getFullPathName());
+	obj->setProperty(TestDataIds::OutputFile, testOutputFile.getFullPathName());
+
+	Array<var> eventList;
+
+	for (auto e : hiseEvents)
+		eventList.add(JitFileTestCase::getJSONData(e));
+
+	Array<var> parameterList;
+
+	for (auto p : parameterEvents)
+		parameterList.add(p.toJson());
+
+
+	obj->setProperty(TestDataIds::HiseEvents, eventList);
+	obj->setProperty(TestDataIds::ParameterEvents, parameterList);
+
+	return obj;
+}
+
+bool ui::WorkbenchData::TestData::fromJSON(const var& jsonData)
+{
+	if (auto obj = jsonData.getDynamicObject())
+	{
+		auto& o = obj->getProperties();
+		auto id = Identifier(o.getWithDefault(TestDataIds::NodeId, "").toString());
+
+		if (parent.getInstanceId() == id)
+		{
+			clear();
+
+			testSignalLength = o.getWithDefault(TestDataIds::SignalLength, 1024);
+
+			auto signalName = o.getWithDefault(TestDataIds::SignalType, "Empty").toString();
+			auto index = getSignalTypeList().indexOf(signalName);
+			index = jmax(0, index);
+			currentTestSignalType = (TestSignalMode)index;
+			testInputFile = File(o.getWithDefault(TestDataIds::InputFile, ""));
+			testOutputFile = File(o.getWithDefault(TestDataIds::OutputFile, ""));
+
+			auto e = o.getWithDefault(TestDataIds::HiseEvents, var());
+			auto p = o.getWithDefault(TestDataIds::ParameterEvents, var());
+
+			if (auto eList = e.getArray())
+			{
+				for (auto ev : *eList)
+					hiseEvents.addEvent(JitFileTestCase::parseHiseEvent(ev));
+			}
+
+			if (auto pList = p.getArray())
+			{
+				for (auto pe : *pList)
+					parameterEvents.add(ParameterEvent(pe));
+			}
+
+			sendMessageToListeners(true);
+			rebuildTestSignal(sendNotification);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest)
+{
+	int size = testSignalLength;
+
+	testSourceData.setSize(2, size);
+
+	testSourceData.clear();
+
+	switch (currentTestSignalType)
+	{
+	case TestSignalMode::Empty:
+		break;
+	case TestSignalMode::DC1:
+	{
+		FloatVectorOperations::fill(testSourceData.getWritePointer(0), 1.0f, size);
+		break;
+	}
+	case TestSignalMode::FastRamp:
+	case TestSignalMode::Ramp:
+	{
+		float delta = 1.0f / (float)size;
+
+		if (currentTestSignalType == TestSignalMode::FastRamp)
+			delta *= 32.0f;
+
+		for (int i = 0; i < size; i++)
+			testSourceData.setSample(0, i, hmath::fmod(delta * (float)i, 1.0f));
+		break;
+	}
+	case TestSignalMode::Impulse:
+	{
+		testSourceData.setSample(0, 0, 1.0f);
+		break;
+	}
+	case TestSignalMode::OneKhzSine:
+	case TestSignalMode::OneKhzSaw:
+	{
+		scriptnode::core::oscillator osc;
+		
+		auto psCopy = ps;
+		psCopy.numChannels = 1;
+		osc.prepare(psCopy);
+		osc.reset();
+
+		if (currentTestSignalType == TestSignalMode::OneKhzSaw)
+			osc.getWrappedObject().setMode(1.0);
+
+		osc.getWrappedObject().setFrequency(1000.0);
+		ProcessDataDyn d(testSourceData.getArrayOfWritePointers(), size, 1);
+		osc.process(d);
+		break;
+	}
+	case TestSignalMode::SineSweep:
+	{
+		using namespace scriptnode;
+		using PType = parameter::from0To1<core::oscillator, 1, FreqRange>;
+		using ProcessorType = container::chain<parameter::empty, wrap::fix<1, core::ramp>, wrap::mod<PType, core::peak>, math::clear, core::oscillator>;
+
+		wrap::frame<1, ProcessorType> fObj;
+
+		auto& obj = fObj.getObject();
+		obj.get<1>().connect<0>(obj.get<3>());
+
+		auto psCopy = ps;
+		psCopy.numChannels = 1;
+		fObj.prepare(psCopy);
+		fObj.reset();
+		obj.get<0>().setPeriodTime(1000.0 * (double)ps.blockSize / ps.sampleRate);
+
+		ProcessData<1> d(testSourceData.getArrayOfWritePointers(), size, 1);
+		fObj.process(d);
+		break;
+	}
+	case TestSignalMode::Noise:
+	{
+		for (int i = 0; i < size; i++)
+			testSourceData.setSample(0, i, hmath::random() * 2.0f - 1.0f);
+
+		break;
+	}
+	case TestSignalMode::CustomFile:
+	{
+		if (!testInputFile.existsAsFile())
+		{
+			FileChooser fc("Load test file", {}, "*.wav", true);
+
+			if (fc.browseForFileToOpen())
+				testInputFile = fc.getResult();
+		}
+
+		if (testInputFile.existsAsFile())
+		{
+			double speed = 0.0;
+			auto b = hlac::CompressionHelpers::loadFile(testInputFile, speed);
+
+			if (b.getNumSamples() != 0)
+				testSourceData.makeCopyOf(b);
+		}
+
+		break;
+	}
+	case TestSignalMode::numTestSignals:
+		break;
+	default:
+		break;
+	}
+
+	if(currentTestSignalType != TestSignalMode::CustomFile)
+		FloatVectorOperations::copy(testSourceData.getWritePointer(1), testSourceData.getReadPointer(0), size);
+
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->testSignalChanged();
+	}
+
+	if (triggerTest != dontSendNotification)
+	{
+		parent.triggerPostCompileActions();
+	}
+}
+
+void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
+{
+	auto compileHandler = data->getCompileHandler();
+	auto nodeToTest = data->getLastResult().lastNode;
+
+	jassert(ps.sampleRate > 0.0);
+	ps.numChannels = testSourceData.getNumChannels();
+
+	compileHandler->prepareTest(ps);
+
+	testOutputData.makeCopyOf(testSourceData);
+
+	Types::ProcessDataDyn d(testOutputData.getArrayOfWritePointers(), testOutputData.getNumSamples(), testOutputData.getNumChannels());
+	d.setEventBuffer(hiseEvents);
+
+	auto before = Time::getMillisecondCounterHiRes();
+
+	{
+		ChunkableProcessData<ProcessDataDyn, true> cd(d);
+
+		int samplePos = 0;
+		int numLeft = cd.getNumLeft();
+		int thisParameterIndex = -1;
+
+		while (numLeft > 0)
+		{
+			auto numThisTime = jmin(ps.blockSize, numLeft);
+
+			Range<int> r(samplePos, samplePos + numThisTime);
+
+			ParameterEvent p;
+
+			thisParameterIndex = getParameterInSampleRange(r, thisParameterIndex, p);
+
+			while(thisParameterIndex != -1)
+			{
+				auto numBeforeParam = p.timeStamp - samplePos;
+
+				if (numBeforeParam > 0)
+				{
+					auto sc = cd.getChunk(numBeforeParam);
+					compileHandler->processTest(sc.toData());
+
+					samplePos = p.timeStamp;
+					numThisTime -= numBeforeParam;
+				}
+
+				compileHandler->processTestParameterEvent(p.parameterIndex, p.valueToUse);
+
+				r = { samplePos, samplePos + numThisTime };
+
+				thisParameterIndex = getParameterInSampleRange(r, thisParameterIndex + 1, p);
+			}
+			
+			if (numThisTime > 0)
+			{
+				auto sc = cd.getChunk(numThisTime);
+				compileHandler->processTest(sc.toData());
+				samplePos += numThisTime;
+			}
+
+			numLeft = testOutputData.getNumSamples() - samplePos;
+		}
+
+		jassert(cd.getNumLeft() == 0);
+	}
+
+	auto after = Time::getMillisecondCounterHiRes();
+	auto delta = (after - before) * 0.001;
+
+	auto calculatedSeconds = (double)testOutputData.getNumSamples() / ps.sampleRate;
+
+	cpuUsage = delta / calculatedSeconds;
 }
 
 }

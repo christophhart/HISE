@@ -51,7 +51,10 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	registerType<SnexEditorPanel>(PopupMenuOptions::SnexEditor);
 	registerType<SnexWorkbenchPanel<snex::ui::OptimizationProperties>>(PopupMenuOptions::SnexOptimisations);
-	registerType<SnexWorkbenchPanel<snex::ui::Graph>>(PopupMenuOptions::SnexOptimisations);
+	registerType<SnexWorkbenchPanel<snex::ui::Graph>>(PopupMenuOptions::SnexGraph);
+	registerType<SnexWorkbenchPanel<snex::ui::ParameterList>>(PopupMenuOptions::SnexParameterList);
+	registerType<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(PopupMenuOptions::SnexTestDataInfo);
+	registerType<SnexWorkbenchPanel<hise::WorkbenchInfoComponent>>(PopupMenuOptions::SnexWorkbenchInfo);
 	//registerType<snex::ui::Console>();
 	//registerType<snex::ui::AssemblyViewer>();
 
@@ -263,6 +266,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
 		break;
 	}
+	case PopupMenuOptions::SnexParameterList:
 	case PopupMenuOptions::MacroTable:
 	{
 		path.loadPathFromData(MainToolbarIcons::macroControlTable, sizeof(MainToolbarIcons::macroControlTable));
@@ -351,6 +355,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		break;
 	}
 	case PopupMenuOptions::MarkdownEditor:
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexEditor:
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor:
 	{
 		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
@@ -406,6 +411,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 #endif
 		break;
 	}
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexGraph:
 	case FloatingTileContent::Factory::PopupMenuOptions::Plotter:
 	{
 		static const unsigned char pathData[] = { 110,109,128,252,89,67,64,173,211,67,98,163,65,87,67,250,238,211,67,11,182,84,67,198,176,212,67,0,89,82,67,64,212,213,67,98,235,158,77,67,51,27,216,67,247,55,73,67,167,244,219,67,127,85,68,67,64,17,226,67,108,255,12,75,67,192,104,227,67,98,225,192,79,

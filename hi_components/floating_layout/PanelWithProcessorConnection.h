@@ -195,6 +195,11 @@ public:
 
 	virtual bool hasSubIndex() const { return false; }
 
+	bool showTitleInPresentationMode() const override
+	{
+		return !forceHideSelector;
+	}
+
 	void setCurrentProcessor(Processor* p)
 	{
 		if (currentProcessor.get() != nullptr)
@@ -209,6 +214,12 @@ public:
 	void setConnectionIndex(int newIndex)
 	{
 		currentIndex = newIndex;
+	}
+
+	void setForceHideSelector(bool shouldHide)
+	{
+		forceHideSelector = shouldHide;
+		
 	}
 
 protected:
@@ -226,6 +237,8 @@ protected:
 	const Identifier showConnectionBar;
 
 private:
+
+	bool forceHideSelector = false;
 
 	bool listInitialised = false;
 

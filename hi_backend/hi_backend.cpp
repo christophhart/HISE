@@ -72,3 +72,5 @@
 #include "backend/doc_generators/MenuReferenceGenerator.cpp"
 #include "backend/doc_generators/UiComponentDocGenerator.cpp"
 
+#include "snex_workbench/DspNetworkWorkbench.cpp"
+#include "snex_workbench/WorkbenchProcessor.cpp"

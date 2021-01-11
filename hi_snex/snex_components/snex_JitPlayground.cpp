@@ -893,11 +893,11 @@ void SnexPlayground::recompiled(ui::WorkbenchData::Ptr p)
 
 void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
 {
-	auto result = wb->getLastResult();
+	auto& result = wb->getTestData();
 
 	if (!result.testWasOk())
 	{
-		resultLabel.setText(result.testResult.getErrorMessage(), dontSendNotification);
+		resultLabel.setText(result.getErrorMessage(), dontSendNotification);
 	}
 }
 
@@ -1182,6 +1182,21 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 		r.compileResult = lastTest->compileWithoutTesting();
 		r.assembly = lastTest->assembly;
 		r.obj = lastTest->obj;
+
+		if (lastTest->nodeToTest != nullptr)
+		{
+			for (auto p : lastTest->nodeToTest->getParameterList())
+			{
+				ui::WorkbenchData::CompileResult::DynamicParameterData d;
+				d.data = p.data;
+				d.f = (void(*)(double))p.function;
+				r.parameters.add(d);
+			}
+
+			getParent()->getTestData().testSourceData.makeCopyOf(lastTest->getBuffer(true));
+
+		}
+		
 		return r;
 	}
 
@@ -1189,12 +1204,29 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 	{
 		if (lastTest != nullptr && lastResult.compiledOk())
 		{
+			auto& td = getParent()->getTestData();
+
 			if (lastTest->nodeToTest != nullptr)
 			{
 				lastTest->nodeToTest->setExternalDataHolder(ownHolder);
 			}
 
+			if (td.shouldRunTest() && lastTest->nodeToTest != nullptr)
+			{
+				td.initProcessing(512, 44100.0);
+				td.processTestData(getParent());
+			}
+
+			else
+			{
+				lastResult.compileResult = lastTest->testAfterCompilation();
+			}
+
+			
+#if 0
 			lastResult.testResult = lastTest->testAfterCompilation();
+			lastResult.cpuUsage = lastTest->cpuUsage;
+#endif
 		}
 	}
 }

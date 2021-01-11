@@ -226,11 +226,278 @@ struct WorkbenchData : public ReferenceCountedObject,
 		WorkbenchData::WeakPtr parent;
 	};
 
+	struct TestData: public AsyncUpdater
+	{
+		enum class TestSignalMode
+		{
+			Empty,
+			DC1,
+			Ramp,
+			FastRamp,
+			OneKhzSine,
+			OneKhzSaw,
+			Impulse,
+			SineSweep,
+			Noise,
+			CustomFile,
+			numTestSignals
+		};
+
+		static StringArray getSignalTypeList()
+		{
+			return { "Empty", "0dB Static", "Ramp", "FastRamp", "1kHz Sine", "1kHz Saw", "Impulse", "Sine Sweep", "Noise", "Custom" };
+		}
+
+		struct TestListener
+		{
+			virtual ~TestListener() {};
+
+			virtual void testSignalChanged() {};
+
+			virtual void testEventsChanged() {};
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(TestListener);
+		};
+
+		TestData(WorkbenchData& p) :
+			testResult(Result::ok()),
+			parent(p)
+		{};
+
+		struct HiseEventEvent
+		{
+			HiseEventEvent(HiseEvent& e_):
+				e(e_)
+			{};
+
+			HiseEvent e;
+		};
+
+		struct ParameterEvent
+		{
+			ParameterEvent() {};
+
+			ParameterEvent(int timeStamp_, int parameterIndex_, double v):
+				timeStamp(timeStamp_),
+				parameterIndex(parameterIndex_),
+				valueToUse(v)
+			{};
+
+			bool operator<(const ParameterEvent& other) const
+			{
+				return timeStamp < other.timeStamp;
+			}
+
+			ParameterEvent(const var& obj):
+				timeStamp(obj.getProperty("Timestamp", 0)),
+				parameterIndex(obj.getProperty("Index", 0)),
+				valueToUse(obj.getProperty("Value", 0.0))
+			{
+				
+			}
+
+			var toJson() const
+			{
+				DynamicObject::Ptr obj = new DynamicObject();
+				
+				obj->setProperty("Index", parameterIndex);
+				obj->setProperty("Value", valueToUse);
+				obj->setProperty("Timestamp", timeStamp);
+
+				return var(obj);
+			}
+
+			int timeStamp = 0;
+			int parameterIndex = 0;
+			double valueToUse = 0.0;
+		};
+
+		bool testWasOk() const
+		{
+			return testResult.wasOk();
+		}
+
+		
+
+		var toJSON() const;
+
+		bool fromJSON(const var& jsonData);
+
+		bool shouldRunTest() const
+		{
+			return testSourceData.getNumSamples() > 0;
+		}
+
+		int getNumTestEvents(bool getParameterAmount) const
+		{
+			return getParameterAmount ? parameterEvents.size() : hiseEvents.getNumUsed();
+		}
+
+		void addTestEvent(const HiseEvent& e)
+		{
+			hiseEvents.addEvent(e);
+			sendMessageToListeners(true);
+
+			parent.triggerPostCompileActions();
+		}
+
+		HiseEvent getTestHiseEvent(int index) const { return hiseEvents.getEvent(index); }
+		ParameterEvent getParameterEvent(int index) const { return parameterEvents[index]; }
+
+		void addTestEvent(const ParameterEvent& p)
+		{
+			parameterEvents.addUsingDefaultSort(p);
+			sendMessageToListeners(true);
+
+			parent.triggerPostCompileActions();
+		}
+
+		void removeTestEvent(int index, bool isParameter, NotificationType notifyListeners=sendNotification)
+		{
+			if (isParameter)
+				parameterEvents.remove(index);
+			else
+				hiseEvents.popEvent(index);
+
+			if (notifyListeners != dontSendNotification)
+			{
+				sendMessageToListeners(true);
+				parent.triggerPostCompileActions();
+			}
+		}
+
+		void handleAsyncUpdate()
+		{
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+				{
+					if (sendEventMessage)
+						l->testEventsChanged();
+					if(sendSignalMessage)
+						l->testSignalChanged();
+				}
+			}
+
+			sendEventMessage = false;
+			sendSignalMessage = false;
+		}
+
+		void sendMessageToListeners(bool eventMessage)
+		{
+			if (eventMessage)
+				sendEventMessage = true;
+			else
+				sendSignalMessage = true;
+
+			triggerAsyncUpdate();
+		}
+
+		void rebuildTestSignal(NotificationType triggerTest=sendNotification);
+
+		
+
+		void addListener(TestListener* l)
+		{
+			listeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeListener(TestListener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+		
+		void processTestData(WorkbenchData::Ptr data);
+
+		void clear(NotificationType notify = dontSendNotification)
+		{
+			testSourceData.setSize(0, 0);
+			hiseEvents.clear();
+			parameterEvents.clear();
+
+			if (notify != dontSendNotification)
+			{
+				parent.triggerPostCompileActions();
+				sendMessageToListeners(true);
+				sendMessageToListeners(false);
+			}
+		}
+
+		WorkbenchData& parent;
+
+		AudioSampleBuffer testSourceData;
+		AudioSampleBuffer testOutputData;
+		
+
+		File testInputFile;
+		File testOutputFile;
+
+		double cpuUsage = 0.0;
+
+		TestSignalMode currentTestSignalType;
+		int testSignalLength = 1024;
+
+		String getErrorMessage() const
+		{
+			return testResult.getErrorMessage();
+		}
+
+		void initProcessing(int blockSize, double sampleRate)
+		{
+			ps.numChannels = 2;
+			ps.blockSize = jmin(blockSize, testSourceData.getNumSamples());
+			ps.sampleRate = sampleRate;
+			ps.voiceIndex = parent.getGlobalScope().getPolyHandler();
+		}
+
+		PrepareSpecs getPrepareSpecs() { return ps; }
+
+	private:
+		
+		int getParameterInSampleRange(Range<int> r, int lastIndex, ParameterEvent& pToFill) const
+		{
+			lastIndex = jmax(0, lastIndex);
+
+			for (int i = lastIndex; i < parameterEvents.size(); i++)
+			{
+				if (r.contains(parameterEvents[i].timeStamp))
+				{
+					pToFill = parameterEvents[i];
+					return i;
+				}
+			}
+
+			return -1;
+		}
+
+		PrepareSpecs ps;
+
+		bool sendEventMessage = false;
+		bool sendSignalMessage = false;
+
+		Result testResult;
+
+		HiseEventBuffer hiseEvents;
+		Array<ParameterEvent> parameterEvents;
+
+		Array<WeakReference<TestListener>> listeners;
+
+		JUCE_DECLARE_NON_COPYABLE(TestData);
+	};
+
 	struct CompileResult
 	{
+		/** This data is used by the ParameterList component to change the parameters. */
+		struct DynamicParameterData
+		{
+			using List = Array<DynamicParameterData>;
+
+			cppgen::ParameterEncoder::Item data;
+			std::function<void(double)> f;
+		};
+
 		CompileResult() :
-			compileResult(Result::ok()),
-			testResult(Result::ok())
+			compileResult(Result::ok())
 		{};
 
 		bool compiledOk() const
@@ -238,20 +505,11 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return compileResult.wasOk();
 		}
 
-		bool testWasOk() const
-		{
-			return testResult.wasOk();
-		}
-
-		bool allOk() const
-		{
-			return compiledOk() && testWasOk();
-		}
-
 		Result compileResult;
-		Result testResult;
 		String assembly;
 		JitObject obj;
+		DynamicParameterData::List parameters;
+		JitCompiledNode::Ptr lastNode;
 	};
 
 	struct CompileHandler : public SubItemBase
@@ -293,13 +551,18 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return r;
 		}
 
-		/** Override this method if you want to perform synchronous
-		    tasks directly after a successful compilation. 
+		/** Override this function and call the parameter method. */
+		virtual void processTestParameterEvent(int parameterIndex, double value) = 0;
+
+		virtual void prepareTest(PrepareSpecs ps) = 0;
+
+		virtual void processTest(ProcessDataDyn& data) = 0;
+
+
+		virtual void postCompile(ui::WorkbenchData::CompileResult& lastResult)
+		{
 			
-			You can use it to run the code and allow breakpoints.
-			
-		*/
-		virtual void postCompile(CompileResult& lastResult) {};
+		}
 
 		virtual Compiler::Ptr createCompiler()
 		{
@@ -310,6 +573,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 			cc->setDebugHandler(p);
 			return cc;
 		}
+
+		
 
 	private:
 
@@ -429,9 +694,13 @@ struct WorkbenchData : public ReferenceCountedObject,
 	};
 
 	WorkbenchData() :
-		memory(1024)
+		memory(),
+		currentTestData(*this)
 	{
 		memory.addDebugHandler(this);
+
+		for (auto o : OptimizationIds::getAllIds())
+			memory.addOptimization(o);
 	};
 
 	~WorkbenchData()
@@ -462,6 +731,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 	void triggerPostCompileActions()
 	{
 		compileHandler->postCompile(lastCompileResult);
+		
 		postPostCompile();
 	}
 
@@ -509,6 +779,11 @@ struct WorkbenchData : public ReferenceCountedObject,
 		}
 
 		return false;
+	}
+
+	CodeProvider* getCodeProvider() const
+	{
+		return codeProvider;
 	}
 
 	String getCode() const
@@ -571,6 +846,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	CompileHandler* getCompileHandler() { return compileHandler; }
 
+	TestData& getTestData() { return currentTestData; }
+	const TestData& getTestData() const { return currentTestData; }
+
 private:
 
 	hise::UnorderedStack<int> pendingBlinks;
@@ -582,6 +860,7 @@ private:
 
 	WeakReference<CodeProvider> codeProvider;
 	ScopedPointer<CompileHandler> compileHandler;
+	TestData currentTestData;
 	CompileResult lastCompileResult;
 
 	Array<WeakReference<Listener>> listeners;

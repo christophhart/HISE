@@ -92,6 +92,72 @@ protected:
 	void valueTreeParentChanged(ValueTree&) override {}
 };
 
+/** A simple listener that redirects *anything* to a single method. */
+struct AnyListener : private Base,
+					 private Timer
+{
+	enum CallbackType
+	{
+		PropertyChange,
+		ChildAdded,
+		ChildDeleted,
+		ChildOrderChanged,
+		ValueTreeRedirected,
+		numCallbackTypes
+	};
+
+	AnyListener(AsyncMode mode_ = AsyncMode::Asynchronously);
+
+	void setMillisecondsBetweenUpdate(int milliSeconds)
+	{
+		if (milliSeconds == 0)
+			mode = AsyncMode::Asynchronously;
+		else
+		{
+			mode = AsyncMode::Coallescated;
+			milliSecondsBetweenUpdate = milliSeconds;
+		}
+	}
+
+	void setRootValueTree(const ValueTree& d)
+	{
+		data = d;
+		data.addListener(this);
+		anythingChanged();
+	}
+
+	void setForwardCallback(CallbackType c, bool shouldForward)
+	{
+		forwardCallbacks[c] = shouldForward;
+	}
+
+protected:	
+
+	virtual void anythingChanged() = 0;
+
+
+
+private:
+
+	bool forwardCallbacks[CallbackType::numCallbackTypes];
+
+	ValueTree data;
+
+	void triggerUpdate();
+
+	void timerCallback() override;
+
+	void handleAsyncUpdate() override;
+
+	int milliSecondsBetweenUpdate = 500;
+
+	void valueTreeChildAdded(ValueTree&, ValueTree&) override { if(forwardCallbacks[ChildAdded]) triggerUpdate(); }
+	void valueTreeChildOrderChanged(ValueTree&, int, int) override { if (forwardCallbacks[ChildOrderChanged])triggerUpdate(); }
+	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { if (forwardCallbacks[ChildDeleted]) triggerUpdate(); }
+	void valueTreePropertyChanged(ValueTree&, const Identifier&) override { if (forwardCallbacks[PropertyChange]) triggerUpdate(); };
+	void valueTreeParentChanged(ValueTree&) override { if (forwardCallbacks[ValueTreeRedirected]) triggerUpdate(); }
+};
+
 /** A small helper function that will catch illegal operations during a child
     iteration. If you want to check an iteration against illegal operations,
 	create one of these before starting the iteration. 

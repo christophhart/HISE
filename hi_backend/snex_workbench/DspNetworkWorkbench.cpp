@@ -33,39 +33,4 @@
 
 namespace hise {
 using namespace juce;
-
-void SnexTileBase::setCurrentFile(const File& f)
-{
-	currentFile = f;
-
-	auto df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), f);
-
-	auto wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true);
-
-	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb, getMainController()));
-
-	//wb->setCompileHandler(new snex::JitNodeCompileThread(wb, getMainController()->getGlobalUIUpdater()));
-
-	workbenchChanged(wb);
-
-	setCustomTitle(f.getFileName());
-
-	getParentShell()->refreshRootLayout();
-
-	resized();
-}
-
-
-
-void SnexEditorPanel::recompiled(snex::ui::WorkbenchData::Ptr)
-{
-	if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(wb->getCodeProvider()))
-	{
-		if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
-		{
-			playground->updateTextFromCodeProvider();
-		}
-	}
-}
-
 }

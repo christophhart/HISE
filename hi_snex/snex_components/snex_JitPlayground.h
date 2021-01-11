@@ -297,7 +297,7 @@ public:
 		jassertfalse;
 	}
 
-	virtual AudioSampleBuffer getTestBuffer(bool getProcessed = true) const = 0;
+	
 
 	bool triggerCompilation() override
 	{
@@ -357,16 +357,29 @@ public:
 		return nullptr;
 	}
 
-	
-
-	AudioSampleBuffer getTestBuffer(bool getProcessed = true) const override
+	void processTestParameterEvent(int parameterIndex, double value) override
 	{
-		if (lastTest != nullptr)
-		{
-			return lastTest->getBuffer(getProcessed);
-		}
+		jassert(lastTest != nullptr);
+		jassert(lastTest->nodeToTest != nullptr);
 
-		return empty;
+		lastTest->nodeToTest->setParameterDynamic(parameterIndex, value);
+	}
+
+	void processTest(ProcessDataDyn& data) override
+	{
+		jassert(lastTest != nullptr);
+		jassert(lastTest->nodeToTest != nullptr);
+
+		lastTest->nodeToTest->process(data);
+	}
+
+	void prepareTest(PrepareSpecs ps) override
+	{
+		jassert(lastTest != nullptr);
+		jassert(lastTest->nodeToTest != nullptr);
+
+		lastTest->nodeToTest->prepare(ps);
+		lastTest->nodeToTest->reset();
 	}
 
 private:
@@ -388,23 +401,36 @@ public:
 		
 	};
 
-	AudioSampleBuffer getTestBuffer(bool getProcessed = true) const override
-	{
-		return getProcessed ? processedTestBuffer : testBuffer;
-	}
-
-	
-
-
-
+#if 0
 	void setTestBuffer(const AudioSampleBuffer& newBuffer)
 	{
+		auto& testBuffer = getParent()->getTestData().b;
+
 		if (newBuffer.getNumChannels() != testBuffer.getNumChannels())
 			getParent()->triggerRecompile();
 
 		testBuffer.makeCopyOf(newBuffer);
 
 		getParent()->triggerPostCompileActions();
+	}
+#endif
+
+	void prepareTest(PrepareSpecs ps)
+	{
+		if (lastNode != nullptr)
+			lastNode->prepare(ps);
+	}
+
+	void processTestParameterEvent(int parameterIndex, double value) override
+	{
+		if (lastNode != nullptr)
+			lastNode->setParameterDynamic(parameterIndex, value);
+	}
+
+	void processTest(ProcessDataDyn& data) override
+	{
+		if (lastNode != nullptr)
+			lastNode->process(data);
 	}
 
 	ui::WorkbenchData::CompileResult compile(const String& code)
@@ -419,7 +445,8 @@ public:
 		{
 			Compiler::Ptr cc = createCompiler();
 
-			int numChannels = testBuffer.getNumChannels();
+			auto numChannels = getParent()->getTestData().testSourceData.getNumChannels();
+
 			if (numChannels == 0)
 				numChannels = 2;
 
@@ -428,6 +455,14 @@ public:
 			lastResult.assembly = cc->getAssemblyCode();
 			lastResult.compileResult = lastNode->r;
 			lastResult.obj = lastNode->getJitObject();
+
+			for (auto p : lastNode->getParameterList())
+			{
+				ui::WorkbenchData::CompileResult::DynamicParameterData d;
+				d.data = p.data;
+				d.f = (void(*)(double))p.function;
+				lastResult.parameters.add(d);
+			}
 
 			return lastResult;
 		}
@@ -442,17 +477,18 @@ public:
 		{
 			lastNode->setExternalDataHolder(ownHolder);
 
-			if (testBuffer.getNumSamples() > 0)
+			auto& testData = getParent()->getTestData();
+			
+			if (testData.shouldRunTest())
 			{
-				PrepareSpecs ps;
-				ps.blockSize = testBuffer.getNumSamples();
-				ps.numChannels = testBuffer.getNumChannels();
-				ps.sampleRate = 44100.0;
-				ps.voiceIndex = nullptr;
+				testData.initProcessing(512, 44100.0);
+				testData.processTestData(getParent());
 
-				processedTestBuffer.makeCopyOf(testBuffer);
+#if 0
+				auto ps = testData.createPrepareSpecs();
 
-				jassert(lastNode->getNumChannels() == ps.numChannels);
+				auto pd = testData.createProcessData();
+
 
 				lastNode->prepare(ps);
 				lastNode->reset();
@@ -461,6 +497,7 @@ public:
 
 				ProcessDataDyn data(processedTestBuffer.getArrayOfWritePointers(), ps.blockSize, ps.numChannels);
 				lastNode->process(data);
+#endif
 			}
 		}
 	}
@@ -473,9 +510,6 @@ private:
 
 	
 	JitCompiledNode::Ptr lastNode;
-
-	AudioSampleBuffer testBuffer;
-	AudioSampleBuffer processedTestBuffer;
 };
 
 
@@ -601,6 +635,14 @@ public:
 	void setReadOnly(bool shouldBeReadOnly)
 	{
 		isReadOnly = shouldBeReadOnly;
+		editor.setReadOnly(!isReadOnly);
+	}
+
+	void updateTextFromCodeProvider()
+	{
+		auto c = getWorkbench()->getCode();
+		doc.replaceAllContent(c);
+		doc.clearUndoHistory();
 	}
 
 	

@@ -58,7 +58,9 @@ public:
 	~JitFileTestCase();
 
 	HiseEventBuffer parseEventData(const String& s);
-	HiseEvent parseHiseEvent(const var& eventObject);
+	static HiseEvent parseHiseEvent(const var& eventObject);
+
+	static var getJSONData(const HiseEvent& e);
 
 	struct HeaderBuilder
 	{
@@ -205,7 +207,11 @@ public:
 
 	JitCompiledNode::Ptr nodeToTest;
 
+	double cpuUsage = 0.0;
+
 private:
+
+	
 
 	String inputFile;
 	
@@ -301,6 +307,7 @@ private:
 	bool isProcessDataTest = false;
 	bool outputWasEmpty = false;
 	int numChannels = -1;
+	int voiceIndex = -1;
 
 	UnitTest* t;
 	Array<VariableStorage> inputs;

@@ -49,7 +49,12 @@ using namespace asmjit;
 #pragma warning( disable : 4244)
 
 
+#define INCLUDE_SNEX_BIG_TESTSUITE 0
 
+
+
+
+#if INCLUDE_SNEX_BIG_TESTSUITE
 class OptimizationTestCase
 {
 public:
@@ -506,7 +511,7 @@ using OpaqueAccessible = OpaqueT<WrappedA>;
 
 
 }
-
+#endif
 
 
 
@@ -516,6 +521,7 @@ public:
 
 	HiseJITUnitTest() : UnitTest("HiseJIT UnitTest", "snex") {}
 
+#if INCLUDE_SNEX_BIG_TESTSUITE
 	void testAccessWrappers()
 	{
 #define expect_access(expr, result, error) expectEquals<int>(expr, result, error);
@@ -552,7 +558,7 @@ public:
 
 		test_and_constexpr(oa.getObject().getOtherValue(), 8, "OpaqueAccessible::getObject part II");
 	}
-
+#endif
 	
 	void runTest() override
 	{
@@ -562,10 +568,12 @@ public:
 		
 
 		optimizations = OptimizationIds::getAllIds();
-		runTestFiles("node_frame_osc");
-		//testValueTreeCodeBuilder();
-		return;
+		runTestFiles("polydata_1");
+		
+		
 
+
+#if INCLUDE_SNEX_BIG_TESTSUITE
 		optimizations = OptimizationIds::getAllIds();
 
 		runTestFiles("wrap_frame");
@@ -596,7 +604,13 @@ public:
 
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation(OptimizationIds::getAllIds());
+#endif
 	}
+
+
+
+
+#if INCLUDE_SNEX_BIG_TESTSUITE
 	template <typename T> void testWrapType(T& data)
 	{
 		using namespace Types;
@@ -676,7 +690,7 @@ public:
 		{
 			auto v = ValueTree::fromXml(*xml);
 
-			cppgen::ValueTreeBuilder b(v);
+			cppgen::ValueTreeBuilder b(v, cppgen::ValueTreeBuilder::Format::TestCaseFile);
 		}
 	}
 
@@ -782,71 +796,8 @@ public:
 	}
 
 
-	Array<File> getFiles(juce::String& soloTest, bool isFolder)
-	{
-		if (soloTest.isNotEmpty() && !isFolder && !soloTest.endsWith(".h"))
-		{
-			soloTest.append(".h", 2);
-		}
+	
 
-		File f = JitFileTestCase::getTestFileDirectory();
-
-		if (isFolder)
-		{
-			jassert(soloTest.isNotEmpty());
-			f = f.getChildFile(soloTest);
-		}
-
-		auto allFiles = f.findChildFiles(File::findFiles, true, "*.h");
-
-		for (int i = 0; i < allFiles.size(); i++)
-		{
-			if (allFiles[i].getFullPathName().contains("CppTest"))
-				allFiles.remove(i--);
-		}
-
-		return allFiles;
-	}
-
-	void runTestFiles(juce::String soloTest = {}, bool isFolder=false)
-	{
-		if(soloTest.isEmpty())
-			beginTest("Testing files from test directory");
-
-		GlobalScope memory;
-		
-		for (auto o : optimizations)
-			memory.addOptimization(o);
-
-		for (auto f : getFiles(soloTest, isFolder))
-		{
-			if (!isFolder && soloTest.isNotEmpty() && f.getFileName() != soloTest)
-				continue;
-
-			if(printDebugInfoForSingleTest)
-				DBG(f.getFileName());
-            
-			int numInstances = ComplexType::numInstances;
-
-			{
-				JitFileTestCase t(this, memory, f);
-				auto r = t.test(printDebugInfoForSingleTest && soloTest.isNotEmpty());
-
-				
-
-				expect(r.wasOk(), r.getErrorMessage());
-			}
-
-			int numInstancesAfter = ComplexType::numInstances;
-
-			if (numInstances != numInstancesAfter)
-			{
-				juce::String s;
-				s << f.getFileName() << " leaked " << juce::String(numInstancesAfter - numInstances) << " complex types";
-				expect(false, s);
-			}
-		}
-	}
 
 	void testInlining()
 	{
@@ -926,12 +877,81 @@ public:
 
 		pc.stop();
 	}
+#endif
+
+	Array<File> getFiles(juce::String& soloTest, bool isFolder)
+	{
+		if (soloTest.isNotEmpty() && !isFolder && !soloTest.endsWith(".h"))
+		{
+			soloTest.append(".h", 2);
+		}
+
+		File f = JitFileTestCase::getTestFileDirectory();
+
+		if (isFolder)
+		{
+			jassert(soloTest.isNotEmpty());
+			f = f.getChildFile(soloTest);
+		}
+
+		auto allFiles = f.findChildFiles(File::findFiles, true, "*.h");
+
+		for (int i = 0; i < allFiles.size(); i++)
+		{
+			if (allFiles[i].getFullPathName().contains("CppTest"))
+				allFiles.remove(i--);
+		}
+
+		return allFiles;
+	}
+
+	void runTestFiles(juce::String soloTest = {}, bool isFolder = false)
+	{
+		if (soloTest.isEmpty())
+			beginTest("Testing files from test directory");
+
+		GlobalScope memory;
+
+		for (auto o : optimizations)
+			memory.addOptimization(o);
+
+		for (auto f : getFiles(soloTest, isFolder))
+		{
+			if (!isFolder && soloTest.isNotEmpty() && f.getFileName() != soloTest)
+				continue;
+
+			if (printDebugInfoForSingleTest)
+				DBG(f.getFileName());
+
+			int numInstances = ComplexType::numInstances;
+
+			{
+				JitFileTestCase t(this, memory, f);
+				auto r = t.test(printDebugInfoForSingleTest && soloTest.isNotEmpty());
+
+
+
+				expect(r.wasOk(), r.getErrorMessage());
+			}
+
+			int numInstancesAfter = ComplexType::numInstances;
+
+			if (numInstances != numInstancesAfter)
+			{
+				juce::String s;
+				s << f.getFileName() << " leaked " << juce::String(numInstancesAfter - numInstances) << " complex types";
+				expect(false, s);
+			}
+		}
+	}
 
 private:
 
 	
 
 	bool printDebugInfoForSingleTest = true;
+
+#if INCLUDE_SNEX_BIG_TESTSUITE
 
 	void trimNoopFromSyntaxTree(juce::String& s)
 	{
@@ -951,16 +971,6 @@ private:
 	{
 		trimNoopFromSyntaxTree(firstTree);
 		trimNoopFromSyntaxTree(secondTree);
-
-#if 0
-		for (int i = 0; i < firstTree.length(); i++)
-		{
-			if (firstTree[i] != secondTree[i])
-			{
-				DBG(firstTree.substring(i));
-			}
-		}
-#endif
 
 		auto match = firstTree.compare(secondTree);
 
@@ -3554,6 +3564,8 @@ private:
 
 		expectEquals(result, 9.0f, "Testing reallocation of Function buffers");
 	}
+
+#endif
 
 	StringArray optimizations;
 };

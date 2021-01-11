@@ -1010,6 +1010,25 @@ void FloatingTile::mouseDown(const MouseEvent& event)
 	}
 }
 
+void FloatingTile::setOverlayComponent(Component* newOverlayComponent, int fadeTime)
+{
+	if (overlayComponent != nullptr)
+	{
+		if (fadeTime != 0)
+			Desktop::getInstance().getAnimator().fadeOut(overlayComponent, fadeTime);
+	}
+
+	if (newOverlayComponent != nullptr)
+	{
+		addAndMakeVisible(overlayComponent = newOverlayComponent);
+
+		overlayComponent->setBounds(getContentBounds());
+
+		if (fadeTime != 0)
+			Desktop::getInstance().getAnimator().fadeIn(overlayComponent, fadeTime);
+	}
+}
+
 void FloatingTile::resized()
 {
 	if (content.get() == nullptr)
@@ -1017,6 +1036,9 @@ void FloatingTile::resized()
 
 	
 	LayoutHelpers::setContentBounds(this);
+
+	if (overlayComponent != nullptr)
+		overlayComponent->setBounds(getContentBounds());
 
 	if (LayoutHelpers::showFoldButton(this))
 	{

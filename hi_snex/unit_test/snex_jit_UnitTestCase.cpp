@@ -48,6 +48,7 @@ namespace MetaIds
 	static const Identifier events("events");
 	static const Identifier loop_count("loop_count");
 	static const Identifier compile_flags("compile_flags");
+	static const Identifier voice_index("voice_index");
 	static const juce::String END_TEST_DATA("END_TEST_DATA");
 }
 
@@ -224,11 +225,49 @@ hise::HiseEvent JitFileTestCase::parseHiseEvent(const var& eventObject)
 		e = HiseEvent(HiseEvent::Type::Controller, value1, value2, channel);
 
 	if (timestamp % HISE_EVENT_RASTER != 0)
-		throwError("Unaligned event: " + JSON::toString(eventObject));
+		throw String("Unaligned event: " + JSON::toString(eventObject));
 
 	e.setTimeStamp(timestamp);
 
 	return e;
+}
+
+juce::var JitFileTestCase::getJSONData(const HiseEvent& e)
+{
+	auto eventObject = new DynamicObject();
+
+	auto type = e.getType();
+
+
+	switch (type)
+	{
+	case hise::HiseEvent::Type::Empty:
+	case hise::HiseEvent::Type::NoteOn: eventObject->setProperty("Type", "NoteOn"); break;
+	case hise::HiseEvent::Type::NoteOff: eventObject->setProperty("Type", "NoteOff"); break;
+	case hise::HiseEvent::Type::Controller: eventObject->setProperty("Type", "Controller"); break;
+	case hise::HiseEvent::Type::PitchBend: eventObject->setProperty("Type", "PitchBend"); break;
+	case hise::HiseEvent::Type::Aftertouch:
+	case hise::HiseEvent::Type::AllNotesOff:
+	case hise::HiseEvent::Type::SongPosition:
+	case hise::HiseEvent::Type::MidiStart:
+	case hise::HiseEvent::Type::MidiStop:
+	case hise::HiseEvent::Type::VolumeFade:
+	case hise::HiseEvent::Type::PitchFade:
+	case hise::HiseEvent::Type::TimerEvent:
+	case hise::HiseEvent::Type::ProgramChange:
+	case hise::HiseEvent::Type::numTypes:
+		break;
+	default:
+		break;
+	}
+
+	eventObject->setProperty("Channel", e.getChannel());
+	eventObject->setProperty("Value1", e.getNoteNumber());
+	eventObject->setProperty("Value2", e.getVelocity());
+	eventObject->setProperty("Timestamp", e.getTimeStamp());
+
+
+	return var(eventObject);
 }
 
 void JitFileTestCase::logMessage(int level, const juce::String& s)
@@ -273,8 +312,13 @@ void JitFileTestCase::setTypeForDynamicFunction(Types::ID t, const String& origi
 
 void JitFileTestCase::initCompiler()
 {
+	if (voiceIndex != -1)
+		memory.setPolyphonic(true);
+
 	c.reset();
 	c.setDebugHandler(debugHandler);
+
+	
 
 	if (!nodeId.isValid())
 		Types::SnexObjectDatabase::registerObjects(c, 2);
@@ -354,16 +398,27 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 		ps.numChannels = inputBuffer.getNumChannels();
 		ps.sampleRate = 44100.0;
 		ps.blockSize = inputBuffer.getNumSamples();
-		ps.voiceIndex = nullptr;
+		ps.voiceIndex = memory.getPolyHandler();
 
 		nodeToTest->prepare(ps);
 		nodeToTest->reset();
 
-		
-
 		Types::ProcessDataDyn d(inputBuffer.getArrayOfWritePointers(), inputBuffer.getNumSamples(), numChannels);
 		d.setEventBuffer(eventBuffer);
-		nodeToTest->process(d);
+
+		auto before = Time::getMillisecondCounterHiRes();
+
+		{
+			PolyHandler::ScopedVoiceSetter svs(*memory.getPolyHandler(), voiceIndex);
+			nodeToTest->process(d);
+		}
+
+		auto after = Time::getMillisecondCounterHiRes();
+		auto delta = (after - before) * 0.001;
+
+		auto calculatedSeconds = (double)ps.blockSize / ps.sampleRate;
+
+		cpuUsage = delta / calculatedSeconds;
 
 		auto r = Helpers::testAssemblyLoopCount(assembly, expectedLoopCount);
 		if (r.failed() && !memory.getOptimizationPassList().contains(OptimizationIds::AutoVectorisation))
@@ -399,6 +454,8 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 	else
 	{
 		auto compiledF = obj[function.id];
+
+		PolyHandler::ScopedVoiceSetter svs(*memory.getPolyHandler(), voiceIndex);
 
 		if (function.returnType == Types::ID::Block)
 		{

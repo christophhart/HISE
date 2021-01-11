@@ -87,4 +87,9 @@ END_JUCE_MODULE_DECLARATION
 #include "backend/doc_generators/MenuReferenceGenerator.h"
 
 
+#include "snex_workbench/DspNetworkWorkbench.h"
+#include "snex_workbench/WorkbenchProcessor.h"
+
+
+
 #endif   // HI_BACKEND_INCLUDED

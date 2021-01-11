@@ -1106,7 +1106,7 @@ juce::Component* NetworkPanel::createContentComponent(int index)
 
 void NetworkPanel::fillModuleList(StringArray& moduleList)
 {
-	fillModuleListWithType<JavascriptProcessor>(moduleList);
+	fillModuleListWithType<ProcessorWithScriptingContent>(moduleList);
 }
 
 void NetworkPanel::fillIndexList(StringArray& sa)

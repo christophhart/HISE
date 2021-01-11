@@ -120,6 +120,8 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 		
 	}
 
+	bool showTitleInPresentationMode() const override { return forceShowTitle; }
+
 
 	int getFixedHeight() const override
 	{
@@ -158,24 +160,74 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 			content->setBounds(getParentShell()->getContentBounds());
 	}
 
+	bool forceShowTitle = true;
+
 	ScopedPointer<C> content;
 };
 
-struct SnexEditorPanel : public SnexTileBase
+struct SnexEditorPanel : public Component,
+						 public FloatingTileContent,
+						 public snex::ui::WorkbenchData::Listener
 {
 	SnexEditorPanel(FloatingTile* parent) :
-		SnexTileBase(parent)
-	{};
+		FloatingTileContent(parent)
+	{
+		
+	};
+
+	~SnexEditorPanel()
+	{
+		if (wb != nullptr)
+			wb->removeListener(this);
+	}
+
+	void setWorkbenchData(snex::ui::WorkbenchData::Ptr newWorkbench)
+	{
+		wb = newWorkbench;
+		addAndMakeVisible(playground = new snex::jit::SnexPlayground(newWorkbench, false));
+
+		wb->addListener(this);
+
+		playground->setReadOnly(true);
+		resized();
+	}
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+	void recompiled(snex::ui::WorkbenchData::Ptr);
 
 	SET_PANEL_NAME("SnexEditTab");
 
-	void workbenchChanged(snex::ui::WorkbenchData::Ptr newWorkbench) override;
-
 	void resized() override
 	{
+		auto b = FloatingTileContent::getParentShell()->getContentBounds();
+		b.removeFromTop(24);
+
 		if (playground != nullptr)
-			playground->setBounds(FloatingTileContent::getParentShell()->getContentBounds());
+			playground->setBounds(b);
 	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = FloatingTileContent::getParentShell()->getContentBounds();
+
+		if (playground != nullptr)
+		{
+			auto top = b.removeFromTop(24);
+			GlobalHiseLookAndFeel::drawFake3D(g, top);
+		}
+		else
+		{
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("No code to display", b.toFloat(), Justification::centred);
+		}
+	}
+
+	WeakReference<snex::ui::WorkbenchData> wb;
 
 	ScopedPointer<snex::jit::SnexPlayground> playground;
 };

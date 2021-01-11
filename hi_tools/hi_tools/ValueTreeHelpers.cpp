@@ -471,6 +471,38 @@ void RecursiveTypedChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree&
 	ChildListener::valueTreeChildRemoved(p, c, 0);
 }
 
+AnyListener::AnyListener(AsyncMode mode_) :
+	Base()
+{
+	mode = mode_;
+
+	for (int i = 0; i < numCallbackTypes; i++)
+		setForwardCallback((CallbackType)i, true);
+}
+
+void AnyListener::handleAsyncUpdate()
+{
+	anythingChanged();
+}
+
+void AnyListener::triggerUpdate()
+{
+	if (mode == AsyncMode::Synchronously)
+		handleAsyncUpdate();
+	else if (mode == AsyncMode::Coallescated)
+	{
+		startTimer(milliSecondsBetweenUpdate);
+	}
+	else
+		triggerAsyncUpdate();
+}
+
+void AnyListener::timerCallback()
+{
+	handleAsyncUpdate();
+	stopTimer();
+}
+
 }
 
 

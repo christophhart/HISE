@@ -679,6 +679,9 @@ public:
 			SnexOptimisations,
 			SnexAssembly,
 			SnexGraph,
+			SnexParameterList,
+			SnexWorkbenchInfo,
+			SnexTestDataInfo,
 			MenuCommandOffset = 10000,
 			numOptions
 		};
