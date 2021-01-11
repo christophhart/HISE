@@ -117,10 +117,12 @@ public:
 	HISE_EMPTY_CREATE_PARAM;
 	HISE_EMPTY_RESET;
 	HISE_EMPTY_MOD;
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_SET_PARAMETER;
 	
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		if (data.getNumChannels() >= 2)
+		if (data.getNumChannels() >= 2) 
 			Math.vcopy(data[1], data[0]);
 	}
 
@@ -307,6 +309,8 @@ public:
 		DEF_PARAMETER(PitchMultiplier, oscillator_impl);
 	}
 
+	PARAMETER_MEMBER_FUNCTION;
+
 	double sr = 44100.0;
 	PolyData<OscData, NumVoices> voiceData;
 
@@ -362,16 +366,14 @@ public:
 
 	void handleHiseEvent(HiseEvent& e);
 	
-private:
-
 	void setFreqMultiplier(double input);
 	void setModulator(double newGain);
 	void setFrequency(double newFrequency);
 
+private:
+
 	double sr = 0.0;
 	double freqMultiplier = 1.0;
-
-	
 
 	PolyData<OscData, NUM_POLYPHONIC_VOICES> oscData;
 	PolyData<double, NUM_POLYPHONIC_VOICES> modGain;

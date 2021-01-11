@@ -241,7 +241,7 @@ template <typename T, int P> struct inner
 
 	static void callStatic(void* obj_, double v)
 	{
-		auto f = T::template setParameter<P>;
+		auto f = T::template setParameterStatic<P>;
 		f(obj_, v);
 	}
 
@@ -264,7 +264,7 @@ template <class T, int P> struct plain : public single_base<T, P>
 	{
 		using ObjectType = T::ObjectType;
 
-		ObjectType::setParameter<P>(o, v);
+		ObjectType::setParameterStatic<P>(o, v);
 	}
 
 	void addToList(ParameterDataList& d)
@@ -300,7 +300,7 @@ template <class T, int P, class Expression> struct expression : public single_ba
 		Expression e;
 		v = e.op(v);
 
-		ObjectType::setParameter<P>(obj, v);
+		ObjectType::setParameterStatic<P>(obj, v);
 	}
 
 	void operator()(double v)
@@ -348,7 +348,10 @@ template <class T, int P, class RangeType> struct from0To1 : public single_base<
 	static void callStatic(void* obj_, double v)
 	{
 		auto converted = RangeType::from0To1(v);
-		T::template setParameter<P>(obj_, converted);
+
+		using ObjectType = T::ObjectType;
+
+		ObjectType::setParameterStatic<P>(obj_, converted);
 	}
 
 	void operator()(double v)

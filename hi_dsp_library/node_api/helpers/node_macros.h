@@ -44,10 +44,12 @@ using namespace hise;
 	3. Write parameter methods that have the syntax void setXXX(double value)
 	4. Use DEFINE_PARAMETER_DATA in the createParameter callback
 */
-#define DEFINE_PARAMETERS template <int P> static void setParameter(void* obj, double value)
+#define DEFINE_PARAMETERS template <int P> static void setParameterStatic(void* obj, double value)
 #define DEF_PARAMETER(ParameterName, ClassName) if (P == (int)Parameters::ParameterName) static_cast<ClassName*>(obj)->set##ParameterName(value);
 #define DEFINE_PARAMETERDATA(ClassName, ParameterName) parameter::data p(#ParameterName); p.dbNew = parameter::inner<ClassName, (int)Parameters::ParameterName>(*this);
 
+
+#define PARAMETER_MEMBER_FUNCTION template <int P> void setParameter(double v) { setParameterStatic<P>(this, v); }
 
 /** Object Accessors
 
@@ -140,9 +142,9 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 /** SNEX Metadata macros to be used in metadata subclass for wrap::node. */
 
 #define SNEX_METADATA_PARAMETERS(number, ...) static StringArray getParameterIds() { return StringArray({__VA_ARGS__}); }
-#define SNEX_METADATA_ID(x) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(x); }
+#define SNEX_METADATA_ID(x) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(#x); }
 #define SNEX_METADATA_NUM_CHANNELS(x) static constexpr int NumChannels = x;
-#define SNEX_METADATA_ENCODED_PARAMETERS(NumElements) const span<unsigned int, NumElements> encodedParameters =
+#define SNEX_METADATA_ENCODED_PARAMETERS(NumElements) const snex::Types::span<unsigned int, NumElements> encodedParameters =
 
 /** Snex JIT Preprocessors */
 

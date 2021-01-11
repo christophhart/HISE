@@ -152,4 +152,93 @@ using ParameterDataList = Array<parameter::data>;
 
 
 
+
+/** A Parameter encoder encodes / decodes the parameter data of a node
+
+	The parameter data of a node is converted from a ValueTree to a
+	lightweight data structure and can be emitted as C++ literal array
+	of ints that can be read by the JIT compiler and plain C++.
+
+*/
+struct ParameterEncoder
+{
+	// Just a node that shows how it must look so you can feed it to ParameterEncoder::fromNode
+	struct ExampleNode
+	{
+		struct metadata
+		{
+			SNEX_METADATA_ENCODED_PARAMETERS(9)
+			{
+				0x00000000, 0x61726150, 0x6574656D, 0x00003172,
+					0x00000000, 0x00422000, 0x003F0000, 0x0A3F8000,
+					0x003C23D7
+			};
+		};
+	};
+
+
+	template <typename NodeClass> static ParameterEncoder fromNode()
+	{
+		NodeClass::MetadataClass n;
+
+		MemoryOutputStream tm;
+
+		for (auto& s : n.encodedParameters)
+			tm.writeInt(static_cast<int>(s));
+
+		auto data = tm.getMemoryBlock();
+
+		return ParameterEncoder(data);
+	}
+
+	ParameterEncoder(ValueTree& v);
+
+	ParameterEncoder(const MemoryBlock& m);
+
+	struct Item
+	{
+		Item()
+		{};
+
+		Item(MemoryInputStream& mis);
+
+		String toString();
+
+		Item(const ValueTree& v);
+		using DataType = float;
+		int index;
+		String id;
+
+		DataType min;
+		DataType max;
+		DataType defaultValue;
+		DataType skew;
+		DataType interval;
+
+		void writeToStream(MemoryOutputStream& b);
+	};
+
+	Item* begin() const
+	{
+		return items.begin();
+	}
+
+	Item* end() const
+	{
+		return items.end();
+	}
+
+	MemoryBlock writeItems();
+
+private:
+
+	
+
+	void parseItems(const MemoryBlock& mb);
+	
+
+	Array<Item> items;
+};
+
+
 }

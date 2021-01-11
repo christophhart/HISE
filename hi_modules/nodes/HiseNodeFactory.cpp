@@ -91,12 +91,15 @@ Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
 
-	registerPolyNodeCustomSNEX<add, add_poly>();
+
+	registerPolyNode<add, add_poly>();
+
+	registerNode<clear>();
 
 #if NOT_JUST_OSC
 	registerPolyNode<mul, mul_poly>();
 
-	registerNode<clear>();
+	
 	registerPolyNode<sub, sub_poly>();
 	registerPolyNode<div, div_poly>();
 	registerPolyNode<tanh, tanh_poly>();
@@ -162,6 +165,8 @@ Factory::Factory(DspNetwork* network) :
 	registerModNode<peak>();
 	registerPolyNode<ramp, ramp_poly>();
 	
+	registerNode<core::mono2stereo>();
+
 	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
 
 }

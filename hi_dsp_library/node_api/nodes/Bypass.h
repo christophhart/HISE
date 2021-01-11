@@ -69,7 +69,7 @@ public:
 		if (P == ParameterId)
 			thisPointer->setBypassed(v > 0.5);
 		else
-			T::ObjectType::setParameter<P>(&thisPointer->obj, v);
+			T::ObjectType::setParameterStatic<P>(&thisPointer->obj, v);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept

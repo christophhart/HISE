@@ -280,11 +280,12 @@ namespace Operations
 
 
 
-template <class OpType, int V> class OpNode : public HiseDspBase
+template <class OpType, int V> class OpNode
 {
 public:
 
 	using OperationType = OpType;
+	constexpr static int NumVoices = V;
 
 	enum class Parameters
 	{
@@ -296,14 +297,13 @@ public:
 		DEF_PARAMETER(Value, OpNode);
 	}
 
-	constexpr static int NumVoices = V;
+	PARAMETER_MEMBER_FUNCTION;
 
 	SET_HISE_POLY_NODE_ID(OpType::getId());
 	SN_GET_SELF_AS_OBJECT(OpNode);
 	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_INITIALISE;
 
-	bool handleModulation(double&) noexcept;;
-	
 	template <typename PD> void process(PD& d)
 	{
 		OpType::op<PD>(d, value.get());
@@ -316,12 +316,8 @@ public:
 
 	void reset() noexcept;
 	void prepare(PrepareSpecs ps);
-	void createParameters(ParameterDataList& data) override;
+	void createParameters(ParameterDataList& data);
 	void setValue(double newValue);
-
-#if 0
-	static snex::Types::DefaultFunctionClass createSnexFunctions(const snex::Types::SnexTypeConstructData& cd);
-#endif
 
 	PolyData<float, NumVoices> value = OpType::defaultValue;
 };

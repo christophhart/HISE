@@ -52,7 +52,7 @@ struct dynamic_base
 	virtual void call(double value)
 	{
 		lastValue = value;
-		f(obj, lastValue);
+		f(obj, value);
 	}
 
 	virtual void updateUI()

@@ -55,9 +55,9 @@ public:
 
 		const float v1 = getWrappedValue(index);
 		const float v2 = getWrappedValue(index + 1);
-		const float alpha = float(uptime) - (float)index;
-		const float invAlpha = 1.0f - alpha;
-		const float currentSample = invAlpha * v1 + alpha * v2;
+		const double alpha = uptime - (double)index;
+		const double invAlpha = 1.0 - alpha;
+		const float currentSample = (float)invAlpha * v1 + (float)alpha * v2;
 
 		return currentSample;
 	}
@@ -126,7 +126,7 @@ struct OscillatorDisplayProvider
 
 	float tickSaw(OscData& d)
 	{
-		return 2.0f * std::fmodf(d.tick() / sinTable->getTableSize(), 1.0f) - 1.0f;
+		return 2.0f * std::fmod(d.tick() / 2048.0, 1.0) - 1.0f;
 	}
 
 	float tickTriangle(OscData& d)

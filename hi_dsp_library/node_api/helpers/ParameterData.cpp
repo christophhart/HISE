@@ -194,6 +194,98 @@ void* dynamic::getObjectPtr() const
 }
 
 
+ParameterEncoder::ParameterEncoder(ValueTree& v)
+{
+	for (auto c : v)
+		items.add(ParameterEncoder::Item(v));
+}
+
+ParameterEncoder::ParameterEncoder(const MemoryBlock& m)
+{
+	parseItems(m);
+}
+
+void ParameterEncoder::parseItems(const MemoryBlock& mb)
+{
+	MemoryInputStream mis(mb, true);
+
+	while (!mis.isExhausted())
+	{
+		Item item(mis);
+
+		if (item.id.isNotEmpty())
+			items.add(item);
+	}
+}
+
+MemoryBlock ParameterEncoder::writeItems()
+{
+	MemoryBlock data;
+
+	MemoryOutputStream mos(data, false);
+
+	for (auto& d : items)
+		d.writeToStream(mos);
+
+	int numToPad = 4 - mos.getPosition() % 4;
+
+	for (int i = 0; i < numToPad; i++)
+		mos.writeByte(0);
+
+	mos.flush();
+
+	return data;
+}
+
+ParameterEncoder::Item::Item(const ValueTree& v)
+{
+	index = v.getParent().indexOf(v);
+	id = v[PropertyIds::ID].toString();
+
+	auto range = RangeHelpers::getDoubleRange(v);
+
+	min = (DataType)range.start;
+	max = (DataType)range.end;
+	skew = (DataType)range.skew;
+	interval = (DataType)range.interval;
+	defaultValue = (DataType)v[PropertyIds::Value];
+}
+
+ParameterEncoder::Item::Item(MemoryInputStream& mis)
+{
+	index = mis.readInt();
+	id = mis.readString();
+	min = mis.readFloat();
+	max = mis.readFloat();
+	defaultValue = mis.readFloat();
+	skew = mis.readFloat();
+	interval = mis.readFloat();
+}
+
+String ParameterEncoder::Item::toString()
+{
+	String s;
+	String nl;
+
+	s << "index: " << index << nl;
+	s << "id: " << id << nl;
+	s << "min: " << min << nl;
+	s << "max: " << max << nl;
+
+	return s;
+}
+
+void ParameterEncoder::Item::writeToStream(MemoryOutputStream& b)
+{
+	b.writeInt(index);
+	b.writeString(id);
+	b.writeFloat(min);
+	b.writeFloat(max);
+	b.writeFloat(defaultValue);
+	b.writeFloat(skew);
+	b.writeFloat(interval);
+}
+
 
 
 

@@ -51,12 +51,6 @@ void scriptnode::math::OpNode<OpType, V>::prepare(PrepareSpecs ps)
 }
 
 
-template <class OpType, int V>
-bool scriptnode::math::OpNode<OpType, V>::handleModulation(double&) noexcept
-{
-	return false;
-}
-
 #if 0
 template <typename T> struct CreateFunctions
 {

@@ -418,7 +418,7 @@ public:
 	{
 		constexpr int C = ProcessDataType::getNumFixedChannels();
 
-		if (ProcessDataType::isFixedChannel)
+		if constexpr (ProcessDataType::isFixedChannel)
 			FrameConverters::processFix<C>(&obj, data);
 		else
 			FrameConverters::forwardToFrame16(&obj, data);
@@ -901,7 +901,7 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 		props.initWithRoot(n, obj);
 	}
 
-	template <int P> static void setParameter(void* ptr, double v)
+	template <int P> static void setParameterStatic(void* ptr, double v)
 	{
 		auto* objPtr = &static_cast<node*>(ptr)->obj;
 		T::setParameter<P>(objPtr, v);
@@ -952,12 +952,16 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 		ParameterDataList l;
 		obj.parameters.addToList(l);
 
+
+		jassertfalse; // Use scriptnode::ParameterEncoder and the fromT() function
+#if 0
 		auto pNames = MetadataClass::getParameterIds();
 
 		for (int i = 0; i < l.size(); i++)
 		{
 			l.getReference(i).id = pNames[i];
 		}
+#endif
 
 		data.addArray(l);
 	}

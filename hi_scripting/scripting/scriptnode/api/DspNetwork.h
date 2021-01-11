@@ -180,6 +180,8 @@ public:
 
 		virtual ~Holder() {};
 
+		DspNetwork* getOrCreate(const ValueTree& v);
+
 		DspNetwork* getOrCreate(const String& id);
 		StringArray getIdList();
 		void saveNetworks(ValueTree& d) const;
@@ -256,6 +258,7 @@ public:
 	bool isPolyphonic() const { return isPoly; }
 
 	NodeBase* getRootNode() { return signalPath.get(); }
+	const NodeBase* getRootNode() const { return signalPath.get(); }
 
 	void setRootNode(NodeBase::Ptr newRootNode)
 	{
@@ -409,27 +412,6 @@ public:
 
 private:
 
-#if DUMP_SCRIPTNODE_VALUETREE
-	struct ValueTreeDumper: public Timer
-	{
-		ValueTreeDumper(DspNetwork& d):
-			parent(d)
-		{
-			startTimer(3000);
-		}
-
-		void timerCallback() override
-		{
-			ScopedPointer<XmlElement> xml = parent.data.getChild(0).createXml();
-			getFile().replaceWithText(xml->createDocument(""));
-		}
-
-		File getFile();
-
-		DspNetwork& parent;
-	} dumper;
-#endif
-
 	Array<WeakReference<SnexSource>> snexObjects;
 
 	double originalSampleRate = 0.0;
@@ -498,6 +480,8 @@ private:
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetwork);
 };
+
+
 
 }
 

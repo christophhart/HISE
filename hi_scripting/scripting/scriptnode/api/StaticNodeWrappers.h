@@ -65,9 +65,7 @@ struct ComponentHelpers
 
 struct NoExtraComponent
 {
-	using ObjectType = HiseDspBase;
-
-	static Component* createExtraComponent(ObjectType* , PooledUIUpdater*) { return nullptr; }
+	static Component* createExtraComponent(void* , PooledUIUpdater*) { return nullptr; }
 };
 
     
@@ -102,7 +100,7 @@ public:
 
 	Component* createExtraComponent()
 	{
-		auto obj = static_cast<ComponentType::ObjectType*>(&wrapper.getWrappedObject());
+		auto obj = &wrapper.getWrappedObject();
 		auto updater = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
 		auto c =  ComponentType::createExtraComponent(obj, updater);
 		
