@@ -374,7 +374,11 @@ juce::Result SyntaxTreeInlineParser::flush()
 
 	auto d = b->toSyntaxTreeData();
 
-	ScopedPointer<Function> f = new Function(location, { d->getFunctionId(), d->expression->getTypeInfo() });
+	auto f = new Function(location, { d->getFunctionId(), d->expression->getTypeInfo() });
+
+	DBG("Flushing " + d->getFunctionId().toString());
+
+	StatementPtr asF = f;
 
 	auto fc = dynamic_cast<FunctionCall*>(d->expression.get());
 	jassert(fc != nullptr);

@@ -69,35 +69,41 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		else
 			ownedMemberFunction = classData;
 
-		try
+		if (statements == nullptr)
 		{
-			FunctionParser p(compiler, *this);
-
-			auto ssb = findParentStatementOfType<ScopeStatementBase>(this);
-
-			BlockParser::ScopedScopeStatementSetter svs(&p, ssb);
-
-			p.currentScope = functionScope;
-
+			try
 			{
-				NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, data.id);
 
-				auto fNamespace = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+				FunctionParser p(compiler, *this);
 
-				for (auto arg : classData->args)
+				auto ssb = findParentStatementOfType<ScopeStatementBase>(this);
+
+				BlockParser::ScopedScopeStatementSetter svs(&p, ssb);
+
+				p.currentScope = functionScope;
+
 				{
-					compiler->namespaceHandler.addSymbol(fNamespace.getChildId(arg.id.id), arg.typeInfo, NamespaceHandler::Variable);
+					NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, data.id);
+
+					auto fNamespace = compiler->namespaceHandler.getCurrentNamespaceIdentifier();
+
+					for (auto arg : classData->args)
+					{
+						compiler->namespaceHandler.addSymbol(fNamespace.getChildId(arg.id.id), arg.typeInfo, NamespaceHandler::Variable);
+					}
+
+					// Might be set manually from a precodegen function
+					if (statements == nullptr)
+						statements = p.parseStatementList();
 				}
-
-				statements = p.parseStatementList();
 			}
-		}
-		catch (ParserHelpers::CodeLocation::Error& e)
-		{
-			statements = nullptr;
-			functionScope = nullptr;
+			catch (ParserHelpers::CodeLocation::Error& e)
+			{
+				statements = nullptr;
+				functionScope = nullptr;
 
-			throw e;
+				throw e;
+			}
 		}
 
 		if (!data.templateParameters.isEmpty())
@@ -190,7 +196,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			{
 				auto inliner = fc->function.inliner;
 				
-				if (inliner != nullptr && inliner->precodeGenFunc)
+				if (fc->function.function == nullptr && inliner != nullptr && inliner->precodeGenFunc)
 				{
 					PreCodeGenInlineData d;
 
@@ -202,6 +208,49 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 					for (auto f : d.functionsToCompile)
 					{
+						ScopedPointer<ClassScope> internalClassScope = new ClassScope(scope, f.functionToCompile.id.getParent(), f.objType);
+
+						ScopedPointer<Function> inf = new Function(location, f.functionToCompile.toSymbol());
+
+						inf->data = f.functionToCompile;
+						inf->hardcodedObjectType = f.objType;
+						inf->isHardcodedFunction = true;
+						
+
+						auto stree = new SyntaxTree(location, f.functionToCompile.id);
+
+						auto innerFunc = new FunctionCall(location, nullptr, f.functionToCompile.toSymbol(), {});
+
+						
+
+						auto obj = new MemoryReference(location, d.rootObject->clone(location), TypeInfo(f.objType, false, true), f.offsetFromRoot);
+						innerFunc->setObjectExpression(obj);
+
+						for (auto& a: f.functionToCompile.args)
+						{
+							inf->parameters.add(a.id.getIdentifier());
+							auto realId = f.functionToCompile.id.getChildId(a.id.getIdentifier());
+							auto p = new VariableReference(location, { realId, a.typeInfo });
+							innerFunc->addArgument(p);
+						}
+
+#if 0
+						for (int i = 0; i < fc->getNumArguments(); i++)
+						{
+							innerFunc->addArgument(fc->getArgument(i)->clone(location));
+						}
+#endif
+
+						stree->addStatement(innerFunc);
+
+						inf->statements = stree;
+
+						compiler->executeScopedPass(BaseCompiler::FunctionTemplateParsing, internalClassScope, inf);
+						compiler->executeScopedPass(BaseCompiler::FunctionParsing, internalClassScope, inf);
+						compiler->executeScopedPass(BaseCompiler::FunctionCompilation, internalClassScope, inf);
+						
+						fc->function.function = inf->data.function;
+#if 0
 						auto fInliner = f.functionToCompile.inliner;
 
 						FunctionCompileData fcd(f.functionToCompile, compiler, scope);
@@ -293,6 +342,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 						dynamic_cast<StructType*>(f.objType.get())->injectMemberFunctionPointer(f.functionToCompile, fPointer);
 
 						fc->function.function = fPointer;
+#endif
 					}
 				};
 			}
@@ -318,6 +368,13 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 			if (auto cs = findParentStatementOfType<ClassStatement>(this))
 			{
 				dynamic_cast<StructType*>(cs->classType.get())->injectMemberFunctionPointer(data, data.function);
+			}
+			else if (auto asClassScope = dynamic_cast<ClassScope*>(scope))
+			{
+				if (auto st = dynamic_cast<StructType*>(asClassScope->typePtr.get()))
+				{
+					st->injectMemberFunctionPointer(data, data.function);
+				}
 			}
 			else
 			{
