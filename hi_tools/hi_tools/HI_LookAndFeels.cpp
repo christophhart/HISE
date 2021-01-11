@@ -30,8 +30,9 @@
 *   ===========================================================================
 */
 
-
+#if !HISE_NO_GUI_TOOLS
 #include "../JuceLibraryCode/BinaryData.h"
+#endif
 
 namespace hise { using namespace juce;
 
@@ -399,6 +400,9 @@ ImageProvider::DisplayScaleFactor ImageProvider::getScaleFactor()
 
 Image ImageProvider::getImage(ImageType type)
 {
+#if HISE_NO_GUI_TOOLS
+	return {};
+#else
 	switch (type)
 	{
 	case ImageProvider::KnobEmpty:
@@ -428,6 +432,7 @@ Image ImageProvider::getImage(ImageType type)
 		return Image();
 		break;
 	}
+#endif
 }
 
 void ProcessorEditorLookAndFeel::drawBackground(Graphics &g, int width, int height, Colour bgColour, bool folded, int intendationLevel /*= 0*/)
@@ -790,8 +795,10 @@ FrontendKnobLookAndFeel::FrontendKnobLookAndFeel():
 numStrips(127),
 useCustomStrip(false)
 {
+#if !HISE_NO_GUI_TOOLS
 	volumeFilmStrip = ImageCache::getFromMemory(BinaryData::FrontendKnob_Unipolar_png, BinaryData::FrontendKnob_Unipolar_pngSize);
 	balanceFilmStrip = ImageCache::getFromMemory(BinaryData::FrontendKnob_Bipolar_png, BinaryData::FrontendKnob_Bipolar_pngSize);
+#endif
 }
 
 void FrontendKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int /*width*/, int /*height*/, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)

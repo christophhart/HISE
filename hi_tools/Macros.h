@@ -109,6 +109,14 @@ namespace hise { using namespace juce;
 
 #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
 
+#if HISE_NO_GUI_TOOLS
+
+#define GLOBAL_FONT() (Font().withHeight(15.0f))
+#define GLOBAL_BOLD_FONT() (Font().withHeight(15.0f))
+#define GLOBAL_MONOSPACE_FONT() (Font().withHeight(15.0f))
+
+#else
+
 static Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
 static Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
 static Typeface::Ptr sourceCodeProTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
@@ -121,6 +129,7 @@ static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceF
 #define GLOBAL_MONOSPACE_FONT() Font(Font::getDefaultMonospacedFontName(), 14.0f, Font::plain)
 #else
 #define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
+#endif
 #endif
 
 #else
@@ -170,6 +179,21 @@ class LinuxFontHandler
 #define GLOBAL_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceFont())
 
 #endif
+
+struct StringSanitizer
+{
+	static String get(const String& s)
+	{
+		auto p = s.removeCharacters("():,;?");
+
+		if (!p.isEmpty() && p.endsWith("/"))
+			p = p.upToLastOccurrenceOf("/", false, false);
+
+		p = p.replace(".md", "");
+
+		return p.replaceCharacter(' ', '-').toLowerCase();
+	}
+};
 
 struct FontHelpers
 {

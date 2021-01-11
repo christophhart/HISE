@@ -393,10 +393,10 @@ bool AudioSampleBufferComponentBase::isAudioFile(const String &s)
 {
     AudioFormatManager afm;
 
-    
-	
 	afm.registerBasicFormats();
+#if !HISE_NO_GUI_TOOLS
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+#endif
 	
 	return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
 }

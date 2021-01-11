@@ -79,6 +79,15 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
+#ifndef HISE_NO_GUI_TOOLS
+#define HISE_NO_GUI_TOOLS 1
+#endif
+
+
+#if HISE_NO_GUI_TOOLS
+#define HISE_INCLUDE_RLOTTIE 0
+#endif
+
 #ifndef HISE_HEADLESS
 #define HISE_HEADLESS 0
 #endif
@@ -105,15 +114,15 @@ END_JUCE_MODULE_DECLARATION
 #endif
 #endif
 
-
+#if !HISE_NO_GUI_TOOLS
 #include "hi_binary_data/hi_binary_data.h"
+#endif
 
 #include "Macros.h"
 
 #include "hi_tools/CustomDataContainers.h"
 #include "hi_tools/HiseEventBuffer.h"
 
-#include "hi_tools/PostGraphicsRenderer.h"
 #include "hi_tools/UpdateMerger.h"
 #include "hi_tools/MiscToolClasses.h"
 
@@ -131,8 +140,9 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/IppFFT.h"
 #endif
 
+#if !HISE_NO_GUI_TOOLS
 
-
+#include "hi_tools/PostGraphicsRenderer.h"
 
 #include "hi_markdown/MarkdownHeader.h"
 #include "hi_markdown/MarkdownLink.h"
@@ -144,7 +154,9 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_markdown/MarkdownHtmlExporter.h"
 #include "hi_markdown/MarkdownDatabaseCrawler.h"
 
+
 #include "mcl_editor/mcl_editor.h"
+
 
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"
@@ -152,7 +164,7 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/CodeEditorApiBase.h"
 #include "hi_standalone_components/AdvancedCodeEditor.h"
 #include "hi_standalone_components/ScriptWatchTable.h"
-
+#endif
 
 #include "hi_standalone_components/Plotter.h"
 
@@ -162,4 +174,6 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/VuMeter.h"
 #include "hi_standalone_components/SampleDisplayComponent.h"
 
+
 #include "hi_rlottie/hi_rlottie.h"
+
