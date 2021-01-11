@@ -873,7 +873,7 @@ Result WrapLibraryBuilder::registerTypes()
 	}
 
 	WrapBuilder event(c, "event", numChannels, WrapBuilder::ForwardToObj);
-	event.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, {}, Callbacks::wrap_event::process);
+	event.mapToExternalTemplateFunction(ScriptnodeCallbacks::ProcessFunction, { ScriptnodeCallbacks::HandleEventFunction }, Callbacks::wrap_event::process);
 	event.flush();
 
 	WrapBuilder os(c, "fix", "NumChannels", numChannels, WrapBuilder::ForwardToObj);
@@ -959,10 +959,9 @@ juce::Result WrapLibraryBuilder::Callbacks::fix_block::prepare(WrapBuilder::Exte
 {
 	int blockSize = mapData.getTemplateConstant(0);
 
-	HeapBlock<void*> data;
-	data.allocate(512, true);
+	void* data = nullptr;
 
-#define INSERT(b) data[b] = (void*)scriptnode::wrap::static_functions::fix_block<b>::prepare;
+#define INSERT(b) if(blockSize == b) data = (void*)scriptnode::wrap::static_functions::fix_block<b>::prepare;
 	INSERT(16);
 	INSERT(32);
 	INSERT(64);
@@ -971,7 +970,9 @@ juce::Result WrapLibraryBuilder::Callbacks::fix_block::prepare(WrapBuilder::Exte
 	INSERT(512);
 #undef INSERT
 
-	return mapData.insertFunctionPtrToArgReg(data[blockSize]);
+	mapData.setExternalFunctionPtrToCall(data);
+
+	return mapData.insertFunctionPtrToArgReg(mapData.getWrappedFunctionPtr(ScriptnodeCallbacks::PrepareFunction));
 }
 
 juce::Result WrapLibraryBuilder::Callbacks::fix_block::process(WrapBuilder::ExternalFunctionMapData& mapData)
@@ -997,7 +998,10 @@ juce::Result WrapLibraryBuilder::Callbacks::fix_block::process(WrapBuilder::Exte
 	auto channelAmount = mapData.getChannelFromLastArg();
 	auto blockSize = mapData.getTemplateConstant(0);
 	auto ptr = map[Key(blockSize, channelAmount).toString()];
-	return mapData.insertFunctionPtrToArgReg(ptr);
+
+	mapData.setExternalFunctionPtrToCall(ptr);
+
+	return mapData.insertFunctionPtrToArgReg(mapData.getWrappedFunctionPtr(ScriptnodeCallbacks::ProcessFunction));
 }
 
 juce::Result WrapLibraryBuilder::Callbacks::wrap_event::process(WrapBuilder::ExternalFunctionMapData& mapData)

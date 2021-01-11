@@ -36,7 +36,179 @@ namespace Types {
 using namespace juce;
 using namespace asmjit;
 
+struct PolyDataBuilder : public TemplateClassBuilder
+{
+	static bool isPolyphonyEnabled(StructType* st)
+	{
+		return st->getCompiler()->getGlobalScope().getPolyHandler()->isEnabled();
+	}
 
+	PolyDataBuilder(Compiler& c) :
+		TemplateClassBuilder(c, NamespacedIdentifier("PolyData"))
+	{
+		addTypeTemplateParameter("ElementType");
+		addIntTemplateParameter("NumVoices");
+
+		setInitialiseStructFunction(Functions::init);
+
+		addFunction(Functions::prepareFunction);
+		addFunction(Functions::beginFunction);
+		addFunction(Functions::sizeFunction);
+		addFunction(Functions::getFunction);
+	};
+
+private:
+
+	struct Functions
+	{
+		static void init(const TemplateObject::ConstructData& cd, StructType* st)
+		{
+			auto dataType = cd.handler->registerComplexTypeOrReturnExisting(new SpanType(cd.tp[0].type, cd.tp[1].constant));
+
+			st->addMember("voiceIndex", TypeInfo(Types::ID::Pointer, true));
+			st->addMember("lastVoiceIndex", TypeInfo(Types::ID::Integer));
+			st->addMember("unused", TypeInfo(Types::ID::Integer));
+
+			st->addMember("data", TypeInfo(dataType));
+
+			st->setDefaultValue("voiceIndex", InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
+			st->setDefaultValue("lastVoiceIndex", InitialiserList::makeSingleList(VariableStorage(-1)));
+			st->setDefaultValue("unused", InitialiserList::makeSingleList(VariableStorage(0)));
+		};
+
+		
+
+		static Result prepareInliner(InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+			auto& cc = d->gen.cc;
+
+			auto prepareType = d->args[0]->getTypeInfo().getTypedComplexType<StructType>();
+			auto polyDataType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+
+			auto sourceOffset = prepareType->getMemberOffset("voiceIndex");
+			auto targetOffset = polyDataType->getMemberOffset("voiceIndex");
+
+			jassert(targetOffset == 0);
+
+			auto r = cc.newGpq();
+
+			if (d->args[0]->isMemoryLocation())
+			{
+				auto source = d->args[0]->getAsMemoryLocation().cloneAdjustedAndResized(sourceOffset, 8);
+				cc.mov(r, source);
+			}
+			else
+			{
+				cc.mov(r, x86::ptr(PTR_REG_R(d->args[0])).cloneAdjustedAndResized(sourceOffset, 8));
+			}
+
+			if (d->object->isMemoryLocation())
+			{
+				auto target = d->object->getAsMemoryLocation().cloneAdjustedAndResized(targetOffset, 8);
+				cc.mov(target, r);
+			}
+			else
+			{
+				cc.mov(PTR_REG_W(d->object), r);
+			}
+
+			return Result::ok();
+		}
+
+		static FunctionData prepareFunction(StructType* st)
+		{
+			auto f = ScriptnodeCallbacks::getPrototype(*st->getCompiler(), ScriptnodeCallbacks::PrepareFunction, 2);
+
+			f.id = st->id.getChildId(f.id.getIdentifier());
+
+			f.inliner = Inliner::createAsmInliner({}, prepareInliner);
+
+			return f;
+		}
+
+		static Result beginInliner(InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+
+			auto polyDataType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+			auto dataOffset = polyDataType->getMemberOffset("data");
+
+			d->target->setCustomMemoryLocation(d->object->getMemoryLocationForReference().cloneAdjustedAndResized(dataOffset, 8), d->object->isGlobalMemory());
+			return Result::ok();
+		}
+
+		static FunctionData beginFunction(StructType* st)
+		{
+			FunctionData f;
+
+			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::BeginIterator));
+			f.returnType = st->getTemplateInstanceParameters()[0].type.withModifiers(false, true, false);
+
+			f.inliner = Inliner::createAsmInliner({}, beginInliner);
+
+			return f;
+		}
+
+		static Result getInliner(InlineData* b)
+		{
+			auto d = b->toSyntaxTreeData();
+
+			auto polyDataType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+
+			if (isPolyphonyEnabled(polyDataType))
+			{
+				return Result::fail("PolyData::get() is not implemented for polyphony yet");
+			}
+			else
+			{
+				auto dataOffset = polyDataType->getMemberOffset("data");
+				auto dataType = polyDataType->getTemplateInstanceParameters()[0].type.withModifiers(false, true);
+
+				d->target = new Operations::MemoryReference(d->location, d->object->clone(d->location), dataType, dataOffset);
+
+				return Result::ok();
+			}
+		}
+
+		static FunctionData getFunction(StructType* st)
+		{
+			FunctionData f;
+			f.id = st->id.getChildId("get");
+			f.returnType = st->getTemplateInstanceParameters()[0].type.withModifiers(false, true);
+			f.inliner = Inliner::createHighLevelInliner({}, getInliner);
+			return f;
+		}
+
+		static FunctionData sizeFunction(StructType* st)
+		{
+			FunctionData f;
+
+			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::SizeFunction));
+			f.returnType = TypeInfo(Types::ID::Integer);
+
+			f.inliner = Inliner::createAsmInliner({}, [](InlineData* b)
+			{
+				auto d = b->toAsmInlineData();
+
+				auto polyDataType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+
+				if (!isPolyphonyEnabled(polyDataType))
+				{
+					d->target->setImmediateValue(1);
+				}
+				else
+				{
+					d->target->setImmediateValue(polyDataType->getTemplateInstanceParameters()[1].constant);
+				}
+
+				return Result::ok();
+			});
+
+			return f;
+		}
+	};
+};
 
 
 #define REGISTER_CPP_CLASS(compiler, className) c.registerExternalComplexType(className::createComplexType(c, #className));
@@ -1150,54 +1322,8 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 	createFrameProcessor();
 	createProcessData(TypeInfo(eventBufferType));
 
-	TemplateClassBuilder polyDataBuilder(c, NamespacedIdentifier("PolyData"));
-	polyDataBuilder.addTypeTemplateParameter("T");
-	polyDataBuilder.addIntTemplateParameter("NumVoices");
-	polyDataBuilder.setInitialiseStructFunction([](const TemplateObject::ConstructData& cd, StructType* st)
-	{
-		auto dataType = cd.handler->registerComplexTypeOrReturnExisting(new SpanType(cd.tp[0].type, cd.tp[1].constant));
-
-		st->addMember("data", TypeInfo(dataType));
-		st->addMember("voiceIndex", TypeInfo(Types::ID::Pointer, true));
-		st->setDefaultValue("voiceIndex", InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
-	});
-
-	polyDataBuilder.addFunction([](StructType* st)
-	{
-		FunctionData f;
-
-		f.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::BeginIterator));
-		f.returnType = st->getTemplateInstanceParameters()[0].type.withModifiers(false, true, false);
-		
-		f.inliner = Inliner::createAsmInliner({}, [](InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-			d->target->setCustomMemoryLocation(d->object->getMemoryLocationForReference(), d->object->isGlobalMemory());
-			return Result::ok();
-		});
-
-		return f;
-	});
-
-	polyDataBuilder.addFunction([](StructType* st)
-	{
-		FunctionData f;
-
-		f.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::SizeFunction));
-		f.returnType = TypeInfo(Types::ID::Integer);
-
-		f.inliner = Inliner::createAsmInliner({}, [](InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-			auto pdType = d->object->getTypeInfo().getTypedComplexType<StructType>();
-			d->target->setImmediateValue(pdType->getTemplateInstanceParameters()[1].constant);
-			return Result::ok();
-		});
-
-		return f;
-	});
-
-
+	PolyDataBuilder polyDataBuilder(c);
+	
 	polyDataBuilder.flush();
 
 	return Result::ok();

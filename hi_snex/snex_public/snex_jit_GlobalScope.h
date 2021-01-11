@@ -714,7 +714,7 @@ class GlobalScope : public FunctionClass,
 {
 public:
 
-	GlobalScope(int numVariables = 1024);
+	GlobalScope();
 
 	struct ObjectDeleteListener
 	{
@@ -837,8 +837,31 @@ public:
 
 	static ExternalPreprocessorDefinition::List getDefaultDefinitions();
 
+	Types::PolyHandler* getPolyHandler()
+	{
+		return &polyHandler;
+	}
+
+	void setPolyphonic(bool shouldBePolyphonic)
+	{
+		if (shouldBePolyphonic != polyHandler.isEnabled())
+		{
+			polyHandler.setEnabled(shouldBePolyphonic);
+
+			for (auto& epd : preprocessorDefinitions)
+			{
+				if (epd.name == "NUM_POLYPHONIC_VOICES")
+				{
+					epd.value = String(shouldBePolyphonic ? NUM_POLYPHONIC_VOICES : 1);
+					break;
+				}
+			}
+		}
+	}
+
 private:
 
+	Types::PolyHandler polyHandler;
 	
 	ExternalPreprocessorDefinition::List preprocessorDefinitions;
 

@@ -99,10 +99,11 @@ juce::CodeEditorComponent::ColourScheme DebugHandler::Tokeniser::getDefaultColou
 	return scheme;
 }
 
-GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
+GlobalScope::GlobalScope() :
 	FunctionClass({}),
 	BaseScope({}, nullptr),
-	runtimeError(Result::ok())
+	runtimeError(Result::ok()),
+	polyHandler(false)
 {
 	bufferHandler = new BufferHandler();
 
@@ -111,9 +112,15 @@ GlobalScope::GlobalScope(int numVariables /*= 1024*/) :
 
 	objectClassesWithJitCallableFunctions.add(new ConsoleFunctions(this));
 	
+	auto l = getDefaultDefinitions();
 	
+	ExternalPreprocessorDefinition npv;
+	npv.t = ExternalPreprocessorDefinition::Type::Definition;
+	npv.name = "NUM_POLYPHONIC_VOICES";
+	npv.value = String(1);
+	l.add(npv);
 
-	setPreprocessorDefinitions(getDefaultDefinitions());
+	setPreprocessorDefinitions(l);
 
 	jassert(scopeType == BaseScope::Global);
 }

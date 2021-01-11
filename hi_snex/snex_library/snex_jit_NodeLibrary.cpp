@@ -73,6 +73,12 @@ template <class Node> struct LibraryNode
 			jassert(dst != nullptr);
 		}
 
+		static void destruct(void* target)
+		{
+			auto typed = reinterpret_cast<T*>(target);
+			typed->~T();
+		}
+
 		static int handleModulation(void* obj, double* v)
 		{
 			auto t = static_cast<T*>(obj);
@@ -87,7 +93,7 @@ template <class Node> struct LibraryNode
 	{
 		createStructType();
 		addParameterCallback();
-		addConstructor();
+		addConstructorAndDestructor();
 		
 	};
 
@@ -103,6 +109,18 @@ template <class Node> struct LibraryNode
 		{
 			auto f = ScriptnodeCallbacks::getPrototype(c, callback, numChannels);
 			st->injectInliner(f.id.getIdentifier(), type, func);
+		}
+	}
+
+	void injectInlinerForSetParameter(int index, Inliner::InlineType type, const Inliner::Func& func)
+	{
+		if (c.allowInlining())
+		{
+			TemplateParameter::List l;
+			l.add(TemplateParameter(index));
+			auto numInjected = st->injectInliner("setParameter", type, func, l);
+
+			jassert(numInjected == 1);
 		}
 	}
 
@@ -139,6 +157,29 @@ template <class Node> struct LibraryNode
 	{
 		st->addMember(id, type);
 		st->setDefaultValue(id, InitialiserList::makeSingleList(defaultValue));
+
+		hasCustomMembers = true;
+	}
+
+	void addPolyDataMember(const Identifier& id, const TypeInfo& elementType)
+	{
+		NamespacedIdentifier pd("PolyData");
+
+		TemplateInstance tId(pd, {});
+
+		auto isPolyphonic = c.getGlobalScope().getPolyHandler()->isEnabled();
+
+		int numVoices = isPolyphonic ? NUM_POLYPHONIC_VOICES : 1;
+
+		TemplateParameter::List p;
+		p.add(TemplateParameter(elementType));
+		p.add(TemplateParameter(numVoices));
+
+		auto r = Result::ok();
+
+		auto pst = c.getNamespaceHandler().createTemplateInstantiation(tId, p, r);
+
+		st->addMember(id, TypeInfo(pst));
 
 		hasCustomMembers = true;
 	}
@@ -229,17 +270,29 @@ private:
 		}
 	}
 
-	void addConstructor()
+	void addConstructorAndDestructor()
 	{
-		T object;
 
-		FunctionData constructor;
-		constructor.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, jit::FunctionClass::Constructor));
+		{
+			FunctionData constructor;
+			constructor.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, jit::FunctionClass::Constructor));
 
-		constructor.returnType = TypeInfo(Types::ID::Void);
+			constructor.returnType = TypeInfo(Types::ID::Void);
 
-		st->addJitCompiledMemberFunction(constructor);
-		st->injectMemberFunctionPointer(constructor, Wrapper::construct);
+			st->addJitCompiledMemberFunction(constructor);
+			st->injectMemberFunctionPointer(constructor, Wrapper::construct);
+		}
+
+		{
+			FunctionData destructor;
+			destructor.id = st->id.getChildId(FunctionClass::getSpecialSymbol(st->id, jit::FunctionClass::Destructor));
+			destructor.returnType = TypeInfo(Types::ID::Void);
+
+			st->addJitCompiledMemberFunction(destructor);
+			st->injectMemberFunctionPointer(destructor, Wrapper::destruct);
+		}
+		
+
 	}
 
 	StructType* st;
@@ -251,20 +304,37 @@ private:
 
 juce::Result MathNodeLibrary::registerTypes()
 {
-	LibraryNode<math::add>(c, numChannels, getFactoryId());
-	LibraryNode<math::mul>(c, numChannels, getFactoryId());
-	LibraryNode<math::clear>(c, numChannels, getFactoryId());
+	LibraryNode<math::add> ma(c, numChannels, getFactoryId());
+	ma.addPolyDataMember("value", Types::ID::Float);
+	
 
-#if 0 // make this when the polydata structure is there (ideally something like b.addPolyDataMember(const TypeInfo& elementType);
-	b.injectInliner(ScriptnodeCallbacks::ProcessFrameFunction, Inliner::HighLevel, [](InlineData* b)
+	ma.injectInliner(ScriptnodeCallbacks::ProcessFrameFunction, Inliner::HighLevel, [](InlineData* b)
 	{
 		cppgen::Base c;
 
 		c << "for(auto& s: data)";
 		c << "    s += this->value.get();";
-		
+
 		return SyntaxTreeInlineParser(b, { "data" }, c).flush();
 	});
+
+#if 0
+	ma.injectInlinerForSetParameter(0, Inliner::HighLevel, [](InlineData* b)
+	{
+		cppgen::Base c;
+
+		c << "for(auto& v: this->value)";
+		c << "    v = (float)newValue;";
+
+		return SyntaxTreeInlineParser(b, { "newValue" }, c).flush();
+	});
+#endif
+
+	LibraryNode<math::mul>(c, numChannels, getFactoryId());
+	LibraryNode<math::clear>(c, numChannels, getFactoryId());
+
+#if 0 // make this when the polydata structure is there (ideally something like b.addPolyDataMember(const TypeInfo& elementType);
+	
 #endif
 
 	return Result::ok();

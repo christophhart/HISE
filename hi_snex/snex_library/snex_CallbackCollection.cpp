@@ -183,11 +183,9 @@ juce::StringArray ParameterHelpers::getParameterNames(JitObject& obj)
 }
 
 JitExpression::JitExpression(const juce::String& s, DebugHandler* handler) :
-	memory(0)
+	memory()
 {
 	juce::String code = "double get(double input){ return " + s + ";}";
-
-	
 
 	snex::jit::Compiler c(memory);
 	obj = c.compileJitObject(code);
