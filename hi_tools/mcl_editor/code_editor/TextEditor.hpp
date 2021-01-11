@@ -69,6 +69,11 @@ public:
 		document.viewUndoManager.beginNewTransaction();
 	}
 
+	void setReadOnly(bool shouldBeReadOnly)
+	{
+		readOnly = shouldBeReadOnly;
+	}
+
 	int getNumDisplayedRows() const;
 
 	void setShowNavigation(bool shouldShowNavigation)
@@ -546,7 +551,11 @@ public:
 
 	void translateToEnsureCaretIsVisible();
 
+	bool isReadOnly() const { return readOnly; }
+
 private:
+
+	bool readOnly = false;
 
 	bool expand(TextDocument::Target target)
 	{

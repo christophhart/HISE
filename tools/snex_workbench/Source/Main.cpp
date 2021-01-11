@@ -71,7 +71,7 @@ public:
 			Colours::lightgrey,
 			DocumentWindow::TitleBarButtons::closeButton | DocumentWindow::maximiseButton | DocumentWindow::TitleBarButtons::minimiseButton)
 		{
-			setContentOwned(new MainContentComponent(commandLine), true);
+			setContentOwned(new SnexWorkbenchEditor(commandLine), true);
 			setResizable(true, true);
 			setUsingNativeTitleBar(true);
 			centreWithSize(getWidth(), getHeight() - 28);
@@ -80,7 +80,7 @@ public:
 
 		void closeButtonPressed()
 		{
-			auto mw = dynamic_cast<MainContentComponent*>(getContentComponent());
+			auto mw = dynamic_cast<SnexWorkbenchEditor*>(getContentComponent());
 			mw->requestQuit();
 		}
 

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="APDG74" name="snex_workbench" projectType="guiapp" jucerVersion="5.4.3">
+<JUCERPROJECT id="APDG74" name="snex_workbench" projectType="guiapp" jucerVersion="5.4.3"
+              cppLanguageStandard="17">
   <MAINGROUP id="ez2yYO" name="snex_workbench">
     <GROUP id="{4FE4C9F6-32C2-7EB2-0F4C-13063DBE6B7C}" name="Source">
       <FILE id="r2Vmt2" name="balanceKnob_200.png" compile="0" resource="1"

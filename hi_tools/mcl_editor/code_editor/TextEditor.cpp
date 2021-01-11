@@ -579,6 +579,9 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
 
 void mcl::TextEditor::mouseDown (const MouseEvent& e)
 {
+	if (readOnly)
+		return;
+
 	closeAutocomplete(true, {}, {});
 
 	for (auto ps : currentParameterSelection)
@@ -713,6 +716,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 
 void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 {
+	if (readOnly)
+		return;
+
     if (e.mouseWasDraggedSinceMouseDown())
     {
 		if (e.mods.isAltDown())
@@ -745,6 +751,9 @@ void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 
 void mcl::TextEditor::mouseDoubleClick (const MouseEvent& e)
 {
+	if (readOnly)
+		return;
+
     if (e.getNumberOfClicks() == 2)
     {
         document.navigateSelections (TextDocument::Target::subword, TextDocument::Direction::backwardCol, Selection::Part::head);

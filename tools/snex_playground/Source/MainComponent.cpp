@@ -352,16 +352,19 @@ MainComponent::MainComponent() :
 	
 
 
-	bool useValueTrees = false;
+	bool useValueTrees = true;
 
-	auto compileThread = new snex::jit::TestCompileThread(data);
-	data->setCompileHandler(compileThread);
+	
+
+	using T = PolyData<uint8, 1>;
+
+	constexpr int s = sizeof(T);
 
 
 	if (useValueTrees)
 	{
-		//auto compileThread = new snex::jit::JitNodeCompileThread(data, &updater);
-		//data->setCompileHandler(compileThread);
+		auto compileThread = new snex::jit::JitNodeCompileThread(data, &updater);
+		data->setCompileHandler(compileThread);
 
 		provider = new snex::ui::ValueTreeCodeProvider(data);
 		data->setCodeProvider(provider);
@@ -371,10 +374,16 @@ MainComponent::MainComponent() :
 		
 		addAndMakeVisible(parameters = new snex::ui::ParameterList(data));
 
-		addAndMakeVisible(graph = new snex::ui::Graph(data, true));
+		addAndMakeVisible(testData = new snex::ui::TestDataComponent(data));
+
+		addAndMakeVisible(graph1 = new snex::ui::Graph(data));
+		addAndMakeVisible(graph2 = new snex::ui::Graph(data));
 	}
 	else
 	{
+		auto compileThread = new snex::jit::TestCompileThread(data);
+		data->setCompileHandler(compileThread);
+
 		for (auto o : OptimizationIds::getAllIds())
 			data->getGlobalScope().addOptimization(o);
 
@@ -414,8 +423,16 @@ void MainComponent::resized()
 	if (parameters != nullptr)
 		parameters->setBounds(b.removeFromTop(50));
 
-	if (graph != nullptr)
-		graph->setBounds(b.removeFromTop(200));
+	if (graph1 != nullptr)
+	{
+		//auto gb = b.removeFromTop(400);
+		testData->setBounds(b.removeFromTop(150));
+		graph1->setBounds(b.removeFromTop(150));// .removeFromLeft(400));
+		//graph2->setBounds(b);// .removeFromLeft(400));
+		
+		
+	}
+		
 
 	playground->setBounds(b);
 }

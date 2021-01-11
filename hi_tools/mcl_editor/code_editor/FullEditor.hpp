@@ -68,6 +68,8 @@ struct FullEditor: public Component
 			foldMap.setVisible(b == &foldButton);
 			resized();
 		}
+		
+		
 
 		void resized() override
 		{
@@ -102,6 +104,12 @@ struct FullEditor: public Component
 
 		navigator.codeMap.colourScheme = editor.colourScheme;
 		navigator.codeMap.transformToUse = editor.transform;
+	}
+
+
+	void setReadOnly(bool shouldBeReadOnly)
+	{
+		editor.setReadOnly(shouldBeReadOnly);
 	}
 
 	bool injectBreakpointCode(String& s)
