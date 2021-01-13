@@ -453,6 +453,206 @@ snex::jit::ComplexType::Ptr OscProcessDataJit::createComplexType(Compiler& c, co
 	return st->finaliseAndReturn();
 }
 
+struct ExternalDataTemplateBuilder: public TemplateClassBuilder
+{
+	ComplexType::Ptr getExternalDataType()
+	{
+		auto t = c.getComplexType(NamespacedIdentifier("ExternalData"));
+		jassert(t != nullptr);
+		return t;
+	}
+
+	static Result createEmbeddedSetExternalData(InlineData* b)
+	{
+		auto d = b->toAsmInlineData();
+
+		auto st = d->args[0]->getTypeInfo().getTypedComplexType<StructType>();
+
+		auto comp = st->getCompiler();
+
+		jassert(comp != nullptr);
+
+		auto ed = comp->getComplexType(NamespacedIdentifier("ExternalData"));
+		
+		FunctionClass::Ptr fc = st->getFunctionClass();
+		auto f = fc->getNonOverloadedFunction(fc->getClassName().getChildId("setExternalData"));
+
+		jassert(f.function != nullptr);
+
+		
+
+		AsmCodeGenerator::TemporaryRegister edReg(d->gen, d->object->getScope(), TypeInfo(ed, true, true));
+		AsmCodeGenerator::TemporaryRegister indexReg(d->gen, d->object->getScope(), Types::ID::Integer);
+
+		auto& cc = d->gen.cc;
+
+		auto mem = cc.newStack(ed->getRequiredByteSize(), ed->getRequiredAlignment());
+		edReg.tempReg->setCustomMemoryLocation(mem, true);
+
+		/*
+		DataType dataType; 4
+		int numSamples;    4
+		int numChannels;   4
+		void* data;        8
+		void* obj;         8
+		UpdateFunction f;  8
+		*/
+
+		d->gen.emitStackInitialisation(edReg.tempReg, ed, nullptr, ed->makeDefaultInitialiserList());
+
+		auto objType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+
+		int size = -1;
+
+		if (auto dataType = objType->getMemberTypeInfo("embeddedData").getTypedComplexType<StructType>()->getMemberTypeInfo("data").getTypedIfComplexType<SpanType>())
+		{
+			size = dataType->getNumElements();
+		}
+		else
+		{
+			return Result::fail("expected span type");
+		}
+
+		cc.mov(mem.cloneAdjustedAndResized(0, 4), (int)ExternalData::DataType::ConstantLookUp);
+		cc.mov(mem.cloneAdjustedAndResized(4, 4), (int)size);
+		cc.mov(mem.cloneAdjustedAndResized(8, 4), 1);
+		cc.mov(mem.cloneAdjustedAndResized(12, 4), 0);
+
+		d->object->loadMemoryIntoRegister(cc);
+
+		cc.mov(mem.cloneAdjustedAndResized(16, 8), PTR_REG_R(d->object));
+
+		indexReg.tempReg->setImmediateValue(0);
+
+		AssemblyRegister::List innerArgs;
+		innerArgs.add(edReg.tempReg);
+		innerArgs.add(indexReg.tempReg);
+
+		d->gen.emitFunctionCall(d->target, f, d->args[0], innerArgs);
+
+		return Result::ok();
+
+#if 0
+		auto d = b->toSyntaxTreeData()->object->getTypeInfo().getTypedComplexType<StructType>();
+
+		auto size = d->getRequiredByteSize();
+		auto a = d->getRequiredAlignment();
+
+		cppgen::Base c;
+
+		c << "ExternalData d(this->embeddedData);";
+		c << "n.setExternalData(d, 0);";
+
+		return SyntaxTreeInlineParser(b, { "n", "b", "index" }, c).flush();
+#endif
+	}
+
+	static Result createExternalSetExternalData(InlineData* b)
+	{
+		cppgen::Base c;
+
+		auto d = b->toSyntaxTreeData()->object->getTypeInfo().getTypedComplexType<StructType>()->getTemplateInstanceParameters()[0].constant;
+
+		String cond;
+
+		cond << "if (index == " << String(d) << ")";
+
+		c << cond;
+		c << "    n.setExternalData(b, 0);";
+
+		return SyntaxTreeInlineParser(b, { "n", "b", "index" }, c).flush();
+
+		return Result::ok();
+	}
+
+	ExternalDataTemplateBuilder(Compiler& c, bool isEmbedded, ExternalData::DataType d) :
+		TemplateClassBuilder(c, getId(isEmbedded, d))
+	{
+		if (isEmbedded)
+			addTypeTemplateParameter("DataClass");
+		else
+			addIntTemplateParameter("Index");
+
+		setInitialiseStructFunction([d, isEmbedded](const TemplateObject::ConstructData& data, StructType* st)
+		{
+			st->setInternalProperty(scriptnode::PropertyIds::NumTables, d == ExternalData::DataType::Table ? 1 : 0);
+			st->setInternalProperty(scriptnode::PropertyIds::NumSliderPacks, d == ExternalData::DataType::SliderPack ? 1 : 0);
+			st->setInternalProperty(scriptnode::PropertyIds::NumAudioFiles, d == ExternalData::DataType::AudioFile ? 1 : 0);
+
+			if (isEmbedded)
+			{
+				auto t = Helpers::getSubTypeFromTemplate(st, 0);
+
+				st->addMember("embeddedData", TypeInfo(Helpers::getSubTypeFromTemplate(st, 0), false, false));
+				st->setDefaultValue("embeddedData", t->makeDefaultInitialiserList());
+			}
+		});
+
+		auto ed = getExternalDataType();
+
+		addFunction([](StructType* st)
+		{
+			FunctionData cf;
+			cf.id = st->id.getChildId(st->getConstructorId());
+			cf.addArgs("obj", TypeInfo(Types::ID::Dynamic, false, true));
+			
+
+			
+
+			cf.returnType = Types::ID::Void;
+
+			cf.inliner = Inliner::createAsmInliner({}, [](InlineData* b)
+			{
+				return Result::ok();
+			});
+
+			return cf;
+		});
+
+		addFunction([ed, isEmbedded](StructType* st)
+		{
+			FunctionData f;
+			f.id = st->id.getChildId("setExternalData");
+
+			f.addArgs("obj", TypeInfo(Types::ID::Dynamic, true, true));
+			f.addArgs("data", TypeInfo(ed, true, true));
+			f.addArgs("index", Types::ID::Integer);
+			f.returnType = Types::ID::Void;
+
+			if (isEmbedded)
+				f.inliner = Inliner::createAsmInliner({}, createEmbeddedSetExternalData);
+			else
+				f.inliner = Inliner::createHighLevelInliner({}, createExternalSetExternalData);
+
+			return f;
+		});
+	}
+
+	static NamespacedIdentifier getId(bool isEmbedded, ExternalData::DataType d)
+	{
+		NamespacedIdentifier s("data");
+		if (isEmbedded)
+			s = s.getChildId("embedded");
+		else
+			s = s.getChildId("external");
+
+		s = s.getChildId(ExternalData::getDataTypeName(d).toLowerCase());
+
+		return s;
+	}
+};
+
+void InbuiltTypeLibraryBuilder::createExternalDataTemplates()
+{
+	ExternalData::forEachType([this](ExternalData::DataType t)
+	{
+		ExternalDataTemplateBuilder embed(c, true, t);
+		ExternalDataTemplateBuilder ext(c, false, t);
+		embed.flush();
+		ext.flush();
+	});
+}
+
 void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 {
 	NamespacedIdentifier pId("ProcessData");
@@ -1321,6 +1521,8 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 	c.registerExternalComplexType(eventBufferType);
 	createFrameProcessor();
 	createProcessData(TypeInfo(eventBufferType));
+
+	createExternalDataTemplates();
 
 	PolyDataBuilder polyDataBuilder(c);
 	

@@ -4,9 +4,9 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 19
+  output: 182
   error: ""
-  filename: "wrap/wrap_data1"
+  filename: "wrap/wrap_data3"
 END_TEST_DATA
 */
 
@@ -27,24 +27,28 @@ struct X
 	block f;
 };
 
-
+struct LookupTableEmpty
+{
+	span<float, 512> data = { 0.0f };
+};
 
 struct LookupTable
 {
-	span<float, 19> data = { 182.0f };
+	span<float, 512> data = { 182.0f };
 };
 
-LookupTable lut;
+LookupTableEmpty lut;
 
 ExternalData o = {lut};
 
-wrap::data<X, data::embedded::table<LookupTable>> mainObject;
+wrap::data<core::table, data::embedded::table<LookupTable>> mainObject;
+
+span<float, 1> d;
 
 int main(int input)
 {
-	
 	mainObject.setExternalData(o, 0);
-
-	return mainObject.getWrappedObject().f.size();
+	mainObject.processFrame(d);
+	return (int)d[0];
 }
 

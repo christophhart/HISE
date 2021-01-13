@@ -259,6 +259,7 @@ struct Op
 
 	virtual ~Op()
 	{
+
 		jassert(flushed);
 	}
 
@@ -335,6 +336,55 @@ private:
 		parent << "};";
 		Op::flush();
 	}
+};
+
+struct FloatArray : public Op,
+					public DefinitionBase
+{
+	FloatArray(Base& parent, const Identifier& id, const Array<float>& data_) :
+		DefinitionBase(parent, id),
+		Op(parent)
+	{
+		data.addArray(data_);
+	}
+
+	~FloatArray()
+	{
+		flushIfNot();
+	}
+
+	void flush() override
+	{
+		String def;
+		
+		def << "span<float, " << String(data.size()) << "> " << scopedId.getIdentifier() << " = ";
+		
+		parent << def;
+		parent << "{";
+		
+		int NumPerLine = 6;
+
+		for (int i = 0; i < data.size(); i += NumPerLine)
+		{
+			String line;
+
+			for (int j = i; j < jmin(i + NumPerLine, data.size()); j++)
+			{
+				line << Helpers::getCppValueString(data[j]);
+				
+				if(j != data.size()-1)
+					line << ", ";
+			}
+
+			parent << line;
+		}
+
+		parent << "};";
+
+		Op::flush();
+	}
+
+	Array<float> data;
 };
 
 struct Symbol : public DefinitionBase
@@ -575,6 +625,8 @@ struct EncodedParameterMacro : public Op
 		Macro(parent, "SNEX_METADATA_ENCODED_PARAMETERS", { String(numIntsWritten) }, false);
 
 		parent << a;
+
+		Op::flush();
 	}
 
 	scriptnode::ParameterEncoder& pe;

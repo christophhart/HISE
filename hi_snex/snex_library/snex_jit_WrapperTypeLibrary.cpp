@@ -801,11 +801,19 @@ Result WrapLibraryBuilder::registerTypes()
 
 		WrapBuilder data(c, "data", numChannels, WrapBuilder::GetSelfAsObject);
 		data.addTypeTemplateParameter("DataHandler");
-		data.addInitFunction(createDefaultInitialiser);
+		//data.addInitFunction(createDefaultInitialiser);
 
 		data.addInitFunction([](const TemplateObject::ConstructData& cd, StructType* st)
 		{
 			auto dataHandlerClass = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, 1).get());
+
+			
+
+			st->addMember("initialiser", TypeInfo(dataHandlerClass));
+
+			auto l = dataHandlerClass->makeDefaultInitialiserList();
+
+			st->setDefaultValue("initialiser", l);
 
 			if (!WrapBuilder::Helpers::checkPropertyExists(dataHandlerClass, "NumAudioFiles", *cd.r))
 				return;
@@ -817,7 +825,7 @@ Result WrapLibraryBuilder::registerTypes()
 				return;
 		});
 
-		data.addFunction(createInitConstructor);
+		//data.addFunction(createInitConstructor);
 
 		auto ed = c.getComplexType(NamespacedIdentifier("ExternalData"));
 
@@ -837,21 +845,27 @@ Result WrapLibraryBuilder::registerTypes()
 				auto d = b->toSyntaxTreeData();
 				auto ic = st->getMemberComplexType(Identifier("initialiser"));
 
+
+
 				FunctionClass::Ptr fc = ic->getFunctionClass();
 
 				auto ef = fc->getNonOverloadedFunction(fc->getClassName().getChildId("setExternalData"));
 
 				auto nc = new Operations::FunctionCall(d->location, nullptr, Symbol(ef.id, TypeInfo(Types::ID::Void)), ef.templateParameters);
 
-				nc->setAllowInlining(false);
+				//nc->setAllowInlining(false);
 
-				auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), st->getMemberOffset(1));
+				auto ioffset = st->getMemberOffset("initialiser");
+
+				auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), ioffset);
 
 
 				WrapBuilder::InnerData id(st->getMemberComplexType("obj"), WrapBuilder::GetSelfAsObject);
 
 				if (id.resolve())
 				{
+					auto s = id.st->getRequiredByteSize();
+
 					auto objRef = new Operations::MemoryReference(d->location, d->object, id.getRefType(), id.offset);
 
 					nc->setObjectExpression(initRef);
@@ -948,6 +962,25 @@ Result WrapLibraryBuilder::registerTypes()
 	});
 
 	nWrapper.addInitFunction(TemplateClassBuilder::Helpers::redirectProcessCallbacksToFixChannel);
+
+	nWrapper.addFunction([](StructType* st)
+	{
+		auto compiler = st->getCompiler();
+		jassert(compiler != nullptr);
+
+		auto c = ScriptnodeCallbacks::getPrototype(*compiler, ScriptnodeCallbacks::SetExternalDataFunction, 2);
+
+		c.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
+		{
+			cppgen::Base c;
+
+			c << "this->obj.setExternalData(b, index);";
+
+			return SyntaxTreeInlineParser(b, { "b", "index" }, c).flush();
+		});
+
+		return c;
+	});
 
 	nWrapper.flush();
 

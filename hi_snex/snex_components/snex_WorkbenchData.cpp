@@ -214,6 +214,34 @@ juce::var ui::WorkbenchData::TestData::toJSON() const
 	for (auto p : parameterEvents)
 		parameterList.add(p.toJson());
 
+	ExternalData::forEachType([&](ExternalData::DataType t)
+	{
+		Array<var> data;
+
+		auto numObjects = getNumDataObjects(t);
+
+		for (int i = 0; i < numObjects; i++)
+		{
+			String b64;
+
+			if (t == ExternalData::DataType::Table && isPositiveAndBelow(i, tables.size()))
+				b64 = tables[i]->exportData();
+			if (t == ExternalData::DataType::SliderPack && isPositiveAndBelow(i, sliderPacks.size()))
+				b64 = sliderPacks[i]->toBase64();
+
+			if (t == ExternalData::DataType::AudioFile)
+				jassertfalse; // soon
+
+			if(b64.isNotEmpty())
+				data.add(b64);
+		}
+
+		String id = ExternalData::getDataTypeName(t);
+		id << "s";
+
+		obj->setProperty(id, data);
+	});
+
 
 	obj->setProperty(TestDataIds::HiseEvents, eventList);
 	obj->setProperty(TestDataIds::ParameterEvents, parameterList);
@@ -243,6 +271,38 @@ bool ui::WorkbenchData::TestData::fromJSON(const var& jsonData)
 
 			auto e = o.getWithDefault(TestDataIds::HiseEvents, var());
 			auto p = o.getWithDefault(TestDataIds::ParameterEvents, var());
+
+			ExternalData::forEachType([&](ExternalData::DataType t)
+			{
+				String id = ExternalData::getDataTypeName(t);
+				id << "s";
+
+				auto v = o.getWithDefault(id, var());
+
+				if (auto vList = v.getArray())
+				{
+					for (auto b64_ : *vList)
+					{
+						auto b64 = b64_.toString();
+
+						if (b64.isNotEmpty())
+						{
+							int numExisting = getNumDataObjects(t);
+
+							if (t == ExternalData::DataType::Table)
+							{
+								auto table = getTable(numExisting);
+								table->restoreData(b64);
+							}
+							if (t == ExternalData::DataType::SliderPack)
+							{
+								auto sp = getSliderPack(numExisting);
+								sp->fromBase64(b64);
+							}
+						}
+					}
+				}
+			});
 
 			if (auto eList = e.getArray())
 			{
@@ -330,10 +390,11 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 		obj.get<1>().connect<0>(obj.get<3>());
 
 		auto psCopy = ps;
+		psCopy.blockSize = testSourceData.getNumSamples();
 		psCopy.numChannels = 1;
 		fObj.prepare(psCopy);
 		fObj.reset();
-		obj.get<0>().setPeriodTime(1000.0 * (double)ps.blockSize / ps.sampleRate);
+		obj.get<0>().setPeriodTime(1000.0 * (double)psCopy.blockSize / ps.sampleRate);
 
 		ProcessData<1> d(testSourceData.getArrayOfWritePointers(), size, 1);
 		fObj.process(d);
@@ -392,6 +453,12 @@ void ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 {
 	auto compileHandler = data->getCompileHandler();
 	auto nodeToTest = data->getLastResult().lastNode;
+
+	// if this fails, the compile handler didn't put the node to the CompileResult::lastNode variable...
+	//jassert(!data->getLastResult().compiledOk() || nodeToTest != nullptr);
+
+	if(nodeToTest != nullptr)
+		nodeToTest->setExternalDataHolder(this);
 
 	jassert(ps.sampleRate > 0.0);
 	ps.numChannels = testSourceData.getNumChannels();

@@ -48,50 +48,7 @@ void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scop
 
 	COMPILER_PASS(BaseCompiler::ComplexTypeParsing)
 	{
-		auto cType = getStructType();
-
-		for (auto c : baseClasses)
-		{
-			if (c.tp.isEmpty())
-			{
-				auto st = dynamic_cast<StructType*>(compiler->namespaceHandler.getComplexType(c.id).get());
-
-				if (st == nullptr)
-					location.throwError("Can't resolve base class " + c.toString());
-
-				cType->addBaseClass(st);
-			}
-			else
-			{
-				auto r = Result::ok();
-				auto tId = TemplateInstance(c.id, {});
-				auto st = compiler->namespaceHandler.createTemplateInstantiation(tId, c.tp, r);
-				location.test(r);
-				cType->addBaseClass(dynamic_cast<StructType*>(st.get()));
-			}
-		}
-
-		forEachRecursive([cType, this](Ptr p)
-		{
-			if (auto f = as<Function>(p))
-			{
-				if(f->data.id.getParent() == cType->id)
-					cType->addJitCompiledMemberFunction(f->data);
-			}
-
-			if (auto tf = as<TemplatedFunction>(p))
-			{
-				auto fData = tf->data;
-				fData.templateParameters = tf->templateParameters;
-
-				cType->addJitCompiledMemberFunction(fData);
-			}
-
-			return false;
-		});
-
-
-		addMembersFromStatementBlock(getStructType(), getChildStatement(0));
+		jassert(getStructType()->isFinalised());
 	}
 
 	COMPILER_PASS(BaseCompiler::DataAllocation)
@@ -117,6 +74,75 @@ Operations::ClassStatement::ClassStatement(Location l, ComplexType::Ptr classTyp
 
 		return false;
 	});
+}
+
+juce::Result Operations::ClassStatement::addBaseClasses()
+{
+	for (auto c : baseClasses)
+	{
+		auto compiler = getChildStatement(0)->currentCompiler;
+
+		jassert(compiler != nullptr);
+
+		if (c.tp.isEmpty())
+		{
+			jassert(compiler != nullptr);
+
+			auto st = dynamic_cast<StructType*>(compiler->namespaceHandler.getComplexType(c.id).get());
+
+			if (st == nullptr)
+				location.throwError("Can't resolve base class " + c.toString());
+
+			baseClassTypes.add(st);
+
+			getStructType()->addBaseClass(st);
+		}
+		else
+		{
+			auto r = Result::ok();
+			auto tId = TemplateInstance(c.id, {});
+			auto st = compiler->namespaceHandler.createTemplateInstantiation(tId, c.tp, r);
+
+			baseClassTypes.add(st);
+
+			location.test(r);
+			getStructType()->addBaseClass(dynamic_cast<StructType*>(st.get()));
+		}
+	}
+
+	return Result::ok();
+}
+
+void Operations::ClassStatement::createMembersAndFinalise()
+{
+	auto cType = getStructType();
+
+	addBaseClasses();
+
+	forEachRecursive([cType, this](Ptr p)
+	{
+		if (auto f = as<Function>(p))
+		{
+			if (f->data.id.getParent() == cType->id)
+				cType->addJitCompiledMemberFunction(f->data);
+		}
+
+		if (auto tf = as<TemplatedFunction>(p))
+		{
+			auto fData = tf->data;
+			fData.templateParameters = tf->templateParameters;
+
+			cType->addJitCompiledMemberFunction(fData);
+		}
+
+		return false;
+	});
+
+	for (auto bc : baseClassTypes)
+		bc->finaliseAlignment();
+
+
+	addMembersFromStatementBlock(getStructType(), getChildStatement(0));
 }
 
 void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScope* scope)

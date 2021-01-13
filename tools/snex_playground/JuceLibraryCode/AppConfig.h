@@ -109,6 +109,13 @@
 #endif
 
 //==============================================================================
+// hi_tools flags:
+
+#ifndef    HISE_NO_GUI_TOOLS
+ //#define HISE_NO_GUI_TOOLS 0
+#endif
+
+//==============================================================================
 // juce_audio_devices flags:
 
 #ifndef    JUCE_USE_WINRT_MIDI

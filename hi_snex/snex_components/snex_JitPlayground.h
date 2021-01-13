@@ -206,73 +206,12 @@ class BackgroundCompileThread: public Thread,
 {
 public:
 
-	struct OwnedDataHolder : public ExternalDataHolder
-	{
-		OwnedDataHolder(PooledUIUpdater* updater_) :
-			updater(updater_)
-		{
+	
 
-		}
-
-		Table* getTable(int index) override
-		{
-			if (isPositiveAndBelow(index, tables.size()))
-			{
-				return tables[index];
-			}
-
-			tables.add(new SampleLookupTable());
-			return tables.getLast();
-		}
-
-		SliderPackData* getSliderPack(int index) override
-		{
-			if (isPositiveAndBelow(index, sliderPacks.size()))
-			{
-				return sliderPacks[index];
-			}
-
-			sliderPacks.add(new SliderPackData(nullptr, updater));
-			return sliderPacks.getLast();
-		}
-
-		MultiChannelAudioBuffer* getAudioFile(int index) override
-		{
-			if (isPositiveAndBelow(index, buffers.size()))
-			{
-				return buffers[index];
-			}
-
-			buffers.add(new MultiChannelAudioBuffer(updater, AudioSampleBuffer()));
-			return buffers.getLast();
-		}
-
-		int getNumDataObjects(ExternalData::DataType t) const override
-		{
-			if (t == ExternalData::DataType::SliderPack)
-				return sliderPacks.size();
-			if (t == ExternalData::DataType::Table)
-				return tables.size();
-			if (t == ExternalData::DataType::AudioFile)
-				return buffers.size();
-		}
-
-	private:
-
-		PooledUIUpdater* updater = nullptr;
-
-		ReferenceCountedArray<Table> tables;
-		ReferenceCountedArray<SliderPackData> sliderPacks;
-		ReferenceCountedArray<MultiChannelAudioBuffer> buffers;
-	};
-
-	BackgroundCompileThread(ui::WorkbenchData::Ptr data_, PooledUIUpdater* updater) :
+	BackgroundCompileThread(ui::WorkbenchData::Ptr data_) :
 		Thread("SnexPlaygroundThread"),
 		CompileHandler(data_)
 	{
-		if(updater != nullptr)
-			ownHolder = new OwnedDataHolder(updater);
-
 		getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(this);
 		setPriority(4);
 	}
@@ -325,8 +264,6 @@ public:
 
 protected:
 
-
-	ScopedPointer<OwnedDataHolder> ownHolder;
 };
 
 
@@ -335,12 +272,9 @@ class TestCompileThread : public BackgroundCompileThread
 public:
 
 	TestCompileThread(ui::WorkbenchData::Ptr data) :
-		BackgroundCompileThread(data, nullptr)
+		BackgroundCompileThread(data)
 	{
-		updater = new PooledUIUpdater();
-		ownHolder = new OwnedDataHolder(updater);
-
-		updater->startTimer(30);
+		
 	}
 
 	ui::WorkbenchData::CompileResult compile(const String& s) override;
@@ -386,7 +320,6 @@ private:
 
 	AudioSampleBuffer empty;
 
-	ScopedPointer<PooledUIUpdater> updater;
 	ScopedPointer<JitFileTestCase> lastTest;
 };
 
@@ -395,25 +328,11 @@ class JitNodeCompileThread : public BackgroundCompileThread
 {
 public:
 
-	JitNodeCompileThread(ui::WorkbenchData::Ptr d, PooledUIUpdater* updater) :
-		BackgroundCompileThread(d, updater)
+	JitNodeCompileThread(ui::WorkbenchData::Ptr d) :
+		BackgroundCompileThread(d)
 	{
 		
 	};
-
-#if 0
-	void setTestBuffer(const AudioSampleBuffer& newBuffer)
-	{
-		auto& testBuffer = getParent()->getTestData().b;
-
-		if (newBuffer.getNumChannels() != testBuffer.getNumChannels())
-			getParent()->triggerRecompile();
-
-		testBuffer.makeCopyOf(newBuffer);
-
-		getParent()->triggerPostCompileActions();
-	}
-#endif
 
 	void prepareTest(PrepareSpecs ps)
 	{
@@ -455,7 +374,10 @@ public:
 			lastResult.assembly = cc->getAssemblyCode();
 			lastResult.compileResult = lastNode->r;
 			lastResult.obj = lastNode->getJitObject();
+			lastResult.lastNode = lastNode;
 
+			DBG(lastResult.obj.dumpTable());
+			
 			for (auto p : lastNode->getParameterList())
 			{
 				ui::WorkbenchData::CompileResult::DynamicParameterData d;
@@ -475,10 +397,8 @@ public:
 	{
 		if (lastNode != nullptr && lastResult.compiledOk())
 		{
-			lastNode->setExternalDataHolder(ownHolder);
-
 			auto& testData = getParent()->getTestData();
-			
+
 			if (testData.shouldRunTest())
 			{
 				testData.initProcessing(512, 44100.0);

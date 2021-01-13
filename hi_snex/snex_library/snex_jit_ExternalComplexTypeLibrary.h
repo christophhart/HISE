@@ -122,6 +122,8 @@ struct InbuiltTypeLibraryBuilder : public LibraryBuilderBase
 
 private:
 
+	void createExternalDataTemplates();
+
 	void createProcessData(const TypeInfo& eventType);
 
 	void createFrameProcessor();

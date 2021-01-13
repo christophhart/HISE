@@ -323,6 +323,9 @@ snex::jit::BlockParser::StatementPtr BlockParser::addConstructorToComplexTypeDef
 
 	auto n = Operations::as<Operations::ComplexTypeDefinition>(def);
 
+	if(currentTypeInfo.isDynamic())
+		currentTypeInfo = def->getTypeInfo();
+
 	if (currentTypeInfo.isComplexType() && currentTypeInfo.getComplexType()->hasConstructor())
 	{
 		// If objects are created on the stack they might have not been finalised yet

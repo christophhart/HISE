@@ -122,6 +122,9 @@ GlobalScope::GlobalScope() :
 
 	setPreprocessorDefinitions(l);
 
+	addNoInliner("prepare");
+	addNoInliner("setExternalData");
+
 	jassert(scopeType == BaseScope::Global);
 }
 

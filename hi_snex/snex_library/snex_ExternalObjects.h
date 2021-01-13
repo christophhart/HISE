@@ -73,7 +73,8 @@ struct ScriptnodeCallbacks
 		ProcessFunction,
 		ProcessFrameFunction,
 		numFunctions,
-		HandleModulation
+		HandleModulation,
+		SetExternalDataFunction
 	};
 
 	static ID getCallbackId(const NamespacedIdentifier& p);

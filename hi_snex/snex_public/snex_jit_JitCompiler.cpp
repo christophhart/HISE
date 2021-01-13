@@ -94,6 +94,7 @@ ComplexType::Ptr Compiler::registerExternalComplexType(ComplexType::Ptr t)
 {
 	if (auto st = dynamic_cast<StructType*>(t.get()))
 	{
+		st->setCompiler(*this);
 		st->finaliseExternalDefinition();
 	}
 

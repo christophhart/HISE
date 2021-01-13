@@ -221,10 +221,24 @@ struct test_table
 };
 
 
-struct table23_data
+using namespace scriptnode;
+
+namespace scriptnode 
 {
-	span<float, 128> data = 
-	{	0.98293273f, 0.083770002f, 0.049215005f, 0.46574186f,
+namespace wrap
+{
+
+}
+}
+
+
+
+
+struct FunkyData
+{
+	span<float, 128> data =
+	{   
+		0.98293273f, 0.083770002f, 0.049215005f, 0.46574186f,
 		0.3699328f, 0.077760494f, 0.20188127f, 0.45882956f,
 		0.79893166f, 0.17817925f, 0.39334161f, 0.9944781f,
 		0.16272518f, 0.6708219f, 0.80794162f, 0.89819765f,
@@ -255,51 +269,18 @@ struct table23_data
 		0.72681286f, 0.47046658f, 0.042386493f, 0.29158823f,
 		0.70776144f, 0.45799377f, 0.21058219f, 0.11460438f,
 		0.94578363f, 0.92267316f, 0.0043439034f, 0.5812113f,
-		0.86928468f, 0.44711893f, 0.78487704f, 0.072052477f 
+		0.86928468f, 0.44711893f, 0.78487704f, 0.072052477f
 	};
 };
 
-using namespace scriptnode;
 
-namespace scriptnode 
-{
-namespace wrap
-{
 
-}
-}
 
-using testcontainer = container::chain<parameter::empty, wrap::fix<1, test_table>, test_table, test_table>;
 
-struct TestHandler
-{
-	static const int NumTables = 1;
-	static const int NumSliderPacks = 0;
-	static const int NumAudioFiles = 0;
 
-	TestHandler(testcontainer& d)
-	{
-		auto& x = d.get<0>();
-	}
+using MyProcessor = scriptnode::wrap::data<core::table, data::embedded::table<FunkyData>>;
 
-	void setExternalData(testcontainer& d, const ExternalData& b, int index)
-	{
-		if (index == -1)
-		{
-			d.get<2>().setExternalData(ExternalData(table23), index);
-		}
-
-		if (index == 0)
-		{
-			d.get<0>().setExternalData(b, 0);
-			d.get<1>().setExternalData(b, 0);
-		} 
-	}
-
-	table23_data table23;
-};
-
-using MyProcessor = scriptnode::wrap::data<testcontainer, TestHandler>;
+using MyProcessor2 = scriptnode::wrap::data<core::table, data::external::table<0>>;
 
 
 
@@ -348,12 +329,20 @@ template <typename T> struct HardcodedExternalHandler: public snex::ExternalData
 MainComponent::MainComponent() :
 	data(new ui::WorkbenchData())
 {
-
-	
-
-
 	bool useValueTrees = true;
 
+	MyProcessor obj;
+
+	SampleLookupTable tableObj;
+
+	MyProcessor2 obj2;
+
+	ExternalData d;
+
+	ExternalData d2(&tableObj, 0);
+
+	//obj2.setExternalData(d2, 0);
+	//obj.setExternalData(d, 0);
 	
 
 	using T = PolyData<uint8, 1>;
@@ -363,7 +352,9 @@ MainComponent::MainComponent() :
 
 	if (useValueTrees)
 	{
-		auto compileThread = new snex::jit::JitNodeCompileThread(data, &updater);
+		data->getTestData().setUpdater(&updater);
+
+		auto compileThread = new snex::jit::JitNodeCompileThread(data);
 		data->setCompileHandler(compileThread);
 
 		provider = new snex::ui::ValueTreeCodeProvider(data);
@@ -378,6 +369,7 @@ MainComponent::MainComponent() :
 
 		addAndMakeVisible(graph1 = new snex::ui::Graph(data));
 		addAndMakeVisible(graph2 = new snex::ui::Graph(data));
+		addAndMakeVisible(complexData = new snex::ui::TestComplexDataManager(data));
 	}
 	else
 	{

@@ -562,17 +562,12 @@ public:
 	
 	void runTest() override
 	{
-		
-
 		beginTest("Funky");
 		
 
 		optimizations = OptimizationIds::getAllIds();
-		runTestFiles("polydata_1");
+		//runTestFiles("wrap_data5");
 		
-		
-
-
 #if INCLUDE_SNEX_BIG_TESTSUITE
 		optimizations = OptimizationIds::getAllIds();
 

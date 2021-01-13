@@ -214,6 +214,11 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 			setExternalDataFunction = obj["setExternalData"];
 
+			if (setExternalDataFunction.isResolved())
+			{
+				ExternalData d;
+				setExternalData(d, -1);
+			}
 
 		}
 		else

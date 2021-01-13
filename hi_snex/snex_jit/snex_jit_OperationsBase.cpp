@@ -623,6 +623,12 @@ void Operations::ClassDefinitionBase::addMembersFromStatementBlock(StructType* t
 					dv->addImmediateValue(s->getSubExpr(0)->getConstExprValue());
 					t->setDefaultValue(id.getIdentifier(), dv);
 				}
+
+				if (auto tcd = as<ComplexTypeDefinition>(s))
+				{
+					if(tcd->initValues != nullptr)
+						t->setDefaultValue(id.getIdentifier(), tcd->initValues);
+				}
 			}
 		}
 	}

@@ -69,31 +69,31 @@ Result ComplexType::callConstructor(InitData& d)
 
 		/** Set the member pointer here. */
 		d.initValues->forEach([d, &providedArgs](InitialiserList::ChildBase* b)
+		{
+			if (auto mp = dynamic_cast<InitialiserList::MemberPointer*>(b))
 			{
-				if (auto mp = dynamic_cast<InitialiserList::MemberPointer*>(b))
-				{
-					auto offset = mp->st->getMemberOffset(mp->variableId);
-					auto memberData = (uint8*)d.dataPointer + offset;
+				auto offset = mp->st->getMemberOffset(mp->variableId);
+				auto memberData = (uint8*)d.dataPointer + offset;
 
-					VariableStorage v;
+				VariableStorage v;
 
-					if (!mp->getValue(v))
-						mp->value = VariableStorage(memberData, mp->st->getMemberTypeInfo(mp->variableId).getRequiredByteSize());
+				if (!mp->getValue(v))
+					mp->value = VariableStorage(memberData, mp->st->getMemberTypeInfo(mp->variableId).getRequiredByteSize());
 
-					providedArgs.add(mp->st->getMemberTypeInfo(mp->variableId).withModifiers(false, true));
-				}
-				else if (auto exp = dynamic_cast<InitialiserList::ExpressionChild*>(b))
-				{
-					providedArgs.add(exp->expression->getTypeInfo());
-				}
-				else
-				{
-					VariableStorage v;
-					if (b->getValue(v))
-						providedArgs.add(TypeInfo(v.getType()));
-				}
-				return false;
-			});
+				providedArgs.add(mp->st->getMemberTypeInfo(mp->variableId).withModifiers(false, true));
+			}
+			else if (auto exp = dynamic_cast<InitialiserList::ExpressionChild*>(b))
+			{
+				providedArgs.add(exp->expression->getTypeInfo());
+			}
+			else
+			{
+				VariableStorage v;
+				if (b->getValue(v))
+					providedArgs.add(TypeInfo(v.getType()));
+			}
+			return false;
+		});
 
 		if (!cf.matchesArgumentTypes(providedArgs))
 		{

@@ -110,9 +110,9 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 	st->setDefaultValue("obj",			InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
 	st->setDefaultValue("f",			InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
 	
-	st->setVisibility("dataType",	 NamespaceHandler::Visibility::Private);
-	st->setVisibility("numSamples",	 NamespaceHandler::Visibility::Private);
-	st->setVisibility("numChannels", NamespaceHandler::Visibility::Private);
+	st->setVisibility("dataType",	 NamespaceHandler::Visibility::Public);
+	st->setVisibility("numSamples",	 NamespaceHandler::Visibility::Public);
+	st->setVisibility("numChannels", NamespaceHandler::Visibility::Public);
 	st->setVisibility("data",		 NamespaceHandler::Visibility::Private);
 	st->setVisibility("obj",		 NamespaceHandler::Visibility::Private);
 	st->setVisibility("f",			 NamespaceHandler::Visibility::Private);
@@ -306,6 +306,14 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler& c, ID id, in
 		f.id = NamespacedIdentifier("handleModulation");
 		f.returnType = TypeInfo(Types::ID::Integer);
 		f.addArgs("value", TypeInfo(Types::ID::Double, false, true));
+		break;
+	}
+	case SetExternalDataFunction:
+	{
+		f.id = NamespacedIdentifier("setExternalData");
+		f.returnType = Types::ID::Void;
+		f.addArgs("data", TypeInfo(c.getComplexType(NamespacedIdentifier("ExternalData")), true, true));
+		f.addArgs("index", Types::ID::Integer);
 		break;
 	}
 	}

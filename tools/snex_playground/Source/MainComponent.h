@@ -43,6 +43,7 @@ private:
 	ScopedPointer<snex::jit::SnexPlayground> playground;
 	ScopedPointer<snex::ui::Graph> graph1;
 	ScopedPointer<snex::ui::Graph> graph2;
+	ScopedPointer<snex::ui::TestComplexDataManager> complexData;
 	ScopedPointer<snex::ui::ParameterList> parameters;
 	ScopedPointer<snex::ui::TestDataComponent> testData;
 	OpenGLContext context;

@@ -772,6 +772,202 @@ struct TestDataComponent : public TestDataComponentBase
 	ComboBox* signalType;
 };
 
+struct TestComplexDataManager : public TestDataComponentBase,
+								public SliderPack::Listener,
+								public TableEditor::Listener
+{
+	TestComplexDataManager(WorkbenchData::Ptr d) :
+		TestDataComponentBase(d)
+	{
+		addButton("add");
+		selector = addComboBox({});
+
+		updateComboBox();
+
+		addButton("delete");
+	};
+
+	static Identifier getId() { RETURN_STATIC_IDENTIFIER("TestComplexData"); };
+
+	void sliderPackChanged(SliderPack *, int ) override
+	{
+		getWorkbench()->triggerPostCompileActions();
+	}
+
+	void tableChangedSomehow() override
+	{
+		getWorkbench()->triggerPostCompileActions();
+	}
+
+	void testEventsChanged()
+	{
+		updateComboBox();
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds();
+		GlobalHiseLookAndFeel::drawFake3D(g, b.removeFromTop(24));
+	}
+
+	void updateComboBox()
+	{
+		selector->setTextWhenNoChoicesAvailable("No data");
+
+		auto& td = getWorkbench()->getTestData();
+
+		auto currentId = selector->getSelectedId();
+
+		selector->clear(dontSendNotification);
+
+		ExternalData::forEachType([&](ExternalData::DataType type)
+		{
+			for (int i = 0; i < td.getNumDataObjects(type); i++)
+			{
+				String s = ExternalData::getDataTypeName(type);
+				s << " " << String(i + 1);
+				selector->addItem(s, getComboboxIndex(type, i));
+			}
+		});
+
+		selector->setSelectedId(currentId, dontSendNotification);
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		auto n = b->getName();
+
+		if (n == "add")
+		{
+			PopupLookAndFeel plaf;
+			PopupMenu m;
+			m.setLookAndFeel(&plaf);
+
+			auto& td = getWorkbench()->getTestData();
+
+			ExternalData::forEachType([&](ExternalData::DataType t)
+			{
+				String s;
+				s << "Add " << ExternalData::getDataTypeName(t) << " slot";
+				m.addItem(getComboboxIndex(t, td.getNumDataObjects(t)), s);
+			});
+
+			int r = m.show();
+
+			if (r != 0)
+			{
+				setComponent(r);
+				updateComboBox();
+				selector->setSelectedId(r, dontSendNotification);
+			}
+		}
+		if (n == "delete")
+		{
+			ExternalData::DataType t;
+			int i;
+
+			if (getDataTypeAndIndex(selector->getSelectedId(), t, i))
+			{
+				getWorkbench()->getTestData().removeDataObject(t, i);
+				currentDataComponent = nullptr;
+				updateComboBox();
+			}
+		}
+	}
+
+	static ExternalData::DataType getDataType(int comboBoxIndex)
+	{
+		if (comboBoxIndex >= 1000 && comboBoxIndex < 2000)
+			return ExternalData::DataType::Table;
+		if (comboBoxIndex >= 2000 && comboBoxIndex < 3000)
+			return ExternalData::DataType::SliderPack;
+		if (comboBoxIndex >= 3000 && comboBoxIndex < 4000)
+			return ExternalData::DataType::AudioFile;
+
+		jassertfalse;
+		return  ExternalData::DataType::numDataTypes;
+	}
+
+	bool getDataTypeAndIndex(const int comboBoxIndex, ExternalData::DataType& d, int& dataIndex)
+	{
+		d = getDataType(comboBoxIndex);
+
+		if (d != ExternalData::DataType::numDataTypes)
+		{
+			dataIndex = comboBoxIndex % 1000;
+			return true;
+		}
+
+		return false;
+	}
+
+	int getComboboxIndex(ExternalData::DataType t, int index)
+	{
+		if (t == ExternalData::DataType::Table)
+			return index + 1000;
+		if (t == ExternalData::DataType::SliderPack)
+			return index + 2000;
+		if (t == ExternalData::DataType::AudioFile)
+			return index + 3000;
+	}
+
+	void setComponent(int cbIndex)
+	{
+		ExternalData::DataType d;
+		int i;
+
+		if (getDataTypeAndIndex(cbIndex, d, i))
+		{
+			auto& td = getWorkbench()->getTestData();
+
+			if (d == ExternalData::DataType::Table)
+			{
+				auto t = td.getTable(i);
+				auto te = new TableEditor(nullptr, t);
+				te->addListener(this);
+				currentDataComponent = te;
+			}
+			if (d == ExternalData::DataType::SliderPack)
+			{
+				auto t = td.getSliderPack(i);
+				auto sp = new SliderPack(t);
+				sp->addListener(this);
+				currentDataComponent = sp;
+			}
+			if (d == ExternalData::DataType::AudioFile)
+			{
+				jassertfalse; // soon...
+				auto t = td.getAudioFile(i);
+			}
+		}
+
+		if (currentDataComponent != nullptr)
+		{
+			addAndMakeVisible(currentDataComponent);
+			resized();
+		}
+	}
+
+	void comboBoxChanged(ComboBox* cb) override
+	{
+		auto cbIndex = cb->getSelectedId();
+		setComponent(cbIndex);
+	}
+
+	void resized() override
+	{
+		TestDataComponentBase::resized();
+		auto b = getLocalBounds();
+		b.removeFromTop(24);
+
+		if (currentDataComponent != nullptr)
+			currentDataComponent->setBounds(b);
+	}
+
+	ScopedPointer<Component> currentDataComponent;
+	ComboBox* selector;
+};
+
 
 struct ParameterList : public WorkbenchComponent,
 					   public SliderListener,

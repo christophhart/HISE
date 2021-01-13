@@ -262,7 +262,14 @@ struct Operations::FunctionCall : public Expression
 		allowInlining = canBeInlined;
 	}
 
+	void setPreferFunctionPointerOverAsmInliner(bool shouldPrefer)
+	{
+		preferFunctionPointer = shouldPrefer;
+	}
+
 private:
+
+	bool preferFunctionPointer = false;
 
 	bool allowInlining = true;
 

@@ -36,6 +36,11 @@ namespace snex {
 namespace jit {
 using namespace juce;
 
+/** Allow line number parsing. set this to false to speed up the parsing (until  there's a faster method available). */
+#ifndef SNEX_PARSE_LINE_NUMBERS
+#define SNEX_PARSE_LINE_NUMBERS 0
+#endif
+
 #define HNODE_JIT_OPERATORS(X) \
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
     X(openParen,     "(")        X(closeParen,   ")")       X(openBrace,    "{")    X(closeBrace, "}") \
@@ -119,11 +124,10 @@ struct ParserHelpers
 			return getLineNumber(program, location);
 		}
 
-		
-
 		static int getColNumber(juce::String::CharPointerType start,
 			juce::String::CharPointerType end)
 		{
+#if SNEX_PARSE_LINE_NUMBERS
 			int col = 0;
 
 			auto charactersFromStart = (end - start);
@@ -137,11 +141,15 @@ struct ParserHelpers
 			}
 
 			return col;
+#else
+			return 0;
+#endif
 		}
 
 		static int getLineNumber(juce::String::CharPointerType start, 
 			juce::String::CharPointerType end)
 		{
+#if SNEX_PARSE_LINE_NUMBERS
 			int line = 1;
 
 			auto charactersFromStart = (end - start);
@@ -157,6 +165,9 @@ struct ParserHelpers
 			}
 
 			return line;
+#else
+			return 0;
+#endif
 		}
 
 		struct Error
@@ -185,6 +196,8 @@ struct ParserHelpers
 
 		String::CharPointerType program;
 		String::CharPointerType location;
+
+		int lineNumber = 0;
 	};
 
 	

@@ -383,7 +383,25 @@ juce::Result SyntaxTreeInlineParser::flush()
 	auto fc = dynamic_cast<FunctionCall*>(d->expression.get());
 	jassert(fc != nullptr);
 
+	int index = 0;
+
+	for (auto& a : d->originalFunction.args)
+	{
+		if (a.typeInfo.isDynamic())
+		{
+			auto ti = d->args[index]->getTypeInfo();
+
+			if (!ti.isDynamic())
+				a.typeInfo = ti;
+		}
+
+		index++;
+	}
+
 	f->data = d->originalFunction;
+
+	
+
 	f->data.inliner = nullptr;
 	f->code = p;
 	f->codeLength = length;

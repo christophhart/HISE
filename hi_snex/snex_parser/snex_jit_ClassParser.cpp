@@ -418,8 +418,6 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 
 		compiler->namespaceHandler.addSymbol(classId, TypeInfo(p), NamespaceHandler::Struct, ca.getInfo());
 
-		
-
 		compiler->namespaceHandler.registerComplexTypeOrReturnExisting(p);
 
 		NamespaceHandler::ScopedNamespaceSetter sns(compiler->namespaceHandler, classId);
@@ -431,9 +429,15 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 
 		auto list = parseStatementList();
 
+		list->currentCompiler = compiler;
+
 		compiler->namespaceHandler.setNamespacePosition(classId, startPos, location.getXYPosition(), ca.getInfo());
 
-		return matchSemicolonAndReturn(new Operations::ClassStatement(location, p, list, baseClasses));
+		StatementPtr cs = new Operations::ClassStatement(location, p, list, baseClasses);
+
+		Operations::as<Operations::ClassStatement>(cs)->createMembersAndFinalise();
+
+		return matchSemicolonAndReturn(cs);
 	}
 	else
 	{

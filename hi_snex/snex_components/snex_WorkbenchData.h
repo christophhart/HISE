@@ -226,7 +226,9 @@ struct WorkbenchData : public ReferenceCountedObject,
 		WorkbenchData::WeakPtr parent;
 	};
 
-	struct TestData: public AsyncUpdater
+	
+	struct TestData: public AsyncUpdater,
+					 public ExternalDataHolder
 	{
 		enum class TestSignalMode
 		{
@@ -317,8 +319,6 @@ struct WorkbenchData : public ReferenceCountedObject,
 			return testResult.wasOk();
 		}
 
-		
-
 		var toJSON() const;
 
 		bool fromJSON(const var& jsonData);
@@ -395,8 +395,6 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		void rebuildTestSignal(NotificationType triggerTest=sendNotification);
 
-		
-
 		void addListener(TestListener* l)
 		{
 			listeners.addIfNotAlreadyThere(l);
@@ -414,6 +412,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 			testSourceData.setSize(0, 0);
 			hiseEvents.clear();
 			parameterEvents.clear();
+
+			clearAllDataObjects();
 
 			if (notify != dontSendNotification)
 			{
@@ -452,6 +452,102 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 		PrepareSpecs getPrepareSpecs() { return ps; }
 
+		
+
+		Table* getTable(int index) override
+		{
+			if (isPositiveAndBelow(index, tables.size()))
+			{
+				return tables[index];
+			}
+
+			tables.add(new SampleLookupTable());
+
+			sendMessageToListeners(true);
+
+			return tables.getLast();
+		}
+
+		SliderPackData* getSliderPack(int index) override
+		{
+			if (isPositiveAndBelow(index, sliderPacks.size()))
+			{
+				return sliderPacks[index];
+			}
+
+			sliderPacks.add(new SliderPackData(nullptr, updater));
+			sliderPacks.getLast()->setNumSliders(16);
+
+			sendMessageToListeners(true);
+
+			return sliderPacks.getLast();
+		}
+
+		MultiChannelAudioBuffer* getAudioFile(int index) override
+		{
+			if (isPositiveAndBelow(index, buffers.size()))
+			{
+				return buffers[index];
+			}
+
+			buffers.add(new MultiChannelAudioBuffer(updater, AudioSampleBuffer()));
+
+			sendMessageToListeners(true);
+
+			return buffers.getLast();
+		}
+
+		int getNumDataObjects(ExternalData::DataType t) const override
+		{
+			if (t == ExternalData::DataType::SliderPack)
+				return sliderPacks.size();
+			if (t == ExternalData::DataType::Table)
+				return tables.size();
+			if (t == ExternalData::DataType::AudioFile)
+				return buffers.size();
+		}
+
+		bool removeDataObject(ExternalData::DataType t, int index) override
+		{
+			if (t == ExternalData::DataType::Table)
+			{
+				if (isPositiveAndBelow(index, tables.size()))
+				{
+					tables.remove(index);
+					return true;
+				}
+
+				return false;
+			}
+
+			if (t == ExternalData::DataType::SliderPack)
+			{
+				if (isPositiveAndBelow(index, sliderPacks.size()))
+				{
+					sliderPacks.remove(index);
+					return true;
+				}
+
+				return false;
+			}
+
+			if (t == ExternalData::DataType::AudioFile)
+			{
+				if (isPositiveAndBelow(index, buffers.size()))
+				{
+					buffers.remove(index);
+					return true;
+				}
+
+				return false;
+			}
+		}
+
+		void setUpdater(PooledUIUpdater* nonOwnedUpdater)
+		{
+			updater = nonOwnedUpdater;
+		}
+
 	private:
 		
 		int getParameterInSampleRange(Range<int> r, int lastIndex, ParameterEvent& pToFill) const
@@ -481,6 +577,12 @@ struct WorkbenchData : public ReferenceCountedObject,
 		Array<ParameterEvent> parameterEvents;
 
 		Array<WeakReference<TestListener>> listeners;
+
+		PooledUIUpdater* updater = nullptr;
+
+		ReferenceCountedArray<Table> tables;
+		ReferenceCountedArray<SliderPackData> sliderPacks;
+		ReferenceCountedArray<MultiChannelAudioBuffer> buffers;
 
 		JUCE_DECLARE_NON_COPYABLE(TestData);
 	};

@@ -1425,6 +1425,8 @@ void StructType::dumpTable(juce::String& s, int& intendLevel, void* dataStart, v
 
 snex::InitialiserList::Ptr StructType::makeDefaultInitialiserList() const
 {
+	jassert(isFinalised());
+
 	InitialiserList::Ptr n = new InitialiserList();
 
 	if (externalyDefinedSize != 0)
@@ -2255,6 +2257,12 @@ void StructType::addBaseClass(StructType* b)
 	jassert(!isFinalised());
 
 	baseClasses.addIfNotAlreadyThere(new BaseClass(b));
+
+	for (auto& p : b->internalProperties)
+	{
+		if (!internalProperties.contains(p.name))
+			internalProperties.set(p.name, p.value);
+	}
 }
 
 bool StructType::canBeMember(const NamespacedIdentifier& possibleMemberId) const

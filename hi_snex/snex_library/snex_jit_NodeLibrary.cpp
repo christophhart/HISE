@@ -84,6 +84,12 @@ template <class Node> struct LibraryNode
 			auto t = static_cast<T*>(obj);
 			return t->handleModulation(*v);
 		}
+
+		static void setExternalData(void* obj, ExternalData* d, int index)
+		{
+			auto t = static_cast<T*>(obj);
+			t->setExternalData(*d, index);
+		}
 	};
 
 	LibraryNode(Compiler& c_, int numChannels_, const Identifier& factoryId_) :
@@ -137,6 +143,14 @@ template <class Node> struct LibraryNode
 		auto actualSize = sizeof(T);
 
 		jassert(st->getRequiredByteSize() == actualSize);
+	}
+
+	void addSetExternalFunction()
+	{
+		auto f = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::SetExternalDataFunction, numChannels);
+		f.id = st->id.getChildId(f.id.getIdentifier());
+		st->addJitCompiledMemberFunction(f);
+		st->injectMemberFunctionPointer(f, Wrapper::setExternalData);
 	}
 
 	void addModulationFunction(const Inliner::Func& highLevelInliner = {})
@@ -346,6 +360,8 @@ juce::Result CoreNodeLibrary::registerTypes()
 {
 	LibraryNode<core::empty> e(c, numChannels, getFactoryId());
 
+	
+
 	e.injectInliner(ScriptnodeCallbacks::ProcessFrameFunction, Inliner::HighLevel, [](InlineData* b)
 	{
 		cppgen::Base c;
@@ -369,6 +385,9 @@ juce::Result CoreNodeLibrary::registerTypes()
 		cppgen::Base c;
 		return SyntaxTreeInlineParser(b, { "e" }, c).flush();
 	});
+
+	LibraryNode<core::table> tb(c, numChannels, getFactoryId());
+	tb.addSetExternalFunction();
 
 	LibraryNode<core::oscillator>(c, numChannels, getFactoryId());
 	LibraryNode<core::fix_delay>(c, numChannels, getFactoryId());
@@ -396,6 +415,8 @@ juce::Result CoreNodeLibrary::registerTypes()
 
 		return SyntaxTreeInlineParser(b, { "data" }, c).flush();
 	});
+
+	
 
 	return Result::ok();
 }

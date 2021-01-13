@@ -51,6 +51,10 @@ struct Operations::ClassStatement : public Statement,
 		int x = 5;
 	}
 
+	Result addBaseClasses();
+
+	void createMembersAndFinalise();
+
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		jassertfalse;
@@ -87,6 +91,8 @@ struct Operations::ClassStatement : public Statement,
 	Array<TemplateInstance> baseClasses;
 	ComplexType::Ptr classType;
 	ScopedPointer<ClassScope> subClass;
+
+	Array<ComplexType::Ptr> baseClassTypes;
 };
 
 

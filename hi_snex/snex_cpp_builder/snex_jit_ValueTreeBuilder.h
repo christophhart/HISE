@@ -81,10 +81,17 @@ struct ValueTreeIterator
 
 	static bool forEachParent(ValueTree& v, const Func& f);
 
+	
 
 	static bool getNodePath(Array<int>& path, ValueTree& root, const Identifier& id);
 
 	static bool hasRealParameters(const ValueTree& containerTree);
+
+	static bool hasNodeProperty(const ValueTree& nodeTree, const Identifier& id);
+
+	static var getNodeProperty(const ValueTree& nodeTree, const Identifier& id);
+
+	static bool isComplexDataNode(const ValueTree& nodeTree);
 
 	static bool isAutomated(const ValueTree& parameterTree);
 
@@ -561,6 +568,8 @@ private:
 
 		Node::List getContainersWithParameter();
 
+		bool hasComplexTypes() const;
+
 		ValueTreeBuilder& parent;
 		Format outputFormat;
 		Node::Ptr root;
@@ -568,6 +577,27 @@ private:
 		Identifier nodeClassId;
 
 		PoolBase<PooledStackVariable> stackVariables;
+	};
+
+	struct ComplexDataBuilder
+	{
+		ComplexDataBuilder(ValueTreeBuilder& parent, Node::Ptr nodeToWrap);
+
+		Node::Ptr parse();
+
+		static ExternalData::DataType getType(const ValueTree& v);
+
+	private:
+
+		Node::Ptr parseDataClass();
+
+		
+
+		Array<float> getEmbeddedData() const;
+		
+
+		ValueTreeBuilder& parent;
+		Node::Ptr n;
 	};
 
 	Format outputFormat =  Format::TestCaseFile;
@@ -603,6 +633,8 @@ private:
 	Node::Ptr getNode(const NamespacedIdentifier& id, bool allowZeroMatch) const;
 
 	Node::Ptr parseRoutingNode(Node::Ptr u);
+
+	Node::Ptr parseComplexDataNode(Node::Ptr u);
 
 	Node::Ptr parseSnexNode(Node::Ptr u);
 

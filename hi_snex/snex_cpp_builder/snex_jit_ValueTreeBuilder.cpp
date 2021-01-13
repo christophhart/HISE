@@ -315,9 +315,20 @@ Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 
 	}
 
-	return parseSnexNode(u);
+	return parseComplexDataNode(u);
 }
 
+
+Node::Ptr ValueTreeBuilder::parseComplexDataNode(Node::Ptr u)
+{
+	if (ValueTreeIterator::isComplexDataNode(u->nodeTree))
+	{
+		ComplexDataBuilder c(*this, u);
+		return parseSnexNode(c.parse());
+	}
+
+	return parseSnexNode(u);
+}
 
 Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 {
@@ -838,6 +849,28 @@ bool ValueTreeIterator::hasRealParameters(const ValueTree& containerTree)
 	return false;
 }
 
+bool ValueTreeIterator::hasNodeProperty(const ValueTree& nodeTree, const Identifier& id)
+{
+	auto propTree = nodeTree.getChildWithName(PropertyIds::Properties);
+	return propTree.getChildWithProperty(PropertyIds::ID, id.toString()).isValid();
+}
+
+juce::var ValueTreeIterator::getNodeProperty(const ValueTree& nodeTree, const Identifier& id)
+{
+	if (!hasNodeProperty(nodeTree, id))
+		return {};
+
+	auto propTree = nodeTree.getChildWithName(PropertyIds::Properties);
+	return propTree.getChildWithProperty(PropertyIds::ID, id.toString())[PropertyIds::Value];
+}
+
+bool ValueTreeIterator::isComplexDataNode(const ValueTree& nodeTree)
+{
+	return  nodeTree.hasProperty(PropertyIds::NumTables) ||
+			nodeTree.hasProperty(PropertyIds::NumSliderPacks) ||
+			nodeTree.hasProperty(PropertyIds::NumAudioFiles);
+}
+
 bool ValueTreeIterator::isAutomated(const ValueTree& parameterTree)
 {
 	auto root = parameterTree.getRoot();
@@ -926,7 +959,47 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 
 			addDefaultParameters();
 		}
+
+		if (hasComplexTypes())
+		{
+
+			parent.addEmptyLine();
+
+			parent << "void setExternalData(const ExternalData& b, int index)";
+
+			stackVariables.clear();
+
+			StatementBlock sb(parent);
+
+			parent.addComment("External Data Connections", Base::CommentType::FillTo80Light);
+
+			ValueTreeIterator::forEach(root->nodeTree.getChildWithName(PropertyIds::Nodes), ValueTreeIterator::Forward, [&](ValueTree& childNode)
+			{
+				if (childNode.getType() == PropertyIds::Node)
+				{
+					if (ComplexDataBuilder::getType(childNode) != ExternalData::DataType::numDataTypes)
+					{
+						auto sv = getChildNodeAsStackVariable(childNode);
+						
+
+						String def;
+
+						def << sv->toExpression() << ".setExternalData(b, index);";
+
+						parent << def;
+
+						auto type = parent.getNode(childNode, false);
+						parent.addComment(type->toExpression(), Base::CommentType::AlignOnSameLine);
+					}
+				}
+
+				return false;
+			});
+
+		}
 	}
+
+	
 
 	s.flushIfNot();
 
@@ -1332,6 +1405,17 @@ snex::cppgen::Node::List ValueTreeBuilder::RootContainerBuilder::getContainersWi
 	return l;
 }
 
+bool ValueTreeBuilder::RootContainerBuilder::hasComplexTypes() const
+{
+	return ValueTreeIterator::forEach(root->nodeTree, ValueTreeIterator::Forward, [](ValueTree& v)
+	{
+		if (v.getType() == PropertyIds::Node && ComplexDataBuilder::getType(v) != ExternalData::DataType::numDataTypes)
+			return true;
+
+		return false;
+	});
+}
+
 PooledStackVariable::PooledStackVariable(Base& p, const ValueTree& nodeTree_) :
 	StackVariable(p, nodeTree_[PropertyIds::ID].toString(), TypeInfo(Types::ID::Dynamic, false, true)),
 	nodeTree(nodeTree_)
@@ -1339,8 +1423,114 @@ PooledStackVariable::PooledStackVariable(Base& p, const ValueTree& nodeTree_) :
 
 }
 
+ValueTreeBuilder::ComplexDataBuilder::ComplexDataBuilder(ValueTreeBuilder& parent_, Node::Ptr nodeToWrap):
+	n(nodeToWrap),
+	parent(parent_)
+{
+
+}
+
+Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
+{
+	auto dataIndex = ValueTreeIterator::getNodeProperty(n->nodeTree, PropertyIds::DataIndex);
+
+	// The id is already used by the wrapped node...
+	jassert(!n->isFlushed());
+
+	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
+
+	*wn << *n;
+	*wn << *parseDataClass();
+
+	
+
+	wn->flushIfNot();
+
+	return wn;
+}
+
+Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseDataClass()
+{
+	auto dataIndex = (int)ValueTreeIterator::getNodeProperty(n->nodeTree, PropertyIds::DataIndex);
+
+	NamespacedIdentifier d("data");
+
+	String expr;
+
+	if (dataIndex == -1)
+	{
+		auto sId = n->scopedId;
+		StringHelpers::addSuffix(sId, "_data");
+
+		Struct s(parent, sId.getIdentifier(), {}, {});
+
+		FloatArray(parent, "data", getEmbeddedData());
+		
+		
+		s.flushIfNot();
+
+		parent.addEmptyLine();
+
+		d = d.getChildId("embedded");
+
+		expr = s.toExpression();
+		
+	}
+	else
+	{
+		d = d.getChildId("external");
+
+		expr = String(dataIndex);
+	}
+
+	d = d.getChildId(ExternalData::getDataTypeName(getType(n->nodeTree)).toLowerCase());
+
+	Node::Ptr dc = new Node(parent, {}, d);
+
+	*dc << expr;
+
+	return dc;
 }
 
 
 
+snex::ExternalData::DataType ValueTreeBuilder::ComplexDataBuilder::getType(const ValueTree& v)
+{
+	if (v.hasProperty(PropertyIds::NumTables))
+		return ExternalData::DataType::Table;
+
+	if (v.hasProperty(PropertyIds::NumAudioFiles))
+		return ExternalData::DataType::AudioFile;
+
+	if (v.hasProperty(PropertyIds::NumSliderPacks))
+		return ExternalData::DataType::SliderPack;
+
+	return ExternalData::DataType::numDataTypes;
+}
+
+juce::Array<float> ValueTreeBuilder::ComplexDataBuilder::getEmbeddedData() const
+{
+	auto t = getType(n->nodeTree);
+
+	Array<float> data;
+
+	if (t == ExternalData::DataType::Table)
+	{
+		SampleLookupTable table;
+		auto d = ValueTreeIterator::getNodeProperty(n->nodeTree, PropertyIds::EmbeddedData);
+		
+		table.restoreData(d);
+
+		data.ensureStorageAllocated(SAMPLE_LOOKUP_TABLE_SIZE);
+
+		auto ptr = table.getReadPointer();
+
+		for (int i = 0; i < SAMPLE_LOOKUP_TABLE_SIZE; i++)
+			data.add(ptr[i]);
+	}
+
+	return data;
+}
+
+}
 }

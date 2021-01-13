@@ -73,7 +73,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			try
 			{
-
 				FunctionParser p(compiler, *this);
 
 				auto ssb = findParentStatementOfType<ScopeStatementBase>(this);
@@ -156,7 +155,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 			auto fParameters = classData->args;
 
-			auto createInliner = scope->getGlobalScope()->getOptimizationPassList().contains(OptimizationIds::Inlining);
+			auto createInliner = scope->getGlobalScope()->shouldInlineFunction(classData->id.getIdentifier());
 
 			if (createInliner || isHardcodedFunction)
 			{
@@ -220,8 +219,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 						auto stree = new SyntaxTree(location, f.functionToCompile.id);
 
 						auto innerFunc = new FunctionCall(location, nullptr, f.functionToCompile.toSymbol(), {});
-
-						
 
 						auto obj = new MemoryReference(location, d.rootObject->clone(location), TypeInfo(f.objType, false, true), f.offsetFromRoot);
 						innerFunc->setObjectExpression(obj);
@@ -1141,6 +1138,8 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 
 		if (function.returnType.isDynamic() && function.inliner != nullptr)
 		{
+			jassert(function.inliner->returnTypeFunction);
+
 			ReturnTypeInlineData rData(function);
 			rData.object = this;
 			rData.object->currentCompiler = compiler;

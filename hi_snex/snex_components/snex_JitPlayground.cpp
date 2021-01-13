@@ -1208,7 +1208,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 
 			if (lastTest->nodeToTest != nullptr)
 			{
-				lastTest->nodeToTest->setExternalDataHolder(ownHolder);
+				
 			}
 
 			if (td.shouldRunTest() && lastTest->nodeToTest != nullptr)
@@ -1216,7 +1216,6 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 				td.initProcessing(512, 44100.0);
 				td.processTestData(getParent());
 			}
-
 			else
 			{
 				lastResult.compileResult = lastTest->testAfterCompilation();

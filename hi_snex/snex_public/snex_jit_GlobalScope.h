@@ -859,7 +859,25 @@ public:
 		}
 	}
 
+	void addNoInliner(const Identifier& id)
+	{
+		noInliners.addIfNotAlreadyThere(id);
+	}
+
+	bool shouldInlineFunction(const Identifier& id)
+	{
+		if (!optimizationPasses.contains(OptimizationIds::Inlining))
+			return false;
+
+		if (noInliners.contains(id))
+			return false;
+
+		return true;
+	}
+
 private:
+
+	Array<Identifier> noInliners;
 
 	Types::PolyHandler polyHandler;
 	
