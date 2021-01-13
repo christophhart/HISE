@@ -448,17 +448,34 @@ public:
 	{
 		virtual ~Listener() {};
 
+		/** Override this method if you just want to be notified about any event. */
+		virtual void tableChangedSomehow() {};
+
 		/** Will be called when the user starts dragging a point. */
-		virtual void pointDragStarted(Point<int> position, float index, float value) = 0;
+		virtual void pointDragStarted(Point<int> position, float index, float value)
+		{
+			ignoreUnused(position, index, value);
+			tableChangedSomehow();
+		}
 
 		/** Will be called when the user stops dragging a point. */
-		virtual void pointDragEnded() = 0;
+		virtual void pointDragEnded()
+		{
+			tableChangedSomehow();
+		}
 
 		/** Called while the point is being dragged. */
-		virtual void pointDragged(Point<int> position, float index, float value) = 0;
+		virtual void pointDragged(Point<int> position, float index, float value)
+		{
+			ignoreUnused(position, index, value);
+		}
 
 		/** Called when the user changes a curve. The position will be the middle between the points. */
-		virtual void curveChanged(Point<int> position, float curveValue) = 0;
+		virtual void curveChanged(Point<int> position, float curveValue) 
+		{
+			ignoreUnused(position, curveValue);
+			tableChangedSomehow();
+		}
 
 	private:
 

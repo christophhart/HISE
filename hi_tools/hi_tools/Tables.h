@@ -305,7 +305,28 @@ public:
 		return yConverter;
 	}
 
+	void setNormalisedIndexSync(float value)
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->indexChanged(value);
+		}
+	}
+
+	void addRulerListener(Updater::Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeRulerListener(Updater::Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
 private:
+
+	Array<WeakReference<Updater::Listener>> listeners;
 
 	class GraphPointComparator
 	{

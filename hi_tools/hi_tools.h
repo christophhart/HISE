@@ -79,8 +79,13 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
+/** Config: HISE_NO_GUI_TOOLS
+
+	Set this to true to remove some UI code from this module
+	This will reduce the build times and compilation size for headless projects.
+*/
 #ifndef HISE_NO_GUI_TOOLS
-#define HISE_NO_GUI_TOOLS 1
+#define HISE_NO_GUI_TOOLS 0
 #endif
 
 

@@ -281,9 +281,11 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 
 		auto pl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(r);
+		auto cpl = builder.addChild<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(r);
 		auto uig = builder.addChild<SnexWorkbenchPanel<snex::ui::Graph>>(r);
 
 		builder.getContent<FloatingTileContent>(pl)->setCustomTitle("Test Events");
+		builder.getContent<FloatingTileContent>(cpl)->setCustomTitle("Test Complex Data");
 		builder.getContent<FloatingTileContent>(uig)->setCustomTitle("Test Signal Display");
 
 		
@@ -291,7 +293,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 		builder.setFoldable(v, false, { false, false, false });
 
-		builder.setSizes(v, {30.0, -0.5, -0.5 });
+		builder.setSizes(v, {30.0, -0.33, -0.33 });
 		builder.setDynamic(v, false);
 
 #if 0
@@ -304,7 +306,7 @@ SnexWorkbenchEditor::SnexWorkbenchEditor(const String &commandLine) :
 
 		//builder.getContent<VisibilityToggleBar>(htb)->setControlledContainer(builder.getContainer(r));
 
-		builder.setSizes(r, { 30.0, -0.4, -0.2, -0.2, -0.2 });
+		builder.setSizes(r, { 30.0, -0.4, -0.2, -0.2, -0.2, -0.2 });
 
 		builder.getContent<VisibilityToggleBar>(vtb)->refreshButtons();;
 

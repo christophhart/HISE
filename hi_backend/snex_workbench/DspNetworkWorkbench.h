@@ -47,10 +47,13 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 		ProcessorWithScriptingContent(mc),
 		MasterEffectProcessor(mc, id)
 	{
+		finaliseModChains();
 	};
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
+		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+
 		if (activeNetwork == nullptr)
 			return;
 
@@ -295,32 +298,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 		Path p;
 	};
 
-	DspNetworkCodeProvider(WorkbenchData* d, MainController* mc, const File& fileToWriteTo):
-		CodeProvider(d),
-		DspNetworkSubBase(d, mc),
-		connectedFile(fileToWriteTo)
-	{
-		//setMillisecondsBetweenUpdate(600);
-
-		setForwardCallback(valuetree::AnyListener::PropertyChange, false);
-
-		initRoot();
-
-		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(getXmlFile()))
-		{
-			currentTree = ValueTree::fromXml(*xml);
-			np->getOrCreate(currentTree);
-		}
-		else
-		{
-			np->getOrCreate(getXmlFile().getFileNameWithoutExtension());
-			currentTree = np->getActiveNetwork()->getValueTree();
-		}
-
-		source = SourceMode::InterpretedNode;
-		setRootValueTree(currentTree);
-
-	}
+	DspNetworkCodeProvider(WorkbenchData* d, MainController* mc, const File& fileToWriteTo);
 
 	void setSource(SourceMode m)
 	{
@@ -353,8 +331,7 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 		auto s = createCppForNetwork();
 
-		if (s.isNotEmpty())
-			return s;
+		return s;
 	}
 
 	bool saveCode(const String& s) override
@@ -677,73 +654,7 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 			getParent()->triggerPostCompileActions();
 	}
 
-	WorkbenchData::CompileResult compile(const String& codeToCompile) override
-	{
-		WorkbenchData::CompileResult r;
-
-		using namespace scriptnode;
-
-		if (auto dcg = dynamic_cast<DspNetworkCodeProvider*>(getParent()->getCodeProvider()))
-		{
-			if (dcg->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
-			{
-				auto rootNode = np->getActiveNetwork()->getRootNode();
-				auto pList = rootNode->getValueTree().getChildWithName(PropertyIds::Parameters);
-				snex::cppgen::ParameterEncoder pe(pList);
-
-				for (auto& i : pe)
-				{
-					WorkbenchData::CompileResult::DynamicParameterData d;
-					d.data = i;
-
-					auto scriptnodeParameter = rootNode->getParameter(d.data.index);
-
-					d.f = [scriptnodeParameter, this](double v)
-					{
-						scriptnodeParameter->setValueAndStoreAsync(v);
-					};
-
-					r.parameters.add(d);
-				}
-			}
-			else
-			{
-				auto instanceId = dcg->getInstanceId();
-
-				if (instanceId.isValid())
-				{
-					Compiler::Ptr cc = createCompiler();
-
-					auto numChannels = getParent()->getTestData().testSourceData.getNumChannels();
-
-					if (numChannels == 0)
-						numChannels = 2;
-
-					r.lastNode = new JitCompiledNode(*cc, codeToCompile, instanceId.toString(), numChannels);
-
-					r.assembly = cc->getAssemblyCode();
-					r.compileResult = r.lastNode->r;
-					r.obj = r.lastNode->getJitObject();
-
-					for (const auto& i : r.lastNode->getParameterList())
-					{
-						WorkbenchData::CompileResult::DynamicParameterData d;
-						d.data = i.data;
-						d.f = (void(*)(double))i.function;
-						r.parameters.add(d);
-					}
-
-					return r;
-				}
-
-				r.compileResult = Result::fail("Didn't specify file");
-			}
-		}
-
-		return r;
-
-		
-	}
+	WorkbenchData::CompileResult compile(const String& codeToCompile) override;
 
 	/** Override this function and call the parameter method. */
 	virtual void processTestParameterEvent(int parameterIndex, double value)

@@ -310,7 +310,7 @@ void TableEditor::Ruler::paint(Graphics &g)
 		return;
 
 	if (te->lafToUse != nullptr)
-		te->lafToUse->drawTableRuler(g, *te, getLocalBounds().toFloat(), value, te->lineThickness);
+		te->lafToUse->drawTableRuler(g, *te, getLocalBounds().toFloat(), te->lineThickness, value);
 }
 
 void TableEditor::resized()

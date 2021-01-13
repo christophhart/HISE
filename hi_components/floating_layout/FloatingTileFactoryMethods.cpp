@@ -55,6 +55,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<SnexWorkbenchPanel<snex::ui::ParameterList>>(PopupMenuOptions::SnexParameterList);
 	registerType<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(PopupMenuOptions::SnexTestDataInfo);
 	registerType<SnexWorkbenchPanel<hise::WorkbenchInfoComponent>>(PopupMenuOptions::SnexWorkbenchInfo);
+	registerType<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(PopupMenuOptions::SnexComplexTestData);
 	//registerType<snex::ui::Console>();
 	//registerType<snex::ui::AssemblyViewer>();
 
