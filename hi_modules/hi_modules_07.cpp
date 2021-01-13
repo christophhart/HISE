@@ -26,7 +26,7 @@ namespace examples
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerNode<hello_world>({});
+	registerNode<hello_world>();
 	//registerNode<combined>({});
 	//registerNode<event_processor>({});
 	//registerNode<property_demo>({});

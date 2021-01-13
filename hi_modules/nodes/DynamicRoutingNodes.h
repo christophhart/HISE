@@ -53,6 +53,219 @@ Refactor ideas:
 */
 
 
+namespace core
+{
+	template <int P> struct external_table
+	{
+		static const int NumTables = 1;
+		static const int NumSliderPacks = 0;
+		static const int NumAudioFiles = 0;
+
+		using TableNodeType = wrap::data<core::table, external_table<P>>;
+
+		void setExternalData(core::table& n, const ExternalData& b, int index)
+		{
+			if(index == P)
+				n.tableData = b;
+		}
+	};
+
+	struct dynamic_table
+	{
+		static const int NumTables = 1;
+		static const int NumSliderPacks = 0;
+		static const int NumAudioFiles = 0;
+
+		using TableNodeType = wrap::data<core::table, dynamic_table>;
+
+		struct display: public ScriptnodeExtraComponent<Table>, 
+						public Table::Updater::Listener,
+						public TableEditor::Listener
+		{
+			display(PooledUIUpdater* updater, ExternalData* data) :
+				ScriptnodeExtraComponent(getTableFromExternalData(data), updater),
+				editor(nullptr, getObject()),
+				dragger(updater),
+				dataPointer(data)
+			{
+				if(auto t = getObject())
+					t->addRulerListener(this);
+
+				editor.addListener(this);
+
+				addAndMakeVisible(editor);
+				addAndMakeVisible(dragger);
+				setSize(512, 90);
+			}
+
+			~display()
+			{
+				if (auto t = getObject())
+				{
+					t->removeRulerListener(this);
+				}
+				
+				editor.removeListener(this);
+			}
+
+			static Table* getTableFromExternalData(ExternalData* d)
+			{
+				if (d->dataType == snex::ExternalData::DataType::Table)
+				{
+					return static_cast<Table*>(d->obj);
+				}
+			}
+
+			void pointDragStarted(Point<int> position, float index, float value) override
+			{
+				saveInternal();
+			}
+			void pointDragEnded() override
+			{
+				saveInternal();
+			}
+
+			void pointDragged(Point<int> position, float index, float value)
+			{
+				saveInternal();
+			}
+
+			void curveChanged(Point<int> position, float curveValue) override
+			{
+				saveInternal();
+			}
+
+			void saveInternal()
+			{
+				auto s = editor.getEditedTable()->exportData();
+
+				if (parent != nullptr)
+					parent->getNodePropertyAsValue(PropertyIds::EmbeddedData).setValue(s);
+			}
+
+			
+
+			static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+			{
+				auto& t = static_cast<TableNodeType*>(obj)->getWrappedObject();
+
+				return new display(updater, &t.tableData);
+			}
+
+			void indexChanged(float newIndex) override
+			{
+				tableValue.setModValueIfChanged((float)newIndex);
+			}
+
+			void timerCallback() override
+			{
+				if (parent == nullptr)
+				{
+					if (auto nc = findParentComponentOfClass<NodeComponent>())
+						parent = nc->node.get();
+				}
+
+				auto connectedTable = getTableFromExternalData(dataPointer);
+
+				if (editor.getEditedTable() != connectedTable)
+				{
+					if (auto prev = editor.getEditedTable())
+						prev->removeRulerListener(this);
+
+					editor.setEditedTable(connectedTable);
+
+					if (connectedTable != nullptr)
+						connectedTable->addRulerListener(this);
+				}
+
+				double v = 0.0;
+
+				if (tableValue.getChangedValue(v))
+				{
+					editor.setDisplayedIndex((float)v);
+				}
+			};
+
+			void resized() override
+			{
+				auto b = getLocalBounds();
+
+				editor.setBounds(b.removeFromTop(80));
+				dragger.setBounds(b);
+			}
+
+			WeakReference<NodeBase> parent = nullptr;
+			ModValue tableValue;
+			
+			ModulationSourceBaseComponent dragger;
+			hise::TableEditor editor;
+			ComboBox selector;
+			ExternalData* dataPointer = nullptr;
+		};
+
+		dynamic_table(core::table& t):
+			tableIndex(PropertyIds::DataIndex, -1),
+			internalTableData(PropertyIds::EmbeddedData, ""),
+			tableObject(&t)
+		{
+
+		}
+
+		void initialise(NodeBase* p)
+		{
+			parentNode = p;
+			tableIndex.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic_table::setIndex));
+			tableIndex.initialise(p);
+
+			parentNode->getValueTree().setProperty(PropertyIds::NumTables, NumTables, parentNode->getUndoManager());
+
+			internalTableData.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic_table::restoreTable));
+			internalTableData.initialise(p);
+		}
+
+		void setIndex(Identifier id, var newValue)
+		{
+			auto index = (int)newValue;
+
+			if (index == -1)
+			{
+				currentlyUsedTable = &internalTable;
+			}
+			else
+			{
+				auto h = parentNode->getRootNetwork()->getExternalDataHolder();
+				currentlyUsedTable = h->getTable(index);
+			}
+
+			ExternalData ed(currentlyUsedTable.get(), 0);
+			setExternalData(*tableObject, ed, 0);
+		}
+
+		void restoreTable(Identifier id, var newValue)
+		{
+			auto b64 = newValue.toString();
+
+			if (tableIndex.getValue() == -1 && b64.isNotEmpty())
+				internalTable.restoreData(b64);
+		}
+
+		void setExternalData(core::table& n, const ExternalData& b, int index)
+		{
+			n.tableData = b;
+		}
+
+		WeakReference<NodeBase> parentNode;
+
+		WeakReference<Table> currentlyUsedTable;
+		SampleLookupTable internalTable;
+
+		NodePropertyT<int> tableIndex;
+		NodePropertyT<String> internalTableData;
+
+		core::table* tableObject;
+	};
+}
+
 
 namespace cable
 {
@@ -72,6 +285,8 @@ struct dynamic
 
 	static constexpr bool allowFrame() { return true; };
 	static constexpr bool allowBlock() { return true; };
+
+	static NamespacedIdentifier getReceiveId();
 
 	dynamic():
 		receiveIds(PropertyIds::Connection, "")
@@ -253,9 +468,10 @@ struct FunkySendComponent : public ScriptnodeExtraComponent<routing::base>,
 
 	void mouseUp(const MouseEvent& e) override;
 
-	static Component* createExtraComponent(routing::base* b, PooledUIUpdater* updater)
+	static Component* createExtraComponent(void* b, PooledUIUpdater* updater)
 	{
-		return new FunkySendComponent(b, updater);
+		auto typed = static_cast<routing::base*>(b);
+		return new FunkySendComponent(typed, updater);
 	}
 
 	void paint(Graphics& g) override;

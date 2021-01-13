@@ -125,9 +125,9 @@ public:
 
 	
 
-	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 	{
-		return new MidiDisplay(&obj->mType, updater);
+		return new MidiDisplay(&static_cast<ObjectType*>(obj)->mType, updater);
 	}
 
 	void resized() override
@@ -184,9 +184,9 @@ public:
 		this->setSize(256, 50);
 	}
 
-	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 	{
-		return new TimerDisplay(&obj->tType, updater);
+		return new TimerDisplay(&static_cast<ObjectType*>(obj)->tType, updater);
 	}
 
 	void resized() override
@@ -292,9 +292,10 @@ struct SnexOscillatorDisplay : public ScriptnodeExtraComponent<SnexOscillator>,
 		codeValue.removeListener(this);
 	}
 
-	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* u)
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* u)
 	{
-		return new SnexOscillatorDisplay(&obj->oscType, u);
+		auto typed = reinterpret_cast<ObjectType*>(obj);
+		return new SnexOscillatorDisplay(&typed->oscType, u);
 	}
 
 	void valueChanged(Value& v) override

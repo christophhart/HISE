@@ -314,13 +314,74 @@ private:
 	static void addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport);
 };
 
+using namespace snex;
 
-class ComplexDataHolder: public SliderPackProcessor,
-						 public LookupTableProcessor
+class ScriptComplexDataHolder:  public SliderPackProcessor,
+								public LookupTableProcessor
 {
 public:
 
-	virtual ~ComplexDataHolder() {};
+	struct ReferenceHolder : public ExternalDataHolder
+	{
+		ReferenceHolder(ScriptComplexDataHolder* p) :
+			parent(p)
+		{
+		}
+
+		int getNumDataObjects(ExternalData::DataType t) const override
+		{
+			switch (t)
+			{
+			case ExternalData::DataType::Table: return parent->getNumTables();
+			case ExternalData::DataType::SliderPack: return parent->getNumSliderPacks();
+			case ExternalData::DataType::AudioFile: return parent->getNumAudioFiles();
+			}
+		}
+
+		Table* getTable(int index) override
+		{
+			if (auto t = parent->addOrReturnTableObject(index))
+			{
+				return t->getTable();
+			}
+
+			return nullptr;
+		}
+
+		SliderPackData* getSliderPack(int index)
+		{
+			if (auto sp = parent->addOrReturnSliderPackObject(index))
+			{
+				return sp->getSliderPackData();
+			}
+			return nullptr;
+		}
+
+		MultiChannelAudioBuffer* getAudioFile(int index) override
+		{
+			jassertfalse;
+			return nullptr;
+		}
+
+		bool removeDataObject(ExternalData::DataType t, int index) override
+		{
+			ignoreUnused(t, index);
+			return false;
+		}
+
+		WeakReference<ScriptComplexDataHolder> parent;
+	};
+
+	ExternalDataHolder* asExternalDataHolder()
+	{
+		return &externalHolder;
+	}
+
+	ScriptComplexDataHolder() :
+		externalHolder(this)
+	{};
+
+	virtual ~ScriptComplexDataHolder() {};
 
 	SliderPackData* getSliderPackData(int index) override
 	{
@@ -432,7 +493,11 @@ protected:
 	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
 	ReferenceCountedArray<ScriptingObjects::ScriptAudioFile> audioFiles;
 
-	JUCE_DECLARE_WEAK_REFERENCEABLE(ComplexDataHolder);
+private:
+
+	ReferenceHolder externalHolder;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptComplexDataHolder);
 };
 
 
@@ -446,7 +511,7 @@ protected:
 class JavascriptProcessor :	public FileChangeListener,
 							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
-							public ComplexDataHolder,
+							public ScriptComplexDataHolder,
 							public ApiProviderBase::Holder,
 							public scriptnode::DspNetwork::Holder
 {
@@ -1050,7 +1115,7 @@ template <class PropertyClass> struct table : public NodePropertyT<int>
 	{
 		if (n != nullptr)
 		{
-			holder = dynamic_cast<ComplexDataHolder*>(n->getScriptProcessor());
+			holder = dynamic_cast<ScriptComplexDataHolder*>(n->getScriptProcessor());
 
 			setAdditionalCallback([&r, this](Identifier id, var newValue)
 			{
@@ -1082,7 +1147,7 @@ private:
 		p.setTableData(r, tableData);
 	}
 
-	WeakReference<hise::ComplexDataHolder> holder;
+	WeakReference<hise::ScriptComplexDataHolder> holder;
 	hise::SampleLookupTable ownedTable;
 	WeakReference<hise::Table> usedTable = nullptr;
 };

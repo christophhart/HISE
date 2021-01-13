@@ -37,14 +37,215 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+namespace prototypes
+{
+	using namespace snex;
+	using namespace Types;
+
+	typedef void(*prepare)(void*, PrepareSpecs*);
+	typedef void(*reset)(void*);
+	typedef void(*setParameter)(void*, double);
+	typedef void(*handleHiseEvent)(void*, HiseEvent*);
+	typedef void(*initialise)(void*, NodeBase*);
+	typedef void(*destruct)(void*);
+	typedef int(*handleModulation)(void*, double*);
+
+	template <typename ProcessDataType> using process = void(*)(void*, ProcessDataType*);
+	template <typename FrameDataType> using processFrame = void(*)(void*, FrameDataType*);
+
+	template <typename T> struct static_wrappers
+	{
+		static T* create(void* obj) { return new (obj)T(); };
+		static void destruct(void* obj) { static_cast<T*>(obj)->~T(); }
+		static void prepare(void* obj, PrepareSpecs* ps) { static_cast<T*>(obj)->prepare(*ps); };
+		template <typename ProcessDataType> static void process(void* obj, ProcessDataType* data) { static_cast<T*>(obj)->process(*data); }
+		template <typename FrameDataType> static void processFrame(void* obj, FrameDataType* data) { static_cast<T*>(obj)->processFrame(*data); };
+		static void reset(void* obj) { static_cast<T*>(obj)->reset(); }
+		static void handleHiseEvent(void* obj, HiseEvent* e) { static_cast<T*>(obj)->handleHiseEvent(*e); };
+		static void initialise(void* obj, NodeBase* n) { static_cast<T*>(obj)->initialise(n); };
+		static int handleModulation(void* obj, double* modValue) { return (int)static_cast<T*>(obj)->handleModulation(*modValue); }
+	};
+}
+
+using namespace snex;
+using namespace snex::Types;
+
+/** A mysterious wrapper that will use a rather old-school, plain C API for the callbacks. */
+struct OpaqueNode
+{
+	static constexpr int NumMaxParameters = 16;
+	static constexpr int SmallObjectSize = 64;
+
+	using MonoFrame = span<float, 1>;
+	using StereoFrame = span<float, 2>;
+
+	SN_GET_SELF_AS_OBJECT(OpaqueNode);
+
+	OpaqueNode()
+	{
+		memset(smallObjectBuffer, 0, SmallObjectSize);
+	}
+
+	OpaqueNode(OpaqueNode&& other) = default;
+	OpaqueNode& operator=(OpaqueNode&& other) = default;
+
+	virtual ~OpaqueNode()
+	{
+		callDestructor();
+	}
+	 
+	template <typename T> void create()
+	{
+		callDestructor();
+
+		constexpr int objectSize = sizeof(T);
+
+		if (objectSize < SmallObjectSize)
+		{
+			obj = smallObjectBuffer;
+		}
+		else
+		{
+			bigBuffer.allocate(sizeof(T), false);
+			obj = bigBuffer.get();
+		}
+
+		destructFunc =		prototypes::static_wrappers<T>::destruct;
+		prepareFunc =		prototypes::static_wrappers<T>::prepare;
+		resetFunc =			prototypes::static_wrappers<T>::reset;	
+		eventFunc =			prototypes::static_wrappers<T>::handleHiseEvent;
+		processFunc =		prototypes::static_wrappers<T>::process<ProcessDataDyn>;
+		monoFrame =			prototypes::static_wrappers<T>::processFrame<MonoFrame>;
+		stereoFrame =		prototypes::static_wrappers<T>::processFrame<StereoFrame>;
+		initFunc =		    prototypes::static_wrappers<T>::initialise;
+
+		auto t = prototypes::static_wrappers<T>::create(obj);
+		isPoly = t->isPolyphonic();
+		t->createParameters(parameters);
+	}
+
+	template <typename T> T& as()
+	{
+		return *static_cast<T*>(obj);
+	}
+
+	template <typename T> const T& as() const
+	{
+		return *static_cast<T*>(obj);
+	}
+
+	void initialise(NodeBase* n)
+	{
+		initFunc(getObjectPtr(), n);
+	}
+
+	bool isPolyphonic() const { return isPoly; };
+
+	void prepare(PrepareSpecs ps)
+	{
+		prepareFunc(obj, &ps);
+	}
+
+	void process(ProcessDataDyn& data)
+	{
+		processFunc(obj, &data);
+	}
+
+	void processFrame(MonoFrame& d)
+	{
+		monoFrame(obj, &d);
+	}
+
+	void processFrame(StereoFrame& d)
+	{
+		stereoFrame(obj, &d);
+	}
+
+	void reset()
+	{
+		resetFunc(obj);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		eventFunc(obj, &e);
+	}
+
+	void createParameters(ParameterDataList& l)
+	{
+		l.clear();
+		l.addArray(parameters);
+	}
+
+	template <int P> static void setParameterStatic(void* obj, double v)
+	{
+		jassertfalse;
+	}
+
+	void* getObjectPtr() { return obj; };
+
+private:
+
+	void callDestructor()
+	{
+		if (destructFunc != nullptr && obj != nullptr)
+		{
+			destructFunc(obj);
+			
+			if (obj == bigBuffer)
+				bigBuffer.free();
+			else
+				memset(smallObjectBuffer, 0, SmallObjectSize);
+		}
+	}
+
+	uint8 smallObjectBuffer[SmallObjectSize];
+	HeapBlock<uint8> bigBuffer;
+
+	void* obj = nullptr;
+	bool isPoly = false;
+
+	prototypes::handleHiseEvent eventFunc = nullptr;
+	prototypes::destruct destructFunc = nullptr;
+	prototypes::prepare prepareFunc = nullptr;
+	prototypes::reset resetFunc = nullptr;
+	prototypes::process<ProcessDataDyn> processFunc = nullptr;
+	prototypes::processFrame<MonoFrame> monoFrame = nullptr;
+	prototypes::processFrame<StereoFrame> stereoFrame = nullptr;
+	prototypes::initialise initFunc = nullptr;
+
+	ParameterDataList parameters;
+};
+
+struct OpaqueModNode : public OpaqueNode
+{
+	SN_GET_SELF_AS_OBJECT(OpaqueModNode);
+
+	template <typename T> void create()
+	{
+		OpaqueNode::create<T>();
+		modFunc = prototypes::static_wrappers<T>::handleModulation;
+
+		auto& typedObject = as<T>();
+
+		isNormalised = typedObject.getWrappedObject().isNormalisedModulation();
+	}
+
+	bool handleModulation(double& d)
+	{
+		return modFunc(getObjectPtr(), &d) > 0;
+	}
+
+	bool isNormalised = false;
+	prototypes::handleModulation modFunc;
+};
+
 namespace scriptnode_initialisers
 {
 struct oversample;
 }
 
 using namespace snex::Types;
-
-
 
 /** The wrap namespace contains templates that wrap around an existing node type and change the processing.
 
@@ -69,18 +270,14 @@ namespace wrap
 namespace static_functions
 {
 
-namespace prototypes
-{
-template <typename ProcessDataType> using process = void(*)(void*, ProcessDataType&);
-typedef void(*prepare)(void*, PrepareSpecs);
-typedef void(*handleHiseEvent)(void*, HiseEvent&);
-}
+
 
 template <int ChannelAmount> struct frame
 {
 	static void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
 	{
-		f(obj, ps.withNumChannelsT<ChannelAmount>().withBlockSize(1));
+		auto ps_ = ps.withNumChannelsT<ChannelAmount>().withBlockSize(1);
+		f(obj, &ps_);
 	}
 };
 
@@ -88,7 +285,8 @@ template <int BlockSize> struct fix_block
 {
 	static void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
 	{
-		f(obj, ps.withBlockSizeT<BlockSize>());
+		auto ps_ = ps.withBlockSizeT<BlockSize>();
+		f(obj, &ps_);
 	}
 
 	template <typename ProcessDataType> static void process(void* obj, prototypes::process<ProcessDataType> pf, ProcessDataType& data)
@@ -96,7 +294,7 @@ template <int BlockSize> struct fix_block
 		int numToDo = data.getNumSamples();
 
 		if (numToDo < BlockSize)
-			pf(obj, data);
+			pf(obj, &data);
 		else
 		{
 			// We need to forward the HiseEvents to the chunks as there might
@@ -109,7 +307,7 @@ template <int BlockSize> struct fix_block
 			{
 				int numThisTime = jmin(BlockSize, cpd.getNumLeft());
 				auto c = cpd.getChunk(numThisTime);
-				pf(obj, c.toData());
+				pf(obj, &c.toData());
 			}
 
 #if 0
@@ -166,22 +364,22 @@ struct event
 				if (numThisTime > 0)
 				{
 					auto c = aca.getChunk(numThisTime);
-					pf(obj, c.toData());
+					pf(obj, &c.toData());
 				}
 
-				ef(obj, e);
+				ef(obj, &e);
 				lastPos = samplePos;
 			}
 
 			if (aca)
 			{
 				auto c = aca.getRemainder();
-				pf(obj, c.toData());
+				pf(obj, &c.toData());
 			}
 		}
 		else
 		{
-			pf(obj, d);
+			pf(obj, &d);
 		}
 	}
 };
@@ -308,12 +506,28 @@ public:
 
 	init() : obj(), i(obj) {};
 
-	HISE_DEFAULT_INIT(T);
+	
 	HISE_DEFAULT_PREPARE(T);
 	HISE_DEFAULT_RESET(T);
 	HISE_DEFAULT_HANDLE_EVENT(T);
 	HISE_DEFAULT_PROCESS_FRAME(T);
 	HISE_DEFAULT_PROCESS(T);
+	HISE_DEFAULT_MOD(T);
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+		i.initialise(n);
+	}
+
+	bool isPolyphonic() const { return obj.isPolyphonic(); };
+
+	void createParameters(ParameterDataList& list)
+	{
+		obj.createParameters(list);
+	}
+
+	static Identifier getStaticId() { return T::getStaticId(); };
 
 	template <int P> static void setParameter(void* obj, double value)
 	{
@@ -361,8 +575,6 @@ private:
 	T obj;
 };
 
-#define INTERNAL_EVENT_FUNCTION(ObjectClass) static void handleHiseEventInternal(void* obj, HiseEvent& e) { auto& typed = *static_cast<ObjectClass*>(obj); typed.handleHiseEvent(e); }
-
 template <class T> class event
 {
 public:
@@ -379,8 +591,8 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto p = [](void* obj, ProcessDataType& data) { static_cast<event*>(obj)->obj.process(data); };
-		auto e = [](void* obj, HiseEvent& e) { static_cast<event*>(obj)->obj.handleHiseEvent(e); };
+		auto p = prototypes::static_wrappers<T>::process<ProcessDataType>;
+		auto e = prototypes::static_wrappers<T>::handleHiseEvent;
 		static_functions::event::process<ProcessDataType>(this, p, e, data);
 	}
 
@@ -649,14 +861,12 @@ public:
 
 	void prepare(PrepareSpecs ps)
 	{
-		static_functions::fix_block<BlockSize>::prepare(this, fix_block::prepareInternal, ps);
+		static_functions::fix_block<BlockSize>::prepare(this, prototypes::static_wrappers<T>::prepare, ps);
 	}
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-
-
-		static_functions::fix_block<BlockSize>::process(this, fix_block::processInternal<ProcessDataType>, data);
+		static_functions::fix_block<BlockSize>::process(this, prototypes::static_wrappers<T>::process<ProcessDataType>, data);
 	}
 
 	HISE_DEFAULT_INIT(T);
@@ -665,9 +875,6 @@ public:
 	HISE_DEFAULT_HANDLE_EVENT(T);
 
 private:
-
-	INTERNAL_PREPARE_FUNCTION(T);
-	INTERNAL_PROCESS_FUNCTION(T);
 
 	T obj;
 };

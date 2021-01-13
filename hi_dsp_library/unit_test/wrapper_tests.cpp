@@ -225,6 +225,25 @@ struct WrapperTests : public UnitTest
 		UnitTest("Testing node wrappers", "node_tests")
 	{}
 
+	void testOpaqueNodes()
+	{
+		beginTest("Testing opaque nodes");
+
+		node_test n;
+
+		testOpaqueNode<core::mono2stereo>(n, "mono2stereo");
+		testOpaqueNode<core::oscillator>(n, "oscillator");
+	}
+
+	template <typename T> void testOpaqueNode(node_test& t, const String& v)
+	{
+		OpaqueNode obj;
+		obj.create<T>();
+
+		t.callObjectWithDyn(obj, 2, 512);
+	}
+
+
 	template <typename T> void testEventWrapper(node_test& t, const String& v)
 	{
 		T obj;
@@ -268,10 +287,12 @@ struct WrapperTests : public UnitTest
 	void runTest() override
 	{
 		
+		testOpaqueNodes();
+
 		//testBypassWrappers();
 		
 
-		testEventWrappers();
+		//testEventWrappers();
 	}
 
 
@@ -285,8 +306,6 @@ struct WrapperTests : public UnitTest
 		
 		BypassNodeType obj;
 
-		
-		
 		parameter::bypass<BypassNodeType> p;
 
 		p.connect<0>(obj);
@@ -296,7 +315,6 @@ struct WrapperTests : public UnitTest
 		t.callObjectWithFix<1>(obj, 44100);
 
 		t.expectValues("smoothed_test", { {0, 0, 1.0}, {0, 22050, 0.0f } });
-
 	}
 };
 

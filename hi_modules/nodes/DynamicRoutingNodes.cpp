@@ -34,6 +34,9 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+
+
+
 namespace routing
 {
 
@@ -49,9 +52,9 @@ struct MatrixEditor : public ScriptnodeExtraComponent<matrix<dynamic_matrix>>
 		stop();
 	}
 
-	static Component* createExtraComponent(matrix<dynamic_matrix>* obj, PooledUIUpdater* updater)
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 	{
-		return new MatrixEditor(obj, updater);
+		return new MatrixEditor(static_cast<ObjectType*>(obj), updater);
 	}
 
 	void timerCallback() override
@@ -83,6 +86,11 @@ Factory::Factory(DspNetwork* n) :
 	registerNode<ms_decode>();
 }
 
+}
+
+snex::NamespacedIdentifier cable::dynamic::getReceiveId()
+{
+	return NamespacedIdentifier("routing").getChildId(dynamic_receive::getStaticId());
 }
 
 void cable::dynamic::prepare(PrepareSpecs ps)
@@ -123,19 +131,19 @@ void cable::dynamic::prepare(PrepareSpecs ps)
 
 		auto network = parentNode->getRootNetwork();
 
-		using ReceiveType = HiseDspNodeBase<dynamic_receive, FunkySendComponent>;
+		auto id = NamespacedIdentifier("routing").getChildId(dynamic_receive::getStaticId());
 
-		auto list = network->getListOfNodesWithType<ReceiveType>(false);
+		auto list = network->getListOfNodesWithPath(id, false);
 
 		for (auto n : list)
 		{
-			if (auto rn = dynamic_cast<ReceiveType*>(n.get()))
+			if (auto rn = dynamic_cast<InterpretedNode*>(n.get()))
 			{
 				auto& ro = rn->getWrappedObject();
 
 				if (ids.contains(rn->getId()))
 				{
-					validate(ro.currentSpecs);
+					validate(ro.as<dynamic_receive>().currentSpecs);
 				}
 			}
 		}
@@ -159,24 +167,24 @@ void cable::dynamic::restoreConnections(Identifier id, var newValue)
 
 			auto network = safePtr->parentNode->getRootNetwork();
 
-			using ReceiveType = HiseDspNodeBase<dynamic_receive, FunkySendComponent>;
-
-			auto list = network->getListOfNodesWithType<ReceiveType>(false);
+			auto list = network->getListOfNodesWithPath(getReceiveId(), false);
 
 			for (auto n : list)
 			{
-				if (auto rn = dynamic_cast<ReceiveType*>(n.get()))
+				if (auto rn = dynamic_cast<InterpretedNode*>(n.get()))
 				{
 					auto& ro = rn->getWrappedObject();
 
+					auto source = ro.as<dynamic_receive>().source;
+
 					if (ids.contains(rn->getId()))
 					{
-						ro.source = safePtr.get();
+						source = safePtr.get();
 					}
 					else
 					{
-						if (ro.source == safePtr.get())
-							ro.source = &(ro.null);
+						if (source == safePtr.get())
+							source = &(ro.as<dynamic_receive>().null);
 					}
 				}
 			}
@@ -192,15 +200,13 @@ void cable::dynamic::setConnection(dynamic_receive& receiveTarget, bool addAsCon
 
 	if (parentNode != nullptr)
 	{
-		using ReceiveType = HiseDspNodeBase<dynamic_receive, FunkySendComponent>;
-
-		auto l = parentNode->getRootNetwork()->getListOfNodesWithType<ReceiveType>(true);
+		auto l = parentNode->getRootNetwork()->getListOfNodesWithPath(getReceiveId(), true);
 
 		for (auto n : l)
 		{
-			if (auto typed = dynamic_cast<ReceiveType*>(n.get()))
+			if (auto typed = dynamic_cast<InterpretedNode*>(n.get()))
 			{
-				if (&typed->getWrappedObject() == &receiveTarget)
+				if (&typed->getWrappedObject().as<dynamic_receive>() == &receiveTarget)
 				{
 					auto rIds = StringArray::fromTokens(receiveIds.getValue(), ";", "");
 

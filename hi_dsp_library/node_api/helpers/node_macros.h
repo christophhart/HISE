@@ -77,9 +77,11 @@ constexpr const auto& getWrappedObject() const { return x; }
 
 	*/
 
+#if 0
 /** Use this definition when you forward a wrapper logic. */
 #define INTERNAL_PROCESS_FUNCTION(ObjectClass) template <typename ProcessDataType> static void processInternal(void* obj, ProcessDataType& data) { auto& typed = *static_cast<ObjectClass*>(obj); typed.process(data); }
-#define INTERNAL_PREPARE_FUNCTION(ObjectClass) static void prepareInternal(void* obj, PrepareSpecs ps) { auto& typed = *static_cast<ObjectClass*>(obj); typed.prepare(ps); }
+#define INTERNAL_PREPARE_FUNCTION(ObjectClass) static void prepareInternal(void* obj, PrepareSpecs* ps) { auto& typed = *static_cast<ObjectClass*>(obj); typed.prepare(*ps); }
+#endif
 
 
 /** Use these for default forwarding to the wrapped element. */
@@ -123,7 +125,7 @@ constexpr const auto& getWrappedObject() const { return x; }
 #define HISE_EMPTY_CREATE_PARAM void createParameters(ParameterDataList&){}
 #define HISE_EMPTY_MOD bool handleModulation(double& ) { return false; }
 #define HISE_EMPTY_HANDLE_EVENT void handleHiseEvent(HiseEvent& e) {};
-#define HISE_EMPTY_SET_PARAMETER template <int P> static void setParameter(void* obj, double v) {}
+#define HISE_EMPTY_SET_PARAMETER template <int P> static void setParameterStatic(void* , double ) {} template <int P> void setParameter(double) {}
 #define HISE_EMPTY_INITIALISE void initialise(NodeBase* b) {}
 
 /** Node Factory macros. */

@@ -80,7 +80,7 @@ private:
 
 	bool recursiveProtection = false;
 
-	ComplexDataHolder* holder;
+	ScriptComplexDataHolder* holder;
 	Array<WeakReference<Listener>> listeners;
 	ProcessorWithScriptingContent* pwsc = nullptr;
 

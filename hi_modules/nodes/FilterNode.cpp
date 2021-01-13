@@ -56,9 +56,10 @@ struct FilterNodeGraph : public ScriptnodeExtraComponent<CoefficientProvider>
 		timerCallback();
 	}
 
-	static Component* createExtraComponent(CoefficientProvider* p, PooledUIUpdater* h)
+	static Component* createExtraComponent(void* p, PooledUIUpdater* h)
 	{
-		return new FilterNodeGraph(p, h);
+		auto typed = static_cast<CoefficientProvider*>(p);
+		return new FilterNodeGraph(typed, h);
 	}
 
 	bool coefficientsChanged(const IIRCoefficients& first, const IIRCoefficients& second) const

@@ -54,6 +54,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	voiceIndex(poly),
 	parentHolder(dynamic_cast<Holder*>(p))
 {
+	if (auto asScriptHolder = dynamic_cast<ScriptComplexDataHolder*>(p))
+	{
+		setExternalDataHolder(asScriptHolder->asExternalDataHolder());
+	}
+
 	ownedFactories.add(new NodeContainerFactory(this));
 	ownedFactories.add(new core::Factory(this));
 	ownedFactories.add(new math::Factory(this));
@@ -288,13 +293,12 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 
 		originalSampleRate = sampleRate;
 
-		PrepareSpecs ps;
-		ps.sampleRate = sampleRate;
-		ps.blockSize = (int)blockSize;
-		ps.numChannels = signalPath->getNumChannelsToProcess();
-		ps.voiceIndex = &voiceIndex;
+		currentSpecs.sampleRate = sampleRate;
+		currentSpecs.blockSize = (int)blockSize;
+		currentSpecs.numChannels = signalPath->getNumChannelsToProcess();
+		currentSpecs.voiceIndex = &voiceIndex;
 
-		signalPath->prepare(ps);
+		signalPath->prepare(currentSpecs);
 	}
 }
 
@@ -430,12 +434,14 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
             continue;
         }
         
-        
 		nf->setNetworkToUse(this);
 		newNode = nf->createNode(d, createPolyIfAvailable);
 
 		if (newNode != nullptr)
 		{
+			if(originalSampleRate > 0.0)
+				newNode->prepare(currentSpecs);
+
 			StringArray sa;
 			auto newId = getNonExistentId(id, sa);
 			newNode->setValueTreeProperty(PropertyIds::ID, newId);
@@ -614,17 +620,6 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 	valuetree::Helpers::foreach(c, updateSendConnection);
 }
 
-void DspNetwork::createSnexNodeLibrary(snex::Types::SnexTypeConstructData cd)
-{
-	cd.polyphonic = isPoly;
-
-	for (auto n : nodeFactories)
-	{
-		cd.id = snex::NamespacedIdentifier(n->getId());
-		n->registerSnexTypes(cd);
-	}
-}
-
 DspNetwork* DspNetwork::Holder::getOrCreate(const String& id)
 {
 	auto asScriptProcessor = dynamic_cast<ProcessorWithScriptingContent*>(this);
@@ -731,12 +726,9 @@ scriptnode::NodeBase* NodeFactory::createNode(ValueTree data, bool createPolyIfA
 	{
 		for (const auto& item : polyNodes)
 		{
-			if (item.id() == id)
+			if (item.id == id)
 			{
 				auto newNode = item.cb(network.get(), data);
-
-				if (item.pb)
-					item.pb(newNode);
 
 				return newNode;
 			}
@@ -745,12 +737,9 @@ scriptnode::NodeBase* NodeFactory::createNode(ValueTree data, bool createPolyIfA
 
 	for (const auto& item : monoNodes)
 	{
-		if (item.id() == id)
+		if (item.id == id)
 		{
 			auto newNode = item.cb(network.get(), data);
-
-			if (item.pb)
-				item.pb(newNode);
 
 			return newNode;
 		}

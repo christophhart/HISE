@@ -57,6 +57,8 @@ public:
 	SET_HISE_POLY_NODE_ID("seq");
 	SN_GET_SELF_AS_OBJECT(seq_impl);
 
+	HISE_EMPTY_HANDLE_EVENT;
+
 	void createParameters(ParameterDataList& data) override;
 	void initialise(NodeBase* n) override;
 	bool handleModulation(double& value);
@@ -118,76 +120,12 @@ DEFINE_EXTERN_NODE_TEMPLATE(seq, seq_poly, seq_impl);
 
 
 
-struct TableNode : public HiseDspBase
-{
-	SET_HISE_NODE_ID("table");
-	SN_GET_SELF_AS_OBJECT(TableNode);
 
-	enum class Parameters
-	{
-		TableIndex
-	};
-
-	DEFINE_PARAMETERS
-	{
-		DEF_PARAMETER(TableIndex, TableNode);
-	}
-
-	struct TableInterface;
-
-	void createParameters(ParameterDataList& data) override;
-	void initialise(NodeBase* n) override;
-	bool handleModulation(double& value);
-	void prepare(PrepareSpecs);
-	void reset() noexcept;
-
-	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
-	{
-		if (tableData != nullptr)
-		{
-			auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(data));
-			auto value = tableData->getInterpolatedValue(peakValue * SAMPLE_LOOKUP_TABLE_SIZE);
-
-			changed = currentValue != value;
-
-			if (changed)
-				currentValue = value;
-
-			for (auto c : data)
-				hmath::vset(data.toChannelData(c), (float)currentValue);
-		}
-	}
-
-	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
-	{
-		if (tableData != nullptr)
-		{
-			auto peakValue = jlimit(0.0, 1.0, DspHelpers::findPeak(data.begin(), data.size()));
-			auto value = tableData->getInterpolatedValue(peakValue * SAMPLE_LOOKUP_TABLE_SIZE);
-
-			changed = currentValue != value;
-
-			if (changed)
-				currentValue = value;
-
-			for (int i = 0; i < data.size(); i++)
-				data[i] = (float)currentValue;
-		}
-	}
-
-	void setTableIndex(double indexAsDouble);
-
-	WeakReference<LookupTableProcessor> tp;
-	WeakReference<SampleLookupTable> tableData;
-
-	double currentValue = 0;
-	bool changed = true;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(TableNode);
-};
 
 namespace core
 {
+
+
 
 struct file_base
 {
@@ -297,6 +235,8 @@ struct file_player : public AudioFileNodeBase
 	SET_HISE_NODE_ID("file_player");
 	SN_GET_SELF_AS_OBJECT(file_player);
 
+	HISE_EMPTY_HANDLE_EVENT;
+
 	file_player();;
 
 	void prepare(PrepareSpecs specs);
@@ -373,8 +313,6 @@ private:
 namespace core
 {
 
-//using file_player = file_node<file_player_impl, 2>;
-using table = TableNode;
 
 }
 

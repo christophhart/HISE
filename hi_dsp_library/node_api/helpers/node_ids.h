@@ -72,6 +72,9 @@ DECLARE_ID(MinValue);
 DECLARE_ID(MaxValue);
 DECLARE_ID(Inverted);
 DECLARE_ID(EmbeddedData);
+DECLARE_ID(NumTables);
+DECLARE_ID(NumSliderPacks);
+DECLARE_ID(NumAudioFiles);
 DECLARE_ID(LowerLimit);
 DECLARE_ID(UpperLimit);
 DECLARE_ID(SkewFactor);
@@ -114,6 +117,7 @@ DECLARE_ID(Code);
 DECLARE_ID(AllowSubBlocks);
 DECLARE_ID(Enabled);
 DECLARE_ID(Mode);
+DECLARE_ID(DataIndex);
 
 enum EditType
 {

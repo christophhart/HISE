@@ -136,9 +136,9 @@ struct OscDisplay : public ScriptnodeExtraComponent<OscillatorDisplayProvider>
 		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, h * 2, h, false);
 	}
 
-	static Component* createExtraComponent(ObjectType* obj, PooledUIUpdater* updater)
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 	{
-		return new OscDisplay(obj, updater);
+		return new OscDisplay(reinterpret_cast<ObjectType*>(obj), updater);
 	}
 
 	void timerCallback() override
@@ -175,9 +175,9 @@ struct TempoDisplay : public ModulationSourceBaseComponent
 		setSize(256, 40);
 	}
 
-	static Component* createExtraComponent(tempo_sync*p, PooledUIUpdater* updater)
+	static Component* createExtraComponent(void *p, PooledUIUpdater* updater)
 	{
-		return new TempoDisplay(updater, p);
+		return new TempoDisplay(updater, static_cast<tempo_sync*>(p));
 	}
 
 	void timerCallback() override

@@ -60,6 +60,115 @@ template <class P, typename... Ts> using modchain = wrap::control_rate<chain<P, 
 namespace core
 {
 
+struct table
+{
+	SET_HISE_NODE_ID("table");
+	SN_GET_SELF_AS_OBJECT(table);
+
+	HISE_EMPTY_HANDLE_EVENT;
+	HISE_EMPTY_SET_PARAMETER;
+	HISE_EMPTY_INITIALISE;
+	HISE_EMPTY_CREATE_PARAM;
+
+	using TableSpanType = span<float, SAMPLE_LOOKUP_TABLE_SIZE>;
+
+	~table()
+	{
+		int x = 5;
+	}
+
+	bool isPolyphonic() const { return false; };
+	constexpr bool isNormalisedModulation() const { return true; }
+
+	bool handleModulation(double& value)
+	{
+		return currentValue.getChangedValue(value);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		smoothedValue.prepare(ps.sampleRate, 20.0);
+	}
+
+	void reset() noexcept
+	{
+		currentValue.setModValue(0.0);
+		smoothedValue.reset();
+	}
+
+	TableSpanType* getTableData()
+	{
+		return reinterpret_cast<TableSpanType*>(tableData.data);
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+	{
+		if (auto td = getTableData())
+		{
+			block b;
+			tableData.referBlockTo(b, 0);
+
+			float v = 0.0f;
+
+			for (auto& s : data[0])
+				v = processFloat(s);
+
+			tableData.setDisplayedValue(v);
+		}
+	}
+
+	float processFloat(float& s)
+	{
+		auto& data = *getTableData();
+
+		TableSpanType::wrapped i1, i2;
+
+		auto peakValue = s;
+		auto floatIndex = peakValue * (float)SAMPLE_LOOKUP_TABLE_SIZE;
+
+		i1 = (int)floatIndex & (SAMPLE_LOOKUP_TABLE_SIZE - 1);
+		i2 = i1 + 1;
+
+		auto alpha = floatIndex - (float)i1;
+
+		s = Interpolator::interpolateLinear(data[i1], data[i2], hmath::fmod(floatIndex, 1.0f));
+
+		return peakValue;
+	}
+
+	void setExternalData(const ExternalData& d, int)
+	{
+		auto t = reinterpret_cast<uint64_t>(this);
+		auto s = reinterpret_cast<uint64_t>(d.data);
+
+		constexpr int z = sizeof(table);
+
+		auto diff = s - t - z;
+
+		if (d.numSamples == SAMPLE_LOOKUP_TABLE_SIZE)
+			tableData = d;
+			
+		else
+			jassertfalse;
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		if (auto td = getTableData())
+		{
+			processFloat(data[0]);
+		}
+	}
+
+	ExternalData tableData;
+
+	sfloat smoothedValue;
+
+	ModValue currentValue;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(table);
+};
+
 class peak
 {
 public:
@@ -351,7 +460,7 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		DspHelpers::forwardToFrameMono(this, data);
+		FrameConverters::forwardToFrameMono(this, data);
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& d)
@@ -419,7 +528,7 @@ public:
 		auto& thisGainer = gainer.get();
 
 		if (thisGainer.isActive())
-			DspHelpers::forwardToFrame16(this, data);
+			FrameConverters::forwardToFrame16(this, data);
 		else
 		{
 			auto gainFactor = thisGainer.get();

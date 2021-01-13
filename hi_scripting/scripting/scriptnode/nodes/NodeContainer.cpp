@@ -1062,25 +1062,24 @@ juce::String ParallelNode::createCppClass(bool isOuterClass)
 NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	NodeFactory(parent)
 {
-	
-	registerNodeRaw<ChainNode>({});
-	registerNodeRaw<SplitNode>({});
-	registerNodeRaw<MultiChannelNode>({});
-	registerNodeRaw<ModulationChainNode>({});
-	registerNodeRaw<MidiChainNode>({});
-	registerNodeRaw<SingleSampleBlock<1>>({});
-	registerNodeRaw<SingleSampleBlock<2>>({});
-	registerNodeRaw<SingleSampleBlockX>({});
-	registerNodeRaw<OversampleNode<2>>({});
-	registerNodeRaw<OversampleNode<4>>({});
-	registerNodeRaw<OversampleNode<8>>({});
-	registerNodeRaw<OversampleNode<16>>({});
-	registerNodeRaw<FixedBlockNode<8>>({});
-	registerNodeRaw<FixedBlockNode<16>>({});
-	registerNodeRaw<FixedBlockNode<32>>({});
-	registerNodeRaw<FixedBlockNode<64>>({});
-	registerNodeRaw<FixedBlockNode<128>>({});
-	registerNodeRaw<FixedBlockNode<256>>({});
+	registerNodeRaw<ChainNode>();
+	registerNodeRaw<SplitNode>();
+	registerNodeRaw<MultiChannelNode>();
+	registerNodeRaw<ModulationChainNode>();
+	registerNodeRaw<MidiChainNode>();
+	registerNodeRaw<SingleSampleBlock<1>>();
+	registerNodeRaw<SingleSampleBlock<2>>();
+	registerNodeRaw<SingleSampleBlockX>();
+	registerNodeRaw<OversampleNode<2>>();
+	registerNodeRaw<OversampleNode<4>>();
+	registerNodeRaw<OversampleNode<8>>();
+	registerNodeRaw<OversampleNode<16>>();
+	registerNodeRaw<FixedBlockNode<8>>();
+	registerNodeRaw<FixedBlockNode<16>>();
+	registerNodeRaw<FixedBlockNode<32>>();
+	registerNodeRaw<FixedBlockNode<64>>();
+	registerNodeRaw<FixedBlockNode<128>>();
+	registerNodeRaw<FixedBlockNode<256>>();
 }
 
 

@@ -182,6 +182,12 @@ juce::Rectangle<int> NodeBase::getPositionInCanvas(Point<int> topLeft) const
 	return body;
 }
 
+snex::NamespacedIdentifier NodeBase::getPath() const
+{
+	auto t = getValueTree()[PropertyIds::FactoryPath].toString();
+	return NamespacedIdentifier::fromString(t.replace(".", "::"));
+}
+
 void NodeBase::setBypassed(bool shouldBeBypassed)
 {
 	checkValid();

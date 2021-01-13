@@ -47,7 +47,9 @@ protected:
 
 	NodeComponent* createComponent() override;
 
-	virtual Component* createExtraComponent() = 0;
+	Component* createExtraComponent();
+
+	std::function<Component*(void*, PooledUIUpdater* updater)> extraComponentFunction;
 
 	Rectangle<int> getExtraComponentBounds() const;
 
@@ -56,6 +58,7 @@ protected:
 
 	void initParameterData(ParameterDataList& pData);
 
+	virtual void* getObjectPtr() = 0;
 	
 private:
 

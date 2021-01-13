@@ -221,6 +221,8 @@ public:
 	
 	virtual ParameterDataList createInternalParameterList() { return {}; }
 
+	NamespacedIdentifier getPath() const;
+
 	// ============================================================================================= BEGIN NODE API
 
 	/** Bypasses the node. */

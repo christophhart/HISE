@@ -71,7 +71,7 @@ namespace fx
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-	registerNodeCustomSNEX<reverb>({});
+	registerNode<reverb>();
 
 #if NOT_JUST_OSC
 	registerPolyNode<sampleandhold, sampleandhold_poly>({});
@@ -90,11 +90,11 @@ namespace math
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
 {
-
-
 	registerPolyNode<add, add_poly>();
 
 	registerNode<clear>();
+
+	registerPolyNode<tanh, tanh_poly>();
 
 #if NOT_JUST_OSC
 	registerPolyNode<mul, mul_poly>();
@@ -102,7 +102,7 @@ Factory::Factory(DspNetwork* n) :
 	
 	registerPolyNode<sub, sub_poly>();
 	registerPolyNode<div, div_poly>();
-	registerPolyNode<tanh, tanh_poly>();
+	
 	registerPolyNode<clip, clip_poly>();
 	registerNode<sin>();
 	registerNode<pi>();
@@ -123,50 +123,28 @@ namespace core
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
-#if NOT_JUST_OSC
-#if INCLUDE_SOUL_NODE
-	registerNodeRaw<SoulNode>();
-#endif
-
 	registerPolyNode<seq, seq_poly>();
 	
-	registerNode<mono2stereo>({});
-	registerNode<table>();
+	
+
+	registerModNode<core::dynamic_table::TableNodeType, core::dynamic_table::display>();
 	registerNode<fix_delay>();
 	registerNode<file_player>();
 	
 	registerNode<fm>();
 	
-	registerPolyNode<ramp_envelope, ramp_envelope_poly, ModulationSourcePlotter>();
 	registerPolyNode<gain, gain_poly>();
-	
-	
-	
-	
-	registerPolyNode<smoother, smoother_poly>({});
-#endif
-
+	//registerPolyNode<smoother, smoother_poly>();
 	registerNode<new_jit>();
-
 	registerModNode<core::midi<SnexEventProcessor>, MidiDisplay>();
-
 	registerPolyModNode<timer<SnexEventTimer>, timer_poly<SnexEventTimer>, TimerDisplay>();
-
 	registerPolyNode<snex_osc<SnexOscillator>, snex_osc_poly<SnexOscillator>, SnexOscillatorDisplay>();
-
-	//registerPolyNode<midi, midi_poly, MidiDisplay>({});
-
-	registerNodeRaw<ParameterMultiplyAddNode<core::pma<parameter::dynamic_base_holder, 1>>>();
-
+	registerNodeRaw<ParameterMultiplyAddNode>();
 	registerModNode<hise_mod>();
-
 	registerModNode<tempo_sync, TempoDisplay>();
-
 	registerModNode<peak>();
 	registerPolyNode<ramp, ramp_poly>();
-	
 	registerNode<core::mono2stereo>();
-
 	registerPolyNode<core::oscillator, core::oscillator_poly, OscDisplay>();
 
 }

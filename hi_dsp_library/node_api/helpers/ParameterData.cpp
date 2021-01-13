@@ -197,7 +197,7 @@ void* dynamic::getObjectPtr() const
 ParameterEncoder::ParameterEncoder(ValueTree& v)
 {
 	for (auto c : v)
-		items.add(ParameterEncoder::Item(v));
+		items.add(ParameterEncoder::Item(c));
 }
 
 ParameterEncoder::ParameterEncoder(const MemoryBlock& m)

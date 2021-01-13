@@ -227,7 +227,6 @@ struct new_jit: public SnexSource,
 		Types::SnexTypeConstructData cd(c);
 		cd.nodeParent = parentNode.get();
 		cd.numChannels = lastSpecs.numChannels;
-		parentNode->getRootNetwork()->createSnexNodeLibrary(cd);
 	}
 
 	void recompile() override
@@ -854,7 +853,7 @@ private:
 };
 
 
-class JitNode : public HiseDspNodeBase<core::jit>,
+class JitNode : public InterpretedNode<core::jit>,
 				public JitNodeBase
 
 {
@@ -872,7 +871,7 @@ public:
 	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new JitNode(n, d); };
 };
 
-class JitPolyNode : public HiseDspNodeBase<core::jit_poly>,
+class JitPolyNode : public InterpretedNode<core::jit_poly>,
 	public JitNodeBase
 
 {

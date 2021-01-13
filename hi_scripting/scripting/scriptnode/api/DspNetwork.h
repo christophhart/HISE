@@ -240,6 +240,21 @@ public:
 	StringArray getListOfUnusedNodeIds() const;
 	StringArray getFactoryList() const;
 
+	NodeBase::List getListOfNodesWithPath(const NamespacedIdentifier& id, bool includeUnusedNodes)
+	{
+		NodeBase::List list;
+
+		for (auto n : nodes)
+		{
+			auto path = n->getPath();
+
+			if ((includeUnusedNodes || isInSignalPath(n)) && path == id)
+				list.add(n);
+		}
+
+		return list;
+	}
+
 	template <class T> NodeBase::List getListOfNodesWithType(bool includeUsedNodes)
 	{
 		NodeBase::List list;
@@ -311,6 +326,8 @@ public:
 	{
 		return forwardControls;
 	}
+
+	PrepareSpecs getCurrentSpecs() const { return currentSpecs; }
 
 	NodeBase* getNodeWithId(const String& id) const;
 
@@ -408,9 +425,18 @@ public:
 		return snexObjects;
 	}
 
-	void createSnexNodeLibrary(snex::Types::SnexTypeConstructData cd);
+	ExternalDataHolder* getExternalDataHolder() { return dataHolder; }
+
+	void setExternalDataHolder(ExternalDataHolder* newHolder)
+	{
+		dataHolder = newHolder;
+	}
 
 private:
+
+	WeakReference<ExternalDataHolder> dataHolder;
+
+	PrepareSpecs currentSpecs;
 
 	Array<WeakReference<SnexSource>> snexObjects;
 

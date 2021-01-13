@@ -567,6 +567,18 @@ void SimpleRingBuffer::write(double value, int numSamples)
 	}
 }
 
+juce::Component* WrapperNode::createExtraComponent()
+{
+	if (extraComponentFunction)
+	{
+		auto obj = getObjectPtr();
+		PooledUIUpdater* updater = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
+		return extraComponentFunction(obj, updater);
+	}
+
+	return nullptr;
+}
+
 juce::Rectangle<int> WrapperNode::getExtraComponentBounds() const
 {
 	if (cachedExtraHeight == -1)

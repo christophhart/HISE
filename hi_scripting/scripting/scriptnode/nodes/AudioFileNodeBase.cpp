@@ -91,7 +91,7 @@ void AudioFileNodeBase::initialise(NodeBase* n)
 {
 	undoManager = n->getUndoManager();
 	pwsc = n->getScriptProcessor();
-	holder = dynamic_cast<ComplexDataHolder*>(pwsc);
+	holder = dynamic_cast<ScriptComplexDataHolder*>(pwsc);
 
 	index.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(AudioFileNodeBase::updateIndex));
 	index.initialise(n);

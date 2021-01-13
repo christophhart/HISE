@@ -3568,7 +3568,7 @@ StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Iden
 
 	auto aps = ProcessorHelpers::getAllIdsForType<AudioSampleProcessor>(mp->getOwnerSynth());
 	auto samplers = ProcessorHelpers::getAllIdsForType<ModulatorSampler>(mp->getOwnerSynth());
-	auto cds = ProcessorHelpers::getAllIdsForType<ComplexDataHolder>(mp->getOwnerSynth());
+	auto cds = ProcessorHelpers::getAllIdsForType<ScriptComplexDataHolder>(mp->getOwnerSynth());
 
 	aps.addArray(samplers);
 	aps.addArray(cds);
@@ -3590,7 +3590,7 @@ void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChan
 
 	if (id == getIdFor(sampleIndex))
 	{
-		if (auto cdh = dynamic_cast<ComplexDataHolder*>(getConnectedProcessor()))
+		if (auto cdh = dynamic_cast<ScriptComplexDataHolder*>(getConnectedProcessor()))
 		{
 			auto index = (int)newValue;
 

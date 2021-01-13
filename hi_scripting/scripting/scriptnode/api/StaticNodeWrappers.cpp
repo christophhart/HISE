@@ -304,22 +304,170 @@ void CombinedParameterDisplay::paint(Graphics& g)
 	g.drawText(end, t.translated(50.0f, 60.0f), Justification::centred);
 }
 
-void NodeFactory::registerSnexTypes(const snex::Types::SnexTypeConstructData& cd)
+InterpretedNode::InterpretedNode(DspNetwork* parent, ValueTree d) :
+	WrapperNode(parent, d)
 {
-	if (cd.polyphonic)
+
+}
+
+scriptnode::ParameterDataList InterpretedNode::createInternalParameterList()
+{
+	ParameterDataList pList;
+	wrapper.getWrappedObject().createParameters(pList);
+	return pList;
+}
+
+void InterpretedNode::reset()
+{
+	wrapper.reset();
+}
+
+void InterpretedNode::prepare(PrepareSpecs specs)
+{
+	auto& exceptionHandler = getRootNetwork()->getExceptionHandler();
+
+	exceptionHandler.removeError(this);
+
+	try
 	{
-		for (const auto& n : polyNodes)
-		{
-			if (n.tc)
-				cd.c.registerExternalComplexType(n.tc(cd));
-		}
+		wrapper.prepare(specs);
+	}
+	catch (Error& s)
+	{
+		exceptionHandler.addError(this, s);
 	}
 
-	for (const auto& n : monoNodes)
+	NodeBase::prepare(specs);
+}
+
+void InterpretedNode::processFrame(NodeBase::FrameType& data)
+{
+	if (data.size() == 1)
+		processMonoFrame(MonoFrameType::as(data.begin()));
+	if (data.size() == 2)
+		processStereoFrame(StereoFrameType::as(data.begin()));
+}
+
+void InterpretedNode::processMonoFrame(MonoFrameType& data)
+{
+	wrapper.processFrame(data);
+}
+
+void InterpretedNode::processStereoFrame(StereoFrameType& data)
+{
+	wrapper.processFrame(data);
+}
+
+void InterpretedNode::process(ProcessDataDyn& data) noexcept
+{
+	wrapper.process(data);
+}
+
+void InterpretedNode::setBypassed(bool shouldBeBypassed)
+{
+	WrapperNode::setBypassed(shouldBeBypassed);
+	WrapperType::setParameter<bypass::ParameterId>(&wrapper, (double)shouldBeBypassed);
+}
+
+void InterpretedNode::handleHiseEvent(HiseEvent& e)
+{
+	wrapper.handleHiseEvent(e);
+}
+
+InterpretedModNode::InterpretedModNode(DspNetwork* parent, ValueTree d) :
+	ModulationSourceNode(parent, d)
+{
+
+}
+
+void* InterpretedModNode::getObjectPtr()
+{
+	return wrapper.getWrappedObject().getObjectPtr();
+}
+
+void InterpretedModNode::timerCallback()
+{
+	wrapper.p.updateUI();
+}
+
+bool InterpretedModNode::isUsingNormalisedRange() const
+{
+	return wrapper.getWrappedObject().isNormalised;
+}
+
+scriptnode::parameter::dynamic_base_holder* InterpretedModNode::getParameterHolder()
+{
+	return &wrapper.p;
+}
+
+void InterpretedModNode::reset()
+{
+	wrapper.reset();
+}
+
+bool InterpretedModNode::isPolyphonic() const
+{
+	return wrapper.isPolyphonic();
+}
+
+void InterpretedModNode::prepare(PrepareSpecs specs)
+{
+	auto& exceptionHandler = getRootNetwork()->getExceptionHandler();
+
+	exceptionHandler.removeError(this);
+
+	try
 	{
-		if (n.tc)
-			cd.c.registerExternalComplexType(n.tc(cd));
+		ModulationSourceNode::prepare(specs);
+		wrapper.prepare(specs);
 	}
+	catch (Error& s)
+	{
+		exceptionHandler.addError(this, s);
+	}
+
+	ModulationSourceNode::prepare(specs);
+}
+
+void InterpretedModNode::writeToRingBuffer(double value, int numSamplesForAnalysis)
+{
+	if (ringBuffer != nullptr &&
+		numSamplesForAnalysis > 0 &&
+		getRootNetwork()->isRenderingFirstVoice())
+	{
+		ringBuffer->write(value, (int)(jmax(1.0, sampleRateFactor * (double)numSamplesForAnalysis)));
+	}
+}
+
+void InterpretedModNode::processFrame(NodeBase::FrameType& data)
+{
+	if (data.size() == 1)
+		processMonoFrame(MonoFrameType::as(data.begin()));
+	if (data.size() == 2)
+		processStereoFrame(StereoFrameType::as(data.begin()));
+}
+
+void InterpretedModNode::processMonoFrame(MonoFrameType& data)
+{
+	wrapper.p.setSamplesToWrite(1);
+	wrapper.processFrame(data);
+}
+
+void InterpretedModNode::processStereoFrame(StereoFrameType& data)
+{
+	wrapper.p.setSamplesToWrite(1);
+	wrapper.processFrame(data);
+}
+
+void InterpretedModNode::process(ProcessDataDyn& data) noexcept
+{
+	wrapper.p.setSamplesToWrite(data.getNumSamples());
+	wrapper.process(data);
+}
+
+void InterpretedModNode::handleHiseEvent(HiseEvent& e)
+{
+	wrapper.handleHiseEvent(e);
 }
 
 }

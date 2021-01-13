@@ -69,239 +69,119 @@ struct NoExtraComponent
 };
 
     
-template <class HiseDspBaseType, class ComponentType=NoExtraComponent> class HiseDspNodeBase : public WrapperNode
+class InterpretedNode : public WrapperNode
 {
-	using WrapperType = bypass::smoothed<HiseDspBaseType>;
+	using WrapperType = bypass::smoothed<OpaqueNode>;
 
 public:
-	HiseDspNodeBase(DspNetwork* parent, ValueTree d) :
-		WrapperNode(parent, d)
+	InterpretedNode(DspNetwork* parent, ValueTree d);;
+
+	template <typename T> void init()
 	{
-		wrapper.getObject().initialise(this);
+		wrapper.getWrappedObject().create<T>();
+		wrapper.initialise(this);
 
 		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
 
 		ParameterDataList pData;
 		wrapper.getWrappedObject().createParameters(pData);
-
 		initParameterData(pData);
-	};
-
-
-	ParameterDataList createInternalParameterList() override
-	{
-		ParameterDataList pList;
-		wrapper.getWrappedObject().createParameters(pList);
-		return pList;
 	}
 
-    static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new HiseDspNodeBase<HiseDspBaseType, ComponentType>(n, d); }; 
-	static Identifier getStaticId() { return HiseDspBaseType::getStaticId(); };
+	ParameterDataList createInternalParameterList() override;
 
-	Component* createExtraComponent()
+    template <typename T, typename ComponentType> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
+	{ 
+		auto newNode = new InterpretedNode(n, d); 
+
+		newNode->template init<T>();
+		newNode->extraComponentFunction = ComponentType::createExtraComponent;
+		return newNode;
+	}; 
+
+	
+
+	
+
+	void* getObjectPtr() override
 	{
-		auto obj = &wrapper.getWrappedObject();
-		auto updater = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
-		auto c =  ComponentType::createExtraComponent(obj, updater);
-		
-		return c;
+		return wrapper.getWrappedObject().getObjectPtr();
 	}
 
 	GET_SELF_OBJECT(wrapper);
 	GET_WRAPPED_OBJECT(wrapper.getWrappedObject());
 
-	void reset()
-	{
-		wrapper.reset();
-	}
+	void reset();
 
 	bool isPolyphonic() const override { return wrapper.isPolyphonic(); }
 
-	void prepare(PrepareSpecs specs) final override
-	{
-		auto& exceptionHandler = getRootNetwork()->getExceptionHandler();
-
-		exceptionHandler.removeError(this);
-
-		try
-		{
-			wrapper.prepare(specs);
-		}
-		catch (Error& s)
-		{
-			exceptionHandler.addError(this, s);
-		}
-
-		NodeBase::prepare(specs);
-	}
-
-	void processFrame(NodeBase::FrameType& data) final override
-	{
-		if (data.size() == 1)
-			processMonoFrame(MonoFrameType::as(data.begin()));
-		if (data.size() == 2)
-			processStereoFrame(StereoFrameType::as(data.begin()));
-	}
-
-	void processMonoFrame(MonoFrameType& data) final override
-	{
-		wrapper.processFrame(data);
-	}
-
-	void processStereoFrame(StereoFrameType& data) final override
-	{
-		wrapper.processFrame(data);
-	}
-
-	void process(ProcessDataDyn& data) noexcept final override
-	{
-		wrapper.process(data);
-	}
-
-	void setBypassed(bool shouldBeBypassed) final override
-	{
-		WrapperNode::setBypassed(shouldBeBypassed);
-		WrapperType::setParameter<bypass::ParameterId>(&wrapper, (double)shouldBeBypassed);
-	}
-
-	void handleHiseEvent(HiseEvent& e) final override
-	{
-		wrapper.handleHiseEvent(e);
-	}
+	void prepare(PrepareSpecs specs) final override;
+	void processFrame(NodeBase::FrameType& data) final override;
+	void processMonoFrame(MonoFrameType& data) final override;
+	void processStereoFrame(StereoFrameType& data) final override;
+	void process(ProcessDataDyn& data) noexcept final override;
+	void setBypassed(bool shouldBeBypassed) final override;
+	void handleHiseEvent(HiseEvent& e) final override;
 
 	WrapperType wrapper;
 	valuetree::PropertyListener bypassListener;
 };
 
 
-template <class HiseDspBaseType, class ComponentType=ModulationSourcePlotter> class HiseDspNodeBaseWithModulation : public ModulationSourceNode
+class InterpretedModNode : public ModulationSourceNode
 {
-	using WrapperType = wrap::mod<parameter::dynamic_base_holder, HiseDspBaseType>;
+	using WrapperType = wrap::mod<parameter::dynamic_base_holder, OpaqueModNode>;
 
 public:
-	HiseDspNodeBaseWithModulation(DspNetwork* parent, ValueTree d) :
-		ModulationSourceNode(parent, d)
+	InterpretedModNode(DspNetwork* parent, ValueTree d);;
+
+	template <typename T> void init()
 	{
-		wrapper.getObject().initialise(this);
+		wrapper.getWrappedObject().create<T>();
+
+		wrapper.initialise(this);
 		wrapper.p.setRingBuffer(ringBuffer.get());
 
 		stop();
 
 		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
-		
+
 		ParameterDataList pData;
 		wrapper.getWrappedObject().createParameters(pData);
 		initParameterData(pData);
+	}
+
+	template <typename T, typename ComponentType> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
+	{ 
+		auto mn = new InterpretedModNode(n, d); 
+		mn->init<T>();
+		mn->extraComponentFunction = ComponentType::createExtraComponent;
+
+		return mn;
 	};
 
-	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new HiseDspNodeBaseWithModulation<HiseDspBaseType, ComponentType>(n, d); };
-	static Identifier getStaticId() { return HiseDspBaseType::getStaticId(); };
+	void* getObjectPtr() override;
 
-	Component* createExtraComponent()
-	{
-		auto obj = &wrapper.getWrappedObject();
-		auto updater = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
-		auto c = ComponentType::createExtraComponent(obj, updater);
-		c->getProperties().set("circleOffsetX", -10.0f);
+	void timerCallback() override;
 
-		return c;
-	}
+	bool isUsingNormalisedRange() const override;
 
-	void timerCallback() override
-	{
-		wrapper.p.updateUI();
-	}
-
-	bool isUsingNormalisedRange() const override
-	{
-		return wrapper.getWrappedObject().isNormalisedModulation();
-	}
-
-	parameter::dynamic_base_holder* getParameterHolder() override
-	{
-		return &wrapper.p;
-	}
+	parameter::dynamic_base_holder* getParameterHolder() override;
 	
-	
-
 	GET_WRAPPED_OBJECT(wrapper.getWrappedObject());
 
-	void reset()
-	{
-		wrapper.reset();
-	}
+	bool isPolyphonic() const override;
 
-	bool isPolyphonic() const override { return wrapper.isPolyphonic(); }
-
-	void prepare(PrepareSpecs specs) final override
-	{
-		auto& exceptionHandler = getRootNetwork()->getExceptionHandler();
-
-		exceptionHandler.removeError(this);
-
-		try
-		{
-			ModulationSourceNode::prepare(specs);
-			wrapper.prepare(specs);
-		}
-		catch (Error& s)
-		{
-			exceptionHandler.addError(this, s);
-		}
-
-		ModulationSourceNode::prepare(specs);
-	}
-
-	void writeToRingBuffer(double value, int numSamplesForAnalysis)
-	{
-		if (ringBuffer != nullptr &&
-			numSamplesForAnalysis > 0 &&
-			getRootNetwork()->isRenderingFirstVoice())
-		{
-			ringBuffer->write(value, (int)(jmax(1.0, sampleRateFactor * (double)numSamplesForAnalysis)));
-		}
-	}
-
-	void processFrame(NodeBase::FrameType& data) final override
-	{
-		if (data.size() == 1)
-			processMonoFrame(MonoFrameType::as(data.begin()));
-		if (data.size() == 2)
-			processStereoFrame(StereoFrameType::as(data.begin()));
-	}
-
-	void processMonoFrame(MonoFrameType& data) final override
-	{
-		wrapper.p.setSamplesToWrite(1);
-		wrapper.processFrame(data);
-	}
-
-	void processStereoFrame(StereoFrameType& data) final override
-	{
-		wrapper.p.setSamplesToWrite(1);
-		wrapper.processFrame(data);
-	}
-
-	void process(ProcessDataDyn& data) noexcept final override
-	{
-		wrapper.p.setSamplesToWrite(data.getNumSamples());
-		wrapper.process(data);
-	}
-
-	NamedValueSet getDefaultProperties() const
-	{
-		return wrapper.getObject().getDefaultProperties();
-	}
-
-	void handleHiseEvent(HiseEvent& e) final override
-	{
-		wrapper.handleHiseEvent(e);
-	}
-
-	//parameter::data_pool parameterDataPool;
+	void reset();
+	void prepare(PrepareSpecs specs) final override;
+	void writeToRingBuffer(double value, int numSamplesForAnalysis);
+	void processFrame(NodeBase::FrameType& data) final override;
+	void processMonoFrame(MonoFrameType& data) final override;
+	void processStereoFrame(StereoFrameType& data) final override;
+	void process(ProcessDataDyn& data) noexcept final override;
+	void handleHiseEvent(HiseEvent& e) final override;
 
 	WrapperType wrapper;
-
 };
 
 
@@ -320,12 +200,17 @@ struct CombinedParameterDisplay : public ModulationSourceBaseComponent
 		repaint();
 	}
 
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		return new CombinedParameterDisplay(static_cast<combined_parameter_base*>(obj), updater);
+	}
+
 	void paint(Graphics& g) override;
 
 	WeakReference<combined_parameter_base> obj;
 };
 
-template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
+struct ParameterMultiplyAddNode : public ModulationSourceNode
 {
 	ParameterMultiplyAddNode(DspNetwork* n, ValueTree d) :
 		ModulationSourceNode(n, d)
@@ -343,6 +228,7 @@ template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
 			{
 				NormalisableRange<double> defaultRange(0.0, 1.0);
 				auto thisValue = getParameter("Value")->data;
+
 				obj.currentRange = defaultRange;
 				RangeHelpers::storeDoubleRange(thisValue, false, defaultRange, getUndoManager());
 			}
@@ -368,22 +254,24 @@ template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
 		return false;
 	}
 
+	static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("pma"); };
+
+	void* getObjectPtr() override 
+	{
+		return &obj; 
+	};
+
 	parameter::dynamic_base_holder* getParameterHolder() override
 	{
 		return &obj.p;
 	}
 
-	static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new ParameterMultiplyAddNode<T>(n, d); };
-	static Identifier getStaticId() { return T::getStaticId(); };
-
-	Component* createExtraComponent()
-	{
-		auto b = dynamic_cast<combined_parameter_base*>(&obj.getWrappedObject());
-		auto u = getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
-		auto cp =  new CombinedParameterDisplay(b, u);
-		cp->getProperties().set("circleOffsetY", -40.0f);
-		return cp;
-	}
+	static NodeBase* createNode(DspNetwork* n, ValueTree d) 
+	{ 
+		auto node =  new ParameterMultiplyAddNode(n, d); 
+		node->extraComponentFunction = CombinedParameterDisplay::createExtraComponent;
+		return node;
+	};
 
 	void reset()
 	{
@@ -422,7 +310,7 @@ template <class T> struct ParameterMultiplyAddNode : public ModulationSourceNode
 	void handleHiseEvent(HiseEvent& e) final override
 	{}
 
-	T obj;
+	core::pma<parameter::dynamic_base_holder, 1> obj;
 
 	valuetree::ChildListener valueRangeUpdater;
 };
@@ -881,10 +769,17 @@ public:
 #define SCRIPTNODE_FACTORY(x, id) static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new x(n, d); }; \
 static Identifier getStaticId() { return Identifier(id); };
     
-template <typename ObjectType> struct FilterTestNode : public snex::Types::SnexNodeBase
+
+#if 0
+struct FilterTestNode : public snex::Types::SnexNodeBase
 {
 	FilterTestNode(const snex::Types::SnexTypeConstructData& cd_) :
 		SnexNodeBase(cd_)
+	{
+		
+	}
+
+	template <typename ObjectType> void init()
 	{
 		cd.id = cd.id.getChildId(ObjectType::getStaticId());
 		cd.c.registerExternalComplexType(this);
@@ -924,9 +819,8 @@ template <typename ObjectType> struct FilterTestNode : public snex::Types::SnexN
 		reinterpret_cast<ObjectType*>(d.dataPointer)->initialise(reinterpret_cast<NodeBase*>(cd.nodeParent));
 		return Result::ok();
 	}
-
-	ObjectType obj;
 };
+#endif
 
 /** This namespace contains functions that initialise nodes.
 
@@ -940,18 +834,13 @@ namespace init
     struct NodeFactory
     {
 		using CreateCallback = std::function<NodeBase*(DspNetwork*, ValueTree)>;
-		using SnexTypeCreateCallback = std::function<snex::jit::ComplexType::Ptr(const snex::Types::SnexTypeConstructData&)>;
-		using PostCreateCallback = std::function<void(NodeBase* n)>;
-		using IdFunction = std::function<Identifier()>;
 
 	protected:
 
 		struct Item
 		{
 			CreateCallback cb;
-			IdFunction id;
-			PostCreateCallback pb;
-			SnexTypeCreateCallback tc;
+			Identifier id;
 		};
 
     public:
@@ -962,8 +851,6 @@ namespace init
         
         virtual ~NodeFactory() {};
         
-        
-        
         StringArray getModuleList() const
         {
             StringArray sa;
@@ -971,7 +858,7 @@ namespace init
             
             for (const auto& item : monoNodes)
             {
-                sa.add(prefix + item.id().toString());
+                sa.add(prefix + item.id.toString());
             }
             
             return sa;
@@ -982,7 +869,7 @@ namespace init
 			{
 				Item newItem;
 				newItem.cb = PolyT::createNode;
-				newItem.id = PolyT::getStaticId;
+				newItem.id = PolyT::getStaticId();
 
 				polyNodes.add(newItem);
 			}
@@ -990,147 +877,67 @@ namespace init
 			{
 				Item newItem;
 				newItem.cb = MonoT::createNode;
-				newItem.id = MonoT::getStaticId;
+				newItem.id = MonoT::getStaticId();
 
 				monoNodes.add(newItem);
 			}
 		}
 
-		template <class T> void registerAnonymousNode(const Identifier& id)
-		{
-			using WrappedT = HiseDspNodeBase<T>;
-
-			Item newItem;
-			newItem.cb = WrappedT::createNode;
-			newItem.id = [id]() { return id; };
-			
-			monoNodes.add(newItem);
-		}
-
-        template <class T> void registerNodeRaw(const PostCreateCallback& cb = {})
+        template <class T> void registerNodeRaw()
         {
             Item newItem;
             newItem.cb = T::createNode;
-            newItem.id = T::getStaticId;
-            newItem.pb = cb;
+            newItem.id = T::getStaticId();
             
             monoNodes.add(newItem);
         }
         
-		template <class T, class ComponentType=ModulationSourcePlotter> void registerModNode(const PostCreateCallback& cb = {})
-		{
-			using WrappedT = HiseDspNodeBaseWithModulation<T, ComponentType>;
 
-			Item newItem;
-			newItem.cb = WrappedT::createNode;
-			newItem.id = WrappedT::getStaticId;
-			newItem.pb = cb;
-
-			monoNodes.add(newItem);
-		};
-
-		template <class MonoT, class PolyT, class ComponentType = NoExtraComponent> void registerPolyModNode()
-		{
-			using WrappedPolyT = HiseDspNodeBaseWithModulation<PolyT, ComponentType>;
-			using WrappedMonoT = HiseDspNodeBaseWithModulation<MonoT, ComponentType>;
-
-			{
-				Item newItem;
-				newItem.cb = WrappedPolyT::createNode;
-				newItem.id = WrappedPolyT::getStaticId;
-				polyNodes.add(newItem);
-			}
-
-			{
-				Item newItem;
-				newItem.cb = WrappedMonoT::createNode;
-				newItem.id = WrappedMonoT::getStaticId;
-				monoNodes.add(newItem);
-			}
-		};
-
-        template <class T, class ComponentType=NoExtraComponent> void registerNode(const PostCreateCallback& cb = {})
+        template <class T, class ComponentType=NoExtraComponent, typename WrapperType=InterpretedNode> void registerNode()
         {
-            using WrappedT = HiseDspNodeBase<T, ComponentType>;
-            
-            Item newItem;
-            newItem.cb = WrappedT::createNode;
-            newItem.id = WrappedT::getStaticId;
-            newItem.pb = cb;
+			Item newItem;
+            newItem.cb = typename WrapperType::createNode<T, ComponentType>;
+            newItem.id = T::getStaticId();
 			
             monoNodes.add(newItem);
         };
-        
-		template <class T> void addCustomSnexCreator(Item& c)
-		{
-			auto fId = getId();
 
-			c.tc = [](const SnexTypeConstructData& cd)
-			{
-				auto sn = new FilterTestNode<T>(cd);
-				//sn->functionCreator = T::createSnexFunctions(cd);
-				return sn;
-			};
-		}
-
-		template <class T, class ComponentType = NoExtraComponent> void registerNodeCustomSNEX(const PostCreateCallback& cb = {})
-		{
-			using WrappedT = HiseDspNodeBase<T, ComponentType>;
-
-			Item newItem;
-			newItem.cb = WrappedT::createNode;
-			newItem.id = WrappedT::getStaticId;
-			newItem.pb = cb;
-
-			
-			
-			addCustomSnexCreator<T>(newItem);
-
-			monoNodes.add(newItem);
-		};
-
-        template <class MonoT, class PolyT, class ComponentType=NoExtraComponent> void registerPolyNode(const PostCreateCallback& cb = {})
+        template <class MonoT, class PolyT, class ComponentType=NoExtraComponent, typename WrapperType=InterpretedNode> void registerPolyNode()
         {
-            using WrappedPolyT = HiseDspNodeBase<PolyT, ComponentType>;
-            using WrappedMonoT = HiseDspNodeBase<MonoT, ComponentType>;
+            using WrappedPolyT = InterpretedNode;
+            using WrappedMonoT = InterpretedNode;
             
             {
                 Item newItem;
-                newItem.cb = WrappedPolyT::createNode;
-                newItem.id = WrappedPolyT::getStaticId;
-                newItem.pb = cb;
+                newItem.cb = WrapperType::createNode<PolyT, ComponentType>;
+                newItem.id = PolyT::getStaticId();
                 
                 polyNodes.add(newItem);
             }
             
             {
                 Item newItem;
-                newItem.cb = WrappedMonoT::createNode;
-                newItem.id = WrappedMonoT::getStaticId;
-                newItem.pb = cb;
+                newItem.cb = WrapperType::createNode<MonoT, ComponentType>;
+                newItem.id = MonoT::getStaticId();
                 
                 monoNodes.add(newItem);
             }
         };
-        
-		template <class MonoT, class PolyT, class ComponentType = NoExtraComponent> void registerPolyNodeCustomSNEX(const PostCreateCallback& cb = {})
+
+		template <class MonoT, class PolyT, class ComponentType=ModulationSourcePlotter> void registerPolyModNode()
 		{
-			using WrappedPolyT = HiseDspNodeBase<PolyT, ComponentType>;
-			using WrappedMonoT = HiseDspNodeBase<MonoT, ComponentType>;
+			registerPolyNode<MonoT, PolyT, ComponentType, InterpretedModNode>();
+		}
 
-			registerPolyNode<MonoT, PolyT, ComponentType>(cb);
-
-			
-			addCustomSnexCreator<MonoT>(monoNodes.getReference(monoNodes.size() - 1));
-			addCustomSnexCreator<PolyT>(polyNodes.getReference(polyNodes.size() - 1));
-		};
-
+		template <class MonoT, class ComponentType = ModulationSourcePlotter> void registerModNode()
+		{
+			registerNode<MonoT, ComponentType, InterpretedModNode>();
+		}
+        
         virtual Identifier getId() const = 0;
         
         NodeBase* createNode(ValueTree data, bool createPolyIfAvailable) const;
         
-		void registerSnexTypes(const snex::Types::SnexTypeConstructData& cd);
-
         void setNetworkToUse(DspNetwork* n)
         {
             network = n;
@@ -1142,7 +949,7 @@ namespace init
 			{
 				static int compareElements(Item& first, Item& second)
 				{
-					return first.id().toString().compareNatural(second.id().toString());
+					return first.id.toString().compareNatural(second.id.toString());
 				}
 			} sorter;
 

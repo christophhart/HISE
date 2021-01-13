@@ -225,12 +225,15 @@ template <typename CableType> struct receive: public base
 
 	constexpr bool isPolyphonic() const { return false; }
 
-	template <int P> static void setParameter(void* obj, double value)
+	template <int P> void setParameter(double value)
+	{
+		setFeedback(value);
+	}
+
+	template <int P> static void setParameterStatic(void* obj, double value)
 	{
 		auto t = static_cast<receive<CableType>*>(obj);
-
-		if (P == (int)Parameters::Feedback)
-			t->setFeedback(value);
+		t->setParameter<P>(value);
 	}
 
 	HISE_EMPTY_RESET;
