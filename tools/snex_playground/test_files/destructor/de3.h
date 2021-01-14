@@ -43,9 +43,10 @@ int tut()
 
 int main(int input)
 {
-	tut();
-
-
+	{
+		tut();
+	}
+	
 	return counter;
 }
 

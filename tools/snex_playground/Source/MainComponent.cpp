@@ -329,7 +329,7 @@ template <typename T> struct HardcodedExternalHandler: public snex::ExternalData
 MainComponent::MainComponent() :
 	data(new ui::WorkbenchData())
 {
-	bool useValueTrees = true;
+	bool useValueTrees = false;
 
 	MyProcessor obj;
 

@@ -1106,6 +1106,7 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::TypeCheck)
 	{
+		tryToResolveType(compiler);
 		getSubExpr(1)->tryToResolveType(compiler);
 		auto indexType = getSubExpr(1)->getTypeInfo();
 

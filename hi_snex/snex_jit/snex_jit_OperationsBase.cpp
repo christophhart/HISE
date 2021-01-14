@@ -617,7 +617,7 @@ void Operations::ClassDefinitionBase::addMembersFromStatementBlock(StructType* t
 			{
 				t->addMember(id.getIdentifier(), type);
 
-				if (type.isTemplateType())
+				if (type.isTemplateType() && s->getSubExpr(0) != nullptr)
 				{
 					InitialiserList::Ptr dv = new InitialiserList();
 					dv->addImmediateValue(s->getSubExpr(0)->getConstExprValue());
