@@ -251,6 +251,8 @@ protected:
 namespace scriptnode
 {
 
+struct NodeBase;
+
 namespace data
 {
 
@@ -259,6 +261,7 @@ using namespace snex;
 namespace pimpl
 {
 
+	
 
 template <int Index, ExternalData::DataType DType> struct base
 {
@@ -267,6 +270,8 @@ template <int Index, ExternalData::DataType DType> struct base
 	static constexpr int NumTables = getNum(ExternalData::DataType::Table);
 	static constexpr int NumSliderPacks = getNum(ExternalData::DataType::SliderPack);
 	static constexpr int NumAudioFiles = getNum(ExternalData::DataType::AudioFile);
+
+	void initialise(NodeBase* n) {};
 };
 
 template <int Index, ExternalData::DataType DType> struct plain : base<Index, DType>

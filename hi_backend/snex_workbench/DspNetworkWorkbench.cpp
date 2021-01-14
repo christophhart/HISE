@@ -31,8 +31,11 @@
 */
 
 
+
 namespace hise {
 using namespace juce;
+
+
 
 snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const String& codeToCompile)
 {
@@ -42,6 +45,15 @@ snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const S
 
 	if (auto dcg = dynamic_cast<DspNetworkCodeProvider*>(getParent()->getCodeProvider()))
 	{
+		bool useDll = true;
+
+		if (useDll)
+		{
+			auto ok = dcg->projectDllFactory->dllFactory.initOpaqueNode(&dllNode, 1);
+
+			
+		}
+
 		if (dcg->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
 		{
 			auto rootNode = np->getActiveNetwork()->getRootNode();
@@ -137,4 +149,29 @@ DspNetworkCodeProvider::DspNetworkCodeProvider(WorkbenchData* d, MainController*
 	setRootValueTree(currentTree);
 }
 
+}
+
+
+scriptnode::dll::FunkyHostFactory::FunkyHostFactory(DspNetwork* n, DynamicLibrary* dll) :
+	NodeFactory(n),
+	dllFactory(dll)
+{
+	auto numNodes = dllFactory.getNumNodes();
+
+	for (int i = 0; i < numNodes; i++)
+	{
+		NodeFactory::Item item;
+
+		item.id = Identifier(dllFactory.getId(i));
+		item.cb = [](DspNetwork* p, ValueTree v)
+		{
+			NodeBase* t = new scriptnode::InterpretedNode(p, v);
+
+			jassertfalse;
+
+			return t;
+		};
+
+		monoNodes.add(item);
+	}
 }

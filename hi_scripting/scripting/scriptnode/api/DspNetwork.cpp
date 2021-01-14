@@ -260,6 +260,13 @@ juce::StringArray DspNetwork::getFactoryList() const
 	return sa;
 }
 
+
+
+void DspNetwork::registerOwnedFactory(NodeFactory* ownedFactory)
+{
+	ownedFactories.add(ownedFactory);
+}
+
 void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 {
 	ScopedLock sl(getConnectionLock());

@@ -184,18 +184,30 @@ struct OpaqueNode
 
 	void* getObjectPtr() { return obj; };
 
+	void setExternalPtr(void* externPtr)
+	{
+		callDestructor();
+
+		obj = externPtr;
+	}
+
 private:
 
 	void callDestructor()
 	{
-		if (destructFunc != nullptr && obj != nullptr)
+		if (destructFunc != nullptr && getObjectPtr() != nullptr)
 		{
 			destructFunc(obj);
 			
 			if (obj == bigBuffer)
 				bigBuffer.free();
-			else
+			else if (obj == smallObjectBuffer)
 				memset(smallObjectBuffer, 0, SmallObjectSize);
+			else
+			{
+				jassertfalse;
+				// do nothing here, it must be deallocated by the dll.
+			}
 		}
 	}
 
@@ -840,6 +852,8 @@ template <class T> class default_data
 	*/
 template <class T, class DataHandler = default_data<T>> struct data : public wrap::init<T, DataHandler>
 {
+	SN_SELF_AWARE_WRAPPER(data, T);
+
 	static const int NumTables = DataHandler::NumTables;
 	static const int NumSliderPacks = DataHandler::NumSliderPacks;
 	static const int NumAudioFiles = DataHandler::NumAudioFiles;
@@ -1181,6 +1195,119 @@ template <class T, class PropertyClass = properties::none> struct node : public 
 }
 
 
+namespace dll
+{
+
+struct FactoryBase
+{
+	virtual int getNumNodes() const = 0;
+
+	virtual String getId(int index) const = 0;
+
+	virtual bool initOpaqueNode(OpaqueNode* n, int index) = 0;
+
+};
+
+struct PluginFactory : public FactoryBase
+{
+	struct Item
+	{
+		String id;
+		std::function<void(scriptnode::OpaqueNode* n)> f;
+	};
+
+	Array<Item> items;
+
+	String getId(int index) const override
+	{
+		return items[index].id;
+	}
+
+	int getNumNodes() const override
+	{
+		return items.size();
+	}
+
+	virtual bool initOpaqueNode(scriptnode::OpaqueNode* n, int index)
+	{
+		jassert(n->getObjectPtr() != nullptr);
+		items[index].f(n);
+		return true;
+	}
+
+	template <typename T> void registerNode()
+	{
+		Item i;
+		i.id = T::MetadataClass::getStaticId().toString();
+		i.f = [](scriptnode::OpaqueNode* n) { n->create<T>(); };
+
+		items.add(i);
+	}
+};
+
+struct HostFactory : public FactoryBase
+{
+	typedef int(*GetNumNodesFunc)();
+
+	typedef size_t(*GetNodeIdFunc)(int, char*);
+
+	typedef void(*InitNodeFunc)(scriptnode::OpaqueNode*, int);
+
+	typedef void(*DeleteNodeFunc)(void* obj);
+
+	HostFactory(DynamicLibrary* dll_):
+		dll(dll_)
+	{
+		jassert(dll != nullptr);
+	}
+
+	~HostFactory()
+	{
+	}
+
+	int getNumNodes() const override
+	{
+		auto f = (GetNumNodesFunc)dll->getFunction("getNumNodes");
+
+		if (f != nullptr)
+			return f();
+
+		return 0;
+	}
+
+	virtual String getId(int index) const override
+	{
+		auto f = (GetNodeIdFunc)dll->getFunction("getNodeId");
+
+		if (f != nullptr)
+		{
+			char buffer[256];
+
+			auto length = f(index, buffer);
+			return String(buffer, length);
+		}
+
+		return {};
+	}
+
+	bool initOpaqueNode(scriptnode::OpaqueNode* n, int index) override
+	{
+		auto f = (InitNodeFunc)dll->getFunction("initOpaqueNode");
+
+		if (f != nullptr)
+		{
+			f(n, index);
+
+			jassertfalse;
+		}
+
+		return true;
+	}
+
+	juce::DynamicLibrary* dll;
+};
+
+}
 
 
 

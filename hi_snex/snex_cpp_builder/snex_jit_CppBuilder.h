@@ -525,7 +525,7 @@ struct Include : public Op
 	void flush() override
 	{
 		String d;
-		d << "#include " << includeFile.getRelativePathFrom(root).quoted();
+		d << "#include " << includeFile.getRelativePathFrom(root.getParentDirectory()).replace("\\", "/").quoted();
 
 		parent << d;
 

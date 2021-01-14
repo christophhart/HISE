@@ -32,8 +32,33 @@
 
 #pragma once
 
+
+namespace scriptnode
+{
+	namespace dll
+	{
+		struct FunkyHostFactory : public scriptnode::NodeFactory
+		{
+			FunkyHostFactory(DspNetwork* n, DynamicLibrary* dll);
+
+			Identifier getId() const override
+			{
+				RETURN_STATIC_IDENTIFIER("project");
+			}
+
+			HostFactory dllFactory;
+		};
+
+	}
+}
+
+
+
 namespace hise {
 using namespace juce;
+
+
+
 
 
 
@@ -63,7 +88,7 @@ struct DspNetworkProcessor : public ProcessorWithScriptingContent,
 
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");
 
-	bool hasTail() const override { return true; }
+	bool hasTail() const override { return false; }
 
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override
 	{
@@ -386,6 +411,11 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 		}
 	}
 
+	void setProjectFactory(DynamicLibrary* dll, scriptnode::DspNetwork* n)
+	{
+		projectDllFactory = new scriptnode::dll::FunkyHostFactory(n, dll);
+	}
+
 	ValueTree currentTree;
 
 	String customCode;
@@ -393,6 +423,8 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 	SourceMode source = SourceMode::InterpretedNode;
 
 	File connectedFile;
+
+	ScopedPointer<scriptnode::dll::FunkyHostFactory> projectDllFactory;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkCodeProvider);
 };
@@ -659,6 +691,11 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 	/** Override this function and call the parameter method. */
 	virtual void processTestParameterEvent(int parameterIndex, double value)
 	{
+		if (dllNode.getObjectPtr() != nullptr)
+		{
+			jassertfalse;
+		}
+
 		if (interpreter != nullptr)
 		{
 			if(auto p = interpreter->getRootNode()->getParameter(parameterIndex))
@@ -671,6 +708,12 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 
 	virtual void prepareTest(PrepareSpecs ps)
 	{
+		if (dllNode.getObjectPtr() != nullptr)
+		{
+			dllNode.prepare(ps);
+			return;
+		}
+
 		if (interpreter != nullptr)
 			interpreter->prepareToPlay(ps.sampleRate, ps.blockSize);
 		else if (jitNode != nullptr)
@@ -679,6 +722,12 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 
 	virtual void processTest(ProcessDataDyn& data)
 	{
+		if (dllNode.getObjectPtr() != nullptr)
+		{
+			dllNode.process(data);
+			return;
+		}
+
 		if (interpreter != nullptr)
 		{
 			ScopedLock sl(interpreter->getConnectionLock());
@@ -740,6 +789,10 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 	};
 
 	WeakReference<scriptnode::DspNetwork> interpreter;
+
+	scriptnode::OpaqueNode dllNode;
+
+
 	JitCompiledNode::Ptr jitNode;
 };
 

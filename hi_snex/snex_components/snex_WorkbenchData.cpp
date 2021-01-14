@@ -411,7 +411,7 @@ void ui::WorkbenchData::TestData::rebuildTestSignal(NotificationType triggerTest
 	{
 		if (!testInputFile.existsAsFile())
 		{
-			FileChooser fc("Load test file", {}, "*.wav", true);
+			FileChooser fc("Load test file", testRootDirectory, "*.wav", true);
 
 			if (fc.browseForFileToOpen())
 				testInputFile = fc.getResult();

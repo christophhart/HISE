@@ -57,6 +57,13 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
 
 
+/** Config: HI_EXPORT_AS_PROJECT_DLL
+
+	Set this to 1 if you compile the project's networks as dll.
+*/
+#ifndef HI_EXPORT_AS_PROJECT_DLL
+#define HI_EXPORT_AS_PROJECT_DLL 0
+#endif
 
 /** Config: HI_EXPORT_DSP_LIBRARY
 
@@ -151,15 +158,14 @@ Set this to 1 if you want to embed the libraries created with this module into y
 // Include these files in the header because the external functions won't get linked when in another object file...
 #if HI_EXPORT_DSP_LIBRARY
 #include "dsp_library/DspBaseModule.cpp"
+
 #include "dsp_library/HiseLibraryHeader.h"
 #include "dsp_library/HiseLibraryHeader.cpp"
 #else
 
-
-#if HI_EXPORT_DSP_LIBRARY
-
-#else
-
+#if HI_EXPORT_AS_PROJECT_DLL
+#include "dsp_library/HiseLibraryHeader.h"
+#endif
 
 namespace hise {
 	namespace HelperFunctions
@@ -170,10 +176,4 @@ namespace hise {
 	};
 }
 #endif
-
-
-
-
-#endif
-
 

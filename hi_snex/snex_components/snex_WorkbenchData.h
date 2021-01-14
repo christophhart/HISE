@@ -548,6 +548,18 @@ struct WorkbenchData : public ReferenceCountedObject,
 			updater = nonOwnedUpdater;
 		}
 
+		File getTestRootDirectory() const 
+		{
+			jassert(testRootDirectory.isDirectory());
+			return testRootDirectory; 
+		}
+
+		void setTestRootDirectory(const File& newRootDir)
+		{
+			jassert(newRootDir.isDirectory());
+			testRootDirectory = newRootDir;
+		}
+
 	private:
 		
 		int getParameterInSampleRange(Range<int> r, int lastIndex, ParameterEvent& pToFill) const
@@ -583,6 +595,8 @@ struct WorkbenchData : public ReferenceCountedObject,
 		ReferenceCountedArray<Table> tables;
 		ReferenceCountedArray<SliderPackData> sliderPacks;
 		ReferenceCountedArray<MultiChannelAudioBuffer> buffers;
+
+		File testRootDirectory;
 
 		JUCE_DECLARE_NON_COPYABLE(TestData);
 	};

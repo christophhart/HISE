@@ -581,7 +581,7 @@ struct TestDataComponent : public TestDataComponentBase
 		else if (b == &addEvent)
 			td.addTestEvent(HiseEvent(HiseEvent::Type::NoteOn, 64, 127, 1));
 
-		FileChooser fc("Choose Test file", File(), "*.json", true);
+		FileChooser fc("Choose Test file", td.getTestRootDirectory(), "*.json", true);
 
 		if (b->getName() == "new-file")
 		{

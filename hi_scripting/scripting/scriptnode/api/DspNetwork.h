@@ -240,6 +240,8 @@ public:
 	StringArray getListOfUnusedNodeIds() const;
 	StringArray getFactoryList() const;
 
+	void registerOwnedFactory(NodeFactory* ownedFactory);
+
 	NodeBase::List getListOfNodesWithPath(const NamespacedIdentifier& id, bool includeUnusedNodes)
 	{
 		NodeBase::List list;

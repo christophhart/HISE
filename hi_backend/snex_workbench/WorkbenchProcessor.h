@@ -35,25 +35,6 @@
 namespace hise {
 using namespace juce;
 
-struct DspNetworkCompileExporter: public hise::DialogWindowWithBackgroundThread,
-								  public ControlledObject
-{
-	DspNetworkCompileExporter(MainController* mc):
-		DialogWindowWithBackgroundThread("Compile DSP networks"),
-		ControlledObject(mc)
-	{
-
-		addBasicComponents(true);
-	};
-
-	void run() override;
-
-	void threadFinished() override
-	{
-
-	}
-};
-
 
 class SnexWorkbenchEditor : public Component,
 	public juce::MenuBarModel,
@@ -188,12 +169,52 @@ public:
 	void resized();
 	void requestQuit();
 
+	enum class FolderSubType
+	{
+		Root,
+		Networks,
+		Tests,
+		CustomNodes,
+		AdditionalCode,
+		Binaries,
+		DllLocation,
+		ProjucerSourceFolder,
+		Layouts,
+		numFolderSubTypes
+	};
+
+	static File createIfNotDirectory(const File& f)
+	{
+		if (!f.isDirectory())
+			f.createDirectory();
+
+		return f;
+	}
+
+	static File getSubFolder(const MainController* mc, FolderSubType t)
+	{
+		auto f = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks);
+
+		switch (t)
+		{
+		case FolderSubType::Root:					return createIfNotDirectory(f);
+		case FolderSubType::Networks:				return createIfNotDirectory(f.getChildFile("Networks"));
+		case FolderSubType::Tests:					return createIfNotDirectory(f.getChildFile("Tests"));
+		case FolderSubType::CustomNodes:			return createIfNotDirectory(f.getChildFile("CustomNodes"));
+		case FolderSubType::AdditionalCode:			return createIfNotDirectory(f.getChildFile("AdditionalCode"));
+		case FolderSubType::DllLocation:			return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll").getChildFile("Dynamic Library"));
+		case FolderSubType::Binaries:				return createIfNotDirectory(f.getChildFile("Binaries"));
+		case FolderSubType::Layouts:				return createIfNotDirectory(f.getChildFile("Layouts"));
+		case FolderSubType::ProjucerSourceFolder:	return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("Source"));
+		}
+
+		jassertfalse;
+		return {};
+	}
+
 private:
 
-	File getRootFolder() const
-	{
-		return getProjectHandler().getSubDirectory(FileHandlerBase::DspNetworks);
-	}
+	ScopedPointer<juce::DynamicLibrary> projectDll;
 
 	void addFile(const File& f);
 
@@ -220,5 +241,37 @@ private:
 	//==============================================================================
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SnexWorkbenchEditor)
 };
+
+
+struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread,
+	public ControlledObject
+{
+	DspNetworkCompileExporter(MainController* mc) :
+		DialogWindowWithBackgroundThread("Compile DSP networks"),
+		ControlledObject(mc)
+	{
+
+		addBasicComponents(true);
+	};
+
+	void run() override;
+
+	void threadFinished() override
+	{
+
+	}
+
+private:
+
+	File getFolder(SnexWorkbenchEditor::FolderSubType t)
+	{
+		return SnexWorkbenchEditor::getSubFolder(getMainController(), t);
+	}
+
+
+
+	void createMainCppFile();
+};
+
 
 }

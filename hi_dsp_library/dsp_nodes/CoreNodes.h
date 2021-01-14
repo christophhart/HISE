@@ -287,6 +287,8 @@ public:
 		DEF_PARAMETER(PeriodTime, ramp_impl);
 		DEF_PARAMETER(LoopStart, ramp_impl);
 	}
+	PARAMETER_MEMBER_FUNCTION;
+
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
