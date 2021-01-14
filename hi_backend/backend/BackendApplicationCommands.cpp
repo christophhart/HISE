@@ -367,7 +367,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "Export";
 		break;
 	case MenuReplaceWithClipboardContent:
-		setCommandTarget(result, "Import HISE Snippet", true, false, 'X', false);
+		setCommandTarget(result, "Import HISE Snippet", true, false, 'V', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
 		result.categoryName = "File";
 		break;
 	case MenuFileQuit:
