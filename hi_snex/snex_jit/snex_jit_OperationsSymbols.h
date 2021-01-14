@@ -435,6 +435,11 @@ struct Operations::MemoryReference : public Expression
 		offsetInBytes(offsetInBytes_),
 		type(type_)
 	{
+		if (auto st = base->getTypeInfo().getTypedIfComplexType<StructType>())
+		{
+			jassert(st->hasMemberAtOffset(offsetInBytes, type));
+		}
+
 		addStatement(base);
 	}
 

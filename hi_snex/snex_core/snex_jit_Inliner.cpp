@@ -105,7 +105,7 @@ struct SyntaxTreeInlineData : public InlineData
 	{
 		using namespace Operations;
 		
-		auto fc = dynamic_cast<Operations::FunctionCall*>(expression.get());
+		auto fc = as<FunctionCall>(expression);
 		jassert(fc != nullptr);
 
 		if (syntaxTree->getReturnType() == TypeInfo(Types::ID::Dynamic))
@@ -124,15 +124,40 @@ struct SyntaxTreeInlineData : public InlineData
 		{
 			auto thisSymbol = Symbol("this");
 			auto e = object->clone(location);
-			cs->addInlinedParameter(-1, thisSymbol, dynamic_cast<Operations::Expression*>(e.get()));
+			cs->addInlinedParameter(-1, thisSymbol, e);
 
 			if (auto st = e->getTypeInfo().getTypedIfComplexType<StructType>())
 			{
-				if (!as<ThisPointer>(e))
+				// If the expression is already the this pointer (or a PointerAccess
+				// probably resulting from a high-level inliner "this->" expression
+				// it must not wrap it into a dot parent to avoid a wrong byte offset
+				auto shouldAddObjectAsDotParent = [](Statement::Ptr p)
 				{
-					target->forEachRecursive([st, e](Operations::Statement::Ptr p)
+					if (as<ThisPointer>(p))
+						return false;
+
+					if (as<PointerAccess>(p))
+						return false;
+
+					if (as<MemoryReference>(p))
 					{
-						if (auto v = dynamic_cast<Operations::VariableReference*>(p.get()))
+						return p->forEachRecursive([](Statement::Ptr p)
+						{
+							if (as<VariableReference>(p))
+								return true;
+
+							return false;
+						});
+					}
+
+					return true;
+				};
+
+				if (shouldAddObjectAsDotParent(e))
+				{
+					target->forEachRecursive([st, e](Statement::Ptr p)
+					{
+						if (auto v = as<VariableReference>(p))
 						{
 							auto canBeMember = st->canBeMember(v->id.id);
 							auto hasMember = canBeMember && st->hasMember(v->id.id.getIdentifier());
@@ -141,10 +166,7 @@ struct SyntaxTreeInlineData : public InlineData
 							{
 								auto newParent = e->clone(v->location);
 								auto newChild = v->clone(v->location);
-
-								auto newDot = new Operations::DotOperator(v->location,
-									dynamic_cast<Operations::Expression*>(newParent.get()),
-									dynamic_cast<Operations::Expression*>(newChild.get()));
+								auto newDot = new Operations::DotOperator(v->location, newParent, newChild);
 
 								v->replaceInParent(newDot);
 							}

@@ -332,7 +332,6 @@ juce::Result MathNodeLibrary::registerTypes()
 		return SyntaxTreeInlineParser(b, { "data" }, c).flush();
 	});
 
-#if 0
 	ma.injectInlinerForSetParameter(0, Inliner::HighLevel, [](InlineData* b)
 	{
 		cppgen::Base c;
@@ -342,14 +341,9 @@ juce::Result MathNodeLibrary::registerTypes()
 
 		return SyntaxTreeInlineParser(b, { "newValue" }, c).flush();
 	});
-#endif
 
 	LibraryNode<math::mul>(c, numChannels, getFactoryId());
 	LibraryNode<math::clear>(c, numChannels, getFactoryId());
-
-#if 0 // make this when the polydata structure is there (ideally something like b.addPolyDataMember(const TypeInfo& elementType);
-	
-#endif
 
 	return Result::ok();
 }

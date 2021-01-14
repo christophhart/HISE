@@ -464,6 +464,7 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 
 	static Result createEmbeddedSetExternalData(InlineData* b)
 	{
+#if 0
 		auto d = b->toAsmInlineData();
 
 		auto st = d->args[0]->getTypeInfo().getTypedComplexType<StructType>();
@@ -532,7 +533,7 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 
 		return Result::ok();
 
-#if 0
+#else
 		auto d = b->toSyntaxTreeData()->object->getTypeInfo().getTypedComplexType<StructType>();
 
 		auto size = d->getRequiredByteSize();
@@ -620,7 +621,7 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 			f.returnType = Types::ID::Void;
 
 			if (isEmbedded)
-				f.inliner = Inliner::createAsmInliner({}, createEmbeddedSetExternalData);
+				f.inliner = Inliner::createHighLevelInliner({}, createEmbeddedSetExternalData);
 			else
 				f.inliner = Inliner::createHighLevelInliner({}, createExternalSetExternalData);
 

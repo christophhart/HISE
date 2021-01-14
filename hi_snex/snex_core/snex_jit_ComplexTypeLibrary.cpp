@@ -1065,7 +1065,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 				cc.mov(flagReg, (int)l.getLine());
 				cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), flagReg);
-				cc.mov(flagReg, (int)l.getColNumber(l.program, l.location));
+				cc.mov(flagReg, (int)l.getColNumber());
 				cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
 				
 				if (index->isMemoryLocation())
@@ -1556,6 +1556,49 @@ bool StructType::setDefaultValue(const Identifier& id, InitialiserList::Ptr defa
 	}
 
 	return false;
+}
+
+bool validMemberType(const TypeInfo& member, const TypeInfo& t)
+{
+	if (member == t)
+		return true;
+
+	if (auto st = member.getTypedIfComplexType<StructType>())
+	{
+		WrapBuilder::InnerData mId(st, WrapBuilder::OpaqueType::GetSelfAsObject);
+
+		if (mId.resolve())
+		{
+			WrapBuilder::InnerData tId(t.getTypedIfComplexType<StructType>(), WrapBuilder::OpaqueType::GetSelfAsObject);
+
+			if (tId.resolve())
+			{
+				return tId.st == mId.st;
+			}
+		}
+	}
+
+	if (auto sp = member.getTypedIfComplexType<SpanType>())
+	{
+		return sp->getElementType() == t;
+	}
+
+	return false;
+}
+
+bool StructType::hasMemberAtOffset(int offset, const TypeInfo& type) const
+{
+	bool ok = false;
+
+	for (auto m : memberData)
+	{
+		if (m->offset + m->padding == offset)
+		{
+			ok |= validMemberType(m->typeInfo, type);
+		}
+	}
+
+	return ok;
 }
 
 snex::jit::ComplexType::Ptr StructType::createSubType(SubTypeConstructData* sd)

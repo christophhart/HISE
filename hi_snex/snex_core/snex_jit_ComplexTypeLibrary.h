@@ -368,6 +368,8 @@ struct StructType : public ComplexType,
 
 	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList);
 
+	bool hasMemberAtOffset(int offset, const TypeInfo& type) const;
+
 	ComplexType::Ptr createSubType(SubTypeConstructData* sd) override;
 
 	bool hasMember(const Identifier& id) const;
