@@ -724,7 +724,7 @@ ExternalTypeParser::ExternalTypeParser(String::CharPointerType location, String:
 		parseResult = Result::ok();
 		l = tp.location.location;
 	}
-	catch (ParserHelpers::CodeLocation::Error& s)
+	catch (ParserHelpers::Error& s)
 	{
 		parseResult = Result::fail(s.toString());
 		type = {};

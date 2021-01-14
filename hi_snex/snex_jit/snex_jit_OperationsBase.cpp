@@ -396,7 +396,7 @@ String Operations::Statement::toSimpleTree() const
 
 void Operations::Statement::throwError(const juce::String& errorMessage) const
 {
-	ParserHelpers::CodeLocation::Error e(location.program, location.location);
+	ParserHelpers::Error e(location);
 	e.errorMessage = errorMessage;
 	throw e;
 }
@@ -484,7 +484,7 @@ void Operations::Statement::logMessage(BaseCompiler* compiler, BaseCompiler::Mes
 
 	juce::String m;
 
-	ParserHelpers::CodeLocation::Error e(location.program, location.location);
+	ParserHelpers::Error e(location);
 	e.errorMessage = message;
 
 	DBG(e.toString());

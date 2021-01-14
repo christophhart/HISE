@@ -193,14 +193,14 @@ private:
 
 		bool isPreprocessorDirective() const;
 
-		void processError(ParserHelpers::CodeLocation::Error& e)
+		void processError(ParserHelpers::Error& e)
 		{
-			if (e.program != program)
+			if (e.location.program != program)
 			{
-				int delta = e.location - e.program;
+				int delta = e.location.location - e.location.program;
 
-				e.location = originalLocation + delta;
-				e.program = program;
+				e.location.location = originalLocation + delta;
+				e.location.program = program;
 			}
 		}
 

@@ -427,7 +427,7 @@ juce::Result SyntaxTreeInlineParser::flush()
 
 		f->process(d->expression->currentCompiler, d->expression->currentScope);
 	}
-	catch (ParserHelpers::CodeLocation::Error& e)
+	catch (ParserHelpers::Error& e)
 	{
 		return Result::fail(e.toString());
 		jassertfalse;

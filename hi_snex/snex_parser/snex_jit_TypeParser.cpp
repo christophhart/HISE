@@ -354,7 +354,7 @@ snex::jit::TypeInfo ExpressionTypeParser::parseType()
 		auto ct = nh.getVariableType(currentId);
 		return parseDot(ct);
 	}
-	catch (ParserHelpers::CodeLocation::Error& e)
+	catch (ParserHelpers::Error& e)
 	{
 		return TypeInfo();
 	}

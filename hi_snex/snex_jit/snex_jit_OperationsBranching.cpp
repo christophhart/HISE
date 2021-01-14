@@ -404,7 +404,7 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 				acg.cc.mov(errorFlag, why);
 				acg.cc.mov(why, (int)location.getLine());
 				acg.cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), why);
-				acg.cc.mov(why, (int)location.getColNumber(location.program, location.location));
+				acg.cc.mov(why, (int)location.getColNumber());
 				acg.cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), why);
 				acg.cc.jmp(exit);
 				acg.cc.bind(okBranch);
@@ -428,7 +428,7 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 				acg.cc.mov(errorFlag, why);
 				acg.cc.mov(why, (int)location.getLine());
 				acg.cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), why);
-				acg.cc.mov(why, (int)location.getColNumber(location.program, location.location));
+				acg.cc.mov(why, (int)location.getColNumber());
 				acg.cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), why);
 				acg.cc.jmp(exit);
 				acg.cc.bind(okBranch);

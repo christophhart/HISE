@@ -1322,7 +1322,7 @@ struct NamespaceHandler::SymbolToken::Parser: public ParserHelpers::TokenIterato
 
 			return handler.get(id).get();
 		}
-		catch (ParserHelpers::CodeLocation::Error& e)
+		catch (ParserHelpers::Error& e)
 		{
 			return nullptr;
 		}
@@ -1362,7 +1362,7 @@ bool NamespaceHandler::SymbolToken::matches(const String& input, const String& p
 				}
 			}
 		}
-		catch (ParserHelpers::CodeLocation::Error& e)
+		catch (ParserHelpers::Error& e)
 		{
 			return false;
 		}

@@ -529,7 +529,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 				cc.mov(flagReg, (int)location.getLine());
 				cc.mov(errorFlag.cloneAdjustedAndResized(4, 4), flagReg);
-				cc.mov(flagReg, (int)location.getColNumber(location.program, location.location));
+				cc.mov(flagReg, (int)location.getColNumber());
 				cc.mov(errorFlag.cloneAdjustedAndResized(8, 4), flagReg);
 				
 				cc.mov(INT_REG_W(l), 0);

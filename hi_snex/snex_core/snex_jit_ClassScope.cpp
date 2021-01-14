@@ -137,7 +137,7 @@ public:
 			if (lastResult.wasOk())
 				lastResult = newScope->pimpl->getRootData()->callRootConstructors();
 		}
-		catch (ParserHelpers::CodeLocation::Error& e)
+		catch (ParserHelpers::Error& e)
 		{
 			syntaxTree = nullptr;
 

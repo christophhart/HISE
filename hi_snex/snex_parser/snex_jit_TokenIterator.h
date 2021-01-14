@@ -38,8 +38,12 @@ using namespace juce;
 
 /** Allow line number parsing. set this to false to speed up the parsing (until  there's a faster method available). */
 #ifndef SNEX_PARSE_LINE_NUMBERS
-#define SNEX_PARSE_LINE_NUMBERS 0
+#define SNEX_PARSE_LINE_NUMBERS 1
 #endif
+
+
+#define SNEX_PREPARSE_LINE_NUMBERS 1
+
 
 #define HNODE_JIT_OPERATORS(X) \
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
@@ -102,7 +106,7 @@ struct ParserHelpers
 
 		void throwError(const juce::String& message) const
 		{
-			Error e(program, location);
+			Error e(*this);
 
 			e.errorMessage = message;
 			throw e;
@@ -110,7 +114,7 @@ struct ParserHelpers
 
 		Point<int> getXYPosition() const
 		{
-			return { getLine(), getColNumber(program, location) };
+			return { getLine(), getColNumber() };
 		}
 
 		void test(const Result& r) const
@@ -121,14 +125,50 @@ struct ParserHelpers
 
 		int getLine() const
 		{
-			return getLineNumber(program, location);
+#if SNEX_PARSE_LINE_NUMBERS
+#if SNEX_PREPARSE_LINE_NUMBERS
+			return lineNumber;
+#else
+			return calculateLineNumber();
+#endif
+#else
+			return 0;
+#endif
 		}
 
-		static int getColNumber(juce::String::CharPointerType start,
-			juce::String::CharPointerType end)
+		int getColNumber() const
 		{
 #if SNEX_PARSE_LINE_NUMBERS
+#if SNEX_PREPARSE_LINE_NUMBERS
+			return colNumber;
+#else
+			return calculateColNumber();
+#endif
+#else
+			return 0;
+#endif
+		}
+
+		int calculateLineNumber() const
+		{
+			auto start = program;
+			auto end = location;
+
+			int line = 1;
+
+			while(start != end)
+			{
+				if (*start++ == '\n')
+					line++;
+			}
+
+			return line;
+
+#if 0
 			int col = 0;
+
+			auto start = program;
+			auto end = location;
 
 			auto charactersFromStart = (end - start);
 
@@ -141,65 +181,72 @@ struct ParserHelpers
 			}
 
 			return col;
-#else
-			return 0;
 #endif
 		}
 
-		static int getLineNumber(juce::String::CharPointerType start, 
-			juce::String::CharPointerType end)
+		int calculateColNumber() const
 		{
-#if SNEX_PARSE_LINE_NUMBERS
-			int line = 1;
 
-			auto charactersFromStart = (end - start);
 
-			auto l = (int)start.length();
+			int col = 0;
 
-			for (int i = 0; i < jmin<int>((int)charactersFromStart, l); i++)
+			auto start = program;
+			auto end = location;
+
+			while (start != end)
 			{
-				if (start[i] == '\n')
+				if (*(end) == '\n')
 				{
-					line++;
+					break;
 				}
+
+				col++;
+				--end;
 			}
 
-			return line;
-#else
-			return 0;
-#endif
+			return col - 1;
 		}
-
-		struct Error
-		{
-			Error(const String::CharPointerType &program_, const String::CharPointerType &location_) : 
-				program(program_), 
-				location(location_)
-			{};
-
-			String toString() const
-			{
-				String s;
-
-				s << "Line " << CodeLocation::getLineNumber(program, location);
-				s << "(" << CodeLocation::getColNumber(program, location) << ")";
-				s << ": " << errorMessage;
-
-				return s;
-			}
-
-			String errorMessage;
-			String::CharPointerType location;
-			String::CharPointerType program;
-
-		};
 
 		String::CharPointerType program;
 		String::CharPointerType location;
 
+#if SNEX_PREPARSE_LINE_NUMBERS
 		int lineNumber = 0;
+		int colNumber = 0;
+#endif
 	};
 
+	struct Error
+	{
+		Error(const CodeLocation& location_) :
+			location(location_)
+		{
+			
+		};
+
+		String toString() const
+		{
+			auto lToUse = location;
+
+			if (lToUse.getXYPosition().isOrigin())
+			{
+				lToUse.lineNumber = location.calculateLineNumber();
+				lToUse.colNumber = location.calculateColNumber();
+			}
+
+			String s;
+
+			s << "Line " << lToUse.getLine();
+			s << "(" << lToUse.getColNumber() << ")";
+			s << ": " << errorMessage;
+
+			return s;
+		}
+
+		String errorMessage;
+
+		CodeLocation location;
+	};
 	
 
 	struct TokenIterator
@@ -226,7 +273,7 @@ struct ParserHelpers
 			{
 				skip();
 			}
-			catch (CodeLocation::Error& e)
+			catch (Error& e)
 			{
 
 			}

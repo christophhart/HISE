@@ -134,7 +134,8 @@ String::CharPointerType Preprocessor::TextBlock::getEnd() const
 
 void Preprocessor::TextBlock::throwError(const String& error)
 {
-	ParserHelpers::CodeLocation::Error e(program, originalLocation);
+	ParserHelpers::CodeLocation l(originalLocation, program);
+	ParserHelpers::Error e(l);
 	e.errorMessage = error;
 	throw e;
 }
@@ -218,7 +219,7 @@ String Preprocessor::process()
 				conditions.add(value);
 			}
 		}
-		catch (ParserHelpers::CodeLocation::Error& e)
+		catch (ParserHelpers::Error& e)
 		{
 			if (!conditionMode)
 			{
@@ -231,7 +232,8 @@ String Preprocessor::process()
 
 	if (!conditionMode && !conditions.isEmpty()) 
 	{
-		ParserHelpers::CodeLocation::Error e(code.getCharPointer(), code.getCharPointer() + code.length());
+		ParserHelpers::CodeLocation l(code.getCharPointer() + code.length(), code.getCharPointer());
+		ParserHelpers::Error e(l);
 		e.errorMessage = "missing #endif";
 		throw e.toString();
 	}

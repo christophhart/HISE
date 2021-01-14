@@ -96,7 +96,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 						statements = p.parseStatementList();
 				}
 			}
-			catch (ParserHelpers::CodeLocation::Error& e)
+			catch (ParserHelpers::Error& e)
 			{
 				statements = nullptr;
 				functionScope = nullptr;
@@ -171,7 +171,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 					st->addJitCompiledMemberFunction(*classData);
 			}
 		}
-		catch (ParserHelpers::CodeLocation::Error& e)
+		catch (ParserHelpers::Error& e)
 		{
 			statements = nullptr;
 			functionScope = nullptr;
