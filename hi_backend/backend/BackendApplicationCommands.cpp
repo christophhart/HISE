@@ -1906,7 +1906,7 @@ void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 
 						f.replaceWithText(xml->createDocument(""));
 
-						debugToConsole(bpe->owner->getMainSynthChain(), "Save " + mainSynthChainId + ".xml to " + f.getFullPathName());
+						debugToConsole(bpe->owner->getMainSynthChain(), "Save " + mainSynthChainId + " to " + f.getFullPathName());
 			            
 						if (originalScriptDirectory.deleteRecursively())
 						{
