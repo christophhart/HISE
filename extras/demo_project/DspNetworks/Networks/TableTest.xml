@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Network ID="TableTest">
+  <Node FactoryPath="container.chain" ID="TableTest1" NumChannels="2"
+        LockNumChannels="0" NodeColour="0" Comment="" CommentWidth="300"
+        BypassRampTimeMs="20">
+    <Properties/>
+    <Nodes>
+      <Node ID="ramp" FactoryPath="core.ramp" NumChannels="2" LockNumChannels="0"
+            NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+        <Properties/>
+        <Parameters>
+          <Parameter Inverted="0" MinValue="0.1" MaxValue="1000" LowerLimit="0.1"
+                     UpperLimit="1000" StepSize="0.1" SkewFactor="1" ID="PeriodTime"
+                     Value="196"/>
+          <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                     StepSize="0.01" SkewFactor="1" ID="LoopStart" Value="0"/>
+        </Parameters>
+      </Node>
+      <Node ID="table" FactoryPath="core.table" NumChannels="2" LockNumChannels="0"
+            NodeColour="0" Comment="" CommentWidth="300" NumTables="1" BypassRampTimeMs="20">
+        <Properties>
+          <Property ID="DataIndex" Value="-1" Public="0"/>
+          <Property ID="EmbeddedData" Value="60..........9C...vO..v79.........3O..v79....9C...vO..3e+....9C...vO...f+.........vO"
+                    Public="0"/>
+        </Properties>
+        <ModulationTargets/>
+        <Parameters/>
+      </Node>
+      <Node ID="mono2stereo" FactoryPath="core.mono2stereo" NumChannels="2"
+            LockNumChannels="0" NodeColour="0" Comment="" CommentWidth="300"
+            BypassRampTimeMs="20" Bypassed="0">
+        <Properties/>
+        <Parameters/>
+      </Node>
+    </Nodes>
+    <Parameters/>
+  </Node>
+</Network>
