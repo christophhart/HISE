@@ -162,9 +162,10 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_SCRIPT_PROPERTY(tId2, "textColour");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
 	ADD_SCRIPT_PROPERTY(mId3, "macroControl");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(sId1, "saveInPreset");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(mId4, "enableMidiLearn");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(iId4, "isPluginParameter"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId, "pluginParameterName");
-    ADD_SCRIPT_PROPERTY(pId76, "isMetaParameter");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+  ADD_SCRIPT_PROPERTY(pId76, "isMetaParameter");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId72, "linkedTo")			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(uId, "useUndoManager");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId2, "parentComponent");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -187,10 +188,11 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::textColour, (int64)0xFFFFFFFF);
 	setDefaultValue(Properties::macroControl, -1);
 	setDefaultValue(Properties::saveInPreset, true);
+	setDefaultValue(Properties::enableMidiLearn, true);
 	setDefaultValue(Properties::defaultValue, 0);
 	setDefaultValue(Properties::isPluginParameter, false);
 	setDefaultValue(Properties::pluginParameterName, "");
-    setDefaultValue(Properties::isMetaParameter, false);
+  setDefaultValue(Properties::isMetaParameter, false);
 	setDefaultValue(Properties::linkedTo, "");
 	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
