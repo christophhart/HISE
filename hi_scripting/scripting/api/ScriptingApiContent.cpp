@@ -1099,6 +1099,7 @@ maximum(1.0f)
 	ADD_SCRIPT_PROPERTY(i12, "dragDirection");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i13, "showValuePopup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i14, "showTextBox"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i15, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 #if 0
 	componentProperties->setProperty(getIdFor(Mode), 0);
@@ -1137,6 +1138,7 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::dragDirection, "Diagonal");
 	setDefaultValue(ScriptSlider::Properties::showValuePopup, "No");
 	setDefaultValue(ScriptSlider::Properties::showTextBox, true);
+	setDefaultValue(ScriptSlider::Properties::enableMidiLearn, true);
 
 	ScopedValueSetter<bool> svs(removePropertyIfDefault, false);
 
@@ -1577,6 +1579,7 @@ ScriptComponent(base, name)
 	ADD_NUMBER_PROPERTY(i03, "scaleFactor");
 	ADD_NUMBER_PROPERTY(i05, "radioGroup");
 	ADD_SCRIPT_PROPERTY(i04, "isMomentary");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i06, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	handleDefaultDeactivatedProperties();
 
@@ -1590,6 +1593,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptButton::Properties::scaleFactor, 1.0f);
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
 	setDefaultValue(ScriptButton::Properties::isMomentary, 0);
+	setDefaultValue(ScriptButton::Properties::enableMidiLearn, true);
 
 	initInternalPropertyFromValueTreeOrDefault(filmstripImage);
 
@@ -1784,6 +1788,7 @@ ScriptComponent(base, name)
 	ADD_SCRIPT_PROPERTY(i01, "fontName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_NUMBER_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i04, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	priorityProperties.add(getIdFor(Items));
 
@@ -1797,6 +1802,7 @@ ScriptComponent(base, name)
 	setDefaultValue(FontName, "Default");
 	setDefaultValue(ScriptComponent::Properties::defaultValue, 1);
 	setDefaultValue(ScriptComponent::min, 1.0f);
+	setDefaultValue(ScriptComboBox::Properties::enableMidiLearn, false);
 	
 	handleDefaultDeactivatedProperties();
 	initInternalPropertyFromValueTreeOrDefault(Items);
