@@ -1144,6 +1144,10 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 			mc->processBlockCommon(chunk, delayedMidiBuffer);
 		}
 	}
+	else if (buffer.getNumSamples() % HISE_EVENT_RASTER != 0)
+	{
+		buffer.clear();
+	}
 	else
 	{
 		mc->processBlockCommon(buffer, midiMessages);
